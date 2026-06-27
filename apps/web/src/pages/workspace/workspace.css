@@ -530,6 +530,19 @@
   transform: translate(-50%, -100%);
 }
 
+/* Preview & Save print sheet (PDF export = window.print()). The white-paper /
+ * cover-letter pages on the Preview screen are .ws-print-sheet inside the
+ * .ws-print-stage; print rules below collapse the chrome and emit one sheet per
+ * physical page. */
+.ws-print-sheet {
+  page-break-after: always;
+  break-after: page;
+}
+.ws-print-sheet:last-child {
+  page-break-after: auto;
+  break-after: auto;
+}
+
 /* Print: emit only the document canvas (PDF via browser print). */
 @media print {
   /* Hide the app shell chrome + the workspace rails/toolbars. */
@@ -539,6 +552,8 @@
   .ant-layout-sider,
   .ant-layout-header,
   .ws-card,
+  .ws-preview-controls,
+  .ws-preview-aside,
   .ws-stage > div:first-child {
     display: none !important;
   }
@@ -554,6 +569,25 @@
     box-shadow: none !important;
     border: none !important;
     max-width: 100% !important;
+    margin: 0 !important;
+    padding: 0 !important;
+  }
+  /* Preview stage: drop the sunken backdrop + the centered-column grid so the
+     sheets flow as plain pages. The right export aside (.ws-preview-aside) and
+     the controls bar are hidden above. */
+  .ws-print-stage {
+    overflow: visible !important;
+    padding: 0 !important;
+    background: #fff !important;
+  }
+  .ws-print-stage > .num {
+    display: none !important;
+  }
+  .ws-print-sheet {
+    box-shadow: none !important;
+    border-radius: 0 !important;
+    width: 100% !important;
+    min-height: 0 !important;
     margin: 0 !important;
     padding: 0 !important;
   }
