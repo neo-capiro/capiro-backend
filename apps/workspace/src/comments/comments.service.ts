@@ -1,5 +1,11 @@
-import { ForbiddenException, Injectable, NotFoundException } from '@nestjs/common';
+import {
+  BadRequestException,
+  ForbiddenException,
+  Injectable,
+  NotFoundException,
+} from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service.js';
+import { GenerationService } from '../generation/generation.service.js';
 import type { CreateCommentDto, UpdateCommentDto } from './dto/comment.dto.js';
 
 /**
@@ -13,7 +19,10 @@ import type { CreateCommentDto, UpdateCommentDto } from './dto/comment.dto.js';
  */
 @Injectable()
 export class CommentsService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly generation: GenerationService,
+  ) {}
 
   private async assertDocument(tenantId: string, documentId: string) {
     const doc = await this.prisma.wsDocument.findFirst({
@@ -33,12 +42,7 @@ export class CommentsService {
     });
   }
 
-  async create(
-    tenantId: string,
-    documentId: string,
-    authorId: string,
-    dto: CreateCommentDto,
-  ) {
+  async create(tenantId: string, documentId: string, authorId: string, dto: CreateCommentDto) {
     await this.assertDocument(tenantId, documentId);
     if (dto.parentId) {
       const parent = await this.prisma.wsComment.findFirst({
@@ -82,6 +86,43 @@ export class CommentsService {
         ...(dto.body !== undefined ? { body: dto.body } : {}),
         ...(dto.resolved !== undefined ? { resolved: dto.resolved } : {}),
       },
+    });
+  }
+
+  /**
+   * "Let Meri draft an edit" (handoff §12.7). Drafts a concrete rewrite of the
+   * comment's quoted passage that addresses the thread, grounded in the parent
+   * draft's config and honoring its anonymize flag. Returns a before/after the
+   * client renders in a SuggestionCard. Requires the comment to carry a quote.
+   */
+  async suggestEdit(tenantId: string, documentId: string, commentId: string) {
+    await this.assertDocument(tenantId, documentId);
+    const comment = await this.prisma.wsComment.findFirst({
+      where: { id: commentId, tenantId, documentId },
+      include: { replies: { orderBy: { createdAt: 'asc' } } },
+    });
+    if (!comment) throw new NotFoundException('Comment not found');
+    if (!comment.quote || !comment.quote.trim()) {
+      throw new BadRequestException('Comment has no quoted passage to edit');
+    }
+
+    const document = await this.prisma.wsDocument.findFirst({
+      where: { id: documentId, tenantId },
+      include: { draft: true },
+    });
+    const draft = document?.draft;
+    const cfg = (draft?.config as Record<string, unknown> | undefined) ?? {};
+
+    return this.generation.suggestCommentEdit({
+      tenantId,
+      quote: comment.quote,
+      commentBody: comment.body,
+      replies: (comment.replies ?? []).map((r) => r.body),
+      docTitle: draft?.docTitle ?? 'document',
+      product: draft?.product ?? null,
+      client: (cfg.client as string | null) ?? draft?.client ?? null,
+      offices: (cfg.offices as string[] | undefined) ?? [],
+      anonymize: Boolean(cfg.anonymize),
     });
   }
 

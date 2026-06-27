@@ -7,12 +7,16 @@
  * "Context Meri uses" list (from cfg.linkedData) with Edit → the Context
  * Builder for this draft.
  *
- * Comments tab (Phase 6 DEFERRED): the tab + open-count badge render now, but
- * the content is a simple placeholder list. The full CommentsRail (compose,
- * replies, resolve, Meri-draft-edit) lands in Phase 6.
+ * Comments tab (Phase 6): the full CommentsRail — highlight-to-comment compose,
+ * threaded replies, resolve (clears the highlight), and "Let Meri draft an edit".
+ * The editor controls the tab via `activeTab`/`onTabChange` so a canvas
+ * selection can auto-switch the rail to Comments.
  */
 import { useState } from 'react';
 import { Icon } from '../kit.js';
+import type { WsComment } from '../types.js';
+import { CommentsRail, type ComposingComment } from './CommentsRail.js';
+import type { CommentAnchor } from './anchors.js';
 
 const QUICK_ACTIONS = ['Tighten the ask', 'Expand acronyms', 'Stronger nexus'];
 
@@ -20,6 +24,16 @@ export function MeriPanel({
   isMainDoc,
   contextItems,
   openComments,
+  activeTab,
+  onTabChange,
+  documentId,
+  comments,
+  composing,
+  selfClerkId,
+  selfName,
+  onComposeSave,
+  onComposeCancel,
+  onApplyEdit,
   onAsk,
   onQuickAction,
   onEditContext,
@@ -28,11 +42,24 @@ export function MeriPanel({
   /** Labels of the context references Meri uses (cfg.linkedData). */
   contextItems: string[];
   openComments: number;
+  /** Editor-controlled active rail tab (so a selection can switch to Comments). */
+  activeTab: 'meri' | 'comments';
+  onTabChange: (tab: 'meri' | 'comments') => void;
+  /** The active canvas document id (engine comment scope). */
+  documentId: string | null;
+  comments: WsComment[];
+  composing: ComposingComment | null;
+  selfClerkId: string | null;
+  selfName: string;
+  onComposeSave: (text: string) => void;
+  onComposeCancel: () => void;
+  onApplyEdit: (anchor: CommentAnchor, after: string) => void;
   onAsk: (text: string) => void;
   onQuickAction: (action: string) => void;
   onEditContext: () => void;
 }) {
-  const [tab, setTab] = useState<'meri' | 'comments'>('meri');
+  const tab = activeTab;
+  const setTab = onTabChange;
   const [input, setInput] = useState('');
 
   const Tab = ({ k, label, badge }: { k: 'meri' | 'comments'; label: string; badge?: number }) => {
@@ -101,29 +128,37 @@ export function MeriPanel({
       </div>
 
       {tab === 'comments' ? (
-        // TODO(phase 6): full CommentsRail. Placeholder list for now.
-        <div
-          style={{
-            flex: 1,
-            display: 'flex',
-            flexDirection: 'column',
-            alignItems: 'center',
-            justifyContent: 'center',
-            gap: 8,
-            padding: 24,
-            textAlign: 'center',
-            color: 'var(--ink-3)',
-          }}
-        >
-          <Icon name="MessageSquare" size={22} style={{ color: 'var(--ink-4)' }} />
-          <div style={{ fontSize: 12.5, fontWeight: 600, color: 'var(--ink-2)' }}>
-            {openComments} open comment{openComments === 1 ? '' : 's'}
+        documentId ? (
+          <CommentsRail
+            documentId={documentId}
+            comments={comments}
+            composing={composing}
+            selfClerkId={selfClerkId}
+            selfName={selfName}
+            onComposeSave={onComposeSave}
+            onComposeCancel={onComposeCancel}
+            onApplyEdit={onApplyEdit}
+          />
+        ) : (
+          <div
+            style={{
+              flex: 1,
+              display: 'flex',
+              flexDirection: 'column',
+              alignItems: 'center',
+              justifyContent: 'center',
+              gap: 8,
+              padding: 24,
+              textAlign: 'center',
+              color: 'var(--ink-3)',
+            }}
+          >
+            <Icon name="MessageSquare" size={22} style={{ color: 'var(--ink-4)' }} />
+            <div style={{ fontSize: 12, lineHeight: 1.5, maxWidth: 220 }}>
+              Comments attach to a saved document. Add content first.
+            </div>
           </div>
-          <div style={{ fontSize: 12, lineHeight: 1.5, maxWidth: 220 }}>
-            Highlight text in the document to comment. The full comments rail arrives in a later
-            phase.
-          </div>
-        </div>
+        )
       ) : (
         <div
           style={{

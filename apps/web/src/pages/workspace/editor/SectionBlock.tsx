@@ -237,6 +237,7 @@ export function SectionBlock({
             <SectionRichText
               value={anonymizeOn ? anonText(content, true, anonMap) : content}
               onChange={onChangeBody}
+              dataSection={name}
               aria-label={`${name} body`}
               style={{
                 fontSize: 13,
@@ -264,6 +265,7 @@ export function SectionBlock({
           <SectionRichText
             value={anonymizeOn ? anonText(content, true, anonMap) : content}
             onChange={onChangeBody}
+            dataSection={name}
             aria-label={`${name} body`}
             placeholder="Write here…"
             style={{

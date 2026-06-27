@@ -469,6 +469,8 @@
   height: calc(100vh - 56px);
   min-height: 520px;
   background: var(--bg-surface);
+  /* Anchor the Anonymize review overlay (position:absolute; inset:0). */
+  position: relative;
 }
 .ws-editor-scroll {
   flex: 1;
@@ -497,6 +499,35 @@
 }
 .ws-rte-body:focus {
   outline: none;
+}
+
+/* Comment highlight (transient; the source of truth is the section+offset
+   anchor — see editor/anchors.ts). Marks the quoted span in the canvas. */
+.ws-hl {
+  background: rgba(212, 160, 23, 0.22);
+  border-bottom: 2px solid var(--notable);
+  border-radius: 2px;
+  cursor: pointer;
+}
+
+/* Floating "Comment" button shown at a live selection. */
+.ws-comment-fab {
+  position: fixed;
+  z-index: 120;
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 5px 10px;
+  font-size: 12px;
+  font-weight: 600;
+  font-family: var(--font-sans);
+  color: #fff;
+  background: var(--accent);
+  border: none;
+  border-radius: 7px;
+  box-shadow: var(--shadow-2);
+  cursor: pointer;
+  transform: translate(-50%, -100%);
 }
 
 /* Print: emit only the document canvas (PDF via browser print). */

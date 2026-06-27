@@ -1,13 +1,4 @@
-import {
-  Body,
-  Controller,
-  Delete,
-  Get,
-  Param,
-  Patch,
-  Post,
-  UseGuards,
-} from '@nestjs/common';
+import { Body, Controller, Delete, Get, Param, Patch, Post, UseGuards } from '@nestjs/common';
 import { TenantGuard } from '../auth/tenant.guard.js';
 import { CurrentTenant } from '../auth/current-tenant.decorator.js';
 import type { WorkspaceTenantContext } from '../auth/tenant-context.js';
@@ -32,6 +23,20 @@ export class CommentsController {
     @Body() dto: CreateCommentDto,
   ) {
     return this.comments.create(ctx.tenantId, documentId, ctx.clerkUserId, dto);
+  }
+
+  /**
+   * POST /workspace-api/documents/:documentId/comments/:commentId/suggest
+   * "Let Meri draft an edit" — rewrites the comment's quoted passage to address
+   * the thread (before/after for a SuggestionCard). Tenant-scoped.
+   */
+  @Post(':commentId/suggest')
+  suggest(
+    @CurrentTenant() ctx: WorkspaceTenantContext,
+    @Param('documentId') documentId: string,
+    @Param('commentId') commentId: string,
+  ) {
+    return this.comments.suggestEdit(ctx.tenantId, documentId, commentId);
   }
 
   @Patch(':commentId')

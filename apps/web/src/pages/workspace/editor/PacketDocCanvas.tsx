@@ -153,6 +153,7 @@ export function PacketDocCanvas({
             <SectionRichText
               value={sec.content ?? ''}
               onChange={(html) => setBlock(sec.id, { content: html })}
+              dataSection={sec.title ?? 'New section'}
               aria-label={`${sec.title ?? 'section'} body`}
               placeholder="Write here…"
               style={{
@@ -167,7 +168,12 @@ export function PacketDocCanvas({
         ))}
 
         {media.map((b) => (
-          <InsertedBlock key={b.id} kind={b.type} onRemove={() => removeBlock(b.id)} />
+          <InsertedBlock
+            key={b.id}
+            kind={b.type}
+            variant={b.variant as string | undefined}
+            onRemove={() => removeBlock(b.id)}
+          />
         ))}
       </div>
     </div>

@@ -211,6 +211,64 @@ export class GenerationService {
     });
   }
 
+  /**
+   * "Let Meri draft an edit" (handoff §12.7). Given a comment's quoted text and
+   * its thread, draft a concrete replacement for the quote that addresses the
+   * feedback. Returns the original quote (before) + the rewrite (after) so the
+   * CommentsRail can show a before/after SuggestionCard. Honors the draft's
+   * anonymize flag end-to-end (client/office names are stripped from the prompt
+   * AND from the model's echoed output).
+   */
+  async suggestCommentEdit(args: {
+    tenantId: string;
+    quote: string;
+    commentBody: string;
+    replies: string[];
+    docTitle: string;
+    product: string | null;
+    client: string | null;
+    offices: string[];
+    anonymize: boolean;
+  }): Promise<{ before: string; after: string; model: string }> {
+    const cred = await this.creds.resolveAnthropic(args.tenantId);
+    if (!cred) {
+      throw new ServiceUnavailableException(
+        'No Anthropic credential available (tenant or global). Configure an AI key.',
+      );
+    }
+
+    const thread = [args.commentBody, ...args.replies].filter(Boolean).join('\n- ');
+    const prompt = [
+      'You are Meri, a government-affairs editing assistant. A reviewer left a comment on a',
+      `passage in a ${args.product ?? 'document'} titled "${args.docTitle}".`,
+      args.anonymize
+        ? 'Do not reference any specific client or program by name; keep neutral placeholders.'
+        : args.client
+          ? `Client: ${args.client}.`
+          : '',
+      '',
+      `Highlighted passage:\n"""${args.quote}"""`,
+      '',
+      `Reviewer feedback:\n- ${thread}`,
+      '',
+      'Rewrite ONLY the highlighted passage to address the feedback. Output just the revised',
+      'passage prose — no quotes, no headers, no preamble, no meta-commentary. Government-affairs register.',
+    ]
+      .filter(Boolean)
+      .join('\n');
+
+    const finalPrompt = args.anonymize
+      ? anonymizeText(prompt, { client: args.client, offices: args.offices }).text
+      : prompt;
+
+    const raw = await this.callAnthropic(cred.secret, cred.model, finalPrompt);
+    const after = args.anonymize
+      ? anonymizeText(raw, { client: args.client, offices: args.offices }).text
+      : raw;
+
+    return { before: args.quote, after, model: cred.model };
+  }
+
   private parseIntakeJson(
     raw: string,
     products: string[],

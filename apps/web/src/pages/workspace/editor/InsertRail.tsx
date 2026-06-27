@@ -1,12 +1,15 @@
 /**
- * Insert rail (tiles only) — ported from the prototype `InsertRail` (asset_12).
- * Section / Templates / Photo / Table / Logo.
+ * Insert rail (Phase 6) — ported from the prototype `InsertRail` (asset_12).
+ * Section / Templates / Photo / Table / Logo tiles.
  *
- * Phase 6 stubs (DEFERRED): the Templates modal and the Table-type picker are
- * not built here — those tiles toast for now so the layout matches. Section /
- * Photo / Logo insert immediately.
+ *  - Templates → TemplateInsertModal (Replace vs Merge, see InsertModals).
+ *  - Table     → TableTypePicker (platform vs custom) anchored to the tile.
+ *  - Section / Photo / Logo insert immediately into the active canvas.
  */
+import { useEffect, useRef, useState } from 'react';
 import { Icon } from '../kit.js';
+import type { WsTemplate } from '../types.js';
+import { TableTypePicker, TemplateInsertModal } from './InsertModals.js';
 
 function Tile({ icon, label, onClick }: { icon: string; label: string; onClick: () => void }) {
   return (
@@ -44,49 +47,85 @@ function Tile({ icon, label, onClick }: { icon: string; label: string; onClick: 
 }
 
 export function InsertRail({
+  product,
   onAddSection,
   onInsert,
-  onToast,
+  onApplyTemplate,
 }: {
+  /** Active product — suggested templates ordering + the catalog query. */
+  product: string | null;
   onAddSection: () => void;
   onInsert: (kind: string) => void;
-  onToast: (msg: string) => void;
+  /** Apply a chosen template by mode (replace vs merge). */
+  onApplyTemplate: (template: WsTemplate, mode: 'replace' | 'merge') => void;
 }) {
+  const [showTablePicker, setShowTablePicker] = useState(false);
+  const [showTemplatePicker, setShowTemplatePicker] = useState(false);
+  const tableRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (!showTablePicker) return;
+    const h = (e: MouseEvent) => {
+      if (tableRef.current && !tableRef.current.contains(e.target as Node)) {
+        setShowTablePicker(false);
+      }
+    };
+    document.addEventListener('mousedown', h);
+    return () => document.removeEventListener('mousedown', h);
+  }, [showTablePicker]);
+
   return (
-    <div
-      style={{
-        borderLeft: '1px solid var(--border-1)',
-        background: 'var(--bg-surface)',
-        padding: '16px 9px',
-        display: 'flex',
-        flexDirection: 'column',
-        gap: 8,
-      }}
-    >
+    <>
       <div
         style={{
-          fontSize: 9.5,
-          textTransform: 'uppercase',
-          letterSpacing: '0.08em',
-          color: 'var(--ink-3)',
-          fontWeight: 600,
-          textAlign: 'center',
-          marginBottom: 2,
+          borderLeft: '1px solid var(--border-1)',
+          background: 'var(--bg-surface)',
+          padding: '16px 9px',
+          display: 'flex',
+          flexDirection: 'column',
+          gap: 8,
         }}
       >
-        Insert
+        <div
+          style={{
+            fontSize: 9.5,
+            textTransform: 'uppercase',
+            letterSpacing: '0.08em',
+            color: 'var(--ink-3)',
+            fontWeight: 600,
+            textAlign: 'center',
+            marginBottom: 2,
+          }}
+        >
+          Insert
+        </div>
+        <Tile icon="Plus" label="Section" onClick={onAddSection} />
+        <Tile icon="LayoutTemplate" label="Templates" onClick={() => setShowTemplatePicker(true)} />
+        <Tile icon="Image" label="Photo" onClick={() => onInsert('image')} />
+        <div
+          ref={tableRef}
+          style={{ position: 'relative', display: 'flex', flexDirection: 'column' }}
+        >
+          <Tile icon="Table" label="Table" onClick={() => setShowTablePicker((s) => !s)} />
+          {showTablePicker && (
+            <TableTypePicker
+              onClose={() => setShowTablePicker(false)}
+              onInsert={(kind) => {
+                onInsert(kind);
+                setShowTablePicker(false);
+              }}
+            />
+          )}
+        </div>
+        <Tile icon="Stamp" label="Logo" onClick={() => onInsert('logo')} />
       </div>
-      <Tile icon="Plus" label="Section" onClick={onAddSection} />
-      {/* TODO(phase 6): Templates modal — toast stub for now. */}
-      <Tile
-        icon="LayoutTemplate"
-        label="Templates"
-        onClick={() => onToast('Templates picker arrives in a later phase')}
-      />
-      <Tile icon="Image" label="Photo" onClick={() => onInsert('image')} />
-      {/* TODO(phase 6): Table-type picker (platform vs custom) — inserts a sample table for now. */}
-      <Tile icon="Table" label="Table" onClick={() => onInsert('table')} />
-      <Tile icon="Stamp" label="Logo" onClick={() => onInsert('logo')} />
-    </div>
+      {showTemplatePicker && (
+        <TemplateInsertModal
+          product={product}
+          onClose={() => setShowTemplatePicker(false)}
+          onApply={onApplyTemplate}
+        />
+      )}
+    </>
   );
 }

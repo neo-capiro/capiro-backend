@@ -13,6 +13,51 @@ import type {
 
 // Base path: the engine is mounted at /workspace-api/* on the shared ALB.
 const BASE = '/workspace-api';
+// The MAIN Capiro API (tenant/user tables) is mounted at /api/*. The workspace
+// engine doesn't own the user table, so identity resolution goes to /api.
+const MAIN = '/api';
+
+// ── Identity (tenant members) ────────────────────────────────────────────────
+/**
+ * A tenant member as the comment/collaborator UI needs them. `clerkUserId` is
+ * the key the engine stores on a comment's `authorId` (the engine trusts the
+ * Clerk claim and never synthesizes a Capiro user id), so author resolution is
+ * by clerkUserId; `id` is the canonical Capiro user id for everything else.
+ */
+export interface WsTenantMember {
+  id: string;
+  clerkUserId: string;
+  email: string;
+  name: string;
+  initials: string;
+}
+
+/** First+last initials from a display name (falls back to first two letters). */
+export function initials(name: string): string {
+  const parts = (name || '').trim().split(/\s+/).filter(Boolean);
+  if (parts.length === 0) return '?';
+  if (parts.length === 1) return parts[0]!.slice(0, 2).toUpperCase();
+  return (parts[0]![0]! + parts[parts.length - 1]![0]!).toUpperCase();
+}
+
+/**
+ * Roster of the active tenant's members for author attribution + collaborator
+ * pickers. Backed by the MAIN api (GET /api/tenant-members) — NOT the engine —
+ * because the user table lives there. Display-only, available to every member.
+ */
+export function useTenantMembers() {
+  const api = useApi();
+  return useQuery({
+    queryKey: ['ws', 'tenant-members'],
+    staleTime: 60_000,
+    queryFn: async () => {
+      const { data } = await api.get<Array<Omit<WsTenantMember, 'initials'>>>(
+        `${MAIN}/tenant-members`,
+      );
+      return data.map((m) => ({ ...m, initials: initials(m.name) }));
+    },
+  });
+}
 
 // ── Cascade + catalog ───────────────────────────────────────────────────────
 export function useIndustries() {
@@ -286,6 +331,30 @@ export function useUpdateComment(documentId: string) {
   });
 }
 
+/**
+ * Ask Meri to draft a concrete edit that resolves a comment. Returns a
+ * before/after the CommentsRail renders in a SuggestionCard (Approve applies +
+ * resolves; Reject dismisses). Tenant-scoped engine endpoint.
+ */
+export interface CommentSuggestionResult {
+  before: string;
+  after: string;
+  model: string;
+}
+
+export function useSuggestCommentEdit(documentId: string) {
+  const api = useApi();
+  return useMutation({
+    mutationFn: async (commentId: string) =>
+      (
+        await api.post<CommentSuggestionResult>(
+          `${BASE}/documents/${documentId}/comments/${commentId}/suggest`,
+          {},
+        )
+      ).data,
+  });
+}
+
 // ── Generation (Meri) ───────────────────────────────────────────────────────
 export interface GenerateSectionResult {
   section: string;
@@ -305,6 +374,32 @@ export function useGenerateSection(draftId: string) {
           section,
         })
       ).data,
+  });
+}
+
+// ── Anonymize (review modal) ──────────────────────────────────────────────────
+/**
+ * A name span Meri detected as a candidate for anonymization. `kind` drives the
+ * default generic replacement ("the client" / "the program"). `occurrences` is
+ * the count across the draft (drives the All-occurrences vs This-mention scope).
+ */
+export interface AnonymizeDetection {
+  from: string;
+  kind: 'client' | 'office' | 'program';
+  suggested: string;
+  occurrences: number;
+}
+
+export function useAnonymizeDetect(draftId: string) {
+  const api = useApi();
+  return useMutation({
+    mutationFn: async () =>
+      (
+        await api.post<{ detections: AnonymizeDetection[] }>(
+          `${BASE}/drafts/${draftId}/anonymize/detect`,
+          {},
+        )
+      ).data.detections,
   });
 }
 

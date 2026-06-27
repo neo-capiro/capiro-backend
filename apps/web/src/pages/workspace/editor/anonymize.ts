@@ -8,14 +8,38 @@
  * → result.anonymized); this client pass covers content already in the doc.
  */
 
-/** Build a name→placeholder map from the draft's client + product. */
+/** A persisted redaction from the Anonymize review modal (cfg.anonymizeMap). */
+export interface StoredRedaction {
+  from: string;
+  to: string;
+  scope?: 'all' | 'this';
+}
+
+/**
+ * Build a name→placeholder map for the live display pass.
+ *
+ * When the draft carries a reviewed redaction map (cfg.anonymizeMap.redactions),
+ * that is authoritative — each approved term maps to its chosen replacement
+ * (generic/custom). Otherwise fall back to the simple client→"the client",
+ * product→"the program" default (the toggle behavior before a review is run).
+ *
+ * Note: "this mention only" scope can't be expressed in a global string-replace
+ * display pass, so the live canvas applies every approved redaction globally;
+ * per-mention scope is honored at export time (server-side) where the offset is
+ * known. The display pass is intentionally a superset (never leaks a name).
+ */
 export function anonymizeMap(
   client: string | null,
   product: string | null,
+  redactions?: StoredRedaction[],
 ): Array<[RegExp, string]> {
   const pairs: Array<[string, string]> = [];
-  if (client) pairs.push([client, 'the client']);
-  if (product) pairs.push([product, 'the program']);
+  if (redactions && redactions.length) {
+    for (const r of redactions) if (r.from && r.to) pairs.push([r.from, r.to]);
+  } else {
+    if (client) pairs.push([client, 'the client']);
+    if (product) pairs.push([product, 'the program']);
+  }
   return (
     pairs
       // Longest names first so a multi-word match wins over a partial one.
