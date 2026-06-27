@@ -66,6 +66,7 @@ export function SectionRichText({
   style,
   placeholder,
   dataSection,
+  readOnly,
   'aria-label': ariaLabel,
 }: {
   value: string;
@@ -74,6 +75,8 @@ export function SectionRichText({
   placeholder?: string;
   /** Section name for comment anchoring (read off `data-ws-section` in the DOM). */
   dataSection?: string;
+  /** View-only (someone else holds the edit lock): non-editable, still selectable for commenting. */
+  readOnly?: boolean;
   'aria-label'?: string;
 }) {
   const ref = useRef<HTMLDivElement>(null);
@@ -102,20 +105,22 @@ export function SectionRichText({
     <div
       ref={ref}
       className="ws-rte-body"
-      contentEditable
+      contentEditable={!readOnly}
       suppressContentEditableWarning
       role="textbox"
       aria-multiline="true"
+      aria-readonly={readOnly || undefined}
       aria-label={ariaLabel}
       data-ws-section={dataSection}
       data-placeholder={placeholder ?? ''}
       style={style}
       onFocus={() => {
+        if (readOnly) return;
         activeEl = ref.current;
         activeEmit = emit;
       }}
-      onInput={emit}
-      onBlur={emit}
+      onInput={readOnly ? undefined : emit}
+      onBlur={readOnly ? undefined : emit}
       onPaste={(e) => {
         // Sanitize pasted content before it reaches the DOM.
         e.preventDefault();

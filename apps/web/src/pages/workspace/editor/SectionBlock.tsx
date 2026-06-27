@@ -60,6 +60,7 @@ export function SectionBlock({
   ask,
   budget,
   drafting,
+  readOnly,
   isDragOver,
   isDragging,
   onRename,
@@ -83,6 +84,8 @@ export function SectionBlock({
   budget?: BudgetIdentifiers;
   /** True while a Meri generation for THIS section is in flight. */
   drafting: boolean;
+  /** View-only (someone else holds the edit lock). */
+  readOnly?: boolean;
   isDragOver: boolean;
   isDragging: boolean;
   onRename: (index: number, name: string) => void;
@@ -139,10 +142,13 @@ export function SectionBlock({
           <Icon name="GripVertical" size={14} />
         </span>
         <h3
-          contentEditable
+          contentEditable={!readOnly}
           suppressContentEditableWarning
           spellCheck={false}
-          onBlur={(e) => onRename(index, e.currentTarget.textContent ?? name)}
+          onBlur={(e) => {
+            if (readOnly) return;
+            onRename(index, e.currentTarget.textContent ?? name);
+          }}
           onFocus={(e) => (e.currentTarget.style.boxShadow = '0 0 0 3px var(--accent-glow)')}
           onBlurCapture={(e) => (e.currentTarget.style.boxShadow = 'none')}
           style={{
@@ -238,6 +244,7 @@ export function SectionBlock({
               value={anonymizeOn ? anonText(content, true, anonMap) : content}
               onChange={onChangeBody}
               dataSection={name}
+              readOnly={readOnly}
               aria-label={`${name} body`}
               style={{
                 fontSize: 13,
@@ -266,6 +273,7 @@ export function SectionBlock({
             value={anonymizeOn ? anonText(content, true, anonMap) : content}
             onChange={onChangeBody}
             dataSection={name}
+            readOnly={readOnly}
             aria-label={`${name} body`}
             placeholder="Write here…"
             style={{

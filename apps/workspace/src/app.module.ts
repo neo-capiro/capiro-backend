@@ -11,6 +11,9 @@ import { CommentsModule } from './comments/comments.module.js';
 import { ContextModule } from './context/context.module.js';
 import { GenerationModule } from './generation/generation.module.js';
 import { ExportModule } from './export/export.module.js';
+import { ChecksModule } from './checks/checks.module.js';
+import { VersionsModule } from './versions/versions.module.js';
+import { EditLockModule } from './edit-lock/edit-lock.module.js';
 
 @Module({
   imports: [
@@ -26,6 +29,9 @@ import { ExportModule } from './export/export.module.js';
     ContextModule,
     GenerationModule,
     ExportModule,
+    ChecksModule,
+    VersionsModule,
+    EditLockModule,
   ],
 })
 export class AppModule {}
