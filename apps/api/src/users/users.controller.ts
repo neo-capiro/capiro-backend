@@ -205,4 +205,35 @@ export class UsersController {
       }));
     });
   }
+
+  /**
+   * Lightweight roster of the active tenant's members for display/attribution
+   * (comment authors, collaborators, @-mentions). Unlike GET /tenant-admin/team
+   * this is NOT role-gated — it returns only display fields (id, clerk id, name,
+   * email) that every member legitimately needs to render who-said-what, and is
+   * RLS-scoped to the active tenant via withTenant. Active memberships only.
+   */
+  @Get('tenant-members')
+  async tenantMembers(@CurrentTenant() ctx: TenantContext) {
+    return this.prisma.withTenant(ctx.tenantId, async (tx) => {
+      const rows = await tx.tenantMembership.findMany({
+        where: { tenantId: ctx.tenantId, status: 'active' },
+        include: {
+          user: {
+            select: { id: true, clerkUserId: true, email: true, firstName: true, lastName: true },
+          },
+        },
+        orderBy: { createdAt: 'asc' },
+      });
+      return rows.map((m) => {
+        const name = `${m.user.firstName ?? ''} ${m.user.lastName ?? ''}`.trim() || m.user.email;
+        return {
+          id: m.user.id,
+          clerkUserId: m.user.clerkUserId,
+          email: m.user.email,
+          name,
+        };
+      });
+    });
+  }
 }

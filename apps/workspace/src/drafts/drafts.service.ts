@@ -1,6 +1,7 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service.js';
 import { WSC } from '../cascade/cascade.config.js';
+import { detectNames } from '../generation/anonymize.js';
 import type { CreateDraftDto, UpdateDraftDto, ListDraftsQueryDto } from './dto/draft.dto.js';
 
 /**
@@ -146,6 +147,29 @@ export class DraftsService {
       },
     });
     return this.byId(tenantId, updated.id);
+  }
+
+  /**
+   * Anonymize review — detect candidate names (client, offices, program/product)
+   * across the draft's title + section bodies (handoff §12.13). Tenant-scoped.
+   * The web modal lets the user approve/reject + set scope/replacement per item;
+   * this only surfaces the candidates and their occurrence counts.
+   */
+  async detectAnonymizeNames(tenantId: string, id: string) {
+    const draft = await this.prisma.wsDraft.findFirst({ where: { id, tenantId } });
+    if (!draft) throw new NotFoundException('Draft not found');
+    const cfg = draft.config as Record<string, unknown>;
+    const sectionContent = (cfg.sectionContent as Record<string, string> | undefined) ?? {};
+    const sections = (cfg.sections as string[] | undefined) ?? [];
+    const sectionTexts = [...sections, ...Object.values(sectionContent)];
+    const detections = detectNames({
+      client: (cfg.client as string | null) ?? draft.client,
+      product: draft.product,
+      offices: (cfg.offices as string[] | undefined) ?? [],
+      title: draft.docTitle,
+      sectionTexts,
+    });
+    return { detections };
   }
 
   async remove(tenantId: string, id: string): Promise<{ deleted: boolean }> {

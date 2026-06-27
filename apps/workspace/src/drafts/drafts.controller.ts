@@ -46,6 +46,16 @@ export class DraftsController {
     return this.drafts.update(ctx.tenantId, id, dto);
   }
 
+  /**
+   * POST /workspace-api/drafts/:draftId/anonymize/detect
+   * Anonymize review — return candidate name spans (client / offices / program)
+   * with occurrence counts for the review modal. Tenant-scoped.
+   */
+  @Post(':draftId/anonymize/detect')
+  detectAnonymize(@CurrentTenant() ctx: WorkspaceTenantContext, @Param('draftId') draftId: string) {
+    return this.drafts.detectAnonymizeNames(ctx.tenantId, draftId);
+  }
+
   @Delete(':id')
   remove(@CurrentTenant() ctx: WorkspaceTenantContext, @Param('id') id: string) {
     return this.drafts.remove(ctx.tenantId, id);

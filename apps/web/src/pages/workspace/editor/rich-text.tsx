@@ -65,12 +65,15 @@ export function SectionRichText({
   onChange,
   style,
   placeholder,
+  dataSection,
   'aria-label': ariaLabel,
 }: {
   value: string;
   onChange: (html: string) => void;
   style?: CSSProperties;
   placeholder?: string;
+  /** Section name for comment anchoring (read off `data-ws-section` in the DOM). */
+  dataSection?: string;
   'aria-label'?: string;
 }) {
   const ref = useRef<HTMLDivElement>(null);
@@ -104,6 +107,7 @@ export function SectionRichText({
       role="textbox"
       aria-multiline="true"
       aria-label={ariaLabel}
+      data-ws-section={dataSection}
       data-placeholder={placeholder ?? ''}
       style={style}
       onFocus={() => {

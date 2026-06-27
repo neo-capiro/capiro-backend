@@ -143,7 +143,12 @@ export function PaperBody({
       ))}
 
       {blocks.map((b) => (
-        <InsertedBlock key={b.id} kind={b.type} onRemove={() => onRemoveBlock(b.id)} />
+        <InsertedBlock
+          key={b.id}
+          kind={b.type}
+          variant={b.variant as string | undefined}
+          onRemove={() => onRemoveBlock(b.id)}
+        />
       ))}
     </>
   );

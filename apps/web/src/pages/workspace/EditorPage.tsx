@@ -21,19 +21,22 @@
  * review modal, Checks popover, Version-history popover, Insert→Templates,
  * Insert→Table-type picker, concurrent-edit lock. These toast / no-op.
  */
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { App as AntApp, Spin } from 'antd';
 import { StepsRail } from './StepsRail.js';
 import {
   useAddDocument,
+  useComments,
+  useCreateComment,
   useDeleteDocument,
   useDraft,
   useGenerateSection,
   useUpdateDocument,
   useUpdateDraft,
 } from './api.js';
-import type { WsAsk, WsBlock, WsConfig, WsDocument, WsSectionMeta } from './types.js';
+import { useMe } from '../../lib/me.js';
+import type { WsAsk, WsBlock, WsConfig, WsDocument, WsSectionMeta, WsTemplate } from './types.js';
 import { EditorToolbar, type SaveStatus } from './editor/EditorToolbar.js';
 import { RichTextToolbar } from './editor/RichTextToolbar.js';
 import { DraftOutline } from './editor/DraftOutline.js';
@@ -44,9 +47,17 @@ import { PacketDocCanvas, type PacketBody } from './editor/PacketDocCanvas.js';
 import { Letterhead } from './editor/canvas-blocks.js';
 import { InsertRail } from './editor/InsertRail.js';
 import { MeriPanel } from './editor/MeriPanel.js';
+import { AnonymizeReview, type AnonymizeMap } from './editor/AnonymizeReview.js';
 import { budgetFrom } from './editor/BudgetBlock.js';
 import { sectionViews } from './editor/section-model.js';
-import { anonymizeMap } from './editor/anonymize.js';
+import { anonymizeMap, type StoredRedaction } from './editor/anonymize.js';
+import {
+  applyEditToSectionHtml,
+  getSelectionAnchor,
+  highlightSelection,
+  type CommentAnchor,
+} from './editor/anchors.js';
+import type { ComposingComment } from './editor/CommentsRail.js';
 
 const AUTOSAVE_MS = 1200;
 const MAIN_TAB = 'main';
@@ -62,6 +73,7 @@ export function EditorPage() {
   const addDocument = useAddDocument(draftId ?? '');
   const deleteDocument = useDeleteDocument(draftId ?? '');
   const generate = useGenerateSection(draftId ?? '');
+  const { data: me } = useMe();
 
   // ── Local working copies (the autosave debounce flushes these to the API) ──
   const [cfg, setCfg] = useState<WsConfig | null>(null);
@@ -75,6 +87,34 @@ export function EditorPage() {
   const [activeOffice, setActiveOffice] = useState<string | null>(null);
   const [saveStatus, setSaveStatus] = useState<SaveStatus>('saved');
   const [draftingSection, setDraftingSection] = useState<string | null>(null);
+
+  // ── Phase 6: rail tab, comment composing, selection FAB, anonymize modal ────
+  const [railTab, setRailTab] = useState<'meri' | 'comments'>('meri');
+  const [composing, setComposing] = useState<ComposingComment | null>(null);
+  // Floating "Comment" button anchored at a live canvas selection.
+  const [selectionFab, setSelectionFab] = useState<{ top: number; left: number } | null>(null);
+  const [showAnonymizeReview, setShowAnonymizeReview] = useState(false);
+
+  // The engine document the active canvas maps to (comment scope). The MAIN
+  // canvas is the primary WsDocument (lowest ordinal); packet tabs are their own
+  // doc id. Derived before the load guard so the comments hook order is stable.
+  const activeDocumentId = useMemo(() => {
+    if (!draft) return null;
+    if (activeTab === MAIN_TAB) {
+      const primary = [...draft.documents].sort((a, b) => a.ordinal - b.ordinal)[0];
+      return primary?.id ?? null;
+    }
+    return activeTab;
+  }, [draft, activeTab]);
+
+  const { data: commentsData } = useComments(activeDocumentId);
+  const createComment = useCreateComment(activeDocumentId ?? '');
+  const comments = commentsData ?? [];
+  const openCommentsCount = comments.filter((c) => !c.resolved).length;
+
+  const selfClerkId = me?.user.clerkUserId ?? null;
+  const selfName =
+    `${me?.user.firstName ?? ''} ${me?.user.lastName ?? ''}`.trim() || me?.user.email || 'You';
 
   const hydrated = useRef(false);
   const saveTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -199,6 +239,27 @@ export function EditorPage() {
     });
   }, [draft]);
 
+  // Selection → floating "Comment" button. After the mouse-up settles, if there
+  // is a non-empty selection inside a section body, show the FAB at the selection.
+  useEffect(() => {
+    const onMouseUp = () => {
+      // Defer so the browser finishes updating window.getSelection().
+      window.setTimeout(() => {
+        const anchor = getSelectionAnchor();
+        if (!anchor) {
+          setSelectionFab(null);
+          return;
+        }
+        setSelectionFab({
+          top: anchor.rect.top - 8,
+          left: anchor.rect.left + anchor.rect.width / 2,
+        });
+      }, 0);
+    };
+    document.addEventListener('mouseup', onMouseUp);
+    return () => document.removeEventListener('mouseup', onMouseUp);
+  }, []);
+
   if (isLoading || !draft || !cfg) {
     return (
       <div className="ws-shell">
@@ -212,7 +273,9 @@ export function EditorPage() {
 
   // ── Derived view-models ─────────────────────────────────────────────────────
   const views = sectionViews(cfg);
-  const anonMap = anonymizeMap(draft.client, draft.product);
+  const storedRedactions = (cfg.anonymizeMap as { redactions?: StoredRedaction[] } | undefined)
+    ?.redactions;
+  const anonMap = anonymizeMap(draft.client, draft.product, storedRedactions);
   const ask: WsAsk =
     (cfg.ask as WsAsk | undefined) ??
     (draft.ask && draft.ask !== 'n/a' ? (draft.ask as WsAsk) : {});
@@ -324,24 +387,37 @@ export function EditorPage() {
   const setAsk = (key: keyof WsAsk, value: string) => patchCfg({ ask: { ...ask, [key]: value } });
 
   // ── Insert handlers (route to the active doc) ───────────────────────────────
+  // Map an insert "kind" to a persisted WsBlock. Table variants
+  // (table-platform / table-custom from the TableTypePicker) collapse to a
+  // `table` block carrying a `variant` so the type union stays closed; `image`
+  // maps to a `photo` block. `section` becomes a packet section block (the MAIN
+  // doc handles sections via cfg.sections, not the block model). Returns null
+  // for non-block kinds like `template`.
+  const blockFor = (id: string, kind: string): WsBlock | null => {
+    if (kind === 'section') return { id, type: 'section', title: 'New section', content: '' };
+    if (kind === 'image' || kind === 'photo') return { id, type: 'photo' };
+    if (kind === 'logo') return { id, type: 'logo' };
+    if (kind === 'table') return { id, type: 'table' };
+    if (kind === 'table-platform') return { id, type: 'table', variant: 'platform' };
+    if (kind === 'table-custom') return { id, type: 'table', variant: 'custom' };
+    return null;
+  };
   const addBlockTo = (kind: string) => {
     const id = String(Date.now()) + Math.random().toString(36).slice(2, 6);
+    // MAIN doc: sections live in cfg.sections (not the block model).
+    if (kind === 'section' && isMainDoc) {
+      addSection();
+      return;
+    }
+    const block = blockFor(id, kind);
+    if (!block) return; // non-block kind (e.g. template) — handled elsewhere.
     if (isMainDoc) {
-      if (kind === 'section') {
-        addSection();
-        return;
-      }
-      const block: WsBlock = { id, type: kind as WsBlock['type'] };
       setMainBlocks((b) => [...b, block]);
       cfgDirty.current = true;
       scheduleSave();
     } else {
       setPacketBodies((prev) => {
         const body = prev[activeTab] ?? { blocks: [] };
-        const block: WsBlock =
-          kind === 'section'
-            ? { id, type: 'section', title: 'New section', content: '' }
-            : { id, type: kind as WsBlock['type'] };
         return { ...prev, [activeTab]: { ...body, blocks: [...body.blocks, block] } };
       });
       dirtyDocs.current.add(activeTab);
@@ -379,9 +455,21 @@ export function EditorPage() {
   };
 
   // ── Toolbar handlers ────────────────────────────────────────────────────────
-  const onAnonymize = () => patchCfg({ anonymize: !cfg.anonymize });
-  const onChecks = () => toast('Checks popover arrives in a later phase'); // TODO(phase 6)
-  const onHistory = () => toast('Version history arrives in a later phase'); // TODO(phase 6)
+  // Anonymize: ON → off clears the flag; OFF → open the review modal (applying
+  // it sets the flag + persists the redaction map).
+  const onAnonymize = () => {
+    if (cfg.anonymize) patchCfg({ anonymize: false });
+    else setShowAnonymizeReview(true);
+  };
+  const onApplyAnonymize = (map: AnonymizeMap) => {
+    patchCfg({ anonymize: true, anonymizeMap: map });
+    setShowAnonymizeReview(false);
+    message.success(
+      `Anonymized ${map.redactions.length} name${map.redactions.length === 1 ? '' : 's'}`,
+    );
+  };
+  const onChecks = () => toast('Checks popover arrives in a later phase'); // TODO(phase 6b)
+  const onHistory = () => toast('Version history arrives in a later phase'); // TODO(phase 6b)
   const onShare = () => navigate(`/workspace/collab/${draftId}`);
   const onPreview = () => {
     flush(false);
@@ -389,7 +477,103 @@ export function EditorPage() {
   };
   const onEditContext = () => navigate(`/workspace/context/${draftId}`);
   const onAskMeri = (text: string) =>
-    toast(`Meri: "${text}" — chat editing arrives in a later phase`); // TODO(phase 6)
+    toast(`Meri: "${text}" — chat editing arrives in a later phase`); // TODO(phase 6b)
+
+  // ── Comment handlers (highlight-to-comment) ─────────────────────────────────
+  // Clicking the selection FAB: snapshot the selection's anchor, wrap it in a
+  // transient .ws-hl highlight, open a composing comment, and switch the rail to
+  // Comments (prototype parity).
+  const onStartComment = () => {
+    const anchor = getSelectionAnchor();
+    setSelectionFab(null);
+    if (!anchor) return;
+    highlightSelection();
+    setComposing({
+      section: anchor.section,
+      quote: anchor.quote,
+      start: anchor.start,
+      end: anchor.end,
+    });
+    setRailTab('comments');
+  };
+  const onComposeCancel = () => setComposing(null);
+  const onComposeSave = (text: string) => {
+    const v = text.trim();
+    if (!v || !composing || !activeDocumentId) {
+      setComposing(null);
+      return;
+    }
+    const anchor: CommentAnchor = {
+      section: composing.section,
+      quote: composing.quote,
+      start: composing.start,
+      end: composing.end,
+    };
+    createComment.mutate(
+      { body: v, quote: composing.quote, anchor: anchor as unknown as Record<string, unknown> },
+      {
+        onSuccess: () => setComposing(null),
+        onError: () => message.error('Could not save comment'),
+      },
+    );
+  };
+  // Approve a Meri-drafted edit from a comment: splice the rewrite into the
+  // anchored section's body. The MAIN canvas keys section bodies by name in
+  // cfg.sectionContent; a packet doc keys them by the section BLOCK whose title
+  // matches the anchor. Routes to the doc the comment belongs to.
+  const onApplyEdit = (anchor: CommentAnchor, after: string) => {
+    if (isMainDoc) {
+      const content = (cfg.sectionContent as Record<string, string> | undefined) ?? {};
+      const current = content[anchor.section] ?? '';
+      setSectionBody(anchor.section, applyEditToSectionHtml(current, anchor, after));
+      message.success('Applied Meri’s edit');
+      return;
+    }
+    // Packet doc: find the section block by title and splice its content.
+    const body = packetBodies[activeTab];
+    const target = body?.blocks.find(
+      (b) => b.type === 'section' && (b.title ?? '') === anchor.section,
+    );
+    if (!body || !target) {
+      message.info('Could not locate the section to edit');
+      return;
+    }
+    const nextBlocks = body.blocks.map((b) =>
+      b.id === target.id
+        ? { ...b, content: applyEditToSectionHtml(b.content ?? '', anchor, after) }
+        : b,
+    );
+    onPacketChange(activeTab, { ...body, blocks: nextBlocks });
+    message.success('Applied Meri’s edit');
+  };
+
+  // ── Template apply (Insert → Templates: replace vs merge) ────────────────────
+  const onApplyTemplate = (tpl: WsTemplate, mode: 'replace' | 'merge') => {
+    if (mode === 'replace') {
+      // Replace structure; clear written content + meta (prototype warns first).
+      patchCfg({
+        sections: tpl.sections.slice(),
+        sectionContent: {},
+        sectionMeta: {},
+        selectedTemplate: tpl.id,
+      });
+      message.success(`Applied template “${tpl.name}”`);
+    } else {
+      // Merge: append sections not already present, preserving existing order +
+      // content. Existing sectionContent/meta are untouched.
+      const existing = new Set(cfg.sections);
+      const added = tpl.sections.filter((s) => !existing.has(s));
+      patchCfg({
+        sections: [...cfg.sections, ...added],
+        selectedTemplate: tpl.id,
+      });
+      message.success(
+        added.length
+          ? `Merged ${added.length} section${added.length === 1 ? '' : 's'} from “${tpl.name}”`
+          : `“${tpl.name}” added no new sections`,
+      );
+    }
+  };
 
   return (
     <div className="ws-editor-shell">
@@ -495,19 +679,76 @@ export function EditorPage() {
             )}
           </div>
 
-          <InsertRail onAddSection={addSection} onInsert={addBlockTo} onToast={toast} />
+          <InsertRail
+            product={cfg.product}
+            onAddSection={addSection}
+            onInsert={addBlockTo}
+            onApplyTemplate={onApplyTemplate}
+          />
 
           <MeriPanel
             isMainDoc={isMainDoc}
             contextItems={linkedData}
-            openComments={0}
+            openComments={openCommentsCount}
+            activeTab={railTab}
+            onTabChange={setRailTab}
+            documentId={activeDocumentId}
+            comments={comments}
+            composing={composing}
+            selfClerkId={selfClerkId}
+            selfName={selfName}
+            onComposeSave={onComposeSave}
+            onComposeCancel={onComposeCancel}
+            onApplyEdit={onApplyEdit}
             onAsk={onAskMeri}
             onQuickAction={(a) => toast(`Meri: ${a} — arrives in a later phase`)}
             onEditContext={onEditContext}
           />
         </div>
       </div>
+
+      {/* Floating "Comment" button at a live canvas selection. */}
+      {selectionFab && (
+        <button
+          className="ws-comment-fab"
+          style={{ top: selectionFab.top, left: selectionFab.left }}
+          // Use mousedown so the click fires before the selection is cleared.
+          onMouseDown={(e) => {
+            e.preventDefault();
+            onStartComment();
+          }}
+        >
+          <CommentFabIcon />
+          Comment
+        </button>
+      )}
+
+      {/* Anonymize review modal (opens from the toolbar Anonymize button when off). */}
+      {showAnonymizeReview && draftId && (
+        <AnonymizeReview
+          draftId={draftId}
+          onClose={() => setShowAnonymizeReview(false)}
+          onApply={onApplyAnonymize}
+        />
+      )}
     </div>
+  );
+}
+
+function CommentFabIcon() {
+  return (
+    <svg
+      width="13"
+      height="13"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2.2"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+    >
+      <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" />
+    </svg>
   );
 }
 

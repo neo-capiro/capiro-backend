@@ -191,8 +191,20 @@ export function SampleTable() {
   );
 }
 
-/** Render a removable inserted block (photo / logo / table). */
-export function InsertedBlock({ kind, onRemove }: { kind: string; onRemove: () => void }) {
+/** Render a removable inserted block (photo / logo / table). `variant`
+ * distinguishes a platform-pulled table from a custom one (set by the
+ * TableTypePicker; both currently render the same exhibit, platform labeled). */
+export function InsertedBlock({
+  kind,
+  variant,
+  onRemove,
+}: {
+  kind: string;
+  variant?: string;
+  onRemove: () => void;
+}) {
+  const isTable = kind === 'table' || kind === 'table-platform' || kind === 'table-custom';
+  const isPlatform = variant === 'platform' || kind === 'table-platform';
   return (
     <div style={{ position: 'relative', marginTop: 14 }}>
       <button
@@ -220,8 +232,28 @@ export function InsertedBlock({ kind, onRemove }: { kind: string; onRemove: () =
         <ImagePlaceholder label="PHOTO / FIGURE" h={150} />
       )}
       {kind === 'logo' && <ImagePlaceholder label="LOGO" h={84} w={150} />}
-      {(kind === 'table' || kind === 'table-platform' || kind === 'table-custom') && (
-        <SampleTable />
+      {isTable && (
+        <>
+          {isPlatform && (
+            <div
+              style={{
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: 5,
+                fontSize: 10,
+                fontWeight: 700,
+                letterSpacing: '0.05em',
+                textTransform: 'uppercase',
+                color: 'var(--accent)',
+                marginBottom: 6,
+              }}
+            >
+              <Icon name="Database" size={11} />
+              Pulled from platform
+            </div>
+          )}
+          <SampleTable />
+        </>
       )}
     </div>
   );
