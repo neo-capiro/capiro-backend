@@ -1,5 +1,7 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service.js';
+import { CollaboratorsService } from '../collaborators/collaborators.service.js';
+import { canEdit } from '../collaborators/role-policy.js';
 import type { CreateDocumentDto, UpdateDocumentDto } from './dto/document.dto.js';
 
 /**
@@ -10,12 +12,26 @@ import type { CreateDocumentDto, UpdateDocumentDto } from './dto/document.dto.js
  */
 @Injectable()
 export class DocumentsService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly collaborators: CollaboratorsService,
+  ) {}
 
   private async assertDraft(tenantId: string, draftId: string) {
     const draft = await this.prisma.wsDraft.findFirst({ where: { id: draftId, tenantId } });
     if (!draft) throw new NotFoundException('Draft not found');
     return draft;
+  }
+
+  /** Editing document tabs (add/update/remove) is owner + editor only. */
+  private async assertCanEdit(tenantId: string, draftId: string, actorId: string) {
+    await this.collaborators.assertCan(
+      tenantId,
+      draftId,
+      actorId,
+      canEdit,
+      'Only owners and editors can edit this document',
+    );
   }
 
   async list(tenantId: string, draftId: string) {
@@ -26,8 +42,9 @@ export class DocumentsService {
     });
   }
 
-  async add(tenantId: string, draftId: string, dto: CreateDocumentDto) {
+  async add(tenantId: string, draftId: string, actorId: string, dto: CreateDocumentDto) {
     await this.assertDraft(tenantId, draftId);
+    await this.assertCanEdit(tenantId, draftId, actorId);
     const count = await this.prisma.wsDocument.count({ where: { tenantId, draftId } });
     const doc = await this.prisma.wsDocument.create({
       data: {
@@ -42,8 +59,15 @@ export class DocumentsService {
     return doc;
   }
 
-  async update(tenantId: string, draftId: string, docId: string, dto: UpdateDocumentDto) {
+  async update(
+    tenantId: string,
+    draftId: string,
+    docId: string,
+    actorId: string,
+    dto: UpdateDocumentDto,
+  ) {
     await this.assertDraft(tenantId, draftId);
+    await this.assertCanEdit(tenantId, draftId, actorId);
     const existing = await this.prisma.wsDocument.findFirst({
       where: { id: docId, tenantId, draftId },
     });
@@ -58,8 +82,14 @@ export class DocumentsService {
     });
   }
 
-  async remove(tenantId: string, draftId: string, docId: string): Promise<{ deleted: boolean }> {
+  async remove(
+    tenantId: string,
+    draftId: string,
+    docId: string,
+    actorId: string,
+  ): Promise<{ deleted: boolean }> {
     await this.assertDraft(tenantId, draftId);
+    await this.assertCanEdit(tenantId, draftId, actorId);
     const existing = await this.prisma.wsDocument.findFirst({
       where: { id: docId, tenantId, draftId },
     });

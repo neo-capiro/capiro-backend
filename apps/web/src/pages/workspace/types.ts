@@ -69,6 +69,33 @@ export interface WsConfig {
 export type WsDocStatus = 'draft' | 'complete';
 export type WsRole = 'editor' | 'reviewer' | 'viewer' | 'commenter';
 
+// ── Collaborators (Collaborate screen) ───────────────────────────────────────
+/** The four assignable collaborator roles (the Owner is synthetic, not assignable). */
+export type WsAssignableRole = 'editor' | 'reviewer' | 'commenter' | 'viewer';
+/** As surfaced in the access list: an assignable role or the synthetic Owner. */
+export type WsCollaboratorRole = WsAssignableRole | 'owner';
+export type WsCollaboratorStatus = 'active' | 'pending';
+
+/**
+ * A row in the "People with access" list. The first row is always the synthetic
+ * Owner (role 'owner', isOwner true, non-assignable). Internal teammates carry
+ * `subjectId` (Clerk user id, resolved to a name/avatar via useTenantMembers);
+ * external invites carry `email` and are `pending`.
+ */
+export interface WsCollaborator {
+  id: string;
+  subjectId: string | null;
+  email: string | null;
+  name: string | null;
+  role: WsCollaboratorRole;
+  status: WsCollaboratorStatus;
+  isOwner: boolean;
+}
+
+export interface WsCollaboratorsResponse {
+  collaborators: WsCollaborator[];
+}
+
 export interface WsDocument {
   id: string;
   draftId: string;

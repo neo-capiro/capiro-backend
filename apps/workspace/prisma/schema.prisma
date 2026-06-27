@@ -77,15 +77,66 @@ model WsDraft {
   createdAt DateTime    @default(now()) @map("created_at")
   updatedAt DateTime    @updatedAt @map("updated_at")
 
-  documents WsDocument[]
-  context   WsContextItem[]
-  versions  WsDocVersion[]
-  editLock  WsEditLock?
+  documents     WsDocument[]
+  context       WsContextItem[]
+  versions      WsDocVersion[]
+  editLock      WsEditLock?
+  collaborators WsCollaborator[]
 
   @@index([tenantId])
   @@index([tenantId, ownerId])
   @@index([tenantId, updatedAt])
   @@map("ws_draft")
+}
+
+// Collaboration status on a WsCollaborator row.
+//   active  — an internal teammate resolved to a Clerk user (subjectId set);
+//             access is live now.
+//   pending — an external invite by raw email (no Clerk user yet). The row holds
+//             the intended role until the invitee accepts (Clerk org invite is a
+//             later phase — see Q-COL-invite).
+enum WsCollaboratorStatus {
+  active
+  pending
+
+  @@map("ws_collaborator_status")
+}
+
+// A collaborator on a work product (the WsDraft the user is editing; surfaced in
+// the UI as "this document"). The draft owner (WsDraft.ownerId) is the implicit
+// Owner and is NEVER stored as a row — it is synthesized with role "owner" on
+// read. Every other person/email with access is a WsCollaborator row.
+//
+// Identity: an INTERNAL teammate carries `subjectId` (their Clerk user id; the
+// engine doesn't own the user table so it stores the verified Clerk subject,
+// mirroring WsDraft.ownerId / WsComment.authorId). An EXTERNAL invite carries
+// `email` only and is `pending` until accepted. Tenant-scoped.
+model WsCollaborator {
+  id          String               @id @default(uuid()) @db.Uuid
+  tenantId    String               @map("tenant_id") @db.Uuid
+  draftId     String               @map("draft_id") @db.Uuid
+  // Clerk user id for an internal member (null for a pending external invite).
+  subjectId   String?              @map("subject_id")
+  // Raw email for a pending/external invite (null once resolved to a member).
+  email       String?
+  // Denormalized display name for the People-with-access list (the engine does
+  // not own the user table; the web app refines this via useTenantMembers()).
+  name        String?
+  role        WsRole
+  status      WsCollaboratorStatus @default(active)
+  // Clerk user id of the inviter (audit / "invited by").
+  invitedById String?              @map("invited_by_id")
+  createdAt   DateTime             @default(now()) @map("created_at")
+  updatedAt   DateTime             @updatedAt @map("updated_at")
+
+  draft WsDraft @relation(fields: [draftId], references: [id], onDelete: Cascade)
+
+  // One row per (draft, member) and one per (draft, pending email).
+  @@unique([draftId, subjectId])
+  @@unique([draftId, email])
+  @@index([draftId])
+  @@index([tenantId])
+  @@map("ws_collaborator")
 }
 
 // A document is one tab within a draft/packet. A simple draft has exactly one;

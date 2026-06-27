@@ -1,5 +1,7 @@
 import { ForbiddenException, Injectable, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service.js';
+import { CollaboratorsService } from '../collaborators/collaborators.service.js';
+import { canEdit } from '../collaborators/role-policy.js';
 
 // A holder is "inactive" (eligible for take-over) once their last heartbeat is
 // older than this window (Q-ED-2: take-over allowed only when holder inactive
@@ -37,12 +39,26 @@ export interface LockStatus {
  */
 @Injectable()
 export class EditLockService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly collaborators: CollaboratorsService,
+  ) {}
 
   private async assertDraft(tenantId: string, draftId: string) {
     const draft = await this.prisma.wsDraft.findFirst({ where: { id: draftId, tenantId } });
     if (!draft) throw new NotFoundException('Draft not found');
     return draft;
+  }
+
+  /** Holding the edit-lock (acquire/take-over) is owner + editor only. */
+  private async assertCanHoldLock(tenantId: string, draftId: string, actorId: string) {
+    await this.collaborators.assertCan(
+      tenantId,
+      draftId,
+      actorId,
+      canEdit,
+      'Only owners and editors can edit this document',
+    );
   }
 
   private toStatus(lock: LockRow | null, selfId: string, now = Date.now()): LockStatus {
@@ -98,6 +114,7 @@ export class EditLockService {
     selfName: string,
   ): Promise<LockStatus> {
     await this.assertDraft(tenantId, draftId);
+    await this.assertCanHoldLock(tenantId, draftId, selfId);
     const existing = await this.prisma.wsEditLock.findFirst({ where: { draftId, tenantId } });
     const now = new Date();
 
@@ -218,6 +235,7 @@ export class EditLockService {
     selfName: string,
   ): Promise<LockStatus> {
     await this.assertDraft(tenantId, draftId);
+    await this.assertCanHoldLock(tenantId, draftId, selfId);
     const lock = await this.prisma.wsEditLock.findFirst({ where: { draftId, tenantId } });
     if (!lock) {
       // Nothing to take over — acquire fresh.
