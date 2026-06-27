@@ -33,7 +33,9 @@ export class DraftsController {
 
   @Get(':id')
   get(@CurrentTenant() ctx: WorkspaceTenantContext, @Param('id') id: string) {
-    return this.drafts.byId(ctx.tenantId, id);
+    // actorId gates the read: only the owner or an active collaborator may open
+    // a draft (404 otherwise — documents are private until shared).
+    return this.drafts.byId(ctx.tenantId, id, ctx.clerkUserId);
   }
 
   /** PATCH = autosave target (debounced partial config/body/sections). */
@@ -58,6 +60,6 @@ export class DraftsController {
 
   @Delete(':id')
   remove(@CurrentTenant() ctx: WorkspaceTenantContext, @Param('id') id: string) {
-    return this.drafts.remove(ctx.tenantId, id);
+    return this.drafts.remove(ctx.tenantId, id, ctx.clerkUserId);
   }
 }
