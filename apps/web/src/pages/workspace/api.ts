@@ -1,7 +1,10 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useApi } from '../../lib/use-api.js';
 import type {
+  WsAssignableRole,
   WsChecksResponse,
+  WsCollaborator,
+  WsCollaboratorsResponse,
   WsComment,
   WsConfig,
   WsContextItem,
@@ -355,6 +358,65 @@ export function useSuggestCommentEdit(documentId: string) {
           {},
         )
       ).data,
+  });
+}
+
+// ── Collaborators (Collaborate screen) ───────────────────────────────────────
+/**
+ * People with access to a work product (the draft). Returns the synthetic Owner
+ * first, then active + pending collaborators. Tenant-scoped engine endpoint;
+ * any role with access may read it.
+ */
+export function useCollaborators(draftId: string | null) {
+  const api = useApi();
+  return useQuery({
+    queryKey: ['ws', 'collaborators', draftId],
+    enabled: !!draftId,
+    queryFn: async () =>
+      (await api.get<WsCollaboratorsResponse>(`${BASE}/drafts/${draftId}/collaborators`)).data
+        .collaborators,
+  });
+}
+
+/**
+ * Invite a collaborator. Internal teammates are resolved on the client (via
+ * useTenantMembers / GET /api/tenant-members) and passed as `subjectId` → they
+ * join `active`; an external client SME is passed as a raw `email` → `pending`.
+ */
+export function useInviteCollaborator(draftId: string) {
+  const api = useApi();
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async (body: {
+      subjectId?: string;
+      email?: string;
+      name?: string;
+      role: WsAssignableRole;
+    }) => (await api.post<WsCollaborator>(`${BASE}/drafts/${draftId}/collaborators`, body)).data,
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['ws', 'collaborators', draftId] }),
+  });
+}
+
+/** Change a collaborator's role (owner-only on the server). */
+export function useUpdateCollaboratorRole(draftId: string) {
+  const api = useApi();
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async ({ id, role }: { id: string; role: WsAssignableRole }) =>
+      (await api.patch<WsCollaborator>(`${BASE}/drafts/${draftId}/collaborators/${id}`, { role }))
+        .data,
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['ws', 'collaborators', draftId] }),
+  });
+}
+
+/** Remove a collaborator (owner-only on the server; the Owner can't be removed). */
+export function useRemoveCollaborator(draftId: string) {
+  const api = useApi();
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async (id: string) =>
+      (await api.delete(`${BASE}/drafts/${draftId}/collaborators/${id}`)).data,
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['ws', 'collaborators', draftId] }),
   });
 }
 

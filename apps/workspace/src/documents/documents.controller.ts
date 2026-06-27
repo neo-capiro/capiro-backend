@@ -1,13 +1,4 @@
-import {
-  Body,
-  Controller,
-  Delete,
-  Get,
-  Param,
-  Patch,
-  Post,
-  UseGuards,
-} from '@nestjs/common';
+import { Body, Controller, Delete, Get, Param, Patch, Post, UseGuards } from '@nestjs/common';
 import { TenantGuard } from '../auth/tenant.guard.js';
 import { CurrentTenant } from '../auth/current-tenant.decorator.js';
 import type { WorkspaceTenantContext } from '../auth/tenant-context.js';
@@ -31,7 +22,7 @@ export class DocumentsController {
     @Param('draftId') draftId: string,
     @Body() dto: CreateDocumentDto,
   ) {
-    return this.documents.add(ctx.tenantId, draftId, dto);
+    return this.documents.add(ctx.tenantId, draftId, ctx.clerkUserId, dto);
   }
 
   @Patch(':docId')
@@ -41,7 +32,7 @@ export class DocumentsController {
     @Param('docId') docId: string,
     @Body() dto: UpdateDocumentDto,
   ) {
-    return this.documents.update(ctx.tenantId, draftId, docId, dto);
+    return this.documents.update(ctx.tenantId, draftId, docId, ctx.clerkUserId, dto);
   }
 
   @Delete(':docId')
@@ -50,6 +41,6 @@ export class DocumentsController {
     @Param('draftId') draftId: string,
     @Param('docId') docId: string,
   ) {
-    return this.documents.remove(ctx.tenantId, draftId, docId);
+    return this.documents.remove(ctx.tenantId, draftId, docId, ctx.clerkUserId);
   }
 }

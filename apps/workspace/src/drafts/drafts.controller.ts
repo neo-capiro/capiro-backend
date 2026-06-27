@@ -43,7 +43,7 @@ export class DraftsController {
     @Param('id') id: string,
     @Body() dto: UpdateDraftDto,
   ) {
-    return this.drafts.update(ctx.tenantId, id, dto);
+    return this.drafts.update(ctx.tenantId, id, ctx.clerkUserId, dto);
   }
 
   /**

@@ -36,7 +36,7 @@ export class CommentsController {
     @Param('documentId') documentId: string,
     @Param('commentId') commentId: string,
   ) {
-    return this.comments.suggestEdit(ctx.tenantId, documentId, commentId);
+    return this.comments.suggestEdit(ctx.tenantId, documentId, commentId, ctx.clerkUserId);
   }
 
   @Patch(':commentId')
@@ -46,7 +46,7 @@ export class CommentsController {
     @Param('commentId') commentId: string,
     @Body() dto: UpdateCommentDto,
   ) {
-    return this.comments.update(ctx.tenantId, documentId, commentId, ctx.role, dto);
+    return this.comments.update(ctx.tenantId, documentId, commentId, ctx.clerkUserId, dto);
   }
 
   @Delete(':commentId')

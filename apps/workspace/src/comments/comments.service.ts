@@ -1,11 +1,8 @@
-import {
-  BadRequestException,
-  ForbiddenException,
-  Injectable,
-  NotFoundException,
-} from '@nestjs/common';
+import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service.js';
 import { GenerationService } from '../generation/generation.service.js';
+import { CollaboratorsService } from '../collaborators/collaborators.service.js';
+import { canComment, canReview } from '../collaborators/role-policy.js';
 import type { CreateCommentDto, UpdateCommentDto } from './dto/comment.dto.js';
 
 /**
@@ -22,6 +19,7 @@ export class CommentsService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly generation: GenerationService,
+    private readonly collaborators: CollaboratorsService,
   ) {}
 
   private async assertDocument(tenantId: string, documentId: string) {
@@ -43,7 +41,15 @@ export class CommentsService {
   }
 
   async create(tenantId: string, documentId: string, authorId: string, dto: CreateCommentDto) {
-    await this.assertDocument(tenantId, documentId);
+    const doc = await this.assertDocument(tenantId, documentId);
+    // Creating comments/replies is any role with access except viewer.
+    await this.collaborators.assertCan(
+      tenantId,
+      doc.draftId,
+      authorId,
+      canComment,
+      'Viewers cannot comment on this document',
+    );
     if (dto.parentId) {
       const parent = await this.prisma.wsComment.findFirst({
         where: { id: dto.parentId, tenantId, documentId },
@@ -68,18 +74,24 @@ export class CommentsService {
     tenantId: string,
     documentId: string,
     commentId: string,
-    actorRole: string | null,
+    actorId: string,
     dto: UpdateCommentDto,
   ) {
-    await this.assertDocument(tenantId, documentId);
+    const doc = await this.assertDocument(tenantId, documentId);
     const existing = await this.prisma.wsComment.findFirst({
       where: { id: commentId, tenantId, documentId },
     });
     if (!existing) throw new NotFoundException('Comment not found');
-    // Commenter role is comment-only: cannot resolve threads.
-    if (dto.resolved !== undefined && actorRole === 'commenter') {
-      throw new ForbiddenException('Commenter role cannot resolve comments');
-    }
+    // Resolving a thread is a review action: owner + editor + reviewer only
+    // (commenter/viewer cannot resolve). Editing the body is gated the same way
+    // here (body edits ride alongside resolve on this endpoint).
+    await this.collaborators.assertCan(
+      tenantId,
+      doc.draftId,
+      actorId,
+      canReview,
+      'Only owners, editors and reviewers can resolve comments',
+    );
     return this.prisma.wsComment.update({
       where: { id: commentId },
       data: {
@@ -95,8 +107,16 @@ export class CommentsService {
    * draft's config and honoring its anonymize flag. Returns a before/after the
    * client renders in a SuggestionCard. Requires the comment to carry a quote.
    */
-  async suggestEdit(tenantId: string, documentId: string, commentId: string) {
-    await this.assertDocument(tenantId, documentId);
+  async suggestEdit(tenantId: string, documentId: string, commentId: string, actorId: string) {
+    const doc = await this.assertDocument(tenantId, documentId);
+    // Drafting/approving a Meri suggestion is a review action.
+    await this.collaborators.assertCan(
+      tenantId,
+      doc.draftId,
+      actorId,
+      canReview,
+      'Only owners, editors and reviewers can approve Meri suggestions',
+    );
     const comment = await this.prisma.wsComment.findFirst({
       where: { id: commentId, tenantId, documentId },
       include: { replies: { orderBy: { createdAt: 'asc' } } },

@@ -7,6 +7,7 @@ import { SetupPage } from './SetupPage.js';
 import { ContextBuilderPage } from './ContextBuilderPage.js';
 import { EditorPage } from './EditorPage.js';
 import { PreviewPage } from './PreviewPage.js';
+import { CollabPage } from './CollabPage.js';
 
 /**
  * Workspace feature router. Mounted at /workspace/* in App.tsx (inside the
@@ -26,6 +27,7 @@ export function WorkspaceRoutes() {
         <Route path="setup/:draftId" element={<SetupPage />} />
         <Route path="context/:draftId" element={<ContextBuilderPage />} />
         <Route path="draft/:draftId" element={<EditorPage />} />
+        <Route path="collab/:draftId" element={<CollabPage />} />
         <Route path="preview/:draftId" element={<PreviewPage />} />
         <Route path="*" element={<Navigate to="/workspace" replace />} />
       </Routes>

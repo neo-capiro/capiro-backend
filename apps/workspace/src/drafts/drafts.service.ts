@@ -2,6 +2,8 @@ import { Injectable, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service.js';
 import { WSC } from '../cascade/cascade.config.js';
 import { detectNames } from '../generation/anonymize.js';
+import { CollaboratorsService } from '../collaborators/collaborators.service.js';
+import { canEdit } from '../collaborators/role-policy.js';
 import type { CreateDraftDto, UpdateDraftDto, ListDraftsQueryDto } from './dto/draft.dto.js';
 
 /**
@@ -17,7 +19,10 @@ import type { CreateDraftDto, UpdateDraftDto, ListDraftsQueryDto } from './dto/d
  */
 @Injectable()
 export class DraftsService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly collaborators: CollaboratorsService,
+  ) {}
 
   async create(tenantId: string, ownerId: string, dto: CreateDraftDto) {
     const product = dto.product ?? '';
@@ -104,12 +109,20 @@ export class DraftsService {
    * hot fields, re-derives isPacket/docCount, and enforces the funding-only ask
    * rule. tenantId is checked first (no cross-tenant writes).
    */
-  async update(tenantId: string, id: string, dto: UpdateDraftDto) {
+  async update(tenantId: string, id: string, actorId: string, dto: UpdateDraftDto) {
     const existing = await this.prisma.wsDraft.findFirst({
       where: { id, tenantId },
       include: { documents: { select: { id: true } } },
     });
     if (!existing) throw new NotFoundException('Draft not found');
+    // Editing the draft is owner + editor only (role matrix).
+    await this.collaborators.assertCan(
+      tenantId,
+      id,
+      actorId,
+      canEdit,
+      'Only owners and editors can edit this document',
+    );
 
     const mergedConfig: Record<string, unknown> = {
       ...(existing.config as Record<string, unknown>),
