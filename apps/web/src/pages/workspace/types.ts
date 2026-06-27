@@ -161,3 +161,54 @@ export interface WsContextItem {
   payload: Record<string, unknown>;
   createdAt: string;
 }
+
+// ── Pre-submission checks (Phase 6b) ─────────────────────────────────────────
+export type WsCheckStatus = 'success' | 'notable' | 'critical';
+
+export interface WsCheckResult {
+  id: string;
+  label: string;
+  status: WsCheckStatus;
+  detail: string;
+  fixable: boolean;
+}
+
+export interface WsGateResult {
+  id: string;
+  label: string;
+  status: WsCheckStatus;
+}
+
+export interface WsChecksResponse {
+  checks: WsCheckResult[];
+  gates: WsGateResult[];
+  score: { passed: number; total: number };
+}
+
+// ── Version history (Phase 6b) ───────────────────────────────────────────────
+export type WsAuthorKind = 'meri' | 'person';
+
+export interface WsDocVersion {
+  id: string;
+  draftId: string;
+  label: string | null;
+  authorId: string;
+  authorKind: WsAuthorKind;
+  snapshot: Record<string, unknown>;
+  createdAt: string;
+}
+
+// ── Concurrent-edit lock (Phase 6b, Q-ED-2) ──────────────────────────────────
+export interface WsLockStatus {
+  held: boolean;
+  heldByMe: boolean;
+  holderId: string | null;
+  holderName: string | null;
+  acquiredAt: string | null;
+  lastHeartbeatAt: string | null;
+  holderInactive: boolean;
+  requestedById: string | null;
+  requestedByName: string | null;
+  requestedAt: string | null;
+  hasIncomingRequest: boolean;
+}

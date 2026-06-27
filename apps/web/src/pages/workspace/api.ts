@@ -1,12 +1,15 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useApi } from '../../lib/use-api.js';
 import type {
+  WsChecksResponse,
   WsComment,
   WsConfig,
   WsContextItem,
+  WsDocVersion,
   WsDocument,
   WsDraft,
   WsIndustryDatum,
+  WsLockStatus,
   WsProductDefaults,
   WsTemplate,
 } from './types.js';
@@ -483,3 +486,81 @@ export function useRemoveContextItem(draftId: string) {
     onSuccess: () => qc.invalidateQueries({ queryKey: ['ws', 'ctx-items', draftId] }),
   });
 }
+
+// ── Pre-submission checks (Phase 6b) ─────────────────────────────────────────
+/**
+ * Rule-based pre-submission checks for a draft. Re-fetched when the popover
+ * opens (`enabled`) and kept fresh as the draft is edited (the toolbar score is
+ * read from `score`). Tenant-scoped engine endpoint.
+ */
+export function useDraftChecks(draftId: string | null, enabled = true) {
+  const api = useApi();
+  return useQuery({
+    queryKey: ['ws', 'checks', draftId],
+    enabled: !!draftId && enabled,
+    staleTime: 10_000,
+    queryFn: async () => (await api.get<WsChecksResponse>(`${BASE}/drafts/${draftId}/checks`)).data,
+  });
+}
+
+// ── Version history (Phase 6b) ───────────────────────────────────────────────
+export function useVersions(draftId: string | null) {
+  const api = useApi();
+  return useQuery({
+    queryKey: ['ws', 'versions', draftId],
+    enabled: !!draftId,
+    queryFn: async () => (await api.get<WsDocVersion[]>(`${BASE}/drafts/${draftId}/versions`)).data,
+  });
+}
+
+export function useCreateVersion(draftId: string) {
+  const api = useApi();
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async (body?: { label?: string; authorKind?: 'meri' | 'person' }) =>
+      (await api.post<WsDocVersion>(`${BASE}/drafts/${draftId}/versions`, body ?? {})).data,
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['ws', 'versions', draftId] }),
+  });
+}
+
+export function useRestoreVersion(draftId: string) {
+  const api = useApi();
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async (versionId: string) =>
+      (await api.post<WsDraft>(`${BASE}/drafts/${draftId}/versions/${versionId}/restore`, {})).data,
+    onSuccess: (data) => {
+      qc.setQueryData(['ws', 'draft', draftId], data);
+      qc.invalidateQueries({ queryKey: ['ws', 'versions', draftId] });
+    },
+  });
+}
+
+// ── Concurrent-edit lock (Phase 6b, Q-ED-2) ──────────────────────────────────
+/** Poll lock status (~every 15s). Disabled until the editor mounts a draft. */
+export function useLockStatus(draftId: string | null, pollMs = 15_000) {
+  const api = useApi();
+  return useQuery({
+    queryKey: ['ws', 'lock', draftId],
+    enabled: !!draftId,
+    refetchInterval: draftId ? pollMs : false,
+    refetchIntervalInBackground: false,
+    queryFn: async () => (await api.get<WsLockStatus>(`${BASE}/drafts/${draftId}/lock`)).data,
+  });
+}
+
+function useLockAction(draftId: string, verb: string) {
+  const api = useApi();
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async (body?: { name?: string }) =>
+      (await api.post<WsLockStatus>(`${BASE}/drafts/${draftId}/lock/${verb}`, body ?? {})).data,
+    onSuccess: (data) => qc.setQueryData(['ws', 'lock', draftId], data),
+  });
+}
+
+export const useAcquireLock = (draftId: string) => useLockAction(draftId, 'acquire');
+export const useHeartbeatLock = (draftId: string) => useLockAction(draftId, 'heartbeat');
+export const useReleaseLock = (draftId: string) => useLockAction(draftId, 'release');
+export const useRequestLock = (draftId: string) => useLockAction(draftId, 'request');
+export const useTakeOverLock = (draftId: string) => useLockAction(draftId, 'take-over');

@@ -17,9 +17,13 @@
  * only while unfocused. The RichTextToolbar drives the active editor only — no
  * global execCommand.
  *
- * Phase 6 stubs (DEFERRED, layout present): Comments rail content, Anonymize
- * review modal, Checks popover, Version-history popover, Insert→Templates,
- * Insert→Table-type picker, concurrent-edit lock. These toast / no-op.
+ * Phase 6b (WIRED): pre-submission Checks popover (live rule-based score),
+ * Version-history popover (snapshot on Save draft + restore), and the two-sided
+ * concurrent-edit lock (auto-acquire + heartbeat + view-only banner + request /
+ * take-over, polled). View-only disables the canvas editors but keeps commenting.
+ *
+ * Still deferred (layout present): Insert→Templates picker, Insert→Table-type
+ * picker, Meri chat editing. These toast / no-op.
  */
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
@@ -29,8 +33,10 @@ import {
   useAddDocument,
   useComments,
   useCreateComment,
+  useCreateVersion,
   useDeleteDocument,
   useDraft,
+  useDraftChecks,
   useGenerateSection,
   useUpdateDocument,
   useUpdateDraft,
@@ -48,6 +54,11 @@ import { Letterhead } from './editor/canvas-blocks.js';
 import { InsertRail } from './editor/InsertRail.js';
 import { MeriPanel } from './editor/MeriPanel.js';
 import { AnonymizeReview, type AnonymizeMap } from './editor/AnonymizeReview.js';
+import { ChecksPopover } from './editor/ChecksPopover.js';
+import { VersionPopover } from './editor/VersionPopover.js';
+import { LockBanner } from './editor/LockBanner.js';
+import { useEditLock } from './editor/useEditLock.js';
+import type { WsCheckResult } from './types.js';
 import { budgetFrom } from './editor/BudgetBlock.js';
 import { sectionViews } from './editor/section-model.js';
 import { anonymizeMap, type StoredRedaction } from './editor/anonymize.js';
@@ -73,6 +84,7 @@ export function EditorPage() {
   const addDocument = useAddDocument(draftId ?? '');
   const deleteDocument = useDeleteDocument(draftId ?? '');
   const generate = useGenerateSection(draftId ?? '');
+  const createVersion = useCreateVersion(draftId ?? '');
   const { data: me } = useMe();
 
   // ── Local working copies (the autosave debounce flushes these to the API) ──
@@ -94,6 +106,8 @@ export function EditorPage() {
   // Floating "Comment" button anchored at a live canvas selection.
   const [selectionFab, setSelectionFab] = useState<{ top: number; left: number } | null>(null);
   const [showAnonymizeReview, setShowAnonymizeReview] = useState(false);
+  // Phase 6b: which toolbar popover is open (mutually exclusive).
+  const [popover, setPopover] = useState<'checks' | 'history' | null>(null);
 
   // The engine document the active canvas maps to (comment scope). The MAIN
   // canvas is the primary WsDocument (lowest ordinal); packet tabs are their own
@@ -115,6 +129,13 @@ export function EditorPage() {
   const selfClerkId = me?.user.clerkUserId ?? null;
   const selfName =
     `${me?.user.firstName ?? ''} ${me?.user.lastName ?? ''}`.trim() || me?.user.email || 'You';
+
+  // ── Phase 6b: live pre-submission checks (toolbar score + popover) ──────────
+  const { data: checks, isLoading: checksLoading } = useDraftChecks(draftId ?? null);
+
+  // ── Phase 6b: concurrent-edit lock (auto-acquire, heartbeat, release) ───────
+  const editLock = useEditLock(draftId ?? null, selfName);
+  const viewOnly = !!editLock.lock.holderId && !editLock.canEdit;
 
   const hydrated = useRef(false);
   const saveTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -468,12 +489,25 @@ export function EditorPage() {
       `Anonymized ${map.redactions.length} name${map.redactions.length === 1 ? '' : 's'}`,
     );
   };
-  const onChecks = () => toast('Checks popover arrives in a later phase'); // TODO(phase 6b)
-  const onHistory = () => toast('Version history arrives in a later phase'); // TODO(phase 6b)
+  const onChecks = () => setPopover((p) => (p === 'checks' ? null : 'checks'));
+  const onHistory = () => setPopover((p) => (p === 'history' ? null : 'history'));
+  // "Fix" in the checks popover: a jump-to stub (closes the popover + toasts).
+  const onFixCheck = (c: WsCheckResult) => {
+    setPopover(null);
+    toast(`Fix: ${c.label}${c.detail ? ` (${c.detail})` : ''}`);
+  };
   const onShare = () => navigate(`/workspace/collab/${draftId}`);
   const onPreview = () => {
     flush(false);
     navigate(`/workspace/preview/${draftId}`);
+  };
+
+  // "Save draft" flushes the autosave AND snapshots a version (Phase 6b). The
+  // version is authored by the person saving; Meri-authored snapshots are
+  // created by the generation flow when that lands.
+  const onSaveDraft = () => {
+    flush(true);
+    createVersion.mutate({ label: 'Manual save' });
   };
   const onEditContext = () => navigate(`/workspace/context/${draftId}`);
   const onAskMeri = (text: string) =>
@@ -582,13 +616,32 @@ export function EditorPage() {
         saveStatus={saveStatus}
         anonymize={!!cfg.anonymize}
         letterhead={cfg.letterhead}
+        checksScore={checks?.score ?? null}
+        checksOpen={popover === 'checks'}
+        historyOpen={popover === 'history'}
+        viewOnly={viewOnly}
         onAnonymize={onAnonymize}
         onChecks={onChecks}
         onHistory={onHistory}
         onShare={onShare}
-        onSaveDraft={() => flush(true)}
+        onSaveDraft={onSaveDraft}
         onPreview={onPreview}
       />
+
+      {/* Concurrent-edit lock banner (Q-ED-2): view-only / request / take-over,
+          plus the active-editor receive-request UI. */}
+      <LockBanner
+        lock={editLock.lock}
+        requestPending={editLock.requestPending}
+        requestBusy={editLock.requestBusy}
+        takeOverBusy={editLock.takeOverBusy}
+        releasing={editLock.releasing}
+        onRequest={editLock.request}
+        onTakeOver={editLock.takeOver}
+        onSaveAndRelease={() => editLock.saveAndRelease(() => flush(true))}
+        onKeepEditing={editLock.keepEditing}
+      />
+
       <RichTextToolbar />
 
       <div className="ws-editor-scroll">
@@ -645,6 +698,7 @@ export function EditorPage() {
                     anonMap={anonMap}
                     metaLine={metaLine}
                     draftingSection={draftingSection}
+                    readOnly={viewOnly}
                     onTitle={(t) => {
                       setDocTitle(t);
                       cfgDirty.current = true;
@@ -670,6 +724,7 @@ export function EditorPage() {
                 firmName={firmName}
                 firmAddr={firmAddr}
                 letterhead={cfg.letterhead}
+                readOnly={viewOnly}
                 onChange={(body) => onPacketChange(activeTab, body)}
                 onAskMeri={() =>
                   toast(`Asking Meri to draft "${tabs.find((t) => t.id === activeTab)?.label}"`)
@@ -729,6 +784,31 @@ export function EditorPage() {
           draftId={draftId}
           onClose={() => setShowAnonymizeReview(false)}
           onApply={onApplyAnonymize}
+        />
+      )}
+
+      {/* Pre-submission checks popover (toolbar "Checks N/M"). */}
+      {popover === 'checks' && (
+        <ChecksPopover
+          data={checks}
+          loading={checksLoading}
+          onClose={() => setPopover(null)}
+          onFix={onFixCheck}
+        />
+      )}
+
+      {/* Version-history popover (toolbar "Version history"). */}
+      {popover === 'history' && draftId && (
+        <VersionPopover
+          draftId={draftId}
+          selfClerkId={selfClerkId}
+          selfName={selfName}
+          onClose={() => setPopover(null)}
+          onRestored={() => {
+            // The restore overwrites the draft server-side; re-hydrate locally.
+            hydrated.current = false;
+            setPopover(null);
+          }}
         />
       )}
     </div>

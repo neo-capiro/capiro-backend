@@ -36,6 +36,7 @@ export function PaperBody({
   onMarkReviewed,
   onRemoveBlock,
   onToast,
+  readOnly,
 }: {
   docTitle: string;
   sections: SectionView[];
@@ -47,6 +48,8 @@ export function PaperBody({
   metaLine: string;
   /** Name of the section currently being generated, if any. */
   draftingSection: string | null;
+  /** View-only (someone else holds the edit lock). */
+  readOnly?: boolean;
   onTitle: (title: string) => void;
   onReorder: (from: number, to: number) => void;
   onRenameSection: (index: number, name: string) => void;
@@ -76,10 +79,11 @@ export function PaperBody({
   return (
     <>
       <h1
-        contentEditable
+        contentEditable={!readOnly}
         suppressContentEditableWarning
         spellCheck={false}
         onBlur={(e) => {
+          if (readOnly) return;
           const v = e.currentTarget.textContent?.trim();
           if (v && v !== docTitle) onTitle(v);
         }}
@@ -118,6 +122,7 @@ export function PaperBody({
           anonMap={anonMap}
           ask={ask}
           budget={budget}
+          readOnly={readOnly}
           drafting={draftingSection === s.name}
           isDragOver={dragOver === i}
           isDragging={dragIdx === i}

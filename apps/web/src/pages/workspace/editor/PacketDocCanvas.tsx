@@ -27,6 +27,7 @@ export function PacketDocCanvas({
   onChange,
   onAskMeri,
   onToast,
+  readOnly,
 }: {
   label: string;
   body: PacketBody;
@@ -36,6 +37,8 @@ export function PacketDocCanvas({
   onChange: (body: PacketBody) => void;
   onAskMeri: () => void;
   onToast: (msg: string) => void;
+  /** View-only (someone else holds the edit lock). */
+  readOnly?: boolean;
 }) {
   const blocks = body.blocks ?? [];
   const title = body.title ?? label;
@@ -68,10 +71,13 @@ export function PacketDocCanvas({
       />
       <div style={{ padding: '20px 30px 30px', minHeight: 260 }}>
         <h1
-          contentEditable
+          contentEditable={!readOnly}
           suppressContentEditableWarning
           spellCheck={false}
-          onBlur={(e) => onChange({ ...body, title: e.currentTarget.textContent ?? label })}
+          onBlur={(e) => {
+            if (readOnly) return;
+            onChange({ ...body, title: e.currentTarget.textContent ?? label });
+          }}
           style={{
             fontFamily: 'var(--font-serif)',
             fontWeight: 500,
@@ -124,12 +130,13 @@ export function PacketDocCanvas({
           >
             <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 8 }}>
               <h3
-                contentEditable
+                contentEditable={!readOnly}
                 suppressContentEditableWarning
                 spellCheck={false}
-                onBlur={(e) =>
-                  setBlock(sec.id, { title: e.currentTarget.textContent ?? sec.title })
-                }
+                onBlur={(e) => {
+                  if (readOnly) return;
+                  setBlock(sec.id, { title: e.currentTarget.textContent ?? sec.title });
+                }}
                 style={{ margin: 0, fontSize: 15, fontWeight: 700, outline: 'none', flex: 1 }}
               >
                 {sec.title ?? 'New section'}
@@ -154,6 +161,7 @@ export function PacketDocCanvas({
               value={sec.content ?? ''}
               onChange={(html) => setBlock(sec.id, { content: html })}
               dataSection={sec.title ?? 'New section'}
+              readOnly={readOnly}
               aria-label={`${sec.title ?? 'section'} body`}
               placeholder="Write here…"
               style={{

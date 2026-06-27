@@ -79,6 +79,8 @@ model WsDraft {
 
   documents WsDocument[]
   context   WsContextItem[]
+  versions  WsDocVersion[]
+  editLock  WsEditLock?
 
   @@index([tenantId])
   @@index([tenantId, ownerId])
@@ -162,6 +164,67 @@ model WsComment {
   @@index([documentId])
   @@index([parentId])
   @@map("ws_comment")
+}
+
+// Author kind on a saved version (handoff §12.8 / AI-use disclosure). A version
+// authored by Meri renders with the Meri avatar + is logged for disclosure; a
+// person's version renders their tenant-member avatar.
+enum WsAuthorKind {
+  meri
+  person
+
+  @@map("ws_author_kind")
+}
+
+// A point-in-time snapshot of a draft (Phase 6b version history). Created on a
+// manual "Save draft" (and restorable). `snapshot` carries the full draft config
+// + each document body at save time so a restore is lossless. Tenant-scoped.
+model WsDocVersion {
+  id         String       @id @default(uuid()) @db.Uuid
+  tenantId   String       @map("tenant_id") @db.Uuid
+  draftId    String       @map("draft_id") @db.Uuid
+  // Human label ("Edited The ask", "Drafted Problem statement"). Optional.
+  label      String?
+  // Clerk user id of the author (engine doesn't own the user table). For a
+  // Meri-authored version this is the user who triggered the save.
+  authorId   String       @map("author_id")
+  authorKind WsAuthorKind @default(person) @map("author_kind")
+  // Full draft state at save time: { docTitle, config, documents: [{id,name,
+  // ordinal,body}], ask }.
+  snapshot   Json         @default("{}")
+  createdAt  DateTime     @default(now()) @map("created_at")
+
+  draft WsDraft @relation(fields: [draftId], references: [id], onDelete: Cascade)
+
+  @@index([tenantId])
+  @@index([draftId])
+  @@index([draftId, createdAt])
+  @@map("ws_doc_version")
+}
+
+// Two-sided concurrent-edit lock (Phase 6b, Q-ED-2). One row per draft (draftId
+// is the PK). DB + polling, no websockets. The holder heartbeats while editing;
+// a viewer may `request` edit (the holder is notified) or `take over` once the
+// holder has been inactive (lastHeartbeatAt older than the inactivity window).
+// Tenant-scoped.
+model WsEditLock {
+  // The draft this lock guards (one lock per draft).
+  draftId         String   @id @map("draft_id") @db.Uuid
+  tenantId        String   @map("tenant_id") @db.Uuid
+  // Current holder (Clerk user id) + a denormalized display name for the banner.
+  holderId        String   @map("holder_id")
+  holderName      String   @map("holder_name")
+  acquiredAt      DateTime @default(now()) @map("acquired_at")
+  lastHeartbeatAt DateTime @default(now()) @map("last_heartbeat_at")
+  // A pending "request to edit" from a viewer (cleared on take-over / release).
+  requestedById   String?  @map("requested_by_id")
+  requestedByName String?  @map("requested_by_name")
+  requestedAt     DateTime? @map("requested_at")
+
+  draft WsDraft @relation(fields: [draftId], references: [id], onDelete: Cascade)
+
+  @@index([tenantId])
+  @@map("ws_edit_lock")
 }
 
 // A piece of context attached to a draft for Meri grounding (handoff §12.16 +

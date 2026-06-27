@@ -1,24 +1,36 @@
 /**
  * Editor toolbar (sub-header) — ported from the prototype `EditorToolbar`
  * (asset_07). Title + autosave indicator, Custom-letterhead pill, Anonymize
- * toggle, Checks (static 8/10), Version history, collaborator stack, Share,
+ * toggle, Checks (live score), Version history, collaborator stack, Share,
  * Save draft, Preview & Save.
  *
- * Phase 6 stubs: the Checks popover, the Anonymize REVIEW modal, and the
- * Version-history popover are deferred — those buttons toast for now. The
- * Anonymize toggle still flips cfg.anonymize live (the review modal only gates
- * turning it ON in the prototype; here it toggles directly until phase 6).
+ * Phase 6b: the Checks popover and Version-history popover are wired (the parent
+ * toggles them; this just dispatches onChecks/onHistory and shows the live
+ * checks score). View-only mode (someone else holds the edit lock) disables the
+ * mutating actions (Anonymize / Save draft) while leaving read actions
+ * (Checks / Version history / Share / Preview) available.
  */
 import type { WsLetterhead } from '../types.js';
 import { AvaStack, Icon } from '../kit.js';
 
 export type SaveStatus = 'saved' | 'saving';
 
+const scoreColor = (passed: number, total: number): string => {
+  if (total === 0) return 'var(--ink-3)';
+  if (passed === total) return 'var(--success)';
+  if (passed >= Math.ceil(total * 0.7)) return 'var(--notable)';
+  return 'var(--critical)';
+};
+
 export function EditorToolbar({
   title,
   saveStatus,
   anonymize,
   letterhead,
+  checksScore,
+  checksOpen,
+  historyOpen,
+  viewOnly,
   onAnonymize,
   onChecks,
   onHistory,
@@ -30,6 +42,12 @@ export function EditorToolbar({
   saveStatus: SaveStatus;
   anonymize: boolean;
   letterhead?: WsLetterhead;
+  /** Live pre-submission check score (null while loading). */
+  checksScore?: { passed: number; total: number } | null;
+  checksOpen?: boolean;
+  historyOpen?: boolean;
+  /** Someone else holds the edit lock — disable mutating actions. */
+  viewOnly?: boolean;
   onAnonymize: () => void;
   onChecks: () => void;
   onHistory: () => void;
@@ -93,25 +111,45 @@ export function EditorToolbar({
       <button
         className="btn sm btn-ghost"
         onClick={onAnonymize}
+        disabled={viewOnly}
         title="Remove direct client & product names Meri identifies"
         style={{
           color: anonymize ? 'var(--accent)' : 'var(--ink-2)',
           background: anonymize ? 'var(--accent-soft)' : 'transparent',
+          opacity: viewOnly ? 0.5 : 1,
         }}
       >
         <Icon name={anonymize ? 'EyeOff' : 'Eye'} size={14} />
         {anonymize ? 'Anonymized' : 'Anonymize'}
       </button>
-      {/* TODO(phase 6): Checks popover (currently a toast stub). */}
-      <button className="btn sm btn-ghost" style={{ color: 'var(--ink-2)' }} onClick={onChecks}>
+      <button
+        className="btn sm btn-ghost"
+        style={{
+          color: 'var(--ink-2)',
+          background: checksOpen ? 'var(--bg-sunken)' : 'transparent',
+        }}
+        onClick={onChecks}
+      >
         <Icon name="ListChecks" size={14} />
         Checks{' '}
-        <span style={{ color: 'var(--notable)', fontWeight: 600 }} className="num">
-          8/10
+        <span
+          style={{
+            color: checksScore ? scoreColor(checksScore.passed, checksScore.total) : 'var(--ink-3)',
+            fontWeight: 600,
+          }}
+          className="num"
+        >
+          {checksScore ? `${checksScore.passed}/${checksScore.total}` : '…'}
         </span>
       </button>
-      {/* TODO(phase 6): Version-history popover (currently a toast stub). */}
-      <button className="btn sm btn-ghost" style={{ color: 'var(--ink-2)' }} onClick={onHistory}>
+      <button
+        className="btn sm btn-ghost"
+        style={{
+          color: 'var(--ink-2)',
+          background: historyOpen ? 'var(--bg-sunken)' : 'transparent',
+        }}
+        onClick={onHistory}
+      >
         <Icon name="History" size={14} />
         Version history
       </button>
@@ -122,7 +160,12 @@ export function EditorToolbar({
         Share
       </button>
       <span style={{ width: 1, height: 22, background: 'var(--border-1)', margin: '0 2px' }} />
-      <button className="btn sm btn-ghost" style={{ color: 'var(--ink-2)' }} onClick={onSaveDraft}>
+      <button
+        className="btn sm btn-ghost"
+        style={{ color: 'var(--ink-2)', opacity: viewOnly ? 0.5 : 1 }}
+        onClick={onSaveDraft}
+        disabled={viewOnly}
+      >
         <Icon name="Save" size={13} />
         Save draft
       </button>
