@@ -76,6 +76,7 @@ import {
   getSelectionAnchor,
   highlightSelection,
   type CommentAnchor,
+  type SelectionAnchor,
 } from './editor/anchors.js';
 import type { ComposingComment } from './editor/CommentsRail.js';
 
@@ -141,6 +142,11 @@ export function EditorPage() {
   const [composing, setComposing] = useState<ComposingComment | null>(null);
   // Floating "Comment" button anchored at a live canvas selection.
   const [selectionFab, setSelectionFab] = useState<{ top: number; left: number } | null>(null);
+  // The selection anchor captured at mouseup. onStartComment reuses THIS instead
+  // of re-reading window.getSelection() at FAB-click time — the live selection
+  // can be collapsed by focus changes by the time the FAB is clicked, which made
+  // "highlight → Comment" silently no-op.
+  const pendingAnchor = useRef<SelectionAnchor | null>(null);
   const [showAnonymizeReview, setShowAnonymizeReview] = useState(false);
   // Phase 6b: which toolbar popover is open (mutually exclusive).
   const [popover, setPopover] = useState<'checks' | 'history' | null>(null);
@@ -435,6 +441,7 @@ export function EditorPage() {
       // Defer so the browser finishes updating window.getSelection().
       window.setTimeout(() => {
         const anchor = getSelectionAnchor();
+        pendingAnchor.current = anchor;
         if (!anchor) {
           setSelectionFab(null);
           return;
@@ -719,10 +726,11 @@ export function EditorPage() {
   // transient .ws-hl highlight, open a composing comment, and switch the rail to
   // Comments (prototype parity).
   const onStartComment = () => {
-    const anchor = getSelectionAnchor();
+    // Use the anchor captured at mouseup; fall back to a live read only if needed.
+    const anchor = pendingAnchor.current ?? getSelectionAnchor();
     setSelectionFab(null);
     if (!anchor) return;
-    highlightSelection();
+    highlightSelection(); // best-effort transient highlight (no-ops if selection gone)
     setComposing({
       section: anchor.section,
       quote: anchor.quote,
@@ -730,6 +738,7 @@ export function EditorPage() {
       end: anchor.end,
     });
     setRailTab('comments');
+    pendingAnchor.current = null;
   };
   const onComposeCancel = () => setComposing(null);
   const onComposeSave = (text: string) => {

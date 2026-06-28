@@ -219,7 +219,14 @@ export function PreviewPage() {
         ),
         okText: 'Export anyway',
         cancelText: 'Review first',
-        onOk: runExport,
+        // Defer so the confirm modal fully unmounts before runExport →
+        // window.print() snapshots the page; otherwise the PDF captures the
+        // modal's backdrop instead of the document (the @media print rules also
+        // hide modal layers as a guarantee). This is what makes "Export anyway"
+        // actually produce the document after acknowledging the warning.
+        onOk: () => {
+          window.setTimeout(runExport, 150);
+        },
       });
       return;
     }
