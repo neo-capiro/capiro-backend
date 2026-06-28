@@ -13,6 +13,7 @@ import {
   useDrafts,
 } from './api.js';
 import { decodeHtmlEntities } from '../../lib/html-entities.js';
+import { useDebouncedValue } from '../../lib/use-debounced-value.js';
 import type { WsConfig, WsContextItem } from './types.js';
 
 /**
@@ -217,6 +218,8 @@ function ContextBuilder({
 
   // Source tabs (real where wired, engine fallback otherwise).
   const sourceGroups = useSourceGroups(client);
+  // Resolved client id for the Bills tab's search-any-bill bar (deduped fetch).
+  const clientId = useClientId(client);
 
   // News from OUR systems (correction #1).
   const newsCards = useNewsCards(client, offices);
@@ -399,53 +402,30 @@ function ContextBuilder({
           ))}
         </div>
 
+        {/* Bills: search-any-bill bar (mirrors client profile → Tracker). */}
+        {activeGroup?.type === 'bills' && (
+          <BillContextSearch
+            clientId={clientId}
+            addedRefIds={addedRefIds}
+            addingId={addingId}
+            onAdd={(it) => addSource(activeGroup, it)}
+          />
+        )}
+
         {/* active tab items */}
         <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
           {activeGroup && activeGroup.items.length > 0 ? (
-            activeGroup.items.map((it) => {
-              const added = addedRefIds.has(it.id);
-              const adding = addingId === it.id;
-              return (
-                <div
-                  key={it.id}
-                  style={{
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: 11,
-                    padding: '10px 12px',
-                    border: '1px solid',
-                    borderColor: added ? 'var(--accent)' : 'var(--border-1)',
-                    borderRadius: 8,
-                    background: added ? 'var(--accent-soft)' : 'var(--bg-surface)',
-                  }}
-                >
-                  <Icon
-                    name={activeGroup.icon}
-                    size={15}
-                    style={{ color: 'var(--accent)', flex: 'none' }}
-                  />
-                  <div style={{ flex: 1, minWidth: 0 }}>
-                    <div style={{ fontSize: 12.5, fontWeight: 600 }}>{it.t}</div>
-                    {it.sub && <div style={{ fontSize: 11, color: 'var(--ink-3)' }}>{it.sub}</div>}
-                  </div>
-                  <button
-                    className="btn sm"
-                    disabled={added || adding}
-                    onClick={() => addSource(activeGroup, it)}
-                    style={{
-                      borderColor: added ? 'var(--accent)' : 'var(--border-1)',
-                      background: added ? 'var(--accent-soft)' : 'transparent',
-                      color: added ? 'var(--accent-ink)' : 'var(--ink-2)',
-                      flexShrink: 0,
-                      ...(adding ? { opacity: 0.6, cursor: 'wait' } : {}),
-                    }}
-                  >
-                    <Icon name={added ? 'Check' : 'Plus'} size={12} />
-                    {added ? 'Added' : adding ? 'Adding…' : '+ Add to context plan'}
-                  </button>
-                </div>
-              );
-            })
+            activeGroup.items.map((it) => (
+              <SourceRow
+                key={it.id}
+                icon={activeGroup.icon}
+                title={it.t}
+                sub={it.sub}
+                added={addedRefIds.has(it.id)}
+                adding={addingId === it.id}
+                onAdd={() => addSource(activeGroup, it)}
+              />
+            ))
           ) : (
             <div
               style={{
@@ -455,9 +435,11 @@ function ContextBuilder({
                 fontStyle: 'italic',
               }}
             >
-              {/* TODO(phase): wire this tab to a live source for this client. */}
-              Nothing to pull from {activeGroup?.tab ?? 'this source'} yet
-              {client ? ` for ${client}` : ''}.
+              {activeGroup?.type === 'bills'
+                ? 'No bills on the Tracker board yet — search above to add any bill, or track bills from the client profile → Tracker.'
+                : `Nothing to pull from ${activeGroup?.tab ?? 'this source'} yet${
+                    client ? ` for ${client}` : ''
+                  }.`}
             </div>
           )}
         </div>
@@ -853,23 +835,199 @@ function NewsSection({
  *   - Client profile → overview + capabilities + facilities + people
  *   - Intel          → the client's budget identifiers (PE numbers + issue codes)
  *   - Prior docs     → this client's completed workspace drafts
- *   - Bills          → /api/intelligence/clients/:id/tracked-bills (client-relevant)
+ *   - Bills          → the client's Tracker board (.../tracker/board) + a search-any-bill
+ *                      bar (.../tracker/bill-search) — same source as client profile → Tracker
  *   - Meeting preps  → /api/engagement/outreach/context-library (this client's preps)
  *   - Docs & notes   → /api/engagement/attachments?clientId (content pulled on add)
  */
-function useSourceGroups(client: string | null): SourceGroup[] {
-  const api = useApi();
+/**
+ * One source row — title + optional subtitle + an "Add to context plan" button.
+ * Shared by the source-tab list and the bill-search results so they stay visually
+ * identical and share the added/adding states.
+ */
+function SourceRow({
+  icon,
+  title,
+  sub,
+  added,
+  adding,
+  onAdd,
+}: {
+  icon: string;
+  title: string;
+  sub?: string;
+  added: boolean;
+  adding: boolean;
+  onAdd: () => void;
+}) {
+  return (
+    <div
+      style={{
+        display: 'flex',
+        alignItems: 'center',
+        gap: 11,
+        padding: '10px 12px',
+        border: '1px solid',
+        borderColor: added ? 'var(--accent)' : 'var(--border-1)',
+        borderRadius: 8,
+        background: added ? 'var(--accent-soft)' : 'var(--bg-surface)',
+      }}
+    >
+      <Icon name={icon} size={15} style={{ color: 'var(--accent)', flex: 'none' }} />
+      <div style={{ flex: 1, minWidth: 0 }}>
+        <div style={{ fontSize: 12.5, fontWeight: 600 }}>{title}</div>
+        {sub && <div style={{ fontSize: 11, color: 'var(--ink-3)' }}>{sub}</div>}
+      </div>
+      <button
+        className="btn sm"
+        disabled={added || adding}
+        onClick={onAdd}
+        style={{
+          borderColor: added ? 'var(--accent)' : 'var(--border-1)',
+          background: added ? 'var(--accent-soft)' : 'transparent',
+          color: added ? 'var(--accent-ink)' : 'var(--ink-2)',
+          flexShrink: 0,
+          ...(adding ? { opacity: 0.6, cursor: 'wait' } : {}),
+        }}
+      >
+        <Icon name={added ? 'Check' : 'Plus'} size={12} />
+        {added ? 'Added' : adding ? 'Adding…' : '+ Add to context plan'}
+      </button>
+    </div>
+  );
+}
 
-  // Resolve client NAME → id (every client-scoped endpoint keys on the id).
+/**
+ * Search-any-bill bar for the Bills tab — mirrors the client-profile Tracker's
+ * search (same GET .../tracker/bill-search endpoint). Lets the user pull ANY
+ * bill into the context plan, not just the ones already on the Tracker board.
+ */
+function BillContextSearch({
+  clientId,
+  addedRefIds,
+  addingId,
+  onAdd,
+}: {
+  clientId: string | null;
+  addedRefIds: Set<string>;
+  addingId: string | null;
+  onAdd: (it: SourceItem) => void;
+}) {
+  const api = useApi();
+  const [q, setQ] = useState('');
+  const debouncedQ = useDebouncedValue(q.trim(), 250);
+  const active = !!clientId && debouncedQ.length >= 2;
+
+  const { data: results, isFetching } = useQuery({
+    queryKey: ['ws-ctx-bill-search', clientId, debouncedQ],
+    enabled: active,
+    staleTime: 30_000,
+    queryFn: async () =>
+      (
+        await api.get<{ billId: string; displayNum: string; title: string | null }[]>(
+          `/api/intelligence/clients/${clientId}/tracker/bill-search`,
+          { params: { q: debouncedQ } },
+        )
+      ).data,
+  });
+
+  const items: SourceItem[] = (results ?? []).map((r) => ({
+    id: `bill-${r.billId}`,
+    t: r.displayNum,
+    sub: r.title ?? undefined,
+    text: [r.displayNum, r.title].filter(Boolean).join(' — '),
+  }));
+
+  return (
+    <div style={{ marginBottom: 10 }}>
+      <div style={{ position: 'relative' }}>
+        <Icon
+          name="Search"
+          size={14}
+          style={{
+            position: 'absolute',
+            left: 11,
+            top: '50%',
+            transform: 'translateY(-50%)',
+            color: 'var(--ink-3)',
+            pointerEvents: 'none',
+          }}
+        />
+        <input
+          className="field"
+          value={q}
+          onChange={(e) => setQ(e.target.value)}
+          disabled={!clientId}
+          placeholder="Search any bill to add — e.g. “H.R. 4455”, “transmission”, “data center”…"
+          style={{
+            width: '100%',
+            padding: '9px 12px 9px 32px',
+            fontSize: 12.5,
+            boxSizing: 'border-box',
+            border: '1px solid var(--border-1)',
+            borderRadius: 8,
+            background: 'var(--bg-surface)',
+            opacity: clientId ? 1 : 0.6,
+          }}
+        />
+      </div>
+      {active && (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 8, marginTop: 8 }}>
+          {isFetching && !items.length ? (
+            <div style={{ fontSize: 12, color: 'var(--ink-3)', padding: '6px 2px' }}>
+              Searching…
+            </div>
+          ) : items.length ? (
+            items.map((it) => (
+              <SourceRow
+                key={it.id}
+                icon="Scale"
+                title={it.t}
+                sub={it.sub}
+                added={addedRefIds.has(it.id)}
+                adding={addingId === it.id}
+                onAdd={() => onAdd(it)}
+              />
+            ))
+          ) : (
+            <div
+              style={{
+                fontSize: 12,
+                color: 'var(--ink-3)',
+                padding: '6px 2px',
+                fontStyle: 'italic',
+              }}
+            >
+              No bills match “{debouncedQ}”.
+            </div>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
+
+/**
+ * Resolve a client NAME → id (every client-scoped endpoint keys on the id).
+ * Shared by useSourceGroups and the bill-search bar; the clients-list query is
+ * deduped by react-query (identical queryKey) so calling it twice costs one fetch.
+ */
+function useClientId(client: string | null): string | null {
+  const api = useApi();
   const { data: clients } = useQuery({
     queryKey: ['ws-clients-list'],
     enabled: !!client,
     queryFn: async () => (await api.get<{ id: string; name: string }[]>('/api/clients')).data,
   });
-  const clientId = useMemo(
+  return useMemo(
     () => (clients ?? []).find((c) => c.name === client)?.id ?? null,
     [clients, client],
   );
+}
+
+function useSourceGroups(client: string | null): SourceGroup[] {
+  const api = useApi();
+  const clientId = useClientId(client);
 
   const { data: overview } = useQuery({
     queryKey: ['ws-ctx-client', clientId],
@@ -945,18 +1103,20 @@ function useSourceGroups(client: string | null): SourceGroup[] {
       ).data,
   });
 
-  const { data: trackedBills } = useQuery({
-    queryKey: ['ws-ctx-tracked-bills', clientId],
+  // Bills = the client's TRACKER BOARD (the bills tracked under client profile →
+  // Tracker). Same trackedBill source, flattened out of the kanban columns so the
+  // Context Builder mirrors exactly what's on the board. A search bar below
+  // (BillContextSearch) lets the user pull in ANY bill, tracked or not.
+  const { data: board } = useQuery({
+    queryKey: ['ws-ctx-tracker-board', clientId],
     enabled: !!clientId,
     queryFn: async () =>
       (
         await api.get<{
-          bills: {
-            identifier: string;
-            title: string | null;
-            latestActionText?: string | null;
+          columns: {
+            bills: { billId: string; displayNum: string; title: string | null }[];
           }[];
-        }>(`/api/intelligence/clients/${clientId}/tracked-bills`)
+        }>(`/api/intelligence/clients/${clientId}/tracker/board`)
       ).data,
   });
 
@@ -1076,15 +1236,15 @@ function useSourceGroups(client: string | null): SourceGroup[] {
       });
     }
 
-    // Bills: client-relevant tracked bills.
-    const billItems: SourceItem[] = (trackedBills?.bills ?? []).slice(0, 12).map((b) => ({
-      id: `bill-${b.identifier}`,
-      t: b.identifier,
-      sub: b.title ?? undefined,
-      text: [b.identifier, b.title, b.latestActionText ? `Latest: ${b.latestActionText}` : null]
-        .filter(Boolean)
-        .join(' — '),
-    }));
+    // Bills: the client's tracked bills, straight off the Tracker board.
+    const billItems: SourceItem[] = (board?.columns ?? [])
+      .flatMap((c) => c.bills)
+      .map((b) => ({
+        id: `bill-${b.billId}`,
+        t: b.displayNum,
+        sub: b.title ?? undefined,
+        text: [b.displayNum, b.title].filter(Boolean).join(' — '),
+      }));
 
     // Meeting preps for this client.
     const prepItems: SourceItem[] = (contextLib?.preps ?? [])
@@ -1128,7 +1288,7 @@ function useSourceGroups(client: string | null): SourceGroup[] {
     capabilities,
     facilities,
     people,
-    trackedBills,
+    board,
     contextLib,
     attachments,
     drafts,
