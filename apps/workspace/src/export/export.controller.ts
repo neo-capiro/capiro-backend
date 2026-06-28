@@ -5,7 +5,8 @@ import { CurrentTenant } from '../auth/current-tenant.decorator.js';
 import type { WorkspaceTenantContext } from '../auth/tenant-context.js';
 import { ExportService } from './export.service.js';
 
-/** Document export endpoints (Phase 7). PDF is produced client-side (print). */
+/** Document export endpoints (Phase 7). Both .docx and .pdf are server-rendered
+ *  (deterministic — the PDF no longer depends on the browser print pipeline). */
 @Controller('drafts/:draftId/export')
 @UseGuards(TenantGuard)
 export class ExportController {
@@ -26,6 +27,22 @@ export class ExportController {
       'Content-Type',
       'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
     );
+    res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
+    res.send(buffer);
+  }
+
+  /**
+   * GET /workspace-api/drafts/:draftId/export/pdf
+   * Streams a server-rendered .pdf of the draft (anonymized when the flag is set).
+   */
+  @Get('pdf')
+  async pdf(
+    @CurrentTenant() ctx: WorkspaceTenantContext,
+    @Param('draftId') draftId: string,
+    @Res() res: Response,
+  ): Promise<void> {
+    const { filename, buffer } = await this.exportService.buildPdf(ctx.tenantId, draftId);
+    res.setHeader('Content-Type', 'application/pdf');
     res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
     res.send(buffer);
   }
