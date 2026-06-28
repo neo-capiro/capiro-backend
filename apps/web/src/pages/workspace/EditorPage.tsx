@@ -364,10 +364,17 @@ export function EditorPage() {
   const firmName = cfg.letterhead?.firmName || 'Your firm';
   const firmAddr = cfg.letterhead?.firmAddr || 'Add a firm address in Setup → Letterhead';
 
-  // Packet tabs: main (label = product) + each packet WsDocument.
+  // Packet tabs: the synthetic MAIN tab (label = the selected work product) maps
+  // to the primary WsDocument (lowest ordinal, see activeDocumentId). The other
+  // documents are packet add-ons (cover letter, appendix, …) and get their own
+  // tabs. EXCLUDE the primary here — MAIN already represents it — otherwise a
+  // single-document draft renders two tabs for the same doc (the primary's stale
+  // stored name showed up as a spurious second tab, e.g. "White paper").
+  const sortedDocs = [...draft.documents].sort((a, b) => a.ordinal - b.ordinal);
+  const primaryDocId = sortedDocs[0]?.id;
   const tabs: DocTab[] = [
     { id: MAIN_TAB, label: cfg.product || draft.docTitle || 'Document', main: true },
-    ...draft.documents.map((d) => ({ id: d.id, label: d.name })),
+    ...sortedDocs.filter((d) => d.id !== primaryDocId).map((d) => ({ id: d.id, label: d.name })),
   ];
   const isMainDoc = activeTab === MAIN_TAB;
 
