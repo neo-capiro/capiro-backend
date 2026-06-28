@@ -1,6 +1,7 @@
 import { BadRequestException, Injectable, Logger, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service.js';
 import { IntelligenceService } from '../intelligence/intelligence.service.js';
+import { issueAreaForSector, normalizeIssueArea } from '@capiro/shared';
 import { EMBEDDING_MODEL, embedText, normalize, vectorLiteral } from '../embeddings/embedder.js';
 import { normalizeE164 } from './sms/sms.service.js';
 import { BILL_STAGES, billStage, humanizeBillId, passageProbability } from './bill-stage.util.js';
@@ -126,10 +127,14 @@ export class TrackerService {
     const tags = tagsRaw
       .map((t) => this.normalizeTag((t ?? {}) as Partial<WatchlistTag>))
       .filter((t): t is WatchlistTag => t != null);
-    return {
-      issueAreas: Array.isArray(row?.issueAreas) ? row!.issueAreas : [],
-      tags,
-    };
+    // Remap any legacy issue-area labels to canonical ones (dedup) so renamed
+    // taxonomy entries aren't dropped by the canonical-only filter on save.
+    const issueAreas = Array.isArray(row?.issueAreas)
+      ? Array.from(
+          new Set(row!.issueAreas.map(normalizeIssueArea).filter((a): a is string => a != null)),
+        )
+      : [];
+    return { issueAreas, tags };
   }
 
   async putWatchlist(
@@ -140,7 +145,9 @@ export class TrackerService {
   ): Promise<WatchlistPayload> {
     await this.assertClient(clientId, tenantId);
     const issueAreas = Array.isArray(payload.issueAreas)
-      ? payload.issueAreas.filter((a) => ISSUE_AREAS.includes(a))
+      ? Array.from(
+          new Set(payload.issueAreas.map(normalizeIssueArea).filter((a): a is string => a != null)),
+        )
       : [];
     const tags = (Array.isArray(payload.tags) ? payload.tags : [])
       .map((t) => this.normalizeTag(t))
@@ -159,6 +166,64 @@ export class TrackerService {
       }),
     );
     return { issueAreas, tags };
+  }
+
+  /**
+   * Suggestions to seed an empty (or partial) watchlist FROM the client profile:
+   * the client's capability tags become watchlist tag rows (Med / Monitor), and
+   * the client's sector (+ each capability's sector) maps to issue areas. Already-
+   * present tags / issue areas are excluded so re-importing is a no-op. The
+   * caller (Configure "Import from profile") merges these into the form and saves.
+   */
+  async getSeedSuggestions(
+    clientId: string,
+    tenantId: string,
+  ): Promise<{ tags: WatchlistTag[]; issueAreas: string[] }> {
+    const existing = await this.getWatchlist(clientId, tenantId);
+    const existingTagNames = new Set(existing.tags.map((t) => t.tag.toLowerCase()));
+    const existingAreas = new Set(existing.issueAreas);
+
+    const [client, caps] = await this.prisma.withTenant(tenantId, (tx) =>
+      Promise.all([
+        tx.client.findFirst({ where: { id: clientId }, select: { sectorTag: true } }),
+        tx.clientCapability.findMany({ where: { clientId }, select: { tags: true, sector: true } }),
+      ]),
+    );
+
+    // Capability tags → watchlist tag rows (distinct, not already tracked).
+    const seen = new Set<string>();
+    const tags: WatchlistTag[] = [];
+    for (const cap of caps) {
+      const capTags = Array.isArray(cap.tags)
+        ? (cap.tags as unknown[]).filter((t): t is string => typeof t === 'string')
+        : [];
+      for (const raw of capTags) {
+        const tag = raw.trim();
+        const key = tag.toLowerCase();
+        if (!tag || seen.has(key) || existingTagNames.has(key)) continue;
+        seen.add(key);
+        tags.push({
+          tag,
+          issueArea: null,
+          synonyms: [],
+          relatedEntities: [],
+          riskTerms: [],
+          position: 'monitor',
+          priority: 'med',
+        });
+      }
+    }
+
+    // Client sector + capability sectors → issue areas (not already selected).
+    const areaSet = new Set<string>();
+    const clientArea = issueAreaForSector(client?.sectorTag);
+    if (clientArea && !existingAreas.has(clientArea)) areaSet.add(clientArea);
+    for (const cap of caps) {
+      const a = issueAreaForSector(cap.sector);
+      if (a && !existingAreas.has(a)) areaSet.add(a);
+    }
+
+    return { tags, issueAreas: [...areaSet] };
   }
 
   // ── Alert preferences ────────────────────────────────────────────────────

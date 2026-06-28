@@ -4,21 +4,10 @@
  */
 import type { BillStage } from './bill-stage.util.js';
 
-/** Capiro-managed issue-area taxonomy shown as checkboxes on Configure. */
-export const ISSUE_AREAS: readonly string[] = [
-  'Energy & Utilities',
-  'Healthcare',
-  'Housing',
-  'Insurance',
-  'AI / Data Privacy',
-  'Procurement',
-  'Transportation',
-  'Labor',
-  'Tax',
-  'Environment',
-  'Education',
-  'Public Safety',
-];
+// Capiro-managed issue-area taxonomy (a superset of the sector labels) lives in
+// @capiro/shared so sectors ↔ issue areas have a single source of truth and
+// relate by identity. Re-exported here so existing tracker imports are stable.
+export { ISSUE_AREAS } from '@capiro/shared';
 
 /** Alert-trigger keys (each maps to a deterministic change-detection rule). */
 export const ALERT_TRIGGERS: readonly string[] = [

@@ -99,6 +99,13 @@ export class TrackerController {
     return this.tracker.getWatchlist(clientId, ctx.tenantId);
   }
 
+  // Suggested tags + issue areas to seed the watchlist from the client profile
+  // (capability tags + sector). Excludes anything already configured.
+  @Get('clients/:clientId/tracker/watchlist/seed-suggestions')
+  getSeedSuggestions(@CurrentTenant() ctx: TenantContext, @Param('clientId') clientId: string) {
+    return this.tracker.getSeedSuggestions(clientId, ctx.tenantId);
+  }
+
   @Put('clients/:clientId/tracker/watchlist')
   putWatchlist(
     @CurrentTenant() ctx: TenantContext,
