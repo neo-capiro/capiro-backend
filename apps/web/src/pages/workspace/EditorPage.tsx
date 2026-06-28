@@ -39,6 +39,7 @@ import {
   useDraft,
   useDraftChecks,
   useDraftContext,
+  useGenerateAll,
   useGenerateSection,
   useTenantMembers,
   useUpdateDocument,
@@ -88,7 +89,7 @@ const MAIN_TAB = 'main';
 export function EditorPage() {
   const { draftId } = useParams();
   const navigate = useNavigate();
-  const { message } = AntApp.useApp();
+  const { message, modal } = AntApp.useApp();
   const { data: draft, isLoading } = useDraft(draftId ?? null);
 
   const updateDraft = useUpdateDraft(draftId ?? '');
@@ -96,6 +97,7 @@ export function EditorPage() {
   const addDocument = useAddDocument(draftId ?? '');
   const deleteDocument = useDeleteDocument(draftId ?? '');
   const generate = useGenerateSection(draftId ?? '');
+  const generateAll = useGenerateAll(draftId ?? null);
 
   // E-17: real collaborator avatars (owner + active collaborators), resolving
   // clerk ids to initials via the tenant roster. No seed avatars.
@@ -136,6 +138,9 @@ export function EditorPage() {
   }, [justInserted]);
   const [saveStatus, setSaveStatus] = useState<SaveStatus>('saved');
   const [draftingSection, setDraftingSection] = useState<string | null>(null);
+  // Regenerate-all (whole main doc) + per-packet-doc drafting spinners.
+  const [regenerating, setRegenerating] = useState(false);
+  const [draftingDocId, setDraftingDocId] = useState<string | null>(null);
 
   // ── Phase 6: rail tab, comment composing, selection FAB, anonymize modal ────
   const [railTab, setRailTab] = useState<'meri' | 'comments'>('meri');
@@ -590,6 +595,69 @@ export function EditorPage() {
     });
   };
   const regenerateSection = (name: string) => generateSection(name);
+
+  // Regenerate the ENTIRE main document with Meri. Confirms first (it replaces
+  // every section), suppresses the pending autosave so the about-to-be-stale
+  // local cfg can't clobber the freshly generated server content, then forces a
+  // re-hydrate from the refetched draft.
+  const regenerateAll = () => {
+    modal.confirm({
+      title: 'Regenerate the whole document?',
+      content:
+        'Meri will re-draft every section from your setup and context. This replaces the current content of all sections.',
+      okText: 'Regenerate all',
+      cancelText: 'Cancel',
+      onOk: async () => {
+        setRegenerating(true);
+        if (saveTimer.current) {
+          clearTimeout(saveTimer.current);
+          saveTimer.current = null;
+        }
+        cfgDirty.current = false;
+        try {
+          await generateAll.mutateAsync();
+          hydrated.current = false; // let the refetched draft re-hydrate the editor
+          message.success('Meri re-drafted the document');
+        } catch {
+          message.error('Could not regenerate the document.');
+        } finally {
+          setRegenerating(false);
+        }
+      },
+    });
+  };
+
+  // Packet "Ask Meri to draft": generate content for the active packet doc and
+  // append it as a section block (packet docs use the block body model, not
+  // cfg.sections). Grounded in the draft config + context, like the main doc.
+  const generatePacketDoc = (docId: string) => {
+    const label = tabs.find((t) => t.id === docId)?.label ?? 'Document';
+    setDraftingDocId(docId);
+    generate.mutate(label, {
+      onSuccess: (r) => {
+        const block: WsBlock = {
+          id: `${Date.now().toString(36)}${Math.random().toString(36).slice(2, 6)}`,
+          type: 'section',
+          title: label,
+          content: sanitizeWorkspaceBody(r.content),
+        };
+        const body = packetBodies[docId] ?? { blocks: [] };
+        onPacketChange(docId, {
+          ...body,
+          title: body.title ?? label,
+          blocks: [...body.blocks, block],
+        });
+        message.success('Meri drafted the document');
+      },
+      onError: (e: unknown) => {
+        const msg =
+          (e as { response?: { data?: { message?: string } } })?.response?.data?.message ??
+          'Could not draft this document.';
+        message.error(msg);
+      },
+      onSettled: () => setDraftingDocId(null),
+    });
+  };
   const markReviewed = (name: string) => {
     setSectionMeta(name, { status: 'done' });
     toast(`Marked "${name}" reviewed`);
@@ -836,6 +904,8 @@ export function EditorPage() {
         onHistory={onHistory}
         onShare={onShare}
         onPreview={onPreview}
+        onRegenerateAll={isMainDoc ? regenerateAll : undefined}
+        regenerating={regenerating}
       />
 
       {/* Concurrent-edit lock banner (Q-ED-2): view-only / request / take-over,
@@ -941,9 +1011,8 @@ export function EditorPage() {
                 letterhead={cfg.letterhead}
                 readOnly={viewOnly}
                 onChange={(body) => onPacketChange(activeTab, body)}
-                onAskMeri={() =>
-                  toast(`Asking Meri to draft "${tabs.find((t) => t.id === activeTab)?.label}"`)
-                }
+                onAskMeri={() => generatePacketDoc(activeTab)}
+                drafting={draftingDocId === activeTab}
                 onToast={toast}
               />
             )}

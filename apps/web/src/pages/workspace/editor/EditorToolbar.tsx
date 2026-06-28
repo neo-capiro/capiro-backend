@@ -37,6 +37,8 @@ export function EditorToolbar({
   onHistory,
   onShare,
   onPreview,
+  onRegenerateAll,
+  regenerating,
 }: {
   title: string;
   saveStatus: SaveStatus;
@@ -55,6 +57,9 @@ export function EditorToolbar({
   onHistory: () => void;
   onShare: () => void;
   onPreview: () => void;
+  /** Regenerate the entire document with Meri (main doc only). */
+  onRegenerateAll?: () => void;
+  regenerating?: boolean;
 }) {
   return (
     <div
@@ -154,6 +159,18 @@ export function EditorToolbar({
         <Icon name="History" size={14} />
         Version history
       </button>
+      {onRegenerateAll && (
+        <button
+          className="btn sm btn-ghost"
+          style={{ color: 'var(--ink-2)', opacity: viewOnly ? 0.5 : 1 }}
+          onClick={onRegenerateAll}
+          disabled={viewOnly || regenerating}
+          title="Have Meri re-draft every section of this document"
+        >
+          <Icon name="Sparkles" size={14} />
+          {regenerating ? 'Regenerating…' : 'Regenerate all'}
+        </button>
+      )}
       {/* E-17: real collaborators only — no seed avatars until someone's invited. */}
       {collaborators && collaborators.length > 0 && <AvaStack list={collaborators} size={26} />}
       <button className="btn sm" onClick={onShare}>

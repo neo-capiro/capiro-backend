@@ -98,8 +98,11 @@ export function LibraryPage() {
       return;
     }
     try {
+      // Meri resolves the work product + seeds the draft, then we route to the
+      // Context Builder. Meri drafts the full document AFTER context is built
+      // (Context Builder → Open editor), so it grounds on the chosen context.
       const d = await meriIntake.mutateAsync({ prompt: prompt.trim() });
-      navigate(`/workspace/draft/${d.id}`);
+      navigate(`/workspace/context/${d.id}`);
     } catch (e) {
       message.error(intakeError(e));
     }
@@ -377,8 +380,14 @@ function SectorChip({ label, on, onClick }: { label: string; on: boolean; onClic
   );
 }
 
-/** Full-bleed loading state while Meri resolves + drafts the document (slow). */
-function MeriDraftingOverlay() {
+/** Full-bleed loading overlay with a real spinner (Meri intake / drafting). */
+export function MeriDraftingOverlay({
+  title = 'Meri is drafting…',
+  detail = 'Setting up your draft and pulling in your context.',
+}: {
+  title?: string;
+  detail?: string;
+}) {
   return (
     <div
       style={{
@@ -394,25 +403,11 @@ function MeriDraftingOverlay() {
         className="card"
         style={{ width: 360, maxWidth: '92%', padding: 28, textAlign: 'center' }}
       >
-        <div
-          style={{
-            width: 44,
-            height: 44,
-            borderRadius: '50%',
-            background: 'var(--accent-soft)',
-            color: 'var(--accent)',
-            display: 'grid',
-            placeItems: 'center',
-            margin: '0 auto 14px',
-          }}
-        >
-          <Icon name="Sparkles" size={22} />
+        <div style={{ marginBottom: 14 }}>
+          <Spin size="large" />
         </div>
-        <div style={{ fontSize: 16, fontWeight: 700, marginBottom: 7 }}>Meri is drafting…</div>
-        <div style={{ fontSize: 13, color: 'var(--ink-2)', lineHeight: 1.5 }}>
-          Resolving the work product, pulling in your context, and drafting each section. This opens
-          in the editor.
-        </div>
+        <div style={{ fontSize: 16, fontWeight: 700, marginBottom: 7 }}>{title}</div>
+        <div style={{ fontSize: 13, color: 'var(--ink-2)', lineHeight: 1.5 }}>{detail}</div>
       </div>
     </div>
   );

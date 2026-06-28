@@ -28,6 +28,7 @@ export function PacketDocCanvas({
   onAskMeri,
   onToast,
   readOnly,
+  drafting,
 }: {
   label: string;
   body: PacketBody;
@@ -39,6 +40,8 @@ export function PacketDocCanvas({
   onToast: (msg: string) => void;
   /** View-only (someone else holds the edit lock). */
   readOnly?: boolean;
+  /** Meri is drafting this document — show a spinner on the button. */
+  drafting?: boolean;
 }) {
   const blocks = body.blocks ?? [];
   const title = body.title ?? label;
@@ -112,9 +115,14 @@ export function PacketDocCanvas({
               Use the <b>Insert</b> panel to add sections, photos, or a table — or ask Meri to draft
               this document.
             </div>
-            <button className="btn sm btn-accent" onClick={onAskMeri}>
+            <button
+              className="btn sm btn-accent"
+              onClick={onAskMeri}
+              disabled={drafting || readOnly}
+              style={drafting ? { opacity: 0.7, cursor: 'wait' } : undefined}
+            >
               <Icon name="Sparkles" size={12} />
-              Ask Meri to draft
+              {drafting ? 'Meri is drafting…' : 'Ask Meri to draft'}
             </button>
           </div>
         )}

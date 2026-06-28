@@ -215,29 +215,51 @@ export class GenerationService {
       data: { tenantId, draftId: draft.id, name: product, ordinal: 0, body: { blocks: [] } },
     });
 
-    // Auto-draft each section concurrently (best-effort). Statuses default to
-    // "review" so the user signs off before the doc is treated as final (Q-ED-9).
-    const sectionContent: Record<string, string> = {};
-    const sectionMeta: Record<string, { status: string }> = {};
+    // NOTE: intake intentionally does NOT draft section content here. Generation
+    // happens AFTER the user reviews Setup + the Context Builder (so Meri grounds
+    // the draft in the chosen context, not an empty plan) — the Context Builder's
+    // "Open editor" calls generateAllSections. Intake just resolves the product,
+    // seeds the section names + config, and returns the draft for that flow.
+    return this.prisma.wsDraft.findFirst({
+      where: { id: draft.id, tenantId },
+      include: { documents: { orderBy: { ordinal: 'asc' } } },
+    });
+  }
+
+  /**
+   * Draft EVERY section of the document concurrently (best-effort), grounded in
+   * the draft config + Context Builder plan, and persist the results. Used after
+   * the Context Builder ("Open editor") and by the editor's "Regenerate All".
+   * Overwrites existing section content (callers gate when that is appropriate).
+   */
+  async generateAllSections(tenantId: string, draftId: string) {
+    const draft = await this.prisma.wsDraft.findFirst({ where: { id: draftId, tenantId } });
+    if (!draft) throw new ServiceUnavailableException('Draft not found');
+    const cfg = draft.config as Record<string, unknown>;
+    const sections = (cfg.sections as string[] | undefined) ?? [];
+    const sectionContent: Record<string, string> = {
+      ...((cfg.sectionContent as Record<string, string> | undefined) ?? {}),
+    };
+    const sectionMeta: Record<string, { status: string }> = {
+      ...((cfg.sectionMeta as Record<string, { status: string }> | undefined) ?? {}),
+    };
     await Promise.all(
       sections.map(async (section) => {
         try {
-          const r = await this.generateSection(tenantId, draft.id, section);
+          const r = await this.generateSection(tenantId, draftId, section);
           sectionContent[section] = r.content;
           sectionMeta[section] = { status: 'review' };
         } catch (e) {
-          this.logger.warn(`Meri intake: section "${section}" failed: ${(e as Error).message}`);
+          this.logger.warn(`generate-all: section "${section}" failed: ${(e as Error).message}`);
         }
       }),
     );
-
     await this.prisma.wsDraft.update({
-      where: { id: draft.id },
-      data: { config: { ...config, sectionContent, sectionMeta } as never },
+      where: { id: draftId },
+      data: { config: { ...cfg, sectionContent, sectionMeta } as never },
     });
-
     return this.prisma.wsDraft.findFirst({
-      where: { id: draft.id, tenantId },
+      where: { id: draftId, tenantId },
       include: { documents: { orderBy: { ordinal: 'asc' } } },
     });
   }

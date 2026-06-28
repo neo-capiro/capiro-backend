@@ -33,6 +33,18 @@ export class GenerationController {
   ) {
     return this.generation.generateSection(ctx.tenantId, draftId, dto.section);
   }
+
+  /**
+   * POST /workspace-api/drafts/:draftId/generate-all
+   * Draft EVERY section of the document with Meri (concurrent, best-effort),
+   * grounded in the draft config + the Context Builder plan. Used after the
+   * Context Builder ("Open editor") and by the editor's "Regenerate All".
+   * Returns the refreshed draft so the client can re-hydrate.
+   */
+  @Post('generate-all')
+  generateAll(@CurrentTenant() ctx: WorkspaceTenantContext, @Param('draftId') draftId: string) {
+    return this.generation.generateAllSections(ctx.tenantId, draftId);
+  }
 }
 
 /**

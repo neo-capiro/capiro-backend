@@ -554,6 +554,24 @@ export function useGenerateSection(draftId: string) {
   });
 }
 
+/**
+ * Draft the WHOLE document (every section) with Meri. Used after the Context
+ * Builder ("Open editor") and by the editor's "Regenerate All". Returns the
+ * refreshed draft; callers re-hydrate from it. Invalidates the draft + checks.
+ */
+export function useGenerateAll(draftId: string | null) {
+  const api = useApi();
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async () =>
+      (await api.post<WsDraft>(`${BASE}/drafts/${draftId}/generate-all`, {})).data,
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['ws', 'draft', draftId] });
+      qc.invalidateQueries({ queryKey: ['ws', 'checks', draftId] });
+    },
+  });
+}
+
 // ── Anonymize (review modal) ──────────────────────────────────────────────────
 /**
  * A name span Meri detected as a candidate for anonymization. `kind` drives the
