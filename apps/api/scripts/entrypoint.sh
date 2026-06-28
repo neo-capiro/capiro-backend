@@ -136,6 +136,15 @@ case "${1:-serve}" in
     echo "Running emit-bill-alerts (semantic per-bill stage alerts)"
     exec ./node_modules/.bin/tsx scripts/emit-bill-alerts.ts
     ;;
+  detect-tracker-alerts)
+    echo "Running detect-tracker-alerts (Tracker tab: tracked-bill change detection + email/SMS fan-out)"
+    exec ./node_modules/.bin/tsx scripts/detect-tracker-alerts.ts
+    ;;
+  flush-tracker-digests)
+    shift
+    echo "Running flush-tracker-digests (Tracker tab: daily/weekly alert digests) $*"
+    exec ./node_modules/.bin/tsx scripts/flush-tracker-digests.ts "$@"
+    ;;
   delete-tenant)
     shift
     echo "Running delete-tenant $*"

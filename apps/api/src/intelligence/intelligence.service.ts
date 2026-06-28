@@ -3481,25 +3481,31 @@ export class IntelligenceService {
     });
   }
 
-  async getTrackedBills(clientId: string, tenantId?: string) {
-    // Union across ALL confirmed LDA registrants, not just one. A large client
-    // (e.g. RTX) files its lobbying under several registrant-name variants —
-    // "RTX CORPORATION", "RTX CORPORATION AND AFFILIATES", "RAYTHEON TECHNOLOGIES
-    // CORPORATION", various FKA forms — and each is a distinct lda_client. Picking
-    // a single one left big clients matching on a thin slice of their footprint.
-    const ldaMappings = tenantId
-      ? await this.prisma.withTenant(tenantId, (tx) =>
-          tx.clientIntelMapping.findMany({
-            where: { clientId, source: 'lda', confirmed: true },
-            select: { externalId: true },
-          }),
-        )
-      : [];
-
-    // Manually pinned bills (explicit human picks) — always included regardless
-    // of embedding similarity, and flagged so the UI can mark them. Tenant-scoped.
-    const manualBillIds = tenantId ? await this.getManualTrackedBillIds(clientId, tenantId) : [];
-    const manualSet = new Set(manualBillIds);
+  /**
+   * Build the relevance term sets (issue codes + capability keywords/prose,
+   * acronym-expanded) used to match bills to a client — the SAME inputs the
+   * tracked-bill resolver feeds the embeddings/keyword matchers. Extracted from
+   * getTrackedBills so the Tracker Recommendations matcher reuses identical
+   * inputs without re-deriving them (and without drifting from this logic).
+   */
+  async getClientRelevanceTerms(
+    clientId: string,
+    tenantId: string,
+  ): Promise<{
+    issueCodes: string[];
+    issueNames: string[];
+    keywordTermsExpanded: string[];
+    embeddingPartsClean: string[];
+    hasCapabilitySignal: boolean;
+  }> {
+    // Union across ALL confirmed LDA registrants, not just one (a large client
+    // files under several registrant-name variants, each a distinct lda_client).
+    const ldaMappings = await this.prisma.withTenant(tenantId, (tx) =>
+      tx.clientIntelMapping.findMany({
+        where: { clientId, source: 'lda', confirmed: true },
+        select: { externalId: true },
+      }),
+    );
 
     let issueCodes: string[] = [];
     let issueNames: string[] = [];
@@ -3521,21 +3527,17 @@ export class IntelligenceService {
       }
     }
 
-    // Client-level manual override (the "LDA Issue Codes" control in the client
-    // summary settings). Unioned with the auto codes from the LDA match, and
-    // applied even when there is NO LDA mapping — so a thin-LDA client can still
-    // drive matching by setting codes by hand. Defensive: a unit-test prisma mock
-    // may not stub tx.client, so any failure here simply yields no override.
+    // Client-level manual override (the "LDA Issue Codes" control). Unioned with
+    // the auto codes, applied even with NO LDA mapping so a thin-LDA client can
+    // still drive matching by hand. Defensive: a mocked tx may not stub client.
     const overrideCodes: string[] = [];
-    if (tenantId) {
-      try {
-        const c = await this.prisma.withTenant(tenantId, (tx) =>
-          tx.client.findFirst({ where: { id: clientId }, select: { issueCodes: true } }),
-        );
-        if (Array.isArray(c?.issueCodes)) overrideCodes.push(...c!.issueCodes);
-      } catch {
-        // tenant client read unavailable (e.g. mocked tx) — no override applied.
-      }
+    try {
+      const c = await this.prisma.withTenant(tenantId, (tx) =>
+        tx.client.findFirst({ where: { id: clientId }, select: { issueCodes: true } }),
+      );
+      if (Array.isArray(c?.issueCodes)) overrideCodes.push(...c!.issueCodes);
+    } catch {
+      // tenant client read unavailable (e.g. mocked tx) — no override applied.
     }
 
     issueCodes = Array.from(
@@ -3548,62 +3550,49 @@ export class IntelligenceService {
       issueNames = nameRows.map((r) => r.name);
     }
 
-    // Always union client capability keywords with LDA issue names (Caveat 2).
-    // Previously capabilities were only pulled when the client had NO LDA issue
-    // codes, so a client with a broad code (e.g. "DEF") missed the precise
-    // capability bills (e.g. "hypersonics", "electronic warfare"). LDA codes and
-    // capabilities are complementary signals — capabilities are often the more
-    // specific of the two — so we combine both rather than treating them as
-    // mutually exclusive.
-    // Build two term sets from the client's capabilities:
-    //   • keywordTerms  — short precise tokens for the whole-word keyword matcher
-    //     (sector, tags, capability-name words), acronym-expanded so e.g. an "EW"
-    //     tag also matches the "Electronic warfare" bill subject.
-    //   • embeddingParts — richer natural-language text (capability name +
-    //     description + justification + district nexus) for the semantic matcher,
-    //     which benefits from full prose and is protected by a cosine floor.
+    // Build two term sets from the client's capabilities (combined with LDA issue
+    // names): keywordTerms (short precise tokens, acronym-expanded) for the
+    // whole-word matcher, and embeddingParts (richer prose) for the semantic one.
     const keywordTerms: string[] = [...issueNames];
     const embeddingParts: string[] = [...issueNames];
     let hasCapabilitySignal = false;
-    if (tenantId) {
-      const caps = await this.prisma.withTenant(tenantId, (tx) =>
-        tx.clientCapability.findMany({
-          where: { clientId },
-          select: {
-            sector: true,
-            name: true,
-            tags: true,
-            description: true,
-            justification: true,
-            districtNexus: true,
-          },
-        }),
-      );
-      hasCapabilitySignal = caps.length > 0;
-      for (const cap of caps) {
-        if (cap.sector) {
-          keywordTerms.push(cap.sector);
-          embeddingParts.push(cap.sector);
+    const caps = await this.prisma.withTenant(tenantId, (tx) =>
+      tx.clientCapability.findMany({
+        where: { clientId },
+        select: {
+          sector: true,
+          name: true,
+          tags: true,
+          description: true,
+          justification: true,
+          districtNexus: true,
+        },
+      }),
+    );
+    hasCapabilitySignal = caps.length > 0;
+    for (const cap of caps) {
+      if (cap.sector) {
+        keywordTerms.push(cap.sector);
+        embeddingParts.push(cap.sector);
+      }
+      if (cap.name) {
+        embeddingParts.push(cap.name);
+        cap.name
+          .split(/\s+/)
+          .filter((w) => w.length >= MIN_KEYWORD_TOKEN_LENGTH)
+          .forEach((w) => keywordTerms.push(w));
+      }
+      const tags = Array.isArray(cap.tags)
+        ? (cap.tags as unknown[]).filter((t): t is string => typeof t === 'string')
+        : [];
+      for (const t of tags) {
+        embeddingParts.push(t); // any length — the embedding query is cosine-floored
+        if (t.trim().length >= MIN_KEYWORD_TOKEN_LENGTH || isKnownAcronym(t)) {
+          keywordTerms.push(t);
         }
-        if (cap.name) {
-          embeddingParts.push(cap.name);
-          cap.name
-            .split(/\s+/)
-            .filter((w) => w.length >= MIN_KEYWORD_TOKEN_LENGTH)
-            .forEach((w) => keywordTerms.push(w));
-        }
-        const tags = Array.isArray(cap.tags)
-          ? (cap.tags as unknown[]).filter((t): t is string => typeof t === 'string')
-          : [];
-        for (const t of tags) {
-          embeddingParts.push(t); // any length — the embedding query is cosine-floored
-          if (t.trim().length >= MIN_KEYWORD_TOKEN_LENGTH || isKnownAcronym(t)) {
-            keywordTerms.push(t);
-          }
-        }
-        for (const rich of [cap.description, cap.justification, cap.districtNexus]) {
-          if (rich) embeddingParts.push(rich);
-        }
+      }
+      for (const rich of [cap.description, cap.justification, cap.districtNexus]) {
+        if (rich) embeddingParts.push(rich);
       }
     }
 
@@ -3615,6 +3604,39 @@ export class IntelligenceService {
     const embeddingPartsClean = embeddingParts
       .map((n) => (typeof n === 'string' ? n.trim() : ''))
       .filter((n) => n.length > 0);
+
+    return {
+      issueCodes,
+      issueNames,
+      keywordTermsExpanded,
+      embeddingPartsClean,
+      hasCapabilitySignal,
+    };
+  }
+
+  async getTrackedBills(clientId: string, tenantId?: string) {
+    // Union across ALL confirmed LDA registrants, not just one. A large client
+    // (e.g. RTX) files its lobbying under several registrant-name variants —
+    // "RTX CORPORATION", "RTX CORPORATION AND AFFILIATES", "RAYTHEON TECHNOLOGIES
+    // CORPORATION", various FKA forms — and each is a distinct lda_client. Picking
+    // a single one left big clients matching on a thin slice of their footprint.
+    // Manually pinned bills (explicit human picks) — always included regardless
+    // of embedding similarity, and flagged so the UI can mark them. Tenant-scoped.
+    const manualBillIds = tenantId ? await this.getManualTrackedBillIds(clientId, tenantId) : [];
+    const manualSet = new Set(manualBillIds);
+
+    // Relevance term sets (issue codes + acronym-expanded capability keywords +
+    // semantic prose), extracted into getClientRelevanceTerms so the Tracker
+    // Recommendations matcher feeds the embeddings/keyword matchers IDENTICAL
+    // inputs without re-deriving (or drifting from) this logic.
+    const { issueCodes, keywordTermsExpanded, embeddingPartsClean, hasCapabilitySignal } = tenantId
+      ? await this.getClientRelevanceTerms(clientId, tenantId)
+      : {
+          issueCodes: [] as string[],
+          keywordTermsExpanded: [] as string[],
+          embeddingPartsClean: [] as string[],
+          hasCapabilitySignal: false,
+        };
 
     // Merge auto-matched bills with manually pinned ones. Manual picks are
     // ALWAYS included (even with no terms / no embedding match) and flagged

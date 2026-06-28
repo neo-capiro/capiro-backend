@@ -2708,9 +2708,20 @@ model TrackedBill {
   clientId  String   @map("client_id") @db.Uuid
   billId    String   @map("bill_id") // FK-ish to congress_bill.id, e.g. "119-hr-1234"
   note      String?  @db.Text
+  // How this bill landed on the board: 'recommended' (promoted from the Tracker
+  // Recommendations feed), 'manual_search' (added via the Add-bill modal), or
+  // 'imported' (legacy / programmatic). Drives Tracker analytics + feedback.
+  source    String?  @map("source")
   createdBy String?  @map("created_by") // clerk user id of whoever pinned it
   createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
   updatedAt DateTime @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  // Change-detection snapshot: the bill state we last reconciled for alerting,
+  // so detect-tracker-alerts can diff the live congress_bill against it and emit
+  // an alert exactly once per material move. NULL until the first detection pass.
+  lastSeenActionText String?   @map("last_seen_action_text") @db.Text
+  lastSeenActionDate DateTime? @map("last_seen_action_date") @db.Date
+  lastSeenAt         DateTime? @map("last_seen_at") @db.Timestamptz(6)
 
   @@unique([clientId, billId])
   @@index([tenantId])
@@ -2770,6 +2781,138 @@ model ClientBrief {
   @@index([tenantId])
   @@index([clientId])
   @@map("client_brief")
+}
+
+// ─────────────────────────────────────────────────────────────────────────
+// Tracker tab — per-client watchlist, alert preferences, feedback, and the
+// notification delivery ledger. All TENANT-scoped with RLS (mirrors the
+// tracked_bill / alert_state isolation convention: tenant_id column + policy,
+// no Prisma relation/FK). The board membership table is tracked_bill itself.
+// ─────────────────────────────────────────────────────────────────────────
+
+// Per-client targeting config authored on the Tracker → Configure panel. Tunes
+// the Recommendations matcher and alert routing. One row per client.
+model ClientWatchlist {
+  id         String   @id @default(uuid()) @db.Uuid
+  tenantId   String   @map("tenant_id") @db.Uuid
+  clientId   String   @map("client_id") @db.Uuid
+  // Capiro-managed issue-area labels the client has switched on.
+  issueAreas String[] @default([]) @map("issue_areas")
+  // JSON array of watchlist tag objects, each:
+  //   { tag, issueArea?, synonyms[], relatedEntities[], riskTerms[],
+  //     position?: 'support'|'oppose'|'monitor', priority: 'low'|'med'|'high' }
+  tags       Json     @default("[]")
+  updatedBy  String?  @map("updated_by")
+  createdAt  DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt  DateTime @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  @@unique([clientId])
+  @@index([tenantId])
+  @@map("client_watchlist")
+}
+
+// Per-user-per-client alert delivery preferences (triggers, materiality floor,
+// and channel config). SMS is wired but DORMANT until an origination number is
+// provisioned (see tracker/sms/sms.service.ts).
+model AlertPreference {
+  id               String   @id @default(uuid()) @db.Uuid
+  tenantId         String   @map("tenant_id") @db.Uuid
+  clientId         String   @map("client_id") @db.Uuid
+  userId           String   @map("user_id") // clerk user id; prefs are per user, per client
+  triggers         String[] @default([]) @map("triggers") // enabled trigger keys
+  materiality      String   @default("medium") // 'low' | 'medium' | 'high'
+  emailEnabled     Boolean  @default(false) @map("email_enabled")
+  emailAddress     String?  @map("email_address")
+  emailCadence     String   @default("realtime") @map("email_cadence") // realtime | daily | weekly
+  smsEnabled       Boolean  @default(false) @map("sms_enabled")
+  smsPhone         String?  @map("sms_phone") // E.164
+  smsPhoneVerified Boolean  @default(false) @map("sms_phone_verified")
+  smsCadence       String   @default("realtime") @map("sms_cadence") // realtime | daily
+  quietHoursStart  String?  @map("quiet_hours_start") // "22:00"
+  quietHoursEnd    String?  @map("quiet_hours_end") // "07:00"
+  createdAt        DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt        DateTime @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  @@unique([userId, clientId])
+  @@index([tenantId])
+  @@index([clientId])
+  @@map("alert_preference")
+}
+
+// Recommendation feedback signal — trains the ranking + lets dismissed bills
+// drop out of the feed. 'tracked' | 'dismissed' | 'marked_irrelevant' | 'opened'.
+model TrackerFeedback {
+  id        String   @id @default(uuid()) @db.Uuid
+  tenantId  String   @map("tenant_id") @db.Uuid
+  clientId  String   @map("client_id") @db.Uuid
+  userId    String?  @map("user_id")
+  billId    String   @map("bill_id")
+  signal    String
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  @@index([tenantId])
+  @@index([clientId])
+  @@index([billId])
+  @@map("tracker_feedback")
+}
+
+// Idempotent fan-out ledger: one row per (alert, user, channel) so a re-run of
+// the detector never double-sends. Also the deliverability audit trail.
+model NotificationLog {
+  id                String   @id @default(uuid()) @db.Uuid
+  tenantId          String   @map("tenant_id") @db.Uuid
+  clientId          String   @map("client_id") @db.Uuid
+  userId            String   @map("user_id")
+  alertId           String   @map("alert_id")
+  channel           String // 'email' | 'sms' | 'in_app'
+  status            String // 'sent' | 'failed' | 'suppressed' | 'queued'
+  providerMessageId String?  @map("provider_message_id")
+  error             String?  @db.Text
+  createdAt         DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  @@unique([alertId, userId, channel])
+  @@index([tenantId])
+  @@index([clientId])
+  @@map("notification_log")
+}
+
+// Queued alerts awaiting a digest flush (email daily/weekly, sms daily). The
+// flush-tracker-digests job drains this per user+channel+cadence.
+model AlertDigestQueue {
+  id        String   @id @default(uuid()) @db.Uuid
+  tenantId  String   @map("tenant_id") @db.Uuid
+  clientId  String   @map("client_id") @db.Uuid
+  userId    String   @map("user_id")
+  channel   String // 'email' | 'sms'
+  cadence   String // 'daily' | 'weekly'
+  alertId   String   @map("alert_id")
+  billId    String   @map("bill_id")
+  payload   Json     @default("{}")
+  flushed   Boolean  @default(false)
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  @@index([tenantId])
+  @@index([userId, channel, cadence, flushed])
+  @@map("alert_digest_queue")
+}
+
+// One-time SMS phone-verification OTP (hashed). Consent record for the SMS
+// channel (the verify step is the opt-in).
+model SmsVerification {
+  id        String   @id @default(uuid()) @db.Uuid
+  tenantId  String   @map("tenant_id") @db.Uuid
+  userId    String   @map("user_id")
+  clientId  String?  @map("client_id") @db.Uuid
+  phone     String // E.164
+  codeHash  String   @map("code_hash") // hashed OTP
+  expiresAt DateTime @map("expires_at") @db.Timestamptz(6)
+  consumed  Boolean  @default(false)
+  attempts  Int      @default(0)
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  @@index([userId])
+  @@index([tenantId])
+  @@map("sms_verification")
 }
 
 // ─────────────────────────────────────────────────────────────────────────

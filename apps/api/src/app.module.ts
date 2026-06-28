@@ -25,6 +25,7 @@ import { LdaIntelModule } from './lda-intel/lda-intel.module.js';
 import { FederalRegisterModule } from './federal-register/federal-register.module.js';
 import { RegulatoryDocketModule } from './regulatory-docket/regulatory-docket.module.js';
 import { IntelligenceModule } from './intelligence/intelligence.module.js';
+import { TrackerModule } from './tracker/tracker.module.js';
 import { ExplorerModule } from './explorer/explorer.module.js';
 import { SearchModule } from './search/search.module.js';
 import { InsightsModule } from './insights/insights.module.js';
@@ -72,6 +73,7 @@ import { ApiLatencyMiddleware } from './observability/api-latency.middleware.js'
     FederalRegisterModule,
     RegulatoryDocketModule,
     IntelligenceModule,
+    TrackerModule,
     ExplorerModule,
     SearchModule,
     InsightsModule,

@@ -20,7 +20,12 @@ interface SnapshotSectionProps {
   aggregate?: ClientProfileV1;
 }
 
-export function SnapshotSection({ clientId, clientName, profile: profileFromParent, aggregate }: SnapshotSectionProps) {
+export function SnapshotSection({
+  clientId,
+  clientName,
+  profile: profileFromParent,
+  aggregate,
+}: SnapshotSectionProps) {
   const api = useApi();
 
   const profile = profileFromParent ?? null;
@@ -30,9 +35,8 @@ export function SnapshotSection({ clientId, clientName, profile: profileFromPare
     queryKey: ['client-health-score', clientId],
     queryFn: async () => {
       try {
-        return (
-          await api.get<HealthScore>(`/api/intelligence/clients/${clientId}/health-score`)
-        ).data;
+        return (await api.get<HealthScore>(`/api/intelligence/clients/${clientId}/health-score`))
+          .data;
       } catch {
         return null;
       }
@@ -116,9 +120,12 @@ export function SnapshotSection({ clientId, clientName, profile: profileFromPare
   const criticalAlerts = clientAlerts.filter((a) => (a.daysToDeadline ?? 99) <= 7);
   const changes = changesQuery.data ?? [];
   const meetings = meetingsQuery.data ?? [];
-  const trackedTotal = aggregate?.sections.legislativeRegulatory.kanban.total ?? profile?.relevantBills?.total ?? 0;
+  const trackedTotal =
+    aggregate?.sections.legislativeRegulatory.kanban.total ?? profile?.relevantBills?.total ?? 0;
   const activityRows = aggregate?.sections.snapshot.activity14d ?? null;
-  const activityMeetings = activityRows ? activityRows.reduce((sum, d) => sum + d.meetings, 0) : meetings.length;
+  const activityMeetings = activityRows
+    ? activityRows.reduce((sum, d) => sum + d.meetings, 0)
+    : meetings.length;
   // Aggregate the 14-day breakdown into 5 totals the mockup specifies:
   // Meetings / Outreach sent / Tasks done / Bills tracked / Critical alerts.
   // `outreach` is optional on the row type (older API responses didn't
@@ -139,10 +146,7 @@ export function SnapshotSection({ clientId, clientName, profile: profileFromPare
   // zero we render a compact empty state instead of flat zero-bars, which
   // read as a broken/empty chart.
   const hasActivity =
-    activityMeetings > 0 ||
-    activityOutreach > 0 ||
-    trackedTotal > 0 ||
-    criticalAlerts.length > 0;
+    activityMeetings > 0 || activityOutreach > 0 || trackedTotal > 0 || criticalAlerts.length > 0;
   return (
     <section id="snapshot" className="iv1-section">
       {/* ── Section heading ── */}
@@ -160,7 +164,13 @@ export function SnapshotSection({ clientId, clientName, profile: profileFromPare
           {/* Meri briefing */}
           <BriefingCard
             briefing={aggregate?.sections.snapshot.dailyBriefing ?? null}
-            fallbackSummary={meriText(profile, clientAlerts, changes.length, meetings.length, clientName)}
+            fallbackSummary={meriText(
+              profile,
+              clientAlerts,
+              changes.length,
+              meetings.length,
+              clientName,
+            )}
             ctaHref={aggregate?.links.changesInbox ?? '/intelligence/changes'}
           />
         </div>
@@ -186,7 +196,7 @@ export function SnapshotSection({ clientId, clientName, profile: profileFromPare
           <div className="iv1-surface-head">
             <h3>
               Activity · 14 days{' '}
-              <HelpTip title="Your logged CRM activity for this client over the last 14 days — meetings, outreach sent, bills tracked, and critical alerts. A flat or empty panel is a prompt to re-engage." />
+              <HelpTip title="Your logged CRM activity for this client over the last 14 days — meetings, outreach sent, relevant bills matched, and critical alerts. A flat or empty panel is a prompt to re-engage. (Curated bill tracking lives in the Tracker tab.)" />
             </h3>
             <span className="iv1-surface-sub">CRM signals</span>
           </div>
@@ -213,7 +223,7 @@ export function SnapshotSection({ clientId, clientName, profile: profileFromPare
                   color={activityOutreach === 0 ? 'var(--ink-4)' : 'var(--info)'}
                 />
                 <ActivityBar
-                  label="Bills tracked"
+                  label="Relevant bills"
                   value={trackedTotal}
                   max={Math.max(trackedTotal, activityMax, 1)}
                   color="var(--info)"
@@ -226,10 +236,7 @@ export function SnapshotSection({ clientId, clientName, profile: profileFromPare
                 />
               </>
             ) : (
-              <div
-                className="iv1-empty"
-                style={{ padding: '20px 8px 16px', textAlign: 'center' }}
-              >
+              <div className="iv1-empty" style={{ padding: '20px 8px 16px', textAlign: 'center' }}>
                 <b>No activity in the last 14 days</b>
                 <span>Logged meetings, outreach, and tracked bills will appear here.</span>
               </div>
@@ -266,9 +273,7 @@ function ActivitySparkline({
     outreach?: number;
   }>;
 }) {
-  const totals = rows.map(
-    (d) => d.meetings + d.tasks + d.debriefs + (d.outreach ?? 0),
-  );
+  const totals = rows.map((d) => d.meetings + d.tasks + d.debriefs + (d.outreach ?? 0));
   const max = Math.max(...totals, 1);
   const barW = 100 / rows.length;
   const gap = 0.5;
@@ -359,15 +364,21 @@ function meriText(
   const noMapping = !profile?.lda?.matched && !profile?.contracting?.matched;
 
   if (!profile) {
-    return <>Loading intelligence data for <b>{clientName}</b>…</>;
+    return (
+      <>
+        Loading intelligence data for <b>{clientName}</b>…
+      </>
+    );
   }
 
   if (noMapping) {
     return (
       <>
-        No LDA or contract mapping confirmed for <b>{clientName}</b>. Visit{' '}
-        <b>Manage sources</b> to confirm the intelligence mapping and unlock financial data.
-        {totalBills > 0 ? ` ${totalBills} relevant bills matched from this client's capabilities.` : ''}
+        No LDA or contract mapping confirmed for <b>{clientName}</b>. Visit <b>Manage sources</b> to
+        confirm the intelligence mapping and unlock financial data.
+        {totalBills > 0
+          ? ` ${totalBills} relevant bills matched from this client's capabilities.`
+          : ''}
       </>
     );
   }
@@ -377,15 +388,16 @@ function meriText(
       {critAlerts.length > 0 && (
         <>
           <mark className="crit">
-            {critAlerts.length} comment deadline{critAlerts.length > 1 ? 's' : ''} in the
-            next 7 days
+            {critAlerts.length} comment deadline{critAlerts.length > 1 ? 's' : ''} in the next 7
+            days
           </mark>
           {', '}
         </>
       )}
       {totalBills > 0 && (
         <>
-          <mark>{totalBills} relevant bills</mark> matching this client&apos;s issues &amp; capabilities.{' '}
+          <mark>{totalBills} relevant bills</mark> matching this client&apos;s issues &amp;
+          capabilities.{' '}
         </>
       )}
       {meetingCount === 0 && 'No meetings logged this quarter. '}
@@ -395,4 +407,3 @@ function meriText(
     </>
   );
 }
-

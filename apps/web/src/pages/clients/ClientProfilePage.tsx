@@ -56,6 +56,8 @@ import { CapabilityDrawer } from './CapabilityDrawer.js';
 import type { Client, ClientAttachment, ClientFormSubmit } from './clientTypes.js';
 import { IntelligenceTab } from './IntelligenceTab.js';
 import { TargetsTab } from './TargetsTab.js';
+import { TrackerTab } from './tracker/TrackerTab.js';
+import type { TrackerSummary } from './tracker/tracker-api.js';
 import { FacilitiesEditor } from './FacilitiesEditor.js';
 import { DefenseBudgetExposureCard } from './DefenseBudgetExposureCard.js';
 import { getRelevantPesForClient } from './relevance-api.js';
@@ -78,6 +80,7 @@ type ProfileTab =
   | 'overview'
   | 'capabilities'
   | 'targets'
+  | 'tracker'
   | 'people'
   | 'facilities'
   | 'documents'
@@ -87,6 +90,7 @@ const PROFILE_TABS: ProfileTab[] = [
   'overview',
   'capabilities',
   'targets',
+  'tracker',
   'people',
   'facilities',
   'documents',
@@ -124,7 +128,16 @@ export function ClientProfilePage({
   const qc = useQueryClient();
   const { message, modal } = AntApp.useApp();
   const { setSelectedClientId } = useClientFilter();
-  const [activeTab, setActiveTab] = useState<ProfileTab>('overview');
+  const [activeTab, setActiveTab] = useState<ProfileTab>(() => {
+    // Deep links (e.g. Tracker alert emails → ?tab=tracker) open a specific tab.
+    try {
+      const t = new URLSearchParams(window.location.search).get('tab');
+      if (t && (PROFILE_TABS as string[]).includes(t)) return t as ProfileTab;
+    } catch {
+      /* ignore */
+    }
+    return 'overview';
+  });
 
   // "Ask Meri about this client": scope the global client filter to this
   // client and open the chat drawer with a fresh session. ChatDrawer creates
@@ -176,6 +189,15 @@ export function ClientProfilePage({
     queryKey: ['client-facilities', client.id],
     queryFn: async () =>
       (await api.get<ClientFacility[]>(`/api/clients/${client.id}/facilities`)).data,
+    staleTime: 60_000,
+  });
+
+  // Tracker tab badge: number of bills on the board + an unread-alert dot.
+  const trackerSummary = useQuery<TrackerSummary>({
+    queryKey: ['tracker-summary', client.id],
+    queryFn: async () =>
+      (await api.get<TrackerSummary>(`/api/intelligence/clients/${client.id}/tracker/summary`))
+        .data,
     staleTime: 60_000,
   });
 
@@ -368,7 +390,9 @@ export function ClientProfilePage({
                   ? facilitiesCount.data?.length
                   : tab === 'documents'
                     ? docsCount.data?.length
-                    : null;
+                    : tab === 'tracker'
+                      ? trackerSummary.data?.boardCount
+                      : null;
           return (
             <div
               key={tab}
@@ -411,16 +435,21 @@ export function ClientProfilePage({
                     ? 'Capabilities'
                     : tab === 'targets'
                       ? 'Targets'
-                      : tab === 'people'
-                        ? 'People'
-                        : tab === 'facilities'
-                          ? 'Facilities'
-                          : tab === 'documents'
-                            ? 'Documents'
-                            : 'Intelligence'}
+                      : tab === 'tracker'
+                        ? 'Tracker'
+                        : tab === 'people'
+                          ? 'People'
+                          : tab === 'facilities'
+                            ? 'Facilities'
+                            : tab === 'documents'
+                              ? 'Documents'
+                              : 'Intelligence'}
               </span>
               {badge != null && badge > 0 ? (
                 <span className="cp-tab-badge num">{badge}</span>
+              ) : null}
+              {tab === 'tracker' && (trackerSummary.data?.unread ?? 0) > 0 ? (
+                <span className="cp-tab-alert" title="Unread bill alerts" />
               ) : null}
             </div>
           );
@@ -481,6 +510,7 @@ export function ClientProfilePage({
               onViewIntelligence={() => setActiveTab('intelligence')}
             />
           )}
+          {activeTab === 'tracker' && <TrackerTab clientId={client.id} clientName={client.name} />}
           {activeTab === 'people' && (
             <PeopleTab
               people={people.data ?? []}
