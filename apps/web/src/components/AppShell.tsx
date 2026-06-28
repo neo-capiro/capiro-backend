@@ -2,6 +2,7 @@ import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import { Link, Outlet, useLocation, useNavigate } from 'react-router-dom';
 import { ChatDrawer } from './chat/ChatDrawer.js';
 import { ChangesInboxBell } from './ChangesInboxBell.js';
+import { WorkspaceNotificationBell } from './WorkspaceNotificationBell.js';
 import { QuickLogButton } from './QuickLog.js';
 import {
   ApartmentOutlined,
@@ -535,6 +536,7 @@ export function AppShell() {
               return true;
             }}
           />
+          <WorkspaceNotificationBell />
           <button
             className="app-topbar-icon-button"
             type="button"

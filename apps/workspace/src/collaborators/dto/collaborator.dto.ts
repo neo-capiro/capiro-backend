@@ -16,6 +16,8 @@ export class InviteCollaboratorDto {
   @IsOptional() @IsEmail() email?: string;
   @IsOptional() @IsString() name?: string;
   @IsIn(ASSIGNABLE_ROLES) role!: AssignableRole;
+  /** Display name of the inviter, for the in-app notification (E-19). */
+  @IsOptional() @IsString() inviterName?: string;
 }
 
 /** Change a collaborator's role (owner-only; the Owner row is synthetic). */

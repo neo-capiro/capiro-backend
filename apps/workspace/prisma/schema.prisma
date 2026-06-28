@@ -102,6 +102,16 @@ enum WsCollaboratorStatus {
   @@map("ws_collaborator_status")
 }
 
+// In-app notification kinds (E-19): a collaborator invite the recipient can
+// accept/decline, and the resolution notices sent back to the inviter.
+enum WsNotificationKind {
+  collab_invite
+  collab_accepted
+  collab_declined
+
+  @@map("ws_notification_kind")
+}
+
 // A collaborator on a work product (the WsDraft the user is editing; surfaced in
 // the UI as "this document"). The draft owner (WsDraft.ownerId) is the implicit
 // Owner and is NEVER stored as a row — it is synthesized with role "owner" on
@@ -137,6 +147,30 @@ model WsCollaborator {
   @@index([draftId])
   @@index([tenantId])
   @@map("ws_collaborator")
+}
+
+// In-app notification (E-19). Targets a Clerk user id (recipientId) so the
+// notification bell can list a member's notifications across all drafts in the
+// tenant. Display fields are denormalized (the engine doesn't own the user
+// table). `actionable` is true only while a collab_invite is still pending.
+model WsNotification {
+  id             String             @id @default(uuid()) @db.Uuid
+  tenantId       String             @map("tenant_id") @db.Uuid
+  recipientId    String             @map("recipient_id")
+  kind           WsNotificationKind
+  draftId        String?            @map("draft_id") @db.Uuid
+  collaboratorId String?            @map("collaborator_id") @db.Uuid
+  actorName      String?            @map("actor_name")
+  draftTitle     String?            @map("draft_title")
+  role           WsRole?
+  message        String
+  read           Boolean            @default(false)
+  actionable     Boolean            @default(false)
+  createdAt      DateTime           @default(now()) @map("created_at")
+
+  @@index([tenantId, recipientId])
+  @@index([recipientId, read])
+  @@map("ws_notification")
 }
 
 // A document is one tab within a draft/packet. A simple draft has exactly one;

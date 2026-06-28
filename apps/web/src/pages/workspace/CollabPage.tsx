@@ -25,6 +25,7 @@ import {
   useDraft,
   useInviteCollaborator,
   useRemoveCollaborator,
+  useSendCollabInviteEmail,
   useTenantMembers,
   useUpdateCollaboratorRole,
   type WsTenantMember,
@@ -57,6 +58,7 @@ export function CollabPage() {
   const invite = useInviteCollaborator(draftId ?? '');
   const updateRole = useUpdateCollaboratorRole(draftId ?? '');
   const removeCollab = useRemoveCollaborator(draftId ?? '');
+  const sendInviteEmail = useSendCollabInviteEmail();
 
   const [email, setEmail] = useState('');
   const [inviteRole, setInviteRole] = useState<WsAssignableRole>('editor');
@@ -90,6 +92,9 @@ export function CollabPage() {
 
   const program = draft.config?.client || draft.product || 'Document';
 
+  // The inviter's display name (current user, resolved via the tenant roster).
+  const inviterName = (selfClerkId && memberByClerk.get(selfClerkId)?.name) || undefined;
+
   const onInvite = () => {
     const raw = email.trim();
     if (!raw) {
@@ -99,14 +104,22 @@ export function CollabPage() {
     // Internal teammate? Match the typed email against a tenant member.
     const member = (members ?? []).find((m) => m.email.toLowerCase() === raw.toLowerCase());
     const body = member
-      ? { subjectId: member.clerkUserId, name: member.name, role: inviteRole }
-      : { email: raw, role: inviteRole };
+      ? { subjectId: member.clerkUserId, name: member.name, role: inviteRole, inviterName }
+      : { email: raw, role: inviteRole, inviterName };
     invite.mutate(body, {
       onSuccess: () => {
         setEmail('');
-        message.success(
-          member ? `${member.name} added as ${roleLabel(inviteRole)}` : `Invite sent to ${raw}`,
-        );
+        // E-19: every invite is now pending until accepted; send the email too
+        // (best-effort — the in-app notification is the source of truth).
+        sendInviteEmail.mutate({
+          toEmail: member?.email ?? raw,
+          toName: member?.name ?? undefined,
+          draftTitle: draft.docTitle,
+          role: inviteRole,
+          link: `${window.location.origin}/workspace/draft/${draftId}`,
+          inviterName,
+        });
+        message.success(`Invitation sent to ${member?.name ?? raw}`);
       },
       onError: (e: unknown) => message.error(errMsg(e, 'Could not invite collaborator')),
     });

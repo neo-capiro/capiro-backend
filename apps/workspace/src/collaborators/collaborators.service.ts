@@ -6,6 +6,7 @@ import {
   NotFoundException,
 } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service.js';
+import { NotificationsService } from '../notifications/notifications.service.js';
 import type { ResolvedRole } from './role-policy.js';
 import { canManageCollaborators } from './role-policy.js';
 import type { InviteCollaboratorDto, UpdateCollaboratorDto } from './dto/collaborator.dto.js';
@@ -32,7 +33,10 @@ import type { InviteCollaboratorDto, UpdateCollaboratorDto } from './dto/collabo
 export class CollaboratorsService {
   private readonly logger = new Logger(CollaboratorsService.name);
 
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly notifications: NotificationsService,
+  ) {}
 
   private async assertDraft(tenantId: string, draftId: string) {
     const draft = await this.prisma.wsDraft.findFirst({ where: { id: draftId, tenantId } });
@@ -126,19 +130,34 @@ export class CollaboratorsService {
         where: { tenantId, draftId, subjectId },
       });
       if (existing) {
-        throw new BadRequestException('This teammate already has access');
+        throw new BadRequestException('This teammate already has access or a pending invite');
       }
-      return this.prisma.wsCollaborator.create({
+      // E-19: invites are PENDING until the invitee accepts (access is granted on
+      // accept). An in-app notification lets them accept/decline from the bell.
+      const row = await this.prisma.wsCollaborator.create({
         data: {
           tenantId,
           draftId,
           subjectId,
           name: dto.name?.trim() || null,
           role: dto.role,
-          status: 'active',
+          status: 'pending',
           invitedById: inviterId,
         },
       });
+      await this.notifications.create({
+        tenantId,
+        recipientId: subjectId,
+        kind: 'collab_invite',
+        message: `${dto.inviterName?.trim() || 'A teammate'} invited you to collaborate on “${draft.docTitle}” as ${dto.role}.`,
+        draftId,
+        collaboratorId: row.id,
+        actorName: dto.inviterName?.trim() || null,
+        draftTitle: draft.docTitle,
+        role: dto.role,
+        actionable: true,
+      });
+      return row;
     }
 
     // External client SME — pending row tagged for the client portal. The Clerk
@@ -198,7 +217,83 @@ export class CollaboratorsService {
       where: { id: collaboratorId, tenantId, draftId },
     });
     if (!existing) throw new NotFoundException('Collaborator not found');
+    await this.notifications.resolveInvite(collaboratorId);
     await this.prisma.wsCollaborator.delete({ where: { id: collaboratorId } });
     return { deleted: true };
+  }
+
+  /**
+   * Invitee ACCEPTS their pending invite (E-19). Grants access (status → active,
+   * which is what resolveRole/list gate on), clears the actionable invite
+   * notification, and notifies the inviter. Only the invited subject may accept.
+   */
+  async accept(tenantId: string, draftId: string, collaboratorId: string, actorId: string) {
+    const row = await this.prisma.wsCollaborator.findFirst({
+      where: { id: collaboratorId, tenantId, draftId },
+    });
+    if (!row) throw new NotFoundException('Invitation not found');
+    if (row.subjectId !== actorId) {
+      throw new ForbiddenException('This invitation is not addressed to you');
+    }
+    await this.notifications.resolveInvite(collaboratorId);
+    if (row.status === 'active') return row; // idempotent
+    const updated = await this.prisma.wsCollaborator.update({
+      where: { id: collaboratorId },
+      data: { status: 'active' },
+    });
+    const draft = await this.prisma.wsDraft.findFirst({
+      where: { id: draftId, tenantId },
+      select: { docTitle: true },
+    });
+    if (row.invitedById) {
+      await this.notifications.create({
+        tenantId,
+        recipientId: row.invitedById,
+        kind: 'collab_accepted',
+        message: `${row.name?.trim() || 'A teammate'} accepted your invitation to “${draft?.docTitle ?? 'a document'}”.`,
+        draftId,
+        collaboratorId,
+        draftTitle: draft?.docTitle ?? null,
+        role: row.role,
+      });
+    }
+    return updated;
+  }
+
+  /**
+   * Invitee DECLINES (E-19): removes the pending invite (no access granted),
+   * clears the actionable notification, and notifies the inviter. Only the
+   * invited subject may decline.
+   */
+  async decline(
+    tenantId: string,
+    draftId: string,
+    collaboratorId: string,
+    actorId: string,
+  ): Promise<{ declined: boolean }> {
+    const row = await this.prisma.wsCollaborator.findFirst({
+      where: { id: collaboratorId, tenantId, draftId },
+    });
+    if (!row) throw new NotFoundException('Invitation not found');
+    if (row.subjectId !== actorId) {
+      throw new ForbiddenException('This invitation is not addressed to you');
+    }
+    await this.notifications.resolveInvite(collaboratorId);
+    await this.prisma.wsCollaborator.delete({ where: { id: collaboratorId } });
+    const draft = await this.prisma.wsDraft.findFirst({
+      where: { id: draftId, tenantId },
+      select: { docTitle: true },
+    });
+    if (row.invitedById) {
+      await this.notifications.create({
+        tenantId,
+        recipientId: row.invitedById,
+        kind: 'collab_declined',
+        message: `${row.name?.trim() || 'A teammate'} declined your invitation to “${draft?.docTitle ?? 'a document'}”.`,
+        draftId,
+        draftTitle: draft?.docTitle ?? null,
+      });
+    }
+    return { declined: true };
   }
 }
