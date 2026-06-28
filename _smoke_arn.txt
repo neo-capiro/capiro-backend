@@ -1,1 +1,0 @@
-arn:aws:ecs:us-east-1:967807252336:task/capiro-dev/12db401460704b5a99ed97f307143dce
