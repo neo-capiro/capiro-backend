@@ -1,7 +1,6 @@
 import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import { Link, Outlet, useLocation, useNavigate } from 'react-router-dom';
 import { ChatDrawer } from './chat/ChatDrawer.js';
-import { ChangesInboxBell } from './ChangesInboxBell.js';
 import { WorkspaceNotificationBell } from './WorkspaceNotificationBell.js';
 import { QuickLogButton } from './QuickLog.js';
 import {
@@ -203,21 +202,6 @@ export function AppShell() {
     refetchInterval: 240_000,
   });
 
-  const changesUnread = useQuery<number>({
-    queryKey: ['intel-changes-unread'],
-    queryFn: async () => {
-      const since = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString();
-      const res = await api.get<Array<{ id: string; consumed?: boolean }>>('/api/intelligence/changes', { params: { since } });
-      return res.data.filter((c) => !c.consumed).length;
-    },
-    enabled: Boolean(me.data),
-    staleTime: 60_000,
-    refetchInterval: 5 * 60_000,
-  });
-  // changesUnread is kept warm in the cache for the Changes Inbox bell; it no
-  // longer badges the Data Explorer nav item.
-  void changesUnread;
-
   const visibleClients = useMemo(
     () =>
       (clients.data ?? [])
@@ -415,190 +399,175 @@ export function AppShell() {
 
   return (
     <>
-    <Layout className="app-shell">
-      <Sider
-        width={240}
-        collapsedWidth={72}
-        collapsed={navCollapsed}
-        trigger={null}
-        className="app-shell-sider"
-      >
-        <nav className="app-shell-nav" aria-label="Primary navigation">
-          <div className="app-shell-brand-row">
+      <Layout className="app-shell">
+        <Sider
+          width={240}
+          collapsedWidth={72}
+          collapsed={navCollapsed}
+          trigger={null}
+          className="app-shell-sider"
+        >
+          <nav className="app-shell-nav" aria-label="Primary navigation">
+            <div className="app-shell-brand-row">
+              <button
+                className="app-shell-brand"
+                type="button"
+                onClick={() => {
+                  if (workflowLocked) {
+                    message.info(
+                      'Cancel or complete the outreach workflow before navigating away.',
+                    );
+                    return;
+                  }
+                  navigate('/clients');
+                }}
+                aria-label="Go to Clients"
+              >
+                {navCollapsed ? (
+                  <span className="app-shell-logo-mark">C</span>
+                ) : (
+                  <img src="/logo.png" alt="Capiro" className="app-shell-logo" />
+                )}
+              </button>
+              <button
+                className="app-shell-collapse"
+                type="button"
+                aria-label={navCollapsed ? 'Expand navigation' : 'Collapse navigation'}
+                onClick={() => setNavCollapsed((value) => !value)}
+              >
+                {navCollapsed ? <MenuUnfoldOutlined /> : <MenuFoldOutlined />}
+              </button>
+            </div>
+
+            <Menu
+              theme="dark"
+              mode="inline"
+              selectedKeys={[selectedKey]}
+              defaultOpenKeys={['pe-group']}
+              items={items}
+              inlineCollapsed={navCollapsed}
+              inlineIndent={24}
+              className="app-nav-menu"
+            />
+
+            <div className="app-shell-bottom">
+              <SyncInboxControl
+                connections={connectedInboxConnections}
+                loading={integrationConnections.isLoading}
+                queryError={integrationConnections.isError}
+                syncing={syncInbox.isPending}
+                syncError={syncInbox.isError}
+                lastManualSyncAt={lastManualSyncAt}
+                onClick={() => {
+                  if (!connectedInboxConnections.length) {
+                    navigate('/settings/integrations');
+                    return;
+                  }
+                  syncInbox.mutate({ silent: false });
+                }}
+              />
+
+              <Link
+                to="/settings"
+                className={`app-bottom-nav-item${selectedKey === 'settings' ? ' is-active' : ''}`}
+                onClick={(event) => {
+                  if (!workflowLocked) return;
+                  event.preventDefault();
+                  message.info('Cancel or complete the outreach workflow before navigating away.');
+                }}
+              >
+                <SettingOutlined />
+                <span>Settings</span>
+              </Link>
+
+              <Link
+                to="/help"
+                className={`app-bottom-nav-item${selectedKey === 'help' ? ' is-active' : ''}`}
+                onClick={(event) => {
+                  if (!workflowLocked) return;
+                  event.preventDefault();
+                  message.info('Cancel or complete the outreach workflow before navigating away.');
+                }}
+              >
+                <QuestionCircleOutlined />
+                <span>Help</span>
+              </Link>
+            </div>
+          </nav>
+        </Sider>
+
+        <Layout className="app-main-layout">
+          <Header className="app-topbar">
+            <TopbarTenantBrand
+              logoUrl={branding.data?.logoUrl ?? null}
+              name={branding.data?.name ?? me.data?.tenant.name ?? 'Capiro'}
+            />
+            <TopbarSearch />
+            <span className="app-topbar-spacer" />
+            <QuickLogButton />
+            <WorkspaceNotificationBell />
             <button
-              className="app-shell-brand"
+              className="app-topbar-icon-button"
               type="button"
+              aria-label="Open settings"
               onClick={() => {
                 if (workflowLocked) {
                   message.info('Cancel or complete the outreach workflow before navigating away.');
                   return;
                 }
-                navigate('/clients');
-              }}
-              aria-label="Go to Clients"
-            >
-              {navCollapsed ? (
-                <span className="app-shell-logo-mark">C</span>
-              ) : (
-                <img src="/logo.png" alt="Capiro" className="app-shell-logo" />
-              )}
-            </button>
-            <button
-              className="app-shell-collapse"
-              type="button"
-              aria-label={navCollapsed ? 'Expand navigation' : 'Collapse navigation'}
-              onClick={() => setNavCollapsed((value) => !value)}
-            >
-              {navCollapsed ? <MenuUnfoldOutlined /> : <MenuFoldOutlined />}
-            </button>
-          </div>
-
-          <Menu
-            theme="dark"
-            mode="inline"
-            selectedKeys={[selectedKey]}
-            defaultOpenKeys={['pe-group']}
-            items={items}
-            inlineCollapsed={navCollapsed}
-            inlineIndent={24}
-            className="app-nav-menu"
-          />
-
-          <div className="app-shell-bottom">
-            <SyncInboxControl
-              connections={connectedInboxConnections}
-              loading={integrationConnections.isLoading}
-              queryError={integrationConnections.isError}
-              syncing={syncInbox.isPending}
-              syncError={syncInbox.isError}
-              lastManualSyncAt={lastManualSyncAt}
-              onClick={() => {
-                if (!connectedInboxConnections.length) {
-                  navigate('/settings/integrations');
-                  return;
-                }
-                syncInbox.mutate({ silent: false });
-              }}
-            />
-
-            <Link
-              to="/settings"
-              className={`app-bottom-nav-item${selectedKey === 'settings' ? ' is-active' : ''}`}
-              onClick={(event) => {
-                if (!workflowLocked) return;
-                event.preventDefault();
-                message.info('Cancel or complete the outreach workflow before navigating away.');
+                navigate('/settings');
               }}
             >
               <SettingOutlined />
-              <span>Settings</span>
-            </Link>
-
-            <Link
-              to="/help"
-              className={`app-bottom-nav-item${selectedKey === 'help' ? ' is-active' : ''}`}
-              onClick={(event) => {
-                if (!workflowLocked) return;
-                event.preventDefault();
-                message.info('Cancel or complete the outreach workflow before navigating away.');
-              }}
-            >
-              <QuestionCircleOutlined />
-              <span>Help</span>
-            </Link>
-          </div>
-        </nav>
-      </Sider>
-
-      <Layout className="app-main-layout">
-        <Header className="app-topbar">
-          <TopbarTenantBrand
-            logoUrl={branding.data?.logoUrl ?? null}
-            name={branding.data?.name ?? me.data?.tenant.name ?? 'Capiro'}
-          />
-          <TopbarSearch />
-          <span className="app-topbar-spacer" />
-          <QuickLogButton />
-          {/*
-            Bell opens an inline Changes Inbox dropdown instead of navigating
-            to /explorer. The full inbox at /intelligence/changes is still
-            reachable via the dropdown's "View all" footer and via deep-links.
-            The workflow-lock guard is hoisted into the bell so navigation
-            from inside the dropdown still respects the in-progress outreach
-            wizard.
-          */}
-          <ChangesInboxBell
-            guardNavigation={() => {
-              if (workflowLocked) {
-                message.info('Cancel or complete the outreach workflow before navigating away.');
-                return false;
-              }
-              return true;
-            }}
-          />
-          <WorkspaceNotificationBell />
-          <button
-            className="app-topbar-icon-button"
-            type="button"
-            aria-label="Open settings"
-            onClick={() => {
-              if (workflowLocked) {
-                message.info('Cancel or complete the outreach workflow before navigating away.');
-                return;
-              }
-              navigate('/settings');
-            }}
-          >
-            <SettingOutlined />
-          </button>
-          <Dropdown menu={accountMenu} trigger={['click']} placement="bottomRight">
-            <button
-              className="app-topbar-account"
-              type="button"
-              aria-label={`Open account menu for ${displayName}`}
-            >
-              <Avatar size={36} src={user?.imageUrl || undefined} icon={<UserOutlined />}>
-                {initials(displayName)}
-              </Avatar>
-              <span className="app-topbar-account-stack">
-                <span className="app-topbar-account-name">{displayName}</span>
-                {displayTitle ? (
-                  <span className="app-topbar-account-title">{displayTitle}</span>
-                ) : null}
-              </span>
             </button>
-          </Dropdown>
-        </Header>
+            <Dropdown menu={accountMenu} trigger={['click']} placement="bottomRight">
+              <button
+                className="app-topbar-account"
+                type="button"
+                aria-label={`Open account menu for ${displayName}`}
+              >
+                <Avatar size={36} src={user?.imageUrl || undefined} icon={<UserOutlined />}>
+                  {initials(displayName)}
+                </Avatar>
+                <span className="app-topbar-account-stack">
+                  <span className="app-topbar-account-name">{displayName}</span>
+                  {displayTitle ? (
+                    <span className="app-topbar-account-title">{displayTitle}</span>
+                  ) : null}
+                </span>
+              </button>
+            </Dropdown>
+          </Header>
 
-        {page.showClientDropdown && selectedClient ? (
-          <ClientContextBanner client={selectedClient} onClear={clearClientFilter} />
-        ) : null}
+          {page.showClientDropdown && selectedClient ? (
+            <ClientContextBanner client={selectedClient} onClear={clearClientFilter} />
+          ) : null}
 
-        <Content className="app-content">
-          {me.error ? (
-            <Alert
-              type="error"
-              message="Could not load your profile"
-              description={(me.error as Error).message}
-              className="app-content-alert"
-            />
-          ) : null}
-          {actAsTenantSlug ? (
-            <Alert
-              type="info"
-              showIcon
-              closable
-              message="Impersonation active"
-              description={`You are viewing ${actAsTenantSlug}.`}
-              onClose={endImpersonation}
-              className="app-content-alert"
-            />
-          ) : null}
-          <Outlet />
-        </Content>
+          <Content className="app-content">
+            {me.error ? (
+              <Alert
+                type="error"
+                message="Could not load your profile"
+                description={(me.error as Error).message}
+                className="app-content-alert"
+              />
+            ) : null}
+            {actAsTenantSlug ? (
+              <Alert
+                type="info"
+                showIcon
+                closable
+                message="Impersonation active"
+                description={`You are viewing ${actAsTenantSlug}.`}
+                onClose={endImpersonation}
+                className="app-content-alert"
+              />
+            ) : null}
+            <Outlet />
+          </Content>
+        </Layout>
       </Layout>
-    </Layout>
-    <ChatDrawer selectedClientName={selectedClient?.name ?? null} />
+      <ChatDrawer selectedClientName={selectedClient?.name ?? null} />
     </>
   );
 }
@@ -693,7 +662,12 @@ function TopbarSearch() {
 
   return (
     <div ref={containerRef} className="app-topbar-search-wrap" style={{ position: 'relative' }}>
-      <form className="app-topbar-search" role="search" onSubmit={(e) => e.preventDefault()} aria-label="Global search">
+      <form
+        className="app-topbar-search"
+        role="search"
+        onSubmit={(e) => e.preventDefault()}
+        aria-label="Global search"
+      >
         <SearchOutlined className="app-topbar-search-icon" aria-hidden />
         <input
           type="search"
@@ -707,7 +681,9 @@ function TopbarSearch() {
           onFocus={() => setOpen(true)}
           aria-label="Search across all data"
         />
-        <span className="app-topbar-search-hint" aria-hidden>⌘K</span>
+        <span className="app-topbar-search-hint" aria-hidden>
+          ⌘K
+        </span>
       </form>
       {showDropdown && (
         <div
@@ -728,7 +704,9 @@ function TopbarSearch() {
           }}
         >
           {isFetching && results.length === 0 ? (
-            <div style={{ padding: '12px 14px', fontSize: 13, color: 'var(--text-3, #6b7280)' }}>Searching…</div>
+            <div style={{ padding: '12px 14px', fontSize: 13, color: 'var(--text-3, #6b7280)' }}>
+              Searching…
+            </div>
           ) : results.length === 0 ? (
             <div style={{ padding: '12px 14px', fontSize: 13, color: 'var(--text-3, #6b7280)' }}>
               No matches for “{debounced}”
@@ -767,17 +745,38 @@ function TopbarSearch() {
                   {SEARCH_CATEGORY_LABELS[r.category] ?? r.category}
                 </span>
                 <span style={{ flex: 1, minWidth: 0 }}>
-                  <span style={{ display: 'block', fontSize: 13.5, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                  <span
+                    style={{
+                      display: 'block',
+                      fontSize: 13.5,
+                      overflow: 'hidden',
+                      textOverflow: 'ellipsis',
+                      whiteSpace: 'nowrap',
+                    }}
+                  >
                     {r.title}
                   </span>
                   {r.subtitle && (
-                    <span style={{ display: 'block', fontSize: 12, color: 'var(--text-3, #6b7280)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                    <span
+                      style={{
+                        display: 'block',
+                        fontSize: 12,
+                        color: 'var(--text-3, #6b7280)',
+                        overflow: 'hidden',
+                        textOverflow: 'ellipsis',
+                        whiteSpace: 'nowrap',
+                      }}
+                    >
                       {r.subtitle}
                     </span>
                   )}
                 </span>
                 {r.date && (
-                  <span style={{ flex: '0 0 auto', fontSize: 11.5, color: 'var(--text-3, #9ca3af)' }}>{r.date}</span>
+                  <span
+                    style={{ flex: '0 0 auto', fontSize: 11.5, color: 'var(--text-3, #9ca3af)' }}
+                  >
+                    {r.date}
+                  </span>
                 )}
               </button>
             ))
@@ -1010,7 +1009,8 @@ function pageKeyFor(pathname: string): AppSection {
   // general /intelligence prefix, otherwise it falls through to 'intelligence'
   // (Data Explorer) and the wrong child highlights.
   if (pathname.startsWith('/intelligence/graph')) return 'knowledge-graph';
-  if (pathname.startsWith('/explorer') || pathname.startsWith('/intelligence')) return 'intelligence';
+  if (pathname.startsWith('/explorer') || pathname.startsWith('/intelligence'))
+    return 'intelligence';
   if (pathname.startsWith('/admin/analyst-console')) return 'analyst-console';
   if (pathname.startsWith('/program-elements')) return 'program-elements';
   if (pathname.startsWith('/directory')) return 'directory';
