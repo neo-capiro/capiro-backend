@@ -48,12 +48,15 @@ function Tile({ icon, label, onClick }: { icon: string; label: string; onClick: 
 
 export function InsertRail({
   product,
+  clientId,
   onAddSection,
   onInsert,
   onApplyTemplate,
 }: {
   /** Active product — suggested templates ordering + the catalog query. */
   product: string | null;
+  /** Resolved client id for the doc — enables client-scoped platform tables. */
+  clientId?: string | null;
   onAddSection: (name?: string, meta?: Partial<WsSectionMeta>) => void;
   onInsert: (kind: string, extra?: Partial<WsBlock>) => void;
   /** Apply a chosen template by mode (replace vs merge). */
@@ -143,6 +146,7 @@ export function InsertRail({
           <Tile icon="Table" label="Table" onClick={() => setShowTablePicker((s) => !s)} />
           {showTablePicker && (
             <TableTypePicker
+              clientId={clientId}
               onClose={() => setShowTablePicker(false)}
               onInsert={(kind, extra) => {
                 onInsert(kind, extra);

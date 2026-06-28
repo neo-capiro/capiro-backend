@@ -32,16 +32,23 @@ import {
 } from './api.js';
 import { useMe } from '../../lib/me.js';
 
-// Role label ↔ value + description (prototype ROLES + legend).
+// Assignable roles (Reviewer removed — not needed). Owner is synthesized for the
+// document creator and is never assignable here.
 const ROLES: Array<{ value: WsAssignableRole; label: string; desc: string }> = [
-  { value: 'editor', label: 'Editor', desc: 'Edit, draft & comment' },
-  { value: 'reviewer', label: 'Reviewer', desc: 'Comment & approve' },
-  { value: 'commenter', label: 'Commenter', desc: 'Comment only' },
-  { value: 'viewer', label: 'Viewer', desc: 'Read & export' },
+  { value: 'editor', label: 'Editor', desc: 'Edit, draft, comment & export' },
+  { value: 'commenter', label: 'Commenter', desc: 'View & comment only' },
+  { value: 'viewer', label: 'Viewer', desc: 'Read only, export' },
+];
+
+// Legend shown under People-with-access — includes Owner for reference.
+const ROLE_LEGEND: Array<{ label: string; desc: string }> = [
+  { label: 'Owner', desc: 'Full access · created the document' },
+  ...ROLES.map((r) => ({ label: r.label, desc: r.desc })),
 ];
 
 function roleLabel(role: string): string {
   if (role === 'owner') return 'Owner';
+  if (role === 'reviewer') return 'Reviewer';
   return ROLES.find((r) => r.value === role)?.label ?? role;
 }
 
@@ -295,7 +302,7 @@ export function CollabPage() {
                   }}
                 >
                   <Icon name="Info" size={12} />
-                  Internal firm teammates and client SMEs. Any role can comment.
+                  Can only be shared with members of your organization on Capiro.
                 </div>
               </>
             )}
@@ -321,7 +328,6 @@ export function CollabPage() {
                 self={!!selfClerkId && c.subjectId === selfClerkId}
                 memberByClerk={memberByClerk}
                 canManage={isOwner && !c.isOwner}
-                firmName={draft.config?.client || me?.tenant.name || ''}
                 onChangeRole={(role) =>
                   updateRole.mutate(
                     { id: c.id, role },
@@ -350,8 +356,8 @@ export function CollabPage() {
                 borderTop: '1px solid var(--border-1)',
               }}
             >
-              {ROLES.map((r) => (
-                <div key={r.value} style={{ minWidth: 120 }}>
+              {ROLE_LEGEND.map((r) => (
+                <div key={r.label} style={{ minWidth: 120 }}>
                   <div style={{ fontSize: 11.5, fontWeight: 600 }}>{r.label}</div>
                   <div style={{ fontSize: 11, color: 'var(--ink-3)' }}>{r.desc}</div>
                 </div>
@@ -387,7 +393,6 @@ function AccessRow({
   self,
   memberByClerk,
   canManage,
-  firmName,
   onChangeRole,
   onRemove,
 }: {
@@ -396,7 +401,6 @@ function AccessRow({
   self: boolean;
   memberByClerk: Map<string, WsTenantMember>;
   canManage: boolean;
-  firmName: string;
   onChangeRole: (role: WsAssignableRole) => void;
   onRemove: () => void;
 }) {
@@ -409,12 +413,11 @@ function AccessRow({
   const name =
     member?.name || c.name || (c.email ? c.email.split('@')[0] : undefined) || 'Collaborator';
   const avatar = member?.initials || initialsOf(name);
+  // Subtext = how to reach them (email), never the client name (D).
   const note =
     c.status === 'pending'
       ? `Pending · ${c.email ?? ''}`
-      : c.email
-        ? c.email
-        : firmName || 'Internal teammate';
+      : c.email || member?.email || 'Internal teammate';
 
   return (
     <div

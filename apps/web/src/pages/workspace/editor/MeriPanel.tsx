@@ -2,23 +2,204 @@
  * Right rail — Meri | Comments (ported from the prototype `MeriPanel`,
  * asset_14).
  *
- * Meri tab: contextual header message, "Ask Meri to edit this draft…" input
- * (wired to onAsk — a toast stub for now), quick-action chips (stubs), and the
- * "Context Meri uses" list (from cfg.linkedData) with Edit → the Context
- * Builder for this draft.
+ * Meri tab: a document-scoped chat assistant. You prompt Meri to act across the
+ * whole document; it has the setup + Context Builder context plus read-only
+ * access to firm/client + congressional data, and proposes edits you preview and
+ * Accept/Reject before they apply. Wired to onRunMeri (POST /api/workspace/
+ * assistant) and onApplyEdits (applies accepted edits to the section model).
  *
  * Comments tab (Phase 6): the full CommentsRail — highlight-to-comment compose,
  * threaded replies, resolve (clears the highlight), and "Let Meri draft an edit".
  * The editor controls the tab via `activeTab`/`onTabChange` so a canvas
  * selection can auto-switch the rail to Comments.
  */
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { Icon } from '../kit.js';
 import type { WsComment } from '../types.js';
+import type { WsAssistantEdit, WsAssistantResult } from '../api.js';
 import { CommentsRail, type ComposingComment } from './CommentsRail.js';
 import type { CommentAnchor } from './anchors.js';
 
-const QUICK_ACTIONS = ['Tighten the ask', 'Expand acronyms', 'Stronger nexus'];
+const QUICK_ACTIONS: Array<{ label: string; prompt: string }> = [
+  {
+    label: 'Tighten the ask',
+    prompt:
+      'Tighten the ask across this document — make the request specific, quantified, and action-oriented. Propose section edits.',
+  },
+  {
+    label: 'Expand acronyms',
+    prompt:
+      'Find undefined acronyms throughout the document and expand each on first use, e.g. "NDAA (National Defense Authorization Act)". Propose section edits.',
+  },
+  {
+    label: 'Strengthen the nexus',
+    prompt:
+      'Strengthen the connection between the client and the relevant policy/program throughout — make the relevance explicit and evidence-backed. Propose section edits.',
+  },
+];
+
+interface ChatItem {
+  role: 'user' | 'meri';
+  text: string;
+  edits?: WsAssistantEdit[];
+  editsState?: 'pending' | 'applied' | 'dismissed';
+}
+
+const opLabel: Record<WsAssistantEdit['op'], string> = {
+  replace_section: 'Rewrite',
+  insert_section: 'Add section',
+  remove_section: 'Remove section',
+};
+
+function plainPreview(html: string | undefined, max = 220): string {
+  if (!html) return '';
+  const text = html
+    .replace(/<[^>]*>/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim();
+  return text.length > max ? `${text.slice(0, max)}…` : text;
+}
+
+/** A proposed-edits card with per-edit Reject + Apply / Dismiss (preview → accept). */
+function EditProposal({
+  edits,
+  state,
+  onApply,
+  onDismiss,
+}: {
+  edits: WsAssistantEdit[];
+  state: ChatItem['editsState'];
+  onApply: (kept: WsAssistantEdit[]) => void;
+  onDismiss: () => void;
+}) {
+  const [rejected, setRejected] = useState<Set<number>>(new Set());
+  if (state === 'applied') {
+    return (
+      <div style={{ fontSize: 11, color: 'var(--accent-ink, #1e3a8a)', marginTop: 6 }}>
+        <Icon name="Check" size={11} /> Applied to the document
+      </div>
+    );
+  }
+  if (state === 'dismissed') {
+    return (
+      <div style={{ fontSize: 11, color: 'var(--ink-3)', marginTop: 6 }}>Suggestion dismissed</div>
+    );
+  }
+  const kept = edits.filter((_, i) => !rejected.has(i));
+  const toggle = (i: number) =>
+    setRejected((s) => {
+      const n = new Set(s);
+      if (n.has(i)) n.delete(i);
+      else n.add(i);
+      return n;
+    });
+  return (
+    <div
+      style={{
+        marginTop: 8,
+        border: '1px solid var(--border-1)',
+        borderRadius: 9,
+        background: 'var(--bg-surface)',
+        overflow: 'hidden',
+      }}
+    >
+      <div
+        style={{
+          padding: '7px 11px',
+          fontSize: 11,
+          fontWeight: 700,
+          color: 'var(--ink-2)',
+          background: 'var(--accent-soft)',
+          borderBottom: '1px solid var(--border-1)',
+        }}
+      >
+        Proposed edits · {edits.length}
+      </div>
+      <div style={{ display: 'flex', flexDirection: 'column' }}>
+        {edits.map((e, i) => {
+          const off = rejected.has(i);
+          const target = e.op === 'insert_section' ? e.name : e.section;
+          return (
+            <div
+              key={i}
+              style={{
+                padding: '8px 11px',
+                borderBottom: '1px solid var(--border-1)',
+                opacity: off ? 0.45 : 1,
+              }}
+            >
+              <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                <span
+                  style={{
+                    fontSize: 9.5,
+                    fontWeight: 700,
+                    textTransform: 'uppercase',
+                    letterSpacing: '0.03em',
+                    color: e.op === 'remove_section' ? 'var(--danger, #b91c1c)' : 'var(--accent)',
+                  }}
+                >
+                  {opLabel[e.op]}
+                </span>
+                <span
+                  style={{
+                    fontSize: 11.5,
+                    fontWeight: 600,
+                    flex: 1,
+                    minWidth: 0,
+                    overflow: 'hidden',
+                    textOverflow: 'ellipsis',
+                    whiteSpace: 'nowrap',
+                    textDecoration: off ? 'line-through' : 'none',
+                  }}
+                >
+                  {target ?? '(section)'}
+                </span>
+                <button
+                  className="btn sm btn-ghost"
+                  style={{ fontSize: 10.5, padding: '1px 7px', color: 'var(--ink-3)' }}
+                  onClick={() => toggle(i)}
+                >
+                  {off ? 'Restore' : 'Reject'}
+                </button>
+              </div>
+              {e.note && (
+                <div style={{ fontSize: 10.5, color: 'var(--ink-3)', marginTop: 3 }}>{e.note}</div>
+              )}
+              {e.op !== 'remove_section' && e.content && (
+                <div
+                  style={{
+                    fontSize: 11,
+                    color: 'var(--ink-2)',
+                    marginTop: 4,
+                    lineHeight: 1.45,
+                    maxHeight: 84,
+                    overflow: 'hidden',
+                  }}
+                >
+                  {plainPreview(e.content)}
+                </div>
+              )}
+            </div>
+          );
+        })}
+      </div>
+      <div style={{ display: 'flex', gap: 7, padding: '8px 11px' }}>
+        <button
+          className="btn sm btn-accent"
+          disabled={!kept.length}
+          onClick={() => onApply(kept)}
+          style={{ fontSize: 11 }}
+        >
+          <Icon name="Check" size={12} />
+          Apply {kept.length} edit{kept.length === 1 ? '' : 's'}
+        </button>
+        <button className="btn sm" onClick={onDismiss} style={{ fontSize: 11 }}>
+          Dismiss
+        </button>
+      </div>
+    </div>
+  );
+}
 
 export function MeriPanel({
   isMainDoc,
@@ -34,12 +215,12 @@ export function MeriPanel({
   onComposeSave,
   onComposeCancel,
   onApplyEdit,
-  onAsk,
-  onQuickAction,
+  onRunMeri,
+  onApplyEdits,
   onEditContext,
 }: {
   isMainDoc: boolean;
-  /** Labels of the context references Meri uses (cfg.linkedData). */
+  /** Labels of the context items Meri uses (the real Context Builder plan). */
   contextItems: string[];
   openComments: number;
   /** Editor-controlled active rail tab (so a selection can switch to Comments). */
@@ -54,13 +235,59 @@ export function MeriPanel({
   onComposeSave: (text: string) => void;
   onComposeCancel: () => void;
   onApplyEdit: (anchor: CommentAnchor, after: string) => void;
-  onAsk: (text: string) => void;
-  onQuickAction: (action: string) => void;
+  /** Run one assistant turn; resolves to Meri's reply + proposed edits. */
+  onRunMeri: (
+    messages: Array<{ role: 'user' | 'assistant'; text: string }>,
+  ) => Promise<WsAssistantResult>;
+  /** Apply accepted edits to the document (section model + autosave). */
+  onApplyEdits: (edits: WsAssistantEdit[]) => void;
   onEditContext: () => void;
 }) {
   const tab = activeTab;
   const setTab = onTabChange;
   const [input, setInput] = useState('');
+  const [items, setItems] = useState<ChatItem[]>([]);
+  const [busy, setBusy] = useState(false);
+  const scrollRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    scrollRef.current?.scrollTo({ top: scrollRef.current.scrollHeight, behavior: 'smooth' });
+  }, [items, busy]);
+
+  const send = async (text: string) => {
+    const v = text.trim();
+    if (!v || busy) return;
+    setInput('');
+    const nextItems: ChatItem[] = [...items, { role: 'user', text: v }];
+    setItems(nextItems);
+    setBusy(true);
+    try {
+      const history = nextItems.map((it) => ({
+        role: (it.role === 'meri' ? 'assistant' : 'user') as 'user' | 'assistant',
+        text: it.text,
+      }));
+      const res = await onRunMeri(history);
+      setItems((prev) => [
+        ...prev,
+        {
+          role: 'meri',
+          text: res.reply || 'Done.',
+          edits: res.edits?.length ? res.edits : undefined,
+          editsState: res.edits?.length ? 'pending' : undefined,
+        },
+      ]);
+    } catch {
+      setItems((prev) => [
+        ...prev,
+        { role: 'meri', text: 'Sorry — something went wrong. Please try again.' },
+      ]);
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const setEditsState = (idx: number, editsState: ChatItem['editsState']) =>
+    setItems((prev) => prev.map((it, i) => (i === idx ? { ...it, editsState } : it)));
 
   const Tab = ({ k, label, badge }: { k: 'meri' | 'comments'; label: string; badge?: number }) => {
     const on = tab === k;
@@ -102,13 +329,6 @@ export function MeriPanel({
         )}
       </button>
     );
-  };
-
-  const submit = () => {
-    const v = input.trim();
-    if (!v) return;
-    onAsk(v);
-    setInput('');
   };
 
   return (
@@ -169,57 +389,138 @@ export function MeriPanel({
             minHeight: 0,
           }}
         >
+          {/* Header */}
           <div
             style={{
-              padding: 16,
+              padding: '12px 16px',
               borderBottom: '1px solid var(--border-1)',
+              display: 'flex',
+              alignItems: 'center',
+              gap: 8,
+              flex: 'none',
               background: 'linear-gradient(180deg, var(--accent-soft), var(--bg-surface))',
             }}
           >
-            <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 10 }}>
-              <span
-                style={{
-                  width: 26,
-                  height: 26,
-                  borderRadius: '50%',
-                  background: 'var(--accent)',
-                  color: '#fff',
-                  display: 'grid',
-                  placeItems: 'center',
-                  flex: 'none',
-                }}
-              >
-                <Icon name="Sparkles" size={15} />
-              </span>
-              <div>
-                <div style={{ fontSize: 13, fontWeight: 700 }}>Meri</div>
-                <div style={{ fontSize: 10.5, color: 'var(--ink-3)' }}>
-                  {isMainDoc ? 'Drafting assistant' : 'Ready to draft this document'}
-                </div>
-              </div>
-            </div>
-            <div
-              className="card"
+            <span
               style={{
-                padding: '9px 11px',
-                boxShadow: 'none',
-                fontSize: 12,
-                color: 'var(--ink-2)',
-                lineHeight: 1.45,
-                marginBottom: 10,
+                width: 26,
+                height: 26,
+                borderRadius: '50%',
+                background: 'var(--accent)',
+                color: '#fff',
+                display: 'grid',
+                placeItems: 'center',
+                flex: 'none',
               }}
             >
-              <b style={{ color: 'var(--accent)' }}>Meri:</b>{' '}
-              {isMainDoc
-                ? 'This draft has 9 undefined acronyms and the certification still needs sign-off. Want me to expand the acronyms?'
-                : 'This document is blank. Tell me what to include and I’ll draft it using your context.'}
+              <Icon name="Sparkles" size={15} />
+            </span>
+            <div>
+              <div style={{ fontSize: 13, fontWeight: 700 }}>Meri</div>
+              <div style={{ fontSize: 10.5, color: 'var(--ink-3)' }}>
+                Editing this document · {contextItems.length} context source
+                {contextItems.length === 1 ? '' : 's'}
+              </div>
+            </div>
+          </div>
+
+          {/* Conversation */}
+          <div ref={scrollRef} style={{ flex: 1, overflow: 'auto', padding: 14, minHeight: 0 }}>
+            {items.length === 0 && (
+              <div
+                className="card"
+                style={{
+                  padding: '10px 12px',
+                  boxShadow: 'none',
+                  fontSize: 12,
+                  color: 'var(--ink-2)',
+                  lineHeight: 1.5,
+                }}
+              >
+                <b style={{ color: 'var(--accent)' }}>Meri:</b> I can edit this document with you —
+                rewrite or tighten sections, expand acronyms, strengthen the ask. I use your setup
+                and linked context, and can pull in firm and congressional data. Ask me anything, or
+                try a quick action below.
+              </div>
+            )}
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+              {items.map((it, idx) =>
+                it.role === 'user' ? (
+                  <div key={idx} style={{ display: 'flex', justifyContent: 'flex-end' }}>
+                    <div
+                      style={{
+                        maxWidth: '85%',
+                        background: 'var(--accent)',
+                        color: '#fff',
+                        fontSize: 12,
+                        lineHeight: 1.5,
+                        padding: '8px 11px',
+                        borderRadius: '10px 10px 2px 10px',
+                      }}
+                    >
+                      {it.text}
+                    </div>
+                  </div>
+                ) : (
+                  <div key={idx}>
+                    <div
+                      style={{
+                        fontSize: 12,
+                        lineHeight: 1.55,
+                        color: 'var(--ink-1)',
+                        whiteSpace: 'pre-wrap',
+                      }}
+                    >
+                      <b style={{ color: 'var(--accent)' }}>Meri:</b> {it.text}
+                    </div>
+                    {it.edits && it.edits.length > 0 && (
+                      <EditProposal
+                        edits={it.edits}
+                        state={it.editsState}
+                        onApply={(kept) => {
+                          onApplyEdits(kept);
+                          setEditsState(idx, 'applied');
+                        }}
+                        onDismiss={() => setEditsState(idx, 'dismissed')}
+                      />
+                    )}
+                  </div>
+                ),
+              )}
+              {busy && (
+                <div style={{ fontSize: 12, color: 'var(--ink-3)' }}>
+                  <b style={{ color: 'var(--accent)' }}>Meri</b> is thinking…
+                </div>
+              )}
+            </div>
+          </div>
+
+          {/* Composer */}
+          <div style={{ padding: 12, borderTop: '1px solid var(--border-1)', flex: 'none' }}>
+            <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', marginBottom: 8 }}>
+              {QUICK_ACTIONS.map((q) => (
+                <button
+                  key={q.label}
+                  className="btn sm"
+                  disabled={busy}
+                  style={{
+                    fontSize: 11,
+                    padding: '3px 9px',
+                    borderColor: 'var(--border-1)',
+                    color: 'var(--ink-2)',
+                  }}
+                  onClick={() => send(q.prompt)}
+                >
+                  {q.label}
+                </button>
+              ))}
             </div>
             <div
               style={{
                 display: 'flex',
                 alignItems: 'center',
                 gap: 8,
-                padding: '10px 12px',
+                padding: '9px 11px',
                 background: 'var(--bg-surface)',
                 border: '1.5px solid var(--accent)',
                 borderRadius: 9,
@@ -231,9 +532,13 @@ export function MeriPanel({
                 value={input}
                 onChange={(e) => setInput(e.target.value)}
                 onKeyDown={(e) => {
-                  if (e.key === 'Enter') submit();
+                  if (e.key === 'Enter' && !e.shiftKey) {
+                    e.preventDefault();
+                    void send(input);
+                  }
                 }}
-                placeholder="Ask Meri to edit this draft…"
+                disabled={busy}
+                placeholder="Ask Meri to edit this document…"
                 style={{
                   flex: 1,
                   border: 'none',
@@ -245,7 +550,8 @@ export function MeriPanel({
                 }}
               />
               <button
-                onClick={submit}
+                onClick={() => void send(input)}
+                disabled={busy || !input.trim()}
                 style={{
                   width: 26,
                   height: 26,
@@ -255,106 +561,36 @@ export function MeriPanel({
                   display: 'grid',
                   placeItems: 'center',
                   border: 'none',
-                  cursor: 'pointer',
+                  cursor: busy ? 'wait' : 'pointer',
+                  opacity: !input.trim() ? 0.5 : 1,
+                  flex: 'none',
                 }}
               >
                 <Icon name="ArrowUp" size={14} />
               </button>
             </div>
-            {isMainDoc && (
-              <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', marginTop: 9 }}>
-                {QUICK_ACTIONS.map((q) => (
-                  <button
-                    key={q}
-                    className="btn sm"
-                    style={{
-                      fontSize: 11,
-                      padding: '3px 9px',
-                      borderColor: 'var(--border-1)',
-                      color: 'var(--ink-2)',
-                    }}
-                    onClick={() => onQuickAction(q)}
-                  >
-                    {q}
-                  </button>
-                ))}
-              </div>
-            )}
-          </div>
-          <div
-            style={{
-              padding: 16,
-              overflow: 'auto',
-              display: 'flex',
-              flexDirection: 'column',
-              gap: 13,
-            }}
-          >
-            <div>
-              <div
+            <div
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'space-between',
+                marginTop: 8,
+              }}
+            >
+              <span style={{ fontSize: 10.5, color: 'var(--ink-3)' }}>
+                Context Meri uses · {contextItems.length}
+              </span>
+              <a
+                onClick={onEditContext}
                 style={{
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'space-between',
-                  marginBottom: 7,
+                  fontSize: 10.5,
+                  color: 'var(--accent)',
+                  fontWeight: 600,
+                  cursor: 'pointer',
                 }}
               >
-                <span style={{ fontSize: 11, fontWeight: 600, color: 'var(--ink-2)' }}>
-                  Context Meri uses · {contextItems.length}
-                </span>
-                <a
-                  onClick={onEditContext}
-                  style={{
-                    fontSize: 11,
-                    color: 'var(--accent)',
-                    fontWeight: 600,
-                    cursor: 'pointer',
-                  }}
-                >
-                  Edit
-                </a>
-              </div>
-              {contextItems.length === 0 ? (
-                <div style={{ fontSize: 11.5, color: 'var(--ink-3)', lineHeight: 1.5 }}>
-                  No context linked yet. Add sources in Build context so Meri drafts from your data.
-                </div>
-              ) : (
-                <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
-                  {contextItems.map((c, i) => (
-                    <div
-                      key={c + i}
-                      style={{
-                        display: 'flex',
-                        alignItems: 'center',
-                        gap: 9,
-                        padding: '7px 10px',
-                        border: '1px solid var(--border-1)',
-                        borderRadius: 7,
-                        background: 'var(--bg-surface-2)',
-                      }}
-                    >
-                      <Icon
-                        name="Database"
-                        size={13}
-                        style={{ color: 'var(--accent)', flex: 'none' }}
-                      />
-                      <div style={{ minWidth: 0, flex: 1 }}>
-                        <div
-                          style={{
-                            fontSize: 11.5,
-                            fontWeight: 500,
-                            whiteSpace: 'nowrap',
-                            overflow: 'hidden',
-                            textOverflow: 'ellipsis',
-                          }}
-                        >
-                          {c}
-                        </div>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              )}
+                Edit context
+              </a>
             </div>
           </div>
         </div>

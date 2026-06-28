@@ -554,6 +554,24 @@ export function useGenerateSection(draftId: string) {
   });
 }
 
+/**
+ * Draft the WHOLE document (every section) with Meri. Used after the Context
+ * Builder ("Open editor") and by the editor's "Regenerate All". Returns the
+ * refreshed draft; callers re-hydrate from it. Invalidates the draft + checks.
+ */
+export function useGenerateAll(draftId: string | null) {
+  const api = useApi();
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async () =>
+      (await api.post<WsDraft>(`${BASE}/drafts/${draftId}/generate-all`, {})).data,
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['ws', 'draft', draftId] });
+      qc.invalidateQueries({ queryKey: ['ws', 'checks', draftId] });
+    },
+  });
+}
+
 // ── Anonymize (review modal) ──────────────────────────────────────────────────
 /**
  * A name span Meri detected as a candidate for anonymization. `kind` drives the
@@ -638,6 +656,43 @@ export function useRemoveContextItem(draftId: string) {
     mutationFn: async (itemId: string) =>
       (await api.delete(`${BASE}/drafts/${draftId}/context/${itemId}`)).data,
     onSuccess: () => qc.invalidateQueries({ queryKey: ['ws', 'ctx-items', draftId] }),
+  });
+}
+
+// ── In-editor Meri assistant (document-scoped) ───────────────────────────────
+// A bounded, READ-ONLY tool loop on the MAIN api (where the Meri tools + AI keys
+// live). The editor posts the live document + setup + Context Builder plan and a
+// conversation; Meri returns a reply plus proposed edits the editor previews and
+// applies. See apps/api/src/workspace-assistant.
+export interface WsAssistantEdit {
+  op: 'replace_section' | 'insert_section' | 'remove_section';
+  section?: string;
+  afterSection?: string;
+  name?: string;
+  content?: string;
+  note?: string;
+}
+export interface WsAssistantResult {
+  reply: string;
+  edits: WsAssistantEdit[];
+}
+export interface WsAssistantRequest {
+  messages: Array<{ role: 'user' | 'assistant'; text: string }>;
+  document: {
+    title: string;
+    product?: string;
+    client?: string;
+    sections: Array<{ name: string; content: string; status?: string }>;
+  };
+  setup?: Record<string, unknown>;
+  context?: Array<{ label?: string; text?: string }>;
+  clientId?: string;
+}
+export function useWorkspaceAssistant() {
+  const api = useApi();
+  return useMutation({
+    mutationFn: async (body: WsAssistantRequest) =>
+      (await api.post<WsAssistantResult>(`${MAIN}/workspace/assistant`, body)).data,
   });
 }
 

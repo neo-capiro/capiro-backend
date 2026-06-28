@@ -38,12 +38,19 @@ import {
   useDeleteDocument,
   useDraft,
   useDraftChecks,
+  useDraftContext,
+  useGenerateAll,
   useGenerateSection,
   useTenantMembers,
   useUpdateDocument,
   useUpdateDraft,
+  useWorkspaceAssistant,
   initials,
+  type WsAssistantEdit,
 } from './api.js';
+import { useQuery } from '@tanstack/react-query';
+import { useApi } from '../../lib/use-api.js';
+import { sanitizeWorkspaceBody } from './editor/workspace-richtext.js';
 import { useMe } from '../../lib/me.js';
 import type { WsAsk, WsBlock, WsConfig, WsDocument, WsSectionMeta, WsTemplate } from './types.js';
 import { EditorToolbar, type SaveStatus } from './editor/EditorToolbar.js';
@@ -70,6 +77,7 @@ import {
   getSelectionAnchor,
   highlightSelection,
   type CommentAnchor,
+  type SelectionAnchor,
 } from './editor/anchors.js';
 import type { ComposingComment } from './editor/CommentsRail.js';
 
@@ -81,7 +89,7 @@ const MAIN_TAB = 'main';
 export function EditorPage() {
   const { draftId } = useParams();
   const navigate = useNavigate();
-  const { message } = AntApp.useApp();
+  const { message, modal } = AntApp.useApp();
   const { data: draft, isLoading } = useDraft(draftId ?? null);
 
   const updateDraft = useUpdateDraft(draftId ?? '');
@@ -89,6 +97,7 @@ export function EditorPage() {
   const addDocument = useAddDocument(draftId ?? '');
   const deleteDocument = useDeleteDocument(draftId ?? '');
   const generate = useGenerateSection(draftId ?? '');
+  const generateAll = useGenerateAll(draftId ?? null);
 
   // E-17: real collaborator avatars (owner + active collaborators), resolving
   // clerk ids to initials via the tenant roster. No seed avatars.
@@ -129,12 +138,20 @@ export function EditorPage() {
   }, [justInserted]);
   const [saveStatus, setSaveStatus] = useState<SaveStatus>('saved');
   const [draftingSection, setDraftingSection] = useState<string | null>(null);
+  // Regenerate-all (whole main doc) + per-packet-doc drafting spinners.
+  const [regenerating, setRegenerating] = useState(false);
+  const [draftingDocId, setDraftingDocId] = useState<string | null>(null);
 
   // ── Phase 6: rail tab, comment composing, selection FAB, anonymize modal ────
   const [railTab, setRailTab] = useState<'meri' | 'comments'>('meri');
   const [composing, setComposing] = useState<ComposingComment | null>(null);
   // Floating "Comment" button anchored at a live canvas selection.
   const [selectionFab, setSelectionFab] = useState<{ top: number; left: number } | null>(null);
+  // The selection anchor captured at mouseup. onStartComment reuses THIS instead
+  // of re-reading window.getSelection() at FAB-click time — the live selection
+  // can be collapsed by focus changes by the time the FAB is clicked, which made
+  // "highlight → Comment" silently no-op.
+  const pendingAnchor = useRef<SelectionAnchor | null>(null);
   const [showAnonymizeReview, setShowAnonymizeReview] = useState(false);
   // Phase 6b: which toolbar popover is open (mutually exclusive).
   const [popover, setPopover] = useState<'checks' | 'history' | null>(null);
@@ -280,6 +297,117 @@ export function EditorPage() {
     [scheduleSave],
   );
 
+  // ── In-editor Meri assistant ────────────────────────────────────────────────
+  // Resolve the client UUID (the read-only data tools scope to it) + load the
+  // real Context Builder plan so Meri grounds on exactly what the user added.
+  const api = useApi();
+  const { data: clientList } = useQuery({
+    queryKey: ['ws-editor-clients'],
+    enabled: !!draft?.client,
+    queryFn: async () => (await api.get<{ id: string; name: string }[]>('/api/clients')).data,
+  });
+  const meriClientId = useMemo(
+    () => (clientList ?? []).find((c) => c.name === draft?.client)?.id,
+    [clientList, draft?.client],
+  );
+  const { data: contextPlan } = useDraftContext(draftId ?? null);
+  const meriContextLabels = useMemo(
+    () =>
+      (contextPlan ?? []).map((it) => {
+        const p = it.payload as { label?: string; headline?: string; text?: string };
+        return p.label || p.headline || (p.text ? `${p.text.slice(0, 48)}…` : 'Context');
+      }),
+    [contextPlan],
+  );
+  const assistant = useWorkspaceAssistant();
+
+  // One assistant turn: assemble the live document + setup + context plan and
+  // return Meri's reply + proposed edits. Operates on the MAIN white-paper doc.
+  const runMeri = useCallback(
+    async (messages: Array<{ role: 'user' | 'assistant'; text: string }>) => {
+      if (!cfg)
+        return { reply: 'The document is still loading — try again in a moment.', edits: [] };
+      const content = (cfg.sectionContent as Record<string, string> | undefined) ?? {};
+      const meta = (cfg.sectionMeta as Record<string, WsSectionMeta> | undefined) ?? {};
+      const sections = (cfg.sections ?? []).map((name) => ({
+        name,
+        content: content[name] ?? '',
+        status: meta[name]?.status,
+      }));
+      const c = cfg as Record<string, unknown>;
+      const setup: Record<string, unknown> = {};
+      for (const k of [
+        'tone',
+        'toneContext',
+        'pages',
+        'ask',
+        'offices',
+        'personalize',
+        'anonymize',
+      ]) {
+        if (c[k] != null && c[k] !== '') setup[k] = c[k];
+      }
+      const context = (contextPlan ?? []).map((it) => {
+        const p = it.payload as { label?: string; headline?: string; text?: string };
+        return { label: p.label || p.headline, text: p.text };
+      });
+      return assistant.mutateAsync({
+        messages,
+        document: {
+          title: docTitle || draft?.docTitle || 'Document',
+          product: typeof cfg.product === 'string' ? cfg.product : undefined,
+          client: draft?.client ?? undefined,
+          sections,
+        },
+        setup,
+        context,
+        clientId: meriClientId,
+      });
+    },
+    [cfg, contextPlan, meriClientId, assistant, docTitle, draft?.docTitle, draft?.client],
+  );
+
+  // Apply Meri's accepted edits to the MAIN doc section model (sanitized) + save.
+  const applyMeriEdits = useCallback(
+    (edits: WsAssistantEdit[]) => {
+      if (!cfg || !edits.length) return;
+      let sections = [...(cfg.sections ?? [])];
+      const content = { ...((cfg.sectionContent as Record<string, string> | undefined) ?? {}) };
+      const meta = { ...((cfg.sectionMeta as Record<string, WsSectionMeta> | undefined) ?? {}) };
+      // Resolve a target section name to the EXISTING canonical name, tolerant of
+      // case/whitespace drift in the model's output — so replace/remove never
+      // create a ghost duplicate of a section that already exists.
+      const resolve = (name: string) =>
+        sections.find((s) => s.toLowerCase().trim() === name.toLowerCase().trim());
+      for (const e of edits) {
+        if (e.op === 'replace_section' && e.section) {
+          const target = resolve(e.section);
+          if (!target) continue; // unknown section → skip rather than create a ghost
+          content[target] = sanitizeWorkspaceBody(e.content ?? '');
+          meta[target] = { ...(meta[target] ?? {}), status: 'review' };
+        } else if (e.op === 'remove_section' && e.section) {
+          const target = resolve(e.section);
+          if (!target) continue;
+          sections = sections.filter((s) => s !== target);
+          delete content[target];
+          delete meta[target];
+        } else if (e.op === 'insert_section' && e.name) {
+          let name = e.name;
+          let n = 2;
+          while (sections.includes(name)) name = `${e.name} ${n++}`;
+          const after = e.afterSection ? sections.indexOf(e.afterSection) : -1;
+          if (after >= 0) sections.splice(after + 1, 0, name);
+          else sections.push(name);
+          content[name] = sanitizeWorkspaceBody(e.content ?? '');
+          meta[name] = { status: 'review' };
+        }
+      }
+      patchCfg({ sections, sectionContent: content, sectionMeta: meta });
+      message.success('Applied Meri’s edits');
+    },
+    [cfg, patchCfg, message],
+  );
+
   // Cover-letter: ensure a packet doc exists when cfg.coverLetter flips on.
   useEffect(() => {
     if (!cfg || !draft) return;
@@ -318,6 +446,7 @@ export function EditorPage() {
       // Defer so the browser finishes updating window.getSelection().
       window.setTimeout(() => {
         const anchor = getSelectionAnchor();
+        pendingAnchor.current = anchor;
         if (!anchor) {
           setSelectionFab(null);
           return;
@@ -353,19 +482,27 @@ export function EditorPage() {
     (draft.ask && draft.ask !== 'n/a' ? (draft.ask as WsAsk) : {});
   const budget = budgetFrom(cfg);
   const offices = (cfg.offices as string[] | undefined) ?? [];
-  const linkedData = (cfg.linkedData as string[] | undefined) ?? [];
 
   // Office row predicate (Q-ED-1): personalize is the single canonical gate.
   const showOfficeRow = !!cfg.personalize && offices.length > 0;
 
   // Letterhead firm fallbacks (live tenant firm wiring is later; use config).
-  const firmName = cfg.letterhead?.firmName || draft.client || 'Your firm';
+  // NEVER fall back to the client — the letterhead is the FIRM's identity, and it
+  // only renders at all when cfg.letterhead.custom is set (see Letterhead).
+  const firmName = cfg.letterhead?.firmName || 'Your firm';
   const firmAddr = cfg.letterhead?.firmAddr || 'Add a firm address in Setup → Letterhead';
 
-  // Packet tabs: main (label = product) + each packet WsDocument.
+  // Packet tabs: the synthetic MAIN tab (label = the selected work product) maps
+  // to the primary WsDocument (lowest ordinal, see activeDocumentId). The other
+  // documents are packet add-ons (cover letter, appendix, …) and get their own
+  // tabs. EXCLUDE the primary here — MAIN already represents it — otherwise a
+  // single-document draft renders two tabs for the same doc (the primary's stale
+  // stored name showed up as a spurious second tab, e.g. "White paper").
+  const sortedDocs = [...draft.documents].sort((a, b) => a.ordinal - b.ordinal);
+  const primaryDocId = sortedDocs[0]?.id;
   const tabs: DocTab[] = [
     { id: MAIN_TAB, label: cfg.product || draft.docTitle || 'Document', main: true },
-    ...draft.documents.map((d) => ({ id: d.id, label: d.name })),
+    ...sortedDocs.filter((d) => d.id !== primaryDocId).map((d) => ({ id: d.id, label: d.name })),
   ];
   const isMainDoc = activeTab === MAIN_TAB;
 
@@ -458,6 +595,69 @@ export function EditorPage() {
     });
   };
   const regenerateSection = (name: string) => generateSection(name);
+
+  // Regenerate the ENTIRE main document with Meri. Confirms first (it replaces
+  // every section), suppresses the pending autosave so the about-to-be-stale
+  // local cfg can't clobber the freshly generated server content, then forces a
+  // re-hydrate from the refetched draft.
+  const regenerateAll = () => {
+    modal.confirm({
+      title: 'Regenerate the whole document?',
+      content:
+        'Meri will re-draft every section from your setup and context. This replaces the current content of all sections.',
+      okText: 'Regenerate all',
+      cancelText: 'Cancel',
+      onOk: async () => {
+        setRegenerating(true);
+        if (saveTimer.current) {
+          clearTimeout(saveTimer.current);
+          saveTimer.current = null;
+        }
+        cfgDirty.current = false;
+        try {
+          await generateAll.mutateAsync();
+          hydrated.current = false; // let the refetched draft re-hydrate the editor
+          message.success('Meri re-drafted the document');
+        } catch {
+          message.error('Could not regenerate the document.');
+        } finally {
+          setRegenerating(false);
+        }
+      },
+    });
+  };
+
+  // Packet "Ask Meri to draft": generate content for the active packet doc and
+  // append it as a section block (packet docs use the block body model, not
+  // cfg.sections). Grounded in the draft config + context, like the main doc.
+  const generatePacketDoc = (docId: string) => {
+    const label = tabs.find((t) => t.id === docId)?.label ?? 'Document';
+    setDraftingDocId(docId);
+    generate.mutate(label, {
+      onSuccess: (r) => {
+        const block: WsBlock = {
+          id: `${Date.now().toString(36)}${Math.random().toString(36).slice(2, 6)}`,
+          type: 'section',
+          title: label,
+          content: sanitizeWorkspaceBody(r.content),
+        };
+        const body = packetBodies[docId] ?? { blocks: [] };
+        onPacketChange(docId, {
+          ...body,
+          title: body.title ?? label,
+          blocks: [...body.blocks, block],
+        });
+        message.success('Meri drafted the document');
+      },
+      onError: (e: unknown) => {
+        const msg =
+          (e as { response?: { data?: { message?: string } } })?.response?.data?.message ??
+          'Could not draft this document.';
+        message.error(msg);
+      },
+      onSettled: () => setDraftingDocId(null),
+    });
+  };
   const markReviewed = (name: string) => {
     setSectionMeta(name, { status: 'done' });
     toast(`Marked "${name}" reviewed`);
@@ -588,18 +788,17 @@ export function EditorPage() {
   };
 
   const onEditContext = () => navigate(`/workspace/context/${draftId}`);
-  const onAskMeri = (text: string) =>
-    toast(`Meri: "${text}" — chat editing arrives in a later phase`); // TODO(phase 6b)
 
   // ── Comment handlers (highlight-to-comment) ─────────────────────────────────
   // Clicking the selection FAB: snapshot the selection's anchor, wrap it in a
   // transient .ws-hl highlight, open a composing comment, and switch the rail to
   // Comments (prototype parity).
   const onStartComment = () => {
-    const anchor = getSelectionAnchor();
+    // Use the anchor captured at mouseup; fall back to a live read only if needed.
+    const anchor = pendingAnchor.current ?? getSelectionAnchor();
     setSelectionFab(null);
     if (!anchor) return;
-    highlightSelection();
+    highlightSelection(); // best-effort transient highlight (no-ops if selection gone)
     setComposing({
       section: anchor.section,
       quote: anchor.quote,
@@ -607,6 +806,7 @@ export function EditorPage() {
       end: anchor.end,
     });
     setRailTab('comments');
+    pendingAnchor.current = null;
   };
   const onComposeCancel = () => setComposing(null);
   const onComposeSave = (text: string) => {
@@ -704,6 +904,8 @@ export function EditorPage() {
         onHistory={onHistory}
         onShare={onShare}
         onPreview={onPreview}
+        onRegenerateAll={isMainDoc ? regenerateAll : undefined}
+        regenerating={regenerating}
       />
 
       {/* Concurrent-edit lock banner (Q-ED-2): view-only / request / take-over,
@@ -809,9 +1011,8 @@ export function EditorPage() {
                 letterhead={cfg.letterhead}
                 readOnly={viewOnly}
                 onChange={(body) => onPacketChange(activeTab, body)}
-                onAskMeri={() =>
-                  toast(`Asking Meri to draft "${tabs.find((t) => t.id === activeTab)?.label}"`)
-                }
+                onAskMeri={() => generatePacketDoc(activeTab)}
+                drafting={draftingDocId === activeTab}
                 onToast={toast}
               />
             )}
@@ -819,6 +1020,7 @@ export function EditorPage() {
 
           <InsertRail
             product={cfg.product}
+            clientId={meriClientId}
             onAddSection={addSection}
             onInsert={addBlockTo}
             onApplyTemplate={onApplyTemplate}
@@ -826,7 +1028,7 @@ export function EditorPage() {
 
           <MeriPanel
             isMainDoc={isMainDoc}
-            contextItems={linkedData}
+            contextItems={meriContextLabels}
             openComments={openCommentsCount}
             activeTab={railTab}
             onTabChange={setRailTab}
@@ -838,8 +1040,8 @@ export function EditorPage() {
             onComposeSave={onComposeSave}
             onComposeCancel={onComposeCancel}
             onApplyEdit={onApplyEdit}
-            onAsk={onAskMeri}
-            onQuickAction={(a) => toast(`Meri: ${a} — arrives in a later phase`)}
+            onRunMeri={runMeri}
+            onApplyEdits={applyMeriEdits}
             onEditContext={onEditContext}
           />
         </div>

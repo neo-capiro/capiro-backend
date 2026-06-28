@@ -561,7 +561,10 @@
 
 /* Print: emit only the document canvas (PDF via browser print). */
 @media print {
-  /* Hide the app shell chrome + the workspace rails/toolbars. */
+  /* Hide the app shell chrome + the workspace rails/toolbars. Also hide any
+     Ant overlay layers (a confirm modal / toast can still be mid-unmount when
+     window.print() fires) so the printed PDF never captures the modal backdrop
+     instead of the document sheets. */
   .ws-steps-rail,
   .ws-insert-rail,
   .ws-meri-rail,
@@ -570,6 +573,11 @@
   .ws-card,
   .ws-preview-controls,
   .ws-preview-aside,
+  .ant-modal-root,
+  .ant-modal-mask,
+  .ant-modal-wrap,
+  .ant-message,
+  .ant-notification,
   .ws-stage > div:first-child {
     display: none !important;
   }

@@ -1,5 +1,16 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
-import { Document, HeadingLevel, ImageRun, Packer, Paragraph, TextRun } from 'docx';
+import {
+  Document,
+  HeadingLevel,
+  ImageRun,
+  Packer,
+  Paragraph,
+  Table,
+  TableCell,
+  TableRow,
+  TextRun,
+  WidthType,
+} from 'docx';
 import { PrismaService } from '../prisma/prisma.service.js';
 import { anonymizeText, applyRedactions } from '../generation/anonymize.js';
 
@@ -98,7 +109,7 @@ export class ExportService {
       return anonymizeText(text, { client, offices }).text;
     };
 
-    const children: Paragraph[] = [];
+    const children: Array<Paragraph | Table> = [];
 
     if (letterhead?.custom) {
       let lhHasContent = false;
@@ -163,6 +174,58 @@ export class ExportService {
             ],
           }),
         );
+      }
+    }
+
+    // Inserted media blocks (photo / table / logo) — match the editor + preview,
+    // which render cfg.mainBlocks after the prose. Without this they were dropped
+    // from the .docx entirely.
+    const blocks = (cfg.mainBlocks as Array<Record<string, unknown>> | undefined) ?? [];
+    for (const b of blocks) {
+      const type = b.type;
+      if (type === 'photo' || type === 'logo') {
+        const img = decodeLogo(typeof b.src === 'string' ? b.src : undefined);
+        if (img) {
+          const maxH = type === 'logo' ? 64 : 240;
+          const height = Math.min(maxH, img.height);
+          const width = Math.max(1, Math.round((img.width / img.height) * height));
+          children.push(
+            new Paragraph({
+              children: [
+                new ImageRun({ type: img.type, data: img.data, transformation: { width, height } }),
+              ],
+            }),
+          );
+        }
+      } else if (type === 'table') {
+        const cellRows = (Array.isArray(b.cells) ? (b.cells as unknown[][]) : []).filter((r) =>
+          Array.isArray(r),
+        );
+        if (cellRows.length) {
+          const ncols = Math.max(1, ...cellRows.map((r) => r.length));
+          const tableRows = cellRows.map(
+            (r, ri) =>
+              new TableRow({
+                children: Array.from(
+                  { length: ncols },
+                  (_, ci) =>
+                    new TableCell({
+                      children: [
+                        new Paragraph({
+                          children: [
+                            new TextRun({ text: redact(String(r[ci] ?? '')), bold: ri === 0 }),
+                          ],
+                        }),
+                      ],
+                    }),
+                ),
+              }),
+          );
+          children.push(
+            new Table({ rows: tableRows, width: { size: 100, type: WidthType.PERCENTAGE } }),
+          );
+          children.push(new Paragraph({ text: '' }));
+        }
       }
     }
 

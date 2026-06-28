@@ -44,7 +44,8 @@ import { budgetFrom } from './editor/BudgetBlock.js';
 import { anonymizeMap, anonText } from './editor/anonymize.js';
 import type { StoredRedaction } from './editor/anonymize.js';
 import { sanitizeWorkspaceBody as sanitizeHtml } from './editor/workspace-richtext.js';
-import type { WsAsk, WsCheckResult, WsGateResult } from './types.js';
+import { InsertedBlock } from './editor/canvas-blocks.js';
+import type { WsAsk, WsBlock, WsCheckResult } from './types.js';
 
 type ViewKey = 'cover' | 'paper' | 'packet';
 type Fmt = 'pdf' | 'word';
@@ -53,7 +54,7 @@ type Bundle = 'separate' | 'packet';
 export function PreviewPage() {
   const { draftId } = useParams();
   const navigate = useNavigate();
-  const { message, modal } = AntApp.useApp();
+  const { message } = AntApp.useApp();
 
   const { data: draft, isLoading } = useDraft(draftId ?? null);
   const { data: me } = useMe();
@@ -97,6 +98,9 @@ export function PreviewPage() {
 
   // ── Real content view-models (mirrors EditorPage) ───────────────────────────
   const views = sectionViews(cfg);
+  // Inserted media (photo/table/logo) live in cfg.mainBlocks — render them in the
+  // preview/export sheet too, not just the editor (they were silently dropped).
+  const mainBlocks = (cfg.mainBlocks as WsBlock[] | undefined) ?? [];
   const storedRedactions = (cfg.anonymizeMap as { redactions?: StoredRedaction[] } | undefined)
     ?.redactions;
   const anonOn = !!cfg.anonymize;
@@ -106,7 +110,11 @@ export function PreviewPage() {
     (draft.ask && draft.ask !== 'n/a' ? (draft.ask as WsAsk) : {});
   const budget = budgetFrom(cfg);
 
-  const firmName = cfg.letterhead?.firmName || draft.client || 'Your firm';
+  // Letterhead = the FIRM's branding, shown ONLY when the user opted into a
+  // custom letterhead in Setup. Never the client (no draft.client fallback).
+  const lhCustom = !!cfg.letterhead?.custom;
+  const firmLogo = cfg.letterhead?.logoDataUrl;
+  const firmName = cfg.letterhead?.firmName || 'Your firm';
   const firmAddr = cfg.letterhead?.firmAddr || '';
   const firmMark = (firmName || 'C').trim().slice(0, 1).toUpperCase();
   const signer =
@@ -125,9 +133,7 @@ export function PreviewPage() {
   const ax = (t: string | null | undefined) =>
     anonOn ? anonText(t ?? '', true, anonMap) : (t ?? '');
 
-  // ── Checks / gates (warn, never block — Q-PV-2) ─────────────────────────────
-  const gates: WsGateResult[] = checks?.gates ?? [];
-  const unmetGates = gates.filter((g) => g.status !== 'success');
+  // ── Rule-based checks (live; advisory only — human sign-off gates removed) ────
   const openChecks: WsCheckResult[] = (checks?.checks ?? []).filter((c) => c.status !== 'success');
 
   const docTitle = draft.docTitle || draft.product || 'Document';
@@ -193,34 +199,9 @@ export function PreviewPage() {
     else void doExportWord();
   };
 
-  const onExport = () => {
-    // Gates WARN, never block: if any gate is unmet, confirm (listing them) and
-    // proceed on OK.
-    if (unmetGates.length > 0) {
-      modal.confirm({
-        title: 'Some sign-off gates are not met',
-        content: (
-          <div>
-            <div style={{ marginBottom: 8 }}>
-              You can export anyway, but these gates are still open:
-            </div>
-            <ul style={{ margin: 0, paddingLeft: 18 }}>
-              {unmetGates.map((g) => (
-                <li key={g.id} style={{ marginBottom: 2 }}>
-                  {g.label}
-                </li>
-              ))}
-            </ul>
-          </div>
-        ),
-        okText: 'Export anyway',
-        cancelText: 'Review first',
-        onOk: runExport,
-      });
-      return;
-    }
-    runExport();
-  };
+  // Export proceeds directly — sign-off gates were removed. The live rule-based
+  // checks are advisory and shown in the panel; they never block export.
+  const onExport = () => runExport();
 
   const onSaveCheckpoint = () => {
     if (!draftId) return;
@@ -382,7 +363,13 @@ export function PreviewPage() {
             style={{ overflow: 'auto', padding: '26px 20px', background: 'var(--bg-sunken)' }}
           >
             {(view === 'packet' || view === 'cover') && hasCover && (
-              <PageSheet firmName={firmName} firmAddr={firmAddr} firmMark={firmMark}>
+              <PageSheet
+                custom={lhCustom}
+                logoDataUrl={firmLogo}
+                firmName={firmName}
+                firmAddr={firmAddr}
+                firmMark={firmMark}
+              >
                 <CoverLetterContent
                   office={office}
                   client={ax(draft.client)}
@@ -396,7 +383,13 @@ export function PreviewPage() {
             )}
             {/* D1: the white-paper view renders exactly ONE paper page. */}
             {(view === 'packet' || view === 'paper') && (
-              <PageSheet firmName={firmName} firmAddr={firmAddr} firmMark={firmMark}>
+              <PageSheet
+                custom={lhCustom}
+                logoDataUrl={firmLogo}
+                firmName={firmName}
+                firmAddr={firmAddr}
+                firmMark={firmMark}
+              >
                 <WhitePaperContent
                   title={ax(docTitle)}
                   metaLine={ax(metaLine)}
@@ -404,6 +397,7 @@ export function PreviewPage() {
                     name: ax(s.name),
                     html: anonOn ? anonText(s.content, true, anonMap) : s.content,
                   }))}
+                  blocks={mainBlocks}
                 />
               </PageSheet>
             )}
@@ -428,7 +422,7 @@ export function PreviewPage() {
               gap: 16,
             }}
           >
-            {/* Sign-off gates (warn, never block) */}
+            {/* Rule-based checks (live, advisory — never block export). */}
             <div>
               <div
                 style={{
@@ -443,12 +437,12 @@ export function PreviewPage() {
                   justifyContent: 'space-between',
                 }}
               >
-                <span>Sign-off</span>
+                <span>Checks</span>
                 {checks?.score && (
                   <span
                     className="num"
                     style={{
-                      color: unmetGates.length ? 'var(--notable)' : 'var(--success)',
+                      color: openChecks.length ? 'var(--notable)' : 'var(--success)',
                       fontWeight: 600,
                     }}
                   >
@@ -456,86 +450,24 @@ export function PreviewPage() {
                   </span>
                 )}
               </div>
-              {gates.length === 0 && (
-                <div style={{ fontSize: 11.5, color: 'var(--ink-3)' }}>No gates to check.</div>
-              )}
-              {gates.map((g) => (
-                <div
-                  key={g.id}
-                  style={{
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: 8,
-                    padding: '6px 0',
-                    fontSize: 12.5,
-                  }}
-                >
-                  <span className={`dot ${g.status === 'success' ? 'success' : g.status}`} />
-                  <span
+              {openChecks.length === 0 ? (
+                <div style={{ fontSize: 11.5, color: 'var(--ink-3)' }}>All checks pass.</div>
+              ) : (
+                openChecks.map((c) => (
+                  <div
+                    key={c.id}
                     style={{
-                      flex: 1,
-                      color: g.status === 'success' ? 'var(--ink-2)' : 'var(--ink-1)',
-                      fontWeight: g.status === 'success' ? 400 : 500,
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: 8,
+                      padding: '5px 0',
+                      fontSize: 12,
                     }}
                   >
-                    {g.label}
-                  </span>
-                  {g.status === 'success' ? (
-                    <Icon name="Check" size={13} style={{ color: 'var(--success)' }} />
-                  ) : (
-                    <span className={`pill ${g.status}`}>
-                      {g.status === 'critical' ? 'Required' : 'Review'}
-                    </span>
-                  )}
-                </div>
-              ))}
-              {openChecks.length > 0 && (
-                <div
-                  style={{
-                    marginTop: 8,
-                    paddingTop: 8,
-                    borderTop: '1px solid var(--border-1)',
-                  }}
-                >
-                  {openChecks.map((c) => (
-                    <div
-                      key={c.id}
-                      style={{
-                        display: 'flex',
-                        alignItems: 'center',
-                        gap: 8,
-                        padding: '5px 0',
-                        fontSize: 12,
-                      }}
-                    >
-                      <span className={`dot ${c.status}`} />
-                      <span style={{ flex: 1, color: 'var(--ink-2)' }}>{c.label}</span>
-                    </div>
-                  ))}
-                </div>
-              )}
-              {unmetGates.length > 0 && (
-                <div
-                  style={{
-                    marginTop: 10,
-                    display: 'flex',
-                    gap: 7,
-                    alignItems: 'flex-start',
-                    fontSize: 11,
-                    color: 'var(--notable)',
-                    background: 'var(--notable-soft)',
-                    border: '1px solid var(--notable)',
-                    borderRadius: 8,
-                    padding: '8px 10px',
-                  }}
-                >
-                  <Icon name="TriangleAlert" size={13} style={{ flex: 'none', marginTop: 1 }} />
-                  <span>
-                    Exporting is allowed, but {unmetGates.length} sign-off gate
-                    {unmetGates.length === 1 ? '' : 's'} {unmetGates.length === 1 ? 'is' : 'are'}{' '}
-                    still open.
-                  </span>
-                </div>
+                    <span className={`dot ${c.status}`} />
+                    <span style={{ flex: 1, color: 'var(--ink-2)' }}>{c.label}</span>
+                  </div>
+                ))
               )}
             </div>
 
@@ -660,13 +592,22 @@ export function PreviewPage() {
   );
 }
 
-/** A print-style letter page sheet with the firm letterhead chrome. */
+/**
+ * A print-style letter page sheet. The firm letterhead chrome renders ONLY when
+ * the user opted into a custom branded letterhead in Setup (`custom`); it shows
+ * the firm's uploaded logo (or initials) + firm name/address — never the client.
+ * (Mirrors the editor Letterhead and the server-side DOCX export.)
+ */
 function PageSheet({
+  custom,
+  logoDataUrl,
   firmName,
   firmAddr,
   firmMark,
   children,
 }: {
+  custom: boolean;
+  logoDataUrl?: string;
   firmName: string;
   firmAddr: string;
   firmMark: string;
@@ -686,43 +627,53 @@ function PageSheet({
         margin: '0 auto 20px',
       }}
     >
-      <div
-        style={{
-          display: 'flex',
-          alignItems: 'center',
-          gap: 9,
-          paddingBottom: 11,
-          borderBottom: '2px solid var(--ink-1)',
-          marginBottom: 18,
-        }}
-      >
-        <span
+      {custom && (
+        <div
           style={{
-            width: 30,
-            height: 30,
-            borderRadius: 5,
-            background: 'var(--ink-1)',
-            color: '#fff',
-            display: 'grid',
-            placeItems: 'center',
-            fontFamily: 'var(--font-serif)',
-            fontSize: 14,
-            fontWeight: 600,
+            display: 'flex',
+            alignItems: 'center',
+            gap: 9,
+            paddingBottom: 11,
+            borderBottom: '2px solid var(--ink-1)',
+            marginBottom: 18,
           }}
         >
-          {firmMark}
-        </span>
-        <div>
-          <div style={{ fontFamily: 'var(--font-serif)', fontSize: 14, fontWeight: 600 }}>
-            {firmName}
-          </div>
-          {firmAddr && (
-            <div style={{ fontSize: 9, color: 'var(--ink-3)', fontFamily: 'var(--font-mono)' }}>
-              {firmAddr}
-            </div>
+          {logoDataUrl ? (
+            <img
+              src={logoDataUrl}
+              alt={`${firmName} logo`}
+              style={{ width: 30, height: 30, borderRadius: 5, objectFit: 'contain', flex: 'none' }}
+            />
+          ) : (
+            <span
+              style={{
+                width: 30,
+                height: 30,
+                borderRadius: 5,
+                background: 'var(--ink-1)',
+                color: '#fff',
+                display: 'grid',
+                placeItems: 'center',
+                fontFamily: 'var(--font-serif)',
+                fontSize: 14,
+                fontWeight: 600,
+              }}
+            >
+              {firmMark}
+            </span>
           )}
+          <div>
+            <div style={{ fontFamily: 'var(--font-serif)', fontSize: 14, fontWeight: 600 }}>
+              {firmName}
+            </div>
+            {firmAddr && (
+              <div style={{ fontSize: 9, color: 'var(--ink-3)', fontFamily: 'var(--font-mono)' }}>
+                {firmAddr}
+              </div>
+            )}
+          </div>
         </div>
-      </div>
+      )}
       {children}
     </div>
   );
@@ -788,10 +739,12 @@ function WhitePaperContent({
   title,
   metaLine,
   sections,
+  blocks = [],
 }: {
   title: string;
   metaLine: string;
   sections: Array<{ name: string; html: string }>;
+  blocks?: WsBlock[];
 }) {
   return (
     <div>
@@ -837,6 +790,12 @@ function WhitePaperContent({
           )}
         </div>
       ))}
+      {/* Inserted media (photos / tables / logos) — read-only in the preview. */}
+      {blocks
+        .filter((b) => b.type !== 'section')
+        .map((b) => (
+          <InsertedBlock key={b.id} block={b} onRemove={() => {}} readOnly />
+        ))}
     </div>
   );
 }

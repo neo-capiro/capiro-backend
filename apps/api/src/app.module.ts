@@ -27,6 +27,8 @@ import { RegulatoryDocketModule } from './regulatory-docket/regulatory-docket.mo
 import { IntelligenceModule } from './intelligence/intelligence.module.js';
 import { TrackerModule } from './tracker/tracker.module.js';
 import { WorkspaceCollabModule } from './workspace-collab/workspace-collab.module.js';
+import { WorkspaceAssistantModule } from './workspace-assistant/workspace-assistant.module.js';
+import { WorkspaceTableModule } from './workspace-table/workspace-table.module.js';
 import { ExplorerModule } from './explorer/explorer.module.js';
 import { SearchModule } from './search/search.module.js';
 import { InsightsModule } from './insights/insights.module.js';
@@ -76,6 +78,8 @@ import { ApiLatencyMiddleware } from './observability/api-latency.middleware.js'
     IntelligenceModule,
     TrackerModule,
     WorkspaceCollabModule,
+    WorkspaceAssistantModule,
+    WorkspaceTableModule,
     ExplorerModule,
     SearchModule,
     InsightsModule,

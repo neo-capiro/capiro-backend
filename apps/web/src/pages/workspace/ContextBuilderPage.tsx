@@ -11,7 +11,9 @@ import {
   useAddContextItem,
   useRemoveContextItem,
   useDrafts,
+  useGenerateAll,
 } from './api.js';
+import { MeriDraftingOverlay } from './LibraryPage.js';
 import { decodeHtmlEntities } from '../../lib/html-entities.js';
 import { useDebouncedValue } from '../../lib/use-debounced-value.js';
 import type { WsConfig, WsContextItem } from './types.js';
@@ -195,6 +197,32 @@ function ContextBuilder({
   const [tab, setTab] = useState(0);
   const [freeText, setFreeText] = useState('');
   const [addingId, setAddingId] = useState<string | null>(null);
+  const generateAll = useGenerateAll(draftId);
+  const [drafting, setDrafting] = useState(false);
+
+  // Open editor: if the document hasn't been drafted yet, have Meri draft the
+  // WHOLE document now (grounded in the setup + the context just built), then
+  // open the editor populated. If it's already drafted (e.g. returning here),
+  // just open — never clobber existing content. (Per-section + Regenerate All
+  // handle re-drafting from inside the editor.)
+  const openEditor = async () => {
+    const content = (cfg.sectionContent as Record<string, string> | undefined) ?? {};
+    const sections = (cfg.sections as string[] | undefined) ?? [];
+    const alreadyDrafted = sections.some((s) => (content[s] ?? '').replace(/<[^>]*>/g, '').trim());
+    if (sections.length && !alreadyDrafted) {
+      setDrafting(true);
+      try {
+        await generateAll.mutateAsync();
+      } catch {
+        message.error(
+          'Meri could not draft the document — you can draft sections individually in the editor.',
+        );
+      } finally {
+        setDrafting(false);
+      }
+    }
+    navigate(`/workspace/draft/${draftId}`);
+  };
 
   const offices = (cfg.offices as string[] | undefined) ?? [];
   const showOffices = !!cfg.officeAssociated && offices.length > 0;
@@ -505,13 +533,20 @@ function ContextBuilder({
           <button
             className="btn btn-accent"
             style={{ flex: 1, justifyContent: 'center' }}
-            onClick={() => navigate(`/workspace/draft/${draftId}`)}
+            onClick={openEditor}
+            disabled={drafting}
           >
-            Open editor
+            {drafting ? 'Meri is drafting…' : 'Open editor'}
             <Icon name="ArrowRight" size={14} />
           </button>
         </div>
       </div>
+      {drafting && (
+        <MeriDraftingOverlay
+          title="Meri is drafting your document…"
+          detail="Drafting each section from your setup and the context you built. This can take a moment."
+        />
+      )}
     </div>
   );
 }

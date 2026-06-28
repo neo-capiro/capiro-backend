@@ -18,8 +18,13 @@ export function Letterhead({
   onToast: (msg: string) => void;
 }) {
   const lh = letterhead;
-  const name = lh?.custom && lh.firmName ? lh.firmName : firmName;
-  const addr = lh?.custom && lh.firmAddr ? lh.firmAddr : firmAddr;
+  // The firm letterhead renders ONLY when the user opted into a custom branded
+  // letterhead in Setup (cfg.letterhead.custom). It is the FIRM's identity — its
+  // name and uploaded logo — never the client's, so there is no client fallback.
+  // (Mirrors the server-side DOCX export, which also gates on `custom`.)
+  if (!lh?.custom) return null;
+  const name = lh.firmName || firmName;
+  const addr = lh.firmAddr || firmAddr;
   const mark = name
     .split(/\s+/)
     .map((w) => w[0])
@@ -38,23 +43,38 @@ export function Letterhead({
         background: 'var(--bg-surface)',
       }}
     >
-      <span
-        style={{
-          width: 38,
-          height: 38,
-          borderRadius: 7,
-          background: 'var(--ink-1)',
-          color: '#fff',
-          display: 'grid',
-          placeItems: 'center',
-          fontFamily: 'var(--font-serif)',
-          fontSize: 16,
-          fontWeight: 600,
-          flex: 'none',
-        }}
-      >
-        {mark}
-      </span>
+      {lh.logoDataUrl ? (
+        <img
+          src={lh.logoDataUrl}
+          alt={`${name} logo`}
+          style={{
+            width: 38,
+            height: 38,
+            borderRadius: 7,
+            objectFit: 'contain',
+            background: 'var(--bg-surface)',
+            flex: 'none',
+          }}
+        />
+      ) : (
+        <span
+          style={{
+            width: 38,
+            height: 38,
+            borderRadius: 7,
+            background: 'var(--ink-1)',
+            color: '#fff',
+            display: 'grid',
+            placeItems: 'center',
+            fontFamily: 'var(--font-serif)',
+            fontSize: 16,
+            fontWeight: 600,
+            flex: 'none',
+          }}
+        >
+          {mark}
+        </span>
+      )}
       <div style={{ flex: 1, minWidth: 0 }}>
         <div
           style={{
@@ -70,11 +90,6 @@ export function Letterhead({
           {addr}
         </div>
       </div>
-      {lh?.custom && (
-        <span className="pill info" style={{ flex: 'none' }}>
-          Custom letterhead
-        </span>
-      )}
       <button
         className="btn sm btn-ghost"
         style={{ color: 'var(--ink-4)', fontSize: 11 }}
@@ -253,42 +268,50 @@ export function InsertedBlock({
   flash,
   onRemove,
   onChange,
+  readOnly,
 }: {
   block: WsBlock;
   flash?: boolean;
   onRemove: () => void;
   onChange?: (patch: Partial<WsBlock>) => void;
+  /** Read-only render (Preview): hide the remove control; tables aren't editable. */
+  readOnly?: boolean;
 }) {
   const kind = block.type;
   const isTable = kind === 'table';
-  const isPlatform = block.variant === 'platform';
+  // "Pulled from platform" applies to the legacy platform variant OR any table
+  // carrying a `source` (the new pull-from-platform prefilled custom tables).
+  const source = typeof block.source === 'string' ? block.source : undefined;
+  const isPlatform = block.variant === 'platform' || !!source;
   return (
     <div
       id={`ws-block-${block.id}`}
       className={flash ? 'ws-flash' : undefined}
       style={{ position: 'relative', marginTop: 14 }}
     >
-      <button
-        onClick={onRemove}
-        title="Remove"
-        style={{
-          position: 'absolute',
-          top: 6,
-          right: 6,
-          zIndex: 2,
-          width: 22,
-          height: 22,
-          borderRadius: 6,
-          border: '1px solid var(--border-1)',
-          background: 'var(--bg-surface)',
-          cursor: 'pointer',
-          display: 'grid',
-          placeItems: 'center',
-          color: 'var(--ink-3)',
-        }}
-      >
-        <Icon name="X" size={12} />
-      </button>
+      {!readOnly && (
+        <button
+          onClick={onRemove}
+          title="Remove"
+          style={{
+            position: 'absolute',
+            top: 6,
+            right: 6,
+            zIndex: 2,
+            width: 22,
+            height: 22,
+            borderRadius: 6,
+            border: '1px solid var(--border-1)',
+            background: 'var(--bg-surface)',
+            cursor: 'pointer',
+            display: 'grid',
+            placeItems: 'center',
+            color: 'var(--ink-3)',
+          }}
+        >
+          <Icon name="X" size={12} />
+        </button>
+      )}
       {(kind === 'photo' || kind === 'logo') &&
         (block.src ? (
           <img
@@ -326,11 +349,11 @@ export function InsertedBlock({
               }}
             >
               <Icon name="Database" size={11} />
-              Pulled from platform
+              {source ? `Pulled from platform · ${source}` : 'Pulled from platform'}
             </div>
           )}
           {block.variant === 'custom' ? (
-            <EditableTable block={block} onChange={onChange} />
+            <EditableTable block={block} onChange={readOnly ? undefined : onChange} />
           ) : (
             <SampleTable />
           )}
