@@ -425,32 +425,28 @@ export function useInviteCollaborator(draftId: string) {
 }
 
 /**
- * Invitee accepts a pending invite (E-19) → access granted (status active) + the
- * inviter is notified. Refreshes the access list + the bell.
+ * Invitee accepts/declines a pending invite (E-19) from the notification bell.
+ * Generic over draftId (the bell isn't draft-scoped): accept grants access
+ * (status active) + notifies the inviter; decline removes the invite. Refreshes
+ * the access list + the bell.
  */
-export function useAcceptCollaborator(draftId: string) {
+export function useRespondToInvite() {
   const api = useApi();
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: async (id: string) =>
-      (await api.post<WsCollaborator>(`${BASE}/drafts/${draftId}/collaborators/${id}/accept`, {}))
-        .data,
+    mutationFn: async (vars: {
+      draftId: string;
+      collaboratorId: string;
+      action: 'accept' | 'decline';
+    }) =>
+      (
+        await api.post(
+          `${BASE}/drafts/${vars.draftId}/collaborators/${vars.collaboratorId}/${vars.action}`,
+          {},
+        )
+      ).data,
     onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ['ws', 'collaborators', draftId] });
-      qc.invalidateQueries({ queryKey: ['ws', 'notifications'] });
-    },
-  });
-}
-
-/** Invitee declines a pending invite (E-19) → invite removed + inviter notified. */
-export function useDeclineCollaborator(draftId: string) {
-  const api = useApi();
-  const qc = useQueryClient();
-  return useMutation({
-    mutationFn: async (id: string) =>
-      (await api.post(`${BASE}/drafts/${draftId}/collaborators/${id}/decline`, {})).data,
-    onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ['ws', 'collaborators', draftId] });
+      qc.invalidateQueries({ queryKey: ['ws', 'collaborators'] });
       qc.invalidateQueries({ queryKey: ['ws', 'notifications'] });
     },
   });
@@ -488,6 +484,9 @@ export function useNotifications(pollMs = 30_000) {
     queryKey: ['ws', 'notifications'],
     refetchInterval: pollMs,
     refetchIntervalInBackground: false,
+    // Don't retry — the bell polls for every signed-in user; a user without a
+    // tenant claim 403s and the bell just renders empty (no retry = less noise).
+    retry: false,
     queryFn: async () => (await api.get<WsNotificationsResponse>(`${BASE}/notifications`)).data,
   });
 }

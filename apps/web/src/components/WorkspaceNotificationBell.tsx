@@ -10,9 +10,12 @@ import { useState } from 'react';
 import { App as AntApp, Badge, Button, Dropdown, Empty, List, Tag, Typography } from 'antd';
 import { BellOutlined } from '@ant-design/icons';
 import { useNavigate } from 'react-router-dom';
-import { useMutation, useQueryClient } from '@tanstack/react-query';
-import { useApi } from '../lib/use-api.js';
-import { useNotifications, useMarkAllNotificationsRead } from '../pages/workspace/api.js';
+import {
+  useNotifications,
+  useMarkNotificationRead,
+  useMarkAllNotificationsRead,
+  useRespondToInvite,
+} from '../pages/workspace/api.js';
 import type { WsNotification } from '../pages/workspace/types.js';
 
 function relativeTime(dateStr: string): string {
@@ -26,44 +29,34 @@ function relativeTime(dateStr: string): string {
 }
 
 export function WorkspaceNotificationBell() {
-  const api = useApi();
-  const qc = useQueryClient();
   const navigate = useNavigate();
   const { message } = AntApp.useApp();
   const [open, setOpen] = useState(false);
   const { data } = useNotifications();
   const markAll = useMarkAllNotificationsRead();
+  const markRead = useMarkNotificationRead();
+  const respond = useRespondToInvite();
 
   const items: WsNotification[] = data?.items ?? [];
   const unread = data?.unread ?? 0;
 
-  const respond = useMutation({
-    mutationFn: async (vars: { draftId: string; id: string; action: 'accept' | 'decline' }) =>
-      (
-        await api.post(
-          `/workspace-api/drafts/${vars.draftId}/collaborators/${vars.id}/${vars.action}`,
-          {},
-        )
-      ).data,
-    onSuccess: (_d, vars) => {
-      qc.invalidateQueries({ queryKey: ['ws', 'notifications'] });
-      qc.invalidateQueries({ queryKey: ['ws', 'collaborators'] });
-      if (vars.action === 'accept') {
-        message.success('Invitation accepted');
-        setOpen(false);
-        navigate(`/workspace/draft/${vars.draftId}`);
-      } else {
-        message.info('Invitation declined');
-      }
-    },
-    onError: () => message.error('Could not update the invitation'),
-  });
-
-  const markRead = useMutation({
-    mutationFn: async (id: string) =>
-      (await api.post(`/workspace-api/notifications/${id}/read`, {})).data,
-    onSuccess: () => qc.invalidateQueries({ queryKey: ['ws', 'notifications'] }),
-  });
+  const onRespond = (draftId: string, collaboratorId: string, action: 'accept' | 'decline') => {
+    respond.mutate(
+      { draftId, collaboratorId, action },
+      {
+        onSuccess: () => {
+          if (action === 'accept') {
+            message.success('Invitation accepted');
+            setOpen(false);
+            navigate(`/workspace/draft/${draftId}`);
+          } else {
+            message.info('Invitation declined');
+          }
+        },
+        onError: () => message.error('Could not update the invitation'),
+      },
+    );
+  };
 
   const panel = (
     <div
@@ -130,11 +123,7 @@ export function WorkspaceNotificationBell() {
                       loading={respond.isPending}
                       onClick={(e) => {
                         e.stopPropagation();
-                        respond.mutate({
-                          draftId: n.draftId!,
-                          id: n.collaboratorId!,
-                          action: 'accept',
-                        });
+                        onRespond(n.draftId!, n.collaboratorId!, 'accept');
                       }}
                     >
                       Accept
@@ -144,11 +133,7 @@ export function WorkspaceNotificationBell() {
                       loading={respond.isPending}
                       onClick={(e) => {
                         e.stopPropagation();
-                        respond.mutate({
-                          draftId: n.draftId!,
-                          id: n.collaboratorId!,
-                          action: 'decline',
-                        });
+                        onRespond(n.draftId!, n.collaboratorId!, 'decline');
                       }}
                     >
                       Decline
