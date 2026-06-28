@@ -567,10 +567,13 @@ export function EditorPage() {
       return;
     }
     const content = (cfg.sectionContent as Record<string, string> | undefined) ?? {};
-    const empty = cfg.sections.find((s) => !(content[s] || '').trim());
+    // Mirror the engine's sections-filled check: strip HTML before testing so a
+    // whitespace-only "<p></p>" section counts as empty (checks.service.ts).
+    const empty = cfg.sections.find((s) => !(content[s] || '').replace(/<[^>]*>/g, '').trim());
     if (empty) {
-      const sel = `[data-ws-section="${typeof CSS !== 'undefined' ? CSS.escape(empty) : empty}"]`;
-      const el = document.querySelector(sel) as HTMLElement | null;
+      const esc = typeof CSS !== 'undefined' ? CSS.escape(empty) : empty;
+      // Anchor is on the SectionBlock outer wrapper (renders for empty sections too).
+      const el = document.querySelector(`[data-ws-section-block="${esc}"]`) as HTMLElement | null;
       el?.scrollIntoView({ behavior: 'smooth', block: 'center' });
       el?.focus?.();
       toast(`Fix: draft the "${empty}" section`);
