@@ -24,6 +24,7 @@ import {
   type BoardResponse,
   type RecommendationBill,
   type RecommendationsResponse,
+  type SeedSuggestions,
   type WatchlistPayload,
 } from './tracker-api.js';
 
@@ -140,6 +141,15 @@ export function TrackerTab({ clientId, clientName }: { clientId: string; clientN
     queryKey: trackerKeys.alertPrefs(clientId),
     queryFn: async () => (await api.get<AlertPrefsPayload>(trackerPaths.alertPrefs(clientId))).data,
     enabled: panel === 'config',
+  });
+  // Suggestions to seed the watchlist from the client profile (capability tags +
+  // sector → issue area). Excludes anything already configured.
+  const seedQuery = useQuery<SeedSuggestions>({
+    queryKey: trackerKeys.seed(clientId),
+    queryFn: async () =>
+      (await api.get<SeedSuggestions>(trackerPaths.seedSuggestions(clientId))).data,
+    enabled: panel === 'config',
+    staleTime: 5 * 60_000,
   });
 
   const allIssueAreas = issueAreasQuery.data?.issueAreas ?? [];
@@ -261,6 +271,9 @@ export function TrackerTab({ clientId, clientName }: { clientId: string; clientN
       // (and recs) reflect what was actually persisted.
       qc.setQueryData(trackerKeys.watchlist(clientId), data);
       void qc.invalidateQueries({ queryKey: trackerKeys.recommendations(clientId) });
+      // Refresh seed suggestions only AFTER the save persists — otherwise the
+      // refetch races the debounced PUT and returns stale (still-importable) rows.
+      void qc.invalidateQueries({ queryKey: trackerKeys.seed(clientId) });
     },
     onError: () => message.error('Could not save targeting'),
   });
@@ -676,6 +689,7 @@ export function TrackerTab({ clientId, clientName }: { clientId: string; clientN
             allIssueAreas={allIssueAreas}
             watchlist={watchlistQuery.data ?? { issueAreas: [], tags: [] }}
             prefs={prefsQuery.data}
+            seed={seedQuery.data}
             onSaveWatchlist={(w) => saveWatchlistMutation.mutate(w)}
             onSavePrefs={(p) => savePrefsMutation.mutate(p)}
             onRequestVerify={requestVerify}

@@ -189,6 +189,7 @@ export function TrackerConfigPanel({
   allIssueAreas,
   watchlist,
   prefs,
+  seed,
   onSaveWatchlist,
   onSavePrefs,
   onRequestVerify,
@@ -197,6 +198,7 @@ export function TrackerConfigPanel({
   allIssueAreas: string[];
   watchlist: WatchlistPayload;
   prefs: AlertPrefsPayload;
+  seed?: { tags: WatchlistTag[]; issueAreas: string[] };
   onSaveWatchlist: (w: WatchlistPayload) => void;
   onSavePrefs: (p: AlertPrefsPayload) => void;
   onRequestVerify: (phone: string, onVerified: () => void) => void;
@@ -327,6 +329,36 @@ export function TrackerConfigPanel({
       return n;
     });
 
+  // Seed from profile: merge capability tags + sector-derived issue areas into
+  // the form (dedup by tag name); autosave persists. Reviewable, never silent.
+  const seedCount = (seed?.tags.length ?? 0) + (seed?.issueAreas.length ?? 0);
+  const importFromProfile = () => {
+    if (!seed) return;
+    if (seed.issueAreas.length) {
+      setIssues((s) => {
+        const n = new Set(s);
+        seed.issueAreas.forEach((a) => n.add(a));
+        return n;
+      });
+    }
+    if (seed.tags.length) {
+      setTags((arr) => {
+        const have = new Set(arr.map((t) => t.tag.toLowerCase()));
+        const add = seed.tags
+          .filter((t) => !have.has(t.tag.toLowerCase()))
+          .map((t) => ({
+            ...t,
+            synonyms: [...t.synonyms],
+            relatedEntities: [...t.relatedEntities],
+            riskTerms: [...t.riskTerms],
+          }));
+        return [...arr, ...add];
+      });
+    }
+    // The debounced autosave persists the merge; saveWatchlistMutation.onSuccess
+    // then refreshes the seed suggestions (so the banner clears post-save).
+  };
+
   const verifySms = () => onRequestVerify(smsPhone, () => setSmsVerified(true));
   const testChannels = () => {
     const ch: ('email' | 'sms' | 'in_app')[] = ['in_app'];
@@ -347,6 +379,28 @@ export function TrackerConfigPanel({
           </span>
         </div>
         <div className="cfg-body">
+          {seedCount > 0 && (
+            <div className="cfg-seed">
+              <span className="cfg-seed-txt">
+                Seed from this client's profile —{' '}
+                {seed!.tags.length > 0 && (
+                  <b>
+                    {seed!.tags.length} capability tag{seed!.tags.length === 1 ? '' : 's'}
+                  </b>
+                )}
+                {seed!.tags.length > 0 && seed!.issueAreas.length > 0 && ' + '}
+                {seed!.issueAreas.length > 0 && (
+                  <b>
+                    {seed!.issueAreas.length} issue area{seed!.issueAreas.length === 1 ? '' : 's'}
+                  </b>
+                )}
+                .
+              </span>
+              <button className="btn-seed" onClick={importFromProfile}>
+                <Icon name="plus" size={13} /> Import
+              </button>
+            </div>
+          )}
           <div className="cfg-block">
             <div className="cfg-label">Issue areas</div>
             <div className="issue-row">

@@ -203,6 +203,79 @@ export function ldaCodesForSectors(sectors: readonly SectorTag[]): string[] {
 }
 
 // ---------------------------------------------------------------------------
+// Tracker issue-area taxonomy (Capiro-managed) — the checkboxes on the client
+// profile Tracker → Configure panel. Deliberately a SUPERSET of SECTOR_LABELS:
+// the first block is 1:1 (identical strings) with the sector labels so a
+// client's sector relates to an issue area by identity, and the second block
+// adds cross-cutting issue areas that have no single owning sector. Single
+// source of truth — the API serves this list and the Tracker recommendations
+// matcher tokenizes against it.
+// ---------------------------------------------------------------------------
+
+export const ISSUE_AREAS: readonly string[] = [
+  // Sector-aligned (verbatim SECTOR_LABELS, excluding OTHER)
+  'Defense',
+  'Homeland Security',
+  'Health & Pharma',
+  'Energy',
+  'Environment / Water',
+  'Transportation',
+  'Agriculture',
+  'Commerce / Tech',
+  'Education',
+  'Financial Services',
+  // Cross-cutting (no single owning sector)
+  'AI / Data Privacy',
+  'Procurement',
+  'Labor',
+  'Tax',
+  'Housing',
+  'Public Safety',
+];
+
+// SectorTag → the issue area it maps to (identity on the label). Drives the
+// Tracker "seed from profile" carryover: a client whose sector is DEFENSE
+// gets the "Defense" issue area pre-selected. OTHER has no mapping.
+export const SECTOR_TO_ISSUE_AREA: Record<SectorTag, string | null> = {
+  DEFENSE: 'Defense',
+  HOMELAND_SECURITY: 'Homeland Security',
+  HEALTH: 'Health & Pharma',
+  ENERGY: 'Energy',
+  ENVIRONMENT_WATER: 'Environment / Water',
+  TRANSPORTATION: 'Transportation',
+  AGRICULTURE: 'Agriculture',
+  COMMERCE_TECH: 'Commerce / Tech',
+  EDUCATION: 'Education',
+  FINANCIAL_SERVICES: 'Financial Services',
+  OTHER: null,
+};
+
+/** The issue area a sector maps to, or null. Accepts free-form sector text. */
+export function issueAreaForSector(sector: string | null | undefined): string | null {
+  const tag = normalizeSector(sector);
+  return tag ? SECTOR_TO_ISSUE_AREA[tag] : null;
+}
+
+// Legacy → canonical issue-area label remap. The first Tracker taxonomy used
+// energy-mockup labels; this reconciliation renamed several to align 1:1 with
+// sector labels. normalizeIssueArea keeps already-saved watchlist selections
+// from being silently dropped by the canonical-only filter on the next save.
+const ISSUE_AREA_ALIASES: Record<string, string> = {
+  'energy & utilities': 'Energy',
+  healthcare: 'Health & Pharma',
+  environment: 'Environment / Water',
+  insurance: 'Financial Services',
+};
+
+/** Map a stored/free-form issue-area label to a canonical ISSUE_AREAS value, or null. */
+export function normalizeIssueArea(raw: string | null | undefined): string | null {
+  if (!raw) return null;
+  const t = raw.trim();
+  if (ISSUE_AREAS.includes(t)) return t;
+  return ISSUE_AREA_ALIASES[t.toLowerCase()] ?? null;
+}
+
+// ---------------------------------------------------------------------------
 // Submission tracks (Portfolio v2 §2.5)
 // ---------------------------------------------------------------------------
 

@@ -105,6 +105,11 @@ export interface BillSearchResult {
   probability: number;
 }
 
+export interface SeedSuggestions {
+  tags: WatchlistTag[];
+  issueAreas: string[];
+}
+
 export interface TrackerSummary {
   boardCount: number;
   unread: number;
@@ -122,6 +127,7 @@ export const trackerPaths = {
   recommendations: (c: string) => `${base(c)}/recommendations`,
   feedback: (c: string) => `${base(c)}/feedback`,
   watchlist: (c: string) => `${base(c)}/watchlist`,
+  seedSuggestions: (c: string) => `${base(c)}/watchlist/seed-suggestions`,
   alertPrefs: (c: string) => `${base(c)}/alert-prefs`,
   smsStart: (c: string) => `${base(c)}/sms/verify/start`,
   smsConfirm: (c: string) => `${base(c)}/sms/verify/confirm`,
@@ -134,6 +140,7 @@ export const trackerKeys = {
   summary: (c: string) => ['tracker-summary', c] as const,
   recommendations: (c: string) => ['tracker-recommendations', c] as const,
   watchlist: (c: string) => ['tracker-watchlist', c] as const,
+  seed: (c: string) => ['tracker-seed', c] as const,
   alertPrefs: (c: string) => ['tracker-alert-prefs', c] as const,
   issueAreas: () => ['tracker-issue-areas'] as const,
 };
