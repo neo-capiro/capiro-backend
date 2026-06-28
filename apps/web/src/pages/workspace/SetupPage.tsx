@@ -2415,6 +2415,12 @@ function formatPeContext(d: ProgramElementDetail, projects: ProgramElementProjec
     Boolean,
   ) as string[];
   if (ids.length) lines.push(ids.join(' · '));
+  // PE-level mission/description (the program narrative parsed at ingestion) —
+  // the single most useful grounding text for Meri. Clamped so a long R-doc
+  // narrative can't dominate the context budget.
+  const peDescription = d.description?.trim();
+  if (peDescription) lines.push('Program: ' + peDescription.slice(0, 1200));
+  // R-2A project-level missions (sub-elements), if any.
   const missions = projects.map((p) => p.mission?.trim()).filter((m): m is string => Boolean(m));
   if (missions.length) lines.push('Mission: ' + missions.slice(0, 2).join(' '));
   const years = (d.years ?? [])

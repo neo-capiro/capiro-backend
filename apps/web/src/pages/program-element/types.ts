@@ -15,6 +15,8 @@ export interface ProgramElementYearPoint {
 export interface ProgramElementDetail {
   peCode: string;
   title: string;
+  /** PE mission / program description (parsed from the R-docs at ingestion). */
+  description: string | null;
   service: string | null;
   budgetActivity: string | null;
   appropriationType: string | null;
