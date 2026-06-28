@@ -850,7 +850,7 @@ function NewsSection({
                   }}
                 >
                   <Icon name={added ? 'Check' : 'Plus'} size={12} />
-                  {added ? 'Added' : '+ Add to context plan'}
+                  {added ? 'Added' : 'Add to context plan'}
                 </button>
               </div>
             </div>
@@ -926,7 +926,7 @@ function SourceRow({
         }}
       >
         <Icon name={added ? 'Check' : 'Plus'} size={12} />
-        {added ? 'Added' : adding ? 'Adding…' : '+ Add to context plan'}
+        {added ? 'Added' : adding ? 'Adding…' : 'Add to context plan'}
       </button>
     </div>
   );

@@ -60,6 +60,7 @@ export class DraftsService {
       data: {
         tenantId,
         ownerId,
+        lastEditedById: ownerId, // creator is the first/last editor
         docTitle: dto.docTitle ?? (product ? `${product} draft` : 'Untitled draft'),
         industry: dto.industry ?? null,
         product: product || null,
@@ -189,6 +190,7 @@ export class DraftsService {
         ...(dto.product !== undefined ? { product: dto.product } : {}),
         ...(dto.client !== undefined ? { client: dto.client } : {}),
         ...(dto.status !== undefined ? { status: dto.status } : {}),
+        lastEditedById: actorId, // stamp who last edited (for the Documents list)
         config: mergedConfig as never,
         ask: ask as never,
         isPacket,

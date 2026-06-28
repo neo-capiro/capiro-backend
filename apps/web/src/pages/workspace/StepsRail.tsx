@@ -1,4 +1,4 @@
-import { CheckOutlined } from '@ant-design/icons';
+import { ArrowLeftOutlined, CheckOutlined } from '@ant-design/icons';
 import { useNavigate } from 'react-router-dom';
 
 export type WsStep = 'setup' | 'context' | 'draft' | 'preview';
@@ -36,6 +36,27 @@ export function StepsRail({
 
   return (
     <div className="ws-steps-rail">
+      {/* Breadcrumb back to the Documents list — always available in the flow. */}
+      <button
+        onClick={() => navigate('/workspace/documents')}
+        style={{
+          display: 'flex',
+          alignItems: 'center',
+          gap: 6,
+          border: 'none',
+          background: 'none',
+          cursor: 'pointer',
+          padding: '0 6px',
+          marginBottom: 14,
+          fontSize: 12,
+          fontWeight: 600,
+          color: 'var(--ws-ink-3, var(--ink-3))',
+          fontFamily: 'var(--font-sans)',
+        }}
+      >
+        <ArrowLeftOutlined style={{ fontSize: 11 }} />
+        Documents
+      </button>
       {product && (
         <div className="ws-kicker" style={{ marginBottom: 12, paddingLeft: 6 }}>
           {product}

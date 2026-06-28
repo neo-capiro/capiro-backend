@@ -6,18 +6,18 @@
  *  - Scope filter (All / Created by me / Shared with me) → useDrafts({scope}).
  *  - Sector select (All sectors + industries) → useDrafts({sector}). Live count
  *    (NO "due this week" string).
- *  - Columns: Document · Client · Type · Ask · State · Last edited · Team. The
- *    Deadline column is REMOVED (Q-DOC-1). No pagination (Q-DOC-3 — show all).
+ *  - Columns: Document · Client · Type · Ask · Status · Last edited · (actions).
+ *    Deadline + Team columns are REMOVED. No pagination (show all).
  *  - Document cell: Files/FileText icon, name, "Packet · N" badge when isPacket.
- *    The "Unsaved" pill is dropped (Q-DOC-pills); a "Shared" pill shows when the
- *    row isn't owned by the current user (useMe clerk id vs draft.ownerId; if
- *    ownership isn't resolvable, Shared only shows in the 'shared' scope).
- *  - State pill: Draft ↔ Complete toggle that PERSISTS via useUpdateDraft (Q-DOC-state).
- *  - Last edited: relative time from updatedAt + editor name ("You" if owned by me,
- *    else resolved via useTenantMembers, else "—").
- *  - Team: a single owner Ava resolved via tenant-members (lightweight — no per-row
- *    collaborator fan-out).
- *  - Row click opens THAT document by id (Q-DOC-2): /workspace/draft/:id.
+ *    A "Shared" pill shows when the row isn't owned by the current user (clerk id
+ *    vs draft.ownerId; if self isn't known, Shared only shows in the 'shared' scope).
+ *  - Status: a Draft (left) | Complete (right) segmented toggle that PERSISTS via
+ *    useUpdateDraft.
+ *  - Last edited: the avatar + name of whoever last edited (draft.lastEditedById,
+ *    a Clerk id resolved via useTenantMembers; falls back to the owner) + relative
+ *    time from updatedAt.
+ *  - Actions: a Delete control on documents the signed-in user OWNS (useDeleteDraft).
+ *  - Row click opens THAT document by id: /workspace/draft/:id.
  */
 import { useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
@@ -26,6 +26,7 @@ import { Icon, Ava, Kicker } from './kit.js';
 import { WsTabs } from './WsTabs.js';
 import {
   useCreateDraft,
+  useDeleteDraft,
   useDrafts,
   useIndustries,
   useTenantMembers,
@@ -83,33 +84,32 @@ export function DocumentsPage() {
 
   const selfClerkId = me?.user.clerkUserId ?? null;
 
-  // Resolve a tenant member by Capiro user id (drafts carry ownerId = Capiro user
-  // id) for the editor name + owner avatar.
-  const memberById = useMemo(() => {
+  // Drafts carry ownerId AND lastEditedById as CLERK user ids, so resolve member
+  // info by clerkUserId (not the Capiro user id).
+  const memberByClerk = useMemo(() => {
     const map = new Map<string, WsTenantMember>();
-    (members ?? []).forEach((m) => map.set(m.id, m));
+    (members ?? []).forEach((m) => map.set(m.clerkUserId, m));
     return map;
   }, [members]);
 
-  // The owning draft is "mine" when the draft.ownerId resolves to the signed-in
-  // user. Drafts store the Capiro user id; map it to a clerk id for the compare.
-  const isMine = (d: WsDraft): boolean => {
-    if (!selfClerkId) return false;
-    const owner = memberById.get(d.ownerId);
-    return !!owner && owner.clerkUserId === selfClerkId;
-  };
+  const isMine = (d: WsDraft): boolean => !!selfClerkId && d.ownerId === selfClerkId;
 
-  // Show "Shared" when the row isn't owned by me. If ownership can't be resolved
-  // (no member match yet), only surface Shared in the explicit 'shared' scope.
+  // Show "Shared" when the row isn't owned by me. If self isn't known yet, only
+  // surface Shared in the explicit 'shared' scope.
   const isShared = (d: WsDraft): boolean => {
-    const owner = memberById.get(d.ownerId);
-    if (!owner || !selfClerkId) return scope === 'shared';
-    return owner.clerkUserId !== selfClerkId;
+    if (!selfClerkId) return scope === 'shared';
+    return d.ownerId !== selfClerkId;
   };
 
-  const editorName = (d: WsDraft): string => {
-    if (isMine(d)) return 'You';
-    return memberById.get(d.ownerId)?.name ?? '—';
+  // The person who last edited (icon + name) — falls back to the owner for legacy
+  // rows with no recorded editor.
+  const lastEditor = (d: WsDraft): { name: string; initials: string | null } => {
+    const id = d.lastEditedById || d.ownerId;
+    const m = memberByClerk.get(id);
+    const isMe = !!selfClerkId && id === selfClerkId;
+    const name = isMe ? 'You' : (m?.name ?? '—');
+    const initials = m?.initials ?? (name && name !== '—' ? name.slice(0, 2).toUpperCase() : null);
+    return { name, initials };
   };
 
   const newDocument = async () => {
@@ -231,25 +231,23 @@ export function DocumentsPage() {
           <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13 }}>
             <thead>
               <tr style={{ background: 'var(--bg-surface-2)' }}>
-                {['Document', 'Client', 'Type', 'Ask', 'State', 'Last edited', 'Team'].map(
-                  (h, i) => (
-                    <th
-                      key={h}
-                      style={{
-                        textAlign: i === 3 ? 'right' : 'left',
-                        fontSize: 10.5,
-                        textTransform: 'uppercase',
-                        letterSpacing: '0.07em',
-                        color: 'var(--ink-3)',
-                        fontWeight: 600,
-                        padding: '10px 14px',
-                        borderBottom: '1px solid var(--border-1)',
-                      }}
-                    >
-                      {h}
-                    </th>
-                  ),
-                )}
+                {['Document', 'Client', 'Type', 'Ask', 'Status', 'Last edited', ''].map((h, i) => (
+                  <th
+                    key={h}
+                    style={{
+                      textAlign: i === 3 ? 'right' : 'left',
+                      fontSize: 10.5,
+                      textTransform: 'uppercase',
+                      letterSpacing: '0.07em',
+                      color: 'var(--ink-3)',
+                      fontWeight: 600,
+                      padding: '10px 14px',
+                      borderBottom: '1px solid var(--border-1)',
+                    }}
+                  >
+                    {h}
+                  </th>
+                ))}
               </tr>
             </thead>
             <tbody>
@@ -290,8 +288,8 @@ export function DocumentsPage() {
                     draft={d}
                     first={i === 0}
                     shared={isShared(d)}
-                    editor={editorName(d)}
-                    ownerInitials={memberById.get(d.ownerId)?.initials ?? null}
+                    lastEditor={lastEditor(d)}
+                    canDelete={isMine(d)}
                     onOpen={() => navigate(`/workspace/draft/${d.id}`)}
                   />
                 ))}
@@ -318,29 +316,29 @@ export function DocumentsPage() {
   );
 }
 
-/** One document row. State pill persists; row click opens the draft by id. */
+/** One document row. Status toggle persists; row click opens the draft by id. */
 function DocRow({
   draft: d,
   first,
   shared,
-  editor,
-  ownerInitials,
+  lastEditor,
+  canDelete,
   onOpen,
 }: {
   draft: WsDraft;
   first: boolean;
   shared: boolean;
-  editor: string;
-  ownerInitials: string | null;
+  lastEditor: { name: string; initials: string | null };
+  canDelete: boolean;
   onOpen: () => void;
 }) {
-  const { message } = AntApp.useApp();
+  const { message, modal } = AntApp.useApp();
   const update = useUpdateDraft(d.id);
+  const del = useDeleteDraft();
   const isComplete = d.status === 'complete';
 
-  const toggleStatus = (e: React.MouseEvent) => {
-    e.stopPropagation();
-    const next = isComplete ? 'draft' : 'complete';
+  const setStatus = (next: 'draft' | 'complete') => {
+    if ((next === 'complete') === isComplete) return; // already there
     update.mutate(
       { status: next },
       {
@@ -349,6 +347,33 @@ function DocRow({
       },
     );
   };
+
+  const confirmDelete = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    modal.confirm({
+      title: 'Delete this document?',
+      content: `"${d.docTitle}" will be permanently deleted. This cannot be undone.`,
+      okText: 'Delete',
+      okButtonProps: { danger: true },
+      cancelText: 'Cancel',
+      onOk: () =>
+        del
+          .mutateAsync(d.id)
+          .then(() => message.success('Document deleted'))
+          .catch(() => message.error('Could not delete the document')),
+    });
+  };
+
+  const seg = (active: boolean): React.CSSProperties => ({
+    padding: '4px 12px',
+    fontSize: 11.5,
+    fontWeight: 600,
+    border: 'none',
+    cursor: update.isPending ? 'wait' : 'pointer',
+    fontFamily: 'var(--font-sans)',
+    background: active ? (isComplete ? 'rgba(46,107,67,.12)' : 'var(--bg-sunken)') : 'transparent',
+    color: active ? (isComplete ? 'var(--success)' : 'var(--ink-1)') : 'var(--ink-3)',
+  });
 
   return (
     <tr
@@ -414,47 +439,64 @@ function DocRow({
         {askText(d.ask)}
       </td>
 
-      {/* State: Complete / Draft toggle — PERSISTS via useUpdateDraft */}
+      {/* Status: Draft (left) | Complete (right) segmented toggle — PERSISTS */}
       <td style={{ padding: '12px 14px' }}>
-        <button
-          onClick={toggleStatus}
-          disabled={update.isPending}
-          title="Toggle complete / draft"
+        <div
+          onClick={(e) => e.stopPropagation()}
           style={{
             display: 'inline-flex',
-            alignItems: 'center',
-            gap: 5,
-            padding: '4px 11px',
+            border: '1px solid var(--border-1)',
             borderRadius: 20,
-            border: '1.5px solid',
-            borderColor: isComplete ? 'var(--success)' : 'var(--border-1)',
-            background: isComplete ? 'rgba(46,107,67,.09)' : 'var(--bg-surface)',
-            color: isComplete ? 'var(--success)' : 'var(--ink-3)',
-            fontSize: 11.5,
-            fontWeight: 600,
-            cursor: update.isPending ? 'wait' : 'pointer',
-            fontFamily: 'var(--font-sans)',
-            whiteSpace: 'nowrap',
-            transition: 'all 0.12s',
+            overflow: 'hidden',
             opacity: update.isPending ? 0.6 : 1,
           }}
         >
-          <Icon name={isComplete ? 'CheckCircle2' : 'Circle'} size={12} />
-          {isComplete ? 'Complete' : 'Draft'}
-        </button>
-      </td>
-
-      <td style={{ padding: '12px 14px' }}>
-        <div style={{ fontSize: 12.5, color: 'var(--ink-1)' }}>{editor}</div>
-        <div style={{ fontSize: 11, color: 'var(--ink-3)' }} className="num">
-          {relativeTime(d.updatedAt)}
+          <button
+            onClick={() => setStatus('draft')}
+            disabled={update.isPending}
+            style={seg(!isComplete)}
+          >
+            Draft
+          </button>
+          <button
+            onClick={() => setStatus('complete')}
+            disabled={update.isPending}
+            style={{ ...seg(isComplete), borderLeft: '1px solid var(--border-1)' }}
+          >
+            Complete
+          </button>
         </div>
       </td>
+
+      {/* Last edited: who + when */}
       <td style={{ padding: '12px 14px' }}>
-        {ownerInitials ? (
-          <Ava x={ownerInitials} size={24} />
-        ) : (
-          <span style={{ color: 'var(--ink-4)' }}>—</span>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+          {lastEditor.initials ? (
+            <Ava x={lastEditor.initials} size={24} />
+          ) : (
+            <span style={{ color: 'var(--ink-4)' }}>—</span>
+          )}
+          <div style={{ minWidth: 0 }}>
+            <div style={{ fontSize: 12.5, color: 'var(--ink-1)' }}>{lastEditor.name}</div>
+            <div style={{ fontSize: 11, color: 'var(--ink-3)' }} className="num">
+              {relativeTime(d.updatedAt)}
+            </div>
+          </div>
+        </div>
+      </td>
+
+      {/* Actions: delete (owner only) */}
+      <td style={{ padding: '12px 14px', textAlign: 'right' }}>
+        {canDelete && (
+          <button
+            onClick={confirmDelete}
+            disabled={del.isPending}
+            title="Delete document"
+            className="btn sm btn-ghost"
+            style={{ color: 'var(--ink-3)', cursor: del.isPending ? 'wait' : 'pointer' }}
+          >
+            <Icon name="Trash2" size={14} />
+          </button>
         )}
       </td>
     </tr>

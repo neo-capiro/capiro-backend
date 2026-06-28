@@ -279,10 +279,13 @@ export function EditorPage() {
   );
   flushRef.current = flush;
 
-  // Flush any pending save on unmount.
+  // Flush any pending save on unmount so EXITING the editor never loses the last
+  // <1.2s of edits (the debounce timer would otherwise just be cancelled). The
+  // mutateAsync request outlives the unmounting component on an SPA route change.
   useEffect(
     () => () => {
       if (saveTimer.current) clearTimeout(saveTimer.current);
+      if (cfgDirty.current || dirtyDocs.current.size) flushRef.current(false);
     },
     [],
   );

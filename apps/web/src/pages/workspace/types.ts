@@ -146,6 +146,8 @@ export interface WsDraft {
   id: string;
   tenantId: string;
   ownerId: string;
+  /** Clerk user id of whoever last edited the draft (null for legacy rows). */
+  lastEditedById?: string | null;
   docTitle: string;
   industry: string | null;
   product: string | null;

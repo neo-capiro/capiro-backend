@@ -6,10 +6,10 @@
 // notifications (accepted/declined notices to the inviter) are informational.
 // Reuses the same /workspace-api endpoints the rest of the editor uses.
 
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { App as AntApp, Badge, Button, Dropdown, Empty, List, Tag, Typography } from 'antd';
 import { BellOutlined } from '@ant-design/icons';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import {
   useNotifications,
   useMarkNotificationRead,
@@ -30,8 +30,21 @@ function relativeTime(dateStr: string): string {
 
 export function WorkspaceNotificationBell() {
   const navigate = useNavigate();
+  const [searchParams, setSearchParams] = useSearchParams();
   const { message } = AntApp.useApp();
   const [open, setOpen] = useState(false);
+
+  // Deep-link from the collaborator-invite email (/?notifications=1) opens the
+  // dropdown so the invitee can Accept/Decline; strip the param afterward.
+  useEffect(() => {
+    if (searchParams.get('notifications') === '1') {
+      setOpen(true);
+      const next = new URLSearchParams(searchParams);
+      next.delete('notifications');
+      setSearchParams(next, { replace: true });
+    }
+  }, [searchParams, setSearchParams]);
+
   const { data } = useNotifications();
   const markAll = useMarkAllNotificationsRead();
   const markRead = useMarkNotificationRead();
