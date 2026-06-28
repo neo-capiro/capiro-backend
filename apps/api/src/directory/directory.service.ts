@@ -4,6 +4,7 @@ import {
   Injectable,
   Logger,
   NotFoundException,
+  type OnModuleInit,
   ServiceUnavailableException,
 } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
@@ -532,7 +533,7 @@ interface MemberBioOverlay {
 }
 
 @Injectable()
-export class DirectoryService {
+export class DirectoryService implements OnModuleInit {
   private static readonly DEFAULT_PAGE_SIZE = 24;
   private static readonly MAX_PAGE_SIZE = 20_000;
   private readonly logger = new Logger(DirectoryService.name);
@@ -557,6 +558,23 @@ export class DirectoryService {
       process.env.DIRECTORY_BIO_OVERLAY_KEY ?? 'UPDATED DIRECTORY/overlays/member-bios-v1.json';
     this.pressOverlayKey =
       process.env.DIRECTORY_PRESS_OVERLAY_KEY ?? 'UPDATED DIRECTORY/overlays/member-press-v1.json';
+  }
+
+  /**
+   * Pre-warm the directory cache at boot so the FIRST contacts/typeahead request
+   * doesn't pay the cold S3-pull + gunzip + index-build cost (which made the
+   * Setup "Target offices" search take minutes). Non-blocking and best-effort:
+   * a transient S3 failure here must not crash startup — getDirectoryData()
+   * already throws ServiceUnavailable on the live request path.
+   */
+  onModuleInit(): void {
+    void this.getDirectoryData().catch((error) => {
+      this.logger.warn(
+        `Directory cache pre-warm failed (will lazy-load on first request): ${
+          error instanceof Error ? error.message : String(error)
+        }`,
+      );
+    });
   }
 
   async getContacts(query: DirectoryQuery = {}): Promise<DirectoryPayload> {
@@ -1022,7 +1040,10 @@ export class DirectoryService {
 
       this.cache = {
         data: payload,
-        expiresAt: now + 5 * 60_000,
+        // 30 min TTL (was 5): the cold build (3 gzip S3 pulls + full index build)
+        // is expensive, and the directory snapshot changes slowly. Combined with
+        // the onModuleInit pre-warm, typeahead search stays fast.
+        expiresAt: now + 30 * 60_000,
       };
 
       return payload;

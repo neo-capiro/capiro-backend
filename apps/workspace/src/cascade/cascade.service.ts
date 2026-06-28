@@ -53,7 +53,9 @@ export class CascadeService {
     return {
       product,
       personalize: meta.personalize,
-      officeAssociated: meta.office,
+      // Personalization sub-questions always default to No — keep this seed
+      // endpoint consistent with the create() default (never re-default to Yes).
+      officeAssociated: false,
       coverLetter: meta.cover,
       sections: WSC.suggestedSections(product),
       pages: WSC.suggestedPages(product),

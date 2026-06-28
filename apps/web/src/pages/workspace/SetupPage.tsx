@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { Spin } from 'antd';
 import { useQuery } from '@tanstack/react-query';
@@ -9,11 +9,132 @@ import {
   useDraft,
   useUpdateDraft,
   useTemplatesFor,
+  useAllTemplates,
   useProductDefaults,
-  useIndustryData,
   useSectionLibrary,
 } from './api.js';
-import type { WsConfig, WsTemplate } from './types.js';
+import {
+  getProgramElementsList,
+  getProgramElementDetail,
+  getProgramElementProjects,
+} from '../program-element/api.js';
+import type { ProgramElementDetail, ProgramElementProject } from '../program-element/types.js';
+import type { WsConfig, WsTemplate, WsLinkedProgramElement } from './types.js';
+
+/** Debounce a fast-changing value (search-as-you-type → one query per pause). */
+function useDebouncedValue<T>(value: T, ms = 250): T {
+  const [debounced, setDebounced] = useState(value);
+  useEffect(() => {
+    const t = setTimeout(() => setDebounced(value), ms);
+    return () => clearTimeout(t);
+  }, [value, ms]);
+  return debounced;
+}
+
+/**
+ * A controlled text field that stays responsive under autosave. The bug it
+ * fixes: Setup inputs were bound straight to the server-round-tripped config and
+ * committed on every keystroke, so an in-flight autosave echo (qc.setQueryData)
+ * clobbered the field mid-typing and dropped characters. This keeps a LOCAL
+ * working copy (instant), commits debounced + on blur, and only re-adopts the
+ * incoming value when the field isn't focused — so the server echo can't reset
+ * the cursor while the user is typing.
+ */
+function AutosaveField({
+  value,
+  onCommit,
+  multiline = false,
+  debounceMs = 450,
+  className,
+  style,
+  placeholder,
+  rows,
+  type,
+}: {
+  value: string;
+  onCommit: (v: string) => void;
+  multiline?: boolean;
+  debounceMs?: number;
+  className?: string;
+  style?: React.CSSProperties;
+  placeholder?: string;
+  rows?: number;
+  type?: string;
+}) {
+  const [local, setLocal] = useState(value);
+  const focused = useRef(false);
+  const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const pending = useRef<string | null>(null);
+  const commitRef = useRef(onCommit);
+  commitRef.current = onCommit;
+
+  // Adopt external changes (restore, another control's save) only when idle.
+  useEffect(() => {
+    if (!focused.current) setLocal(value);
+  }, [value]);
+  // On unmount, FLUSH any pending debounce (programmatic navigation, a parent
+  // re-rendering into a Spin guard, or a conditional unmount won't fire a blur),
+  // so the last typed-but-not-yet-saved keystrokes aren't lost.
+  useEffect(
+    () => () => {
+      if (timer.current) clearTimeout(timer.current);
+      if (pending.current !== null) commitRef.current(pending.current);
+    },
+    [],
+  );
+
+  const schedule = (v: string) => {
+    pending.current = v;
+    if (timer.current) clearTimeout(timer.current);
+    timer.current = setTimeout(() => {
+      pending.current = null;
+      commitRef.current(v);
+    }, debounceMs);
+  };
+  const onChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
+    setLocal(e.target.value);
+    schedule(e.target.value);
+  };
+  const onBlur = () => {
+    focused.current = false;
+    if (timer.current) {
+      clearTimeout(timer.current);
+      timer.current = null;
+    }
+    pending.current = null;
+    if (local !== value) commitRef.current(local);
+  };
+  const onFocus = () => {
+    focused.current = true;
+  };
+
+  if (multiline) {
+    return (
+      <textarea
+        value={local}
+        onChange={onChange}
+        onFocus={onFocus}
+        onBlur={onBlur}
+        className={className}
+        style={style}
+        placeholder={placeholder}
+        rows={rows}
+      />
+    );
+  }
+  return (
+    <input
+      value={local}
+      onChange={onChange}
+      onFocus={onFocus}
+      onBlur={onBlur}
+      className={className}
+      style={style}
+      placeholder={placeholder}
+      type={type}
+    />
+  );
+}
 
 /**
  * Setup — the cascade qualifier + secondary qualifiers, ported near-verbatim from
@@ -377,12 +498,27 @@ export function SetupPage() {
 
   const cfg = draft.config;
   const patch = (p: ConfigPatch) => update.mutate({ config: p });
+  // Draft-level field (not config) — the top "Select client" picker persists the
+  // linked client here. '' clears it. When the client CHANGES, also reset any
+  // client-scoped config (clientPersons) so stale contacts from the old client
+  // don't linger in the persisted draft.
+  const setClient = (name: string | null) => {
+    const next = name ?? '';
+    if (next === (draft.client ?? '')) return;
+    update.mutate({ client: next, config: { clientPersons: [] } });
+  };
 
   return (
     <div className="ws-shell">
       <StepsRail active="setup" draftId={draftId} product={draft.product} />
       <div className="ws-stage" style={{ padding: 0 }}>
-        <SetupForm cfg={cfg} draftId={draftId!} client={draft.client} update={patch} />
+        <SetupForm
+          cfg={cfg}
+          draftId={draftId!}
+          client={draft.client}
+          update={patch}
+          setClient={setClient}
+        />
       </div>
     </div>
   );
@@ -394,11 +530,13 @@ function SetupForm({
   draftId,
   client,
   update,
+  setClient,
 }: {
   cfg: WsConfig;
   draftId: string;
   client: string | null;
   update: (p: ConfigPatch) => void;
+  setClient: (name: string | null) => void;
 }) {
   const navigate = useNavigate();
   const [showAll, setShowAll] = useState(false);
@@ -418,7 +556,9 @@ function SetupForm({
       pathways,
       committees: WSC.committeesFor(cfg.industry, pathways),
       personalize: m.personalize,
-      officeAssociated: m.office,
+      // Office/client personalization always defaults to "No" — opt-in per draft
+      // (do NOT re-derive from the product meta on product switch).
+      officeAssociated: false,
       coverLetter: m.cover,
       sections: suggestedSections(product),
       pages: suggestedPages(product),
@@ -442,6 +582,9 @@ function SetupForm({
   const pathways = WSC.pathwaysFor(cfg.industry, cfg.product);
   const committees = WSC.committeesFor(cfg.industry, cfg.pathways);
   const m = WSC.meta(cfg.product);
+  // A client is REQUIRED before building context (it scopes every Context
+  // Builder source). Gate the Continue button on it.
+  const hasClient = !!(client && client.trim());
 
   return (
     <div style={{ maxWidth: 840, margin: '0 auto', padding: '26px 30px 40px' }}>
@@ -479,6 +622,8 @@ function SetupForm({
           in the editor.
         </span>
       </div>
+
+      <ClientSelectCard client={client} setClient={setClient} />
 
       <QCard title="Work product setup">
         {/* Step 1: Industry */}
@@ -645,41 +790,15 @@ function SetupForm({
                 />
               </div>
               {cfg.officeAssociated && <OfficePicker cfg={cfg} client={client} update={update} />}
-              <div
-                style={{
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'space-between',
-                  gap: 14,
-                  flexWrap: 'wrap',
-                  paddingTop: 14,
-                  borderTop: '1px solid var(--border-1)',
-                }}
-              >
-                <div style={{ fontSize: 12.5, fontWeight: 600 }}>
-                  Tied to a specific client contact?
-                </div>
-                <Seg
-                  options={[
-                    ['no', 'No'],
-                    ['yes', 'Yes'],
-                  ]}
-                  value={cfg.clientAssociated ? 'yes' : 'no'}
-                  onChange={(v) =>
-                    update({
-                      clientAssociated: v === 'yes',
-                      clientPersons: v === 'no' ? [] : (cfg.clientPersons as string[] | undefined),
-                    })
-                  }
-                />
-              </div>
-              {cfg.clientAssociated && <ClientPicker cfg={cfg} client={client} update={update} />}
+              {/* "Tied to a specific client contact?" removed — the client is now
+                  chosen at the top of Setup (Select client), so this sub-question
+                  is redundant. */}
             </>
           )}
         </div>
       </QCard>
 
-      <LinkedDataCard cfg={cfg} client={client} update={update} />
+      <LinkedDataCard cfg={cfg} update={update} />
 
       {/* Document options */}
       <QCard title="Document options">
@@ -760,9 +879,10 @@ function SetupForm({
               <span style={{ fontWeight: 400, fontSize: 11 }}>(optional)</span>
             </span>
           </div>
-          <textarea
+          <AutosaveField
+            multiline
             value={cfg.toneContext || ''}
-            onChange={(e) => update({ toneContext: e.target.value })}
+            onCommit={(v) => update({ toneContext: v })}
             placeholder="e.g. Emphasize ROI and job creation. Focus on bipartisan appeal and economic impact."
             rows={2}
             className="field"
@@ -797,10 +917,23 @@ function SetupForm({
 
       <LetterheadCard cfg={cfg} update={update} />
 
-      <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: 20 }}>
+      <div
+        style={{
+          display: 'flex',
+          justifyContent: 'flex-end',
+          alignItems: 'center',
+          gap: 12,
+          marginTop: 20,
+        }}
+      >
+        {!hasClient && (
+          <span style={{ fontSize: 12, color: 'var(--ink-3)' }}>Select a client to continue</span>
+        )}
         <button
           className="btn btn-accent"
-          onClick={() => navigate(`/workspace/context/${draftId}`)}
+          disabled={!hasClient}
+          onClick={() => hasClient && navigate(`/workspace/context/${draftId}`)}
+          style={!hasClient ? { opacity: 0.5, cursor: 'not-allowed' } : undefined}
         >
           Continue · Build context
           <Icon name="ArrowRight" size={14} />
@@ -1332,16 +1465,19 @@ function TemplatesPicker({ cfg, update }: { cfg: WsConfig; update: (p: ConfigPat
   const [showAll, setShowAll] = useState(false);
   const [search, setSearch] = useState('');
   const { data: tpls } = useTemplatesFor(cfg.product);
-  const allTemplates = useMemo(() => tpls?.all ?? [], [tpls]);
+  // Search spans the FULL tenant template library (all products); the two
+  // recommendation cards below stay product-specific (tpls.primary/secondary).
+  const { data: libTpls } = useAllTemplates();
+  const libraryTemplates = useMemo(() => libTpls ?? [], [libTpls]);
   const meriPrimary = tpls?.primary ?? null;
   const meriSecondary = tpls?.secondary ?? null;
   const searchResults = search.trim()
-    ? allTemplates.filter((t) =>
+    ? libraryTemplates.filter((t) =>
         (t.name + ' ' + (t.description ?? '') + ' ' + t.product)
           .toLowerCase()
           .includes(search.toLowerCase()),
       )
-    : allTemplates;
+    : libraryTemplates;
   const applyTemplate = (tpl: WsTemplate) => {
     update({ selectedTemplate: tpl.id, sections: tpl.sections });
     setModalTpl(null);
@@ -1660,7 +1796,7 @@ function TemplatesPicker({ cfg, update }: { cfg: WsConfig; update: (p: ConfigPat
                 }}
               >
                 <Icon name="Search" size={12} />
-                Search all templates ({allTemplates.length})
+                Search all templates ({libraryTemplates.length})
               </button>
             </>
           ) : (
@@ -1957,13 +2093,18 @@ function OfficePicker({
   const offices = cfg.offices ?? [];
 
   // Members directory search — live against our directory contacts endpoint.
+  // Debounced (one request per typing pause, not per keystroke) and prior
+  // results are kept while the next request resolves so the dropdown doesn't
+  // flicker empty — this is what made the search feel broken / minutes-slow.
+  const dq = useDebouncedValue(q.trim(), 250);
   const { data } = useQuery({
-    queryKey: ['ws-office-search', q.trim()],
-    enabled: q.trim().length > 0,
+    queryKey: ['ws-office-search', dq],
+    enabled: dq.length > 0,
+    placeholderData: (prev) => prev,
     queryFn: async () =>
       (
         await api.get<DirContactsResponse>('/api/directory/contacts', {
-          params: { q: q.trim(), pageSize: 6, sort: 'name-asc' },
+          params: { q: dq, pageSize: 6, sort: 'name-asc' },
         })
       ).data,
   });
@@ -2052,7 +2193,10 @@ function OfficePicker({
             }}
           />
         </div>
-        {results.length > 0 && (
+        {/* Gate on the debounced query too: placeholderData keeps prior results
+            across key changes, so without this the menu would stay open over an
+            empty input after a selection/clear. */}
+        {dq.length > 0 && results.length > 0 && (
           <div
             className="card"
             style={{
@@ -2104,145 +2248,82 @@ function OfficePicker({
   );
 }
 
-// ── ClientPicker — lists the client's contacts (GET /api/clients/:id/people) ────
-interface ClientRow {
-  id: string;
-  name: string;
-}
-interface ClientPersonRow {
-  id: string;
-  fullName: string | null;
-  email: string | null;
-  title: string | null;
-  role: string | null;
-}
-function ClientPicker({
-  cfg,
+// ── LinkedDataCard (asset_13) — NO strategy row (Strategies deleted) ───────────
+/** Shared dropdown/typeahead row style for the Links & data menus. */
+const MENU_ROW: React.CSSProperties = {
+  display: 'flex',
+  alignItems: 'center',
+  gap: 10,
+  width: '100%',
+  textAlign: 'left',
+  padding: '7px 8px',
+  border: 'none',
+  background: 'transparent',
+  borderRadius: 6,
+  cursor: 'pointer',
+  font: 'inherit',
+};
+
+/**
+ * Select client (required, top of Setup). The client scopes every Context
+ * Builder source (overview/capabilities/facilities/documents/offices news) and
+ * Meri generation, so it must be chosen before building context. Persists the
+ * client NAME on draft.client via setClient.
+ */
+function ClientSelectCard({
   client,
-  update,
+  setClient,
 }: {
-  cfg: WsConfig;
   client: string | null;
-  update: (p: ConfigPatch) => void;
+  setClient: (name: string | null) => void;
 }) {
   const api = useApi();
+  const [open, setOpen] = useState(false);
   const [q, setQ] = useState('');
-  const selected = (cfg.clientPersons as string[] | undefined) ?? [];
-
-  // The draft stores the client as a NAME; resolve it to an id, then list people.
+  const boxRef = useRef<HTMLDivElement>(null);
   const { data: clients } = useQuery({
     queryKey: ['ws-clients-list'],
-    enabled: !!client,
-    queryFn: async () => (await api.get<ClientRow[]>('/api/clients')).data,
+    queryFn: async () => (await api.get<{ id: string; name: string }[]>('/api/clients')).data,
   });
-  const clientId = useMemo(
-    () => (clients ?? []).find((c) => c.name === client)?.id ?? null,
-    [clients, client],
+  useEffect(() => {
+    if (!open) return;
+    const onDoc = (e: MouseEvent) => {
+      if (boxRef.current && !boxRef.current.contains(e.target as Node)) setOpen(false);
+    };
+    document.addEventListener('mousedown', onDoc);
+    return () => document.removeEventListener('mousedown', onDoc);
+  }, [open]);
+  const filtered = (clients ?? []).filter(
+    (c) => !q.trim() || c.name.toLowerCase().includes(q.toLowerCase()),
   );
-  const { data: people } = useQuery({
-    queryKey: ['ws-client-people', clientId],
-    enabled: !!clientId,
-    queryFn: async () => (await api.get<ClientPersonRow[]>(`/api/clients/${clientId}/people`)).data,
-  });
-  const contacts = people ?? [];
-  const labelOf = (p: ClientPersonRow) =>
-    p.fullName?.trim() || p.email?.trim() || 'Unnamed contact';
-  const roleOf = (p: ClientPersonRow) => [p.role || p.title, client].filter(Boolean).join(' · ');
-
-  const remove = (who: string) => update({ clientPersons: selected.filter((x) => x !== who) });
-  const add = (who: string) => {
-    if (!selected.includes(who)) update({ clientPersons: [...selected, who] });
-    setQ('');
-  };
-  const results = q.trim()
-    ? contacts
-        .filter((c) => !selected.includes(labelOf(c)))
-        .filter((c) =>
-          (labelOf(c) + ' ' + (c.role || c.title || '')).toLowerCase().includes(q.toLowerCase()),
-        )
-        .slice(0, 6)
-    : [];
-
   return (
-    <div style={{ paddingTop: 14, borderTop: '1px solid var(--border-1)' }}>
-      <div style={{ display: 'flex', alignItems: 'baseline', gap: 7, marginBottom: 8 }}>
-        <div style={{ fontSize: 12, fontWeight: 600, color: 'var(--ink-2)' }}>Client contacts</div>
-        {client && (
-          <span style={{ fontSize: 11, color: 'var(--ink-3)' }}>from {client} profile</span>
-        )}
+    <QCard title="Select client">
+      <div style={{ fontSize: 12.5, color: 'var(--ink-2)', marginBottom: 10 }}>
+        Choose the client this work product is for.{' '}
+        <span style={{ color: 'var(--danger, #c0392b)', fontWeight: 600 }}>Required</span> — Meri
+        builds context from this client&rsquo;s profile, documents, and offices.
       </div>
-      <div style={{ display: 'flex', flexDirection: 'column', gap: 7, marginBottom: 10 }}>
-        {selected.map((who) => {
-          const c = contacts.find((x) => labelOf(x) === who);
-          return (
-            <div
-              key={who}
-              style={{
-                display: 'flex',
-                alignItems: 'center',
-                gap: 10,
-                padding: '9px 11px',
-                border: '1px solid var(--border-1)',
-                background: 'var(--bg-surface)',
-                borderRadius: 8,
-              }}
-            >
-              <MiniAva x={initialsOf(who)} />
-              <div style={{ flex: 1, minWidth: 0 }}>
-                <div style={{ fontSize: 12.5, fontWeight: 600 }}>{who}</div>
-                <div style={{ fontSize: 11, color: 'var(--ink-3)' }}>{c ? roleOf(c) : client}</div>
-              </div>
-              <button
-                onClick={() => remove(who)}
-                title="Remove"
-                style={{
-                  border: 'none',
-                  background: 'none',
-                  cursor: 'pointer',
-                  color: 'var(--ink-4)',
-                  display: 'grid',
-                  placeItems: 'center',
-                  padding: 2,
-                }}
-              >
-                <Icon name="X" size={14} />
-              </button>
-            </div>
-          );
-        })}
-        {selected.length === 0 && (
-          <div style={{ fontSize: 12, color: 'var(--ink-3)', padding: '4px 0' }}>
-            No contacts selected. Search below.
-          </div>
-        )}
-      </div>
-      <div style={{ position: 'relative' }}>
+      <div ref={boxRef} style={{ position: 'relative', maxWidth: 460 }}>
         <div
           className="field"
+          onClick={() => setOpen((o) => !o)}
           style={{
             display: 'flex',
             alignItems: 'center',
-            gap: 8,
-            padding: '8px 11px',
+            gap: 9,
+            padding: '10px 12px',
+            cursor: 'pointer',
             background: 'var(--bg-surface)',
+            borderColor: client ? 'var(--border-1)' : 'var(--accent)',
           }}
         >
-          <Icon name="Search" size={14} style={{ color: 'var(--ink-3)' }} />
-          <input
-            value={q}
-            onChange={(e) => setQ(e.target.value)}
-            placeholder="Search by name or role"
-            style={{
-              flex: 1,
-              border: 'none',
-              outline: 'none',
-              background: 'transparent',
-              fontSize: 12.5,
-              fontFamily: 'var(--font-sans)',
-            }}
-          />
+          <Icon name="Building2" size={15} style={{ color: 'var(--ink-3)' }} />
+          <span style={{ flex: 1, fontSize: 13, color: client ? 'var(--ink-1)' : 'var(--ink-3)' }}>
+            {client || 'Select a client…'}
+          </span>
+          <Icon name="ChevronDown" size={15} style={{ color: 'var(--ink-3)' }} />
         </div>
-        {results.length > 0 && (
+        {open && (
           <div
             className="card"
             style={{
@@ -2250,155 +2331,337 @@ function ClientPicker({
               top: 'calc(100% + 4px)',
               left: 0,
               right: 0,
-              zIndex: 20,
+              zIndex: 30,
               padding: 5,
+              maxHeight: 300,
+              overflow: 'auto',
               boxShadow: 'var(--shadow-2)',
             }}
           >
-            {results.map((c) => {
-              const lbl = labelOf(c);
-              return (
-                <button
-                  key={c.id}
-                  onClick={() => add(lbl)}
-                  style={{
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: 10,
-                    width: '100%',
-                    textAlign: 'left',
-                    padding: '7px 8px',
-                    border: 'none',
-                    background: 'transparent',
-                    borderRadius: 6,
-                    cursor: 'pointer',
-                    font: 'inherit',
-                  }}
-                  onMouseEnter={(e) => (e.currentTarget.style.background = 'var(--bg-surface-2)')}
-                  onMouseLeave={(e) => (e.currentTarget.style.background = 'transparent')}
-                >
-                  <MiniAva x={initialsOf(lbl)} size={22} />
-                  <div style={{ flex: 1, minWidth: 0 }}>
-                    <div style={{ fontSize: 12, fontWeight: 600 }}>{lbl}</div>
-                    <div style={{ fontSize: 10.5, color: 'var(--ink-3)' }}>{roleOf(c)}</div>
-                  </div>
-                  <Icon name="Plus" size={13} style={{ color: 'var(--accent)' }} />
-                </button>
-              );
-            })}
-          </div>
-        )}
-        {q.trim() && results.length === 0 && (
-          <div
-            style={{
-              fontSize: 11.5,
-              color: 'var(--ink-3)',
-              padding: '10px 12px',
-              fontStyle: 'italic',
-            }}
-          >
-            {/* TODO(phase): wire client contacts — shown when the client has no people on file or no client is linked. */}
-            No contacts found{client ? ` in ${client} profile.` : '.'}
+            <div
+              className="field"
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: 8,
+                padding: '7px 10px',
+                margin: '2px 2px 6px',
+                background: 'var(--bg-surface)',
+              }}
+            >
+              <Icon name="Search" size={13} style={{ color: 'var(--ink-3)' }} />
+              <input
+                autoFocus
+                value={q}
+                onChange={(e) => setQ(e.target.value)}
+                placeholder="Search clients"
+                style={{
+                  flex: 1,
+                  border: 'none',
+                  outline: 'none',
+                  background: 'transparent',
+                  fontSize: 12.5,
+                  fontFamily: 'var(--font-sans)',
+                }}
+              />
+            </div>
+            {filtered.map((c) => (
+              <button
+                key={c.id}
+                onClick={() => {
+                  setClient(c.name);
+                  setOpen(false);
+                  setQ('');
+                }}
+                style={MENU_ROW}
+                onMouseEnter={(e) => (e.currentTarget.style.background = 'var(--bg-surface-2)')}
+                onMouseLeave={(e) => (e.currentTarget.style.background = 'transparent')}
+              >
+                <Icon name="Building2" size={13} style={{ color: 'var(--ink-3)' }} />
+                <span style={{ flex: 1, fontSize: 12.5 }}>{c.name}</span>
+                {client === c.name && (
+                  <Icon name="Check" size={13} style={{ color: 'var(--accent)' }} />
+                )}
+              </button>
+            ))}
+            {filtered.length === 0 && (
+              <div style={{ fontSize: 11.5, color: 'var(--ink-3)', padding: '8px 10px' }}>
+                {(clients ?? []).length === 0 ? 'No clients on file.' : 'No clients match.'}
+              </div>
+            )}
           </div>
         )}
       </div>
-    </div>
+    </QCard>
   );
 }
 
-// ── LinkedDataCard (asset_13) — NO strategy row (Strategies deleted) ───────────
-function LinkedDataCard({
-  cfg,
-  client,
-  update,
-}: {
-  cfg: WsConfig;
-  client: string | null;
-  update: (p: ConfigPatch) => void;
-}) {
-  const { data: industryData } = useIndustryData(cfg.industry);
+/** Format a budget value for the PE context block (no unit assumption). */
+function peNum(v: string | number | null | undefined): string | null {
+  if (v === null || v === undefined || v === '') return null;
+  const n = typeof v === 'number' ? v : Number(v);
+  if (Number.isFinite(n)) return n.toLocaleString('en-US');
+  return typeof v === 'string' ? v : null;
+}
+
+/**
+ * Build the "everything associated with this program element" context block the
+ * user asked for — identifiers + mission narrative (R-2A projects) + the recent
+ * FY financial history. Persisted on the draft and fed to Meri generation.
+ */
+function formatPeContext(d: ProgramElementDetail, projects: ProgramElementProject[]): string {
+  const lines: string[] = [];
+  const ids = [d.service, d.appropriationType, d.budgetActivity, d.status].filter(
+    Boolean,
+  ) as string[];
+  if (ids.length) lines.push(ids.join(' · '));
+  const missions = projects.map((p) => p.mission?.trim()).filter((m): m is string => Boolean(m));
+  if (missions.length) lines.push('Mission: ' + missions.slice(0, 2).join(' '));
+  const years = (d.years ?? [])
+    .slice()
+    .sort((a, b) => a.fy - b.fy)
+    .slice(-4);
+  for (const y of years) {
+    const parts: string[] = [];
+    const req = peNum(y.request);
+    if (req) parts.push('request ' + req);
+    const en = peNum(y.enacted);
+    if (en) parts.push('enacted ' + en);
+    if (parts.length) lines.push(`FY${y.fy}: ${parts.join(', ')}`);
+  }
+  return lines.join('\n');
+}
+
+function LinkedDataCard({ cfg, update }: { cfg: WsConfig; update: (p: ConfigPatch) => void }) {
+  const api = useApi();
   const { data: defaults } = useProductDefaults(cfg.product);
-  const data = industryData ?? [];
-  const linked = (cfg.linkedData as string[] | undefined) ?? [];
   const ask = (cfg.ask as { amount?: string; pb?: string; delta?: string } | undefined) ?? {};
   const isFunding = !!defaults?.funding;
-  const toggle = (label: string) =>
-    update({
-      linkedData: linked.includes(label) ? linked.filter((x) => x !== label) : [...linked, label],
-    });
+  // Optimistic ref so the three debounced ask fields (amount/pb/delta) merge
+  // against the freshest value instead of clobbering each other (cfg.ask is
+  // shallow-replaced on save, same as the letterhead object).
+  const askRef = useRef(ask);
+  useEffect(() => {
+    askRef.current =
+      (cfg.ask as { amount?: string; pb?: string; delta?: string } | undefined) ?? {};
+  }, [cfg.ask]);
+  const setAsk = (key: 'amount' | 'pb' | 'delta', v: string) => {
+    const next = { ...askRef.current, [key]: v };
+    askRef.current = next;
+    update({ ask: next });
+  };
+
+  // ── Program-element search (#5): the only platform-data control now. Search
+  // our program elements; selecting one pulls the full associated context
+  // (mission + FY financials) and persists it for Meri generation.
+  const linkedPes = (cfg.linkedProgramElements as WsLinkedProgramElement[] | undefined) ?? [];
+  // Optimistic ref so two PEs added in quick succession (addPe awaits a network
+  // round-trip before persisting) merge instead of clobbering each other under
+  // the engine's shallow config replace.
+  const linkedPesRef = useRef(linkedPes);
+  useEffect(() => {
+    linkedPesRef.current =
+      (cfg.linkedProgramElements as WsLinkedProgramElement[] | undefined) ?? [];
+  }, [cfg.linkedProgramElements]);
+  const [peQuery, setPeQuery] = useState('');
+  const dpe = useDebouncedValue(peQuery.trim(), 300);
+  const [peLoading, setPeLoading] = useState(false);
+  const { data: peResults } = useQuery({
+    queryKey: ['ws-pe-search', dpe],
+    enabled: dpe.length > 1,
+    placeholderData: (prev) => prev,
+    queryFn: async () =>
+      (await getProgramElementsList(api, { q: dpe, limit: 8, has_data: 'true' })).data,
+  });
+  const peHits = (peResults ?? []).filter((p) => !linkedPes.some((l) => l.peCode === p.peCode));
+
+  const addPe = async (peCode: string, title: string, service: string | null) => {
+    if (linkedPesRef.current.some((l) => l.peCode === peCode)) return;
+    setPeLoading(true);
+    let context = '';
+    try {
+      const [detail, projects] = await Promise.all([
+        getProgramElementDetail(api, peCode),
+        getProgramElementProjects(api, peCode).catch(() => [] as ProgramElementProject[]),
+      ]);
+      context = formatPeContext(detail, projects);
+    } catch {
+      context = `${peCode} — ${title}`;
+    } finally {
+      setPeLoading(false);
+    }
+    const next = [...linkedPesRef.current, { peCode, title, service, context }];
+    linkedPesRef.current = next;
+    update({ linkedProgramElements: next });
+    setPeQuery('');
+  };
+  const removePe = (peCode: string) => {
+    const next = linkedPesRef.current.filter((l) => l.peCode !== peCode);
+    linkedPesRef.current = next;
+    update({ linkedProgramElements: next });
+  };
+
   return (
     <QCard title="Links & data">
-      <div>
-        <div style={{ fontSize: 11.5, fontWeight: 600, color: 'var(--ink-2)', marginBottom: 5 }}>
-          Client
-        </div>
+      {/* Program elements (#5) — search PEs; selection pulls full context */}
+      <div style={{ marginTop: 16 }}>
         <div
-          className="field"
           style={{
             display: 'flex',
             alignItems: 'center',
-            gap: 9,
-            padding: '9px 12px',
-            cursor: 'pointer',
-            background: 'var(--bg-surface)',
+            gap: 6,
+            fontSize: 11.5,
+            fontWeight: 600,
+            color: 'var(--ink-2)',
+            marginBottom: 7,
           }}
         >
-          <Icon name="Building2" size={15} style={{ color: 'var(--ink-3)' }} />
-          <span style={{ flex: 1, fontSize: 13 }}>{client || 'No client linked'}</span>
-          <Icon name="ChevronDown" size={15} style={{ color: 'var(--ink-3)' }} />
+          <Icon name="Database" size={12} style={{ color: 'var(--accent)' }} />
+          Program elements
+          <span style={{ fontWeight: 400, color: 'var(--ink-3)' }}>
+            — search to attach budget context (mission, financials)
+          </span>
         </div>
-      </div>
-      {data.length > 0 && (
-        <div style={{ marginTop: 14 }}>
+
+        {linkedPes.length > 0 && (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 7, marginBottom: 9 }}>
+            {linkedPes.map((pe) => (
+              <div
+                key={pe.peCode}
+                style={{
+                  display: 'flex',
+                  alignItems: 'flex-start',
+                  gap: 10,
+                  padding: '9px 11px',
+                  border: '1px solid var(--border-1)',
+                  background: 'var(--bg-surface)',
+                  borderRadius: 8,
+                }}
+              >
+                <Icon
+                  name="Database"
+                  size={14}
+                  style={{ color: 'var(--accent)', marginTop: 2, flexShrink: 0 }}
+                />
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <div style={{ fontSize: 12.5, fontWeight: 600 }}>
+                    <span className="num">{pe.peCode}</span> — {pe.title}
+                  </div>
+                  {pe.context && (
+                    <div
+                      style={{
+                        fontSize: 11,
+                        color: 'var(--ink-3)',
+                        marginTop: 3,
+                        whiteSpace: 'pre-wrap',
+                        maxHeight: 84,
+                        overflow: 'auto',
+                        lineHeight: 1.45,
+                      }}
+                    >
+                      {pe.context}
+                    </div>
+                  )}
+                </div>
+                <button
+                  onClick={() => removePe(pe.peCode)}
+                  title="Remove"
+                  style={{
+                    border: 'none',
+                    background: 'none',
+                    cursor: 'pointer',
+                    color: 'var(--ink-4)',
+                    display: 'grid',
+                    placeItems: 'center',
+                    padding: 2,
+                    flexShrink: 0,
+                  }}
+                >
+                  <Icon name="X" size={14} />
+                </button>
+              </div>
+            ))}
+          </div>
+        )}
+
+        <div style={{ position: 'relative' }}>
           <div
+            className="field"
             style={{
               display: 'flex',
               alignItems: 'center',
-              gap: 6,
-              fontSize: 11.5,
-              fontWeight: 600,
-              color: 'var(--ink-2)',
-              marginBottom: 7,
+              gap: 8,
+              padding: '8px 11px',
+              background: 'var(--bg-surface)',
             }}
           >
-            <Icon name="Sparkles" size={12} style={{ color: 'var(--accent)' }} />
-            Pull from {cfg.industry} on the platform
+            <Icon name="Search" size={14} style={{ color: 'var(--ink-3)' }} />
+            <input
+              value={peQuery}
+              onChange={(e) => setPeQuery(e.target.value)}
+              placeholder="Search program elements by PE code or title"
+              style={{
+                flex: 1,
+                border: 'none',
+                outline: 'none',
+                background: 'transparent',
+                fontSize: 12.5,
+                fontFamily: 'var(--font-sans)',
+              }}
+            />
+            {peLoading && <Spin size="small" />}
           </div>
-          <div style={{ display: 'flex', flexWrap: 'wrap', gap: 7 }}>
-            {data.map((d) => {
-              const on = linked.includes(d.label);
-              return (
+          {dpe.length > 1 && peHits.length > 0 && (
+            <div
+              className="card"
+              style={{
+                position: 'absolute',
+                top: 'calc(100% + 4px)',
+                left: 0,
+                right: 0,
+                zIndex: 20,
+                padding: 5,
+                maxHeight: 300,
+                overflow: 'auto',
+                boxShadow: 'var(--shadow-2)',
+              }}
+            >
+              {peHits.map((p) => (
                 <button
-                  key={d.label}
-                  onClick={() => toggle(d.label)}
-                  className="btn sm"
-                  style={{
-                    borderColor: on ? 'var(--accent)' : 'var(--border-1)',
-                    background: on ? 'var(--accent-soft)' : 'var(--bg-surface)',
-                    color: on ? 'var(--accent-ink)' : 'var(--ink-2)',
-                  }}
+                  key={p.peCode}
+                  onClick={() => addPe(p.peCode, p.title, p.service)}
+                  style={MENU_ROW}
+                  onMouseEnter={(e) => (e.currentTarget.style.background = 'var(--bg-surface-2)')}
+                  onMouseLeave={(e) => (e.currentTarget.style.background = 'transparent')}
                 >
-                  <Icon name={on ? 'Check' : d.icon} size={12} />
-                  {d.label}
-                  {d.value && d.value !== '—' ? (
-                    <span className="num" style={{ opacity: 0.65 }}>
-                      {' '}
-                      · {d.value}
-                    </span>
-                  ) : null}
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <div style={{ fontSize: 12, fontWeight: 600 }}>
+                      <span className="num">{p.peCode}</span> — {p.title}
+                    </div>
+                    <div style={{ fontSize: 10.5, color: 'var(--ink-3)' }}>
+                      {[p.service, p.appropriationType].filter(Boolean).join(' · ')}
+                    </div>
+                  </div>
+                  <Icon name="Plus" size={13} style={{ color: 'var(--accent)', flexShrink: 0 }} />
                 </button>
-              );
-            })}
-          </div>
+              ))}
+            </div>
+          )}
+          {dpe.length > 1 && peResults && peHits.length === 0 && (
+            <div
+              style={{
+                fontSize: 11.5,
+                color: 'var(--ink-3)',
+                padding: '8px 2px',
+                fontStyle: 'italic',
+              }}
+            >
+              No program elements found for &ldquo;{dpe}&rdquo;.
+            </div>
+          )}
         </div>
-      )}
-      <button
-        className="btn sm"
-        style={{ borderStyle: 'dashed', color: 'var(--ink-2)', marginTop: 12 }}
-      >
-        <Icon name="UserPlus" size={12} />
-        Import key contacts / program elements
-      </button>
+      </div>
+
       {isFunding && (
         <div style={{ marginTop: 14, paddingTop: 14, borderTop: '1px solid var(--border-1)' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 7, marginBottom: 10 }}>
@@ -2430,9 +2693,9 @@ function LinkedDataCard({
                 >
                   {label}
                 </div>
-                <input
+                <AutosaveField
                   value={ask[key] || ''}
-                  onChange={(e) => update({ ask: { ...ask, [key]: e.target.value } })}
+                  onCommit={(v) => setAsk(key, v)}
                   placeholder={placeholder}
                   className="field num"
                   style={{
@@ -2456,7 +2719,21 @@ function LinkedDataCard({
 // ── LetterheadCard (asset_13) ──────────────────────────────────────────────────
 function LetterheadCard({ cfg, update }: { cfg: WsConfig; update: (p: ConfigPatch) => void }) {
   const lh = cfg.letterhead || { custom: false, firmName: '', firmAddr: '' };
-  const setLh = (patch: Partial<typeof lh>) => update({ letterhead: { ...lh, ...patch } });
+  // Optimistic ref: the letterhead is one object edited by several debounced
+  // fields (logo/firmName/firmAddr). The engine shallow-replaces it, so each
+  // commit must merge against the freshest value — not a stale render snapshot —
+  // or a later field's save would wipe an earlier one.
+  const lhRef = useRef(lh);
+  useEffect(() => {
+    lhRef.current = cfg.letterhead || { custom: false, firmName: '', firmAddr: '' };
+  }, [cfg.letterhead]);
+  const setLh = (patch: Partial<typeof lh>) => {
+    const next = { ...lhRef.current, ...patch };
+    lhRef.current = next;
+    update({ letterhead: next });
+  };
+  const fileRef = useRef<HTMLInputElement>(null);
+  const [logoErr, setLogoErr] = useState<string | null>(null);
   const field: React.CSSProperties = {
     padding: '8px 12px',
     fontSize: 13,
@@ -2464,6 +2741,30 @@ function LetterheadCard({ cfg, update }: { cfg: WsConfig; update: (p: ConfigPatc
     background: 'var(--bg-surface)',
     width: '100%',
   };
+
+  // #7: open the OS file picker, validate, and persist the logo as a base64 data
+  // URL on the letterhead config (no separate asset endpoint needed for now).
+  const onPick = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const f = e.target.files?.[0];
+    e.target.value = ''; // allow re-selecting the same file
+    if (!f) return;
+    // PNG/JPEG only: these embed in the exported DOCX (SVG can't, so accepting
+    // it would preview a logo that silently vanishes from the Word output).
+    if (!/^image\/(png|jpeg)$/.test(f.type)) {
+      setLogoErr('Use a PNG or JPEG image.');
+      return;
+    }
+    if (f.size > 2 * 1024 * 1024) {
+      setLogoErr('Logo must be under 2 MB.');
+      return;
+    }
+    setLogoErr(null);
+    const reader = new FileReader();
+    reader.onload = () => setLh({ logoDataUrl: String(reader.result) });
+    reader.onerror = () => setLogoErr('Could not read that file.');
+    reader.readAsDataURL(f);
+  };
+
   return (
     <QCard title="Letterhead">
       <div
@@ -2493,7 +2794,7 @@ function LetterheadCard({ cfg, update }: { cfg: WsConfig; update: (p: ConfigPatc
             >
               Logo
             </div>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 13 }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 13, flexWrap: 'wrap' }}>
               <div
                 style={{
                   width: 64,
@@ -2501,8 +2802,10 @@ function LetterheadCard({ cfg, update }: { cfg: WsConfig; update: (p: ConfigPatc
                   borderRadius: 8,
                   flex: 'none',
                   border: '1px solid var(--border-1)',
-                  background:
-                    'repeating-linear-gradient(135deg, var(--bg-surface-2) 0 8px, var(--bg-sunken) 8px 16px)',
+                  overflow: 'hidden',
+                  background: lh.logoDataUrl
+                    ? 'var(--bg-surface)'
+                    : 'repeating-linear-gradient(135deg, var(--bg-surface-2) 0 8px, var(--bg-sunken) 8px 16px)',
                   display: 'grid',
                   placeItems: 'center',
                   fontFamily: 'var(--font-mono)',
@@ -2510,15 +2813,45 @@ function LetterheadCard({ cfg, update }: { cfg: WsConfig; update: (p: ConfigPatc
                   color: 'var(--ink-3)',
                 }}
               >
-                LOGO
+                {lh.logoDataUrl ? (
+                  <img
+                    src={lh.logoDataUrl}
+                    alt="Firm logo"
+                    style={{ maxWidth: '100%', maxHeight: '100%', objectFit: 'contain' }}
+                  />
+                ) : (
+                  'LOGO'
+                )}
               </div>
-              {/* Logo upload is a stub in Setup — the editor handles the real asset upload. */}
-              <button className="btn sm">
+              <input
+                ref={fileRef}
+                type="file"
+                accept="image/png,image/jpeg"
+                style={{ display: 'none' }}
+                onChange={onPick}
+              />
+              <button className="btn sm" type="button" onClick={() => fileRef.current?.click()}>
                 <Icon name="Upload" size={13} />
-                Upload logo
+                {lh.logoDataUrl ? 'Replace logo' : 'Upload logo'}
               </button>
-              <span style={{ fontSize: 11, color: 'var(--ink-3)' }}>
-                PNG or SVG, transparent background
+              {lh.logoDataUrl && (
+                <button
+                  className="btn sm btn-ghost"
+                  type="button"
+                  onClick={() => {
+                    setLogoErr(null);
+                    setLh({ logoDataUrl: undefined });
+                  }}
+                  style={{ color: 'var(--ink-2)' }}
+                >
+                  <Icon name="Trash2" size={13} />
+                  Remove
+                </button>
+              )}
+              <span
+                style={{ fontSize: 11, color: logoErr ? 'var(--danger, #c0392b)' : 'var(--ink-3)' }}
+              >
+                {logoErr || 'PNG or JPEG, transparent background'}
               </span>
             </div>
           </div>
@@ -2528,9 +2861,9 @@ function LetterheadCard({ cfg, update }: { cfg: WsConfig; update: (p: ConfigPatc
             >
               Firm name
             </div>
-            <input
+            <AutosaveField
               value={lh.firmName || ''}
-              onChange={(e) => setLh({ firmName: e.target.value })}
+              onCommit={(v) => setLh({ firmName: v })}
               className="field"
               style={field}
             />
@@ -2541,9 +2874,9 @@ function LetterheadCard({ cfg, update }: { cfg: WsConfig; update: (p: ConfigPatc
             >
               Address
             </div>
-            <input
+            <AutosaveField
               value={lh.firmAddr || ''}
-              onChange={(e) => setLh({ firmAddr: e.target.value })}
+              onCommit={(v) => setLh({ firmAddr: v })}
               className="field"
               style={field}
             />

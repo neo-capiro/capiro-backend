@@ -17,8 +17,22 @@ export class TemplatesController {
   forProduct(
     @CurrentTenant() ctx: WorkspaceTenantContext,
     @Query('product') product: string,
-  ): Promise<{ primary: TemplateView | null; secondary: TemplateView | null; all: TemplateView[] }> {
+  ): Promise<{
+    primary: TemplateView | null;
+    secondary: TemplateView | null;
+    all: TemplateView[];
+  }> {
     return this.templates.forProduct(ctx.tenantId, decodeURIComponent(product ?? ''));
+  }
+
+  /**
+   * GET /workspace-api/templates/library → the full tenant-visible template
+   * library (all products) for Setup's "Search all templates". Declared BEFORE
+   * @Get(':id') so 'library' isn't captured as an :id.
+   */
+  @Get('library')
+  library(@CurrentTenant() ctx: WorkspaceTenantContext): Promise<TemplateView[]> {
+    return this.templates.list(ctx.tenantId);
   }
 
   /** GET /workspace-api/templates/:id → full template (preview sections). */
