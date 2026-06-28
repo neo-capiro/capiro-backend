@@ -8,6 +8,7 @@
  * InsertRail to the active doc). State changes bubble up through onChange so the
  * editor's debounced autosave persists the body via useUpdateDocument.
  */
+import { useState, type DragEvent } from 'react';
 import type { WsBlock, WsLetterhead } from '../types.js';
 import { Icon } from '../kit.js';
 import { Letterhead, InsertedBlock } from './canvas-blocks.js';
@@ -48,10 +49,33 @@ export function PacketDocCanvas({
   const sections = blocks.filter((b) => b.type === 'section');
   const media = blocks.filter((b) => b.type !== 'section');
 
+  const [mediaDragIdx, setMediaDragIdx] = useState<number | null>(null);
+  const [mediaDragOver, setMediaDragOver] = useState<number | null>(null);
+
   const setBlock = (id: string, patch: Partial<WsBlock>) =>
     onChange({ ...body, blocks: blocks.map((b) => (b.id === id ? { ...b, ...patch } : b)) });
   const removeBlock = (id: string) =>
     onChange({ ...body, blocks: blocks.filter((b) => b.id !== id) });
+  // Reorder media among themselves. The canvas always renders sections then
+  // media, so persist body.blocks in that same order with the new media order.
+  const reorderMedia = (from: number, to: number) => {
+    if (from === to) return;
+    const next = media.slice();
+    const [moved] = next.splice(from, 1);
+    if (moved === undefined) return;
+    next.splice(to, 0, moved);
+    onChange({ ...body, blocks: [...sections, ...next] });
+  };
+  const onMediaDrop = (i: number) => {
+    if (mediaDragIdx === null || mediaDragIdx === i) {
+      setMediaDragIdx(null);
+      setMediaDragOver(null);
+      return;
+    }
+    reorderMedia(mediaDragIdx, i);
+    setMediaDragIdx(null);
+    setMediaDragOver(null);
+  };
 
   return (
     <div
@@ -183,12 +207,25 @@ export function PacketDocCanvas({
           </div>
         ))}
 
-        {media.map((b) => (
+        {media.map((b, i) => (
           <InsertedBlock
             key={b.id}
             block={b}
+            readOnly={readOnly}
             onRemove={() => removeBlock(b.id)}
             onChange={readOnly ? undefined : (patch) => setBlock(b.id, patch)}
+            isDragOver={mediaDragOver === i}
+            isDragging={mediaDragIdx === i}
+            onDragStart={readOnly ? undefined : () => setMediaDragIdx(i)}
+            onDragOver={(e: DragEvent) => {
+              e.preventDefault();
+              setMediaDragOver(i);
+            }}
+            onDrop={() => onMediaDrop(i)}
+            onDragEnd={() => {
+              setMediaDragIdx(null);
+              setMediaDragOver(null);
+            }}
           />
         ))}
       </div>

@@ -218,6 +218,8 @@ export function MeriPanel({
   onRunMeri,
   onApplyEdits,
   onEditContext,
+  pendingPrompt,
+  onPromptConsumed,
 }: {
   isMainDoc: boolean;
   /** Labels of the context items Meri uses (the real Context Builder plan). */
@@ -242,6 +244,10 @@ export function MeriPanel({
   /** Apply accepted edits to the document (section model + autosave). */
   onApplyEdits: (edits: WsAssistantEdit[]) => void;
   onEditContext: () => void;
+  /** A prompt to auto-send (e.g. a checks "Fix" → "Expand acronyms"). */
+  pendingPrompt?: string | null;
+  /** Called once the pending prompt has been consumed. */
+  onPromptConsumed?: () => void;
 }) {
   const tab = activeTab;
   const setTab = onTabChange;
@@ -288,6 +294,15 @@ export function MeriPanel({
 
   const setEditsState = (idx: number, editsState: ChatItem['editsState']) =>
     setItems((prev) => prev.map((it, i) => (i === idx ? { ...it, editsState } : it)));
+
+  // A checks "Fix" (or other caller) can hand Meri a prompt to run immediately.
+  // Consume it once; `send` no-ops while busy so a rapid double won't double-fire.
+  useEffect(() => {
+    if (!pendingPrompt) return;
+    void send(pendingPrompt);
+    onPromptConsumed?.();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [pendingPrompt]);
 
   const Tab = ({ k, label, badge }: { k: 'meri' | 'comments'; label: string; badge?: number }) => {
     const on = tab === k;
@@ -488,8 +503,21 @@ export function MeriPanel({
                 ),
               )}
               {busy && (
-                <div style={{ fontSize: 12, color: 'var(--ink-3)' }}>
-                  <b style={{ color: 'var(--accent)' }}>Meri</b> is thinking…
+                <div
+                  style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: 7,
+                    fontSize: 12,
+                    color: 'var(--ink-3)',
+                  }}
+                >
+                  <b style={{ color: 'var(--accent)' }}>Meri</b> is working
+                  <span className="ws-typing" aria-label="Meri is working">
+                    <i />
+                    <i />
+                    <i />
+                  </span>
                 </div>
               )}
             </div>

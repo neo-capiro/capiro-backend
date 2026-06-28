@@ -228,11 +228,11 @@ export function SectionBlock({
             {[92, 100, 64].map((w, i) => (
               <div
                 key={i}
+                className="ws-skeleton-bar"
                 style={{
                   height: 8,
                   width: w + '%',
                   borderRadius: 5,
-                  background: 'linear-gradient(90deg,#C9D5F2,#E3E9F8)',
                 }}
               />
             ))}

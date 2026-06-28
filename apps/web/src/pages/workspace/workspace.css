@@ -475,16 +475,33 @@
 .ws-editor-scroll {
   flex: 1;
   min-height: 0;
-  overflow: auto;
+  /* Bound the editor body and let each COLUMN own its scroll, instead of
+     scrolling the whole grid as one unit (which pushed the Meri composer far
+     below the fold and gave the chat no scroller of its own). */
+  overflow: hidden;
   position: relative;
+  display: flex;
+  flex-direction: column;
 }
 .ws-editor-cols {
   display: grid;
   grid-template-columns: 208px 1fr 74px 300px;
-  min-height: 520px;
+  /* One row that fills the scroll container's height so every column is bounded
+     to the viewport and scrolls internally (StepsRail · canvas · InsertRail ·
+     MeriPanel). */
+  grid-template-rows: minmax(0, 1fr);
+  flex: 1;
+  min-height: 0;
+}
+.ws-editor-cols > * {
+  /* Allow each grid column to shrink below its content so its own overflow:auto
+     can take effect (otherwise min-height/width:auto forces content size). */
+  min-height: 0;
+  min-width: 0;
 }
 .ws-editor-canvas {
   overflow: auto;
+  min-height: 0;
   padding: 22px 30px 30px;
   background: var(--bg-canvas);
   display: flex;
@@ -523,6 +540,62 @@
   100% {
     box-shadow: 0 0 0 0 transparent;
     background: transparent;
+  }
+}
+
+/* Meri "is thinking" typing indicator (in-editor chat) — three bouncing dots. */
+.ws-typing {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  vertical-align: middle;
+}
+.ws-typing > i {
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+  background: var(--accent, #2a57ce);
+  display: inline-block;
+  animation: ws-bounce 1s infinite ease-in-out both;
+}
+.ws-typing > i:nth-child(2) {
+  animation-delay: 0.15s;
+}
+.ws-typing > i:nth-child(3) {
+  animation-delay: 0.3s;
+}
+@keyframes ws-bounce {
+  0%,
+  80%,
+  100% {
+    transform: translateY(0);
+    opacity: 0.35;
+  }
+  40% {
+    transform: translateY(-3px);
+    opacity: 1;
+  }
+}
+
+/* Animated skeleton bar (section "Meri is drafting" placeholder) — shimmer so it
+   reads as active work, not a frozen gradient. */
+.ws-skeleton-bar {
+  background: linear-gradient(90deg, #c9d5f2 25%, #e9eefb 50%, #c9d5f2 75%);
+  background-size: 400% 100%;
+  animation: ws-shimmer 1.4s ease infinite;
+}
+@keyframes ws-shimmer {
+  0% {
+    background-position: 200% 0;
+  }
+  100% {
+    background-position: -200% 0;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .ws-typing > i,
+  .ws-skeleton-bar {
+    animation: none;
   }
 }
 

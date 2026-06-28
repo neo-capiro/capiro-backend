@@ -2,6 +2,7 @@
  * Document-canvas chrome (ported from the prototype, asset_14): Letterhead,
  * image/logo placeholders, and a sample budget table for inserted Table blocks.
  */
+import type { DragEvent } from 'react';
 import type { WsBlock, WsLetterhead } from '../types.js';
 import { Icon } from '../kit.js';
 
@@ -269,6 +270,12 @@ export function InsertedBlock({
   onRemove,
   onChange,
   readOnly,
+  onDragStart,
+  onDragOver,
+  onDrop,
+  onDragEnd,
+  isDragOver,
+  isDragging,
 }: {
   block: WsBlock;
   flash?: boolean;
@@ -276,6 +283,14 @@ export function InsertedBlock({
   onChange?: (patch: Partial<WsBlock>) => void;
   /** Read-only render (Preview): hide the remove control; tables aren't editable. */
   readOnly?: boolean;
+  /** Drag-to-reorder among sibling inserted blocks (grip handle drives the drag;
+   *  the block body is the drop target). Omit to disable reordering. */
+  onDragStart?: () => void;
+  onDragOver?: (e: DragEvent) => void;
+  onDrop?: () => void;
+  onDragEnd?: () => void;
+  isDragOver?: boolean;
+  isDragging?: boolean;
 }) {
   const kind = block.type;
   const isTable = kind === 'table';
@@ -283,12 +298,48 @@ export function InsertedBlock({
   // carrying a `source` (the new pull-from-platform prefilled custom tables).
   const source = typeof block.source === 'string' ? block.source : undefined;
   const isPlatform = block.variant === 'platform' || !!source;
+  const canDrag = !readOnly && !!onDragStart;
   return (
     <div
       id={`ws-block-${block.id}`}
       className={flash ? 'ws-flash' : undefined}
-      style={{ position: 'relative', marginTop: 14 }}
+      onDragOver={onDragOver}
+      onDrop={onDrop}
+      style={{
+        position: 'relative',
+        marginTop: 14,
+        // Drop-target affordance mirrors SectionBlock (accent top edge + dim).
+        borderTop: isDragOver ? '2px solid var(--accent)' : '2px solid transparent',
+        borderRadius: 8,
+        opacity: isDragging ? 0.45 : 1,
+        transition: 'border-color 0.1s, opacity 0.15s',
+      }}
     >
+      {canDrag && (
+        <span
+          draggable
+          onDragStart={onDragStart}
+          onDragEnd={onDragEnd}
+          title="Drag to reorder"
+          style={{
+            position: 'absolute',
+            top: 6,
+            left: 6,
+            zIndex: 2,
+            width: 22,
+            height: 22,
+            borderRadius: 6,
+            border: '1px solid var(--border-1)',
+            background: 'var(--bg-surface)',
+            cursor: 'grab',
+            display: 'grid',
+            placeItems: 'center',
+            color: 'var(--ink-3)',
+          }}
+        >
+          <Icon name="GripVertical" size={12} />
+        </span>
+      )}
       {!readOnly && (
         <button
           onClick={onRemove}
@@ -317,6 +368,7 @@ export function InsertedBlock({
           <img
             src={block.src}
             alt={kind === 'logo' ? 'Logo' : 'Figure'}
+            draggable={false}
             style={{
               maxWidth: '100%',
               maxHeight: kind === 'logo' ? 84 : 320,

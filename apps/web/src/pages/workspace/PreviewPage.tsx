@@ -26,7 +26,7 @@
  *    (Q-PV-3).
  *  - Autosaved stamp from draft.updatedAt.
  */
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useLayoutEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { App as AntApp, Spin } from 'antd';
 import { Icon, Ava } from './kit.js';
@@ -70,6 +70,8 @@ export function PreviewPage() {
   const [officeIdx, setOfficeIdx] = useState(0);
   const [officeMenu, setOfficeMenu] = useState(false);
   const [exporting, setExporting] = useState(false);
+  // Measured number of letter-size pages the white paper paginates into.
+  const [paperPageCount, setPaperPageCount] = useState(1);
 
   const cfg = draft?.config;
   const offices = useMemo(() => (cfg?.offices as string[] | undefined) ?? [], [cfg]);
@@ -140,8 +142,9 @@ export function PreviewPage() {
 
   const docTitle = draft.docTitle || draft.product || 'Document';
 
-  // ── View tab page counts (D1: paper = 1 page) ───────────────────────────────
-  const paperPages = 1;
+  // ── View tab page counts ────────────────────────────────────────────────────
+  // The white paper paginates; its count is measured by PaginatedPaper below.
+  const paperPages = paperPageCount;
   const coverPages = 1;
   const viewTabs: Array<[ViewKey, string, string]> = [
     ...(hasCover
@@ -159,8 +162,8 @@ export function PreviewPage() {
     view === 'cover'
       ? 'Cover letter · 1 page'
       : view === 'paper'
-        ? 'White paper · letter'
-        : 'Full packet · cover + white paper';
+        ? `White paper · ${paperPages} page${paperPages === 1 ? '' : 's'}`
+        : `Full packet · ${coverPages + paperPages} pages`;
 
   // ── Export wiring ───────────────────────────────────────────────────────────
   const exportLabel = `Export ${fmt === 'pdf' ? 'PDF' : 'Word'}${
@@ -398,25 +401,24 @@ export function PreviewPage() {
                 />
               </PageSheet>
             )}
-            {/* D1: the white-paper view renders exactly ONE paper page. */}
+            {/* The white paper paginates into real letter-size pages (print
+                preview): content is measured and split across page sheets. */}
             {(view === 'packet' || view === 'paper') && (
-              <PageSheet
+              <PaginatedPaper
                 custom={lhCustom}
                 logoDataUrl={firmLogo}
                 firmName={firmName}
                 firmAddr={firmAddr}
                 firmMark={firmMark}
-              >
-                <WhitePaperContent
-                  title={ax(docTitle)}
-                  metaLine={ax(metaLine)}
-                  sections={views.map((s) => ({
-                    name: ax(s.name),
-                    html: anonOn ? anonText(s.content, true, anonMap) : s.content,
-                  }))}
-                  blocks={mainBlocks}
-                />
-              </PageSheet>
+                title={ax(docTitle)}
+                metaLine={ax(metaLine)}
+                sections={views.map((s) => ({
+                  name: ax(s.name),
+                  html: anonOn ? anonText(s.content, true, anonMap) : s.content,
+                }))}
+                blocks={mainBlocks}
+                onPageCount={setPaperPageCount}
+              />
             )}
             <div
               style={{ textAlign: 'center', fontSize: 11, color: 'var(--ink-3)' }}
@@ -645,51 +647,12 @@ function PageSheet({
       }}
     >
       {custom && (
-        <div
-          style={{
-            display: 'flex',
-            alignItems: 'center',
-            gap: 9,
-            paddingBottom: 11,
-            borderBottom: '2px solid var(--ink-1)',
-            marginBottom: 18,
-          }}
-        >
-          {logoDataUrl ? (
-            <img
-              src={logoDataUrl}
-              alt={`${firmName} logo`}
-              style={{ width: 30, height: 30, borderRadius: 5, objectFit: 'contain', flex: 'none' }}
-            />
-          ) : (
-            <span
-              style={{
-                width: 30,
-                height: 30,
-                borderRadius: 5,
-                background: 'var(--ink-1)',
-                color: '#fff',
-                display: 'grid',
-                placeItems: 'center',
-                fontFamily: 'var(--font-serif)',
-                fontSize: 14,
-                fontWeight: 600,
-              }}
-            >
-              {firmMark}
-            </span>
-          )}
-          <div>
-            <div style={{ fontFamily: 'var(--font-serif)', fontSize: 14, fontWeight: 600 }}>
-              {firmName}
-            </div>
-            {firmAddr && (
-              <div style={{ fontSize: 9, color: 'var(--ink-3)', fontFamily: 'var(--font-mono)' }}>
-                {firmAddr}
-              </div>
-            )}
-          </div>
-        </div>
+        <FirmLetterhead
+          logoDataUrl={logoDataUrl}
+          firmName={firmName}
+          firmAddr={firmAddr}
+          firmMark={firmMark}
+        />
       )}
       {children}
     </div>
@@ -751,18 +714,71 @@ function CoverLetterContent({
   );
 }
 
-/** White-paper body rendered from the real section view-models (sanitized HTML). */
-function WhitePaperContent({
-  title,
-  metaLine,
-  sections,
-  blocks = [],
+/** Firm letterhead chrome (shared by the cover PageSheet and the paginated paper
+ *  so both render an identical header). Renders only when a custom letterhead was
+ *  opted into; shows the firm's logo (or initials) + name/address — never the client. */
+function FirmLetterhead({
+  logoDataUrl,
+  firmName,
+  firmAddr,
+  firmMark,
 }: {
-  title: string;
-  metaLine: string;
-  sections: Array<{ name: string; html: string }>;
-  blocks?: WsBlock[];
+  logoDataUrl?: string;
+  firmName: string;
+  firmAddr: string;
+  firmMark: string;
 }) {
+  return (
+    <div
+      style={{
+        display: 'flex',
+        alignItems: 'center',
+        gap: 9,
+        paddingBottom: 11,
+        borderBottom: '2px solid var(--ink-1)',
+        marginBottom: 18,
+      }}
+    >
+      {logoDataUrl ? (
+        <img
+          src={logoDataUrl}
+          alt={`${firmName} logo`}
+          style={{ width: 30, height: 30, borderRadius: 5, objectFit: 'contain', flex: 'none' }}
+        />
+      ) : (
+        <span
+          style={{
+            width: 30,
+            height: 30,
+            borderRadius: 5,
+            background: 'var(--ink-1)',
+            color: '#fff',
+            display: 'grid',
+            placeItems: 'center',
+            fontFamily: 'var(--font-serif)',
+            fontSize: 14,
+            fontWeight: 600,
+          }}
+        >
+          {firmMark}
+        </span>
+      )}
+      <div>
+        <div style={{ fontFamily: 'var(--font-serif)', fontSize: 14, fontWeight: 600 }}>
+          {firmName}
+        </div>
+        {firmAddr && (
+          <div style={{ fontSize: 9, color: 'var(--ink-3)', fontFamily: 'var(--font-mono)' }}>
+            {firmAddr}
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
+/** White-paper title + budget-identifier meta line (one flow block). */
+function PaperTitle({ title, metaLine }: { title: string; metaLine: string }) {
   return (
     <div>
       <div
@@ -776,44 +792,213 @@ function WhitePaperContent({
       >
         {title}
       </div>
-      <div
-        style={{
-          fontFamily: 'var(--font-mono)',
-          fontSize: 9.5,
-          color: 'var(--ink-3)',
-          marginBottom: 18,
-        }}
-      >
+      <div style={{ fontFamily: 'var(--font-mono)', fontSize: 9.5, color: 'var(--ink-3)' }}>
         {metaLine}
       </div>
-      {sections.length === 0 && (
+    </div>
+  );
+}
+
+/** One white-paper section (heading + sanitized body) — one flow block. */
+function PaperSection({ name, html }: { name: string; html: string }) {
+  return (
+    <div>
+      <div style={{ fontSize: 12, fontWeight: 700, marginBottom: 4 }}>{name}</div>
+      {html.trim() ? (
+        <div
+          style={{ fontSize: 11.5, lineHeight: 1.6, color: 'var(--ink-2)' }}
+          // Section bodies are stored as sanitized HTML; re-sanitize on render.
+          dangerouslySetInnerHTML={{ __html: sanitizeHtml(html) }}
+        />
+      ) : (
+        <div style={{ fontSize: 11.5, color: 'var(--ink-4)', fontStyle: 'italic' }}>
+          Not yet drafted.
+        </div>
+      )}
+    </div>
+  );
+}
+
+/** Shallow equality for the page→item-index assignment (avoids setState loops). */
+function sameLayout(a: number[][], b: number[][]): boolean {
+  if (a.length !== b.length) return false;
+  for (let i = 0; i < a.length; i++) {
+    const x = a[i];
+    const y = b[i];
+    if (!x || !y || x.length !== y.length) return false;
+    for (let j = 0; j < x.length; j++) if (x[j] !== y[j]) return false;
+  }
+  return true;
+}
+
+/**
+ * White paper paginated into real letter-size page sheets (a print preview). The
+ * content (letterhead → title → each section → each inserted media block) is
+ * rendered once in a hidden measuring layer at the exact content width; each
+ * block's height is measured and blocks are greedily packed into pages of the
+ * printable height (letter minus 1in-ish margins). Blocks are atomic in v1 (a
+ * single over-tall block simply gets its own, taller page). The measured page
+ * count is reported up via onPageCount to drive the view-tab badges.
+ */
+function PaginatedPaper({
+  custom,
+  logoDataUrl,
+  firmName,
+  firmAddr,
+  firmMark,
+  title,
+  metaLine,
+  sections,
+  blocks = [],
+  onPageCount,
+}: {
+  custom: boolean;
+  logoDataUrl?: string;
+  firmName: string;
+  firmAddr: string;
+  firmMark: string;
+  title: string;
+  metaLine: string;
+  sections: Array<{ name: string; html: string }>;
+  blocks?: WsBlock[];
+  onPageCount?: (n: number) => void;
+}) {
+  // Flow items in document order. Letterhead appears once (page 1 only) because
+  // it is a flow block, not per-sheet chrome.
+  const items: Array<{ key: string; node: ReactNode }> = [];
+  if (custom) {
+    items.push({
+      key: '__lh',
+      node: (
+        <FirmLetterhead
+          logoDataUrl={logoDataUrl}
+          firmName={firmName}
+          firmAddr={firmAddr}
+          firmMark={firmMark}
+        />
+      ),
+    });
+  }
+  items.push({ key: '__title', node: <PaperTitle title={title} metaLine={metaLine} /> });
+  if (sections.length === 0) {
+    items.push({
+      key: '__empty',
+      node: (
         <div style={{ fontSize: 12, color: 'var(--ink-3)', fontStyle: 'italic' }}>
           No sections yet — add and draft sections in the editor.
         </div>
-      )}
-      {sections.map((s, i) => (
-        <div key={s.name + i} style={{ marginBottom: 14 }}>
-          <div style={{ fontSize: 12, fontWeight: 700, marginBottom: 4 }}>{s.name}</div>
-          {s.html.trim() ? (
-            <div
-              style={{ fontSize: 11.5, lineHeight: 1.6, color: 'var(--ink-2)' }}
-              // Section bodies are stored as sanitized HTML; re-sanitize on render.
-              dangerouslySetInnerHTML={{ __html: sanitizeHtml(s.html) }}
-            />
-          ) : (
-            <div style={{ fontSize: 11.5, color: 'var(--ink-4)', fontStyle: 'italic' }}>
-              Not yet drafted.
-            </div>
+      ),
+    });
+  }
+  sections.forEach((s, i) =>
+    items.push({ key: `sec-${i}-${s.name}`, node: <PaperSection name={s.name} html={s.html} /> }),
+  );
+  blocks
+    .filter((b) => b.type !== 'section')
+    .forEach((b) =>
+      items.push({
+        key: `blk-${b.id}`,
+        node: <InsertedBlock block={b} onRemove={() => {}} readOnly />,
+      }),
+    );
+
+  const measureRefs = useRef<(HTMLDivElement | null)[]>([]);
+  const [pages, setPages] = useState<number[][]>([items.map((_, i) => i)]);
+  const lastCount = useRef(1);
+
+  // A content signature so the (re)measure only runs when the rendered content
+  // actually changes — not on every parent re-render (which would loop).
+  const sig =
+    `${custom}|${title}|${metaLine}|` +
+    sections.map((s) => `${s.name}:${s.html.length}`).join('|') +
+    '#' +
+    blocks
+      .map((b) => `${b.id}:${b.type}:${b.src ? 1 : 0}:${b.cells ? b.cells.length : 0}`)
+      .join('|');
+
+  useLayoutEffect(() => {
+    const USABLE = 792 - 80; // letter height (792pt) minus 40px top + 40px bottom padding
+    const GAP = 14; // matches the per-block marginBottom
+    const heights = items.map((_, i) => measureRefs.current[i]?.offsetHeight ?? 0);
+    const result: number[][] = [];
+    let cur: number[] = [];
+    let used = 0;
+    items.forEach((_, i) => {
+      const h = heights[i] ?? 0;
+      const add = h + (cur.length ? GAP : 0);
+      if (cur.length && used + add > USABLE) {
+        result.push(cur);
+        cur = [i];
+        used = h;
+      } else {
+        cur.push(i);
+        used += add;
+      }
+    });
+    if (cur.length) result.push(cur);
+    const next = result.length ? result : [items.map((_, i) => i)];
+    setPages((prev) => (sameLayout(prev, next) ? prev : next));
+    if (next.length !== lastCount.current) {
+      lastCount.current = next.length;
+      onPageCount?.(next.length);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [sig]);
+
+  return (
+    <>
+      {/* Hidden measuring layer at the exact page content width (612 − 2×48). */}
+      <div
+        aria-hidden
+        style={{
+          position: 'absolute',
+          top: 0,
+          left: 0,
+          width: 516,
+          height: 0,
+          overflow: 'hidden',
+          visibility: 'hidden',
+          pointerEvents: 'none',
+          zIndex: -1,
+        }}
+      >
+        {items.map((it, i) => (
+          <div
+            key={it.key}
+            ref={(el) => {
+              measureRefs.current[i] = el;
+            }}
+            style={{ marginBottom: 14 }}
+          >
+            {it.node}
+          </div>
+        ))}
+      </div>
+      {pages.map((idxs, p) => (
+        <div
+          key={p}
+          className="ws-print-sheet"
+          style={{
+            width: 612,
+            maxWidth: '100%',
+            minHeight: 792,
+            background: '#fff',
+            boxShadow: 'var(--shadow-2)',
+            borderRadius: 2,
+            padding: '40px 48px',
+            margin: '0 auto 20px',
+          }}
+        >
+          {idxs.map((i) =>
+            items[i] ? (
+              <div key={items[i]!.key} style={{ marginBottom: 14 }}>
+                {items[i]!.node}
+              </div>
+            ) : null,
           )}
         </div>
       ))}
-      {/* Inserted media (photos / tables / logos) — read-only in the preview. */}
-      {blocks
-        .filter((b) => b.type !== 'section')
-        .map((b) => (
-          <InsertedBlock key={b.id} block={b} onRemove={() => {}} readOnly />
-        ))}
-    </div>
+    </>
   );
 }
 

@@ -36,6 +36,7 @@ export function PaperBody({
   onMarkReviewed,
   onRemoveBlock,
   onChangeBlock,
+  onReorderBlock,
   justInsertedId,
   onToast,
   readOnly,
@@ -63,12 +64,17 @@ export function PaperBody({
   onMarkReviewed: (name: string) => void;
   onRemoveBlock: (id: string) => void;
   onChangeBlock?: (id: string, patch: Partial<WsBlock>) => void;
+  /** Reorder inserted media blocks (photo/table/logo) among themselves. */
+  onReorderBlock?: (from: number, to: number) => void;
   /** Block id just inserted — scrolled into view + flashed (E-9). */
   justInsertedId?: string | null;
   onToast: (msg: string) => void;
 }) {
   const [dragIdx, setDragIdx] = useState<number | null>(null);
   const [dragOver, setDragOver] = useState<number | null>(null);
+  // Separate drag state for the inserted-media list (independent of sections).
+  const [blockDragIdx, setBlockDragIdx] = useState<number | null>(null);
+  const [blockDragOver, setBlockDragOver] = useState<number | null>(null);
 
   const onDrop = (i: number) => {
     if (dragIdx === null || dragIdx === i) {
@@ -81,9 +87,21 @@ export function PaperBody({
     setDragOver(null);
   };
 
+  const onBlockDrop = (i: number) => {
+    if (blockDragIdx === null || blockDragIdx === i) {
+      setBlockDragIdx(null);
+      setBlockDragOver(null);
+      return;
+    }
+    onReorderBlock?.(blockDragIdx, i);
+    setBlockDragIdx(null);
+    setBlockDragOver(null);
+  };
+
   return (
     <>
       <h1
+        data-ws-doc-title
         contentEditable={!readOnly}
         suppressContentEditableWarning
         spellCheck={false}
@@ -152,13 +170,26 @@ export function PaperBody({
         />
       ))}
 
-      {blocks.map((b) => (
+      {blocks.map((b, i) => (
         <InsertedBlock
           key={b.id}
           block={b}
           flash={justInsertedId === b.id}
+          readOnly={readOnly}
           onRemove={() => onRemoveBlock(b.id)}
           onChange={onChangeBlock ? (patch) => onChangeBlock(b.id, patch) : undefined}
+          isDragOver={blockDragOver === i}
+          isDragging={blockDragIdx === i}
+          onDragStart={onReorderBlock ? () => setBlockDragIdx(i) : undefined}
+          onDragOver={(e: DragEvent) => {
+            e.preventDefault();
+            setBlockDragOver(i);
+          }}
+          onDrop={() => onBlockDrop(i)}
+          onDragEnd={() => {
+            setBlockDragIdx(null);
+            setBlockDragOver(null);
+          }}
         />
       ))}
     </>

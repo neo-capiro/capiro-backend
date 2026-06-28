@@ -80,8 +80,20 @@ import {
   type SelectionAnchor,
 } from './editor/anchors.js';
 import type { ComposingComment } from './editor/CommentsRail.js';
+import { MeriDraftingOverlay } from './LibraryPage.js';
 
 const AUTOSAVE_MS = 1200;
+
+// Quick-action prompts the checks "Fix" hands to Meri for the prose checks
+// (mirror MeriPanel.QUICK_ACTIONS so a one-click Fix actually remediates).
+const FIX_PROMPTS: Record<string, string> = {
+  acronyms:
+    'Find undefined acronyms throughout the document and expand each on first use, e.g. "NDAA (National Defense Authorization Act)". Propose section edits.',
+  'federal-nexus':
+    'Add or strengthen an explicit federal nexus — cite the authorizing statute / USC reference and make the federal role unmistakable. Propose section edits.',
+  length:
+    'This document runs long. Tighten every section: cut redundancy and wordiness while preserving the substance and the ask. Propose section edits.',
+};
 // E-16: at most one autosave version checkpoint per this interval of active editing.
 const VERSION_CHECKPOINT_MS = 5 * 60_000;
 const MAIN_TAB = 'main';
@@ -155,6 +167,8 @@ export function EditorPage() {
   const [showAnonymizeReview, setShowAnonymizeReview] = useState(false);
   // Phase 6b: which toolbar popover is open (mutually exclusive).
   const [popover, setPopover] = useState<'checks' | 'history' | null>(null);
+  // A prompt the checks "Fix" hands to the Meri panel to run immediately.
+  const [meriPrompt, setMeriPrompt] = useState<string | null>(null);
 
   // The engine document the active canvas maps to (comment scope). The MAIN
   // canvas is the primary WsDocument (lowest ordinal); packet tabs are their own
@@ -469,7 +483,10 @@ export function EditorPage() {
       <div className="ws-shell">
         <StepsRail active="draft" draftId={draftId} />
         <div className="ws-stage" style={{ textAlign: 'center', padding: 60 }}>
-          <Spin />
+          <Spin size="large" />
+          <div style={{ marginTop: 14, fontSize: 13, color: 'var(--ink-2)' }}>
+            Loading your draft…
+          </div>
         </div>
       </div>
     );
@@ -719,6 +736,17 @@ export function EditorPage() {
     cfgDirty.current = true;
     scheduleSave();
   };
+  const reorderMainBlock = (from: number, to: number) => {
+    setMainBlocks((b) => {
+      const arr = [...b];
+      const [moved] = arr.splice(from, 1);
+      if (moved === undefined) return b;
+      arr.splice(to, 0, moved);
+      return arr;
+    });
+    cfgDirty.current = true;
+    scheduleSave();
+  };
 
   // ── Packet doc handlers ─────────────────────────────────────────────────────
   const onPacketChange = (docId: string, body: PacketBody) => {
@@ -760,26 +788,97 @@ export function EditorPage() {
   };
   const onChecks = () => setPopover((p) => (p === 'checks' ? null : 'checks'));
   const onHistory = () => setPopover((p) => (p === 'history' ? null : 'history'));
-  // "Fix" in the checks popover: a jump-to stub (closes the popover + toasts).
-  // E-18: "Fix" performs a concrete action per check instead of a toast stub —
-  // open the anonymize review, or jump to + focus the first empty section.
-  const onFixCheck = (c: WsCheckResult) => {
-    setPopover(null);
-    if (c.id === 'anonymize-map' || c.id === 'anonymize') {
-      setShowAnonymizeReview(true);
-      return;
-    }
-    const content = (cfg.sectionContent as Record<string, string> | undefined) ?? {};
-    // Mirror the engine's sections-filled check: strip HTML before testing so a
-    // whitespace-only "<p></p>" section counts as empty (checks.service.ts).
-    const empty = cfg.sections.find((s) => !(content[s] || '').replace(/<[^>]*>/g, '').trim());
-    if (empty) {
-      const esc = typeof CSS !== 'undefined' ? CSS.escape(empty) : empty;
-      // Anchor is on the SectionBlock outer wrapper (renders for empty sections too).
+
+  // Jump the canvas to a section by name (switch to the MAIN doc first; the
+  // anchor is on the SectionBlock wrapper, present even for empty sections). The
+  // tab switch needs a tick before the anchor exists in the DOM.
+  const jumpToSection = (name: string, msg: string) => {
+    setActiveTab(MAIN_TAB);
+    toast(msg);
+    window.setTimeout(() => {
+      const esc = typeof CSS !== 'undefined' ? CSS.escape(name) : name;
       const el = document.querySelector(`[data-ws-section-block="${esc}"]`) as HTMLElement | null;
       el?.scrollIntoView({ behavior: 'smooth', block: 'center' });
       el?.focus?.();
-      toast(`Fix: draft the "${empty}" section`);
+    }, 60);
+  };
+
+  // "Fix" in the checks popover now performs a CONCRETE action per check instead
+  // of a dead toast: open a modal, jump+focus the relevant section/field, route
+  // to Build context, or hand Meri a one-click remediation prompt.
+  const onFixCheck = (c: WsCheckResult) => {
+    setPopover(null);
+    const content = (cfg.sectionContent as Record<string, string> | undefined) ?? {};
+    switch (c.id) {
+      case 'anonymize':
+      case 'anonymize-map':
+        setShowAnonymizeReview(true);
+        return;
+      case 'title':
+        setActiveTab(MAIN_TAB);
+        toast('Fix: set the document title');
+        window.setTimeout(() => {
+          const el = document.querySelector('[data-ws-doc-title]') as HTMLElement | null;
+          el?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+          el?.focus?.();
+        }, 60);
+        return;
+      case 'committees':
+        toast('Fix: choose committees / pathway in Build context');
+        navigate(`/workspace/context/${draftId}`);
+        return;
+      case 'office-nexus':
+        setActiveTab(MAIN_TAB);
+        toast('Fix: switch offices above and tailor each one');
+        window.setTimeout(
+          () =>
+            document.querySelector('.ws-editor-canvas')?.scrollTo({ top: 0, behavior: 'smooth' }),
+          60,
+        );
+        return;
+      case 'acronyms':
+      case 'federal-nexus':
+      case 'length': {
+        const prompt = FIX_PROMPTS[c.id];
+        if (prompt) {
+          setRailTab('meri');
+          setMeriPrompt(prompt);
+          toast('Meri is on it — see the Meri panel');
+          return;
+        }
+        break;
+      }
+      case 'dollar-ask': {
+        const smart = views.find((v) => v.smart);
+        if (smart) {
+          jumpToSection(smart.name, 'Fix: add the dollar amount + delta above PB');
+          return;
+        }
+        break;
+      }
+      case 'clear-ask': {
+        const askName = cfg.sections.find((s) => /\bask\b|request/i.test(s));
+        if (askName) jumpToSection(askName, 'Fix: write the single, clear one-sentence ask');
+        else toast('Fix: add an "Ask / Request" section, then state the ask in one sentence');
+        return;
+      }
+      case 'placeholders': {
+        const ph = cfg.sections.find((s) =>
+          /\bTODO\b|\bTBD\b|lorem ipsum|\[[^\]]+\]/i.test(content[s] || ''),
+        );
+        if (ph) {
+          jumpToSection(ph, 'Fix: replace the leftover placeholder');
+          return;
+        }
+        break;
+      }
+      default:
+        break;
+    }
+    // sections-filled (and any fall-through): jump to the first empty section.
+    const empty = cfg.sections.find((s) => !(content[s] || '').replace(/<[^>]*>/g, '').trim());
+    if (empty) {
+      jumpToSection(empty, `Fix: draft the "${empty}" section`);
       return;
     }
     toast(`Review: ${c.label}${c.detail ? ` — ${c.detail}` : ''}`);
@@ -1000,6 +1099,7 @@ export function EditorPage() {
                     onMarkReviewed={markReviewed}
                     onRemoveBlock={removeMainBlock}
                     onChangeBlock={changeMainBlock}
+                    onReorderBlock={reorderMainBlock}
                     justInsertedId={justInserted}
                     onToast={toast}
                   />
@@ -1046,9 +1146,20 @@ export function EditorPage() {
             onRunMeri={runMeri}
             onApplyEdits={applyMeriEdits}
             onEditContext={onEditContext}
+            pendingPrompt={meriPrompt}
+            onPromptConsumed={() => setMeriPrompt(null)}
           />
         </div>
       </div>
+
+      {/* Whole-document regenerate (Meri can take ~1 min) — show a real overlay
+          so the user knows it's working, not just a toolbar label flip. */}
+      {regenerating && (
+        <MeriDraftingOverlay
+          title="Meri is re-drafting…"
+          detail="Re-writing every section from your setup and context. This can take a minute."
+        />
+      )}
 
       {/* Floating "Comment" button at a live canvas selection. */}
       {selectionFab && (
