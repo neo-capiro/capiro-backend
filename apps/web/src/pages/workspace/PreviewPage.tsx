@@ -44,7 +44,8 @@ import { budgetFrom } from './editor/BudgetBlock.js';
 import { anonymizeMap, anonText } from './editor/anonymize.js';
 import type { StoredRedaction } from './editor/anonymize.js';
 import { sanitizeWorkspaceBody as sanitizeHtml } from './editor/workspace-richtext.js';
-import type { WsAsk, WsCheckResult, WsGateResult } from './types.js';
+import { InsertedBlock } from './editor/canvas-blocks.js';
+import type { WsAsk, WsBlock, WsCheckResult } from './types.js';
 
 type ViewKey = 'cover' | 'paper' | 'packet';
 type Fmt = 'pdf' | 'word';
@@ -53,7 +54,7 @@ type Bundle = 'separate' | 'packet';
 export function PreviewPage() {
   const { draftId } = useParams();
   const navigate = useNavigate();
-  const { message, modal } = AntApp.useApp();
+  const { message } = AntApp.useApp();
 
   const { data: draft, isLoading } = useDraft(draftId ?? null);
   const { data: me } = useMe();
@@ -97,6 +98,9 @@ export function PreviewPage() {
 
   // ── Real content view-models (mirrors EditorPage) ───────────────────────────
   const views = sectionViews(cfg);
+  // Inserted media (photo/table/logo) live in cfg.mainBlocks — render them in the
+  // preview/export sheet too, not just the editor (they were silently dropped).
+  const mainBlocks = (cfg.mainBlocks as WsBlock[] | undefined) ?? [];
   const storedRedactions = (cfg.anonymizeMap as { redactions?: StoredRedaction[] } | undefined)
     ?.redactions;
   const anonOn = !!cfg.anonymize;
@@ -129,9 +133,7 @@ export function PreviewPage() {
   const ax = (t: string | null | undefined) =>
     anonOn ? anonText(t ?? '', true, anonMap) : (t ?? '');
 
-  // ── Checks / gates (warn, never block — Q-PV-2) ─────────────────────────────
-  const gates: WsGateResult[] = checks?.gates ?? [];
-  const unmetGates = gates.filter((g) => g.status !== 'success');
+  // ── Rule-based checks (live; advisory only — human sign-off gates removed) ────
   const openChecks: WsCheckResult[] = (checks?.checks ?? []).filter((c) => c.status !== 'success');
 
   const docTitle = draft.docTitle || draft.product || 'Document';
@@ -197,41 +199,9 @@ export function PreviewPage() {
     else void doExportWord();
   };
 
-  const onExport = () => {
-    // Gates WARN, never block: if any gate is unmet, confirm (listing them) and
-    // proceed on OK.
-    if (unmetGates.length > 0) {
-      modal.confirm({
-        title: 'Some sign-off gates are not met',
-        content: (
-          <div>
-            <div style={{ marginBottom: 8 }}>
-              You can export anyway, but these gates are still open:
-            </div>
-            <ul style={{ margin: 0, paddingLeft: 18 }}>
-              {unmetGates.map((g) => (
-                <li key={g.id} style={{ marginBottom: 2 }}>
-                  {g.label}
-                </li>
-              ))}
-            </ul>
-          </div>
-        ),
-        okText: 'Export anyway',
-        cancelText: 'Review first',
-        // Defer so the confirm modal fully unmounts before runExport →
-        // window.print() snapshots the page; otherwise the PDF captures the
-        // modal's backdrop instead of the document (the @media print rules also
-        // hide modal layers as a guarantee). This is what makes "Export anyway"
-        // actually produce the document after acknowledging the warning.
-        onOk: () => {
-          window.setTimeout(runExport, 150);
-        },
-      });
-      return;
-    }
-    runExport();
-  };
+  // Export proceeds directly — sign-off gates were removed. The live rule-based
+  // checks are advisory and shown in the panel; they never block export.
+  const onExport = () => runExport();
 
   const onSaveCheckpoint = () => {
     if (!draftId) return;
@@ -427,6 +397,7 @@ export function PreviewPage() {
                     name: ax(s.name),
                     html: anonOn ? anonText(s.content, true, anonMap) : s.content,
                   }))}
+                  blocks={mainBlocks}
                 />
               </PageSheet>
             )}
@@ -451,7 +422,7 @@ export function PreviewPage() {
               gap: 16,
             }}
           >
-            {/* Sign-off gates (warn, never block) */}
+            {/* Rule-based checks (live, advisory — never block export). */}
             <div>
               <div
                 style={{
@@ -466,12 +437,12 @@ export function PreviewPage() {
                   justifyContent: 'space-between',
                 }}
               >
-                <span>Sign-off</span>
+                <span>Checks</span>
                 {checks?.score && (
                   <span
                     className="num"
                     style={{
-                      color: unmetGates.length ? 'var(--notable)' : 'var(--success)',
+                      color: openChecks.length ? 'var(--notable)' : 'var(--success)',
                       fontWeight: 600,
                     }}
                   >
@@ -479,86 +450,24 @@ export function PreviewPage() {
                   </span>
                 )}
               </div>
-              {gates.length === 0 && (
-                <div style={{ fontSize: 11.5, color: 'var(--ink-3)' }}>No gates to check.</div>
-              )}
-              {gates.map((g) => (
-                <div
-                  key={g.id}
-                  style={{
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: 8,
-                    padding: '6px 0',
-                    fontSize: 12.5,
-                  }}
-                >
-                  <span className={`dot ${g.status === 'success' ? 'success' : g.status}`} />
-                  <span
+              {openChecks.length === 0 ? (
+                <div style={{ fontSize: 11.5, color: 'var(--ink-3)' }}>All checks pass.</div>
+              ) : (
+                openChecks.map((c) => (
+                  <div
+                    key={c.id}
                     style={{
-                      flex: 1,
-                      color: g.status === 'success' ? 'var(--ink-2)' : 'var(--ink-1)',
-                      fontWeight: g.status === 'success' ? 400 : 500,
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: 8,
+                      padding: '5px 0',
+                      fontSize: 12,
                     }}
                   >
-                    {g.label}
-                  </span>
-                  {g.status === 'success' ? (
-                    <Icon name="Check" size={13} style={{ color: 'var(--success)' }} />
-                  ) : (
-                    <span className={`pill ${g.status}`}>
-                      {g.status === 'critical' ? 'Required' : 'Review'}
-                    </span>
-                  )}
-                </div>
-              ))}
-              {openChecks.length > 0 && (
-                <div
-                  style={{
-                    marginTop: 8,
-                    paddingTop: 8,
-                    borderTop: '1px solid var(--border-1)',
-                  }}
-                >
-                  {openChecks.map((c) => (
-                    <div
-                      key={c.id}
-                      style={{
-                        display: 'flex',
-                        alignItems: 'center',
-                        gap: 8,
-                        padding: '5px 0',
-                        fontSize: 12,
-                      }}
-                    >
-                      <span className={`dot ${c.status}`} />
-                      <span style={{ flex: 1, color: 'var(--ink-2)' }}>{c.label}</span>
-                    </div>
-                  ))}
-                </div>
-              )}
-              {unmetGates.length > 0 && (
-                <div
-                  style={{
-                    marginTop: 10,
-                    display: 'flex',
-                    gap: 7,
-                    alignItems: 'flex-start',
-                    fontSize: 11,
-                    color: 'var(--notable)',
-                    background: 'var(--notable-soft)',
-                    border: '1px solid var(--notable)',
-                    borderRadius: 8,
-                    padding: '8px 10px',
-                  }}
-                >
-                  <Icon name="TriangleAlert" size={13} style={{ flex: 'none', marginTop: 1 }} />
-                  <span>
-                    Exporting is allowed, but {unmetGates.length} sign-off gate
-                    {unmetGates.length === 1 ? '' : 's'} {unmetGates.length === 1 ? 'is' : 'are'}{' '}
-                    still open.
-                  </span>
-                </div>
+                    <span className={`dot ${c.status}`} />
+                    <span style={{ flex: 1, color: 'var(--ink-2)' }}>{c.label}</span>
+                  </div>
+                ))
               )}
             </div>
 
@@ -830,10 +739,12 @@ function WhitePaperContent({
   title,
   metaLine,
   sections,
+  blocks = [],
 }: {
   title: string;
   metaLine: string;
   sections: Array<{ name: string; html: string }>;
+  blocks?: WsBlock[];
 }) {
   return (
     <div>
@@ -879,6 +790,12 @@ function WhitePaperContent({
           )}
         </div>
       ))}
+      {/* Inserted media (photos / tables / logos) — read-only in the preview. */}
+      {blocks
+        .filter((b) => b.type !== 'section')
+        .map((b) => (
+          <InsertedBlock key={b.id} block={b} onRemove={() => {}} readOnly />
+        ))}
     </div>
   );
 }

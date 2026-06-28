@@ -268,42 +268,50 @@ export function InsertedBlock({
   flash,
   onRemove,
   onChange,
+  readOnly,
 }: {
   block: WsBlock;
   flash?: boolean;
   onRemove: () => void;
   onChange?: (patch: Partial<WsBlock>) => void;
+  /** Read-only render (Preview): hide the remove control; tables aren't editable. */
+  readOnly?: boolean;
 }) {
   const kind = block.type;
   const isTable = kind === 'table';
-  const isPlatform = block.variant === 'platform';
+  // "Pulled from platform" applies to the legacy platform variant OR any table
+  // carrying a `source` (the new pull-from-platform prefilled custom tables).
+  const source = typeof block.source === 'string' ? block.source : undefined;
+  const isPlatform = block.variant === 'platform' || !!source;
   return (
     <div
       id={`ws-block-${block.id}`}
       className={flash ? 'ws-flash' : undefined}
       style={{ position: 'relative', marginTop: 14 }}
     >
-      <button
-        onClick={onRemove}
-        title="Remove"
-        style={{
-          position: 'absolute',
-          top: 6,
-          right: 6,
-          zIndex: 2,
-          width: 22,
-          height: 22,
-          borderRadius: 6,
-          border: '1px solid var(--border-1)',
-          background: 'var(--bg-surface)',
-          cursor: 'pointer',
-          display: 'grid',
-          placeItems: 'center',
-          color: 'var(--ink-3)',
-        }}
-      >
-        <Icon name="X" size={12} />
-      </button>
+      {!readOnly && (
+        <button
+          onClick={onRemove}
+          title="Remove"
+          style={{
+            position: 'absolute',
+            top: 6,
+            right: 6,
+            zIndex: 2,
+            width: 22,
+            height: 22,
+            borderRadius: 6,
+            border: '1px solid var(--border-1)',
+            background: 'var(--bg-surface)',
+            cursor: 'pointer',
+            display: 'grid',
+            placeItems: 'center',
+            color: 'var(--ink-3)',
+          }}
+        >
+          <Icon name="X" size={12} />
+        </button>
+      )}
       {(kind === 'photo' || kind === 'logo') &&
         (block.src ? (
           <img
@@ -341,11 +349,11 @@ export function InsertedBlock({
               }}
             >
               <Icon name="Database" size={11} />
-              Pulled from platform
+              {source ? `Pulled from platform · ${source}` : 'Pulled from platform'}
             </div>
           )}
           {block.variant === 'custom' ? (
-            <EditableTable block={block} onChange={onChange} />
+            <EditableTable block={block} onChange={readOnly ? undefined : onChange} />
           ) : (
             <SampleTable />
           )}

@@ -113,40 +113,6 @@ export function ChecksPopover({
                 )}
               </div>
             ))}
-
-          {/* Human sign-off gates — WARN, never block (LOCKED Q-PV-2). */}
-          {!loading && (data?.gates?.length ?? 0) > 0 && (
-            <div style={{ borderTop: '1px solid var(--border-1)', paddingTop: 8, marginTop: 4 }}>
-              <div
-                style={{
-                  fontSize: 10,
-                  textTransform: 'uppercase',
-                  letterSpacing: '0.07em',
-                  color: 'var(--ink-3)',
-                  fontWeight: 600,
-                  marginBottom: 4,
-                }}
-              >
-                Human sign-off
-              </div>
-              {(data?.gates ?? []).map((g) => (
-                <div
-                  key={g.id}
-                  style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '7px 0' }}
-                >
-                  <Icon
-                    name="ShieldCheck"
-                    size={13}
-                    style={{ color: g.status === 'success' ? 'var(--success)' : 'var(--notable)' }}
-                  />
-                  <span style={{ fontSize: 12, flex: 1, color: 'var(--ink-1)' }}>{g.label}</span>
-                  <span className="pill muted" style={{ fontSize: 10 }}>
-                    {g.status === 'success' ? 'signed' : 'pending'}
-                  </span>
-                </div>
-              ))}
-            </div>
-          )}
         </div>
 
         <div
@@ -157,8 +123,7 @@ export function ChecksPopover({
             color: 'var(--ink-3)',
           }}
         >
-          Meri checks the draft against committee rules &amp; house style as you write. Sign-off
-          gates warn but never block.
+          Meri checks the draft against committee rules &amp; house style as you write.
         </div>
       </div>
     </div>

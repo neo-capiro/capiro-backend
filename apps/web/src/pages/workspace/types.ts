@@ -216,6 +216,8 @@ export interface WsBlock {
   content?: string;
   /** platform-pulled vs custom table. */
   variant?: 'platform' | 'custom';
+  /** Provenance label for a pulled-from-platform table (e.g. "PE budget"). */
+  source?: string;
   /** Photo/logo image, stored inline as a base64 data URL (PNG/JPEG). */
   src?: string;
   /** Custom table dimensions + per-cell text (E-6). */

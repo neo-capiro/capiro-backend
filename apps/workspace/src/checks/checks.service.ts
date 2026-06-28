@@ -245,34 +245,13 @@ export class ChecksService {
 
     return {
       checks,
-      gates: this.gates(funding, ask, anonymize),
+      // Human sign-off gates removed: they were hardcoded 'notable' (never
+      // clearable) and only added friction (an always-on "gates not met" export
+      // confirm). The live rule-based `checks` above are the real signal. The
+      // `gates` field stays on the response for type stability, always empty.
+      gates: [],
       score: { passed, total: checks.length },
     };
-  }
-
-  // ── The 3 human sign-off gates (WARN, never block — LOCKED Q-PV-2) ───────────
-  private gates(funding: boolean, ask: WsAskShape, anonymize: boolean): WsGateResult[] {
-    // Gates are advisory: they sit 'notable' (pending sign-off) until a human
-    // certifies. We never return 'critical' for a gate (it must not block).
-    return [
-      {
-        id: 'gate-dollar-offset',
-        label: 'Dollar figure & offset · lobbyist',
-        // If a funding ask is fully specified the lobbyist can sign off; else
-        // it's still pending.
-        status: funding && ask.amount && ask.delta ? 'notable' : 'notable',
-      },
-      {
-        id: 'gate-financial-interest',
-        label: 'Financial-interest certification · Member',
-        status: 'notable',
-      },
-      {
-        id: 'gate-editorial',
-        label: 'Final editorial sign-off · partner',
-        status: 'notable',
-      },
-    ];
   }
 
   private check(
