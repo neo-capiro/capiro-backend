@@ -2,7 +2,7 @@
  * Document-canvas chrome (ported from the prototype, asset_14): Letterhead,
  * image/logo placeholders, and a sample budget table for inserted Table blocks.
  */
-import type { WsLetterhead } from '../types.js';
+import type { WsBlock, WsLetterhead } from '../types.js';
 import { Icon } from '../kit.js';
 
 /** Firm letterhead bar at the top of the paper. */
@@ -191,22 +191,83 @@ export function SampleTable() {
   );
 }
 
-/** Render a removable inserted block (photo / logo / table). `variant`
- * distinguishes a platform-pulled table from a custom one (set by the
- * TableTypePicker; both currently render the same exhibit, platform labeled). */
-export function InsertedBlock({
-  kind,
-  variant,
-  onRemove,
+/** An editable rows×cols grid with free-form text per cell (E-6). Cells persist
+ *  on the block via onChange; uses contentEditable so typing doesn't remount. */
+function EditableTable({
+  block,
+  onChange,
 }: {
-  kind: string;
-  variant?: string;
-  onRemove: () => void;
+  block: WsBlock;
+  onChange?: (patch: Partial<WsBlock>) => void;
 }) {
-  const isTable = kind === 'table' || kind === 'table-platform' || kind === 'table-custom';
-  const isPlatform = variant === 'platform' || kind === 'table-platform';
+  const rows = block.rows ?? (block.cells?.length || 2);
+  const cols = block.cols ?? (block.cells?.[0]?.length || 2);
+  const cells: string[][] = Array.from({ length: rows }, (_, r) =>
+    Array.from({ length: cols }, (_, c) => block.cells?.[r]?.[c] ?? ''),
+  );
+  const setCell = (r: number, c: number, v: string) => {
+    if (!onChange) return;
+    const next = cells.map((row) => row.slice());
+    next[r]![c] = v;
+    onChange({ cells: next, rows, cols });
+  };
+  const td: React.CSSProperties = {
+    border: '1px solid var(--border-1)',
+    padding: '6px 9px',
+    fontSize: 12,
+    minWidth: 60,
+    verticalAlign: 'top',
+  };
   return (
-    <div style={{ position: 'relative', marginTop: 14 }}>
+    <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 12 }}>
+      <tbody>
+        {cells.map((row, r) => (
+          <tr key={r}>
+            {row.map((val, c) => (
+              <td
+                key={c}
+                style={{ ...td, background: r === 0 ? 'var(--bg-surface-2)' : 'transparent' }}
+              >
+                <div
+                  contentEditable={!!onChange}
+                  suppressContentEditableWarning
+                  style={{ outline: 'none', minHeight: 16, fontWeight: r === 0 ? 600 : 400 }}
+                  onBlur={(e) => setCell(r, c, e.currentTarget.textContent ?? '')}
+                >
+                  {val}
+                </div>
+              </td>
+            ))}
+          </tr>
+        ))}
+      </tbody>
+    </table>
+  );
+}
+
+/** Render a removable inserted block (photo / logo / table). For photo/logo an
+ *  uploaded image renders when `block.src` is set, else an upload placeholder.
+ *  Custom tables are an editable grid; platform tables show the sample exhibit. */
+export function InsertedBlock({
+  block,
+  flash,
+  onRemove,
+  onChange,
+}: {
+  block: WsBlock;
+  flash?: boolean;
+  onRemove: () => void;
+  onChange?: (patch: Partial<WsBlock>) => void;
+}) {
+  const kind = block.type;
+  const isTable = kind === 'table';
+  const isPlatform = block.variant === 'platform';
+  return (
+    <div
+      id={`ws-block-${block.id}`}
+      className={flash ? 'ws-flash' : undefined}
+      style={{ position: 'relative', marginTop: 14 }}
+    >
       <button
         onClick={onRemove}
         title="Remove"
@@ -228,10 +289,26 @@ export function InsertedBlock({
       >
         <Icon name="X" size={12} />
       </button>
-      {(kind === 'image' || kind === 'photo') && (
-        <ImagePlaceholder label="PHOTO / FIGURE" h={150} />
-      )}
-      {kind === 'logo' && <ImagePlaceholder label="LOGO" h={84} w={150} />}
+      {(kind === 'photo' || kind === 'logo') &&
+        (block.src ? (
+          <img
+            src={block.src}
+            alt={kind === 'logo' ? 'Logo' : 'Figure'}
+            style={{
+              maxWidth: '100%',
+              maxHeight: kind === 'logo' ? 84 : 320,
+              borderRadius: 8,
+              border: '1px solid var(--border-1)',
+              display: 'block',
+            }}
+          />
+        ) : (
+          <ImagePlaceholder
+            label={kind === 'logo' ? 'LOGO' : 'PHOTO / FIGURE'}
+            h={kind === 'logo' ? 84 : 150}
+            w={kind === 'logo' ? 150 : undefined}
+          />
+        ))}
       {isTable && (
         <>
           {isPlatform && (
@@ -252,7 +329,11 @@ export function InsertedBlock({
               Pulled from platform
             </div>
           )}
-          <SampleTable />
+          {block.variant === 'custom' ? (
+            <EditableTable block={block} onChange={onChange} />
+          ) : (
+            <SampleTable />
+          )}
         </>
       )}
     </div>

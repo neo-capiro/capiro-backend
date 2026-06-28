@@ -196,6 +196,14 @@ export interface WsBlock {
   type: 'section' | 'photo' | 'table' | 'logo';
   title?: string;
   content?: string;
+  /** platform-pulled vs custom table. */
+  variant?: 'platform' | 'custom';
+  /** Photo/logo image, stored inline as a base64 data URL (PNG/JPEG). */
+  src?: string;
+  /** Custom table dimensions + per-cell text (E-6). */
+  rows?: number;
+  cols?: number;
+  cells?: string[][];
   [key: string]: unknown;
 }
 

@@ -510,6 +510,22 @@
   cursor: pointer;
 }
 
+/* Transient flash on a just-inserted block (E-9) so the user sees it landed. */
+.ws-flash {
+  animation: ws-flash 1.3s ease-out;
+  border-radius: 8px;
+}
+@keyframes ws-flash {
+  0% {
+    box-shadow: 0 0 0 3px var(--accent-glow, rgba(59, 91, 219, 0.4));
+    background: var(--accent-soft);
+  }
+  100% {
+    box-shadow: 0 0 0 0 transparent;
+    background: transparent;
+  }
+}
+
 /* Floating "Comment" button shown at a live selection. */
 .ws-comment-fab {
   position: fixed;
