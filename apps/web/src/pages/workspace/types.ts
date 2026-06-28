@@ -114,6 +114,24 @@ export interface WsCollaboratorsResponse {
   collaborators: WsCollaborator[];
 }
 
+// ── In-app notifications (E-19) ───────────────────────────────────────────────
+export type WsNotificationKind = 'collab_invite' | 'collab_accepted' | 'collab_declined';
+
+export interface WsNotification {
+  id: string;
+  kind: WsNotificationKind;
+  draftId: string | null;
+  collaboratorId: string | null;
+  actorName: string | null;
+  draftTitle: string | null;
+  role: WsRole | null;
+  message: string;
+  read: boolean;
+  /** True only while a collab_invite is still pending — drives accept/decline. */
+  actionable: boolean;
+  createdAt: string;
+}
+
 export interface WsDocument {
   id: string;
   draftId: string;

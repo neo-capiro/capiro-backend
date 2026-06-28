@@ -40,6 +40,26 @@ export class CollaboratorsController {
     return this.collaborators.invite(ctx.tenantId, draftId, ctx.clerkUserId, dto);
   }
 
+  // E-19: the invitee accepts/declines their OWN pending invite. No owner gate —
+  // the service verifies the actor is the invited subject. TenantGuard scopes it.
+  @Post(':id/accept')
+  accept(
+    @CurrentTenant() ctx: WorkspaceTenantContext,
+    @Param('draftId') draftId: string,
+    @Param('id') id: string,
+  ) {
+    return this.collaborators.accept(ctx.tenantId, draftId, id, ctx.clerkUserId);
+  }
+
+  @Post(':id/decline')
+  decline(
+    @CurrentTenant() ctx: WorkspaceTenantContext,
+    @Param('draftId') draftId: string,
+    @Param('id') id: string,
+  ) {
+    return this.collaborators.decline(ctx.tenantId, draftId, id, ctx.clerkUserId);
+  }
+
   @Patch(':id')
   async updateRole(
     @CurrentTenant() ctx: WorkspaceTenantContext,

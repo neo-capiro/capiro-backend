@@ -13,6 +13,7 @@ import type {
   WsDraft,
   WsIndustryDatum,
   WsLockStatus,
+  WsNotification,
   WsProductDefaults,
   WsTemplate,
 } from './types.js';
@@ -417,8 +418,95 @@ export function useInviteCollaborator(draftId: string) {
       email?: string;
       name?: string;
       role: WsAssignableRole;
+      inviterName?: string;
     }) => (await api.post<WsCollaborator>(`${BASE}/drafts/${draftId}/collaborators`, body)).data,
     onSuccess: () => qc.invalidateQueries({ queryKey: ['ws', 'collaborators', draftId] }),
+  });
+}
+
+/**
+ * Invitee accepts a pending invite (E-19) → access granted (status active) + the
+ * inviter is notified. Refreshes the access list + the bell.
+ */
+export function useAcceptCollaborator(draftId: string) {
+  const api = useApi();
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async (id: string) =>
+      (await api.post<WsCollaborator>(`${BASE}/drafts/${draftId}/collaborators/${id}/accept`, {}))
+        .data,
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['ws', 'collaborators', draftId] });
+      qc.invalidateQueries({ queryKey: ['ws', 'notifications'] });
+    },
+  });
+}
+
+/** Invitee declines a pending invite (E-19) → invite removed + inviter notified. */
+export function useDeclineCollaborator(draftId: string) {
+  const api = useApi();
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async (id: string) =>
+      (await api.post(`${BASE}/drafts/${draftId}/collaborators/${id}/decline`, {})).data,
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['ws', 'collaborators', draftId] });
+      qc.invalidateQueries({ queryKey: ['ws', 'notifications'] });
+    },
+  });
+}
+
+/**
+ * Send the collaborator-invite EMAIL (E-19) via the MAIN api (which owns SES).
+ * Best-effort — the in-app notification is the source of truth, so a failed
+ * send never blocks the invite.
+ */
+export function useSendCollabInviteEmail() {
+  const api = useApi();
+  return useMutation({
+    mutationFn: async (body: {
+      toEmail: string;
+      toName?: string;
+      draftTitle: string;
+      role: WsAssignableRole;
+      link: string;
+      inviterName?: string;
+    }) => (await api.post(`${MAIN}/workspace/collaborator-invite-email`, body)).data,
+  });
+}
+
+// ── Notifications (in-app bell, E-19) ─────────────────────────────────────────
+export interface WsNotificationsResponse {
+  items: WsNotification[];
+  unread: number;
+}
+
+/** Poll the current user's notifications for the global bell. */
+export function useNotifications(pollMs = 30_000) {
+  const api = useApi();
+  return useQuery({
+    queryKey: ['ws', 'notifications'],
+    refetchInterval: pollMs,
+    refetchIntervalInBackground: false,
+    queryFn: async () => (await api.get<WsNotificationsResponse>(`${BASE}/notifications`)).data,
+  });
+}
+
+export function useMarkNotificationRead() {
+  const api = useApi();
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async (id: string) => (await api.post(`${BASE}/notifications/${id}/read`, {})).data,
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['ws', 'notifications'] }),
+  });
+}
+
+export function useMarkAllNotificationsRead() {
+  const api = useApi();
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async () => (await api.post(`${BASE}/notifications/read-all`, {})).data,
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['ws', 'notifications'] }),
   });
 }
 
