@@ -298,6 +298,28 @@ export const configSchema = z.object({
   // Base URL the Checkout/Portal return flows redirect back to. Defaults to the
   // prod app; override per env (e.g. http://localhost:5173 locally).
   BILLING_RETURN_URL: z.string().url().default('https://app.capiro.ai'),
+
+  // ── Client-profile Tracker tab: bill-change alert delivery ────────────────
+  // Master kill-switch for the alert pipeline (change detection + fan-out).
+  // Set false/0/no/off to pause all Tracker alert delivery without a deploy.
+  TRACKER_ALERTS_ENABLED: z
+    .string()
+    .default('true')
+    .transform((v) => !['false', '0', 'no', 'off'].includes(v.trim().toLowerCase())),
+  // From-address for Tracker alert emails (must be a verified SES identity).
+  TRACKER_ALERT_EMAIL_FROM: z.string().email().default('alerts@capiro.ai'),
+  // Base URL used to build deep links in alert emails/SMS back to the client
+  // profile Tracker tab.
+  TRACKER_APP_BASE_URL: z.string().url().default('https://app.capiro.ai'),
+  // SMS provider. 'none' (default) keeps SMS DORMANT: the OTP-verify + alert
+  // fan-out code paths run end-to-end but no message is sent (logged + recorded
+  // as 'suppressed'). 'sns' uses AWS End User Messaging (SNS publish) once an
+  // origination number is provisioned AND @aws-sdk/client-sns is installed.
+  TRACKER_SMS_PROVIDER: z.enum(['none', 'sns']).default('none'),
+  // E.164 origination number / 10DLC / toll-free or SNS sender id used as the
+  // SMS "from". Required before SMS can actually deliver (provisioning has
+  // carrier lead time — see docs).
+  TRACKER_SMS_ORIGINATION_NUMBER: z.string().optional(),
 });
 
 export type AppConfig = z.infer<typeof configSchema>;
