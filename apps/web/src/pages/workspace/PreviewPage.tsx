@@ -37,6 +37,7 @@ import {
   useDraft,
   useDraftChecks,
   useExportDocx,
+  useExportPdf,
 } from './api.js';
 import { useMe } from '../../lib/me.js';
 import { sectionViews } from './editor/section-model.js';
@@ -60,6 +61,7 @@ export function PreviewPage() {
   const { data: me } = useMe();
   const { data: checks } = useDraftChecks(draftId ?? null);
   const exportDocx = useExportDocx(draftId ?? '');
+  const exportPdf = useExportPdf(draftId ?? '');
   const createVersion = useCreateVersion(draftId ?? '');
 
   const [view, setView] = useState<ViewKey>('packet');
@@ -165,10 +167,25 @@ export function PreviewPage() {
     bulk ? ` · all ${offices.length} offices (.zip)` : ''
   }`;
 
-  const doExportPdf = () => {
-    // PDF = print the rendered preview. The @media print CSS emits only the
-    // page-sheets. The browser's "Save as PDF" target produces the file; no dep.
-    window.print();
+  const doExportPdf = async () => {
+    // PDF = a SERVER-RENDERED .pdf (deterministic; no browser print pipeline).
+    setExporting(true);
+    try {
+      if (bulk) {
+        for (const o of offices) {
+          // eslint-disable-next-line no-await-in-loop
+          await exportPdf.mutateAsync(`${docTitle}-${o}`);
+        }
+        message.success(`Exported ${offices.length} office PDFs`);
+      } else {
+        await exportPdf.mutateAsync(docTitle);
+        message.success('PDF downloaded');
+      }
+    } catch {
+      message.error('Export failed');
+    } finally {
+      setExporting(false);
+    }
   };
 
   const doExportWord = async () => {
@@ -195,7 +212,7 @@ export function PreviewPage() {
   };
 
   const runExport = () => {
-    if (fmt === 'pdf') doExportPdf();
+    if (fmt === 'pdf') void doExportPdf();
     else void doExportWord();
   };
 

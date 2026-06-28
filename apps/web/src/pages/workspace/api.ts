@@ -623,6 +623,30 @@ export function useExportDocx(draftId: string) {
   });
 }
 
+/**
+ * Download a SERVER-RENDERED .pdf of the draft (deterministic — no browser
+ * print). Mirrors useExportDocx; the engine builds the PDF with pdfkit.
+ */
+export function useExportPdf(draftId: string) {
+  const api = useApi();
+  return useMutation({
+    mutationFn: async (filenameHint?: string) => {
+      const res = await api.get<Blob>(`${BASE}/drafts/${draftId}/export/pdf`, {
+        responseType: 'blob',
+      });
+      const blob = new Blob([res.data], { type: 'application/pdf' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `${(filenameHint || 'document').replace(/[^a-z0-9]+/gi, '-').toLowerCase()}.pdf`;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      URL.revokeObjectURL(url);
+    },
+  });
+}
+
 // ── Context Builder ─────────────────────────────────────────────────────────
 // (The engine's mock /context/sources + /context/news endpoints are no longer
 // consumed — the Context Builder now sources real client data from the MAIN api
