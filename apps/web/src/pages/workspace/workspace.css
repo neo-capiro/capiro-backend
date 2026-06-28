@@ -561,60 +561,66 @@
 
 /* Print: emit only the document canvas (PDF via browser print). */
 @media print {
-  /* Hide the app shell chrome + the workspace rails/toolbars. Also hide any
-     Ant overlay layers (a confirm modal / toast can still be mid-unmount when
-     window.print() fires) so the printed PDF never captures the modal backdrop
-     instead of the document sheets. */
-  .ws-steps-rail,
-  .ws-insert-rail,
-  .ws-meri-rail,
-  .ant-layout-sider,
-  .ant-layout-header,
-  .ws-card,
-  .ws-preview-controls,
-  .ws-preview-aside,
-  .ant-modal-root,
-  .ant-modal-mask,
-  .ant-modal-wrap,
-  .ant-message,
-  .ant-notification,
-  .ws-stage > div:first-child {
-    display: none !important;
+  /* PDF export = print the rendered document sheets only. Rather than enumerate
+     every piece of app chrome to hide (fragile — anything missed leaks into the
+     PDF and it looks like a screenshot of the webpage), we HIDE EVERYTHING and
+     then reveal ONLY the print stage that holds the .ws-print-sheet pages. This
+     is robust regardless of the surrounding AppShell/topbar/sidebar/portals. */
+  body * {
+    visibility: hidden !important;
   }
+  .ws-print-stage,
+  .ws-print-stage * {
+    visibility: visible !important;
+  }
+  /* Neutralize positioned ancestors so the absolutely-placed stage anchors to
+     the page origin (not an offset wrapper). */
+  html,
+  body,
+  .ant-layout,
+  .ant-layout-content,
   .ws-root,
   .ws-shell,
   .ws-stage {
-    background: #fff !important;
-    margin: 0 !important;
-    padding: 0 !important;
-    display: block !important;
+    position: static !important;
   }
-  .ws-doc-canvas {
-    box-shadow: none !important;
-    border: none !important;
-    max-width: 100% !important;
-    margin: 0 !important;
-    padding: 0 !important;
-  }
-  /* Preview stage: drop the sunken backdrop + the centered-column grid so the
-     sheets flow as plain pages. The right export aside (.ws-preview-aside) and
-     the controls bar are hidden above. */
+  /* Lift the stage to the page origin so the document starts on page 1, with no
+     blank space left by the (now-invisible) chrome above it. No bottom/height so
+     the sheets flow naturally across pages. */
   .ws-print-stage {
-    overflow: visible !important;
+    position: absolute !important;
+    left: 0 !important;
+    top: 0 !important;
+    right: 0 !important;
+    width: 100% !important;
+    margin: 0 !important;
     padding: 0 !important;
     background: #fff !important;
+    overflow: visible !important;
   }
+  /* The per-sheet page-count captions (".num") are screen-only. */
   .ws-print-stage > .num {
     display: none !important;
   }
+  /* Each sheet becomes a clean page: no card chrome, full width, its own page. */
   .ws-print-sheet {
     box-shadow: none !important;
+    border: none !important;
     border-radius: 0 !important;
     width: 100% !important;
+    max-width: 100% !important;
     min-height: 0 !important;
     margin: 0 !important;
     padding: 0 !important;
+    background: #fff !important;
+    page-break-after: always;
+    break-after: page;
   }
+  .ws-print-sheet:last-child {
+    page-break-after: auto;
+    break-after: auto;
+  }
+  /* Professional page margins. */
   @page {
     margin: 1in;
   }
