@@ -123,7 +123,10 @@ export function CollabPage() {
           toName: member?.name ?? undefined,
           draftTitle: draft.docTitle,
           role: inviteRole,
-          link: `${window.location.origin}/workspace/draft/${draftId}`,
+          // Route invitees to their dashboard with the notification dropdown
+          // open (Accept/Decline there) — NOT straight into the private draft,
+          // which they can't open until they accept.
+          link: `${window.location.origin}/?notifications=1`,
           inviterName,
         });
         message.success(`Invitation sent to ${member?.name ?? raw}`);

@@ -58,6 +58,9 @@ model WsDraft {
   // not own the Capiro user table, so it stores the verified Clerk subject
   // rather than a Capiro user UUID. (Resolved by TenantGuard from the JWT.)
   ownerId   String      @map("owner_id")
+  // Clerk user id of whoever last edited (autosaved) the draft; null for legacy
+  // rows → the UI falls back to the owner. Same id-space as ownerId.
+  lastEditedById String? @map("last_edited_by_id")
   docTitle  String      @map("doc_title")
   // Cascade hot-fields (promoted from config for indexed filtering).
   industry  String?
