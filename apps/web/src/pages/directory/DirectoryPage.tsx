@@ -38,6 +38,7 @@ import {
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useSearchParams } from 'react-router-dom';
 import { useApi } from '../../lib/use-api.js';
+import { decodeHtmlEntities } from '../../lib/html-entities.js';
 import { getAcquisitionPersonnel, getAcquisitionPersonnelDetail } from '../program-element/api.js';
 import type { AcquisitionPersonnelDetail } from '../program-element/types.js';
 import { DowDirectoryResults, DowPersonDrawer } from './DowDirectoryResults.js';
@@ -2405,7 +2406,7 @@ function DirectoryNewsPanel({ entry }: { entry: DirectoryEntry }) {
               target="_blank"
               rel="noreferrer"
             >
-              {item.title}
+              {decodeHtmlEntities(item.title)}
             </a>
             {item.publishedAt ? (
               <div className="directory-news-item-date">
@@ -2420,7 +2421,7 @@ function DirectoryNewsPanel({ entry }: { entry: DirectoryEntry }) {
                 style={{ margin: '4px 0 0' }}
                 ellipsis={{ rows: 3 }}
               >
-                {item.summary}
+                {decodeHtmlEntities(item.summary)}
               </Typography.Paragraph>
             ) : null}
           </div>

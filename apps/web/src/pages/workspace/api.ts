@@ -174,6 +174,22 @@ export function useTemplatesFor(product: string | null) {
   });
 }
 
+/**
+ * The FULL tenant-visible template library (all products) for Setup's "Search
+ * all templates". Separate from useTemplatesFor (which stays product-scoped for
+ * the two Meri recommendation cards). `enabled` lets the picker defer the fetch
+ * until the user actually opens search.
+ */
+export function useAllTemplates(enabled = true) {
+  const api = useApi();
+  return useQuery({
+    queryKey: ['ws', 'templates', 'library'],
+    enabled,
+    staleTime: 60_000,
+    queryFn: async () => (await api.get<WsTemplate[]>(`${BASE}/templates/library`)).data,
+  });
+}
+
 // ── Drafts ──────────────────────────────────────────────────────────────────
 export function useDrafts(params?: { sector?: string; scope?: 'all' | 'mine' | 'shared' }) {
   const api = useApi();
@@ -216,6 +232,10 @@ export function useUpdateDraft(id: string) {
   const api = useApi();
   const qc = useQueryClient();
   return useMutation({
+    // Serialize autosave PATCHes for a draft (react-query v5 scope): debounced
+    // edits to sibling config fields (letterhead, ask, …) run one-at-a-time in
+    // order, so an out-of-order server echo can't clobber a freshly-typed value.
+    scope: { id: `ws-draft-update-${id}` },
     mutationFn: async (
       body: Partial<{
         docTitle: string;
@@ -492,31 +512,9 @@ export function useExportDocx(draftId: string) {
 }
 
 // ── Context Builder ─────────────────────────────────────────────────────────
-export function useContextSources(client: string | null, offices: string[]) {
-  const api = useApi();
-  return useQuery({
-    queryKey: ['ws', 'ctx-sources', client, offices],
-    queryFn: async () => {
-      const q = new URLSearchParams();
-      if (client) q.set('client', client);
-      if (offices.length) q.set('offices', offices.join(','));
-      return (await api.get(`${BASE}/context/sources?${q.toString()}`)).data;
-    },
-  });
-}
-
-export function useContextNews(client: string | null, offices: string[]) {
-  const api = useApi();
-  return useQuery({
-    queryKey: ['ws', 'ctx-news', client, offices],
-    queryFn: async () => {
-      const q = new URLSearchParams();
-      if (client) q.set('client', client);
-      if (offices.length) q.set('offices', offices.join(','));
-      return (await api.get(`${BASE}/context/news?${q.toString()}`)).data;
-    },
-  });
-}
+// (The engine's mock /context/sources + /context/news endpoints are no longer
+// consumed — the Context Builder now sources real client data from the MAIN api
+// directly and persists only the chosen items as ws_context_item below.)
 
 export function useDraftContext(draftId: string | null) {
   const api = useApi();

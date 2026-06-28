@@ -55,13 +55,41 @@ export class GenerationService {
     const client = (cfg.client as string | null) ?? draft.client;
     const offices = (cfg.offices as string[] | undefined) ?? [];
 
-    const contextText = (draft.context ?? [])
+    // Per-item + total caps so a large/numerous context set (esp. extracted
+    // document bodies) can't blow the model's input-context budget — server-side
+    // defense-in-depth on top of the Context Builder's per-document clamp.
+    const PER_ITEM_CAP = 8000;
+    const TOTAL_CONTEXT_CAP = 24000;
+
+    const itemText = (draft.context ?? [])
       .map((c) => {
         const p = c.payload as Record<string, unknown>;
-        return c.kind === 'free-text' ? String(p.text ?? '') : String(p.label ?? '');
+        // Prefer the rich grounding body (payload.text — set by the Context
+        // Builder for client data, documents, bills, preps, news); fall back to
+        // the short label for older/source items. Without this, added news +
+        // documents contribute nothing to generation (they carry no `label`).
+        return String(p.text ?? p.label ?? '').slice(0, PER_ITEM_CAP);
       })
+      .filter(Boolean);
+
+    // Linked program elements (Setup → Links & data): the user attaches PEs and
+    // we persist the full associated context (mission + financials) on the
+    // config so Meri grounds the draft in real budget data.
+    const linkedPes =
+      (cfg.linkedProgramElements as
+        | Array<{ peCode?: string; title?: string; context?: string }>
+        | undefined) ?? [];
+    const peText = linkedPes
+      .map((pe) => {
+        const head = [pe.peCode, pe.title].filter(Boolean).join(' — ');
+        return [head, pe.context].filter(Boolean).join('\n').slice(0, PER_ITEM_CAP);
+      })
+      .filter(Boolean);
+
+    const contextText = [...itemText, ...peText]
       .filter(Boolean)
-      .join('\n- ');
+      .join('\n- ')
+      .slice(0, TOTAL_CONTEXT_CAP);
 
     const prompt = this.buildSectionPrompt({
       product: draft.product ?? 'document',
@@ -149,7 +177,8 @@ export class GenerationService {
       pathways,
       committees,
       personalize: meta.personalize,
-      officeAssociated: meta.office,
+      // Office/client personalization always defaults to "No" — opt-in per draft.
+      officeAssociated: false,
       offices: [],
       clientAssociated: false,
       clientPersons: [],
@@ -159,7 +188,9 @@ export class GenerationService {
       pages,
       tone: 'Formal',
       toneContext: '',
-      linkedData: WSC.dataFor(industry).map((d) => d.label),
+      // Program-element context is attached via the Setup "Links & data" PE
+      // search (cfg.linkedProgramElements), not the legacy industry-data labels.
+      linkedData: [],
       anonymize: false,
       letterhead: { custom: false, firmName: '', firmAddr: '' },
       // Provenance for the editor: flag low-confidence guesses for review.

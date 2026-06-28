@@ -12,6 +12,22 @@ export interface WsLetterhead {
   custom: boolean;
   firmName: string;
   firmAddr: string;
+  /** Uploaded branded logo, persisted as a base64 data URL (PNG/JPEG only — SVG
+   *  can't embed in the DOCX export, so it's rejected at upload). */
+  logoDataUrl?: string;
+}
+
+/**
+ * A program element linked in Setup → Links & data. We persist the PE reference
+ * plus a compact snapshot of its full associated context (mission + financials)
+ * so Meri generation can ground the draft in real budget data.
+ */
+export interface WsLinkedProgramElement {
+  peCode: string;
+  title: string;
+  service?: string | null;
+  /** Pre-formatted context block (mission, FY financial history, identifiers). */
+  context: string;
 }
 
 /**
@@ -57,6 +73,8 @@ export interface WsConfig {
   /** Setup "key focus or goal for Meri" free-text. */
   toneContext?: string;
   linkedData: string[];
+  /** Program elements linked in Setup → Links & data (PE search). */
+  linkedProgramElements?: WsLinkedProgramElement[];
   anonymize: boolean;
   letterhead: WsLetterhead;
   /** Per-section body text, keyed by section name. */

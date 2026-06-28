@@ -38,7 +38,10 @@ export class DraftsService {
       pathways: [],
       committees: [],
       personalize: meta?.personalize ?? false,
-      officeAssociated: meta?.office ?? false,
+      // Personalization sub-questions ALWAYS default to "No" regardless of the
+      // product meta — the user opts in per draft (correction: office/client
+      // toggles must not pre-default to Yes for office-oriented products).
+      officeAssociated: false,
       offices: [],
       clientAssociated: false,
       clientPersons: [],
