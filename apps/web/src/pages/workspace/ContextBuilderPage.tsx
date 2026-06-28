@@ -7,11 +7,12 @@ import { StepsRail } from './StepsRail.js';
 import { Icon, MeriCallout } from './kit.js';
 import {
   useDraft,
-  useContextSources,
   useDraftContext,
   useAddContextItem,
   useRemoveContextItem,
+  useDrafts,
 } from './api.js';
+import { decodeHtmlEntities } from '../../lib/html-entities.js';
 import type { WsConfig, WsContextItem } from './types.js';
 
 /**
@@ -93,6 +94,7 @@ interface NewsCard {
   date: string;
   origin: 'member-press' | 'intel-feed';
   relevantOffices: string[];
+  summary?: string; // carried into the persisted payload so Meri can use it
 }
 
 // A pullable source item (one row in a tab list).
@@ -100,6 +102,9 @@ interface SourceItem {
   id: string;
   t: string;
   sub?: string;
+  // Grounding body persisted into the context-item payload so Meri generation
+  // actually uses this source (documents fetch it lazily via extract-text).
+  text?: string;
 }
 interface SourceGroup {
   type: string;
@@ -185,8 +190,10 @@ function ContextBuilder({
 }) {
   const navigate = useNavigate();
   const { message } = AntApp.useApp();
+  const api = useApi();
   const [tab, setTab] = useState(0);
   const [freeText, setFreeText] = useState('');
+  const [addingId, setAddingId] = useState<string | null>(null);
 
   const offices = (cfg.offices as string[] | undefined) ?? [];
   const showOffices = !!cfg.officeAssociated && offices.length > 0;
@@ -209,16 +216,42 @@ function ContextBuilder({
   );
 
   // Source tabs (real where wired, engine fallback otherwise).
-  const sourceGroups = useSourceGroups(client, offices);
+  const sourceGroups = useSourceGroups(client);
 
   // News from OUR systems (correction #1).
   const newsCards = useNewsCards(client, offices);
 
-  const addSource = (g: SourceGroup, it: SourceItem) => {
-    addItem.mutate(
-      { kind: 'source', payload: { sourceType: g.type, refId: it.id, label: it.t, sub: it.sub } },
-      { onSuccess: () => message.success('Added to context plan') },
-    );
+  const addSource = async (g: SourceGroup, it: SourceItem) => {
+    // In-flight guard: the doc path awaits extract-text, during which the row
+    // stays clickable — without this a double-click adds a duplicate item.
+    if (addedRefIds.has(it.id) || addingId === it.id) return;
+    setAddingId(it.id);
+    try {
+      let text = it.text ?? '';
+      // Documents: pull the ACTUAL file content so Meri understands what's in it.
+      if (g.type === 'docs-notes' && it.id.startsWith('doc-')) {
+        const attachmentId = it.id.slice('doc-'.length);
+        try {
+          const { data } = await api.post<{ text?: string }>(
+            `/api/engagement/attachments/${attachmentId}/extract-text`,
+          );
+          // Clamp so a large document can't blow the autosave / generation budget.
+          text = [it.t, (data.text ?? '').slice(0, 8000)].filter(Boolean).join('\n');
+        } catch {
+          text = it.t; // unsupported / scanned (no text layer) → reference by name
+          message.warning('Could not read that document — added as a reference.');
+        }
+      }
+      await addItem.mutateAsync({
+        kind: 'source',
+        payload: { sourceType: g.type, refId: it.id, label: it.t, sub: it.sub, text },
+      });
+      message.success('Added to context plan');
+    } catch {
+      message.error('Could not add to context plan.');
+    } finally {
+      setAddingId(null);
+    }
   };
   const addFreeText = () => {
     const text = freeText.trim();
@@ -238,7 +271,8 @@ function ContextBuilder({
     addItem.mutate(
       {
         kind: 'news',
-        // Q-CTX-1: persist an id-reference + a snapshot so the plan survives feed churn.
+        // Q-CTX-1: persist an id-reference + a snapshot so the plan survives feed
+        // churn. `text` (headline + summary) is what Meri generation reads.
         payload: {
           refId: a.id,
           headline: a.headline,
@@ -246,6 +280,7 @@ function ContextBuilder({
           source: a.source,
           date: a.date,
           origin: a.origin,
+          text: [a.headline, a.summary].filter(Boolean).join(' — '),
         },
       },
       { onSuccess: () => message.success('Added to context plan') },
@@ -369,6 +404,7 @@ function ContextBuilder({
           {activeGroup && activeGroup.items.length > 0 ? (
             activeGroup.items.map((it) => {
               const added = addedRefIds.has(it.id);
+              const adding = addingId === it.id;
               return (
                 <div
                   key={it.id}
@@ -394,16 +430,18 @@ function ContextBuilder({
                   </div>
                   <button
                     className="btn sm"
-                    onClick={() => !added && addSource(activeGroup, it)}
+                    disabled={added || adding}
+                    onClick={() => addSource(activeGroup, it)}
                     style={{
                       borderColor: added ? 'var(--accent)' : 'var(--border-1)',
                       background: added ? 'var(--accent-soft)' : 'transparent',
                       color: added ? 'var(--accent-ink)' : 'var(--ink-2)',
                       flexShrink: 0,
+                      ...(adding ? { opacity: 0.6, cursor: 'wait' } : {}),
                     }}
                   >
                     <Icon name={added ? 'Check' : 'Plus'} size={12} />
-                    {added ? 'Added' : '+ Add to context plan'}
+                    {added ? 'Added' : adding ? 'Adding…' : '+ Add to context plan'}
                   </button>
                 </div>
               );
@@ -809,18 +847,20 @@ function NewsSection({
 // ── data hooks ──────────────────────────────────────────────────────────────────
 
 /**
- * The 6 source tabs. Real main-api data where an endpoint exists; engine
- * `useContextSources` fallback otherwise (so a tab is never empty).
- *   - Client profile → /api/clients/:id/people (+ engine overview rows)
- *   - Bills          → /api/explorer/congress-bills (client-name query)
- *   - Meeting preps  → /api/engagement/meetings (meetings carrying a prep)
- *   - Intel / Prior docs / Docs & notes → engine fallback (TODO(phase) for live wiring)
+ * The 6 source tabs, wired to the SELECTED client's real data (client is
+ * required in Setup). Each item carries a `text` grounding body persisted into
+ * the context-item payload so Meri generation actually uses it.
+ *   - Client profile → overview + capabilities + facilities + people
+ *   - Intel          → the client's budget identifiers (PE numbers + issue codes)
+ *   - Prior docs     → this client's completed workspace drafts
+ *   - Bills          → /api/intelligence/clients/:id/tracked-bills (client-relevant)
+ *   - Meeting preps  → /api/engagement/outreach/context-library (this client's preps)
+ *   - Docs & notes   → /api/engagement/attachments?clientId (content pulled on add)
  */
-function useSourceGroups(client: string | null, offices: string[]): SourceGroup[] {
+function useSourceGroups(client: string | null): SourceGroup[] {
   const api = useApi();
-  const { data: engine } = useContextSources(client, offices);
 
-  // Resolve client name → id for the people lookup.
+  // Resolve client NAME → id (every client-scoped endpoint keys on the id).
   const { data: clients } = useQuery({
     queryKey: ['ws-clients-list'],
     enabled: !!client,
@@ -831,7 +871,63 @@ function useSourceGroups(client: string | null, offices: string[]): SourceGroup[
     [clients, client],
   );
 
-  // Client profile → real people.
+  const { data: overview } = useQuery({
+    queryKey: ['ws-ctx-client', clientId],
+    enabled: !!clientId,
+    queryFn: async () =>
+      (
+        await api.get<{
+          id: string;
+          name: string;
+          description: string | null;
+          productDescription: string | null;
+          sectorTag: string | null;
+          website: string | null;
+          issueCodes?: string[];
+        }>(`/api/clients/${clientId}`)
+      ).data,
+  });
+
+  const { data: capabilities } = useQuery({
+    queryKey: ['ws-ctx-caps', clientId],
+    enabled: !!clientId,
+    queryFn: async () =>
+      (
+        await api.get<
+          {
+            id: string;
+            name: string;
+            type: string | null;
+            sector: string | null;
+            description: string | null;
+            justification: string | null;
+            peNumber: string | null;
+            peNumbers?: string[];
+            appropriationAccount: string | null;
+            serviceBranch: string | null;
+          }[]
+        >(`/api/clients/${clientId}/capabilities`)
+      ).data,
+  });
+
+  const { data: facilities } = useQuery({
+    queryKey: ['ws-ctx-facilities', clientId],
+    enabled: !!clientId,
+    queryFn: async () =>
+      (
+        await api.get<
+          {
+            id: string;
+            name: string;
+            city: string | null;
+            state: string | null;
+            congressionalDistrict: string | null;
+            employeeCount: number | null;
+          }[]
+        >(`/api/clients/${clientId}/facilities`)
+      ).data,
+  });
+
   const { data: people } = useQuery({
     queryKey: ['ws-ctx-client-people', clientId],
     enabled: !!clientId,
@@ -849,94 +945,196 @@ function useSourceGroups(client: string | null, offices: string[]): SourceGroup[
       ).data,
   });
 
-  // Bills → real congress bills (client-name query as a coarse relevance filter).
-  const { data: bills } = useQuery({
-    queryKey: ['ws-ctx-bills', client],
-    enabled: !!client,
+  const { data: trackedBills } = useQuery({
+    queryKey: ['ws-ctx-tracked-bills', clientId],
+    enabled: !!clientId,
     queryFn: async () =>
       (
-        await api.get<
-          ExplorerResponse<{ id: string; billType: string; billNumber: string; title: string }>
-        >('/api/explorer/congress-bills', {
-          params: { q: client, sort: 'action', page: 1, pageSize: 6 },
-        })
+        await api.get<{
+          bills: {
+            identifier: string;
+            title: string | null;
+            latestActionText?: string | null;
+          }[];
+        }>(`/api/intelligence/clients/${clientId}/tracked-bills`)
       ).data,
   });
 
-  // Meeting preps → real engagement meetings that carry a prep.
-  const { data: meetings } = useQuery({
-    queryKey: ['ws-ctx-meetings', client],
+  const { data: contextLib } = useQuery({
+    queryKey: ['ws-ctx-library'],
+    enabled: !!clientId,
+    queryFn: async () =>
+      (
+        await api.get<{
+          preps: {
+            id: string;
+            clientId: string | null;
+            title: string | null;
+            body: string | null;
+            date: string | null;
+          }[];
+        }>('/api/engagement/outreach/context-library')
+      ).data,
+  });
+
+  const { data: attachments } = useQuery({
+    queryKey: ['ws-ctx-attachments', clientId],
+    enabled: !!clientId,
     queryFn: async () =>
       (
         await api.get<
-          {
-            id: string;
-            title: string | null;
-            subject: string | null;
-            startsAt: string | null;
-            hasPrep?: boolean;
-            prepId?: string | null;
-            clientName?: string | null;
-          }[]
-        >('/api/engagement/meetings', { params: { limit: 25 } })
+          { id: string; fileName: string; contentType: string | null; createdAt: string }[]
+        >('/api/engagement/attachments', { params: { clientId } })
       ).data,
   });
+
+  // Prior docs → this client's completed workspace drafts.
+  const { data: drafts } = useDrafts();
 
   return useMemo(() => {
-    const engineGroups = (engine?.groups ?? []) as {
-      type: string;
-      label: string;
-      icon: string;
-      items: { id: string; label: string; sub?: string }[];
-    }[];
-    const engineBy = (type: string) => engineGroups.find((g) => g.type === type);
-    const engineItems = (type: string): SourceItem[] =>
-      (engineBy(type)?.items ?? []).map((it) => ({ id: it.id, t: it.label, sub: it.sub }));
-
-    // Client profile: engine overview rows + real people.
-    const clientItems: SourceItem[] = [
-      ...engineItems('client-profile'),
-      ...(people ?? []).map((p) => ({
+    // Client profile: overview + capabilities + facilities + people.
+    const clientItems: SourceItem[] = [];
+    if (overview) {
+      clientItems.push({
+        id: `overview-${overview.id}`,
+        t: `${overview.name} — overview`,
+        sub: [overview.sectorTag, overview.website].filter(Boolean).join(' · ') || undefined,
+        text: [
+          `${overview.name}${overview.sectorTag ? ` (${overview.sectorTag})` : ''}`,
+          overview.description,
+          overview.productDescription,
+        ]
+          .filter(Boolean)
+          .join('\n'),
+      });
+    }
+    for (const c of capabilities ?? []) {
+      clientItems.push({
+        id: `cap-${c.id}`,
+        t: c.name,
+        sub: [c.type, c.sector].filter(Boolean).join(' · ') || undefined,
+        text: [
+          `Capability: ${c.name}`,
+          c.description,
+          c.justification,
+          c.peNumber ? `PE ${c.peNumber}` : null,
+          [c.serviceBranch, c.appropriationAccount].filter(Boolean).join(' · ') || null,
+        ]
+          .filter(Boolean)
+          .join('\n'),
+      });
+    }
+    for (const f of facilities ?? []) {
+      const loc = [f.city, f.state].filter(Boolean).join(', ');
+      const dist =
+        f.state && f.congressionalDistrict ? `${f.state}-${f.congressionalDistrict}` : '';
+      clientItems.push({
+        id: `fac-${f.id}`,
+        t: f.name,
+        sub: [loc, dist].filter(Boolean).join(' · ') || undefined,
+        text: [
+          `Facility: ${f.name}`,
+          loc,
+          dist ? `District ${dist}` : null,
+          f.employeeCount ? `${f.employeeCount} employees` : null,
+        ]
+          .filter(Boolean)
+          .join(' — '),
+      });
+    }
+    for (const p of people ?? []) {
+      const name = p.fullName?.trim() || p.email?.trim() || 'Unnamed contact';
+      clientItems.push({
         id: `person-${p.id}`,
-        t: p.fullName?.trim() || p.email?.trim() || 'Unnamed contact',
+        t: name,
         sub: [p.role || p.title, client].filter(Boolean).join(' · ') || undefined,
-      })),
-    ];
+        text: `Client contact: ${name}${p.role || p.title ? ` — ${p.role || p.title}` : ''}`,
+      });
+    }
 
-    // Bills: real tracked/related bills.
-    const billItems: SourceItem[] = (bills?.rows ?? []).map((b) => ({
-      id: `bill-${b.id}`,
-      t: `${b.billType} ${b.billNumber}`,
-      sub: b.title,
+    // Intel: budget identifiers (capability PE numbers + LDA issue codes).
+    const intelItems: SourceItem[] = [];
+    const peSeen = new Set<string>();
+    for (const c of capabilities ?? []) {
+      for (const pe of [c.peNumber, ...(c.peNumbers ?? [])].filter((x): x is string => !!x)) {
+        if (peSeen.has(pe)) continue;
+        peSeen.add(pe);
+        intelItems.push({
+          id: `intel-pe-${pe}`,
+          t: `PE ${pe}`,
+          sub: c.name,
+          text: `Program element ${pe} (${c.name}${c.serviceBranch ? `, ${c.serviceBranch}` : ''})`,
+        });
+      }
+    }
+    for (const code of overview?.issueCodes ?? []) {
+      intelItems.push({
+        id: `intel-issue-${code}`,
+        t: `Issue ${code}`,
+        sub: 'LDA issue code',
+        text: `Lobbying issue area: ${code}`,
+      });
+    }
+
+    // Bills: client-relevant tracked bills.
+    const billItems: SourceItem[] = (trackedBills?.bills ?? []).slice(0, 12).map((b) => ({
+      id: `bill-${b.identifier}`,
+      t: b.identifier,
+      sub: b.title ?? undefined,
+      text: [b.identifier, b.title, b.latestActionText ? `Latest: ${b.latestActionText}` : null]
+        .filter(Boolean)
+        .join(' — '),
     }));
 
-    // Meeting preps: meetings that have a prep on file.
-    const prepItems: SourceItem[] = (meetings ?? [])
-      .filter((m) => m.hasPrep || m.prepId)
-      .filter((m) => !client || !m.clientName || m.clientName === client)
-      .slice(0, 8)
-      .map((m) => ({
-        id: `prep-${m.id}`,
-        t: m.title || m.subject || 'Meeting prep',
-        sub: m.startsAt ? fmtDate(m.startsAt) : 'Meeting prep',
+    // Meeting preps for this client.
+    const prepItems: SourceItem[] = (contextLib?.preps ?? [])
+      .filter((p) => !clientId || p.clientId === clientId)
+      .slice(0, 10)
+      .map((p) => ({
+        id: `prep-${p.id}`,
+        t: p.title || 'Meeting prep',
+        sub: p.date ? fmtDate(p.date) : 'Meeting prep',
+        text: [p.title, p.body].filter(Boolean).join('\n'),
+      }));
+
+    // Documents (content pulled lazily on add via extract-text).
+    const docItems: SourceItem[] = (attachments ?? []).map((a) => ({
+      id: `doc-${a.id}`,
+      t: a.fileName,
+      sub: [a.contentType, fmtDate(a.createdAt)].filter(Boolean).join(' · ') || undefined,
+    }));
+
+    // Prior docs: this client's completed workspace drafts.
+    const priorItems: SourceItem[] = (drafts ?? [])
+      .filter((d) => !!client && d.client === client && d.status === 'complete')
+      .slice(0, 12)
+      .map((d) => ({
+        id: `wsdraft-${d.id}`,
+        t: d.docTitle,
+        sub: d.product ?? undefined,
+        text: `Prior document: ${d.docTitle}${d.product ? ` (${d.product})` : ''}`,
       }));
 
     return [
       { type: 'client-profile', tab: 'Client profile', icon: 'Building2', items: clientItems },
-      { type: 'intel', tab: 'Intel', icon: 'Radar', items: engineItems('intel') },
-      // TODO(phase): wire Prior docs to client documents (no live workspace endpoint yet).
-      { type: 'prior-docs', tab: 'Prior docs', icon: 'FileText', items: engineItems('prior-docs') },
+      { type: 'intel', tab: 'Intel', icon: 'Radar', items: intelItems },
+      { type: 'prior-docs', tab: 'Prior docs', icon: 'FileText', items: priorItems },
       { type: 'bills', tab: 'Bills', icon: 'Scale', items: billItems },
       { type: 'meeting-preps', tab: 'Meeting preps', icon: 'Users', items: prepItems },
-      // TODO(phase): wire Docs & notes to client documents / attachments.
-      {
-        type: 'docs-notes',
-        tab: 'Docs & notes',
-        icon: 'Paperclip',
-        items: engineItems('docs-notes'),
-      },
+      { type: 'docs-notes', tab: 'Docs & notes', icon: 'Paperclip', items: docItems },
     ];
-  }, [engine, people, bills, meetings, client]);
+  }, [
+    overview,
+    capabilities,
+    facilities,
+    people,
+    trackedBills,
+    contextLib,
+    attachments,
+    drafts,
+    client,
+    clientId,
+  ]);
 }
 
 /**
@@ -977,12 +1175,15 @@ function useNewsCards(client: string | null, offices: string[]): NewsCard[] {
           return (data.items ?? []).slice(0, 4).map(
             (it): NewsCard => ({
               id: `mp-${it.id}`,
-              headline: it.title,
+              // Decode HTML entities: feed titles store &#8217;/&amp;/&#39; raw,
+              // which JSX renders literally (the reported apostrophe bug).
+              headline: decodeHtmlEntities(it.title),
               url: it.link,
               source: data.memberName || r.who,
               date: fmtDate(it.publishedAt),
               origin: 'member-press',
               relevantOffices: [r.who],
+              summary: decodeHtmlEntities(it.summary),
             }),
           );
         }),
@@ -1006,12 +1207,13 @@ function useNewsCards(client: string | null, offices: string[]): NewsCard[] {
     const fromMembers = memberNews.data ?? [];
     const fromIntel: NewsCard[] = (intel.data?.rows ?? []).map((a) => ({
       id: `ia-${a.id}`,
-      headline: a.title,
+      headline: decodeHtmlEntities(a.title),
       url: a.url,
       source: a.source,
       date: fmtDate(a.publishedAt),
       origin: 'intel-feed',
       relevantOffices: [],
+      summary: decodeHtmlEntities(a.summary),
     }));
     // Dedupe by url; member press takes precedence.
     const seen = new Set<string>();

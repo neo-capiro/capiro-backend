@@ -29,7 +29,11 @@ export class TemplatesService {
   async forProduct(
     tenantId: string,
     product: string,
-  ): Promise<{ primary: TemplateView | null; secondary: TemplateView | null; all: TemplateView[] }> {
+  ): Promise<{
+    primary: TemplateView | null;
+    secondary: TemplateView | null;
+    all: TemplateView[];
+  }> {
     const rows = await this.prisma.wsTemplate.findMany({
       where: {
         product,
@@ -43,6 +47,20 @@ export class TemplatesService {
       secondary: all.find((t) => t.meriSecondary) ?? null,
       all,
     };
+  }
+
+  /**
+   * The FULL tenant-visible template library (every product), for the Setup
+   * "Search all templates" box. Global templates (tenantId null) + this tenant's
+   * own. Not product-filtered — the picker's two recommendations still come from
+   * forProduct(); search spans the whole catalog.
+   */
+  async list(tenantId: string): Promise<TemplateView[]> {
+    const rows = await this.prisma.wsTemplate.findMany({
+      where: { OR: [{ tenantId: null }, { tenantId }] },
+      orderBy: [{ product: 'asc' }, { name: 'asc' }],
+    });
+    return rows.map(toView);
   }
 
   /** Full ordered sections for a single template (preview pane). */

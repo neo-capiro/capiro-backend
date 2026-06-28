@@ -35,6 +35,8 @@ export function PaperBody({
   onRegenerate,
   onMarkReviewed,
   onRemoveBlock,
+  onChangeBlock,
+  justInsertedId,
   onToast,
   readOnly,
 }: {
@@ -60,6 +62,9 @@ export function PaperBody({
   onRegenerate: (name: string) => void;
   onMarkReviewed: (name: string) => void;
   onRemoveBlock: (id: string) => void;
+  onChangeBlock?: (id: string, patch: Partial<WsBlock>) => void;
+  /** Block id just inserted — scrolled into view + flashed (E-9). */
+  justInsertedId?: string | null;
   onToast: (msg: string) => void;
 }) {
   const [dragIdx, setDragIdx] = useState<number | null>(null);
@@ -150,9 +155,10 @@ export function PaperBody({
       {blocks.map((b) => (
         <InsertedBlock
           key={b.id}
-          kind={b.type}
-          variant={b.variant as string | undefined}
+          block={b}
+          flash={justInsertedId === b.id}
           onRemove={() => onRemoveBlock(b.id)}
+          onChange={onChangeBlock ? (patch) => onChangeBlock(b.id, patch) : undefined}
         />
       ))}
     </>

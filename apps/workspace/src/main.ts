@@ -26,9 +26,10 @@ async function bootstrap() {
     exclude: [{ path: 'health', method: RequestMethod.ALL }],
   });
 
-  // Standard JSON body parser. The workspace service does not (yet) handle
-  // signed webhooks, so no raw-body carve-outs are needed.
-  app.use(json({ limit: '1mb' }));
+  // Standard JSON body parser. 8mb headroom: the EditorPage autosave PATCHes the
+  // WHOLE config in one body — a base64 letterhead logo (up to ~2.7MB) PLUS the
+  // full document body PLUS linked-PE context — so 1mb (or even 5mb) could 413.
+  app.use(json({ limit: '8mb' }));
 
   // Strict input validation at the edge, drop unknown fields, fail closed
   // on malformed bodies. class-validator + class-transformer must be installed

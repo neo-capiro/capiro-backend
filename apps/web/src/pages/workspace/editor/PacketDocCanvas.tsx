@@ -178,9 +178,9 @@ export function PacketDocCanvas({
         {media.map((b) => (
           <InsertedBlock
             key={b.id}
-            kind={b.type}
-            variant={b.variant as string | undefined}
+            block={b}
             onRemove={() => removeBlock(b.id)}
+            onChange={readOnly ? undefined : (patch) => setBlock(b.id, patch)}
           />
         ))}
       </div>

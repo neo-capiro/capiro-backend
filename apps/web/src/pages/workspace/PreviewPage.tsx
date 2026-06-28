@@ -43,7 +43,7 @@ import { sectionViews } from './editor/section-model.js';
 import { budgetFrom } from './editor/BudgetBlock.js';
 import { anonymizeMap, anonText } from './editor/anonymize.js';
 import type { StoredRedaction } from './editor/anonymize.js';
-import { sanitizeHtml } from '../engagement/outreach/v2/richtext.js';
+import { sanitizeWorkspaceBody as sanitizeHtml } from './editor/workspace-richtext.js';
 import type { WsAsk, WsCheckResult, WsGateResult } from './types.js';
 
 type ViewKey = 'cover' | 'paper' | 'packet';
@@ -624,7 +624,21 @@ export function PreviewPage() {
                 ))}
             </div>
 
-            <div style={{ marginTop: 'auto', display: 'flex', flexDirection: 'column', gap: 8 }}>
+            {/* E-22: sticky to the bottom of the scrolling aside so the two
+                primary actions stay in view instead of below the fold. */}
+            <div
+              style={{
+                position: 'sticky',
+                bottom: 0,
+                display: 'flex',
+                flexDirection: 'column',
+                gap: 8,
+                marginTop: 12,
+                paddingTop: 10,
+                borderTop: '1px solid var(--border-1)',
+                background: 'var(--bg-surface)',
+              }}
+            >
               <button className="btn" onClick={onSaveCheckpoint} disabled={createVersion.isPending}>
                 <Icon name="Save" size={14} />
                 Save checkpoint

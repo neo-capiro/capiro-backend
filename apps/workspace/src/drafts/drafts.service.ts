@@ -38,7 +38,10 @@ export class DraftsService {
       pathways: [],
       committees: [],
       personalize: meta?.personalize ?? false,
-      officeAssociated: meta?.office ?? false,
+      // Personalization sub-questions ALWAYS default to "No" regardless of the
+      // product meta — the user opts in per draft (correction: office/client
+      // toggles must not pre-default to Yes for office-oriented products).
+      officeAssociated: false,
       offices: [],
       clientAssociated: false,
       clientPersons: [],
@@ -82,21 +85,54 @@ export class DraftsService {
     return this.byId(tenantId, draft.id);
   }
 
-  async byId(tenantId: string, id: string) {
+  /**
+   * Fetch one draft. Tenant-scoped first. When `actorId` is supplied (the
+   * authenticated reader, from the controller), the draft is PRIVATE: only its
+   * owner or an active collaborator may read it. A non-collaborator gets 404
+   * (not 403) so the endpoint never confirms a foreign draft's existence by id.
+   * Internal callers (create/update return paths) omit actorId — access was
+   * already established by the write they just performed.
+   */
+  async byId(tenantId: string, id: string, actorId?: string) {
     const draft = await this.prisma.wsDraft.findFirst({
       where: { id, tenantId },
       include: { documents: { orderBy: { ordinal: 'asc' } } },
     });
     if (!draft) throw new NotFoundException('Draft not found');
+    if (actorId) {
+      const role = await this.collaborators.resolveRole(tenantId, id, actorId);
+      if (!role) throw new NotFoundException('Draft not found');
+    }
     return draft;
   }
 
+  /**
+   * List the drafts a user can see. Documents are PRIVATE to their author until
+   * explicitly shared: a user sees a draft only if they OWN it or are an active
+   * collaborator on it. Everything is tenant-scoped first (no cross-tenant
+   * leakage), then narrowed by ownership/share:
+   *   - 'mine'   → drafts I own
+   *   - 'shared' → drafts shared with me (an active collaborator row), not mine
+   *   - default  → "all I have access to" = mine + shared-with-me (NOT every
+   *                document in the tenant)
+   */
   async list(tenantId: string, ownerId: string, q: ListDraftsQueryDto) {
+    const shared = await this.prisma.wsCollaborator.findMany({
+      where: { tenantId, subjectId: ownerId, status: 'active' },
+      select: { draftId: true },
+    });
+    const sharedIds = shared.map((s) => s.draftId);
+
     const where: Record<string, unknown> = { tenantId };
     if (q.sector) where.industry = q.sector;
-    if (q.scope === 'mine') where.ownerId = ownerId;
-    // 'shared' = not owned by me (collaboration). 'all' = no owner filter.
-    if (q.scope === 'shared') where.ownerId = { not: ownerId };
+    if (q.scope === 'mine') {
+      where.ownerId = ownerId;
+    } else if (q.scope === 'shared') {
+      where.id = { in: sharedIds };
+      where.ownerId = { not: ownerId };
+    } else {
+      where.OR = [{ ownerId }, { id: { in: sharedIds } }];
+    }
     return this.prisma.wsDraft.findMany({
       where: where as never,
       orderBy: { updatedAt: 'desc' },
@@ -185,9 +221,18 @@ export class DraftsService {
     return { detections };
   }
 
-  async remove(tenantId: string, id: string): Promise<{ deleted: boolean }> {
+  async remove(tenantId: string, id: string, actorId: string): Promise<{ deleted: boolean }> {
     const existing = await this.prisma.wsDraft.findFirst({ where: { id, tenantId } });
     if (!existing) throw new NotFoundException('Draft not found');
+    // Deleting a document is owner + editor only (role matrix) — a teammate it
+    // was merely shared with as reviewer/commenter/viewer cannot destroy it.
+    await this.collaborators.assertCan(
+      tenantId,
+      id,
+      actorId,
+      canEdit,
+      'Only owners and editors can delete this document',
+    );
     await this.prisma.wsDraft.delete({ where: { id } });
     return { deleted: true };
   }

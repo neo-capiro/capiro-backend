@@ -55,13 +55,41 @@ export class GenerationService {
     const client = (cfg.client as string | null) ?? draft.client;
     const offices = (cfg.offices as string[] | undefined) ?? [];
 
-    const contextText = (draft.context ?? [])
+    // Per-item + total caps so a large/numerous context set (esp. extracted
+    // document bodies) can't blow the model's input-context budget — server-side
+    // defense-in-depth on top of the Context Builder's per-document clamp.
+    const PER_ITEM_CAP = 8000;
+    const TOTAL_CONTEXT_CAP = 24000;
+
+    const itemText = (draft.context ?? [])
       .map((c) => {
         const p = c.payload as Record<string, unknown>;
-        return c.kind === 'free-text' ? String(p.text ?? '') : String(p.label ?? '');
+        // Prefer the rich grounding body (payload.text — set by the Context
+        // Builder for client data, documents, bills, preps, news); fall back to
+        // the short label for older/source items. Without this, added news +
+        // documents contribute nothing to generation (they carry no `label`).
+        return String(p.text ?? p.label ?? '').slice(0, PER_ITEM_CAP);
       })
+      .filter(Boolean);
+
+    // Linked program elements (Setup → Links & data): the user attaches PEs and
+    // we persist the full associated context (mission + financials) on the
+    // config so Meri grounds the draft in real budget data.
+    const linkedPes =
+      (cfg.linkedProgramElements as
+        | Array<{ peCode?: string; title?: string; context?: string }>
+        | undefined) ?? [];
+    const peText = linkedPes
+      .map((pe) => {
+        const head = [pe.peCode, pe.title].filter(Boolean).join(' — ');
+        return [head, pe.context].filter(Boolean).join('\n').slice(0, PER_ITEM_CAP);
+      })
+      .filter(Boolean);
+
+    const contextText = [...itemText, ...peText]
       .filter(Boolean)
-      .join('\n- ');
+      .join('\n- ')
+      .slice(0, TOTAL_CONTEXT_CAP);
 
     const prompt = this.buildSectionPrompt({
       product: draft.product ?? 'document',
@@ -149,7 +177,8 @@ export class GenerationService {
       pathways,
       committees,
       personalize: meta.personalize,
-      officeAssociated: meta.office,
+      // Office/client personalization always defaults to "No" — opt-in per draft.
+      officeAssociated: false,
       offices: [],
       clientAssociated: false,
       clientPersons: [],
@@ -159,7 +188,9 @@ export class GenerationService {
       pages,
       tone: 'Formal',
       toneContext: '',
-      linkedData: WSC.dataFor(industry).map((d) => d.label),
+      // Program-element context is attached via the Setup "Links & data" PE
+      // search (cfg.linkedProgramElements), not the legacy industry-data labels.
+      linkedData: [],
       anonymize: false,
       letterhead: { custom: false, firmName: '', firmAddr: '' },
       // Provenance for the editor: flag low-confidence guesses for review.
@@ -322,6 +353,18 @@ export class GenerationService {
     client: string | null;
   }): string {
     const sectionGuide = WSC.suggestedSections(args.product);
+    // E-4: match Meri's length + format to the section's purpose instead of one
+    // generic prose block. Output HTML (the editor/preview render sanitized HTML
+    // that now permits <p>/<ul>/<li>/<table>).
+    const spec = WSC.specFor(args.section);
+    const formatLine =
+      spec.format === 'bullets'
+        ? 'Format as a concise HTML bullet list: <ul><li>…</li></ul>.'
+        : spec.format === 'table'
+          ? 'Format as a simple HTML <table> with a header row (<thead><tr><th>…</th></tr></thead><tbody>…</tbody>).'
+          : spec.format === 'short'
+            ? 'Write only 1–2 tight sentences (or one short labeled line). Do not pad.'
+            : 'Write well-structured prose as one or more <p> paragraphs.';
     return [
       `You are Meri, a government-affairs writing assistant. Draft the "${args.section}" section`,
       `of a ${args.product} titled "${args.docTitle}".`,
@@ -333,8 +376,10 @@ export class GenerationService {
       `This section sits within the standard structure: ${sectionGuide.join(' → ')}.`,
       args.context ? `Ground the content in these facts:\n- ${args.context}` : '',
       '',
-      `Write only the prose for the "${args.section}" section — no headers, no preamble,`,
-      `no meta-commentary. Be specific, factual, and concise. Government-affairs register.`,
+      `Goal of this section: ${spec.goal}`,
+      `Target length: roughly ${spec.targetWords[0]}–${spec.targetWords[1]} words — respect it.`,
+      formatLine,
+      `Output clean HTML using ONLY these tags: <p>, <ul>/<ol>/<li>, <table>/<thead>/<tbody>/<tr>/<th>/<td>, <strong>, <em>. No markdown, no section header/title, no preamble or meta-commentary. Be specific and factual; government-affairs register.`,
     ]
       .filter(Boolean)
       .join('\n');

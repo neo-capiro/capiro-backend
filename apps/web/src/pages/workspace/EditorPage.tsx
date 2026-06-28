@@ -31,6 +31,7 @@ import { App as AntApp, Spin } from 'antd';
 import { StepsRail } from './StepsRail.js';
 import {
   useAddDocument,
+  useCollaborators,
   useComments,
   useCreateComment,
   useCreateVersion,
@@ -38,8 +39,10 @@ import {
   useDraft,
   useDraftChecks,
   useGenerateSection,
+  useTenantMembers,
   useUpdateDocument,
   useUpdateDraft,
+  initials,
 } from './api.js';
 import { useMe } from '../../lib/me.js';
 import type { WsAsk, WsBlock, WsConfig, WsDocument, WsSectionMeta, WsTemplate } from './types.js';
@@ -71,6 +74,8 @@ import {
 import type { ComposingComment } from './editor/CommentsRail.js';
 
 const AUTOSAVE_MS = 1200;
+// E-16: at most one autosave version checkpoint per this interval of active editing.
+const VERSION_CHECKPOINT_MS = 5 * 60_000;
 const MAIN_TAB = 'main';
 
 export function EditorPage() {
@@ -84,6 +89,20 @@ export function EditorPage() {
   const addDocument = useAddDocument(draftId ?? '');
   const deleteDocument = useDeleteDocument(draftId ?? '');
   const generate = useGenerateSection(draftId ?? '');
+
+  // E-17: real collaborator avatars (owner + active collaborators), resolving
+  // clerk ids to initials via the tenant roster. No seed avatars.
+  const { data: collaborators } = useCollaborators(draftId ?? null);
+  const { data: tenantMembers } = useTenantMembers();
+  const collaboratorInitials = useMemo(() => {
+    const byClerk = new Map((tenantMembers ?? []).map((m) => [m.clerkUserId, m]));
+    return (collaborators ?? [])
+      .filter((c) => c.status === 'active')
+      .map((c) => {
+        const m = c.subjectId ? byClerk.get(c.subjectId) : undefined;
+        return initials(m?.name || c.name || c.email || '?');
+      });
+  }, [collaborators, tenantMembers]);
   const createVersion = useCreateVersion(draftId ?? '');
   const { data: me } = useMe();
 
@@ -97,6 +116,17 @@ export function EditorPage() {
 
   const [activeTab, setActiveTab] = useState<string>(MAIN_TAB);
   const [activeOffice, setActiveOffice] = useState<string | null>(null);
+  // E-9: id of the block just inserted — scrolled into view + flashed.
+  const [justInserted, setJustInserted] = useState<string | null>(null);
+  useEffect(() => {
+    if (!justInserted) return;
+    // Runs after the new block has rendered, so getElementById resolves.
+    document
+      .getElementById(`ws-block-${justInserted}`)
+      ?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    const t = setTimeout(() => setJustInserted(null), 1300);
+    return () => clearTimeout(t);
+  }, [justInserted]);
   const [saveStatus, setSaveStatus] = useState<SaveStatus>('saved');
   const [draftingSection, setDraftingSection] = useState<string | null>(null);
 
@@ -164,6 +194,7 @@ export function EditorPage() {
   // through `flushRef` so a fired timer always runs the freshest flush (not a
   // stale closure captured when the timer was set).
   const flushRef = useRef<(manual: boolean) => void>(() => {});
+  const lastCheckpoint = useRef(0); // E-16: last autosave version checkpoint time
   const scheduleSave = useCallback(() => {
     if (!draftId) return;
     setSaveStatus('saving');
@@ -202,12 +233,32 @@ export function EditorPage() {
       }
       dirtyDocs.current.clear();
 
+      const hadChanges = tasks.length > 0;
       Promise.allSettled(tasks).then(() => {
         setSaveStatus('saved');
         if (manual) message.success('Saved to Documents');
+        // E-16: snapshot a throttled version checkpoint on autosave so version
+        // history is populated without a manual "Save draft" button (E-20).
+        if (hadChanges && draftId) {
+          const now = Date.now();
+          if (now - lastCheckpoint.current > VERSION_CHECKPOINT_MS) {
+            lastCheckpoint.current = now;
+            createVersion.mutate({ label: 'Autosave' });
+          }
+        }
       });
     },
-    [draftId, cfg, docTitle, mainBlocks, packetBodies, updateDraft, updateDocument, message],
+    [
+      draftId,
+      cfg,
+      docTitle,
+      mainBlocks,
+      packetBodies,
+      updateDraft,
+      updateDocument,
+      createVersion,
+      message,
+    ],
   );
   flushRef.current = flush;
 
@@ -367,15 +418,21 @@ export function EditorPage() {
     arr.splice(to, 0, moved);
     patchCfg({ sections: arr });
   };
-  const addSection = () => {
+  const addSection = (name?: string, meta?: Partial<WsSectionMeta>) => {
     if (!isMainDoc) {
       addBlockTo('section');
       return;
     }
-    let n = 'New section';
+    const base = (name && name.trim()) || 'New section';
+    let n = base;
     let i = 2;
-    while (cfg.sections.includes(n)) n = 'New section ' + i++;
-    patchCfg({ sections: [...cfg.sections, n] });
+    while (cfg.sections.includes(n)) n = `${base} ${i++}`;
+    const patch: Partial<WsConfig> = { sections: [...cfg.sections, n] };
+    if (meta) {
+      const all = (cfg.sectionMeta as Record<string, WsSectionMeta> | undefined) ?? {};
+      patch.sectionMeta = { ...all, [n]: meta };
+    }
+    patchCfg(patch);
     toast('Section added');
   };
 
@@ -414,23 +471,25 @@ export function EditorPage() {
   // maps to a `photo` block. `section` becomes a packet section block (the MAIN
   // doc handles sections via cfg.sections, not the block model). Returns null
   // for non-block kinds like `template`.
-  const blockFor = (id: string, kind: string): WsBlock | null => {
+  const blockFor = (id: string, kind: string, extra?: Partial<WsBlock>): WsBlock | null => {
     if (kind === 'section') return { id, type: 'section', title: 'New section', content: '' };
-    if (kind === 'image' || kind === 'photo') return { id, type: 'photo' };
-    if (kind === 'logo') return { id, type: 'logo' };
-    if (kind === 'table') return { id, type: 'table' };
+    if (kind === 'image' || kind === 'photo') return { id, type: 'photo', ...extra };
+    if (kind === 'logo') return { id, type: 'logo', ...extra };
+    if (kind === 'table') return { id, type: 'table', ...extra };
     if (kind === 'table-platform') return { id, type: 'table', variant: 'platform' };
-    if (kind === 'table-custom') return { id, type: 'table', variant: 'custom' };
+    if (kind === 'table-custom')
+      return { id, type: 'table', variant: 'custom', rows: 3, cols: 2, cells: [], ...extra };
     return null;
   };
-  const addBlockTo = (kind: string) => {
+  // extra carries an uploaded image src (photo/logo) or table dims (E-5/6/8).
+  const addBlockTo = (kind: string, extra?: Partial<WsBlock>) => {
     const id = String(Date.now()) + Math.random().toString(36).slice(2, 6);
     // MAIN doc: sections live in cfg.sections (not the block model).
     if (kind === 'section' && isMainDoc) {
       addSection();
       return;
     }
-    const block = blockFor(id, kind);
+    const block = blockFor(id, kind, extra);
     if (!block) return; // non-block kind (e.g. template) — handled elsewhere.
     if (isMainDoc) {
       setMainBlocks((b) => [...b, block]);
@@ -444,9 +503,16 @@ export function EditorPage() {
       dirtyDocs.current.add(activeTab);
       scheduleSave();
     }
+    setJustInserted(id); // E-9: scroll into view + flash so the user sees it
+    toast('Inserted');
   };
   const removeMainBlock = (id: string) => {
     setMainBlocks((b) => b.filter((x) => x.id !== id));
+    cfgDirty.current = true;
+    scheduleSave();
+  };
+  const changeMainBlock = (id: string, patch: Partial<WsBlock>) => {
+    setMainBlocks((b) => b.map((x) => (x.id === id ? { ...x, ...patch } : x)));
     cfgDirty.current = true;
     scheduleSave();
   };
@@ -492,9 +558,28 @@ export function EditorPage() {
   const onChecks = () => setPopover((p) => (p === 'checks' ? null : 'checks'));
   const onHistory = () => setPopover((p) => (p === 'history' ? null : 'history'));
   // "Fix" in the checks popover: a jump-to stub (closes the popover + toasts).
+  // E-18: "Fix" performs a concrete action per check instead of a toast stub —
+  // open the anonymize review, or jump to + focus the first empty section.
   const onFixCheck = (c: WsCheckResult) => {
     setPopover(null);
-    toast(`Fix: ${c.label}${c.detail ? ` (${c.detail})` : ''}`);
+    if (c.id === 'anonymize-map' || c.id === 'anonymize') {
+      setShowAnonymizeReview(true);
+      return;
+    }
+    const content = (cfg.sectionContent as Record<string, string> | undefined) ?? {};
+    // Mirror the engine's sections-filled check: strip HTML before testing so a
+    // whitespace-only "<p></p>" section counts as empty (checks.service.ts).
+    const empty = cfg.sections.find((s) => !(content[s] || '').replace(/<[^>]*>/g, '').trim());
+    if (empty) {
+      const esc = typeof CSS !== 'undefined' ? CSS.escape(empty) : empty;
+      // Anchor is on the SectionBlock outer wrapper (renders for empty sections too).
+      const el = document.querySelector(`[data-ws-section-block="${esc}"]`) as HTMLElement | null;
+      el?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      el?.focus?.();
+      toast(`Fix: draft the "${empty}" section`);
+      return;
+    }
+    toast(`Review: ${c.label}${c.detail ? ` — ${c.detail}` : ''}`);
   };
   const onShare = () => navigate(`/workspace/collab/${draftId}`);
   const onPreview = () => {
@@ -502,13 +587,6 @@ export function EditorPage() {
     navigate(`/workspace/preview/${draftId}`);
   };
 
-  // "Save draft" flushes the autosave AND snapshots a version (Phase 6b). The
-  // version is authored by the person saving; Meri-authored snapshots are
-  // created by the generation flow when that lands.
-  const onSaveDraft = () => {
-    flush(true);
-    createVersion.mutate({ label: 'Manual save' });
-  };
   const onEditContext = () => navigate(`/workspace/context/${draftId}`);
   const onAskMeri = (text: string) =>
     toast(`Meri: "${text}" — chat editing arrives in a later phase`); // TODO(phase 6b)
@@ -620,11 +698,11 @@ export function EditorPage() {
         checksOpen={popover === 'checks'}
         historyOpen={popover === 'history'}
         viewOnly={viewOnly}
+        collaborators={collaboratorInitials}
         onAnonymize={onAnonymize}
         onChecks={onChecks}
         onHistory={onHistory}
         onShare={onShare}
-        onSaveDraft={onSaveDraft}
         onPreview={onPreview}
       />
 
@@ -657,7 +735,10 @@ export function EditorPage() {
                 offices={offices}
                 active={activeOffice}
                 onChange={setActiveOffice}
-                onToast={toast}
+                onAddOffice={(name) => {
+                  if (!offices.includes(name)) patchCfg({ offices: [...offices, name] });
+                  setActiveOffice(name);
+                }}
               />
             )}
             <DocTabs
@@ -713,6 +794,8 @@ export function EditorPage() {
                     onRegenerate={regenerateSection}
                     onMarkReviewed={markReviewed}
                     onRemoveBlock={removeMainBlock}
+                    onChangeBlock={changeMainBlock}
+                    justInsertedId={justInserted}
                     onToast={toast}
                   />
                 </div>
