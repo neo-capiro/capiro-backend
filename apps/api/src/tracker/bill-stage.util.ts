@@ -87,3 +87,18 @@ export function humanizeBillId(id: string): string {
   const prefix = BILL_TYPE_LABEL[type.toLowerCase()] ?? type.toUpperCase();
   return `${prefix} ${number}`;
 }
+
+/**
+ * The current US Congress number. A Congress spans 2 years starting in the
+ * odd year (e.g. the 119th = Jan 2025 – Jan 2027). Bills from a prior Congress
+ * are dead, so recommendations are scoped to the current one.
+ */
+export function currentCongress(now: Date = new Date()): number {
+  return Math.floor((now.getFullYear() - 1789) / 2) + 1;
+}
+
+/** Parse the leading Congress number from a congress_bill id ("119-hr-7702" → 119), or null. */
+export function congressFromBillId(id: string): number | null {
+  const n = Number((id ?? '').split('-')[0]);
+  return Number.isFinite(n) && n > 0 ? n : null;
+}

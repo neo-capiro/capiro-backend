@@ -1,4 +1,11 @@
-import { billStage, passageProbability, humanizeBillId, BILL_STAGES } from './bill-stage.util.js';
+import {
+  billStage,
+  passageProbability,
+  humanizeBillId,
+  BILL_STAGES,
+  currentCongress,
+  congressFromBillId,
+} from './bill-stage.util.js';
 
 describe('billStage', () => {
   it('classifies enacted', () => {
@@ -91,5 +98,25 @@ describe('humanizeBillId', () => {
 describe('BILL_STAGES', () => {
   it('has the four legislative stages in order', () => {
     expect(BILL_STAGES.map((s) => s.id)).toEqual(['introduced', 'committee', 'passed', 'enacted']);
+  });
+});
+
+describe('currentCongress', () => {
+  it('maps years to the right Congress (119th = 2025-2026)', () => {
+    expect(currentCongress(new Date('2025-06-01'))).toBe(119);
+    expect(currentCongress(new Date('2026-06-28'))).toBe(119);
+    expect(currentCongress(new Date('2027-06-01'))).toBe(120);
+    expect(currentCongress(new Date('2023-06-01'))).toBe(118);
+  });
+});
+
+describe('congressFromBillId', () => {
+  it('parses the leading Congress number', () => {
+    expect(congressFromBillId('119-hr-7702')).toBe(119);
+    expect(congressFromBillId('117-s-410')).toBe(117);
+  });
+  it('returns null for unparseable ids', () => {
+    expect(congressFromBillId('weird')).toBeNull();
+    expect(congressFromBillId('')).toBeNull();
   });
 });

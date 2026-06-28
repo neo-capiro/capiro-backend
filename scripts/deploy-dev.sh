@@ -103,8 +103,21 @@ if $DO_MIGRATE; then
       --network-configuration "$NETCFG" \
       --query 'tasks[0].taskArn' --output text)
     TID="${TASK_ARN##*/}"
-    echo "migrate task: $TID — waiting for STOP..."
-    aws ecs wait tasks-stopped --cluster "$CLUSTER" --tasks "$TID"
+    # Poll instead of `aws ecs wait tasks-stopped` (whose fixed ~600s budget can
+    # expire on a slow Fargate image pull, aborting a deploy whose migration is
+    # actually fine). Wait up to 30 min for the task to STOP.
+    echo "migrate task: $TID — waiting for STOP (up to 30 min)..."
+    DEADLINE=$(( $(date +%s) + 1800 ))
+    while :; do
+      ST=$(aws ecs describe-tasks --cluster "$CLUSTER" --tasks "$TID" \
+             --query 'tasks[0].lastStatus' --output text 2>/dev/null || echo UNKNOWN)
+      [ "$ST" = "STOPPED" ] && break
+      if [ "$(date +%s)" -ge "$DEADLINE" ]; then
+        echo "!! migrate task did not STOP within 30 min (last status: $ST). NOT rolling the API."
+        exit 1
+      fi
+      sleep 10
+    done
     EXIT=$(aws ecs describe-tasks --cluster "$CLUSTER" --tasks "$TID" \
            --query 'tasks[0].containers[0].exitCode' --output text)
     echo "migrate exit code: $EXIT"

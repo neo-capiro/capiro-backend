@@ -4,7 +4,14 @@ import { IntelligenceService } from '../intelligence/intelligence.service.js';
 import { issueAreaForSector, normalizeIssueArea } from '@capiro/shared';
 import { EMBEDDING_MODEL, embedText, normalize, vectorLiteral } from '../embeddings/embedder.js';
 import { normalizeE164 } from './sms/sms.service.js';
-import { BILL_STAGES, billStage, humanizeBillId, passageProbability } from './bill-stage.util.js';
+import {
+  BILL_STAGES,
+  billStage,
+  congressFromBillId,
+  currentCongress,
+  humanizeBillId,
+  passageProbability,
+} from './bill-stage.util.js';
 import {
   DEFAULT_TRIGGERS,
   ISSUE_AREAS,
@@ -123,15 +130,26 @@ export class TrackerService {
     const row = await this.prisma.withTenant(tenantId, (tx) =>
       tx.clientWatchlist.findFirst({ where: { clientId } }),
     );
-    const tagsRaw = Array.isArray(row?.tags) ? (row!.tags as unknown[]) : [];
+    // Never configured → default-select the issue area derived from the client's
+    // sector (auto-carryover), so a DEFENSE client starts with "Defense" selected
+    // for both display and recommendation matching. Once the user saves, their
+    // explicit selection governs (no row → defaults; row exists → exact).
+    if (!row) {
+      const client = await this.prisma.withTenant(tenantId, (tx) =>
+        tx.client.findFirst({ where: { id: clientId }, select: { sectorTag: true } }),
+      );
+      const sectorArea = issueAreaForSector(client?.sectorTag);
+      return { issueAreas: sectorArea ? [sectorArea] : [], tags: [] };
+    }
+    const tagsRaw = Array.isArray(row.tags) ? (row.tags as unknown[]) : [];
     const tags = tagsRaw
       .map((t) => this.normalizeTag((t ?? {}) as Partial<WatchlistTag>))
       .filter((t): t is WatchlistTag => t != null);
     // Remap any legacy issue-area labels to canonical ones (dedup) so renamed
     // taxonomy entries aren't dropped by the canonical-only filter on save.
-    const issueAreas = Array.isArray(row?.issueAreas)
+    const issueAreas = Array.isArray(row.issueAreas)
       ? Array.from(
-          new Set(row!.issueAreas.map(normalizeIssueArea).filter((a): a is string => a != null)),
+          new Set(row.issueAreas.map(normalizeIssueArea).filter((a): a is string => a != null)),
         )
       : [];
     return { issueAreas, tags };
@@ -537,9 +555,11 @@ export class TrackerService {
       ...dismissedRows.map((r) => r.billId),
     ]);
 
-    // Candidate universe: scored semantic matches ∪ keyword matches.
-    const semanticScores = await this.semanticScores(embeddingParts);
-    const keywordIds = await this.keywordCandidateIds(keywordTerms);
+    // Candidate universe: scored semantic matches ∪ keyword matches, scoped to
+    // the current Congress (prior-Congress bills are dead → never recommend them).
+    const congress = currentCongress();
+    const semanticScores = await this.semanticScores(embeddingParts, congress);
+    const keywordIds = await this.keywordCandidateIds(keywordTerms, congress);
     const candidateIds = Array.from(new Set([...semanticScores.keys(), ...keywordIds])).filter(
       (id) => !excluded.has(id),
     );
@@ -613,16 +633,20 @@ export class TrackerService {
         });
       }
 
-      // Composite relevance (brief §5.2 weighting).
+      // Composite relevance. Weighted so the POPULATED signal (semantic +
+      // LDA/capability keyword + sector issue area) can clear the floor on its
+      // own — a watchlist sharpens to high scores but isn't required. (The
+      // original watchlist-centric weighting left every non-watchlist client
+      // below the floor, i.e. zero recommendations.)
       const fit = Math.max(
         0,
         Math.min(
           1,
-          0.35 * (exactEntity ? 1 : 0) +
-            0.25 * semantic +
-            0.2 * (textMatch ? 1 : 0) +
+          0.4 * semantic +
+            0.3 * (textMatch ? 1 : 0) +
+            0.15 * (exactEntity ? 1 : 0) +
             0.1 * (subjectMatch ? 1 : 0) +
-            0.1 * priorityBoost,
+            0.05 * priorityBoost,
         ),
       );
 
@@ -685,10 +709,10 @@ export class TrackerService {
       .replace(/[.\s]+/g, '')
       .replace(/^([a-z]+)(\d)/, '$1-$2')}%`;
     const rows = await this.fetchBillRowsRaw(
-      `WHERE LOWER(cb.title) LIKE $1 OR LOWER(cb.id) LIKE $2
+      `WHERE cb.congress = $3 AND (LOWER(cb.title) LIKE $1 OR LOWER(cb.id) LIKE $2)
        ORDER BY cb.latest_action_date DESC NULLS LAST
        LIMIT 20`,
-      [like, idToken],
+      [like, idToken, currentCongress()],
     );
     return rows.map((b) => ({
       billId: b.id,
@@ -749,14 +773,16 @@ export class TrackerService {
     return Array.from(new Set(out));
   }
 
-  /** Scored semantic candidates: billId → cosine similarity (0..1). */
-  private async semanticScores(parts: string[]): Promise<Map<string, number>> {
+  /** Scored semantic candidates (current Congress only): billId → cosine similarity (0..1). */
+  private async semanticScores(parts: string[], congress: number): Promise<Map<string, number>> {
     const out = new Map<string, number>();
     const query = normalize(parts.join('. '));
     if (query.length < 10) return out;
     try {
       const vector = await embedText(query);
       const vec = vectorLiteral(vector);
+      // Over-fetch (the global bill embeddings span every synced Congress) so the
+      // current-Congress post-filter still leaves a full candidate set.
       const rows = await this.prisma.$queryRawUnsafe<Array<{ source_id: string; score: number }>>(
         `SELECT ce.source_id, (1 - (ce.embedding <=> $1::vector))::float8 AS score
            FROM context_embeddings ce
@@ -765,14 +791,17 @@ export class TrackerService {
             AND ce.embedding IS NOT NULL
             AND (1 - (ce.embedding <=> $1::vector)) >= $3
           ORDER BY ce.embedding <=> $1::vector
-          LIMIT 200`,
+          LIMIT 400`,
         vec,
         EMBEDDING_MODEL,
         EMBED_CANDIDATE_FLOOR,
       );
       for (const r of rows) {
         const id = (r.source_id ?? '').trim();
-        if (id && !out.has(id)) out.set(id, Math.max(0, Math.min(1, r.score)));
+        // Prior-Congress bills are dead — drop them from recommendations.
+        if (id && congressFromBillId(id) === congress && !out.has(id)) {
+          out.set(id, Math.max(0, Math.min(1, r.score)));
+        }
       }
     } catch (e) {
       this.logger.warn(`Recommendations embeddings lookup failed: ${(e as Error).message}`);
@@ -780,8 +809,8 @@ export class TrackerService {
     return out;
   }
 
-  /** Keyword/subject candidate bill ids. */
-  private async keywordCandidateIds(terms: string[]): Promise<string[]> {
+  /** Keyword/subject candidate bill ids, scoped to the current Congress. */
+  private async keywordCandidateIds(terms: string[], congress: number): Promise<string[]> {
     const lower = terms.map((t) => t.toLowerCase()).filter((t) => t.length >= MIN_TERM_LEN);
     if (!lower.length) return [];
     const patterns = lower.map((n) => `\\m${n.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\M`);
@@ -789,10 +818,13 @@ export class TrackerService {
       SELECT DISTINCT cb.id
       FROM congress_bill cb
       LEFT JOIN congress_bill_subject cbs ON cbs.bill_id = cb.id
-      WHERE LOWER(cbs.name) = ANY(${lower}::text[])
-         OR LOWER(cbs.name) ~ ANY(${patterns}::text[])
-         OR LOWER(cb.policy_area) = ANY(${lower}::text[])
-         OR LOWER(cb.title) ~ ANY(${patterns}::text[])
+      WHERE cb.congress = ${congress}
+        AND (
+             LOWER(cbs.name) = ANY(${lower}::text[])
+          OR LOWER(cbs.name) ~ ANY(${patterns}::text[])
+          OR LOWER(cb.policy_area) = ANY(${lower}::text[])
+          OR LOWER(cb.title) ~ ANY(${patterns}::text[])
+        )
       LIMIT 300
     `;
     return rows.map((r) => r.id);
