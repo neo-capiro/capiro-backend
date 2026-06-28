@@ -250,6 +250,8 @@ export function useUpdateDraft(id: string) {
     onSuccess: (data) => {
       qc.setQueryData(['ws', 'draft', id], data);
       qc.invalidateQueries({ queryKey: ['ws', 'drafts'] });
+      // E-18: keep the pre-submission checks score live as the draft is edited.
+      qc.invalidateQueries({ queryKey: ['ws', 'checks', id] });
     },
   });
 }
@@ -301,7 +303,10 @@ export function useUpdateDocument(draftId: string) {
       docId: string;
       body: Partial<{ name: string; ordinal: number; body: Record<string, unknown> }>;
     }) => (await api.patch<WsDocument>(`${BASE}/drafts/${draftId}/documents/${docId}`, body)).data,
-    onSuccess: () => qc.invalidateQueries({ queryKey: ['ws', 'draft', draftId] }),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['ws', 'draft', draftId] });
+      qc.invalidateQueries({ queryKey: ['ws', 'checks', draftId] }); // E-18: live score
+    },
   });
 }
 
