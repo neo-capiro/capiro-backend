@@ -308,6 +308,9 @@ export const configSchema = z.object({
     .transform((v) => !['false', '0', 'no', 'off'].includes(v.trim().toLowerCase())),
   // From-address for Tracker alert emails (must be a verified SES identity).
   TRACKER_ALERT_EMAIL_FROM: z.string().email().default('alerts@capiro.ai'),
+  // From-address for Workspace collaborator-invite emails (E-19). capiro.ai is a
+  // verified SES domain identity, so any @capiro.ai sender works without new infra.
+  WORKSPACE_INVITE_EMAIL_FROM: z.string().email().default('notifications@capiro.ai'),
   // Base URL used to build deep links in alert emails/SMS back to the client
   // profile Tracker tab.
   TRACKER_APP_BASE_URL: z.string().url().default('https://app.capiro.ai'),

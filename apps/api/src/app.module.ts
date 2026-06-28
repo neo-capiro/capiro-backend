@@ -26,6 +26,7 @@ import { FederalRegisterModule } from './federal-register/federal-register.modul
 import { RegulatoryDocketModule } from './regulatory-docket/regulatory-docket.module.js';
 import { IntelligenceModule } from './intelligence/intelligence.module.js';
 import { TrackerModule } from './tracker/tracker.module.js';
+import { WorkspaceCollabModule } from './workspace-collab/workspace-collab.module.js';
 import { ExplorerModule } from './explorer/explorer.module.js';
 import { SearchModule } from './search/search.module.js';
 import { InsightsModule } from './insights/insights.module.js';
@@ -74,6 +75,7 @@ import { ApiLatencyMiddleware } from './observability/api-latency.middleware.js'
     RegulatoryDocketModule,
     IntelligenceModule,
     TrackerModule,
+    WorkspaceCollabModule,
     ExplorerModule,
     SearchModule,
     InsightsModule,
