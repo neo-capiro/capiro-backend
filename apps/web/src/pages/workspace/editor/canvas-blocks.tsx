@@ -18,8 +18,13 @@ export function Letterhead({
   onToast: (msg: string) => void;
 }) {
   const lh = letterhead;
-  const name = lh?.custom && lh.firmName ? lh.firmName : firmName;
-  const addr = lh?.custom && lh.firmAddr ? lh.firmAddr : firmAddr;
+  // The firm letterhead renders ONLY when the user opted into a custom branded
+  // letterhead in Setup (cfg.letterhead.custom). It is the FIRM's identity — its
+  // name and uploaded logo — never the client's, so there is no client fallback.
+  // (Mirrors the server-side DOCX export, which also gates on `custom`.)
+  if (!lh?.custom) return null;
+  const name = lh.firmName || firmName;
+  const addr = lh.firmAddr || firmAddr;
   const mark = name
     .split(/\s+/)
     .map((w) => w[0])
@@ -38,23 +43,38 @@ export function Letterhead({
         background: 'var(--bg-surface)',
       }}
     >
-      <span
-        style={{
-          width: 38,
-          height: 38,
-          borderRadius: 7,
-          background: 'var(--ink-1)',
-          color: '#fff',
-          display: 'grid',
-          placeItems: 'center',
-          fontFamily: 'var(--font-serif)',
-          fontSize: 16,
-          fontWeight: 600,
-          flex: 'none',
-        }}
-      >
-        {mark}
-      </span>
+      {lh.logoDataUrl ? (
+        <img
+          src={lh.logoDataUrl}
+          alt={`${name} logo`}
+          style={{
+            width: 38,
+            height: 38,
+            borderRadius: 7,
+            objectFit: 'contain',
+            background: 'var(--bg-surface)',
+            flex: 'none',
+          }}
+        />
+      ) : (
+        <span
+          style={{
+            width: 38,
+            height: 38,
+            borderRadius: 7,
+            background: 'var(--ink-1)',
+            color: '#fff',
+            display: 'grid',
+            placeItems: 'center',
+            fontFamily: 'var(--font-serif)',
+            fontSize: 16,
+            fontWeight: 600,
+            flex: 'none',
+          }}
+        >
+          {mark}
+        </span>
+      )}
       <div style={{ flex: 1, minWidth: 0 }}>
         <div
           style={{
@@ -70,11 +90,6 @@ export function Letterhead({
           {addr}
         </div>
       </div>
-      {lh?.custom && (
-        <span className="pill info" style={{ flex: 'none' }}>
-          Custom letterhead
-        </span>
-      )}
       <button
         className="btn sm btn-ghost"
         style={{ color: 'var(--ink-4)', fontSize: 11 }}

@@ -106,7 +106,11 @@ export function PreviewPage() {
     (draft.ask && draft.ask !== 'n/a' ? (draft.ask as WsAsk) : {});
   const budget = budgetFrom(cfg);
 
-  const firmName = cfg.letterhead?.firmName || draft.client || 'Your firm';
+  // Letterhead = the FIRM's branding, shown ONLY when the user opted into a
+  // custom letterhead in Setup. Never the client (no draft.client fallback).
+  const lhCustom = !!cfg.letterhead?.custom;
+  const firmLogo = cfg.letterhead?.logoDataUrl;
+  const firmName = cfg.letterhead?.firmName || 'Your firm';
   const firmAddr = cfg.letterhead?.firmAddr || '';
   const firmMark = (firmName || 'C').trim().slice(0, 1).toUpperCase();
   const signer =
@@ -382,7 +386,13 @@ export function PreviewPage() {
             style={{ overflow: 'auto', padding: '26px 20px', background: 'var(--bg-sunken)' }}
           >
             {(view === 'packet' || view === 'cover') && hasCover && (
-              <PageSheet firmName={firmName} firmAddr={firmAddr} firmMark={firmMark}>
+              <PageSheet
+                custom={lhCustom}
+                logoDataUrl={firmLogo}
+                firmName={firmName}
+                firmAddr={firmAddr}
+                firmMark={firmMark}
+              >
                 <CoverLetterContent
                   office={office}
                   client={ax(draft.client)}
@@ -396,7 +406,13 @@ export function PreviewPage() {
             )}
             {/* D1: the white-paper view renders exactly ONE paper page. */}
             {(view === 'packet' || view === 'paper') && (
-              <PageSheet firmName={firmName} firmAddr={firmAddr} firmMark={firmMark}>
+              <PageSheet
+                custom={lhCustom}
+                logoDataUrl={firmLogo}
+                firmName={firmName}
+                firmAddr={firmAddr}
+                firmMark={firmMark}
+              >
                 <WhitePaperContent
                   title={ax(docTitle)}
                   metaLine={ax(metaLine)}
@@ -660,13 +676,22 @@ export function PreviewPage() {
   );
 }
 
-/** A print-style letter page sheet with the firm letterhead chrome. */
+/**
+ * A print-style letter page sheet. The firm letterhead chrome renders ONLY when
+ * the user opted into a custom branded letterhead in Setup (`custom`); it shows
+ * the firm's uploaded logo (or initials) + firm name/address — never the client.
+ * (Mirrors the editor Letterhead and the server-side DOCX export.)
+ */
 function PageSheet({
+  custom,
+  logoDataUrl,
   firmName,
   firmAddr,
   firmMark,
   children,
 }: {
+  custom: boolean;
+  logoDataUrl?: string;
   firmName: string;
   firmAddr: string;
   firmMark: string;
@@ -686,43 +711,53 @@ function PageSheet({
         margin: '0 auto 20px',
       }}
     >
-      <div
-        style={{
-          display: 'flex',
-          alignItems: 'center',
-          gap: 9,
-          paddingBottom: 11,
-          borderBottom: '2px solid var(--ink-1)',
-          marginBottom: 18,
-        }}
-      >
-        <span
+      {custom && (
+        <div
           style={{
-            width: 30,
-            height: 30,
-            borderRadius: 5,
-            background: 'var(--ink-1)',
-            color: '#fff',
-            display: 'grid',
-            placeItems: 'center',
-            fontFamily: 'var(--font-serif)',
-            fontSize: 14,
-            fontWeight: 600,
+            display: 'flex',
+            alignItems: 'center',
+            gap: 9,
+            paddingBottom: 11,
+            borderBottom: '2px solid var(--ink-1)',
+            marginBottom: 18,
           }}
         >
-          {firmMark}
-        </span>
-        <div>
-          <div style={{ fontFamily: 'var(--font-serif)', fontSize: 14, fontWeight: 600 }}>
-            {firmName}
-          </div>
-          {firmAddr && (
-            <div style={{ fontSize: 9, color: 'var(--ink-3)', fontFamily: 'var(--font-mono)' }}>
-              {firmAddr}
-            </div>
+          {logoDataUrl ? (
+            <img
+              src={logoDataUrl}
+              alt={`${firmName} logo`}
+              style={{ width: 30, height: 30, borderRadius: 5, objectFit: 'contain', flex: 'none' }}
+            />
+          ) : (
+            <span
+              style={{
+                width: 30,
+                height: 30,
+                borderRadius: 5,
+                background: 'var(--ink-1)',
+                color: '#fff',
+                display: 'grid',
+                placeItems: 'center',
+                fontFamily: 'var(--font-serif)',
+                fontSize: 14,
+                fontWeight: 600,
+              }}
+            >
+              {firmMark}
+            </span>
           )}
+          <div>
+            <div style={{ fontFamily: 'var(--font-serif)', fontSize: 14, fontWeight: 600 }}>
+              {firmName}
+            </div>
+            {firmAddr && (
+              <div style={{ fontSize: 9, color: 'var(--ink-3)', fontFamily: 'var(--font-mono)' }}>
+                {firmAddr}
+              </div>
+            )}
+          </div>
         </div>
-      </div>
+      )}
       {children}
     </div>
   );

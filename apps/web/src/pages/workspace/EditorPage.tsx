@@ -359,7 +359,9 @@ export function EditorPage() {
   const showOfficeRow = !!cfg.personalize && offices.length > 0;
 
   // Letterhead firm fallbacks (live tenant firm wiring is later; use config).
-  const firmName = cfg.letterhead?.firmName || draft.client || 'Your firm';
+  // NEVER fall back to the client — the letterhead is the FIRM's identity, and it
+  // only renders at all when cfg.letterhead.custom is set (see Letterhead).
+  const firmName = cfg.letterhead?.firmName || 'Your firm';
   const firmAddr = cfg.letterhead?.firmAddr || 'Add a firm address in Setup → Letterhead';
 
   // Packet tabs: main (label = product) + each packet WsDocument.
