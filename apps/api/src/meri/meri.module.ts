@@ -41,5 +41,8 @@ import { MeriFeatureFlagsService } from './meri-feature-flags.service.js';
     MeriFirmSkillsService,
     MeriFeatureFlagsService,
   ],
+  // Exported so the in-editor workspace assistant can reuse the tool harness
+  // (a constrained, read-only subset) without duplicating tool logic.
+  exports: [MeriToolsService],
 })
 export class MeriModule {}

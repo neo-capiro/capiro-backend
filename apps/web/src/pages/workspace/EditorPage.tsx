@@ -38,12 +38,18 @@ import {
   useDeleteDocument,
   useDraft,
   useDraftChecks,
+  useDraftContext,
   useGenerateSection,
   useTenantMembers,
   useUpdateDocument,
   useUpdateDraft,
+  useWorkspaceAssistant,
   initials,
+  type WsAssistantEdit,
 } from './api.js';
+import { useQuery } from '@tanstack/react-query';
+import { useApi } from '../../lib/use-api.js';
+import { sanitizeWorkspaceBody } from './editor/workspace-richtext.js';
 import { useMe } from '../../lib/me.js';
 import type { WsAsk, WsBlock, WsConfig, WsDocument, WsSectionMeta, WsTemplate } from './types.js';
 import { EditorToolbar, type SaveStatus } from './editor/EditorToolbar.js';
@@ -280,6 +286,109 @@ export function EditorPage() {
     [scheduleSave],
   );
 
+  // ── In-editor Meri assistant ────────────────────────────────────────────────
+  // Resolve the client UUID (the read-only data tools scope to it) + load the
+  // real Context Builder plan so Meri grounds on exactly what the user added.
+  const api = useApi();
+  const { data: clientList } = useQuery({
+    queryKey: ['ws-editor-clients'],
+    enabled: !!draft?.client,
+    queryFn: async () => (await api.get<{ id: string; name: string }[]>('/api/clients')).data,
+  });
+  const meriClientId = useMemo(
+    () => (clientList ?? []).find((c) => c.name === draft?.client)?.id,
+    [clientList, draft?.client],
+  );
+  const { data: contextPlan } = useDraftContext(draftId ?? null);
+  const meriContextLabels = useMemo(
+    () =>
+      (contextPlan ?? []).map((it) => {
+        const p = it.payload as { label?: string; headline?: string; text?: string };
+        return p.label || p.headline || (p.text ? `${p.text.slice(0, 48)}…` : 'Context');
+      }),
+    [contextPlan],
+  );
+  const assistant = useWorkspaceAssistant();
+
+  // One assistant turn: assemble the live document + setup + context plan and
+  // return Meri's reply + proposed edits. Operates on the MAIN white-paper doc.
+  const runMeri = useCallback(
+    async (messages: Array<{ role: 'user' | 'assistant'; text: string }>) => {
+      if (!cfg)
+        return { reply: 'The document is still loading — try again in a moment.', edits: [] };
+      const content = (cfg.sectionContent as Record<string, string> | undefined) ?? {};
+      const meta = (cfg.sectionMeta as Record<string, WsSectionMeta> | undefined) ?? {};
+      const sections = (cfg.sections ?? []).map((name) => ({
+        name,
+        content: content[name] ?? '',
+        status: meta[name]?.status,
+      }));
+      const c = cfg as Record<string, unknown>;
+      const setup: Record<string, unknown> = {};
+      for (const k of [
+        'tone',
+        'toneContext',
+        'pages',
+        'ask',
+        'offices',
+        'personalize',
+        'anonymize',
+      ]) {
+        if (c[k] != null && c[k] !== '') setup[k] = c[k];
+      }
+      const context = (contextPlan ?? []).map((it) => {
+        const p = it.payload as { label?: string; headline?: string; text?: string };
+        return { label: p.label || p.headline, text: p.text };
+      });
+      return assistant.mutateAsync({
+        messages,
+        document: {
+          title: docTitle || draft?.docTitle || 'Document',
+          product: typeof cfg.product === 'string' ? cfg.product : undefined,
+          client: draft?.client ?? undefined,
+          sections,
+        },
+        setup,
+        context,
+        clientId: meriClientId,
+      });
+    },
+    [cfg, contextPlan, meriClientId, assistant, docTitle, draft?.docTitle, draft?.client],
+  );
+
+  // Apply Meri's accepted edits to the MAIN doc section model (sanitized) + save.
+  const applyMeriEdits = useCallback(
+    (edits: WsAssistantEdit[]) => {
+      if (!cfg || !edits.length) return;
+      let sections = [...(cfg.sections ?? [])];
+      const content = { ...((cfg.sectionContent as Record<string, string> | undefined) ?? {}) };
+      const meta = { ...((cfg.sectionMeta as Record<string, WsSectionMeta> | undefined) ?? {}) };
+      for (const e of edits) {
+        if (e.op === 'replace_section' && e.section) {
+          if (!sections.includes(e.section)) sections.push(e.section);
+          content[e.section] = sanitizeWorkspaceBody(e.content ?? '');
+          meta[e.section] = { ...(meta[e.section] ?? {}), status: 'review' };
+        } else if (e.op === 'remove_section' && e.section) {
+          sections = sections.filter((s) => s !== e.section);
+          delete content[e.section];
+          delete meta[e.section];
+        } else if (e.op === 'insert_section' && e.name) {
+          let name = e.name;
+          let n = 2;
+          while (sections.includes(name)) name = `${e.name} ${n++}`;
+          const after = e.afterSection ? sections.indexOf(e.afterSection) : -1;
+          if (after >= 0) sections.splice(after + 1, 0, name);
+          else sections.push(name);
+          content[name] = sanitizeWorkspaceBody(e.content ?? '');
+          meta[name] = { status: 'review' };
+        }
+      }
+      patchCfg({ sections, sectionContent: content, sectionMeta: meta });
+      message.success('Applied Meri’s edits');
+    },
+    [cfg, patchCfg, message],
+  );
+
   // Cover-letter: ensure a packet doc exists when cfg.coverLetter flips on.
   useEffect(() => {
     if (!cfg || !draft) return;
@@ -353,7 +462,6 @@ export function EditorPage() {
     (draft.ask && draft.ask !== 'n/a' ? (draft.ask as WsAsk) : {});
   const budget = budgetFrom(cfg);
   const offices = (cfg.offices as string[] | undefined) ?? [];
-  const linkedData = (cfg.linkedData as string[] | undefined) ?? [];
 
   // Office row predicate (Q-ED-1): personalize is the single canonical gate.
   const showOfficeRow = !!cfg.personalize && offices.length > 0;
@@ -597,8 +705,6 @@ export function EditorPage() {
   };
 
   const onEditContext = () => navigate(`/workspace/context/${draftId}`);
-  const onAskMeri = (text: string) =>
-    toast(`Meri: "${text}" — chat editing arrives in a later phase`); // TODO(phase 6b)
 
   // ── Comment handlers (highlight-to-comment) ─────────────────────────────────
   // Clicking the selection FAB: snapshot the selection's anchor, wrap it in a
@@ -835,7 +941,7 @@ export function EditorPage() {
 
           <MeriPanel
             isMainDoc={isMainDoc}
-            contextItems={linkedData}
+            contextItems={meriContextLabels}
             openComments={openCommentsCount}
             activeTab={railTab}
             onTabChange={setRailTab}
@@ -847,8 +953,8 @@ export function EditorPage() {
             onComposeSave={onComposeSave}
             onComposeCancel={onComposeCancel}
             onApplyEdit={onApplyEdit}
-            onAsk={onAskMeri}
-            onQuickAction={(a) => toast(`Meri: ${a} — arrives in a later phase`)}
+            onRunMeri={runMeri}
+            onApplyEdits={applyMeriEdits}
             onEditContext={onEditContext}
           />
         </div>
