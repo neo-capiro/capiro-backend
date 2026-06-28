@@ -380,7 +380,10 @@ export function AnonymizeReview({
 }
 
 function toItem(d: AnonymizeDetection): ReviewItem {
-  return { ...d, on: true, scope: 'all', replaceMode: 'generic', custom: '' };
+  // E-15: only PRE-CHECK high-confidence structured names (client/product/
+  // office). Heuristically-mined proper nouns default OFF so the user opts in,
+  // instead of everything being replaced with "the program".
+  return { ...d, on: d.confidence !== 'low', scope: 'all', replaceMode: 'generic', custom: '' };
 }
 
 function pillStyle(active: boolean): React.CSSProperties {

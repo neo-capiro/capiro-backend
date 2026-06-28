@@ -14,7 +14,7 @@
 import { useMemo, useRef, useState } from 'react';
 import { Icon } from '../kit.js';
 import type { WsTemplate } from '../types.js';
-import { useTemplatesFor } from '../api.js';
+import { useAllTemplates } from '../api.js';
 
 // ── Table type picker ─────────────────────────────────────────────────────────
 const TABLE_OPTIONS: Array<{
@@ -160,13 +160,15 @@ export function TemplateInsertModal({
   /** Apply the chosen template by the chosen mode (replace vs merge). */
   onApply: (template: WsTemplate, mode: ApplyMode) => void;
 }) {
-  const { data, isLoading } = useTemplatesFor(product);
+  // E-3: search the FULL tenant template library (all products), not just the
+  // selected product's two. Suggested-for-product is derived below.
+  const { data: libTemplates, isLoading } = useAllTemplates();
   const [search, setSearch] = useState('');
   const [selected, setSelected] = useState<WsTemplate | null>(null);
   const [confirming, setConfirming] = useState(false);
   const searchRef = useRef<HTMLInputElement>(null);
 
-  const all = useMemo(() => data?.all ?? [], [data]);
+  const all = useMemo(() => libTemplates ?? [], [libTemplates]);
   const productTemplates = useMemo(() => all.filter((t) => t.product === product), [all, product]);
   const results = useMemo(() => {
     const q = search.trim().toLowerCase();

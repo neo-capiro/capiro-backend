@@ -43,7 +43,7 @@ import { sectionViews } from './editor/section-model.js';
 import { budgetFrom } from './editor/BudgetBlock.js';
 import { anonymizeMap, anonText } from './editor/anonymize.js';
 import type { StoredRedaction } from './editor/anonymize.js';
-import { sanitizeHtml } from '../engagement/outreach/v2/richtext.js';
+import { sanitizeWorkspaceBody as sanitizeHtml } from './editor/workspace-richtext.js';
 import type { WsAsk, WsCheckResult, WsGateResult } from './types.js';
 
 type ViewKey = 'cover' | 'paper' | 'packet';

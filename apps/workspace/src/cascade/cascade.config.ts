@@ -361,6 +361,75 @@ export const SECTION_LIBRARY = [
   'Contact block',
 ];
 
+// ── Per-section drafting spec (E-4) ─────────────────────────────────────────
+// Gives Meri a length + goal + FORMAT per section so it stops emitting one
+// generic prose block for every section. Keyed by section NAME via a keyword
+// classifier so it also covers library/custom/renamed sections.
+export interface SectionSpec {
+  goal: string;
+  format: 'prose' | 'bullets' | 'short' | 'table';
+  targetWords: [number, number];
+}
+
+export function sectionSpecFor(name: string): SectionSpec {
+  const n = (name || '').toLowerCase();
+  if (/\bthe ask\b|^ask\b|\btitle\b|effective date|^opening|^closing|letterhead|header/.test(n))
+    return { goal: 'State this directly and briefly.', format: 'short', targetWords: [10, 40] };
+  if (/funding history|budget|requested amount|total cost|funding ask|appropriation amount/.test(n))
+    return {
+      goal: 'Present the budget figures by fiscal year.',
+      format: 'table',
+      targetWords: [20, 90],
+    };
+  if (
+    /talking points|key facts|recommendation|next steps|objective|outcomes|metrics|anticipated questions|q&a|questions & responses/.test(
+      n,
+    )
+  )
+    return { goal: 'List the key points concisely.', format: 'bullets', targetWords: [40, 150] };
+  if (
+    /contact|logistics|disclosure|certification|account & program|recipient information|requesting entity|witness/.test(
+      n,
+    )
+  )
+    return {
+      goal: 'Provide the specific factual details, briefly.',
+      format: 'short',
+      targetWords: [15, 70],
+    };
+  if (
+    /operative provision|definitions|exceptions|authorization of appropriations|report language|bill language/.test(
+      n,
+    )
+  )
+    return {
+      goal: 'Draft in precise legislative/statutory drafting register.',
+      format: 'prose',
+      targetWords: [60, 220],
+    };
+  if (/executive summary|^summary|bluf|abstract/.test(n))
+    return {
+      goal: 'Summarize the core message up front.',
+      format: 'prose',
+      targetWords: [80, 140],
+    };
+  if (
+    /analysis|position|justification|background|impact|problem|solution|program description|rationale|need/.test(
+      n,
+    )
+  )
+    return {
+      goal: 'Develop the argument with specifics and supporting evidence.',
+      format: 'prose',
+      targetWords: [150, 280],
+    };
+  return {
+    goal: 'Develop this section clearly and specifically.',
+    format: 'prose',
+    targetWords: [120, 220],
+  };
+}
+
 // ── Cascade query helpers (wsconfig.jsx WSC) ────────────────────────────────
 export const WSC = {
   industries: (): string[] => CASCADE.map((c) => c.industry),
@@ -404,4 +473,5 @@ export const WSC = {
     return (SUGGESTED_SECTIONS[product] || ['Summary', 'Background', 'The ask']).slice();
   },
   suggestedPages: (product: string): number => SUGGESTED_PAGES[product] || 2,
+  specFor: (section: string): SectionSpec => sectionSpecFor(section),
 };

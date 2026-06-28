@@ -473,6 +473,8 @@ export interface AnonymizeDetection {
   kind: 'client' | 'office' | 'program';
   suggested: string;
   occurrences: number;
+  /** 'high' = structured client/product/office (pre-checked); 'low' = mined. */
+  confidence?: 'high' | 'low';
 }
 
 export function useAnonymizeDetect(draftId: string) {
