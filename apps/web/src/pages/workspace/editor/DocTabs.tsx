@@ -38,6 +38,14 @@ export function DocTabs({
   const [editVal, setEditVal] = useState('');
   const [customInput, setCustomInput] = useState('');
   const addRef = useRef<HTMLDivElement>(null);
+  const scrollRef = useRef<HTMLDivElement>(null);
+
+  // E-11: keep the active tab in view when tabs overflow the strip width.
+  useEffect(() => {
+    scrollRef.current
+      ?.querySelector('[data-active="true"]')
+      ?.scrollIntoView({ inline: 'nearest', block: 'nearest' });
+  }, [activeId]);
 
   useEffect(() => {
     if (!showAddMenu) return;
@@ -69,116 +77,132 @@ export function DocTabs({
         alignItems: 'flex-end',
       }}
     >
-      {tabs.map((tab) => {
-        const isActive = activeId === tab.id;
-        const isEditing = editingId === tab.id;
-        return (
-          <div
-            key={tab.id}
-            onClick={() => onSelect(tab.id)}
-            onDoubleClick={
-              !tab.main
-                ? (e) => {
-                    e.stopPropagation();
-                    setEditingId(tab.id);
-                    setEditVal(tab.label);
-                  }
-                : undefined
-            }
-            style={{
-              display: 'flex',
-              alignItems: 'center',
-              gap: 6,
-              padding: '8px 13px',
-              border: '1px solid',
-              borderColor: isActive ? 'var(--border-1)' : 'transparent',
-              borderBottom: isActive ? '1px solid var(--bg-surface)' : '1px solid var(--border-1)',
-              background: isActive ? 'var(--bg-surface)' : 'var(--bg-canvas)',
-              color: isActive ? 'var(--ink-1)' : 'var(--ink-3)',
-              fontWeight: isActive ? 600 : 400,
-              fontSize: 12.5,
-              borderRadius: '8px 8px 0 0',
-              marginBottom: -1,
-              cursor: 'pointer',
-              zIndex: isActive ? 2 : 1,
-              position: 'relative',
-              maxWidth: 190,
-              flex: 'none',
-              userSelect: 'none',
-            }}
-          >
-            <Icon
-              name={tab.main ? 'FileText' : 'File'}
-              size={14}
-              style={{ color: isActive ? 'var(--accent)' : 'var(--ink-4)', flex: 'none' }}
-            />
-            {isEditing ? (
-              <input
-                autoFocus
-                value={editVal}
-                onChange={(e) => setEditVal(e.target.value)}
-                onBlur={() => commitRename(tab.id)}
-                onKeyDown={(e) => {
-                  if (e.key === 'Enter') commitRename(tab.id);
-                  if (e.key === 'Escape') setEditingId(null);
-                }}
-                onClick={(e) => e.stopPropagation()}
-                style={{
-                  border: 'none',
-                  outline: 'none',
-                  background: 'transparent',
-                  fontSize: 12.5,
-                  fontFamily: 'var(--font-sans)',
-                  fontWeight: 600,
-                  width: 100,
-                  padding: 0,
-                }}
+      <div
+        ref={scrollRef}
+        className="ws-tabstrip-scroll"
+        style={{
+          display: 'flex',
+          alignItems: 'flex-end',
+          flex: 1,
+          minWidth: 0,
+          overflowX: 'auto',
+          paddingBottom: 1,
+        }}
+      >
+        {tabs.map((tab) => {
+          const isActive = activeId === tab.id;
+          const isEditing = editingId === tab.id;
+          return (
+            <div
+              key={tab.id}
+              data-active={isActive}
+              onClick={() => onSelect(tab.id)}
+              onDoubleClick={
+                !tab.main
+                  ? (e) => {
+                      e.stopPropagation();
+                      setEditingId(tab.id);
+                      setEditVal(tab.label);
+                    }
+                  : undefined
+              }
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: 6,
+                padding: '8px 13px',
+                border: '1px solid',
+                borderColor: isActive ? 'var(--border-1)' : 'transparent',
+                borderBottom: isActive
+                  ? '1px solid var(--bg-surface)'
+                  : '1px solid var(--border-1)',
+                background: isActive ? 'var(--bg-surface)' : 'var(--bg-canvas)',
+                color: isActive ? 'var(--ink-1)' : 'var(--ink-3)',
+                fontWeight: isActive ? 600 : 400,
+                fontSize: 12.5,
+                borderRadius: '8px 8px 0 0',
+                marginBottom: -1,
+                cursor: 'pointer',
+                zIndex: isActive ? 2 : 1,
+                position: 'relative',
+                maxWidth: 190,
+                flex: 'none',
+                userSelect: 'none',
+              }}
+            >
+              <Icon
+                name={tab.main ? 'FileText' : 'File'}
+                size={14}
+                style={{ color: isActive ? 'var(--accent)' : 'var(--ink-4)', flex: 'none' }}
               />
-            ) : (
-              <span
-                style={{
-                  overflow: 'hidden',
-                  textOverflow: 'ellipsis',
-                  whiteSpace: 'nowrap',
-                  flex: 1,
-                }}
-              >
-                {tab.label}
-              </span>
-            )}
-            {!tab.main && (
-              <button
-                onClick={(e) => {
-                  e.stopPropagation();
-                  onRemove(tab.id);
-                }}
-                title="Remove document"
-                style={{
-                  border: 'none',
-                  background: 'none',
-                  cursor: 'pointer',
-                  display: 'grid',
-                  placeItems: 'center',
-                  color: 'var(--ink-4)',
-                  padding: 1,
-                  borderRadius: 4,
-                  flex: 'none',
-                }}
-                onMouseEnter={(e) => {
-                  e.currentTarget.style.background = 'var(--bg-sunken)';
-                  e.currentTarget.style.color = 'var(--critical)';
-                }}
-                onMouseLeave={(e) => {
-                  e.currentTarget.style.background = 'none';
-                  e.currentTarget.style.color = 'var(--ink-4)';
-                }}
-              >
-                <Icon name="X" size={11} />
-              </button>
-            )}
-          </div>
-        );
-      })}
+              {isEditing ? (
+                <input
+                  autoFocus
+                  value={editVal}
+                  onChange={(e) => setEditVal(e.target.value)}
+                  onBlur={() => commitRename(tab.id)}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter') commitRename(tab.id);
+                    if (e.key === 'Escape') setEditingId(null);
+                  }}
+                  onClick={(e) => e.stopPropagation()}
+                  style={{
+                    border: 'none',
+                    outline: 'none',
+                    background: 'transparent',
+                    fontSize: 12.5,
+                    fontFamily: 'var(--font-sans)',
+                    fontWeight: 600,
+                    width: 100,
+                    padding: 0,
+                  }}
+                />
+              ) : (
+                <span
+                  style={{
+                    overflow: 'hidden',
+                    textOverflow: 'ellipsis',
+                    whiteSpace: 'nowrap',
+                    flex: 1,
+                  }}
+                >
+                  {tab.label}
+                </span>
+              )}
+              {!tab.main && (
+                <button
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    onRemove(tab.id);
+                  }}
+                  title="Remove document"
+                  style={{
+                    border: 'none',
+                    background: 'none',
+                    cursor: 'pointer',
+                    display: 'grid',
+                    placeItems: 'center',
+                    color: 'var(--ink-4)',
+                    padding: 1,
+                    borderRadius: 4,
+                    flex: 'none',
+                  }}
+                  onMouseEnter={(e) => {
+                    e.currentTarget.style.background = 'var(--bg-sunken)';
+                    e.currentTarget.style.color = 'var(--critical)';
+                  }}
+                  onMouseLeave={(e) => {
+                    e.currentTarget.style.background = 'none';
+                    e.currentTarget.style.color = 'var(--ink-4)';
+                  }}
+                >
+                  <Icon name="X" size={11} />
+                </button>
+              )}
+            </div>
+          );
+        })}
+      </div>
 
       {/* + add document to packet */}
       <div

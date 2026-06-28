@@ -11,10 +11,77 @@
  *  - TableTypePicker: "Pull from platform" vs "Custom table" → inserts the
  *    matching table block into the active canvas via the Phase-5 block model.
  */
-import { useMemo, useRef, useState } from 'react';
+import { useMemo, useRef, useState, type CSSProperties } from 'react';
 import { Icon } from '../kit.js';
-import type { WsTemplate } from '../types.js';
-import { useTemplatesFor } from '../api.js';
+import type { WsSectionMeta, WsTemplate } from '../types.js';
+import { useAllTemplates } from '../api.js';
+
+// Shared anchored-popover frame for the Insert-rail pickers.
+const POPOVER: CSSProperties = {
+  position: 'absolute',
+  right: 'calc(100% + 8px)',
+  top: 0,
+  zIndex: 60,
+  width: 252,
+  background: 'var(--bg-surface)',
+  border: '1px solid var(--border-1)',
+  borderRadius: 10,
+  boxShadow: 'var(--shadow-2)',
+  padding: 12,
+};
+const POPOVER_HEADER: CSSProperties = {
+  fontSize: 10,
+  fontWeight: 700,
+  color: 'var(--ink-3)',
+  textTransform: 'uppercase',
+  letterSpacing: '0.07em',
+  marginBottom: 9,
+};
+const POPOVER_CANCEL: CSSProperties = {
+  border: 'none',
+  background: 'none',
+  cursor: 'pointer',
+  fontSize: 11,
+  color: 'var(--ink-3)',
+  width: '100%',
+  textAlign: 'center',
+  padding: '3px 0',
+  fontFamily: 'var(--font-sans)',
+};
+
+function Stepper({
+  label,
+  value,
+  set,
+}: {
+  label: string;
+  value: number;
+  set: (v: number) => void;
+}) {
+  return (
+    <div
+      style={{
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'space-between',
+        marginBottom: 8,
+      }}
+    >
+      <span style={{ fontSize: 12 }}>{label}</span>
+      <span style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+        <button className="btn sm btn-ghost" onClick={() => set(Math.max(1, value - 1))}>
+          <Icon name="Minus" size={12} />
+        </button>
+        <span className="num" style={{ width: 18, textAlign: 'center', fontSize: 12.5 }}>
+          {value}
+        </span>
+        <button className="btn sm btn-ghost" onClick={() => set(Math.min(12, value + 1))}>
+          <Icon name="Plus" size={12} />
+        </button>
+      </span>
+    </div>
+  );
+}
 
 // ── Table type picker ─────────────────────────────────────────────────────────
 const TABLE_OPTIONS: Array<{
@@ -45,41 +112,51 @@ export function TableTypePicker({
   onInsert,
 }: {
   onClose: () => void;
-  onInsert: (kind: 'table-platform' | 'table-custom') => void;
+  onInsert: (
+    kind: 'table-platform' | 'table-custom',
+    extra?: { rows?: number; cols?: number },
+  ) => void;
 }) {
-  return (
-    <div
-      style={{
-        position: 'absolute',
-        right: 'calc(100% + 8px)',
-        top: 0,
-        zIndex: 60,
-        width: 252,
-        background: 'var(--bg-surface)',
-        border: '1px solid var(--border-1)',
-        borderRadius: 10,
-        boxShadow: 'var(--shadow-2)',
-        padding: 12,
-      }}
-    >
-      <div
-        style={{
-          fontSize: 10,
-          fontWeight: 700,
-          color: 'var(--ink-3)',
-          textTransform: 'uppercase',
-          letterSpacing: '0.07em',
-          marginBottom: 9,
-        }}
-      >
-        Add table
+  // E-6: choosing "Custom table" opens a rows×cols step before inserting.
+  const [dims, setDims] = useState<{ rows: number; cols: number } | null>(null);
+
+  if (dims) {
+    return (
+      <div style={POPOVER}>
+        <div style={POPOVER_HEADER}>Table size</div>
+        <Stepper label="Rows" value={dims.rows} set={(v) => setDims({ ...dims, rows: v })} />
+        <Stepper label="Columns" value={dims.cols} set={(v) => setDims({ ...dims, cols: v })} />
+        <button
+          className="btn btn-accent sm"
+          style={{ width: '100%', justifyContent: 'center', marginBottom: 8 }}
+          onClick={() => {
+            onInsert('table-custom', dims);
+            onClose();
+          }}
+        >
+          <Icon name="Check" size={12} />
+          Insert {dims.rows}×{dims.cols} table
+        </button>
+        <button onClick={() => setDims(null)} style={POPOVER_CANCEL}>
+          Back
+        </button>
       </div>
+    );
+  }
+
+  return (
+    <div style={POPOVER}>
+      <div style={POPOVER_HEADER}>Add table</div>
       {TABLE_OPTIONS.map((o) => (
         <button
           key={o.kind}
           onClick={() => {
-            onInsert(o.kind);
-            onClose();
+            if (o.kind === 'table-custom') {
+              setDims({ rows: 3, cols: 2 });
+            } else {
+              onInsert(o.kind);
+              onClose();
+            }
           }}
           style={{
             display: 'flex',
@@ -127,20 +204,159 @@ export function TableTypePicker({
           </div>
         </button>
       ))}
-      <button
-        onClick={onClose}
-        style={{
-          border: 'none',
-          background: 'none',
-          cursor: 'pointer',
-          fontSize: 11,
-          color: 'var(--ink-3)',
-          width: '100%',
-          textAlign: 'center',
-          padding: '3px 0',
-          fontFamily: 'var(--font-sans)',
-        }}
-      >
+      <button onClick={onClose} style={POPOVER_CANCEL}>
+        Cancel
+      </button>
+    </div>
+  );
+}
+
+// ── Section type picker (E-2) ─────────────────────────────────────────────────
+const SECTION_TYPES: Array<{
+  key: string;
+  name: string;
+  defaultName: string;
+  desc: string;
+  icon: string;
+  meta?: Partial<WsSectionMeta>;
+  custom?: boolean;
+}> = [
+  {
+    key: 'prose',
+    name: 'Prose',
+    defaultName: 'New section',
+    desc: 'Narrative paragraphs.',
+    icon: 'AlignLeft',
+  },
+  {
+    key: 'facts',
+    name: 'Key facts',
+    defaultName: 'Key facts',
+    desc: 'A concise bullet list.',
+    icon: 'List',
+  },
+  {
+    key: 'budget',
+    name: 'Budget',
+    defaultName: 'Funding history',
+    desc: 'Funding figures by fiscal year.',
+    icon: 'Table',
+    meta: { smart: true },
+  },
+  {
+    key: 'custom',
+    name: 'Custom',
+    defaultName: '',
+    desc: 'Name a blank section.',
+    icon: 'Plus',
+    custom: true,
+  },
+];
+
+export function SectionTypePicker({
+  onClose,
+  onChoose,
+}: {
+  onClose: () => void;
+  onChoose: (name?: string, meta?: Partial<WsSectionMeta>) => void;
+}) {
+  const [naming, setNaming] = useState(false);
+  const [name, setName] = useState('');
+
+  if (naming) {
+    return (
+      <div style={POPOVER}>
+        <div style={POPOVER_HEADER}>Name the section</div>
+        <input
+          autoFocus
+          value={name}
+          onChange={(e) => setName(e.target.value)}
+          onKeyDown={(e) => {
+            if (e.key === 'Enter') {
+              onChoose(name.trim() || 'New section');
+              onClose();
+            }
+          }}
+          placeholder="Section name"
+          className="field"
+          style={{ width: '100%', padding: '7px 10px', fontSize: 12.5, marginBottom: 8 }}
+        />
+        <button
+          className="btn btn-accent sm"
+          style={{ width: '100%', justifyContent: 'center', marginBottom: 8 }}
+          onClick={() => {
+            onChoose(name.trim() || 'New section');
+            onClose();
+          }}
+        >
+          <Icon name="Plus" size={12} />
+          Add section
+        </button>
+        <button onClick={() => setNaming(false)} style={POPOVER_CANCEL}>
+          Back
+        </button>
+      </div>
+    );
+  }
+
+  return (
+    <div style={POPOVER}>
+      <div style={POPOVER_HEADER}>Add section</div>
+      {SECTION_TYPES.map((t) => (
+        <button
+          key={t.key}
+          onClick={() => {
+            if (t.custom) {
+              setNaming(true);
+              return;
+            }
+            onChoose(t.defaultName, t.meta);
+            onClose();
+          }}
+          style={{
+            display: 'flex',
+            alignItems: 'flex-start',
+            gap: 10,
+            width: '100%',
+            padding: '8px 10px',
+            border: '1px solid var(--border-1)',
+            background: 'var(--bg-surface-2)',
+            borderRadius: 8,
+            cursor: 'pointer',
+            textAlign: 'left',
+            font: 'inherit',
+            marginBottom: 8,
+          }}
+          onMouseEnter={(e) => {
+            e.currentTarget.style.borderColor = 'var(--accent)';
+            e.currentTarget.style.background = 'var(--accent-soft)';
+          }}
+          onMouseLeave={(e) => {
+            e.currentTarget.style.borderColor = 'var(--border-1)';
+            e.currentTarget.style.background = 'var(--bg-surface-2)';
+          }}
+        >
+          <span
+            style={{
+              width: 26,
+              height: 26,
+              borderRadius: 6,
+              background: 'var(--bg-sunken)',
+              color: 'var(--ink-3)',
+              display: 'grid',
+              placeItems: 'center',
+              flex: 'none',
+            }}
+          >
+            <Icon name={t.icon} size={13} />
+          </span>
+          <div style={{ minWidth: 0 }}>
+            <div style={{ fontSize: 12.5, fontWeight: 600, marginBottom: 2 }}>{t.name}</div>
+            <div style={{ fontSize: 11, color: 'var(--ink-3)', lineHeight: 1.35 }}>{t.desc}</div>
+          </div>
+        </button>
+      ))}
+      <button onClick={onClose} style={POPOVER_CANCEL}>
         Cancel
       </button>
     </div>
@@ -160,13 +376,15 @@ export function TemplateInsertModal({
   /** Apply the chosen template by the chosen mode (replace vs merge). */
   onApply: (template: WsTemplate, mode: ApplyMode) => void;
 }) {
-  const { data, isLoading } = useTemplatesFor(product);
+  // E-3: search the FULL tenant template library (all products), not just the
+  // selected product's two. Suggested-for-product is derived below.
+  const { data: libTemplates, isLoading } = useAllTemplates();
   const [search, setSearch] = useState('');
   const [selected, setSelected] = useState<WsTemplate | null>(null);
   const [confirming, setConfirming] = useState(false);
   const searchRef = useRef<HTMLInputElement>(null);
 
-  const all = useMemo(() => data?.all ?? [], [data]);
+  const all = useMemo(() => libTemplates ?? [], [libTemplates]);
   const productTemplates = useMemo(() => all.filter((t) => t.product === product), [all, product]);
   const results = useMemo(() => {
     const q = search.trim().toLowerCase();

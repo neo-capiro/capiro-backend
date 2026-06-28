@@ -353,6 +353,18 @@ export class GenerationService {
     client: string | null;
   }): string {
     const sectionGuide = WSC.suggestedSections(args.product);
+    // E-4: match Meri's length + format to the section's purpose instead of one
+    // generic prose block. Output HTML (the editor/preview render sanitized HTML
+    // that now permits <p>/<ul>/<li>/<table>).
+    const spec = WSC.specFor(args.section);
+    const formatLine =
+      spec.format === 'bullets'
+        ? 'Format as a concise HTML bullet list: <ul><li>…</li></ul>.'
+        : spec.format === 'table'
+          ? 'Format as a simple HTML <table> with a header row (<thead><tr><th>…</th></tr></thead><tbody>…</tbody>).'
+          : spec.format === 'short'
+            ? 'Write only 1–2 tight sentences (or one short labeled line). Do not pad.'
+            : 'Write well-structured prose as one or more <p> paragraphs.';
     return [
       `You are Meri, a government-affairs writing assistant. Draft the "${args.section}" section`,
       `of a ${args.product} titled "${args.docTitle}".`,
@@ -364,8 +376,10 @@ export class GenerationService {
       `This section sits within the standard structure: ${sectionGuide.join(' → ')}.`,
       args.context ? `Ground the content in these facts:\n- ${args.context}` : '',
       '',
-      `Write only the prose for the "${args.section}" section — no headers, no preamble,`,
-      `no meta-commentary. Be specific, factual, and concise. Government-affairs register.`,
+      `Goal of this section: ${spec.goal}`,
+      `Target length: roughly ${spec.targetWords[0]}–${spec.targetWords[1]} words — respect it.`,
+      formatLine,
+      `Output clean HTML using ONLY these tags: <p>, <ul>/<ol>/<li>, <table>/<thead>/<tbody>/<tr>/<th>/<td>, <strong>, <em>. No markdown, no section header/title, no preamble or meta-commentary. Be specific and factual; government-affairs register.`,
     ]
       .filter(Boolean)
       .join('\n');

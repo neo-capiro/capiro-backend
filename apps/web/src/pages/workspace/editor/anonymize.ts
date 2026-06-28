@@ -44,12 +44,21 @@ export function anonymizeMap(
     pairs
       // Longest names first so a multi-word match wins over a partial one.
       .sort((a, b) => b[0].length - a[0].length)
-      .map(([from, to]) => [new RegExp(escapeRegExp(from), 'g'), to])
+      .filter(([from]) => from.trim().length >= 3) // never redact 1–2 char fragments
+      .map(([from, to]) => [boundaryRegExp(from), to])
   );
 }
 
 function escapeRegExp(s: string): string {
   return s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+}
+
+/** Whole-word matcher (\b only on word-char edges) to stop substring over-redaction. */
+function boundaryRegExp(needle: string): RegExp {
+  const esc = escapeRegExp(needle);
+  const left = /^\w/.test(needle) ? '\\b' : '';
+  const right = /\w$/.test(needle) ? '\\b' : '';
+  return new RegExp(`${left}${esc}${right}`, 'g');
 }
 
 /** Apply an anonymize map to a string when `on`. */

@@ -8,8 +8,8 @@
  */
 import { useEffect, useRef, useState } from 'react';
 import { Icon } from '../kit.js';
-import type { WsTemplate } from '../types.js';
-import { TableTypePicker, TemplateInsertModal } from './InsertModals.js';
+import type { WsBlock, WsSectionMeta, WsTemplate } from '../types.js';
+import { SectionTypePicker, TableTypePicker, TemplateInsertModal } from './InsertModals.js';
 
 function Tile({ icon, label, onClick }: { icon: string; label: string; onClick: () => void }) {
   return (
@@ -54,25 +54,45 @@ export function InsertRail({
 }: {
   /** Active product — suggested templates ordering + the catalog query. */
   product: string | null;
-  onAddSection: () => void;
-  onInsert: (kind: string) => void;
+  onAddSection: (name?: string, meta?: Partial<WsSectionMeta>) => void;
+  onInsert: (kind: string, extra?: Partial<WsBlock>) => void;
   /** Apply a chosen template by mode (replace vs merge). */
   onApplyTemplate: (template: WsTemplate, mode: 'replace' | 'merge') => void;
 }) {
   const [showTablePicker, setShowTablePicker] = useState(false);
+  const [showSectionPicker, setShowSectionPicker] = useState(false);
   const [showTemplatePicker, setShowTemplatePicker] = useState(false);
   const tableRef = useRef<HTMLDivElement>(null);
+  const sectionRef = useRef<HTMLDivElement>(null);
+
+  // E-5/E-8: a hidden file input opens the OS picker for photo + logo inserts.
+  const fileRef = useRef<HTMLInputElement>(null);
+  const pendingKind = useRef<'photo' | 'logo'>('photo');
+  const pickImage = (kind: 'photo' | 'logo') => {
+    pendingKind.current = kind;
+    fileRef.current?.click();
+  };
+  const onPickImage = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const f = e.target.files?.[0];
+    e.target.value = '';
+    if (!f) return;
+    if (!/^image\/(png|jpeg)$/.test(f.type) || f.size > 2 * 1024 * 1024) return;
+    const reader = new FileReader();
+    reader.onload = () => onInsert(pendingKind.current, { src: String(reader.result) });
+    reader.readAsDataURL(f);
+  };
 
   useEffect(() => {
-    if (!showTablePicker) return;
+    if (!showTablePicker && !showSectionPicker) return;
     const h = (e: MouseEvent) => {
-      if (tableRef.current && !tableRef.current.contains(e.target as Node)) {
+      if (showTablePicker && tableRef.current && !tableRef.current.contains(e.target as Node))
         setShowTablePicker(false);
-      }
+      if (showSectionPicker && sectionRef.current && !sectionRef.current.contains(e.target as Node))
+        setShowSectionPicker(false);
     };
     document.addEventListener('mousedown', h);
     return () => document.removeEventListener('mousedown', h);
-  }, [showTablePicker]);
+  }, [showTablePicker, showSectionPicker]);
 
   return (
     <>
@@ -99,9 +119,23 @@ export function InsertRail({
         >
           Insert
         </div>
-        <Tile icon="Plus" label="Section" onClick={onAddSection} />
+        <div
+          ref={sectionRef}
+          style={{ position: 'relative', display: 'flex', flexDirection: 'column' }}
+        >
+          <Tile icon="Plus" label="Section" onClick={() => setShowSectionPicker((s) => !s)} />
+          {showSectionPicker && (
+            <SectionTypePicker
+              onClose={() => setShowSectionPicker(false)}
+              onChoose={(name, meta) => {
+                onAddSection(name, meta);
+                setShowSectionPicker(false);
+              }}
+            />
+          )}
+        </div>
         <Tile icon="LayoutTemplate" label="Templates" onClick={() => setShowTemplatePicker(true)} />
-        <Tile icon="Image" label="Photo" onClick={() => onInsert('image')} />
+        <Tile icon="Image" label="Photo" onClick={() => pickImage('photo')} />
         <div
           ref={tableRef}
           style={{ position: 'relative', display: 'flex', flexDirection: 'column' }}
@@ -110,14 +144,21 @@ export function InsertRail({
           {showTablePicker && (
             <TableTypePicker
               onClose={() => setShowTablePicker(false)}
-              onInsert={(kind) => {
-                onInsert(kind);
+              onInsert={(kind, extra) => {
+                onInsert(kind, extra);
                 setShowTablePicker(false);
               }}
             />
           )}
         </div>
-        <Tile icon="Stamp" label="Logo" onClick={() => onInsert('logo')} />
+        <Tile icon="Stamp" label="Logo" onClick={() => pickImage('logo')} />
+        <input
+          ref={fileRef}
+          type="file"
+          accept="image/png,image/jpeg"
+          style={{ display: 'none' }}
+          onChange={onPickImage}
+        />
       </div>
       {showTemplatePicker && (
         <TemplateInsertModal

@@ -17,7 +17,22 @@
  * but it is scoped to the focused controlled editor rather than fired globally.
  */
 import { useEffect, useRef, type CSSProperties } from 'react';
-import { sanitizeHtml } from '../../engagement/outreach/v2/richtext.js';
+import { sanitizeWorkspaceBody as sanitizeHtml } from './workspace-richtext.js';
+
+// Commands whose effect lives in a CSS style (font, alignment, indent) must run
+// with styleWithCSS=true so the browser emits <span style="…"> / style="text-
+// align:…" — which the workspace body sanitizer preserves. B/I/U/lists stay
+// styleWithCSS=false so they emit semantic tags (<b>/<ul>) instead.
+const STYLE_COMMANDS = new Set([
+  'fontName',
+  'fontSize',
+  'justifyLeft',
+  'justifyCenter',
+  'justifyRight',
+  'justifyFull',
+  'indent',
+  'outdent',
+]);
 
 // ── Active-editor registry ──────────────────────────────────────────────────
 // The toolbar has no React tree relationship to the body editors, so we keep a
@@ -31,12 +46,9 @@ export function runActiveCommand(command: string, value?: string): void {
   if (!el) return;
   el.focus();
   try {
-    // Prefer semantic tags (<b>) over inline styles for bold/italic/underline.
-    document.execCommand(
-      'styleWithCSS',
-      false,
-      command === 'fontName' || command === 'fontSize' ? 'true' : 'false',
-    );
+    // Style-based commands emit CSS (preserved by the sanitizer); the rest emit
+    // semantic tags.
+    document.execCommand('styleWithCSS', false, STYLE_COMMANDS.has(command) ? 'true' : 'false');
     document.execCommand(command, false, value);
   } catch {
     /* execCommand is best-effort; unsupported commands no-op. */

@@ -114,6 +114,10 @@ export function SectionBlock({
 
   return (
     <div
+      // E-18: stable per-section anchor (present for ALL states incl. empty) so
+      // the checks "Fix" action can scroll to + reveal a section that has no body.
+      data-ws-section-block={name}
+      tabIndex={-1}
       draggable
       onDragStart={onDragStart}
       onDragOver={onDragOver}

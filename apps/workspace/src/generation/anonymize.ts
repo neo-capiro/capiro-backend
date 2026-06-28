@@ -22,6 +22,18 @@ function escapeRegExp(s: string): string {
 }
 
 /**
+ * Build a whole-word matcher for a needle. Adds \b only on edges that are word
+ * characters, so a short token (e.g. an acronym) never redacts a substring
+ * inside a larger word (E-15: "too broad" over-redaction).
+ */
+function boundaryRegExp(needle: string, flags = 'gi'): RegExp {
+  const esc = escapeRegExp(needle);
+  const left = /^\w/.test(needle) ? '\\b' : '';
+  const right = /\w$/.test(needle) ? '\\b' : '';
+  return new RegExp(`${left}${esc}${right}`, flags);
+}
+
+/**
  * Replace the client name and office names with placeholders. Longest names
  * first so a containing name (e.g. "Acme Defense Systems") is replaced before
  * a substring ("Acme"). Case-insensitive, whole-token.
@@ -47,9 +59,9 @@ export function anonymizeText(
   targets.sort((a, b) => b.value.length - a.value.length);
 
   for (const t of targets) {
-    const re = new RegExp(escapeRegExp(t.value), 'gi');
+    const re = boundaryRegExp(t.value);
     if (re.test(out)) {
-      out = out.replace(re, t.placeholder);
+      out = out.replace(boundaryRegExp(t.value), t.placeholder);
       legend[t.placeholder] = t.value;
     }
   }
@@ -81,9 +93,10 @@ export function applyRedactions(
   const sorted = [...redactions].sort((a, b) => b.from.length - a.from.length);
   for (const r of sorted) {
     if (!r.from || !r.to || r.from === r.to) continue;
-    // Case-insensitive to match the modal's occurrence count (detectNames uses
-    // 'gi') so every counted/approved mention is redacted on export.
-    out = out.replace(new RegExp(escapeRegExp(r.from), 'gi'), r.to);
+    if (r.from.trim().length < 3) continue; // never redact 1–2 char fragments
+    // Whole-word, case-insensitive: matches the modal's occurrence count without
+    // redacting substrings inside larger words.
+    out = out.replace(boundaryRegExp(r.from), r.to);
   }
   return out;
 }
@@ -100,6 +113,12 @@ export interface NameDetection {
   suggested: string;
   /** How many times it appears across the supplied corpus. */
   occurrences: number;
+  /**
+   * 'high' = a structured client/product/office name (trustworthy, pre-checked
+   * in the review modal); 'low' = a heuristically-mined proper noun (pre-checked
+   * OFF so the user opts IN — avoids the "everything became the program" bug).
+   */
+  confidence: 'high' | 'low';
 }
 
 /** Default prose replacement for a detection kind. */
@@ -121,8 +140,7 @@ function stripHtml(s: string): string {
 
 function countOccurrences(corpus: string, needle: string): number {
   if (!needle.trim()) return 0;
-  const re = new RegExp(escapeRegExp(needle.trim()), 'gi');
-  return (corpus.match(re) ?? []).length;
+  return (corpus.match(boundaryRegExp(needle.trim())) ?? []).length;
 }
 
 /**
@@ -139,24 +157,32 @@ function extractProgramNames(corpus: string): string[] {
   let m: RegExpExecArray | null;
   while ((m = re.exec(corpus)) !== null) {
     const phrase = m[1]!.trim();
-    // Skip lone short/common words; require either >1 token, a digit, or ALL-CAPS.
     const multiToken = /[ -]/.test(phrase);
-    const hasDigit = /\d/.test(phrase);
-    const allCaps = phrase === phrase.toUpperCase() && phrase.length >= 3;
+    const hasDigit = /\d/.test(phrase); // coded designator e.g. "PE 0603270A"
     if (phrase.length < 4) continue;
-    if (!multiToken && !hasDigit && !allCaps) continue;
-    if (STOP_PHRASES.has(phrase.toLowerCase())) continue;
+    // Require a coded token (digit) OR a multi-word proper run. Lone Title-Case
+    // words and bare acronyms (DOD, GAO, FY2026…) are the dominant false-
+    // positive source (E-15 "incorrect identifications") — drop them.
+    if (!hasDigit && !multiToken) continue;
+    const low = phrase.toLowerCase();
+    if (STOP_PHRASES.has(low)) continue;
+    if (ACRONYM_STOP.has(phrase.toUpperCase())) continue;
+    // Drop phrases whose every token is a generic/heading word ("Executive
+    // Summary", "Fiscal Year", "Defense Department").
+    const tokens = low.split(/[ -]+/).filter(Boolean);
+    if (tokens.length > 0 && tokens.every((t) => STOP_WORDS.has(t))) continue;
     found.set(phrase, true);
   }
   return [...found.keys()];
 }
 
-// Common heading/section phrases that look proper-noun-ish but aren't programs.
+// Headings / section phrases that look proper-noun-ish but aren't programs.
 const STOP_PHRASES = new Set([
   'executive summary',
   'background',
   'the program',
   'the client',
+  'the office',
   'funding history',
   'budget request',
   'fiscal year',
@@ -166,6 +192,94 @@ const STOP_PHRASES = new Set([
   'recommendation',
   'introduction',
   'overview',
+  'talking points',
+  'key facts',
+  'national security',
+  'problem statement',
+  'program description',
+]);
+
+// Agency / committee / budget acronyms that are NOT the client's program.
+const ACRONYM_STOP = new Set([
+  'DOD',
+  'DOE',
+  'DON',
+  'GAO',
+  'OMB',
+  'CBO',
+  'CRS',
+  'FY',
+  'US',
+  'USA',
+  'USC',
+  'NDAA',
+  'HASC',
+  'SASC',
+  'HAC',
+  'SAC',
+  'COCOM',
+  'DOJ',
+  'DHS',
+  'NASA',
+  'EPA',
+  'VA',
+  'HHS',
+  'FAA',
+  'FDA',
+  'NIH',
+  'NSF',
+  'PE',
+  'UPL',
+  'UFR',
+  'R&D',
+]);
+
+// Generic tokens used to drop all-generic phrases (every token must be generic).
+const STOP_WORDS = new Set([
+  'the',
+  'and',
+  'for',
+  'with',
+  'program',
+  'client',
+  'office',
+  'summary',
+  'executive',
+  'background',
+  'introduction',
+  'overview',
+  'request',
+  'recommendation',
+  'section',
+  'fiscal',
+  'year',
+  'budget',
+  'funding',
+  'history',
+  'committee',
+  'subcommittee',
+  'congress',
+  'senate',
+  'house',
+  'federal',
+  'national',
+  'defense',
+  'department',
+  'january',
+  'february',
+  'march',
+  'april',
+  'may',
+  'june',
+  'july',
+  'august',
+  'september',
+  'october',
+  'november',
+  'december',
+  'problem',
+  'statement',
+  'description',
 ]);
 
 /**
@@ -190,7 +304,11 @@ export function detectNames(opts: {
 
   const out: NameDetection[] = [];
   const seen = new Set<string>();
-  const push = (from: string | null | undefined, kind: DetectionKind) => {
+  const push = (
+    from: string | null | undefined,
+    kind: DetectionKind,
+    confidence: 'high' | 'low' = 'high',
+  ) => {
     const name = (from ?? '').trim();
     if (!name) return;
     const key = name.toLowerCase();
@@ -202,18 +320,20 @@ export function detectNames(opts: {
       suggested: genericFor(kind),
       // At least 1 so a name present only in structured config still appears.
       occurrences: Math.max(1, countOccurrences(corpus, name)),
+      confidence,
     });
   };
 
-  push(opts.client, 'client');
-  push(opts.product, 'program');
-  for (const office of opts.offices ?? []) push(office, 'office');
+  // Structured fields = high confidence (pre-checked in the modal).
+  push(opts.client, 'client', 'high');
+  push(opts.product, 'program', 'high');
+  for (const office of opts.offices ?? []) push(office, 'office', 'high');
 
-  // Program/product proper nouns mined from the prose, skipping anything we
-  // already surfaced via the structured fields.
+  // Heuristically-mined proper nouns = LOW confidence (pre-checked OFF), skipping
+  // anything already surfaced via the structured fields.
   for (const phrase of extractProgramNames(corpus)) {
     if (countOccurrences(corpus, phrase) < 1) continue;
-    push(phrase, 'program');
+    push(phrase, 'program', 'low');
   }
 
   // Longest names first (review-card ordering mirrors apply-order priority).

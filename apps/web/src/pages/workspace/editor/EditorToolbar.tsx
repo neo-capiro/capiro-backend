@@ -31,11 +31,11 @@ export function EditorToolbar({
   checksOpen,
   historyOpen,
   viewOnly,
+  collaborators,
   onAnonymize,
   onChecks,
   onHistory,
   onShare,
-  onSaveDraft,
   onPreview,
 }: {
   title: string;
@@ -48,11 +48,12 @@ export function EditorToolbar({
   historyOpen?: boolean;
   /** Someone else holds the edit lock — disable mutating actions. */
   viewOnly?: boolean;
+  /** Real collaborator initials (E-17) — empty/undefined hides the stack. */
+  collaborators?: string[];
   onAnonymize: () => void;
   onChecks: () => void;
   onHistory: () => void;
   onShare: () => void;
-  onSaveDraft: () => void;
   onPreview: () => void;
 }) {
   return (
@@ -153,22 +154,13 @@ export function EditorToolbar({
         <Icon name="History" size={14} />
         Version history
       </button>
-      {/* TODO(phase 7): live collaborators — static avatar stack for now. */}
-      <AvaStack list={['NM', 'MR', 'EO']} size={26} />
+      {/* E-17: real collaborators only — no seed avatars until someone's invited. */}
+      {collaborators && collaborators.length > 0 && <AvaStack list={collaborators} size={26} />}
       <button className="btn sm" onClick={onShare}>
         <Icon name="UserPlus" size={13} />
         Share
       </button>
-      <span style={{ width: 1, height: 22, background: 'var(--border-1)', margin: '0 2px' }} />
-      <button
-        className="btn sm btn-ghost"
-        style={{ color: 'var(--ink-2)', opacity: viewOnly ? 0.5 : 1 }}
-        onClick={onSaveDraft}
-        disabled={viewOnly}
-      >
-        <Icon name="Save" size={13} />
-        Save draft
-      </button>
+      {/* E-20: manual "Save draft" removed — autosave (+ version checkpoints) covers it. */}
       <button className="btn btn-accent" onClick={onPreview} style={{ fontWeight: 600 }}>
         <Icon name="FileCheck" size={14} />
         Preview &amp; Save
