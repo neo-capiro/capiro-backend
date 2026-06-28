@@ -363,15 +363,23 @@ export function EditorPage() {
       let sections = [...(cfg.sections ?? [])];
       const content = { ...((cfg.sectionContent as Record<string, string> | undefined) ?? {}) };
       const meta = { ...((cfg.sectionMeta as Record<string, WsSectionMeta> | undefined) ?? {}) };
+      // Resolve a target section name to the EXISTING canonical name, tolerant of
+      // case/whitespace drift in the model's output — so replace/remove never
+      // create a ghost duplicate of a section that already exists.
+      const resolve = (name: string) =>
+        sections.find((s) => s.toLowerCase().trim() === name.toLowerCase().trim());
       for (const e of edits) {
         if (e.op === 'replace_section' && e.section) {
-          if (!sections.includes(e.section)) sections.push(e.section);
-          content[e.section] = sanitizeWorkspaceBody(e.content ?? '');
-          meta[e.section] = { ...(meta[e.section] ?? {}), status: 'review' };
+          const target = resolve(e.section);
+          if (!target) continue; // unknown section → skip rather than create a ghost
+          content[target] = sanitizeWorkspaceBody(e.content ?? '');
+          meta[target] = { ...(meta[target] ?? {}), status: 'review' };
         } else if (e.op === 'remove_section' && e.section) {
-          sections = sections.filter((s) => s !== e.section);
-          delete content[e.section];
-          delete meta[e.section];
+          const target = resolve(e.section);
+          if (!target) continue;
+          sections = sections.filter((s) => s !== target);
+          delete content[target];
+          delete meta[target];
         } else if (e.op === 'insert_section' && e.name) {
           let name = e.name;
           let n = 2;

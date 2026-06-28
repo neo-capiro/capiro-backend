@@ -332,6 +332,7 @@ export class WorkspaceAssistantService {
       '- To delete a section, use remove_section with the section name.',
       '- For a whole-document change (expand acronyms, shift tone, tighten the ask), emit one replace_section per affected section.',
       'Keep HTML simple: <p>, <ul>, <li>, <strong>, <em>, <h3>. No scripts, styles, or images.',
+      'Call `propose_document_edits` as the ONLY tool in that response — never alongside a data-lookup tool. Do your lookups first, in earlier turns.',
       'If the user only asks a question or wants advice, reply with an empty edits array.',
       'Be concise and concrete. Match the document’s tone and the firm’s professional register.',
     ]
