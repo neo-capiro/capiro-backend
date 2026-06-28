@@ -12,9 +12,12 @@
  *    matching table block into the active canvas via the Phase-5 block model.
  */
 import { useMemo, useRef, useState, type CSSProperties } from 'react';
+import { useQuery } from '@tanstack/react-query';
 import { Icon } from '../kit.js';
-import type { WsSectionMeta, WsTemplate } from '../types.js';
+import type { WsBlock, WsSectionMeta, WsTemplate } from '../types.js';
 import { useAllTemplates } from '../api.js';
+import { useApi } from '../../../lib/use-api.js';
+import { useDebouncedValue } from '../../../lib/use-debounced-value.js';
 
 // Shared anchored-popover frame for the Insert-rail pickers.
 const POPOVER: CSSProperties = {
@@ -110,15 +113,28 @@ const TABLE_OPTIONS: Array<{
 export function TableTypePicker({
   onClose,
   onInsert,
+  clientId,
 }: {
   onClose: () => void;
-  onInsert: (
-    kind: 'table-platform' | 'table-custom',
-    extra?: { rows?: number; cols?: number },
-  ) => void;
+  onInsert: (kind: 'table-platform' | 'table-custom', extra?: Partial<WsBlock>) => void;
+  /** Resolved client id for the doc — enables client-scoped platform tables. */
+  clientId?: string | null;
 }) {
   // E-6: choosing "Custom table" opens a rows×cols step before inserting.
   const [dims, setDims] = useState<{ rows: number; cols: number } | null>(null);
+  // "Pull from platform" opens a source → entity → prefilled-table flow.
+  const [platform, setPlatform] = useState(false);
+
+  if (platform) {
+    return (
+      <PlatformTablePicker
+        clientId={clientId ?? null}
+        onInsert={onInsert}
+        onClose={onClose}
+        onBack={() => setPlatform(false)}
+      />
+    );
+  }
 
   if (dims) {
     return (
@@ -154,8 +170,7 @@ export function TableTypePicker({
             if (o.kind === 'table-custom') {
               setDims({ rows: 3, cols: 2 });
             } else {
-              onInsert(o.kind);
-              onClose();
+              setPlatform(true);
             }
           }}
           style={{
@@ -206,6 +221,246 @@ export function TableTypePicker({
       ))}
       <button onClick={onClose} style={POPOVER_CANCEL}>
         Cancel
+      </button>
+    </div>
+  );
+}
+
+// ── Pull-from-platform table picker ───────────────────────────────────────────
+interface PlatformSource {
+  key: 'pe-timeline' | 'pe-contractors' | 'tracked-bills' | 'capabilities' | 'facilities';
+  label: string;
+  desc: string;
+  needsPe?: boolean;
+  needsClient?: boolean;
+}
+const PLATFORM_SOURCES: PlatformSource[] = [
+  {
+    key: 'pe-timeline',
+    label: 'PE budget timeline',
+    desc: 'FY × House / Senate / Conference marks ($M)',
+    needsPe: true,
+  },
+  {
+    key: 'pe-contractors',
+    label: 'PE contractors',
+    desc: 'Top contractors & obligations ($M)',
+    needsPe: true,
+  },
+  {
+    key: 'tracked-bills',
+    label: 'Tracked bills',
+    desc: "This client's tracked legislation",
+    needsClient: true,
+  },
+  {
+    key: 'capabilities',
+    label: 'Client capabilities',
+    desc: 'Capabilities from the client profile',
+    needsClient: true,
+  },
+  {
+    key: 'facilities',
+    label: 'Client facilities',
+    desc: 'Facilities, districts & headcount',
+    needsClient: true,
+  },
+];
+
+function PlatformTablePicker({
+  clientId,
+  onInsert,
+  onClose,
+  onBack,
+}: {
+  clientId: string | null;
+  onInsert: (kind: 'table-platform' | 'table-custom', extra?: Partial<WsBlock>) => void;
+  onClose: () => void;
+  onBack: () => void;
+}) {
+  const api = useApi();
+  const [source, setSource] = useState<PlatformSource | null>(null);
+  const [peQuery, setPeQuery] = useState('');
+  const debouncedPe = useDebouncedValue(peQuery.trim(), 300);
+  const [busy, setBusy] = useState(false);
+  const [err, setErr] = useState<string | null>(null);
+
+  const peSearch = useQuery({
+    queryKey: ['ws-pe-search', debouncedPe],
+    enabled: !!source?.needsPe && debouncedPe.length >= 2,
+    queryFn: async () =>
+      (
+        await api.get<{ data: Array<{ peCode: string; title: string }> }>('/api/program-elements', {
+          params: { q: debouncedPe, limit: 8 },
+        })
+      ).data.data,
+  });
+
+  const fetchAndInsert = async (src: PlatformSource['key'], opts: Record<string, string>) => {
+    setBusy(true);
+    setErr(null);
+    try {
+      const { data } = await api.get<{ title: string; headers: string[]; rows: string[][] }>(
+        '/api/workspace/platform-table',
+        { params: { source: src, ...opts } },
+      );
+      if (!data.rows.length) {
+        setErr('No data found for that selection.');
+        return;
+      }
+      const cells = [data.headers, ...data.rows];
+      onInsert('table-custom', {
+        variant: 'custom',
+        rows: cells.length,
+        cols: data.headers.length,
+        cells,
+        source: data.title,
+      });
+      onClose();
+    } catch {
+      setErr('Could not pull that data. Try another source.');
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  // Source list.
+  if (!source) {
+    return (
+      <div style={POPOVER}>
+        <div style={POPOVER_HEADER}>Pull from platform</div>
+        {PLATFORM_SOURCES.map((s) => {
+          const disabled = !!s.needsClient && !clientId;
+          return (
+            <button
+              key={s.key}
+              disabled={disabled}
+              onClick={() => {
+                if (s.needsPe) {
+                  setSource(s);
+                } else {
+                  setSource(s);
+                  void fetchAndInsert(s.key, { clientId: clientId ?? '' });
+                }
+              }}
+              style={{
+                display: 'block',
+                width: '100%',
+                textAlign: 'left',
+                padding: '8px 10px',
+                border: '1px solid var(--border-1)',
+                background: 'var(--bg-surface-2)',
+                borderRadius: 8,
+                cursor: disabled ? 'not-allowed' : 'pointer',
+                font: 'inherit',
+                marginBottom: 7,
+                opacity: disabled ? 0.5 : 1,
+              }}
+            >
+              <div style={{ fontSize: 12.5, fontWeight: 600 }}>{s.label}</div>
+              <div style={{ fontSize: 11, color: 'var(--ink-3)', lineHeight: 1.35 }}>
+                {disabled ? 'Select a client for this document first' : s.desc}
+              </div>
+            </button>
+          );
+        })}
+        <button onClick={onBack} style={POPOVER_CANCEL}>
+          Back
+        </button>
+      </div>
+    );
+  }
+
+  // PE search step (for PE-scoped sources).
+  return (
+    <div style={POPOVER}>
+      <div style={POPOVER_HEADER}>{source.label}</div>
+      {busy ? (
+        <div style={{ fontSize: 12, color: 'var(--ink-3)', padding: '8px 2px' }}>Pulling data…</div>
+      ) : (
+        <>
+          <div style={{ position: 'relative', marginBottom: 8 }}>
+            <Icon
+              name="Search"
+              size={13}
+              style={{
+                position: 'absolute',
+                left: 9,
+                top: '50%',
+                transform: 'translateY(-50%)',
+                color: 'var(--ink-3)',
+              }}
+            />
+            <input
+              autoFocus
+              value={peQuery}
+              onChange={(e) => setPeQuery(e.target.value)}
+              placeholder="Search a Program Element…"
+              style={{
+                width: '100%',
+                padding: '7px 10px 7px 28px',
+                fontSize: 12.5,
+                border: '1px solid var(--border-1)',
+                borderRadius: 8,
+                boxSizing: 'border-box',
+                background: 'var(--bg-surface)',
+              }}
+            />
+          </div>
+          <div style={{ maxHeight: 200, overflow: 'auto', marginBottom: 8 }}>
+            {peSearch.isFetching && (
+              <div style={{ fontSize: 11.5, color: 'var(--ink-3)', padding: '4px 2px' }}>
+                Searching…
+              </div>
+            )}
+            {(peSearch.data ?? []).map((pe) => (
+              <button
+                key={pe.peCode}
+                onClick={() => void fetchAndInsert(source.key, { peCode: pe.peCode })}
+                style={{
+                  display: 'block',
+                  width: '100%',
+                  textAlign: 'left',
+                  padding: '6px 9px',
+                  border: '1px solid var(--border-1)',
+                  background: 'var(--bg-surface-2)',
+                  borderRadius: 7,
+                  cursor: 'pointer',
+                  font: 'inherit',
+                  marginBottom: 6,
+                }}
+              >
+                <div style={{ fontSize: 12, fontWeight: 600 }}>{pe.peCode}</div>
+                <div
+                  style={{
+                    fontSize: 11,
+                    color: 'var(--ink-3)',
+                    overflow: 'hidden',
+                    textOverflow: 'ellipsis',
+                    whiteSpace: 'nowrap',
+                  }}
+                >
+                  {pe.title}
+                </div>
+              </button>
+            ))}
+            {!peSearch.isFetching &&
+              debouncedPe.length >= 2 &&
+              (peSearch.data ?? []).length === 0 && (
+                <div style={{ fontSize: 11.5, color: 'var(--ink-3)', padding: '4px 2px' }}>
+                  No program elements match.
+                </div>
+              )}
+          </div>
+        </>
+      )}
+      {err && (
+        <div style={{ fontSize: 11.5, color: 'var(--danger, #b91c1c)', marginBottom: 8 }}>
+          {err}
+        </div>
+      )}
+      <button onClick={() => setSource(null)} style={POPOVER_CANCEL}>
+        Back
       </button>
     </div>
   );

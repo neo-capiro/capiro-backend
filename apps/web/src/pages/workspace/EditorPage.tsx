@@ -1020,6 +1020,7 @@ export function EditorPage() {
 
           <InsertRail
             product={cfg.product}
+            clientId={meriClientId}
             onAddSection={addSection}
             onInsert={addBlockTo}
             onApplyTemplate={onApplyTemplate}
