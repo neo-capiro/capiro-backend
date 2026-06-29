@@ -43,6 +43,8 @@ interface ChatItem {
   text: string;
   edits?: WsAssistantEdit[];
   editsState?: 'pending' | 'applied' | 'dismissed';
+  confidence?: WsAssistantResult['confidence'];
+  structuralWarnings?: WsAssistantResult['structuralWarnings'];
 }
 
 const opLabel: Record<WsAssistantEdit['op'], string> = {
@@ -280,6 +282,8 @@ export function MeriPanel({
           text: res.reply || 'Done.',
           edits: res.edits?.length ? res.edits : undefined,
           editsState: res.edits?.length ? 'pending' : undefined,
+          confidence: res.confidence,
+          structuralWarnings: res.structuralWarnings?.length ? res.structuralWarnings : undefined,
         },
       ]);
     } catch {
@@ -488,6 +492,55 @@ export function MeriPanel({
                     >
                       <b style={{ color: 'var(--accent)' }}>Meri:</b> {it.text}
                     </div>
+                    {it.confidence && it.confidence.level !== 'unknown' && (
+                      <div
+                        title="Grounding confidence on the proposed edits (claims checked against retrieved Capiro/federal data)."
+                        style={{
+                          display: 'inline-flex',
+                          alignItems: 'center',
+                          gap: 5,
+                          marginTop: 6,
+                          padding: '2px 8px',
+                          borderRadius: 999,
+                          fontSize: 11,
+                          fontWeight: 600,
+                          color:
+                            it.confidence.level === 'high'
+                              ? '#14633a'
+                              : it.confidence.level === 'medium'
+                                ? '#8a5a00'
+                                : '#8a1f1f',
+                          background:
+                            it.confidence.level === 'high'
+                              ? '#e6f4ec'
+                              : it.confidence.level === 'medium'
+                                ? '#fbf0d9'
+                                : '#fbe3e3',
+                        }}
+                      >
+                        ● {it.confidence.label}
+                      </div>
+                    )}
+                    {it.structuralWarnings && it.structuralWarnings.length > 0 && (
+                      <div style={{ marginTop: 6, display: 'flex', flexDirection: 'column', gap: 4 }}>
+                        {it.structuralWarnings.map((w, wi) => (
+                          <div
+                            key={wi}
+                            style={{
+                              fontSize: 11,
+                              lineHeight: 1.45,
+                              color: '#8a1f1f',
+                              background: '#fbe3e3',
+                              border: '1px solid #f1c4c4',
+                              borderRadius: 6,
+                              padding: '5px 8px',
+                            }}
+                          >
+                            <b>⚠ Check {w.peCode}:</b> {w.message}
+                          </div>
+                        ))}
+                      </div>
+                    )}
                     {it.edits && it.edits.length > 0 && (
                       <EditProposal
                         edits={it.edits}
