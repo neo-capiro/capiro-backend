@@ -513,6 +513,17 @@
   display: flex;
   flex-direction: column;
 }
+/* The canvas is the scroller (overflow:auto above). Its children — the document
+   card / packet canvas, the doc-tabs row, the office row — must keep their full
+   natural height so the card's content overflows the canvas and the CANVAS
+   scrolls. Without this, the card (inline overflow:hidden makes its flex
+   auto-min-height resolve to 0) gets COMPRESSED by this column flex container to
+   fit the viewport and CLIPS the document — the lower sections become
+   unreachable and nothing scrolls. flex-shrink:0 keeps each child at content
+   height so the overflow lands on the canvas. */
+.ws-editor-canvas > * {
+  flex-shrink: 0;
+}
 
 /* Controlled rich-text body placeholder (shown when empty + not focused). */
 .ws-rte-body:empty::before {
