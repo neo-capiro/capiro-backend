@@ -1017,6 +1017,18 @@ body {
   padding: 0;
 }
 
+/* The Workspace editor is a full-height, self-contained app region: it owns its
+   own internal scrolling (steps rail · canvas · insert rail · Meri panel), so it
+   must go edge-to-edge under the topbar — the 24px .app-content padding made the
+   fixed-height shell overflow the viewport, pushing the canvas bottom off-screen
+   and breaking its internal scroll. Scoped to .ws-editor-shell, which ONLY the
+   loaded editor renders — NOT the shared .ws-shell used by Setup/Context/Collab/
+   Preview. (#125 scoped on the shared .ws-shell and clipped every workspace page;
+   it was reverted. This is the narrow, editor-only fix.) */
+.app-content:has(.ws-editor-shell) {
+  padding: 0;
+}
+
 .app-content-alert {
   margin-bottom: 16px;
 }
