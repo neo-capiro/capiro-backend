@@ -180,11 +180,16 @@ export class WorkspaceAssistantService {
     const groundingBodies: string[] = [];
     const citedPeRecords = new Map<string, PeRecordForValidation>();
 
+    // Per-round model-call timeout. Aligned with full Meri's CLIO_REQUEST_TIMEOUT_MS
+    // (default 120s): now that workspace reasons on CLIO_MODEL (Sonnet) instead of
+    // the faster Haiku default, a data-gathering round can exceed the old hardcoded
+    // 60s and abort — which surfaced as "Sorry — something went wrong" in the editor.
+    const callTimeoutMs = this.config.get('CLIO_REQUEST_TIMEOUT_MS', { infer: true });
     for (let round = 0; round < MAX_ROUNDS; round += 1) {
       let data: { content?: AnthropicBlock[]; stop_reason?: string };
       try {
         const controller = new AbortController();
-        const timer = setTimeout(() => controller.abort(), 60_000);
+        const timer = setTimeout(() => controller.abort(), callTimeoutMs);
         const res = await fetch(ANTHROPIC_URL, {
           method: 'POST',
           headers: {
@@ -363,21 +368,35 @@ export class WorkspaceAssistantService {
     groundingBodies: string[],
     citedPeRecords: Map<string, PeRecordForValidation>,
   ): Promise<{ confidence?: Confidence; structuralWarnings?: PeStructuralWarning[] }> {
-    const editText = edits
-      .map((e) => (typeof e.content === 'string' ? e.content.replace(/<[^>]*>/g, ' ') : ''))
-      .join('\n')
-      .trim();
-    if (!editText) return {};
+    try {
+      const editText = edits
+        .map((e) => (typeof e.content === 'string' ? e.content.replace(/<[^>]*>/g, ' ') : ''))
+        .join('\n')
+        .trim();
+      if (!editText) return {};
 
-    // (1) Deterministic structural checks — also validate PEs cited in the edit
-    // text even if no detail tool ran (so a bad seed PE is still flagged).
-    const pes = [...citedPeRecords.values()];
-    for (const code of extractCitedPeCodes(editText)) {
-      if (!citedPeRecords.has(code)) pes.push({ peCode: code });
+      // (1) Deterministic structural checks — also validate PEs cited in the edit
+      // text even if no detail tool ran (so a bad seed PE is still flagged).
+      const pes = [...citedPeRecords.values()];
+      for (const code of extractCitedPeCodes(editText)) {
+        if (!citedPeRecords.has(code)) pes.push({ peCode: code });
+      }
+      const structuralWarnings = collectPeStructuralWarnings(pes, editText);
+
+      return await this.verifyEditsInner(editText, groundingBodies, structuralWarnings);
+    } catch (e) {
+      // Non-essential enrichment: never let it fail the turn (would surface as a
+      // 500 → "something went wrong" in the editor). Return edits unannotated.
+      this.logger.warn(`workspace verifyEdits failed (returning edits unannotated): ${(e as Error).message}`);
+      return {};
     }
-    const structuralWarnings = collectPeStructuralWarnings(pes, editText);
+  }
 
-    // (2) Grounding verifier (parity with meri.service.ts verifyDeliverable).
+  private async verifyEditsInner(
+    editText: string,
+    groundingBodies: string[],
+    structuralWarnings: PeStructuralWarning[],
+  ): Promise<{ confidence?: Confidence; structuralWarnings?: PeStructuralWarning[] }> {
     let confidence: Confidence | undefined;
     try {
       if (this.config.get('CLIO_VERIFIER_ENABLED', { infer: true })) {
