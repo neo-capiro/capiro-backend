@@ -72,11 +72,17 @@ export class MemoryController {
    */
   @Get('items/:type/:slug/sections')
   async itemSections(
+    @CurrentTenant() ctx: TenantContext,
     @Param('type') type: MemoryItemType,
     @Param('slug') slug: string,
   ) {
-    const item = await this.store.getByTypeSlug(type, slug);
     const def = fileDefForType(type);
+    // User-scope files are keyed on the caller's own id server-side (the client
+    // sends slug='me' as a placeholder). The PUT stores under ctx.userId, so the
+    // GET must read the SAME slug — otherwise the saved text never reads back and
+    // the editor shows the empty skeleton despite a successful save.
+    const effectiveSlug = def?.scope === 'user' ? ctx.userId : slug;
+    const item = await this.store.getByTypeSlug(type, effectiveSlug);
     const helpByKey = new Map((def?.sections ?? []).map((s) => [s.key, s]));
     const sections = item ? item.sections : skeletonSections(type);
     if (!item && !def) throw new NotFoundException('unknown memory file type');

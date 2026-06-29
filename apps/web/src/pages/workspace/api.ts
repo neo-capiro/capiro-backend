@@ -705,6 +705,12 @@ export interface WsAssistantStructuralWarning {
   peCode: string;
   message: string;
 }
+export interface WsAssistantStep {
+  tool: string;
+  label: string;
+  detail?: string;
+  status: 'done' | 'error';
+}
 export interface WsAssistantResult {
   reply: string;
   edits: WsAssistantEdit[];
@@ -712,6 +718,8 @@ export interface WsAssistantResult {
   confidence?: WsAssistantConfidence;
   /** Deterministic PE structural warnings to surface before applying edits. */
   structuralWarnings?: WsAssistantStructuralWarning[];
+  /** Thought-process steps (data lookups Meri ran) for the working view. */
+  steps?: WsAssistantStep[];
 }
 export interface WsAssistantRequest {
   messages: Array<{ role: 'user' | 'assistant'; text: string }>;

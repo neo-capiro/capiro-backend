@@ -45,6 +45,7 @@ interface ChatItem {
   editsState?: 'pending' | 'applied' | 'dismissed';
   confidence?: WsAssistantResult['confidence'];
   structuralWarnings?: WsAssistantResult['structuralWarnings'];
+  steps?: WsAssistantResult['steps'];
 }
 
 const opLabel: Record<WsAssistantEdit['op'], string> = {
@@ -284,6 +285,7 @@ export function MeriPanel({
           editsState: res.edits?.length ? 'pending' : undefined,
           confidence: res.confidence,
           structuralWarnings: res.structuralWarnings?.length ? res.structuralWarnings : undefined,
+          steps: res.steps?.length ? res.steps : undefined,
         },
       ]);
     } catch {
@@ -492,6 +494,40 @@ export function MeriPanel({
                     >
                       <b style={{ color: 'var(--accent)' }}>Meri:</b> {it.text}
                     </div>
+                    {it.steps && it.steps.length > 0 && (
+                      <details style={{ marginTop: 6 }}>
+                        <summary
+                          style={{
+                            cursor: 'pointer',
+                            fontSize: 11,
+                            color: 'var(--ink-3)',
+                            userSelect: 'none',
+                          }}
+                        >
+                          Thought process · {it.steps.length} step{it.steps.length === 1 ? '' : 's'}
+                        </summary>
+                        <div style={{ marginTop: 4, display: 'flex', flexDirection: 'column', gap: 3 }}>
+                          {it.steps.map((s, si) => (
+                            <div
+                              key={si}
+                              style={{
+                                fontSize: 11,
+                                lineHeight: 1.45,
+                                color: s.status === 'error' ? '#8a5a00' : 'var(--ink-2)',
+                                display: 'flex',
+                                gap: 6,
+                              }}
+                            >
+                              <span aria-hidden="true">{s.status === 'error' ? '⚠' : '✓'}</span>
+                              <span>
+                                {s.label}
+                                {s.detail ? <span style={{ color: 'var(--ink-3)' }}> — {s.detail}</span> : null}
+                              </span>
+                            </div>
+                          ))}
+                        </div>
+                      </details>
+                    )}
                     {it.confidence && it.confidence.level !== 'unknown' && (
                       <div
                         title="Grounding confidence on the proposed edits (claims checked against retrieved Capiro/federal data)."

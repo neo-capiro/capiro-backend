@@ -3,6 +3,13 @@ import { PrismaService } from '../prisma/prisma.service.js';
 import { AiCredentialService } from './ai-credential.service.js';
 import { anonymizeText, type AnonymizeMap } from './anonymize.js';
 import { WSC } from '../cascade/cascade.config.js';
+import {
+  DOMAIN_PRIMER,
+  collectPeStructuralWarnings,
+  extractCitedPeCodes,
+  type PeRecordForValidation,
+  type PeStructuralWarning,
+} from './domain-grounding.helpers.js';
 
 const ANTHROPIC_URL = 'https://api.anthropic.com/v1/messages';
 const GENERATION_TIMEOUT_MS = 120_000;
@@ -254,14 +261,64 @@ export class GenerationService {
         }
       }),
     );
+
+    // PARITY with in-editor Meri: run the deterministic PE structural checks
+    // (RDT&E-vs-procurement, capability/mission mismatch) over the freshly
+    // generated text against the draft's linked PEs, and persist them so the
+    // editor can surface warnings at creation time — not just on edit.
+    const structuralWarnings = this.computeStructuralWarnings(cfg, sectionContent);
+
     await this.prisma.wsDraft.update({
       where: { id: draftId },
-      data: { config: { ...cfg, sectionContent, sectionMeta } as never },
+      data: { config: { ...cfg, sectionContent, sectionMeta, structuralWarnings } as never },
     });
     return this.prisma.wsDraft.findFirst({
       where: { id: draftId, tenantId },
       include: { documents: { orderBy: { ordinal: 'asc' } } },
     });
+  }
+
+  /**
+   * Deterministic PE structural warnings for a generated document. Validates the
+   * draft's linked PEs (full records) against the concatenated section text, and
+   * also flags any PE codes cited in the text that aren't among the linked PEs
+   * (a bare-code citation we can't structurally vet but should not silently pass).
+   * Pure-ish (no IO); safe to call after generation. Mirrors apps/api Meri.
+   */
+  private computeStructuralWarnings(
+    cfg: Record<string, unknown>,
+    sectionContent: Record<string, string>,
+  ): PeStructuralWarning[] {
+    const fullText = Object.values(sectionContent).join('\n').replace(/<[^>]*>/g, ' ');
+    if (!fullText.trim()) return [];
+    const linkedPes =
+      (cfg.linkedProgramElements as
+        | Array<{ peCode?: string; title?: string; appropriationType?: string; budgetActivity?: string }>
+        | undefined) ?? [];
+    const pes: PeRecordForValidation[] = [];
+    const seen = new Set<string>();
+    for (const pe of linkedPes) {
+      if (!pe.peCode) continue;
+      const code = pe.peCode.toUpperCase();
+      seen.add(code);
+      pes.push({
+        peCode: code,
+        title: pe.title ?? null,
+        appropriationType: pe.appropriationType ?? null,
+        budgetActivity: pe.budgetActivity ?? null,
+      });
+    }
+    // PE codes cited in prose but not linked → include with bare code so the
+    // capability/mission rule can still fire if the title is echoed in text.
+    for (const code of extractCitedPeCodes(fullText)) {
+      if (!seen.has(code)) pes.push({ peCode: code });
+    }
+    try {
+      return collectPeStructuralWarnings(pes, fullText);
+    } catch (e) {
+      this.logger.warn(`generate-all: structural check failed: ${(e as Error).message}`);
+      return [];
+    }
   }
 
   /**
@@ -397,6 +454,8 @@ export class GenerationService {
       args.toneContext ? `Strategic emphasis: ${args.toneContext}.` : '',
       `This section sits within the standard structure: ${sectionGuide.join(' → ')}.`,
       args.context ? `Ground the content in these facts:\n- ${args.context}` : '',
+      '',
+      DOMAIN_PRIMER,
       '',
       `Goal of this section: ${spec.goal}`,
       `Target length: roughly ${spec.targetWords[0]}–${spec.targetWords[1]} words — respect it.`,
