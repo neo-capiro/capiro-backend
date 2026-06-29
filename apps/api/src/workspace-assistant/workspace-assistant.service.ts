@@ -54,6 +54,37 @@ const ASSISTANT_TOOLS = new Set<string>([
   'query_economic_data',
 ]);
 
+/** Friendly label for a tool name, for the editor's thought-process view. */
+function toolLabel(tool: string): string {
+  const map: Record<string, string> = {
+    get_client_context: 'Reviewed client context',
+    search_client_knowledge: 'Searched client knowledge',
+    search_research_sources: 'Searched research sources',
+    read_client_documents: 'Read client documents',
+    query_intelligence: 'Queried federal intelligence',
+    query_knowledge_graph: 'Queried the knowledge graph',
+    find_path_to: 'Traced knowledge-graph connections',
+    search_intel_articles: 'Searched intel articles',
+    search_congress_bills: 'Searched Congress bills',
+    search_tracked_bills: 'Searched tracked bills',
+    search_lda_filings: 'Searched LDA filings',
+    search_committee_hearings: 'Searched committee hearings',
+    search_crs_reports: 'Searched CRS reports',
+    search_gao_reports: 'Searched GAO reports',
+    query_regulatory_dockets: 'Queried regulatory dockets',
+    search_federal_awards: 'Searched federal awards',
+    search_program_elements: 'Searched program elements',
+    get_program_element: 'Looked up a program element',
+    get_pe_budget_timeline: 'Pulled PE budget timeline',
+    get_pe_contractors: 'Pulled PE contractors',
+    get_pe_bills: 'Pulled PE bill references',
+    search_acquisition_personnel: 'Searched acquisition personnel',
+    get_acquisition_person: 'Looked up an acquisition contact',
+    query_economic_data: 'Queried economic data',
+  };
+  return map[tool] ?? `Ran ${tool}`;
+}
+
 export interface AssistantEdit {
   op: 'replace_section' | 'insert_section' | 'remove_section';
   section?: string;
@@ -63,6 +94,14 @@ export interface AssistantEdit {
   note?: string;
 }
 
+/** One step in Meri's thought process for a turn (tool call + outcome). */
+export interface AssistantStep {
+  tool: string;
+  label: string;
+  detail?: string;
+  status: 'done' | 'error';
+}
+
 export interface AssistantResult {
   reply: string;
   edits: AssistantEdit[];
@@ -70,6 +109,8 @@ export interface AssistantResult {
   confidence?: Confidence;
   /** Deterministic PE structural warnings (RDT&E vs procurement, etc.). */
   structuralWarnings?: PeStructuralWarning[];
+  /** Ordered thought-process steps (data lookups Meri ran), for the UI. */
+  steps?: AssistantStep[];
 }
 
 type AnthropicBlock =
@@ -179,6 +220,8 @@ export class WorkspaceAssistantService {
     // the proposed edits before returning them.
     const groundingBodies: string[] = [];
     const citedPeRecords = new Map<string, PeRecordForValidation>();
+    // Thought-process trace: each data lookup Meri runs, surfaced in the editor.
+    const steps: AssistantStep[] = [];
 
     // Per-round model-call timeout. Aligned with full Meri's CLIO_REQUEST_TIMEOUT_MS
     // (default 120s): now that workspace reasons on CLIO_MODEL (Sonnet) instead of
@@ -243,12 +286,12 @@ export class WorkspaceAssistantService {
           groundingBodies,
           citedPeRecords,
         );
-        return { reply: reply || 'Done.', edits, confidence, structuralWarnings };
+        return { reply: reply || 'Done.', edits, confidence, structuralWarnings, steps };
       }
 
       // No tools requested → plain conversational answer.
       if (!toolUses.length || data.stop_reason !== 'tool_use') {
-        return { reply: textOut || 'Done.', edits: [] };
+        return { reply: textOut || 'Done.', edits: [], steps };
       }
 
       // Execute the requested read-only data tools and feed results back.
@@ -258,13 +301,16 @@ export class WorkspaceAssistantService {
           let result: unknown;
           if (!ASSISTANT_TOOLS.has(tu.name)) {
             result = { error: `Tool "${tu.name}" is not available in the document assistant.` };
+            steps.push({ tool: tu.name, label: toolLabel(tu.name), status: 'error', detail: 'unavailable' });
           } else {
             try {
               result = await this.tools.execute(ctx, tu.name as never, tu.input ?? {});
               // Capture grounding for the post-turn verifier + structural pass.
               this.captureGrounding(tu.name, result, groundingBodies, citedPeRecords);
+              steps.push({ tool: tu.name, label: toolLabel(tu.name), status: 'done' });
             } catch (e) {
               result = { error: (e as Error).message };
+              steps.push({ tool: tu.name, label: toolLabel(tu.name), status: 'error', detail: (e as Error).message.slice(0, 120) });
             }
           }
           return {
@@ -281,6 +327,7 @@ export class WorkspaceAssistantService {
       reply:
         'I gathered some context but ran out of steps before composing a full answer — ask again and I’ll continue.',
       edits: [],
+      steps,
     };
   }
 

@@ -204,11 +204,23 @@ export function EditorPage() {
   const cfgDirty = useRef(false);
   const dirtyDocs = useRef<Set<string>>(new Set());
 
-  // Hydrate the local working copies from the draft once it loads (Q-DOC-2:
-  // open on the draft's OWN data, including Meri-intake auto-drafted content).
+  // Hydrate the local working copies from the draft (Q-DOC-2: open on the
+  // draft's OWN data, including Meri-intake/initial-generation auto-drafted
+  // content). Re-hydrates when a NEWER draft arrives (e.g. the Context Builder
+  // ran generate-all right before navigating here, or Regenerate All refetched)
+  // as long as the user has no unsaved local edits — otherwise the editor would
+  // keep showing the stale pre-generation cfg with empty sections even though
+  // the generated content is in the refetched draft (visible in Preview).
+  const hydratedAt = useRef<string | null>(null);
   useEffect(() => {
-    if (!draft || hydrated.current) return;
+    if (!draft) return;
+    const dirty = cfgDirty.current || dirtyDocs.current.size > 0;
+    const alreadyHydrated = hydrated.current;
+    // Re-hydrate on first load, or when a strictly newer draft lands and the
+    // local copy is clean (safe to replace).
+    if (alreadyHydrated && (dirty || draft.updatedAt === hydratedAt.current)) return;
     hydrated.current = true;
+    hydratedAt.current = draft.updatedAt;
     setCfg(draft.config);
     setDocTitle(draft.docTitle);
     setMainBlocks(((draft.config.mainBlocks as WsBlock[] | undefined) ?? []).slice());
