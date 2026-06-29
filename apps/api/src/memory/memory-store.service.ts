@@ -10,7 +10,7 @@ import type {
 import { MEMORY_SCHEMA_VERSION } from './memory.types.js';
 import { renderMemoryItem, vaultPathForItem } from './memory-render.helpers.js';
 import { extractWikiLinks } from './memory-parse.helpers.js';
-import { skeletonSections, fileDefForType } from './memory-catalog.js';
+import { mergeEditedSections, fileDefForType } from './memory-catalog.js';
 
 /**
  * Canonical institutional-memory store (plan §0.5).
@@ -243,17 +243,15 @@ export class MemoryStoreService {
   ): Promise<MemoryItem> {
     const ctx = this.tenantCtx.require();
     const existing = await this.getByTypeSlug(type, slug);
-    const editByKey = new Map(
-      edits.filter((e) => allowedKeys.has(e.key)).map((e) => [e.key, e.body]),
-    );
 
-    const baseSections: MemorySection[] = existing
-      ? existing.sections
-      : skeletonSections(type);
-    const mergedSections: MemorySection[] = baseSections.map((s) =>
-      s.owner === 'human' && editByKey.has(s.key)
-        ? { ...s, body: editByKey.get(s.key) ?? s.body }
-        : s,
+    // Canonical merge: walks the catalog skeleton so every human-editable section
+    // is present + saveable (fixes "some files don't save" for stale rows), keeps
+    // engine-owned + unlisted sections intact. Pure + unit-tested in the catalog.
+    const mergedSections: MemorySection[] = mergeEditedSections(
+      type,
+      existing?.sections ?? null,
+      edits,
+      allowedKeys,
     );
 
     const label = fileDefForType(type)?.label ?? type;

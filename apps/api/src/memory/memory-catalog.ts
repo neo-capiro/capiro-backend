@@ -177,3 +177,49 @@ export function skeletonSections(type: string): Array<{ key: string; heading: st
     key: s.key, heading: s.heading, owner: 'human' as const, body: '',
   }));
 }
+
+/** A stored/merged memory section. (Mirrors MemorySection in memory.types.) */
+export interface CatalogMergeSection {
+  key: string;
+  heading: string;
+  owner: 'engine' | 'human';
+  body: string;
+}
+
+/**
+ * Merge user edits into a file's sections, canonically.
+ *
+ * Walks the CATALOG skeleton (not just the stored sections) so that EVERY
+ * human-editable section is always present and saveable — fixing the bug where
+ * edits to a catalog section missing from a stale/partially-created stored row
+ * were silently dropped ("some files don't save"). Existing bodies + owners are
+ * preserved; edits apply only to human-owned, allowed keys; engine-owned
+ * sections (and any stored sections the catalog no longer lists) are carried
+ * through untouched. Pure → unit-tested in memory-catalog.spec.ts.
+ */
+export function mergeEditedSections(
+  type: string,
+  existingSections: CatalogMergeSection[] | null,
+  edits: Array<{ key: string; body: string }>,
+  allowedKeys: Set<string>,
+): CatalogMergeSection[] {
+  const editByKey = new Map(edits.filter((e) => allowedKeys.has(e.key)).map((e) => [e.key, e.body]));
+  const existingByKey = new Map((existingSections ?? []).map((s) => [s.key, s]));
+  const seen = new Set<string>();
+  const merged: CatalogMergeSection[] = [];
+  for (const skel of skeletonSections(type)) {
+    seen.add(skel.key);
+    const base: CatalogMergeSection =
+      existingByKey.get(skel.key) ?? { key: skel.key, heading: skel.heading, owner: 'human', body: '' };
+    if (base.owner === 'human' && allowedKeys.has(skel.key) && editByKey.has(skel.key)) {
+      merged.push({ ...base, body: editByKey.get(skel.key) ?? base.body });
+    } else {
+      merged.push(base);
+    }
+  }
+  // Preserve stored sections the catalog no longer lists (e.g. ingestion-derived).
+  for (const s of existingSections ?? []) {
+    if (!seen.has(s.key)) merged.push(s);
+  }
+  return merged;
+}

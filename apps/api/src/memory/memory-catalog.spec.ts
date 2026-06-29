@@ -3,6 +3,7 @@ import {
   fileDefForType,
   editableSectionKeys,
   skeletonSections,
+  mergeEditedSections,
 } from './memory-catalog.js';
 import {
   buildInterviewQuestions,
@@ -54,6 +55,69 @@ describe('memory catalog', () => {
     expect(sk.length).toBeGreaterThan(0);
     expect(sk.every((s) => s.owner === 'human' && s.body === '')).toBe(true);
     expect(skeletonSections('unknown-type')).toEqual([]);
+  });
+});
+
+describe('mergeEditedSections (Settings → Memory save)', () => {
+  const allowed = editableSectionKeys('client-soul');
+
+  it('saves an edit to a brand-new file (no existing row)', () => {
+    const merged = mergeEditedSections(
+      'client-soul',
+      null,
+      [{ key: 'strategic-read', body: 'Honest read.' }],
+      allowed,
+    );
+    expect(merged.find((s) => s.key === 'strategic-read')?.body).toBe('Honest read.');
+    // every catalog section is present + saveable
+    expect(merged.map((s) => s.key)).toEqual(
+      fileDefForType('client-soul')!.sections.map((s) => s.key),
+    );
+  });
+
+  it('REGRESSION: saves an edit to a catalog section MISSING from a stale stored row', () => {
+    // Stored item only has one section (created before catalog grew / partial
+    // ingestion). The old merge walked existing.sections only and silently
+    // dropped edits to any absent section — this is the "some files don't save" bug.
+    const staleExisting = [
+      { key: 'who-they-are', heading: 'Who they are & what they do', owner: 'human' as const, body: 'A shipbuilder.' },
+    ];
+    const merged = mergeEditedSections(
+      'client-soul',
+      staleExisting,
+      [{ key: 'red-lines', body: 'Never lobby against the Jones Act.' }],
+      allowed,
+    );
+    // the previously-absent section now exists AND carries the saved edit
+    expect(merged.find((s) => s.key === 'red-lines')?.body).toBe('Never lobby against the Jones Act.');
+    // the existing section is preserved
+    expect(merged.find((s) => s.key === 'who-they-are')?.body).toBe('A shipbuilder.');
+  });
+
+  it('never overwrites engine-owned sections', () => {
+    const existing = [
+      { key: 'strategic-read', heading: 'Our strategic read', owner: 'engine' as const, body: 'AUTO' },
+    ];
+    const merged = mergeEditedSections(
+      'client-soul',
+      existing,
+      [{ key: 'strategic-read', body: 'human attempt' }],
+      allowed,
+    );
+    expect(merged.find((s) => s.key === 'strategic-read')?.body).toBe('AUTO');
+  });
+
+  it('ignores edits to keys not in the allowlist (write-guard)', () => {
+    const merged = mergeEditedSections('client-soul', null, [{ key: 'not-a-key', body: 'x' }], allowed);
+    expect(merged.find((s) => s.key === 'not-a-key')).toBeUndefined();
+  });
+
+  it('preserves stored sections the catalog no longer lists', () => {
+    const existing = [
+      { key: 'legacy-section', heading: 'Legacy', owner: 'human' as const, body: 'keep me' },
+    ];
+    const merged = mergeEditedSections('client-soul', existing, [], allowed);
+    expect(merged.find((s) => s.key === 'legacy-section')?.body).toBe('keep me');
   });
 });
 
