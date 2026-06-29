@@ -237,13 +237,7 @@ export function PreviewPage() {
   const savedAt = relativeStamp(draft.updatedAt);
 
   return (
-    <div
-      className="ws-shell"
-      // Fill the bounded .app-content (height: calc(100vh - 52px), padding:0 for
-      // workspace) so the inner preview stage's overflow:auto scrolls. height:100%
-      // tracks the container instead of re-deriving viewport math.
-      style={{ height: '100%', overflow: 'hidden' }}
-    >
+    <div className="ws-shell">
       <StepsRail active="preview" draftId={draftId} product={draft.product} />
       <div
         style={{

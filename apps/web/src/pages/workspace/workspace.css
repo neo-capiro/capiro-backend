@@ -466,7 +466,7 @@
 .ws-editor-shell {
   display: flex;
   flex-direction: column;
-  height: calc(100vh - 52px);
+  height: calc(100vh - 56px);
   min-height: 520px;
   background: var(--bg-surface);
   /* Anchor the Anonymize review overlay (position:absolute; inset:0). */
