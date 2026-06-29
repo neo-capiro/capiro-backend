@@ -36,9 +36,20 @@ const LIMIT = 100;
 function toCongressDateTime(d: Date): string {
   return d.toISOString().replace(/\.\d{3}Z$/, 'Z');
 }
-// Fetch up to 50 pages per congress (5000 bills per congress)
-const MAX_PAGES_PER_CONGRESS = 50;
-const TARGET_CONGRESSES = [117, 118, 119];
+// Page through the FULL congress: the loop runs until the API reports no
+// `next` page. MAX_PAGES_PER_CONGRESS is only a runaway-loop safety bound
+// (50,000 bills) and is logged loudly if ever hit. The old hard cap of 50
+// (5,000 bills) SILENTLY truncated coverage — Congress.gov sorts the bill list
+// by most-recently-updated, so each congress kept only its 5,000 freshest bills
+// and the dormant long tail (e.g. 119 s.1932) was never ingested. Override the
+// bound with CONGRESS_MAX_PAGES for an exhaustive backfill of a very large congress.
+const MAX_PAGES_PER_CONGRESS = Number(process.env.CONGRESS_MAX_PAGES) || 500;
+// Default to the three congresses we track. Override with CONGRESS_TARGETS
+// (comma-separated, e.g. "119") to scope a one-off full backfill to a single
+// congress instead of re-walking all of them.
+const TARGET_CONGRESSES = (process.env.CONGRESS_TARGETS
+  ? process.env.CONGRESS_TARGETS.split(',').map((s) => Number(s.trim())).filter((n) => Number.isInteger(n))
+  : [117, 118, 119]);
 
 // Incremental mode: pass `--incremental` (or set CONGRESS_SYNC_INCREMENTAL=1)
 // to limit the upstream fetch to bills updated since the most recent
@@ -184,15 +195,45 @@ function congressUrl(path: string, params: Record<string, string | number> = {})
   return url.toString();
 }
 
+function redactKey(url: string): string {
+  return url.replace(/(api_key=)[^&]+/i, '$1[REDACTED]');
+}
+
 async function fetchJson<T>(url: string): Promise<T | null> {
-  try {
-    const resp = await fetch(url);
+  const MAX_RETRIES = 5;
+  for (let attempt = 1; attempt <= MAX_RETRIES; attempt++) {
+    let resp: Response;
+    try {
+      resp = await fetch(url);
+    } catch (err) {
+      // Transient network error: back off and retry, then give up.
+      if (attempt < MAX_RETRIES) {
+        await new Promise((r) => setTimeout(r, 500 * 2 ** (attempt - 1)));
+        continue;
+      }
+      throw new Error(`GET ${redactKey(url)}: ${err instanceof Error ? err.message : err}`);
+    }
+
     if (resp.status === 404) return null;
-    if (!resp.ok) throw new Error(`${resp.status} ${resp.statusText}`);
+
+    // Congress.gov throttles at ~5k req/hour, so a full (uncapped) backfill WILL
+    // hit 429. Honor Retry-After when present, else exponential backoff, so a long
+    // run self-paces and recovers instead of aborting the page loop.
+    if ((resp.status === 429 || resp.status >= 500) && attempt < MAX_RETRIES) {
+      const retryAfter = Number(resp.headers.get('retry-after'));
+      const waitMs =
+        Number.isFinite(retryAfter) && retryAfter > 0 ? retryAfter * 1000 : 1000 * 2 ** (attempt - 1);
+      console.warn(
+        `[congress-sync] ${resp.status} on ${redactKey(url)} — retry ${attempt}/${MAX_RETRIES} in ${waitMs}ms`,
+      );
+      await new Promise((r) => setTimeout(r, waitMs));
+      continue;
+    }
+
+    if (!resp.ok) throw new Error(`GET ${redactKey(url)}: ${resp.status} ${resp.statusText}`);
     return (await resp.json()) as T;
-  } catch (err) {
-    throw new Error(`GET ${url}: ${err instanceof Error ? err.message : err}`);
   }
+  throw new Error(`GET ${redactKey(url)}: exhausted ${MAX_RETRIES} retries`);
 }
 
 function safeDate(v: string | null | undefined): Date | null {
@@ -247,6 +288,7 @@ async function main() {
       );
       let offset = 0;
       let congressBills = 0;
+      let reachedEnd = false;
 
       for (let pageNum = 0; pageNum < MAX_PAGES_PER_CONGRESS; pageNum++) {
         let listResp: CongressBillListResponse | null;
@@ -263,7 +305,10 @@ async function main() {
           break;
         }
 
-        if (!listResp?.bills?.length) break;
+        if (!listResp?.bills?.length) {
+          reachedEnd = true;
+          break;
+        }
 
         for (const bill of listResp.bills) {
           try {
@@ -467,9 +512,19 @@ async function main() {
         }
 
         offset += LIMIT;
-        if (!listResp.pagination?.next) break;
+        if (!listResp.pagination?.next) {
+          reachedEnd = true;
+          break;
+        }
       }
 
+      if (!reachedEnd) {
+        console.warn(
+          `[congress-sync] ${congress}th Congress: STOPPED at the MAX_PAGES_PER_CONGRESS=${MAX_PAGES_PER_CONGRESS} ` +
+            `safety cap (${congressBills} bills) but the API still had more pages — coverage is INCOMPLETE. ` +
+            `Re-run a full (non-incremental) sync with a higher CONGRESS_MAX_PAGES.`,
+        );
+      }
       console.log(`[congress-sync] ${congress}th Congress: ${congressBills} bills`);
     }
 
