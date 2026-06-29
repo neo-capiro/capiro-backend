@@ -1017,18 +1017,6 @@ body {
   padding: 0;
 }
 
-/* Workspace editor & preview own the full content area: they use bounded-height
-   shells (height: calc(100vh - 52px)) whose inner columns scroll internally. The
-   default .app-content padding:24px pushed those viewport-height shells down and
-   clipped the bottom of the document (no scrollbar). Zero the padding and bound
-   the content box so the shells fit exactly and their internal canvas scrolls. */
-.app-content:has(.ws-editor-shell),
-.app-content:has(.ws-shell) {
-  padding: 0;
-  height: calc(100vh - 52px);
-  overflow: hidden;
-}
-
 .app-content-alert {
   margin-bottom: 16px;
 }
