@@ -13,7 +13,6 @@
  */
 import { config as dotenvConfig } from 'dotenv';
 import { NestFactory } from '@nestjs/core';
-import { Logger } from '@nestjs/common';
 
 dotenvConfig();
 
@@ -38,13 +37,13 @@ async function loadNest(): Promise<{ AppModule: any; TrackerAlertService: any }>
 
 async function main() {
   const cadence = parseCadence();
-  const logger = new Logger('flush-tracker-digests');
   const { AppModule, TrackerAlertService } = await loadNest();
   const app = await NestFactory.createApplicationContext(AppModule, { logger: ['warn', 'error'] });
   try {
     const svc = app.get(TrackerAlertService);
     const res = await svc.flushDigests(cadence);
-    logger.log(`done. cadence=${cadence} flushed=${res.flushed} sent=${res.sent}`);
+    // console.log so the summary survives the ['warn','error'] boot log-level.
+    console.log(`done. cadence=${cadence} flushed=${res.flushed} sent=${res.sent}`);
   } finally {
     await app.close();
   }
