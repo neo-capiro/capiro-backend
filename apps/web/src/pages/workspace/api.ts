@@ -696,9 +696,22 @@ export interface WsAssistantEdit {
   content?: string;
   note?: string;
 }
+export interface WsAssistantConfidence {
+  level: 'high' | 'medium' | 'low' | 'unknown';
+  label: string;
+}
+export interface WsAssistantStructuralWarning {
+  code: 'rdte_procurement_mismatch' | 'capability_mission_mismatch' | 'primary_vehicle_overclaim';
+  peCode: string;
+  message: string;
+}
 export interface WsAssistantResult {
   reply: string;
   edits: WsAssistantEdit[];
+  /** Grounding confidence on the proposed edits (parity with full Meri). */
+  confidence?: WsAssistantConfidence;
+  /** Deterministic PE structural warnings to surface before applying edits. */
+  structuralWarnings?: WsAssistantStructuralWarning[];
 }
 export interface WsAssistantRequest {
   messages: Array<{ role: 'user' | 'assistant'; text: string }>;
