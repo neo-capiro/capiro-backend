@@ -1,6 +1,7 @@
 import { Injectable, Logger, ServiceUnavailableException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service.js';
 import { AiCredentialService } from './ai-credential.service.js';
+import { PeResolverService, type AuthoritativePeRecord } from './pe-resolver.service.js';
 import { anonymizeText, type AnonymizeMap } from './anonymize.js';
 import { WSC } from '../cascade/cascade.config.js';
 import {
@@ -37,12 +38,14 @@ export class GenerationService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly creds: AiCredentialService,
+    private readonly peResolver: PeResolverService,
   ) {}
 
   async generateSection(
     tenantId: string,
     draftId: string,
     sectionName: string,
+    authoritativePes?: AuthoritativePeRecord[],
   ): Promise<GenerateSectionResult> {
     const draft = await this.prisma.wsDraft.findFirst({
       where: { id: draftId, tenantId },
@@ -79,15 +82,29 @@ export class GenerationService {
       })
       .filter(Boolean);
 
-    // Linked program elements (Setup → Links & data): the user attaches PEs and
-    // we persist the full associated context (mission + financials) on the
-    // config so Meri grounds the draft in real budget data.
+    // Linked program elements (Setup → Links & data). RETRIEVE-BEFORE-WRITE:
+    // prefer the AUTHORITATIVE PE record re-resolved from the DB (real mission,
+    // appropriation type, budget activity, budget figures) over whatever thin
+    // context was attached in the Context Builder — parity with how the in-editor
+    // Meri assistant retrieves PE detail before drafting. Resolve here when the
+    // caller (single-section path) didn't pre-resolve; generate-all resolves once
+    // and passes the records down to avoid N duplicate lookups.
     const linkedPes =
       (cfg.linkedProgramElements as
         | Array<{ peCode?: string; title?: string; context?: string }>
         | undefined) ?? [];
+    const authPes =
+      authoritativePes ??
+      (await this.peResolver.resolve(linkedPes.map((pe) => pe.peCode)));
+    const authByCode = new Map(authPes.map((r) => [r.peCode.toUpperCase(), r]));
+
     const peText = linkedPes
       .map((pe) => {
+        const code = (pe.peCode ?? '').toUpperCase();
+        const auth = code ? authByCode.get(code) : undefined;
+        // Authoritative DB record wins; fall back to the attached context only
+        // when the PE couldn't be resolved (e.g. not yet ingested).
+        if (auth) return this.peResolver.groundingText(auth).slice(0, PER_ITEM_CAP);
         const head = [pe.peCode, pe.title].filter(Boolean).join(' — ');
         return [head, pe.context].filter(Boolean).join('\n').slice(0, PER_ITEM_CAP);
       })
@@ -250,10 +267,20 @@ export class GenerationService {
     const sectionMeta: Record<string, { status: string }> = {
       ...((cfg.sectionMeta as Record<string, { status: string }> | undefined) ?? {}),
     };
+
+    // RETRIEVE-BEFORE-WRITE: resolve the draft's linked PE codes to their
+    // authoritative DB records ONCE up front, then pass them to every section so
+    // each draft is grounded in real mission/appropriation/budget data and we
+    // don't issue N duplicate lookups. Best-effort: an unresolved PE falls back
+    // to attached context inside generateSection.
+    const linkedPes =
+      (cfg.linkedProgramElements as Array<{ peCode?: string }> | undefined) ?? [];
+    const authPes = await this.peResolver.resolve(linkedPes.map((pe) => pe.peCode));
+
     await Promise.all(
       sections.map(async (section) => {
         try {
-          const r = await this.generateSection(tenantId, draftId, section);
+          const r = await this.generateSection(tenantId, draftId, section, authPes);
           sectionContent[section] = r.content;
           sectionMeta[section] = { status: 'review' };
         } catch (e) {
@@ -264,9 +291,10 @@ export class GenerationService {
 
     // PARITY with in-editor Meri: run the deterministic PE structural checks
     // (RDT&E-vs-procurement, capability/mission mismatch) over the freshly
-    // generated text against the draft's linked PEs, and persist them so the
-    // editor can surface warnings at creation time — not just on edit.
-    const structuralWarnings = this.computeStructuralWarnings(cfg, sectionContent);
+    // generated text against the AUTHORITATIVE PE records (real appropriation
+    // type / budget activity), and persist them so the editor can surface
+    // warnings at creation time — not just on edit.
+    const structuralWarnings = this.computeStructuralWarnings(cfg, sectionContent, authPes);
 
     await this.prisma.wsDraft.update({
       where: { id: draftId },
@@ -288,6 +316,7 @@ export class GenerationService {
   private computeStructuralWarnings(
     cfg: Record<string, unknown>,
     sectionContent: Record<string, string>,
+    authPes: AuthoritativePeRecord[] = [],
   ): PeStructuralWarning[] {
     const fullText = Object.values(sectionContent).join('\n').replace(/<[^>]*>/g, ' ');
     if (!fullText.trim()) return [];
@@ -297,9 +326,21 @@ export class GenerationService {
         | undefined) ?? [];
     const pes: PeRecordForValidation[] = [];
     const seen = new Set<string>();
+    // Authoritative DB records first — these carry the REAL appropriation type /
+    // budget activity the RDT&E-vs-procurement and mission checks depend on, so a
+    // thin/wrong attached PE can't suppress a true warning.
+    const authByCode = new Map(authPes.map((r) => [r.peCode.toUpperCase(), r]));
+    for (const rec of authPes) {
+      const code = rec.peCode.toUpperCase();
+      if (seen.has(code)) continue;
+      seen.add(code);
+      pes.push(this.peResolver.toValidationRecord(rec));
+    }
+    // Linked PEs that didn't resolve → fall back to whatever was attached.
     for (const pe of linkedPes) {
       if (!pe.peCode) continue;
       const code = pe.peCode.toUpperCase();
+      if (seen.has(code)) continue;
       seen.add(code);
       pes.push({
         peCode: code,
@@ -311,7 +352,12 @@ export class GenerationService {
     // PE codes cited in prose but not linked → include with bare code so the
     // capability/mission rule can still fire if the title is echoed in text.
     for (const code of extractCitedPeCodes(fullText)) {
-      if (!seen.has(code)) pes.push({ peCode: code });
+      if (!seen.has(code)) {
+        seen.add(code);
+        // A cited code might still be resolvable from the up-front batch.
+        const auth = authByCode.get(code);
+        pes.push(auth ? this.peResolver.toValidationRecord(auth) : { peCode: code });
+      }
     }
     try {
       return collectPeStructuralWarnings(pes, fullText);

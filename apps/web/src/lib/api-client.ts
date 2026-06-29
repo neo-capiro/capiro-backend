@@ -31,6 +31,8 @@ const GENERATION_URL_PATTERNS: RegExp[] = [
   /artifacts/i, // POST .../artifacts (artifact generation)
   /extract-text/i, // attachment text extraction / transcription
   /clio\/research/i, // deep-research create / clarify (non-stream POSTs)
+  /workspace\/assistant/i, // in-editor Meri assistant: bounded multi-round tool loop on Sonnet, runs well past 30s on a "thinking" turn
+  /comments\/[^/]+\/suggest/i, // "Let Meri draft an edit": single AI rewrite, can exceed 30s
 ];
 
 export function isGenerationUrl(url: string | undefined): boolean {
