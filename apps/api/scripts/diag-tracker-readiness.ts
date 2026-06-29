@@ -39,11 +39,13 @@ async function main() {
   try {
     const svc = app.get(TrackerChangeDetectorService);
     const { tenants, totals } = await svc.readinessReport();
-    logger.log(
+    // console.log (not logger.log) so the report survives the ['warn','error']
+    // boot log-level — Nest's Logger.log() is suppressed at those levels.
+    console.log(
       `TOTALS: trackedBills=${totals.trackedBills} emailEnabledPrefs=${totals.emailEnabledPrefs} pendingChanges=${totals.pendingChanges} wouldEmail=${totals.wouldEmail}`,
     );
     for (const t of tenants.sort((a: any, b: any) => b.pendingChanges - a.pendingChanges)) {
-      logger.log(
+      console.log(
         `  tenant=${t.tenantId} tracked=${t.trackedBills} emailPrefs=${t.emailEnabledPrefs} pending=${t.pendingChanges} wouldEmail=${t.wouldEmail}`,
       );
     }

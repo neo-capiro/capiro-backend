@@ -16,7 +16,6 @@
  */
 import { config as dotenvConfig } from 'dotenv';
 import { NestFactory } from '@nestjs/core';
-import { Logger } from '@nestjs/common';
 
 dotenvConfig();
 
@@ -37,7 +36,6 @@ async function loadNest(): Promise<{ AppModule: any; TrackerChangeDetectorServic
 }
 
 async function main() {
-  const logger = new Logger('detect-tracker-alerts');
   const { AppModule, TrackerChangeDetectorService } = await loadNest();
   const app = await NestFactory.createApplicationContext(AppModule, { logger: ['warn', 'error'] });
   try {
@@ -47,7 +45,9 @@ async function main() {
       .sort((a, b) => b[1] - a[1])
       .map(([k, n]) => `${k}=${n}`)
       .join(' ');
-    logger.log(
+    // console.log (not Nest Logger.log, suppressed at ['warn','error']) so the
+    // run summary + byType breakdown actually land in CloudWatch.
+    console.log(
       `done. scanned=${res.scanned} baseline=${res.baseline} changed=${res.changed} alerted=${res.alerted}` +
         (byType ? ` | byType: ${byType}` : ''),
     );
