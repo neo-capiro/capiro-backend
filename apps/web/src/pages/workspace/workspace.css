@@ -466,7 +466,13 @@
 .ws-editor-shell {
   display: flex;
   flex-direction: column;
-  height: calc(100vh - 56px);
+  /* Fill the content area exactly so the canvas scrolls INTERNALLY and the whole
+     editor fits on-screen. 52px = the .app-topbar height (theme.css); .app-content
+     padding is zeroed for this page (see .app-content:has(.ws-editor-shell)), so
+     the topbar is the only chrome above the shell. The old 56px both mis-measured
+     the topbar AND ignored the content padding, making the shell ~44px too tall —
+     the page scrolled and the canvas bottom (and its scrollbar) fell off-screen. */
+  height: calc(100vh - 52px);
   min-height: 520px;
   background: var(--bg-surface);
   /* Anchor the Anonymize review overlay (position:absolute; inset:0). */
