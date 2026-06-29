@@ -2,6 +2,7 @@ import { Injectable, Logger } from '@nestjs/common';
 import type { TenantContext } from '@capiro/shared';
 import { MeriToolsService } from '../meri/meri-tools.service.js';
 import { AiCredentialResolverService } from '../engagement/ai-credential-resolver.service.js';
+import { DOMAIN_PRIMER } from '../meri/meri-domain-fanout.helpers.js';
 import type { WorkspaceAssistantDto } from './workspace-assistant.dto.js';
 
 const ANTHROPIC_URL = 'https://api.anthropic.com/v1/messages';
@@ -324,6 +325,9 @@ export class WorkspaceAssistantService {
       '',
       '# Tools',
       'You may call the provided READ-ONLY tools to look up firm/client data, tracked bills, program elements & budgets, the congressional directory, and federal intelligence. Ground factual claims in retrieved data or the linked context above. Never fabricate figures, bill numbers, names, or citations. If you lack the data, say so.',
+      'RETRIEVE BEFORE YOU DRAFT: before writing any sentence about a Program Element, bill, person, or budget figure, call the relevant tool (e.g. get_program_element / get_pe_budget_timeline) and quote the returned title, appropriation type, and figures verbatim. Do NOT assume a PE from the setup/context is correct — validate that its mission and appropriation type match the ask before building strategy on it.',
+      '',
+      `# Domain knowledge\n${DOMAIN_PRIMER}`,
       '',
       '# How to respond',
       'When you are ready, call `propose_document_edits` with your `reply` and an `edits` array:',

@@ -29,6 +29,16 @@ import {
   validateCitationMarkers,
   type MeriCitation,
 } from './meri-citations.helpers.js';
+import {
+  buildVerifierSources,
+  extractGroundingFromToolResult,
+} from './meri-verifier-sources.helpers.js';
+import {
+  DOMAIN_PRIMER,
+  extractCitedPeCodes,
+  planFanOutQueries,
+} from './meri-domain-fanout.helpers.js';
+import { collectPeStructuralWarnings } from './meri-pe-structural.helpers.js';
 import { CLIO_SKILLS, matchSkill } from './skills/skill-registry.js';
 import type { MeriSkill } from './skills/skill.types.js';
 import { matchFirmSkillForTurn } from './meri-firm-skills.helpers.js';
@@ -662,6 +672,11 @@ export class MeriService {
     const actionsTaken: Array<{ tool: string; kind: string; ok: boolean }> = [];
     const usageTotals = emptyUsage();
     const citations: MeriCitation[] = [];
+    // Rich verifier grounding keyed by the SAME [N] marker as `citations`, so the
+    // grounding gate sees the full records (budget figures, appropriation type,
+    // markup status) the model saw — not the thin title+snippet stub that caused
+    // the "18 of 18 claims unbacked" false-negative.
+    const groundingByN = new Map<number, string>();
     let finalCitations: MeriCitation[] = [];
     let pageWritePayload: { subject?: string; body?: string } | null = null;
     let aborted = false;
@@ -1020,6 +1035,10 @@ export class MeriService {
           if (citationsEnabled && !isError) {
             const cites = extractCitationsFromToolResult(t.name, resultPayload, citations.length + 1);
             if (cites.length) {
+              // Capture rich grounding for the SAME marker numbers before we push
+              // the citations (startN must match the citation extractor's startN).
+              const grounding = extractGroundingFromToolResult(resultPayload, citations.length + 1);
+              for (const [n, body] of grounding) groundingByN.set(n, body);
               citations.push(...cites);
               toolContent = `${formatCitationsForPrompt(cites)}\n\n${toolContent}`;
             }
@@ -1123,11 +1142,23 @@ export class MeriService {
     if (deliverable?.bodyText) {
       verification = await this.verifyDeliverable(
         deliverable.bodyText,
-        finalCitations.map((c) => ({ n: c.n, title: c.title, snippet: c.snippet })),
+        buildVerifierSources(finalCitations, groundingByN),
       );
-      if (verification) {
+      // Structural + fan-out enrichment (P0-7..P0-10): deterministic PE category
+      // checks (RDT&E vs procurement, capability/mission mismatch, primary-vehicle
+      // overclaim) + adjacent freshness/better-fit findings. Fail-open: any error
+      // leaves `structural` empty and never blocks the deliverable.
+      const structural = await this.enrichDeliverableStructural(ctx, deliverable.bodyText);
+      if (verification || structural.warnings.length || structural.fanOut.length) {
         sse.write(
-          `data: ${JSON.stringify({ type: 'verification', title: deliverable.title, verification, confidence: confidenceLevel(verification.unsupportedRatio) })}\n\n`,
+          `data: ${JSON.stringify({
+            type: 'verification',
+            title: deliverable.title,
+            verification,
+            confidence: verification ? confidenceLevel(verification.unsupportedRatio) : undefined,
+            structuralWarnings: structural.warnings,
+            fanOut: structural.fanOut,
+          })}\n\n`,
         );
       }
     }
@@ -1857,6 +1888,64 @@ export class MeriService {
   }
 
   /**
+   * Structural + fan-out enrichment for a deliverable (P0-7..P0-10). Extracts
+   * cited PE codes from the deliverable, fetches each PE read-only, and runs the
+   * deterministic category validators (RDT&E-vs-procurement, capability/mission
+   * mismatch, primary-vehicle overclaim) plus the verify-time fan-out planner.
+   * Fail-open: any error yields empty arrays so this never blocks the deliverable.
+   * Gated by CLIO_VERIFIER_ENABLED (same flag as the grounding gate).
+   */
+  private async enrichDeliverableStructural(
+    ctx: TenantContext,
+    deliverableText: string,
+  ): Promise<{
+    warnings: ReturnType<typeof collectPeStructuralWarnings>;
+    fanOut: ReturnType<typeof planFanOutQueries>;
+  }> {
+    const empty = { warnings: [], fanOut: [] };
+    try {
+      if (!this.config.get('CLIO_VERIFIER_ENABLED', { infer: true })) return empty;
+      const codes = extractCitedPeCodes(deliverableText).slice(0, 6);
+      if (!codes.length) return empty;
+
+      const pes = await Promise.all(
+        codes.map(async (peCode) => {
+          try {
+            const res = (await this.tools.execute(ctx, 'get_program_element' as never, {
+              peCode,
+            })) as { programElement?: Record<string, unknown> } | null;
+            const pe = res?.programElement;
+            if (!pe || typeof pe !== 'object') return null;
+            return {
+              peCode: String((pe as { peCode?: unknown }).peCode ?? peCode),
+              title: (pe as { title?: string | null }).title ?? null,
+              service: (pe as { service?: string | null }).service ?? null,
+              appropriationType:
+                (pe as { appropriationType?: string | null }).appropriationType ?? null,
+              budgetActivity: (pe as { budgetActivity?: string | null }).budgetActivity ?? null,
+              budgetActivityName:
+                (pe as { budgetActivityName?: string | null }).budgetActivityName ?? null,
+            };
+          } catch {
+            return null;
+          }
+        }),
+      );
+      const resolved = pes.filter((p): p is NonNullable<typeof p> => p != null);
+
+      const warnings = collectPeStructuralWarnings(resolved, deliverableText);
+      const fanOut = planFanOutQueries(
+        resolved.map((p) => ({ peCode: p.peCode, title: p.title })),
+        deliverableText,
+      );
+      return { warnings, fanOut };
+    } catch (e) {
+      this.logger.warn(`enrichDeliverableStructural failed: ${(e as Error).message}`);
+      return empty;
+    }
+  }
+
+  /**
    * Split the Meri system prompt into a static `base` (identical on every turn,
    * so it can be cached) and a per-turn `dynamic` tail (intent guidance + output
    * template + pre-loaded context snapshot, which varies and must NOT be cached).
@@ -1902,6 +1991,9 @@ export class MeriService {
       'Any context pre-loaded below is a convenience snapshot, not a substitute for calling a tool when you need current or specific data.',
       'Do not fabricate facts. If uncertain, state uncertainty and propose the fastest verification path.',
       'Citations: when you state a fact drawn from a retrieved source, cite it inline with the bracketed number shown for that source in the tool results (e.g. [1], [2]). Only cite numbers that appear in the provided sources; never invent citation numbers.',
+      '',
+      'Defense budget structure (apply rigorously when drafting or fact-checking PE/budget/legislative claims):',
+      DOMAIN_PRIMER,
       'Memory: you have persistent, cross-conversation memory for this firm and user. Relevant remembered facts are injected into the context below when available. When the user shares a durable preference, name, or ongoing priority — or explicitly asks you to remember something — call the save_memory tool to persist it, then briefly confirm. Never claim you lack memory or cannot retain information across sessions.',
       'Conversation continuity (critical): the full prior turns of THIS conversation are provided to you as message history. Treat the conversation as one continuous thread — read the earlier turns and carry their context forward. When the user says "it", "that", "those", "the firm", "add them", "the same client", or otherwise refers back, resolve the reference from earlier in this conversation; do NOT re-ask for something already established or act as if the thread just started. If you genuinely cannot find the referent in the history, say so and ask — but check the prior turns first. The per-turn context snapshot below supplements the conversation; it never replaces what the user already told you.',
       COMPLIANCE_GUARDRAILS,
