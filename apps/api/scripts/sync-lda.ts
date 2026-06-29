@@ -4,7 +4,11 @@
  *   pnpm --filter @capiro/api sync:lda
  *   pnpm --filter @capiro/api sync:lda:incremental
  *
- * Pulls from https://lda.senate.gov/api/v1/ (no API key required).
+ * Pulls from https://lda.gov/api/v1/ (the legacy lda.senate.gov host retires
+ * 2026-06-30; same /api/v1 surface, just a new domain). Anonymous access works
+ * but is capped at 15 req/min; set LDA_API_KEY for 120 req/min. The key is sent
+ * as an `Authorization: Token <key>` header — that is the scheme the API
+ * validates (a bad token 401s); the older `x-api-key` header is ignored.
  * Full sync: ~512K filings + 192K contributions over 5 years.
  * Estimated runtime: 30-45 minutes.
  *
@@ -23,7 +27,7 @@ dotenvConfig();
 // full-history backfill where you'd rather batch-embed afterward).
 const EMBED_ON_SYNC = process.env.EMBED_ON_SYNC !== '0';
 
-const LDA_BASE = 'https://lda.senate.gov/api/v1';
+const LDA_BASE = 'https://lda.gov/api/v1';
 const LDA_API_KEY = process.env.LDA_API_KEY ?? '';
 const PAGE_SIZE = 100;
 const currentYear = new Date().getFullYear();
@@ -117,7 +121,9 @@ async function ldaFetch<T>(path: string, params: Record<string, string> = {}): P
   const url = new URL(`${LDA_BASE}${path}`);
   for (const [k, v] of Object.entries(params)) url.searchParams.set(k, v);
   const hdrs: Record<string, string> = { Accept: 'application/json' };
-  if (LDA_API_KEY) hdrs['x-api-key'] = LDA_API_KEY;
+  // LDA validates `Authorization: Token <key>` (a bad token 401s); the older
+  // `x-api-key` header is silently ignored, so use the Token scheme.
+  if (LDA_API_KEY) hdrs['Authorization'] = `Token ${LDA_API_KEY}`;
 
   const MAX_RETRIES = 5;
   for (let attempt = 1; attempt <= MAX_RETRIES; attempt++) {

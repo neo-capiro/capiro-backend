@@ -84,14 +84,14 @@ const CLIENT_CASES: ClientCase[] = [
     happyBody: {
       results: [
         {
-          url: 'https://lda.senate.gov/api/v1/filings/16a8d94f-657d-4e9f-b49d-b98a49b8687e/',
+          url: 'https://lda.gov/api/v1/filings/16a8d94f-657d-4e9f-b49d-b98a49b8687e/',
           filing_uuid: '16a8d94f-657d-4e9f-b49d-b98a49b8687e',
           filing_type: 'Q1',
           filing_type_display: '1st Quarter - Report',
           filing_year: 2024,
           filing_period_display: '1st Quarter (Jan 1 - Mar 31)',
           filing_document_url:
-            'https://lda.senate.gov/filings/public/filing/16a8d94f-657d-4e9f-b49d-b98a49b8687e/print/',
+            'https://lda.gov/filings/public/filing/16a8d94f-657d-4e9f-b49d-b98a49b8687e/print/',
           expenses: '330000.00',
           dt_posted: '2024-04-09T13:49:43-04:00',
           registrant: { name: 'SHIELD AI' },
@@ -114,7 +114,7 @@ const CLIENT_CASES: ClientCase[] = [
     },
     assertRequest: (input) => {
       const url = new URL(String(input));
-      expect(url.origin).toBe('https://lda.senate.gov');
+      expect(url.origin).toBe('https://lda.gov');
       expect(url.searchParams.get('client_name')).toBe('Shield AI');
       expect(url.searchParams.get('filing_year')).toBe('2024');
       expect(url.searchParams.get('page_size')).toBe('1');

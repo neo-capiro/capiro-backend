@@ -158,7 +158,7 @@ export function LobbyingPanel() {
 
           <Card size="small" title="About this data">
             <Paragraph style={{ fontSize: 12, marginBottom: 6 }} type="secondary">
-              Lobbying: derived directly from Senate <a href="https://lda.senate.gov/" target="_blank" rel="noreferrer">LDA</a> filings (~512K records).
+              Lobbying: derived directly from Senate <a href="https://lda.gov/" target="_blank" rel="noreferrer">LDA</a> filings (~512K records).
             </Paragraph>
             <Paragraph style={{ fontSize: 12, margin: 0 }} type="secondary">
               Contracting: <a href="https://www.openspending.us/" target="_blank" rel="noreferrer">OpenSpending</a> / <a href="https://www.usaspending.gov/" target="_blank" rel="noreferrer">USASpending.gov</a>.
