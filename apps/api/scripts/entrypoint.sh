@@ -145,6 +145,10 @@ case "${1:-serve}" in
     echo "Running flush-tracker-digests (Tracker tab: daily/weekly alert digests) $*"
     exec ./node_modules/.bin/tsx scripts/flush-tracker-digests.ts "$@"
     ;;
+  diag-tracker-readiness)
+    echo "Running diag-tracker-readiness (Tracker tab: READ-ONLY alert readiness report)"
+    exec ./node_modules/.bin/tsx scripts/diag-tracker-readiness.ts
+    ;;
   delete-tenant)
     shift
     echo "Running delete-tenant $*"

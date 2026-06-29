@@ -323,14 +323,27 @@ export const INGESTION_JOBS: ScheduledIngestionJob[] = [
   },
   // Client-profile Tracker tab: detect material moves on tracked bills, then
   // deliver realtime alerts + bucket digests. Runs after the congress sync +
-  // bill emitters so the latest action is in the DB. (Needs a live EventBridge
-  // rule provisioned like the other derived jobs — see live-drift warning above.)
+  // bill emitters so the latest action is in the DB.
+  //
+  // CADENCE: every 6h (00/06/12/18 UTC) so realtime alerts trail an action by
+  // hours, not up to a day. Safe to run often — the detector is idempotent
+  // (NotificationLog claim + IntelligenceChange dedupe) and the catch-up scan
+  // (TRACKER_SCAN_ACTION_HISTORY) emits only moves newer than each bill's
+  // snapshot, so extra runs never double-send and never drop intermediate moves.
+  //
+  // The LIVE rule is still out-of-band (`capiro-dev-detect-tracker-alerts`, cron
+  // 0 12) — this matrix isn't consumed by CDK yet (see live-drift warning above).
+  // To adopt the 6h cadence now, update the live rule out-of-band:
+  //   aws events put-rule --name capiro-dev-detect-tracker-alerts \
+  //     --schedule-expression 'cron(0 0/6 * * ? *)'
+  // A transient overlap with a future CDK-created rule is harmless (idempotent).
   {
     id: 'DetectTrackerAlerts',
     command: ['detect-tracker-alerts'],
-    cron: { minute: '0', hour: '12' },
+    cron: { minute: '0', hour: '0/6' },
     tier: 'derived',
-    description: 'Tracker: tracked-bill change detection + email/SMS fan-out (after congress)',
+    description:
+      'Tracker: tracked-bill change detection + email/SMS fan-out (every 6h, after congress)',
   },
   {
     id: 'FlushTrackerDigestsDaily',

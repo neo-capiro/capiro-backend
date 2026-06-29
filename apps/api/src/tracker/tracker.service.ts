@@ -12,6 +12,7 @@ import {
   humanizeBillId,
   passageProbability,
 } from './bill-stage.util.js';
+import { MIN_TERM_LEN, wholeWordHit } from './tracker-relevance.util.js';
 import {
   DEFAULT_TRIGGERS,
   ISSUE_AREAS,
@@ -42,7 +43,6 @@ type AlertPrefsInput = Omit<
 
 const RECOMMENDATION_FLOOR = 0.45;
 const EMBED_CANDIDATE_FLOOR = 0.3; // broad — composite fit + RECOMMENDATION_FLOOR gate the feed
-const MIN_TERM_LEN = 3;
 
 interface BillRow {
   id: string;
@@ -59,13 +59,6 @@ interface BillRow {
 /** A normalized lower-cased haystack for whole-word term matching. */
 function haystack(bill: BillRow): string {
   return [bill.title, bill.policy_area ?? '', ...(bill.subjects ?? [])].join('  ').toLowerCase();
-}
-
-function wholeWordHit(haystackLower: string, term: string): boolean {
-  const t = term.trim().toLowerCase();
-  if (t.length < MIN_TERM_LEN) return false;
-  const escaped = t.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-  return new RegExp(`\\b${escaped}\\b`).test(haystackLower);
 }
 
 const TONE_FOR_CHANGE: Record<string, ChangeTone> = {
