@@ -306,6 +306,31 @@ export const configSchema = z.object({
     .string()
     .default('true')
     .transform((v) => !['false', '0', 'no', 'off'].includes(v.trim().toLowerCase())),
+  // Catch-up detection: scan congress_bill_action rows newer than each tracked
+  // bill's snapshot (vs. only the latest-action rollup), so a skipped run or a
+  // burst of actions between runs never drops an intermediate material move.
+  // Default on; set false/0/no/off to fall back to legacy latest-action-only.
+  TRACKER_SCAN_ACTION_HISTORY: z
+    .string()
+    .default('true')
+    .transform((v) => !['false', '0', 'no', 'off'].includes(v.trim().toLowerCase())),
+  // Client-context enrichment: attach a deterministic "why this matters to
+  // {client}" line + matched watchlist tags to each alert. Purely additive
+  // display; set false/0/no/off to send bare alerts if it ever misbehaves.
+  TRACKER_ALERT_ENRICH: z
+    .string()
+    .default('true')
+    .transform((v) => !['false', '0', 'no', 'off'].includes(v.trim().toLowerCase())),
+  // LLM "what happened" summary on each alert. Runs on the TENANT's own
+  // Anthropic key when they have an active BYO credential (decrypted via the
+  // shared AES-256-GCM resolver — no new crypto), else the global
+  // ANTHROPIC_API_KEY; spend is metered to ai_usage_events. Fail-safe: no key /
+  // error / timeout → the alert still sends, just without the summary line.
+  // Default on; set false/0/no/off to disable (e.g. to cap LLM cost) w/o deploy.
+  TRACKER_ALERT_SUMMARY: z
+    .string()
+    .default('true')
+    .transform((v) => !['false', '0', 'no', 'off'].includes(v.trim().toLowerCase())),
   // From-address for Tracker alert emails (must be a verified SES identity).
   TRACKER_ALERT_EMAIL_FROM: z.string().email().default('alerts@capiro.ai'),
   // From-address for Workspace collaborator-invite emails (E-19). capiro.ai is a

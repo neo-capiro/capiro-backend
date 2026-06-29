@@ -23,6 +23,12 @@ export interface TrackerAlertEvent {
   actionDate: string | null;
   /** Deep link back to the client-profile Tracker board. */
   url: string;
+  /** Deterministic "why this matters to {client}" line (enrichment; optional). */
+  why?: string | null;
+  /** Watchlist tags / issue areas this bill hit, for display chips (optional). */
+  matchedTags?: string[];
+  /** LLM "what happened" summary of the action (tenant-scoped key; optional). */
+  summary?: string | null;
 }
 
 export const SEVERITY_RANK: Record<AlertSeverity, number> = {

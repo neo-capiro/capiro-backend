@@ -43,8 +43,13 @@ async function main() {
   try {
     const svc = app.get(TrackerChangeDetectorService);
     const res = await svc.runDetectionCycle();
+    const byType = Object.entries(res.byType ?? {})
+      .sort((a, b) => b[1] - a[1])
+      .map(([k, n]) => `${k}=${n}`)
+      .join(' ');
     logger.log(
-      `done. scanned=${res.scanned} baseline=${res.baseline} changed=${res.changed} alerted=${res.alerted}`,
+      `done. scanned=${res.scanned} baseline=${res.baseline} changed=${res.changed} alerted=${res.alerted}` +
+        (byType ? ` | byType: ${byType}` : ''),
     );
   } finally {
     await app.close();

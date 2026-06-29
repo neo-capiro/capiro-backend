@@ -129,8 +129,20 @@ export class AiCredentialResolverService implements OnModuleInit {
     return this.resolveForProvider(ctx, provider);
   }
 
+  /**
+   * Resolve a provider credential from a bare tenantId, for non-request
+   * contexts (scheduled jobs / workers) that don't carry a full TenantContext.
+   * Same tenant-key-first-then-global behavior as resolveProvider.
+   */
+  async resolveProviderByTenantId(
+    tenantId: string,
+    provider: AiProvider,
+  ): Promise<ResolvedAiCredential | null> {
+    return this.resolveForProvider({ tenantId }, provider);
+  }
+
   private async resolveForProvider(
-    ctx: TenantContext | null | undefined,
+    ctx: { tenantId: string } | null | undefined,
     provider: AiProvider,
   ): Promise<ResolvedAiCredential | null> {
     if (ctx && this.encryptionKey) {

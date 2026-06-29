@@ -46,6 +46,26 @@ export function renderAlertEmail(event: TrackerAlertEvent): {
     <div style="margin-top:4px;font-size:16px;font-weight:600;line-height:1.35;color:${INK}">${esc(event.billTitle)}</div>
     <div style="margin-top:14px;font-size:13px;line-height:1.5;color:${MUTED}">${esc(event.detail)}</div>
     ${event.actionDate ? `<div style="margin-top:8px;font-size:12px;color:${MUTED}">Latest action · ${esc(event.actionDate)}</div>` : ''}
+    ${
+      event.summary
+        ? `<div style="margin-top:14px"><span style="font-weight:700;text-transform:uppercase;letter-spacing:.05em;font-size:10px;color:${MUTED}">What happened</span><div style="margin-top:4px;font-size:13px;line-height:1.55;color:${INK}">${esc(event.summary)}</div></div>`
+        : ''
+    }
+    ${
+      event.why
+        ? `<div style="margin-top:14px;padding:11px 13px;background:#f6f8fb;border:1px solid #eef1f6;border-radius:8px;font-size:12px;line-height:1.5;color:${INK}"><span style="font-weight:700;text-transform:uppercase;letter-spacing:.05em;font-size:10px;color:${MUTED}">Why this matters${event.clientName ? ` · ${esc(event.clientName)}` : ''}</span><div style="margin-top:4px">${esc(event.why)}</div></div>`
+        : ''
+    }
+    ${
+      event.matchedTags && event.matchedTags.length
+        ? `<div style="margin-top:10px">${event.matchedTags
+            .map(
+              (tg) =>
+                `<span style="display:inline-block;font-size:10px;font-weight:600;color:${MUTED};background:#eef1f6;padding:3px 9px;border-radius:999px;margin:0 5px 5px 0">${esc(tg)}</span>`,
+            )
+            .join('')}</div>`
+        : ''
+    }
     <a href="${esc(event.url)}" style="display:inline-block;margin-top:20px;background:${BRAND};color:#fff;text-decoration:none;font-weight:600;font-size:13px;padding:9px 16px;border-radius:8px">Open in Tracker →</a>`;
   const text = [
     `${event.displayNum}: ${event.label}`,
@@ -53,6 +73,10 @@ export function renderAlertEmail(event: TrackerAlertEvent): {
     '',
     event.detail,
     event.actionDate ? `Latest action: ${event.actionDate}` : '',
+    event.summary ? `What happened: ${event.summary}` : '',
+    event.why
+      ? `Why this matters${event.clientName ? ` (${event.clientName})` : ''}: ${event.why}`
+      : '',
     '',
     `Open: ${event.url}`,
   ]
@@ -77,6 +101,8 @@ export function renderDigestEmail(
         </div>
         <div style="margin-top:3px;font-size:13px;color:${INK}">${esc(e.billTitle)}</div>
         <div style="margin-top:2px;font-size:12px;color:${MUTED}">${esc(e.detail)}</div>
+        ${e.summary ? `<div style="margin-top:3px;font-size:12px;line-height:1.5;color:${INK}">${esc(e.summary)}</div>` : ''}
+        ${e.why ? `<div style="margin-top:2px;font-size:11px;font-style:italic;color:${MUTED}">${esc(e.why)}</div>` : ''}
       </td></tr>`;
     })
     .join('');
