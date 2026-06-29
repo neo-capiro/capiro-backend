@@ -31,6 +31,7 @@ import {
   readDocumentToolVersion,
   type SourceDocumentClient,
 } from '../src/program-element/source-document/source-document-registry.js';
+import { recordIngestRun, type IngestRunClient } from '../src/program-element/coverage/record-ingest-run.js';
 
 dotenvConfig();
 
@@ -100,11 +101,30 @@ async function main(): Promise<void> {
       data: { sourceDocumentId: reg.document.id },
     });
 
+    // Completeness/accuracy ledger: audit the extracted rows + persist the verdict
+    // (the "denominator" the coverage report and humans use to see whether the
+    // parse extracted everything it should have).
+    const ingestRun = await recordIngestRun(prisma as unknown as IngestRunClient, {
+      source,
+      fy,
+      artifactPath: path.relative(process.cwd(), artifactPath),
+      artifactSha256: sha256OfFile(artifactPath),
+      rows: (artifact.rows ?? []).map((r) => ({
+        peCode: (r.peCode ?? null) as string | null,
+        request: (r.request ?? null) as number | null,
+        mark: (r.mark ?? null) as number | null,
+        explanation: (r.explanation ?? null) as string | null,
+      })),
+      outcome: { upserted: result.upserted, changed: result.changed, quarantined: result.quarantined },
+      metadata: { chamber, sourceDocumentId: reg.document.id },
+    });
+
     console.log(
       JSON.stringify(
         {
           artifact: artifactPath,
           ...result,
+          ingestRun,
           sourceDocument: {
             id: reg.document.id,
             action: reg.created ? 'inserted' : 'deduped',
