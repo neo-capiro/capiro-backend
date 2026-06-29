@@ -2374,6 +2374,43 @@ model ProgramElementQuarantine {
   @@map("program_element_quarantine")
 }
 
+// Provenance + completeness record for ONE artifact load (the "denominator" that
+// lets us prove a parse extracted everything it should have). Written once per
+// run of a committee/conference/enacted/pdoc loader. GLOBAL table (no tenant_id /
+// RLS): ingest metadata for public-domain budget data, same as program_element.
+//
+// rowsEmitted   = rows the extractor produced (from the artifact).
+// upserted/changed/quarantined = loader outcome (mirrors LoadResult).
+// peCodesDistinct = distinct valid PE codes in the artifact.
+// titleTruncated  = rows whose title looks truncated (ends in hyphen / len<=3) —
+//                   the F-22A-class extraction regression guard.
+// unitsAnomalies  = rows where a mark is ~1000x off its request (thousands-vs-
+//                   dollars bug sentinel).
+// status          = 'ok' | 'warn' | 'fail' (guard verdict for the run).
+model ProgramElementIngestRun {
+  id              String   @id @default(uuid()) @db.Uuid
+  source          String
+  fy              Int?
+  artifactPath    String?  @map("artifact_path")
+  artifactSha256  String?  @map("artifact_sha256")
+  rowsEmitted     Int      @default(0) @map("rows_emitted")
+  upserted        Int      @default(0)
+  changed         Int      @default(0)
+  quarantined     Int      @default(0)
+  peCodesDistinct Int      @default(0) @map("pe_codes_distinct")
+  titleTruncated  Int      @default(0) @map("title_truncated")
+  unitsAnomalies  Int      @default(0) @map("units_anomalies")
+  status          String   @default("ok")
+  notes           String?  @db.Text
+  metadata        Json     @default("{}") @map("metadata_jsonb")
+  createdAt       DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  @@index([source], map: "program_element_ingest_run_source_idx")
+  @@index([fy], map: "program_element_ingest_run_fy_idx")
+  @@index([createdAt(sort: Desc)], map: "program_element_ingest_run_created_idx")
+  @@map("program_element_ingest_run")
+}
+
 model ProgramElementYearSourceValue {
   id               String   @id @default(uuid()) @db.Uuid
   peCode           String   @map("pe_code") @db.VarChar(16)

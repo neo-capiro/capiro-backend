@@ -239,6 +239,11 @@ case "${1:-serve}" in
   seed-acq-program-map) shift; exec ./node_modules/.bin/tsx scripts/seed-acq-program-map.ts "$@" ;;
   # Read-only: print federal_award PE/acq-program coverage counts as JSON. No writes.
   report-award-pe-coverage) shift; exec ./node_modules/.bin/tsx scripts/report-award-pe-coverage.ts "$@" ;;
+  # Read-only PE mark-coverage report: per-FY mark_present / expected_blank /
+  # candidate_gap for HASC/SASC/HAC-D/SAC-D/conference/enacted. candidate_gap = an
+  # in-request, unclassified RDT&E, in-jurisdiction PE that LACKS the mark (a real
+  # extraction gap worth chasing). No writes.
+  report-pe-coverage) shift; exec ./node_modules/.bin/tsx scripts/report-pe-coverage.ts "$@" ;;
   # ── Stale old-DoW-directory cleanup (PEs + personnel) ──────────────────────
   # Read-only: counts old-directory data still live (would-supersede / would-retire /
   # links-to-repair) using the SAME predicates as the reconcile jobs. No writes.
