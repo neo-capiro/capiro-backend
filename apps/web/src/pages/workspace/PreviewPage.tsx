@@ -239,11 +239,10 @@ export function PreviewPage() {
   return (
     <div
       className="ws-shell"
-      // Bound the preview shell to the viewport (mirrors .ws-editor-shell's fixed
-      // height) so the inner preview stage's overflow:auto actually scrolls.
-      // Without a bounded height the shell grows past the viewport and the lower
-      // sections get clipped with no scrollbar.
-      style={{ height: 'calc(100vh - 56px)', overflow: 'hidden' }}
+      // Fill the bounded .app-content (height: calc(100vh - 52px), padding:0 for
+      // workspace) so the inner preview stage's overflow:auto scrolls. height:100%
+      // tracks the container instead of re-deriving viewport math.
+      style={{ height: '100%', overflow: 'hidden' }}
     >
       <StepsRail active="preview" draftId={draftId} product={draft.product} />
       <div
