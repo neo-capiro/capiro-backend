@@ -2,13 +2,19 @@ import { WorkspaceAssistantService } from './workspace-assistant.service.js';
 import { DOMAIN_PRIMER } from '../meri/meri-domain-fanout.helpers.js';
 
 /**
- * Fix #4/#7 guard: the in-editor Meri system prompt must carry the domain
- * primer and the retrieve-before-draft / challenge-seed-context instruction, so
- * the WRITER shares the same structural rigor as the fact-CHECKER. buildSystemPrompt
- * is pure w.r.t. the injected services, so we can construct with stubs.
+ * Guards for in-editor Meri parity with the full agent:
+ *  - buildSystemPrompt carries the shared domain primer + retrieve-before-draft.
+ *  - verifyEdits runs the deterministic PE structural pass on proposed edits.
+ * buildSystemPrompt + verifyEdits' structural half are pure w.r.t. the model
+ * call, so we construct with stubs. The config stub returns CLIO_VERIFIER_ENABLED
+ * = false so verifyEdits skips the network grounding pass (structural still runs).
  */
+const configStub = {
+  get: (k: string) => (k === 'CLIO_VERIFIER_ENABLED' ? false : undefined),
+} as never;
+
 function makeService(): WorkspaceAssistantService {
-  return new WorkspaceAssistantService(null as never, null as never);
+  return new WorkspaceAssistantService(null as never, null as never, configStub);
 }
 
 function buildPrompt(dto: unknown): string {
@@ -32,9 +38,8 @@ describe('WorkspaceAssistantService.buildSystemPrompt — grounding hardening', 
 
   it('injects the shared domain primer', () => {
     const prompt = buildPrompt(dto);
-    // A distinctive line from the primer must be present verbatim.
     expect(prompt).toContain('RDT&E (Budget Activity 4)');
-    expect(prompt).toContain(DOMAIN_PRIMER.split('\n')[0]); // header line
+    expect(prompt).toContain(DOMAIN_PRIMER.split('\n')[0]);
   });
 
   it('instructs retrieve-before-draft and to challenge seed context', () => {
@@ -46,5 +51,54 @@ describe('WorkspaceAssistantService.buildSystemPrompt — grounding hardening', 
   it('still includes the no-fabrication grounding rule', () => {
     const prompt = buildPrompt(dto);
     expect(prompt.toLowerCase()).toContain('never fabricate');
+  });
+});
+
+describe('WorkspaceAssistantService.verifyEdits — structural pass parity', () => {
+  // Call the private method directly with the verifier flag off (structural only).
+  function verify(svc: WorkspaceAssistantService, edits: unknown, pes: Map<string, unknown>) {
+    return (
+      svc as unknown as {
+        verifyEdits: (
+          e: unknown,
+          g: string[],
+          p: Map<string, unknown>,
+        ) => Promise<{ confidence?: unknown; structuralWarnings?: Array<{ code: string }> }>;
+      }
+    ).verifyEdits(edits, [], pes);
+  }
+
+  it('flags an RDT&E PE used with procurement language (no detail tool needed)', async () => {
+    const svc = makeService();
+    const pes = new Map<string, unknown>([
+      [
+        '0207179F',
+        { peCode: '0207179F', title: 'Autonomous Collaborative Platforms', appropriationType: 'RDT&E', budgetActivity: '04' },
+      ],
+    ]);
+    const edits = [
+      { op: 'replace_section', section: 'Recommendation', content: '<p>Pursue directed procurement of the missile under PE 0207179F.</p>' },
+    ];
+    const out = await verify(svc, edits, pes);
+    expect(out.structuralWarnings?.some((w) => w.code === 'rdte_procurement_mismatch')).toBe(true);
+  });
+
+  it('returns no structural warnings for a clean, correctly-framed edit', async () => {
+    const svc = makeService();
+    const pes = new Map<string, unknown>([
+      ['0207179F', { peCode: '0207179F', title: 'Autonomous Collaborative Platforms', appropriationType: 'RDT&E', budgetActivity: '04' }],
+    ]);
+    const edits = [
+      { op: 'replace_section', section: 'Recommendation', content: '<p>Use PE 0207179F for evaluation and demonstration authority.</p>' },
+    ];
+    const out = await verify(svc, edits, pes);
+    expect(out.structuralWarnings).toBeUndefined();
+  });
+
+  it('skips entirely when there is no edit content', async () => {
+    const svc = makeService();
+    const out = await verify(svc, [], new Map());
+    expect(out.structuralWarnings).toBeUndefined();
+    expect(out.confidence).toBeUndefined();
   });
 });

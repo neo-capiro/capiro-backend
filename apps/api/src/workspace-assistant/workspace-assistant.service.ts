@@ -1,8 +1,18 @@
 import { Injectable, Logger } from '@nestjs/common';
+import { ConfigService } from '@nestjs/config';
 import type { TenantContext } from '@capiro/shared';
+import type { AppConfig } from '../config/config.schema.js';
 import { MeriToolsService } from '../meri/meri-tools.service.js';
 import { AiCredentialResolverService } from '../engagement/ai-credential-resolver.service.js';
-import { DOMAIN_PRIMER } from '../meri/meri-domain-fanout.helpers.js';
+import { DOMAIN_PRIMER, extractCitedPeCodes } from '../meri/meri-domain-fanout.helpers.js';
+import {
+  collectPeStructuralWarnings,
+  type PeRecordForValidation,
+  type PeStructuralWarning,
+} from '../meri/meri-pe-structural.helpers.js';
+import { serializeRecordForGrounding } from '../meri/meri-verifier-sources.helpers.js';
+import { parseVerifierClaims, summarizeVerification } from '../meri/meri-verifier.helpers.js';
+import { confidenceLevel, type Confidence } from '../meri/meri-confidence.helpers.js';
 import type { WorkspaceAssistantDto } from './workspace-assistant.dto.js';
 
 const ANTHROPIC_URL = 'https://api.anthropic.com/v1/messages';
@@ -56,6 +66,10 @@ export interface AssistantEdit {
 export interface AssistantResult {
   reply: string;
   edits: AssistantEdit[];
+  /** Grounding confidence on the proposed edits (parity with full Meri). */
+  confidence?: Confidence;
+  /** Deterministic PE structural warnings (RDT&E vs procurement, etc.). */
+  structuralWarnings?: PeStructuralWarning[];
 }
 
 type AnthropicBlock =
@@ -118,6 +132,7 @@ export class WorkspaceAssistantService {
   constructor(
     private readonly tools: MeriToolsService,
     private readonly aiCredentials: AiCredentialResolverService,
+    private readonly config: ConfigService<AppConfig, true>,
   ) {}
 
   async run(ctx: TenantContext, dto: WorkspaceAssistantDto): Promise<AssistantResult> {
@@ -129,7 +144,17 @@ export class WorkspaceAssistantService {
         edits: [],
       };
     }
-    const { apiKey, model } = resolved;
+    const { apiKey } = resolved;
+    // Reason at Meri's quality tier: always use the tenant's own key (parity with
+    // Clio/engagement), but pin CLIO_MODEL (Sonnet) instead of the resolver's
+    // global default (ANTHROPIC_MODEL = cheap Haiku). A tenant that set its OWN
+    // explicit modelOverride still drives the model. Mirrors meri.service.ts.
+    const workspaceModel = this.config.get('CLIO_MODEL', { infer: true });
+    const model =
+      resolved.usedTenantKey &&
+      resolved.model !== this.aiCredentials.defaultModelFor('anthropic')
+        ? resolved.model
+        : workspaceModel;
 
     const system = this.buildSystemPrompt(dto);
     const toolSchemas = [
@@ -148,6 +173,12 @@ export class WorkspaceAssistantService {
     if (!messages.length || messages[messages.length - 1]?.role !== 'user') {
       return { reply: 'What would you like me to do with this document?', edits: [] };
     }
+
+    // Accumulate grounding bodies from read-only tool results + any PE records we
+    // resolved, so we can run the same grounding/structural pass as full Meri on
+    // the proposed edits before returning them.
+    const groundingBodies: string[] = [];
+    const citedPeRecords = new Map<string, PeRecordForValidation>();
 
     for (let round = 0; round < MAX_ROUNDS; round += 1) {
       let data: { content?: AnthropicBlock[]; stop_reason?: string };
@@ -201,7 +232,13 @@ export class WorkspaceAssistantService {
       if (propose) {
         const input = propose.input ?? {};
         const reply = typeof input.reply === 'string' && input.reply.trim() ? input.reply : textOut;
-        return { reply: reply || 'Done.', edits: this.sanitizeEdits(input.edits) };
+        const edits = this.sanitizeEdits(input.edits);
+        const { confidence, structuralWarnings } = await this.verifyEdits(
+          edits,
+          groundingBodies,
+          citedPeRecords,
+        );
+        return { reply: reply || 'Done.', edits, confidence, structuralWarnings };
       }
 
       // No tools requested → plain conversational answer.
@@ -219,6 +256,8 @@ export class WorkspaceAssistantService {
           } else {
             try {
               result = await this.tools.execute(ctx, tu.name as never, tu.input ?? {});
+              // Capture grounding for the post-turn verifier + structural pass.
+              this.captureGrounding(tu.name, result, groundingBodies, citedPeRecords);
             } catch (e) {
               result = { error: (e as Error).message };
             }
@@ -267,6 +306,125 @@ export class WorkspaceAssistantService {
       out.push(edit);
     }
     return out;
+  }
+
+  /**
+   * Capture rich grounding bodies + cited PE records from a read-only tool
+   * result, so the post-turn verifier sees the SAME records the model saw (not a
+   * stub) and the structural validator can check PE category/mission. Mirrors the
+   * full-Meri grounding capture.
+   */
+  private captureGrounding(
+    toolName: string,
+    result: unknown,
+    groundingBodies: string[],
+    citedPeRecords: Map<string, PeRecordForValidation>,
+  ): void {
+    if (!result || typeof result !== 'object') return;
+    const rec = result as Record<string, unknown>;
+    if (typeof rec.error === 'string') return;
+
+    // PE detail tools carry the typed record we validate structurally.
+    const pe = rec.programElement as Record<string, unknown> | undefined;
+    if (pe && typeof pe === 'object' && typeof pe.peCode === 'string') {
+      citedPeRecords.set(pe.peCode, {
+        peCode: pe.peCode,
+        title: (pe.title as string | null) ?? null,
+        service: (pe.service as string | null) ?? null,
+        appropriationType: (pe.appropriationType as string | null) ?? null,
+        budgetActivity: (pe.budgetActivity as string | null) ?? null,
+        budgetActivityName: (pe.budgetActivityName as string | null) ?? null,
+      });
+    }
+    // Any list rows / detail object → grounding text for the verifier.
+    const rows = Array.isArray(rec.data)
+      ? rec.data
+      : Array.isArray(rec.results)
+        ? rec.results
+        : pe
+          ? [pe]
+          : [];
+    for (const row of (rows as unknown[]).slice(0, 5)) {
+      const body = serializeRecordForGrounding(row);
+      if (body) groundingBodies.push(`[${toolName}] ${body}`);
+    }
+  }
+
+  /**
+   * Run the SAME grounding + structural pass as full Meri on the proposed edits:
+   * (1) deterministic PE structural checks (RDT&E vs procurement, capability/
+   * mission mismatch, primary-vehicle overclaim) against any cited PE records;
+   * (2) a cheap grounding verifier (CLIO_INTENT_MODEL) over the edit text vs the
+   * retrieved records. Fail-open + flag-gated (CLIO_VERIFIER_ENABLED) — never
+   * blocks the edits. Uses the tenant's resolved key for per-tenant attribution.
+   */
+  private async verifyEdits(
+    edits: AssistantEdit[],
+    groundingBodies: string[],
+    citedPeRecords: Map<string, PeRecordForValidation>,
+  ): Promise<{ confidence?: Confidence; structuralWarnings?: PeStructuralWarning[] }> {
+    const editText = edits
+      .map((e) => (typeof e.content === 'string' ? e.content.replace(/<[^>]*>/g, ' ') : ''))
+      .join('\n')
+      .trim();
+    if (!editText) return {};
+
+    // (1) Deterministic structural checks — also validate PEs cited in the edit
+    // text even if no detail tool ran (so a bad seed PE is still flagged).
+    const pes = [...citedPeRecords.values()];
+    for (const code of extractCitedPeCodes(editText)) {
+      if (!citedPeRecords.has(code)) pes.push({ peCode: code });
+    }
+    const structuralWarnings = collectPeStructuralWarnings(pes, editText);
+
+    // (2) Grounding verifier (parity with meri.service.ts verifyDeliverable).
+    let confidence: Confidence | undefined;
+    try {
+      if (this.config.get('CLIO_VERIFIER_ENABLED', { infer: true })) {
+        const key = this.config.get('ANTHROPIC_API_KEY', { infer: true });
+        if (key) {
+          const sourceList = groundingBodies.length
+            ? groundingBodies.map((b, i) => `[${i + 1}] ${b}`).join('\n')
+            : '(no sources were retrieved)';
+          const res = await fetch(ANTHROPIC_URL, {
+            method: 'POST',
+            headers: {
+              'x-api-key': key,
+              'anthropic-version': '2023-06-01',
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+              model: this.config.get('CLIO_INTENT_MODEL', { infer: true }),
+              max_tokens: 1500,
+              system:
+                'You are a strict grounding verifier for a government-affairs assistant. Given SOURCES and a DOCUMENT, extract the document\'s distinct factual claims (skip headings, opinions, and generic advice). For each claim decide whether the SOURCES substantiate it. Return ONLY JSON: {"claims":[{"claim":"<short paraphrase>","supported":true|false,"sourceIds":[<source numbers>]}]}. Mark supported=true only when a listed source backs the claim. Be conservative: if unsure, use supported=false with sourceIds [].',
+              messages: [
+                { role: 'user', content: `SOURCES:\n${sourceList}\n\nDOCUMENT:\n${editText.slice(0, 12_000)}` },
+              ],
+            }),
+          });
+          if (res.ok) {
+            const json = (await res.json()) as Record<string, unknown>;
+            const text = Array.isArray(json.content)
+              ? (json.content[0] as Record<string, unknown>)?.text
+              : '';
+            if (typeof text === 'string') {
+              const claims = parseVerifierClaims(text);
+              if (claims.length) {
+                confidence = confidenceLevel(summarizeVerification(claims).unsupportedRatio);
+              }
+            }
+          }
+        }
+      }
+    } catch (e) {
+      this.logger.warn(`workspace verifyEdits grounding pass failed: ${(e as Error).message}`);
+    }
+
+    return {
+      confidence,
+      structuralWarnings: structuralWarnings.length ? structuralWarnings : undefined,
+    };
   }
 
   /** System prompt: who Meri is, the live document, setup, and the edit contract. */
