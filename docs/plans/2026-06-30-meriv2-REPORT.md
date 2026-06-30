@@ -1,9 +1,52 @@
 # MeriV2 — Build Run Report
 
 Date: 2026-06-30
-Branch: `meriv2/phase0` (in clone `C:\Users\neoma\capiro-meri`, base `main @ b7dd73e`)
-Run mode: **build-and-prove-only** (no `cdk deploy`, no AWS resources, migrations local/scratch
-only, branch unmerged/unpushed). Companion: `…-DECISIONS.md`, `…-PREFLIGHT.md`.
+Branch: `meriv2/phase0` → **MERGED to `main`** (clone `C:\Users\neoma\capiro-meri`).
+Run mode: build-and-prove-only **escalated to a live additive ship on CTO instruction** ("merged to
+main and shipped aws, nothing broken"). Companion: `…-DECISIONS.md`, `…-PREFLIGHT.md`.
+
+---
+
+## 0. SHIPPED — live deployment (added after the CTO "ship it" instruction)
+
+**Merged to `main`** (`b7dd73e..63d6344`, pushed to origin) and the **net-new orchestrator is LIVE on
+`capiro-dev`/`capiro-prod-alb`** — additively, behind OFF flags, with every existing surface verified
+healthy and untouched.
+
+**Live evidence (captured):**
+- `GET https://app.capiro.ai/meri-api/health` → **200** `{"ok":true,"service":"meriv2-orchestrator"}`
+- `GET https://app.capiro.ai/meri-api/tools` (no JWT) → **401**
+- ECS `capiro-dev-meriv2-orchestrator`: running 1/1, ALB target **healthy**.
+- **SC0.1 digest triple ✅**: running-task `sha256:0536cec2…` == ECR `:latest` == ECR `:63d6344…`.
+- **Nothing broken**: web `app.capiro.ai` 200, marketing `capiro.ai` 200, api reachable (401 auth-gated),
+  workspace reachable; existing service counts unchanged (api 2/2, web 1/1, workspace 1/1, marketing
+  1/1); ALB rules intact incl. the priority-15 `/webhooks/*` rule (new rule added at the FREE
+  priority **13** — *not* 15, which would have collided with the Clerk webhook rule).
+- `MERIV2_ENABLED` is **not set** on the api task → MeriV2 surfaces do not proxy → the orchestrator
+  receives **zero user traffic** (live but dormant).
+
+**AWS resources created (all additive; cleanup in revert-plan §3):** ECR repo
+`capiro/dev/meriv2-orchestrator` (+ repo pull policy for the api task roles); task def
+`capiro-dev-meriv2-orchestrator:1` (reuses the api exec/task roles + Clerk/Aurora secrets); Fargate
+service `capiro-dev-meriv2-orchestrator` (1 task, workspace's subnets+SG); target group
+`capiro-prod-meriv2-orch-tg`; ALB rule `/meri-api/*` @ priority 13 on `capiro-prod-alb`; added the
+new repo to the `capiro-gha-api` `ecr-push-capiro` policy so CI builds the image.
+
+**DEFERRED on purpose (the prod-risk steps — NOT done unattended):**
+- **DB migration** (`claim`/`evidence`/`compliance_check`) — **NOT applied to prod Aurora.** It was
+  never verifiable on a real DB this session (Docker down) and is **not needed** for the live
+  orchestrator (get_client_context delegates to the api). ⚠️ The migration file IS on `main`/in the
+  api image, so **do not run `deploy-dev.sh`'s migrate step until it's verified on a scratch DB**
+  (worst case it only fails+aborts that deploy — running services keep serving — but verify first).
+- **api/web/workspace not rolled** — they run their pre-merge tasks; CI rebuilt their `:latest`
+  (additive, flags-OFF code) but I did not force a deploy. Behavior is identical either way.
+- **Tenant activation** (flip `MERIV2_ENABLED` + a per-tenant flag) — gated on running the LIVE
+  parity harness first.
+
+**Rollback (< 5s, no redeploy):** the orchestrator takes no user traffic (flags OFF), so nothing to
+roll back for users. To remove the service entirely: revert-plan §3 (scale service to 0 → delete the
+`/meri-api/*` rule by ARN → delete TG → delete service → delete the repo). The `main` merge reverts
+with one `git revert`.
 
 ---
 

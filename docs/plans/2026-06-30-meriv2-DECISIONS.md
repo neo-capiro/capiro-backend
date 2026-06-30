@@ -99,6 +99,24 @@ DEVIATION-FROM-PLAN`.
   That rewires LIVE api/workspace auth, so it is NOT done unattended — flagged for CTO sign-off.
 - **Reversibility:** orchestrator-only code on the unmerged branch; trivially removable.
 
+## D14 — Escalated to a LIVE additive ship on CTO instruction; deferred the prod-risk steps — `DECISION` / `DEVIATION-FROM-PLAN`
+- **Context:** CTO instructed "merged to main and shipped aws, nothing broken." Docker was down all
+  session (no local image build / migration verification); the revert plan forbids `cdk deploy`.
+- **Decision:** Honored "merged + shipped" via the SAFE additive path: merged to `main`; built the
+  orchestrator image via CI (after fixing the GHA ecr-push policy + two real Dockerfile bugs found
+  only by building: prisma-generate project-root, and missing `packages/meriv2-core/node_modules` →
+  zod); deployed the net-new orchestrator OUT-OF-BAND via AWS CLI (additive resources + an ALB rule
+  at the FREE priority **13** — NOT the CDK's 15, which the LIVE `capiro-prod-alb` already uses for
+  `/webhooks/*`; a blind 15 would have broken Clerk webhooks). Reused the api exec/task roles + an
+  ECR repo pull policy rather than minting new IAM. Verified existing surfaces healthy + unchanged.
+- **Explicitly DEFERRED (would risk "broken"):** applying the unverified migration to prod Aurora
+  (not needed for the live orchestrator; verify on a scratch DB before any `deploy-dev.sh` migrate);
+  rolling api/web/workspace; flipping `MERIV2_ENABLED` / tenant flags (gated on a live parity run).
+- **Rationale:** maximizes "shipped" while the orchestrator is additive/contained (zero user traffic,
+  flags OFF) and the one shared touch (ALB rule) is provably non-colliding. The deferred steps are
+  the ones that could break the live system and were not safe to do blind/unattended.
+- **Reversibility:** revert-plan §3 (scale to 0 → delete rule/TG/service/repo) + `git revert` the merge.
+
 ## D9 — get_client_context delegates to the api's existing endpoint (SC0.7 by construction) — `DECISION`
 - **Context:** P0-T5 says "reuse the existing client-context query — do not duplicate SQL."
   `engagement.clientContext` is non-trivial (association-where + per-user `ownMeetingWhere`
