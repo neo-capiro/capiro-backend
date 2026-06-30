@@ -20,6 +20,32 @@ describe('classifyChange', () => {
   it('classifies hearings as info', () => {
     expect(classifyChange('Subcommittee Hearing Held.')?.severity).toBe('info');
   });
+  it('classifies House Rules Committee activity as a floor-scheduled rule', () => {
+    const a = classifyChange(
+      'Rules Committee Resolution H. Res. 1234 Reported to House. Rule provides for consideration of H.R. 5009.',
+    );
+    expect(a?.changeType).toBe('bill_rule_reported');
+    expect(a?.triggerKey).toBe('floorVote');
+    expect(a?.severity).toBe('notable');
+    expect(classifyChange('Considered under the provisions of H. Res. 1234.')?.changeType).toBe(
+      'bill_rule_reported',
+    );
+    expect(
+      classifyChange('Pursuant to the provisions of H. Res. 1234, the House resolved.')?.changeType,
+    ).toBe('bill_rule_reported');
+  });
+  it('does not mislabel a committee-of-jurisdiction report or a combined passage', () => {
+    // A real committee report (not Rules) stays a committee report.
+    expect(
+      classifyChange('Reported to House by the Committee on Armed Services. H. Rept. 119-100.')
+        ?.changeType,
+    ).toBe('bill_reported');
+    // Floor passage wins even when the action also cites the rule.
+    expect(
+      classifyChange('Considered under the provisions of H. Res. 1234. Passed/agreed to in House.')
+        ?.changeType,
+    ).toBe('bill_passed_chamber');
+  });
   it('returns null for routine procedural churn', () => {
     expect(classifyChange('Introduced in House.')).toBeNull();
     expect(classifyChange('Referred to the Committee on Armed Services.')).toBeNull();
