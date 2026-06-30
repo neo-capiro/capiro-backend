@@ -151,6 +151,77 @@ function Tile({ color, glyph, size = 42 }: { color: string; glyph: string; size?
   );
 }
 
+// Catalog id → the brand's domain, used to fetch the company's own logo. We
+// render each vendor's real favicon at runtime (identifying the connector,
+// like any integrations directory) and fall back to the colored glyph tile if
+// the image can't load.
+const LOGO_DOMAIN: Record<string, string> = {
+  'google-drive': 'drive.google.com',
+  sharepoint: 'sharepoint.com',
+  notion: 'notion.so',
+  box: 'box.com',
+  dropbox: 'dropbox.com',
+  tavily: 'tavily.com',
+  exa: 'exa.ai',
+  firecrawl: 'firecrawl.dev',
+  chrome: 'google.com',
+  hubspot: 'hubspot.com',
+  salesforce: 'salesforce.com',
+  stripe: 'stripe.com',
+  apollo: 'apollo.io',
+  atlassian: 'atlassian.com',
+  linear: 'linear.app',
+  asana: 'asana.com',
+  github: 'github.com',
+  sentry: 'sentry.io',
+  slack: 'slack.com',
+};
+
+function logoUrl(domain: string): string {
+  return `https://www.google.com/s2/favicons?domain=${domain}&sz=128`;
+}
+
+/** Company-logo tile (real favicon) with the colored glyph tile as fallback. */
+function BrandTile({
+  id,
+  color,
+  glyph,
+  size = 42,
+}: {
+  id?: string | null;
+  color: string;
+  glyph: string;
+  size?: number;
+}) {
+  const [failed, setFailed] = useState(false);
+  const domain = id ? LOGO_DOMAIN[id] : undefined;
+  if (!domain || failed) return <Tile color={color} glyph={glyph} size={size} />;
+  return (
+    <span
+      style={{
+        width: size,
+        height: size,
+        borderRadius: size / 3.6,
+        background: '#fff',
+        border: '1px solid #e4e8ee',
+        display: 'grid',
+        placeItems: 'center',
+        flex: 'none',
+        overflow: 'hidden',
+      }}
+    >
+      <img
+        src={logoUrl(domain)}
+        alt=""
+        width={Math.round(size * 0.6)}
+        height={Math.round(size * 0.6)}
+        style={{ objectFit: 'contain' }}
+        onError={() => setFailed(true)}
+      />
+    </span>
+  );
+}
+
 function StatusChip({ status }: { status: ServerRow['connectionStatus'] }) {
   const map: Record<ServerRow['connectionStatus'], { color: string; label: string }> = {
     connected: { color: 'green', label: 'Connected' },
@@ -378,7 +449,11 @@ export function McpServersCard() {
     (s.catalogId && catalogById.get(s.catalogId)?.name) || s.name;
   const tileFor = (s: ServerRow) => {
     const entry = s.catalogId ? catalogById.get(s.catalogId) : undefined;
-    return entry?.brand ?? { color: '#1c2e4a', glyph: 'api' };
+    return {
+      id: s.catalogId ?? undefined,
+      color: entry?.brand.color ?? '#1c2e4a',
+      glyph: entry?.brand.glyph ?? 'api',
+    };
   };
 
   return (
@@ -504,7 +579,7 @@ export function McpServersCard() {
         title={
           drawerServer ? (
             <Space>
-              <Tile {...tileFor(drawerServer)} size={32} />
+              <BrandTile {...tileFor(drawerServer)} size={32} />
               <span>{displayName(drawerServer)}</span>
             </Space>
           ) : null
@@ -660,7 +735,7 @@ function CatalogCard({ entry, onClick }: { entry: CatalogEntry; onClick: () => v
       }}
     >
       <div style={{ display: 'flex', alignItems: 'flex-start', gap: 12 }}>
-        <Tile {...entry.brand} />
+        <BrandTile id={entry.id} color={entry.brand.color} glyph={entry.brand.glyph} />
         <div style={{ flex: 1, minWidth: 0 }}>
           <Typography.Text strong>{entry.name}</Typography.Text>
         </div>
@@ -707,7 +782,7 @@ function ConnectedSection({
   servers: ServerRow[];
   loading: boolean;
   displayName: (s: ServerRow) => string;
-  tileFor: (s: ServerRow) => { color: string; glyph: string };
+  tileFor: (s: ServerRow) => { id?: string; color: string; glyph: string };
   onManage: (s: ServerRow) => void;
   onReconnect: (s: ServerRow) => void;
   refreshing: boolean;
@@ -762,7 +837,7 @@ function ConnectedSection({
                   padding: '12px 16px',
                 }}
               >
-                <Tile {...tileFor(s)} />
+                <BrandTile {...tileFor(s)} />
                 <div style={{ flex: 1, minWidth: 0 }}>
                   <Typography.Text strong>{displayName(s)}</Typography.Text>
                   <div>
@@ -804,7 +879,7 @@ function ConnectedSection({
 function DrawerTitle({ entry }: { entry: CatalogEntry }) {
   return (
     <Space align="start">
-      <Tile {...entry.brand} size={36} />
+      <BrandTile id={entry.id} color={entry.brand.color} glyph={entry.brand.glyph} size={36} />
       <div>
         <div style={{ fontSize: 16, fontWeight: 700 }}>{entry.name}</div>
         <Space size={4} style={{ marginTop: 2 }}>
