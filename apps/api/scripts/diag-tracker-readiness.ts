@@ -55,17 +55,24 @@ async function main() {
         `  pendingTypes=[${s.pendingTypes.join(',')}] trackedBy=${s.trackedBy.length} client(s)`,
       );
       for (const t of s.trackedBy) {
+        const emailReady = t.prefs.filter((p) => p.emailReady).length;
         console.log(
-          `  tenant=${t.tenantId} client=${t.clientId} baselined=${t.baselined} lastSeen=${t.lastSeenActionDate ?? 'n/a'} currentlyPending=${t.currentlyPending} emailReadyRecipients=${t.emailReadyRecipients}`,
+          `  client=${t.clientName ?? t.clientId} (${t.clientId}) baselined=${t.baselined} lastSeen=${t.lastSeenActionDate ?? 'n/a'} currentlyPending=${t.currentlyPending} prefs=${t.prefs.length} emailReady=${emailReady}`,
         );
+        for (const p of t.prefs) {
+          console.log(
+            `      pref: emailEnabled=${p.emailEnabled} hasAddress=${p.hasAddress} floorVoteTrigger=${p.floorVoteTrigger} materiality=${p.materiality} emailReady=${p.emailReady}${p.blockedBy ? ` blockedBy=${p.blockedBy}` : ''}`,
+          );
+        }
       }
+      const anyReady = s.trackedBy.some((t) => t.prefs.some((p) => p.emailReady));
       if (!s.trackedBy.length) {
         logger.warn(
           `${s.billId} is NOT tracked by any client — it will never alert until Tracked.`,
         );
-      } else if (s.trackedBy.every((t) => t.emailReadyRecipients === 0)) {
+      } else if (!anyReady) {
         logger.warn(
-          `${s.billId} is tracked but NO recipient is email-ready for a floor-vote-class event (enable email + ensure Floor vote trigger + materiality ≤ Medium).`,
+          `${s.billId} is tracked but NO recipient is email-ready for a floor-vote-class event (see blockedBy above; need emailEnabled + an address + Floor vote trigger + materiality low/medium).`,
         );
       }
       return;
