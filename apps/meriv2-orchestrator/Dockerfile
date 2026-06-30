@@ -42,14 +42,20 @@ COPY packages/shared/src packages/shared/src
 COPY packages/shared/tsconfig.json packages/shared/tsconfig.json
 COPY packages/meriv2-core/src packages/meriv2-core/src
 COPY packages/meriv2-core/tsconfig.json packages/meriv2-core/tsconfig.json
-COPY apps/api/prisma apps/api/prisma
+# Copy the api Prisma schema INTO the orchestrator's own prisma dir so we can
+# generate @prisma/client via the orchestrator's own `prisma` devDep (the
+# inferred project root is then apps/meriv2-orchestrator, which HAS prisma — so
+# Prisma never tries to auto-install). Build-time copy only; no committed dup.
+COPY apps/api/prisma/schema.prisma apps/meriv2-orchestrator/prisma/schema.prisma
 COPY apps/meriv2-orchestrator/src apps/meriv2-orchestrator/src
 COPY apps/meriv2-orchestrator/tsconfig.json apps/meriv2-orchestrator/tsconfig.build.json apps/meriv2-orchestrator/nest-cli.json apps/meriv2-orchestrator/
 
 RUN pnpm --filter @capiro/shared build
 RUN pnpm --filter @capiro/meriv2-core build
-# Generate the @prisma/client the orchestrator imports, from the api schema.
-RUN cd apps/meriv2-orchestrator && pnpm exec prisma generate --schema ../api/prisma/schema.prisma
+# Generate the @prisma/client the orchestrator imports (mirrors apps/api's
+# `pnpm --filter @capiro/api exec prisma generate`; the --prod prune below keeps
+# the generated client in the .pnpm store).
+RUN pnpm --filter @capiro/meriv2-orchestrator exec prisma generate
 RUN pnpm --filter @capiro/meriv2-orchestrator build
 
 RUN --mount=type=cache,id=pnpm,target=/pnpm/store \
