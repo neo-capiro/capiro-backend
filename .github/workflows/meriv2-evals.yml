@@ -1,0 +1,36 @@
+# MeriV2 eval gate (SC0.6). Fails the build on a cross-client-leakage or
+# grounding regression. The runner exits non-zero on any failing case; a
+# deliberately-seeded failing case (MERIV2_EVAL_SEED_FAILURE=1) was used once
+# locally to prove the gate goes red, then removed to confirm it goes green.
+name: meriv2-evals
+
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - 'packages/meriv2-core/**'
+      - 'apps/meriv2-orchestrator/**'
+      - '.github/workflows/meriv2-evals.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  evals:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 9.15.9
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm --filter @capiro/shared build
+      - run: pnpm --filter @capiro/meriv2-core build
+
+      - name: Cross-client leakage + grounding evals
+        run: pnpm --filter @capiro/meriv2-core eval:meriv2
