@@ -77,6 +77,7 @@ export class TenantContextMiddleware implements NestMiddleware {
       '/api/engagement/integrations/microsoft/callback',
       '/api/engagement/integrations/microsoft/notifications',
       '/api/clio/runtime',
+      '/api/clio/mcp-oauth/callback',
       '/api/insights',
     ];
     if (bypassPaths.some((bypassPath) => isBypassPath(bypassPath, path, originalUrl, baseUrl))) {

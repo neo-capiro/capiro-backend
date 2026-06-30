@@ -1,18 +1,22 @@
 import {
   BadRequestException,
+  ConflictException,
+  ForbiddenException,
   Injectable,
   Logger,
   NotFoundException,
   ServiceUnavailableException,
 } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
-import { Prisma } from '@prisma/client';
-import type { TenantContext } from '@capiro/shared';
+import { Prisma, type ClioMcpServer } from '@prisma/client';
+import { isTenantAdmin, type TenantContext } from '@capiro/shared';
 import type { AppConfig } from '../config/config.schema.js';
 import { PrismaService } from '../prisma/prisma.service.js';
 import { decryptSecret, encryptSecret, parseAesKey } from '../common/secret-crypto.js';
 import { ToolCircuitBreaker, CircuitOpenError } from './meri-circuit-breaker.js';
 import { createMcpClient, type McpServerConnection } from './meri-mcp-transport.js';
+import { MeriMcpOAuthService } from './meri-mcp-oauth.service.js';
+import { getCatalogEntry, MCP_CATALOG, type McpCatalogEntry } from './meri-mcp.catalog.js';
 import {
   bridgeMcpTool,
   filterAllowedMcpTools,
@@ -29,7 +33,7 @@ interface RegisteredMcpTool {
   readOnly: boolean;
 }
 
-interface TenantMcpRegistry {
+interface UserMcpRegistry {
   fetchedAt: number;
   schemas: BridgedTool[];
   byBridgedName: Map<string, RegisteredMcpTool>;
@@ -46,30 +50,47 @@ export interface McpServerInput {
   toolAllowlist?: unknown;
   readOnlyTools?: unknown;
   enabled?: unknown;
+  scope?: unknown;
+  authType?: unknown;
+}
+
+export interface CatalogAddInput {
+  catalogId?: unknown;
+  scope?: unknown;
+  endpoint?: unknown;
+  authToken?: unknown;
 }
 
 const REGISTRY_TTL_MS = 15 * 60 * 1000;
 
+type ServerRow = ClioMcpServer;
+
 /**
- * Tenant-configured MCP servers for Meri (assistant-parity F6a).
+ * Tenant- and user-configured MCP connectors for Meri (connector-library v1).
  *
- * Registry: per-tenant bridged tool schemas, refreshed on a 15-minute TTL (or
- * admin "refresh now"), merged into the chat tool surface at request time.
- * Only allowlisted tools register; every bridged tool is treated as
- * side-effecting (serialized + audit-logged) unless listed in readOnlyTools.
- * Bearer secrets are AES-256-GCM encrypted at rest and write-only through the
- * API. Calls run behind the shared circuit breaker so a dead server degrades
- * the turn instead of killing it.
+ * Connectors come from a curated catalog (one-click "Connect") or a custom URL.
+ * Each connector is scoped either firm-wide ('tenant', admin-managed) or
+ * personal ('user', owned by the person who connected it and private to them).
+ * OAuth 2.1 connectors authorize per the SDK flow (see MeriMcpOAuthService) and
+ * refresh tokens transparently; token/none connectors keep the original bearer
+ * behavior. Only allowlisted tools register; every bridged tool is
+ * audit-logged + serialized as side-effecting unless explicitly read-only.
+ *
+ * Registry: bridged tool schemas computed per (tenant, user) — a user sees the
+ * firm-wide connectors plus their own personal ones — cached on a 15-minute TTL
+ * and merged into the chat tool surface at request time. Calls run behind the
+ * shared circuit breaker so a dead connector degrades the turn, not kills it.
  */
 @Injectable()
 export class MeriMcpService {
   private readonly logger = new Logger(MeriMcpService.name);
-  private readonly registry = new Map<string, TenantMcpRegistry>();
+  private readonly registry = new Map<string, UserMcpRegistry>();
   private readonly breaker = new ToolCircuitBreaker({ threshold: 3, cooldownMs: 60_000 });
 
   constructor(
     private readonly prisma: PrismaService,
     private readonly config: ConfigService<AppConfig, true>,
+    private readonly oauth: MeriMcpOAuthService,
   ) {}
 
   private enabled(): boolean {
@@ -86,40 +107,132 @@ export class MeriMcpService {
     return parseAesKey(raw);
   }
 
-  // ── Admin CRUD (secrets write-only) ──────────────────────────────────────
+  private regKey(ctx: TenantContext): string {
+    return `${ctx.tenantId}:${ctx.userId}`;
+  }
 
+  // ── Catalog ────────────────────────────────────────────────────────────
+
+  /** The curated connector library, annotated with what this caller already has. */
+  async catalog(ctx: TenantContext) {
+    const rows = await this.visibleServers(ctx);
+    const connected = new Set(rows.map((r) => r.catalogId).filter(Boolean) as string[]);
+    return {
+      oauthConfigured: this.oauth.isConfigured(),
+      connectors: MCP_CATALOG.map((entry) => ({ ...entry, connected: connected.has(entry.id) })),
+    };
+  }
+
+  // ── CRUD ─────────────────────────────────────────────────────────────────
+
+  /** Firm-wide connectors + the caller's own personal ones (secrets redacted). */
   async listServers(ctx: TenantContext) {
-    const rows = await this.prisma.withTenant(ctx.tenantId, (tx) =>
-      tx.clioMcpServer.findMany({
-        where: { tenantId: ctx.tenantId },
-        orderBy: { createdAt: 'asc' },
-      }),
-    );
-    return rows.map((row) => this.redact(row));
+    const rows = await this.visibleServers(ctx);
+    return rows.map((row) => this.redact(ctx, row));
   }
 
   async createServer(ctx: TenantContext, input: McpServerInput) {
+    const scope = this.parseScope(input.scope);
+    this.assertCanManage(ctx, scope, scope === 'user' ? ctx.userId : null);
     const data = this.validateInput(input, true);
+    const ownerUserId = scope === 'user' ? ctx.userId : null;
+    await this.assertNameAvailable(ctx, String(data.name), ownerUserId);
+    // A custom OAuth connector isn't usable until the user authorizes it.
+    if (data.authType === 'oauth') data.connectionStatus = 'pending';
     const row = await this.prisma.withTenant(ctx.tenantId, (tx) =>
       tx.clioMcpServer.create({
         data: {
           tenantId: ctx.tenantId,
           createdByUserId: ctx.userId,
+          scope,
+          ownerUserId,
           ...data,
         } as unknown as Prisma.ClioMcpServerUncheckedCreateInput,
       }),
     );
-    await this.audit(ctx, 'clio.mcp_server.create', row.id, { name: row.name, transport: row.transport });
+    await this.audit(ctx, 'clio.mcp_server.create', row.id, {
+      name: row.name,
+      transport: row.transport,
+      scope,
+    });
     this.invalidate(ctx.tenantId);
-    return this.redact(row);
+    return this.redact(ctx, row);
+  }
+
+  /** One-click add from the curated catalog: pre-fills transport/endpoint/tools. */
+  async addFromCatalog(ctx: TenantContext, input: CatalogAddInput) {
+    const catalogId = String(input.catalogId ?? '').trim();
+    const entry = getCatalogEntry(catalogId);
+    if (!entry) throw new BadRequestException('Unknown catalog connector');
+
+    const scope = input.scope === undefined ? entry.defaultScope : this.parseScope(input.scope);
+    this.assertCanManage(ctx, scope, scope === 'user' ? ctx.userId : null);
+
+    // Endpoint: catalog default, or admin-supplied for self-hosted entries.
+    let endpoint = entry.endpoint;
+    if (entry.transport === 'http') {
+      if (entry.requiresEndpointInput || !endpoint) {
+        endpoint = this.requireHttpsEndpoint(input.endpoint);
+      }
+    }
+
+    const ownerUserId = scope === 'user' ? ctx.userId : null;
+    // Stable, tool-name-safe connector name from the catalog id (kebab-case),
+    // disambiguated if the caller somehow has a custom one already.
+    const name = await this.uniqueCatalogName(ctx, entry.id, ownerUserId);
+
+    const data: Prisma.ClioMcpServerUncheckedCreateInput = {
+      tenantId: ctx.tenantId,
+      createdByUserId: ctx.userId,
+      scope,
+      ownerUserId,
+      catalogId: entry.id,
+      name,
+      transport: entry.transport,
+      endpoint: endpoint ?? null,
+      command: entry.command ?? null,
+      args: (entry.args ?? []) as Prisma.InputJsonValue,
+      authType: entry.authType,
+      // OAuth connectors aren't usable until the user authorizes; others are
+      // immediately live.
+      connectionStatus: entry.authType === 'oauth' ? 'pending' : 'connected',
+      toolAllowlist: entry.suggestedTools.map((t) => t.name) as Prisma.InputJsonValue,
+      readOnlyTools: entry.suggestedTools
+        .filter((t) => t.readOnly)
+        .map((t) => t.name) as Prisma.InputJsonValue,
+      enabled: true,
+    };
+
+    if (entry.authType === 'token') {
+      const token = typeof input.authToken === 'string' ? input.authToken.trim() : '';
+      if (!token) throw new BadRequestException(`${entry.name} needs an API key`);
+      const envelope = encryptSecret(this.encryptionKey(), token);
+      data.authTokenCiphertext = envelope.ciphertext;
+      data.authTokenIv = envelope.iv;
+      data.authTokenAuthTag = envelope.authTag;
+      data.authKeyVersion = this.config.get('OAUTH_TOKEN_ENCRYPTION_KEY_VERSION', { infer: true });
+    }
+
+    const row = await this.prisma.withTenant(ctx.tenantId, (tx) =>
+      tx.clioMcpServer.create({ data }),
+    );
+    await this.audit(ctx, 'clio.mcp_server.create', row.id, {
+      catalogId: entry.id,
+      name: row.name,
+      scope,
+    });
+    this.invalidate(ctx.tenantId);
+    return {
+      ...this.redact(ctx, row),
+      // The UI uses this to immediately kick off the OAuth redirect.
+      oauthRequired: entry.authType === 'oauth',
+    };
   }
 
   async updateServer(ctx: TenantContext, id: string, input: McpServerInput) {
-    const existing = await this.prisma.withTenant(ctx.tenantId, (tx) =>
-      tx.clioMcpServer.findFirst({ where: { id, tenantId: ctx.tenantId } }),
-    );
-    if (!existing) throw new NotFoundException('MCP server not found');
+    const existing = await this.loadManageable(ctx, id);
     const data = this.validateInput(input, false);
+    // scope/ownership are immutable after creation.
     const row = await this.prisma.withTenant(ctx.tenantId, (tx) =>
       tx.clioMcpServer.update({
         where: { id },
@@ -128,24 +241,22 @@ export class MeriMcpService {
     );
     await this.audit(ctx, 'clio.mcp_server.update', id, { name: row.name, enabled: row.enabled });
     this.invalidate(ctx.tenantId);
-    return this.redact(row);
+    void existing;
+    return this.redact(ctx, row);
   }
 
   async deleteServer(ctx: TenantContext, id: string) {
-    const existing = await this.prisma.withTenant(ctx.tenantId, (tx) =>
-      tx.clioMcpServer.findFirst({ where: { id, tenantId: ctx.tenantId }, select: { id: true, name: true } }),
-    );
-    if (!existing) throw new NotFoundException('MCP server not found');
+    const existing = await this.loadManageable(ctx, id);
     await this.prisma.withTenant(ctx.tenantId, (tx) => tx.clioMcpServer.delete({ where: { id } }));
     await this.audit(ctx, 'clio.mcp_server.delete', id, { name: existing.name });
     this.invalidate(ctx.tenantId);
     return { deleted: true };
   }
 
-  /** Admin "refresh now": rebuild the tenant registry immediately. */
+  /** "Refresh now": rebuild the caller's registry immediately. */
   async refreshNow(ctx: TenantContext) {
-    this.invalidate(ctx.tenantId);
-    const registry = await this.registryForTenant(ctx.tenantId);
+    this.registry.delete(this.regKey(ctx));
+    const registry = await this.registryFor(ctx);
     return {
       tools: registry.schemas.map((schema) => schema.name),
       refreshedAt: new Date(registry.fetchedAt).toISOString(),
@@ -154,45 +265,53 @@ export class MeriMcpService {
 
   // ── Registry (request-time tool surface) ─────────────────────────────────
 
+  /** Drop every cached registry for a tenant (any user) after a config change. */
   invalidate(tenantId: string): void {
-    this.registry.delete(tenantId);
+    const prefix = `${tenantId}:`;
+    for (const key of this.registry.keys()) {
+      if (key.startsWith(prefix)) this.registry.delete(key);
+    }
   }
 
-  /** Bridged tool schemas for a tenant (cached, 15-minute TTL). Tools whose
-   *  server's circuit breaker is currently open are filtered out so the model
-   *  is never offered a tool that would immediately error — degrade quietly. */
-  async bridgedSchemasForTenant(tenantId: string): Promise<BridgedTool[]> {
+  /** Bridged tool schemas for the caller (firm-wide + own personal connectors),
+   *  cached 15 min. Tools whose server's breaker is open are filtered out so the
+   *  model is never offered a tool that would immediately error. */
+  async bridgedSchemasFor(ctx: TenantContext): Promise<BridgedTool[]> {
     if (!this.enabled()) return [];
     try {
-      const registry = await this.registryForTenant(tenantId);
+      const registry = await this.registryFor(ctx);
       return registry.schemas.filter((schema) => {
         const entry = registry.byBridgedName.get(schema.name);
-        return !entry || !this.breaker.isOpen(`${tenantId}:mcp:${entry.serverId}`);
+        return !entry || !this.breaker.isOpen(`${ctx.tenantId}:mcp:${entry.serverId}`);
       });
     } catch (err) {
-      this.logger.warn(`MCP registry unavailable [tenant ${tenantId}]: ${(err as Error).message}`);
+      this.logger.warn(
+        `MCP registry unavailable [tenant ${ctx.tenantId} user ${ctx.userId}]: ${(err as Error).message}`,
+      );
       return [];
     }
   }
 
   /** Whether a bridged tool may run concurrently (explicitly read-only). */
-  isBridgedToolReadOnly(tenantId: string, bridgedName: string): boolean {
-    const entry = this.registry.get(tenantId)?.byBridgedName.get(bridgedName);
+  isBridgedToolReadOnly(ctx: TenantContext, bridgedName: string): boolean {
+    const entry = this.registry.get(this.regKey(ctx))?.byBridgedName.get(bridgedName);
     return entry?.readOnly ?? false;
   }
 
-  private async registryForTenant(tenantId: string): Promise<TenantMcpRegistry> {
-    const cached = this.registry.get(tenantId);
+  private async registryFor(ctx: TenantContext): Promise<UserMcpRegistry> {
+    const key = this.regKey(ctx);
+    const cached = this.registry.get(key);
     if (cached && Date.now() - cached.fetchedAt < REGISTRY_TTL_MS) return cached;
 
-    const servers = await this.prisma.withTenant(tenantId, (tx) =>
-      tx.clioMcpServer.findMany({ where: { tenantId, enabled: true } }),
-    );
+    const servers = await this.visibleServers(ctx, { where: { enabled: true } });
     const schemas: BridgedTool[] = [];
     const byBridgedName = new Map<string, RegisteredMcpTool>();
     for (const server of servers) {
       const allowlist = asStringArray(server.toolAllowlist);
       if (!allowlist.length) continue; // empty allowlist registers nothing (fail-closed)
+      // Skip OAuth connectors that aren't connected yet — listing tools would
+      // trigger a reauth redirect and just record noise.
+      if (server.authType === 'oauth' && server.connectionStatus !== 'connected') continue;
       try {
         const client = this.clientFor(server);
         const tools = filterAllowedMcpTools(await client.listTools(), allowlist);
@@ -210,7 +329,7 @@ export class MeriMcpService {
           });
         }
         await this.prisma
-          .withTenant(tenantId, (tx) =>
+          .withTenant(ctx.tenantId, (tx) =>
             tx.clioMcpServer.update({
               where: { id: server.id },
               data: { lastSyncAt: new Date(), lastError: null },
@@ -220,28 +339,30 @@ export class MeriMcpService {
       } catch (err) {
         const message = err instanceof Error ? err.message : String(err);
         this.logger.warn(`MCP listTools failed [${server.name}]: ${message}`);
+        // An OAuth connector that can no longer authorize (refresh token gone /
+        // expired) surfaces as UnauthorizedError — flag it for reconnection.
+        const needsReauth =
+          server.authType === 'oauth' && err instanceof Error && err.name === 'UnauthorizedError';
         await this.prisma
-          .withTenant(tenantId, (tx) =>
+          .withTenant(ctx.tenantId, (tx) =>
             tx.clioMcpServer.update({
               where: { id: server.id },
-              data: { lastError: message.slice(0, 500) },
+              data: {
+                lastError: message.slice(0, 500),
+                ...(needsReauth ? { connectionStatus: 'needs_reauth' } : {}),
+              },
             }),
           )
           .catch(() => {});
       }
     }
-    const registry: TenantMcpRegistry = { fetchedAt: Date.now(), schemas, byBridgedName };
-    this.registry.set(tenantId, registry);
+    const registry: UserMcpRegistry = { fetchedAt: Date.now(), schemas, byBridgedName };
+    this.registry.set(key, registry);
     return registry;
   }
 
   // ── Execution (routed from the agentic loop) ─────────────────────────────
 
-  /**
-   * Execute a bridged tool call. Circuit-breaker guarded per (tenant, server);
-   * results come back wrapped + sanitized as untrusted data; every WRITE
-   * (non-readOnly) call lands in AuditLog.
-   */
   async executeBridged(
     ctx: TenantContext,
     bridgedName: string,
@@ -250,22 +371,23 @@ export class MeriMcpService {
     if (!this.enabled()) throw new BadRequestException('MCP tools are disabled');
     const parsed = parseBridgedToolName(bridgedName);
     if (!parsed) throw new BadRequestException(`Not a bridged MCP tool: ${bridgedName}`);
-    const registry = await this.registryForTenant(ctx.tenantId);
+    const registry = await this.registryFor(ctx);
     const entry = registry.byBridgedName.get(bridgedName);
     if (!entry) throw new NotFoundException(`MCP tool not registered: ${bridgedName}`);
     const breakerKey = `${ctx.tenantId}:mcp:${entry.serverId}`;
     if (this.breaker.isOpen(breakerKey)) throw new CircuitOpenError(bridgedName);
 
-    const server = await this.prisma.withTenant(ctx.tenantId, (tx) =>
-      tx.clioMcpServer.findFirst({ where: { id: entry.serverId, tenantId: ctx.tenantId } }),
-    );
-    if (!server || !server.enabled) throw new NotFoundException('MCP server not found or disabled');
+    // Re-load through the visibility filter so a user can only ever execute a
+    // tool from a connector they can see (firm-wide or their own).
+    const [server] = await this.visibleServers(ctx, {
+      where: { id: entry.serverId, enabled: true },
+    });
+    if (!server) throw new NotFoundException('MCP server not found or disabled');
 
     if (!entry.readOnly) {
       await this.audit(ctx, 'clio.mcp_tool.call', server.id, {
         server: server.name,
         tool: entry.toolName,
-        // Redact values; record the argument keys for the audit trail.
         argKeys: Object.keys(input ?? {}),
       });
     }
@@ -288,18 +410,55 @@ export class MeriMcpService {
 
   // ── Internals ────────────────────────────────────────────────────────────
 
-  private clientFor(server: {
-    transport: string;
-    endpoint: string | null;
-    command: string | null;
-    args: unknown;
-    envJson: unknown;
-    authTokenCiphertext: string | null;
-    authTokenIv: string | null;
-    authTokenAuthTag: string | null;
-  }) {
+  /** Servers visible to the caller: firm-wide ∪ own personal. RLS scopes to tenant. */
+  private visibleServers(
+    ctx: TenantContext,
+    opts?: { where?: Prisma.ClioMcpServerWhereInput },
+  ): Promise<ServerRow[]> {
+    return this.prisma.withTenant(ctx.tenantId, (tx) =>
+      tx.clioMcpServer.findMany({
+        where: {
+          tenantId: ctx.tenantId,
+          OR: [{ scope: 'tenant' }, { scope: 'user', ownerUserId: ctx.userId }],
+          ...(opts?.where ?? {}),
+        },
+        orderBy: { createdAt: 'asc' },
+      }),
+    );
+  }
+
+  /** Load a server the caller may manage, or throw 404/403. */
+  private async loadManageable(ctx: TenantContext, id: string): Promise<ServerRow> {
+    const row = await this.prisma.withTenant(ctx.tenantId, (tx) =>
+      tx.clioMcpServer.findFirst({ where: { id, tenantId: ctx.tenantId } }),
+    );
+    if (!row) throw new NotFoundException('MCP server not found');
+    this.assertCanManage(ctx, row.scope, row.ownerUserId);
+    return row;
+  }
+
+  /** Firm-wide ⇒ tenant admin; personal ⇒ the owner. */
+  private assertCanManage(ctx: TenantContext, scope: string, ownerUserId: string | null): void {
+    if (scope === 'tenant') {
+      if (!isTenantAdmin(ctx.role)) {
+        throw new ForbiddenException('Only admins manage firm-wide connectors');
+      }
+    } else if (ownerUserId !== ctx.userId) {
+      throw new ForbiddenException('You can only manage your own connectors');
+    }
+  }
+
+  private clientFor(server: ServerRow) {
     let authToken: string | null = null;
-    if (server.authTokenCiphertext && server.authTokenIv && server.authTokenAuthTag) {
+    let authProvider: McpServerConnection['authProvider'];
+    if (server.authType === 'oauth') {
+      authProvider = this.oauth.buildProvider({
+        id: server.id,
+        tenantId: server.tenantId,
+        name: server.name,
+        catalogId: server.catalogId,
+      });
+    } else if (server.authTokenCiphertext && server.authTokenIv && server.authTokenAuthTag) {
       authToken = decryptSecret(this.encryptionKey(), {
         ciphertext: server.authTokenCiphertext,
         iv: server.authTokenIv,
@@ -313,8 +472,89 @@ export class MeriMcpService {
       args: asStringArray(server.args),
       env: asStringRecord(server.envJson),
       authToken,
+      authProvider,
     };
-    return createMcpClient(conn, this.config.get('CLIO_MCP_STDIO_ALLOWED_COMMANDS', { infer: true }));
+    return createMcpClient(
+      conn,
+      this.config.get('CLIO_MCP_STDIO_ALLOWED_COMMANDS', { infer: true }),
+    );
+  }
+
+  private parseScope(value: unknown): 'tenant' | 'user' {
+    if (value === undefined || value === null) return 'tenant';
+    const scope = String(value);
+    if (scope !== 'tenant' && scope !== 'user') {
+      throw new BadRequestException('scope must be "tenant" or "user"');
+    }
+    return scope;
+  }
+
+  private requireHttpsEndpoint(value: unknown): string {
+    const endpoint = String(value ?? '').trim();
+    if (!endpoint) throw new BadRequestException('This connector needs a server URL');
+    this.assertEndpointAllowed(endpoint);
+    return endpoint;
+  }
+
+  /**
+   * SSRF guard for user-supplied connector endpoints. Requires https and
+   * rejects private / loopback / link-local hosts so a tenant can't point the
+   * API host at internal services (the cloud metadata endpoint, RFC1918 ranges,
+   * loopback ports). Loopback/plaintext is permitted only under the dev-only
+   * CLIO_MCP_ALLOW_INSECURE_LOCAL flag. (Literal-host check; DNS-rebinding to an
+   * internal IP is a residual closed at the network-egress layer.)
+   */
+  private assertEndpointAllowed(endpoint: string): void {
+    let url: URL;
+    try {
+      url = new URL(endpoint);
+    } catch {
+      throw new BadRequestException('endpoint must be a valid URL');
+    }
+    const allowInsecureLocal = this.config.get('CLIO_MCP_ALLOW_INSECURE_LOCAL', { infer: true });
+    const host = url.hostname.toLowerCase().replace(/^\[|\]$/g, '');
+    if (url.protocol !== 'https:') {
+      if (!(allowInsecureLocal && isLoopbackHost(host))) {
+        throw new BadRequestException('endpoint must use https');
+      }
+    }
+    if (!allowInsecureLocal && isPrivateHost(host)) {
+      throw new BadRequestException(
+        'endpoint may not target a private, loopback, or link-local address',
+      );
+    }
+  }
+
+  private async assertNameAvailable(
+    ctx: TenantContext,
+    name: string,
+    ownerUserId: string | null,
+  ): Promise<void> {
+    const clash = await this.prisma.withTenant(ctx.tenantId, (tx) =>
+      tx.clioMcpServer.findFirst({
+        where: { tenantId: ctx.tenantId, ownerUserId, name },
+        select: { id: true },
+      }),
+    );
+    if (clash) throw new ConflictException(`A connector named "${name}" already exists`);
+  }
+
+  private async uniqueCatalogName(
+    ctx: TenantContext,
+    base: string,
+    ownerUserId: string | null,
+  ): Promise<string> {
+    for (let suffix = 0; suffix < 50; suffix += 1) {
+      const candidate = suffix === 0 ? base : `${base}-${suffix + 1}`.slice(0, 64);
+      const clash = await this.prisma.withTenant(ctx.tenantId, (tx) =>
+        tx.clioMcpServer.findFirst({
+          where: { tenantId: ctx.tenantId, ownerUserId, name: candidate },
+          select: { id: true },
+        }),
+      );
+      if (!clash) return candidate;
+    }
+    throw new ConflictException('Too many connectors with this name');
   }
 
   private validateInput(input: McpServerInput, isCreate: boolean): Record<string, unknown> {
@@ -335,17 +575,7 @@ export class MeriMcpService {
     }
     if (input.endpoint !== undefined) {
       const endpoint = input.endpoint === null ? null : String(input.endpoint).trim();
-      if (endpoint) {
-        let url: URL;
-        try {
-          url = new URL(endpoint);
-        } catch {
-          throw new BadRequestException('endpoint must be a valid URL');
-        }
-        if (url.protocol !== 'https:' && url.hostname !== 'localhost' && url.hostname !== '127.0.0.1') {
-          throw new BadRequestException('endpoint must use https');
-        }
-      }
+      if (endpoint) this.assertEndpointAllowed(endpoint);
       data.endpoint = endpoint;
     }
     if (input.command !== undefined) {
@@ -372,11 +602,20 @@ export class MeriMcpService {
       data.authTokenIv = envelope.iv;
       data.authTokenAuthTag = envelope.authTag;
       data.authKeyVersion = this.config.get('OAUTH_TOKEN_ENCRYPTION_KEY_VERSION', { infer: true });
+      data.authType = 'token';
     } else if (input.authToken === null) {
       data.authTokenCiphertext = null;
       data.authTokenIv = null;
       data.authTokenAuthTag = null;
       data.authKeyVersion = null;
+    }
+    // Explicit authType wins over the token-presence inference above.
+    if (input.authType !== undefined) {
+      const authType = String(input.authType);
+      if (!['none', 'token', 'oauth'].includes(authType)) {
+        throw new BadRequestException('authType must be none, token, or oauth');
+      }
+      data.authType = authType;
     }
     if (isCreate) {
       if (data.transport === 'http' && !data.endpoint) {
@@ -385,27 +624,13 @@ export class MeriMcpService {
       if (data.transport === 'stdio' && !data.command) {
         throw new BadRequestException('stdio transport requires a command');
       }
+      if (data.authType === undefined) data.authType = data.authTokenCiphertext ? 'token' : 'none';
     }
     return data;
   }
 
-  /** Never return secret material — only whether a token is set. */
-  private redact(row: {
-    id: string;
-    name: string;
-    transport: string;
-    endpoint: string | null;
-    command: string | null;
-    args: unknown;
-    toolAllowlist: unknown;
-    readOnlyTools: unknown;
-    enabled: boolean;
-    lastSyncAt: Date | null;
-    lastError: string | null;
-    authTokenCiphertext: string | null;
-    createdAt: Date;
-    updatedAt: Date;
-  }) {
+  /** Never return secret material — only whether a token / OAuth link is set. */
+  private redact(ctx: TenantContext, row: ServerRow) {
     return {
       id: row.id,
       name: row.name,
@@ -416,6 +641,12 @@ export class MeriMcpService {
       toolAllowlist: asStringArray(row.toolAllowlist),
       readOnlyTools: asStringArray(row.readOnlyTools),
       enabled: row.enabled,
+      scope: row.scope,
+      catalogId: row.catalogId,
+      authType: row.authType,
+      connectionStatus: row.connectionStatus,
+      isOwner: row.scope === 'user' ? row.ownerUserId === ctx.userId : true,
+      canManage: row.scope === 'tenant' ? isTenantAdmin(ctx.role) : row.ownerUserId === ctx.userId,
       lastSyncAt: row.lastSyncAt,
       lastError: row.lastError,
       hasAuthToken: Boolean(row.authTokenCiphertext),
@@ -462,3 +693,45 @@ function asStringRecord(value: unknown): Record<string, string> {
   }
   return out;
 }
+
+function isLoopbackHost(host: string): boolean {
+  return host === 'localhost' || host === '::1' || /^127\./.test(host);
+}
+
+/** Literal private / loopback / link-local host (IPv4, IPv6, or *.local). */
+function isPrivateHost(host: string): boolean {
+  if (host === 'localhost' || host.endsWith('.local')) return true;
+  // IPv6 unique-local (fc00::/7), link-local (fe80::/10), loopback, unspecified.
+  if (host.includes(':')) {
+    if (host === '::1' || host === '::') return true;
+    if (
+      /^f[cd]/.test(host) ||
+      host.startsWith('fe8') ||
+      host.startsWith('fe9') ||
+      host.startsWith('fea') ||
+      host.startsWith('feb')
+    ) {
+      return true;
+    }
+    const mapped = host.match(/::ffff:(\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3})$/i);
+    return mapped ? isPrivateIpv4(mapped[1]!) : false;
+  }
+  return /^\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}$/.test(host) ? isPrivateIpv4(host) : false;
+}
+
+function isPrivateIpv4(ip: string): boolean {
+  const parts = ip.split('.').map((n) => Number(n));
+  if (parts.length !== 4 || parts.some((n) => !Number.isInteger(n) || n < 0 || n > 255)) {
+    return true; // malformed → treat as unsafe
+  }
+  const [a, b] = parts as [number, number, number, number];
+  if (a === 0 || a === 127 || a === 10) return true; // unspecified, loopback, private
+  if (a === 169 && b === 254) return true; // link-local incl. 169.254.169.254 metadata
+  if (a === 192 && b === 168) return true; // private
+  if (a === 172 && b >= 16 && b <= 31) return true; // private
+  if (a === 100 && b >= 64 && b <= 127) return true; // CGNAT
+  return false;
+}
+
+// Re-export the catalog entry type for controllers/consumers.
+export type { McpCatalogEntry };

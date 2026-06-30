@@ -16,6 +16,7 @@
 import { Client } from '@modelcontextprotocol/sdk/client/index.js';
 import { StreamableHTTPClientTransport } from '@modelcontextprotocol/sdk/client/streamableHttp.js';
 import { StdioClientTransport } from '@modelcontextprotocol/sdk/client/stdio.js';
+import type { OAuthClientProvider } from '@modelcontextprotocol/sdk/client/auth.js';
 import { parseMcpToolsList, type McpClient, type McpToolDescriptor } from './meri-mcp.helpers.js';
 
 export interface McpServerConnection {
@@ -25,6 +26,9 @@ export interface McpServerConnection {
   args?: string[];
   env?: Record<string, string>;
   authToken?: string | null;
+  /** OAuth 2.1 provider (auth_type='oauth'); the transport sends + refreshes
+   *  tokens through it. Takes precedence over a static bearer `authToken`. */
+  authProvider?: OAuthClientProvider;
   timeoutMs?: number;
 }
 
@@ -50,9 +54,13 @@ async function withClient<T>(
   if (conn.transport === 'http') {
     if (!conn.endpoint) throw new Error('MCP http server has no endpoint configured');
     transport = new StreamableHTTPClientTransport(new URL(conn.endpoint), {
-      requestInit: conn.authToken
-        ? { headers: { Authorization: `Bearer ${conn.authToken}` } }
-        : undefined,
+      // OAuth provider wins when present (it manages + refreshes tokens). Fall
+      // back to a static bearer header only when there is no provider.
+      authProvider: conn.authProvider,
+      requestInit:
+        !conn.authProvider && conn.authToken
+          ? { headers: { Authorization: `Bearer ${conn.authToken}` } }
+          : undefined,
     });
   } else {
     if (!conn.command) throw new Error('MCP stdio server has no command configured');

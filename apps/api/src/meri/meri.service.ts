@@ -737,7 +737,7 @@ export class MeriService {
       const nativeSchemas = this.tools
         .anthropicToolSchemas()
         .filter((schema) => analysisEnabled || schema.name !== 'run_analysis');
-      const mcpSchemas = await this.mcp.bridgedSchemasForTenant(ctx.tenantId);
+      const mcpSchemas = await this.mcp.bridgedSchemasFor(ctx);
       const toolSchemas = applyToolCacheControl(
         [...nativeSchemas, ...mcpSchemas],
         promptCacheEnabled,
@@ -954,7 +954,7 @@ export class MeriService {
           // Bridged MCP tools (F6a) are side-effecting (serialized) unless the
           // admin explicitly allowlisted them read-only.
           const concurrencySafe = parseBridgedToolName(t.name)
-            ? this.mcp.isBridgedToolReadOnly(ctx.tenantId, t.name)
+            ? this.mcp.isBridgedToolReadOnly(ctx, t.name)
             : this.tools.isConcurrencySafe(t.name);
           return { index, tool: t, parsedInput, concurrencySafe };
         });

@@ -266,8 +266,10 @@ export function IntegrationsPage() {
         })}
       </div>
 
-      {/* Meri MCP servers (F6a) — admin-gated; the card hides itself for
-          non-admins (the API enforces user_admin on every endpoint). */}
+      {/* Meri connector library (connector-library v1). Any standard_user can
+          browse the catalog and manage their OWN personal connectors; firm-wide
+          connectors are admin-gated (enforced in MeriMcpService). The card hides
+          itself only for client_portal_user. */}
       <McpServersCard />
 
       <Modal

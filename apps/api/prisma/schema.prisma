@@ -196,6 +196,7 @@ model Tenant {
   clioScheduledTasks           ClioScheduledTask[]
   clioAttachments              ClioAttachment[]
   clioMcpServers               ClioMcpServer[]
+  clioMcpOAuthCredentials      ClioMcpOAuthCredential[]
   clioFirmSkills               ClioFirmSkill[]
   programElementWatches        ProgramElementWatch[]
   actionRecommendations        ActionRecommendation[]
@@ -1263,6 +1264,20 @@ model ClioMcpServer {
   command             String?   @db.VarChar(500)
   args                Json      @default("[]")
   envJson             Json      @default("{}") @map("env_jsonb")
+  // Connector library (connector-library v1):
+  //   scope = 'tenant' (firm-wide, admin-managed) | 'user' (personal, owned by
+  //   ownerUserId). Personal connections act as the person who authorized them
+  //   and are private to that user. ownerUserId is NULL for firm-wide rows.
+  //   catalogId links a row added from the curated library to its catalog entry.
+  scope               String    @default("tenant") @db.VarChar(10)
+  ownerUserId         String?   @map("owner_user_id") @db.Uuid
+  catalogId           String?   @map("catalog_id") @db.VarChar(64)
+  // 'none' | 'token' (static bearer) | 'oauth' (OAuth 2.1 — credentials live in
+  // ClioMcpOAuthCredential). connectionStatus drives the UI status chip:
+  // 'connected' | 'pending' (oauth started, not finished) | 'needs_reauth'
+  // (token expired / refresh failed) | 'error' | 'disconnected'.
+  authType            String    @default("token") @db.VarChar(10)
+  connectionStatus    String    @default("connected") @db.VarChar(16)
   authTokenCiphertext String?   @map("auth_token_ciphertext")
   authTokenIv         String?   @map("auth_token_iv")
   authTokenAuthTag    String?   @map("auth_token_auth_tag")
@@ -1276,11 +1291,66 @@ model ClioMcpServer {
   createdAt           DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
   updatedAt           DateTime  @updatedAt @map("updated_at") @db.Timestamptz(6)
 
-  tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  tenant         Tenant                  @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  oauthCredential ClioMcpOAuthCredential?
 
-  @@unique([tenantId, name], map: "clio_mcp_servers_tenant_name_unique")
+  // Per-user uniqueness: two users can each add "Notion". Firm-wide rows have
+  // ownerUserId = NULL; the firm-wide-name-uniqueness gap that NULLs create is
+  // enforced in application code (see MeriMcpService.assertNameAvailable).
+  @@unique([tenantId, ownerUserId, name], map: "clio_mcp_servers_tenant_owner_name_unique")
   @@index([tenantId, enabled], map: "clio_mcp_servers_tenant_enabled_idx")
+  @@index([tenantId, ownerUserId, enabled], map: "clio_mcp_servers_tenant_owner_enabled_idx")
   @@map("clio_mcp_servers")
+}
+
+/// OAuth 2.1 credentials for an `authType = 'oauth'` ClioMcpServer (1:1).
+/// Split out from the server row so the token/secret material lives in one
+/// tightly-scoped, RLS-isolated table (mirrors integration_connection_token).
+/// All secret fields are AES-256-GCM envelopes (ciphertext/iv/authTag), never
+/// stored or returned in plaintext. clientId + registrationJson are the
+/// non-secret RFC 7591 dynamic-registration result; codeVerifier* is the
+/// transient PKCE verifier (cleared after the code exchange).
+model ClioMcpOAuthCredential {
+  id       String @id @default(uuid()) @db.Uuid
+  tenantId String @map("tenant_id") @db.Uuid
+  serverId String @unique @map("server_id") @db.Uuid
+
+  // RFC 7591 dynamic client registration (client_id is not secret).
+  clientId               String? @map("client_id")
+  clientSecretCiphertext String? @map("client_secret_ciphertext")
+  clientSecretIv         String? @map("client_secret_iv")
+  clientSecretAuthTag    String? @map("client_secret_auth_tag")
+  registrationJson       Json?   @map("registration_jsonb")
+
+  // OAuth tokens.
+  accessTokenCiphertext  String?   @map("access_token_ciphertext")
+  accessTokenIv          String?   @map("access_token_iv")
+  accessTokenAuthTag     String?   @map("access_token_auth_tag")
+  refreshTokenCiphertext String?   @map("refresh_token_ciphertext")
+  refreshTokenIv         String?   @map("refresh_token_iv")
+  refreshTokenAuthTag    String?   @map("refresh_token_auth_tag")
+  tokenType              String?   @map("token_type")
+  scopes                 Json      @default("[]")
+  tokenExpiresAt         DateTime? @map("token_expires_at") @db.Timestamptz(6)
+
+  // Transient PKCE verifier (set on start, cleared after exchange).
+  codeVerifierCiphertext String? @map("code_verifier_ciphertext")
+  codeVerifierIv         String? @map("code_verifier_iv")
+  codeVerifierAuthTag    String? @map("code_verifier_auth_tag")
+
+  // Single-use anti-replay nonce for the signed OAuth `state` (set on start,
+  // atomically cleared when the callback consumes it).
+  stateNonce String? @map("state_nonce")
+
+  keyVersion String?  @map("key_version")
+  createdAt  DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt  DateTime @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  tenant Tenant        @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  server ClioMcpServer @relation(fields: [serverId], references: [id], onDelete: Cascade)
+
+  @@index([tenantId], map: "clio_mcp_oauth_credentials_tenant_idx")
+  @@map("clio_mcp_oauth_credentials")
 }
 
 /// Firm-authored Clio skill (F6b). skillJson holds the validated FirmSkill
