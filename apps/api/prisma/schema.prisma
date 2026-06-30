@@ -1276,8 +1276,8 @@ model ClioMcpServer {
   // ClioMcpOAuthCredential). connectionStatus drives the UI status chip:
   // 'connected' | 'pending' (oauth started, not finished) | 'needs_reauth'
   // (token expired / refresh failed) | 'error' | 'disconnected'.
-  authType            String    @default("token") @db.VarChar(10)
-  connectionStatus    String    @default("connected") @db.VarChar(16)
+  authType            String    @default("token") @map("auth_type") @db.VarChar(10)
+  connectionStatus    String    @default("connected") @map("connection_status") @db.VarChar(16)
   authTokenCiphertext String?   @map("auth_token_ciphertext")
   authTokenIv         String?   @map("auth_token_iv")
   authTokenAuthTag    String?   @map("auth_token_auth_tag")
