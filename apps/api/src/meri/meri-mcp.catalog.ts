@@ -245,32 +245,10 @@ export const MCP_CATALOG: readonly McpCatalogEntry[] = [
     ],
     brand: { color: '#fb5a3a', glyph: 'search' },
   },
-  {
-    id: 'chrome',
-    name: 'Google Chrome',
-    category: 'research',
-    description: 'Drive a local Chrome browser — navigate, read pages, screenshot.',
-    longDescription:
-      'Give Meri a real browser: navigate to pages behind logins, read rendered content, fill forms, and capture screenshots. Runs against a local Chrome via the Chrome DevTools MCP bridge — nothing leaves the machine it runs on.',
-    transport: 'stdio',
-    endpoint: null,
-    command: 'npx',
-    args: ['-y', 'chrome-devtools-mcp@latest'],
-    authType: 'none',
-    verified: true,
-    defaultScope: 'tenant',
-    docsUrl: 'https://github.com/ChromeDevTools/chrome-devtools-mcp',
-    setupNote:
-      'Local browser bridge. Because it spawns a process on the host, a platform operator must allowlist the command (CLIO_MCP_STDIO_ALLOWED_COMMANDS) before it can run.',
-    suggestedTools: [
-      { name: 'navigate_page', description: 'Open a URL in the browser' },
-      { name: 'take_snapshot', description: 'Read the rendered page content', readOnly: true },
-      { name: 'take_screenshot', description: 'Capture a screenshot', readOnly: true },
-      { name: 'click', description: 'Click an element on the page' },
-      { name: 'fill', description: 'Fill a form field' },
-    ],
-    brand: { color: '#4285f4', glyph: 'browser' },
-  },
+  // NOTE: a local-browser connector (Chrome DevTools MCP) was intentionally
+  // dropped — it's a stdio bridge that spawns a browser on the machine running
+  // the MCP client, which makes no sense on our hosted Fargate API (no display,
+  // and stdio is ops-gated). It belongs on a per-user desktop agent, not here.
 
   // ─── CRM, Sales & Ops ───────────────────────────────────────────────────
   {

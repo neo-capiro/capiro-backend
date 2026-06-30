@@ -156,6 +156,11 @@ export class MeriMcpService {
       scope,
     });
     this.invalidate(ctx.tenantId);
+    // Non-OAuth connectors are reachable now — discover their real tools so the
+    // allowlist matches the server (only when the caller didn't pick tools).
+    if (data.authType !== 'oauth' && asStringArray(row.toolAllowlist).length === 0) {
+      await this.discoverTools(ctx.tenantId, row.id).catch(() => {});
+    }
     return this.redact(ctx, row);
   }
 
@@ -222,6 +227,12 @@ export class MeriMcpService {
       scope,
     });
     this.invalidate(ctx.tenantId);
+    // For token/none connectors the server is reachable now — replace the
+    // best-effort seeded allowlist with the server's ACTUAL tools. OAuth
+    // connectors are discovered after the callback (tokens aren't stored yet).
+    if (entry.authType !== 'oauth') {
+      await this.discoverTools(ctx.tenantId, row.id).catch(() => {});
+    }
     return {
       ...this.redact(ctx, row),
       // The UI uses this to immediately kick off the OAuth redirect.
@@ -261,6 +272,66 @@ export class MeriMcpService {
       tools: registry.schemas.map((schema) => schema.name),
       refreshedAt: new Date(registry.fetchedAt).toISOString(),
     };
+  }
+
+  /**
+   * Discover a connector's REAL tools (tools/list) and set its allowlist to
+   * them — so connecting just works without anyone guessing tool names (the
+   * registry is fail-closed: only allowlisted tools register). Best-effort: on
+   * failure it records lastError and leaves the existing allowlist in place.
+   * Called right after a non-OAuth connect and after a successful OAuth
+   * callback (tokens are stored by then). Takes tenantId — not ctx — so the
+   * unauthenticated OAuth callback controller can invoke it.
+   */
+  async discoverTools(tenantId: string, serverId: string): Promise<number> {
+    if (!this.enabled()) return 0;
+    const server = await this.prisma.withTenant(tenantId, (tx) =>
+      tx.clioMcpServer.findFirst({ where: { id: serverId, tenantId } }),
+    );
+    if (!server) return 0;
+    try {
+      const client = this.clientFor(server);
+      const names = Array.from(new Set((await client.listTools()).map((t) => t.name))).slice(0, 50);
+      const catalog = server.catalogId ? getCatalogEntry(server.catalogId) : undefined;
+      // Carry over read-only classification from the catalog where the names
+      // match; unknown tools default to write (audited + serialized) — safe.
+      const readOnly = (catalog?.suggestedTools ?? [])
+        .filter((t) => t.readOnly)
+        .map((t) => t.name)
+        .filter((n) => names.includes(n));
+      await this.prisma.withTenant(tenantId, (tx) =>
+        tx.clioMcpServer.update({
+          where: { id: serverId },
+          data: {
+            toolAllowlist: names as Prisma.InputJsonValue,
+            readOnlyTools: readOnly as Prisma.InputJsonValue,
+            lastSyncAt: new Date(),
+            lastError: null,
+            connectionStatus: 'connected',
+          },
+        }),
+      );
+      this.invalidate(tenantId);
+      return names.length;
+    } catch (err) {
+      const message = err instanceof Error ? err.message : String(err);
+      this.logger.warn(`MCP tool discovery failed [${server.name}]: ${message}`);
+      await this.prisma
+        .withTenant(tenantId, (tx) =>
+          tx.clioMcpServer.update({
+            where: { id: serverId },
+            data: {
+              lastError: message.slice(0, 500),
+              // Non-OAuth: surface the failure. OAuth: tokens are valid, so keep
+              // 'connected' and let the registry retry on the next turn.
+              ...(server.authType !== 'oauth' ? { connectionStatus: 'error' } : {}),
+            },
+          }),
+        )
+        .catch(() => {});
+      this.invalidate(tenantId);
+      return 0;
+    }
   }
 
   // ── Registry (request-time tool surface) ─────────────────────────────────

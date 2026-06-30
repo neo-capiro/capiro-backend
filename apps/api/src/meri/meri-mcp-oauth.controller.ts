@@ -37,8 +37,9 @@ export class MeriMcpOAuthController {
 
     try {
       const result = await this.oauth.handleCallback({ code, state });
-      // New tokens → rebuild the affected registries on the next turn.
-      this.mcp.invalidate(result.tenantId);
+      // Tokens are stored now → discover the server's real tools (this also
+      // rebuilds the affected registries). Best-effort; never block the redirect.
+      await this.mcp.discoverTools(result.tenantId, result.serverId).catch(() => {});
       res.redirect(302, `${base}?provider=mcp&mcp_connected=${encodeURIComponent(result.name)}`);
     } catch (err) {
       fail(err instanceof Error ? err.message : 'Authorization failed');
