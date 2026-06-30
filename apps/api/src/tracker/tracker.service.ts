@@ -66,6 +66,7 @@ const TONE_FOR_CHANGE: Record<string, ChangeTone> = {
   bill_to_president: 'success',
   bill_failed: 'critical',
   bill_passed_chamber: 'success',
+  bill_rule_reported: 'info',
   bill_floor_scheduled: 'info',
   bill_reported: 'success',
   bill_markup: 'info',

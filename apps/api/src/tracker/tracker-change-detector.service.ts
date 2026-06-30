@@ -66,6 +66,22 @@ export function classifyChange(nextText: string | null): ChangeClass | null {
       tone: 'success',
       severity: 'notable',
     };
+  // House Rules Committee activity: a special rule reported / granted means the
+  // bill cleared Rules and is headed to the floor. Must precede bill_reported so
+  // a rule resolution's "Reported to House" isn't mislabeled a committee report;
+  // floor passage above still wins for a combined "...under the rule and passed".
+  if (
+    /rules committee|committee on rules|provides for consideration|considered under the provisions|pursuant to (the provisions of )?(h\.? ?res|house resolution)|(closed|structured|open|special) rule/.test(
+      t,
+    )
+  )
+    return {
+      changeType: 'bill_rule_reported',
+      triggerKey: 'floorVote',
+      label: 'Rule granted (floor scheduled)',
+      tone: 'info',
+      severity: 'notable',
+    };
   if (/placed on (the )?(union |senate )?calendar|scheduled for (floor|consideration)/.test(t))
     return {
       changeType: 'bill_floor_scheduled',
