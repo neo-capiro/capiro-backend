@@ -58,7 +58,9 @@ describe('InMemoryToolRegistry', () => {
   it('validates input against the zod schema', async () => {
     const r = new InMemoryToolRegistry();
     r.register(echoTool());
-    await expect(r.invoke('echo', { value: 42 }, ctx)).rejects.toBeInstanceOf(ToolInputValidationError);
+    await expect(r.invoke('echo', { value: 42 }, ctx)).rejects.toBeInstanceOf(
+      ToolInputValidationError,
+    );
   });
 
   it('enforces scoping before the handler runs', async () => {

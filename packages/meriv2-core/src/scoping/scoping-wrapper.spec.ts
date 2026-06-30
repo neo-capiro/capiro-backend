@@ -18,10 +18,13 @@ describe('assertMeriContext', () => {
     expect(() => assertMeriContext(undefined)).toThrow(ScopingError);
   });
 
-  it.each(['tenantId', 'userId', 'clerkUserId', 'role'] as const)('throws when %s is blank', (field) => {
-    const ctx: MeriContext = { ...valid, [field]: '' };
-    expect(() => assertMeriContext(ctx)).toThrow(ScopingError);
-  });
+  it.each(['tenantId', 'userId', 'clerkUserId', 'role'] as const)(
+    'throws when %s is blank',
+    (field) => {
+      const ctx: MeriContext = { ...valid, [field]: '' };
+      expect(() => assertMeriContext(ctx)).toThrow(ScopingError);
+    },
+  );
 });
 
 describe('DefaultScopingWrapper', () => {

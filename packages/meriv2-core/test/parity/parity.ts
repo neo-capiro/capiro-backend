@@ -63,15 +63,25 @@ async function main(): Promise<void> {
     reply: 'Grounded answer B (semantically equivalent).',
   });
 
-  const res = await runSurface('in-editor[self-check]', inEditorFixtures, offRunner, onRunner, IN_EDITOR_POLICY);
+  const res = await runSurface(
+    'in-editor[self-check]',
+    inEditorFixtures,
+    offRunner,
+    onRunner,
+    IN_EDITOR_POLICY,
+  );
   // eslint-disable-next-line no-console
-  console.log(`Self-check: ${res.total - res.failed}/${res.total} parity-identical (diff mechanics OK).`);
+  console.log(
+    `Self-check: ${res.total - res.failed}/${res.total} parity-identical (diff mechanics OK).`,
+  );
   // eslint-disable-next-line no-console
   console.log(
     `Corpus: in-editor=${inEditorFixtures.length}, workspace-gen=${workspaceGenFixtures.length} (>= 20 each).`,
   );
   // eslint-disable-next-line no-console
-  console.log('LIVE both-paths parity is GATED (MERIV2_PARITY_LIVE=1 + running stack). See REPORT.');
+  console.log(
+    'LIVE both-paths parity is GATED (MERIV2_PARITY_LIVE=1 + running stack). See REPORT.',
+  );
   if (res.failed > 0) process.exit(1);
 }
 

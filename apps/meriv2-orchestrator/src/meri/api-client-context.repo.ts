@@ -20,10 +20,9 @@ export class ApiClientContextRepo implements ClientContextRepo {
   private readonly apiBaseUrl: string;
 
   constructor(config: ConfigService) {
-    this.apiBaseUrl = (config.get<string>('MERIV2_API_BASE_URL') ?? 'http://localhost:3000').replace(
-      /\/+$/,
-      '',
-    );
+    this.apiBaseUrl = (
+      config.get<string>('MERIV2_API_BASE_URL') ?? 'http://localhost:3000'
+    ).replace(/\/+$/, '');
   }
 
   async loadClientContext(_ctx: MeriContext, clientId: string): Promise<ClientContextResult> {
@@ -38,7 +37,9 @@ export class ApiClientContextRepo implements ClientContextRepo {
     if (!res.ok) {
       const body = await res.text().catch(() => '');
       this.logger.warn(`Delegated client-context call ${res.status} for client ${clientId}`);
-      throw new Error(`Delegated client-context call failed: ${res.status} ${res.statusText} ${body.slice(0, 200)}`);
+      throw new Error(
+        `Delegated client-context call failed: ${res.status} ${res.statusText} ${body.slice(0, 200)}`,
+      );
     }
     return (await res.json()) as ClientContextResult;
   }

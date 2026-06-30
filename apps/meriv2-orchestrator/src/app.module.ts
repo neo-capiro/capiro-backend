@@ -10,6 +10,11 @@ import { MeriModule } from './meri/meri.module.js';
  * clone (Clerk JWT + tenant guard); MeriModule hosts the tool registry.
  */
 @Module({
-  imports: [ConfigModule.forRoot({ isGlobal: true, cache: true }), AuthModule, HealthModule, MeriModule],
+  imports: [
+    ConfigModule.forRoot({ isGlobal: true, cache: true }),
+    AuthModule,
+    HealthModule,
+    MeriModule,
+  ],
 })
 export class AppModule {}
