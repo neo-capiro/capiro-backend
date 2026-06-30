@@ -1,12 +1,23 @@
 import {
   runWithSyncRun,
   lastSuccessfulWatermark,
+  activeRunStartedAt,
   emptyCounts,
   type SyncRunCapablePrisma,
 } from './sync-run.helper.js';
 
-/** Minimal in-memory mock of the SyncRun prisma surface. */
-function makePrisma(opts: { lastSuccess?: Date | null } = {}) {
+type FindFirstArgs = {
+  where?: { status?: string; startedAt?: { gte?: Date } };
+};
+
+/**
+ * Minimal in-memory mock of the SyncRun prisma surface. Routes `findFirst` by
+ * `where.status` so the watermark query (status='success') and the
+ * concurrency-guard query (status='running') are answered independently — and
+ * honours the guard's `startedAt: { gte }` filter so a stale (zombie) running
+ * run correctly does NOT match.
+ */
+function makePrisma(opts: { lastSuccess?: Date | null; activeRun?: Date | null } = {}) {
   const calls: { create: any[]; update: any[]; findFirst: any[] } = {
     create: [],
     update: [],
@@ -17,6 +28,14 @@ function makePrisma(opts: { lastSuccess?: Date | null } = {}) {
     syncRun: {
       async findFirst(args: unknown) {
         calls.findFirst.push(args);
+        const where = (args as FindFirstArgs).where ?? {};
+        if (where.status === 'running') {
+          if (!opts.activeRun) return null;
+          const gte = where.startedAt?.gte;
+          if (gte && opts.activeRun < gte) return null; // zombie: older than TTL
+          return { startedAt: opts.activeRun };
+        }
+        // watermark query (status='success')
         return opts.lastSuccess ? { startedAt: opts.lastSuccess } : null;
       },
       async create(args: unknown) {
@@ -113,6 +132,60 @@ describe('runWithSyncRun (Phase 0 shared watermark)', () => {
     ).rejects.toThrow('upstream 503');
     expect(calls.update[0].data.status).toBe('error');
     expect(calls.update[0].data.errorMessage).toContain('upstream 503');
+  });
+});
+
+describe('runWithSyncRun concurrency guard (P0-T8)', () => {
+  test('skips (no-op, no new run) when a recent run is already running', async () => {
+    const { prisma, calls } = makePrisma({ activeRun: new Date() });
+    let ran = false;
+    const counts = await runWithSyncRun(prisma, 'sync-congress', async () => {
+      ran = true;
+      return { inserted: 9, updated: 9, skipped: 0, errors: 0 };
+    });
+    expect(ran).toBe(false);
+    expect(counts).toEqual(emptyCounts());
+    expect(calls.create).toHaveLength(0); // no new SyncRun row opened
+  });
+
+  test('proceeds when the only running run is a stale zombie (older than TTL)', async () => {
+    const zombie = new Date(Date.now() - 7 * 60 * 60 * 1000); // 7h > default 6h TTL
+    const { prisma, calls } = makePrisma({ activeRun: zombie });
+    let ran = false;
+    await runWithSyncRun(prisma, 'sync-congress', async () => {
+      ran = true;
+      return emptyCounts();
+    });
+    expect(ran).toBe(true);
+    expect(calls.create).toHaveLength(1);
+  });
+
+  test('skipIfRunning:false bypasses the guard and runs anyway', async () => {
+    const { prisma, calls } = makePrisma({ activeRun: new Date() });
+    let ran = false;
+    await runWithSyncRun(
+      prisma,
+      'sync-congress',
+      async () => {
+        ran = true;
+        return emptyCounts();
+      },
+      { skipIfRunning: false },
+    );
+    expect(ran).toBe(true);
+    expect(calls.create).toHaveLength(1);
+  });
+});
+
+describe('activeRunStartedAt', () => {
+  test('returns the running run startedAt when within TTL', async () => {
+    const at = new Date();
+    const { prisma } = makePrisma({ activeRun: at });
+    expect(await activeRunStartedAt(prisma, 'sync-x')).toEqual(at);
+  });
+  test('returns null when no running run', async () => {
+    const { prisma } = makePrisma({});
+    expect(await activeRunStartedAt(prisma, 'sync-x')).toBeNull();
   });
 });
 
