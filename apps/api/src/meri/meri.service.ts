@@ -1,9 +1,4 @@
-import {
-  BadRequestException,
-  Injectable,
-  Logger,
-  NotFoundException,
-} from '@nestjs/common';
+import { BadRequestException, Injectable, Logger, NotFoundException } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { Prisma } from '@prisma/client';
 import type { TenantContext } from '@capiro/shared';
@@ -249,7 +244,11 @@ export class MeriService {
     return this.ensureConversation(ctx, conversationId);
   }
 
-  async updateConversation(ctx: TenantContext, conversationId: string, input: UpdateConversationInput) {
+  async updateConversation(
+    ctx: TenantContext,
+    conversationId: string,
+    input: UpdateConversationInput,
+  ) {
     const conversation = await this.ensureConversation(ctx, conversationId);
     const data: Prisma.ClioConversationUpdateInput = {};
 
@@ -261,9 +260,7 @@ export class MeriService {
 
     if (input.clientId !== undefined) {
       if (input.clientId) await this.ensureClientVisible(ctx, input.clientId);
-      data.client = input.clientId
-        ? { connect: { id: input.clientId } }
-        : { disconnect: true };
+      data.client = input.clientId ? { connect: { id: input.clientId } } : { disconnect: true };
     }
 
     if (!Object.keys(data).length) {
@@ -613,7 +610,12 @@ export class MeriService {
       if (firmSkill) this.logger.debug(`Firm skill matched: ${firmSkill.id}`);
     }
 
-    const orchestration = await this.orchestrateContext(ctx, conversation.clientId, intent, content);
+    const orchestration = await this.orchestrateContext(
+      ctx,
+      conversation.clientId,
+      intent,
+      content,
+    );
     const effectiveTemplate = firmSkill?.template ?? orchestration.template;
     const promptCacheEnabled = this.config.get('CLIO_PROMPT_CACHE_ENABLED', { infer: true });
     const citationsEnabled = this.config.get('CLIO_CITATIONS_ENABLED', { infer: true });
@@ -626,7 +628,9 @@ export class MeriService {
       firmSkill,
     );
 
-    sse.write(`data: ${JSON.stringify({ type: 'start', intent, tier: orchestration.policy.tier })}\n\n`);
+    sse.write(
+      `data: ${JSON.stringify({ type: 'start', intent, tier: orchestration.policy.tier })}\n\n`,
+    );
     // Stream the plan up front (P2-1): a short "here's what I'll do" derived from
     // the orchestration's selected context sources, shown before tokens stream.
     sse.write(
@@ -642,13 +646,17 @@ export class MeriService {
       );
     }
     if (streamControl.traceEnabled) {
-      sse.write(`data: ${JSON.stringify({ type: 'trace', trace: orchestration.trace, policy: orchestration.policy })}\n\n`);
+      sse.write(
+        `data: ${JSON.stringify({ type: 'trace', trace: orchestration.trace, policy: orchestration.policy })}\n\n`,
+      );
     }
     if (orchestration.sources.length) {
       sse.write(`data: ${JSON.stringify({ type: 'sources', sources: orchestration.sources })}\n\n`);
     }
     if (orchestration.conflict) {
-      sse.write(`data: ${JSON.stringify({ type: 'conflict', conflict: orchestration.conflict })}\n\n`);
+      sse.write(
+        `data: ${JSON.stringify({ type: 'conflict', conflict: orchestration.conflict })}\n\n`,
+      );
     }
     if (effectiveTemplate) {
       sse.write(`data: ${JSON.stringify({ type: 'template', template: effectiveTemplate })}\n\n`);
@@ -703,12 +711,9 @@ export class MeriService {
       const anthropicKey = resolved.apiKey;
       usedTenantKey = resolved.usedTenantKey;
       // A tenant key with its own modelOverride drives the model; otherwise
-      // Meri stays on its quality default. (resolved.model === MERI default
-      // means no override was set, since the resolver fills ANTHROPIC_MODEL.)
-      model =
-        usedTenantKey && resolved.model !== this.aiCredentials.defaultModelFor('anthropic')
-          ? resolved.model
-          : meriModel;
+      // Meri stays on its quality default. modelOverridden tells us the tenant
+      // explicitly chose a model, so we honor it even if it equals a default.
+      model = usedTenantKey && resolved.modelOverridden ? resolved.model : meriModel;
       const maxTokens = this.config.get('CLIO_MAX_TOKENS', { infer: true });
       // Extended thinking on the deep tier (F3): fast-tier turns are untouched;
       // the kill-switch (CLIO_EXTENDED_THINKING=off) restores baseline behavior.
@@ -745,10 +750,12 @@ export class MeriService {
 
       // Anthropic message turns. content can be a string (history) or an array
       // of blocks (assistant tool_use / user tool_result) during the agentic loop.
-      const messages: Array<{ role: 'user' | 'assistant'; content: unknown }> = trimmedHistory.map((m) => ({
-        role: m.role,
-        content: m.body,
-      }));
+      const messages: Array<{ role: 'user' | 'assistant'; content: unknown }> = trimmedHistory.map(
+        (m) => ({
+          role: m.role,
+          content: m.body,
+        }),
+      );
 
       // Attach current-turn images as native Anthropic vision blocks (F1): the
       // Messages API reads them directly, no extraction step.
@@ -830,7 +837,9 @@ export class MeriService {
 
           if (!response.ok || !response.body) {
             const errText = await response.text().catch(() => '');
-            throw new Error(`Anthropic HTTP ${response.status}${errText ? `: ${errText.slice(0, 300)}` : ''}`);
+            throw new Error(
+              `Anthropic HTTP ${response.status}${errText ? `: ${errText.slice(0, 300)}` : ''}`,
+            );
           }
 
           const decoder = new TextDecoder();
@@ -872,13 +881,18 @@ export class MeriService {
                   if (delta.type === 'text_delta' && typeof delta.text === 'string') {
                     assistantContent += delta.text;
                     sse.write(`data: ${JSON.stringify({ type: 'text', text: delta.text })}\n\n`);
-                  } else if (delta.type === 'input_json_delta' && typeof delta.partial_json === 'string') {
+                  } else if (
+                    delta.type === 'input_json_delta' &&
+                    typeof delta.partial_json === 'string'
+                  ) {
                     toolUseById.get(evt.index)?.jsonParts.push(delta.partial_json);
                   }
                 } else if (evt.type === 'message_delta') {
                   stopReason = evt.delta?.stop_reason ?? stopReason;
                 }
-              } catch { /* incomplete chunk */ }
+              } catch {
+                /* incomplete chunk */
+              }
             }
           }
         } finally {
@@ -906,7 +920,9 @@ export class MeriService {
 
         // Reconstruct the assistant turn (text + tool_use blocks) and append it,
         // then execute each tool in-process and feed results back as a user turn.
-        const orderedTools = [...toolUseById.entries()].sort((a, b) => a[0] - b[0]).map(([, v]) => v);
+        const orderedTools = [...toolUseById.entries()]
+          .sort((a, b) => a[0] - b[0])
+          .map(([, v]) => v);
         // Assistant content blocks: thinking blocks first (the API requires
         // them replayed with signatures when tools are used — F3), then
         // tool_use blocks.
@@ -920,7 +936,11 @@ export class MeriService {
           let parsedInput: Record<string, unknown> = {};
           const raw = t.jsonParts.join('');
           if (raw.trim()) {
-            try { parsedInput = JSON.parse(raw); } catch { parsedInput = {}; }
+            try {
+              parsedInput = JSON.parse(raw);
+            } catch {
+              parsedInput = {};
+            }
           }
           assistantTurn.push({ type: 'tool_use', id: t.id, name: t.name, input: parsedInput });
         }
@@ -933,7 +953,11 @@ export class MeriService {
           let parsedInput: Record<string, unknown> = {};
           const raw = t.jsonParts.join('');
           if (raw.trim()) {
-            try { parsedInput = JSON.parse(raw); } catch { parsedInput = {}; }
+            try {
+              parsedInput = JSON.parse(raw);
+            } catch {
+              parsedInput = {};
+            }
           }
           // Default clientId from the conversation if the model omitted it.
           if (conversation.clientId && parsedInput.clientId === undefined) {
@@ -950,7 +974,9 @@ export class MeriService {
             parsedInput.conversationId = conversationId;
           }
           toolsUsed.push(t.name);
-          sse.write(`data: ${JSON.stringify({ type: 'tool_call', tool: t.name, label: humanToolLabel(t.name), input: redactToolInput(parsedInput) })}\n\n`);
+          sse.write(
+            `data: ${JSON.stringify({ type: 'tool_call', tool: t.name, label: humanToolLabel(t.name), input: redactToolInput(parsedInput) })}\n\n`,
+          );
           // Bridged MCP tools (F6a) are side-effecting (serialized) unless the
           // admin explicitly allowlisted them read-only.
           const concurrencySafe = parseBridgedToolName(t.name)
@@ -1020,7 +1046,10 @@ export class MeriService {
             // Capture any artifacts the tool persisted so the artifact panel sees them.
             for (const art of extractToolArtifacts(resultPayload)) producedArtifacts.push(art);
             // If a draft/email tool ran in page-write mode, capture body for the page-write event.
-            if (streamControl.pageWriteEnabled && (t.name === 'draft_policy_memo' || t.name === 'create_meeting_brief')) {
+            if (
+              streamControl.pageWriteEnabled &&
+              (t.name === 'draft_policy_memo' || t.name === 'create_meeting_brief')
+            ) {
               const art = producedArtifacts[producedArtifacts.length - 1];
               if (art?.bodyText) pageWritePayload = { subject: art.title, body: art.bodyText };
             }
@@ -1033,7 +1062,11 @@ export class MeriService {
           // tool_result content fed back to the model (P0-3).
           let toolContent = summarizeJsonForPrompt(resultPayload, 12_000);
           if (citationsEnabled && !isError) {
-            const cites = extractCitationsFromToolResult(t.name, resultPayload, citations.length + 1);
+            const cites = extractCitationsFromToolResult(
+              t.name,
+              resultPayload,
+              citations.length + 1,
+            );
             if (cites.length) {
               // Capture rich grounding for the SAME marker numbers before we push
               // the citations (startN must match the citation extractor's startN).
@@ -1046,18 +1079,24 @@ export class MeriService {
           // Emit a real source with a human detail (counts / sample titles) so
           // the trust panel can show actual citations, not just a tool name.
           const { count, detail } = summarizeToolResultForTrust(resultPayload);
-          sse.write(`data: ${JSON.stringify({
-            type: 'sources',
-            sources: [{
-              tool: t.name,
-              label: humanToolLabel(t.name),
-              count: count ?? undefined,
-              summary: isError
-                ? (typeof (resultPayload as { error?: unknown })?.error === 'string' ? (resultPayload as { error: string }).error : 'Tool error')
-                : (detail || 'Completed'),
-              confidence: isError ? 'low' : 'high',
-            }],
-          })}\n\n`);
+          sse.write(
+            `data: ${JSON.stringify({
+              type: 'sources',
+              sources: [
+                {
+                  tool: t.name,
+                  label: humanToolLabel(t.name),
+                  count: count ?? undefined,
+                  summary: isError
+                    ? typeof (resultPayload as { error?: unknown })?.error === 'string'
+                      ? (resultPayload as { error: string }).error
+                      : 'Tool error'
+                    : detail || 'Completed',
+                  confidence: isError ? 'low' : 'high',
+                },
+              ],
+            })}\n\n`,
+          );
           toolResultBlocks.push({
             type: 'tool_result',
             tool_use_id: t.id,
@@ -1126,7 +1165,9 @@ export class MeriService {
       finalCitations = used;
       assistantContent = cleanedText;
       if (dropped.length) {
-        this.logger.warn(`Meri dropped ${dropped.length} unmatched citation marker(s): [${dropped.join('], [')}]`);
+        this.logger.warn(
+          `Meri dropped ${dropped.length} unmatched citation marker(s): [${dropped.join('], [')}]`,
+        );
       }
       if (used.length) {
         sse.write(`data: ${JSON.stringify({ type: 'citations', citations: used })}\n\n`);
@@ -1166,7 +1207,9 @@ export class MeriService {
     // If page-write mode produced concrete content, emit the real event the
     // frontend listens for (previously only a static "enabled" note was sent).
     if (streamControl.pageWriteEnabled && pageWritePayload) {
-      sse.write(`data: ${JSON.stringify({ type: 'page_write', target: 'outreach_draft', subject: pageWritePayload.subject, body: pageWritePayload.body })}\n\n`);
+      sse.write(
+        `data: ${JSON.stringify({ type: 'page_write', target: 'outreach_draft', subject: pageWritePayload.subject, body: pageWritePayload.body })}\n\n`,
+      );
     }
 
     // Execution trace (P1-3): aggregate per-round timings/usage + tool outcomes
@@ -1196,8 +1239,12 @@ export class MeriService {
     }
 
     // Persist assistant response (+ any artifacts produced by tools).
-    const createdDeliverables: Array<{ id: string; title: string; kind: string; bodyText: string }> =
-      [];
+    const createdDeliverables: Array<{
+      id: string;
+      title: string;
+      kind: string;
+      bodyText: string;
+    }> = [];
     await this.prisma.withTenant(ctx.tenantId, async (tx) => {
       const message = await tx.clioMessage.create({
         data: {
@@ -1260,7 +1307,13 @@ export class MeriService {
 
     // Auto-summarize for memory (if substantial)
     if (assistantContent.length > 200) {
-      void this.maybeLearnFromConversation(ctx.tenantId, ctx.userId, conversationId, content, assistantContent).catch(() => {});
+      void this.maybeLearnFromConversation(
+        ctx.tenantId,
+        ctx.userId,
+        conversationId,
+        content,
+        assistantContent,
+      ).catch(() => {});
     }
 
     // After-turn maintenance (F2): index this turn's messages for history
@@ -1589,14 +1642,22 @@ export class MeriService {
       const voice = await this.loadUserVoiceContext(ctx, clientId);
       if (voice) {
         contextParts.push(voice);
-        trace.push({ tool: 'memory_files', action: 'selected', reason: 'Loaded user voice/profile (and client soul when client-linked).' });
+        trace.push({
+          tool: 'memory_files',
+          action: 'selected',
+          reason: 'Loaded user voice/profile (and client soul when client-linked).',
+        });
       }
     } catch {
       // best-effort; never block a turn on memory-file context
     }
 
     if (clientId) {
-      trace.push({ tool: 'client_profile', action: 'selected', reason: 'Client-linked conversation has priority context.' });
+      trace.push({
+        tool: 'client_profile',
+        action: 'selected',
+        reason: 'Client-linked conversation has priority context.',
+      });
       // Always-on KB snapshot (F5): profile digest, top people, facility
       // footprint by district, recent documents — built fresh each turn, with
       // a plain profile fallback when the KB is disabled or unavailable.
@@ -1636,7 +1697,8 @@ export class MeriService {
           if (client) {
             contextParts.push(`Client: ${client.name}`);
             if (client.description) contextParts.push(`Description: ${client.description}`);
-            if (client.productDescription) contextParts.push(`Product/service: ${client.productDescription}`);
+            if (client.productDescription)
+              contextParts.push(`Product/service: ${client.productDescription}`);
             sources.push({
               tool: 'client_profile',
               count: 1,
@@ -1645,11 +1707,19 @@ export class MeriService {
             });
           }
         } catch {
-          trace.push({ tool: 'client_profile', action: 'skipped', reason: 'Client profile fetch failed.' });
+          trace.push({
+            tool: 'client_profile',
+            action: 'skipped',
+            reason: 'Client profile fetch failed.',
+          });
         }
       }
     } else {
-      trace.push({ tool: 'client_profile', action: 'skipped', reason: 'Conversation is not attached to a client.' });
+      trace.push({
+        tool: 'client_profile',
+        action: 'skipped',
+        reason: 'Conversation is not attached to a client.',
+      });
     }
 
     try {
@@ -1663,17 +1733,36 @@ export class MeriService {
           summary: `Loaded ${memories.length} memory items`,
           confidence: memories.length >= 3 ? 'high' : 'medium',
         });
-        trace.push({ tool: 'clio_memory', action: 'selected', reason: `Loaded ${memories.length} relevant memories.` });
+        trace.push({
+          tool: 'clio_memory',
+          action: 'selected',
+          reason: `Loaded ${memories.length} relevant memories.`,
+        });
       } else {
-        trace.push({ tool: 'clio_memory', action: 'skipped', reason: 'No high-signal memories matched query.' });
+        trace.push({
+          tool: 'clio_memory',
+          action: 'skipped',
+          reason: 'No high-signal memories matched query.',
+        });
       }
     } catch {
       trace.push({ tool: 'clio_memory', action: 'skipped', reason: 'Memory retrieval failed.' });
     }
 
-    const shouldLoadResearch = ['query_clients', 'query_engagement', 'query_workflow', 'generate_draft', 'general_question', 'generate_briefing'].includes(intent);
+    const shouldLoadResearch = [
+      'query_clients',
+      'query_engagement',
+      'query_workflow',
+      'generate_draft',
+      'general_question',
+      'generate_briefing',
+    ].includes(intent);
     if (shouldLoadResearch) {
-      trace.push({ tool: 'search_research_sources', action: 'selected', reason: `Intent ${intent} benefits from workspace research context.` });
+      trace.push({
+        tool: 'search_research_sources',
+        action: 'selected',
+        reason: `Intent ${intent} benefits from workspace research context.`,
+      });
       try {
         const research = await this.tools.execute(ctx, 'search_research_sources' as never, {
           query,
@@ -1693,23 +1782,45 @@ export class MeriService {
             confidence: results.length >= 5 ? 'high' : 'medium',
           });
         } else {
-          trace.push({ tool: 'search_research_sources', action: 'skipped', reason: 'No research results returned.' });
+          trace.push({
+            tool: 'search_research_sources',
+            action: 'skipped',
+            reason: 'No research results returned.',
+          });
         }
       } catch {
-        trace.push({ tool: 'search_research_sources', action: 'skipped', reason: 'Research tool request failed.' });
+        trace.push({
+          tool: 'search_research_sources',
+          action: 'skipped',
+          reason: 'Research tool request failed.',
+        });
       }
     } else {
-      trace.push({ tool: 'search_research_sources', action: 'skipped', reason: `Intent ${intent} does not require research scan.` });
+      trace.push({
+        tool: 'search_research_sources',
+        action: 'skipped',
+        reason: `Intent ${intent} does not require research scan.`,
+      });
     }
 
-    const shouldLoadIntel = ['query_intelligence', 'generate_briefing', 'general_question'].includes(intent);
+    const shouldLoadIntel = [
+      'query_intelligence',
+      'generate_briefing',
+      'general_question',
+    ].includes(intent);
     if (shouldLoadIntel) {
-      trace.push({ tool: 'query_intelligence', action: 'selected', reason: `Intent ${intent} requests intelligence context.` });
+      trace.push({
+        tool: 'query_intelligence',
+        action: 'selected',
+        reason: `Intent ${intent} requests intelligence context.`,
+      });
       try {
         const clientName = clientId
-          ? await this.prisma.withTenant(ctx.tenantId, (tx) =>
-              tx.client.findFirst({ where: { id: clientId }, select: { name: true } }),
-            ).then((c) => c?.name ?? undefined)
+          ? await this.prisma
+              .withTenant(ctx.tenantId, (tx) =>
+                tx.client.findFirst({ where: { id: clientId }, select: { name: true } }),
+              )
+              .then((c) => c?.name ?? undefined)
           : undefined;
         const intelResult = await this.tools.execute(ctx, 'query_intelligence' as never, {
           clientName: clientName ?? undefined,
@@ -1724,18 +1835,38 @@ export class MeriService {
             confidence: 'high',
           });
         } else {
-          trace.push({ tool: 'query_intelligence', action: 'skipped', reason: 'No intelligence text payload returned.' });
+          trace.push({
+            tool: 'query_intelligence',
+            action: 'skipped',
+            reason: 'No intelligence text payload returned.',
+          });
         }
       } catch {
-        trace.push({ tool: 'query_intelligence', action: 'skipped', reason: 'Intelligence tool request failed.' });
+        trace.push({
+          tool: 'query_intelligence',
+          action: 'skipped',
+          reason: 'Intelligence tool request failed.',
+        });
       }
     } else {
-      trace.push({ tool: 'query_intelligence', action: 'skipped', reason: `Intent ${intent} does not need intelligence query.` });
+      trace.push({
+        tool: 'query_intelligence',
+        action: 'skipped',
+        reason: `Intent ${intent} does not need intelligence query.`,
+      });
     }
 
-    const shouldLoadPublicWeb = ['query_intelligence', 'generate_briefing', 'general_question'].includes(intent);
+    const shouldLoadPublicWeb = [
+      'query_intelligence',
+      'generate_briefing',
+      'general_question',
+    ].includes(intent);
     if (shouldLoadPublicWeb) {
-      trace.push({ tool: 'search_public_web', action: 'selected', reason: `Intent ${intent} may need current public-web corroboration.` });
+      trace.push({
+        tool: 'search_public_web',
+        action: 'selected',
+        reason: `Intent ${intent} may need current public-web corroboration.`,
+      });
       try {
         const webResult = await this.tools.execute(ctx, 'search_public_web' as never, {
           query,
@@ -1754,19 +1885,40 @@ export class MeriService {
             confidence: 'low',
           });
         } else {
-          trace.push({ tool: 'search_public_web', action: 'skipped', reason: 'No public web results returned.' });
+          trace.push({
+            tool: 'search_public_web',
+            action: 'skipped',
+            reason: 'No public web results returned.',
+          });
         }
       } catch {
-        trace.push({ tool: 'search_public_web', action: 'skipped', reason: 'Public web search failed.' });
+        trace.push({
+          tool: 'search_public_web',
+          action: 'skipped',
+          reason: 'Public web search failed.',
+        });
       }
     } else {
-      trace.push({ tool: 'search_public_web', action: 'skipped', reason: `Intent ${intent} does not require web supplementation.` });
+      trace.push({
+        tool: 'search_public_web',
+        action: 'skipped',
+        reason: `Intent ${intent} does not require web supplementation.`,
+      });
     }
 
-    if (clientId && ['query_clients', 'query_engagement', 'generate_briefing', 'generate_draft'].includes(intent)) {
-      trace.push({ tool: 'get_client_context', action: 'selected', reason: `Intent ${intent} needs detailed client context.` });
+    if (
+      clientId &&
+      ['query_clients', 'query_engagement', 'generate_briefing', 'generate_draft'].includes(intent)
+    ) {
+      trace.push({
+        tool: 'get_client_context',
+        action: 'selected',
+        reason: `Intent ${intent} needs detailed client context.`,
+      });
       try {
-        const clientCtx = await this.tools.execute(ctx, 'get_client_context' as never, { clientId });
+        const clientCtx = await this.tools.execute(ctx, 'get_client_context' as never, {
+          clientId,
+        });
         const rawCtx = (clientCtx as Record<string, unknown>)?.context;
         if (rawCtx) {
           contextParts.push('\nDetailed client context:');
@@ -1777,13 +1929,25 @@ export class MeriService {
             confidence: 'high',
           });
         } else {
-          trace.push({ tool: 'get_client_context', action: 'skipped', reason: 'Client context returned empty payload.' });
+          trace.push({
+            tool: 'get_client_context',
+            action: 'skipped',
+            reason: 'Client context returned empty payload.',
+          });
         }
       } catch {
-        trace.push({ tool: 'get_client_context', action: 'skipped', reason: 'Detailed client context fetch failed.' });
+        trace.push({
+          tool: 'get_client_context',
+          action: 'skipped',
+          reason: 'Detailed client context fetch failed.',
+        });
       }
     } else {
-      trace.push({ tool: 'get_client_context', action: 'skipped', reason: 'No client-linked deep context required.' });
+      trace.push({
+        tool: 'get_client_context',
+        action: 'skipped',
+        reason: 'No client-linked deep context required.',
+      });
     }
 
     const template = this.templateForIntent(intent);
@@ -1825,14 +1989,18 @@ export class MeriService {
         }),
       });
       if (res.ok) {
-        const json = await res.json() as Record<string, unknown>;
-        const text = Array.isArray(json.content) ? (json.content[0] as Record<string, unknown>)?.text : '';
+        const json = (await res.json()) as Record<string, unknown>;
+        const text = Array.isArray(json.content)
+          ? (json.content[0] as Record<string, unknown>)?.text
+          : '';
         if (typeof text === 'string') {
           const match = text.match(/"intent"\s*:\s*"([^"]+)"/);
           if (match?.[1]) return match[1];
         }
       }
-    } catch { /* fallback */ }
+    } catch {
+      /* fallback */
+    }
     return 'general_question';
   }
 
@@ -1961,7 +2129,7 @@ export class MeriService {
   ): { base: string; dynamic: string } {
     const base = [
       'You are Meri, an elite AI chief of staff designed exclusively for government affairs professionals.',
-      'Your purpose is to maximize a lobbyist\'s efficiency, preparation, and strategic leverage.',
+      "Your purpose is to maximize a lobbyist's efficiency, preparation, and strategic leverage.",
       '',
       meriCapabilityBlock(),
       '',
@@ -2000,13 +2168,18 @@ export class MeriService {
     ].join('\n');
 
     const intentGuidance: Record<string, string> = {
-      query_intelligence: 'The user is asking about federal lobbying intelligence. You have real data from the Capiro database, bills, LDA filings, spending, and trends. Synthesize this data with clear takeaways. List specific bill numbers, sponsors, and policy areas.',
+      query_intelligence:
+        'The user is asking about federal lobbying intelligence. You have real data from the Capiro database, bills, LDA filings, spending, and trends. Synthesize this data with clear takeaways. List specific bill numbers, sponsors, and policy areas.',
       query_clients: 'The user is asking about their clients. Use available client data.',
-      query_engagement: 'The user is asking about meetings or outreach. Reference engagement records.',
+      query_engagement:
+        'The user is asking about meetings or outreach. Reference engagement records.',
       query_workflow: 'The user is asking about workflows or submissions. Check workflow data.',
-      generate_draft: 'Generate a professional government affairs email with proper tone and structure.',
-      generate_briefing: 'Create an actionable briefing with key points, risks, and recommendations. Use intelligence data when relevant.',
-      general_question: 'Answer helpfully about lobbying, government affairs, or the Capiro platform.',
+      generate_draft:
+        'Generate a professional government affairs email with proper tone and structure.',
+      generate_briefing:
+        'Create an actionable briefing with key points, risks, and recommendations. Use intelligence data when relevant.',
+      general_question:
+        'Answer helpfully about lobbying, government affairs, or the Capiro platform.',
     };
 
     // Skill registry (P0-5) is the source of truth for migrated intents; fall
@@ -2068,7 +2241,9 @@ export class MeriService {
   }
 
   private policyForIntent(intent: string, query: string): OrchestratorPolicy {
-    const deepIntent = ['generate_briefing', 'query_intelligence', 'generate_draft'].includes(intent);
+    const deepIntent = ['generate_briefing', 'query_intelligence', 'generate_draft'].includes(
+      intent,
+    );
     const longQuery = query.length > 220;
     const tier: RetrievalTier = deepIntent || longQuery ? 'deep' : 'fast';
     if (tier === 'deep') {
@@ -2151,7 +2326,13 @@ export class MeriService {
     if (intent === 'generate_briefing') {
       return {
         heading: 'Government Affairs Briefing',
-        sections: ['Executive Summary', 'Signal Scan', 'Opportunities', 'Risks', 'Recommended Actions'],
+        sections: [
+          'Executive Summary',
+          'Signal Scan',
+          'Opportunities',
+          'Risks',
+          'Recommended Actions',
+        ],
       };
     }
     if (intent === 'generate_draft') {
@@ -2182,7 +2363,10 @@ export class MeriService {
     return true;
   }
 
-  private normalizeMemoryCandidate(key: string, value: string): { key: string; value: string } | null {
+  private normalizeMemoryCandidate(
+    key: string,
+    value: string,
+  ): { key: string; value: string } | null {
     const normalizedKey = key.trim().toLowerCase().replace(/\s+/g, '_').slice(0, 200);
     const normalizedValue = value.trim().replace(/\s+/g, ' ').slice(0, 4000);
     if (!normalizedKey || !normalizedValue) return null;
@@ -2232,8 +2416,10 @@ export class MeriService {
     ctx: TenantContext,
     clientId: string | null,
   ): Promise<string | null> {
-    const rows = await this.prisma.withTenant(ctx.tenantId, (tx) =>
-      tx.$queryRaw<Array<{ type: string; title: string; sections: unknown }>>`
+    const rows = await this.prisma.withTenant(
+      ctx.tenantId,
+      (tx) =>
+        tx.$queryRaw<Array<{ type: string; title: string; sections: unknown }>>`
         SELECT type, title, sections_jsonb AS sections
         FROM memory_items
         WHERE type IN ('user-voice', 'user-profile')
@@ -2242,8 +2428,10 @@ export class MeriService {
     );
     // Client soul/compass (tenant-visible) when this is a client conversation.
     const clientRows = clientId
-      ? await this.prisma.withTenant(ctx.tenantId, (tx) =>
-          tx.$queryRaw<Array<{ type: string; title: string; sections: unknown }>>`
+      ? await this.prisma.withTenant(
+          ctx.tenantId,
+          (tx) =>
+            tx.$queryRaw<Array<{ type: string; title: string; sections: unknown }>>`
             SELECT type, title, sections_jsonb AS sections
             FROM memory_items
             WHERE type IN ('client-soul', 'client-compass')
@@ -2267,9 +2455,10 @@ export class MeriService {
     };
 
     for (const r of rows) {
-      const label = r.type === 'user-voice'
-        ? "The user's writing style — draft in THIS voice; mirror the sample writings closely without inventing content"
-        : "About the user (their role and focus)";
+      const label =
+        r.type === 'user-voice'
+          ? "The user's writing style — draft in THIS voice; mirror the sample writings closely without inventing content"
+          : 'About the user (their role and focus)';
       const block = render(label, r.sections);
       if (block) blocks.push(block);
     }
@@ -2300,10 +2489,7 @@ export class MeriService {
         tx.clioMemory.findMany({
           where: {
             tenantId,
-            OR: [
-              { scope: 'firm' },
-              { scope: 'user_private', ownerUserId: userId },
-            ],
+            OR: [{ scope: 'firm' }, { scope: 'user_private', ownerUserId: userId }],
           },
           orderBy: { updatedAt: 'desc' },
           take: 20,
@@ -2343,18 +2529,24 @@ export class MeriService {
           max_tokens: 600,
           system:
             'Extract 0-3 durable facts from this conversation exchange. For each, return a confidence in [0,1] (how certain this is a stable, reusable fact and not a one-off), and a scope: "firm" only for institutional facts that are TRUE FOR THE WHOLE FIRM and clearly stated by the user (clients, processes, standing relationships); "user" for the speaker\'s personal writing/tone/format preferences or anything client-specific or uncertain. When in doubt use "user". Ignore temporary statuses, one-off tasks, runtime errors, specific timestamps, speculation, and operational chatter. Return JSON: {"memories":[{"key":"short_label","value":"fact","confidence":0.0,"scope":"user|firm"}]}. Return {"memories":[]} if nothing is durable.',
-          messages: [{ role: 'user', content: `User: ${userMessage}\n\nAssistant: ${assistantResponse}` }],
+          messages: [
+            { role: 'user', content: `User: ${userMessage}\n\nAssistant: ${assistantResponse}` },
+          ],
         }),
       });
 
       if (!res.ok) return;
       const json = (await res.json()) as Record<string, unknown>;
-      const text = Array.isArray(json.content) ? (json.content[0] as Record<string, unknown>)?.text : '';
+      const text = Array.isArray(json.content)
+        ? (json.content[0] as Record<string, unknown>)?.text
+        : '';
       if (typeof text !== 'string') return;
 
       const match = text.match(/\{[\s\S]*\}/);
       if (!match) return;
-      const parsed = JSON.parse(match[0]) as { memories?: Array<{ key?: unknown; value?: unknown; confidence?: unknown; scope?: unknown }> };
+      const parsed = JSON.parse(match[0]) as {
+        memories?: Array<{ key?: unknown; value?: unknown; confidence?: unknown; scope?: unknown }>;
+      };
       if (!Array.isArray(parsed.memories)) return;
 
       // Confidence threshold below which we never persist a learned fact.
@@ -2378,10 +2570,14 @@ export class MeriService {
         // a single chat's guess from silently becoming firm-wide truth.
         const extractorScope = mem.scope === 'firm' ? 'firm' : 'user';
         const styleType = this.classifyMemoryType(normalized.key, normalized.value); // 'firm' | 'user_private'
-        const promoteToFirm = extractorScope === 'firm' && confidence >= 0.85 && styleType === 'firm';
+        const promoteToFirm =
+          extractorScope === 'firm' && confidence >= 0.85 && styleType === 'firm';
         const scope: 'firm' | 'user_private' = promoteToFirm ? 'firm' : 'user_private';
         const ownerUserId = scope === 'user_private' ? userId : null;
-        const storedKey = scope === 'user_private' ? this.userScopedMemoryKey(userId, normalized.key) : normalized.key;
+        const storedKey =
+          scope === 'user_private'
+            ? this.userScopedMemoryKey(userId, normalized.key)
+            : normalized.key;
         const source = scope === 'user_private' ? 'user_style' : 'firm';
         const memoryMetadata = {
           conversationId,
@@ -2398,7 +2594,9 @@ export class MeriService {
           const similar = await this.semanticMemorySearch(tenantId, userId, normalized.value, 3);
           const hit = similar.find((s) => s.score >= DEDUPE_SIMILARITY);
           if (hit) dedupeTargetKey = hit.key;
-        } catch { /* dedupe is best-effort */ }
+        } catch {
+          /* dedupe is best-effort */
+        }
 
         const existing = await this.prisma.withTenant(tenantId, (tx) =>
           tx.clioMemory.findFirst({
@@ -2707,7 +2905,6 @@ export class MeriService {
     };
   }
 
-
   // ── Proactive Alert Generation ────────────────────────────────────────
   // INTENTIONALLY NOT called on the chat hot path (it previously ran a full
   // tenant-wide scan after every message). The scheduled job
@@ -2728,7 +2925,13 @@ export class MeriService {
             startsAt: { gte: new Date(), lte: tomorrow },
             preps: { none: {} },
           },
-          select: { id: true, subject: true, startsAt: true, clientId: true, client: { select: { name: true } } },
+          select: {
+            id: true,
+            subject: true,
+            startsAt: true,
+            clientId: true,
+            client: { select: { name: true } },
+          },
           take: 5,
         }),
       );
@@ -2736,7 +2939,12 @@ export class MeriService {
       for (const meeting of upcomingMeetings) {
         const exists = await this.prisma.withSystem((tx) =>
           tx.clioProactiveAlert.findFirst({
-            where: { tenantId, sourceType: 'meeting_prep', sourceId: meeting.id, status: 'pending' },
+            where: {
+              tenantId,
+              sourceType: 'meeting_prep',
+              sourceId: meeting.id,
+              status: 'pending',
+            },
           }),
         );
         if (!exists) {
@@ -2819,14 +3027,16 @@ export class MeriService {
         body: JSON.stringify({ model: 'text-embedding-3-small', input: `${key}: ${value}` }),
       });
       if (!res.ok) return;
-      const json = await res.json() as { data?: Array<{ embedding?: number[] }> };
+      const json = (await res.json()) as { data?: Array<{ embedding?: number[] }> };
       const embedding = json.data?.[0]?.embedding;
       if (!embedding || embedding.length !== 1536) return;
 
       const vecStr = `[${embedding.join(',')}]`;
       await this.prisma.$executeRawUnsafe(
         `UPDATE clio_memory SET embedding = $1::vector WHERE tenant_id = $2::uuid AND key = $3`,
-        vecStr, tenantId, key,
+        vecStr,
+        tenantId,
+        key,
       );
     } catch (err) {
       this.logger.debug(`Embedding failed for memory ${key}: ${(err as Error).message}`);
@@ -2854,7 +3064,9 @@ export class MeriService {
       if (!embedding || embedding.length !== 1536) return [];
 
       const vecStr = `[${embedding.join(',')}]`;
-      const results = await this.prisma.$queryRawUnsafe<Array<{ key: string; value: string; score: number }>>(
+      const results = await this.prisma.$queryRawUnsafe<
+        Array<{ key: string; value: string; score: number }>
+      >(
         `SELECT key, value, 1 - (embedding <=> $1::vector) as score
          FROM clio_memory
          WHERE tenant_id = $2::uuid
@@ -2889,10 +3101,7 @@ export class MeriService {
       tx.clioMemory.findMany({
         where: {
           tenantId: ctx.tenantId,
-          OR: [
-            { scope: 'firm' },
-            { scope: 'user_private', ownerUserId: ctx.userId },
-          ],
+          OR: [{ scope: 'firm' }, { scope: 'user_private', ownerUserId: ctx.userId }],
         },
         orderBy: { updatedAt: 'desc' },
         take: Math.min(Math.max(limit, 1), 20),
@@ -3126,10 +3335,12 @@ function summarizeToolResultForTrust(payload: unknown): { count: number | null; 
   const rec = payload as Record<string, unknown>;
   if (typeof rec.error === 'string') return { count: null, detail: rec.error };
 
-  const rows = Array.isArray(rec.data) ? (rec.data as unknown[])
-    : Array.isArray(rec.results) ? (rec.results as unknown[])
-    : null;
-  const total = typeof rec.total === 'number' ? rec.total : (rows ? rows.length : null);
+  const rows = Array.isArray(rec.data)
+    ? (rec.data as unknown[])
+    : Array.isArray(rec.results)
+      ? (rec.results as unknown[])
+      : null;
+  const total = typeof rec.total === 'number' ? rec.total : rows ? rows.length : null;
 
   if (rows && rows.length) {
     const sample = rows
@@ -3137,13 +3348,22 @@ function summarizeToolResultForTrust(payload: unknown): { count: number | null; 
       .map((r) => {
         if (r && typeof r === 'object') {
           const o = r as Record<string, unknown>;
-          const label = o.title ?? o.name ?? o.subject ?? o.companyName ?? o.registrantName ?? o.identifier ?? o.billNumber;
-          if (typeof label === 'string') return label.length > 60 ? `${label.slice(0, 57)}…` : label;
+          const label =
+            o.title ??
+            o.name ??
+            o.subject ??
+            o.companyName ??
+            o.registrantName ??
+            o.identifier ??
+            o.billNumber;
+          if (typeof label === 'string')
+            return label.length > 60 ? `${label.slice(0, 57)}…` : label;
         }
         return null;
       })
       .filter((x): x is string => Boolean(x));
-    const head = total != null ? `${total} result${total === 1 ? '' : 's'}` : `${rows.length} result(s)`;
+    const head =
+      total != null ? `${total} result${total === 1 ? '' : 's'}` : `${rows.length} result(s)`;
     return { count: total, detail: sample.length ? `${head}: ${sample.join('; ')}` : head };
   }
 
@@ -3153,7 +3373,10 @@ function summarizeToolResultForTrust(payload: unknown): { count: number | null; 
   }
   if (rec.artifact && typeof rec.artifact === 'object') {
     const a = rec.artifact as Record<string, unknown>;
-    return { count: null, detail: typeof a.title === 'string' ? `Created: ${a.title}` : 'Created artifact' };
+    return {
+      count: null,
+      detail: typeof a.title === 'string' ? `Created: ${a.title}` : 'Created artifact',
+    };
   }
   return { count: total, detail: total != null ? `${total} result(s)` : 'Completed' };
 }
@@ -3182,13 +3405,18 @@ function extractToolArtifacts(value: unknown): Array<{
     const a = candidate as Record<string, unknown>;
     if (a.persisted === false) continue;
     const bodyText =
-      typeof a.bodyText === 'string' ? a.bodyText :
-      typeof a.body === 'string' ? a.body :
-      typeof a.content === 'string' ? a.content : null;
+      typeof a.bodyText === 'string'
+        ? a.bodyText
+        : typeof a.body === 'string'
+          ? a.body
+          : typeof a.content === 'string'
+            ? a.content
+            : null;
     const s3Key = typeof a.s3Key === 'string' ? a.s3Key : null;
-    const metadata = a.metadata && typeof a.metadata === 'object' && !Array.isArray(a.metadata)
-      ? (a.metadata as Prisma.InputJsonObject)
-      : {};
+    const metadata =
+      a.metadata && typeof a.metadata === 'object' && !Array.isArray(a.metadata)
+        ? (a.metadata as Prisma.InputJsonObject)
+        : {};
     // Image artifacts (F4 analysis charts) carry their PNG in metadata
     // instead of bodyText/s3Key.
     const hasImage = typeof (metadata as Record<string, unknown>).imageBase64 === 'string';

@@ -59,6 +59,26 @@ const PROVIDER_OPTIONS = [
   { value: 'anthropic', label: 'Anthropic' },
 ];
 
+// Model choices offered per provider. Leaving the field blank uses the platform
+// default for that provider. (Keep IDs in sync with what the providers accept;
+// an unsupported model is rejected by the save-time validation call.)
+const MODELS_BY_PROVIDER: Record<'openai' | 'anthropic', { value: string; label: string }[]> = {
+  openai: [
+    { value: 'gpt-4.1', label: 'GPT-4.1' },
+    { value: 'gpt-4.1-mini', label: 'GPT-4.1 mini (default)' },
+    { value: 'gpt-4.1-nano', label: 'GPT-4.1 nano' },
+    { value: 'gpt-4o', label: 'GPT-4o' },
+    { value: 'gpt-4o-mini', label: 'GPT-4o mini' },
+    { value: 'o3', label: 'o3' },
+    { value: 'o4-mini', label: 'o4-mini' },
+  ],
+  anthropic: [
+    { value: 'claude-opus-4-8', label: 'Claude Opus 4.8' },
+    { value: 'claude-sonnet-4-6', label: 'Claude Sonnet 4.6' },
+    { value: 'claude-haiku-4-5-20251001', label: 'Claude Haiku 4.5' },
+  ],
+};
+
 export function AiKeysAdminPanel() {
   const api = useApi();
   const [rangeDays, setRangeDays] = useState<number>(30);
@@ -198,6 +218,8 @@ function TenantDrawer({ tenantId, from }: { tenantId: string; from: string }) {
   const qc = useQueryClient();
   const { message } = App.useApp();
   const [form] = Form.useForm<SaveKeyFormValues>();
+  // Drive the model dropdown's options off the chosen provider.
+  const selectedProvider = (Form.useWatch('provider', form) ?? 'openai') as 'openai' | 'anthropic';
 
   const usage = useQuery<TenantUsageSummary>({
     queryKey: ['capiro-admin', 'tenant-ai-usage', tenantId, from],
@@ -275,7 +297,13 @@ function TenantDrawer({ tenantId, from }: { tenantId: string; from: string }) {
           style={{ marginTop: 8, rowGap: 8 }}
         >
           <Form.Item name="provider" rules={[{ required: true }]}>
-            <Select options={PROVIDER_OPTIONS} style={{ width: 130 }} />
+            <Select
+              options={PROVIDER_OPTIONS}
+              style={{ width: 130 }}
+              // The model list is provider-specific, so clear any picked model
+              // when the provider changes.
+              onChange={() => form.setFieldValue('modelOverride', undefined)}
+            />
           </Form.Item>
           <Form.Item
             name="apiKey"
@@ -287,8 +315,16 @@ function TenantDrawer({ tenantId, from }: { tenantId: string; from: string }) {
               style={{ width: 260 }}
             />
           </Form.Item>
-          <Form.Item name="modelOverride">
-            <Input placeholder="Model override (optional)" style={{ width: 200 }} />
+          <Form.Item
+            name="modelOverride"
+            tooltip="Which model this key should use. Leave as Default to use the platform default for this provider."
+          >
+            <Select
+              allowClear
+              placeholder="Default model"
+              style={{ width: 200 }}
+              options={MODELS_BY_PROVIDER[selectedProvider]}
+            />
           </Form.Item>
           <Form.Item>
             <Button type="primary" htmlType="submit" loading={saveKey.isPending}>

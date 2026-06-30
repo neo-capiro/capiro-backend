@@ -26,6 +26,9 @@ export interface ResolvedAiCredential {
   apiKey: string;
   model: string;
   usedTenantKey: boolean;
+  /** True when the tenant explicitly chose a model (modelOverride was set), so
+   *  callers can honor it even when it equals the provider default. */
+  modelOverridden: boolean;
 }
 
 const VALIDATE_TIMEOUT_MS = 20_000;
@@ -163,6 +166,7 @@ export class AiCredentialResolverService implements OnModuleInit {
             apiKey,
             model: row.modelOverride ?? this.defaultModelFor(provider),
             usedTenantKey: true,
+            modelOverridden: row.modelOverride != null,
           };
         }
       } catch (err) {
@@ -181,6 +185,7 @@ export class AiCredentialResolverService implements OnModuleInit {
         apiKey: globalKey,
         model: this.defaultModelFor(provider),
         usedTenantKey: false,
+        modelOverridden: false,
       };
     }
     return null;

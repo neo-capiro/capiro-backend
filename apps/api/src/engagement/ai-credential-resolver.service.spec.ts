@@ -91,6 +91,7 @@ describe('AiCredentialResolverService.resolveOrder', () => {
       apiKey: 'sk-tenant-own-key',
       model: 'gpt-4.1',
       usedTenantKey: true,
+      modelOverridden: true,
     });
   });
 
@@ -98,7 +99,13 @@ describe('AiCredentialResolverService.resolveOrder', () => {
     const { svc } = makeService({ openaiKey: 'sk-global', encryptionKey: AES_KEY_B64 });
     const order = await svc.resolveOrder(ctx);
     expect(order).toEqual([
-      { provider: 'openai', apiKey: 'sk-global', model: 'gpt-4.1-mini', usedTenantKey: false },
+      {
+        provider: 'openai',
+        apiKey: 'sk-global',
+        model: 'gpt-4.1-mini',
+        usedTenantKey: false,
+        modelOverridden: false,
+      },
     ]);
   });
 
@@ -195,6 +202,7 @@ describe('AiCredentialResolverService.resolveProvider (Meri single-provider path
       apiKey: 'sk-tenant-a',
       model: 'claude-opus-4-1',
       usedTenantKey: true,
+      modelOverridden: true,
     });
   });
 
