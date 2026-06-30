@@ -591,6 +591,134 @@ export class TrackerChangeDetectorService {
     return { tenants, totals };
   }
 
+  /**
+   * READ-ONLY per-bill alert diagnosis: is this bill in the congress DB, who
+   * tracks it (and is it baselined), does it have a pending material move right
+   * now, and how many configured recipients would get an EMAIL for a
+   * floor-vote-class event (the class a Rules-report / floor passage produces).
+   * Answers "will <bill> alert, and to whom?". Sends nothing.
+   */
+  async billStatus(billId: string): Promise<{
+    billId: string;
+    inCongressDb: boolean;
+    latestActionText: string | null;
+    latestActionDate: string | null;
+    pendingTypes: string[];
+    trackedBy: {
+      tenantId: string;
+      clientId: string;
+      baselined: boolean;
+      lastSeenActionDate: string | null;
+      currentlyPending: boolean;
+      emailReadyRecipients: number;
+    }[];
+  }> {
+    const scanHistory = this.config.get('TRACKER_SCAN_ACTION_HISTORY', { infer: true });
+
+    const bill = await this.prisma.congressBill.findUnique({
+      where: { id: billId },
+      select: { id: true, latestActionText: true, latestActionDate: true },
+    });
+
+    const tracked = await this.prisma.withSystem((tx) =>
+      tx.trackedBill.findMany({
+        where: { billId },
+        select: {
+          tenantId: true,
+          clientId: true,
+          lastSeenAt: true,
+          lastSeenActionDate: true,
+        },
+      }),
+    );
+
+    const clientIds = Array.from(new Set(tracked.map((t) => t.clientId)));
+    const prefs = clientIds.length
+      ? await this.prisma.withSystem((tx) =>
+          tx.alertPreference.findMany({
+            where: { clientId: { in: clientIds } },
+            select: {
+              tenantId: true,
+              clientId: true,
+              emailEnabled: true,
+              emailAddress: true,
+              triggers: true,
+              materiality: true,
+            },
+          }),
+        )
+      : [];
+
+    let actions: ActionLike[] = [];
+    if (scanHistory && bill) {
+      const rows = await this.prisma.congressBillAction.findMany({
+        where: { billId },
+        select: { date: true, text: true },
+        orderBy: { date: 'asc' },
+      });
+      actions = rows.map((a) => ({ date: a.date, text: a.text }));
+    }
+
+    const pendingTypes = new Set<string>();
+    // A floor-vote-class event (notable) is what a Rules-report / passage emits;
+    // probe each pref against that so the answer holds even before the move lands.
+    const emailReadyForFloorVote = (p: (typeof prefs)[number]): boolean =>
+      p.emailEnabled &&
+      !!p.emailAddress &&
+      p.triggers.includes('floorVote') &&
+      clearsMateriality('notable', p.materiality);
+
+    const trackedBy = tracked.map((row) => {
+      let events: MaterialEvent[] = [];
+      if (bill && row.lastSeenAt) {
+        if (scanHistory) {
+          const newActions = actions.filter(
+            (a) =>
+              a.date != null &&
+              (row.lastSeenActionDate == null ||
+                a.date.getTime() > row.lastSeenActionDate.getTime()),
+          );
+          const latest: ActionLike | null =
+            bill.latestActionText != null || bill.latestActionDate != null
+              ? { date: bill.latestActionDate, text: bill.latestActionText }
+              : null;
+          events = selectMaterialEvents(newActions, latest);
+        } else {
+          const cls = classifyChange(bill.latestActionText);
+          events = cls
+            ? [{ cls, text: bill.latestActionText ?? '', date: bill.latestActionDate }]
+            : [];
+        }
+      }
+      events.forEach((ev) => pendingTypes.add(ev.cls.changeType));
+
+      const clientPrefs = prefs.filter(
+        (p) => p.tenantId === row.tenantId && p.clientId === row.clientId,
+      );
+      return {
+        tenantId: row.tenantId,
+        clientId: row.clientId,
+        baselined: row.lastSeenAt != null,
+        lastSeenActionDate: row.lastSeenActionDate
+          ? row.lastSeenActionDate.toISOString().slice(0, 10)
+          : null,
+        currentlyPending: events.length > 0,
+        emailReadyRecipients: clientPrefs.filter(emailReadyForFloorVote).length,
+      };
+    });
+
+    return {
+      billId,
+      inCongressDb: bill != null,
+      latestActionText: bill?.latestActionText ?? null,
+      latestActionDate: bill?.latestActionDate
+        ? bill.latestActionDate.toISOString().slice(0, 10)
+        : null,
+      pendingTypes: Array.from(pendingTypes),
+      trackedBy,
+    };
+  }
+
   /** Resolve + cache a client's watchlist (for enrichment). Never throws. */
   private async watchlistFor(
     tenantId: string,
