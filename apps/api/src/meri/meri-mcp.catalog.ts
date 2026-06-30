@@ -57,6 +57,15 @@ export interface McpCatalogEntry {
   command?: string;
   args?: string[];
   authType: McpAuthType;
+  /**
+   * For authType 'oauth': how the OAuth client is obtained.
+   *  - 'dynamic' (default): RFC 7591 dynamic client registration — one-click.
+   *  - 'manual': the provider needs a PRE-REGISTERED app (no dynamic
+   *    registration), so the admin supplies a client_id + client_secret from an
+   *    app they create in the provider's console (e.g. HubSpot, Google, MS,
+   *    Salesforce).
+   */
+  oauthClientMode?: 'dynamic' | 'manual';
   /** Curated + reviewed by Capiro (shows the "Verified" badge). */
   verified: boolean;
   /** Whether this acts on behalf of a person (user) or the firm (tenant). */
@@ -94,8 +103,9 @@ export const MCP_CATALOG: readonly McpCatalogEntry[] = [
     verified: true,
     defaultScope: 'user',
     requiresEndpointInput: true,
+    oauthClientMode: 'manual',
     setupNote:
-      'Requires platform setup: Google needs a pre-registered OAuth client (no automatic registration), so paste your configured Drive MCP URL (e.g. https://drivemcp.googleapis.com/mcp/v1) once your admin has set it up.',
+      'Google needs a pre-registered OAuth client. Create one in Google Cloud, add the redirect URL below, then paste your Drive MCP URL (e.g. https://drivemcp.googleapis.com/mcp/v1) plus the Client ID + Client Secret.',
     oauthScopes: ['https://www.googleapis.com/auth/drive.readonly'],
     suggestedTools: [
       { name: 'search_files', description: 'Search Drive by name or content', readOnly: true },
@@ -117,8 +127,9 @@ export const MCP_CATALOG: readonly McpCatalogEntry[] = [
     verified: true,
     defaultScope: 'user',
     requiresEndpointInput: true,
+    oauthClientMode: 'manual',
     setupNote:
-      'Requires platform setup: Microsoft needs a pre-registered OAuth client, so paste your configured SharePoint/OneDrive MCP URL once your admin has set it up.',
+      'Microsoft needs a pre-registered OAuth client (Entra app). Register one with the redirect URL below, then paste your SharePoint/OneDrive MCP URL plus the Client ID + Client Secret.',
     suggestedTools: [
       { name: 'search', description: 'Search SharePoint / OneDrive content', readOnly: true },
       { name: 'get_file', description: 'Read a file’s contents', readOnly: true },
@@ -261,9 +272,12 @@ export const MCP_CATALOG: readonly McpCatalogEntry[] = [
     transport: 'http',
     endpoint: 'https://mcp.hubspot.com',
     authType: 'oauth',
+    oauthClientMode: 'manual',
     verified: true,
     defaultScope: 'tenant',
     docsUrl: 'https://developers.hubspot.com',
+    setupNote:
+      'HubSpot needs a pre-registered app. In HubSpot create an app, add the redirect URL shown below and your CRM scopes, then paste its Client ID + Client Secret here.',
     suggestedTools: [
       { name: 'search_contacts', description: 'Find contacts and companies', readOnly: true },
       { name: 'get_deal', description: 'Deal detail and stage', readOnly: true },
@@ -283,8 +297,9 @@ export const MCP_CATALOG: readonly McpCatalogEntry[] = [
     verified: false,
     defaultScope: 'tenant',
     requiresEndpointInput: true,
+    oauthClientMode: 'manual',
     setupNote:
-      'Salesforce-hosted but org-specific: pick a server (e.g. https://api.salesforce.com/platform/mcp/v1/sobject-all) with a pre-registered External Client App, then paste that URL.',
+      'Salesforce is org-specific: create an External Client App with the redirect URL below, then paste your server URL (e.g. https://api.salesforce.com/platform/mcp/v1/sobject-all) plus the Client ID (consumer key) + Client Secret.',
     suggestedTools: [
       { name: 'soql_query', description: 'Run a read-only SOQL query', readOnly: true },
       { name: 'get_record', description: 'Retrieve a record by id', readOnly: true },

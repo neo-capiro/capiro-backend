@@ -68,6 +68,7 @@ interface CatalogEntry {
   transport: 'http' | 'stdio';
   endpoint: string | null;
   authType: AuthType;
+  oauthClientMode?: 'dynamic' | 'manual';
   verified: boolean;
   defaultScope: Scope;
   suggestedTools: CatalogTool[];
@@ -79,6 +80,7 @@ interface CatalogEntry {
 }
 interface CatalogResponse {
   oauthConfigured: boolean;
+  oauthRedirectUri: string | null;
   connectors: CatalogEntry[];
 }
 interface ServerRow {
@@ -238,6 +240,8 @@ interface ConnectState {
   scope: Scope;
   endpoint: string;
   token: string;
+  clientId: string;
+  clientSecret: string;
 }
 
 export function McpServersCard() {
@@ -253,7 +257,13 @@ export function McpServersCard() {
   const [category, setCategory] = useState<'all' | CatalogCategory>('all');
   const [drawerEntry, setDrawerEntry] = useState<CatalogEntry | null>(null);
   const [drawerServerId, setDrawerServerId] = useState<string | null>(null);
-  const [connect, setConnect] = useState<ConnectState>({ scope: 'user', endpoint: '', token: '' });
+  const [connect, setConnect] = useState<ConnectState>({
+    scope: 'user',
+    endpoint: '',
+    token: '',
+    clientId: '',
+    clientSecret: '',
+  });
   const [customOpen, setCustomOpen] = useState(false);
   const [customForm] = Form.useForm();
 
@@ -331,6 +341,12 @@ export function McpServersCard() {
               ? { endpoint: vars.state.endpoint.trim() }
               : {}),
             ...(vars.entry.authType === 'token' ? { authToken: vars.state.token.trim() } : {}),
+            ...(vars.entry.oauthClientMode === 'manual'
+              ? {
+                  oauthClientId: vars.state.clientId.trim(),
+                  oauthClientSecret: vars.state.clientSecret.trim(),
+                }
+              : {}),
           },
         )
       ).data,
@@ -435,6 +451,8 @@ export function McpServersCard() {
       scope: !isAdmin ? 'user' : entry.defaultScope,
       endpoint: entry.endpoint ?? '',
       token: '',
+      clientId: '',
+      clientSecret: '',
     });
     setDrawerEntry(entry);
   };
@@ -562,6 +580,7 @@ export function McpServersCard() {
           <ConnectDrawerBody
             entry={drawerEntry}
             oauthConfigured={catalog.data?.oauthConfigured ?? false}
+            oauthRedirectUri={catalog.data?.oauthRedirectUri ?? null}
             isAdmin={isAdmin}
             state={connect}
             setState={setConnect}
@@ -639,6 +658,10 @@ export function McpServersCard() {
               toolAllowlist: v.toolAllowlist ?? [],
             };
             if (v.authType === 'token' && v.authToken?.trim()) body.authToken = v.authToken.trim();
+            if (v.authType === 'oauth' && v.oauthClientId?.trim() && v.oauthClientSecret?.trim()) {
+              body.oauthClientId = v.oauthClientId.trim();
+              body.oauthClientSecret = v.oauthClientSecret.trim();
+            }
             addCustom.mutate(body);
           }}
         >
@@ -680,18 +703,38 @@ export function McpServersCard() {
             />
           </Form.Item>
           <Form.Item noStyle shouldUpdate={(p, c) => p.authType !== c.authType}>
-            {({ getFieldValue }) =>
-              getFieldValue('authType') === 'token' ? (
-                <Form.Item
-                  name="authToken"
-                  label="Token"
-                  rules={[{ required: true, message: 'Token is required' }]}
-                  extra="Stored encrypted (AES-256-GCM). Write-only."
-                >
-                  <Input.Password placeholder="••••••••" autoComplete="new-password" />
-                </Form.Item>
-              ) : null
-            }
+            {({ getFieldValue }) => {
+              const at = getFieldValue('authType');
+              if (at === 'token') {
+                return (
+                  <Form.Item
+                    name="authToken"
+                    label="Token"
+                    rules={[{ required: true, message: 'Token is required' }]}
+                    extra="Stored encrypted (AES-256-GCM). Write-only."
+                  >
+                    <Input.Password placeholder="••••••••" autoComplete="new-password" />
+                  </Form.Item>
+                );
+              }
+              if (at === 'oauth') {
+                return (
+                  <>
+                    <Form.Item
+                      name="oauthClientId"
+                      label="OAuth client ID (optional)"
+                      extra="Only if the server requires a pre-registered app (no dynamic registration)."
+                    >
+                      <Input placeholder="client id" />
+                    </Form.Item>
+                    <Form.Item name="oauthClientSecret" label="OAuth client secret (optional)">
+                      <Input.Password placeholder="••••••••" autoComplete="new-password" />
+                    </Form.Item>
+                  </>
+                );
+              }
+              return null;
+            }}
           </Form.Item>
           <Form.Item
             name="toolAllowlist"
@@ -899,6 +942,7 @@ function DrawerTitle({ entry }: { entry: CatalogEntry }) {
 function ConnectDrawerBody({
   entry,
   oauthConfigured,
+  oauthRedirectUri,
   isAdmin,
   state,
   setState,
@@ -907,6 +951,7 @@ function ConnectDrawerBody({
 }: {
   entry: CatalogEntry;
   oauthConfigured: boolean;
+  oauthRedirectUri: string | null;
   isAdmin: boolean;
   state: ConnectState;
   setState: (s: ConnectState) => void;
@@ -916,10 +961,13 @@ function ConnectDrawerBody({
   const needsEndpoint =
     entry.transport === 'http' && (entry.requiresEndpointInput || !entry.endpoint);
   const oauthBlocked = entry.authType === 'oauth' && !oauthConfigured;
+  // Manual-client connectors need an admin-supplied OAuth app (client id/secret).
+  const manualClient = entry.authType === 'oauth' && entry.oauthClientMode === 'manual';
   const canConnect =
     !oauthBlocked &&
     (!needsEndpoint || /^https:\/\//i.test(state.endpoint.trim())) &&
-    (entry.authType !== 'token' || state.token.trim().length > 0);
+    (entry.authType !== 'token' || state.token.trim().length > 0) &&
+    (!manualClient || (state.clientId.trim().length > 0 && state.clientSecret.trim().length > 0));
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 22 }}>
@@ -982,6 +1030,45 @@ function ConnectDrawerBody({
           />
           <Typography.Text type="secondary" style={{ fontSize: 11.5 }}>
             Stored encrypted (AES-256-GCM), write-only.
+          </Typography.Text>
+        </Section>
+      )}
+
+      {manualClient && !oauthBlocked && (
+        <Section label="OAuth app credentials">
+          {oauthRedirectUri && (
+            <div
+              style={{
+                fontSize: 12,
+                color: '#475569',
+                background: '#f1f4f8',
+                borderRadius: 9,
+                padding: '8px 10px',
+              }}
+            >
+              Add this redirect URL to your app:
+              <Typography.Text
+                copyable
+                code
+                style={{ fontSize: 11.5, display: 'block', marginTop: 4 }}
+              >
+                {oauthRedirectUri}
+              </Typography.Text>
+            </div>
+          )}
+          <Input
+            placeholder="Client ID"
+            value={state.clientId}
+            onChange={(e) => setState({ ...state, clientId: e.target.value })}
+          />
+          <Input.Password
+            placeholder="Client secret"
+            autoComplete="new-password"
+            value={state.clientSecret}
+            onChange={(e) => setState({ ...state, clientSecret: e.target.value })}
+          />
+          <Typography.Text type="secondary" style={{ fontSize: 11.5 }}>
+            From the app you created in {entry.name}. Stored encrypted (AES-256-GCM), write-only.
           </Typography.Text>
         </Section>
       )}
