@@ -1265,22 +1265,39 @@ async function upsertContacts(
   }>,
 ) {
   const contacts = new Map<string, { id: string }>();
+  // Deduplicate by email, then upsert in a DETERMINISTIC (sorted-by-email) order.
+  // Two concurrent syncs for the same tenant (e.g. a manual "Sync Inbox" racing a
+  // webhook-driven sync) otherwise upsert the SAME engagement_contact rows in
+  // different orders, producing a lock cycle and a Postgres deadlock (40P01) that
+  // aborts the whole sync transaction. Acquiring the row locks in the same order
+  // across every transaction removes the cycle. Dedup also avoids re-locking the
+  // same row twice within a single call.
+  const nameByEmail = new Map<string, string | null>();
   for (const attendee of attendees) {
     if (!attendee.email) continue;
+    const current = nameByEmail.get(attendee.email);
+    // First occurrence wins; a later duplicate only fills in a missing name.
+    if (current === undefined || (!current && attendee.name)) {
+      nameByEmail.set(attendee.email, attendee.name);
+    }
+  }
+  const sortedEmails = [...nameByEmail.keys()].sort();
+  for (const email of sortedEmails) {
+    const name = nameByEmail.get(email) ?? null;
     const contact = await tx.engagementContact.upsert({
-      where: { tenantId_email: { tenantId, email: attendee.email } },
+      where: { tenantId_email: { tenantId, email } },
       update: {
-        fullName: attendee.name ?? undefined,
+        fullName: name ?? undefined,
       },
       create: {
         tenantId,
-        email: attendee.email,
-        fullName: attendee.name,
+        email,
+        fullName: name,
         source: 'microsoft_graph',
       },
       select: { id: true },
     });
-    contacts.set(attendee.email, contact);
+    contacts.set(email, contact);
   }
   return contacts;
 }
