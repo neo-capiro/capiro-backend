@@ -38,6 +38,12 @@ const MAX_CALENDAR_PAGES_PER_RUN = 12;
 const MAX_MAIL_PAGES_PER_FOLDER_PER_RUN = 12;
 const OUTLOOK_SUBSCRIPTION_MS = 6 * 24 * 60 * 60 * 1000;
 const SUBSCRIPTION_RENEWAL_SKEW_MS = 24 * 60 * 60 * 1000;
+// Each persist transaction first waits on the per-tenant sync advisory lock
+// (lockTenantForGraphSync) and then upserts. 20s gives headroom over the prior
+// 5s interactive-transaction default, which was tripping "Transaction already
+// closed" while transactions blocked on the deadlock storm. The advisory lock
+// auto-releases on commit/rollback, so it is held only for the short write txn.
+const GRAPH_SYNC_TX_TIMEOUT_MS = 20_000;
 
 interface MicrosoftSyncState {
   calendar?: {
@@ -393,7 +399,15 @@ export class MicrosoftGraphSyncService {
     );
 
     let accepted = 0;
-    let scheduledSyncs = 0;
+    // Graph delivers a batch of change notifications (often dozens for a single
+    // mailbox at first connect). Coalesce them so each (connection, resource)
+    // pair triggers exactly one sync instead of one per notification — running
+    // N identical syncs concurrently wastes Graph quota and lets their
+    // per-event transactions deadlock against each other.
+    const pendingSyncs = new Map<
+      string,
+      { tenantId: string; connectionId: string; syncInput: { calendar: boolean; mail: boolean } }
+    >();
     for (const notification of notifications) {
       const subscriptionId = notification.subscriptionId;
       if (!subscriptionId) continue;
@@ -414,21 +428,26 @@ export class MicrosoftGraphSyncService {
         continue;
       }
 
-      scheduledSyncs += 1;
-      const syncInput =
-        match.subscription.resource === 'me/events'
-          ? { calendar: true, mail: false }
-          : { calendar: false, mail: true };
-      void this.syncConnectionByTenant(match.tenantId, match.connectionId, syncInput).catch(
-        (err) => {
-          this.logger.error(
-            `Graph notification sync failed for connection ${match.connectionId}: ${(err as Error).message}`,
-          );
-        },
-      );
+      const isCalendar = match.subscription.resource === 'me/events';
+      const key = `${match.connectionId}:${isCalendar ? 'calendar' : 'mail'}`;
+      if (!pendingSyncs.has(key)) {
+        pendingSyncs.set(key, {
+          tenantId: match.tenantId,
+          connectionId: match.connectionId,
+          syncInput: { calendar: isCalendar, mail: !isCalendar },
+        });
+      }
     }
 
-    return { accepted, scheduledSyncs };
+    for (const { tenantId, connectionId, syncInput } of pendingSyncs.values()) {
+      void this.syncConnectionByTenant(tenantId, connectionId, syncInput).catch((err) => {
+        this.logger.error(
+          `Graph notification sync failed for connection ${connectionId}: ${(err as Error).message}`,
+        );
+      });
+    }
+
+    return { accepted, scheduledSyncs: pendingSyncs.size };
   }
 
   private async syncConnectionByTenant(
@@ -605,103 +624,110 @@ export class MicrosoftGraphSyncService {
     const endsAt = parseGraphDateTime(event.end?.dateTime);
     if (!startsAt || !endsAt) return 'skipped';
 
-    return this.prisma.withTenant(tenantId, async (tx) => {
-      const attendees = (event.attendees ?? [])
-        .map((attendee) => ({
-          email: normalizeEmail(attendee.emailAddress?.address),
-          name: clean(attendee.emailAddress?.name),
-          role: clean(attendee.type),
-          responseStatus: clean(attendee.status?.response),
-        }))
-        .filter((attendee) => attendee.email || attendee.name);
-      const organizerEmail = normalizeEmail(event.organizer?.emailAddress?.address);
-      const existing = await tx.meeting.findUnique({
-        where: {
-          tenantId_source_externalId: {
-            tenantId,
-            source: EngagementSource.outlook,
-            externalId: event.id!,
+    return this.prisma.withTenantRetry(
+      tenantId,
+      async (tx) => {
+        // Serialize this tenant's Graph-sync write transactions cluster-wide so
+        // concurrent syncs of the same mailbox cannot deadlock on shared upserts.
+        await lockTenantForGraphSync(tx, tenantId);
+        const attendees = (event.attendees ?? [])
+          .map((attendee) => ({
+            email: normalizeEmail(attendee.emailAddress?.address),
+            name: clean(attendee.emailAddress?.name),
+            role: clean(attendee.type),
+            responseStatus: clean(attendee.status?.response),
+          }))
+          .filter((attendee) => attendee.email || attendee.name);
+        const organizerEmail = normalizeEmail(event.organizer?.emailAddress?.address);
+        const existing = await tx.meeting.findUnique({
+          where: {
+            tenantId_source_externalId: {
+              tenantId,
+              source: EngagementSource.outlook,
+              externalId: event.id!,
+            },
           },
-        },
-        select: { id: true, clientId: true, isInternal: true, associationSignals: true },
-      });
-      const ownEmail = accountEmail?.trim().toLowerCase();
-      const association = await this.association.associate(tx, tenantId, {
-        subject: event.subject,
-        body: event.bodyPreview,
-        attendeeEmails: [
-          organizerEmail ?? '',
-          ...attendees.map((attendee) => attendee.email ?? ''),
-        ].filter((e) => e && e !== ownEmail),
-      });
-      const hasManualOverride = existing
-        ? await hasManualAssociationOverride(
-            tx,
-            tenantId,
-            AssociationEntityType.meeting,
-            existing.id,
-          )
-        : false;
-      // Meetings the user marked internal stay client-less; never re-link them.
-      // Otherwise respect manual/explicit associations, but let stale auto-links
-      // be corrected.
-      const clientId = existing?.isInternal
-        ? null
-        : existing?.clientId &&
-            (hasManualOverride || hasManualAssociationSignal(existing.associationSignals))
-          ? existing.clientId
-          : association.clientId;
-
-      const contactsByEmail = await upsertContacts(tx, tenantId, attendees);
-      const baseData = {
-        clientId,
-        connectionId,
-        source: EngagementSource.outlook,
-        externalId: event.id!,
-        subject: clean(event.subject) || 'Untitled calendar event',
-        description: clean(event.bodyPreview),
-        location: clean(event.location?.displayName),
-        startsAt,
-        endsAt,
-        organizerEmail,
-        organizerName: clean(event.organizer?.emailAddress?.name),
-        status: event.isCancelled ? 'cancelled' : 'scheduled',
-        raw: event as Prisma.InputJsonValue,
-        metadata: {
-          webLink: event.webLink ?? null,
-          provider: 'microsoft_graph',
-        } as Prisma.InputJsonValue,
-        associationScore: association.score,
-        associationReason: association.reason,
-        associationSignals: association.signals as Prisma.InputJsonValue,
-      };
-      const meeting = existing
-        ? await tx.meeting.update({
-            where: { id: existing.id },
-            data: baseData,
-            select: { id: true },
-          })
-        : await tx.meeting.create({
-            data: { tenantId, ...baseData },
-            select: { id: true },
-          });
-
-      await tx.meetingAttendee.deleteMany({ where: { meetingId: meeting.id } });
-      for (const attendee of attendees) {
-        await tx.meetingAttendee.create({
-          data: {
-            tenantId,
-            meetingId: meeting.id,
-            email: attendee.email,
-            name: attendee.name,
-            role: attendee.role,
-            responseStatus: attendee.responseStatus,
-            contactId: attendee.email ? (contactsByEmail.get(attendee.email)?.id ?? null) : null,
-          },
+          select: { id: true, clientId: true, isInternal: true, associationSignals: true },
         });
-      }
-      return 'matched' as const;
-    });
+        const ownEmail = accountEmail?.trim().toLowerCase();
+        const association = await this.association.associate(tx, tenantId, {
+          subject: event.subject,
+          body: event.bodyPreview,
+          attendeeEmails: [
+            organizerEmail ?? '',
+            ...attendees.map((attendee) => attendee.email ?? ''),
+          ].filter((e) => e && e !== ownEmail),
+        });
+        const hasManualOverride = existing
+          ? await hasManualAssociationOverride(
+              tx,
+              tenantId,
+              AssociationEntityType.meeting,
+              existing.id,
+            )
+          : false;
+        // Meetings the user marked internal stay client-less; never re-link them.
+        // Otherwise respect manual/explicit associations, but let stale auto-links
+        // be corrected.
+        const clientId = existing?.isInternal
+          ? null
+          : existing?.clientId &&
+              (hasManualOverride || hasManualAssociationSignal(existing.associationSignals))
+            ? existing.clientId
+            : association.clientId;
+
+        const contactsByEmail = await upsertContacts(tx, tenantId, attendees);
+        const baseData = {
+          clientId,
+          connectionId,
+          source: EngagementSource.outlook,
+          externalId: event.id!,
+          subject: clean(event.subject) || 'Untitled calendar event',
+          description: clean(event.bodyPreview),
+          location: clean(event.location?.displayName),
+          startsAt,
+          endsAt,
+          organizerEmail,
+          organizerName: clean(event.organizer?.emailAddress?.name),
+          status: event.isCancelled ? 'cancelled' : 'scheduled',
+          raw: event as Prisma.InputJsonValue,
+          metadata: {
+            webLink: event.webLink ?? null,
+            provider: 'microsoft_graph',
+          } as Prisma.InputJsonValue,
+          associationScore: association.score,
+          associationReason: association.reason,
+          associationSignals: association.signals as Prisma.InputJsonValue,
+        };
+        const meeting = existing
+          ? await tx.meeting.update({
+              where: { id: existing.id },
+              data: baseData,
+              select: { id: true },
+            })
+          : await tx.meeting.create({
+              data: { tenantId, ...baseData },
+              select: { id: true },
+            });
+
+        await tx.meetingAttendee.deleteMany({ where: { meetingId: meeting.id } });
+        for (const attendee of attendees) {
+          await tx.meetingAttendee.create({
+            data: {
+              tenantId,
+              meetingId: meeting.id,
+              email: attendee.email,
+              name: attendee.name,
+              role: attendee.role,
+              responseStatus: attendee.responseStatus,
+              contactId: attendee.email ? (contactsByEmail.get(attendee.email)?.id ?? null) : null,
+            },
+          });
+        }
+        return 'matched' as const;
+      },
+      { timeoutMs: GRAPH_SYNC_TX_TIMEOUT_MS },
+    );
   }
 
   private async persistGraphMessage(
@@ -740,161 +766,168 @@ export class MicrosoftGraphSyncService {
     const messageDate = parseGraphDateTime(message.receivedDateTime ?? message.sentDateTime);
     const threadExternalId = message.conversationId || message.internetMessageId || message.id;
 
-    return this.prisma.withTenant(tenantId, async (tx) => {
-      const existingMessage = await tx.mailMessage.findUnique({
-        where: {
-          tenantId_source_externalId: {
-            tenantId,
-            source: EngagementSource.outlook,
-            externalId: message.id!,
+    return this.prisma.withTenantRetry(
+      tenantId,
+      async (tx) => {
+        // Serialize this tenant's Graph-sync write transactions cluster-wide so
+        // concurrent syncs of the same mailbox cannot deadlock on shared upserts.
+        await lockTenantForGraphSync(tx, tenantId);
+        const existingMessage = await tx.mailMessage.findUnique({
+          where: {
+            tenantId_source_externalId: {
+              tenantId,
+              source: EngagementSource.outlook,
+              externalId: message.id!,
+            },
           },
-        },
-        include: {
-          thread: {
-            select: { id: true, clientId: true, lastMessageAt: true, associationSignals: true },
+          include: {
+            thread: {
+              select: { id: true, clientId: true, lastMessageAt: true, associationSignals: true },
+            },
           },
-        },
-      });
-      const existingThread = existingMessage?.thread
-        ? existingMessage.thread
-        : await tx.mailThread.findUnique({
-            where: {
-              tenantId_source_externalId: {
+        });
+        const existingThread = existingMessage?.thread
+          ? existingMessage.thread
+          : await tx.mailThread.findUnique({
+              where: {
+                tenantId_source_externalId: {
+                  tenantId,
+                  source: EngagementSource.outlook,
+                  externalId: threadExternalId,
+                },
+              },
+              select: { id: true, clientId: true, lastMessageAt: true, associationSignals: true },
+            });
+        const association = await this.association.associate(tx, tenantId, {
+          subject: message.subject,
+          body: message.bodyPreview,
+          participantEmails,
+        });
+        const hasManualOverride = existingThread
+          ? await hasManualAssociationOverride(
+              tx,
+              tenantId,
+              AssociationEntityType.mail_thread,
+              existingThread.id,
+            )
+          : false;
+        const clientId =
+          existingThread?.clientId &&
+          (hasManualOverride || hasManualAssociationSignal(existingThread.associationSignals))
+            ? existingThread.clientId
+            : association.clientId;
+        if (!clientId && !existingThread) return 'skipped';
+
+        const participantJson = uniqueParticipants([
+          fromEmail ? { email: fromEmail, name: clean(from?.name), role: 'from' } : null,
+          ...toRecipients.map((recipient) => ({ ...recipient, role: 'to' })),
+          ...ccRecipients.map((recipient) => ({ ...recipient, role: 'cc' })),
+          ...bccRecipients.map((recipient) => ({ ...recipient, role: 'bcc' })),
+        ]);
+
+        const lastMessageAt = laterDate(existingThread?.lastMessageAt ?? null, messageDate);
+        const thread = existingThread
+          ? await tx.mailThread.update({
+              where: { id: existingThread.id },
+              data: {
+                clientId,
+                connectionId,
+                subject: clean(message.subject) || 'Untitled email thread',
+                snippet: clean(message.bodyPreview),
+                participants: participantJson as Prisma.InputJsonValue,
+                lastMessageAt,
+                raw: message as Prisma.InputJsonValue,
+                metadata: {
+                  webLink: message.webLink ?? null,
+                  folders: unique([folder, ...readFolders(existingThread)]),
+                } as Prisma.InputJsonValue,
+                associationScore: association.score,
+                associationReason: association.reason,
+                associationSignals: association.signals as Prisma.InputJsonValue,
+              },
+              select: { id: true },
+            })
+          : await tx.mailThread.create({
+              data: {
                 tenantId,
+                clientId,
+                connectionId,
                 source: EngagementSource.outlook,
                 externalId: threadExternalId,
+                subject: clean(message.subject) || 'Untitled email thread',
+                snippet: clean(message.bodyPreview),
+                participants: participantJson as Prisma.InputJsonValue,
+                lastMessageAt,
+                raw: message as Prisma.InputJsonValue,
+                metadata: {
+                  webLink: message.webLink ?? null,
+                  folders: [folder],
+                } as Prisma.InputJsonValue,
+                associationScore: association.score,
+                associationReason: association.reason,
+                associationSignals: association.signals as Prisma.InputJsonValue,
               },
-            },
-            select: { id: true, clientId: true, lastMessageAt: true, associationSignals: true },
-          });
-      const association = await this.association.associate(tx, tenantId, {
-        subject: message.subject,
-        body: message.bodyPreview,
-        participantEmails,
-      });
-      const hasManualOverride = existingThread
-        ? await hasManualAssociationOverride(
-            tx,
-            tenantId,
-            AssociationEntityType.mail_thread,
-            existingThread.id,
-          )
-        : false;
-      const clientId =
-        existingThread?.clientId &&
-        (hasManualOverride || hasManualAssociationSignal(existingThread.associationSignals))
-          ? existingThread.clientId
-          : association.clientId;
-      if (!clientId && !existingThread) return 'skipped';
+              select: { id: true },
+            });
 
-      const participantJson = uniqueParticipants([
-        fromEmail ? { email: fromEmail, name: clean(from?.name), role: 'from' } : null,
-        ...toRecipients.map((recipient) => ({ ...recipient, role: 'to' })),
-        ...ccRecipients.map((recipient) => ({ ...recipient, role: 'cc' })),
-        ...bccRecipients.map((recipient) => ({ ...recipient, role: 'bcc' })),
-      ]);
-
-      const lastMessageAt = laterDate(existingThread?.lastMessageAt ?? null, messageDate);
-      const thread = existingThread
-        ? await tx.mailThread.update({
-            where: { id: existingThread.id },
-            data: {
-              clientId,
-              connectionId,
-              subject: clean(message.subject) || 'Untitled email thread',
-              snippet: clean(message.bodyPreview),
-              participants: participantJson as Prisma.InputJsonValue,
-              lastMessageAt,
-              raw: message as Prisma.InputJsonValue,
-              metadata: {
-                webLink: message.webLink ?? null,
-                folders: unique([folder, ...readFolders(existingThread)]),
-              } as Prisma.InputJsonValue,
-              associationScore: association.score,
-              associationReason: association.reason,
-              associationSignals: association.signals as Prisma.InputJsonValue,
-            },
-            select: { id: true },
-          })
-        : await tx.mailThread.create({
-            data: {
+        await tx.mailMessage.upsert({
+          where: {
+            tenantId_source_externalId: {
               tenantId,
-              clientId,
-              connectionId,
               source: EngagementSource.outlook,
-              externalId: threadExternalId,
-              subject: clean(message.subject) || 'Untitled email thread',
-              snippet: clean(message.bodyPreview),
-              participants: participantJson as Prisma.InputJsonValue,
-              lastMessageAt,
-              raw: message as Prisma.InputJsonValue,
-              metadata: {
-                webLink: message.webLink ?? null,
-                folders: [folder],
-              } as Prisma.InputJsonValue,
-              associationScore: association.score,
-              associationReason: association.reason,
-              associationSignals: association.signals as Prisma.InputJsonValue,
+              externalId: message.id!,
             },
-            select: { id: true },
-          });
-
-      await tx.mailMessage.upsert({
-        where: {
-          tenantId_source_externalId: {
+          },
+          update: {
+            threadId: thread.id,
+            connectionId,
+            subject: clean(message.subject),
+            fromEmail,
+            fromName: clean(from?.name),
+            toRecipients: toRecipients as Prisma.InputJsonValue,
+            ccRecipients: ccRecipients as Prisma.InputJsonValue,
+            bccRecipients: bccRecipients as Prisma.InputJsonValue,
+            sentAt: parseGraphDateTime(message.sentDateTime),
+            receivedAt: parseGraphDateTime(message.receivedDateTime),
+            bodyText: clean(message.bodyPreview),
+            hasAttachments: Boolean(message.hasAttachments),
+            raw: message as Prisma.InputJsonValue,
+            metadata: {
+              folder,
+              webLink: message.webLink ?? null,
+              internetMessageId: message.internetMessageId ?? null,
+              isRead: message.isRead ?? null,
+            } as Prisma.InputJsonValue,
+          },
+          create: {
             tenantId,
+            threadId: thread.id,
+            connectionId,
             source: EngagementSource.outlook,
             externalId: message.id!,
+            subject: clean(message.subject),
+            fromEmail,
+            fromName: clean(from?.name),
+            toRecipients: toRecipients as Prisma.InputJsonValue,
+            ccRecipients: ccRecipients as Prisma.InputJsonValue,
+            bccRecipients: bccRecipients as Prisma.InputJsonValue,
+            sentAt: parseGraphDateTime(message.sentDateTime),
+            receivedAt: parseGraphDateTime(message.receivedDateTime),
+            bodyText: clean(message.bodyPreview),
+            hasAttachments: Boolean(message.hasAttachments),
+            raw: message as Prisma.InputJsonValue,
+            metadata: {
+              folder,
+              webLink: message.webLink ?? null,
+              internetMessageId: message.internetMessageId ?? null,
+              isRead: message.isRead ?? null,
+            } as Prisma.InputJsonValue,
           },
-        },
-        update: {
-          threadId: thread.id,
-          connectionId,
-          subject: clean(message.subject),
-          fromEmail,
-          fromName: clean(from?.name),
-          toRecipients: toRecipients as Prisma.InputJsonValue,
-          ccRecipients: ccRecipients as Prisma.InputJsonValue,
-          bccRecipients: bccRecipients as Prisma.InputJsonValue,
-          sentAt: parseGraphDateTime(message.sentDateTime),
-          receivedAt: parseGraphDateTime(message.receivedDateTime),
-          bodyText: clean(message.bodyPreview),
-          hasAttachments: Boolean(message.hasAttachments),
-          raw: message as Prisma.InputJsonValue,
-          metadata: {
-            folder,
-            webLink: message.webLink ?? null,
-            internetMessageId: message.internetMessageId ?? null,
-            isRead: message.isRead ?? null,
-          } as Prisma.InputJsonValue,
-        },
-        create: {
-          tenantId,
-          threadId: thread.id,
-          connectionId,
-          source: EngagementSource.outlook,
-          externalId: message.id!,
-          subject: clean(message.subject),
-          fromEmail,
-          fromName: clean(from?.name),
-          toRecipients: toRecipients as Prisma.InputJsonValue,
-          ccRecipients: ccRecipients as Prisma.InputJsonValue,
-          bccRecipients: bccRecipients as Prisma.InputJsonValue,
-          sentAt: parseGraphDateTime(message.sentDateTime),
-          receivedAt: parseGraphDateTime(message.receivedDateTime),
-          bodyText: clean(message.bodyPreview),
-          hasAttachments: Boolean(message.hasAttachments),
-          raw: message as Prisma.InputJsonValue,
-          metadata: {
-            folder,
-            webLink: message.webLink ?? null,
-            internetMessageId: message.internetMessageId ?? null,
-            isRead: message.isRead ?? null,
-          } as Prisma.InputJsonValue,
-        },
-      });
-      return 'matched';
-    });
+        });
+        return 'matched';
+      },
+      { timeoutMs: GRAPH_SYNC_TX_TIMEOUT_MS },
+    );
   }
 
   private async loadConnection(tenantId: string, connectionId: string) {
@@ -1256,6 +1289,29 @@ function hasManualAssociationSignal(value: Prisma.JsonValue | null | undefined) 
   return (value as Record<string, unknown>).manual === true;
 }
 
+/**
+ * Serialize a tenant's Microsoft Graph sync write transactions across the whole
+ * cluster via a transaction-scoped Postgres advisory lock.
+ *
+ * The production failure was a storm of deadlocks (40P01) and 5s transaction
+ * timeouts caused by SEVERAL syncs of the same mailbox running at once — a
+ * webhook burst, a manual "Sync now", and the calendar-window endpoint all
+ * firing while the user retried. Each per-event/message transaction upserts the
+ * same tenant-scoped rows (engagement_contacts on (tenant,email); meetings /
+ * mail_threads / mail_messages on (tenant,source,externalId)), so concurrent
+ * transactions took those locks in conflicting orders and deadlocked.
+ *
+ * Keying the lock on the tenant forces those write transactions to run one at a
+ * time, which makes the deadlock structurally impossible regardless of how many
+ * syncs race. It is held only for the short write txn (auto-released on
+ * commit/rollback), never across the Graph HTTP calls. An in-process guard
+ * could not do this because prod runs multiple API tasks behind the ALB.
+ */
+async function lockTenantForGraphSync(tx: Prisma.TransactionClient, tenantId: string) {
+  const lockKey = `msgraph-sync:${tenantId}`;
+  await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext(${lockKey}))`;
+}
+
 async function upsertContacts(
   tx: Prisma.TransactionClient,
   tenantId: string,
@@ -1264,23 +1320,39 @@ async function upsertContacts(
     name: string | null;
   }>,
 ) {
-  const contacts = new Map<string, { id: string }>();
+  // Dedupe by email and upsert in a stable, sorted order. The per-tenant
+  // advisory lock (lockTenantForGraphSync) is what guarantees concurrent syncs
+  // can't deadlock here; the sort is cheap defense-in-depth (consistent
+  // lock-ordering on the (tenant,email) unique index) and the dedupe avoids
+  // redundant upserts when an event lists the same address twice. Emails are
+  // already lowercased by normalizeEmail, so JS sort order matches the citext
+  // collation of the unique index.
+  const names = new Map<string, string | null>();
   for (const attendee of attendees) {
     if (!attendee.email) continue;
+    // Prefer the first non-null name we see for an email within this event.
+    if (!names.has(attendee.email) || (attendee.name && !names.get(attendee.email))) {
+      names.set(attendee.email, attendee.name);
+    }
+  }
+
+  const contacts = new Map<string, { id: string }>();
+  for (const email of [...names.keys()].sort()) {
+    const name = names.get(email) ?? null;
     const contact = await tx.engagementContact.upsert({
-      where: { tenantId_email: { tenantId, email: attendee.email } },
+      where: { tenantId_email: { tenantId, email } },
       update: {
-        fullName: attendee.name ?? undefined,
+        fullName: name ?? undefined,
       },
       create: {
         tenantId,
-        email: attendee.email,
-        fullName: attendee.name,
+        email,
+        fullName: name,
         source: 'microsoft_graph',
       },
       select: { id: true },
     });
-    contacts.set(attendee.email, contact);
+    contacts.set(email, contact);
   }
   return contacts;
 }

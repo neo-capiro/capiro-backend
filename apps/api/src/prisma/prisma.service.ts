@@ -61,6 +61,39 @@ export class PrismaService extends PrismaClient implements OnModuleInit, OnModul
   }
 
   /**
+   * Like {@link withTenant} but retries the whole transaction when Postgres
+   * aborts it with a deadlock (SQLSTATE 40P01) or serialization failure
+   * (40001) — both transient. Concurrent writers that touch the same rows are
+   * expected to lose this race occasionally; the loser is safe to replay as
+   * long as `fn` is idempotent (upsert / updateMany / deleteMany+create).
+   *
+   * Used by the Microsoft Graph sync, where a burst of webhook notifications
+   * for a freshly connected mailbox runs several syncs at once and they all
+   * upsert the same brand-new engagement_contacts rows.
+   */
+  async withTenantRetry<T>(
+    tenantId: string,
+    fn: (tx: Prisma.TransactionClient) => Promise<T>,
+    opts?: { timeoutMs?: number; retries?: number },
+  ): Promise<T> {
+    const maxRetries = opts?.retries ?? 3;
+    for (let attempt = 0; ; attempt += 1) {
+      try {
+        return await this.withTenant(tenantId, fn, opts);
+      } catch (err) {
+        if (attempt >= maxRetries || !isRetryableTransactionError(err)) throw err;
+        // Exponential backoff with jitter so the two deadlock victims don't
+        // line up and collide again on the retry.
+        const backoffMs = Math.min(250, 25 * 2 ** attempt) + Math.floor(Math.random() * 25);
+        this.logger.warn(
+          `Retryable transaction conflict (attempt ${attempt + 1}/${maxRetries + 1}); retrying in ${backoffMs}ms`,
+        );
+        await new Promise((resolve) => setTimeout(resolve, backoffMs));
+      }
+    }
+  }
+
+  /**
    * Run `fn` with the RLS bypass flag enabled. Use only for trusted server
    * paths (cross-tenant admin tooling, webhook ingestion, migrations).
    */
@@ -70,4 +103,30 @@ export class PrismaService extends PrismaClient implements OnModuleInit, OnModul
       return fn(tx);
     });
   }
+}
+
+/**
+ * True when a Postgres error is a transient transaction conflict worth
+ * retrying: a deadlock (40P01) or a serialization failure (40001). Prisma
+ * maps these to P2034, but when the failure surfaces from a raw query it can
+ * arrive as a generic error whose message carries the SQLSTATE, so we sniff
+ * both.
+ */
+export function isRetryableTransactionError(err: unknown): boolean {
+  if (err instanceof Prisma.PrismaClientKnownRequestError && err.code === 'P2034') {
+    return true;
+  }
+  // A deadlock raised mid interactive-transaction frequently surfaces NOT as a
+  // tidy P2034 but as a generic error whose message carries the raw SQLSTATE
+  // (the form seen in production), so we also sniff the message. Match the
+  // phrases (already specific) and the bare SQLSTATEs only with a leading
+  // boundary, so an incidental "40001" inside row data / external ids in some
+  // other error can't trigger a spurious retry.
+  const message = err instanceof Error ? err.message : String(err);
+  return (
+    message.includes('deadlock detected') ||
+    message.includes('could not serialize access') ||
+    /(?:^|[^0-9A-Za-z])40P01\b/.test(message) ||
+    /(?:^|[^0-9A-Za-z])40001\b/.test(message)
+  );
 }
