@@ -47,4 +47,36 @@ describe('MeriFeatureFlagsService.isMeriV2SurfaceEnabled', () => {
       svc.isMeriV2SurfaceEnabled('tenant-1', MERIV2_FLAGS.inEditorAssistant),
     ).resolves.toBe(true);
   });
+
+  // SC0.4: a flip ON->OFF restores prior behavior immediately (no redeploy).
+  // The 60s read cache is bypassed by invalidate(tenantId) (the admin flip path),
+  // so rollback is sub-second.
+  test('flip ON->OFF after invalidate restores prior behavior immediately (SC0.4)', async () => {
+    process.env.MERIV2_ENABLED = 'true';
+    let flagOn = true;
+    const prisma = {
+      withTenant: async (_tenantId: string, fn: (tx: unknown) => Promise<unknown>) =>
+        fn({
+          tenant: {
+            findFirst: async () => ({
+              settings: { clioFeatureFlags: { [MERIV2_FLAGS.inEditorAssistant]: flagOn } },
+            }),
+          },
+        }),
+    } as unknown as PrismaService;
+    const svc = new MeriFeatureFlagsService(prisma);
+
+    expect(await svc.isMeriV2SurfaceEnabled('t', MERIV2_FLAGS.inEditorAssistant)).toBe(true);
+    // Operator flips the tenant flag OFF and invalidates the cache (the < 5s,
+    // no-redeploy rollback). Next read reflects it at once.
+    flagOn = false;
+    svc.invalidate('t');
+    expect(await svc.isMeriV2SurfaceEnabled('t', MERIV2_FLAGS.inEditorAssistant)).toBe(false);
+
+    // Belt-and-suspenders: the env kill-switch alone also forces OFF instantly.
+    flagOn = true;
+    svc.invalidate('t');
+    delete process.env.MERIV2_ENABLED;
+    expect(await svc.isMeriV2SurfaceEnabled('t', MERIV2_FLAGS.inEditorAssistant)).toBe(false);
+  });
 });
