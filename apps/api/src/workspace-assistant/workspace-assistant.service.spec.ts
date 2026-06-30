@@ -14,7 +14,15 @@ const configStub = {
 } as never;
 
 function makeService(): WorkspaceAssistantService {
-  return new WorkspaceAssistantService(null as never, null as never, configStub);
+  // 4th/5th args (MeriFeatureFlagsService, MeriV2OrchestratorClient) are the
+  // P0-T4 dormant-proxy deps; unused by buildSystemPrompt/verifyEdits, so null.
+  return new WorkspaceAssistantService(
+    null as never,
+    null as never,
+    configStub,
+    null as never,
+    null as never,
+  );
 }
 
 function buildPrompt(dto: unknown): string {

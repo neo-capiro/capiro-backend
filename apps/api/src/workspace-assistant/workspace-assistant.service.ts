@@ -13,6 +13,9 @@ import {
 import { serializeRecordForGrounding } from '../meri/meri-verifier-sources.helpers.js';
 import { parseVerifierClaims, summarizeVerification } from '../meri/meri-verifier.helpers.js';
 import { confidenceLevel, type Confidence } from '../meri/meri-confidence.helpers.js';
+import { MeriFeatureFlagsService } from '../meri/meri-feature-flags.service.js';
+import { MERIV2_FLAGS } from '../common/tenant-flags.js';
+import { MeriV2OrchestratorClient } from './meriv2-orchestrator.client.js';
 import type { WorkspaceAssistantDto } from './workspace-assistant.dto.js';
 
 const ANTHROPIC_URL = 'https://api.anthropic.com/v1/messages';
@@ -174,9 +177,25 @@ export class WorkspaceAssistantService {
     private readonly tools: MeriToolsService,
     private readonly aiCredentials: AiCredentialResolverService,
     private readonly config: ConfigService<AppConfig, true>,
+    private readonly meriFlags: MeriFeatureFlagsService,
+    private readonly meriV2: MeriV2OrchestratorClient,
   ) {}
 
-  async run(ctx: TenantContext, dto: WorkspaceAssistantDto): Promise<AssistantResult> {
+  async run(
+    ctx: TenantContext,
+    dto: WorkspaceAssistantDto,
+    opts?: { bearerToken?: string },
+  ): Promise<AssistantResult> {
+    // P0-T4 dormant proxy: when meriv2.inEditorAssistant is ON (AND the
+    // MERIV2_ENABLED env kill-switch is set) proxy this request to the MeriV2
+    // orchestrator instead of running the in-process loop below. Both flags
+    // default OFF, so this branch is dormant and the entire existing path
+    // (everything below) is byte-for-byte unchanged (SC0.2). The parity harness
+    // (SC0.3) is the gate that must pass before any tenant is flagged ON.
+    if (await this.meriFlags.isMeriV2SurfaceEnabled(ctx.tenantId, MERIV2_FLAGS.inEditorAssistant)) {
+      return this.meriV2.runInEditorAssistant<AssistantResult>(ctx, dto, opts?.bearerToken);
+    }
+
     const resolved = await this.aiCredentials.resolveProvider(ctx, 'anthropic');
     if (!resolved?.apiKey) {
       return {
