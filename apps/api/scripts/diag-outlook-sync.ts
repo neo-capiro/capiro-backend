@@ -18,6 +18,7 @@ const filter = (process.argv[2] ?? '').toLowerCase();
 interface ConnRow {
   id: string;
   tenant_id: string;
+  provider: string;
   account_email: string | null;
   display_name: string | null;
   status: string;
@@ -52,11 +53,10 @@ async function main(): Promise<void> {
     async (tx) => {
       await tx.$executeRaw`SELECT set_config('app.bypass_rls', 'on', true)`;
       const conns = await tx.$queryRawUnsafe<ConnRow[]>(`
-        SELECT id, tenant_id, account_email, display_name, status::text AS status,
-               last_error, last_sync_at, next_sync_at, sync_state_jsonb AS sync_state,
-               created_at, updated_at
+        SELECT id, tenant_id, provider::text AS provider, account_email, display_name,
+               status::text AS status, last_error, last_sync_at, next_sync_at,
+               sync_state_jsonb AS sync_state, created_at, updated_at
         FROM engagement_connections
-        WHERE provider = 'microsoft'
         ORDER BY updated_at DESC
       `);
 
@@ -70,7 +70,7 @@ async function main(): Promise<void> {
         const threads = await countWhereConnection(tx, 'mail_threads', c.id);
         const messages = await countWhereConnection(tx, 'mail_messages', c.id);
 
-        console.log(`• ${c.account_email ?? '(no email)'}  [tenant ${c.tenant_id}]`);
+        console.log(`• ${c.account_email ?? '(no email)'}  [${c.provider}]  [tenant ${c.tenant_id}]`);
         console.log(`    status=${c.status}  lastSyncAt=${c.last_sync_at?.toISOString() ?? 'never'}  connectedAt=${c.created_at.toISOString()}`);
         console.log(`    lastError=${c.last_error ? JSON.stringify(c.last_error.slice(0, 220)) : 'null'}`);
         console.log(`    calendar: ${stats(ss.calendar?.lastStats)}  (updated ${ss.calendar?.updatedAt ?? '-'})`);
