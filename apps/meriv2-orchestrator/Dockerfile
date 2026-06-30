@@ -84,6 +84,10 @@ COPY --chown=capiro:capiro --from=build /workspace/packages/shared/dist /app/pac
 COPY --chown=capiro:capiro --from=build /workspace/packages/shared/package.json /app/packages/shared/package.json
 COPY --chown=capiro:capiro --from=build /workspace/packages/meriv2-core/dist /app/packages/meriv2-core/dist
 COPY --chown=capiro:capiro --from=build /workspace/packages/meriv2-core/package.json /app/packages/meriv2-core/package.json
+# meriv2-core's OWN node_modules (pnpm symlinks zod + @capiro/shared into the
+# .pnpm store under /app/node_modules). Without this, `require('zod')` from
+# packages/meriv2-core/dist fails (pnpm does not hoist to the root).
+COPY --chown=capiro:capiro --from=build /workspace/packages/meriv2-core/node_modules /app/packages/meriv2-core/node_modules
 COPY --chown=capiro:capiro --from=build /workspace/apps/meriv2-orchestrator/dist /app/apps/meriv2-orchestrator/dist
 COPY --chown=capiro:capiro --from=build /workspace/apps/meriv2-orchestrator/node_modules /app/apps/meriv2-orchestrator/node_modules
 COPY --chown=capiro:capiro --from=build /workspace/apps/meriv2-orchestrator/package.json /app/apps/meriv2-orchestrator/package.json
