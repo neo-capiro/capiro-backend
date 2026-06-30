@@ -27,14 +27,26 @@ jobs:
           cache: pnpm
       - run: pnpm install --frozen-lockfile
 
+      # The api + workspace typecheck/tests import their generated Prisma
+      # clients; generate them before turbo runs (the image builds do this
+      # inside Docker, but this direct CI job must do it explicitly). `generate`
+      # does not connect to a DB, so no DATABASE_URL is needed.
+      - name: Generate Prisma clients
+        run: |
+          pnpm --filter @capiro/api exec prisma generate
+          pnpm --filter @capiro/workspace exec prisma generate
+
       - name: Prettier (MeriV2 code)
         run: >
           pnpm exec prettier --check
           "packages/meriv2-core/**/*.ts"
           "apps/meriv2-orchestrator/**/*.ts"
 
-      - name: Typecheck (turbo)
+      - name: Typecheck (turbo, whole monorepo)
         run: pnpm turbo run typecheck
 
-      - name: Test (turbo)
-        run: pnpm turbo run test
+      # Unit tests for the new orchestrator core (DB-free). The api/workspace
+      # suites need a live Postgres and run via their own image/e2e paths; the
+      # cross-client-leakage + grounding gate is meriv2-evals.yml.
+      - name: Test meriv2-core
+        run: pnpm --filter @capiro/meriv2-core test
