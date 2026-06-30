@@ -72,6 +72,11 @@ export class MeriMcpOAuthService {
     return this.config.get('CLIO_MCP_OAUTH_SUCCESS_REDIRECT', { infer: true });
   }
 
+  /** The absolute OAuth callback URL admins must register in their app. */
+  getRedirectUri(): string | undefined {
+    return this.redirectUri();
+  }
+
   private redirectUri(): string | undefined {
     return this.config.get('CLIO_MCP_OAUTH_REDIRECT_URI', { infer: true });
   }

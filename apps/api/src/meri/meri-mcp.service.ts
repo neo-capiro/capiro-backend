@@ -52,6 +52,9 @@ export interface McpServerInput {
   enabled?: unknown;
   scope?: unknown;
   authType?: unknown;
+  // Pre-registered OAuth client (for custom oauth connectors that need one).
+  oauthClientId?: unknown;
+  oauthClientSecret?: unknown;
 }
 
 export interface CatalogAddInput {
@@ -59,6 +62,9 @@ export interface CatalogAddInput {
   scope?: unknown;
   endpoint?: unknown;
   authToken?: unknown;
+  // Pre-registered OAuth client (for connectors with oauthClientMode 'manual').
+  oauthClientId?: unknown;
+  oauthClientSecret?: unknown;
 }
 
 const REGISTRY_TTL_MS = 15 * 60 * 1000;
@@ -119,6 +125,8 @@ export class MeriMcpService {
     const connected = new Set(rows.map((r) => r.catalogId).filter(Boolean) as string[]);
     return {
       oauthConfigured: this.oauth.isConfigured(),
+      // Shown to admins setting up a manual (pre-registered) OAuth client.
+      oauthRedirectUri: this.oauth.getRedirectUri() ?? null,
       connectors: MCP_CATALOG.map((entry) => ({ ...entry, connected: connected.has(entry.id) })),
     };
   }
@@ -161,6 +169,16 @@ export class MeriMcpService {
     if (data.authType !== 'oauth' && asStringArray(row.toolAllowlist).length === 0) {
       await this.discoverTools(ctx.tenantId, row.id).catch(() => {});
     }
+    // Custom OAuth connector with a pre-registered app: store its client so the
+    // handshake skips dynamic registration.
+    if (data.authType === 'oauth') {
+      const clientId = typeof input.oauthClientId === 'string' ? input.oauthClientId.trim() : '';
+      const clientSecret =
+        typeof input.oauthClientSecret === 'string' ? input.oauthClientSecret.trim() : '';
+      if (clientId && clientSecret) {
+        await this.seedOAuthClient(ctx.tenantId, row.id, clientId, clientSecret);
+      }
+    }
     return this.redact(ctx, row);
   }
 
@@ -172,6 +190,16 @@ export class MeriMcpService {
 
     const scope = input.scope === undefined ? entry.defaultScope : this.parseScope(input.scope);
     this.assertCanManage(ctx, scope, scope === 'user' ? ctx.userId : null);
+
+    // Manual-client connectors (HubSpot, Google, MS, Salesforce) need a
+    // pre-registered OAuth app — collect the client credentials up front.
+    const manualClient = entry.authType === 'oauth' && entry.oauthClientMode === 'manual';
+    const clientId = typeof input.oauthClientId === 'string' ? input.oauthClientId.trim() : '';
+    const clientSecret =
+      typeof input.oauthClientSecret === 'string' ? input.oauthClientSecret.trim() : '';
+    if (manualClient && (!clientId || !clientSecret)) {
+      throw new BadRequestException(`${entry.name} needs an OAuth Client ID and Client Secret`);
+    }
 
     // Endpoint: catalog default, or admin-supplied for self-hosted entries.
     let endpoint = entry.endpoint;
@@ -232,6 +260,11 @@ export class MeriMcpService {
     // connectors are discovered after the callback (tokens aren't stored yet).
     if (entry.authType !== 'oauth') {
       await this.discoverTools(ctx.tenantId, row.id).catch(() => {});
+    }
+    // Seed the pre-registered client so the OAuth handshake skips dynamic
+    // registration and uses the admin's app credentials.
+    if (manualClient) {
+      await this.seedOAuthClient(ctx.tenantId, row.id, clientId, clientSecret);
     }
     return {
       ...this.redact(ctx, row),
@@ -548,6 +581,44 @@ export class MeriMcpService {
     return createMcpClient(
       conn,
       this.config.get('CLIO_MCP_STDIO_ALLOWED_COMMANDS', { infer: true }),
+    );
+  }
+
+  /**
+   * Pre-seed a manually-registered OAuth client (admin-supplied client_id +
+   * client_secret) into the credential row, so the SDK auth() flow finds it via
+   * clientInformation() and uses it (client_secret_post) instead of attempting
+   * dynamic client registration — for providers that don't support RFC 7591
+   * (HubSpot, Google, Microsoft, Salesforce). Secret encrypted at rest.
+   */
+  private async seedOAuthClient(
+    tenantId: string,
+    serverId: string,
+    clientId: string,
+    clientSecret: string,
+  ): Promise<void> {
+    const envelope = encryptSecret(this.encryptionKey(), clientSecret);
+    const keyVersion = this.config.get('OAUTH_TOKEN_ENCRYPTION_KEY_VERSION', { infer: true });
+    await this.prisma.withTenant(tenantId, (tx) =>
+      tx.clioMcpOAuthCredential.upsert({
+        where: { serverId },
+        update: {
+          clientId,
+          clientSecretCiphertext: envelope.ciphertext,
+          clientSecretIv: envelope.iv,
+          clientSecretAuthTag: envelope.authTag,
+          keyVersion,
+        },
+        create: {
+          tenantId,
+          serverId,
+          clientId,
+          clientSecretCiphertext: envelope.ciphertext,
+          clientSecretIv: envelope.iv,
+          clientSecretAuthTag: envelope.authTag,
+          keyVersion,
+        },
+      }),
     );
   }
 
