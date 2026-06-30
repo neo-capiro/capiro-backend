@@ -33,6 +33,14 @@ export interface SyncRunContext {
   sinceDate: string | null;
 }
 
+/**
+ * A `running` SyncRun older than this is treated as a crashed/zombie run and
+ * does NOT block a new run (the process that owned it is gone). 6h comfortably
+ * exceeds the slowest scheduled job while still recovering from a hard crash by
+ * the next daily tick.
+ */
+export const DEFAULT_STALE_RUN_TTL_MS = 6 * 60 * 60 * 1000;
+
 export interface RunWithSyncRunOptions {
   /**
    * Explicit override for the incremental window (e.g. a `--since` CLI flag or a
@@ -40,6 +48,15 @@ export interface RunWithSyncRunOptions {
    * the existing scripts. Pass a Date or YYYY-MM-DD string.
    */
   overrideSince?: Date | string | null;
+  /**
+   * Skip (no-op, exit 0) if another run for this `source` is already `running`
+   * and started within `staleRunTtlMs`. Standardizes the "one instance per job"
+   * guard that was previously ad-hoc in only a few scripts. Default `true`;
+   * pass `false` for an intentional manual/backfill run that must proceed.
+   */
+  skipIfRunning?: boolean;
+  /** Override the stale-run threshold (ms). Default `DEFAULT_STALE_RUN_TTL_MS`. */
+  staleRunTtlMs?: number;
 }
 
 function toDate(v: Date | string | null | undefined): Date | null {
@@ -87,6 +104,25 @@ export async function lastSuccessfulWatermark(
 }
 
 /**
+ * Start time of an ACTIVE (`status='running'`) run for this source that began
+ * within `ttlMs`, or null. A run older than the TTL is a crashed zombie and is
+ * intentionally ignored so a stuck row can't wedge a job forever.
+ */
+export async function activeRunStartedAt(
+  prisma: SyncRunCapablePrisma,
+  source: string,
+  ttlMs: number = DEFAULT_STALE_RUN_TTL_MS,
+): Promise<Date | null> {
+  const threshold = new Date(Date.now() - ttlMs);
+  const run = await prisma.syncRun.findFirst({
+    where: { source, status: 'running', startedAt: { gte: threshold } },
+    orderBy: { startedAt: 'desc' },
+    select: { startedAt: true },
+  });
+  return run?.startedAt ?? null;
+}
+
+/**
  * Wrap one ingestion job in a SyncRun row with incremental-watermark resolution.
  * `fn` receives the resolved `since` window and must return row counts.
  * On throw: records status='error' + message, then rethrows (process exits
@@ -98,6 +134,27 @@ export async function runWithSyncRun(
   fn: (ctx: SyncRunContext) => Promise<RunCounts>,
   options: RunWithSyncRunOptions = {},
 ): Promise<RunCounts> {
+  // One instance per job: if another run is already in flight (and not a stale
+  // zombie), no-op and exit 0 so a slow run + the next cron tick don't double-
+  // ingest. Standardized here so every helper-based job inherits it (P0-T8).
+  if (options.skipIfRunning ?? true) {
+    const activeSince = await activeRunStartedAt(
+      prisma,
+      source,
+      options.staleRunTtlMs ?? DEFAULT_STALE_RUN_TTL_MS,
+    );
+    if (activeSince) {
+      console.log(
+        `INGESTION_SKIP ${JSON.stringify({
+          source,
+          reason: 'already_running',
+          running_since: activeSince.toISOString(),
+        })}`,
+      );
+      return emptyCounts();
+    }
+  }
+
   const override = toDate(options.overrideSince);
   const since = override ?? (await lastSuccessfulWatermark(prisma, source));
   const ctx: SyncRunContext = { since, sinceDate: toDateString(since) };

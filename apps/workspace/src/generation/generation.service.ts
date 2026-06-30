@@ -1,5 +1,7 @@
 import { Injectable, Logger, ServiceUnavailableException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service.js';
+import { MeriV2FlagsService } from '../meriv2/meriv2-flags.service.js';
+import { MeriV2OrchestratorClient } from '../meriv2/meriv2-orchestrator.client.js';
 import { AiCredentialService } from './ai-credential.service.js';
 import { PeResolverService, type AuthoritativePeRecord } from './pe-resolver.service.js';
 import { anonymizeText, type AnonymizeMap } from './anonymize.js';
@@ -39,6 +41,8 @@ export class GenerationService {
     private readonly prisma: PrismaService,
     private readonly creds: AiCredentialService,
     private readonly peResolver: PeResolverService,
+    private readonly meriV2Flags: MeriV2FlagsService,
+    private readonly meriV2: MeriV2OrchestratorClient,
   ) {}
 
   async generateSection(
@@ -256,7 +260,17 @@ export class GenerationService {
    * the Context Builder ("Open editor") and by the editor's "Regenerate All".
    * Overwrites existing section content (callers gate when that is appropriate).
    */
-  async generateAllSections(tenantId: string, draftId: string) {
+  async generateAllSections(tenantId: string, draftId: string, opts?: { bearerToken?: string }) {
+    // P0-T4 dormant proxy: when meriv2.workspaceGen is ON (AND the MERIV2_ENABLED
+    // env kill-switch is set) proxy full-document generation to the MeriV2
+    // orchestrator instead of running in-process below. Both flags default OFF,
+    // so this branch is dormant and the existing path (everything below) is
+    // byte-for-byte unchanged (SC0.2). `as never` defers to this method's
+    // inferred return type (the orchestrator returns the same draft shape by
+    // contract); the parity harness (SC0.3) is the gate before enablement.
+    if (await this.meriV2Flags.isWorkspaceGenEnabled(tenantId)) {
+      return (await this.meriV2.proxyGenerateAllSections(tenantId, draftId, opts?.bearerToken)) as never;
+    }
     const draft = await this.prisma.wsDraft.findFirst({ where: { id: draftId, tenantId } });
     if (!draft) throw new ServiceUnavailableException('Draft not found');
     const cfg = draft.config as Record<string, unknown>;

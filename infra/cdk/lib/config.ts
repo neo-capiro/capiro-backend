@@ -36,6 +36,11 @@ export interface EnvConfig {
   workspaceMemoryMib: number;
   workspaceDesiredCount: number;
   workspaceMaxCount: number;
+  // MeriV2 orchestrator (Option B strangler-fig service; /meri-api/*).
+  meriv2OrchestratorCpu: number;
+  meriv2OrchestratorMemoryMib: number;
+  meriv2OrchestratorDesiredCount: number;
+  meriv2OrchestratorMaxCount: number;
   // Hardening
   protectFromDestroy: boolean; // true for prod, false for dev to allow iteration
   logRetentionDays: number;
@@ -78,6 +83,10 @@ const BASE: Omit<EnvConfig, 'envName' | 'account' | 'region'> = {
   workspaceMemoryMib: 512,
   workspaceDesiredCount: 2,
   workspaceMaxCount: 4,
+  meriv2OrchestratorCpu: 256,
+  meriv2OrchestratorMemoryMib: 512,
+  meriv2OrchestratorDesiredCount: 2,
+  meriv2OrchestratorMaxCount: 4,
   protectFromDestroy: false,
   logRetentionDays: 90,
 };
@@ -156,6 +165,8 @@ export function loadConfig(app: cdk.App): EnvConfig {
             marketingMaxCount: 2,
             workspaceDesiredCount: 1,
             workspaceMaxCount: 2,
+            meriv2OrchestratorDesiredCount: 1,
+            meriv2OrchestratorMaxCount: 2,
             auroraMinAcu: 0.5,
             auroraMaxAcu: 2,
             auroraBackupRetentionDays: 7,

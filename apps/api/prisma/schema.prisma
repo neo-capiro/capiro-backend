@@ -4038,3 +4038,80 @@ model MemoryEdge {
   @@index([tenantId, dstType, dstSlug], map: "memory_edges_tenant_dst_idx")
   @@map("memory_edges")
 }
+
+// ─────────────────────────────────────────────────────────────────────────
+// MeriV2 (P0-T7) — first-class Claim/Evidence store (data warehouse #5) +
+// Compliance/Audit store (#6). Additive promotion of evidence that today is
+// embedded JSON on program_element_delta / action_recommendation /
+// provision_pe_link. Tenant-scoped with RLS via the tracked_bill /
+// notification_log convention (tenant_id column + policy, no Tenant FK).
+// ─────────────────────────────────────────────────────────────────────────
+
+/// A discrete, attributable statement MeriV2 asserts about a subject. Every
+/// claim surfaced in an artifact must carry >= 1 Evidence row (SC3.3);
+/// unsupported claims are flagged, not emitted.
+model Claim {
+  id                  String    @id @default(uuid()) @db.Uuid
+  tenantId            String    @map("tenant_id") @db.Uuid
+  subjectType         String    @map("subject_type") // 'client' | 'bill' | 'program_element' | 'member' | ...
+  subjectId           String    @map("subject_id")
+  statement           String    @db.Text
+  confidence          String    @default("unknown") // 'high' | 'medium' | 'low' | 'unknown'
+  freshnessAt         DateTime? @map("freshness_at") @db.Timestamptz(6)
+  userEdited          Boolean   @default(false) @map("user_edited")
+  originalStatement   String?   @map("original_statement") @db.Text
+  // Forward-referenced ids (ClioArtifact / Phase-5 TranscriptSegment); kept as
+  // plain uuid columns (no FK) so this store does not couple to those tables.
+  artifactId          String?   @map("artifact_id") @db.Uuid
+  transcriptSegmentId String?   @map("transcript_segment_id") @db.Uuid
+  createdAt           DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt           DateTime  @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  evidence Evidence[]
+
+  @@index([tenantId])
+  @@index([tenantId, subjectType, subjectId])
+  @@index([artifactId])
+  @@map("claim")
+}
+
+/// A source citation backing a Claim (Appendix B canonical ids). tenant_id is
+/// denormalized from the parent Claim for RLS defense-in-depth.
+model Evidence {
+  id         String   @id @default(uuid()) @db.Uuid
+  tenantId   String   @map("tenant_id") @db.Uuid
+  claimId    String   @map("claim_id") @db.Uuid
+  sourceType String   @map("source_type") // 'congress_bill' | 'lda_filing' | 'transcript_segment' | ...
+  sourceId   String   @map("source_id")
+  url        String?
+  quote      String?  @db.Text
+  pageNumber Int?     @map("page_number")
+  accessedAt DateTime @map("accessed_at") @db.Timestamptz(6)
+  createdAt  DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  claim Claim @relation(fields: [claimId], references: [id], onDelete: Cascade)
+
+  @@index([tenantId])
+  @@index([claimId])
+  @@map("evidence")
+}
+
+/// PASS/WARN/BLOCK record written by the Phase-2 compliance precheck engine —
+/// warehouse #6, the system of record for approval gates.
+model ComplianceCheck {
+  id               String   @id @default(uuid()) @db.Uuid
+  tenantId         String   @map("tenant_id") @db.Uuid
+  trigger          String // 'send_email' | 'lda_threshold' | 'gift_travel' | 'fara_risk' | ...
+  decision         String // 'PASS' | 'WARN' | 'BLOCK'
+  reason           String   @db.Text
+  ruleSource       String?  @map("rule_source")
+  requiredApproval Boolean  @default(false) @map("required_approval")
+  actorUserId      String?  @map("actor_user_id") // clerk user id of the actor, if any
+  entityType       String?  @map("entity_type")
+  entityId         String?  @map("entity_id")
+  occurredAt       DateTime @default(now()) @map("occurred_at") @db.Timestamptz(6)
+
+  @@index([tenantId, occurredAt(sort: Desc)])
+  @@index([tenantId, trigger])
+  @@map("compliance_check")
+}

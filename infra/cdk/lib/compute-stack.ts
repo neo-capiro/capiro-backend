@@ -73,6 +73,9 @@ export class ComputeStack extends cdk.Stack {
   public readonly webTargetGroup: elb.ApplicationTargetGroup;
   public readonly marketingTargetGroup: elb.ApplicationTargetGroup;
   public readonly workspaceTargetGroup: elb.ApplicationTargetGroup;
+  public readonly meriv2OrchestratorRepo: ecr.IRepository;
+  public readonly meriv2OrchestratorService: ecs.FargateService;
+  public readonly meriv2OrchestratorTargetGroup: elb.ApplicationTargetGroup;
 
   constructor(scope: Construct, id: string, props: ComputeStackProps) {
     super(scope, id, props);
@@ -227,6 +230,11 @@ export class ComputeStack extends cdk.Stack {
       this,
       'WorkspaceRepo',
       `capiro/${cfg.envName}/workspace`,
+    );
+    this.meriv2OrchestratorRepo = ecr.Repository.fromRepositoryName(
+      this,
+      'MeriV2OrchestratorRepo',
+      `capiro/${cfg.envName}/meriv2-orchestrator`,
     );
 
     // ------------------------------------------------------------------ ECS cluster
@@ -786,6 +794,115 @@ export class ComputeStack extends cdk.Stack {
       scaleOutCooldown: cdk.Duration.seconds(30),
     });
 
+    // ---------------------------------------------------------- MeriV2 orchestrator
+    // Option B strangler-fig service on its own ECR repo + Fargate service.
+    // Reuses the SHARED Aurora cluster (queries via api-delegation + a User
+    // lookup; owns NO tables) and the SAME Clerk JWT secret as the API. Routed
+    // via the ALB at /meri-api/* (listener rule below). Existing surfaces are
+    // untouched (SC0.2); the meriv2.* feature flags ship OFF.
+    const meriv2OrchestratorLogGroup = new logs.LogGroup(this, 'MeriV2OrchestratorLogs', {
+      logGroupName: `/capiro/${cfg.envName}/meriv2-orchestrator`,
+      retention: cfg.logRetentionDays as unknown as logs.RetentionDays,
+      removalPolicy: cdk.RemovalPolicy.RETAIN,
+    });
+
+    const meriv2OrchestratorTaskRole = new iam.Role(this, 'MeriV2OrchestratorTaskRole', {
+      assumedBy: new iam.ServicePrincipal('ecs-tasks.amazonaws.com'),
+      description: 'Capiro MeriV2 orchestrator task role',
+    });
+    // Least-privilege: Clerk (verify JWTs) + the app DB role (the MeriContext
+    // user lookup; no DDL). No AI provider secrets — Phase-0 tools delegate to
+    // the API, which holds those.
+    meriv2OrchestratorTaskRole.addToPolicy(
+      new iam.PolicyStatement({
+        actions: ['secretsmanager:GetSecretValue', 'secretsmanager:DescribeSecret'],
+        resources: [dbSecretImported.secretArn, appDbSecretImported.secretArn, clerkSecretKeyImported.secretArn],
+      }),
+    );
+    meriv2OrchestratorTaskRole.addToPolicy(
+      new iam.PolicyStatement({
+        actions: ['kms:Decrypt', 'kms:DescribeKey'],
+        resources: [dataKey.keyArn, secretsStack.secretsKey.keyArn],
+      }),
+    );
+
+    const meriv2OrchestratorServeSecrets = {
+      CLERK_SECRET_KEY: ecs.Secret.fromSecretsManager(clerkSecretKeyImported),
+      DB_HOST: ecs.Secret.fromSecretsManager(dbSecretImported, 'host'),
+      DB_PORT: ecs.Secret.fromSecretsManager(dbSecretImported, 'port'),
+      DB_USER: ecs.Secret.fromSecretsManager(appDbSecretImported, 'username'),
+      DB_PASSWORD: ecs.Secret.fromSecretsManager(appDbSecretImported, 'password'),
+    };
+    const meriv2OrchestratorSharedEnv: Record<string, string> = {
+      NODE_ENV: cfg.envName === 'dev' ? 'development' : 'production',
+      LOG_LEVEL: 'info',
+      MERIV2_PORT: '4300',
+      DB_NAME: databaseName,
+      ...(cfg.clerkJwtIssuer ? { CLERK_JWT_ISSUER: cfg.clerkJwtIssuer } : {}),
+      WEB_ORIGIN: `https://${cfg.appHost}`,
+      // Phase-0 client-context delegation target (api /api/engagement/context/:id).
+      MERIV2_API_BASE_URL: `https://${cfg.appHost}`,
+    };
+
+    const meriv2OrchestratorTaskDef = new ecs.FargateTaskDefinition(this, 'MeriV2OrchestratorTaskDef', {
+      family: `capiro-${cfg.envName}-meriv2-orchestrator`,
+      cpu: cfg.meriv2OrchestratorCpu,
+      memoryLimitMiB: cfg.meriv2OrchestratorMemoryMib,
+      runtimePlatform: {
+        cpuArchitecture: ecs.CpuArchitecture.ARM64,
+        operatingSystemFamily: ecs.OperatingSystemFamily.LINUX,
+      },
+      taskRole: meriv2OrchestratorTaskRole,
+    });
+    grantSecretsAndKmsToExecutionRole(
+      meriv2OrchestratorTaskDef,
+      [dbSecretImported.secretArn, appDbSecretImported.secretArn, clerkSecretKeyImported.secretArn],
+      [dataKey.keyArn, secretsStack.secretsKey.keyArn],
+    );
+    meriv2OrchestratorTaskDef.addContainer('meriv2-orchestrator', {
+      image: ecs.ContainerImage.fromEcrRepository(this.meriv2OrchestratorRepo, 'latest'),
+      essential: true,
+      logging: ecs.LogDrivers.awsLogs({
+        logGroup: meriv2OrchestratorLogGroup,
+        streamPrefix: 'meriv2-orchestrator',
+      }),
+      environment: meriv2OrchestratorSharedEnv,
+      secrets: meriv2OrchestratorServeSecrets,
+      readonlyRootFilesystem: false,
+      portMappings: [{ containerPort: 4300, protocol: ecs.Protocol.TCP }],
+      healthCheck: {
+        command: ['CMD-SHELL', 'wget -qO- http://127.0.0.1:4300/meri-api/health || exit 1'],
+        interval: cdk.Duration.seconds(30),
+        timeout: cdk.Duration.seconds(5),
+        retries: 3,
+        startPeriod: cdk.Duration.seconds(30),
+      },
+    });
+
+    this.meriv2OrchestratorService = new ecs.FargateService(this, 'MeriV2OrchestratorService', {
+      cluster: this.cluster,
+      taskDefinition: meriv2OrchestratorTaskDef,
+      serviceName: `capiro-${cfg.envName}-meriv2-orchestrator`,
+      desiredCount: cfg.meriv2OrchestratorDesiredCount,
+      vpcSubnets: { subnetType: ec2.SubnetType.PRIVATE_WITH_EGRESS },
+      securityGroups: [serviceSecurityGroup as ec2.SecurityGroup],
+      assignPublicIp: false,
+      enableExecuteCommand: cfg.envName !== 'prod',
+      cloudMapOptions: { name: 'meriv2-orchestrator' },
+      circuitBreaker: { rollback: true },
+      minHealthyPercent: 100,
+      maxHealthyPercent: 200,
+    });
+    const meriv2OrchestratorScaling = this.meriv2OrchestratorService.autoScaleTaskCount({
+      minCapacity: cfg.meriv2OrchestratorDesiredCount,
+      maxCapacity: cfg.meriv2OrchestratorMaxCount,
+    });
+    meriv2OrchestratorScaling.scaleOnCpuUtilization('MeriV2OrchestratorCpuScaling', {
+      targetUtilizationPercent: 60,
+      scaleInCooldown: cdk.Duration.seconds(60),
+      scaleOutCooldown: cdk.Duration.seconds(30),
+    });
+
     // Workspace migrate task (run before rolling the service, like api-migrate).
     this.workspaceMigrateTaskDefinition = new ecs.FargateTaskDefinition(
       this,
@@ -1203,6 +1320,32 @@ export class ComputeStack extends cdk.Stack {
       deregistrationDelay: cdk.Duration.seconds(15),
     });
 
+    this.meriv2OrchestratorTargetGroup = new elb.ApplicationTargetGroup(
+      this,
+      'MeriV2OrchestratorTargetGroup',
+      {
+        vpc,
+        port: 4300,
+        protocol: elb.ApplicationProtocol.HTTP,
+        targetType: elb.TargetType.IP,
+        targets: [
+          this.meriv2OrchestratorService.loadBalancerTarget({
+            containerName: 'meriv2-orchestrator',
+            containerPort: 4300,
+          }),
+        ],
+        healthCheck: {
+          path: '/meri-api/health',
+          healthyHttpCodes: '200',
+          interval: cdk.Duration.seconds(30),
+          timeout: cdk.Duration.seconds(5),
+          unhealthyThresholdCount: 3,
+          healthyThresholdCount: 2,
+        },
+        deregistrationDelay: cdk.Duration.seconds(15),
+      },
+    );
+
     // Listener rules, ORDER MATTERS, lower priority wins.
     //   3  /api/*, /webhooks/*, /health (any host) → api  [must beat marketing host rule]
     //   5  apex (capiro.ai) → marketing
@@ -1230,6 +1373,19 @@ export class ComputeStack extends cdk.Stack {
       priority: 10,
       conditions: [elb.ListenerCondition.pathPatterns(['/workspace-api/*'])],
       action: elb.ListenerAction.forward([this.workspaceTargetGroup]),
+    });
+    // MeriV2 orchestrator: /meri-api/* → orchestrator service. Priority 15 sits
+    // between WorkspaceApi (10) and WebDefault (20); path is distinct from
+    // /api/*, /workspace-api/*, and /*. Same PROD ROUTING DRIFT caveat as the
+    // WorkspaceApi rule above: this attaches to the CDK-managed `Alb`, which is
+    // NOT the live prod ALB. The EFFECTIVE prod wiring must be added out-of-band
+    // to the MANUAL `capiro-prod-alb` HTTPS:443 listener (e.g. `aws elbv2
+    // create-rule --priority 15 --conditions path-pattern /meri-api/* --actions
+    // forward capiro-prod-meriv2-orchestrator-tg`).
+    httpsListener.addAction('MeriApi', {
+      priority: 15,
+      conditions: [elb.ListenerCondition.pathPatterns(['/meri-api/*'])],
+      action: elb.ListenerAction.forward([this.meriv2OrchestratorTargetGroup]),
     });
     if (cfg.rootDomain !== cfg.appHost) {
       httpsListener.addAction('Marketing', {

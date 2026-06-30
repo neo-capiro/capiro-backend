@@ -3,6 +3,7 @@ import { MeriModule } from '../meri/meri.module.js';
 import { EngagementModule } from '../engagement/engagement.module.js';
 import { WorkspaceAssistantController } from './workspace-assistant.controller.js';
 import { WorkspaceAssistantService } from './workspace-assistant.service.js';
+import { MeriV2OrchestratorClient } from './meriv2-orchestrator.client.js';
 
 /**
  * In-editor Meri assistant. Reuses MeriToolsService (read-only subset) from the
@@ -12,6 +13,6 @@ import { WorkspaceAssistantService } from './workspace-assistant.service.js';
 @Module({
   imports: [MeriModule, EngagementModule],
   controllers: [WorkspaceAssistantController],
-  providers: [WorkspaceAssistantService],
+  providers: [WorkspaceAssistantService, MeriV2OrchestratorClient],
 })
 export class WorkspaceAssistantModule {}

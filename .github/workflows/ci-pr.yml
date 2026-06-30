@@ -1,0 +1,39 @@
+# PR gate (SC0.6). Runs on every pull request to main. Lint is intentionally
+# substituted with `prettier --check` on the MeriV2 code: `pnpm lint` is
+# non-functional repo-wide (eslint is not installed), so typecheck + prettier +
+# tests are the real quality gate (see docs/plans/2026-06-30-meriv2-DECISIONS.md D3).
+name: ci-pr
+
+on:
+  pull_request:
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 9.15.9
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+
+      - name: Prettier (MeriV2 code)
+        run: >
+          pnpm exec prettier --check
+          "packages/meriv2-core/**/*.ts"
+          "apps/meriv2-orchestrator/**/*.ts"
+
+      - name: Typecheck (turbo)
+        run: pnpm turbo run typecheck
+
+      - name: Test (turbo)
+        run: pnpm turbo run test

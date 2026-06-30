@@ -1,0 +1,36 @@
+{
+  "name": "@capiro/meriv2-core",
+  "version": "0.0.0",
+  "private": true,
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "require": "./dist/index.js",
+      "import": "./dist/index.js",
+      "default": "./dist/index.js"
+    }
+  },
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "dev": "tsc -p tsconfig.json --watch",
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "test": "jest --detectOpenHandles --forceExit",
+    "eval:meriv2": "tsx test/evals/run-evals.ts",
+    "parity": "tsx test/parity/parity.ts",
+    "clean": "rm -rf dist"
+  },
+  "dependencies": {
+    "@capiro/shared": "workspace:*",
+    "zod": "^3.23.8"
+  },
+  "devDependencies": {
+    "@types/jest": "^29.5.13",
+    "@types/node": "^20.16.10",
+    "jest": "^29.7.0",
+    "ts-jest": "^29.2.5",
+    "tsx": "^4.19.1",
+    "typescript": "^5.5.4"
+  }
+}
