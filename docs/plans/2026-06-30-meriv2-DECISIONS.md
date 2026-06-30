@@ -99,6 +99,54 @@ DEVIATION-FROM-PLAN`.
   That rewires LIVE api/workspace auth, so it is NOT done unattended — flagged for CTO sign-off.
 - **Reversibility:** orchestrator-only code on the unmerged branch; trivially removable.
 
+## D9 — get_client_context delegates to the api's existing endpoint (SC0.7 by construction) — `DECISION`
+- **Context:** P0-T5 says "reuse the existing client-context query — do not duplicate SQL."
+  `engagement.clientContext` is non-trivial (association-where + per-user `ownMeetingWhere`
+  visibility + 4 scoped queries + stakeholder aggregation) and lives in `apps/api` (not importable
+  cross-service). Blind-porting it into the orchestrator, untestable without a DB, risks a scoping
+  bug — the exact thing SC0.7 guards against.
+- **Decision:** The orchestrator's `ApiClientContextRepo` DELEGATES to the api's existing
+  authenticated `GET /api/engagement/context/:clientId`, forwarding the caller's JWT. One
+  authoritative query, zero SQL duplicated, zero scoping drift → SC0.7 row-parity holds by
+  construction. Later phases may migrate the query into meriv2-core behind the same port.
+- **Reversibility:** Internal; the `ClientContextRepo` port makes the swap invisible to callers.
+
+## D10 — Dormant proxy: orchestrator SURFACE endpoints are later-phase — `DECISION` / `DEVIATION-FROM-PLAN`
+- **Context:** P0-T4 wires a flag-ON proxy from both surfaces to the orchestrator, but Phase 0
+  only migrated the get_client_context TOOL — the orchestrator has no full in-editor-assistant or
+  workspace-generation SURFACE endpoint yet.
+- **Decision:** Phase 0 ships the DORMANT proxy branch + a typed `MeriV2OrchestratorClient` in each
+  surface (flag OFF by default → never executes; SC0.2 holds). The orchestrator's surface endpoints
+  + controller token-forwarding land in a later phase; the parity harness (SC0.3) is the gate before
+  any tenant is flipped ON. This matches the plan's own "dormant proxy" framing.
+- **Reversibility:** Branch is behind two OFF flags; removable by deleting the branch.
+
+## D11 — `Evidence` carries a denormalized `tenant_id` for RLS defense-in-depth — `DECISION`
+- **Context:** The plan's Evidence fields omit tenant_id (it's claim-scoped via `claimId`).
+- **Decision:** Added `tenant_id` to `evidence` + an RLS isolation policy, so a direct evidence
+  query is tenant-isolated even if not joined through `claim`. Strict improvement; matches the
+  "every tenant-scoped table has RLS" convention.
+
+## D12 — Workspace-gen flag read via `$queryRaw` on the shared `tenants` table — `DECISION`
+- **Context:** `apps/workspace` owns only `ws_*` (its Prisma client has no `Tenant` model), but the
+  per-tenant `meriv2.workspaceGen` flag lives in `tenants.settings_jsonb.clioFeatureFlags`.
+- **Decision:** `MeriV2FlagsService` reads it with a parameterized `$queryRaw` against the shared
+  `tenants` table (60s cache, ANDed with MERIV2_ENABLED). Avoids importing the apps/api flag helper
+  cross-service while honoring the same convention.
+
+## D13 — Environment-gated verifications (Docker down all session) — `NEEDS-APPROVAL` / pending-environment
+- **Context:** The Docker daemon never came up this session → no local Postgres, no image build,
+  no `prisma migrate dev`. AWS deploy is GATE'd (D2).
+- **Decision / status of the gated SCs:**
+  - SC0.1 live deploy + imageDigest triple + dev-host health 200 → **NEEDS-APPROVAL** (AWS + Docker).
+    Local proof captured instead: `node dist/main.js` → `/meri-api/health` 200, `/meri-api/tools` 401.
+  - SC0.5 migration applies-clean on a prod-shaped DB → **pending-environment** (verified additive by
+    inspection + `prisma validate`; apply when a DB is available).
+  - SC0.3 LIVE both-paths parity + SC0.7 cross-tenant/row-parity → **pending-environment** (need
+    api+orchestrator+DB+model+JWTs). Harness + e2e written; deterministic parts run green.
+  - SC0.4 < 5s rollback → mechanism proven by unit test (flip+invalidate); live tenant demo pending.
+- **Reversibility:** N/A (status record).
+
 ## D7 — Orchestrator port 4300, ALB listener priority 15 for `/meri-api/*` — `DECISION`
 - **Context:** Existing listener priorities: 3=api, 5=marketing, 10=workspace, 20=web. Workspace
   uses port 4200.
