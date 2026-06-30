@@ -130,6 +130,19 @@ export class AppModule implements NestModule {
           path: 'api/clio/runtime/(.*)',
           method: RequestMethod.ALL,
         },
+        // MCP connector OAuth callback (connector-library v1) — a top-level
+        // browser redirect from the external OAuth provider with ?code&state and
+        // no Clerk session. Authenticates via the HMAC-signed `state`
+        // (MeriMcpOAuthService.verifyState), same pattern as the Microsoft
+        // callback above.
+        {
+          path: '/api/clio/mcp-oauth/callback',
+          method: RequestMethod.GET,
+        },
+        {
+          path: 'api/clio/mcp-oauth/callback',
+          method: RequestMethod.GET,
+        },
         // Public marketing endpoint (capiro.ai Insights page) — no Clerk session.
         { path: '/api/insights', method: RequestMethod.GET },
         { path: 'api/insights', method: RequestMethod.GET },

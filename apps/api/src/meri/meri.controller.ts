@@ -36,7 +36,8 @@ import { MeriService } from './meri.service.js';
 import { MeriToolsService } from './meri-tools.service.js';
 import { MeriResearchService } from './meri-research.service.js';
 import { ClientKbService } from '../embeddings/client-kb.service.js';
-import { MeriMcpService, type McpServerInput } from './meri-mcp.service.js';
+import { MeriMcpService, type CatalogAddInput, type McpServerInput } from './meri-mcp.service.js';
+import { MeriMcpOAuthService } from './meri-mcp-oauth.service.js';
 import { MeriFirmSkillsService } from './meri-firm-skills.service.js';
 import { renderReportToBrowserHtml, renderReportToWordHtml } from './meri-research.helpers.js';
 
@@ -116,6 +117,7 @@ export class MeriController {
     private readonly research: MeriResearchService,
     private readonly kb: ClientKbService,
     private readonly mcp: MeriMcpService,
+    private readonly mcpOAuth: MeriMcpOAuthService,
     private readonly firmSkills: MeriFirmSkillsService,
   ) {}
 
@@ -191,7 +193,9 @@ export class MeriController {
     // stop burning tokens for an answer no one is reading (P0-4).
     const abort = new AbortController();
     req.on('close', () => abort.abort());
-    res.on('error', () => { /* swallow socket errors on client disconnect */ });
+    res.on('error', () => {
+      /* swallow socket errors on client disconnect */
+    });
     await this.service.streamMessage(
       ctx,
       id,
@@ -289,22 +293,35 @@ export class MeriController {
     return this.service.uploadAttachment(ctx, file);
   }
 
-  // ── MCP servers (F6a) — admin-gated; secrets are write-only ──
+  // ── MCP connectors (connector-library v1) ──
+  // Any standard_user may browse the catalog and manage their OWN (personal)
+  // connectors; the service gates firm-wide connectors to admins. Secrets are
+  // write-only. The class-level @Roles('standard_user') applies (no override),
+  // so client_portal_user is excluded.
+
+  /** Curated connector library + which entries the caller already connected. */
+  @Get('mcp-catalog')
+  mcpCatalog(@CurrentTenant() ctx: TenantContext) {
+    return this.mcp.catalog(ctx);
+  }
 
   @Get('mcp-servers')
-  @Roles('user_admin')
   listMcpServers(@CurrentTenant() ctx: TenantContext) {
     return this.mcp.listServers(ctx);
   }
 
   @Post('mcp-servers')
-  @Roles('user_admin')
   createMcpServer(@CurrentTenant() ctx: TenantContext, @Body() body: McpServerInput) {
     return this.mcp.createServer(ctx, body ?? {});
   }
 
+  /** One-click add from the catalog (pre-fills endpoint/tools; may need OAuth). */
+  @Post('mcp-servers/from-catalog')
+  addMcpFromCatalog(@CurrentTenant() ctx: TenantContext, @Body() body: CatalogAddInput) {
+    return this.mcp.addFromCatalog(ctx, body ?? {});
+  }
+
   @Patch('mcp-servers/:id')
-  @Roles('user_admin')
   updateMcpServer(
     @CurrentTenant() ctx: TenantContext,
     @Param('id') id: string,
@@ -314,15 +331,27 @@ export class MeriController {
   }
 
   @Delete('mcp-servers/:id')
-  @Roles('user_admin')
   deleteMcpServer(@CurrentTenant() ctx: TenantContext, @Param('id') id: string) {
     return this.mcp.deleteServer(ctx, id);
   }
 
   @Post('mcp-servers/refresh')
-  @Roles('user_admin')
   refreshMcpServers(@CurrentTenant() ctx: TenantContext) {
     return this.mcp.refreshNow(ctx);
+  }
+
+  /** Begin OAuth for an oauth connector; returns the authorization URL. */
+  @Post('mcp-servers/:id/oauth/start')
+  startMcpOAuth(@CurrentTenant() ctx: TenantContext, @Param('id') id: string) {
+    return this.mcpOAuth.start(ctx, id);
+  }
+
+  /** Revoke the locally-stored OAuth tokens for a connector. */
+  @Post('mcp-servers/:id/oauth/disconnect')
+  async disconnectMcpOAuth(@CurrentTenant() ctx: TenantContext, @Param('id') id: string) {
+    await this.mcpOAuth.disconnect(ctx, id);
+    this.mcp.invalidate(ctx.tenantId);
+    return { disconnected: true };
   }
 
   // ── Firm-authored skills (F6b) — admin-gated authoring ──
@@ -405,10 +434,7 @@ export class MeriController {
   // ── Learned-memory surface (Meri learned X + one-click undo) ──
 
   @Get('memory/recent')
-  async recentLearnedMemories(
-    @CurrentTenant() ctx: TenantContext,
-    @Query('limit') limit?: string,
-  ) {
+  async recentLearnedMemories(@CurrentTenant() ctx: TenantContext, @Query('limit') limit?: string) {
     return this.service.listRecentLearnedMemories(ctx, limit ? parseInt(limit, 10) : 5);
   }
 

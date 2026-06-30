@@ -15,6 +15,8 @@ import { MeriToolsService } from './meri-tools.service.js';
 import { MeriResearchService } from './meri-research.service.js';
 import { MeriDocgenService } from './meri-docgen.service.js';
 import { MeriMcpService } from './meri-mcp.service.js';
+import { MeriMcpOAuthService } from './meri-mcp-oauth.service.js';
+import { MeriMcpOAuthController } from './meri-mcp-oauth.controller.js';
 import { MeriFirmSkillsService } from './meri-firm-skills.service.js';
 import { MeriFeatureFlagsService } from './meri-feature-flags.service.js';
 
@@ -31,13 +33,14 @@ import { MeriFeatureFlagsService } from './meri-feature-flags.service.js';
     RegulatoryDocketModule,
     EmbeddingsModule,
   ],
-  controllers: [MeriController],
+  controllers: [MeriController, MeriMcpOAuthController],
   providers: [
     MeriService,
     MeriToolsService,
     MeriResearchService,
     MeriDocgenService,
     MeriMcpService,
+    MeriMcpOAuthService,
     MeriFirmSkillsService,
     MeriFeatureFlagsService,
   ],

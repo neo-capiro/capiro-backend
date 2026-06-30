@@ -167,6 +167,21 @@ export const configSchema = z.object({
   // separated). Empty (default) = stdio servers refuse to start; tenant
   // admins can only configure streamable-HTTP servers on their own.
   CLIO_MCP_STDIO_ALLOWED_COMMANDS: z.string().optional(),
+  // Connector library (connector-library v1). Absolute callback URL registered
+  // as the OAuth redirect_uri for connectors that use OAuth 2.1 (dynamic client
+  // registration). Must point at GET /api/clio/mcp-oauth/callback on the app
+  // origin, e.g. https://app.capiro.ai/api/clio/mcp-oauth/callback. Unset =
+  // OAuth connectors can't be connected (token/none connectors still work).
+  CLIO_MCP_OAUTH_REDIRECT_URI: z.string().url().optional(),
+  // Where the OAuth callback bounces the browser back to after connecting.
+  CLIO_MCP_OAUTH_SUCCESS_REDIRECT: z.string().default('/settings/integrations'),
+  // SSRF guard: connector endpoints must be https and must NOT target a
+  // private/loopback/link-local address. Set true ONLY for local development to
+  // permit http://localhost / 127.0.0.1 MCP servers. Never enable in prod.
+  CLIO_MCP_ALLOW_INSECURE_LOCAL: z
+    .string()
+    .default('false')
+    .transform((v) => ['true', '1', 'yes', 'on'].includes(v.trim().toLowerCase())),
   // Firm-authored skills (assistant-parity F6b). Kill-switch: set
   // false/0/no/off and tenant skills stop loading at turn time (rows are
   // retained; CRUD still works).
