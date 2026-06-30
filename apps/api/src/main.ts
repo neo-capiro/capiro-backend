@@ -23,6 +23,33 @@ async function bootstrap() {
     ],
   });
 
+  // CORS is registered BEFORE the body parsers below so that EVERY response —
+  // including ones that short-circuit during body parsing (e.g. a 413 when an
+  // oversized signature upload exceeds the limit) — still carries
+  // Access-Control-Allow-Origin. Registered after the parsers, a body-parser
+  // error bypasses the CORS middleware, and a cross-origin caller
+  // (app.capiro.ai → this API host) sees the real status as an opaque CORS
+  // failure ("No 'Access-Control-Allow-Origin' header") instead.
+  const allowedOrigins = new Set(
+    [
+      ...(process.env.WEB_ORIGIN?.split(',') ?? ['http://localhost:5173']),
+      'https://capiro.ai',
+      'https://www.capiro.ai',
+    ]
+      .map((origin) => origin.trim())
+      .filter(Boolean),
+  );
+  app.enableCors({
+    origin: (origin, callback) => {
+      if (!origin || allowedOrigins.has(origin)) {
+        callback(null, true);
+        return;
+      }
+      callback(new Error('Origin is not allowed by CORS'));
+    },
+    credentials: true,
+  });
+
   // Webhook signature verification needs the raw (unparsed) body. Mount the raw
   // parser ONLY on the webhook paths; everything else gets normal JSON.
   app.use('/webhooks/clerk', raw({ type: '*/*', limit: '1mb' }));
@@ -30,10 +57,12 @@ async function bootstrap() {
   // The email-signature endpoint carries a branded HTML signature that can embed
   // a base64 logo / uploaded signature image, so its JSON body legitimately
   // exceeds the global 1mb cap. Give just this route a larger limit: the server
-  // caps stored HTML at ~2MB (MAX_SIGNATURE_HTML_LENGTH in sanitize-signature.ts)
-  // and base64 inflates ~33%, so 8mb leaves comfortable headroom. Mounted BEFORE
-  // the global json() so it wins for this path.
-  app.use('/api/me/email-signature', json({ limit: '8mb' }));
+  // caps stored HTML at MAX_SIGNATURE_HTML_LENGTH (sanitize-signature.ts) and
+  // base64 inflates ~33%, so this stays comfortably above that cap. Mounted
+  // BEFORE the global json() so it wins for this path. (CORS is registered
+  // above so an over-limit upload returns a 413 WITH CORS headers, not an
+  // opaque cross-origin failure.)
+  app.use('/api/me/email-signature', json({ limit: '24mb' }));
   app.use(json({ limit: '1mb' }));
 
   // Strict input validation at the edge, drop unknown fields, fail closed
@@ -52,27 +81,6 @@ async function bootstrap() {
   // of a generic 500. Registered after the pipes; only catches Prisma errors,
   // so HttpExceptions still flow through Nest's default handler.
   app.useGlobalFilters(new PrismaClientExceptionFilter());
-
-  const allowedOrigins = new Set(
-    [
-      ...(process.env.WEB_ORIGIN?.split(',') ?? ['http://localhost:5173']),
-      'https://capiro.ai',
-      'https://www.capiro.ai',
-    ]
-      .map((origin) => origin.trim())
-      .filter(Boolean),
-  );
-
-  app.enableCors({
-    origin: (origin, callback) => {
-      if (!origin || allowedOrigins.has(origin)) {
-        callback(null, true);
-        return;
-      }
-      callback(new Error('Origin is not allowed by CORS'));
-    },
-    credentials: true,
-  });
 
   const port = Number.parseInt(process.env.API_PORT ?? '4000', 10);
   const host = process.env.API_BIND_HOST ?? '0.0.0.0';
