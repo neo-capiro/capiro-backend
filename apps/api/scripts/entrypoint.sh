@@ -150,6 +150,11 @@ case "${1:-serve}" in
     echo "Running diag-tracker-readiness (Tracker tab: READ-ONLY alert readiness report) $*"
     exec ./node_modules/.bin/tsx scripts/diag-tracker-readiness.ts "$@"
     ;;
+  diag-outlook-sync)
+    shift
+    echo "Running diag-outlook-sync (READ-ONLY Outlook/Graph connection + sync health) $*"
+    exec ./node_modules/.bin/tsx scripts/diag-outlook-sync.ts "$@"
+    ;;
   delete-tenant)
     shift
     echo "Running delete-tenant $*"
