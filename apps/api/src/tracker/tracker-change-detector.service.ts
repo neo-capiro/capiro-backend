@@ -593,10 +593,11 @@ export class TrackerChangeDetectorService {
 
   /**
    * READ-ONLY per-bill alert diagnosis: is this bill in the congress DB, who
-   * tracks it (and is it baselined), does it have a pending material move right
-   * now, and how many configured recipients would get an EMAIL for a
-   * floor-vote-class event (the class a Rules-report / floor passage produces).
-   * Answers "will <bill> alert, and to whom?". Sends nothing.
+   * tracks it (and is it baselined), is there a pending material move now (using
+   * the SAME unchanged-since-snapshot guard as detection), and — per tracking
+   * client — the alert-pref gate breakdown showing exactly why each would or
+   * wouldn't EMAIL a floor-vote-class event (Rules-report / passage). Answers
+   * "will <bill> alert, to whom, and if not what's blocking it?". Sends nothing.
    */
   async billStatus(billId: string): Promise<{
     billId: string;
@@ -607,10 +608,18 @@ export class TrackerChangeDetectorService {
     trackedBy: {
       tenantId: string;
       clientId: string;
+      clientName: string | null;
       baselined: boolean;
       lastSeenActionDate: string | null;
       currentlyPending: boolean;
-      emailReadyRecipients: number;
+      prefs: {
+        emailEnabled: boolean;
+        hasAddress: boolean;
+        floorVoteTrigger: boolean;
+        materiality: string;
+        emailReady: boolean;
+        blockedBy: string | null;
+      }[];
     }[];
   }> {
     const scanHistory = this.config.get('TRACKER_SCAN_ACTION_HISTORY', { infer: true });
@@ -627,27 +636,39 @@ export class TrackerChangeDetectorService {
           tenantId: true,
           clientId: true,
           lastSeenAt: true,
+          lastSeenActionText: true,
           lastSeenActionDate: true,
         },
       }),
     );
 
     const clientIds = Array.from(new Set(tracked.map((t) => t.clientId)));
-    const prefs = clientIds.length
-      ? await this.prisma.withSystem((tx) =>
-          tx.alertPreference.findMany({
-            where: { clientId: { in: clientIds } },
-            select: {
-              tenantId: true,
-              clientId: true,
-              emailEnabled: true,
-              emailAddress: true,
-              triggers: true,
-              materiality: true,
-            },
-          }),
-        )
-      : [];
+    const [prefs, clients] = await Promise.all([
+      clientIds.length
+        ? this.prisma.withSystem((tx) =>
+            tx.alertPreference.findMany({
+              where: { clientId: { in: clientIds } },
+              select: {
+                tenantId: true,
+                clientId: true,
+                emailEnabled: true,
+                emailAddress: true,
+                triggers: true,
+                materiality: true,
+              },
+            }),
+          )
+        : Promise.resolve([]),
+      clientIds.length
+        ? this.prisma.withSystem((tx) =>
+            tx.client.findMany({
+              where: { id: { in: clientIds } },
+              select: { id: true, name: true },
+            }),
+          )
+        : Promise.resolve([]),
+    ]);
+    const nameById = new Map(clients.map((c) => [c.id, c.name]));
 
     let actions: ActionLike[] = [];
     if (scanHistory && bill) {
@@ -659,18 +680,37 @@ export class TrackerChangeDetectorService {
       actions = rows.map((a) => ({ date: a.date, text: a.text }));
     }
 
-    const pendingTypes = new Set<string>();
-    // A floor-vote-class event (notable) is what a Rules-report / passage emits;
-    // probe each pref against that so the answer holds even before the move lands.
-    const emailReadyForFloorVote = (p: (typeof prefs)[number]): boolean =>
-      p.emailEnabled &&
-      !!p.emailAddress &&
-      p.triggers.includes('floorVote') &&
-      clearsMateriality('notable', p.materiality);
+    // Gate breakdown for a floor-vote-class (notable) event — the class a
+    // Rules-report / passage emits. blockedBy names the FIRST failing gate.
+    const gate = (p: (typeof prefs)[number]) => {
+      const floorVoteTrigger = p.triggers.includes('floorVote');
+      const hasAddress = !!p.emailAddress;
+      let blockedBy: string | null = null;
+      if (!p.emailEnabled) blockedBy = 'email_disabled';
+      else if (!hasAddress) blockedBy = 'no_email_address';
+      else if (!floorVoteTrigger) blockedBy = 'floorVote_trigger_off';
+      else if (!clearsMateriality('notable', p.materiality)) blockedBy = 'materiality_too_high';
+      return {
+        emailEnabled: p.emailEnabled,
+        hasAddress,
+        floorVoteTrigger,
+        materiality: p.materiality,
+        emailReady: blockedBy == null,
+        blockedBy,
+      };
+    };
 
+    const pendingTypes = new Set<string>();
     const trackedBy = tracked.map((row) => {
       let events: MaterialEvent[] = [];
-      if (bill && row.lastSeenAt) {
+      const textChanged = (bill?.latestActionText ?? '') !== (row.lastSeenActionText ?? '');
+      const dateAdvanced =
+        bill != null &&
+        bill.latestActionDate != null &&
+        (row.lastSeenActionDate == null ||
+          bill.latestActionDate.getTime() > row.lastSeenActionDate.getTime());
+      // Match detection's guard: an unchanged-since-snapshot action is NOT pending.
+      if (bill && row.lastSeenAt && (textChanged || dateAdvanced)) {
         if (scanHistory) {
           const newActions = actions.filter(
             (a) =>
@@ -698,12 +738,13 @@ export class TrackerChangeDetectorService {
       return {
         tenantId: row.tenantId,
         clientId: row.clientId,
+        clientName: nameById.get(row.clientId) ?? null,
         baselined: row.lastSeenAt != null,
         lastSeenActionDate: row.lastSeenActionDate
           ? row.lastSeenActionDate.toISOString().slice(0, 10)
           : null,
         currentlyPending: events.length > 0,
-        emailReadyRecipients: clientPrefs.filter(emailReadyForFloorVote).length,
+        prefs: clientPrefs.map(gate),
       };
     });
 
