@@ -8,6 +8,7 @@ import { NewOutreachWizard as OutreachWizard } from './outreach/v2/index.js';
 import {
   CheckOutlined,
   DeleteOutlined,
+  PaperClipOutlined,
   PlusOutlined,
   RobotOutlined,
   SearchOutlined,
@@ -27,6 +28,7 @@ import {
   Tag,
   Tooltip,
   Typography,
+  Upload,
 } from 'antd';
 import { useApi } from '../../lib/use-api.js';
 import type { Client } from '../clients/clientTypes.js';
@@ -233,6 +235,9 @@ export interface OutreachWorkflowState {
   sentRecipientCount: number;
   fieldFallbacks: Record<string, string>;
   personalNotesSaved: boolean;
+  // EngagementAttachment ids to send with every email (files uploaded from the
+  // user's computer or picked from stored client documents).
+  attachmentIds: string[];
 }
 
 interface OutboundContactRecord {
@@ -405,6 +410,7 @@ const EMPTY_WORKFLOW: OutreachWorkflowState = {
   sentRecipientCount: 0,
   fieldFallbacks: {},
   personalNotesSaved: true,
+  attachmentIds: [],
 };
 
 export function OutreachView({
@@ -2762,6 +2768,80 @@ function OutboundCampaignWorkflow({
     workflow.selectedContactIds.includes(contact.id),
   ).length;
 
+  // ---- Attachments (files sent with every email on send) ----
+  // Files can be uploaded from the user's computer or picked from the client's
+  // stored documents. Both resolve to EngagementAttachment ids persisted on
+  // metadata.attachmentIds; the backend attaches them to each sent email.
+  const api = useApi();
+  const { message: attachMessage } = App.useApp();
+  const [uploadingAttachment, setUploadingAttachment] = useState(false);
+  const docsQuery = useQuery<Array<{ id: string; fileName: string; contentType: string | null }>>({
+    enabled: workflow.step === 4 && Boolean(workflow.clientId),
+    queryKey: ['outbound-attachments', workflow.clientId],
+    queryFn: async () =>
+      (
+        await api.get<Array<{ id: string; fileName: string; contentType: string | null }>>(
+          '/api/engagement/attachments',
+          { params: { clientId: workflow.clientId } },
+        )
+      ).data,
+    retry: false,
+  });
+  const storedDocs = docsQuery.data ?? [];
+  // Attached ids that aren't in the stored-docs list (e.g. just-uploaded files
+  // before the query refetches, or docs from another scope) still need a label.
+  const docNameById = new Map(storedDocs.map((d) => [d.id, d.fileName]));
+
+  const persistAttachmentIds = (ids: string[]) => {
+    onWorkflowChange({ ...workflow, attachmentIds: ids });
+    // Persist to the record's metadata so send-campaign can read the ids.
+    if (workflow.record) void onSaveStep({ attachmentIds: ids }, workflow.step);
+  };
+
+  const toggleAttachment = (id: string) => {
+    const ids = workflow.attachmentIds.includes(id)
+      ? workflow.attachmentIds.filter((a) => a !== id)
+      : [...workflow.attachmentIds, id];
+    persistAttachmentIds(ids);
+  };
+
+  const uploadAttachment = async (file: File) => {
+    if (!workflow.clientId) {
+      attachMessage.error('Select a client before uploading attachments');
+      return;
+    }
+    setUploadingAttachment(true);
+    try {
+      const contentType = file.type || 'application/octet-stream';
+      const { data: presigned } = await api.post<{
+        url: string;
+        fields: Record<string, string>;
+        s3Key: string;
+      }>('/api/engagement/attachments/upload-url', {
+        clientId: workflow.clientId,
+        fileName: file.name,
+        contentType,
+        contentLength: file.size,
+      });
+      const form = new FormData();
+      Object.entries(presigned.fields).forEach(([k, v]) => form.append(k, v));
+      form.append('file', file); // file must be last for the S3 POST policy
+      const s3Res = await fetch(presigned.url, { method: 'POST', body: form });
+      if (!s3Res.ok) throw new Error(`S3 upload failed (${s3Res.status})`);
+      const { data: created } = await api.post<{ id: string }>(
+        '/api/engagement/attachments/confirm',
+        { clientId: workflow.clientId, fileName: file.name, contentType, s3Key: presigned.s3Key },
+      );
+      persistAttachmentIds(Array.from(new Set([...workflow.attachmentIds, created.id])));
+      await docsQuery.refetch();
+      attachMessage.success(`Attached ${file.name}`);
+    } catch (err) {
+      attachMessage.error(errorMessage(err) || 'Could not upload attachment');
+    } finally {
+      setUploadingAttachment(false);
+    }
+  };
+
   const selectAllEmailContacts = () => {
     const recipients = emailContacts.reduce(
       (rows, contact) => addUniqueRecipient(rows, outboundRecipientFromContact(contact)),
@@ -3165,6 +3245,59 @@ function OutboundCampaignWorkflow({
                     workflow.record?.metadata,
                   )}
                 />
+              </div>
+              <div className="outbound-attachments" style={{ marginTop: 16 }}>
+                <Typography.Text strong>Attachments</Typography.Text>
+                <Typography.Paragraph type="secondary" style={{ margin: '2px 0 8px' }}>
+                  Files added here are attached to every email on send (max 3MB each).
+                </Typography.Paragraph>
+                <Space direction="vertical" size={4} style={{ width: '100%' }}>
+                  {storedDocs.map((doc) => (
+                    <Checkbox
+                      key={doc.id}
+                      checked={workflow.attachmentIds.includes(doc.id)}
+                      onChange={() => toggleAttachment(doc.id)}
+                    >
+                      {doc.fileName}
+                    </Checkbox>
+                  ))}
+                  {/* Attached ids not present in the stored-docs list (freshly
+                      uploaded before refetch) still render as checked rows. */}
+                  {workflow.attachmentIds
+                    .filter((id) => !docNameById.has(id))
+                    .map((id) => (
+                      <Checkbox key={id} checked onChange={() => toggleAttachment(id)}>
+                        {`Attached file (${id.slice(0, 8)}…)`}
+                      </Checkbox>
+                    ))}
+                  {!workflow.clientId ? (
+                    <Typography.Text type="secondary">
+                      Select a client to attach files.
+                    </Typography.Text>
+                  ) : storedDocs.length === 0 && workflow.attachmentIds.length === 0 ? (
+                    <Typography.Text type="secondary">
+                      No files attached yet. Upload one from your computer below.
+                    </Typography.Text>
+                  ) : null}
+                  <Upload
+                    multiple
+                    showUploadList={false}
+                    disabled={!workflow.clientId || uploadingAttachment}
+                    beforeUpload={(file) => {
+                      void uploadAttachment(file as File);
+                      return false; // handle the upload ourselves; skip AntD default
+                    }}
+                  >
+                    <Button
+                      size="small"
+                      icon={<PaperClipOutlined />}
+                      loading={uploadingAttachment}
+                      disabled={!workflow.clientId}
+                    >
+                      Upload a file
+                    </Button>
+                  </Upload>
+                </Space>
               </div>
               {!emailConnected ? (
                 <div className="outreach-send-warning">
@@ -4462,6 +4595,7 @@ function workflowPayload(workflow: OutreachWorkflowState): Record<string, unknow
       scheduledFor: workflow.scheduledFor || null,
       fieldFallbacks: workflow.fieldFallbacks,
       personalNotesSaved: workflow.personalNotesSaved,
+      attachmentIds: workflow.attachmentIds,
     },
   };
 }
@@ -4509,6 +4643,7 @@ function hydrateWorkflowFromRecord(
       typeof record.metadata?.personalNotesSaved === 'boolean'
         ? record.metadata.personalNotesSaved
         : current.personalNotesSaved,
+    attachmentIds: readStringArray(record.metadata?.attachmentIds),
   };
 }
 

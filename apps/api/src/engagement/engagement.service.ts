@@ -1313,6 +1313,15 @@ export class EngagementService {
     const sent: Array<{ email: string; name: string | null; sentAt: string }> = [];
     const errors: Array<{ email: string; message: string }> = [];
 
+    // Campaign-level file attachments: ids are persisted on the record's
+    // metadata.attachmentIds by the wizard / outbound review screen. Load them
+    // once (skipping any over the Graph inline limit) and attach to every email.
+    const metadataAttachmentIds = (record.metadata as Record<string, unknown>)?.attachmentIds;
+    const attachmentIds = Array.isArray(metadataAttachmentIds)
+      ? metadataAttachmentIds.filter((a): a is string => typeof a === 'string')
+      : undefined;
+    const campaignAttachments = await this.loadGraphAttachments(ctx, attachmentIds);
+
     const perRecipientEmails = (record.metadata as Record<string, unknown>)?.perRecipientEmails;
     const emailMap = Array.isArray(perRecipientEmails)
       ? new Map(
@@ -1332,6 +1341,7 @@ export class EngagementService {
             perEmail?.subject || assembleCampaignBody(record.subject, recipient, record.metadata),
           body: perEmail?.body || assembleCampaignBody(record.body, recipient, record.metadata),
           toRecipients: [{ email, name: recipient.name ?? null }],
+          attachments: campaignAttachments,
         });
         sent.push({
           email,
@@ -4487,6 +4497,39 @@ export class EngagementService {
     return getSignedUrl(this.s3, new GetObjectCommand({ Bucket: this.bucket, Key: s3Key }), {
       expiresIn: 300,
     });
+  }
+
+  /**
+   * Fetch EngagementAttachment rows by id and turn them into Graph inline file
+   * attachments (base64 contentBytes). Files over the ~3MB Graph simple-send
+   * inline limit are skipped rather than failing the whole send. Shared by the
+   * campaign send path (sendCampaign) and the wizard batch send path.
+   */
+  private async loadGraphAttachments(
+    ctx: TenantContext,
+    attachmentIds: string[] | undefined,
+  ): Promise<Array<{ name: string; contentType: string; contentBytes: string }> | undefined> {
+    if (!attachmentIds?.length) return undefined;
+    const GRAPH_INLINE_ATTACHMENT_MAX = 3 * 1024 * 1024;
+    const rows = await this.prisma.withTenant(ctx.tenantId, (tx) =>
+      tx.engagementAttachment.findMany({
+        where: { tenantId: ctx.tenantId, id: { in: attachmentIds } },
+      }),
+    );
+    const graphAttachments: Array<{ name: string; contentType: string; contentBytes: string }> = [];
+    for (const row of rows) {
+      // Skip without downloading when the stored size is known to be too big;
+      // otherwise verify the actual byte length after fetching.
+      if (row.byteSize != null && row.byteSize > GRAPH_INLINE_ATTACHMENT_MAX) continue;
+      const bytes = await this.readAttachmentBytes(row.s3Key);
+      if (bytes.length > GRAPH_INLINE_ATTACHMENT_MAX) continue;
+      graphAttachments.push({
+        name: row.fileName,
+        contentType: row.contentType,
+        contentBytes: bytes.toString('base64'),
+      });
+    }
+    return graphAttachments.length ? graphAttachments : undefined;
   }
 
   private async readAttachmentBytes(s3Key: string): Promise<Buffer> {
