@@ -119,8 +119,16 @@ export class GenerationService {
       .join('\n- ')
       .slice(0, TOTAL_CONTEXT_CAP);
 
+    // Honor the Setup "Length target" (cfg.pages): buildSectionPrompt scales
+    // section length by the ratio of requested pages to the product's suggested
+    // pages. Falls back to the suggested length, so an untouched draft (where
+    // cfg.pages was seeded from the suggestion) generates exactly as before.
+    const product = draft.product ?? 'document';
+    const suggestedPages = WSC.suggestedPages(product);
+    const targetPages = Number(cfg.pages) > 0 ? Number(cfg.pages) : suggestedPages;
+
     const prompt = this.buildSectionPrompt({
-      product: draft.product ?? 'document',
+      product,
       docTitle: draft.docTitle,
       industry: draft.industry,
       section: sectionName,
@@ -129,6 +137,8 @@ export class GenerationService {
       committees: (cfg.committees as string[] | undefined) ?? [],
       context: contextText,
       client: anonymize ? null : client,
+      targetPages,
+      suggestedPages,
     });
 
     // Strip client/office names from the prompt when anonymizing.
@@ -490,12 +500,28 @@ export class GenerationService {
     committees: string[];
     context: string;
     client: string | null;
+    /** Setup "Length target" (cfg.pages) + the product's suggested pages. */
+    targetPages: number;
+    suggestedPages: number;
   }): string {
     const sectionGuide = WSC.suggestedSections(args.product);
     // E-4: match Meri's length + format to the section's purpose instead of one
     // generic prose block. Output HTML (the editor/preview render sanitized HTML
     // that now permits <p>/<ul>/<li>/<table>).
     const spec = WSC.specFor(args.section);
+    // Scale the length-driving formats to the Setup "Length target": a draft set
+    // longer than the product's suggested pages gets proportionally longer prose/
+    // bullet sections (and shorter when set below), so the whole document lands
+    // near the requested page count. Structurally-bounded sections ('short'
+    // one-liners, budget 'table's) keep their natural size. Clamped so an extreme
+    // target can't produce absurd sections.
+    const pageScale =
+      args.suggestedPages > 0
+        ? Math.min(4, Math.max(0.4, args.targetPages / args.suggestedPages))
+        : 1;
+    const scalable = spec.format === 'prose' || spec.format === 'bullets';
+    const loWords = scalable ? Math.round(spec.targetWords[0] * pageScale) : spec.targetWords[0];
+    const hiWords = scalable ? Math.round(spec.targetWords[1] * pageScale) : spec.targetWords[1];
     const formatLine =
       spec.format === 'bullets'
         ? 'Format as a concise HTML bullet list: <ul><li>…</li></ul>.'
@@ -513,12 +539,13 @@ export class GenerationService {
       `Tone: ${args.tone}.`,
       args.toneContext ? `Strategic emphasis: ${args.toneContext}.` : '',
       `This section sits within the standard structure: ${sectionGuide.join(' → ')}.`,
+      `The full document targets about ${args.targetPages} page${args.targetPages === 1 ? '' : 's'} — size this section proportionally so the whole document lands near that length.`,
       args.context ? `Ground the content in these facts:\n- ${args.context}` : '',
       '',
       DOMAIN_PRIMER,
       '',
       `Goal of this section: ${spec.goal}`,
-      `Target length: roughly ${spec.targetWords[0]}–${spec.targetWords[1]} words — respect it.`,
+      `Target length: roughly ${loWords}–${hiWords} words — respect it.`,
       formatLine,
       `Output clean HTML using ONLY these tags: <p>, <ul>/<ol>/<li>, <table>/<thead>/<tbody>/<tr>/<th>/<td>, <strong>, <em>. No markdown, no section header/title, no preamble or meta-commentary. Be specific and factual; government-affairs register.`,
     ]

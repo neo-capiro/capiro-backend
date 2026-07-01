@@ -17,8 +17,8 @@
  * only while unfocused. The RichTextToolbar drives the active editor only — no
  * global execCommand.
  *
- * Phase 6b (WIRED): pre-submission Checks popover (live rule-based score),
- * Version-history popover (snapshot on Save draft + restore), and the two-sided
+ * Phase 6b (WIRED): Version-history popover (snapshot on Save draft + restore),
+ * and the two-sided
  * concurrent-edit lock (auto-acquire + heartbeat + view-only banner + request /
  * take-over, polled). View-only disables the canvas editors but keeps commenting.
  *
@@ -37,7 +37,6 @@ import {
   useCreateVersion,
   useDeleteDocument,
   useDraft,
-  useDraftChecks,
   useDraftContext,
   useGenerateAll,
   useGenerateSection,
@@ -64,11 +63,9 @@ import { Letterhead } from './editor/canvas-blocks.js';
 import { InsertRail } from './editor/InsertRail.js';
 import { MeriPanel } from './editor/MeriPanel.js';
 import { AnonymizeReview, type AnonymizeMap } from './editor/AnonymizeReview.js';
-import { ChecksPopover } from './editor/ChecksPopover.js';
 import { VersionPopover } from './editor/VersionPopover.js';
 import { LockBanner } from './editor/LockBanner.js';
 import { useEditLock } from './editor/useEditLock.js';
-import type { WsCheckResult } from './types.js';
 import { budgetFrom } from './editor/BudgetBlock.js';
 import { sectionViews } from './editor/section-model.js';
 import { anonymizeMap, type StoredRedaction } from './editor/anonymize.js';
@@ -84,16 +81,6 @@ import { MeriDraftingOverlay } from './LibraryPage.js';
 
 const AUTOSAVE_MS = 1200;
 
-// Quick-action prompts the checks "Fix" hands to Meri for the prose checks
-// (mirror MeriPanel.QUICK_ACTIONS so a one-click Fix actually remediates).
-const FIX_PROMPTS: Record<string, string> = {
-  acronyms:
-    'Find undefined acronyms throughout the document and expand each on first use, e.g. "NDAA (National Defense Authorization Act)". Propose section edits.',
-  'federal-nexus':
-    'Add or strengthen an explicit federal nexus — cite the authorizing statute / USC reference and make the federal role unmistakable. Propose section edits.',
-  length:
-    'This document runs long. Tighten every section: cut redundancy and wordiness while preserving the substance and the ask. Propose section edits.',
-};
 // E-16: at most one autosave version checkpoint per this interval of active editing.
 const VERSION_CHECKPOINT_MS = 5 * 60_000;
 const MAIN_TAB = 'main';
@@ -165,10 +152,8 @@ export function EditorPage() {
   // "highlight → Comment" silently no-op.
   const pendingAnchor = useRef<SelectionAnchor | null>(null);
   const [showAnonymizeReview, setShowAnonymizeReview] = useState(false);
-  // Phase 6b: which toolbar popover is open (mutually exclusive).
-  const [popover, setPopover] = useState<'checks' | 'history' | null>(null);
-  // A prompt the checks "Fix" hands to the Meri panel to run immediately.
-  const [meriPrompt, setMeriPrompt] = useState<string | null>(null);
+  // Phase 6b: which toolbar popover is open (Version history).
+  const [popover, setPopover] = useState<'history' | null>(null);
 
   // The engine document the active canvas maps to (comment scope). The MAIN
   // canvas is the primary WsDocument (lowest ordinal); packet tabs are their own
@@ -190,9 +175,6 @@ export function EditorPage() {
   const selfClerkId = me?.user.clerkUserId ?? null;
   const selfName =
     `${me?.user.firstName ?? ''} ${me?.user.lastName ?? ''}`.trim() || me?.user.email || 'You';
-
-  // ── Phase 6b: live pre-submission checks (toolbar score + popover) ──────────
-  const { data: checks, isLoading: checksLoading } = useDraftChecks(draftId ?? null);
 
   // ── Phase 6b: concurrent-edit lock (auto-acquire, heartbeat, release) ───────
   const editLock = useEditLock(draftId ?? null, selfName);
@@ -798,103 +780,7 @@ export function EditorPage() {
       `Anonymized ${map.redactions.length} name${map.redactions.length === 1 ? '' : 's'}`,
     );
   };
-  const onChecks = () => setPopover((p) => (p === 'checks' ? null : 'checks'));
   const onHistory = () => setPopover((p) => (p === 'history' ? null : 'history'));
-
-  // Jump the canvas to a section by name (switch to the MAIN doc first; the
-  // anchor is on the SectionBlock wrapper, present even for empty sections). The
-  // tab switch needs a tick before the anchor exists in the DOM.
-  const jumpToSection = (name: string, msg: string) => {
-    setActiveTab(MAIN_TAB);
-    toast(msg);
-    window.setTimeout(() => {
-      const esc = typeof CSS !== 'undefined' ? CSS.escape(name) : name;
-      const el = document.querySelector(`[data-ws-section-block="${esc}"]`) as HTMLElement | null;
-      el?.scrollIntoView({ behavior: 'smooth', block: 'center' });
-      el?.focus?.();
-    }, 60);
-  };
-
-  // "Fix" in the checks popover now performs a CONCRETE action per check instead
-  // of a dead toast: open a modal, jump+focus the relevant section/field, route
-  // to Build context, or hand Meri a one-click remediation prompt.
-  const onFixCheck = (c: WsCheckResult) => {
-    setPopover(null);
-    const content = (cfg.sectionContent as Record<string, string> | undefined) ?? {};
-    switch (c.id) {
-      case 'anonymize':
-      case 'anonymize-map':
-        setShowAnonymizeReview(true);
-        return;
-      case 'title':
-        setActiveTab(MAIN_TAB);
-        toast('Fix: set the document title');
-        window.setTimeout(() => {
-          const el = document.querySelector('[data-ws-doc-title]') as HTMLElement | null;
-          el?.scrollIntoView({ behavior: 'smooth', block: 'center' });
-          el?.focus?.();
-        }, 60);
-        return;
-      case 'committees':
-        toast('Fix: choose committees / pathway in Build context');
-        navigate(`/workspace/context/${draftId}`);
-        return;
-      case 'office-nexus':
-        setActiveTab(MAIN_TAB);
-        toast('Fix: switch offices above and tailor each one');
-        window.setTimeout(
-          () =>
-            document.querySelector('.ws-editor-canvas')?.scrollTo({ top: 0, behavior: 'smooth' }),
-          60,
-        );
-        return;
-      case 'acronyms':
-      case 'federal-nexus':
-      case 'length': {
-        const prompt = FIX_PROMPTS[c.id];
-        if (prompt) {
-          setRailTab('meri');
-          setMeriPrompt(prompt);
-          toast('Meri is on it — see the Meri panel');
-          return;
-        }
-        break;
-      }
-      case 'dollar-ask': {
-        const smart = views.find((v) => v.smart);
-        if (smart) {
-          jumpToSection(smart.name, 'Fix: add the dollar amount + delta above PB');
-          return;
-        }
-        break;
-      }
-      case 'clear-ask': {
-        const askName = cfg.sections.find((s) => /\bask\b|request/i.test(s));
-        if (askName) jumpToSection(askName, 'Fix: write the single, clear one-sentence ask');
-        else toast('Fix: add an "Ask / Request" section, then state the ask in one sentence');
-        return;
-      }
-      case 'placeholders': {
-        const ph = cfg.sections.find((s) =>
-          /\bTODO\b|\bTBD\b|lorem ipsum|\[[^\]]+\]/i.test(content[s] || ''),
-        );
-        if (ph) {
-          jumpToSection(ph, 'Fix: replace the leftover placeholder');
-          return;
-        }
-        break;
-      }
-      default:
-        break;
-    }
-    // sections-filled (and any fall-through): jump to the first empty section.
-    const empty = cfg.sections.find((s) => !(content[s] || '').replace(/<[^>]*>/g, '').trim());
-    if (empty) {
-      jumpToSection(empty, `Fix: draft the "${empty}" section`);
-      return;
-    }
-    toast(`Review: ${c.label}${c.detail ? ` — ${c.detail}` : ''}`);
-  };
   const onShare = () => navigate(`/workspace/collab/${draftId}`);
   const onPreview = () => {
     flush(false);
@@ -1008,13 +894,10 @@ export function EditorPage() {
         saveStatus={saveStatus}
         anonymize={!!cfg.anonymize}
         letterhead={cfg.letterhead}
-        checksScore={checks?.score ?? null}
-        checksOpen={popover === 'checks'}
         historyOpen={popover === 'history'}
         viewOnly={viewOnly}
         collaborators={collaboratorInitials}
         onAnonymize={onAnonymize}
-        onChecks={onChecks}
         onHistory={onHistory}
         onShare={onShare}
         onPreview={onPreview}
@@ -1158,8 +1041,6 @@ export function EditorPage() {
             onRunMeri={runMeri}
             onApplyEdits={applyMeriEdits}
             onEditContext={onEditContext}
-            pendingPrompt={meriPrompt}
-            onPromptConsumed={() => setMeriPrompt(null)}
           />
         </div>
       </div>
@@ -1195,16 +1076,6 @@ export function EditorPage() {
           draftId={draftId}
           onClose={() => setShowAnonymizeReview(false)}
           onApply={onApplyAnonymize}
-        />
-      )}
-
-      {/* Pre-submission checks popover (toolbar "Checks N/M"). */}
-      {popover === 'checks' && (
-        <ChecksPopover
-          data={checks}
-          loading={checksLoading}
-          onClose={() => setPopover(null)}
-          onFix={onFixCheck}
         />
       )}
 

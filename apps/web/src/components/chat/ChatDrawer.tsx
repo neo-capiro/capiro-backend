@@ -271,6 +271,12 @@ export function ChatDrawer({ selectedClientName }: ChatDrawerProps) {
       ? `${contextLabelFor(location.pathname)} · ${selectedClientName}`
       : contextLabelFor(location.pathname);
 
+  // The workspace draft editor embeds its own document-scoped Meri panel whose
+  // composer is docked to the bottom-right rail — exactly where this global
+  // launcher floats, so the FAB covers its input. Suppress the (redundant) FAB
+  // on that route; the drawer, if already open, still renders.
+  const hideMeriFab = location.pathname.startsWith('/workspace/draft/');
+
   const selectedClientValue = useMemo(() => {
     if (!sessionClientId) return '';
     const found = clients.find((client) => client.id === sessionClientId);
@@ -1748,18 +1754,21 @@ export function ChatDrawer({ selectedClientName }: ChatDrawerProps) {
         </div>
       </div>
 
-      {/* Toggle FAB, only visible when drawer is closed */}
-      <button
-        type="button"
-        className={`chat-toggle-fab${isOpen ? ' chat-toggle-fab--hidden' : ''}`}
-        onClick={toggleChat}
-        aria-label="Open Meri"
-        title="Meri"
-        aria-expanded={isOpen}
-      >
-        <img src={meriBubbleImage} alt="" className="chat-toggle-fab-logo" />
-        {alertsBadge > 0 && <span className="chat-fab-badge">{alertsBadge}</span>}
-      </button>
+      {/* Toggle FAB, only visible when drawer is closed — and hidden on the
+          workspace draft editor, which has its own embedded Meri panel. */}
+      {!hideMeriFab && (
+        <button
+          type="button"
+          className={`chat-toggle-fab${isOpen ? ' chat-toggle-fab--hidden' : ''}`}
+          onClick={toggleChat}
+          aria-label="Open Meri"
+          title="Meri"
+          aria-expanded={isOpen}
+        >
+          <img src={meriBubbleImage} alt="" className="chat-toggle-fab-logo" />
+          {alertsBadge > 0 && <span className="chat-fab-badge">{alertsBadge}</span>}
+        </button>
+      )}
     </>
   );
 }
