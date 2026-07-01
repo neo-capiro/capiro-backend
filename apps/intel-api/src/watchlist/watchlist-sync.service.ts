@@ -109,7 +109,9 @@ export class WatchlistSyncService {
 
       await this.prisma.withSystem(async (tx) => {
         // Serialize concurrent syncs of the SAME client (auto-released at commit).
-        await tx.$queryRawUnsafe('SELECT pg_advisory_xact_lock(hashtext($1))', `intel_wl_sync:${cw.client_id}`);
+        // $executeRawUnsafe (not $queryRawUnsafe): pg_advisory_xact_lock returns
+        // `void`, which the query path cannot deserialize; execute discards it.
+        await tx.$executeRawUnsafe('SELECT pg_advisory_xact_lock(hashtext($1))', `intel_wl_sync:${cw.client_id}`);
 
         const existWl = await tx.watchlist.findUnique({ where: { id: wlId }, select: { issueAreas: true } });
         if (existWl) {
