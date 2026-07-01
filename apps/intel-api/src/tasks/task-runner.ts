@@ -19,8 +19,17 @@
 import { PrismaService } from '../prisma/prisma.service.js';
 import { SourceDataRepository } from '../sourcedata/source-data.repository.js';
 import { EMBEDDING_MODEL, embedText, normalize, vectorLiteral } from '../embeddings/embedder.js';
+import { ConfigService } from '@nestjs/config';
 import { WatchlistSyncService } from '../watchlist/watchlist-sync.service.js';
 import { BillChangeDetectorService } from '../tracker/bill-change-detector.service.js';
+import { FeatureFlagService } from '../feature-flags/feature-flag.service.js';
+import { IntelAlertService } from '../intel-alert/intel-alert.service.js';
+import { IntelEmailService } from '../intel-alert/intel-email.service.js';
+
+/** Build the shadow-guarded alert service for one-off delivery verbs. */
+function buildAlertService(prisma: PrismaService): IntelAlertService {
+  return new IntelAlertService(prisma, new FeatureFlagService(prisma, new ConfigService()), new IntelEmailService());
+}
 
 /** Candidate cosine floor for bill semantic search (ported: EMBED_CANDIDATE_FLOOR). */
 export const EMBED_CANDIDATE_FLOOR = 0.3;
@@ -32,6 +41,9 @@ export const KNOWN_VERBS = [
   'backfill-alert-prefs', //        Phase 2: alert_preference → intel_alert_preference
   'disable-feature', //             Phase 2: feature-flag OFF path (§5.0.1)
   'detect-bill-changes', //         Phase 3: shadow change detection → intel_alert (no delivery)
+  'emit-bill-alerts', //            Phase 4: fan out NEW intel_alert (SHADOW: suppress+log, no send)
+  'flush-digests', //               Phase 4: drain digest queue (SHADOW: no send)
+  'shadow-selftest', //             Phase 4: live proof of the shadow suppress path
 ] as const;
 export type Verb = (typeof KNOWN_VERBS)[number];
 
@@ -116,6 +128,25 @@ export async function runVerb(verb: string, args: string[], deps: VerbDeps): Pro
         `DETECT_DONE scanned=${r.scanned} baseline=${r.baseline} changed=${r.changed} ` +
           `alerts=${r.alertsWritten} skippedDedup=${r.skippedDedup} byType=${JSON.stringify(r.byType)}`,
       );
+      return;
+    }
+    case 'emit-bill-alerts': {
+      const r = await buildAlertService(deps.prisma).emitNewBillAlerts();
+      deps.log(`EMIT_DONE alerts=${r.alerts} suppressed=${r.suppressed} sent=${r.sent}`);
+      return;
+    }
+    case 'flush-digests': {
+      const cadence = args[0] === 'weekly' ? 'weekly' : 'daily';
+      const r = await buildAlertService(deps.prisma).flushDigests(cadence);
+      deps.log(`FLUSH_DONE cadence=${cadence} flushed=${r.flushed} sent=${r.sent}`);
+      return;
+    }
+    case 'shadow-selftest': {
+      if (!args[0] || !args[1]) throw new Error('shadow-selftest requires <tenantSlugOrId> <clientId>');
+      const tenantId = await new WatchlistSyncService(deps.prisma).resolveTenantId(args[0]);
+      if (!tenantId) throw new Error(`NO_TENANT_FOR ${args[0]}`);
+      const r = await buildAlertService(deps.prisma).shadowSelftest(tenantId, args[1]);
+      deps.log(`SHADOW_SELFTEST suppressed=${r.suppressed} sent=${r.sent}`);
       return;
     }
     default:

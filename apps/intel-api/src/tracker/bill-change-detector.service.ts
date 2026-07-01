@@ -9,6 +9,7 @@ import {
   type MaterialEvent,
 } from './change-detector.util.js';
 import { explainMatch, humanizeBillId, type WatchlistLike } from './relevance.util.js';
+import { scoreShadowAlert } from '../intel-alert/alert-scorer.js';
 
 /**
  * Shadow bill-change detector (Phase 3, plan §6.3) — a faithful port of legacy
@@ -168,6 +169,14 @@ export class BillChangeDetectorService {
       select: { id: true },
     });
     if (existing) return false;
+    const materiality = severityToMateriality(ev.cls.severity);
+    const { score, band } = scoreShadowAlert({
+      severity: ev.cls.severity,
+      materiality,
+      changeType: ev.cls.changeType,
+      actionDate: ev.date,
+      matchedTags,
+    });
     await this.prisma.intelAlert.create({
       data: {
         tenantId: row.tenantId,
@@ -178,8 +187,8 @@ export class BillChangeDetectorService {
         kind: ev.cls.changeType,
         changeType: ev.cls.changeType,
         severity: ev.cls.severity,
-        materiality: severityToMateriality(ev.cls.severity),
-        score: 0, // Phase 4 AlertScorer fills the weighted composite
+        materiality,
+        score, // Phase 4 AlertScorer weighted composite (§7.1)
         title: `${humanizeBillId(row.billId)}: ${ev.cls.label}`,
         whyItMatters: why,
         evidence: {
@@ -190,6 +199,10 @@ export class BillChangeDetectorService {
           why,
           matchedTags,
           tone: ev.cls.tone,
+          band, // display band (score column is the parity field)
+          triggerKey: ev.cls.triggerKey,
+          billTitle: bill.title,
+          displayNum: humanizeBillId(row.billId),
         },
         status: 'new',
       },
