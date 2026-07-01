@@ -27,6 +27,17 @@ import { IntelAlertService } from '../intel-alert/intel-alert.service.js';
 import { IntelEmailService } from '../intel-alert/intel-email.service.js';
 import { TrackerWatchlistService } from '../tracker/tracker-watchlist.service.js';
 import { TrackerBoardService } from '../tracker/tracker-board.service.js';
+import { ParityService } from '../tracker/parity.service.js';
+
+/** Parse `--key=value` flags out of a verb's arg list. */
+function parseFlags(args: string[]): Record<string, string> {
+  const out: Record<string, string> = {};
+  for (const a of args) {
+    const m = /^--([^=]+)=(.*)$/.exec(a);
+    if (m && m[1] !== undefined) out[m[1]] = m[2] ?? '';
+  }
+  return out;
+}
 
 /** Build the shadow-guarded alert service for one-off delivery verbs. */
 function buildAlertService(prisma: PrismaService): IntelAlertService {
@@ -47,6 +58,8 @@ export const KNOWN_VERBS = [
   'flush-digests', //               Phase 4: drain digest queue (SHADOW: no send)
   'shadow-selftest', //             Phase 4: live proof of the shadow suppress path
   'verify-recommendations', //      §6.2: live proof of the recs+board path (keyword+semantic SQL)
+  'parity-report', //               Phase 5: diff legacy intelligence_change vs shadow intel_alert (§8)
+  'parity-streak', //               Phase 5: contiguous green-day streak for a scope (§8.6)
 ] as const;
 export type Verb = (typeof KNOWN_VERBS)[number];
 
@@ -186,6 +199,50 @@ export async function runVerb(verb: string, args: string[], deps: VerbDeps): Pro
       const b = await board.getBoard(tenantId, clientId);
       const total = b.columns.reduce((n, c) => n + c.cards.length, 0);
       deps.log(`BOARD_OK ${b.columns.map((c) => `${c.id}:${c.cards.length}`).join(' ')} total=${total}`);
+      return;
+    }
+    case 'parity-report': {
+      const flags = parseFlags(args);
+      const windowDays = Number(flags['window-days'] ?? '7') || 7;
+      const tenants = flags['tenants'] ?? 'all';
+      const gitSha = process.env.GIT_SHA ?? process.env.IMAGE_TAG ?? null;
+      const svc = new ParityService(deps.prisma, new SourceDataRepository(deps.prisma));
+      const r = await svc.run({ windowDays, tenants, gitSha });
+      const m = r.metrics;
+      deps.log(
+        `PARITY_JSON ${JSON.stringify({
+          scope: r.tenantScope,
+          windowDays,
+          wrote: r.wrote,
+          passed: r.passed,
+          reason: r.reason,
+          clientCount: r.clientCount,
+          legacy: m.legacyCount,
+          intel: m.intelCount,
+          intersection: m.intersection,
+          overlap: Number(m.overlap.toFixed(4)),
+          recall: Number(m.recall.toFixed(4)),
+          precision: Number(m.precision.toFixed(4)),
+          missedCriticals: m.missedCriticals.length,
+          severityCriticalMismatches: m.severityCriticalMismatches.length,
+          triage: m.triage.slice(0, 50),
+        })}`,
+      );
+      deps.log(
+        `PARITY_DONE scope=${r.tenantScope} window=${windowDays}d passed=${r.passed} reason=${r.reason ?? '-'} ` +
+          `overlap=${m.overlap.toFixed(3)} recall=${m.recall.toFixed(3)} |L|=${m.legacyCount} |I|=${m.intelCount} ` +
+          `missedCrit=${m.missedCriticals.length} wrote=${r.wrote}`,
+      );
+      return;
+    }
+    case 'parity-streak': {
+      const scope = args[0] ?? 'all';
+      const svc = new ParityService(deps.prisma, new SourceDataRepository(deps.prisma));
+      const s = await svc.greenStreak(scope);
+      const ready = s.greenStreak >= 7 && s.distinctDays >= 7;
+      deps.log(
+        `PARITY_STREAK scope=${scope} greenStreak=${s.greenStreak} distinctDays=${s.distinctDays} gate=${ready ? 'READY' : 'NOT_READY'}`,
+      );
       return;
     }
     default:

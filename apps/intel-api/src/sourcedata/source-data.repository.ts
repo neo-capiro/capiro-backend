@@ -241,6 +241,55 @@ export class SourceDataRepository {
     );
   }
 
+  /**
+   * Phase 5 parity ground truth: what the LEGACY apps/api tracker DECIDED to
+   * fire, from durable `intelligence_change` rows (GLOBAL/RLS-free, like
+   * congress_bill). source='congress_bill' + data.tracker=true isolates the
+   * tracker's own emits; one row per (client, bill, changeType) via unnest of
+   * related_client_ids. Subscription-independent (NOT notification_log). Read-only.
+   */
+  async legacyTrackerDecisions(
+    clientIds: string[] | null,
+    windowDays: number,
+    changeTypes: string[],
+  ): Promise<Array<{ clientId: string; billId: string; changeType: string; severity: string }>> {
+    const scoped = Boolean(clientIds && clientIds.length);
+    const sql = `
+      SELECT DISTINCT
+        c.client_id::text          AS "clientId",
+        (ic.data->>'bill_id')      AS "billId",
+        ic.change_type             AS "changeType",
+        ic.severity                AS "severity"
+      FROM intelligence_change ic,
+           LATERAL unnest(ic.related_client_ids) AS c(client_id)
+      WHERE ic.source = 'congress_bill'
+        AND (ic.data->>'tracker') = 'true'
+        AND (ic.data->>'bill_id') IS NOT NULL
+        AND ic.change_type = ANY($1::text[])
+        AND ic.detected_at >= now() - make_interval(days => $2::int)
+        ${scoped ? 'AND c.client_id = ANY($3::uuid[])' : ''}`;
+    const params: unknown[] = [changeTypes, windowDays];
+    if (scoped) params.push(clientIds);
+    return this.prisma.$queryRawUnsafe(sql, ...params);
+  }
+
+  /**
+   * Map pilot tenants → their client ids, read under `withSystem` (cross-tenant,
+   * bypass RLS) since `clients` is tenant-scoped. Used to scope both parity sides
+   * to the same client population.
+   */
+  async clientTenantMap(tenantIds: string[]): Promise<Array<{ clientId: string; tenantId: string }>> {
+    if (!tenantIds.length) return [];
+    return this.prisma.withSystem((tx) =>
+      tx.$queryRawUnsafe(
+        `SELECT id::text AS "clientId", tenant_id::text AS "tenantId"
+           FROM clients
+          WHERE tenant_id = ANY($1::uuid[])`,
+        tenantIds,
+      ),
+    );
+  }
+
   // getClient(clientId): NOT IMPLEMENTED in Phase 1.
   //
   // `clients` is TENANT-SCOPED (Postgres RLS). The `withTenant`/`withSystem`

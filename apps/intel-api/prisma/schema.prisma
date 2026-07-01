@@ -276,6 +276,38 @@ model IntelFeedback {
   @@map("intel_feedback")
 }
 
+/// Phase 5 parity audit (§8.6). One row per parity-report run per scope. Compares
+/// what the legacy apps/api tracker DECIDED to fire (durable `intelligence_change`
+/// rows, source='congress_bill' + data.tracker=true) against the shadow
+/// `intel_alert` set over a rolling window. Read-only against both alert sources;
+/// this row is the ONLY write the parity task performs. `git_sha` attributes a
+/// green streak to a specific image.
+model IntelParityRun {
+  id                        String   @id @default(cuid())
+  runAt                     DateTime @default(now()) @map("run_at")
+  windowDays                Int      @map("window_days")
+  tenantScope               String   @map("tenant_scope") // 'all' | tenant slug/id
+  tenantId                  String?  @map("tenant_id")
+  clientCount               Int      @map("client_count")
+  legacyCount               Int      @map("legacy_count") //  |L|
+  intelCount                Int      @map("intel_count") //   |I|
+  intersection              Int //                            |L ∩ I|
+  overlap                   Float //                          Jaccard |∩|/|∪|
+  recall                    Float //                          |∩|/|L| (1.0 when |L|=0)
+  precision                 Float //                          |∩|/|I| (1.0 when |I|=0)
+  missedCriticals           Int      @map("missed_criticals")
+  severityCriticalMismatches Int     @map("severity_critical_mismatches")
+  maxScoreDelta             Float?   @map("max_score_delta") // null = not recomputed (legacy stores no fit)
+  p95ScoreDelta             Float?   @map("p95_score_delta")
+  passed                    Boolean
+  reason                    String? //                        e.g. NO_DATA, GATE_RED:<metric>
+  gitSha                    String?  @map("git_sha")
+  createdAt                 DateTime @default(now()) @map("created_at")
+
+  @@index([tenantScope, runAt])
+  @@map("intel_parity_run")
+}
+
 // --- enums ------------------------------------------------------------------
 
 enum LiveHearingSourceType {
