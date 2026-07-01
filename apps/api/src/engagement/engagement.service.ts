@@ -34,6 +34,7 @@ import type { TenantContext } from '@capiro/shared';
 import type { AppConfig } from '../config/config.schema.js';
 import { PrismaService } from '../prisma/prisma.service.js';
 import { DirectoryService, type DirectoryEmailMatch } from '../directory/directory.service.js';
+import type { OfficeRecommendation } from '../intelligence/office-recommender.service.js';
 import { LobbyIntelService } from '../lobby-intel/lobby-intel.service.js';
 import { FederalSpendingService } from '../federal-spending/federal-spending.service.js';
 import { ClientAssociationService } from './client-association.service.js';
@@ -2051,6 +2052,36 @@ export class EngagementService {
       batchRecipientEmails,
     );
 
+    // ---- Tier-2 context enrichment (computed once per campaign) ----
+
+    // Client's live action recommendations (recommendedAction + why-it-matters),
+    // a near-ready ask. Client-level.
+    const actionsBlock = clientId
+      ? await this.outreachActionsBlock(ctx, clientId).catch(() => null)
+      : null;
+
+    // Office-recommender "why this office is a fit for the client" reasoning
+    // (one manual-refresh cache row per client), indexed by directory member id
+    // for per-recipient lookup by directoryContactId.
+    const { byMember: targetRecByMember, computedAt: targetRecComputedAt } = clientId
+      ? await this.outreachTargetRecommendations(ctx, clientId).catch(() => ({
+          byMember: new Map<string, OfficeRecommendation>(),
+          computedAt: null as string | null,
+        }))
+      : { byMember: new Map<string, OfficeRecommendation>(), computedAt: null as string | null };
+
+    // Recent member press for the recipients, batched by bioguide (bioguide comes
+    // from the directory match resolved above; member_press_item is a GLOBAL,
+    // non-RLS table so it is read directly, not via withTenant).
+    const batchBioguideIds = unique(
+      Array.from(directoryByEmail.values())
+        .map((match) => match.member?.bioguideId ?? '')
+        .filter(Boolean),
+    );
+    const pressByBioguide = await this.outreachMemberPress(batchBioguideIds).catch(
+      () => new Map<string, unknown[]>(),
+    );
+
     // Generate per-recipient drafts with bounded concurrency. This was a
     // sequential await-loop, so a campaign's wall-clock was sum-of-all-calls
     // and large batches timed out before every draft came back. Running a few
@@ -2099,16 +2130,32 @@ export class EngagementService {
           .join('\n\n');
 
         try {
-          // Per-recipient enrichment (Tier-1): directory profile for this
-          // recipient + their own prior correspondence with the sender. Keyed on
-          // the recipient's email (the only identifier that joins to directory,
-          // meetings, and mail). Failures degrade to nothing via the helpers.
+          // Per-recipient enrichment: directory profile + "why this office fits"
+          // reasoning (Tier-1/2), the recipient's prior correspondence, and their
+          // recent press. Keyed on email (directory/meetings/mail) and on the
+          // recipient's directory member id (target recs, joined to bioguide for
+          // press). Failures degrade to nothing via the batch helpers.
           const recipientEmailLower =
             (recipient as Record<string, unknown>).email?.toString()?.trim().toLowerCase() || null;
           const directoryMatch = recipientEmailLower
             ? (directoryByEmail.get(recipientEmailLower) ?? null)
             : null;
-          const recipientProfile = formatRecipientDirectoryProfile(directoryMatch);
+          const recipientDirectoryId =
+            (recipient as Record<string, unknown>).directoryContactId?.toString() || null;
+          const targetRec = recipientDirectoryId
+            ? targetRecByMember.get(recipientDirectoryId)
+            : undefined;
+          // Directory profile ("who") + target rationale ("why them") form one
+          // hoisted RECIPIENT PROFILE section.
+          const recipientProfile =
+            [
+              formatRecipientDirectoryProfile(directoryMatch),
+              formatTargetRationale(targetRec, targetRecComputedAt),
+            ]
+              .filter(Boolean)
+              .join(' ') || null;
+          const bioguideId = directoryMatch?.member?.bioguideId || null;
+          const recentNews = bioguideId ? (pressByBioguide.get(bioguideId) ?? []) : [];
           const meetingHistory = recipientEmailLower
             ? (meetingsByEmail.get(recipientEmailLower) ?? [])
             : [];
@@ -2124,6 +2171,8 @@ export class EngagementService {
             ...(userWritingStyle ? { userWritingStyle } : {}),
             ...(recipientProfile ? { recipientProfile } : {}),
             ...(trackedBillsBlock ? { trackedBills: trackedBillsBlock } : {}),
+            ...(actionsBlock ? { actionRecommendations: actionsBlock } : {}),
+            ...(recentNews.length ? { recentNews } : {}),
             ...(meetingHistory.length ? { meetingHistory } : {}),
             ...(emailHistory.length ? { emailHistory } : {}),
             ...(insightsContext ? { insights: insightsContext } : {}),
@@ -4923,6 +4972,89 @@ export class EngagementService {
   }
 
   /**
+   * The client's live intelligence action recommendations (the recommended
+   * action + why it matters) — a near-ready ask. Excludes closed cards
+   * (dismissed/archived) and takes the highest-priority few. Tenant + client
+   * scoped. Returns null when there are none. (Tier-2 outreach enrichment.)
+   */
+  private async outreachActionsBlock(ctx: TenantContext, clientId: string): Promise<string | null> {
+    const actions = await this.prisma.withTenant(ctx.tenantId, (tx) =>
+      tx.actionRecommendation.findMany({
+        where: { tenantId: ctx.tenantId, clientId, status: { notIn: ['dismissed', 'archived'] } },
+        orderBy: [{ priority: 'desc' }, { deadline: 'asc' }],
+        take: 5,
+        select: { issueTitle: true, recommendedAction: true, whyItMatters: true, deadline: true },
+      }),
+    );
+    if (!actions.length) return null;
+    const lines = actions.map((a) => {
+      const deadline = a.deadline ? ` (deadline ${a.deadline.toISOString().slice(0, 10)})` : '';
+      return `- ${a.issueTitle}: ${a.recommendedAction}${deadline}\n  Why it matters: ${a.whyItMatters}`;
+    });
+    return `Recommended actions for this client (from the intelligence action feed):\n${lines.join(
+      '\n',
+    )}`;
+  }
+
+  /**
+   * The Office Recommender's "why this office is a fit for the client" output —
+   * one manual-refresh cache row per client holding an OfficeRecommendation[].
+   * Indexed by directory member id so a recipient can be matched by its
+   * directoryContactId. computedAt is surfaced so the caller can caveat stale
+   * reasoning. (Tier-2 outreach enrichment.)
+   */
+  private async outreachTargetRecommendations(
+    ctx: TenantContext,
+    clientId: string,
+  ): Promise<{ byMember: Map<string, OfficeRecommendation>; computedAt: string | null }> {
+    const row = await this.prisma.withTenant(ctx.tenantId, (tx) =>
+      tx.clientTargetRecommendation.findUnique({ where: { clientId } }),
+    );
+    const byMember = new Map<string, OfficeRecommendation>();
+    if (!row) return { byMember, computedAt: null };
+    const recs = (row.recommendations ?? []) as unknown as OfficeRecommendation[];
+    for (const rec of recs) {
+      if (rec?.memberId) byMember.set(rec.memberId, rec);
+    }
+    return {
+      byMember,
+      computedAt: row.computedAt ? row.computedAt.toISOString().slice(0, 10) : null,
+    };
+  }
+
+  /**
+   * Recent press for a set of members, batched by bioguide id. member_press_item
+   * is a GLOBAL table (no tenant_id / RLS), so it is read directly rather than
+   * through withTenant. Keeps the most recent few per member. Dates serialize to
+   * ISO via JSON.stringify in the prompt builder. (Tier-2 outreach enrichment.)
+   */
+  private async outreachMemberPress(bioguideIds: string[]): Promise<Map<string, unknown[]>> {
+    const byBioguide = new Map<string, unknown[]>();
+    const ids = unique(bioguideIds.filter(Boolean));
+    if (!ids.length) return byBioguide;
+    const PER_MEMBER = 3;
+    const rows = await this.prisma.memberPressItem.findMany({
+      where: { bioguideId: { in: ids } },
+      orderBy: [{ publishedAt: 'desc' }, { syncedAt: 'desc' }],
+      take: Math.min(ids.length * 4, 200),
+      select: { bioguideId: true, title: true, link: true, publishedAt: true, summary: true },
+    });
+    for (const row of rows) {
+      const list = byBioguide.get(row.bioguideId) ?? [];
+      if (list.length < PER_MEMBER) {
+        list.push({
+          title: row.title,
+          publishedAt: row.publishedAt ?? null,
+          summary: row.summary ?? null,
+          link: row.link,
+        });
+        byBioguide.set(row.bioguideId, list);
+      }
+    }
+    return byBioguide;
+  }
+
+  /**
    * Recipients' recent correspondence with the sender, resolved for the WHOLE
    * batch in two queries and bucketed by lowercased email (email is the only
    * identifier shared across the directory, meeting-attendee, and mail tables).
@@ -6015,6 +6147,44 @@ function formatRecipientDirectoryProfile(match: DirectoryEmailMatch | null): str
   }
 
   return [`${memberLabel}.`, committees, leadership].filter(Boolean).join(' ');
+}
+
+/**
+ * Turn an Office Recommender result for a specific office into a one-line "why
+ * this office is a fit for the client" rationale, drawn from the transparent
+ * signal tags + jurisdiction committee + tracked-bill count. Returns null when
+ * there is no recommendation or no usable signal. (Tier-2 outreach enrichment.)
+ */
+function formatTargetRationale(
+  rec: OfficeRecommendation | undefined,
+  computedAt: string | null,
+): string | null {
+  if (!rec) return null;
+  const bits: string[] = [];
+  const tags = rec.tags ?? [];
+  if (rec.committee && (tags.includes('committee') || rec.billCount > 0)) {
+    bits.push(
+      rec.billCount > 0
+        ? `sits on ${rec.committee}, which has jurisdiction over ${rec.billCount} of the client's tracked bill${
+            rec.billCount === 1 ? '' : 's'
+          }`
+        : `sits on ${rec.committee}`,
+    );
+  } else if (tags.includes('committee') && rec.billCount > 0) {
+    bits.push(
+      `has jurisdiction over ${rec.billCount} of the client's tracked bill${
+        rec.billCount === 1 ? '' : 's'
+      }`,
+    );
+  }
+  if (tags.includes('district')) {
+    bits.push(`has a constituent / facility nexus in ${rec.state ?? "the client's footprint"}`);
+  }
+  if (tags.includes('issue')) bits.push("overlaps the client's core issue areas");
+  if (tags.includes('leadership')) bits.push('holds a relevant leadership post');
+  if (!bits.length) return null;
+  const asOf = computedAt ? ` (recommender as of ${computedAt})` : '';
+  return `Why this office is a fit for the client: ${bits.join('; ')}${asOf}.`;
 }
 
 /**
