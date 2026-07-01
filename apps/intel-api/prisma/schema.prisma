@@ -1,0 +1,314 @@
+// Capiro Intel API schema.
+// Scope: the modular intelligence service. Owns ONLY intel_* tables in the
+// shared Aurora cluster. Tenant-scoped: every row carries tenant_id NOT NULL
+// and is filtered in application code by the TenantGuard-resolved tenantId.
+//
+// This is a SEPARATE Prisma schema from apps/api and apps/workspace. The intel
+// service (@capiro/intel-api) is the only writer of intel_* tables. It does NOT
+// define or migrate any apps/api-owned table (tenants, users, clients, bills,
+// hearings, etc.); it references them by id only (no cross-schema FKs).
+//
+// First capability: Live Hearing Intelligence. Future intel capabilities add
+// their own intel_* tables to THIS schema.
+
+generator client {
+  provider        = "prisma-client-js"
+  // Custom output isolates the intel client from apps/api's @prisma/client in
+  // the shared pnpm monorepo. Import via `../generated/prisma-client`.
+  output          = "../generated/prisma-client"
+  previewFeatures = ["postgresqlExtensions"]
+  binaryTargets   = ["native", "linux-arm64-openssl-3.0.x"]
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// --- feature gating ---------------------------------------------------------
+
+/// Tenant-scoped feature flag. A feature (e.g. "hearing_watch") is visible to a
+/// tenant ONLY when an enabled row exists for (feature, tenantId). Seeded with
+/// the Capiro internal tenant only; flip on per-tenant by inserting a row — no
+/// redeploy. Backend routes enforce this (authoritative); the UI hides itself
+/// cosmetically based on the same lookup.
+model FeatureFlag {
+  id        String   @id @default(cuid())
+  feature   String
+  tenantId  String   @map("tenant_id")
+  enabled   Boolean  @default(true)
+  createdAt DateTime @default(now()) @map("created_at")
+
+  @@unique([feature, tenantId])
+  @@index([feature, enabled])
+  @@map("intel_feature_flag")
+}
+
+// --- client watchlists (H2) -------------------------------------------------
+
+/// A per-client watchlist: the set of terms that make a hearing moment relevant
+/// to that client. Tenant-scoped. The matching engine scores each final
+/// transcript segment against a tenant's active watchlist terms.
+model Watchlist {
+  id        String          @id @default(cuid())
+  tenantId  String          @map("tenant_id")
+  clientId  String          @map("client_id")
+  name      String
+  active    Boolean         @default(true)
+  createdBy String          @map("created_by")
+  createdAt DateTime        @default(now()) @map("created_at")
+  updatedAt DateTime        @updatedAt @map("updated_at")
+  terms     WatchlistTerm[]
+
+  @@index([tenantId, clientId])
+  @@index([tenantId, active])
+  @@map("intel_watchlist")
+}
+
+/// One watchlist term. `termType` categorizes it (bill, agency, committee,
+/// legislator, company, competitor, topic, risk_phrase, support_language,
+/// opposition_language). `value` is the literal/normalized string to match;
+/// `weight` boosts high-priority terms in relevance scoring.
+model WatchlistTerm {
+  id          String    @id @default(cuid())
+  watchlistId String    @map("watchlist_id")
+  tenantId    String    @map("tenant_id")
+  termType    String    @map("term_type")
+  value       String
+  weight      Float     @default(1)
+  createdAt   DateTime  @default(now()) @map("created_at")
+  watchlist   Watchlist @relation(fields: [watchlistId], references: [id], onDelete: Cascade)
+
+  @@index([watchlistId])
+  @@index([tenantId, termType])
+  @@map("intel_watchlist_term")
+}
+
+/// A match between a transcript segment and a watchlist term — the atomic unit
+/// the alert layer consumes. Carries the score + the segment anchor.
+model WatchlistMatch {
+  id          String   @id @default(cuid())
+  tenantId    String   @map("tenant_id")
+  sessionId   String   @map("session_id")
+  segmentId   String   @map("segment_id")
+  clientId    String   @map("client_id")
+  watchlistId String   @map("watchlist_id")
+  termId      String   @map("term_id")
+  termType    String   @map("term_type")
+  termValue   String   @map("term_value")
+  score       Float
+  startMs     Int      @map("start_ms")
+  createdAt   DateTime @default(now()) @map("created_at")
+
+  @@index([tenantId, sessionId])
+  @@index([tenantId, clientId])
+  @@map("intel_watchlist_match")
+}
+
+// --- enums ------------------------------------------------------------------
+
+enum LiveHearingSourceType {
+  hearing
+  markup
+  meeting
+  webinar
+  agency_session
+
+  @@map("intel_live_hearing_source_type")
+}
+
+enum LiveHearingAudioSource {
+  browser_mic
+  uploaded_audio
+  stream_url
+  conference_bridge
+
+  @@map("intel_live_hearing_audio_source")
+}
+
+enum LiveHearingStatus {
+  scheduled
+  live
+  paused
+  ended
+  failed
+
+  @@map("intel_live_hearing_status")
+}
+
+enum ConsentStatus {
+  not_required
+  confirmed
+  needs_review
+
+  @@map("intel_consent_status")
+}
+
+enum RecordingPolicy {
+  transcript_only
+  audio_and_transcript
+  no_storage
+
+  @@map("intel_recording_policy")
+}
+
+// --- core: live hearing session ---------------------------------------------
+
+/// A live (or scheduled/ended) hearing capture session. Tenant-scoped; links to
+/// apps/api-owned records (client, hearing, committee, bill, PE, agency) BY ID
+/// only — no cross-schema FK.
+model LiveHearingSession {
+  id                String                 @id @default(cuid())
+  tenantId          String                 @map("tenant_id")
+  clientId          String?                @map("client_id")
+  matterId          String?                @map("matter_id")
+  issueIds          String[]               @map("issue_ids")
+  hearingId         String?                @map("hearing_id")
+  committeeId       String?                @map("committee_id")
+  billIds           String[]               @map("bill_ids")
+  programElementIds String[]               @map("program_element_ids")
+  agencyIds         String[]               @map("agency_ids")
+  title             String
+  sourceType        LiveHearingSourceType  @map("source_type")
+  audioSource       LiveHearingAudioSource @map("audio_source")
+  status            LiveHearingStatus      @default(scheduled)
+  startedAt         DateTime?              @map("started_at")
+  endedAt           DateTime?              @map("ended_at")
+  consentStatus     ConsentStatus          @default(needs_review) @map("consent_status")
+  recordingPolicy   RecordingPolicy        @default(transcript_only) @map("recording_policy")
+  claimMapId        String?                @map("claim_map_id")
+  createdBy         String                 @map("created_by") // clerk user id
+  createdAt         DateTime               @default(now()) @map("created_at")
+  updatedAt         DateTime               @updatedAt @map("updated_at")
+
+  transcriptSegments TranscriptSegment[]
+  keyQuotes          KeyQuote[]
+  actionItems        LiveActionItem[]
+  entityMentions     EntityMention[]
+  summaryCards       LiveSummaryCard[]
+
+  @@index([tenantId, status])
+  @@index([tenantId, clientId])
+  @@map("intel_live_hearing_session")
+}
+
+// --- transcript segment -----------------------------------------------------
+
+/// A finalized transcript segment from Deepgram. Client-relevant text is stored
+/// ENCRYPTED (AES-256-GCM, mirroring meeting_debriefs): textCiphertext + iv +
+/// authTag + keyVersion. Non-sensitive public text MAY be stored as textPlain.
+/// NEVER both. Interim (non-final) transcripts are NOT persisted.
+model TranscriptSegment {
+  id                   String  @id @default(cuid())
+  sessionId            String  @map("session_id")
+  tenantId             String  @map("tenant_id") // denormalized for scope-safe queries
+  startMs              Int     @map("start_ms")
+  endMs                Int     @map("end_ms")
+  speakerLabel         String? @map("speaker_label")
+  resolvedSpeakerId    String? @map("resolved_speaker_id")
+  resolvedSpeakerName  String? @map("resolved_speaker_name")
+  isFinal              Boolean @default(false) @map("is_final")
+  confidence           Float?
+  source               String  @default("deepgram")
+  // Encrypted text (client-relevant):
+  textCiphertext       String? @map("text_ciphertext")
+  iv                   String?
+  authTag              String? @map("auth_tag")
+  keyVersion           String? @map("key_version")
+  // Plaintext text (non-client-relevant public hearing content only):
+  textPlain            String? @map("text_plain")
+  clientRelevanceScore Float?  @map("client_relevance_score")
+  issueTags            String[] @map("issue_tags")
+  createdAt            DateTime @default(now()) @map("created_at")
+
+  session  LiveHearingSession @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+  keyQuotes KeyQuote[]
+
+  @@unique([sessionId, startMs, endMs])
+  @@index([sessionId, startMs])
+  @@index([tenantId, sessionId])
+  @@map("intel_transcript_segment")
+}
+
+// --- derived intelligence (each points back to a segment + timestamp) -------
+
+/// A flagged quote worth saving. Points to a transcript segment + timestamp
+/// (satisfies SC5.6). Quote text inherits the segment's encryption posture.
+model KeyQuote {
+  id            String  @id @default(cuid())
+  sessionId     String  @map("session_id")
+  tenantId      String  @map("tenant_id")
+  segmentId     String  @map("segment_id")
+  startMs       Int     @map("start_ms")
+  speakerName   String? @map("speaker_name")
+  confidence    Float?
+  issueTags     String[] @map("issue_tags")
+  // Encrypted quote text:
+  textCiphertext String? @map("text_ciphertext")
+  iv            String?
+  authTag       String? @map("auth_tag")
+  keyVersion    String? @map("key_version")
+  textPlain     String? @map("text_plain")
+  createdAt     DateTime @default(now()) @map("created_at")
+
+  session LiveHearingSession @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+  segment TranscriptSegment  @relation(fields: [segmentId], references: [id], onDelete: Cascade)
+
+  @@index([tenantId, sessionId])
+  @@map("intel_key_quote")
+}
+
+/// An action item / follow-up extracted from a hearing statement.
+model LiveActionItem {
+  id          String  @id @default(cuid())
+  sessionId   String  @map("session_id")
+  tenantId    String  @map("tenant_id")
+  segmentId   String? @map("segment_id")
+  startMs     Int?    @map("start_ms")
+  description String
+  status      String  @default("open")
+  createdAt   DateTime @default(now()) @map("created_at")
+
+  session LiveHearingSession @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+
+  @@index([tenantId, sessionId])
+  @@map("intel_live_action_item")
+}
+
+/// A policy entity detected in a segment (bill/client/PE/agency/office/company).
+/// entityRef is the canonical id (bill_id, committee_id, UEI, PE id, etc.).
+model EntityMention {
+  id          String  @id @default(cuid())
+  sessionId   String  @map("session_id")
+  tenantId    String  @map("tenant_id")
+  segmentId   String? @map("segment_id")
+  entityType  String  @map("entity_type")
+  entityRef   String? @map("entity_ref") // canonical id when resolved
+  entityLabel String  @map("entity_label")
+  confidence  Float?
+  createdAt   DateTime @default(now()) @map("created_at")
+
+  session LiveHearingSession @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+
+  @@index([tenantId, sessionId])
+  @@index([entityType, entityRef])
+  @@map("intel_entity_mention")
+}
+
+/// A live summary card pushed to the Live Hearing Room UI.
+model LiveSummaryCard {
+  id        String  @id @default(cuid())
+  sessionId String  @map("session_id")
+  tenantId  String  @map("tenant_id")
+  cardType  String  @map("card_type")
+  title     String
+  body      String?
+  segmentId String? @map("segment_id")
+  startMs   Int?    @map("start_ms")
+  createdAt DateTime @default(now()) @map("created_at")
+
+  session LiveHearingSession @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+
+  @@index([tenantId, sessionId])
+  @@map("intel_live_summary_card")
+}

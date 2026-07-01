@@ -1,0 +1,31 @@
+{
+  "family": "capiro-dev-intel-api-migrate",
+  "networkMode": "awsvpc",
+  "requiresCompatibilities": ["FARGATE"],
+  "cpu": "512",
+  "memory": "1024",
+  "runtimePlatform": { "cpuArchitecture": "ARM64", "operatingSystemFamily": "LINUX" },
+  "containerDefinitions": [
+    {
+      "name": "intel-api-migrate",
+      "essential": true,
+      "command": ["migrate"],
+      "environment": [],
+      "secrets": [
+        { "name": "DB_HOST", "valueFrom": "REPLACE_WITH_AURORA_SECRET_ARN:host::" },
+        { "name": "DB_PORT", "valueFrom": "REPLACE_WITH_AURORA_SECRET_ARN:port::" },
+        { "name": "DB_USER", "valueFrom": "REPLACE_WITH_AURORA_SECRET_ARN:username::" },
+        { "name": "DB_PASSWORD", "valueFrom": "REPLACE_WITH_AURORA_SECRET_ARN:password::" },
+        { "name": "DB_NAME", "valueFrom": "REPLACE_WITH_AURORA_SECRET_ARN:dbname::" }
+      ],
+      "logConfiguration": {
+        "logDriver": "awslogs",
+        "options": {
+          "awslogs-group": "/capiro/dev/intel-api",
+          "awslogs-region": "us-east-1",
+          "awslogs-stream-prefix": "intel-api-migrate"
+        }
+      }
+    }
+  ]
+}

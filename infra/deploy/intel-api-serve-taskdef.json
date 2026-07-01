@@ -1,0 +1,48 @@
+{
+  "family": "capiro-dev-intel-api",
+  "networkMode": "awsvpc",
+  "requiresCompatibilities": ["FARGATE"],
+  "cpu": "512",
+  "memory": "1024",
+  "runtimePlatform": { "cpuArchitecture": "ARM64", "operatingSystemFamily": "LINUX" },
+  "containerDefinitions": [
+    {
+      "name": "intel-api",
+      "essential": true,
+      "command": ["serve"],
+      "portMappings": [{ "containerPort": 4300, "protocol": "tcp" }],
+      "environment": [
+        { "name": "INTEL_PORT", "value": "4300" },
+        { "name": "INTEL_BIND_HOST", "value": "0.0.0.0" },
+        { "name": "DEEPGRAM_MODEL", "value": "nova-2" },
+        { "name": "DEEPGRAM_ENDPOINTING_MS", "value": "300" },
+        { "name": "MAX_SESSION_MS", "value": "14400000" }
+      ],
+      "secrets": [
+        { "name": "DEEPGRAM_API_KEY", "valueFrom": "REPLACE_WITH_SECRETS_MANAGER_ARN:DEEPGRAM_API_KEY::" },
+        { "name": "HEARING_ENCRYPTION_KEY", "valueFrom": "REPLACE_WITH_SECRETS_MANAGER_ARN:HEARING_ENCRYPTION_KEY::" },
+        { "name": "CLERK_SECRET_KEY", "valueFrom": "REPLACE_WITH_SECRETS_MANAGER_ARN:CLERK_SECRET_KEY::" },
+        { "name": "DB_HOST", "valueFrom": "REPLACE_WITH_AURORA_SECRET_ARN:host::" },
+        { "name": "DB_PORT", "valueFrom": "REPLACE_WITH_AURORA_SECRET_ARN:port::" },
+        { "name": "DB_USER", "valueFrom": "REPLACE_WITH_AURORA_SECRET_ARN:username::" },
+        { "name": "DB_PASSWORD", "valueFrom": "REPLACE_WITH_AURORA_SECRET_ARN:password::" },
+        { "name": "DB_NAME", "valueFrom": "REPLACE_WITH_AURORA_SECRET_ARN:dbname::" }
+      ],
+      "logConfiguration": {
+        "logDriver": "awslogs",
+        "options": {
+          "awslogs-group": "/capiro/dev/intel-api",
+          "awslogs-region": "us-east-1",
+          "awslogs-stream-prefix": "intel-api"
+        }
+      },
+      "healthCheck": {
+        "command": ["CMD-SHELL", "wget -q -O /dev/null http://localhost:4300/health || exit 1"],
+        "interval": 30,
+        "timeout": 5,
+        "retries": 3,
+        "startPeriod": 30
+      }
+    }
+  ]
+}

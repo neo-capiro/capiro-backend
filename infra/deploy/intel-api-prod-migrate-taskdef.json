@@ -1,0 +1,96 @@
+{
+  "containerDefinitions": [
+    {
+      "name": "intel-api-migrate",
+      "image": "967807252336.dkr.ecr.us-east-1.amazonaws.com/capiro/prod-os-capiro/intel-api:latest",
+      "cpu": 0,
+      "portMappings": [],
+      "essential": true,
+      "command": [
+        "migrate"
+      ],
+      "environment": [
+        {
+          "name": "CLERK_JWT_ISSUER",
+          "value": "https://clerk.capiro.ai"
+        },
+        {
+          "name": "WEB_ORIGIN",
+          "value": "https://app.prodos.capiro.ai"
+        },
+        {
+          "name": "INTEL_BIND_HOST",
+          "value": "0.0.0.0"
+        },
+        {
+          "name": "DB_NAME",
+          "value": "capiro"
+        },
+        {
+          "name": "NODE_ENV",
+          "value": "production"
+        },
+        {
+          "name": "INTEL_PORT",
+          "value": "4300"
+        }
+      ],
+      "mountPoints": [],
+      "volumesFrom": [],
+      "secrets": [
+        {
+          "name": "CLERK_SECRET_KEY",
+          "valueFrom": "arn:aws:secretsmanager:us-east-1:967807252336:secret:/capiro/prod-os-capiro/clerk/secret-key-DOnjk4"
+        },
+        {
+          "name": "DB_HOST",
+          "valueFrom": "arn:aws:secretsmanager:us-east-1:967807252336:secret:/capiro/prod-os-capiro/aurora/master-ZN0KKV:host::"
+        },
+        {
+          "name": "DB_PORT",
+          "valueFrom": "arn:aws:secretsmanager:us-east-1:967807252336:secret:/capiro/prod-os-capiro/aurora/master-ZN0KKV:port::"
+        },
+        {
+          "name": "DB_USER",
+          "valueFrom": "arn:aws:secretsmanager:us-east-1:967807252336:secret:/capiro/prod-os-capiro/aurora/master-ZN0KKV:username::"
+        },
+        {
+          "name": "DB_PASSWORD",
+          "valueFrom": "arn:aws:secretsmanager:us-east-1:967807252336:secret:/capiro/prod-os-capiro/aurora/master-ZN0KKV:password::"
+        },
+        {
+          "name": "HEARING_ENCRYPTION_KEY",
+          "valueFrom": "arn:aws:secretsmanager:us-east-1:967807252336:secret:/capiro/prod-os-capiro/intel-api/HEARING_ENCRYPTION_KEY-wxgyt9"
+        },
+        {
+          "name": "DEEPGRAM_API_KEY",
+          "valueFrom": "arn:aws:secretsmanager:us-east-1:967807252336:secret:/capiro/prod-os-capiro/intel-api/DEEPGRAM_API_KEY-yG4MQC"
+        }
+      ],
+      "logConfiguration": {
+        "logDriver": "awslogs",
+        "options": {
+          "awslogs-group": "/capiro/prod-os-capiro",
+          "awslogs-region": "us-east-1",
+          "awslogs-stream-prefix": "intel-api-migrate"
+        }
+      },
+      "systemControls": []
+    }
+  ],
+  "family": "capiro-prod-intel-api-migrate",
+  "taskRoleArn": "arn:aws:iam::967807252336:role/Capiro-prod-os-capiro-Compute-ApiTaskRole12FAD4A7-5zhubZnOJ9nz",
+  "executionRoleArn": "arn:aws:iam::967807252336:role/Capiro-prod-os-capiro-Com-ApiTaskDefExecutionRoleE6-S9U73lqKaGdt",
+  "networkMode": "awsvpc",
+  "volumes": [],
+  "placementConstraints": [],
+  "runtimePlatform": {
+    "cpuArchitecture": "ARM64",
+    "operatingSystemFamily": "LINUX"
+  },
+  "requiresCompatibilities": [
+    "FARGATE"
+  ],
+  "cpu": "512",
+  "memory": "1024"
+}

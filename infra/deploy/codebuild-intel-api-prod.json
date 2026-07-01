@@ -1,0 +1,21 @@
+{
+  "name": "capiro-build-intel-api-prod",
+  "source": {
+    "type": "GITHUB",
+    "location": "https://github.com/neo-capiro/capirov2.git",
+    "buildspec": "version: 0.2\nphases:\n  pre_build:\n    commands:\n      - aws ecr get-login-password --region us-east-1 | docker login --username AWS --password-stdin 967807252336.dkr.ecr.us-east-1.amazonaws.com\n      - docker pull public.ecr.aws/docker/library/node:20.16.0-bookworm-slim\n      - docker tag public.ecr.aws/docker/library/node:20.16.0-bookworm-slim node:20.16.0-bookworm-slim\n  build:\n    commands:\n      - docker build -f apps/intel-api/Dockerfile -t 967807252336.dkr.ecr.us-east-1.amazonaws.com/capiro/prod-os-capiro/intel-api:latest .\n  post_build:\n    commands:\n      - docker push 967807252336.dkr.ecr.us-east-1.amazonaws.com/capiro/prod-os-capiro/intel-api:latest\n",
+    "reportBuildStatus": false
+  },
+  "sourceVersion": "feat/intel-api-live-hearing",
+  "artifacts": {
+    "type": "NO_ARTIFACTS"
+  },
+  "environment": {
+    "type": "ARM_CONTAINER",
+    "image": "aws/codebuild/amazonlinux2-aarch64-standard:3.0",
+    "computeType": "BUILD_GENERAL1_LARGE",
+    "privilegedMode": true,
+    "imagePullCredentialsType": "CODEBUILD"
+  },
+  "serviceRole": "arn:aws:iam::967807252336:role/capiro-codebuild-role"
+}

@@ -17,6 +17,7 @@ import {
   QuestionCircleOutlined,
   RadarChartOutlined,
   DeploymentUnitOutlined,
+  AudioOutlined,
   SearchOutlined,
   SettingOutlined,
   SyncOutlined,
@@ -39,6 +40,7 @@ import {
 } from 'antd';
 import { useMe } from '../lib/me.js';
 import { useApi } from '../lib/use-api.js';
+import { useIntelFeatureFlags } from '../lib/intel-feature-flags.js';
 import { useClientFilter } from '../state/client-filter.js';
 import { useImpersonation } from '../state/impersonation.js';
 import type { Client } from '../pages/clients/clientTypes.js';
@@ -55,6 +57,8 @@ interface NavItem {
   disabled?: boolean;
   /** When set, the item is only shown to callers at or above this role. */
   minRole?: TenantRole;
+  /** When set, the item is only shown when this feature flag is enabled for the tenant. */
+  featureFlag?: string;
   /** Sub-items rendered as an expandable submenu (e.g. the Program Elements group). */
   children?: NavItem[];
 }
@@ -70,6 +74,7 @@ type AppSection =
   | 'actions'
   | 'pe-group'
   | 'program-elements'
+  | 'hearing-watch'
   | 'analyst-console'
   | 'directory'
   | 'stakeholders'
@@ -146,6 +151,15 @@ const NAV: NavItem[] = [
         label: 'Program Elements',
         path: '/program-elements',
         icon: <FundOutlined />,
+      },
+      {
+        key: 'hearing-watch',
+        label: 'Hearing Watch',
+        path: '/intelligence/hearing-watch',
+        icon: <AudioOutlined />,
+        // Gated to tenants with the `hearing_watch` feature flag (Capiro-only
+        // until launch); hidden otherwise via the feature-flag visibility check.
+        featureFlag: 'hearing_watch',
       },
     ],
   },
@@ -308,11 +322,13 @@ export function AppShell() {
   }, [visibleClients.length]);
 
   const role = me.data?.role;
+  const intelFlags = useIntelFeatureFlags();
   const items = useMemo(() => {
     // Role-gated nav entries (e.g. capiro_admin Analyst Console) are an
     // affordance only; the API's RolesGuard is the security boundary.
     const isVisible = (n: NavItem) =>
-      !n.minRole || (role != null && ROLE_RANK[role] >= ROLE_RANK[n.minRole]);
+      (!n.minRole || (role != null && ROLE_RANK[role] >= ROLE_RANK[n.minRole])) &&
+      (!n.featureFlag || Boolean(intelFlags.data?.[n.featureFlag]));
 
     const buildLeaf = (n: NavItem) => {
       const count = navCounts[n.key];
@@ -379,7 +395,7 @@ export function AppShell() {
       }
     }
     return result;
-  }, [message, navCounts, role, workflowLocked]);
+  }, [message, navCounts, role, workflowLocked, intelFlags.data]);
 
   const selectedKey = page.key === 'not-found' ? 'home' : page.key;
 
@@ -401,7 +417,7 @@ export function AppShell() {
     <>
       <Layout className="app-shell">
         <Sider
-          width={240}
+          width={272}
           collapsedWidth={72}
           collapsed={navCollapsed}
           trigger={null}
@@ -1009,6 +1025,7 @@ function pageKeyFor(pathname: string): AppSection {
   // general /intelligence prefix, otherwise it falls through to 'intelligence'
   // (Data Explorer) and the wrong child highlights.
   if (pathname.startsWith('/intelligence/graph')) return 'knowledge-graph';
+  if (pathname.startsWith('/intelligence/hearing-watch')) return 'hearing-watch';
   if (pathname.startsWith('/explorer') || pathname.startsWith('/intelligence'))
     return 'intelligence';
   if (pathname.startsWith('/admin/analyst-console')) return 'analyst-console';
@@ -1033,6 +1050,7 @@ function pageConfigFor(pathname: string): PageConfig {
     actions: 'Action Board',
     'pe-group': 'Program Elements',
     'program-elements': 'Program Elements',
+    'hearing-watch': 'Hearing Watch',
     'analyst-console': 'Analyst Console',
     directory: 'Directory',
     stakeholders: 'Stakeholders',

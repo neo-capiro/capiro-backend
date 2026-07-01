@@ -1,0 +1,27 @@
+{
+  "Version": "2012-10-17",
+  "Statement": [
+    {
+      "Sid": "IntelApiEcrPull",
+      "Effect": "Allow",
+      "Action": [
+        "ecr:BatchCheckLayerAvailability",
+        "ecr:BatchGetImage",
+        "ecr:GetDownloadUrlForLayer"
+      ],
+      "Resource": "arn:aws:ecr:us-east-1:967807252336:repository/capiro/dev/intel-api"
+    },
+    {
+      "Sid": "IntelApiSecretsRead",
+      "Effect": "Allow",
+      "Action": [
+        "secretsmanager:DescribeSecret",
+        "secretsmanager:GetSecretValue"
+      ],
+      "Resource": [
+        "arn:aws:secretsmanager:us-east-1:967807252336:secret:capiro/dev/intel-api/DEEPGRAM_API_KEY*",
+        "arn:aws:secretsmanager:us-east-1:967807252336:secret:capiro/dev/intel-api/HEARING_ENCRYPTION_KEY*"
+      ]
+    }
+  ]
+}

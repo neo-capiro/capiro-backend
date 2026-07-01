@@ -26,6 +26,7 @@ import { AiUsagePage } from './pages/settings/AiUsagePage.js';
 import { ComingSoonIntelligence } from './pages/intelligence/ComingSoonIntelligence.js';
 import { ChangesInboxPage } from './pages/intelligence/ChangesInboxPage.js';
 import { KnowledgeGraphPage } from './pages/intelligence/KnowledgeGraphPage.js';
+import { HearingWatchPage } from './pages/intelligence/HearingWatchPage.js';
 import { IntelligenceMappingsPage } from './pages/settings/IntelligenceMappingsPage.js';
 import { SkillsPage } from './pages/settings/SkillsPage.js';
 import { IssueLeaderboardPage } from './pages/intelligence/IssueLeaderboardPage.js';
@@ -214,6 +215,7 @@ export function App() {
         <Route path="/intelligence" element={<Navigate to="/explorer" replace />} />
         <Route path="/intelligence/changes" element={<ChangesInboxPage />} />
         <Route path="/intelligence/graph" element={<KnowledgeGraphPage />} />
+        <Route path="/intelligence/hearing-watch" element={<HearingWatchPage />} />
         <Route path="/intelligence/issues/:code" element={<IssueLeaderboardPage />} />
         <Route path="/intelligence/bills/:bill" element={<BillDetailRedirectRoute />} />
         <Route path="/intelligence/client/:clientId" element={<Navigate to="/clients" replace />} />

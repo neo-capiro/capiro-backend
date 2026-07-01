@@ -1,0 +1,21 @@
+{
+  "Version": "2012-10-17",
+  "Statement": [
+    {
+      "Sid": "IntelApiProdEcrPull",
+      "Effect": "Allow",
+      "Action": ["ecr:BatchCheckLayerAvailability","ecr:BatchGetImage","ecr:GetDownloadUrlForLayer"],
+      "Resource": "arn:aws:ecr:us-east-1:967807252336:repository/capiro/prod-os-capiro/intel-api"
+    },
+    {
+      "Sid": "IntelApiProdSecrets",
+      "Effect": "Allow",
+      "Action": "secretsmanager:GetSecretValue",
+      "Resource": [
+        "arn:aws:secretsmanager:us-east-1:967807252336:secret:/capiro/prod-os-capiro/intel-api/HEARING_ENCRYPTION_KEY-*",
+        "arn:aws:secretsmanager:us-east-1:967807252336:secret:/capiro/prod-os-capiro/intel-api/DEEPGRAM_API_KEY-*",
+        "arn:aws:secretsmanager:us-east-1:967807252336:secret:/capiro/prod-os-capiro/aurora/master-*"
+      ]
+    }
+  ]
+}

@@ -1,0 +1,21 @@
+{
+  "name": "capiro-build-intel-api",
+  "description": "Build+push intel-api ARM64 image to ECR and force-deploy capiro-dev-intel-api. Created out-of-band (local Docker unavailable).",
+  "source": {
+    "type": "GITHUB",
+    "location": "https://github.com/neo-capiro/capirov2.git",
+    "buildspec": "version: 0.2\nphases:\n  pre_build:\n    commands:\n      - echo Logging into ECR...\n      - aws ecr get-login-password --region us-east-1 | docker login --username AWS --password-stdin 967807252336.dkr.ecr.us-east-1.amazonaws.com\n  build:\n    commands:\n      - echo Building intel-api image native arm64...\n      - docker build -f apps/intel-api/Dockerfile -t 967807252336.dkr.ecr.us-east-1.amazonaws.com/capiro/dev/intel-api:latest .\n  post_build:\n    commands:\n      - echo Pushing image...\n      - docker push 967807252336.dkr.ecr.us-east-1.amazonaws.com/capiro/dev/intel-api:latest\n      - echo Forcing service redeploy...\n      - aws ecs update-service --cluster capiro-dev --service capiro-dev-intel-api --force-new-deployment --region us-east-1\n      - echo Done.",
+    "reportBuildStatus": false,
+    "insecureSsl": false
+  },
+  "sourceVersion": "feat/intel-api-live-hearing",
+  "artifacts": { "type": "NO_ARTIFACTS" },
+  "environment": {
+    "type": "ARM_CONTAINER",
+    "image": "aws/codebuild/amazonlinux2-aarch64-standard:3.0",
+    "computeType": "BUILD_GENERAL1_LARGE",
+    "privilegedMode": true,
+    "imagePullCredentialsType": "CODEBUILD"
+  },
+  "serviceRole": "arn:aws:iam::967807252336:role/capiro-codebuild-role"
+}

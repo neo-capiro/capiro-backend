@@ -1,0 +1,74 @@
+# Builds the Intel API container image and pushes it to ECR.
+# Mirrors meriv2-orchestrator-image.yml / workspace-image.yml: build artifact
+# only — `cdk deploy` runs interactively (intel-api infra is created
+# out-of-band, never via a blind `cdk deploy Capiro-dev-Compute`).
+#
+# Auth uses OIDC -> assume the capiro-gha-* role (same role family as the API;
+# its ecr-push policy must be extended to cover capiro/<env>/intel-api).
+#
+# Build context is the REPOSITORY ROOT (the Dockerfile installs the pnpm
+# workspace + generates the Prisma client from the intel-api schema).
+
+name: intel-api-image
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'apps/intel-api/**'
+      - 'packages/meriv2-core/**'
+      - 'packages/shared/**'
+      - 'pnpm-lock.yaml'
+      - '.github/workflows/intel-api-image.yml'
+  workflow_dispatch:
+    inputs:
+      env:
+        description: 'Target env (dev|staging|prod)'
+        required: true
+        default: 'dev'
+
+permissions:
+  id-token: write
+  contents: read
+
+env:
+  AWS_REGION: us-east-1
+  TARGET_ENV: ${{ github.event.inputs.env || 'dev' }}
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Configure AWS credentials (OIDC)
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ env.TARGET_ENV == 'prod' && vars.AWS_PROD_GHA_ROLE_ARN || vars.AWS_DEV_GHA_ROLE_ARN }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Login to Amazon ECR
+        id: ecr
+        uses: aws-actions/amazon-ecr-login@v2
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Build and push (linux/arm64)
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: apps/intel-api/Dockerfile
+          platforms: linux/arm64
+          push: true
+          provenance: false
+          tags: |
+            ${{ steps.ecr.outputs.registry }}/capiro/${{ env.TARGET_ENV }}/intel-api:${{ github.sha }}
+            ${{ steps.ecr.outputs.registry }}/capiro/${{ env.TARGET_ENV }}/intel-api:latest
+          no-cache-filters: build
+          cache-from: type=gha,scope=intel-api
+          cache-to: type=gha,mode=max,scope=intel-api
+
+      - name: Output image digest
+        run: echo "Pushed capiro/${TARGET_ENV}/intel-api:${GITHUB_SHA}"

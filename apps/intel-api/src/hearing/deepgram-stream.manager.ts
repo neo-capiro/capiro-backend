@@ -1,0 +1,144 @@
+import { Logger } from '@nestjs/common';
+import { createClient, type ListenLiveClient, LiveTranscriptionEvents } from '@deepgram/sdk';
+import type { FinalSegment, InterimSegment } from './hearing.types.js';
+
+export interface DeepgramStreamCallbacks {
+  onInterim: (seg: InterimSegment) => void;
+  onFinal: (seg: FinalSegment) => void;
+  onError: (err: Error) => void;
+  onReconnecting: (attempt: number) => void;
+  onOpen: () => void;
+}
+
+const RECONNECT_MAX_ATTEMPTS = 8;
+const RECONNECT_BASE_MS = 500;
+
+/**
+ * Owns ONE Deepgram live-transcription WebSocket for a single hearing session.
+ *
+ * Deepgram is STT ONLY: it returns interim then final transcript segments with
+ * word-level diarization and timestamps. All policy reasoning happens elsewhere
+ * (ExtractionDispatcher -> orchestrator registry). Handles reconnect/recovery
+ * (SC5.9): a dropped Deepgram socket reconnects with exponential backoff;
+ * already-committed final segments are untouched because commit is idempotent
+ * on (sessionId,startMs,endMs) in SegmentCommitService.
+ */
+export class DeepgramStreamManager {
+  private readonly logger = new Logger(DeepgramStreamManager.name);
+  private connection?: ListenLiveClient;
+  private reconnectAttempts = 0;
+  private closedByUs = false;
+  private readonly model: string;
+  private readonly endpointingMs: number;
+
+  constructor(
+    private readonly apiKey: string,
+    private readonly callbacks: DeepgramStreamCallbacks,
+    opts?: { model?: string; endpointingMs?: number },
+  ) {
+    this.model = opts?.model ?? process.env.DEEPGRAM_MODEL ?? 'nova-2';
+    this.endpointingMs = opts?.endpointingMs ?? Number.parseInt(process.env.DEEPGRAM_ENDPOINTING_MS ?? '300', 10);
+  }
+
+  start(): void {
+    this.closedByUs = false;
+    this.open();
+  }
+
+  /** Forward a raw audio frame to Deepgram. No-op if the socket isn't open. */
+  sendAudio(chunk: Buffer): void {
+    try {
+      // Deepgram's send() expects an ArrayBuffer-like; pass a tightly-scoped
+      // ArrayBuffer copy of the Node Buffer (avoids SharedArrayBuffer typing).
+      const ab = chunk.buffer.slice(chunk.byteOffset, chunk.byteOffset + chunk.byteLength) as ArrayBuffer;
+      this.connection?.send(ab);
+    } catch (err) {
+      this.logger.debug(`sendAudio failed: ${(err as Error).message}`);
+    }
+  }
+
+  stop(): void {
+    this.closedByUs = true;
+    try {
+      this.connection?.requestClose();
+    } catch {
+      // ignore
+    }
+    this.connection = undefined;
+  }
+
+  private open(): void {
+    const deepgram = createClient(this.apiKey);
+    const connection = deepgram.listen.live({
+      model: this.model,
+      interim_results: true,
+      diarize: true,
+      punctuate: true,
+      smart_format: true,
+      endpointing: this.endpointingMs,
+      encoding: 'opus',
+    });
+    this.connection = connection;
+
+    connection.on(LiveTranscriptionEvents.Open, () => {
+      this.reconnectAttempts = 0;
+      this.callbacks.onOpen();
+    });
+
+    connection.on(LiveTranscriptionEvents.Transcript, (data: DeepgramTranscript) => {
+      const alt = data.channel?.alternatives?.[0];
+      if (!alt || !alt.transcript) return;
+      const startMs = Math.round((data.start ?? 0) * 1000);
+      const endMs = Math.round(((data.start ?? 0) + (data.duration ?? 0)) * 1000);
+      const speakerLabel = alt.words?.[0]?.speaker != null ? String(alt.words[0].speaker) : undefined;
+
+      if (data.is_final) {
+        this.callbacks.onFinal({
+          startMs,
+          endMs,
+          text: alt.transcript,
+          speakerLabel,
+          confidence: alt.confidence,
+        });
+      } else {
+        this.callbacks.onInterim({ startMs, endMs, text: alt.transcript, speakerLabel });
+      }
+    });
+
+    connection.on(LiveTranscriptionEvents.Error, (err: unknown) => {
+      this.callbacks.onError(err instanceof Error ? err : new Error(String(err)));
+    });
+
+    connection.on(LiveTranscriptionEvents.Close, () => {
+      if (this.closedByUs) return;
+      this.scheduleReconnect();
+    });
+  }
+
+  private scheduleReconnect(): void {
+    if (this.reconnectAttempts >= RECONNECT_MAX_ATTEMPTS) {
+      this.callbacks.onError(new Error('Deepgram reconnect attempts exhausted'));
+      return;
+    }
+    this.reconnectAttempts += 1;
+    const delay = RECONNECT_BASE_MS * 2 ** (this.reconnectAttempts - 1);
+    this.callbacks.onReconnecting(this.reconnectAttempts);
+    setTimeout(() => {
+      if (!this.closedByUs) this.open();
+    }, delay);
+  }
+}
+
+/** Minimal shape of the Deepgram live transcript event we consume. */
+interface DeepgramTranscript {
+  is_final?: boolean;
+  start?: number;
+  duration?: number;
+  channel?: {
+    alternatives?: Array<{
+      transcript: string;
+      confidence?: number;
+      words?: Array<{ speaker?: number }>;
+    }>;
+  };
+}
