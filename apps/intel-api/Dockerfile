@@ -13,8 +13,13 @@
 
 ARG NODE_VERSION=20.16.0
 
+# Base image is pulled from AWS's ECR Public Docker Hub mirror
+# (public.ecr.aws/docker/library/node) rather than docker.io to avoid Docker
+# Hub's anonymous pull rate limit (429 Too Many Requests), which repeatedly
+# failed CodeBuild builds. Functionally identical to node:<tag>-bookworm-slim.
+
 # -------- base ----------------------------------------------------------------
-FROM node:${NODE_VERSION}-bookworm-slim AS base
+FROM public.ecr.aws/docker/library/node:${NODE_VERSION}-bookworm-slim AS base
 ENV PNPM_HOME=/pnpm
 ENV PATH=$PNPM_HOME:$PATH
 RUN corepack enable && corepack prepare pnpm@9.12.0 --activate
@@ -50,7 +55,7 @@ RUN --mount=type=cache,id=pnpm,target=/pnpm/store \
     pnpm install --frozen-lockfile --prod --filter=@capiro/intel-api... --filter=@capiro/shared...
 
 # -------- runtime -------------------------------------------------------------
-FROM node:${NODE_VERSION}-bookworm-slim AS runtime
+FROM public.ecr.aws/docker/library/node:${NODE_VERSION}-bookworm-slim AS runtime
 ENV NODE_ENV=production
 ENV NODE_OPTIONS=--enable-source-maps
 RUN groupadd --system --gid 1001 capiro \
