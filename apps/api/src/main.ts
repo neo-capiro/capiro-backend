@@ -62,7 +62,7 @@ async function bootstrap() {
   // BEFORE the global json() so it wins for this path. (CORS is registered
   // above so an over-limit upload returns a 413 WITH CORS headers, not an
   // opaque cross-origin failure.)
-  app.use('/api/me/email-signature', json({ limit: '24mb' }));
+  app.use('/api/me/email-signature', json({ limit: '32mb' }));
   app.use(json({ limit: '1mb' }));
 
   // Strict input validation at the edge, drop unknown fields, fail closed
