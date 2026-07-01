@@ -6,6 +6,7 @@ import { PrismaModule } from './prisma/prisma.module.js';
 import { FeatureFlagsModule } from './feature-flags/feature-flags.module.js';
 import { HearingModule } from './hearing/hearing.module.js';
 import { WatchlistModule } from './watchlist/watchlist.module.js';
+import { TrackerModule } from './tracker/tracker.module.js';
 import { UpcomingHearingsModule } from './upcoming-hearings/upcoming-hearings.module.js';
 
 /**
@@ -25,6 +26,7 @@ import { UpcomingHearingsModule } from './upcoming-hearings/upcoming-hearings.mo
     HealthModule,
     HearingModule,
     WatchlistModule,
+    TrackerModule,
     UpcomingHearingsModule,
   ],
 })

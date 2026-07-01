@@ -3,6 +3,8 @@ import { ConfigService } from '@nestjs/config';
 import { PrismaService } from '../prisma/prisma.service.js';
 
 export const HEARING_WATCH_FEATURE = 'hearing_watch';
+/** Gates the unified tracker data path/ownership in intel-api (Phase 2). */
+export const TRACKER_OWNER_FEATURE = 'tracker_owner_intel';
 
 /**
  * Tenant-scoped feature gating for intel-api capabilities.
