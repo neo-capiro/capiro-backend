@@ -50,15 +50,19 @@ model FeatureFlag {
 /// to that client. Tenant-scoped. The matching engine scores each final
 /// transcript segment against a tenant's active watchlist terms.
 model Watchlist {
-  id        String          @id @default(cuid())
-  tenantId  String          @map("tenant_id")
-  clientId  String          @map("client_id")
-  name      String
-  active    Boolean         @default(true)
-  createdBy String          @map("created_by")
-  createdAt DateTime        @default(now()) @map("created_at")
-  updatedAt DateTime        @updatedAt @map("updated_at")
-  terms     WatchlistTerm[]
+  id         String           @id @default(cuid())
+  tenantId   String           @map("tenant_id")
+  clientId   String           @map("client_id")
+  name       String
+  active     Boolean          @default(true)
+  createdBy  String           @map("created_by")
+  createdAt  DateTime         @default(now()) @map("created_at")
+  updatedAt  DateTime         @updatedAt @map("updated_at")
+  // Bill-tracker unification (Phase 2): enabled issue areas carried from the
+  // legacy ClientWatchlist.issue_areas. The ONLY column added to this table.
+  issueAreas String[]         @default([]) @map("issue_areas")
+  terms      WatchlistTerm[]
+  topics     WatchlistTopic[]
 
   @@index([tenantId, clientId])
   @@index([tenantId, active])
@@ -70,18 +74,43 @@ model Watchlist {
 /// opposition_language). `value` is the literal/normalized string to match;
 /// `weight` boosts high-priority terms in relevance scoring.
 model WatchlistTerm {
-  id          String    @id @default(cuid())
-  watchlistId String    @map("watchlist_id")
-  tenantId    String    @map("tenant_id")
-  termType    String    @map("term_type")
+  id          String          @id @default(cuid())
+  watchlistId String          @map("watchlist_id")
+  tenantId    String          @map("tenant_id")
+  termType    String          @map("term_type")
   value       String
-  weight      Float     @default(1)
-  createdAt   DateTime  @default(now()) @map("created_at")
-  watchlist   Watchlist @relation(fields: [watchlistId], references: [id], onDelete: Cascade)
+  weight      Float           @default(1)
+  // Bill-tracker unification (Phase 2): null = watchlist-global (hearing-style
+  // flat term); non-null = belongs to a bill-tracker topic. Additive column.
+  topicId     String?         @map("topic_id")
+  createdAt   DateTime        @default(now()) @map("created_at")
+  watchlist   Watchlist       @relation(fields: [watchlistId], references: [id], onDelete: Cascade)
+  topic       WatchlistTopic? @relation(fields: [topicId], references: [id], onDelete: Cascade)
 
   @@index([watchlistId])
   @@index([tenantId, termType])
+  @@index([topicId])
   @@map("intel_watchlist_term")
+}
+
+/// A watchlist topic = a bill-tracker "tag" (e.g. "data center load"): a themed
+/// grouping of terms with a client position + priority. Hearing-style flat terms
+/// keep topicId = NULL (watchlist-global); bill-tracker terms hang off a topic.
+model WatchlistTopic {
+  id          String          @id @default(cuid())
+  watchlistId String          @map("watchlist_id")
+  tenantId    String          @map("tenant_id")
+  label       String
+  issueArea   String?         @map("issue_area")
+  position    String          @default("monitor") // 'support'|'oppose'|'monitor'
+  priority    String          @default("med") //     'low'|'med'|'high'
+  createdAt   DateTime        @default(now()) @map("created_at")
+  watchlist   Watchlist       @relation(fields: [watchlistId], references: [id], onDelete: Cascade)
+  terms       WatchlistTerm[]
+
+  @@index([watchlistId])
+  @@index([tenantId, watchlistId])
+  @@map("intel_watchlist_topic")
 }
 
 /// A match between a transcript segment and a watchlist term — the atomic unit
@@ -103,6 +132,148 @@ model WatchlistMatch {
   @@index([tenantId, sessionId])
   @@index([tenantId, clientId])
   @@map("intel_watchlist_match")
+}
+
+// --- tracker: curated bills (supersedes apps/api tracked_bill) ---------------
+
+/// A client's curated tracked bill + the lastSeen snapshot used by shadow change
+/// detection. billId is the raw congress_bill.id string (e.g. "119-hr-1234").
+model TrackedBill {
+  id                 String    @id @default(cuid())
+  tenantId           String    @map("tenant_id")
+  clientId           String    @map("client_id")
+  billId             String    @map("bill_id")
+  source             String    @default("congress") // 'congress'|'state'
+  note               String?
+  isManual           Boolean   @default(false) @map("is_manual")
+  trackedBy          String?   @map("tracked_by")
+  trackedAt          DateTime  @default(now()) @map("tracked_at")
+  stage              String?
+  lastSeenActionText String?   @map("last_seen_action_text")
+  lastSeenActionDate DateTime? @map("last_seen_action_date")
+  lastSeenAt         DateTime? @map("last_seen_at")
+  unread             Boolean   @default(false)
+  createdAt          DateTime  @default(now()) @map("created_at")
+  updatedAt          DateTime  @updatedAt @map("updated_at")
+
+  @@unique([clientId, billId])
+  @@index([tenantId, clientId])
+  @@index([billId])
+  @@map("intel_tracked_bill")
+}
+
+// --- unified alert (bill + hearing + combined) ------------------------------
+
+/// The unified alert object (§6). sourceType distinguishes bill/hearing/combined;
+/// evidence carries the source-specific proof (bill diff/section or transcript
+/// timestamp). Shadow phase writes status='new' and never delivers.
+model IntelAlert {
+  id                String    @id @default(cuid())
+  tenantId          String    @map("tenant_id")
+  clientId          String    @map("client_id")
+  sourceType        String    @map("source_type") //  'bill'|'hearing'|'combined'
+  sourceRef         String    @map("source_ref") //   billId | sessionId | composite
+  watchlistId       String?   @map("watchlist_id")
+  topicId           String?   @map("topic_id")
+  termId            String?   @map("term_id")
+  kind              String
+  changeType        String?   @map("change_type") //  classifyChange() output (bill path)
+  severity          String //                         'info'|'notable'|'critical'
+  materiality       String //                         'low'|'medium'|'high'
+  score             Float     @default(0)
+  clientImpact      String?   @map("client_impact") // 'favorable'|'unfavorable'|'monitor'
+  urgency           String? //                        'low'|'med'|'high'
+  title             String
+  whyItMatters      String?   @map("why_it_matters")
+  recommendedAction String?   @map("recommended_action")
+  evidence          Json      @default("{}")
+  status            String    @default("new") //       new|reviewed|sent|dismissed|snoozed|suppressed
+  createdAt         DateTime  @default(now()) @map("created_at")
+  deliveredAt       DateTime? @map("delivered_at")
+
+  @@index([tenantId, clientId, createdAt])
+  @@index([tenantId, status])
+  @@index([tenantId, sourceType, sourceRef])
+  @@map("intel_alert")
+}
+
+// --- alert delivery: preferences, notification log, digest queue, feedback --
+
+/// 1:1 carry of the legacy apps/api alert_preference (per user, per client).
+model IntelAlertPreference {
+  id               String   @id @default(cuid())
+  tenantId         String   @map("tenant_id")
+  clientId         String   @map("client_id")
+  userId           String   @map("user_id")
+  triggers         String[] @default([])
+  materiality      String   @default("medium")
+  emailEnabled     Boolean  @default(false) @map("email_enabled")
+  emailAddress     String?  @map("email_address")
+  emailCadence     String   @default("realtime") @map("email_cadence")
+  smsEnabled       Boolean  @default(false) @map("sms_enabled")
+  smsPhone         String?  @map("sms_phone")
+  smsPhoneVerified Boolean  @default(false) @map("sms_phone_verified")
+  smsCadence       String   @default("realtime") @map("sms_cadence")
+  quietHoursStart  String?  @map("quiet_hours_start")
+  quietHoursEnd    String?  @map("quiet_hours_end")
+  createdAt        DateTime @default(now()) @map("created_at")
+  updatedAt        DateTime @updatedAt @map("updated_at")
+
+  @@unique([userId, clientId])
+  @@index([tenantId, clientId])
+  @@map("intel_alert_preference")
+}
+
+/// Send-idempotency log. The unique (alertId, userId, channel) preserves the
+/// legacy §6 idempotency contract — a given alert reaches a user/channel once.
+model IntelNotificationLog {
+  id                String   @id @default(cuid())
+  tenantId          String   @map("tenant_id")
+  clientId          String   @map("client_id")
+  alertId           String   @map("alert_id") // 'tracker:'+clientId+':'+billId+':'+changeType
+  userId            String   @map("user_id")
+  channel           String //                    'email'|'sms'|'in_app'
+  status            String //                    'sent'|'failed'|'suppressed'|'queued'
+  providerMessageId String?  @map("provider_message_id")
+  error             String?
+  createdAt         DateTime @default(now()) @map("created_at")
+
+  @@unique([alertId, userId, channel])
+  @@index([tenantId, clientId])
+  @@map("intel_notification_log")
+}
+
+/// Digest queue for daily/weekly cadences (flushDigests target).
+model IntelAlertDigestQueue {
+  id        String   @id @default(cuid())
+  tenantId  String   @map("tenant_id")
+  clientId  String   @map("client_id")
+  userId    String   @map("user_id")
+  alertId   String   @map("alert_id")
+  channel   String //                    'email'|'sms'
+  cadence   String //                    'daily'|'weekly'
+  flushed   Boolean  @default(false)
+  createdAt DateTime @default(now()) @map("created_at")
+
+  @@index([tenantId, userId, channel, flushed])
+  @@map("intel_alert_digest_queue")
+}
+
+/// Feedback labels on alerts/bills/hearings/recommendations (§10 training set).
+model IntelFeedback {
+  id         String   @id @default(cuid())
+  tenantId   String   @map("tenant_id")
+  clientId   String   @map("client_id")
+  userId     String?  @map("user_id")
+  alertId    String?  @map("alert_id")
+  targetType String   @map("target_type") // 'bill'|'hearing'|'alert'|'recommendation'
+  targetRef  String   @map("target_ref")
+  signal     String //                       useful|not_useful|wrong_impact|wrong_urgency|false_positive|missed|tracked|dismissed|marked_irrelevant|opened
+  createdAt  DateTime @default(now()) @map("created_at")
+
+  @@index([tenantId, clientId])
+  @@index([targetRef])
+  @@map("intel_feedback")
 }
 
 // --- enums ------------------------------------------------------------------
