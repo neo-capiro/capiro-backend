@@ -2,6 +2,7 @@ import { Module } from '@nestjs/common';
 import { HearingController } from './hearing.controller.js';
 import { HearingSessionService } from './hearing-session.service.js';
 import { SegmentCommitService } from './segment-commit.service.js';
+import { StreamIngestionService } from './stream-ingestion.service.js';
 import { HearingCryptoService } from './hearing-crypto.service.js';
 import { OrchestratorClient } from './orchestrator.client.js';
 import { PostHearingService } from './post-hearing.service.js';
@@ -25,6 +26,7 @@ import { WatchlistModule } from '../watchlist/watchlist.module.js';
     OrchestratorClient,
     PostHearingService,
     HearingBriefService,
+    StreamIngestionService,
     HearingGateway,
   ],
 })

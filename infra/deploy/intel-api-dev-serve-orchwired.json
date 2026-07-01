@@ -1,0 +1,124 @@
+{
+  "containerDefinitions": [
+    {
+      "name": "intel-api",
+      "image": "967807252336.dkr.ecr.us-east-1.amazonaws.com/capiro/dev/intel-api:latest",
+      "cpu": 0,
+      "portMappings": [
+        {
+          "containerPort": 4300,
+          "hostPort": 4300,
+          "protocol": "tcp"
+        }
+      ],
+      "essential": true,
+      "command": [
+        "serve"
+      ],
+      "environment": [
+        {
+          "name": "INTEL_BIND_HOST",
+          "value": "0.0.0.0"
+        },
+        {
+          "name": "DEEPGRAM_MODEL",
+          "value": "nova-2"
+        },
+        {
+          "name": "INTEL_PORT",
+          "value": "4300"
+        },
+        {
+          "name": "DEEPGRAM_ENDPOINTING_MS",
+          "value": "300"
+        },
+        {
+          "name": "DB_NAME",
+          "value": "capiro"
+        },
+        {
+          "name": "MAX_SESSION_MS",
+          "value": "14400000"
+        },
+        {
+          "name": "CAPIRO_INTERNAL_TENANT_ID",
+          "value": "17b63099-bc0f-4ac5-b596-496161e9481e"
+        },
+        {
+          "name": "MERIV2_ORCHESTRATOR_URL",
+          "value": "https://app.capiro.ai"
+        }
+      ],
+      "mountPoints": [],
+      "volumesFrom": [],
+      "secrets": [
+        {
+          "name": "DEEPGRAM_API_KEY",
+          "valueFrom": "arn:aws:secretsmanager:us-east-1:967807252336:secret:capiro/dev/intel-api/DEEPGRAM_API_KEY-ZsgqL9"
+        },
+        {
+          "name": "HEARING_ENCRYPTION_KEY",
+          "valueFrom": "arn:aws:secretsmanager:us-east-1:967807252336:secret:capiro/dev/intel-api/HEARING_ENCRYPTION_KEY-2HpqTS"
+        },
+        {
+          "name": "CLERK_SECRET_KEY",
+          "valueFrom": "arn:aws:secretsmanager:us-east-1:967807252336:secret:/capiro/dev/clerk/secret-key-FT67tM"
+        },
+        {
+          "name": "DB_HOST",
+          "valueFrom": "arn:aws:secretsmanager:us-east-1:967807252336:secret:/capiro/dev/aurora/master-P4z1Vo:host::"
+        },
+        {
+          "name": "DB_PORT",
+          "valueFrom": "arn:aws:secretsmanager:us-east-1:967807252336:secret:/capiro/dev/aurora/master-P4z1Vo:port::"
+        },
+        {
+          "name": "DB_USER",
+          "valueFrom": "arn:aws:secretsmanager:us-east-1:967807252336:secret:/capiro/dev/aurora/app-zNPtsU:username::"
+        },
+        {
+          "name": "DB_PASSWORD",
+          "valueFrom": "arn:aws:secretsmanager:us-east-1:967807252336:secret:/capiro/dev/aurora/app-zNPtsU:password::"
+        },
+        {
+          "name": "CONGRESS_API_KEY",
+          "valueFrom": "arn:aws:secretsmanager:us-east-1:967807252336:secret:capiro/dev/congress-gov-api-key-9Js4q5"
+        }
+      ],
+      "logConfiguration": {
+        "logDriver": "awslogs",
+        "options": {
+          "awslogs-group": "/capiro/dev/api",
+          "awslogs-region": "us-east-1",
+          "awslogs-stream-prefix": "intel-api"
+        }
+      },
+      "healthCheck": {
+        "command": [
+          "CMD-SHELL",
+          "wget -q -O /dev/null http://localhost:4300/health || exit 1"
+        ],
+        "interval": 30,
+        "timeout": 5,
+        "retries": 3,
+        "startPeriod": 40
+      },
+      "systemControls": []
+    }
+  ],
+  "family": "capiro-dev-intel-api",
+  "taskRoleArn": "arn:aws:iam::967807252336:role/Capiro-dev-Compute-ApiTaskRole12FAD4A7-szq3QeeZJSCQ",
+  "executionRoleArn": "arn:aws:iam::967807252336:role/Capiro-dev-Compute-ApiTaskDefExecutionRoleE6ABB053-YlEDKuUPHjLg",
+  "networkMode": "awsvpc",
+  "volumes": [],
+  "placementConstraints": [],
+  "runtimePlatform": {
+    "cpuArchitecture": "ARM64",
+    "operatingSystemFamily": "LINUX"
+  },
+  "requiresCompatibilities": [
+    "FARGATE"
+  ],
+  "cpu": "512",
+  "memory": "1024"
+}

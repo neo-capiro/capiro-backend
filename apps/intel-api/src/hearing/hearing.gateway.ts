@@ -14,6 +14,7 @@ import { SegmentCommitService } from './segment-commit.service.js';
 import { WatchlistService } from '../watchlist/watchlist.service.js';
 import { OrchestratorClient } from './orchestrator.client.js';
 import { DeepgramStreamManager } from './deepgram-stream.manager.js';
+import { StreamIngestionService, type IngestionHandle } from './stream-ingestion.service.js';
 import type { ClientWsMessage, ServerWsMessage } from './hearing.types.js';
 
 interface LiveConn {
@@ -31,6 +32,7 @@ interface LiveConn {
     committeeId?: string | null;
   };
   deepgram: DeepgramStreamManager;
+  ingestion?: IngestionHandle;
 }
 
 const MAX_SESSION_MS = Number.parseInt(process.env.MAX_SESSION_MS ?? `${4 * 60 * 60 * 1000}`, 10);
@@ -59,6 +61,7 @@ export class HearingGateway implements OnGatewayConnection, OnGatewayDisconnect 
     private readonly commit: SegmentCommitService,
     private readonly watchlists: WatchlistService,
     private readonly orchestrator: OrchestratorClient,
+    private readonly ingestionSvc: StreamIngestionService,
     config: ConfigService,
   ) {
     this.deepgramApiKey = config.get<string>('DEEPGRAM_API_KEY') ?? '';
@@ -144,6 +147,7 @@ export class HearingGateway implements OnGatewayConnection, OnGatewayDisconnect 
   async handleDisconnect(client: WebSocket): Promise<void> {
     const conn = this.conns.get(client);
     if (!conn) return;
+    conn.ingestion?.stop();
     conn.deepgram.stop();
     this.conns.delete(client);
     try {
@@ -165,11 +169,61 @@ export class HearingGateway implements OnGatewayConnection, OnGatewayDisconnect 
       const msg = JSON.parse(raw.toString()) as ClientWsMessage;
       if (msg.type === 'audio') {
         conn.deepgram.sendAudio(Buffer.from(msg.chunk, 'base64'));
+      } else if (msg.type === 'ingest') {
+        void this.startIngestion(client, conn, msg.audioUrl);
       } else if (msg.type === 'stop') {
         client.close();
       }
     } catch {
       // ignore malformed control frame
+    }
+  }
+
+  /**
+   * Server-side stream ingestion: pull the given hearing audio/video URL, decode
+   * to linear16 PCM via ffmpeg, and feed it to a fresh Deepgram socket configured
+   * for that encoding. The viewer becomes a spectator; transcript/cards flow back
+   * over the same WS. Replaces any prior ingestion on this connection.
+   */
+  private async startIngestion(client: WebSocket, conn: LiveConn, audioUrl: string): Promise<void> {
+    if (!audioUrl) {
+      this.send(client, { type: 'error', message: 'Missing audioUrl' });
+      return;
+    }
+    // Tear down the default (opus) manager + any prior ingestion.
+    conn.ingestion?.stop();
+    conn.deepgram.stop();
+
+    const sessionId = conn.sessionId;
+    const linearDeepgram = new DeepgramStreamManager(
+      this.deepgramApiKey,
+      {
+        onOpen: () => this.send(client, { type: 'status', status: 'transcribing' }),
+        onInterim: (segment) => this.send(client, { type: 'interim', segment }),
+        onReconnecting: (attempt) =>
+          this.send(client, { type: 'status', status: `reconnecting:${attempt}` }),
+        onError: (err) => {
+          this.logger.warn(`deepgram error session=${sessionId}: ${err.message}`);
+          this.send(client, { type: 'error', message: err.message });
+        },
+        onFinal: (segment) => {
+          void this.handleFinal(client, segment);
+        },
+      },
+      { encoding: 'linear16', sampleRate: StreamIngestionService.SAMPLE_RATE },
+    );
+    conn.deepgram = linearDeepgram;
+    linearDeepgram.start();
+
+    try {
+      conn.ingestion = this.ingestionSvc.start(audioUrl, {
+        onAudio: (pcm) => linearDeepgram.sendAudio(pcm),
+        onEnd: (reason) => this.send(client, { type: 'status', status: `ingestion_ended:${reason}` }),
+        onError: (err) => this.send(client, { type: 'error', message: err.message }),
+      });
+      this.send(client, { type: 'status', status: 'ingesting' });
+    } catch (err) {
+      this.send(client, { type: 'error', message: (err as Error).message });
     }
   }
 

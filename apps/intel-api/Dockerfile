@@ -56,7 +56,7 @@ ENV NODE_OPTIONS=--enable-source-maps
 RUN groupadd --system --gid 1001 capiro \
  && useradd --system --uid 1001 --gid capiro --shell /usr/sbin/nologin capiro \
  && apt-get update \
- && apt-get install -y --no-install-recommends wget ca-certificates dumb-init openssl \
+ && apt-get install -y --no-install-recommends wget ca-certificates dumb-init openssl ffmpeg \
  && rm -rf /var/lib/apt/lists/*
 RUN mkdir -p /app/tmp /tmp \
  && chmod 1777 /tmp \

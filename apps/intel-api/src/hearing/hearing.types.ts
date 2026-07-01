@@ -46,4 +46,5 @@ export type ServerWsMessage =
 
 export type ClientWsMessage =
   | { type: 'audio'; chunk: string } // base64 audio frame
+  | { type: 'ingest'; audioUrl: string } // server-side stream ingestion
   | { type: 'stop' };

@@ -20,7 +20,8 @@
       ],
       "Resource": [
         "arn:aws:secretsmanager:us-east-1:967807252336:secret:capiro/dev/intel-api/DEEPGRAM_API_KEY*",
-        "arn:aws:secretsmanager:us-east-1:967807252336:secret:capiro/dev/intel-api/HEARING_ENCRYPTION_KEY*"
+        "arn:aws:secretsmanager:us-east-1:967807252336:secret:capiro/dev/intel-api/HEARING_ENCRYPTION_KEY*",
+        "arn:aws:secretsmanager:us-east-1:967807252336:secret:capiro/dev/congress-gov-api-key*"
       ]
     }
   ]

@@ -30,14 +30,20 @@ export class DeepgramStreamManager {
   private closedByUs = false;
   private readonly model: string;
   private readonly endpointingMs: number;
+  private readonly encoding: string;
+  private readonly sampleRate?: number;
 
   constructor(
     private readonly apiKey: string,
     private readonly callbacks: DeepgramStreamCallbacks,
-    opts?: { model?: string; endpointingMs?: number },
+    opts?: { model?: string; endpointingMs?: number; encoding?: string; sampleRate?: number },
   ) {
     this.model = opts?.model ?? process.env.DEEPGRAM_MODEL ?? 'nova-2';
     this.endpointingMs = opts?.endpointingMs ?? Number.parseInt(process.env.DEEPGRAM_ENDPOINTING_MS ?? '300', 10);
+    // Browser mic frames are opus (MediaRecorder default). Server-side ffmpeg
+    // ingestion sends raw linear16 PCM at a known sample rate.
+    this.encoding = opts?.encoding ?? 'opus';
+    this.sampleRate = opts?.sampleRate;
   }
 
   start(): void {
@@ -76,7 +82,8 @@ export class DeepgramStreamManager {
       punctuate: true,
       smart_format: true,
       endpointing: this.endpointingMs,
-      encoding: 'opus',
+      encoding: this.encoding,
+      ...(this.sampleRate ? { sample_rate: this.sampleRate } : {}),
     });
     this.connection = connection;
 
