@@ -409,15 +409,17 @@ export function NewOutreachWizard({
     staleTime: 60_000,
   });
 
-  // Client documents for the Generate step's email-attachment picker (NOT the
-  // context pool — that's the tenant-wide library above). Scoped to the
-  // campaign's client since you attach that client's files to the email.
+  // Documents for the Generate step's email-attachment picker (NOT the context
+  // pool — that's the tenant-wide library above). With a client selected we show
+  // that client's files; with no client we show the tenant's general (unlinked)
+  // outreach attachments so a file can be reused across campaigns. Either way an
+  // attachment is sent by id at send time, so a client is never required.
   const docsQuery = useQuery<AttachmentsResponse>({
-    enabled: step.id === 'generate' && !!state.clientId,
-    queryKey: ['outreach-pool-docs', state.clientId],
+    enabled: step.id === 'generate',
+    queryKey: ['outreach-pool-docs', state.clientId ?? 'general'],
     queryFn: async () => {
       const res = await api.get<AttachmentItem[]>('/api/engagement/attachments', {
-        params: { clientId: state.clientId },
+        params: state.clientId ? { clientId: state.clientId } : { unlinked: true },
       });
       return { items: res.data };
     },
@@ -905,20 +907,21 @@ export function NewOutreachWizard({
     }));
 
   const uploadAttachment = async (file: File) => {
-    if (!state.clientId) {
-      message.error('Select a client before uploading attachments');
-      return;
-    }
     try {
       const contentType = file.type || 'application/octet-stream';
+      // Attachments are tenant-scoped. With a client selected the file is filed
+      // under that client (and shows in their Documents); with no client it
+      // becomes a general outreach attachment (tagged source "outreach"),
+      // reusable across campaigns. Either way it is sent by id at send time.
+      const clientId = state.clientId ?? undefined;
       // 1) presigned S3 POST, 2) upload the bytes straight to S3, 3) confirm so
-      // a row is created and the file appears in the client's documents.
+      // a row is created and the file appears in the attachment picker.
       const { data: presigned } = await api.post<{
         url: string;
         fields: Record<string, string>;
         s3Key: string;
       }>('/api/engagement/attachments/upload-url', {
-        clientId: state.clientId,
+        ...(clientId ? { clientId } : {}),
         fileName: file.name,
         contentType,
         contentLength: file.size,
@@ -930,7 +933,12 @@ export function NewOutreachWizard({
       if (!s3Res.ok) throw new Error(`S3 upload failed (${s3Res.status})`);
       const { data: created } = await api.post<{ id: string }>(
         '/api/engagement/attachments/confirm',
-        { clientId: state.clientId, fileName: file.name, contentType, s3Key: presigned.s3Key },
+        {
+          ...(clientId ? { clientId } : { source: 'outreach' }),
+          fileName: file.name,
+          contentType,
+          s3Key: presigned.s3Key,
+        },
       );
       setState((p) => ({
         ...p,

@@ -1628,8 +1628,15 @@ export class EngagementController {
     @Query('clientId') clientId?: string,
     @Query('meetingId') meetingId?: string,
     @Query('mailMessageId') mailMessageId?: string,
+    @Query('unlinked') unlinked?: string,
   ) {
-    return this.service.listAttachments(ctx, { clientId, meetingId, mailMessageId });
+    return this.service.listAttachments(ctx, {
+      clientId,
+      meetingId,
+      mailMessageId,
+      // General (client-free) outreach library: files with no parent entity.
+      unlinked: unlinked === 'true' || unlinked === '1',
+    });
   }
 
   @Post('attachments/:id/extract-text')
