@@ -150,6 +150,44 @@ export class SourceDataRepository {
     return rows;
   }
 
+  /** Batch-read GLOBAL `congress_bill` rows by id (for the shadow change detector). */
+  async getBillsByIds(ids: string[]): Promise<SourceBill[]> {
+    if (!ids.length) return [];
+    return this.prisma.$queryRawUnsafe<SourceBill[]>(
+      `SELECT id,
+              congress,
+              bill_type          AS "billType",
+              bill_number        AS "billNumber",
+              title,
+              latest_action_text AS "latestActionText",
+              latest_action_date AS "latestActionDate",
+              policy_area        AS "policyArea",
+              subjects,
+              pe_codes           AS "peCodes",
+              url
+         FROM congress_bill
+        WHERE id = ANY($1::text[])`,
+      ids,
+    );
+  }
+
+  /** Batch-read GLOBAL `congress_bill_action` rows for many bills, oldest-first (catch-up). */
+  async getBillActionsByIds(ids: string[]): Promise<SourceBillAction[]> {
+    if (!ids.length) return [];
+    return this.prisma.$queryRawUnsafe<SourceBillAction[]>(
+      `SELECT id,
+              bill_id AS "billId",
+              date,
+              text,
+              type,
+              chamber
+         FROM congress_bill_action
+        WHERE bill_id = ANY($1::text[])
+        ORDER BY date ASC`,
+      ids,
+    );
+  }
+
   // getClient(clientId): NOT IMPLEMENTED in Phase 1.
   //
   // `clients` is TENANT-SCOPED (Postgres RLS). The `withTenant`/`withSystem`

@@ -20,6 +20,7 @@ import { PrismaService } from '../prisma/prisma.service.js';
 import { SourceDataRepository } from '../sourcedata/source-data.repository.js';
 import { EMBEDDING_MODEL, embedText, normalize, vectorLiteral } from '../embeddings/embedder.js';
 import { WatchlistSyncService } from '../watchlist/watchlist-sync.service.js';
+import { BillChangeDetectorService } from '../tracker/bill-change-detector.service.js';
 
 /** Candidate cosine floor for bill semantic search (ported: EMBED_CANDIDATE_FLOOR). */
 export const EMBED_CANDIDATE_FLOOR = 0.3;
@@ -30,6 +31,7 @@ export const KNOWN_VERBS = [
   'backfill-tracked-bills', //      Phase 2: tracked_bill → intel_tracked_bill
   'backfill-alert-prefs', //        Phase 2: alert_preference → intel_alert_preference
   'disable-feature', //             Phase 2: feature-flag OFF path (§5.0.1)
+  'detect-bill-changes', //         Phase 3: shadow change detection → intel_alert (no delivery)
 ] as const;
 export type Verb = (typeof KNOWN_VERBS)[number];
 
@@ -105,6 +107,15 @@ export async function runVerb(verb: string, args: string[], deps: VerbDeps): Pro
       if (!args[0] || !args[1]) throw new Error('disable-feature requires <flag> <tenantSlugOrId>');
       const r = await new WatchlistSyncService(deps.prisma).setFeatureFlag(args[0], args[1], false);
       deps.log(`FEATURE_DISABLED feature=${r.feature} tenant=${r.tenantId}`);
+      return;
+    }
+    case 'detect-bill-changes': {
+      const svc = new BillChangeDetectorService(deps.prisma, new SourceDataRepository(deps.prisma));
+      const r = await svc.runDetectionCycle();
+      deps.log(
+        `DETECT_DONE scanned=${r.scanned} baseline=${r.baseline} changed=${r.changed} ` +
+          `alerts=${r.alertsWritten} skippedDedup=${r.skippedDedup} byType=${JSON.stringify(r.byType)}`,
+      );
       return;
     }
     default:
