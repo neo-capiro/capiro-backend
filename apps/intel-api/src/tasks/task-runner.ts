@@ -25,6 +25,8 @@ import { BillChangeDetectorService } from '../tracker/bill-change-detector.servi
 import { FeatureFlagService } from '../feature-flags/feature-flag.service.js';
 import { IntelAlertService } from '../intel-alert/intel-alert.service.js';
 import { IntelEmailService } from '../intel-alert/intel-email.service.js';
+import { TrackerWatchlistService } from '../tracker/tracker-watchlist.service.js';
+import { TrackerBoardService } from '../tracker/tracker-board.service.js';
 
 /** Build the shadow-guarded alert service for one-off delivery verbs. */
 function buildAlertService(prisma: PrismaService): IntelAlertService {
@@ -44,6 +46,7 @@ export const KNOWN_VERBS = [
   'emit-bill-alerts', //            Phase 4: fan out NEW intel_alert (SHADOW: suppress+log, no send)
   'flush-digests', //               Phase 4: drain digest queue (SHADOW: no send)
   'shadow-selftest', //             Phase 4: live proof of the shadow suppress path
+  'verify-recommendations', //      §6.2: live proof of the recs+board path (keyword+semantic SQL)
 ] as const;
 export type Verb = (typeof KNOWN_VERBS)[number];
 
@@ -147,6 +150,42 @@ export async function runVerb(verb: string, args: string[], deps: VerbDeps): Pro
       if (!tenantId) throw new Error(`NO_TENANT_FOR ${args[0]}`);
       const r = await buildAlertService(deps.prisma).shadowSelftest(tenantId, args[1]);
       deps.log(`SHADOW_SELFTEST suppressed=${r.suppressed} sent=${r.sent}`);
+      return;
+    }
+    case 'verify-recommendations': {
+      // Resolve a (tenantId, clientId): explicit args, else the most-recently
+      // updated unified watchlist (the Phase-2 sync target on the internal tenant).
+      let tenantId: string | null = null;
+      let clientId = args[1] ?? '';
+      if (args[0] && args[1]) {
+        tenantId = await new WatchlistSyncService(deps.prisma).resolveTenantId(args[0]);
+        if (!tenantId) throw new Error(`NO_TENANT_FOR ${args[0]}`);
+      } else {
+        const wl = await deps.prisma.watchlist.findFirst({
+          orderBy: { updatedAt: 'desc' },
+          select: { tenantId: true, clientId: true },
+        });
+        if (!wl) throw new Error('NO_WATCHLIST_FOUND — run sync-watchlists-from-legacy first');
+        tenantId = wl.tenantId;
+        clientId = wl.clientId;
+      }
+      deps.log(`VERIFY_RECS tenant=${tenantId} client=${clientId}`);
+      const board = new TrackerBoardService(
+        deps.prisma,
+        new SourceDataRepository(deps.prisma),
+        new TrackerWatchlistService(deps.prisma),
+      );
+      const recs = await board.getRecommendations(tenantId, clientId, 10);
+      deps.log(`RECS_OK count=${recs.length}`);
+      for (const r of recs.slice(0, 5)) {
+        deps.log(
+          `  ${r.billId}\tfit=${r.fit.toFixed(3)}\tp=${r.passageProbability.toFixed(2)}\t${r.whyKind}\t` +
+            `${r.displayNum} — ${(r.title ?? '').slice(0, 60)}`,
+        );
+      }
+      const b = await board.getBoard(tenantId, clientId);
+      const total = b.columns.reduce((n, c) => n + c.cards.length, 0);
+      deps.log(`BOARD_OK ${b.columns.map((c) => `${c.id}:${c.cards.length}`).join(' ')} total=${total}`);
       return;
     }
     default:
