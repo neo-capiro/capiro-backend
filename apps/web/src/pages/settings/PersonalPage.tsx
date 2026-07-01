@@ -22,7 +22,21 @@ interface EmailSignatureResponse {
 // Guarding client-side avoids an opaque 400 when a large pasted/uploaded
 // signature (e.g. an Outlook export with an inline logo, or an uploaded
 // signature image) exceeds it.
-const MAX_SIGNATURE_HTML_LENGTH = 2_000_000;
+const MAX_SIGNATURE_HTML_LENGTH = 18_000_000;
+
+// Signature HTML is sent to the API base64-encoded: a raw HTML body trips the
+// WAF's XSS body rule (403 before it reaches the API). The server decodes then
+// sanitizes (the authoritative XSS boundary). Chunked to keep the call stack
+// bounded on large (inline-image) signatures.
+function toBase64Utf8(s: string): string {
+  const bytes = new TextEncoder().encode(s);
+  let binary = '';
+  const CHUNK = 0x8000;
+  for (let i = 0; i < bytes.length; i += CHUNK) {
+    binary += String.fromCharCode(...bytes.subarray(i, i + CHUNK));
+  }
+  return btoa(binary);
+}
 
 function saveErrorMessage(err: unknown): string {
   const data = (err as { response?: { data?: { message?: string | string[] } } })?.response?.data;
@@ -83,7 +97,7 @@ export function PersonalPage() {
     mutationFn: async () =>
       (
         await api.put<EmailSignatureResponse>('/api/me/email-signature', {
-          html: sigHtml,
+          htmlBase64: toBase64Utf8(sigHtml),
           enabled: sigEnabled,
         })
       ).data,

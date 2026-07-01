@@ -15,10 +15,23 @@ class UpdateMeDto {
 class UpdateEmailSignatureDto {
   // Raw HTML from the editor / pasted-or-uploaded signature. Server-sanitized
   // before storage. Empty/whitespace clears the signature (stored as NULL).
+  // NOTE: the browser sends `htmlBase64` instead (see below) — a raw HTML body
+  // trips the WAF's XSS body rule (403 before it reaches the API). `html` stays
+  // for non-browser/API callers and tests.
   @IsOptional()
   @IsString()
   @MaxLength(MAX_SIGNATURE_HTML_LENGTH)
   html?: string;
+
+  // Base64-encoded (UTF-8) signature HTML. The web app sends this so the AWS
+  // WAF's CrossSiteScripting_BODY rule doesn't false-positive on legitimate
+  // pasted signature markup. Decoded then sanitized server-side (the sanitizer
+  // remains the authoritative XSS trust boundary). base64 inflates ~33%, so the
+  // cap is higher than the raw-HTML cap.
+  @IsOptional()
+  @IsString()
+  @MaxLength(MAX_SIGNATURE_HTML_LENGTH * 2)
+  htmlBase64?: string;
 
   // Append-by-default preference.
   @IsOptional()
@@ -165,12 +178,18 @@ export class UsersController {
     @CurrentTenant() ctx: TenantContext,
     @Body() body: UpdateEmailSignatureDto,
   ) {
-    if (body.html === undefined && body.enabled === undefined) {
+    if (body.html === undefined && body.htmlBase64 === undefined && body.enabled === undefined) {
       throw new BadRequestException('No editable fields provided');
     }
     const data: { emailSignatureHtml?: string | null; emailSignatureEnabled?: boolean } = {};
-    if (body.html !== undefined) {
-      const clean = sanitizeSignatureHtml(body.html);
+    // The browser sends htmlBase64 (WAF-safe transport); decode it. `html` stays
+    // supported for non-browser callers. htmlBase64 wins when both are present.
+    const rawHtml =
+      body.htmlBase64 !== undefined
+        ? Buffer.from(body.htmlBase64, 'base64').toString('utf8')
+        : body.html;
+    if (rawHtml !== undefined) {
+      const clean = sanitizeSignatureHtml(rawHtml);
       data.emailSignatureHtml = clean.length ? clean : null;
     }
     if (body.enabled !== undefined) {
