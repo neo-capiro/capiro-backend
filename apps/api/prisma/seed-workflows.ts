@@ -771,22 +771,15 @@ const templates = [
 // ── Main ─────────────────────────────────────────────────────────────────────
 
 async function main() {
-  for (const template of templates) {
-    await prisma.workflowTemplate.upsert({
-      where: { slug: template.slug },
-      update: {
-        name: template.name,
-        description: template.description,
-        category: template.category,
-        sortOrder: template.sortOrder,
-        requiredSections: template.requiredSections,
-        contextInfo: template.contextInfo,
-      },
-      create: template,
-    });
-  }
-
-  console.log(`Seeded ${templates.length} workflow templates.`);
+  // The legacy `workflow_template` table was dropped in migration
+  // 20260627130000_drop_legacy_workflow_strategy_chat, so `prisma.workflowTemplate`
+  // no longer exists. This seed is now a no-op kept only so the entrypoint's
+  // `migrate` mode (which unconditionally runs it after `migrate deploy`) exits 0
+  // instead of crashing on the removed model. The `templates` catalog above is
+  // retained for reference/history. Safe to delete this script + its entrypoint
+  // invocation once the workflow-template feature removal is fully reconciled.
+  void templates;
+  console.log('Workflow-template seed skipped (legacy table removed).');
 }
 
 main()
