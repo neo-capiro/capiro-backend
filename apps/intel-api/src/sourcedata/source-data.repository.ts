@@ -57,6 +57,18 @@ export interface SemanticScore {
   score: number;
 }
 
+export interface RecommendationBillRow {
+  id: string;
+  title: string | null;
+  latestActionText: string | null;
+  latestActionDate: Date | null;
+  subjects: string[] | null;
+  policyArea: string | null;
+  sponsorName: string | null;
+  sponsorParty: string | null;
+  cosponsorsCount: number | null;
+}
+
 @Injectable()
 export class SourceDataRepository {
   constructor(private readonly prisma: PrismaService) {}
@@ -184,6 +196,47 @@ export class SourceDataRepository {
          FROM congress_bill_action
         WHERE bill_id = ANY($1::text[])
         ORDER BY date ASC`,
+      ids,
+    );
+  }
+
+  /** Keyword/subject candidate bill ids, scoped to a Congress (§6.2 recommendations). */
+  async keywordCandidateIds(terms: string[], congress: number): Promise<string[]> {
+    const lower = terms.map((t) => t.toLowerCase()).filter((t) => t.length >= 3);
+    if (!lower.length) return [];
+    const patterns = lower.map((n) => `\\m${n.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\M`);
+    const rows = await this.prisma.$queryRawUnsafe<Array<{ id: string }>>(
+      `SELECT DISTINCT cb.id
+         FROM congress_bill cb
+         LEFT JOIN congress_bill_subject cbs ON cbs.bill_id = cb.id
+        WHERE cb.congress = $1
+          AND ( LOWER(cbs.name) = ANY($2::text[])
+             OR LOWER(cbs.name) ~ ANY($3::text[])
+             OR LOWER(cb.policy_area) = ANY($2::text[])
+             OR LOWER(cb.title) ~ ANY($3::text[]) )
+        LIMIT 300`,
+      congress,
+      lower,
+      patterns,
+    );
+    return rows.map((r) => r.id);
+  }
+
+  /** Bill rows with sponsor/cosponsor fields for the recommendations feed + board. */
+  async fetchRecommendationBills(ids: string[]): Promise<RecommendationBillRow[]> {
+    if (!ids.length) return [];
+    return this.prisma.$queryRawUnsafe<RecommendationBillRow[]>(
+      `SELECT id,
+              title,
+              latest_action_text AS "latestActionText",
+              latest_action_date AS "latestActionDate",
+              subjects,
+              policy_area         AS "policyArea",
+              sponsor_name        AS "sponsorName",
+              sponsor_party       AS "sponsorParty",
+              cosponsors_count    AS "cosponsorsCount"
+         FROM congress_bill
+        WHERE id = ANY($1::text[])`,
       ids,
     );
   }
