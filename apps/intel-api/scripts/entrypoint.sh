@@ -2,10 +2,13 @@
 # Capiro Intel API container entrypoint.
 #
 # Modes, selected by argv:
-#   serve    (default) -- start the NestJS HTTP server.
-#   migrate  -- compose DATABASE_URL from DB_* secrets, run prisma migrate
-#               deploy (forward-only), then exit. The CDK migrate task
-#               definition overrides the container command to "migrate".
+#   serve         (default) -- start the NestJS HTTP server.
+#   migrate       -- compose DATABASE_URL from DB_* secrets, run prisma migrate
+#                    deploy (forward-only), then exit. The CDK migrate task
+#                    definition overrides the container command to "migrate".
+#   enable-feature <flag> <tenant> -- upsert an enabled feature-flag row.
+#   task <verb> [args] -- run a one-off verb via dist/tasks/task-runner.js
+#                    (e.g. "task verify-sourcedata 119-hr-1"). Does not serve.
 #
 # In both modes we compose DATABASE_URL from the individual DB_* secrets
 # injected by ECS from the Aurora credential. We require sslmode=require
@@ -92,8 +95,19 @@ case "${1:-serve}" in
       })().catch((e) => { console.error('SEED_ERR', e.message); process.exit(1); });
     "
     ;;
+  task)
+    # task <verb> [args...] -- run a one-off maintenance/verification verb via
+    # the compiled task runner. Does NOT boot the HTTP server. New verbs are
+    # registered in src/tasks/task-runner.ts (Phase 1 verb: verify-sourcedata).
+    # Invoked through the verb-runner task-def family
+    # (capiro-*-intel-api-enableflag) with a `command` containerOverride, e.g.
+    #   ["task","verify-sourcedata","119-hr-1"]
+    VERB="${2:?verb required (e.g. verify-sourcedata)}"
+    shift 2
+    exec node dist/tasks/task-runner.js "$VERB" "$@"
+    ;;
   *)
-    echo "Unknown command: $1 (expected: serve | migrate | enable-feature)" >&2
+    echo "Unknown command: $1 (expected: serve | migrate | enable-feature | task <verb>)" >&2
     exit 1
     ;;
 esac

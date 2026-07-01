@@ -35,6 +35,14 @@
         {
           "name": "INTEL_PORT",
           "value": "4300"
+        },
+        {
+          "name": "EMBEDDINGS_MODEL",
+          "value": "amazon.titan-embed-text-v2:0"
+        },
+        {
+          "name": "AWS_REGION_DEFAULT",
+          "value": "us-east-1"
         }
       ],
       "mountPoints": [],
