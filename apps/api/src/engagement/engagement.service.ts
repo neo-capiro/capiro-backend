@@ -2001,6 +2001,56 @@ export class EngagementService {
       ? `Shared context (every recipient):\n${formatItems(sharedItems)}`
       : null;
 
+    // ---- Tier-1 context enrichment (computed once per campaign) ----
+    // These channels mirror the single-record generateOutreachDraft path, which
+    // the batch generator historically skipped — leaving campaign drafts voice-
+    // ungrounded, history-blind, and unaware of the client's own legislative
+    // agenda or who the recipient actually is. All are best-effort: a null/empty
+    // result simply omits that context, never blocks a draft.
+
+    // Author voice: sender writing-style + client soul/compass memory. Recipient-
+    // invariant, so resolve once and reuse. Hoisted into the prompt's AUTHOR
+    // VOICE section by buildOutreachPrompt (it reads context.userWritingStyle).
+    const userWritingStyle = await this.loadUserVoiceBlock(ctx, clientId ?? null).catch(() => null);
+
+    // Client's tracked legislation with latest action — a timely "reason to write
+    // now" hook. Client-level, so resolve once.
+    const trackedBillsBlock = clientId
+      ? await this.outreachTrackedBillsBlock(ctx, clientId).catch(() => null)
+      : null;
+
+    // Congressional directory profiles for the recipients, resolved in ONE
+    // directory scan for the whole batch (the dataset is cached in-memory but
+    // scanning it per recipient would be wasteful), then looked up by email
+    // inside the per-recipient worker below.
+    const batchRecipientEmails = unique(
+      recipients
+        .map((r) => (r as Record<string, unknown>).email?.toString()?.trim().toLowerCase() ?? '')
+        .filter(Boolean),
+    );
+    const directoryByEmail = new Map<string, DirectoryEmailMatch>();
+    if (batchRecipientEmails.length) {
+      // Size the cap to the batch: findContactsByEmails truncates the COMBINED
+      // match list (not per-email), so a fixed cap would silently drop profiles
+      // for large audiences (e.g. a committee-wide send).
+      const matches = await this.directory
+        .findContactsByEmails(batchRecipientEmails, Math.max(batchRecipientEmails.length, 200))
+        .catch(() => [] as DirectoryEmailMatch[]);
+      for (const match of matches) {
+        const key = match.attendeeEmail.toLowerCase();
+        if (!directoryByEmail.has(key)) directoryByEmail.set(key, match);
+      }
+    }
+
+    // Recipient correspondence (meetings they attended + client mail threads),
+    // resolved in TWO queries for the WHOLE batch and bucketed by email — never
+    // per-recipient, which would fan out ~5 client-scoped queries × recipients.
+    const { meetingsByEmail, threadsByEmail } = await this.batchRecipientCorrespondence(
+      ctx,
+      clientId ?? null,
+      batchRecipientEmails,
+    );
+
     // Generate per-recipient drafts with bounded concurrency. This was a
     // sequential await-loop, so a campaign's wall-clock was sum-of-all-calls
     // and large batches timed out before every draft came back. Running a few
@@ -2049,11 +2099,33 @@ export class EngagementService {
           .join('\n\n');
 
         try {
+          // Per-recipient enrichment (Tier-1): directory profile for this
+          // recipient + their own prior correspondence with the sender. Keyed on
+          // the recipient's email (the only identifier that joins to directory,
+          // meetings, and mail). Failures degrade to nothing via the helpers.
+          const recipientEmailLower =
+            (recipient as Record<string, unknown>).email?.toString()?.trim().toLowerCase() || null;
+          const directoryMatch = recipientEmailLower
+            ? (directoryByEmail.get(recipientEmailLower) ?? null)
+            : null;
+          const recipientProfile = formatRecipientDirectoryProfile(directoryMatch);
+          const meetingHistory = recipientEmailLower
+            ? (meetingsByEmail.get(recipientEmailLower) ?? [])
+            : [];
+          const emailHistory = recipientEmailLower
+            ? (threadsByEmail.get(recipientEmailLower) ?? [])
+            : [];
+
           const context: Record<string, unknown> = {
             tone: tone ?? 'professional',
             ...(direction ? { direction } : {}),
             ...(senderName ? { senderName } : {}),
             ...(senderSignature ? { senderSignature } : {}),
+            ...(userWritingStyle ? { userWritingStyle } : {}),
+            ...(recipientProfile ? { recipientProfile } : {}),
+            ...(trackedBillsBlock ? { trackedBills: trackedBillsBlock } : {}),
+            ...(meetingHistory.length ? { meetingHistory } : {}),
+            ...(emailHistory.length ? { emailHistory } : {}),
             ...(insightsContext ? { insights: insightsContext } : {}),
             ...(additionalContext ? { additionalContext } : {}),
             ...(combinedContextNotes ? { contextItems: combinedContextNotes } : {}),
@@ -4166,11 +4238,11 @@ export class EngagementService {
     if (input.contentLength > MAX_ATTACHMENT_BYTES) {
       throw new BadRequestException(`Attachment must be <= ${MAX_ATTACHMENT_BYTES} bytes`);
     }
-    if (!input.clientId && !input.meetingId && !input.mailMessageId) {
-      throw new BadRequestException(
-        'Attachment must be linked to a client, meeting, or mail message',
-      );
-    }
+    // A general outreach attachment may be uploaded with NO parent (client,
+    // meeting, or mail message). It lives at the tenant scope — the S3 key and
+    // row are keyed by tenantId, and it is attached to emails by id at send
+    // time. Any parent that IS supplied is still validated below, so tenant /
+    // ownership isolation is unchanged.
     await this.validateAttachmentParents(ctx, input);
 
     const safeName = safeFileName(input.fileName);
@@ -4234,16 +4306,24 @@ export class EngagementService {
 
   async listAttachments(
     ctx: TenantContext,
-    query: { clientId?: string; meetingId?: string; mailMessageId?: string },
+    query: { clientId?: string; meetingId?: string; mailMessageId?: string; unlinked?: boolean },
   ) {
-    if (!query.clientId && !query.meetingId && !query.mailMessageId) {
-      throw new BadRequestException('At least one attachment parent is required');
+    const hasParent = Boolean(query.clientId || query.meetingId || query.mailMessageId);
+    if (!hasParent && !query.unlinked) {
+      throw new BadRequestException('An attachment parent (or unlinked=true) is required');
     }
     await this.validateAttachmentParents(ctx, query);
     const rows = await this.prisma.withTenant(ctx.tenantId, (tx) =>
       tx.engagementAttachment.findMany({
         where: {
           tenantId: ctx.tenantId,
+          // "unlinked" = the tenant's general outreach library: files not tied
+          // to any client, meeting, or mail message. Explicit opt-in (and only
+          // when no parent is given) so a caller can't accidentally page the
+          // whole tenant's attachments.
+          ...(!hasParent && query.unlinked
+            ? { clientId: null, meetingId: null, mailMessageId: null }
+            : {}),
           ...(query.clientId ? { clientId: query.clientId } : {}),
           ...(query.meetingId ? { meetingId: query.meetingId } : {}),
           ...(query.mailMessageId ? { mailMessageId: query.mailMessageId } : {}),
@@ -4779,6 +4859,162 @@ export class EngagementService {
       ...meeting,
       debriefs: (debriefsByMeeting[index] ?? []).filter((debrief) => !debrief.restricted),
     }));
+  }
+
+  /**
+   * A compact, prompt-ready block of the client's actively tracked bills with
+   * their latest action — a timely "reason to write now" hook for outreach.
+   * tracked_bill is tenant-scoped (RLS); congress_bill is a GLOBAL table, so the
+   * bill-detail read is safe inside the same withTenant transaction. Returns null
+   * when the client tracks nothing. (Tier-1 outreach enrichment.)
+   */
+  private async outreachTrackedBillsBlock(
+    ctx: TenantContext,
+    clientId: string,
+  ): Promise<string | null> {
+    const { tracked, bills } = await this.prisma.withTenant(ctx.tenantId, async (tx) => {
+      const tracked = await tx.trackedBill.findMany({
+        where: { tenantId: ctx.tenantId, clientId },
+        orderBy: { updatedAt: 'desc' },
+        take: 8,
+        select: { billId: true, note: true },
+      });
+      if (!tracked.length) return { tracked, bills: [] as Array<Record<string, unknown>> };
+      const billIds = tracked.map((t) => t.billId);
+      const bills = await tx.congressBill.findMany({
+        where: { id: { in: billIds } },
+        select: {
+          id: true,
+          billType: true,
+          billNumber: true,
+          title: true,
+          latestActionText: true,
+          latestActionDate: true,
+        },
+      });
+      return { tracked, bills: bills as Array<Record<string, unknown>> };
+    });
+    if (!tracked.length) return null;
+
+    const byId = new Map(bills.map((b) => [b.id as string, b]));
+    const lines = tracked
+      .map((t) => {
+        const bill = byId.get(t.billId);
+        if (!bill) return null;
+        const num = [
+          (bill.billType as string | null)?.toUpperCase(),
+          bill.billNumber as string | null,
+        ]
+          .filter(Boolean)
+          .join(' ')
+          .trim();
+        const latestActionDate = bill.latestActionDate as Date | null;
+        const action = bill.latestActionText
+          ? ` — latest action: ${bill.latestActionText as string}${
+              latestActionDate ? ` (${latestActionDate.toISOString().slice(0, 10)})` : ''
+            }`
+          : '';
+        const note = t.note?.trim() ? ` [client note: ${t.note.trim()}]` : '';
+        return `- ${num || t.billId}: ${bill.title as string}${action}${note}`;
+      })
+      .filter((line): line is string => Boolean(line));
+
+    return lines.length ? `Bills this client is actively tracking:\n${lines.join('\n')}` : null;
+  }
+
+  /**
+   * Recipients' recent correspondence with the sender, resolved for the WHOLE
+   * batch in two queries and bucketed by lowercased email (email is the only
+   * identifier shared across the directory, meeting-attendee, and mail tables).
+   * Meetings match by attendee email (works with or without a client); mail
+   * threads are client-scoped, so they load only when clientId is set. Both
+   * reads are own-user + tenant scoped and best-effort. Dates serialize to ISO
+   * via JSON.stringify in the prompt builder. Per recipient we keep the 3 most
+   * recent of each. (Tier-1 outreach enrichment.)
+   */
+  private async batchRecipientCorrespondence(
+    ctx: TenantContext,
+    clientId: string | null,
+    emailsLower: string[],
+  ): Promise<{ meetingsByEmail: Map<string, unknown[]>; threadsByEmail: Map<string, unknown[]> }> {
+    const meetingsByEmail = new Map<string, unknown[]>();
+    const threadsByEmail = new Map<string, unknown[]>();
+    if (!emailsLower.length) return { meetingsByEmail, threadsByEmail };
+    const wanted = new Set(emailsLower);
+    const PER_RECIPIENT = 3;
+
+    const [meetings, threads] = await Promise.all([
+      this.prisma
+        .withTenant(ctx.tenantId, (tx) =>
+          tx.meeting.findMany({
+            where: {
+              tenantId: ctx.tenantId,
+              ...ownMeetingWhere(ctx.userId),
+              attendees: { some: { email: { in: emailsLower } } },
+            },
+            select: {
+              subject: true,
+              startsAt: true,
+              location: true,
+              attendees: { select: { name: true, email: true, role: true } },
+            },
+            orderBy: { startsAt: 'desc' },
+            take: 100,
+          }),
+        )
+        .catch(
+          () =>
+            [] as Array<{
+              subject: string | null;
+              startsAt: Date | null;
+              location: string | null;
+              attendees: Array<{ name: string | null; email: string | null; role: string | null }>;
+            }>,
+        ),
+      clientId
+        ? this.listMailThreads(ctx, { clientId, recipientEmails: emailsLower }).catch(() => [])
+        : Promise.resolve([]),
+    ]);
+
+    for (const meeting of meetings) {
+      const item = {
+        subject: meeting.subject ?? null,
+        date: meeting.startsAt ?? null,
+        location: meeting.location ?? null,
+        attendees: meeting.attendees ?? [],
+      };
+      const attendeeEmails = new Set(
+        (meeting.attendees ?? [])
+          .map((a) => a.email?.trim().toLowerCase())
+          .filter((e): e is string => Boolean(e)),
+      );
+      for (const email of attendeeEmails) {
+        if (!wanted.has(email)) continue;
+        const list = meetingsByEmail.get(email) ?? [];
+        if (list.length < PER_RECIPIENT) {
+          list.push(item);
+          meetingsByEmail.set(email, list);
+        }
+      }
+    }
+
+    for (const thread of threads as Array<Record<string, unknown>>) {
+      const item = {
+        subject: (thread.subject as string | null) ?? null,
+        lastMessageAt: (thread.lastMessageAt as Date | null) ?? null,
+        snippet: (thread.snippet as string | null) ?? null,
+      };
+      for (const email of threadParticipantEmails(thread)) {
+        if (!wanted.has(email)) continue;
+        const list = threadsByEmail.get(email) ?? [];
+        if (list.length < PER_RECIPIENT) {
+          list.push(item);
+          threadsByEmail.set(email, list);
+        }
+      }
+    }
+
+    return { meetingsByEmail, threadsByEmail };
   }
 
   async listCampaigns(ctx: TenantContext, query: { clientId?: string; status?: string }) {
@@ -5733,6 +5969,95 @@ function outboundRelevanceReason(match?: DirectoryEmailMatch | null): string | n
   ]
     .filter(Boolean)
     .join(' | ');
+}
+
+/**
+ * Synthesize a short, prompt-ready profile of an outreach recipient from their
+ * congressional-directory match: who they are, their committees/leadership, and
+ * — for staffers — their role and issue portfolio. Deliberately uses STAFFER-level
+ * issue coverage + committees (the real signal) and NEVER the member-level issue
+ * tags (member.focusAreas), which are near-universal noise. Returns null when
+ * there is no directory match (e.g. a to-clients recipient). (Tier-1 enrichment.)
+ */
+function formatRecipientDirectoryProfile(match: DirectoryEmailMatch | null): string | null {
+  if (!match) return null;
+  const m = match.member;
+  const locale = [m.state, m.district].filter(Boolean).join('-');
+  const seat = [m.partyName, locale].filter(Boolean).join(', ');
+  const memberLabel = [
+    m.title || m.memberName || match.directoryContactName,
+    seat ? `(${seat})` : null,
+  ]
+    .filter(Boolean)
+    .join(' ');
+  const committees = m.committees?.length
+    ? `Committees: ${m.committees.slice(0, 6).join('; ')}.`
+    : null;
+  const leadership = m.leadershipPositions?.length
+    ? `Leadership: ${m.leadershipPositions.slice(0, 4).join('; ')}.`
+    : null;
+
+  if (match.matchKind === 'staff' && match.staff) {
+    const s = match.staff;
+    const roles = s.roles?.length ? `Role: ${s.roles.slice(0, 4).join(', ')}.` : null;
+    const coverage = s.issueAreas?.length
+      ? `Issue portfolio: ${s.issueAreas.slice(0, 8).join(', ')}.`
+      : null;
+    return [
+      `${s.fullName}${s.title ? `, ${s.title},` : ','} in the office of ${memberLabel}.`,
+      roles,
+      coverage,
+      committees,
+      leadership,
+    ]
+      .filter(Boolean)
+      .join(' ');
+  }
+
+  return [`${memberLabel}.`, committees, leadership].filter(Boolean).join(' ');
+}
+
+/**
+ * Collect the lowercased email addresses that appear on a mail thread — from its
+ * participants list and from the (up to 3) included messages' from/to/cc — so a
+ * batch of threads can be bucketed to the specific recipient(s) they involve.
+ * Defensive against loosely-typed JSON columns. (Tier-1 outreach enrichment.)
+ */
+function threadParticipantEmails(thread: Record<string, unknown>): Set<string> {
+  const out = new Set<string>();
+  const add = (value: unknown) => {
+    if (typeof value !== 'string') return;
+    const email = value.trim().toLowerCase();
+    if (email) out.add(email);
+  };
+  const participants = thread.participants;
+  if (Array.isArray(participants)) {
+    for (const participant of participants) {
+      if (participant && typeof participant === 'object') {
+        add((participant as { email?: unknown }).email);
+      }
+    }
+  }
+  const messages = thread.messages;
+  if (Array.isArray(messages)) {
+    for (const message of messages) {
+      if (!message || typeof message !== 'object') continue;
+      const row = message as Record<string, unknown>;
+      add(row.fromEmail);
+      for (const key of ['toRecipients', 'ccRecipients'] as const) {
+        const recipients = row[key];
+        if (!Array.isArray(recipients)) continue;
+        for (const recipient of recipients) {
+          if (recipient && typeof recipient === 'object') {
+            add((recipient as { email?: unknown }).email);
+          } else {
+            add(recipient);
+          }
+        }
+      }
+    }
+  }
+  return out;
 }
 
 function normalizeOutreachType(value?: string | null): OutreachType | null {

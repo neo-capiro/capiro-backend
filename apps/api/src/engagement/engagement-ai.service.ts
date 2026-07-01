@@ -1090,14 +1090,29 @@ export class EngagementAiService {
       (input.context.userWritingStyle as string).trim().length > 0
         ? (input.context.userWritingStyle as string).trim()
         : null;
-    const contextWithoutItems = contextItemsBlock || writingStyleBlock
+    // Recipient profile (who you're writing to — directory-derived). Hoisted like
+    // the voice block so it reads as a first-class section rather than a JSON
+    // field. Callers that don't set context.recipientProfile are unaffected.
+    const recipientProfileBlock =
+      typeof input.context?.recipientProfile === 'string' &&
+      (input.context.recipientProfile as string).trim().length > 0
+        ? (input.context.recipientProfile as string).trim()
+        : null;
+    const hoistFromContext = Boolean(
+      contextItemsBlock || writingStyleBlock || recipientProfileBlock,
+    );
+    const contextWithoutItems = hoistFromContext
       ? Object.fromEntries(
           Object.entries(input.context ?? {}).filter(
-            ([k]) => k !== 'contextItems' && k !== 'direction' && k !== 'userWritingStyle',
+            ([k]) =>
+              k !== 'contextItems' &&
+              k !== 'direction' &&
+              k !== 'userWritingStyle' &&
+              k !== 'recipientProfile',
           ),
         )
       : (input.context ?? {});
-    const inputForJson: OutreachDraftInput = contextItemsBlock || writingStyleBlock
+    const inputForJson: OutreachDraftInput = hoistFromContext
       ? { ...input, context: contextWithoutItems }
       : input;
 
@@ -1139,6 +1154,9 @@ export class EngagementAiService {
       templateGuidance ? `Prompt template: ${input.promptTemplate}. ${templateGuidance}` : null,
       'Use only the provided client, meeting, recipient, and engagement context. Do not invent facts.',
       'Never return unresolved template variables or bracket placeholders in subject or body. Use real provided values or omit the unsupported line/phrase.',
+      recipientProfileBlock
+        ? `RECIPIENT PROFILE (who you are writing to — use for the correct salutation/title and to tailor the ask to their committee assignments and issue portfolio; treat as facts, do not invent anything beyond it):\n${recipientProfileBlock}`
+        : null,
       writingStyleBlock
         ? `AUTHOR VOICE & STRATEGY (style guidance — apply to HOW you write, not as facts to cite; never copy sample content verbatim or invent details from it):\n${writingStyleBlock}`
         : null,

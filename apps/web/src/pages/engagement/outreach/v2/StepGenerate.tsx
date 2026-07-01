@@ -333,8 +333,8 @@ export function StepGenerate({
           {docs.length === 0 && (
             <Typography.Text type="secondary">
               {clientId
-                ? 'No stored documents for this client yet.'
-                : 'Select a client to attach stored documents.'}
+                ? 'No stored documents for this client yet. Upload a file to attach it.'
+                : 'No attachments yet. Upload a file to attach it to every email.'}
             </Typography.Text>
           )}
           <Upload
