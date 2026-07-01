@@ -19,11 +19,18 @@
 import { PrismaService } from '../prisma/prisma.service.js';
 import { SourceDataRepository } from '../sourcedata/source-data.repository.js';
 import { EMBEDDING_MODEL, embedText, normalize, vectorLiteral } from '../embeddings/embedder.js';
+import { WatchlistSyncService } from '../watchlist/watchlist-sync.service.js';
 
 /** Candidate cosine floor for bill semantic search (ported: EMBED_CANDIDATE_FLOOR). */
 export const EMBED_CANDIDATE_FLOOR = 0.3;
 
-export const KNOWN_VERBS = ['verify-sourcedata'] as const;
+export const KNOWN_VERBS = [
+  'verify-sourcedata', //          Phase 1 gate
+  'sync-watchlists-from-legacy', // Phase 2: legacy → unified watchlist (§5.4)
+  'backfill-tracked-bills', //      Phase 2: tracked_bill → intel_tracked_bill
+  'backfill-alert-prefs', //        Phase 2: alert_preference → intel_alert_preference
+  'disable-feature', //             Phase 2: feature-flag OFF path (§5.0.1)
+] as const;
 export type Verb = (typeof KNOWN_VERBS)[number];
 
 export function isKnownVerb(v: string): v is Verb {
@@ -32,6 +39,7 @@ export function isKnownVerb(v: string): v is Verb {
 
 /** Injected dependencies — real in main(), fakes in tests. */
 export interface VerbDeps {
+  prisma: PrismaService;
   repo: Pick<SourceDataRepository, 'getBillById' | 'semanticBillScores'>;
   embed: (text: string) => Promise<number[]>;
   log: (msg: string) => void;
@@ -78,6 +86,27 @@ export async function runVerb(verb: string, args: string[], deps: VerbDeps): Pro
   switch (verb) {
     case 'verify-sourcedata':
       return verifySourcedata(args[0] ?? '', deps);
+    case 'sync-watchlists-from-legacy': {
+      const r = await new WatchlistSyncService(deps.prisma).syncWatchlists(args[0]);
+      deps.log(`SYNC_DONE clients=${r.clients} changed=${r.changed} skipped=${r.skipped} swept=${r.swept}`);
+      return;
+    }
+    case 'backfill-tracked-bills': {
+      const r = await new WatchlistSyncService(deps.prisma).backfillTrackedBills(args[0]);
+      deps.log(`BACKFILL_TRACKED_BILLS count=${r.count}`);
+      return;
+    }
+    case 'backfill-alert-prefs': {
+      const r = await new WatchlistSyncService(deps.prisma).backfillAlertPrefs(args[0]);
+      deps.log(`BACKFILL_ALERT_PREFS count=${r.count}`);
+      return;
+    }
+    case 'disable-feature': {
+      if (!args[0] || !args[1]) throw new Error('disable-feature requires <flag> <tenantSlugOrId>');
+      const r = await new WatchlistSyncService(deps.prisma).setFeatureFlag(args[0], args[1], false);
+      deps.log(`FEATURE_DISABLED feature=${r.feature} tenant=${r.tenantId}`);
+      return;
+    }
     default:
       throw new Error(`Unknown task verb: ${verb} (known: ${KNOWN_VERBS.join(', ')})`);
   }
@@ -93,7 +122,7 @@ async function main(): Promise<void> {
   const prisma = new PrismaService();
   const repo = new SourceDataRepository(prisma);
   try {
-    await runVerb(verb, args, { repo, embed: embedText, log: (m) => console.log(m) });
+    await runVerb(verb, args, { prisma, repo, embed: embedText, log: (m) => console.log(m) });
   } catch (e) {
     console.error(`TASK_ERR verb=${verb}: ${(e as Error).message}`);
     process.exitCode = 1;

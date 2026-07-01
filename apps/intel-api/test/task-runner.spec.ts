@@ -32,6 +32,7 @@ function makeDeps(opts: { bill?: unknown; scores?: Array<{ sourceId: string; sco
           url: null,
         };
   const d: VerbDeps = {
+    prisma: {} as never, // unused by verify-sourcedata; sync verbs are covered by the dist harness
     repo: {
       getBillById: async () => bill as never,
       semanticBillScores: async () => opts.scores ?? [{ sourceId: '119-hr-1', score: 1 }],
