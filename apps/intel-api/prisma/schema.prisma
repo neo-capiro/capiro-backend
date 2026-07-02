@@ -153,6 +153,11 @@ model TrackedBill {
   lastSeenActionDate DateTime? @map("last_seen_action_date")
   lastSeenAt         DateTime? @map("last_seen_at")
   unread             Boolean   @default(false)
+  // Phase 6 (§9.2 step E): Board "discussed at hearing" badge. Set by the
+  // bill-hearing linker; kept SEPARATE from the lastSeenAction* congress watermark
+  // (which detect-bill-changes owns — clobbering it corrupts change detection).
+  lastHearingSessionId String? @map("last_hearing_session_id")
+  lastHearingAt        DateTime? @map("last_hearing_at")
   createdAt          DateTime  @default(now()) @map("created_at")
   updatedAt          DateTime  @updatedAt @map("updated_at")
 
