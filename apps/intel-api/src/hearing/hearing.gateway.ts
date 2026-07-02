@@ -223,10 +223,35 @@ export class HearingGateway implements OnGatewayConnection, OnGatewayDisconnect 
     conn.deepgram.stop();
 
     const sessionId = conn.sessionId;
+    // Start ffmpeg ONLY once the Deepgram socket is open. Spawning it eagerly
+    // races the socket handshake: the URL fetch + ffmpeg probe can take several
+    // seconds to emit the first PCM, during which an already-open Deepgram
+    // socket idle-times-out (~10s) and reconnects — dropping the early audio and
+    // intermittently yielding zero transcripts. Gating on onOpen removes both
+    // the race and the pre-audio idle window. The guard makes it fire once, not
+    // again on every reconnect.
+    let ingestionStarted = false;
+    const beginIngestion = () => {
+      if (ingestionStarted) return;
+      ingestionStarted = true;
+      try {
+        conn.ingestion = this.ingestionSvc.start(audioUrl, {
+          onAudio: (pcm) => linearDeepgram.sendAudio(pcm),
+          onEnd: (reason) => this.send(client, { type: 'status', status: `ingestion_ended:${reason}` }),
+          onError: (err) => this.send(client, { type: 'error', message: err.message }),
+        });
+        this.send(client, { type: 'status', status: 'ingesting' });
+      } catch (err) {
+        this.send(client, { type: 'error', message: (err as Error).message });
+      }
+    };
     const linearDeepgram = new DeepgramStreamManager(
       this.deepgramApiKey,
       {
-        onOpen: () => this.send(client, { type: 'status', status: 'transcribing' }),
+        onOpen: () => {
+          this.send(client, { type: 'status', status: 'transcribing' });
+          beginIngestion();
+        },
         onInterim: (segment) => this.send(client, { type: 'interim', segment }),
         onReconnecting: (attempt) =>
           this.send(client, { type: 'status', status: `reconnecting:${attempt}` }),
@@ -241,18 +266,9 @@ export class HearingGateway implements OnGatewayConnection, OnGatewayDisconnect 
       { encoding: 'linear16', sampleRate: StreamIngestionService.SAMPLE_RATE },
     );
     conn.deepgram = linearDeepgram;
+    // ffmpeg ingestion is launched from Deepgram's onOpen (above), so audio only
+    // flows once the socket is ready.
     linearDeepgram.start();
-
-    try {
-      conn.ingestion = this.ingestionSvc.start(audioUrl, {
-        onAudio: (pcm) => linearDeepgram.sendAudio(pcm),
-        onEnd: (reason) => this.send(client, { type: 'status', status: `ingestion_ended:${reason}` }),
-        onError: (err) => this.send(client, { type: 'error', message: err.message }),
-      });
-      this.send(client, { type: 'status', status: 'ingesting' });
-    } catch (err) {
-      this.send(client, { type: 'error', message: (err as Error).message });
-    }
   }
 
   private async handleFinal(
