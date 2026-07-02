@@ -16,6 +16,8 @@ import {
   type ToastItem,
 } from './tracker-components.js';
 import { TrackerConfigPanel } from './TrackerConfigPanel.js';
+import { TrackerFeedPanel } from './TrackerFeedPanel.js';
+import { useIntelFeatureEnabled } from '../../../lib/intel-feature-flags.js';
 import {
   trackerKeys,
   trackerPaths,
@@ -28,13 +30,13 @@ import {
   type WatchlistPayload,
 } from './tracker-api.js';
 
-type Panel = 'board' | 'recs' | 'config';
+type Panel = 'board' | 'recs' | 'config' | 'feed';
 const PANEL_KEY = 'capiro:tracker:panel';
 
 function loadPanel(): Panel {
   try {
     const v = window.sessionStorage.getItem(PANEL_KEY);
-    if (v === 'board' || v === 'recs' || v === 'config') return v;
+    if (v === 'board' || v === 'recs' || v === 'config' || v === 'feed') return v;
   } catch {
     /* ignore */
   }
@@ -78,6 +80,11 @@ export function TrackerTab({ clientId, clientName }: { clientId: string; clientN
       /* ignore */
     }
   };
+  // The unified Feed is gated by `tracker_v2` (off for all real tenants during
+  // shadow). If a stale sessionStorage value selects 'feed' without the flag,
+  // fall back to Board so the panel is never orphaned.
+  const trackerV2 = useIntelFeatureEnabled('tracker_v2');
+  const activePanel: Panel = panel === 'feed' && !trackerV2 ? 'board' : panel;
 
   // Board controls
   const [sort, setSort] = useState<'prob' | 'num' | 'changed'>('prob');
@@ -135,12 +142,12 @@ export function TrackerTab({ clientId, clientName }: { clientId: string; clientN
   const watchlistQuery = useQuery<WatchlistPayload>({
     queryKey: trackerKeys.watchlist(clientId),
     queryFn: async () => (await api.get<WatchlistPayload>(trackerPaths.watchlist(clientId))).data,
-    enabled: panel === 'config',
+    enabled: activePanel === 'config',
   });
   const prefsQuery = useQuery<AlertPrefsPayload>({
     queryKey: trackerKeys.alertPrefs(clientId),
     queryFn: async () => (await api.get<AlertPrefsPayload>(trackerPaths.alertPrefs(clientId))).data,
-    enabled: panel === 'config',
+    enabled: activePanel === 'config',
   });
   // Suggestions to seed the watchlist from the client profile (capability tags +
   // sector → issue area). Excludes anything already configured.
@@ -148,7 +155,7 @@ export function TrackerTab({ clientId, clientName }: { clientId: string; clientN
     queryKey: trackerKeys.seed(clientId),
     queryFn: async () =>
       (await api.get<SeedSuggestions>(trackerPaths.seedSuggestions(clientId))).data,
-    enabled: panel === 'config',
+    enabled: activePanel === 'config',
     staleTime: 5 * 60_000,
   });
 
@@ -423,10 +430,10 @@ export function TrackerTab({ clientId, clientName }: { clientId: string; clientN
     <div className="trk">
       {/* header: sub-nav + contextual controls */}
       <div className="trk-head">
-        <SubNav panel={panel} setPanel={setPanel} recCount={aboveFloorCount} />
+        <SubNav panel={activePanel} setPanel={setPanel} recCount={aboveFloorCount} showFeed={trackerV2} />
         <div className="trk-spacer" />
 
-        {panel === 'board' && (
+        {activePanel === 'board' && (
           <div className="trk-controls">
             <TrkDropdown
               open={menu === 'b-filter'}
@@ -464,7 +471,7 @@ export function TrackerTab({ clientId, clientName }: { clientId: string; clientN
           </div>
         )}
 
-        {panel === 'recs' && (
+        {activePanel === 'recs' && (
           <div className="trk-controls">
             <TrkDropdown
               open={menu === 'r-tag'}
@@ -506,7 +513,7 @@ export function TrackerTab({ clientId, clientName }: { clientId: string; clientN
       </div>
 
       {/* ===================== BOARD ===================== */}
-      {panel === 'board' &&
+      {activePanel === 'board' &&
         (boardQuery.isLoading ? (
           <div className="trk-col-empty">Loading tracked bills…</div>
         ) : boardCount === 0 ? (
@@ -600,7 +607,7 @@ export function TrackerTab({ clientId, clientName }: { clientId: string; clientN
         ))}
 
       {/* ===================== RECOMMENDATIONS ===================== */}
-      {panel === 'recs' &&
+      {activePanel === 'recs' &&
         (recsQuery.isLoading ? (
           <div className="trk-col-empty">Finding bills to recommend…</div>
         ) : recAll.length === 0 ? (
@@ -681,7 +688,7 @@ export function TrackerTab({ clientId, clientName }: { clientId: string; clientN
         ))}
 
       {/* ===================== CONFIGURE ===================== */}
-      {panel === 'config' &&
+      {activePanel === 'config' &&
         (!prefsQuery.data || watchlistQuery.isLoading || issueAreasQuery.isLoading ? (
           <div className="trk-col-empty">Loading configuration…</div>
         ) : (
@@ -696,6 +703,11 @@ export function TrackerTab({ clientId, clientName }: { clientId: string; clientN
             onTestAlert={fireTest}
           />
         ))}
+
+      {/* ===================== FEED (unified bill|hearing|combined) ===================== */}
+      {activePanel === 'feed' && trackerV2 && (
+        <TrackerFeedPanel clientId={clientId} clientName={clientName} />
+      )}
 
       {/* ===================== MODALS + TOASTS ===================== */}
       {modal === 'addBill' && (

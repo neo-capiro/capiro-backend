@@ -471,10 +471,13 @@ export function SubNav({
   panel,
   setPanel,
   recCount,
+  showFeed,
 }: {
   panel: string;
-  setPanel: (p: 'board' | 'recs' | 'config') => void;
+  setPanel: (p: 'board' | 'recs' | 'config' | 'feed') => void;
   recCount: number;
+  /** Show the unified Feed tab — gated by the `tracker_v2` intel feature flag. */
+  showFeed?: boolean;
 }) {
   return (
     <div className="trk-seg">
@@ -484,6 +487,11 @@ export function SubNav({
       <button className={panel === 'recs' ? 'active' : ''} onClick={() => setPanel('recs')}>
         Recommendations {recCount > 0 && <span className="seg-badge">{recCount}</span>}
       </button>
+      {showFeed && (
+        <button className={panel === 'feed' ? 'active' : ''} onClick={() => setPanel('feed')}>
+          Feed
+        </button>
+      )}
       <button className={panel === 'config' ? 'active' : ''} onClick={() => setPanel('config')}>
         <span className="seg-cog">
           <Icon name="settings" size={13} />
