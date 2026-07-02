@@ -189,7 +189,7 @@ function NewHearingModal({
         initialValues={{
           title: presetTitle,
           sourceType: 'hearing',
-          audioSource: 'live_stream',
+          audioSource: 'stream_url',
           recordingPolicy: 'transcript_only',
         }}
       >
@@ -201,17 +201,19 @@ function NewHearingModal({
             options={[
               { value: 'hearing', label: 'Hearing' },
               { value: 'markup', label: 'Markup' },
-              { value: 'floor', label: 'Floor proceeding' },
-              { value: 'other', label: 'Other' },
+              { value: 'meeting', label: 'Meeting' },
+              { value: 'webinar', label: 'Webinar' },
+              { value: 'agency_session', label: 'Agency session' },
             ]}
           />
         </Form.Item>
         <Form.Item name="audioSource" label="Audio source" rules={[{ required: true }]}>
           <Select
             options={[
-              { value: 'live_stream', label: 'Live stream URL' },
-              { value: 'mic', label: 'Microphone / device' },
-              { value: 'upload', label: 'Uploaded recording' },
+              { value: 'stream_url', label: 'Live stream URL' },
+              { value: 'browser_mic', label: 'Microphone / device' },
+              { value: 'uploaded_audio', label: 'Uploaded recording' },
+              { value: 'conference_bridge', label: 'Conference bridge' },
             ]}
           />
         </Form.Item>
@@ -224,8 +226,8 @@ function NewHearingModal({
           <Select
             options={[
               { value: 'transcript_only', label: 'Transcript only (no audio stored)' },
-              { value: 'store_segments', label: 'Store transcript segments' },
-              { value: 'no_store', label: 'No storage (live only)' },
+              { value: 'audio_and_transcript', label: 'Store transcript + audio' },
+              { value: 'no_storage', label: 'No storage (live only)' },
             ]}
           />
         </Form.Item>
