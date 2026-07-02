@@ -360,6 +360,13 @@ case "${1:-serve}" in
   # Step 27: load P-Doc (Procurement) parent PEs + child line items from a committed
   # rows artifact (offline pdfplumber extraction). Pass --service + --artifact.
   parse-pdoc) shift; exec ./node_modules/.bin/tsx scripts/parse-pdoc-army.ts "$@" ;;
+  # Deep P-40 enrichment: attach description / acatLevel / programOfRecord / status +
+  # raw.pDocDetail (qty, unit cost, schedule, acquisition strategy, contractors,
+  # milestones, risks) to EXISTING program elements. Enrich-only. Pass --artifact.
+  load-pdoc-enrichment) shift; exec ./node_modules/.bin/tsx scripts/load-pdoc-enrichment.ts "$@" ;;
+  # O-1 Operation & Maintenance loader: O&M detail lines as program elements
+  # (appropriationType=OM, pe_code=<account><line>). Pass --artifact. O-1 is $K.
+  load-om) shift; exec ./node_modules/.bin/tsx scripts/load-om.ts "$@" ;;
   # Personnel + derived jobs that were missing dispatch cases (Production
   # Ingestion plan, Phase 2). Scheduled via EventBridge in infra/cdk.
   sync-dod-orgcharts) shift; exec ./node_modules/.bin/tsx scripts/sync-dod-orgcharts.ts "$@" ;;

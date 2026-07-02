@@ -1,0 +1,10019 @@
+{
+ "exhibit": "O-1",
+ "fy": 2027,
+ "unit": "thousands",
+ "source": "o1_fy2027",
+ "pes": [
+  {
+   "peCode": "0100D010",
+   "title": "Joint Chiefs of Staff",
+   "appropriationType": "OM",
+   "service": "DW",
+   "budgetActivity": "BA 01",
+   "raw": {
+    "account": "0100D",
+    "accountLine": "010",
+    "sagBli": "1PL1",
+    "bsa": "1P"
+   },
+   "fyData": [
+    {
+     "fy": 2025,
+     "enacted": 461533
+    },
+    {
+     "fy": 2026,
+     "enacted": 407267
+    },
+    {
+     "fy": 2027,
+     "request": 545748
+    }
+   ]
+  },
+  {
+   "peCode": "0100D020",
+   "title": "Joint Chiefs of Staff - JTEEP",
+   "appropriationType": "OM",
+   "service": "DW",
+   "budgetActivity": "BA 01",
+   "raw": {
+    "account": "0100D",
+    "accountLine": "020",
+    "sagBli": "8PL1",
+    "bsa": "1P"
+   },
+   "fyData": [
+    {
+     "fy": 2025,
+     "enacted": 682528
+    },
+    {
+     "fy": 2026,
+     "enacted": 965232
+    },
+    {
+     "fy": 2027,
+     "request": 1393798
+    }
+   ]
+  },
+  {
+   "peCode": "0100D030",
+   "title": "Joint Chiefs of Staff - CYBER",
+   "appropriationType": "OM",
+   "service": "DW",
+   "budgetActivity": "BA 01",
+   "raw": {
+    "account": "0100D",
+    "accountLine": "030",
+    "sagBli": "8PL2",
+    "bsa": "1P"
+   },
+   "fyData": [
+    {
+     "fy": 2025,
+     "enacted": 8991
+    },
+    {
+     "fy": 2026,
+     "enacted": 8947
+    },
+    {
+     "fy": 2027,
+     "request": 9103
+    }
+   ]
+  },
+  {
+   "peCode": "0100D040",
+   "title": "Office of the Secretary of Defense - PSYOP",
+   "appropriationType": "OM",
+   "service": "DW",
+   "budgetActivity": "BA 01",
+   "raw": {
+    "account": "0100D",
+    "accountLine": "040",
+    "sagBli": "1GTM",
+    "bsa": "4G"
+   },
+   "fyData": [
+    {
+     "fy": 2025,
+     "enacted": 249710
+    },
+    {
+     "fy": 2026,
+     "enacted": 225636
+    },
+    {
+     "fy": 2027,
+     "request": 325609
+    }
+   ]
+  },
+  {
+   "peCode": "0100D050",
+   "title": "Special Operations Command Combat Development Activities",
+   "appropriationType": "OM",
+   "service": "DW",
+   "budgetActivity": "BA 01",
+   "raw": {
+    "account": "0100D",
+    "accountLine": "050",
+    "sagBli": "1PL6",
+    "bsa": "1P"
+   },
+   "fyData": [
+    {
+     "fy": 2025,
+     "enacted": 2124494
+    },
+    {
+     "fy": 2026,
+     "enacted": 2478889
+    },
+    {
+     "fy": 2027,
+     "request": 2589383
+    }
+   ]
+  },
+  {
+   "peCode": "0100D060",
+   "title": "Special Operations Command Maintenance",
+   "appropriationType": "OM",
+   "service": "DW",
+   "budgetActivity": "BA 01",
+   "raw": {
+    "account": "0100D",
+    "accountLine": "060",
+    "sagBli": "1PL7",
+    "bsa": "1P"
+   },
+   "fyData": [
+    {
+     "fy": 2025,
+     "enacted": 1258776
+    },
+    {
+     "fy": 2026,
+     "enacted": 1364961
+    },
+    {
+     "fy": 2027,
+     "request": 1388865
+    }
+   ]
+  },
+  {
+   "peCode": "0100D070",
+   "title": "Special Operations Command Management/Operational Headquarters",
+   "appropriationType": "OM",
+   "service": "DW",
+   "budgetActivity": "BA 01",
+   "raw": {
+    "account": "0100D",
+    "accountLine": "070",
+    "sagBli": "1PLM",
+    "bsa": "1P"
+   },
+   "fyData": [
+    {
+     "fy": 2025,
+     "enacted": 194646
+    },
+    {
+     "fy": 2026,
+     "enacted": 181023
+    },
+    {
+     "fy": 2027,
+     "request": 180691
+    }
+   ]
+  },
+  {
+   "peCode": "0100D080",
+   "title": "Special Operations Command Theater Forces",
+   "appropriationType": "OM",
+   "service": "DW",
+   "budgetActivity": "BA 01",
+   "raw": {
+    "account": "0100D",
+    "accountLine": "080",
+    "sagBli": "1PLR",
+    "bsa": "1P"
+   },
+   "fyData": [
+    {
+     "fy": 2025,
+     "enacted": 3408381
+    },
+    {
+     "fy": 2026,
+     "enacted": 3690177
+    },
+    {
+     "fy": 2027,
+     "request": 3695859
+    }
+   ]
+  },
+  {
+   "peCode": "0100D090",
+   "title": "Special Operations Command Cyberspace Activities",
+   "appropriationType": "OM",
+   "service": "DW",
+   "budgetActivity": "BA 01",
+   "raw": {
+    "account": "0100D",
+    "accountLine": "090",
+    "sagBli": "1PLS",
+    "bsa": "1P"
+   },
+   "fyData": [
+    {
+     "fy": 2025,
+     "enacted": 52343
+    },
+    {
+     "fy": 2026,
+     "enacted": 75473
+    },
+    {
+     "fy": 2027,
+     "request": 78512
+    }
+   ]
+  },
+  {
+   "peCode": "0100D100",
+   "title": "Special Operations Command Intelligence",
+   "appropriationType": "OM",
+   "service": "DW",
+   "budgetActivity": "BA 01",
+   "raw": {
+    "account": "0100D",
+    "accountLine": "100",
+    "sagBli": "1PLU",
+    "bsa": "1P"
+   },
+   "fyData": [
+    {
+     "fy": 2025,
+     "enacted": 1277430
+    },
+    {
+     "fy": 2026,
+     "enacted": 1283826
+    },
+    {
+     "fy": 2027,
+     "request": 1130849
+    }
+   ]
+  },
+  {
+   "peCode": "0100D110",
+   "title": "Special Operations Command Operational Support",
+   "appropriationType": "OM",
+   "service": "DW",
+   "budgetActivity": "BA 01",
+   "raw": {
+    "account": "0100D",
+    "accountLine": "110",
+    "sagBli": "1PLV",
+    "bsa": "1P"
+   },
+   "fyData": [
+    {
+     "fy": 2025,
+     "enacted": 1434368
+    },
+    {
+     "fy": 2026,
+     "enacted": 1646545
+    },
+    {
+     "fy": 2027,
+     "request": 1796851
+    }
+   ]
+  },
+  {
+   "peCode": "0100D120",
+   "title": "Cyberspace Operations",
+   "appropriationType": "OM",
+   "service": "DW",
+   "budgetActivity": "BA 01",
+   "raw": {
+    "account": "0100D",
+    "accountLine": "120",
+    "sagBli": "012D",
+    "bsa": "1P"
+   },
+   "fyData": [
+    {
+     "fy": 2025,
+     "enacted": 1384475
+    },
+    {
+     "fy": 2026,
+     "enacted": 1627814
+    },
+    {
+     "fy": 2027,
+     "request": 1880381
+    }
+   ]
+  },
+  {
+   "peCode": "0100D130",
+   "title": "USCYBERCOM Headquarters",
+   "appropriationType": "OM",
+   "service": "DW",
+   "budgetActivity": "BA 01",
+   "raw": {
+    "account": "0100D",
+    "accountLine": "130",
+    "sagBli": "015E",
+    "bsa": "1P"
+   },
+   "fyData": [
+    {
+     "fy": 2025,
+     "enacted": 314565
+    },
+    {
+     "fy": 2026,
+     "enacted": 344018
+    },
+    {
+     "fy": 2027,
+     "request": 303726
+    }
+   ]
+  },
+  {
+   "peCode": "0100D140",
+   "title": "Defense Acquisition University",
+   "appropriationType": "OM",
+   "service": "DW",
+   "budgetActivity": "BA 03",
+   "raw": {
+    "account": "0100D",
+    "accountLine": "140",
+    "sagBli": "3EV2",
+    "bsa": "3E"
+   },
+   "fyData": [
+    {
+     "fy": 2025,
+     "enacted": 184111
+    },
+    {
+     "fy": 2026,
+     "enacted": 171825
+    },
+    {
+     "fy": 2027,
+     "request": 208101
+    }
+   ]
+  },
+  {
+   "peCode": "0100D150",
+   "title": "Joint Chiefs of Staff",
+   "appropriationType": "OM",
+   "service": "DW",
+   "budgetActivity": "BA 03",
+   "raw": {
+    "account": "0100D",
+    "accountLine": "150",
+    "sagBli": "3PL1",
+    "bsa": "33"
+   },
+   "fyData": [
+    {
+     "fy": 2025,
+     "enacted": 128399
+    },
+    {
+     "fy": 2026,
+     "enacted": 119223
+    },
+    {
+     "fy": 2027,
+     "request": 173748
+    }
+   ]
+  },
+  {
+   "peCode": "0100D160",
+   "title": "Special Operations Command/Professional Development Education",
+   "appropriationType": "OM",
+   "service": "DW",
+   "budgetActivity": "BA 03",
+   "raw": {
+    "account": "0100D",
+    "accountLine": "160",
+    "sagBli": "3EV8",
+    "bsa": "3E"
+   },
+   "fyData": [
+    {
+     "fy": 2025,
+     "enacted": 31345
+    },
+    {
+     "fy": 2026,
+     "enacted": 28326
+    },
+    {
+     "fy": 2027,
+     "request": 30040
+    }
+   ]
+  },
+  {
+   "peCode": "0100D170",
+   "title": "Civil Military Programs",
+   "appropriationType": "OM",
+   "service": "DW",
+   "budgetActivity": "BA 04",
+   "raw": {
+    "account": "0100D",
+    "accountLine": "170",
+    "sagBli": "4GT3",
+    "bsa": "4G"
+   },
+   "fyData": [
+    {
+     "fy": 2025,
+     "enacted": 269600
+    },
+    {
+     "fy": 2026,
+     "enacted": 256284
+    },
+    {
+     "fy": 2027,
+     "request": 118488
+    }
+   ]
+  },
+  {
+   "peCode": "0100D180",
+   "title": "Defense Contract Audit Agency - CYBER",
+   "appropriationType": "OM",
+   "service": "DW",
+   "budgetActivity": "BA 04",
+   "raw": {
+    "account": "0100D",
+    "accountLine": "180",
+    "sagBli": "4GDC",
+    "bsa": "4G"
+   },
+   "fyData": [
+    {
+     "fy": 2025,
+     "enacted": 4858
+    },
+    {
+     "fy": 2026,
+     "enacted": 3844
+    },
+    {
+     "fy": 2027,
+     "request": 3825
+    }
+   ]
+  },
+  {
+   "peCode": "0100D190",
+   "title": "Defense Contract Audit Agency",
+   "appropriationType": "OM",
+   "service": "DW",
+   "budgetActivity": "BA 04",
+   "raw": {
+    "account": "0100D",
+    "accountLine": "190",
+    "sagBli": "4GT6",
+    "bsa": "4G"
+   },
+   "fyData": [
+    {
+     "fy": 2025,
+     "enacted": 654554
+    },
+    {
+     "fy": 2026,
+     "enacted": 630538
+    },
+    {
+     "fy": 2027,
+     "request": 611600
+    }
+   ]
+  },
+  {
+   "peCode": "0100D200",
+   "title": "Defense Contract Management Agency",
+   "appropriationType": "OM",
+   "service": "DW",
+   "budgetActivity": "BA 04",
+   "raw": {
+    "account": "0100D",
+    "accountLine": "200",
+    "sagBli": "4GTO",
+    "bsa": "4G"
+   },
+   "fyData": [
+    {
+     "fy": 2025,
+     "enacted": 1522859
+    },
+    {
+     "fy": 2026,
+     "enacted": 1431929
+    },
+    {
+     "fy": 2027,
+     "request": 1615708
+    }
+   ]
+  },
+  {
+   "peCode": "0100D210",
+   "title": "Defense Contract Management Agency - CYBER",
+   "appropriationType": "OM",
+   "service": "DW",
+   "budgetActivity": "BA 04",
+   "raw": {
+    "account": "0100D",
+    "accountLine": "210",
+    "sagBli": "4GTP",
+    "bsa": "4G"
+   },
+   "fyData": [
+    {
+     "fy": 2025,
+     "enacted": 41411
+    },
+    {
+     "fy": 2026,
+     "enacted": 42858
+    },
+    {
+     "fy": 2027,
+     "request": 42367
+    }
+   ]
+  },
+  {
+   "peCode": "0100D220",
+   "title": "Defense Counterintelligence and Security Agency",
+   "appropriationType": "OM",
+   "service": "DW",
+   "budgetActivity": "BA 04",
+   "raw": {
+    "account": "0100D",
+    "accountLine": "220",
+    "sagBli": "4GTE",
+    "bsa": "4G"
+   },
+   "fyData": [
+    {
+     "fy": 2025,
+     "enacted": 901872
+    },
+    {
+     "fy": 2026,
+     "enacted": 1113055
+    },
+    {
+     "fy": 2027,
+     "request": 1035974
+    }
+   ]
+  },
+  {
+   "peCode": "0100D240",
+   "title": "Defense Counterintelligence and Security Agency - CYBER",
+   "appropriationType": "OM",
+   "service": "DW",
+   "budgetActivity": "BA 04",
+   "raw": {
+    "account": "0100D",
+    "accountLine": "240",
+    "sagBli": "4GTG",
+    "bsa": "4G"
+   },
+   "fyData": [
+    {
+     "fy": 2025,
+     "enacted": 9271
+    },
+    {
+     "fy": 2026,
+     "enacted": 10558
+    },
+    {
+     "fy": 2027,
+     "request": 16885
+    }
+   ]
+  },
+  {
+   "peCode": "0100D250",
+   "title": "Defense Human Resources Activity - CYBER",
+   "appropriationType": "OM",
+   "service": "DW",
+   "budgetActivity": "BA 04",
+   "raw": {
+    "account": "0100D",
+    "accountLine": "250",
+    "sagBli": "4GSE",
+    "bsa": "4G"
+   },
+   "fyData": [
+    {
+     "fy": 2025,
+     "enacted": 39004
+    },
+    {
+     "fy": 2026,
+     "enacted": 46212
+    },
+    {
+     "fy": 2027,
+     "request": 49611
+    }
+   ]
+  },
+  {
+   "peCode": "0100D260",
+   "title": "Defense Human Resources Activity",
+   "appropriationType": "OM",
+   "service": "DW",
+   "budgetActivity": "BA 04",
+   "raw": {
+    "account": "0100D",
+    "accountLine": "260",
+    "sagBli": "4GT8",
+    "bsa": "4G"
+   },
+   "fyData": [
+    {
+     "fy": 2025,
+     "enacted": 1021051
+    },
+    {
+     "fy": 2026,
+     "enacted": 999323
+    },
+    {
+     "fy": 2027,
+     "request": 1505352
+    }
+   ]
+  },
+  {
+   "peCode": "0100D290",
+   "title": "Defense Information Systems Agency",
+   "appropriationType": "OM",
+   "service": "DW",
+   "budgetActivity": "BA 04",
+   "raw": {
+    "account": "0100D",
+    "accountLine": "290",
+    "sagBli": "4GT9",
+    "bsa": "4G"
+   },
+   "fyData": [
+    {
+     "fy": 2025,
+     "enacted": 2635636
+    },
+    {
+     "fy": 2026,
+     "enacted": 3008565
+    },
+    {
+     "fy": 2027,
+     "request": 16258367
+    }
+   ]
+  },
+  {
+   "peCode": "0100D300",
+   "title": "Defense Information Systems Agency - CYBER",
+   "appropriationType": "OM",
+   "service": "DW",
+   "budgetActivity": "BA 04",
+   "raw": {
+    "account": "0100D",
+    "accountLine": "300",
+    "sagBli": "4GU9",
+    "bsa": "4G"
+   },
+   "fyData": [
+    {
+     "fy": 2025,
+     "enacted": 489914
+    },
+    {
+     "fy": 2026,
+     "enacted": 539413
+    },
+    {
+     "fy": 2027,
+     "request": 602017
+    }
+   ]
+  },
+  {
+   "peCode": "0100D310",
+   "title": "Defense Legal Services Agency",
+   "appropriationType": "OM",
+   "service": "DW",
+   "budgetActivity": "BA 04",
+   "raw": {
+    "account": "0100D",
+    "accountLine": "310",
+    "sagBli": "4GTA",
+    "bsa": "4G"
+   },
+   "fyData": [
+    {
+     "fy": 2025,
+     "enacted": 190176
+    },
+    {
+     "fy": 2026,
+     "enacted": 154935
+    },
+    {
+     "fy": 2027,
+     "request": 147620
+    }
+   ]
+  },
+  {
+   "peCode": "0100D320",
+   "title": "Defense Logistics Agency",
+   "appropriationType": "OM",
+   "service": "DW",
+   "budgetActivity": "BA 04",
+   "raw": {
+    "account": "0100D",
+    "accountLine": "320",
+    "sagBli": "4GTB",
+    "bsa": "4G"
+   },
+   "fyData": [
+    {
+     "fy": 2025,
+     "enacted": 402728
+    },
+    {
+     "fy": 2026,
+     "enacted": 420073
+    },
+    {
+     "fy": 2027,
+     "request": 728610
+    }
+   ]
+  },
+  {
+   "peCode": "0100D330",
+   "title": "Defense Media Activity",
+   "appropriationType": "OM",
+   "service": "DW",
+   "budgetActivity": "BA 04",
+   "raw": {
+    "account": "0100D",
+    "accountLine": "330",
+    "sagBli": "ES18",
+    "bsa": "4G"
+   },
+   "fyData": [
+    {
+     "fy": 2025,
+     "enacted": 240978
+    },
+    {
+     "fy": 2026,
+     "enacted": 217901
+    },
+    {
+     "fy": 2027,
+     "request": 244666
+    }
+   ]
+  },
+  {
+   "peCode": "0100D340",
+   "title": "Defense POW/MIA Office",
+   "appropriationType": "OM",
+   "service": "DW",
+   "budgetActivity": "BA 04",
+   "raw": {
+    "account": "0100D",
+    "accountLine": "340",
+    "sagBli": "4GTC",
+    "bsa": "4G"
+   },
+   "fyData": [
+    {
+     "fy": 2025,
+     "enacted": 184278
+    },
+    {
+     "fy": 2026,
+     "enacted": 167068
+    },
+    {
+     "fy": 2027,
+     "request": 160358
+    }
+   ]
+  },
+  {
+   "peCode": "0100D350",
+   "title": "Defense Security Cooperation Agency",
+   "appropriationType": "OM",
+   "service": "DW",
+   "budgetActivity": "BA 04",
+   "raw": {
+    "account": "0100D",
+    "accountLine": "350",
+    "sagBli": "4GTD",
+    "bsa": "4G"
+   },
+   "fyData": [
+    {
+     "fy": 2025,
+     "enacted": 10932000
+    },
+    {
+     "fy": 2026,
+     "enacted": 3653957
+    },
+    {
+     "fy": 2027,
+     "request": 3782438
+    }
+   ]
+  },
+  {
+   "peCode": "0100D360",
+   "title": "Defense Technology Security Administration",
+   "appropriationType": "OM",
+   "service": "DW",
+   "budgetActivity": "BA 04",
+   "raw": {
+    "account": "0100D",
+    "accountLine": "360",
+    "sagBli": "4GTH",
+    "bsa": "4G"
+   },
+   "fyData": [
+    {
+     "fy": 2025,
+     "enacted": 43839
+    },
+    {
+     "fy": 2026,
+     "enacted": 38284
+    },
+    {
+     "fy": 2027,
+     "request": 47101
+    }
+   ]
+  },
+  {
+   "peCode": "0100D370",
+   "title": "Defense Threat Reduction Agency",
+   "appropriationType": "OM",
+   "service": "DW",
+   "budgetActivity": "BA 04",
+   "raw": {
+    "account": "0100D",
+    "accountLine": "370",
+    "sagBli": "4GTI",
+    "bsa": "4G"
+   },
+   "fyData": [
+    {
+     "fy": 2025,
+     "enacted": 839331
+    },
+    {
+     "fy": 2026,
+     "enacted": 684373
+    },
+    {
+     "fy": 2027,
+     "request": 637514
+    }
+   ]
+  },
+  {
+   "peCode": "0100D390",
+   "title": "Defense Threat Reduction Agency - CYBER",
+   "appropriationType": "OM",
+   "service": "DW",
+   "budgetActivity": "BA 04",
+   "raw": {
+    "account": "0100D",
+    "accountLine": "390",
+    "sagBli": "4GTL",
+    "bsa": "4G"
+   },
+   "fyData": [
+    {
+     "fy": 2025,
+     "enacted": 52745
+    },
+    {
+     "fy": 2026,
+     "enacted": 68850
+    },
+    {
+     "fy": 2027,
+     "request": 73477
+    }
+   ]
+  },
+  {
+   "peCode": "0100D400",
+   "title": "Department of Defense Education Activity",
+   "appropriationType": "OM",
+   "service": "DW",
+   "budgetActivity": "BA 04",
+   "raw": {
+    "account": "0100D",
+    "accountLine": "400",
+    "sagBli": "4GTJ",
+    "bsa": "4G"
+   },
+   "fyData": [
+    {
+     "fy": 2025,
+     "enacted": 3547352
+    },
+    {
+     "fy": 2026,
+     "enacted": 3714951
+    },
+    {
+     "fy": 2027,
+     "request": 5143948
+    }
+   ]
+  },
+  {
+   "peCode": "0100D410",
+   "title": "Missile Defense Agency",
+   "appropriationType": "OM",
+   "service": "DW",
+   "budgetActivity": "BA 04",
+   "raw": {
+    "account": "0100D",
+    "accountLine": "410",
+    "sagBli": "011A",
+    "bsa": "4G"
+   },
+   "fyData": [
+    {
+     "fy": 2025,
+     "enacted": 671366
+    },
+    {
+     "fy": 2026,
+     "enacted": 697729
+    },
+    {
+     "fy": 2027,
+     "request": 487235
+    }
+   ]
+  },
+  {
+   "peCode": "0100D420",
+   "title": "Office of the Local Defense Community Cooperation",
+   "appropriationType": "OM",
+   "service": "DW",
+   "budgetActivity": "BA 04",
+   "raw": {
+    "account": "0100D",
+    "accountLine": "420",
+    "sagBli": "4GTM",
+    "bsa": "4G"
+   },
+   "fyData": [
+    {
+     "fy": 2025,
+     "enacted": 468342
+    },
+    {
+     "fy": 2026,
+     "enacted": 283140
+    },
+    {
+     "fy": 2027,
+     "request": 142597
+    }
+   ]
+  },
+  {
+   "peCode": "0100D430",
+   "title": "Joint Chiefs of Staff - JIATF",
+   "appropriationType": "OM",
+   "service": "DW",
+   "budgetActivity": "BA 04",
+   "raw": {
+    "account": "0100D",
+    "accountLine": "430",
+    "sagBli": "8PL3",
+    "bsa": "4J"
+   },
+   "fyData": [
+    {
+     "fy": 2026,
+     "enacted": 11500
+    },
+    {
+     "fy": 2027,
+     "request": 431652
+    }
+   ]
+  },
+  {
+   "peCode": "0100D470",
+   "title": "Office of the Secretary of Defense - CYBER",
+   "appropriationType": "OM",
+   "service": "DW",
+   "budgetActivity": "BA 04",
+   "raw": {
+    "account": "0100D",
+    "accountLine": "470",
+    "sagBli": "4GTC",
+    "bsa": "4G"
+   },
+   "fyData": [
+    {
+     "fy": 2025,
+     "enacted": 104132
+    },
+    {
+     "fy": 2026,
+     "enacted": 121299
+    },
+    {
+     "fy": 2027,
+     "request": 81163
+    }
+   ]
+  },
+  {
+   "peCode": "0100D480",
+   "title": "Office of the Secretary of Defense",
+   "appropriationType": "OM",
+   "service": "DW",
+   "budgetActivity": "BA 04",
+   "raw": {
+    "account": "0100D",
+    "accountLine": "480",
+    "sagBli": "4GTN",
+    "bsa": "4G"
+   },
+   "fyData": [
+    {
+     "fy": 2025,
+     "enacted": 2869829
+    },
+    {
+     "fy": 2026,
+     "enacted": 3145047
+    },
+    {
+     "fy": 2027,
+     "request": 4900300
+    }
+   ]
+  },
+  {
+   "peCode": "0100D490",
+   "title": "Homeland Defense Initiatives",
+   "appropriationType": "OM",
+   "service": "DW",
+   "budgetActivity": "BA 04",
+   "raw": {
+    "account": "0100D",
+    "accountLine": "490",
+    "sagBli": "REC1",
+    "bsa": "1P"
+   },
+   "fyData": [
+    {
+     "fy": 2026,
+     "enacted": 72615
+    }
+   ]
+  },
+  {
+   "peCode": "0100D500",
+   "title": "Taiwan Presidential Drawdown Replacement Fund",
+   "appropriationType": "OM",
+   "service": "DW",
+   "budgetActivity": "BA 04",
+   "raw": {
+    "account": "0100D",
+    "accountLine": "500",
+    "sagBli": "TPDD",
+    "bsa": "4G"
+   },
+   "fyData": [
+    {
+     "fy": 2026,
+     "enacted": 850000
+    }
+   ]
+  },
+  {
+   "peCode": "0100D510",
+   "title": "Washington Headquarters Services",
+   "appropriationType": "OM",
+   "service": "DW",
+   "budgetActivity": "BA 04",
+   "raw": {
+    "account": "0100D",
+    "accountLine": "510",
+    "sagBli": "4GTQ",
+    "bsa": "4G"
+   },
+   "fyData": [
+    {
+     "fy": 2025,
+     "enacted": 473827
+    },
+    {
+     "fy": 2026,
+     "enacted": 410106
+    },
+    {
+     "fy": 2027,
+     "request": 1049546
+    }
+   ]
+  },
+  {
+   "peCode": "0100D999",
+   "title": "Classified Programs",
+   "appropriationType": "OM",
+   "service": "DW",
+   "budgetActivity": "BA 04",
+   "raw": {
+    "account": "0100D",
+    "accountLine": "999",
+    "sagBli": "9999",
+    "bsa": ""
+   },
+   "fyData": [
+    {
+     "fy": 2025,
+     "enacted": 20802047
+    },
+    {
+     "fy": 2026,
+     "enacted": 22241592
+    },
+    {
+     "fy": 2027,
+     "request": 24579358
+    }
+   ]
+  },
+  {
+   "peCode": "0104D010",
+   "title": "Us Court of Appeals for the Armed Forces, Defense",
+   "appropriationType": "OM",
+   "service": "DW",
+   "budgetActivity": "BA 04",
+   "raw": {
+    "account": "0104D",
+    "accountLine": "010",
+    "sagBli": "4GTT",
+    "bsa": "4G"
+   },
+   "fyData": [
+    {
+     "fy": 2025,
+     "enacted": 19202
+    },
+    {
+     "fy": 2026,
+     "enacted": 21243
+    },
+    {
+     "fy": 2027,
+     "request": 21698
+    }
+   ]
+  },
+  {
+   "peCode": "0105D010",
+   "title": "Counter-Narcotics Support",
+   "appropriationType": "OM",
+   "service": "DW",
+   "budgetActivity": "BA 01",
+   "raw": {
+    "account": "0105D",
+    "accountLine": "010",
+    "sagBli": "1FU1",
+    "bsa": "10"
+   },
+   "fyData": [
+    {
+     "fy": 2026,
+     "enacted": 678737
+    },
+    {
+     "fy": 2027,
+     "request": 658191
+    }
+   ]
+  },
+  {
+   "peCode": "0105D020",
+   "title": "Drug Demand Reduction Program",
+   "appropriationType": "OM",
+   "service": "DW",
+   "budgetActivity": "BA 02",
+   "raw": {
+    "account": "0105D",
+    "accountLine": "020",
+    "sagBli": "2FU1",
+    "bsa": "10"
+   },
+   "fyData": [
+    {
+     "fy": 2026,
+     "enacted": 134938
+    },
+    {
+     "fy": 2027,
+     "request": 135745
+    }
+   ]
+  },
+  {
+   "peCode": "0105D030",
+   "title": "National Guard Counter-Drug Program",
+   "appropriationType": "OM",
+   "service": "DW",
+   "budgetActivity": "BA 03",
+   "raw": {
+    "account": "0105D",
+    "accountLine": "030",
+    "sagBli": "3FU1",
+    "bsa": "10"
+   },
+   "fyData": [
+    {
+     "fy": 2026,
+     "enacted": 305000
+    },
+    {
+     "fy": 2027,
+     "request": 117418
+    }
+   ]
+  },
+  {
+   "peCode": "0105D040",
+   "title": "National Guard Counter-Drug Schools",
+   "appropriationType": "OM",
+   "service": "DW",
+   "budgetActivity": "BA 04",
+   "raw": {
+    "account": "0105D",
+    "accountLine": "040",
+    "sagBli": "4FU1",
+    "bsa": "10"
+   },
+   "fyData": [
+    {
+     "fy": 2026,
+     "enacted": 30000
+    },
+    {
+     "fy": 2027,
+     "request": 6648
+    }
+   ]
+  },
+  {
+   "peCode": "0107D010",
+   "title": "Office of the Inspector General",
+   "appropriationType": "OM",
+   "service": "DW",
+   "budgetActivity": "BA 01",
+   "raw": {
+    "account": "0107D",
+    "accountLine": "010",
+    "sagBli": "4GTV",
+    "bsa": "4G"
+   },
+   "fyData": [
+    {
+     "fy": 2025,
+     "enacted": 530243
+    },
+    {
+     "fy": 2026,
+     "enacted": 519865
+    },
+    {
+     "fy": 2027,
+     "request": 501371
+    }
+   ]
+  },
+  {
+   "peCode": "0107D020",
+   "title": "Office of the Inspector General - CYBER",
+   "appropriationType": "OM",
+   "service": "DW",
+   "budgetActivity": "BA 01",
+   "raw": {
+    "account": "0107D",
+    "accountLine": "020",
+    "sagBli": "4GXX",
+    "bsa": "4G"
+   },
+   "fyData": [
+    {
+     "fy": 2025,
+     "enacted": 1988
+    },
+    {
+     "fy": 2026,
+     "enacted": 2030
+    },
+    {
+     "fy": 2027,
+     "request": 2073
+    }
+   ]
+  },
+  {
+   "peCode": "0107D030",
+   "title": "Office of the Inspector General",
+   "appropriationType": "OM",
+   "service": "DW",
+   "budgetActivity": "BA 02",
+   "raw": {
+    "account": "0107D",
+    "accountLine": "030",
+    "sagBli": "4GTV",
+    "bsa": "4G"
+   },
+   "fyData": [
+    {
+     "fy": 2025,
+     "enacted": 1900
+    },
+    {
+     "fy": 2026,
+     "enacted": 4625
+    },
+    {
+     "fy": 2027,
+     "request": 1506
+    }
+   ]
+  },
+  {
+   "peCode": "0107D040",
+   "title": "Office of the Inspector General",
+   "appropriationType": "OM",
+   "service": "DW",
+   "budgetActivity": "BA 03",
+   "raw": {
+    "account": "0107D",
+    "accountLine": "040",
+    "sagBli": "4GTV",
+    "bsa": "4G"
+   },
+   "fyData": [
+    {
+     "fy": 2025,
+     "enacted": 1336
+    },
+    {
+     "fy": 2026,
+     "enacted": 1079
+    },
+    {
+     "fy": 2027,
+     "request": 1393
+    }
+   ]
+  },
+  {
+   "peCode": "0111D010",
+   "title": "Acq Workforce Dev Fd",
+   "appropriationType": "OM",
+   "service": "DW",
+   "budgetActivity": "BA 01",
+   "raw": {
+    "account": "0111D",
+    "accountLine": "010",
+    "sagBli": "012",
+    "bsa": "1Q"
+   },
+   "fyData": [
+    {
+     "fy": 2025,
+     "enacted": 55826
+    },
+    {
+     "fy": 2026,
+     "enacted": 50846
+    },
+    {
+     "fy": 2027,
+     "request": 37478
+    }
+   ]
+  },
+  {
+   "peCode": "0130D010",
+   "title": "In-House Care",
+   "appropriationType": "OM",
+   "service": "DW",
+   "budgetActivity": "BA 01",
+   "raw": {
+    "account": "0130D",
+    "accountLine": "010",
+    "sagBli": "1",
+    "bsa": "14"
+   },
+   "fyData": [
+    {
+     "fy": 2025,
+     "enacted": 10294476
+    },
+    {
+     "fy": 2026,
+     "enacted": 11435135
+    },
+    {
+     "fy": 2027,
+     "request": 10863317
+    }
+   ]
+  },
+  {
+   "peCode": "0130D020",
+   "title": "Private Sector Care",
+   "appropriationType": "OM",
+   "service": "DW",
+   "budgetActivity": "BA 01",
+   "raw": {
+    "account": "0130D",
+    "accountLine": "020",
+    "sagBli": "2",
+    "bsa": "14"
+   },
+   "fyData": [
+    {
+     "fy": 2025,
+     "enacted": 20201022
+    },
+    {
+     "fy": 2026,
+     "enacted": 20773888
+    }
+   ]
+  },
+  {
+   "peCode": "0130D030",
+   "title": "Consolidated Health Support",
+   "appropriationType": "OM",
+   "service": "DW",
+   "budgetActivity": "BA 01",
+   "raw": {
+    "account": "0130D",
+    "accountLine": "030",
+    "sagBli": "3",
+    "bsa": "14"
+   },
+   "fyData": [
+    {
+     "fy": 2025,
+     "enacted": 1771311
+    },
+    {
+     "fy": 2026,
+     "enacted": 2145778
+    },
+    {
+     "fy": 2027,
+     "request": 2375175
+    }
+   ]
+  },
+  {
+   "peCode": "0130D040",
+   "title": "Information Management",
+   "appropriationType": "OM",
+   "service": "DW",
+   "budgetActivity": "BA 01",
+   "raw": {
+    "account": "0130D",
+    "accountLine": "040",
+    "sagBli": "4",
+    "bsa": "14"
+   },
+   "fyData": [
+    {
+     "fy": 2025,
+     "enacted": 2452552
+    },
+    {
+     "fy": 2026,
+     "enacted": 2371798
+    },
+    {
+     "fy": 2027,
+     "request": 2600177
+    }
+   ]
+  },
+  {
+   "peCode": "0130D050",
+   "title": "Management Activities",
+   "appropriationType": "OM",
+   "service": "DW",
+   "budgetActivity": "BA 01",
+   "raw": {
+    "account": "0130D",
+    "accountLine": "050",
+    "sagBli": "5",
+    "bsa": "14"
+   },
+   "fyData": [
+    {
+     "fy": 2025,
+     "enacted": 340947
+    },
+    {
+     "fy": 2026,
+     "enacted": 303898
+    },
+    {
+     "fy": 2027,
+     "request": 304382
+    }
+   ]
+  },
+  {
+   "peCode": "0130D060",
+   "title": "Education and Training",
+   "appropriationType": "OM",
+   "service": "DW",
+   "budgetActivity": "BA 01",
+   "raw": {
+    "account": "0130D",
+    "accountLine": "060",
+    "sagBli": "6",
+    "bsa": "14"
+   },
+   "fyData": [
+    {
+     "fy": 2025,
+     "enacted": 368326
+    },
+    {
+     "fy": 2026,
+     "enacted": 385926
+    },
+    {
+     "fy": 2027,
+     "request": 349460
+    }
+   ]
+  },
+  {
+   "peCode": "0130D070",
+   "title": "Base Operations/Communications",
+   "appropriationType": "OM",
+   "service": "DW",
+   "budgetActivity": "BA 01",
+   "raw": {
+    "account": "0130D",
+    "accountLine": "070",
+    "sagBli": "7",
+    "bsa": "14"
+   },
+   "fyData": [
+    {
+     "fy": 2025,
+     "enacted": 2324437
+    },
+    {
+     "fy": 2026,
+     "enacted": 3218290
+    },
+    {
+     "fy": 2027,
+     "request": 5601966
+    }
+   ]
+  },
+  {
+   "peCode": "0130D080",
+   "title": "R&D Research",
+   "appropriationType": "OM",
+   "service": "DW",
+   "budgetActivity": "BA 02",
+   "raw": {
+    "account": "0130D",
+    "accountLine": "080",
+    "sagBli": "0601",
+    "bsa": "4G"
+   },
+   "fyData": [
+    {
+     "fy": 2025,
+     "enacted": 41476
+    },
+    {
+     "fy": 2026,
+     "enacted": 41660
+    },
+    {
+     "fy": 2027,
+     "request": 41924
+    }
+   ]
+  },
+  {
+   "peCode": "0130D090",
+   "title": "R&D Exploratry Development",
+   "appropriationType": "OM",
+   "service": "DW",
+   "budgetActivity": "BA 02",
+   "raw": {
+    "account": "0130D",
+    "accountLine": "090",
+    "sagBli": "0602",
+    "bsa": "4G"
+   },
+   "fyData": [
+    {
+     "fy": 2025,
+     "enacted": 188564
+    },
+    {
+     "fy": 2026,
+     "enacted": 230398
+    },
+    {
+     "fy": 2027,
+     "request": 185153
+    }
+   ]
+  },
+  {
+   "peCode": "0130D100",
+   "title": "R&D Advanced Development",
+   "appropriationType": "OM",
+   "service": "DW",
+   "budgetActivity": "BA 02",
+   "raw": {
+    "account": "0130D",
+    "accountLine": "100",
+    "sagBli": "0603",
+    "bsa": "4G"
+   },
+   "fyData": [
+    {
+     "fy": 2025,
+     "enacted": 1031825
+    },
+    {
+     "fy": 2026,
+     "enacted": 1756072
+    },
+    {
+     "fy": 2027,
+     "request": 361241
+    }
+   ]
+  },
+  {
+   "peCode": "0130D110",
+   "title": "R&D Demonstration/Validation",
+   "appropriationType": "OM",
+   "service": "DW",
+   "budgetActivity": "BA 02",
+   "raw": {
+    "account": "0130D",
+    "accountLine": "110",
+    "sagBli": "0604",
+    "bsa": "4G"
+   },
+   "fyData": [
+    {
+     "fy": 2025,
+     "enacted": 195518
+    },
+    {
+     "fy": 2026,
+     "enacted": 208983
+    },
+    {
+     "fy": 2027,
+     "request": 186018
+    }
+   ]
+  },
+  {
+   "peCode": "0130D120",
+   "title": "R&D Engineering Development",
+   "appropriationType": "OM",
+   "service": "DW",
+   "budgetActivity": "BA 02",
+   "raw": {
+    "account": "0130D",
+    "accountLine": "120",
+    "sagBli": "0605",
+    "bsa": "4G"
+   },
+   "fyData": [
+    {
+     "fy": 2025,
+     "enacted": 130931
+    },
+    {
+     "fy": 2026,
+     "enacted": 117190
+    },
+    {
+     "fy": 2027,
+     "request": 124662
+    }
+   ]
+  },
+  {
+   "peCode": "0130D130",
+   "title": "R&D Management and Support",
+   "appropriationType": "OM",
+   "service": "DW",
+   "budgetActivity": "BA 02",
+   "raw": {
+    "account": "0130D",
+    "accountLine": "130",
+    "sagBli": "0606",
+    "bsa": "4G"
+   },
+   "fyData": [
+    {
+     "fy": 2025,
+     "enacted": 88425
+    },
+    {
+     "fy": 2026,
+     "enacted": 99338
+    },
+    {
+     "fy": 2027,
+     "request": 100912
+    }
+   ]
+  },
+  {
+   "peCode": "0130D140",
+   "title": "R&D Capabilities Enhancement",
+   "appropriationType": "OM",
+   "service": "DW",
+   "budgetActivity": "BA 02",
+   "raw": {
+    "account": "0130D",
+    "accountLine": "140",
+    "sagBli": "0607",
+    "bsa": "4G"
+   },
+   "fyData": [
+    {
+     "fy": 2025,
+     "enacted": 18697
+    },
+    {
+     "fy": 2026,
+     "enacted": 19071
+    },
+    {
+     "fy": 2027,
+     "request": 19452
+    }
+   ]
+  },
+  {
+   "peCode": "0130D150",
+   "title": "PROC Initial Outfitting",
+   "appropriationType": "OM",
+   "service": "DW",
+   "budgetActivity": "BA 03",
+   "raw": {
+    "account": "0130D",
+    "accountLine": "150",
+    "sagBli": "7720",
+    "bsa": "4G"
+   },
+   "fyData": [
+    {
+     "fy": 2025,
+     "enacted": 23449
+    },
+    {
+     "fy": 2026,
+     "enacted": 24597
+    },
+    {
+     "fy": 2027,
+     "request": 25555
+    }
+   ]
+  },
+  {
+   "peCode": "0130D160",
+   "title": "PROC Replacement & Modernization",
+   "appropriationType": "OM",
+   "service": "DW",
+   "budgetActivity": "BA 03",
+   "raw": {
+    "account": "0130D",
+    "accountLine": "160",
+    "sagBli": "7721",
+    "bsa": "4G"
+   },
+   "fyData": [
+    {
+     "fy": 2025,
+     "enacted": 243184
+    },
+    {
+     "fy": 2026,
+     "enacted": 222445
+    },
+    {
+     "fy": 2027,
+     "request": 231382
+    }
+   ]
+  },
+  {
+   "peCode": "0130D170",
+   "title": "PROC Joint Operational Medicine Information System",
+   "appropriationType": "OM",
+   "service": "DW",
+   "budgetActivity": "BA 03",
+   "raw": {
+    "account": "0130D",
+    "accountLine": "170",
+    "sagBli": "7746",
+    "bsa": "4G"
+   },
+   "fyData": [
+    {
+     "fy": 2025,
+     "enacted": 30129
+    },
+    {
+     "fy": 2026,
+     "enacted": 30732
+    },
+    {
+     "fy": 2027,
+     "request": 31203
+    }
+   ]
+  },
+  {
+   "peCode": "0130D180",
+   "title": "PROC Military Health System - Desktop to Datacenter",
+   "appropriationType": "OM",
+   "service": "DW",
+   "budgetActivity": "BA 03",
+   "raw": {
+    "account": "0130D",
+    "accountLine": "180",
+    "sagBli": "7759",
+    "bsa": "4G"
+   },
+   "fyData": [
+    {
+     "fy": 2025,
+     "enacted": 75536
+    },
+    {
+     "fy": 2026,
+     "enacted": 77047
+    },
+    {
+     "fy": 2027,
+     "request": 78588
+    }
+   ]
+  },
+  {
+   "peCode": "0130D190",
+   "title": "PROC DoD Healthcare Management System Modernization",
+   "appropriationType": "OM",
+   "service": "DW",
+   "budgetActivity": "BA 03",
+   "raw": {
+    "account": "0130D",
+    "accountLine": "190",
+    "sagBli": "7787",
+    "bsa": "4G"
+   },
+   "fyData": [
+    {
+     "fy": 2025,
+     "enacted": 26569
+    }
+   ]
+  },
+  {
+   "peCode": "0134D010",
+   "title": "Cooperative Threat Reduction",
+   "appropriationType": "OM",
+   "service": "DW",
+   "budgetActivity": "BA 01",
+   "raw": {
+    "account": "0134D",
+    "accountLine": "010",
+    "sagBli": "1PL3",
+    "bsa": "1P"
+   },
+   "fyData": [
+    {
+     "fy": 2025,
+     "enacted": 296076
+    },
+    {
+     "fy": 2026,
+     "enacted": 282830
+    },
+    {
+     "fy": 2027,
+     "request": 221332
+    }
+   ]
+  },
+  {
+   "peCode": "0146D010",
+   "title": "Private Sector Care",
+   "appropriationType": "OM",
+   "service": "DW",
+   "budgetActivity": "BA 01",
+   "raw": {
+    "account": "0146D",
+    "accountLine": "010",
+    "sagBli": "2",
+    "bsa": "14"
+   },
+   "fyData": [
+    {
+     "fy": 2027,
+     "request": 22175472
+    }
+   ]
+  },
+  {
+   "peCode": "0810A050",
+   "title": "Environmental Restoration, Army",
+   "appropriationType": "OM",
+   "service": "ARMY",
+   "budgetActivity": "BA 01",
+   "raw": {
+    "account": "0810A",
+    "accountLine": "050",
+    "sagBli": "493",
+    "bsa": "49"
+   },
+   "fyData": [
+    {
+     "fy": 2026,
+     "enacted": 190870
+    },
+    {
+     "fy": 2027,
+     "request": 282444
+    }
+   ]
+  },
+  {
+   "peCode": "0810D080",
+   "title": "Environmental Restoration, Defense",
+   "appropriationType": "OM",
+   "service": "DW",
+   "budgetActivity": "BA 04",
+   "raw": {
+    "account": "0810D",
+    "accountLine": "080",
+    "sagBli": "045G",
+    "bsa": "45"
+   },
+   "fyData": [
+    {
+     "fy": 2026,
+     "enacted": 8885
+    },
+    {
+     "fy": 2027,
+     "request": 8957
+    }
+   ]
+  },
+  {
+   "peCode": "0810F070",
+   "title": "Environmental Restoration, Air Force",
+   "appropriationType": "OM",
+   "service": "AF",
+   "budgetActivity": "BA 03",
+   "raw": {
+    "account": "0810F",
+    "accountLine": "070",
+    "sagBli": "042G",
+    "bsa": "45"
+   },
+   "fyData": [
+    {
+     "fy": 2026,
+     "enacted": 396149
+    },
+    {
+     "fy": 2027,
+     "request": 320060
+    }
+   ]
+  },
+  {
+   "peCode": "0810N060",
+   "title": "Environmental Restoration, Navy",
+   "appropriationType": "OM",
+   "service": "NAVY",
+   "budgetActivity": "BA 02",
+   "raw": {
+    "account": "0810N",
+    "accountLine": "060",
+    "sagBli": "044G",
+    "bsa": "45"
+   },
+   "fyData": [
+    {
+     "fy": 2026,
+     "enacted": 368949
+    },
+    {
+     "fy": 2027,
+     "request": 305246
+    }
+   ]
+  },
+  {
+   "peCode": "0811D090",
+   "title": "Environmental Restoration Formerly Used Sites",
+   "appropriationType": "OM",
+   "service": "DW",
+   "budgetActivity": "BA 05",
+   "raw": {
+    "account": "0811D",
+    "accountLine": "090",
+    "sagBli": "047G",
+    "bsa": "45"
+   },
+   "fyData": [
+    {
+     "fy": 2026,
+     "enacted": 235156
+    },
+    {
+     "fy": 2027,
+     "request": 238927
+    }
+   ]
+  },
+  {
+   "peCode": "0819D010",
+   "title": "Overseas Humanitarian, Disaster and Civic Aid",
+   "appropriationType": "OM",
+   "service": "DW",
+   "budgetActivity": "BA 01",
+   "raw": {
+    "account": "0819D",
+    "accountLine": "010",
+    "sagBli": "4GTD",
+    "bsa": "4G"
+   },
+   "fyData": [
+    {
+     "fy": 2025,
+     "enacted": 115335
+    },
+    {
+     "fy": 2026,
+     "enacted": 100793
+    },
+    {
+     "fy": 2027,
+     "request": 78187
+    }
+   ]
+  },
+  {
+   "peCode": "0838D100",
+   "title": "Support of International Sporting Competitions, Defense",
+   "appropriationType": "OM",
+   "service": "DW",
+   "budgetActivity": "BA 01",
+   "raw": {
+    "account": "0838D",
+    "accountLine": "100",
+    "sagBli": "054",
+    "bsa": "45"
+   },
+   "fyData": [
+    {
+     "fy": 2025,
+     "enacted": 147
+    }
+   ]
+  },
+  {
+   "peCode": "1106N010",
+   "title": "Operational Forces",
+   "appropriationType": "OM",
+   "service": "NAVY",
+   "budgetActivity": "BA 01",
+   "raw": {
+    "account": "1106N",
+    "accountLine": "010",
+    "sagBli": "1A1A",
+    "bsa": "1A"
+   },
+   "fyData": [
+    {
+     "fy": 2025,
+     "enacted": 1810711
+    },
+    {
+     "fy": 2026,
+     "enacted": 2417255
+    },
+    {
+     "fy": 2027,
+     "request": 3113102
+    }
+   ]
+  },
+  {
+   "peCode": "1106N020",
+   "title": "Field Logistics",
+   "appropriationType": "OM",
+   "service": "NAVY",
+   "budgetActivity": "BA 01",
+   "raw": {
+    "account": "1106N",
+    "accountLine": "020",
+    "sagBli": "1A2A",
+    "bsa": "1A"
+   },
+   "fyData": [
+    {
+     "fy": 2025,
+     "enacted": 1938608
+    },
+    {
+     "fy": 2026,
+     "enacted": 1955840
+    },
+    {
+     "fy": 2027,
+     "request": 2807429
+    }
+   ]
+  },
+  {
+   "peCode": "1106N030",
+   "title": "Depot Maintenance",
+   "appropriationType": "OM",
+   "service": "NAVY",
+   "budgetActivity": "BA 01",
+   "raw": {
+    "account": "1106N",
+    "accountLine": "030",
+    "sagBli": "1A3A",
+    "bsa": "1A"
+   },
+   "fyData": [
+    {
+     "fy": 2025,
+     "enacted": 221614
+    },
+    {
+     "fy": 2026,
+     "enacted": 286236
+    },
+    {
+     "fy": 2027,
+     "request": 344750
+    }
+   ]
+  },
+  {
+   "peCode": "1106N040",
+   "title": "Maritime Prepositioning",
+   "appropriationType": "OM",
+   "service": "NAVY",
+   "budgetActivity": "BA 01",
+   "raw": {
+    "account": "1106N",
+    "accountLine": "040",
+    "sagBli": "1B1B",
+    "bsa": "1B"
+   },
+   "fyData": [
+    {
+     "fy": 2025,
+     "enacted": 152035
+    },
+    {
+     "fy": 2026,
+     "enacted": 175091
+    },
+    {
+     "fy": 2027,
+     "request": 280543
+    }
+   ]
+  },
+  {
+   "peCode": "1106N050",
+   "title": "Cyberspace Activities",
+   "appropriationType": "OM",
+   "service": "NAVY",
+   "budgetActivity": "BA 01",
+   "raw": {
+    "account": "1106N",
+    "accountLine": "050",
+    "sagBli": "1CCY",
+    "bsa": "1C"
+   },
+   "fyData": [
+    {
+     "fy": 2025,
+     "enacted": 265358
+    },
+    {
+     "fy": 2026,
+     "enacted": 346641
+    },
+    {
+     "fy": 2027,
+     "request": 351199
+    }
+   ]
+  },
+  {
+   "peCode": "1106N060",
+   "title": "Sustainment, Restoration & Modernization",
+   "appropriationType": "OM",
+   "service": "NAVY",
+   "budgetActivity": "BA 01",
+   "raw": {
+    "account": "1106N",
+    "accountLine": "060",
+    "sagBli": "BSM1",
+    "bsa": "BS"
+   },
+   "fyData": [
+    {
+     "fy": 2025,
+     "enacted": 1170994
+    },
+    {
+     "fy": 2026,
+     "enacted": 2440370
+    },
+    {
+     "fy": 2027,
+     "request": 9204125
+    }
+   ]
+  },
+  {
+   "peCode": "1106N070",
+   "title": "Base Operating Support",
+   "appropriationType": "OM",
+   "service": "NAVY",
+   "budgetActivity": "BA 01",
+   "raw": {
+    "account": "1106N",
+    "accountLine": "070",
+    "sagBli": "BSS1",
+    "bsa": "BS"
+   },
+   "fyData": [
+    {
+     "fy": 2025,
+     "enacted": 2947132
+    },
+    {
+     "fy": 2026,
+     "enacted": 2914553
+    },
+    {
+     "fy": 2027,
+     "request": 3175027
+    }
+   ]
+  },
+  {
+   "peCode": "1106N080",
+   "title": "Recruit Training",
+   "appropriationType": "OM",
+   "service": "NAVY",
+   "budgetActivity": "BA 03",
+   "raw": {
+    "account": "1106N",
+    "accountLine": "080",
+    "sagBli": "3A1C",
+    "bsa": "3A"
+   },
+   "fyData": [
+    {
+     "fy": 2025,
+     "enacted": 26658
+    },
+    {
+     "fy": 2026,
+     "enacted": 26350
+    },
+    {
+     "fy": 2027,
+     "request": 45521
+    }
+   ]
+  },
+  {
+   "peCode": "1106N090",
+   "title": "Officer Acquisition",
+   "appropriationType": "OM",
+   "service": "NAVY",
+   "budgetActivity": "BA 03",
+   "raw": {
+    "account": "1106N",
+    "accountLine": "090",
+    "sagBli": "3A2C",
+    "bsa": "3A"
+   },
+   "fyData": [
+    {
+     "fy": 2025,
+     "enacted": 1263
+    },
+    {
+     "fy": 2026,
+     "enacted": 1282
+    },
+    {
+     "fy": 2027,
+     "request": 1346
+    }
+   ]
+  },
+  {
+   "peCode": "1106N100",
+   "title": "Specialized Skill Training",
+   "appropriationType": "OM",
+   "service": "NAVY",
+   "budgetActivity": "BA 03",
+   "raw": {
+    "account": "1106N",
+    "accountLine": "100",
+    "sagBli": "3B1D",
+    "bsa": "3B"
+   },
+   "fyData": [
+    {
+     "fy": 2025,
+     "enacted": 121350
+    },
+    {
+     "fy": 2026,
+     "enacted": 114526
+    },
+    {
+     "fy": 2027,
+     "request": 242438
+    }
+   ]
+  },
+  {
+   "peCode": "1106N110",
+   "title": "Professional Development Education",
+   "appropriationType": "OM",
+   "service": "NAVY",
+   "budgetActivity": "BA 03",
+   "raw": {
+    "account": "1106N",
+    "accountLine": "110",
+    "sagBli": "3B3D",
+    "bsa": "3B"
+   },
+   "fyData": [
+    {
+     "fy": 2025,
+     "enacted": 61911
+    },
+    {
+     "fy": 2026,
+     "enacted": 58696
+    },
+    {
+     "fy": 2027,
+     "request": 64994
+    }
+   ]
+  },
+  {
+   "peCode": "1106N120",
+   "title": "Training Support",
+   "appropriationType": "OM",
+   "service": "NAVY",
+   "budgetActivity": "BA 03",
+   "raw": {
+    "account": "1106N",
+    "accountLine": "120",
+    "sagBli": "3B4D",
+    "bsa": "3B"
+   },
+   "fyData": [
+    {
+     "fy": 2025,
+     "enacted": 538947
+    },
+    {
+     "fy": 2026,
+     "enacted": 538812
+    },
+    {
+     "fy": 2027,
+     "request": 838526
+    }
+   ]
+  },
+  {
+   "peCode": "1106N130",
+   "title": "Recruiting and Advertising",
+   "appropriationType": "OM",
+   "service": "NAVY",
+   "budgetActivity": "BA 03",
+   "raw": {
+    "account": "1106N",
+    "accountLine": "130",
+    "sagBli": "3C1F",
+    "bsa": "3C"
+   },
+   "fyData": [
+    {
+     "fy": 2025,
+     "enacted": 231422
+    },
+    {
+     "fy": 2026,
+     "enacted": 235804
+    },
+    {
+     "fy": 2027,
+     "request": 363287
+    }
+   ]
+  },
+  {
+   "peCode": "1106N140",
+   "title": "Off-Duty and Voluntary Education",
+   "appropriationType": "OM",
+   "service": "NAVY",
+   "budgetActivity": "BA 03",
+   "raw": {
+    "account": "1106N",
+    "accountLine": "140",
+    "sagBli": "3C2F",
+    "bsa": "3C"
+   },
+   "fyData": [
+    {
+     "fy": 2025,
+     "enacted": 47416
+    },
+    {
+     "fy": 2026,
+     "enacted": 42850
+    },
+    {
+     "fy": 2027,
+     "request": 47840
+    }
+   ]
+  },
+  {
+   "peCode": "1106N150",
+   "title": "Junior ROTC",
+   "appropriationType": "OM",
+   "service": "NAVY",
+   "budgetActivity": "BA 03",
+   "raw": {
+    "account": "1106N",
+    "accountLine": "150",
+    "sagBli": "3C3F",
+    "bsa": "3C"
+   },
+   "fyData": [
+    {
+     "fy": 2025,
+     "enacted": 29579
+    },
+    {
+     "fy": 2026,
+     "enacted": 30808
+    },
+    {
+     "fy": 2027,
+     "request": 33292
+    }
+   ]
+  },
+  {
+   "peCode": "1106N160",
+   "title": "Agriculture and Grazing",
+   "appropriationType": "OM",
+   "service": "NAVY",
+   "budgetActivity": "BA 04",
+   "raw": {
+    "account": "1106N",
+    "accountLine": "160",
+    "sagBli": "4A1W",
+    "bsa": "4A"
+   },
+   "fyData": [
+    {
+     "fy": 2025,
+     "enacted": 811
+    }
+   ]
+  },
+  {
+   "peCode": "1106N170",
+   "title": "Recycling",
+   "appropriationType": "OM",
+   "service": "NAVY",
+   "budgetActivity": "BA 04",
+   "raw": {
+    "account": "1106N",
+    "accountLine": "170",
+    "sagBli": "4A2W",
+    "bsa": "4A"
+   },
+   "fyData": [
+    {
+     "fy": 2025,
+     "enacted": 8709
+    }
+   ]
+  },
+  {
+   "peCode": "1106N180",
+   "title": "Servicewide Transportation",
+   "appropriationType": "OM",
+   "service": "NAVY",
+   "budgetActivity": "BA 04",
+   "raw": {
+    "account": "1106N",
+    "accountLine": "180",
+    "sagBli": "4A3G",
+    "bsa": "4A"
+   },
+   "fyData": [
+    {
+     "fy": 2025,
+     "enacted": 96017
+    },
+    {
+     "fy": 2026,
+     "enacted": 87509
+    },
+    {
+     "fy": 2027,
+     "request": 154026
+    }
+   ]
+  },
+  {
+   "peCode": "1106N190",
+   "title": "Administration",
+   "appropriationType": "OM",
+   "service": "NAVY",
+   "budgetActivity": "BA 04",
+   "raw": {
+    "account": "1106N",
+    "accountLine": "190",
+    "sagBli": "4A4G",
+    "bsa": "4A"
+   },
+   "fyData": [
+    {
+     "fy": 2025,
+     "enacted": 435590
+    },
+    {
+     "fy": 2026,
+     "enacted": 423691
+    },
+    {
+     "fy": 2027,
+     "request": 416349
+    }
+   ]
+  },
+  {
+   "peCode": "1106N210",
+   "title": "Forestry Program",
+   "appropriationType": "OM",
+   "service": "NAVY",
+   "budgetActivity": "BA 04",
+   "raw": {
+    "account": "1106N",
+    "accountLine": "210",
+    "sagBli": "4A3W",
+    "bsa": "4S"
+   },
+   "fyData": [
+    {
+     "fy": 2025,
+     "enacted": 632
+    }
+   ]
+  },
+  {
+   "peCode": "1106N220",
+   "title": "DON UAS Video 5",
+   "appropriationType": "OM",
+   "service": "NAVY",
+   "budgetActivity": "BA 04",
+   "raw": {
+    "account": "1106N",
+    "accountLine": "220",
+    "sagBli": "4S36",
+    "bsa": "4S"
+   },
+   "fyData": [
+    {
+     "fy": 2025,
+     "enacted": 5520
+    }
+   ]
+  },
+  {
+   "peCode": "1106N230",
+   "title": "DoN TRR 3 Transition Support",
+   "appropriationType": "OM",
+   "service": "NAVY",
+   "budgetActivity": "BA 04",
+   "raw": {
+    "account": "1106N",
+    "accountLine": "230",
+    "sagBli": "4S54",
+    "bsa": "4S"
+   },
+   "fyData": [
+    {
+     "fy": 2025,
+     "enacted": 1547
+    }
+   ]
+  },
+  {
+   "peCode": "1106N240",
+   "title": "HQMC Transition Management Support",
+   "appropriationType": "OM",
+   "service": "NAVY",
+   "budgetActivity": "BA 04",
+   "raw": {
+    "account": "1106N",
+    "accountLine": "240",
+    "sagBli": "4S67",
+    "bsa": "4S"
+   },
+   "fyData": [
+    {
+     "fy": 2025,
+     "enacted": 164
+    }
+   ]
+  },
+  {
+   "peCode": "1106N250",
+   "title": "USMC Commercial Industry Deployment Coordination",
+   "appropriationType": "OM",
+   "service": "NAVY",
+   "budgetActivity": "BA 04",
+   "raw": {
+    "account": "1106N",
+    "accountLine": "250",
+    "sagBli": "4S68",
+    "bsa": "4S"
+   },
+   "fyData": [
+    {
+     "fy": 2025,
+     "enacted": 200
+    }
+   ]
+  },
+  {
+   "peCode": "1106N260",
+   "title": "USMC G/ATOR System Modifications",
+   "appropriationType": "OM",
+   "service": "NAVY",
+   "budgetActivity": "BA 04",
+   "raw": {
+    "account": "1106N",
+    "accountLine": "260",
+    "sagBli": "4S69",
+    "bsa": "4S"
+   },
+   "fyData": [
+    {
+     "fy": 2025,
+     "enacted": 8926
+    }
+   ]
+  },
+  {
+   "peCode": "1106N270",
+   "title": "USMC Engineering Analysis & Operational Compliance",
+   "appropriationType": "OM",
+   "service": "NAVY",
+   "budgetActivity": "BA 04",
+   "raw": {
+    "account": "1106N",
+    "accountLine": "270",
+    "sagBli": "4S70",
+    "bsa": "4S"
+   },
+   "fyData": [
+    {
+     "fy": 2025,
+     "enacted": 105
+    }
+   ]
+  },
+  {
+   "peCode": "1106N280",
+   "title": "USMC Engineering and Sharing Support",
+   "appropriationType": "OM",
+   "service": "NAVY",
+   "budgetActivity": "BA 04",
+   "raw": {
+    "account": "1106N",
+    "accountLine": "280",
+    "sagBli": "4S86",
+    "bsa": "4S"
+   },
+   "fyData": [
+    {
+     "fy": 2025,
+     "enacted": 102
+    }
+   ]
+  },
+  {
+   "peCode": "1106N290",
+   "title": "USMC EME Sensing and Monitoring",
+   "appropriationType": "OM",
+   "service": "NAVY",
+   "budgetActivity": "BA 04",
+   "raw": {
+    "account": "1106N",
+    "accountLine": "290",
+    "sagBli": "4S87",
+    "bsa": "4S"
+   },
+   "fyData": [
+    {
+     "fy": 2025,
+     "enacted": 248
+    }
+   ]
+  },
+  {
+   "peCode": "1106N300",
+   "title": "Cancelled Account Adjustment",
+   "appropriationType": "OM",
+   "service": "NAVY",
+   "budgetActivity": "BA 04",
+   "raw": {
+    "account": "1106N",
+    "accountLine": "300",
+    "sagBli": "4EMM",
+    "bsa": "4X"
+   },
+   "fyData": [
+    {
+     "fy": 2025,
+     "enacted": 5261
+    }
+   ]
+  },
+  {
+   "peCode": "1106N999",
+   "title": "Classified Programs",
+   "appropriationType": "OM",
+   "service": "NAVY",
+   "budgetActivity": "BA 04",
+   "raw": {
+    "account": "1106N",
+    "accountLine": "999",
+    "sagBli": "9999",
+    "bsa": ""
+   },
+   "fyData": [
+    {
+     "fy": 2025,
+     "enacted": 64537
+    },
+    {
+     "fy": 2026,
+     "enacted": 73788
+    },
+    {
+     "fy": 2027,
+     "request": 80140
+    }
+   ]
+  },
+  {
+   "peCode": "1107N010",
+   "title": "Operating Forces",
+   "appropriationType": "OM",
+   "service": "NAVY",
+   "budgetActivity": "BA 01",
+   "raw": {
+    "account": "1107N",
+    "accountLine": "010",
+    "sagBli": "1A1A",
+    "bsa": "1A"
+   },
+   "fyData": [
+    {
+     "fy": 2025,
+     "enacted": 131374
+    },
+    {
+     "fy": 2026,
+     "enacted": 128841
+    },
+    {
+     "fy": 2027,
+     "request": 142416
+    }
+   ]
+  },
+  {
+   "peCode": "1107N020",
+   "title": "Depot Maintenance",
+   "appropriationType": "OM",
+   "service": "NAVY",
+   "budgetActivity": "BA 01",
+   "raw": {
+    "account": "1107N",
+    "accountLine": "020",
+    "sagBli": "1A3A",
+    "bsa": "1A"
+   },
+   "fyData": [
+    {
+     "fy": 2025,
+     "enacted": 22039
+    },
+    {
+     "fy": 2026,
+     "enacted": 22686
+    },
+    {
+     "fy": 2027,
+     "request": 23213
+    }
+   ]
+  },
+  {
+   "peCode": "1107N030",
+   "title": "Sustainment, Restoration and Modernization",
+   "appropriationType": "OM",
+   "service": "NAVY",
+   "budgetActivity": "BA 01",
+   "raw": {
+    "account": "1107N",
+    "accountLine": "030",
+    "sagBli": "BSM1",
+    "bsa": "BS"
+   },
+   "fyData": [
+    {
+     "fy": 2025,
+     "enacted": 46803
+    },
+    {
+     "fy": 2026,
+     "enacted": 47517
+    },
+    {
+     "fy": 2027,
+     "request": 100709
+    }
+   ]
+  },
+  {
+   "peCode": "1107N040",
+   "title": "Base Operating Support",
+   "appropriationType": "OM",
+   "service": "NAVY",
+   "budgetActivity": "BA 01",
+   "raw": {
+    "account": "1107N",
+    "accountLine": "040",
+    "sagBli": "BSS1",
+    "bsa": "BS"
+   },
+   "fyData": [
+    {
+     "fy": 2025,
+     "enacted": 118994
+    },
+    {
+     "fy": 2026,
+     "enacted": 119909
+    },
+    {
+     "fy": 2027,
+     "request": 128902
+    }
+   ]
+  },
+  {
+   "peCode": "1107N050",
+   "title": "Administration",
+   "appropriationType": "OM",
+   "service": "NAVY",
+   "budgetActivity": "BA 04",
+   "raw": {
+    "account": "1107N",
+    "accountLine": "050",
+    "sagBli": "4A4G",
+    "bsa": "4A"
+   },
+   "fyData": [
+    {
+     "fy": 2025,
+     "enacted": 11390
+    },
+    {
+     "fy": 2026,
+     "enacted": 11774
+    },
+    {
+     "fy": 2027,
+     "request": 9440
+    }
+   ]
+  },
+  {
+   "peCode": "1107N060",
+   "title": "Cancelled Account Adjustment",
+   "appropriationType": "OM",
+   "service": "NAVY",
+   "budgetActivity": "BA 04",
+   "raw": {
+    "account": "1107N",
+    "accountLine": "060",
+    "sagBli": "4EMM",
+    "bsa": "4X"
+   },
+   "fyData": [
+    {
+     "fy": 2025,
+     "enacted": 18
+    }
+   ]
+  },
+  {
+   "peCode": "1804N010",
+   "title": "Mission and Other Flight Operations",
+   "appropriationType": "OM",
+   "service": "NAVY",
+   "budgetActivity": "BA 01",
+   "raw": {
+    "account": "1804N",
+    "accountLine": "010",
+    "sagBli": "1A1A",
+    "bsa": "01"
+   },
+   "fyData": [
+    {
+     "fy": 2025,
+     "enacted": 7552879
+    },
+    {
+     "fy": 2026,
+     "enacted": 7598918
+    },
+    {
+     "fy": 2027,
+     "request": 8324572
+    }
+   ]
+  },
+  {
+   "peCode": "1804N020",
+   "title": "Fleet Air Training",
+   "appropriationType": "OM",
+   "service": "NAVY",
+   "budgetActivity": "BA 01",
+   "raw": {
+    "account": "1804N",
+    "accountLine": "020",
+    "sagBli": "1A2A",
+    "bsa": "01"
+   },
+   "fyData": [
+    {
+     "fy": 2025,
+     "enacted": 2675309
+    },
+    {
+     "fy": 2026,
+     "enacted": 2862784
+    },
+    {
+     "fy": 2027,
+     "request": 3128764
+    }
+   ]
+  },
+  {
+   "peCode": "1804N030",
+   "title": "Air Systems Support",
+   "appropriationType": "OM",
+   "service": "NAVY",
+   "budgetActivity": "BA 01",
+   "raw": {
+    "account": "1804N",
+    "accountLine": "030",
+    "sagBli": "1A4N",
+    "bsa": "01"
+   },
+   "fyData": [
+    {
+     "fy": 2025,
+     "enacted": 1442835
+    },
+    {
+     "fy": 2026,
+     "enacted": 1411219
+    },
+    {
+     "fy": 2027,
+     "request": 1469165
+    }
+   ]
+  },
+  {
+   "peCode": "1804N040",
+   "title": "Aircraft Depot Maintenance",
+   "appropriationType": "OM",
+   "service": "NAVY",
+   "budgetActivity": "BA 01",
+   "raw": {
+    "account": "1804N",
+    "accountLine": "040",
+    "sagBli": "1A5A",
+    "bsa": "01"
+   },
+   "fyData": [
+    {
+     "fy": 2025,
+     "enacted": 1762081
+    },
+    {
+     "fy": 2026,
+     "enacted": 1716926
+    },
+    {
+     "fy": 2027,
+     "request": 2219583
+    }
+   ]
+  },
+  {
+   "peCode": "1804N050",
+   "title": "Aviation Logistics",
+   "appropriationType": "OM",
+   "service": "NAVY",
+   "budgetActivity": "BA 01",
+   "raw": {
+    "account": "1804N",
+    "accountLine": "050",
+    "sagBli": "1A9A",
+    "bsa": "01"
+   },
+   "fyData": [
+    {
+     "fy": 2025,
+     "enacted": 1996396
+    },
+    {
+     "fy": 2026,
+     "enacted": 2147902
+    },
+    {
+     "fy": 2027,
+     "request": 3179213
+    }
+   ]
+  },
+  {
+   "peCode": "1804N060",
+   "title": "Mission and Other Ship Operations",
+   "appropriationType": "OM",
+   "service": "NAVY",
+   "budgetActivity": "BA 01",
+   "raw": {
+    "account": "1804N",
+    "accountLine": "060",
+    "sagBli": "1B1B",
+    "bsa": "02"
+   },
+   "fyData": [
+    {
+     "fy": 2025,
+     "enacted": 8181824
+    },
+    {
+     "fy": 2026,
+     "enacted": 7058524
+    },
+    {
+     "fy": 2027,
+     "request": 7424752
+    }
+   ]
+  },
+  {
+   "peCode": "1804N070",
+   "title": "Ship Operations Support & Training",
+   "appropriationType": "OM",
+   "service": "NAVY",
+   "budgetActivity": "BA 01",
+   "raw": {
+    "account": "1804N",
+    "accountLine": "070",
+    "sagBli": "1B2B",
+    "bsa": "02"
+   },
+   "fyData": [
+    {
+     "fy": 2025,
+     "enacted": 1626243
+    },
+    {
+     "fy": 2026,
+     "enacted": 1651115
+    },
+    {
+     "fy": 2027,
+     "request": 1713065
+    }
+   ]
+  },
+  {
+   "peCode": "1804N080",
+   "title": "Ship Depot Maintenance",
+   "appropriationType": "OM",
+   "service": "NAVY",
+   "budgetActivity": "BA 01",
+   "raw": {
+    "account": "1804N",
+    "accountLine": "080",
+    "sagBli": "1B4B",
+    "bsa": "02"
+   },
+   "fyData": [
+    {
+     "fy": 2025,
+     "enacted": 12262555
+    },
+    {
+     "fy": 2026,
+     "enacted": 13543112
+    },
+    {
+     "fy": 2027,
+     "request": 14292873
+    }
+   ]
+  },
+  {
+   "peCode": "1804N090",
+   "title": "Ship Depot Operations Support",
+   "appropriationType": "OM",
+   "service": "NAVY",
+   "budgetActivity": "BA 01",
+   "raw": {
+    "account": "1804N",
+    "accountLine": "090",
+    "sagBli": "1B5B",
+    "bsa": "02"
+   },
+   "fyData": [
+    {
+     "fy": 2025,
+     "enacted": 2680723
+    },
+    {
+     "fy": 2026,
+     "enacted": 2800919
+    },
+    {
+     "fy": 2027,
+     "request": 2597722
+    }
+   ]
+  },
+  {
+   "peCode": "1804N100",
+   "title": "Combat Communications and Electronic Warfare",
+   "appropriationType": "OM",
+   "service": "NAVY",
+   "budgetActivity": "BA 01",
+   "raw": {
+    "account": "1804N",
+    "accountLine": "100",
+    "sagBli": "1C1C",
+    "bsa": "1C"
+   },
+   "fyData": [
+    {
+     "fy": 2025,
+     "enacted": 1864024
+    },
+    {
+     "fy": 2026,
+     "enacted": 1791897
+    },
+    {
+     "fy": 2027,
+     "request": 1821744
+    }
+   ]
+  },
+  {
+   "peCode": "1804N110",
+   "title": "Medical Readiness",
+   "appropriationType": "OM",
+   "service": "NAVY",
+   "budgetActivity": "BA 01",
+   "raw": {
+    "account": "1804N",
+    "accountLine": "110",
+    "sagBli": "1C1M",
+    "bsa": "1C"
+   },
+   "fyData": [
+    {
+     "fy": 2026,
+     "enacted": 597306
+    },
+    {
+     "fy": 2027,
+     "request": 661800
+    }
+   ]
+  },
+  {
+   "peCode": "1804N120",
+   "title": "Space Systems and Surveillance",
+   "appropriationType": "OM",
+   "service": "NAVY",
+   "budgetActivity": "BA 01",
+   "raw": {
+    "account": "1804N",
+    "accountLine": "120",
+    "sagBli": "1C3C",
+    "bsa": "1C"
+   },
+   "fyData": [
+    {
+     "fy": 2025,
+     "enacted": 508623
+    },
+    {
+     "fy": 2026,
+     "enacted": 449923
+    },
+    {
+     "fy": 2027,
+     "request": 572000
+    }
+   ]
+  },
+  {
+   "peCode": "1804N130",
+   "title": "Warfare Tactics",
+   "appropriationType": "OM",
+   "service": "NAVY",
+   "budgetActivity": "BA 01",
+   "raw": {
+    "account": "1804N",
+    "accountLine": "130",
+    "sagBli": "1C4C",
+    "bsa": "1C"
+   },
+   "fyData": [
+    {
+     "fy": 2025,
+     "enacted": 991245
+    },
+    {
+     "fy": 2026,
+     "enacted": 988922
+    },
+    {
+     "fy": 2027,
+     "request": 1038456
+    }
+   ]
+  },
+  {
+   "peCode": "1804N140",
+   "title": "Operational Meteorology and Oceanography",
+   "appropriationType": "OM",
+   "service": "NAVY",
+   "budgetActivity": "BA 01",
+   "raw": {
+    "account": "1804N",
+    "accountLine": "140",
+    "sagBli": "1C5C",
+    "bsa": "1C"
+   },
+   "fyData": [
+    {
+     "fy": 2025,
+     "enacted": 469575
+    },
+    {
+     "fy": 2026,
+     "enacted": 473846
+    },
+    {
+     "fy": 2027,
+     "request": 496272
+    }
+   ]
+  },
+  {
+   "peCode": "1804N150",
+   "title": "Combat Support Forces",
+   "appropriationType": "OM",
+   "service": "NAVY",
+   "budgetActivity": "BA 01",
+   "raw": {
+    "account": "1804N",
+    "accountLine": "150",
+    "sagBli": "1C6C",
+    "bsa": "1C"
+   },
+   "fyData": [
+    {
+     "fy": 2025,
+     "enacted": 2558720
+    },
+    {
+     "fy": 2026,
+     "enacted": 2322571
+    },
+    {
+     "fy": 2027,
+     "request": 2476987
+    }
+   ]
+  },
+  {
+   "peCode": "1804N160",
+   "title": "Equipment Maintenance and Depot Operations Support",
+   "appropriationType": "OM",
+   "service": "NAVY",
+   "budgetActivity": "BA 01",
+   "raw": {
+    "account": "1804N",
+    "accountLine": "160",
+    "sagBli": "1C7C",
+    "bsa": "1C"
+   },
+   "fyData": [
+    {
+     "fy": 2025,
+     "enacted": 49284
+    },
+    {
+     "fy": 2026,
+     "enacted": 61434
+    },
+    {
+     "fy": 2027,
+     "request": 62570
+    }
+   ]
+  },
+  {
+   "peCode": "1804N170",
+   "title": "Combatant Commanders Core Operations",
+   "appropriationType": "OM",
+   "service": "NAVY",
+   "budgetActivity": "BA 01",
+   "raw": {
+    "account": "1804N",
+    "accountLine": "170",
+    "sagBli": "1CCH",
+    "bsa": "1C"
+   },
+   "fyData": [
+    {
+     "fy": 2025,
+     "enacted": 114862
+    },
+    {
+     "fy": 2026,
+     "enacted": 109187
+    },
+    {
+     "fy": 2027,
+     "request": 105379
+    }
+   ]
+  },
+  {
+   "peCode": "1804N180",
+   "title": "Combatant Commanders Direct Mission Support",
+   "appropriationType": "OM",
+   "service": "NAVY",
+   "budgetActivity": "BA 01",
+   "raw": {
+    "account": "1804N",
+    "accountLine": "180",
+    "sagBli": "1CCM",
+    "bsa": "1C"
+   },
+   "fyData": [
+    {
+     "fy": 2025,
+     "enacted": 411589
+    },
+    {
+     "fy": 2026,
+     "enacted": 898446
+    },
+    {
+     "fy": 2027,
+     "request": 1994139
+    }
+   ]
+  },
+  {
+   "peCode": "1804N190",
+   "title": "Cyberspace Activities",
+   "appropriationType": "OM",
+   "service": "NAVY",
+   "budgetActivity": "BA 01",
+   "raw": {
+    "account": "1804N",
+    "accountLine": "190",
+    "sagBli": "1CCY",
+    "bsa": "1C"
+   },
+   "fyData": [
+    {
+     "fy": 2025,
+     "enacted": 577936
+    },
+    {
+     "fy": 2026,
+     "enacted": 627292
+    },
+    {
+     "fy": 2027,
+     "request": 662040
+    }
+   ]
+  },
+  {
+   "peCode": "1804N200",
+   "title": "Strategic and Regional Strike Deterrence",
+   "appropriationType": "OM",
+   "service": "NAVY",
+   "budgetActivity": "BA 01",
+   "raw": {
+    "account": "1804N",
+    "accountLine": "200",
+    "sagBli": "1D2D",
+    "bsa": "1D"
+   },
+   "fyData": [
+    {
+     "fy": 2025,
+     "enacted": 1869597
+    },
+    {
+     "fy": 2026,
+     "enacted": 2046301
+    },
+    {
+     "fy": 2027,
+     "request": 2220083
+    }
+   ]
+  },
+  {
+   "peCode": "1804N210",
+   "title": "Weapons Maintenance",
+   "appropriationType": "OM",
+   "service": "NAVY",
+   "budgetActivity": "BA 01",
+   "raw": {
+    "account": "1804N",
+    "accountLine": "210",
+    "sagBli": "1D4D",
+    "bsa": "1D"
+   },
+   "fyData": [
+    {
+     "fy": 2025,
+     "enacted": 1658594
+    },
+    {
+     "fy": 2026,
+     "enacted": 2035177
+    },
+    {
+     "fy": 2027,
+     "request": 1833006
+    }
+   ]
+  },
+  {
+   "peCode": "1804N220",
+   "title": "Other Weapon Systems Support",
+   "appropriationType": "OM",
+   "service": "NAVY",
+   "budgetActivity": "BA 01",
+   "raw": {
+    "account": "1804N",
+    "accountLine": "220",
+    "sagBli": "1D7D",
+    "bsa": "1D"
+   },
+   "fyData": [
+    {
+     "fy": 2025,
+     "enacted": 770905
+    },
+    {
+     "fy": 2026,
+     "enacted": 830039
+    },
+    {
+     "fy": 2027,
+     "request": 834752
+    }
+   ]
+  },
+  {
+   "peCode": "1804N230",
+   "title": "Enterprise Information",
+   "appropriationType": "OM",
+   "service": "NAVY",
+   "budgetActivity": "BA 01",
+   "raw": {
+    "account": "1804N",
+    "accountLine": "230",
+    "sagBli": "BSIT",
+    "bsa": "BS"
+   },
+   "fyData": [
+    {
+     "fy": 2025,
+     "enacted": 1799825
+    },
+    {
+     "fy": 2026,
+     "enacted": 2166697
+    },
+    {
+     "fy": 2027,
+     "request": 2196932
+    }
+   ]
+  },
+  {
+   "peCode": "1804N240",
+   "title": "Sustainment, Restoration and Modernization",
+   "appropriationType": "OM",
+   "service": "NAVY",
+   "budgetActivity": "BA 01",
+   "raw": {
+    "account": "1804N",
+    "accountLine": "240",
+    "sagBli": "BSM1",
+    "bsa": "BS"
+   },
+   "fyData": [
+    {
+     "fy": 2025,
+     "enacted": 5913210
+    },
+    {
+     "fy": 2026,
+     "enacted": 5664080
+    },
+    {
+     "fy": 2027,
+     "request": 9023121
+    }
+   ]
+  },
+  {
+   "peCode": "1804N250",
+   "title": "Base Operating Support",
+   "appropriationType": "OM",
+   "service": "NAVY",
+   "budgetActivity": "BA 01",
+   "raw": {
+    "account": "1804N",
+    "accountLine": "250",
+    "sagBli": "BSS1",
+    "bsa": "BS"
+   },
+   "fyData": [
+    {
+     "fy": 2025,
+     "enacted": 6264595
+    },
+    {
+     "fy": 2026,
+     "enacted": 6156948
+    },
+    {
+     "fy": 2027,
+     "request": 6069456
+    }
+   ]
+  },
+  {
+   "peCode": "1804N260",
+   "title": "Ship Prepositioning and Surge",
+   "appropriationType": "OM",
+   "service": "NAVY",
+   "budgetActivity": "BA 02",
+   "raw": {
+    "account": "1804N",
+    "accountLine": "260",
+    "sagBli": "2A1F",
+    "bsa": "2A"
+   },
+   "fyData": [
+    {
+     "fy": 2025,
+     "enacted": 491512
+    },
+    {
+     "fy": 2026,
+     "enacted": 372908
+    },
+    {
+     "fy": 2027,
+     "request": 378073
+    }
+   ]
+  },
+  {
+   "peCode": "1804N270",
+   "title": "Ready Reserve Force",
+   "appropriationType": "OM",
+   "service": "NAVY",
+   "budgetActivity": "BA 02",
+   "raw": {
+    "account": "1804N",
+    "accountLine": "270",
+    "sagBli": "2A2F",
+    "bsa": "2A"
+   },
+   "fyData": [
+    {
+     "fy": 2025,
+     "enacted": 780558
+    },
+    {
+     "fy": 2026,
+     "enacted": 935052
+    },
+    {
+     "fy": 2027,
+     "request": 881029
+    }
+   ]
+  },
+  {
+   "peCode": "1804N280",
+   "title": "Ship Activations/Inactivations",
+   "appropriationType": "OM",
+   "service": "NAVY",
+   "budgetActivity": "BA 02",
+   "raw": {
+    "account": "1804N",
+    "accountLine": "280",
+    "sagBli": "2B2G",
+    "bsa": "2B"
+   },
+   "fyData": [
+    {
+     "fy": 2025,
+     "enacted": 988958
+    },
+    {
+     "fy": 2026,
+     "enacted": 587465
+    },
+    {
+     "fy": 2027,
+     "request": 831641
+    }
+   ]
+  },
+  {
+   "peCode": "1804N290",
+   "title": "Expeditionary Health Services Systems",
+   "appropriationType": "OM",
+   "service": "NAVY",
+   "budgetActivity": "BA 02",
+   "raw": {
+    "account": "1804N",
+    "accountLine": "290",
+    "sagBli": "2C1H",
+    "bsa": "2C"
+   },
+   "fyData": [
+    {
+     "fy": 2025,
+     "enacted": 162441
+    }
+   ]
+  },
+  {
+   "peCode": "1804N300",
+   "title": "Coast Guard Support",
+   "appropriationType": "OM",
+   "service": "NAVY",
+   "budgetActivity": "BA 02",
+   "raw": {
+    "account": "1804N",
+    "accountLine": "300",
+    "sagBli": "2C3H",
+    "bsa": "2C"
+   },
+   "fyData": [
+    {
+     "fy": 2025,
+     "enacted": 20961
+    },
+    {
+     "fy": 2026,
+     "enacted": 21432
+    },
+    {
+     "fy": 2027,
+     "request": 27729
+    }
+   ]
+  },
+  {
+   "peCode": "1804N310",
+   "title": "Officer Acquisition",
+   "appropriationType": "OM",
+   "service": "NAVY",
+   "budgetActivity": "BA 03",
+   "raw": {
+    "account": "1804N",
+    "accountLine": "310",
+    "sagBli": "3A1J",
+    "bsa": "3A"
+   },
+   "fyData": [
+    {
+     "fy": 2025,
+     "enacted": 204266
+    },
+    {
+     "fy": 2026,
+     "enacted": 202381
+    },
+    {
+     "fy": 2027,
+     "request": 198743
+    }
+   ]
+  },
+  {
+   "peCode": "1804N320",
+   "title": "Recruit Training",
+   "appropriationType": "OM",
+   "service": "NAVY",
+   "budgetActivity": "BA 03",
+   "raw": {
+    "account": "1804N",
+    "accountLine": "320",
+    "sagBli": "3A2J",
+    "bsa": "3A"
+   },
+   "fyData": [
+    {
+     "fy": 2025,
+     "enacted": 25630
+    },
+    {
+     "fy": 2026,
+     "enacted": 16945
+    },
+    {
+     "fy": 2027,
+     "request": 17813
+    }
+   ]
+  },
+  {
+   "peCode": "1804N330",
+   "title": "Reserve Officers Training Corps",
+   "appropriationType": "OM",
+   "service": "NAVY",
+   "budgetActivity": "BA 03",
+   "raw": {
+    "account": "1804N",
+    "accountLine": "330",
+    "sagBli": "3A3J",
+    "bsa": "3A"
+   },
+   "fyData": [
+    {
+     "fy": 2025,
+     "enacted": 174492
+    },
+    {
+     "fy": 2026,
+     "enacted": 164348
+    },
+    {
+     "fy": 2027,
+     "request": 193797
+    }
+   ]
+  },
+  {
+   "peCode": "1804N340",
+   "title": "Specialized Skill Training",
+   "appropriationType": "OM",
+   "service": "NAVY",
+   "budgetActivity": "BA 03",
+   "raw": {
+    "account": "1804N",
+    "accountLine": "340",
+    "sagBli": "3B1K",
+    "bsa": "3B"
+   },
+   "fyData": [
+    {
+     "fy": 2025,
+     "enacted": 1185306
+    },
+    {
+     "fy": 2026,
+     "enacted": 1013647
+    },
+    {
+     "fy": 2027,
+     "request": 1163755
+    }
+   ]
+  },
+  {
+   "peCode": "1804N350",
+   "title": "Professional Development Education",
+   "appropriationType": "OM",
+   "service": "NAVY",
+   "budgetActivity": "BA 03",
+   "raw": {
+    "account": "1804N",
+    "accountLine": "350",
+    "sagBli": "3B3K",
+    "bsa": "3B"
+   },
+   "fyData": [
+    {
+     "fy": 2025,
+     "enacted": 349428
+    },
+    {
+     "fy": 2026,
+     "enacted": 262964
+    },
+    {
+     "fy": 2027,
+     "request": 280521
+    }
+   ]
+  },
+  {
+   "peCode": "1804N360",
+   "title": "Training Support",
+   "appropriationType": "OM",
+   "service": "NAVY",
+   "budgetActivity": "BA 03",
+   "raw": {
+    "account": "1804N",
+    "accountLine": "360",
+    "sagBli": "3B4K",
+    "bsa": "3B"
+   },
+   "fyData": [
+    {
+     "fy": 2025,
+     "enacted": 434319
+    },
+    {
+     "fy": 2026,
+     "enacted": 463572
+    },
+    {
+     "fy": 2027,
+     "request": 504282
+    }
+   ]
+  },
+  {
+   "peCode": "1804N370",
+   "title": "Recruiting and Advertising",
+   "appropriationType": "OM",
+   "service": "NAVY",
+   "budgetActivity": "BA 03",
+   "raw": {
+    "account": "1804N",
+    "accountLine": "370",
+    "sagBli": "3C1L",
+    "bsa": "3C"
+   },
+   "fyData": [
+    {
+     "fy": 2025,
+     "enacted": 282091
+    },
+    {
+     "fy": 2026,
+     "enacted": 306623
+    },
+    {
+     "fy": 2027,
+     "request": 261140
+    }
+   ]
+  },
+  {
+   "peCode": "1804N380",
+   "title": "Off-Duty and Voluntary Education",
+   "appropriationType": "OM",
+   "service": "NAVY",
+   "budgetActivity": "BA 03",
+   "raw": {
+    "account": "1804N",
+    "accountLine": "380",
+    "sagBli": "3C3L",
+    "bsa": "3C"
+   },
+   "fyData": [
+    {
+     "fy": 2025,
+     "enacted": 77274
+    },
+    {
+     "fy": 2026,
+     "enacted": 25914
+    },
+    {
+     "fy": 2027,
+     "request": 75600
+    }
+   ]
+  },
+  {
+   "peCode": "1804N390",
+   "title": "Civilian Education and Training",
+   "appropriationType": "OM",
+   "service": "NAVY",
+   "budgetActivity": "BA 03",
+   "raw": {
+    "account": "1804N",
+    "accountLine": "390",
+    "sagBli": "3C4L",
+    "bsa": "3C"
+   },
+   "fyData": [
+    {
+     "fy": 2025,
+     "enacted": 70226
+    },
+    {
+     "fy": 2026,
+     "enacted": 63422
+    },
+    {
+     "fy": 2027,
+     "request": 60191
+    }
+   ]
+  },
+  {
+   "peCode": "1804N400",
+   "title": "Junior ROTC",
+   "appropriationType": "OM",
+   "service": "NAVY",
+   "budgetActivity": "BA 03",
+   "raw": {
+    "account": "1804N",
+    "accountLine": "400",
+    "sagBli": "3C5L",
+    "bsa": "3C"
+   },
+   "fyData": [
+    {
+     "fy": 2025,
+     "enacted": 56378
+    },
+    {
+     "fy": 2026,
+     "enacted": 25334
+    },
+    {
+     "fy": 2027,
+     "request": 60219
+    }
+   ]
+  },
+  {
+   "peCode": "1804N410",
+   "title": "Administration",
+   "appropriationType": "OM",
+   "service": "NAVY",
+   "budgetActivity": "BA 04",
+   "raw": {
+    "account": "1804N",
+    "accountLine": "410",
+    "sagBli": "4A1M",
+    "bsa": "4A"
+   },
+   "fyData": [
+    {
+     "fy": 2025,
+     "enacted": 1433863
+    },
+    {
+     "fy": 2026,
+     "enacted": 1326201
+    },
+    {
+     "fy": 2027,
+     "request": 1396823
+    }
+   ]
+  },
+  {
+   "peCode": "1804N420",
+   "title": "Recycling",
+   "appropriationType": "OM",
+   "service": "NAVY",
+   "budgetActivity": "BA 04",
+   "raw": {
+    "account": "1804N",
+    "accountLine": "420",
+    "sagBli": "4A2W",
+    "bsa": "4A"
+   },
+   "fyData": [
+    {
+     "fy": 2025,
+     "enacted": 222
+    }
+   ]
+  },
+  {
+   "peCode": "1804N430",
+   "title": "Civilian Manpower and Personnel Management",
+   "appropriationType": "OM",
+   "service": "NAVY",
+   "budgetActivity": "BA 04",
+   "raw": {
+    "account": "1804N",
+    "accountLine": "430",
+    "sagBli": "4A3M",
+    "bsa": "4A"
+   },
+   "fyData": [
+    {
+     "fy": 2025,
+     "enacted": 250907
+    },
+    {
+     "fy": 2026,
+     "enacted": 237958
+    },
+    {
+     "fy": 2027,
+     "request": 244308
+    }
+   ]
+  },
+  {
+   "peCode": "1804N440",
+   "title": "Forestry Program",
+   "appropriationType": "OM",
+   "service": "NAVY",
+   "budgetActivity": "BA 04",
+   "raw": {
+    "account": "1804N",
+    "accountLine": "440",
+    "sagBli": "4A3W",
+    "bsa": "4A"
+   },
+   "fyData": [
+    {
+     "fy": 2025,
+     "enacted": 1205
+    }
+   ]
+  },
+  {
+   "peCode": "1804N450",
+   "title": "Military Manpower and Personnel Management",
+   "appropriationType": "OM",
+   "service": "NAVY",
+   "budgetActivity": "BA 04",
+   "raw": {
+    "account": "1804N",
+    "accountLine": "450",
+    "sagBli": "4A4M",
+    "bsa": "4A"
+   },
+   "fyData": [
+    {
+     "fy": 2025,
+     "enacted": 661970
+    },
+    {
+     "fy": 2026,
+     "enacted": 630595
+    },
+    {
+     "fy": 2027,
+     "request": 642260
+    }
+   ]
+  },
+  {
+   "peCode": "1804N460",
+   "title": "Medical Activities",
+   "appropriationType": "OM",
+   "service": "NAVY",
+   "budgetActivity": "BA 04",
+   "raw": {
+    "account": "1804N",
+    "accountLine": "460",
+    "sagBli": "4A8M",
+    "bsa": "4A"
+   },
+   "fyData": [
+    {
+     "fy": 2025,
+     "enacted": 318786
+    }
+   ]
+  },
+  {
+   "peCode": "1804N470",
+   "title": "Foreign Currency Fluctuation",
+   "appropriationType": "OM",
+   "service": "NAVY",
+   "budgetActivity": "BA 04",
+   "raw": {
+    "account": "1804N",
+    "accountLine": "470",
+    "sagBli": "4AFC",
+    "bsa": "4A"
+   },
+   "fyData": [
+    {
+     "fy": 2025,
+     "enacted": 260
+    },
+    {
+     "fy": 2027,
+     "request": 5517
+    }
+   ]
+  },
+  {
+   "peCode": "1804N480",
+   "title": "Def Acquisition Workforce Development Account",
+   "appropriationType": "OM",
+   "service": "NAVY",
+   "budgetActivity": "BA 04",
+   "raw": {
+    "account": "1804N",
+    "accountLine": "480",
+    "sagBli": "4B1A",
+    "bsa": "4B"
+   },
+   "fyData": [
+    {
+     "fy": 2025,
+     "enacted": 64155
+    },
+    {
+     "fy": 2026,
+     "enacted": 52752
+    },
+    {
+     "fy": 2027,
+     "request": 60440
+    }
+   ]
+  },
+  {
+   "peCode": "1804N490",
+   "title": "Servicewide Transportation",
+   "appropriationType": "OM",
+   "service": "NAVY",
+   "budgetActivity": "BA 04",
+   "raw": {
+    "account": "1804N",
+    "accountLine": "490",
+    "sagBli": "4B1N",
+    "bsa": "4B"
+   },
+   "fyData": [
+    {
+     "fy": 2025,
+     "enacted": 441408
+    },
+    {
+     "fy": 2026,
+     "enacted": 281935
+    },
+    {
+     "fy": 2027,
+     "request": 279134
+    }
+   ]
+  },
+  {
+   "peCode": "1804N500",
+   "title": "Environmental Programs",
+   "appropriationType": "OM",
+   "service": "NAVY",
+   "budgetActivity": "BA 04",
+   "raw": {
+    "account": "1804N",
+    "accountLine": "500",
+    "sagBli": "4B2E",
+    "bsa": "4B"
+   },
+   "fyData": [
+    {
+     "fy": 2025,
+     "enacted": 342797
+    }
+   ]
+  },
+  {
+   "peCode": "1804N510",
+   "title": "Planning, Engineering, and Program Support",
+   "appropriationType": "OM",
+   "service": "NAVY",
+   "budgetActivity": "BA 04",
+   "raw": {
+    "account": "1804N",
+    "accountLine": "510",
+    "sagBli": "4B2N",
+    "bsa": "4B"
+   },
+   "fyData": [
+    {
+     "fy": 2025,
+     "enacted": 612531
+    },
+    {
+     "fy": 2026,
+     "enacted": 742105
+    },
+    {
+     "fy": 2027,
+     "request": 605530
+    }
+   ]
+  },
+  {
+   "peCode": "1804N520",
+   "title": "Acquisition, Logistics, and Oversight",
+   "appropriationType": "OM",
+   "service": "NAVY",
+   "budgetActivity": "BA 04",
+   "raw": {
+    "account": "1804N",
+    "accountLine": "520",
+    "sagBli": "4B3N",
+    "bsa": "4B"
+   },
+   "fyData": [
+    {
+     "fy": 2025,
+     "enacted": 857834
+    },
+    {
+     "fy": 2026,
+     "enacted": 848597
+    },
+    {
+     "fy": 2027,
+     "request": 822580
+    }
+   ]
+  },
+  {
+   "peCode": "1804N530",
+   "title": "Investigative and Security Services",
+   "appropriationType": "OM",
+   "service": "NAVY",
+   "budgetActivity": "BA 04",
+   "raw": {
+    "account": "1804N",
+    "accountLine": "530",
+    "sagBli": "4C1P",
+    "bsa": "4C"
+   },
+   "fyData": [
+    {
+     "fy": 2025,
+     "enacted": 1074552
+    },
+    {
+     "fy": 2026,
+     "enacted": 1010659
+    },
+    {
+     "fy": 2027,
+     "request": 1076664
+    }
+   ]
+  },
+  {
+   "peCode": "1804N580",
+   "title": "HQ Transition Process Management",
+   "appropriationType": "OM",
+   "service": "NAVY",
+   "budgetActivity": "BA 04",
+   "raw": {
+    "account": "1804N",
+    "accountLine": "580",
+    "sagBli": "4S09",
+    "bsa": "4S"
+   },
+   "fyData": [
+    {
+     "fy": 2025,
+     "enacted": 258
+    }
+   ]
+  },
+  {
+   "peCode": "1804N590",
+   "title": "USMC METOC-3",
+   "appropriationType": "OM",
+   "service": "NAVY",
+   "budgetActivity": "BA 04",
+   "raw": {
+    "account": "1804N",
+    "accountLine": "590",
+    "sagBli": "4S11",
+    "bsa": "4S"
+   },
+   "fyData": [
+    {
+     "fy": 2025,
+     "enacted": 832
+    }
+   ]
+  },
+  {
+   "peCode": "1804N600",
+   "title": "DON TRR-1 (Afloat)",
+   "appropriationType": "OM",
+   "service": "NAVY",
+   "budgetActivity": "BA 04",
+   "raw": {
+    "account": "1804N",
+    "accountLine": "600",
+    "sagBli": "4S52",
+    "bsa": "4S"
+   },
+   "fyData": [
+    {
+     "fy": 2025,
+     "enacted": 225
+    }
+   ]
+  },
+  {
+   "peCode": "1804N610",
+   "title": "DON HQ Transition Process Management",
+   "appropriationType": "OM",
+   "service": "NAVY",
+   "budgetActivity": "BA 04",
+   "raw": {
+    "account": "1804N",
+    "accountLine": "610",
+    "sagBli": "4S59",
+    "bsa": "4S"
+   },
+   "fyData": [
+    {
+     "fy": 2025,
+     "enacted": 2658
+    }
+   ]
+  },
+  {
+   "peCode": "1804N620",
+   "title": "DON UAS Video 5 (Afloat)",
+   "appropriationType": "OM",
+   "service": "NAVY",
+   "budgetActivity": "BA 04",
+   "raw": {
+    "account": "1804N",
+    "accountLine": "620",
+    "sagBli": "4S60",
+    "bsa": "4S"
+   },
+   "fyData": [
+    {
+     "fy": 2025,
+     "enacted": 2462
+    }
+   ]
+  },
+  {
+   "peCode": "1804N630",
+   "title": "Spectrum Efficient National Surveillance Radar",
+   "appropriationType": "OM",
+   "service": "NAVY",
+   "budgetActivity": "BA 04",
+   "raw": {
+    "account": "1804N",
+    "accountLine": "630",
+    "sagBli": "4S61",
+    "bsa": "4S"
+   },
+   "fyData": [
+    {
+     "fy": 2025,
+     "enacted": 244
+    }
+   ]
+  },
+  {
+   "peCode": "1804N640",
+   "title": "CBRS (3550 MHz)",
+   "appropriationType": "OM",
+   "service": "NAVY",
+   "budgetActivity": "BA 04",
+   "raw": {
+    "account": "1804N",
+    "accountLine": "640",
+    "sagBli": "4S63",
+    "bsa": "4S"
+   },
+   "fyData": [
+    {
+     "fy": 2025,
+     "enacted": 195
+    }
+   ]
+  },
+  {
+   "peCode": "1804N650",
+   "title": "AMBIT Pre-Auction",
+   "appropriationType": "OM",
+   "service": "NAVY",
+   "budgetActivity": "BA 04",
+   "raw": {
+    "account": "1804N",
+    "accountLine": "650",
+    "sagBli": "4S64",
+    "bsa": "4S"
+   },
+   "fyData": [
+    {
+     "fy": 2025,
+     "enacted": 286
+    }
+   ]
+  },
+  {
+   "peCode": "1804N660",
+   "title": "DON CIO Oversight and Implementation",
+   "appropriationType": "OM",
+   "service": "NAVY",
+   "budgetActivity": "BA 04",
+   "raw": {
+    "account": "1804N",
+    "accountLine": "660",
+    "sagBli": "4S71",
+    "bsa": "4S"
+   },
+   "fyData": [
+    {
+     "fy": 2025,
+     "enacted": 1269
+    }
+   ]
+  },
+  {
+   "peCode": "1804N670",
+   "title": "USN Training Ranges - Spectrum Sensing",
+   "appropriationType": "OM",
+   "service": "NAVY",
+   "budgetActivity": "BA 04",
+   "raw": {
+    "account": "1804N",
+    "accountLine": "670",
+    "sagBli": "4S75",
+    "bsa": "4S"
+   },
+   "fyData": [
+    {
+     "fy": 2025,
+     "enacted": 50
+    }
+   ]
+  },
+  {
+   "peCode": "1804N680",
+   "title": "USN Engineering and Sharing Support",
+   "appropriationType": "OM",
+   "service": "NAVY",
+   "budgetActivity": "BA 04",
+   "raw": {
+    "account": "1804N",
+    "accountLine": "680",
+    "sagBli": "4S81",
+    "bsa": "4S"
+   },
+   "fyData": [
+    {
+     "fy": 2025,
+     "enacted": 422
+    }
+   ]
+  },
+  {
+   "peCode": "1804N690",
+   "title": "USN EME Sensing and Monitoring",
+   "appropriationType": "OM",
+   "service": "NAVY",
+   "budgetActivity": "BA 04",
+   "raw": {
+    "account": "1804N",
+    "accountLine": "690",
+    "sagBli": "4S82",
+    "bsa": "4S"
+   },
+   "fyData": [
+    {
+     "fy": 2025,
+     "enacted": 76
+    }
+   ]
+  },
+  {
+   "peCode": "1804N700",
+   "title": "USN CBRS Sharing Ecosystem Assessment",
+   "appropriationType": "OM",
+   "service": "NAVY",
+   "budgetActivity": "BA 04",
+   "raw": {
+    "account": "1804N",
+    "accountLine": "700",
+    "sagBli": "4S83",
+    "bsa": "4S"
+   },
+   "fyData": [
+    {
+     "fy": 2025,
+     "enacted": 25
+    }
+   ]
+  },
+  {
+   "peCode": "1804N710",
+   "title": "USN EMI Recognition",
+   "appropriationType": "OM",
+   "service": "NAVY",
+   "budgetActivity": "BA 04",
+   "raw": {
+    "account": "1804N",
+    "accountLine": "710",
+    "sagBli": "4S85",
+    "bsa": "4S"
+   },
+   "fyData": [
+    {
+     "fy": 2025,
+     "enacted": 25
+    }
+   ]
+  },
+  {
+   "peCode": "1804N720",
+   "title": "DON Oversight and Implementation",
+   "appropriationType": "OM",
+   "service": "NAVY",
+   "budgetActivity": "BA 04",
+   "raw": {
+    "account": "1804N",
+    "accountLine": "720",
+    "sagBli": "4S89",
+    "bsa": "4S"
+   },
+   "fyData": [
+    {
+     "fy": 2025,
+     "enacted": 347
+    }
+   ]
+  },
+  {
+   "peCode": "1804N730",
+   "title": "SPP-7/8Ghz",
+   "appropriationType": "OM",
+   "service": "NAVY",
+   "budgetActivity": "BA 04",
+   "raw": {
+    "account": "1804N",
+    "accountLine": "730",
+    "sagBli": "4S90",
+    "bsa": "4S"
+   },
+   "fyData": [
+    {
+     "fy": 2025,
+     "enacted": 4088
+    }
+   ]
+  },
+  {
+   "peCode": "1804N740",
+   "title": "SPP-L3G-ADSSD",
+   "appropriationType": "OM",
+   "service": "NAVY",
+   "budgetActivity": "BA 04",
+   "raw": {
+    "account": "1804N",
+    "accountLine": "740",
+    "sagBli": "4S91",
+    "bsa": "4S"
+   },
+   "fyData": [
+    {
+     "fy": 2025,
+     "enacted": 2949
+    }
+   ]
+  },
+  {
+   "peCode": "1804N750",
+   "title": "Cancelled Account Adjustments",
+   "appropriationType": "OM",
+   "service": "NAVY",
+   "budgetActivity": "BA 04",
+   "raw": {
+    "account": "1804N",
+    "accountLine": "750",
+    "sagBli": "4EMM",
+    "bsa": "4X"
+   },
+   "fyData": [
+    {
+     "fy": 2025,
+     "enacted": 43298
+    }
+   ]
+  },
+  {
+   "peCode": "1804N760",
+   "title": "Judgement Fund",
+   "appropriationType": "OM",
+   "service": "NAVY",
+   "budgetActivity": "BA 04",
+   "raw": {
+    "account": "1804N",
+    "accountLine": "760",
+    "sagBli": "4EPJ",
+    "bsa": "4X"
+   },
+   "fyData": [
+    {
+     "fy": 2025,
+     "enacted": 14708
+    }
+   ]
+  },
+  {
+   "peCode": "1804N999",
+   "title": "Classified Programs",
+   "appropriationType": "OM",
+   "service": "NAVY",
+   "budgetActivity": "BA 04",
+   "raw": {
+    "account": "1804N",
+    "accountLine": "999",
+    "sagBli": "9999",
+    "bsa": ""
+   },
+   "fyData": [
+    {
+     "fy": 2025,
+     "enacted": 662568
+    },
+    {
+     "fy": 2026,
+     "enacted": 736405
+    },
+    {
+     "fy": 2027,
+     "request": 728457
+    }
+   ]
+  },
+  {
+   "peCode": "1806N010",
+   "title": "Mission and Other Flight Operations",
+   "appropriationType": "OM",
+   "service": "NAVY",
+   "budgetActivity": "BA 01",
+   "raw": {
+    "account": "1806N",
+    "accountLine": "010",
+    "sagBli": "1A1A",
+    "bsa": "01"
+   },
+   "fyData": [
+    {
+     "fy": 2025,
+     "enacted": 703855
+    },
+    {
+     "fy": 2026,
+     "enacted": 741345
+    },
+    {
+     "fy": 2027,
+     "request": 787622
+    }
+   ]
+  },
+  {
+   "peCode": "1806N020",
+   "title": "Air Systems Support",
+   "appropriationType": "OM",
+   "service": "NAVY",
+   "budgetActivity": "BA 01",
+   "raw": {
+    "account": "1806N",
+    "accountLine": "020",
+    "sagBli": "1A4N",
+    "bsa": "01"
+   },
+   "fyData": [
+    {
+     "fy": 2025,
+     "enacted": 9002
+    },
+    {
+     "fy": 2026,
+     "enacted": 9972
+    },
+    {
+     "fy": 2027,
+     "request": 9733
+    }
+   ]
+  },
+  {
+   "peCode": "1806N030",
+   "title": "Aircraft Depot Maintenance",
+   "appropriationType": "OM",
+   "service": "NAVY",
+   "budgetActivity": "BA 01",
+   "raw": {
+    "account": "1806N",
+    "accountLine": "030",
+    "sagBli": "1A5A",
+    "bsa": "01"
+   },
+   "fyData": [
+    {
+     "fy": 2025,
+     "enacted": 137171
+    },
+    {
+     "fy": 2026,
+     "enacted": 204603
+    },
+    {
+     "fy": 2027,
+     "request": 215547
+    }
+   ]
+  },
+  {
+   "peCode": "1806N040",
+   "title": "Aviation Logistics",
+   "appropriationType": "OM",
+   "service": "NAVY",
+   "budgetActivity": "BA 01",
+   "raw": {
+    "account": "1806N",
+    "accountLine": "040",
+    "sagBli": "1A9A",
+    "bsa": "01"
+   },
+   "fyData": [
+    {
+     "fy": 2025,
+     "enacted": 29360
+    },
+    {
+     "fy": 2026,
+     "enacted": 24469
+    },
+    {
+     "fy": 2027,
+     "request": 27703
+    }
+   ]
+  },
+  {
+   "peCode": "1806N050",
+   "title": "Combat Communications",
+   "appropriationType": "OM",
+   "service": "NAVY",
+   "budgetActivity": "BA 01",
+   "raw": {
+    "account": "1806N",
+    "accountLine": "050",
+    "sagBli": "1C1C",
+    "bsa": "1C"
+   },
+   "fyData": [
+    {
+     "fy": 2025,
+     "enacted": 19513
+    },
+    {
+     "fy": 2026,
+     "enacted": 19698
+    },
+    {
+     "fy": 2027,
+     "request": 19652
+    }
+   ]
+  },
+  {
+   "peCode": "1806N060",
+   "title": "Combat Support Forces",
+   "appropriationType": "OM",
+   "service": "NAVY",
+   "budgetActivity": "BA 01",
+   "raw": {
+    "account": "1806N",
+    "accountLine": "060",
+    "sagBli": "1C6C",
+    "bsa": "1C"
+   },
+   "fyData": [
+    {
+     "fy": 2025,
+     "enacted": 193949
+    },
+    {
+     "fy": 2026,
+     "enacted": 186446
+    },
+    {
+     "fy": 2027,
+     "request": 196376
+    }
+   ]
+  },
+  {
+   "peCode": "1806N070",
+   "title": "Cyberspace Activities",
+   "appropriationType": "OM",
+   "service": "NAVY",
+   "budgetActivity": "BA 01",
+   "raw": {
+    "account": "1806N",
+    "accountLine": "070",
+    "sagBli": "1CCY",
+    "bsa": "1C"
+   },
+   "fyData": [
+    {
+     "fy": 2025,
+     "enacted": 370
+    },
+    {
+     "fy": 2026,
+     "enacted": 294
+    },
+    {
+     "fy": 2027,
+     "request": 288
+    }
+   ]
+  },
+  {
+   "peCode": "1806N080",
+   "title": "Enterprise Information",
+   "appropriationType": "OM",
+   "service": "NAVY",
+   "budgetActivity": "BA 01",
+   "raw": {
+    "account": "1806N",
+    "accountLine": "080",
+    "sagBli": "BSIT",
+    "bsa": "BS"
+   },
+   "fyData": [
+    {
+     "fy": 2025,
+     "enacted": 30814
+    },
+    {
+     "fy": 2026,
+     "enacted": 33414
+    },
+    {
+     "fy": 2027,
+     "request": 30811
+    }
+   ]
+  },
+  {
+   "peCode": "1806N090",
+   "title": "Sustainment, Restoration and Modernization",
+   "appropriationType": "OM",
+   "service": "NAVY",
+   "budgetActivity": "BA 01",
+   "raw": {
+    "account": "1806N",
+    "accountLine": "090",
+    "sagBli": "BSMR",
+    "bsa": "BS"
+   },
+   "fyData": [
+    {
+     "fy": 2025,
+     "enacted": 50327
+    },
+    {
+     "fy": 2026,
+     "enacted": 58213
+    },
+    {
+     "fy": 2027,
+     "request": 59386
+    }
+   ]
+  },
+  {
+   "peCode": "1806N100",
+   "title": "Base Operating Support",
+   "appropriationType": "OM",
+   "service": "NAVY",
+   "budgetActivity": "BA 01",
+   "raw": {
+    "account": "1806N",
+    "accountLine": "100",
+    "sagBli": "BSSR",
+    "bsa": "BS"
+   },
+   "fyData": [
+    {
+     "fy": 2025,
+     "enacted": 116356
+    },
+    {
+     "fy": 2026,
+     "enacted": 118361
+    },
+    {
+     "fy": 2027,
+     "request": 111177
+    }
+   ]
+  },
+  {
+   "peCode": "1806N110",
+   "title": "Administration",
+   "appropriationType": "OM",
+   "service": "NAVY",
+   "budgetActivity": "BA 04",
+   "raw": {
+    "account": "1806N",
+    "accountLine": "110",
+    "sagBli": "4A1M",
+    "bsa": "4A"
+   },
+   "fyData": [
+    {
+     "fy": 2025,
+     "enacted": 1640
+    },
+    {
+     "fy": 2026,
+     "enacted": 2539
+    },
+    {
+     "fy": 2027,
+     "request": 2747
+    }
+   ]
+  },
+  {
+   "peCode": "1806N120",
+   "title": "Military Manpower and Personnel Management",
+   "appropriationType": "OM",
+   "service": "NAVY",
+   "budgetActivity": "BA 04",
+   "raw": {
+    "account": "1806N",
+    "accountLine": "120",
+    "sagBli": "4A4M",
+    "bsa": "4A"
+   },
+   "fyData": [
+    {
+     "fy": 2025,
+     "enacted": 13004
+    },
+    {
+     "fy": 2026,
+     "enacted": 13949
+    },
+    {
+     "fy": 2027,
+     "request": 14944
+    }
+   ]
+  },
+  {
+   "peCode": "1806N130",
+   "title": "Acquisition and Program Management",
+   "appropriationType": "OM",
+   "service": "NAVY",
+   "budgetActivity": "BA 04",
+   "raw": {
+    "account": "1806N",
+    "accountLine": "130",
+    "sagBli": "4B3N",
+    "bsa": "4B"
+   },
+   "fyData": [
+    {
+     "fy": 2025,
+     "enacted": 2175
+    },
+    {
+     "fy": 2026,
+     "enacted": 1517
+    },
+    {
+     "fy": 2027,
+     "request": 1230
+    }
+   ]
+  },
+  {
+   "peCode": "1806N140",
+   "title": "Cancelled Account Adjustments",
+   "appropriationType": "OM",
+   "service": "NAVY",
+   "budgetActivity": "BA 04",
+   "raw": {
+    "account": "1806N",
+    "accountLine": "140",
+    "sagBli": "4EMM",
+    "bsa": "4X"
+   },
+   "fyData": [
+    {
+     "fy": 2025,
+     "enacted": 11
+    }
+   ]
+  },
+  {
+   "peCode": "2020A010",
+   "title": "Maneuver Units",
+   "appropriationType": "OM",
+   "service": "ARMY",
+   "budgetActivity": "BA 01",
+   "raw": {
+    "account": "2020A",
+    "accountLine": "010",
+    "sagBli": "111",
+    "bsa": "11"
+   },
+   "fyData": [
+    {
+     "fy": 2025,
+     "enacted": 5576935
+    },
+    {
+     "fy": 2026,
+     "enacted": 4762761
+    },
+    {
+     "fy": 2027,
+     "request": 5309790
+    }
+   ]
+  },
+  {
+   "peCode": "2020A020",
+   "title": "Modular Support Brigades",
+   "appropriationType": "OM",
+   "service": "ARMY",
+   "budgetActivity": "BA 01",
+   "raw": {
+    "account": "2020A",
+    "accountLine": "020",
+    "sagBli": "112",
+    "bsa": "11"
+   },
+   "fyData": [
+    {
+     "fy": 2025,
+     "enacted": 186224
+    },
+    {
+     "fy": 2026,
+     "enacted": 219978
+    },
+    {
+     "fy": 2027,
+     "request": 375682
+    }
+   ]
+  },
+  {
+   "peCode": "2020A030",
+   "title": "Echelons Above Brigade",
+   "appropriationType": "OM",
+   "service": "ARMY",
+   "budgetActivity": "BA 01",
+   "raw": {
+    "account": "2020A",
+    "accountLine": "030",
+    "sagBli": "113",
+    "bsa": "11"
+   },
+   "fyData": [
+    {
+     "fy": 2025,
+     "enacted": 833698
+    },
+    {
+     "fy": 2026,
+     "enacted": 879419
+    },
+    {
+     "fy": 2027,
+     "request": 1193028
+    }
+   ]
+  },
+  {
+   "peCode": "2020A040",
+   "title": "Theater Level Assets",
+   "appropriationType": "OM",
+   "service": "ARMY",
+   "budgetActivity": "BA 01",
+   "raw": {
+    "account": "2020A",
+    "accountLine": "040",
+    "sagBli": "114",
+    "bsa": "11"
+   },
+   "fyData": [
+    {
+     "fy": 2025,
+     "enacted": 2556623
+    },
+    {
+     "fy": 2026,
+     "enacted": 2295156
+    },
+    {
+     "fy": 2027,
+     "request": 2395049
+    }
+   ]
+  },
+  {
+   "peCode": "2020A050",
+   "title": "Land Forces Operations Support",
+   "appropriationType": "OM",
+   "service": "ARMY",
+   "budgetActivity": "BA 01",
+   "raw": {
+    "account": "2020A",
+    "accountLine": "050",
+    "sagBli": "115",
+    "bsa": "11"
+   },
+   "fyData": [
+    {
+     "fy": 2025,
+     "enacted": 1115390
+    },
+    {
+     "fy": 2026,
+     "enacted": 1299299
+    },
+    {
+     "fy": 2027,
+     "request": 1273674
+    }
+   ]
+  },
+  {
+   "peCode": "2020A060",
+   "title": "Aviation Assets",
+   "appropriationType": "OM",
+   "service": "ARMY",
+   "budgetActivity": "BA 01",
+   "raw": {
+    "account": "2020A",
+    "accountLine": "060",
+    "sagBli": "116",
+    "bsa": "11"
+   },
+   "fyData": [
+    {
+     "fy": 2025,
+     "enacted": 2065586
+    },
+    {
+     "fy": 2026,
+     "enacted": 1715360
+    },
+    {
+     "fy": 2027,
+     "request": 1930557
+    }
+   ]
+  },
+  {
+   "peCode": "2020A070",
+   "title": "Force Readiness Operations Support",
+   "appropriationType": "OM",
+   "service": "ARMY",
+   "budgetActivity": "BA 01",
+   "raw": {
+    "account": "2020A",
+    "accountLine": "070",
+    "sagBli": "121",
+    "bsa": "12"
+   },
+   "fyData": [
+    {
+     "fy": 2025,
+     "enacted": 8634635
+    },
+    {
+     "fy": 2026,
+     "enacted": 7348029
+    },
+    {
+     "fy": 2027,
+     "request": 7186195
+    }
+   ]
+  },
+  {
+   "peCode": "2020A080",
+   "title": "Land Forces Systems Readiness",
+   "appropriationType": "OM",
+   "service": "ARMY",
+   "budgetActivity": "BA 01",
+   "raw": {
+    "account": "2020A",
+    "accountLine": "080",
+    "sagBli": "122",
+    "bsa": "12"
+   },
+   "fyData": [
+    {
+     "fy": 2025,
+     "enacted": 561814
+    },
+    {
+     "fy": 2026,
+     "enacted": 565872
+    },
+    {
+     "fy": 2027,
+     "request": 888277
+    }
+   ]
+  },
+  {
+   "peCode": "2020A090",
+   "title": "Land Forces Depot Maintenance",
+   "appropriationType": "OM",
+   "service": "ARMY",
+   "budgetActivity": "BA 01",
+   "raw": {
+    "account": "2020A",
+    "accountLine": "090",
+    "sagBli": "123",
+    "bsa": "12"
+   },
+   "fyData": [
+    {
+     "fy": 2025,
+     "enacted": 1360596
+    },
+    {
+     "fy": 2026,
+     "enacted": 1572704
+    },
+    {
+     "fy": 2027,
+     "request": 2022115
+    }
+   ]
+  },
+  {
+   "peCode": "2020A100",
+   "title": "Medical Readiness",
+   "appropriationType": "OM",
+   "service": "ARMY",
+   "budgetActivity": "BA 01",
+   "raw": {
+    "account": "2020A",
+    "accountLine": "100",
+    "sagBli": "124",
+    "bsa": "12"
+   },
+   "fyData": [
+    {
+     "fy": 2025,
+     "enacted": 922071
+    },
+    {
+     "fy": 2026,
+     "enacted": 836470
+    },
+    {
+     "fy": 2027,
+     "request": 786815
+    }
+   ]
+  },
+  {
+   "peCode": "2020A110",
+   "title": "Base Operations Support",
+   "appropriationType": "OM",
+   "service": "ARMY",
+   "budgetActivity": "BA 01",
+   "raw": {
+    "account": "2020A",
+    "accountLine": "110",
+    "sagBli": "131",
+    "bsa": "13"
+   },
+   "fyData": [
+    {
+     "fy": 2025,
+     "enacted": 10281391
+    },
+    {
+     "fy": 2026,
+     "enacted": 10315806
+    },
+    {
+     "fy": 2027,
+     "request": 10793417
+    }
+   ]
+  },
+  {
+   "peCode": "2020A120",
+   "title": "Facilities Sustainment, Restoration & Modernization",
+   "appropriationType": "OM",
+   "service": "ARMY",
+   "budgetActivity": "BA 01",
+   "raw": {
+    "account": "2020A",
+    "accountLine": "120",
+    "sagBli": "132",
+    "bsa": "13"
+   },
+   "fyData": [
+    {
+     "fy": 2025,
+     "enacted": 4260444
+    },
+    {
+     "fy": 2026,
+     "enacted": 6660594
+    },
+    {
+     "fy": 2027,
+     "request": 14482743
+    }
+   ]
+  },
+  {
+   "peCode": "2020A130",
+   "title": "Management and Operational Headquarters",
+   "appropriationType": "OM",
+   "service": "ARMY",
+   "budgetActivity": "BA 01",
+   "raw": {
+    "account": "2020A",
+    "accountLine": "130",
+    "sagBli": "133",
+    "bsa": "13"
+   },
+   "fyData": [
+    {
+     "fy": 2025,
+     "enacted": 313112
+    },
+    {
+     "fy": 2026,
+     "enacted": 260867
+    },
+    {
+     "fy": 2027,
+     "request": 287812
+    }
+   ]
+  },
+  {
+   "peCode": "2020A140",
+   "title": "Additional Activities",
+   "appropriationType": "OM",
+   "service": "ARMY",
+   "budgetActivity": "BA 01",
+   "raw": {
+    "account": "2020A",
+    "accountLine": "140",
+    "sagBli": "135",
+    "bsa": "13"
+   },
+   "fyData": [
+    {
+     "fy": 2025,
+     "enacted": 294833
+    },
+    {
+     "fy": 2026,
+     "enacted": 371527
+    },
+    {
+     "fy": 2027,
+     "request": 383610
+    }
+   ]
+  },
+  {
+   "peCode": "2020A150",
+   "title": "RESET",
+   "appropriationType": "OM",
+   "service": "ARMY",
+   "budgetActivity": "BA 01",
+   "raw": {
+    "account": "2020A",
+    "accountLine": "150",
+    "sagBli": "137",
+    "bsa": "13"
+   },
+   "fyData": [
+    {
+     "fy": 2025,
+     "enacted": 314141
+    },
+    {
+     "fy": 2026,
+     "enacted": 111688
+    },
+    {
+     "fy": 2027,
+     "request": 117880
+    }
+   ]
+  },
+  {
+   "peCode": "2020A160",
+   "title": "US Africa Command",
+   "appropriationType": "OM",
+   "service": "ARMY",
+   "budgetActivity": "BA 01",
+   "raw": {
+    "account": "2020A",
+    "accountLine": "160",
+    "sagBli": "141",
+    "bsa": "60"
+   },
+   "fyData": [
+    {
+     "fy": 2025,
+     "enacted": 423527
+    },
+    {
+     "fy": 2026,
+     "enacted": 432596
+    },
+    {
+     "fy": 2027,
+     "request": 693812
+    }
+   ]
+  },
+  {
+   "peCode": "2020A170",
+   "title": "US European Command",
+   "appropriationType": "OM",
+   "service": "ARMY",
+   "budgetActivity": "BA 01",
+   "raw": {
+    "account": "2020A",
+    "accountLine": "170",
+    "sagBli": "142",
+    "bsa": "60"
+   },
+   "fyData": [
+    {
+     "fy": 2025,
+     "enacted": 361423
+    },
+    {
+     "fy": 2026,
+     "enacted": 403379
+    },
+    {
+     "fy": 2027,
+     "request": 510862
+    }
+   ]
+  },
+  {
+   "peCode": "2020A180",
+   "title": "US Southern Command",
+   "appropriationType": "OM",
+   "service": "ARMY",
+   "budgetActivity": "BA 01",
+   "raw": {
+    "account": "2020A",
+    "accountLine": "180",
+    "sagBli": "143",
+    "bsa": "60"
+   },
+   "fyData": [
+    {
+     "fy": 2025,
+     "enacted": 272614
+    },
+    {
+     "fy": 2026,
+     "enacted": 225546
+    },
+    {
+     "fy": 2027,
+     "request": 464769
+    }
+   ]
+  },
+  {
+   "peCode": "2020A190",
+   "title": "US Forces Korea",
+   "appropriationType": "OM",
+   "service": "ARMY",
+   "budgetActivity": "BA 01",
+   "raw": {
+    "account": "2020A",
+    "accountLine": "190",
+    "sagBli": "144",
+    "bsa": "60"
+   },
+   "fyData": [
+    {
+     "fy": 2025,
+     "enacted": 70738
+    },
+    {
+     "fy": 2026,
+     "enacted": 77049
+    },
+    {
+     "fy": 2027,
+     "request": 77775
+    }
+   ]
+  },
+  {
+   "peCode": "2020A200",
+   "title": "Cyberspace Activities - Cyberspace Operations",
+   "appropriationType": "OM",
+   "service": "ARMY",
+   "budgetActivity": "BA 01",
+   "raw": {
+    "account": "2020A",
+    "accountLine": "200",
+    "sagBli": "151",
+    "bsa": "CA"
+   },
+   "fyData": [
+    {
+     "fy": 2025,
+     "enacted": 414156
+    },
+    {
+     "fy": 2026,
+     "enacted": 334562
+    },
+    {
+     "fy": 2027,
+     "request": 366311
+    }
+   ]
+  },
+  {
+   "peCode": "2020A210",
+   "title": "Cyberspace Activities - Cybersecurity",
+   "appropriationType": "OM",
+   "service": "ARMY",
+   "budgetActivity": "BA 01",
+   "raw": {
+    "account": "2020A",
+    "accountLine": "210",
+    "sagBli": "153",
+    "bsa": "CA"
+   },
+   "fyData": [
+    {
+     "fy": 2025,
+     "enacted": 589505
+    },
+    {
+     "fy": 2026,
+     "enacted": 560089
+    },
+    {
+     "fy": 2027,
+     "request": 579954
+    }
+   ]
+  },
+  {
+   "peCode": "2020A220",
+   "title": "Strategic Mobility",
+   "appropriationType": "OM",
+   "service": "ARMY",
+   "budgetActivity": "BA 02",
+   "raw": {
+    "account": "2020A",
+    "accountLine": "220",
+    "sagBli": "211",
+    "bsa": "21"
+   },
+   "fyData": [
+    {
+     "fy": 2025,
+     "enacted": 530028
+    },
+    {
+     "fy": 2026,
+     "enacted": 134892
+    },
+    {
+     "fy": 2027,
+     "request": 53602
+    }
+   ]
+  },
+  {
+   "peCode": "2020A230",
+   "title": "Army Prepositioned Stocks",
+   "appropriationType": "OM",
+   "service": "ARMY",
+   "budgetActivity": "BA 02",
+   "raw": {
+    "account": "2020A",
+    "accountLine": "230",
+    "sagBli": "212",
+    "bsa": "21"
+   },
+   "fyData": [
+    {
+     "fy": 2025,
+     "enacted": 534694
+    },
+    {
+     "fy": 2026,
+     "enacted": 472953
+    },
+    {
+     "fy": 2027,
+     "request": 1125709
+    }
+   ]
+  },
+  {
+   "peCode": "2020A240",
+   "title": "Industrial Preparedness",
+   "appropriationType": "OM",
+   "service": "ARMY",
+   "budgetActivity": "BA 02",
+   "raw": {
+    "account": "2020A",
+    "accountLine": "240",
+    "sagBli": "213",
+    "bsa": "21"
+   },
+   "fyData": [
+    {
+     "fy": 2025,
+     "enacted": 4229
+    },
+    {
+     "fy": 2026,
+     "enacted": 3162
+    },
+    {
+     "fy": 2027,
+     "request": 3172
+    }
+   ]
+  },
+  {
+   "peCode": "2020A250",
+   "title": "Officer Acquisition",
+   "appropriationType": "OM",
+   "service": "ARMY",
+   "budgetActivity": "BA 03",
+   "raw": {
+    "account": "2020A",
+    "accountLine": "250",
+    "sagBli": "311",
+    "bsa": "31"
+   },
+   "fyData": [
+    {
+     "fy": 2025,
+     "enacted": 200092
+    },
+    {
+     "fy": 2026,
+     "enacted": 172424
+    },
+    {
+     "fy": 2027,
+     "request": 193530
+    }
+   ]
+  },
+  {
+   "peCode": "2020A260",
+   "title": "Recruit Training",
+   "appropriationType": "OM",
+   "service": "ARMY",
+   "budgetActivity": "BA 03",
+   "raw": {
+    "account": "2020A",
+    "accountLine": "260",
+    "sagBli": "312",
+    "bsa": "31"
+   },
+   "fyData": [
+    {
+     "fy": 2025,
+     "enacted": 76530
+    },
+    {
+     "fy": 2026,
+     "enacted": 78929
+    },
+    {
+     "fy": 2027,
+     "request": 70431
+    }
+   ]
+  },
+  {
+   "peCode": "2020A270",
+   "title": "One Station Unit Training",
+   "appropriationType": "OM",
+   "service": "ARMY",
+   "budgetActivity": "BA 03",
+   "raw": {
+    "account": "2020A",
+    "accountLine": "270",
+    "sagBli": "313",
+    "bsa": "31"
+   },
+   "fyData": [
+    {
+     "fy": 2025,
+     "enacted": 92356
+    },
+    {
+     "fy": 2026,
+     "enacted": 88033
+    },
+    {
+     "fy": 2027,
+     "request": 96115
+    }
+   ]
+  },
+  {
+   "peCode": "2020A280",
+   "title": "Senior Reserve Officers Training Corps",
+   "appropriationType": "OM",
+   "service": "ARMY",
+   "budgetActivity": "BA 03",
+   "raw": {
+    "account": "2020A",
+    "accountLine": "280",
+    "sagBli": "314",
+    "bsa": "31"
+   },
+   "fyData": [
+    {
+     "fy": 2025,
+     "enacted": 563108
+    },
+    {
+     "fy": 2026,
+     "enacted": 487830
+    },
+    {
+     "fy": 2027,
+     "request": 503896
+    }
+   ]
+  },
+  {
+   "peCode": "2020A290",
+   "title": "Specialized Skill Training",
+   "appropriationType": "OM",
+   "service": "ARMY",
+   "budgetActivity": "BA 03",
+   "raw": {
+    "account": "2020A",
+    "accountLine": "290",
+    "sagBli": "321",
+    "bsa": "32"
+   },
+   "fyData": [
+    {
+     "fy": 2025,
+     "enacted": 1073977
+    },
+    {
+     "fy": 2026,
+     "enacted": 944897
+    },
+    {
+     "fy": 2027,
+     "request": 1204230
+    }
+   ]
+  },
+  {
+   "peCode": "2020A300",
+   "title": "Flight Training",
+   "appropriationType": "OM",
+   "service": "ARMY",
+   "budgetActivity": "BA 03",
+   "raw": {
+    "account": "2020A",
+    "accountLine": "300",
+    "sagBli": "322",
+    "bsa": "32"
+   },
+   "fyData": [
+    {
+     "fy": 2025,
+     "enacted": 1452130
+    },
+    {
+     "fy": 2026,
+     "enacted": 1359850
+    },
+    {
+     "fy": 2027,
+     "request": 1381437
+    }
+   ]
+  },
+  {
+   "peCode": "2020A310",
+   "title": "Professional Development Education",
+   "appropriationType": "OM",
+   "service": "ARMY",
+   "budgetActivity": "BA 03",
+   "raw": {
+    "account": "2020A",
+    "accountLine": "310",
+    "sagBli": "323",
+    "bsa": "32"
+   },
+   "fyData": [
+    {
+     "fy": 2025,
+     "enacted": 199784
+    },
+    {
+     "fy": 2026,
+     "enacted": 196315
+    },
+    {
+     "fy": 2027,
+     "request": 201481
+    }
+   ]
+  },
+  {
+   "peCode": "2020A320",
+   "title": "Training Support",
+   "appropriationType": "OM",
+   "service": "ARMY",
+   "budgetActivity": "BA 03",
+   "raw": {
+    "account": "2020A",
+    "accountLine": "320",
+    "sagBli": "324",
+    "bsa": "32"
+   },
+   "fyData": [
+    {
+     "fy": 2025,
+     "enacted": 733580
+    },
+    {
+     "fy": 2026,
+     "enacted": 550300
+    },
+    {
+     "fy": 2027,
+     "request": 609925
+    }
+   ]
+  },
+  {
+   "peCode": "2020A330",
+   "title": "Recruiting and Advertising",
+   "appropriationType": "OM",
+   "service": "ARMY",
+   "budgetActivity": "BA 03",
+   "raw": {
+    "account": "2020A",
+    "accountLine": "330",
+    "sagBli": "331",
+    "bsa": "33"
+   },
+   "fyData": [
+    {
+     "fy": 2025,
+     "enacted": 768536
+    },
+    {
+     "fy": 2026,
+     "enacted": 720864
+    },
+    {
+     "fy": 2027,
+     "request": 712092
+    }
+   ]
+  },
+  {
+   "peCode": "2020A340",
+   "title": "Examining",
+   "appropriationType": "OM",
+   "service": "ARMY",
+   "budgetActivity": "BA 03",
+   "raw": {
+    "account": "2020A",
+    "accountLine": "340",
+    "sagBli": "332",
+    "bsa": "33"
+   },
+   "fyData": [
+    {
+     "fy": 2025,
+     "enacted": 202505
+    },
+    {
+     "fy": 2026,
+     "enacted": 177666
+    }
+   ]
+  },
+  {
+   "peCode": "2020A350",
+   "title": "Off-Duty and Voluntary Education",
+   "appropriationType": "OM",
+   "service": "ARMY",
+   "budgetActivity": "BA 03",
+   "raw": {
+    "account": "2020A",
+    "accountLine": "350",
+    "sagBli": "333",
+    "bsa": "33"
+   },
+   "fyData": [
+    {
+     "fy": 2025,
+     "enacted": 249022
+    },
+    {
+     "fy": 2026,
+     "enacted": 211211
+    },
+    {
+     "fy": 2027,
+     "request": 216256
+    }
+   ]
+  },
+  {
+   "peCode": "2020A360",
+   "title": "Civilian Education and Training",
+   "appropriationType": "OM",
+   "service": "ARMY",
+   "budgetActivity": "BA 03",
+   "raw": {
+    "account": "2020A",
+    "accountLine": "360",
+    "sagBli": "334",
+    "bsa": "33"
+   },
+   "fyData": [
+    {
+     "fy": 2025,
+     "enacted": 217807
+    },
+    {
+     "fy": 2026,
+     "enacted": 216863
+    },
+    {
+     "fy": 2027,
+     "request": 218683
+    }
+   ]
+  },
+  {
+   "peCode": "2020A370",
+   "title": "Junior Reserve Officer Training Corps",
+   "appropriationType": "OM",
+   "service": "ARMY",
+   "budgetActivity": "BA 03",
+   "raw": {
+    "account": "2020A",
+    "accountLine": "370",
+    "sagBli": "335",
+    "bsa": "33"
+   },
+   "fyData": [
+    {
+     "fy": 2025,
+     "enacted": 203863
+    },
+    {
+     "fy": 2026,
+     "enacted": 190668
+    },
+    {
+     "fy": 2027,
+     "request": 218598
+    }
+   ]
+  },
+  {
+   "peCode": "2020A390",
+   "title": "Servicewide Transportation",
+   "appropriationType": "OM",
+   "service": "ARMY",
+   "budgetActivity": "BA 04",
+   "raw": {
+    "account": "2020A",
+    "accountLine": "390",
+    "sagBli": "421",
+    "bsa": "42"
+   },
+   "fyData": [
+    {
+     "fy": 2025,
+     "enacted": 1001404
+    },
+    {
+     "fy": 2026,
+     "enacted": 1236070
+    },
+    {
+     "fy": 2027,
+     "request": 1483938
+    }
+   ]
+  },
+  {
+   "peCode": "2020A400",
+   "title": "Central Supply Activities",
+   "appropriationType": "OM",
+   "service": "ARMY",
+   "budgetActivity": "BA 04",
+   "raw": {
+    "account": "2020A",
+    "accountLine": "400",
+    "sagBli": "422",
+    "bsa": "42"
+   },
+   "fyData": [
+    {
+     "fy": 2025,
+     "enacted": 919906
+    },
+    {
+     "fy": 2026,
+     "enacted": 710581
+    },
+    {
+     "fy": 2027,
+     "request": 703829
+    }
+   ]
+  },
+  {
+   "peCode": "2020A410",
+   "title": "Logistic Support Activities",
+   "appropriationType": "OM",
+   "service": "ARMY",
+   "budgetActivity": "BA 04",
+   "raw": {
+    "account": "2020A",
+    "accountLine": "410",
+    "sagBli": "423",
+    "bsa": "42"
+   },
+   "fyData": [
+    {
+     "fy": 2025,
+     "enacted": 756634
+    },
+    {
+     "fy": 2026,
+     "enacted": 560110
+    },
+    {
+     "fy": 2027,
+     "request": 634879
+    }
+   ]
+  },
+  {
+   "peCode": "2020A420",
+   "title": "Ammunition Management",
+   "appropriationType": "OM",
+   "service": "ARMY",
+   "budgetActivity": "BA 04",
+   "raw": {
+    "account": "2020A",
+    "accountLine": "420",
+    "sagBli": "424",
+    "bsa": "42"
+   },
+   "fyData": [
+    {
+     "fy": 2025,
+     "enacted": 409906
+    },
+    {
+     "fy": 2026,
+     "enacted": 344948
+    },
+    {
+     "fy": 2027,
+     "request": 525732
+    }
+   ]
+  },
+  {
+   "peCode": "2020A430",
+   "title": "Administration",
+   "appropriationType": "OM",
+   "service": "ARMY",
+   "budgetActivity": "BA 04",
+   "raw": {
+    "account": "2020A",
+    "accountLine": "430",
+    "sagBli": "431",
+    "bsa": "43"
+   },
+   "fyData": [
+    {
+     "fy": 2025,
+     "enacted": 508651
+    },
+    {
+     "fy": 2026,
+     "enacted": 405425
+    },
+    {
+     "fy": 2027,
+     "request": 402276
+    }
+   ]
+  },
+  {
+   "peCode": "2020A440",
+   "title": "Servicewide Communications",
+   "appropriationType": "OM",
+   "service": "ARMY",
+   "budgetActivity": "BA 04",
+   "raw": {
+    "account": "2020A",
+    "accountLine": "440",
+    "sagBli": "432",
+    "bsa": "43"
+   },
+   "fyData": [
+    {
+     "fy": 2025,
+     "enacted": 1847614
+    },
+    {
+     "fy": 2026,
+     "enacted": 2466407
+    },
+    {
+     "fy": 2027,
+     "request": 2252914
+    }
+   ]
+  },
+  {
+   "peCode": "2020A450",
+   "title": "Manpower Management",
+   "appropriationType": "OM",
+   "service": "ARMY",
+   "budgetActivity": "BA 04",
+   "raw": {
+    "account": "2020A",
+    "accountLine": "450",
+    "sagBli": "433",
+    "bsa": "43"
+   },
+   "fyData": [
+    {
+     "fy": 2025,
+     "enacted": 386337
+    },
+    {
+     "fy": 2026,
+     "enacted": 299686
+    },
+    {
+     "fy": 2027,
+     "request": 324069
+    }
+   ]
+  },
+  {
+   "peCode": "2020A460",
+   "title": "Other Personnel Support",
+   "appropriationType": "OM",
+   "service": "ARMY",
+   "budgetActivity": "BA 04",
+   "raw": {
+    "account": "2020A",
+    "accountLine": "460",
+    "sagBli": "434",
+    "bsa": "43"
+   },
+   "fyData": [
+    {
+     "fy": 2025,
+     "enacted": 935359
+    },
+    {
+     "fy": 2026,
+     "enacted": 853139
+    },
+    {
+     "fy": 2027,
+     "request": 961851
+    }
+   ]
+  },
+  {
+   "peCode": "2020A470",
+   "title": "Other Service Support",
+   "appropriationType": "OM",
+   "service": "ARMY",
+   "budgetActivity": "BA 04",
+   "raw": {
+    "account": "2020A",
+    "accountLine": "470",
+    "sagBli": "435",
+    "bsa": "43"
+   },
+   "fyData": [
+    {
+     "fy": 2025,
+     "enacted": 2359327
+    },
+    {
+     "fy": 2026,
+     "enacted": 2026776
+    },
+    {
+     "fy": 2027,
+     "request": 2179562
+    }
+   ]
+  },
+  {
+   "peCode": "2020A480",
+   "title": "Army Claims Activities",
+   "appropriationType": "OM",
+   "service": "ARMY",
+   "budgetActivity": "BA 04",
+   "raw": {
+    "account": "2020A",
+    "accountLine": "480",
+    "sagBli": "436",
+    "bsa": "43"
+   },
+   "fyData": [
+    {
+     "fy": 2025,
+     "enacted": 191151
+    },
+    {
+     "fy": 2026,
+     "enacted": 183611
+    },
+    {
+     "fy": 2027,
+     "request": 139480
+    }
+   ]
+  },
+  {
+   "peCode": "2020A490",
+   "title": "Real Estate Management",
+   "appropriationType": "OM",
+   "service": "ARMY",
+   "budgetActivity": "BA 04",
+   "raw": {
+    "account": "2020A",
+    "accountLine": "490",
+    "sagBli": "437",
+    "bsa": "43"
+   },
+   "fyData": [
+    {
+     "fy": 2025,
+     "enacted": 288658
+    },
+    {
+     "fy": 2026,
+     "enacted": 294205
+    },
+    {
+     "fy": 2027,
+     "request": 321764
+    }
+   ]
+  },
+  {
+   "peCode": "2020A500",
+   "title": "Financial Management and Audit Readiness",
+   "appropriationType": "OM",
+   "service": "ARMY",
+   "budgetActivity": "BA 04",
+   "raw": {
+    "account": "2020A",
+    "accountLine": "500",
+    "sagBli": "438",
+    "bsa": "43"
+   },
+   "fyData": [
+    {
+     "fy": 2025,
+     "enacted": 526444
+    },
+    {
+     "fy": 2026,
+     "enacted": 643471
+    },
+    {
+     "fy": 2027,
+     "request": 434778
+    }
+   ]
+  },
+  {
+   "peCode": "2020A510",
+   "title": "Def Acquisition Workforce Development Account",
+   "appropriationType": "OM",
+   "service": "ARMY",
+   "budgetActivity": "BA 04",
+   "raw": {
+    "account": "2020A",
+    "accountLine": "510",
+    "sagBli": "43Q",
+    "bsa": "43"
+   },
+   "fyData": [
+    {
+     "fy": 2025,
+     "enacted": 38153
+    },
+    {
+     "fy": 2026,
+     "enacted": 36510
+    },
+    {
+     "fy": 2027,
+     "request": 37654
+    }
+   ]
+  },
+  {
+   "peCode": "2020A520",
+   "title": "International Military Headquarters",
+   "appropriationType": "OM",
+   "service": "ARMY",
+   "budgetActivity": "BA 04",
+   "raw": {
+    "account": "2020A",
+    "accountLine": "520",
+    "sagBli": "441",
+    "bsa": "44"
+   },
+   "fyData": [
+    {
+     "fy": 2025,
+     "enacted": 594420
+    },
+    {
+     "fy": 2026,
+     "enacted": 664510
+    },
+    {
+     "fy": 2027,
+     "request": 760520
+    }
+   ]
+  },
+  {
+   "peCode": "2020A530",
+   "title": "Misc. Support of Other Nations",
+   "appropriationType": "OM",
+   "service": "ARMY",
+   "budgetActivity": "BA 04",
+   "raw": {
+    "account": "2020A",
+    "accountLine": "530",
+    "sagBli": "442",
+    "bsa": "44"
+   },
+   "fyData": [
+    {
+     "fy": 2025,
+     "enacted": 36920
+    },
+    {
+     "fy": 2026,
+     "enacted": 31387
+    },
+    {
+     "fy": 2027,
+     "request": 28681
+    }
+   ]
+  },
+  {
+   "peCode": "2020A540",
+   "title": "Closed Account Adjustments",
+   "appropriationType": "OM",
+   "service": "ARMY",
+   "budgetActivity": "BA 04",
+   "raw": {
+    "account": "2020A",
+    "accountLine": "540",
+    "sagBli": "451",
+    "bsa": "45"
+   },
+   "fyData": [
+    {
+     "fy": 2025,
+     "enacted": 83106
+    }
+   ]
+  },
+  {
+   "peCode": "2020A550",
+   "title": "Foreign Currency Fluctuation",
+   "appropriationType": "OM",
+   "service": "ARMY",
+   "budgetActivity": "BA 04",
+   "raw": {
+    "account": "2020A",
+    "accountLine": "550",
+    "sagBli": "471",
+    "bsa": "45"
+   },
+   "fyData": [
+    {
+     "fy": 2025,
+     "enacted": 39475
+    }
+   ]
+  },
+  {
+   "peCode": "2020A560",
+   "title": "Defense Environmental Restoration Account (DERA)",
+   "appropriationType": "OM",
+   "service": "ARMY",
+   "budgetActivity": "BA 04",
+   "raw": {
+    "account": "2020A",
+    "accountLine": "560",
+    "sagBli": "493",
+    "bsa": "45"
+   },
+   "fyData": [
+    {
+     "fy": 2025,
+     "enacted": 520259
+    }
+   ]
+  },
+  {
+   "peCode": "2020A570",
+   "title": "Judgment Fund",
+   "appropriationType": "OM",
+   "service": "ARMY",
+   "budgetActivity": "BA 04",
+   "raw": {
+    "account": "2020A",
+    "accountLine": "570",
+    "sagBli": "461",
+    "bsa": "46"
+   },
+   "fyData": [
+    {
+     "fy": 2025,
+     "enacted": 4992
+    }
+   ]
+  },
+  {
+   "peCode": "2020A580",
+   "title": "Energy Savings",
+   "appropriationType": "OM",
+   "service": "ARMY",
+   "budgetActivity": "BA 04",
+   "raw": {
+    "account": "2020A",
+    "accountLine": "580",
+    "sagBli": "482",
+    "bsa": "48"
+   },
+   "fyData": [
+    {
+     "fy": 2025,
+     "enacted": 45596
+    }
+   ]
+  },
+  {
+   "peCode": "2020A590",
+   "title": "Agricultural and Grazing Program",
+   "appropriationType": "OM",
+   "service": "ARMY",
+   "budgetActivity": "BA 04",
+   "raw": {
+    "account": "2020A",
+    "accountLine": "590",
+    "sagBli": "483",
+    "bsa": "48"
+   },
+   "fyData": [
+    {
+     "fy": 2025,
+     "enacted": 4063
+    }
+   ]
+  },
+  {
+   "peCode": "2020A999",
+   "title": "Classified Programs",
+   "appropriationType": "OM",
+   "service": "ARMY",
+   "budgetActivity": "BA 04",
+   "raw": {
+    "account": "2020A",
+    "accountLine": "999",
+    "sagBli": "9999",
+    "bsa": ""
+   },
+   "fyData": [
+    {
+     "fy": 2025,
+     "enacted": 2391931
+    },
+    {
+     "fy": 2026,
+     "enacted": 2428023
+    },
+    {
+     "fy": 2027,
+     "request": 3457587
+    }
+   ]
+  },
+  {
+   "peCode": "2065A010",
+   "title": "Maneuver Units",
+   "appropriationType": "OM",
+   "service": "ARMY",
+   "budgetActivity": "BA 01",
+   "raw": {
+    "account": "2065A",
+    "accountLine": "010",
+    "sagBli": "111",
+    "bsa": "11"
+   },
+   "fyData": [
+    {
+     "fy": 2025,
+     "enacted": 812398
+    },
+    {
+     "fy": 2026,
+     "enacted": 902569
+    },
+    {
+     "fy": 2027,
+     "request": 807777
+    }
+   ]
+  },
+  {
+   "peCode": "2065A020",
+   "title": "Modular Support Brigades",
+   "appropriationType": "OM",
+   "service": "ARMY",
+   "budgetActivity": "BA 01",
+   "raw": {
+    "account": "2065A",
+    "accountLine": "020",
+    "sagBli": "112",
+    "bsa": "11"
+   },
+   "fyData": [
+    {
+     "fy": 2025,
+     "enacted": 195141
+    },
+    {
+     "fy": 2026,
+     "enacted": 222703
+    },
+    {
+     "fy": 2027,
+     "request": 233114
+    }
+   ]
+  },
+  {
+   "peCode": "2065A030",
+   "title": "Echelons Above Brigade",
+   "appropriationType": "OM",
+   "service": "ARMY",
+   "budgetActivity": "BA 01",
+   "raw": {
+    "account": "2065A",
+    "accountLine": "030",
+    "sagBli": "113",
+    "bsa": "11"
+   },
+   "fyData": [
+    {
+     "fy": 2025,
+     "enacted": 813851
+    },
+    {
+     "fy": 2026,
+     "enacted": 897152
+    },
+    {
+     "fy": 2027,
+     "request": 1143423
+    }
+   ]
+  },
+  {
+   "peCode": "2065A040",
+   "title": "Theater Level Assets",
+   "appropriationType": "OM",
+   "service": "ARMY",
+   "budgetActivity": "BA 01",
+   "raw": {
+    "account": "2065A",
+    "accountLine": "040",
+    "sagBli": "114",
+    "bsa": "11"
+   },
+   "fyData": [
+    {
+     "fy": 2025,
+     "enacted": 82156
+    },
+    {
+     "fy": 2026,
+     "enacted": 90627
+    },
+    {
+     "fy": 2027,
+     "request": 84598
+    }
+   ]
+  },
+  {
+   "peCode": "2065A050",
+   "title": "Land Forces Operations Support",
+   "appropriationType": "OM",
+   "service": "ARMY",
+   "budgetActivity": "BA 01",
+   "raw": {
+    "account": "2065A",
+    "accountLine": "050",
+    "sagBli": "115",
+    "bsa": "11"
+   },
+   "fyData": [
+    {
+     "fy": 2025,
+     "enacted": 334809
+    },
+    {
+     "fy": 2026,
+     "enacted": 358809
+    },
+    {
+     "fy": 2027,
+     "request": 344161
+    }
+   ]
+  },
+  {
+   "peCode": "2065A060",
+   "title": "Aviation Assets",
+   "appropriationType": "OM",
+   "service": "ARMY",
+   "budgetActivity": "BA 01",
+   "raw": {
+    "account": "2065A",
+    "accountLine": "060",
+    "sagBli": "116",
+    "bsa": "11"
+   },
+   "fyData": [
+    {
+     "fy": 2025,
+     "enacted": 1128409
+    },
+    {
+     "fy": 2026,
+     "enacted": 1146951
+    },
+    {
+     "fy": 2027,
+     "request": 1096948
+    }
+   ]
+  },
+  {
+   "peCode": "2065A070",
+   "title": "Force Readiness Operations Support",
+   "appropriationType": "OM",
+   "service": "ARMY",
+   "budgetActivity": "BA 01",
+   "raw": {
+    "account": "2065A",
+    "accountLine": "070",
+    "sagBli": "121",
+    "bsa": "12"
+   },
+   "fyData": [
+    {
+     "fy": 2025,
+     "enacted": 690031
+    },
+    {
+     "fy": 2026,
+     "enacted": 821101
+    },
+    {
+     "fy": 2027,
+     "request": 864172
+    }
+   ]
+  },
+  {
+   "peCode": "2065A080",
+   "title": "Land Forces Systems Readiness",
+   "appropriationType": "OM",
+   "service": "ARMY",
+   "budgetActivity": "BA 01",
+   "raw": {
+    "account": "2065A",
+    "accountLine": "080",
+    "sagBli": "122",
+    "bsa": "12"
+   },
+   "fyData": [
+    {
+     "fy": 2025,
+     "enacted": 34206
+    },
+    {
+     "fy": 2026,
+     "enacted": 34354
+    },
+    {
+     "fy": 2027,
+     "request": 93367
+    }
+   ]
+  },
+  {
+   "peCode": "2065A090",
+   "title": "Land Forces Depot Maintenance",
+   "appropriationType": "OM",
+   "service": "ARMY",
+   "budgetActivity": "BA 01",
+   "raw": {
+    "account": "2065A",
+    "accountLine": "090",
+    "sagBli": "123",
+    "bsa": "12"
+   },
+   "fyData": [
+    {
+     "fy": 2025,
+     "enacted": 214113
+    },
+    {
+     "fy": 2026,
+     "enacted": 306096
+    },
+    {
+     "fy": 2027,
+     "request": 171055
+    }
+   ]
+  },
+  {
+   "peCode": "2065A100",
+   "title": "Base Operations Support",
+   "appropriationType": "OM",
+   "service": "ARMY",
+   "budgetActivity": "BA 01",
+   "raw": {
+    "account": "2065A",
+    "accountLine": "100",
+    "sagBli": "131",
+    "bsa": "13"
+   },
+   "fyData": [
+    {
+     "fy": 2025,
+     "enacted": 1229797
+    },
+    {
+     "fy": 2026,
+     "enacted": 1241132
+    },
+    {
+     "fy": 2027,
+     "request": 1428039
+    }
+   ]
+  },
+  {
+   "peCode": "2065A110",
+   "title": "Facilities Sustainment, Restoration & Modernization",
+   "appropriationType": "OM",
+   "service": "ARMY",
+   "budgetActivity": "BA 01",
+   "raw": {
+    "account": "2065A",
+    "accountLine": "110",
+    "sagBli": "132",
+    "bsa": "13"
+   },
+   "fyData": [
+    {
+     "fy": 2025,
+     "enacted": 1173619
+    },
+    {
+     "fy": 2026,
+     "enacted": 1350539
+    },
+    {
+     "fy": 2027,
+     "request": 2989493
+    }
+   ]
+  },
+  {
+   "peCode": "2065A120",
+   "title": "Management and Operational Headquarters",
+   "appropriationType": "OM",
+   "service": "ARMY",
+   "budgetActivity": "BA 01",
+   "raw": {
+    "account": "2065A",
+    "accountLine": "120",
+    "sagBli": "133",
+    "bsa": "13"
+   },
+   "fyData": [
+    {
+     "fy": 2025,
+     "enacted": 1301466
+    },
+    {
+     "fy": 2026,
+     "enacted": 1214158
+    },
+    {
+     "fy": 2027,
+     "request": 1116559
+    }
+   ]
+  },
+  {
+   "peCode": "2065A130",
+   "title": "Cyberspace Activities - Cyberspace Operations",
+   "appropriationType": "OM",
+   "service": "ARMY",
+   "budgetActivity": "BA 01",
+   "raw": {
+    "account": "2065A",
+    "accountLine": "130",
+    "sagBli": "151",
+    "bsa": "CA"
+   },
+   "fyData": [
+    {
+     "fy": 2025,
+     "enacted": 5119
+    },
+    {
+     "fy": 2026,
+     "enacted": 5136
+    },
+    {
+     "fy": 2027,
+     "request": 6831
+    }
+   ]
+  },
+  {
+   "peCode": "2065A140",
+   "title": "Cyberspace Activities - Cybersecurity",
+   "appropriationType": "OM",
+   "service": "ARMY",
+   "budgetActivity": "BA 01",
+   "raw": {
+    "account": "2065A",
+    "accountLine": "140",
+    "sagBli": "153",
+    "bsa": "CA"
+   },
+   "fyData": [
+    {
+     "fy": 2025,
+     "enacted": 20202
+    },
+    {
+     "fy": 2026,
+     "enacted": 23096
+    },
+    {
+     "fy": 2027,
+     "request": 24785
+    }
+   ]
+  },
+  {
+   "peCode": "2065A150",
+   "title": "Servicewide Transportation",
+   "appropriationType": "OM",
+   "service": "ARMY",
+   "budgetActivity": "BA 04",
+   "raw": {
+    "account": "2065A",
+    "accountLine": "150",
+    "sagBli": "421",
+    "bsa": "42"
+   },
+   "fyData": [
+    {
+     "fy": 2025,
+     "enacted": 7598
+    },
+    {
+     "fy": 2026,
+     "enacted": 6460
+    },
+    {
+     "fy": 2027,
+     "request": 6604
+    }
+   ]
+  },
+  {
+   "peCode": "2065A160",
+   "title": "Administration",
+   "appropriationType": "OM",
+   "service": "ARMY",
+   "budgetActivity": "BA 04",
+   "raw": {
+    "account": "2065A",
+    "accountLine": "160",
+    "sagBli": "431",
+    "bsa": "43"
+   },
+   "fyData": [
+    {
+     "fy": 2025,
+     "enacted": 52447
+    },
+    {
+     "fy": 2026,
+     "enacted": 52498
+    },
+    {
+     "fy": 2027,
+     "request": 50221
+    }
+   ]
+  },
+  {
+   "peCode": "2065A170",
+   "title": "Servicewide Communications",
+   "appropriationType": "OM",
+   "service": "ARMY",
+   "budgetActivity": "BA 04",
+   "raw": {
+    "account": "2065A",
+    "accountLine": "170",
+    "sagBli": "432",
+    "bsa": "43"
+   },
+   "fyData": [
+    {
+     "fy": 2025,
+     "enacted": 20656
+    },
+    {
+     "fy": 2026,
+     "enacted": 9373
+    },
+    {
+     "fy": 2027,
+     "request": 24846
+    }
+   ]
+  },
+  {
+   "peCode": "2065A180",
+   "title": "Other Personnel Support",
+   "appropriationType": "OM",
+   "service": "ARMY",
+   "budgetActivity": "BA 04",
+   "raw": {
+    "account": "2065A",
+    "accountLine": "180",
+    "sagBli": "434",
+    "bsa": "43"
+   },
+   "fyData": [
+    {
+     "fy": 2025,
+     "enacted": 285112
+    },
+    {
+     "fy": 2026,
+     "enacted": 261622
+    },
+    {
+     "fy": 2027,
+     "request": 239142
+    }
+   ]
+  },
+  {
+   "peCode": "2065A190",
+   "title": "Real Estate Management",
+   "appropriationType": "OM",
+   "service": "ARMY",
+   "budgetActivity": "BA 04",
+   "raw": {
+    "account": "2065A",
+    "accountLine": "190",
+    "sagBli": "437",
+    "bsa": "43"
+   },
+   "fyData": [
+    {
+     "fy": 2025,
+     "enacted": 3828
+    },
+    {
+     "fy": 2026,
+     "enacted": 3891
+    },
+    {
+     "fy": 2027,
+     "request": 4004
+    }
+   ]
+  },
+  {
+   "peCode": "2080A010",
+   "title": "Modular Support Brigades",
+   "appropriationType": "OM",
+   "service": "ARMY",
+   "budgetActivity": "BA 01",
+   "raw": {
+    "account": "2080A",
+    "accountLine": "010",
+    "sagBli": "112",
+    "bsa": "11"
+   },
+   "fyData": [
+    {
+     "fy": 2025,
+     "enacted": 9432
+    },
+    {
+     "fy": 2026,
+     "enacted": 14651
+    },
+    {
+     "fy": 2027,
+     "request": 15213
+    }
+   ]
+  },
+  {
+   "peCode": "2080A020",
+   "title": "Echelons Above Brigade",
+   "appropriationType": "OM",
+   "service": "ARMY",
+   "budgetActivity": "BA 01",
+   "raw": {
+    "account": "2080A",
+    "accountLine": "020",
+    "sagBli": "113",
+    "bsa": "11"
+   },
+   "fyData": [
+    {
+     "fy": 2025,
+     "enacted": 705376
+    },
+    {
+     "fy": 2026,
+     "enacted": 694375
+    },
+    {
+     "fy": 2027,
+     "request": 674766
+    }
+   ]
+  },
+  {
+   "peCode": "2080A030",
+   "title": "Theater Level Assets",
+   "appropriationType": "OM",
+   "service": "ARMY",
+   "budgetActivity": "BA 01",
+   "raw": {
+    "account": "2080A",
+    "accountLine": "030",
+    "sagBli": "114",
+    "bsa": "11"
+   },
+   "fyData": [
+    {
+     "fy": 2025,
+     "enacted": 133499
+    },
+    {
+     "fy": 2026,
+     "enacted": 145390
+    },
+    {
+     "fy": 2027,
+     "request": 121223
+    }
+   ]
+  },
+  {
+   "peCode": "2080A040",
+   "title": "Land Forces Operations Support",
+   "appropriationType": "OM",
+   "service": "ARMY",
+   "budgetActivity": "BA 01",
+   "raw": {
+    "account": "2080A",
+    "accountLine": "040",
+    "sagBli": "115",
+    "bsa": "11"
+   },
+   "fyData": [
+    {
+     "fy": 2025,
+     "enacted": 629164
+    },
+    {
+     "fy": 2026,
+     "enacted": 666530
+    },
+    {
+     "fy": 2027,
+     "request": 664612
+    }
+   ]
+  },
+  {
+   "peCode": "2080A050",
+   "title": "Aviation Assets",
+   "appropriationType": "OM",
+   "service": "ARMY",
+   "budgetActivity": "BA 01",
+   "raw": {
+    "account": "2080A",
+    "accountLine": "050",
+    "sagBli": "116",
+    "bsa": "11"
+   },
+   "fyData": [
+    {
+     "fy": 2025,
+     "enacted": 122640
+    },
+    {
+     "fy": 2026,
+     "enacted": 54718
+    },
+    {
+     "fy": 2027,
+     "request": 37490
+    }
+   ]
+  },
+  {
+   "peCode": "2080A060",
+   "title": "Force Readiness Operations Support",
+   "appropriationType": "OM",
+   "service": "ARMY",
+   "budgetActivity": "BA 01",
+   "raw": {
+    "account": "2080A",
+    "accountLine": "060",
+    "sagBli": "121",
+    "bsa": "12"
+   },
+   "fyData": [
+    {
+     "fy": 2025,
+     "enacted": 375294
+    },
+    {
+     "fy": 2026,
+     "enacted": 428577
+    },
+    {
+     "fy": 2027,
+     "request": 380473
+    }
+   ]
+  },
+  {
+   "peCode": "2080A070",
+   "title": "Land Forces Systems Readiness",
+   "appropriationType": "OM",
+   "service": "ARMY",
+   "budgetActivity": "BA 01",
+   "raw": {
+    "account": "2080A",
+    "accountLine": "070",
+    "sagBli": "122",
+    "bsa": "12"
+   },
+   "fyData": [
+    {
+     "fy": 2025,
+     "enacted": 45266
+    },
+    {
+     "fy": 2026,
+     "enacted": 23783
+    },
+    {
+     "fy": 2027,
+     "request": 41301
+    }
+   ]
+  },
+  {
+   "peCode": "2080A080",
+   "title": "Land Forces Depot Maintenance",
+   "appropriationType": "OM",
+   "service": "ARMY",
+   "budgetActivity": "BA 01",
+   "raw": {
+    "account": "2080A",
+    "accountLine": "080",
+    "sagBli": "123",
+    "bsa": "12"
+   },
+   "fyData": [
+    {
+     "fy": 2025,
+     "enacted": 46590
+    },
+    {
+     "fy": 2026,
+     "enacted": 39337
+    },
+    {
+     "fy": 2027,
+     "request": 37429
+    }
+   ]
+  },
+  {
+   "peCode": "2080A090",
+   "title": "Base Operations Support",
+   "appropriationType": "OM",
+   "service": "ARMY",
+   "budgetActivity": "BA 01",
+   "raw": {
+    "account": "2080A",
+    "accountLine": "090",
+    "sagBli": "131",
+    "bsa": "13"
+   },
+   "fyData": [
+    {
+     "fy": 2025,
+     "enacted": 569325
+    },
+    {
+     "fy": 2026,
+     "enacted": 553779
+    },
+    {
+     "fy": 2027,
+     "request": 608981
+    }
+   ]
+  },
+  {
+   "peCode": "2080A100",
+   "title": "Facilities Sustainment, Restoration & Modernization",
+   "appropriationType": "OM",
+   "service": "ARMY",
+   "budgetActivity": "BA 01",
+   "raw": {
+    "account": "2080A",
+    "accountLine": "100",
+    "sagBli": "132",
+    "bsa": "13"
+   },
+   "fyData": [
+    {
+     "fy": 2025,
+     "enacted": 461261
+    },
+    {
+     "fy": 2026,
+     "enacted": 552865
+    },
+    {
+     "fy": 2027,
+     "request": 1237740
+    }
+   ]
+  },
+  {
+   "peCode": "2080A110",
+   "title": "Management and Operational Headquarters",
+   "appropriationType": "OM",
+   "service": "ARMY",
+   "budgetActivity": "BA 01",
+   "raw": {
+    "account": "2080A",
+    "accountLine": "110",
+    "sagBli": "133",
+    "bsa": "13"
+   },
+   "fyData": [
+    {
+     "fy": 2025,
+     "enacted": 23190
+    },
+    {
+     "fy": 2026,
+     "enacted": 20531
+    },
+    {
+     "fy": 2027,
+     "request": 27810
+    }
+   ]
+  },
+  {
+   "peCode": "2080A120",
+   "title": "Cyberspace Activities - Cyberspace Operations",
+   "appropriationType": "OM",
+   "service": "ARMY",
+   "budgetActivity": "BA 01",
+   "raw": {
+    "account": "2080A",
+    "accountLine": "120",
+    "sagBli": "151",
+    "bsa": "CA"
+   },
+   "fyData": [
+    {
+     "fy": 2025,
+     "enacted": 2241
+    },
+    {
+     "fy": 2026,
+     "enacted": 2174
+    },
+    {
+     "fy": 2027,
+     "request": 2725
+    }
+   ]
+  },
+  {
+   "peCode": "2080A130",
+   "title": "Cyberspace Activities - Cybersecurity",
+   "appropriationType": "OM",
+   "service": "ARMY",
+   "budgetActivity": "BA 01",
+   "raw": {
+    "account": "2080A",
+    "accountLine": "130",
+    "sagBli": "153",
+    "bsa": "CA"
+   },
+   "fyData": [
+    {
+     "fy": 2025,
+     "enacted": 18585
+    },
+    {
+     "fy": 2026,
+     "enacted": 19041
+    },
+    {
+     "fy": 2027,
+     "request": 19422
+    }
+   ]
+  },
+  {
+   "peCode": "2080A140",
+   "title": "Servicewide Transportation",
+   "appropriationType": "OM",
+   "service": "ARMY",
+   "budgetActivity": "BA 04",
+   "raw": {
+    "account": "2080A",
+    "accountLine": "140",
+    "sagBli": "421",
+    "bsa": "42"
+   },
+   "fyData": [
+    {
+     "fy": 2025,
+     "enacted": 12950
+    },
+    {
+     "fy": 2026,
+     "enacted": 14629
+    },
+    {
+     "fy": 2027,
+     "request": 15237
+    }
+   ]
+  },
+  {
+   "peCode": "2080A150",
+   "title": "Administration",
+   "appropriationType": "OM",
+   "service": "ARMY",
+   "budgetActivity": "BA 04",
+   "raw": {
+    "account": "2080A",
+    "accountLine": "150",
+    "sagBli": "431",
+    "bsa": "43"
+   },
+   "fyData": [
+    {
+     "fy": 2025,
+     "enacted": 22098
+    },
+    {
+     "fy": 2026,
+     "enacted": 16798
+    },
+    {
+     "fy": 2027,
+     "request": 11708
+    }
+   ]
+  },
+  {
+   "peCode": "2080A160",
+   "title": "Servicewide Communications",
+   "appropriationType": "OM",
+   "service": "ARMY",
+   "budgetActivity": "BA 04",
+   "raw": {
+    "account": "2080A",
+    "accountLine": "160",
+    "sagBli": "432",
+    "bsa": "43"
+   },
+   "fyData": [
+    {
+     "fy": 2025,
+     "enacted": 6079
+    },
+    {
+     "fy": 2026,
+     "enacted": 6432
+    },
+    {
+     "fy": 2027,
+     "request": 4165
+    }
+   ]
+  },
+  {
+   "peCode": "2080A170",
+   "title": "Manpower Management",
+   "appropriationType": "OM",
+   "service": "ARMY",
+   "budgetActivity": "BA 04",
+   "raw": {
+    "account": "2080A",
+    "accountLine": "170",
+    "sagBli": "433",
+    "bsa": "43"
+   },
+   "fyData": [
+    {
+     "fy": 2025,
+     "enacted": 14912
+    },
+    {
+     "fy": 2026,
+     "enacted": 7186
+    },
+    {
+     "fy": 2027,
+     "request": 7300
+    }
+   ]
+  },
+  {
+   "peCode": "2080A180",
+   "title": "Other Personnel Support",
+   "appropriationType": "OM",
+   "service": "ARMY",
+   "budgetActivity": "BA 04",
+   "raw": {
+    "account": "2080A",
+    "accountLine": "180",
+    "sagBli": "434",
+    "bsa": "43"
+   },
+   "fyData": [
+    {
+     "fy": 2025,
+     "enacted": 49275
+    },
+    {
+     "fy": 2026,
+     "enacted": 46037
+    },
+    {
+     "fy": 2027,
+     "request": 63330
+    }
+   ]
+  },
+  {
+   "peCode": "2080A190",
+   "title": "Closed Account Adjustments",
+   "appropriationType": "OM",
+   "service": "ARMY",
+   "budgetActivity": "BA 04",
+   "raw": {
+    "account": "2080A",
+    "accountLine": "190",
+    "sagBli": "451",
+    "bsa": "45"
+   },
+   "fyData": [
+    {
+     "fy": 2025,
+     "enacted": 4
+    }
+   ]
+  },
+  {
+   "peCode": "2080A200",
+   "title": "Energy Savings",
+   "appropriationType": "OM",
+   "service": "ARMY",
+   "budgetActivity": "BA 04",
+   "raw": {
+    "account": "2080A",
+    "accountLine": "200",
+    "sagBli": "482",
+    "bsa": "48"
+   },
+   "fyData": [
+    {
+     "fy": 2025,
+     "enacted": 5662
+    }
+   ]
+  },
+  {
+   "peCode": "2099A010",
+   "title": "IRAQ",
+   "appropriationType": "OM",
+   "service": "ARMY",
+   "budgetActivity": "BA 01",
+   "raw": {
+    "account": "2099A",
+    "accountLine": "010",
+    "sagBli": "110",
+    "bsa": "27"
+   },
+   "fyData": [
+    {
+     "fy": 2025,
+     "enacted": 380758
+    },
+    {
+     "fy": 2026,
+     "enacted": 212516
+    },
+    {
+     "fy": 2027,
+     "request": 118899
+    }
+   ]
+  },
+  {
+   "peCode": "2099A020",
+   "title": "SYRIA",
+   "appropriationType": "OM",
+   "service": "ARMY",
+   "budgetActivity": "BA 01",
+   "raw": {
+    "account": "2099A",
+    "accountLine": "020",
+    "sagBli": "120",
+    "bsa": "27"
+   },
+   "fyData": [
+    {
+     "fy": 2025,
+     "enacted": 147941
+    },
+    {
+     "fy": 2026,
+     "enacted": 130000
+    },
+    {
+     "fy": 2027,
+     "request": 130000
+    }
+   ]
+  },
+  {
+   "peCode": "2099A030",
+   "title": "Lebanon",
+   "appropriationType": "OM",
+   "service": "ARMY",
+   "budgetActivity": "BA 01",
+   "raw": {
+    "account": "2099A",
+    "accountLine": "030",
+    "sagBli": "150",
+    "bsa": "27"
+   },
+   "fyData": [
+    {
+     "fy": 2027,
+     "request": 36000
+    }
+   ]
+  },
+  {
+   "peCode": "2099A040",
+   "title": "Jordan",
+   "appropriationType": "OM",
+   "service": "ARMY",
+   "budgetActivity": "BA 01",
+   "raw": {
+    "account": "2099A",
+    "accountLine": "040",
+    "sagBli": "160",
+    "bsa": "27"
+   },
+   "fyData": [
+    {
+     "fy": 2027,
+     "request": 18200
+    }
+   ]
+  },
+  {
+   "peCode": "3400F010",
+   "title": "Primary Combat Forces",
+   "appropriationType": "OM",
+   "service": "AF",
+   "budgetActivity": "BA 01",
+   "raw": {
+    "account": "3400F",
+    "accountLine": "010",
+    "sagBli": "011A",
+    "bsa": "1F"
+   },
+   "fyData": [
+    {
+     "fy": 2025,
+     "enacted": 1182002
+    },
+    {
+     "fy": 2026,
+     "enacted": 1446776
+    },
+    {
+     "fy": 2027,
+     "request": 1798263
+    }
+   ]
+  },
+  {
+   "peCode": "3400F020",
+   "title": "Combat Enhancement Forces",
+   "appropriationType": "OM",
+   "service": "AF",
+   "budgetActivity": "BA 01",
+   "raw": {
+    "account": "3400F",
+    "accountLine": "020",
+    "sagBli": "011C",
+    "bsa": "1F"
+   },
+   "fyData": [
+    {
+     "fy": 2025,
+     "enacted": 2518161
+    },
+    {
+     "fy": 2026,
+     "enacted": 2673753
+    },
+    {
+     "fy": 2027,
+     "request": 3117205
+    }
+   ]
+  },
+  {
+   "peCode": "3400F030",
+   "title": "Air Operations Training (OJT, Maintain Skills)",
+   "appropriationType": "OM",
+   "service": "AF",
+   "budgetActivity": "BA 01",
+   "raw": {
+    "account": "3400F",
+    "accountLine": "030",
+    "sagBli": "011D",
+    "bsa": "1F"
+   },
+   "fyData": [
+    {
+     "fy": 2025,
+     "enacted": 1566621
+    },
+    {
+     "fy": 2026,
+     "enacted": 1782846
+    },
+    {
+     "fy": 2027,
+     "request": 2770832
+    }
+   ]
+  },
+  {
+   "peCode": "3400F040",
+   "title": "Depot Purchase Equipment Maintenance",
+   "appropriationType": "OM",
+   "service": "AF",
+   "budgetActivity": "BA 01",
+   "raw": {
+    "account": "3400F",
+    "accountLine": "040",
+    "sagBli": "011M",
+    "bsa": "1F"
+   },
+   "fyData": [
+    {
+     "fy": 2025,
+     "enacted": 4387243
+    },
+    {
+     "fy": 2026,
+     "enacted": 5239100
+    },
+    {
+     "fy": 2027,
+     "request": 6092998
+    }
+   ]
+  },
+  {
+   "peCode": "3400F050",
+   "title": "Facilities Sustainment, Restoration & Modernization",
+   "appropriationType": "OM",
+   "service": "AF",
+   "budgetActivity": "BA 01",
+   "raw": {
+    "account": "3400F",
+    "accountLine": "050",
+    "sagBli": "011R",
+    "bsa": "1F"
+   },
+   "fyData": [
+    {
+     "fy": 2025,
+     "enacted": 4944917
+    },
+    {
+     "fy": 2026,
+     "enacted": 5738712
+    },
+    {
+     "fy": 2027,
+     "request": 11496138
+    }
+   ]
+  },
+  {
+   "peCode": "3400F060",
+   "title": "Cyberspace Sustainment",
+   "appropriationType": "OM",
+   "service": "AF",
+   "budgetActivity": "BA 01",
+   "raw": {
+    "account": "3400F",
+    "accountLine": "060",
+    "sagBli": "011V",
+    "bsa": "1F"
+   },
+   "fyData": [
+    {
+     "fy": 2025,
+     "enacted": 216178
+    },
+    {
+     "fy": 2026,
+     "enacted": 278374
+    },
+    {
+     "fy": 2027,
+     "request": 320297
+    }
+   ]
+  },
+  {
+   "peCode": "3400F070",
+   "title": "Contractor Logistics Support and System Support",
+   "appropriationType": "OM",
+   "service": "AF",
+   "budgetActivity": "BA 01",
+   "raw": {
+    "account": "3400F",
+    "accountLine": "070",
+    "sagBli": "011W",
+    "bsa": "1F"
+   },
+   "fyData": [
+    {
+     "fy": 2025,
+     "enacted": 10330453
+    },
+    {
+     "fy": 2026,
+     "enacted": 10319134
+    },
+    {
+     "fy": 2027,
+     "request": 11853631
+    }
+   ]
+  },
+  {
+   "peCode": "3400F080",
+   "title": "Flying Hour Program",
+   "appropriationType": "OM",
+   "service": "AF",
+   "budgetActivity": "BA 01",
+   "raw": {
+    "account": "3400F",
+    "accountLine": "080",
+    "sagBli": "011Y",
+    "bsa": "1F"
+   },
+   "fyData": [
+    {
+     "fy": 2025,
+     "enacted": 6531437
+    },
+    {
+     "fy": 2026,
+     "enacted": 6106871
+    },
+    {
+     "fy": 2027,
+     "request": 7439480
+    }
+   ]
+  },
+  {
+   "peCode": "3400F090",
+   "title": "Base Support",
+   "appropriationType": "OM",
+   "service": "AF",
+   "budgetActivity": "BA 01",
+   "raw": {
+    "account": "3400F",
+    "accountLine": "090",
+    "sagBli": "011Z",
+    "bsa": "1F"
+   },
+   "fyData": [
+    {
+     "fy": 2025,
+     "enacted": 11367134
+    },
+    {
+     "fy": 2026,
+     "enacted": 11181908
+    },
+    {
+     "fy": 2027,
+     "request": 11318037
+    }
+   ]
+  },
+  {
+   "peCode": "3400F100",
+   "title": "Global C3I and Early Warning",
+   "appropriationType": "OM",
+   "service": "AF",
+   "budgetActivity": "BA 01",
+   "raw": {
+    "account": "3400F",
+    "accountLine": "100",
+    "sagBli": "012A",
+    "bsa": "1G"
+   },
+   "fyData": [
+    {
+     "fy": 2025,
+     "enacted": 1318751
+    },
+    {
+     "fy": 2026,
+     "enacted": 1270899
+    },
+    {
+     "fy": 2027,
+     "request": 1214408
+    }
+   ]
+  },
+  {
+   "peCode": "3400F110",
+   "title": "Other Combat Ops Spt Programs",
+   "appropriationType": "OM",
+   "service": "AF",
+   "budgetActivity": "BA 01",
+   "raw": {
+    "account": "3400F",
+    "accountLine": "110",
+    "sagBli": "012C",
+    "bsa": "1G"
+   },
+   "fyData": [
+    {
+     "fy": 2025,
+     "enacted": 1756902
+    },
+    {
+     "fy": 2026,
+     "enacted": 1848041
+    },
+    {
+     "fy": 2027,
+     "request": 2146977
+    }
+   ]
+  },
+  {
+   "peCode": "3400F120",
+   "title": "Cyberspace Activities",
+   "appropriationType": "OM",
+   "service": "AF",
+   "budgetActivity": "BA 01",
+   "raw": {
+    "account": "3400F",
+    "accountLine": "120",
+    "sagBli": "012D",
+    "bsa": "1G"
+   },
+   "fyData": [
+    {
+     "fy": 2025,
+     "enacted": 839984
+    },
+    {
+     "fy": 2026,
+     "enacted": 860629
+    },
+    {
+     "fy": 2027,
+     "request": 1155815
+    }
+   ]
+  },
+  {
+   "peCode": "3400F130",
+   "title": "Tactical Intel and Other Special Activities",
+   "appropriationType": "OM",
+   "service": "AF",
+   "budgetActivity": "BA 01",
+   "raw": {
+    "account": "3400F",
+    "accountLine": "130",
+    "sagBli": "012F",
+    "bsa": "1G"
+   },
+   "fyData": [
+    {
+     "fy": 2025,
+     "enacted": 1801838
+    },
+    {
+     "fy": 2026,
+     "enacted": 1735598
+    },
+    {
+     "fy": 2027,
+     "request": 1992280
+    }
+   ]
+  },
+  {
+   "peCode": "3400F140",
+   "title": "Medical Readiness",
+   "appropriationType": "OM",
+   "service": "AF",
+   "budgetActivity": "BA 01",
+   "raw": {
+    "account": "3400F",
+    "accountLine": "140",
+    "sagBli": "012Q",
+    "bsa": "1G"
+   },
+   "fyData": [
+    {
+     "fy": 2025,
+     "enacted": 510036
+    },
+    {
+     "fy": 2026,
+     "enacted": 539000
+    },
+    {
+     "fy": 2027,
+     "request": 561626
+    }
+   ]
+  },
+  {
+   "peCode": "3400F150",
+   "title": "US NORTHCOM/NORAD",
+   "appropriationType": "OM",
+   "service": "AF",
+   "budgetActivity": "BA 01",
+   "raw": {
+    "account": "3400F",
+    "accountLine": "150",
+    "sagBli": "015C",
+    "bsa": "20"
+   },
+   "fyData": [
+    {
+     "fy": 2025,
+     "enacted": 299791
+    },
+    {
+     "fy": 2026,
+     "enacted": 256248
+    },
+    {
+     "fy": 2027,
+     "request": 746165
+    }
+   ]
+  },
+  {
+   "peCode": "3400F160",
+   "title": "US STRATCOM",
+   "appropriationType": "OM",
+   "service": "AF",
+   "budgetActivity": "BA 01",
+   "raw": {
+    "account": "3400F",
+    "accountLine": "160",
+    "sagBli": "015D",
+    "bsa": "20"
+   },
+   "fyData": [
+    {
+     "fy": 2025,
+     "enacted": 522195
+    },
+    {
+     "fy": 2026,
+     "enacted": 578864
+    },
+    {
+     "fy": 2027,
+     "request": 656448
+    }
+   ]
+  },
+  {
+   "peCode": "3400F170",
+   "title": "US CENTCOM",
+   "appropriationType": "OM",
+   "service": "AF",
+   "budgetActivity": "BA 01",
+   "raw": {
+    "account": "3400F",
+    "accountLine": "170",
+    "sagBli": "015F",
+    "bsa": "20"
+   },
+   "fyData": [
+    {
+     "fy": 2025,
+     "enacted": 405143
+    },
+    {
+     "fy": 2026,
+     "enacted": 360111
+    },
+    {
+     "fy": 2027,
+     "request": 405438
+    }
+   ]
+  },
+  {
+   "peCode": "3400F180",
+   "title": "US SOCOM",
+   "appropriationType": "OM",
+   "service": "AF",
+   "budgetActivity": "BA 01",
+   "raw": {
+    "account": "3400F",
+    "accountLine": "180",
+    "sagBli": "015G",
+    "bsa": "20"
+   },
+   "fyData": [
+    {
+     "fy": 2025,
+     "enacted": 39779
+    },
+    {
+     "fy": 2026,
+     "enacted": 28968
+    },
+    {
+     "fy": 2027,
+     "request": 42261
+    }
+   ]
+  },
+  {
+   "peCode": "3400F190",
+   "title": "US TRANSCOM",
+   "appropriationType": "OM",
+   "service": "AF",
+   "budgetActivity": "BA 01",
+   "raw": {
+    "account": "3400F",
+    "accountLine": "190",
+    "sagBli": "015H",
+    "bsa": "20"
+   },
+   "fyData": [
+    {
+     "fy": 2025,
+     "enacted": 206
+    },
+    {
+     "fy": 2026,
+     "enacted": 1053
+    },
+    {
+     "fy": 2027,
+     "request": 694
+    }
+   ]
+  },
+  {
+   "peCode": "3400F200",
+   "title": "CENTCOM Cyberspace Sustainment",
+   "appropriationType": "OM",
+   "service": "AF",
+   "budgetActivity": "BA 01",
+   "raw": {
+    "account": "3400F",
+    "accountLine": "200",
+    "sagBli": "015U",
+    "bsa": "20"
+   },
+   "fyData": [
+    {
+     "fy": 2025,
+     "enacted": 1675
+    },
+    {
+     "fy": 2026,
+     "enacted": 928
+    }
+   ]
+  },
+  {
+   "peCode": "3400F210",
+   "title": "USSPACECOM",
+   "appropriationType": "OM",
+   "service": "AF",
+   "budgetActivity": "BA 01",
+   "raw": {
+    "account": "3400F",
+    "accountLine": "210",
+    "sagBli": "015X",
+    "bsa": "20"
+   },
+   "fyData": [
+    {
+     "fy": 2025,
+     "enacted": 396972
+    },
+    {
+     "fy": 2026,
+     "enacted": 355156
+    },
+    {
+     "fy": 2027,
+     "request": 555147
+    }
+   ]
+  },
+  {
+   "peCode": "3400F999",
+   "title": "Classified Programs",
+   "appropriationType": "OM",
+   "service": "AF",
+   "budgetActivity": "BA 01",
+   "raw": {
+    "account": "3400F",
+    "accountLine": "999",
+    "sagBli": "9999",
+    "bsa": ""
+   },
+   "fyData": [
+    {
+     "fy": 2025,
+     "enacted": 54298
+    },
+    {
+     "fy": 2026,
+     "enacted": 73482
+    },
+    {
+     "fy": 2027,
+     "request": 81694
+    }
+   ]
+  },
+  {
+   "peCode": "3400F220",
+   "title": "Airlift Operations",
+   "appropriationType": "OM",
+   "service": "AF",
+   "budgetActivity": "BA 02",
+   "raw": {
+    "account": "3400F",
+    "accountLine": "220",
+    "sagBli": "021A",
+    "bsa": "21"
+   },
+   "fyData": [
+    {
+     "fy": 2025,
+     "enacted": 4311850
+    },
+    {
+     "fy": 2026,
+     "enacted": 3358819
+    },
+    {
+     "fy": 2027,
+     "request": 3782668
+    }
+   ]
+  },
+  {
+   "peCode": "3400F230",
+   "title": "Mobilization Preparedness",
+   "appropriationType": "OM",
+   "service": "AF",
+   "budgetActivity": "BA 02",
+   "raw": {
+    "account": "3400F",
+    "accountLine": "230",
+    "sagBli": "021D",
+    "bsa": "21"
+   },
+   "fyData": [
+    {
+     "fy": 2025,
+     "enacted": 241657
+    },
+    {
+     "fy": 2026,
+     "enacted": 279205
+    },
+    {
+     "fy": 2027,
+     "request": 321889
+    }
+   ]
+  },
+  {
+   "peCode": "3400F240",
+   "title": "Officer Acquisition",
+   "appropriationType": "OM",
+   "service": "AF",
+   "budgetActivity": "BA 03",
+   "raw": {
+    "account": "3400F",
+    "accountLine": "240",
+    "sagBli": "031A",
+    "bsa": "31"
+   },
+   "fyData": [
+    {
+     "fy": 2025,
+     "enacted": 260009
+    },
+    {
+     "fy": 2026,
+     "enacted": 241486
+    },
+    {
+     "fy": 2027,
+     "request": 267971
+    }
+   ]
+  },
+  {
+   "peCode": "3400F250",
+   "title": "Recruit Training",
+   "appropriationType": "OM",
+   "service": "AF",
+   "budgetActivity": "BA 03",
+   "raw": {
+    "account": "3400F",
+    "accountLine": "250",
+    "sagBli": "031B",
+    "bsa": "31"
+   },
+   "fyData": [
+    {
+     "fy": 2025,
+     "enacted": 37951
+    },
+    {
+     "fy": 2026,
+     "enacted": 29335
+    },
+    {
+     "fy": 2027,
+     "request": 70462
+    }
+   ]
+  },
+  {
+   "peCode": "3400F260",
+   "title": "Reserve Officers Training Corps (ROTC)",
+   "appropriationType": "OM",
+   "service": "AF",
+   "budgetActivity": "BA 03",
+   "raw": {
+    "account": "3400F",
+    "accountLine": "260",
+    "sagBli": "031D",
+    "bsa": "31"
+   },
+   "fyData": [
+    {
+     "fy": 2025,
+     "enacted": 137758
+    },
+    {
+     "fy": 2026,
+     "enacted": 131342
+    },
+    {
+     "fy": 2027,
+     "request": 143686
+    }
+   ]
+  },
+  {
+   "peCode": "3400F270",
+   "title": "Specialized Skill Training",
+   "appropriationType": "OM",
+   "service": "AF",
+   "budgetActivity": "BA 03",
+   "raw": {
+    "account": "3400F",
+    "accountLine": "270",
+    "sagBli": "032A",
+    "bsa": "32"
+   },
+   "fyData": [
+    {
+     "fy": 2025,
+     "enacted": 614944
+    },
+    {
+     "fy": 2026,
+     "enacted": 522068
+    },
+    {
+     "fy": 2027,
+     "request": 589549
+    }
+   ]
+  },
+  {
+   "peCode": "3400F280",
+   "title": "Flight Training",
+   "appropriationType": "OM",
+   "service": "AF",
+   "budgetActivity": "BA 03",
+   "raw": {
+    "account": "3400F",
+    "accountLine": "280",
+    "sagBli": "032B",
+    "bsa": "32"
+   },
+   "fyData": [
+    {
+     "fy": 2025,
+     "enacted": 806794
+    },
+    {
+     "fy": 2026,
+     "enacted": 1040465
+    },
+    {
+     "fy": 2027,
+     "request": 1122297
+    }
+   ]
+  },
+  {
+   "peCode": "3400F290",
+   "title": "Professional Development Education",
+   "appropriationType": "OM",
+   "service": "AF",
+   "budgetActivity": "BA 03",
+   "raw": {
+    "account": "3400F",
+    "accountLine": "290",
+    "sagBli": "032C",
+    "bsa": "32"
+   },
+   "fyData": [
+    {
+     "fy": 2025,
+     "enacted": 298783
+    },
+    {
+     "fy": 2026,
+     "enacted": 284442
+    },
+    {
+     "fy": 2027,
+     "request": 280908
+    }
+   ]
+  },
+  {
+   "peCode": "3400F300",
+   "title": "Training Support",
+   "appropriationType": "OM",
+   "service": "AF",
+   "budgetActivity": "BA 03",
+   "raw": {
+    "account": "3400F",
+    "accountLine": "300",
+    "sagBli": "032D",
+    "bsa": "32"
+   },
+   "fyData": [
+    {
+     "fy": 2025,
+     "enacted": 190576
+    },
+    {
+     "fy": 2026,
+     "enacted": 181966
+    },
+    {
+     "fy": 2027,
+     "request": 192608
+    }
+   ]
+  },
+  {
+   "peCode": "3400F310",
+   "title": "Recruiting and Advertising",
+   "appropriationType": "OM",
+   "service": "AF",
+   "budgetActivity": "BA 03",
+   "raw": {
+    "account": "3400F",
+    "accountLine": "310",
+    "sagBli": "033A",
+    "bsa": "33"
+   },
+   "fyData": [
+    {
+     "fy": 2025,
+     "enacted": 197413
+    },
+    {
+     "fy": 2026,
+     "enacted": 256687
+    },
+    {
+     "fy": 2027,
+     "request": 254720
+    }
+   ]
+  },
+  {
+   "peCode": "3400F320",
+   "title": "Examining",
+   "appropriationType": "OM",
+   "service": "AF",
+   "budgetActivity": "BA 03",
+   "raw": {
+    "account": "3400F",
+    "accountLine": "320",
+    "sagBli": "033B",
+    "bsa": "33"
+   },
+   "fyData": [
+    {
+     "fy": 2025,
+     "enacted": 7745
+    },
+    {
+     "fy": 2026,
+     "enacted": 6990
+    },
+    {
+     "fy": 2027,
+     "request": 7261
+    }
+   ]
+  },
+  {
+   "peCode": "3400F330",
+   "title": "Off-Duty and Voluntary Education",
+   "appropriationType": "OM",
+   "service": "AF",
+   "budgetActivity": "BA 03",
+   "raw": {
+    "account": "3400F",
+    "accountLine": "330",
+    "sagBli": "033C",
+    "bsa": "33"
+   },
+   "fyData": [
+    {
+     "fy": 2025,
+     "enacted": 233434
+    },
+    {
+     "fy": 2026,
+     "enacted": 252340
+    },
+    {
+     "fy": 2027,
+     "request": 232768
+    }
+   ]
+  },
+  {
+   "peCode": "3400F340",
+   "title": "Civilian Education and Training",
+   "appropriationType": "OM",
+   "service": "AF",
+   "budgetActivity": "BA 03",
+   "raw": {
+    "account": "3400F",
+    "accountLine": "340",
+    "sagBli": "033D",
+    "bsa": "33"
+   },
+   "fyData": [
+    {
+     "fy": 2025,
+     "enacted": 367924
+    },
+    {
+     "fy": 2026,
+     "enacted": 336980
+    },
+    {
+     "fy": 2027,
+     "request": 354678
+    }
+   ]
+  },
+  {
+   "peCode": "3400F350",
+   "title": "Junior ROTC",
+   "appropriationType": "OM",
+   "service": "AF",
+   "budgetActivity": "BA 03",
+   "raw": {
+    "account": "3400F",
+    "accountLine": "350",
+    "sagBli": "033E",
+    "bsa": "33"
+   },
+   "fyData": [
+    {
+     "fy": 2025,
+     "enacted": 77608
+    },
+    {
+     "fy": 2026,
+     "enacted": 5000
+    },
+    {
+     "fy": 2027,
+     "request": 114790
+    }
+   ]
+  },
+  {
+   "peCode": "3400F360",
+   "title": "Logistics Operations",
+   "appropriationType": "OM",
+   "service": "AF",
+   "budgetActivity": "BA 04",
+   "raw": {
+    "account": "3400F",
+    "accountLine": "360",
+    "sagBli": "041A",
+    "bsa": "42"
+   },
+   "fyData": [
+    {
+     "fy": 2025,
+     "enacted": 1091042
+    },
+    {
+     "fy": 2026,
+     "enacted": 1143016
+    },
+    {
+     "fy": 2027,
+     "request": 1124763
+    }
+   ]
+  },
+  {
+   "peCode": "3400F370",
+   "title": "Technical Support Activities",
+   "appropriationType": "OM",
+   "service": "AF",
+   "budgetActivity": "BA 04",
+   "raw": {
+    "account": "3400F",
+    "accountLine": "370",
+    "sagBli": "041B",
+    "bsa": "42"
+   },
+   "fyData": [
+    {
+     "fy": 2025,
+     "enacted": 138993
+    },
+    {
+     "fy": 2026,
+     "enacted": 154929
+    },
+    {
+     "fy": 2027,
+     "request": 159721
+    }
+   ]
+  },
+  {
+   "peCode": "3400F380",
+   "title": "Administration",
+   "appropriationType": "OM",
+   "service": "AF",
+   "budgetActivity": "BA 04",
+   "raw": {
+    "account": "3400F",
+    "accountLine": "380",
+    "sagBli": "042A",
+    "bsa": "50"
+   },
+   "fyData": [
+    {
+     "fy": 2025,
+     "enacted": 1259409
+    },
+    {
+     "fy": 2026,
+     "enacted": 1218129
+    },
+    {
+     "fy": 2027,
+     "request": 1292758
+    }
+   ]
+  },
+  {
+   "peCode": "3400F390",
+   "title": "Servicewide Communications",
+   "appropriationType": "OM",
+   "service": "AF",
+   "budgetActivity": "BA 04",
+   "raw": {
+    "account": "3400F",
+    "accountLine": "390",
+    "sagBli": "042B",
+    "bsa": "50"
+   },
+   "fyData": [
+    {
+     "fy": 2025,
+     "enacted": 55704
+    },
+    {
+     "fy": 2026,
+     "enacted": 43423
+    },
+    {
+     "fy": 2027,
+     "request": 43892
+    }
+   ]
+  },
+  {
+   "peCode": "3400F400",
+   "title": "Defense Environmental Restoration Account",
+   "appropriationType": "OM",
+   "service": "AF",
+   "budgetActivity": "BA 04",
+   "raw": {
+    "account": "3400F",
+    "accountLine": "400",
+    "sagBli": "042D",
+    "bsa": "50"
+   },
+   "fyData": [
+    {
+     "fy": 2025,
+     "enacted": 330531
+    }
+   ]
+  },
+  {
+   "peCode": "3400F410",
+   "title": "Other Servicewide Activities",
+   "appropriationType": "OM",
+   "service": "AF",
+   "budgetActivity": "BA 04",
+   "raw": {
+    "account": "3400F",
+    "accountLine": "410",
+    "sagBli": "042G",
+    "bsa": "50"
+   },
+   "fyData": [
+    {
+     "fy": 2025,
+     "enacted": 1814444
+    },
+    {
+     "fy": 2026,
+     "enacted": 1628727
+    },
+    {
+     "fy": 2027,
+     "request": 1666547
+    }
+   ]
+  },
+  {
+   "peCode": "3400F420",
+   "title": "Civil Air Patrol",
+   "appropriationType": "OM",
+   "service": "AF",
+   "budgetActivity": "BA 04",
+   "raw": {
+    "account": "3400F",
+    "accountLine": "420",
+    "sagBli": "042I",
+    "bsa": "50"
+   },
+   "fyData": [
+    {
+     "fy": 2025,
+     "enacted": 56500
+    },
+    {
+     "fy": 2026,
+     "enacted": 57900
+    },
+    {
+     "fy": 2027,
+     "request": 32984
+    }
+   ]
+  },
+  {
+   "peCode": "3400F430",
+   "title": "Def Acquisition Workforce Development account",
+   "appropriationType": "OM",
+   "service": "AF",
+   "budgetActivity": "BA 04",
+   "raw": {
+    "account": "3400F",
+    "accountLine": "430",
+    "sagBli": "042W",
+    "bsa": "50"
+   },
+   "fyData": [
+    {
+     "fy": 2025,
+     "enacted": 49251
+    },
+    {
+     "fy": 2026,
+     "enacted": 48741
+    },
+    {
+     "fy": 2027,
+     "request": 58936
+    }
+   ]
+  },
+  {
+   "peCode": "3400F440",
+   "title": "Security Programs",
+   "appropriationType": "OM",
+   "service": "AF",
+   "budgetActivity": "BA 04",
+   "raw": {
+    "account": "3400F",
+    "accountLine": "440",
+    "sagBli": "043A",
+    "bsa": "51"
+   },
+   "fyData": [
+    {
+     "fy": 2025,
+     "enacted": 226703
+    },
+    {
+     "fy": 2026,
+     "enacted": 203919
+    },
+    {
+     "fy": 2027,
+     "request": 202400
+    }
+   ]
+  },
+  {
+   "peCode": "3400F450",
+   "title": "International Support",
+   "appropriationType": "OM",
+   "service": "AF",
+   "budgetActivity": "BA 04",
+   "raw": {
+    "account": "3400F",
+    "accountLine": "450",
+    "sagBli": "044A",
+    "bsa": "52"
+   },
+   "fyData": [
+    {
+     "fy": 2025,
+     "enacted": 85073
+    },
+    {
+     "fy": 2026,
+     "enacted": 89212
+    },
+    {
+     "fy": 2027,
+     "request": 77853
+    }
+   ]
+  },
+  {
+   "peCode": "3400F999",
+   "title": "Classified Programs",
+   "appropriationType": "OM",
+   "service": "AF",
+   "budgetActivity": "BA 04",
+   "raw": {
+    "account": "3400F",
+    "accountLine": "999",
+    "sagBli": "9999",
+    "bsa": ""
+   },
+   "fyData": [
+    {
+     "fy": 2025,
+     "enacted": 1309070
+    },
+    {
+     "fy": 2026,
+     "enacted": 1541362
+    },
+    {
+     "fy": 2027,
+     "request": 1653652
+    }
+   ]
+  },
+  {
+   "peCode": "3410F010",
+   "title": "Global C3I & Early Warning",
+   "appropriationType": "OM",
+   "service": "AF",
+   "budgetActivity": "BA 01",
+   "raw": {
+    "account": "3410F",
+    "accountLine": "010",
+    "sagBli": "012A",
+    "bsa": "1F"
+   },
+   "fyData": [
+    {
+     "fy": 2025,
+     "enacted": 611816
+    },
+    {
+     "fy": 2026,
+     "enacted": 789481
+    },
+    {
+     "fy": 2027,
+     "request": 1056824
+    }
+   ]
+  },
+  {
+   "peCode": "3410F020",
+   "title": "Space Launch Operations",
+   "appropriationType": "OM",
+   "service": "AF",
+   "budgetActivity": "BA 01",
+   "raw": {
+    "account": "3410F",
+    "accountLine": "020",
+    "sagBli": "013A",
+    "bsa": "1F"
+   },
+   "fyData": [
+    {
+     "fy": 2025,
+     "enacted": 357148
+    },
+    {
+     "fy": 2026,
+     "enacted": 395571
+    },
+    {
+     "fy": 2027,
+     "request": 415322
+    }
+   ]
+  },
+  {
+   "peCode": "3410F030",
+   "title": "Space Operations",
+   "appropriationType": "OM",
+   "service": "AF",
+   "budgetActivity": "BA 01",
+   "raw": {
+    "account": "3410F",
+    "accountLine": "030",
+    "sagBli": "013C",
+    "bsa": "1F"
+   },
+   "fyData": [
+    {
+     "fy": 2025,
+     "enacted": 915123
+    },
+    {
+     "fy": 2026,
+     "enacted": 872247
+    },
+    {
+     "fy": 2027,
+     "request": 1266939
+    }
+   ]
+  },
+  {
+   "peCode": "3410F040",
+   "title": "Education & Training",
+   "appropriationType": "OM",
+   "service": "AF",
+   "budgetActivity": "BA 01",
+   "raw": {
+    "account": "3410F",
+    "accountLine": "040",
+    "sagBli": "013E",
+    "bsa": "1F"
+   },
+   "fyData": [
+    {
+     "fy": 2025,
+     "enacted": 217046
+    },
+    {
+     "fy": 2026,
+     "enacted": 286225
+    },
+    {
+     "fy": 2027,
+     "request": 783168
+    }
+   ]
+  },
+  {
+   "peCode": "3410F050",
+   "title": "Special programs",
+   "appropriationType": "OM",
+   "service": "AF",
+   "budgetActivity": "BA 01",
+   "raw": {
+    "account": "3410F",
+    "accountLine": "050",
+    "sagBli": "013F",
+    "bsa": "1F"
+   },
+   "fyData": [
+    {
+     "fy": 2025,
+     "enacted": 378766
+    },
+    {
+     "fy": 2026,
+     "enacted": 400957
+    },
+    {
+     "fy": 2027,
+     "request": 733761
+    }
+   ]
+  },
+  {
+   "peCode": "3410F060",
+   "title": "Depot Maintenance",
+   "appropriationType": "OM",
+   "service": "AF",
+   "budgetActivity": "BA 01",
+   "raw": {
+    "account": "3410F",
+    "accountLine": "060",
+    "sagBli": "013M",
+    "bsa": "1F"
+   },
+   "fyData": [
+    {
+     "fy": 2025,
+     "enacted": 68192
+    },
+    {
+     "fy": 2026,
+     "enacted": 67126
+    },
+    {
+     "fy": 2027,
+     "request": 83803
+    }
+   ]
+  },
+  {
+   "peCode": "3410F070",
+   "title": "Facilities Sustainment, Restoration & Modernization",
+   "appropriationType": "OM",
+   "service": "AF",
+   "budgetActivity": "BA 01",
+   "raw": {
+    "account": "3410F",
+    "accountLine": "070",
+    "sagBli": "013R",
+    "bsa": "1F"
+   },
+   "fyData": [
+    {
+     "fy": 2025,
+     "enacted": 529024
+    },
+    {
+     "fy": 2026,
+     "enacted": 570682
+    },
+    {
+     "fy": 2027,
+     "request": 1798640
+    }
+   ]
+  },
+  {
+   "peCode": "3410F080",
+   "title": "Contractor Logistics and System Support",
+   "appropriationType": "OM",
+   "service": "AF",
+   "budgetActivity": "BA 01",
+   "raw": {
+    "account": "3410F",
+    "accountLine": "080",
+    "sagBli": "013W",
+    "bsa": "1F"
+   },
+   "fyData": [
+    {
+     "fy": 2025,
+     "enacted": 1337074
+    },
+    {
+     "fy": 2026,
+     "enacted": 1480242
+    },
+    {
+     "fy": 2027,
+     "request": 2096381
+    }
+   ]
+  },
+  {
+   "peCode": "3410F090",
+   "title": "Space Operations -BOS",
+   "appropriationType": "OM",
+   "service": "AF",
+   "budgetActivity": "BA 01",
+   "raw": {
+    "account": "3410F",
+    "accountLine": "090",
+    "sagBli": "013Z",
+    "bsa": "1F"
+   },
+   "fyData": [
+    {
+     "fy": 2025,
+     "enacted": 238975
+    },
+    {
+     "fy": 2026,
+     "enacted": 247238
+    },
+    {
+     "fy": 2027,
+     "request": 551196
+    }
+   ]
+  },
+  {
+   "peCode": "3410F100",
+   "title": "Cyberspace Activities",
+   "appropriationType": "OM",
+   "service": "AF",
+   "budgetActivity": "BA 01",
+   "raw": {
+    "account": "3410F",
+    "accountLine": "100",
+    "sagBli": "013D",
+    "bsa": "1H"
+   },
+   "fyData": [
+    {
+     "fy": 2025,
+     "enacted": 123030
+    },
+    {
+     "fy": 2026,
+     "enacted": 135512
+    },
+    {
+     "fy": 2027,
+     "request": 289958
+    }
+   ]
+  },
+  {
+   "peCode": "3410F999",
+   "title": "Classified Programs",
+   "appropriationType": "OM",
+   "service": "AF",
+   "budgetActivity": "BA 01",
+   "raw": {
+    "account": "3410F",
+    "accountLine": "999",
+    "sagBli": "9999",
+    "bsa": ""
+   },
+   "fyData": [
+    {
+     "fy": 2025,
+     "enacted": 86550
+    },
+    {
+     "fy": 2026,
+     "enacted": 271794
+    },
+    {
+     "fy": 2027,
+     "request": 118478
+    }
+   ]
+  },
+  {
+   "peCode": "3410F110",
+   "title": "Logistics Operations",
+   "appropriationType": "OM",
+   "service": "AF",
+   "budgetActivity": "BA 04",
+   "raw": {
+    "account": "3410F",
+    "accountLine": "110",
+    "sagBli": "041A",
+    "bsa": "1F"
+   },
+   "fyData": [
+    {
+     "fy": 2025,
+     "enacted": 29389
+    },
+    {
+     "fy": 2026,
+     "enacted": 35889
+    },
+    {
+     "fy": 2027,
+     "request": 36164
+    }
+   ]
+  },
+  {
+   "peCode": "3410F120",
+   "title": "Administration",
+   "appropriationType": "OM",
+   "service": "AF",
+   "budgetActivity": "BA 04",
+   "raw": {
+    "account": "3410F",
+    "accountLine": "120",
+    "sagBli": "042A",
+    "bsa": "50"
+   },
+   "fyData": [
+    {
+     "fy": 2025,
+     "enacted": 159080
+    },
+    {
+     "fy": 2026,
+     "enacted": 168869
+    },
+    {
+     "fy": 2027,
+     "request": 449597
+    }
+   ]
+  },
+  {
+   "peCode": "3740F010",
+   "title": "Primary Combat Forces",
+   "appropriationType": "OM",
+   "service": "AF",
+   "budgetActivity": "BA 01",
+   "raw": {
+    "account": "3740F",
+    "accountLine": "010",
+    "sagBli": "011A",
+    "bsa": "1F"
+   },
+   "fyData": [
+    {
+     "fy": 2025,
+     "enacted": 1947376
+    },
+    {
+     "fy": 2026,
+     "enacted": 1918257
+    },
+    {
+     "fy": 2027,
+     "request": 2138964
+    }
+   ]
+  },
+  {
+   "peCode": "3740F020",
+   "title": "Mission Support Operations",
+   "appropriationType": "OM",
+   "service": "AF",
+   "budgetActivity": "BA 01",
+   "raw": {
+    "account": "3740F",
+    "accountLine": "020",
+    "sagBli": "011G",
+    "bsa": "1F"
+   },
+   "fyData": [
+    {
+     "fy": 2025,
+     "enacted": 193738
+    },
+    {
+     "fy": 2026,
+     "enacted": 205201
+    },
+    {
+     "fy": 2027,
+     "request": 217542
+    }
+   ]
+  },
+  {
+   "peCode": "3740F030",
+   "title": "Depot Purchase Equipment Maintenance",
+   "appropriationType": "OM",
+   "service": "AF",
+   "budgetActivity": "BA 01",
+   "raw": {
+    "account": "3740F",
+    "accountLine": "030",
+    "sagBli": "011M",
+    "bsa": "1F"
+   },
+   "fyData": [
+    {
+     "fy": 2025,
+     "enacted": 554199
+    },
+    {
+     "fy": 2026,
+     "enacted": 728217
+    },
+    {
+     "fy": 2027,
+     "request": 787861
+    }
+   ]
+  },
+  {
+   "peCode": "3740F040",
+   "title": "Facilities Sustainment, Restoration & Modernization",
+   "appropriationType": "OM",
+   "service": "AF",
+   "budgetActivity": "BA 01",
+   "raw": {
+    "account": "3740F",
+    "accountLine": "040",
+    "sagBli": "011R",
+    "bsa": "1F"
+   },
+   "fyData": [
+    {
+     "fy": 2025,
+     "enacted": 133960
+    },
+    {
+     "fy": 2026,
+     "enacted": 193802
+    },
+    {
+     "fy": 2027,
+     "request": 264919
+    }
+   ]
+  },
+  {
+   "peCode": "3740F050",
+   "title": "Contractor Logistics Support and System Support",
+   "appropriationType": "OM",
+   "service": "AF",
+   "budgetActivity": "BA 01",
+   "raw": {
+    "account": "3740F",
+    "accountLine": "050",
+    "sagBli": "011W",
+    "bsa": "1F"
+   },
+   "fyData": [
+    {
+     "fy": 2025,
+     "enacted": 519309
+    },
+    {
+     "fy": 2026,
+     "enacted": 528275
+    },
+    {
+     "fy": 2027,
+     "request": 654233
+    }
+   ]
+  },
+  {
+   "peCode": "3740F060",
+   "title": "Base Support",
+   "appropriationType": "OM",
+   "service": "AF",
+   "budgetActivity": "BA 01",
+   "raw": {
+    "account": "3740F",
+    "accountLine": "060",
+    "sagBli": "011Z",
+    "bsa": "1F"
+   },
+   "fyData": [
+    {
+     "fy": 2025,
+     "enacted": 550465
+    },
+    {
+     "fy": 2026,
+     "enacted": 585430
+    },
+    {
+     "fy": 2027,
+     "request": 632638
+    }
+   ]
+  },
+  {
+   "peCode": "3740F070",
+   "title": "Cyberspace Activities",
+   "appropriationType": "OM",
+   "service": "AF",
+   "budgetActivity": "BA 01",
+   "raw": {
+    "account": "3740F",
+    "accountLine": "070",
+    "sagBli": "012D",
+    "bsa": "1G"
+   },
+   "fyData": [
+    {
+     "fy": 2025,
+     "enacted": 2325
+    },
+    {
+     "fy": 2026,
+     "enacted": 2484
+    },
+    {
+     "fy": 2027,
+     "request": 1655
+    }
+   ]
+  },
+  {
+   "peCode": "3740F080",
+   "title": "Administration",
+   "appropriationType": "OM",
+   "service": "AF",
+   "budgetActivity": "BA 04",
+   "raw": {
+    "account": "3740F",
+    "accountLine": "080",
+    "sagBli": "042A",
+    "bsa": "53"
+   },
+   "fyData": [
+    {
+     "fy": 2025,
+     "enacted": 95018
+    },
+    {
+     "fy": 2026,
+     "enacted": 98418
+    },
+    {
+     "fy": 2027,
+     "request": 100998
+    }
+   ]
+  },
+  {
+   "peCode": "3740F090",
+   "title": "Recruiting and Advertising",
+   "appropriationType": "OM",
+   "service": "AF",
+   "budgetActivity": "BA 04",
+   "raw": {
+    "account": "3740F",
+    "accountLine": "090",
+    "sagBli": "042J",
+    "bsa": "53"
+   },
+   "fyData": [
+    {
+     "fy": 2025,
+     "enacted": 10208
+    },
+    {
+     "fy": 2026,
+     "enacted": 10618
+    },
+    {
+     "fy": 2027,
+     "request": 11620
+    }
+   ]
+  },
+  {
+   "peCode": "3740F100",
+   "title": "Military Manpower and Pers Mgmt (ARPC)",
+   "appropriationType": "OM",
+   "service": "AF",
+   "budgetActivity": "BA 04",
+   "raw": {
+    "account": "3740F",
+    "accountLine": "100",
+    "sagBli": "042K",
+    "bsa": "53"
+   },
+   "fyData": [
+    {
+     "fy": 2025,
+     "enacted": 16084
+    },
+    {
+     "fy": 2026,
+     "enacted": 14951
+    },
+    {
+     "fy": 2027,
+     "request": 15893
+    }
+   ]
+  },
+  {
+   "peCode": "3740F110",
+   "title": "Audiovisual",
+   "appropriationType": "OM",
+   "service": "AF",
+   "budgetActivity": "BA 04",
+   "raw": {
+    "account": "3740F",
+    "accountLine": "110",
+    "sagBli": "042M",
+    "bsa": "53"
+   },
+   "fyData": [
+    {
+     "fy": 2025,
+     "enacted": 545
+    },
+    {
+     "fy": 2026,
+     "enacted": 521
+    },
+    {
+     "fy": 2027,
+     "request": 561
+    }
+   ]
+  },
+  {
+   "peCode": "3840F010",
+   "title": "Aircraft Operations",
+   "appropriationType": "OM",
+   "service": "AF",
+   "budgetActivity": "BA 01",
+   "raw": {
+    "account": "3840F",
+    "accountLine": "010",
+    "sagBli": "011F",
+    "bsa": "01"
+   },
+   "fyData": [
+    {
+     "fy": 2025,
+     "enacted": 2624067
+    },
+    {
+     "fy": 2026,
+     "enacted": 2509063
+    },
+    {
+     "fy": 2027,
+     "request": 2744277
+    }
+   ]
+  },
+  {
+   "peCode": "3840F020",
+   "title": "Mission Support Operations",
+   "appropriationType": "OM",
+   "service": "AF",
+   "budgetActivity": "BA 01",
+   "raw": {
+    "account": "3840F",
+    "accountLine": "020",
+    "sagBli": "011G",
+    "bsa": "01"
+   },
+   "fyData": [
+    {
+     "fy": 2025,
+     "enacted": 647659
+    },
+    {
+     "fy": 2026,
+     "enacted": 633774
+    },
+    {
+     "fy": 2027,
+     "request": 663367
+    }
+   ]
+  },
+  {
+   "peCode": "3840F030",
+   "title": "Depot Purchase Equipment Maintenance",
+   "appropriationType": "OM",
+   "service": "AF",
+   "budgetActivity": "BA 01",
+   "raw": {
+    "account": "3840F",
+    "accountLine": "030",
+    "sagBli": "011M",
+    "bsa": "01"
+   },
+   "fyData": [
+    {
+     "fy": 2025,
+     "enacted": 900498
+    },
+    {
+     "fy": 2026,
+     "enacted": 1031446
+    },
+    {
+     "fy": 2027,
+     "request": 1210460
+    }
+   ]
+  },
+  {
+   "peCode": "3840F040",
+   "title": "Facilities Sustainment, Restoration & Modernization",
+   "appropriationType": "OM",
+   "service": "AF",
+   "budgetActivity": "BA 01",
+   "raw": {
+    "account": "3840F",
+    "accountLine": "040",
+    "sagBli": "011R",
+    "bsa": "01"
+   },
+   "fyData": [
+    {
+     "fy": 2025,
+     "enacted": 441474
+    },
+    {
+     "fy": 2026,
+     "enacted": 578069
+    },
+    {
+     "fy": 2027,
+     "request": 743372
+    }
+   ]
+  },
+  {
+   "peCode": "3840F050",
+   "title": "Contractor Logistics Support and System Support",
+   "appropriationType": "OM",
+   "service": "AF",
+   "budgetActivity": "BA 01",
+   "raw": {
+    "account": "3840F",
+    "accountLine": "050",
+    "sagBli": "011W",
+    "bsa": "01"
+   },
+   "fyData": [
+    {
+     "fy": 2025,
+     "enacted": 1306424
+    },
+    {
+     "fy": 2026,
+     "enacted": 1453427
+    },
+    {
+     "fy": 2027,
+     "request": 1632461
+    }
+   ]
+  },
+  {
+   "peCode": "3840F060",
+   "title": "Base Support",
+   "appropriationType": "OM",
+   "service": "AF",
+   "budgetActivity": "BA 01",
+   "raw": {
+    "account": "3840F",
+    "accountLine": "060",
+    "sagBli": "011Z",
+    "bsa": "01"
+   },
+   "fyData": [
+    {
+     "fy": 2025,
+     "enacted": 1205193
+    },
+    {
+     "fy": 2026,
+     "enacted": 1108157
+    },
+    {
+     "fy": 2027,
+     "request": 1128729
+    }
+   ]
+  },
+  {
+   "peCode": "3840F070",
+   "title": "Cyberspace Sustainment",
+   "appropriationType": "OM",
+   "service": "AF",
+   "budgetActivity": "BA 01",
+   "raw": {
+    "account": "3840F",
+    "accountLine": "070",
+    "sagBli": "011V",
+    "bsa": "1F"
+   },
+   "fyData": [
+    {
+     "fy": 2025,
+     "enacted": 12711
+    },
+    {
+     "fy": 2026,
+     "enacted": 16134
+    },
+    {
+     "fy": 2027,
+     "request": 26354
+    }
+   ]
+  },
+  {
+   "peCode": "3840F080",
+   "title": "Cyberspace Activities",
+   "appropriationType": "OM",
+   "service": "AF",
+   "budgetActivity": "BA 01",
+   "raw": {
+    "account": "3840F",
+    "accountLine": "080",
+    "sagBli": "012D",
+    "bsa": "1G"
+   },
+   "fyData": [
+    {
+     "fy": 2025,
+     "enacted": 25245
+    },
+    {
+     "fy": 2026,
+     "enacted": 122146
+    },
+    {
+     "fy": 2027,
+     "request": 81720
+    }
+   ]
+  },
+  {
+   "peCode": "3840F090",
+   "title": "Administration",
+   "appropriationType": "OM",
+   "service": "AF",
+   "budgetActivity": "BA 04",
+   "raw": {
+    "account": "3840F",
+    "accountLine": "090",
+    "sagBli": "042A",
+    "bsa": "53"
+   },
+   "fyData": [
+    {
+     "fy": 2025,
+     "enacted": 64465
+    },
+    {
+     "fy": 2026,
+     "enacted": 81998
+    },
+    {
+     "fy": 2027,
+     "request": 64249
+    }
+   ]
+  },
+  {
+   "peCode": "3840F100",
+   "title": "Recruiting and Advertising",
+   "appropriationType": "OM",
+   "service": "AF",
+   "budgetActivity": "BA 04",
+   "raw": {
+    "account": "3840F",
+    "accountLine": "100",
+    "sagBli": "042J",
+    "bsa": "53"
+   },
+   "fyData": [
+    {
+     "fy": 2025,
+     "enacted": 48286
+    },
+    {
+     "fy": 2026,
+     "enacted": 50451
+    },
+    {
+     "fy": 2027,
+     "request": 47831
+    }
+   ]
+  }
+ ]
+}
