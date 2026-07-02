@@ -121,6 +121,8 @@ async function main(): Promise<void> {
   let updated = 0;
   let errors = 0;
   let withPe = 0;
+  let windowsProcessed = 0;
+  let windowsSplit = 0;
 
   try {
     // Load known PE codes once (validation set).
@@ -128,66 +130,107 @@ async function main(): Promise<void> {
     const knownPeCodes = new Set(pes.map((p) => p.peCode.toUpperCase()));
     console.error(`Loaded ${knownPeCodes.size} known PE codes; window ${startDate}..${endDate}`);
 
-    let page = 1;
-    const maxPages = backfill ? 1000 : 200; // circuit breaker
-    for (; page <= maxPages; page += 1) {
-      const { results, hasNext } = await fetchPage(startDate, endDate, page);
-      for (const a of results) {
-        if (!a.generatedInternalId) {
-          errors += 1;
-          continue;
+    const processWindow = async (winStart: string, winEnd: string): Promise<void> => {
+      let page = 1;
+      const maxPages = backfill ? 1000 : 200; // circuit breaker
+      for (; page <= maxPages; page += 1) {
+        const { results, hasNext } = await fetchPage(winStart, winEnd, page);
+        for (const a of results) {
+          if (!a.generatedInternalId) {
+            errors += 1;
+            continue;
+          }
+          // High-volume sync resolves PE from fields present on the search payload
+          // (explicit/description). The DoD-acquisition-program tier needs the
+          // per-award detail call, so it runs in the enrich-award-pe backfill task,
+          // not here. resolvePe still returns provenance so pe_code_source is set.
+          const resolved = extractor.resolvePe({ description: a.description }, knownPeCodes);
+          const peCode = resolved?.peCode ?? null;
+          const peCodeSource = resolved?.source ?? null;
+          if (peCode) withPe += 1;
+
+          const data = {
+            awardUniqueId: a.generatedInternalId,
+            piid: a.piid,
+            fain: a.fain,
+            awardingAgency: a.awardingAgency,
+            awardingSubTier: a.awardingSubTier,
+            contractorName: a.recipientName,
+            recipientUei: a.recipientUei,
+            amount: a.amount,
+            description: a.description,
+            peCode,
+            peCodeSource,
+            popState: a.popState,
+            popCongressionalDistrict: a.popCongressionalDistrict,
+            recipientState: a.recipientState,
+            recipientCongressionalDistrict: a.recipientCongressionalDistrict,
+            actionDate: a.actionDate ? new Date(a.actionDate) : null,
+            awardedAt: a.actionDate ? new Date(a.actionDate) : null,
+            raw: a as object,
+            lastSyncedAt: new Date(),
+          };
+
+          const existing = await prisma.federalAward.findUnique({
+            where: { awardUniqueId: a.generatedInternalId },
+            select: { id: true },
+          });
+          await prisma.federalAward.upsert({
+            where: { awardUniqueId: a.generatedInternalId },
+            create: data,
+            update: data,
+          });
+          if (existing) updated += 1;
+          else inserted += 1;
         }
-        // High-volume sync resolves PE from fields present on the search payload
-        // (explicit/description). The DoD-acquisition-program tier needs the
-        // per-award detail call, so it runs in the enrich-award-pe backfill task,
-        // not here. resolvePe still returns provenance so pe_code_source is set.
-        const resolved = extractor.resolvePe({ description: a.description }, knownPeCodes);
-        const peCode = resolved?.peCode ?? null;
-        const peCodeSource = resolved?.source ?? null;
-        if (peCode) withPe += 1;
-
-        const data = {
-          awardUniqueId: a.generatedInternalId,
-          piid: a.piid,
-          fain: a.fain,
-          awardingAgency: a.awardingAgency,
-          awardingSubTier: a.awardingSubTier,
-          contractorName: a.recipientName,
-          recipientUei: a.recipientUei,
-          amount: a.amount,
-          description: a.description,
-          peCode,
-          peCodeSource,
-          popState: a.popState,
-          popCongressionalDistrict: a.popCongressionalDistrict,
-          recipientState: a.recipientState,
-          recipientCongressionalDistrict: a.recipientCongressionalDistrict,
-          actionDate: a.actionDate ? new Date(a.actionDate) : null,
-          awardedAt: a.actionDate ? new Date(a.actionDate) : null,
-          raw: a as object,
-          lastSyncedAt: new Date(),
-        };
-
-        const existing = await prisma.federalAward.findUnique({
-          where: { awardUniqueId: a.generatedInternalId },
-          select: { id: true },
-        });
-        await prisma.federalAward.upsert({
-          where: { awardUniqueId: a.generatedInternalId },
-          create: data,
-          update: data,
-        });
-        if (existing) updated += 1;
-        else inserted += 1;
+        if (!hasNext || results.length === 0) break;
       }
-      if (!hasNext || results.length === 0) break;
+    };
+
+    // USAspending's spending_by_award SILENTLY CAPS pagination at 10,000 results
+    // per query (100 pages x 100/page) — a single 2020->today backfill window only
+    // ever yields the top-10k awards, which is why federal_award plateaued ~10k.
+    // Fix: adaptive date-window splitting. Before paging a backfill window, probe
+    // page 100: if it is full (or the API claims more), the window holds >=10k
+    // rows, so bisect it and enqueue the halves instead. Upserts are idempotent,
+    // so overlap between probe and processing is harmless.
+    const dayMs = 86_400_000;
+    const addDays = (iso: string, d: number): string =>
+      new Date(new Date(`${iso}T00:00:00Z`).getTime() + d * dayMs).toISOString().slice(0, 10);
+    const daysBetween = (s: string, e: string): number =>
+      Math.round((new Date(`${e}T00:00:00Z`).getTime() - new Date(`${s}T00:00:00Z`).getTime()) / dayMs);
+    const windowSaturated = async (s: string, e: string): Promise<boolean> => {
+      const probe = await fetchPage(s, e, 100);
+      return probe.hasNext || probe.results.length === 100;
+    };
+
+    const queue: Array<[string, string]> = [[startDate, endDate]];
+    while (queue.length > 0) {
+      const win = queue.shift();
+      if (!win) break;
+      const [winStart, winEnd] = win;
+      if (backfill && daysBetween(winStart, winEnd) >= 2 && (await windowSaturated(winStart, winEnd))) {
+        const mid = addDays(winStart, Math.floor(daysBetween(winStart, winEnd) / 2));
+        console.error(`window ${winStart}..${winEnd} holds >=10k awards — splitting at ${mid}`);
+        windowsSplit += 1;
+        queue.unshift([winStart, mid], [addDays(mid, 1), winEnd]);
+        continue;
+      }
+      await processWindow(winStart, winEnd);
+      windowsProcessed += 1;
     }
 
     await prisma.syncRun.update({
       where: { id: run.id },
       data: { finishedAt: new Date(), status: 'success', rowsInserted: inserted, rowsUpdated: updated, errorCount: errors },
     });
-    console.log(JSON.stringify({ source, window: { startDate, endDate }, inserted, updated, withPe, errors }, null, 2));
+    console.log(
+      JSON.stringify(
+        { source, window: { startDate, endDate }, inserted, updated, withPe, errors, windowsProcessed, windowsSplit },
+        null,
+        2,
+      ),
+    );
   } catch (err) {
     await prisma.syncRun.update({
       where: { id: run.id },

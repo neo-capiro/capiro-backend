@@ -16,3 +16,16 @@ export {
   type RunwayClass,
   type RunwayResult,
 } from './procurement-runway.js';
+export {
+  classifyMaturity,
+  parseBudgetActivity,
+  type MaturityStage,
+  type MaturityInput,
+  type MaturityResult,
+} from './acquisition-maturity.js';
+export {
+  detectAnomalies,
+  type AnomalyInput,
+  type AnomalyType,
+  type Anomaly,
+} from './budget-anomaly.js';

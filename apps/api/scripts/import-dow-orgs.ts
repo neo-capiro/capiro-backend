@@ -112,6 +112,26 @@ async function main(): Promise<void> {
   let linksSkippedNoOffice = 0;
   try {
     const officeIdByName = new Map<string, string>();
+    // Second index keyed by aggressive normalization (uppercase, alnum-only) so
+    // owner strings like "PEO Aviation:" or "P.E.O. Aviation" resolve to the
+    // office "PEO Aviation". Still EXACT matching after normalization — never
+    // similarity-based (review policy: fuzzy stays out of accepted links).
+    const officeIdByNorm = new Map<string, string>();
+    const normKey = (s: string): string => s.toUpperCase().replace(/[^A-Z0-9]/g, '');
+    const recordOffice = (name: string, id: string): void => {
+      officeIdByName.set(name.toUpperCase(), id);
+      const nk = normKey(name);
+      // First writer wins; a second office normalizing identically would make
+      // the key ambiguous, so poison it instead of silently re-pointing.
+      if (officeIdByNorm.has(nk) && officeIdByNorm.get(nk) !== id) officeIdByNorm.set(nk, 'AMBIGUOUS');
+      else officeIdByNorm.set(nk, id);
+    };
+    const lookupOffice = (raw: string): string | undefined => {
+      const direct = officeIdByName.get(cleanOrgName(raw).toUpperCase());
+      if (direct) return direct;
+      const viaNorm = officeIdByNorm.get(normKey(cleanOrgName(raw)));
+      return viaNorm && viaNorm !== 'AMBIGUOUS' ? viaNorm : undefined;
+    };
     const ensureOffice = async (seed: OfficeSeed): Promise<string | null> => {
       const key = seed.name.toUpperCase();
       const hit = officeIdByName.get(key);
@@ -123,13 +143,13 @@ async function main(): Promise<void> {
         select: { id: true },
       });
       if (existing) {
-        officeIdByName.set(key, existing.id);
+        recordOffice(seed.name, existing.id);
         officesExisting += 1;
         return existing.id;
       }
       if (!COMMIT) {
         officesCreated += 1;
-        officeIdByName.set(key, `dry-${key}`);
+        recordOffice(seed.name, `dry-${key}`);
         return null;
       }
       const parentKey = seed.parentName?.toUpperCase();
@@ -145,7 +165,7 @@ async function main(): Promise<void> {
         },
       });
       officesCreated += 1;
-      officeIdByName.set(key, row.id);
+      recordOffice(seed.name, row.id);
       return row.id;
     };
     // parents (no parentName) first so children can reference them
@@ -156,7 +176,7 @@ async function main(): Promise<void> {
     for (const p of people) {
       const orgName = cleanOrgName(p.sub_organization ?? '') || cleanOrgName(p.organization ?? '');
       if (!orgName) continue;
-      const officeId = officeIdByName.get(orgName.toUpperCase());
+      const officeId = lookupOffice(orgName);
       if (!officeId) {
         rolesSkipped += 1;
         continue;
@@ -233,7 +253,7 @@ async function main(): Promise<void> {
         programsCreated += 1; // dry-run count
       }
       for (const owner of pr.owners ?? []) {
-        const officeId = officeIdByName.get(cleanOrgName(owner).toUpperCase());
+        const officeId = lookupOffice(owner);
         if (!officeId) {
           linksSkippedNoOffice += 1;
           continue;

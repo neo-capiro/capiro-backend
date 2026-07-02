@@ -21,6 +21,15 @@ const SERVICE_DESIGNATOR: Record<string, string> = {
   G: 'DW',
   T: 'DW',
   B: 'DW',
+  // Joint / defense-agency designators (only A/N/F/M/S are military departments;
+  // everything else rolls up to Defense-Wide, same as C/G/T/B above). Added for
+  // the 49 R-1 PEs left service=NULL by the 2026-07-03 backfill: J = Joint
+  // Staff, K = DISA-family comms/IT (0303126K Long-Haul Communications),
+  // V = WHS/joint support, R = readiness/joint (0300206R).
+  J: 'DW',
+  K: 'DW',
+  V: 'DW',
+  R: 'DW',
 };
 
 /** Derive service + designator from the 8th char of an RDT&E PE code. */

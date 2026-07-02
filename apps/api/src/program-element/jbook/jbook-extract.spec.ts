@@ -27,6 +27,14 @@ describe('serviceFromPeCode', () => {
   test('unknown designator yields null service but keeps code', () => {
     expect(serviceFromPeCode('0601000Z')).toEqual({ service: null, serviceCode: 'Z' });
   });
+
+  test('joint / defense-agency designators roll up to DW (J/K/V/R)', () => {
+    // Real R-1 lines left service=NULL by the 2026-07-03 backfill.
+    expect(serviceFromPeCode('0204571J')).toEqual({ service: 'DW', serviceCode: 'J' }); // Joint Staff
+    expect(serviceFromPeCode('0303126K')).toEqual({ service: 'DW', serviceCode: 'K' }); // Long-Haul Comms (DISA)
+    expect(serviceFromPeCode('0302609V')).toEqual({ service: 'DW', serviceCode: 'V' });
+    expect(serviceFromPeCode('0300206R')).toEqual({ service: 'DW', serviceCode: 'R' });
+  });
 });
 
 describe('readR1UrlFromText', () => {
