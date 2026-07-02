@@ -2,10 +2,9 @@ import { Injectable, Logger, ServiceUnavailableException } from '@nestjs/common'
 import type { TenantContext } from '@capiro/shared';
 import { AiCredentialResolverService } from '../../engagement/ai-credential-resolver.service.js';
 import { EngagementService } from '../../engagement/engagement.service.js';
-import { MeriDocgenService } from '../../meri/meri-docgen.service.js';
 import { MemoryStoreService } from '../../memory/memory-store.service.js';
 import type { MemoryItemType } from '../../memory/memory.types.js';
-import type { WordSpec } from '../../meri/meri-docgen.helpers.js';
+import { renderMemoDocx, type MemoDocInput } from './alert-memo-docx.js';
 import type {
   AlertMemoAlertInput,
   AlertMemoResult,
@@ -60,7 +59,6 @@ export class AlertMemoService {
   constructor(
     private readonly credentials: AiCredentialResolverService,
     private readonly memory: MemoryStoreService,
-    private readonly docgen: MeriDocgenService,
     private readonly engagement: EngagementService,
   ) {}
 
@@ -96,7 +94,7 @@ export class AlertMemoService {
     // Render docx + auto-file in the client's Documents.
     let document: AlertMemoResult['document'] = null;
     try {
-      const buffer = await this.docgen.buildDocx(toWordSpec(title, clientName, alert, sections));
+      const buffer = await renderMemoDocx(toMemoDocInput(clientName, alert, sections, sources));
       const fileName = `${title}.docx`.replace(/[\\/:*?"<>|]+/g, '-');
       const saved = await this.engagement.createAttachmentFromBuffer(ctx, {
         clientId,
@@ -136,8 +134,9 @@ export class AlertMemoService {
     clientId: string,
     input: { title: string; markdown: string; clientName: string; actionDate?: string; replaceAttachmentId?: string },
   ): Promise<{ document: { attachmentId: string; fileName: string } | null; title: string }> {
-    const subtitle = `Prepared for ${input.clientName}${input.actionDate ? ` · ${input.actionDate}` : ''}`;
-    const buffer = await this.docgen.buildDocx(markdownToWordSpec(input.title, subtitle, input.markdown));
+    const buffer = await renderMemoDocx(
+      markdownToMemoDocInput(input.markdown, input.clientName, input.title, input.actionDate),
+    );
     const fileName = `${input.title}.docx`.replace(/[\\/:*?"<>|]+/g, '-');
     const saved = await this.engagement.createAttachmentFromBuffer(ctx, {
       clientId,
@@ -350,41 +349,32 @@ function toMarkdown(
   return lines.join('\n').trimEnd() + '\n';
 }
 
-function toWordSpec(
-  title: string,
+function toMemoDocInput(
   clientName: string,
   alert: AlertMemoAlertInput,
   sections: GenSection[],
-): WordSpec {
+  sources: AlertMemoResult['sources'],
+): MemoDocInput {
+  const reLine = alert.billDisplayNum
+    ? `${alert.billDisplayNum}${alert.billTitle ? ` — ${alert.billTitle}` : ''}`
+    : alert.hearingTitle ?? alert.title;
   return {
-    title,
-    subtitle: `Prepared for ${clientName}${alert.actionDate ? ` · ${alert.actionDate}` : ''}`,
-    sections: sections.map((s) => ({
-      heading: s.heading,
-      paragraphs: s.paragraphs.map((p) => p.text),
-      bullets: [],
-      tables: [],
-      imageArtifactIds: [],
-      images: [],
-    })),
+    clientName,
+    dateStr: formatMemoDate(alert.actionDate),
+    reLine,
+    sections: sections.map((s) => ({ heading: s.heading, paragraphs: s.paragraphs.map((p) => p.text) })),
+    sources: sources.map((s) => ({ label: s.label, url: s.url })),
   };
 }
 
-/** Split edited memo markdown into a WordSpec (## headings → sections; drops the top # title + prepared-for line). */
-function markdownToWordSpec(title: string, subtitle: string, markdown: string): WordSpec {
-  const sections: WordSpec['sections'] = [];
-  let cur: { heading: string; paras: string[] } | null = null;
+/** Split edited memo markdown into a MemoDocInput (## headings → sections; a "Sources" section → source lines). */
+function markdownToMemoDocInput(markdown: string, clientName: string, title: string, actionDate?: string): MemoDocInput {
+  const sections: MemoDocInput['sections'] = [];
+  const sources: MemoDocInput['sources'] = [];
+  let cur: { heading: string; paragraphs: string[] } | null = null;
+  let inSources = false;
   const flush = () => {
-    if (cur && (cur.heading || cur.paras.length)) {
-      sections.push({
-        heading: cur.heading,
-        paragraphs: cur.paras.filter(Boolean),
-        bullets: [],
-        tables: [],
-        imageArtifactIds: [],
-        images: [],
-      });
-    }
+    if (cur && (cur.heading || cur.paragraphs.length)) sections.push(cur);
   };
   for (const raw of markdown.split(/\r?\n/)) {
     const line = raw.trimEnd();
@@ -393,15 +383,47 @@ function markdownToWordSpec(title: string, subtitle: string, markdown: string): 
     const h = line.match(/^##\s+(.*)$/);
     if (h) {
       flush();
-      cur = { heading: (h[1] ?? '').trim(), paras: [] };
+      const heading = (h[1] ?? '').trim();
+      inSources = /^sources$/i.test(heading);
+      cur = inSources ? null : { heading, paragraphs: [] };
       continue;
     }
-    if (!cur) cur = { heading: '', paras: [] };
-    if (line.trim()) cur.paras.push(line.replace(/^[-*]\s+/, '• ').trim());
+    if (inSources) {
+      const m = line.match(/^[-*]\s+(.*)$/);
+      if (m) sources.push(splitSourceLine(m[1] ?? ''));
+      continue;
+    }
+    if (!cur) cur = { heading: '', paragraphs: [] };
+    if (line.trim()) cur.paragraphs.push(line.replace(/^[-*]\s+/, '').trim());
   }
   flush();
-  if (!sections.length) {
-    sections.push({ heading: '', paragraphs: [markdown.trim()], bullets: [], tables: [], imageArtifactIds: [], images: [] });
+  if (!sections.length) sections.push({ heading: '', paragraphs: [markdown.trim()] });
+  return {
+    clientName,
+    dateStr: formatMemoDate(actionDate),
+    reLine: title.replace(/^client memo\s*[—-]\s*/i, '').trim() || 'Client update',
+    sections,
+    sources,
+  };
+}
+
+function splitSourceLine(s: string): { label: string; url: string | null } {
+  const m = s.match(/^(.*?)\s+[—-]\s+(https?:\/\/\S+)$/);
+  if (m) return { label: (m[1] ?? '').trim(), url: (m[2] ?? '').trim() || null };
+  return { label: s.trim(), url: null };
+}
+
+/** Long-form memo date; parses YYYY-MM-DD as a local date to avoid tz drift. */
+function formatMemoDate(actionDate?: string | null): string {
+  let d: Date;
+  if (actionDate && /^\d{4}-\d{2}-\d{2}/.test(actionDate)) {
+    const parts = actionDate.slice(0, 10).split('-').map(Number);
+    d = new Date(parts[0] ?? 1970, (parts[1] ?? 1) - 1, parts[2] ?? 1);
+  } else if (actionDate) {
+    d = new Date(actionDate);
+  } else {
+    d = new Date();
   }
-  return { title, subtitle, sections };
+  if (Number.isNaN(d.getTime())) d = new Date();
+  return d.toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' });
 }

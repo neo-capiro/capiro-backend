@@ -1,7 +1,6 @@
 import { Module } from '@nestjs/common';
 import { EngagementModule } from '../../engagement/engagement.module.js';
 import { MemoryModule } from '../../memory/memory.module.js';
-import { MeriDocgenService } from '../../meri/meri-docgen.service.js';
 import { AlertMemoController } from './alert-memo.controller.js';
 import { AlertMemoService } from './alert-memo.service.js';
 
@@ -10,12 +9,12 @@ import { AlertMemoService } from './alert-memo.service.js';
  * the memo needs without widening the intelligence module's dependency graph:
  *   - EngagementModule → EngagementService (Documents auto-file) + AiCredentialResolverService (per-tenant key)
  *   - MemoryModule → MemoryStoreService (client Memory files as steering)
- * MeriDocgenService is dependency-free (docx rendering), so we provide it directly
- * rather than widen MeriModule's exports.
+ * The docx is rendered by the module-local `renderMemoDocx` (a dedicated memo
+ * template), so no doc-gen service dependency is needed.
  */
 @Module({
   imports: [EngagementModule, MemoryModule],
   controllers: [AlertMemoController],
-  providers: [AlertMemoService, MeriDocgenService],
+  providers: [AlertMemoService],
 })
 export class AlertMemoModule {}

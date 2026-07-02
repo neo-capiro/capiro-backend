@@ -191,3 +191,48 @@ export function useUpcomingHearings() {
     staleTime: 300_000,
   });
 }
+
+export type HearingScope = 'upcoming' | 'past' | 'all';
+
+export interface BrowseHearingsResult {
+  items: UpcomingHearing[];
+  total: number;
+}
+
+/**
+ * Browse the FULL committee-hearing corpus (past + upcoming), searchable/paged.
+ * Backs the "see all available hearings" view — the Upcoming feed only shows the
+ * forward window (thin during a recess), this surfaces everything we've ingested.
+ */
+export function useBrowseHearings(params: {
+  scope: HearingScope;
+  search?: string;
+  chamber?: string;
+  limit: number;
+  offset: number;
+}) {
+  const api = useApi();
+  return useQuery<BrowseHearingsResult>({
+    queryKey: [
+      'intel',
+      'browse-hearings',
+      params.scope,
+      params.search ?? '',
+      params.chamber ?? '',
+      params.limit,
+      params.offset,
+    ],
+    queryFn: async () => {
+      const q = new URLSearchParams();
+      q.set('scope', params.scope);
+      if (params.search) q.set('search', params.search);
+      if (params.chamber) q.set('chamber', params.chamber);
+      q.set('limit', String(params.limit));
+      q.set('offset', String(params.offset));
+      return (await api.get<BrowseHearingsResult>(`/intel-api/upcoming-hearings/browse?${q.toString()}`))
+        .data;
+    },
+    retry: false,
+    staleTime: 60_000,
+  });
+}

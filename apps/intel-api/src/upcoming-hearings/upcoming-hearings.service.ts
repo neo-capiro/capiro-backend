@@ -57,6 +57,41 @@ export class UpcomingHearingsService {
       return this.cache?.data ?? [];
     }
   }
+
+  /**
+   * Browse ALL available hearings (past + upcoming), searchable/filterable/paged.
+   * The Upcoming feed shows only the forward window (few rows during a recess);
+   * this exposes the full enriched corpus so nothing is hidden. Not cached — it's
+   * parameterized and paged.
+   */
+  async browse(opts: {
+    search?: string | null;
+    chamber?: string | null;
+    scope?: string | null;
+    limit?: number;
+    offset?: number;
+  }): Promise<{ items: UpcomingHearing[]; total: number }> {
+    const scope = opts.scope === 'past' || opts.scope === 'all' ? opts.scope : 'upcoming';
+    const limit = clamp(opts.limit ?? 25, 1, 100);
+    const offset = Math.max(0, opts.offset ?? 0);
+    try {
+      const { rows, total } = await this.source.searchCommitteeHearings({
+        search: opts.search ?? null,
+        chamber: opts.chamber ?? null,
+        scope,
+        limit,
+        offset,
+      });
+      return { items: rows.map((r) => toUpcoming(r)), total };
+    } catch (err) {
+      this.logger.error(`hearings browse failed: ${(err as Error).message}`);
+      return { items: [], total: 0 };
+    }
+  }
+}
+
+function clamp(n: number, lo: number, hi: number): number {
+  return Math.min(hi, Math.max(lo, Math.trunc(n) || lo));
 }
 
 function toUpcoming(r: UpcomingCommitteeHearing): UpcomingHearing {

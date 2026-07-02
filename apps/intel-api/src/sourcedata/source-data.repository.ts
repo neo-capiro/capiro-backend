@@ -242,6 +242,68 @@ export class SourceDataRepository {
     );
   }
 
+  /**
+   * Browse the FULL committee-hearing corpus (GLOBAL `committee_hearing`), not
+   * just the forward window. Powers the "all available hearings" view: the
+   * Upcoming feed only surfaces `date >= today` (a handful during a recess),
+   * while the table holds thousands of enriched rows (past + scheduled). Search
+   * matches title/committee (ILIKE, bound), chamber filters exactly, and `scope`
+   * selects the time window. Returns a page + the total for pagination. READ-ONLY.
+   */
+  async searchCommitteeHearings(opts: {
+    search?: string | null;
+    chamber?: string | null;
+    scope: 'upcoming' | 'past' | 'all';
+    limit: number;
+    offset: number;
+  }): Promise<{ rows: UpcomingCommitteeHearing[]; total: number }> {
+    const clauses: string[] = [];
+    const params: unknown[] = [];
+    let i = 1;
+    const chamber = opts.chamber?.trim();
+    if (chamber) {
+      clauses.push(`chamber ILIKE $${i++}`);
+      params.push(chamber);
+    }
+    const search = opts.search?.trim();
+    if (search) {
+      clauses.push(`(title ILIKE $${i} OR committee_name ILIKE $${i})`);
+      params.push(`%${search}%`);
+      i++;
+    }
+    if (opts.scope === 'upcoming') clauses.push(`date >= CURRENT_DATE`);
+    else if (opts.scope === 'past') clauses.push(`date < CURRENT_DATE`);
+    const where = clauses.length ? `WHERE ${clauses.join(' AND ')}` : '';
+    // Upcoming reads soonest-first; past/all read most-recent-first.
+    const order = opts.scope === 'upcoming' ? 'date ASC, committee_name ASC' : 'date DESC, committee_name ASC';
+
+    const countRows = await this.prisma.$queryRawUnsafe<Array<{ count: number }>>(
+      `SELECT COUNT(*)::int AS count FROM committee_hearing ${where}`,
+      ...params,
+    );
+    const total = countRows[0]?.count ?? 0;
+
+    const rows = await this.prisma.$queryRawUnsafe<UpcomingCommitteeHearing[]>(
+      `SELECT id,
+              title,
+              committee_name AS "committeeName",
+              chamber,
+              date,
+              time,
+              location,
+              type,
+              url
+         FROM committee_hearing
+         ${where}
+        ORDER BY ${order}
+        LIMIT $${i} OFFSET $${i + 1}`,
+      ...params,
+      opts.limit,
+      opts.offset,
+    );
+    return { rows, total };
+  }
+
   /** Keyword/subject candidate bill ids, scoped to a Congress (§6.2 recommendations). */
   async keywordCandidateIds(terms: string[], congress: number): Promise<string[]> {
     const lower = terms.map((t) => t.toLowerCase()).filter((t) => t.length >= 3);

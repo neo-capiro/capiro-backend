@@ -1,5 +1,7 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
+import type { ColumnsType } from 'antd/es/table';
 import {
+  Alert,
   App as AntApp,
   Button,
   Card,
@@ -23,12 +25,14 @@ import {
   DeleteOutlined,
   PlusOutlined,
   CalendarOutlined,
+  UnorderedListOutlined,
 } from '@ant-design/icons';
 import { Link } from 'react-router-dom';
 import { useIntelFeatureEnabled } from '../../lib/intel-feature-flags.js';
 import {
   TERM_TYPES,
   useAddTerm,
+  useBrowseHearings,
   useCreateHearing,
   useCreateWatchlist,
   useHearingSessions,
@@ -36,6 +40,8 @@ import {
   useSetWatchlistActive,
   useUpcomingHearings,
   useWatchlists,
+  type HearingScope,
+  type UpcomingHearing,
   type Watchlist,
 } from '../../lib/hearing-watch-api.js';
 
@@ -66,9 +72,62 @@ function prettyType(type: string): string {
   return type;
 }
 
+/** A directly-ingestible media URL (HLS/MP4/audio) vs an event page. Only a media
+ *  URL is pre-filled into the room's Stream URL; an event page is offered as a
+ *  click-through reference to go find the actual C-SPAN/committee stream. */
+function isMediaUrl(u?: string | null): boolean {
+  if (!u) return false;
+  return /\.(m3u8|mp4|m3u|aac|mp3|ts)(\?|#|$)/i.test(u) || /stream|manifest|playlist|\.m3u8/i.test(u);
+}
+
+/** Shared columns for the Upcoming + All-hearings tables. */
+function buildHearingColumns(onWatch: (r: UpcomingHearing) => void): ColumnsType<UpcomingHearing> {
+  return [
+    {
+      title: 'When',
+      dataIndex: 'scheduledAt',
+      width: 170,
+      render: (v: string, r) => (
+        <span>
+          {formatHearingDate(v)}
+          {r.time ? <Text type="secondary"> · {r.time}</Text> : null}
+        </span>
+      ),
+    },
+    { title: 'Chamber', dataIndex: 'chamber', width: 90 },
+    { title: 'Committee', dataIndex: 'committee', ellipsis: true },
+    {
+      title: 'Title',
+      dataIndex: 'title',
+      render: (v: string, r) => (
+        <Space size={6} wrap>
+          {r.type ? <Tag>{prettyType(r.type)}</Tag> : null}
+          {r.url ? (
+            <a href={r.url} target="_blank" rel="noreferrer">
+              {v}
+            </a>
+          ) : (
+            <span>{v}</span>
+          )}
+        </Space>
+      ),
+    },
+    {
+      title: '',
+      key: 'act',
+      width: 90,
+      render: (_: unknown, r) => (
+        <Button size="small" onClick={() => onWatch(r)}>
+          Watch
+        </Button>
+      ),
+    },
+  ];
+}
+
 export function HearingWatchPage() {
   const enabled = useIntelFeatureEnabled('hearing_watch');
-  const [view, setView] = useState<'hearings' | 'upcoming' | 'watchlists'>('hearings');
+  const [view, setView] = useState<'hearings' | 'upcoming' | 'browse' | 'watchlists'>('hearings');
 
   if (!enabled) {
     return (
@@ -94,6 +153,7 @@ export function HearingWatchPage() {
         options={[
           { label: 'Hearings', value: 'hearings', icon: <AudioOutlined /> },
           { label: 'Upcoming', value: 'upcoming', icon: <CalendarOutlined /> },
+          { label: 'All hearings', value: 'browse', icon: <UnorderedListOutlined /> },
           { label: 'Watchlists', value: 'watchlists', icon: <PlusOutlined /> },
         ]}
         style={{ marginBottom: 16 }}
@@ -101,6 +161,7 @@ export function HearingWatchPage() {
 
       {view === 'hearings' && <HearingsTab />}
       {view === 'upcoming' && <UpcomingTab />}
+      {view === 'browse' && <BrowseTab />}
       {view === 'watchlists' && <WatchlistsTab />}
     </div>
   );
@@ -162,14 +223,35 @@ function NewHearingModal({
   open,
   onClose,
   presetTitle,
+  presetUrl,
 }: {
   open: boolean;
   onClose: () => void;
   presetTitle?: string;
+  presetUrl?: string;
 }) {
   const [form] = Form.useForm();
   const create = useCreateHearing();
   const { message } = AntApp.useApp();
+
+  // A media URL (HLS/MP4/audio) can go straight into the stream field; a
+  // congress.gov event page can't be ingested, so we keep it as a reference.
+  const presetIsMedia = isMediaUrl(presetUrl);
+  const eventPageUrl = presetUrl && !presetIsMedia ? presetUrl : undefined;
+
+  // The modal stays mounted across opens, so initialValues alone won't refresh
+  // the preset when a different row is picked. Set fields each time it opens.
+  useEffect(() => {
+    if (!open) return;
+    form.setFieldsValue({
+      title: presetTitle,
+      sourceType: 'hearing',
+      audioSource: 'stream_url',
+      recordingPolicy: 'transcript_only',
+      sourceUrl: presetIsMedia ? presetUrl : undefined,
+    });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [open, presetTitle, presetUrl]);
 
   return (
     <Modal
@@ -211,6 +293,32 @@ function NewHearingModal({
           recordingPolicy: 'transcript_only',
         }}
       >
+        {eventPageUrl ? (
+          <Alert
+            type="info"
+            showIcon
+            style={{ marginBottom: 12 }}
+            message="Find the live stream on the event page"
+            description={
+              <span>
+                Congress.gov doesn&apos;t publish a media URL.{' '}
+                <a href={eventPageUrl} target="_blank" rel="noreferrer">
+                  Open the event page ↗
+                </a>{' '}
+                to get the C-SPAN / committee stream, then paste the direct{' '}
+                <Text code>.m3u8</Text>/MP4 below.
+              </span>
+            }
+          />
+        ) : null}
+        {presetIsMedia ? (
+          <Alert
+            type="success"
+            showIcon
+            style={{ marginBottom: 12 }}
+            message="Stream URL pre-filled from the hearing — it will start transcribing on connect."
+          />
+        ) : null}
         <Form.Item name="title" label="Hearing title" rules={[{ required: true }]}>
           <Input placeholder="e.g. Senate Energy Committee — Interconnection Reform" />
         </Form.Item>
@@ -266,10 +374,27 @@ function NewHearingModal({
 function UpcomingTab() {
   const upcoming = useUpcomingHearings();
   const [presetTitle, setPresetTitle] = useState<string | undefined>();
+  const [presetUrl, setPresetUrl] = useState<string | undefined>();
   const [open, setOpen] = useState(false);
 
+  const onWatch = (r: UpcomingHearing) => {
+    setPresetTitle(`${r.committee} — ${r.title}`);
+    setPresetUrl(r.url ?? undefined);
+    setOpen(true);
+  };
+
   return (
-    <Card title="Upcoming public hearings" size="small">
+    <Card
+      title="Upcoming public hearings"
+      size="small"
+      extra={
+        <Tooltip title="Congress schedules hearings ~1 week ahead; the list is thin during a recess. Use “All hearings” to search the full archive.">
+          <Text type="secondary" style={{ fontSize: 12 }}>
+            forward window
+          </Text>
+        </Tooltip>
+      }
+    >
       {upcoming.isLoading ? (
         <Spin />
       ) : upcoming.isError ? (
@@ -280,58 +405,124 @@ function UpcomingTab() {
           size="small"
           pagination={{ pageSize: 10 }}
           dataSource={upcoming.data}
-          columns={[
-            {
-              title: 'When',
-              dataIndex: 'scheduledAt',
-              width: 180,
-              render: (v: string, r) => (
-                <span>
-                  {formatHearingDate(v)}
-                  {r.time ? <Text type="secondary"> · {r.time}</Text> : null}
-                </span>
-              ),
-            },
-            { title: 'Chamber', dataIndex: 'chamber', width: 90 },
-            { title: 'Committee', dataIndex: 'committee', ellipsis: true },
-            {
-              title: 'Title',
-              dataIndex: 'title',
-              render: (v: string, r) => (
-                <Space size={6} wrap>
-                  {r.type ? <Tag>{prettyType(r.type)}</Tag> : null}
-                  {r.url ? (
-                    <a href={r.url} target="_blank" rel="noreferrer">
-                      {v}
-                    </a>
-                  ) : (
-                    <span>{v}</span>
-                  )}
-                </Space>
-              ),
-            },
-            {
-              title: '',
-              key: 'act',
-              width: 90,
-              render: (_: unknown, r) => (
-                <Button
-                  size="small"
-                  onClick={() => {
-                    setPresetTitle(`${r.committee} — ${r.title}`);
-                    setOpen(true);
-                  }}
-                >
-                  Watch
-                </Button>
-              ),
-            },
-          ]}
+          columns={buildHearingColumns(onWatch)}
         />
       ) : (
-        <Empty description="No upcoming hearings scheduled." />
+        <Empty description="No upcoming hearings scheduled right now (Congress may be in recess). Try “All hearings” to browse the full schedule." />
       )}
-      <NewHearingModal open={open} onClose={() => setOpen(false)} presetTitle={presetTitle} />
+      <NewHearingModal
+        open={open}
+        onClose={() => setOpen(false)}
+        presetTitle={presetTitle}
+        presetUrl={presetUrl}
+      />
+    </Card>
+  );
+}
+
+// ---- All hearings (browse) tab ---------------------------------------------
+
+function BrowseTab() {
+  const [scope, setScope] = useState<HearingScope>('upcoming');
+  const [search, setSearch] = useState('');
+  const [chamber, setChamber] = useState('');
+  const [page, setPage] = useState(1);
+  const pageSize = 25;
+
+  const query = useBrowseHearings({
+    scope,
+    search: search || undefined,
+    chamber: chamber || undefined,
+    limit: pageSize,
+    offset: (page - 1) * pageSize,
+  });
+
+  const [presetTitle, setPresetTitle] = useState<string | undefined>();
+  const [presetUrl, setPresetUrl] = useState<string | undefined>();
+  const [open, setOpen] = useState(false);
+
+  const onWatch = (r: UpcomingHearing) => {
+    setPresetTitle(`${r.committee} — ${r.title}`);
+    setPresetUrl(r.url ?? undefined);
+    setOpen(true);
+  };
+
+  const total = query.data?.total ?? 0;
+
+  return (
+    <Card
+      title="All hearings"
+      size="small"
+      extra={
+        query.data ? (
+          <Text type="secondary" style={{ fontSize: 12 }}>
+            {total.toLocaleString()} hearings
+          </Text>
+        ) : null
+      }
+    >
+      <Space wrap style={{ marginBottom: 12 }}>
+        <Segmented
+          value={scope}
+          onChange={(v) => {
+            setScope(v as HearingScope);
+            setPage(1);
+          }}
+          options={[
+            { label: 'Upcoming', value: 'upcoming' },
+            { label: 'Past', value: 'past' },
+            { label: 'All', value: 'all' },
+          ]}
+        />
+        <Select
+          value={chamber}
+          style={{ width: 140 }}
+          onChange={(v) => {
+            setChamber(v);
+            setPage(1);
+          }}
+          options={[
+            { value: '', label: 'All chambers' },
+            { value: 'House', label: 'House' },
+            { value: 'Senate', label: 'Senate' },
+            { value: 'Joint', label: 'Joint' },
+          ]}
+        />
+        <Input.Search
+          allowClear
+          placeholder="Search title or committee"
+          style={{ width: 300 }}
+          onSearch={(v) => {
+            setSearch(v.trim());
+            setPage(1);
+          }}
+        />
+      </Space>
+
+      {query.isLoading ? (
+        <Spin />
+      ) : (
+        <Table
+          rowKey="id"
+          size="small"
+          dataSource={query.data?.items ?? []}
+          columns={buildHearingColumns(onWatch)}
+          locale={{ emptyText: <Empty description="No hearings match your filters." /> }}
+          pagination={{
+            current: page,
+            pageSize,
+            total,
+            showSizeChanger: false,
+            onChange: (p) => setPage(p),
+          }}
+        />
+      )}
+      <NewHearingModal
+        open={open}
+        onClose={() => setOpen(false)}
+        presetTitle={presetTitle}
+        presetUrl={presetUrl}
+      />
     </Card>
   );
 }
