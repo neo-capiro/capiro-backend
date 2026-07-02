@@ -80,13 +80,15 @@ export function classifyRunway(series: FyFunding[], budgetYearFy: number): Runwa
     rationale,
   });
 
-  if (funded.length === 0) {
+  const firstFunded = funded[0];
+  const lastFunded = funded[funded.length - 1];
+  if (firstFunded === undefined || lastFunded === undefined) {
     return result('insufficient_data', 'No funded years stated for this line.');
   }
   if (funded.length === 1) {
     // A single funded year IS meaningful when it's the budget year on a line
     // with stated-zero priors: that's a new start.
-    const only = funded[0];
+    const only = firstFunded;
     const priorsStatedZero = sorted.some((s) => s.fy < only.fy && s.amount <= FUNDED_FLOOR_M);
     if (only.fy >= budgetYearFy && (priorsStatedZero || sorted.length === 1)) {
       return result('new_start', `First funding appears in FY${only.fy} (${fmtM(only.amount)}) with no prior-year funding.`);
@@ -94,8 +96,8 @@ export function classifyRunway(series: FyFunding[], budgetYearFy: number): Runwa
     return result('insufficient_data', `Only FY${only.fy} is stated — not enough to classify a runway.`);
   }
 
-  const first = funded[0];
-  const last = funded[funded.length - 1];
+  const first = firstFunded;
+  const last = lastFunded;
   const years = last.fy - first.fy;
   const cagr = years > 0 ? Math.pow(last.amount / first.amount, 1 / years) - 1 : 0;
   const cagrRounded = Math.round(cagr * 1000) / 1000;
@@ -111,14 +113,18 @@ export function classifyRunway(series: FyFunding[], budgetYearFy: number): Runwa
   const tailZeroFrom = sorted.findIndex(
     (s, i) => s.amount <= FUNDED_FLOOR_M && sorted.slice(i).every((t) => t.amount <= FUNDED_FLOOR_M),
   );
-  if (tailZeroFrom > 0 && sorted[tailZeroFrom].fy <= budgetYearFy + 1 && sorted.slice(tailZeroFrom).length >= 1) {
-    const z = sorted[tailZeroFrom];
+  const zeroTailStart = tailZeroFrom > 0 ? sorted[tailZeroFrom] : undefined;
+  if (zeroTailStart !== undefined && zeroTailStart.fy <= budgetYearFy + 1) {
+    const z = zeroTailStart;
     return result('zeroed', `Funding ends at FY${z.fy}: ${fmtM(peak.amount)} peak in FY${peak.fy}, zero from FY${z.fy} on.`, { cagr: cagrRounded, peakFy: peak.fy });
   }
 
   // 3. one-year plus-up: an interior spike >60% above both neighbors.
   for (let i = 1; i < funded.length - 1; i += 1) {
-    const [a, b, c] = [funded[i - 1], funded[i], funded[i + 1]];
+    const a = funded[i - 1];
+    const b = funded[i];
+    const c = funded[i + 1];
+    if (a === undefined || b === undefined || c === undefined) continue;
     if (b.amount >= a.amount * SPIKE_RATIO && b.amount >= c.amount * SPIKE_RATIO) {
       return result('one_year_plus_up', `FY${b.fy} spikes to ${fmtM(b.amount)} — ${Math.round((b.amount / Math.max(a.amount, c.amount) - 1) * 100)}% above adjacent years.`, { cagr: cagrRounded, peakFy: b.fy });
     }
