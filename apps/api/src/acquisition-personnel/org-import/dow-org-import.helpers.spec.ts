@@ -70,6 +70,10 @@ describe('isCleanOffice — rejects extraction junk', () => {
     ['Lockheed Martin Rotary and Mission Systems', 1],
     ['Raytheon Information Systems', 1],
     ['BAE Systems Deep Tech Accelerator', 1],
+    // found by the prod DRY-RUN sample (frequency-sorted eval missed them):
+    ['Logistics Agency (DLA). See here.16 It can take 4 months to get certified', 1], // footnote bleed
+    ['Stephen Ehikian', 5], // civilian person name, no rank prefix
+    ['GSA security assessment and authorization for cloud service offerings', 2], // lowercase prose
   ];
   test.each(REJECT)('rejects %s', (name, count) => {
     expect(isCleanOffice(cleanOrgName(name), count)).toBe(false);

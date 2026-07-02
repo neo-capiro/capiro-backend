@@ -46,7 +46,25 @@ const PROSE_PATTERNS = [
   /\bcontribution to\b/i, // "Air Force's contribution to CJADC2 ..."
   /\b\w+-based (model|approach|structure)\b/i, // "PEO-based model"
   /\s[—–•·]\s/, // em-dash/bullet separators = layout fragments, not names
+  /\bsee here\b/i, // footnote bleed ("... (DLA). See here.16 It can take ...")
+  /\.\s*\d/, // period-then-digit = footnote/page-reference bleed
+  /\bit can take\b/i,
 ];
+
+/**
+ * Bare person name without an honorific/rank ("Stephen Ehikian"): two or three
+ * plain TitleCase tokens with no office keyword. Catches civilian person-name
+ * bleed the rank-prefix rule cannot. ("Navy NAVSEA" is safe — all-caps token.)
+ */
+const BARE_PERSON_NAME = /^[A-Z][a-z]+(?: [A-Z]\.?)? [A-Z][a-z]+$/;
+
+/** Lowercase-prose detector: sentences masquerading as names. */
+function isLowercaseProse(name: string): boolean {
+  const tokens = name.split(/\s+/);
+  if (tokens.length < 6) return false;
+  const lower = tokens.filter((t) => /^[a-z]/.test(t)).length;
+  return lower / tokens.length >= 0.6;
+}
 
 /**
  * Defense contractors / consultancies: real entities, but they belong in the
@@ -92,6 +110,8 @@ export function isCleanOffice(name: string, peopleCount: number): boolean {
   if ((name.match(/,/g) ?? []).length >= 3) return false; // list-like prose
   if (/[?]/.test(name)) return false; // unresolved mangled character mid-string
   if (!hasBalancedParens(name)) return false; // fragment ("Combat Command)")
+  if (isLowercaseProse(name)) return false; // sentence masquerading as a name
+  if (!OFFICE_KEYWORD.test(name) && BARE_PERSON_NAME.test(name)) return false; // civilian person-name bleed
   return OFFICE_KEYWORD.test(name) || peopleCount >= 3;
 }
 
