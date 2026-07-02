@@ -66,6 +66,7 @@ export const KNOWN_VERBS = [
   'link-bill-hearings', //          Phase 6: tracked bill × hearing → combined intel_alert (§9.2)
   'enable-feature', //              Phase 8 cutover: flip a tenant flag ON (tracker_owner_intel/tracker_v2)
   'cutover-status', //              Phase 8 cutover: read-only per-tenant go-live readiness report
+  'diag-replay-bill', //            Diagnostic: rewind one tracked bill's watermark + run detection (e2e proof)
 ] as const;
 export type Verb = (typeof KNOWN_VERBS)[number];
 
@@ -178,6 +179,28 @@ export async function runVerb(verb: string, args: string[], deps: VerbDeps): Pro
         `CUTOVER_CHECKLIST parityGreen=${parityGreen} ownerFlag=${owner} v2Flag=${v2} ` +
           `| STILL MANUAL: SES prod access (aws sesv2 get-account ProductionAccessEnabled) + ` +
           `TRACKER_SINGLE_SENDER_GUARD=on on apps/api serve/scheduled task-defs + Ninja S10 sign-off`,
+      );
+      return;
+    }
+    case 'diag-replay-bill': {
+      // Diagnostic (SHADOW-safe): rewind ONE tracked bill's lastSeen watermark so
+      // the detection cycle re-classifies its CURRENT congress action and writes an
+      // intel_alert — proving detect→classify→score→intel_alert end to end on live
+      // data. Scoped to a billId (+ optional tenantId) so it can't touch other
+      // tenants. Keeps lastSeenAt set (so the row is NOT treated as unbaselined).
+      if (!args[0]) throw new Error('diag-replay-bill requires <billId> [tenantId]');
+      const billId = args[0];
+      const tenantId = args[1];
+      const rewound = await deps.prisma.trackedBill.updateMany({
+        where: { billId, ...(tenantId ? { tenantId } : {}) },
+        data: { lastSeenActionText: '__diag_replay__', lastSeenActionDate: new Date('2000-01-01T00:00:00Z') },
+      });
+      deps.log(`DIAG_REWOUND billId=${billId} tenant=${tenantId ?? '(all)'} rows=${rewound.count}`);
+      const svc = new BillChangeDetectorService(deps.prisma, new SourceDataRepository(deps.prisma));
+      const r = await svc.runDetectionCycle();
+      deps.log(
+        `DETECT_DONE scanned=${r.scanned} baseline=${r.baseline} changed=${r.changed} ` +
+          `alerts=${r.alertsWritten} skippedDedup=${r.skippedDedup} byType=${JSON.stringify(r.byType)}`,
       );
       return;
     }
