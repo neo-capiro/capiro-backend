@@ -1,0 +1,18 @@
+/**
+ * Stage-A intelligence classifiers (product plan §2): pure, deterministic,
+ * golden-fixture-spec'd. Consumed by the Movement Tracker, Conference Strategy
+ * dashboard, runway views, and the capability->budget recommender.
+ */
+export {
+  classifyPosture,
+  type MarkVector,
+  type Posture,
+  type RecommendedAction,
+  type PostureResult,
+} from './committee-posture.js';
+export {
+  classifyRunway,
+  type FyFunding,
+  type RunwayClass,
+  type RunwayResult,
+} from './procurement-runway.js';
