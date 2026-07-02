@@ -108,12 +108,19 @@ export function isValidPeCode(peCode: string | null | undefined): boolean {
 
 /**
  * Procurement Budget Line Item Number (BLIN) format — the identifier procurement
- * (P-1/P-40) exhibits use INSTEAD of an RDT&E PE code: 4 digits + 1-2 service
- * letters + 4-5 alphanumerics (~9-11 chars). Mirrors the offline extractor's
- * BLIN_RE (scripts/__tools__/extract_pdoc.py). Distinct from PE_CODE_REGEX (which
- * requires 7 leading digits), so the two never collide in program_element.pe_code.
+ * (P-1/P-40) exhibits use INSTEAD of an RDT&E PE code. Two shapes both land here:
+ *   - Army P-40 "P-1 Line Item Numbers" (e.g. 7265C12000, 6771AA0005) — 9-11 chars.
+ *   - Appropriation-namespaced line items for the other Services, whose native
+ *     line-item numbers are NOT globally unique (Navy "0145", AF "B02100", DW
+ *     "0201MC12"), so they are keyed as <appropriationCode><lineItemNumber>
+ *     (e.g. 1506N0145, 3010FB02100, 0300D0201MC12) — the Treasury/USAspending
+ *     "budget line item" convention.
+ * Both reduce to: 4 digits + 1-2 letters + 3-14 alphanumerics. Distinct from
+ * PE_CODE_REGEX (which requires 7 leading digits then a letter), so the two never
+ * collide in program_element.pe_code. Widening the trailing count only ACCEPTS
+ * more real BLINs; it cannot invalidate anything previously valid.
  */
-export const PROCUREMENT_CODE_REGEX = /^[0-9]{4}[A-Z]{1,2}[0-9A-Z]{4,5}$/;
+export const PROCUREMENT_CODE_REGEX = /^[0-9]{4}[A-Z]{1,2}[0-9A-Z]{3,14}$/;
 
 /** Procurement BLIN validity check. Trims + upper-cases before testing. */
 export function isValidProcurementCode(code: string | null | undefined): boolean {

@@ -120,8 +120,15 @@ describe('isValidPeCode', () => {
 });
 
 describe('isValidProcurementCode / isValidProgramCode (Option A — procurement)', () => {
-  test('accepts procurement BLINs (4 digits + 1-2 letters + 4-5 alnum)', () => {
+  test('accepts procurement BLINs (4 digits + 1-2 letters + 3-14 alnum)', () => {
     for (const blin of ['0102A12345', '0102AB1234', '1234A56789', '0708BB0001']) {
+      expect(isValidProcurementCode(blin)).toBe(true);
+    }
+  });
+
+  test('accepts appropriation-namespaced BLINs (Navy/AF/DW line items)', () => {
+    // <appropriationCode><nativeLineItem> for Services whose native codes aren't unique.
+    for (const blin of ['1506N0145', '1506N0147', '3010FB02100', '3010FATA000', '0300D0201MC12', '3020F0021']) {
       expect(isValidProcurementCode(blin)).toBe(true);
     }
   });

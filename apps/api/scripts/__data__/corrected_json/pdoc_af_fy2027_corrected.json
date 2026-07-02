@@ -1,0 +1,4192 @@
+{
+ "service": "AF",
+ "fy": 2027,
+ "sourceUrl": "FY2027 P-40 justification books (TOC-keyed)",
+ "pes": [
+  {
+   "peCode": "3010FB02100",
+   "title": "B-21 Raider",
+   "budgetActivity": "BA 01 — Combat aircraft",
+   "lineNumber": "3010FB02100",
+   "programOfRecord": null,
+   "fyData": [
+    {
+     "fy": 2025,
+     "quantity": null,
+     "requestDollarsThousands": 1878868,
+     "unitCostDollars": null
+    },
+    {
+     "fy": 2026,
+     "quantity": null,
+     "requestDollarsThousands": 6470016,
+     "unitCostDollars": null
+    },
+    {
+     "fy": 2027,
+     "quantity": null,
+     "requestDollarsThousands": 2230615,
+     "unitCostDollars": null
+    }
+   ]
+  },
+  {
+   "peCode": "3010FB02100",
+   "title": "B-21 Raider Advance Procurement (CY) Forces",
+   "budgetActivity": "BA 01 — Combat aircraft",
+   "lineNumber": "3010FB02100",
+   "programOfRecord": null,
+   "fyData": [
+    {
+     "fy": 2025,
+     "quantity": null,
+     "requestDollarsThousands": 721600,
+     "unitCostDollars": null
+    },
+    {
+     "fy": 2026,
+     "quantity": null,
+     "requestDollarsThousands": 862000,
+     "unitCostDollars": null
+    },
+    {
+     "fy": 2027,
+     "quantity": null,
+     "requestDollarsThousands": 1005667,
+     "unitCostDollars": null
+    }
+   ]
+  },
+  {
+   "peCode": "3010FATA000",
+   "title": "F-35",
+   "budgetActivity": "BA 01 — Combat aircraft",
+   "lineNumber": "3010FATA000",
+   "programOfRecord": null,
+   "fyData": [
+    {
+     "fy": 2025,
+     "quantity": 40,
+     "requestDollarsThousands": 4489930,
+     "unitCostDollars": 112248250
+    },
+    {
+     "fy": 2026,
+     "quantity": 24,
+     "requestDollarsThousands": 3913477,
+     "unitCostDollars": 163061542
+    },
+    {
+     "fy": 2027,
+     "quantity": 38,
+     "requestDollarsThousands": 4731781,
+     "unitCostDollars": 124520553
+    }
+   ]
+  },
+  {
+   "peCode": "3010FATA000",
+   "title": "F-35 Advance Procurement (CY) Offensive",
+   "budgetActivity": "BA 01 — Combat aircraft",
+   "lineNumber": "3010FATA000",
+   "programOfRecord": null,
+   "fyData": [
+    {
+     "fy": 2025,
+     "quantity": null,
+     "requestDollarsThousands": 482584,
+     "unitCostDollars": null
+    },
+    {
+     "fy": 2026,
+     "quantity": null,
+     "requestDollarsThousands": 531241,
+     "unitCostDollars": null
+    },
+    {
+     "fy": 2027,
+     "quantity": null,
+     "requestDollarsThousands": 738103,
+     "unitCostDollars": null
+    }
+   ]
+  },
+  {
+   "peCode": "3010FCCA000",
+   "title": "Collaborative Combat Aircraft",
+   "budgetActivity": "BA 01 — Combat aircraft",
+   "lineNumber": "3010FCCA000",
+   "programOfRecord": null,
+   "fyData": [
+    {
+     "fy": 2027,
+     "quantity": null,
+     "requestDollarsThousands": 996528,
+     "unitCostDollars": null
+    }
+   ]
+  },
+  {
+   "peCode": "3010FCCA000",
+   "title": "Collaborative Combat Aircraft Advance Procurement (CY)",
+   "budgetActivity": "BA 01 — Combat aircraft",
+   "lineNumber": "3010FCCA000",
+   "programOfRecord": null,
+   "fyData": [
+    {
+     "fy": 2027,
+     "quantity": null,
+     "requestDollarsThousands": 150500,
+     "unitCostDollars": null
+    }
+   ]
+  },
+  {
+   "peCode": "3010FF015EX",
+   "title": "F-15EX",
+   "budgetActivity": "BA 01 — Combat aircraft",
+   "lineNumber": "3010FF015EX",
+   "programOfRecord": null,
+   "fyData": [
+    {
+     "fy": 2025,
+     "quantity": 18,
+     "requestDollarsThousands": 1808472,
+     "unitCostDollars": 100470667
+    },
+    {
+     "fy": 2026,
+     "quantity": 22,
+     "requestDollarsThousands": 2921792,
+     "unitCostDollars": 132808727
+    },
+    {
+     "fy": 2027,
+     "quantity": 24,
+     "requestDollarsThousands": 2656716,
+     "unitCostDollars": 110696500
+    }
+   ]
+  },
+  {
+   "peCode": "3010FJSE000",
+   "title": "Joint Simulation Environment Airlift",
+   "budgetActivity": "BA 01 — Combat aircraft",
+   "lineNumber": "3010FJSE000",
+   "programOfRecord": null,
+   "fyData": [
+    {
+     "fy": 2026,
+     "quantity": null,
+     "requestDollarsThousands": 12985,
+     "unitCostDollars": null
+    },
+    {
+     "fy": 2027,
+     "quantity": null,
+     "requestDollarsThousands": 52695,
+     "unitCostDollars": null
+    }
+   ]
+  },
+  {
+   "peCode": "3010FKC046A",
+   "title": "KC-46A MDAP Airlift",
+   "budgetActivity": "BA 02 — Airlift aircraft",
+   "lineNumber": "3010FKC046A",
+   "programOfRecord": null,
+   "fyData": [
+    {
+     "fy": 2025,
+     "quantity": 15,
+     "requestDollarsThousands": 2779618,
+     "unitCostDollars": 185307867
+    },
+    {
+     "fy": 2026,
+     "quantity": 15,
+     "requestDollarsThousands": 2749974,
+     "unitCostDollars": 183331600
+    },
+    {
+     "fy": 2027,
+     "quantity": 15,
+     "requestDollarsThousands": 3520530,
+     "unitCostDollars": 234702000
+    }
+   ]
+  },
+  {
+   "peCode": "3010FC130J0",
+   "title": "C-130J Trainers",
+   "budgetActivity": "BA 02 — Airlift aircraft",
+   "lineNumber": "3010FC130J0",
+   "programOfRecord": null,
+   "fyData": [
+    {
+     "fy": 2025,
+     "quantity": 1,
+     "requestDollarsThousands": 414005,
+     "unitCostDollars": 414005000
+    },
+    {
+     "fy": 2026,
+     "quantity": 8,
+     "requestDollarsThousands": 1478060,
+     "unitCostDollars": 184757500
+    },
+    {
+     "fy": 2027,
+     "quantity": null,
+     "requestDollarsThousands": 636680,
+     "unitCostDollars": null
+    }
+   ]
+  },
+  {
+   "peCode": "3010FAPT000",
+   "title": "Advanced Pilot Training T-7A",
+   "budgetActivity": "BA 03 — Trainer aircraft",
+   "lineNumber": "3010FAPT000",
+   "programOfRecord": null,
+   "fyData": [
+    {
+     "fy": 2025,
+     "quantity": null,
+     "requestDollarsThousands": 20780,
+     "unitCostDollars": null
+    },
+    {
+     "fy": 2026,
+     "quantity": 14,
+     "requestDollarsThousands": 362083,
+     "unitCostDollars": 25863071
+    },
+    {
+     "fy": 2027,
+     "quantity": 23,
+     "requestDollarsThousands": 529464,
+     "unitCostDollars": 23020174
+    }
+   ]
+  },
+  {
+   "peCode": "3010FAPT000",
+   "title": "Advanced Pilot Training T-7A Advance Procurement (CY)",
+   "budgetActivity": "BA 03 — Trainer aircraft",
+   "lineNumber": "3010FAPT000",
+   "programOfRecord": null,
+   "fyData": [
+    {
+     "fy": 2027,
+     "quantity": null,
+     "requestDollarsThousands": 69690,
+     "unitCostDollars": null
+    }
+   ]
+  },
+  {
+   "peCode": "3010FH0106O",
+   "title": "MH-139A",
+   "budgetActivity": "BA 04 — Other aircraft",
+   "lineNumber": "3010FH0106O",
+   "programOfRecord": null,
+   "fyData": [
+    {
+     "fy": 2025,
+     "quantity": 8,
+     "requestDollarsThousands": 279095,
+     "unitCostDollars": 34886875
+    },
+    {
+     "fy": 2026,
+     "quantity": 8,
+     "requestDollarsThousands": 277728,
+     "unitCostDollars": 34716000
+    },
+    {
+     "fy": 2027,
+     "quantity": 4,
+     "requestDollarsThousands": 252949,
+     "unitCostDollars": 63237250
+    }
+   ]
+  },
+  {
+   "peCode": "3010FH060WH",
+   "title": "Combat Rescue Helicopter Support Aircraft",
+   "budgetActivity": "BA 04 — Other aircraft",
+   "lineNumber": "3010FH060WH",
+   "programOfRecord": null,
+   "fyData": [
+    {
+     "fy": 2025,
+     "quantity": 4,
+     "requestDollarsThousands": 355185,
+     "unitCostDollars": 88796250
+    },
+    {
+     "fy": 2026,
+     "quantity": 2,
+     "requestDollarsThousands": 207500,
+     "unitCostDollars": 103750000
+    },
+    {
+     "fy": 2027,
+     "quantity": null,
+     "requestDollarsThousands": 69395,
+     "unitCostDollars": null
+    }
+   ]
+  },
+  {
+   "peCode": "3010FC03700",
+   "title": "C-37A",
+   "budgetActivity": "BA 04 — Other aircraft",
+   "lineNumber": "3010FC03700",
+   "programOfRecord": null,
+   "fyData": [
+    {
+     "fy": 2027,
+     "quantity": 1,
+     "requestDollarsThousands": 208000,
+     "unitCostDollars": 208000000
+    }
+   ]
+  },
+  {
+   "peCode": "3010FC0400D",
+   "title": "C-40 Fleet Expansion",
+   "budgetActivity": "BA 04 — Other aircraft",
+   "lineNumber": "3010FC0400D",
+   "programOfRecord": null,
+   "fyData": [
+    {
+     "fy": 2025,
+     "quantity": null,
+     "requestDollarsThousands": 10000,
+     "unitCostDollars": null
+    },
+    {
+     "fy": 2026,
+     "quantity": 1,
+     "requestDollarsThousands": 250000,
+     "unitCostDollars": 250000000
+    }
+   ]
+  },
+  {
+   "peCode": "3010FCAPAC0",
+   "title": "Civil Air Patrol A/C Aircraft",
+   "budgetActivity": "BA 04 — Other aircraft",
+   "lineNumber": "3010FCAPAC0",
+   "programOfRecord": null,
+   "fyData": [
+    {
+     "fy": 2025,
+     "quantity": null,
+     "requestDollarsThousands": 15000,
+     "unitCostDollars": null
+    },
+    {
+     "fy": 2026,
+     "quantity": null,
+     "requestDollarsThousands": 17800,
+     "unitCostDollars": null
+    },
+    {
+     "fy": 2027,
+     "quantity": null,
+     "requestDollarsThousands": 3219,
+     "unitCostDollars": null
+    }
+   ]
+  },
+  {
+   "peCode": "3010F10TRGT",
+   "title": "Target Drones",
+   "budgetActivity": "BA 04 — Other aircraft",
+   "lineNumber": "3010F10TRGT",
+   "programOfRecord": null,
+   "fyData": [
+    {
+     "fy": 2025,
+     "quantity": 14,
+     "requestDollarsThousands": 37581,
+     "unitCostDollars": 2684357
+    },
+    {
+     "fy": 2026,
+     "quantity": 20,
+     "requestDollarsThousands": 34224,
+     "unitCostDollars": 1711200
+    },
+    {
+     "fy": 2027,
+     "quantity": 10,
+     "requestDollarsThousands": 31912,
+     "unitCostDollars": 3191200
+    }
+   ]
+  },
+  {
+   "peCode": "3010FCALL00",
+   "title": "Compass Call",
+   "budgetActivity": "BA 04 — Other aircraft",
+   "lineNumber": "3010FCALL00",
+   "programOfRecord": null,
+   "fyData": [
+    {
+     "fy": 2026,
+     "quantity": 2,
+     "requestDollarsThousands": 400000,
+     "unitCostDollars": 200000000
+    },
+    {
+     "fy": 2027,
+     "quantity": 3,
+     "requestDollarsThousands": 660000,
+     "unitCostDollars": 220000000
+    }
+   ]
+  },
+  {
+   "peCode": "3010FE00700",
+   "title": "E-7",
+   "budgetActivity": "BA 04 — Other aircraft",
+   "lineNumber": "3010FE00700",
+   "programOfRecord": null,
+   "fyData": [
+    {
+     "fy": 2026,
+     "quantity": null,
+     "requestDollarsThousands": 200000,
+     "unitCostDollars": null
+    }
+   ]
+  },
+  {
+   "peCode": "3010FE00700",
+   "title": "E-7 Advance Procurement (CY)",
+   "budgetActivity": "BA 04 — Other aircraft",
+   "lineNumber": "3010FE00700",
+   "programOfRecord": null,
+   "fyData": [
+    {
+     "fy": 2025,
+     "quantity": null,
+     "requestDollarsThousands": 200000,
+     "unitCostDollars": null
+    }
+   ]
+  },
+  {
+   "peCode": "3010FQ020BR",
+   "title": "RQ-20B Puma Aircraft",
+   "budgetActivity": "BA 04 — Other aircraft",
+   "lineNumber": "3010FQ020BR",
+   "programOfRecord": null,
+   "fyData": [
+    {
+     "fy": 2025,
+     "quantity": 6,
+     "requestDollarsThousands": 11283,
+     "unitCostDollars": 1880500
+    },
+    {
+     "fy": 2026,
+     "quantity": 6,
+     "requestDollarsThousands": 11437,
+     "unitCostDollars": 1906167
+    },
+    {
+     "fy": 2027,
+     "quantity": 6,
+     "requestDollarsThousands": 15513,
+     "unitCostDollars": 2585500
+    }
+   ]
+  },
+  {
+   "peCode": "3010FB00200",
+   "title": "B-2A",
+   "budgetActivity": "BA 05 — Modification of inservice aircraf",
+   "lineNumber": "3010FB00200",
+   "programOfRecord": null,
+   "fyData": [
+    {
+     "fy": 2025,
+     "quantity": null,
+     "requestDollarsThousands": 60707,
+     "unitCostDollars": null
+    },
+    {
+     "fy": 2026,
+     "quantity": null,
+     "requestDollarsThousands": 76906,
+     "unitCostDollars": null
+    },
+    {
+     "fy": 2027,
+     "quantity": null,
+     "requestDollarsThousands": 178668,
+     "unitCostDollars": null
+    }
+   ]
+  },
+  {
+   "peCode": "3010FB01B00",
+   "title": "B-1B",
+   "budgetActivity": "BA 05 — Modification of inservice aircraf",
+   "lineNumber": "3010FB01B00",
+   "programOfRecord": null,
+   "fyData": [
+    {
+     "fy": 2025,
+     "quantity": null,
+     "requestDollarsThousands": 13406,
+     "unitCostDollars": null
+    },
+    {
+     "fy": 2026,
+     "quantity": null,
+     "requestDollarsThousands": 73893,
+     "unitCostDollars": null
+    },
+    {
+     "fy": 2027,
+     "quantity": null,
+     "requestDollarsThousands": 146862,
+     "unitCostDollars": null
+    }
+   ]
+  },
+  {
+   "peCode": "3010FB05200",
+   "title": "B-52 Large Aircraft Infrared",
+   "budgetActivity": "BA 05 — Modification of inservice aircraf",
+   "lineNumber": "3010FB05200",
+   "programOfRecord": null,
+   "fyData": [
+    {
+     "fy": 2025,
+     "quantity": null,
+     "requestDollarsThousands": 77527,
+     "unitCostDollars": null
+    },
+    {
+     "fy": 2026,
+     "quantity": null,
+     "requestDollarsThousands": 158234,
+     "unitCostDollars": null
+    },
+    {
+     "fy": 2027,
+     "quantity": null,
+     "requestDollarsThousands": 445999,
+     "unitCostDollars": null
+    }
+   ]
+  },
+  {
+   "peCode": "3010FLAIRCM",
+   "title": "Countermeasures Aircraft",
+   "budgetActivity": "BA 05 — Modification of inservice aircraf",
+   "lineNumber": "3010FLAIRCM",
+   "programOfRecord": null,
+   "fyData": [
+    {
+     "fy": 2025,
+     "quantity": null,
+     "requestDollarsThousands": 52117,
+     "unitCostDollars": null
+    },
+    {
+     "fy": 2026,
+     "quantity": null,
+     "requestDollarsThousands": 35165,
+     "unitCostDollars": null
+    },
+    {
+     "fy": 2027,
+     "quantity": null,
+     "requestDollarsThousands": 66638,
+     "unitCostDollars": null
+    }
+   ]
+  },
+  {
+   "peCode": "3010FCCA00M",
+   "title": "Collaborative Combat Aircraft Mods",
+   "budgetActivity": "BA 05 — Modification of inservice aircraf",
+   "lineNumber": "3010FCCA00M",
+   "programOfRecord": null,
+   "fyData": [
+    {
+     "fy": 2026,
+     "quantity": null,
+     "requestDollarsThousands": 15948,
+     "unitCostDollars": null
+    },
+    {
+     "fy": 2027,
+     "quantity": null,
+     "requestDollarsThousands": 822,
+     "unitCostDollars": null
+    }
+   ]
+  },
+  {
+   "peCode": "3010FE011A0",
+   "title": "E-11 BACN/HAG",
+   "budgetActivity": "BA 05 — Modification of inservice aircraf",
+   "lineNumber": "3010FE011A0",
+   "programOfRecord": null,
+   "fyData": [
+    {
+     "fy": 2025,
+     "quantity": null,
+     "requestDollarsThousands": 72387,
+     "unitCostDollars": null
+    },
+    {
+     "fy": 2026,
+     "quantity": null,
+     "requestDollarsThousands": 28797,
+     "unitCostDollars": null
+    }
+   ]
+  },
+  {
+   "peCode": "3010FF01500",
+   "title": "F-15",
+   "budgetActivity": "BA 05 — Modification of inservice aircraf",
+   "lineNumber": "3010FF01500",
+   "programOfRecord": null,
+   "fyData": [
+    {
+     "fy": 2025,
+     "quantity": null,
+     "requestDollarsThousands": 38247,
+     "unitCostDollars": null
+    },
+    {
+     "fy": 2026,
+     "quantity": null,
+     "requestDollarsThousands": 102168,
+     "unitCostDollars": null
+    },
+    {
+     "fy": 2027,
+     "quantity": null,
+     "requestDollarsThousands": 140204,
+     "unitCostDollars": null
+    }
+   ]
+  },
+  {
+   "peCode": "3010FF015EX",
+   "title": "F-15EX",
+   "budgetActivity": "BA 05 — Modification of inservice aircraf",
+   "lineNumber": "3010FF015EX",
+   "programOfRecord": null,
+   "fyData": [
+    {
+     "fy": 2026,
+     "quantity": null,
+     "requestDollarsThousands": 224350,
+     "unitCostDollars": null
+    },
+    {
+     "fy": 2027,
+     "quantity": null,
+     "requestDollarsThousands": 214176,
+     "unitCostDollars": null
+    }
+   ]
+  },
+  {
+   "peCode": "3010FF01600",
+   "title": "F-16 Modifications",
+   "budgetActivity": "BA 05 — Modification of inservice aircraf",
+   "lineNumber": "3010FF01600",
+   "programOfRecord": null,
+   "fyData": [
+    {
+     "fy": 2025,
+     "quantity": null,
+     "requestDollarsThousands": 194805,
+     "unitCostDollars": null
+    },
+    {
+     "fy": 2026,
+     "quantity": null,
+     "requestDollarsThousands": 509126,
+     "unitCostDollars": null
+    },
+    {
+     "fy": 2027,
+     "quantity": null,
+     "requestDollarsThousands": 946747,
+     "unitCostDollars": null
+    }
+   ]
+  },
+  {
+   "peCode": "3010FF02200",
+   "title": "F-22A Aircraft",
+   "budgetActivity": "BA 05 — Modification of inservice aircraf",
+   "lineNumber": "3010FF02200",
+   "programOfRecord": null,
+   "fyData": [
+    {
+     "fy": 2025,
+     "quantity": null,
+     "requestDollarsThousands": 817256,
+     "unitCostDollars": null
+    },
+    {
+     "fy": 2026,
+     "quantity": null,
+     "requestDollarsThousands": 1041526,
+     "unitCostDollars": null
+    },
+    {
+     "fy": 2027,
+     "quantity": null,
+     "requestDollarsThousands": 1052088,
+     "unitCostDollars": null
+    }
+   ]
+  },
+  {
+   "peCode": "3010FF03500",
+   "title": "F-35 Modifications",
+   "budgetActivity": "BA 05 — Modification of inservice aircraf",
+   "lineNumber": "3010FF03500",
+   "programOfRecord": null,
+   "fyData": [
+    {
+     "fy": 2025,
+     "quantity": null,
+     "requestDollarsThousands": 394454,
+     "unitCostDollars": null
+    },
+    {
+     "fy": 2026,
+     "quantity": null,
+     "requestDollarsThousands": 277264,
+     "unitCostDollars": null
+    },
+    {
+     "fy": 2027,
+     "quantity": null,
+     "requestDollarsThousands": 497973,
+     "unitCostDollars": null
+    }
+   ]
+  },
+  {
+   "peCode": "3010FF15EWS",
+   "title": "F-15 EPAW",
+   "budgetActivity": "BA 05 — Modification of inservice aircraf",
+   "lineNumber": "3010FF15EWS",
+   "programOfRecord": null,
+   "fyData": [
+    {
+     "fy": 2025,
+     "quantity": null,
+     "requestDollarsThousands": 227342,
+     "unitCostDollars": null
+    },
+    {
+     "fy": 2026,
+     "quantity": null,
+     "requestDollarsThousands": 213872,
+     "unitCostDollars": null
+    },
+    {
+     "fy": 2027,
+     "quantity": null,
+     "requestDollarsThousands": 141233,
+     "unitCostDollars": null
+    }
+   ]
+  },
+  {
+   "peCode": "3010FKC046A",
+   "title": "KC-46A MDAP Aircraft",
+   "budgetActivity": "BA 05 — Modification of inservice aircraf",
+   "lineNumber": "3010FKC046A",
+   "programOfRecord": null,
+   "fyData": [
+    {
+     "fy": 2025,
+     "quantity": null,
+     "requestDollarsThousands": 24954,
+     "unitCostDollars": null
+    },
+    {
+     "fy": 2026,
+     "quantity": null,
+     "requestDollarsThousands": 19344,
+     "unitCostDollars": null
+    },
+    {
+     "fy": 2027,
+     "quantity": null,
+     "requestDollarsThousands": 85515,
+     "unitCostDollars": null
+    }
+   ]
+  },
+  {
+   "peCode": "3010FC00500",
+   "title": "C-5",
+   "budgetActivity": "BA 05 — Modification of inservice aircraf",
+   "lineNumber": "3010FC00500",
+   "programOfRecord": null,
+   "fyData": [
+    {
+     "fy": 2025,
+     "quantity": null,
+     "requestDollarsThousands": 43370,
+     "unitCostDollars": null
+    },
+    {
+     "fy": 2026,
+     "quantity": null,
+     "requestDollarsThousands": 25878,
+     "unitCostDollars": null
+    },
+    {
+     "fy": 2027,
+     "quantity": null,
+     "requestDollarsThousands": 10308,
+     "unitCostDollars": null
+    }
+   ]
+  },
+  {
+   "peCode": "3010FC01700",
+   "title": "C-17A",
+   "budgetActivity": "BA 05 — Modification of inservice aircraf",
+   "lineNumber": "3010FC01700",
+   "programOfRecord": null,
+   "fyData": [
+    {
+     "fy": 2025,
+     "quantity": null,
+     "requestDollarsThousands": 85674,
+     "unitCostDollars": null
+    },
+    {
+     "fy": 2026,
+     "quantity": null,
+     "requestDollarsThousands": 124493,
+     "unitCostDollars": null
+    },
+    {
+     "fy": 2027,
+     "quantity": null,
+     "requestDollarsThousands": 59867,
+     "unitCostDollars": null
+    }
+   ]
+  },
+  {
+   "peCode": "3010FC03200",
+   "title": "C-32A",
+   "budgetActivity": "BA 05 — Modification of inservice aircraf",
+   "lineNumber": "3010FC03200",
+   "programOfRecord": null,
+   "fyData": [
+    {
+     "fy": 2025,
+     "quantity": null,
+     "requestDollarsThousands": 6422,
+     "unitCostDollars": null
+    }
+   ]
+  },
+  {
+   "peCode": "3010FC03700",
+   "title": "C-37A",
+   "budgetActivity": "BA 05 — Modification of inservice aircraf",
+   "lineNumber": "3010FC03700",
+   "programOfRecord": null,
+   "fyData": [
+    {
+     "fy": 2025,
+     "quantity": null,
+     "requestDollarsThousands": 9146,
+     "unitCostDollars": null
+    }
+   ]
+  },
+  {
+   "peCode": "3010FOSAEA0",
+   "title": "OSA-EA Modifications Aircraft",
+   "budgetActivity": "BA 05 — Modification of inservice aircraf",
+   "lineNumber": "3010FOSAEA0",
+   "programOfRecord": null,
+   "fyData": [
+    {
+     "fy": 2026,
+     "quantity": null,
+     "requestDollarsThousands": 50850,
+     "unitCostDollars": null
+    },
+    {
+     "fy": 2027,
+     "quantity": null,
+     "requestDollarsThousands": 136786,
+     "unitCostDollars": null
+    }
+   ]
+  },
+  {
+   "peCode": "3010FGLID00",
+   "title": "Glider Mods",
+   "budgetActivity": "BA 05 — Modification of inservice aircraf",
+   "lineNumber": "3010FGLID00",
+   "programOfRecord": null,
+   "fyData": [
+    {
+     "fy": 2025,
+     "quantity": null,
+     "requestDollarsThousands": 2679,
+     "unitCostDollars": null
+    },
+    {
+     "fy": 2026,
+     "quantity": null,
+     "requestDollarsThousands": 159,
+     "unitCostDollars": null
+    },
+    {
+     "fy": 2027,
+     "quantity": null,
+     "requestDollarsThousands": 164,
+     "unitCostDollars": null
+    }
+   ]
+  },
+  {
+   "peCode": "3010FJPAT00",
+   "title": "T-6",
+   "budgetActivity": "BA 05 — Modification of inservice aircraf",
+   "lineNumber": "3010FJPAT00",
+   "programOfRecord": null,
+   "fyData": [
+    {
+     "fy": 2025,
+     "quantity": null,
+     "requestDollarsThousands": 49281,
+     "unitCostDollars": null
+    },
+    {
+     "fy": 2026,
+     "quantity": null,
+     "requestDollarsThousands": 135988,
+     "unitCostDollars": null
+    },
+    {
+     "fy": 2027,
+     "quantity": null,
+     "requestDollarsThousands": 131747,
+     "unitCostDollars": null
+    }
+   ]
+  },
+  {
+   "peCode": "3010FT00100",
+   "title": "T-1",
+   "budgetActivity": "BA 05 — Modification of inservice aircraf",
+   "lineNumber": "3010FT00100",
+   "programOfRecord": null,
+   "fyData": [
+    {
+     "fy": 2025,
+     "quantity": null,
+     "requestDollarsThousands": 2205,
+     "unitCostDollars": null
+    },
+    {
+     "fy": 2026,
+     "quantity": null,
+     "requestDollarsThousands": 137,
+     "unitCostDollars": null
+    }
+   ]
+  },
+  {
+   "peCode": "3010FT03800",
+   "title": "T-38 Aircraft",
+   "budgetActivity": "BA 05 — Modification of inservice aircraf",
+   "lineNumber": "3010FT03800",
+   "programOfRecord": null,
+   "fyData": [
+    {
+     "fy": 2025,
+     "quantity": null,
+     "requestDollarsThousands": 112650,
+     "unitCostDollars": null
+    },
+    {
+     "fy": 2026,
+     "quantity": null,
+     "requestDollarsThousands": 85381,
+     "unitCostDollars": null
+    },
+    {
+     "fy": 2027,
+     "quantity": null,
+     "requestDollarsThousands": 84452,
+     "unitCostDollars": null
+    }
+   ]
+  },
+  {
+   "peCode": "3010F11U200",
+   "title": "U-2 Mods",
+   "budgetActivity": "BA 05 — Modification of inservice aircraf",
+   "lineNumber": "3010F11U200",
+   "programOfRecord": null,
+   "fyData": [
+    {
+     "fy": 2027,
+     "quantity": null,
+     "requestDollarsThousands": 297,
+     "unitCostDollars": null
+    }
+   ]
+  },
+  {
+   "peCode": "3010FC02500",
+   "title": "VC-25A Mod",
+   "budgetActivity": "BA 05 — Modification of inservice aircraf",
+   "lineNumber": "3010FC02500",
+   "programOfRecord": null,
+   "fyData": [
+    {
+     "fy": 2025,
+     "quantity": null,
+     "requestDollarsThousands": 11388,
+     "unitCostDollars": null
+    }
+   ]
+  },
+  {
+   "peCode": "3010FC04000",
+   "title": "C-40",
+   "budgetActivity": "BA 05 — Modification of inservice aircraf",
+   "lineNumber": "3010FC04000",
+   "programOfRecord": null,
+   "fyData": [
+    {
+     "fy": 2025,
+     "quantity": null,
+     "requestDollarsThousands": 7114,
+     "unitCostDollars": null
+    }
+   ]
+  },
+  {
+   "peCode": "3010FC13000",
+   "title": "C-130",
+   "budgetActivity": "BA 05 — Modification of inservice aircraf",
+   "lineNumber": "3010FC13000",
+   "programOfRecord": null,
+   "fyData": [
+    {
+     "fy": 2025,
+     "quantity": null,
+     "requestDollarsThousands": 28257,
+     "unitCostDollars": null
+    },
+    {
+     "fy": 2026,
+     "quantity": null,
+     "requestDollarsThousands": 44041,
+     "unitCostDollars": null
+    },
+    {
+     "fy": 2027,
+     "quantity": null,
+     "requestDollarsThousands": 23546,
+     "unitCostDollars": null
+    }
+   ]
+  },
+  {
+   "peCode": "3010FC1300J",
+   "title": "C-130J Mods",
+   "budgetActivity": "BA 05 — Modification of inservice aircraf",
+   "lineNumber": "3010FC1300J",
+   "programOfRecord": null,
+   "fyData": [
+    {
+     "fy": 2025,
+     "quantity": null,
+     "requestDollarsThousands": 161086,
+     "unitCostDollars": null
+    },
+    {
+     "fy": 2026,
+     "quantity": null,
+     "requestDollarsThousands": 173840,
+     "unitCostDollars": null
+    },
+    {
+     "fy": 2027,
+     "quantity": null,
+     "requestDollarsThousands": 315308,
+     "unitCostDollars": null
+    }
+   ]
+  },
+  {
+   "peCode": "3010FC13500",
+   "title": "C-135",
+   "budgetActivity": "BA 05 — Modification of inservice aircraf",
+   "lineNumber": "3010FC13500",
+   "programOfRecord": null,
+   "fyData": [
+    {
+     "fy": 2025,
+     "quantity": null,
+     "requestDollarsThousands": 111647,
+     "unitCostDollars": null
+    },
+    {
+     "fy": 2026,
+     "quantity": null,
+     "requestDollarsThousands": 165368,
+     "unitCostDollars": null
+    },
+    {
+     "fy": 2027,
+     "quantity": null,
+     "requestDollarsThousands": 158715,
+     "unitCostDollars": null
+    }
+   ]
+  },
+  {
+   "peCode": "3010FCALL00",
+   "title": "Compass Call",
+   "budgetActivity": "BA 05 — Modification of inservice aircraf",
+   "lineNumber": "3010FCALL00",
+   "programOfRecord": null,
+   "fyData": [
+    {
+     "fy": 2025,
+     "quantity": null,
+     "requestDollarsThousands": 94654,
+     "unitCostDollars": null
+    },
+    {
+     "fy": 2026,
+     "quantity": null,
+     "requestDollarsThousands": 469204,
+     "unitCostDollars": null
+    },
+    {
+     "fy": 2027,
+     "quantity": null,
+     "requestDollarsThousands": 506265,
+     "unitCostDollars": null
+    }
+   ]
+  },
+  {
+   "peCode": "3010FCVR000",
+   "title": "CVR (Connon ULF Receiver) Inc 2",
+   "budgetActivity": "BA 05 — Modification of inservice aircraf",
+   "lineNumber": "3010FCVR000",
+   "programOfRecord": null,
+   "fyData": [
+    {
+     "fy": 2027,
+     "quantity": null,
+     "requestDollarsThousands": 18,
+     "unitCostDollars": null
+    }
+   ]
+  },
+  {
+   "peCode": "3010FDARP01",
+   "title": "RC-135",
+   "budgetActivity": "BA 05 — Modification of inservice aircraf",
+   "lineNumber": "3010FDARP01",
+   "programOfRecord": null,
+   "fyData": [
+    {
+     "fy": 2025,
+     "quantity": null,
+     "requestDollarsThousands": 242066,
+     "unitCostDollars": null
+    },
+    {
+     "fy": 2026,
+     "quantity": null,
+     "requestDollarsThousands": 256001,
+     "unitCostDollars": null
+    },
+    {
+     "fy": 2027,
+     "quantity": null,
+     "requestDollarsThousands": 252846,
+     "unitCostDollars": null
+    }
+   ]
+  },
+  {
+   "peCode": "3010FE00300",
+   "title": "E-3",
+   "budgetActivity": "BA 05 — Modification of inservice aircraf",
+   "lineNumber": "3010FE00300",
+   "programOfRecord": null,
+   "fyData": [
+    {
+     "fy": 2025,
+     "quantity": null,
+     "requestDollarsThousands": 68192,
+     "unitCostDollars": null
+    },
+    {
+     "fy": 2026,
+     "quantity": null,
+     "requestDollarsThousands": 17291,
+     "unitCostDollars": null
+    },
+    {
+     "fy": 2027,
+     "quantity": null,
+     "requestDollarsThousands": 841,
+     "unitCostDollars": null
+    }
+   ]
+  },
+  {
+   "peCode": "3010FE00400",
+   "title": "E-4",
+   "budgetActivity": "BA 05 — Modification of inservice aircraf",
+   "lineNumber": "3010FE00400",
+   "programOfRecord": null,
+   "fyData": [
+    {
+     "fy": 2025,
+     "quantity": null,
+     "requestDollarsThousands": 24828,
+     "unitCostDollars": null
+    },
+    {
+     "fy": 2026,
+     "quantity": null,
+     "requestDollarsThousands": 45232,
+     "unitCostDollars": null
+    },
+    {
+     "fy": 2027,
+     "quantity": null,
+     "requestDollarsThousands": 30779,
+     "unitCostDollars": null
+    }
+   ]
+  },
+  {
+   "peCode": "3010FH00100",
+   "title": "H-1",
+   "budgetActivity": "BA 05 — Modification of inservice aircraf",
+   "lineNumber": "3010FH00100",
+   "programOfRecord": null,
+   "fyData": [
+    {
+     "fy": 2025,
+     "quantity": null,
+     "requestDollarsThousands": 2097,
+     "unitCostDollars": null
+    },
+    {
+     "fy": 2026,
+     "quantity": null,
+     "requestDollarsThousands": 17899,
+     "unitCostDollars": null
+    },
+    {
+     "fy": 2027,
+     "quantity": null,
+     "requestDollarsThousands": 17872,
+     "unitCostDollars": null
+    }
+   ]
+  },
+  {
+   "peCode": "3010FH01061",
+   "title": "MH-139A Mod",
+   "budgetActivity": "BA 05 — Modification of inservice aircraf",
+   "lineNumber": "3010FH01061",
+   "programOfRecord": null,
+   "fyData": [
+    {
+     "fy": 2025,
+     "quantity": null,
+     "requestDollarsThousands": 5010,
+     "unitCostDollars": null
+    },
+    {
+     "fy": 2026,
+     "quantity": null,
+     "requestDollarsThousands": 4992,
+     "unitCostDollars": null
+    },
+    {
+     "fy": 2027,
+     "quantity": null,
+     "requestDollarsThousands": 5021,
+     "unitCostDollars": null
+    }
+   ]
+  },
+  {
+   "peCode": "3010FH06000",
+   "title": "H-60",
+   "budgetActivity": "BA 05 — Modification of inservice aircraf",
+   "lineNumber": "3010FH06000",
+   "programOfRecord": null,
+   "fyData": [
+    {
+     "fy": 2025,
+     "quantity": null,
+     "requestDollarsThousands": 2035,
+     "unitCostDollars": null
+    },
+    {
+     "fy": 2026,
+     "quantity": null,
+     "requestDollarsThousands": 1749,
+     "unitCostDollars": null
+    }
+   ]
+  },
+  {
+   "peCode": "3010FH060WM",
+   "title": "HH60W Modifications",
+   "budgetActivity": "BA 05 — Modification of inservice aircraf",
+   "lineNumber": "3010FH060WM",
+   "programOfRecord": null,
+   "fyData": [
+    {
+     "fy": 2025,
+     "quantity": null,
+     "requestDollarsThousands": 18911,
+     "unitCostDollars": null
+    },
+    {
+     "fy": 2026,
+     "quantity": null,
+     "requestDollarsThousands": 9150,
+     "unitCostDollars": null
+    },
+    {
+     "fy": 2027,
+     "quantity": null,
+     "requestDollarsThousands": 46662,
+     "unitCostDollars": null
+    }
+   ]
+  },
+  {
+   "peCode": "3010FHCMC00",
+   "title": "HC/MC-130 Modifications",
+   "budgetActivity": "BA 05 — Modification of inservice aircraf",
+   "lineNumber": "3010FHCMC00",
+   "programOfRecord": null,
+   "fyData": [
+    {
+     "fy": 2025,
+     "quantity": null,
+     "requestDollarsThousands": 208461,
+     "unitCostDollars": null
+    },
+    {
+     "fy": 2026,
+     "quantity": null,
+     "requestDollarsThousands": 365086,
+     "unitCostDollars": null
+    },
+    {
+     "fy": 2027,
+     "quantity": null,
+     "requestDollarsThousands": 257742,
+     "unitCostDollars": null
+    }
+   ]
+  },
+  {
+   "peCode": "3010FOTHACF",
+   "title": "Other Aircraft",
+   "budgetActivity": "BA 05 — Modification of inservice aircraf",
+   "lineNumber": "3010FOTHACF",
+   "programOfRecord": null,
+   "fyData": [
+    {
+     "fy": 2025,
+     "quantity": null,
+     "requestDollarsThousands": 55122,
+     "unitCostDollars": null
+    },
+    {
+     "fy": 2026,
+     "quantity": null,
+     "requestDollarsThousands": 263902,
+     "unitCostDollars": null
+    },
+    {
+     "fy": 2027,
+     "quantity": null,
+     "requestDollarsThousands": 102052,
+     "unitCostDollars": null
+    }
+   ]
+  },
+  {
+   "peCode": "3010FPRDTB2",
+   "title": "MQ-9 Mods",
+   "budgetActivity": "BA 05 — Modification of inservice aircraf",
+   "lineNumber": "3010FPRDTB2",
+   "programOfRecord": null,
+   "fyData": [
+    {
+     "fy": 2025,
+     "quantity": null,
+     "requestDollarsThousands": 12351,
+     "unitCostDollars": null
+    },
+    {
+     "fy": 2026,
+     "quantity": null,
+     "requestDollarsThousands": 100923,
+     "unitCostDollars": null
+    },
+    {
+     "fy": 2027,
+     "quantity": null,
+     "requestDollarsThousands": 105966,
+     "unitCostDollars": null
+    }
+   ]
+  },
+  {
+   "peCode": "3010FSDUE00",
+   "title": "Software Defined User Equipment",
+   "budgetActivity": "BA 05 — Modification of inservice aircraf",
+   "lineNumber": "3010FSDUE00",
+   "programOfRecord": null,
+   "fyData": [
+    {
+     "fy": 2027,
+     "quantity": null,
+     "requestDollarsThousands": 25847,
+     "unitCostDollars": null
+    }
+   ]
+  },
+  {
+   "peCode": "3010FSLC3SA",
+   "title": "Senior Leader C3 System - Aircraft",
+   "budgetActivity": "BA 05 — Modification of inservice aircraf",
+   "lineNumber": "3010FSLC3SA",
+   "programOfRecord": null,
+   "fyData": [
+    {
+     "fy": 2025,
+     "quantity": null,
+     "requestDollarsThousands": 23501,
+     "unitCostDollars": null
+    },
+    {
+     "fy": 2026,
+     "quantity": null,
+     "requestDollarsThousands": 24414,
+     "unitCostDollars": null
+    },
+    {
+     "fy": 2027,
+     "quantity": null,
+     "requestDollarsThousands": 32654,
+     "unitCostDollars": null
+    }
+   ]
+  },
+  {
+   "peCode": "3010FV02200",
+   "title": "CV-22 Mods Spares and Repair Parts",
+   "budgetActivity": "BA 05 — Modification of inservice aircraf",
+   "lineNumber": "3010FV02200",
+   "programOfRecord": null,
+   "fyData": [
+    {
+     "fy": 2025,
+     "quantity": null,
+     "requestDollarsThousands": 45195,
+     "unitCostDollars": null
+    },
+    {
+     "fy": 2026,
+     "quantity": null,
+     "requestDollarsThousands": 168713,
+     "unitCostDollars": null
+    },
+    {
+     "fy": 2027,
+     "quantity": null,
+     "requestDollarsThousands": 168042,
+     "unitCostDollars": null
+    }
+   ]
+  },
+  {
+   "peCode": "3010F000999",
+   "title": "Initial Spares/Repair Parts",
+   "budgetActivity": "BA 06 — Aircraft spares and repair parts",
+   "lineNumber": "3010F000999",
+   "programOfRecord": null,
+   "fyData": [
+    {
+     "fy": 2025,
+     "quantity": null,
+     "requestDollarsThousands": 982491,
+     "unitCostDollars": null
+    },
+    {
+     "fy": 2026,
+     "quantity": null,
+     "requestDollarsThousands": 1217475,
+     "unitCostDollars": null
+    },
+    {
+     "fy": 2027,
+     "quantity": null,
+     "requestDollarsThousands": 2573345,
+     "unitCostDollars": null
+    }
+   ]
+  },
+  {
+   "peCode": "3010F000071",
+   "title": "Aircraft Replacement Support Equip Production Support",
+   "budgetActivity": "BA 07 — Aircraft support equipment and facilities",
+   "lineNumber": "3010F000071",
+   "programOfRecord": null,
+   "fyData": [
+    {
+     "fy": 2025,
+     "quantity": null,
+     "requestDollarsThousands": 162813,
+     "unitCostDollars": null
+    },
+    {
+     "fy": 2026,
+     "quantity": null,
+     "requestDollarsThousands": 156776,
+     "unitCostDollars": null
+    },
+    {
+     "fy": 2027,
+     "quantity": null,
+     "requestDollarsThousands": 252808,
+     "unitCostDollars": null
+    }
+   ]
+  },
+  {
+   "peCode": "3010FB00200",
+   "title": "B-2A",
+   "budgetActivity": "BA 07 — Aircraft support equipment and facilities",
+   "lineNumber": "3010FB00200",
+   "programOfRecord": null,
+   "fyData": [
+    {
+     "fy": 2025,
+     "quantity": null,
+     "requestDollarsThousands": 1885,
+     "unitCostDollars": null
+    }
+   ]
+  },
+  {
+   "peCode": "3010FB002B0",
+   "title": "B-2B",
+   "budgetActivity": "BA 07 — Aircraft support equipment and facilities",
+   "lineNumber": "3010FB002B0",
+   "programOfRecord": null,
+   "fyData": [
+    {
+     "fy": 2025,
+     "quantity": null,
+     "requestDollarsThousands": 15709,
+     "unitCostDollars": null
+    },
+    {
+     "fy": 2026,
+     "quantity": null,
+     "requestDollarsThousands": 18969,
+     "unitCostDollars": null
+    },
+    {
+     "fy": 2027,
+     "quantity": null,
+     "requestDollarsThousands": 95457,
+     "unitCostDollars": null
+    }
+   ]
+  },
+  {
+   "peCode": "3010FB05200",
+   "title": "B-52 Spares and Repair Parts",
+   "budgetActivity": "BA 07 — Aircraft support equipment and facilities",
+   "lineNumber": "3010FB05200",
+   "programOfRecord": null,
+   "fyData": [
+    {
+     "fy": 2026,
+     "quantity": null,
+     "requestDollarsThousands": 111,
+     "unitCostDollars": null
+    },
+    {
+     "fy": 2027,
+     "quantity": null,
+     "requestDollarsThousands": 114,
+     "unitCostDollars": null
+    }
+   ]
+  },
+  {
+   "peCode": "3010FC01700",
+   "title": "C-17A",
+   "budgetActivity": "BA 07 — Aircraft support equipment and fa",
+   "lineNumber": "3010FC01700",
+   "programOfRecord": null,
+   "fyData": [
+    {
+     "fy": 2026,
+     "quantity": null,
+     "requestDollarsThousands": 2672,
+     "unitCostDollars": null
+    },
+    {
+     "fy": 2027,
+     "quantity": null,
+     "requestDollarsThousands": 3027,
+     "unitCostDollars": null
+    }
+   ]
+  },
+  {
+   "peCode": "3010FC0V220",
+   "title": "CV-22 Post Production Support",
+   "budgetActivity": "BA 07 — Aircraft support equipment and fa",
+   "lineNumber": "3010FC0V220",
+   "programOfRecord": null,
+   "fyData": [
+    {
+     "fy": 2025,
+     "quantity": null,
+     "requestDollarsThousands": 9604,
+     "unitCostDollars": null
+    },
+    {
+     "fy": 2027,
+     "quantity": null,
+     "requestDollarsThousands": 5088,
+     "unitCostDollars": null
+    }
+   ]
+  },
+  {
+   "peCode": "3010FF01500",
+   "title": "F-15",
+   "budgetActivity": "BA 07 — Aircraft support equipment and fa",
+   "lineNumber": "3010FF01500",
+   "programOfRecord": null,
+   "fyData": [
+    {
+     "fy": 2026,
+     "quantity": null,
+     "requestDollarsThousands": 5112,
+     "unitCostDollars": null
+    }
+   ]
+  },
+  {
+   "peCode": "3010FF015EX",
+   "title": "F-15EX",
+   "budgetActivity": "BA 07 — Aircraft support equipment and fa",
+   "lineNumber": "3010FF015EX",
+   "programOfRecord": null,
+   "fyData": [
+    {
+     "fy": 2027,
+     "quantity": null,
+     "requestDollarsThousands": 16930,
+     "unitCostDollars": null
+    }
+   ]
+  },
+  {
+   "peCode": "3010FF0160P",
+   "title": "F-16 Post Production Support",
+   "budgetActivity": "BA 07 — Aircraft support equipment and fa",
+   "lineNumber": "3010FF0160P",
+   "programOfRecord": null,
+   "fyData": [
+    {
+     "fy": 2025,
+     "quantity": null,
+     "requestDollarsThousands": 62368,
+     "unitCostDollars": null
+    },
+    {
+     "fy": 2026,
+     "quantity": null,
+     "requestDollarsThousands": 23602,
+     "unitCostDollars": null
+    },
+    {
+     "fy": 2027,
+     "quantity": null,
+     "requestDollarsThousands": 57781,
+     "unitCostDollars": null
+    }
+   ]
+  },
+  {
+   "peCode": "3010FHCMC00",
+   "title": "HC/MC-130 Post Prod Joint Simulation Environment Post",
+   "budgetActivity": "BA 07 — Aircraft support equipment and fa",
+   "lineNumber": "3010FHCMC00",
+   "programOfRecord": null,
+   "fyData": [
+    {
+     "fy": 2025,
+     "quantity": null,
+     "requestDollarsThousands": 18604,
+     "unitCostDollars": null
+    },
+    {
+     "fy": 2026,
+     "quantity": null,
+     "requestDollarsThousands": 17986,
+     "unitCostDollars": null
+    },
+    {
+     "fy": 2027,
+     "quantity": null,
+     "requestDollarsThousands": 20415,
+     "unitCostDollars": null
+    }
+   ]
+  },
+  {
+   "peCode": "3010FJSE000",
+   "title": "Production Support",
+   "budgetActivity": "BA 07 — Aircraft support equipment and fa",
+   "lineNumber": "3010FJSE000",
+   "programOfRecord": null,
+   "fyData": [
+    {
+     "fy": 2026,
+     "quantity": null,
+     "requestDollarsThousands": 28524,
+     "unitCostDollars": null
+    }
+   ]
+  },
+  {
+   "peCode": "3010FPRDTB5",
+   "title": "MQ-9 Post Prod Preparedness",
+   "budgetActivity": "BA 07 — Aircraft support equipment and fa",
+   "lineNumber": "3010FPRDTB5",
+   "programOfRecord": null,
+   "fyData": [
+    {
+     "fy": 2027,
+     "quantity": null,
+     "requestDollarsThousands": 15365,
+     "unitCostDollars": null
+    }
+   ]
+  },
+  {
+   "peCode": "3010F000073",
+   "title": "Industrial Responsiveness Consumables",
+   "budgetActivity": "BA 07 — Aircraft support equipment and fa",
+   "lineNumber": "3010F000073",
+   "programOfRecord": null,
+   "fyData": [
+    {
+     "fy": 2025,
+     "quantity": null,
+     "requestDollarsThousands": 20004,
+     "unitCostDollars": null
+    },
+    {
+     "fy": 2026,
+     "quantity": null,
+     "requestDollarsThousands": 19998,
+     "unitCostDollars": null
+    },
+    {
+     "fy": 2027,
+     "quantity": null,
+     "requestDollarsThousands": 20590,
+     "unitCostDollars": null
+    }
+   ]
+  },
+  {
+   "peCode": "3010F000074",
+   "title": "War Consumables Production Charges",
+   "budgetActivity": "BA 07 — Aircraft support equipment and fa",
+   "lineNumber": "3010F000074",
+   "programOfRecord": null,
+   "fyData": [
+    {
+     "fy": 2025,
+     "quantity": null,
+     "requestDollarsThousands": 25908,
+     "unitCostDollars": null
+    },
+    {
+     "fy": 2026,
+     "quantity": null,
+     "requestDollarsThousands": 26323,
+     "unitCostDollars": null
+    },
+    {
+     "fy": 2027,
+     "quantity": null,
+     "requestDollarsThousands": 85387,
+     "unitCostDollars": null
+    }
+   ]
+  },
+  {
+   "peCode": "3010F000075",
+   "title": "Other Production Charges",
+   "budgetActivity": "BA 07 — Aircraft support equipment and fa",
+   "lineNumber": "3010F000075",
+   "programOfRecord": null,
+   "fyData": [
+    {
+     "fy": 2025,
+     "quantity": null,
+     "requestDollarsThousands": 1559926,
+     "unitCostDollars": null
+    },
+    {
+     "fy": 2026,
+     "quantity": null,
+     "requestDollarsThousands": 1741470,
+     "unitCostDollars": null
+    },
+    {
+     "fy": 2027,
+     "quantity": null,
+     "requestDollarsThousands": 2528401,
+     "unitCostDollars": null
+    }
+   ]
+  },
+  {
+   "peCode": "3080F821800",
+   "title": "Passenger Carrying Vehicles and Utility Vehicles",
+   "budgetActivity": "BA 02 — Vehicular equipment",
+   "lineNumber": "3080F821800",
+   "programOfRecord": null,
+   "fyData": [
+    {
+     "fy": 2025,
+     "quantity": null,
+     "requestDollarsThousands": 6677,
+     "unitCostDollars": null
+    },
+    {
+     "fy": 2026,
+     "quantity": null,
+     "requestDollarsThousands": 5557,
+     "unitCostDollars": null
+    }
+   ]
+  },
+  {
+   "peCode": "3080F822230",
+   "title": "Medium Tactical Vehicle",
+   "budgetActivity": "BA 02 — Vehicular equipment",
+   "lineNumber": "3080F822230",
+   "programOfRecord": null,
+   "fyData": [
+    {
+     "fy": 2025,
+     "quantity": null,
+     "requestDollarsThousands": 5248,
+     "unitCostDollars": null
+    },
+    {
+     "fy": 2026,
+     "quantity": null,
+     "requestDollarsThousands": 3938,
+     "unitCostDollars": null
+    }
+   ]
+  },
+  {
+   "peCode": "3080F822910",
+   "title": "Cap Vehicles",
+   "budgetActivity": "BA 02 — Vehicular equipment",
+   "lineNumber": "3080F822910",
+   "programOfRecord": null,
+   "fyData": [
+    {
+     "fy": 2025,
+     "quantity": null,
+     "requestDollarsThousands": 2000,
+     "unitCostDollars": null
+    },
+    {
+     "fy": 2026,
+     "quantity": null,
+     "requestDollarsThousands": 3300,
+     "unitCostDollars": null
+    }
+   ]
+  },
+  {
+   "peCode": "3080F822990",
+   "title": "Cargo and Utility Vehicles Purpose Vehicles",
+   "budgetActivity": "BA 02 — Vehicular equipment",
+   "lineNumber": "3080F822990",
+   "programOfRecord": null,
+   "fyData": [
+    {
+     "fy": 2025,
+     "quantity": null,
+     "requestDollarsThousands": 70873,
+     "unitCostDollars": null
+    },
+    {
+     "fy": 2026,
+     "quantity": null,
+     "requestDollarsThousands": 57755,
+     "unitCostDollars": null
+    }
+   ]
+  },
+  {
+   "peCode": "3080F823210",
+   "title": "Joint Light Tactical Vehicle",
+   "budgetActivity": "BA 02 — Vehicular equipment",
+   "lineNumber": "3080F823210",
+   "programOfRecord": null,
+   "fyData": [
+    {
+     "fy": 2025,
+     "quantity": null,
+     "requestDollarsThousands": 59483,
+     "unitCostDollars": null
+    },
+    {
+     "fy": 2026,
+     "quantity": null,
+     "requestDollarsThousands": 62202,
+     "unitCostDollars": null
+    },
+    {
+     "fy": 2027,
+     "quantity": null,
+     "requestDollarsThousands": 103304,
+     "unitCostDollars": null
+    }
+   ]
+  },
+  {
+   "peCode": "3080F823230",
+   "title": "Security And Tactical Vehicles",
+   "budgetActivity": "BA 02 — Vehicular equipment",
+   "lineNumber": "3080F823230",
+   "programOfRecord": null,
+   "fyData": [
+    {
+     "fy": 2025,
+     "quantity": null,
+     "requestDollarsThousands": 438,
+     "unitCostDollars": null
+    },
+    {
+     "fy": 2026,
+     "quantity": null,
+     "requestDollarsThousands": 129,
+     "unitCostDollars": null
+    }
+   ]
+  },
+  {
+   "peCode": "3080F823990",
+   "title": "Special Purpose Vehicles Fighting Equipment Carrying Vehicles Fire Fighting/Crash Rescue",
+   "budgetActivity": "BA 02 — Vehicular equipment",
+   "lineNumber": "3080F823990",
+   "programOfRecord": null,
+   "fyData": [
+    {
+     "fy": 2025,
+     "quantity": null,
+     "requestDollarsThousands": 92982,
+     "unitCostDollars": null
+    },
+    {
+     "fy": 2026,
+     "quantity": null,
+     "requestDollarsThousands": 76408,
+     "unitCostDollars": null
+    }
+   ]
+  },
+  {
+   "peCode": "3080F824010",
+   "title": "Vehicles Handling Equipment",
+   "budgetActivity": "BA 02 — Vehicular equipment",
+   "lineNumber": "3080F824010",
+   "programOfRecord": null,
+   "fyData": [
+    {
+     "fy": 2025,
+     "quantity": null,
+     "requestDollarsThousands": 57234,
+     "unitCostDollars": null
+    },
+    {
+     "fy": 2026,
+     "quantity": null,
+     "requestDollarsThousands": 59498,
+     "unitCostDollars": null
+    }
+   ]
+  },
+  {
+   "peCode": "3080F825990",
+   "title": "Materials Handling Vehicles Maintenance Support",
+   "budgetActivity": "BA 02 — Vehicular equipment",
+   "lineNumber": "3080F825990",
+   "programOfRecord": null,
+   "fyData": [
+    {
+     "fy": 2025,
+     "quantity": null,
+     "requestDollarsThousands": 18359,
+     "unitCostDollars": null
+    },
+    {
+     "fy": 2026,
+     "quantity": null,
+     "requestDollarsThousands": 26122,
+     "unitCostDollars": null
+    },
+    {
+     "fy": 2027,
+     "quantity": null,
+     "requestDollarsThousands": 2132,
+     "unitCostDollars": null
+    }
+   ]
+  },
+  {
+   "peCode": "3080F826210",
+   "title": "Runway Snow Remov And Cleaning Equ",
+   "budgetActivity": "BA 02 — Vehicular equipment",
+   "lineNumber": "3080F826210",
+   "programOfRecord": null,
+   "fyData": [
+    {
+     "fy": 2025,
+     "quantity": null,
+     "requestDollarsThousands": 8780,
+     "unitCostDollars": null
+    },
+    {
+     "fy": 2026,
+     "quantity": null,
+     "requestDollarsThousands": 12045,
+     "unitCostDollars": null
+    }
+   ]
+  },
+  {
+   "peCode": "3080F826990",
+   "title": "Base Maintenance Support Vehicles",
+   "budgetActivity": "BA 02 — Vehicular equipment",
+   "lineNumber": "3080F826990",
+   "programOfRecord": null,
+   "fyData": [
+    {
+     "fy": 2025,
+     "quantity": null,
+     "requestDollarsThousands": 92686,
+     "unitCostDollars": null
+    },
+    {
+     "fy": 2026,
+     "quantity": null,
+     "requestDollarsThousands": 42711,
+     "unitCostDollars": null
+    }
+   ]
+  },
+  {
+   "peCode": "3080F827000",
+   "title": "Mission Support Vehicles Account Adjustments",
+   "budgetActivity": "BA 02 — Vehicular equipment",
+   "lineNumber": "3080F827000",
+   "programOfRecord": null,
+   "fyData": [
+    {
+     "fy": 2027,
+     "quantity": null,
+     "requestDollarsThousands": 439892,
+     "unitCostDollars": null
+    }
+   ]
+  },
+  {
+   "peCode": "3080F831010",
+   "title": "Comsec Equipment STRATEGIC MICROELECTRONIC SUPPLY",
+   "budgetActivity": "BA 03 — Electronics and telecommunication",
+   "lineNumber": "3080F831010",
+   "programOfRecord": null,
+   "fyData": [
+    {
+     "fy": 2025,
+     "quantity": null,
+     "requestDollarsThousands": 75880,
+     "unitCostDollars": null
+    },
+    {
+     "fy": 2026,
+     "quantity": null,
+     "requestDollarsThousands": 123850,
+     "unitCostDollars": null
+    },
+    {
+     "fy": 2027,
+     "quantity": null,
+     "requestDollarsThousands": 374613,
+     "unitCostDollars": null
+    }
+   ]
+  },
+  {
+   "peCode": "3080F831020",
+   "title": "SYSTEM Programs International Intel Tech &",
+   "budgetActivity": "BA 03 — Electronics and telecommunication",
+   "lineNumber": "3080F831020",
+   "programOfRecord": null,
+   "fyData": [
+    {
+     "fy": 2025,
+     "quantity": null,
+     "requestDollarsThousands": 313667,
+     "unitCostDollars": null
+    }
+   ]
+  },
+  {
+   "peCode": "3080F832050",
+   "title": "Architectures",
+   "budgetActivity": "BA 03 — Electronics and telecommunication",
+   "lineNumber": "3080F832050",
+   "programOfRecord": null,
+   "fyData": [
+    {
+     "fy": 2025,
+     "quantity": null,
+     "requestDollarsThousands": 5616,
+     "unitCostDollars": null
+    },
+    {
+     "fy": 2026,
+     "quantity": null,
+     "requestDollarsThousands": 5833,
+     "unitCostDollars": null
+    },
+    {
+     "fy": 2027,
+     "quantity": null,
+     "requestDollarsThousands": 19060,
+     "unitCostDollars": null
+    }
+   ]
+  },
+  {
+   "peCode": "3080F832060",
+   "title": "Intelligence Training Equipment",
+   "budgetActivity": "BA 03 — Electronics and telecommunication",
+   "lineNumber": "3080F832060",
+   "programOfRecord": null,
+   "fyData": [
+    {
+     "fy": 2025,
+     "quantity": null,
+     "requestDollarsThousands": 5146,
+     "unitCostDollars": null
+    },
+    {
+     "fy": 2026,
+     "quantity": null,
+     "requestDollarsThousands": 5273,
+     "unitCostDollars": null
+    },
+    {
+     "fy": 2027,
+     "quantity": null,
+     "requestDollarsThousands": 5531,
+     "unitCostDollars": null
+    }
+   ]
+  },
+  {
+   "peCode": "3080F832070",
+   "title": "Intelligence Comm Equipment Programs",
+   "budgetActivity": "BA 03 — Electronics and telecommunication",
+   "lineNumber": "3080F832070",
+   "programOfRecord": null,
+   "fyData": [
+    {
+     "fy": 2025,
+     "quantity": null,
+     "requestDollarsThousands": 36449,
+     "unitCostDollars": null
+    },
+    {
+     "fy": 2026,
+     "quantity": null,
+     "requestDollarsThousands": 36428,
+     "unitCostDollars": null
+    },
+    {
+     "fy": 2027,
+     "quantity": null,
+     "requestDollarsThousands": 37717,
+     "unitCostDollars": null
+    }
+   ]
+  },
+  {
+   "peCode": "3080F833010",
+   "title": "Air Traffic Control & Landing Sys",
+   "budgetActivity": "BA 03 — Electronics and telecommunication",
+   "lineNumber": "3080F833010",
+   "programOfRecord": null,
+   "fyData": [
+    {
+     "fy": 2025,
+     "quantity": null,
+     "requestDollarsThousands": 43820,
+     "unitCostDollars": null
+    },
+    {
+     "fy": 2026,
+     "quantity": null,
+     "requestDollarsThousands": 26390,
+     "unitCostDollars": null
+    },
+    {
+     "fy": 2027,
+     "quantity": null,
+     "requestDollarsThousands": 58313,
+     "unitCostDollars": null
+    }
+   ]
+  },
+  {
+   "peCode": "3080F833020",
+   "title": "National Airspace System",
+   "budgetActivity": "BA 03 — Electronics and telecommunication",
+   "lineNumber": "3080F833020",
+   "programOfRecord": null,
+   "fyData": [
+    {
+     "fy": 2025,
+     "quantity": null,
+     "requestDollarsThousands": 13443,
+     "unitCostDollars": null
+    },
+    {
+     "fy": 2026,
+     "quantity": null,
+     "requestDollarsThousands": 11810,
+     "unitCostDollars": null
+    }
+   ]
+  },
+  {
+   "peCode": "3080F833030",
+   "title": "Battle Control System - Fixed",
+   "budgetActivity": "BA 03 — Electronics and telecommunication",
+   "lineNumber": "3080F833030",
+   "programOfRecord": null,
+   "fyData": [
+    {
+     "fy": 2025,
+     "quantity": null,
+     "requestDollarsThousands": 13658,
+     "unitCostDollars": null
+    },
+    {
+     "fy": 2026,
+     "quantity": null,
+     "requestDollarsThousands": 16592,
+     "unitCostDollars": null
+    },
+    {
+     "fy": 2027,
+     "quantity": null,
+     "requestDollarsThousands": 3391,
+     "unitCostDollars": null
+    }
+   ]
+  },
+  {
+   "peCode": "3080F833040",
+   "title": "Theater Air Control Sys Improvemen Security Equipment(Comsec)",
+   "budgetActivity": "BA 03 — Electronics and telecommunication",
+   "lineNumber": "3080F833040",
+   "programOfRecord": null,
+   "fyData": [
+    {
+     "fy": 2025,
+     "quantity": null,
+     "requestDollarsThousands": 56143,
+     "unitCostDollars": null
+    },
+    {
+     "fy": 2026,
+     "quantity": null,
+     "requestDollarsThousands": 27650,
+     "unitCostDollars": null
+    },
+    {
+     "fy": 2027,
+     "quantity": null,
+     "requestDollarsThousands": 11640,
+     "unitCostDollars": null
+    }
+   ]
+  },
+  {
+   "peCode": "3080F833060",
+   "title": "3D Expeditionary Long-Range Radar",
+   "budgetActivity": "BA 03 — Electronics and telecommunication",
+   "lineNumber": "3080F833060",
+   "programOfRecord": null,
+   "fyData": [
+    {
+     "fy": 2025,
+     "quantity": null,
+     "requestDollarsThousands": 96022,
+     "unitCostDollars": null
+    },
+    {
+     "fy": 2026,
+     "quantity": null,
+     "requestDollarsThousands": 103226,
+     "unitCostDollars": null
+    },
+    {
+     "fy": 2027,
+     "quantity": null,
+     "requestDollarsThousands": 430607,
+     "unitCostDollars": null
+    }
+   ]
+  },
+  {
+   "peCode": "3080F833070",
+   "title": "Weather Observation Forecast",
+   "budgetActivity": "BA 03 — Electronics and telecommunication",
+   "lineNumber": "3080F833070",
+   "programOfRecord": null,
+   "fyData": [
+    {
+     "fy": 2025,
+     "quantity": null,
+     "requestDollarsThousands": 31056,
+     "unitCostDollars": null
+    },
+    {
+     "fy": 2026,
+     "quantity": null,
+     "requestDollarsThousands": 31516,
+     "unitCostDollars": null
+    },
+    {
+     "fy": 2027,
+     "quantity": null,
+     "requestDollarsThousands": 33111,
+     "unitCostDollars": null
+    }
+   ]
+  },
+  {
+   "peCode": "3080F833140",
+   "title": "Strategic Command And Control",
+   "budgetActivity": "BA 03 — Electronics and telecommunication",
+   "lineNumber": "3080F833140",
+   "programOfRecord": null,
+   "fyData": [
+    {
+     "fy": 2025,
+     "quantity": null,
+     "requestDollarsThousands": 53480,
+     "unitCostDollars": null
+    },
+    {
+     "fy": 2026,
+     "quantity": null,
+     "requestDollarsThousands": 82912,
+     "unitCostDollars": null
+    },
+    {
+     "fy": 2027,
+     "quantity": null,
+     "requestDollarsThousands": 89931,
+     "unitCostDollars": null
+    }
+   ]
+  },
+  {
+   "peCode": "3080F833160",
+   "title": "Cheyenne Mountain Complex",
+   "budgetActivity": "BA 03 — Electronics and telecommunication",
+   "lineNumber": "3080F833160",
+   "programOfRecord": null,
+   "fyData": [
+    {
+     "fy": 2025,
+     "quantity": null,
+     "requestDollarsThousands": 8028,
+     "unitCostDollars": null
+    },
+    {
+     "fy": 2026,
+     "quantity": null,
+     "requestDollarsThousands": 22021,
+     "unitCostDollars": null
+    },
+    {
+     "fy": 2027,
+     "quantity": null,
+     "requestDollarsThousands": 7434,
+     "unitCostDollars": null
+    }
+   ]
+  },
+  {
+   "peCode": "3080F833170",
+   "title": "Mission Planning Systems Strategic Mission Planning &",
+   "budgetActivity": "BA 03 — Electronics and telecommunication",
+   "lineNumber": "3080F833170",
+   "programOfRecord": null,
+   "fyData": [
+    {
+     "fy": 2025,
+     "quantity": null,
+     "requestDollarsThousands": 18474,
+     "unitCostDollars": null
+    },
+    {
+     "fy": 2026,
+     "quantity": null,
+     "requestDollarsThousands": 18722,
+     "unitCostDollars": null
+    },
+    {
+     "fy": 2027,
+     "quantity": null,
+     "requestDollarsThousands": 23927,
+     "unitCostDollars": null
+    }
+   ]
+  },
+  {
+   "peCode": "3080F833570",
+   "title": "Execution System Comm-Electronics Projects",
+   "budgetActivity": "BA 03 — Electronics and telecommunication",
+   "lineNumber": "3080F833570",
+   "programOfRecord": null,
+   "fyData": [
+    {
+     "fy": 2025,
+     "quantity": null,
+     "requestDollarsThousands": 7376,
+     "unitCostDollars": null
+    },
+    {
+     "fy": 2026,
+     "quantity": null,
+     "requestDollarsThousands": 6383,
+     "unitCostDollars": null
+    },
+    {
+     "fy": 2027,
+     "quantity": null,
+     "requestDollarsThousands": 9435,
+     "unitCostDollars": null
+    }
+   ]
+  },
+  {
+   "peCode": "3080F834010",
+   "title": "General Information Technology",
+   "budgetActivity": "BA 03 — Electronics and telecommunication",
+   "lineNumber": "3080F834010",
+   "programOfRecord": null,
+   "fyData": [
+    {
+     "fy": 2025,
+     "quantity": null,
+     "requestDollarsThousands": 161928,
+     "unitCostDollars": null
+    },
+    {
+     "fy": 2026,
+     "quantity": null,
+     "requestDollarsThousands": 172085,
+     "unitCostDollars": null
+    },
+    {
+     "fy": 2027,
+     "quantity": null,
+     "requestDollarsThousands": 234417,
+     "unitCostDollars": null
+    }
+   ]
+  },
+  {
+   "peCode": "3080F834040",
+   "title": "Af Global Command & Control Sys Battlefield Airborne Control Node",
+   "budgetActivity": "BA 03 — Electronics and telecommunication",
+   "lineNumber": "3080F834040",
+   "programOfRecord": null,
+   "fyData": [
+    {
+     "fy": 2025,
+     "quantity": null,
+     "requestDollarsThousands": 1946,
+     "unitCostDollars": null
+    },
+    {
+     "fy": 2026,
+     "quantity": null,
+     "requestDollarsThousands": 1947,
+     "unitCostDollars": null
+    }
+   ]
+  },
+  {
+   "peCode": "3080F834050",
+   "title": "(BACN)",
+   "budgetActivity": "BA 03 — Electronics and telecommunication",
+   "lineNumber": "3080F834050",
+   "programOfRecord": null,
+   "fyData": [
+    {
+     "fy": 2025,
+     "quantity": null,
+     "requestDollarsThousands": 5,
+     "unitCostDollars": null
+    }
+   ]
+  },
+  {
+   "peCode": "3080F834070",
+   "title": "Mobility Command And Control",
+   "budgetActivity": "BA 03 — Electronics and telecommunication",
+   "lineNumber": "3080F834070",
+   "programOfRecord": null,
+   "fyData": [
+    {
+     "fy": 2025,
+     "quantity": null,
+     "requestDollarsThousands": 11435,
+     "unitCostDollars": null
+    },
+    {
+     "fy": 2026,
+     "quantity": null,
+     "requestDollarsThousands": 11648,
+     "unitCostDollars": null
+    }
+   ]
+  },
+  {
+   "peCode": "3080F834130",
+   "title": "Air Force Physical Security System",
+   "budgetActivity": "BA 03 — Electronics and telecommunication",
+   "lineNumber": "3080F834130",
+   "programOfRecord": null,
+   "fyData": [
+    {
+     "fy": 2025,
+     "quantity": null,
+     "requestDollarsThousands": 381317,
+     "unitCostDollars": null
+    },
+    {
+     "fy": 2026,
+     "quantity": null,
+     "requestDollarsThousands": 411265,
+     "unitCostDollars": null
+    },
+    {
+     "fy": 2027,
+     "quantity": null,
+     "requestDollarsThousands": 1770698,
+     "unitCostDollars": null
+    }
+   ]
+  },
+  {
+   "peCode": "3080F834180",
+   "title": "Samtec Communications",
+   "budgetActivity": "BA 03 — Electronics and telecommunication",
+   "lineNumber": "3080F834180",
+   "programOfRecord": null,
+   "fyData": [
+    {
+     "fy": 2027,
+     "quantity": null,
+     "requestDollarsThousands": 17641,
+     "unitCostDollars": null
+    }
+   ]
+  },
+  {
+   "peCode": "3080F834190",
+   "title": "Combat Training Ranges",
+   "budgetActivity": "BA 03 — Electronics and telecommunication",
+   "lineNumber": "3080F834190",
+   "programOfRecord": null,
+   "fyData": [
+    {
+     "fy": 2025,
+     "quantity": null,
+     "requestDollarsThousands": 286432,
+     "unitCostDollars": null
+    },
+    {
+     "fy": 2026,
+     "quantity": null,
+     "requestDollarsThousands": 158396,
+     "unitCostDollars": null
+    },
+    {
+     "fy": 2027,
+     "quantity": null,
+     "requestDollarsThousands": 94378,
+     "unitCostDollars": null
+    }
+   ]
+  },
+  {
+   "peCode": "3080F834210",
+   "title": "Minimum Essential Emergency Comm N",
+   "budgetActivity": "BA 03 — Electronics and telecommunication",
+   "lineNumber": "3080F834210",
+   "programOfRecord": null,
+   "fyData": [
+    {
+     "fy": 2025,
+     "quantity": null,
+     "requestDollarsThousands": 55317,
+     "unitCostDollars": null
+    },
+    {
+     "fy": 2026,
+     "quantity": null,
+     "requestDollarsThousands": 51463,
+     "unitCostDollars": null
+    },
+    {
+     "fy": 2027,
+     "quantity": null,
+     "requestDollarsThousands": 279516,
+     "unitCostDollars": null
+    }
+   ]
+  },
+  {
+   "peCode": "3080F834240",
+   "title": "Wide Area Surveillance (WAS)",
+   "budgetActivity": "BA 03 — Electronics and telecommunication",
+   "lineNumber": "3080F834240",
+   "programOfRecord": null,
+   "fyData": [
+    {
+     "fy": 2025,
+     "quantity": null,
+     "requestDollarsThousands": 13945,
+     "unitCostDollars": null
+    },
+    {
+     "fy": 2026,
+     "quantity": null,
+     "requestDollarsThousands": 29617,
+     "unitCostDollars": null
+    },
+    {
+     "fy": 2027,
+     "quantity": null,
+     "requestDollarsThousands": 17000,
+     "unitCostDollars": null
+    }
+   ]
+  },
+  {
+   "peCode": "3080F834320",
+   "title": "C3 Countermeasures Defense Enterprise Accounting &",
+   "budgetActivity": "BA 03 — Electronics and telecommunication",
+   "lineNumber": "3080F834320",
+   "programOfRecord": null,
+   "fyData": [
+    {
+     "fy": 2025,
+     "quantity": null,
+     "requestDollarsThousands": 90347,
+     "unitCostDollars": null
+    },
+    {
+     "fy": 2026,
+     "quantity": null,
+     "requestDollarsThousands": 116410,
+     "unitCostDollars": null
+    },
+    {
+     "fy": 2027,
+     "quantity": null,
+     "requestDollarsThousands": 163127,
+     "unitCostDollars": null
+    }
+   ]
+  },
+  {
+   "peCode": "3080F834470",
+   "title": "Mgt Sys",
+   "budgetActivity": "BA 03 — Electronics and telecommunication",
+   "lineNumber": "3080F834470",
+   "programOfRecord": null,
+   "fyData": [
+    {
+     "fy": 2026,
+     "quantity": null,
+     "requestDollarsThousands": 698,
+     "unitCostDollars": null
+    }
+   ]
+  },
+  {
+   "peCode": "3080F834520",
+   "title": "Theater Battle Mgt C2 System Air & Space Operations Center",
+   "budgetActivity": "BA 03 — Electronics and telecommunication",
+   "lineNumber": "3080F834520",
+   "programOfRecord": null,
+   "fyData": [
+    {
+     "fy": 2025,
+     "quantity": null,
+     "requestDollarsThousands": 433,
+     "unitCostDollars": null
+    },
+    {
+     "fy": 2026,
+     "quantity": null,
+     "requestDollarsThousands": 442,
+     "unitCostDollars": null
+    },
+    {
+     "fy": 2027,
+     "quantity": null,
+     "requestDollarsThousands": 460,
+     "unitCostDollars": null
+    }
+   ]
+  },
+  {
+   "peCode": "3080F834530",
+   "title": "(AOC) Force Communications Base Information Transpt Infrast",
+   "budgetActivity": "BA 03 — Electronics and telecommunication",
+   "lineNumber": "3080F834530",
+   "programOfRecord": null,
+   "fyData": [
+    {
+     "fy": 2025,
+     "quantity": null,
+     "requestDollarsThousands": 20545,
+     "unitCostDollars": null
+    },
+    {
+     "fy": 2026,
+     "quantity": null,
+     "requestDollarsThousands": 22785,
+     "unitCostDollars": null
+    },
+    {
+     "fy": 2027,
+     "quantity": null,
+     "requestDollarsThousands": 23778,
+     "unitCostDollars": null
+    }
+   ]
+  },
+  {
+   "peCode": "3080F835060",
+   "title": "(BITI) Wired",
+   "budgetActivity": "BA 03 — Electronics and telecommunication",
+   "lineNumber": "3080F835060",
+   "programOfRecord": null,
+   "fyData": [
+    {
+     "fy": 2025,
+     "quantity": null,
+     "requestDollarsThousands": 50320,
+     "unitCostDollars": null
+    },
+    {
+     "fy": 2026,
+     "quantity": null,
+     "requestDollarsThousands": 79091,
+     "unitCostDollars": null
+    },
+    {
+     "fy": 2027,
+     "quantity": null,
+     "requestDollarsThousands": 125702,
+     "unitCostDollars": null
+    }
+   ]
+  },
+  {
+   "peCode": "3080F835080",
+   "title": "AFNET Joint Communications Support",
+   "budgetActivity": "BA 03 — Electronics and telecommunication",
+   "lineNumber": "3080F835080",
+   "programOfRecord": null,
+   "fyData": [
+    {
+     "fy": 2025,
+     "quantity": null,
+     "requestDollarsThousands": 132507,
+     "unitCostDollars": null
+    },
+    {
+     "fy": 2026,
+     "quantity": null,
+     "requestDollarsThousands": 282907,
+     "unitCostDollars": null
+    },
+    {
+     "fy": 2027,
+     "quantity": null,
+     "requestDollarsThousands": 325839,
+     "unitCostDollars": null
+    }
+   ]
+  },
+  {
+   "peCode": "3080F835110",
+   "title": "Element (JCSE)",
+   "budgetActivity": "BA 03 — Electronics and telecommunication",
+   "lineNumber": "3080F835110",
+   "programOfRecord": null,
+   "fyData": [
+    {
+     "fy": 2025,
+     "quantity": null,
+     "requestDollarsThousands": 5821,
+     "unitCostDollars": null
+    },
+    {
+     "fy": 2026,
+     "quantity": null,
+     "requestDollarsThousands": 5930,
+     "unitCostDollars": null
+    },
+    {
+     "fy": 2027,
+     "quantity": null,
+     "requestDollarsThousands": 16267,
+     "unitCostDollars": null
+    }
+   ]
+  },
+  {
+   "peCode": "3080F835140",
+   "title": "USCENTCOM",
+   "budgetActivity": "BA 03 — Electronics and telecommunication",
+   "lineNumber": "3080F835140",
+   "programOfRecord": null,
+   "fyData": [
+    {
+     "fy": 2025,
+     "quantity": null,
+     "requestDollarsThousands": 20698,
+     "unitCostDollars": null
+    },
+    {
+     "fy": 2026,
+     "quantity": null,
+     "requestDollarsThousands": 14919,
+     "unitCostDollars": null
+    },
+    {
+     "fy": 2027,
+     "quantity": null,
+     "requestDollarsThousands": 15328,
+     "unitCostDollars": null
+    }
+   ]
+  },
+  {
+   "peCode": "3080F835160",
+   "title": "USSTRATCOM",
+   "budgetActivity": "BA 03 — Electronics and telecommunication",
+   "lineNumber": "3080F835160",
+   "programOfRecord": null,
+   "fyData": [
+    {
+     "fy": 2025,
+     "quantity": null,
+     "requestDollarsThousands": 4797,
+     "unitCostDollars": null
+    },
+    {
+     "fy": 2026,
+     "quantity": null,
+     "requestDollarsThousands": 4788,
+     "unitCostDollars": null
+    },
+    {
+     "fy": 2027,
+     "quantity": null,
+     "requestDollarsThousands": 5013,
+     "unitCostDollars": null
+    }
+   ]
+  },
+  {
+   "peCode": "3080F835210",
+   "title": "USSPACECOM and Base",
+   "budgetActivity": "BA 03 — Electronics and telecommunication",
+   "lineNumber": "3080F835210",
+   "programOfRecord": null,
+   "fyData": [
+    {
+     "fy": 2025,
+     "quantity": null,
+     "requestDollarsThousands": 79783,
+     "unitCostDollars": null
+    },
+    {
+     "fy": 2026,
+     "quantity": null,
+     "requestDollarsThousands": 32633,
+     "unitCostDollars": null
+    },
+    {
+     "fy": 2027,
+     "quantity": null,
+     "requestDollarsThousands": 195370,
+     "unitCostDollars": null
+    }
+   ]
+  },
+  {
+   "peCode": "3080F837100",
+   "title": "Tactical C-E Equipment Next Generation Survival Radio",
+   "budgetActivity": "BA 03 — Electronics and telecommunication",
+   "lineNumber": "3080F837100",
+   "programOfRecord": null,
+   "fyData": [
+    {
+     "fy": 2025,
+     "quantity": null,
+     "requestDollarsThousands": 139076,
+     "unitCostDollars": null
+    },
+    {
+     "fy": 2026,
+     "quantity": null,
+     "requestDollarsThousands": 177829,
+     "unitCostDollars": null
+    },
+    {
+     "fy": 2027,
+     "quantity": null,
+     "requestDollarsThousands": 162835,
+     "unitCostDollars": null
+    }
+   ]
+  },
+  {
+   "peCode": "3080F837140",
+   "title": "(NGSR)",
+   "budgetActivity": "BA 03 — Electronics and telecommunication",
+   "lineNumber": "3080F837140",
+   "programOfRecord": null,
+   "fyData": [
+    {
+     "fy": 2027,
+     "quantity": null,
+     "requestDollarsThousands": 80321,
+     "unitCostDollars": null
+    }
+   ]
+  },
+  {
+   "peCode": "3080F837170",
+   "title": "Combat Survivor Evader Locater",
+   "budgetActivity": "BA 03 — Electronics and telecommunication",
+   "lineNumber": "3080F837170",
+   "programOfRecord": null,
+   "fyData": [
+    {
+     "fy": 2025,
+     "quantity": null,
+     "requestDollarsThousands": 1778,
+     "unitCostDollars": null
+    }
+   ]
+  },
+  {
+   "peCode": "3080F837190",
+   "title": "Radio Equipment",
+   "budgetActivity": "BA 03 — Electronics and telecommunication",
+   "lineNumber": "3080F837190",
+   "programOfRecord": null,
+   "fyData": [
+    {
+     "fy": 2025,
+     "quantity": null,
+     "requestDollarsThousands": 43512,
+     "unitCostDollars": null
+    },
+    {
+     "fy": 2026,
+     "quantity": null,
+     "requestDollarsThousands": 50730,
+     "unitCostDollars": null
+    },
+    {
+     "fy": 2027,
+     "quantity": null,
+     "requestDollarsThousands": 36874,
+     "unitCostDollars": null
+    }
+   ]
+  },
+  {
+   "peCode": "3080F837300",
+   "title": "Base Comm Infrastructure",
+   "budgetActivity": "BA 03 — Electronics and telecommunication",
+   "lineNumber": "3080F837300",
+   "programOfRecord": null,
+   "fyData": [
+    {
+     "fy": 2025,
+     "quantity": null,
+     "requestDollarsThousands": 63965,
+     "unitCostDollars": null
+    },
+    {
+     "fy": 2026,
+     "quantity": null,
+     "requestDollarsThousands": 68415,
+     "unitCostDollars": null
+    },
+    {
+     "fy": 2027,
+     "quantity": null,
+     "requestDollarsThousands": 158113,
+     "unitCostDollars": null
+    }
+   ]
+  },
+  {
+   "peCode": "3080F838010",
+   "title": "Comm Elect Mods Joint Communications Support Safety & Rescue Equip Personal Safety and Rescue",
+   "budgetActivity": "BA 03 — Electronics and telecommunication",
+   "lineNumber": "3080F838010",
+   "programOfRecord": null,
+   "fyData": [
+    {
+     "fy": 2025,
+     "quantity": null,
+     "requestDollarsThousands": 73147,
+     "unitCostDollars": null
+    },
+    {
+     "fy": 2026,
+     "quantity": null,
+     "requestDollarsThousands": 76034,
+     "unitCostDollars": null
+    },
+    {
+     "fy": 2027,
+     "quantity": null,
+     "requestDollarsThousands": 220855,
+     "unitCostDollars": null
+    }
+   ]
+  },
+  {
+   "peCode": "3080F842990",
+   "title": "Equipment Plant+Mtrls Handling Eq",
+   "budgetActivity": "BA 04 — Other base maintenance and support equipment",
+   "lineNumber": "3080F842990",
+   "programOfRecord": null,
+   "fyData": [
+    {
+     "fy": 2025,
+     "quantity": null,
+     "requestDollarsThousands": 109595,
+     "unitCostDollars": null
+    },
+    {
+     "fy": 2026,
+     "quantity": null,
+     "requestDollarsThousands": 81782,
+     "unitCostDollars": null
+    },
+    {
+     "fy": 2027,
+     "quantity": null,
+     "requestDollarsThousands": 87994,
+     "unitCostDollars": null
+    }
+   ]
+  },
+  {
+   "peCode": "3080F843040",
+   "title": "POWER CONDITIONING EQUIPMENT",
+   "budgetActivity": "BA 04 — Other base maintenance and support equipment",
+   "lineNumber": "3080F843040",
+   "programOfRecord": null,
+   "fyData": [
+    {
+     "fy": 2025,
+     "quantity": null,
+     "requestDollarsThousands": 13443,
+     "unitCostDollars": null
+    },
+    {
+     "fy": 2026,
+     "quantity": null,
+     "requestDollarsThousands": 13711,
+     "unitCostDollars": null
+    },
+    {
+     "fy": 2027,
+     "quantity": null,
+     "requestDollarsThousands": 14444,
+     "unitCostDollars": null
+    }
+   ]
+  },
+  {
+   "peCode": "3080F843050",
+   "title": "Mechanized Material Handling Equip Support Equipment",
+   "budgetActivity": "BA 04 — Other base maintenance and support equipment",
+   "lineNumber": "3080F843050",
+   "programOfRecord": null,
+   "fyData": [
+    {
+     "fy": 2025,
+     "quantity": null,
+     "requestDollarsThousands": 20459,
+     "unitCostDollars": null
+    },
+    {
+     "fy": 2026,
+     "quantity": null,
+     "requestDollarsThousands": 21928,
+     "unitCostDollars": null
+    },
+    {
+     "fy": 2027,
+     "quantity": null,
+     "requestDollarsThousands": 24594,
+     "unitCostDollars": null
+    }
+   ]
+  },
+  {
+   "peCode": "3080F845010",
+   "title": "Base Procured Equipment",
+   "budgetActivity": "BA 04 — Other base maintenance and support equipment",
+   "lineNumber": "3080F845010",
+   "programOfRecord": null,
+   "fyData": [
+    {
+     "fy": 2025,
+     "quantity": null,
+     "requestDollarsThousands": 75054,
+     "unitCostDollars": null
+    },
+    {
+     "fy": 2026,
+     "quantity": null,
+     "requestDollarsThousands": 109592,
+     "unitCostDollars": null
+    },
+    {
+     "fy": 2027,
+     "quantity": null,
+     "requestDollarsThousands": 81686,
+     "unitCostDollars": null
+    }
+   ]
+  },
+  {
+   "peCode": "3080F845100",
+   "title": "Engineering and EOD Equipment",
+   "budgetActivity": "BA 04 — Other base maintenance and support equipment",
+   "lineNumber": "3080F845100",
+   "programOfRecord": null,
+   "fyData": [
+    {
+     "fy": 2025,
+     "quantity": null,
+     "requestDollarsThousands": 203531,
+     "unitCostDollars": null
+    },
+    {
+     "fy": 2026,
+     "quantity": null,
+     "requestDollarsThousands": 258799,
+     "unitCostDollars": null
+    },
+    {
+     "fy": 2027,
+     "quantity": null,
+     "requestDollarsThousands": 247989,
+     "unitCostDollars": null
+    }
+   ]
+  },
+  {
+   "peCode": "3080F845420",
+   "title": "Mobility Equipment",
+   "budgetActivity": "BA 04 — Other base maintenance and support equipment",
+   "lineNumber": "3080F845420",
+   "programOfRecord": null,
+   "fyData": [
+    {
+     "fy": 2025,
+     "quantity": null,
+     "requestDollarsThousands": 69528,
+     "unitCostDollars": null
+    },
+    {
+     "fy": 2026,
+     "quantity": null,
+     "requestDollarsThousands": 167200,
+     "unitCostDollars": null
+    },
+    {
+     "fy": 2027,
+     "quantity": null,
+     "requestDollarsThousands": 288930,
+     "unitCostDollars": null
+    }
+   ]
+  },
+  {
+   "peCode": "3080F845550",
+   "title": "Fuels Support Equipment (FSE) Safety & Rescue Equip Personal Safety and Rescue Base Maintenance and Support",
+   "budgetActivity": "BA 04 — Other base maintenance and support equipment",
+   "lineNumber": "3080F845550",
+   "programOfRecord": null,
+   "fyData": [
+    {
+     "fy": 2025,
+     "quantity": null,
+     "requestDollarsThousands": 24563,
+     "unitCostDollars": null
+    },
+    {
+     "fy": 2026,
+     "quantity": null,
+     "requestDollarsThousands": 63794,
+     "unitCostDollars": null
+    },
+    {
+     "fy": 2027,
+     "quantity": null,
+     "requestDollarsThousands": 81066,
+     "unitCostDollars": null
+    }
+   ]
+  },
+  {
+   "peCode": "3080F845990",
+   "title": "Equipment Support Projects",
+   "budgetActivity": "BA 04 — Other base maintenance and suppor",
+   "lineNumber": "3080F845990",
+   "programOfRecord": null,
+   "fyData": [
+    {
+     "fy": 2025,
+     "quantity": null,
+     "requestDollarsThousands": 58105,
+     "unitCostDollars": null
+    },
+    {
+     "fy": 2026,
+     "quantity": null,
+     "requestDollarsThousands": 97431,
+     "unitCostDollars": null
+    },
+    {
+     "fy": 2027,
+     "quantity": null,
+     "requestDollarsThousands": 68127,
+     "unitCostDollars": null
+    }
+   ]
+  },
+  {
+   "peCode": "3080F846070",
+   "title": "DARP RC135",
+   "budgetActivity": "BA 04 — Other base maintenance and suppor",
+   "lineNumber": "3080F846070",
+   "programOfRecord": null,
+   "fyData": [
+    {
+     "fy": 2025,
+     "quantity": null,
+     "requestDollarsThousands": 29524,
+     "unitCostDollars": null
+    },
+    {
+     "fy": 2026,
+     "quantity": null,
+     "requestDollarsThousands": 30136,
+     "unitCostDollars": null
+    },
+    {
+     "fy": 2027,
+     "quantity": null,
+     "requestDollarsThousands": 31496,
+     "unitCostDollars": null
+    }
+   ]
+  },
+  {
+   "peCode": "3080F846080",
+   "title": "DCGS-AF",
+   "budgetActivity": "BA 04 — Other base maintenance and suppor",
+   "lineNumber": "3080F846080",
+   "programOfRecord": null,
+   "fyData": [
+    {
+     "fy": 2025,
+     "quantity": null,
+     "requestDollarsThousands": 51594,
+     "unitCostDollars": null
+    },
+    {
+     "fy": 2026,
+     "quantity": null,
+     "requestDollarsThousands": 87044,
+     "unitCostDollars": null
+    },
+    {
+     "fy": 2027,
+     "quantity": null,
+     "requestDollarsThousands": 316157,
+     "unitCostDollars": null
+    }
+   ]
+  },
+  {
+   "peCode": "3080F846510",
+   "title": "Special Update Program Programs",
+   "budgetActivity": "BA 04 — Other base maintenance and suppor",
+   "lineNumber": "3080F846510",
+   "programOfRecord": null,
+   "fyData": [
+    {
+     "fy": 2025,
+     "quantity": null,
+     "requestDollarsThousands": 1518290,
+     "unitCostDollars": null
+    },
+    {
+     "fy": 2026,
+     "quantity": null,
+     "requestDollarsThousands": 1500297,
+     "unitCostDollars": null
+    },
+    {
+     "fy": 2027,
+     "quantity": null,
+     "requestDollarsThousands": 5099420,
+     "unitCostDollars": null
+    }
+   ]
+  },
+  {
+   "peCode": "3080F861350",
+   "title": "Spares and Repair Parts (Cyber)",
+   "budgetActivity": "BA 05 — Spare and repair parts",
+   "lineNumber": "3080F861350",
+   "programOfRecord": null,
+   "fyData": [
+    {
+     "fy": 2025,
+     "quantity": null,
+     "requestDollarsThousands": 1056,
+     "unitCostDollars": null
+    },
+    {
+     "fy": 2026,
+     "quantity": null,
+     "requestDollarsThousands": 1075,
+     "unitCostDollars": null
+    },
+    {
+     "fy": 2027,
+     "quantity": null,
+     "requestDollarsThousands": 8657,
+     "unitCostDollars": null
+    }
+   ]
+  },
+  {
+   "peCode": "3080F861900",
+   "title": "Spares And Repair Parts Base Maintenance and Support",
+   "budgetActivity": "BA 05 — Spare and repair parts",
+   "lineNumber": "3080F861900",
+   "programOfRecord": null,
+   "fyData": [
+    {
+     "fy": 2025,
+     "quantity": null,
+     "requestDollarsThousands": 7018,
+     "unitCostDollars": null
+    },
+    {
+     "fy": 2026,
+     "quantity": null,
+     "requestDollarsThousands": 14349,
+     "unitCostDollars": null
+    },
+    {
+     "fy": 2027,
+     "quantity": null,
+     "requestDollarsThousands": 14129,
+     "unitCostDollars": null
+    }
+   ]
+  },
+  {
+   "peCode": "3020F00099L",
+   "title": "Missile Replacement Eq-Ballistic",
+   "budgetActivity": "BA 01 — Ballistic missiles",
+   "lineNumber": "3020F00099L",
+   "programOfRecord": null,
+   "fyData": [
+    {
+     "fy": 2025,
+     "quantity": null,
+     "requestDollarsThousands": 37333,
+     "unitCostDollars": null
+    },
+    {
+     "fy": 2026,
+     "quantity": null,
+     "requestDollarsThousands": 35116,
+     "unitCostDollars": null
+    },
+    {
+     "fy": 2027,
+     "quantity": null,
+     "requestDollarsThousands": 27006,
+     "unitCostDollars": null
+    }
+   ]
+  },
+  {
+   "peCode": "3020F00099L",
+   "title": "Missile Replacement Eq-Ballistic Advance Procurement (CY) Missiles",
+   "budgetActivity": "BA 01 — Ballistic missiles",
+   "lineNumber": "3020F00099L",
+   "programOfRecord": null,
+   "fyData": [
+    {
+     "fy": 2026,
+     "quantity": null,
+     "requestDollarsThousands": 2166,
+     "unitCostDollars": null
+    }
+   ]
+  },
+  {
+   "peCode": "3020FMGBSD0",
+   "title": "Ground Based Strategic Deterrent",
+   "budgetActivity": "BA 01 — Ballistic missiles",
+   "lineNumber": "3020FMGBSD0",
+   "programOfRecord": null,
+   "fyData": [
+    {
+     "fy": 2026,
+     "quantity": null,
+     "requestDollarsThousands": 176000,
+     "unitCostDollars": null
+    },
+    {
+     "fy": 2027,
+     "quantity": null,
+     "requestDollarsThousands": 107602,
+     "unitCostDollars": null
+    }
+   ]
+  },
+  {
+   "peCode": "3020FMK21A0",
+   "title": "Mk21A Reentry Vehicle",
+   "budgetActivity": "BA 01 — Ballistic missiles",
+   "lineNumber": "3020FMK21A0",
+   "programOfRecord": null,
+   "fyData": [
+    {
+     "fy": 2025,
+     "quantity": null,
+     "requestDollarsThousands": 26156,
+     "unitCostDollars": null
+    }
+   ]
+  },
+  {
+   "peCode": "3020FMLRSO1",
+   "title": "Long Range Stand-Off Weapon",
+   "budgetActivity": "BA 02 — Other missiles",
+   "lineNumber": "3020FMLRSO1",
+   "programOfRecord": null,
+   "fyData": [
+    {
+     "fy": 2025,
+     "quantity": null,
+     "requestDollarsThousands": 70335,
+     "unitCostDollars": null
+    },
+    {
+     "fy": 2026,
+     "quantity": null,
+     "requestDollarsThousands": 131372,
+     "unitCostDollars": null
+    },
+    {
+     "fy": 2027,
+     "quantity": null,
+     "requestDollarsThousands": 506047,
+     "unitCostDollars": null
+    }
+   ]
+  },
+  {
+   "peCode": "3020FMLRSO1",
+   "title": "Long Range Stand-Off Weapon Advance Procurement (CY)",
+   "budgetActivity": "BA 02 — Other missiles",
+   "lineNumber": "3020FMLRSO1",
+   "programOfRecord": null,
+   "fyData": [
+    {
+     "fy": 2025,
+     "quantity": null,
+     "requestDollarsThousands": 140000,
+     "unitCostDollars": null
+    },
+    {
+     "fy": 2026,
+     "quantity": null,
+     "requestDollarsThousands": 210000,
+     "unitCostDollars": null
+    },
+    {
+     "fy": 2027,
+     "quantity": null,
+     "requestDollarsThousands": 456810,
+     "unitCostDollars": null
+    }
+   ]
+  },
+  {
+   "peCode": "3020F222000",
+   "title": "Replac Equip & War Consumables",
+   "budgetActivity": "BA 02 — Other missiles",
+   "lineNumber": "3020F222000",
+   "programOfRecord": null,
+   "fyData": [
+    {
+     "fy": 2025,
+     "quantity": null,
+     "requestDollarsThousands": 6533,
+     "unitCostDollars": null
+    },
+    {
+     "fy": 2026,
+     "quantity": null,
+     "requestDollarsThousands": 12436,
+     "unitCostDollars": null
+    },
+    {
+     "fy": 2027,
+     "quantity": null,
+     "requestDollarsThousands": 23575,
+     "unitCostDollars": null
+    }
+   ]
+  },
+  {
+   "peCode": "3020FAPKWS0",
+   "title": "Advanced Precision Kill Weapon System (APKWS) Missile",
+   "budgetActivity": "BA 02 — Other missiles",
+   "lineNumber": "3020FAPKWS0",
+   "programOfRecord": null,
+   "fyData": [
+    {
+     "fy": 2026,
+     "quantity": 1000,
+     "requestDollarsThousands": 85428,
+     "unitCostDollars": 85428
+    }
+   ]
+  },
+  {
+   "peCode": "3020FARRW00",
+   "title": "AGM-183A Air-Launched Rapid Response Weapon",
+   "budgetActivity": "BA 02 — Other missiles",
+   "lineNumber": "3020FARRW00",
+   "programOfRecord": null,
+   "fyData": [
+    {
+     "fy": 2026,
+     "quantity": null,
+     "requestDollarsThousands": 362155,
+     "unitCostDollars": null
+    },
+    {
+     "fy": 2027,
+     "quantity": null,
+     "requestDollarsThousands": 452035,
+     "unitCostDollars": null
+    }
+   ]
+  },
+  {
+   "peCode": "3020FFAMM00",
+   "title": "Family of Affordable Mass Missile (FAMM)",
+   "budgetActivity": "BA 02 — Other missiles",
+   "lineNumber": "3020FFAMM00",
+   "programOfRecord": null,
+   "fyData": [
+    {
+     "fy": 2026,
+     "quantity": null,
+     "requestDollarsThousands": 335000,
+     "unitCostDollars": null
+    },
+    {
+     "fy": 2027,
+     "quantity": 1000,
+     "requestDollarsThousands": 355000,
+     "unitCostDollars": 355000
+    }
+   ]
+  },
+  {
+   "peCode": "3020FHACM00",
+   "title": "Hypersonic Attack Cruise Missile",
+   "budgetActivity": "BA 02 — Other missiles",
+   "lineNumber": "3020FHACM00",
+   "programOfRecord": null,
+   "fyData": [
+    {
+     "fy": 2027,
+     "quantity": null,
+     "requestDollarsThousands": 403974,
+     "unitCostDollars": null
+    }
+   ]
+  },
+  {
+   "peCode": "3020FJASSM0",
+   "title": "Joint Air-Surface Standoff Missile",
+   "budgetActivity": "BA 02 — Other missiles",
+   "lineNumber": "3020FJASSM0",
+   "programOfRecord": null,
+   "fyData": [
+    {
+     "fy": 2025,
+     "quantity": 577,
+     "requestDollarsThousands": 970051,
+     "unitCostDollars": 1681198
+    },
+    {
+     "fy": 2026,
+     "quantity": 381,
+     "requestDollarsThousands": 818081,
+     "unitCostDollars": 2147194
+    },
+    {
+     "fy": 2027,
+     "quantity": 821,
+     "requestDollarsThousands": 1997314,
+     "unitCostDollars": 2432782
+    }
+   ]
+  },
+  {
+   "peCode": "3020FJATM00",
+   "title": "Joint Advanced Tactical Missile",
+   "budgetActivity": "BA 02 — Other missiles",
+   "lineNumber": "3020FJATM00",
+   "programOfRecord": null,
+   "fyData": [
+    {
+     "fy": 2026,
+     "quantity": null,
+     "requestDollarsThousands": 593593,
+     "unitCostDollars": null
+    },
+    {
+     "fy": 2027,
+     "quantity": null,
+     "requestDollarsThousands": 1664619,
+     "unitCostDollars": null
+    }
+   ]
+  },
+  {
+   "peCode": "3020FJSM000",
+   "title": "Joint Strike Missile",
+   "budgetActivity": "BA 02 — Other missiles",
+   "lineNumber": "3020FJSM000",
+   "programOfRecord": null,
+   "fyData": [
+    {
+     "fy": 2025,
+     "quantity": 40,
+     "requestDollarsThousands": 150909,
+     "unitCostDollars": 3772725
+    },
+    {
+     "fy": 2026,
+     "quantity": 100,
+     "requestDollarsThousands": 377000,
+     "unitCostDollars": 3770000
+    },
+    {
+     "fy": 2027,
+     "quantity": 100,
+     "requestDollarsThousands": 384607,
+     "unitCostDollars": 3846070
+    }
+   ]
+  },
+  {
+   "peCode": "3020FLRASM0",
+   "title": "LRASM0",
+   "budgetActivity": "BA 02 — Other missiles",
+   "lineNumber": "3020FLRASM0",
+   "programOfRecord": null,
+   "fyData": [
+    {
+     "fy": 2025,
+     "quantity": 172,
+     "requestDollarsThousands": 564109,
+     "unitCostDollars": 3279703
+    },
+    {
+     "fy": 2026,
+     "quantity": 114,
+     "requestDollarsThousands": 406401,
+     "unitCostDollars": 3564921
+    },
+    {
+     "fy": 2027,
+     "quantity": 156,
+     "requestDollarsThousands": 737305,
+     "unitCostDollars": 4726314
+    }
+   ]
+  },
+  {
+   "peCode": "3020FM09HAI",
+   "title": "Sidewinder (AIM-9X)",
+   "budgetActivity": "BA 02 — Other missiles",
+   "lineNumber": "3020FM09HAI",
+   "programOfRecord": null,
+   "fyData": [
+    {
+     "fy": 2025,
+     "quantity": 579,
+     "requestDollarsThousands": 306159,
+     "unitCostDollars": 528772
+    },
+    {
+     "fy": 2026,
+     "quantity": 173,
+     "requestDollarsThousands": 100352,
+     "unitCostDollars": 580069
+    },
+    {
+     "fy": 2027,
+     "quantity": 648,
+     "requestDollarsThousands": 419238,
+     "unitCostDollars": 646972
+    }
+   ]
+  },
+  {
+   "peCode": "3020FMAMRA0",
+   "title": "AMRAAM",
+   "budgetActivity": "BA 02 — Other missiles",
+   "lineNumber": "3020FMAMRA0",
+   "programOfRecord": null,
+   "fyData": [
+    {
+     "fy": 2025,
+     "quantity": 411,
+     "requestDollarsThousands": 584391,
+     "unitCostDollars": 1421876
+    },
+    {
+     "fy": 2026,
+     "quantity": 423,
+     "requestDollarsThousands": 680725,
+     "unitCostDollars": 1609279
+    },
+    {
+     "fy": 2027,
+     "quantity": 1317,
+     "requestDollarsThousands": 2060812,
+     "unitCostDollars": 1564778
+    }
+   ]
+  },
+  {
+   "peCode": "3020FPRDTA2",
+   "title": "Predator Hellfire Missile",
+   "budgetActivity": "BA 02 — Other missiles",
+   "lineNumber": "3020FPRDTA2",
+   "programOfRecord": null,
+   "fyData": [
+    {
+     "fy": 2025,
+     "quantity": null,
+     "requestDollarsThousands": 5790,
+     "unitCostDollars": null
+    }
+   ]
+  },
+  {
+   "peCode": "3020FSDB000",
+   "title": "Small Diameter Bomb",
+   "budgetActivity": "BA 02 — Other missiles",
+   "lineNumber": "3020FSDB000",
+   "programOfRecord": null,
+   "fyData": [
+    {
+     "fy": 2025,
+     "quantity": 1237,
+     "requestDollarsThousands": 261681,
+     "unitCostDollars": 211545
+    },
+    {
+     "fy": 2026,
+     "quantity": 511,
+     "requestDollarsThousands": 41510,
+     "unitCostDollars": 81233
+    },
+    {
+     "fy": 2027,
+     "quantity": 220,
+     "requestDollarsThousands": 44596,
+     "unitCostDollars": 202709
+    }
+   ]
+  },
+  {
+   "peCode": "3020FSDB002",
+   "title": "SMALL DIAMETER BOMB II",
+   "budgetActivity": "BA 02 — Other missiles",
+   "lineNumber": "3020FSDB002",
+   "programOfRecord": null,
+   "fyData": [
+    {
+     "fy": 2025,
+     "quantity": 1228,
+     "requestDollarsThousands": 407222,
+     "unitCostDollars": 331614
+    },
+    {
+     "fy": 2026,
+     "quantity": 806,
+     "requestDollarsThousands": 307743,
+     "unitCostDollars": 381815
+    },
+    {
+     "fy": 2027,
+     "quantity": 373,
+     "requestDollarsThousands": 194509,
+     "unitCostDollars": 521472
+    }
+   ]
+  },
+  {
+   "peCode": "3020FSIAW24",
+   "title": "Stand-In Attack Weapon (SIAW) Facilities Industrial Preparedness/Pol",
+   "budgetActivity": "BA 02 — Other missiles",
+   "lineNumber": "3020FSIAW24",
+   "programOfRecord": null,
+   "fyData": [
+    {
+     "fy": 2025,
+     "quantity": null,
+     "requestDollarsThousands": 152646,
+     "unitCostDollars": null
+    },
+    {
+     "fy": 2026,
+     "quantity": 75,
+     "requestDollarsThousands": 152646,
+     "unitCostDollars": 2035280
+    },
+    {
+     "fy": 2027,
+     "quantity": 155,
+     "requestDollarsThousands": 401607,
+     "unitCostDollars": 2591013
+    }
+   ]
+  },
+  {
+   "peCode": "3020F000042",
+   "title": "Prevention IV",
+   "budgetActivity": "BA 02 — Other missiles",
+   "lineNumber": "3020F000042",
+   "programOfRecord": null,
+   "fyData": [
+    {
+     "fy": 2025,
+     "quantity": null,
+     "requestDollarsThousands": 913,
+     "unitCostDollars": null
+    },
+    {
+     "fy": 2026,
+     "quantity": null,
+     "requestDollarsThousands": 917,
+     "unitCostDollars": null
+    },
+    {
+     "fy": 2027,
+     "quantity": null,
+     "requestDollarsThousands": 931,
+     "unitCostDollars": null
+    }
+   ]
+  },
+  {
+   "peCode": "3020FM30FLH",
+   "title": "ICBM FUZE MOD",
+   "budgetActivity": "BA 03 — Modification of inservice missiles",
+   "lineNumber": "3020FM30FLH",
+   "programOfRecord": null,
+   "fyData": [
+    {
+     "fy": 2025,
+     "quantity": null,
+     "requestDollarsThousands": 118062,
+     "unitCostDollars": null
+    },
+    {
+     "fy": 2026,
+     "quantity": null,
+     "requestDollarsThousands": 119376,
+     "unitCostDollars": null
+    },
+    {
+     "fy": 2027,
+     "quantity": null,
+     "requestDollarsThousands": 169747,
+     "unitCostDollars": null
+    }
+   ]
+  },
+  {
+   "peCode": "3020FM30FLH",
+   "title": "ICBM FUZE MOD Advance Procurement (CY)",
+   "budgetActivity": "BA 03 — Modification of inservice missiles",
+   "lineNumber": "3020FM30FLH",
+   "programOfRecord": null,
+   "fyData": [
+    {
+     "fy": 2025,
+     "quantity": null,
+     "requestDollarsThousands": 26313,
+     "unitCostDollars": null
+    }
+   ]
+  },
+  {
+   "peCode": "3020FM30MLG",
+   "title": "MM III Modifications",
+   "budgetActivity": "BA 03 — Modification of inservice missiles",
+   "lineNumber": "3020FM30MLG",
+   "programOfRecord": null,
+   "fyData": [
+    {
+     "fy": 2025,
+     "quantity": null,
+     "requestDollarsThousands": 24212,
+     "unitCostDollars": null
+    },
+    {
+     "fy": 2026,
+     "quantity": null,
+     "requestDollarsThousands": 14604,
+     "unitCostDollars": null
+    },
+    {
+     "fy": 2027,
+     "quantity": null,
+     "requestDollarsThousands": 9865,
+     "unitCostDollars": null
+    }
+   ]
+  },
+  {
+   "peCode": "3020FMALCBG",
+   "title": "Air Launch Cruise Missile (ALCM) Spares and Repair Parts Industrial Preparedness/Pol",
+   "budgetActivity": "BA 03 — Modification of inservice missiles",
+   "lineNumber": "3020FMALCBG",
+   "programOfRecord": null,
+   "fyData": [
+    {
+     "fy": 2025,
+     "quantity": null,
+     "requestDollarsThousands": 34019,
+     "unitCostDollars": null
+    },
+    {
+     "fy": 2026,
+     "quantity": null,
+     "requestDollarsThousands": 41393,
+     "unitCostDollars": null
+    },
+    {
+     "fy": 2027,
+     "quantity": null,
+     "requestDollarsThousands": 30407,
+     "unitCostDollars": null
+    }
+   ]
+  },
+  {
+   "peCode": "3020F00098A",
+   "title": "Msl Sprs/Repair Parts (Initial)",
+   "budgetActivity": "BA 04 — Spares and repair parts",
+   "lineNumber": "3020F00098A",
+   "programOfRecord": null,
+   "fyData": [
+    {
+     "fy": 2025,
+     "quantity": null,
+     "requestDollarsThousands": 6956,
+     "unitCostDollars": null
+    },
+    {
+     "fy": 2026,
+     "quantity": null,
+     "requestDollarsThousands": 7224,
+     "unitCostDollars": null
+    },
+    {
+     "fy": 2027,
+     "quantity": null,
+     "requestDollarsThousands": 15621,
+     "unitCostDollars": null
+    }
+   ]
+  },
+  {
+   "peCode": "3020F00098K",
+   "title": "Msl Sprs/Repair Parts (Replen) Programs",
+   "budgetActivity": "BA 04 — Spares and repair parts",
+   "lineNumber": "3020F00098K",
+   "programOfRecord": null,
+   "fyData": [
+    {
+     "fy": 2025,
+     "quantity": null,
+     "requestDollarsThousands": 104194,
+     "unitCostDollars": null
+    },
+    {
+     "fy": 2026,
+     "quantity": null,
+     "requestDollarsThousands": 108249,
+     "unitCostDollars": null
+    },
+    {
+     "fy": 2027,
+     "quantity": null,
+     "requestDollarsThousands": 123224,
+     "unitCostDollars": null
+    }
+   ]
+  },
+  {
+   "peCode": "3020FMSPPRG",
+   "title": "Special Update Programs",
+   "budgetActivity": "BA 05 — Other support",
+   "lineNumber": "3020FMSPPRG",
+   "programOfRecord": null,
+   "fyData": [
+    {
+     "fy": 2025,
+     "quantity": null,
+     "requestDollarsThousands": 628436,
+     "unitCostDollars": null
+    },
+    {
+     "fy": 2026,
+     "quantity": null,
+     "requestDollarsThousands": 546199,
+     "unitCostDollars": null
+    },
+    {
+     "fy": 2027,
+     "quantity": null,
+     "requestDollarsThousands": 168578,
+     "unitCostDollars": null
+    }
+   ]
+  }
+ ]
+}

@@ -1,0 +1,7642 @@
+{
+ "service": "NAVY",
+ "fy": 2027,
+ "sourceUrl": "FY2027 P-40 justification books (TOC-keyed)",
+ "pes": [
+  {
+   "peCode": "1506N0145",
+   "title": "F/A-18E/F (Fighter) Hornet",
+   "budgetActivity": "BA 01 — Combat aircraft",
+   "lineNumber": "1506N0145",
+   "programOfRecord": null,
+   "fyData": [
+    {
+     "fy": 2025,
+     "quantity": null,
+     "requestDollarsThousands": 28554,
+     "unitCostDollars": null
+    },
+    {
+     "fy": 2026,
+     "quantity": null,
+     "requestDollarsThousands": 29506,
+     "unitCostDollars": null
+    },
+    {
+     "fy": 2027,
+     "quantity": null,
+     "requestDollarsThousands": 49088,
+     "unitCostDollars": null
+    }
+   ]
+  },
+  {
+   "peCode": "1506N0147",
+   "title": "Joint Strike Fighter CV",
+   "budgetActivity": "BA 01 — Combat aircraft",
+   "lineNumber": "1506N0147",
+   "programOfRecord": null,
+   "fyData": [
+    {
+     "fy": 2025,
+     "quantity": 17,
+     "requestDollarsThousands": 2315259,
+     "unitCostDollars": 136191706
+    },
+    {
+     "fy": 2026,
+     "quantity": 12,
+     "requestDollarsThousands": 1920924,
+     "unitCostDollars": 160077000
+    },
+    {
+     "fy": 2027,
+     "quantity": 37,
+     "requestDollarsThousands": 4922267,
+     "unitCostDollars": 133034243
+    }
+   ]
+  },
+  {
+   "peCode": "1506N0147",
+   "title": "Joint Strike Fighter CV Advance Procurement (CY)",
+   "budgetActivity": "BA 01 — Combat aircraft",
+   "lineNumber": "1506N0147",
+   "programOfRecord": null,
+   "fyData": [
+    {
+     "fy": 2025,
+     "quantity": null,
+     "requestDollarsThousands": 196634,
+     "unitCostDollars": null
+    },
+    {
+     "fy": 2026,
+     "quantity": null,
+     "requestDollarsThousands": 401596,
+     "unitCostDollars": null
+    },
+    {
+     "fy": 2027,
+     "quantity": null,
+     "requestDollarsThousands": 651081,
+     "unitCostDollars": null
+    }
+   ]
+  },
+  {
+   "peCode": "1506N0152",
+   "title": "JSF STOVL",
+   "budgetActivity": "BA 01 — Combat aircraft",
+   "lineNumber": "1506N0152",
+   "programOfRecord": null,
+   "fyData": [
+    {
+     "fy": 2025,
+     "quantity": 13,
+     "requestDollarsThousands": 1971687,
+     "unitCostDollars": 151668231
+    },
+    {
+     "fy": 2026,
+     "quantity": 11,
+     "requestDollarsThousands": 1787313,
+     "unitCostDollars": 162483000
+    },
+    {
+     "fy": 2027,
+     "quantity": 10,
+     "requestDollarsThousands": 1997743,
+     "unitCostDollars": 199774300
+    }
+   ]
+  },
+  {
+   "peCode": "1506N0152",
+   "title": "JSF STOVL Aircraft Advance Procurement (CY)",
+   "budgetActivity": "BA 01 — Combat aircraft",
+   "lineNumber": "1506N0152",
+   "programOfRecord": null,
+   "fyData": [
+    {
+     "fy": 2025,
+     "quantity": null,
+     "requestDollarsThousands": 169389,
+     "unitCostDollars": null
+    },
+    {
+     "fy": 2026,
+     "quantity": null,
+     "requestDollarsThousands": 113744,
+     "unitCostDollars": null
+    }
+   ]
+  },
+  {
+   "peCode": "1506N0158",
+   "title": "CH-53K (Heavy Lift)",
+   "budgetActivity": "BA 01 — Combat aircraft",
+   "lineNumber": "1506N0158",
+   "programOfRecord": null,
+   "fyData": [
+    {
+     "fy": 2025,
+     "quantity": 18,
+     "requestDollarsThousands": 2193657,
+     "unitCostDollars": 121869833
+    },
+    {
+     "fy": 2026,
+     "quantity": 14,
+     "requestDollarsThousands": 1920788,
+     "unitCostDollars": 137199143
+    },
+    {
+     "fy": 2027,
+     "quantity": 22,
+     "requestDollarsThousands": 3044450,
+     "unitCostDollars": 138384091
+    }
+   ]
+  },
+  {
+   "peCode": "1506N0158",
+   "title": "CH-53K (Heavy Lift) Advance Procurement (CY)",
+   "budgetActivity": "BA 01 — Combat aircraft",
+   "lineNumber": "1506N0158",
+   "programOfRecord": null,
+   "fyData": [
+    {
+     "fy": 2025,
+     "quantity": null,
+     "requestDollarsThousands": 422971,
+     "unitCostDollars": null
+    },
+    {
+     "fy": 2026,
+     "quantity": null,
+     "requestDollarsThousands": 335352,
+     "unitCostDollars": null
+    },
+    {
+     "fy": 2027,
+     "quantity": null,
+     "requestDollarsThousands": 429295,
+     "unitCostDollars": null
+    }
+   ]
+  },
+  {
+   "peCode": "1506N0164",
+   "title": "V-22 (Medium Lift) Advance Procurement (CY)",
+   "budgetActivity": "BA 01 — Combat aircraft",
+   "lineNumber": "1506N0164",
+   "programOfRecord": null,
+   "fyData": [
+    {
+     "fy": 2025,
+     "quantity": null,
+     "requestDollarsThousands": 30118,
+     "unitCostDollars": null
+    },
+    {
+     "fy": 2026,
+     "quantity": null,
+     "requestDollarsThousands": 47196,
+     "unitCostDollars": null
+    },
+    {
+     "fy": 2027,
+     "quantity": null,
+     "requestDollarsThousands": 77963,
+     "unitCostDollars": null
+    }
+   ]
+  },
+  {
+   "peCode": "1506N0178",
+   "title": "H-1 Upgrades (UH-1Y/AH-1Z)",
+   "budgetActivity": "BA 01 — Combat aircraft",
+   "lineNumber": "1506N0178",
+   "programOfRecord": null,
+   "fyData": [
+    {
+     "fy": 2025,
+     "quantity": null,
+     "requestDollarsThousands": 8701,
+     "unitCostDollars": null
+    },
+    {
+     "fy": 2026,
+     "quantity": null,
+     "requestDollarsThousands": 8305,
+     "unitCostDollars": null
+    },
+    {
+     "fy": 2027,
+     "quantity": null,
+     "requestDollarsThousands": 5974,
+     "unitCostDollars": null
+    }
+   ]
+  },
+  {
+   "peCode": "1506N0193",
+   "title": "P-8A Poseidon",
+   "budgetActivity": "BA 01 — Combat aircraft",
+   "lineNumber": "1506N0193",
+   "programOfRecord": null,
+   "fyData": [
+    {
+     "fy": 2025,
+     "quantity": null,
+     "requestDollarsThousands": 12424,
+     "unitCostDollars": null
+    },
+    {
+     "fy": 2026,
+     "quantity": null,
+     "requestDollarsThousands": 13631,
+     "unitCostDollars": null
+    },
+    {
+     "fy": 2027,
+     "quantity": 12,
+     "requestDollarsThousands": 4227350,
+     "unitCostDollars": 352279167
+    }
+   ]
+  },
+  {
+   "peCode": "1506N0195",
+   "title": "E-2D Adv Hawkeye",
+   "budgetActivity": "BA 01 — Combat aircraft",
+   "lineNumber": "1506N0195",
+   "programOfRecord": null,
+   "fyData": [
+    {
+     "fy": 2025,
+     "quantity": null,
+     "requestDollarsThousands": 95219,
+     "unitCostDollars": null
+    },
+    {
+     "fy": 2026,
+     "quantity": 3,
+     "requestDollarsThousands": 1100800,
+     "unitCostDollars": 366933333
+    },
+    {
+     "fy": 2027,
+     "quantity": 6,
+     "requestDollarsThousands": 2075025,
+     "unitCostDollars": 345837500
+    }
+   ]
+  },
+  {
+   "peCode": "1506N0195",
+   "title": "E-2D Adv Hawkeye Advance Procurement (CY) Aircraft Multi-Engine Training System",
+   "budgetActivity": "BA 01 — Combat aircraft",
+   "lineNumber": "1506N0195",
+   "programOfRecord": null,
+   "fyData": [
+    {
+     "fy": 2027,
+     "quantity": null,
+     "requestDollarsThousands": 550000,
+     "unitCostDollars": null
+    }
+   ]
+  },
+  {
+   "peCode": "1506N0343",
+   "title": "(METS) Aircraft",
+   "budgetActivity": "BA 03 — Trainer aircraft",
+   "lineNumber": "1506N0343",
+   "programOfRecord": null,
+   "fyData": [
+    {
+     "fy": 2025,
+     "quantity": 27,
+     "requestDollarsThousands": 301303,
+     "unitCostDollars": 11159370
+    }
+   ]
+  },
+  {
+   "peCode": "1506N0416",
+   "title": "KC-130J",
+   "budgetActivity": "BA 04 — Other aircraft",
+   "lineNumber": "1506N0416",
+   "programOfRecord": null,
+   "fyData": [
+    {
+     "fy": 2025,
+     "quantity": 2,
+     "requestDollarsThousands": 294406,
+     "unitCostDollars": 147203000
+    },
+    {
+     "fy": 2026,
+     "quantity": 5,
+     "requestDollarsThousands": 663017,
+     "unitCostDollars": 132603400
+    },
+    {
+     "fy": 2027,
+     "quantity": 18,
+     "requestDollarsThousands": 2791906,
+     "unitCostDollars": 155105889
+    }
+   ]
+  },
+  {
+   "peCode": "1506N0442",
+   "title": "MQ-4 Triton",
+   "budgetActivity": "BA 04 — Other aircraft",
+   "lineNumber": "1506N0442",
+   "programOfRecord": null,
+   "fyData": [
+    {
+     "fy": 2025,
+     "quantity": null,
+     "requestDollarsThousands": 159226,
+     "unitCostDollars": null
+    },
+    {
+     "fy": 2026,
+     "quantity": null,
+     "requestDollarsThousands": 123839,
+     "unitCostDollars": null
+    },
+    {
+     "fy": 2027,
+     "quantity": null,
+     "requestDollarsThousands": 104326,
+     "unitCostDollars": null
+    }
+   ]
+  },
+  {
+   "peCode": "1506N0449",
+   "title": "MQ-25",
+   "budgetActivity": "BA 04 — Other aircraft",
+   "lineNumber": "1506N0449",
+   "programOfRecord": null,
+   "fyData": [
+    {
+     "fy": 2025,
+     "quantity": null,
+     "requestDollarsThousands": 50000,
+     "unitCostDollars": null
+    },
+    {
+     "fy": 2026,
+     "quantity": 3,
+     "requestDollarsThousands": 487686,
+     "unitCostDollars": 162562000
+    },
+    {
+     "fy": 2027,
+     "quantity": 3,
+     "requestDollarsThousands": 771177,
+     "unitCostDollars": 257059000
+    }
+   ]
+  },
+  {
+   "peCode": "1506N0449",
+   "title": "MQ-25 Advance Procurement (CY)",
+   "budgetActivity": "BA 04 — Other aircraft",
+   "lineNumber": "1506N0449",
+   "programOfRecord": null,
+   "fyData": [
+    {
+     "fy": 2026,
+     "quantity": null,
+     "requestDollarsThousands": 52191,
+     "unitCostDollars": null
+    },
+    {
+     "fy": 2027,
+     "quantity": null,
+     "requestDollarsThousands": 80965,
+     "unitCostDollars": null
+    }
+   ]
+  },
+  {
+   "peCode": "1506N0452",
+   "title": "Marine Group 5 UAS",
+   "budgetActivity": "BA 04 — Other aircraft",
+   "lineNumber": "1506N0452",
+   "programOfRecord": null,
+   "fyData": [
+    {
+     "fy": 2025,
+     "quantity": null,
+     "requestDollarsThousands": 19081,
+     "unitCostDollars": null
+    },
+    {
+     "fy": 2026,
+     "quantity": null,
+     "requestDollarsThousands": 15162,
+     "unitCostDollars": null
+    },
+    {
+     "fy": 2027,
+     "quantity": 5,
+     "requestDollarsThousands": 118600,
+     "unitCostDollars": 23720000
+    }
+   ]
+  },
+  {
+   "peCode": "1506N0465",
+   "title": "Other Support Aircraft of Aircraft",
+   "budgetActivity": "BA 04 — Other aircraft",
+   "lineNumber": "1506N0465",
+   "programOfRecord": null,
+   "fyData": [
+    {
+     "fy": 2026,
+     "quantity": 1,
+     "requestDollarsThousands": 19812,
+     "unitCostDollars": 19812000
+    },
+    {
+     "fy": 2027,
+     "quantity": 10,
+     "requestDollarsThousands": 204476,
+     "unitCostDollars": 20447600
+    }
+   ]
+  },
+  {
+   "peCode": "1506N0502",
+   "title": "F-18 A-D Unique F-18E/F and EA-18G Modernization",
+   "budgetActivity": "BA 05 — Modification of aircraft",
+   "lineNumber": "1506N0502",
+   "programOfRecord": null,
+   "fyData": [
+    {
+     "fy": 2025,
+     "quantity": null,
+     "requestDollarsThousands": 80301,
+     "unitCostDollars": null
+    },
+    {
+     "fy": 2026,
+     "quantity": null,
+     "requestDollarsThousands": 53809,
+     "unitCostDollars": null
+    },
+    {
+     "fy": 2027,
+     "quantity": null,
+     "requestDollarsThousands": 36951,
+     "unitCostDollars": null
+    }
+   ]
+  },
+  {
+   "peCode": "1506N0505",
+   "title": "and Sustainm",
+   "budgetActivity": "BA 05 — Modification of aircraft",
+   "lineNumber": "1506N0505",
+   "programOfRecord": null,
+   "fyData": [
+    {
+     "fy": 2025,
+     "quantity": null,
+     "requestDollarsThousands": 483823,
+     "unitCostDollars": null
+    },
+    {
+     "fy": 2026,
+     "quantity": null,
+     "requestDollarsThousands": 576229,
+     "unitCostDollars": null
+    },
+    {
+     "fy": 2027,
+     "quantity": null,
+     "requestDollarsThousands": 563832,
+     "unitCostDollars": null
+    }
+   ]
+  },
+  {
+   "peCode": "1506N0507",
+   "title": "Marine Group 5 UAS Series",
+   "budgetActivity": "BA 05 — Modification of aircraft",
+   "lineNumber": "1506N0507",
+   "programOfRecord": null,
+   "fyData": [
+    {
+     "fy": 2025,
+     "quantity": null,
+     "requestDollarsThousands": 112672,
+     "unitCostDollars": null
+    },
+    {
+     "fy": 2026,
+     "quantity": null,
+     "requestDollarsThousands": 137318,
+     "unitCostDollars": null
+    },
+    {
+     "fy": 2027,
+     "quantity": null,
+     "requestDollarsThousands": 179603,
+     "unitCostDollars": null
+    }
+   ]
+  },
+  {
+   "peCode": "1506N0513",
+   "title": "AEA Systems",
+   "budgetActivity": "BA 05 — Modification of aircraft",
+   "lineNumber": "1506N0513",
+   "programOfRecord": null,
+   "fyData": [
+    {
+     "fy": 2025,
+     "quantity": null,
+     "requestDollarsThousands": 17107,
+     "unitCostDollars": null
+    },
+    {
+     "fy": 2026,
+     "quantity": null,
+     "requestDollarsThousands": 25848,
+     "unitCostDollars": null
+    },
+    {
+     "fy": 2027,
+     "quantity": null,
+     "requestDollarsThousands": 37125,
+     "unitCostDollars": null
+    }
+   ]
+  },
+  {
+   "peCode": "1506N0514",
+   "title": "AV-8 Series",
+   "budgetActivity": "BA 05 — Modification of aircraft",
+   "lineNumber": "1506N0514",
+   "programOfRecord": null,
+   "fyData": [
+    {
+     "fy": 2025,
+     "quantity": null,
+     "requestDollarsThousands": 3582,
+     "unitCostDollars": null
+    }
+   ]
+  },
+  {
+   "peCode": "1506N0515",
+   "title": "Infrared Search and Track (IRST)",
+   "budgetActivity": "BA 05 — Modification of aircraft",
+   "lineNumber": "1506N0515",
+   "programOfRecord": null,
+   "fyData": [
+    {
+     "fy": 2025,
+     "quantity": null,
+     "requestDollarsThousands": 146876,
+     "unitCostDollars": null
+    },
+    {
+     "fy": 2026,
+     "quantity": null,
+     "requestDollarsThousands": 175351,
+     "unitCostDollars": null
+    },
+    {
+     "fy": 2027,
+     "quantity": null,
+     "requestDollarsThousands": 171345,
+     "unitCostDollars": null
+    }
+   ]
+  },
+  {
+   "peCode": "1506N0522",
+   "title": "Adversary",
+   "budgetActivity": "BA 05 — Modification of aircraft",
+   "lineNumber": "1506N0522",
+   "programOfRecord": null,
+   "fyData": [
+    {
+     "fy": 2025,
+     "quantity": null,
+     "requestDollarsThousands": 49724,
+     "unitCostDollars": null
+    },
+    {
+     "fy": 2026,
+     "quantity": null,
+     "requestDollarsThousands": 21535,
+     "unitCostDollars": null
+    },
+    {
+     "fy": 2027,
+     "quantity": null,
+     "requestDollarsThousands": 24732,
+     "unitCostDollars": null
+    }
+   ]
+  },
+  {
+   "peCode": "1506N0525",
+   "title": "F-18 Series",
+   "budgetActivity": "BA 05 — Modification of aircraft",
+   "lineNumber": "1506N0525",
+   "programOfRecord": null,
+   "fyData": [
+    {
+     "fy": 2025,
+     "quantity": null,
+     "requestDollarsThousands": 637867,
+     "unitCostDollars": null
+    },
+    {
+     "fy": 2026,
+     "quantity": null,
+     "requestDollarsThousands": 756967,
+     "unitCostDollars": null
+    },
+    {
+     "fy": 2027,
+     "quantity": null,
+     "requestDollarsThousands": 858716,
+     "unitCostDollars": null
+    }
+   ]
+  },
+  {
+   "peCode": "1506N0528",
+   "title": "H-53 Series",
+   "budgetActivity": "BA 05 — Modification of aircraft",
+   "lineNumber": "1506N0528",
+   "programOfRecord": null,
+   "fyData": [
+    {
+     "fy": 2025,
+     "quantity": null,
+     "requestDollarsThousands": 94946,
+     "unitCostDollars": null
+    },
+    {
+     "fy": 2026,
+     "quantity": null,
+     "requestDollarsThousands": 63227,
+     "unitCostDollars": null
+    },
+    {
+     "fy": 2027,
+     "quantity": null,
+     "requestDollarsThousands": 91903,
+     "unitCostDollars": null
+    }
+   ]
+  },
+  {
+   "peCode": "1506N0530",
+   "title": "MH-60 Series",
+   "budgetActivity": "BA 05 — Modification of aircraft",
+   "lineNumber": "1506N0530",
+   "programOfRecord": null,
+   "fyData": [
+    {
+     "fy": 2025,
+     "quantity": null,
+     "requestDollarsThousands": 97197,
+     "unitCostDollars": null
+    },
+    {
+     "fy": 2026,
+     "quantity": null,
+     "requestDollarsThousands": 100093,
+     "unitCostDollars": null
+    },
+    {
+     "fy": 2027,
+     "quantity": null,
+     "requestDollarsThousands": 236555,
+     "unitCostDollars": null
+    }
+   ]
+  },
+  {
+   "peCode": "1506N0532",
+   "title": "H-1 Series",
+   "budgetActivity": "BA 05 — Modification of aircraft",
+   "lineNumber": "1506N0532",
+   "programOfRecord": null,
+   "fyData": [
+    {
+     "fy": 2025,
+     "quantity": null,
+     "requestDollarsThousands": 155461,
+     "unitCostDollars": null
+    },
+    {
+     "fy": 2026,
+     "quantity": null,
+     "requestDollarsThousands": 169405,
+     "unitCostDollars": null
+    },
+    {
+     "fy": 2027,
+     "quantity": null,
+     "requestDollarsThousands": 304267,
+     "unitCostDollars": null
+    }
+   ]
+  },
+  {
+   "peCode": "1506N0544",
+   "title": "E-2 Series",
+   "budgetActivity": "BA 05 — Modification of aircraft",
+   "lineNumber": "1506N0544",
+   "programOfRecord": null,
+   "fyData": [
+    {
+     "fy": 2025,
+     "quantity": null,
+     "requestDollarsThousands": 134974,
+     "unitCostDollars": null
+    },
+    {
+     "fy": 2026,
+     "quantity": null,
+     "requestDollarsThousands": 132700,
+     "unitCostDollars": null
+    },
+    {
+     "fy": 2027,
+     "quantity": null,
+     "requestDollarsThousands": 96428,
+     "unitCostDollars": null
+    }
+   ]
+  },
+  {
+   "peCode": "1506N0549",
+   "title": "Trainer A/C Series",
+   "budgetActivity": "BA 05 — Modification of aircraft",
+   "lineNumber": "1506N0549",
+   "programOfRecord": null,
+   "fyData": [
+    {
+     "fy": 2025,
+     "quantity": null,
+     "requestDollarsThousands": 12415,
+     "unitCostDollars": null
+    },
+    {
+     "fy": 2026,
+     "quantity": null,
+     "requestDollarsThousands": 12151,
+     "unitCostDollars": null
+    },
+    {
+     "fy": 2027,
+     "quantity": null,
+     "requestDollarsThousands": 12359,
+     "unitCostDollars": null
+    }
+   ]
+  },
+  {
+   "peCode": "1506N0560",
+   "title": "C-130 Series",
+   "budgetActivity": "BA 05 — Modification of aircraft",
+   "lineNumber": "1506N0560",
+   "programOfRecord": null,
+   "fyData": [
+    {
+     "fy": 2025,
+     "quantity": null,
+     "requestDollarsThousands": 158753,
+     "unitCostDollars": null
+    },
+    {
+     "fy": 2026,
+     "quantity": null,
+     "requestDollarsThousands": 144017,
+     "unitCostDollars": null
+    },
+    {
+     "fy": 2027,
+     "quantity": null,
+     "requestDollarsThousands": 185266,
+     "unitCostDollars": null
+    }
+   ]
+  },
+  {
+   "peCode": "1506N0561",
+   "title": "FEWSG",
+   "budgetActivity": "BA 05 — Modification of aircraft",
+   "lineNumber": "1506N0561",
+   "programOfRecord": null,
+   "fyData": [
+    {
+     "fy": 2025,
+     "quantity": null,
+     "requestDollarsThousands": 663,
+     "unitCostDollars": null
+    },
+    {
+     "fy": 2026,
+     "quantity": null,
+     "requestDollarsThousands": 5,
+     "unitCostDollars": null
+    }
+   ]
+  },
+  {
+   "peCode": "1506N0562",
+   "title": "Cargo/Transport A/C Series",
+   "budgetActivity": "BA 05 — Modification of aircraft",
+   "lineNumber": "1506N0562",
+   "programOfRecord": null,
+   "fyData": [
+    {
+     "fy": 2025,
+     "quantity": null,
+     "requestDollarsThousands": 13162,
+     "unitCostDollars": null
+    },
+    {
+     "fy": 2026,
+     "quantity": null,
+     "requestDollarsThousands": 7526,
+     "unitCostDollars": null
+    },
+    {
+     "fy": 2027,
+     "quantity": null,
+     "requestDollarsThousands": 20100,
+     "unitCostDollars": null
+    }
+   ]
+  },
+  {
+   "peCode": "1506N0564",
+   "title": "E-6 Series",
+   "budgetActivity": "BA 05 — Modification of aircraft",
+   "lineNumber": "1506N0564",
+   "programOfRecord": null,
+   "fyData": [
+    {
+     "fy": 2025,
+     "quantity": null,
+     "requestDollarsThousands": 126727,
+     "unitCostDollars": null
+    },
+    {
+     "fy": 2026,
+     "quantity": null,
+     "requestDollarsThousands": 163737,
+     "unitCostDollars": null
+    },
+    {
+     "fy": 2027,
+     "quantity": null,
+     "requestDollarsThousands": 270832,
+     "unitCostDollars": null
+    }
+   ]
+  },
+  {
+   "peCode": "1506N0566",
+   "title": "Executive Helicopters Series",
+   "budgetActivity": "BA 05 — Modification of aircraft",
+   "lineNumber": "1506N0566",
+   "programOfRecord": null,
+   "fyData": [
+    {
+     "fy": 2025,
+     "quantity": null,
+     "requestDollarsThousands": 69495,
+     "unitCostDollars": null
+    },
+    {
+     "fy": 2026,
+     "quantity": null,
+     "requestDollarsThousands": 66645,
+     "unitCostDollars": null
+    },
+    {
+     "fy": 2027,
+     "quantity": null,
+     "requestDollarsThousands": 57319,
+     "unitCostDollars": null
+    }
+   ]
+  },
+  {
+   "peCode": "1506N0569",
+   "title": "T-45 Series",
+   "budgetActivity": "BA 05 — Modification of aircraft",
+   "lineNumber": "1506N0569",
+   "programOfRecord": null,
+   "fyData": [
+    {
+     "fy": 2025,
+     "quantity": null,
+     "requestDollarsThousands": 148967,
+     "unitCostDollars": null
+    },
+    {
+     "fy": 2026,
+     "quantity": null,
+     "requestDollarsThousands": 173433,
+     "unitCostDollars": null
+    },
+    {
+     "fy": 2027,
+     "quantity": null,
+     "requestDollarsThousands": 191139,
+     "unitCostDollars": null
+    }
+   ]
+  },
+  {
+   "peCode": "1506N0570",
+   "title": "Power Plant Changes",
+   "budgetActivity": "BA 05 — Modification of aircraft",
+   "lineNumber": "1506N0570",
+   "programOfRecord": null,
+   "fyData": [
+    {
+     "fy": 2025,
+     "quantity": null,
+     "requestDollarsThousands": 20167,
+     "unitCostDollars": null
+    },
+    {
+     "fy": 2026,
+     "quantity": null,
+     "requestDollarsThousands": 18707,
+     "unitCostDollars": null
+    },
+    {
+     "fy": 2027,
+     "quantity": null,
+     "requestDollarsThousands": 23765,
+     "unitCostDollars": null
+    }
+   ]
+  },
+  {
+   "peCode": "1506N0571",
+   "title": "JPATS Series",
+   "budgetActivity": "BA 05 — Modification of aircraft",
+   "lineNumber": "1506N0571",
+   "programOfRecord": null,
+   "fyData": [
+    {
+     "fy": 2025,
+     "quantity": null,
+     "requestDollarsThousands": 24157,
+     "unitCostDollars": null
+    },
+    {
+     "fy": 2026,
+     "quantity": null,
+     "requestDollarsThousands": 21330,
+     "unitCostDollars": null
+    },
+    {
+     "fy": 2027,
+     "quantity": null,
+     "requestDollarsThousands": 28059,
+     "unitCostDollars": null
+    }
+   ]
+  },
+  {
+   "peCode": "1506N0575",
+   "title": "Aviation Life Support Mods",
+   "budgetActivity": "BA 05 — Modification of aircraft",
+   "lineNumber": "1506N0575",
+   "programOfRecord": null,
+   "fyData": [
+    {
+     "fy": 2025,
+     "quantity": null,
+     "requestDollarsThousands": 3964,
+     "unitCostDollars": null
+    }
+   ]
+  },
+  {
+   "peCode": "1506N0576",
+   "title": "Common ECM Equipment",
+   "budgetActivity": "BA 05 — Modification of aircraft",
+   "lineNumber": "1506N0576",
+   "programOfRecord": null,
+   "fyData": [
+    {
+     "fy": 2025,
+     "quantity": null,
+     "requestDollarsThousands": 49354,
+     "unitCostDollars": null
+    },
+    {
+     "fy": 2026,
+     "quantity": null,
+     "requestDollarsThousands": 88553,
+     "unitCostDollars": null
+    },
+    {
+     "fy": 2027,
+     "quantity": null,
+     "requestDollarsThousands": 365990,
+     "unitCostDollars": null
+    }
+   ]
+  },
+  {
+   "peCode": "1506N0577",
+   "title": "Common Avionics Changes",
+   "budgetActivity": "BA 05 — Modification of aircraft",
+   "lineNumber": "1506N0577",
+   "programOfRecord": null,
+   "fyData": [
+    {
+     "fy": 2025,
+     "quantity": null,
+     "requestDollarsThousands": 139072,
+     "unitCostDollars": null
+    },
+    {
+     "fy": 2026,
+     "quantity": null,
+     "requestDollarsThousands": 161376,
+     "unitCostDollars": null
+    },
+    {
+     "fy": 2027,
+     "quantity": null,
+     "requestDollarsThousands": 246728,
+     "unitCostDollars": null
+    }
+   ]
+  },
+  {
+   "peCode": "1506N0581",
+   "title": "Common Defensive Weapon System",
+   "budgetActivity": "BA 05 — Modification of aircraft",
+   "lineNumber": "1506N0581",
+   "programOfRecord": null,
+   "fyData": [
+    {
+     "fy": 2025,
+     "quantity": null,
+     "requestDollarsThousands": 10687,
+     "unitCostDollars": null
+    },
+    {
+     "fy": 2026,
+     "quantity": null,
+     "requestDollarsThousands": 8926,
+     "unitCostDollars": null
+    },
+    {
+     "fy": 2027,
+     "quantity": null,
+     "requestDollarsThousands": 11028,
+     "unitCostDollars": null
+    }
+   ]
+  },
+  {
+   "peCode": "1506N0582",
+   "title": "ID Systems",
+   "budgetActivity": "BA 05 — Modification of aircraft",
+   "lineNumber": "1506N0582",
+   "programOfRecord": null,
+   "fyData": [
+    {
+     "fy": 2025,
+     "quantity": null,
+     "requestDollarsThousands": 7020,
+     "unitCostDollars": null
+    },
+    {
+     "fy": 2026,
+     "quantity": null,
+     "requestDollarsThousands": 3011,
+     "unitCostDollars": null
+    },
+    {
+     "fy": 2027,
+     "quantity": null,
+     "requestDollarsThousands": 3199,
+     "unitCostDollars": null
+    }
+   ]
+  },
+  {
+   "peCode": "1506N0586",
+   "title": "P-8 Series",
+   "budgetActivity": "BA 05 — Modification of aircraft",
+   "lineNumber": "1506N0586",
+   "programOfRecord": null,
+   "fyData": [
+    {
+     "fy": 2025,
+     "quantity": null,
+     "requestDollarsThousands": 302875,
+     "unitCostDollars": null
+    },
+    {
+     "fy": 2026,
+     "quantity": null,
+     "requestDollarsThousands": 316632,
+     "unitCostDollars": null
+    },
+    {
+     "fy": 2027,
+     "quantity": null,
+     "requestDollarsThousands": 381014,
+     "unitCostDollars": null
+    }
+   ]
+  },
+  {
+   "peCode": "1506N0587",
+   "title": "MAGTF EW for Aviation",
+   "budgetActivity": "BA 05 — Modification of aircraft",
+   "lineNumber": "1506N0587",
+   "programOfRecord": null,
+   "fyData": [
+    {
+     "fy": 2025,
+     "quantity": null,
+     "requestDollarsThousands": 25597,
+     "unitCostDollars": null
+    },
+    {
+     "fy": 2026,
+     "quantity": null,
+     "requestDollarsThousands": 22356,
+     "unitCostDollars": null
+    },
+    {
+     "fy": 2027,
+     "quantity": null,
+     "requestDollarsThousands": 20686,
+     "unitCostDollars": null
+    }
+   ]
+  },
+  {
+   "peCode": "1506N0590",
+   "title": "V-22 (Tilt/Rotor ACFT) Osprey",
+   "budgetActivity": "BA 05 — Modification of aircraft",
+   "lineNumber": "1506N0590",
+   "programOfRecord": null,
+   "fyData": [
+    {
+     "fy": 2025,
+     "quantity": null,
+     "requestDollarsThousands": 264954,
+     "unitCostDollars": null
+    },
+    {
+     "fy": 2026,
+     "quantity": null,
+     "requestDollarsThousands": 474145,
+     "unitCostDollars": null
+    },
+    {
+     "fy": 2027,
+     "quantity": null,
+     "requestDollarsThousands": 641715,
+     "unitCostDollars": null
+    }
+   ]
+  },
+  {
+   "peCode": "1506N0591",
+   "title": "Next Generation Jammer (NGJ)",
+   "budgetActivity": "BA 05 — Modification of aircraft",
+   "lineNumber": "1506N0591",
+   "programOfRecord": null,
+   "fyData": [
+    {
+     "fy": 2025,
+     "quantity": null,
+     "requestDollarsThousands": 444761,
+     "unitCostDollars": null
+    },
+    {
+     "fy": 2026,
+     "quantity": null,
+     "requestDollarsThousands": 428686,
+     "unitCostDollars": null
+    },
+    {
+     "fy": 2027,
+     "quantity": null,
+     "requestDollarsThousands": 458658,
+     "unitCostDollars": null
+    }
+   ]
+  },
+  {
+   "peCode": "1506N0592",
+   "title": "F-35 STOVL Series",
+   "budgetActivity": "BA 05 — Modification of aircraft",
+   "lineNumber": "1506N0592",
+   "programOfRecord": null,
+   "fyData": [
+    {
+     "fy": 2025,
+     "quantity": null,
+     "requestDollarsThousands": 229843,
+     "unitCostDollars": null
+    },
+    {
+     "fy": 2026,
+     "quantity": null,
+     "requestDollarsThousands": 241051,
+     "unitCostDollars": null
+    },
+    {
+     "fy": 2027,
+     "quantity": null,
+     "requestDollarsThousands": 509881,
+     "unitCostDollars": null
+    }
+   ]
+  },
+  {
+   "peCode": "1506N0593",
+   "title": "F-35 CV Series",
+   "budgetActivity": "BA 05 — Modification of aircraft",
+   "lineNumber": "1506N0593",
+   "programOfRecord": null,
+   "fyData": [
+    {
+     "fy": 2025,
+     "quantity": null,
+     "requestDollarsThousands": 154235,
+     "unitCostDollars": null
+    },
+    {
+     "fy": 2026,
+     "quantity": null,
+     "requestDollarsThousands": 140280,
+     "unitCostDollars": null
+    },
+    {
+     "fy": 2027,
+     "quantity": null,
+     "requestDollarsThousands": 216612,
+     "unitCostDollars": null
+    }
+   ]
+  },
+  {
+   "peCode": "1506N0595",
+   "title": "QRC",
+   "budgetActivity": "BA 05 — Modification of aircraft",
+   "lineNumber": "1506N0595",
+   "programOfRecord": null,
+   "fyData": [
+    {
+     "fy": 2025,
+     "quantity": null,
+     "requestDollarsThousands": 26957,
+     "unitCostDollars": null
+    },
+    {
+     "fy": 2026,
+     "quantity": null,
+     "requestDollarsThousands": 24893,
+     "unitCostDollars": null
+    },
+    {
+     "fy": 2027,
+     "quantity": null,
+     "requestDollarsThousands": 27686,
+     "unitCostDollars": null
+    }
+   ]
+  },
+  {
+   "peCode": "1506N0596",
+   "title": "MQ-4 Series",
+   "budgetActivity": "BA 05 — Modification of aircraft",
+   "lineNumber": "1506N0596",
+   "programOfRecord": null,
+   "fyData": [
+    {
+     "fy": 2025,
+     "quantity": null,
+     "requestDollarsThousands": 79913,
+     "unitCostDollars": null
+    },
+    {
+     "fy": 2026,
+     "quantity": null,
+     "requestDollarsThousands": 180463,
+     "unitCostDollars": null
+    },
+    {
+     "fy": 2027,
+     "quantity": null,
+     "requestDollarsThousands": 157849,
+     "unitCostDollars": null
+    }
+   ]
+  },
+  {
+   "peCode": "1506N0605",
+   "title": "Spares and Repair Parts Support Equip & Facilities",
+   "budgetActivity": "BA 06 — Aircraft spares and repair parts",
+   "lineNumber": "1506N0605",
+   "programOfRecord": null,
+   "fyData": [
+    {
+     "fy": 2025,
+     "quantity": null,
+     "requestDollarsThousands": 2125592,
+     "unitCostDollars": null
+    },
+    {
+     "fy": 2026,
+     "quantity": null,
+     "requestDollarsThousands": 2782627,
+     "unitCostDollars": null
+    },
+    {
+     "fy": 2027,
+     "quantity": null,
+     "requestDollarsThousands": 4751207,
+     "unitCostDollars": null
+    }
+   ]
+  },
+  {
+   "peCode": "1506N0705",
+   "title": "Common Ground Equipment",
+   "budgetActivity": "BA 07 — Aircraft support equipment and facilities",
+   "lineNumber": "1506N0705",
+   "programOfRecord": null,
+   "fyData": [
+    {
+     "fy": 2025,
+     "quantity": null,
+     "requestDollarsThousands": 572690,
+     "unitCostDollars": null
+    },
+    {
+     "fy": 2026,
+     "quantity": null,
+     "requestDollarsThousands": 584561,
+     "unitCostDollars": null
+    },
+    {
+     "fy": 2027,
+     "quantity": null,
+     "requestDollarsThousands": 666140,
+     "unitCostDollars": null
+    }
+   ]
+  },
+  {
+   "peCode": "1506N0715",
+   "title": "Aircraft Industrial Facilities",
+   "budgetActivity": "BA 07 — Aircraft support equipment and facilities",
+   "lineNumber": "1506N0715",
+   "programOfRecord": null,
+   "fyData": [
+    {
+     "fy": 2025,
+     "quantity": null,
+     "requestDollarsThousands": 105634,
+     "unitCostDollars": null
+    },
+    {
+     "fy": 2026,
+     "quantity": null,
+     "requestDollarsThousands": 156513,
+     "unitCostDollars": null
+    },
+    {
+     "fy": 2027,
+     "quantity": null,
+     "requestDollarsThousands": 113513,
+     "unitCostDollars": null
+    }
+   ]
+  },
+  {
+   "peCode": "1506N0720",
+   "title": "War Consumables",
+   "budgetActivity": "BA 07 — Aircraft support equipment and facilities",
+   "lineNumber": "1506N0720",
+   "programOfRecord": null,
+   "fyData": [
+    {
+     "fy": 2025,
+     "quantity": null,
+     "requestDollarsThousands": 43604,
+     "unitCostDollars": null
+    },
+    {
+     "fy": 2026,
+     "quantity": null,
+     "requestDollarsThousands": 45153,
+     "unitCostDollars": null
+    },
+    {
+     "fy": 2027,
+     "quantity": null,
+     "requestDollarsThousands": 56577,
+     "unitCostDollars": null
+    }
+   ]
+  },
+  {
+   "peCode": "1506N0725",
+   "title": "Other Production Charges",
+   "budgetActivity": "BA 07 — Aircraft support equipment and facilities",
+   "lineNumber": "1506N0725",
+   "programOfRecord": null,
+   "fyData": [
+    {
+     "fy": 2025,
+     "quantity": null,
+     "requestDollarsThousands": 73307,
+     "unitCostDollars": null
+    },
+    {
+     "fy": 2026,
+     "quantity": null,
+     "requestDollarsThousands": 70770,
+     "unitCostDollars": null
+    },
+    {
+     "fy": 2027,
+     "quantity": null,
+     "requestDollarsThousands": 61970,
+     "unitCostDollars": null
+    }
+   ]
+  },
+  {
+   "peCode": "1506N0735",
+   "title": "Special Support Equipment",
+   "budgetActivity": "BA 07 — Aircraft support equipment and facilities",
+   "lineNumber": "1506N0735",
+   "programOfRecord": null,
+   "fyData": [
+    {
+     "fy": 2025,
+     "quantity": null,
+     "requestDollarsThousands": 396543,
+     "unitCostDollars": null
+    },
+    {
+     "fy": 2026,
+     "quantity": null,
+     "requestDollarsThousands": 157962,
+     "unitCostDollars": null
+    },
+    {
+     "fy": 2027,
+     "quantity": null,
+     "requestDollarsThousands": 218318,
+     "unitCostDollars": null
+    }
+   ]
+  },
+  {
+   "peCode": "1506N0790",
+   "title": "Cancelled Account Adjustments Support Equip & Facilities",
+   "budgetActivity": "BA 07 — Aircraft support equipment and facilities",
+   "lineNumber": "1506N0790",
+   "programOfRecord": null,
+   "fyData": [
+    {
+     "fy": 2025,
+     "quantity": null,
+     "requestDollarsThousands": 477,
+     "unitCostDollars": null
+    }
+   ]
+  },
+  {
+   "peCode": "1507N1160",
+   "title": "Conventional Prompt Strike of Missiles",
+   "budgetActivity": "BA 01 — Ballistic missiles",
+   "lineNumber": "1507N1160",
+   "programOfRecord": null,
+   "fyData": [
+    {
+     "fy": 2027,
+     "quantity": 12,
+     "requestDollarsThousands": 750387,
+     "unitCostDollars": 62532250
+    }
+   ]
+  },
+  {
+   "peCode": "1507N1250",
+   "title": "Trident II Mods Equipment & Facilities",
+   "budgetActivity": "BA 01 — Ballistic missiles",
+   "lineNumber": "1507N1250",
+   "programOfRecord": null,
+   "fyData": [
+    {
+     "fy": 2025,
+     "quantity": null,
+     "requestDollarsThousands": 1793867,
+     "unitCostDollars": null
+    },
+    {
+     "fy": 2026,
+     "quantity": null,
+     "requestDollarsThousands": 3151712,
+     "unitCostDollars": null
+    },
+    {
+     "fy": 2027,
+     "quantity": null,
+     "requestDollarsThousands": 3912267,
+     "unitCostDollars": null
+    }
+   ]
+  },
+  {
+   "peCode": "1507N1350",
+   "title": "Missile Industrial Facilities Missiles",
+   "budgetActivity": "BA 01 — Ballistic missiles",
+   "lineNumber": "1507N1350",
+   "programOfRecord": null,
+   "fyData": [
+    {
+     "fy": 2025,
+     "quantity": null,
+     "requestDollarsThousands": 8133,
+     "unitCostDollars": null
+    }
+   ]
+  },
+  {
+   "peCode": "1507N2101",
+   "title": "Tomahawk Missiles",
+   "budgetActivity": "BA 02 — Other missiles",
+   "lineNumber": "1507N2101",
+   "programOfRecord": null,
+   "fyData": [
+    {
+     "fy": 2025,
+     "quantity": 20,
+     "requestDollarsThousands": 95940,
+     "unitCostDollars": 4797000
+    },
+    {
+     "fy": 2026,
+     "quantity": 55,
+     "requestDollarsThousands": 257614,
+     "unitCostDollars": 4683891
+    },
+    {
+     "fy": 2027,
+     "quantity": 785,
+     "requestDollarsThousands": 3008909,
+     "unitCostDollars": 3833005
+    }
+   ]
+  },
+  {
+   "peCode": "1507N2206",
+   "title": "AMRAAM Missiles",
+   "budgetActivity": "BA 02 — Other missiles",
+   "lineNumber": "1507N2206",
+   "programOfRecord": null,
+   "fyData": [
+    {
+     "fy": 2025,
+     "quantity": 155,
+     "requestDollarsThousands": 207093,
+     "unitCostDollars": 1336084
+    },
+    {
+     "fy": 2026,
+     "quantity": 41,
+     "requestDollarsThousands": 69913,
+     "unitCostDollars": 1705195
+    },
+    {
+     "fy": 2027,
+     "quantity": 494,
+     "requestDollarsThousands": 804285,
+     "unitCostDollars": 1628107
+    }
+   ]
+  },
+  {
+   "peCode": "1507N2209",
+   "title": "Sidewinder Joint Advance Tactical Missile",
+   "budgetActivity": "BA 02 — Other missiles",
+   "lineNumber": "1507N2209",
+   "programOfRecord": null,
+   "fyData": [
+    {
+     "fy": 2025,
+     "quantity": 608,
+     "requestDollarsThousands": 295280,
+     "unitCostDollars": 485658
+    },
+    {
+     "fy": 2026,
+     "quantity": 146,
+     "requestDollarsThousands": 134713,
+     "unitCostDollars": 922692
+    },
+    {
+     "fy": 2027,
+     "quantity": 306,
+     "requestDollarsThousands": 174750,
+     "unitCostDollars": 571078
+    }
+   ]
+  },
+  {
+   "peCode": "1507N2210",
+   "title": "(JATM)",
+   "budgetActivity": "BA 02 — Other missiles",
+   "lineNumber": "1507N2210",
+   "programOfRecord": null,
+   "fyData": [
+    {
+     "fy": 2026,
+     "quantity": null,
+     "requestDollarsThousands": 301858,
+     "unitCostDollars": null
+    },
+    {
+     "fy": 2027,
+     "quantity": null,
+     "requestDollarsThousands": 1274081,
+     "unitCostDollars": null
+    }
+   ]
+  },
+  {
+   "peCode": "1507N2234",
+   "title": "Standard Missile",
+   "budgetActivity": "BA 02 — Other missiles",
+   "lineNumber": "1507N2234",
+   "programOfRecord": null,
+   "fyData": [
+    {
+     "fy": 2025,
+     "quantity": 102,
+     "requestDollarsThousands": 670676,
+     "unitCostDollars": 6575255
+    },
+    {
+     "fy": 2026,
+     "quantity": 166,
+     "requestDollarsThousands": 1410375,
+     "unitCostDollars": 8496235
+    },
+    {
+     "fy": 2027,
+     "quantity": 540,
+     "requestDollarsThousands": 4332380,
+     "unitCostDollars": 8022926
+    }
+   ]
+  },
+  {
+   "peCode": "1507N2234",
+   "title": "Standard Missile Advance Procurement (CY)",
+   "budgetActivity": "BA 02 — Other missiles",
+   "lineNumber": "1507N2234",
+   "programOfRecord": null,
+   "fyData": [
+    {
+     "fy": 2025,
+     "quantity": null,
+     "requestDollarsThousands": 107830,
+     "unitCostDollars": null
+    }
+   ]
+  },
+  {
+   "peCode": "1507N2238",
+   "title": "Small Diameter Bomb II",
+   "budgetActivity": "BA 02 — Other missiles",
+   "lineNumber": "1507N2238",
+   "programOfRecord": null,
+   "fyData": [
+    {
+     "fy": 2025,
+     "quantity": 262,
+     "requestDollarsThousands": 79283,
+     "unitCostDollars": 302607
+    },
+    {
+     "fy": 2026,
+     "quantity": 245,
+     "requestDollarsThousands": 78892,
+     "unitCostDollars": 322008
+    },
+    {
+     "fy": 2027,
+     "quantity": 512,
+     "requestDollarsThousands": 166688,
+     "unitCostDollars": 325562
+    }
+   ]
+  },
+  {
+   "peCode": "1507N2242",
+   "title": "Ram",
+   "budgetActivity": "BA 02 — Other missiles",
+   "lineNumber": "1507N2242",
+   "programOfRecord": null,
+   "fyData": [
+    {
+     "fy": 2025,
+     "quantity": 148,
+     "requestDollarsThousands": 145268,
+     "unitCostDollars": 981541
+    },
+    {
+     "fy": 2026,
+     "quantity": 123,
+     "requestDollarsThousands": 140372,
+     "unitCostDollars": 1141236
+    },
+    {
+     "fy": 2027,
+     "quantity": 116,
+     "requestDollarsThousands": 119166,
+     "unitCostDollars": 1027293
+    }
+   ]
+  },
+  {
+   "peCode": "1507N2247",
+   "title": "MSE Missile",
+   "budgetActivity": "BA 02 — Other missiles",
+   "lineNumber": "1507N2247",
+   "programOfRecord": null,
+   "fyData": [
+    {
+     "fy": 2027,
+     "quantity": 405,
+     "requestDollarsThousands": 1730823,
+     "unitCostDollars": 4273637
+    }
+   ]
+  },
+  {
+   "peCode": "1507N2248",
+   "title": "Joint Air Ground Missile (JAGM)",
+   "budgetActivity": "BA 02 — Other missiles",
+   "lineNumber": "1507N2248",
+   "programOfRecord": null,
+   "fyData": [
+    {
+     "fy": 2025,
+     "quantity": 175,
+     "requestDollarsThousands": 55315,
+     "unitCostDollars": 316086
+    },
+    {
+     "fy": 2026,
+     "quantity": 277,
+     "requestDollarsThousands": 74152,
+     "unitCostDollars": 267697
+    },
+    {
+     "fy": 2027,
+     "quantity": 282,
+     "requestDollarsThousands": 73226,
+     "unitCostDollars": 259667
+    }
+   ]
+  },
+  {
+   "peCode": "1507N2280",
+   "title": "Aerial Targets",
+   "budgetActivity": "BA 02 — Other missiles",
+   "lineNumber": "1507N2280",
+   "programOfRecord": null,
+   "fyData": [
+    {
+     "fy": 2025,
+     "quantity": null,
+     "requestDollarsThousands": 180233,
+     "unitCostDollars": null
+    },
+    {
+     "fy": 2026,
+     "quantity": null,
+     "requestDollarsThousands": 182704,
+     "unitCostDollars": null
+    },
+    {
+     "fy": 2027,
+     "quantity": null,
+     "requestDollarsThousands": 179931,
+     "unitCostDollars": null
+    }
+   ]
+  },
+  {
+   "peCode": "1507N2290",
+   "title": "Other Missile Support",
+   "budgetActivity": "BA 02 — Other missiles",
+   "lineNumber": "1507N2290",
+   "programOfRecord": null,
+   "fyData": [
+    {
+     "fy": 2025,
+     "quantity": null,
+     "requestDollarsThousands": 3411,
+     "unitCostDollars": null
+    },
+    {
+     "fy": 2026,
+     "quantity": null,
+     "requestDollarsThousands": 3490,
+     "unitCostDollars": null
+    },
+    {
+     "fy": 2027,
+     "quantity": null,
+     "requestDollarsThousands": 3877,
+     "unitCostDollars": null
+    }
+   ]
+  },
+  {
+   "peCode": "1507N2291",
+   "title": "LRASM",
+   "budgetActivity": "BA 02 — Other missiles",
+   "lineNumber": "1507N2291",
+   "programOfRecord": null,
+   "fyData": [
+    {
+     "fy": 2025,
+     "quantity": 164,
+     "requestDollarsThousands": 597530,
+     "unitCostDollars": 3643476
+    },
+    {
+     "fy": 2026,
+     "quantity": 200,
+     "requestDollarsThousands": 1006724,
+     "unitCostDollars": 5033620
+    },
+    {
+     "fy": 2027,
+     "quantity": 177,
+     "requestDollarsThousands": 906845,
+     "unitCostDollars": 5123418
+    }
+   ]
+  },
+  {
+   "peCode": "1507N2292",
+   "title": "Naval Strike Missile (NSM)",
+   "budgetActivity": "BA 02 — Other missiles",
+   "lineNumber": "1507N2292",
+   "programOfRecord": null,
+   "fyData": [
+    {
+     "fy": 2025,
+     "quantity": 10,
+     "requestDollarsThousands": 29858,
+     "unitCostDollars": 2985800
+    },
+    {
+     "fy": 2026,
+     "quantity": 16,
+     "requestDollarsThousands": 32238,
+     "unitCostDollars": 2014875
+    },
+    {
+     "fy": 2027,
+     "quantity": 32,
+     "requestDollarsThousands": 75972,
+     "unitCostDollars": 2374125
+    }
+   ]
+  },
+  {
+   "peCode": "1507N2292",
+   "title": "Naval Strike Missile (NSM) Advance Procurement (CY) Multi-mission Affordable Capacity",
+   "budgetActivity": "BA 02 — Other missiles",
+   "lineNumber": "1507N2292",
+   "programOfRecord": null,
+   "fyData": [
+    {
+     "fy": 2025,
+     "quantity": null,
+     "requestDollarsThousands": 4412,
+     "unitCostDollars": null
+    },
+    {
+     "fy": 2026,
+     "quantity": null,
+     "requestDollarsThousands": 3059,
+     "unitCostDollars": null
+    },
+    {
+     "fy": 2027,
+     "quantity": null,
+     "requestDollarsThousands": 2103,
+     "unitCostDollars": null
+    }
+   ]
+  },
+  {
+   "peCode": "1507N2294",
+   "title": "Effector (MACE) Precision Attack Strike Munition",
+   "budgetActivity": "BA 02 — Other missiles",
+   "lineNumber": "1507N2294",
+   "programOfRecord": null,
+   "fyData": [
+    {
+     "fy": 2026,
+     "quantity": null,
+     "requestDollarsThousands": 44000,
+     "unitCostDollars": null
+    },
+    {
+     "fy": 2027,
+     "quantity": 353,
+     "requestDollarsThousands": 156000,
+     "unitCostDollars": 441926
+    }
+   ]
+  },
+  {
+   "peCode": "1507N2295",
+   "title": "(PASM) of Missiles",
+   "budgetActivity": "BA 02 — Other missiles",
+   "lineNumber": "1507N2295",
+   "programOfRecord": null,
+   "fyData": [
+    {
+     "fy": 2027,
+     "quantity": 4,
+     "requestDollarsThousands": 4019,
+     "unitCostDollars": 1004750
+    }
+   ]
+  },
+  {
+   "peCode": "1507N2301",
+   "title": "Tomahawk Mods",
+   "budgetActivity": "BA 02 — Other missiles",
+   "lineNumber": "1507N2301",
+   "programOfRecord": null,
+   "fyData": [
+    {
+     "fy": 2025,
+     "quantity": null,
+     "requestDollarsThousands": 285157,
+     "unitCostDollars": null
+    },
+    {
+     "fy": 2026,
+     "quantity": null,
+     "requestDollarsThousands": 480131,
+     "unitCostDollars": null
+    },
+    {
+     "fy": 2027,
+     "quantity": null,
+     "requestDollarsThousands": 1523814,
+     "unitCostDollars": null
+    }
+   ]
+  },
+  {
+   "peCode": "1507N2307",
+   "title": "ESSM",
+   "budgetActivity": "BA 02 — Other missiles",
+   "lineNumber": "1507N2307",
+   "programOfRecord": null,
+   "fyData": [
+    {
+     "fy": 2025,
+     "quantity": 374,
+     "requestDollarsThousands": 624821,
+     "unitCostDollars": 1670644
+    },
+    {
+     "fy": 2026,
+     "quantity": 305,
+     "requestDollarsThousands": 503381,
+     "unitCostDollars": 1650430
+    },
+    {
+     "fy": 2027,
+     "quantity": 290,
+     "requestDollarsThousands": 521006,
+     "unitCostDollars": 1796572
+    }
+   ]
+  },
+  {
+   "peCode": "1507N2327",
+   "title": "AARGM-ER",
+   "budgetActivity": "BA 02 — Other missiles",
+   "lineNumber": "1507N2327",
+   "programOfRecord": null,
+   "fyData": [
+    {
+     "fy": 2025,
+     "quantity": 157,
+     "requestDollarsThousands": 193213,
+     "unitCostDollars": 1230656
+    },
+    {
+     "fy": 2026,
+     "quantity": 99,
+     "requestDollarsThousands": 193213,
+     "unitCostDollars": 1951646
+    },
+    {
+     "fy": 2027,
+     "quantity": null,
+     "requestDollarsThousands": 20,
+     "unitCostDollars": null
+    }
+   ]
+  },
+  {
+   "peCode": "1507N2327",
+   "title": "AARGM-ER Advance Procurement (CY)",
+   "budgetActivity": "BA 02 — Other missiles",
+   "lineNumber": "1507N2327",
+   "programOfRecord": null,
+   "fyData": [
+    {
+     "fy": 2025,
+     "quantity": null,
+     "requestDollarsThousands": 34604,
+     "unitCostDollars": null
+    },
+    {
+     "fy": 2026,
+     "quantity": null,
+     "requestDollarsThousands": 24284,
+     "unitCostDollars": null
+    },
+    {
+     "fy": 2027,
+     "quantity": null,
+     "requestDollarsThousands": 5210,
+     "unitCostDollars": null
+    }
+   ]
+  },
+  {
+   "peCode": "1507N2356",
+   "title": "Standard Missiles Mods Equipment & Facilities",
+   "budgetActivity": "BA 02 — Other missiles",
+   "lineNumber": "1507N2356",
+   "programOfRecord": null,
+   "fyData": [
+    {
+     "fy": 2025,
+     "quantity": null,
+     "requestDollarsThousands": 109267,
+     "unitCostDollars": null
+    },
+    {
+     "fy": 2026,
+     "quantity": null,
+     "requestDollarsThousands": 25800,
+     "unitCostDollars": null
+    },
+    {
+     "fy": 2027,
+     "quantity": null,
+     "requestDollarsThousands": 69579,
+     "unitCostDollars": null
+    }
+   ]
+  },
+  {
+   "peCode": "1507N2420",
+   "title": "Weapons Industrial Facilities",
+   "budgetActivity": "BA 02 — Other missiles",
+   "lineNumber": "1507N2420",
+   "programOfRecord": null,
+   "fyData": [
+    {
+     "fy": 2025,
+     "quantity": null,
+     "requestDollarsThousands": 81490,
+     "unitCostDollars": null
+    },
+    {
+     "fy": 2026,
+     "quantity": null,
+     "requestDollarsThousands": 127222,
+     "unitCostDollars": null
+    },
+    {
+     "fy": 2027,
+     "quantity": null,
+     "requestDollarsThousands": 62403,
+     "unitCostDollars": null
+    }
+   ]
+  },
+  {
+   "peCode": "1507N2421",
+   "title": "Industrial Preparedness Support Equipment",
+   "budgetActivity": "BA 02 — Other missiles",
+   "lineNumber": "1507N2421",
+   "programOfRecord": null,
+   "fyData": [
+    {
+     "fy": 2026,
+     "quantity": null,
+     "requestDollarsThousands": 190000,
+     "unitCostDollars": null
+    },
+    {
+     "fy": 2027,
+     "quantity": null,
+     "requestDollarsThousands": 1154647,
+     "unitCostDollars": null
+    }
+   ]
+  },
+  {
+   "peCode": "1507N2500",
+   "title": "Ordnance Support Equipment and Related Equip",
+   "budgetActivity": "BA 02 — Other missiles",
+   "lineNumber": "1507N2500",
+   "programOfRecord": null,
+   "fyData": [
+    {
+     "fy": 2025,
+     "quantity": null,
+     "requestDollarsThousands": 311294,
+     "unitCostDollars": null
+    },
+    {
+     "fy": 2026,
+     "quantity": null,
+     "requestDollarsThousands": 37059,
+     "unitCostDollars": null
+    },
+    {
+     "fy": 2027,
+     "quantity": null,
+     "requestDollarsThousands": 43261,
+     "unitCostDollars": null
+    }
+   ]
+  },
+  {
+   "peCode": "1507N3113",
+   "title": "SSTD",
+   "budgetActivity": "BA 03 — Torpedoes and related equipment",
+   "lineNumber": "1507N3113",
+   "programOfRecord": null,
+   "fyData": [
+    {
+     "fy": 2025,
+     "quantity": null,
+     "requestDollarsThousands": 4317,
+     "unitCostDollars": null
+    },
+    {
+     "fy": 2026,
+     "quantity": null,
+     "requestDollarsThousands": 4789,
+     "unitCostDollars": null
+    },
+    {
+     "fy": 2027,
+     "quantity": null,
+     "requestDollarsThousands": 3969,
+     "unitCostDollars": null
+    }
+   ]
+  },
+  {
+   "peCode": "1507N3117",
+   "title": "MK-48 Torpedo",
+   "budgetActivity": "BA 03 — Torpedoes and related equipment",
+   "lineNumber": "1507N3117",
+   "programOfRecord": null,
+   "fyData": [
+    {
+     "fy": 2025,
+     "quantity": 85,
+     "requestDollarsThousands": 352047,
+     "unitCostDollars": 4141729
+    },
+    {
+     "fy": 2026,
+     "quantity": 63,
+     "requestDollarsThousands": 385821,
+     "unitCostDollars": 6124143
+    },
+    {
+     "fy": 2027,
+     "quantity": 141,
+     "requestDollarsThousands": 571274,
+     "unitCostDollars": 4051589
+    }
+   ]
+  },
+  {
+   "peCode": "1507N3141",
+   "title": "ASW Targets of Torpedoes and Related Equip",
+   "budgetActivity": "BA 03 — Torpedoes and related equipment",
+   "lineNumber": "1507N3141",
+   "programOfRecord": null,
+   "fyData": [
+    {
+     "fy": 2025,
+     "quantity": null,
+     "requestDollarsThousands": 30476,
+     "unitCostDollars": null
+    },
+    {
+     "fy": 2026,
+     "quantity": null,
+     "requestDollarsThousands": 38386,
+     "unitCostDollars": null
+    },
+    {
+     "fy": 2027,
+     "quantity": null,
+     "requestDollarsThousands": 47277,
+     "unitCostDollars": null
+    }
+   ]
+  },
+  {
+   "peCode": "1507N3215",
+   "title": "MK-54 Torpedo Mods",
+   "budgetActivity": "BA 03 — Torpedoes and related equipment",
+   "lineNumber": "1507N3215",
+   "programOfRecord": null,
+   "fyData": [
+    {
+     "fy": 2025,
+     "quantity": null,
+     "requestDollarsThousands": 81614,
+     "unitCostDollars": null
+    },
+    {
+     "fy": 2026,
+     "quantity": null,
+     "requestDollarsThousands": 128513,
+     "unitCostDollars": null
+    },
+    {
+     "fy": 2027,
+     "quantity": null,
+     "requestDollarsThousands": 112126,
+     "unitCostDollars": null
+    }
+   ]
+  },
+  {
+   "peCode": "1507N3225",
+   "title": "MK-48 Torpedo ADCAP Mods",
+   "budgetActivity": "BA 03 — Torpedoes and related equipment",
+   "lineNumber": "1507N3225",
+   "programOfRecord": null,
+   "fyData": [
+    {
+     "fy": 2025,
+     "quantity": null,
+     "requestDollarsThousands": 17363,
+     "unitCostDollars": null
+    },
+    {
+     "fy": 2026,
+     "quantity": null,
+     "requestDollarsThousands": 60239,
+     "unitCostDollars": null
+    },
+    {
+     "fy": 2027,
+     "quantity": null,
+     "requestDollarsThousands": 67279,
+     "unitCostDollars": null
+    }
+   ]
+  },
+  {
+   "peCode": "1507N3231",
+   "title": "Maritime Mines Equipment",
+   "budgetActivity": "BA 03 — Torpedoes and related equipment",
+   "lineNumber": "1507N3231",
+   "programOfRecord": null,
+   "fyData": [
+    {
+     "fy": 2025,
+     "quantity": null,
+     "requestDollarsThousands": 100022,
+     "unitCostDollars": null
+    },
+    {
+     "fy": 2026,
+     "quantity": null,
+     "requestDollarsThousands": 507562,
+     "unitCostDollars": null
+    },
+    {
+     "fy": 2027,
+     "quantity": null,
+     "requestDollarsThousands": 251724,
+     "unitCostDollars": null
+    }
+   ]
+  },
+  {
+   "peCode": "1507N3301",
+   "title": "Torpedo Support Equipment",
+   "budgetActivity": "BA 03 — Torpedoes and related equipment",
+   "lineNumber": "1507N3301",
+   "programOfRecord": null,
+   "fyData": [
+    {
+     "fy": 2025,
+     "quantity": null,
+     "requestDollarsThousands": 145655,
+     "unitCostDollars": null
+    },
+    {
+     "fy": 2026,
+     "quantity": null,
+     "requestDollarsThousands": 153418,
+     "unitCostDollars": null
+    },
+    {
+     "fy": 2027,
+     "quantity": null,
+     "requestDollarsThousands": 160445,
+     "unitCostDollars": null
+    }
+   ]
+  },
+  {
+   "peCode": "1507N3302",
+   "title": "ASW Range Support Transportation and Related Equip",
+   "budgetActivity": "BA 03 — Torpedoes and related equipment",
+   "lineNumber": "1507N3302",
+   "programOfRecord": null,
+   "fyData": [
+    {
+     "fy": 2025,
+     "quantity": null,
+     "requestDollarsThousands": 4039,
+     "unitCostDollars": null
+    },
+    {
+     "fy": 2026,
+     "quantity": null,
+     "requestDollarsThousands": 4328,
+     "unitCostDollars": null
+    },
+    {
+     "fy": 2027,
+     "quantity": null,
+     "requestDollarsThousands": 4438,
+     "unitCostDollars": null
+    }
+   ]
+  },
+  {
+   "peCode": "1507N2410",
+   "title": "First Destination Transportation and Gun Mounts",
+   "budgetActivity": "BA 03 — Torpedoes and related equipment",
+   "lineNumber": "1507N2410",
+   "programOfRecord": null,
+   "fyData": [
+    {
+     "fy": 2025,
+     "quantity": null,
+     "requestDollarsThousands": 5669,
+     "unitCostDollars": null
+    },
+    {
+     "fy": 2026,
+     "quantity": null,
+     "requestDollarsThousands": 5346,
+     "unitCostDollars": null
+    },
+    {
+     "fy": 2027,
+     "quantity": null,
+     "requestDollarsThousands": 6011,
+     "unitCostDollars": null
+    }
+   ]
+  },
+  {
+   "peCode": "1507N4129",
+   "title": "Small Arms and Weapons of Guns and Gun Mounts",
+   "budgetActivity": "BA 04 — Other weapons",
+   "lineNumber": "1507N4129",
+   "programOfRecord": null,
+   "fyData": [
+    {
+     "fy": 2025,
+     "quantity": null,
+     "requestDollarsThousands": 21318,
+     "unitCostDollars": null
+    },
+    {
+     "fy": 2026,
+     "quantity": null,
+     "requestDollarsThousands": 9987,
+     "unitCostDollars": null
+    },
+    {
+     "fy": 2027,
+     "quantity": null,
+     "requestDollarsThousands": 13946,
+     "unitCostDollars": null
+    }
+   ]
+  },
+  {
+   "peCode": "1507N4205",
+   "title": "CIWS Mods",
+   "budgetActivity": "BA 04 — Other weapons",
+   "lineNumber": "1507N4205",
+   "programOfRecord": null,
+   "fyData": [
+    {
+     "fy": 2025,
+     "quantity": null,
+     "requestDollarsThousands": 5118,
+     "unitCostDollars": null
+    },
+    {
+     "fy": 2026,
+     "quantity": null,
+     "requestDollarsThousands": 8122,
+     "unitCostDollars": null
+    },
+    {
+     "fy": 2027,
+     "quantity": null,
+     "requestDollarsThousands": 7939,
+     "unitCostDollars": null
+    }
+   ]
+  },
+  {
+   "peCode": "1507N4206",
+   "title": "Coast Guard Weapons",
+   "budgetActivity": "BA 04 — Other weapons",
+   "lineNumber": "1507N4206",
+   "programOfRecord": null,
+   "fyData": [
+    {
+     "fy": 2025,
+     "quantity": null,
+     "requestDollarsThousands": 44718,
+     "unitCostDollars": null
+    },
+    {
+     "fy": 2026,
+     "quantity": null,
+     "requestDollarsThousands": 44455,
+     "unitCostDollars": null
+    },
+    {
+     "fy": 2027,
+     "quantity": null,
+     "requestDollarsThousands": 49537,
+     "unitCostDollars": null
+    }
+   ]
+  },
+  {
+   "peCode": "1507N4217",
+   "title": "Gun Mount Mods",
+   "budgetActivity": "BA 04 — Other weapons",
+   "lineNumber": "1507N4217",
+   "programOfRecord": null,
+   "fyData": [
+    {
+     "fy": 2025,
+     "quantity": null,
+     "requestDollarsThousands": 122246,
+     "unitCostDollars": null
+    },
+    {
+     "fy": 2026,
+     "quantity": null,
+     "requestDollarsThousands": 107696,
+     "unitCostDollars": null
+    },
+    {
+     "fy": 2027,
+     "quantity": null,
+     "requestDollarsThousands": 84004,
+     "unitCostDollars": null
+    }
+   ]
+  },
+  {
+   "peCode": "1507N4221",
+   "title": "LCS Module Weapons Airborne Mine Neutralization",
+   "budgetActivity": "BA 04 — Other weapons",
+   "lineNumber": "1507N4221",
+   "programOfRecord": null,
+   "fyData": [
+    {
+     "fy": 2025,
+     "quantity": 42,
+     "requestDollarsThousands": 6438,
+     "unitCostDollars": 153286
+    },
+    {
+     "fy": 2026,
+     "quantity": 10,
+     "requestDollarsThousands": 2200,
+     "unitCostDollars": 220000
+    },
+    {
+     "fy": 2027,
+     "quantity": 10,
+     "requestDollarsThousands": 2190,
+     "unitCostDollars": 219000
+    }
+   ]
+  },
+  {
+   "peCode": "1507N4225",
+   "title": "Systems",
+   "budgetActivity": "BA 04 — Other weapons",
+   "lineNumber": "1507N4225",
+   "programOfRecord": null,
+   "fyData": [
+    {
+     "fy": 2025,
+     "quantity": null,
+     "requestDollarsThousands": 11635,
+     "unitCostDollars": null
+    },
+    {
+     "fy": 2026,
+     "quantity": null,
+     "requestDollarsThousands": 14413,
+     "unitCostDollars": null
+    },
+    {
+     "fy": 2027,
+     "quantity": null,
+     "requestDollarsThousands": 14265,
+     "unitCostDollars": null
+    }
+   ]
+  },
+  {
+   "peCode": "1507N6120",
+   "title": "Spares and Repair Parts",
+   "budgetActivity": "BA 06 — Spares and repair parts",
+   "lineNumber": "1507N6120",
+   "programOfRecord": null,
+   "fyData": [
+    {
+     "fy": 2025,
+     "quantity": null,
+     "requestDollarsThousands": 240697,
+     "unitCostDollars": null
+    },
+    {
+     "fy": 2026,
+     "quantity": null,
+     "requestDollarsThousands": 202425,
+     "unitCostDollars": null
+    },
+    {
+     "fy": 2027,
+     "quantity": null,
+     "requestDollarsThousands": 167242,
+     "unitCostDollars": null
+    }
+   ]
+  },
+  {
+   "peCode": "1508N0145",
+   "title": "General Purpose Bombs",
+   "budgetActivity": "BA 01 — Procurement of Ammunition, Navy",
+   "lineNumber": "1508N0145",
+   "programOfRecord": null,
+   "fyData": [
+    {
+     "fy": 2025,
+     "quantity": null,
+     "requestDollarsThousands": 24038,
+     "unitCostDollars": null
+    },
+    {
+     "fy": 2026,
+     "quantity": null,
+     "requestDollarsThousands": 29961,
+     "unitCostDollars": null
+    },
+    {
+     "fy": 2027,
+     "quantity": null,
+     "requestDollarsThousands": 45607,
+     "unitCostDollars": null
+    }
+   ]
+  },
+  {
+   "peCode": "1508N0148",
+   "title": "JDAM",
+   "budgetActivity": "BA 01 — Procurement of Ammunition, Navy",
+   "lineNumber": "1508N0148",
+   "programOfRecord": null,
+   "fyData": [
+    {
+     "fy": 2025,
+     "quantity": 858,
+     "requestDollarsThousands": 53533,
+     "unitCostDollars": 62393
+    },
+    {
+     "fy": 2026,
+     "quantity": 798,
+     "requestDollarsThousands": 1292,
+     "unitCostDollars": 1619
+    },
+    {
+     "fy": 2027,
+     "quantity": 1292,
+     "requestDollarsThousands": 96935,
+     "unitCostDollars": 75027
+    }
+   ]
+  },
+  {
+   "peCode": "1508N0151",
+   "title": "Airborne Rockets, All Types",
+   "budgetActivity": "BA 01 — Procurement of Ammunition, Navy",
+   "lineNumber": "1508N0151",
+   "programOfRecord": null,
+   "fyData": [
+    {
+     "fy": 2025,
+     "quantity": null,
+     "requestDollarsThousands": 57179,
+     "unitCostDollars": null
+    },
+    {
+     "fy": 2026,
+     "quantity": null,
+     "requestDollarsThousands": 78884,
+     "unitCostDollars": null
+    },
+    {
+     "fy": 2027,
+     "quantity": null,
+     "requestDollarsThousands": 92145,
+     "unitCostDollars": null
+    }
+   ]
+  },
+  {
+   "peCode": "1508N0155",
+   "title": "Machine Gun Ammunition",
+   "budgetActivity": "BA 01 — Procurement of Ammunition, Navy",
+   "lineNumber": "1508N0155",
+   "programOfRecord": null,
+   "fyData": [
+    {
+     "fy": 2025,
+     "quantity": null,
+     "requestDollarsThousands": 11331,
+     "unitCostDollars": null
+    },
+    {
+     "fy": 2026,
+     "quantity": null,
+     "requestDollarsThousands": 17101,
+     "unitCostDollars": null
+    },
+    {
+     "fy": 2027,
+     "quantity": null,
+     "requestDollarsThousands": 14832,
+     "unitCostDollars": null
+    }
+   ]
+  },
+  {
+   "peCode": "1508N0160",
+   "title": "Practice Bombs",
+   "budgetActivity": "BA 01 — Procurement of Ammunition, Navy",
+   "lineNumber": "1508N0160",
+   "programOfRecord": null,
+   "fyData": [
+    {
+     "fy": 2025,
+     "quantity": null,
+     "requestDollarsThousands": 33964,
+     "unitCostDollars": null
+    },
+    {
+     "fy": 2026,
+     "quantity": null,
+     "requestDollarsThousands": 43659,
+     "unitCostDollars": null
+    },
+    {
+     "fy": 2027,
+     "quantity": null,
+     "requestDollarsThousands": 46782,
+     "unitCostDollars": null
+    }
+   ]
+  },
+  {
+   "peCode": "1508N0180",
+   "title": "Cartridges & Cart Actuated Devices",
+   "budgetActivity": "BA 01 — Procurement of Ammunition, Navy",
+   "lineNumber": "1508N0180",
+   "programOfRecord": null,
+   "fyData": [
+    {
+     "fy": 2025,
+     "quantity": null,
+     "requestDollarsThousands": 73782,
+     "unitCostDollars": null
+    },
+    {
+     "fy": 2026,
+     "quantity": null,
+     "requestDollarsThousands": 77079,
+     "unitCostDollars": null
+    },
+    {
+     "fy": 2027,
+     "quantity": null,
+     "requestDollarsThousands": 63064,
+     "unitCostDollars": null
+    }
+   ]
+  },
+  {
+   "peCode": "1508N0182",
+   "title": "Air Expendable Countermeasures",
+   "budgetActivity": "BA 01 — Procurement of Ammunition, Navy",
+   "lineNumber": "1508N0182",
+   "programOfRecord": null,
+   "fyData": [
+    {
+     "fy": 2025,
+     "quantity": null,
+     "requestDollarsThousands": 124208,
+     "unitCostDollars": null
+    },
+    {
+     "fy": 2026,
+     "quantity": null,
+     "requestDollarsThousands": 95398,
+     "unitCostDollars": null
+    },
+    {
+     "fy": 2027,
+     "quantity": null,
+     "requestDollarsThousands": 121059,
+     "unitCostDollars": null
+    }
+   ]
+  },
+  {
+   "peCode": "1508N0194",
+   "title": "JATOS",
+   "budgetActivity": "BA 01 — Procurement of Ammunition, Navy",
+   "lineNumber": "1508N0194",
+   "programOfRecord": null,
+   "fyData": [
+    {
+     "fy": 2025,
+     "quantity": null,
+     "requestDollarsThousands": 7407,
+     "unitCostDollars": null
+    },
+    {
+     "fy": 2026,
+     "quantity": null,
+     "requestDollarsThousands": 6177,
+     "unitCostDollars": null
+    },
+    {
+     "fy": 2027,
+     "quantity": null,
+     "requestDollarsThousands": 8179,
+     "unitCostDollars": null
+    }
+   ]
+  },
+  {
+   "peCode": "1508N0250",
+   "title": "5 Inch/54 Gun Ammunition Intermediate Caliber Gun",
+   "budgetActivity": "BA 01 — Procurement of Ammunition, Navy",
+   "lineNumber": "1508N0250",
+   "programOfRecord": null,
+   "fyData": [
+    {
+     "fy": 2025,
+     "quantity": null,
+     "requestDollarsThousands": 21051,
+     "unitCostDollars": null
+    },
+    {
+     "fy": 2026,
+     "quantity": null,
+     "requestDollarsThousands": 24864,
+     "unitCostDollars": null
+    },
+    {
+     "fy": 2027,
+     "quantity": null,
+     "requestDollarsThousands": 44136,
+     "unitCostDollars": null
+    }
+   ]
+  },
+  {
+   "peCode": "1508N0266",
+   "title": "Ammunition",
+   "budgetActivity": "BA 01 — Procurement of Ammunition, Navy",
+   "lineNumber": "1508N0266",
+   "programOfRecord": null,
+   "fyData": [
+    {
+     "fy": 2025,
+     "quantity": null,
+     "requestDollarsThousands": 34177,
+     "unitCostDollars": null
+    },
+    {
+     "fy": 2026,
+     "quantity": null,
+     "requestDollarsThousands": 38661,
+     "unitCostDollars": null
+    },
+    {
+     "fy": 2027,
+     "quantity": null,
+     "requestDollarsThousands": 40095,
+     "unitCostDollars": null
+    }
+   ]
+  },
+  {
+   "peCode": "1508N0270",
+   "title": "Other Ship Gun Ammunition",
+   "budgetActivity": "BA 01 — Procurement of Ammunition, Navy",
+   "lineNumber": "1508N0270",
+   "programOfRecord": null,
+   "fyData": [
+    {
+     "fy": 2025,
+     "quantity": null,
+     "requestDollarsThousands": 56679,
+     "unitCostDollars": null
+    },
+    {
+     "fy": 2026,
+     "quantity": null,
+     "requestDollarsThousands": 42162,
+     "unitCostDollars": null
+    },
+    {
+     "fy": 2027,
+     "quantity": null,
+     "requestDollarsThousands": 43106,
+     "unitCostDollars": null
+    }
+   ]
+  },
+  {
+   "peCode": "1508N0335",
+   "title": "Small Arms & Landing Party Ammo",
+   "budgetActivity": "BA 01 — Procurement of Ammunition, Navy",
+   "lineNumber": "1508N0335",
+   "programOfRecord": null,
+   "fyData": [
+    {
+     "fy": 2025,
+     "quantity": null,
+     "requestDollarsThousands": 96038,
+     "unitCostDollars": null
+    },
+    {
+     "fy": 2026,
+     "quantity": null,
+     "requestDollarsThousands": 47775,
+     "unitCostDollars": null
+    },
+    {
+     "fy": 2027,
+     "quantity": null,
+     "requestDollarsThousands": 48801,
+     "unitCostDollars": null
+    }
+   ]
+  },
+  {
+   "peCode": "1508N0340",
+   "title": "Pyrotechnic and Demolition",
+   "budgetActivity": "BA 01 — Procurement of Ammunition, Navy",
+   "lineNumber": "1508N0340",
+   "programOfRecord": null,
+   "fyData": [
+    {
+     "fy": 2025,
+     "quantity": null,
+     "requestDollarsThousands": 15072,
+     "unitCostDollars": null
+    },
+    {
+     "fy": 2026,
+     "quantity": null,
+     "requestDollarsThousands": 9293,
+     "unitCostDollars": null
+    },
+    {
+     "fy": 2027,
+     "quantity": null,
+     "requestDollarsThousands": 9510,
+     "unitCostDollars": null
+    }
+   ]
+  },
+  {
+   "peCode": "1508N0400",
+   "title": "Ammunition Less Than $5 Million",
+   "budgetActivity": "BA 01 — Procurement of Ammunition, Navy",
+   "lineNumber": "1508N0400",
+   "programOfRecord": null,
+   "fyData": [
+    {
+     "fy": 2025,
+     "quantity": null,
+     "requestDollarsThousands": 1703,
+     "unitCostDollars": null
+    },
+    {
+     "fy": 2026,
+     "quantity": null,
+     "requestDollarsThousands": 1670,
+     "unitCostDollars": null
+    },
+    {
+     "fy": 2027,
+     "quantity": null,
+     "requestDollarsThousands": 1692,
+     "unitCostDollars": null
+    }
+   ]
+  },
+  {
+   "peCode": "1508N1776",
+   "title": "Expeditionary Loitering Munitions Corps Ammunition",
+   "budgetActivity": "BA 01 — Procurement of Ammunition, Navy",
+   "lineNumber": "1508N1776",
+   "programOfRecord": null,
+   "fyData": [
+    {
+     "fy": 2025,
+     "quantity": null,
+     "requestDollarsThousands": 588005,
+     "unitCostDollars": null
+    },
+    {
+     "fy": 2026,
+     "quantity": null,
+     "requestDollarsThousands": 247000,
+     "unitCostDollars": null
+    },
+    {
+     "fy": 2027,
+     "quantity": null,
+     "requestDollarsThousands": 165662,
+     "unitCostDollars": null
+    }
+   ]
+  },
+  {
+   "peCode": "1508N1085",
+   "title": "Mortars",
+   "budgetActivity": "BA 02 — Ammunition, Marine Corps",
+   "lineNumber": "1508N1085",
+   "programOfRecord": null,
+   "fyData": [
+    {
+     "fy": 2025,
+     "quantity": null,
+     "requestDollarsThousands": 128321,
+     "unitCostDollars": null
+    },
+    {
+     "fy": 2026,
+     "quantity": null,
+     "requestDollarsThousands": 141135,
+     "unitCostDollars": null
+    },
+    {
+     "fy": 2027,
+     "quantity": null,
+     "requestDollarsThousands": 181464,
+     "unitCostDollars": null
+    }
+   ]
+  },
+  {
+   "peCode": "1508N1125",
+   "title": "Direct Support Munitions",
+   "budgetActivity": "BA 02 — Ammunition, Marine Corps",
+   "lineNumber": "1508N1125",
+   "programOfRecord": null,
+   "fyData": [
+    {
+     "fy": 2025,
+     "quantity": null,
+     "requestDollarsThousands": 33221,
+     "unitCostDollars": null
+    },
+    {
+     "fy": 2026,
+     "quantity": null,
+     "requestDollarsThousands": 26729,
+     "unitCostDollars": null
+    },
+    {
+     "fy": 2027,
+     "quantity": null,
+     "requestDollarsThousands": 29715,
+     "unitCostDollars": null
+    }
+   ]
+  },
+  {
+   "peCode": "1508N1350",
+   "title": "Infantry Weapons Ammunition",
+   "budgetActivity": "BA 02 — Ammunition, Marine Corps",
+   "lineNumber": "1508N1350",
+   "programOfRecord": null,
+   "fyData": [
+    {
+     "fy": 2025,
+     "quantity": null,
+     "requestDollarsThousands": 280718,
+     "unitCostDollars": null
+    },
+    {
+     "fy": 2026,
+     "quantity": null,
+     "requestDollarsThousands": 164083,
+     "unitCostDollars": null
+    },
+    {
+     "fy": 2027,
+     "quantity": null,
+     "requestDollarsThousands": 142179,
+     "unitCostDollars": null
+    }
+   ]
+  },
+  {
+   "peCode": "1508N1550",
+   "title": "Combat Support Munitions",
+   "budgetActivity": "BA 02 — Ammunition, Marine Corps",
+   "lineNumber": "1508N1550",
+   "programOfRecord": null,
+   "fyData": [
+    {
+     "fy": 2025,
+     "quantity": null,
+     "requestDollarsThousands": 25173,
+     "unitCostDollars": null
+    },
+    {
+     "fy": 2026,
+     "quantity": null,
+     "requestDollarsThousands": 12936,
+     "unitCostDollars": null
+    },
+    {
+     "fy": 2027,
+     "quantity": null,
+     "requestDollarsThousands": 12510,
+     "unitCostDollars": null
+    }
+   ]
+  },
+  {
+   "peCode": "1508N1630",
+   "title": "Ammo Modernization",
+   "budgetActivity": "BA 02 — Ammunition, Marine Corps",
+   "lineNumber": "1508N1630",
+   "programOfRecord": null,
+   "fyData": [
+    {
+     "fy": 2025,
+     "quantity": null,
+     "requestDollarsThousands": 17518,
+     "unitCostDollars": null
+    },
+    {
+     "fy": 2026,
+     "quantity": null,
+     "requestDollarsThousands": 18467,
+     "unitCostDollars": null
+    },
+    {
+     "fy": 2027,
+     "quantity": null,
+     "requestDollarsThousands": 19009,
+     "unitCostDollars": null
+    }
+   ]
+  },
+  {
+   "peCode": "1508N1650",
+   "title": "Artillery Munitions",
+   "budgetActivity": "BA 02 — Ammunition, Marine Corps",
+   "lineNumber": "1508N1650",
+   "programOfRecord": null,
+   "fyData": [
+    {
+     "fy": 2025,
+     "quantity": null,
+     "requestDollarsThousands": 179590,
+     "unitCostDollars": null
+    },
+    {
+     "fy": 2026,
+     "quantity": null,
+     "requestDollarsThousands": 147473,
+     "unitCostDollars": null
+    },
+    {
+     "fy": 2027,
+     "quantity": null,
+     "requestDollarsThousands": 723278,
+     "unitCostDollars": null
+    }
+   ]
+  },
+  {
+   "peCode": "1508N1660",
+   "title": "Items Less Than $5 Million",
+   "budgetActivity": "BA 02 — Ammunition, Marine Corps",
+   "lineNumber": "1508N1660",
+   "programOfRecord": null,
+   "fyData": [
+    {
+     "fy": 2025,
+     "quantity": null,
+     "requestDollarsThousands": 14737,
+     "unitCostDollars": null
+    },
+    {
+     "fy": 2026,
+     "quantity": null,
+     "requestDollarsThousands": 15891,
+     "unitCostDollars": null
+    },
+    {
+     "fy": 2027,
+     "quantity": null,
+     "requestDollarsThousands": 8837,
+     "unitCostDollars": null
+    }
+   ]
+  },
+  {
+   "peCode": "1611N1045",
+   "title": "COLUMBIA Class Submarine Subsequent Full Funding for FY 2026",
+   "budgetActivity": "BA 01 — Fleet ballistic missile ships",
+   "lineNumber": "1611N1045",
+   "programOfRecord": null,
+   "fyData": [
+    {
+     "fy": 2026,
+     "quantity": -10744317,
+     "requestDollarsThousands": 3928828,
+     "unitCostDollars": -366
+    },
+    {
+     "fy": 2027,
+     "quantity": 1,
+     "requestDollarsThousands": 10233832,
+     "unitCostDollars": 10233832000
+    }
+   ]
+  },
+  {
+   "peCode": "1611N1045",
+   "title": "COLUMBIA Class Submarine Advance Procurement (CY) Ballistic Missile Ships Warships",
+   "budgetActivity": "BA 01 — Fleet ballistic missile ships",
+   "lineNumber": "1611N1045",
+   "programOfRecord": null,
+   "fyData": [
+    {
+     "fy": 2026,
+     "quantity": null,
+     "requestDollarsThousands": 5350766,
+     "unitCostDollars": null
+    },
+    {
+     "fy": 2027,
+     "quantity": null,
+     "requestDollarsThousands": 4969042,
+     "unitCostDollars": null
+    }
+   ]
+  },
+  {
+   "peCode": "1611N2001",
+   "title": "Carrier Replacement Program Subsequent Full Funding for FY 2018 Completion PY Shipbuild for FY 2013",
+   "budgetActivity": "BA 02 — Other warships",
+   "lineNumber": "1611N2001",
+   "programOfRecord": null,
+   "fyData": [
+    {
+     "fy": 2025,
+     "quantity": null,
+     "requestDollarsThousands": 1123124,
+     "unitCostDollars": null
+    },
+    {
+     "fy": 2026,
+     "quantity": null,
+     "requestDollarsThousands": 1046700,
+     "unitCostDollars": null
+    },
+    {
+     "fy": 2027,
+     "quantity": null,
+     "requestDollarsThousands": 678907,
+     "unitCostDollars": null
+    }
+   ]
+  },
+  {
+   "peCode": "1611N2001",
+   "title": "Carrier Replacement Program Advance Procurement (CY)",
+   "budgetActivity": "BA 02 — Other warships",
+   "lineNumber": "1611N2001",
+   "programOfRecord": null,
+   "fyData": [
+    {
+     "fy": 2026,
+     "quantity": null,
+     "requestDollarsThousands": 612038,
+     "unitCostDollars": null
+    },
+    {
+     "fy": 2027,
+     "quantity": null,
+     "requestDollarsThousands": 1940566,
+     "unitCostDollars": null
+    }
+   ]
+  },
+  {
+   "peCode": "1611N2004",
+   "title": "CVN-81 Subsequent Full Funding for FY 2020",
+   "budgetActivity": "BA 02 — Other warships",
+   "lineNumber": "1611N2004",
+   "programOfRecord": null,
+   "fyData": [
+    {
+     "fy": 2025,
+     "quantity": null,
+     "requestDollarsThousands": 674930,
+     "unitCostDollars": null
+    },
+    {
+     "fy": 2026,
+     "quantity": null,
+     "requestDollarsThousands": 1622935,
+     "unitCostDollars": null
+    },
+    {
+     "fy": 2027,
+     "quantity": null,
+     "requestDollarsThousands": 1447882,
+     "unitCostDollars": null
+    }
+   ]
+  },
+  {
+   "peCode": "1611N2013",
+   "title": "Virginia Class Submarine Warships Subsequent Full Funding for FY 2024 Completion PY Shipbuild for FY 2016 Completion PY Shipbuild for FY 2017 Completion PY Shipbuild for FY 2018",
+   "budgetActivity": "BA 02 — Other warships",
+   "lineNumber": "1611N2013",
+   "programOfRecord": null,
+   "fyData": [
+    {
+     "fy": 2025,
+     "quantity": 1,
+     "requestDollarsThousands": 7356904,
+     "unitCostDollars": 7356904000
+    },
+    {
+     "fy": 2026,
+     "quantity": 2,
+     "requestDollarsThousands": 7340305,
+     "unitCostDollars": 3670152500
+    },
+    {
+     "fy": 2027,
+     "quantity": 2,
+     "requestDollarsThousands": 8402316,
+     "unitCostDollars": 4201158000
+    }
+   ]
+  },
+  {
+   "peCode": "1611N2013",
+   "title": "Virginia Class Submarine Advance Procurement (CY)",
+   "budgetActivity": "BA 02 — Other warships",
+   "lineNumber": "1611N2013",
+   "programOfRecord": null,
+   "fyData": [
+    {
+     "fy": 2025,
+     "quantity": null,
+     "requestDollarsThousands": 3720303,
+     "unitCostDollars": null
+    },
+    {
+     "fy": 2026,
+     "quantity": null,
+     "requestDollarsThousands": 3126816,
+     "unitCostDollars": null
+    },
+    {
+     "fy": 2027,
+     "quantity": null,
+     "requestDollarsThousands": 5583618,
+     "unitCostDollars": null
+    }
+   ]
+  },
+  {
+   "peCode": "1611N2056",
+   "title": "Surface Ship Industrial Base",
+   "budgetActivity": "BA 02 — Other warships",
+   "lineNumber": "1611N2056",
+   "programOfRecord": null,
+   "fyData": [
+    {
+     "fy": 2027,
+     "quantity": null,
+     "requestDollarsThousands": 93380,
+     "unitCostDollars": null
+    }
+   ]
+  },
+  {
+   "peCode": "1611N2056",
+   "title": "BBG(X) Advance Procurement (CY) Subsequent Full Funding for FY 2024 Completion PY Shipbuild for FY 2016 Completion PY Shipbuild for FY 2017 Completion PY Shipbuild for FY 2018",
+   "budgetActivity": "BA 02 — Other warships",
+   "lineNumber": "1611N2056",
+   "programOfRecord": null,
+   "fyData": [
+    {
+     "fy": 2027,
+     "quantity": null,
+     "requestDollarsThousands": 1000000,
+     "unitCostDollars": null
+    }
+   ]
+  },
+  {
+   "peCode": "1611N2086",
+   "title": "CVN Refueling Overhauls Subsequent Full Funding for FY 2025 Completion PY Shipbuild for FY 2020",
+   "budgetActivity": "BA 02 — Other warships",
+   "lineNumber": "1611N2086",
+   "programOfRecord": null,
+   "fyData": [
+    {
+     "fy": 2025,
+     "quantity": 1,
+     "requestDollarsThousands": 811143,
+     "unitCostDollars": 811143000
+    },
+    {
+     "fy": 2026,
+     "quantity": null,
+     "requestDollarsThousands": 1579011,
+     "unitCostDollars": null
+    },
+    {
+     "fy": 2027,
+     "quantity": null,
+     "requestDollarsThousands": 4448902,
+     "unitCostDollars": null
+    }
+   ]
+  },
+  {
+   "peCode": "1611N2086",
+   "title": "CVN Refueling Overhauls Advance Procurement (CY)",
+   "budgetActivity": "BA 02 — Other warships",
+   "lineNumber": "1611N2086",
+   "programOfRecord": null,
+   "fyData": [
+    {
+     "fy": 2027,
+     "quantity": null,
+     "requestDollarsThousands": 53070,
+     "unitCostDollars": null
+    }
+   ]
+  },
+  {
+   "peCode": "1611N2119",
+   "title": "DDG 1000",
+   "budgetActivity": "BA 02 — Other warships",
+   "lineNumber": "1611N2119",
+   "programOfRecord": null,
+   "fyData": [
+    {
+     "fy": 2025,
+     "quantity": null,
+     "requestDollarsThousands": 61100,
+     "unitCostDollars": null
+    },
+    {
+     "fy": 2026,
+     "quantity": null,
+     "requestDollarsThousands": 52358,
+     "unitCostDollars": null
+    },
+    {
+     "fy": 2027,
+     "quantity": null,
+     "requestDollarsThousands": 66516,
+     "unitCostDollars": null
+    }
+   ]
+  },
+  {
+   "peCode": "1611N2122",
+   "title": "DDG-51 Subsequent Full Funding for FY 2023 Subsequent Full Funding for FY 2024 Completion PY Shipbuild for FY 2016 Completion PY Shipbuild for FY 2017 Completion PY Shipbuild for FY 2018",
+   "budgetActivity": "BA 02 — Other warships",
+   "lineNumber": "1611N2122",
+   "programOfRecord": null,
+   "fyData": [
+    {
+     "fy": 2025,
+     "quantity": 3,
+     "requestDollarsThousands": 6268519,
+     "unitCostDollars": 2089506333
+    },
+    {
+     "fy": 2026,
+     "quantity": 2,
+     "requestDollarsThousands": 5410773,
+     "unitCostDollars": 2705386500
+    },
+    {
+     "fy": 2027,
+     "quantity": 1,
+     "requestDollarsThousands": 3268238,
+     "unitCostDollars": 3268238000
+    }
+   ]
+  },
+  {
+   "peCode": "1611N2122",
+   "title": "DDG-51 Advance Procurement (CY)",
+   "budgetActivity": "BA 02 — Other warships",
+   "lineNumber": "1611N2122",
+   "programOfRecord": null,
+   "fyData": [
+    {
+     "fy": 2025,
+     "quantity": null,
+     "requestDollarsThousands": 83224,
+     "unitCostDollars": null
+    },
+    {
+     "fy": 2026,
+     "quantity": null,
+     "requestDollarsThousands": 1750000,
+     "unitCostDollars": null
+    }
+   ]
+  },
+  {
+   "peCode": "1611N2127",
+   "title": "Littoral Combat Ship Completion PY Shipbuild for FY 2017 Completion PY Shipbuild for FY 2018 Completion PY Shipbuild for FY 2019",
+   "budgetActivity": "BA 02 — Other warships",
+   "lineNumber": "1611N2127",
+   "programOfRecord": null,
+   "fyData": [
+    {
+     "fy": 2025,
+     "quantity": null,
+     "requestDollarsThousands": 8100,
+     "unitCostDollars": null
+    },
+    {
+     "fy": 2026,
+     "quantity": null,
+     "requestDollarsThousands": 5766,
+     "unitCostDollars": null
+    }
+   ]
+  },
+  {
+   "peCode": "1611N2128",
+   "title": "FFG-Frigate Subsequent Full Funding for FY 2024 Completion PY Shipbuild for FY 2020 Completion PY Shipbuild for FY 2021 Completion PY Shipbuild for FY 2022 Completion PY Shipbuild for FY 2023 Completion PY Shipbuild for FY 2024",
+   "budgetActivity": "BA 02 — Other warships",
+   "lineNumber": "1611N2128",
+   "programOfRecord": null,
+   "fyData": [
+    {
+     "fy": 2025,
+     "quantity": null,
+     "requestDollarsThousands": 233200,
+     "unitCostDollars": null
+    },
+    {
+     "fy": 2026,
+     "quantity": null,
+     "requestDollarsThousands": 100000,
+     "unitCostDollars": null
+    }
+   ]
+  },
+  {
+   "peCode": "1611N2133",
+   "title": "FF(X) Ships",
+   "budgetActivity": "BA 02 — Other warships",
+   "lineNumber": "1611N2133",
+   "programOfRecord": null,
+   "fyData": [
+    {
+     "fy": 2026,
+     "quantity": null,
+     "requestDollarsThousands": 242000,
+     "unitCostDollars": null
+    },
+    {
+     "fy": 2027,
+     "quantity": 1,
+     "requestDollarsThousands": 1429000,
+     "unitCostDollars": 1429000000
+    }
+   ]
+  },
+  {
+   "peCode": "1611N3010",
+   "title": "LPD Flight II Subsequent Full Funding for FY 2025 Completion PY Shipbuild for FY 2018",
+   "budgetActivity": "BA 03 — Amphibious ships",
+   "lineNumber": "1611N3010",
+   "programOfRecord": null,
+   "fyData": [
+    {
+     "fy": 2025,
+     "quantity": 1,
+     "requestDollarsThousands": 1561963,
+     "unitCostDollars": 1561963000
+    },
+    {
+     "fy": 2026,
+     "quantity": null,
+     "requestDollarsThousands": 252125,
+     "unitCostDollars": null
+    },
+    {
+     "fy": 2027,
+     "quantity": 1,
+     "requestDollarsThousands": 2192700,
+     "unitCostDollars": 2192700000
+    }
+   ]
+  },
+  {
+   "peCode": "1611N3010",
+   "title": "LPD Flight II Advance Procurement (CY)",
+   "budgetActivity": "BA 03 — Amphibious ships",
+   "lineNumber": "1611N3010",
+   "programOfRecord": null,
+   "fyData": [
+    {
+     "fy": 2026,
+     "quantity": null,
+     "requestDollarsThousands": 627912,
+     "unitCostDollars": null
+    },
+    {
+     "fy": 2027,
+     "quantity": null,
+     "requestDollarsThousands": 355950,
+     "unitCostDollars": null
+    }
+   ]
+  },
+  {
+   "peCode": "1611N3039",
+   "title": "Expeditionary Sea Base (ESB) Completion PY Shipbuild for FY 2022",
+   "budgetActivity": "BA 03 — Amphibious ships",
+   "lineNumber": "1611N3039",
+   "programOfRecord": null,
+   "fyData": [
+    {
+     "fy": 2026,
+     "quantity": null,
+     "requestDollarsThousands": 30000,
+     "unitCostDollars": null
+    }
+   ]
+  },
+  {
+   "peCode": "1611N3041",
+   "title": "LHA Replacement Completion PY Shipbuild for FY 2017",
+   "budgetActivity": "BA 03 — Amphibious ships",
+   "lineNumber": "1611N3041",
+   "programOfRecord": null,
+   "fyData": [
+    {
+     "fy": 2025,
+     "quantity": null,
+     "requestDollarsThousands": 115397,
+     "unitCostDollars": null
+    },
+    {
+     "fy": 2026,
+     "quantity": null,
+     "requestDollarsThousands": 93603,
+     "unitCostDollars": null
+    },
+    {
+     "fy": 2027,
+     "quantity": 1,
+     "requestDollarsThousands": 3852319,
+     "unitCostDollars": 3852319000
+    }
+   ]
+  },
+  {
+   "peCode": "1611N3041",
+   "title": "LHA Replacement Advance Procurement (CY)",
+   "budgetActivity": "BA 03 — Amphibious ships",
+   "lineNumber": "1611N3041",
+   "programOfRecord": null,
+   "fyData": [
+    {
+     "fy": 2025,
+     "quantity": null,
+     "requestDollarsThousands": 61118,
+     "unitCostDollars": null
+    },
+    {
+     "fy": 2026,
+     "quantity": null,
+     "requestDollarsThousands": 589963,
+     "unitCostDollars": null
+    }
+   ]
+  },
+  {
+   "peCode": "1611N3043",
+   "title": "Expeditionary Fast Transport (EPF) Completion PY Shipbuild for FY 2022",
+   "budgetActivity": "BA 03 — Amphibious ships",
+   "lineNumber": "1611N3043",
+   "programOfRecord": null,
+   "fyData": [
+    {
+     "fy": 2026,
+     "quantity": null,
+     "requestDollarsThousands": 11231,
+     "unitCostDollars": null
+    }
+   ]
+  },
+  {
+   "peCode": "1611N3050",
+   "title": "Medium Landing Ship",
+   "budgetActivity": "BA 03 — Amphibious ships",
+   "lineNumber": "1611N3050",
+   "programOfRecord": null,
+   "fyData": [
+    {
+     "fy": 2025,
+     "quantity": null,
+     "requestDollarsThousands": 29668,
+     "unitCostDollars": null
+    },
+    {
+     "fy": 2026,
+     "quantity": 10,
+     "requestDollarsThousands": 2603941,
+     "unitCostDollars": 260394100
+    },
+    {
+     "fy": 2027,
+     "quantity": 6,
+     "requestDollarsThousands": 1887500,
+     "unitCostDollars": 314583333
+    }
+   ]
+  },
+  {
+   "peCode": "1611N5010",
+   "title": "As Submarine Tender",
+   "budgetActivity": "BA 05 — Auxiliaries, craft, and prior-year program costs",
+   "lineNumber": "1611N5010",
+   "programOfRecord": null,
+   "fyData": [
+    {
+     "fy": 2027,
+     "quantity": 2,
+     "requestDollarsThousands": 4444000,
+     "unitCostDollars": 2222000000
+    }
+   ]
+  },
+  {
+   "peCode": "1611N5025",
+   "title": "TAO Fleet Oiler Completion PY Shipbuild for FY 2019 Completion PY Shipbuild for FY 2020 Completion PY Shipbuild for FY 2022 Completion PY Shipbuild for FY 2023 Completion PY Shipbuild for FY 2024",
+   "budgetActivity": "BA 05 — Auxiliaries, craft, and prior-year program costs",
+   "lineNumber": "1611N5025",
+   "programOfRecord": null,
+   "fyData": [
+    {
+     "fy": 2025,
+     "quantity": null,
+     "requestDollarsThousands": 49995,
+     "unitCostDollars": null
+    },
+    {
+     "fy": 2026,
+     "quantity": 3,
+     "requestDollarsThousands": 2733346,
+     "unitCostDollars": 911115333
+    },
+    {
+     "fy": 2027,
+     "quantity": 2,
+     "requestDollarsThousands": 2228883,
+     "unitCostDollars": 1114441500
+    }
+   ]
+  },
+  {
+   "peCode": "1611N5030",
+   "title": "Tagos Surtass Ships Towing, Salvage, and Rescue Ship",
+   "budgetActivity": "BA 05 — Auxiliaries, craft, and prior-yea",
+   "lineNumber": "1611N5030",
+   "programOfRecord": null,
+   "fyData": [
+    {
+     "fy": 2026,
+     "quantity": 1,
+     "requestDollarsThousands": 612205,
+     "unitCostDollars": 612205000
+    },
+    {
+     "fy": 2027,
+     "quantity": 1,
+     "requestDollarsThousands": 710664,
+     "unitCostDollars": 710664000
+    }
+   ]
+  },
+  {
+   "peCode": "1611N5035",
+   "title": "(ATS) Completion PY Shipbuild for FY 2016 Completion PY Shipbuild for FY 2018 Completion PY Shipbuild for FY 2020 Completion PY Shipbuild for FY 2021 Completion PY Shipbuild for FY 2022 Completion PY Shipbuild for FY 2023",
+   "budgetActivity": "BA 05 — Auxiliaries, craft, and prior-yea",
+   "lineNumber": "1611N5035",
+   "programOfRecord": null,
+   "fyData": [
+    {
+     "fy": 2025,
+     "quantity": null,
+     "requestDollarsThousands": 60000,
+     "unitCostDollars": null
+    },
+    {
+     "fy": 2026,
+     "quantity": null,
+     "requestDollarsThousands": 141500,
+     "unitCostDollars": null
+    }
+   ]
+  },
+  {
+   "peCode": "1611N5087",
+   "title": "Oceanographic Ships Completion PY Shipbuild for FY 2018",
+   "budgetActivity": "BA 05 — Auxiliaries, craft, and prior-yea",
+   "lineNumber": "1611N5087",
+   "programOfRecord": null,
+   "fyData": [
+    {
+     "fy": 2025,
+     "quantity": null,
+     "requestDollarsThousands": 18000,
+     "unitCostDollars": null
+    },
+    {
+     "fy": 2026,
+     "quantity": null,
+     "requestDollarsThousands": 6015,
+     "unitCostDollars": null
+    }
+   ]
+  },
+  {
+   "peCode": "1611N5100",
+   "title": "LCU 1700",
+   "budgetActivity": "BA 05 — Auxiliaries, craft, and prior-yea",
+   "lineNumber": "1611N5100",
+   "programOfRecord": null,
+   "fyData": [
+    {
+     "fy": 2026,
+     "quantity": 9,
+     "requestDollarsThousands": 295000,
+     "unitCostDollars": 32777778
+    }
+   ]
+  },
+  {
+   "peCode": "1611N5104",
+   "title": "Strategic Sealift Completion PY Shipbuild for FY 2022 Completion PY Shipbuild for FY 2023 Completion PY Shipbuild for FY 2024",
+   "budgetActivity": "BA 05 — Auxiliaries, craft, and prior-yea",
+   "lineNumber": "1611N5104",
+   "programOfRecord": null,
+   "fyData": [
+    {
+     "fy": 2026,
+     "quantity": 1,
+     "requestDollarsThousands": 600000,
+     "unitCostDollars": 600000000
+    },
+    {
+     "fy": 2027,
+     "quantity": 1,
+     "requestDollarsThousands": 450000,
+     "unitCostDollars": 450000000
+    }
+   ]
+  },
+  {
+   "peCode": "1611N5110",
+   "title": "Outfitting",
+   "budgetActivity": "BA 05 — Auxiliaries, craft, and prior-yea",
+   "lineNumber": "1611N5110",
+   "programOfRecord": null,
+   "fyData": [
+    {
+     "fy": 2025,
+     "quantity": null,
+     "requestDollarsThousands": 585967,
+     "unitCostDollars": null
+    },
+    {
+     "fy": 2026,
+     "quantity": null,
+     "requestDollarsThousands": 886846,
+     "unitCostDollars": null
+    },
+    {
+     "fy": 2027,
+     "quantity": null,
+     "requestDollarsThousands": 741270,
+     "unitCostDollars": null
+    }
+   ]
+  },
+  {
+   "peCode": "1611N5112",
+   "title": "Ship to Shore Connector Completion PY Shipbuild for FY 2018 Completion PY Shipbuild for FY 2019",
+   "budgetActivity": "BA 05 — Auxiliaries, craft, and prior-yea",
+   "lineNumber": "1611N5112",
+   "programOfRecord": null,
+   "fyData": [
+    {
+     "fy": 2025,
+     "quantity": 3,
+     "requestDollarsThousands": 480000,
+     "unitCostDollars": 160000000
+    },
+    {
+     "fy": 2026,
+     "quantity": 3,
+     "requestDollarsThousands": 559095,
+     "unitCostDollars": 186365000
+    },
+    {
+     "fy": 2027,
+     "quantity": 4,
+     "requestDollarsThousands": 733895,
+     "unitCostDollars": 183473750
+    }
+   ]
+  },
+  {
+   "peCode": "1611N5113",
+   "title": "Service Craft",
+   "budgetActivity": "BA 05 — Auxiliaries, craft, and prior-yea",
+   "lineNumber": "1611N5113",
+   "programOfRecord": null,
+   "fyData": [
+    {
+     "fy": 2025,
+     "quantity": null,
+     "requestDollarsThousands": 41426,
+     "unitCostDollars": null
+    },
+    {
+     "fy": 2026,
+     "quantity": null,
+     "requestDollarsThousands": 174602,
+     "unitCostDollars": null
+    },
+    {
+     "fy": 2027,
+     "quantity": null,
+     "requestDollarsThousands": 177079,
+     "unitCostDollars": null
+    }
+   ]
+  },
+  {
+   "peCode": "1611N5114",
+   "title": "Auxiliary Personnel Lighter",
+   "budgetActivity": "BA 05 — Auxiliaries, craft, and prior-yea",
+   "lineNumber": "1611N5114",
+   "programOfRecord": null,
+   "fyData": [
+    {
+     "fy": 2025,
+     "quantity": null,
+     "requestDollarsThousands": 76168,
+     "unitCostDollars": null
+    },
+    {
+     "fy": 2026,
+     "quantity": null,
+     "requestDollarsThousands": 79000,
+     "unitCostDollars": null
+    },
+    {
+     "fy": 2027,
+     "quantity": null,
+     "requestDollarsThousands": 83000,
+     "unitCostDollars": null
+    }
+   ]
+  },
+  {
+   "peCode": "1611N5118",
+   "title": "Bulk Fuel Vessel",
+   "budgetActivity": "BA 05 — Auxiliaries, craft, and prior-yea",
+   "lineNumber": "1611N5118",
+   "programOfRecord": null,
+   "fyData": [
+    {
+     "fy": 2027,
+     "quantity": 1,
+     "requestDollarsThousands": 450000,
+     "unitCostDollars": 450000000
+    }
+   ]
+  },
+  {
+   "peCode": "1611N5139",
+   "title": "LCAC SLEP",
+   "budgetActivity": "BA 05 — Auxiliaries, craft, and prior-yea",
+   "lineNumber": "1611N5139",
+   "programOfRecord": null,
+   "fyData": [
+    {
+     "fy": 2025,
+     "quantity": 2,
+     "requestDollarsThousands": 45087,
+     "unitCostDollars": 22543500
+    },
+    {
+     "fy": 2026,
+     "quantity": 1,
+     "requestDollarsThousands": 37390,
+     "unitCostDollars": 37390000
+    },
+    {
+     "fy": 2027,
+     "quantity": 2,
+     "requestDollarsThousands": 37998,
+     "unitCostDollars": 18999000
+    }
+   ]
+  },
+  {
+   "peCode": "1611N5201",
+   "title": "Auxiliary Vessels (Used Sealift) Completion of PY Shipbuilding",
+   "budgetActivity": "BA 05 — Auxiliaries, craft, and prior-yea",
+   "lineNumber": "1611N5201",
+   "programOfRecord": null,
+   "fyData": [
+    {
+     "fy": 2025,
+     "quantity": 2,
+     "requestDollarsThousands": 204939,
+     "unitCostDollars": 102469500
+    },
+    {
+     "fy": 2026,
+     "quantity": 2,
+     "requestDollarsThousands": 290000,
+     "unitCostDollars": 145000000
+    },
+    {
+     "fy": 2027,
+     "quantity": 1,
+     "requestDollarsThousands": 130000,
+     "unitCostDollars": 130000000
+    }
+   ]
+  },
+  {
+   "peCode": "1611N5300",
+   "title": "Programs AUX (MEMO NON ADD) LHA R (MEMO NON ADD) CVN (MEMO NON ADD) SSN-774 (MEMO NON ADD) CVN RCOH (MEMO NON ADD) Columbia Class Submarine (MEMO NON ADD) LCS (MEMO NON ADD) JHSV (MEMO NON ADD) DDG (MEMO NON ADD) LPD 17 (MEMO NON ADD) AFSB (MEMO NON ADD)",
+   "budgetActivity": "BA 05 — Auxiliaries, craft, and prior-yea",
+   "lineNumber": "1611N5300",
+   "programOfRecord": null,
+   "fyData": [
+    {
+     "fy": 2027,
+     "quantity": null,
+     "requestDollarsThousands": 2611990,
+     "unitCostDollars": null
+    }
+   ]
+  },
+  {
+   "peCode": "1810N0131",
+   "title": "Surface Power Equipment",
+   "budgetActivity": "BA 01 — Ships support equipment",
+   "lineNumber": "1810N0131",
+   "programOfRecord": null,
+   "fyData": [
+    {
+     "fy": 2025,
+     "quantity": null,
+     "requestDollarsThousands": 20840,
+     "unitCostDollars": null
+    },
+    {
+     "fy": 2026,
+     "quantity": null,
+     "requestDollarsThousands": 9978,
+     "unitCostDollars": null
+    },
+    {
+     "fy": 2027,
+     "quantity": null,
+     "requestDollarsThousands": 22668,
+     "unitCostDollars": null
+    }
+   ]
+  },
+  {
+   "peCode": "1810N0200",
+   "title": "Surface Combatant HM&E Equipment",
+   "budgetActivity": "BA 01 — Ships support equipment",
+   "lineNumber": "1810N0200",
+   "programOfRecord": null,
+   "fyData": [
+    {
+     "fy": 2025,
+     "quantity": null,
+     "requestDollarsThousands": 77592,
+     "unitCostDollars": null
+    },
+    {
+     "fy": 2026,
+     "quantity": null,
+     "requestDollarsThousands": 62004,
+     "unitCostDollars": null
+    },
+    {
+     "fy": 2027,
+     "quantity": null,
+     "requestDollarsThousands": 103871,
+     "unitCostDollars": null
+    }
+   ]
+  },
+  {
+   "peCode": "1810N0670",
+   "title": "Other Navigation Equipment Shipboard Equipment Sub Periscope, Imaging and Supt",
+   "budgetActivity": "BA 01 — Ships support equipment",
+   "lineNumber": "1810N0670",
+   "programOfRecord": null,
+   "fyData": [
+    {
+     "fy": 2025,
+     "quantity": null,
+     "requestDollarsThousands": 97206,
+     "unitCostDollars": null
+    },
+    {
+     "fy": 2026,
+     "quantity": null,
+     "requestDollarsThousands": 96945,
+     "unitCostDollars": null
+    },
+    {
+     "fy": 2027,
+     "quantity": null,
+     "requestDollarsThousands": 83510,
+     "unitCostDollars": null
+    }
+   ]
+  },
+  {
+   "peCode": "1810N0840",
+   "title": "Equip Prog",
+   "budgetActivity": "BA 01 — Ships support equipment",
+   "lineNumber": "1810N0840",
+   "programOfRecord": null,
+   "fyData": [
+    {
+     "fy": 2025,
+     "quantity": null,
+     "requestDollarsThousands": 275575,
+     "unitCostDollars": null
+    },
+    {
+     "fy": 2026,
+     "quantity": null,
+     "requestDollarsThousands": 204863,
+     "unitCostDollars": null
+    },
+    {
+     "fy": 2027,
+     "quantity": null,
+     "requestDollarsThousands": 344885,
+     "unitCostDollars": null
+    }
+   ]
+  },
+  {
+   "peCode": "1810N0900",
+   "title": "DDG Mod",
+   "budgetActivity": "BA 01 — Ships support equipment",
+   "lineNumber": "1810N0900",
+   "programOfRecord": null,
+   "fyData": [
+    {
+     "fy": 2025,
+     "quantity": null,
+     "requestDollarsThousands": 822065,
+     "unitCostDollars": null
+    },
+    {
+     "fy": 2026,
+     "quantity": null,
+     "requestDollarsThousands": 878787,
+     "unitCostDollars": null
+    },
+    {
+     "fy": 2027,
+     "quantity": null,
+     "requestDollarsThousands": 1000278,
+     "unitCostDollars": null
+    }
+   ]
+  },
+  {
+   "peCode": "1810N0910",
+   "title": "Firefighting Equipment",
+   "budgetActivity": "BA 01 — Ships support equipment",
+   "lineNumber": "1810N0910",
+   "programOfRecord": null,
+   "fyData": [
+    {
+     "fy": 2025,
+     "quantity": null,
+     "requestDollarsThousands": 38521,
+     "unitCostDollars": null
+    },
+    {
+     "fy": 2026,
+     "quantity": null,
+     "requestDollarsThousands": 36488,
+     "unitCostDollars": null
+    },
+    {
+     "fy": 2027,
+     "quantity": null,
+     "requestDollarsThousands": 177708,
+     "unitCostDollars": null
+    }
+   ]
+  },
+  {
+   "peCode": "1810N0925",
+   "title": "Command and Control Switchboard Propulsion Equipment",
+   "budgetActivity": "BA 01 — Ships support equipment",
+   "lineNumber": "1810N0925",
+   "programOfRecord": null,
+   "fyData": [
+    {
+     "fy": 2025,
+     "quantity": null,
+     "requestDollarsThousands": 2402,
+     "unitCostDollars": null
+    },
+    {
+     "fy": 2026,
+     "quantity": null,
+     "requestDollarsThousands": 2417,
+     "unitCostDollars": null
+    },
+    {
+     "fy": 2027,
+     "quantity": null,
+     "requestDollarsThousands": 2259,
+     "unitCostDollars": null
+    }
+   ]
+  },
+  {
+   "peCode": "1810N0933",
+   "title": "LHA/LHD Midlife LCC 19/20 Extended Service Life",
+   "budgetActivity": "BA 01 — Ships support equipment",
+   "lineNumber": "1810N0933",
+   "programOfRecord": null,
+   "fyData": [
+    {
+     "fy": 2025,
+     "quantity": null,
+     "requestDollarsThousands": 76601,
+     "unitCostDollars": null
+    },
+    {
+     "fy": 2026,
+     "quantity": null,
+     "requestDollarsThousands": 126017,
+     "unitCostDollars": null
+    },
+    {
+     "fy": 2027,
+     "quantity": null,
+     "requestDollarsThousands": 131315,
+     "unitCostDollars": null
+    }
+   ]
+  },
+  {
+   "peCode": "1810N0934",
+   "title": "Program",
+   "budgetActivity": "BA 01 — Ships support equipment",
+   "lineNumber": "1810N0934",
+   "programOfRecord": null,
+   "fyData": [
+    {
+     "fy": 2025,
+     "quantity": null,
+     "requestDollarsThousands": 7352,
+     "unitCostDollars": null
+    },
+    {
+     "fy": 2026,
+     "quantity": null,
+     "requestDollarsThousands": 19276,
+     "unitCostDollars": null
+    },
+    {
+     "fy": 2027,
+     "quantity": null,
+     "requestDollarsThousands": 766,
+     "unitCostDollars": null
+    }
+   ]
+  },
+  {
+   "peCode": "1810N0935",
+   "title": "Pollution Control Equipment",
+   "budgetActivity": "BA 01 — Ships support equipment",
+   "lineNumber": "1810N0935",
+   "programOfRecord": null,
+   "fyData": [
+    {
+     "fy": 2025,
+     "quantity": null,
+     "requestDollarsThousands": 23440,
+     "unitCostDollars": null
+    },
+    {
+     "fy": 2026,
+     "quantity": null,
+     "requestDollarsThousands": 22477,
+     "unitCostDollars": null
+    },
+    {
+     "fy": 2027,
+     "quantity": null,
+     "requestDollarsThousands": 22506,
+     "unitCostDollars": null
+    }
+   ]
+  },
+  {
+   "peCode": "1810N0941",
+   "title": "Submarine Support Equipment",
+   "budgetActivity": "BA 01 — Ships support equipment",
+   "lineNumber": "1810N0941",
+   "programOfRecord": null,
+   "fyData": [
+    {
+     "fy": 2025,
+     "quantity": null,
+     "requestDollarsThousands": 278766,
+     "unitCostDollars": null
+    },
+    {
+     "fy": 2026,
+     "quantity": null,
+     "requestDollarsThousands": 383062,
+     "unitCostDollars": null
+    },
+    {
+     "fy": 2027,
+     "quantity": null,
+     "requestDollarsThousands": 330951,
+     "unitCostDollars": null
+    }
+   ]
+  },
+  {
+   "peCode": "1810N0942",
+   "title": "Virginia Class Support Equipment",
+   "budgetActivity": "BA 01 — Ships support equipment",
+   "lineNumber": "1810N0942",
+   "programOfRecord": null,
+   "fyData": [
+    {
+     "fy": 2025,
+     "quantity": null,
+     "requestDollarsThousands": 43565,
+     "unitCostDollars": null
+    },
+    {
+     "fy": 2026,
+     "quantity": null,
+     "requestDollarsThousands": 52039,
+     "unitCostDollars": null
+    },
+    {
+     "fy": 2027,
+     "quantity": null,
+     "requestDollarsThousands": 83297,
+     "unitCostDollars": null
+    }
+   ]
+  },
+  {
+   "peCode": "1810N0944",
+   "title": "LCS Class Support Equipment",
+   "budgetActivity": "BA 01 — Ships support equipment",
+   "lineNumber": "1810N0944",
+   "programOfRecord": null,
+   "fyData": [
+    {
+     "fy": 2025,
+     "quantity": null,
+     "requestDollarsThousands": 5855,
+     "unitCostDollars": null
+    },
+    {
+     "fy": 2026,
+     "quantity": null,
+     "requestDollarsThousands": 2551,
+     "unitCostDollars": null
+    },
+    {
+     "fy": 2027,
+     "quantity": null,
+     "requestDollarsThousands": 15815,
+     "unitCostDollars": null
+    }
+   ]
+  },
+  {
+   "peCode": "1810N0945",
+   "title": "Submarine Batteries",
+   "budgetActivity": "BA 01 — Ships support equipment",
+   "lineNumber": "1810N0945",
+   "programOfRecord": null,
+   "fyData": [
+    {
+     "fy": 2025,
+     "quantity": null,
+     "requestDollarsThousands": 30470,
+     "unitCostDollars": null
+    },
+    {
+     "fy": 2026,
+     "quantity": null,
+     "requestDollarsThousands": 28169,
+     "unitCostDollars": null
+    },
+    {
+     "fy": 2027,
+     "quantity": null,
+     "requestDollarsThousands": 26211,
+     "unitCostDollars": null
+    }
+   ]
+  },
+  {
+   "peCode": "1810N0946",
+   "title": "LPD Class Support Equipment",
+   "budgetActivity": "BA 01 — Ships support equipment",
+   "lineNumber": "1810N0946",
+   "programOfRecord": null,
+   "fyData": [
+    {
+     "fy": 2025,
+     "quantity": null,
+     "requestDollarsThousands": 45738,
+     "unitCostDollars": null
+    },
+    {
+     "fy": 2026,
+     "quantity": null,
+     "requestDollarsThousands": 125542,
+     "unitCostDollars": null
+    },
+    {
+     "fy": 2027,
+     "quantity": null,
+     "requestDollarsThousands": 213723,
+     "unitCostDollars": null
+    }
+   ]
+  },
+  {
+   "peCode": "1810N0947",
+   "title": "DDG 1000 Class Support Equipment",
+   "budgetActivity": "BA 01 — Ships support equipment",
+   "lineNumber": "1810N0947",
+   "programOfRecord": null,
+   "fyData": [
+    {
+     "fy": 2025,
+     "quantity": null,
+     "requestDollarsThousands": 325668,
+     "unitCostDollars": null
+    },
+    {
+     "fy": 2026,
+     "quantity": null,
+     "requestDollarsThousands": 115267,
+     "unitCostDollars": null
+    },
+    {
+     "fy": 2027,
+     "quantity": null,
+     "requestDollarsThousands": 58284,
+     "unitCostDollars": null
+    }
+   ]
+  },
+  {
+   "peCode": "1810N0950",
+   "title": "Strategic Platform Support Equip",
+   "budgetActivity": "BA 01 — Ships support equipment",
+   "lineNumber": "1810N0950",
+   "programOfRecord": null,
+   "fyData": [
+    {
+     "fy": 2025,
+     "quantity": null,
+     "requestDollarsThousands": 53931,
+     "unitCostDollars": null
+    },
+    {
+     "fy": 2026,
+     "quantity": null,
+     "requestDollarsThousands": 38039,
+     "unitCostDollars": null
+    },
+    {
+     "fy": 2027,
+     "quantity": null,
+     "requestDollarsThousands": 72163,
+     "unitCostDollars": null
+    }
+   ]
+  },
+  {
+   "peCode": "1810N0955",
+   "title": "DSSP Equipment",
+   "budgetActivity": "BA 01 — Ships support equipment",
+   "lineNumber": "1810N0955",
+   "programOfRecord": null,
+   "fyData": [
+    {
+     "fy": 2025,
+     "quantity": null,
+     "requestDollarsThousands": 4586,
+     "unitCostDollars": null
+    },
+    {
+     "fy": 2026,
+     "quantity": null,
+     "requestDollarsThousands": 5849,
+     "unitCostDollars": null
+    },
+    {
+     "fy": 2027,
+     "quantity": null,
+     "requestDollarsThousands": 7440,
+     "unitCostDollars": null
+    }
+   ]
+  },
+  {
+   "peCode": "1810N0956",
+   "title": "Small Unmanned Surface Vehicles",
+   "budgetActivity": "BA 01 — Ships support equipment",
+   "lineNumber": "1810N0956",
+   "programOfRecord": null,
+   "fyData": [
+    {
+     "fy": 2026,
+     "quantity": null,
+     "requestDollarsThousands": 694020,
+     "unitCostDollars": null
+    },
+    {
+     "fy": 2027,
+     "quantity": null,
+     "requestDollarsThousands": 585,
+     "unitCostDollars": null
+    }
+   ]
+  },
+  {
+   "peCode": "1810N0970",
+   "title": "LCAC",
+   "budgetActivity": "BA 01 — Ships support equipment",
+   "lineNumber": "1810N0970",
+   "programOfRecord": null,
+   "fyData": [
+    {
+     "fy": 2025,
+     "quantity": null,
+     "requestDollarsThousands": 11013,
+     "unitCostDollars": null
+    },
+    {
+     "fy": 2026,
+     "quantity": null,
+     "requestDollarsThousands": 20321,
+     "unitCostDollars": null
+    },
+    {
+     "fy": 2027,
+     "quantity": null,
+     "requestDollarsThousands": 22515,
+     "unitCostDollars": null
+    }
+   ]
+  },
+  {
+   "peCode": "1810N0977",
+   "title": "Underwater EOD Equipment",
+   "budgetActivity": "BA 01 — Ships support equipment",
+   "lineNumber": "1810N0977",
+   "programOfRecord": null,
+   "fyData": [
+    {
+     "fy": 2025,
+     "quantity": null,
+     "requestDollarsThousands": 16650,
+     "unitCostDollars": null
+    },
+    {
+     "fy": 2026,
+     "quantity": null,
+     "requestDollarsThousands": 22355,
+     "unitCostDollars": null
+    },
+    {
+     "fy": 2027,
+     "quantity": null,
+     "requestDollarsThousands": 20575,
+     "unitCostDollars": null
+    }
+   ]
+  },
+  {
+   "peCode": "1810N0981",
+   "title": "Items Less Than $5 Million",
+   "budgetActivity": "BA 01 — Ships support equipment",
+   "lineNumber": "1810N0981",
+   "programOfRecord": null,
+   "fyData": [
+    {
+     "fy": 2025,
+     "quantity": null,
+     "requestDollarsThousands": 66346,
+     "unitCostDollars": null
+    },
+    {
+     "fy": 2026,
+     "quantity": null,
+     "requestDollarsThousands": 20091,
+     "unitCostDollars": null
+    },
+    {
+     "fy": 2027,
+     "quantity": null,
+     "requestDollarsThousands": 69425,
+     "unitCostDollars": null
+    }
+   ]
+  },
+  {
+   "peCode": "1810N0989",
+   "title": "Chemical Warfare Detectors Plant Equipment Ship Maintenance, Repair and",
+   "budgetActivity": "BA 01 — Ships support equipment",
+   "lineNumber": "1810N0989",
+   "programOfRecord": null,
+   "fyData": [
+    {
+     "fy": 2025,
+     "quantity": null,
+     "requestDollarsThousands": 3254,
+     "unitCostDollars": null
+    },
+    {
+     "fy": 2026,
+     "quantity": null,
+     "requestDollarsThousands": 2607,
+     "unitCostDollars": null
+    },
+    {
+     "fy": 2027,
+     "quantity": null,
+     "requestDollarsThousands": 2425,
+     "unitCostDollars": null
+    }
+   ]
+  },
+  {
+   "peCode": "1810N1000",
+   "title": "Modernization",
+   "budgetActivity": "BA 01 — Ships support equipment",
+   "lineNumber": "1810N1000",
+   "programOfRecord": null,
+   "fyData": [
+    {
+     "fy": 2025,
+     "quantity": null,
+     "requestDollarsThousands": 2573098,
+     "unitCostDollars": null
+    },
+    {
+     "fy": 2026,
+     "quantity": null,
+     "requestDollarsThousands": 2392620,
+     "unitCostDollars": null
+    },
+    {
+     "fy": 2027,
+     "quantity": null,
+     "requestDollarsThousands": 2737140,
+     "unitCostDollars": null
+    }
+   ]
+  },
+  {
+   "peCode": "1810N1020",
+   "title": "Reactor Components Engineering",
+   "budgetActivity": "BA 01 — Ships support equipment",
+   "lineNumber": "1810N1020",
+   "programOfRecord": null,
+   "fyData": [
+    {
+     "fy": 2025,
+     "quantity": null,
+     "requestDollarsThousands": 445974,
+     "unitCostDollars": null
+    },
+    {
+     "fy": 2026,
+     "quantity": null,
+     "requestDollarsThousands": 474806,
+     "unitCostDollars": null
+    },
+    {
+     "fy": 2027,
+     "quantity": null,
+     "requestDollarsThousands": 519821,
+     "unitCostDollars": null
+    }
+   ]
+  },
+  {
+   "peCode": "1810N1130",
+   "title": "Diving and Salvage Equipment Boats Medium Unmanned Surface Vehicle",
+   "budgetActivity": "BA 01 — Ships support equipment",
+   "lineNumber": "1810N1130",
+   "programOfRecord": null,
+   "fyData": [
+    {
+     "fy": 2025,
+     "quantity": null,
+     "requestDollarsThousands": 14000,
+     "unitCostDollars": null
+    },
+    {
+     "fy": 2026,
+     "quantity": null,
+     "requestDollarsThousands": 7842,
+     "unitCostDollars": null
+    },
+    {
+     "fy": 2027,
+     "quantity": null,
+     "requestDollarsThousands": 33013,
+     "unitCostDollars": null
+    }
+   ]
+  },
+  {
+   "peCode": "1810N0954",
+   "title": "(MUSVs)",
+   "budgetActivity": "BA 01 — Ships support equipment",
+   "lineNumber": "1810N0954",
+   "programOfRecord": null,
+   "fyData": [
+    {
+     "fy": 2026,
+     "quantity": null,
+     "requestDollarsThousands": 1950714,
+     "unitCostDollars": null
+    },
+    {
+     "fy": 2027,
+     "quantity": null,
+     "requestDollarsThousands": 171130,
+     "unitCostDollars": null
+    }
+   ]
+  },
+  {
+   "peCode": "1810N1210",
+   "title": "Standard Boats Facilities Equipment",
+   "budgetActivity": "BA 01 — Ships support equipment",
+   "lineNumber": "1810N1210",
+   "programOfRecord": null,
+   "fyData": [
+    {
+     "fy": 2025,
+     "quantity": null,
+     "requestDollarsThousands": 447298,
+     "unitCostDollars": null
+    },
+    {
+     "fy": 2026,
+     "quantity": null,
+     "requestDollarsThousands": 87186,
+     "unitCostDollars": null
+    },
+    {
+     "fy": 2027,
+     "quantity": null,
+     "requestDollarsThousands": 97746,
+     "unitCostDollars": null
+    }
+   ]
+  },
+  {
+   "peCode": "1810N1445",
+   "title": "Operating Forces Ipe Ship Support LCS Common Mission Modules",
+   "budgetActivity": "BA 01 — Ships support equipment",
+   "lineNumber": "1810N1445",
+   "programOfRecord": null,
+   "fyData": [
+    {
+     "fy": 2025,
+     "quantity": null,
+     "requestDollarsThousands": 209304,
+     "unitCostDollars": null
+    },
+    {
+     "fy": 2026,
+     "quantity": null,
+     "requestDollarsThousands": 785598,
+     "unitCostDollars": null
+    },
+    {
+     "fy": 2027,
+     "quantity": null,
+     "requestDollarsThousands": 492100,
+     "unitCostDollars": null
+    }
+   ]
+  },
+  {
+   "peCode": "1810N1600",
+   "title": "Equipment",
+   "budgetActivity": "BA 01 — Ships support equipment",
+   "lineNumber": "1810N1600",
+   "programOfRecord": null,
+   "fyData": [
+    {
+     "fy": 2025,
+     "quantity": null,
+     "requestDollarsThousands": 56103,
+     "unitCostDollars": null
+    },
+    {
+     "fy": 2026,
+     "quantity": null,
+     "requestDollarsThousands": 38880,
+     "unitCostDollars": null
+    },
+    {
+     "fy": 2027,
+     "quantity": null,
+     "requestDollarsThousands": 30565,
+     "unitCostDollars": null
+    }
+   ]
+  },
+  {
+   "peCode": "1810N1601",
+   "title": "LCS MCM Mission Modules",
+   "budgetActivity": "BA 01 — Ships support equipment",
+   "lineNumber": "1810N1601",
+   "programOfRecord": null,
+   "fyData": [
+    {
+     "fy": 2025,
+     "quantity": null,
+     "requestDollarsThousands": 118247,
+     "unitCostDollars": null
+    },
+    {
+     "fy": 2026,
+     "quantity": null,
+     "requestDollarsThousands": 91372,
+     "unitCostDollars": null
+    },
+    {
+     "fy": 2027,
+     "quantity": null,
+     "requestDollarsThousands": 65113,
+     "unitCostDollars": null
+    }
+   ]
+  },
+  {
+   "peCode": "1810N1603",
+   "title": "LCS SUW Mission Modules",
+   "budgetActivity": "BA 01 — Ships support equipment",
+   "lineNumber": "1810N1603",
+   "programOfRecord": null,
+   "fyData": [
+    {
+     "fy": 2025,
+     "quantity": null,
+     "requestDollarsThousands": 11101,
+     "unitCostDollars": null
+    },
+    {
+     "fy": 2026,
+     "quantity": null,
+     "requestDollarsThousands": 3790,
+     "unitCostDollars": null
+    },
+    {
+     "fy": 2027,
+     "quantity": null,
+     "requestDollarsThousands": 1719,
+     "unitCostDollars": null
+    }
+   ]
+  },
+  {
+   "peCode": "1810N1604",
+   "title": "LCS In-Service Modernization",
+   "budgetActivity": "BA 01 — Ships support equipment",
+   "lineNumber": "1810N1604",
+   "programOfRecord": null,
+   "fyData": [
+    {
+     "fy": 2025,
+     "quantity": null,
+     "requestDollarsThousands": 188254,
+     "unitCostDollars": null
+    },
+    {
+     "fy": 2026,
+     "quantity": null,
+     "requestDollarsThousands": 189458,
+     "unitCostDollars": null
+    },
+    {
+     "fy": 2027,
+     "quantity": null,
+     "requestDollarsThousands": 315272,
+     "unitCostDollars": null
+    }
+   ]
+  },
+  {
+   "peCode": "1810N1611",
+   "title": "Small & Medium UUV",
+   "budgetActivity": "BA 01 — Ships support equipment",
+   "lineNumber": "1810N1611",
+   "programOfRecord": null,
+   "fyData": [
+    {
+     "fy": 2025,
+     "quantity": null,
+     "requestDollarsThousands": 48780,
+     "unitCostDollars": null
+    },
+    {
+     "fy": 2026,
+     "quantity": null,
+     "requestDollarsThousands": 352086,
+     "unitCostDollars": null
+    },
+    {
+     "fy": 2027,
+     "quantity": null,
+     "requestDollarsThousands": 110955,
+     "unitCostDollars": null
+    }
+   ]
+  },
+  {
+   "peCode": "1810N1612",
+   "title": "Large UUV",
+   "budgetActivity": "BA 01 — Ships support equipment",
+   "lineNumber": "1810N1612",
+   "programOfRecord": null,
+   "fyData": [
+    {
+     "fy": 2027,
+     "quantity": null,
+     "requestDollarsThousands": 222998,
+     "unitCostDollars": null
+    }
+   ]
+  },
+  {
+   "peCode": "1810N1613",
+   "title": "Extra Large UUV Support",
+   "budgetActivity": "BA 01 — Ships support equipment",
+   "lineNumber": "1810N1613",
+   "programOfRecord": null,
+   "fyData": [
+    {
+     "fy": 2026,
+     "quantity": null,
+     "requestDollarsThousands": 3313,
+     "unitCostDollars": null
+    },
+    {
+     "fy": 2027,
+     "quantity": null,
+     "requestDollarsThousands": 135802,
+     "unitCostDollars": null
+    }
+   ]
+  },
+  {
+   "peCode": "1810N1610",
+   "title": "LSD Midlife & Modernization Sonars",
+   "budgetActivity": "BA 01 — Ships support equipment",
+   "lineNumber": "1810N1610",
+   "programOfRecord": null,
+   "fyData": [
+    {
+     "fy": 2025,
+     "quantity": null,
+     "requestDollarsThousands": 49044,
+     "unitCostDollars": null
+    },
+    {
+     "fy": 2026,
+     "quantity": null,
+     "requestDollarsThousands": 4079,
+     "unitCostDollars": null
+    },
+    {
+     "fy": 2027,
+     "quantity": null,
+     "requestDollarsThousands": 240,
+     "unitCostDollars": null
+    }
+   ]
+  },
+  {
+   "peCode": "1810N2026",
+   "title": "SPQ-9B Radar",
+   "budgetActivity": "BA 02 — Communications and electronics equipment",
+   "lineNumber": "1810N2026",
+   "programOfRecord": null,
+   "fyData": [
+    {
+     "fy": 2025,
+     "quantity": null,
+     "requestDollarsThousands": 7402,
+     "unitCostDollars": null
+    }
+   ]
+  },
+  {
+   "peCode": "1810N2136",
+   "title": "AN/SQQ-89 Surf ASW Combat System",
+   "budgetActivity": "BA 02 — Communications and electronics equipment",
+   "lineNumber": "1810N2136",
+   "programOfRecord": null,
+   "fyData": [
+    {
+     "fy": 2025,
+     "quantity": null,
+     "requestDollarsThousands": 134635,
+     "unitCostDollars": null
+    },
+    {
+     "fy": 2026,
+     "quantity": null,
+     "requestDollarsThousands": 144425,
+     "unitCostDollars": null
+    },
+    {
+     "fy": 2027,
+     "quantity": null,
+     "requestDollarsThousands": 142355,
+     "unitCostDollars": null
+    }
+   ]
+  },
+  {
+   "peCode": "1810N2150",
+   "title": "SSN Acoustic Equipment",
+   "budgetActivity": "BA 02 — Communications and electronics equipment",
+   "lineNumber": "1810N2150",
+   "programOfRecord": null,
+   "fyData": [
+    {
+     "fy": 2025,
+     "quantity": null,
+     "requestDollarsThousands": 458824,
+     "unitCostDollars": null
+    },
+    {
+     "fy": 2026,
+     "quantity": null,
+     "requestDollarsThousands": 498597,
+     "unitCostDollars": null
+    },
+    {
+     "fy": 2027,
+     "quantity": null,
+     "requestDollarsThousands": 454161,
+     "unitCostDollars": null
+    }
+   ]
+  },
+  {
+   "peCode": "1810N2176",
+   "title": "Undersea Warfare Support Equipment Electronic Equipment",
+   "budgetActivity": "BA 02 — Communications and electronics equipment",
+   "lineNumber": "1810N2176",
+   "programOfRecord": null,
+   "fyData": [
+    {
+     "fy": 2025,
+     "quantity": null,
+     "requestDollarsThousands": 14247,
+     "unitCostDollars": null
+    }
+   ]
+  },
+  {
+   "peCode": "1810N2210",
+   "title": "Submarine Acoustic Warfare System",
+   "budgetActivity": "BA 02 — Communications and electronics equipment",
+   "lineNumber": "1810N2210",
+   "programOfRecord": null,
+   "fyData": [
+    {
+     "fy": 2025,
+     "quantity": null,
+     "requestDollarsThousands": 51514,
+     "unitCostDollars": null
+    },
+    {
+     "fy": 2026,
+     "quantity": null,
+     "requestDollarsThousands": 56482,
+     "unitCostDollars": null
+    },
+    {
+     "fy": 2027,
+     "quantity": null,
+     "requestDollarsThousands": 68881,
+     "unitCostDollars": null
+    }
+   ]
+  },
+  {
+   "peCode": "1810N2213",
+   "title": "SSTD",
+   "budgetActivity": "BA 02 — Communications and electronics equipment",
+   "lineNumber": "1810N2213",
+   "programOfRecord": null,
+   "fyData": [
+    {
+     "fy": 2025,
+     "quantity": null,
+     "requestDollarsThousands": 9647,
+     "unitCostDollars": null
+    },
+    {
+     "fy": 2026,
+     "quantity": null,
+     "requestDollarsThousands": 14915,
+     "unitCostDollars": null
+    },
+    {
+     "fy": 2027,
+     "quantity": null,
+     "requestDollarsThousands": 14857,
+     "unitCostDollars": null
+    }
+   ]
+  },
+  {
+   "peCode": "1810N2225",
+   "title": "Fixed Surveillance System",
+   "budgetActivity": "BA 02 — Communications and electronics equipment",
+   "lineNumber": "1810N2225",
+   "programOfRecord": null,
+   "fyData": [
+    {
+     "fy": 2025,
+     "quantity": null,
+     "requestDollarsThousands": 405854,
+     "unitCostDollars": null
+    },
+    {
+     "fy": 2026,
+     "quantity": null,
+     "requestDollarsThousands": 495312,
+     "unitCostDollars": null
+    },
+    {
+     "fy": 2027,
+     "quantity": null,
+     "requestDollarsThousands": 490548,
+     "unitCostDollars": null
+    }
+   ]
+  },
+  {
+   "peCode": "1810N2237",
+   "title": "SURTASS Sonars Warfare Equipment",
+   "budgetActivity": "BA 02 — Communications and electronics equipment",
+   "lineNumber": "1810N2237",
+   "programOfRecord": null,
+   "fyData": [
+    {
+     "fy": 2025,
+     "quantity": null,
+     "requestDollarsThousands": 45975,
+     "unitCostDollars": null
+    },
+    {
+     "fy": 2026,
+     "quantity": null,
+     "requestDollarsThousands": 31169,
+     "unitCostDollars": null
+    },
+    {
+     "fy": 2027,
+     "quantity": null,
+     "requestDollarsThousands": 72190,
+     "unitCostDollars": null
+    }
+   ]
+  },
+  {
+   "peCode": "1810N2312",
+   "title": "AN/SLQ-32 Equipment",
+   "budgetActivity": "BA 02 — Communications and electronics eq",
+   "lineNumber": "1810N2312",
+   "programOfRecord": null,
+   "fyData": [
+    {
+     "fy": 2025,
+     "quantity": null,
+     "requestDollarsThousands": 190011,
+     "unitCostDollars": null
+    },
+    {
+     "fy": 2026,
+     "quantity": null,
+     "requestDollarsThousands": 422704,
+     "unitCostDollars": null
+    },
+    {
+     "fy": 2027,
+     "quantity": null,
+     "requestDollarsThousands": 653483,
+     "unitCostDollars": null
+    }
+   ]
+  },
+  {
+   "peCode": "1810N2360",
+   "title": "Shipboard IW Exploit",
+   "budgetActivity": "BA 02 — Communications and electronics eq",
+   "lineNumber": "1810N2360",
+   "programOfRecord": null,
+   "fyData": [
+    {
+     "fy": 2025,
+     "quantity": null,
+     "requestDollarsThousands": 361915,
+     "unitCostDollars": null
+    },
+    {
+     "fy": 2026,
+     "quantity": null,
+     "requestDollarsThousands": 379908,
+     "unitCostDollars": null
+    },
+    {
+     "fy": 2027,
+     "quantity": null,
+     "requestDollarsThousands": 701667,
+     "unitCostDollars": null
+    }
+   ]
+  },
+  {
+   "peCode": "1810N2361",
+   "title": "Maritime Battlespace Awareness Ship Electronic Equipment",
+   "budgetActivity": "BA 02 — Communications and electronics eq",
+   "lineNumber": "1810N2361",
+   "programOfRecord": null,
+   "fyData": [
+    {
+     "fy": 2025,
+     "quantity": null,
+     "requestDollarsThousands": 4680,
+     "unitCostDollars": null
+    },
+    {
+     "fy": 2026,
+     "quantity": null,
+     "requestDollarsThousands": 13008,
+     "unitCostDollars": null
+    },
+    {
+     "fy": 2027,
+     "quantity": null,
+     "requestDollarsThousands": 8652,
+     "unitCostDollars": null
+    }
+   ]
+  },
+  {
+   "peCode": "1810N2606",
+   "title": "Cooperative Engagement Capability Naval Tactical Command Support",
+   "budgetActivity": "BA 02 — Communications and electronics eq",
+   "lineNumber": "1810N2606",
+   "programOfRecord": null,
+   "fyData": [
+    {
+     "fy": 2025,
+     "quantity": null,
+     "requestDollarsThousands": 26644,
+     "unitCostDollars": null
+    },
+    {
+     "fy": 2026,
+     "quantity": null,
+     "requestDollarsThousands": 26648,
+     "unitCostDollars": null
+    },
+    {
+     "fy": 2027,
+     "quantity": null,
+     "requestDollarsThousands": 33932,
+     "unitCostDollars": null
+    }
+   ]
+  },
+  {
+   "peCode": "1810N2611",
+   "title": "System (NTCSS)",
+   "budgetActivity": "BA 02 — Communications and electronics eq",
+   "lineNumber": "1810N2611",
+   "programOfRecord": null,
+   "fyData": [
+    {
+     "fy": 2025,
+     "quantity": null,
+     "requestDollarsThousands": 13614,
+     "unitCostDollars": null
+    },
+    {
+     "fy": 2026,
+     "quantity": null,
+     "requestDollarsThousands": 7972,
+     "unitCostDollars": null
+    },
+    {
+     "fy": 2027,
+     "quantity": null,
+     "requestDollarsThousands": 10108,
+     "unitCostDollars": null
+    }
+   ]
+  },
+  {
+   "peCode": "1810N2614",
+   "title": "ATDLS Navy Command and Control System",
+   "budgetActivity": "BA 02 — Communications and electronics eq",
+   "lineNumber": "1810N2614",
+   "programOfRecord": null,
+   "fyData": [
+    {
+     "fy": 2025,
+     "quantity": null,
+     "requestDollarsThousands": 68458,
+     "unitCostDollars": null
+    },
+    {
+     "fy": 2026,
+     "quantity": null,
+     "requestDollarsThousands": 58739,
+     "unitCostDollars": null
+    },
+    {
+     "fy": 2027,
+     "quantity": null,
+     "requestDollarsThousands": 52758,
+     "unitCostDollars": null
+    }
+   ]
+  },
+  {
+   "peCode": "1810N2618",
+   "title": "(NCCS)",
+   "budgetActivity": "BA 02 — Communications and electronics eq",
+   "lineNumber": "1810N2618",
+   "programOfRecord": null,
+   "fyData": [
+    {
+     "fy": 2025,
+     "quantity": null,
+     "requestDollarsThousands": 3645,
+     "unitCostDollars": null
+    },
+    {
+     "fy": 2026,
+     "quantity": null,
+     "requestDollarsThousands": 3489,
+     "unitCostDollars": null
+    },
+    {
+     "fy": 2027,
+     "quantity": null,
+     "requestDollarsThousands": 16167,
+     "unitCostDollars": null
+    }
+   ]
+  },
+  {
+   "peCode": "1810N2622",
+   "title": "Minesweeping System Replacement",
+   "budgetActivity": "BA 02 — Communications and electronics eq",
+   "lineNumber": "1810N2622",
+   "programOfRecord": null,
+   "fyData": [
+    {
+     "fy": 2025,
+     "quantity": null,
+     "requestDollarsThousands": 16808,
+     "unitCostDollars": null
+    },
+    {
+     "fy": 2026,
+     "quantity": null,
+     "requestDollarsThousands": 16426,
+     "unitCostDollars": null
+    },
+    {
+     "fy": 2027,
+     "quantity": null,
+     "requestDollarsThousands": 14879,
+     "unitCostDollars": null
+    }
+   ]
+  },
+  {
+   "peCode": "1810N2657",
+   "title": "Navstar GPS Receivers (SPACE) Warfare Equipment American Forces Radio and TV",
+   "budgetActivity": "BA 02 — Communications and electronics eq",
+   "lineNumber": "1810N2657",
+   "programOfRecord": null,
+   "fyData": [
+    {
+     "fy": 2025,
+     "quantity": null,
+     "requestDollarsThousands": 37964,
+     "unitCostDollars": null
+    },
+    {
+     "fy": 2026,
+     "quantity": null,
+     "requestDollarsThousands": 45701,
+     "unitCostDollars": null
+    },
+    {
+     "fy": 2027,
+     "quantity": null,
+     "requestDollarsThousands": 43097,
+     "unitCostDollars": null
+    }
+   ]
+  },
+  {
+   "peCode": "1810N2666",
+   "title": "Service Electronic Equipment",
+   "budgetActivity": "BA 02 — Communications and electronics eq",
+   "lineNumber": "1810N2666",
+   "programOfRecord": null,
+   "fyData": [
+    {
+     "fy": 2025,
+     "quantity": null,
+     "requestDollarsThousands": 3802,
+     "unitCostDollars": null
+    },
+    {
+     "fy": 2026,
+     "quantity": null,
+     "requestDollarsThousands": 304,
+     "unitCostDollars": null
+    },
+    {
+     "fy": 2027,
+     "quantity": null,
+     "requestDollarsThousands": 289,
+     "unitCostDollars": null
+    }
+   ]
+  },
+  {
+   "peCode": "1810N2820",
+   "title": "Ashore ATC Equipment",
+   "budgetActivity": "BA 02 — Communications and electronics eq",
+   "lineNumber": "1810N2820",
+   "programOfRecord": null,
+   "fyData": [
+    {
+     "fy": 2025,
+     "quantity": null,
+     "requestDollarsThousands": 90586,
+     "unitCostDollars": null
+    },
+    {
+     "fy": 2026,
+     "quantity": null,
+     "requestDollarsThousands": 97262,
+     "unitCostDollars": null
+    },
+    {
+     "fy": 2027,
+     "quantity": null,
+     "requestDollarsThousands": 83057,
+     "unitCostDollars": null
+    }
+   ]
+  },
+  {
+   "peCode": "1810N2830",
+   "title": "Afloat ATC Equipment",
+   "budgetActivity": "BA 02 — Communications and electronics eq",
+   "lineNumber": "1810N2830",
+   "programOfRecord": null,
+   "fyData": [
+    {
+     "fy": 2025,
+     "quantity": null,
+     "requestDollarsThousands": 74458,
+     "unitCostDollars": null
+    },
+    {
+     "fy": 2026,
+     "quantity": null,
+     "requestDollarsThousands": 72104,
+     "unitCostDollars": null
+    },
+    {
+     "fy": 2027,
+     "quantity": null,
+     "requestDollarsThousands": 62581,
+     "unitCostDollars": null
+    }
+   ]
+  },
+  {
+   "peCode": "1810N2851",
+   "title": "ID Systems Joint Precision Approach And",
+   "budgetActivity": "BA 02 — Communications and electronics eq",
+   "lineNumber": "1810N2851",
+   "programOfRecord": null,
+   "fyData": [
+    {
+     "fy": 2025,
+     "quantity": null,
+     "requestDollarsThousands": 59602,
+     "unitCostDollars": null
+    },
+    {
+     "fy": 2026,
+     "quantity": null,
+     "requestDollarsThousands": 52171,
+     "unitCostDollars": null
+    },
+    {
+     "fy": 2027,
+     "quantity": null,
+     "requestDollarsThousands": 35620,
+     "unitCostDollars": null
+    }
+   ]
+  },
+  {
+   "peCode": "1810N2867",
+   "title": "Landing System (",
+   "budgetActivity": "BA 02 — Communications and electronics eq",
+   "lineNumber": "1810N2867",
+   "programOfRecord": null,
+   "fyData": [
+    {
+     "fy": 2025,
+     "quantity": null,
+     "requestDollarsThousands": 7287,
+     "unitCostDollars": null
+    },
+    {
+     "fy": 2026,
+     "quantity": null,
+     "requestDollarsThousands": 5105,
+     "unitCostDollars": null
+    },
+    {
+     "fy": 2027,
+     "quantity": null,
+     "requestDollarsThousands": 2976,
+     "unitCostDollars": null
+    }
+   ]
+  },
+  {
+   "peCode": "1810N2876",
+   "title": "Naval Mission Planning Systems Shore Electronic Equipment Maritime Integrated Broadcast",
+   "budgetActivity": "BA 02 — Communications and electronics eq",
+   "lineNumber": "1810N2876",
+   "programOfRecord": null,
+   "fyData": [
+    {
+     "fy": 2025,
+     "quantity": null,
+     "requestDollarsThousands": 42326,
+     "unitCostDollars": null
+    },
+    {
+     "fy": 2026,
+     "quantity": null,
+     "requestDollarsThousands": 60058,
+     "unitCostDollars": null
+    },
+    {
+     "fy": 2027,
+     "quantity": null,
+     "requestDollarsThousands": 54487,
+     "unitCostDollars": null
+    }
+   ]
+  },
+  {
+   "peCode": "1810N2900",
+   "title": "System",
+   "budgetActivity": "BA 02 — Communications and electronics eq",
+   "lineNumber": "1810N2900",
+   "programOfRecord": null,
+   "fyData": [
+    {
+     "fy": 2025,
+     "quantity": null,
+     "requestDollarsThousands": 8479,
+     "unitCostDollars": null
+    }
+   ]
+  },
+  {
+   "peCode": "1810N2906",
+   "title": "Tactical/Mobile C4I Systems Intelligence Surveillance and",
+   "budgetActivity": "BA 02 — Communications and electronics eq",
+   "lineNumber": "1810N2906",
+   "programOfRecord": null,
+   "fyData": [
+    {
+     "fy": 2025,
+     "quantity": null,
+     "requestDollarsThousands": 66470,
+     "unitCostDollars": null
+    },
+    {
+     "fy": 2026,
+     "quantity": null,
+     "requestDollarsThousands": 64901,
+     "unitCostDollars": null
+    },
+    {
+     "fy": 2027,
+     "quantity": null,
+     "requestDollarsThousands": 48262,
+     "unitCostDollars": null
+    }
+   ]
+  },
+  {
+   "peCode": "1810N2914",
+   "title": "Reconnaissance (ISR) American Forces Radio and TV",
+   "budgetActivity": "BA 02 — Communications and electronics eq",
+   "lineNumber": "1810N2914",
+   "programOfRecord": null,
+   "fyData": [
+    {
+     "fy": 2025,
+     "quantity": null,
+     "requestDollarsThousands": 16946,
+     "unitCostDollars": null
+    },
+    {
+     "fy": 2026,
+     "quantity": null,
+     "requestDollarsThousands": 12112,
+     "unitCostDollars": null
+    },
+    {
+     "fy": 2027,
+     "quantity": null,
+     "requestDollarsThousands": 11824,
+     "unitCostDollars": null
+    }
+   ]
+  },
+  {
+   "peCode": "1810N2915",
+   "title": "CANES",
+   "budgetActivity": "BA 02 — Communications and electronics eq",
+   "lineNumber": "1810N2915",
+   "programOfRecord": null,
+   "fyData": [
+    {
+     "fy": 2025,
+     "quantity": null,
+     "requestDollarsThousands": 439977,
+     "unitCostDollars": null
+    },
+    {
+     "fy": 2026,
+     "quantity": null,
+     "requestDollarsThousands": 534324,
+     "unitCostDollars": null
+    },
+    {
+     "fy": 2027,
+     "quantity": null,
+     "requestDollarsThousands": 493046,
+     "unitCostDollars": null
+    }
+   ]
+  },
+  {
+   "peCode": "1810N2920",
+   "title": "RADIAC",
+   "budgetActivity": "BA 02 — Communications and electronics eq",
+   "lineNumber": "1810N2920",
+   "programOfRecord": null,
+   "fyData": [
+    {
+     "fy": 2025,
+     "quantity": null,
+     "requestDollarsThousands": 38688,
+     "unitCostDollars": null
+    },
+    {
+     "fy": 2026,
+     "quantity": null,
+     "requestDollarsThousands": 31289,
+     "unitCostDollars": null
+    },
+    {
+     "fy": 2027,
+     "quantity": null,
+     "requestDollarsThousands": 38000,
+     "unitCostDollars": null
+    }
+   ]
+  },
+  {
+   "peCode": "1810N2925",
+   "title": "CANES-Intell",
+   "budgetActivity": "BA 02 — Communications and electronics eq",
+   "lineNumber": "1810N2925",
+   "programOfRecord": null,
+   "fyData": [
+    {
+     "fy": 2025,
+     "quantity": null,
+     "requestDollarsThousands": 50654,
+     "unitCostDollars": null
+    },
+    {
+     "fy": 2026,
+     "quantity": null,
+     "requestDollarsThousands": 46281,
+     "unitCostDollars": null
+    },
+    {
+     "fy": 2027,
+     "quantity": null,
+     "requestDollarsThousands": 43028,
+     "unitCostDollars": null
+    }
+   ]
+  },
+  {
+   "peCode": "1810N2940",
+   "title": "GPETE",
+   "budgetActivity": "BA 02 — Communications and electronics eq",
+   "lineNumber": "1810N2940",
+   "programOfRecord": null,
+   "fyData": [
+    {
+     "fy": 2025,
+     "quantity": null,
+     "requestDollarsThousands": 32005,
+     "unitCostDollars": null
+    },
+    {
+     "fy": 2026,
+     "quantity": null,
+     "requestDollarsThousands": 33395,
+     "unitCostDollars": null
+    },
+    {
+     "fy": 2027,
+     "quantity": null,
+     "requestDollarsThousands": 31462,
+     "unitCostDollars": null
+    }
+   ]
+  },
+  {
+   "peCode": "1810N2950",
+   "title": "MASF",
+   "budgetActivity": "BA 02 — Communications and electronics eq",
+   "lineNumber": "1810N2950",
+   "programOfRecord": null,
+   "fyData": [
+    {
+     "fy": 2025,
+     "quantity": null,
+     "requestDollarsThousands": 24361,
+     "unitCostDollars": null
+    },
+    {
+     "fy": 2026,
+     "quantity": null,
+     "requestDollarsThousands": 13205,
+     "unitCostDollars": null
+    },
+    {
+     "fy": 2027,
+     "quantity": null,
+     "requestDollarsThousands": 5822,
+     "unitCostDollars": null
+    }
+   ]
+  },
+  {
+   "peCode": "1810N2960",
+   "title": "Integ Combat System Test Facility",
+   "budgetActivity": "BA 02 — Communications and electronics eq",
+   "lineNumber": "1810N2960",
+   "programOfRecord": null,
+   "fyData": [
+    {
+     "fy": 2025,
+     "quantity": null,
+     "requestDollarsThousands": 6709,
+     "unitCostDollars": null
+    },
+    {
+     "fy": 2026,
+     "quantity": null,
+     "requestDollarsThousands": 11493,
+     "unitCostDollars": null
+    },
+    {
+     "fy": 2027,
+     "quantity": null,
+     "requestDollarsThousands": 6454,
+     "unitCostDollars": null
+    }
+   ]
+  },
+  {
+   "peCode": "1810N2970",
+   "title": "EMI Control Instrumentation",
+   "budgetActivity": "BA 02 — Communications and electronics eq",
+   "lineNumber": "1810N2970",
+   "programOfRecord": null,
+   "fyData": [
+    {
+     "fy": 2025,
+     "quantity": null,
+     "requestDollarsThousands": 4081,
+     "unitCostDollars": null
+    },
+    {
+     "fy": 2026,
+     "quantity": null,
+     "requestDollarsThousands": 3687,
+     "unitCostDollars": null
+    },
+    {
+     "fy": 2027,
+     "quantity": null,
+     "requestDollarsThousands": 3435,
+     "unitCostDollars": null
+    }
+   ]
+  },
+  {
+   "peCode": "1810N2981",
+   "title": "In-Service Radars and Sensors Communications",
+   "budgetActivity": "BA 02 — Communications and electronics eq",
+   "lineNumber": "1810N2981",
+   "programOfRecord": null,
+   "fyData": [
+    {
+     "fy": 2025,
+     "quantity": null,
+     "requestDollarsThousands": 262890,
+     "unitCostDollars": null
+    },
+    {
+     "fy": 2026,
+     "quantity": null,
+     "requestDollarsThousands": 249656,
+     "unitCostDollars": null
+    },
+    {
+     "fy": 2027,
+     "quantity": null,
+     "requestDollarsThousands": 338946,
+     "unitCostDollars": null
+    }
+   ]
+  },
+  {
+   "peCode": "1810N2437",
+   "title": "Battle Force Tactical Network",
+   "budgetActivity": "BA 02 — Communications and electronics eq",
+   "lineNumber": "1810N2437",
+   "programOfRecord": null,
+   "fyData": [
+    {
+     "fy": 2025,
+     "quantity": null,
+     "requestDollarsThousands": 104019,
+     "unitCostDollars": null
+    },
+    {
+     "fy": 2026,
+     "quantity": null,
+     "requestDollarsThousands": 106583,
+     "unitCostDollars": null
+    },
+    {
+     "fy": 2027,
+     "quantity": null,
+     "requestDollarsThousands": 125661,
+     "unitCostDollars": null
+    }
+   ]
+  },
+  {
+   "peCode": "1810N3010",
+   "title": "Shipboard Tactical Communications",
+   "budgetActivity": "BA 02 — Communications and electronics eq",
+   "lineNumber": "1810N3010",
+   "programOfRecord": null,
+   "fyData": [
+    {
+     "fy": 2025,
+     "quantity": null,
+     "requestDollarsThousands": 24602,
+     "unitCostDollars": null
+    },
+    {
+     "fy": 2026,
+     "quantity": null,
+     "requestDollarsThousands": 20900,
+     "unitCostDollars": null
+    },
+    {
+     "fy": 2027,
+     "quantity": null,
+     "requestDollarsThousands": 50350,
+     "unitCostDollars": null
+    }
+   ]
+  },
+  {
+   "peCode": "1810N3050",
+   "title": "Ship Communications Automation",
+   "budgetActivity": "BA 02 — Communications and electronics eq",
+   "lineNumber": "1810N3050",
+   "programOfRecord": null,
+   "fyData": [
+    {
+     "fy": 2025,
+     "quantity": null,
+     "requestDollarsThousands": 127321,
+     "unitCostDollars": null
+    },
+    {
+     "fy": 2026,
+     "quantity": null,
+     "requestDollarsThousands": 162075,
+     "unitCostDollars": null
+    },
+    {
+     "fy": 2027,
+     "quantity": null,
+     "requestDollarsThousands": 156605,
+     "unitCostDollars": null
+    }
+   ]
+  },
+  {
+   "peCode": "1810N3057",
+   "title": "Communications Items Under $5M",
+   "budgetActivity": "BA 02 — Communications and electronics eq",
+   "lineNumber": "1810N3057",
+   "programOfRecord": null,
+   "fyData": [
+    {
+     "fy": 2025,
+     "quantity": null,
+     "requestDollarsThousands": 9209,
+     "unitCostDollars": null
+    },
+    {
+     "fy": 2026,
+     "quantity": null,
+     "requestDollarsThousands": 11138,
+     "unitCostDollars": null
+    },
+    {
+     "fy": 2027,
+     "quantity": null,
+     "requestDollarsThousands": 15097,
+     "unitCostDollars": null
+    }
+   ]
+  },
+  {
+   "peCode": "1810N3107",
+   "title": "Submarine Broadcast Support",
+   "budgetActivity": "BA 02 — Communications and electronics eq",
+   "lineNumber": "1810N3107",
+   "programOfRecord": null,
+   "fyData": [
+    {
+     "fy": 2025,
+     "quantity": null,
+     "requestDollarsThousands": 129467,
+     "unitCostDollars": null
+    },
+    {
+     "fy": 2026,
+     "quantity": null,
+     "requestDollarsThousands": 113115,
+     "unitCostDollars": null
+    },
+    {
+     "fy": 2027,
+     "quantity": null,
+     "requestDollarsThousands": 173069,
+     "unitCostDollars": null
+    }
+   ]
+  },
+  {
+   "peCode": "1810N3130",
+   "title": "Submarine Communication Equipment Communications",
+   "budgetActivity": "BA 02 — Communications and electronics eq",
+   "lineNumber": "1810N3130",
+   "programOfRecord": null,
+   "fyData": [
+    {
+     "fy": 2025,
+     "quantity": null,
+     "requestDollarsThousands": 68334,
+     "unitCostDollars": null
+    },
+    {
+     "fy": 2026,
+     "quantity": null,
+     "requestDollarsThousands": 84584,
+     "unitCostDollars": null
+    },
+    {
+     "fy": 2027,
+     "quantity": null,
+     "requestDollarsThousands": 88071,
+     "unitCostDollars": null
+    }
+   ]
+  },
+  {
+   "peCode": "1810N3215",
+   "title": "Satellite Communications Systems",
+   "budgetActivity": "BA 02 — Communications and electronics eq",
+   "lineNumber": "1810N3215",
+   "programOfRecord": null,
+   "fyData": [
+    {
+     "fy": 2025,
+     "quantity": null,
+     "requestDollarsThousands": 59732,
+     "unitCostDollars": null
+    },
+    {
+     "fy": 2026,
+     "quantity": null,
+     "requestDollarsThousands": 62943,
+     "unitCostDollars": null
+    },
+    {
+     "fy": 2027,
+     "quantity": null,
+     "requestDollarsThousands": 57961,
+     "unitCostDollars": null
+    }
+   ]
+  },
+  {
+   "peCode": "1810N3216",
+   "title": "Navy Multiband Terminal (NMT)",
+   "budgetActivity": "BA 02 — Communications and electronics eq",
+   "lineNumber": "1810N3216",
+   "programOfRecord": null,
+   "fyData": [
+    {
+     "fy": 2025,
+     "quantity": null,
+     "requestDollarsThousands": 162928,
+     "unitCostDollars": null
+    },
+    {
+     "fy": 2026,
+     "quantity": null,
+     "requestDollarsThousands": 63433,
+     "unitCostDollars": null
+    },
+    {
+     "fy": 2027,
+     "quantity": null,
+     "requestDollarsThousands": 57768,
+     "unitCostDollars": null
+    }
+   ]
+  },
+  {
+   "peCode": "1810N3222",
+   "title": "Mobile Advanced EHF Terminal (MAT) Communications Joint Communications Support",
+   "budgetActivity": "BA 02 — Communications and electronics eq",
+   "lineNumber": "1810N3222",
+   "programOfRecord": null,
+   "fyData": [
+    {
+     "fy": 2026,
+     "quantity": null,
+     "requestDollarsThousands": 220453,
+     "unitCostDollars": null
+    },
+    {
+     "fy": 2027,
+     "quantity": null,
+     "requestDollarsThousands": 202305,
+     "unitCostDollars": null
+    }
+   ]
+  },
+  {
+   "peCode": "1810N3302",
+   "title": "Element (JCSE) Equipment Info Systems Security Program",
+   "budgetActivity": "BA 02 — Communications and electronics eq",
+   "lineNumber": "1810N3302",
+   "programOfRecord": null,
+   "fyData": [
+    {
+     "fy": 2025,
+     "quantity": null,
+     "requestDollarsThousands": 4551,
+     "unitCostDollars": null
+    },
+    {
+     "fy": 2026,
+     "quantity": null,
+     "requestDollarsThousands": 3389,
+     "unitCostDollars": null
+    }
+   ]
+  },
+  {
+   "peCode": "1810N3415",
+   "title": "(ISSP)",
+   "budgetActivity": "BA 02 — Communications and electronics eq",
+   "lineNumber": "1810N3415",
+   "programOfRecord": null,
+   "fyData": [
+    {
+     "fy": 2025,
+     "quantity": null,
+     "requestDollarsThousands": 195063,
+     "unitCostDollars": null
+    },
+    {
+     "fy": 2026,
+     "quantity": null,
+     "requestDollarsThousands": 191239,
+     "unitCostDollars": null
+    },
+    {
+     "fy": 2027,
+     "quantity": null,
+     "requestDollarsThousands": 349099,
+     "unitCostDollars": null
+    }
+   ]
+  },
+  {
+   "peCode": "1810N3417",
+   "title": "MIO Intel Exploitation Team Equipment",
+   "budgetActivity": "BA 02 — Communications and electronics eq",
+   "lineNumber": "1810N3417",
+   "programOfRecord": null,
+   "fyData": [
+    {
+     "fy": 2025,
+     "quantity": null,
+     "requestDollarsThousands": 1100,
+     "unitCostDollars": null
+    },
+    {
+     "fy": 2026,
+     "quantity": null,
+     "requestDollarsThousands": 1122,
+     "unitCostDollars": null
+    },
+    {
+     "fy": 2027,
+     "quantity": null,
+     "requestDollarsThousands": 1063,
+     "unitCostDollars": null
+    }
+   ]
+  },
+  {
+   "peCode": "1810N3501",
+   "title": "Cryptologic Communications Equip Electronic Support",
+   "budgetActivity": "BA 02 — Communications and electronics eq",
+   "lineNumber": "1810N3501",
+   "programOfRecord": null,
+   "fyData": [
+    {
+     "fy": 2025,
+     "quantity": null,
+     "requestDollarsThousands": 15506,
+     "unitCostDollars": null
+    },
+    {
+     "fy": 2026,
+     "quantity": null,
+     "requestDollarsThousands": 7841,
+     "unitCostDollars": null
+    },
+    {
+     "fy": 2027,
+     "quantity": null,
+     "requestDollarsThousands": 7419,
+     "unitCostDollars": null
+    }
+   ]
+  },
+  {
+   "peCode": "1810N3620",
+   "title": "Coast Guard Equipment Interdiction Support",
+   "budgetActivity": "BA 02 — Communications and electronics eq",
+   "lineNumber": "1810N3620",
+   "programOfRecord": null,
+   "fyData": [
+    {
+     "fy": 2025,
+     "quantity": null,
+     "requestDollarsThousands": 49523,
+     "unitCostDollars": null
+    },
+    {
+     "fy": 2026,
+     "quantity": null,
+     "requestDollarsThousands": 58764,
+     "unitCostDollars": null
+    },
+    {
+     "fy": 2027,
+     "quantity": null,
+     "requestDollarsThousands": 67106,
+     "unitCostDollars": null
+    }
+   ]
+  },
+  {
+   "peCode": "1810N4048",
+   "title": "Sonobuoys - All Types Support Equipment",
+   "budgetActivity": "BA 03 — Aviation support equipment",
+   "lineNumber": "1810N4048",
+   "programOfRecord": null,
+   "fyData": [
+    {
+     "fy": 2025,
+     "quantity": null,
+     "requestDollarsThousands": 353441,
+     "unitCostDollars": null
+    },
+    {
+     "fy": 2026,
+     "quantity": null,
+     "requestDollarsThousands": 369908,
+     "unitCostDollars": null
+    },
+    {
+     "fy": 2027,
+     "quantity": null,
+     "requestDollarsThousands": 300151,
+     "unitCostDollars": null
+    }
+   ]
+  },
+  {
+   "peCode": "1810N3640",
+   "title": "Minotaur",
+   "budgetActivity": "BA 03 — Aviation support equipment",
+   "lineNumber": "1810N3640",
+   "programOfRecord": null,
+   "fyData": [
+    {
+     "fy": 2025,
+     "quantity": null,
+     "requestDollarsThousands": 5431,
+     "unitCostDollars": null
+    },
+    {
+     "fy": 2026,
+     "quantity": null,
+     "requestDollarsThousands": 5191,
+     "unitCostDollars": null
+    },
+    {
+     "fy": 2027,
+     "quantity": null,
+     "requestDollarsThousands": 4831,
+     "unitCostDollars": null
+    }
+   ]
+  },
+  {
+   "peCode": "1810N4204",
+   "title": "Weapons Range Support Equipment",
+   "budgetActivity": "BA 03 — Aviation support equipment",
+   "lineNumber": "1810N4204",
+   "programOfRecord": null,
+   "fyData": [
+    {
+     "fy": 2025,
+     "quantity": null,
+     "requestDollarsThousands": 138062,
+     "unitCostDollars": null
+    },
+    {
+     "fy": 2026,
+     "quantity": null,
+     "requestDollarsThousands": 123435,
+     "unitCostDollars": null
+    },
+    {
+     "fy": 2027,
+     "quantity": null,
+     "requestDollarsThousands": 119900,
+     "unitCostDollars": null
+    }
+   ]
+  },
+  {
+   "peCode": "1810N4213",
+   "title": "Aircraft Support Equipment",
+   "budgetActivity": "BA 03 — Aviation support equipment",
+   "lineNumber": "1810N4213",
+   "programOfRecord": null,
+   "fyData": [
+    {
+     "fy": 2025,
+     "quantity": null,
+     "requestDollarsThousands": 121727,
+     "unitCostDollars": null
+    },
+    {
+     "fy": 2026,
+     "quantity": null,
+     "requestDollarsThousands": 82039,
+     "unitCostDollars": null
+    },
+    {
+     "fy": 2027,
+     "quantity": null,
+     "requestDollarsThousands": 69065,
+     "unitCostDollars": null
+    }
+   ]
+  },
+  {
+   "peCode": "1810N4217",
+   "title": "Advanced Arresting Gear (AAG) Electromagnetic Aircraft Launch",
+   "budgetActivity": "BA 03 — Aviation support equipment",
+   "lineNumber": "1810N4217",
+   "programOfRecord": null,
+   "fyData": [
+    {
+     "fy": 2025,
+     "quantity": null,
+     "requestDollarsThousands": 2244,
+     "unitCostDollars": null
+    },
+    {
+     "fy": 2026,
+     "quantity": null,
+     "requestDollarsThousands": 4484,
+     "unitCostDollars": null
+    },
+    {
+     "fy": 2027,
+     "quantity": null,
+     "requestDollarsThousands": 23551,
+     "unitCostDollars": null
+    }
+   ]
+  },
+  {
+   "peCode": "1810N4219",
+   "title": "System (EMALS",
+   "budgetActivity": "BA 03 — Aviation support equipment",
+   "lineNumber": "1810N4219",
+   "programOfRecord": null,
+   "fyData": [
+    {
+     "fy": 2025,
+     "quantity": null,
+     "requestDollarsThousands": 14702,
+     "unitCostDollars": null
+    },
+    {
+     "fy": 2026,
+     "quantity": null,
+     "requestDollarsThousands": 16294,
+     "unitCostDollars": null
+    },
+    {
+     "fy": 2027,
+     "quantity": null,
+     "requestDollarsThousands": 36908,
+     "unitCostDollars": null
+    }
+   ]
+  },
+  {
+   "peCode": "1810N4226",
+   "title": "Meteorological Equipment Interdiction Support",
+   "budgetActivity": "BA 03 — Aviation support equipment",
+   "lineNumber": "1810N4226",
+   "programOfRecord": null,
+   "fyData": [
+    {
+     "fy": 2025,
+     "quantity": null,
+     "requestDollarsThousands": 17982,
+     "unitCostDollars": null
+    },
+    {
+     "fy": 2026,
+     "quantity": null,
+     "requestDollarsThousands": 13806,
+     "unitCostDollars": null
+    },
+    {
+     "fy": 2027,
+     "quantity": null,
+     "requestDollarsThousands": 7477,
+     "unitCostDollars": null
+    }
+   ]
+  },
+  {
+   "peCode": "1810N4248",
+   "title": "Airborne MCM",
+   "budgetActivity": "BA 03 — Aviation support equipment",
+   "lineNumber": "1810N4248",
+   "programOfRecord": null,
+   "fyData": [
+    {
+     "fy": 2025,
+     "quantity": null,
+     "requestDollarsThousands": 10643,
+     "unitCostDollars": null
+    },
+    {
+     "fy": 2026,
+     "quantity": null,
+     "requestDollarsThousands": 9643,
+     "unitCostDollars": null
+    },
+    {
+     "fy": 2027,
+     "quantity": null,
+     "requestDollarsThousands": 9507,
+     "unitCostDollars": null
+    }
+   ]
+  },
+  {
+   "peCode": "1810N4268",
+   "title": "Aviation Support Equipment UMCS-Unman Carrier",
+   "budgetActivity": "BA 03 — Aviation support equipment",
+   "lineNumber": "1810N4268",
+   "programOfRecord": null,
+   "fyData": [
+    {
+     "fy": 2025,
+     "quantity": null,
+     "requestDollarsThousands": 99656,
+     "unitCostDollars": null
+    },
+    {
+     "fy": 2026,
+     "quantity": null,
+     "requestDollarsThousands": 111334,
+     "unitCostDollars": null
+    },
+    {
+     "fy": 2027,
+     "quantity": null,
+     "requestDollarsThousands": 116873,
+     "unitCostDollars": null
+    }
+   ]
+  },
+  {
+   "peCode": "1810N4269",
+   "title": "Aviation(UCA)Mission Cntrl Gun System Equipment",
+   "budgetActivity": "BA 03 — Aviation support equipment",
+   "lineNumber": "1810N4269",
+   "programOfRecord": null,
+   "fyData": [
+    {
+     "fy": 2025,
+     "quantity": null,
+     "requestDollarsThousands": 119561,
+     "unitCostDollars": null
+    },
+    {
+     "fy": 2026,
+     "quantity": null,
+     "requestDollarsThousands": 186909,
+     "unitCostDollars": null
+    },
+    {
+     "fy": 2027,
+     "quantity": null,
+     "requestDollarsThousands": 211216,
+     "unitCostDollars": null
+    }
+   ]
+  },
+  {
+   "peCode": "1810N5111",
+   "title": "Ship Gun Systems Equipment Missile Systems Equipment",
+   "budgetActivity": "BA 04 — Ordnance support equipment",
+   "lineNumber": "1810N5111",
+   "programOfRecord": null,
+   "fyData": [
+    {
+     "fy": 2025,
+     "quantity": null,
+     "requestDollarsThousands": 6712,
+     "unitCostDollars": null
+    },
+    {
+     "fy": 2026,
+     "quantity": null,
+     "requestDollarsThousands": 7358,
+     "unitCostDollars": null
+    },
+    {
+     "fy": 2027,
+     "quantity": null,
+     "requestDollarsThousands": 6962,
+     "unitCostDollars": null
+    }
+   ]
+  },
+  {
+   "peCode": "1810N5227",
+   "title": "Harpoon Support Equipment",
+   "budgetActivity": "BA 04 — Ordnance support equipment",
+   "lineNumber": "1810N5227",
+   "programOfRecord": null,
+   "fyData": [
+    {
+     "fy": 2025,
+     "quantity": null,
+     "requestDollarsThousands": 226,
+     "unitCostDollars": null
+    },
+    {
+     "fy": 2026,
+     "quantity": null,
+     "requestDollarsThousands": 209,
+     "unitCostDollars": null
+    },
+    {
+     "fy": 2027,
+     "quantity": null,
+     "requestDollarsThousands": 195,
+     "unitCostDollars": null
+    }
+   ]
+  },
+  {
+   "peCode": "1810N5231",
+   "title": "Ship Missile Support Equipment",
+   "budgetActivity": "BA 04 — Ordnance support equipment",
+   "lineNumber": "1810N5231",
+   "programOfRecord": null,
+   "fyData": [
+    {
+     "fy": 2025,
+     "quantity": null,
+     "requestDollarsThousands": 431830,
+     "unitCostDollars": null
+    },
+    {
+     "fy": 2026,
+     "quantity": null,
+     "requestDollarsThousands": 527292,
+     "unitCostDollars": null
+    },
+    {
+     "fy": 2027,
+     "quantity": null,
+     "requestDollarsThousands": 431069,
+     "unitCostDollars": null
+    }
+   ]
+  },
+  {
+   "peCode": "1810N5253",
+   "title": "Tomahawk Support Equipment",
+   "budgetActivity": "BA 04 — Ordnance support equipment",
+   "lineNumber": "1810N5253",
+   "programOfRecord": null,
+   "fyData": [
+    {
+     "fy": 2025,
+     "quantity": null,
+     "requestDollarsThousands": 98921,
+     "unitCostDollars": null
+    },
+    {
+     "fy": 2026,
+     "quantity": null,
+     "requestDollarsThousands": 107709,
+     "unitCostDollars": null
+    },
+    {
+     "fy": 2027,
+     "quantity": null,
+     "requestDollarsThousands": 116208,
+     "unitCostDollars": null
+    }
+   ]
+  },
+  {
+   "peCode": "1810N5353",
+   "title": "CPS Support Equipment",
+   "budgetActivity": "BA 04 — Ordnance support equipment",
+   "lineNumber": "1810N5353",
+   "programOfRecord": null,
+   "fyData": [
+    {
+     "fy": 2026,
+     "quantity": null,
+     "requestDollarsThousands": 67264,
+     "unitCostDollars": null
+    },
+    {
+     "fy": 2027,
+     "quantity": null,
+     "requestDollarsThousands": 188430,
+     "unitCostDollars": null
+    }
+   ]
+  },
+  {
+   "peCode": "1810N5358",
+   "title": "Strategic Missile Systems Equip Support Equipment",
+   "budgetActivity": "BA 04 — Ordnance support equipment",
+   "lineNumber": "1810N5358",
+   "programOfRecord": null,
+   "fyData": [
+    {
+     "fy": 2025,
+     "quantity": null,
+     "requestDollarsThousands": 320691,
+     "unitCostDollars": null
+    },
+    {
+     "fy": 2026,
+     "quantity": null,
+     "requestDollarsThousands": 500359,
+     "unitCostDollars": null
+    },
+    {
+     "fy": 2027,
+     "quantity": null,
+     "requestDollarsThousands": 327941,
+     "unitCostDollars": null
+    }
+   ]
+  },
+  {
+   "peCode": "1810N5420",
+   "title": "SSN Combat Control Systems",
+   "budgetActivity": "BA 04 — Ordnance support equipment",
+   "lineNumber": "1810N5420",
+   "programOfRecord": null,
+   "fyData": [
+    {
+     "fy": 2025,
+     "quantity": null,
+     "requestDollarsThousands": 153237,
+     "unitCostDollars": null
+    },
+    {
+     "fy": 2026,
+     "quantity": null,
+     "requestDollarsThousands": 102954,
+     "unitCostDollars": null
+    },
+    {
+     "fy": 2027,
+     "quantity": null,
+     "requestDollarsThousands": 165416,
+     "unitCostDollars": null
+    }
+   ]
+  },
+  {
+   "peCode": "1810N5429",
+   "title": "ASW Support Equipment Ordnance Support Equipment",
+   "budgetActivity": "BA 04 — Ordnance support equipment",
+   "lineNumber": "1810N5429",
+   "programOfRecord": null,
+   "fyData": [
+    {
+     "fy": 2025,
+     "quantity": null,
+     "requestDollarsThousands": 25362,
+     "unitCostDollars": null
+    },
+    {
+     "fy": 2026,
+     "quantity": null,
+     "requestDollarsThousands": 25721,
+     "unitCostDollars": null
+    },
+    {
+     "fy": 2027,
+     "quantity": null,
+     "requestDollarsThousands": 25105,
+     "unitCostDollars": null
+    }
+   ]
+  },
+  {
+   "peCode": "1810N5509",
+   "title": "Explosive Ordnance Disposal Equip",
+   "budgetActivity": "BA 04 — Ordnance support equipment",
+   "lineNumber": "1810N5509",
+   "programOfRecord": null,
+   "fyData": [
+    {
+     "fy": 2025,
+     "quantity": null,
+     "requestDollarsThousands": 52885,
+     "unitCostDollars": null
+    },
+    {
+     "fy": 2026,
+     "quantity": null,
+     "requestDollarsThousands": 17758,
+     "unitCostDollars": null
+    },
+    {
+     "fy": 2027,
+     "quantity": null,
+     "requestDollarsThousands": 48252,
+     "unitCostDollars": null
+    }
+   ]
+  },
+  {
+   "peCode": "1810N5510",
+   "title": "Directed Energy Systems",
+   "budgetActivity": "BA 04 — Ordnance support equipment",
+   "lineNumber": "1810N5510",
+   "programOfRecord": null,
+   "fyData": [
+    {
+     "fy": 2025,
+     "quantity": null,
+     "requestDollarsThousands": 3817,
+     "unitCostDollars": null
+    },
+    {
+     "fy": 2026,
+     "quantity": null,
+     "requestDollarsThousands": 2976,
+     "unitCostDollars": null
+    }
+   ]
+  },
+  {
+   "peCode": "1810N5543",
+   "title": "Items Less Than $5 Million Expendable Ordnance",
+   "budgetActivity": "BA 04 — Ordnance support equipment",
+   "lineNumber": "1810N5543",
+   "programOfRecord": null,
+   "fyData": [
+    {
+     "fy": 2025,
+     "quantity": null,
+     "requestDollarsThousands": 3193,
+     "unitCostDollars": null
+    },
+    {
+     "fy": 2026,
+     "quantity": null,
+     "requestDollarsThousands": 3635,
+     "unitCostDollars": null
+    },
+    {
+     "fy": 2027,
+     "quantity": null,
+     "requestDollarsThousands": 2592,
+     "unitCostDollars": null
+    }
+   ]
+  },
+  {
+   "peCode": "1810N5530",
+   "title": "Anti-Ship Missile Decoy System",
+   "budgetActivity": "BA 04 — Ordnance support equipment",
+   "lineNumber": "1810N5530",
+   "programOfRecord": null,
+   "fyData": [
+    {
+     "fy": 2025,
+     "quantity": null,
+     "requestDollarsThousands": 75614,
+     "unitCostDollars": null
+    },
+    {
+     "fy": 2026,
+     "quantity": null,
+     "requestDollarsThousands": 50741,
+     "unitCostDollars": null
+    },
+    {
+     "fy": 2027,
+     "quantity": null,
+     "requestDollarsThousands": 606241,
+     "unitCostDollars": null
+    }
+   ]
+  },
+  {
+   "peCode": "1810N5661",
+   "title": "Submarine Training Device Mods",
+   "budgetActivity": "BA 04 — Ordnance support equipment",
+   "lineNumber": "1810N5661",
+   "programOfRecord": null,
+   "fyData": [
+    {
+     "fy": 2025,
+     "quantity": null,
+     "requestDollarsThousands": 80236,
+     "unitCostDollars": null
+    },
+    {
+     "fy": 2026,
+     "quantity": null,
+     "requestDollarsThousands": 77889,
+     "unitCostDollars": null
+    },
+    {
+     "fy": 2027,
+     "quantity": null,
+     "requestDollarsThousands": 73681,
+     "unitCostDollars": null
+    }
+   ]
+  },
+  {
+   "peCode": "1810N5664",
+   "title": "Surface Training Equipment Engineering Support Equipment",
+   "budgetActivity": "BA 04 — Ordnance support equipment",
+   "lineNumber": "1810N5664",
+   "programOfRecord": null,
+   "fyData": [
+    {
+     "fy": 2025,
+     "quantity": null,
+     "requestDollarsThousands": 179960,
+     "unitCostDollars": null
+    },
+    {
+     "fy": 2026,
+     "quantity": null,
+     "requestDollarsThousands": 186085,
+     "unitCostDollars": null
+    },
+    {
+     "fy": 2027,
+     "quantity": null,
+     "requestDollarsThousands": 218181,
+     "unitCostDollars": null
+    }
+   ]
+  },
+  {
+   "peCode": "1810N6003",
+   "title": "Passenger Carrying Vehicles",
+   "budgetActivity": "BA 05 — Civil engineering support equipment",
+   "lineNumber": "1810N6003",
+   "programOfRecord": null,
+   "fyData": [
+    {
+     "fy": 2025,
+     "quantity": null,
+     "requestDollarsThousands": 3751,
+     "unitCostDollars": null
+    },
+    {
+     "fy": 2026,
+     "quantity": null,
+     "requestDollarsThousands": 3825,
+     "unitCostDollars": null
+    },
+    {
+     "fy": 2027,
+     "quantity": null,
+     "requestDollarsThousands": 3567,
+     "unitCostDollars": null
+    }
+   ]
+  },
+  {
+   "peCode": "1810N6007",
+   "title": "General Purpose Trucks",
+   "budgetActivity": "BA 05 — Civil engineering support equipment",
+   "lineNumber": "1810N6007",
+   "programOfRecord": null,
+   "fyData": [
+    {
+     "fy": 2025,
+     "quantity": null,
+     "requestDollarsThousands": 5795,
+     "unitCostDollars": null
+    },
+    {
+     "fy": 2026,
+     "quantity": null,
+     "requestDollarsThousands": 5489,
+     "unitCostDollars": null
+    },
+    {
+     "fy": 2027,
+     "quantity": null,
+     "requestDollarsThousands": 4801,
+     "unitCostDollars": null
+    }
+   ]
+  },
+  {
+   "peCode": "1810N6024",
+   "title": "Construction & Maintenance Equip",
+   "budgetActivity": "BA 05 — Civil engineering support equipment",
+   "lineNumber": "1810N6024",
+   "programOfRecord": null,
+   "fyData": [
+    {
+     "fy": 2025,
+     "quantity": null,
+     "requestDollarsThousands": 76983,
+     "unitCostDollars": null
+    },
+    {
+     "fy": 2026,
+     "quantity": null,
+     "requestDollarsThousands": 105592,
+     "unitCostDollars": null
+    },
+    {
+     "fy": 2027,
+     "quantity": null,
+     "requestDollarsThousands": 91269,
+     "unitCostDollars": null
+    }
+   ]
+  },
+  {
+   "peCode": "1810N6027",
+   "title": "Fire Fighting Equipment",
+   "budgetActivity": "BA 05 — Civil engineering support equipment",
+   "lineNumber": "1810N6027",
+   "programOfRecord": null,
+   "fyData": [
+    {
+     "fy": 2025,
+     "quantity": null,
+     "requestDollarsThousands": 23006,
+     "unitCostDollars": null
+    },
+    {
+     "fy": 2026,
+     "quantity": null,
+     "requestDollarsThousands": 27675,
+     "unitCostDollars": null
+    },
+    {
+     "fy": 2027,
+     "quantity": null,
+     "requestDollarsThousands": 17107,
+     "unitCostDollars": null
+    }
+   ]
+  },
+  {
+   "peCode": "1810N6028",
+   "title": "Tactical Vehicles",
+   "budgetActivity": "BA 05 — Civil engineering support equipment",
+   "lineNumber": "1810N6028",
+   "programOfRecord": null,
+   "fyData": [
+    {
+     "fy": 2025,
+     "quantity": null,
+     "requestDollarsThousands": 36355,
+     "unitCostDollars": null
+    },
+    {
+     "fy": 2026,
+     "quantity": null,
+     "requestDollarsThousands": 37262,
+     "unitCostDollars": null
+    },
+    {
+     "fy": 2027,
+     "quantity": null,
+     "requestDollarsThousands": 46796,
+     "unitCostDollars": null
+    }
+   ]
+  },
+  {
+   "peCode": "1810N6033",
+   "title": "Amphibious Equipment",
+   "budgetActivity": "BA 05 — Civil engineering support equipment",
+   "lineNumber": "1810N6033",
+   "programOfRecord": null,
+   "fyData": [
+    {
+     "fy": 2025,
+     "quantity": null,
+     "requestDollarsThousands": 6454,
+     "unitCostDollars": null
+    },
+    {
+     "fy": 2026,
+     "quantity": null,
+     "requestDollarsThousands": 38073,
+     "unitCostDollars": null
+    },
+    {
+     "fy": 2027,
+     "quantity": null,
+     "requestDollarsThousands": 53916,
+     "unitCostDollars": null
+    }
+   ]
+  },
+  {
+   "peCode": "1810N6058",
+   "title": "Pollution Control Equipment",
+   "budgetActivity": "BA 05 — Civil engineering support equipment",
+   "lineNumber": "1810N6058",
+   "programOfRecord": null,
+   "fyData": [
+    {
+     "fy": 2025,
+     "quantity": null,
+     "requestDollarsThousands": 3924,
+     "unitCostDollars": null
+    },
+    {
+     "fy": 2026,
+     "quantity": null,
+     "requestDollarsThousands": 4009,
+     "unitCostDollars": null
+    },
+    {
+     "fy": 2027,
+     "quantity": null,
+     "requestDollarsThousands": 3586,
+     "unitCostDollars": null
+    }
+   ]
+  },
+  {
+   "peCode": "1810N6060",
+   "title": "Items less than $5 Million",
+   "budgetActivity": "BA 05 — Civil engineering support equipment",
+   "lineNumber": "1810N6060",
+   "programOfRecord": null,
+   "fyData": [
+    {
+     "fy": 2025,
+     "quantity": null,
+     "requestDollarsThousands": 103014,
+     "unitCostDollars": null
+    },
+    {
+     "fy": 2026,
+     "quantity": null,
+     "requestDollarsThousands": 127086,
+     "unitCostDollars": null
+    },
+    {
+     "fy": 2027,
+     "quantity": null,
+     "requestDollarsThousands": 131449,
+     "unitCostDollars": null
+    }
+   ]
+  },
+  {
+   "peCode": "1810N6075",
+   "title": "Physical Security Vehicles Engineering Support Equipment",
+   "budgetActivity": "BA 05 — Civil engineering support equipment",
+   "lineNumber": "1810N6075",
+   "programOfRecord": null,
+   "fyData": [
+    {
+     "fy": 2025,
+     "quantity": null,
+     "requestDollarsThousands": 1301,
+     "unitCostDollars": null
+    },
+    {
+     "fy": 2026,
+     "quantity": null,
+     "requestDollarsThousands": 1297,
+     "unitCostDollars": null
+    },
+    {
+     "fy": 2027,
+     "quantity": null,
+     "requestDollarsThousands": 998,
+     "unitCostDollars": null
+    }
+   ]
+  },
+  {
+   "peCode": "1810N7025",
+   "title": "Supply Equipment",
+   "budgetActivity": "BA 06 — Supply support equipment",
+   "lineNumber": "1810N7025",
+   "programOfRecord": null,
+   "fyData": [
+    {
+     "fy": 2025,
+     "quantity": null,
+     "requestDollarsThousands": 56585,
+     "unitCostDollars": null
+    },
+    {
+     "fy": 2026,
+     "quantity": null,
+     "requestDollarsThousands": 40800,
+     "unitCostDollars": null
+    },
+    {
+     "fy": 2027,
+     "quantity": null,
+     "requestDollarsThousands": 67828,
+     "unitCostDollars": null
+    }
+   ]
+  },
+  {
+   "peCode": "1810N7066",
+   "title": "First Destination Transportation",
+   "budgetActivity": "BA 06 — Supply support equipment",
+   "lineNumber": "1810N7066",
+   "programOfRecord": null,
+   "fyData": [
+    {
+     "fy": 2025,
+     "quantity": null,
+     "requestDollarsThousands": 6463,
+     "unitCostDollars": null
+    },
+    {
+     "fy": 2026,
+     "quantity": null,
+     "requestDollarsThousands": 6203,
+     "unitCostDollars": null
+    },
+    {
+     "fy": 2027,
+     "quantity": null,
+     "requestDollarsThousands": 4732,
+     "unitCostDollars": null
+    }
+   ]
+  },
+  {
+   "peCode": "1810N7069",
+   "title": "Special Purpose Supply Systems Devices",
+   "budgetActivity": "BA 06 — Supply support equipment",
+   "lineNumber": "1810N7069",
+   "programOfRecord": null,
+   "fyData": [
+    {
+     "fy": 2025,
+     "quantity": null,
+     "requestDollarsThousands": 985996,
+     "unitCostDollars": null
+    },
+    {
+     "fy": 2026,
+     "quantity": null,
+     "requestDollarsThousands": 666618,
+     "unitCostDollars": null
+    },
+    {
+     "fy": 2027,
+     "quantity": null,
+     "requestDollarsThousands": 323644,
+     "unitCostDollars": null
+    }
+   ]
+  },
+  {
+   "peCode": "1810N8081",
+   "title": "Training Support Equipment",
+   "budgetActivity": "BA 07 — Personnel and command support equipment",
+   "lineNumber": "1810N8081",
+   "programOfRecord": null,
+   "fyData": [
+    {
+     "fy": 2025,
+     "quantity": null,
+     "requestDollarsThousands": 5341,
+     "unitCostDollars": null
+    },
+    {
+     "fy": 2026,
+     "quantity": null,
+     "requestDollarsThousands": 3480,
+     "unitCostDollars": null
+    },
+    {
+     "fy": 2027,
+     "quantity": null,
+     "requestDollarsThousands": 10608,
+     "unitCostDollars": null
+    }
+   ]
+  },
+  {
+   "peCode": "1810N8101",
+   "title": "Training and Education Equipment Support Equipment",
+   "budgetActivity": "BA 07 — Personnel and command support equipment",
+   "lineNumber": "1810N8101",
+   "programOfRecord": null,
+   "fyData": [
+    {
+     "fy": 2025,
+     "quantity": null,
+     "requestDollarsThousands": 43126,
+     "unitCostDollars": null
+    },
+    {
+     "fy": 2026,
+     "quantity": null,
+     "requestDollarsThousands": 73631,
+     "unitCostDollars": null
+    },
+    {
+     "fy": 2027,
+     "quantity": null,
+     "requestDollarsThousands": 331016,
+     "unitCostDollars": null
+    }
+   ]
+  },
+  {
+   "peCode": "1810N8106",
+   "title": "Command Support Equipment",
+   "budgetActivity": "BA 07 — Personnel and command support equipment",
+   "lineNumber": "1810N8106",
+   "programOfRecord": null,
+   "fyData": [
+    {
+     "fy": 2025,
+     "quantity": null,
+     "requestDollarsThousands": 29698,
+     "unitCostDollars": null
+    },
+    {
+     "fy": 2026,
+     "quantity": null,
+     "requestDollarsThousands": 34249,
+     "unitCostDollars": null
+    },
+    {
+     "fy": 2027,
+     "quantity": null,
+     "requestDollarsThousands": 55202,
+     "unitCostDollars": null
+    }
+   ]
+  },
+  {
+   "peCode": "1810N8109",
+   "title": "Medical Support Equipment",
+   "budgetActivity": "BA 07 — Personnel and command support equ",
+   "lineNumber": "1810N8109",
+   "programOfRecord": null,
+   "fyData": [
+    {
+     "fy": 2025,
+     "quantity": null,
+     "requestDollarsThousands": 10122,
+     "unitCostDollars": null
+    },
+    {
+     "fy": 2026,
+     "quantity": null,
+     "requestDollarsThousands": 24256,
+     "unitCostDollars": null
+    },
+    {
+     "fy": 2027,
+     "quantity": null,
+     "requestDollarsThousands": 54862,
+     "unitCostDollars": null
+    }
+   ]
+  },
+  {
+   "peCode": "1810N8114",
+   "title": "Naval MIP Support Equipment",
+   "budgetActivity": "BA 07 — Personnel and command support equ",
+   "lineNumber": "1810N8114",
+   "programOfRecord": null,
+   "fyData": [
+    {
+     "fy": 2025,
+     "quantity": null,
+     "requestDollarsThousands": 6590,
+     "unitCostDollars": null
+    },
+    {
+     "fy": 2026,
+     "quantity": null,
+     "requestDollarsThousands": 30756,
+     "unitCostDollars": null
+    },
+    {
+     "fy": 2027,
+     "quantity": null,
+     "requestDollarsThousands": 5213,
+     "unitCostDollars": null
+    }
+   ]
+  },
+  {
+   "peCode": "1810N8118",
+   "title": "Operating Forces Support Equipment",
+   "budgetActivity": "BA 07 — Personnel and command support equ",
+   "lineNumber": "1810N8118",
+   "programOfRecord": null,
+   "fyData": [
+    {
+     "fy": 2025,
+     "quantity": null,
+     "requestDollarsThousands": 17941,
+     "unitCostDollars": null
+    },
+    {
+     "fy": 2026,
+     "quantity": null,
+     "requestDollarsThousands": 16567,
+     "unitCostDollars": null
+    },
+    {
+     "fy": 2027,
+     "quantity": null,
+     "requestDollarsThousands": 15107,
+     "unitCostDollars": null
+    }
+   ]
+  },
+  {
+   "peCode": "1810N8120",
+   "title": "C4ISR Equipment",
+   "budgetActivity": "BA 07 — Personnel and command support equ",
+   "lineNumber": "1810N8120",
+   "programOfRecord": null,
+   "fyData": [
+    {
+     "fy": 2025,
+     "quantity": null,
+     "requestDollarsThousands": 33606,
+     "unitCostDollars": null
+    },
+    {
+     "fy": 2026,
+     "quantity": null,
+     "requestDollarsThousands": 36945,
+     "unitCostDollars": null
+    },
+    {
+     "fy": 2027,
+     "quantity": null,
+     "requestDollarsThousands": 33975,
+     "unitCostDollars": null
+    }
+   ]
+  },
+  {
+   "peCode": "1810N8126",
+   "title": "Environmental Support Equipment",
+   "budgetActivity": "BA 07 — Personnel and command support equ",
+   "lineNumber": "1810N8126",
+   "programOfRecord": null,
+   "fyData": [
+    {
+     "fy": 2025,
+     "quantity": null,
+     "requestDollarsThousands": 47499,
+     "unitCostDollars": null
+    },
+    {
+     "fy": 2026,
+     "quantity": null,
+     "requestDollarsThousands": 42860,
+     "unitCostDollars": null
+    },
+    {
+     "fy": 2027,
+     "quantity": null,
+     "requestDollarsThousands": 60467,
+     "unitCostDollars": null
+    }
+   ]
+  },
+  {
+   "peCode": "1810N8128",
+   "title": "Physical Security Equipment",
+   "budgetActivity": "BA 07 — Personnel and command support equ",
+   "lineNumber": "1810N8128",
+   "programOfRecord": null,
+   "fyData": [
+    {
+     "fy": 2025,
+     "quantity": null,
+     "requestDollarsThousands": 138799,
+     "unitCostDollars": null
+    },
+    {
+     "fy": 2026,
+     "quantity": null,
+     "requestDollarsThousands": 166577,
+     "unitCostDollars": null
+    },
+    {
+     "fy": 2027,
+     "quantity": null,
+     "requestDollarsThousands": 218037,
+     "unitCostDollars": null
+    }
+   ]
+  },
+  {
+   "peCode": "1810N8161",
+   "title": "Enterprise Information Technology",
+   "budgetActivity": "BA 07 — Personnel and command support equ",
+   "lineNumber": "1810N8161",
+   "programOfRecord": null,
+   "fyData": [
+    {
+     "fy": 2025,
+     "quantity": null,
+     "requestDollarsThousands": 42026,
+     "unitCostDollars": null
+    },
+    {
+     "fy": 2026,
+     "quantity": null,
+     "requestDollarsThousands": 42363,
+     "unitCostDollars": null
+    },
+    {
+     "fy": 2027,
+     "quantity": null,
+     "requestDollarsThousands": 40490,
+     "unitCostDollars": null
+    }
+   ]
+  },
+  {
+   "peCode": "1810N8164",
+   "title": "Next Generation Enterprise Service",
+   "budgetActivity": "BA 07 — Personnel and command support equ",
+   "lineNumber": "1810N8164",
+   "programOfRecord": null,
+   "fyData": [
+    {
+     "fy": 2025,
+     "quantity": null,
+     "requestDollarsThousands": 226479,
+     "unitCostDollars": null
+    },
+    {
+     "fy": 2026,
+     "quantity": null,
+     "requestDollarsThousands": 185755,
+     "unitCostDollars": null
+    },
+    {
+     "fy": 2027,
+     "quantity": null,
+     "requestDollarsThousands": 223647,
+     "unitCostDollars": null
+    }
+   ]
+  },
+  {
+   "peCode": "1810N8645",
+   "title": "Cyberspace Activities Programs",
+   "budgetActivity": "BA 07 — Personnel and command support equ",
+   "lineNumber": "1810N8645",
+   "programOfRecord": null,
+   "fyData": [
+    {
+     "fy": 2025,
+     "quantity": null,
+     "requestDollarsThousands": 2195,
+     "unitCostDollars": null
+    },
+    {
+     "fy": 2026,
+     "quantity": null,
+     "requestDollarsThousands": 2239,
+     "unitCostDollars": null
+    },
+    {
+     "fy": 2027,
+     "quantity": null,
+     "requestDollarsThousands": 7131,
+     "unitCostDollars": null
+    }
+   ]
+  },
+  {
+   "peCode": "1810N9020",
+   "title": "Spares and Repair Parts Programs",
+   "budgetActivity": "BA 08 — Spares and repair parts",
+   "lineNumber": "1810N9020",
+   "programOfRecord": null,
+   "fyData": [
+    {
+     "fy": 2025,
+     "quantity": null,
+     "requestDollarsThousands": 1007643,
+     "unitCostDollars": null
+    },
+    {
+     "fy": 2026,
+     "quantity": null,
+     "requestDollarsThousands": 2146965,
+     "unitCostDollars": null
+    },
+    {
+     "fy": 2027,
+     "quantity": null,
+     "requestDollarsThousands": 765711,
+     "unitCostDollars": null
+    }
+   ]
+  }
+ ]
+}

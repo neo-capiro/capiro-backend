@@ -1,0 +1,655 @@
+{
+ "service": "SF",
+ "fy": 2027,
+ "sourceUrl": "FY2027 P-40 justification books (TOC-keyed)",
+ "pes": [
+  {
+   "peCode": "3022FAFSCOM",
+   "title": "AF Satellite Comm System Space Based Air Moving Target",
+   "budgetActivity": "BA 01 — SPACE PROCUREMENT, SF",
+   "lineNumber": "3022FAFSCOM",
+   "programOfRecord": null,
+   "fyData": [
+    {
+     "fy": 2025,
+     "quantity": null,
+     "requestDollarsThousands": 88836,
+     "unitCostDollars": null
+    },
+    {
+     "fy": 2026,
+     "quantity": null,
+     "requestDollarsThousands": 68238,
+     "unitCostDollars": null
+    },
+    {
+     "fy": 2027,
+     "quantity": null,
+     "requestDollarsThousands": 54391,
+     "unitCostDollars": null
+    }
+   ]
+  },
+  {
+   "peCode": "3022FAUX000",
+   "title": "Auxiliary Payloads",
+   "budgetActivity": "BA 01 — SPACE PROCUREMENT, SF",
+   "lineNumber": "3022FAUX000",
+   "programOfRecord": null,
+   "fyData": [
+    {
+     "fy": 2026,
+     "quantity": null,
+     "requestDollarsThousands": 156244,
+     "unitCostDollars": null
+    },
+    {
+     "fy": 2027,
+     "quantity": null,
+     "requestDollarsThousands": 241076,
+     "unitCostDollars": null
+    }
+   ]
+  },
+  {
+   "peCode": "3022FCTRSPC",
+   "title": "Counterspace Systems",
+   "budgetActivity": "BA 01 — SPACE PROCUREMENT, SF",
+   "lineNumber": "3022FCTRSPC",
+   "programOfRecord": null,
+   "fyData": [
+    {
+     "fy": 2025,
+     "quantity": null,
+     "requestDollarsThousands": 4277,
+     "unitCostDollars": null
+    },
+    {
+     "fy": 2026,
+     "quantity": null,
+     "requestDollarsThousands": 2027,
+     "unitCostDollars": null
+    },
+    {
+     "fy": 2027,
+     "quantity": null,
+     "requestDollarsThousands": 459466,
+     "unitCostDollars": null
+    }
+   ]
+  },
+  {
+   "peCode": "3022FESS000",
+   "title": "Evolved Strategic SATCOM (ESS) Advance Procurement (CY) Family of Beyond Line-of-Sight",
+   "budgetActivity": "BA 01 — SPACE PROCUREMENT, SF",
+   "lineNumber": "3022FESS000",
+   "programOfRecord": null,
+   "fyData": [
+    {
+     "fy": 2027,
+     "quantity": null,
+     "requestDollarsThousands": 139700,
+     "unitCostDollars": null
+    }
+   ]
+  },
+  {
+   "peCode": "3022FFBLOST",
+   "title": "Terminals",
+   "budgetActivity": "BA 01 — SPACE PROCUREMENT, SF",
+   "lineNumber": "3022FFBLOST",
+   "programOfRecord": null,
+   "fyData": [
+    {
+     "fy": 2025,
+     "quantity": null,
+     "requestDollarsThousands": 20717,
+     "unitCostDollars": null
+    },
+    {
+     "fy": 2026,
+     "quantity": null,
+     "requestDollarsThousands": 15404,
+     "unitCostDollars": null
+    }
+   ]
+  },
+  {
+   "peCode": "3022FFET000",
+   "title": "FABT FORCE ELEMENT TERMINAL Wideband Gapfiller",
+   "budgetActivity": "BA 01 — SPACE PROCUREMENT, SF",
+   "lineNumber": "3022FFET000",
+   "programOfRecord": null,
+   "fyData": [
+    {
+     "fy": 2025,
+     "quantity": null,
+     "requestDollarsThousands": 206702,
+     "unitCostDollars": null
+    }
+   ]
+  },
+  {
+   "peCode": "3022FGAP000",
+   "title": "Satellites(Space) Procurement, SF",
+   "budgetActivity": "BA 01 — SPACE PROCUREMENT, SF",
+   "lineNumber": "3022FGAP000",
+   "programOfRecord": null,
+   "fyData": [
+    {
+     "fy": 2025,
+     "quantity": null,
+     "requestDollarsThousands": 10020,
+     "unitCostDollars": null
+    }
+   ]
+  },
+  {
+   "peCode": "3022FGMTI00",
+   "title": "Ground Moving Target Indicator (GMT",
+   "budgetActivity": "BA 01 — SPACE PROCUREMENT, SF",
+   "lineNumber": "3022FGMTI00",
+   "programOfRecord": null,
+   "fyData": [
+    {
+     "fy": 2026,
+     "quantity": null,
+     "requestDollarsThousands": 154500,
+     "unitCostDollars": null
+    },
+    {
+     "fy": 2027,
+     "quantity": null,
+     "requestDollarsThousands": 1016612,
+     "unitCostDollars": null
+    }
+   ]
+  },
+  {
+   "peCode": "3022FGNRLIT",
+   "title": "General Information Tech - Space",
+   "budgetActivity": "BA 01 — SPACE PROCUREMENT, SF",
+   "lineNumber": "3022FGNRLIT",
+   "programOfRecord": null,
+   "fyData": [
+    {
+     "fy": 2025,
+     "quantity": null,
+     "requestDollarsThousands": 2189,
+     "unitCostDollars": null
+    },
+    {
+     "fy": 2026,
+     "quantity": null,
+     "requestDollarsThousands": 1835,
+     "unitCostDollars": null
+    },
+    {
+     "fy": 2027,
+     "quantity": null,
+     "requestDollarsThousands": 14895,
+     "unitCostDollars": null
+    }
+   ]
+  },
+  {
+   "peCode": "3022FGPS03C",
+   "title": "GPSIII Follow On",
+   "budgetActivity": "BA 01 — SPACE PROCUREMENT, SF",
+   "lineNumber": "3022FGPS03C",
+   "programOfRecord": null,
+   "fyData": [
+    {
+     "fy": 2025,
+     "quantity": 2,
+     "requestDollarsThousands": 647165,
+     "unitCostDollars": 323582500
+    },
+    {
+     "fy": 2026,
+     "quantity": 2,
+     "requestDollarsThousands": 637944,
+     "unitCostDollars": 318972000
+    },
+    {
+     "fy": 2027,
+     "quantity": 2,
+     "requestDollarsThousands": 680875,
+     "unitCostDollars": 340437500
+    }
+   ]
+  },
+  {
+   "peCode": "3022FGPSIII",
+   "title": "GPS III Space Segment",
+   "budgetActivity": "BA 01 — SPACE PROCUREMENT, SF",
+   "lineNumber": "3022FGPSIII",
+   "programOfRecord": null,
+   "fyData": [
+    {
+     "fy": 2025,
+     "quantity": null,
+     "requestDollarsThousands": 54805,
+     "unitCostDollars": null
+    },
+    {
+     "fy": 2026,
+     "quantity": null,
+     "requestDollarsThousands": 29274,
+     "unitCostDollars": null
+    }
+   ]
+  },
+  {
+   "peCode": "3022FGPSSPC",
+   "title": "Global Postioning (Space)",
+   "budgetActivity": "BA 01 — SPACE PROCUREMENT, SF",
+   "lineNumber": "3022FGPSSPC",
+   "programOfRecord": null,
+   "fyData": [
+    {
+     "fy": 2025,
+     "quantity": null,
+     "requestDollarsThousands": 835,
+     "unitCostDollars": null
+    },
+    {
+     "fy": 2026,
+     "quantity": null,
+     "requestDollarsThousands": 870,
+     "unitCostDollars": null
+    }
+   ]
+  },
+  {
+   "peCode": "3022FMC0MSE",
+   "title": "Spaceborne Equip (Comsec)",
+   "budgetActivity": "BA 01 — SPACE PROCUREMENT, SF",
+   "lineNumber": "3022FMC0MSE",
+   "programOfRecord": null,
+   "fyData": [
+    {
+     "fy": 2025,
+     "quantity": null,
+     "requestDollarsThousands": 83829,
+     "unitCostDollars": null
+    },
+    {
+     "fy": 2026,
+     "quantity": null,
+     "requestDollarsThousands": 84044,
+     "unitCostDollars": null
+    },
+    {
+     "fy": 2027,
+     "quantity": null,
+     "requestDollarsThousands": 95061,
+     "unitCostDollars": null
+    }
+   ]
+  },
+  {
+   "peCode": "3022FMILSAT",
+   "title": "MILSATCOM",
+   "budgetActivity": "BA 01 — SPACE PROCUREMENT, SF",
+   "lineNumber": "3022FMILSAT",
+   "programOfRecord": null,
+   "fyData": [
+    {
+     "fy": 2025,
+     "quantity": null,
+     "requestDollarsThousands": 37684,
+     "unitCostDollars": null
+    },
+    {
+     "fy": 2026,
+     "quantity": null,
+     "requestDollarsThousands": 36447,
+     "unitCostDollars": null
+    },
+    {
+     "fy": 2027,
+     "quantity": null,
+     "requestDollarsThousands": 38067,
+     "unitCostDollars": null
+    }
+   ]
+  },
+  {
+   "peCode": "3022FMSSBIR",
+   "title": "SBIR High (Space)",
+   "budgetActivity": "BA 01 — SPACE PROCUREMENT, SF",
+   "lineNumber": "3022FMSSBIR",
+   "programOfRecord": null,
+   "fyData": [
+    {
+     "fy": 2025,
+     "quantity": null,
+     "requestDollarsThousands": 59300,
+     "unitCostDollars": null
+    }
+   ]
+  },
+  {
+   "peCode": "3022FMSSPAC",
+   "title": "Special Space Activities",
+   "budgetActivity": "BA 01 — SPACE PROCUREMENT, SF",
+   "lineNumber": "3022FMSSPAC",
+   "programOfRecord": null,
+   "fyData": [
+    {
+     "fy": 2025,
+     "quantity": null,
+     "requestDollarsThousands": 411697,
+     "unitCostDollars": null
+    },
+    {
+     "fy": 2026,
+     "quantity": null,
+     "requestDollarsThousands": 712353,
+     "unitCostDollars": null
+    },
+    {
+     "fy": 2027,
+     "quantity": null,
+     "requestDollarsThousands": 2021299,
+     "unitCostDollars": null
+    }
+   ]
+  },
+  {
+   "peCode": "3022FMUOS00",
+   "title": "Mobile User Objective System",
+   "budgetActivity": "BA 01 — SPACE PROCUREMENT, SF",
+   "lineNumber": "3022FMUOS00",
+   "programOfRecord": null,
+   "fyData": [
+    {
+     "fy": 2025,
+     "quantity": null,
+     "requestDollarsThousands": 64665,
+     "unitCostDollars": null
+    },
+    {
+     "fy": 2026,
+     "quantity": null,
+     "requestDollarsThousands": 48977,
+     "unitCostDollars": null
+    },
+    {
+     "fy": 2027,
+     "quantity": null,
+     "requestDollarsThousands": 50640,
+     "unitCostDollars": null
+    }
+   ]
+  },
+  {
+   "peCode": "3022FNSSL00",
+   "title": "National Security Space Launch Proliferated Low Earth Orbit",
+   "budgetActivity": "BA 01 — SPACE PROCUREMENT, SF",
+   "lineNumber": "3022FNSSL00",
+   "programOfRecord": null,
+   "fyData": [
+    {
+     "fy": 2025,
+     "quantity": 7,
+     "requestDollarsThousands": 1769486,
+     "unitCostDollars": 252783714
+    },
+    {
+     "fy": 2026,
+     "quantity": 4,
+     "requestDollarsThousands": 1329263,
+     "unitCostDollars": 332315750
+    },
+    {
+     "fy": 2027,
+     "quantity": 22,
+     "requestDollarsThousands": 4189958,
+     "unitCostDollars": 190452636
+    }
+   ]
+  },
+  {
+   "peCode": "3022FPTES00",
+   "title": "PTES HUB",
+   "budgetActivity": "BA 01 — SPACE PROCUREMENT, SF",
+   "lineNumber": "3022FPTES00",
+   "programOfRecord": null,
+   "fyData": [
+    {
+     "fy": 2025,
+     "quantity": 12,
+     "requestDollarsThousands": 56148,
+     "unitCostDollars": 4679000
+    },
+    {
+     "fy": 2026,
+     "quantity": null,
+     "requestDollarsThousands": 29949,
+     "unitCostDollars": null
+    },
+    {
+     "fy": 2027,
+     "quantity": null,
+     "requestDollarsThousands": 12046,
+     "unitCostDollars": null
+    }
+   ]
+  },
+  {
+   "peCode": "3022FSDALCH",
+   "title": "Space Development Agency Launch Space Digital Integrated Network",
+   "budgetActivity": "BA 01 — SPACE PROCUREMENT, SF",
+   "lineNumber": "3022FSDALCH",
+   "programOfRecord": null,
+   "fyData": [
+    {
+     "fy": 2025,
+     "quantity": 4,
+     "requestDollarsThousands": 326868,
+     "unitCostDollars": 81717000
+    },
+    {
+     "fy": 2026,
+     "quantity": 7,
+     "requestDollarsThousands": 648446,
+     "unitCostDollars": 92635143
+    },
+    {
+     "fy": 2027,
+     "quantity": 9,
+     "requestDollarsThousands": 835197,
+     "unitCostDollars": 92799667
+    }
+   ]
+  },
+  {
+   "peCode": "3022FSDN000",
+   "title": "(SDIN)",
+   "budgetActivity": "BA 01 — SPACE PROCUREMENT, SF",
+   "lineNumber": "3022FSDN000",
+   "programOfRecord": null,
+   "fyData": [
+    {
+     "fy": 2026,
+     "quantity": null,
+     "requestDollarsThousands": 4984,
+     "unitCostDollars": null
+    },
+    {
+     "fy": 2027,
+     "quantity": null,
+     "requestDollarsThousands": 5119,
+     "unitCostDollars": null
+    }
+   ]
+  },
+  {
+   "peCode": "3022FSPCMOD",
+   "title": "Space Mods",
+   "budgetActivity": "BA 01 — SPACE PROCUREMENT, SF",
+   "lineNumber": "3022FSPCMOD",
+   "programOfRecord": null,
+   "fyData": [
+    {
+     "fy": 2025,
+     "quantity": null,
+     "requestDollarsThousands": 48152,
+     "unitCostDollars": null
+    },
+    {
+     "fy": 2026,
+     "quantity": null,
+     "requestDollarsThousands": 115498,
+     "unitCostDollars": null
+    },
+    {
+     "fy": 2027,
+     "quantity": null,
+     "requestDollarsThousands": 448674,
+     "unitCostDollars": null
+    }
+   ]
+  },
+  {
+   "peCode": "3022FSPRNGE",
+   "title": "Spacelift Range System Space Wideband SATCOM Operational",
+   "budgetActivity": "BA 01 — SPACE PROCUREMENT, SF",
+   "lineNumber": "3022FSPRNGE",
+   "programOfRecord": null,
+   "fyData": [
+    {
+     "fy": 2025,
+     "quantity": null,
+     "requestDollarsThousands": 63798,
+     "unitCostDollars": null
+    },
+    {
+     "fy": 2026,
+     "quantity": null,
+     "requestDollarsThousands": 64321,
+     "unitCostDollars": null
+    },
+    {
+     "fy": 2027,
+     "quantity": null,
+     "requestDollarsThousands": 64885,
+     "unitCostDollars": null
+    }
+   ]
+  },
+  {
+   "peCode": "3022FWSOMS0",
+   "title": "Management Systems",
+   "budgetActivity": "BA 01 — SPACE PROCUREMENT, SF",
+   "lineNumber": "3022FWSOMS0",
+   "programOfRecord": null,
+   "fyData": [
+    {
+     "fy": 2026,
+     "quantity": null,
+     "requestDollarsThousands": 92380,
+     "unitCostDollars": null
+    },
+    {
+     "fy": 2027,
+     "quantity": null,
+     "requestDollarsThousands": 81483,
+     "unitCostDollars": null
+    }
+   ]
+  },
+  {
+   "peCode": "3022FSSPARE",
+   "title": "Spares and Repair Parts Vehicles",
+   "budgetActivity": "BA 02 — SPARES",
+   "lineNumber": "3022FSSPARE",
+   "programOfRecord": null,
+   "fyData": [
+    {
+     "fy": 2025,
+     "quantity": null,
+     "requestDollarsThousands": 722,
+     "unitCostDollars": null
+    },
+    {
+     "fy": 2026,
+     "quantity": null,
+     "requestDollarsThousands": 938,
+     "unitCostDollars": null
+    },
+    {
+     "fy": 2027,
+     "quantity": null,
+     "requestDollarsThousands": 971,
+     "unitCostDollars": null
+    }
+   ]
+  },
+  {
+   "peCode": "3022FSFV000",
+   "title": "USSF Vehicles Carrying Vehicles",
+   "budgetActivity": "BA 03 — Ground Vehicular Equipment",
+   "lineNumber": "3022FSFV000",
+   "programOfRecord": null,
+   "fyData": [
+    {
+     "fy": 2026,
+     "quantity": null,
+     "requestDollarsThousands": 5000,
+     "unitCostDollars": null
+    },
+    {
+     "fy": 2027,
+     "quantity": null,
+     "requestDollarsThousands": 6032,
+     "unitCostDollars": null
+    }
+   ]
+  },
+  {
+   "peCode": "3022FSFV000",
+   "title": "USSF Replacement Vehicles Equipment",
+   "budgetActivity": "BA 03 — Ground Vehicular Equipment",
+   "lineNumber": "3022FSFV000",
+   "programOfRecord": null,
+   "fyData": [
+    {
+     "fy": 2025,
+     "quantity": null,
+     "requestDollarsThousands": 4919,
+     "unitCostDollars": null
+    }
+   ]
+  },
+  {
+   "peCode": "3022FPOWCON",
+   "title": "Power Conditioning Equipment Vehicles",
+   "budgetActivity": "BA 04 — Other Base Maintenance and Support Equipment",
+   "lineNumber": "3022FPOWCON",
+   "programOfRecord": null,
+   "fyData": [
+    {
+     "fy": 2025,
+     "quantity": null,
+     "requestDollarsThousands": 3189,
+     "unitCostDollars": null
+    },
+    {
+     "fy": 2026,
+     "quantity": null,
+     "requestDollarsThousands": 20449,
+     "unitCostDollars": null
+    },
+    {
+     "fy": 2027,
+     "quantity": null,
+     "requestDollarsThousands": 7906,
+     "unitCostDollars": null
+    }
+   ]
+  }
+ ]
+}

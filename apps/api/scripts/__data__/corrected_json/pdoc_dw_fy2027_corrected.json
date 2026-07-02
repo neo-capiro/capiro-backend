@@ -1,0 +1,727 @@
+{
+ "service": "DW",
+ "fy": 2027,
+ "sourceUrl": "FY2027 P-40 justification books (TOC-keyed)",
+ "pes": [
+  {
+   "peCode": "0300D500",
+   "title": "Major Equipment",
+   "budgetActivity": "BA 01 — Major equipment",
+   "lineNumber": "0300D500",
+   "programOfRecord": null,
+   "fyData": [
+    {
+     "fy": 2025,
+     "quantity": null,
+     "requestDollarsThousands": 53777,
+     "unitCostDollars": null
+    },
+    {
+     "fy": 2026,
+     "quantity": null,
+     "requestDollarsThousands": 79251,
+     "unitCostDollars": null
+    },
+    {
+     "fy": 2027,
+     "quantity": null,
+     "requestDollarsThousands": 24257,
+     "unitCostDollars": null
+    }
+   ]
+  },
+  {
+   "peCode": "0300D0201ARMOWT",
+   "title": "Armed Overwatch/Targeting",
+   "budgetActivity": "BA 02 — Special Operations Command",
+   "lineNumber": "0300D0201ARMOWT",
+   "programOfRecord": null,
+   "fyData": [
+    {
+     "fy": 2025,
+     "quantity": 12,
+     "requestDollarsThousands": 313105,
+     "unitCostDollars": 26092083
+    },
+    {
+     "fy": 2026,
+     "quantity": 6,
+     "requestDollarsThousands": 147297,
+     "unitCostDollars": 24549500
+    }
+   ]
+  },
+  {
+   "peCode": "0300D0201MANISR",
+   "title": "Manned ISR",
+   "budgetActivity": "BA 02 — Special Operations Command",
+   "lineNumber": "0300D0201MANISR",
+   "programOfRecord": null,
+   "fyData": [
+    {
+     "fy": 2025,
+     "quantity": null,
+     "requestDollarsThousands": 2500,
+     "unitCostDollars": null
+    }
+   ]
+  },
+  {
+   "peCode": "0300D0201MC12",
+   "title": "MC-12",
+   "budgetActivity": "BA 02 — Special Operations Command",
+   "lineNumber": "0300D0201MC12",
+   "programOfRecord": null,
+   "fyData": [
+    {
+     "fy": 2025,
+     "quantity": null,
+     "requestDollarsThousands": 400,
+     "unitCostDollars": null
+    }
+   ]
+  },
+  {
+   "peCode": "0300D0201MH60",
+   "title": "MH-60 Blackhawk",
+   "budgetActivity": "BA 02 — Special Operations Command",
+   "lineNumber": "0300D0201MH60",
+   "programOfRecord": null,
+   "fyData": [
+    {
+     "fy": 2025,
+     "quantity": null,
+     "requestDollarsThousands": 22773,
+     "unitCostDollars": null
+    }
+   ]
+  },
+  {
+   "peCode": "0300D0201RWUPGR",
+   "title": "Rotary Wing Upgrades and Sustainment",
+   "budgetActivity": "BA 02 — Special Operations Command",
+   "lineNumber": "0300D0201RWUPGR",
+   "programOfRecord": null,
+   "fyData": [
+    {
+     "fy": 2025,
+     "quantity": null,
+     "requestDollarsThousands": 211661,
+     "unitCostDollars": null
+    },
+    {
+     "fy": 2026,
+     "quantity": null,
+     "requestDollarsThousands": 189059,
+     "unitCostDollars": null
+    },
+    {
+     "fy": 2027,
+     "quantity": null,
+     "requestDollarsThousands": 185930,
+     "unitCostDollars": null
+    }
+   ]
+  },
+  {
+   "peCode": "0300D0201SKYRAI",
+   "title": "SKYRAIDER II",
+   "budgetActivity": "BA 02 — Special Operations Command",
+   "lineNumber": "0300D0201SKYRAI",
+   "programOfRecord": null,
+   "fyData": [
+    {
+     "fy": 2027,
+     "quantity": 2,
+     "requestDollarsThousands": 59894,
+     "unitCostDollars": 29947000
+    }
+   ]
+  },
+  {
+   "peCode": "0300D0201UMNISR",
+   "title": "Unmanned ISR",
+   "budgetActivity": "BA 02 — Special Operations Command",
+   "lineNumber": "0300D0201UMNISR",
+   "programOfRecord": null,
+   "fyData": [
+    {
+     "fy": 2025,
+     "quantity": null,
+     "requestDollarsThousands": 33917,
+     "unitCostDollars": null
+    },
+    {
+     "fy": 2026,
+     "quantity": null,
+     "requestDollarsThousands": 9358,
+     "unitCostDollars": null
+    }
+   ]
+  },
+  {
+   "peCode": "0300D0207NSAV",
+   "title": "Non-Standard Aviation",
+   "budgetActivity": "BA 02 — Special Operations Command",
+   "lineNumber": "0300D0207NSAV",
+   "programOfRecord": null,
+   "fyData": [
+    {
+     "fy": 2025,
+     "quantity": null,
+     "requestDollarsThousands": 5471,
+     "unitCostDollars": null
+    },
+    {
+     "fy": 2026,
+     "quantity": null,
+     "requestDollarsThousands": 7849,
+     "unitCostDollars": null
+    },
+    {
+     "fy": 2027,
+     "quantity": null,
+     "requestDollarsThousands": 72650,
+     "unitCostDollars": null
+    }
+   ]
+  },
+  {
+   "peCode": "0300D0607U28",
+   "title": "U-28",
+   "budgetActivity": "BA 02 — Special Operations Command",
+   "lineNumber": "0300D0607U28",
+   "programOfRecord": null,
+   "fyData": [
+    {
+     "fy": 2025,
+     "quantity": null,
+     "requestDollarsThousands": 5259,
+     "unitCostDollars": null
+    },
+    {
+     "fy": 2026,
+     "quantity": null,
+     "requestDollarsThousands": 2031,
+     "unitCostDollars": null
+    }
+   ]
+  },
+  {
+   "peCode": "0300D0610MH47",
+   "title": "MH-47 Chinook",
+   "budgetActivity": "BA 02 — Special Operations Command",
+   "lineNumber": "0300D0610MH47",
+   "programOfRecord": null,
+   "fyData": [
+    {
+     "fy": 2025,
+     "quantity": null,
+     "requestDollarsThousands": 147002,
+     "unitCostDollars": null
+    },
+    {
+     "fy": 2026,
+     "quantity": null,
+     "requestDollarsThousands": 156934,
+     "unitCostDollars": null
+    },
+    {
+     "fy": 2027,
+     "quantity": null,
+     "requestDollarsThousands": 168411,
+     "unitCostDollars": null
+    }
+   ]
+  },
+  {
+   "peCode": "0300D1000CV2200",
+   "title": "CV-22 Modification",
+   "budgetActivity": "BA 02 — Special Operations Command",
+   "lineNumber": "0300D1000CV2200",
+   "programOfRecord": null,
+   "fyData": [
+    {
+     "fy": 2025,
+     "quantity": null,
+     "requestDollarsThousands": 40764,
+     "unitCostDollars": null
+    },
+    {
+     "fy": 2026,
+     "quantity": null,
+     "requestDollarsThousands": 19692,
+     "unitCostDollars": null
+    },
+    {
+     "fy": 2027,
+     "quantity": null,
+     "requestDollarsThousands": 9479,
+     "unitCostDollars": null
+    }
+   ]
+  },
+  {
+   "peCode": "0300D1108MQ9",
+   "title": "MQ-9 Unmanned Aerial Vehicle",
+   "budgetActivity": "BA 02 — Special Operations Command",
+   "lineNumber": "0300D1108MQ9",
+   "programOfRecord": null,
+   "fyData": [
+    {
+     "fy": 2025,
+     "quantity": null,
+     "requestDollarsThousands": 13543,
+     "unitCostDollars": null
+    },
+    {
+     "fy": 2026,
+     "quantity": null,
+     "requestDollarsThousands": 24880,
+     "unitCostDollars": null
+    },
+    {
+     "fy": 2027,
+     "quantity": null,
+     "requestDollarsThousands": 75841,
+     "unitCostDollars": null
+    }
+   ]
+  },
+  {
+   "peCode": "0300D1202PSP",
+   "title": "Precision Strike Package",
+   "budgetActivity": "BA 02 — Special Operations Command",
+   "lineNumber": "0300D1202PSP",
+   "programOfRecord": null,
+   "fyData": [
+    {
+     "fy": 2025,
+     "quantity": null,
+     "requestDollarsThousands": 57650,
+     "unitCostDollars": null
+    },
+    {
+     "fy": 2026,
+     "quantity": null,
+     "requestDollarsThousands": 58207,
+     "unitCostDollars": null
+    }
+   ]
+  },
+  {
+   "peCode": "0300D2012C130J",
+   "title": "AC/MC-130J",
+   "budgetActivity": "BA 02 — Special Operations Command",
+   "lineNumber": "0300D2012C130J",
+   "programOfRecord": null,
+   "fyData": [
+    {
+     "fy": 2025,
+     "quantity": null,
+     "requestDollarsThousands": 286263,
+     "unitCostDollars": null
+    },
+    {
+     "fy": 2026,
+     "quantity": null,
+     "requestDollarsThousands": 243378,
+     "unitCostDollars": null
+    },
+    {
+     "fy": 2027,
+     "quantity": null,
+     "requestDollarsThousands": 366857,
+     "unitCostDollars": null
+    }
+   ]
+  },
+  {
+   "peCode": "0300D2010US",
+   "title": "Underwater Systems",
+   "budgetActivity": "BA 02 — Special Operations Command",
+   "lineNumber": "0300D2010US",
+   "programOfRecord": null,
+   "fyData": [
+    {
+     "fy": 2025,
+     "quantity": null,
+     "requestDollarsThousands": 63850,
+     "unitCostDollars": null
+    },
+    {
+     "fy": 2026,
+     "quantity": null,
+     "requestDollarsThousands": 73025,
+     "unitCostDollars": null
+    },
+    {
+     "fy": 2027,
+     "quantity": null,
+     "requestDollarsThousands": 76879,
+     "unitCostDollars": null
+    }
+   ]
+  },
+  {
+   "peCode": "0300D0203ORD",
+   "title": "ORDNANCE ITEMS <$5M",
+   "budgetActivity": "BA 02 — Special Operations Command",
+   "lineNumber": "0300D0203ORD",
+   "programOfRecord": null,
+   "fyData": [
+    {
+     "fy": 2025,
+     "quantity": null,
+     "requestDollarsThousands": 132489,
+     "unitCostDollars": null
+    },
+    {
+     "fy": 2026,
+     "quantity": null,
+     "requestDollarsThousands": 113972,
+     "unitCostDollars": null
+    },
+    {
+     "fy": 2027,
+     "quantity": null,
+     "requestDollarsThousands": 237153,
+     "unitCostDollars": null
+    }
+   ]
+  },
+  {
+   "peCode": "0300D020400INTL",
+   "title": "Intelligence Systems",
+   "budgetActivity": "BA 02 — Special Operations Command",
+   "lineNumber": "0300D020400INTL",
+   "programOfRecord": null,
+   "fyData": [
+    {
+     "fy": 2025,
+     "quantity": null,
+     "requestDollarsThousands": 178184,
+     "unitCostDollars": null
+    },
+    {
+     "fy": 2026,
+     "quantity": null,
+     "requestDollarsThousands": 223226,
+     "unitCostDollars": null
+    },
+    {
+     "fy": 2027,
+     "quantity": null,
+     "requestDollarsThousands": 319241,
+     "unitCostDollars": null
+    }
+   ]
+  },
+  {
+   "peCode": "0300D020401INTL",
+   "title": "Distributed Common Ground/Surface Systems",
+   "budgetActivity": "BA 02 — Special Operations Command",
+   "lineNumber": "0300D020401INTL",
+   "programOfRecord": null,
+   "fyData": [
+    {
+     "fy": 2025,
+     "quantity": null,
+     "requestDollarsThousands": 3918,
+     "unitCostDollars": null
+    },
+    {
+     "fy": 2026,
+     "quantity": null,
+     "requestDollarsThousands": 2824,
+     "unitCostDollars": null
+    }
+   ]
+  },
+  {
+   "peCode": "0300D0204OTHER",
+   "title": "Other Items <$5M",
+   "budgetActivity": "BA 02 — Special Operations Command",
+   "lineNumber": "0300D0204OTHER",
+   "programOfRecord": null,
+   "fyData": [
+    {
+     "fy": 2025,
+     "quantity": null,
+     "requestDollarsThousands": 79326,
+     "unitCostDollars": null
+    },
+    {
+     "fy": 2026,
+     "quantity": null,
+     "requestDollarsThousands": 90220,
+     "unitCostDollars": null
+    },
+    {
+     "fy": 2027,
+     "quantity": null,
+     "requestDollarsThousands": 119047,
+     "unitCostDollars": null
+    }
+   ]
+  },
+  {
+   "peCode": "0300D0204SCCS",
+   "title": "Combatant Craft Systems",
+   "budgetActivity": "BA 02 — Special Operations Command",
+   "lineNumber": "0300D0204SCCS",
+   "programOfRecord": null,
+   "fyData": [
+    {
+     "fy": 2025,
+     "quantity": null,
+     "requestDollarsThousands": 78795,
+     "unitCostDollars": null
+    },
+    {
+     "fy": 2026,
+     "quantity": null,
+     "requestDollarsThousands": 43440,
+     "unitCostDollars": null
+    },
+    {
+     "fy": 2027,
+     "quantity": null,
+     "requestDollarsThousands": 33858,
+     "unitCostDollars": null
+    }
+   ]
+  },
+  {
+   "peCode": "0300D0204SPCPRG",
+   "title": "Special Programs",
+   "budgetActivity": "BA 02 — Special Operations Command",
+   "lineNumber": "0300D0204SPCPRG",
+   "programOfRecord": null,
+   "fyData": [
+    {
+     "fy": 2025,
+     "quantity": null,
+     "requestDollarsThousands": 20822,
+     "unitCostDollars": null
+    },
+    {
+     "fy": 2026,
+     "quantity": null,
+     "requestDollarsThousands": 55818,
+     "unitCostDollars": null
+    },
+    {
+     "fy": 2027,
+     "quantity": null,
+     "requestDollarsThousands": 130462,
+     "unitCostDollars": null
+    }
+   ]
+  },
+  {
+   "peCode": "0300D0204TACVEH",
+   "title": "Tactical Vehicles",
+   "budgetActivity": "BA 02 — Special Operations Command",
+   "lineNumber": "0300D0204TACVEH",
+   "programOfRecord": null,
+   "fyData": [
+    {
+     "fy": 2025,
+     "quantity": null,
+     "requestDollarsThousands": 65985,
+     "unitCostDollars": null
+    },
+    {
+     "fy": 2026,
+     "quantity": null,
+     "requestDollarsThousands": 54100,
+     "unitCostDollars": null
+    },
+    {
+     "fy": 2027,
+     "quantity": null,
+     "requestDollarsThousands": 36983,
+     "unitCostDollars": null
+    }
+   ]
+  },
+  {
+   "peCode": "0300D0204WARSYS",
+   "title": "Warrior Systems <$5M",
+   "budgetActivity": "BA 02 — Special Operations Command",
+   "lineNumber": "0300D0204WARSYS",
+   "programOfRecord": null,
+   "fyData": [
+    {
+     "fy": 2025,
+     "quantity": null,
+     "requestDollarsThousands": 406637,
+     "unitCostDollars": null
+    },
+    {
+     "fy": 2026,
+     "quantity": null,
+     "requestDollarsThousands": 499582,
+     "unitCostDollars": null
+    },
+    {
+     "fy": 2027,
+     "quantity": null,
+     "requestDollarsThousands": 511016,
+     "unitCostDollars": null
+    }
+   ]
+  },
+  {
+   "peCode": "0300D0206CMR",
+   "title": "Combat Mission Requirements",
+   "budgetActivity": "BA 02 — Special Operations Command",
+   "lineNumber": "0300D0206CMR",
+   "programOfRecord": null,
+   "fyData": [
+    {
+     "fy": 2025,
+     "quantity": null,
+     "requestDollarsThousands": 4988,
+     "unitCostDollars": null
+    },
+    {
+     "fy": 2026,
+     "quantity": null,
+     "requestDollarsThousands": 1000,
+     "unitCostDollars": null
+    },
+    {
+     "fy": 2027,
+     "quantity": null,
+     "requestDollarsThousands": 4988,
+     "unitCostDollars": null
+    }
+   ]
+  },
+  {
+   "peCode": "0300D0607OEI",
+   "title": "Operational Enhancements Intelligence",
+   "budgetActivity": "BA 02 — Special Operations Command",
+   "lineNumber": "0300D0607OEI",
+   "programOfRecord": null,
+   "fyData": [
+    {
+     "fy": 2025,
+     "quantity": null,
+     "requestDollarsThousands": 23715,
+     "unitCostDollars": null
+    },
+    {
+     "fy": 2026,
+     "quantity": null,
+     "requestDollarsThousands": 21339,
+     "unitCostDollars": null
+    },
+    {
+     "fy": 2027,
+     "quantity": null,
+     "requestDollarsThousands": 28074,
+     "unitCostDollars": null
+    }
+   ]
+  },
+  {
+   "peCode": "0300D2143369000",
+   "title": "Operational Enhancements",
+   "budgetActivity": "BA 02 — Special Operations Command",
+   "lineNumber": "0300D2143369000",
+   "programOfRecord": null,
+   "fyData": [
+    {
+     "fy": 2025,
+     "quantity": null,
+     "requestDollarsThousands": 331592,
+     "unitCostDollars": null
+    },
+    {
+     "fy": 2026,
+     "quantity": null,
+     "requestDollarsThousands": 467753,
+     "unitCostDollars": null
+    },
+    {
+     "fy": 2027,
+     "quantity": null,
+     "requestDollarsThousands": 360595,
+     "unitCostDollars": null
+    }
+   ]
+  },
+  {
+   "peCode": "0300D7001SA1000",
+   "title": "Chemical Biological Situational Awareness",
+   "budgetActivity": "BA 03 — Chemical/Biological Defense",
+   "lineNumber": "0300D7001SA1000",
+   "programOfRecord": null,
+   "fyData": [
+    {
+     "fy": 2025,
+     "quantity": null,
+     "requestDollarsThousands": 171841,
+     "unitCostDollars": null
+    },
+    {
+     "fy": 2026,
+     "quantity": null,
+     "requestDollarsThousands": 208051,
+     "unitCostDollars": null
+    },
+    {
+     "fy": 2027,
+     "quantity": null,
+     "requestDollarsThousands": 223166,
+     "unitCostDollars": null
+    }
+   ]
+  },
+  {
+   "peCode": "0300D8001PH1000",
+   "title": "CB Protection & Hazard Mitigation",
+   "budgetActivity": "BA 03 — Chemical/Biological Defense",
+   "lineNumber": "0300D8001PH1000",
+   "programOfRecord": null,
+   "fyData": [
+    {
+     "fy": 2025,
+     "quantity": null,
+     "requestDollarsThousands": 216011,
+     "unitCostDollars": null
+    },
+    {
+     "fy": 2026,
+     "quantity": null,
+     "requestDollarsThousands": 203330,
+     "unitCostDollars": null
+    },
+    {
+     "fy": 2027,
+     "quantity": null,
+     "requestDollarsThousands": 117859,
+     "unitCostDollars": null
+    }
+   ]
+  },
+  {
+   "peCode": "0360DTITLE3",
+   "title": "Direct Loan Subsidy",
+   "budgetActivity": "BA 01 — DIRECT LOAN SUBSIDY",
+   "lineNumber": "0360DTITLE3",
+   "programOfRecord": null,
+   "fyData": [
+    {
+     "fy": 2025,
+     "quantity": null,
+     "requestDollarsThousands": 3983,
+     "unitCostDollars": null
+    }
+   ]
+  }
+ ]
+}
