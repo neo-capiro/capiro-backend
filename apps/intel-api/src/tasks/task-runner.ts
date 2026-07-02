@@ -64,6 +64,8 @@ export const KNOWN_VERBS = [
   'parity-streak', //               Phase 5: contiguous green-day streak for a scope (§8.6)
   'promote-watchlist-matches', //   Phase 6: intel_watchlist_match → hearing intel_alert (§9.5)
   'link-bill-hearings', //          Phase 6: tracked bill × hearing → combined intel_alert (§9.2)
+  'enable-feature', //              Phase 8 cutover: flip a tenant flag ON (tracker_owner_intel/tracker_v2)
+  'cutover-status', //              Phase 8 cutover: read-only per-tenant go-live readiness report
 ] as const;
 export type Verb = (typeof KNOWN_VERBS)[number];
 
@@ -139,6 +141,44 @@ export async function runVerb(verb: string, args: string[], deps: VerbDeps): Pro
       if (!args[0] || !args[1]) throw new Error('disable-feature requires <flag> <tenantSlugOrId>');
       const r = await new WatchlistSyncService(deps.prisma).setFeatureFlag(args[0], args[1], false);
       deps.log(`FEATURE_DISABLED feature=${r.feature} tenant=${r.tenantId}`);
+      return;
+    }
+    case 'enable-feature': {
+      if (!args[0] || !args[1]) throw new Error('enable-feature requires <flag> <tenantSlugOrId>');
+      const r = await new WatchlistSyncService(deps.prisma).setFeatureFlag(args[0], args[1], true);
+      deps.log(`FEATURE_ENABLED feature=${r.feature} tenant=${r.tenantId}`);
+      return;
+    }
+    case 'cutover-status': {
+      if (!args[0]) throw new Error('cutover-status requires <tenantSlugOrId>');
+      const sync = new WatchlistSyncService(deps.prisma);
+      const tenantId = await sync.resolveTenantId(args[0]);
+      if (!tenantId) throw new Error(`NO_TENANT_FOR ${args[0]}`);
+      const flag = async (feature: string) =>
+        Boolean(
+          (await deps.prisma.featureFlag.findUnique({ where: { feature_tenantId: { feature, tenantId } } }))?.enabled,
+        );
+      const parity = new ParityService(deps.prisma, new SourceDataRepository(deps.prisma));
+      const [owner, v2, tenantStreak, allStreak, trackedBills, alertPrefs, intelAlerts] = await Promise.all([
+        flag('tracker_owner_intel'),
+        flag('tracker_v2'),
+        parity.greenStreak(tenantId),
+        parity.greenStreak('all'),
+        deps.prisma.trackedBill.count({ where: { tenantId } }),
+        deps.prisma.intelAlertPreference.count({ where: { tenantId } }),
+        deps.prisma.intelAlert.count({ where: { tenantId } }),
+      ]);
+      const parityGreen = tenantStreak.greenStreak >= 7 || allStreak.greenStreak >= 7;
+      deps.log(
+        `CUTOVER_STATUS tenant=${tenantId} owner=${owner} v2=${v2} ` +
+          `parityTenant=${tenantStreak.greenStreak}g/${tenantStreak.distinctDays}d parityAll=${allStreak.greenStreak}g/${allStreak.distinctDays}d ` +
+          `trackedBills=${trackedBills} alertPrefs=${alertPrefs} intelAlerts=${intelAlerts}`,
+      );
+      deps.log(
+        `CUTOVER_CHECKLIST parityGreen=${parityGreen} ownerFlag=${owner} v2Flag=${v2} ` +
+          `| STILL MANUAL: SES prod access (aws sesv2 get-account ProductionAccessEnabled) + ` +
+          `TRACKER_SINGLE_SENDER_GUARD=on on apps/api serve/scheduled task-defs + Ninja S10 sign-off`,
+      );
       return;
     }
     case 'detect-bill-changes': {
