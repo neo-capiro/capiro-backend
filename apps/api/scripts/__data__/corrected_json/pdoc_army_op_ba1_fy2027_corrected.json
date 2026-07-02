@@ -1,0 +1,577 @@
+{
+ "service": "ARMY",
+ "fy": 2027,
+ "sourceUrl": "https://www.asafm.army.mil/Portals/72/Documents/BudgetMaterial/2027/Discretionary%20Budget/Procurement/Other%20Procurement%20-%20BA1%20-%20Tactical%20%26%20Support%20Vehicles.pdf",
+ "pes": [
+  {
+   "peCode": "0896D03900",
+   "title": "FAMILY OF SEMITRAILERS",
+   "budgetActivity": "BA 01",
+   "lineNumber": "0896D03900",
+   "programOfRecord": null,
+   "fyData": [
+    {
+     "fy": 2025,
+     "quantity": 392,
+     "requestDollarsThousands": 94034,
+     "unitCostDollars": 239883
+    },
+    {
+     "fy": 2026,
+     "quantity": 503,
+     "requestDollarsThousands": 101623,
+     "unitCostDollars": 202034
+    },
+    {
+     "fy": 2027,
+     "quantity": 553,
+     "requestDollarsThousands": 129602,
+     "unitCostDollars": 234362
+    },
+    {
+     "fy": 2028,
+     "quantity": 566,
+     "requestDollarsThousands": 140274,
+     "unitCostDollars": 247834
+    },
+    {
+     "fy": 2029,
+     "quantity": 558,
+     "requestDollarsThousands": 134442,
+     "unitCostDollars": 240935
+    },
+    {
+     "fy": 2030,
+     "quantity": 533,
+     "requestDollarsThousands": 134318,
+     "unitCostDollars": 252004
+    },
+    {
+     "fy": 2031,
+     "quantity": 576,
+     "requestDollarsThousands": 140114,
+     "unitCostDollars": 243253
+    }
+   ]
+  },
+  {
+   "peCode": "3446D15400",
+   "title": "HI MOB MULTI-PURP WHLD VEH (HMMWV)",
+   "budgetActivity": "BA 01",
+   "lineNumber": "3446D15400",
+   "programOfRecord": null,
+   "fyData": [
+    {
+     "fy": 2025,
+     "quantity": 663,
+     "requestDollarsThousands": 147348,
+     "unitCostDollars": 222244
+    }
+   ]
+  },
+  {
+   "peCode": "3484D15501",
+   "title": "Ground Mobility Vehicles (GMV)",
+   "budgetActivity": "BA 01",
+   "lineNumber": "3484D15501",
+   "programOfRecord": null,
+   "fyData": [
+    {
+     "fy": 2025,
+     "quantity": 138,
+     "requestDollarsThousands": 412344,
+     "unitCostDollars": 2988000
+    },
+    {
+     "fy": 2026,
+     "quantity": 1012,
+     "requestDollarsThousands": 246162,
+     "unitCostDollars": 243243
+    },
+    {
+     "fy": 2027,
+     "quantity": 2418,
+     "requestDollarsThousands": 526796,
+     "unitCostDollars": 217864
+    },
+    {
+     "fy": 2028,
+     "quantity": 1940,
+     "requestDollarsThousands": 418355,
+     "unitCostDollars": 215647
+    },
+    {
+     "fy": 2029,
+     "quantity": 1970,
+     "requestDollarsThousands": 431485,
+     "unitCostDollars": 219028
+    },
+    {
+     "fy": 2030,
+     "quantity": 1943,
+     "requestDollarsThousands": 434207,
+     "unitCostDollars": 223472
+    },
+    {
+     "fy": 2031,
+     "quantity": 1885,
+     "requestDollarsThousands": 430149,
+     "unitCostDollars": 228196
+    }
+   ]
+  },
+  {
+   "peCode": "3636D10000",
+   "title": "ARNG HMMWV Modernization Program",
+   "budgetActivity": "BA 01",
+   "lineNumber": "3636D10000",
+   "programOfRecord": null,
+   "fyData": [
+    {
+     "fy": 2025,
+     "quantity": 511,
+     "requestDollarsThousands": 90000,
+     "unitCostDollars": 176125
+    },
+    {
+     "fy": 2026,
+     "quantity": 296,
+     "requestDollarsThousands": 100000,
+     "unitCostDollars": 337838
+    }
+   ]
+  },
+  {
+   "peCode": "5731D15610",
+   "title": "JOINT LIGHT TACTICAL VEHICLE FAMILY OF VEHICLES",
+   "budgetActivity": "BA 01",
+   "lineNumber": "5731D15610",
+   "programOfRecord": null,
+   "fyData": [
+    {
+     "fy": 2025,
+     "quantity": 1389,
+     "requestDollarsThousands": 627988,
+     "unitCostDollars": 452115
+    },
+    {
+     "fy": 2026,
+     "quantity": 938,
+     "requestDollarsThousands": 345000,
+     "unitCostDollars": 367804
+    },
+    {
+     "fy": 2028,
+     "quantity": 705,
+     "requestDollarsThousands": 30000,
+     "unitCostDollars": 42553
+    }
+   ]
+  },
+  {
+   "peCode": "5862D16001",
+   "title": "TRUCK, DUMP, 20T (CCE)",
+   "budgetActivity": "BA 01",
+   "lineNumber": "5862D16001",
+   "programOfRecord": null,
+   "fyData": [
+    {
+     "fy": 2025,
+     "quantity": 86,
+     "requestDollarsThousands": 49086,
+     "unitCostDollars": 570767
+    },
+    {
+     "fy": 2026,
+     "quantity": 90,
+     "requestDollarsThousands": 47000,
+     "unitCostDollars": 522222
+    },
+    {
+     "fy": 2027,
+     "quantity": 31,
+     "requestDollarsThousands": 17030,
+     "unitCostDollars": 549355
+    },
+    {
+     "fy": 2028,
+     "quantity": 25,
+     "requestDollarsThousands": 14825,
+     "unitCostDollars": 593000
+    }
+   ]
+  },
+  {
+   "peCode": "6866D15500",
+   "title": "Family Of Medium Tactical Veh (FMTV)",
+   "budgetActivity": "BA 01",
+   "lineNumber": "6866D15500",
+   "programOfRecord": null,
+   "fyData": [
+    {
+     "fy": 2025,
+     "quantity": 761,
+     "requestDollarsThousands": 464284,
+     "unitCostDollars": 610097
+    },
+    {
+     "fy": 2026,
+     "quantity": 69,
+     "requestDollarsThousands": 77439,
+     "unitCostDollars": 1122304
+    },
+    {
+     "fy": 2027,
+     "quantity": 395,
+     "requestDollarsThousands": 283344,
+     "unitCostDollars": 717327
+    },
+    {
+     "fy": 2028,
+     "quantity": 151,
+     "requestDollarsThousands": 123310,
+     "unitCostDollars": 816623
+    },
+    {
+     "fy": 2029,
+     "quantity": 118,
+     "requestDollarsThousands": 102599,
+     "unitCostDollars": 869483
+    },
+    {
+     "fy": 2030,
+     "quantity": 114,
+     "requestDollarsThousands": 102546,
+     "unitCostDollars": 899526
+    },
+    {
+     "fy": 2031,
+     "quantity": 121,
+     "requestDollarsThousands": 103017,
+     "unitCostDollars": 851380
+    }
+   ]
+  },
+  {
+   "peCode": "6880D15620",
+   "title": "Family of Cold Weather All-Terrain Vehicle (CATV)",
+   "budgetActivity": "BA 01",
+   "lineNumber": "6880D15620",
+   "programOfRecord": null,
+   "fyData": [
+    {
+     "fy": 2025,
+     "quantity": 55,
+     "requestDollarsThousands": 83860,
+     "unitCostDollars": 1524727
+    },
+    {
+     "fy": 2026,
+     "quantity": 24,
+     "requestDollarsThousands": 38001,
+     "unitCostDollars": 1583375
+    },
+    {
+     "fy": 2027,
+     "quantity": 25,
+     "requestDollarsThousands": 38294,
+     "unitCostDollars": 1531760
+    },
+    {
+     "fy": 2028,
+     "quantity": null,
+     "requestDollarsThousands": 1034,
+     "unitCostDollars": null
+    },
+    {
+     "fy": 2029,
+     "quantity": null,
+     "requestDollarsThousands": 1043,
+     "unitCostDollars": null
+    },
+    {
+     "fy": 2030,
+     "quantity": null,
+     "requestDollarsThousands": 1040,
+     "unitCostDollars": null
+    },
+    {
+     "fy": 2031,
+     "quantity": null,
+     "requestDollarsThousands": 1050,
+     "unitCostDollars": null
+    }
+   ]
+  },
+  {
+   "peCode": "7000D15800",
+   "title": "Firetrucks & Associated Firefighting Equip",
+   "budgetActivity": "BA 01",
+   "lineNumber": "7000D15800",
+   "programOfRecord": null,
+   "fyData": [
+    {
+     "fy": 2025,
+     "quantity": null,
+     "requestDollarsThousands": 33827,
+     "unitCostDollars": null
+    },
+    {
+     "fy": 2026,
+     "quantity": 56,
+     "requestDollarsThousands": 39761,
+     "unitCostDollars": 710018
+    },
+    {
+     "fy": 2027,
+     "quantity": 55,
+     "requestDollarsThousands": 40203,
+     "unitCostDollars": 730964
+    },
+    {
+     "fy": 2028,
+     "quantity": 54,
+     "requestDollarsThousands": 40263,
+     "unitCostDollars": 745611
+    },
+    {
+     "fy": 2029,
+     "quantity": 54,
+     "requestDollarsThousands": 41218,
+     "unitCostDollars": 763296
+    },
+    {
+     "fy": 2030,
+     "quantity": 54,
+     "requestDollarsThousands": 41404,
+     "unitCostDollars": 766741
+    },
+    {
+     "fy": 2031,
+     "quantity": 54,
+     "requestDollarsThousands": 41819,
+     "unitCostDollars": 774426
+    }
+   ]
+  },
+  {
+   "peCode": "8309DA0500",
+   "title": "Family Of Heavy Tactical Vehicles (FHTV)",
+   "budgetActivity": "BA 01",
+   "lineNumber": "8309DA0500",
+   "programOfRecord": null,
+   "fyData": [
+    {
+     "fy": 2025,
+     "quantity": 591,
+     "requestDollarsThousands": 527407,
+     "unitCostDollars": 892398
+    },
+    {
+     "fy": 2026,
+     "quantity": 308,
+     "requestDollarsThousands": 202009,
+     "unitCostDollars": 655873
+    },
+    {
+     "fy": 2027,
+     "quantity": 189,
+     "requestDollarsThousands": 169404,
+     "unitCostDollars": 896317
+    },
+    {
+     "fy": 2028,
+     "quantity": 212,
+     "requestDollarsThousands": 183318,
+     "unitCostDollars": 864708
+    },
+    {
+     "fy": 2029,
+     "quantity": 197,
+     "requestDollarsThousands": 160288,
+     "unitCostDollars": 813645
+    },
+    {
+     "fy": 2030,
+     "quantity": 182,
+     "requestDollarsThousands": 141725,
+     "unitCostDollars": 778709
+    },
+    {
+     "fy": 2031,
+     "quantity": 162,
+     "requestDollarsThousands": 117935,
+     "unitCostDollars": 727994
+    }
+   ]
+  },
+  {
+   "peCode": "8330D17000",
+   "title": "FAMILY OF COMMON TACTICAL TRUCKS",
+   "budgetActivity": "BA 01",
+   "lineNumber": "8330D17000",
+   "programOfRecord": null,
+   "fyData": [
+    {
+     "fy": 2027,
+     "quantity": 59,
+     "requestDollarsThousands": 80187,
+     "unitCostDollars": 1359102
+    },
+    {
+     "fy": 2028,
+     "quantity": 98,
+     "requestDollarsThousands": 148614,
+     "unitCostDollars": 1516469
+    },
+    {
+     "fy": 2029,
+     "quantity": 137,
+     "requestDollarsThousands": 210650,
+     "unitCostDollars": 1537591
+    },
+    {
+     "fy": 2030,
+     "quantity": 156,
+     "requestDollarsThousands": 247533,
+     "unitCostDollars": 1586750
+    },
+    {
+     "fy": 2031,
+     "quantity": 154,
+     "requestDollarsThousands": 274500,
+     "unitCostDollars": 1782468
+    }
+   ]
+  },
+  {
+   "peCode": "8980D04003",
+   "title": "Tactical Wheeled Vehicle Protection Kits",
+   "budgetActivity": "BA 01",
+   "lineNumber": "8980D04003",
+   "programOfRecord": null,
+   "fyData": [
+    {
+     "fy": 2025,
+     "quantity": 4,
+     "requestDollarsThousands": 24747,
+     "unitCostDollars": 6186750
+    },
+    {
+     "fy": 2026,
+     "quantity": 4,
+     "requestDollarsThousands": 2660,
+     "unitCostDollars": 665000
+    },
+    {
+     "fy": 2031,
+     "quantity": null,
+     "requestDollarsThousands": 27,
+     "unitCostDollars": null
+    }
+   ]
+  },
+  {
+   "peCode": "8992DA0924",
+   "title": "Modification Of In Svc Equip",
+   "budgetActivity": "BA 01",
+   "lineNumber": "8992DA0924",
+   "programOfRecord": null,
+   "fyData": [
+    {
+     "fy": 2025,
+     "quantity": null,
+     "requestDollarsThousands": 152801,
+     "unitCostDollars": null
+    },
+    {
+     "fy": 2026,
+     "quantity": null,
+     "requestDollarsThousands": 148728,
+     "unitCostDollars": null
+    },
+    {
+     "fy": 2027,
+     "quantity": null,
+     "requestDollarsThousands": 28583,
+     "unitCostDollars": null
+    },
+    {
+     "fy": 2028,
+     "quantity": null,
+     "requestDollarsThousands": 68987,
+     "unitCostDollars": null
+    },
+    {
+     "fy": 2029,
+     "quantity": null,
+     "requestDollarsThousands": 77181,
+     "unitCostDollars": null
+    },
+    {
+     "fy": 2030,
+     "quantity": null,
+     "requestDollarsThousands": 74628,
+     "unitCostDollars": null
+    },
+    {
+     "fy": 2031,
+     "quantity": null,
+     "requestDollarsThousands": 75085,
+     "unitCostDollars": null
+    }
+   ]
+  },
+  {
+   "peCode": "2450D30000",
+   "title": "NonTactical Vehicles, Other",
+   "budgetActivity": "BA 01",
+   "lineNumber": "2450D30000",
+   "programOfRecord": null,
+   "fyData": [
+    {
+     "fy": 2025,
+     "quantity": null,
+     "requestDollarsThousands": 14890,
+     "unitCostDollars": null
+    },
+    {
+     "fy": 2026,
+     "quantity": null,
+     "requestDollarsThousands": 8462,
+     "unitCostDollars": null
+    },
+    {
+     "fy": 2027,
+     "quantity": null,
+     "requestDollarsThousands": 12029,
+     "unitCostDollars": null
+    },
+    {
+     "fy": 2028,
+     "quantity": null,
+     "requestDollarsThousands": 8958,
+     "unitCostDollars": null
+    },
+    {
+     "fy": 2029,
+     "quantity": null,
+     "requestDollarsThousands": 8529,
+     "unitCostDollars": null
+    },
+    {
+     "fy": 2030,
+     "quantity": null,
+     "requestDollarsThousands": 12247,
+     "unitCostDollars": null
+    },
+    {
+     "fy": 2031,
+     "quantity": null,
+     "requestDollarsThousands": 12409,
+     "unitCostDollars": null
+    }
+   ]
+  }
+ ]
+}

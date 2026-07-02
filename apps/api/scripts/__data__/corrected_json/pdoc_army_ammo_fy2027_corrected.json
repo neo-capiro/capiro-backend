@@ -1,0 +1,1786 @@
+{
+ "service": "ARMY",
+ "fy": 2027,
+ "sourceUrl": "https://www.asafm.army.mil/Portals/72/Documents/BudgetMaterial/2027/Discretionary%20Budget/Procurement/Procurement_of_Ammunition.pdf",
+ "pes": [
+  {
+   "peCode": "0132E00700",
+   "title": "CTG, 5.56MM, All Types",
+   "budgetActivity": "BA 01",
+   "lineNumber": "0132E00700",
+   "programOfRecord": null,
+   "fyData": [
+    {
+     "fy": 2025,
+     "quantity": null,
+     "requestDollarsThousands": 84090,
+     "unitCostDollars": null
+    },
+    {
+     "fy": 2026,
+     "quantity": null,
+     "requestDollarsThousands": 128283,
+     "unitCostDollars": null
+    },
+    {
+     "fy": 2027,
+     "quantity": null,
+     "requestDollarsThousands": 114418,
+     "unitCostDollars": null
+    },
+    {
+     "fy": 2028,
+     "quantity": null,
+     "requestDollarsThousands": 132202,
+     "unitCostDollars": null
+    },
+    {
+     "fy": 2029,
+     "quantity": null,
+     "requestDollarsThousands": 133655,
+     "unitCostDollars": null
+    },
+    {
+     "fy": 2030,
+     "quantity": null,
+     "requestDollarsThousands": 132848,
+     "unitCostDollars": null
+    },
+    {
+     "fy": 2031,
+     "quantity": null,
+     "requestDollarsThousands": 134946,
+     "unitCostDollars": null
+    }
+   ]
+  },
+  {
+   "peCode": "0612E02000",
+   "title": "CTG, 7.62MM, All Types",
+   "budgetActivity": "BA 01",
+   "lineNumber": "0612E02000",
+   "programOfRecord": null,
+   "fyData": [
+    {
+     "fy": 2025,
+     "quantity": null,
+     "requestDollarsThousands": 41519,
+     "unitCostDollars": null
+    },
+    {
+     "fy": 2026,
+     "quantity": null,
+     "requestDollarsThousands": 51757,
+     "unitCostDollars": null
+    },
+    {
+     "fy": 2027,
+     "quantity": null,
+     "requestDollarsThousands": 41356,
+     "unitCostDollars": null
+    },
+    {
+     "fy": 2028,
+     "quantity": null,
+     "requestDollarsThousands": 66528,
+     "unitCostDollars": null
+    },
+    {
+     "fy": 2029,
+     "quantity": null,
+     "requestDollarsThousands": 60257,
+     "unitCostDollars": null
+    },
+    {
+     "fy": 2030,
+     "quantity": null,
+     "requestDollarsThousands": 70841,
+     "unitCostDollars": null
+    },
+    {
+     "fy": 2031,
+     "quantity": null,
+     "requestDollarsThousands": 71569,
+     "unitCostDollars": null
+    }
+   ]
+  },
+  {
+   "peCode": "1065E06001",
+   "title": "NEXT GENERATION SQUAD WEAPON AMMUNITION",
+   "budgetActivity": "BA 01",
+   "lineNumber": "1065E06001",
+   "programOfRecord": null,
+   "fyData": [
+    {
+     "fy": 2025,
+     "quantity": null,
+     "requestDollarsThousands": 233440,
+     "unitCostDollars": null
+    },
+    {
+     "fy": 2026,
+     "quantity": null,
+     "requestDollarsThousands": 426177,
+     "unitCostDollars": null
+    },
+    {
+     "fy": 2027,
+     "quantity": null,
+     "requestDollarsThousands": 536695,
+     "unitCostDollars": null
+    },
+    {
+     "fy": 2028,
+     "quantity": null,
+     "requestDollarsThousands": 686973,
+     "unitCostDollars": null
+    },
+    {
+     "fy": 2029,
+     "quantity": null,
+     "requestDollarsThousands": 699041,
+     "unitCostDollars": null
+    },
+    {
+     "fy": 2030,
+     "quantity": null,
+     "requestDollarsThousands": 698695,
+     "unitCostDollars": null
+    },
+    {
+     "fy": 2031,
+     "quantity": null,
+     "requestDollarsThousands": 705657,
+     "unitCostDollars": null
+    }
+   ]
+  },
+  {
+   "peCode": "1450EA3000",
+   "title": "CTG, Handgun, All Types",
+   "budgetActivity": "BA 01",
+   "lineNumber": "1450EA3000",
+   "programOfRecord": null,
+   "fyData": [
+    {
+     "fy": 2025,
+     "quantity": null,
+     "requestDollarsThousands": 6847,
+     "unitCostDollars": null
+    },
+    {
+     "fy": 2026,
+     "quantity": null,
+     "requestDollarsThousands": 7750,
+     "unitCostDollars": null
+    },
+    {
+     "fy": 2027,
+     "quantity": null,
+     "requestDollarsThousands": 6719,
+     "unitCostDollars": null
+    },
+    {
+     "fy": 2028,
+     "quantity": null,
+     "requestDollarsThousands": 8086,
+     "unitCostDollars": null
+    },
+    {
+     "fy": 2029,
+     "quantity": null,
+     "requestDollarsThousands": 8090,
+     "unitCostDollars": null
+    },
+    {
+     "fy": 2030,
+     "quantity": null,
+     "requestDollarsThousands": 8375,
+     "unitCostDollars": null
+    },
+    {
+     "fy": 2031,
+     "quantity": null,
+     "requestDollarsThousands": 8459,
+     "unitCostDollars": null
+    }
+   ]
+  },
+  {
+   "peCode": "1722E08000",
+   "title": "CTG, .50 Cal, All Types",
+   "budgetActivity": "BA 01",
+   "lineNumber": "1722E08000",
+   "programOfRecord": null,
+   "fyData": [
+    {
+     "fy": 2025,
+     "quantity": null,
+     "requestDollarsThousands": 95241,
+     "unitCostDollars": null
+    },
+    {
+     "fy": 2026,
+     "quantity": null,
+     "requestDollarsThousands": 57049,
+     "unitCostDollars": null
+    },
+    {
+     "fy": 2027,
+     "quantity": null,
+     "requestDollarsThousands": 50861,
+     "unitCostDollars": null
+    },
+    {
+     "fy": 2028,
+     "quantity": null,
+     "requestDollarsThousands": 65278,
+     "unitCostDollars": null
+    },
+    {
+     "fy": 2029,
+     "quantity": null,
+     "requestDollarsThousands": 68408,
+     "unitCostDollars": null
+    },
+    {
+     "fy": 2030,
+     "quantity": null,
+     "requestDollarsThousands": 87188,
+     "unitCostDollars": null
+    },
+    {
+     "fy": 2031,
+     "quantity": null,
+     "requestDollarsThousands": 87537,
+     "unitCostDollars": null
+    }
+   ]
+  },
+  {
+   "peCode": "2382E08900",
+   "title": "CTG, 20mm, All Types",
+   "budgetActivity": "BA 01",
+   "lineNumber": "2382E08900",
+   "programOfRecord": null,
+   "fyData": [
+    {
+     "fy": 2025,
+     "quantity": null,
+     "requestDollarsThousands": 7012,
+     "unitCostDollars": null
+    },
+    {
+     "fy": 2026,
+     "quantity": null,
+     "requestDollarsThousands": 25773,
+     "unitCostDollars": null
+    },
+    {
+     "fy": 2027,
+     "quantity": null,
+     "requestDollarsThousands": 9427,
+     "unitCostDollars": null
+    },
+    {
+     "fy": 2028,
+     "quantity": null,
+     "requestDollarsThousands": 32000,
+     "unitCostDollars": null
+    },
+    {
+     "fy": 2029,
+     "quantity": null,
+     "requestDollarsThousands": 8402,
+     "unitCostDollars": null
+    },
+    {
+     "fy": 2030,
+     "quantity": null,
+     "requestDollarsThousands": 29876,
+     "unitCostDollars": null
+    },
+    {
+     "fy": 2031,
+     "quantity": null,
+     "requestDollarsThousands": 30174,
+     "unitCostDollars": null
+    }
+   ]
+  },
+  {
+   "peCode": "2650E08200",
+   "title": "CTG, 25mm, All Types",
+   "budgetActivity": "BA 01",
+   "lineNumber": "2650E08200",
+   "programOfRecord": null,
+   "fyData": [
+    {
+     "fy": 2025,
+     "quantity": null,
+     "requestDollarsThousands": 24246,
+     "unitCostDollars": null
+    },
+    {
+     "fy": 2026,
+     "quantity": null,
+     "requestDollarsThousands": 22324,
+     "unitCostDollars": null
+    },
+    {
+     "fy": 2027,
+     "quantity": null,
+     "requestDollarsThousands": 34038,
+     "unitCostDollars": null
+    },
+    {
+     "fy": 2028,
+     "quantity": null,
+     "requestDollarsThousands": 42267,
+     "unitCostDollars": null
+    },
+    {
+     "fy": 2029,
+     "quantity": null,
+     "requestDollarsThousands": 50549,
+     "unitCostDollars": null
+    },
+    {
+     "fy": 2030,
+     "quantity": null,
+     "requestDollarsThousands": 20959,
+     "unitCostDollars": null
+    },
+    {
+     "fy": 2031,
+     "quantity": null,
+     "requestDollarsThousands": 21167,
+     "unitCostDollars": null
+    }
+   ]
+  },
+  {
+   "peCode": "2938ER8120",
+   "title": "CTG, 30mm, All Types",
+   "budgetActivity": "BA 01",
+   "lineNumber": "2938ER8120",
+   "programOfRecord": null,
+   "fyData": [
+    {
+     "fy": 2025,
+     "quantity": null,
+     "requestDollarsThousands": 127341,
+     "unitCostDollars": null
+    },
+    {
+     "fy": 2026,
+     "quantity": null,
+     "requestDollarsThousands": 88232,
+     "unitCostDollars": null
+    },
+    {
+     "fy": 2027,
+     "quantity": null,
+     "requestDollarsThousands": 164116,
+     "unitCostDollars": null
+    },
+    {
+     "fy": 2028,
+     "quantity": null,
+     "requestDollarsThousands": 146493,
+     "unitCostDollars": null
+    },
+    {
+     "fy": 2029,
+     "quantity": null,
+     "requestDollarsThousands": 148652,
+     "unitCostDollars": null
+    },
+    {
+     "fy": 2030,
+     "quantity": null,
+     "requestDollarsThousands": 131495,
+     "unitCostDollars": null
+    },
+    {
+     "fy": 2031,
+     "quantity": null,
+     "requestDollarsThousands": 132784,
+     "unitCostDollars": null
+    }
+   ]
+  },
+  {
+   "peCode": "3222ER8001",
+   "title": "CTG, 40mm, All Types",
+   "budgetActivity": "BA 01",
+   "lineNumber": "3222ER8001",
+   "programOfRecord": null,
+   "fyData": [
+    {
+     "fy": 2025,
+     "quantity": null,
+     "requestDollarsThousands": 151217,
+     "unitCostDollars": null
+    },
+    {
+     "fy": 2026,
+     "quantity": null,
+     "requestDollarsThousands": 131432,
+     "unitCostDollars": null
+    },
+    {
+     "fy": 2027,
+     "quantity": null,
+     "requestDollarsThousands": 146105,
+     "unitCostDollars": null
+    },
+    {
+     "fy": 2028,
+     "quantity": null,
+     "requestDollarsThousands": 148891,
+     "unitCostDollars": null
+    },
+    {
+     "fy": 2029,
+     "quantity": null,
+     "requestDollarsThousands": 151871,
+     "unitCostDollars": null
+    },
+    {
+     "fy": 2030,
+     "quantity": null,
+     "requestDollarsThousands": 154629,
+     "unitCostDollars": null
+    },
+    {
+     "fy": 2031,
+     "quantity": null,
+     "requestDollarsThousands": 156600,
+     "unitCostDollars": null
+    }
+   ]
+  },
+  {
+   "peCode": "8030E80010",
+   "title": "CTG, 50MM, All Types",
+   "budgetActivity": "BA 01",
+   "lineNumber": "8030E80010",
+   "programOfRecord": null,
+   "fyData": [
+    {
+     "fy": 2025,
+     "quantity": null,
+     "requestDollarsThousands": 20006,
+     "unitCostDollars": null
+    },
+    {
+     "fy": 2026,
+     "quantity": null,
+     "requestDollarsThousands": 42131,
+     "unitCostDollars": null
+    },
+    {
+     "fy": 2027,
+     "quantity": null,
+     "requestDollarsThousands": 58221,
+     "unitCostDollars": null
+    },
+    {
+     "fy": 2028,
+     "quantity": null,
+     "requestDollarsThousands": 53467,
+     "unitCostDollars": null
+    },
+    {
+     "fy": 2029,
+     "quantity": null,
+     "requestDollarsThousands": 58879,
+     "unitCostDollars": null
+    },
+    {
+     "fy": 2030,
+     "quantity": null,
+     "requestDollarsThousands": 58535,
+     "unitCostDollars": null
+    },
+    {
+     "fy": 2031,
+     "quantity": null,
+     "requestDollarsThousands": 59117,
+     "unitCostDollars": null
+    }
+   ]
+  },
+  {
+   "peCode": "0050E89600",
+   "title": "60MM Mortar, All Types",
+   "budgetActivity": "BA 01",
+   "lineNumber": "0050E89600",
+   "programOfRecord": null,
+   "fyData": [
+    {
+     "fy": 2025,
+     "quantity": null,
+     "requestDollarsThousands": 53648,
+     "unitCostDollars": null
+    },
+    {
+     "fy": 2026,
+     "quantity": null,
+     "requestDollarsThousands": 38114,
+     "unitCostDollars": null
+    },
+    {
+     "fy": 2027,
+     "quantity": null,
+     "requestDollarsThousands": 67727,
+     "unitCostDollars": null
+    },
+    {
+     "fy": 2028,
+     "quantity": null,
+     "requestDollarsThousands": 47567,
+     "unitCostDollars": null
+    },
+    {
+     "fy": 2029,
+     "quantity": null,
+     "requestDollarsThousands": 50754,
+     "unitCostDollars": null
+    },
+    {
+     "fy": 2030,
+     "quantity": null,
+     "requestDollarsThousands": 49490,
+     "unitCostDollars": null
+    },
+    {
+     "fy": 2031,
+     "quantity": null,
+     "requestDollarsThousands": 49127,
+     "unitCostDollars": null
+    }
+   ]
+  },
+  {
+   "peCode": "3584E76000",
+   "title": "81MM Mortar, All Types",
+   "budgetActivity": "BA 01",
+   "lineNumber": "3584E76000",
+   "programOfRecord": null,
+   "fyData": [
+    {
+     "fy": 2025,
+     "quantity": null,
+     "requestDollarsThousands": 95288,
+     "unitCostDollars": null
+    },
+    {
+     "fy": 2026,
+     "quantity": null,
+     "requestDollarsThousands": 41786,
+     "unitCostDollars": null
+    },
+    {
+     "fy": 2027,
+     "quantity": null,
+     "requestDollarsThousands": 123745,
+     "unitCostDollars": null
+    },
+    {
+     "fy": 2028,
+     "quantity": null,
+     "requestDollarsThousands": 67587,
+     "unitCostDollars": null
+    },
+    {
+     "fy": 2029,
+     "quantity": null,
+     "requestDollarsThousands": 69951,
+     "unitCostDollars": null
+    },
+    {
+     "fy": 2030,
+     "quantity": null,
+     "requestDollarsThousands": 67314,
+     "unitCostDollars": null
+    },
+    {
+     "fy": 2031,
+     "quantity": null,
+     "requestDollarsThousands": 51733,
+     "unitCostDollars": null
+    }
+   ]
+  },
+  {
+   "peCode": "6780E25500",
+   "title": "120MM Mortar, All Types",
+   "budgetActivity": "BA 01",
+   "lineNumber": "6780E25500",
+   "programOfRecord": null,
+   "fyData": [
+    {
+     "fy": 2025,
+     "quantity": null,
+     "requestDollarsThousands": 166355,
+     "unitCostDollars": null
+    },
+    {
+     "fy": 2026,
+     "quantity": null,
+     "requestDollarsThousands": 127144,
+     "unitCostDollars": null
+    },
+    {
+     "fy": 2027,
+     "quantity": null,
+     "requestDollarsThousands": 192826,
+     "unitCostDollars": null
+    },
+    {
+     "fy": 2028,
+     "quantity": null,
+     "requestDollarsThousands": 145018,
+     "unitCostDollars": null
+    },
+    {
+     "fy": 2029,
+     "quantity": null,
+     "requestDollarsThousands": 146848,
+     "unitCostDollars": null
+    },
+    {
+     "fy": 2030,
+     "quantity": null,
+     "requestDollarsThousands": 132705,
+     "unitCostDollars": null
+    },
+    {
+     "fy": 2031,
+     "quantity": null,
+     "requestDollarsThousands": 134029,
+     "unitCostDollars": null
+    }
+   ]
+  },
+  {
+   "peCode": "1120E22203",
+   "title": "Cartridges, Tank, 105MM And 120MM, All Types",
+   "budgetActivity": "BA 01",
+   "lineNumber": "1120E22203",
+   "programOfRecord": null,
+   "fyData": [
+    {
+     "fy": 2025,
+     "quantity": null,
+     "requestDollarsThousands": 344832,
+     "unitCostDollars": null
+    },
+    {
+     "fy": 2026,
+     "quantity": null,
+     "requestDollarsThousands": 380265,
+     "unitCostDollars": null
+    },
+    {
+     "fy": 2027,
+     "quantity": null,
+     "requestDollarsThousands": 421735,
+     "unitCostDollars": null
+    },
+    {
+     "fy": 2028,
+     "quantity": null,
+     "requestDollarsThousands": 435431,
+     "unitCostDollars": null
+    },
+    {
+     "fy": 2029,
+     "quantity": null,
+     "requestDollarsThousands": 494144,
+     "unitCostDollars": null
+    },
+    {
+     "fy": 2030,
+     "quantity": null,
+     "requestDollarsThousands": 481331,
+     "unitCostDollars": null
+    },
+    {
+     "fy": 2031,
+     "quantity": null,
+     "requestDollarsThousands": 486455,
+     "unitCostDollars": null
+    }
+   ]
+  },
+  {
+   "peCode": "0530E15101",
+   "title": "Artillery Cartridges, 75MM & 105MM, All Types",
+   "budgetActivity": "BA 01",
+   "lineNumber": "0530E15101",
+   "programOfRecord": null,
+   "fyData": [
+    {
+     "fy": 2025,
+     "quantity": null,
+     "requestDollarsThousands": 59711,
+     "unitCostDollars": null
+    },
+    {
+     "fy": 2026,
+     "quantity": null,
+     "requestDollarsThousands": 80780,
+     "unitCostDollars": null
+    },
+    {
+     "fy": 2027,
+     "quantity": null,
+     "requestDollarsThousands": 48841,
+     "unitCostDollars": null
+    },
+    {
+     "fy": 2028,
+     "quantity": null,
+     "requestDollarsThousands": 40379,
+     "unitCostDollars": null
+    },
+    {
+     "fy": 2029,
+     "quantity": null,
+     "requestDollarsThousands": 50131,
+     "unitCostDollars": null
+    },
+    {
+     "fy": 2030,
+     "quantity": null,
+     "requestDollarsThousands": 38150,
+     "unitCostDollars": null
+    },
+    {
+     "fy": 2031,
+     "quantity": null,
+     "requestDollarsThousands": 38702,
+     "unitCostDollars": null
+    }
+   ]
+  },
+  {
+   "peCode": "3102E89500",
+   "title": "ARTILLERY PROJECTILE, 155MM, All Types",
+   "budgetActivity": "BA 01",
+   "lineNumber": "3102E89500",
+   "programOfRecord": null,
+   "fyData": [
+    {
+     "fy": 2025,
+     "quantity": null,
+     "requestDollarsThousands": 171657,
+     "unitCostDollars": null
+    },
+    {
+     "fy": 2026,
+     "quantity": null,
+     "requestDollarsThousands": 216777,
+     "unitCostDollars": null
+    },
+    {
+     "fy": 2027,
+     "quantity": null,
+     "requestDollarsThousands": 120703,
+     "unitCostDollars": null
+    },
+    {
+     "fy": 2028,
+     "quantity": null,
+     "requestDollarsThousands": 610423,
+     "unitCostDollars": null
+    },
+    {
+     "fy": 2029,
+     "quantity": null,
+     "requestDollarsThousands": 620715,
+     "unitCostDollars": null
+    },
+    {
+     "fy": 2030,
+     "quantity": null,
+     "requestDollarsThousands": 739780,
+     "unitCostDollars": null
+    },
+    {
+     "fy": 2031,
+     "quantity": null,
+     "requestDollarsThousands": 730306,
+     "unitCostDollars": null
+    }
+   ]
+  },
+  {
+   "peCode": "6635F90100",
+   "title": "PRECISION ARTILLERY MUNITIONS",
+   "budgetActivity": "BA 01",
+   "lineNumber": "6635F90100",
+   "programOfRecord": null,
+   "fyData": [
+    {
+     "fy": 2025,
+     "quantity": null,
+     "requestDollarsThousands": 37318,
+     "unitCostDollars": null
+    },
+    {
+     "fy": 2026,
+     "quantity": null,
+     "requestDollarsThousands": 21095,
+     "unitCostDollars": null
+    }
+   ]
+  },
+  {
+   "peCode": "8750E27501",
+   "title": "Artillery Propellants, Fuzes and Primers, All",
+   "budgetActivity": "BA 01",
+   "lineNumber": "8750E27501",
+   "programOfRecord": null,
+   "fyData": [
+    {
+     "fy": 2025,
+     "quantity": null,
+     "requestDollarsThousands": 573947,
+     "unitCostDollars": null
+    },
+    {
+     "fy": 2026,
+     "quantity": null,
+     "requestDollarsThousands": 168737,
+     "unitCostDollars": null
+    },
+    {
+     "fy": 2027,
+     "quantity": null,
+     "requestDollarsThousands": 431328,
+     "unitCostDollars": null
+    },
+    {
+     "fy": 2028,
+     "quantity": null,
+     "requestDollarsThousands": 414830,
+     "unitCostDollars": null
+    },
+    {
+     "fy": 2029,
+     "quantity": null,
+     "requestDollarsThousands": 412330,
+     "unitCostDollars": null
+    },
+    {
+     "fy": 2030,
+     "quantity": null,
+     "requestDollarsThousands": 311664,
+     "unitCostDollars": null
+    },
+    {
+     "fy": 2031,
+     "quantity": null,
+     "requestDollarsThousands": 336921,
+     "unitCostDollars": null
+    }
+   ]
+  },
+  {
+   "peCode": "0442EA0800",
+   "title": "Mines & Clearing Charges, All Types",
+   "budgetActivity": "BA 01",
+   "lineNumber": "0442EA0800",
+   "programOfRecord": null,
+   "fyData": [
+    {
+     "fy": 2025,
+     "quantity": null,
+     "requestDollarsThousands": 93925,
+     "unitCostDollars": null
+    },
+    {
+     "fy": 2026,
+     "quantity": null,
+     "requestDollarsThousands": 42748,
+     "unitCostDollars": null
+    },
+    {
+     "fy": 2027,
+     "quantity": null,
+     "requestDollarsThousands": 47012,
+     "unitCostDollars": null
+    },
+    {
+     "fy": 2028,
+     "quantity": null,
+     "requestDollarsThousands": 52899,
+     "unitCostDollars": null
+    },
+    {
+     "fy": 2029,
+     "quantity": null,
+     "requestDollarsThousands": 53851,
+     "unitCostDollars": null
+    },
+    {
+     "fy": 2030,
+     "quantity": null,
+     "requestDollarsThousands": 43762,
+     "unitCostDollars": null
+    },
+    {
+     "fy": 2031,
+     "quantity": null,
+     "requestDollarsThousands": 44223,
+     "unitCostDollars": null
+    }
+   ]
+  },
+  {
+   "peCode": "0612E76740",
+   "title": "Close Terrain Shaping Obstacle",
+   "budgetActivity": "BA 01",
+   "lineNumber": "0612E76740",
+   "programOfRecord": null,
+   "fyData": [
+    {
+     "fy": 2025,
+     "quantity": null,
+     "requestDollarsThousands": 39283,
+     "unitCostDollars": null
+    },
+    {
+     "fy": 2026,
+     "quantity": null,
+     "requestDollarsThousands": 7860,
+     "unitCostDollars": null
+    },
+    {
+     "fy": 2030,
+     "quantity": null,
+     "requestDollarsThousands": 29882,
+     "unitCostDollars": null
+    },
+    {
+     "fy": 2031,
+     "quantity": null,
+     "requestDollarsThousands": 30523,
+     "unitCostDollars": null
+    }
+   ]
+  },
+  {
+   "peCode": "7920E72501",
+   "title": "MINE, AT, VOLCANO, All Types",
+   "budgetActivity": "BA 01",
+   "lineNumber": "7920E72501",
+   "programOfRecord": null,
+   "fyData": [
+    {
+     "fy": 2025,
+     "quantity": null,
+     "requestDollarsThousands": 501,
+     "unitCostDollars": null
+    },
+    {
+     "fy": 2027,
+     "quantity": null,
+     "requestDollarsThousands": 4026,
+     "unitCostDollars": null
+    },
+    {
+     "fy": 2028,
+     "quantity": null,
+     "requestDollarsThousands": 5029,
+     "unitCostDollars": null
+    }
+   ]
+  },
+  {
+   "peCode": "2348EA4000",
+   "title": "Shoulder Launched Munitions, All Types",
+   "budgetActivity": "BA 01",
+   "lineNumber": "2348EA4000",
+   "programOfRecord": null,
+   "fyData": [
+    {
+     "fy": 2025,
+     "quantity": null,
+     "requestDollarsThousands": 78791,
+     "unitCostDollars": null
+    },
+    {
+     "fy": 2026,
+     "quantity": null,
+     "requestDollarsThousands": 34922,
+     "unitCostDollars": null
+    },
+    {
+     "fy": 2027,
+     "quantity": null,
+     "requestDollarsThousands": 50235,
+     "unitCostDollars": null
+    },
+    {
+     "fy": 2028,
+     "quantity": null,
+     "requestDollarsThousands": 55934,
+     "unitCostDollars": null
+    },
+    {
+     "fy": 2029,
+     "quantity": null,
+     "requestDollarsThousands": 61295,
+     "unitCostDollars": null
+    },
+    {
+     "fy": 2030,
+     "quantity": null,
+     "requestDollarsThousands": 61489,
+     "unitCostDollars": null
+    },
+    {
+     "fy": 2031,
+     "quantity": null,
+     "requestDollarsThousands": 62155,
+     "unitCostDollars": null
+    }
+   ]
+  },
+  {
+   "peCode": "3246E37300",
+   "title": "Rocket, Hydra 70, All Types",
+   "budgetActivity": "BA 01",
+   "lineNumber": "3246E37300",
+   "programOfRecord": null,
+   "fyData": [
+    {
+     "fy": 2025,
+     "quantity": null,
+     "requestDollarsThousands": 110082,
+     "unitCostDollars": null
+    },
+    {
+     "fy": 2026,
+     "quantity": null,
+     "requestDollarsThousands": 34836,
+     "unitCostDollars": null
+    },
+    {
+     "fy": 2027,
+     "quantity": null,
+     "requestDollarsThousands": 92772,
+     "unitCostDollars": null
+    },
+    {
+     "fy": 2028,
+     "quantity": null,
+     "requestDollarsThousands": 92683,
+     "unitCostDollars": null
+    },
+    {
+     "fy": 2029,
+     "quantity": null,
+     "requestDollarsThousands": 93341,
+     "unitCostDollars": null
+    },
+    {
+     "fy": 2030,
+     "quantity": null,
+     "requestDollarsThousands": 93254,
+     "unitCostDollars": null
+    },
+    {
+     "fy": 2031,
+     "quantity": null,
+     "requestDollarsThousands": 94184,
+     "unitCostDollars": null
+    }
+   ]
+  },
+  {
+   "peCode": "2420E61000",
+   "title": "CAD/PAD, All Types",
+   "budgetActivity": "BA 01",
+   "lineNumber": "2420E61000",
+   "programOfRecord": null,
+   "fyData": [
+    {
+     "fy": 2025,
+     "quantity": null,
+     "requestDollarsThousands": 6571,
+     "unitCostDollars": null
+    },
+    {
+     "fy": 2026,
+     "quantity": null,
+     "requestDollarsThousands": 12543,
+     "unitCostDollars": null
+    },
+    {
+     "fy": 2027,
+     "quantity": null,
+     "requestDollarsThousands": 11615,
+     "unitCostDollars": null
+    },
+    {
+     "fy": 2028,
+     "quantity": null,
+     "requestDollarsThousands": 11602,
+     "unitCostDollars": null
+    },
+    {
+     "fy": 2029,
+     "quantity": null,
+     "requestDollarsThousands": 11664,
+     "unitCostDollars": null
+    },
+    {
+     "fy": 2030,
+     "quantity": null,
+     "requestDollarsThousands": 11654,
+     "unitCostDollars": null
+    },
+    {
+     "fy": 2031,
+     "quantity": null,
+     "requestDollarsThousands": 11770,
+     "unitCostDollars": null
+    }
+   ]
+  },
+  {
+   "peCode": "2790E55400",
+   "title": "Demolition Munitions, All Types",
+   "budgetActivity": "BA 01",
+   "lineNumber": "2790E55400",
+   "programOfRecord": null,
+   "fyData": [
+    {
+     "fy": 2025,
+     "quantity": null,
+     "requestDollarsThousands": 148171,
+     "unitCostDollars": null
+    },
+    {
+     "fy": 2026,
+     "quantity": null,
+     "requestDollarsThousands": 21409,
+     "unitCostDollars": null
+    },
+    {
+     "fy": 2027,
+     "quantity": null,
+     "requestDollarsThousands": 21691,
+     "unitCostDollars": null
+    },
+    {
+     "fy": 2028,
+     "quantity": null,
+     "requestDollarsThousands": 19517,
+     "unitCostDollars": null
+    },
+    {
+     "fy": 2029,
+     "quantity": null,
+     "requestDollarsThousands": 14955,
+     "unitCostDollars": null
+    },
+    {
+     "fy": 2030,
+     "quantity": null,
+     "requestDollarsThousands": 14580,
+     "unitCostDollars": null
+    },
+    {
+     "fy": 2031,
+     "quantity": null,
+     "requestDollarsThousands": 14230,
+     "unitCostDollars": null
+    }
+   ]
+  },
+  {
+   "peCode": "4582E34000",
+   "title": "Grenades, All Types",
+   "budgetActivity": "BA 01",
+   "lineNumber": "4582E34000",
+   "programOfRecord": null,
+   "fyData": [
+    {
+     "fy": 2025,
+     "quantity": null,
+     "requestDollarsThousands": 69867,
+     "unitCostDollars": null
+    },
+    {
+     "fy": 2026,
+     "quantity": null,
+     "requestDollarsThousands": 58530,
+     "unitCostDollars": null
+    },
+    {
+     "fy": 2027,
+     "quantity": null,
+     "requestDollarsThousands": 66845,
+     "unitCostDollars": null
+    },
+    {
+     "fy": 2028,
+     "quantity": null,
+     "requestDollarsThousands": 67417,
+     "unitCostDollars": null
+    },
+    {
+     "fy": 2029,
+     "quantity": null,
+     "requestDollarsThousands": 69417,
+     "unitCostDollars": null
+    },
+    {
+     "fy": 2030,
+     "quantity": null,
+     "requestDollarsThousands": 70545,
+     "unitCostDollars": null
+    },
+    {
+     "fy": 2031,
+     "quantity": null,
+     "requestDollarsThousands": 71464,
+     "unitCostDollars": null
+    }
+   ]
+  },
+  {
+   "peCode": "6038E46900",
+   "title": "Signals, All Types",
+   "budgetActivity": "BA 01",
+   "lineNumber": "6038E46900",
+   "programOfRecord": null,
+   "fyData": [
+    {
+     "fy": 2025,
+     "quantity": null,
+     "requestDollarsThousands": 22758,
+     "unitCostDollars": null
+    },
+    {
+     "fy": 2026,
+     "quantity": null,
+     "requestDollarsThousands": 36846,
+     "unitCostDollars": null
+    },
+    {
+     "fy": 2027,
+     "quantity": null,
+     "requestDollarsThousands": 44927,
+     "unitCostDollars": null
+    },
+    {
+     "fy": 2028,
+     "quantity": null,
+     "requestDollarsThousands": 42408,
+     "unitCostDollars": null
+    },
+    {
+     "fy": 2029,
+     "quantity": null,
+     "requestDollarsThousands": 49155,
+     "unitCostDollars": null
+    },
+    {
+     "fy": 2030,
+     "quantity": null,
+     "requestDollarsThousands": 49267,
+     "unitCostDollars": null
+    },
+    {
+     "fy": 2031,
+     "quantity": null,
+     "requestDollarsThousands": 49826,
+     "unitCostDollars": null
+    }
+   ]
+  },
+  {
+   "peCode": "8278E51200",
+   "title": "Simulators, All Types",
+   "budgetActivity": "BA 01",
+   "lineNumber": "8278E51200",
+   "programOfRecord": null,
+   "fyData": [
+    {
+     "fy": 2025,
+     "quantity": null,
+     "requestDollarsThousands": 13735,
+     "unitCostDollars": null
+    },
+    {
+     "fy": 2026,
+     "quantity": null,
+     "requestDollarsThousands": 10821,
+     "unitCostDollars": null
+    },
+    {
+     "fy": 2027,
+     "quantity": null,
+     "requestDollarsThousands": 11508,
+     "unitCostDollars": null
+    },
+    {
+     "fy": 2028,
+     "quantity": null,
+     "requestDollarsThousands": 11878,
+     "unitCostDollars": null
+    },
+    {
+     "fy": 2029,
+     "quantity": null,
+     "requestDollarsThousands": 12073,
+     "unitCostDollars": null
+    },
+    {
+     "fy": 2030,
+     "quantity": null,
+     "requestDollarsThousands": 12115,
+     "unitCostDollars": null
+    },
+    {
+     "fy": 2031,
+     "quantity": null,
+     "requestDollarsThousands": 12239,
+     "unitCostDollars": null
+    }
+   ]
+  },
+  {
+   "peCode": "9847E97900",
+   "title": "REACTIVE ARMOR TILES",
+   "budgetActivity": "BA 01",
+   "lineNumber": "9847E97900",
+   "programOfRecord": null,
+   "fyData": [
+    {
+     "fy": 2025,
+     "quantity": null,
+     "requestDollarsThousands": 214418,
+     "unitCostDollars": null
+    }
+   ]
+  },
+  {
+   "peCode": "0684EB0016",
+   "title": "Ammo Components, All Types",
+   "budgetActivity": "BA 01",
+   "lineNumber": "0684EB0016",
+   "programOfRecord": null,
+   "fyData": [
+    {
+     "fy": 2025,
+     "quantity": null,
+     "requestDollarsThousands": 3268,
+     "unitCostDollars": null
+    },
+    {
+     "fy": 2026,
+     "quantity": null,
+     "requestDollarsThousands": 4084,
+     "unitCostDollars": null
+    },
+    {
+     "fy": 2027,
+     "quantity": null,
+     "requestDollarsThousands": 4109,
+     "unitCostDollars": null
+    },
+    {
+     "fy": 2028,
+     "quantity": null,
+     "requestDollarsThousands": 4106,
+     "unitCostDollars": null
+    },
+    {
+     "fy": 2029,
+     "quantity": null,
+     "requestDollarsThousands": 4148,
+     "unitCostDollars": null
+    },
+    {
+     "fy": 2030,
+     "quantity": null,
+     "requestDollarsThousands": 4163,
+     "unitCostDollars": null
+    },
+    {
+     "fy": 2031,
+     "quantity": null,
+     "requestDollarsThousands": 4206,
+     "unitCostDollars": null
+    }
+   ]
+  },
+  {
+   "peCode": "2624EA0055",
+   "title": "Items Less Than $5 Million (AMMO)",
+   "budgetActivity": "BA 01",
+   "lineNumber": "2624EA0055",
+   "programOfRecord": null,
+   "fyData": [
+    {
+     "fy": 2025,
+     "quantity": null,
+     "requestDollarsThousands": 18797,
+     "unitCostDollars": null
+    },
+    {
+     "fy": 2026,
+     "quantity": null,
+     "requestDollarsThousands": 16799,
+     "unitCostDollars": null
+    },
+    {
+     "fy": 2027,
+     "quantity": null,
+     "requestDollarsThousands": 16290,
+     "unitCostDollars": null
+    },
+    {
+     "fy": 2028,
+     "quantity": null,
+     "requestDollarsThousands": 14126,
+     "unitCostDollars": null
+    },
+    {
+     "fy": 2029,
+     "quantity": null,
+     "requestDollarsThousands": 12633,
+     "unitCostDollars": null
+    },
+    {
+     "fy": 2030,
+     "quantity": null,
+     "requestDollarsThousands": 12225,
+     "unitCostDollars": null
+    },
+    {
+     "fy": 2031,
+     "quantity": null,
+     "requestDollarsThousands": 12346,
+     "unitCostDollars": null
+    }
+   ]
+  },
+  {
+   "peCode": "4370EA0575",
+   "title": "Ammunition Peculiar Equipment",
+   "budgetActivity": "BA 01",
+   "lineNumber": "4370EA0575",
+   "programOfRecord": null,
+   "fyData": [
+    {
+     "fy": 2025,
+     "quantity": null,
+     "requestDollarsThousands": 3283,
+     "unitCostDollars": null
+    },
+    {
+     "fy": 2026,
+     "quantity": null,
+     "requestDollarsThousands": 16219,
+     "unitCostDollars": null
+    },
+    {
+     "fy": 2027,
+     "quantity": null,
+     "requestDollarsThousands": 14007,
+     "unitCostDollars": null
+    },
+    {
+     "fy": 2028,
+     "quantity": null,
+     "requestDollarsThousands": 17638,
+     "unitCostDollars": null
+    },
+    {
+     "fy": 2029,
+     "quantity": null,
+     "requestDollarsThousands": 15213,
+     "unitCostDollars": null
+    },
+    {
+     "fy": 2030,
+     "quantity": null,
+     "requestDollarsThousands": 13933,
+     "unitCostDollars": null
+    },
+    {
+     "fy": 2031,
+     "quantity": null,
+     "requestDollarsThousands": 13717,
+     "unitCostDollars": null
+    }
+   ]
+  },
+  {
+   "peCode": "4758EA0550",
+   "title": "First Destination Transportation (AMMO)",
+   "budgetActivity": "BA 01",
+   "lineNumber": "4758EA0550",
+   "programOfRecord": null,
+   "fyData": [
+    {
+     "fy": 2025,
+     "quantity": null,
+     "requestDollarsThousands": 19514,
+     "unitCostDollars": null
+    },
+    {
+     "fy": 2026,
+     "quantity": null,
+     "requestDollarsThousands": 18600,
+     "unitCostDollars": null
+    },
+    {
+     "fy": 2027,
+     "quantity": null,
+     "requestDollarsThousands": 18712,
+     "unitCostDollars": null
+    },
+    {
+     "fy": 2028,
+     "quantity": null,
+     "requestDollarsThousands": 18693,
+     "unitCostDollars": null
+    },
+    {
+     "fy": 2029,
+     "quantity": null,
+     "requestDollarsThousands": 18861,
+     "unitCostDollars": null
+    },
+    {
+     "fy": 2030,
+     "quantity": null,
+     "requestDollarsThousands": 18841,
+     "unitCostDollars": null
+    },
+    {
+     "fy": 2031,
+     "quantity": null,
+     "requestDollarsThousands": 19031,
+     "unitCostDollars": null
+    }
+   ]
+  },
+  {
+   "peCode": "9615EA8500",
+   "title": "Closeout Liabilities",
+   "budgetActivity": "BA 01",
+   "lineNumber": "9615EA8500",
+   "programOfRecord": null,
+   "fyData": [
+    {
+     "fy": 2025,
+     "quantity": null,
+     "requestDollarsThousands": 82,
+     "unitCostDollars": null
+    },
+    {
+     "fy": 2026,
+     "quantity": null,
+     "requestDollarsThousands": 102,
+     "unitCostDollars": null
+    },
+    {
+     "fy": 2027,
+     "quantity": null,
+     "requestDollarsThousands": 101,
+     "unitCostDollars": null
+    },
+    {
+     "fy": 2028,
+     "quantity": null,
+     "requestDollarsThousands": 102,
+     "unitCostDollars": null
+    },
+    {
+     "fy": 2029,
+     "quantity": null,
+     "requestDollarsThousands": 102,
+     "unitCostDollars": null
+    },
+    {
+     "fy": 2030,
+     "quantity": null,
+     "requestDollarsThousands": 102,
+     "unitCostDollars": null
+    },
+    {
+     "fy": 2031,
+     "quantity": null,
+     "requestDollarsThousands": 103,
+     "unitCostDollars": null
+    }
+   ]
+  },
+  {
+   "peCode": "0572EP1000",
+   "title": "Industrial Facilities",
+   "budgetActivity": "BA 02",
+   "lineNumber": "0572EP1000",
+   "programOfRecord": null,
+   "fyData": [
+    {
+     "fy": 2025,
+     "quantity": null,
+     "requestDollarsThousands": 1225605,
+     "unitCostDollars": null
+    },
+    {
+     "fy": 2026,
+     "quantity": null,
+     "requestDollarsThousands": 2045845,
+     "unitCostDollars": null
+    },
+    {
+     "fy": 2027,
+     "quantity": null,
+     "requestDollarsThousands": 2331763,
+     "unitCostDollars": null
+    },
+    {
+     "fy": 2028,
+     "quantity": null,
+     "requestDollarsThousands": 1397004,
+     "unitCostDollars": null
+    },
+    {
+     "fy": 2029,
+     "quantity": null,
+     "requestDollarsThousands": 1416070,
+     "unitCostDollars": null
+    },
+    {
+     "fy": 2030,
+     "quantity": null,
+     "requestDollarsThousands": 1574735,
+     "unitCostDollars": null
+    },
+    {
+     "fy": 2031,
+     "quantity": null,
+     "requestDollarsThousands": 1411163,
+     "unitCostDollars": null
+    }
+   ]
+  },
+  {
+   "peCode": "4099EP1700",
+   "title": "Conventional Munitions Demilitarization",
+   "budgetActivity": "BA 02",
+   "lineNumber": "4099EP1700",
+   "programOfRecord": null,
+   "fyData": [
+    {
+     "fy": 2025,
+     "quantity": null,
+     "requestDollarsThousands": 135649,
+     "unitCostDollars": null
+    },
+    {
+     "fy": 2026,
+     "quantity": null,
+     "requestDollarsThousands": 155050,
+     "unitCostDollars": null
+    },
+    {
+     "fy": 2027,
+     "quantity": null,
+     "requestDollarsThousands": 161179,
+     "unitCostDollars": null
+    },
+    {
+     "fy": 2028,
+     "quantity": null,
+     "requestDollarsThousands": 169417,
+     "unitCostDollars": null
+    },
+    {
+     "fy": 2029,
+     "quantity": null,
+     "requestDollarsThousands": 169074,
+     "unitCostDollars": null
+    },
+    {
+     "fy": 2030,
+     "quantity": null,
+     "requestDollarsThousands": 169963,
+     "unitCostDollars": null
+    },
+    {
+     "fy": 2031,
+     "quantity": null,
+     "requestDollarsThousands": 172048,
+     "unitCostDollars": null
+    }
+   ]
+  },
+  {
+   "peCode": "4150EP2500",
+   "title": "ARMS Initiative",
+   "budgetActivity": "BA 02",
+   "lineNumber": "4150EP2500",
+   "programOfRecord": null,
+   "fyData": [
+    {
+     "fy": 2025,
+     "quantity": null,
+     "requestDollarsThousands": 4140,
+     "unitCostDollars": null
+    },
+    {
+     "fy": 2026,
+     "quantity": null,
+     "requestDollarsThousands": 3885,
+     "unitCostDollars": null
+    },
+    {
+     "fy": 2027,
+     "quantity": null,
+     "requestDollarsThousands": 3935,
+     "unitCostDollars": null
+    },
+    {
+     "fy": 2028,
+     "quantity": null,
+     "requestDollarsThousands": 4040,
+     "unitCostDollars": null
+    },
+    {
+     "fy": 2029,
+     "quantity": null,
+     "requestDollarsThousands": 4081,
+     "unitCostDollars": null
+    },
+    {
+     "fy": 2030,
+     "quantity": null,
+     "requestDollarsThousands": 4104,
+     "unitCostDollars": null
+    },
+    {
+     "fy": 2031,
+     "quantity": null,
+     "requestDollarsThousands": 4145,
+     "unitCostDollars": null
+    }
+   ]
+  }
+ ]
+}

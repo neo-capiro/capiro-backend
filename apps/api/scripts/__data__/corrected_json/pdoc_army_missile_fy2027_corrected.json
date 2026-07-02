@@ -1,0 +1,1129 @@
+{
+ "service": "ARMY",
+ "fy": 2027,
+ "sourceUrl": "https://www.asafm.army.mil/Portals/72/Documents/BudgetMaterial/2027/Discretionary%20Budget/Procurement/Missile%20Procurement%20Army.pdf",
+ "pes": [
+  {
+   "peCode": "7265C12000",
+   "title": "Lower Tier Air and Missile Defense (AMD) Sensor",
+   "budgetActivity": "BA 02",
+   "lineNumber": "7265C12000",
+   "programOfRecord": null,
+   "fyData": [
+    {
+     "fy": 2025,
+     "quantity": 2,
+     "requestDollarsThousands": 387629,
+     "unitCostDollars": 193814500
+    },
+    {
+     "fy": 2026,
+     "quantity": 4,
+     "requestDollarsThousands": 532427,
+     "unitCostDollars": 133106750
+    },
+    {
+     "fy": 2027,
+     "quantity": 12,
+     "requestDollarsThousands": 2036358,
+     "unitCostDollars": 169696500
+    },
+    {
+     "fy": 2028,
+     "quantity": 9,
+     "requestDollarsThousands": 1500512,
+     "unitCostDollars": 166723556
+    },
+    {
+     "fy": 2029,
+     "quantity": 9,
+     "requestDollarsThousands": 1485293,
+     "unitCostDollars": 165032556
+    },
+    {
+     "fy": 2030,
+     "quantity": 10,
+     "requestDollarsThousands": 1541293,
+     "unitCostDollars": 154129300
+    },
+    {
+     "fy": 2031,
+     "quantity": 10,
+     "requestDollarsThousands": 1552319,
+     "unitCostDollars": 155231900
+    }
+   ]
+  },
+  {
+   "peCode": "8046C20200",
+   "title": "TERMINAL HIGH ALTITUDE AREA DEFENSE (THAAD)",
+   "budgetActivity": "BA 02",
+   "lineNumber": "8046C20200",
+   "programOfRecord": null,
+   "fyData": [
+    {
+     "fy": 2027,
+     "quantity": 27,
+     "requestDollarsThousands": 907162,
+     "unitCostDollars": 33598593
+    },
+    {
+     "fy": 2028,
+     "quantity": null,
+     "requestDollarsThousands": 5828696,
+     "unitCostDollars": null
+    },
+    {
+     "fy": 2029,
+     "quantity": null,
+     "requestDollarsThousands": 5951308,
+     "unitCostDollars": null
+    },
+    {
+     "fy": 2030,
+     "quantity": null,
+     "requestDollarsThousands": 5972012,
+     "unitCostDollars": null
+    },
+    {
+     "fy": 2031,
+     "quantity": null,
+     "requestDollarsThousands": 6096492,
+     "unitCostDollars": null
+    }
+   ]
+  },
+  {
+   "peCode": "8082C14300",
+   "title": "M-SHORAD - Procurement",
+   "budgetActivity": "BA 02",
+   "lineNumber": "8082C14300",
+   "programOfRecord": null,
+   "fyData": [
+    {
+     "fy": 2025,
+     "quantity": 5,
+     "requestDollarsThousands": 69091,
+     "unitCostDollars": 13818200
+    },
+    {
+     "fy": 2026,
+     "quantity": 29,
+     "requestDollarsThousands": 631114,
+     "unitCostDollars": 21762552
+    },
+    {
+     "fy": 2027,
+     "quantity": 14,
+     "requestDollarsThousands": 712690,
+     "unitCostDollars": 50906429
+    },
+    {
+     "fy": 2028,
+     "quantity": null,
+     "requestDollarsThousands": 492101,
+     "unitCostDollars": null
+    },
+    {
+     "fy": 2029,
+     "quantity": null,
+     "requestDollarsThousands": 307950,
+     "unitCostDollars": null
+    }
+   ]
+  },
+  {
+   "peCode": "8260C53101",
+   "title": "MSE Missile",
+   "budgetActivity": "BA 02",
+   "lineNumber": "8260C53101",
+   "programOfRecord": null,
+   "fyData": [
+    {
+     "fy": 2025,
+     "quantity": 194,
+     "requestDollarsThousands": 905060,
+     "unitCostDollars": 5314742
+    },
+    {
+     "fy": 2026,
+     "quantity": 310,
+     "requestDollarsThousands": 1445905,
+     "unitCostDollars": 5070661
+    },
+    {
+     "fy": 2027,
+     "quantity": 244,
+     "requestDollarsThousands": 1297528,
+     "unitCostDollars": 5317738
+    },
+    {
+     "fy": 2028,
+     "quantity": 1672,
+     "requestDollarsThousands": 7496459,
+     "unitCostDollars": 4483528
+    },
+    {
+     "fy": 2029,
+     "quantity": 1675,
+     "requestDollarsThousands": 7664370,
+     "unitCostDollars": 4575743
+    },
+    {
+     "fy": 2030,
+     "quantity": 1684,
+     "requestDollarsThousands": 7879585,
+     "unitCostDollars": 4679088
+    },
+    {
+     "fy": 2031,
+     "quantity": 1690,
+     "requestDollarsThousands": 8078998,
+     "unitCostDollars": 4780472
+    }
+   ]
+  },
+  {
+   "peCode": "8540C29600",
+   "title": "PRECISION STRIKE MISSILE (PRSM)",
+   "budgetActivity": "BA 02",
+   "lineNumber": "8540C29600",
+   "programOfRecord": null,
+   "fyData": [
+    {
+     "fy": 2025,
+     "quantity": 338,
+     "requestDollarsThousands": 491497,
+     "unitCostDollars": 1454133
+    },
+    {
+     "fy": 2026,
+     "quantity": 108,
+     "requestDollarsThousands": 268726,
+     "unitCostDollars": 2488204
+    },
+    {
+     "fy": 2027,
+     "quantity": 680,
+     "requestDollarsThousands": 1226526,
+     "unitCostDollars": 1803715
+    },
+    {
+     "fy": 2028,
+     "quantity": 418,
+     "requestDollarsThousands": 822564,
+     "unitCostDollars": 1967856
+    },
+    {
+     "fy": 2029,
+     "quantity": 422,
+     "requestDollarsThousands": 852341,
+     "unitCostDollars": 2019765
+    },
+    {
+     "fy": 2030,
+     "quantity": 494,
+     "requestDollarsThousands": 1020407,
+     "unitCostDollars": 2065601
+    },
+    {
+     "fy": 2031,
+     "quantity": 442,
+     "requestDollarsThousands": 905635,
+     "unitCostDollars": 2048948
+    }
+   ]
+  },
+  {
+   "peCode": "8930C61001",
+   "title": "INDIRECT FIRE PROTECTION CAPABILITY INC 2-I",
+   "budgetActivity": "BA 02",
+   "lineNumber": "8930C61001",
+   "programOfRecord": null,
+   "fyData": [
+    {
+     "fy": 2025,
+     "quantity": 21,
+     "requestDollarsThousands": 465244,
+     "unitCostDollars": 22154476
+    },
+    {
+     "fy": 2026,
+     "quantity": 50,
+     "requestDollarsThousands": 719689,
+     "unitCostDollars": 14393780
+    },
+    {
+     "fy": 2027,
+     "quantity": 96,
+     "requestDollarsThousands": 1626004,
+     "unitCostDollars": 16937542
+    },
+    {
+     "fy": 2028,
+     "quantity": 84,
+     "requestDollarsThousands": 1741520,
+     "unitCostDollars": 20732381
+    },
+    {
+     "fy": 2029,
+     "quantity": 36,
+     "requestDollarsThousands": 997316,
+     "unitCostDollars": 27703222
+    },
+    {
+     "fy": 2030,
+     "quantity": 36,
+     "requestDollarsThousands": 997617,
+     "unitCostDollars": 27711583
+    },
+    {
+     "fy": 2031,
+     "quantity": 180,
+     "requestDollarsThousands": 1135323,
+     "unitCostDollars": 6307350
+    }
+   ]
+  },
+  {
+   "peCode": "9214C81200",
+   "title": "MID-RANGE CAPABILITY (MRC)",
+   "budgetActivity": "BA 02",
+   "lineNumber": "9214C81200",
+   "programOfRecord": null,
+   "fyData": [
+    {
+     "fy": 2025,
+     "quantity": 23,
+     "requestDollarsThousands": 152637,
+     "unitCostDollars": 6636391
+    },
+    {
+     "fy": 2026,
+     "quantity": 12,
+     "requestDollarsThousands": 82407,
+     "unitCostDollars": 6867250
+    },
+    {
+     "fy": 2027,
+     "quantity": 44,
+     "requestDollarsThousands": 370351,
+     "unitCostDollars": 8417068
+    },
+    {
+     "fy": 2028,
+     "quantity": 239,
+     "requestDollarsThousands": 1682031,
+     "unitCostDollars": 7037787
+    },
+    {
+     "fy": 2029,
+     "quantity": 243,
+     "requestDollarsThousands": 1783297,
+     "unitCostDollars": 7338671
+    },
+    {
+     "fy": 2030,
+     "quantity": 249,
+     "requestDollarsThousands": 1755400,
+     "unitCostDollars": 7049799
+    },
+    {
+     "fy": 2031,
+     "quantity": 250,
+     "requestDollarsThousands": 1796607,
+     "unitCostDollars": 7186428
+    }
+   ]
+  },
+  {
+   "peCode": "9216C82200",
+   "title": "COUNTER SMALL UNMANNED AERIAL SYSTEM INTERCEPT",
+   "budgetActivity": "BA 02",
+   "lineNumber": "9216C82200",
+   "programOfRecord": null,
+   "fyData": [
+    {
+     "fy": 2025,
+     "quantity": null,
+     "requestDollarsThousands": 329227,
+     "unitCostDollars": 171116
+    }
+   ]
+  },
+  {
+   "peCode": "2605C70302",
+   "title": "Joint Air-to-Ground MSLS (JAGM)",
+   "budgetActivity": "BA 02",
+   "lineNumber": "2605C70302",
+   "programOfRecord": null,
+   "fyData": [
+    {
+     "fy": 2025,
+     "quantity": 1000,
+     "requestDollarsThousands": 334102,
+     "unitCostDollars": 334102
+    },
+    {
+     "fy": 2026,
+     "quantity": 178,
+     "requestDollarsThousands": 84667,
+     "unitCostDollars": 475657
+    },
+    {
+     "fy": 2027,
+     "quantity": 269,
+     "requestDollarsThousands": 104059,
+     "unitCostDollars": 386836
+    },
+    {
+     "fy": 2028,
+     "quantity": 320,
+     "requestDollarsThousands": 114016,
+     "unitCostDollars": 356300
+    },
+    {
+     "fy": 2029,
+     "quantity": 158,
+     "requestDollarsThousands": 74511,
+     "unitCostDollars": 471589
+    },
+    {
+     "fy": 2030,
+     "quantity": 364,
+     "requestDollarsThousands": 120034,
+     "unitCostDollars": 329764
+    },
+    {
+     "fy": 2031,
+     "quantity": 317,
+     "requestDollarsThousands": 121256,
+     "unitCostDollars": 382511
+    }
+   ]
+  },
+  {
+   "peCode": "2611C72100",
+   "title": "LONG-RANGE HYPERSONIC WEAPON",
+   "budgetActivity": "BA 02",
+   "lineNumber": "2611C72100",
+   "programOfRecord": null,
+   "fyData": [
+    {
+     "fy": 2025,
+     "quantity": null,
+     "requestDollarsThousands": 669178,
+     "unitCostDollars": null
+    },
+    {
+     "fy": 2026,
+     "quantity": null,
+     "requestDollarsThousands": 347845,
+     "unitCostDollars": null
+    },
+    {
+     "fy": 2027,
+     "quantity": null,
+     "requestDollarsThousands": 301777,
+     "unitCostDollars": null
+    },
+    {
+     "fy": 2028,
+     "quantity": null,
+     "requestDollarsThousands": 1812068,
+     "unitCostDollars": null
+    },
+    {
+     "fy": 2029,
+     "quantity": 500,
+     "requestDollarsThousands": 2136797,
+     "unitCostDollars": 4273594
+    },
+    {
+     "fy": 2030,
+     "quantity": 2000,
+     "requestDollarsThousands": 2479848,
+     "unitCostDollars": 1239924
+    },
+    {
+     "fy": 2031,
+     "quantity": 2000,
+     "requestDollarsThousands": 2034414,
+     "unitCostDollars": 1017207
+    }
+   ]
+  },
+  {
+   "peCode": "0648CC0007",
+   "title": "Javelin (AAWS-M) System Summary",
+   "budgetActivity": "BA 02",
+   "lineNumber": "0648CC0007",
+   "programOfRecord": null,
+   "fyData": [
+    {
+     "fy": 2025,
+     "quantity": 752,
+     "requestDollarsThousands": 296021,
+     "unitCostDollars": 393645
+    },
+    {
+     "fy": 2026,
+     "quantity": 649,
+     "requestDollarsThousands": 329205,
+     "unitCostDollars": 507250
+    },
+    {
+     "fy": 2027,
+     "quantity": 1316,
+     "requestDollarsThousands": 417031,
+     "unitCostDollars": 316893
+    },
+    {
+     "fy": 2028,
+     "quantity": 1137,
+     "requestDollarsThousands": 395485,
+     "unitCostDollars": 347832
+    },
+    {
+     "fy": 2029,
+     "quantity": 1116,
+     "requestDollarsThousands": 380190,
+     "unitCostDollars": 340672
+    },
+    {
+     "fy": 2030,
+     "quantity": 970,
+     "requestDollarsThousands": 339518,
+     "unitCostDollars": 350019
+    },
+    {
+     "fy": 2031,
+     "quantity": 966,
+     "requestDollarsThousands": 343554,
+     "unitCostDollars": 355646
+    }
+   ]
+  },
+  {
+   "peCode": "2104C59300",
+   "title": "TOW 2 System Summary",
+   "budgetActivity": "BA 02",
+   "lineNumber": "2104C59300",
+   "programOfRecord": null,
+   "fyData": [
+    {
+     "fy": 2025,
+     "quantity": 551,
+     "requestDollarsThousands": 122295,
+     "unitCostDollars": 221951
+    },
+    {
+     "fy": 2026,
+     "quantity": null,
+     "requestDollarsThousands": 11731,
+     "unitCostDollars": null
+    }
+   ]
+  },
+  {
+   "peCode": "6005C64400",
+   "title": "Guided MLRS Rocket (GMLRS)",
+   "budgetActivity": "BA 02",
+   "lineNumber": "6005C64400",
+   "programOfRecord": null,
+   "fyData": [
+    {
+     "fy": 2025,
+     "quantity": null,
+     "requestDollarsThousands": 1168264,
+     "unitCostDollars": null
+    },
+    {
+     "fy": 2026,
+     "quantity": 5490,
+     "requestDollarsThousands": 1125071,
+     "unitCostDollars": 210395
+    },
+    {
+     "fy": 2027,
+     "quantity": 4824,
+     "requestDollarsThousands": 1014937,
+     "unitCostDollars": 219339
+    },
+    {
+     "fy": 2028,
+     "quantity": 5244,
+     "requestDollarsThousands": 1163289,
+     "unitCostDollars": 231197
+    },
+    {
+     "fy": 2029,
+     "quantity": 4878,
+     "requestDollarsThousands": 1103952,
+     "unitCostDollars": 235764
+    },
+    {
+     "fy": 2030,
+     "quantity": 4740,
+     "requestDollarsThousands": 1103170,
+     "unitCostDollars": 242329
+    },
+    {
+     "fy": 2031,
+     "quantity": 5292,
+     "requestDollarsThousands": 1262128,
+     "unitCostDollars": 248266
+    }
+   ]
+  },
+  {
+   "peCode": "6005C64400",
+   "title": "Guided MLRS Rocket (GMLRS), Advance Procurement",
+   "budgetActivity": "BA 02",
+   "lineNumber": "6005C64400",
+   "programOfRecord": null,
+   "fyData": [
+    {
+     "fy": 2025,
+     "quantity": null,
+     "requestDollarsThousands": 30000,
+     "unitCostDollars": null
+    },
+    {
+     "fy": 2026,
+     "quantity": null,
+     "requestDollarsThousands": 43156,
+     "unitCostDollars": null
+    },
+    {
+     "fy": 2027,
+     "quantity": null,
+     "requestDollarsThousands": 49106,
+     "unitCostDollars": null
+    },
+    {
+     "fy": 2028,
+     "quantity": null,
+     "requestDollarsThousands": 46107,
+     "unitCostDollars": null
+    },
+    {
+     "fy": 2029,
+     "quantity": null,
+     "requestDollarsThousands": 45470,
+     "unitCostDollars": null
+    },
+    {
+     "fy": 2030,
+     "quantity": null,
+     "requestDollarsThousands": 51694,
+     "unitCostDollars": null
+    }
+   ]
+  },
+  {
+   "peCode": "6060C65405",
+   "title": "MLRS Reduced Range Practice Rockets (RRPR)",
+   "budgetActivity": "BA 02",
+   "lineNumber": "6060C65405",
+   "programOfRecord": null,
+   "fyData": [
+    {
+     "fy": 2025,
+     "quantity": 3720,
+     "requestDollarsThousands": 30230,
+     "unitCostDollars": 8126
+    },
+    {
+     "fy": 2026,
+     "quantity": 4002,
+     "requestDollarsThousands": 32339,
+     "unitCostDollars": 8081
+    },
+    {
+     "fy": 2027,
+     "quantity": 600,
+     "requestDollarsThousands": 7412,
+     "unitCostDollars": 12353
+    },
+    {
+     "fy": 2028,
+     "quantity": 3846,
+     "requestDollarsThousands": 32579,
+     "unitCostDollars": 8471
+    },
+    {
+     "fy": 2029,
+     "quantity": 3792,
+     "requestDollarsThousands": 32869,
+     "unitCostDollars": 8668
+    }
+   ]
+  },
+  {
+   "peCode": "6200C02901",
+   "title": "High Mobility Artillery Rocket System (HIMARS)",
+   "budgetActivity": "BA 02",
+   "lineNumber": "6200C02901",
+   "programOfRecord": null,
+   "fyData": [
+    {
+     "fy": 2025,
+     "quantity": 18,
+     "requestDollarsThousands": 175539,
+     "unitCostDollars": 9752167
+    },
+    {
+     "fy": 2026,
+     "quantity": 6,
+     "requestDollarsThousands": 61503,
+     "unitCostDollars": 10250500
+    },
+    {
+     "fy": 2027,
+     "quantity": 96,
+     "requestDollarsThousands": 745682,
+     "unitCostDollars": 7767521
+    },
+    {
+     "fy": 2028,
+     "quantity": 12,
+     "requestDollarsThousands": 142607,
+     "unitCostDollars": 11883917
+    },
+    {
+     "fy": 2029,
+     "quantity": 4,
+     "requestDollarsThousands": 31891,
+     "unitCostDollars": 7972750
+    },
+    {
+     "fy": 2030,
+     "quantity": 4,
+     "requestDollarsThousands": 34488,
+     "unitCostDollars": 8622000
+    },
+    {
+     "fy": 2031,
+     "quantity": null,
+     "requestDollarsThousands": 809,
+     "unitCostDollars": null
+    }
+   ]
+  },
+  {
+   "peCode": "6472C98510",
+   "title": "ARMY TACTICAL MSL SYS (ATACMS) - SYS SUM",
+   "budgetActivity": "BA 02",
+   "lineNumber": "6472C98510",
+   "programOfRecord": null,
+   "fyData": [
+    {
+     "fy": 2025,
+     "quantity": null,
+     "requestDollarsThousands": 113280,
+     "unitCostDollars": null
+    }
+   ]
+  },
+  {
+   "peCode": "6870C88001",
+   "title": "LETHAL MINIATURE AERIAL MISSILE SYSTEM (LMAMS)",
+   "budgetActivity": "BA 02",
+   "lineNumber": "6870C88001",
+   "programOfRecord": null,
+   "fyData": [
+    {
+     "fy": 2025,
+     "quantity": null,
+     "requestDollarsThousands": 163744,
+     "unitCostDollars": null
+    }
+   ]
+  },
+  {
+   "peCode": "6872C91500",
+   "title": "FAMILY OF LOW ALTITUDE UNMANNED SYSTEMS",
+   "budgetActivity": "BA 02",
+   "lineNumber": "6872C91500",
+   "programOfRecord": null,
+   "fyData": [
+    {
+     "fy": 2025,
+     "quantity": null,
+     "requestDollarsThousands": 345491,
+     "unitCostDollars": null
+    },
+    {
+     "fy": 2026,
+     "quantity": 103,
+     "requestDollarsThousands": 67816,
+     "unitCostDollars": 658408
+    },
+    {
+     "fy": 2027,
+     "quantity": 147,
+     "requestDollarsThousands": 139191,
+     "unitCostDollars": 946878
+    },
+    {
+     "fy": 2028,
+     "quantity": 257,
+     "requestDollarsThousands": 217480,
+     "unitCostDollars": 846226
+    },
+    {
+     "fy": 2029,
+     "quantity": 369,
+     "requestDollarsThousands": 360870,
+     "unitCostDollars": 977967
+    },
+    {
+     "fy": 2030,
+     "quantity": 327,
+     "requestDollarsThousands": 326506,
+     "unitCostDollars": 998489
+    },
+    {
+     "fy": 2031,
+     "quantity": 305,
+     "requestDollarsThousands": 327941,
+     "unitCostDollars": 1075216
+    }
+   ]
+  },
+  {
+   "peCode": "0962C50700",
+   "title": "Patriot Mods",
+   "budgetActivity": "BA 03",
+   "lineNumber": "0962C50700",
+   "programOfRecord": null,
+   "fyData": [
+    {
+     "fy": 2025,
+     "quantity": null,
+     "requestDollarsThousands": 171958,
+     "unitCostDollars": null
+    },
+    {
+     "fy": 2026,
+     "quantity": null,
+     "requestDollarsThousands": 757800,
+     "unitCostDollars": 31575000
+    },
+    {
+     "fy": 2027,
+     "quantity": null,
+     "requestDollarsThousands": 796837,
+     "unitCostDollars": 33201542
+    },
+    {
+     "fy": 2028,
+     "quantity": null,
+     "requestDollarsThousands": 574847,
+     "unitCostDollars": 23951958
+    },
+    {
+     "fy": 2029,
+     "quantity": null,
+     "requestDollarsThousands": 215159,
+     "unitCostDollars": null
+    },
+    {
+     "fy": 2030,
+     "quantity": null,
+     "requestDollarsThousands": 234767,
+     "unitCostDollars": null
+    },
+    {
+     "fy": 2031,
+     "quantity": null,
+     "requestDollarsThousands": 225781,
+     "unitCostDollars": null
+    }
+   ]
+  },
+  {
+   "peCode": "2684C20000",
+   "title": "Stinger Mods",
+   "budgetActivity": "BA 03",
+   "lineNumber": "2684C20000",
+   "programOfRecord": null,
+   "fyData": [
+    {
+     "fy": 2025,
+     "quantity": null,
+     "requestDollarsThousands": 649475,
+     "unitCostDollars": 776884
+    },
+    {
+     "fy": 2026,
+     "quantity": null,
+     "requestDollarsThousands": 428935,
+     "unitCostDollars": 759177
+    },
+    {
+     "fy": 2027,
+     "quantity": null,
+     "requestDollarsThousands": 10786,
+     "unitCostDollars": null
+    },
+    {
+     "fy": 2028,
+     "quantity": null,
+     "requestDollarsThousands": 10096,
+     "unitCostDollars": null
+    },
+    {
+     "fy": 2029,
+     "quantity": null,
+     "requestDollarsThousands": 4388,
+     "unitCostDollars": null
+    }
+   ]
+  },
+  {
+   "peCode": "2690CE8710",
+   "title": "AVENGER MODS",
+   "budgetActivity": "BA 03",
+   "lineNumber": "2690CE8710",
+   "programOfRecord": null,
+   "fyData": [
+    {
+     "fy": 2025,
+     "quantity": null,
+     "requestDollarsThousands": 2321,
+     "unitCostDollars": null
+    },
+    {
+     "fy": 2027,
+     "quantity": null,
+     "requestDollarsThousands": 6823,
+     "unitCostDollars": null
+    },
+    {
+     "fy": 2028,
+     "quantity": null,
+     "requestDollarsThousands": 5051,
+     "unitCostDollars": null
+    },
+    {
+     "fy": 2029,
+     "quantity": null,
+     "requestDollarsThousands": 5051,
+     "unitCostDollars": null
+    },
+    {
+     "fy": 2030,
+     "quantity": null,
+     "requestDollarsThousands": 3010,
+     "unitCostDollars": null
+    },
+    {
+     "fy": 2031,
+     "quantity": null,
+     "requestDollarsThousands": 3037,
+     "unitCostDollars": null
+    }
+   ]
+  },
+  {
+   "peCode": "6552C67500",
+   "title": "MLRS Mods",
+   "budgetActivity": "BA 03",
+   "lineNumber": "6552C67500",
+   "programOfRecord": null,
+   "fyData": [
+    {
+     "fy": 2025,
+     "quantity": null,
+     "requestDollarsThousands": 320591,
+     "unitCostDollars": null
+    },
+    {
+     "fy": 2026,
+     "quantity": null,
+     "requestDollarsThousands": 243470,
+     "unitCostDollars": null
+    },
+    {
+     "fy": 2027,
+     "quantity": null,
+     "requestDollarsThousands": 289496,
+     "unitCostDollars": null
+    },
+    {
+     "fy": 2028,
+     "quantity": null,
+     "requestDollarsThousands": 289782,
+     "unitCostDollars": null
+    },
+    {
+     "fy": 2029,
+     "quantity": null,
+     "requestDollarsThousands": 295560,
+     "unitCostDollars": null
+    },
+    {
+     "fy": 2030,
+     "quantity": null,
+     "requestDollarsThousands": 302374,
+     "unitCostDollars": null
+    }
+   ]
+  },
+  {
+   "peCode": "6580C67501",
+   "title": "HIMARS Modifications",
+   "budgetActivity": "BA 03",
+   "lineNumber": "6580C67501",
+   "programOfRecord": null,
+   "fyData": [
+    {
+     "fy": 2025,
+     "quantity": null,
+     "requestDollarsThousands": 49581,
+     "unitCostDollars": null
+    },
+    {
+     "fy": 2026,
+     "quantity": null,
+     "requestDollarsThousands": 54005,
+     "unitCostDollars": null
+    },
+    {
+     "fy": 2027,
+     "quantity": null,
+     "requestDollarsThousands": 54363,
+     "unitCostDollars": null
+    },
+    {
+     "fy": 2028,
+     "quantity": null,
+     "requestDollarsThousands": 99372,
+     "unitCostDollars": null
+    },
+    {
+     "fy": 2029,
+     "quantity": null,
+     "requestDollarsThousands": 99860,
+     "unitCostDollars": null
+    },
+    {
+     "fy": 2030,
+     "quantity": null,
+     "requestDollarsThousands": 99826,
+     "unitCostDollars": null
+    },
+    {
+     "fy": 2031,
+     "quantity": null,
+     "requestDollarsThousands": 155221,
+     "unitCostDollars": null
+    }
+   ]
+  },
+  {
+   "peCode": "1242CA0250",
+   "title": "Spares And Repair Parts",
+   "budgetActivity": "BA 04",
+   "lineNumber": "1242CA0250",
+   "programOfRecord": null,
+   "fyData": [
+    {
+     "fy": 2025,
+     "quantity": null,
+     "requestDollarsThousands": 6695,
+     "unitCostDollars": null
+    },
+    {
+     "fy": 2026,
+     "quantity": null,
+     "requestDollarsThousands": 6651,
+     "unitCostDollars": null
+    },
+    {
+     "fy": 2027,
+     "quantity": null,
+     "requestDollarsThousands": 6698,
+     "unitCostDollars": null
+    },
+    {
+     "fy": 2028,
+     "quantity": null,
+     "requestDollarsThousands": 6701,
+     "unitCostDollars": null
+    },
+    {
+     "fy": 2029,
+     "quantity": null,
+     "requestDollarsThousands": 6759,
+     "unitCostDollars": null
+    },
+    {
+     "fy": 2030,
+     "quantity": null,
+     "requestDollarsThousands": 6757,
+     "unitCostDollars": null
+    },
+    {
+     "fy": 2031,
+     "quantity": null,
+     "requestDollarsThousands": 6825,
+     "unitCostDollars": null
+    }
+   ]
+  },
+  {
+   "peCode": "1242C93000",
+   "title": "Air Defense Targets",
+   "budgetActivity": "BA 05",
+   "lineNumber": "1242C93000",
+   "programOfRecord": null,
+   "fyData": [
+    {
+     "fy": 2025,
+     "quantity": null,
+     "requestDollarsThousands": 7034,
+     "unitCostDollars": null
+    },
+    {
+     "fy": 2026,
+     "quantity": null,
+     "requestDollarsThousands": 12801,
+     "unitCostDollars": null
+    },
+    {
+     "fy": 2027,
+     "quantity": null,
+     "requestDollarsThousands": 9613,
+     "unitCostDollars": null
+    },
+    {
+     "fy": 2028,
+     "quantity": null,
+     "requestDollarsThousands": 10502,
+     "unitCostDollars": null
+    },
+    {
+     "fy": 2029,
+     "quantity": null,
+     "requestDollarsThousands": 10559,
+     "unitCostDollars": null
+    },
+    {
+     "fy": 2030,
+     "quantity": null,
+     "requestDollarsThousands": 10823,
+     "unitCostDollars": null
+    },
+    {
+     "fy": 2031,
+     "quantity": null,
+     "requestDollarsThousands": 11530,
+     "unitCostDollars": null
+    }
+   ]
+  }
+ ]
+}

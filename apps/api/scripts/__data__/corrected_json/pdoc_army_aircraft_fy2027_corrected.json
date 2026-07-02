@@ -1,0 +1,1357 @@
+{
+ "service": "ARMY",
+ "fy": 2027,
+ "sourceUrl": "https://www.asafm.army.mil/Portals/72/Documents/BudgetMaterial/2027/Discretionary%20Budget/Procurement/Aircraft_Procurement_Army.pdf",
+ "pes": [
+  {
+   "peCode": "9670A00005",
+   "title": "MQ-1 UAV",
+   "budgetActivity": "BA 01",
+   "lineNumber": "9670A00005",
+   "programOfRecord": null,
+   "fyData": [
+    {
+     "fy": 2025,
+     "quantity": 8,
+     "requestDollarsThousands": 240000,
+     "unitCostDollars": 30000000
+    },
+    {
+     "fy": 2026,
+     "quantity": 8,
+     "requestDollarsThousands": 240000,
+     "unitCostDollars": 30000000
+    }
+   ]
+  },
+  {
+   "peCode": "9672A00510",
+   "title": "Future UAS Family",
+   "budgetActivity": "BA 01",
+   "lineNumber": "9672A00510",
+   "programOfRecord": null,
+   "fyData": [
+    {
+     "fy": 2025,
+     "quantity": null,
+     "requestDollarsThousands": 57902,
+     "unitCostDollars": null
+    },
+    {
+     "fy": 2026,
+     "quantity": 47,
+     "requestDollarsThousands": 71459,
+     "unitCostDollars": 1520404
+    }
+   ]
+  },
+  {
+   "peCode": "9678A12500",
+   "title": "SMALL UNMANNED AIRCRAFT SYSTEMS",
+   "budgetActivity": "BA 01",
+   "lineNumber": "9678A12500",
+   "programOfRecord": null,
+   "fyData": [
+    {
+     "fy": 2025,
+     "quantity": 391,
+     "requestDollarsThousands": 190914,
+     "unitCostDollars": 488271
+    },
+    {
+     "fy": 2026,
+     "quantity": 1717,
+     "requestDollarsThousands": 426029,
+     "unitCostDollars": 248124
+    },
+    {
+     "fy": 2027,
+     "quantity": 590,
+     "requestDollarsThousands": 291472,
+     "unitCostDollars": 494020
+    },
+    {
+     "fy": 2028,
+     "quantity": 498,
+     "requestDollarsThousands": 281576,
+     "unitCostDollars": 565414
+    },
+    {
+     "fy": 2029,
+     "quantity": 433,
+     "requestDollarsThousands": 284994,
+     "unitCostDollars": 658185
+    },
+    {
+     "fy": 2030,
+     "quantity": 641,
+     "requestDollarsThousands": 281158,
+     "unitCostDollars": 438624
+    },
+    {
+     "fy": 2031,
+     "quantity": 635,
+     "requestDollarsThousands": 288317,
+     "unitCostDollars": 454043
+    }
+   ]
+  },
+  {
+   "peCode": "9681A14000",
+   "title": "UNMANNED AIRCRAFT SYSTEMS (UAS)",
+   "budgetActivity": "BA 01",
+   "lineNumber": "9681A14000",
+   "programOfRecord": null,
+   "fyData": [
+    {
+     "fy": 2027,
+     "quantity": 8,
+     "requestDollarsThousands": 52398,
+     "unitCostDollars": 6549750
+    },
+    {
+     "fy": 2028,
+     "quantity": 145,
+     "requestDollarsThousands": 280130,
+     "unitCostDollars": 1931931
+    },
+    {
+     "fy": 2029,
+     "quantity": 97,
+     "requestDollarsThousands": 265464,
+     "unitCostDollars": 2736742
+    },
+    {
+     "fy": 2030,
+     "quantity": 114,
+     "requestDollarsThousands": 269450,
+     "unitCostDollars": 2363596
+    },
+    {
+     "fy": 2031,
+     "quantity": 114,
+     "requestDollarsThousands": 279154,
+     "unitCostDollars": 2448719
+    }
+   ]
+  },
+  {
+   "peCode": "9697A12400",
+   "title": "HADES PLATFORM, PAYLOADS/PED, AND INTEGRATION",
+   "budgetActivity": "BA 01",
+   "lineNumber": "9697A12400",
+   "programOfRecord": null,
+   "fyData": [
+    {
+     "fy": 2026,
+     "quantity": null,
+     "requestDollarsThousands": 26850,
+     "unitCostDollars": null
+    },
+    {
+     "fy": 2027,
+     "quantity": 193,
+     "requestDollarsThousands": 227569,
+     "unitCostDollars": 1179114
+    },
+    {
+     "fy": 2028,
+     "quantity": 1,
+     "requestDollarsThousands": 310036,
+     "unitCostDollars": 310036000
+    },
+    {
+     "fy": 2029,
+     "quantity": 1,
+     "requestDollarsThousands": 363256,
+     "unitCostDollars": 363256000
+    },
+    {
+     "fy": 2030,
+     "quantity": 1,
+     "requestDollarsThousands": 465327,
+     "unitCostDollars": 465327000
+    },
+    {
+     "fy": 2031,
+     "quantity": 1,
+     "requestDollarsThousands": 469818,
+     "unitCostDollars": 469818000
+    }
+   ]
+  },
+  {
+   "peCode": "4742A05001",
+   "title": "UH-72 LAKOTA LIGHT UTILITY HELICOPTER",
+   "budgetActivity": "BA 01",
+   "lineNumber": "4742A05001",
+   "programOfRecord": null,
+   "fyData": [
+    {
+     "fy": 2025,
+     "quantity": null,
+     "requestDollarsThousands": 10000,
+     "unitCostDollars": null
+    }
+   ]
+  },
+  {
+   "peCode": "5757A05111",
+   "title": "AH-64 Apache Block IIIA Reman",
+   "budgetActivity": "BA 01",
+   "lineNumber": "5757A05111",
+   "programOfRecord": null,
+   "fyData": [
+    {
+     "fy": 2025,
+     "quantity": 31,
+     "requestDollarsThousands": 557399,
+     "unitCostDollars": 21540613
+    },
+    {
+     "fy": 2026,
+     "quantity": 7,
+     "requestDollarsThousands": 361669,
+     "unitCostDollars": 51667000
+    },
+    {
+     "fy": 2027,
+     "quantity": null,
+     "requestDollarsThousands": 1552,
+     "unitCostDollars": null
+    },
+    {
+     "fy": 2028,
+     "quantity": null,
+     "requestDollarsThousands": 1551,
+     "unitCostDollars": null
+    },
+    {
+     "fy": 2029,
+     "quantity": null,
+     "requestDollarsThousands": 554,
+     "unitCostDollars": null
+    },
+    {
+     "fy": 2030,
+     "quantity": null,
+     "requestDollarsThousands": 554,
+     "unitCostDollars": null
+    },
+    {
+     "fy": 2031,
+     "quantity": null,
+     "requestDollarsThousands": 561,
+     "unitCostDollars": null
+    }
+   ]
+  },
+  {
+   "peCode": "6761A12000",
+   "title": "Future Vertical Lift FAMILY OF SYSTEMS",
+   "budgetActivity": "BA 01",
+   "lineNumber": "6761A12000",
+   "programOfRecord": null,
+   "fyData": [
+    {
+     "fy": 2027,
+     "quantity": null,
+     "requestDollarsThousands": 0,
+     "unitCostDollars": null
+    },
+    {
+     "fy": 2028,
+     "quantity": 8,
+     "requestDollarsThousands": 746743,
+     "unitCostDollars": 109245000
+    },
+    {
+     "fy": 2029,
+     "quantity": 12,
+     "requestDollarsThousands": 1430731,
+     "unitCostDollars": 136682250
+    },
+    {
+     "fy": 2030,
+     "quantity": 20,
+     "requestDollarsThousands": 2195481,
+     "unitCostDollars": 126175300
+    },
+    {
+     "fy": 2031,
+     "quantity": 27,
+     "requestDollarsThousands": 2554458,
+     "unitCostDollars": 111889704
+    }
+   ]
+  },
+  {
+   "peCode": "6761A12000",
+   "title": "Future Vertical Lift FAMILY OF SYSTEMS, Advance Procurement",
+   "budgetActivity": "BA 01",
+   "lineNumber": "6761A12000",
+   "programOfRecord": null,
+   "fyData": [
+    {
+     "fy": 2027,
+     "quantity": null,
+     "requestDollarsThousands": 127217,
+     "unitCostDollars": null
+    },
+    {
+     "fy": 2028,
+     "quantity": null,
+     "requestDollarsThousands": 209456,
+     "unitCostDollars": null
+    },
+    {
+     "fy": 2029,
+     "quantity": null,
+     "requestDollarsThousands": 328025,
+     "unitCostDollars": null
+    },
+    {
+     "fy": 2030,
+     "quantity": null,
+     "requestDollarsThousands": 466564,
+     "unitCostDollars": null
+    },
+    {
+     "fy": 2031,
+     "quantity": null,
+     "requestDollarsThousands": 672844,
+     "unitCostDollars": null
+    }
+   ]
+  },
+  {
+   "peCode": "6771AA0005",
+   "title": "UH-60 Blackhawk M Model (MYP)",
+   "budgetActivity": "BA 01",
+   "lineNumber": "6771AA0005",
+   "programOfRecord": null,
+   "fyData": [
+    {
+     "fy": 2025,
+     "quantity": 26,
+     "requestDollarsThousands": 769054,
+     "unitCostDollars": 33136462
+    },
+    {
+     "fy": 2026,
+     "quantity": 29,
+     "requestDollarsThousands": 913060,
+     "unitCostDollars": 33490690
+    },
+    {
+     "fy": 2027,
+     "quantity": 1,
+     "requestDollarsThousands": 39257,
+     "unitCostDollars": 104257000
+    },
+    {
+     "fy": 2028,
+     "quantity": 1,
+     "requestDollarsThousands": 39233,
+     "unitCostDollars": 39233000
+    },
+    {
+     "fy": 2029,
+     "quantity": 1,
+     "requestDollarsThousands": 39229,
+     "unitCostDollars": 39229000
+    },
+    {
+     "fy": 2030,
+     "quantity": 1,
+     "requestDollarsThousands": 39229,
+     "unitCostDollars": 39229000
+    },
+    {
+     "fy": 2031,
+     "quantity": 1,
+     "requestDollarsThousands": 39229,
+     "unitCostDollars": 39229000
+    }
+   ]
+  },
+  {
+   "peCode": "6771AA0005",
+   "title": "UH-60 Blackhawk M Model (MYP), Advance Procurement",
+   "budgetActivity": "BA 01",
+   "lineNumber": "6771AA0005",
+   "programOfRecord": null,
+   "fyData": [
+    {
+     "fy": 2025,
+     "quantity": null,
+     "requestDollarsThousands": 58170,
+     "unitCostDollars": null
+    },
+    {
+     "fy": 2026,
+     "quantity": null,
+     "requestDollarsThousands": 65000,
+     "unitCostDollars": null
+    }
+   ]
+  },
+  {
+   "peCode": "6775A05101",
+   "title": "CH-47 Helicopter",
+   "budgetActivity": "BA 01",
+   "lineNumber": "6775A05101",
+   "programOfRecord": null,
+   "fyData": [
+    {
+     "fy": 2025,
+     "quantity": 11,
+     "requestDollarsThousands": 699698,
+     "unitCostDollars": 65330364
+    },
+    {
+     "fy": 2026,
+     "quantity": 11,
+     "requestDollarsThousands": 628798,
+     "unitCostDollars": 57163455
+    },
+    {
+     "fy": 2027,
+     "quantity": 5,
+     "requestDollarsThousands": 210645,
+     "unitCostDollars": 54413200
+    },
+    {
+     "fy": 2028,
+     "quantity": 1,
+     "requestDollarsThousands": 87822,
+     "unitCostDollars": 87822000
+    },
+    {
+     "fy": 2029,
+     "quantity": 1,
+     "requestDollarsThousands": 89120,
+     "unitCostDollars": 89120000
+    },
+    {
+     "fy": 2030,
+     "quantity": 1,
+     "requestDollarsThousands": 88113,
+     "unitCostDollars": 88113000
+    },
+    {
+     "fy": 2031,
+     "quantity": 1,
+     "requestDollarsThousands": 55322,
+     "unitCostDollars": 55322000
+    }
+   ]
+  },
+  {
+   "peCode": "6775A05101",
+   "title": "CH-47 Helicopter, Advance Procurement",
+   "budgetActivity": "BA 01",
+   "lineNumber": "6775A05101",
+   "programOfRecord": null,
+   "fyData": [
+    {
+     "fy": 2026,
+     "quantity": null,
+     "requestDollarsThousands": 61421,
+     "unitCostDollars": null
+    }
+   ]
+  },
+  {
+   "peCode": "9990A19900",
+   "title": "Spectrum Army SUAS",
+   "budgetActivity": "BA 01",
+   "lineNumber": "9990A19900",
+   "programOfRecord": null,
+   "fyData": [
+    {
+     "fy": 2025,
+     "quantity": null,
+     "requestDollarsThousands": 1824,
+     "unitCostDollars": null
+    }
+   ]
+  },
+  {
+   "peCode": "0023A01001",
+   "title": "MQ-1 PAYLOAD",
+   "budgetActivity": "BA 02",
+   "lineNumber": "0023A01001",
+   "programOfRecord": null,
+   "fyData": [
+    {
+     "fy": 2025,
+     "quantity": null,
+     "requestDollarsThousands": 14086,
+     "unitCostDollars": null
+    },
+    {
+     "fy": 2027,
+     "quantity": null,
+     "requestDollarsThousands": 53190,
+     "unitCostDollars": null
+    },
+    {
+     "fy": 2028,
+     "quantity": null,
+     "requestDollarsThousands": 54560,
+     "unitCostDollars": null
+    },
+    {
+     "fy": 2029,
+     "quantity": null,
+     "requestDollarsThousands": 54895,
+     "unitCostDollars": null
+    },
+    {
+     "fy": 2030,
+     "quantity": null,
+     "requestDollarsThousands": 54841,
+     "unitCostDollars": null
+    },
+    {
+     "fy": 2031,
+     "quantity": null,
+     "requestDollarsThousands": 55388,
+     "unitCostDollars": null
+    }
+   ]
+  },
+  {
+   "peCode": "0756AA6601",
+   "title": "Gray Eagle Mods2",
+   "budgetActivity": "BA 02",
+   "lineNumber": "0756AA6601",
+   "programOfRecord": null,
+   "fyData": [
+    {
+     "fy": 2025,
+     "quantity": null,
+     "requestDollarsThousands": 23865,
+     "unitCostDollars": null
+    },
+    {
+     "fy": 2026,
+     "quantity": null,
+     "requestDollarsThousands": 12351,
+     "unitCostDollars": null
+    },
+    {
+     "fy": 2027,
+     "quantity": null,
+     "requestDollarsThousands": 2556,
+     "unitCostDollars": null
+    },
+    {
+     "fy": 2028,
+     "quantity": null,
+     "requestDollarsThousands": 4533,
+     "unitCostDollars": null
+    },
+    {
+     "fy": 2029,
+     "quantity": null,
+     "requestDollarsThousands": 4637,
+     "unitCostDollars": null
+    },
+    {
+     "fy": 2030,
+     "quantity": null,
+     "requestDollarsThousands": 4637,
+     "unitCostDollars": null
+    },
+    {
+     "fy": 2031,
+     "quantity": null,
+     "requestDollarsThousands": 4683,
+     "unitCostDollars": null
+    }
+   ]
+  },
+  {
+   "peCode": "2706AA6605",
+   "title": "AH-64 MODS",
+   "budgetActivity": "BA 02",
+   "lineNumber": "2706AA6605",
+   "programOfRecord": null,
+   "fyData": [
+    {
+     "fy": 2025,
+     "quantity": null,
+     "requestDollarsThousands": 93826,
+     "unitCostDollars": null
+    },
+    {
+     "fy": 2026,
+     "quantity": null,
+     "requestDollarsThousands": 131236,
+     "unitCostDollars": null
+    },
+    {
+     "fy": 2027,
+     "quantity": null,
+     "requestDollarsThousands": 251645,
+     "unitCostDollars": null
+    },
+    {
+     "fy": 2028,
+     "quantity": null,
+     "requestDollarsThousands": 265581,
+     "unitCostDollars": null
+    },
+    {
+     "fy": 2029,
+     "quantity": null,
+     "requestDollarsThousands": 265547,
+     "unitCostDollars": null
+    },
+    {
+     "fy": 2030,
+     "quantity": null,
+     "requestDollarsThousands": 265548,
+     "unitCostDollars": null
+    },
+    {
+     "fy": 2031,
+     "quantity": null,
+     "requestDollarsThousands": 265637,
+     "unitCostDollars": null
+    }
+   ]
+  },
+  {
+   "peCode": "2724A12700",
+   "title": "SCALABLE CONTROL INTERFACE (SCI)",
+   "budgetActivity": "BA 02",
+   "lineNumber": "2724A12700",
+   "programOfRecord": null,
+   "fyData": [
+    {
+     "fy": 2026,
+     "quantity": null,
+     "requestDollarsThousands": 1257,
+     "unitCostDollars": null
+    },
+    {
+     "fy": 2027,
+     "quantity": null,
+     "requestDollarsThousands": 2061,
+     "unitCostDollars": null
+    },
+    {
+     "fy": 2028,
+     "quantity": null,
+     "requestDollarsThousands": 789,
+     "unitCostDollars": null
+    },
+    {
+     "fy": 2029,
+     "quantity": null,
+     "requestDollarsThousands": 806,
+     "unitCostDollars": null
+    },
+    {
+     "fy": 2030,
+     "quantity": null,
+     "requestDollarsThousands": 823,
+     "unitCostDollars": null
+    },
+    {
+     "fy": 2031,
+     "quantity": null,
+     "requestDollarsThousands": 831,
+     "unitCostDollars": null
+    }
+   ]
+  },
+  {
+   "peCode": "3264AA0252",
+   "title": "CH-47 Cargo Helicopter Mods (MYP)",
+   "budgetActivity": "BA 02",
+   "lineNumber": "3264AA0252",
+   "programOfRecord": null,
+   "fyData": [
+    {
+     "fy": 2025,
+     "quantity": null,
+     "requestDollarsThousands": 38925,
+     "unitCostDollars": null
+    },
+    {
+     "fy": 2026,
+     "quantity": null,
+     "requestDollarsThousands": 17709,
+     "unitCostDollars": null
+    },
+    {
+     "fy": 2027,
+     "quantity": null,
+     "requestDollarsThousands": 108408,
+     "unitCostDollars": null
+    },
+    {
+     "fy": 2028,
+     "quantity": null,
+     "requestDollarsThousands": 85833,
+     "unitCostDollars": null
+    },
+    {
+     "fy": 2029,
+     "quantity": null,
+     "requestDollarsThousands": 86831,
+     "unitCostDollars": null
+    },
+    {
+     "fy": 2030,
+     "quantity": null,
+     "requestDollarsThousands": 90853,
+     "unitCostDollars": null
+    },
+    {
+     "fy": 2031,
+     "quantity": null,
+     "requestDollarsThousands": 126734,
+     "unitCostDollars": null
+    }
+   ]
+  },
+  {
+   "peCode": "6949AA0480",
+   "title": "Utility Helicopter Mods",
+   "budgetActivity": "BA 02",
+   "lineNumber": "6949AA0480",
+   "programOfRecord": null,
+   "fyData": [
+    {
+     "fy": 2025,
+     "quantity": null,
+     "requestDollarsThousands": 39565,
+     "unitCostDollars": null
+    },
+    {
+     "fy": 2026,
+     "quantity": null,
+     "requestDollarsThousands": 38659,
+     "unitCostDollars": null
+    },
+    {
+     "fy": 2027,
+     "quantity": null,
+     "requestDollarsThousands": 120013,
+     "unitCostDollars": null
+    },
+    {
+     "fy": 2028,
+     "quantity": null,
+     "requestDollarsThousands": 152950,
+     "unitCostDollars": null
+    },
+    {
+     "fy": 2029,
+     "quantity": null,
+     "requestDollarsThousands": 85347,
+     "unitCostDollars": null
+    },
+    {
+     "fy": 2030,
+     "quantity": null,
+     "requestDollarsThousands": 114551,
+     "unitCostDollars": null
+    },
+    {
+     "fy": 2031,
+     "quantity": null,
+     "requestDollarsThousands": 128451,
+     "unitCostDollars": null
+    }
+   ]
+  },
+  {
+   "peCode": "8658AA0712",
+   "title": "Network And Mission Plan",
+   "budgetActivity": "BA 02",
+   "lineNumber": "8658AA0712",
+   "programOfRecord": null,
+   "fyData": [
+    {
+     "fy": 2025,
+     "quantity": null,
+     "requestDollarsThousands": 49862,
+     "unitCostDollars": null
+    },
+    {
+     "fy": 2026,
+     "quantity": null,
+     "requestDollarsThousands": 43472,
+     "unitCostDollars": null
+    },
+    {
+     "fy": 2027,
+     "quantity": null,
+     "requestDollarsThousands": 29235,
+     "unitCostDollars": null
+    },
+    {
+     "fy": 2028,
+     "quantity": null,
+     "requestDollarsThousands": 35471,
+     "unitCostDollars": null
+    },
+    {
+     "fy": 2029,
+     "quantity": null,
+     "requestDollarsThousands": 30657,
+     "unitCostDollars": null
+    },
+    {
+     "fy": 2030,
+     "quantity": null,
+     "requestDollarsThousands": 38076,
+     "unitCostDollars": null
+    },
+    {
+     "fy": 2031,
+     "quantity": null,
+     "requestDollarsThousands": 55236,
+     "unitCostDollars": null
+    }
+   ]
+  },
+  {
+   "peCode": "8659AA0723",
+   "title": "Comms, Nav Surveillance",
+   "budgetActivity": "BA 02",
+   "lineNumber": "8659AA0723",
+   "programOfRecord": null,
+   "fyData": [
+    {
+     "fy": 2025,
+     "quantity": null,
+     "requestDollarsThousands": 61362,
+     "unitCostDollars": null
+    },
+    {
+     "fy": 2026,
+     "quantity": null,
+     "requestDollarsThousands": 11566,
+     "unitCostDollars": null
+    },
+    {
+     "fy": 2027,
+     "quantity": null,
+     "requestDollarsThousands": 14384,
+     "unitCostDollars": null
+    },
+    {
+     "fy": 2028,
+     "quantity": null,
+     "requestDollarsThousands": 12796,
+     "unitCostDollars": null
+    },
+    {
+     "fy": 2029,
+     "quantity": null,
+     "requestDollarsThousands": 13766,
+     "unitCostDollars": null
+    },
+    {
+     "fy": 2030,
+     "quantity": null,
+     "requestDollarsThousands": 13652,
+     "unitCostDollars": null
+    },
+    {
+     "fy": 2031,
+     "quantity": null,
+     "requestDollarsThousands": 13789,
+     "unitCostDollars": null
+    }
+   ]
+  },
+  {
+   "peCode": "8660A00713",
+   "title": "Degraded Visual Environment",
+   "budgetActivity": "BA 02",
+   "lineNumber": "8660A00713",
+   "programOfRecord": null,
+   "fyData": [
+    {
+     "fy": 2025,
+     "quantity": null,
+     "requestDollarsThousands": 3839,
+     "unitCostDollars": null
+    },
+    {
+     "fy": 2026,
+     "quantity": null,
+     "requestDollarsThousands": 33000,
+     "unitCostDollars": null
+    }
+   ]
+  },
+  {
+   "peCode": "8662A01006",
+   "title": "Aviation ASSURED PNT",
+   "budgetActivity": "BA 02",
+   "lineNumber": "8662A01006",
+   "programOfRecord": null,
+   "fyData": [
+    {
+     "fy": 2025,
+     "quantity": null,
+     "requestDollarsThousands": 69161,
+     "unitCostDollars": 220258
+    },
+    {
+     "fy": 2026,
+     "quantity": null,
+     "requestDollarsThousands": 49475,
+     "unitCostDollars": 377672
+    },
+    {
+     "fy": 2027,
+     "quantity": null,
+     "requestDollarsThousands": 55055,
+     "unitCostDollars": 154649
+    },
+    {
+     "fy": 2028,
+     "quantity": null,
+     "requestDollarsThousands": 54886,
+     "unitCostDollars": 354103
+    },
+    {
+     "fy": 2029,
+     "quantity": null,
+     "requestDollarsThousands": 53922,
+     "unitCostDollars": 247349
+    },
+    {
+     "fy": 2030,
+     "quantity": null,
+     "requestDollarsThousands": 53597,
+     "unitCostDollars": 190737
+    },
+    {
+     "fy": 2031,
+     "quantity": null,
+     "requestDollarsThousands": 54134,
+     "unitCostDollars": 241670
+    }
+   ]
+  },
+  {
+   "peCode": "8859AA0711",
+   "title": "GATM Rollup",
+   "budgetActivity": "BA 02",
+   "lineNumber": "8859AA0711",
+   "programOfRecord": null,
+   "fyData": [
+    {
+     "fy": 2025,
+     "quantity": null,
+     "requestDollarsThousands": 4842,
+     "unitCostDollars": null
+    },
+    {
+     "fy": 2026,
+     "quantity": null,
+     "requestDollarsThousands": 4651,
+     "unitCostDollars": null
+    }
+   ]
+  },
+  {
+   "peCode": "9556A01002",
+   "title": "UAS MODS",
+   "budgetActivity": "BA 02",
+   "lineNumber": "9556A01002",
+   "programOfRecord": null,
+   "fyData": [
+    {
+     "fy": 2025,
+     "quantity": null,
+     "requestDollarsThousands": 2265,
+     "unitCostDollars": null
+    }
+   ]
+  },
+  {
+   "peCode": "3632AZ3504",
+   "title": "Aircraft Survivability Equipment",
+   "budgetActivity": "BA 04",
+   "lineNumber": "3632AZ3504",
+   "programOfRecord": null,
+   "fyData": [
+    {
+     "fy": 2025,
+     "quantity": null,
+     "requestDollarsThousands": 139331,
+     "unitCostDollars": null
+    },
+    {
+     "fy": 2026,
+     "quantity": null,
+     "requestDollarsThousands": 145297,
+     "unitCostDollars": null
+    },
+    {
+     "fy": 2027,
+     "quantity": null,
+     "requestDollarsThousands": 125050,
+     "unitCostDollars": null
+    },
+    {
+     "fy": 2028,
+     "quantity": null,
+     "requestDollarsThousands": 102280,
+     "unitCostDollars": null
+    },
+    {
+     "fy": 2029,
+     "quantity": null,
+     "requestDollarsThousands": 124574,
+     "unitCostDollars": null
+    },
+    {
+     "fy": 2030,
+     "quantity": null,
+     "requestDollarsThousands": 121959,
+     "unitCostDollars": null
+    },
+    {
+     "fy": 2031,
+     "quantity": null,
+     "requestDollarsThousands": 122182,
+     "unitCostDollars": null
+    }
+   ]
+  },
+  {
+   "peCode": "5397AZ3517",
+   "title": "CMWS",
+   "budgetActivity": "BA 04",
+   "lineNumber": "5397AZ3517",
+   "programOfRecord": null,
+   "fyData": [
+    {
+     "fy": 2025,
+     "quantity": null,
+     "requestDollarsThousands": 51646,
+     "unitCostDollars": null
+    },
+    {
+     "fy": 2026,
+     "quantity": null,
+     "requestDollarsThousands": 38419,
+     "unitCostDollars": null
+    },
+    {
+     "fy": 2027,
+     "quantity": null,
+     "requestDollarsThousands": 21511,
+     "unitCostDollars": null
+    },
+    {
+     "fy": 2028,
+     "quantity": null,
+     "requestDollarsThousands": 13383,
+     "unitCostDollars": null
+    },
+    {
+     "fy": 2029,
+     "quantity": null,
+     "requestDollarsThousands": 13434,
+     "unitCostDollars": null
+    },
+    {
+     "fy": 2030,
+     "quantity": null,
+     "requestDollarsThousands": 13347,
+     "unitCostDollars": null
+    },
+    {
+     "fy": 2031,
+     "quantity": null,
+     "requestDollarsThousands": 13480,
+     "unitCostDollars": null
+    }
+   ]
+  },
+  {
+   "peCode": "5399AZ3537",
+   "title": "Common Infrared Countermeasures (CIRCM)",
+   "budgetActivity": "BA 04",
+   "lineNumber": "5399AZ3537",
+   "programOfRecord": null,
+   "fyData": [
+    {
+     "fy": 2025,
+     "quantity": 100,
+     "requestDollarsThousands": 257854,
+     "unitCostDollars": 2578540
+    },
+    {
+     "fy": 2026,
+     "quantity": 71,
+     "requestDollarsThousands": 225647,
+     "unitCostDollars": 3178127
+    },
+    {
+     "fy": 2027,
+     "quantity": 36,
+     "requestDollarsThousands": 140636,
+     "unitCostDollars": 3906556
+    },
+    {
+     "fy": 2028,
+     "quantity": 24,
+     "requestDollarsThousands": 115999,
+     "unitCostDollars": 4833292
+    },
+    {
+     "fy": 2029,
+     "quantity": 12,
+     "requestDollarsThousands": 82467,
+     "unitCostDollars": 6872250
+    },
+    {
+     "fy": 2030,
+     "quantity": 12,
+     "requestDollarsThousands": 80919,
+     "unitCostDollars": 6743250
+    },
+    {
+     "fy": 2031,
+     "quantity": 12,
+     "requestDollarsThousands": 88265,
+     "unitCostDollars": 7355417
+    }
+   ]
+  },
+  {
+   "peCode": "5212AZ3100",
+   "title": "Common Ground Equipment",
+   "budgetActivity": "BA 04",
+   "lineNumber": "5212AZ3100",
+   "programOfRecord": null,
+   "fyData": [
+    {
+     "fy": 2025,
+     "quantity": null,
+     "requestDollarsThousands": 31937,
+     "unitCostDollars": null
+    },
+    {
+     "fy": 2026,
+     "quantity": null,
+     "requestDollarsThousands": 37489,
+     "unitCostDollars": null
+    },
+    {
+     "fy": 2027,
+     "quantity": null,
+     "requestDollarsThousands": 29778,
+     "unitCostDollars": null
+    },
+    {
+     "fy": 2028,
+     "quantity": null,
+     "requestDollarsThousands": 30710,
+     "unitCostDollars": null
+    },
+    {
+     "fy": 2029,
+     "quantity": null,
+     "requestDollarsThousands": 23427,
+     "unitCostDollars": null
+    },
+    {
+     "fy": 2030,
+     "quantity": null,
+     "requestDollarsThousands": 23279,
+     "unitCostDollars": null
+    },
+    {
+     "fy": 2031,
+     "quantity": null,
+     "requestDollarsThousands": 23511,
+     "unitCostDollars": null
+    }
+   ]
+  },
+  {
+   "peCode": "6380AZ3110",
+   "title": "Aircrew Integrated Systems",
+   "budgetActivity": "BA 04",
+   "lineNumber": "6380AZ3110",
+   "programOfRecord": null,
+   "fyData": [
+    {
+     "fy": 2025,
+     "quantity": null,
+     "requestDollarsThousands": 14478,
+     "unitCostDollars": null
+    },
+    {
+     "fy": 2026,
+     "quantity": null,
+     "requestDollarsThousands": 14986,
+     "unitCostDollars": null
+    },
+    {
+     "fy": 2027,
+     "quantity": null,
+     "requestDollarsThousands": 15229,
+     "unitCostDollars": null
+    },
+    {
+     "fy": 2028,
+     "quantity": null,
+     "requestDollarsThousands": 15280,
+     "unitCostDollars": null
+    },
+    {
+     "fy": 2029,
+     "quantity": null,
+     "requestDollarsThousands": 15417,
+     "unitCostDollars": null
+    },
+    {
+     "fy": 2030,
+     "quantity": null,
+     "requestDollarsThousands": 15352,
+     "unitCostDollars": null
+    },
+    {
+     "fy": 2031,
+     "quantity": null,
+     "requestDollarsThousands": 15506,
+     "unitCostDollars": null
+    }
+   ]
+  },
+  {
+   "peCode": "6818AA0050",
+   "title": "Air Traffic Control",
+   "budgetActivity": "BA 04",
+   "lineNumber": "6818AA0050",
+   "programOfRecord": null,
+   "fyData": [
+    {
+     "fy": 2025,
+     "quantity": null,
+     "requestDollarsThousands": 27428,
+     "unitCostDollars": null
+    },
+    {
+     "fy": 2026,
+     "quantity": null,
+     "requestDollarsThousands": 24213,
+     "unitCostDollars": null
+    },
+    {
+     "fy": 2027,
+     "quantity": null,
+     "requestDollarsThousands": 11044,
+     "unitCostDollars": null
+    },
+    {
+     "fy": 2028,
+     "quantity": null,
+     "requestDollarsThousands": 9782,
+     "unitCostDollars": null
+    },
+    {
+     "fy": 2029,
+     "quantity": null,
+     "requestDollarsThousands": 9880,
+     "unitCostDollars": null
+    },
+    {
+     "fy": 2030,
+     "quantity": null,
+     "requestDollarsThousands": 9867,
+     "unitCostDollars": null
+    },
+    {
+     "fy": 2031,
+     "quantity": null,
+     "requestDollarsThousands": 9966,
+     "unitCostDollars": null
+    }
+   ]
+  },
+  {
+   "peCode": "9154A50100",
+   "title": "Launcher, 2.75 Rocket",
+   "budgetActivity": "BA 04",
+   "lineNumber": "9154A50100",
+   "programOfRecord": null,
+   "fyData": [
+    {
+     "fy": 2025,
+     "quantity": null,
+     "requestDollarsThousands": 3815,
+     "unitCostDollars": null
+    },
+    {
+     "fy": 2026,
+     "quantity": null,
+     "requestDollarsThousands": 1611,
+     "unitCostDollars": null
+    },
+    {
+     "fy": 2027,
+     "quantity": null,
+     "requestDollarsThousands": 3864,
+     "unitCostDollars": null
+    },
+    {
+     "fy": 2028,
+     "quantity": null,
+     "requestDollarsThousands": 1621,
+     "unitCostDollars": null
+    },
+    {
+     "fy": 2029,
+     "quantity": null,
+     "requestDollarsThousands": 1620,
+     "unitCostDollars": null
+    },
+    {
+     "fy": 2030,
+     "quantity": null,
+     "requestDollarsThousands": 1620,
+     "unitCostDollars": null
+    },
+    {
+     "fy": 2031,
+     "quantity": null,
+     "requestDollarsThousands": 1637,
+     "unitCostDollars": null
+    }
+   ]
+  },
+  {
+   "peCode": "9157J01200",
+   "title": "Launcher Guided Missile: Longbow Hellfire XM299",
+   "budgetActivity": "BA 04",
+   "lineNumber": "9157J01200",
+   "programOfRecord": null,
+   "fyData": [
+    {
+     "fy": 2025,
+     "quantity": null,
+     "requestDollarsThousands": 22023,
+     "unitCostDollars": null
+    }
+   ]
+  }
+ ]
+}
