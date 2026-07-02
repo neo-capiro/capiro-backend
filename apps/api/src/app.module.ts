@@ -25,6 +25,7 @@ import { LdaIntelModule } from './lda-intel/lda-intel.module.js';
 import { FederalRegisterModule } from './federal-register/federal-register.module.js';
 import { RegulatoryDocketModule } from './regulatory-docket/regulatory-docket.module.js';
 import { IntelligenceModule } from './intelligence/intelligence.module.js';
+import { AlertMemoModule } from './intelligence/alert-memo/alert-memo.module.js';
 import { TrackerModule } from './tracker/tracker.module.js';
 import { WorkspaceCollabModule } from './workspace-collab/workspace-collab.module.js';
 import { WorkspaceAssistantModule } from './workspace-assistant/workspace-assistant.module.js';
@@ -76,6 +77,7 @@ import { ApiLatencyMiddleware } from './observability/api-latency.middleware.js'
     FederalRegisterModule,
     RegulatoryDocketModule,
     IntelligenceModule,
+    AlertMemoModule,
     TrackerModule,
     WorkspaceCollabModule,
     WorkspaceAssistantModule,

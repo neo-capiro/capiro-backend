@@ -287,6 +287,29 @@ model IntelFeedback {
   @@map("intel_feedback")
 }
 
+/// Actionable-recommendation state on an alert: the memo↔alert link (kind='memo',
+/// carries the apps/api EngagementAttachment id + title so the Feed shows "memo
+/// drafted" and can reopen the Document) plus curation items (kind='talking_point'
+/// with text, kind='report' flag). memo/report are singletons per alert (enforced
+/// by a partial unique index in the migration); talking_point may be many.
+model IntelActionItem {
+  id                   String   @id @default(cuid())
+  tenantId             String   @map("tenant_id")
+  clientId             String   @map("client_id")
+  alertId              String   @map("alert_id")
+  kind                 String //                     'memo' | 'talking_point' | 'report'
+  text                 String?
+  documentAttachmentId String?  @map("document_attachment_id")
+  title                String?
+  createdBy            String   @map("created_by")
+  createdAt            DateTime @default(now()) @map("created_at")
+  updatedAt            DateTime @updatedAt @map("updated_at")
+
+  @@index([tenantId, clientId])
+  @@index([alertId, kind])
+  @@map("intel_action_item")
+}
+
 /// Phase 5 parity audit (§8.6). One row per parity-report run per scope. Compares
 /// what the legacy apps/api tracker DECIDED to fire (durable `intelligence_change`
 /// rows, source='congress_bill' + data.tracker=true) against the shadow

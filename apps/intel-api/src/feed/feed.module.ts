@@ -1,6 +1,8 @@
 import { Module } from '@nestjs/common';
 import { FeedController } from './feed.controller.js';
 import { FeedService } from './feed.service.js';
+import { ActionItemController } from './action-item.controller.js';
+import { ActionItemService } from './action-item.service.js';
 import { TrackerV2Guard } from './tracker-v2.guard.js';
 import { HearingCryptoService } from '../hearing/hearing-crypto.service.js';
 
@@ -11,8 +13,8 @@ import { HearingCryptoService } from '../hearing/hearing-crypto.service.js';
  * global config) backs decrypt-on-read of encrypted hearing quotes.
  */
 @Module({
-  controllers: [FeedController],
-  providers: [FeedService, TrackerV2Guard, HearingCryptoService],
-  exports: [FeedService],
+  controllers: [FeedController, ActionItemController],
+  providers: [FeedService, ActionItemService, TrackerV2Guard, HearingCryptoService],
+  exports: [FeedService, ActionItemService],
 })
 export class FeedModule {}

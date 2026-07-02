@@ -1,6 +1,8 @@
 import { Injectable } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service.js';
 import { HearingCryptoService } from '../hearing/hearing-crypto.service.js';
+import { ActionItemService } from './action-item.service.js';
+import { recommendedActionsFor } from './recommended-actions.util.js';
 
 /**
  * Combined per-client intel feed (Phase 6 §9.7). Reads `intel_alert` only —
@@ -60,6 +62,7 @@ export class FeedService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly crypto: HearingCryptoService,
+    private readonly actions: ActionItemService,
   ) {}
 
   /**
@@ -148,6 +151,7 @@ export class FeedService {
       select: {
         id: true,
         sourceType: true,
+        sourceRef: true,
         kind: true,
         severity: true,
         materiality: true,
@@ -179,6 +183,23 @@ export class FeedService {
 
     await this.decryptQuotes(items); // fill encrypted hearing quotes (fail-closed)
 
-    return { items, nextCursor, hasMore, counts };
+    // Decorate each alert with its intelligent next-actions + current action state
+    // (memo drafted? in weekly report? talking points?) — batch-loaded, no N+1.
+    const actionState = await this.actions.summaryForAlerts(
+      tenantId,
+      items.map((i) => i.id),
+    );
+    const decorated = items.map((it) => ({
+      ...it,
+      recommendedActions: recommendedActionsFor({
+        sourceType: it.sourceType,
+        severity: it.severity,
+        sourceRef: it.sourceRef,
+        evidence: it.evidence,
+      }),
+      actions: actionState.get(it.id) ?? { inReport: false, talkingPoints: 0 },
+    }));
+
+    return { items: decorated, nextCursor, hasMore, counts };
   }
 }

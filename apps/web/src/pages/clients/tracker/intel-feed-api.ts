@@ -42,6 +42,29 @@ export interface FeedEvidence {
   link?: { via?: string; confidence?: number; matchCount?: number; billAlertId?: string | null; hearingAlertId?: string | null };
 }
 
+export type RecommendedActionKind =
+  | 'draft_memo'
+  | 'draft_outreach'
+  | 'pull_quotes'
+  | 'add_to_report'
+  | 'add_talking_point'
+  | 'open_bill'
+  | 'open_hearing';
+
+export interface RecommendedAction {
+  kind: RecommendedActionKind;
+  label: string;
+  primary?: boolean;
+  target?: { billId?: string; sessionId?: string };
+}
+
+/** Current action state on an alert (decorated by intel-api from intel_action_item). */
+export interface FeedItemActions {
+  memo?: { documentAttachmentId: string | null; title: string | null };
+  inReport: boolean;
+  talkingPoints: number;
+}
+
 export interface FeedItem {
   id: string;
   sourceType: FeedSourceType;
@@ -57,6 +80,10 @@ export interface FeedItem {
   evidence: FeedEvidence;
   status: string;
   createdAt: string;
+  /** Intelligent next-actions for this alert (memo / outreach / quotes / …). */
+  recommendedActions?: RecommendedAction[];
+  /** Whether a memo is already drafted, in the weekly report, etc. */
+  actions?: FeedItemActions;
 }
 
 export interface FeedResponse {

@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { useInfiniteQuery } from '@tanstack/react-query';
 import { useNavigate } from 'react-router-dom';
+import { App as AntApp, Input, Modal } from 'antd';
 import { useApi } from '../../../lib/use-api.js';
 import {
   feedQueryString,
@@ -12,13 +13,17 @@ import {
   type FeedOrder,
   type FeedResponse,
   type FeedSeverity,
+  type RecommendedAction,
 } from './intel-feed-api.js';
+import { useAddTalkingPoint, useSetReport } from './alert-actions-api.js';
+import { MemoComposerDrawer } from './MemoComposerDrawer.js';
 
 /**
- * Unified intel FEED panel (Phase 6 §9.7) — bill | hearing | combined alerts in
- * one keyset-paginated stream, with per-source count badges. Rendered inside the
- * Tracker tab only when `tracker_v2` is enabled (self-contained; additive — the
- * legacy Board/Recs/Configure are untouched). Read-only surface.
+ * Unified intel FEED panel (Phase 6 §9.7) — bill | hearing | combined alerts with
+ * per-source counts, plus intelligent per-alert ACTIONS (draft memo / outreach /
+ * pull quotes / add to weekly report / open source). The memo is generated in
+ * apps/api (Memory-grounded) and auto-filed to the client's Documents; the alert
+ * shows "memo drafted" once done. Gated by `tracker_v2`.
  */
 
 const SEV_COLOR: Record<FeedSeverity, string> = {
@@ -58,9 +63,26 @@ function SourceBadge({ t }: { t: FeedItem['sourceType'] }) {
   );
 }
 
-function FeedCard({ item, onOpenBill }: { item: FeedItem; onOpenBill: (billId: string) => void }) {
+/** Render one recommended action as a compact chip; the primary one is filled. */
+function ActionChip({ a, item, onAction }: { a: RecommendedAction; item: FeedItem; onAction: (a: RecommendedAction, item: FeedItem) => void }) {
+  const drafted = a.kind === 'draft_memo' && !!item.actions?.memo;
+  const inReport = a.kind === 'add_to_report' && !!item.actions?.inReport;
+  const label = drafted ? 'Redraft memo' : inReport ? 'In weekly report ✓' : a.label;
+  return (
+    <button
+      className={a.primary ? 'btn btn-accent' : 'btn'}
+      style={{ fontSize: 11.5, padding: '3px 9px' }}
+      onClick={() => onAction(a, item)}
+    >
+      {label}
+    </button>
+  );
+}
+
+function FeedCard({ item, onAction }: { item: FeedItem; onAction: (a: RecommendedAction, item: FeedItem) => void }) {
   const ev = item.evidence ?? {};
   const mentions = ev.hearing?.mentions ?? [];
+  const actions = item.recommendedActions ?? [];
   return (
     <div
       style={{
@@ -77,6 +99,7 @@ function FeedCard({ item, onOpenBill }: { item: FeedItem; onOpenBill: (billId: s
       <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
         <SourceBadge t={item.sourceType} />
         <span style={{ fontSize: 11, fontWeight: 600, color: SEV_COLOR[item.severity] }}>{SEV_LABEL[item.severity]}</span>
+        {item.actions?.memo && <span style={{ fontSize: 10.5, fontWeight: 600, color: 'var(--good, #2f7a57)' }}>memo drafted ✓</span>}
         <span style={{ flex: 1 }} />
         <span style={{ fontSize: 11, color: 'var(--muted, #8a8a96)' }} title="Priority score (0–1)">
           score {item.score.toFixed(2)}
@@ -91,7 +114,7 @@ function FeedCard({ item, onOpenBill }: { item: FeedItem; onOpenBill: (billId: s
 
       {ev.bill && (
         <button
-          onClick={() => onOpenBill(ev.bill!.billId)}
+          onClick={() => onAction({ kind: 'open_bill', label: 'Open bill', target: { billId: ev.bill!.billId } }, item)}
           style={{
             textAlign: 'left',
             fontSize: 12,
@@ -128,18 +151,29 @@ function FeedCard({ item, onOpenBill }: { item: FeedItem; onOpenBill: (billId: s
         </div>
       )}
 
-      {item.recommendedAction && (
-        <div style={{ fontSize: 12, color: 'var(--accent, #6b4fbb)', fontStyle: 'italic' }}>→ {item.recommendedAction}</div>
+      {actions.length > 0 && (
+        <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', marginTop: 2 }}>
+          {actions.map((a) => (
+            <ActionChip key={a.kind} a={a} item={item} onAction={onAction} />
+          ))}
+        </div>
       )}
     </div>
   );
 }
 
-export function TrackerFeedPanel({ clientId }: { clientId: string; clientName: string }) {
+export function TrackerFeedPanel({ clientId, clientName }: { clientId: string; clientName: string }) {
   const api = useApi();
   const navigate = useNavigate();
+  const { message } = AntApp.useApp();
   const [source, setSource] = useState<FeedFilter>('all');
   const [order, setOrder] = useState<FeedOrder>('date');
+  const [composerItem, setComposerItem] = useState<FeedItem | null>(null);
+  const [tpItem, setTpItem] = useState<FeedItem | null>(null);
+  const [tpText, setTpText] = useState('');
+
+  const setReport = useSetReport();
+  const addTalkingPoint = useAddTalkingPoint();
 
   const query = useInfiniteQuery({
     queryKey: intelFeedKeys.feed(clientId, source, order),
@@ -152,7 +186,51 @@ export function TrackerFeedPanel({ clientId }: { clientId: string; clientName: s
 
   const items = query.data?.pages.flatMap((p) => p.items) ?? [];
   const counts = query.data?.pages[0]?.counts ?? {};
-  const openBill = (billId: string) => navigate(`/explorer?bill=${encodeURIComponent(billId)}`);
+
+  const onAction = (a: RecommendedAction, item: FeedItem) => {
+    switch (a.kind) {
+      case 'draft_memo':
+        setComposerItem(item);
+        break;
+      case 'open_bill':
+        if (a.target?.billId) navigate(`/explorer?bill=${encodeURIComponent(a.target.billId)}`);
+        break;
+      case 'open_hearing':
+        if (a.target?.sessionId) navigate(`/intelligence/hearing-watch/${encodeURIComponent(a.target.sessionId)}`);
+        break;
+      case 'pull_quotes': {
+        const qs = (item.evidence?.hearing?.mentions ?? [])
+          .map((m) => `${m.speakerName ? `${m.speakerName}: ` : ''}${m.quote ?? ''}`.trim())
+          .filter(Boolean);
+        if (qs.length) {
+          void navigator.clipboard?.writeText(qs.join('\n'));
+          message.success(`Copied ${qs.length} quote${qs.length === 1 ? '' : 's'}`);
+        } else {
+          message.info('No decrypted quotes available — open the hearing to view.');
+        }
+        break;
+      }
+      case 'draft_outreach': {
+        const opener = `Re: ${item.title}${item.whyItMatters ? ` — ${item.whyItMatters}` : ''}`;
+        void navigator.clipboard?.writeText(opener);
+        message.success('Outreach opener copied — opening Outreach');
+        navigate('/engagement/outreach');
+        break;
+      }
+      case 'add_talking_point':
+        setTpItem(item);
+        setTpText(`${item.title}${item.whyItMatters ? ` — ${item.whyItMatters}` : ''}`.slice(0, 300));
+        break;
+      case 'add_to_report': {
+        const on = !item.actions?.inReport;
+        setReport.mutate(
+          { clientId, alertId: item.id, on },
+          { onSuccess: () => message.success(on ? 'Added to weekly report' : 'Removed from weekly report') },
+        );
+        break;
+      }
+    }
+  };
 
   const chips: Array<{ v: FeedFilter; l: string; n?: number }> = [
     { v: 'all', l: 'All' },
@@ -195,7 +273,7 @@ export function TrackerFeedPanel({ clientId }: { clientId: string; clientName: s
       ) : (
         <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
           {items.map((it) => (
-            <FeedCard key={it.id} item={it} onOpenBill={openBill} />
+            <FeedCard key={it.id} item={it} onAction={onAction} />
           ))}
           {query.hasNextPage && (
             <button
@@ -209,6 +287,42 @@ export function TrackerFeedPanel({ clientId }: { clientId: string; clientName: s
           )}
         </div>
       )}
+
+      <MemoComposerDrawer
+        open={!!composerItem}
+        onClose={() => setComposerItem(null)}
+        clientId={clientId}
+        clientName={clientName}
+        item={composerItem}
+      />
+
+      <Modal
+        title="Add talking point"
+        open={!!tpItem}
+        onCancel={() => setTpItem(null)}
+        okText="Save"
+        confirmLoading={addTalkingPoint.isPending}
+        onOk={() => {
+          if (!tpItem || !tpText.trim()) return;
+          addTalkingPoint.mutate(
+            { clientId, alertId: tpItem.id, text: tpText.trim() },
+            {
+              onSuccess: () => {
+                message.success('Talking point saved');
+                setTpItem(null);
+              },
+              onError: (e: unknown) => message.error((e as Error).message),
+            },
+          );
+        }}
+      >
+        <Input.TextArea
+          value={tpText}
+          onChange={(e) => setTpText(e.target.value)}
+          autoSize={{ minRows: 3, maxRows: 6 }}
+          placeholder="A concise, client-ready talking point"
+        />
+      </Modal>
     </div>
   );
 }

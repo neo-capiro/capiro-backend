@@ -12,6 +12,7 @@ import {
   DeleteObjectCommand,
   GetObjectCommand,
   HeadObjectCommand,
+  PutObjectCommand,
 } from '@aws-sdk/client-s3';
 import { createPresignedPost } from '@aws-sdk/s3-presigned-post';
 import { getSignedUrl } from '@aws-sdk/s3-request-presigner';
@@ -4460,6 +4461,55 @@ export class EngagementService {
       source,
       text,
     };
+  }
+
+  /**
+   * Server-side attachment create from an in-memory buffer. Mirrors
+   * confirmAttachment but PUTs the bytes itself instead of relying on a browser
+   * presigned upload — used by the alert→memo flow to auto-file a generated
+   * deliverable in the client's Documents. Tenant-scoped + KB-indexed like any
+   * other client document.
+   */
+  async createAttachmentFromBuffer(
+    ctx: TenantContext,
+    input: { clientId: string; fileName: string; contentType: string; buffer: Buffer; source?: string },
+  ): Promise<{ id: string; fileName: string; s3Key: string }> {
+    if (!this.bucket) throw new ServiceUnavailableException('ASSETS_BUCKET is not configured');
+    if (!isAllowedAttachmentContentType(input.contentType)) {
+      throw new BadRequestException(
+        `Unsupported attachment type "${input.contentType}". Accepted: ${ALLOWED_ATTACHMENT_TYPES_LABEL}.`,
+      );
+    }
+    if (input.buffer.byteLength > MAX_ATTACHMENT_BYTES) {
+      throw new BadRequestException(`Attachment must be <= ${MAX_ATTACHMENT_BYTES} bytes`);
+    }
+    const safeName = safeFileName(input.fileName);
+    const s3Key = `tenants/${ctx.tenantId}/engagement/${randomUUID()}/${safeName}`;
+    await this.s3.send(
+      new PutObjectCommand({
+        Bucket: this.bucket,
+        Key: s3Key,
+        Body: input.buffer,
+        ContentType: input.contentType,
+      }),
+    );
+    const attachment = await this.prisma.withTenant(ctx.tenantId, (tx) =>
+      tx.engagementAttachment.create({
+        data: {
+          tenantId: ctx.tenantId,
+          clientId: input.clientId,
+          fileName: input.fileName,
+          contentType: input.contentType,
+          byteSize: input.buffer.byteLength,
+          bucket: this.bucket!,
+          s3Key,
+          source: input.source ?? 'intel_memo',
+          uploadedByUserId: ctx.userId,
+        },
+      }),
+    );
+    this.clientKb.indexAttachmentFireAndForget(ctx.tenantId, attachment.id);
+    return { id: attachment.id, fileName: attachment.fileName, s3Key };
   }
 
   async deleteAttachment(ctx: TenantContext, id: string) {
