@@ -1,0 +1,142 @@
+import { Injectable } from '@nestjs/common';
+import { PrismaService } from '../prisma/prisma.service.js';
+
+/**
+ * Combined per-client intel feed (Phase 6 §9.7). Reads `intel_alert` only —
+ * evidence is denormalized at write time (§9.3) so there is NO hot-path join to
+ * congress_bill/hearing. Keyset pagination (no OFFSET), index-backed:
+ *   order=date  → [tenant_id, client_id, created_at] (Phase-4 index)
+ *   order=score → [tenant_id, client_id, score, created_at] (Phase-6 index)
+ *
+ * intel_alert has no RLS → every query filters by BOTH tenantId (app-code
+ * isolation) and clientId. Encrypted mention quotes are returned as pointers
+ * (quoteSource='encrypted', quote=null) as stored; decrypt-on-read is a fast
+ * follow (the serve task-def carries HEARING_ENCRYPTION_KEY).
+ */
+
+export const DEFAULT_STATUSES = ['new', 'reviewed', 'sent'];
+export const MAX_LIMIT = 100;
+export const DEFAULT_LIMIT = 25;
+
+export interface FeedQuery {
+  sourceTypes?: string[];
+  severities?: string[];
+  statuses?: string[];
+  since?: Date;
+  until?: Date;
+  order?: 'date' | 'score';
+  cursor?: string;
+  limit?: number;
+}
+
+interface DateCursor {
+  t: string;
+  id: string;
+}
+interface ScoreCursor {
+  s: number;
+  t: string;
+  id: string;
+}
+
+const b64encode = (obj: unknown): string => Buffer.from(JSON.stringify(obj), 'utf8').toString('base64url');
+const b64decode = (cur: string): any => {
+  try {
+    return JSON.parse(Buffer.from(cur, 'base64url').toString('utf8'));
+  } catch {
+    return null;
+  }
+};
+
+export function encodeCursor(order: 'date' | 'score', row: { score: number; createdAt: Date; id: string }): string {
+  return order === 'score'
+    ? b64encode({ s: row.score, t: row.createdAt.toISOString(), id: row.id } satisfies ScoreCursor)
+    : b64encode({ t: row.createdAt.toISOString(), id: row.id } satisfies DateCursor);
+}
+
+@Injectable()
+export class FeedService {
+  constructor(private readonly prisma: PrismaService) {}
+
+  async getFeed(tenantId: string, clientId: string, q: FeedQuery) {
+    const order: 'date' | 'score' = q.order === 'score' ? 'score' : 'date';
+    const limit = Math.min(Math.max(q.limit ?? DEFAULT_LIMIT, 1), MAX_LIMIT);
+    const statuses = q.statuses?.length ? q.statuses : DEFAULT_STATUSES;
+
+    // Shared filters (also used for counts, minus the sourceType facet).
+    const baseWhere: Record<string, unknown> = {
+      tenantId,
+      clientId,
+      status: { in: statuses },
+    };
+    if (q.severities?.length) baseWhere['severity'] = { in: q.severities };
+    if (q.since || q.until) {
+      baseWhere['createdAt'] = {
+        ...(q.since ? { gte: q.since } : {}),
+        ...(q.until ? { lt: q.until } : {}),
+      };
+    }
+
+    const where: Record<string, unknown> = { ...baseWhere };
+    if (q.sourceTypes?.length) where['sourceType'] = { in: q.sourceTypes };
+
+    // Keyset predicate from the cursor (AND-ed with the filters above).
+    const cur = q.cursor ? b64decode(q.cursor) : null;
+    if (cur) {
+      if (order === 'score' && typeof cur.s === 'number' && cur.t && cur.id) {
+        const t = new Date(cur.t);
+        where['OR'] = [
+          { score: { lt: cur.s } },
+          { score: cur.s, createdAt: { lt: t } },
+          { score: cur.s, createdAt: t, id: { lt: cur.id } },
+        ];
+      } else if (order === 'date' && cur.t && cur.id) {
+        const t = new Date(cur.t);
+        where['OR'] = [{ createdAt: { lt: t } }, { createdAt: t, id: { lt: cur.id } }];
+      }
+    }
+
+    const orderBy =
+      order === 'score'
+        ? [{ score: 'desc' as const }, { createdAt: 'desc' as const }, { id: 'desc' as const }]
+        : [{ createdAt: 'desc' as const }, { id: 'desc' as const }];
+
+    const rows = await this.prisma.intelAlert.findMany({
+      where,
+      orderBy,
+      take: limit + 1, // one extra to compute hasMore
+      select: {
+        id: true,
+        sourceType: true,
+        kind: true,
+        severity: true,
+        materiality: true,
+        score: true,
+        clientImpact: true,
+        urgency: true,
+        title: true,
+        whyItMatters: true,
+        recommendedAction: true,
+        evidence: true,
+        status: true,
+        createdAt: true,
+      },
+    });
+
+    const hasMore = rows.length > limit;
+    const items = hasMore ? rows.slice(0, limit) : rows;
+    const last = items[items.length - 1];
+    const nextCursor = hasMore && last ? encodeCursor(order, last) : null;
+
+    // Per-sourceType counts for the SubNav badges — same filters MINUS sourceType.
+    const grouped = await this.prisma.intelAlert.groupBy({
+      by: ['sourceType'],
+      where: baseWhere,
+      _count: true,
+    });
+    const counts: Record<string, number> = {};
+    for (const g of grouped) counts[g.sourceType] = g._count;
+
+    return { items, nextCursor, hasMore, counts };
+  }
+}
