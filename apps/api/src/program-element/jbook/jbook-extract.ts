@@ -115,12 +115,15 @@ export function isValidPeCode(peCode: string | null | undefined): boolean {
  *     "0201MC12"), so they are keyed as <appropriationCode><lineItemNumber>
  *     (e.g. 1506N0145, 3010FB02100, 0300D0201MC12) — the Treasury/USAspending
  *     "budget line item" convention.
- * Both reduce to: 4 digits + 1-2 letters + 3-14 alphanumerics. Distinct from
+ * Both reduce to: 4 digits + 1-2 letters + 2-14 alphanumerics. Distinct from
  * PE_CODE_REGEX (which requires 7 leading digits then a letter), so the two never
- * collide in program_element.pe_code. Widening the trailing count only ACCEPTS
- * more real BLINs; it cannot invalidate anything previously valid.
+ * collide in program_element.pe_code. The 2-char tail admits Defense-Wide OSD/DISA
+ * line items whose native code is a 2-digit sub-number (e.g. 0300D30, 0300D09).
+ * Widening the trailing count only ACCEPTS more real BLINs; it cannot invalidate
+ * anything previously valid, and pure-numeric / bare line numbers are still rejected
+ * (the 1-2 letters are mandatory).
  */
-export const PROCUREMENT_CODE_REGEX = /^[0-9]{4}[A-Z]{1,2}[0-9A-Z]{3,14}$/;
+export const PROCUREMENT_CODE_REGEX = /^[0-9]{4}[A-Z]{1,2}[0-9A-Z]{2,14}$/;
 
 /** Procurement BLIN validity check. Trims + upper-cases before testing. */
 export function isValidProcurementCode(code: string | null | undefined): boolean {

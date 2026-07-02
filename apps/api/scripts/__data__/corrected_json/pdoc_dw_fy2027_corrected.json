@@ -1,8 +1,320 @@
 {
  "service": "DW",
  "fy": 2027,
- "sourceUrl": "FY2027 P-40 justification books (TOC-keyed)",
+ "sourceUrl": "FY2027 Defense-Wide P-series (pseries file, TOC/LI-keyed)",
  "pes": [
+  {
+   "peCode": "0300D22",
+   "title": "Major Equipment, DPAA",
+   "budgetActivity": "BA 01 — Major equipment",
+   "lineNumber": "0300D22",
+   "programOfRecord": null,
+   "fyData": [
+    {
+     "fy": 2025,
+     "quantity": 10,
+     "requestDollarsThousands": 518,
+     "unitCostDollars": 51800
+    },
+    {
+     "fy": 2026,
+     "quantity": 20,
+     "requestDollarsThousands": 475,
+     "unitCostDollars": 23750
+    }
+   ]
+  },
+  {
+   "peCode": "0300D30",
+   "title": "Major Equipment, OSD",
+   "budgetActivity": "BA 01 — Major equipment",
+   "lineNumber": "0300D30",
+   "programOfRecord": null,
+   "fyData": [
+    {
+     "fy": 2025,
+     "quantity": null,
+     "requestDollarsThousands": 473814,
+     "unitCostDollars": null
+    },
+    {
+     "fy": 2026,
+     "quantity": null,
+     "requestDollarsThousands": 2117914,
+     "unitCostDollars": null
+    },
+    {
+     "fy": 2027,
+     "quantity": null,
+     "requestDollarsThousands": 30713031,
+     "unitCostDollars": null
+    }
+   ]
+  },
+  {
+   "peCode": "0300D31",
+   "title": "Major Equipment, WHS",
+   "budgetActivity": "BA 01 — Major equipment",
+   "lineNumber": "0300D31",
+   "programOfRecord": null,
+   "fyData": [
+    {
+     "fy": 2025,
+     "quantity": null,
+     "requestDollarsThousands": 374,
+     "unitCostDollars": null
+    },
+    {
+     "fy": 2026,
+     "quantity": null,
+     "requestDollarsThousands": 403,
+     "unitCostDollars": null
+    },
+    {
+     "fy": 2027,
+     "quantity": null,
+     "requestDollarsThousands": 453,
+     "unitCostDollars": null
+    }
+   ]
+  },
+  {
+   "peCode": "0300D09",
+   "title": "Information Systems Security",
+   "budgetActivity": "BA 01 — Major equipment",
+   "lineNumber": "0300D09",
+   "programOfRecord": null,
+   "fyData": [
+    {
+     "fy": 2025,
+     "quantity": null,
+     "requestDollarsThousands": 22078,
+     "unitCostDollars": null
+    },
+    {
+     "fy": 2026,
+     "quantity": null,
+     "requestDollarsThousands": 6254,
+     "unitCostDollars": null
+    },
+    {
+     "fy": 2027,
+     "quantity": null,
+     "requestDollarsThousands": 27652,
+     "unitCostDollars": null
+    }
+   ]
+  },
+  {
+   "peCode": "0300D14",
+   "title": "Teleport Program",
+   "budgetActivity": "BA 01 — Major equipment",
+   "lineNumber": "0300D14",
+   "programOfRecord": null,
+   "fyData": [
+    {
+     "fy": 2025,
+     "quantity": null,
+     "requestDollarsThousands": 25848,
+     "unitCostDollars": null
+    },
+    {
+     "fy": 2026,
+     "quantity": null,
+     "requestDollarsThousands": 112517,
+     "unitCostDollars": null
+    },
+    {
+     "fy": 2027,
+     "quantity": null,
+     "requestDollarsThousands": 93512,
+     "unitCostDollars": null
+    }
+   ]
+  },
+  {
+   "peCode": "0300D16",
+   "title": "Items Less Than $5 Million",
+   "budgetActivity": "BA 01 — Major equipment",
+   "lineNumber": "0300D16",
+   "programOfRecord": null,
+   "fyData": [
+    {
+     "fy": 2025,
+     "quantity": null,
+     "requestDollarsThousands": 26055,
+     "unitCostDollars": null
+    },
+    {
+     "fy": 2026,
+     "quantity": null,
+     "requestDollarsThousands": 23673,
+     "unitCostDollars": null
+    },
+    {
+     "fy": 2027,
+     "quantity": null,
+     "requestDollarsThousands": 24013,
+     "unitCostDollars": null
+    }
+   ]
+  },
+  {
+   "peCode": "0300D18",
+   "title": "Defense Information System Network",
+   "budgetActivity": "BA 01 — Major equipment",
+   "lineNumber": "0300D18",
+   "programOfRecord": null,
+   "fyData": [
+    {
+     "fy": 2025,
+     "quantity": null,
+     "requestDollarsThousands": 130559,
+     "unitCostDollars": null
+    },
+    {
+     "fy": 2026,
+     "quantity": null,
+     "requestDollarsThousands": 252370,
+     "unitCostDollars": null
+    },
+    {
+     "fy": 2027,
+     "quantity": null,
+     "requestDollarsThousands": 392650,
+     "unitCostDollars": null
+    }
+   ]
+  },
+  {
+   "peCode": "0300D90",
+   "title": "White House Communication Agency",
+   "budgetActivity": "BA 01 — Major equipment",
+   "lineNumber": "0300D90",
+   "programOfRecord": null,
+   "fyData": [
+    {
+     "fy": 2025,
+     "quantity": null,
+     "requestDollarsThousands": 100587,
+     "unitCostDollars": null
+    },
+    {
+     "fy": 2026,
+     "quantity": null,
+     "requestDollarsThousands": 219292,
+     "unitCostDollars": null
+    },
+    {
+     "fy": 2027,
+     "quantity": null,
+     "requestDollarsThousands": 611216,
+     "unitCostDollars": null
+    }
+   ]
+  },
+  {
+   "peCode": "0300D92",
+   "title": "Senior Leadership Enterprise",
+   "budgetActivity": "BA 01 — Major equipment",
+   "lineNumber": "0300D92",
+   "programOfRecord": null,
+   "fyData": [
+    {
+     "fy": 2025,
+     "quantity": null,
+     "requestDollarsThousands": 54179,
+     "unitCostDollars": null
+    },
+    {
+     "fy": 2026,
+     "quantity": null,
+     "requestDollarsThousands": 175264,
+     "unitCostDollars": null
+    },
+    {
+     "fy": 2027,
+     "quantity": null,
+     "requestDollarsThousands": 81584,
+     "unitCostDollars": null
+    }
+   ]
+  },
+  {
+   "peCode": "0300D96",
+   "title": "Joint Regional Security Stacks (JRSS)",
+   "budgetActivity": "BA 01 — Major equipment",
+   "lineNumber": "0300D96",
+   "programOfRecord": null,
+   "fyData": [
+    {
+     "fy": 2025,
+     "quantity": null,
+     "requestDollarsThousands": 4584,
+     "unitCostDollars": null
+    },
+    {
+     "fy": 2026,
+     "quantity": null,
+     "requestDollarsThousands": 1496,
+     "unitCostDollars": null
+    }
+   ]
+  },
+  {
+   "peCode": "0300D97",
+   "title": "Joint Service Provider",
+   "budgetActivity": "BA 01 — Major equipment",
+   "lineNumber": "0300D97",
+   "programOfRecord": null,
+   "fyData": [
+    {
+     "fy": 2025,
+     "quantity": null,
+     "requestDollarsThousands": 57877,
+     "unitCostDollars": null
+    },
+    {
+     "fy": 2026,
+     "quantity": null,
+     "requestDollarsThousands": 54186,
+     "unitCostDollars": null
+    },
+    {
+     "fy": 2027,
+     "quantity": null,
+     "requestDollarsThousands": 53596,
+     "unitCostDollars": null
+    }
+   ]
+  },
+  {
+   "peCode": "0300D98",
+   "title": "Fourth Estate Network Optimization (4ENO)",
+   "budgetActivity": "BA 01 — Major equipment",
+   "lineNumber": "0300D98",
+   "programOfRecord": null,
+   "fyData": [
+    {
+     "fy": 2025,
+     "quantity": null,
+     "requestDollarsThousands": 24482,
+     "unitCostDollars": null
+    },
+    {
+     "fy": 2026,
+     "quantity": null,
+     "requestDollarsThousands": 75386,
+     "unitCostDollars": null
+    },
+    {
+     "fy": 2027,
+     "quantity": null,
+     "requestDollarsThousands": 60808,
+     "unitCostDollars": null
+    }
+   ]
+  },
   {
    "peCode": "0300D500",
    "title": "Major Equipment",
@@ -26,6 +338,498 @@
      "fy": 2027,
      "quantity": null,
      "requestDollarsThousands": 24257,
+     "unitCostDollars": null
+    }
+   ]
+  },
+  {
+   "peCode": "0300D20",
+   "title": "Major Equipment",
+   "budgetActivity": "BA 01 — Major equipment",
+   "lineNumber": "0300D20",
+   "programOfRecord": null,
+   "fyData": [
+    {
+     "fy": 2025,
+     "quantity": null,
+     "requestDollarsThousands": 2191,
+     "unitCostDollars": null
+    },
+    {
+     "fy": 2026,
+     "quantity": null,
+     "requestDollarsThousands": 2230,
+     "unitCostDollars": null
+    }
+   ]
+  },
+  {
+   "peCode": "0300D10",
+   "title": "Major Equipment, TJS",
+   "budgetActivity": "BA 01 — Major equipment",
+   "lineNumber": "0300D10",
+   "programOfRecord": null,
+   "fyData": [
+    {
+     "fy": 2025,
+     "quantity": null,
+     "requestDollarsThousands": 14711,
+     "unitCostDollars": null
+    },
+    {
+     "fy": 2026,
+     "quantity": null,
+     "requestDollarsThousands": 33090,
+     "unitCostDollars": null
+    },
+    {
+     "fy": 2027,
+     "quantity": null,
+     "requestDollarsThousands": 11689,
+     "unitCostDollars": null
+    }
+   ]
+  },
+  {
+   "peCode": "0300D30",
+   "title": "Counter-Small Unmanned Aircraft Systems",
+   "budgetActivity": "BA 01 — Major equipment",
+   "lineNumber": "0300D30",
+   "programOfRecord": null,
+   "fyData": [
+    {
+     "fy": 2026,
+     "quantity": null,
+     "requestDollarsThousands": 732000,
+     "unitCostDollars": null
+    },
+    {
+     "fy": 2027,
+     "quantity": null,
+     "requestDollarsThousands": 800000,
+     "unitCostDollars": null
+    }
+   ]
+  },
+  {
+   "peCode": "0300DMD07",
+   "title": "THAAD",
+   "budgetActivity": "BA 01 — Major equipment",
+   "lineNumber": "0300DMD07",
+   "programOfRecord": null,
+   "fyData": [
+    {
+     "fy": 2025,
+     "quantity": 62,
+     "requestDollarsThousands": 955199,
+     "unitCostDollars": 15406435
+    },
+    {
+     "fy": 2026,
+     "quantity": 55,
+     "requestDollarsThousands": 823125,
+     "unitCostDollars": 14965909
+    }
+   ]
+  },
+  {
+   "peCode": "0300DMD08",
+   "title": "Ground Based Midcourse",
+   "budgetActivity": "BA 01 — Major equipment",
+   "lineNumber": "0300DMD08",
+   "programOfRecord": null,
+   "fyData": [
+    {
+     "fy": 2025,
+     "quantity": null,
+     "requestDollarsThousands": 16637,
+     "unitCostDollars": null
+    }
+   ]
+  },
+  {
+   "peCode": "0300DMD09",
+   "title": "Aegis BMD",
+   "budgetActivity": "BA 01 — Major equipment",
+   "lineNumber": "0300DMD09",
+   "programOfRecord": null,
+   "fyData": [
+    {
+     "fy": 2025,
+     "quantity": 29,
+     "requestDollarsThousands": 695180,
+     "unitCostDollars": 23971724
+    },
+    {
+     "fy": 2026,
+     "quantity": 42,
+     "requestDollarsThousands": 825000,
+     "unitCostDollars": 19642857
+    },
+    {
+     "fy": 2027,
+     "quantity": 78,
+     "requestDollarsThousands": 1245759,
+     "unitCostDollars": 15971269
+    }
+   ]
+  },
+  {
+   "peCode": "0300DMD11",
+   "title": "BMDS AN/TPY-2 Radars",
+   "budgetActivity": "BA 01 — Major equipment",
+   "lineNumber": "0300DMD11",
+   "programOfRecord": null,
+   "fyData": [
+    {
+     "fy": 2025,
+     "quantity": null,
+     "requestDollarsThousands": 55965,
+     "unitCostDollars": null
+    },
+    {
+     "fy": 2026,
+     "quantity": null,
+     "requestDollarsThousands": 36530,
+     "unitCostDollars": null
+    },
+    {
+     "fy": 2027,
+     "quantity": null,
+     "requestDollarsThousands": 17840,
+     "unitCostDollars": null
+    }
+   ]
+  },
+  {
+   "peCode": "0300DMD14",
+   "title": "SM-3 IIAs",
+   "budgetActivity": "BA 01 — Major equipment",
+   "lineNumber": "0300DMD14",
+   "programOfRecord": null,
+   "fyData": [
+    {
+     "fy": 2025,
+     "quantity": 12,
+     "requestDollarsThousands": 406370,
+     "unitCostDollars": 33864167
+    },
+    {
+     "fy": 2026,
+     "quantity": 12,
+     "requestDollarsThousands": 509835,
+     "unitCostDollars": 42486250
+    },
+    {
+     "fy": 2027,
+     "quantity": 136,
+     "requestDollarsThousands": 4218604,
+     "unitCostDollars": 31019147
+    }
+   ]
+  },
+  {
+   "peCode": "0300DMD26",
+   "title": "Arrow 3 Upper Tier Systems",
+   "budgetActivity": "BA 01 — Major equipment",
+   "lineNumber": "0300DMD26",
+   "programOfRecord": null,
+   "fyData": [
+    {
+     "fy": 2025,
+     "quantity": 1,
+     "requestDollarsThousands": 50000,
+     "unitCostDollars": 50000000
+    },
+    {
+     "fy": 2026,
+     "quantity": 1,
+     "requestDollarsThousands": 100000,
+     "unitCostDollars": 100000000
+    },
+    {
+     "fy": 2027,
+     "quantity": 1,
+     "requestDollarsThousands": 150000,
+     "unitCostDollars": 150000000
+    }
+   ]
+  },
+  {
+   "peCode": "0300DMD34",
+   "title": "Short Range Ballistic Missile Defense (SRBMD)",
+   "budgetActivity": "BA 01 — Major equipment",
+   "lineNumber": "0300DMD34",
+   "programOfRecord": null,
+   "fyData": [
+    {
+     "fy": 2025,
+     "quantity": 1,
+     "requestDollarsThousands": 40000,
+     "unitCostDollars": 40000000
+    },
+    {
+     "fy": 2026,
+     "quantity": 1,
+     "requestDollarsThousands": 40000,
+     "unitCostDollars": 40000000
+    },
+    {
+     "fy": 2027,
+     "quantity": 1,
+     "requestDollarsThousands": 30000,
+     "unitCostDollars": 30000000
+    }
+   ]
+  },
+  {
+   "peCode": "0300DMD65",
+   "title": "Defense of Guam Procurement",
+   "budgetActivity": "BA 01 — Major equipment",
+   "lineNumber": "0300DMD65",
+   "programOfRecord": null,
+   "fyData": [
+    {
+     "fy": 2025,
+     "quantity": null,
+     "requestDollarsThousands": 22602,
+     "unitCostDollars": null
+    },
+    {
+     "fy": 2026,
+     "quantity": null,
+     "requestDollarsThousands": 67851,
+     "unitCostDollars": null
+    }
+   ]
+  },
+  {
+   "peCode": "0300DMD83",
+   "title": "Iron Dome",
+   "budgetActivity": "BA 01 — Major equipment",
+   "lineNumber": "0300DMD83",
+   "programOfRecord": null,
+   "fyData": [
+    {
+     "fy": 2025,
+     "quantity": 1,
+     "requestDollarsThousands": 110000,
+     "unitCostDollars": 110000000
+    },
+    {
+     "fy": 2026,
+     "quantity": 1,
+     "requestDollarsThousands": 60000,
+     "unitCostDollars": 60000000
+    },
+    {
+     "fy": 2027,
+     "quantity": 1,
+     "requestDollarsThousands": 20000,
+     "unitCostDollars": 20000000
+    }
+   ]
+  },
+  {
+   "peCode": "0300DMD90",
+   "title": "Aegis BMD Hardware and Software",
+   "budgetActivity": "BA 01 — Major equipment",
+   "lineNumber": "0300DMD90",
+   "programOfRecord": null,
+   "fyData": [
+    {
+     "fy": 2025,
+     "quantity": null,
+     "requestDollarsThousands": 32040,
+     "unitCostDollars": null
+    },
+    {
+     "fy": 2026,
+     "quantity": null,
+     "requestDollarsThousands": 17211,
+     "unitCostDollars": null
+    },
+    {
+     "fy": 2027,
+     "quantity": null,
+     "requestDollarsThousands": 39256,
+     "unitCostDollars": null
+    }
+   ]
+  },
+  {
+   "peCode": "0300D500",
+   "title": "Personnel Administration",
+   "budgetActivity": "BA 01 — Major equipment",
+   "lineNumber": "0300D500",
+   "programOfRecord": null,
+   "fyData": [
+    {
+     "fy": 2025,
+     "quantity": null,
+     "requestDollarsThousands": 3717,
+     "unitCostDollars": null
+    },
+    {
+     "fy": 2026,
+     "quantity": null,
+     "requestDollarsThousands": 3797,
+     "unitCostDollars": null
+    },
+    {
+     "fy": 2027,
+     "quantity": null,
+     "requestDollarsThousands": 82438,
+     "unitCostDollars": null
+    }
+   ]
+  },
+  {
+   "peCode": "0300D20",
+   "title": "Vehicles",
+   "budgetActivity": "BA 01 — Major equipment",
+   "lineNumber": "0300D20",
+   "programOfRecord": null,
+   "fyData": [
+    {
+     "fy": 2025,
+     "quantity": null,
+     "requestDollarsThousands": 2754,
+     "unitCostDollars": null
+    },
+    {
+     "fy": 2026,
+     "quantity": null,
+     "requestDollarsThousands": 911,
+     "unitCostDollars": null
+    },
+    {
+     "fy": 2027,
+     "quantity": null,
+     "requestDollarsThousands": 99,
+     "unitCostDollars": null
+    }
+   ]
+  },
+  {
+   "peCode": "0300D30",
+   "title": "Other Major Equipment",
+   "budgetActivity": "BA 01 — Major equipment",
+   "lineNumber": "0300D30",
+   "programOfRecord": null,
+   "fyData": [
+    {
+     "fy": 2025,
+     "quantity": null,
+     "requestDollarsThousands": 8783,
+     "unitCostDollars": null
+    },
+    {
+     "fy": 2026,
+     "quantity": null,
+     "requestDollarsThousands": 10934,
+     "unitCostDollars": null
+    },
+    {
+     "fy": 2027,
+     "quantity": null,
+     "requestDollarsThousands": 8963,
+     "unitCostDollars": null
+    }
+   ]
+  },
+  {
+   "peCode": "0300D50",
+   "title": "DTRA Cyber Activities",
+   "budgetActivity": "BA 01 — Major equipment",
+   "lineNumber": "0300D50",
+   "programOfRecord": null,
+   "fyData": [
+    {
+     "fy": 2025,
+     "quantity": null,
+     "requestDollarsThousands": 3429,
+     "unitCostDollars": null
+    },
+    {
+     "fy": 2026,
+     "quantity": null,
+     "requestDollarsThousands": 1800,
+     "unitCostDollars": null
+    },
+    {
+     "fy": 2027,
+     "quantity": null,
+     "requestDollarsThousands": 900,
+     "unitCostDollars": null
+    }
+   ]
+  },
+  {
+   "peCode": "0300D30",
+   "title": "Automation/Educational Support & Logistics",
+   "budgetActivity": "BA 01 — Major equipment",
+   "lineNumber": "0300D30",
+   "programOfRecord": null,
+   "fyData": [
+    {
+     "fy": 2025,
+     "quantity": null,
+     "requestDollarsThousands": 1360,
+     "unitCostDollars": null
+    }
+   ]
+  },
+  {
+   "peCode": "0300D30",
+   "title": "Major Equipment",
+   "budgetActivity": "BA 01 — Major equipment",
+   "lineNumber": "0300D30",
+   "programOfRecord": null,
+   "fyData": [
+    {
+     "fy": 2025,
+     "quantity": null,
+     "requestDollarsThousands": 7332,
+     "unitCostDollars": null
+    },
+    {
+     "fy": 2026,
+     "quantity": null,
+     "requestDollarsThousands": 7258,
+     "unitCostDollars": null
+    },
+    {
+     "fy": 2027,
+     "quantity": null,
+     "requestDollarsThousands": 6854,
+     "unitCostDollars": null
+    }
+   ]
+  },
+  {
+   "peCode": "0300DCY01",
+   "title": "Cyberspace Operations",
+   "budgetActivity": "BA 01 — Major equipment",
+   "lineNumber": "0300DCY01",
+   "programOfRecord": null,
+   "fyData": [
+    {
+     "fy": 2025,
+     "quantity": null,
+     "requestDollarsThousands": 101187,
+     "unitCostDollars": null
+    },
+    {
+     "fy": 2026,
+     "quantity": null,
+     "requestDollarsThousands": 74858,
+     "unitCostDollars": null
+    },
+    {
+     "fy": 2027,
+     "quantity": null,
+     "requestDollarsThousands": 103855,
      "unitCostDollars": null
     }
    ]
@@ -418,27 +1222,6 @@
    ]
   },
   {
-   "peCode": "0300D020401INTL",
-   "title": "Distributed Common Ground/Surface Systems",
-   "budgetActivity": "BA 02 — Special Operations Command",
-   "lineNumber": "0300D020401INTL",
-   "programOfRecord": null,
-   "fyData": [
-    {
-     "fy": 2025,
-     "quantity": null,
-     "requestDollarsThousands": 3918,
-     "unitCostDollars": null
-    },
-    {
-     "fy": 2026,
-     "quantity": null,
-     "requestDollarsThousands": 2824,
-     "unitCostDollars": null
-    }
-   ]
-  },
-  {
    "peCode": "0300D0204OTHER",
    "title": "Other Items <$5M",
    "budgetActivity": "BA 02 — Special Operations Command",
@@ -704,21 +1487,6 @@
      "fy": 2027,
      "quantity": null,
      "requestDollarsThousands": 117859,
-     "unitCostDollars": null
-    }
-   ]
-  },
-  {
-   "peCode": "0360DTITLE3",
-   "title": "Direct Loan Subsidy",
-   "budgetActivity": "BA 01 — DIRECT LOAN SUBSIDY",
-   "lineNumber": "0360DTITLE3",
-   "programOfRecord": null,
-   "fyData": [
-    {
-     "fy": 2025,
-     "quantity": null,
-     "requestDollarsThousands": 3983,
      "unitCostDollars": null
     }
    ]

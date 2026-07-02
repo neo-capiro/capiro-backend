@@ -128,7 +128,8 @@ describe('isValidProcurementCode / isValidProgramCode (Option A — procurement)
 
   test('accepts appropriation-namespaced BLINs (Navy/AF/DW line items)', () => {
     // <appropriationCode><nativeLineItem> for Services whose native codes aren't unique.
-    for (const blin of ['1506N0145', '1506N0147', '3010FB02100', '3010FATA000', '0300D0201MC12', '3020F0021']) {
+    // Includes Defense-Wide OSD/DISA 2-digit sub-numbers (0300D30, 0300D09).
+    for (const blin of ['1506N0145', '1506N0147', '3010FB02100', '3010FATA000', '0300D0201MC12', '3020F0021', '0300D30', '0300D09']) {
       expect(isValidProcurementCode(blin)).toBe(true);
     }
   });
