@@ -79,16 +79,38 @@ function dateOnly(d: Date): string {
   return d instanceof Date ? d.toISOString().slice(0, 10) : String(d).slice(0, 10);
 }
 
+/** Generic single-label titles Congress.gov sometimes returns instead of a real
+ *  subject (e.g. a bare "HEARING" or "Business Meeting"). These carry no signal
+ *  and read as "named the same" across rows, so we treat them as placeholders. */
+const GENERIC_TITLES = new Set([
+  '(untitled)',
+  'hearing',
+  'hearings',
+  'markup',
+  'markup session',
+  'meeting',
+  'business meeting',
+  'open hearing',
+  'closed hearing',
+  'open business meeting',
+  'closed business meeting',
+  'field hearing',
+  'committee meeting',
+  'organizational meeting',
+]);
+
 /** Build a distinctive title. sync-hearings stores '(untitled)' for meetings with
  *  no title and may prefix a non-scheduled status like '[Postponed]'. When the
- *  body is missing/placeholder, synthesize "<Type>: <Committee>" so rows never
- *  collapse to an identical generic label. Any status prefix is preserved. */
+ *  body is missing or a generic single-label placeholder, synthesize
+ *  "<Type>: <Committee>" so rows never collapse to an identical generic label.
+ *  Any status prefix is preserved. */
 function robustTitle(r: UpcomingCommitteeHearing): string {
   const raw = (r.title ?? '').trim();
   const statusMatch = raw.match(/^(\[[^\]]+\]\s*)/);
   const statusPrefix = statusMatch?.[1] ?? '';
   const body = raw.slice(statusPrefix.length).trim();
-  if (body && body.toLowerCase() !== '(untitled)') return raw;
+  const normalized = body.toLowerCase().replace(/[.\s]+$/, '');
+  if (body && !GENERIC_TITLES.has(normalized)) return raw;
   const committee = r.committeeName?.trim() || 'Committee';
   return `${statusPrefix}${prettyType(r.type)}: ${committee}`.trim();
 }
