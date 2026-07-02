@@ -253,6 +253,42 @@ async function main(): Promise<void> {
         programsCreated += 1; // dry-run count
       }
       for (const owner of pr.owners ?? []) {
+        // The directory's program "owners" are PEOPLE (PM/POC names in the
+        // program tables — verified: 41/41 resolve to directory personnel),
+        // not offices. Primary path: person -> program via person_role
+        // (deterministic directory assertion). Office path kept as fallback
+        // for any future revision that lists office owners.
+        const ownerPerson = await prisma.acquisitionPersonnel.findFirst({
+          where: { nameKey: normalizeName(owner).nameKey },
+          select: { id: true },
+        });
+        if (ownerPerson) {
+          if (COMMIT && program) {
+            const dup = await prisma.personRole.findFirst({
+              where: { personId: ownerPerson.id, programId: program.id, source: SOURCE },
+              select: { id: true },
+            });
+            if (!dup) {
+              const reviewStatus = 'accepted';
+              await prisma.personRole.create({
+                data: {
+                  personId: ownerPerson.id,
+                  programId: program.id,
+                  roleTitle: 'Program owner (DoW Directory)',
+                  roleType: 'pm',
+                  source: SOURCE,
+                  sourceQuote: pr.pages?.length ? `DoW Directory Update 6, p.${pr.pages[0]}` : null,
+                  observedAt: new Date('2026-06-01'),
+                  confidence: 0.8,
+                  reviewStatus,
+                  contactUse: classifyContactUse({ roleType: 'pm', source: SOURCE, reviewStatus }),
+                },
+              });
+            }
+          }
+          linksCreated += 1;
+          continue;
+        }
         const officeId = lookupOffice(owner);
         if (!officeId) {
           linksSkippedNoOffice += 1;

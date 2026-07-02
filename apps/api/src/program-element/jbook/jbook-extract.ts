@@ -30,6 +30,10 @@ const SERVICE_DESIGNATOR: Record<string, string> = {
   K: 'DW',
   V: 'DW',
   R: 'DW',
+  // Second backfill pass surfaced two more OSD designators: O = Director,
+  // Operational Test & Evaluation (0605118OTE), X = OSD administration (0901517X).
+  O: 'DW',
+  X: 'DW',
 };
 
 /** Derive service + designator from the 8th char of an RDT&E PE code. */

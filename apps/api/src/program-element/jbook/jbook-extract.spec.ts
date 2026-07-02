@@ -34,6 +34,8 @@ describe('serviceFromPeCode', () => {
     expect(serviceFromPeCode('0303126K')).toEqual({ service: 'DW', serviceCode: 'K' }); // Long-Haul Comms (DISA)
     expect(serviceFromPeCode('0302609V')).toEqual({ service: 'DW', serviceCode: 'V' });
     expect(serviceFromPeCode('0300206R')).toEqual({ service: 'DW', serviceCode: 'R' });
+    expect(serviceFromPeCode('0605118OTE')).toEqual({ service: 'DW', serviceCode: 'O' }); // DOT&E
+    expect(serviceFromPeCode('0901517X')).toEqual({ service: 'DW', serviceCode: 'X' });
   });
 });
 
