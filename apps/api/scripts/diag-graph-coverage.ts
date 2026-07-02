@@ -28,6 +28,20 @@ async function main(): Promise<void> {
         withDescription: await q(
           `SELECT count(*)::int n FROM program_element WHERE description IS NOT NULL AND length(description) > 40`,
         ),
+        // Batch-9 driver: which lines still lack a narrative, by appropriation+service.
+        undescribedByType: await q(
+          `SELECT COALESCE(appropriation_type,'(null)') t, COALESCE(service,'(null)') s, count(*)::int n
+           FROM program_element
+           WHERE retired_at IS NULL AND (description IS NULL OR length(description) <= 40)
+           GROUP BY 1, 2 ORDER BY 3 DESC LIMIT 12`,
+        ),
+        undescribedRdteSamples: await q(
+          `SELECT pe_code || ' ' || COALESCE(left(title, 40), '') AS x, 0::int AS n
+           FROM program_element
+           WHERE retired_at IS NULL AND appropriation_type = 'RDT&E'
+             AND (description IS NULL OR length(description) <= 40)
+           ORDER BY pe_code LIMIT 20`,
+        ),
       },
       personnel: {
         total: await q(`SELECT count(*)::int n FROM acquisition_personnel`),
