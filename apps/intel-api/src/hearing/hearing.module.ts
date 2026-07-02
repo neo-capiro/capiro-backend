@@ -9,6 +9,7 @@ import { PostHearingService } from './post-hearing.service.js';
 import { HearingBriefService } from './hearing-brief.service.js';
 import { HearingGateway } from './hearing.gateway.js';
 import { WatchlistModule } from '../watchlist/watchlist.module.js';
+import { LinkingModule } from '../linking/linking.module.js';
 
 /**
  * Live Hearing Intelligence module — the first capability of intel-api.
@@ -17,7 +18,7 @@ import { WatchlistModule } from '../watchlist/watchlist.module.js';
  * post-hearing brief generation (H4) + watchlist matching (H2).
  */
 @Module({
-  imports: [WatchlistModule],
+  imports: [WatchlistModule, LinkingModule],
   controllers: [HearingController],
   providers: [
     HearingSessionService,

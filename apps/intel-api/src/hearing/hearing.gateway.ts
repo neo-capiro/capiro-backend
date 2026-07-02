@@ -15,6 +15,8 @@ import { WatchlistService } from '../watchlist/watchlist.service.js';
 import { OrchestratorClient } from './orchestrator.client.js';
 import { DeepgramStreamManager } from './deepgram-stream.manager.js';
 import { StreamIngestionService, type IngestionHandle } from './stream-ingestion.service.js';
+import { BillHearingLinkerService } from '../linking/bill-hearing-linker.service.js';
+import { WatchlistMatchPromoterService } from '../linking/watchlist-match-promoter.service.js';
 import type { ClientWsMessage, ServerWsMessage } from './hearing.types.js';
 
 interface LiveConn {
@@ -62,6 +64,8 @@ export class HearingGateway implements OnGatewayConnection, OnGatewayDisconnect 
     private readonly watchlists: WatchlistService,
     private readonly orchestrator: OrchestratorClient,
     private readonly ingestionSvc: StreamIngestionService,
+    private readonly linker: BillHearingLinkerService,
+    private readonly promoter: WatchlistMatchPromoterService,
     config: ConfigService,
   ) {
     this.deepgramApiKey = config.get<string>('DEEPGRAM_API_KEY') ?? '';
@@ -154,6 +158,25 @@ export class HearingGateway implements OnGatewayConnection, OnGatewayDisconnect 
       await this.sessions.markStatus(conn.tenantId, conn.sessionId, 'ended', { endedAt: new Date() });
     } catch (err) {
       this.logger.warn(`markStatus ended failed: ${(err as Error).message}`);
+    }
+    // Hearing-end auto-link (Phase 6 §9.6): promote watchlist matches → hearing
+    // alerts, then link tracked bills → combined alerts. SHADOW-safe (writes
+    // intel_alert status='new', no delivery). Fire-and-forget so the disconnect
+    // path never blocks; advisory locks dedupe against the daily sweep.
+    void this.autoLink(conn.tenantId, conn.sessionId);
+  }
+
+  /** Fire-and-forget hearing-end linking. Promote BEFORE link so the combined
+   *  alert can reference the just-created hearing alert (§9.4 ordering). */
+  private async autoLink(tenantId: string, sessionId: string): Promise<void> {
+    try {
+      const promoted = await this.promoter.promoteMatches(tenantId, sessionId);
+      const linked = await this.linker.linkSession(tenantId, sessionId);
+      this.logger.log(
+        `hearing-end auto-link session=${sessionId} promoted=${promoted.alerts} combined=${linked.combined}`,
+      );
+    } catch (err) {
+      this.logger.warn(`hearing-end auto-link failed session=${sessionId}: ${(err as Error).message}`);
     }
   }
 

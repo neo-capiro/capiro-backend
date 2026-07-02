@@ -1,5 +1,6 @@
 import { Injectable } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service.js';
+import { HearingCryptoService } from '../hearing/hearing-crypto.service.js';
 
 /**
  * Combined per-client intel feed (Phase 6 §9.7). Reads `intel_alert` only —
@@ -56,7 +57,46 @@ export function encodeCursor(order: 'date' | 'score', row: { score: number; crea
 
 @Injectable()
 export class FeedService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly crypto: HearingCryptoService,
+  ) {}
+
+  /**
+   * Decrypt-on-read (§9.7, fail-closed): fill `quote` for encrypted hearing
+   * mentions by decrypting their transcript segment. Batches segment reads across
+   * the page (no N+1). On any decrypt/read failure the quote stays null — NEVER
+   * leak ciphertext. No-op when no key is configured (e.g. non-serve contexts).
+   */
+  private async decryptQuotes(items: Array<{ evidence: unknown }>): Promise<void> {
+    if (!this.crypto.configured) return;
+    const segIds = new Set<string>();
+    for (const it of items) {
+      const ev = it.evidence as { hearing?: { mentions?: Array<{ quoteSource?: string; quote?: unknown; segmentId?: string | null }> } } | null;
+      for (const m of ev?.hearing?.mentions ?? []) {
+        if (m?.quoteSource === 'encrypted' && !m.quote && m.segmentId) segIds.add(m.segmentId);
+      }
+    }
+    if (!segIds.size) return;
+    const segs = await this.prisma.transcriptSegment.findMany({
+      where: { id: { in: [...segIds] } },
+      select: { id: true, textCiphertext: true, iv: true, authTag: true },
+    });
+    const cipherById = new Map(segs.map((s) => [s.id, s]));
+    for (const it of items) {
+      const ev = it.evidence as { hearing?: { mentions?: Array<{ quoteSource?: string; quote?: unknown; segmentId?: string | null }> } } | null;
+      for (const m of ev?.hearing?.mentions ?? []) {
+        if (m?.quoteSource !== 'encrypted' || m.quote || !m.segmentId) continue;
+        const c = cipherById.get(m.segmentId);
+        if (!c?.textCiphertext || !c.iv || !c.authTag) continue;
+        try {
+          m.quote = this.crypto.decrypt({ textCiphertext: c.textCiphertext, iv: c.iv, authTag: c.authTag });
+        } catch {
+          /* fail closed: leave quote null, never leak ciphertext */
+        }
+      }
+    }
+  }
 
   async getFeed(tenantId: string, clientId: string, q: FeedQuery) {
     const order: 'date' | 'score' = q.order === 'score' ? 'score' : 'date';
@@ -136,6 +176,8 @@ export class FeedService {
     });
     const counts: Record<string, number> = {};
     for (const g of grouped) counts[g.sourceType] = g._count;
+
+    await this.decryptQuotes(items); // fill encrypted hearing quotes (fail-closed)
 
     return { items, nextCursor, hasMore, counts };
   }
