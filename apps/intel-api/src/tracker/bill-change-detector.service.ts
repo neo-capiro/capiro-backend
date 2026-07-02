@@ -164,8 +164,20 @@ export class BillChangeDetectorService {
     matchedTags: string[],
   ): Promise<boolean> {
     const dedupeSince = new Date(Date.now() - 14 * 24 * 60 * 60 * 1000);
+    // Dedup is PER CLIENT: the alert is client-specific (its own board/feed row,
+    // its own subscribers), and legacy emits one intelligence_change per client
+    // (relatedClientIds carries the clientId). Omitting clientId here would drop
+    // alerts for every client but the first that tracks a shared bill (e.g. NDAA)
+    // — diverging from legacy and failing the Phase-5 parity recall gate.
     const existing = await this.prisma.intelAlert.findFirst({
-      where: { tenantId: row.tenantId, sourceType: 'bill', changeType: ev.cls.changeType, sourceRef: row.billId, createdAt: { gte: dedupeSince } },
+      where: {
+        tenantId: row.tenantId,
+        clientId: row.clientId,
+        sourceType: 'bill',
+        changeType: ev.cls.changeType,
+        sourceRef: row.billId,
+        createdAt: { gte: dedupeSince },
+      },
       select: { id: true },
     });
     if (existing) return false;
