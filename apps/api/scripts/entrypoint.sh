@@ -367,6 +367,13 @@ case "${1:-serve}" in
   # O-1 Operation & Maintenance loader: O&M detail lines as program elements
   # (appropriationType=OM, pe_code=<account><line>). Pass --artifact. O-1 is $K.
   load-om) shift; exec ./node_modules/.bin/tsx scripts/load-om.ts "$@" ;;
+  # Org graph: import DoW Directory orgs/roles/program-owners into program_office /
+  # person_role / program(+links). Dry-run default; pass --commit.
+  import-dow-orgs) shift; exec ./node_modules/.bin/tsx scripts/import-dow-orgs.ts "$@" ;;
+  # Master program/people lists exported FROM PROD (read-only; CSVs to stdout).
+  export-master-lists) shift; exec ./node_modules/.bin/tsx scripts/export-master-lists.ts "$@" ;;
+  # Read-only graph-coverage baseline (org/program/person link counts by status).
+  diag-graph-coverage) shift; exec ./node_modules/.bin/tsx scripts/diag-graph-coverage.ts "$@" ;;
   # Personnel + derived jobs that were missing dispatch cases (Production
   # Ingestion plan, Phase 2). Scheduled via EventBridge in infra/cdk.
   sync-dod-orgcharts) shift; exec ./node_modules/.bin/tsx scripts/sync-dod-orgcharts.ts "$@" ;;

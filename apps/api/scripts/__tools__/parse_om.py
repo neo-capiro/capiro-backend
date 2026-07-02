@@ -34,6 +34,18 @@ for ln in open(SRC, encoding="utf-8"):
     if not re.match(r'^[0-9]{3,4}[A-Z]', account) or not line: continue
     fy25,fy26disc,fy26pl,fy26tot,fy27disc,fy27mand,fy27tot=[dollars(x) for x in c[6:13]]
     pe=f"{account}{line}".upper()
+    # (account, line) is unique in the O-1 EXCEPT the '999' classified sentinel,
+    # which repeats once per budget activity (e.g. 3400F BA01 + BA04). Disambiguate
+    # colliding keys with a B<ba> suffix so distinct lines never share a pe_code.
+    if any(r["peCode"]==pe for r in rows):
+        pe=f"{account}{line}B{(ba or '00').zfill(2)}".upper()
+        # also retro-suffix the FIRST collider so neither claims the bare key
+        for r in rows:
+            if r["peCode"]==f"{account}{line}".upper():
+                m=re.search(r'(\d+)', r.get("budgetActivity") or "")
+                first_ba=(m.group(1) if m else "00").zfill(2)
+                r["peCode"]=f"{account}{line}B{first_ba}".upper()
+                r["raw"]["disambiguated"]=True
     if not RX.match(pe): bad.append(pe); continue
     fyData=[]
     if fy25 is not None: fyData.append({"fy":2025,"enacted":fy25})
