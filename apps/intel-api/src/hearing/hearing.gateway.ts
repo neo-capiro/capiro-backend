@@ -142,7 +142,7 @@ export class HearingGateway implements OnGatewayConnection, OnGatewayDisconnect 
         }
       }, MAX_SESSION_MS);
 
-      client.on('message', (raw: Buffer | string) => this.onMessage(client, raw));
+      client.on('message', (raw: Buffer, isBinary: boolean) => this.onMessage(client, raw, isBinary));
     } catch (err) {
       this.reject(client, (err as Error).message);
     }
@@ -180,16 +180,21 @@ export class HearingGateway implements OnGatewayConnection, OnGatewayDisconnect 
     }
   }
 
-  private onMessage(client: WebSocket, raw: Buffer | string): void {
+  private onMessage(client: WebSocket, raw: Buffer, isBinary: boolean): void {
     const conn = this.conns.get(client);
     if (!conn) return;
-    // Binary frames are raw audio; JSON frames are control messages.
-    if (Buffer.isBuffer(raw)) {
+    // ws v8 delivers BOTH text and binary frames as a Buffer, so a
+    // `Buffer.isBuffer(raw)` test is always true and would misroute every JSON
+    // control frame (ingest/audio/stop) into Deepgram as audio — which is why
+    // the `ingest` frame never started ffmpeg and no transcript appeared. The
+    // `isBinary` flag is the only reliable discriminator: true = raw audio
+    // frame, false = a JSON control message.
+    if (isBinary) {
       conn.deepgram.sendAudio(raw);
       return;
     }
     try {
-      const msg = JSON.parse(raw.toString()) as ClientWsMessage;
+      const msg = JSON.parse(raw.toString('utf8')) as ClientWsMessage;
       if (msg.type === 'audio') {
         conn.deepgram.sendAudio(Buffer.from(msg.chunk, 'base64'));
       } else if (msg.type === 'ingest') {
