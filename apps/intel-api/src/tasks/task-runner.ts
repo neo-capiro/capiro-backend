@@ -233,6 +233,22 @@ export async function runVerb(verb: string, args: string[], deps: VerbDeps): Pro
           `overlap=${m.overlap.toFixed(3)} recall=${m.recall.toFixed(3)} |L|=${m.legacyCount} |I|=${m.intelCount} ` +
           `missedCrit=${m.missedCriticals.length} wrote=${r.wrote}`,
       );
+      // Pure-JSON line (whole log event) so a CloudWatch Logs metric filter can
+      // extract $.missedCriticals numerically → alarm on missed legacy criticals.
+      deps.log(
+        JSON.stringify({
+          marker: 'parity_metric',
+          scope: r.tenantScope,
+          windowDays,
+          missedCriticals: m.missedCriticals.length,
+          severityCriticalMismatches: m.severityCriticalMismatches.length,
+          passed: r.passed,
+          overlap: Number(m.overlap.toFixed(4)),
+          recall: Number(m.recall.toFixed(4)),
+          legacy: m.legacyCount,
+          intel: m.intelCount,
+        }),
+      );
       return;
     }
     case 'parity-streak': {
