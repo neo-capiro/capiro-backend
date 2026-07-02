@@ -29,6 +29,19 @@ import {
   type SeedSuggestions,
   type WatchlistPayload,
 } from './tracker-api.js';
+import {
+  intelTrackerPaths,
+  adaptBoard,
+  adaptRecs,
+  adaptWatchlist,
+  adaptPrefs,
+  watchlistToIntel,
+  prefsToIntel,
+  type IntelBoard,
+  type IntelRec,
+  type IntelWatchlist,
+  type IntelAlertPrefs,
+} from './intel-tracker-api.js';
 
 type Panel = 'board' | 'recs' | 'config' | 'feed';
 const PANEL_KEY = 'capiro:tracker:panel';
@@ -126,12 +139,17 @@ export function TrackerTab({ clientId, clientName }: { clientId: string; clientN
   // ── Queries ──────────────────────────────────────────────────────────────
   const boardQuery = useQuery<BoardResponse>({
     queryKey: trackerKeys.board(clientId),
-    queryFn: async () => (await api.get<BoardResponse>(trackerPaths.board(clientId))).data,
+    queryFn: async () =>
+      trackerV2
+        ? adaptBoard((await api.get<IntelBoard>(intelTrackerPaths.board(clientId))).data)
+        : (await api.get<BoardResponse>(trackerPaths.board(clientId))).data,
   });
   const recsQuery = useQuery<RecommendationsResponse>({
     queryKey: trackerKeys.recommendations(clientId),
     queryFn: async () =>
-      (await api.get<RecommendationsResponse>(trackerPaths.recommendations(clientId))).data,
+      trackerV2
+        ? adaptRecs((await api.get<IntelRec[]>(intelTrackerPaths.recommendations(clientId))).data)
+        : (await api.get<RecommendationsResponse>(trackerPaths.recommendations(clientId))).data,
     staleTime: 60_000,
   });
   const issueAreasQuery = useQuery<{ issueAreas: string[] }>({
@@ -141,12 +159,18 @@ export function TrackerTab({ clientId, clientName }: { clientId: string; clientN
   });
   const watchlistQuery = useQuery<WatchlistPayload>({
     queryKey: trackerKeys.watchlist(clientId),
-    queryFn: async () => (await api.get<WatchlistPayload>(trackerPaths.watchlist(clientId))).data,
+    queryFn: async () =>
+      trackerV2
+        ? adaptWatchlist((await api.get<IntelWatchlist>(intelTrackerPaths.watchlist(clientId))).data)
+        : (await api.get<WatchlistPayload>(trackerPaths.watchlist(clientId))).data,
     enabled: activePanel === 'config',
   });
   const prefsQuery = useQuery<AlertPrefsPayload>({
     queryKey: trackerKeys.alertPrefs(clientId),
-    queryFn: async () => (await api.get<AlertPrefsPayload>(trackerPaths.alertPrefs(clientId))).data,
+    queryFn: async () =>
+      trackerV2
+        ? adaptPrefs((await api.get<IntelAlertPrefs>(intelTrackerPaths.alertPrefs(clientId))).data)
+        : (await api.get<AlertPrefsPayload>(trackerPaths.alertPrefs(clientId))).data,
     enabled: activePanel === 'config',
   });
   // Suggestions to seed the watchlist from the client profile (capability tags +
@@ -193,7 +217,10 @@ export function TrackerTab({ clientId, clientName }: { clientId: string; clientN
     }: {
       billId: string;
       source: 'recommended' | 'manual_search';
-    }) => (await api.post(trackerPaths.track(clientId), { billId, source })).data,
+    }) =>
+      trackerV2
+        ? (await api.post(intelTrackerPaths.track(clientId), { billId, source })).data
+        : (await api.post(trackerPaths.track(clientId), { billId, source })).data,
     onMutate: ({ billId }) => {
       qc.setQueryData<RecommendationsResponse>(trackerKeys.recommendations(clientId), (prev) =>
         prev
@@ -214,7 +241,9 @@ export function TrackerTab({ clientId, clientName }: { clientId: string; clientN
 
   const untrackMutation = useMutation({
     mutationFn: async (billId: string) =>
-      (await api.delete(trackerPaths.untrack(clientId, billId))).data,
+      trackerV2
+        ? (await api.post(intelTrackerPaths.untrack(clientId), { billId })).data
+        : (await api.delete(trackerPaths.untrack(clientId, billId))).data,
     onMutate: (billId) => {
       qc.setQueryData<BoardResponse>(trackerKeys.board(clientId), (prev) =>
         prev
@@ -238,8 +267,9 @@ export function TrackerTab({ clientId, clientName }: { clientId: string; clientN
 
   const dismissMutation = useMutation({
     mutationFn: async (billId: string) =>
-      (await api.post(trackerPaths.feedback(clientId), { billId, signal: 'marked_irrelevant' }))
-        .data,
+      trackerV2
+        ? (await api.post(intelTrackerPaths.feedback(clientId), { targetRef: billId, signal: 'marked_irrelevant' })).data
+        : (await api.post(trackerPaths.feedback(clientId), { billId, signal: 'marked_irrelevant' })).data,
     onMutate: (billId) => {
       qc.setQueryData<RecommendationsResponse>(trackerKeys.recommendations(clientId), (prev) =>
         prev
@@ -263,7 +293,9 @@ export function TrackerTab({ clientId, clientName }: { clientId: string; clientN
 
   const markReadMutation = useMutation({
     mutationFn: async (billId: string) =>
-      (await api.post(trackerPaths.feedback(clientId), { billId, signal: 'opened' })).data,
+      trackerV2
+        ? (await api.post(intelTrackerPaths.feedback(clientId), { targetRef: billId, signal: 'opened' })).data
+        : (await api.post(trackerPaths.feedback(clientId), { billId, signal: 'opened' })).data,
     onSuccess: () => {
       void qc.invalidateQueries({ queryKey: trackerKeys.board(clientId) });
       void qc.invalidateQueries({ queryKey: trackerKeys.summary(clientId) });
@@ -272,7 +304,11 @@ export function TrackerTab({ clientId, clientName }: { clientId: string; clientN
 
   const saveWatchlistMutation = useMutation({
     mutationFn: async (w: WatchlistPayload) =>
-      (await api.put<WatchlistPayload>(trackerPaths.watchlist(clientId), w)).data,
+      trackerV2
+        ? adaptWatchlist(
+            (await api.put<IntelWatchlist>(intelTrackerPaths.watchlist(clientId), watchlistToIntel(w))).data,
+          )
+        : (await api.put<WatchlistPayload>(trackerPaths.watchlist(clientId), w)).data,
     onSuccess: (data) => {
       // Seed the cache with the server-normalized value so the Configure form
       // (and recs) reflect what was actually persisted.
@@ -286,7 +322,9 @@ export function TrackerTab({ clientId, clientName }: { clientId: string; clientN
   });
   const savePrefsMutation = useMutation({
     mutationFn: async (p: AlertPrefsPayload) =>
-      (await api.put<AlertPrefsPayload>(trackerPaths.alertPrefs(clientId), p)).data,
+      trackerV2
+        ? adaptPrefs((await api.put<IntelAlertPrefs>(intelTrackerPaths.alertPrefs(clientId), prefsToIntel(p))).data)
+        : (await api.put<AlertPrefsPayload>(trackerPaths.alertPrefs(clientId), p)).data,
     onSuccess: (data) => qc.setQueryData(trackerKeys.alertPrefs(clientId), data),
     onError: () => message.error('Could not save alert preferences'),
   });
