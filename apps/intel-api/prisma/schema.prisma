@@ -188,12 +188,18 @@ model IntelAlert {
   recommendedAction String?   @map("recommended_action")
   evidence          Json      @default("{}")
   status            String    @default("new") //       new|reviewed|sent|dismissed|snoozed|suppressed
+  // Phase-6 idempotency key (§9.4/§9.5): 'combined:'+clientId+':'+billId+':'+sessionId
+  // or 'hearing:'+clientId+':'+sessionId. Added by the Phase-6 migration; NOT
+  // present in the Phase-3/Phase-4 intel_alert — do NOT assume it before Phase 6.
+  dedupeKey         String?   @unique @map("dedupe_key")
   createdAt         DateTime  @default(now()) @map("created_at")
   deliveredAt       DateTime? @map("delivered_at")
 
   @@index([tenantId, clientId, createdAt])
   @@index([tenantId, status])
   @@index([tenantId, sourceType, sourceRef])
+  // Phase-6 feed (§9.8) score-ordering: keyset pagination on score DESC.
+  @@index([tenantId, clientId, score, createdAt])
   @@map("intel_alert")
 }
 

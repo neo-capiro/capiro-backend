@@ -28,6 +28,7 @@ import { IntelEmailService } from '../intel-alert/intel-email.service.js';
 import { TrackerWatchlistService } from '../tracker/tracker-watchlist.service.js';
 import { TrackerBoardService } from '../tracker/tracker-board.service.js';
 import { ParityService } from '../tracker/parity.service.js';
+import { WatchlistMatchPromoterService } from '../linking/watchlist-match-promoter.service.js';
 
 /** Parse `--key=value` flags out of a verb's arg list. */
 function parseFlags(args: string[]): Record<string, string> {
@@ -60,6 +61,7 @@ export const KNOWN_VERBS = [
   'verify-recommendations', //      §6.2: live proof of the recs+board path (keyword+semantic SQL)
   'parity-report', //               Phase 5: diff legacy intelligence_change vs shadow intel_alert (§8)
   'parity-streak', //               Phase 5: contiguous green-day streak for a scope (§8.6)
+  'promote-watchlist-matches', //   Phase 6: intel_watchlist_match → hearing intel_alert (§9.5)
 ] as const;
 export type Verb = (typeof KNOWN_VERBS)[number];
 
@@ -259,6 +261,26 @@ export async function runVerb(verb: string, args: string[], deps: VerbDeps): Pro
       deps.log(
         `PARITY_STREAK scope=${scope} greenStreak=${s.greenStreak} distinctDays=${s.distinctDays} gate=${ready ? 'READY' : 'NOT_READY'}`,
       );
+      return;
+    }
+    case 'promote-watchlist-matches': {
+      const flags = parseFlags(args);
+      const svc = new WatchlistMatchPromoterService(deps.prisma);
+      if (flags['session']) {
+        let tenant = flags['tenant'];
+        if (!tenant) {
+          const s = await deps.prisma.liveHearingSession.findUnique({
+            where: { id: flags['session'] },
+            select: { tenantId: true },
+          });
+          tenant = s?.tenantId ?? '';
+        }
+        const r = await svc.promoteMatches(tenant, flags['session']);
+        deps.log(`PROMOTE_DONE session=${flags['session']} alerts=${r.alerts} skipped=${r.skipped}`);
+      } else {
+        const r = await svc.promoteAll(flags['since']);
+        deps.log(`PROMOTE_DONE sessions=${r.sessions} alerts=${r.alerts} skipped=${r.skipped}`);
+      }
       return;
     }
     default:
