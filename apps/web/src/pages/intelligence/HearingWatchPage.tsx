@@ -186,6 +186,7 @@ function NewHearingModal({
               sourceType: v.sourceType,
               audioSource: v.audioSource,
               recordingPolicy: v.recordingPolicy,
+              sourceUrl: v.sourceUrl?.trim() || undefined,
             },
             {
               onSuccess: () => {
@@ -247,6 +248,13 @@ function NewHearingModal({
               { value: 'no_storage', label: 'No storage (live only)' },
             ]}
           />
+        </Form.Item>
+        <Form.Item
+          name="sourceUrl"
+          label="Stream / recording URL (optional)"
+          tooltip="Direct media URL — HLS .m3u8, MP3/AAC, or MP4 (e.g. a C-SPAN or committee stream). If set, the room pre-fills it and starts transcribing on connect. Not a congress.gov event page."
+        >
+          <Input placeholder="https://…/hearing.m3u8  (leave blank to enter it in the room)" />
         </Form.Item>
       </Form>
     </Modal>

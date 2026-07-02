@@ -36,6 +36,10 @@ export class CreateSessionDto {
   @IsEnum(RecordingPolicyDto)
   recordingPolicy?: RecordingPolicyDto;
 
+  /** Optional direct media URL (HLS .m3u8 / MP3 / AAC / MP4) to pre-fill + auto-start
+   *  ingestion in the room. Kept as a lenient string (stream URLs vary widely). */
+  @IsOptional() @IsString() @MaxLength(2000) sourceUrl?: string;
+
   @IsOptional() @IsString() clientId?: string;
   @IsOptional() @IsString() matterId?: string;
   @IsOptional() @IsString() hearingId?: string;

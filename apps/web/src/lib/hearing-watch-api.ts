@@ -24,6 +24,7 @@ export interface LiveHearingSession {
   title: string;
   status: string;
   sourceType: string;
+  sourceUrl?: string | null;
   startedAt?: string | null;
   endedAt?: string | null;
   clientId?: string | null;
@@ -146,12 +147,25 @@ export function useCreateHearing() {
       sourceType: string;
       audioSource: string;
       recordingPolicy: string;
+      sourceUrl?: string;
       clientId?: string;
       issueIds?: string[];
       billIds?: string[];
       committeeId?: string;
     }) => (await api.post<LiveHearingSession>('/intel-api/hearings', input)).data,
     onSuccess: () => qc.invalidateQueries({ queryKey: ['intel', 'hearings'] }),
+  });
+}
+
+/** Single session (used by the Live Hearing Room to pre-fill the stream URL). */
+export function useHearingSession(id: string) {
+  const api = useApi();
+  return useQuery<LiveHearingSession>({
+    queryKey: ['intel', 'hearing', id],
+    queryFn: async () => (await api.get<LiveHearingSession>(`/intel-api/hearings/${id}`)).data,
+    enabled: Boolean(id),
+    retry: false,
+    staleTime: 30_000,
   });
 }
 

@@ -26,6 +26,7 @@ export class HearingSessionService {
         title: dto.title,
         sourceType: dto.sourceType,
         audioSource: dto.audioSource,
+        sourceUrl: dto.sourceUrl?.trim() || null,
         recordingPolicy: dto.recordingPolicy ?? 'transcript_only',
         consentStatus,
         clientId: dto.clientId ?? null,

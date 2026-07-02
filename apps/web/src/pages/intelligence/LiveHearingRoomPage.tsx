@@ -15,7 +15,7 @@ import {
 } from 'antd';
 import { ArrowLeftOutlined, AudioOutlined } from '@ant-design/icons';
 import { useIntelFeatureEnabled } from '../../lib/intel-feature-flags.js';
-import { useConfirmConsent } from '../../lib/hearing-watch-api.js';
+import { useConfirmConsent, useHearingSession } from '../../lib/hearing-watch-api.js';
 
 const { Title, Text, Paragraph } = Typography;
 
@@ -47,6 +47,7 @@ export function LiveHearingRoomPage() {
   const { message } = AntApp.useApp();
   const confirmConsent = useConfirmConsent();
 
+  const session = useHearingSession(id);
   const [connected, setConnected] = useState(false);
   const [audioUrl, setAudioUrl] = useState('');
   const [segments, setSegments] = useState<Segment[]>([]);
@@ -54,7 +55,23 @@ export function LiveHearingRoomPage() {
   const [cards, setCards] = useState<Card_[]>([]);
   const [error, setError] = useState<string | null>(null);
   const wsRef = useRef<WebSocket | null>(null);
+  const audioUrlRef = useRef('');
+  const ingestSentRef = useRef(false);
   const transcriptEndRef = useRef<HTMLDivElement | null>(null);
+
+  // Keep a ref of the current URL so the WS message handler (created once per
+  // connect) always sends the latest value.
+  useEffect(() => {
+    audioUrlRef.current = audioUrl;
+  }, [audioUrl]);
+
+  // Pre-fill the ingestion URL from the session's stored stream URL (set at
+  // "New Hearing"), unless the user has already typed one.
+  useEffect(() => {
+    const u = session.data?.sourceUrl;
+    if (u && !audioUrl) setAudioUrl(u);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [session.data?.sourceUrl]);
 
   const connect = useCallback(async () => {
     const token = await getToken({ template: 'capiro' });
@@ -62,6 +79,7 @@ export function LiveHearingRoomPage() {
       setError('Not authenticated');
       return;
     }
+    ingestSentRef.current = false;
     const ws = new WebSocket(wsUrl(id, token));
     wsRef.current = ws;
     ws.onopen = () => setConnected(true);
@@ -76,6 +94,20 @@ export function LiveHearingRoomPage() {
           if (msg.segment) setSegments((s) => [...s, msg.segment]);
         } else if (msg.type === 'card' && msg.card) setCards((c) => [msg.card, ...c]);
         else if (msg.type === 'error') setError(msg.message ?? 'stream error');
+        else if (msg.type === 'status' && msg.status === 'connected') {
+          // Auto-start ingestion when a stream URL is present (from the session
+          // or the field), so the user doesn't paste + click. Small delay: the
+          // server registers its message handler just after sending 'connected'.
+          if (audioUrlRef.current.trim() && !ingestSentRef.current) {
+            ingestSentRef.current = true;
+            setTimeout(() => {
+              const w = wsRef.current;
+              if (w && w.readyState === WebSocket.OPEN) {
+                w.send(JSON.stringify({ type: 'ingest', audioUrl: audioUrlRef.current.trim() }));
+              }
+            }, 1200);
+          }
+        }
       } catch {
         /* ignore malformed frame */
       }
@@ -99,6 +131,7 @@ export function LiveHearingRoomPage() {
       return;
     }
     ws.send(JSON.stringify({ type: 'ingest', audioUrl: audioUrl.trim() }));
+    ingestSentRef.current = true;
   }, [audioUrl]);
 
   useEffect(() => {
