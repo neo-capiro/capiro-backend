@@ -80,6 +80,11 @@ function isMediaUrl(u?: string | null): boolean {
   return /\.(m3u8|mp4|m3u|aac|mp3|ts)(\?|#|$)/i.test(u) || /stream|manifest|playlist|\.m3u8/i.test(u);
 }
 
+/** C-SPAN video-search query for a hearing (committee + title), for the one-click finder. */
+function watchSearchQuery(r: UpcomingHearing): string {
+  return [r.committee, r.title].filter(Boolean).join(' ').slice(0, 160);
+}
+
 /** Shared columns for the Upcoming + All-hearings tables. */
 function buildHearingColumns(onWatch: (r: UpcomingHearing) => void): ColumnsType<UpcomingHearing> {
   return [
@@ -224,11 +229,13 @@ function NewHearingModal({
   onClose,
   presetTitle,
   presetUrl,
+  presetSearchQuery,
 }: {
   open: boolean;
   onClose: () => void;
   presetTitle?: string;
   presetUrl?: string;
+  presetSearchQuery?: string;
 }) {
   const [form] = Form.useForm();
   const create = useCreateHearing();
@@ -238,6 +245,11 @@ function NewHearingModal({
   // congress.gov event page can't be ingested, so we keep it as a reference.
   const presetIsMedia = isMediaUrl(presetUrl);
   const eventPageUrl = presetUrl && !presetIsMedia ? presetUrl : undefined;
+  // One-click jump to C-SPAN's video search for this hearing — the fastest way to
+  // land on the committee/C-SPAN player and grab the direct stream URL.
+  const cspanUrl = presetSearchQuery
+    ? `https://www.c-span.org/search/?searchtype=Videos&query=${encodeURIComponent(presetSearchQuery)}`
+    : undefined;
 
   // The modal stays mounted across opens, so initialValues alone won't refresh
   // the preset when a different row is picked. Set fields each time it opens.
@@ -293,30 +305,37 @@ function NewHearingModal({
           recordingPolicy: 'transcript_only',
         }}
       >
-        {eventPageUrl ? (
-          <Alert
-            type="info"
-            showIcon
-            style={{ marginBottom: 12 }}
-            message="Find the live stream on the event page"
-            description={
-              <span>
-                Congress.gov doesn&apos;t publish a media URL.{' '}
-                <a href={eventPageUrl} target="_blank" rel="noreferrer">
-                  Open the event page ↗
-                </a>{' '}
-                to get the C-SPAN / committee stream, then paste the direct{' '}
-                <Text code>.m3u8</Text>/MP4 below.
-              </span>
-            }
-          />
-        ) : null}
         {presetIsMedia ? (
           <Alert
             type="success"
             showIcon
             style={{ marginBottom: 12 }}
             message="Stream URL pre-filled from the hearing — it will start transcribing on connect."
+          />
+        ) : eventPageUrl || cspanUrl ? (
+          <Alert
+            type="info"
+            showIcon
+            style={{ marginBottom: 12 }}
+            message="Find the live stream"
+            description={
+              <span>
+                Congress.gov doesn&apos;t publish a media URL. Grab the direct <Text code>.m3u8</Text>/MP4
+                from{' '}
+                {eventPageUrl ? (
+                  <a href={eventPageUrl} target="_blank" rel="noreferrer">
+                    the event page ↗
+                  </a>
+                ) : null}
+                {eventPageUrl && cspanUrl ? ' or ' : ' '}
+                {cspanUrl ? (
+                  <a href={cspanUrl} target="_blank" rel="noreferrer">
+                    C-SPAN ↗
+                  </a>
+                ) : null}
+                , then paste it below.
+              </span>
+            }
           />
         ) : null}
         <Form.Item name="title" label="Hearing title" rules={[{ required: true }]}>
@@ -375,11 +394,13 @@ function UpcomingTab() {
   const upcoming = useUpcomingHearings();
   const [presetTitle, setPresetTitle] = useState<string | undefined>();
   const [presetUrl, setPresetUrl] = useState<string | undefined>();
+  const [presetSearch, setPresetSearch] = useState<string | undefined>();
   const [open, setOpen] = useState(false);
 
   const onWatch = (r: UpcomingHearing) => {
     setPresetTitle(`${r.committee} — ${r.title}`);
     setPresetUrl(r.url ?? undefined);
+    setPresetSearch(watchSearchQuery(r));
     setOpen(true);
   };
 
@@ -415,6 +436,7 @@ function UpcomingTab() {
         onClose={() => setOpen(false)}
         presetTitle={presetTitle}
         presetUrl={presetUrl}
+        presetSearchQuery={presetSearch}
       />
     </Card>
   );
@@ -439,11 +461,13 @@ function BrowseTab() {
 
   const [presetTitle, setPresetTitle] = useState<string | undefined>();
   const [presetUrl, setPresetUrl] = useState<string | undefined>();
+  const [presetSearch, setPresetSearch] = useState<string | undefined>();
   const [open, setOpen] = useState(false);
 
   const onWatch = (r: UpcomingHearing) => {
     setPresetTitle(`${r.committee} — ${r.title}`);
     setPresetUrl(r.url ?? undefined);
+    setPresetSearch(watchSearchQuery(r));
     setOpen(true);
   };
 
@@ -522,6 +546,7 @@ function BrowseTab() {
         onClose={() => setOpen(false)}
         presetTitle={presetTitle}
         presetUrl={presetUrl}
+        presetSearchQuery={presetSearch}
       />
     </Card>
   );

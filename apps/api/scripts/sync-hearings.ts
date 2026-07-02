@@ -41,6 +41,22 @@ const HEARING_LIST_LIMIT = 100;
 // Only the current Congress. The previous (118th) is finished — re-scanning it
 // every day wrote 0 genuinely new rows and doubled runtime.
 const TARGET_CONGRESSES = [119];
+const CURRENT_CONGRESS = TARGET_CONGRESSES[0] ?? 119;
+
+/* ── Source 3: docs.house.gov House Committee Repository ──────────────────────
+ * The Congress.gov committee-meeting API lags the House Clerk by a day or more,
+ * so its forward window is thin. docs.house.gov publishes upcoming House meetings
+ * first. Its per-day view (ByDay.aspx?DayID=MMDDYYYY) is a plain GET (unlike the
+ * week view, which is an ASP.NET postback) and each row carries EventID + title +
+ * committee + time + location. The House `EventID` is the SAME id Congress.gov
+ * uses for `house-event`, so we key rows `cm-<congress>-<eventId>` — they merge
+ * with Source 1 (no duplicate; Congress.gov later enriches the same row with
+ * systemCode/witnesses, which we never overwrite). House-only; forward-looking. */
+const HOUSE_DOCS_BASE = 'https://docs.house.gov/Committee/Calendar';
+const HOUSE_DOCS_DAYS_AHEAD = Number(process.env.HOUSE_DOCS_DAYS_AHEAD ?? 21);
+const HOUSE_DOCS_ENABLED = (process.env.HOUSE_DOCS_ENABLED ?? 'true').toLowerCase() !== 'false';
+const BROWSER_UA =
+  'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0 Safari/537.36';
 
 interface MeetingListItem {
   eventId?: string | null;
@@ -222,6 +238,136 @@ async function fetchWitnesses(
     .filter((s) => s.length > 0);
 }
 
+/* ── docs.house.gov helpers ─────────────────────────────────────────────── */
+
+interface HouseDocsMeeting {
+  eventId: string;
+  committee: string;
+  title: string;
+  time: string | null;
+  location: string | null;
+}
+
+/** Fetch a docs.house.gov page (UTF-8; smart quotes/dashes are normalized to ASCII
+ *  downstream by cleanHouseText). */
+async function fetchHouseHtml(url: string): Promise<string | null> {
+  try {
+    const resp = await fetch(url, { headers: { 'User-Agent': BROWSER_UA, Accept: 'text/html' } });
+    if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
+    return new TextDecoder('utf-8').decode(await resp.arrayBuffer());
+  } catch (err) {
+    console.warn(`GET ${url}: ${(err as Error).message}`);
+    return null;
+  }
+}
+
+const ENTITIES: Record<string, string> = {
+  amp: '&', lt: '<', gt: '>', quot: '"', apos: "'", nbsp: ' ', rsquo: "'", lsquo: "'",
+  ldquo: '"', rdquo: '"', ndash: '-', mdash: '-', hellip: '...', '#39': "'",
+};
+
+function decodeEntities(s: string): string {
+  return s
+    .replace(/&#(\d+);/g, (_, n) => String.fromCodePoint(Number(n)))
+    .replace(/&#x([0-9a-f]+);/gi, (_, n) => String.fromCodePoint(parseInt(n, 16)))
+    .replace(/&([a-z0-9#]+);/gi, (m, name) => ENTITIES[name] ?? ENTITIES[name.toLowerCase()] ?? m);
+}
+
+/** Strip tags, decode entities, normalize typographic chars to ASCII, collapse space. */
+function cleanHouseText(s: string): string {
+  return decodeEntities(s.replace(/<[^>]+>/g, ' '))
+    .replace(/[‘’′]/g, "'")
+    .replace(/[“”″]/g, '"')
+    .replace(/[–—]/g, '-')
+    .replace(/…/g, '...')
+    .replace(/[ \s]+/g, ' ')
+    .trim();
+}
+
+// One ByDay GridView row: EventID + title (link) + committee (span.text-tiny) + time + location.
+const BYDAY_ROW =
+  /<a href="ByEvent\.aspx\?EventID=(\d+)"\s+title="([^"]*)"[^>]*>([\s\S]*?)<\/a>[\s\S]*?<span class="text-tiny" title="([^"]*)"[^>]*>[\s\S]*?<\/span>[\s\S]*?<\/td>\s*<td[^>]*>([\s\S]*?)<\/td>\s*<td[^>]*>([\s\S]*?)<\/td>/g;
+
+function parseByDay(html: string): HouseDocsMeeting[] {
+  const out: HouseDocsMeeting[] = [];
+  BYDAY_ROW.lastIndex = 0;
+  let m: RegExpExecArray | null;
+  while ((m = BYDAY_ROW.exec(html)) !== null) {
+    const eventId = m[1] ?? '';
+    const title = cleanHouseText(m[2] || m[3] || '');
+    const committee = cleanHouseText(m[4] ?? '');
+    const time = cleanHouseText(m[5] ?? '') || null;
+    const location = cleanHouseText(m[6] ?? '') || null;
+    if (eventId && committee) out.push({ eventId, committee, title, time, location });
+  }
+  return out;
+}
+
+function inferHouseType(title: string, committee: string): string {
+  const t = `${title} ${committee}`.toLowerCase();
+  if (/\bmark[- ]?up\b|marking up/.test(t)) return 'markup';
+  if (/\bbusiness meeting\b|organizational meeting|\bmeeting\b/.test(t)) return 'meeting';
+  return 'hearing';
+}
+
+/** MMDDYYYY for a Date's UTC calendar day (matches docs.house.gov DayID + our DATE column). */
+function houseDayId(d: Date): string {
+  const mm = String(d.getUTCMonth() + 1).padStart(2, '0');
+  const dd = String(d.getUTCDate()).padStart(2, '0');
+  return `${mm}${dd}${d.getUTCFullYear()}`;
+}
+
+/**
+ * Source 3: pull upcoming House committee meetings from docs.house.gov (today +
+ * HOUSE_DOCS_DAYS_AHEAD), one ByDay GET per day. Upserts under the shared
+ * `cm-<congress>-<eventId>` id so rows merge with the Congress.gov source; the
+ * update never touches committeeCode/witnesses (Congress.gov owns those), so
+ * enrichment from Source 1 is preserved.
+ */
+async function syncHouseDocsMeetings(
+  prisma: PrismaClient,
+): Promise<{ upserts: number; days: number; fails: number }> {
+  let upserts = 0;
+  let days = 0;
+  let fails = 0;
+  const base = new Date();
+  base.setUTCHours(0, 0, 0, 0);
+
+  for (let offset = 0; offset <= HOUSE_DOCS_DAYS_AHEAD; offset++) {
+    const day = new Date(base.getTime() + offset * 86400000);
+    await new Promise((r) => setTimeout(r, DELAY_MS));
+    const html = await fetchHouseHtml(`${HOUSE_DOCS_BASE}/ByDay.aspx?DayID=${houseDayId(day)}`);
+    if (html == null) {
+      fails++;
+      continue;
+    }
+    days++;
+    const meetings = parseByDay(html);
+    for (const mtg of meetings) {
+      const id = `cm-${CURRENT_CONGRESS}-${mtg.eventId}`;
+      const title = mtg.title || '(untitled)';
+      const row = {
+        title,
+        chamber: 'House',
+        committeeName: mtg.committee,
+        date: day,
+        time: mtg.time,
+        location: mtg.location,
+        type: inferHouseType(title, mtg.committee),
+        url: `https://www.congress.gov/event/${CURRENT_CONGRESS}th-Congress/house-event/${mtg.eventId}`,
+      };
+      await prisma.committeeHearing.upsert({
+        where: { id },
+        // Preserve committeeCode + witnesses (Source 1 owns them); refresh display fields.
+        update: { ...row, syncedAt: new Date() },
+        create: { id, committeeCode: null, witnesses: [], ...row },
+      });
+      upserts++;
+    }
+  }
+  return { upserts, days, fails };
+}
+
 async function main() {
   const prisma = new PrismaClient();
   const t0 = Date.now();
@@ -401,9 +547,33 @@ async function main() {
         }
       }
 
-      const totalUpserts = meetingUpserts + hearingUpserts;
+      /* ── Source 3: docs.house.gov upcoming House meetings (forward window) ── */
+      let houseDocsUpserts = 0;
+      let houseDocsDays = 0;
+      let houseDocsFails = 0;
+      if (HOUSE_DOCS_ENABLED) {
+        try {
+          console.log(
+            `[hearings-sync] docs.house.gov: scanning today +${HOUSE_DOCS_DAYS_AHEAD} days`,
+          );
+          const res = await syncHouseDocsMeetings(prisma);
+          houseDocsUpserts = res.upserts;
+          houseDocsDays = res.days;
+          houseDocsFails = res.fails;
+          console.log(
+            `[hearings-sync] docs.house.gov: upserts ${houseDocsUpserts} over ${houseDocsDays} days, day-fetch-fails ${houseDocsFails}`,
+          );
+        } catch (err) {
+          // A docs.house.gov outage must not fail the whole sync (Congress.gov is primary).
+          houseDocsFails++;
+          console.warn(`[hearings-sync] docs.house.gov source failed: ${(err as Error).message}`);
+        }
+      }
+
+      const totalUpserts = meetingUpserts + hearingUpserts + houseDocsUpserts;
       console.log(
         `[hearings-sync] DONE: meeting-upserts ${meetingUpserts}, hearing-upserts ${hearingUpserts}, ` +
+          `house-docs-upserts ${houseDocsUpserts}, ` +
           `skipped(no-date) ${meetingSkippedNoDate + hearingSkippedNoDate}, detail-fails ${meetingDetailFails + hearingDetailFails} ` +
           `in ${((Date.now() - t0) / 1000).toFixed(1)}s`,
       );
@@ -411,7 +581,7 @@ async function main() {
         inserted: 0,
         updated: totalUpserts,
         skipped: meetingSkippedNoDate + hearingSkippedNoDate,
-        errors: meetingDetailFails + hearingDetailFails,
+        errors: meetingDetailFails + hearingDetailFails + houseDocsFails,
       };
     });
   } finally {
