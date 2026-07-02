@@ -9,12 +9,16 @@ import { getProgramElementsList } from './api.js';
 import type { ProgramElementListItem } from './types.js';
 
 const SERVICE_OPTIONS = [
+  // Values are the CANONICAL program_element.service codes (the API also
+  // normalizes display aliases, but send codes so the two never drift again).
   { label: 'All services', value: '' },
   { label: 'Army', value: 'ARMY' },
   { label: 'Navy', value: 'NAVY' },
-  { label: 'Air Force', value: 'AIR_FORCE' },
-  { label: 'Space Force', value: 'SPACE_FORCE' },
-  { label: 'DoD', value: 'DOD' },
+  { label: 'Air Force', value: 'AF' },
+  { label: 'Space Force', value: 'SF' },
+  { label: 'Marine Corps', value: 'USMC' },
+  { label: 'Defense-Wide', value: 'DW' },
+  { label: 'DARPA', value: 'DARPA' },
 ];
 
 const PAGE_SIZE = 50;

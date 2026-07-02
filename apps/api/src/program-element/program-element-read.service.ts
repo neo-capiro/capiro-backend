@@ -9,6 +9,7 @@ import { ConferenceProbabilityService } from './models/conference-probability.se
 import { compareProofPackSources } from './proof-pack.js';
 import { confidenceBand } from './matching/program-match-thresholds.js';
 import { computePbComparison, type BudgetPositionLike } from './budget-position.js';
+import { normalizeServiceFilter } from './service-filter.js';
 
 export interface ProgramElementListQuery {
   service?: string;
@@ -102,7 +103,7 @@ export class ProgramElementReadService {
     const page = Math.max(1, query.page ?? 1);
     const limit = Math.min(100, Math.max(1, query.limit ?? 50));
 
-    const service = query.service?.trim();
+    const service = normalizeServiceFilter(query.service);
     const budgetActivity = query.budgetActivity?.trim();
     const q = query.q?.trim();
     const hasDataOnly = query.hasData === 'true';
@@ -178,7 +179,7 @@ export class ProgramElementReadService {
   }
 
   private async listMarkupMonitor(query: ProgramElementListQuery, ctx?: TenantContext) {
-    const service = query.service?.trim();
+    const service = normalizeServiceFilter(query.service);
     const divergenceThreshold = query.divergenceThreshold ?? 0;
 
     if (!ctx?.tenantId) {
