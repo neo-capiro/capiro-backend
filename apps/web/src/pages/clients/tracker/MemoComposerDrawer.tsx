@@ -67,14 +67,17 @@ export function MemoComposerDrawer({
     }
   };
 
-  // Auto-generate once when the drawer opens for an item.
+  // Auto-generate once when the drawer opens for an item. If the alert already
+  // has a memo, seed its Document id so this (re)generation REPLACES that
+  // Document instead of filing a duplicate.
   useEffect(() => {
     if (open && item && startedFor.current !== item.id) {
       startedFor.current = item.id;
+      const existing = item.actions?.memo?.documentAttachmentId ?? null;
       setMemo(null);
       setMarkdown('');
-      setAttachmentId(null);
-      void runGenerate();
+      setAttachmentId(existing);
+      void runGenerate(existing ?? undefined);
     }
     if (!open) startedFor.current = null;
     // eslint-disable-next-line react-hooks/exhaustive-deps
