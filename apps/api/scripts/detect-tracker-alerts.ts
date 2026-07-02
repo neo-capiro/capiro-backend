@@ -49,6 +49,7 @@ async function main() {
     // run summary + byType breakdown actually land in CloudWatch.
     console.log(
       `done. scanned=${res.scanned} baseline=${res.baseline} changed=${res.changed} alerted=${res.alerted}` +
+        (res.suppressedOwned ? ` suppressedOwned=${res.suppressedOwned}` : '') +
         (byType ? ` | byType: ${byType}` : ''),
     );
   } finally {

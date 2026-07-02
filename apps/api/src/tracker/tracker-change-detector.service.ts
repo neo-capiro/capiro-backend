@@ -213,10 +213,12 @@ export class TrackerChangeDetectorService {
     baseline: number;
     changed: number;
     alerted: number;
+    suppressedOwned: number;
     byType: Record<string, number>;
   }> {
     const scanHistory = this.config.get('TRACKER_SCAN_ACTION_HISTORY', { infer: true });
     const enrich = this.config.get('TRACKER_ALERT_ENRICH', { infer: true });
+    const singleSenderGuard = this.config.get('TRACKER_SINGLE_SENDER_GUARD', { infer: true });
 
     // Cross-tenant read of the board-membership rows.
     const tracked = await this.prisma.withSystem((tx) =>
@@ -232,7 +234,21 @@ export class TrackerChangeDetectorService {
         },
       }),
     );
-    if (!tracked.length) return { scanned: 0, baseline: 0, changed: 0, alerted: 0, byType: {} };
+    if (!tracked.length)
+      return { scanned: 0, baseline: 0, changed: 0, alerted: 0, suppressedOwned: 0, byType: {} };
+
+    // Single-sender guard (Capiro Intelligence cutover, plan §8/Phase 8): the set
+    // of tenants intel-api has taken DELIVERY ownership of. Read once per cycle;
+    // on failure `intelOwnedTenantIds` THROWS and aborts the whole cycle (no
+    // delivery this run, retried next) rather than risk sending from BOTH legacy
+    // and intel — no-double-send is the paramount invariant. Empty (no-op) unless
+    // TRACKER_SINGLE_SENDER_GUARD is on, so legacy behavior is unchanged today.
+    const intelOwned = singleSenderGuard ? await this.intelOwnedTenantIds() : new Set<string>();
+    if (singleSenderGuard && intelOwned.size) {
+      this.logger.log(
+        `single-sender guard ON: suppressing legacy delivery for ${intelOwned.size} intel-owned tenant(s)`,
+      );
+    }
 
     const billIds = Array.from(new Set(tracked.map((t) => t.billId)));
     const bills = await this.prisma.congressBill.findMany({
@@ -274,6 +290,7 @@ export class TrackerChangeDetectorService {
     let baseline = 0;
     let changed = 0;
     let alerted = 0;
+    let suppressedOwned = 0;
     const byType: Record<string, number> = {};
 
     for (const row of tracked) {
@@ -412,10 +429,14 @@ export class TrackerChangeDetectorService {
             matchedTags,
             summary,
           };
-          await this.alerts.fanOut(event);
+          if (singleSenderGuard && intelOwned.has(row.tenantId)) {
+            suppressedOwned += 1; // intel-api owns delivery for this tenant (cutover) — single-sender guard
+          } else {
+            await this.alerts.fanOut(event);
+            alerted += 1;
+          }
 
           byType[ev.cls.changeType] = (byType[ev.cls.changeType] ?? 0) + 1;
-          alerted += 1;
         }
 
         // Advance the snapshot ONLY after every move was durably surfaced +
@@ -430,7 +451,26 @@ export class TrackerChangeDetectorService {
       }
     }
 
-    return { scanned: tracked.length, baseline, changed, alerted, byType };
+    return { scanned: tracked.length, baseline, changed, alerted, suppressedOwned, byType };
+  }
+
+  /**
+   * Tenants intel-api has taken DELIVERY ownership of for the tracker cutover:
+   * an ENABLED `intel_feature_flag` row for feature='tracker_owner_intel'. Reads
+   * the intel-api-owned table directly (shared Aurora; intel_* tables carry no
+   * RLS, so a plain read returns all rows regardless of tenant context).
+   *
+   * Deliberately does NOT honor intel-api's internal-tenant always-on hardcode
+   * (CAPIRO_INTERNAL_TENANT_ID): intel does not DELIVER for the internal tenant
+   * during shadow, so legacy must keep sending there; only an explicit per-tenant
+   * flag row transfers delivery. THROWS on read failure so the caller aborts the
+   * cycle rather than deliver from both senders (no-double-send invariant).
+   */
+  private async intelOwnedTenantIds(): Promise<Set<string>> {
+    const rows = await this.prisma.$queryRawUnsafe<Array<{ tenant_id: string }>>(
+      `SELECT tenant_id FROM intel_feature_flag WHERE feature = 'tracker_owner_intel' AND enabled = true`,
+    );
+    return new Set(rows.map((r) => r.tenant_id));
   }
 
   /**

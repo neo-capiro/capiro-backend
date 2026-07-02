@@ -346,6 +346,21 @@ export const configSchema = z.object({
     .string()
     .default('true')
     .transform((v) => !['false', '0', 'no', 'off'].includes(v.trim().toLowerCase())),
+  // Single-sender guard for the intel-api tracker cutover (Capiro Intelligence
+  // unification, plan §8/§Phase 8). When ON, the legacy detector SKIPS delivery
+  // (email/SMS fan-out) for any tenant that intel-api has taken ownership of —
+  // an ENABLED `intel_feature_flag` row for feature='tracker_owner_intel'. This
+  // guarantees exactly one sender per tenant at cutover. DEFAULT OFF: while off,
+  // the guard code never runs and legacy behavior is 100% unchanged. It skips
+  // ONLY delivery, never the in-app `intelligence_change` feed (kept until the
+  // Phase-7 UI repoint). NOTE: intentionally does NOT honor the internal-tenant
+  // always-on hardcode — intel does not deliver for the internal tenant during
+  // shadow, so legacy must keep sending there; only an explicit per-tenant flag
+  // row transfers delivery ownership.
+  TRACKER_SINGLE_SENDER_GUARD: z
+    .string()
+    .default('false')
+    .transform((v) => ['true', '1', 'yes', 'on'].includes(v.trim().toLowerCase())),
   // From-address for Tracker alert emails (must be a verified SES identity).
   TRACKER_ALERT_EMAIL_FROM: z.string().email().default('alerts@capiro.ai'),
   // From-address for Workspace collaborator-invite emails (E-19). capiro.ai is a
