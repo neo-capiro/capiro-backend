@@ -143,12 +143,34 @@ export class ProgramElementWriterService {
     const keptTitle =
       existingTitle.length > incomingTitle.length ? existingTitle : incomingTitle || existingTitle;
 
+    // Field-MERGE (mirror upsertProgramElementYear): a source that carries only some
+    // fields (e.g. a committee/appropriations mark supplies peCode + title, no
+    // appropriationType/service/budgetActivity) must NOT null out metadata another
+    // source already populated. Keep the incoming value only when it is non-null;
+    // otherwise preserve what's stored. This is what lets a procurement mark (PROC)
+    // land without wiping the appropriationType/service/lineNumber set by the P-doc load.
     await this.prisma.programElement.update({
       where: { peCode },
       data: {
-        ...data,
+        service: record.service ?? existing.service,
+        serviceCode: record.serviceCode ?? existing.serviceCode,
+        appropriationType: record.appropriationType ?? existing.appropriationType,
+        budgetActivity: record.budgetActivity ?? existing.budgetActivity,
+        budgetActivityName: record.budgetActivityName ?? existing.budgetActivityName,
+        lineNumber: record.lineNumber ?? existing.lineNumber,
+        description: record.description ?? existing.description,
+        acatLevel: record.acatLevel ?? existing.acatLevel,
+        programOfRecord: record.programOfRecord ?? existing.programOfRecord,
+        status: record.status ?? existing.status,
+        rDocUrl: record.rDocUrl ?? existing.rDocUrl,
+        pDocUrl: record.pDocUrl ?? existing.pDocUrl,
+        oDocUrl: record.oDocUrl ?? existing.oDocUrl,
+        raw: this.toJsonValue(record.raw),
+        source,
+        sourceConfidence,
         title: keptTitle,
         firstSeenFy: existing.firstSeenFy ?? data.firstSeenFy,
+        lastSyncedAt: new Date(),
       },
     });
 

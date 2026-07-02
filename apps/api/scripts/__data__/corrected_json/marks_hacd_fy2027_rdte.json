@@ -1,0 +1,4669 @@
+{
+ "fy": 2027,
+ "source": "HAC-D FY2027 RDTE marks (line#->pe title-verified)",
+ "rows": [
+  {
+   "peCode": "0601102A",
+   "fy": 2027,
+   "request": 215322000,
+   "mark": 241322000,
+   "explanation": "DEFENSE RESEARCH SCIENCES"
+  },
+  {
+   "peCode": "0601103A",
+   "fy": 2027,
+   "request": 63102000,
+   "mark": 76333000,
+   "explanation": "UNIVERSITY RESEARCH INITIATIVES"
+  },
+  {
+   "peCode": "0601104A",
+   "fy": 2027,
+   "request": 53598000,
+   "mark": 53598000,
+   "explanation": "UNIVERSITY AND INDUSTRY RESEARCH CENTERS"
+  },
+  {
+   "peCode": "0601275A",
+   "fy": 2027,
+   "request": 64031000,
+   "mark": 64031000,
+   "explanation": "ELECTRONIC WARFARE BASIC RESEARCH"
+  },
+  {
+   "peCode": "0602135A",
+   "fy": 2027,
+   "request": 26523000,
+   "mark": 26523000,
+   "explanation": "COUNTER SMALL UNMANNED AERIAL SYSTEMS (C-SUAS)"
+  },
+  {
+   "peCode": "0602141A",
+   "fy": 2027,
+   "request": 232046000,
+   "mark": 277046000,
+   "explanation": "LETHALITY TECHNOLOGY"
+  },
+  {
+   "peCode": "0602143A",
+   "fy": 2027,
+   "request": 68018000,
+   "mark": 232218000,
+   "explanation": "SOLDIER LETHALITY TECHNOLOGY"
+  },
+  {
+   "peCode": "0602144A",
+   "fy": 2027,
+   "request": 44146000,
+   "mark": 115746000,
+   "explanation": "GROUND TECHNOLOGY"
+  },
+  {
+   "peCode": "0602145A",
+   "fy": 2027,
+   "request": 70540000,
+   "mark": 178790000,
+   "explanation": "NEXT GENERATION COMBAT VEHICLE TECHNOLOGY"
+  },
+  {
+   "peCode": "0602146A",
+   "fy": 2027,
+   "request": 53373000,
+   "mark": 96873000,
+   "explanation": "NETWORK C3I TECHNOLOGY"
+  },
+  {
+   "peCode": "0602147A",
+   "fy": 2027,
+   "request": 24086000,
+   "mark": 96086000,
+   "explanation": "LONG RANGE PRECISION FIRES TECHNOLOGY"
+  },
+  {
+   "peCode": "0602148A",
+   "fy": 2027,
+   "request": 17727000,
+   "mark": 60727000,
+   "explanation": "FUTURE VERTICAL LIFT TECHNOLOGY"
+  },
+  {
+   "peCode": "0602150A",
+   "fy": 2027,
+   "request": 36113000,
+   "mark": 109613000,
+   "explanation": "AIR AND MISSILE DEFENSE TECHNOLOGY"
+  },
+  {
+   "peCode": "0602182A",
+   "fy": 2027,
+   "request": 0,
+   "mark": 12000000,
+   "explanation": "C3I APPLIED RESEARCH"
+  },
+  {
+   "peCode": "0602183A",
+   "fy": 2027,
+   "request": 43700000,
+   "mark": 61700000,
+   "explanation": "AIR PLATFORM APPLIED RESEARCH"
+  },
+  {
+   "peCode": "0602184A",
+   "fy": 2027,
+   "request": 2429000,
+   "mark": 2429000,
+   "explanation": "SOLDIER APPLIED RESEARCH"
+  },
+  {
+   "peCode": "0602213A",
+   "fy": 2027,
+   "request": 63000,
+   "mark": 63000,
+   "explanation": "C3I APPLIED CYBER"
+  },
+  {
+   "peCode": "0602275A",
+   "fy": 2027,
+   "request": 51184000,
+   "mark": 51184000,
+   "explanation": "ELECTRONIC WARFARE APPLIED RESEARCH"
+  },
+  {
+   "peCode": "0602276A",
+   "fy": 2027,
+   "request": 9857000,
+   "mark": 9857000,
+   "explanation": "ELECTRONIC WARFARE CYBER APPLIED RESEARCH"
+  },
+  {
+   "peCode": "0602345A",
+   "fy": 2027,
+   "request": 22871000,
+   "mark": 22871000,
+   "explanation": "UNMANNED AERIAL SYSTEMS LAUNCHED EFFECTS APPLIED"
+  },
+  {
+   "peCode": "0602386A",
+   "fy": 2027,
+   "request": 14979000,
+   "mark": 14979000,
+   "explanation": "BIOTECHNOLOGY FOR MATERIALS-APPLIED RESEARCH"
+  },
+  {
+   "peCode": "0602785A",
+   "fy": 2027,
+   "request": 14275000,
+   "mark": 14275000,
+   "explanation": "MANPOWER/PERSONNEL/TRAINING TECHNOLOGY"
+  },
+  {
+   "peCode": "0602787A",
+   "fy": 2027,
+   "request": 149221000,
+   "mark": 211221000,
+   "explanation": "MEDICAL TECHNOLOGY"
+  },
+  {
+   "peCode": "0603002A",
+   "fy": 2027,
+   "request": 17876000,
+   "mark": 59876000,
+   "explanation": "MEDICAL ADVANCED TECHNOLOGY"
+  },
+  {
+   "peCode": "0603007A",
+   "fy": 2027,
+   "request": 11113000,
+   "mark": 11113000,
+   "explanation": "MANPOWER, PERSONNEL AND TRAINING ADVANCED"
+  },
+  {
+   "peCode": "0603025A",
+   "fy": 2027,
+   "request": 3325000,
+   "mark": 95825000,
+   "explanation": "ARMY AGILE INNOVATION AND DEMONSTRATION"
+  },
+  {
+   "peCode": "0603041A",
+   "fy": 2027,
+   "request": 3575000,
+   "mark": 3575000,
+   "explanation": "ALL DOMAIN CONVERGENCE ADVANCED TECHNOLOGY"
+  },
+  {
+   "peCode": "0603042A",
+   "fy": 2027,
+   "request": 1211000,
+   "mark": 12751000,
+   "explanation": "C3I ADVANCED TECHNOLOGY"
+  },
+  {
+   "peCode": "0603043A",
+   "fy": 2027,
+   "request": 23471000,
+   "mark": 51471000,
+   "explanation": "AIR PLATFORM ADVANCED TECHNOLOGY"
+  },
+  {
+   "peCode": "0603044A",
+   "fy": 2027,
+   "request": 3951000,
+   "mark": 3951000,
+   "explanation": "SOLDIER ADVANCED TECHNOLOGY"
+  },
+  {
+   "peCode": "0603116A",
+   "fy": 2027,
+   "request": 31812000,
+   "mark": 66712000,
+   "explanation": "LETHALITY ADVANCED TECHNOLOGY"
+  },
+  {
+   "peCode": "0603118A",
+   "fy": 2027,
+   "request": 125121000,
+   "mark": 192821000,
+   "explanation": "SOLDIER LETHALITY ADVANCED TECHNOLOGY"
+  },
+  {
+   "peCode": "0603119A",
+   "fy": 2027,
+   "request": 25043000,
+   "mark": 168043000,
+   "explanation": "GROUND ADVANCED TECHNOLOGY"
+  },
+  {
+   "peCode": "0603135A",
+   "fy": 2027,
+   "request": 156520000,
+   "mark": 156520000,
+   "explanation": "COUNTER SMALL UNMANNED AERIAL SYSTEMS (C-SUAS)"
+  },
+  {
+   "peCode": "0603275A",
+   "fy": 2027,
+   "request": 156326000,
+   "mark": 173326000,
+   "explanation": "ELECTRONIC WARFARE ADVANCED TECHNOLOGY"
+  },
+  {
+   "peCode": "0603276A",
+   "fy": 2027,
+   "request": 15278000,
+   "mark": 15278000,
+   "explanation": "ELECTRONIC WARFARE CYBER ADVANCED TECHNOLOGY"
+  },
+  {
+   "peCode": "0603345A",
+   "fy": 2027,
+   "request": 33129000,
+   "mark": 33129000,
+   "explanation": "UNMANNED AERIAL SYSTEMS LAUNCHED EFFECTS ADVANCED"
+  },
+  {
+   "peCode": "0603386A",
+   "fy": 2027,
+   "request": 22402000,
+   "mark": 28402000,
+   "explanation": "BIOTECHNOLOGY FOR MATERIALS-ADVANCED RESEARCH"
+  },
+  {
+   "peCode": "0603457A",
+   "fy": 2027,
+   "request": 8509000,
+   "mark": 8509000,
+   "explanation": "C3I CYBER ADVANCED DEVELOPMENT"
+  },
+  {
+   "peCode": "0603461A",
+   "fy": 2027,
+   "request": 215090000,
+   "mark": 215090000,
+   "explanation": "HIGH PERFORMANCE COMPUTING MODERNIZATION PROGRAM"
+  },
+  {
+   "peCode": "0603462A",
+   "fy": 2027,
+   "request": 118207000,
+   "mark": 299807000,
+   "explanation": "NEXT GENERATION COMBAT VEHICLE ADVANCED"
+  },
+  {
+   "peCode": "0603463A",
+   "fy": 2027,
+   "request": 48490000,
+   "mark": 109990000,
+   "explanation": "NETWORK C3I ADVANCED TECHNOLOGY"
+  },
+  {
+   "peCode": "0603464A",
+   "fy": 2027,
+   "request": 422590000,
+   "mark": 474090000,
+   "explanation": "LONG RANGE PRECISION FIRES ADVANCED TECHNOLOGY"
+  },
+  {
+   "peCode": "0603465A",
+   "fy": 2027,
+   "request": 14984000,
+   "mark": 108984000,
+   "explanation": "FUTURE VERTICAL LIFT ADVANCED TECHNOLOGY"
+  },
+  {
+   "peCode": "0603466A",
+   "fy": 2027,
+   "request": 63924000,
+   "mark": 113924000,
+   "explanation": "AIR AND MISSILE DEFENSE ADVANCED TECHNOLOGY"
+  },
+  {
+   "peCode": "0603920A",
+   "fy": 2027,
+   "request": 7619000,
+   "mark": 36349000,
+   "explanation": "HUMANITARIAN DEMINING"
+  },
+  {
+   "peCode": "0603305A",
+   "fy": 2027,
+   "request": 8367000,
+   "mark": 33367000,
+   "explanation": "ARMY MISSLE DEFENSE SYSTEMS INTEGRATION"
+  },
+  {
+   "peCode": "0603308A",
+   "fy": 2027,
+   "request": 59573000,
+   "mark": 99073000,
+   "explanation": "ARMY SPACE SYSTEMS INTEGRATION"
+  },
+  {
+   "peCode": "0603327A",
+   "fy": 2027,
+   "request": 0,
+   "mark": 100000000,
+   "explanation": "AIR AND MISSILE DEFENSE SYSTEMS ENGINEERING"
+  },
+  {
+   "peCode": "0603619A",
+   "fy": 2027,
+   "request": 31374000,
+   "mark": 31374000,
+   "explanation": "LANDMINE WARFARE AND BARRIER-ADV DEV"
+  },
+  {
+   "peCode": "0603627A",
+   "fy": 2027,
+   "request": 5596000,
+   "mark": 5596000,
+   "explanation": "SMOKE, OBSCURANT AND TARGET DEFEATING SYS-ADV DEV"
+  },
+  {
+   "peCode": "0603639A",
+   "fy": 2027,
+   "request": 277248000,
+   "mark": 256885000,
+   "explanation": "TANK AND MEDIUM CALIBER AMMUNITION"
+  },
+  {
+   "peCode": "0603645A",
+   "fy": 2027,
+   "request": 23594000,
+   "mark": 23594000,
+   "explanation": "ARMORED SYSTEM MODERNIZATION-ADV DEV"
+  },
+  {
+   "peCode": "0603747A",
+   "fy": 2027,
+   "request": 4109000,
+   "mark": 4109000,
+   "explanation": "SOLDIER SUPPORT AND SURVIVABILITY"
+  },
+  {
+   "peCode": "0603766A",
+   "fy": 2027,
+   "request": 98331000,
+   "mark": 178331000,
+   "explanation": "TACTICAL ELECTRONIC SURVEILLANCE SYSTEM-ADV DEV"
+  },
+  {
+   "peCode": "0603774A",
+   "fy": 2027,
+   "request": 5310000,
+   "mark": 5310000,
+   "explanation": "NIGHT VISION SYSTEMS ADVANCED DEVELOPMENT"
+  },
+  {
+   "peCode": "0603779A",
+   "fy": 2027,
+   "request": 19499000,
+   "mark": 24499000,
+   "explanation": "ENVIRONMENTAL QUALITY TECHNOLOGY-DEM/VAL"
+  },
+  {
+   "peCode": "0603790A",
+   "fy": 2027,
+   "request": 5145000,
+   "mark": 5145000,
+   "explanation": "NATO RESEARCH AND DEVELOPMENT"
+  },
+  {
+   "peCode": "0603804A",
+   "fy": 2027,
+   "request": 12822000,
+   "mark": 22822000,
+   "explanation": "LOGISTICS AND ENGINEER EQUIPMENT-ADV DEV"
+  },
+  {
+   "peCode": "0603807A",
+   "fy": 2027,
+   "request": 1017000,
+   "mark": 1017000,
+   "explanation": "MEDICAL SYSTEMS-ADV DEV"
+  },
+  {
+   "peCode": "0603827A",
+   "fy": 2027,
+   "request": 56122000,
+   "mark": 56122000,
+   "explanation": "SOLDIER SYSTEMS-ADVANCED DEVELOPMENT"
+  },
+  {
+   "peCode": "0604017A",
+   "fy": 2027,
+   "request": 20290000,
+   "mark": 25290000,
+   "explanation": "ROBOTICS DEVELOPMENT"
+  },
+  {
+   "peCode": "0604019A",
+   "fy": 2027,
+   "request": 235593000,
+   "mark": 0,
+   "explanation": "EXPANDED MISSION AREA MISSILE (EMAM)"
+  },
+  {
+   "peCode": "0604035A",
+   "fy": 2027,
+   "request": 319000,
+   "mark": 319000,
+   "explanation": "LOW EARTH ORBIT (LEO) SATELLITE CAPABILITY"
+  },
+  {
+   "peCode": "0604036A",
+   "fy": 2027,
+   "request": 99471000,
+   "mark": 119471000,
+   "explanation": "MULTI-DOMAIN SENSING SYSTEM (MDSS) ADV DEV"
+  },
+  {
+   "peCode": "0604037A",
+   "fy": 2027,
+   "request": 4123000,
+   "mark": 4123000,
+   "explanation": "TACTICAL INTEL TARGETING ACCESS NODE (TITAN) ADV DEV"
+  },
+  {
+   "peCode": "0604100A",
+   "fy": 2027,
+   "request": 10077000,
+   "mark": 10077000,
+   "explanation": "ANALYSIS OF ALTERNATIVES"
+  },
+  {
+   "peCode": "0604114A",
+   "fy": 2027,
+   "request": 162074000,
+   "mark": 162074000,
+   "explanation": "LOWER TIER AIR MISSILE DEFENSE (LTAMD) SENSOR"
+  },
+  {
+   "peCode": "0604115A",
+   "fy": 2027,
+   "request": 314671000,
+   "mark": 437971000,
+   "explanation": "TECHNOLOGY MATURATION INITIATIVES"
+  },
+  {
+   "peCode": "0604117A",
+   "fy": 2027,
+   "request": 460980000,
+   "mark": 433957000,
+   "explanation": "MANEUVER-SHORT RANGE AIR DEFENSE (M-SHORAD)"
+  },
+  {
+   "peCode": "0604120A",
+   "fy": 2027,
+   "request": 18993000,
+   "mark": 18993000,
+   "explanation": "ASSURED POSITIONING, NAVIGATION AND TIMING (PNT)"
+  },
+  {
+   "peCode": "0604121A",
+   "fy": 2027,
+   "request": 219137000,
+   "mark": 219137000,
+   "explanation": "SYNTHETIC TRAINING ENVIRONMENT REFINEMENT &"
+  },
+  {
+   "peCode": "0604129A",
+   "fy": 2027,
+   "request": 48000000,
+   "mark": 63000000,
+   "explanation": "ADVANCED POWER APPLICATIONS"
+  },
+  {
+   "peCode": "0604135A",
+   "fy": 2027,
+   "request": 211848000,
+   "mark": 211848000,
+   "explanation": "STRATEGIC MID-RANGE FIRES"
+  },
+  {
+   "peCode": "0604182A",
+   "fy": 2027,
+   "request": 82939000,
+   "mark": 82939000,
+   "explanation": "HYPERSONICS"
+  },
+  {
+   "peCode": "0305251A",
+   "fy": 2027,
+   "request": 22889000,
+   "mark": 22889000,
+   "explanation": "CYBERSPACE OPERATIONS FORCES AND FORCE SUPPORT"
+  },
+  {
+   "peCode": "0604201A",
+   "fy": 2027,
+   "request": 30658000,
+   "mark": 61387000,
+   "explanation": "AIRCRAFT AVIONICS"
+  },
+  {
+   "peCode": "0604270A",
+   "fy": 2027,
+   "request": 2807000,
+   "mark": 2807000,
+   "explanation": "ELECTRONIC WARFARE DEVELOPMENT"
+  },
+  {
+   "peCode": "0604601A",
+   "fy": 2027,
+   "request": 55296000,
+   "mark": 70296000,
+   "explanation": "INFANTRY SUPPORT WEAPONS"
+  },
+  {
+   "peCode": "0604604A",
+   "fy": 2027,
+   "request": 23763000,
+   "mark": 23763000,
+   "explanation": "MEDIUM TACTICAL VEHICLES"
+  },
+  {
+   "peCode": "0604611A",
+   "fy": 2027,
+   "request": 10217000,
+   "mark": 10217000,
+   "explanation": "JAVELIN"
+  },
+  {
+   "peCode": "0604622A",
+   "fy": 2027,
+   "request": 43003000,
+   "mark": 43003000,
+   "explanation": "FAMILY OF HEAVY TACTICAL VEHICLES"
+  },
+  {
+   "peCode": "0604642A",
+   "fy": 2027,
+   "request": 6142000,
+   "mark": 6142000,
+   "explanation": "LIGHT TACTICAL WHEELED VEHICLES"
+  },
+  {
+   "peCode": "0604710A",
+   "fy": 2027,
+   "request": 418427000,
+   "mark": 411681000,
+   "explanation": "NIGHT VISION SYSTEMS-ENG DEV"
+  },
+  {
+   "peCode": "0604713A",
+   "fy": 2027,
+   "request": 6701000,
+   "mark": 6701000,
+   "explanation": "COMBAT FEEDING, CLOTHING, AND EQUIPMENT"
+  },
+  {
+   "peCode": "0604715A",
+   "fy": 2027,
+   "request": 29685000,
+   "mark": 29685000,
+   "explanation": "NON-SYSTEM TRAINING DEVICES-ENG DEV"
+  },
+  {
+   "peCode": "0604741A",
+   "fy": 2027,
+   "request": 14276000,
+   "mark": 14276000,
+   "explanation": "AIR DEFENSE COMMAND, CONTROL AND INTELLIGENCE-"
+  },
+  {
+   "peCode": "0604742A",
+   "fy": 2027,
+   "request": 5618000,
+   "mark": 5618000,
+   "explanation": "CONSTRUCTIVE SIMULATION SYSTEMS DEVELOPMENT"
+  },
+  {
+   "peCode": "0604746A",
+   "fy": 2027,
+   "request": 9625000,
+   "mark": 9625000,
+   "explanation": "AUTOMATIC TEST EQUIPMENT DEVELOPMENT"
+  },
+  {
+   "peCode": "0604760A",
+   "fy": 2027,
+   "request": 7883000,
+   "mark": 7883000,
+   "explanation": "DISTRIBUTIVE INTERACTIVE SIMULATIONS (DIS)-ENG DEV"
+  },
+  {
+   "peCode": "0604798A",
+   "fy": 2027,
+   "request": 26602000,
+   "mark": 26602000,
+   "explanation": "BRIGADE ANALYSIS, INTEGRATION AND EVALUATION"
+  },
+  {
+   "peCode": "0604802A",
+   "fy": 2027,
+   "request": 124881000,
+   "mark": 124881000,
+   "explanation": "WEAPONS AND MUNITIONS-ENG DEV"
+  },
+  {
+   "peCode": "0604804A",
+   "fy": 2027,
+   "request": 65238000,
+   "mark": 75238000,
+   "explanation": "LOGISTICS AND ENGINEER EQUIPMENT-ENG DEV"
+  },
+  {
+   "peCode": "0604805A",
+   "fy": 2027,
+   "request": 5541000,
+   "mark": 20541000,
+   "explanation": "COMMAND, CONTROL, COMMUNICATIONS SYSTEMS-"
+  },
+  {
+   "peCode": "0604807A",
+   "fy": 2027,
+   "request": 9744000,
+   "mark": 9744000,
+   "explanation": "MEDICAL MATERIEL/MEDICAL BIOLOGICAL DEFENSE"
+  },
+  {
+   "peCode": "0604808A",
+   "fy": 2027,
+   "request": 17586000,
+   "mark": 108616000,
+   "explanation": "LANDMINE WARFARE/BARRIER-ENG DEV"
+  },
+  {
+   "peCode": "0604818A",
+   "fy": 2027,
+   "request": 42584000,
+   "mark": 62584000,
+   "explanation": "ARMY TACTICAL COMMAND & CONTROL HARDWARE &"
+  },
+  {
+   "peCode": "0604820A",
+   "fy": 2027,
+   "request": 58260000,
+   "mark": 58260000,
+   "explanation": "RADAR DEVELOPMENT"
+  },
+  {
+   "peCode": "0604827A",
+   "fy": 2027,
+   "request": 5663000,
+   "mark": 5663000,
+   "explanation": "SOLDIER SYSTEMS-WARRIOR DEM/VAL"
+  },
+  {
+   "peCode": "0604852A",
+   "fy": 2027,
+   "request": 78331000,
+   "mark": 78331000,
+   "explanation": "SUITE OF SURVIVABILITY ENHANCEMENT SYSTEMS-EMD"
+  },
+  {
+   "peCode": "0604854A",
+   "fy": 2027,
+   "request": 709192000,
+   "mark": 593820000,
+   "explanation": "ARTILLERY SYSTEMS-EMD"
+  },
+  {
+   "peCode": "0605013A",
+   "fy": 2027,
+   "request": 121525000,
+   "mark": 121525000,
+   "explanation": "INFORMATION TECHNOLOGY DEVELOPMENT"
+  },
+  {
+   "peCode": "0605018A",
+   "fy": 2027,
+   "request": 102694000,
+   "mark": 102694000,
+   "explanation": "INTEGRATED PERSONNEL AND PAY SYSTEM-ARMY"
+  },
+  {
+   "peCode": "0605030A",
+   "fy": 2027,
+   "request": 21561000,
+   "mark": 21561000,
+   "explanation": "JOINT TACTICAL NETWORK CENTER (JTNC)"
+  },
+  {
+   "peCode": "0605031A",
+   "fy": 2027,
+   "request": 50390000,
+   "mark": 50390000,
+   "explanation": "JOINT TACTICAL NETWORK (JTN)"
+  },
+  {
+   "peCode": "0605035A",
+   "fy": 2027,
+   "request": 11573000,
+   "mark": 11573000,
+   "explanation": "COMMON INFRARED COUNTERMEASURES (CIRCM)"
+  },
+  {
+   "peCode": "0605036A",
+   "fy": 2027,
+   "request": 5605000,
+   "mark": 5605000,
+   "explanation": "COMBATING WEAPONS OF MASS DESTRUCTION (CWMD)"
+  },
+  {
+   "peCode": "0605037A",
+   "fy": 2027,
+   "request": 5513000,
+   "mark": 5513000,
+   "explanation": "EVIDENCE COLLECTION AND DETAINEE PROCESSING"
+  },
+  {
+   "peCode": "0605038A",
+   "fy": 2027,
+   "request": 13864000,
+   "mark": 13864000,
+   "explanation": "NUCLEAR BIOLOGICAL CHEMICAL RECONNAISSANCE VEHICLE"
+  },
+  {
+   "peCode": "0605041A",
+   "fy": 2027,
+   "request": 3519000,
+   "mark": 3519000,
+   "explanation": "DEFENSIVE CYBER TOOL DEVELOPMENT"
+  },
+  {
+   "peCode": "0605042A",
+   "fy": 2027,
+   "request": 3804000,
+   "mark": 3804000,
+   "explanation": "TACTICAL NETWORK RADIO SYSTEMS (LOW-TIER)"
+  },
+  {
+   "peCode": "0605047A",
+   "fy": 2027,
+   "request": 4777000,
+   "mark": 4777000,
+   "explanation": "CONTRACT WRITING SYSTEM"
+  },
+  {
+   "peCode": "0605051A",
+   "fy": 2027,
+   "request": 106621000,
+   "mark": 106621000,
+   "explanation": "AIRCRAFT SURVIVABILITY DEVELOPMENT"
+  },
+  {
+   "peCode": "0605052A",
+   "fy": 2027,
+   "request": 175352000,
+   "mark": 175352000,
+   "explanation": "INDIRECT FIRE PROTECTION CAPABILITY INC 2-BLOCK 1"
+  },
+  {
+   "peCode": "0605053A",
+   "fy": 2027,
+   "request": 192185000,
+   "mark": 169460000,
+   "explanation": "GROUND ROBOTICS"
+  },
+  {
+   "peCode": "0605054A",
+   "fy": 2027,
+   "request": 147881000,
+   "mark": 170881000,
+   "explanation": "EMERGING TECHNOLOGY INITIATIVES"
+  },
+  {
+   "peCode": "0605058A",
+   "fy": 2027,
+   "request": 1053983000,
+   "mark": 1053983000,
+   "explanation": "TERMINAL HIGH ALTITUDE AREA DEFENSE (THAAD) RDTE"
+  },
+  {
+   "peCode": "0605144A",
+   "fy": 2027,
+   "request": 2380000,
+   "mark": 2380000,
+   "explanation": "NEXT GENERATION LOAD DEVICE-MEDIUM"
+  },
+  {
+   "peCode": "0605148A",
+   "fy": 2027,
+   "request": 35769000,
+   "mark": 117279000,
+   "explanation": "TACTICAL INTEL TARGETING ACCESS NODE (TITAN) EMD"
+  },
+  {
+   "peCode": "0605224A",
+   "fy": 2027,
+   "request": 49594000,
+   "mark": 85094000,
+   "explanation": "MULTI-DOMAIN INTELLIGENCE"
+  },
+  {
+   "peCode": "0605231A",
+   "fy": 2027,
+   "request": 288304000,
+   "mark": 288304000,
+   "explanation": "PRECISION STRIKE MISSILE (PRSM)"
+  },
+  {
+   "peCode": "0605232A",
+   "fy": 2027,
+   "request": 446616000,
+   "mark": 446616000,
+   "explanation": "HYPERSONICS EMD"
+  },
+  {
+   "peCode": "0605233A",
+   "fy": 2027,
+   "request": 33770000,
+   "mark": 33770000,
+   "explanation": "ACCESSIONS INFORMATION ENVIRONMENT (AIE)"
+  },
+  {
+   "peCode": "0605235A",
+   "fy": 2027,
+   "request": 82550000,
+   "mark": 82550000,
+   "explanation": "STRATEGIC MID-RANGE CAPABILITY"
+  },
+  {
+   "peCode": "0605241A",
+   "fy": 2027,
+   "request": 2140569000,
+   "mark": 2140569000,
+   "explanation": "FUTURE LONG RANGE ASSAULT AIRCRAFT DEVELOPMENT"
+  },
+  {
+   "peCode": "0605244A",
+   "fy": 2027,
+   "request": 16014000,
+   "mark": 16014000,
+   "explanation": "JOINT REDUCED RANGE ROCKET (JR3)"
+  },
+  {
+   "peCode": "0605275A",
+   "fy": 2027,
+   "request": 99691000,
+   "mark": 90023000,
+   "explanation": "ELECTRONIC WARFARE SYSTEMS DEVELOPMENT"
+  },
+  {
+   "peCode": "0605330A",
+   "fy": 2027,
+   "request": 45370000,
+   "mark": 45370000,
+   "explanation": "C2 TRANSPORT"
+  },
+  {
+   "peCode": "0605331A",
+   "fy": 2027,
+   "request": 488401000,
+   "mark": 400314000,
+   "explanation": "C2 APPLICATIONS"
+  },
+  {
+   "peCode": "0605332A",
+   "fy": 2027,
+   "request": 306019000,
+   "mark": 306019000,
+   "explanation": "C2 DATA"
+  },
+  {
+   "peCode": "0605333A",
+   "fy": 2027,
+   "request": 64849000,
+   "mark": 64849000,
+   "explanation": "C2 INFRASTRUCTURE"
+  },
+  {
+   "peCode": "0605345A",
+   "fy": 2027,
+   "request": 816433000,
+   "mark": 728368000,
+   "explanation": "UNMANNED AERIAL SYSTEMS LAUNCHED EFFECTS SYSTEMS"
+  },
+  {
+   "peCode": "0605347A",
+   "fy": 2027,
+   "request": 359182000,
+   "mark": 379182000,
+   "explanation": "COUNTER UNMANNED AERIAL SYSTEMS (UAS) DEVELOPMENT"
+  },
+  {
+   "peCode": "0605457A",
+   "fy": 2027,
+   "request": 126623000,
+   "mark": 138623000,
+   "explanation": "ARMY INTEGRATED AIR AND MISSILE DEFENSE (AIAMD)"
+  },
+  {
+   "peCode": "0605531A",
+   "fy": 2027,
+   "request": 695000,
+   "mark": 695000,
+   "explanation": "COUNTER-SMALL UNMANNED AIRCRAFT SYSTEMS SYS DEV &"
+  },
+  {
+   "peCode": "0605625A",
+   "fy": 2027,
+   "request": 290069000,
+   "mark": 290069000,
+   "explanation": "MANNED GROUND VEHICLE"
+  },
+  {
+   "peCode": "0605766A",
+   "fy": 2027,
+   "request": 17211000,
+   "mark": 17211000,
+   "explanation": "NATIONAL CAPABILITIES INTEGRATION (MIP)"
+  },
+  {
+   "peCode": "0605812A",
+   "fy": 2027,
+   "request": 2749000,
+   "mark": 2749000,
+   "explanation": "JOINT LIGHT TACTICAL VEHICLE (JLTV) ENGINEERING AND"
+  },
+  {
+   "peCode": "0605830A",
+   "fy": 2027,
+   "request": 951000,
+   "mark": 11151000,
+   "explanation": "AVIATION GROUND SUPPORT EQUIPMENT"
+  },
+  {
+   "peCode": "0303032A",
+   "fy": 2027,
+   "request": 3946000,
+   "mark": 3946000,
+   "explanation": "TROJAN-RH12"
+  },
+  {
+   "peCode": "0304270A",
+   "fy": 2027,
+   "request": 125301000,
+   "mark": 95305000,
+   "explanation": "ELECTRONIC WARFARE DEVELOPMENT"
+  },
+  {
+   "peCode": "0604256A",
+   "fy": 2027,
+   "request": 60233000,
+   "mark": 60233000,
+   "explanation": "THREAT SIMULATOR DEVELOPMENT"
+  },
+  {
+   "peCode": "0604258A",
+   "fy": 2027,
+   "request": 16488000,
+   "mark": 28488000,
+   "explanation": "TARGET SYSTEMS DEVELOPMENT"
+  },
+  {
+   "peCode": "0604759A",
+   "fy": 2027,
+   "request": 106140000,
+   "mark": 158840000,
+   "explanation": "MAJOR T&E INVESTMENT"
+  },
+  {
+   "peCode": "0605103A",
+   "fy": 2027,
+   "request": 10737000,
+   "mark": 10737000,
+   "explanation": "RAND ARROYO CENTER"
+  },
+  {
+   "peCode": "0605301A",
+   "fy": 2027,
+   "request": 7051000,
+   "mark": 7051000,
+   "explanation": "ARMY KWAJALEIN ATOLL"
+  },
+  {
+   "peCode": "0605326A",
+   "fy": 2027,
+   "request": 55596000,
+   "mark": 55596000,
+   "explanation": "CONCEPTS EXPERIMENTATION PROGRAM"
+  },
+  {
+   "peCode": "0605601A",
+   "fy": 2027,
+   "request": 469723000,
+   "mark": 509223000,
+   "explanation": "ARMY TEST RANGES AND FACILITIES"
+  },
+  {
+   "peCode": "0605602A",
+   "fy": 2027,
+   "request": 62303000,
+   "mark": 70003000,
+   "explanation": "ARMY TECHNICAL TEST INSTRUMENTATION AND TARGETS"
+  },
+  {
+   "peCode": "0605604A",
+   "fy": 2027,
+   "request": 31283000,
+   "mark": 31283000,
+   "explanation": "SURVIVABILITY/LETHALITY ANALYSIS"
+  },
+  {
+   "peCode": "0605606A",
+   "fy": 2027,
+   "request": 1983000,
+   "mark": 1983000,
+   "explanation": "AIRCRAFT CERTIFICATION"
+  },
+  {
+   "peCode": "0605706A",
+   "fy": 2027,
+   "request": 19013000,
+   "mark": 19013000,
+   "explanation": "MATERIEL SYSTEMS ANALYSIS"
+  },
+  {
+   "peCode": "0605709A",
+   "fy": 2027,
+   "request": 10481000,
+   "mark": 10481000,
+   "explanation": "EXPLOITATION OF FOREIGN ITEMS"
+  },
+  {
+   "peCode": "0605712A",
+   "fy": 2027,
+   "request": 60733000,
+   "mark": 60733000,
+   "explanation": "SUPPORT OF OPERATIONAL TESTING"
+  },
+  {
+   "peCode": "0605716A",
+   "fy": 2027,
+   "request": 65565000,
+   "mark": 65565000,
+   "explanation": "ARMY EVALUATION CENTER"
+  },
+  {
+   "peCode": "0605718A",
+   "fy": 2027,
+   "request": 15608000,
+   "mark": 15608000,
+   "explanation": "ARMY MODELING & SIM X-CMD COLLABORATION & INTEG"
+  },
+  {
+   "peCode": "0605801A",
+   "fy": 2027,
+   "request": 52978000,
+   "mark": 52978000,
+   "explanation": "PROGRAMWIDE ACTIVITIES"
+  },
+  {
+   "peCode": "0605803A",
+   "fy": 2027,
+   "request": 27004000,
+   "mark": 42004000,
+   "explanation": "TECHNICAL INFORMATION ACTIVITIES"
+  },
+  {
+   "peCode": "0605805A",
+   "fy": 2027,
+   "request": 44851000,
+   "mark": 57351000,
+   "explanation": "MUNITIONS STANDARDIZATION, EFFECTIVENESS AND SAFETY"
+  },
+  {
+   "peCode": "0605857A",
+   "fy": 2027,
+   "request": 3256000,
+   "mark": 3256000,
+   "explanation": "ENVIRONMENTAL QUALITY TECHNOLOGY MGMT SUPPORT"
+  },
+  {
+   "peCode": "0605898A",
+   "fy": 2027,
+   "request": 54276000,
+   "mark": 54276000,
+   "explanation": "ARMY DIRECT REPORT HEADQUARTERS-R&D-MHA"
+  },
+  {
+   "peCode": "0606002A",
+   "fy": 2027,
+   "request": 118585000,
+   "mark": 118585000,
+   "explanation": "RONALD REAGAN BALLISTIC MISSILE DEFENSE TEST SITE"
+  },
+  {
+   "peCode": "0606003A",
+   "fy": 2027,
+   "request": 5802000,
+   "mark": 5802000,
+   "explanation": "COUNTERINTEL AND HUMAN INTEL MODERNIZATION"
+  },
+  {
+   "peCode": "0606118A",
+   "fy": 2027,
+   "request": 653653000,
+   "mark": 571599000,
+   "explanation": "AIAMD SOFTWARE DEVELOPMENT & INTEGRATION"
+  },
+  {
+   "peCode": "0606942A",
+   "fy": 2027,
+   "request": 6468000,
+   "mark": 6468000,
+   "explanation": "ASSESSMENTS AND EVALUATIONS CYBER VULNERABILITIES"
+  },
+  {
+   "peCode": "0603778A",
+   "fy": 2027,
+   "request": 17780000,
+   "mark": 17780000,
+   "explanation": "MLRS PRODUCT IMPROVEMENT PROGRAM"
+  },
+  {
+   "peCode": "0605024A",
+   "fy": 2027,
+   "request": 6613000,
+   "mark": 56613000,
+   "explanation": "ANTI-TAMPER TECHNOLOGY SUPPORT"
+  },
+  {
+   "peCode": "0607101A",
+   "fy": 2027,
+   "request": 488000,
+   "mark": 488000,
+   "explanation": "COMBATING WEAPONS OF MASS DESTRUCTION (CWMD)"
+  },
+  {
+   "peCode": "0607131A",
+   "fy": 2027,
+   "request": 21553000,
+   "mark": 41553000,
+   "explanation": "WEAPONS AND MUNITIONS PRODUCT IMPROVEMENT"
+  },
+  {
+   "peCode": "0607136A",
+   "fy": 2027,
+   "request": 35147000,
+   "mark": 155147000,
+   "explanation": "BLACKHAWK PRODUCT IMPROVEMENT PROGRAM"
+  },
+  {
+   "peCode": "0607137A",
+   "fy": 2027,
+   "request": 7277000,
+   "mark": 13277000,
+   "explanation": "CHINOOK PRODUCT IMPROVEMENT PROGRAM"
+  },
+  {
+   "peCode": "0607139A",
+   "fy": 2027,
+   "request": 0,
+   "mark": 155000000,
+   "explanation": "IMPROVED TURBINE ENGINE PROGRAM"
+  },
+  {
+   "peCode": "0607145A",
+   "fy": 2027,
+   "request": 30759000,
+   "mark": 30759000,
+   "explanation": "APACHE FUTURE DEVELOPMENT"
+  },
+  {
+   "peCode": "0607148A",
+   "fy": 2027,
+   "request": 90981000,
+   "mark": 90981000,
+   "explanation": "AN/TPQ-53 COUNTERFIRE TARGET ACQUISITION RADAR"
+  },
+  {
+   "peCode": "0607150A",
+   "fy": 2027,
+   "request": 13694000,
+   "mark": 13694000,
+   "explanation": "INTEL CYBER DEVELOPMENT"
+  },
+  {
+   "peCode": "0607212A",
+   "fy": 2027,
+   "request": 20982000,
+   "mark": 20982000,
+   "explanation": "TENCAP ENHANCEMENTS"
+  },
+  {
+   "peCode": "0607665A",
+   "fy": 2027,
+   "request": 1640000,
+   "mark": 1640000,
+   "explanation": "FAMILY OF BIOMETRICS"
+  },
+  {
+   "peCode": "0607865A",
+   "fy": 2027,
+   "request": 219046000,
+   "mark": 219046000,
+   "explanation": "PATRIOT PRODUCT IMPROVEMENT"
+  },
+  {
+   "peCode": "0203728A",
+   "fy": 2027,
+   "request": 11255000,
+   "mark": 11255000,
+   "explanation": "JOINT AUTOMATED DEEP OPERATION COORDINATION SYSTEM"
+  },
+  {
+   "peCode": "0203735A",
+   "fy": 2027,
+   "request": 492364000,
+   "mark": 542164000,
+   "explanation": "COMBAT VEHICLE IMPROVEMENT PROGRAMS"
+  },
+  {
+   "peCode": "0203752A",
+   "fy": 2027,
+   "request": 239000,
+   "mark": 239000,
+   "explanation": "AIRCRAFT ENGINE COMPONENT IMPROVEMENT PROGRAM"
+  },
+  {
+   "peCode": "0203758A",
+   "fy": 2027,
+   "request": 1615000,
+   "mark": 1615000,
+   "explanation": "DIGITIZATION"
+  },
+  {
+   "peCode": "0203801A",
+   "fy": 2027,
+   "request": 2054000,
+   "mark": 2054000,
+   "explanation": "MISSILE/AIR DEFENSE PRODUCT IMPROVEMENT PROGRAM"
+  },
+  {
+   "peCode": "0205778A",
+   "fy": 2027,
+   "request": 73639000,
+   "mark": 88639000,
+   "explanation": "GUIDED MULTIPLE-LAUNCH ROCKET SYSTEM (GMLRS)"
+  },
+  {
+   "peCode": "0303140A",
+   "fy": 2027,
+   "request": 15932000,
+   "mark": 15932000,
+   "explanation": "INFORMATION SYSTEMS SECURITY PROGRAM"
+  },
+  {
+   "peCode": "0303142A",
+   "fy": 2027,
+   "request": 4870000,
+   "mark": 4870000,
+   "explanation": "SATCOM GROUND ENVIRONMENT (SPACE)"
+  },
+  {
+   "peCode": "0305179A",
+   "fy": 2027,
+   "request": 6870000,
+   "mark": 6870000,
+   "explanation": "INTEGRATED BROADCAST SERVICE (IBS)"
+  },
+  {
+   "peCode": "0305219A",
+   "fy": 2027,
+   "request": 2590000,
+   "mark": 2590000,
+   "explanation": "MQ-1 GRAY EAGLE UAV"
+  },
+  {
+   "peCode": "0708045A",
+   "fy": 2027,
+   "request": 68097000,
+   "mark": 107597000,
+   "explanation": "END ITEM INDUSTRIAL PREPAREDNESS ACTIVITIES"
+  },
+  {
+   "peCode": "0608041A",
+   "fy": 2027,
+   "request": 94095000,
+   "mark": 94095000,
+   "explanation": "DEFENSIVE CYBER-SOFTWARE PROTOTYPE DEVELOPMENT"
+  },
+  {
+   "peCode": "0601103N",
+   "fy": 2027,
+   "request": 0,
+   "mark": 65000000,
+   "explanation": "UNIVERSITY RESEARCH INITIATIVES"
+  },
+  {
+   "peCode": "0601153N",
+   "fy": 2027,
+   "request": 525399000,
+   "mark": 560399000,
+   "explanation": "DEFENSE RESEARCH SCIENCES"
+  },
+  {
+   "peCode": "0602114N",
+   "fy": 2027,
+   "request": 38838000,
+   "mark": 43838000,
+   "explanation": "POWER PROJECTION APPLIED RESEARCH"
+  },
+  {
+   "peCode": "0602123N",
+   "fy": 2027,
+   "request": 137779000,
+   "mark": 188279000,
+   "explanation": "FORCE PROTECTION APPLIED RESEARCH"
+  },
+  {
+   "peCode": "0602235N",
+   "fy": 2027,
+   "request": 40433000,
+   "mark": 57933000,
+   "explanation": "COMMON PICTURE APPLIED RESEARCH"
+  },
+  {
+   "peCode": "0602236N",
+   "fy": 2027,
+   "request": 60350000,
+   "mark": 89350000,
+   "explanation": "WARFIGHTER SUSTAINMENT APPLIED RESEARCH"
+  },
+  {
+   "peCode": "0602271N",
+   "fy": 2027,
+   "request": 74603000,
+   "mark": 77603000,
+   "explanation": "ELECTROMAGNETIC SYSTEMS APPLIED RESEARCH"
+  },
+  {
+   "peCode": "0602435N",
+   "fy": 2027,
+   "request": 64693000,
+   "mark": 372693000,
+   "explanation": "OCEAN WARFIGHTING ENVIRONMENT APPLIED RESEARCH"
+  },
+  {
+   "peCode": "0602747N",
+   "fy": 2027,
+   "request": 52515000,
+   "mark": 145015000,
+   "explanation": "UNDERSEA WARFARE APPLIED RESEARCH"
+  },
+  {
+   "peCode": "0602750N",
+   "fy": 2027,
+   "request": 305357000,
+   "mark": 335357000,
+   "explanation": "FUTURE NAVAL CAPABILITIES APPLIED RESEARCH"
+  },
+  {
+   "peCode": "0602782N",
+   "fy": 2027,
+   "request": 24634000,
+   "mark": 24634000,
+   "explanation": "MINE AND EXPEDITIONARY WARFARE APPLIED RESEARCH"
+  },
+  {
+   "peCode": "0602792N",
+   "fy": 2027,
+   "request": 0,
+   "mark": 75000000,
+   "explanation": "INNOVATIVE NAVAL PROTOTYPES (INP) APPLIED RESEARCH"
+  },
+  {
+   "peCode": "0602861N",
+   "fy": 2027,
+   "request": 74378000,
+   "mark": 74378000,
+   "explanation": "SCIENCE AND TECHNOLOGY MANAGEMENT-ONR FIELD"
+  },
+  {
+   "peCode": "0603123N",
+   "fy": 2027,
+   "request": 50869000,
+   "mark": 85369000,
+   "explanation": "FORCE PROTECTION ADVANCED TECHNOLOGY"
+  },
+  {
+   "peCode": "0603271N",
+   "fy": 2027,
+   "request": 8635000,
+   "mark": 8635000,
+   "explanation": "ELECTROMAGNETIC SYSTEMS ADVANCED TECHNOLOGY"
+  },
+  {
+   "peCode": "0603273N",
+   "fy": 2027,
+   "request": 114767000,
+   "mark": 129767000,
+   "explanation": "SCIENCE & TECHNOLOGY FOR NUCLEAR RE-ENTRY SYSTEMS"
+  },
+  {
+   "peCode": "0603673N",
+   "fy": 2027,
+   "request": 445977000,
+   "mark": 474977000,
+   "explanation": "FUTURE NAVAL CAPABILITIES ADVANCED TECHNOLOGY"
+  },
+  {
+   "peCode": "0603680N",
+   "fy": 2027,
+   "request": 79132000,
+   "mark": 160502000,
+   "explanation": "MANUFACTURING TECHNOLOGY PROGRAM"
+  },
+  {
+   "peCode": "0603729N",
+   "fy": 2027,
+   "request": 0,
+   "mark": 36000000,
+   "explanation": "WARFIGHTER PROTECTION ADVANCED TECHNOLOGY"
+  },
+  {
+   "peCode": "0603758N",
+   "fy": 2027,
+   "request": 66395000,
+   "mark": 154195000,
+   "explanation": "NAVY WARFIGHTING EXPERIMENTS AND DEMONSTRATIONS"
+  },
+  {
+   "peCode": "0603128N",
+   "fy": 2027,
+   "request": 35706000,
+   "mark": 70706000,
+   "explanation": "UNMANNED AERIAL SYSTEM"
+  },
+  {
+   "peCode": "0603207N",
+   "fy": 2027,
+   "request": 76141000,
+   "mark": 76141000,
+   "explanation": "AIR/OCEAN TACTICAL APPLICATIONS"
+  },
+  {
+   "peCode": "0603216N",
+   "fy": 2027,
+   "request": 20010000,
+   "mark": 20010000,
+   "explanation": "AVIATION SURVIVABILITY"
+  },
+  {
+   "peCode": "0603239N",
+   "fy": 2027,
+   "request": 7726000,
+   "mark": 17726000,
+   "explanation": "NAVAL CONSTRUCTION FORCES"
+  },
+  {
+   "peCode": "0603254N",
+   "fy": 2027,
+   "request": 20070000,
+   "mark": 20070000,
+   "explanation": "ASW SYSTEMS DEVELOPMENT"
+  },
+  {
+   "peCode": "0603261N",
+   "fy": 2027,
+   "request": 3239000,
+   "mark": 3239000,
+   "explanation": "TACTICAL AIRBORNE RECONNAISSANCE"
+  },
+  {
+   "peCode": "0603382N",
+   "fy": 2027,
+   "request": 32263000,
+   "mark": 41903000,
+   "explanation": "ADVANCED COMBAT SYSTEMS TECHNOLOGY"
+  },
+  {
+   "peCode": "0603502N",
+   "fy": 2027,
+   "request": 32451000,
+   "mark": 32451000,
+   "explanation": "SURFACE AND SHALLOW WATER MINE COUNTERMEASURES"
+  },
+  {
+   "peCode": "0603506N",
+   "fy": 2027,
+   "request": 9920000,
+   "mark": 9920000,
+   "explanation": "SURFACE SHIP TORPEDO DEFENSE"
+  },
+  {
+   "peCode": "0603512N",
+   "fy": 2027,
+   "request": 8806000,
+   "mark": 8806000,
+   "explanation": "CARRIER SYSTEMS DEVELOPMENT"
+  },
+  {
+   "peCode": "0603525N",
+   "fy": 2027,
+   "request": 1339052000,
+   "mark": 1339052000,
+   "explanation": "PILOT FISH"
+  },
+  {
+   "peCode": "0603536N",
+   "fy": 2027,
+   "request": 275300000,
+   "mark": 275300000,
+   "explanation": "RETRACT JUNIPER"
+  },
+  {
+   "peCode": "0603542N",
+   "fy": 2027,
+   "request": 704000,
+   "mark": 704000,
+   "explanation": "RADIOLOGICAL CONTROL"
+  },
+  {
+   "peCode": "0603561N",
+   "fy": 2027,
+   "request": 132885000,
+   "mark": 132885000,
+   "explanation": "UNDERSEA WARFARE SYSTEM DEVELOPMENT"
+  },
+  {
+   "peCode": "0603563N",
+   "fy": 2027,
+   "request": 353893000,
+   "mark": 340763000,
+   "explanation": "SHIP CONCEPT ADVANCED DESIGN"
+  },
+  {
+   "peCode": "0603564N",
+   "fy": 2027,
+   "request": 666640000,
+   "mark": 655390000,
+   "explanation": "SHIP PRELIMINARY DESIGN & FEASIBILITY STUDIES"
+  },
+  {
+   "peCode": "0603570N",
+   "fy": 2027,
+   "request": 392426000,
+   "mark": 392426000,
+   "explanation": "ADVANCED NUCLEAR POWER SYSTEMS"
+  },
+  {
+   "peCode": "0603573N",
+   "fy": 2027,
+   "request": 269961000,
+   "mark": 292461000,
+   "explanation": "ADVANCED SURFACE MACHINERY SYSTEMS"
+  },
+  {
+   "peCode": "0603576N",
+   "fy": 2027,
+   "request": 149351000,
+   "mark": 149351000,
+   "explanation": "CHALK EAGLE"
+  },
+  {
+   "peCode": "0603581N",
+   "fy": 2027,
+   "request": 12576000,
+   "mark": 12576000,
+   "explanation": "LITTORAL COMBAT SHIP (LCS)"
+  },
+  {
+   "peCode": "0603582N",
+   "fy": 2027,
+   "request": 18819000,
+   "mark": 18819000,
+   "explanation": "COMBAT SYSTEM INTEGRATION"
+  },
+  {
+   "peCode": "0603595N",
+   "fy": 2027,
+   "request": 331577000,
+   "mark": 339077000,
+   "explanation": "OHIO REPLACEMENT"
+  },
+  {
+   "peCode": "0603596N",
+   "fy": 2027,
+   "request": 46239000,
+   "mark": 46239000,
+   "explanation": "LCS MISSION MODULES"
+  },
+  {
+   "peCode": "0603597N",
+   "fy": 2027,
+   "request": 18070000,
+   "mark": 33070000,
+   "explanation": "AUTOMATED TEST AND RE-TEST (ATRT)"
+  },
+  {
+   "peCode": "0603598N",
+   "fy": 2027,
+   "request": 87585000,
+   "mark": 187585000,
+   "explanation": "ATRT ENTERPRISE RAPID CAPABILITY"
+  },
+  {
+   "peCode": "0603599N",
+   "fy": 2027,
+   "request": 212041000,
+   "mark": 212041000,
+   "explanation": "FRIGATE DEVELOPMENT"
+  },
+  {
+   "peCode": "0603609N",
+   "fy": 2027,
+   "request": 10216000,
+   "mark": 25216000,
+   "explanation": "CONVENTIONAL MUNITIONS"
+  },
+  {
+   "peCode": "0603654N",
+   "fy": 2027,
+   "request": 43568000,
+   "mark": 43568000,
+   "explanation": "JOINT SERVICE EXPLOSIVE ORDNANCE DEVELOPMENT"
+  },
+  {
+   "peCode": "0603713N",
+   "fy": 2027,
+   "request": 15903000,
+   "mark": 15903000,
+   "explanation": "OCEAN ENGINEERING TECHNOLOGY DEVELOPMENT"
+  },
+  {
+   "peCode": "0603721N",
+   "fy": 2027,
+   "request": 19347000,
+   "mark": 19347000,
+   "explanation": "ENVIRONMENTAL PROTECTION"
+  },
+  {
+   "peCode": "0603724N",
+   "fy": 2027,
+   "request": 59591000,
+   "mark": 66591000,
+   "explanation": "NAVY ENERGY PROGRAM"
+  },
+  {
+   "peCode": "0603725N",
+   "fy": 2027,
+   "request": 13738000,
+   "mark": 13738000,
+   "explanation": "FACILITIES IMPROVEMENT"
+  },
+  {
+   "peCode": "0603734N",
+   "fy": 2027,
+   "request": 995658000,
+   "mark": 995658000,
+   "explanation": "CHALK CORAL"
+  },
+  {
+   "peCode": "0603739N",
+   "fy": 2027,
+   "request": 929000,
+   "mark": 929000,
+   "explanation": "NAVY LOGISTIC PRODUCTIVITY"
+  },
+  {
+   "peCode": "0603746N",
+   "fy": 2027,
+   "request": 655551000,
+   "mark": 655551000,
+   "explanation": "RETRACT MAPLE"
+  },
+  {
+   "peCode": "0603748N",
+   "fy": 2027,
+   "request": 498853000,
+   "mark": 498853000,
+   "explanation": "LINK PLUMERIA"
+  },
+  {
+   "peCode": "0603751N",
+   "fy": 2027,
+   "request": 87999000,
+   "mark": 87999000,
+   "explanation": "RETRACT ELM"
+  },
+  {
+   "peCode": "0603790N",
+   "fy": 2027,
+   "request": 5513000,
+   "mark": 5513000,
+   "explanation": "NATO RESEARCH AND DEVELOPMENT"
+  },
+  {
+   "peCode": "0603795N",
+   "fy": 2027,
+   "request": 985000,
+   "mark": 985000,
+   "explanation": "LAND ATTACK TECHNOLOGY"
+  },
+  {
+   "peCode": "0603860N",
+   "fy": 2027,
+   "request": 73813000,
+   "mark": 73813000,
+   "explanation": "JOINT PRECISION APPROACH AND LANDING SYSTEMS-"
+  },
+  {
+   "peCode": "0603889N",
+   "fy": 2027,
+   "request": 6500000,
+   "mark": 6500000,
+   "explanation": "COUNTERDRUG RDT&E PROJECTS"
+  },
+  {
+   "peCode": "0603925N",
+   "fy": 2027,
+   "request": 94825000,
+   "mark": 94825000,
+   "explanation": "DIRECTED ENERGY AND ELECTRIC WEAPON SYSTEMS"
+  },
+  {
+   "peCode": "0604027N",
+   "fy": 2027,
+   "request": 182205000,
+   "mark": 182743000,
+   "explanation": "DIGITAL WARFARE OFFICE"
+  },
+  {
+   "peCode": "0604028N",
+   "fy": 2027,
+   "request": 24598000,
+   "mark": 43898000,
+   "explanation": "SMALL AND MEDIUM UNMANNED UNDERSEA VEHICLES"
+  },
+  {
+   "peCode": "0604029N",
+   "fy": 2027,
+   "request": 62460000,
+   "mark": 112460000,
+   "explanation": "UNMANNED UNDERSEA VEHICLE CORE TECHNOLOGIES"
+  },
+  {
+   "peCode": "0604030N",
+   "fy": 2027,
+   "request": 0,
+   "mark": 20000000,
+   "explanation": "RAPID PROTOTYPING, EXPERIMENTATION AND DEMONSTRA-"
+  },
+  {
+   "peCode": "0604112N",
+   "fy": 2027,
+   "request": 111241000,
+   "mark": 111241000,
+   "explanation": "GERALD R. FORD CLASS NUCLEAR AIRCRAFT CARRIER"
+  },
+  {
+   "peCode": "0604127N",
+   "fy": 2027,
+   "request": 17762000,
+   "mark": 17762000,
+   "explanation": "SURFACE MINE COUNTERMEASURES"
+  },
+  {
+   "peCode": "0604272N",
+   "fy": 2027,
+   "request": 14974000,
+   "mark": 14974000,
+   "explanation": "TACTICAL AIR DIRECTIONAL INFRARED COUNTERMEASURES"
+  },
+  {
+   "peCode": "0604286N",
+   "fy": 2027,
+   "request": 10016000,
+   "mark": 10016000,
+   "explanation": "NAVY ADVANCED MANUFACTURING"
+  },
+  {
+   "peCode": "0604292N",
+   "fy": 2027,
+   "request": 5314000,
+   "mark": 5314000,
+   "explanation": "FUTURE VERTICAL LIFT (MARITIME STRIKE)"
+  },
+  {
+   "peCode": "0604454N",
+   "fy": 2027,
+   "request": 18574000,
+   "mark": 18574000,
+   "explanation": "LX (R)"
+  },
+  {
+   "peCode": "0604536N",
+   "fy": 2027,
+   "request": 164512000,
+   "mark": 155512000,
+   "explanation": "ADVANCED UNDERSEA PROTOTYPING"
+  },
+  {
+   "peCode": "0604636N",
+   "fy": 2027,
+   "request": 20833000,
+   "mark": 20833000,
+   "explanation": "COUNTER UNMANNED AIRCRAFT SYSTEMS (C-UAS)"
+  },
+  {
+   "peCode": "0604659N",
+   "fy": 2027,
+   "request": 206873000,
+   "mark": 206873000,
+   "explanation": "PRECISION STRIKE WEAPONS DEVELOPMENT PROGRAM"
+  },
+  {
+   "peCode": "0604707N",
+   "fy": 2027,
+   "request": 8657000,
+   "mark": 8657000,
+   "explanation": "SPACE AND ELECTRONIC WARFARE (SEW) ARCHITECTURE/"
+  },
+  {
+   "peCode": "0604786N",
+   "fy": 2027,
+   "request": 104527000,
+   "mark": 104527000,
+   "explanation": "OFFENSIVE ANTI-SURFACE WARFARE WEAPON"
+  },
+  {
+   "peCode": "0605513N",
+   "fy": 2027,
+   "request": 255135000,
+   "mark": 275883000,
+   "explanation": "UNMANNED SURFACE VEHICLE ENABLING CAPABILITIES"
+  },
+  {
+   "peCode": "0605518N",
+   "fy": 2027,
+   "request": 1341416000,
+   "mark": 1319920000,
+   "explanation": "CONVENTIONAL PROMPT STRIKE (CPS)"
+  },
+  {
+   "peCode": "0303354N",
+   "fy": 2027,
+   "request": 3206000,
+   "mark": 3206000,
+   "explanation": "ASW SYSTEMS DEVELOPMENT-MIP"
+  },
+  {
+   "peCode": "0304797N",
+   "fy": 2027,
+   "request": 13563000,
+   "mark": 13563000,
+   "explanation": "UNDERSEA ARTIFICIAL INTELLIGENCE/MACHINE LEARNING"
+  },
+  {
+   "peCode": "0603208N",
+   "fy": 2027,
+   "request": 80617000,
+   "mark": 87766000,
+   "explanation": "TRAINING SYSTEM AIRCRAFT"
+  },
+  {
+   "peCode": "0604038N",
+   "fy": 2027,
+   "request": 216514000,
+   "mark": 199336000,
+   "explanation": "MARITIME TARGETING CELL"
+  },
+  {
+   "peCode": "0604212N",
+   "fy": 2027,
+   "request": 976000,
+   "mark": 976000,
+   "explanation": "OTHER HELO DEVELOPMENT"
+  },
+  {
+   "peCode": "0604215N",
+   "fy": 2027,
+   "request": 4399000,
+   "mark": 4399000,
+   "explanation": "STANDARDS DEVELOPMENT"
+  },
+  {
+   "peCode": "0604216N",
+   "fy": 2027,
+   "request": 88855000,
+   "mark": 88855000,
+   "explanation": "MULTI-MISSION HELICOPTER UPGRADE DEVELOPMENT"
+  },
+  {
+   "peCode": "0604230N",
+   "fy": 2027,
+   "request": 73080000,
+   "mark": 78080000,
+   "explanation": "WARFARE SUPPORT SYSTEM"
+  },
+  {
+   "peCode": "0604231N",
+   "fy": 2027,
+   "request": 73534000,
+   "mark": 74025000,
+   "explanation": "COMMAND AND CONTROL SYSTEMS"
+  },
+  {
+   "peCode": "0604234N",
+   "fy": 2027,
+   "request": 390260000,
+   "mark": 390260000,
+   "explanation": "ADVANCED HAWKEYE"
+  },
+  {
+   "peCode": "0604261N",
+   "fy": 2027,
+   "request": 48875000,
+   "mark": 48875000,
+   "explanation": "ACOUSTIC SEARCH SENSORS"
+  },
+  {
+   "peCode": "0604262N",
+   "fy": 2027,
+   "request": 252335000,
+   "mark": 252335000,
+   "explanation": "V-22"
+  },
+  {
+   "peCode": "0604264N",
+   "fy": 2027,
+   "request": 21582000,
+   "mark": 21582000,
+   "explanation": "AIR CREW SYSTEMS DEVELOPMENT"
+  },
+  {
+   "peCode": "0604269N",
+   "fy": 2027,
+   "request": 131683000,
+   "mark": 131683000,
+   "explanation": "EA-18"
+  },
+  {
+   "peCode": "0604270N",
+   "fy": 2027,
+   "request": 168985000,
+   "mark": 168985000,
+   "explanation": "ELECTRONIC WARFARE DEVELOPMENT"
+  },
+  {
+   "peCode": "0604274N",
+   "fy": 2027,
+   "request": 50332000,
+   "mark": 50332000,
+   "explanation": "NEXT GENERATION JAMMER (NGJ)"
+  },
+  {
+   "peCode": "0604280N",
+   "fy": 2027,
+   "request": 409318000,
+   "mark": 386421000,
+   "explanation": "JOINT TACTICAL RADIO SYSTEM-NAVY (JTRS-NAVY)"
+  },
+  {
+   "peCode": "0604282N",
+   "fy": 2027,
+   "request": 497011000,
+   "mark": 497011000,
+   "explanation": "NEXT GENERATION JAMMER (NGJ) INCREMENT II"
+  },
+  {
+   "peCode": "0604307N",
+   "fy": 2027,
+   "request": 425060000,
+   "mark": 425060000,
+   "explanation": "SURFACE COMBATANT COMBAT SYSTEM ENGINEERING"
+  },
+  {
+   "peCode": "0604329N",
+   "fy": 2027,
+   "request": 64428000,
+   "mark": 54280000,
+   "explanation": "SMALL DIAMETER BOMB (SDB)"
+  },
+  {
+   "peCode": "0604366N",
+   "fy": 2027,
+   "request": 539279000,
+   "mark": 516529000,
+   "explanation": "STANDARD MISSILE IMPROVEMENTS"
+  },
+  {
+   "peCode": "0604373N",
+   "fy": 2027,
+   "request": 8567000,
+   "mark": 8567000,
+   "explanation": "AIRBORNE MCM"
+  },
+  {
+   "peCode": "0604378N",
+   "fy": 2027,
+   "request": 42177000,
+   "mark": 42177000,
+   "explanation": "NAVAL INTEGRATED FIRE CONTROL-COUNTER AIR SYSTEMS"
+  },
+  {
+   "peCode": "0604501N",
+   "fy": 2027,
+   "request": 67900000,
+   "mark": 67900000,
+   "explanation": "ADVANCED ABOVE WATER SENSORS"
+  },
+  {
+   "peCode": "0604503N",
+   "fy": 2027,
+   "request": 195361000,
+   "mark": 195361000,
+   "explanation": "SUBMARINE SWFTS MODERNIZATION"
+  },
+  {
+   "peCode": "0604504N",
+   "fy": 2027,
+   "request": 41610000,
+   "mark": 41610000,
+   "explanation": "AIR CONTROL"
+  },
+  {
+   "peCode": "0604512N",
+   "fy": 2027,
+   "request": 30970000,
+   "mark": 30970000,
+   "explanation": "SHIPBOARD AVIATION SYSTEMS"
+  },
+  {
+   "peCode": "0604516N",
+   "fy": 2027,
+   "request": 7861000,
+   "mark": 7861000,
+   "explanation": "SHIP SURVIVABILITY"
+  },
+  {
+   "peCode": "0604522N",
+   "fy": 2027,
+   "request": 96642000,
+   "mark": 96642000,
+   "explanation": "AIR AND MISSILE DEFENSE RADAR (AMDR) SYSTEM"
+  },
+  {
+   "peCode": "0604530N",
+   "fy": 2027,
+   "request": 60518000,
+   "mark": 60518000,
+   "explanation": "ADVANCED ARRESTING GEAR (AAG)"
+  },
+  {
+   "peCode": "0604558N",
+   "fy": 2027,
+   "request": 237103000,
+   "mark": 232553000,
+   "explanation": "NEW DESIGN SSN"
+  },
+  {
+   "peCode": "0604567N",
+   "fy": 2027,
+   "request": 19429000,
+   "mark": 19429000,
+   "explanation": "SHIP CONTRACT DESIGN/ LIVE FIRE T&E"
+  },
+  {
+   "peCode": "0604574N",
+   "fy": 2027,
+   "request": 3415000,
+   "mark": 3415000,
+   "explanation": "NAVY TACTICAL COMPUTER RESOURCES"
+  },
+  {
+   "peCode": "0604601N",
+   "fy": 2027,
+   "request": 158666000,
+   "mark": 163566000,
+   "explanation": "MINE DEVELOPMENT"
+  },
+  {
+   "peCode": "0604610N",
+   "fy": 2027,
+   "request": 102159000,
+   "mark": 126459000,
+   "explanation": "LIGHTWEIGHT TORPEDO DEVELOPMENT"
+  },
+  {
+   "peCode": "0604654N",
+   "fy": 2027,
+   "request": 8509000,
+   "mark": 8509000,
+   "explanation": "JOINT SERVICE EXPLOSIVE ORDNANCE DEVELOPMENT"
+  },
+  {
+   "peCode": "0604703N",
+   "fy": 2027,
+   "request": 8316000,
+   "mark": 8316000,
+   "explanation": "PERSONNEL, TRAINING, SIMULATION, AND HUMAN FACTORS"
+  },
+  {
+   "peCode": "0604727N",
+   "fy": 2027,
+   "request": 1447000,
+   "mark": 1447000,
+   "explanation": "JOINT STANDOFF WEAPON SYSTEMS"
+  },
+  {
+   "peCode": "0604755N",
+   "fy": 2027,
+   "request": 156167000,
+   "mark": 156167000,
+   "explanation": "SHIP SELF DEFENSE (DETECT & CONTROL)"
+  },
+  {
+   "peCode": "0604756N",
+   "fy": 2027,
+   "request": 296261000,
+   "mark": 296261000,
+   "explanation": "SHIP SELF DEFENSE (ENGAGE: HARD KILL)"
+  },
+  {
+   "peCode": "0604757N",
+   "fy": 2027,
+   "request": 196761000,
+   "mark": 196761000,
+   "explanation": "SHIP SELF DEFENSE (ENGAGE: SOFT KILL/EW)"
+  },
+  {
+   "peCode": "0604761N",
+   "fy": 2027,
+   "request": 6426000,
+   "mark": 6426000,
+   "explanation": "INTELLIGENCE ENGINEERING"
+  },
+  {
+   "peCode": "0604771N",
+   "fy": 2027,
+   "request": 6900000,
+   "mark": 6900000,
+   "explanation": "MEDICAL DEVELOPMENT"
+  },
+  {
+   "peCode": "0604777N",
+   "fy": 2027,
+   "request": 3388000,
+   "mark": 3388000,
+   "explanation": "NAVIGATION/ID SYSTEM"
+  },
+  {
+   "peCode": "0604850N",
+   "fy": 2027,
+   "request": 315914000,
+   "mark": 315914000,
+   "explanation": "SSN(X)"
+  },
+  {
+   "peCode": "0605013N",
+   "fy": 2027,
+   "request": 149089000,
+   "mark": 237389000,
+   "explanation": "INFORMATION TECHNOLOGY DEVELOPMENT"
+  },
+  {
+   "peCode": "0605024N",
+   "fy": 2027,
+   "request": 3459000,
+   "mark": 3459000,
+   "explanation": "ANTI-TAMPER TECHNOLOGY SUPPORT"
+  },
+  {
+   "peCode": "0605180N",
+   "fy": 2027,
+   "request": 1662723000,
+   "mark": 1662723000,
+   "explanation": "TACAMO MODERNIZATION"
+  },
+  {
+   "peCode": "0605215N",
+   "fy": 2027,
+   "request": 82618000,
+   "mark": 82618000,
+   "explanation": "MISSION PLANNING"
+  },
+  {
+   "peCode": "0605217N",
+   "fy": 2027,
+   "request": 133855000,
+   "mark": 128183000,
+   "explanation": "COMMON AVIONICS"
+  },
+  {
+   "peCode": "0605220N",
+   "fy": 2027,
+   "request": 4519000,
+   "mark": 4519000,
+   "explanation": "SHIP TO SHORE CONNECTOR (SSC)"
+  },
+  {
+   "peCode": "0605285N",
+   "fy": 2027,
+   "request": 68498000,
+   "mark": 915098000,
+   "explanation": "NEXT GENERATION FIGHTER"
+  },
+  {
+   "peCode": "0605500N",
+   "fy": 2027,
+   "request": 87173000,
+   "mark": 87173000,
+   "explanation": "MULTI-MISSION MARITIME AIRCRAFT (MMA)"
+  },
+  {
+   "peCode": "0605504N",
+   "fy": 2027,
+   "request": 52951000,
+   "mark": 52951000,
+   "explanation": "MULTI-MISSION MARITIME (MMA) INCREMENT III"
+  },
+  {
+   "peCode": "0605516N",
+   "fy": 2027,
+   "request": 186735000,
+   "mark": 174651000,
+   "explanation": "LONG RANGE FIRES"
+  },
+  {
+   "peCode": "0204202N",
+   "fy": 2027,
+   "request": 50166000,
+   "mark": 50166000,
+   "explanation": "DESTROYERS GUIDED MISSILE (DDG-1000)"
+  },
+  {
+   "peCode": "0301377N",
+   "fy": 2027,
+   "request": 15563000,
+   "mark": 15563000,
+   "explanation": "COUNTERING ADVANCED CONVENTIONAL WEAPONS (CACW)"
+  },
+  {
+   "peCode": "0302315N",
+   "fy": 2027,
+   "request": 23146000,
+   "mark": 23146000,
+   "explanation": "NON-KINETIC COUNTERMEASURE SUPPORT"
+  },
+  {
+   "peCode": "0304785N",
+   "fy": 2027,
+   "request": 274478000,
+   "mark": 254013000,
+   "explanation": "ISR & INFO OPERATIONS"
+  },
+  {
+   "peCode": "0604256N",
+   "fy": 2027,
+   "request": 16453000,
+   "mark": 16453000,
+   "explanation": "THREAT SIMULATOR DEVELOPMENT"
+  },
+  {
+   "peCode": "0604258N",
+   "fy": 2027,
+   "request": 22653000,
+   "mark": 22653000,
+   "explanation": "TARGET SYSTEMS DEVELOPMENT"
+  },
+  {
+   "peCode": "0604759N",
+   "fy": 2027,
+   "request": 112458000,
+   "mark": 117958000,
+   "explanation": "MAJOR T&E INVESTMENT"
+  },
+  {
+   "peCode": "0605152N",
+   "fy": 2027,
+   "request": 4336000,
+   "mark": 4336000,
+   "explanation": "STUDIES AND ANALYSIS SUPPORT-NAVY"
+  },
+  {
+   "peCode": "0605154N",
+   "fy": 2027,
+   "request": 28310000,
+   "mark": 28310000,
+   "explanation": "CENTER FOR NAVAL ANALYSES"
+  },
+  {
+   "peCode": "0605853N",
+   "fy": 2027,
+   "request": 124898000,
+   "mark": 157600000,
+   "explanation": "MANAGEMENT, TECHNICAL & INTERNATIONAL SUPPORT"
+  },
+  {
+   "peCode": "0605856N",
+   "fy": 2027,
+   "request": 4260000,
+   "mark": 4260000,
+   "explanation": "STRATEGIC TECHNICAL SUPPORT"
+  },
+  {
+   "peCode": "0605863N",
+   "fy": 2027,
+   "request": 170699000,
+   "mark": 170699000,
+   "explanation": "RDT&E SHIP AND AIRCRAFT SUPPORT"
+  },
+  {
+   "peCode": "0605864N",
+   "fy": 2027,
+   "request": 470492000,
+   "mark": 470492000,
+   "explanation": "TEST AND EVALUATION SUPPORT"
+  },
+  {
+   "peCode": "0605865N",
+   "fy": 2027,
+   "request": 31902000,
+   "mark": 31902000,
+   "explanation": "OPERATIONAL TEST AND EVALUATION CAPABILITY"
+  },
+  {
+   "peCode": "0605866N",
+   "fy": 2027,
+   "request": 21498000,
+   "mark": 21498000,
+   "explanation": "NAVY SPACE AND ELECTRONIC WARFARE (SEW) SUPPORT"
+  },
+  {
+   "peCode": "0605867N",
+   "fy": 2027,
+   "request": 25144000,
+   "mark": 25144000,
+   "explanation": "SEW SURVEILLANCE/RECONNAISSANCE SUPPORT"
+  },
+  {
+   "peCode": "0605898N",
+   "fy": 2027,
+   "request": 33533000,
+   "mark": 33533000,
+   "explanation": "MANAGEMENT HQ-R&D"
+  },
+  {
+   "peCode": "0606355N",
+   "fy": 2027,
+   "request": 35931000,
+   "mark": 35931000,
+   "explanation": "WARFARE INNOVATION MANAGEMENT"
+  },
+  {
+   "peCode": "0606942N",
+   "fy": 2027,
+   "request": 11282000,
+   "mark": 11282000,
+   "explanation": "ASSESSMENTS AND EVALUATIONS CYBER VULNERABILITIES"
+  },
+  {
+   "peCode": "0305327N",
+   "fy": 2027,
+   "request": 2214000,
+   "mark": 2214000,
+   "explanation": "INSIDER THREAT"
+  },
+  {
+   "peCode": "0902498N",
+   "fy": 2027,
+   "request": 2054000,
+   "mark": 2054000,
+   "explanation": "MANAGEMENT HEADQUARTERS (DEPARTMENTAL SUPPORT"
+  },
+  {
+   "peCode": "0604840N",
+   "fy": 2027,
+   "request": 428545000,
+   "mark": 476545000,
+   "explanation": "F-35 C2D2"
+  },
+  {
+   "peCode": "0607658N",
+   "fy": 2027,
+   "request": 120782000,
+   "mark": 120782000,
+   "explanation": "COOPERATIVE ENGAGEMENT CAPABILITY (CEC)"
+  },
+  {
+   "peCode": "0101221N",
+   "fy": 2027,
+   "request": 1051736000,
+   "mark": 1061536000,
+   "explanation": "STRATEGIC SUB & WEAPONS SYSTEM SUPPORT"
+  },
+  {
+   "peCode": "0101224N",
+   "fy": 2027,
+   "request": 65856000,
+   "mark": 65856000,
+   "explanation": "SSBN SECURITY TECHNOLOGY PROGRAM"
+  },
+  {
+   "peCode": "0101226N",
+   "fy": 2027,
+   "request": 114279000,
+   "mark": 121679000,
+   "explanation": "SUBMARINE ACOUSTIC WARFARE DEVELOPMENT"
+  },
+  {
+   "peCode": "0101402N",
+   "fy": 2027,
+   "request": 88572000,
+   "mark": 88572000,
+   "explanation": "NAVY STRATEGIC COMMUNICATIONS"
+  },
+  {
+   "peCode": "0204136N",
+   "fy": 2027,
+   "request": 271429000,
+   "mark": 284429000,
+   "explanation": "F/A-18 SQUADRONS"
+  },
+  {
+   "peCode": "0204229N",
+   "fy": 2027,
+   "request": 76653000,
+   "mark": 76653000,
+   "explanation": "TOMAHAWK AND TOMAHAWK MISSION PLANNING CENTER"
+  },
+  {
+   "peCode": "0204311N",
+   "fy": 2027,
+   "request": 71901000,
+   "mark": 71901000,
+   "explanation": "INTEGRATED SURVEILLANCE SYSTEM"
+  },
+  {
+   "peCode": "0204313N",
+   "fy": 2027,
+   "request": 954000,
+   "mark": 954000,
+   "explanation": "SHIP-TOWED ARRAY SURVEILLANCE SYSTEMS"
+  },
+  {
+   "peCode": "0204413N",
+   "fy": 2027,
+   "request": 1526000,
+   "mark": 1526000,
+   "explanation": "AMPHIBIOUS TACTICAL SUPPORT UNITS (DISPLACEMENT"
+  },
+  {
+   "peCode": "0204571N",
+   "fy": 2027,
+   "request": 115839000,
+   "mark": 115839000,
+   "explanation": "CONSOLIDATED TRAINING SYSTEMS DEVELOPMENT"
+  },
+  {
+   "peCode": "0204575N",
+   "fy": 2027,
+   "request": 198560000,
+   "mark": 198560000,
+   "explanation": "ELECTRONIC WARFARE (EW) READINESS SUPPORT"
+  },
+  {
+   "peCode": "0205601N",
+   "fy": 2027,
+   "request": 80491000,
+   "mark": 72891000,
+   "explanation": "ANTI-RADIATION MISSILE IMPROVEMENT"
+  },
+  {
+   "peCode": "0205632N",
+   "fy": 2027,
+   "request": 123011000,
+   "mark": 113217000,
+   "explanation": "MK-48 ADCAP"
+  },
+  {
+   "peCode": "0205633N",
+   "fy": 2027,
+   "request": 108505000,
+   "mark": 126005000,
+   "explanation": "AVIATION IMPROVEMENTS"
+  },
+  {
+   "peCode": "0205675N",
+   "fy": 2027,
+   "request": 252893000,
+   "mark": 252893000,
+   "explanation": "OPERATIONAL NUCLEAR POWER SYSTEMS"
+  },
+  {
+   "peCode": "0207161N",
+   "fy": 2027,
+   "request": 122518000,
+   "mark": 122518000,
+   "explanation": "TACTICAL AIM MISSILES"
+  },
+  {
+   "peCode": "0207163N",
+   "fy": 2027,
+   "request": 24675000,
+   "mark": 24675000,
+   "explanation": "ADVANCED MEDIUM RANGE AIR-TO-AIR MISSILE (AMRAAM)"
+  },
+  {
+   "peCode": "0207255N",
+   "fy": 2027,
+   "request": 513308000,
+   "mark": 513308000,
+   "explanation": "MQ-25 STINGRAY"
+  },
+  {
+   "peCode": "0208043N",
+   "fy": 2027,
+   "request": 3491000,
+   "mark": 3491000,
+   "explanation": "PLANNING AND DECISION AID SYSTEM (PDAS)"
+  },
+  {
+   "peCode": "0303138N",
+   "fy": 2027,
+   "request": 68369000,
+   "mark": 68369000,
+   "explanation": "AFLOAT NETWORKS"
+  },
+  {
+   "peCode": "0303140N",
+   "fy": 2027,
+   "request": 79128000,
+   "mark": 89128000,
+   "explanation": "INFORMATION SYSTEMS SECURITY PROGRAM"
+  },
+  {
+   "peCode": "0305192N",
+   "fy": 2027,
+   "request": 5187000,
+   "mark": 5187000,
+   "explanation": "MILITARY INTELLIGENCE PROGRAM (MIP) ACTIVITIES"
+  },
+  {
+   "peCode": "0305220N",
+   "fy": 2027,
+   "request": 10515000,
+   "mark": 10515000,
+   "explanation": "MQ-4C TRITON"
+  },
+  {
+   "peCode": "0305241N",
+   "fy": 2027,
+   "request": 49898000,
+   "mark": 49898000,
+   "explanation": "MULTI-INTELLIGENCE SENSOR DEVELOPMENT"
+  },
+  {
+   "peCode": "0305421N",
+   "fy": 2027,
+   "request": 344890000,
+   "mark": 344890000,
+   "explanation": "MQ-4C TRITON MODERNIZATION"
+  },
+  {
+   "peCode": "0307577N",
+   "fy": 2027,
+   "request": 787000,
+   "mark": 787000,
+   "explanation": "INTELLIGENCE MISSION DATA (IMD)"
+  },
+  {
+   "peCode": "0308601N",
+   "fy": 2027,
+   "request": 16401000,
+   "mark": 41401000,
+   "explanation": "MODELING AND SIMULATION SUPPORT"
+  },
+  {
+   "peCode": "0702207N",
+   "fy": 2027,
+   "request": 8097000,
+   "mark": 8097000,
+   "explanation": "DEPOT MAINTENANCE (NON-IF)"
+  },
+  {
+   "peCode": "0708730N",
+   "fy": 2027,
+   "request": 1710000,
+   "mark": 1710000,
+   "explanation": "MARITIME TECHNOLOGY (MARITECH)"
+  },
+  {
+   "peCode": "0608013N",
+   "fy": 2027,
+   "request": 13017000,
+   "mark": 13017000,
+   "explanation": "RISK MANAGEMENT INFORMATION-SOFTWARE PILOT"
+  },
+  {
+   "peCode": "0608231N",
+   "fy": 2027,
+   "request": 25299000,
+   "mark": 25299000,
+   "explanation": "MARITIME TACTICAL COMMAND AND CONTROL (MTC2)-"
+  },
+  {
+   "peCode": "0601102F",
+   "fy": 2027,
+   "request": 296535000,
+   "mark": 296535000,
+   "explanation": "DEFENSE RESEARCH SCIENCES"
+  },
+  {
+   "peCode": "0601103F",
+   "fy": 2027,
+   "request": 91394000,
+   "mark": 96394000,
+   "explanation": "UNIVERSITY RESEARCH INITIATIVES"
+  },
+  {
+   "peCode": "0602020F",
+   "fy": 2027,
+   "request": 44029000,
+   "mark": 44029000,
+   "explanation": "FUTURE AF CAPABILITIES APPLIED RESEARCH"
+  },
+  {
+   "peCode": "0602102F",
+   "fy": 2027,
+   "request": 139872000,
+   "mark": 223272000,
+   "explanation": "MATERIALS"
+  },
+  {
+   "peCode": "0602202F",
+   "fy": 2027,
+   "request": 103170000,
+   "mark": 103170000,
+   "explanation": "HUMAN EFFECTIVENESS APPLIED RESEARCH"
+  },
+  {
+   "peCode": "0602203F",
+   "fy": 2027,
+   "request": 397809000,
+   "mark": 452809000,
+   "explanation": "AEROSPACE SYSTEMS TECHNOLOGIES"
+  },
+  {
+   "peCode": "0602204F",
+   "fy": 2027,
+   "request": 164962000,
+   "mark": 180462000,
+   "explanation": "AEROSPACE SENSORS"
+  },
+  {
+   "peCode": "0602298F",
+   "fy": 2027,
+   "request": 10285000,
+   "mark": 10285000,
+   "explanation": "SCIENCE AND TECHNOLOGY MANAGEMENT-MAJOR"
+  },
+  {
+   "peCode": "0602336F",
+   "fy": 2027,
+   "request": 27031000,
+   "mark": 27031000,
+   "explanation": "NUCLEAR DELIVERY SYSTEMS TECH EXPLORATION"
+  },
+  {
+   "peCode": "0602602F",
+   "fy": 2027,
+   "request": 130146000,
+   "mark": 130146000,
+   "explanation": "CONVENTIONAL MUNITIONS"
+  },
+  {
+   "peCode": "0602605F",
+   "fy": 2027,
+   "request": 91798000,
+   "mark": 91798000,
+   "explanation": "DIRECTED ENERGY TECHNOLOGY"
+  },
+  {
+   "peCode": "0602788F",
+   "fy": 2027,
+   "request": 149174000,
+   "mark": 269174000,
+   "explanation": "DOMINANT INFORMATION SCIENCES AND METHODS"
+  },
+  {
+   "peCode": "0603032F",
+   "fy": 2027,
+   "request": 282004000,
+   "mark": 290504000,
+   "explanation": "FUTURE AF INTEGRATED TECHNOLOGY DEMOS"
+  },
+  {
+   "peCode": "0603112F",
+   "fy": 2027,
+   "request": 32808000,
+   "mark": 32808000,
+   "explanation": "ADVANCED MATERIALS FOR WEAPON SYSTEMS"
+  },
+  {
+   "peCode": "0603199F",
+   "fy": 2027,
+   "request": 13277000,
+   "mark": 24277000,
+   "explanation": "SUSTAINMENT SCIENCE AND TECHNOLOGY (S&T)"
+  },
+  {
+   "peCode": "0603203F",
+   "fy": 2027,
+   "request": 72149000,
+   "mark": 85149000,
+   "explanation": "ADVANCED AEROSPACE SENSORS"
+  },
+  {
+   "peCode": "0603211F",
+   "fy": 2027,
+   "request": 260212000,
+   "mark": 315212000,
+   "explanation": "AEROSPACE TECHNOLOGY DEV/DEMO"
+  },
+  {
+   "peCode": "0603273F",
+   "fy": 2027,
+   "request": 165949000,
+   "mark": 165949000,
+   "explanation": "SCIENCE & TECHNOLOGY FOR NUCLEAR RE-ENTRY SYSTEMS"
+  },
+  {
+   "peCode": "0603456F",
+   "fy": 2027,
+   "request": 20338000,
+   "mark": 31338000,
+   "explanation": "HUMAN EFFECTIVENESS ADVANCED TECHNOLOGY"
+  },
+  {
+   "peCode": "0603601F",
+   "fy": 2027,
+   "request": 131397000,
+   "mark": 131397000,
+   "explanation": "CONVENTIONAL WEAPONS TECHNOLOGY"
+  },
+  {
+   "peCode": "0603605F",
+   "fy": 2027,
+   "request": 13744000,
+   "mark": 71044000,
+   "explanation": "ADVANCED WEAPONS TECHNOLOGY"
+  },
+  {
+   "peCode": "0603680F",
+   "fy": 2027,
+   "request": 99908000,
+   "mark": 328238000,
+   "explanation": "MANUFACTURING TECHNOLOGY PROGRAM"
+  },
+  {
+   "peCode": "0603788F",
+   "fy": 2027,
+   "request": 31938000,
+   "mark": 69938000,
+   "explanation": "BATTLESPACE KNOWLEDGE DEVELOPMENT AND"
+  },
+  {
+   "peCode": "0604776F",
+   "fy": 2027,
+   "request": 29109000,
+   "mark": 29109000,
+   "explanation": "DEPLOYMENT & DISTRIBUTION ENTERPRISE R&D"
+  },
+  {
+   "peCode": "0603036F",
+   "fy": 2027,
+   "request": 15099000,
+   "mark": 15099000,
+   "explanation": "MODULAR ADVANCED MISSILE"
+  },
+  {
+   "peCode": "0603260F",
+   "fy": 2027,
+   "request": 4012000,
+   "mark": 4012000,
+   "explanation": "INTELLIGENCE ADVANCED DEVELOPMENT"
+  },
+  {
+   "peCode": "0603742F",
+   "fy": 2027,
+   "request": 25888000,
+   "mark": 25888000,
+   "explanation": "COMBAT IDENTIFICATION TECHNOLOGY"
+  },
+  {
+   "peCode": "0603790F",
+   "fy": 2027,
+   "request": 2320000,
+   "mark": 2320000,
+   "explanation": "NATO RESEARCH AND DEVELOPMENT"
+  },
+  {
+   "peCode": "0603851F",
+   "fy": 2027,
+   "request": 72112000,
+   "mark": 112912000,
+   "explanation": "INTERCONTINENTAL BALLISTIC MISSILE-DEM/VAL"
+  },
+  {
+   "peCode": "0604001F",
+   "fy": 2027,
+   "request": 14394000,
+   "mark": 14394000,
+   "explanation": "NC3 ADVANCED CONCEPTS"
+  },
+  {
+   "peCode": "0604003F",
+   "fy": 2027,
+   "request": 1040945000,
+   "mark": 940174000,
+   "explanation": "ADVANCED BATTLE MANAGEMENT SYSTEM (ABMS)"
+  },
+  {
+   "peCode": "0604004F",
+   "fy": 2027,
+   "request": 0,
+   "mark": 20000000,
+   "explanation": "ADVANCED ENGINE DEVELOPMENT"
+  },
+  {
+   "peCode": "0604005F",
+   "fy": 2027,
+   "request": 61355000,
+   "mark": 61355000,
+   "explanation": "NC3 COMMERCIAL DEVELOPMENT & PROTOTYPING"
+  },
+  {
+   "peCode": "0604007F",
+   "fy": 2027,
+   "request": 0,
+   "mark": 1549098000,
+   "explanation": "E-7"
+  },
+  {
+   "peCode": "0604009F",
+   "fy": 2027,
+   "request": 3589000,
+   "mark": 61089000,
+   "explanation": "AFWERX"
+  },
+  {
+   "peCode": "0604010F",
+   "fy": 2027,
+   "request": 513681000,
+   "mark": 513681000,
+   "explanation": "NEXT GENERATION ADAPTIVE PROPULSION"
+  },
+  {
+   "peCode": "0604015F",
+   "fy": 2027,
+   "request": 2862677000,
+   "mark": 2844638000,
+   "explanation": "LONG RANGE STRIKE-BOMBER"
+  },
+  {
+   "peCode": "0604033F",
+   "fy": 2027,
+   "request": 345769000,
+   "mark": 261738000,
+   "explanation": "HYPERSONICS PROTOTYPING"
+  },
+  {
+   "peCode": "0604041F",
+   "fy": 2027,
+   "request": 525223000,
+   "mark": 525223000,
+   "explanation": "FAMILY OF AFFORDABLE MASS MISSILES (FAMM)"
+  },
+  {
+   "peCode": "0604060F",
+   "fy": 2027,
+   "request": 39257000,
+   "mark": 39257000,
+   "explanation": "NORAD & USNORTHCOM (N&NC) EXPERIMENTATION"
+  },
+  {
+   "peCode": "0604183F",
+   "fy": 2027,
+   "request": 806142000,
+   "mark": 741636000,
+   "explanation": "HYPERSONICS PROTOTYPING-HYPERSONIC ATTACK CRUISE"
+  },
+  {
+   "peCode": "0604257F",
+   "fy": 2027,
+   "request": 38756000,
+   "mark": 38756000,
+   "explanation": "ADVANCED TECHNOLOGY AND SENSORS"
+  },
+  {
+   "peCode": "0604317F",
+   "fy": 2027,
+   "request": 2196000,
+   "mark": 12196000,
+   "explanation": "TECHNOLOGY TRANSFER"
+  },
+  {
+   "peCode": "0604327F",
+   "fy": 2027,
+   "request": 186385000,
+   "mark": 186385000,
+   "explanation": "HARD AND DEEPLY BURIED TARGET DEFEAT SYSTEM"
+  },
+  {
+   "peCode": "0604336F",
+   "fy": 2027,
+   "request": 91550000,
+   "mark": 91550000,
+   "explanation": "NUCLEAR DELIVERY SYSTEMS PROTOTYPING"
+  },
+  {
+   "peCode": "0604343F",
+   "fy": 2027,
+   "request": 13036000,
+   "mark": 18036000,
+   "explanation": "ADVANCED TANKER SYSTEMS"
+  },
+  {
+   "peCode": "0604414F",
+   "fy": 2027,
+   "request": 44377000,
+   "mark": 44377000,
+   "explanation": "CYBER RESILIENCY OF WEAPON SYSTEMS-ACS"
+  },
+  {
+   "peCode": "0604668F",
+   "fy": 2027,
+   "request": 57802000,
+   "mark": 57802000,
+   "explanation": "JOINT TRANSPORTATION MANAGEMENT SYSTEM (JTMS)"
+  },
+  {
+   "peCode": "0604776F",
+   "fy": 2027,
+   "request": 5136000,
+   "mark": 5136000,
+   "explanation": "DEPLOYMENT & DISTRIBUTION ENTERPRISE R&D"
+  },
+  {
+   "peCode": "0604858F",
+   "fy": 2027,
+   "request": 166061000,
+   "mark": 251861000,
+   "explanation": "TECH TRANSITION PROGRAM"
+  },
+  {
+   "peCode": "0604860F",
+   "fy": 2027,
+   "request": 61000000,
+   "mark": 81000000,
+   "explanation": "OPERATIONAL ENERGY AND INSTALLATION RESILIENCE"
+  },
+  {
+   "peCode": "0606005F",
+   "fy": 2027,
+   "request": 183398000,
+   "mark": 221698000,
+   "explanation": "DIGITAL TRANSFORMATION OFFICE"
+  },
+  {
+   "peCode": "0207147F",
+   "fy": 2027,
+   "request": 1373740000,
+   "mark": 1357865000,
+   "explanation": "COLLABORATIVE COMBAT AIRCRAFT"
+  },
+  {
+   "peCode": "0207179F",
+   "fy": 2027,
+   "request": 57217000,
+   "mark": 57217000,
+   "explanation": "AUTONOMOUS COLLABORATIVE PLATFORMS"
+  },
+  {
+   "peCode": "0207420F",
+   "fy": 2027,
+   "request": 1692000,
+   "mark": 1692000,
+   "explanation": "COMBAT IDENTIFICATION"
+  },
+  {
+   "peCode": "0207455F",
+   "fy": 2027,
+   "request": 22335000,
+   "mark": 22335000,
+   "explanation": "THREE DIMENSIONAL LONG-RANGE RADAR (3DELRR)"
+  },
+  {
+   "peCode": "0207522F",
+   "fy": 2027,
+   "request": 85305000,
+   "mark": 49205000,
+   "explanation": "AIRBASE AIR DEFENSE SYSTEMS (ABADS)"
+  },
+  {
+   "peCode": "0207606F",
+   "fy": 2027,
+   "request": 302801000,
+   "mark": 278246000,
+   "explanation": "JOINT SIMULATION ENVIRONMENT (JSE)"
+  },
+  {
+   "peCode": "0208030F",
+   "fy": 2027,
+   "request": 14663000,
+   "mark": 14663000,
+   "explanation": "WAR RESERVE MATERIEL-AMMUNITION"
+  },
+  {
+   "peCode": "0302060F",
+   "fy": 2027,
+   "request": 65277000,
+   "mark": 48958000,
+   "explanation": "LOOKING GLASS NEXT"
+  },
+  {
+   "peCode": "0305236F",
+   "fy": 2027,
+   "request": 26401000,
+   "mark": 26401000,
+   "explanation": "COMMON DATA LINK EXECUTIVE AGENT (CDL EA)"
+  },
+  {
+   "peCode": "0305913F",
+   "fy": 2027,
+   "request": 29325000,
+   "mark": 29325000,
+   "explanation": "PERSISTENT SURVEILLANCE"
+  },
+  {
+   "peCode": "0701200F",
+   "fy": 2027,
+   "request": 949000,
+   "mark": 949000,
+   "explanation": "ENTERPRISE SELECT CLASS II"
+  },
+  {
+   "peCode": "0708051F",
+   "fy": 2027,
+   "request": 27475000,
+   "mark": 61575000,
+   "explanation": "RAPID SUSTAINMENT MODERNIZATION (RSM)"
+  },
+  {
+   "peCode": "0808736F",
+   "fy": 2027,
+   "request": 1652000,
+   "mark": 1652000,
+   "explanation": "SPECIAL VICTIM ACCOUNTABILITY AND INVESTIGATION"
+  },
+  {
+   "peCode": "0808737F",
+   "fy": 2027,
+   "request": 4271000,
+   "mark": 4271000,
+   "explanation": "INTEGRATED PRIMARY PREVENTION"
+  },
+  {
+   "peCode": "0901410F",
+   "fy": 2027,
+   "request": 25815000,
+   "mark": 25815000,
+   "explanation": "CONTRACTING INFORMATION TECHNOLOGY SYSTEM"
+  },
+  {
+   "peCode": "1206415F",
+   "fy": 2027,
+   "request": 34719000,
+   "mark": 34719000,
+   "explanation": "U.S. SPACE COMMAND RESEARCH AND DEVELOPMENT"
+  },
+  {
+   "peCode": "0604200F",
+   "fy": 2027,
+   "request": 35142000,
+   "mark": 50142000,
+   "explanation": "FUTURE ADVANCED WEAPON ANALYSIS & PROGRAMS"
+  },
+  {
+   "peCode": "0604201F",
+   "fy": 2027,
+   "request": 710780000,
+   "mark": 599400000,
+   "explanation": "PNT RESILIENCY, MODS, AND IMPROVEMENTS"
+  },
+  {
+   "peCode": "0604222F",
+   "fy": 2027,
+   "request": 86921000,
+   "mark": 86921000,
+   "explanation": "NUCLEAR WEAPONS SUPPORT"
+  },
+  {
+   "peCode": "0604270F",
+   "fy": 2027,
+   "request": 260233000,
+   "mark": 200223000,
+   "explanation": "ELECTRONIC WARFARE DEVELOPMENT"
+  },
+  {
+   "peCode": "0604281F",
+   "fy": 2027,
+   "request": 110151000,
+   "mark": 110151000,
+   "explanation": "TACTICAL DATA NETWORKS ENTERPRISE"
+  },
+  {
+   "peCode": "0604287F",
+   "fy": 2027,
+   "request": 8743000,
+   "mark": 8743000,
+   "explanation": "PHYSICAL SECURITY EQUIPMENT"
+  },
+  {
+   "peCode": "0604288F",
+   "fy": 2027,
+   "request": 2218921000,
+   "mark": 2184370000,
+   "explanation": "SURVIVABLE AIRBORNE OPERATIONS CENTER (SAOC)"
+  },
+  {
+   "peCode": "0604602F",
+   "fy": 2027,
+   "request": 96762000,
+   "mark": 96762000,
+   "explanation": "ARMAMENT/ORDNANCE DEVELOPMENT"
+  },
+  {
+   "peCode": "0604604F",
+   "fy": 2027,
+   "request": 3599000,
+   "mark": 3599000,
+   "explanation": "SUBMUNITIONS"
+  },
+  {
+   "peCode": "0604617F",
+   "fy": 2027,
+   "request": 19348000,
+   "mark": 19348000,
+   "explanation": "AGILE COMBAT SUPPORT"
+  },
+  {
+   "peCode": "0604706F",
+   "fy": 2027,
+   "request": 21328000,
+   "mark": 21328000,
+   "explanation": "LIFE SUPPORT SYSTEMS"
+  },
+  {
+   "peCode": "0604735F",
+   "fy": 2027,
+   "request": 132783000,
+   "mark": 141763000,
+   "explanation": "COMBAT TRAINING RANGES"
+  },
+  {
+   "peCode": "0604932F",
+   "fy": 2027,
+   "request": 565679000,
+   "mark": 532052000,
+   "explanation": "LONG RANGE STANDOFF WEAPON"
+  },
+  {
+   "peCode": "0605056F",
+   "fy": 2027,
+   "request": 43482000,
+   "mark": 43482000,
+   "explanation": "OPEN ARCHITECTURE MANAGEMENT"
+  },
+  {
+   "peCode": "0605223F",
+   "fy": 2027,
+   "request": 72174000,
+   "mark": 72174000,
+   "explanation": "ADVANCED PILOT TRAINING"
+  },
+  {
+   "peCode": "0605238F",
+   "fy": 2027,
+   "request": 4521370000,
+   "mark": 4333990000,
+   "explanation": "GROUND BASED STRATEGIC DETERRENT EMD"
+  },
+  {
+   "peCode": "0605296F",
+   "fy": 2027,
+   "request": 224664000,
+   "mark": 224664000,
+   "explanation": "MICROELECTRONICS SECURE ENCLAVE"
+  },
+  {
+   "peCode": "0101125F",
+   "fy": 2027,
+   "request": 23066000,
+   "mark": 23066000,
+   "explanation": "NUCLEAR WEAPONS MODERNIZATION"
+  },
+  {
+   "peCode": "0102417F",
+   "fy": 2027,
+   "request": 173975000,
+   "mark": 173339000,
+   "explanation": "OVER-THE-HORIZON BACKSCATTER RADAR"
+  },
+  {
+   "peCode": "0207039F",
+   "fy": 2027,
+   "request": 50496000,
+   "mark": 50496000,
+   "explanation": "COGNITIVE ELECTROMAGNETIC WARFARE"
+  },
+  {
+   "peCode": "0207110F",
+   "fy": 2027,
+   "request": 5037904000,
+   "mark": 5037904000,
+   "explanation": "F-47"
+  },
+  {
+   "peCode": "0207279F",
+   "fy": 2027,
+   "request": 16001000,
+   "mark": 16001000,
+   "explanation": "ISOLATED PERSONNEL SURVIVABILITY AND RECOVERY"
+  },
+  {
+   "peCode": "0207328F",
+   "fy": 2027,
+   "request": 115882000,
+   "mark": 104139000,
+   "explanation": "STAND IN ATTACK WEAPON"
+  },
+  {
+   "peCode": "0207407F",
+   "fy": 2027,
+   "request": 45322000,
+   "mark": 45322000,
+   "explanation": "ELECTROMAGNETIC BATTLE MANAGEMENT (EMBM)"
+  },
+  {
+   "peCode": "0207701F",
+   "fy": 2027,
+   "request": 6501000,
+   "mark": 6501000,
+   "explanation": "FULL COMBAT MISSION TRAINING"
+  },
+  {
+   "peCode": "0303008F",
+   "fy": 2027,
+   "request": 4771000,
+   "mark": 4771000,
+   "explanation": "SATURN"
+  },
+  {
+   "peCode": "0305282F",
+   "fy": 2027,
+   "request": 313982000,
+   "mark": 313982000,
+   "explanation": "JOINT FIRES NETWORK (JFN)"
+  },
+  {
+   "peCode": "0401221F",
+   "fy": 2027,
+   "request": 543788000,
+   "mark": 287662000,
+   "explanation": "KC-46A TANKER SQUADRONS"
+  },
+  {
+   "peCode": "0401319F",
+   "fy": 2027,
+   "request": 555195000,
+   "mark": 547223000,
+   "explanation": "VC-25B"
+  },
+  {
+   "peCode": "0401334F",
+   "fy": 2027,
+   "request": 17996000,
+   "mark": 51079000,
+   "explanation": "LARGE AIRCRAFT SURVIVABILITY SYSTEMS (LASS)"
+  },
+  {
+   "peCode": "0701212F",
+   "fy": 2027,
+   "request": 15900000,
+   "mark": 15900000,
+   "explanation": "AUTOMATED TEST SYSTEMS"
+  },
+  {
+   "peCode": "0804772F",
+   "fy": 2027,
+   "request": 4947000,
+   "mark": 4947000,
+   "explanation": "TRAINING DEVELOPMENTS"
+  },
+  {
+   "peCode": "0604256F",
+   "fy": 2027,
+   "request": 44526000,
+   "mark": 44526000,
+   "explanation": "THREAT SIMULATOR DEVELOPMENT"
+  },
+  {
+   "peCode": "0604759F",
+   "fy": 2027,
+   "request": 235405000,
+   "mark": 212324000,
+   "explanation": "MAJOR T&E INVESTMENT"
+  },
+  {
+   "peCode": "0605101F",
+   "fy": 2027,
+   "request": 13312000,
+   "mark": 13312000,
+   "explanation": "RAND PROJECT AIR FORCE"
+  },
+  {
+   "peCode": "0605712F",
+   "fy": 2027,
+   "request": 13562000,
+   "mark": 13562000,
+   "explanation": "INITIAL OPERATIONAL TEST & EVALUATION"
+  },
+  {
+   "peCode": "0605807F",
+   "fy": 2027,
+   "request": 1802502000,
+   "mark": 1817502000,
+   "explanation": "TEST AND EVALUATION SUPPORT"
+  },
+  {
+   "peCode": "0605827F",
+   "fy": 2027,
+   "request": 439592000,
+   "mark": 449592000,
+   "explanation": "ACQ WORKFORCE- CYBER, NETWORK, & BUS SYS"
+  },
+  {
+   "peCode": "0605831F",
+   "fy": 2027,
+   "request": 1206669000,
+   "mark": 1206669000,
+   "explanation": "ACQ WORKFORCE- CAPABILITY INTEGRATION"
+  },
+  {
+   "peCode": "0605833F",
+   "fy": 2027,
+   "request": 342650000,
+   "mark": 342650000,
+   "explanation": "ACQ WORKFORCE- NUCLEAR SYSTEMS"
+  },
+  {
+   "peCode": "0605898F",
+   "fy": 2027,
+   "request": 6209000,
+   "mark": 6209000,
+   "explanation": "MANAGEMENT HQ-R&D"
+  },
+  {
+   "peCode": "0605976F",
+   "fy": 2027,
+   "request": 367369000,
+   "mark": 367369000,
+   "explanation": "FACILITIES RESTORATION AND MODERNIZATION-TEST AND"
+  },
+  {
+   "peCode": "0605978F",
+   "fy": 2027,
+   "request": 298924000,
+   "mark": 298924000,
+   "explanation": "FACILITIES SUSTAINMENT-TEST AND EVALUATION SUPPORT"
+  },
+  {
+   "peCode": "0606017F",
+   "fy": 2027,
+   "request": 21678000,
+   "mark": 65678000,
+   "explanation": "REQUIREMENTS ANALYSIS AND MATURATION"
+  },
+  {
+   "peCode": "0606398F",
+   "fy": 2027,
+   "request": 7507000,
+   "mark": 7507000,
+   "explanation": "MANAGEMENT HQ-T&E"
+  },
+  {
+   "peCode": "0208201F",
+   "fy": 2027,
+   "request": 30187000,
+   "mark": 30187000,
+   "explanation": "OFFENSIVE SMALL UNMANNED AIRCRAFT SYSTEMS (SUAS)"
+  },
+  {
+   "peCode": "0303255F",
+   "fy": 2027,
+   "request": 18068000,
+   "mark": 43068000,
+   "explanation": "COMMAND, CONTROL, COMMUNICATION, AND COMPUTERS"
+  },
+  {
+   "peCode": "0308602F",
+   "fy": 2027,
+   "request": 80342000,
+   "mark": 89842000,
+   "explanation": "ENTEPRISE INFORMATION SERVICES (EIS)"
+  },
+  {
+   "peCode": "0702806F",
+   "fy": 2027,
+   "request": 12132000,
+   "mark": 12132000,
+   "explanation": "ACQUISITION AND MANAGEMENT SUPPORT"
+  },
+  {
+   "peCode": "0804776F",
+   "fy": 2027,
+   "request": 238000,
+   "mark": 9238000,
+   "explanation": "ADVANCED DISTRIBUTED LEARNING"
+  },
+  {
+   "peCode": "0901215F",
+   "fy": 2027,
+   "request": 4017000,
+   "mark": 4017000,
+   "explanation": "PRODUCTIVITY INVESTMENTS"
+  },
+  {
+   "peCode": "1001004F",
+   "fy": 2027,
+   "request": 4514000,
+   "mark": 4514000,
+   "explanation": "INTERNATIONAL ACTIVITIES"
+  },
+  {
+   "peCode": "0604222F",
+   "fy": 2027,
+   "request": 10029000,
+   "mark": 10029000,
+   "explanation": "NUCLEAR WEAPONS SUPPORT"
+  },
+  {
+   "peCode": "0604233F",
+   "fy": 2027,
+   "request": 22071000,
+   "mark": 22071000,
+   "explanation": "SPECIALIZED UNDERGRADUATE FLIGHT TRAINING"
+  },
+  {
+   "peCode": "0604283F",
+   "fy": 2027,
+   "request": 44187000,
+   "mark": 44187000,
+   "explanation": "BATTLE MGMT COM & CTRL SENSOR DEVELOPMENT"
+  },
+  {
+   "peCode": "0604840F",
+   "fy": 2027,
+   "request": 1128748000,
+   "mark": 1233748000,
+   "explanation": "F-35 C2D2"
+  },
+  {
+   "peCode": "0605018F",
+   "fy": 2027,
+   "request": 31777000,
+   "mark": 0,
+   "explanation": "AF INTEGRATED PERSONNEL AND PAY SYSTEM (AF-IPPS)"
+  },
+  {
+   "peCode": "0605024F",
+   "fy": 2027,
+   "request": 130610000,
+   "mark": 130610000,
+   "explanation": "ANTI-TAMPER TECHNOLOGY EXECUTIVE AGENCY"
+  },
+  {
+   "peCode": "0605117F",
+   "fy": 2027,
+   "request": 4676000,
+   "mark": 4676000,
+   "explanation": "FOREIGN MATERIEL ACQUISITION AND EXPLOITATION"
+  },
+  {
+   "peCode": "0605229F",
+   "fy": 2027,
+   "request": 87881000,
+   "mark": 87881000,
+   "explanation": "HH-60W"
+  },
+  {
+   "peCode": "0605278F",
+   "fy": 2027,
+   "request": 34932000,
+   "mark": 34932000,
+   "explanation": "HC/MC-130 RECAP RDT&E"
+  },
+  {
+   "peCode": "0606018F",
+   "fy": 2027,
+   "request": 36521000,
+   "mark": 36521000,
+   "explanation": "NC3 INTEGRATION"
+  },
+  {
+   "peCode": "0101113F",
+   "fy": 2027,
+   "request": 1478648000,
+   "mark": 1529248000,
+   "explanation": "B-52 SQUADRONS"
+  },
+  {
+   "peCode": "0101122F",
+   "fy": 2027,
+   "request": 570000,
+   "mark": 570000,
+   "explanation": "AIR-LAUNCHED CRUISE MISSILE (ALCM)"
+  },
+  {
+   "peCode": "0101126F",
+   "fy": 2027,
+   "request": 273552000,
+   "mark": 403552000,
+   "explanation": "B-1B SQUADRONS"
+  },
+  {
+   "peCode": "0101213F",
+   "fy": 2027,
+   "request": 79313000,
+   "mark": 79313000,
+   "explanation": "MINUTEMAN SQUADRONS"
+  },
+  {
+   "peCode": "0101316F",
+   "fy": 2027,
+   "request": 44424000,
+   "mark": 44424000,
+   "explanation": "WORLDWIDE JOINT STRATEGIC COMMUNICATIONS"
+  },
+  {
+   "peCode": "0101318F",
+   "fy": 2027,
+   "request": 56203000,
+   "mark": 56203000,
+   "explanation": "SERVICE SUPPORT TO STRATCOM-GLOBAL STRIKE"
+  },
+  {
+   "peCode": "0101328F",
+   "fy": 2027,
+   "request": 733182000,
+   "mark": 657759000,
+   "explanation": "ICBM REENTRY VEHICLES"
+  },
+  {
+   "peCode": "0102110F",
+   "fy": 2027,
+   "request": 7046000,
+   "mark": 7046000,
+   "explanation": "MH-139A"
+  },
+  {
+   "peCode": "0102326F",
+   "fy": 2027,
+   "request": 709000,
+   "mark": 30709000,
+   "explanation": "REGION/SECTOR OPERATION CONTROL CENTER"
+  },
+  {
+   "peCode": "0202834F",
+   "fy": 2027,
+   "request": 1028000,
+   "mark": 1028000,
+   "explanation": "AVIATION SUPPORT EQUIPMENT-GENERAL"
+  },
+  {
+   "peCode": "0203345F",
+   "fy": 2027,
+   "request": 45000000,
+   "mark": 45000000,
+   "explanation": "OPERATIONS SECURITY (OPSEC)"
+  },
+  {
+   "peCode": "0205219F",
+   "fy": 2027,
+   "request": 16723000,
+   "mark": 16723000,
+   "explanation": "MQ-9 UAV"
+  },
+  {
+   "peCode": "0205671F",
+   "fy": 2027,
+   "request": 2816000,
+   "mark": 2816000,
+   "explanation": "JOINT COUNTER RCIED ELECTRONIC WARFARE"
+  },
+  {
+   "peCode": "0207040F",
+   "fy": 2027,
+   "request": 0,
+   "mark": 8000000,
+   "explanation": "MULTI-PLATFORM ELECTRONIC WARFARE EQUIPMENT"
+  },
+  {
+   "peCode": "0207133F",
+   "fy": 2027,
+   "request": 527739000,
+   "mark": 461778000,
+   "explanation": "F-16 SQUADRONS"
+  },
+  {
+   "peCode": "0207134F",
+   "fy": 2027,
+   "request": 322889000,
+   "mark": 324059000,
+   "explanation": "F-15E SQUADRONS"
+  },
+  {
+   "peCode": "0207136F",
+   "fy": 2027,
+   "request": 8128000,
+   "mark": 8128000,
+   "explanation": "MANNED DESTRUCTIVE SUPPRESSION"
+  },
+  {
+   "peCode": "0207138F",
+   "fy": 2027,
+   "request": 950375000,
+   "mark": 913998000,
+   "explanation": "F-22A SQUADRONS"
+  },
+  {
+   "peCode": "0207142F",
+   "fy": 2027,
+   "request": 47388000,
+   "mark": 47388000,
+   "explanation": "F-35 SQUADRONS"
+  },
+  {
+   "peCode": "0207146F",
+   "fy": 2027,
+   "request": 133274000,
+   "mark": 281095000,
+   "explanation": "F-15EX"
+  },
+  {
+   "peCode": "0207161F",
+   "fy": 2027,
+   "request": 98861000,
+   "mark": 98861000,
+   "explanation": "TACTICAL AIM MISSILES"
+  },
+  {
+   "peCode": "0207163F",
+   "fy": 2027,
+   "request": 53277000,
+   "mark": 53277000,
+   "explanation": "ADVANCED MEDIUM RANGE AIR-TO-AIR MISSILE (AMRAAM)"
+  },
+  {
+   "peCode": "0207172F",
+   "fy": 2027,
+   "request": 500422000,
+   "mark": 471699000,
+   "explanation": "JOINT ADVANCED TACTICAL MISSILE (JATM)"
+  },
+  {
+   "peCode": "0207242F",
+   "fy": 2027,
+   "request": 35149000,
+   "mark": 17574000,
+   "explanation": "SPECIAL PROGRAM APPLICATIONS"
+  },
+  {
+   "peCode": "0207247F",
+   "fy": 2027,
+   "request": 50913000,
+   "mark": 50913000,
+   "explanation": "AF TENCAP"
+  },
+  {
+   "peCode": "0207249F",
+   "fy": 2027,
+   "request": 14602000,
+   "mark": 14602000,
+   "explanation": "PRECISION ATTACK SYSTEMS PROCUREMENT"
+  },
+  {
+   "peCode": "0207253F",
+   "fy": 2027,
+   "request": 66514000,
+   "mark": 66514000,
+   "explanation": "COMPASS CALL"
+  },
+  {
+   "peCode": "0207268F",
+   "fy": 2027,
+   "request": 205938000,
+   "mark": 205938000,
+   "explanation": "AIRCRAFT ENGINE COMPONENT IMPROVEMENT PROGRAM"
+  },
+  {
+   "peCode": "0207325F",
+   "fy": 2027,
+   "request": 133092000,
+   "mark": 133092000,
+   "explanation": "JOINT AIR-TO-SURFACE STANDOFF MISSILE (JASSM)"
+  },
+  {
+   "peCode": "0207327F",
+   "fy": 2027,
+   "request": 25497000,
+   "mark": 25497000,
+   "explanation": "SMALL DIAMETER BOMB (SDB)"
+  },
+  {
+   "peCode": "0207410F",
+   "fy": 2027,
+   "request": 158871000,
+   "mark": 147496000,
+   "explanation": "AIR & SPACE OPERATIONS CENTER (AOC)"
+  },
+  {
+   "peCode": "0207412F",
+   "fy": 2027,
+   "request": 18137000,
+   "mark": 18137000,
+   "explanation": "CONTROL AND REPORTING CENTER (CRC)"
+  },
+  {
+   "peCode": "0207418F",
+   "fy": 2027,
+   "request": 5206000,
+   "mark": 5206000,
+   "explanation": "AFSPECWAR-TACP"
+  },
+  {
+   "peCode": "0207431F",
+   "fy": 2027,
+   "request": 33700000,
+   "mark": 26069000,
+   "explanation": "COMBAT AIR INTELLIGENCE SYSTEM ACTIVITIES"
+  },
+  {
+   "peCode": "0207438F",
+   "fy": 2027,
+   "request": 7014000,
+   "mark": 7014000,
+   "explanation": "THEATER BATTLE MANAGEMENT (TBM) C4I"
+  },
+  {
+   "peCode": "0207452F",
+   "fy": 2027,
+   "request": 5254000,
+   "mark": 5254000,
+   "explanation": "DCAPES"
+  },
+  {
+   "peCode": "0207457F",
+   "fy": 2027,
+   "request": 24423000,
+   "mark": 24423000,
+   "explanation": "AIR FORCE SPECIAL WARFARE (SPECWAR)"
+  },
+  {
+   "peCode": "0207461F",
+   "fy": 2027,
+   "request": 15978000,
+   "mark": 15978000,
+   "explanation": "FLIGHT OPERATIONS SYSTEMS"
+  },
+  {
+   "peCode": "0207521F",
+   "fy": 2027,
+   "request": 2220000,
+   "mark": 2220000,
+   "explanation": "AIR FORCE CALIBRATION PROGRAMS"
+  },
+  {
+   "peCode": "0207611F",
+   "fy": 2027,
+   "request": 6823000,
+   "mark": 6823000,
+   "explanation": "READINESS DECISION SUPPORT ENTERPRISE"
+  },
+  {
+   "peCode": "0207697F",
+   "fy": 2027,
+   "request": 83659000,
+   "mark": 63853000,
+   "explanation": "DISTRIBUTED TRAINING AND EXERCISES"
+  },
+  {
+   "peCode": "0207701F",
+   "fy": 2027,
+   "request": 6644000,
+   "mark": 6644000,
+   "explanation": "FULL COMBAT MISSION TRAINING"
+  },
+  {
+   "peCode": "0208006F",
+   "fy": 2027,
+   "request": 122175000,
+   "mark": 122175000,
+   "explanation": "MISSION PLANNING SYSTEMS"
+  },
+  {
+   "peCode": "0208007F",
+   "fy": 2027,
+   "request": 48857000,
+   "mark": 48857000,
+   "explanation": "TACTICAL DECEPTION"
+  },
+  {
+   "peCode": "0208087F",
+   "fy": 2027,
+   "request": 71868000,
+   "mark": 71868000,
+   "explanation": "DISTRIBUTED CYBER WARFARE OPERATIONS"
+  },
+  {
+   "peCode": "0208088F",
+   "fy": 2027,
+   "request": 76758000,
+   "mark": 76758000,
+   "explanation": "AF DEFENSIVE CYBERSPACE OPERATIONS"
+  },
+  {
+   "peCode": "0208288F",
+   "fy": 2027,
+   "request": 7511000,
+   "mark": 7511000,
+   "explanation": "INTEL DATA APPLICATIONS"
+  },
+  {
+   "peCode": "0301025F",
+   "fy": 2027,
+   "request": 403000,
+   "mark": 403000,
+   "explanation": "GEOBASE"
+  },
+  {
+   "peCode": "0301377F",
+   "fy": 2027,
+   "request": 1343000,
+   "mark": 1343000,
+   "explanation": "COUNTERING ADVANCED CONVENTIONAL WEAPONS (CACW)"
+  },
+  {
+   "peCode": "0301401F",
+   "fy": 2027,
+   "request": 2754000,
+   "mark": 2754000,
+   "explanation": "AF MULTI-DOMAIN NON-TRADITIONAL ISR BATTLESPACE"
+  },
+  {
+   "peCode": "0302015F",
+   "fy": 2027,
+   "request": 50873000,
+   "mark": 61973000,
+   "explanation": "E-4B NATIONAL AIRBORNE OPERATIONS CENTER (NAOC)"
+  },
+  {
+   "peCode": "0302315F",
+   "fy": 2027,
+   "request": 4024000,
+   "mark": 4024000,
+   "explanation": "NON-KINETIC COUNTERMEASURE SUPPORT"
+  },
+  {
+   "peCode": "0303131F",
+   "fy": 2027,
+   "request": 254837000,
+   "mark": 176693000,
+   "explanation": "MINIMUM ESSENTIAL EMERGENCY COMMUNICATIONS"
+  },
+  {
+   "peCode": "0303133F",
+   "fy": 2027,
+   "request": 33215000,
+   "mark": 33215000,
+   "explanation": "HIGH FREQUENCY RADIO SYSTEMS"
+  },
+  {
+   "peCode": "0303140F",
+   "fy": 2027,
+   "request": 117658000,
+   "mark": 117658000,
+   "explanation": "INFORMATION SYSTEMS SECURITY PROGRAM"
+  },
+  {
+   "peCode": "0303248F",
+   "fy": 2027,
+   "request": 71312000,
+   "mark": 71312000,
+   "explanation": "ALL DOMAIN COMMON PLATFORM"
+  },
+  {
+   "peCode": "0304100F",
+   "fy": 2027,
+   "request": 89663000,
+   "mark": 89663000,
+   "explanation": "STRATEGIC MISSION PLANNING & EXECUTION SYSTEM"
+  },
+  {
+   "peCode": "0304109F",
+   "fy": 2027,
+   "request": 109000,
+   "mark": 109000,
+   "explanation": "THRESHER"
+  },
+  {
+   "peCode": "0304260F",
+   "fy": 2027,
+   "request": 98319000,
+   "mark": 98319000,
+   "explanation": "AIRBORNE SIGINT ENTERPRISE"
+  },
+  {
+   "peCode": "0304310F",
+   "fy": 2027,
+   "request": 1713000,
+   "mark": 1713000,
+   "explanation": "COMMERCIAL ECONOMIC ANALYSIS"
+  },
+  {
+   "peCode": "0304784F",
+   "fy": 2027,
+   "request": 16570000,
+   "mark": 16570000,
+   "explanation": "LONG ENDURANCE-AIRBORNE ISR"
+  },
+  {
+   "peCode": "0305022F",
+   "fy": 2027,
+   "request": 16188000,
+   "mark": 16188000,
+   "explanation": "ISR MODERNIZATION & AUTOMATION DVMT (IMAD)"
+  },
+  {
+   "peCode": "0305099F",
+   "fy": 2027,
+   "request": 4210000,
+   "mark": 4210000,
+   "explanation": "GLOBAL AIR TRAFFIC MANAGEMENT (GATM)"
+  },
+  {
+   "peCode": "0305103F",
+   "fy": 2027,
+   "request": 318000,
+   "mark": 318000,
+   "explanation": "CYBER SECURITY INITIATIVE"
+  },
+  {
+   "peCode": "0305111F",
+   "fy": 2027,
+   "request": 29331000,
+   "mark": 31331000,
+   "explanation": "WEATHER SERVICE"
+  },
+  {
+   "peCode": "0305114F",
+   "fy": 2027,
+   "request": 61895000,
+   "mark": 61895000,
+   "explanation": "AIR TRAFFIC CONTROL, APPROACH, AND LANDING SYSTEM"
+  },
+  {
+   "peCode": "0305116F",
+   "fy": 2027,
+   "request": 1704000,
+   "mark": 1704000,
+   "explanation": "AERIAL TARGETS"
+  },
+  {
+   "peCode": "0305128F",
+   "fy": 2027,
+   "request": 9642000,
+   "mark": 9642000,
+   "explanation": "SECURITY AND INVESTIGATIVE ACTIVITIES"
+  },
+  {
+   "peCode": "0305146F",
+   "fy": 2027,
+   "request": 2469000,
+   "mark": 2469000,
+   "explanation": "DEFENSE JOINT COUNTERINTELLIGENCE ACTIVITIES"
+  },
+  {
+   "peCode": "0305155F",
+   "fy": 2027,
+   "request": 24364000,
+   "mark": 24364000,
+   "explanation": "THEATER NUCLEAR WEAPON STORAGE & SECURITY SYSTEM"
+  },
+  {
+   "peCode": "0305179F",
+   "fy": 2027,
+   "request": 18266000,
+   "mark": 18266000,
+   "explanation": "INTEGRATED BROADCAST SERVICE (IBS)"
+  },
+  {
+   "peCode": "0305206F",
+   "fy": 2027,
+   "request": 34273000,
+   "mark": 34273000,
+   "explanation": "AIRBORNE RECONNAISSANCE SYSTEMS"
+  },
+  {
+   "peCode": "0305207F",
+   "fy": 2027,
+   "request": 17114000,
+   "mark": 17114000,
+   "explanation": "MANNED RECONNAISSANCE SYSTEMS"
+  },
+  {
+   "peCode": "0305208F",
+   "fy": 2027,
+   "request": 85365000,
+   "mark": 85365000,
+   "explanation": "DISTRIBUTED COMMON GROUND/SURFACE SYSTEMS"
+  },
+  {
+   "peCode": "0305221F",
+   "fy": 2027,
+   "request": 9146000,
+   "mark": 9146000,
+   "explanation": "NETWORK-CENTRIC COLLABORATIVE TARGETING"
+  },
+  {
+   "peCode": "0305240F",
+   "fy": 2027,
+   "request": 312037000,
+   "mark": 242129000,
+   "explanation": "ISR TRANSPORT AND PROCESSING"
+  },
+  {
+   "peCode": "0305249F",
+   "fy": 2027,
+   "request": 19324000,
+   "mark": 19324000,
+   "explanation": "AF JWICS ENTERPRISE"
+  },
+  {
+   "peCode": "0305600F",
+   "fy": 2027,
+   "request": 62000000,
+   "mark": 51237000,
+   "explanation": "INTERNATIONAL INTELLIGENCE TECHNOLOGY AND"
+  },
+  {
+   "peCode": "0305836F",
+   "fy": 2027,
+   "request": 11393000,
+   "mark": 11393000,
+   "explanation": "C2IMERA"
+  },
+  {
+   "peCode": "0305903F",
+   "fy": 2027,
+   "request": 2013000,
+   "mark": 2013000,
+   "explanation": "COCOM MOBILE COMMAND AND CONTROL CENTERS (MCCCS)"
+  },
+  {
+   "peCode": "0305984F",
+   "fy": 2027,
+   "request": 1783000,
+   "mark": 1783000,
+   "explanation": "PERSONNEL RECOVERY COMMAND & CTRL (PRC2)"
+  },
+  {
+   "peCode": "0307577F",
+   "fy": 2027,
+   "request": 3151000,
+   "mark": 23151000,
+   "explanation": "INTELLIGENCE MISSION DATA (IMD)"
+  },
+  {
+   "peCode": "0401119F",
+   "fy": 2027,
+   "request": 76233000,
+   "mark": 76233000,
+   "explanation": "C-5 AIRLIFT SQUADRONS (IF)"
+  },
+  {
+   "peCode": "0401130F",
+   "fy": 2027,
+   "request": 178130000,
+   "mark": 178130000,
+   "explanation": "C-17 AIRCRAFT (IF)"
+  },
+  {
+   "peCode": "0401132F",
+   "fy": 2027,
+   "request": 16628000,
+   "mark": 16628000,
+   "explanation": "C-130J PROGRAM"
+  },
+  {
+   "peCode": "0401134F",
+   "fy": 2027,
+   "request": 12323000,
+   "mark": 12323000,
+   "explanation": "LARGE AIRCRAFT IR COUNTERMEASURES (LAIRCM)"
+  },
+  {
+   "peCode": "0401218F",
+   "fy": 2027,
+   "request": 121742000,
+   "mark": 131742000,
+   "explanation": "KC-135S"
+  },
+  {
+   "peCode": "0401318F",
+   "fy": 2027,
+   "request": 45699000,
+   "mark": 45699000,
+   "explanation": "CV-22"
+  },
+  {
+   "peCode": "0401334F",
+   "fy": 2027,
+   "request": 50111000,
+   "mark": 0,
+   "explanation": "LARGE AIRCRAFT SURVIVABILITY SYSTEMS (LASS)"
+  },
+  {
+   "peCode": "0408011F",
+   "fy": 2027,
+   "request": 0,
+   "mark": 43200000,
+   "explanation": "SPECIAL TACTICS/COMBAT CONTROL"
+  },
+  {
+   "peCode": "0708610F",
+   "fy": 2027,
+   "request": 21518000,
+   "mark": 21518000,
+   "explanation": "LOGISTICS INFORMATION TECHNOLOGY (LOGIT)"
+  },
+  {
+   "peCode": "0801380F",
+   "fy": 2027,
+   "request": 23472000,
+   "mark": 23472000,
+   "explanation": "AF LVC OPERATIONAL TRAINING (LVC-OT)"
+  },
+  {
+   "peCode": "0804743F",
+   "fy": 2027,
+   "request": 1950000,
+   "mark": 1950000,
+   "explanation": "OTHER FLIGHT TRAINING"
+  },
+  {
+   "peCode": "0901202F",
+   "fy": 2027,
+   "request": 2035000,
+   "mark": 2035000,
+   "explanation": "JOINT PERSONNEL RECOVERY AGENCY"
+  },
+  {
+   "peCode": "0901218F",
+   "fy": 2027,
+   "request": 4248000,
+   "mark": 4248000,
+   "explanation": "CIVILIAN COMPENSATION PROGRAM"
+  },
+  {
+   "peCode": "0901220F",
+   "fy": 2027,
+   "request": 2678000,
+   "mark": 2678000,
+   "explanation": "PERSONNEL ADMINISTRATION"
+  },
+  {
+   "peCode": "0901226F",
+   "fy": 2027,
+   "request": 81252000,
+   "mark": 91252000,
+   "explanation": "AIR FORCE STUDIES AND ANALYSIS AGENCY"
+  },
+  {
+   "peCode": "0901538F",
+   "fy": 2027,
+   "request": 3316000,
+   "mark": 3316000,
+   "explanation": "FINANCIAL MANAGEMENT INFORMATION SYSTEMS"
+  },
+  {
+   "peCode": "0901554F",
+   "fy": 2027,
+   "request": 38301000,
+   "mark": 38301000,
+   "explanation": "DEFENSE ENTERPRISE ACNTNG AND MGT SYS (DEAMS)"
+  },
+  {
+   "peCode": "1201921F",
+   "fy": 2027,
+   "request": 700000,
+   "mark": 700000,
+   "explanation": "SERVICE SUPPORT TO STRATCOM-SPACE ACTIVITIES"
+  },
+  {
+   "peCode": "0601122E",
+   "fy": 2027,
+   "request": 387633000,
+   "mark": 387633000,
+   "explanation": "EMERGING OPPORTUNITIES"
+  },
+  {
+   "peCode": "0602023E",
+   "fy": 2027,
+   "request": 110096000,
+   "mark": 110096000,
+   "explanation": "ACCESS AND AWARENESS"
+  },
+  {
+   "peCode": "0602024E",
+   "fy": 2027,
+   "request": 364141000,
+   "mark": 385641000,
+   "explanation": "WARFIGHTING PERFORMANCE"
+  },
+  {
+   "peCode": "0602025E",
+   "fy": 2027,
+   "request": 1624523000,
+   "mark": 1644523000,
+   "explanation": "MAKING, MAINTAINING, SUPPLY CHAIN LOGISTICS"
+  },
+  {
+   "peCode": "0603180C",
+   "fy": 2027,
+   "request": 482573000,
+   "mark": 393771000,
+   "explanation": "ADVANCED RESEARCH"
+  },
+  {
+   "peCode": "0603467E",
+   "fy": 2027,
+   "request": 1568124000,
+   "mark": 1578124000,
+   "explanation": "DARPA ADVANCED TECHNOLOGY DEVELOPMENT"
+  },
+  {
+   "peCode": "0603469E",
+   "fy": 2027,
+   "request": 331007000,
+   "mark": 331007000,
+   "explanation": "ADVANCED ENABLING TECHNOLOGIES"
+  },
+  {
+   "peCode": "0603680S",
+   "fy": 2027,
+   "request": 49787000,
+   "mark": 176287000,
+   "explanation": "MANUFACTURING TECHNOLOGY PROGRAM"
+  },
+  {
+   "peCode": "0603712S",
+   "fy": 2027,
+   "request": 18791000,
+   "mark": 18791000,
+   "explanation": "GENERIC LOGISTICS R&D TECHNOLOGY DEMONSTRATIONS"
+  },
+  {
+   "peCode": "0603720S",
+   "fy": 2027,
+   "request": 139923000,
+   "mark": 144923000,
+   "explanation": "MICROELECTRONICS TECHNOLOGY DEVELOPMENT AND"
+  },
+  {
+   "peCode": "0603891C",
+   "fy": 2027,
+   "request": 1742778000,
+   "mark": 1742778000,
+   "explanation": "SPECIAL PROGRAMS-MDA"
+  },
+  {
+   "peCode": "0603892C",
+   "fy": 2027,
+   "request": 927870000,
+   "mark": 917356000,
+   "explanation": "AEGIS BMD"
+  },
+  {
+   "peCode": "0603896C",
+   "fy": 2027,
+   "request": 939987000,
+   "mark": 912588000,
+   "explanation": "BALLISTIC MISSILE DEFENSE COMMAND AND CONTROL,"
+  },
+  {
+   "peCode": "0603898C",
+   "fy": 2027,
+   "request": 50430000,
+   "mark": 47650000,
+   "explanation": "BALLISTIC MISSILE DEFENSE JOINT WARFIGHTER SUPPORT"
+  },
+  {
+   "peCode": "0603904C",
+   "fy": 2027,
+   "request": 57892000,
+   "mark": 56011000,
+   "explanation": "MISSILE DEFENSE INTEGRATION & OPERATIONS CENTER"
+  },
+  {
+   "peCode": "0603906C",
+   "fy": 2027,
+   "request": 29807000,
+   "mark": 29807000,
+   "explanation": "REGARDING TRENCH"
+  },
+  {
+   "peCode": "0603907C",
+   "fy": 2027,
+   "request": 274204000,
+   "mark": 264094000,
+   "explanation": "SEA BASED X-BAND RADAR (SBX)"
+  },
+  {
+   "peCode": "0603913C",
+   "fy": 2027,
+   "request": 300000000,
+   "mark": 300000000,
+   "explanation": "ISRAELI COOPERATIVE PROGRAMS"
+  },
+  {
+   "peCode": "0603914C",
+   "fy": 2027,
+   "request": 1065474000,
+   "mark": 958997000,
+   "explanation": "BALLISTIC MISSILE DEFENSE TEST"
+  },
+  {
+   "peCode": "0604102C",
+   "fy": 2027,
+   "request": 212413000,
+   "mark": 212413000,
+   "explanation": "GUAM DEFENSE DEVELOPMENT"
+  },
+  {
+   "peCode": "0604115C",
+   "fy": 2027,
+   "request": 59700000,
+   "mark": 51700000,
+   "explanation": "TECHNOLOGY MATURATION INITIATIVES"
+  },
+  {
+   "peCode": "0604181C",
+   "fy": 2027,
+   "request": 213783000,
+   "mark": 213783000,
+   "explanation": "HYPERSONIC DEFENSE"
+  },
+  {
+   "peCode": "0604826J",
+   "fy": 2027,
+   "request": 28314000,
+   "mark": 32314000,
+   "explanation": "JOINT C5 CAPABILITY DEVELOPMENT, INTEGRATION AND"
+  },
+  {
+   "peCode": "0604873C",
+   "fy": 2027,
+   "request": 125074000,
+   "mark": 117147000,
+   "explanation": "LONG RANGE DISCRIMINATION RADAR (LRDR)"
+  },
+  {
+   "peCode": "0604874C",
+   "fy": 2027,
+   "request": 1344824000,
+   "mark": 1344824000,
+   "explanation": "IMPROVED HOMELAND DEFENSE INTERCEPTORS"
+  },
+  {
+   "peCode": "0604878C",
+   "fy": 2027,
+   "request": 61969000,
+   "mark": 61969000,
+   "explanation": "AEGIS BMD TEST"
+  },
+  {
+   "peCode": "0604879C",
+   "fy": 2027,
+   "request": 52919000,
+   "mark": 45719000,
+   "explanation": "BALLISTIC MISSILE DEFENSE SENSOR TEST"
+  },
+  {
+   "peCode": "0604880C",
+   "fy": 2027,
+   "request": 25102000,
+   "mark": 25102000,
+   "explanation": "LAND-BASED SM-3 (LBSM3)"
+  },
+  {
+   "peCode": "0604887C",
+   "fy": 2027,
+   "request": 53761000,
+   "mark": 53761000,
+   "explanation": "BALLISTIC MISSILE DEFENSE MIDCOURSE SEGMENT TEST"
+  },
+  {
+   "peCode": "0202057C",
+   "fy": 2027,
+   "request": 2146000,
+   "mark": 2146000,
+   "explanation": "SAFETY PROGRAM MANAGEMENT"
+  },
+  {
+   "peCode": "0305103C",
+   "fy": 2027,
+   "request": 2160000,
+   "mark": 2160000,
+   "explanation": "CYBER SECURITY INITIATIVE"
+  },
+  {
+   "peCode": "1206895C",
+   "fy": 2027,
+   "request": 95819000,
+   "mark": 72845000,
+   "explanation": "BALLISTIC MISSILE DEFENSE SYSTEM SPACE PROGRAMS"
+  },
+  {
+   "peCode": "0605080S",
+   "fy": 2027,
+   "request": 51265000,
+   "mark": 51265000,
+   "explanation": "DEFENSE AGENCY INITIATIVES (DAI)-FINANCIAL SYSTEM"
+  },
+  {
+   "peCode": "0305282K",
+   "fy": 2027,
+   "request": 35000000,
+   "mark": 35000000,
+   "explanation": "JOINT FIRES NETWORK (JFN)"
+  },
+  {
+   "peCode": "0603829J",
+   "fy": 2027,
+   "request": 12332000,
+   "mark": 12332000,
+   "explanation": "JOINT CAPABILITY EXPERIMENTATION"
+  },
+  {
+   "peCode": "0605001E",
+   "fy": 2027,
+   "request": 108101000,
+   "mark": 108101000,
+   "explanation": "MISSION SUPPORT"
+  },
+  {
+   "peCode": "0605126J",
+   "fy": 2027,
+   "request": 69820000,
+   "mark": 69820000,
+   "explanation": "JOINT INTEGRATED AIR AND MISSILE DEFENSE"
+  },
+  {
+   "peCode": "0605898E",
+   "fy": 2027,
+   "request": 5383000,
+   "mark": 5383000,
+   "explanation": "MANAGEMENT HQ-R&D"
+  },
+  {
+   "peCode": "0204571J",
+   "fy": 2027,
+   "request": 5088000,
+   "mark": 13088000,
+   "explanation": "JOINT STAFF ANALYTICAL SUPPORT"
+  },
+  {
+   "peCode": "0208045K",
+   "fy": 2027,
+   "request": 72581000,
+   "mark": 72581000,
+   "explanation": "C4I INTEROPERABILITY"
+  },
+  {
+   "peCode": "0305172K",
+   "fy": 2027,
+   "request": 5566000,
+   "mark": 5566000,
+   "explanation": "COMBINED ADVANCED APPLICATIONS"
+  },
+  {
+   "peCode": "0305208K",
+   "fy": 2027,
+   "request": 2951000,
+   "mark": 2951000,
+   "explanation": "DISTRIBUTED COMMON GROUND/ SURFACE SYSTEMS"
+  },
+  {
+   "peCode": "0804768J",
+   "fy": 2027,
+   "request": 90424000,
+   "mark": 90424000,
+   "explanation": "COCOM EXERCISE ENGAGEMENT AND TRAINING"
+  },
+  {
+   "peCode": "0901598C",
+   "fy": 2027,
+   "request": 31863000,
+   "mark": 31863000,
+   "explanation": "MANAGEMENT HQ-MDA"
+  },
+  {
+   "peCode": "0607327T",
+   "fy": 2027,
+   "request": 6010000,
+   "mark": 6010000,
+   "explanation": "GLOBAL THEATER SECURITY COOPERATION MANAGEMENT"
+  },
+  {
+   "peCode": "0302019K",
+   "fy": 2027,
+   "request": 13312000,
+   "mark": 13312000,
+   "explanation": "DEFENSE INFO INFRASTRUCTURE ENGINEERING AND"
+  },
+  {
+   "peCode": "0303126K",
+   "fy": 2027,
+   "request": 10508000,
+   "mark": 10508000,
+   "explanation": "LONG-HAUL COMMUNICATIONS-DCS"
+  },
+  {
+   "peCode": "0303140K",
+   "fy": 2027,
+   "request": 33502000,
+   "mark": 33502000,
+   "explanation": "INFORMATION SYSTEMS SECURITY PROGRAM"
+  },
+  {
+   "peCode": "0303153K",
+   "fy": 2027,
+   "request": 49466000,
+   "mark": 49466000,
+   "explanation": "DEFENSE SPECTRUM ORGANIZATION"
+  },
+  {
+   "peCode": "0303171K",
+   "fy": 2027,
+   "request": 10615000,
+   "mark": 10615000,
+   "explanation": "JOINT PLANNING AND EXECUTION SERVICES"
+  },
+  {
+   "peCode": "0303430V",
+   "fy": 2027,
+   "request": 50900000,
+   "mark": 50900000,
+   "explanation": "FEDERAL INVESTIGATIVE SERVICES INFORMATION"
+  },
+  {
+   "peCode": "0305146V",
+   "fy": 2027,
+   "request": 6751000,
+   "mark": 6751000,
+   "explanation": "DEFENSE JOINT COUNTERINTELLIGENCE ACTIVITIES"
+  },
+  {
+   "peCode": "0305601K",
+   "fy": 2027,
+   "request": 15464000,
+   "mark": 54664000,
+   "explanation": "MISSION PARTNER ENVIRONMENTS"
+  },
+  {
+   "peCode": "0307609V",
+   "fy": 2027,
+   "request": 19840000,
+   "mark": 19840000,
+   "explanation": "NATIONAL INDUSTRIAL SECURITY SYSTEMS (NISS)"
+  },
+  {
+   "peCode": "0708012K",
+   "fy": 2027,
+   "request": 2051000,
+   "mark": 2051000,
+   "explanation": "LOGISTICS SUPPORT ACTIVITIES"
+  },
+  {
+   "peCode": "0708047S",
+   "fy": 2027,
+   "request": 2829000,
+   "mark": 2829000,
+   "explanation": "DEFENSE PROPERTY ACCOUNTABILITY SYSTEM"
+  },
+  {
+   "peCode": "1203610K",
+   "fy": 2027,
+   "request": 22244000,
+   "mark": 22244000,
+   "explanation": "TELEPORT PROGRAM"
+  },
+  {
+   "peCode": "0303150K",
+   "fy": 2027,
+   "request": 124329000,
+   "mark": 124329000,
+   "explanation": "GLOBAL COMMAND AND CONTROL SYSTEM"
+  }
+ ],
+ "chamber": "HAC-D"
+}

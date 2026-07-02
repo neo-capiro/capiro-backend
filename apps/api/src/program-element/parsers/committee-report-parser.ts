@@ -1,5 +1,5 @@
 import { Logger } from '@nestjs/common';
-import { isValidPeCode, dollarsToMillions } from '../jbook/jbook-extract.js';
+import { isValidProgramCode, dollarsToMillions } from '../jbook/jbook-extract.js';
 import { ProgramElementWriterService } from '../program-element-writer.service.js';
 
 /**
@@ -161,7 +161,9 @@ export abstract class CommitteeReportParserBase {
     let quarantined = 0;
 
     for (const rec of records) {
-      if (!isValidPeCode(rec.peCode)) {
+      // Accept BOTH RDT&E PE codes AND procurement BLINs (incl. appropriation-namespaced
+      // ones) — committee/appropriations reports mark procurement lines too, not just RDT&E.
+      if (!isValidProgramCode(rec.peCode)) {
         await this.writer.quarantine(rec, `Invalid pe_code in ${source}: ${rec.peCode}`, source);
         quarantined += 1;
         continue;

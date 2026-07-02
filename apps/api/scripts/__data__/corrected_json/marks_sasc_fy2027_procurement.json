@@ -1,0 +1,4795 @@
+{
+ "fy": 2027,
+ "source": "SASC FY2027 procurement marks (line#->pe title-verified)",
+ "rows": [
+  {
+   "peCode": "9678A12500",
+   "fy": 2027,
+   "request": 291472000,
+   "mark": 291472000,
+   "explanation": "SMALL UNMANNED AIRCRAFT SYSTEMS"
+  },
+  {
+   "peCode": "9681A14000",
+   "fy": 2027,
+   "request": 52398000,
+   "mark": 52398000,
+   "explanation": "UNMANNED AIRCRAFT SYSTEMS (UAS)"
+  },
+  {
+   "peCode": "9697A12400",
+   "fy": 2027,
+   "request": 227569000,
+   "mark": 227569000,
+   "explanation": "HADES PLATFORM, PAYLOADS/PED, AND INTEGRATION"
+  },
+  {
+   "peCode": "5757A05111",
+   "fy": 2027,
+   "request": 1552000,
+   "mark": 1552000,
+   "explanation": "AH-64 APACHE BLOCK IIIA REMAN"
+  },
+  {
+   "peCode": "6761A12000",
+   "fy": 2027,
+   "request": 127217000,
+   "mark": 0,
+   "explanation": "FUTURE VERTICAL LIFT FAMILY OF SYSTEMS"
+  },
+  {
+   "peCode": "6771AA0005",
+   "fy": 2027,
+   "request": 39257000,
+   "mark": 39257000,
+   "explanation": "UH-60 BLACKHAWK M MODEL (MYP)"
+  },
+  {
+   "peCode": "6775A05101",
+   "fy": 2027,
+   "request": 210645000,
+   "mark": 210645000,
+   "explanation": "CH-47 HELICOPTER"
+  },
+  {
+   "peCode": "0023A01001",
+   "fy": 2027,
+   "request": 53190000,
+   "mark": 53190000,
+   "explanation": "MQ-1 PAYLOAD"
+  },
+  {
+   "peCode": "0756AA6601",
+   "fy": 2027,
+   "request": 2556000,
+   "mark": 2556000,
+   "explanation": "GRAY EAGLE MODS2"
+  },
+  {
+   "peCode": "2706AA6605",
+   "fy": 2027,
+   "request": 251645000,
+   "mark": 251645000,
+   "explanation": "AH-64 MODS"
+  },
+  {
+   "peCode": "2724A12700",
+   "fy": 2027,
+   "request": 2061000,
+   "mark": 2061000,
+   "explanation": "SCALABLE CONTROL INTERFACE (SCI)"
+  },
+  {
+   "peCode": "3264AA0252",
+   "fy": 2027,
+   "request": 108408000,
+   "mark": 108408000,
+   "explanation": "CH-47 CARGO HELICOPTER MODS (MYP)"
+  },
+  {
+   "peCode": "6949AA0480",
+   "fy": 2027,
+   "request": 120013000,
+   "mark": 120013000,
+   "explanation": "UTILITY HELICOPTER MODS"
+  },
+  {
+   "peCode": "8658AA0712",
+   "fy": 2027,
+   "request": 29235000,
+   "mark": 29235000,
+   "explanation": "NETWORK AND MISSION PLAN"
+  },
+  {
+   "peCode": "8659AA0723",
+   "fy": 2027,
+   "request": 14384000,
+   "mark": 14384000,
+   "explanation": "COMMS, NAV SURVEILLANCE"
+  },
+  {
+   "peCode": "8662A01006",
+   "fy": 2027,
+   "request": 55055000,
+   "mark": 55055000,
+   "explanation": "AVIATION ASSURED PNT"
+  },
+  {
+   "peCode": "3632AZ3504",
+   "fy": 2027,
+   "request": 125050000,
+   "mark": 125050000,
+   "explanation": "AIRCRAFT SURVIVABILITY EQUIPMENT"
+  },
+  {
+   "peCode": "5397AZ3517",
+   "fy": 2027,
+   "request": 21511000,
+   "mark": 21511000,
+   "explanation": "CMWS"
+  },
+  {
+   "peCode": "5399AZ3537",
+   "fy": 2027,
+   "request": 140636000,
+   "mark": 140636000,
+   "explanation": "COMMON INFRARED COUNTERMEASURES (CIRCM)"
+  },
+  {
+   "peCode": "5212AZ3100",
+   "fy": 2027,
+   "request": 29778000,
+   "mark": 29778000,
+   "explanation": "COMMON GROUND EQUIPMENT"
+  },
+  {
+   "peCode": "6380AZ3110",
+   "fy": 2027,
+   "request": 15229000,
+   "mark": 15229000,
+   "explanation": "AIRCREW INTEGRATED SYSTEMS"
+  },
+  {
+   "peCode": "6818AA0050",
+   "fy": 2027,
+   "request": 11044000,
+   "mark": 11044000,
+   "explanation": "AIR TRAFFIC CONTROL"
+  },
+  {
+   "peCode": "9154A50100",
+   "fy": 2027,
+   "request": 3864000,
+   "mark": 3864000,
+   "explanation": "LAUNCHER, 2.75 ROCKET"
+  },
+  {
+   "peCode": "7265C12000",
+   "fy": 2027,
+   "request": 2036358000,
+   "mark": 2036358000,
+   "explanation": "LOWER TIER AIR AND MISSILE DEFENSE (AMD) SEN"
+  },
+  {
+   "peCode": "8046C20200",
+   "fy": 2027,
+   "request": 907162000,
+   "mark": 733424000,
+   "explanation": "TERMINAL HIGH ALTITUDE AREA DEFENSE (THAAD)"
+  },
+  {
+   "peCode": "8082C14300",
+   "fy": 2027,
+   "request": 712690000,
+   "mark": 712690000,
+   "explanation": "M-SHORAD-PROCUREMENT"
+  },
+  {
+   "peCode": "8260C53101",
+   "fy": 2027,
+   "request": 1297528000,
+   "mark": 1297528000,
+   "explanation": "MSE MISSILE"
+  },
+  {
+   "peCode": "8540C29600",
+   "fy": 2027,
+   "request": 1226526000,
+   "mark": 1226526000,
+   "explanation": "PRECISION STRIKE MISSILE (PRSM)"
+  },
+  {
+   "peCode": "8930C61001",
+   "fy": 2027,
+   "request": 1626004000,
+   "mark": 1626004000,
+   "explanation": "INDIRECT FIRE PROTECTION CAPABILITY INC 2-I"
+  },
+  {
+   "peCode": "9214C81200",
+   "fy": 2027,
+   "request": 370351000,
+   "mark": 370351000,
+   "explanation": "MID-RANGE CAPABILITY (MRC)"
+  },
+  {
+   "peCode": "2605C70302",
+   "fy": 2027,
+   "request": 104059000,
+   "mark": 104059000,
+   "explanation": "JOINT AIR-TO-GROUND MSLS (JAGM)"
+  },
+  {
+   "peCode": "2611C72100",
+   "fy": 2027,
+   "request": 301777000,
+   "mark": 301777000,
+   "explanation": "LONG-RANGE HYPERSONIC WEAPON"
+  },
+  {
+   "peCode": "0648CC0007",
+   "fy": 2027,
+   "request": 417031000,
+   "mark": 417031000,
+   "explanation": "JAVELIN (AAWS-M) SYSTEM SUMMARY"
+  },
+  {
+   "peCode": "6005C64400",
+   "fy": 2027,
+   "request": 1014937000,
+   "mark": 1014937000,
+   "explanation": "GUIDED MLRS ROCKET (GMLRS)"
+  },
+  {
+   "peCode": "6005C64400",
+   "fy": 2027,
+   "request": 49106000,
+   "mark": 49106000,
+   "explanation": "GUIDED MLRS ROCKET (GMLRS)"
+  },
+  {
+   "peCode": "6060C65405",
+   "fy": 2027,
+   "request": 7412000,
+   "mark": 7412000,
+   "explanation": "MLRS REDUCED RANGE PRACTICE ROCKETS (RRPR)"
+  },
+  {
+   "peCode": "6200C02901",
+   "fy": 2027,
+   "request": 745682000,
+   "mark": 745682000,
+   "explanation": "HIGH MOBILITY ARTILLERY ROCKET SYSTEM (HIMARS"
+  },
+  {
+   "peCode": "6872C91500",
+   "fy": 2027,
+   "request": 139191000,
+   "mark": 139191000,
+   "explanation": "FAMILY OF LOW ALTITUDE UNMANNED SYSTEMS"
+  },
+  {
+   "peCode": "0962C50700",
+   "fy": 2027,
+   "request": 796837000,
+   "mark": 796837000,
+   "explanation": "PATRIOT MODS"
+  },
+  {
+   "peCode": "2684C20000",
+   "fy": 2027,
+   "request": 10786000,
+   "mark": 10786000,
+   "explanation": "STINGER MODS"
+  },
+  {
+   "peCode": "2690CE8710",
+   "fy": 2027,
+   "request": 6823000,
+   "mark": 6823000,
+   "explanation": "AVENGER MODS"
+  },
+  {
+   "peCode": "6552C67500",
+   "fy": 2027,
+   "request": 289496000,
+   "mark": 289496000,
+   "explanation": "MLRS MODS"
+  },
+  {
+   "peCode": "6580C67501",
+   "fy": 2027,
+   "request": 54363000,
+   "mark": 54363000,
+   "explanation": "HIMARS MODIFICATIONS"
+  },
+  {
+   "peCode": "1242CA0250",
+   "fy": 2027,
+   "request": 6698000,
+   "mark": 6698000,
+   "explanation": "SPARES AND REPAIR PARTS"
+  },
+  {
+   "peCode": "1242C93000",
+   "fy": 2027,
+   "request": 9613000,
+   "mark": 9613000,
+   "explanation": "AIR DEFENSE TARGETS"
+  },
+  {
+   "peCode": "2944G80819",
+   "fy": 2027,
+   "request": 1150759000,
+   "mark": 1150759000,
+   "explanation": "ARMORED MULTI PURPOSE VEHICLE (AMPV)"
+  },
+  {
+   "peCode": "4872G84900",
+   "fy": 2027,
+   "request": 17807000,
+   "mark": 17807000,
+   "explanation": "ASSAULT BREACHER VEHICLE (ABV)"
+  },
+  {
+   "peCode": "7241G86000",
+   "fy": 2027,
+   "request": 546990000,
+   "mark": 546990000,
+   "explanation": "XM30 MECHANIZED INFANTRY COMBAT VEHICLE (MICV"
+  },
+  {
+   "peCode": "0363G85200",
+   "fy": 2027,
+   "request": 45725000,
+   "mark": 45725000,
+   "explanation": "STRYKER UPGRADE"
+  },
+  {
+   "peCode": "1382GZ3300",
+   "fy": 2027,
+   "request": 4863000,
+   "mark": 4863000,
+   "explanation": "BRADLEY FIRE SUPPORT TEAM (BFIST) VEHICLE"
+  },
+  {
+   "peCode": "1678GZ2400",
+   "fy": 2027,
+   "request": 161979000,
+   "mark": 161979000,
+   "explanation": "BRADLEY PROGRAM (MOD)"
+  },
+  {
+   "peCode": "2072GA0400",
+   "fy": 2027,
+   "request": 74070000,
+   "mark": 74070000,
+   "explanation": "M109 FOV MODIFICATIONS"
+  },
+  {
+   "peCode": "2073GZ0410",
+   "fy": 2027,
+   "request": 84193000,
+   "mark": 84193000,
+   "explanation": "PALADIN INTEGRATED MANAGEMENT (PIM)"
+  },
+  {
+   "peCode": "3700GA0570",
+   "fy": 2027,
+   "request": 106036000,
+   "mark": 106036000,
+   "explanation": "IMPROVED RECOVERY VEHICLE (M88 HERCULES)"
+  },
+  {
+   "peCode": "5225GZ3001",
+   "fy": 2027,
+   "request": 163354000,
+   "mark": 163354000,
+   "explanation": "JOINT ASSAULT BRIDGE"
+  },
+  {
+   "peCode": "6500GA0750",
+   "fy": 2027,
+   "request": 654969000,
+   "mark": 654969000,
+   "explanation": "ABRAMS UPGRADE PROGRAM"
+  },
+  {
+   "peCode": "6652GM1900",
+   "fy": 2027,
+   "request": 16134000,
+   "mark": 16134000,
+   "explanation": "VEHICLE PROTECTION SYSTEMS (VPS)"
+  },
+  {
+   "peCode": "6580G02200",
+   "fy": 2027,
+   "request": 3575000,
+   "mark": 3575000,
+   "explanation": "MORTAR SYSTEMS"
+  },
+  {
+   "peCode": "6659G08100",
+   "fy": 2027,
+   "request": 10420000,
+   "mark": 10420000,
+   "explanation": "LOCATION & AZIMUTH DETERMINATION SYSTEM (LADS"
+  },
+  {
+   "peCode": "8205G14510",
+   "fy": 2027,
+   "request": 372641000,
+   "mark": 372641000,
+   "explanation": "NEXT GENERATION SQUAD WEAPON"
+  },
+  {
+   "peCode": "3005GZ1700",
+   "fy": 2027,
+   "request": 1569000,
+   "mark": 1569000,
+   "explanation": "M777 MODS"
+  },
+  {
+   "peCode": "3640GC0401",
+   "fy": 2027,
+   "request": 4453000,
+   "mark": 4453000,
+   "explanation": "M119 MODIFICATIONS"
+  },
+  {
+   "peCode": "1862GL3200",
+   "fy": 2027,
+   "request": 512000,
+   "mark": 512000,
+   "explanation": "ITEMS LESS THAN $5.0M (WOCV-WTCV)"
+  },
+  {
+   "peCode": "3270GC0050",
+   "fy": 2027,
+   "request": 308110000,
+   "mark": 308110000,
+   "explanation": "PRODUCTION BASE SUPPORT (WOCV-WTCV)"
+  },
+  {
+   "peCode": "0132E00700",
+   "fy": 2027,
+   "request": 114418000,
+   "mark": 134418000,
+   "explanation": "CTG, 5.56MM, ALL TYPES"
+  },
+  {
+   "peCode": "0612E02000",
+   "fy": 2027,
+   "request": 41356000,
+   "mark": 91356000,
+   "explanation": "CTG, 7.62MM, ALL TYPES"
+  },
+  {
+   "peCode": "1065E06001",
+   "fy": 2027,
+   "request": 536695000,
+   "mark": 536695000,
+   "explanation": "NEXT GENERATION SQUAD WEAPON AMMUNITION"
+  },
+  {
+   "peCode": "1450EA3000",
+   "fy": 2027,
+   "request": 6719000,
+   "mark": 8719000,
+   "explanation": "CTG, HANDGUN, ALL TYPES"
+  },
+  {
+   "peCode": "1722E08000",
+   "fy": 2027,
+   "request": 50861000,
+   "mark": 70861000,
+   "explanation": "CTG, .50 CAL, ALL TYPES"
+  },
+  {
+   "peCode": "2382E08900",
+   "fy": 2027,
+   "request": 9427000,
+   "mark": 9427000,
+   "explanation": "CTG, 20MM, ALL TYPES"
+  },
+  {
+   "peCode": "2650E08200",
+   "fy": 2027,
+   "request": 34038000,
+   "mark": 34038000,
+   "explanation": "CTG, 25MM, ALL TYPES"
+  },
+  {
+   "peCode": "2938ER8120",
+   "fy": 2027,
+   "request": 164116000,
+   "mark": 164116000,
+   "explanation": "CTG, 30MM, ALL TYPES"
+  },
+  {
+   "peCode": "3222ER8001",
+   "fy": 2027,
+   "request": 146105000,
+   "mark": 146105000,
+   "explanation": "CTG, 40MM, ALL TYPES"
+  },
+  {
+   "peCode": "8030E80010",
+   "fy": 2027,
+   "request": 58221000,
+   "mark": 58221000,
+   "explanation": "CTG, 50MM, ALL TYPES"
+  },
+  {
+   "peCode": "0050E89600",
+   "fy": 2027,
+   "request": 67727000,
+   "mark": 67727000,
+   "explanation": "60MM MORTAR, ALL TYPES"
+  },
+  {
+   "peCode": "3584E76000",
+   "fy": 2027,
+   "request": 123745000,
+   "mark": 123745000,
+   "explanation": "81MM MORTAR, ALL TYPES"
+  },
+  {
+   "peCode": "6780E25500",
+   "fy": 2027,
+   "request": 192826000,
+   "mark": 192826000,
+   "explanation": "120MM MORTAR, ALL TYPES"
+  },
+  {
+   "peCode": "1120E22203",
+   "fy": 2027,
+   "request": 421735000,
+   "mark": 421735000,
+   "explanation": "CARTRIDGES, TANK, 105MM AND 120MM, ALL TYPES"
+  },
+  {
+   "peCode": "0530E15101",
+   "fy": 2027,
+   "request": 48841000,
+   "mark": 48841000,
+   "explanation": "ARTILLERY CARTRIDGES, 75MM & 105MM, ALL TYPES"
+  },
+  {
+   "peCode": "3102E89500",
+   "fy": 2027,
+   "request": 120703000,
+   "mark": 205703000,
+   "explanation": "ARTILLERY PROJECTILE, 155MM, ALL TYPES"
+  },
+  {
+   "peCode": "8750E27501",
+   "fy": 2027,
+   "request": 431328000,
+   "mark": 431328000,
+   "explanation": "ARTILLERY PROPELLANTS, FUZES AND PRIMERS, ALL"
+  },
+  {
+   "peCode": "0442EA0800",
+   "fy": 2027,
+   "request": 47012000,
+   "mark": 47012000,
+   "explanation": "MINES & CLEARING CHARGES, ALL TYPES"
+  },
+  {
+   "peCode": "7920E72501",
+   "fy": 2027,
+   "request": 4026000,
+   "mark": 4026000,
+   "explanation": "MINE, AT, VOLCANO, ALL TYPES"
+  },
+  {
+   "peCode": "2348EA4000",
+   "fy": 2027,
+   "request": 50235000,
+   "mark": 50235000,
+   "explanation": "SHOULDER LAUNCHED MUNITIONS, ALL TYPES"
+  },
+  {
+   "peCode": "3246E37300",
+   "fy": 2027,
+   "request": 92772000,
+   "mark": 92772000,
+   "explanation": "ROCKET, HYDRA 70, ALL TYPES"
+  },
+  {
+   "peCode": "2420E61000",
+   "fy": 2027,
+   "request": 11615000,
+   "mark": 11615000,
+   "explanation": "CAD/PAD, ALL TYPES"
+  },
+  {
+   "peCode": "2790E55400",
+   "fy": 2027,
+   "request": 21691000,
+   "mark": 21691000,
+   "explanation": "DEMOLITION MUNITIONS, ALL TYPES"
+  },
+  {
+   "peCode": "4582E34000",
+   "fy": 2027,
+   "request": 66845000,
+   "mark": 66845000,
+   "explanation": "GRENADES, ALL TYPES"
+  },
+  {
+   "peCode": "6038E46900",
+   "fy": 2027,
+   "request": 44927000,
+   "mark": 44927000,
+   "explanation": "SIGNALS, ALL TYPES"
+  },
+  {
+   "peCode": "8278E51200",
+   "fy": 2027,
+   "request": 11508000,
+   "mark": 11508000,
+   "explanation": "SIMULATORS, ALL TYPES"
+  },
+  {
+   "peCode": "0684EB0016",
+   "fy": 2027,
+   "request": 4109000,
+   "mark": 4109000,
+   "explanation": "AMMO COMPONENTS, ALL TYPES"
+  },
+  {
+   "peCode": "2624EA0055",
+   "fy": 2027,
+   "request": 16290000,
+   "mark": 16290000,
+   "explanation": "ITEMS LESS THAN $5 MILLION (AMMO)"
+  },
+  {
+   "peCode": "4370EA0575",
+   "fy": 2027,
+   "request": 14007000,
+   "mark": 14007000,
+   "explanation": "AMMUNITION PECULIAR EQUIPMENT"
+  },
+  {
+   "peCode": "4758EA0550",
+   "fy": 2027,
+   "request": 18712000,
+   "mark": 18712000,
+   "explanation": "FIRST DESTINATION TRANSPORTATION (AMMO)"
+  },
+  {
+   "peCode": "9615EA8500",
+   "fy": 2027,
+   "request": 101000,
+   "mark": 101000,
+   "explanation": "CLOSEOUT LIABILITIES"
+  },
+  {
+   "peCode": "0572EP1000",
+   "fy": 2027,
+   "request": 2331763000,
+   "mark": 2406763000,
+   "explanation": "INDUSTRIAL FACILITIES"
+  },
+  {
+   "peCode": "4099EP1700",
+   "fy": 2027,
+   "request": 161179000,
+   "mark": 161179000,
+   "explanation": "CONVENTIONAL MUNITIONS DEMILITARIZATION"
+  },
+  {
+   "peCode": "4150EP2500",
+   "fy": 2027,
+   "request": 3935000,
+   "mark": 3935000,
+   "explanation": "ARMS INITIATIVE"
+  },
+  {
+   "peCode": "0896D03900",
+   "fy": 2027,
+   "request": 129602000,
+   "mark": 129602000,
+   "explanation": "FAMILY OF SEMITRAILERS"
+  },
+  {
+   "peCode": "3446D15400",
+   "fy": 2027,
+   "request": 0,
+   "mark": 60000000,
+   "explanation": "HI MOB MULTI-PURP WHLD VEH (HMMWV)"
+  },
+  {
+   "peCode": "3484D15501",
+   "fy": 2027,
+   "request": 526796000,
+   "mark": 526796000,
+   "explanation": "GROUND MOBILITY VEHICLES (GMV)"
+  },
+  {
+   "peCode": "3636D10000",
+   "fy": 2027,
+   "request": 0,
+   "mark": 140000000,
+   "explanation": "ARNG HMMWV MODERNIZATION PROGRAM"
+  },
+  {
+   "peCode": "5862D16001",
+   "fy": 2027,
+   "request": 17030000,
+   "mark": 52030000,
+   "explanation": "TRUCK, DUMP, 20T (CCE)"
+  },
+  {
+   "peCode": "6866D15500",
+   "fy": 2027,
+   "request": 283344000,
+   "mark": 283344000,
+   "explanation": "FAMILY OF MEDIUM TACTICAL VEH (FMTV)"
+  },
+  {
+   "peCode": "6880D15620",
+   "fy": 2027,
+   "request": 38294000,
+   "mark": 38294000,
+   "explanation": "FAMILY OF COLD WEATHER ALL-TERRAIN VEHICLE (C"
+  },
+  {
+   "peCode": "7000D15800",
+   "fy": 2027,
+   "request": 40203000,
+   "mark": 40203000,
+   "explanation": "FIRETRUCKS & ASSOCIATED FIREFIGHTING EQUIP"
+  },
+  {
+   "peCode": "8309DA0500",
+   "fy": 2027,
+   "request": 169404000,
+   "mark": 169404000,
+   "explanation": "FAMILY OF HEAVY TACTICAL VEHICLES (FHTV)"
+  },
+  {
+   "peCode": "8330D17000",
+   "fy": 2027,
+   "request": 80187000,
+   "mark": 80187000,
+   "explanation": "FAMILY OF COMMON TACTICAL TRUCKS"
+  },
+  {
+   "peCode": "8992DA0924",
+   "fy": 2027,
+   "request": 28583000,
+   "mark": 28583000,
+   "explanation": "MODIFICATION OF IN SVC EQUIP"
+  },
+  {
+   "peCode": "2450D30000",
+   "fy": 2027,
+   "request": 12029000,
+   "mark": 12029000,
+   "explanation": "NONTACTICAL VEHICLES, OTHER"
+  },
+  {
+   "peCode": "1992B11400",
+   "fy": 2027,
+   "request": 1293203000,
+   "mark": 1293203000,
+   "explanation": "C2 INFRASTRUCTURE"
+  },
+  {
+   "peCode": "1996B11500",
+   "fy": 2027,
+   "request": 1581863000,
+   "mark": 1581863000,
+   "explanation": "C2 TRANSPORT"
+  },
+  {
+   "peCode": "2930BB5777",
+   "fy": 2027,
+   "request": 39000,
+   "mark": 39000,
+   "explanation": "JCSE EQUIPMENT (USRDECOM)"
+  },
+  {
+   "peCode": "2948BB8500",
+   "fy": 2027,
+   "request": 73959000,
+   "mark": 73959000,
+   "explanation": "DEFENSE ENTERPRISE WIDEBAND SATCOM SYSTEMS"
+  },
+  {
+   "peCode": "9897K49000",
+   "fy": 2027,
+   "request": 243303000,
+   "mark": 243303000,
+   "explanation": "ASSURED POSITIONING, NAVIGATION AND TIMING"
+  },
+  {
+   "peCode": "6458B95004",
+   "fy": 2027,
+   "request": 516045000,
+   "mark": 516045000,
+   "explanation": "HANDHELD MANPACK SMALL FORM FIT (HMS)"
+  },
+  {
+   "peCode": "7264B24400",
+   "fy": 2027,
+   "request": 33711000,
+   "mark": 33711000,
+   "explanation": "ARMY LINK 16 SYSTEMS"
+  },
+  {
+   "peCode": "8563B58601",
+   "fy": 2027,
+   "request": 20187000,
+   "mark": 20187000,
+   "explanation": "UNIFIED COMMAND SUITE"
+  },
+  {
+   "peCode": "9164BU8100",
+   "fy": 2027,
+   "request": 5188000,
+   "mark": 5188000,
+   "explanation": "COTS COMMUNICATIONS EQUIPMENT"
+  },
+  {
+   "peCode": "9887B88810",
+   "fy": 2027,
+   "request": 54428000,
+   "mark": 54428000,
+   "explanation": "ARMY COMMUNICATIONS & ELECTRONICS"
+  },
+  {
+   "peCode": "0250BK5284",
+   "fy": 2027,
+   "request": 16382000,
+   "mark": 16382000,
+   "explanation": "CI AUTOMATION ARCHITECTURE-INTEL"
+  },
+  {
+   "peCode": "0287BZ6100",
+   "fy": 2027,
+   "request": 243732000,
+   "mark": 243732000,
+   "explanation": "MULTI-DOMAIN INTELLIGENCE"
+  },
+  {
+   "peCode": "0122TA0600",
+   "fy": 2027,
+   "request": 853000,
+   "mark": 853000,
+   "explanation": "INFORMATION SYSTEM SECURITY PROGRAM-ISSP"
+  },
+  {
+   "peCode": "0125B96000",
+   "fy": 2027,
+   "request": 145507000,
+   "mark": 145507000,
+   "explanation": "COMMUNICATIONS SECURITY (COMSEC)"
+  },
+  {
+   "peCode": "0152B13000",
+   "fy": 2027,
+   "request": 65000,
+   "mark": 65000,
+   "explanation": "BIOMETRIC ENABLING CAPABILITY (BEC)"
+  },
+  {
+   "peCode": "9200BB8650",
+   "fy": 2027,
+   "request": 133046000,
+   "mark": 133046000,
+   "explanation": "INFORMATION SYSTEMS"
+  },
+  {
+   "peCode": "9668B74000",
+   "fy": 2027,
+   "request": 50644000,
+   "mark": 50644000,
+   "explanation": "BASE EMERGENCY COMMUNICATION"
+  },
+  {
+   "peCode": "9700BU0500",
+   "fy": 2027,
+   "request": 335050000,
+   "mark": 335050000,
+   "explanation": "INSTALLATION INFO INFRASTRUCTURE MOD PROGRAM"
+  },
+  {
+   "peCode": "9398K57300",
+   "fy": 2027,
+   "request": 368672000,
+   "mark": 287162000,
+   "explanation": "TITAN"
+  },
+  {
+   "peCode": "9546B97600",
+   "fy": 2027,
+   "request": 172558000,
+   "mark": 172558000,
+   "explanation": "TERRESTRIAL LAYER SYSTEMS (TLS)"
+  },
+  {
+   "peCode": "9556B87000",
+   "fy": 2027,
+   "request": 5914000,
+   "mark": 5914000,
+   "explanation": "COLLECTION CAPABILITY"
+  },
+  {
+   "peCode": "9690BZ7316",
+   "fy": 2027,
+   "request": 1075000,
+   "mark": 1075000,
+   "explanation": "DCGS-A-INTEL"
+  },
+  {
+   "peCode": "9704BA0326",
+   "fy": 2027,
+   "request": 48885000,
+   "mark": 48885000,
+   "explanation": "TROJAN"
+  },
+  {
+   "peCode": "9912BZ9750",
+   "fy": 2027,
+   "request": 12441000,
+   "mark": 12441000,
+   "explanation": "MOD OF IN-SVC EQUIP (INTEL SPT)"
+  },
+  {
+   "peCode": "8489W60001",
+   "fy": 2027,
+   "request": 106497000,
+   "mark": 106497000,
+   "explanation": "AIR VIGILANCE (AV)"
+  },
+  {
+   "peCode": "8499K10000",
+   "fy": 2027,
+   "request": 46570000,
+   "mark": 46570000,
+   "explanation": "ELECTRONIC WARFARE PLANNING & MGMT TOOLS (EWP"
+  },
+  {
+   "peCode": "9926BL5287",
+   "fy": 2027,
+   "request": 163000,
+   "mark": 163000,
+   "explanation": "FAMILY OF PERSISTENT SURVEILLANCE CAP"
+  },
+  {
+   "peCode": "9996BL5283",
+   "fy": 2027,
+   "request": 8427000,
+   "mark": 8427000,
+   "explanation": "COUNTERINTELLIGENCE/SECURITY COUNTERMEASURES"
+  },
+  {
+   "peCode": "0125WK5057",
+   "fy": 2027,
+   "request": 485840000,
+   "mark": 485840000,
+   "explanation": "SENTINEL MODS"
+  },
+  {
+   "peCode": "0169BZ6501",
+   "fy": 2027,
+   "request": 1818000,
+   "mark": 1818000,
+   "explanation": "BASE EXPEDITIARY TARGETING AND SURV SYS"
+  },
+  {
+   "peCode": "0173BZ0501",
+   "fy": 2027,
+   "request": 18000000,
+   "mark": 18000000,
+   "explanation": "INDIRECT FIRE PROTECTION FAMILY OF SYSTEMS"
+  },
+  {
+   "peCode": "0177K22001",
+   "fy": 2027,
+   "request": 15340000,
+   "mark": 15340000,
+   "explanation": "FAMILY OF WEAPON SIGHTS (FWS)"
+  },
+  {
+   "peCode": "0187AD3260",
+   "fy": 2027,
+   "request": 13228000,
+   "mark": 13228000,
+   "explanation": "ENHANCED PORTABLE INDUCTIVE ARTILLERY FUZE SE"
+  },
+  {
+   "peCode": "0203H37700",
+   "fy": 2027,
+   "request": 9848000,
+   "mark": 9848000,
+   "explanation": "SURVEILLANCE SYSTEMS"
+  },
+  {
+   "peCode": "0214KA4510",
+   "fy": 2027,
+   "request": 84134000,
+   "mark": 84134000,
+   "explanation": "FORWARD LOOKING INFRARED (IFLIR)"
+  },
+  {
+   "peCode": "0219AD0500",
+   "fy": 2027,
+   "request": 994127000,
+   "mark": 994127000,
+   "explanation": "COUNTER SMALL UNMANNED AERIAL SYSTEM (C-SUAS)"
+  },
+  {
+   "peCode": "0254K32101",
+   "fy": 2027,
+   "request": 7663000,
+   "mark": 7663000,
+   "explanation": "JOINT EFFECTS TARGETING SYSTEM (JETS)"
+  },
+  {
+   "peCode": "5726K99200",
+   "fy": 2027,
+   "request": 6382000,
+   "mark": 6382000,
+   "explanation": "COMPUTER BALLISTICS: LHMBC XM32"
+  },
+  {
+   "peCode": "7500K99300",
+   "fy": 2027,
+   "request": 2391000,
+   "mark": 2391000,
+   "explanation": "MORTAR FIRE CONTROL SYSTEM"
+  },
+  {
+   "peCode": "7563AD9300",
+   "fy": 2027,
+   "request": 7139000,
+   "mark": 7139000,
+   "explanation": "MORTAR FIRE CONTROL SYSTEMS MODIFICATIONS"
+  },
+  {
+   "peCode": "8386BA5500",
+   "fy": 2027,
+   "request": 196522000,
+   "mark": 196522000,
+   "explanation": "COUNTERFIRE RADARS"
+  },
+  {
+   "peCode": "9997K81500",
+   "fy": 2027,
+   "request": 397286000,
+   "mark": 397286000,
+   "explanation": "ADVANCED SITUATIONAL AWARENESS SYSTEMS"
+  },
+  {
+   "peCode": "9060B28501",
+   "fy": 2027,
+   "request": 3559000,
+   "mark": 3559000,
+   "explanation": "FIRE SUPPORT C2 FAMILY"
+  },
+  {
+   "peCode": "9266AD5070",
+   "fy": 2027,
+   "request": 61127000,
+   "mark": 61127000,
+   "explanation": "AIR & MSL DEFENSE PLANNING & CONTROL SYS"
+  },
+  {
+   "peCode": "9280BZ5075",
+   "fy": 2027,
+   "request": 1052868000,
+   "mark": 1052868000,
+   "explanation": "IAMD BATTLE COMMAND SYSTEM"
+  },
+  {
+   "peCode": "9301H37300",
+   "fy": 2027,
+   "request": 16446000,
+   "mark": 16446000,
+   "explanation": "AIAMD FAMILY OF SYSTEMS (FOS) COMPONENTS"
+  },
+  {
+   "peCode": "9442BD3955",
+   "fy": 2027,
+   "request": 5265000,
+   "mark": 5265000,
+   "explanation": "LIFE CYCLE SOFTWARE SUPPORT (LCSS)"
+  },
+  {
+   "peCode": "9971B99901",
+   "fy": 2027,
+   "request": 16673000,
+   "mark": 16673000,
+   "explanation": "MOD OF IN-SVC EQUIPMENT (ENFIRE)"
+  },
+  {
+   "peCode": "3001BE4169",
+   "fy": 2027,
+   "request": 4303000,
+   "mark": 4303000,
+   "explanation": "ARMY TRAINING MODERNIZATION"
+  },
+  {
+   "peCode": "3002BD3000",
+   "fy": 2027,
+   "request": 99039000,
+   "mark": 99039000,
+   "explanation": "AUTOMATED DATA PROCESSING EQUIP"
+  },
+  {
+   "peCode": "3005B66501",
+   "fy": 2027,
+   "request": 75004000,
+   "mark": 75004000,
+   "explanation": "HIGH PERF COMPUTING MOD PGM (HPCMP)"
+  },
+  {
+   "peCode": "2300M90101",
+   "fy": 2027,
+   "request": 143000,
+   "mark": 143000,
+   "explanation": "BASE DEFENSE SYSTEMS (BDS)"
+  },
+  {
+   "peCode": "4516M01001",
+   "fy": 2027,
+   "request": 65020000,
+   "mark": 65020000,
+   "explanation": "CBRN DEFENSE"
+  },
+  {
+   "peCode": "3542MA8890",
+   "fy": 2027,
+   "request": 35806000,
+   "mark": 35806000,
+   "explanation": "TACTICAL BRIDGE, FLOAT-RIBBON"
+  },
+  {
+   "peCode": "4868W12002",
+   "fy": 2027,
+   "request": 84303000,
+   "mark": 84303000,
+   "explanation": "ROBOTICS AND APPLIQUE SYSTEMS"
+  },
+  {
+   "peCode": "5913R63610",
+   "fy": 2027,
+   "request": 12461000,
+   "mark": 12461000,
+   "explanation": "RENDER SAFE SETS KITS OUTFITS"
+  },
+  {
+   "peCode": "8500R12001",
+   "fy": 2027,
+   "request": 8028000,
+   "mark": 8028000,
+   "explanation": "FAMILY OF BOATS AND MOTORS"
+  },
+  {
+   "peCode": "0100MF9000",
+   "fy": 2027,
+   "request": 15021000,
+   "mark": 15021000,
+   "explanation": "HEATERS AND ECU’S"
+  },
+  {
+   "peCode": "8825R80501",
+   "fy": 2027,
+   "request": 193491000,
+   "mark": 193491000,
+   "explanation": "GROUND SOLDIER SYSTEM"
+  },
+  {
+   "peCode": "9140MA7804",
+   "fy": 2027,
+   "request": 39505000,
+   "mark": 39505000,
+   "explanation": "CARGO AERIAL DEL & PERSONNEL PARACHUTE SYSTEM"
+  },
+  {
+   "peCode": "9530ML5301",
+   "fy": 2027,
+   "request": 4129000,
+   "mark": 4129000,
+   "explanation": "ITEMS LESS THAN $5M (ENG SPT)"
+  },
+  {
+   "peCode": "4700MA6000",
+   "fy": 2027,
+   "request": 133881000,
+   "mark": 133881000,
+   "explanation": "DISTRIBUTION SYSTEMS, PETROLEUM & WATER"
+  },
+  {
+   "peCode": "7500MN1000",
+   "fy": 2027,
+   "request": 93705000,
+   "mark": 93705000,
+   "explanation": "COMBAT SUPPORT MEDICAL"
+  },
+  {
+   "peCode": "0639G05301",
+   "fy": 2027,
+   "request": 58997000,
+   "mark": 58997000,
+   "explanation": "MOBILE MAINTENANCE EQUIPMENT SYSTEMS"
+  },
+  {
+   "peCode": "0387R02700",
+   "fy": 2027,
+   "request": 72582000,
+   "mark": 72582000,
+   "explanation": "CONSTRUCTION EQUIPMENT"
+  },
+  {
+   "peCode": "3569M11101",
+   "fy": 2027,
+   "request": 75717000,
+   "mark": 75717000,
+   "explanation": "ARMY WATERCRAFT ESP"
+  },
+  {
+   "peCode": "8211R01001",
+   "fy": 2027,
+   "request": 104705000,
+   "mark": 104705000,
+   "explanation": "MANEUVER SUPPORT VESSEL (MSV)"
+  },
+  {
+   "peCode": "9552ML5355",
+   "fy": 2027,
+   "request": 22021000,
+   "mark": 22021000,
+   "explanation": "ITEMS LESS THAN $5.0M (FLOAT/RAIL)"
+  },
+  {
+   "peCode": "0426MA9800",
+   "fy": 2027,
+   "request": 79456000,
+   "mark": 79456000,
+   "explanation": "GENERATORS AND ASSOCIATED EQUIP"
+  },
+  {
+   "peCode": "5558G41001",
+   "fy": 2027,
+   "request": 6238000,
+   "mark": 21238000,
+   "explanation": "FAMILY OF FORKLIFTS"
+  },
+  {
+   "peCode": "1780MA6600",
+   "fy": 2027,
+   "request": 141848000,
+   "mark": 141848000,
+   "explanation": "COMBAT TRAINING CENTERS SUPPORT"
+  },
+  {
+   "peCode": "2062NA0100",
+   "fy": 2027,
+   "request": 140860000,
+   "mark": 140860000,
+   "explanation": "TRAINING DEVICES, NONSYSTEM"
+  },
+  {
+   "peCode": "2079NA2000",
+   "fy": 2027,
+   "request": 115535000,
+   "mark": 115535000,
+   "explanation": "SYNTHETIC TRAINING ENVIRONMENT (STE)"
+  },
+  {
+   "peCode": "6860NA0176",
+   "fy": 2027,
+   "request": 4180000,
+   "mark": 4180000,
+   "explanation": "GAMING TECHNOLOGY IN SUPPORT OF ARMY TRAINING"
+  },
+  {
+   "peCode": "0200MB4000",
+   "fy": 2027,
+   "request": 18570000,
+   "mark": 18570000,
+   "explanation": "INTEGRATED FAMILY OF TEST EQUIPMENT (IFTE)"
+  },
+  {
+   "peCode": "0605G02510",
+   "fy": 2027,
+   "request": 53597000,
+   "mark": 53597000,
+   "explanation": "TEST EQUIPMENT MODERNIZATION (TEMOD)"
+  },
+  {
+   "peCode": "0050MA0780",
+   "fy": 2027,
+   "request": 137271000,
+   "mark": 137271000,
+   "explanation": "PHYSICAL SECURITY SYSTEMS (OPA3)"
+  },
+  {
+   "peCode": "0312MB7000",
+   "fy": 2027,
+   "request": 19889000,
+   "mark": 19889000,
+   "explanation": "BASE LEVEL COMMON EQUIPMENT"
+  },
+  {
+   "peCode": "1110MA4500",
+   "fy": 2027,
+   "request": 41358000,
+   "mark": 41358000,
+   "explanation": "MODIFICATION OF IN-SVC EQUIPMENT (OPA-3)"
+  },
+  {
+   "peCode": "1220MA0450",
+   "fy": 2027,
+   "request": 362356000,
+   "mark": 362356000,
+   "explanation": "PRODUCTION BASE SUPPORT (OTH)"
+  },
+  {
+   "peCode": "1500MA9160",
+   "fy": 2027,
+   "request": 10878000,
+   "mark": 10878000,
+   "explanation": "BUILDING, PRE-FAB, RELOCATABLE"
+  },
+  {
+   "peCode": "1573MA6820",
+   "fy": 2027,
+   "request": 88721000,
+   "mark": 88721000,
+   "explanation": "SPECIAL EQUIPMENT FOR TEST AND EVALUATION"
+  },
+  {
+   "peCode": "0200BS9100",
+   "fy": 2027,
+   "request": 7323000,
+   "mark": 7323000,
+   "explanation": "INITIAL SPARES-C&E"
+  },
+  {
+   "peCode": "1506N0145",
+   "fy": 2027,
+   "request": 49088000,
+   "mark": 97088000,
+   "explanation": "F/A-18E/F (FIGHTER) HORNET"
+  },
+  {
+   "peCode": "1506N0147",
+   "fy": 2027,
+   "request": 995707000,
+   "mark": 995707000,
+   "explanation": "JOINT STRIKE FIGHTER CV"
+  },
+  {
+   "peCode": "1506N0147",
+   "fy": 2027,
+   "request": 651081000,
+   "mark": 651081000,
+   "explanation": "JOINT STRIKE FIGHTER CV"
+  },
+  {
+   "peCode": "1506N0152",
+   "fy": 2027,
+   "request": 62363000,
+   "mark": 62363000,
+   "explanation": "JSF STOVL"
+  },
+  {
+   "peCode": "1506N0152",
+   "fy": 2027,
+   "request": 77963000,
+   "mark": 77963000,
+   "explanation": "JSF STOVL"
+  },
+  {
+   "peCode": "1506N0158",
+   "fy": 2027,
+   "request": 3044450000,
+   "mark": 3044450000,
+   "explanation": "CH-53K (HEAVY LIFT)"
+  },
+  {
+   "peCode": "1506N0158",
+   "fy": 2027,
+   "request": 429295000,
+   "mark": 429295000,
+   "explanation": "CH-53K (HEAVY LIFT)"
+  },
+  {
+   "peCode": "1506N0178",
+   "fy": 2027,
+   "request": 5974000,
+   "mark": 5974000,
+   "explanation": "H-1 UPGRADES (UH-1Y/AH-1Z)"
+  },
+  {
+   "peCode": "1506N0193",
+   "fy": 2027,
+   "request": 4227350000,
+   "mark": 4099721000,
+   "explanation": "P-8A POSEIDON"
+  },
+  {
+   "peCode": "1506N0416",
+   "fy": 2027,
+   "request": 1601906000,
+   "mark": 1601906000,
+   "explanation": "KC-130J"
+  },
+  {
+   "peCode": "1506N0442",
+   "fy": 2027,
+   "request": 104326000,
+   "mark": 104326000,
+   "explanation": "MQ-4 TRITON"
+  },
+  {
+   "peCode": "1506N0449",
+   "fy": 2027,
+   "request": 771177000,
+   "mark": 771177000,
+   "explanation": "MQ-25"
+  },
+  {
+   "peCode": "1506N0449",
+   "fy": 2027,
+   "request": 80965000,
+   "mark": 80965000,
+   "explanation": "MQ-25"
+  },
+  {
+   "peCode": "1506N0452",
+   "fy": 2027,
+   "request": 118600000,
+   "mark": 118600000,
+   "explanation": "MARINE GROUP 5 UAS"
+  },
+  {
+   "peCode": "1506N0465",
+   "fy": 2027,
+   "request": 204476000,
+   "mark": 204476000,
+   "explanation": "OTHER SUPPORT AIRCRAFT"
+  },
+  {
+   "peCode": "1506N0502",
+   "fy": 2027,
+   "request": 36951000,
+   "mark": 36951000,
+   "explanation": "F-18 A-D UNIQUE"
+  },
+  {
+   "peCode": "1506N0505",
+   "fy": 2027,
+   "request": 563832000,
+   "mark": 563832000,
+   "explanation": "F-18E/F AND EA-18G MODERNIZATION AND SUSTAINM"
+  },
+  {
+   "peCode": "1506N0507",
+   "fy": 2027,
+   "request": 179603000,
+   "mark": 179603000,
+   "explanation": "MARINE GROUP 5 UAS SERIES"
+  },
+  {
+   "peCode": "1506N0513",
+   "fy": 2027,
+   "request": 37125000,
+   "mark": 37125000,
+   "explanation": "AEA SYSTEMS"
+  },
+  {
+   "peCode": "1506N0515",
+   "fy": 2027,
+   "request": 171345000,
+   "mark": 171345000,
+   "explanation": "INFRARED SEARCH AND TRACK (IRST)"
+  },
+  {
+   "peCode": "1506N0522",
+   "fy": 2027,
+   "request": 24732000,
+   "mark": 24732000,
+   "explanation": "ADVERSARY"
+  },
+  {
+   "peCode": "1506N0525",
+   "fy": 2027,
+   "request": 858716000,
+   "mark": 858716000,
+   "explanation": "F-18 SERIES"
+  },
+  {
+   "peCode": "1506N0528",
+   "fy": 2027,
+   "request": 91903000,
+   "mark": 91903000,
+   "explanation": "H-53 SERIES"
+  },
+  {
+   "peCode": "1506N0530",
+   "fy": 2027,
+   "request": 236555000,
+   "mark": 236555000,
+   "explanation": "MH-60 SERIES"
+  },
+  {
+   "peCode": "1506N0532",
+   "fy": 2027,
+   "request": 304267000,
+   "mark": 304267000,
+   "explanation": "H-1 SERIES"
+  },
+  {
+   "peCode": "1506N0544",
+   "fy": 2027,
+   "request": 96428000,
+   "mark": 96428000,
+   "explanation": "E-2 SERIES"
+  },
+  {
+   "peCode": "1506N0560",
+   "fy": 2027,
+   "request": 185266000,
+   "mark": 185266000,
+   "explanation": "C-130 SERIES"
+  },
+  {
+   "peCode": "1506N0562",
+   "fy": 2027,
+   "request": 20100000,
+   "mark": 20100000,
+   "explanation": "CARGO/TRANSPORT A/C SERIES"
+  },
+  {
+   "peCode": "1506N0564",
+   "fy": 2027,
+   "request": 270832000,
+   "mark": 270832000,
+   "explanation": "E-6 SERIES"
+  },
+  {
+   "peCode": "1506N0566",
+   "fy": 2027,
+   "request": 57319000,
+   "mark": 57319000,
+   "explanation": "EXECUTIVE HELICOPTERS SERIES"
+  },
+  {
+   "peCode": "1506N0569",
+   "fy": 2027,
+   "request": 191139000,
+   "mark": 191139000,
+   "explanation": "T-45 SERIES"
+  },
+  {
+   "peCode": "1506N0570",
+   "fy": 2027,
+   "request": 23765000,
+   "mark": 23765000,
+   "explanation": "POWER PLANT CHANGES"
+  },
+  {
+   "peCode": "1506N0576",
+   "fy": 2027,
+   "request": 365990000,
+   "mark": 365990000,
+   "explanation": "COMMON ECM EQUIPMENT"
+  },
+  {
+   "peCode": "1506N0577",
+   "fy": 2027,
+   "request": 246728000,
+   "mark": 246728000,
+   "explanation": "COMMON AVIONICS CHANGES"
+  },
+  {
+   "peCode": "1506N0581",
+   "fy": 2027,
+   "request": 11028000,
+   "mark": 11028000,
+   "explanation": "COMMON DEFENSIVE WEAPON SYSTEM"
+  },
+  {
+   "peCode": "1506N0582",
+   "fy": 2027,
+   "request": 3199000,
+   "mark": 3199000,
+   "explanation": "ID SYSTEMS"
+  },
+  {
+   "peCode": "1506N0586",
+   "fy": 2027,
+   "request": 381014000,
+   "mark": 381014000,
+   "explanation": "P-8 SERIES"
+  },
+  {
+   "peCode": "1506N0587",
+   "fy": 2027,
+   "request": 20686000,
+   "mark": 20686000,
+   "explanation": "MAGTF EW FOR AVIATION"
+  },
+  {
+   "peCode": "1506N0590",
+   "fy": 2027,
+   "request": 641715000,
+   "mark": 641715000,
+   "explanation": "V-22 (TILT/ROTOR ACFT) OSPREY"
+  },
+  {
+   "peCode": "1506N0591",
+   "fy": 2027,
+   "request": 458658000,
+   "mark": 458658000,
+   "explanation": "NEXT GENERATION JAMMER (NGJ)"
+  },
+  {
+   "peCode": "1506N0592",
+   "fy": 2027,
+   "request": 428881000,
+   "mark": 428881000,
+   "explanation": "F-35 STOVL SERIES"
+  },
+  {
+   "peCode": "1506N0593",
+   "fy": 2027,
+   "request": 135612000,
+   "mark": 135612000,
+   "explanation": "F-35 CV SERIES"
+  },
+  {
+   "peCode": "1506N0595",
+   "fy": 2027,
+   "request": 27686000,
+   "mark": 27686000,
+   "explanation": "QRC"
+  },
+  {
+   "peCode": "1506N0596",
+   "fy": 2027,
+   "request": 157849000,
+   "mark": 157849000,
+   "explanation": "MQ-4 SERIES"
+  },
+  {
+   "peCode": "1506N0605",
+   "fy": 2027,
+   "request": 4511417000,
+   "mark": 4511417000,
+   "explanation": "SPARES AND REPAIR PARTS"
+  },
+  {
+   "peCode": "1506N0705",
+   "fy": 2027,
+   "request": 666140000,
+   "mark": 666140000,
+   "explanation": "COMMON GROUND EQUIPMENT"
+  },
+  {
+   "peCode": "1506N0715",
+   "fy": 2027,
+   "request": 113513000,
+   "mark": 113513000,
+   "explanation": "AIRCRAFT INDUSTRIAL FACILITIES"
+  },
+  {
+   "peCode": "1506N0720",
+   "fy": 2027,
+   "request": 56577000,
+   "mark": 56577000,
+   "explanation": "WAR CONSUMABLES"
+  },
+  {
+   "peCode": "1506N0725",
+   "fy": 2027,
+   "request": 61970000,
+   "mark": 61970000,
+   "explanation": "OTHER PRODUCTION CHARGES"
+  },
+  {
+   "peCode": "1506N0735",
+   "fy": 2027,
+   "request": 218318000,
+   "mark": 218318000,
+   "explanation": "SPECIAL SUPPORT EQUIPMENT"
+  },
+  {
+   "peCode": "1507N1160",
+   "fy": 2027,
+   "request": 750387000,
+   "mark": 375193000,
+   "explanation": "CONVENTIONAL PROMPT STRIKE"
+  },
+  {
+   "peCode": "1507N1250",
+   "fy": 2027,
+   "request": 3912267000,
+   "mark": 3912267000,
+   "explanation": "TRIDENT II MODS"
+  },
+  {
+   "peCode": "1507N2101",
+   "fy": 2027,
+   "request": 1015106000,
+   "mark": 1015106000,
+   "explanation": "TOMAHAWK"
+  },
+  {
+   "peCode": "1507N2206",
+   "fy": 2027,
+   "request": 167439000,
+   "mark": 167439000,
+   "explanation": "AMRAAM"
+  },
+  {
+   "peCode": "1507N2209",
+   "fy": 2027,
+   "request": 174750000,
+   "mark": 174750000,
+   "explanation": "SIDEWINDER"
+  },
+  {
+   "peCode": "1507N2210",
+   "fy": 2027,
+   "request": 557806000,
+   "mark": 557806000,
+   "explanation": "JOINT ADVANCE TACTICAL MISSILE (JATM)"
+  },
+  {
+   "peCode": "1507N2234",
+   "fy": 2027,
+   "request": 733159000,
+   "mark": 833159000,
+   "explanation": "STANDARD MISSILE"
+  },
+  {
+   "peCode": "1507N2238",
+   "fy": 2027,
+   "request": 166688000,
+   "mark": 166688000,
+   "explanation": "SMALL DIAMETER BOMB II"
+  },
+  {
+   "peCode": "1507N2242",
+   "fy": 2027,
+   "request": 119166000,
+   "mark": 119166000,
+   "explanation": "RAM"
+  },
+  {
+   "peCode": "1507N2247",
+   "fy": 2027,
+   "request": 97835000,
+   "mark": 97835000,
+   "explanation": "MSE MISSILE"
+  },
+  {
+   "peCode": "1507N2248",
+   "fy": 2027,
+   "request": 73226000,
+   "mark": 73226000,
+   "explanation": "JOINT AIR GROUND MISSILE (JAGM)"
+  },
+  {
+   "peCode": "1507N2280",
+   "fy": 2027,
+   "request": 179931000,
+   "mark": 179931000,
+   "explanation": "AERIAL TARGETS"
+  },
+  {
+   "peCode": "1507N2290",
+   "fy": 2027,
+   "request": 3877000,
+   "mark": 3877000,
+   "explanation": "OTHER MISSILE SUPPORT"
+  },
+  {
+   "peCode": "1507N2291",
+   "fy": 2027,
+   "request": 670456000,
+   "mark": 670456000,
+   "explanation": "LRASM"
+  },
+  {
+   "peCode": "1507N2292",
+   "fy": 2027,
+   "request": 75972000,
+   "mark": 75972000,
+   "explanation": "NAVAL STRIKE MISSILE (NSM)"
+  },
+  {
+   "peCode": "1507N2292",
+   "fy": 2027,
+   "request": 2103000,
+   "mark": 2103000,
+   "explanation": "NAVAL STRIKE MISSILE (NSM)"
+  },
+  {
+   "peCode": "1507N2295",
+   "fy": 2027,
+   "request": 4019000,
+   "mark": 4019000,
+   "explanation": "PRECISION ATTACK STRIKE MUNITION (PASM)"
+  },
+  {
+   "peCode": "1507N2301",
+   "fy": 2027,
+   "request": 799139000,
+   "mark": 799139000,
+   "explanation": "TOMAHAWK MODS"
+  },
+  {
+   "peCode": "1507N2307",
+   "fy": 2027,
+   "request": 521006000,
+   "mark": 521006000,
+   "explanation": "ESSM"
+  },
+  {
+   "peCode": "1507N2327",
+   "fy": 2027,
+   "request": 20000,
+   "mark": 20000,
+   "explanation": "AARGM-ER"
+  },
+  {
+   "peCode": "1507N2327",
+   "fy": 2027,
+   "request": 5210000,
+   "mark": 5210000,
+   "explanation": "AARGM-ER"
+  },
+  {
+   "peCode": "1507N2356",
+   "fy": 2027,
+   "request": 69579000,
+   "mark": 69579000,
+   "explanation": "STANDARD MISSILES MODS"
+  },
+  {
+   "peCode": "1507N2420",
+   "fy": 2027,
+   "request": 62403000,
+   "mark": 62403000,
+   "explanation": "WEAPONS INDUSTRIAL FACILITIES"
+  },
+  {
+   "peCode": "1507N2421",
+   "fy": 2027,
+   "request": 640000,
+   "mark": 640000,
+   "explanation": "INDUSTRIAL PREPAREDNESS"
+  },
+  {
+   "peCode": "1507N2500",
+   "fy": 2027,
+   "request": 43261000,
+   "mark": 43261000,
+   "explanation": "ORDNANCE SUPPORT EQUIPMENT"
+  },
+  {
+   "peCode": "1507N3113",
+   "fy": 2027,
+   "request": 3969000,
+   "mark": 3969000,
+   "explanation": "SSTD"
+  },
+  {
+   "peCode": "1507N3117",
+   "fy": 2027,
+   "request": 571274000,
+   "mark": 571274000,
+   "explanation": "MK-48 TORPEDO"
+  },
+  {
+   "peCode": "1507N3141",
+   "fy": 2027,
+   "request": 47277000,
+   "mark": 47277000,
+   "explanation": "ASW TARGETS"
+  },
+  {
+   "peCode": "1507N3215",
+   "fy": 2027,
+   "request": 112126000,
+   "mark": 112126000,
+   "explanation": "MK-54 TORPEDO MODS"
+  },
+  {
+   "peCode": "1507N3225",
+   "fy": 2027,
+   "request": 67279000,
+   "mark": 67279000,
+   "explanation": "MK-48 TORPEDO ADCAP MODS"
+  },
+  {
+   "peCode": "1507N3231",
+   "fy": 2027,
+   "request": 251724000,
+   "mark": 251724000,
+   "explanation": "MARITIME MINES"
+  },
+  {
+   "peCode": "1507N3301",
+   "fy": 2027,
+   "request": 160445000,
+   "mark": 160445000,
+   "explanation": "TORPEDO SUPPORT EQUIPMENT"
+  },
+  {
+   "peCode": "1507N3302",
+   "fy": 2027,
+   "request": 4438000,
+   "mark": 4438000,
+   "explanation": "ASW RANGE SUPPORT"
+  },
+  {
+   "peCode": "1507N2410",
+   "fy": 2027,
+   "request": 6011000,
+   "mark": 6011000,
+   "explanation": "FIRST DESTINATION TRANSPORTATION"
+  },
+  {
+   "peCode": "1507N4129",
+   "fy": 2027,
+   "request": 13946000,
+   "mark": 13946000,
+   "explanation": "SMALL ARMS AND WEAPONS"
+  },
+  {
+   "peCode": "1507N4205",
+   "fy": 2027,
+   "request": 7939000,
+   "mark": 7939000,
+   "explanation": "CIWS MODS"
+  },
+  {
+   "peCode": "1507N4206",
+   "fy": 2027,
+   "request": 49537000,
+   "mark": 49537000,
+   "explanation": "COAST GUARD WEAPONS"
+  },
+  {
+   "peCode": "1507N4217",
+   "fy": 2027,
+   "request": 84004000,
+   "mark": 84004000,
+   "explanation": "GUN MOUNT MODS"
+  },
+  {
+   "peCode": "1507N4221",
+   "fy": 2027,
+   "request": 2190000,
+   "mark": 2190000,
+   "explanation": "LCS MODULE WEAPONS"
+  },
+  {
+   "peCode": "1507N4225",
+   "fy": 2027,
+   "request": 14265000,
+   "mark": 14265000,
+   "explanation": "AIRBORNE MINE NEUTRALIZATION SYSTEMS"
+  },
+  {
+   "peCode": "1507N6120",
+   "fy": 2027,
+   "request": 167242000,
+   "mark": 167242000,
+   "explanation": "SPARES AND REPAIR PARTS"
+  },
+  {
+   "peCode": "1508N0145",
+   "fy": 2027,
+   "request": 45607000,
+   "mark": 45607000,
+   "explanation": "GENERAL PURPOSE BOMBS"
+  },
+  {
+   "peCode": "1508N0148",
+   "fy": 2027,
+   "request": 96935000,
+   "mark": 96935000,
+   "explanation": "JDAM"
+  },
+  {
+   "peCode": "1508N0151",
+   "fy": 2027,
+   "request": 92145000,
+   "mark": 92145000,
+   "explanation": "AIRBORNE ROCKETS, ALL TYPES"
+  },
+  {
+   "peCode": "1508N0155",
+   "fy": 2027,
+   "request": 14832000,
+   "mark": 14832000,
+   "explanation": "MACHINE GUN AMMUNITION"
+  },
+  {
+   "peCode": "1508N0160",
+   "fy": 2027,
+   "request": 46782000,
+   "mark": 46782000,
+   "explanation": "PRACTICE BOMBS"
+  },
+  {
+   "peCode": "1508N0182",
+   "fy": 2027,
+   "request": 121059000,
+   "mark": 121059000,
+   "explanation": "AIR EXPENDABLE COUNTERMEASURES"
+  },
+  {
+   "peCode": "1508N0194",
+   "fy": 2027,
+   "request": 8179000,
+   "mark": 8179000,
+   "explanation": "JATOS"
+  },
+  {
+   "peCode": "1508N0250",
+   "fy": 2027,
+   "request": 44136000,
+   "mark": 44136000,
+   "explanation": "5 INCH/54 GUN AMMUNITION"
+  },
+  {
+   "peCode": "1508N0266",
+   "fy": 2027,
+   "request": 40095000,
+   "mark": 40095000,
+   "explanation": "INTERMEDIATE CALIBER GUN AMMUNITION"
+  },
+  {
+   "peCode": "1508N0270",
+   "fy": 2027,
+   "request": 43106000,
+   "mark": 43106000,
+   "explanation": "OTHER SHIP GUN AMMUNITION"
+  },
+  {
+   "peCode": "1508N0335",
+   "fy": 2027,
+   "request": 48801000,
+   "mark": 48801000,
+   "explanation": "SMALL ARMS & LANDING PARTY AMMO"
+  },
+  {
+   "peCode": "1508N0340",
+   "fy": 2027,
+   "request": 9510000,
+   "mark": 9510000,
+   "explanation": "PYROTECHNIC AND DEMOLITION"
+  },
+  {
+   "peCode": "1508N0400",
+   "fy": 2027,
+   "request": 1692000,
+   "mark": 1692000,
+   "explanation": "AMMUNITION LESS THAN $5 MILLION"
+  },
+  {
+   "peCode": "1508N1776",
+   "fy": 2027,
+   "request": 165662000,
+   "mark": 215662000,
+   "explanation": "EXPEDITIONARY LOITERING MUNITIONS"
+  },
+  {
+   "peCode": "1508N1085",
+   "fy": 2027,
+   "request": 181464000,
+   "mark": 181464000,
+   "explanation": "MORTARS"
+  },
+  {
+   "peCode": "1508N1125",
+   "fy": 2027,
+   "request": 29715000,
+   "mark": 29715000,
+   "explanation": "DIRECT SUPPORT MUNITIONS"
+  },
+  {
+   "peCode": "1508N1350",
+   "fy": 2027,
+   "request": 142179000,
+   "mark": 142179000,
+   "explanation": "INFANTRY WEAPONS AMMUNITION"
+  },
+  {
+   "peCode": "1508N1550",
+   "fy": 2027,
+   "request": 12510000,
+   "mark": 12510000,
+   "explanation": "COMBAT SUPPORT MUNITIONS"
+  },
+  {
+   "peCode": "1508N1630",
+   "fy": 2027,
+   "request": 19009000,
+   "mark": 19009000,
+   "explanation": "AMMO MODERNIZATION"
+  },
+  {
+   "peCode": "1508N1650",
+   "fy": 2027,
+   "request": 723278000,
+   "mark": 723278000,
+   "explanation": "ARTILLERY MUNITIONS"
+  },
+  {
+   "peCode": "1508N1660",
+   "fy": 2027,
+   "request": 8837000,
+   "mark": 8837000,
+   "explanation": "ITEMS LESS THAN $5 MILLION"
+  },
+  {
+   "peCode": "1611N1045",
+   "fy": 2027,
+   "request": 3329047000,
+   "mark": 3329047000,
+   "explanation": "COLUMBIA CLASS SUBMARINE"
+  },
+  {
+   "peCode": "1611N1045",
+   "fy": 2027,
+   "request": 6904785000,
+   "mark": 6904785000,
+   "explanation": "COLUMBIA CLASS SUBMARINE"
+  },
+  {
+   "peCode": "1611N1045",
+   "fy": 2027,
+   "request": 4763342000,
+   "mark": 4763342000,
+   "explanation": "COLUMBIA CLASS SUBMARINE"
+  },
+  {
+   "peCode": "1611N2001",
+   "fy": 2027,
+   "request": 641907000,
+   "mark": 641907000,
+   "explanation": "CARRIER REPLACEMENT PROGRAM"
+  },
+  {
+   "peCode": "1611N2001",
+   "fy": 2027,
+   "request": 1940566000,
+   "mark": 1940566000,
+   "explanation": "CARRIER REPLACEMENT PROGRAM"
+  },
+  {
+   "peCode": "1611N2004",
+   "fy": 2027,
+   "request": 1447882000,
+   "mark": 1447882000,
+   "explanation": "CVN-81"
+  },
+  {
+   "peCode": "1611N2013",
+   "fy": 2027,
+   "request": 8402316000,
+   "mark": 8402316000,
+   "explanation": "VIRGINIA CLASS SUBMARINE"
+  },
+  {
+   "peCode": "1611N2013",
+   "fy": 2027,
+   "request": 4143618000,
+   "mark": 4143618000,
+   "explanation": "VIRGINIA CLASS SUBMARINE"
+  },
+  {
+   "peCode": "1611N2056",
+   "fy": 2027,
+   "request": 1000000000,
+   "mark": 0,
+   "explanation": "BBG(X)"
+  },
+  {
+   "peCode": "1611N2086",
+   "fy": 2027,
+   "request": 4418902000,
+   "mark": 2018902000,
+   "explanation": "CVN REFUELING OVERHAULS"
+  },
+  {
+   "peCode": "1611N2086",
+   "fy": 2027,
+   "request": 53070000,
+   "mark": 53070000,
+   "explanation": "CVN REFUELING OVERHAULS"
+  },
+  {
+   "peCode": "1611N2119",
+   "fy": 2027,
+   "request": 66516000,
+   "mark": 66516000,
+   "explanation": "DDG 1000"
+  },
+  {
+   "peCode": "1611N2122",
+   "fy": 2027,
+   "request": 2954238000,
+   "mark": 5454238000,
+   "explanation": "DDG-51"
+  },
+  {
+   "peCode": "1611N2133",
+   "fy": 2027,
+   "request": 1429000000,
+   "mark": 1429000000,
+   "explanation": "FF(X)"
+  },
+  {
+   "peCode": "1611N3010",
+   "fy": 2027,
+   "request": 2188700000,
+   "mark": 2188700000,
+   "explanation": "LPD FLIGHT II"
+  },
+  {
+   "peCode": "1611N3010",
+   "fy": 2027,
+   "request": 355950000,
+   "mark": 355950000,
+   "explanation": "LPD FLIGHT II"
+  },
+  {
+   "peCode": "1611N3041",
+   "fy": 2027,
+   "request": 3850319000,
+   "mark": 3850319000,
+   "explanation": "LHA REPLACEMENT"
+  },
+  {
+   "peCode": "1611N5010",
+   "fy": 2027,
+   "request": 4444000000,
+   "mark": 2344000000,
+   "explanation": "AS SUBMARINE TENDER"
+  },
+  {
+   "peCode": "1611N5025",
+   "fy": 2027,
+   "request": 1946063000,
+   "mark": 1946063000,
+   "explanation": "TAO FLEET OILER"
+  },
+  {
+   "peCode": "1611N5030",
+   "fy": 2027,
+   "request": 610664000,
+   "mark": 0,
+   "explanation": "TAGOS SURTASS SHIPS"
+  },
+  {
+   "peCode": "1611N5104",
+   "fy": 2027,
+   "request": 450000000,
+   "mark": 450000000,
+   "explanation": "STRATEGIC SEALIFT"
+  },
+  {
+   "peCode": "1611N5110",
+   "fy": 2027,
+   "request": 741270000,
+   "mark": 741270000,
+   "explanation": "OUTFITTING"
+  },
+  {
+   "peCode": "1611N5112",
+   "fy": 2027,
+   "request": 733895000,
+   "mark": 733895000,
+   "explanation": "SHIP TO SHORE CONNECTOR"
+  },
+  {
+   "peCode": "1611N5113",
+   "fy": 2027,
+   "request": 177079000,
+   "mark": 177079000,
+   "explanation": "SERVICE CRAFT"
+  },
+  {
+   "peCode": "1611N5114",
+   "fy": 2027,
+   "request": 83000000,
+   "mark": 83000000,
+   "explanation": "AUXILIARY PERSONNEL LIGHTER"
+  },
+  {
+   "peCode": "1611N5118",
+   "fy": 2027,
+   "request": 450000000,
+   "mark": 450000000,
+   "explanation": "BULK FUEL VESSEL"
+  },
+  {
+   "peCode": "1611N5139",
+   "fy": 2027,
+   "request": 37998000,
+   "mark": 37998000,
+   "explanation": "LCAC SLEP"
+  },
+  {
+   "peCode": "1611N5300",
+   "fy": 2027,
+   "request": 2611990000,
+   "mark": 2611990000,
+   "explanation": "COMPLETION OF PY SHIPBUILDING PROGRAMS"
+  },
+  {
+   "peCode": "1810N0131",
+   "fy": 2027,
+   "request": 22668000,
+   "mark": 22668000,
+   "explanation": "SURFACE POWER EQUIPMENT"
+  },
+  {
+   "peCode": "1810N0200",
+   "fy": 2027,
+   "request": 103871000,
+   "mark": 103871000,
+   "explanation": "SURFACE COMBATANT HM&E"
+  },
+  {
+   "peCode": "1810N0670",
+   "fy": 2027,
+   "request": 83510000,
+   "mark": 83510000,
+   "explanation": "OTHER NAVIGATION EQUIPMENT"
+  },
+  {
+   "peCode": "1810N0840",
+   "fy": 2027,
+   "request": 344885000,
+   "mark": 344885000,
+   "explanation": "SUB PERISCOPE, IMAGING AND SUPT EQUIP PROG"
+  },
+  {
+   "peCode": "1810N0900",
+   "fy": 2027,
+   "request": 1000278000,
+   "mark": 1000278000,
+   "explanation": "DDG MOD"
+  },
+  {
+   "peCode": "1810N0910",
+   "fy": 2027,
+   "request": 177708000,
+   "mark": 177708000,
+   "explanation": "FIREFIGHTING EQUIPMENT"
+  },
+  {
+   "peCode": "1810N0925",
+   "fy": 2027,
+   "request": 2259000,
+   "mark": 2259000,
+   "explanation": "COMMAND AND CONTROL SWITCHBOARD"
+  },
+  {
+   "peCode": "1810N0933",
+   "fy": 2027,
+   "request": 131315000,
+   "mark": 131315000,
+   "explanation": "LHA/LHD MIDLIFE"
+  },
+  {
+   "peCode": "1810N0934",
+   "fy": 2027,
+   "request": 766000,
+   "mark": 766000,
+   "explanation": "LCC 19/20 EXTENDED SERVICE LIFE PROGRAM"
+  },
+  {
+   "peCode": "1810N0935",
+   "fy": 2027,
+   "request": 22506000,
+   "mark": 22506000,
+   "explanation": "POLLUTION CONTROL EQUIPMENT"
+  },
+  {
+   "peCode": "1810N0941",
+   "fy": 2027,
+   "request": 330951000,
+   "mark": 330951000,
+   "explanation": "SUBMARINE SUPPORT EQUIPMENT"
+  },
+  {
+   "peCode": "1810N0942",
+   "fy": 2027,
+   "request": 83297000,
+   "mark": 83297000,
+   "explanation": "VIRGINIA CLASS SUPPORT EQUIPMENT"
+  },
+  {
+   "peCode": "1810N0944",
+   "fy": 2027,
+   "request": 15815000,
+   "mark": 15815000,
+   "explanation": "LCS CLASS SUPPORT EQUIPMENT"
+  },
+  {
+   "peCode": "1810N0945",
+   "fy": 2027,
+   "request": 26211000,
+   "mark": 26211000,
+   "explanation": "SUBMARINE BATTERIES"
+  },
+  {
+   "peCode": "1810N0946",
+   "fy": 2027,
+   "request": 213723000,
+   "mark": 213723000,
+   "explanation": "LPD CLASS SUPPORT EQUIPMENT"
+  },
+  {
+   "peCode": "1810N0947",
+   "fy": 2027,
+   "request": 58284000,
+   "mark": 58284000,
+   "explanation": "DDG 1000 CLASS SUPPORT EQUIPMENT"
+  },
+  {
+   "peCode": "1810N0950",
+   "fy": 2027,
+   "request": 72163000,
+   "mark": 72163000,
+   "explanation": "STRATEGIC PLATFORM SUPPORT EQUIP"
+  },
+  {
+   "peCode": "1810N0956",
+   "fy": 2027,
+   "request": 585000,
+   "mark": 100585000,
+   "explanation": "SMALL UNMANNED SURFACE VEHICLES"
+  },
+  {
+   "peCode": "1810N0970",
+   "fy": 2027,
+   "request": 22515000,
+   "mark": 22515000,
+   "explanation": "LCAC"
+  },
+  {
+   "peCode": "1810N0977",
+   "fy": 2027,
+   "request": 20575000,
+   "mark": 20575000,
+   "explanation": "UNDERWATER EOD EQUIPMENT"
+  },
+  {
+   "peCode": "1810N0981",
+   "fy": 2027,
+   "request": 69425000,
+   "mark": 69425000,
+   "explanation": "ITEMS LESS THAN $5 MILLION"
+  },
+  {
+   "peCode": "1810N0989",
+   "fy": 2027,
+   "request": 2425000,
+   "mark": 2425000,
+   "explanation": "CHEMICAL WARFARE DETECTORS"
+  },
+  {
+   "peCode": "1810N1000",
+   "fy": 2027,
+   "request": 2737140000,
+   "mark": 2737140000,
+   "explanation": "SHIP MAINTENANCE, REPAIR AND MODERNIZATION"
+  },
+  {
+   "peCode": "1810N1020",
+   "fy": 2027,
+   "request": 519821000,
+   "mark": 519821000,
+   "explanation": "REACTOR COMPONENTS"
+  },
+  {
+   "peCode": "1810N1130",
+   "fy": 2027,
+   "request": 33013000,
+   "mark": 33013000,
+   "explanation": "DIVING AND SALVAGE EQUIPMENT"
+  },
+  {
+   "peCode": "1810N0954",
+   "fy": 2027,
+   "request": 121130000,
+   "mark": 121130000,
+   "explanation": "MEDIUM UNMANNED SURFACE VEHICLE (MUSVS)"
+  },
+  {
+   "peCode": "1810N1210",
+   "fy": 2027,
+   "request": 97746000,
+   "mark": 97746000,
+   "explanation": "STANDARD BOATS"
+  },
+  {
+   "peCode": "1810N1445",
+   "fy": 2027,
+   "request": 492100000,
+   "mark": 492100000,
+   "explanation": "OPERATING FORCES IPE"
+  },
+  {
+   "peCode": "1810N1600",
+   "fy": 2027,
+   "request": 30565000,
+   "mark": 30565000,
+   "explanation": "LCS COMMON MISSION MODULES EQUIPMENT"
+  },
+  {
+   "peCode": "1810N1601",
+   "fy": 2027,
+   "request": 65113000,
+   "mark": 65113000,
+   "explanation": "LCS MCM MISSION MODULES"
+  },
+  {
+   "peCode": "1810N1603",
+   "fy": 2027,
+   "request": 1719000,
+   "mark": 1719000,
+   "explanation": "LCS SUW MISSION MODULES"
+  },
+  {
+   "peCode": "1810N1604",
+   "fy": 2027,
+   "request": 315272000,
+   "mark": 315272000,
+   "explanation": "LCS IN-SERVICE MODERNIZATION"
+  },
+  {
+   "peCode": "1810N1611",
+   "fy": 2027,
+   "request": 110955000,
+   "mark": 110955000,
+   "explanation": "SMALL & MEDIUM UUV"
+  },
+  {
+   "peCode": "1810N1612",
+   "fy": 2027,
+   "request": 222998000,
+   "mark": 222998000,
+   "explanation": "LARGE UUV"
+  },
+  {
+   "peCode": "1810N1613",
+   "fy": 2027,
+   "request": 135802000,
+   "mark": 135802000,
+   "explanation": "EXTRA LARGE UUV"
+  },
+  {
+   "peCode": "1810N1610",
+   "fy": 2027,
+   "request": 240000,
+   "mark": 240000,
+   "explanation": "LSD MIDLIFE & MODERNIZATION"
+  },
+  {
+   "peCode": "1810N2136",
+   "fy": 2027,
+   "request": 142355000,
+   "mark": 142355000,
+   "explanation": "AN/SQQ-89 SURF ASW COMBAT SYSTEM"
+  },
+  {
+   "peCode": "1810N2150",
+   "fy": 2027,
+   "request": 454161000,
+   "mark": 454161000,
+   "explanation": "SSN ACOUSTIC EQUIPMENT"
+  },
+  {
+   "peCode": "1810N2210",
+   "fy": 2027,
+   "request": 68881000,
+   "mark": 68881000,
+   "explanation": "SUBMARINE ACOUSTIC WARFARE SYSTEM"
+  },
+  {
+   "peCode": "1810N2213",
+   "fy": 2027,
+   "request": 14857000,
+   "mark": 14857000,
+   "explanation": "SSTD"
+  },
+  {
+   "peCode": "1810N2225",
+   "fy": 2027,
+   "request": 490548000,
+   "mark": 490548000,
+   "explanation": "FIXED SURVEILLANCE SYSTEM"
+  },
+  {
+   "peCode": "1810N2237",
+   "fy": 2027,
+   "request": 72190000,
+   "mark": 72190000,
+   "explanation": "SURTASS"
+  },
+  {
+   "peCode": "1810N2312",
+   "fy": 2027,
+   "request": 653483000,
+   "mark": 653483000,
+   "explanation": "AN/SLQ-32"
+  },
+  {
+   "peCode": "1810N2360",
+   "fy": 2027,
+   "request": 701667000,
+   "mark": 701667000,
+   "explanation": "SHIPBOARD IW EXPLOIT"
+  },
+  {
+   "peCode": "1810N2361",
+   "fy": 2027,
+   "request": 8652000,
+   "mark": 8652000,
+   "explanation": "MARITIME BATTLESPACE AWARENESS"
+  },
+  {
+   "peCode": "1810N2606",
+   "fy": 2027,
+   "request": 33932000,
+   "mark": 33932000,
+   "explanation": "COOPERATIVE ENGAGEMENT CAPABILITY"
+  },
+  {
+   "peCode": "1810N2614",
+   "fy": 2027,
+   "request": 52758000,
+   "mark": 52758000,
+   "explanation": "ATDLS"
+  },
+  {
+   "peCode": "1810N2618",
+   "fy": 2027,
+   "request": 16167000,
+   "mark": 16167000,
+   "explanation": "NAVY COMMAND AND CONTROL SYSTEM (NCCS)"
+  },
+  {
+   "peCode": "1810N2622",
+   "fy": 2027,
+   "request": 14879000,
+   "mark": 14879000,
+   "explanation": "MINESWEEPING SYSTEM REPLACEMENT"
+  },
+  {
+   "peCode": "1810N2657",
+   "fy": 2027,
+   "request": 43097000,
+   "mark": 43097000,
+   "explanation": "NAVSTAR GPS RECEIVERS (SPACE)"
+  },
+  {
+   "peCode": "1810N2666",
+   "fy": 2027,
+   "request": 289000,
+   "mark": 289000,
+   "explanation": "AMERICAN FORCES RADIO AND TV SERVICE"
+  },
+  {
+   "peCode": "1810N2820",
+   "fy": 2027,
+   "request": 83057000,
+   "mark": 83057000,
+   "explanation": "ASHORE ATC EQUIPMENT"
+  },
+  {
+   "peCode": "1810N2830",
+   "fy": 2027,
+   "request": 62581000,
+   "mark": 62581000,
+   "explanation": "AFLOAT ATC EQUIPMENT"
+  },
+  {
+   "peCode": "1810N2851",
+   "fy": 2027,
+   "request": 35620000,
+   "mark": 35620000,
+   "explanation": "ID SYSTEMS"
+  },
+  {
+   "peCode": "1810N2867",
+   "fy": 2027,
+   "request": 2976000,
+   "mark": 2976000,
+   "explanation": "JOINT PRECISION APPROACH AND LANDING SYSTEM ("
+  },
+  {
+   "peCode": "1810N2876",
+   "fy": 2027,
+   "request": 54487000,
+   "mark": 54487000,
+   "explanation": "NAVAL MISSION PLANNING SYSTEMS"
+  },
+  {
+   "peCode": "1810N2906",
+   "fy": 2027,
+   "request": 48262000,
+   "mark": 48262000,
+   "explanation": "TACTICAL/MOBILE C4I SYSTEMS"
+  },
+  {
+   "peCode": "1810N2914",
+   "fy": 2027,
+   "request": 11824000,
+   "mark": 11824000,
+   "explanation": "INTELLIGENCE SURVEILLANCE AND RECONNAISSANCE (ISR)"
+  },
+  {
+   "peCode": "1810N2915",
+   "fy": 2027,
+   "request": 493046000,
+   "mark": 493046000,
+   "explanation": "CANES"
+  },
+  {
+   "peCode": "1810N2920",
+   "fy": 2027,
+   "request": 38000000,
+   "mark": 38000000,
+   "explanation": "RADIAC"
+  },
+  {
+   "peCode": "1810N2925",
+   "fy": 2027,
+   "request": 43028000,
+   "mark": 43028000,
+   "explanation": "CANES-INTELL"
+  },
+  {
+   "peCode": "1810N2940",
+   "fy": 2027,
+   "request": 31462000,
+   "mark": 31462000,
+   "explanation": "GPETE"
+  },
+  {
+   "peCode": "1810N2960",
+   "fy": 2027,
+   "request": 6454000,
+   "mark": 6454000,
+   "explanation": "INTEG COMBAT SYSTEM TEST FACILITY"
+  },
+  {
+   "peCode": "1810N2970",
+   "fy": 2027,
+   "request": 3435000,
+   "mark": 3435000,
+   "explanation": "EMI CONTROL INSTRUMENTATION"
+  },
+  {
+   "peCode": "1810N2981",
+   "fy": 2027,
+   "request": 338946000,
+   "mark": 338946000,
+   "explanation": "IN-SERVICE RADARS AND SENSORS"
+  },
+  {
+   "peCode": "1810N2437",
+   "fy": 2027,
+   "request": 125661000,
+   "mark": 125661000,
+   "explanation": "BATTLE FORCE TACTICAL NETWORK"
+  },
+  {
+   "peCode": "1810N3010",
+   "fy": 2027,
+   "request": 50350000,
+   "mark": 50350000,
+   "explanation": "SHIPBOARD TACTICAL COMMUNICATIONS"
+  },
+  {
+   "peCode": "1810N3050",
+   "fy": 2027,
+   "request": 156605000,
+   "mark": 156605000,
+   "explanation": "SHIP COMMUNICATIONS AUTOMATION"
+  },
+  {
+   "peCode": "1810N3057",
+   "fy": 2027,
+   "request": 15097000,
+   "mark": 15097000,
+   "explanation": "COMMUNICATIONS ITEMS UNDER $5M"
+  },
+  {
+   "peCode": "1810N3107",
+   "fy": 2027,
+   "request": 173069000,
+   "mark": 173069000,
+   "explanation": "SUBMARINE BROADCAST SUPPORT"
+  },
+  {
+   "peCode": "1810N3130",
+   "fy": 2027,
+   "request": 88071000,
+   "mark": 88071000,
+   "explanation": "SUBMARINE COMMUNICATION EQUIPMENT"
+  },
+  {
+   "peCode": "1810N3215",
+   "fy": 2027,
+   "request": 57961000,
+   "mark": 57961000,
+   "explanation": "SATELLITE COMMUNICATIONS SYSTEMS"
+  },
+  {
+   "peCode": "1810N3216",
+   "fy": 2027,
+   "request": 57768000,
+   "mark": 57768000,
+   "explanation": "NAVY MULTIBAND TERMINAL (NMT)"
+  },
+  {
+   "peCode": "1810N3222",
+   "fy": 2027,
+   "request": 202305000,
+   "mark": 202305000,
+   "explanation": "MOBILE ADVANCED EHF TERMINAL (MAT)"
+  },
+  {
+   "peCode": "1810N3415",
+   "fy": 2027,
+   "request": 349099000,
+   "mark": 349099000,
+   "explanation": "INFO SYSTEMS SECURITY PROGRAM (ISSP)"
+  },
+  {
+   "peCode": "1810N3417",
+   "fy": 2027,
+   "request": 1063000,
+   "mark": 1063000,
+   "explanation": "MIO INTEL EXPLOITATION TEAM"
+  },
+  {
+   "peCode": "1810N3501",
+   "fy": 2027,
+   "request": 7419000,
+   "mark": 7419000,
+   "explanation": "CRYPTOLOGIC COMMUNICATIONS EQUIP"
+  },
+  {
+   "peCode": "1810N3620",
+   "fy": 2027,
+   "request": 67106000,
+   "mark": 67106000,
+   "explanation": "COAST GUARD EQUIPMENT"
+  },
+  {
+   "peCode": "1810N4048",
+   "fy": 2027,
+   "request": 300151000,
+   "mark": 400151000,
+   "explanation": "SONOBUOYS-ALL TYPES"
+  },
+  {
+   "peCode": "1810N3640",
+   "fy": 2027,
+   "request": 4831000,
+   "mark": 4831000,
+   "explanation": "MINOTAUR"
+  },
+  {
+   "peCode": "1810N4204",
+   "fy": 2027,
+   "request": 119900000,
+   "mark": 119900000,
+   "explanation": "WEAPONS RANGE SUPPORT EQUIPMENT"
+  },
+  {
+   "peCode": "1810N4213",
+   "fy": 2027,
+   "request": 69065000,
+   "mark": 69065000,
+   "explanation": "AIRCRAFT SUPPORT EQUIPMENT"
+  },
+  {
+   "peCode": "1810N4217",
+   "fy": 2027,
+   "request": 23551000,
+   "mark": 23551000,
+   "explanation": "ADVANCED ARRESTING GEAR (AAG)"
+  },
+  {
+   "peCode": "1810N4219",
+   "fy": 2027,
+   "request": 36908000,
+   "mark": 36908000,
+   "explanation": "ELECTROMAGNETIC AIRCRAFT LAUNCH SYSTEM (EMALS"
+  },
+  {
+   "peCode": "1810N4226",
+   "fy": 2027,
+   "request": 7477000,
+   "mark": 7477000,
+   "explanation": "METEOROLOGICAL EQUIPMENT"
+  },
+  {
+   "peCode": "1810N4248",
+   "fy": 2027,
+   "request": 9507000,
+   "mark": 9507000,
+   "explanation": "AIRBORNE MCM"
+  },
+  {
+   "peCode": "1810N4268",
+   "fy": 2027,
+   "request": 116873000,
+   "mark": 116873000,
+   "explanation": "AVIATION SUPPORT EQUIPMENT"
+  },
+  {
+   "peCode": "1810N4269",
+   "fy": 2027,
+   "request": 211216000,
+   "mark": 211216000,
+   "explanation": "UMCS-UNMAN CARRIER AVIATION(UCA)MISSION CNTRL"
+  },
+  {
+   "peCode": "1810N5111",
+   "fy": 2027,
+   "request": 6962000,
+   "mark": 6962000,
+   "explanation": "SHIP GUN SYSTEMS EQUIPMENT"
+  },
+  {
+   "peCode": "1810N5227",
+   "fy": 2027,
+   "request": 195000,
+   "mark": 195000,
+   "explanation": "HARPOON SUPPORT EQUIPMENT"
+  },
+  {
+   "peCode": "1810N5231",
+   "fy": 2027,
+   "request": 431069000,
+   "mark": 431069000,
+   "explanation": "SHIP MISSILE SUPPORT EQUIPMENT"
+  },
+  {
+   "peCode": "1810N5253",
+   "fy": 2027,
+   "request": 116208000,
+   "mark": 116208000,
+   "explanation": "TOMAHAWK SUPPORT EQUIPMENT"
+  },
+  {
+   "peCode": "1810N5353",
+   "fy": 2027,
+   "request": 188430000,
+   "mark": 188430000,
+   "explanation": "CPS SUPPORT EQUIPMENT"
+  },
+  {
+   "peCode": "1810N5358",
+   "fy": 2027,
+   "request": 327941000,
+   "mark": 327941000,
+   "explanation": "STRATEGIC MISSILE SYSTEMS EQUIP"
+  },
+  {
+   "peCode": "1810N5420",
+   "fy": 2027,
+   "request": 165416000,
+   "mark": 165416000,
+   "explanation": "SSN COMBAT CONTROL SYSTEMS"
+  },
+  {
+   "peCode": "1810N5429",
+   "fy": 2027,
+   "request": 25105000,
+   "mark": 25105000,
+   "explanation": "ASW SUPPORT EQUIPMENT"
+  },
+  {
+   "peCode": "1810N5543",
+   "fy": 2027,
+   "request": 2592000,
+   "mark": 2592000,
+   "explanation": "ITEMS LESS THAN $5 MILLION"
+  },
+  {
+   "peCode": "1810N5530",
+   "fy": 2027,
+   "request": 606241000,
+   "mark": 606241000,
+   "explanation": "ANTI-SHIP MISSILE DECOY SYSTEM"
+  },
+  {
+   "peCode": "1810N5661",
+   "fy": 2027,
+   "request": 73681000,
+   "mark": 73681000,
+   "explanation": "SUBMARINE TRAINING DEVICE MODS"
+  },
+  {
+   "peCode": "1810N5664",
+   "fy": 2027,
+   "request": 218181000,
+   "mark": 218181000,
+   "explanation": "SURFACE TRAINING EQUIPMENT"
+  },
+  {
+   "peCode": "1810N6003",
+   "fy": 2027,
+   "request": 3567000,
+   "mark": 3567000,
+   "explanation": "PASSENGER CARRYING VEHICLES"
+  },
+  {
+   "peCode": "1810N6007",
+   "fy": 2027,
+   "request": 4801000,
+   "mark": 4801000,
+   "explanation": "GENERAL PURPOSE TRUCKS"
+  },
+  {
+   "peCode": "1810N6024",
+   "fy": 2027,
+   "request": 91269000,
+   "mark": 91269000,
+   "explanation": "CONSTRUCTION & MAINTENANCE EQUIP"
+  },
+  {
+   "peCode": "1810N6027",
+   "fy": 2027,
+   "request": 17107000,
+   "mark": 17107000,
+   "explanation": "FIRE FIGHTING EQUIPMENT"
+  },
+  {
+   "peCode": "1810N6028",
+   "fy": 2027,
+   "request": 46796000,
+   "mark": 46796000,
+   "explanation": "TACTICAL VEHICLES"
+  },
+  {
+   "peCode": "1810N6033",
+   "fy": 2027,
+   "request": 53916000,
+   "mark": 53916000,
+   "explanation": "AMPHIBIOUS EQUIPMENT"
+  },
+  {
+   "peCode": "1810N6058",
+   "fy": 2027,
+   "request": 3586000,
+   "mark": 3586000,
+   "explanation": "POLLUTION CONTROL EQUIPMENT"
+  },
+  {
+   "peCode": "1810N6060",
+   "fy": 2027,
+   "request": 131449000,
+   "mark": 131449000,
+   "explanation": "ITEMS LESS THAN $5 MILLION"
+  },
+  {
+   "peCode": "1810N6075",
+   "fy": 2027,
+   "request": 998000,
+   "mark": 998000,
+   "explanation": "PHYSICAL SECURITY VEHICLES"
+  },
+  {
+   "peCode": "1810N7025",
+   "fy": 2027,
+   "request": 67828000,
+   "mark": 67828000,
+   "explanation": "SUPPLY EQUIPMENT"
+  },
+  {
+   "peCode": "1810N7066",
+   "fy": 2027,
+   "request": 4732000,
+   "mark": 4732000,
+   "explanation": "FIRST DESTINATION TRANSPORTATION"
+  },
+  {
+   "peCode": "1810N7069",
+   "fy": 2027,
+   "request": 323644000,
+   "mark": 323644000,
+   "explanation": "SPECIAL PURPOSE SUPPLY SYSTEMS"
+  },
+  {
+   "peCode": "1810N8081",
+   "fy": 2027,
+   "request": 10608000,
+   "mark": 10608000,
+   "explanation": "TRAINING SUPPORT EQUIPMENT"
+  },
+  {
+   "peCode": "1810N8101",
+   "fy": 2027,
+   "request": 331016000,
+   "mark": 331016000,
+   "explanation": "TRAINING AND EDUCATION EQUIPMENT"
+  },
+  {
+   "peCode": "1810N8106",
+   "fy": 2027,
+   "request": 55202000,
+   "mark": 55202000,
+   "explanation": "COMMAND SUPPORT EQUIPMENT"
+  },
+  {
+   "peCode": "1810N8109",
+   "fy": 2027,
+   "request": 54862000,
+   "mark": 54862000,
+   "explanation": "MEDICAL SUPPORT EQUIPMENT"
+  },
+  {
+   "peCode": "1810N8114",
+   "fy": 2027,
+   "request": 5213000,
+   "mark": 5213000,
+   "explanation": "NAVAL MIP SUPPORT EQUIPMENT"
+  },
+  {
+   "peCode": "1810N8118",
+   "fy": 2027,
+   "request": 15107000,
+   "mark": 15107000,
+   "explanation": "OPERATING FORCES SUPPORT EQUIPMENT"
+  },
+  {
+   "peCode": "1810N8120",
+   "fy": 2027,
+   "request": 33975000,
+   "mark": 33975000,
+   "explanation": "C4ISR EQUIPMENT"
+  },
+  {
+   "peCode": "1810N8126",
+   "fy": 2027,
+   "request": 60467000,
+   "mark": 60467000,
+   "explanation": "ENVIRONMENTAL SUPPORT EQUIPMENT"
+  },
+  {
+   "peCode": "1810N8128",
+   "fy": 2027,
+   "request": 218037000,
+   "mark": 218037000,
+   "explanation": "PHYSICAL SECURITY EQUIPMENT"
+  },
+  {
+   "peCode": "1810N8161",
+   "fy": 2027,
+   "request": 40490000,
+   "mark": 40490000,
+   "explanation": "ENTERPRISE INFORMATION TECHNOLOGY"
+  },
+  {
+   "peCode": "1810N8164",
+   "fy": 2027,
+   "request": 223647000,
+   "mark": 223647000,
+   "explanation": "NEXT GENERATION ENTERPRISE SERVICE"
+  },
+  {
+   "peCode": "1810N8645",
+   "fy": 2027,
+   "request": 7131000,
+   "mark": 7131000,
+   "explanation": "CYBERSPACE ACTIVITIES"
+  },
+  {
+   "peCode": "1810N9020",
+   "fy": 2027,
+   "request": 765711000,
+   "mark": 1515711000,
+   "explanation": "SPARES AND REPAIR PARTS"
+  },
+  {
+   "peCode": "1109N2025",
+   "fy": 2027,
+   "request": 237336000,
+   "mark": 237336000,
+   "explanation": "AMPHIBIOUS COMBAT VEHICLE FAMILY OF VEHICLES"
+  },
+  {
+   "peCode": "1109N2038",
+   "fy": 2027,
+   "request": 68825000,
+   "mark": 68825000,
+   "explanation": "LAV PIP"
+  },
+  {
+   "peCode": "1109N2212",
+   "fy": 2027,
+   "request": 341085000,
+   "mark": 341085000,
+   "explanation": "ARTILLERY WEAPONS SYSTEM"
+  },
+  {
+   "peCode": "1109N2292",
+   "fy": 2027,
+   "request": 204639000,
+   "mark": 204639000,
+   "explanation": "NAVAL STRIKE MISSILE (NSM)"
+  },
+  {
+   "peCode": "1109N2292",
+   "fy": 2027,
+   "request": 14391000,
+   "mark": 14391000,
+   "explanation": "NAVAL STRIKE MISSILE (NSM)"
+  },
+  {
+   "peCode": "1109N3006",
+   "fy": 2027,
+   "request": 1274446000,
+   "mark": 1274446000,
+   "explanation": "GROUND BASED AIR DEFENSE"
+  },
+  {
+   "peCode": "1109N3011",
+   "fy": 2027,
+   "request": 63020000,
+   "mark": 63020000,
+   "explanation": "ANTI-ARMOR MISSILE-JAVELIN"
+  },
+  {
+   "peCode": "1109N3016",
+   "fy": 2027,
+   "request": 808000,
+   "mark": 808000,
+   "explanation": "FAMILY ANTI-ARMOR WEAPON SYSTEMS (FOAAWS)"
+  },
+  {
+   "peCode": "1109N3017",
+   "fy": 2027,
+   "request": 1265000,
+   "mark": 1265000,
+   "explanation": "ANTI-ARMOR MISSILE-TOW"
+  },
+  {
+   "peCode": "1109N3025",
+   "fy": 2027,
+   "request": 61355000,
+   "mark": 61355000,
+   "explanation": "GUIDED MLRS ROCKET (GMLRS)"
+  },
+  {
+   "peCode": "1109N4181",
+   "fy": 2027,
+   "request": 65665000,
+   "mark": 65665000,
+   "explanation": "REPAIR AND TEST EQUIPMENT"
+  },
+  {
+   "peCode": "1109N4652",
+   "fy": 2027,
+   "request": 1047000,
+   "mark": 1047000,
+   "explanation": "MODIFICATION KITS"
+  },
+  {
+   "peCode": "1109N4620",
+   "fy": 2027,
+   "request": 140929000,
+   "mark": 140929000,
+   "explanation": "ITEMS UNDER $5 MILLION (COMM & ELEC)"
+  },
+  {
+   "peCode": "1109N4655",
+   "fy": 2027,
+   "request": 55622000,
+   "mark": 55622000,
+   "explanation": "GROUND/AIR TASK ORIENTED RADAR (G/ATOR)"
+  },
+  {
+   "peCode": "1109N4367",
+   "fy": 2027,
+   "request": 79269000,
+   "mark": 79269000,
+   "explanation": "ELECTRO MAGNETIC SPECTRUM OPERATIONS (EMSO)"
+  },
+  {
+   "peCode": "1109N4616",
+   "fy": 2027,
+   "request": 3435000,
+   "mark": 3435000,
+   "explanation": "GCSS-MC"
+  },
+  {
+   "peCode": "1109N4733",
+   "fy": 2027,
+   "request": 136070000,
+   "mark": 136070000,
+   "explanation": "FIRE SUPPORT SYSTEM"
+  },
+  {
+   "peCode": "1109N4747",
+   "fy": 2027,
+   "request": 395854000,
+   "mark": 395854000,
+   "explanation": "INTELLIGENCE SUPPORT EQUIPMENT"
+  },
+  {
+   "peCode": "1109N4757",
+   "fy": 2027,
+   "request": 262815000,
+   "mark": 262815000,
+   "explanation": "UNMANNED AIR SYSTEMS (INTEL)"
+  },
+  {
+   "peCode": "1109N4787",
+   "fy": 2027,
+   "request": 14834000,
+   "mark": 14834000,
+   "explanation": "UAS PAYLOADS"
+  },
+  {
+   "peCode": "1109N4625",
+   "fy": 2027,
+   "request": 190282000,
+   "mark": 190282000,
+   "explanation": "MARINE CORPS ENTERPRISE NETWORK (MCEN)"
+  },
+  {
+   "peCode": "1109N4630",
+   "fy": 2027,
+   "request": 15950000,
+   "mark": 15950000,
+   "explanation": "COMMON COMPUTER RESOURCES"
+  },
+  {
+   "peCode": "1109N4631",
+   "fy": 2027,
+   "request": 442308000,
+   "mark": 442308000,
+   "explanation": "COMMAND POST SYSTEMS"
+  },
+  {
+   "peCode": "1109N4633",
+   "fy": 2027,
+   "request": 764001000,
+   "mark": 764001000,
+   "explanation": "RADIO SYSTEMS"
+  },
+  {
+   "peCode": "1109N4635",
+   "fy": 2027,
+   "request": 37640000,
+   "mark": 37640000,
+   "explanation": "COMM & ELEC INFRASTRUCTURE SUPPORT"
+  },
+  {
+   "peCode": "1109N4645",
+   "fy": 2027,
+   "request": 19854000,
+   "mark": 19854000,
+   "explanation": "CYBERSPACE ACTIVITIES"
+  },
+  {
+   "peCode": "1109N4758",
+   "fy": 2027,
+   "request": 1001000,
+   "mark": 1001000,
+   "explanation": "UNMANNED EXPEDITIONARY SYSTEMS"
+  },
+  {
+   "peCode": "1109N5006",
+   "fy": 2027,
+   "request": 27582000,
+   "mark": 27582000,
+   "explanation": "COMMERCIAL CARGO VEHICLES"
+  },
+  {
+   "peCode": "1109N5050",
+   "fy": 2027,
+   "request": 22460000,
+   "mark": 22460000,
+   "explanation": "MOTOR TRANSPORT MODIFICATIONS"
+  },
+  {
+   "peCode": "1109N5095",
+   "fy": 2027,
+   "request": 244941000,
+   "mark": 244941000,
+   "explanation": "JOINT LIGHT TACTICAL VEHICLE"
+  },
+  {
+   "peCode": "1109N5132",
+   "fy": 2027,
+   "request": 136438000,
+   "mark": 136438000,
+   "explanation": "TRAILERS"
+  },
+  {
+   "peCode": "1109N6277",
+   "fy": 2027,
+   "request": 112197000,
+   "mark": 112197000,
+   "explanation": "TACTICAL FUEL SYSTEMS"
+  },
+  {
+   "peCode": "1109N6366",
+   "fy": 2027,
+   "request": 34219000,
+   "mark": 34219000,
+   "explanation": "POWER EQUIPMENT ASSORTED"
+  },
+  {
+   "peCode": "1109N6518",
+   "fy": 2027,
+   "request": 29042000,
+   "mark": 29042000,
+   "explanation": "AMPHIBIOUS SUPPORT EQUIPMENT"
+  },
+  {
+   "peCode": "1109N6520",
+   "fy": 2027,
+   "request": 24297000,
+   "mark": 24297000,
+   "explanation": "EOD SYSTEMS"
+  },
+  {
+   "peCode": "1109N6438",
+   "fy": 2027,
+   "request": 151740000,
+   "mark": 151740000,
+   "explanation": "PHYSICAL SECURITY EQUIPMENT"
+  },
+  {
+   "peCode": "1109N6522",
+   "fy": 2027,
+   "request": 227761000,
+   "mark": 227761000,
+   "explanation": "FIELD MEDICAL EQUIPMENT"
+  },
+  {
+   "peCode": "1109N6532",
+   "fy": 2027,
+   "request": 136639000,
+   "mark": 136639000,
+   "explanation": "TRAINING DEVICES"
+  },
+  {
+   "peCode": "1109N6544",
+   "fy": 2027,
+   "request": 115681000,
+   "mark": 115681000,
+   "explanation": "FAMILY OF CONSTRUCTION EQUIPMENT"
+  },
+  {
+   "peCode": "1109N6545",
+   "fy": 2027,
+   "request": 972000,
+   "mark": 972000,
+   "explanation": "ULTRA-LIGHT TACTICAL VEHICLE (ULTV)"
+  },
+  {
+   "peCode": "1109N6670",
+   "fy": 2027,
+   "request": 54228000,
+   "mark": 54228000,
+   "explanation": "ITEMS LESS THAN $5 MILLION"
+  },
+  {
+   "peCode": "1109N7000",
+   "fy": 2027,
+   "request": 18925000,
+   "mark": 18925000,
+   "explanation": "SPARES AND REPAIR PARTS"
+  },
+  {
+   "peCode": "3010FB02100",
+   "fy": 2027,
+   "request": 2230615000,
+   "mark": 2230615000,
+   "explanation": "B-21 RAIDER"
+  },
+  {
+   "peCode": "3010FB02100",
+   "fy": 2027,
+   "request": 1005667000,
+   "mark": 1005667000,
+   "explanation": "B-21 RAIDER"
+  },
+  {
+   "peCode": "3010FATA000",
+   "fy": 2027,
+   "request": 2393723000,
+   "mark": 2626203000,
+   "explanation": "F-35"
+  },
+  {
+   "peCode": "3010FATA000",
+   "fy": 2027,
+   "request": 738103000,
+   "mark": 738103000,
+   "explanation": "F-35"
+  },
+  {
+   "peCode": "3010FCCA000",
+   "fy": 2027,
+   "request": 996528000,
+   "mark": 996528000,
+   "explanation": "COLLABORATIVE COMBAT AIRCRAFT"
+  },
+  {
+   "peCode": "3010FCCA000",
+   "fy": 2027,
+   "request": 150500000,
+   "mark": 150500000,
+   "explanation": "COLLABORATIVE COMBAT AIRCRAFT"
+  },
+  {
+   "peCode": "3010FF015EX",
+   "fy": 2027,
+   "request": 2656716000,
+   "mark": 2656716000,
+   "explanation": "F-15EX"
+  },
+  {
+   "peCode": "3010FJSE000",
+   "fy": 2027,
+   "request": 52695000,
+   "mark": 52695000,
+   "explanation": "JOINT SIMULATION ENVIRONMENT"
+  },
+  {
+   "peCode": "3010FKC046A",
+   "fy": 2027,
+   "request": 3520530000,
+   "mark": 3520530000,
+   "explanation": "KC-46A MDAP"
+  },
+  {
+   "peCode": "3010FC130J0",
+   "fy": 2027,
+   "request": 636680000,
+   "mark": 636680000,
+   "explanation": "C-130J"
+  },
+  {
+   "peCode": "3010FAPT000",
+   "fy": 2027,
+   "request": 529464000,
+   "mark": 529464000,
+   "explanation": "ADVANCED PILOT TRAINING T-7A"
+  },
+  {
+   "peCode": "3010FAPT000",
+   "fy": 2027,
+   "request": 69690000,
+   "mark": 69690000,
+   "explanation": "ADVANCED PILOT TRAINING T-7A"
+  },
+  {
+   "peCode": "3010FH0106O",
+   "fy": 2027,
+   "request": 252949000,
+   "mark": 380578000,
+   "explanation": "MH-139A"
+  },
+  {
+   "peCode": "3010FH060WH",
+   "fy": 2027,
+   "request": 69395000,
+   "mark": 104395000,
+   "explanation": "COMBAT RESCUE HELICOPTER"
+  },
+  {
+   "peCode": "3010FC03700",
+   "fy": 2027,
+   "request": 208000000,
+   "mark": 208000000,
+   "explanation": "C-37A"
+  },
+  {
+   "peCode": "3010FCAPAC0",
+   "fy": 2027,
+   "request": 3219000,
+   "mark": 3219000,
+   "explanation": "CIVIL AIR PATROL A/C"
+  },
+  {
+   "peCode": "3010F10TRGT",
+   "fy": 2027,
+   "request": 31912000,
+   "mark": 31912000,
+   "explanation": "TARGET DRONES"
+  },
+  {
+   "peCode": "3010FCALL00",
+   "fy": 2027,
+   "request": 660000000,
+   "mark": 660000000,
+   "explanation": "COMPASS CALL"
+  },
+  {
+   "peCode": "3010FQ020BR",
+   "fy": 2027,
+   "request": 15513000,
+   "mark": 15513000,
+   "explanation": "RQ-20B PUMA"
+  },
+  {
+   "peCode": "3010FB00200",
+   "fy": 2027,
+   "request": 178668000,
+   "mark": 178668000,
+   "explanation": "B-2A"
+  },
+  {
+   "peCode": "3010FB01B00",
+   "fy": 2027,
+   "request": 146862000,
+   "mark": 146862000,
+   "explanation": "B-1B"
+  },
+  {
+   "peCode": "3010FB05200",
+   "fy": 2027,
+   "request": 422399000,
+   "mark": 467399000,
+   "explanation": "B-52"
+  },
+  {
+   "peCode": "3010FLAIRCM",
+   "fy": 2027,
+   "request": 66638000,
+   "mark": 66638000,
+   "explanation": "LARGE AIRCRAFT INFRARED COUNTERMEASURES"
+  },
+  {
+   "peCode": "3010FCCA00M",
+   "fy": 2027,
+   "request": 822000,
+   "mark": 822000,
+   "explanation": "COLLABORATIVE COMBAT AIRCRAFT MODS"
+  },
+  {
+   "peCode": "3010FF01500",
+   "fy": 2027,
+   "request": 140204000,
+   "mark": 140204000,
+   "explanation": "F-15"
+  },
+  {
+   "peCode": "3010FF015EX",
+   "fy": 2027,
+   "request": 214176000,
+   "mark": 214176000,
+   "explanation": "F-15EX"
+  },
+  {
+   "peCode": "3010FF01600",
+   "fy": 2027,
+   "request": 946747000,
+   "mark": 946747000,
+   "explanation": "F-16 MODIFICATIONS"
+  },
+  {
+   "peCode": "3010FF02200",
+   "fy": 2027,
+   "request": 1052088000,
+   "mark": 1052088000,
+   "explanation": "F-22A"
+  },
+  {
+   "peCode": "3010FF03500",
+   "fy": 2027,
+   "request": 335973000,
+   "mark": 335973000,
+   "explanation": "F-35 MODIFICATIONS"
+  },
+  {
+   "peCode": "3010FF15EWS",
+   "fy": 2027,
+   "request": 141233000,
+   "mark": 141233000,
+   "explanation": "F-15 EPAW"
+  },
+  {
+   "peCode": "3010FKC046A",
+   "fy": 2027,
+   "request": 85515000,
+   "mark": 85515000,
+   "explanation": "KC-46A MDAP"
+  },
+  {
+   "peCode": "3010FC00500",
+   "fy": 2027,
+   "request": 10308000,
+   "mark": 10308000,
+   "explanation": "C-5"
+  },
+  {
+   "peCode": "3010FC01700",
+   "fy": 2027,
+   "request": 59867000,
+   "mark": 59867000,
+   "explanation": "C-17A"
+  },
+  {
+   "peCode": "3010FOSAEA0",
+   "fy": 2027,
+   "request": 136786000,
+   "mark": 136786000,
+   "explanation": "OSA-EA MODIFICATIONS"
+  },
+  {
+   "peCode": "3010FGLID00",
+   "fy": 2027,
+   "request": 164000,
+   "mark": 164000,
+   "explanation": "GLIDER MODS"
+  },
+  {
+   "peCode": "3010FJPAT00",
+   "fy": 2027,
+   "request": 131747000,
+   "mark": 131747000,
+   "explanation": "T-6"
+  },
+  {
+   "peCode": "3010FT03800",
+   "fy": 2027,
+   "request": 84452000,
+   "mark": 84452000,
+   "explanation": "T-38"
+  },
+  {
+   "peCode": "3010F11U200",
+   "fy": 2027,
+   "request": 297000,
+   "mark": 297000,
+   "explanation": "U-2 MODS"
+  },
+  {
+   "peCode": "3010FC13000",
+   "fy": 2027,
+   "request": 23546000,
+   "mark": 23546000,
+   "explanation": "C-130"
+  },
+  {
+   "peCode": "3010FC1300J",
+   "fy": 2027,
+   "request": 315308000,
+   "mark": 315308000,
+   "explanation": "C-130J MODS"
+  },
+  {
+   "peCode": "3010FC13500",
+   "fy": 2027,
+   "request": 158715000,
+   "mark": 158715000,
+   "explanation": "C-135"
+  },
+  {
+   "peCode": "3010FCALL00",
+   "fy": 2027,
+   "request": 506265000,
+   "mark": 506265000,
+   "explanation": "COMPASS CALL"
+  },
+  {
+   "peCode": "3010FCVR000",
+   "fy": 2027,
+   "request": 18000,
+   "mark": 18000,
+   "explanation": "CVR (CONNON ULF RECEIVER) INC 2"
+  },
+  {
+   "peCode": "3010FDARP01",
+   "fy": 2027,
+   "request": 252846000,
+   "mark": 252846000,
+   "explanation": "RC-135"
+  },
+  {
+   "peCode": "3010FE00300",
+   "fy": 2027,
+   "request": 841000,
+   "mark": 841000,
+   "explanation": "E-3"
+  },
+  {
+   "peCode": "3010FE00400",
+   "fy": 2027,
+   "request": 30779000,
+   "mark": 30779000,
+   "explanation": "E-4"
+  },
+  {
+   "peCode": "3010FH00100",
+   "fy": 2027,
+   "request": 17872000,
+   "mark": 17872000,
+   "explanation": "H-1"
+  },
+  {
+   "peCode": "3010FH01061",
+   "fy": 2027,
+   "request": 5021000,
+   "mark": 5021000,
+   "explanation": "MH-139A MOD"
+  },
+  {
+   "peCode": "3010FH060WM",
+   "fy": 2027,
+   "request": 46662000,
+   "mark": 4662000,
+   "explanation": "HH60W MODIFICATIONS"
+  },
+  {
+   "peCode": "3010FHCMC00",
+   "fy": 2027,
+   "request": 257742000,
+   "mark": 257742000,
+   "explanation": "HC/MC-130 MODIFICATIONS"
+  },
+  {
+   "peCode": "3010FOTHACF",
+   "fy": 2027,
+   "request": 102052000,
+   "mark": 102052000,
+   "explanation": "OTHER AIRCRAFT"
+  },
+  {
+   "peCode": "3010FPRDTB2",
+   "fy": 2027,
+   "request": 105966000,
+   "mark": 105966000,
+   "explanation": "MQ-9 MODS"
+  },
+  {
+   "peCode": "3010FSDUE00",
+   "fy": 2027,
+   "request": 25847000,
+   "mark": 25847000,
+   "explanation": "SOFTWARE DEFINED USER EQUIPMENT"
+  },
+  {
+   "peCode": "3010FSLC3SA",
+   "fy": 2027,
+   "request": 32654000,
+   "mark": 32654000,
+   "explanation": "SENIOR LEADER C3 SYSTEM-AIRCRAFT"
+  },
+  {
+   "peCode": "3010FV02200",
+   "fy": 2027,
+   "request": 168042000,
+   "mark": 168042000,
+   "explanation": "CV-22 MODS"
+  },
+  {
+   "peCode": "3010F000999",
+   "fy": 2027,
+   "request": 1441052000,
+   "mark": 1448052000,
+   "explanation": "INITIAL SPARES/REPAIR PARTS"
+  },
+  {
+   "peCode": "3010F000071",
+   "fy": 2027,
+   "request": 252808000,
+   "mark": 252808000,
+   "explanation": "AIRCRAFT REPLACEMENT SUPPORT EQUIP"
+  },
+  {
+   "peCode": "3010FB002B0",
+   "fy": 2027,
+   "request": 95457000,
+   "mark": 95457000,
+   "explanation": "B-2B"
+  },
+  {
+   "peCode": "3010FB05200",
+   "fy": 2027,
+   "request": 114000,
+   "mark": 114000,
+   "explanation": "B-52"
+  },
+  {
+   "peCode": "3010FC01700",
+   "fy": 2027,
+   "request": 3027000,
+   "mark": 3027000,
+   "explanation": "C-17A"
+  },
+  {
+   "peCode": "3010FC0V220",
+   "fy": 2027,
+   "request": 5088000,
+   "mark": 5088000,
+   "explanation": "CV-22 POST PRODUCTION SUPPORT"
+  },
+  {
+   "peCode": "3010FF015EX",
+   "fy": 2027,
+   "request": 16930000,
+   "mark": 16930000,
+   "explanation": "F-15EX"
+  },
+  {
+   "peCode": "3010FF0160P",
+   "fy": 2027,
+   "request": 57781000,
+   "mark": 57781000,
+   "explanation": "F-16 POST PRODUCTION SUPPORT"
+  },
+  {
+   "peCode": "3010FHCMC00",
+   "fy": 2027,
+   "request": 20415000,
+   "mark": 20415000,
+   "explanation": "HC/MC-130 POST PROD"
+  },
+  {
+   "peCode": "3010FPRDTB5",
+   "fy": 2027,
+   "request": 15365000,
+   "mark": 15365000,
+   "explanation": "MQ-9 POST PROD"
+  },
+  {
+   "peCode": "3010F000073",
+   "fy": 2027,
+   "request": 20590000,
+   "mark": 20590000,
+   "explanation": "INDUSTRIAL RESPONSIVENESS"
+  },
+  {
+   "peCode": "3010F000074",
+   "fy": 2027,
+   "request": 85387000,
+   "mark": 85387000,
+   "explanation": "WAR CONSUMABLES"
+  },
+  {
+   "peCode": "3010F000075",
+   "fy": 2027,
+   "request": 2528401000,
+   "mark": 2528401000,
+   "explanation": "OTHER PRODUCTION CHARGES"
+  },
+  {
+   "peCode": "3020F00099L",
+   "fy": 2027,
+   "request": 27006000,
+   "mark": 27006000,
+   "explanation": "MISSILE REPLACEMENT EQ-BALLISTIC"
+  },
+  {
+   "peCode": "3020FMGBSD0",
+   "fy": 2027,
+   "request": 107602000,
+   "mark": 107602000,
+   "explanation": "GROUND BASED STRATEGIC DETERRENT"
+  },
+  {
+   "peCode": "3020FMLRSO1",
+   "fy": 2027,
+   "request": 506047000,
+   "mark": 506047000,
+   "explanation": "LONG RANGE STAND-OFF WEAPON"
+  },
+  {
+   "peCode": "3020FMLRSO1",
+   "fy": 2027,
+   "request": 456810000,
+   "mark": 456810000,
+   "explanation": "LONG RANGE STAND-OFF WEAPON"
+  },
+  {
+   "peCode": "3020F222000",
+   "fy": 2027,
+   "request": 23575000,
+   "mark": 23575000,
+   "explanation": "REPLAC EQUIP & WAR CONSUMABLES"
+  },
+  {
+   "peCode": "3020FARRW00",
+   "fy": 2027,
+   "request": 452035000,
+   "mark": 452035000,
+   "explanation": "AGM-183A AIR-LAUNCHED RAPID RESPONSE WEAPON"
+  },
+  {
+   "peCode": "3020FFAMM00",
+   "fy": 2027,
+   "request": 55000000,
+   "mark": 900000000,
+   "explanation": "FAMILY OF AFFORDABLE MASS MISSILE (FAMM)"
+  },
+  {
+   "peCode": "3020FHACM00",
+   "fy": 2027,
+   "request": 403974000,
+   "mark": 403974000,
+   "explanation": "HYPERSONIC ATTACK CRUISE MISSILE"
+  },
+  {
+   "peCode": "3020FJASSM0",
+   "fy": 2027,
+   "request": 967866000,
+   "mark": 967866000,
+   "explanation": "JOINT AIR-SURFACE STANDOFF MISSILE"
+  },
+  {
+   "peCode": "3020FJATM00",
+   "fy": 2027,
+   "request": 608743000,
+   "mark": 608743000,
+   "explanation": "JOINT ADVANCED TACTICAL MISSILE"
+  },
+  {
+   "peCode": "3020FJSM000",
+   "fy": 2027,
+   "request": 384607000,
+   "mark": 384607000,
+   "explanation": "JOINT STRIKE MISSILE"
+  },
+  {
+   "peCode": "3020FLRASM0",
+   "fy": 2027,
+   "request": 500916000,
+   "mark": 500916000,
+   "explanation": "LRASM0"
+  },
+  {
+   "peCode": "3020FM09HAI",
+   "fy": 2027,
+   "request": 419238000,
+   "mark": 419238000,
+   "explanation": "SIDEWINDER (AIM-9X)"
+  },
+  {
+   "peCode": "3020FMAMRA0",
+   "fy": 2027,
+   "request": 115856000,
+   "mark": 115856000,
+   "explanation": "AMRAAM"
+  },
+  {
+   "peCode": "3020FSDB000",
+   "fy": 2027,
+   "request": 44596000,
+   "mark": 44596000,
+   "explanation": "SMALL DIAMETER BOMB"
+  },
+  {
+   "peCode": "3020FSDB002",
+   "fy": 2027,
+   "request": 194509000,
+   "mark": 194509000,
+   "explanation": "SMALL DIAMETER BOMB II"
+  },
+  {
+   "peCode": "3020FSIAW24",
+   "fy": 2027,
+   "request": 401607000,
+   "mark": 401607000,
+   "explanation": "STAND-IN ATTACK WEAPON (SIAW)"
+  },
+  {
+   "peCode": "3020F000042",
+   "fy": 2027,
+   "request": 931000,
+   "mark": 931000,
+   "explanation": "INDUSTRIAL PREPAREDNESS/POL PREVENTION"
+  },
+  {
+   "peCode": "3020FM30FLH",
+   "fy": 2027,
+   "request": 169747000,
+   "mark": 169747000,
+   "explanation": "ICBM FUZE MOD"
+  },
+  {
+   "peCode": "3020FM30MLG",
+   "fy": 2027,
+   "request": 9865000,
+   "mark": 9865000,
+   "explanation": "MM III MODIFICATIONS"
+  },
+  {
+   "peCode": "3020FMALCBG",
+   "fy": 2027,
+   "request": 30407000,
+   "mark": 30407000,
+   "explanation": "AIR LAUNCH CRUISE MISSILE (ALCM)"
+  },
+  {
+   "peCode": "3020F00098A",
+   "fy": 2027,
+   "request": 15621000,
+   "mark": 15621000,
+   "explanation": "MSL SPRS/REPAIR PARTS (INITIAL)"
+  },
+  {
+   "peCode": "3020F00098K",
+   "fy": 2027,
+   "request": 123224000,
+   "mark": 123224000,
+   "explanation": "MSL SPRS/REPAIR PARTS (REPLEN)"
+  },
+  {
+   "peCode": "3020FMSPPRG",
+   "fy": 2027,
+   "request": 168578000,
+   "mark": 168578000,
+   "explanation": "SPECIAL UPDATE PROGRAMS"
+  },
+  {
+   "peCode": "3022FAFSCOM",
+   "fy": 2027,
+   "request": 54391000,
+   "mark": 64391000,
+   "explanation": "AF SATELLITE COMM SYSTEM"
+  },
+  {
+   "peCode": "3022FAUX000",
+   "fy": 2027,
+   "request": 241076000,
+   "mark": 241076000,
+   "explanation": "AUXILIARY PAYLOADS"
+  },
+  {
+   "peCode": "3022FCTRSPC",
+   "fy": 2027,
+   "request": 459466000,
+   "mark": 379466000,
+   "explanation": "COUNTERSPACE SYSTEMS"
+  },
+  {
+   "peCode": "3022FESS000",
+   "fy": 2027,
+   "request": 139700000,
+   "mark": 139700000,
+   "explanation": "EVOLVED STRATEGIC SATCOM (ESS)"
+  },
+  {
+   "peCode": "3022FGMTI00",
+   "fy": 2027,
+   "request": 1016612000,
+   "mark": 803428000,
+   "explanation": "GROUND MOVING TARGET INDICATOR (GMTI)"
+  },
+  {
+   "peCode": "3022FGNRLIT",
+   "fy": 2027,
+   "request": 14895000,
+   "mark": 14895000,
+   "explanation": "GENERAL INFORMATION TECH-SPACE"
+  },
+  {
+   "peCode": "3022FGPS03C",
+   "fy": 2027,
+   "request": 680875000,
+   "mark": 680875000,
+   "explanation": "GPSIII FOLLOW ON"
+  },
+  {
+   "peCode": "3022FMC0MSE",
+   "fy": 2027,
+   "request": 95061000,
+   "mark": 95061000,
+   "explanation": "SPACEBORNE EQUIP (COMSEC)"
+  },
+  {
+   "peCode": "3022FMILSAT",
+   "fy": 2027,
+   "request": 38067000,
+   "mark": 38067000,
+   "explanation": "MILSATCOM"
+  },
+  {
+   "peCode": "3022FMSSPAC",
+   "fy": 2027,
+   "request": 2021299000,
+   "mark": 2021299000,
+   "explanation": "SPECIAL SPACE ACTIVITIES"
+  },
+  {
+   "peCode": "3022FMUOS00",
+   "fy": 2027,
+   "request": 50640000,
+   "mark": 50640000,
+   "explanation": "MOBILE USER OBJECTIVE SYSTEM"
+  },
+  {
+   "peCode": "3022FNSSL00",
+   "fy": 2027,
+   "request": 3370958000,
+   "mark": 3370958000,
+   "explanation": "NATIONAL SECURITY SPACE LAUNCH"
+  },
+  {
+   "peCode": "3022FPTES00",
+   "fy": 2027,
+   "request": 12046000,
+   "mark": 12046000,
+   "explanation": "PTES HUB"
+  },
+  {
+   "peCode": "3022FSDALCH",
+   "fy": 2027,
+   "request": 835197000,
+   "mark": 835197000,
+   "explanation": "SPACE DEVELOPMENT AGENCY LAUNCH"
+  },
+  {
+   "peCode": "3022FSDN000",
+   "fy": 2027,
+   "request": 5119000,
+   "mark": 5119000,
+   "explanation": "SPACE DIGITAL INTEGRATED NETWORK (SDIN)"
+  },
+  {
+   "peCode": "3022FSPCMOD",
+   "fy": 2027,
+   "request": 448674000,
+   "mark": 624674000,
+   "explanation": "SPACE MODS"
+  },
+  {
+   "peCode": "3022FSPRNGE",
+   "fy": 2027,
+   "request": 64885000,
+   "mark": 64885000,
+   "explanation": "SPACELIFT RANGE SYSTEM SPACE"
+  },
+  {
+   "peCode": "3022FWSOMS0",
+   "fy": 2027,
+   "request": 81483000,
+   "mark": 81483000,
+   "explanation": "WIDEBAND SATCOM OPERATIONAL MANAGEMENT SYSTEMS"
+  },
+  {
+   "peCode": "3022FSSPARE",
+   "fy": 2027,
+   "request": 971000,
+   "mark": 971000,
+   "explanation": "SPARES AND REPAIR PARTS"
+  },
+  {
+   "peCode": "3022FSFV000",
+   "fy": 2027,
+   "request": 6032000,
+   "mark": 6032000,
+   "explanation": "USSF VEHICLES"
+  },
+  {
+   "peCode": "3022FPOWCON",
+   "fy": 2027,
+   "request": 7906000,
+   "mark": 7906000,
+   "explanation": "POWER CONDITIONING EQUIPMENT"
+  },
+  {
+   "peCode": "3080F823210",
+   "fy": 2027,
+   "request": 103304000,
+   "mark": 103304000,
+   "explanation": "JOINT LIGHT TACTICAL VEHICLE"
+  },
+  {
+   "peCode": "3080F825990",
+   "fy": 2027,
+   "request": 2132000,
+   "mark": 0,
+   "explanation": "MATERIALS HANDLING VEHICLES"
+  },
+  {
+   "peCode": "3080F826990",
+   "fy": 2027,
+   "request": 0,
+   "mark": 25000000,
+   "explanation": "BASE MAINTENANCE SUPPORT VEHICLES"
+  },
+  {
+   "peCode": "3080F827000",
+   "fy": 2027,
+   "request": 439892000,
+   "mark": 442024000,
+   "explanation": "MISSION SUPPORT VEHICLES"
+  },
+  {
+   "peCode": "3080F831010",
+   "fy": 2027,
+   "request": 374613000,
+   "mark": 374613000,
+   "explanation": "COMSEC EQUIPMENT"
+  },
+  {
+   "peCode": "3080F832050",
+   "fy": 2027,
+   "request": 19060000,
+   "mark": 19060000,
+   "explanation": "INTERNATIONAL INTEL TECH & ARCHITECTURES"
+  },
+  {
+   "peCode": "3080F832060",
+   "fy": 2027,
+   "request": 5531000,
+   "mark": 5531000,
+   "explanation": "INTELLIGENCE TRAINING EQUIPMENT"
+  },
+  {
+   "peCode": "3080F832070",
+   "fy": 2027,
+   "request": 37717000,
+   "mark": 37717000,
+   "explanation": "INTELLIGENCE COMM EQUIPMENT"
+  },
+  {
+   "peCode": "3080F833010",
+   "fy": 2027,
+   "request": 58313000,
+   "mark": 58313000,
+   "explanation": "AIR TRAFFIC CONTROL & LANDING SYS"
+  },
+  {
+   "peCode": "3080F833030",
+   "fy": 2027,
+   "request": 3391000,
+   "mark": 3391000,
+   "explanation": "BATTLE CONTROL SYSTEM-FIXED"
+  },
+  {
+   "peCode": "3080F833040",
+   "fy": 2027,
+   "request": 11640000,
+   "mark": 11640000,
+   "explanation": "THEATER AIR CONTROL SYS IMPROVEMEN"
+  },
+  {
+   "peCode": "3080F833060",
+   "fy": 2027,
+   "request": 430607000,
+   "mark": 430607000,
+   "explanation": "3D EXPEDITIONARY LONG-RANGE RADAR"
+  },
+  {
+   "peCode": "3080F833070",
+   "fy": 2027,
+   "request": 33111000,
+   "mark": 33111000,
+   "explanation": "WEATHER OBSERVATION FORECAST"
+  },
+  {
+   "peCode": "3080F833140",
+   "fy": 2027,
+   "request": 89931000,
+   "mark": 89931000,
+   "explanation": "STRATEGIC COMMAND AND CONTROL"
+  },
+  {
+   "peCode": "3080F833160",
+   "fy": 2027,
+   "request": 7434000,
+   "mark": 7434000,
+   "explanation": "CHEYENNE MOUNTAIN COMPLEX"
+  },
+  {
+   "peCode": "3080F833170",
+   "fy": 2027,
+   "request": 23927000,
+   "mark": 23927000,
+   "explanation": "MISSION PLANNING SYSTEMS"
+  },
+  {
+   "peCode": "3080F833570",
+   "fy": 2027,
+   "request": 9435000,
+   "mark": 9435000,
+   "explanation": "STRATEGIC MISSION PLANNING & EXECUTION SYSTEM"
+  },
+  {
+   "peCode": "3080F834010",
+   "fy": 2027,
+   "request": 234417000,
+   "mark": 234417000,
+   "explanation": "GENERAL INFORMATION TECHNOLOGY"
+  },
+  {
+   "peCode": "3080F834130",
+   "fy": 2027,
+   "request": 1770698000,
+   "mark": 1770698000,
+   "explanation": "AIR FORCE PHYSICAL SECURITY SYSTEM"
+  },
+  {
+   "peCode": "3080F834180",
+   "fy": 2027,
+   "request": 17641000,
+   "mark": 17641000,
+   "explanation": "SAMTEC COMMUNICATIONS"
+  },
+  {
+   "peCode": "3080F834190",
+   "fy": 2027,
+   "request": 94378000,
+   "mark": 94378000,
+   "explanation": "COMBAT TRAINING RANGES"
+  },
+  {
+   "peCode": "3080F834210",
+   "fy": 2027,
+   "request": 279516000,
+   "mark": 279516000,
+   "explanation": "MINIMUM ESSENTIAL EMERGENCY COMM N"
+  },
+  {
+   "peCode": "3080F834240",
+   "fy": 2027,
+   "request": 17000000,
+   "mark": 17000000,
+   "explanation": "WIDE AREA SURVEILLANCE (WAS)"
+  },
+  {
+   "peCode": "3080F834320",
+   "fy": 2027,
+   "request": 163127000,
+   "mark": 163127000,
+   "explanation": "C3 COUNTERMEASURES"
+  },
+  {
+   "peCode": "3080F834520",
+   "fy": 2027,
+   "request": 460000,
+   "mark": 460000,
+   "explanation": "THEATER BATTLE MGT C2 SYSTEM"
+  },
+  {
+   "peCode": "3080F834530",
+   "fy": 2027,
+   "request": 23778000,
+   "mark": 23778000,
+   "explanation": "AIR & SPACE OPERATIONS CENTER (AOC)"
+  },
+  {
+   "peCode": "3080F835060",
+   "fy": 2027,
+   "request": 125702000,
+   "mark": 125702000,
+   "explanation": "BASE INFORMATION TRANSPT INFRAST (BITI) WIRED"
+  },
+  {
+   "peCode": "3080F835080",
+   "fy": 2027,
+   "request": 325839000,
+   "mark": 325839000,
+   "explanation": "AFNET"
+  },
+  {
+   "peCode": "3080F835110",
+   "fy": 2027,
+   "request": 16267000,
+   "mark": 16267000,
+   "explanation": "JOINT COMMUNICATIONS SUPPORT ELEMENT (JCSE)"
+  },
+  {
+   "peCode": "3080F835140",
+   "fy": 2027,
+   "request": 15328000,
+   "mark": 15328000,
+   "explanation": "USCENTCOM"
+  },
+  {
+   "peCode": "3080F835160",
+   "fy": 2027,
+   "request": 5013000,
+   "mark": 5013000,
+   "explanation": "USSTRATCOM"
+  },
+  {
+   "peCode": "3080F835210",
+   "fy": 2027,
+   "request": 195370000,
+   "mark": 195370000,
+   "explanation": "USSPACECOM"
+  },
+  {
+   "peCode": "3080F837100",
+   "fy": 2027,
+   "request": 162835000,
+   "mark": 162835000,
+   "explanation": "TACTICAL C-E EQUIPMENT"
+  },
+  {
+   "peCode": "3080F837140",
+   "fy": 2027,
+   "request": 80321000,
+   "mark": 80321000,
+   "explanation": "NEXT GENERATION SURVIVAL RADIO (NGSR)"
+  },
+  {
+   "peCode": "3080F837190",
+   "fy": 2027,
+   "request": 36874000,
+   "mark": 36874000,
+   "explanation": "RADIO EQUIPMENT"
+  },
+  {
+   "peCode": "3080F837300",
+   "fy": 2027,
+   "request": 158113000,
+   "mark": 158113000,
+   "explanation": "BASE COMM INFRASTRUCTURE"
+  },
+  {
+   "peCode": "3080F838010",
+   "fy": 2027,
+   "request": 220855000,
+   "mark": 210855000,
+   "explanation": "COMM ELECT MODS"
+  },
+  {
+   "peCode": "3080F842990",
+   "fy": 2027,
+   "request": 87994000,
+   "mark": 87994000,
+   "explanation": "PERSONAL SAFETY AND RESCUE EQUIPMENT"
+  },
+  {
+   "peCode": "3080F843040",
+   "fy": 2027,
+   "request": 14444000,
+   "mark": 14444000,
+   "explanation": "POWER CONDITIONING EQUIPMENT"
+  },
+  {
+   "peCode": "3080F843050",
+   "fy": 2027,
+   "request": 24594000,
+   "mark": 24594000,
+   "explanation": "MECHANIZED MATERIAL HANDLING EQUIP"
+  },
+  {
+   "peCode": "3080F845010",
+   "fy": 2027,
+   "request": 81686000,
+   "mark": 81686000,
+   "explanation": "BASE PROCURED EQUIPMENT"
+  },
+  {
+   "peCode": "3080F845100",
+   "fy": 2027,
+   "request": 247989000,
+   "mark": 247989000,
+   "explanation": "ENGINEERING AND EOD EQUIPMENT"
+  },
+  {
+   "peCode": "3080F845420",
+   "fy": 2027,
+   "request": 288930000,
+   "mark": 288930000,
+   "explanation": "MOBILITY EQUIPMENT"
+  },
+  {
+   "peCode": "3080F845550",
+   "fy": 2027,
+   "request": 81066000,
+   "mark": 81066000,
+   "explanation": "FUELS SUPPORT EQUIPMENT (FSE)"
+  },
+  {
+   "peCode": "3080F845990",
+   "fy": 2027,
+   "request": 68127000,
+   "mark": 68127000,
+   "explanation": "BASE MAINTENANCE AND SUPPORT EQUIPMENT"
+  },
+  {
+   "peCode": "3080F846070",
+   "fy": 2027,
+   "request": 31496000,
+   "mark": 31496000,
+   "explanation": "DARP RC135"
+  },
+  {
+   "peCode": "3080F846080",
+   "fy": 2027,
+   "request": 316157000,
+   "mark": 316157000,
+   "explanation": "DCGS-AF"
+  },
+  {
+   "peCode": "3080F846510",
+   "fy": 2027,
+   "request": 5099420000,
+   "mark": 5099420000,
+   "explanation": "SPECIAL UPDATE PROGRAM"
+  },
+  {
+   "peCode": "3080F861350",
+   "fy": 2027,
+   "request": 8657000,
+   "mark": 8657000,
+   "explanation": "SPARES AND REPAIR PARTS (CYBER)"
+  },
+  {
+   "peCode": "3080F861900",
+   "fy": 2027,
+   "request": 14129000,
+   "mark": 14129000,
+   "explanation": "SPARES AND REPAIR PARTS"
+  },
+  {
+   "peCode": "0300D500",
+   "fy": 2027,
+   "request": 19707000,
+   "mark": 19707000,
+   "explanation": "MAJOR EQUIPMENT"
+  },
+  {
+   "peCode": "0300D0201RWUPGR",
+   "fy": 2027,
+   "request": 185930000,
+   "mark": 257930000,
+   "explanation": "ROTARY WING UPGRADES AND SUSTAINMENT"
+  },
+  {
+   "peCode": "0300D0201SKYRAI",
+   "fy": 2027,
+   "request": 59894000,
+   "mark": 0,
+   "explanation": "SKYRAIDER II"
+  },
+  {
+   "peCode": "0300D0207NSAV",
+   "fy": 2027,
+   "request": 72650000,
+   "mark": 110250000,
+   "explanation": "NON-STANDARD AVIATION"
+  },
+  {
+   "peCode": "0300D0610MH47",
+   "fy": 2027,
+   "request": 168411000,
+   "mark": 168411000,
+   "explanation": "MH-47 CHINOOK"
+  },
+  {
+   "peCode": "0300D1000CV2200",
+   "fy": 2027,
+   "request": 9479000,
+   "mark": 9479000,
+   "explanation": "CV-22 MODIFICATION"
+  },
+  {
+   "peCode": "0300D1108MQ9",
+   "fy": 2027,
+   "request": 75841000,
+   "mark": 81241000,
+   "explanation": "MQ-9 UNMANNED AERIAL VEHICLE"
+  },
+  {
+   "peCode": "0300D2012C130J",
+   "fy": 2027,
+   "request": 366857000,
+   "mark": 422607000,
+   "explanation": "AC/MC-130J"
+  },
+  {
+   "peCode": "0300D2010US",
+   "fy": 2027,
+   "request": 76879000,
+   "mark": 90279000,
+   "explanation": "UNDERWATER SYSTEMS"
+  },
+  {
+   "peCode": "0300D0203ORD",
+   "fy": 2027,
+   "request": 237153000,
+   "mark": 385353000,
+   "explanation": "ORDNANCE ITEMS <$5M"
+  },
+  {
+   "peCode": "0300D020400INTL",
+   "fy": 2027,
+   "request": 319241000,
+   "mark": 319241000,
+   "explanation": "INTELLIGENCE SYSTEMS"
+  },
+  {
+   "peCode": "0300D0204OTHER",
+   "fy": 2027,
+   "request": 119047000,
+   "mark": 119047000,
+   "explanation": "OTHER ITEMS <$5M"
+  },
+  {
+   "peCode": "0300D0204SCCS",
+   "fy": 2027,
+   "request": 33858000,
+   "mark": 42958000,
+   "explanation": "COMBATANT CRAFT SYSTEMS"
+  },
+  {
+   "peCode": "0300D0204SPCPRG",
+   "fy": 2027,
+   "request": 130462000,
+   "mark": 130462000,
+   "explanation": "SPECIAL PROGRAMS"
+  },
+  {
+   "peCode": "0300D0204TACVEH",
+   "fy": 2027,
+   "request": 36983000,
+   "mark": 36983000,
+   "explanation": "TACTICAL VEHICLES"
+  },
+  {
+   "peCode": "0300D0204WARSYS",
+   "fy": 2027,
+   "request": 511016000,
+   "mark": 701316000,
+   "explanation": "WARRIOR SYSTEMS <$5M"
+  },
+  {
+   "peCode": "0300D0206CMR",
+   "fy": 2027,
+   "request": 4988000,
+   "mark": 4988000,
+   "explanation": "COMBAT MISSION REQUIREMENTS"
+  },
+  {
+   "peCode": "0300D0607OEI",
+   "fy": 2027,
+   "request": 28074000,
+   "mark": 28074000,
+   "explanation": "OPERATIONAL ENHANCEMENTS INTELLIGENCE"
+  },
+  {
+   "peCode": "0300D2143369000",
+   "fy": 2027,
+   "request": 360595000,
+   "mark": 617795000,
+   "explanation": "OPERATIONAL ENHANCEMENTS"
+  },
+  {
+   "peCode": "0300D7001SA1000",
+   "fy": 2027,
+   "request": 223166000,
+   "mark": 223166000,
+   "explanation": "CHEMICAL BIOLOGICAL SITUATIONAL AWARENESS"
+  },
+  {
+   "peCode": "0300D8001PH1000",
+   "fy": 2027,
+   "request": 117859000,
+   "mark": 117859000,
+   "explanation": "CB PROTECTION & HAZARD MITIGATION"
+  }
+ ],
+ "chamber": "SASC"
+}
