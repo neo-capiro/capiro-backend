@@ -50,6 +50,13 @@ export class StreamIngestionService {
     const args = [
       '-loglevel',
       'error',
+      // Pace the input to real time (native timestamp rate). For a LIVE stream
+      // this is a near no-op (already ~realtime); for a RECORDING it is
+      // essential — without it ffmpeg decodes the whole file in seconds and
+      // floods Deepgram's realtime socket far faster than it opens/accepts, so
+      // the audio is dropped and zero transcripts come back. `-re` must precede
+      // `-i` (it is an input option).
+      '-re',
       // Reconnect on transient network drops (live streams stutter).
       '-reconnect',
       '1',
