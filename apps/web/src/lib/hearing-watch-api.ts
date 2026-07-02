@@ -35,7 +35,9 @@ export interface UpcomingHearing {
   title: string;
   committee: string;
   chamber: string;
-  scheduledAt: string;
+  scheduledAt: string; // date-only 'YYYY-MM-DD'
+  time?: string | null; // display string, e.g. "10:00 AM"
+  type?: string | null; // hearing, markup, meeting
   url?: string | null;
   location?: string | null;
 }

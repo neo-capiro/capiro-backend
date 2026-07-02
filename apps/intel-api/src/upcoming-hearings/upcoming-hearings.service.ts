@@ -1,121 +1,102 @@
 import { Injectable, Logger } from '@nestjs/common';
-import { ConfigService } from '@nestjs/config';
+import {
+  SourceDataRepository,
+  type UpcomingCommitteeHearing,
+} from '../sourcedata/source-data.repository.js';
 
 export interface UpcomingHearing {
   id: string;
   title: string;
   committee: string;
   chamber: string;
-  scheduledAt: string;
-  url?: string | null;
+  scheduledAt: string; // date-only ISO 'YYYY-MM-DD' (committee_hearing.date has no time)
+  time?: string | null; // display string, e.g. "10:00 AM"
+  type?: string | null; // hearing, markup, meeting
   location?: string | null;
+  url?: string | null;
 }
 
 /**
- * Upcoming public hearings feed (H-C). Pulls scheduled committee meetings from
- * the Congress.gov API (v3 committee-meeting endpoint). Requires CONGRESS_API_KEY;
- * without it the service returns an empty list (the UI shows a graceful empty
- * state) rather than erroring — the rest of Hearing Watch stays functional.
+ * Upcoming public hearings feed (H-C). Reads the ENRICHED, forward-looking
+ * committee-meeting schedule from the GLOBAL `committee_hearing` table
+ * (populated daily by apps/api `sync-hearings`, cron 06:45 UTC) via the
+ * read-only SourceDataRepository.
  *
- * Results are cached in-process for 30 minutes to stay well within the API's
- * rate limits; the feed changes slowly.
+ * Why not fetch Congress.gov directly: the v3 `committee-meeting` LIST endpoint
+ * is minimal (eventId, chamber, url only) — it carries NO title/committee/date.
+ * The prior implementation read those absent fields off the list stub, so every
+ * row collapsed to title="Committee meeting", committee="Committee",
+ * scheduledAt=now(). Real values require a per-meeting detail fan-out, which
+ * apps/api already does daily and stores here. Sourcing from `committee_hearing`
+ * gives distinct, accurate rows and drops the CONGRESS_API_KEY dependency for
+ * this feed.
+ *
+ * Results are cached in-process for 15 minutes; the schedule changes slowly.
  */
 @Injectable()
 export class UpcomingHearingsService {
   private readonly logger = new Logger(UpcomingHearingsService.name);
-  private readonly apiKey: string | undefined;
-  private readonly root = 'https://api.congress.gov/v3/';
   private cache: { at: number; data: UpcomingHearing[] } | null = null;
-  private readonly ttlMs = 30 * 60 * 1000;
+  private readonly ttlMs = 15 * 60 * 1000;
+  private readonly limit = 50;
 
-  constructor(config: ConfigService) {
-    this.apiKey = config.get<string>('CONGRESS_API_KEY');
-  }
+  constructor(private readonly source: SourceDataRepository) {}
 
   async list(): Promise<UpcomingHearing[]> {
-    if (!this.apiKey) {
-      this.logger.warn('CONGRESS_API_KEY unset — upcoming hearings feed returns empty');
-      return [];
-    }
     if (this.cache && Date.now() - this.cache.at < this.ttlMs) {
       return this.cache.data;
     }
     try {
-      const data = await this.fetchScheduled();
+      const rows = await this.source.getUpcomingCommitteeHearings(this.limit);
+      const data = rows.map((r) => toUpcoming(r));
       this.cache = { at: Date.now(), data };
       return data;
     } catch (err) {
-      this.logger.error(`upcoming hearings fetch failed: ${(err as Error).message}`);
-      // Serve stale cache if present, else empty.
+      this.logger.error(`upcoming hearings read failed: ${(err as Error).message}`);
+      // Serve stale cache if present, else empty (UI shows a graceful empty state).
       return this.cache?.data ?? [];
     }
   }
-
-  private async fetchScheduled(): Promise<UpcomingHearing[]> {
-    const url = new URL('committee-meeting', this.root);
-    url.searchParams.set('api_key', this.apiKey as string);
-    url.searchParams.set('format', 'json');
-    url.searchParams.set('limit', '40');
-    url.searchParams.set('sort', 'updateDate+desc');
-
-    const controller = new AbortController();
-    const timer = setTimeout(() => controller.abort(), 12_000);
-    let raw: Record<string, unknown>;
-    try {
-      const res = await fetch(url, { signal: controller.signal });
-      if (!res.ok) throw new Error(`Congress.gov ${res.status}`);
-      raw = (await res.json()) as Record<string, unknown>;
-    } finally {
-      clearTimeout(timer);
-    }
-
-    const meetings = Array.isArray(raw.committeeMeetings)
-      ? (raw.committeeMeetings as Array<Record<string, unknown>>)
-      : [];
-
-    const now = Date.now();
-    const out: UpcomingHearing[] = [];
-    for (const m of meetings) {
-      const scheduled = str(m.date) ?? str(m.meetingDate);
-      const when = scheduled ? Date.parse(scheduled) : NaN;
-      // keep only future or undated (some entries lack a parseable date)
-      if (!Number.isNaN(when) && when < now) continue;
-      const chamber = str(m.chamber) ?? '';
-      out.push({
-        id: str(m.eventId) ?? str(m.url) ?? `${out.length}`,
-        title: str(m.title) ?? 'Committee meeting',
-        committee: extractCommittee(m),
-        chamber,
-        scheduledAt: scheduled ?? new Date().toISOString(),
-        url: str(m.url) ?? null,
-        location: extractLocation(m),
-      });
-    }
-    // soonest first
-    out.sort((a, b) => Date.parse(a.scheduledAt) - Date.parse(b.scheduledAt));
-    return out.slice(0, 25);
-  }
 }
 
-function str(v: unknown): string | undefined {
-  return typeof v === 'string' && v.trim() ? v : undefined;
+function toUpcoming(r: UpcomingCommitteeHearing): UpcomingHearing {
+  return {
+    id: r.id,
+    title: robustTitle(r),
+    committee: r.committeeName?.trim() || 'Committee',
+    chamber: r.chamber?.trim() || '',
+    scheduledAt: dateOnly(r.date),
+    time: r.time ?? null,
+    type: r.type ?? null,
+    location: r.location ?? null,
+    url: r.url ?? null,
+  };
 }
 
-function extractCommittee(m: Record<string, unknown>): string {
-  const c = m.committees;
-  if (Array.isArray(c) && c[0] && typeof c[0] === 'object') {
-    const name = (c[0] as Record<string, unknown>).name;
-    if (typeof name === 'string') return name;
-  }
-  return str(m.committee) ?? 'Committee';
+/** committee_hearing.date is a DATE (UTC midnight); render as 'YYYY-MM-DD' so the
+ *  client formats a plain date without a spurious/timezone-shifted midnight time. */
+function dateOnly(d: Date): string {
+  return d instanceof Date ? d.toISOString().slice(0, 10) : String(d).slice(0, 10);
 }
 
-function extractLocation(m: Record<string, unknown>): string | null {
-  const loc = m.location;
-  if (loc && typeof loc === 'object') {
-    const room = (loc as Record<string, unknown>).room;
-    const building = (loc as Record<string, unknown>).building;
-    return [building, room].filter((x) => typeof x === 'string').join(' ') || null;
-  }
-  return null;
+/** Build a distinctive title. sync-hearings stores '(untitled)' for meetings with
+ *  no title and may prefix a non-scheduled status like '[Postponed]'. When the
+ *  body is missing/placeholder, synthesize "<Type>: <Committee>" so rows never
+ *  collapse to an identical generic label. Any status prefix is preserved. */
+function robustTitle(r: UpcomingCommitteeHearing): string {
+  const raw = (r.title ?? '').trim();
+  const statusMatch = raw.match(/^(\[[^\]]+\]\s*)/);
+  const statusPrefix = statusMatch?.[1] ?? '';
+  const body = raw.slice(statusPrefix.length).trim();
+  if (body && body.toLowerCase() !== '(untitled)') return raw;
+  const committee = r.committeeName?.trim() || 'Committee';
+  return `${statusPrefix}${prettyType(r.type)}: ${committee}`.trim();
+}
+
+function prettyType(type: string | null): string {
+  const t = (type ?? '').trim().toLowerCase();
+  if (t.includes('markup')) return 'Markup';
+  if (t.includes('hearing')) return 'Hearing';
+  if (t.includes('meeting')) return 'Meeting';
+  return 'Meeting';
 }

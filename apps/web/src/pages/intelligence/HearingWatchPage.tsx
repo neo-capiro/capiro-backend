@@ -49,6 +49,23 @@ const STATUS_COLOR: Record<string, string> = {
   failed: 'default',
 };
 
+/** Render the upcoming-hearing date. scheduledAt is a date-only 'YYYY-MM-DD'
+ *  string; parse the parts explicitly to avoid a UTC→local day shift. */
+function formatHearingDate(v: string): string {
+  const m = /^(\d{4})-(\d{2})-(\d{2})/.exec(v ?? '');
+  const d = m ? new Date(Number(m[1]), Number(m[2]) - 1, Number(m[3])) : new Date(v);
+  if (Number.isNaN(d.getTime())) return v ?? '';
+  return d.toLocaleDateString(undefined, { weekday: 'short', month: 'short', day: 'numeric' });
+}
+
+function prettyType(type: string): string {
+  const t = (type ?? '').toLowerCase();
+  if (t.includes('markup')) return 'Markup';
+  if (t.includes('hearing')) return 'Hearing';
+  if (t.includes('meeting')) return 'Meeting';
+  return type;
+}
+
 export function HearingWatchPage() {
   const enabled = useIntelFeatureEnabled('hearing_watch');
   const [view, setView] = useState<'hearings' | 'upcoming' | 'watchlists'>('hearings');
@@ -256,10 +273,35 @@ function UpcomingTab() {
           pagination={{ pageSize: 10 }}
           dataSource={upcoming.data}
           columns={[
-            { title: 'When', dataIndex: 'scheduledAt', render: (v: string) => new Date(v).toLocaleString(), width: 190 },
+            {
+              title: 'When',
+              dataIndex: 'scheduledAt',
+              width: 180,
+              render: (v: string, r) => (
+                <span>
+                  {formatHearingDate(v)}
+                  {r.time ? <Text type="secondary"> · {r.time}</Text> : null}
+                </span>
+              ),
+            },
             { title: 'Chamber', dataIndex: 'chamber', width: 90 },
-            { title: 'Committee', dataIndex: 'committee' },
-            { title: 'Title', dataIndex: 'title' },
+            { title: 'Committee', dataIndex: 'committee', ellipsis: true },
+            {
+              title: 'Title',
+              dataIndex: 'title',
+              render: (v: string, r) => (
+                <Space size={6} wrap>
+                  {r.type ? <Tag>{prettyType(r.type)}</Tag> : null}
+                  {r.url ? (
+                    <a href={r.url} target="_blank" rel="noreferrer">
+                      {v}
+                    </a>
+                  ) : (
+                    <span>{v}</span>
+                  )}
+                </Space>
+              ),
+            },
             {
               title: '',
               key: 'act',

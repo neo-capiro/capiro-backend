@@ -52,6 +52,18 @@ export interface SourceBillCommittee {
   chamber: string | null;
 }
 
+export interface UpcomingCommitteeHearing {
+  id: string;
+  title: string | null;
+  committeeName: string;
+  chamber: string;
+  date: Date;
+  time: string | null;
+  location: string | null;
+  type: string | null;
+  url: string | null;
+}
+
 export interface SemanticScore {
   sourceId: string;
   score: number;
@@ -197,6 +209,36 @@ export class SourceDataRepository {
         WHERE bill_id = ANY($1::text[])
         ORDER BY date ASC`,
       ids,
+    );
+  }
+
+  /**
+   * Forward-looking committee-hearing schedule (GLOBAL `committee_hearing`,
+   * populated daily by apps/api `sync-hearings`). Today or later, soonest first.
+   *
+   * This is the ENRICHED store: apps/api fans out the Congress.gov list stubs to
+   * the per-meeting detail endpoint and resolves committee systemCode→name, so
+   * `title`/`committee_name`/`date`/`time`/`type`/`location`/`url` are all real —
+   * unlike the raw list endpoint (which carries only eventId/chamber/url and made
+   * every Upcoming row collapse to the same "Committee meeting"/now). RLS-free
+   * reference table, same as `congress_bill`; READ-ONLY.
+   */
+  async getUpcomingCommitteeHearings(limit: number): Promise<UpcomingCommitteeHearing[]> {
+    return this.prisma.$queryRawUnsafe<UpcomingCommitteeHearing[]>(
+      `SELECT id,
+              title,
+              committee_name AS "committeeName",
+              chamber,
+              date,
+              time,
+              location,
+              type,
+              url
+         FROM committee_hearing
+        WHERE date >= CURRENT_DATE
+        ORDER BY date ASC, committee_name ASC
+        LIMIT $1`,
+      limit,
     );
   }
 

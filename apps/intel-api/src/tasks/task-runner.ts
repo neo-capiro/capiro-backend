@@ -67,6 +67,7 @@ export const KNOWN_VERBS = [
   'enable-feature', //              Phase 8 cutover: flip a tenant flag ON (tracker_owner_intel/tracker_v2)
   'cutover-status', //              Phase 8 cutover: read-only per-tenant go-live readiness report
   'diag-replay-bill', //            Diagnostic: rewind one tracked bill's watermark + run detection (e2e proof)
+  'diag-upcoming-hearings', //      Diagnostic: read committee_hearing (upcoming feed) — count + samples
 ] as const;
 export type Verb = (typeof KNOWN_VERBS)[number];
 
@@ -202,6 +203,26 @@ export async function runVerb(verb: string, args: string[], deps: VerbDeps): Pro
         `DETECT_DONE scanned=${r.scanned} baseline=${r.baseline} changed=${r.changed} ` +
           `alerts=${r.alertsWritten} skippedDedup=${r.skippedDedup} byType=${JSON.stringify(r.byType)}`,
       );
+      return;
+    }
+    case 'diag-upcoming-hearings': {
+      // Diagnostic (READ-ONLY): exercise the exact query behind the Upcoming feed
+      // (GLOBAL committee_hearing, date >= today) and print count + samples so we
+      // can confirm prod has distinct, enriched rows — the fix for the "every row
+      // named 'Committee meeting'" bug. No writes.
+      const repo = new SourceDataRepository(deps.prisma);
+      const rows = await repo.getUpcomingCommitteeHearings(10);
+      deps.log(`UPCOMING_HEARINGS count=${rows.length}`);
+      for (const r of rows) {
+        const date = r.date instanceof Date ? r.date.toISOString().slice(0, 10) : String(r.date);
+        deps.log(
+          `  ${date}\t${r.chamber}\t${r.type ?? '-'}\t${(r.committeeName ?? '').slice(0, 30)}\t` +
+            `"${(r.title ?? '').slice(0, 60)}"`,
+        );
+      }
+      if (rows.length === 0) {
+        deps.log('UPCOMING_EMPTY — committee_hearing has no rows with date>=today (sync-hearings may not have run)');
+      }
       return;
     }
     case 'detect-bill-changes': {
