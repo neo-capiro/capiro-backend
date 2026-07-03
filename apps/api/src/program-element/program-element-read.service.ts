@@ -408,52 +408,59 @@ export class ProgramElementReadService {
         GROUP BY pe.service
         ORDER BY count DESC NULLS LAST
       `),
-      // Portfolio money for the LAST FULLY-ENACTED fiscal year — the standard
-      // President's-Budget-vs-enacted comparison. Both totals are pinned to the SAME
-      // FY so the two tiles are a self-consistent pair: avgDeltaPct =
-      // (Σenacted − Σrequest)/Σrequest reconciles the displayed totals exactly. (A
-      // per-PE-latest sum instead spanned different FYs — request drifted to FYDP
-      // outyears, enacted to the last enacted year — so the headline numbers weren't
-      // comparable.) PEs with no row that FY correctly contribute $0; the forward /
-      // outyear picture lives in the trend sparkline + the detail funding chart.
+      // Portfolio money as a MATCHED-PAIR sum: for each PE, its own latest FY with a
+      // real enacted value, and the request recorded AT THAT SAME FY (if any).
+      // Both totals — and avgDeltaPct — are built from this one identical set of
+      // (request, enacted) pairs, so the three numbers are ARITHMETICALLY
+      // guaranteed to reconcile (avgDeltaPct = (Σenacted − Σrequest)/Σrequest,
+      // computed from the exact same rows shown).
       //
-      // "Last fully-enacted FY" = the FY with the MOST PEs actually enacted (the
-      // mode), NOT simply MAX(fy) with any nonzero enacted value. A stray/early
-      // enacted figure on a handful of PEs in a later (mostly-still-requested) FY
-      // would otherwise hijack MAX(fy) and pair a near-empty enacted total against
-      // that FY's near-universal request total — the same broken-looking mismatch
-      // this fix is meant to solve, just relocated to a different year.
+      // Earlier attempts pinned both totals to a single global fiscal year instead
+      // (first "the latest FY with any enacted value", then "the FY with the most
+      // enacted PEs"). Both broke on the same underlying fact: budget-justification
+      // books record a PRIOR/CURRENT year's dollars as enacted-only (no request
+      // field) far more often than they carry a matching historical request — so
+      // "enacted" coverage for any single past FY is much broader than "request"
+      // coverage for that same FY. Summing each column independently over one FY
+      // mixed a near-universal enacted total against a sparse request total from a
+      // DIFFERENT, smaller set of PEs (e.g. $454B enacted vs $204B request at FY25 —
+      // a nonsensical +122%). Matching per-PE at each PE's own enacted year sidesteps
+      // that: a PE contributes to BOTH totals only when it has a genuine
+      // request-vs-enacted pair to compare, so the delta is never an artifact of
+      // mismatched coverage. There is no longer a single portfolio FY to tag (each
+      // PE's pair can be a different year), so the UI shows "aggregate" without an
+      // FY chip — the per-FY forward/backward picture lives in the trend sparkline
+      // and the detail page's own funding chart.
       this.prisma.$queryRaw<
-        Array<{ fy: number | null; totalRequest: number | null; totalEnacted: number | null; avgDeltaPct: number | null }>
+        Array<{ totalRequest: number | null; totalEnacted: number | null; avgDeltaPct: number | null }>
       >(Prisma.sql`
-        WITH latest AS (
-          SELECT fy
-          FROM program_element_year
-          WHERE enacted IS NOT NULL AND enacted <> 0
-          GROUP BY fy
-          ORDER BY COUNT(*) DESC, fy DESC
-          LIMIT 1
-        )
         SELECT
-          l.fy AS fy,
-          COALESCE(SUM(y.request) FILTER (WHERE y.request IS NOT NULL AND y.request <> 0), 0)::double precision AS "totalRequest",
-          COALESCE(SUM(y.enacted) FILTER (WHERE y.enacted IS NOT NULL AND y.enacted <> 0), 0)::double precision AS "totalEnacted",
+          COALESCE(SUM(ler.request) FILTER (WHERE ler.request IS NOT NULL AND ler.request <> 0), 0)::double precision AS "totalRequest",
+          COALESCE(SUM(le.enacted) FILTER (WHERE ler.request IS NOT NULL AND ler.request <> 0), 0)::double precision AS "totalEnacted",
           (
             CASE
-              WHEN SUM(y.request) FILTER (WHERE y.request IS NOT NULL AND y.request <> 0) > 0
+              WHEN SUM(ler.request) FILTER (WHERE ler.request IS NOT NULL AND ler.request <> 0) > 0
               THEN (
                 (
-                  SUM(y.enacted) FILTER (WHERE y.enacted IS NOT NULL AND y.enacted <> 0)
-                  - SUM(y.request) FILTER (WHERE y.request IS NOT NULL AND y.request <> 0)
+                  SUM(le.enacted) FILTER (WHERE ler.request IS NOT NULL AND ler.request <> 0)
+                  - SUM(ler.request) FILTER (WHERE ler.request IS NOT NULL AND ler.request <> 0)
                 )
-                / SUM(y.request) FILTER (WHERE y.request IS NOT NULL AND y.request <> 0)
+                / SUM(ler.request) FILTER (WHERE ler.request IS NOT NULL AND ler.request <> 0)
               ) * 100
               ELSE NULL
             END
           )::double precision AS "avgDeltaPct"
-        FROM latest l
-        JOIN program_element_year y ON y.fy = l.fy
-        GROUP BY l.fy
+        FROM program_element pe
+        LEFT JOIN LATERAL (
+          SELECT y.enacted, y.fy FROM program_element_year y
+          WHERE y.pe_code = pe.pe_code AND y.enacted IS NOT NULL AND y.enacted <> 0
+          ORDER BY y.fy DESC LIMIT 1
+        ) le ON TRUE
+        LEFT JOIN LATERAL (
+          SELECT y.request FROM program_element_year y
+          WHERE y.pe_code = pe.pe_code AND y.fy = le.fy LIMIT 1
+        ) ler ON TRUE
+        WHERE pe.retired_at IS NULL AND (${hasDataOnly ? hasDataExpr : Prisma.sql`TRUE`})
       `),
       this.prisma.$queryRaw<Array<{ fy: number; total: number }>>(Prisma.sql`
         WITH mx AS (SELECT MAX(fy) AS fy FROM program_element_year)
@@ -485,11 +492,11 @@ export class ProgramElementReadService {
       tracked: trackedRows[0]?.tracked ?? 0,
       withData: trackedRows[0]?.withData ?? 0,
       watched,
-      // Both money tiles are anchored to the same fiscal year (last enacted), so the
-      // UI shows "FYxx · aggregate" on each and the delta reconciles the two totals.
-      latestRequestFy: moneyRows[0]?.fy ?? null,
+      // No single FY tag — each PE's matched pair can fall in a different year (see
+      // the query comment above), so the UI shows plain "aggregate".
+      latestRequestFy: null,
       totalRequest: moneyRows[0]?.totalRequest ?? null,
-      latestEnactedFy: moneyRows[0]?.fy ?? null,
+      latestEnactedFy: null,
       totalEnacted: moneyRows[0]?.totalEnacted ?? null,
       avgDeltaPct: moneyRows[0]?.avgDeltaPct ?? null,
       openMarkups: markupRows[0]?.count ?? 0,
