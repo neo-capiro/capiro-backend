@@ -198,10 +198,18 @@ export class BudgetLinesReadService {
       sourceUrl: string | null;
     }> = [];
 
+    // One symmetric match key for the award↔performer merge: uppercase and
+    // strip EVERYTHING but letters/digits (spaces included). Award names and
+    // performerNormalized come from different normalizers (JS vs the exhibit
+    // extractor), so comparing raw stored forms splits "Lockheed-Martin ..."
+    // from "LOCKHEED MARTIN ..." into two rows. Prefix-12 on the shared key
+    // survives suffix drift (CORP vs CORPORATION).
+    const matchKey = (s: string) => s.toUpperCase().replace(/[^A-Z0-9]/g, '');
+    const performerKeys = [...performerByName.keys()].map(matchKey);
     for (const g of byContractor.values()) {
-      const norm = g.name.toUpperCase().replace(/[^A-Z0-9 ]/g, '');
-      const alsoPerformer = [...performerByName.keys()].some(
-        (k) => k.includes(norm.slice(0, 12)) || norm.includes(k.slice(0, 12)),
+      const norm = matchKey(g.name);
+      const alsoPerformer = performerKeys.some(
+        (k) => k.startsWith(norm.slice(0, 12)) || norm.startsWith(k.slice(0, 12)),
       );
       rows.push({
         company: g.name,
@@ -217,10 +225,11 @@ export class BudgetLinesReadService {
         sourceUrl: null,
       });
     }
+    const contractorKeys = [...byContractor.values()].map((g) => matchKey(g.name));
     for (const [key, g] of performerByName) {
-      const norm = key;
-      const hasAwardRow = [...byContractor.keys()].some(
-        (k) => k.replace(/[^A-Z0-9 ]/g, '').includes(norm.slice(0, 12)) || norm.includes(k.replace(/[^A-Z0-9 ]/g, '').slice(0, 12)),
+      const norm = matchKey(key);
+      const hasAwardRow = contractorKeys.some(
+        (k) => k.startsWith(norm.slice(0, 12)) || norm.startsWith(k.slice(0, 12)),
       );
       if (hasAwardRow) continue; // already represented by the award row
       rows.push({

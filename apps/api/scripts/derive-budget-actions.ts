@@ -100,11 +100,23 @@ async function main(): Promise<void> {
       ).map((p) => p.peCode),
     );
 
-    // Current cycle = the max FY carrying a request anywhere in the dataset
-    // (same convention as pickBudgetYear / the markup monitor).
-    let currentCycleFy = 0;
+    // Current cycle = the FY with the MOST lines carrying a live request (the
+    // mode) — the same convention as the profile's currentCycleFy. NOT max():
+    // a handful of lines carry FYDP outyear rows (e.g. FY2031 requests), and
+    // max() would declare FY2031 the open cycle and mis-flag nearly every
+    // real line as a termination. Caught on the first prod dry run.
+    const requestCountByFy = new Map<number, number>();
     for (const y of years) {
-      if (y.request !== null && y.fy > currentCycleFy) currentCycleFy = y.fy;
+      if (y.request !== null) requestCountByFy.set(y.fy, (requestCountByFy.get(y.fy) ?? 0) + 1);
+    }
+    let currentCycleFy = 0;
+    let bestCount = 0;
+    for (const [fy, count] of requestCountByFy) {
+      // Ties break toward the LATER fy (a new cycle overtaking the old one).
+      if (count > bestCount || (count === bestCount && fy > currentCycleFy)) {
+        currentCycleFy = fy;
+        bestCount = count;
+      }
     }
 
     const byPe = new Map<string, typeof years>();
