@@ -285,3 +285,188 @@ posture, and what's my next move?"** That is the government-affairs operating sy
 defense budgets, and the BudgetLine + Capability + relationship graph is the structure
 that makes it hold together across RDT&E, procurement, O&M, MILCON, contracts,
 organizations, and companies.
+
+---
+
+## 7. Deployment playbook — how every increment ships without surprises
+
+Everything below is codified from what actually worked (and what actually broke)
+across batches 1–10 and PRs #181–#214. Not aspirational — operational.
+
+### 7.1 The pipeline (invariant for every change)
+
+```
+branch off origin/main → PR → CI verify (jest + typecheck)
+  → squash-merge → api-image / web-image build (arm64 :latest)
+  → confirm :latest sha == merged sha           ← never skip; see 7.3(b)
+  → roll service(s) (force-new-deployment → wait services-stable)
+  → one-off ECS loads (dry-run → INSPECT → --commit)
+  → verify: loader JSON (0 quarantined / counts) + diag verb + LIVE BROWSER CHECK
+```
+
+Rules that have each independently caught a real production bug:
+1. **Dry-run → inspect → commit for every prod write.** The org-import dry-run
+   sample caught junk the frequency-sorted eval missed — twice. Chained scripts may
+   run DRY+COMMIT together only with an in-chain abort gate (grep the dry output
+   for a sentinel before committing).
+2. **Browser verification is part of "done."** The pDocDetail shape bug survived
+   TWO green loads ("802 updated, 0 skipped") and was only caught by opening the
+   page. Ship criterion: the feature/data is seen rendering on app.capiro.ai, or
+   the API response is inspected via the authenticated session — never loader exit
+   codes alone.
+3. **Idempotence is a requirement, not a virtue.** Every loader merges by source
+   priority / upserts on natural keys; re-running any load must change nothing.
+   New loaders prove it by running twice in staging (second run: 0 changed).
+4. **Presence-based raw merges.** load-pdoc-enrichment's wholesale
+   `raw.pDocDetail = pe.pDocDetail ?? null` nulls the key when an artifact omits
+   it. Any loader touching `raw.*` sub-objects must only write keys PRESENT in the
+   artifact item (fix this in the loader before batch-10's op5Detail lands).
+
+### 7.2 Stage 0 migration logic (expand-contract; zero downtime)
+
+The BudgetLine reframe ships in three strictly-ordered, individually-shippable steps:
+
+- **Step 0a — Expand (additive only):** migration adds `line_type` column + the
+  five new tables (`budget_action`, `budget_line_relationship`, `source_assertion`,
+  `bill_budget_line_link`, `capability` + match). No reads change. Backfill verbs
+  (all dry-run-default): `backfill-line-type` (from appropriation_type + code
+  shape), `migrate-marks-to-actions` (year columns → budget_action rows,
+  source-stamped), `backfill-relationships` (P-40 relatedPEs + MDAP +
+  pe_program_match → edges). Rollback = simply do not read the new tables; they
+  are inert.
+- **Step 0b — Read-model cutover:** BudgetLineView serves every surface from the
+  new shape; program_element_year mark columns become a projection the view still
+  reads (dual-source with a per-line equality check in the diag: view value ==
+  column value for 100% of lines before any consumer switches). The
+  /program-elements API contract does not change.
+- **Step 0c — Contract (gated, later):** physical rename program_element →
+  budget_line + subtype tables. Only after 0b has run in prod ≥2 weeks with the
+  equality diag green. This is the ONLY step needing a maintenance window, and it
+  is optional until then.
+
+Prisma migration rules (from the migration-drift experience): never `migrate dev`
+against the shared dev DB; validate every migration on a fresh scratch DB first;
+the deploy task runs `prisma migrate deploy` via the migrate entrypoint (which
+auto-resolves prior failed migration rows).
+
+### 7.3 Known deployment gotchas (each has bitten us; check every time)
+
+a. **Image tsc is stricter than PR verify** (noUncheckedIndexedAccess): raw array
+   indexing passes CI and fails the Docker build (#195). Run strict single-file
+   tsc locally on new pure modules before pushing.
+b. **api-image sometimes does not trigger on merge** (#193) and workflow_dispatch
+   403s on the current PAT. If no run appears for the merged sha within ~2 min,
+   re-fire with a real commit (barrel/comment) — never assume :latest updated.
+   ALWAYS compare `aws ecr describe-images ... imageTag=latest` sha to the merge.
+c. **Git Bash mangles leading-slash args** (`/capiro/dev/api` becomes a Windows
+   path): export MSYS_NO_PATHCONV=1 in every shell that calls awscli.
+d. **Worktrees have no node_modules**: typecheck via the main clone's tsc/tsx;
+   jest discovers 0 tests in worktrees — CI is the authoritative test gate.
+e. **ECS one-off tasks**: cluster capiro-dev, task-def capiro-dev-api-sync,
+   container api, the three private subnets + sg from the runbook; logs in
+   /capiro/dev/api stream api/api/<taskId>. `aws ecs wait` gives up at ~10 min —
+   exitCode=None means "still running"; check describe-tasks before assuming
+   failure.
+f. **EventBridge rules are NOT in CDK** (tracker-alerts precedent): any schedule
+   added out-of-band must be documented here and must survive `cdk deploy`.
+g. **Source routes by publisher**: comptroller.war.gov serves direct;
+   asafm = Wayback under "Discretionary Budget/…"; secnav = LIVE with a browser
+   UA under /fmc/fmb/Documents/27pres/; saffm/afpims block non-browser clients
+   and Wayback rarely captures their PDFs — AF books may require a real-browser
+   download.
+h. **Two clones / worktree confusion**: verify `git branch --show-current` +
+   `git status` before committing; stash-pop can resurrect other sessions' parked
+   work (4 parked stashes exist — do not drop them).
+
+### 7.4 Load-ordering DAG (data dependencies)
+
+```
+budget lines (R-1 / P-1 / O-1 loads)
+  → marks (committee loaders; field-merge protects line metadata)
+    → compute-budget-deltas
+  → enrichment (load-pdoc-enrichment / sync-jbook-r2 / load-om-op5)
+    → seed-acq-program-map → seed-programs        (Programs panel)
+    → backfill-relationships                       (graph edges)
+  → sync-federal-award (windowed) → enrich-award-pe (scheduled, accumulating)
+personnel imports → reconcile-personnel-supersede → repair-person-pe-links
+  → generate-pe-person-candidates → import-dow-orgs (roles / owners)
+any load → diag-graph-coverage (before/after numbers go in the PR description)
+```
+
+Rules: marks NEVER load before their budget lines exist (quarantine floods);
+enrichment loaders never create lines; deltas recompute after any dollar change;
+rebuild-pe-years / normalize-pe-units only with explicit intent.
+
+### 7.5 Scheduled jobs to stand up (accumulation + verification)
+
+| Job | Cadence | Why |
+|---|---|---|
+| enrich-award-pe --limit 5000 | daily | asymptotic award→PE linking (top-dollar first) |
+| sync-federal-award --days 7 | daily (exists) | award freshness |
+| diag-graph-coverage snapshot → artifact | weekly | drift detection; alert on coverage drops |
+| export-master-lists | weekly | master CSVs never go stale again |
+| top-office re-verify (data plan 2.5) | quarterly | people-data perishability |
+
+### 7.6 Release gates per stage
+
+- **Stage 0**: equality diag green (view == columns) + zero consumer regressions
+  (Playwright smoke on the five flagship pages) before 0c is even scheduled.
+- **Stages B–D features**: each feature merges dark or additive; a feature is
+  "released" only after its §8 criteria pass on prod data and the browser
+  walkthrough is attached to the PR. No feature flips on with unmet
+  empty-state/provenance rules.
+
+---
+
+## 8. Success criteria — measurable, per layer
+
+### 8.1 Data completeness (prod, via diag-graph-coverage; current → target)
+
+| Metric | Current (2026-07-03) | Target |
+|---|---|---|
+| Budget lines typed (line_type + service) | 100% | stay 100% (CI diag guard) |
+| RDT&E lines with narrative | ~88% (1,169) | ≥95% of lines with a published book; 100% of the remainder carrying an in-UI "unpublished / transitioned" reason |
+| Procurement lines with P-40 detail | 802/818 (98%) | ≥98%; the 9 unmatched codes documented |
+| O&M lines with OP-5 narrative | 0 → batch-10 in flight | ≥85% of lines whose account has a published OP-5; AF rides follow-up; structural non-narrative lines (classified, R&D/PROC-in-DHP) flagged, not counted |
+| FY26+27 marks coverage | 92% of keyable $ (FY26 proc) | ≥95% when PB26 books land; classified always excluded + disclosed |
+| budget_action rows == year-column projection | n/a | 100% equality before the Stage-0b cutover |
+| Relationship edges (deterministic tiers) | 147 MDAP; relatedPEs backfill pending | every P-40 relatedPE + MDAP pair edge-ified; 0 fuzzy edges auto-accepted |
+| Capability matches reviewed (top 500 lines by FY27 $) | 0 | 100% of the top-500 carry ≥1 reviewed capability tag |
+| Award→PE links | 85+ (accumulating) | +≥500/week while the scheduled job runs; weekly coverage report |
+| Person roles / owner links | 3,364 / 102 | Navy/AF/SF PEO rosters added; top-15 offices last_verified_at < 90 days |
+
+### 8.2 Engine quality (pure classifiers; golden-fixture gates in CI)
+
+- Posture / runway / maturity / anomaly: 100% of golden fixtures pass (49 today);
+  any vocabulary change requires a fixture change in the same PR.
+- New engines (transition-maturity F19, appropriability F27, office-resolver F21):
+  ship with ≥20 real-line fixtures each; F21 additionally reports calibration —
+  of matches scored ≥0.7, ≥80% confirmed correct on a 50-sample human audit.
+- Zero-invention rule for LLM layers: extraction validators (verbatim-substring)
+  report 0 invented survivors on every run — a nonzero count blocks the load.
+
+### 8.3 Product experience (verified in the browser on prod, per release)
+
+- **Line 360**: for the canonical trio (0601102A RDT&E / 1506N0145 PROC /
+  2020A010 OM) — every panel either renders sourced data or an honest empty state
+  with a reason; intelligence chips present wherever ≥2 marks exist; p95 < 800ms.
+- **No unsourced number anywhere**: spot-audit 20 random lines per release —
+  every dollar, tag, and link traces to a source document + date in ≤2 clicks.
+- **The thesis flow works end-to-end**: capability search → ranked lines →
+  posture → recommended committee path → sourced memo → watchlist alert, without
+  the user typing a PE code. (Stage C/D acceptance demo, run on the Aperture
+  seed client.)
+- **Coverage honesty**: every aggregate surface displays its coverage note; the
+  known-gaps list in §0 is reflected in-UI wherever those lines appear.
+
+### 8.4 Operational health
+
+- Every prod load's PR description contains before/after diag numbers.
+- The weekly diag snapshot shows no metric regressing >2% without a linked
+  explanation.
+- Review queues (person→PE, program-match) have an owner and a weekly triage
+  cadence; queue age p50 < 14 days once staffed.
+- Scheduled jobs (§7.5) alive: last-run < 2× cadence, alerting via the existing
+  SNS/email path when stale.
+- Rollback drill: Stage-0a tables can be ignored (inert) and any loader re-run is
+  a no-op — demonstrated once in staging per new loader.
