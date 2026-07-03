@@ -1629,48 +1629,84 @@ export class ProgramElementReadService {
     const code = peCode.trim();
     if (!code) return [];
 
-    const links = await this.prisma.provisionPeLink.findMany({
-      // Quarantined/rejected (any non-accepted/candidate reviewStatus) are NEVER surfaced.
-      where: { peCode: code, reviewStatus: { in: ['accepted', 'candidate'] } },
-      select: {
-        matchBasis: true,
-        reviewStatus: true,
-        confidence: true,
-        provision: {
-          select: {
-            id: true,
-            committee: true,
-            fy: true,
-            heading: true,
-            text: true,
-            pageStart: true,
-            pageEnd: true,
-            actionType: true,
-            sourceDocument: { select: { sourceUrl: true } },
-          },
-        },
-      },
+    const provisionSelect = {
+      id: true,
+      committee: true,
+      fy: true,
+      heading: true,
+      text: true,
+      pageStart: true,
+      pageEnd: true,
+      actionType: true,
+      sourceDocument: { select: { sourceUrl: true } },
+    } as const;
+
+    // Two link paths to this PE, unioned:
+    //   (a) DIRECT — provision_pe_link.pe_code = this PE (pe_code / project_title bases).
+    //   (b) PROGRAM — provision mentions a PROGRAM (program_alias basis, pe_code NULL);
+    //       that program maps to this PE via an ACCEPTED pe_program_match. FY committee
+    //       reports name programs ("PATRIOT"), not PE codes — verified: FY2027 reports
+    //       carry ZERO PE codes across 2,220 pages — so nearly every real link is the
+    //       program path. Filtering by pe_code alone (the original bug) surfaced none.
+    // The program path is inherently program-level (one program → many PEs), so those
+    // rows are always CANDIDATE and are ranked/labeled below their PE-direct peers.
+    const programMatches = await this.prisma.peProgramMatch.findMany({
+      where: { peCode: code, status: 'accepted' },
+      select: { programId: true },
     });
+    const programIds = [...new Set(programMatches.map((m) => m.programId))];
 
-    const items: ProvisionItem[] = links.map((l) => ({
-      id: l.provision.id,
-      committee: l.provision.committee,
-      fy: l.provision.fy,
-      heading: l.provision.heading,
-      text: l.provision.text,
-      pageStart: l.provision.pageStart,
-      pageEnd: l.provision.pageEnd,
-      actionType: l.provision.actionType,
-      sourceUrl: l.provision.sourceDocument?.sourceUrl ?? null,
-      matchBasis: l.matchBasis,
-      reviewStatus: l.reviewStatus,
-      confidence: l.confidence,
-    }));
+    const [directLinks, programLinks] = await Promise.all([
+      this.prisma.provisionPeLink.findMany({
+        where: { peCode: code, reviewStatus: { in: ['accepted', 'candidate'] } },
+        select: { matchBasis: true, reviewStatus: true, confidence: true, provision: { select: provisionSelect } },
+      }),
+      programIds.length
+        ? this.prisma.provisionPeLink.findMany({
+            where: {
+              programId: { in: programIds },
+              reviewStatus: { in: ['accepted', 'candidate'] },
+            },
+            select: { matchBasis: true, reviewStatus: true, confidence: true, provision: { select: provisionSelect } },
+          })
+        : Promise.resolve([]),
+    ]);
 
-    // Accepted first, then candidate; within a status, newest fiscal year first.
+    // Merge, keeping the STRONGEST link per provision (a provision reachable both
+    // directly and via program keeps its direct, higher-status row).
+    const byProvision = new Map<string, ProvisionItem>();
+    const rank = (m: string) => (m === 'pe_code' ? 0 : m === 'project_title' ? 1 : 2);
+    for (const l of [...directLinks, ...programLinks]) {
+      const existing = byProvision.get(l.provision.id);
+      if (existing && rank(existing.matchBasis) <= rank(l.matchBasis)) continue;
+      byProvision.set(l.provision.id, {
+        id: l.provision.id,
+        committee: l.provision.committee,
+        fy: l.provision.fy,
+        heading: l.provision.heading,
+        text: l.provision.text,
+        pageStart: l.provision.pageStart,
+        pageEnd: l.provision.pageEnd,
+        actionType: l.provision.actionType,
+        sourceUrl: l.provision.sourceDocument?.sourceUrl ?? null,
+        matchBasis: l.matchBasis,
+        reviewStatus: l.reviewStatus,
+        confidence: l.confidence,
+      });
+    }
+
+    const items = [...byProvision.values()];
+    // accepted → pe-direct candidate → program-level candidate; newest FY first;
+    // capped so a heavily-referenced program can't flood a single PE profile.
     const statusRank = (s: string) => (s === 'accepted' ? 0 : 1);
-    items.sort((a, b) => statusRank(a.reviewStatus) - statusRank(b.reviewStatus) || b.fy - a.fy);
-    return items;
+    items.sort(
+      (a, b) =>
+        statusRank(a.reviewStatus) - statusRank(b.reviewStatus) ||
+        rank(a.matchBasis) - rank(b.matchBasis) ||
+        b.fy - a.fy ||
+        b.confidence - a.confidence,
+    );
+    return items.slice(0, 50);
   }
 
   /**

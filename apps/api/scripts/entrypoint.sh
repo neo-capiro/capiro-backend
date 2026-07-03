@@ -388,6 +388,9 @@ case "${1:-serve}" in
   # committee_provisions_*.json artifacts and builds review-gated PE links
   # (pe_code auto-accepted; title/alias land candidate). Dry-run default.
   sync-report-provisions) shift; exec ./node_modules/.bin/tsx scripts/sync-report-provisions.ts "$@" ;;
+  # Read-only: dump the provision-link + bill-link data shape for one PE (FIX-1/2
+  # verification). Pass --pe <code> [--bill <billId>].
+  diag-leg-readpaths) shift; exec ./node_modules/.bin/tsx scripts/diag-leg-readpaths.ts "$@" ;;
   # O-1 Operation & Maintenance loader: O&M detail lines as program elements
   # (appropriationType=OM, pe_code=<account><line>). Pass --artifact. O-1 is $K.
   load-om) shift; exec ./node_modules/.bin/tsx scripts/load-om.ts "$@" ;;
