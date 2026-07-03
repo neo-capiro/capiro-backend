@@ -21,6 +21,8 @@
  * real, citable program elements for that weapons system.
  */
 import { config as dotenvConfig } from 'dotenv';
+import * as fs from 'node:fs';
+import * as path from 'node:path';
 import { PrismaClient } from '@prisma/client';
 
 dotenvConfig();
@@ -102,7 +104,31 @@ async function main(): Promise<void> {
     const skipped: Array<{ code: string; peCode: string }> = [];
     const wouldInsert: Array<{ code: string; peCode: string }> = [];
 
-    for (const entry of CURATED) {
+    // P-40 EXHIBIT EVIDENCE (batch-5): each pair below was printed on the line
+    // item's own Exhibit P-40 header ("Line Item MDAP/MAIS Code: <code>") in the
+    // FY2027 justification books — document-stated, auditable per book, NOT
+    // machine-inferred. Same validation as CURATED (PE must exist; '000' = none).
+    type EvidencePair = { acqProgramCode: string; peCode: string; title: string; book: string };
+    let evidence: EvidencePair[] = [];
+    try {
+      evidence = JSON.parse(
+        fs.readFileSync(path.resolve('scripts/__data__/mdap_evidence_fy2027.json'), 'utf8'),
+      ) as EvidencePair[];
+    } catch {
+      /* artifact optional */
+    }
+    const evidenceByCode = new Map<string, { name: string; peCodes: string[] }>();
+    for (const ev of evidence) {
+      if (!ev.acqProgramCode || ev.acqProgramCode === '000') continue;
+      const cur = evidenceByCode.get(ev.acqProgramCode) ?? { name: ev.title, peCodes: [] };
+      if (!cur.peCodes.includes(ev.peCode)) cur.peCodes.push(ev.peCode);
+      evidenceByCode.set(ev.acqProgramCode, cur);
+    }
+    const combined = [
+      ...CURATED,
+      ...[...evidenceByCode.entries()].map(([code, v]) => ({ code, name: v.name, peCodes: v.peCodes })),
+    ];
+    for (const entry of combined) {
       const code = entry.code.trim().toUpperCase();
       if (!code || code === '000' || code === 'NONE') continue;
       for (const rawPe of entry.peCodes) {
@@ -139,6 +165,7 @@ async function main(): Promise<void> {
         {
           mode: commit ? 'COMMIT' : 'DRY_RUN',
           curatedPrograms: CURATED.length,
+          evidencePrograms: evidenceByCode.size,
           knownPeCount: known.size,
           inserted,
           updated,

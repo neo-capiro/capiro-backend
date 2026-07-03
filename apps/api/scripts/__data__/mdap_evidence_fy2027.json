@@ -1,0 +1,650 @@
+[
+ {
+  "acqProgramCode": "0000",
+  "peCode": "0300D0201MANISR",
+  "title": "MANNED ISR",
+  "book": "DW_SOCOM"
+ },
+ {
+  "acqProgramCode": "0000",
+  "peCode": "0300D0201MH60",
+  "title": "MH-60 BLACKHAWK",
+  "book": "DW_SOCOM"
+ },
+ {
+  "acqProgramCode": "0000",
+  "peCode": "0300D0206CMR",
+  "title": "COMBAT MISSION REQUIREMENTS",
+  "book": "DW_SOCOM"
+ },
+ {
+  "acqProgramCode": "0000",
+  "peCode": "0300D0607U28",
+  "title": "U-28",
+  "book": "DW_SOCOM"
+ },
+ {
+  "acqProgramCode": "0000",
+  "peCode": "0300D2012C130J",
+  "title": "AC/MC-130J",
+  "book": "DW_SOCOM"
+ },
+ {
+  "acqProgramCode": "280",
+  "peCode": "0648CC0007",
+  "title": "Javelin (AAWS-M) System Summary",
+  "book": "Missile_Procurement_Army"
+ },
+ {
+  "acqProgramCode": "472",
+  "peCode": "1109N2025",
+  "title": "Amphibious Combat Vehicle Family of Vehicles",
+  "book": "PMC_Book"
+ },
+ {
+  "acqProgramCode": "289",
+  "peCode": "1109N2101",
+  "title": "Tomahawk",
+  "book": "PMC_Book"
+ },
+ {
+  "acqProgramCode": "260",
+  "peCode": "1109N3025",
+  "title": "Guided MLRS Rocket (GMLRS)",
+  "book": "PMC_Book"
+ },
+ {
+  "acqProgramCode": "N36",
+  "peCode": "1109N4640",
+  "title": "Air Operations C2 Systems",
+  "book": "PMC_Book"
+ },
+ {
+  "acqProgramCode": "MN36",
+  "peCode": "1109N4644",
+  "title": "Common Aviation Command and Control System (CAC2S)",
+  "book": "PMC_Book"
+ },
+ {
+  "acqProgramCode": "386",
+  "peCode": "1109N4655",
+  "title": "Ground/Air Task Oriented Radar (G/ATOR)",
+  "book": "PMC_Book"
+ },
+ {
+  "acqProgramCode": "279",
+  "peCode": "1109N5095",
+  "title": "Joint Light Tactical Vehicle",
+  "book": "PMC_Book"
+ },
+ {
+  "acqProgramCode": "601",
+  "peCode": "1382GZ3300",
+  "title": "BRADLEY FIRE SUPPORT TEAM (BFIST) VEHICLE",
+  "book": "Procurement_of_Weapons_and_Tracked_Combat_Vehicles"
+ },
+ {
+  "acqProgramCode": "198",
+  "peCode": "1506N0147",
+  "title": "Joint Strike Fighter CV",
+  "book": "APN_BA1-4_Book"
+ },
+ {
+  "acqProgramCode": "198",
+  "peCode": "1506N0152",
+  "title": "JSF STOVL",
+  "book": "APN_BA1-4_Book"
+ },
+ {
+  "acqProgramCode": "390",
+  "peCode": "1506N0158",
+  "title": "CH-53K (Heavy Lift)",
+  "book": "APN_BA1-4_Book"
+ },
+ {
+  "acqProgramCode": "212",
+  "peCode": "1506N0164",
+  "title": "V-22 (Medium Lift)",
+  "book": "APN_BA1-4_Book"
+ },
+ {
+  "acqProgramCode": "101",
+  "peCode": "1506N0178",
+  "title": "UH-1Y/AH-1Z",
+  "book": "APN_BA1-4_Book"
+ },
+ {
+  "acqProgramCode": "334",
+  "peCode": "1506N0193",
+  "title": "P-8A Poseidon",
+  "book": "APN_BA1-4_Book"
+ },
+ {
+  "acqProgramCode": "373",
+  "peCode": "1506N0442",
+  "title": "MQ-4 TRITON",
+  "book": "APN_BA1-4_Book"
+ },
+ {
+  "acqProgramCode": "P462",
+  "peCode": "1506N0449",
+  "title": "MQ-25",
+  "book": "APN_BA1-4_Book"
+ },
+ {
+  "acqProgramCode": "530",
+  "peCode": "1506N0514",
+  "title": "AV-8 Series",
+  "book": "APN_BA5_Book"
+ },
+ {
+  "acqProgramCode": "390",
+  "peCode": "1506N0528",
+  "title": "H-53 Series",
+  "book": "APN_BA5_Book"
+ },
+ {
+  "acqProgramCode": "433",
+  "peCode": "1506N0560",
+  "title": "C-130 Series",
+  "book": "APN_BA5_Book"
+ },
+ {
+  "acqProgramCode": "560",
+  "peCode": "1506N0571",
+  "title": "JT Primary Acft Trnr Sys (JPATS)",
+  "book": "APN_BA5_Book"
+ },
+ {
+  "acqProgramCode": "212",
+  "peCode": "1506N0590",
+  "title": "V-22 (Tilt/Rotor Acft) Osprey",
+  "book": "APN_BA5_Book"
+ },
+ {
+  "acqProgramCode": "445",
+  "peCode": "1506N0591",
+  "title": "Next Generation Jammer (NGJ)",
+  "book": "APN_BA5_Book"
+ },
+ {
+  "acqProgramCode": "198",
+  "peCode": "1506N0592",
+  "title": "F-35 STOVL Series",
+  "book": "APN_BA5_Book"
+ },
+ {
+  "acqProgramCode": "198",
+  "peCode": "1506N0593",
+  "title": "F-35 CV Series",
+  "book": "APN_BA5_Book"
+ },
+ {
+  "acqProgramCode": "373",
+  "peCode": "1506N0596",
+  "title": "MQ-4 Series",
+  "book": "APN_BA5_Book"
+ },
+ {
+  "acqProgramCode": "178",
+  "peCode": "1507N1250",
+  "title": "TRIDENT II Mods",
+  "book": "WPN_Book"
+ },
+ {
+  "acqProgramCode": "289",
+  "peCode": "1507N2101",
+  "title": "Tomahawk",
+  "book": "WPN_Book"
+ },
+ {
+  "acqProgramCode": "185",
+  "peCode": "1507N2206",
+  "title": "AMRAAM",
+  "book": "WPN_Book"
+ },
+ {
+  "acqProgramCode": "439",
+  "peCode": "1507N2238",
+  "title": "Small Diameter Bomb II (SDB II)",
+  "book": "WPN_Book"
+ },
+ {
+  "acqProgramCode": "289",
+  "peCode": "1507N2301",
+  "title": "Tomahawk Mods",
+  "book": "WPN_Book"
+ },
+ {
+  "acqProgramCode": "197",
+  "peCode": "1507N2307",
+  "title": "Evolved Sea Sparrow Missile (ESSM)",
+  "book": "WPN_Book"
+ },
+ {
+  "acqProgramCode": "607",
+  "peCode": "1507N2327",
+  "title": "AARGM-ER",
+  "book": "WPN_Book"
+ },
+ {
+  "acqProgramCode": "444",
+  "peCode": "1611N1045",
+  "title": "COLUMBIA Class Submarine",
+  "book": "SCN_Book"
+ },
+ {
+  "acqProgramCode": "223",
+  "peCode": "1611N2001",
+  "title": "Carrier Replacement Program",
+  "book": "SCN_Book"
+ },
+ {
+  "acqProgramCode": "223",
+  "peCode": "1611N2004",
+  "title": "CVN-81",
+  "book": "SCN_Book"
+ },
+ {
+  "acqProgramCode": "516",
+  "peCode": "1611N2013",
+  "title": "Virginia Class Submarine",
+  "book": "SCN_Book"
+ },
+ {
+  "acqProgramCode": "542",
+  "peCode": "1611N3010",
+  "title": "LPD Flight II",
+  "book": "SCN_Book"
+ },
+ {
+  "acqProgramCode": "333",
+  "peCode": "1611N3041",
+  "title": "LHA Replacement",
+  "book": "SCN_Book"
+ },
+ {
+  "acqProgramCode": "P452",
+  "peCode": "1611N5025",
+  "title": "TAO Fleet Oiler",
+  "book": "SCN_Book"
+ },
+ {
+  "acqProgramCode": "516",
+  "peCode": "1810N0942",
+  "title": "Virginia Class Support Equipment",
+  "book": "OPN_BA1_Book"
+ },
+ {
+  "acqProgramCode": "197",
+  "peCode": "1810N0947",
+  "title": "DDG 1000 Class Support Equipment",
+  "book": "OPN_BA1_Book"
+ },
+ {
+  "acqProgramCode": "443",
+  "peCode": "1810N1600",
+  "title": "LCS Common Mission Modules Equipment",
+  "book": "OPN_BA1_Book"
+ },
+ {
+  "acqProgramCode": "238",
+  "peCode": "1810N2867",
+  "title": "Joint Precision Approach and Landing System(JPALS)",
+  "book": "OPN_BA2_Book"
+ },
+ {
+  "acqProgramCode": "M417",
+  "peCode": "1810N2915",
+  "title": "CANES",
+  "book": "OPN_BA2_Book"
+ },
+ {
+  "acqProgramCode": "M417",
+  "peCode": "1810N2925",
+  "title": "CANES Intell",
+  "book": "OPN_BA2_Book"
+ },
+ {
+  "acqProgramCode": "237",
+  "peCode": "1810N3215",
+  "title": "Satellite Communications Systems",
+  "book": "OPN_BA2_Book"
+ },
+ {
+  "acqProgramCode": "290",
+  "peCode": "1810N3216",
+  "title": "Navy Multiband Terminal (NMT)",
+  "book": "OPN_BA2_Book"
+ },
+ {
+  "acqProgramCode": "529",
+  "peCode": "1810N4217",
+  "title": "Advanced Arresting Gear (AAG)",
+  "book": "OPN_BA3_Book"
+ },
+ {
+  "acqProgramCode": "466",
+  "peCode": "2073GZ0410",
+  "title": "Paladin Integrated Management (PIM)",
+  "book": "Procurement_of_Weapons_and_Tracked_Combat_Vehicles"
+ },
+ {
+  "acqProgramCode": "355",
+  "peCode": "2605C70302",
+  "title": "Joint Air-to-Ground MSLS (JAGM)",
+  "book": "Missile_Procurement_Army"
+ },
+ {
+  "acqProgramCode": "471",
+  "peCode": "2944G80819",
+  "title": "Armored Multi Purpose Vehicle (AMPV)",
+  "book": "Procurement_of_Weapons_and_Tracked_Combat_Vehicles"
+ },
+ {
+  "acqProgramCode": "436",
+  "peCode": "3010FAPT000",
+  "title": "Advanced Pilot Training T-7A AP",
+  "book": "AF_Aircraft_VolI"
+ },
+ {
+  "acqProgramCode": "198",
+  "peCode": "3010FATA000",
+  "title": "F-35",
+  "book": "AF_Aircraft_VolI"
+ },
+ {
+  "acqProgramCode": "437",
+  "peCode": "3010FB02100",
+  "title": "B-21 Raider AP",
+  "book": "AF_Aircraft_VolI"
+ },
+ {
+  "acqProgramCode": "212",
+  "peCode": "3010FC0V220",
+  "title": "CV-22 Post Production Support",
+  "book": "AF_Aircraft_VolI"
+ },
+ {
+  "acqProgramCode": "220",
+  "peCode": "3010FC130J0",
+  "title": "C-130J",
+  "book": "AF_Aircraft_VolI"
+ },
+ {
+  "acqProgramCode": "725",
+  "peCode": "3010FF015EX",
+  "title": "F-15EX",
+  "book": "AF_Aircraft_VolI"
+ },
+ {
+  "acqProgramCode": "198",
+  "peCode": "3010FF03500",
+  "title": "F-35 Modifications",
+  "book": "AF_Aircraft_VolII"
+ },
+ {
+  "acqProgramCode": "485",
+  "peCode": "3010FF15EWS",
+  "title": "F-15 EPAW",
+  "book": "AF_Aircraft_VolII"
+ },
+ {
+  "acqProgramCode": "562",
+  "peCode": "3010FH0106O",
+  "title": "MH-139A",
+  "book": "AF_Aircraft_VolI"
+ },
+ {
+  "acqProgramCode": "None",
+  "peCode": "3010FH06000",
+  "title": "H-60",
+  "book": "AF_Aircraft_VolII"
+ },
+ {
+  "acqProgramCode": "479",
+  "peCode": "3010FH060WH",
+  "title": "Combat Rescue Helicopter",
+  "book": "AF_Aircraft_VolI"
+ },
+ {
+  "acqProgramCode": "387",
+  "peCode": "3010FKC046A",
+  "title": "KC-46A MDAP",
+  "book": "AF_Aircraft_VolI"
+ },
+ {
+  "acqProgramCode": "493",
+  "peCode": "3010FOTHACF",
+  "title": "Other Aircraft",
+  "book": "AF_Aircraft_VolII"
+ },
+ {
+  "acqProgramCode": "424",
+  "peCode": "3010FPRDTB2",
+  "title": "MQ-9 Mods",
+  "book": "AF_Aircraft_VolII"
+ },
+ {
+  "acqProgramCode": "212",
+  "peCode": "3010FV02200",
+  "title": "CV-22 Mods",
+  "book": "AF_Aircraft_VolII"
+ },
+ {
+  "acqProgramCode": "555",
+  "peCode": "3020FJASSM0",
+  "title": "Joint Air-Surface Standoff Missile",
+  "book": "AF_Missile"
+ },
+ {
+  "acqProgramCode": "449",
+  "peCode": "3020FLRASM0",
+  "title": "LRASM0",
+  "book": "AF_Missile"
+ },
+ {
+  "acqProgramCode": "442",
+  "peCode": "3020FM09HAI",
+  "title": "Sidewinder (AIM-9X)",
+  "book": "AF_Missile"
+ },
+ {
+  "acqProgramCode": "498",
+  "peCode": "3020FM30FLH",
+  "title": "ICBM FUZE MOD",
+  "book": "AF_Missile"
+ },
+ {
+  "acqProgramCode": "185",
+  "peCode": "3020FMAMRA0",
+  "title": "AMRAAM",
+  "book": "AF_Missile"
+ },
+ {
+  "acqProgramCode": "493",
+  "peCode": "3020FMGBSD0",
+  "title": "Ground Based Strategic Deterrent",
+  "book": "AF_Missile"
+ },
+ {
+  "acqProgramCode": "576",
+  "peCode": "3020FMK21A0",
+  "title": "Mk21A Reentry Vehicle",
+  "book": "AF_Missile"
+ },
+ {
+  "acqProgramCode": "489",
+  "peCode": "3020FMLRSO1",
+  "title": "Long Range Stand-Off Weapon",
+  "book": "AF_Missile"
+ },
+ {
+  "acqProgramCode": "439",
+  "peCode": "3020FSDB000",
+  "title": "Small Diameter Bomb",
+  "book": "AF_Missile"
+ },
+ {
+  "acqProgramCode": "439",
+  "peCode": "3020FSDB002",
+  "title": "Small Diameter Bomb II",
+  "book": "AF_Missile"
+ },
+ {
+  "acqProgramCode": "439",
+  "peCode": "3020FSIAW24",
+  "title": "Stand-In Attack Weapon (SIAW)",
+  "book": "AF_Missile"
+ },
+ {
+  "acqProgramCode": "590",
+  "peCode": "3022FGPS03C",
+  "title": "GPSIII Follow On",
+  "book": "SF_Space"
+ },
+ {
+  "acqProgramCode": "590",
+  "peCode": "3022FGPSIII",
+  "title": "GPS III Space Segment",
+  "book": "SF_Space"
+ },
+ {
+  "acqProgramCode": "345",
+  "peCode": "3022FMUOS00",
+  "title": "Mobile User Objective System",
+  "book": "SF_Space"
+ },
+ {
+  "acqProgramCode": "176",
+  "peCode": "3022FNSSL00",
+  "title": "National Security Space Launch",
+  "book": "SF_Space"
+ },
+ {
+  "acqProgramCode": "None",
+  "peCode": "3080F834130",
+  "title": "Air Force Physical Security System",
+  "book": "AF_Other"
+ },
+ {
+  "acqProgramCode": "MDS",
+  "peCode": "3080F834210",
+  "title": "Minimum Essential Emergency Comm N",
+  "book": "AF_Other"
+ },
+ {
+  "acqProgramCode": "519",
+  "peCode": "3080F834240",
+  "title": "Wide Area Surveillance (WAS)",
+  "book": "AF_Other"
+ },
+ {
+  "acqProgramCode": "N87",
+  "peCode": "3080F834470",
+  "title": "Defense Enterprise Accounting & Mgt Sys",
+  "book": "AF_Other"
+ },
+ {
+  "acqProgramCode": "N78",
+  "peCode": "3080F835060",
+  "title": "Base Information Transpt Infrast (BITI) Wired",
+  "book": "AF_Other"
+ },
+ {
+  "acqProgramCode": "123",
+  "peCode": "3102E89500",
+  "title": "ARTILLERY PROJECTILE, 155MM, All Types",
+  "book": "Procurement_of_Ammunition"
+ },
+ {
+  "acqProgramCode": "278",
+  "peCode": "3264AA0252",
+  "title": "CH-47 Cargo Helicopter Mods (MYP)",
+  "book": "Aircraft_Procurement_Army"
+ },
+ {
+  "acqProgramCode": "539",
+  "peCode": "3700GA0570",
+  "title": "IMPROVED RECOVERY VEHICLE (M88 HERCULES)",
+  "book": "Procurement_of_Weapons_and_Tracked_Combat_Vehicles"
+ },
+ {
+  "acqProgramCode": "219",
+  "peCode": "5397AZ3517",
+  "title": "CMWS",
+  "book": "Aircraft_Procurement_Army"
+ },
+ {
+  "acqProgramCode": "446",
+  "peCode": "5399AZ3537",
+  "title": "Common Infrared Countermeasures (CIRCM)",
+  "book": "Aircraft_Procurement_Army"
+ },
+ {
+  "acqProgramCode": "247",
+  "peCode": "5731D15610",
+  "title": "JOINT LIGHT TACTICAL VEHICLE FAMILY OF VEHICLES",
+  "book": "OP_Army_BA1"
+ },
+ {
+  "acqProgramCode": "202",
+  "peCode": "5757A05111",
+  "title": "AH-64 Apache Block IIIA Reman",
+  "book": "Aircraft_Procurement_Army"
+ },
+ {
+  "acqProgramCode": "260",
+  "peCode": "6005C64400",
+  "title": "Guided MLRS Rocket (GMLRS)",
+  "book": "Missile_Procurement_Army"
+ },
+ {
+  "acqProgramCode": "367",
+  "peCode": "6200C02901",
+  "title": "High Mobility Artillery Rocket System (HIMARS)",
+  "book": "Missile_Procurement_Army"
+ },
+ {
+  "acqProgramCode": "385",
+  "peCode": "6458B95004",
+  "title": "Handheld Manpack Small Form Fit (HMS)",
+  "book": "OP_Army_BA2"
+ },
+ {
+  "acqProgramCode": "550",
+  "peCode": "6761A12000",
+  "title": "Future Vertical Lift FAMILY OF SYSTEMS",
+  "book": "Aircraft_Procurement_Army"
+ },
+ {
+  "acqProgramCode": "746",
+  "peCode": "6866D15500",
+  "title": "Family Of Medium Tactical Veh (FMTV)",
+  "book": "OP_Army_BA1"
+ },
+ {
+  "acqProgramCode": "492",
+  "peCode": "8260C53101",
+  "title": "MSE Missile",
+  "book": "Missile_Procurement_Army"
+ },
+ {
+  "acqProgramCode": "602",
+  "peCode": "8386BA5500",
+  "title": "Counterfire Radars",
+  "book": "OP_Army_BA2"
+ },
+ {
+  "acqProgramCode": "473",
+  "peCode": "8930C61001",
+  "title": "INDIRECT FIRE PROTECTION CAPABILITY INC 2-I",
+  "book": "Missile_Procurement_Army"
+ },
+ {
+  "acqProgramCode": "205",
+  "peCode": "9280BZ5075",
+  "title": "IAMD Battle Command System",
+  "book": "OP_Army_BA2"
+ }
+]
