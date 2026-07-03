@@ -408,49 +408,40 @@ export class ProgramElementReadService {
         GROUP BY pe.service
         ORDER BY count DESC NULLS LAST
       `),
-      // Portfolio money = SUM of each PE's OWN latest request / latest enacted (the
-      // same per-PE-latest semantics as the finder rows), NOT a single global FY.
-      // Summing one global MAX(fy) collapsed enacted to the tiny set of PEs that
-      // happen to carry a value in that newest FY (e.g. FY27, barely enacted yet),
-      // which read as broken next to the request total. avgDeltaPct is a DOLLAR-
-      // WEIGHTED portfolio delta (Σenacted − Σrequest)/Σrequest over the matched set,
-      // NOT a mean of per-PE ratios — averaging ratios lets a few tiny-request PEs
-      // (e.g. $0.2M request → $50M enacted = +25000%) blow it up to a nonsensical ~490%.
+      // Portfolio money for the LAST FULLY-ENACTED fiscal year — the standard
+      // President's-Budget-vs-enacted comparison. Both totals are pinned to the SAME
+      // FY so the two tiles are a self-consistent pair: avgDeltaPct =
+      // (Σenacted − Σrequest)/Σrequest reconciles the displayed totals exactly. (A
+      // per-PE-latest sum instead spanned different FYs — request drifted to FYDP
+      // outyears, enacted to the last enacted year — so the headline numbers weren't
+      // comparable.) PEs with no row that FY correctly contribute $0; the forward /
+      // outyear picture lives in the trend sparkline + the detail funding chart.
       this.prisma.$queryRaw<
-        Array<{ totalRequest: number | null; totalEnacted: number | null; avgDeltaPct: number | null }>
+        Array<{ fy: number | null; totalRequest: number | null; totalEnacted: number | null; avgDeltaPct: number | null }>
       >(Prisma.sql`
+        WITH latest AS (
+          SELECT MAX(fy) AS fy FROM program_element_year WHERE enacted IS NOT NULL AND enacted <> 0
+        )
         SELECT
-          COALESCE(SUM(lr.request), 0)::double precision AS "totalRequest",
-          COALESCE(SUM(le.enacted), 0)::double precision AS "totalEnacted",
+          l.fy AS fy,
+          COALESCE(SUM(y.request) FILTER (WHERE y.request IS NOT NULL AND y.request <> 0), 0)::double precision AS "totalRequest",
+          COALESCE(SUM(y.enacted) FILTER (WHERE y.enacted IS NOT NULL AND y.enacted <> 0), 0)::double precision AS "totalEnacted",
           (
             CASE
-              WHEN SUM(ler.request) FILTER (WHERE le.enacted IS NOT NULL AND ler.request IS NOT NULL AND ler.request <> 0) > 0
+              WHEN SUM(y.request) FILTER (WHERE y.request IS NOT NULL AND y.request <> 0) > 0
               THEN (
                 (
-                  SUM(le.enacted) FILTER (WHERE le.enacted IS NOT NULL AND ler.request IS NOT NULL AND ler.request <> 0)
-                  - SUM(ler.request) FILTER (WHERE le.enacted IS NOT NULL AND ler.request IS NOT NULL AND ler.request <> 0)
+                  SUM(y.enacted) FILTER (WHERE y.enacted IS NOT NULL AND y.enacted <> 0)
+                  - SUM(y.request) FILTER (WHERE y.request IS NOT NULL AND y.request <> 0)
                 )
-                / SUM(ler.request) FILTER (WHERE le.enacted IS NOT NULL AND ler.request IS NOT NULL AND ler.request <> 0)
+                / SUM(y.request) FILTER (WHERE y.request IS NOT NULL AND y.request <> 0)
               ) * 100
               ELSE NULL
             END
           )::double precision AS "avgDeltaPct"
-        FROM program_element pe
-        LEFT JOIN LATERAL (
-          SELECT y.request FROM program_element_year y
-          WHERE y.pe_code = pe.pe_code AND y.request IS NOT NULL AND y.request <> 0
-          ORDER BY y.fy DESC LIMIT 1
-        ) lr ON TRUE
-        LEFT JOIN LATERAL (
-          SELECT y.enacted, y.fy FROM program_element_year y
-          WHERE y.pe_code = pe.pe_code AND y.enacted IS NOT NULL AND y.enacted <> 0
-          ORDER BY y.fy DESC LIMIT 1
-        ) le ON TRUE
-        LEFT JOIN LATERAL (
-          SELECT y.request FROM program_element_year y
-          WHERE y.pe_code = pe.pe_code AND y.fy = le.fy LIMIT 1
-        ) ler ON TRUE
-        WHERE pe.retired_at IS NULL AND (${hasDataOnly ? hasDataExpr : Prisma.sql`TRUE`})
+        FROM latest l
+        JOIN program_element_year y ON y.fy = l.fy
+        GROUP BY l.fy
       `),
       this.prisma.$queryRaw<Array<{ fy: number; total: number }>>(Prisma.sql`
         WITH mx AS (SELECT MAX(fy) AS fy FROM program_element_year)
@@ -482,11 +473,11 @@ export class ProgramElementReadService {
       tracked: trackedRows[0]?.tracked ?? 0,
       withData: trackedRows[0]?.withData ?? 0,
       watched,
-      // Per-PE-latest aggregates span multiple FYs, so there's no single headline
-      // fiscal year — the UI renders "aggregate" rather than "FYxx · aggregate".
-      latestRequestFy: null,
+      // Both money tiles are anchored to the same fiscal year (last enacted), so the
+      // UI shows "FYxx · aggregate" on each and the delta reconciles the two totals.
+      latestRequestFy: moneyRows[0]?.fy ?? null,
       totalRequest: moneyRows[0]?.totalRequest ?? null,
-      latestEnactedFy: null,
+      latestEnactedFy: moneyRows[0]?.fy ?? null,
       totalEnacted: moneyRows[0]?.totalEnacted ?? null,
       avgDeltaPct: moneyRows[0]?.avgDeltaPct ?? null,
       openMarkups: markupRows[0]?.count ?? 0,
