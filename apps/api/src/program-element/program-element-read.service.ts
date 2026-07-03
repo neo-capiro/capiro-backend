@@ -378,10 +378,11 @@ export class ProgramElementReadService {
   /**
    * Portfolio-level aggregates for the finder's summary strip (tracked count, latest
    * request/enacted totals, average enacted-vs-request delta, open markups, a 6-yr
-   * funding trend, and the per-service split for the donut). All cheap grouped
-   * queries over program_element_year (indexed on fy) — no per-PE laterals — so the
-   * strip stays snappy. Aggregates are catalog-wide (not service-filtered) so the
-   * donut/legend can drive the table filter without the KPIs shifting under it.
+   * funding trend, and the per-service split for the donut). Grouped queries over
+   * program_element_year (indexed on fy); the request/enacted totals use per-PE
+   * LATERALs over the catalog (index-supported on (pe_code, fy), bounded, cached).
+   * Aggregates are catalog-wide (not service-filtered) so the donut/legend can
+   * drive the table filter without the KPIs shifting under it.
    */
   async getSummary(query: { service?: string; hasData?: string }, ctx?: TenantContext) {
     const hasDataOnly = query.hasData === 'true';
@@ -391,7 +392,7 @@ export class ProgramElementReadService {
       OR EXISTS (SELECT 1 FROM congress_bill b WHERE pe.pe_code = ANY(b.pe_codes))
     )`;
 
-    const [trackedRows, byServiceRows, reqRows, encRows, trendRows, markupRows] = await Promise.all([
+    const [trackedRows, byServiceRows, moneyRows, trendRows, markupRows] = await Promise.all([
       this.prisma.$queryRaw<Array<{ tracked: number; withData: number }>>(Prisma.sql`
         SELECT
           COUNT(*)::int AS tracked,
@@ -407,30 +408,39 @@ export class ProgramElementReadService {
         GROUP BY pe.service
         ORDER BY count DESC NULLS LAST
       `),
-      this.prisma.$queryRaw<Array<{ fy: number | null; total: number | null }>>(Prisma.sql`
-        WITH latest AS (
-          SELECT MAX(fy) AS fy FROM program_element_year WHERE request IS NOT NULL AND request <> 0
-        )
-        SELECT l.fy AS fy, COALESCE(SUM(y.request), 0)::double precision AS total
-        FROM latest l
-        LEFT JOIN program_element_year y ON y.fy = l.fy AND y.request IS NOT NULL AND y.request <> 0
-        GROUP BY l.fy
-      `),
-      this.prisma.$queryRaw<Array<{ fy: number | null; total: number | null; avgDeltaPct: number | null }>>(Prisma.sql`
-        WITH latest AS (
-          SELECT MAX(fy) AS fy FROM program_element_year WHERE enacted IS NOT NULL AND enacted <> 0
-        )
+      // Portfolio money = SUM of each PE's OWN latest request / latest enacted (the
+      // same per-PE-latest semantics as the finder rows), NOT a single global FY.
+      // Summing one global MAX(fy) collapsed enacted to the tiny set of PEs that
+      // happen to carry a value in that newest FY (e.g. FY27, barely enacted yet),
+      // which read as broken next to the request total. avgDeltaPct = mean of
+      // (enacted − request-at-that-FY) / request over PEs with both.
+      this.prisma.$queryRaw<
+        Array<{ totalRequest: number | null; totalEnacted: number | null; avgDeltaPct: number | null }>
+      >(Prisma.sql`
         SELECT
-          l.fy AS fy,
-          COALESCE(SUM(y.enacted), 0)::double precision AS total,
+          COALESCE(SUM(lr.request), 0)::double precision AS "totalRequest",
+          COALESCE(SUM(le.enacted), 0)::double precision AS "totalEnacted",
           AVG(
-            CASE WHEN y.request IS NOT NULL AND y.request <> 0
-                 THEN ((y.enacted::double precision - y.request::double precision) / y.request::double precision) * 100
+            CASE WHEN le.enacted IS NOT NULL AND ler.request IS NOT NULL AND ler.request <> 0
+                 THEN ((le.enacted::double precision - ler.request::double precision) / ler.request::double precision) * 100
                  ELSE NULL END
           )::double precision AS "avgDeltaPct"
-        FROM latest l
-        LEFT JOIN program_element_year y ON y.fy = l.fy AND y.enacted IS NOT NULL AND y.enacted <> 0
-        GROUP BY l.fy
+        FROM program_element pe
+        LEFT JOIN LATERAL (
+          SELECT y.request FROM program_element_year y
+          WHERE y.pe_code = pe.pe_code AND y.request IS NOT NULL AND y.request <> 0
+          ORDER BY y.fy DESC LIMIT 1
+        ) lr ON TRUE
+        LEFT JOIN LATERAL (
+          SELECT y.enacted, y.fy FROM program_element_year y
+          WHERE y.pe_code = pe.pe_code AND y.enacted IS NOT NULL AND y.enacted <> 0
+          ORDER BY y.fy DESC LIMIT 1
+        ) le ON TRUE
+        LEFT JOIN LATERAL (
+          SELECT y.request FROM program_element_year y
+          WHERE y.pe_code = pe.pe_code AND y.fy = le.fy LIMIT 1
+        ) ler ON TRUE
+        WHERE pe.retired_at IS NULL AND (${hasDataOnly ? hasDataExpr : Prisma.sql`TRUE`})
       `),
       this.prisma.$queryRaw<Array<{ fy: number; total: number }>>(Prisma.sql`
         WITH mx AS (SELECT MAX(fy) AS fy FROM program_element_year)
@@ -462,11 +472,13 @@ export class ProgramElementReadService {
       tracked: trackedRows[0]?.tracked ?? 0,
       withData: trackedRows[0]?.withData ?? 0,
       watched,
-      latestRequestFy: reqRows[0]?.fy ?? null,
-      totalRequest: reqRows[0]?.total ?? null,
-      latestEnactedFy: encRows[0]?.fy ?? null,
-      totalEnacted: encRows[0]?.total ?? null,
-      avgDeltaPct: encRows[0]?.avgDeltaPct ?? null,
+      // Per-PE-latest aggregates span multiple FYs, so there's no single headline
+      // fiscal year — the UI renders "aggregate" rather than "FYxx · aggregate".
+      latestRequestFy: null,
+      totalRequest: moneyRows[0]?.totalRequest ?? null,
+      latestEnactedFy: null,
+      totalEnacted: moneyRows[0]?.totalEnacted ?? null,
+      avgDeltaPct: moneyRows[0]?.avgDeltaPct ?? null,
       openMarkups: markupRows[0]?.count ?? 0,
       trend: trendRows.map((r) => ({ fy: r.fy, total: r.total })),
       byService: byServiceRows.map((r) => ({ service: r.service, count: r.count })),
