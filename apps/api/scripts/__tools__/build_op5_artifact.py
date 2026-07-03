@@ -25,6 +25,10 @@ BOOK_ACCOUNTS = {
     'SF_OM_Vol1': ['3410F'], 'SF_OM_Vol2': ['3410F'],
     'AFR_OM_Vol1': ['3740F'], 'AFR_OM_Vol2': ['3740F'],
     'ANG_OM_Vol1': ['3840F'], 'ANG_OM_Vol2': ['3840F'],
+    # Batch-12a: MHS (Military Health System) J-Book Vol 1 — the consolidated
+    # Defense Health Program OP-5 exhibits (7A-7H). Title-joins to 0130D lines
+    # 010-070 (In-House Care ... Base Operations); 080-190 are R&D/PROC, no OP-5.
+    'MHS_Vol1': ['0130D'],
 }
 
 def norm(s):

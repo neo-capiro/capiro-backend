@@ -37,7 +37,22 @@ SAG_PATTERNS = [
 TITLE_PATTERNS = [
     re.compile(r"Detail by Subactivity Group:?\s*(.+)$", re.M),
     re.compile(r"Subactivity Group:?\s+([A-Z].{4,70})$", re.M),
+    # MHS / DHP consolidated volume header: "<Budget Activity Group> OP-5 Exhibit".
+    re.compile(r"^\s*([A-Z][A-Za-z0-9()/,&.'\- ]{3,70}?)\s+OP-5\s+Exhibit\s*$", re.M),
 ]
+
+# GPO page-footer boilerplate that PDF extraction interleaves into narrative when a
+# section spans a page break, e.g. "VerDate Sep 11 2014 07:48 ... Sfmt 6602
+# E:\HR\OC\HR698.XXX HR698 GNIRAEH htiw DORP3RG1076PAL no kcirederf 25". The
+# "kcirederf"/"GNIRAEH" run is a mirror-image GPO frame marker. Strip the whole
+# frame (preferred), then any truncated leftover ending at the Sfmt token.
+GPO_FRAME = re.compile(r"VerDate\b.{0,320}?\bkcirederf\s+\d+", re.S)
+GPO_TAIL = re.compile(r"VerDate\b.{0,240}?\bSfmt\s+\d+", re.S)
+
+def strip_gpo(s):
+    s = GPO_FRAME.sub(" ", s)
+    s = GPO_TAIL.sub(" ", s)
+    return re.sub(r"\s{2,}", " ", s)
 
 def page_sag(text):
     for rx in SAG_PATTERNS:
@@ -120,7 +135,7 @@ def main():
                                 "narrative": full[start:end].strip(),
                                 "pageStart": None, "pageEnd": None})
     for r in records:
-        r["narrative"] = re.sub(r"[ \t]+", " ", r["narrative"]).strip()[:8000]
+        r["narrative"] = strip_gpo(re.sub(r"[ \t]+", " ", r["narrative"])).strip()[:8000]
     print(json.dumps({"book": book, "sourceUrl": src, "agency": agency,
                       "records": records}, ensure_ascii=False))
 

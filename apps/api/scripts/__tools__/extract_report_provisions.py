@@ -30,6 +30,19 @@ PE_CODE = re.compile(r"\b[01]\d{6}[A-Z]{1,2}\b")
 MIN_BODY = 250
 MAX_BODY = 6000
 
+# GPO page-footer boilerplate PDF extraction interleaves into provision text when a
+# provision spans a page break ("VerDate ... Sfmt 6602 E:\HR\OC\HR698.XXX HR698
+# GNIRAEH htiw ... no kcirederf 25"). Strip the whole mirror-image frame, then any
+# truncated leftover ending at the Sfmt token.
+GPO_FRAME = re.compile(r"VerDate\b.{0,320}?\bkcirederf\s+\d+", re.S)
+GPO_TAIL = re.compile(r"VerDate\b.{0,240}?\bSfmt\s+\d+", re.S)
+
+
+def strip_gpo(x: str) -> str:
+    x = GPO_FRAME.sub(" ", x)
+    x = GPO_TAIL.sub(" ", x)
+    return re.sub(r"\s{2,}", " ", x)
+
 HEADING = re.compile(
     r"^(?![•\-\d$])"          # not a bullet / number / dollar row
     r"(?=.{4,90}$)"            # sane length
@@ -81,7 +94,7 @@ def main() -> None:
             continue
         if ".." in h:
             continue
-        body = re.sub(r"[ \t]+", " ", "\n".join(p["lines"])).strip()
+        body = strip_gpo(re.sub(r"[ \t]+", " ", "\n".join(p["lines"]))).strip()
         if body.count("....") > 3:  # table-of-contents block
             continue
         if len(body) < MIN_BODY:
