@@ -51,7 +51,7 @@ vi.mock('../../lib/use-api.js', () => ({
   }),
 }));
 
-function detailPayload(currentUserIsWatching: boolean) {
+function detailPayload(currentUserIsWatching: boolean, currentCycleFy: number | null = null) {
   return {
     peCode: '0603270A',
     title: 'Electronic Warfare Advanced Payloads',
@@ -62,6 +62,7 @@ function detailPayload(currentUserIsWatching: boolean) {
     firstSeenFy: 2023,
     lastSyncedAt: '2026-05-28T15:00:00.000Z',
     currentUserIsWatching,
+    currentCycleFy,
     years: [
       { id: 'y1', fy: 2023, request: '220.00', hascMark: '230.00', sascMark: '228.00', hacDMark: '229.00', sacDMark: '227.00', conference: '229.00', enacted: '228.50', raw: { sourceAttribution: { request: 'rdoc' } } },
       { id: 'y2', fy: 2024, request: '240.00', hascMark: '245.00', sascMark: '244.00', hacDMark: '243.00', sacDMark: '242.00', conference: '243.00', enacted: '242.00', raw: { sourceAttribution: { request: 'rdoc' } } },
@@ -95,7 +96,11 @@ function setupBrowserMocks() {
   vi.stubGlobal('ResizeObserver', ResizeObserverMock);
 }
 
-function setupApi(currentUserIsWatching: boolean, postImpl?: (url: string, body: { watching: boolean }) => Promise<unknown>) {
+function setupApi(
+  currentUserIsWatching: boolean,
+  postImpl?: (url: string, body: { watching: boolean }) => Promise<unknown>,
+  currentCycleFy: number | null = null,
+) {
   apiGetMock.mockImplementation(async (url: string) => {
     if (url.includes('/personnel')) {
       return {
@@ -161,7 +166,7 @@ function setupApi(currentUserIsWatching: boolean, postImpl?: (url: string, body:
     if (url.includes('/api/program-elements') && !url.includes('/0603270A')) {
       return { data: { data: [], total: 0, page: 1, limit: 25 } };
     }
-    return { data: detailPayload(currentUserIsWatching) };
+    return { data: detailPayload(currentUserIsWatching, currentCycleFy) };
   });
 
   apiPostMock.mockImplementation(async (url: string, body: { watching: boolean }) => {
@@ -270,5 +275,24 @@ describe('ProgramElementWatchPage', () => {
     await waitFor(() => {
       expect(screen.getByRole('button', { name: /Watch this PE/i })).toBeInTheDocument();
     });
+  });
+
+  test('shows the historical badge when the PE has no entry in the current cycle', async () => {
+    // The mock PE's latest real budget-year row is FY2027; a currentCycleFy of
+    // FY2029 (later than that) means it dropped out of the current cycle.
+    setupApi(true, undefined, 2029);
+    renderPage();
+
+    await waitFor(() => expect(screen.getByText(/0603270A/i)).toBeInTheDocument());
+    expect(screen.getByText(/Historical — no FY2029 entry/i)).toBeInTheDocument();
+  });
+
+  test('does not show the historical badge when the PE is in the current cycle', async () => {
+    // currentCycleFy matches the mock PE's own latest real year (FY2027).
+    setupApi(true, undefined, 2027);
+    renderPage();
+
+    await waitFor(() => expect(screen.getByText(/0603270A/i)).toBeInTheDocument());
+    expect(screen.queryByText(/Historical —/i)).not.toBeInTheDocument();
   });
 });

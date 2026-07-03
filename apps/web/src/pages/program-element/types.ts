@@ -28,6 +28,14 @@ export interface ProgramElementDetail {
   /** Step 1.2: counts so the profile can badge + lazy-load the project/proof-pack panels. */
   projectCount?: number;
   sourceCount?: number;
+  /**
+   * The FY with the most PEs carrying a live PB request catalog-wide (the "current
+   * budget cycle" nearly every active PE is in). Lets the hero flag a PE whose own
+   * latest year of record predates it — e.g. a program that finished RDT&E and
+   * dropped out of the current justification books — as historical rather than
+   * silently sparse.
+   */
+  currentCycleFy?: number | null;
 }
 
 /** R-2A project / sub-element of a PE (Step 1.2). */

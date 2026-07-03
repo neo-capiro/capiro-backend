@@ -612,9 +612,23 @@ export class ProgramElementReadService {
 
     // Cheap counts so the profile can badge "Projects (n)" / "Sources (n)" and lazy-load the
     // panels only when present (Step 1.2). Cached with the rest of the detail.
-    const [projectCount, sourceCount] = await Promise.all([
+    // currentCycleFy is the FY with the most PEs carrying a live PB request (the
+    // mode, same pattern as getSummary's last-enacted-FY pick) — i.e. "the current
+    // budget cycle" the vast majority of active PEs are in. Lets the UI flag a PE
+    // whose own latest year of record predates it (e.g. a program that finished
+    // RDT&E and dropped out of the current year's justification books) as
+    // historical rather than silently sparse/broken-looking.
+    const [projectCount, sourceCount, cycleRows] = await Promise.all([
       this.prisma.programElementProject.count({ where: { peCode } }),
       this.prisma.programElementSource.count({ where: { peCode } }),
+      this.prisma.$queryRaw<Array<{ fy: number | null }>>(Prisma.sql`
+        SELECT fy
+        FROM program_element_year
+        WHERE request IS NOT NULL AND request <> 0
+        GROUP BY fy
+        ORDER BY COUNT(*) DESC, fy DESC
+        LIMIT 1
+      `),
     ]);
 
     const detail: Record<string, unknown> = {
@@ -622,6 +636,7 @@ export class ProgramElementReadService {
       billCount: mvRows[0]?.billCount ?? null,
       projectCount,
       sourceCount,
+      currentCycleFy: cycleRows[0]?.fy ?? null,
     };
 
     this.detailCache.set(cacheKey, detail);

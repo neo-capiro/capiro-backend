@@ -1,7 +1,7 @@
 import { useMemo, useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { useNavigate, useParams } from 'react-router-dom';
-import { Alert, Button, Card, Empty, Skeleton, Tabs, Tag, message } from 'antd';
+import { Alert, Button, Card, Empty, Skeleton, Tabs, Tag, Tooltip, message } from 'antd';
 import {
   BellFilled,
   BellOutlined,
@@ -334,6 +334,22 @@ export function ProgramElementWatchPage() {
   const latestEnacted = latestMeaningful(years, 'enacted');
   const historyRows = toHistoryRows(years);
   const hasBudgetData = years.length > 0;
+
+  // The PE's own most recent year carrying ANY real budget field (not just
+  // request/enacted — a mark-only or conference-only year still counts as "current").
+  // If that predates the catalog's current cycle FY (the year most PEs have a live
+  // PB request), the line has dropped out of the current justification books —
+  // e.g. RDT&E finished and the program moved to procurement — so it reads as
+  // intentionally historical rather than a broken/empty-looking page.
+  const peLatestFy = years.reduce<number | null>((max, y) => {
+    const hasAny = [y.request, y.hascMark, y.sascMark, y.hacDMark, y.sacDMark, y.conference, y.enacted].some(
+      (v) => numberOrNull(v) != null,
+    );
+    if (!hasAny) return max;
+    return max == null || y.fy > max ? y.fy : max;
+  }, null);
+  const isHistoricalOnly =
+    peLatestFy != null && detail.currentCycleFy != null && peLatestFy < detail.currentCycleFy;
   const bills: ProgramElementBill[] = billsQuery.data ?? [];
   const contractors: ProgramElementContractorsResponse = contractorsQuery.data ?? {
     namedPrimes: [],
@@ -804,6 +820,13 @@ export function ProgramElementWatchPage() {
               ) : null}
               {detail.status ? (
                 <span className={`pill ${statusPillClass(detail.status)}`}>{detail.status}</span>
+              ) : null}
+              {isHistoricalOnly ? (
+                <Tooltip
+                  title={`No FY${detail.currentCycleFy} entry in the current budget cycle — this line's last budget-year record was FY${peLatestFy}. Likely wound down, transitioned to a later acquisition phase, or superseded; not necessarily an ingestion gap.`}
+                >
+                  <span className="pill muted">Historical — no FY{detail.currentCycleFy} entry</span>
+                </Tooltip>
               ) : null}
             </div>
             <IntelligenceChips intel={intelligenceQuery.data} />
