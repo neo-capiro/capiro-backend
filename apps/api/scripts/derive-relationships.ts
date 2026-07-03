@@ -265,7 +265,8 @@ async function main(): Promise<void> {
           skipDuplicates: true,
         });
       }
-    });
+      // Prisma's default interactive-transaction timeout is 5s — explicit ceiling.
+    }, { timeout: 300_000, maxWait: 30_000 });
     console.log(JSON.stringify({ written: rows.length }));
   } finally {
     await prisma.$disconnect();

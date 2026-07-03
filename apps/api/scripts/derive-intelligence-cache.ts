@@ -231,7 +231,9 @@ async function main(): Promise<void> {
       for (let i = 0; i < rows.length; i += 500) {
         await tx.programElementIntelligenceCache.createMany({ data: rows.slice(i, i + 500) });
       }
-    });
+      // Fat JSONB rows over ~10k lines — Prisma's default 5s interactive-
+      // transaction timeout would abort mid-write. Explicit ceiling.
+    }, { timeout: 600_000, maxWait: 30_000 });
     console.log(JSON.stringify({ written: rows.length }));
   } finally {
     await prisma.$disconnect();
