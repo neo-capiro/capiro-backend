@@ -17,18 +17,30 @@ BOOK_ACCOUNTS = {
     'OMA_Vol1': ['2020A'], 'OMA_Vol2': ['2020A'], 'OMNG': ['2065A'], 'OMAR': ['2080A'],
     'OMN_Vol1': ['1804N'], 'OMMC': ['1106N'], 'OMNR': ['1806N'], 'OMMCR': ['1107N'],
     'OMAF_Vol1': ['3400F'], 'OMAF_Vol2': ['3400F'], 'OMANG': ['3410F'], 'OMAFR': ['3740F'],
-    # 3840F (AF depot?) handled if a book covers it
+    # Batch-11 (af.mil mirrors; saffm was hard-down): AF active / Space Force /
+    # AF Reserve / Air National Guard O&M volumes.
+    'AF_OM_Vol1': ['3400F'], 'AF_OM_Vol2': ['3400F'],
+    'SF_OM_Vol1': ['3410F'], 'SF_OM_Vol2': ['3410F'],
+    'AFR_OM_Vol1': ['3740F'], 'AFR_OM_Vol2': ['3740F'],
+    'ANG_OM_Vol1': ['3840F'], 'ANG_OM_Vol2': ['3840F'],
 }
 
 def norm(s):
     return re.sub(r'[^a-z0-9]', '', (s or '').lower())
 
+def norm_noand(s):
+    return re.sub(r'[^a-z0-9]', '', re.sub(r'and', '', (s or '').lower()))
+
 lines = OM['pes']
 by_acct_sag = {}
 by_acct_title = {}
+title_index = {}
 for p in lines:
     by_acct_sag[(p['raw']['account'], (p['raw'].get('sagBli') or '').upper())] = p
     by_acct_title[(p['raw']['account'], norm(p['title']))] = p
+    by_acct_title.setdefault((p['raw']['account'], norm_noand(p['title'])), p)
+    for k in {norm(p['title']), norm_noand(p['title'])}:
+        title_index.setdefault((p['raw']['account'], k), []).append(p)
 
 dw_lines = [p for p in lines if p['service'] == 'DW']
 
@@ -74,26 +86,75 @@ DW_BOOK_TITLE = {
 }
 DHP_ACCOUNT = '0130D'
 
+# (account, norm(book exhibit title)) -> O-1 sagBli. Book prints a different
+# name than the O-1 line for the same money (FSRM<->Real Property Maintenance,
+# abbreviations). Every entry hand-verified against both documents.
+# Hand-verified: code is authoritative for these despite book-title drift.
+CURATED_SAG_OK = {
+    ('3400F', '011M'), ('3400F', '012F'), ('3400F', '015C'), ('3400F', '015D'),
+    ('3400F', '015F'), ('3400F', '015G'), ('3400F', '015H'), ('3400F', '015U'),
+    ('3400F', '015X'), ('3400F', '031D'), ('3400F', '033E'), ('3400F', '042W'),
+    ('3410F', '013R'), ('3740F', '011M'), ('3740F', '042K'),
+}
+
+CURATED_TITLE_SAG = {
+    ('3400F', 'realpropertymaintenance'): '011R',
+    ('3740F', 'realpropertymaintenance'): '011R',
+    ('3400F', 'airoperationstraining'): '011D',
+    ('3400F', 'othercombatoperationssupportprograms'): '012C',
+    ('3400F', 'environmentalrestoration'): '042D',
+    ('3410F', 'clssystemssupport'): '013W',
+    ('3410F', 'basesupport'): '013Z',
+}
+
 matched = {}   # peCode -> {narrative, sag, book, pageStart, pageEnd}
 unmatched_records = []
-for f in sorted(glob.glob('b10/out/*.json')) + sorted(glob.glob('b10/out_svc/*.json')):
-    try:
-        d = json.load(open(f, encoding='utf-8'))
-    except Exception:
+for f in sorted(glob.glob('b10/out/*.json')) + sorted(glob.glob('b10/out_svc/*.json')) + sorted(glob.glob('b11/out/*.json')):
+    d = None
+    for enc in ('utf-8', 'cp1252'):
+        try:
+            d = json.load(open(f, encoding=enc))
+            break
+        except Exception:
+            continue
+    if d is None:
         continue
     book = d['book'].replace('dw_', '')
     stem = os.path.basename(f)[:-5]
     accounts = BOOK_ACCOUNTS.get(stem)
     for r in d['records']:
         hit = None
-        if accounts and r.get('sag'):
+        # Tier 0 (service books): the record's own printed title matches exactly
+        # ONE line in the account — zero-inference, beats a possibly mis-parsed SAG.
+        if accounts and r.get('sagTitle'):
             for acc in accounts:
-                hit = by_acct_sag.get((acc, r['sag'].upper()))
+                for key in (norm(r['sagTitle']), norm_noand(r['sagTitle'])):
+                    cands = title_index.get((acc, key), [])
+                    if len({c['peCode'] for c in cands}) == 1:
+                        hit = cands[0]
+                        break
                 if hit:
                     break
+        # Tier 1: SAG code, exact then zero-padded. Guarded: a title conflict
+        # rejects the join unless the (account, sag) pair is hand-allowlisted
+        # (books whose titles drift from O-1 names while codes are correct).
+        if hit is None and accounts and r.get('sag'):
+            for acc in accounts:
+                sag = r['sag'].upper()
+                cand = by_acct_sag.get((acc, sag)) or by_acct_sag.get((acc, sag.zfill(4)))
+                if cand and r.get('sagTitle'):
+                    a, b = norm_noand(cand['title']), norm_noand(r['sagTitle'])
+                    if a != b and not a.startswith(b) and not b.startswith(a) and (acc, sag.zfill(4)) not in CURATED_SAG_OK and (acc, sag) not in CURATED_SAG_OK:
+                        cand = None  # book/O-1 SAG-coding conflict — stay honest
+                hit = cand
+                if hit:
+                    break
+        # Tier 2: curated cross-title pairs (book name != O-1 name, hand-verified).
         if hit is None and accounts and r.get('sagTitle'):
             for acc in accounts:
-                hit = by_acct_title.get((acc, norm(r['sagTitle'])))
+                want = CURATED_TITLE_SAG.get((acc, norm_noand(r['sagTitle'])))
+                if want:
+                    hit = by_acct_sag.get((acc, want))
                 if hit:
                     break
         if hit is None and not accounts and r.get('sag'):
@@ -129,7 +190,7 @@ art = {'fy': 2027, 'source': 'om_op5_fy2027', 'pes': [
      'op5Detail': {'sag': m['sag'], 'book': m['book'],
                    'pageStart': m['pageStart'], 'pageEnd': m['pageEnd']}}
     for pe, m in sorted(matched.items())]}
-json.dump(art, open('b10/om_op5_fy2027.json', 'w', encoding='utf-8'), ensure_ascii=False, indent=1)
+json.dump(art, open('b11/om_op5_fy2027.json', 'w', encoding='utf-8'), ensure_ascii=False, indent=1)
 
 per_acct = collections.Counter()
 for p in lines:
