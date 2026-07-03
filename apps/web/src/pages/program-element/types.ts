@@ -112,6 +112,40 @@ export interface ProgramElementListItem {
   // True when the PE has at least one FY history row, PE-linked federal award, or
   // a bill referencing it. Lets the finder flag/hide PEs with empty detail panels.
   hasData?: boolean;
+  // ── Redesign enrichment (all optional; present on the finder list endpoint) ──
+  /** Whether the current user is watching this PE. */
+  watched?: boolean;
+  /** Count of bills referencing this PE (from the detail materialized view). */
+  billCount?: number | null;
+  /** Most recent FY (and its value, $M) that carries a real President's-Budget request. */
+  latestRequest?: number | null;
+  latestRequestFy?: number | null;
+  /** Most recent FY (and its value, $M) that carries a real enacted appropriation. */
+  latestEnacted?: number | null;
+  latestEnactedFy?: number | null;
+  /** Enacted-vs-request % for the latest-enacted FY (Congress over/under the PB). */
+  deltaPct?: number | null;
+  /** Last 6 fiscal years of enacted-or-conference-or-request ($M), ascending, for the row sparkline. */
+  spark?: number[] | null;
+  /** The most-material live budget delta on this PE — drives the row signal pill. */
+  signalType?: string | null;
+  signalScore?: number | null;
+  signalDeltaPct?: number | null;
+}
+
+/** Portfolio-level aggregates for the finder summary strip. */
+export interface ProgramElementSummary {
+  tracked: number;
+  withData: number;
+  watched: number;
+  latestRequestFy: number | null;
+  totalRequest: number | null;
+  latestEnactedFy: number | null;
+  totalEnacted: number | null;
+  avgDeltaPct: number | null;
+  openMarkups: number;
+  trend: { fy: number; total: number }[];
+  byService: { service: string | null; count: number }[];
 }
 
 export interface ProgramElementMarkupMonitorItem {

@@ -87,13 +87,13 @@ export function IntelligenceChips({ intel }: { intel: PeIntelligence | null | un
       <Chip key="runway" label={runway.label} tone={runway.tone} tip={intel.runway.rationale} />,
     );
   }
-  const maturityLabel = MATURITY_LABELS[intel.maturity.stage];
-  if (maturityLabel) {
+  const maturityLabel = intel.maturity ? MATURITY_LABELS[intel.maturity.stage] : undefined;
+  if (maturityLabel && intel.maturity) {
     chips.push(
       <Chip key="maturity" label={maturityLabel} tone="muted" tip={intel.maturity.rationale} />,
     );
   }
-  for (const a of intel.anomalies.slice(0, 3)) {
+  for (const a of (intel.anomalies ?? []).slice(0, 3)) {
     chips.push(
       <Chip
         key={`anomaly-${a.type}`}

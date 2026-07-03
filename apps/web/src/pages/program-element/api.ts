@@ -18,7 +18,9 @@ import type {
   AcquisitionPersonnelListParams,
   AcquisitionPersonnelDetail,
   EngagementContactListItem,
+  ProgramElementSummary,
 } from './types.js';
+import type { IntelligenceChange } from '../intelligence/types.js';
 
 export async function getProgramElementDetail(
   api: AxiosInstance,
@@ -175,9 +177,41 @@ export async function getEngagementContacts(
 
 export async function getProgramElementsList(
   api: AxiosInstance,
-  params: { q?: string; service?: string; page?: number; limit?: number; has_data?: 'true' | 'false' },
+  params: {
+    q?: string;
+    service?: string;
+    page?: number;
+    limit?: number;
+    has_data?: 'true' | 'false';
+    watched?: 'true' | 'false';
+  },
 ): Promise<ProgramElementListResponse> {
   return (await api.get<ProgramElementListResponse>('/api/program-elements', { params })).data;
+}
+
+/** Portfolio aggregates for the finder summary strip (KPI cards + trend + donut). */
+export async function getProgramElementSummary(
+  api: AxiosInstance,
+  params: { service?: string; has_data?: 'true' | 'false' } = {},
+): Promise<ProgramElementSummary> {
+  return (await api.get<ProgramElementSummary>('/api/program-elements/summary', { params })).data;
+}
+
+/**
+ * The PE Watchlist signal feed — change events touching a set of watched PE codes.
+ * Reuses the intelligence changes inbox endpoint scoped by peCodes (GIN-indexed),
+ * newest first. Returns [] when no PEs are watched.
+ */
+export async function getProgramElementWatchlistFeed(
+  api: AxiosInstance,
+  peCodes: string[],
+): Promise<IntelligenceChange[]> {
+  if (peCodes.length === 0) return [];
+  return (
+    await api.get<IntelligenceChange[]>('/api/intelligence/changes', {
+      params: { peCodes: peCodes.join(','), consumed: false },
+    })
+  ).data;
 }
 
 export async function getMarkupMonitor(

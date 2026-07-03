@@ -42,6 +42,22 @@ class ChangesQueryDto {
     value === undefined ? undefined : value === 'true' || value === true,
   )
   consumed?: boolean;
+
+  // Scope the feed to changes touching a set of Program Element codes (the PE
+  // Watchlist signal feed). Accepts a comma-separated string or repeated params;
+  // normalized to upper-cased codes. Filters IntelligenceChange.related_pe_codes
+  // (GIN-indexed) hasSome.
+  @IsOptional()
+  @Transform(({ value }) =>
+    value === undefined || value === null
+      ? undefined
+      : (Array.isArray(value) ? value : String(value).split(','))
+          .map((code: string) => code.trim().toUpperCase())
+          .filter(Boolean),
+  )
+  @IsArray()
+  @IsString({ each: true })
+  peCodes?: string[];
 }
 
 class ConfirmMappingDto {
@@ -195,7 +211,7 @@ export class IntelligenceController {
 
   @Get('changes')
   getChanges(@CurrentTenant() ctx: TenantContext, @Query() q: ChangesQueryDto) {
-    return this.service.getChanges(ctx.tenantId, q.since, q.clientId, q.source, q.consumed);
+    return this.service.getChanges(ctx.tenantId, q.since, q.clientId, q.source, q.consumed, q.peCodes);
   }
 
   @Get('clients/:clientId/lobbying-roi')

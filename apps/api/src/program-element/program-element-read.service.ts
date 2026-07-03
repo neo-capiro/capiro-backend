@@ -22,6 +22,12 @@ export interface ProgramElementListQuery {
   divergenceThreshold?: number;
   /** 'true' restricts to PEs with at least one data signal (year/award/bill). */
   hasData?: string;
+  /**
+   * 'true' restricts the list to PEs the CURRENT user is watching (drives the
+   * finder's "Watchlist" mode). Requires a user/tenant context; without one it
+   * yields an empty list (no watch rows are visible).
+   */
+  watched?: string;
 }
 
 /**
@@ -108,6 +114,8 @@ export class ProgramElementReadService {
     const budgetActivity = query.budgetActivity?.trim();
     const q = query.q?.trim();
     const hasDataOnly = query.hasData === 'true';
+    const watchedOnly = query.watched === 'true';
+    const userId = ctx?.userId ?? null;
 
     type ListRow = {
       peCode: string;
@@ -118,6 +126,17 @@ export class ProgramElementReadService {
       status: string | null;
       lastSyncedAt: Date;
       hasData: boolean;
+      watched: boolean;
+      billCount: number | null;
+      latestRequest: number | null;
+      latestRequestFy: number | null;
+      latestEnacted: number | null;
+      latestEnactedFy: number | null;
+      deltaPct: number | null;
+      spark: number[] | null;
+      signalType: string | null;
+      signalScore: number | null;
+      signalDeltaPct: number | null;
       totalCount: number;
     };
 
@@ -130,7 +149,18 @@ export class ProgramElementReadService {
       OR EXISTS (SELECT 1 FROM congress_bill b WHERE pe.pe_code = ANY(b.pe_codes))
     )`;
 
-    const rows = await this.prisma.$queryRaw<ListRow[]>(Prisma.sql`
+    // Per-user watch flag. Runs inside withTenant (below) so the program_element_watch
+    // RLS policy is satisfied; FALSE when there is no user context.
+    const watchedExpr = userId
+      ? Prisma.sql`EXISTS (SELECT 1 FROM program_element_watch pw WHERE pw.pe_code = pe.pe_code AND pw.user_id = ${userId}::uuid)`
+      : Prisma.sql`FALSE`;
+
+    // The redesigned finder shows per-row money, a 6-yr funding sparkline, a bill
+    // count, the watch flag and the most-material live signal. The page of PEs is
+    // selected + counted first (cheap base columns), then enriched via LATERALs and
+    // the detail MV so the expensive per-PE lookups run only for the <=limit rows on
+    // the page — not for the whole catalog.
+    const listSql = Prisma.sql`
       WITH filtered AS (
         SELECT
           pe.pe_code,
@@ -141,34 +171,98 @@ export class ProgramElementReadService {
           pe.status,
           pe.last_synced_at,
           ${hasDataExpr} AS has_data,
-          CASE WHEN ${q ? 1 : 0} = 1 THEN GREATEST(similarity(pe.title, ${q ?? ''}), 0) ELSE 0 END AS score
+          ${watchedExpr} AS watched,
+          CASE WHEN ${q ? 1 : 0} = 1 THEN GREATEST(similarity(pe.title, ${q ?? ''}), 0) ELSE 0 END AS score,
+          COUNT(*) OVER()::int AS total_count
         FROM program_element pe
         WHERE pe.retired_at IS NULL
           AND (${service ? Prisma.sql`pe.service ILIKE ${service}` : Prisma.sql`TRUE`})
           AND (${budgetActivity ? Prisma.sql`pe.budget_activity ILIKE ${budgetActivity}` : Prisma.sql`TRUE`})
           AND (${hasDataOnly ? hasDataExpr : Prisma.sql`TRUE`})
+          AND (${watchedOnly ? watchedExpr : Prisma.sql`TRUE`})
           AND (
             ${q ? Prisma.sql`pe.title ILIKE ${`%${q}%`} OR pe.pe_code ILIKE ${`%${q}%`} OR similarity(pe.title, ${q}) > 0.2` : Prisma.sql`TRUE`}
           )
+        ORDER BY
+          CASE WHEN ${q ? 1 : 0} = 1 THEN GREATEST(similarity(pe.title, ${q ?? ''}), 0) ELSE 0 END DESC,
+          pe.service ASC NULLS LAST,
+          pe.pe_code ASC
+        LIMIT ${limit}
+        OFFSET ${(page - 1) * limit}
       )
       SELECT
-        pe_code AS "peCode",
-        title,
-        service,
-        budget_activity AS "budgetActivity",
-        appropriation_type AS "appropriationType",
-        status,
-        last_synced_at AS "lastSyncedAt",
-        has_data AS "hasData",
-        COUNT(*) OVER()::int AS "totalCount"
-      FROM filtered
-      ORDER BY
-        CASE WHEN ${q ? 1 : 0} = 1 THEN score ELSE NULL END DESC,
-        service ASC NULLS LAST,
-        pe_code ASC
-      LIMIT ${limit}
-      OFFSET ${(page - 1) * limit}
-    `);
+        f.pe_code AS "peCode",
+        f.title,
+        f.service,
+        f.budget_activity AS "budgetActivity",
+        f.appropriation_type AS "appropriationType",
+        f.status,
+        f.last_synced_at AS "lastSyncedAt",
+        f.has_data AS "hasData",
+        f.watched,
+        f.total_count AS "totalCount",
+        mv.bill_count::int AS "billCount",
+        lr.request::double precision AS "latestRequest",
+        lr.fy AS "latestRequestFy",
+        le.enacted::double precision AS "latestEnacted",
+        le.fy AS "latestEnactedFy",
+        CASE
+          WHEN le.enacted IS NOT NULL AND ler.request IS NOT NULL AND ler.request <> 0
+          THEN ((le.enacted::double precision - ler.request::double precision) / ler.request::double precision) * 100
+          ELSE NULL
+        END AS "deltaPct",
+        spk.spark AS spark,
+        sig.delta_type AS "signalType",
+        sig.materiality_score::double precision AS "signalScore",
+        sig.delta_pct AS "signalDeltaPct"
+      FROM filtered f
+      LEFT JOIN program_element_detail_mv mv ON mv.pe_code = f.pe_code
+      LEFT JOIN LATERAL (
+        SELECT y.request, y.fy
+        FROM program_element_year y
+        WHERE y.pe_code = f.pe_code AND y.request IS NOT NULL AND y.request <> 0
+        ORDER BY y.fy DESC
+        LIMIT 1
+      ) lr ON TRUE
+      LEFT JOIN LATERAL (
+        SELECT y.enacted, y.fy
+        FROM program_element_year y
+        WHERE y.pe_code = f.pe_code AND y.enacted IS NOT NULL AND y.enacted <> 0
+        ORDER BY y.fy DESC
+        LIMIT 1
+      ) le ON TRUE
+      LEFT JOIN LATERAL (
+        SELECT y.request
+        FROM program_element_year y
+        WHERE y.pe_code = f.pe_code AND y.fy = le.fy
+        LIMIT 1
+      ) ler ON TRUE
+      LEFT JOIN LATERAL (
+        SELECT json_agg(v ORDER BY fy) AS spark
+        FROM (
+          SELECT y.fy AS fy, COALESCE(y.enacted, y.conference, y.request)::double precision AS v
+          FROM program_element_year y
+          WHERE y.pe_code = f.pe_code AND COALESCE(y.enacted, y.conference, y.request) IS NOT NULL
+          ORDER BY y.fy DESC
+          LIMIT 6
+        ) s
+      ) spk ON TRUE
+      LEFT JOIN LATERAL (
+        SELECT d.delta_type, d.materiality_score, d.delta_pct
+        FROM program_element_delta d
+        WHERE d.pe_code = f.pe_code AND d.superseded_at IS NULL
+        ORDER BY d.materiality_score DESC NULLS LAST
+        LIMIT 1
+      ) sig ON TRUE
+      ORDER BY f.score DESC, f.service ASC NULLS LAST, f.pe_code ASC
+    `;
+
+    // Run inside the tenant transaction when we have one so the per-user watch
+    // EXISTS clears RLS on program_element_watch; the program_element catalog itself
+    // is global reference data and is unaffected by the tenant GUC.
+    const rows = ctx?.tenantId
+      ? await this.prisma.withTenant(ctx.tenantId, (tx) => tx.$queryRaw<ListRow[]>(listSql))
+      : await this.prisma.$queryRaw<ListRow[]>(listSql);
 
     const total = rows[0]?.totalCount ?? 0;
     return {
@@ -278,6 +372,104 @@ export class ProgramElementReadService {
       total,
       page: 1,
       limit: rows.length,
+    };
+  }
+
+  /**
+   * Portfolio-level aggregates for the finder's summary strip (tracked count, latest
+   * request/enacted totals, average enacted-vs-request delta, open markups, a 6-yr
+   * funding trend, and the per-service split for the donut). All cheap grouped
+   * queries over program_element_year (indexed on fy) — no per-PE laterals — so the
+   * strip stays snappy. Aggregates are catalog-wide (not service-filtered) so the
+   * donut/legend can drive the table filter without the KPIs shifting under it.
+   */
+  async getSummary(query: { service?: string; hasData?: string }, ctx?: TenantContext) {
+    const hasDataOnly = query.hasData === 'true';
+    const hasDataExpr = Prisma.sql`(
+      EXISTS (SELECT 1 FROM program_element_year y WHERE y.pe_code = pe.pe_code)
+      OR EXISTS (SELECT 1 FROM federal_award fa WHERE fa.pe_code = pe.pe_code)
+      OR EXISTS (SELECT 1 FROM congress_bill b WHERE pe.pe_code = ANY(b.pe_codes))
+    )`;
+
+    const [trackedRows, byServiceRows, reqRows, encRows, trendRows, markupRows] = await Promise.all([
+      this.prisma.$queryRaw<Array<{ tracked: number; withData: number }>>(Prisma.sql`
+        SELECT
+          COUNT(*)::int AS tracked,
+          COUNT(*) FILTER (WHERE ${hasDataExpr})::int AS "withData"
+        FROM program_element pe
+        WHERE pe.retired_at IS NULL
+          AND (${hasDataOnly ? hasDataExpr : Prisma.sql`TRUE`})
+      `),
+      this.prisma.$queryRaw<Array<{ service: string | null; count: number }>>(Prisma.sql`
+        SELECT pe.service AS service, COUNT(*)::int AS count
+        FROM program_element pe
+        WHERE pe.retired_at IS NULL AND (${hasDataOnly ? hasDataExpr : Prisma.sql`TRUE`})
+        GROUP BY pe.service
+        ORDER BY count DESC NULLS LAST
+      `),
+      this.prisma.$queryRaw<Array<{ fy: number | null; total: number | null }>>(Prisma.sql`
+        WITH latest AS (
+          SELECT MAX(fy) AS fy FROM program_element_year WHERE request IS NOT NULL AND request <> 0
+        )
+        SELECT l.fy AS fy, COALESCE(SUM(y.request), 0)::double precision AS total
+        FROM latest l
+        LEFT JOIN program_element_year y ON y.fy = l.fy AND y.request IS NOT NULL AND y.request <> 0
+        GROUP BY l.fy
+      `),
+      this.prisma.$queryRaw<Array<{ fy: number | null; total: number | null; avgDeltaPct: number | null }>>(Prisma.sql`
+        WITH latest AS (
+          SELECT MAX(fy) AS fy FROM program_element_year WHERE enacted IS NOT NULL AND enacted <> 0
+        )
+        SELECT
+          l.fy AS fy,
+          COALESCE(SUM(y.enacted), 0)::double precision AS total,
+          AVG(
+            CASE WHEN y.request IS NOT NULL AND y.request <> 0
+                 THEN ((y.enacted::double precision - y.request::double precision) / y.request::double precision) * 100
+                 ELSE NULL END
+          )::double precision AS "avgDeltaPct"
+        FROM latest l
+        LEFT JOIN program_element_year y ON y.fy = l.fy AND y.enacted IS NOT NULL AND y.enacted <> 0
+        GROUP BY l.fy
+      `),
+      this.prisma.$queryRaw<Array<{ fy: number; total: number }>>(Prisma.sql`
+        WITH mx AS (SELECT MAX(fy) AS fy FROM program_element_year)
+        SELECT y.fy AS fy, COALESCE(SUM(COALESCE(y.enacted, y.conference, y.request)), 0)::double precision AS total
+        FROM program_element_year y, mx
+        WHERE y.fy > mx.fy - 6
+        GROUP BY y.fy
+        ORDER BY y.fy ASC
+      `),
+      this.prisma.$queryRaw<Array<{ count: number }>>(Prisma.sql`
+        SELECT COUNT(DISTINCT pe_code)::int AS count
+        FROM program_element_delta
+        WHERE superseded_at IS NULL
+          AND delta_type IN ('mark_vs_request', 'mark_vs_mark', 'conference_vs_marks')
+      `),
+    ]);
+
+    let watched = 0;
+    if (ctx?.tenantId && ctx?.userId) {
+      const wr = await this.prisma.withTenant(ctx.tenantId, (tx) =>
+        tx.$queryRaw<Array<{ count: number }>>(Prisma.sql`
+          SELECT COUNT(*)::int AS count FROM program_element_watch WHERE user_id = ${ctx.userId}::uuid
+        `),
+      );
+      watched = wr[0]?.count ?? 0;
+    }
+
+    return {
+      tracked: trackedRows[0]?.tracked ?? 0,
+      withData: trackedRows[0]?.withData ?? 0,
+      watched,
+      latestRequestFy: reqRows[0]?.fy ?? null,
+      totalRequest: reqRows[0]?.total ?? null,
+      latestEnactedFy: encRows[0]?.fy ?? null,
+      totalEnacted: encRows[0]?.total ?? null,
+      avgDeltaPct: encRows[0]?.avgDeltaPct ?? null,
+      openMarkups: markupRows[0]?.count ?? 0,
+      trend: trendRows.map((r) => ({ fy: r.fy, total: r.total })),
+      byService: byServiceRows.map((r) => ({ service: r.service, count: r.count })),
     };
   }
 

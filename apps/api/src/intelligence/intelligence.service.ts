@@ -2297,6 +2297,7 @@ export class IntelligenceService {
     clientId?: string,
     source?: string,
     consumed?: boolean,
+    peCodes?: string[],
   ) {
     const tenantClientIds = await this.prisma.withTenant(tenantId, (tx) =>
       tx.client.findMany({ where: { status: { not: 'archived' } }, select: { id: true } }),
@@ -2316,6 +2317,10 @@ export class IntelligenceService {
     // semantics). Dashboard surfaces (Needs Attention, greeting count) omit the
     // param and still receive every change.
     if (typeof consumed === 'boolean') where.consumed = consumed;
+    // PE Watchlist signal feed: scope to changes touching a set of Program
+    // Element codes. related_pe_codes is populated by the PE delta/writer emitters
+    // and the bill↔PE extractor, and is GIN-indexed, so hasSome is index-supported.
+    if (peCodes && peCodes.length > 0) where.relatedPeCodes = { hasSome: peCodes };
 
     if (clientId) {
       where.relatedClientIds = { has: clientId };

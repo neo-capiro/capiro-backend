@@ -85,9 +85,17 @@ export class ProgramElementController {
         mode: query.mode,
         divergenceThreshold: query.divergence_threshold,
         hasData: query.has_data,
+        watched: query.watched,
       },
       ctx,
     );
+  }
+
+  // Portfolio-level aggregates for the finder summary strip. Static route declared
+  // before ':peCode' so 'summary' is not captured as a peCode.
+  @Get('summary')
+  summary(@CurrentTenant() ctx: TenantContext, @Query() query: QueryProgramElementsDto) {
+    return this.service.getSummary({ service: query.service, hasData: query.has_data }, ctx);
   }
 
   @Get(':peCode')

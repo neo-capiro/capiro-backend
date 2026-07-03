@@ -3,14 +3,51 @@ import { beforeEach, describe, expect, test, vi } from 'vitest';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { MemoryRouter } from 'react-router-dom';
 import { ProgramElementFinderPage } from './ProgramElementFinderPage.js';
+import type { ProgramElementListItem } from './types.js';
 
 const apiGetMock = vi.fn();
 
 vi.mock('../../lib/use-api.js', () => ({
   useApi: () => ({
     get: apiGetMock,
+    post: vi.fn(),
   }),
 }));
+
+vi.mock('../../lib/me.js', () => ({
+  useMe: () => ({ data: { role: 'standard_user' } }),
+}));
+
+const SUMMARY = {
+  tracked: 1,
+  withData: 1,
+  watched: 0,
+  latestRequestFy: 2027,
+  totalRequest: 215.3,
+  latestEnactedFy: 2025,
+  totalEnacted: 297.7,
+  avgDeltaPct: 4.9,
+  openMarkups: 0,
+  trend: [
+    { fy: 2022, total: 258 },
+    { fy: 2023, total: 273 },
+    { fy: 2024, total: 281 },
+  ],
+  byService: [{ service: 'ARMY', count: 1 }],
+};
+
+function setupApi(rows: Partial<ProgramElementListItem>[]) {
+  apiGetMock.mockImplementation(async (url: string) => {
+    if (url.includes('/api/program-elements/summary')) {
+      return { data: SUMMARY };
+    }
+    if (url.includes('/api/intelligence/changes')) {
+      return { data: [] };
+    }
+    // Default: the list endpoint.
+    return { data: { data: rows, total: rows.length, page: 1, limit: 50 } };
+  });
+}
 
 function setupBrowserMocks() {
   Object.defineProperty(window, 'matchMedia', {
@@ -37,11 +74,7 @@ function setupBrowserMocks() {
 
 function renderPage() {
   const queryClient = new QueryClient({
-    defaultOptions: {
-      queries: {
-        retry: false,
-      },
-    },
+    defaultOptions: { queries: { retry: false } },
   });
 
   render(
@@ -60,24 +93,27 @@ describe('ProgramElementFinderPage', () => {
   });
 
   test('renders matching program elements', async () => {
-    apiGetMock.mockResolvedValue({
-      data: {
-        data: [
-          {
-            peCode: '0603270A',
-            title: 'Army Electronic Warfare Technology',
-            service: 'ARMY',
-            budgetActivity: '03',
-            appropriationType: 'RDTE',
-            status: 'active',
-            lastSyncedAt: '2026-05-01T00:00:00.000Z',
-          },
-        ],
-        total: 1,
-        page: 1,
-        limit: 50,
+    setupApi([
+      {
+        peCode: '0603270A',
+        title: 'Army Electronic Warfare Technology',
+        service: 'ARMY',
+        budgetActivity: '03',
+        appropriationType: 'RDTE',
+        status: 'active',
+        lastSyncedAt: '2026-05-01T00:00:00.000Z',
+        latestRequest: 215.3,
+        latestRequestFy: 2027,
+        latestEnacted: 297.7,
+        latestEnactedFy: 2025,
+        deltaPct: 19,
+        spark: [258, 273, 281, 298, 233, 215],
+        billCount: 2,
+        watched: false,
+        signalType: 'mark_vs_request',
+        signalScore: 0.8,
       },
-    });
+    ]);
 
     renderPage();
 
@@ -86,9 +122,7 @@ describe('ProgramElementFinderPage', () => {
   });
 
   test('passes the search term to the list endpoint', async () => {
-    apiGetMock.mockResolvedValue({
-      data: { data: [], total: 0, page: 1, limit: 50 },
-    });
+    setupApi([]);
 
     renderPage();
 
@@ -99,15 +133,15 @@ describe('ProgramElementFinderPage', () => {
     });
 
     await waitFor(() => {
-      const lastCall = apiGetMock.mock.calls.at(-1);
-      expect(lastCall?.[1]?.params?.q).toBe('electronic warfare');
+      const listCall = apiGetMock.mock.calls
+        .filter((call) => call[0] === '/api/program-elements')
+        .at(-1);
+      expect(listCall?.[1]?.params?.q).toBe('electronic warfare');
     });
   });
 
   test('shows an empty state when nothing matches', async () => {
-    apiGetMock.mockResolvedValue({
-      data: { data: [], total: 0, page: 1, limit: 50 },
-    });
+    setupApi([]);
 
     renderPage();
 

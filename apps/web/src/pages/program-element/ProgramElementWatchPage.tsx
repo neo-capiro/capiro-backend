@@ -1,9 +1,7 @@
-import { Suspense, lazy, useState } from 'react';
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { useMemo, useState } from 'react';
+import { useQuery } from '@tanstack/react-query';
 import { useNavigate, useParams } from 'react-router-dom';
-import { IntelligenceChips } from './IntelligenceChips.js';
-import { PdocDetailPanel, type PdocDetail } from './PdocDetailPanel.js';
-import { Alert, Button, Card, Col, Empty, Row, Skeleton, message } from 'antd';
+import { Alert, Button, Card, Empty, Skeleton, Tabs, Tag, message } from 'antd';
 import {
   BellFilled,
   BellOutlined,
@@ -11,6 +9,8 @@ import {
   ThunderboltOutlined,
 } from '@ant-design/icons';
 import { useApi } from '../../lib/use-api.js';
+import { IntelligenceChips } from './IntelligenceChips.js';
+import { PdocDetailPanel, type PdocDetail } from './PdocDetailPanel.js';
 import {
   getProgramElementBills,
   getProgramElementContractors,
@@ -18,8 +18,12 @@ import {
   getProgramElementDetail,
   getProgramElementPersonnel,
   getProgramElementSources,
-  setProgramElementWatching,
   getProgramElementIntelligence,
+  getProgramElementProjects,
+  getProgramElementRelated,
+  getProgramElementProvisions,
+  getProgramElementOpportunities,
+  getProgramElementProcurementLines,
 } from './api.js';
 import { FyHistoryChart } from './FyHistoryChart.js';
 import { BillsTouchingPePanel } from './BillsTouchingPePanel.js';
@@ -33,6 +37,22 @@ import { getRelevantClientsForPe } from '../clients/relevance-api.js';
 import { FyDetailDrawer } from './FyDetailDrawer.js';
 import { LinkCrmContactModal } from './LinkCrmContactModal.js';
 import { ProgramTeamPanel } from './ProgramTeamPanel.js';
+import { ProjectsPanel } from './ProjectsPanel.js';
+import { ProvisionsPanel } from './ProvisionsPanel.js';
+import { ProcurementActivityPanel } from './ProcurementActivityPanel.js';
+import { RelatedPesPanel } from './RelatedPesPanel.js';
+import { SecondaryDistributionPanel } from './SecondaryDistributionPanel.js';
+import { useWatchToggle } from './pe-shared.js';
+import {
+  Sparkline,
+  LineChart,
+  DeltaBars,
+  Donut,
+  HBars,
+  LegTimeline,
+  fmtMoneyM,
+  type LegEvent,
+} from './charts/index.js';
 import type {
   ProgramElementBill,
   ProgramElementContractorsResponse,
@@ -79,13 +99,7 @@ function toHistoryRows(years: ProgramElementYearPoint[]): ProgramElementHistoryR
   return [...years].sort((a, b) => a.fy - b.fy).map(toHistoryRow);
 }
 
-/**
- * Most recent FY where a given metric actually has a meaningful value (non-null
- * and non-zero). Many PEs carry only a single real FY of data with 0/null in
- * later years; keying stat cards off the highest FY alone shows "$0 / —" and
- * makes the page look empty. This finds the latest FY that actually has data for
- * the requested field so the cards surface the real number.
- */
+/** Most recent FY where a metric has a real (non-null, non-zero) value. */
 function latestMeaningful(
   years: ProgramElementYearPoint[],
   field: 'request' | 'enacted' | 'conference',
@@ -98,15 +112,6 @@ function latestMeaningful(
   }
   return undefined;
 }
-
-const LazyFyHistoryChart = lazy(async () => ({ default: FyHistoryChart }));
-const LazyBillsTouchingPePanel = lazy(async () => ({ default: BillsTouchingPePanel }));
-const LazyContractorsPanel = lazy(async () => ({ default: ContractorsPanel }));
-const LazyProgramTeamPanel = lazy(async () => ({ default: ProgramTeamPanel }));
-const LazyProofPackPanel = lazy(async () => ({ default: ProofPackPanel }));
-const LazyProgramsPanel = lazy(async () => ({ default: ProgramsPanel }));
-const LazyClientRelevancePanel = lazy(async () => ({ default: ClientRelevancePanel }));
-const LazyWhatChangedPanel = lazy(async () => ({ default: WhatChangedPanel }));
 
 function formatSyncedDate(value: string): string {
   const parsed = new Date(value);
@@ -121,12 +126,6 @@ function statusPillClass(status: string): string {
   return 'muted';
 }
 
-/** Compact $m formatting for the KPI strip values, e.g. 297.74 -> "$297.7M". */
-function formatMillions(value: number): { whole: string; suffix: string } {
-  return { whole: `$${value.toFixed(1)}`, suffix: 'M' };
-}
-
-/** "PE 6.1" style short badge from a budget activity / appropriation hint. */
 function peBadge(detail: { budgetActivity: string | null; appropriationType: string | null }): string {
   const ba = detail.budgetActivity ?? '';
   const m = ba.match(/(\d(?:\.\d)?)/);
@@ -134,48 +133,71 @@ function peBadge(detail: { budgetActivity: string | null; appropriationType: str
   return detail.appropriationType ? detail.appropriationType.slice(0, 6) : 'PE';
 }
 
+const KIND_COLOR: Record<string, string> = {
+  intro: '#8A8780',
+  report: '#2C5BD4',
+  markup: '#A26913',
+  pass: '#2A57CE',
+  law: '#2E6B43',
+};
+
+/** Classify a bill's latest-action text into a timeline milestone kind. */
+function classifyAction(text: string | null | undefined): keyof typeof KIND_COLOR {
+  const t = (text ?? '').toLowerCase();
+  if (t.includes('became law') || t.includes('public law') || t.includes('signed by president'))
+    return 'law';
+  if (t.includes('passed') || t.includes('agreed to')) return 'pass';
+  if (t.includes('markup') || t.includes('ordered to be reported')) return 'markup';
+  if (t.includes('reported')) return 'report';
+  return 'intro';
+}
+
+function truncate(text: string, max: number): string {
+  return text.length > max ? `${text.slice(0, max - 1)}…` : text;
+}
+
+function fyLabel(fy: number): string {
+  return `FY${String(fy).slice(-2)}`;
+}
+
+/** A chart-surface card wrapper matching the redesign spec. */
+function ChartCard({
+  title,
+  sub,
+  extra,
+  span2,
+  pad,
+  children,
+}: {
+  title: string;
+  sub?: string;
+  extra?: React.ReactNode;
+  span2?: boolean;
+  pad?: boolean;
+  children: React.ReactNode;
+}) {
+  return (
+    <div className={`pe-surface pe-chart-surface${span2 ? ' span-2' : ''}`}>
+      <div className="pe-surface-head">
+        <h3>{title}</h3>
+        {sub ? <span className="pe-surface-sub">{sub}</span> : null}
+        {extra}
+      </div>
+      <div className={`pe-chart-body${pad ? ' pad' : ''}`}>{children}</div>
+    </div>
+  );
+}
+
 export function ProgramElementWatchPage() {
   const { peCode = '' } = useParams<{ peCode: string }>();
   const normalizedPeCode = peCode.toUpperCase();
   const navigate = useNavigate();
   const api = useApi();
-  const queryClient = useQueryClient();
   const [selectedFy, setSelectedFy] = useState<number | null>(null);
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [linkTarget, setLinkTarget] = useState<{ id: string; name: string } | null>(null);
 
-  const watchMutation = useMutation({
-    mutationFn: (watching: boolean) => setProgramElementWatching(api, normalizedPeCode, watching),
-    onMutate: async (watching) => {
-      const detailKey = ['program-element-detail', normalizedPeCode] as const;
-      await queryClient.cancelQueries({ queryKey: detailKey });
-      const previous = queryClient.getQueryData(detailKey);
-      queryClient.setQueryData(detailKey, (oldData: unknown) => {
-        if (!oldData || typeof oldData !== 'object') return oldData;
-        return {
-          ...(oldData as Record<string, unknown>),
-          currentUserIsWatching: watching,
-        };
-      });
-      return { previous, detailKey };
-    },
-    onError: (_error, _watching, context) => {
-      if (context?.detailKey) {
-        queryClient.setQueryData(context.detailKey, context.previous);
-      }
-      message.error('Unable to update watch status. Please try again.');
-    },
-    onSuccess: (_result, watching) => {
-      if (watching) {
-        message.success("You'll be notified when this PE has updates");
-      }
-    },
-    onSettled: (_result, _error, _watching, context) => {
-      if (context?.detailKey) {
-        queryClient.invalidateQueries({ queryKey: context.detailKey }).catch(() => undefined);
-      }
-    },
-  });
+  const watch = useWatchToggle();
 
   const detailQuery = useQuery({
     queryKey: ['program-element-detail', normalizedPeCode],
@@ -240,6 +262,41 @@ export function ProgramElementWatchPage() {
     enabled: normalizedPeCode.length > 0,
   });
 
+  const projectsQuery = useQuery({
+    queryKey: ['program-element-projects', normalizedPeCode],
+    queryFn: () => getProgramElementProjects(api, normalizedPeCode),
+    staleTime: 60 * 1000,
+    enabled: normalizedPeCode.length > 0,
+  });
+
+  const relatedQuery = useQuery({
+    queryKey: ['program-element-related', normalizedPeCode],
+    queryFn: () => getProgramElementRelated(api, normalizedPeCode),
+    staleTime: 60 * 1000,
+    enabled: normalizedPeCode.length > 0,
+  });
+
+  const provisionsQuery = useQuery({
+    queryKey: ['program-element-provisions', normalizedPeCode],
+    queryFn: () => getProgramElementProvisions(api, normalizedPeCode),
+    staleTime: 60 * 1000,
+    enabled: normalizedPeCode.length > 0,
+  });
+
+  const opportunitiesQuery = useQuery({
+    queryKey: ['program-element-opportunities', normalizedPeCode],
+    queryFn: () => getProgramElementOpportunities(api, normalizedPeCode),
+    staleTime: 60 * 1000,
+    enabled: normalizedPeCode.length > 0,
+  });
+
+  const procurementLinesQuery = useQuery({
+    queryKey: ['program-element-procurement-lines', normalizedPeCode],
+    queryFn: () => getProgramElementProcurementLines(api, normalizedPeCode),
+    staleTime: 60 * 1000,
+    enabled: normalizedPeCode.length > 0,
+  });
+
   if (!normalizedPeCode) {
     return <Alert type="warning" message="Missing PE code" showIcon />;
   }
@@ -248,15 +305,13 @@ export function ProgramElementWatchPage() {
     return (
       <section className="pe-watch-page redesign">
         <Skeleton active paragraph={{ rows: 3 }} />
-        <Row gutter={[16, 16]}>
+        <div className="pe-strip">
           {[0, 1, 2, 3].map((idx) => (
-            <Col key={idx} xs={24} md={12} xl={6}>
-              <Card>
-                <Skeleton active paragraph={{ rows: 1 }} title={false} />
-              </Card>
-            </Col>
+            <div className="pe-strip-cell" key={idx}>
+              <Skeleton active paragraph={{ rows: 1 }} title={false} />
+            </div>
           ))}
-        </Row>
+        </div>
       </section>
     );
   }
@@ -274,9 +329,9 @@ export function ProgramElementWatchPage() {
 
   const detail = detailQuery.data;
   const years = detail.years ?? [];
+  const chartYears = [...years].sort((a, b) => a.fy - b.fy);
   const latestRequest = latestMeaningful(years, 'request');
   const latestEnacted = latestMeaningful(years, 'enacted');
-  const latestConference = latestMeaningful(years, 'conference');
   const historyRows = toHistoryRows(years);
   const hasBudgetData = years.length > 0;
   const bills: ProgramElementBill[] = billsQuery.data ?? [];
@@ -296,9 +351,411 @@ export function ProgramElementWatchPage() {
     return ((latestEnacted.value - req) / req) * 100;
   })();
 
-  const reqFmt = latestRequest ? formatMillions(latestRequest.value) : null;
-  const enactedFmt = latestEnacted ? formatMillions(latestEnacted.value) : null;
-  const confFmt = latestConference ? formatMillions(latestConference.value) : null;
+  // ── Derived chart data ────────────────────────────────────────────────────
+  const reqSpark = chartYears
+    .map((y) => numberOrNull(y.request))
+    .filter((v): v is number => v != null && v !== 0);
+  const encSpark = chartYears
+    .map((y) => numberOrNull(y.enacted))
+    .filter((v): v is number => v != null && v !== 0);
+
+  const lineLabels = chartYears.map((y) => fyLabel(y.fy));
+  const lineSeries = [
+    { name: 'Enacted', color: 'var(--accent)', values: chartYears.map((y) => numberOrNull(y.enacted)) },
+    {
+      name: 'Request',
+      color: '#B0433B',
+      dash: '5 4',
+      values: chartYears.map((y) => numberOrNull(y.request)),
+    },
+  ];
+
+  const bothYears = chartYears.filter(
+    (y) => numberOrNull(y.enacted) != null && numberOrNull(y.request) != null,
+  );
+  const wins = bothYears.filter(
+    (y) => (numberOrNull(y.enacted) as number) >= (numberOrNull(y.request) as number),
+  ).length;
+  const winRate = bothYears.length ? `${Math.round((wins / bothYears.length) * 100)}%` : '—';
+
+  const deltaData = chartYears.map((y) => {
+    const enacted = numberOrNull(y.enacted);
+    const request = numberOrNull(y.request);
+    return {
+      fy: fyLabel(y.fy),
+      delta: enacted != null && request != null ? enacted - request : null,
+    };
+  });
+
+  const markYear = [...chartYears]
+    .reverse()
+    .find((y) =>
+      [y.hascMark, y.sascMark, y.hacDMark, y.sacDMark, y.conference, y.enacted].some(
+        (v) => numberOrNull(v) != null,
+      ),
+    );
+  const markBars = markYear
+    ? (
+        [
+          { label: 'PB request', value: numberOrNull(markYear.request), color: 'var(--ink-3)' },
+          { label: 'HASC', value: numberOrNull(markYear.hascMark), color: '#7A9BE6' },
+          { label: 'SASC', value: numberOrNull(markYear.sascMark), color: '#4E78D8' },
+          { label: 'HAC-D', value: numberOrNull(markYear.hacDMark), color: '#7A3FB5' },
+          { label: 'SAC-D', value: numberOrNull(markYear.sacDMark), color: '#A26913' },
+          { label: 'Conference', value: numberOrNull(markYear.conference), color: 'var(--accent)' },
+          { label: 'Enacted', value: numberOrNull(markYear.enacted), color: 'var(--success)' },
+        ] as Array<{ label: string; value: number | null; color: string }>
+      ).filter((b): b is { label: string; value: number; color: string } => b.value != null)
+    : [];
+
+  const datedBills = bills.filter((b) => b.latestActionDate);
+  const recentActivity = [...datedBills]
+    .sort((a, b) => (a.latestActionDate! < b.latestActionDate! ? 1 : -1))
+    .slice(0, 4);
+  const timelineEvents: LegEvent[] = datedBills.map((b) => ({
+    date: b.latestActionDate as string,
+    label: truncate(b.latestActionText ?? b.title, 22),
+    num: `${b.billType} ${b.billNumber}`,
+    kind: classifyAction(b.latestActionText),
+  }));
+
+  const projects = projectsQuery.data ?? [];
+
+  const byOrg = Object.entries(
+    programTeam.reduce<Record<string, number>>((acc, p) => {
+      const key = p.organization || 'Unattributed';
+      acc[key] = (acc[key] || 0) + 1;
+      return acc;
+    }, {}),
+  )
+    .map(([label, value]) => ({ label, value }))
+    .sort((a, b) => b.value - a.value)
+    .slice(0, 6);
+  const conf = programTeam.reduce(
+    (a, p) => {
+      if (p.confidence >= 0.8) a.high += 1;
+      else if (p.confidence >= 0.5) a.med += 1;
+      else a.low += 1;
+      return a;
+    },
+    { high: 0, med: 0, low: 0 },
+  );
+  const confData = [
+    { label: 'High', value: conf.high, color: 'var(--success)' },
+    { label: 'Medium', value: conf.med, color: 'var(--notable)' },
+    { label: 'Low', value: conf.low, color: 'var(--ink-3)' },
+  ].filter((d) => d.value > 0);
+
+  const openFy = (fy: number) => {
+    setSelectedFy(fy);
+    setDrawerOpen(true);
+  };
+
+  const reqFmt = latestRequest ? fmtMoneyM(latestRequest.value) : null;
+  const enactedFmt = latestEnacted ? fmtMoneyM(latestEnacted.value) : null;
+
+  // ── Tab content ─────────────────────────────────────────────────────────
+  const overviewTab = (
+    <div className="pe-dt-panel">
+      <ChartCard
+        title="Funding trajectory"
+        sub="President's request vs. enacted"
+        span2
+        extra={
+          <div className="pe-chart-legend">
+            <span className="pe-cl">
+              <span className="pe-cl-ln accent" />
+              Enacted
+            </span>
+            <span className="pe-cl">
+              <span className="pe-cl-ln req" />
+              Request
+            </span>
+          </div>
+        }
+      >
+        {hasBudgetData ? (
+          <>
+            <LineChart
+              labels={lineLabels}
+              series={lineSeries}
+              height={252}
+              mode="area"
+              onPointClick={(i) => { const yr = chartYears[i]; if (yr) openFy(yr.fy); }}
+            />
+            <div className="pe-chart-foot">
+              <div className="pe-cf-item">
+                <span className="pe-cf-l">Win rate over request</span>
+                <span className="pe-cf-v up">{winRate}</span>
+              </div>
+              <div className="pe-cf-item">
+                <span className="pe-cf-l">Latest request</span>
+                <span className="pe-cf-v">
+                  {latestRequest ? `${fmtMoneyM(latestRequest.value)} · ${fyLabel(latestRequest.fy)}` : '—'}
+                </span>
+              </div>
+              <div className="pe-cf-item">
+                <span className="pe-cf-l">Latest enacted</span>
+                <span className="pe-cf-v">
+                  {latestEnacted ? `${fmtMoneyM(latestEnacted.value)} · ${fyLabel(latestEnacted.fy)}` : '—'}
+                </span>
+              </div>
+            </div>
+          </>
+        ) : (
+          <Empty description="No budget-year data has been synced for this Program Element yet." />
+        )}
+      </ChartCard>
+
+      <ChartCard title="Recent activity" sub="latest actions on this PE">
+        {recentActivity.length ? (
+          <div className="pe-ov-activity">
+            {recentActivity.map((b) => {
+              const kind = classifyAction(b.latestActionText);
+              return (
+                <div key={b.id} className="pe-ov-act-row">
+                  <span className="pe-ov-act-dot" style={{ background: KIND_COLOR[kind] }} />
+                  <div className="pe-ov-act-main">
+                    <div className="pe-ov-act-t">{truncate(b.latestActionText ?? b.title, 90)}</div>
+                    <div className="pe-ov-act-m">
+                      <span className="pe-code-badge sm">
+                        {b.billType} {b.billNumber}
+                      </span>
+                      <span className="pe-dot-sep">·</span>
+                      {b.congress}th Congress
+                    </div>
+                  </div>
+                  <span className="pe-ov-act-d">
+                    {b.latestActionDate
+                      ? new Date(b.latestActionDate).toLocaleDateString('en-US', {
+                          month: 'short',
+                          year: 'numeric',
+                        })
+                      : ''}
+                  </span>
+                </div>
+              );
+            })}
+          </div>
+        ) : (
+          <Empty image={Empty.PRESENTED_IMAGE_SIMPLE} description="No dated legislative actions yet." />
+        )}
+      </ChartCard>
+
+      <div className="pe-surface pe-plain-surface">
+        <ProjectsPanel projects={projects} loading={projectsQuery.isLoading} />
+      </div>
+    </div>
+  );
+
+  const fundingTab = (
+    <div className="pe-dt-panel">
+      <ChartCard
+        title="Enacted vs. request delta"
+        sub="Congress adds (green) or cuts (red) against the President's Budget"
+        span2
+        pad
+      >
+        {hasBudgetData ? (
+          <DeltaBars data={deltaData} height={168} />
+        ) : (
+          <Empty description="No budget-year data yet." />
+        )}
+      </ChartCard>
+
+      <ChartCard
+        title="Committee positions"
+        sub={markYear ? `Latest marked cycle · ${fyLabel(markYear.fy)}` : 'Committee marks'}
+        span2
+        pad
+      >
+        {markBars.length ? (
+          <HBars data={markBars} fmt={(v) => fmtMoneyM(v)} />
+        ) : (
+          <Empty
+            image={Empty.PRESENTED_IMAGE_SIMPLE}
+            description="No committee marks recorded for this PE."
+          />
+        )}
+      </ChartCard>
+
+      <div className="pe-surface pe-plain-surface span-2">
+        {hasBudgetData ? (
+          <FyHistoryChart
+            rows={historyRows}
+            loading={detailQuery.isLoading}
+            onFyClick={(fy) => {
+              openFy(fy);
+              message.info(`Selected FY ${fy}`);
+            }}
+          />
+        ) : (
+          <Card title="Funding timeline">
+            <Empty description="No budget-year data has been synced for this Program Element yet." />
+          </Card>
+        )}
+      </div>
+
+      <div className="pe-surface pe-plain-surface span-2">
+        <SecondaryDistributionPanel
+          data={procurementLinesQuery.data}
+          loading={procurementLinesQuery.isLoading}
+        />
+      </div>
+    </div>
+  );
+
+  const legislationTab = (
+    <div className="pe-dt-panel">
+      <ChartCard
+        title="Legislative timeline"
+        sub="Bill actions touching this PE"
+        span2
+        pad
+        extra={
+          <div className="pe-chart-legend sm">
+            <span className="pe-cl">
+              <span className="pe-dotk" style={{ background: KIND_COLOR.report }} />
+              Reported
+            </span>
+            <span className="pe-cl">
+              <span className="pe-dotk" style={{ background: KIND_COLOR.markup }} />
+              Markup
+            </span>
+            <span className="pe-cl">
+              <span className="pe-dotk" style={{ background: KIND_COLOR.law }} />
+              Enacted
+            </span>
+          </div>
+        }
+      >
+        {timelineEvents.length ? (
+          <LegTimeline events={timelineEvents} />
+        ) : (
+          <Empty
+            image={Empty.PRESENTED_IMAGE_SIMPLE}
+            description="No dated bill actions to plot yet."
+          />
+        )}
+      </ChartCard>
+
+      <div className="pe-surface pe-plain-surface span-2">
+        <BillsTouchingPePanel bills={bills} loading={billsQuery.isLoading} />
+      </div>
+      <div className="pe-surface pe-plain-surface span-2">
+        <ProvisionsPanel provisions={provisionsQuery.data} loading={provisionsQuery.isLoading} />
+      </div>
+      <div className="pe-surface pe-plain-surface span-2">
+        <ProcurementActivityPanel
+          opportunities={opportunitiesQuery.data}
+          loading={opportunitiesQuery.isLoading}
+        />
+      </div>
+    </div>
+  );
+
+  const teamTab = (
+    <div className="pe-dt-panel">
+      <ChartCard title="Roster by organization" pad>
+        {byOrg.length ? (
+          <HBars data={byOrg} fmt={(v) => v} />
+        ) : (
+          <Empty image={Empty.PRESENTED_IMAGE_SIMPLE} description="No identified personnel yet." />
+        )}
+      </ChartCard>
+      <ChartCard title="Identification confidence">
+        {confData.length ? (
+          <div className="pe-donut-block">
+            <Donut
+              data={confData}
+              size={128}
+              thickness={22}
+              centerLabel={String(programTeam.length)}
+              centerSub="people"
+            />
+            <div className="pe-donut-legend">
+              {confData.map((c) => (
+                <div key={c.label} className="pe-dl-row">
+                  <span className="pe-dl-sw" style={{ background: c.color }} />
+                  <span className="pe-dl-name">{c.label} confidence</span>
+                  <span className="pe-dl-val">{c.value}</span>
+                </div>
+              ))}
+            </div>
+          </div>
+        ) : (
+          <Empty image={Empty.PRESENTED_IMAGE_SIMPLE} description="No identified personnel yet." />
+        )}
+      </ChartCard>
+
+      <div className="pe-surface pe-plain-surface span-2">
+        <ProgramTeamPanel
+          personnel={programTeam}
+          loading={programTeamQuery.isLoading}
+          estimatedTotal={Math.max(programTeam.length, 6)}
+          onViewAllSources={() => navigate('/directory')}
+          onLinkCrmContact={(personId) => {
+            const person = programTeam.find((candidate) => candidate.id === personId);
+            setLinkTarget({ id: personId, name: person?.fullName ?? 'this person' });
+          }}
+        />
+      </div>
+    </div>
+  );
+
+  const contractorsTab = (
+    <div className="pe-dt-panel">
+      <div className="pe-surface pe-plain-surface span-2">
+        <ContractorsPanel contractors={contractors} loading={contractorsQuery.isLoading} />
+      </div>
+      <div className="pe-surface pe-plain-surface span-2">
+        <RelatedPesPanel related={relatedQuery.data} loading={relatedQuery.isLoading} />
+      </div>
+    </div>
+  );
+
+  const evidenceTab = (
+    <div className="pe-dt-panel">
+      <div className="pe-surface pe-plain-surface span-2">
+        <WhatChangedPanel deltas={deltasQuery.data?.data} loading={deltasQuery.isLoading} />
+      </div>
+      <div className="pe-surface pe-plain-surface span-2">
+        <PdocDetailPanel
+          detail={((detail as { raw?: { pDocDetail?: PdocDetail | null } | null }).raw ?? {})?.pDocDetail}
+          onOpenPe={(pe) => navigate(`/program-elements/${pe}`)}
+        />
+      </div>
+      <div className="pe-surface pe-plain-surface span-2">
+        <ProgramsPanel programs={programsQuery.data} loading={programsQuery.isLoading} />
+      </div>
+      <div className="pe-surface pe-plain-surface span-2">
+        <ClientRelevancePanel
+          clients={clientRelevanceQuery.data}
+          loading={clientRelevanceQuery.isLoading}
+        />
+      </div>
+      <div className="pe-surface pe-plain-surface span-2">
+        <ProofPackPanel sources={sourcesQuery.data} loading={sourcesQuery.isLoading} />
+      </div>
+    </div>
+  );
+
+  const tabItems = [
+    { key: 'overview', label: 'Overview', children: overviewTab },
+    { key: 'funding', label: 'Funding', children: fundingTab },
+    {
+      key: 'legislation',
+      label: <TabLabel text="Legislation" count={bills.length} />,
+      children: legislationTab,
+    },
+    {
+      key: 'team',
+      label: <TabLabel text="Team" count={programTeam.length} />,
+      children: teamTab,
+    },
+    { key: 'contractors', label: 'Contractors', children: contractorsTab },
+    { key: 'evidence', label: 'Evidence', children: evidenceTab },
+  ];
 
   return (
     <section className="pe-watch-page redesign">
@@ -357,8 +814,17 @@ export function ProgramElementWatchPage() {
             className={`pe-watch-btn${detail.currentUserIsWatching ? ' is-watching' : ''}`}
             type={detail.currentUserIsWatching ? 'primary' : 'default'}
             icon={detail.currentUserIsWatching ? <BellFilled /> : <BellOutlined />}
-            loading={watchMutation.isPending}
-            onClick={() => watchMutation.mutate(!detail.currentUserIsWatching)}
+            loading={watch.isPending}
+            onClick={() =>
+              watch.mutate(
+                { peCode: normalizedPeCode, watching: !detail.currentUserIsWatching },
+                {
+                  onSuccess: (_r, vars) => {
+                    if (vars.watching) message.success("You'll be notified when this PE has updates");
+                  },
+                },
+              )
+            }
           >
             {detail.currentUserIsWatching ? 'Watching this PE' : 'Watch this PE'}
           </Button>
@@ -379,60 +845,36 @@ export function ProgramElementWatchPage() {
         </div>
       </header>
 
-      {/* ── KPI strip (one card, four divided cells) ──────────────────── */}
+      {/* ── KPI strip with inline sparklines ──────────────────────────── */}
       <div className="pe-strip">
         <div className="pe-strip-cell">
           <div className="pe-strip-label">
             Latest Request
             {latestRequest ? <span className="pe-fy-pill">FY{latestRequest.fy}</span> : null}
+            {reqSpark.length > 1 ? (
+              <span className="pe-strip-spark">
+                <Sparkline data={reqSpark} width={56} height={20} area={false} color="#B0433B" />
+              </span>
+            ) : null}
           </div>
           <div className="pe-strip-value">
-            {reqFmt ? (
-              <>
-                {reqFmt.whole}
-                <small>{reqFmt.suffix}</small>
-              </>
-            ) : (
-              <span className="pe-strip-empty">—</span>
-            )}
+            {reqFmt ?? <span className="pe-strip-empty">—</span>}
           </div>
           <div className="pe-strip-sub">President&apos;s Budget submission</div>
         </div>
 
         <div className="pe-strip-cell">
           <div className="pe-strip-label">
-            Latest Conference
-            {latestConference ? <span className="pe-fy-pill">FY{latestConference.fy}</span> : null}
-          </div>
-          <div className="pe-strip-value">
-            {confFmt ? (
-              <>
-                {confFmt.whole}
-                <small>{confFmt.suffix}</small>
-              </>
-            ) : (
-              <span className="pe-strip-empty">—</span>
-            )}
-          </div>
-          <div className="pe-strip-sub">
-            {confFmt ? 'Conference report' : 'Awaiting conference report'}
-          </div>
-        </div>
-
-        <div className="pe-strip-cell">
-          <div className="pe-strip-label">
             Latest Enacted
             {latestEnacted ? <span className="pe-fy-pill">FY{latestEnacted.fy}</span> : null}
+            {encSpark.length > 1 ? (
+              <span className="pe-strip-spark">
+                <Sparkline data={encSpark} width={56} height={20} area={false} color="var(--accent)" />
+              </span>
+            ) : null}
           </div>
           <div className="pe-strip-value pe-strip-value-pos">
-            {enactedFmt ? (
-              <>
-                {enactedFmt.whole}
-                <small>{enactedFmt.suffix}</small>
-              </>
-            ) : (
-              <span className="pe-strip-empty">—</span>
-            )}
+            {enactedFmt ?? <span className="pe-strip-empty">—</span>}
           </div>
           <div className="pe-strip-sub">
             {enactedDeltaPct != null ? (
@@ -450,127 +892,20 @@ export function ProgramElementWatchPage() {
         </div>
 
         <div className="pe-strip-cell">
+          <div className="pe-strip-label">Win rate</div>
+          <div className="pe-strip-value pe-strip-value-pos">{winRate}</div>
+          <div className="pe-strip-sub">enacted ≥ request, cumulative</div>
+        </div>
+
+        <div className="pe-strip-cell">
           <div className="pe-strip-label">Bills touching this PE</div>
           <div className="pe-strip-value">{bills.length}</div>
           <div className="pe-strip-sub">Linked legislation</div>
         </div>
       </div>
 
-      {hasBudgetData ? (
-        <Suspense
-          fallback={
-            <Card title="Funding timeline">
-              <Skeleton active paragraph={{ rows: 6 }} />
-            </Card>
-          }
-        >
-          <LazyFyHistoryChart
-            rows={historyRows}
-            loading={detailQuery.isLoading}
-            onFyClick={(fy) => {
-              setSelectedFy(fy);
-              setDrawerOpen(true);
-              message.info(`Selected FY ${fy}`);
-            }}
-          />
-        </Suspense>
-      ) : (
-        <Card title="Funding timeline">
-          <Empty description="No budget-year data has been synced for this Program Element yet." />
-        </Card>
-      )}
-
-      <PdocDetailPanel
-        detail={((detail as { raw?: { pDocDetail?: PdocDetail | null } | null }).raw ?? {})?.pDocDetail}
-        onOpenPe={(pe) => navigate(`/program-elements/${pe}`)}
-      />
-
-      <Suspense
-        fallback={
-          <Card title="Programs">
-            <Skeleton active paragraph={{ rows: 3 }} />
-          </Card>
-        }
-      >
-        <LazyProgramsPanel programs={programsQuery.data} loading={programsQuery.isLoading} />
-      </Suspense>
-
-      <Suspense
-        fallback={
-          <Card title="Client relevance">
-            <Skeleton active paragraph={{ rows: 3 }} />
-          </Card>
-        }
-      >
-        <LazyClientRelevancePanel
-          clients={clientRelevanceQuery.data}
-          loading={clientRelevanceQuery.isLoading}
-        />
-      </Suspense>
-
-      <Suspense
-        fallback={
-          <Card title="What changed">
-            <Skeleton active paragraph={{ rows: 3 }} />
-          </Card>
-        }
-      >
-        <LazyWhatChangedPanel deltas={deltasQuery.data?.data} loading={deltasQuery.isLoading} />
-      </Suspense>
-
-      <Row gutter={[16, 16]} className="pe-two-col">
-        <Col xs={24} xl={15}>
-          <Suspense
-            fallback={
-              <Card title="Top contractors touching this PE">
-                <Skeleton active paragraph={{ rows: 4 }} />
-              </Card>
-            }
-          >
-            <LazyContractorsPanel contractors={contractors} loading={contractorsQuery.isLoading} />
-          </Suspense>
-        </Col>
-        <Col xs={24} xl={9}>
-          <Suspense
-            fallback={
-              <Card title="Bills touching this PE">
-                <Skeleton active paragraph={{ rows: 4 }} />
-              </Card>
-            }
-          >
-            <LazyBillsTouchingPePanel bills={bills} loading={billsQuery.isLoading} />
-          </Suspense>
-        </Col>
-      </Row>
-
-      <Suspense
-        fallback={
-          <Card title="Sources & evidence">
-            <Skeleton active paragraph={{ rows: 4 }} />
-          </Card>
-        }
-      >
-        <LazyProofPackPanel sources={sourcesQuery.data} loading={sourcesQuery.isLoading} />
-      </Suspense>
-
-      <Suspense
-        fallback={
-          <Card title="Program team">
-            <Skeleton active paragraph={{ rows: 5 }} />
-          </Card>
-        }
-      >
-        <LazyProgramTeamPanel
-          personnel={programTeam}
-          loading={programTeamQuery.isLoading}
-          estimatedTotal={Math.max(programTeam.length, 6)}
-          onViewAllSources={() => navigate('/directory')}
-          onLinkCrmContact={(personId) => {
-            const person = programTeam.find((candidate) => candidate.id === personId);
-            setLinkTarget({ id: personId, name: person?.fullName ?? 'this person' });
-          }}
-        />
-      </Suspense>
+      {/* ── Sub-tabs ──────────────────────────────────────────────────── */}
+      <Tabs className="pe-detail-tabs" defaultActiveKey="overview" items={tabItems} />
 
       <FyDetailDrawer
         open={drawerOpen}
@@ -587,5 +922,18 @@ export function ProgramElementWatchPage() {
         onClose={() => setLinkTarget(null)}
       />
     </section>
+  );
+}
+
+function TabLabel({ text, count }: { text: string; count: number }) {
+  return (
+    <span className="pe-tab-label">
+      {text}
+      {count > 0 ? (
+        <Tag className="pe-tab-count" bordered={false}>
+          {count}
+        </Tag>
+      ) : null}
+    </span>
   );
 }

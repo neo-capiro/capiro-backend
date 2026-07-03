@@ -63,66 +63,11 @@ function detailPayload(currentUserIsWatching: boolean) {
     lastSyncedAt: '2026-05-28T15:00:00.000Z',
     currentUserIsWatching,
     years: [
-      {
-        id: 'y1',
-        fy: 2023,
-        request: '220.00',
-        hascMark: '230.00',
-        sascMark: '228.00',
-        hacDMark: '229.00',
-        sacDMark: '227.00',
-        conference: '229.00',
-        enacted: '228.50',
-        raw: { sourceAttribution: { request: 'rdoc', conference: 'conf', enacted: 'conf' } },
-      },
-      {
-        id: 'y2',
-        fy: 2024,
-        request: '240.00',
-        hascMark: '245.00',
-        sascMark: '244.00',
-        hacDMark: '243.00',
-        sacDMark: '242.00',
-        conference: '243.00',
-        enacted: '242.00',
-        raw: { sourceAttribution: { request: 'rdoc', conference: 'conf', enacted: 'conf' } },
-      },
-      {
-        id: 'y3',
-        fy: 2025,
-        request: '255.00',
-        hascMark: '258.00',
-        sascMark: '257.00',
-        hacDMark: '256.00',
-        sacDMark: '255.50',
-        conference: '256.00',
-        enacted: '255.00',
-        raw: { sourceAttribution: { request: 'rdoc', conference: 'conf', enacted: 'conf' } },
-      },
-      {
-        id: 'y4',
-        fy: 2026,
-        request: '266.00',
-        hascMark: '269.00',
-        sascMark: '268.00',
-        hacDMark: '267.00',
-        sacDMark: '266.00',
-        conference: '267.00',
-        enacted: '266.50',
-        raw: { sourceAttribution: { request: 'rdoc', conference: 'conf', enacted: 'conf' } },
-      },
-      {
-        id: 'y5',
-        fy: 2027,
-        request: '278.50',
-        hascMark: null,
-        sascMark: null,
-        hacDMark: null,
-        sacDMark: null,
-        conference: null,
-        enacted: null,
-        raw: { sourceAttribution: { request: 'rdoc', conference: 'n/a', enacted: 'projected' } },
-      },
+      { id: 'y1', fy: 2023, request: '220.00', hascMark: '230.00', sascMark: '228.00', hacDMark: '229.00', sacDMark: '227.00', conference: '229.00', enacted: '228.50', raw: { sourceAttribution: { request: 'rdoc' } } },
+      { id: 'y2', fy: 2024, request: '240.00', hascMark: '245.00', sascMark: '244.00', hacDMark: '243.00', sacDMark: '242.00', conference: '243.00', enacted: '242.00', raw: { sourceAttribution: { request: 'rdoc' } } },
+      { id: 'y3', fy: 2025, request: '255.00', hascMark: '258.00', sascMark: '257.00', hacDMark: '256.00', sacDMark: '255.50', conference: '256.00', enacted: '255.00', raw: { sourceAttribution: { request: 'rdoc' } } },
+      { id: 'y4', fy: 2026, request: '266.00', hascMark: '269.00', sascMark: '268.00', hacDMark: '267.00', sacDMark: '266.00', conference: '267.00', enacted: '266.50', raw: { sourceAttribution: { request: 'rdoc' } } },
+      { id: 'y5', fy: 2027, request: '278.50', hascMark: null, sascMark: null, hacDMark: null, sacDMark: null, conference: null, enacted: null, raw: { sourceAttribution: { request: 'rdoc' } } },
     ],
   };
 }
@@ -152,7 +97,7 @@ function setupBrowserMocks() {
 
 function setupApi(currentUserIsWatching: boolean, postImpl?: (url: string, body: { watching: boolean }) => Promise<unknown>) {
   apiGetMock.mockImplementation(async (url: string) => {
-    if (url.includes('/api/program-elements/0603270A/personnel')) {
+    if (url.includes('/personnel')) {
       return {
         data: [
           {
@@ -164,8 +109,6 @@ function setupApi(currentUserIsWatching: boolean, postImpl?: (url: string, body:
             role: 'PEO',
             pePrimary: '0603270A',
             peSecondary: [],
-            emailDomain: null,
-            publicProfileUrl: null,
             confidence: 0.96,
             status: 'active',
             firstSeenAt: '2026-01-01T00:00:00.000Z',
@@ -175,24 +118,17 @@ function setupApi(currentUserIsWatching: boolean, postImpl?: (url: string, body:
         ],
       };
     }
-    if (url.includes('/api/program-elements/0603270A/contractors')) {
+    if (url.includes('/contractors')) {
       return {
         data: {
           data: [
-            {
-              contractorName: 'Acme Dynamics',
-              amount: 1500,
-              awards: 12,
-              contractType: 'IDIQ',
-              contractorIsCrmClient: true,
-              isNewEntrant: false,
-            },
+            { contractorName: 'Acme Dynamics', amount: 1500, awards: 12, contractType: 'IDIQ', contractorIsCrmClient: true, isNewEntrant: false },
           ],
           todo: null,
         },
       };
     }
-    if (url.includes('/api/program-elements/0603270A/bills')) {
+    if (url.includes('/bills')) {
       return {
         data: [
           {
@@ -212,6 +148,16 @@ function setupApi(currentUserIsWatching: boolean, postImpl?: (url: string, body:
         ],
       };
     }
+    if (url.includes('/projects')) return { data: [] };
+    if (url.includes('/related')) return { data: { related: [], todo: null } };
+    if (url.includes('/provisions')) return { data: [] };
+    if (url.includes('/opportunities')) return { data: [] };
+    if (url.includes('/procurement-lines')) {
+      return { data: { peCode: '0603270A', years: [], recipients: [], sourceUrl: null, totalRows: 0 } };
+    }
+    // Most PEs have no computed intelligence verdicts — the endpoint returns null.
+    if (url.includes('/intelligence')) return { data: null };
+    // Finder list (defensive; the detail page does not call it).
     if (url.includes('/api/program-elements') && !url.includes('/0603270A')) {
       return { data: { data: [], total: 0, page: 1, limit: 25 } };
     }
@@ -226,11 +172,7 @@ function setupApi(currentUserIsWatching: boolean, postImpl?: (url: string, body:
 
 function renderPage() {
   const queryClient = new QueryClient({
-    defaultOptions: {
-      queries: {
-        retry: false,
-      },
-    },
+    defaultOptions: { queries: { retry: false } },
   });
 
   render(
@@ -252,24 +194,37 @@ describe('ProgramElementWatchPage', () => {
   });
 
   test(
-    'renders without errors given mocked response',
+    'renders the hero, KPI strip, and tabbed panels',
     async () => {
       setupApi(true);
       renderPage();
 
       await waitFor(() => expect(screen.getByText(/0603270A/i)).toBeInTheDocument());
-
       expect(screen.getByText(/Electronic Warfare Advanced Payloads/i)).toBeInTheDocument();
       expect(screen.getByText(/Army/i)).toBeInTheDocument();
-      expect(await screen.findByTestId('fy-chart')).toHaveTextContent('rows:5');
-      expect(await screen.findByTestId('bills-panel')).toHaveTextContent('bills:1');
-      expect(await screen.findByTestId('contractors-panel')).toHaveTextContent('contractors:1');
-      expect(await screen.findByTestId('program-team-panel')).toHaveTextContent('program-team:1');
-      expect(screen.getByTestId('fy-detail-drawer')).toHaveTextContent('open:false fy:null');
       expect(screen.getByRole('button', { name: /Watching/i })).toBeInTheDocument();
+      // Overview tab (default) shows the funding trajectory chart.
+      expect(await screen.findByText(/Funding trajectory/i)).toBeInTheDocument();
+      // FY drawer is mounted (outside the tabs) and closed.
+      expect(screen.getByTestId('fy-detail-drawer')).toHaveTextContent('open:false fy:null');
 
+      // Funding tab: the interactive FY history chart drives the drawer.
+      fireEvent.click(screen.getByRole('tab', { name: /Funding/i }));
+      expect(await screen.findByTestId('fy-chart')).toHaveTextContent('rows:5');
       fireEvent.click(screen.getByText('select-fy'));
       expect(screen.getByTestId('fy-detail-drawer')).toHaveTextContent('open:true fy:2023');
+
+      // Legislation tab: bills panel.
+      fireEvent.click(screen.getByRole('tab', { name: /Legislation/i }));
+      expect(await screen.findByTestId('bills-panel')).toHaveTextContent('bills:1');
+
+      // Contractors tab: contractors panel.
+      fireEvent.click(screen.getByRole('tab', { name: /Contractors/i }));
+      expect(await screen.findByTestId('contractors-panel')).toHaveTextContent('contractors:1');
+
+      // Team tab: program team panel.
+      fireEvent.click(screen.getByRole('tab', { name: /Team/i }));
+      expect(await screen.findByTestId('program-team-panel')).toHaveTextContent('program-team:1');
     },
     15000,
   );

@@ -127,7 +127,15 @@ export function BillsTouchingPePanel({ bills, loading = false }: BillsTouchingPe
               <List.Item
                 key={bill.id}
                 className={`pe-bill-row${blanket ? ' pe-bill-blanket' : ''}`}
+                role="button"
+                tabIndex={0}
                 onClick={() => navigate(`/intelligence/bills/${encodeURIComponent(bill.id)}`)}
+                onKeyDown={(event) => {
+                  if (event.key === 'Enter' || event.key === ' ') {
+                    event.preventDefault();
+                    navigate(`/intelligence/bills/${encodeURIComponent(bill.id)}`);
+                  }
+                }}
                 style={{ cursor: 'pointer' }}
               >
                 <div className="pe-bill-ident">

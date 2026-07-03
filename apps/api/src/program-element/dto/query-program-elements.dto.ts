@@ -41,6 +41,14 @@ export class QueryProgramElementsDto {
   @IsIn(['true', 'false'])
   has_data?: string;
 
+  // When 'true', restrict the list to PEs the CURRENT user is watching (the
+  // finder's "Watchlist" mode). Requires an authenticated user; without one it
+  // returns an empty list.
+  @IsOptional()
+  @IsString()
+  @IsIn(['true', 'false'])
+  watched?: string;
+
   @IsOptional()
   @Type(() => Number)
   @Min(0)
