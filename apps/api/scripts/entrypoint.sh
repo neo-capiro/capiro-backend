@@ -344,7 +344,6 @@ case "${1:-serve}" in
   sync-peo-rosters) exec ./node_modules/.bin/tsx scripts/sync-peo-rosters.ts --commit ;;
   # Step 21: scan CongressBill text for PE codes, filter to existing program_element,
   # upsert congress_bill.pe_codes, emit IntelligenceChange when a new PE is watched.
-  extract-bill-pe-codes) exec ./node_modules/.bin/tsx scripts/extract-bill-pe-codes.ts ;;
   # Backfill primary sponsor (sponsor_name/state/party + cosponsors) on existing
   # CongressBill rows so the Office Recommender can rank by bill sponsor. Pass
   # --congress / --limit through, e.g. `backfill-bill-sponsors --congress 119`.
@@ -381,6 +380,14 @@ case "${1:-serve}" in
   derive-relationships) shift; exec ./node_modules/.bin/tsx scripts/derive-relationships.ts "$@" ;;
   seed-capabilities) shift; exec ./node_modules/.bin/tsx scripts/seed-capabilities.ts "$@" ;;
   derive-intelligence-cache) shift; exec ./node_modules/.bin/tsx scripts/derive-intelligence-cache.ts "$@" ;;
+  # Bill PE-code extractor (Step 21 + LEG-B): scans bill title/action/GovInfo
+  # full text for verbatim PE codes; writes CongressBill.peCodes AND the
+  # evidence-bearing bill_budget_line_link rows. Safe to re-run (idempotent).
+  extract-bill-pe-codes) shift; exec ./node_modules/.bin/tsx scripts/extract-bill-pe-codes.ts "$@" ;;
+  # Committee-report LANGUAGE provisions loader (Step 2.4 / LEG-C): reads
+  # committee_provisions_*.json artifacts and builds review-gated PE links
+  # (pe_code auto-accepted; title/alias land candidate). Dry-run default.
+  sync-report-provisions) shift; exec ./node_modules/.bin/tsx scripts/sync-report-provisions.ts "$@" ;;
   # O-1 Operation & Maintenance loader: O&M detail lines as program elements
   # (appropriationType=OM, pe_code=<account><line>). Pass --artifact. O-1 is $K.
   load-om) shift; exec ./node_modules/.bin/tsx scripts/load-om.ts "$@" ;;

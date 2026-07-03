@@ -120,6 +120,13 @@ export class ProgramElementController {
     return this.service.getBills(peCode);
   }
 
+  // LEG-A — full per-bill action history (stored congress_bill_action rows),
+  // stage-classified at read time. Powers the Legislation tab's real timeline.
+  @Get(':peCode/bill-actions')
+  billActions(@Param('peCode') peCode: string) {
+    return this.service.getBillActions(peCode);
+  }
+
   @Get(':peCode/contractors')
   contractors(@Param('peCode') peCode: string) {
     return this.service.getContractors(peCode);

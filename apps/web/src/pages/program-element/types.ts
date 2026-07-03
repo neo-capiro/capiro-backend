@@ -377,6 +377,32 @@ export interface ProgramElementBill {
   // How many distinct PEs this bill references. ~700 = an annual NDAA / blanket
   // authorizer that touches nearly every PE; a small count = a PE-specific bill.
   peCodeCount?: number;
+  /** LEG-B: evidence-typed bill↔PE link (why this bill is linked to THIS pe).
+   * Null for bills linked only via the legacy peCodes array. */
+  link?: {
+    type: string; // explicit_pe_code | budget_table_row | committee_mark_row | report_language | title_match | manual
+    confidence: number;
+    evidence: string;
+    status: string; // accepted | candidate
+  } | null;
+}
+
+/** LEG-A: one stage-classified legislative action from a bill touching the PE. */
+export interface BillActionEvent {
+  billId: string;
+  congress: number;
+  billType: string;
+  billNumber: string;
+  billTitle: string;
+  peCodeCount: number;
+  date: string;
+  /** Raw Congress.gov action text — rendered verbatim. */
+  text: string;
+  type: string | null;
+  chamber: string | null;
+  stage: string;
+  stageLabel: string;
+  stageRank: number;
 }
 
 export interface ProgramElementContractor {

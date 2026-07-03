@@ -30,6 +30,36 @@ export function extractPeCodes(text: string): string[] {
   return Array.from(out);
 }
 
+/**
+ * Extract PE codes WITH evidence (LEG-B): for each code, which source field it
+ * appeared in and a snippet around its first occurrence — what the
+ * bill_budget_line_link row renders as "why is this bill linked?".
+ * Source priority mirrors trust: full bill text (the funding tables) beats the
+ * title, beats the latest-action blurb.
+ */
+export function extractPeCodeEvidence(
+  parts: Array<{ source: string; text: string }>,
+): Map<string, { source: string; snippet: string }> {
+  const out = new Map<string, { source: string; snippet: string }>();
+  for (const part of parts) {
+    if (!part.text) continue;
+    const upper = part.text.toUpperCase();
+    for (const m of upper.matchAll(BILL_PE_REGEX)) {
+      const code = m[0];
+      if (out.has(code)) continue; // first (highest-priority) source wins
+      const at = m.index ?? 0;
+      const start = Math.max(0, at - 100);
+      const end = Math.min(part.text.length, at + code.length + 100);
+      const snippet = part.text
+        .slice(start, end)
+        .replace(/\s+/g, ' ')
+        .trim();
+      out.set(code, { source: part.source, snippet });
+    }
+  }
+  return out;
+}
+
 export interface BillForExtraction {
   id: string;
   congress: number;
@@ -116,30 +146,81 @@ export class BillPeExtractorService {
   async processBill(bill: BillForExtraction, opts: { fetchFullText?: boolean } = {}): Promise<ProcessResult> {
     const fetchFullText = opts.fetchFullText ?? true;
 
-    const parts: string[] = [bill.title ?? '', bill.summary ?? '', bill.latestActionText ?? ''];
+    // Ordered most- to least-trusted: the funding tables live in the full text.
+    const evidenceParts: Array<{ source: string; text: string }> = [];
     if (fetchFullText) {
       const fullText = await this.ensureFullText(bill);
-      if (fullText) parts.push(fullText);
+      if (fullText) evidenceParts.push({ source: 'bill_text', text: fullText });
     }
+    evidenceParts.push({ source: 'title', text: bill.title ?? '' });
+    if (bill.summary) evidenceParts.push({ source: 'summary', text: bill.summary });
+    evidenceParts.push({ source: 'latest_action', text: bill.latestActionText ?? '' });
 
-    const candidates = extractPeCodes(parts.join('\n'));
-    const filtered = await this.filterToExisting(candidates);
+    const evidenceByCode = extractPeCodeEvidence(evidenceParts);
+    const filtered = await this.filterToExisting([...evidenceByCode.keys()]);
     const next = filtered.slice().sort();
     const prev = (bill.peCodes ?? []).slice().sort();
     const changed = !this.sameSet(prev, next);
 
+    if (changed) {
+      await this.prisma.congressBill.update({
+        where: { id: bill.id },
+        data: { peCodes: next },
+      });
+    }
+    // Link rows sync even when the SET is unchanged — evidence/snippets can
+    // improve (e.g. full text arrives after a title-only pass).
+    await this.syncLinkRows(bill.id, next, evidenceByCode);
+
     if (!changed) {
       return { billId: bill.id, peCodes: next, changed: false, emitted: false };
     }
-
-    await this.prisma.congressBill.update({
-      where: { id: bill.id },
-      data: { peCodes: next },
-    });
-
     const added = next.filter((c) => !prev.includes(c));
     const emitted = await this.maybeEmit(bill, added, next);
     return { billId: bill.id, peCodes: next, changed: true, emitted };
+  }
+
+  /**
+   * Upsert evidence-bearing bill_budget_line_link rows (LEG-B). A verbatim PE
+   * code in official bill text is zero-inference → linkType='explicit_pe_code',
+   * accepted, confidence 1.0. This verb owns only its own derivedBy cohort:
+   * stale extractor rows for codes no longer present are removed; manual /
+   * report-language rows are never touched.
+   */
+  private async syncLinkRows(
+    billId: string,
+    codes: string[],
+    evidenceByCode: Map<string, { source: string; snippet: string }>,
+  ): Promise<void> {
+    const SOURCE_LABEL: Record<string, string> = {
+      bill_text: 'full bill text',
+      title: 'the bill title',
+      summary: 'the bill summary',
+      latest_action: 'the latest action',
+    };
+    await this.prisma.billBudgetLineLink.deleteMany({
+      where: { billId, derivedBy: 'bill-pe-extractor@v1', peCode: { notIn: codes.length ? codes : ['__none__'] } },
+    });
+    for (const code of codes) {
+      const ev = evidenceByCode.get(code);
+      const evidence = ev
+        ? `PE code ${code} appears verbatim in ${SOURCE_LABEL[ev.source] ?? ev.source}: “…${ev.snippet}…”`
+        : `PE code ${code} appears verbatim in the bill's official text.`;
+      await this.prisma.billBudgetLineLink.upsert({
+        where: { billId_peCode_linkType: { billId, peCode: code, linkType: 'explicit_pe_code' } },
+        create: {
+          billId,
+          peCode: code,
+          linkType: 'explicit_pe_code',
+          confidence: 1.0,
+          evidence,
+          evidenceJson: (ev ?? {}) as object,
+          status: 'accepted',
+          derivedBy: 'bill-pe-extractor@v1',
+        },
+        update: { evidence, evidenceJson: (ev ?? {}) as object },
+      });
+    }
   }
 
   /** Keep only candidate codes that exist in program_element. */

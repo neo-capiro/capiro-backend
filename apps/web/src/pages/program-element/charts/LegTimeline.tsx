@@ -19,6 +19,15 @@ const KIND_COLOR: Record<string, string> = {
   pass: '#2A57CE',
   law: '#2E6B43',
   enacted: '#2E6B43',
+  // LEG-A normalized stages (bill-stage.ts) plot directly.
+  introduced: '#8A8780',
+  referred: '#8A8780',
+  reported: '#2C5BD4',
+  passed_house: '#2A57CE',
+  passed_senate: '#2A57CE',
+  conference: '#7A3FB5',
+  to_president: '#2E6B45',
+  other: '#B5B0A4',
 };
 
 /**

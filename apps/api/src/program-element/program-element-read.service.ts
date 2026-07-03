@@ -11,6 +11,7 @@ import { confidenceBand } from './matching/program-match-thresholds.js';
 import { computePbComparison, type BudgetPositionLike } from './budget-position.js';
 import { normalizeServiceFilter } from './service-filter.js';
 import { buildIntelligence } from './intelligence/build-intelligence.js';
+import { normalizeBillStage } from './intelligence/bill-stage.js';
 
 export interface ProgramElementListQuery {
   service?: string;
@@ -773,11 +774,28 @@ export class ProgramElementReadService {
     // PE-specific bills first (fewest PEs), then by recency, and tag the blanket
     // authorizers so the panel can label + de-emphasize them rather than hide
     // real legislation.
+    // LEG-B: evidence-typed link rows for THIS pe across the returned bills.
+    // Falls back gracefully (link: null) for bills linked only via the legacy
+    // peCodes array (extractor not yet re-run against them).
+    const links = await this.prisma.billBudgetLineLink.findMany({
+      where: { peCode, billId: { in: bills.map((b) => b.id) }, status: { not: 'rejected' } },
+      select: { billId: true, linkType: true, confidence: true, evidence: true, status: true },
+    });
+    const linkByBill = new Map(links.map((l) => [l.billId, l]));
+
     const mapped = bills.map(({ committeeRefs, sponsorName, peCodes, ...bill }) => ({
       ...bill,
       sponsor: sponsorName,
       committee: committeeRefs[0]?.committeeName ?? null,
       peCodeCount: peCodes?.length ?? 0,
+      link: linkByBill.get(bill.id)
+        ? {
+            type: linkByBill.get(bill.id)!.linkType,
+            confidence: linkByBill.get(bill.id)!.confidence,
+            evidence: linkByBill.get(bill.id)!.evidence,
+            status: linkByBill.get(bill.id)!.status,
+          }
+        : null,
     }));
     mapped.sort((a, b) => {
       // PE-specific bills (fewer PEs) ahead of blanket authorizers.
@@ -788,6 +806,65 @@ export class ProgramElementReadService {
       return bt - at;
     });
     return mapped;
+  }
+
+  /**
+   * Full legislative-action history for the bills touching this PE
+   * (legislative-timeline plan LEG-A). Reads the congress_bill_action rows
+   * sync-congress already stores for lobbying-relevant bills and classifies
+   * each with the pure stage normalizer at read time — the raw action text is
+   * returned verbatim alongside the stage, never replaced by it. Bounded:
+   * the 40 most PE-specific bills × their actions, newest 200 events overall.
+   */
+  async getBillActions(peCode: string) {
+    const exists = await this.prisma.programElement.findUnique({
+      where: { peCode },
+      select: { peCode: true },
+    });
+    if (!exists) throw new NotFoundException(`Program element ${peCode} not found`);
+
+    const bills = await this.prisma.congressBill.findMany({
+      where: { peCodes: { has: peCode } },
+      orderBy: [{ latestActionDate: 'desc' }],
+      take: 40,
+      select: {
+        id: true,
+        congress: true,
+        billType: true,
+        billNumber: true,
+        title: true,
+        peCodes: true,
+        actions: {
+          orderBy: { date: 'desc' },
+          take: 60,
+          select: { date: true, text: true, type: true, chamber: true },
+        },
+      },
+    });
+
+    const events = bills.flatMap((b) =>
+      b.actions.map((a) => {
+        const stage = normalizeBillStage(a.text, a.type, a.chamber);
+        return {
+          billId: b.id,
+          congress: b.congress,
+          billType: b.billType,
+          billNumber: b.billNumber,
+          billTitle: b.title,
+          /** How many PEs the bill references — lets the UI de-emphasize blanket authorizers. */
+          peCodeCount: b.peCodes?.length ?? 0,
+          date: a.date,
+          text: a.text,
+          type: a.type,
+          chamber: a.chamber,
+          stage: stage.stage,
+          stageLabel: stage.label,
+          stageRank: stage.rank,
+        };
+      }),
+    );
+    events.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+    return { data: events.slice(0, 200), billCount: bills.length };
   }
 
   async getContractors(peCode: string) {

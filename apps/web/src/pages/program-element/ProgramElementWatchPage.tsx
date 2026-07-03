@@ -24,6 +24,7 @@ import {
   getBudgetActions,
   getBudgetLineRelationships,
   getIncumbents,
+  getProgramElementBillActions,
   getProgramElementBills,
   getProgramElementContractors,
   getProgramElementDeltas,
@@ -331,6 +332,14 @@ export function ProgramElementWatchPage() {
     enabled: normalizedPeCode.length > 0,
   });
 
+  // LEG-A: full stage-classified action history across the PE's bills.
+  const billActionsQuery = useQuery({
+    queryKey: ['program-element-bill-actions', normalizedPeCode],
+    queryFn: () => getProgramElementBillActions(api, normalizedPeCode),
+    staleTime: 60 * 1000,
+    enabled: normalizedPeCode.length > 0,
+  });
+
   if (!normalizedPeCode) {
     return <Alert type="warning" message="Missing PE code" showIcon />;
   }
@@ -476,12 +485,29 @@ export function ProgramElementWatchPage() {
   const recentActivity = [...datedBills]
     .sort((a, b) => (a.latestActionDate! < b.latestActionDate! ? 1 : -1))
     .slice(0, 4);
-  const timelineEvents: LegEvent[] = datedBills.map((b) => ({
-    date: b.latestActionDate as string,
-    label: truncate(b.latestActionText ?? b.title, 22),
-    num: `${b.billType} ${b.billNumber}`,
-    kind: classifyAction(b.latestActionText),
-  }));
+  // LEG-A: plot the FULL per-bill action history (stage-classified server-side)
+  // when sync-congress has stored it; fall back to latest-action snapshots for
+  // bills whose history hasn't been ingested. Blanket authorizers (NDAA-scale
+  // peCodeCount) are capped to their most recent actions so a 700-PE bill's
+  // procedural churn doesn't drown the PE-specific story.
+  const historyEvents = billActionsQuery.data ?? [];
+  const timelineEvents: LegEvent[] =
+    historyEvents.length > 0
+      ? historyEvents
+          .filter((e, i, all) => e.peCodeCount < 200 || all.findIndex((x) => x.billId === e.billId) >= i - 8)
+          .slice(0, 60)
+          .map((e) => ({
+            date: e.date,
+            label: truncate(e.stageLabel === 'Action' ? e.text : e.stageLabel, 22),
+            num: `${e.billType} ${e.billNumber}`,
+            kind: e.stage,
+          }))
+      : datedBills.map((b) => ({
+          date: b.latestActionDate as string,
+          label: truncate(b.latestActionText ?? b.title, 22),
+          num: `${b.billType} ${b.billNumber}`,
+          kind: classifyAction(b.latestActionText),
+        }));
 
   const projects = projectsQuery.data ?? [];
 

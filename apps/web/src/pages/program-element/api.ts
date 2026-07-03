@@ -27,6 +27,7 @@ import type {
   MovementResponse,
   MoneyGraphResponse,
   WatchSignalItem,
+  BillActionEvent,
 } from './types.js';
 import type { IntelligenceChange } from '../intelligence/types.js';
 
@@ -57,6 +58,19 @@ export async function getProgramElementBills(
   return (
     await api.get<ProgramElementBill[]>(`/api/program-elements/${encodeURIComponent(peCode)}/bills`)
   ).data;
+}
+
+/** LEG-A: full stage-classified action history across the PE's bills. */
+export async function getProgramElementBillActions(
+  api: AxiosInstance,
+  peCode: string,
+): Promise<BillActionEvent[]> {
+  const rows = (
+    await api.get<{ data: BillActionEvent[] }>(
+      `/api/program-elements/${encodeURIComponent(peCode)}/bill-actions`,
+    )
+  ).data?.data;
+  return Array.isArray(rows) ? rows : [];
 }
 
 export async function getProgramElementContractors(

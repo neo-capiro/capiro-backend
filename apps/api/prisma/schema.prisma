@@ -4146,6 +4146,9 @@ model BudgetAction {
   note         String?  @db.Text
   /// §1.4 provenance: the source numbers this action was derived from.
   evidenceJson Json     @default("{}") @map("evidence_jsonb")
+  /// Bill that asserted this action, when attributable (LEG-B; null until the
+  /// marks ingestion carries bill identity — never inferred).
+  billId       String?  @map("bill_id")
   derivedBy    String   @map("derived_by") @db.VarChar(48)
   createdAt    DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
   updatedAt    DateTime @updatedAt @map("updated_at") @db.Timestamptz(6)
@@ -4255,4 +4258,35 @@ model ProgramElementIntelligenceCache {
   @@index([appropScore], map: "pe_intelligence_cache_approp_idx")
   @@index([signalType], map: "pe_intelligence_cache_signal_idx")
   @@map("program_element_intelligence_cache")
+}
+
+/// Bill ↔ budget-line link with typed evidence (legislative-timeline plan
+/// LEG-B; consolidated plan §1.5). Replaces the flat CongressBill.peCodes
+/// array as the system of record for WHY a bill is linked to a line — the
+/// array stays for back-compat/GIN-filtered list queries, this table carries
+/// the evidence. GLOBAL (no tenant_id / RLS), public-domain congressional data.
+/// Mirrors ProvisionPeLink review discipline: only a verbatim PE code in
+/// official bill text is auto-accepted; everything fuzzier lands candidate.
+model BillBudgetLineLink {
+  id           String    @id @default(uuid()) @db.Uuid
+  billId       String    @map("bill_id")
+  peCode       String    @map("pe_code") @db.VarChar(16)
+  /// explicit_pe_code | budget_table_row | committee_mark_row | report_language
+  /// | title_match | manual
+  linkType     String    @map("link_type") @db.VarChar(24)
+  confidence   Float     @default(1.0)
+  /// Render-safe evidence ('Found in enrolled bill text: "…0603270A…"').
+  evidence     String    @db.Text
+  evidenceJson Json      @default("{}") @map("evidence_jsonb")
+  status       String    @default("accepted") @db.VarChar(12) // accepted|candidate|rejected
+  derivedBy    String    @map("derived_by") @db.VarChar(48)
+  reviewedBy   String?   @map("reviewed_by")
+  reviewedAt   DateTime? @map("reviewed_at") @db.Timestamptz(6)
+  createdAt    DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt    DateTime  @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  @@unique([billId, peCode, linkType], map: "bill_budget_line_link_natural_key")
+  @@index([peCode], map: "bill_budget_line_link_pe_idx")
+  @@index([billId], map: "bill_budget_line_link_bill_idx")
+  @@map("bill_budget_line_link")
 }

@@ -73,6 +73,16 @@ function probabilityLabel(probability: number | null | undefined): string {
   return `${Math.round(probability * 100)}%`;
 }
 
+// LEG-B: how this bill was linked to THIS pe — rendered as an evidence chip.
+const LINK_TYPE_LABEL: Record<string, string> = {
+  explicit_pe_code: 'PE code in text',
+  budget_table_row: 'Budget table row',
+  committee_mark_row: 'Committee mark',
+  report_language: 'Report language',
+  title_match: 'Title match',
+  manual: 'Manually linked',
+};
+
 // A bill that references this many distinct PEs or more is a blanket authorizer
 // (the annual NDAA references ~700) rather than a PE-specific bill. We still show
 // it — it's real legislation — but tag it and let the API sink it to the bottom
@@ -157,6 +167,16 @@ export function BillsTouchingPePanel({ bills, loading = false }: BillsTouchingPe
                       >
                         <span className="pe-bill-blanket-tag">
                           Blanket authorizer · {bill.peCodeCount?.toLocaleString()} PEs
+                        </span>
+                      </Tooltip>
+                    ) : null}
+                    {bill.link ? (
+                      <Tooltip title={bill.link.evidence}>
+                        <span
+                          className={`pe-bill-link-chip${bill.link.status === 'candidate' ? ' cand' : ''}`}
+                        >
+                          {LINK_TYPE_LABEL[bill.link.type] ?? bill.link.type.replace(/_/g, ' ')}
+                          {bill.link.status === 'candidate' ? ' · needs review' : ''}
                         </span>
                       </Tooltip>
                     ) : null}
