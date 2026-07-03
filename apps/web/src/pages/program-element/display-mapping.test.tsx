@@ -61,6 +61,14 @@ const ROW: ProgramElementListItem = {
   signalType: 'mark_vs_request',
   signalScore: 0.8,
   signalDeltaPct: 6.1,
+  // BL-1 money-graph enrichment (intelligence cache)
+  lineType: 'RDTE_PE',
+  maturity: 2,
+  appropTier: 'med',
+  appropScore: 61,
+  actionSignalType: null,
+  actionSignalTone: null,
+  valleyOfDeath: false,
 };
 
 const SUMMARY: ProgramElementSummary = {
@@ -99,11 +107,13 @@ describe('PE finder data-mapping / display', () => {
     expect(screen.getByText('0601102A')).toBeInTheDocument();
     expect(screen.getByText('Defense Research Sciences')).toBeInTheDocument();
     expect(screen.getByText('Army')).toBeInTheDocument(); // service CODE -> label
-    expect(screen.getByText('6.1')).toBeInTheDocument(); // budget activity short
+    expect(screen.getByText('RDT&E PE')).toBeInTheDocument(); // lineType -> badge (BL-1)
     expect(screen.getByText('$215.3M')).toBeInTheDocument(); // latestRequest, millions
     expect(screen.getByText('$297.7M')).toBeInTheDocument(); // latestEnacted, millions
     expect(screen.getByText('+19.0%')).toBeInTheDocument(); // deltaPct sign + 1dp
-    expect(screen.getByText('Markup')).toBeInTheDocument(); // signalType -> pill
+    expect(screen.getByTitle('Transition maturity 2/5')).toBeInTheDocument(); // maturity pips
+    expect(screen.getByText('61')).toBeInTheDocument(); // appropriability score badge
+    expect(screen.getByText('Markup')).toBeInTheDocument(); // delta signal fallback pill
     expect(screen.getByRole('button', { name: /watchlist/i })).toBeInTheDocument(); // watch star
   });
 

@@ -28,6 +28,10 @@ export interface ProgramElementListQuery {
    * yields an empty list (no watch rows are visible).
    */
   watched?: string;
+  /** BL-1: filter by intelligence-cache line type (RDTE_PE | PROCUREMENT_BLIN | OM_BLI). */
+  lineType?: string;
+  /** BL-1: filter to lines with an accepted match to this capability slug. */
+  capability?: string;
 }
 
 /**
@@ -116,6 +120,10 @@ export class ProgramElementReadService {
     const hasDataOnly = query.hasData === 'true';
     const watchedOnly = query.watched === 'true';
     const userId = ctx?.userId ?? null;
+    // BL-1 money-graph facets: line_type filters on the intelligence cache;
+    // capability filters via the auditable match table (accepted rows only).
+    const lineType = query.lineType?.trim();
+    const capability = query.capability?.trim();
 
     type ListRow = {
       peCode: string;
@@ -137,6 +145,13 @@ export class ProgramElementReadService {
       signalType: string | null;
       signalScore: number | null;
       signalDeltaPct: number | null;
+      lineType: string | null;
+      maturity: number | null;
+      appropTier: string | null;
+      appropScore: number | null;
+      actionSignalType: string | null;
+      actionSignalTone: string | null;
+      valleyOfDeath: boolean | null;
       totalCount: number;
     };
 
@@ -178,6 +193,8 @@ export class ProgramElementReadService {
         WHERE pe.retired_at IS NULL
           AND (${service ? Prisma.sql`pe.service ILIKE ${service}` : Prisma.sql`TRUE`})
           AND (${budgetActivity ? Prisma.sql`pe.budget_activity ILIKE ${budgetActivity}` : Prisma.sql`TRUE`})
+          AND (${lineType ? Prisma.sql`EXISTS (SELECT 1 FROM program_element_intelligence_cache ic WHERE ic.pe_code = pe.pe_code AND ic.line_type = ${lineType})` : Prisma.sql`TRUE`})
+          AND (${capability ? Prisma.sql`EXISTS (SELECT 1 FROM capability_budget_line_match cm JOIN capability c ON c.id = cm.capability_id WHERE cm.pe_code = pe.pe_code AND cm.status = 'accepted' AND c.slug = ${capability})` : Prisma.sql`TRUE`})
           AND (${hasDataOnly ? hasDataExpr : Prisma.sql`TRUE`})
           AND (${watchedOnly ? watchedExpr : Prisma.sql`TRUE`})
           AND (
@@ -214,9 +231,17 @@ export class ProgramElementReadService {
         spk.spark AS spark,
         sig.delta_type AS "signalType",
         sig.materiality_score::double precision AS "signalScore",
-        sig.delta_pct AS "signalDeltaPct"
+        sig.delta_pct AS "signalDeltaPct",
+        ic.line_type AS "lineType",
+        ic.maturity,
+        ic.approp_tier AS "appropTier",
+        ic.approp_score AS "appropScore",
+        ic.signal_type AS "actionSignalType",
+        ic.signal_tone AS "actionSignalTone",
+        ic.valley_of_death AS "valleyOfDeath"
       FROM filtered f
       LEFT JOIN program_element_detail_mv mv ON mv.pe_code = f.pe_code
+      LEFT JOIN program_element_intelligence_cache ic ON ic.pe_code = f.pe_code
       LEFT JOIN LATERAL (
         SELECT y.request, y.fy
         FROM program_element_year y
@@ -551,6 +576,13 @@ export class ProgramElementReadService {
       orderBy: { fy: 'desc' },
       select: { quantity: true },
     });
+    // BL-1: the derive-time cache carries the graph-aware verdicts (maturity
+    // ladder needs relationship edges + award counts; appropriability needs the
+    // full evidence census) — computed nightly by derive-intelligence-cache, not
+    // re-derivable cheaply per request. Null until the first derive run.
+    const cache = await this.prisma.programElementIntelligenceCache.findUnique({
+      where: { peCode: code },
+    });
     return {
       peCode: pe.peCode,
       ...buildIntelligence({
@@ -560,6 +592,11 @@ export class ProgramElementReadService {
         outyears,
         quantity: line ? dec(line.quantity) : null,
       }),
+      lineType: cache?.lineType ?? null,
+      maturityLadder: cache?.maturityJson ?? null,
+      appropriability: cache?.appropJson ?? null,
+      valleyOfDeath: cache?.valleyOfDeath ?? false,
+      cacheComputedAt: cache?.computedAt ?? null,
     };
   }
 

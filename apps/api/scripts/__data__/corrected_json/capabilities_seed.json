@@ -1,0 +1,90 @@
+{
+  "source": "curated_capability_taxonomy_v1",
+  "note": "Curated demand-side capability taxonomy (consolidated plan §1.6). Keywords are matched word-boundary, case-insensitive against program_element title + description by seed-capabilities.ts; every match records matchedOn evidence. Grow by curation only.",
+  "capabilities": [
+    {
+      "slug": "pnt",
+      "name": "Assured PNT / GPS-denied navigation",
+      "aliases": ["GPS-denied", "alt-nav", "M-code", "assured positioning", "anti-jam GPS"],
+      "taxonomyPath": "Autonomy › Positioning & Timing",
+      "keywords": ["positioning, navigation and timing", "positioning navigation and timing", "assured pnt", "pnt", "gps-denied", "m-code", "navstar", "gps user equipment", "anti-jam", "navigation warfare"]
+    },
+    {
+      "slug": "cuas",
+      "name": "Counter-small-UAS",
+      "aliases": ["C-sUAS", "drone defense", "counter-drone"],
+      "taxonomyPath": "Force Protection › Air Defense",
+      "keywords": ["counter-small unmanned", "counter small unmanned", "c-suas", "c-uas", "counter-uas", "counter uas", "counter unmanned aircraft", "counter-unmanned"]
+    },
+    {
+      "slug": "autonomy",
+      "name": "Autonomy & AI",
+      "aliases": ["autonomous systems", "machine learning", "artificial intelligence", "robotics"],
+      "taxonomyPath": "Autonomy › Decision & Control",
+      "keywords": ["artificial intelligence", "machine learning", "autonomous", "autonomy", "robotic", "unmanned ground vehicle", "uncrewed"]
+    },
+    {
+      "slug": "ew",
+      "name": "Electronic Warfare",
+      "aliases": ["EW", "electromagnetic spectrum", "jamming"],
+      "taxonomyPath": "Spectrum › Electronic Warfare",
+      "keywords": ["electronic warfare", "electromagnetic warfare", "electronic attack", "electronic protection", "electromagnetic spectrum operations", "jammer", "jamming", "signals intelligence"]
+    },
+    {
+      "slug": "directed-energy",
+      "name": "Directed Energy",
+      "aliases": ["laser", "HPM", "high-energy laser"],
+      "taxonomyPath": "Fires › Directed Energy",
+      "keywords": ["directed energy", "high energy laser", "high-energy laser", "high power microwave", "high-powered microwave", "laser weapon"]
+    },
+    {
+      "slug": "hypersonics",
+      "name": "Hypersonics",
+      "aliases": ["hypersonic", "boost-glide", "scramjet"],
+      "taxonomyPath": "Fires › Long-Range Strike",
+      "keywords": ["hypersonic", "boost glide", "boost-glide", "scramjet", "conventional prompt strike", "long range hypersonic"]
+    },
+    {
+      "slug": "space-sda",
+      "name": "Space & Space Domain Awareness",
+      "aliases": ["space domain awareness", "on-orbit", "resilient GPS", "satellite"],
+      "taxonomyPath": "Space › Domain Awareness",
+      "keywords": ["space domain awareness", "satellite communication", "space control", "space situational awareness", "on-orbit", "space-based", "launch vehicle", "overhead persistent infrared"]
+    },
+    {
+      "slug": "jadc2",
+      "name": "JADC2 / Battle Networks",
+      "aliases": ["CJADC2", "battle network", "data fabric", "joint fires network"],
+      "taxonomyPath": "C2 › Networks",
+      "keywords": ["jadc2", "joint all-domain", "joint all domain", "battle command", "command and control", "tactical network", "tactical data link", "battle network", "mission command"]
+    },
+    {
+      "slug": "cyber",
+      "name": "Cyber Operations",
+      "aliases": ["cyberspace operations", "defensive cyber", "offensive cyber"],
+      "taxonomyPath": "Spectrum › Cyber",
+      "keywords": ["cyber", "cyberspace", "information warfare", "network defense"]
+    },
+    {
+      "slug": "munitions",
+      "name": "Precision Munitions & Missiles",
+      "aliases": ["PGM", "precision-guided munitions", "missile"],
+      "taxonomyPath": "Fires › Munitions",
+      "keywords": ["missile", "munition", "precision strike", "guided rocket", "torpedo", "interceptor", "warhead"]
+    },
+    {
+      "slug": "isr",
+      "name": "ISR & Sensing",
+      "aliases": ["intelligence surveillance reconnaissance", "sensors", "radar"],
+      "taxonomyPath": "Sensing › ISR",
+      "keywords": ["intelligence, surveillance", "surveillance and reconnaissance", "radar", "sensor", "electro-optical", "infrared search"]
+    },
+    {
+      "slug": "undersea",
+      "name": "Undersea Warfare",
+      "aliases": ["ASW", "anti-submarine", "UUV"],
+      "taxonomyPath": "Maritime › Undersea",
+      "keywords": ["undersea warfare", "anti-submarine", "antisubmarine", "sonar", "unmanned undersea", "submarine combat"]
+    }
+  ]
+}

@@ -13,6 +13,17 @@ import { IntelligenceChips } from './IntelligenceChips.js';
 import { PdocDetailPanel, type PdocDetail } from './PdocDetailPanel.js';
 import { DescriptionPanel, type DescriptionSource } from './DescriptionPanel.js';
 import {
+  AppropriabilityPanel,
+  BudgetActionsFeed,
+  IncumbentMapPanel,
+  LinkedLinesRail,
+  MaturityLadderPanel,
+  RelationshipGraphPanel,
+} from './BudgetLinePanels.js';
+import {
+  getBudgetActions,
+  getBudgetLineRelationships,
+  getIncumbents,
   getProgramElementBills,
   getProgramElementContractors,
   getProgramElementDeltas,
@@ -43,7 +54,7 @@ import { ProvisionsPanel } from './ProvisionsPanel.js';
 import { ProcurementActivityPanel } from './ProcurementActivityPanel.js';
 import { RelatedPesPanel } from './RelatedPesPanel.js';
 import { SecondaryDistributionPanel } from './SecondaryDistributionPanel.js';
-import { useWatchToggle } from './pe-shared.js';
+import { LINE_TYPES, useWatchToggle } from './pe-shared.js';
 import {
   Sparkline,
   LineChart,
@@ -294,6 +305,28 @@ export function ProgramElementWatchPage() {
   const procurementLinesQuery = useQuery({
     queryKey: ['program-element-procurement-lines', normalizedPeCode],
     queryFn: () => getProgramElementProcurementLines(api, normalizedPeCode),
+    staleTime: 60 * 1000,
+    enabled: normalizedPeCode.length > 0,
+  });
+
+  // ── BL-2 money-graph reads ────────────────────────────────────────────────
+  const actionsQuery = useQuery({
+    queryKey: ['program-element-actions', normalizedPeCode],
+    queryFn: () => getBudgetActions(api, normalizedPeCode),
+    staleTime: 60 * 1000,
+    enabled: normalizedPeCode.length > 0,
+  });
+
+  const relationshipsQuery = useQuery({
+    queryKey: ['program-element-relationships', normalizedPeCode],
+    queryFn: () => getBudgetLineRelationships(api, normalizedPeCode),
+    staleTime: 60 * 1000,
+    enabled: normalizedPeCode.length > 0,
+  });
+
+  const incumbentsQuery = useQuery({
+    queryKey: ['program-element-incumbents', normalizedPeCode],
+    queryFn: () => getIncumbents(api, normalizedPeCode),
     staleTime: 60 * 1000,
     enabled: normalizedPeCode.length > 0,
   });
@@ -580,6 +613,32 @@ export function ProgramElementWatchPage() {
         )}
       </ChartCard>
 
+      {/* Linked lines — the money graph around this line (§1.3) */}
+      <div className="pe-surface pe-plain-surface span-2">
+        <div className="pe-surface-head">
+          <h3>Linked lines</h3>
+          <span className="pe-surface-sub">the money graph around this line</span>
+        </div>
+        <div className="bl-panel-body">
+          <LinkedLinesRail
+            relationships={relationshipsQuery.data}
+            loading={relationshipsQuery.isLoading}
+            onOpen={(pe) => navigate(`/program-elements/${pe}`)}
+          />
+        </div>
+      </div>
+
+      {/* Normalized budget actions (§1.2), latest four */}
+      <div className="pe-surface pe-plain-surface span-2">
+        <div className="pe-surface-head">
+          <h3>Budget actions</h3>
+          <span className="pe-surface-sub">normalized committee events · latest</span>
+        </div>
+        <div className="bl-panel-body">
+          <BudgetActionsFeed actions={actionsQuery.data} loading={actionsQuery.isLoading} limit={4} />
+        </div>
+      </div>
+
       <div className="pe-surface pe-plain-surface">
         <ProjectsPanel projects={projects} loading={projectsQuery.isLoading} />
       </div>
@@ -678,6 +737,15 @@ export function ProgramElementWatchPage() {
       </ChartCard>
 
       <div className="pe-surface pe-plain-surface span-2">
+        <div className="pe-surface-head">
+          <h3>Budget actions</h3>
+          <span className="pe-surface-sub">every normalized committee event on this line</span>
+        </div>
+        <div className="bl-panel-body">
+          <BudgetActionsFeed actions={actionsQuery.data} loading={actionsQuery.isLoading} />
+        </div>
+      </div>
+      <div className="pe-surface pe-plain-surface span-2">
         <BillsTouchingPePanel bills={bills} loading={billsQuery.isLoading} />
       </div>
       <div className="pe-surface pe-plain-surface span-2">
@@ -688,6 +756,50 @@ export function ProgramElementWatchPage() {
           opportunities={opportunitiesQuery.data}
           loading={opportunitiesQuery.isLoading}
         />
+      </div>
+    </div>
+  );
+
+  const relationshipsTab = (
+    <div className="pe-dt-panel">
+      <div className="pe-surface pe-plain-surface span-2">
+        <div className="pe-surface-head">
+          <h3>Relationship graph</h3>
+          <span className="pe-surface-sub">typed, evidence-bearing edges · dashed = candidate</span>
+        </div>
+        <div className="bl-panel-body">
+          <RelationshipGraphPanel
+            peCode={normalizedPeCode}
+            relationships={relationshipsQuery.data}
+            loading={relationshipsQuery.isLoading}
+            onOpen={(pe) => navigate(`/program-elements/${pe}`)}
+          />
+        </div>
+      </div>
+      <div className="pe-surface pe-plain-surface span-2">
+        <div className="pe-surface-head">
+          <h3>Transition maturity</h3>
+          <span className="pe-surface-sub">research → contracts · per-rung evidence</span>
+        </div>
+        <div className="bl-panel-body">
+          <MaturityLadderPanel ladder={intelligenceQuery.data?.maturityLadder} />
+        </div>
+      </div>
+      <div className="pe-surface pe-plain-surface span-2">
+        <ProgramsPanel programs={programsQuery.data} loading={programsQuery.isLoading} />
+      </div>
+      <div className="pe-surface pe-plain-surface span-2">
+        <RelatedPesPanel related={relatedQuery.data} loading={relatedQuery.isLoading} />
+      </div>
+    </div>
+  );
+
+  const appropriabilityTab = (
+    <div className="pe-dt-panel">
+      <div className="pe-surface pe-plain-surface span-2">
+        <div className="bl-panel-body">
+          <AppropriabilityPanel approp={intelligenceQuery.data?.appropriability} />
+        </div>
       </div>
     </div>
   );
@@ -741,27 +853,30 @@ export function ProgramElementWatchPage() {
     </div>
   );
 
-  const contractorsTab = (
+  const incumbentsTab = (
     <div className="pe-dt-panel">
       <div className="pe-surface pe-plain-surface span-2">
-        <ContractorsPanel contractors={contractors} loading={contractorsQuery.isLoading} />
+        <div className="pe-surface-head">
+          <h3>Incumbent map</h3>
+          <span className="pe-surface-sub">performer → award → budget triangulation</span>
+        </div>
+        <div className="bl-panel-body">
+          <IncumbentMapPanel incumbents={incumbentsQuery.data} loading={incumbentsQuery.isLoading} />
+        </div>
       </div>
       <div className="pe-surface pe-plain-surface span-2">
-        <RelatedPesPanel related={relatedQuery.data} loading={relatedQuery.isLoading} />
+        <ContractorsPanel contractors={contractors} loading={contractorsQuery.isLoading} />
       </div>
     </div>
   );
 
-  const evidenceTab = (
+  const proofPackTab = (
     <div className="pe-dt-panel">
       <div className="pe-surface pe-plain-surface span-2">
         <WhatChangedPanel deltas={deltasQuery.data?.data} loading={deltasQuery.isLoading} />
       </div>
       <div className="pe-surface pe-plain-surface span-2">
         <PdocDetailPanel detail={pDocDetail} onOpenPe={(pe) => navigate(`/program-elements/${pe}`)} />
-      </div>
-      <div className="pe-surface pe-plain-surface span-2">
-        <ProgramsPanel programs={programsQuery.data} loading={programsQuery.isLoading} />
       </div>
       <div className="pe-surface pe-plain-surface span-2">
         <ClientRelevancePanel
@@ -775,6 +890,7 @@ export function ProgramElementWatchPage() {
     </div>
   );
 
+  const relCount = relationshipsQuery.data?.length ?? 0;
   const tabItems = [
     { key: 'overview', label: 'Overview', children: overviewTab },
     { key: 'funding', label: 'Funding', children: fundingTab },
@@ -784,12 +900,22 @@ export function ProgramElementWatchPage() {
       children: legislationTab,
     },
     {
+      key: 'relationships',
+      label: <TabLabel text="Relationships" count={relCount} />,
+      children: relationshipsTab,
+    },
+    {
+      key: 'incumbents',
+      label: <TabLabel text="Incumbents" count={incumbentsQuery.data?.length ?? 0} />,
+      children: incumbentsTab,
+    },
+    {
       key: 'team',
-      label: <TabLabel text="Team" count={programTeam.length} />,
+      label: <TabLabel text="People & office" count={programTeam.length} />,
       children: teamTab,
     },
-    { key: 'contractors', label: 'Contractors', children: contractorsTab },
-    { key: 'evidence', label: 'Evidence', children: evidenceTab },
+    { key: 'approp', label: 'Appropriability', children: appropriabilityTab },
+    { key: 'proof', label: 'Proof pack', children: proofPackTab },
   ];
 
   return (
@@ -800,7 +926,11 @@ export function ProgramElementWatchPage() {
           <div className="pe-hero-badge">{peBadge(detail)}</div>
           <div className="pe-hero-body">
             <div className="pe-hero-eyebrow">
-              <span className="pe-hero-kicker">Program Element Watch</span>
+              <span className="pe-hero-kicker">
+                {(intelligenceQuery.data?.lineType &&
+                  LINE_TYPES[intelligenceQuery.data.lineType]?.label) ??
+                  'Budget Line Watch'}
+              </span>
               <span className="pe-hero-code">{detail.peCode}</span>
             </div>
             <h1 className="pe-hero-title">{detail.title}</h1>

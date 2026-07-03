@@ -374,6 +374,13 @@ case "${1:-serve}" in
   # OP-5 O&M narrative loader (batch-10): SAG-code-joined descriptions -> EXISTING
   # O&M program elements only. Enrich-only, presence-based raw.op5Detail merge.
   load-om-op5) shift; exec ./node_modules/.bin/tsx scripts/load-om-op5.ts "$@" ;;
+  # ── Budget Lines money-graph derivations (BL-0). DAG order: actions ->
+  # relationships -> capabilities -> intelligence cache. All dry-run by default;
+  # pass --commit. Each deletes + rewrites only its own derived_by cohort.
+  derive-budget-actions) shift; exec ./node_modules/.bin/tsx scripts/derive-budget-actions.ts "$@" ;;
+  derive-relationships) shift; exec ./node_modules/.bin/tsx scripts/derive-relationships.ts "$@" ;;
+  seed-capabilities) shift; exec ./node_modules/.bin/tsx scripts/seed-capabilities.ts "$@" ;;
+  derive-intelligence-cache) shift; exec ./node_modules/.bin/tsx scripts/derive-intelligence-cache.ts "$@" ;;
   # O-1 Operation & Maintenance loader: O&M detail lines as program elements
   # (appropriationType=OM, pe_code=<account><line>). Pass --artifact. O-1 is $K.
   load-om) shift; exec ./node_modules/.bin/tsx scripts/load-om.ts "$@" ;;

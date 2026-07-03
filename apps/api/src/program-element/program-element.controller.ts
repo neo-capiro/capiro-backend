@@ -86,6 +86,8 @@ export class ProgramElementController {
         divergenceThreshold: query.divergence_threshold,
         hasData: query.has_data,
         watched: query.watched,
+        lineType: query.line_type,
+        capability: query.capability,
       },
       ctx,
     );

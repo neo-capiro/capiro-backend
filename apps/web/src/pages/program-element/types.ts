@@ -139,6 +139,185 @@ export interface ProgramElementListItem {
   signalType?: string | null;
   signalScore?: number | null;
   signalDeltaPct?: number | null;
+  // ── BL-1 money-graph enrichment (from program_element_intelligence_cache;
+  //    null until the first derive-intelligence-cache run) ──
+  /** RDTE_PE | PROCUREMENT_BLIN | OM_BLI (MILCON/TRANSFER/CLASSIFIED reserved). */
+  lineType?: string | null;
+  /** Transition-maturity rung 0-5 (F19); null when not applicable. */
+  maturity?: number | null;
+  /** Appropriability (F27): high | med | low + 0-100 composite. */
+  appropTier?: string | null;
+  appropScore?: number | null;
+  /** Latest normalized budget action on the line (add|cut|new_start|termination). */
+  actionSignalType?: string | null;
+  actionSignalTone?: string | null;
+  valleyOfDeath?: boolean | null;
+}
+
+// ── BL-1: capabilities (F4 "I sell X — where's the money?") ──────────────────
+export interface CapabilitySummary {
+  slug: string;
+  name: string;
+  aliases: string[];
+  taxonomyPath: string;
+  lineCount: number;
+  /** Sum of latest PB requests across matched lines, $M. */
+  requestTotal: number;
+  /** Same, split by lineType (RDTE_PE / PROCUREMENT_BLIN / OM_BLI). */
+  requestByLineType: Record<string, number>;
+}
+
+export interface CapabilityRecommendation {
+  peCode: string;
+  title: string;
+  service: string | null;
+  lineType: string | null;
+  /** Entry wedge (F25) implied by the line type. */
+  wedge: string;
+  maturity: number | null;
+  appropTier: string | null;
+  appropScore: number | null;
+  signalType: string | null;
+  signalTone: string | null;
+  valleyOfDeath: boolean;
+  matchConfidence: string;
+  /** Auditable evidence for the match ('title:"electronic warfare"'). */
+  matchedOn: string;
+  latestRequest: number | null;
+  latestRequestFy: number | null;
+}
+
+export interface CapabilityRecommendationsResponse {
+  capability: { slug: string; name: string; aliases: string[]; taxonomyPath: string } | null;
+  data: CapabilityRecommendation[];
+}
+
+// ── BL-2: per-line money-graph reads ─────────────────────────────────────────
+/** One normalized committee/appropriations event (§1.2). */
+export interface BudgetActionItem {
+  id: string;
+  fy: number;
+  /** PB | HASC | SASC | HAC_D | SAC_D | CONF | ENACTED. */
+  stage: string;
+  /** add | cut | new_start | termination. */
+  action: string;
+  /** Signed $M vs `baseline`; null for non-monetary events. */
+  amount: number | null;
+  baseline: string;
+  note: string | null;
+  evidence: unknown;
+}
+
+/** One typed relationship edge touching this line (§1.3). */
+export interface RelationshipItem {
+  id: string;
+  direction: 'in' | 'out';
+  relType: string;
+  confidence: string;
+  /** accepted | candidate — candidates render dashed + labeled. */
+  status: string;
+  evidence: string;
+  line: {
+    peCode: string;
+    title: string;
+    service: string | null;
+    lineType: string | null;
+    maturity: number | null;
+    appropTier: string | null;
+    appropScore: number | null;
+  };
+}
+
+/** One incumbent-map row (F20) — tier computed server-side. */
+export interface IncumbentItem {
+  company: string;
+  tier: 'incumbent' | 'performer' | 'candidate';
+  confidence: 'high' | 'med' | 'low';
+  awardsTotal: number | null;
+  awardCount: number;
+  office: string | null;
+  role: string | null;
+  evidence: string;
+  sourceUrl: string | null;
+}
+
+/** Maturity ladder (F19) as cached by derive-intelligence-cache. */
+export interface MaturityLadderData {
+  current: number;
+  rungs: Array<{ n: number; label: string; reached: boolean; evidence: string }>;
+}
+
+/** Appropriability verdict (F27) as cached. */
+export interface AppropriabilityData {
+  score: number | null;
+  tier: 'high' | 'med' | 'low' | null;
+  factors: Array<{ key: string; label: string; value: number; evidence: string }>;
+  unscored: Array<{ key: string; label: string; reason: string }>;
+  reason: string;
+}
+
+// ── BL-3: Movement / Money graph / Watchlist signals ─────────────────────────
+export interface MovementFeedItem {
+  id: string;
+  peCode: string;
+  title: string;
+  service: string | null;
+  lineType: string | null;
+  fy: number;
+  stage: string;
+  action: string;
+  amount: number | null;
+  note: string | null;
+}
+
+export interface MovementResponse {
+  openFy: number;
+  kpis: { actions: number; addsTotal: number; cutsTotal: number; openInConference: number };
+  feed: MovementFeedItem[];
+  heatmap: { fy: number; cols: string[]; rows: Array<{ lineType: string; vals: number[] }> };
+  conference: Array<{
+    peCode: string;
+    title: string;
+    service: string | null;
+    fy: number;
+    request: number | null;
+    house: number | null;
+    senate: number | null;
+    /** appropriations (HAC-D vs SAC-D) or authorization (HASC vs SASC). */
+    basis: string;
+    gap: number | null;
+    lean: 'house' | 'senate' | null;
+  }>;
+  anomalies: Array<{ peCode: string; title: string; kind: string; tone: string; note: string }>;
+}
+
+export interface MoneyGraphResponse {
+  nodes: Array<{
+    peCode: string;
+    title: string;
+    service: string | null;
+    lineType: string | null;
+    valleyOfDeath: boolean;
+  }>;
+  edges: Array<{
+    from: string;
+    to: string;
+    relType: string;
+    confidence: string;
+    status: string;
+    evidence: string;
+  }>;
+}
+
+export interface WatchSignalItem {
+  id: string;
+  peCode: string;
+  title: string;
+  fy: number;
+  stage: string;
+  action: string;
+  amount: number | null;
+  note: string | null;
 }
 
 /** Portfolio-level aggregates for the finder summary strip. */

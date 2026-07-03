@@ -6,26 +6,40 @@ import { useNavigate } from 'react-router-dom';
 import { useApi } from '../../lib/use-api.js';
 import { useMe } from '../../lib/me.js';
 import {
+  getCapabilities,
   getProgramElementSummary,
   getProgramElementWatchlistFeed,
   getProgramElementsList,
+  getWatchSignals,
 } from './api.js';
 import type { ProgramElementListItem } from './types.js';
-import { serviceLabel, useWatchToggle } from './pe-shared.js';
+import { LINE_TYPES, serviceLabel, useWatchToggle } from './pe-shared.js';
 import { FinderSummaryStrip } from './FinderSummaryStrip.js';
 import { FinderCatalogTable } from './FinderCatalogTable.js';
 import { FinderWatchlist } from './FinderWatchlist.js';
+import { CapabilityFinder, CapabilityHero } from './CapabilityFinder.js';
+import { MovementView } from './MovementView.js';
+import { MoneyGraphView } from './MoneyGraphView.js';
 
 const PAGE_SIZE = 50;
+
+// Line types shown on the facet strip. Reserved types (MILCON/TRANSFER/
+// CLASSIFIED) appear automatically once their ingests land — the strip only
+// renders types with live rows, so nothing fake shows meanwhile.
+const FACET_LINE_TYPES = ['RDTE_PE', 'PROCUREMENT_BLIN', 'OM_BLI'] as const;
 
 export function ProgramElementFinderPage() {
   const api = useApi();
   const navigate = useNavigate();
   const me = useMe();
 
-  const [view, setView] = useState<'index' | 'watch'>('index');
+  const [view, setView] = useState<'index' | 'capability' | 'movement' | 'graph' | 'watch'>(
+    'index',
+  );
   const [term, setTerm] = useState('');
   const [service, setService] = useState<string | null>(null);
+  const [lineType, setLineType] = useState<string | null>(null);
+  const [capabilitySlug, setCapabilitySlug] = useState<string | null>(null);
   const [hasDataOnly, setHasDataOnly] = useState(false);
   const [page, setPage] = useState(1);
 
@@ -50,11 +64,12 @@ export function ProgramElementFinderPage() {
   });
 
   const listQuery = useQuery({
-    queryKey: ['program-element-finder', 'index', q, service, hasDataOnly, page],
+    queryKey: ['program-element-finder', 'index', q, service, lineType, hasDataOnly, page],
     queryFn: () =>
       getProgramElementsList(api, {
         q: q || undefined,
         service: service || undefined,
+        line_type: lineType || undefined,
         has_data: hasDataOnly ? 'true' : undefined,
         page,
         limit: PAGE_SIZE,
@@ -63,6 +78,17 @@ export function ProgramElementFinderPage() {
     placeholderData: keepPreviousData,
     enabled: view === 'index',
   });
+
+  // Capability taxonomy (F4). Also powers the catalog hero; empty until seeded.
+  const capabilitiesQuery = useQuery({
+    queryKey: ['budget-lines-capabilities'],
+    queryFn: () => getCapabilities(api),
+    staleTime: 5 * 60 * 1000,
+  });
+  const openCapability = (slug: string) => {
+    setCapabilitySlug(slug);
+    setView('capability');
+  };
 
   const watchedQuery = useQuery({
     queryKey: ['program-element-finder', 'watch', service],
@@ -86,6 +112,15 @@ export function ProgramElementFinderPage() {
     enabled: view === 'watch' && watchedCodes.length > 0,
   });
 
+  // BL-3: normalized budget actions on watched lines (the money-graph signal
+  // feed — committee adds/cuts/new starts/terminations, not just delta events).
+  const watchSignalsQuery = useQuery({
+    queryKey: ['budget-lines-watch-signals'],
+    queryFn: () => getWatchSignals(api),
+    staleTime: 60 * 1000,
+    enabled: view === 'watch',
+  });
+
   const rows = listQuery.data?.data ?? [];
   const total = listQuery.data?.total ?? 0;
   const watchingCount = summaryQuery.data?.watched ?? watchedRows.length;
@@ -95,9 +130,10 @@ export function ProgramElementFinderPage() {
     <section className="pe-finder">
       <header className="pe-finder-head">
         <div className="pe-finder-head-l">
-          <h1>Program Elements</h1>
+          <h1>Budget Lines</h1>
           <p className="pe-finder-sub">
-            Budget line items you track across the President&apos;s Budget, committee marks, and
+            Every RDT&amp;E program element, procurement BLIN, and O&amp;M budget line — one
+            navigable, sourced graph across the President&apos;s Budget, committee marks, and
             enacted appropriations.
           </p>
         </div>
@@ -116,15 +152,31 @@ export function ProgramElementFinderPage() {
       <Segmented
         className="pe-finder-tabs"
         value={view}
-        onChange={(value) => setView(value as 'index' | 'watch')}
+        onChange={(value) =>
+          setView(value as 'index' | 'capability' | 'movement' | 'graph' | 'watch')
+        }
         options={[
-          { label: 'All elements', value: 'index' },
+          { label: 'Budget lines', value: 'index' },
+          { label: 'Capability finder', value: 'capability' },
+          { label: 'Movement', value: 'movement' },
+          { label: 'Money graph', value: 'graph' },
           { label: `Watchlist · ${watchingCount}`, value: 'watch' },
         ]}
       />
 
-      {view === 'index' ? (
+      {view === 'capability' ? (
+        <CapabilityFinder initialSlug={capabilitySlug} onOpen={onOpen} />
+      ) : view === 'movement' ? (
+        <MovementView onOpen={onOpen} />
+      ) : view === 'graph' ? (
+        <MoneyGraphView onOpen={onOpen} />
+      ) : view === 'index' ? (
         <>
+          <CapabilityHero
+            capabilities={capabilitiesQuery.data ?? []}
+            loading={capabilitiesQuery.isLoading}
+            onFind={openCapability}
+          />
           <FinderSummaryStrip
             summary={summaryQuery.data}
             loading={summaryQuery.isLoading}
@@ -134,7 +186,7 @@ export function ProgramElementFinderPage() {
 
           <div className="pe-idx-card">
             <div className="pe-idx-card-head">
-              <h3>All program elements</h3>
+              <h3>All budget lines</h3>
               {!listQuery.isError ? (
                 <span className="pe-idx-count">
                   {total.toLocaleString()} shown
@@ -148,6 +200,15 @@ export function ProgramElementFinderPage() {
                   onClick={() => withPageReset(() => setService(null))}
                 >
                   {serviceLabel(service)} <CloseOutlined />
+                </button>
+              ) : null}
+              {lineType ? (
+                <button
+                  type="button"
+                  className="pe-filter-chip"
+                  onClick={() => withPageReset(() => setLineType(null))}
+                >
+                  {LINE_TYPES[lineType]?.short ?? lineType} <CloseOutlined />
                 </button>
               ) : null}
               <div className="pe-idx-head-controls">
@@ -172,11 +233,34 @@ export function ProgramElementFinderPage() {
               </div>
             </div>
 
+            {/* line_type facet strip (money-graph reframe). Types render even at
+                zero count so users learn the model; reserved types stay hidden. */}
+            <div className="pe-typebar">
+              <button
+                type="button"
+                className={`pe-typebtn${!lineType ? ' on' : ''}`}
+                onClick={() => withPageReset(() => setLineType(null))}
+              >
+                All types
+              </button>
+              {FACET_LINE_TYPES.map((k) => (
+                <button
+                  key={k}
+                  type="button"
+                  className={`pe-typebtn${lineType === k ? ' on' : ''}`}
+                  onClick={() => withPageReset(() => setLineType(lineType === k ? null : k))}
+                >
+                  <span className="pe-tb-swatch" style={{ background: LINE_TYPES[k]!.color }} />
+                  {LINE_TYPES[k]!.short}
+                </button>
+              ))}
+            </div>
+
             {listQuery.isError ? (
               <Alert
                 type="error"
                 showIcon
-                message="Unable to load program elements"
+                message="Unable to load budget lines"
                 description={
                   listQuery.error instanceof Error
                     ? listQuery.error.message
@@ -209,6 +293,34 @@ export function ProgramElementFinderPage() {
         </>
       ) : (
         <>
+          {(watchSignalsQuery.data?.length ?? 0) > 0 ? (
+            <div className="pe-idx-card bl-watch-signals">
+              <div className="pe-idx-card-head">
+                <h3>Budget-action signals</h3>
+                <span className="pe-idx-count">
+                  normalized committee events on your watched lines
+                </span>
+              </div>
+              <div className="bl-panel-body">
+                <div className="bl-mv-feed">
+                  {(watchSignalsQuery.data ?? []).slice(0, 8).map((s) => (
+                    <div key={s.id} className="bl-mv-row" onClick={() => onOpen(s.peCode)}>
+                      <div className="bl-mv-main">
+                        <div className="bl-mv-t">
+                          {s.title} <span className="bl-stage-chip">{s.stage.replace('_', '-')}</span>
+                        </div>
+                        {s.note ? <div className="bl-mv-why">{s.note}</div> : null}
+                        <div className="bl-mv-meta">
+                          <span className="pe-code-badge sm">{s.peCode}</span>
+                          <span className="pe-dot-sep">·</span>FY{s.fy}
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </div>
+          ) : null}
           {watchedQuery.isError ? (
             <Alert
               type="error"

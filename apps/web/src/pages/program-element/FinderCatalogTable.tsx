@@ -2,10 +2,26 @@ import { useMemo, useState } from 'react';
 import { Empty, Skeleton } from 'antd';
 import { CaretDownOutlined, CaretUpOutlined } from '@ant-design/icons';
 import { Sparkline, fmtMoneyM } from './charts/index.js';
-import { BaBadge, PeCodeBadge, ServiceCell, SignalPill, WatchStar } from './pe-shared.js';
+import {
+  ActionSignalChip,
+  LineTypeBadge,
+  MaturityMini,
+  PeCodeBadge,
+  ServiceCell,
+  SignalPill,
+  TierBadge,
+  WatchStar,
+} from './pe-shared.js';
 import type { ProgramElementListItem } from './types.js';
 
-type SortKey = 'peCode' | 'service' | 'latestRequest' | 'latestEnacted' | 'deltaPct' | 'billCount';
+type SortKey =
+  | 'peCode'
+  | 'service'
+  | 'latestRequest'
+  | 'latestEnacted'
+  | 'deltaPct'
+  | 'maturity'
+  | 'appropScore';
 interface SortState {
   key: SortKey | null;
   dir: 'asc' | 'desc';
@@ -47,14 +63,15 @@ const HEADERS: Array<{
   label: string;
   align?: 'r' | 'c';
 }> = [
-  { key: 'peCode', label: 'Program element' },
+  { key: 'peCode', label: 'Budget line' },
+  { key: null, label: 'Type', align: 'c' },
   { key: 'service', label: 'Service', align: 'c' },
-  { key: null, label: 'BA', align: 'c' },
   { key: 'latestRequest', label: 'Request', align: 'r' },
   { key: 'latestEnacted', label: 'Enacted', align: 'r' },
   { key: 'deltaPct', label: 'Δ vs req', align: 'r' },
-  { key: null, label: '6-yr trend', align: 'c' },
-  { key: 'billCount', label: 'Bills', align: 'c' },
+  { key: null, label: '6-yr', align: 'c' },
+  { key: 'maturity', label: 'Maturity', align: 'c' },
+  { key: 'appropScore', label: 'Approp.', align: 'c' },
   { key: null, label: 'Signal', align: 'c' },
   { key: null, label: '', align: 'c' },
 ];
@@ -150,10 +167,10 @@ export function FinderCatalogTable({ rows, loading, onOpen, onToggleWatch, watch
                 </span>
               </div>
               <div className="pe-td c" role="cell">
-                <ServiceCell service={pe.service} />
+                <LineTypeBadge lineType={pe.lineType} small />
               </div>
               <div className="pe-td c" role="cell">
-                <BaBadge budgetActivity={pe.budgetActivity} />
+                <ServiceCell service={pe.service} />
               </div>
               <div className="pe-td r" role="cell">
                 <MoneyCell value={pe.latestRequest} fy={pe.latestRequestFy} />
@@ -181,11 +198,22 @@ export function FinderCatalogTable({ rows, loading, onOpen, onToggleWatch, watch
                   <span className="pe-dash">—</span>
                 )}
               </div>
-              <div className="pe-td c pe-num" role="cell">
-                {pe.billCount ?? '—'}
+              <div className="pe-td c" role="cell">
+                <MaturityMini value={pe.maturity} />
               </div>
               <div className="pe-td c" role="cell">
-                <SignalPill item={pe} />
+                {pe.appropScore != null ? (
+                  <TierBadge tier={pe.appropTier} label={String(pe.appropScore)} />
+                ) : (
+                  <span className="pe-dash">—</span>
+                )}
+              </div>
+              <div className="pe-td c" role="cell">
+                {pe.actionSignalType ? (
+                  <ActionSignalChip type={pe.actionSignalType} tone={pe.actionSignalTone} />
+                ) : (
+                  <SignalPill item={pe} />
+                )}
               </div>
               <div className="pe-td c" role="cell">
                 <WatchStar

@@ -44,6 +44,10 @@ function setupApi(rows: Partial<ProgramElementListItem>[]) {
     if (url.includes('/api/intelligence/changes')) {
       return { data: [] };
     }
+    // BL-1: capability taxonomy (empty = hero hidden, finder shows seed note).
+    if (url.includes('/api/budget-lines/capabilities')) {
+      return { data: { data: [] } };
+    }
     // Default: the list endpoint.
     return { data: { data: rows, total: rows.length, page: 1, limit: 50 } };
   });

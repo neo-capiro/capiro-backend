@@ -1,5 +1,7 @@
 import { Module } from '@nestjs/common';
 import { ProgramElementController } from './program-element.controller.js';
+import { BudgetLinesController } from './budget-lines.controller.js';
+import { BudgetLinesReadService } from './budget-lines-read.service.js';
 import { ProgramElementReadService } from './program-element-read.service.js';
 import { ProgramElementWriterService } from './program-element-writer.service.js';
 import { ConferenceProbabilityService } from './models/conference-probability.service.js';
@@ -17,8 +19,9 @@ import { IntelligenceModule } from '../intelligence/intelligence.module.js';
 // one-directional import — no forwardRef / circular dependency is needed.
 @Module({
   imports: [IntelligenceModule],
-  controllers: [ProgramElementController, ProgramsController],
+  controllers: [ProgramElementController, BudgetLinesController, ProgramsController],
   providers: [
+    BudgetLinesReadService,
     ProgramElementReadService,
     ProgramElementWriterService,
     ConferenceProbabilityService,

@@ -49,6 +49,19 @@ export class QueryProgramElementsDto {
   @IsIn(['true', 'false'])
   watched?: string;
 
+  // BL-1: money-graph line-type facet (intelligence cache). MILCON_PROJECT /
+  // TRANSFER / CLASSIFIED are registry-reserved — accepted here so the facet
+  // strip doesn't 400 when those ingests land; they match zero rows today.
+  @IsOptional()
+  @IsString()
+  @IsIn(['RDTE_PE', 'PROCUREMENT_BLIN', 'OM_BLI', 'MILCON_PROJECT', 'TRANSFER', 'CLASSIFIED'])
+  line_type?: string;
+
+  // BL-1: capability slug facet ("I sell X" → lines with an accepted match).
+  @IsOptional()
+  @IsString()
+  capability?: string;
+
   @IsOptional()
   @Type(() => Number)
   @Min(0)

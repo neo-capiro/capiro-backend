@@ -54,6 +54,99 @@ export function SignalPill({ item }: { item: ProgramElementListItem }) {
   return <span className={`pe-sig-pill tone-${meta.tone}`}>{meta.label}</span>;
 }
 
+// ── BL-1: money-graph registries + badges ─────────────────────────────────────
+
+/**
+ * line_type registry (mockup data-spine): label/short/color per type. MILCON /
+ * TRANSFER / CLASSIFIED are reserved — they render correctly the day those
+ * ingests land, and the facet strip hides types with zero rows.
+ */
+export const LINE_TYPES: Record<
+  string,
+  { label: string; short: string; code: string; color: string }
+> = {
+  RDTE_PE: { label: 'RDT&E · Program Element', short: 'RDT&E PE', code: 'PE', color: '#2A57CE' },
+  PROCUREMENT_BLIN: { label: 'Procurement · BLIN', short: 'Proc BLIN', code: 'BLIN', color: '#1A6E78' },
+  OM_BLI: { label: 'O&M · Budget Line', short: 'O&M BLI', code: 'BLI', color: '#A26913' },
+  MILCON_PROJECT: { label: 'MILCON · Project', short: 'MILCON', code: 'MC', color: '#4E5A86' },
+  TRANSFER: { label: 'Transfer authority', short: 'Transfer', code: 'TR', color: '#7A5C3A' },
+  CLASSIFIED: { label: 'Classified program', short: 'Classified', code: '•••', color: '#3A3D45' },
+};
+
+export function LineTypeBadge({ lineType, small }: { lineType: string | null | undefined; small?: boolean }) {
+  const t = lineType ? LINE_TYPES[lineType] : undefined;
+  if (!t) return <span className="pe-dash">—</span>;
+  return (
+    <span
+      className={`pe-linetype-badge${small ? ' sm' : ''}`}
+      style={{ color: t.color, background: `${t.color}18` }}
+      title={t.label}
+    >
+      {t.short}
+    </span>
+  );
+}
+
+/** Compact 0-5 transition-maturity pips (F19). Null = not applicable. */
+export function MaturityMini({ value }: { value: number | null | undefined }) {
+  if (value == null) return <span className="pe-dash" title="Not applicable">—</span>;
+  const color = value >= 4 ? 'var(--success)' : value >= 2 ? 'var(--notable)' : 'var(--accent)';
+  return (
+    <span className="pe-mat-mini" title={`Transition maturity ${value}/5`}>
+      {[1, 2, 3, 4, 5].map((i) => (
+        <span
+          key={i}
+          className="pe-mm-pip"
+          style={{ background: i <= value ? color : 'var(--border-1)' }}
+        />
+      ))}
+      <span className="pe-mm-n" style={{ color }}>
+        {value}
+      </span>
+    </span>
+  );
+}
+
+const TIER_COLOR: Record<string, string> = {
+  high: '#2E6B43',
+  med: '#A26913',
+  low: '#B5301B',
+};
+
+/** Appropriability tier badge (F27). `label` overrides the tier text (e.g. score). */
+export function TierBadge({ tier, label }: { tier: string | null | undefined; label?: string }) {
+  if (!tier) return <span className="pe-dash">—</span>;
+  const color = TIER_COLOR[tier] ?? 'var(--ink-3)';
+  const text = label ?? (tier === 'high' ? 'High' : tier === 'med' ? 'Medium' : 'Low');
+  return (
+    <span className="pe-tier-badge" style={{ color, background: `${color}18` }} title={`Appropriability: ${tier}`}>
+      {text}
+    </span>
+  );
+}
+
+/** Latest normalized budget-action chip (BL catalog Signal column). */
+const ACTION_SIGNAL_META: Record<string, { label: string; tone: string }> = {
+  add: { label: 'Add', tone: 'notable' },
+  cut: { label: 'Cut', tone: 'critical' },
+  new_start: { label: 'New start', tone: 'info' },
+  termination: { label: 'Zeroed', tone: 'critical' },
+  hold: { label: 'Fenced', tone: 'notable' },
+  transfer: { label: 'Transfer', tone: 'info' },
+};
+
+export function ActionSignalChip({
+  type,
+  tone,
+}: {
+  type: string | null | undefined;
+  tone?: string | null;
+}) {
+  if (!type) return null;
+  const meta = ACTION_SIGNAL_META[type] ?? { label: type, tone: tone ?? 'info' };
+  return <span className={`pe-sig-pill tone-${tone ?? meta.tone}`}>{meta.label}</span>;
+}
+
 export function WatchStar({
   watched,
   onToggle,

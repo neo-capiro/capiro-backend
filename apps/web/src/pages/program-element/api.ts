@@ -19,6 +19,14 @@ import type {
   AcquisitionPersonnelDetail,
   EngagementContactListItem,
   ProgramElementSummary,
+  CapabilitySummary,
+  CapabilityRecommendationsResponse,
+  BudgetActionItem,
+  RelationshipItem,
+  IncumbentItem,
+  MovementResponse,
+  MoneyGraphResponse,
+  WatchSignalItem,
 } from './types.js';
 import type { IntelligenceChange } from '../intelligence/types.js';
 
@@ -184,9 +192,88 @@ export async function getProgramElementsList(
     limit?: number;
     has_data?: 'true' | 'false';
     watched?: 'true' | 'false';
+    /** BL-1: money-graph line-type facet (RDTE_PE | PROCUREMENT_BLIN | OM_BLI). */
+    line_type?: string;
+    /** BL-1: capability slug facet. */
+    capability?: string;
   },
 ): Promise<ProgramElementListResponse> {
   return (await api.get<ProgramElementListResponse>('/api/program-elements', { params })).data;
+}
+
+// ── BL-1: capabilities (F4 finder) ────────────────────────────────────────────
+export async function getCapabilities(api: AxiosInstance): Promise<CapabilitySummary[]> {
+  const rows = (await api.get<{ data: CapabilitySummary[] }>('/api/budget-lines/capabilities')).data
+    ?.data;
+  // Boundary hygiene: only well-formed capability rows reach the hero/finder.
+  return (Array.isArray(rows) ? rows : []).filter(
+    (c): c is CapabilitySummary => typeof c?.slug === 'string' && typeof c?.name === 'string',
+  );
+}
+
+export async function getCapabilityRecommendations(
+  api: AxiosInstance,
+  slug: string,
+): Promise<CapabilityRecommendationsResponse> {
+  return (
+    await api.get<CapabilityRecommendationsResponse>(
+      `/api/budget-lines/capabilities/${encodeURIComponent(slug)}/recommendations`,
+    )
+  ).data;
+}
+
+// ── BL-3: Movement / Money graph / Watchlist signals ─────────────────────────
+export async function getMovement(api: AxiosInstance): Promise<MovementResponse> {
+  return (await api.get<MovementResponse>('/api/budget-lines/movement')).data;
+}
+
+export async function getMoneyGraph(api: AxiosInstance): Promise<MoneyGraphResponse> {
+  return (await api.get<MoneyGraphResponse>('/api/budget-lines/graph')).data;
+}
+
+export async function getWatchSignals(api: AxiosInstance): Promise<WatchSignalItem[]> {
+  const rows = (await api.get<{ data: WatchSignalItem[] }>('/api/budget-lines/watchlist/signals'))
+    .data?.data;
+  return Array.isArray(rows) ? rows : [];
+}
+
+// ── BL-2: per-line money-graph reads ─────────────────────────────────────────
+// Boundary hygiene on all three: a malformed payload yields [] rather than
+// crashing every panel on the page (same rule as getCapabilities).
+export async function getBudgetActions(
+  api: AxiosInstance,
+  peCode: string,
+): Promise<BudgetActionItem[]> {
+  const rows = (
+    await api.get<BudgetActionItem[]>(
+      `/api/program-elements/${encodeURIComponent(peCode)}/actions`,
+    )
+  ).data;
+  return Array.isArray(rows) ? rows : [];
+}
+
+export async function getBudgetLineRelationships(
+  api: AxiosInstance,
+  peCode: string,
+): Promise<RelationshipItem[]> {
+  const rows = (
+    await api.get<RelationshipItem[]>(
+      `/api/program-elements/${encodeURIComponent(peCode)}/relationships`,
+    )
+  ).data;
+  return Array.isArray(rows) ? rows : [];
+}
+
+export async function getIncumbents(
+  api: AxiosInstance,
+  peCode: string,
+): Promise<IncumbentItem[]> {
+  const rows = (
+    await api.get<{ data: IncumbentItem[] }>(
+      `/api/program-elements/${encodeURIComponent(peCode)}/incumbents`,
+    )
+  ).data?.data;
+  return Array.isArray(rows) ? rows : [];
 }
 
 /** Portfolio aggregates for the finder summary strip (KPI cards + trend + donut). */

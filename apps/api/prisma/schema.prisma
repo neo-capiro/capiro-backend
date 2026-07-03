@@ -4115,3 +4115,144 @@ model ComplianceCheck {
   @@index([tenantId, trigger])
   @@map("compliance_check")
 }
+
+// ─────────────────────────────────────────────────────────────────────────
+// BUDGET LINES / MONEY GRAPH (BL-0 — budget-lines-ui-implementation-plan.md §2,
+// object model per defense-money-graph-consolidated-plan.md §1.2/§1.3/§1.6).
+// GLOBAL tables (no tenant_id / RLS): public-domain budget data, same as
+// program_element / federal_award. All derived rows are regenerable from their
+// source tables — derive verbs delete-and-rewrite their own derivedBy cohort,
+// so nothing here is ever hand-edited in place.
+// ─────────────────────────────────────────────────────────────────────────
+
+/// §1.2 — one normalized committee/appropriations event per (line, fy, stage,
+/// action), derived deterministically from program_element_year marks by
+/// derive-budget-actions. Powers the Movement feed, watchlist signal feed,
+/// catalog Signal chips, and the 360 Legislation tab's action list.
+/// stage: PB|HASC|SASC|HAC_D|SAC_D|CONF|ENACTED (REPROG/SUPP reserved for
+/// report-language/reprogramming ingests that don't exist yet).
+/// action: add|cut|new_start|termination (hold|transfer|rescission reserved).
+model BudgetAction {
+  id           String   @id @default(uuid()) @db.Uuid
+  peCode       String   @map("pe_code") @db.VarChar(16)
+  fy           Int
+  stage        String   @db.VarChar(12)
+  action       String   @db.VarChar(16)
+  /// Signed $ MILLIONS measured against `baseline`; null for non-monetary events.
+  amount       Decimal? @db.Decimal(14, 2)
+  /// What `amount` is measured against: request|prior_stage|prior_year.
+  baseline     String   @db.VarChar(12)
+  /// Render-safe one-liner ("SASC +$42.0M over request").
+  note         String?  @db.Text
+  /// §1.4 provenance: the source numbers this action was derived from.
+  evidenceJson Json     @default("{}") @map("evidence_jsonb")
+  derivedBy    String   @map("derived_by") @db.VarChar(48)
+  createdAt    DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt    DateTime @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  @@unique([peCode, fy, stage, action], map: "budget_action_natural_key")
+  @@index([peCode], map: "budget_action_pe_code_idx")
+  @@index([fy, stage], map: "budget_action_fy_stage_idx")
+  @@index([action], map: "budget_action_action_idx")
+  @@map("budget_action")
+}
+
+/// §1.3 — typed, evidence-bearing edge between two budget lines. status
+/// 'candidate' edges render dashed + labeled and are NEVER silently promoted;
+/// acceptance is a human review action (mirrors PeProgramMatch discipline).
+model BudgetLineRelationship {
+  id           String   @id @default(uuid()) @db.Uuid
+  fromPeCode   String   @map("from_pe_code") @db.VarChar(16)
+  toPeCode     String   @map("to_pe_code") @db.VarChar(16)
+  /// related_pe_exhibit|same_program|rdte_to_procurement|procurement_to_om|
+  /// predecessor_successor|same_capability
+  relType      String   @map("rel_type") @db.VarChar(40)
+  confidence   String   @db.VarChar(8) // high|med|low
+  status       String   @default("accepted") @db.VarChar(12) // accepted|candidate
+  /// Human-readable evidence ("P-40 'Related PEs' lists 0604011A").
+  evidence     String   @db.Text
+  evidenceJson Json     @default("{}") @map("evidence_jsonb")
+  derivedBy    String   @map("derived_by") @db.VarChar(48)
+  createdAt    DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt    DateTime @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  @@unique([fromPeCode, toPeCode, relType], map: "budget_line_relationship_natural_key")
+  @@index([fromPeCode], map: "budget_line_relationship_from_idx")
+  @@index([toPeCode], map: "budget_line_relationship_to_idx")
+  @@index([relType], map: "budget_line_relationship_type_idx")
+  @@map("budget_line_relationship")
+}
+
+/// §1.6 — curated demand-side capability ("I sell X — where's the money?").
+/// Seeded from scripts/__data__/corrected_json/capabilities_seed.json by
+/// seed-capabilities; grown only by curation, never by unreviewed inference.
+model Capability {
+  id           String   @id @default(uuid()) @db.Uuid
+  slug         String   @unique @db.VarChar(32)
+  name         String
+  /// Search aliases ("GPS-denied", "alt-nav", "M-code").
+  aliases      String[] @default([])
+  /// Two-level taxonomy path ("Autonomy › Positioning & Timing").
+  taxonomyPath String   @map("taxonomy_path")
+  description  String?  @db.Text
+  createdAt    DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt    DateTime @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  matches CapabilityBudgetLineMatch[]
+
+  @@map("capability")
+}
+
+/// Capability ↔ budget line match with auditable evidence. matchedOn records
+/// exactly which signal produced the match ('title_keyword:PNT',
+/// 'description_keyword:counter-UAS', 'curated'), so the finder can always
+/// answer "why is this line recommended?".
+model CapabilityBudgetLineMatch {
+  id           String   @id @default(uuid()) @db.Uuid
+  capabilityId String   @map("capability_id") @db.Uuid
+  peCode       String   @map("pe_code") @db.VarChar(16)
+  confidence   String   @db.VarChar(8) // high|med|low
+  matchedOn    String   @map("matched_on")
+  status       String   @default("accepted") @db.VarChar(12) // accepted|candidate|rejected
+  derivedBy    String   @map("derived_by") @db.VarChar(48)
+  createdAt    DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt    DateTime @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  capability Capability @relation(fields: [capabilityId], references: [id], onDelete: Cascade)
+
+  @@unique([capabilityId, peCode], map: "capability_budget_line_match_natural_key")
+  @@index([peCode], map: "capability_budget_line_match_pe_idx")
+  @@map("capability_budget_line_match")
+}
+
+/// Catalog-sortable engine outputs, refreshed wholesale by
+/// derive-intelligence-cache (delete-and-rewrite). One row per live budget
+/// line. The per-PE intelligence endpoint still computes live; this cache
+/// exists so the CATALOG can filter/sort thousands of lines by maturity /
+/// appropriability / signal without running engines per row per request.
+model ProgramElementIntelligenceCache {
+  peCode        String   @id @map("pe_code") @db.VarChar(16)
+  /// RDTE_PE|PROCUREMENT_BLIN|OM_BLI (MILCON_PROJECT/TRANSFER/CLASSIFIED reserved).
+  lineType      String?  @map("line_type") @db.VarChar(20)
+  /// Transition-maturity rung 0-5 (F19); null when not applicable/classifiable.
+  maturity      Int?
+  /// Full ladder: rungs with reached/evidence strings.
+  maturityJson  Json     @default("{}") @map("maturity_jsonb")
+  appropTier    String?  @map("approp_tier") @db.VarChar(8) // high|med|low
+  appropScore   Int?     @map("approp_score")
+  /// Factor breakdown incl. unscored factors (F27) — per-factor evidence.
+  appropJson    Json     @default("{}") @map("approp_jsonb")
+  /// Latest budget_action on the line: add|cut|new_start|termination|... + tone.
+  signalType    String?  @map("signal_type") @db.VarChar(16)
+  signalTone    String?  @map("signal_tone") @db.VarChar(12)
+  signalFy      Int?     @map("signal_fy")
+  valleyOfDeath Boolean  @default(false) @map("valley_of_death")
+  postureJson   Json     @default("{}") @map("posture_jsonb")
+  anomaliesJson Json     @default("[]") @map("anomalies_jsonb")
+  computedAt    DateTime @default(now()) @map("computed_at") @db.Timestamptz(6)
+
+  @@index([lineType], map: "pe_intelligence_cache_line_type_idx")
+  @@index([appropScore], map: "pe_intelligence_cache_approp_idx")
+  @@index([signalType], map: "pe_intelligence_cache_signal_idx")
+  @@map("program_element_intelligence_cache")
+}

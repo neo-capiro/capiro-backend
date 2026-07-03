@@ -29,3 +29,15 @@ export {
   type AnomalyType,
   type Anomaly,
 } from './budget-anomaly.js';
+export {
+  buildMaturityLadder,
+  type MaturityLadderInput,
+  type MaturityRung,
+  type MaturityLadder,
+} from './maturity-ladder.js';
+export {
+  scoreAppropriability,
+  type AppropriabilityInput,
+  type AppropriabilityFactor,
+  type AppropriabilityResult,
+} from './appropriability.js';

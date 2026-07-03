@@ -223,12 +223,12 @@ describe('ProgramElementWatchPage', () => {
       fireEvent.click(screen.getByRole('tab', { name: /Legislation/i }));
       expect(await screen.findByTestId('bills-panel')).toHaveTextContent('bills:1');
 
-      // Contractors tab: contractors panel.
-      fireEvent.click(screen.getByRole('tab', { name: /Contractors/i }));
+      // Incumbents tab (BL-2, was Contractors): incumbent map + contractors panel.
+      fireEvent.click(screen.getByRole('tab', { name: /Incumbents/i }));
       expect(await screen.findByTestId('contractors-panel')).toHaveTextContent('contractors:1');
 
-      // Team tab: program team panel.
-      fireEvent.click(screen.getByRole('tab', { name: /Team/i }));
+      // People & office tab (BL-2, was Team): program team panel.
+      fireEvent.click(screen.getByRole('tab', { name: /People & office/i }));
       expect(await screen.findByTestId('program-team-panel')).toHaveTextContent('program-team:1');
     },
     15000,
