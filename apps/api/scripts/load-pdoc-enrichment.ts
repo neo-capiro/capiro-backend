@@ -64,7 +64,14 @@ async function main(): Promise<void> {
         existing.raw && typeof existing.raw === 'object' && !Array.isArray(existing.raw)
           ? (existing.raw as Record<string, unknown>)
           : {};
-      const mergedRaw = { ...existingRaw, pDocDetail: pe.pDocDetail ?? null };
+      // PRESENCE-based: only touch the pDocDetail key when this artifact item
+      // actually carries one. `pe.pDocDetail ?? null` used to null the key on
+      // EVERY row regardless of whether the artifact supplied it, which is how
+      // two prior loads reported "802 updated" while silently writing null
+      // pDocDetail for all of them (caught by browser verification, fixed in
+      // #205). Every other key already on raw survives untouched either way.
+      const mergedRaw =
+        pe.pDocDetail !== undefined ? { ...existingRaw, pDocDetail: pe.pDocDetail } : existingRaw;
 
       await prisma.programElement.update({
         where: { peCode: pe.peCode },

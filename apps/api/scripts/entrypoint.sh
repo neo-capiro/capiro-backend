@@ -371,6 +371,9 @@ case "${1:-serve}" in
   # raw.pDocDetail (qty, unit cost, schedule, acquisition strategy, contractors,
   # milestones, risks) to EXISTING program elements. Enrich-only. Pass --artifact.
   load-pdoc-enrichment) shift; exec ./node_modules/.bin/tsx scripts/load-pdoc-enrichment.ts "$@" ;;
+  # OP-5 O&M narrative loader (batch-10): SAG-code-joined descriptions -> EXISTING
+  # O&M program elements only. Enrich-only, presence-based raw.op5Detail merge.
+  load-om-op5) shift; exec ./node_modules/.bin/tsx scripts/load-om-op5.ts "$@" ;;
   # O-1 Operation & Maintenance loader: O&M detail lines as program elements
   # (appropriationType=OM, pe_code=<account><line>). Pass --artifact. O-1 is $K.
   load-om) shift; exec ./node_modules/.bin/tsx scripts/load-om.ts "$@" ;;
