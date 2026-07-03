@@ -247,6 +247,13 @@ case "${1:-serve}" in
   enrich-award-pe) shift; exec ./node_modules/.bin/tsx scripts/enrich-award-pe.ts "$@" ;;
   # Seed/refresh the curated DoD-acquisition-program -> PE map (idempotent upserts).
   seed-acq-program-map) shift; exec ./node_modules/.bin/tsx scripts/seed-acq-program-map.ts "$@" ;;
+  # Materialize the Program graph from the curated MDAP map: one Program per MDAP
+  # code + deterministic 'accepted' pe_program_match rows (evidenceTier mdap_curated).
+  # This is what populates the PE-profile Programs panel. Dry-run default; --commit.
+  seed-programs) shift; exec ./node_modules/.bin/tsx scripts/seed-programs.ts "$@" ;;
+  # Propose FUZZY PE/project -> Program matches (alias-trigram) as 'candidate' rows
+  # for human review. Never auto-accepts. Dry-run default; --apply to insert.
+  match-pe-program) shift; exec ./node_modules/.bin/tsx scripts/match-pe-program.ts "$@" ;;
   # Read-only: print federal_award PE/acq-program coverage counts as JSON. No writes.
   report-award-pe-coverage) shift; exec ./node_modules/.bin/tsx scripts/report-award-pe-coverage.ts "$@" ;;
   # Read-only PE mark-coverage report: per-FY mark_present / expected_blank /
