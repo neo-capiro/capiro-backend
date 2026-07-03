@@ -95,6 +95,11 @@ export class ProgramElementController {
     return this.service.getProgramElement(peCode, ctx);
   }
 
+  @Get(':peCode/intelligence')
+  intelligence(@Param('peCode') peCode: string) {
+    return this.service.getIntelligence(peCode);
+  }
+
   @Get(':peCode/timeline')
   timeline(@Param('peCode') peCode: string) {
     return this.service.getTimeline(peCode);

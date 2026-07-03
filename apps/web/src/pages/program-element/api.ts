@@ -29,6 +29,17 @@ export async function getProgramElementDetail(
   ).data;
 }
 
+export async function getProgramElementIntelligence(
+  api: AxiosInstance,
+  peCode: string,
+): Promise<import('./IntelligenceChips.js').PeIntelligence> {
+  return (
+    await api.get<import('./IntelligenceChips.js').PeIntelligence>(
+      `/api/program-elements/${encodeURIComponent(peCode)}/intelligence`,
+    )
+  ).data;
+}
+
 export async function getProgramElementBills(
   api: AxiosInstance,
   peCode: string,

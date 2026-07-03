@@ -10,6 +10,7 @@ import { compareProofPackSources } from './proof-pack.js';
 import { confidenceBand } from './matching/program-match-thresholds.js';
 import { computePbComparison, type BudgetPositionLike } from './budget-position.js';
 import { normalizeServiceFilter } from './service-filter.js';
+import { buildIntelligence } from './intelligence/build-intelligence.js';
 
 export interface ProgramElementListQuery {
   service?: string;
@@ -277,6 +278,64 @@ export class ProgramElementReadService {
       total,
       page: 1,
       limit: rows.length,
+    };
+  }
+
+  /**
+   * Intelligence verdict for one budget line (product plan F1 chips): committee
+   * posture, procurement runway, acquisition maturity, anomalies — computed by
+   * the pure classifiers over the line's stored rows. Tenant-agnostic reference
+   * data; small queries, no cache (the underlying rows change only on loads).
+   */
+  async getIntelligence(peCode: string) {
+    const code = peCode.toUpperCase();
+    const pe = await this.prisma.programElement.findUnique({
+      where: { peCode: code },
+      select: {
+        peCode: true,
+        appropriationType: true,
+        budgetActivity: true,
+        years: {
+          orderBy: { fy: 'asc' },
+          select: {
+            fy: true, request: true, hascMark: true, sascMark: true,
+            hacDMark: true, sacDMark: true, conference: true, enacted: true,
+          },
+        },
+      },
+    });
+    if (!pe) throw new NotFoundException(`Unknown program element ${peCode}`);
+    const dec = (v: unknown): number | null =>
+      v === null || v === undefined ? null : Number(v);
+    const years = pe.years.map((y) => ({
+      fy: y.fy,
+      request: dec(y.request), hascMark: dec(y.hascMark), sascMark: dec(y.sascMark),
+      hacDMark: dec(y.hacDMark), sacDMark: dec(y.sacDMark),
+      conference: dec(y.conference), enacted: dec(y.enacted),
+    }));
+    // Stated FYDP outyears (PB budget positions) extend the runway series.
+    const positions = await this.prisma.programElementBudgetPosition.findMany({
+      where: { peCode: code, valueKind: 'total', positionCycle: { startsWith: 'pb_' } },
+      select: { assertedFy: true, amount: true },
+    });
+    const maxYearFy = years.reduce((m, y) => Math.max(m, y.fy), 0);
+    const outyears = positions
+      .filter((o) => o.assertedFy > maxYearFy)
+      .map((o) => ({ fy: o.assertedFy, amount: dec(o.amount) }));
+    const line = await this.prisma.programElementProcurementLine.findFirst({
+      where: { peCode: code, quantity: { not: null } },
+      orderBy: { fy: 'desc' },
+      select: { quantity: true },
+    });
+    return {
+      peCode: pe.peCode,
+      ...buildIntelligence({
+        appropriationType: pe.appropriationType,
+        budgetActivity: pe.budgetActivity,
+        years,
+        outyears,
+        quantity: line ? dec(line.quantity) : null,
+      }),
     };
   }
 

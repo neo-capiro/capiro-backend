@@ -1,6 +1,8 @@
 import { Suspense, lazy, useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useNavigate, useParams } from 'react-router-dom';
+import { IntelligenceChips } from './IntelligenceChips.js';
+import { PdocDetailPanel, type PdocDetail } from './PdocDetailPanel.js';
 import { Alert, Button, Card, Col, Empty, Row, Skeleton, message } from 'antd';
 import {
   BellFilled,
@@ -17,6 +19,7 @@ import {
   getProgramElementPersonnel,
   getProgramElementSources,
   setProgramElementWatching,
+  getProgramElementIntelligence,
 } from './api.js';
 import { FyHistoryChart } from './FyHistoryChart.js';
 import { BillsTouchingPePanel } from './BillsTouchingPePanel.js';
@@ -223,6 +226,13 @@ export function ProgramElementWatchPage() {
     enabled: normalizedPeCode.length > 0,
   });
 
+  const intelligenceQuery = useQuery({
+    queryKey: ['program-element-intelligence', normalizedPeCode],
+    queryFn: () => getProgramElementIntelligence(api, normalizedPeCode),
+    enabled: normalizedPeCode.length > 0,
+    staleTime: 5 * 60 * 1000,
+  });
+
   const deltasQuery = useQuery({
     queryKey: ['program-element-deltas', normalizedPeCode],
     queryFn: () => getProgramElementDeltas(api, normalizedPeCode, { limit: 25 }),
@@ -339,6 +349,7 @@ export function ProgramElementWatchPage() {
                 <span className={`pill ${statusPillClass(detail.status)}`}>{detail.status}</span>
               ) : null}
             </div>
+            <IntelligenceChips intel={intelligenceQuery.data} />
           </div>
         </div>
         <div className="pe-hero-actions">
@@ -468,6 +479,11 @@ export function ProgramElementWatchPage() {
           <Empty description="No budget-year data has been synced for this Program Element yet." />
         </Card>
       )}
+
+      <PdocDetailPanel
+        detail={((detail as { raw?: { pDocDetail?: PdocDetail | null } | null }).raw ?? {})?.pDocDetail}
+        onOpenPe={(pe) => navigate(`/program-elements/${pe}`)}
+      />
 
       <Suspense
         fallback={
