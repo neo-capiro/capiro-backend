@@ -111,8 +111,10 @@ describe('FyHistoryChart', () => {
   test('renders with 5 FYs', () => {
     render(<FyHistoryChart rows={fiveYears} />);
     expect(screen.getByText(/Funding timeline/i)).toBeInTheDocument();
-    // Win-rate label copy: "Win rate (5y) +X.X% over request" (split across nodes)
-    expect(screen.getByTestId('pe-win-rate-label')).toHaveTextContent(/Win rate \(5y\)/i);
+    // Realization-rate label copy: "Realization rate (5y) +X.X% over request"
+    // (renamed from "Win rate" per the consolidated plan §4 guardrail — a budget
+    // line's request→enacted delta must not read like a sales metric; split across nodes)
+    expect(screen.getByTestId('pe-win-rate-label')).toHaveTextContent(/Realization rate \(5y\)/i);
     expect(screen.getByTestId('pe-win-rate-label')).toHaveTextContent(/over request/i);
     // Chart legend
     expect(screen.getByText('Request')).toBeInTheDocument();

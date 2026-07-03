@@ -17490,6 +17490,20 @@ button.engagement-debrief-badge--action:hover {
 /* Detail tab panels we already wrap in a surface shed their inner AntD card chrome. */
 .pe-watch-page .pe-plain-surface > .ant-card { border: none; }
 
+/* Description / narrative panel (Overview tab) — the plain-language "what this
+   program does" text that had no home in either the old or redesigned page. */
+.pe-desc-panel .pe-desc-text { font-size: 13.5px; line-height: 1.55; color: var(--ink-2); white-space: pre-line; }
+.pe-desc-citation { margin-top: 10px; padding-top: 10px; border-top: 1px solid var(--border-1); font-size: 11.5px; color: var(--ink-3); }
+
+/* P-40 exhibit detail — LLM acquisition-intel section (batch-5). */
+.pe-pdoc-llm { margin-top: 14px; padding-top: 12px; border-top: 1px solid var(--border-1); display: flex; flex-direction: column; gap: 10px; }
+.pe-pdoc-llm-row { display: flex; flex-direction: column; gap: 4px; font-size: 13px; color: var(--ink-2); }
+.pe-pdoc-llm-label { font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.03em; color: var(--ink-3); }
+.pe-pdoc-llm-list { margin: 0; padding-left: 18px; }
+.pe-pdoc-llm-list li { margin-bottom: 2px; }
+.pe-pdoc-llm-note { margin-top: 2px; font-size: 11px; color: var(--ink-4); font-style: italic; cursor: help; width: fit-content; }
+.pe-pdoc-source { margin-top: 12px; font-size: 11.5px; color: var(--ink-3); }
+
 /* Panel classes surfaced by the redesign tabs that previously had no styling. */
 .pe-watch-page .contractor-row-crm > td { background: var(--accent-soft) !important; }
 .pe-watch-page .contractor-row-warning > td { background: var(--notable-soft) !important; }

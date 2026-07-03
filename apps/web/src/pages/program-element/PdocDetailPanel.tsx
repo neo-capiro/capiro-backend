@@ -1,11 +1,26 @@
-import { Card, Descriptions } from 'antd';
+import { Card, Descriptions, Tag, Tooltip } from 'antd';
 
 /**
  * P-40 exhibit detail block (product plan F1 enrichment block): quantities,
- * unit cost, MDAP code, related PEs, ID code — from raw.pDocDetail, written by
- * load-pdoc-enrichment (batch-5). Renders nothing until the line has been
- * enriched, so it lights up automatically as loads land.
+ * unit cost, MDAP code, related PEs, ID code, and the validated LLM acquisition
+ * layer (strategy, program office, contractors, milestones, risks) — from
+ * raw.pDocDetail, written by load-pdoc-enrichment (batch-5). Renders nothing
+ * until the line has been enriched, so it lights up automatically as loads land.
+ *
+ * The `llm` sub-object was added by the batch-5 enrichment pass but had no UI
+ * home until now — every value there was independently re-validated as a
+ * verbatim substring of the line's own source narrative (0 invented survivors),
+ * so it renders with the same confidence as the deterministic fields above it.
  */
+
+export interface PdocLlmDetail {
+  acquisitionStrategy?: string | null;
+  programOffice?: string | null;
+  contractors?: string[] | null;
+  milestones?: string[] | null;
+  risks?: string[] | null;
+  summary?: string | null;
+}
 
 export interface PdocDetail {
   appropriation?: string | null;
@@ -19,6 +34,7 @@ export interface PdocDetail {
   unitCostK?: string[] | null;
   unitCostM?: string[] | null;
   sourceBook?: string | null;
+  llm?: PdocLlmDetail | null;
 }
 
 function last<T>(xs: T[] | null | undefined): T | undefined {
@@ -41,8 +57,14 @@ export function PdocDetailPanel({
   const netTotal = last(detail.netProcurementM);
   const unitCost = last(detail.unitCostK) ?? last(detail.unitCostM);
   const unitCostUnit = detail.unitCostK?.length ? '$K' : detail.unitCostM?.length ? '$M' : null;
+  const llm = detail.llm;
+  const contractors = (llm?.contractors ?? []).filter(Boolean);
+  const milestones = (llm?.milestones ?? []).filter(Boolean);
+  const risks = (llm?.risks ?? []).filter(Boolean);
+  const hasLlm =
+    !!llm?.acquisitionStrategy || !!llm?.programOffice || contractors.length > 0 || milestones.length > 0 || risks.length > 0;
   const hasAnything =
-    qtyTotal || netTotal || unitCost || relateds.length > 0 || detail.mdapCode || detail.idCode;
+    qtyTotal || netTotal || unitCost || relateds.length > 0 || detail.mdapCode || detail.idCode || hasLlm;
   if (!hasAnything) return null;
 
   return (
@@ -76,6 +98,55 @@ export function PdocDetailPanel({
           </Descriptions.Item>
         ) : null}
       </Descriptions>
+      {hasLlm ? (
+        <div className="pe-pdoc-llm">
+          {llm?.acquisitionStrategy ? (
+            <div className="pe-pdoc-llm-row">
+              <span className="pe-pdoc-llm-label">Acquisition strategy</span>
+              <span>{llm.acquisitionStrategy}</span>
+            </div>
+          ) : null}
+          {llm?.programOffice ? (
+            <div className="pe-pdoc-llm-row">
+              <span className="pe-pdoc-llm-label">Program office</span>
+              <span>{llm.programOffice}</span>
+            </div>
+          ) : null}
+          {contractors.length > 0 ? (
+            <div className="pe-pdoc-llm-row">
+              <span className="pe-pdoc-llm-label">Named contractors</span>
+              <span>
+                {contractors.map((c) => (
+                  <Tag key={c}>{c}</Tag>
+                ))}
+              </span>
+            </div>
+          ) : null}
+          {milestones.length > 0 ? (
+            <div className="pe-pdoc-llm-row">
+              <span className="pe-pdoc-llm-label">Milestones</span>
+              <ul className="pe-pdoc-llm-list">
+                {milestones.map((m) => (
+                  <li key={m}>{m}</li>
+                ))}
+              </ul>
+            </div>
+          ) : null}
+          {risks.length > 0 ? (
+            <div className="pe-pdoc-llm-row">
+              <span className="pe-pdoc-llm-label">Risks</span>
+              <ul className="pe-pdoc-llm-list">
+                {risks.map((r) => (
+                  <li key={r}>{r}</li>
+                ))}
+              </ul>
+            </div>
+          ) : null}
+          <Tooltip title="Every value in this section was independently re-validated as a verbatim substring of the line's own P-40 narrative before load — nothing here was inferred beyond what the source document states.">
+            <div className="pe-pdoc-llm-note">Extracted &amp; verbatim-validated from the source narrative</div>
+          </Tooltip>
+        </div>
+      ) : null}
       {detail.sourceBook ? (
         <div className="pe-pdoc-source">Source: FY2027 {detail.sourceBook.replace(/_/g, ' ')} P-40 exhibit</div>
       ) : null}

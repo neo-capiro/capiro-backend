@@ -11,6 +11,7 @@ import {
 import { useApi } from '../../lib/use-api.js';
 import { IntelligenceChips } from './IntelligenceChips.js';
 import { PdocDetailPanel, type PdocDetail } from './PdocDetailPanel.js';
+import { DescriptionPanel, type DescriptionSource } from './DescriptionPanel.js';
 import {
   getProgramElementBills,
   getProgramElementContractors,
@@ -328,6 +329,20 @@ export function ProgramElementWatchPage() {
   }
 
   const detail = detailQuery.data;
+  const detailRaw = (detail as { raw?: { pDocDetail?: PdocDetail | null; op5Detail?: DescriptionSource['op5Detail'] } | null })
+    .raw ?? {};
+  const pDocDetail = detailRaw.pDocDetail ?? null;
+  // PdocDetailPanel already shows its own "Source: ... P-40 exhibit" line when it
+  // renders (i.e. when the line has structured P-40 fields); only pass the
+  // source-book fallback here for lines where pDocDetail exists but is otherwise
+  // empty (so PdocDetailPanel itself renders null) — avoids a duplicate citation.
+  const pdocPanelWillRender = !!pDocDetail && (
+    !!pDocDetail.procurementQty?.length || !!pDocDetail.netProcurementM?.length ||
+    !!pDocDetail.unitCostK?.length || !!pDocDetail.unitCostM?.length ||
+    !!pDocDetail.mdapCode || !!pDocDetail.idCode || !!pDocDetail.relatedPEs ||
+    !!pDocDetail.llm?.acquisitionStrategy || !!pDocDetail.llm?.programOffice ||
+    !!pDocDetail.llm?.contractors?.length || !!pDocDetail.llm?.milestones?.length || !!pDocDetail.llm?.risks?.length
+  );
   const years = detail.years ?? [];
   const chartYears = [...years].sort((a, b) => a.fy - b.fy);
   const latestRequest = latestMeaningful(years, 'request');
@@ -473,6 +488,13 @@ export function ProgramElementWatchPage() {
   // ── Tab content ─────────────────────────────────────────────────────────
   const overviewTab = (
     <div className="pe-dt-panel">
+      <DescriptionPanel
+        description={detail.description}
+        source={{
+          op5Detail: detailRaw.op5Detail ?? null,
+          pDocSourceBookOnly: !pdocPanelWillRender ? (pDocDetail?.sourceBook ?? null) : null,
+        }}
+      />
       <ChartCard
         title="Funding trajectory"
         sub="President's request vs. enacted"
@@ -501,7 +523,7 @@ export function ProgramElementWatchPage() {
             />
             <div className="pe-chart-foot">
               <div className="pe-cf-item">
-                <span className="pe-cf-l">Win rate over request</span>
+                <span className="pe-cf-l">Realization rate over request</span>
                 <span className="pe-cf-v up">{winRate}</span>
               </div>
               <div className="pe-cf-item">
@@ -736,10 +758,7 @@ export function ProgramElementWatchPage() {
         <WhatChangedPanel deltas={deltasQuery.data?.data} loading={deltasQuery.isLoading} />
       </div>
       <div className="pe-surface pe-plain-surface span-2">
-        <PdocDetailPanel
-          detail={((detail as { raw?: { pDocDetail?: PdocDetail | null } | null }).raw ?? {})?.pDocDetail}
-          onOpenPe={(pe) => navigate(`/program-elements/${pe}`)}
-        />
+        <PdocDetailPanel detail={pDocDetail} onOpenPe={(pe) => navigate(`/program-elements/${pe}`)} />
       </div>
       <div className="pe-surface pe-plain-surface span-2">
         <ProgramsPanel programs={programsQuery.data} loading={programsQuery.isLoading} />
@@ -915,7 +934,7 @@ export function ProgramElementWatchPage() {
         </div>
 
         <div className="pe-strip-cell">
-          <div className="pe-strip-label">Win rate</div>
+          <div className="pe-strip-label">Realization rate</div>
           <div className="pe-strip-value pe-strip-value-pos">{winRate}</div>
           <div className="pe-strip-sub">enacted ≥ request, cumulative</div>
         </div>

@@ -125,12 +125,12 @@ function TooltipRow({ label, value, source }: { label: string; value: number | n
   );
 }
 
-function WinRateLabel({ rows }: { rows: ProgramElementHistoryRow[] }) {
+function RealizationRateLabel({ rows }: { rows: ProgramElementHistoryRow[] }) {
   const pct = useMemo(() => {
     // Only compare years where BOTH a request and an enacted figure exist — those
     // are the years where "did appropriators add to / cut the request" is a real
     // question. Mixing years that have only one or the other produced a meaningless
-    // number before. If no year has both, there's no win rate to show.
+    // number before. If no year has both, there's no realization rate to show.
     const comparable = rows.filter((r) => r.request != null && r.enacted != null);
     const baseline = comparable.reduce((acc, r) => acc + (r.request ?? 0), 0);
     const enacted = comparable.reduce((acc, r) => acc + (r.enacted ?? 0), 0);
@@ -141,14 +141,14 @@ function WinRateLabel({ rows }: { rows: ProgramElementHistoryRow[] }) {
   if (pct == null) {
     return (
       <span className="pe-winrate" data-testid="pe-win-rate-label">
-        Win rate (5y) <b>n/a</b> over request
+        Realization rate (5y) <b>n/a</b> over request
       </span>
     );
   }
   const sign = pct >= 0 ? '+' : '';
   return (
     <span className="pe-winrate" data-testid="pe-win-rate-label">
-      Win rate (5y) <b className={pct >= 0 ? 'pe-pos' : 'pe-neg'}>{sign}{pct.toFixed(1)}%</b> over request
+      Realization rate (5y) <b className={pct >= 0 ? 'pe-pos' : 'pe-neg'}>{sign}{pct.toFixed(1)}%</b> over request
     </span>
   );
 }
@@ -176,7 +176,7 @@ export function FyHistoryChart({ rows, loading = false, onFyClick }: FyHistoryCh
     <Card
       className="pe-chart-card"
       title="Funding timeline"
-      extra={<WinRateLabel rows={rows} />}
+      extra={<RealizationRateLabel rows={rows} />}
     >
       <div style={{ width: '100%', height: 420, minWidth: 320 }}>
         <ResponsiveContainer width="100%" height="100%">
