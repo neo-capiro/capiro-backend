@@ -416,11 +416,23 @@ export class ProgramElementReadService {
       // outyears, enacted to the last enacted year — so the headline numbers weren't
       // comparable.) PEs with no row that FY correctly contribute $0; the forward /
       // outyear picture lives in the trend sparkline + the detail funding chart.
+      //
+      // "Last fully-enacted FY" = the FY with the MOST PEs actually enacted (the
+      // mode), NOT simply MAX(fy) with any nonzero enacted value. A stray/early
+      // enacted figure on a handful of PEs in a later (mostly-still-requested) FY
+      // would otherwise hijack MAX(fy) and pair a near-empty enacted total against
+      // that FY's near-universal request total — the same broken-looking mismatch
+      // this fix is meant to solve, just relocated to a different year.
       this.prisma.$queryRaw<
         Array<{ fy: number | null; totalRequest: number | null; totalEnacted: number | null; avgDeltaPct: number | null }>
       >(Prisma.sql`
         WITH latest AS (
-          SELECT MAX(fy) AS fy FROM program_element_year WHERE enacted IS NOT NULL AND enacted <> 0
+          SELECT fy
+          FROM program_element_year
+          WHERE enacted IS NOT NULL AND enacted <> 0
+          GROUP BY fy
+          ORDER BY COUNT(*) DESC, fy DESC
+          LIMIT 1
         )
         SELECT
           l.fy AS fy,
