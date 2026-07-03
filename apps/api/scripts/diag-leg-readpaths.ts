@@ -1,5 +1,5 @@
 /**
- * diag-leg-readpaths (read-only): dumps the exact data shape behind the two
+ * diag-leg-readpaths (read-only) [refire #224]: dumps the exact data shape behind the two
  * legislative read paths for one PE, so a fix can be verified against prod
  * without guessing. No writes.
  *
