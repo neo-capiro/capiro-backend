@@ -5,6 +5,8 @@ Join tiers (deterministic only):
   1. SERVICE volumes: (account-family via book map) + sagBli == record.sag  — exact.
   2. DW agency books: agency name <-> line title (normalized exact/prefix)   — exact.
 Unmatched lines/records are REPORTED, never guessed.
+Batch-11 book source: www.af.mil SAF/FM page (DNN LinkClick tickets) — the
+saffm.hq.af.mil / saffm.usaf.afpims.mil hosts were hard-down 2026-07-03.
 
 Emits om_op5_fy2027.json: {fy, source, pes: [{peCode, description, op5Detail}]}
 (description = the OP-5 narrative; op5Detail carries sag/book/pages for provenance).
