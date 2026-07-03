@@ -412,18 +412,28 @@ export class ProgramElementReadService {
       // same per-PE-latest semantics as the finder rows), NOT a single global FY.
       // Summing one global MAX(fy) collapsed enacted to the tiny set of PEs that
       // happen to carry a value in that newest FY (e.g. FY27, barely enacted yet),
-      // which read as broken next to the request total. avgDeltaPct = mean of
-      // (enacted − request-at-that-FY) / request over PEs with both.
+      // which read as broken next to the request total. avgDeltaPct is a DOLLAR-
+      // WEIGHTED portfolio delta (Σenacted − Σrequest)/Σrequest over the matched set,
+      // NOT a mean of per-PE ratios — averaging ratios lets a few tiny-request PEs
+      // (e.g. $0.2M request → $50M enacted = +25000%) blow it up to a nonsensical ~490%.
       this.prisma.$queryRaw<
         Array<{ totalRequest: number | null; totalEnacted: number | null; avgDeltaPct: number | null }>
       >(Prisma.sql`
         SELECT
           COALESCE(SUM(lr.request), 0)::double precision AS "totalRequest",
           COALESCE(SUM(le.enacted), 0)::double precision AS "totalEnacted",
-          AVG(
-            CASE WHEN le.enacted IS NOT NULL AND ler.request IS NOT NULL AND ler.request <> 0
-                 THEN ((le.enacted::double precision - ler.request::double precision) / ler.request::double precision) * 100
-                 ELSE NULL END
+          (
+            CASE
+              WHEN SUM(ler.request) FILTER (WHERE le.enacted IS NOT NULL AND ler.request IS NOT NULL AND ler.request <> 0) > 0
+              THEN (
+                (
+                  SUM(le.enacted) FILTER (WHERE le.enacted IS NOT NULL AND ler.request IS NOT NULL AND ler.request <> 0)
+                  - SUM(ler.request) FILTER (WHERE le.enacted IS NOT NULL AND ler.request IS NOT NULL AND ler.request <> 0)
+                )
+                / SUM(ler.request) FILTER (WHERE le.enacted IS NOT NULL AND ler.request IS NOT NULL AND ler.request <> 0)
+              ) * 100
+              ELSE NULL
+            END
           )::double precision AS "avgDeltaPct"
         FROM program_element pe
         LEFT JOIN LATERAL (

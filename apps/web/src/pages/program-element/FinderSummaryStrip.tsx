@@ -110,7 +110,7 @@ export function FinderSummaryStrip({ summary, loading, serviceFilter, onServiceF
                 <span className={s.avgDeltaPct >= 0 ? 'pe-up' : 'pe-down'}>
                   {s.avgDeltaPct >= 0 ? '▲' : '▼'} {Math.abs(s.avgDeltaPct).toFixed(1)}%
                 </span>{' '}
-                avg vs request
+                vs request
               </>
             ) : (
               'enacted appropriations'
