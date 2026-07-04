@@ -288,7 +288,9 @@ export class WatchlistSyncService {
                   u.clerk_user_id, ap.triggers, ap.materiality,
                   ap.email_enabled, ap.email_address, ap.email_cadence, ap.sms_enabled, ap.sms_phone,
                   ap.sms_phone_verified, ap.sms_cadence, ap.quiet_hours_start, ap.quiet_hours_end`;
-    const from = `FROM alert_preference ap LEFT JOIN users u ON u.id = ap.user_id`;
+    // users.id is a uuid COLUMN; alert_preference.user_id is text — cast the
+    // uuid side or PG throws 42883 (operator does not exist: uuid = text).
+    const from = `FROM alert_preference ap LEFT JOIN users u ON u.id::text = ap.user_id`;
     const allRows = await this.prisma.withSystem((tx) =>
       tenantId
         ? tx.$queryRawUnsafe<AlertPrefRow[]>(`SELECT ${cols} ${from} WHERE ap.tenant_id = $1::uuid`, tenantId)

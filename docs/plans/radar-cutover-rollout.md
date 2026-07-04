@@ -90,10 +90,14 @@ aws ecs run-task --cluster capiro-dev --launch-type FARGATE \
 Rollback at any point: `task disable-feature-all tracker_owner_intel` (+`tracker_v2`)
 → legacy resumes delivery instantly; data untouched (legacy tables were never modified).
 
-## Snapshot record (fill at step 1)
+## Snapshot record (step 1 — RUN 2026-07-04 ~19:15 UTC, task exit 0)
 
 | Table | Rows | md5 | Task id / log stream |
 |---|---|---|---|
-| client_watchlist | — | — | — |
-| tracked_bill | — | — | — |
-| alert_preference | — | — | — |
+| client_watchlist | 5 | fa238a657665b8149862a332a05f26b0 | 60952ccb3b6d42baa9703b36282bb320 (group /capiro/dev/api, prefix intel-api-enableflag) |
+| tracked_bill | 30 | 8141e9305872f2ce68d0a6b6e9c95a87 | same |
+| alert_preference | 4 | ceddb75dad379681f4bb7c309d77434b | same |
+
+Rollback point: PR #231 squash-merge on main (intel-api serve taskdef rev 5,
+image `capiro/dev/intel-api:latest` @ post-#231 build; previous image restorable
+by SHA tag per intel-api-image.yml `:$GITHUB_SHA` tagging).
