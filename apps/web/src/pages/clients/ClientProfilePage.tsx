@@ -134,6 +134,9 @@ export function ClientProfilePage({
     // Deep links (e.g. Tracker alert emails → ?tab=tracker) open a specific tab.
     try {
       const t = new URLSearchParams(window.location.search).get('tab');
+      // The tab is labeled "Radar" since the /radar surface shipped, but the
+      // key stays 'tracker' for existing deep links — accept both spellings.
+      if (t === 'radar') return 'tracker';
       if (t && (PROFILE_TABS as string[]).includes(t)) return t as ProfileTab;
     } catch {
       /* ignore */
@@ -446,7 +449,7 @@ export function ClientProfilePage({
                     : tab === 'targets'
                       ? 'Targets'
                       : tab === 'tracker'
-                        ? 'Tracker'
+                        ? 'Radar'
                         : tab === 'people'
                           ? 'People'
                           : tab === 'facilities'

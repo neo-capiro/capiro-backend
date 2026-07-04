@@ -101,3 +101,55 @@ Rollback at any point: `task disable-feature-all tracker_owner_intel` (+`tracker
 Rollback point: PR #231 squash-merge on main (intel-api serve taskdef rev 5,
 image `capiro/dev/intel-api:latest` @ post-#231 build; previous image restorable
 by SHA tag per intel-api-image.yml `:$GITHUB_SHA` tagging).
+
+## P2 execution record (2026-07-04, steps 2–5 DONE)
+
+- Backfills (post PR #232 uuid-cast hotfix): `SYNC_DONE clients=5 changed=1
+  skipped=4 swept=1 skippedOwned=0` · `BACKFILL_TRACKED_BILLS count=30` ·
+  `BACKFILL_ALERT_PREFS count=4 skippedOwned=0 skippedNoClerkId=0` (all
+  clerk-translated).
+- **parity-data: PASSED** — wl 5/5, bills 30/30, prefs 4/4; legacyOnly=0,
+  mismatched=0, watermarkDrift=0.
+- Reconcile: dry-run found exactly 1 unprotected stale row (uuid-keyed
+  pre-translation ghost pref, tenant c60da102) — applied with
+  `--created-before=2026-07-04T19:34:49Z`; internal tenant (protected) retained
+  its 3+3 v2-native rows.
+- Idempotency re-run: `changed=0 skipped=5 swept=0`; parity PASSED again
+  (intelOnly = internal tenant only).
+- **Step 5 DONE: `capiro-dev-sync-watchlists` DISABLED** (verified 19:41Z).
+  NOTE: pre-flip legacy edits no longer auto-propagate — step 6b2 freshness
+  re-copy is now MANDATORY in the flip window.
+
+## P3 FLIP RECORD (2026-07-04 ~19:50–20:20 UTC, Ninja sign-off received)
+
+- Task-def revisions: `capiro-dev-api-migrate:17` + `capiro-dev-api:32` (guard
+  `TRACKER_SINGLE_SENDER_GUARD=on`, zod accepts 'on'); `capiro-dev-intel-api:7`
+  + `capiro-dev-intel-api-enableflag:5` (delivery env). ⚠️ GOTCHA CAUGHT IN
+  VERIFICATION: intel's `killSwitchOff()` accepts only `true|1|yes` — the first
+  registration used `on` (legacy convention) and delivery stayed in shadow;
+  fixed to `TRACKER_ALERTS_ENABLED=true`. Both services rolled + stable.
+- EventBridge: `detect-bill-changes` → 6h cadence; NEW `capiro-dev-emit-bill-alerts`
+  (cron 20 0/6), `capiro-dev-flush-intel-digests-daily` (12:30), `-weekly`
+  (Mon 12:45) — all targeting the enableflag family (unpinned → latest rev).
+- Flip-window freshness re-copy: sync changed=0 skipped=5; parity PASSED.
+- `enable-feature-all` tracker_owner_intel → tracker_v2 → hearing_watch:
+  **4 tenants each** (c2-strategies, capiro-internal, maven, victory-six-advisors).
+- Verification: `cutover-status c2-strategies` → owner=true v2=true
+  trackedBills=11 alertPrefs=1; `shadow-selftest` → suppressed=false (canSend
+  true — by design it does NOT exercise a real send). Note: the legacy
+  detector's "single-sender guard ON" line is INVISIBLE in CloudWatch (script
+  boots Nest with logger ['warn','error']); `suppressedOwned=` appears in the
+  summary only when >0.
+- Alert-decision parity streak (`parity-report`) shows 0g/0d — small-data
+  NO_DATA class; the operative gate for this flip was `parity-data` (data
+  equality) + sign-off.
+
+## BAKE WATCH (until P12)
+
+1. Next post-sync emit window (~12:20 UTC daily): `intel_notification_log`
+   gains `sent` rows; legacy summary shows `suppressedOwned>0` in the same
+   window; NO new legacy `notification_log` rows for flipped tenants.
+2. Browser QA: client profile Tracker tab (v2 UI + Feed) on a real tenant.
+3. Rollback at any time: `task disable-feature-all tracker_owner_intel` (+
+   `tracker_v2`, `hearing_watch`) — legacy resumes instantly. If rolled back,
+   re-enable `capiro-dev-sync-watchlists` and NEVER run reconcile --apply.

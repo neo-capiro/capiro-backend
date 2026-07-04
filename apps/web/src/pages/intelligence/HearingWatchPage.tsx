@@ -130,9 +130,47 @@ function buildHearingColumns(onWatch: (r: UpcomingHearing) => void): ColumnsType
   ];
 }
 
+type HearingWatchView = 'hearings' | 'upcoming' | 'browse' | 'watchlists';
+
+/**
+ * Hearing Watch body (sessions / upcoming / all-hearings [/ watchlists]) —
+ * shared by the legacy HearingWatchPage and the Radar Hearings tab. The Radar
+ * embedding hides the term-watchlists view (unifying it with the bill
+ * watchlist is a later phase); the legacy page keeps it untouched.
+ */
+export function HearingWatchPanel({
+  includeWatchlists = true,
+}: {
+  includeWatchlists?: boolean;
+}) {
+  const [view, setView] = useState<HearingWatchView>('hearings');
+
+  return (
+    <>
+      <Segmented
+        value={view}
+        onChange={(v) => setView(v as HearingWatchView)}
+        options={[
+          { label: 'Hearings', value: 'hearings', icon: <AudioOutlined /> },
+          { label: 'Upcoming', value: 'upcoming', icon: <CalendarOutlined /> },
+          { label: 'All hearings', value: 'browse', icon: <UnorderedListOutlined /> },
+          ...(includeWatchlists
+            ? [{ label: 'Watchlists', value: 'watchlists', icon: <PlusOutlined /> }]
+            : []),
+        ]}
+        style={{ marginBottom: 16 }}
+      />
+
+      {view === 'hearings' && <HearingsTab />}
+      {view === 'upcoming' && <UpcomingTab />}
+      {view === 'browse' && <BrowseTab />}
+      {view === 'watchlists' && includeWatchlists && <WatchlistsTab />}
+    </>
+  );
+}
+
 export function HearingWatchPage() {
   const enabled = useIntelFeatureEnabled('hearing_watch');
-  const [view, setView] = useState<'hearings' | 'upcoming' | 'browse' | 'watchlists'>('hearings');
 
   if (!enabled) {
     return (
@@ -152,22 +190,7 @@ export function HearingWatchPage() {
         post-hearing briefs.
       </Paragraph>
 
-      <Segmented
-        value={view}
-        onChange={(v) => setView(v as typeof view)}
-        options={[
-          { label: 'Hearings', value: 'hearings', icon: <AudioOutlined /> },
-          { label: 'Upcoming', value: 'upcoming', icon: <CalendarOutlined /> },
-          { label: 'All hearings', value: 'browse', icon: <UnorderedListOutlined /> },
-          { label: 'Watchlists', value: 'watchlists', icon: <PlusOutlined /> },
-        ]}
-        style={{ marginBottom: 16 }}
-      />
-
-      {view === 'hearings' && <HearingsTab />}
-      {view === 'upcoming' && <UpcomingTab />}
-      {view === 'browse' && <BrowseTab />}
-      {view === 'watchlists' && <WatchlistsTab />}
+      <HearingWatchPanel />
     </div>
   );
 }

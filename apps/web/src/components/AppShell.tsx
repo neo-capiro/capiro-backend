@@ -4,6 +4,7 @@ import { ChatDrawer } from './chat/ChatDrawer.js';
 import { WorkspaceNotificationBell } from './WorkspaceNotificationBell.js';
 import { QuickLogButton } from './QuickLog.js';
 import {
+  AimOutlined,
   ApartmentOutlined,
   FolderOpenOutlined,
   CalendarOutlined,
@@ -17,7 +18,6 @@ import {
   QuestionCircleOutlined,
   RadarChartOutlined,
   DeploymentUnitOutlined,
-  AudioOutlined,
   SearchOutlined,
   SettingOutlined,
   SyncOutlined,
@@ -74,6 +74,7 @@ type AppSection =
   | 'actions'
   | 'pe-group'
   | 'program-elements'
+  | 'radar'
   | 'hearing-watch'
   | 'analyst-console'
   | 'directory'
@@ -125,15 +126,23 @@ const NAV: NavItem[] = [
   { key: 'clients', label: 'Portfolio', path: '/clients', icon: <ApartmentOutlined /> },
   { key: 'workspace', label: 'Workspace', path: '/workspace', icon: <FolderOpenOutlined /> },
   { key: 'directory', label: 'Directory', path: '/directory', icon: <IdcardOutlined /> },
-  // Intelligence group (kept LAST in the nav): the Intelligence Center (live
-  // Explorer) plus Program Elements nested beneath it. The former PE sub-items
-  // (Action Board, Analyst Console) remain routable by deep-link but are not
-  // surfaced. Planner and Collaborators stay hidden.
+  // Intelligence group (kept LAST in the nav): Radar (the unified Tracker +
+  // Hearing Watch surface) first, then the Intelligence Center (live Explorer)
+  // plus Program Elements nested beneath it. The former PE sub-items (Action
+  // Board, Analyst Console) and the legacy Hearing Watch list page remain
+  // routable by deep-link but are not surfaced. Planner and Collaborators stay
+  // hidden.
   {
     key: 'pe-group',
     label: 'Intelligence',
     icon: <RadarChartOutlined />,
     children: [
+      {
+        key: 'radar',
+        label: 'Radar',
+        path: '/radar',
+        icon: <AimOutlined />,
+      },
       {
         key: 'intelligence',
         label: 'Data Explorer',
@@ -151,15 +160,6 @@ const NAV: NavItem[] = [
         label: 'Program Elements',
         path: '/program-elements',
         icon: <FundOutlined />,
-      },
-      {
-        key: 'hearing-watch',
-        label: 'Hearing Watch',
-        path: '/intelligence/hearing-watch',
-        icon: <AudioOutlined />,
-        // Gated to tenants with the `hearing_watch` feature flag (Capiro-only
-        // until launch); hidden otherwise via the feature-flag visibility check.
-        featureFlag: 'hearing_watch',
       },
     ],
   },
@@ -1021,11 +1021,15 @@ function pageKeyFor(pathname: string): AppSection {
   if (pathname.startsWith('/engagement')) return 'engagement';
   if (pathname.startsWith('/workspace')) return 'workspace';
   if (pathname.startsWith('/actions')) return 'actions';
+  if (pathname.startsWith('/radar')) return 'radar';
   // Knowledge Graph has its own nav entry — match its specific route BEFORE the
   // general /intelligence prefix, otherwise it falls through to 'intelligence'
   // (Data Explorer) and the wrong child highlights.
   if (pathname.startsWith('/intelligence/graph')) return 'knowledge-graph';
-  if (pathname.startsWith('/intelligence/hearing-watch')) return 'hearing-watch';
+  // Only the live hearing ROOM still lives here (the list redirects to Radar).
+  // Highlight Radar: 'hearing-watch' is no longer a nav item, and the room is a
+  // Radar child surface now (P4 review finding).
+  if (pathname.startsWith('/intelligence/hearing-watch')) return 'radar';
   if (pathname.startsWith('/explorer') || pathname.startsWith('/intelligence'))
     return 'intelligence';
   if (pathname.startsWith('/admin/analyst-console')) return 'analyst-console';
@@ -1050,6 +1054,7 @@ function pageConfigFor(pathname: string): PageConfig {
     actions: 'Action Board',
     'pe-group': 'Program Elements',
     'program-elements': 'Program Elements',
+    radar: 'Radar',
     'hearing-watch': 'Hearing Watch',
     'analyst-console': 'Analyst Console',
     directory: 'Directory',

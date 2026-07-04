@@ -45,11 +45,23 @@ import {
 
 type Panel = 'board' | 'recs' | 'config' | 'feed';
 const PANEL_KEY = 'capiro:tracker:panel';
+/** Radar Bills tab keeps its own Board|Recs selection so it never fights the profile tab's. */
+const BILLS_PANEL_KEY = 'capiro:radar:bills-panel';
 
 function loadPanel(): Panel {
   try {
     const v = window.sessionStorage.getItem(PANEL_KEY);
     if (v === 'board' || v === 'recs' || v === 'config' || v === 'feed') return v;
+  } catch {
+    /* ignore */
+  }
+  return 'board';
+}
+
+function loadBillsPanel(): Panel {
+  try {
+    const v = window.sessionStorage.getItem(BILLS_PANEL_KEY);
+    if (v === 'board' || v === 'recs') return v;
   } catch {
     /* ignore */
   }
@@ -78,17 +90,41 @@ function dateVal(s: string | null): number {
   return (MONTHS[m] ?? 0) * 31 + parseInt(d, 10);
 }
 
-export function TrackerTab({ clientId, clientName }: { clientId: string; clientName: string }) {
+export interface TrackerSurfaceProps {
+  clientId: string;
+  clientName: string;
+  /**
+   * Which slice of the tracker this instance renders:
+   * - 'profile'   — the client-profile Tracker tab (Board/Recs/Feed/Configure sub-nav). Default.
+   * - 'bills'     — Radar Bills tab: Board/Recs only (Feed + Watchlist are sibling Radar tabs).
+   * - 'watchlist' — Radar Watchlist tab: the Configure panel only (no sub-nav).
+   * All variants share the same queries/mutations (and react-query cache keys),
+   * so the Radar tabs and the profile tab stay in sync for a given client.
+   */
+  variant?: 'profile' | 'bills' | 'watchlist';
+  /** 'bills' variant: where the recs empty-state "Open Watchlist →" CTA goes (the Radar Watchlist tab). */
+  onOpenConfigure?: () => void;
+}
+
+export function TrackerSurface({
+  clientId,
+  clientName,
+  variant = 'profile',
+  onOpenConfigure,
+}: TrackerSurfaceProps) {
   const api = useApi();
   const qc = useQueryClient();
   const { message } = AntApp.useApp();
   const navigate = useNavigate();
 
-  const [panel, setPanelState] = useState<Panel>(loadPanel);
+  const [panel, setPanelState] = useState<Panel>(
+    variant === 'watchlist' ? 'config' : variant === 'bills' ? loadBillsPanel : loadPanel,
+  );
   const setPanel = (p: Panel) => {
     setPanelState(p);
     try {
-      window.sessionStorage.setItem(PANEL_KEY, p);
+      if (variant === 'bills') window.sessionStorage.setItem(BILLS_PANEL_KEY, p);
+      else if (variant === 'profile') window.sessionStorage.setItem(PANEL_KEY, p);
     } catch {
       /* ignore */
     }
@@ -493,9 +529,17 @@ export function TrackerTab({ clientId, clientName }: { clientId: string; clientN
 
   return (
     <div className="trk">
-      {/* header: sub-nav + contextual controls */}
+      {/* header: sub-nav + contextual controls (the watchlist variant renders
+          the Configure panel bare — Radar owns its tab strip) */}
+      {variant !== 'watchlist' && (
       <div className="trk-head">
-        <SubNav panel={activePanel} setPanel={setPanel} recCount={aboveFloorCount} showFeed={trackerV2} />
+        <SubNav
+          panel={activePanel}
+          setPanel={setPanel}
+          recCount={aboveFloorCount}
+          showFeed={variant === 'profile' && trackerV2}
+          showConfig={variant === 'profile'}
+        />
         <div className="trk-spacer" />
 
         {activePanel === 'board' && (
@@ -576,6 +620,7 @@ export function TrackerTab({ clientId, clientName }: { clientId: string; clientN
           </div>
         )}
       </div>
+      )}
 
       {/* ===================== BOARD ===================== */}
       {/* isPending (not isLoading) so the flag-gated window renders as loading,
@@ -684,8 +729,11 @@ export function TrackerTab({ clientId, clientName }: { clientId: string; clientN
             </div>
             <h4>No new recommendations</h4>
             <p>Add tags or confirm issue areas to widen the matcher.</p>
-            <button className="btn btn-accent" onClick={() => setPanel('config')}>
-              Open Configure →
+            <button
+              className="btn btn-accent"
+              onClick={() => (variant === 'bills' ? onOpenConfigure?.() : setPanel('config'))}
+            >
+              {variant === 'bills' ? 'Open Watchlist →' : 'Open Configure →'}
             </button>
           </div>
         ) : (
@@ -800,6 +848,15 @@ export function TrackerTab({ clientId, clientName }: { clientId: string; clientN
       <TrackToasts toasts={toasts} />
     </div>
   );
+}
+
+/**
+ * The client-profile Tracker tab — the original surface, unchanged. Kept as a
+ * thin wrapper over TrackerSurface so ClientProfilePage (and existing deep
+ * links) behave exactly as before the Radar (P4) extraction.
+ */
+export function TrackerTab({ clientId, clientName }: { clientId: string; clientName: string }) {
+  return <TrackerSurface clientId={clientId} clientName={clientName} variant="profile" />;
 }
 
 export default TrackerTab;

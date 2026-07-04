@@ -26,8 +26,8 @@ import { AiUsagePage } from './pages/settings/AiUsagePage.js';
 import { ComingSoonIntelligence } from './pages/intelligence/ComingSoonIntelligence.js';
 import { ChangesInboxPage } from './pages/intelligence/ChangesInboxPage.js';
 import { KnowledgeGraphPage } from './pages/intelligence/KnowledgeGraphPage.js';
-import { HearingWatchPage } from './pages/intelligence/HearingWatchPage.js';
 import { LiveHearingRoomPage } from './pages/intelligence/LiveHearingRoomPage.js';
+import { RadarPage } from './pages/radar/RadarPage.js';
 import { IntelligenceMappingsPage } from './pages/settings/IntelligenceMappingsPage.js';
 import { SkillsPage } from './pages/settings/SkillsPage.js';
 import { IssueLeaderboardPage } from './pages/intelligence/IssueLeaderboardPage.js';
@@ -120,6 +120,9 @@ export function App() {
           }
         />
         <Route path="/explorer" element={<DataExplorerPage />} />
+        {/* Radar (P4) — Feed · Bills · Hearings · Watchlist, unifying the Bill
+            Tracker + Hearing Watch surfaces under one destination. */}
+        <Route path="/radar" element={<RadarPage />} />
         <Route path="/actions" element={<ActionBoardPage />} />
         <Route
           path="/program-elements"
@@ -216,7 +219,12 @@ export function App() {
         <Route path="/intelligence" element={<Navigate to="/explorer" replace />} />
         <Route path="/intelligence/changes" element={<ChangesInboxPage />} />
         <Route path="/intelligence/graph" element={<KnowledgeGraphPage />} />
-        <Route path="/intelligence/hearing-watch" element={<HearingWatchPage />} />
+        {/* Hearing Watch's list surface moved into Radar's Hearings tab; the
+            live hearing room keeps its deep-linkable route. */}
+        <Route
+          path="/intelligence/hearing-watch"
+          element={<Navigate to="/radar?tab=hearings" replace />}
+        />
         <Route path="/intelligence/hearing-watch/:id" element={<LiveHearingRoomPage />} />
         <Route path="/intelligence/issues/:code" element={<IssueLeaderboardPage />} />
         <Route path="/intelligence/bills/:bill" element={<BillDetailRedirectRoute />} />

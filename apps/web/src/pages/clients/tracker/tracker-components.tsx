@@ -483,12 +483,15 @@ export function SubNav({
   setPanel,
   recCount,
   showFeed,
+  showConfig = true,
 }: {
   panel: string;
   setPanel: (p: 'board' | 'recs' | 'config' | 'feed') => void;
   recCount: number;
   /** Show the unified Feed tab — gated by the `tracker_v2` intel feature flag. */
   showFeed?: boolean;
+  /** Hide Configure in the Radar Bills embedding (Watchlist is a sibling Radar tab). */
+  showConfig?: boolean;
 }) {
   return (
     <div className="trk-seg">
@@ -503,12 +506,14 @@ export function SubNav({
           Feed
         </button>
       )}
-      <button className={panel === 'config' ? 'active' : ''} onClick={() => setPanel('config')}>
-        <span className="seg-cog">
-          <Icon name="settings" size={13} />
-        </span>{' '}
-        Configure
-      </button>
+      {showConfig && (
+        <button className={panel === 'config' ? 'active' : ''} onClick={() => setPanel('config')}>
+          <span className="seg-cog">
+            <Icon name="settings" size={13} />
+          </span>{' '}
+          Configure
+        </button>
+      )}
     </div>
   );
 }
