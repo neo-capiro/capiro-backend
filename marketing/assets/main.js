@@ -49,6 +49,15 @@ function openModal(){document.getElementById('demoModal').classList.add('open');
 function closeModal(){document.getElementById('demoModal').classList.remove('open');document.body.style.overflow='';}
 function closeModalOutside(e){if(e.target===document.getElementById('demoModal'))closeModal();}
 document.addEventListener('keydown',function(e){if(e.key==='Escape')closeModal();});
+function showDemoSuccess(){
+  document.getElementById('modalForm').style.display='none';
+  document.getElementById('formSuccess').style.display='block';
+  // Paid-acquisition conversion signal. GTM maps the `demo_request` event to the
+  // LinkedIn Insight + Google Ads conversion tags (tags only load when the IDs in
+  // marketing/build.mjs TRACKING are set; this push is a harmless no-op otherwise).
+  window.dataLayer=window.dataLayer||[];
+  window.dataLayer.push({event:'demo_request'});
+}
 function submitDemo(){
   const first=document.getElementById('firstName').value.trim();
   const last=document.getElementById('lastName').value.trim();
@@ -65,8 +74,8 @@ function submitDemo(){
   fetch('https://api.hsforms.com/submissions/v3/integration/submit/245730593/e00a7515-d4f6-4d23-8316-db797671d872',
     {method:'POST',headers:{'Content-Type':'application/json'},
      body:JSON.stringify({fields:[{name:'firstname',value:first},{name:'lastname',value:last},{name:'email',value:email},{name:'company',value:firm},{name:'jobtitle',value:role},{name:'practice_type',value:practice},{name:'active_client_count',value:document.getElementById('clientCount').value||''}],context:{pageUri:window.location.href,pageName:document.title}})})
-  .then(()=>{document.getElementById('modalForm').style.display='none';document.getElementById('formSuccess').style.display='block';})
-  .catch(()=>{document.getElementById('modalForm').style.display='none';document.getElementById('formSuccess').style.display='block';});
+  .then(showDemoSuccess)
+  .catch(showDemoSuccess);
 }
 
 document.addEventListener('DOMContentLoaded',function(){loadInsights();});

@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>{{TITLE}}</title>
+{{TRACKING_HEAD}}<title>{{TITLE}}</title>
 <meta name="description" content="{{DESCRIPTION}}">
 <link rel="canonical" href="{{CANONICAL}}">
 <meta name="robots" content="index, follow">
@@ -22,7 +22,7 @@
 <link rel="stylesheet" href="/assets/styles.css">
 {{HEAD_EXTRA}}</head>
 <body>
-<nav>
+{{TRACKING_BODY}}<nav>
   <a class="nav-logo" href="/">Capiro</a>
   <button class="nav-burger" id="navBurger" aria-label="Menu" aria-expanded="false" onclick="toggleNav()"><span></span><span></span><span></span></button>
   <ul class="nav-links" id="navLinks">
