@@ -39,10 +39,12 @@ const RADAR_TABS: readonly RadarTab[] = ['feed', 'bills', 'hearings', 'watchlist
  * Radar (P4 shell) — one destination unifying the Bill Tracker and Hearing
  * Watch surfaces. Four tabs: Feed (default) · Bills · Hearings · Watchlist.
  *
- * Feed/Bills/Watchlist are per-client in v1 (the global roll-up is a later
- * phase) and reuse the client-profile Tracker components — same queries and
- * react-query keys, so Radar and the profile tab stay in sync. Hearings is the
- * global hearing schedule/session list and needs no client.
+ * Bills/Watchlist are per-client and reuse the client-profile Tracker components
+ * — same queries and react-query keys, so Radar and the profile tab stay in sync.
+ * The Feed has TWO altitudes (P11): with a client selected it's that client's
+ * feed; with NO client selected it's the TENANT-WIDE cross-client roll-up (each
+ * card labels its client). Hearings is the global hearing schedule/session list
+ * and needs no client.
  *
  * URL state: /radar?tab=feed|bills|hearings|watchlist&client=<id>.
  * Gating matches the underlying surfaces: `tracker_v2` gates the Feed,
@@ -85,6 +87,13 @@ export function RadarPage() {
     [clients.data],
   );
   const selectedClient = visibleClients.find((client) => client.id === clientParam) ?? null;
+  // clientId → name, for labelling the bill drawer opened from the global feed
+  // (the feed API resolves names server-side, but the drawer needs one by id).
+  const clientNameById = useMemo(() => {
+    const m = new Map<string, string>();
+    for (const c of clients.data ?? []) m.set(c.id, c.name);
+    return m;
+  }, [clients.data]);
 
   const { enabled: trackerV2, ready: trackerReady } = useIntelFeature('tracker_v2');
   const { enabled: hearingWatch, ready: hearingReady } = useIntelFeature('hearing_watch');
@@ -161,36 +170,36 @@ export function RadarPage() {
         style={{ marginBottom: 16 }}
       />
 
-      {tab === 'feed' && (
-        <ClientGate
-          client={selectedClient}
-          clientsLoading={clients.isLoading}
-          picker={clientPicker}
-          what="its alert feed"
-        >
-          {(client) =>
-            !trackerReady ? (
-              <PanelLoading />
-            ) : trackerV2 ? (
-              <FirstRunGate
-                loading={!coldStartReady}
-                cold={isColdStart}
-                clientName={client.name}
-                onSetup={() => setParam('tab', 'watchlist')}
-              >
-                <div className="trk">
-                  {/* key: full remount per client — the Radar picker swaps clientId
-                      in place and these panels hold per-client interactive state
-                      (P4 review: cross-client autosave/select leaks). */}
-                  <RadarFeedTab key={client.id} clientId={client.id} clientName={client.name} />
-                </div>
-              </FirstRunGate>
-            ) : (
-              <Empty description="The unified alert feed is not enabled for this workspace yet." />
-            )
-          }
-        </ClientGate>
-      )}
+      {tab === 'feed' &&
+        (!trackerReady ? (
+          <PanelLoading />
+        ) : !trackerV2 ? (
+          <Empty description="The unified alert feed is not enabled for this workspace yet." />
+        ) : selectedClient ? (
+          <FirstRunGate
+            loading={!coldStartReady}
+            cold={isColdStart}
+            clientName={selectedClient.name}
+            onSetup={() => setParam('tab', 'watchlist')}
+          >
+            <div className="trk">
+              {/* key: full remount per client — the Radar picker swaps clientId
+                  in place and these panels hold per-client interactive state
+                  (P4 review: cross-client autosave/select leaks). */}
+              <RadarFeedTab
+                key={selectedClient.id}
+                clientId={selectedClient.id}
+                clientName={selectedClient.name}
+              />
+            </div>
+          </FirstRunGate>
+        ) : (
+          // P11 global altitude: no client selected → the tenant-wide roll-up
+          // (instead of the ClientGate picker prompt Bills/Watchlist still use).
+          <div className="trk">
+            <RadarGlobalFeedTab clientNameById={clientNameById} />
+          </div>
+        ))}
 
       {tab === 'bills' && (
         <ClientGate
@@ -323,7 +332,11 @@ function RadarFeedTab({ clientId, clientName }: { clientId: string; clientName: 
 
   return (
     <>
-      <TrackerFeedPanel clientId={clientId} clientName={clientName} onOpenBill={setDrawerBillId} />
+      <TrackerFeedPanel
+        clientId={clientId}
+        clientName={clientName}
+        onOpenBill={(billId) => setDrawerBillId(billId)}
+      />
       <BillDrawer
         open={drawerBillId !== null}
         billId={drawerBillId}
@@ -332,6 +345,71 @@ function RadarFeedTab({ clientId, clientName }: { clientId: string; clientName: 
         isTracked={drawerBillId ? boardNums.has(drawerBillId) : false}
         onTrack={(billId) => trackMutation.mutate(billId)}
         onClose={() => setDrawerBillId(null)}
+      />
+    </>
+  );
+}
+
+/**
+ * Radar Feed tab at GLOBAL altitude (P11) — the TENANT-WIDE cross-client roll-up
+ * shown when no client is selected. Reuses TrackerFeedPanel in `global` mode (each
+ * card labels its client). Opening a bill from an alert opens the SAME in-place
+ * side-drawer as the per-client tab (spec D9, never routes to Data Explorer),
+ * scoped to that alert's client — the board query + track mutation are lazily
+ * bound to the drawer's client so tracking still works cross-client.
+ */
+function RadarGlobalFeedTab({ clientNameById }: { clientNameById: Map<string, string> }) {
+  const api = useApi();
+  const qc = useQueryClient();
+  const { message } = AntApp.useApp();
+  const { enabled: trackerV2, ready: flagsReady } = useIntelFeature('tracker_v2');
+  const [drawer, setDrawer] = useState<{ billId: string; clientId: string } | null>(null);
+  const drawerClientId = drawer?.clientId ?? null;
+
+  // The drawer's client board (shared react-query key with that client's Bills/
+  // Feed tabs) — fetched only while a drawer is open, so the global feed itself
+  // stays a single tenant-wide request.
+  const boardQuery = useQuery<BoardResponse>({
+    queryKey: drawerClientId ? trackerKeys.board(drawerClientId) : ['radar-global-board', 'none'],
+    queryFn: async () =>
+      trackerV2
+        ? adaptBoard((await api.get<IntelBoard>(intelTrackerPaths.board(drawerClientId!))).data)
+        : (await api.get<BoardResponse>(trackerPaths.board(drawerClientId!))).data,
+    enabled: flagsReady && !!drawerClientId,
+  });
+  const boardNums = useMemo(
+    () => new Set((boardQuery.data?.columns ?? []).flatMap((c) => c.bills.map((b) => b.billId))),
+    [boardQuery.data],
+  );
+
+  const trackMutation = useMutation({
+    mutationFn: async ({ billId, cId }: { billId: string; cId: string }) =>
+      trackerV2
+        ? (await api.post(intelTrackerPaths.track(cId), { billId, source: 'manual_search' })).data
+        : (await api.post(trackerPaths.track(cId), { billId, source: 'manual_search' })).data,
+    onSuccess: (_d, vars) => {
+      void qc.invalidateQueries({ queryKey: trackerKeys.board(vars.cId) });
+      void qc.invalidateQueries({ queryKey: trackerKeys.summary(vars.cId) });
+      void qc.invalidateQueries({ queryKey: trackerKeys.recommendations(vars.cId) });
+      message.success(`Tracking for ${clientNameById.get(vars.cId) ?? 'client'}`);
+    },
+    onError: () => message.error('Could not track bill'),
+  });
+
+  return (
+    <>
+      <TrackerFeedPanel
+        global
+        onOpenBill={(billId, cId) => setDrawer({ billId, clientId: cId })}
+      />
+      <BillDrawer
+        open={drawer !== null}
+        billId={drawer?.billId ?? null}
+        clientId={drawerClientId ?? ''}
+        clientName={drawerClientId ? clientNameById.get(drawerClientId) ?? 'Client' : ''}
+        isTracked={drawer ? boardNums.has(drawer.billId) : false}
+        onTrack={(billId) => drawerClientId && trackMutation.mutate({ billId, cId: drawerClientId })}
+        onClose={() => setDrawer(null)}
       />
     </>
   );

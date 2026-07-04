@@ -1,20 +1,28 @@
 import { Injectable } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service.js';
 import { HearingCryptoService } from '../hearing/hearing-crypto.service.js';
+import { SourceDataRepository } from '../sourcedata/source-data.repository.js';
 import { ActionItemService } from './action-item.service.js';
 import { recommendedActionsFor } from './recommended-actions.util.js';
 
 /**
- * Combined per-client intel feed (Phase 6 §9.7). Reads `intel_alert` only —
- * evidence is denormalized at write time (§9.3) so there is NO hot-path join to
+ * Combined intel feed (Phase 6 §9.7). Reads `intel_alert` only — evidence is
+ * denormalized at write time (§9.3) so there is NO hot-path join to
  * congress_bill/hearing. Keyset pagination (no OFFSET), index-backed:
- *   order=date  → [tenant_id, client_id, created_at] (Phase-4 index)
- *   order=score → [tenant_id, client_id, score, created_at] (Phase-6 index)
+ *   per-client, order=date  → [tenant_id, client_id, created_at] (Phase-4 index)
+ *   per-client, order=score → [tenant_id, client_id, score, created_at] (Phase-6 index)
+ *   tenant-wide, order=date  → [tenant_id, created_at]         (P11 index)
+ *   tenant-wide, order=score → [tenant_id, score, created_at]  (P11 index)
  *
- * intel_alert has no RLS → every query filters by BOTH tenantId (app-code
- * isolation) and clientId. Encrypted mention quotes are returned as pointers
- * (quoteSource='encrypted', quote=null) as stored; decrypt-on-read is a fast
- * follow (the serve task-def carries HEARING_ENCRYPTION_KEY).
+ * clientId is OPTIONAL: when omitted the feed is a TENANT-WIDE roll-up across
+ * every client (Radar's global altitude, P11), and each returned alert carries
+ * its own clientId + resolved clientName so cards can label the client. When
+ * present the feed is the per-client view (unchanged).
+ *
+ * intel_alert has no RLS → every query filters by tenantId (app-code isolation),
+ * plus clientId when scoped to one client. Encrypted mention quotes are returned
+ * as pointers (quoteSource='encrypted', quote=null) as stored; decrypt-on-read is
+ * a fast follow (the serve task-def carries HEARING_ENCRYPTION_KEY).
  */
 
 export const DEFAULT_STATUSES = ['new', 'reviewed', 'sent'];
@@ -63,6 +71,7 @@ export class FeedService {
     private readonly prisma: PrismaService,
     private readonly crypto: HearingCryptoService,
     private readonly actions: ActionItemService,
+    private readonly sourceData: SourceDataRepository,
   ) {}
 
   /**
@@ -101,17 +110,22 @@ export class FeedService {
     }
   }
 
-  async getFeed(tenantId: string, clientId: string, q: FeedQuery) {
+  /**
+   * @param clientId one client to scope to, or `null`/omitted for the TENANT-WIDE
+   *   roll-up across every client (P11). Both paths are tenant-scoped in app code.
+   */
+  async getFeed(tenantId: string, clientId: string | null | undefined, q: FeedQuery) {
     const order: 'date' | 'score' = q.order === 'score' ? 'score' : 'date';
     const limit = Math.min(Math.max(q.limit ?? DEFAULT_LIMIT, 1), MAX_LIMIT);
     const statuses = q.statuses?.length ? q.statuses : DEFAULT_STATUSES;
 
-    // Shared filters (also used for counts, minus the sourceType facet).
+    // Shared filters (also used for counts, minus the sourceType facet). clientId
+    // is added ONLY for the per-client view; omitted → tenant-wide roll-up.
     const baseWhere: Record<string, unknown> = {
       tenantId,
-      clientId,
       status: { in: statuses },
     };
+    if (clientId) baseWhere['clientId'] = clientId;
     if (q.severities?.length) baseWhere['severity'] = { in: q.severities };
     if (q.since || q.until) {
       baseWhere['createdAt'] = {
@@ -150,6 +164,7 @@ export class FeedService {
       take: limit + 1, // one extra to compute hasMore
       select: {
         id: true,
+        clientId: true,
         sourceType: true,
         sourceRef: true,
         kind: true,
@@ -189,8 +204,20 @@ export class FeedService {
       tenantId,
       items.map((i) => i.id),
     );
+
+    // Global roll-up: resolve display names for the page's client ids in one
+    // tenant-scoped read so each card can label its client (no-op/skip for the
+    // per-client view — it already knows the name from the URL). Never blocks the
+    // feed: a name that can't be resolved just renders as its id upstream.
+    const clientNames = clientId
+      ? new Map<string, string>()
+      : await this.sourceData
+          .getClientNames(tenantId, items.map((i) => i.clientId))
+          .catch(() => new Map<string, string>());
+
     const decorated = items.map((it) => ({
       ...it,
+      clientName: clientNames.get(it.clientId) ?? null,
       recommendedActions: recommendedActionsFor({
         sourceType: it.sourceType,
         severity: it.severity,

@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { useInfiniteQuery } from '@tanstack/react-query';
+import { useInfiniteQuery, useMutation } from '@tanstack/react-query';
 import { useNavigate } from 'react-router-dom';
 import { App as AntApp, Input, Modal } from 'antd';
 import { useApi } from '../../../lib/use-api.js';
@@ -79,7 +79,16 @@ function ActionChip({ a, item, onAction }: { a: RecommendedAction; item: FeedIte
   );
 }
 
-function FeedCard({ item, onAction }: { item: FeedItem; onAction: (a: RecommendedAction, item: FeedItem) => void }) {
+function FeedCard({
+  item,
+  onAction,
+  showClient = false,
+}: {
+  item: FeedItem;
+  onAction: (a: RecommendedAction, item: FeedItem) => void;
+  /** P11 global feed: render a client label so cross-client alerts are attributable. */
+  showClient?: boolean;
+}) {
   const ev = item.evidence ?? {};
   const mentions = ev.hearing?.mentions ?? [];
   const actions = item.recommendedActions ?? [];
@@ -99,6 +108,21 @@ function FeedCard({ item, onAction }: { item: FeedItem; onAction: (a: Recommende
       <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
         <SourceBadge t={item.sourceType} />
         <span style={{ fontSize: 11, fontWeight: 600, color: SEV_COLOR[item.severity] }}>{SEV_LABEL[item.severity]}</span>
+        {showClient && (
+          <span
+            style={{
+              fontSize: 10.5,
+              fontWeight: 600,
+              color: 'var(--accent, #6b4fbb)',
+              background: 'var(--accent-soft, #f1eefb)',
+              borderRadius: 4,
+              padding: '2px 6px',
+            }}
+            title="Client this alert is for"
+          >
+            {item.clientName ?? 'Client'}
+          </span>
+        )}
         {item.actions?.memo && <span style={{ fontSize: 10.5, fontWeight: 600, color: 'var(--good, #2f7a57)' }}>memo drafted ✓</span>}
         <span style={{ flex: 1 }} />
         <span style={{ fontSize: 11, color: 'var(--muted, #8a8a96)' }} title="Priority score (0–1)">
@@ -166,15 +190,25 @@ export function TrackerFeedPanel({
   clientId,
   clientName,
   onOpenBill,
+  global = false,
 }: {
-  clientId: string;
-  clientName: string;
+  /** Per-client mode: the client to scope to. Omitted/ignored in `global` mode. */
+  clientId?: string;
+  clientName?: string;
   /**
    * P3/P9.1: when provided, `open_bill` alert actions open the bill in place
    * (the Radar/profile bill side-drawer) instead of navigating to Data Explorer.
    * Falls back to `/explorer?bill=` navigation for any other caller (back-compat).
+   * The alert's own clientId is passed as the 2nd arg so the global feed (P11) can
+   * open the drawer scoped to the right client.
    */
-  onOpenBill?: (billId: string) => void;
+  onOpenBill?: (billId: string, clientId: string) => void;
+  /**
+   * P11 global altitude: render the TENANT-WIDE cross-client roll-up (each card
+   * labels its client) instead of one client's feed. Actions still work — every
+   * per-alert operation is scoped to `item.clientId`.
+   */
+  global?: boolean;
 }) {
   const api = useApi();
   const navigate = useNavigate();
@@ -188,11 +222,77 @@ export function TrackerFeedPanel({
   const setReport = useSetReport();
   const addTalkingPoint = useAddTalkingPoint();
 
+  // P10: acting on a feed alert = hand-off. "Draft outreach" creates a real
+  // outreach DRAFT record seeded with the alert as a context item, then deep-links
+  // the wizard's resume path (/engagement/outreach/draft/:id). The wizard hydrates
+  // client/title/context from metadata and resumes at the Build Context step — no
+  // wizard changes needed. Mirrors the DTO in engagement.controller.ts
+  // (CreateOutreachRecordDto: type/clientId/title/direction/lastStep/metadata/contextPool).
+  const draftOutreach = useMutation({
+    mutationFn: async (item: FeedItem) => {
+      const bill = item.evidence?.bill;
+      const actionText = bill
+        ? `${bill.displayNum}${bill.actionText ? ` — ${bill.actionText}` : ''}`
+        : null;
+      const body = [item.whyItMatters, actionText].filter(Boolean).join(' · ');
+      const ctxId = `alert-${item.id}`;
+      const contextItem = {
+        id: ctxId,
+        kind: 'intel' as const,
+        title: item.title,
+        body,
+        tag: 'Radar alert',
+        scope: 'all' as const,
+        note: '',
+      };
+      const res = await api.post<{ id: string }>('/api/engagement/outreach', {
+        type: 'campaign',
+        clientId: item.clientId, // scope to the alert's own client (global feed too)
+        title: `Re: ${item.title}`.slice(0, 240),
+        direction: 'on-behalf',
+        lastStep: 4,
+        metadata: {
+          source: 'radar-alert',
+          direction: 'on-behalf',
+          lastStepId: 'context',
+          tone: 'Professional',
+          targets: [],
+          contextItems: [contextItem],
+        },
+        // Lossy projection the API stores at the top level so Meri generation
+        // sees the alert as a context source (mirrors the wizard's contextPool).
+        // Slice to the DTO bounds (title @Length(1,240), summary @Length(0,2000)):
+        // intel_alert.title is unbounded and federal bill/hearing titles routinely
+        // exceed 240, which would 400 the whole POST (review finding).
+        contextPool: [
+          {
+            id: ctxId,
+            sourceType: 'intel',
+            title: item.title.slice(0, 240),
+            summary: body.slice(0, 2000),
+            note: '',
+            scope: 'all',
+          },
+        ],
+      });
+      return res.data;
+    },
+    onSuccess: (record) => {
+      message.success('Outreach draft created — opening the wizard');
+      navigate(`/engagement/outreach/draft/${encodeURIComponent(record.id)}`);
+    },
+    onError: (e: unknown) => message.error(`Could not create outreach draft: ${(e as Error).message}`),
+  });
+
+  // P11: global mode reads the tenant-wide roll-up (`_all/feed`) under a distinct
+  // cache key; per-client mode is unchanged. The path/key switch is the ONLY
+  // difference — filters, keyset cursor, and page shape are identical.
   const query = useInfiniteQuery({
-    queryKey: intelFeedKeys.feed(clientId, source, order),
-    queryFn: async ({ pageParam }) =>
-      (await api.get<FeedResponse>(`${intelFeedPaths.feed(clientId)}?${feedQueryString(source, order, pageParam || undefined)}`))
-        .data,
+    queryKey: global ? intelFeedKeys.tenantFeed(source, order) : intelFeedKeys.feed(clientId!, source, order),
+    queryFn: async ({ pageParam }) => {
+      const path = global ? intelFeedPaths.tenantFeed() : intelFeedPaths.feed(clientId!);
+      return (await api.get<FeedResponse>(`${path}?${feedQueryString(source, order, pageParam || undefined)}`)).data;
+    },
     initialPageParam: '',
     getNextPageParam: (last: FeedResponse) => (last.hasMore && last.nextCursor ? last.nextCursor : undefined),
   });
@@ -207,7 +307,7 @@ export function TrackerFeedPanel({
         break;
       case 'open_bill':
         if (a.target?.billId) {
-          if (onOpenBill) onOpenBill(a.target.billId);
+          if (onOpenBill) onOpenBill(a.target.billId, item.clientId);
           else navigate(`/explorer?bill=${encodeURIComponent(a.target.billId)}`);
         }
         break;
@@ -226,13 +326,9 @@ export function TrackerFeedPanel({
         }
         break;
       }
-      case 'draft_outreach': {
-        const opener = `Re: ${item.title}${item.whyItMatters ? ` — ${item.whyItMatters}` : ''}`;
-        void navigator.clipboard?.writeText(opener);
-        message.success('Outreach opener copied — opening Outreach');
-        navigate('/engagement/outreach');
+      case 'draft_outreach':
+        if (!draftOutreach.isPending) draftOutreach.mutate(item);
         break;
-      }
       case 'add_talking_point':
         setTpItem(item);
         setTpText(`${item.title}${item.whyItMatters ? ` — ${item.whyItMatters}` : ''}`.slice(0, 300));
@@ -240,7 +336,7 @@ export function TrackerFeedPanel({
       case 'add_to_report': {
         const on = !item.actions?.inReport;
         setReport.mutate(
-          { clientId, alertId: item.id, on },
+          { clientId: item.clientId, alertId: item.id, on },
           { onSuccess: () => message.success(on ? 'Added to weekly report' : 'Removed from weekly report') },
         );
         break;
@@ -284,12 +380,16 @@ export function TrackerFeedPanel({
       ) : items.length === 0 ? (
         <div className="trk-empty">
           <h4>No intelligence yet</h4>
-          <p>Bill changes, hearing mentions, and combined alerts for this client will appear here.</p>
+          <p>
+            {global
+              ? 'Bill changes, hearing mentions, and combined alerts across all your clients will appear here.'
+              : 'Bill changes, hearing mentions, and combined alerts for this client will appear here.'}
+          </p>
         </div>
       ) : (
         <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
           {items.map((it) => (
-            <FeedCard key={it.id} item={it} onAction={onAction} />
+            <FeedCard key={it.id} item={it} onAction={onAction} showClient={global} />
           ))}
           {query.hasNextPage && (
             <button
@@ -304,11 +404,15 @@ export function TrackerFeedPanel({
         </div>
       )}
 
+      {/* Client-scoped drawers derive their client from the alert itself so they
+          work in both per-client and global (P11) mode. In the per-client feed the
+          alert's clientId equals the panel's clientId; in global mode it's the
+          alert's own client, with the roll-up-resolved name. */}
       <MemoComposerDrawer
         open={!!composerItem}
         onClose={() => setComposerItem(null)}
-        clientId={clientId}
-        clientName={clientName}
+        clientId={composerItem?.clientId ?? clientId ?? ''}
+        clientName={composerItem?.clientName ?? clientName ?? ''}
         item={composerItem}
       />
 
@@ -321,7 +425,7 @@ export function TrackerFeedPanel({
         onOk={() => {
           if (!tpItem || !tpText.trim()) return;
           addTalkingPoint.mutate(
-            { clientId, alertId: tpItem.id, text: tpText.trim() },
+            { clientId: tpItem.clientId, alertId: tpItem.id, text: tpText.trim() },
             {
               onSuccess: () => {
                 message.success('Talking point saved');

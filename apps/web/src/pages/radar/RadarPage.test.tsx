@@ -53,6 +53,10 @@ function mockApi(flags: Record<string, boolean>) {
     if (url.endsWith('/tracker/recommendations')) {
       return { data: { recommendations: [], aboveFloorCount: 0, total: 0, floor: 0.5 } };
     }
+    // P11 global cross-client roll-up + per-client feed (empty by default).
+    if (url.includes('/_all/feed') || url.includes('/feed')) {
+      return { data: { items: [], nextCursor: null, hasMore: false, counts: {} } };
+    }
     if (url === '/api/intelligence/issue-areas') return { data: { issueAreas: [] } };
     // Watchlist (P6 cold-start check + Configure panel). Default: configured
     // (so Feed/Bills render the panel, not the guided first-run state).
@@ -94,7 +98,7 @@ describe('RadarPage', () => {
     setupBrowserMocks();
   });
 
-  test('defaults to the Feed tab and prompts for a client', async () => {
+  test('defaults to the Feed tab; when tracker_v2 is off, shows the not-enabled state', async () => {
     mockApi({});
     renderRadar('/radar');
 
@@ -103,9 +107,30 @@ describe('RadarPage', () => {
     for (const label of ['Feed', 'Bills', 'Hearings', 'Watchlist']) {
       expect(screen.getByText(label)).toBeInTheDocument();
     }
+    // P11: the Feed no longer prompts for a client at global altitude; without
+    // tracker_v2 it falls to the "not enabled" Empty (no client picker gate).
     await waitFor(() =>
-      expect(screen.getByText(/Select a client to view its alert feed/i)).toBeInTheDocument(),
+      expect(
+        screen.getByText(/unified alert feed is not enabled for this workspace/i),
+      ).toBeInTheDocument(),
     );
+  });
+
+  test('P11: Feed at global altitude (no client, tracker_v2 on) renders the cross-client roll-up', async () => {
+    mockApi({ tracker_v2: true });
+    renderRadar('/radar');
+
+    // No client selected → the tenant-wide feed panel renders (empty here), NOT
+    // the ClientGate picker prompt. The empty-state copy is the global variant.
+    await waitFor(() =>
+      expect(
+        screen.getByText(/alerts across all your clients will appear here/i),
+      ).toBeInTheDocument(),
+    );
+    // It must hit the tenant-wide roll-up endpoint, not a per-client feed.
+    expect(
+      apiGetMock.mock.calls.some((args: unknown[]) => String(args[0]).includes('/clients/_all/feed')),
+    ).toBe(true);
   });
 
   test('hearings tab is global (no client) and no longer carries a Watchlists view (absorbed by P5)', async () => {

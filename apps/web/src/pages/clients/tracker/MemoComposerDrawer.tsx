@@ -1,5 +1,9 @@
 import { useEffect, useRef, useState } from 'react';
+import { useMutation } from '@tanstack/react-query';
+import { useNavigate } from 'react-router-dom';
 import { App as AntApp, Button, Input, Modal, Space, Tag, Tooltip, Typography } from 'antd';
+import { useApi } from '../../../lib/use-api.js';
+import { markdownishToHtml } from '../../engagement/outreach/v2/richtext.js';
 import type { FeedItem } from './intel-feed-api.js';
 import {
   feedItemToMemoAlert,
@@ -31,9 +35,56 @@ export function MemoComposerDrawer({
   item: FeedItem | null;
 }) {
   const { message } = AntApp.useApp();
+  const api = useApi();
+  const navigate = useNavigate();
   const generate = useGenerateAlertMemo();
   const save = useSaveAlertMemo();
   const recordLink = useRecordMemoLink();
+
+  // P10: "Open in Workspace" — create an EDITABLE Workspace draft from the
+  // in-memory memo content (never the auto-filed .docx; Documents/EngagementAttachment
+  // and Workspace/WsDraft are disjoint stores). POST /workspace-api/drafts to mint
+  // the draft, then PATCH config.sections/sectionContent so the editor renders the
+  // memo's headings + HTML bodies, then navigate to the editor. Prefers the memo's
+  // structured `sections`; falls back to a single "Memo" section from the markdown.
+  const openInWorkspace = useMutation({
+    mutationFn: async (m: AlertMemoResult) => {
+      const sections: string[] = [];
+      const sectionContent: Record<string, string> = {};
+      if (m.sections?.length) {
+        for (const s of m.sections) {
+          // Workspace keys content by heading, so duplicate/empty headings would
+          // overwrite each other's body — disambiguate with a numeric suffix so
+          // every section's content survives (review finding).
+          const base = s.heading?.trim() || 'Section';
+          let heading = base;
+          let n = 2;
+          while (Object.prototype.hasOwnProperty.call(sectionContent, heading)) heading = `${base} (${n++})`;
+          const md = s.paragraphs.map((p) => p.text).join('\n\n');
+          sections.push(heading);
+          sectionContent[heading] = markdownishToHtml(md);
+        }
+      } else {
+        const heading = 'Memo';
+        sections.push(heading);
+        sectionContent[heading] = markdownishToHtml(markdown || m.markdown || '');
+      }
+      const created = await api.post<{ id: string }>('/workspace-api/drafts', {
+        docTitle: m.title,
+        client: clientName,
+      });
+      const draftId = created.data.id;
+      await api.patch(`/workspace-api/drafts/${encodeURIComponent(draftId)}`, {
+        config: { sections, sectionContent },
+      });
+      return draftId;
+    },
+    onSuccess: (draftId) => {
+      message.success('Opened in Workspace');
+      navigate(`/workspace/draft/${encodeURIComponent(draftId)}`);
+    },
+    onError: (e: unknown) => message.error(`Could not open in Workspace: ${(e as Error).message}`),
+  });
 
   const [memo, setMemo] = useState<AlertMemoResult | null>(null);
   const [markdown, setMarkdown] = useState('');
@@ -128,6 +179,14 @@ export function MemoComposerDrawer({
           disabled={!markdown}
         >
           Copy
+        </Button>,
+        <Button
+          key="workspace"
+          onClick={() => memo && openInWorkspace.mutate(memo)}
+          loading={openInWorkspace.isPending}
+          disabled={!memo || !markdown}
+        >
+          Open in Workspace
         </Button>,
         <Button key="close" onClick={onClose}>
           Close

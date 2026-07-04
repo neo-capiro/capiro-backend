@@ -456,6 +456,30 @@ export class SourceDataRepository {
     return rows[0] ?? null;
   }
 
+  /**
+   * Batch-resolve display names for a set of client ids in ONE tenant-scoped read
+   * (used by the global cross-client feed roll-up to label each alert card). Same
+   * `withSystem` + mandatory tenant_id bound-param pattern as getClientProfile, so
+   * no cross-tenant row can leak. Returns a clientId→name map; ids with no `clients`
+   * row (or a null name) are simply absent from the map.
+   */
+  async getClientNames(tenantId: string, clientIds: string[]): Promise<Map<string, string>> {
+    const ids = Array.from(new Set(clientIds)).filter(Boolean);
+    if (!ids.length) return new Map();
+    const rows = await this.prisma.withSystem((tx) =>
+      tx.$queryRawUnsafe<Array<{ id: string; name: string | null }>>(
+        `SELECT id::text AS id, name
+           FROM clients
+          WHERE tenant_id = $1::uuid AND id = ANY($2::uuid[])`,
+        tenantId,
+        ids,
+      ),
+    );
+    const out = new Map<string, string>();
+    for (const r of rows) if (r.name) out.set(r.id, r.name);
+    return out;
+  }
+
   /** A client's capability rows (tags + sector) for watchlist seed-suggestions. */
   async getClientCapabilities(tenantId: string, clientId: string): Promise<ClientCapabilityRow[]> {
     return this.prisma.withSystem((tx) =>

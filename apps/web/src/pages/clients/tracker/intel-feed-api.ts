@@ -67,6 +67,10 @@ export interface FeedItemActions {
 
 export interface FeedItem {
   id: string;
+  /** Owning client (always present). Drives the client label on the global feed. */
+  clientId: string;
+  /** Resolved client display name — only populated by the tenant-wide roll-up. */
+  clientName?: string | null;
   sourceType: FeedSourceType;
   kind: string;
   severity: FeedSeverity;
@@ -100,11 +104,17 @@ const enc = encodeURIComponent;
 
 export const intelFeedPaths = {
   feed: (clientId: string) => `/intel-api/clients/${enc(clientId)}/feed`,
+  // P11: tenant-wide cross-client roll-up (Radar's global altitude).
+  tenantFeed: () => `/intel-api/clients/_all/feed`,
 };
 
 export const intelFeedKeys = {
   feed: (clientId: string, source: FeedFilter, order: FeedOrder) =>
     ['intel-feed', clientId, source, order] as const,
+  // Distinct key namespace so the global roll-up never shares cache with a
+  // per-client feed (which would leak cross-client rows into a client view).
+  tenantFeed: (source: FeedFilter, order: FeedOrder) =>
+    ['intel-feed', '_all', source, order] as const,
 };
 
 export const FEED_PAGE_SIZE = 25;

@@ -205,6 +205,11 @@ model IntelAlert {
   @@index([tenantId, sourceType, sourceRef])
   // Phase-6 feed (§9.8) score-ordering: keyset pagination on score DESC.
   @@index([tenantId, clientId, score, createdAt])
+  // P11 global cross-client roll-up: tenant-wide keyset pagination (no clientId
+  // predicate). The per-client indexes above lead with client_id and can't back a
+  // tenant-only scan, so the roll-up gets its own leading-tenant indexes.
+  @@index([tenantId, createdAt])
+  @@index([tenantId, score, createdAt])
   @@map("intel_alert")
 }
 
