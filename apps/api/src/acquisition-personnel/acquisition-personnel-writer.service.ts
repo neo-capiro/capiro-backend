@@ -37,6 +37,9 @@ export class AcquisitionPersonnelWriterService {
 
     const normalized = normalizeName(fullName);
     const emailDomain = this.extractEmailDomain(record.email, record.emailDomain);
+    // Full email is PII: persisted when a source provides it, but the read layer
+    // only surfaces it to capiro_admin (every other caller gets emailDomain).
+    const fullEmail = this.normalizeFullEmail(record.email);
 
     const matches = await this.matchScorer.findMatches({
       fullName,
@@ -50,6 +53,15 @@ export class AcquisitionPersonnelWriterService {
     const top = matches[0];
     if (top && top.score >= 0.92) {
       await this.addSourceMention(top.personId, source, sourceUrl, snippet, observedAt, confidence);
+      // Backfill the full email onto an existing person that lacks one (re-syncs
+      // match the ~8.8k existing roster rather than inserting, so without this the
+      // email would never populate). Never overwrite an email already present.
+      if (fullEmail) {
+        await this.prisma.acquisitionPersonnel.updateMany({
+          where: { id: top.personId, email: null },
+          data: { email: fullEmail, emailDomain: emailDomain ?? undefined },
+        });
+      }
       return { inserted: false, person_id: top.personId, mergedWith: top.personId };
     }
 
@@ -65,6 +77,7 @@ export class AcquisitionPersonnelWriterService {
         pePrimary: record.pePrimary ?? null,
         peSecondary: record.peSecondary ?? [],
         emailDomain,
+        email: fullEmail,
         publicProfileUrl: record.publicProfileUrl ?? null,
         confidence: this.capConfidence(confidence),
         status: 'active',
@@ -108,7 +121,11 @@ export class AcquisitionPersonnelWriterService {
     });
 
     if (existing) {
-      if (existing.observedAt.getTime() === observedAt.getTime() && existing.confidence === confidence) return false;
+      if (
+        existing.observedAt.getTime() === observedAt.getTime() &&
+        existing.confidence === confidence
+      )
+        return false;
       await this.prisma.acquisitionPersonnelSource.update({
         where: { id: existing.id },
         data: { observedAt, snippet: snippet ?? existing.snippet, confidence },
@@ -149,9 +166,14 @@ export class AcquisitionPersonnelWriterService {
       ]);
       if (!primary || !secondary) return;
 
-      await tx.acquisitionPersonnelSource.updateMany({ where: { personId: secondaryId }, data: { personId: primaryId } });
+      await tx.acquisitionPersonnelSource.updateMany({
+        where: { personId: secondaryId },
+        data: { personId: primaryId },
+      });
 
-      const mergedPeSecondary = Array.from(new Set([...(primary.peSecondary ?? []), ...(secondary.peSecondary ?? [])]));
+      const mergedPeSecondary = Array.from(
+        new Set([...(primary.peSecondary ?? []), ...(secondary.peSecondary ?? [])]),
+      );
       const mergedConfidence = this.aggregateConfidence([primary.confidence, secondary.confidence]);
 
       await tx.acquisitionPersonnel.update({
@@ -159,7 +181,8 @@ export class AcquisitionPersonnelWriterService {
         data: {
           peSecondary: mergedPeSecondary,
           confidence: mergedConfidence,
-          lastSeenAt: primary.lastSeenAt > secondary.lastSeenAt ? primary.lastSeenAt : secondary.lastSeenAt,
+          lastSeenAt:
+            primary.lastSeenAt > secondary.lastSeenAt ? primary.lastSeenAt : secondary.lastSeenAt,
         },
       });
 
@@ -195,7 +218,14 @@ export class AcquisitionPersonnelWriterService {
   async markDeparted(personId: string, asOfDate: Date): Promise<void> {
     const person = await this.prisma.acquisitionPersonnel.findUnique({
       where: { id: personId },
-      select: { id: true, fullName: true, organization: true, role: true, title: true, status: true },
+      select: {
+        id: true,
+        fullName: true,
+        organization: true,
+        role: true,
+        title: true,
+        status: true,
+      },
     });
     if (!person) return;
     // Only fire on a genuine active -> departed transition.
@@ -214,7 +244,10 @@ export class AcquisitionPersonnelWriterService {
     );
 
     const roleText = `${person.role ?? ''} ${person.title ?? ''}`.toLowerCase();
-    const isSenior = /\b(peo|program executive|pm\b|program manager|director|senior|chief|ses|deputy)\b/.test(roleText);
+    const isSenior =
+      /\b(peo|program executive|pm\b|program manager|director|senior|chief|ses|deputy)\b/.test(
+        roleText,
+      );
     const severity = isSenior ? 'notable' : 'info';
 
     await this.prisma.$transaction(async (tx: Prisma.TransactionClient) => {
@@ -268,6 +301,15 @@ export class AcquisitionPersonnelWriterService {
     if (lowered.includes('@')) return lowered.split('@')[1] ?? null;
     if (lowered.includes('/') || lowered.includes(' ')) return null;
     return lowered;
+  }
+
+  /** Validate + normalize a FULL email (local@domain.tld). Returns null otherwise. */
+  private normalizeFullEmail(email?: string | null): string | null {
+    const s = (email ?? '')
+      .trim()
+      .toLowerCase()
+      .replace(/^mailto:/, '');
+    return /^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(s) ? s : null;
   }
 
   private aggregateConfidence(values: number[]): number {

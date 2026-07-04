@@ -14,6 +14,9 @@ export interface ProgramTeamPerson {
   lastSeenAt: string;
   sourceCount: number;
   headshotUrl?: string | null;
+  // Full contact email. The API populates this ONLY for capiro_admin (PII gate);
+  // for everyone else it is null/absent and no email line renders.
+  email?: string | null;
   // Step 2.2 (plan §8): people hang off OFFICES and ROLES, never directly off a PE.
   // Empty/absent → render the legacy display + a muted "role mapping pending" note.
   roles?: PersonRoleSummary[];
@@ -170,6 +173,11 @@ export function ProgramTeamPanel({
                     {person.role ? <span className="pe-role-pill">{person.role}</span> : null}
                   </div>
                   <div className="pe-team-sub">{meta || 'Title/organization unavailable'}</div>
+                  {person.email ? (
+                    <div className="pe-team-email">
+                      <Link href={`mailto:${person.email}`}>{person.email}</Link>
+                    </div>
+                  ) : null}
                   {primaryRole ? (
                     <div className="pe-team-roles">
                       <div className="pe-team-role-head">

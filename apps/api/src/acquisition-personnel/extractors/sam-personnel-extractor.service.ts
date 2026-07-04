@@ -6,10 +6,10 @@ import { isValidPeCode } from '../../program-element/jbook/jbook-extract.js';
  *
  * Pure parser over a SAM.gov Contract Opportunities record. Extracts the
  * Contracting Officer / Contract Specialist from the solicitation header
- * (pointOfContact), anonymizes any email to its DOMAIN here (defense-in-depth — the
- * full email never leaves this function), and attempts PE attribution from the
- * description. Only header fields (intentionally public) are used; no external
- * enrichment (per SAM.gov ToS / PII guidance).
+ * (pointOfContact), captures both the email DOMAIN (surfaced to everyone) and the
+ * full email (PII — the read layer gates it to capiro_admin), and attempts PE
+ * attribution from the description. Only header fields (intentionally public) are
+ * used; no external enrichment.
  */
 
 export interface SamPointOfContact {
@@ -34,7 +34,10 @@ export interface SamPerson {
   title: string | null;
   role: string | null; // KO | COR/CS | OTHER (inferred from title)
   organization: string | null;
-  emailDomain: string | null; // domain ONLY — never a full email
+  emailDomain: string | null; // domain (shown to everyone)
+  // Full solicitation-POC email (public header field). PII: the read layer only
+  // exposes it to capiro_admin. Null when the record carries no usable email.
+  email: string | null;
   pePrimary: string | null;
   peSecondary: string[];
   programOfRecord: string | null;
@@ -49,13 +52,26 @@ export const SAM_CONFIDENCE = 0.85;
 
 /** Anonymize an email to its domain. Returns null if not a usable email/domain. */
 export function emailToDomain(raw: string | null | undefined): string | null {
-  const s = (raw ?? '').trim().toLowerCase().replace(/^mailto:/, '');
+  const s = (raw ?? '')
+    .trim()
+    .toLowerCase()
+    .replace(/^mailto:/, '');
   if (!s) return null;
   if (s.includes('@')) {
     const d = s.split('@')[1]?.trim();
     return d && d.includes('.') ? d : null;
   }
   return null; // not an email — do NOT guess
+}
+
+/** Normalize a full email (validate shape). Returns null if not a usable email. */
+export function normalizeEmail(raw: string | null | undefined): string | null {
+  const s = (raw ?? '')
+    .trim()
+    .toLowerCase()
+    .replace(/^mailto:/, '');
+  // Minimal shape check: local@domain.tld — do NOT guess/repair.
+  return /^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(s) ? s : null;
 }
 
 /** First+last name check. */
@@ -83,13 +99,18 @@ export class SamPersonnelExtractorService {
   /** Is this opportunity from DoD? (org path / department check). */
   isDod(opp: SamOpportunity): boolean {
     const hay = `${opp.fullParentPathName ?? ''} ${opp.department ?? ''}`.toUpperCase();
-    return /DEPT OF DEFENSE|DEPARTMENT OF DEFENSE|\bDOD\b|DEPT OF THE (ARMY|NAVY|AIR FORCE)|DEFENSE/.test(hay);
+    return /DEPT OF DEFENSE|DEPARTMENT OF DEFENSE|\bDOD\b|DEPT OF THE (ARMY|NAVY|AIR FORCE)|DEFENSE/.test(
+      hay,
+    );
   }
 
   /** Extract KO/CS/COR persons from one solicitation. Domain-only email. */
   extract(opp: SamOpportunity, knownPeCodes: ReadonlySet<string>): SamPerson[] {
     const url = opp.uiLink ?? (opp.noticeId ? `https://sam.gov/opp/${opp.noticeId}/view` : '');
-    const org = (opp.fullParentPathName ?? opp.department ?? '').split('.').pop()?.trim() || opp.department || null;
+    const org =
+      (opp.fullParentPathName ?? opp.department ?? '').split('.').pop()?.trim() ||
+      opp.department ||
+      null;
     const pes = this.matchPeCodes(opp.description ?? '', knownPeCodes);
     const snippet = (opp.description ?? opp.title ?? '').replace(/\s+/g, ' ').trim().slice(0, 480);
 
@@ -103,7 +124,8 @@ export class SamPersonnelExtractorService {
         title,
         role: inferRole(title),
         organization: org,
-        emailDomain: emailToDomain(poc.email), // DOMAIN ONLY
+        emailDomain: emailToDomain(poc.email),
+        email: normalizeEmail(poc.email), // full email — read layer gates to capiro_admin
         pePrimary: pes[0] ?? null,
         peSecondary: pes.slice(1),
         programOfRecord: opp.title ? opp.title.slice(0, 300) : null,

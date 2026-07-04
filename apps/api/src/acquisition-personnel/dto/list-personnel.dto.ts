@@ -84,6 +84,8 @@ export interface PersonnelListItemDto {
   pePrimary: string | null;
   peSecondary: string[];
   emailDomain: string | null;
+  // Full email — populated ONLY for capiro_admin callers (PII gate); null otherwise.
+  email: string | null;
   publicProfileUrl: string | null;
   headshotUrl: string | null;
   confidence: number;

@@ -178,6 +178,7 @@ export class AcquisitionPersonnelReadService {
         pePrimary: p.pePrimary,
         peSecondary: p.peSecondary,
         emailDomain: p.emailDomain,
+        email: ctx.role === 'capiro_admin' ? (p.email ?? null) : null,
         publicProfileUrl: p.publicProfileUrl,
         headshotUrl:
           p.metadata && typeof p.metadata === 'object' && !Array.isArray(p.metadata)
@@ -257,12 +258,25 @@ export class AcquisitionPersonnelReadService {
     peCode: string,
     ctx: TenantContext,
   ): Promise<PersonnelListResponseDto['data']> {
+    // Role-chain selection (plan §8): a person also belongs on this PE when an
+    // accepted role reaches it through an accepted program mapping —
+    //   PersonRole.programId --(accepted PeProgramMatch)--> peCode, or
+    //   PersonRole.officeId --(accepted ProgramOfficeProgramLink)--> program --(accepted PeProgramMatch)--> peCode.
+    // Previously the chain was DISPLAY-only and selection used pePrimary/peSecondary
+    // alone; this unions in the chain-reachable people so the 3.3k accepted roles
+    // actually surface. Global reference tables (no RLS) -> base client.
+    const chainPersonIds = await this.resolveChainPersonIds(peCode);
+
     const rows = await this.prisma.withTenant(ctx.tenantId, async (tx) => {
       const found = await tx.acquisitionPersonnel.findMany({
         where: {
           // Don't surface superseded people on a PE's team panel.
           supersededAt: null,
-          OR: [{ pePrimary: peCode }, { peSecondary: { has: peCode } }],
+          OR: [
+            { pePrimary: peCode },
+            { peSecondary: { has: peCode } },
+            ...(chainPersonIds.length ? [{ id: { in: chainPersonIds } }] : []),
+          ],
         },
         include: {
           sources: {
@@ -298,6 +312,8 @@ export class AcquisitionPersonnelReadService {
       peCode,
     );
 
+    // Full email is PII: expose it ONLY to capiro_admin; everyone else gets domain.
+    const isAdmin = ctx.role === 'capiro_admin';
     return rows.map((p) => {
       const roles = rolesByPerson.get(p.id) ?? [];
       // Legacy fallback: the person is on this PE only via the old pe_primary
@@ -314,6 +330,7 @@ export class AcquisitionPersonnelReadService {
         pePrimary: p.pePrimary,
         peSecondary: p.peSecondary,
         emailDomain: p.emailDomain,
+        email: isAdmin ? (p.email ?? null) : null,
         publicProfileUrl: p.publicProfileUrl,
         headshotUrl:
           p.metadata && typeof p.metadata === 'object' && !Array.isArray(p.metadata)
@@ -327,6 +344,40 @@ export class AcquisitionPersonnelReadService {
         roles,
       };
     });
+  }
+
+  /**
+   * People reachable from a PE via an ACCEPTED program mapping (plan §8):
+   *   PersonRole.programId --(accepted PeProgramMatch)--> peCode, OR
+   *   PersonRole.officeId --(accepted ProgramOfficeProgramLink)--> program --(accepted PeProgramMatch)--> peCode.
+   * Returns distinct personIds from non-quarantined roles; empty when nothing maps.
+   * Global reference tables (no RLS) -> base client.
+   */
+  private async resolveChainPersonIds(peCode: string): Promise<string[]> {
+    const matches = await this.prisma.peProgramMatch.findMany({
+      where: { peCode, status: 'accepted' },
+      select: { programId: true },
+    });
+    const programIds = Array.from(new Set(matches.map((m) => m.programId)));
+    if (programIds.length === 0) return [];
+
+    const officeLinks = await this.prisma.programOfficeProgramLink.findMany({
+      where: { programId: { in: programIds }, reviewStatus: 'accepted' },
+      select: { officeId: true },
+    });
+    const officeIds = Array.from(new Set(officeLinks.map((l) => l.officeId)));
+
+    const roles = await this.prisma.personRole.findMany({
+      where: {
+        reviewStatus: { not: 'quarantined' },
+        OR: [
+          { programId: { in: programIds } },
+          ...(officeIds.length ? [{ officeId: { in: officeIds } }] : []),
+        ],
+      },
+      select: { personId: true },
+    });
+    return Array.from(new Set(roles.map((r) => r.personId)));
   }
 
   /**

@@ -2615,6 +2615,10 @@ model AcquisitionPersonnel {
   pePrimary        String?   @map("pe_primary") @db.VarChar(16)
   peSecondary      String[]  @default([]) @map("pe_secondary")
   emailDomain      String?   @map("email_domain")
+  // Full POC email (e.g. a SAM.gov solicitation contact). PII: the read layer
+  // exposes this ONLY to capiro_admin; every other caller sees emailDomain only.
+  // Nullable — most sources still carry domain-only.
+  email            String?   @map("email")
   publicProfileUrl String?   @map("public_profile_url")
   confidence       Float     @default(0.5)
   status           String    @default("active") @db.VarChar(16)
