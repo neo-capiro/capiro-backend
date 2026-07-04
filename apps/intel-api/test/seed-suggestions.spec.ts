@@ -37,6 +37,7 @@ describe('TrackerSeedService.getSeedSuggestions', () => {
         synonyms: [],
         relatedEntities: [],
         riskTerms: [],
+        typedTerms: [],
         position: 'monitor',
         priority: 'med',
       },

@@ -2,22 +2,12 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useApi } from './use-api.js';
 
 // ---- types (mirror intel-api responses) ------------------------------------
-
-export interface WatchlistTerm {
-  id: string;
-  termType: string;
-  value: string;
-  weight: number;
-}
-
-export interface Watchlist {
-  id: string;
-  name: string;
-  clientId: string;
-  active: boolean;
-  terms: WatchlistTerm[];
-  createdAt?: string;
-}
+//
+// NOTE: the term-watchlist CRUD hooks/types (useWatchlists, useCreateWatchlist,
+// useAddTerm, useRemoveTerm, useSetWatchlistActive, Watchlist, WatchlistTerm,
+// TERM_TYPES) were removed in P5 — the unified editor (TrackerConfigPanel) now
+// owns watchlist CRUD through the tracker intel-api path. This lib is purely the
+// hearing schedule/session client now.
 
 export interface LiveHearingSession {
   id: string;
@@ -41,89 +31,6 @@ export interface UpcomingHearing {
   type?: string | null; // hearing, markup, meeting
   url?: string | null;
   location?: string | null;
-}
-
-export const TERM_TYPES = [
-  'bill',
-  'agency',
-  'committee',
-  'legislator',
-  'company',
-  'competitor',
-  'topic',
-  'risk_phrase',
-  'support_language',
-  'opposition_language',
-  'program_element',
-] as const;
-
-// ---- watchlists ------------------------------------------------------------
-
-export function useWatchlists(clientId?: string) {
-  const api = useApi();
-  return useQuery<Watchlist[]>({
-    queryKey: ['intel', 'watchlists', clientId ?? 'all'],
-    queryFn: async () => {
-      const q = clientId ? `?clientId=${encodeURIComponent(clientId)}` : '';
-      return (await api.get<Watchlist[]>(`/intel-api/watchlists${q}`)).data;
-    },
-    retry: false,
-    staleTime: 30_000,
-  });
-}
-
-export function useCreateWatchlist() {
-  const api = useApi();
-  const qc = useQueryClient();
-  return useMutation({
-    mutationFn: async (input: {
-      clientId: string;
-      name: string;
-      terms?: Array<{ termType: string; value: string; weight?: number }>;
-    }) => (await api.post<Watchlist>('/intel-api/watchlists', input)).data,
-    onSuccess: () => qc.invalidateQueries({ queryKey: ['intel', 'watchlists'] }),
-  });
-}
-
-export function useAddTerm() {
-  const api = useApi();
-  const qc = useQueryClient();
-  return useMutation({
-    mutationFn: async (input: {
-      watchlistId: string;
-      termType: string;
-      value: string;
-      weight?: number;
-    }) =>
-      (
-        await api.post<WatchlistTerm>(`/intel-api/watchlists/${input.watchlistId}/terms`, {
-          termType: input.termType,
-          value: input.value,
-          weight: input.weight,
-        })
-      ).data,
-    onSuccess: () => qc.invalidateQueries({ queryKey: ['intel', 'watchlists'] }),
-  });
-}
-
-export function useRemoveTerm() {
-  const api = useApi();
-  const qc = useQueryClient();
-  return useMutation({
-    mutationFn: async (termId: string) =>
-      (await api.delete(`/intel-api/watchlists/terms/${termId}`)).data,
-    onSuccess: () => qc.invalidateQueries({ queryKey: ['intel', 'watchlists'] }),
-  });
-}
-
-export function useSetWatchlistActive() {
-  const api = useApi();
-  const qc = useQueryClient();
-  return useMutation({
-    mutationFn: async (input: { id: string; active: boolean }) =>
-      (await api.put(`/intel-api/watchlists/${input.id}/active`, { active: input.active })).data,
-    onSuccess: () => qc.invalidateQueries({ queryKey: ['intel', 'watchlists'] }),
-  });
 }
 
 // ---- hearing sessions ------------------------------------------------------

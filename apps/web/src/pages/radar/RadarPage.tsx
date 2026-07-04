@@ -1,7 +1,7 @@
-import { useMemo, type ReactNode } from 'react';
+import { useMemo, useState, type ReactNode } from 'react';
 import { useSearchParams } from 'react-router-dom';
-import { useQuery } from '@tanstack/react-query';
-import { Empty, Segmented, Select, Spin, Typography } from 'antd';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { App as AntApp, Button, Empty, Segmented, Select, Spin, Typography } from 'antd';
 import {
   AimOutlined,
   AudioOutlined,
@@ -13,7 +13,21 @@ import { useApi } from '../../lib/use-api.js';
 import { useIntelFeature } from '../../lib/intel-feature-flags.js';
 import { TrackerSurface } from '../clients/tracker/TrackerTab.js';
 import { TrackerFeedPanel } from '../clients/tracker/TrackerFeedPanel.js';
+import { BillDrawer } from './BillDrawer.js';
 import { HearingWatchPanel } from '../intelligence/HearingWatchPage.js';
+import {
+  trackerKeys,
+  trackerPaths,
+  type BoardResponse,
+  type WatchlistPayload,
+} from '../clients/tracker/tracker-api.js';
+import {
+  intelTrackerPaths,
+  adaptBoard,
+  adaptWatchlist,
+  type IntelBoard,
+  type IntelWatchlist,
+} from '../clients/tracker/intel-tracker-api.js';
 import type { Client } from '../clients/clientTypes.js';
 
 const { Title, Paragraph, Text } = Typography;
@@ -75,6 +89,29 @@ export function RadarPage() {
   const { enabled: trackerV2, ready: trackerReady } = useIntelFeature('tracker_v2');
   const { enabled: hearingWatch, ready: hearingReady } = useIntelFeature('hearing_watch');
 
+  // ── First-run cold-start (P6) ──────────────────────────────────────────────
+  // A client is "cold" when it has NO watchlist configured: 0 issue areas AND 0
+  // topics/terms. Feed and Bills lead with a single-CTA guided empty state that
+  // routes to the Watchlist tab (where Import-from-profile is prominent). Uses
+  // the SAME watchlist query + cache key as the tracker surfaces, so once the
+  // user configures on the Watchlist tab, Feed/Bills unlock without a refetch.
+  const coldStartQuery = useQuery<WatchlistPayload>({
+    queryKey: selectedClient ? trackerKeys.watchlist(selectedClient.id) : ['radar-coldstart', 'none'],
+    queryFn: async () =>
+      trackerV2
+        ? adaptWatchlist(
+            (await api.get<IntelWatchlist>(intelTrackerPaths.watchlist(selectedClient!.id))).data,
+          )
+        : (await api.get<WatchlistPayload>(trackerPaths.watchlist(selectedClient!.id))).data,
+    enabled: Boolean(selectedClient) && trackerReady,
+    staleTime: 30_000,
+  });
+  const coldStartReady = coldStartQuery.isSuccess;
+  const isColdStart =
+    coldStartReady &&
+    (coldStartQuery.data?.issueAreas.length ?? 0) === 0 &&
+    (coldStartQuery.data?.tags.length ?? 0) === 0;
+
   const clientPicker = (
     <Select
       allowClear
@@ -135,13 +172,19 @@ export function RadarPage() {
             !trackerReady ? (
               <PanelLoading />
             ) : trackerV2 ? (
-              <div className="trk">
-                {/* key: full remount per client — unlike the profile flow (which
-                    unmounts between clients), the Radar picker swaps clientId in
-                    place, and these panels hold per-client interactive state
-                    (P4 review: cross-client autosave/select leaks). */}
-                <TrackerFeedPanel key={client.id} clientId={client.id} clientName={client.name} />
-              </div>
+              <FirstRunGate
+                loading={!coldStartReady}
+                cold={isColdStart}
+                clientName={client.name}
+                onSetup={() => setParam('tab', 'watchlist')}
+              >
+                <div className="trk">
+                  {/* key: full remount per client — the Radar picker swaps clientId
+                      in place and these panels hold per-client interactive state
+                      (P4 review: cross-client autosave/select leaks). */}
+                  <RadarFeedTab key={client.id} clientId={client.id} clientName={client.name} />
+                </div>
+              </FirstRunGate>
             ) : (
               <Empty description="The unified alert feed is not enabled for this workspace yet." />
             )
@@ -157,13 +200,20 @@ export function RadarPage() {
           what="its bill board and recommendations"
         >
           {(client) => (
-            <TrackerSurface
-              key={client.id}
-              clientId={client.id}
+            <FirstRunGate
+              loading={!coldStartReady}
+              cold={isColdStart}
               clientName={client.name}
-              variant="bills"
-              onOpenConfigure={() => setParam('tab', 'watchlist')}
-            />
+              onSetup={() => setParam('tab', 'watchlist')}
+            >
+              <TrackerSurface
+                key={client.id}
+                clientId={client.id}
+                clientName={client.name}
+                variant="bills"
+                onOpenConfigure={() => setParam('tab', 'watchlist')}
+              />
+            </FirstRunGate>
           )}
         </ClientGate>
       )}
@@ -173,10 +223,10 @@ export function RadarPage() {
           <PanelLoading />
         ) : hearingWatch ? (
           <div style={{ maxWidth: 1180 }}>
-            {/* includeWatchlists: this is the ONLY reachable hearing term-watchlist
-                CRUD until the unified editor (P5) absorbs it — the standalone
-                Hearing Watch route now redirects here (P4 review finding). */}
-            <HearingWatchPanel includeWatchlists />
+            {/* The hearing term-watchlist CRUD that used to live here was absorbed
+                into the unified Watchlist tab (TrackerConfigPanel, P5). This is
+                purely the hearing schedule/session surface now. */}
+            <HearingWatchPanel />
           </div>
         ) : (
           <Empty description="Hearing Watch is not enabled for this workspace." />
@@ -190,7 +240,27 @@ export function RadarPage() {
           what="its watchlist targeting and alerts"
         >
           {(client) => (
-            <TrackerSurface key={client.id} clientId={client.id} clientName={client.name} variant="watchlist" />
+            <div className="trk">
+              {/* First-run nudge: once the client is configured (no longer cold),
+                  point the user onward to the recommendations on the Bills tab.
+                  Import-from-profile itself is prominent inside the config panel. */}
+              {coldStartReady && !isColdStart && (
+                <div className="radar-nudge">
+                  <span>
+                    Targeting set for <b>{client.name}</b>. Review the bills Capiro recommends next.
+                  </span>
+                  <Button size="small" type="primary" onClick={() => setParam('tab', 'bills')}>
+                    Go to Bills → Recommendations
+                  </Button>
+                </div>
+              )}
+              <TrackerSurface
+                key={client.id}
+                clientId={client.id}
+                clientName={client.name}
+                variant="watchlist"
+              />
+            </div>
           )}
         </ClientGate>
       )}
@@ -202,6 +272,121 @@ function PanelLoading() {
   return (
     <div style={{ padding: '64px 0', textAlign: 'center' }}>
       <Spin />
+    </div>
+  );
+}
+
+/**
+ * Radar Feed tab (tracker_v2-only). The unified alert feed + the bill side-drawer
+ * (P7/P9): `open_bill` alert actions open the bill in place (spec D9 — never
+ * routes to Data Explorer). The drawer's "Track for <client>" (P9.1) reuses the
+ * standard track endpoint; the board query (shared react-query key with the Bills
+ * tab) tells the drawer whether the bill is already tracked.
+ */
+function RadarFeedTab({ clientId, clientName }: { clientId: string; clientName: string }) {
+  const api = useApi();
+  const qc = useQueryClient();
+  const { message } = AntApp.useApp();
+  const { enabled: trackerV2, ready: flagsReady } = useIntelFeature('tracker_v2');
+  const [drawerBillId, setDrawerBillId] = useState<string | null>(null);
+
+  // Shares trackerKeys.board(clientId) with the Bills tab / profile tab, so the
+  // board is one cached fetch across Radar and stays in sync after a track.
+  const boardQuery = useQuery<BoardResponse>({
+    queryKey: trackerKeys.board(clientId),
+    queryFn: async () =>
+      trackerV2
+        ? adaptBoard((await api.get<IntelBoard>(intelTrackerPaths.board(clientId))).data)
+        : (await api.get<BoardResponse>(trackerPaths.board(clientId))).data,
+    enabled: flagsReady,
+  });
+  const boardNums = useMemo(
+    () => new Set((boardQuery.data?.columns ?? []).flatMap((c) => c.bills.map((b) => b.billId))),
+    [boardQuery.data],
+  );
+
+  const trackMutation = useMutation({
+    mutationFn: async (billId: string) =>
+      trackerV2
+        ? (await api.post(intelTrackerPaths.track(clientId), { billId, source: 'manual_search' })).data
+        : (await api.post(trackerPaths.track(clientId), { billId, source: 'manual_search' })).data,
+    onSuccess: () => {
+      void qc.invalidateQueries({ queryKey: trackerKeys.board(clientId) });
+      void qc.invalidateQueries({ queryKey: trackerKeys.summary(clientId) });
+      // Feed and Bills tabs share the recommendations cache; without this the
+      // just-tracked bill lingers in Bills→Recs for ~staleTime (P7/P9 review).
+      void qc.invalidateQueries({ queryKey: trackerKeys.recommendations(clientId) });
+      message.success(`Tracking for ${clientName}`);
+    },
+    onError: () => message.error('Could not track bill'),
+  });
+
+  return (
+    <>
+      <TrackerFeedPanel clientId={clientId} clientName={clientName} onOpenBill={setDrawerBillId} />
+      <BillDrawer
+        open={drawerBillId !== null}
+        billId={drawerBillId}
+        clientId={clientId}
+        clientName={clientName}
+        isTracked={drawerBillId ? boardNums.has(drawerBillId) : false}
+        onTrack={(billId) => trackMutation.mutate(billId)}
+        onClose={() => setDrawerBillId(null)}
+      />
+    </>
+  );
+}
+
+/**
+ * First-run guided empty state (P6). When the selected client has no watchlist
+ * configured, Feed/Bills lead with a single CTA that routes to the Watchlist tab
+ * (where Import-from-profile is prominent) instead of an empty board/feed. Once
+ * ≥1 issue area/tag is saved the client is no longer cold and the real panel
+ * renders. While the cold-start check is still loading, show a spinner so the
+ * guided state never flashes over a configured client.
+ */
+function FirstRunGate({
+  loading,
+  cold,
+  clientName,
+  onSetup,
+  children,
+}: {
+  loading: boolean;
+  cold: boolean;
+  clientName: string;
+  onSetup: () => void;
+  children: ReactNode;
+}) {
+  if (loading) return <PanelLoading />;
+  if (!cold) return <>{children}</>;
+  return (
+    <div
+      style={{
+        display: 'flex',
+        flexDirection: 'column',
+        alignItems: 'center',
+        gap: 16,
+        padding: '56px 24px',
+        textAlign: 'center',
+      }}
+    >
+      <Empty
+        image={Empty.PRESENTED_IMAGE_SIMPLE}
+        description={
+          <span>
+            Capiro doesn&apos;t know what <b>{clientName}</b> cares about yet.
+            <br />
+            <Text type="secondary">
+              Set up issue areas and watchlist tags to unlock recommendations, the tracked-bill
+              board, and the alert feed.
+            </Text>
+          </span>
+        }
+      />
+      <Button type="primary" size="large" onClick={onSetup}>
+        Set up what {clientName} cares about →
+      </Button>
     </div>
   );
 }

@@ -1771,6 +1771,166 @@
   padding: 4px 9px;
 }
 
+/* Typed-term sub-editor (P5) — spans the full advanced-body width so it sits
+   below the three legacy chip inputs. */
+.redesign .adv-field.af-typed,
+.redesign .tag-adv-body .adv-field:last-child {
+  grid-column: 1 / -1;
+}
+.redesign .adv-field .af-label .af-hint {
+  font-weight: 500;
+  text-transform: none;
+  letter-spacing: 0;
+  color: var(--ink-3);
+}
+.redesign .typed-terms {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.redesign .typed-terms .tt-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 5px;
+  align-items: center;
+  min-height: 20px;
+}
+.redesign .typed-terms .tt-empty {
+  font-size: 11.5px;
+  color: var(--ink-3);
+  font-style: italic;
+}
+.redesign .typed-terms .tt-chip {
+  font-size: 11px;
+  font-weight: 500;
+  background: var(--info-soft, var(--bg-surface));
+  border: 1px solid var(--border-1);
+  color: var(--ink-1);
+  padding: 2px 5px 2px 4px;
+  border-radius: 5px;
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+}
+.redesign .typed-terms .tt-chip .tt-type {
+  font-size: 9.5px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--info, var(--accent-ink));
+  background: var(--bg-surface-2);
+  border-radius: 3px;
+  padding: 1px 5px;
+}
+.redesign .typed-terms .tt-chip .x {
+  cursor: pointer;
+  opacity: 0.55;
+  display: inline-flex;
+}
+.redesign .typed-terms .tt-chip .x:hover {
+  opacity: 1;
+}
+.redesign .typed-terms .tt-add {
+  display: flex;
+  gap: 6px;
+  align-items: center;
+}
+.redesign .typed-terms .tt-select {
+  font-family: var(--font-sans-rd);
+  font-size: 11.5px;
+  color: var(--ink-1);
+  background: var(--bg-surface);
+  border: 1px solid var(--border-1);
+  border-radius: var(--r-sm);
+  padding: 6px 8px;
+  cursor: pointer;
+}
+.redesign .typed-terms .tt-value {
+  flex: 1;
+  min-width: 90px;
+  font-family: var(--font-sans-rd);
+  font-size: 11.5px;
+  color: var(--ink-1);
+  background: var(--bg-surface-2);
+  border: 1px solid var(--border-1);
+  border-radius: var(--r-sm);
+  padding: 6px 8px;
+  outline: none;
+}
+.redesign .typed-terms .tt-add-btn {
+  font-family: var(--font-sans-rd);
+  font-size: 11.5px;
+  font-weight: 600;
+  color: var(--ink-2);
+  background: var(--bg-surface);
+  border: 1px solid var(--border-2);
+  border-radius: var(--r-sm);
+  padding: 6px 11px;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  white-space: nowrap;
+}
+.redesign .typed-terms .tt-add-btn:hover {
+  border-color: var(--accent);
+  color: var(--accent-ink);
+}
+
+/* P6 sector-default suggestion prompt (issue areas cold-start) */
+.redesign .cfg-suggest {
+  margin-bottom: 10px;
+}
+.redesign .cfg-suggest-txt {
+  font-size: 12px;
+  color: var(--ink-3);
+  display: inline-flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+.redesign .suggest-chip {
+  font-family: var(--font-sans-rd);
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--accent-ink);
+  background: var(--accent-soft);
+  border: 1px dashed var(--accent);
+  border-radius: 999px;
+  padding: 3px 10px;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+.redesign .suggest-chip:hover {
+  background: var(--accent);
+  color: #fff;
+}
+
+/* Radar first-run nudge (P6) — post-config prompt on the Watchlist tab */
+.redesign .radar-nudge {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+  background: var(--accent-soft);
+  border: 1px solid var(--accent);
+  border-radius: var(--r-md);
+  padding: 10px 14px;
+  margin-bottom: 16px;
+  font-size: 12.5px;
+  color: var(--ink-2);
+}
+.redesign .radar-nudge > span {
+  flex: 1;
+  min-width: 220px;
+}
+.redesign .radar-nudge b {
+  color: var(--accent-ink);
+  font-weight: 700;
+}
+
 /* Responsive: collapse the 4-col board + 2-col recs on narrow viewports */
 @media (max-width: 1100px) {
   .redesign .trk-board {

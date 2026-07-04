@@ -18,6 +18,8 @@ export interface SeedWatchlistTag {
   synonyms: string[];
   relatedEntities: string[];
   riskTerms: string[];
+  /** Typed terms (P5) — empty for a profile-seeded tag; kept for shape parity. */
+  typedTerms: Array<{ termType: string; value: string }>;
   position: 'support' | 'oppose' | 'monitor';
   priority: 'low' | 'med' | 'high';
 }
@@ -87,6 +89,7 @@ export class TrackerSeedService {
           synonyms: [],
           relatedEntities: [],
           riskTerms: [],
+          typedTerms: [],
           position: 'monitor',
           priority: 'med',
         });

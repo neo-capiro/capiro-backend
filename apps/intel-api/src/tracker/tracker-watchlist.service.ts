@@ -1,8 +1,18 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
+import { issueAreaForSector } from '@capiro/shared';
 import { PrismaService } from '../prisma/prisma.service.js';
 import { MIN_TERM_LEN } from '../watchlist/watchlist-mapping.js';
 import { compileWatchlist, type CompiledWatchlist } from '../watchlist/watchlist-compiler.js';
 import { normalizeE164 } from './sms/sms.service.js';
+
+/**
+ * Synthetic topic label for hearing-native FLAT terms (topicId NULL) folded into
+ * the unified editor (P5). The old WatchlistsTab wrote flat terms straight onto a
+ * watchlist row; the unified editor now owns them, so getWatchlist surfaces them
+ * under this topic (rather than orphaning them) and putWatchlist re-persists them
+ * from the same-named topic. Prefixed to avoid colliding with a real tag label.
+ */
+export const HEARING_TERMS_TOPIC_LABEL = 'Hearing terms';
 
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
@@ -41,6 +51,13 @@ export interface WatchlistView {
     priority: string;
     terms: Array<{ termType: string; value: string }>;
   }>;
+  /**
+   * P6 sector-default: the sector-derived issue area for a NEVER-configured client
+   * (no `wl:` row), surfaced as a read-time SUGGESTION so a cold client isn't
+   * blank. Never written on read, absent once a row exists (parity-safe — parity
+   * compares persisted rows, not this hint).
+   */
+  suggestedIssueAreas?: string[];
 }
 /** Legacy default alert triggers (apps/api tracker.types.DEFAULT_TRIGGERS). */
 export const DEFAULT_TRIGGERS: readonly string[] = [
@@ -76,28 +93,76 @@ export class TrackerWatchlistService {
       where: { id: wlId, tenantId },
       select: { issueAreas: true },
     });
-    if (!wl) return { clientId, issueAreas: [], topics: [] };
+    // Never configured → surface the sector-derived issue area as a suggestion
+    // so the cold client isn't blank (P6). No write on read; the editor opts in.
+    if (!wl) {
+      const suggested = await this.getSectorSuggestion(tenantId, clientId);
+      return {
+        clientId,
+        issueAreas: [],
+        topics: [],
+        ...(suggested.length ? { suggestedIssueAreas: suggested } : {}),
+      };
+    }
     const topics = await this.prisma.watchlistTopic.findMany({
       where: { watchlistId: wlId, tenantId },
       select: { id: true, label: true, issueArea: true, position: true, priority: true },
     });
-    const terms = topics.length
-      ? await this.prisma.watchlistTerm.findMany({
-          where: { topicId: { in: topics.map((t) => t.id) } },
-          select: { topicId: true, termType: true, value: true },
-        })
-      : [];
-    return {
-      clientId,
-      issueAreas: wl.issueAreas,
-      topics: topics.map((t) => ({
-        label: t.label,
-        issueArea: t.issueArea,
-        position: t.position,
-        priority: t.priority,
-        terms: terms.filter((x) => x.topicId === t.id).map((x) => ({ termType: x.termType, value: x.value })),
-      })),
-    };
+    const topicIds = topics.map((t) => t.id);
+    // Topic-scoped terms + any hearing-native FLAT terms on this SAME row
+    // (topicId NULL). The old WatchlistsTab wrote flat terms; the unified editor
+    // now owns them, so fold them into a synthetic topic rather than dropping
+    // them (putWatchlist re-persists them as topic terms — see below).
+    const terms = await this.prisma.watchlistTerm.findMany({
+      where: {
+        watchlistId: wlId,
+        tenantId,
+        OR: [
+          ...(topicIds.length ? [{ topicId: { in: topicIds } }] : []),
+          { topicId: null },
+        ],
+      },
+      select: { topicId: true, termType: true, value: true },
+    });
+    const outTopics = topics.map((t) => ({
+      label: t.label,
+      issueArea: t.issueArea,
+      position: t.position,
+      priority: t.priority,
+      terms: terms
+        .filter((x) => x.topicId === t.id)
+        .map((x) => ({ termType: x.termType, value: x.value })),
+    }));
+    const flatTerms = terms.filter((x) => x.topicId === null);
+    if (flatTerms.length) {
+      outTopics.push({
+        label: HEARING_TERMS_TOPIC_LABEL,
+        issueArea: null,
+        position: 'monitor',
+        priority: 'med',
+        terms: flatTerms.map((x) => ({ termType: x.termType, value: x.value })),
+      });
+    }
+    return { clientId, issueAreas: wl.issueAreas, topics: outTopics };
+  }
+
+  /**
+   * The sector-derived issue area for a never-configured client (P6, legacy
+   * carryover from apps/api getWatchlist which auto-selected
+   * issueAreaForSector(client.sectorTag)). Tenant-scoped read (intel-api has no
+   * RLS) via withSystem; returns [] on any miss. Read-only — never written.
+   */
+  private async getSectorSuggestion(tenantId: string, clientId: string): Promise<string[]> {
+    if (!UUID_RE.test(clientId)) return [];
+    const rows = await this.prisma.withSystem((tx) =>
+      tx.$queryRawUnsafe<Array<{ sectorTag: string | null }>>(
+        'SELECT sector_tag AS "sectorTag" FROM clients WHERE id = $1::uuid AND tenant_id = $2::uuid',
+        clientId,
+        tenantId,
+      ),
+    );
+    const area = issueAreaForSector(rows[0]?.sectorTag ?? null);
+    return area ? [area] : [];
   }
 
   /** Upsert the watchlist head + replace topics/terms atomically. */
@@ -107,6 +172,13 @@ export class TrackerWatchlistService {
     userId: string,
     input: PutWatchlistInput,
   ): Promise<WatchlistView> {
+    // CROSS-TENANT GUARD (batch-A review, CRITICAL): wl:<clientId> is a globally
+    // unique id and intel-api has no RLS, so an unscoped write could clobber
+    // ANOTHER tenant's watchlist (cascade-deleting all their topics/terms).
+    // Prove the client belongs to the caller — same guard the sibling writers
+    // (putAlertPrefs/markPhoneVerified) carry; TrackerOwnerGuard only checks the
+    // caller's flag, not client ownership.
+    await this.assertClientInTenant(tenantId, clientId);
     const wlId = `wl:${clientId}`;
     const issueAreas = Array.isArray(input.issueAreas) ? input.issueAreas : [];
     const topics = Array.isArray(input.topics) ? input.topics : [];
@@ -116,7 +188,16 @@ export class TrackerWatchlistService {
         create: { id: wlId, tenantId, clientId, name: 'Watchlist', createdBy: userId, issueAreas },
         update: { issueAreas },
       });
-      await tx.watchlistTopic.deleteMany({ where: { watchlistId: wlId } });
+      // Rebuild the `wl:` row's topics (cascade-deletes their terms). This ONLY
+      // touches the `wl:<clientId>` row — hearing FLAT terms on OTHER watchlist
+      // rows (random cuid, created by the old WatchlistsTab) are on a different
+      // `watchlistId` and are structurally untouched (proven by test). tenantId
+      // is added to both deletes as defense-in-depth behind the ownership guard.
+      await tx.watchlistTopic.deleteMany({ where: { watchlistId: wlId, tenantId } });
+      // Also drop any hearing FLAT terms on THIS row (topicId NULL): getWatchlist
+      // folded them into the synthetic "Hearing terms" topic, so the incoming
+      // `topics` already carries them — clearing avoids duplicating on migration.
+      await tx.watchlistTerm.deleteMany({ where: { watchlistId: wlId, tenantId, topicId: null } });
       for (const tp of topics) {
         if (!tp?.label?.trim()) continue;
         const topic = await tx.watchlistTopic.create({

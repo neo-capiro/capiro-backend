@@ -65,4 +65,37 @@ describe('compileWatchlist', () => {
     expect(out.deepgramKeyterms).not.toContain('term-000');
     expect(out.deepgramKeyterms).toContain('term-149');
   });
+
+  // P5: the unified editor writes the full 11 canonical term types. Every type
+  // must survive compilation and be usable by the hearing matcher (each shows up
+  // as a hearingTerm); the three billMatchSet buckets (synonym/entity/risk) stay
+  // as-is for the bill matcher. Nothing is silently dropped.
+  it('compiles all 11 canonical term types into usable hearing terms', () => {
+    const CANONICAL_TYPES = [
+      'bill',
+      'agency',
+      'committee',
+      'legislator',
+      'company',
+      'competitor',
+      'topic',
+      'risk_phrase',
+      'support_language',
+      'opposition_language',
+      'program_element',
+    ];
+    const out = compileWatchlist({
+      issueAreas: [],
+      topics: [topic('everything')],
+      terms: CANONICAL_TYPES.map((t) => term('everything', t, `${t}-term`)),
+    });
+    const hearingVals = out.hearingTerms.map((h) => h.value).sort();
+    expect(hearingVals).toEqual(CANONICAL_TYPES.map((t) => `${t}-term`).sort());
+    // deepgram keyterms carry every type too (lower-cased, deduped).
+    expect(out.deepgramKeyterms).toEqual(
+      CANONICAL_TYPES.map((t) => `${t}-term`.toLowerCase()).sort(),
+    );
+    // The topic label is still the primary bill keyword.
+    expect(out.billMatchSet[0].keywords).toContain('everything');
+  });
 });

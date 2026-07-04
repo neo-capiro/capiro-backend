@@ -23,6 +23,10 @@ export interface BoardBill {
   trackedAt: string;
   unread: boolean;
   change: BoardBillChange | null;
+  // Phase 9 (Bill→Hearing interlink): "discussed in N hearings" chip. Optional —
+  // only the intel board (adaptBoard) populates it; the legacy board omits it.
+  hearingCount?: number;
+  lastHearingSessionId?: string | null;
 }
 export interface BoardColumn {
   id: BillStage;
@@ -66,18 +70,81 @@ export interface RecommendationsResponse {
 
 export type TagPriority = 'low' | 'med' | 'high';
 export type TagPosition = 'support' | 'oppose' | 'monitor';
+
+/**
+ * The canonical set of watchlist term types (plan §5.2). These are the types the
+ * unified editor exposes and the intel matcher/hearing compiler consume.
+ *
+ * The three implicit inputs on the Configure panel — Synonyms, Related entities,
+ * Risk terms — persist as the LEGACY term types `synonym` / `entity` / `risk`
+ * (see intel-tracker-api adapters). Those legacy types therefore still exist in
+ * stored data and must round-trip; they are intentionally NOT in this list (the
+ * chip inputs own them). Anything else (a canonical type below, or an unknown
+ * hearing-native type) rides in `WatchlistTag.typedTerms` losslessly.
+ */
+export const TERM_TYPES = [
+  'bill',
+  'agency',
+  'committee',
+  'legislator',
+  'company',
+  'competitor',
+  'topic',
+  'risk_phrase',
+  'support_language',
+  'opposition_language',
+  'program_element',
+] as const;
+export type TermType = (typeof TERM_TYPES)[number];
+
+/** Human labels for the canonical term types (editor Select). */
+export const TERM_TYPE_LABELS: Record<string, string> = {
+  bill: 'Bill',
+  agency: 'Agency',
+  committee: 'Committee',
+  legislator: 'Legislator',
+  company: 'Company',
+  competitor: 'Competitor',
+  topic: 'Topic',
+  risk_phrase: 'Risk phrase',
+  support_language: 'Support language',
+  opposition_language: 'Opposition language',
+  program_element: 'Program element',
+};
+
+/** A single typed term (one of the 11 canonical types, or an unknown legacy/hearing type). */
+export interface TypedTerm {
+  termType: string;
+  value: string;
+}
+
 export interface WatchlistTag {
   tag: string;
   issueArea?: string | null;
+  /** Legacy `synonym`-typed terms (the "Synonyms" chip input). */
   synonyms: string[];
+  /** Legacy `entity`-typed terms (the "Related entities" chip input). */
   relatedEntities: string[];
+  /** Legacy `risk`-typed terms (the "Risk terms" chip input). */
   riskTerms: string[];
+  /**
+   * Every OTHER term type on this topic — the 11 canonical types plus any unknown
+   * hearing-native type — kept verbatim so nothing is lost across a save. The
+   * three legacy buckets above and this list together are the complete term set.
+   */
+  typedTerms: TypedTerm[];
   position?: TagPosition;
   priority: TagPriority;
 }
 export interface WatchlistPayload {
   issueAreas: string[];
   tags: WatchlistTag[];
+  /**
+   * Sector-derived issue-area default for a never-configured client (P6). Present
+   * only when the client has NO persisted watchlist row; the editor surfaces it
+   * as a pre-selection suggestion. Not a persisted field — a read-time hint.
+   */
+  suggestedIssueAreas?: string[];
 }
 
 export type Materiality = 'low' | 'medium' | 'high';

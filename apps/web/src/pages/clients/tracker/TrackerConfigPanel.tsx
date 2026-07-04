@@ -1,11 +1,15 @@
 import { useEffect, useRef, useState } from 'react';
 import { Icon } from './tracker-icons.js';
 import {
+  TERM_TYPES,
+  TERM_TYPE_LABELS,
   TRIGGER_LABELS,
   TRIGGER_ORDER,
   type AlertPrefsPayload,
   type TagPosition,
   type TagPriority,
+  type TermType,
+  type TypedTerm,
   type WatchlistPayload,
   type WatchlistTag,
 } from './tracker-api.js';
@@ -71,18 +75,98 @@ function ChipInput({
   );
 }
 
+/**
+ * Typed-term sub-editor (P5, plan §5.2). Reads/writes `WatchlistTag.typedTerms`
+ * across the full 11 canonical term types. Complements the three legacy chip
+ * inputs (Synonyms / Related entities / Risk terms) which own the older
+ * `synonym` / `entity` / `risk` types — together they cover every term type.
+ * Any UNKNOWN type already on the topic (e.g. a hearing-native type) is shown
+ * (read-only label) and preserved so a save never drops it.
+ */
+function TypedTermEditor({
+  terms,
+  onChange,
+}: {
+  terms: TypedTerm[];
+  onChange: (terms: TypedTerm[]) => void;
+}) {
+  const [type, setType] = useState<TermType>('bill');
+  const [value, setValue] = useState('');
+  const add = () => {
+    const v = value.trim();
+    if (!v) return;
+    if (terms.some((t) => t.termType === type && t.value.toLowerCase() === v.toLowerCase())) {
+      setValue('');
+      return;
+    }
+    onChange([...terms, { termType: type, value: v }]);
+    setValue('');
+  };
+  const labelFor = (t: string) => TERM_TYPE_LABELS[t] ?? t;
+  return (
+    <div className="typed-terms">
+      <div className="tt-list">
+        {terms.map((t, i) => (
+          <span key={`${t.termType}-${t.value}-${i}`} className="tt-chip">
+            <span className="tt-type">{labelFor(t.termType)}</span>
+            {t.value}
+            <span className="x" onClick={() => onChange(terms.filter((_, j) => j !== i))}>
+              <Icon name="plus" size={10} style={{ transform: 'rotate(45deg)' }} />
+            </span>
+          </span>
+        ))}
+        {terms.length === 0 && <span className="tt-empty">No typed terms yet</span>}
+      </div>
+      <div className="tt-add">
+        <select
+          className="tt-select"
+          value={type}
+          onChange={(e) => setType(e.target.value as TermType)}
+        >
+          {TERM_TYPES.map((t) => (
+            <option key={t} value={t}>
+              {labelFor(t)}
+            </option>
+          ))}
+        </select>
+        <input
+          className="tt-value"
+          value={value}
+          placeholder="add term…"
+          onChange={(e) => setValue(e.target.value)}
+          onKeyDown={(e) => {
+            if (e.key === 'Enter') {
+              e.preventDefault();
+              add();
+            }
+          }}
+          onBlur={add}
+        />
+        <button className="tt-add-btn" onClick={add} type="button">
+          <Icon name="plus" size={12} /> Add
+        </button>
+      </div>
+    </div>
+  );
+}
+
 function TagRow({
   tag,
   open,
   onToggleOpen,
   onChange,
   onDelete,
+  typedTermsEnabled,
 }: {
   tag: WatchlistTag;
   open: boolean;
   onToggleOpen: () => void;
   onChange: (t: WatchlistTag) => void;
   onDelete: () => void;
+  /** Typed terms (the 11 types) only persist via the intel-api save path
+   *  (tracker_v2). With the flag off, the legacy path drops them (normalizeTag),
+   *  so hide the editor entirely rather than silently lose input (batch-A review). */
+  typedTermsEnabled: boolean;
 }) {
   const patch = (p: Partial<WatchlistTag>) => onChange({ ...tag, ...p });
   const priority = tag.priority ?? 'med';
@@ -159,6 +243,21 @@ function TagRow({
               placeholder="curtailment…"
             />
           </div>
+          {typedTermsEnabled && (
+            <div className="adv-field">
+              <div className="af-label">
+                Typed terms
+                <span className="af-hint">
+                  {' '}
+                  — bills, agencies, committees, legislators, companies, competitors &amp; more
+                </span>
+              </div>
+              <TypedTermEditor
+                terms={tag.typedTerms ?? []}
+                onChange={(v) => patch({ typedTerms: v })}
+              />
+            </div>
+          )}
         </div>
       )}
     </div>
@@ -194,6 +293,7 @@ export function TrackerConfigPanel({
   onSavePrefs,
   onRequestVerify,
   onTestAlert,
+  typedTermsEnabled = false,
 }: {
   allIssueAreas: string[];
   watchlist: WatchlistPayload;
@@ -203,6 +303,8 @@ export function TrackerConfigPanel({
   onSavePrefs: (p: AlertPrefsPayload) => void;
   onRequestVerify: (phone: string, onVerified: () => void) => void;
   onTestAlert: (channels: ('email' | 'sms' | 'in_app')[]) => void;
+  /** Show the 11-type typed-term editor (only persists via intel-api/tracker_v2). */
+  typedTermsEnabled?: boolean;
 }) {
   // ── Targeting ──
   const [issues, setIssues] = useState<Set<string>>(() => new Set(watchlist.issueAreas));
@@ -212,6 +314,7 @@ export function TrackerConfigPanel({
       synonyms: [...t.synonyms],
       relatedEntities: [...t.relatedEntities],
       riskTerms: [...t.riskTerms],
+      typedTerms: (t.typedTerms ?? []).map((x) => ({ ...x })),
     })),
   );
   const [openTags, setOpenTags] = useState<Set<number>>(() => new Set(tags.length ? [] : []));
@@ -312,6 +415,7 @@ export function TrackerConfigPanel({
         synonyms: [],
         relatedEntities: [],
         riskTerms: [],
+        typedTerms: [],
       },
     ]);
     setOpenTags((s) => new Set(s).add(tags.length));
@@ -351,6 +455,7 @@ export function TrackerConfigPanel({
             synonyms: [...t.synonyms],
             relatedEntities: [...t.relatedEntities],
             riskTerms: [...t.riskTerms],
+            typedTerms: (t.typedTerms ?? []).map((x) => ({ ...x })),
           }));
         return [...arr, ...add];
       });
@@ -358,6 +463,11 @@ export function TrackerConfigPanel({
     // The debounced autosave persists the merge; saveWatchlistMutation.onSuccess
     // then refreshes the seed suggestions (so the banner clears post-save).
   };
+
+  // P6: sector-derived issue-area suggestion for a never-configured client
+  // (returned by getWatchlist without being persisted). Hide any the user has
+  // already selected so the prompt only shows what's still un-added.
+  const suggestedAreas = (watchlist.suggestedIssueAreas ?? []).filter((a) => !issues.has(a));
 
   const verifySms = () => onRequestVerify(smsPhone, () => setSmsVerified(true));
   const testChannels = () => {
@@ -403,6 +513,22 @@ export function TrackerConfigPanel({
           )}
           <div className="cfg-block">
             <div className="cfg-label">Issue areas</div>
+            {/* P6 sector-default: a never-configured client carries the
+                sector-derived issue area as a suggestion. Surface it as a
+                one-click pre-selection so cold clients aren't blank — the user
+                opts in (no silent write on read). */}
+            {suggestedAreas.length > 0 && (
+              <div className="cfg-suggest">
+                <span className="cfg-suggest-txt">
+                  Suggested from this client's sector:{' '}
+                  {suggestedAreas.map((a) => (
+                    <button key={a} className="suggest-chip" onClick={() => toggleIssue(a)}>
+                      <Icon name="plus" size={11} /> {a}
+                    </button>
+                  ))}
+                </span>
+              </div>
+            )}
             <div className="issue-row">
               {allIssueAreas.map((a) => (
                 <button
@@ -434,6 +560,7 @@ export function TrackerConfigPanel({
                   onToggleOpen={() => toggleOpen(i)}
                   onChange={(nt) => patchTag(i, nt)}
                   onDelete={() => delTag(i)}
+                  typedTermsEnabled={typedTermsEnabled}
                 />
               ))}
             </div>

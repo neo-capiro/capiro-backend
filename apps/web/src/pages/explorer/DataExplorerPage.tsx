@@ -19,7 +19,6 @@ import {
 } from '@ant-design/icons';
 import { useApi } from '../../lib/use-api.js';
 import {
-  type BillDetail,
   type BillFacets,
   type ContractorDetail,
   type ContractorFacets,
@@ -65,6 +64,7 @@ import {
   type StateBillDetail,
   type StateBillFacets,
 } from './explorerTypes.js';
+import { BillDetailBody } from './bill-detail.js';
 
 const PAGE_SIZE = 25;
 
@@ -2294,56 +2294,11 @@ function LdaFilingDetailView({ id }: { id: string }) {
   );
 }
 
+// Delegates to the shared BillDetailBody (bill-detail.tsx) so the Explorer
+// drill-in and the Radar BillDrawer (P7) render the identical detail from ONE
+// fetch hook — no duplicated query/render logic.
 function BillDetailView({ id }: { id: string }) {
-  const api = useApi();
-  const query = useQuery<BillDetail | null>({
-    queryKey: ['explorer-bill-detail', id],
-    queryFn: async () => (await api.get<BillDetail>(`/api/explorer/congress-bills/${id}`)).data,
-  });
-  if (query.isLoading) return <Skeleton active paragraph={{ rows: 8 }} />;
-  if (!query.data) return <Empty description="Bill not found." />;
-  const { bill } = query.data;
-  return (
-    <div className="drill-content">
-      <DrillSection title="Bill">
-        <DrillKV label="Number" value={<span className="num" style={{ fontWeight: 600 }}>{bill.billType} {bill.billNumber}</span>} />
-        <DrillKV label="Congress" value={`${bill.congress}th`} />
-        <DrillKV label="Title" value={bill.title} />
-        <DrillKV label="Sponsor" value={`${bill.sponsorName ?? '-'}${bill.sponsorParty ? ` (${bill.sponsorParty}-${bill.sponsorState ?? ''})` : ''}`} />
-        <DrillKV label="Introduced" value={bill.introducedDate ? formatDate(bill.introducedDate) : '-'} />
-        <DrillKV label="Origin chamber" value={bill.originChamber ?? '-'} />
-        <DrillKV label="Policy area" value={bill.policyArea ?? '-'} />
-        <DrillKV label="Cosponsors" value={<span className="num">{bill.cosponsorsCount}</span>} />
-        <DrillKV label="Latest action" value={
-          <span>
-            {bill.latestActionText ?? '-'}
-            {bill.latestActionDate ? <span className="num" style={{ display: 'block', fontSize: 11, color: 'var(--ink-3)' }}>{formatDate(bill.latestActionDate)}</span> : null}
-          </span>
-        } />
-        {bill.url ? <DrillKV label="Congress.gov" value={<a href={bill.url} target="_blank" rel="noreferrer">View on Congress.gov →</a>} /> : null}
-      </DrillSection>
-
-      {bill.subjects.length ? (
-        <DrillSection title="Subjects">
-          <ChipList items={bill.subjects} max={20} />
-        </DrillSection>
-      ) : null}
-
-      {bill.actions.length ? (
-        <DrillSection title="Recent actions">
-          <ul className="drill-list">
-            {bill.actions.map((a) => (
-              <li key={a.id}>
-                <span className="num">{formatDate(a.date)}</span>
-                <span>{a.text}</span>
-                {a.chamber ? <span style={{ fontSize: 11, color: 'var(--ink-3)' }}>{a.chamber}</span> : null}
-              </li>
-            ))}
-          </ul>
-        </DrillSection>
-      ) : null}
-    </div>
-  );
+  return <BillDetailBody id={id} />;
 }
 
 function ContractorDetailView({ id }: { id: string }) {

@@ -162,7 +162,20 @@ function FeedCard({ item, onAction }: { item: FeedItem; onAction: (a: Recommende
   );
 }
 
-export function TrackerFeedPanel({ clientId, clientName }: { clientId: string; clientName: string }) {
+export function TrackerFeedPanel({
+  clientId,
+  clientName,
+  onOpenBill,
+}: {
+  clientId: string;
+  clientName: string;
+  /**
+   * P3/P9.1: when provided, `open_bill` alert actions open the bill in place
+   * (the Radar/profile bill side-drawer) instead of navigating to Data Explorer.
+   * Falls back to `/explorer?bill=` navigation for any other caller (back-compat).
+   */
+  onOpenBill?: (billId: string) => void;
+}) {
   const api = useApi();
   const navigate = useNavigate();
   const { message } = AntApp.useApp();
@@ -193,7 +206,10 @@ export function TrackerFeedPanel({ clientId, clientName }: { clientId: string; c
         setComposerItem(item);
         break;
       case 'open_bill':
-        if (a.target?.billId) navigate(`/explorer?bill=${encodeURIComponent(a.target.billId)}`);
+        if (a.target?.billId) {
+          if (onOpenBill) onOpenBill(a.target.billId);
+          else navigate(`/explorer?bill=${encodeURIComponent(a.target.billId)}`);
+        }
         break;
       case 'open_hearing':
         if (a.target?.sessionId) navigate(`/intelligence/hearing-watch/${encodeURIComponent(a.target.sessionId)}`);

@@ -1,5 +1,4 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
 import { App as AntApp } from 'antd';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useApi } from '../../../lib/use-api.js';
@@ -17,6 +16,7 @@ import {
 } from './tracker-components.js';
 import { TrackerConfigPanel } from './TrackerConfigPanel.js';
 import { TrackerFeedPanel } from './TrackerFeedPanel.js';
+import { BillDrawer } from '../../radar/BillDrawer.js';
 import { useIntelFeature } from '../../../lib/intel-feature-flags.js';
 import {
   trackerKeys,
@@ -115,7 +115,6 @@ export function TrackerSurface({
   const api = useApi();
   const qc = useQueryClient();
   const { message } = AntApp.useApp();
-  const navigate = useNavigate();
 
   const [panel, setPanelState] = useState<Panel>(
     variant === 'watchlist' ? 'config' : variant === 'bills' ? loadBillsPanel : loadPanel,
@@ -156,6 +155,9 @@ export function TrackerSurface({
   // Modals + toasts
   const [modal, setModal] = useState<'addBill' | 'otp' | null>(null);
   const [toasts, setToasts] = useState<ToastItem[]>([]);
+  // P7: opening a bill shows it in a right-side drawer (spec D9 — NEVER routes to
+  // Data Explorer). Shared across Board/Recs/Feed and the profile + Radar Bills tabs.
+  const [drawerBillId, setDrawerBillId] = useState<string | null>(null);
   const otpState = useRef<{
     masked: string;
     devCode?: string;
@@ -413,7 +415,8 @@ export function TrackerSurface({
   });
 
   // ── Handlers ────────────────────────────────────────────────────────────
-  const drillTo = (billId: string) => navigate(`/explorer?bill=${encodeURIComponent(billId)}`);
+  // P7: open the bill in the side-drawer instead of navigating to Data Explorer.
+  const drillTo = (billId: string) => setDrawerBillId(billId);
   const openBoardBill = (billId: string, unread: boolean) => {
     if (unread) markReadMutation.mutate(billId);
     drillTo(billId);
@@ -816,12 +819,13 @@ export function TrackerSurface({
             onSavePrefs={(p) => savePrefsMutation.mutate(p)}
             onRequestVerify={requestVerify}
             onTestAlert={fireTest}
+            typedTermsEnabled={trackerV2}
           />
         ))}
 
       {/* ===================== FEED (unified bill|hearing|combined) ===================== */}
       {activePanel === 'feed' && trackerV2 && (
-        <TrackerFeedPanel clientId={clientId} clientName={clientName} />
+        <TrackerFeedPanel clientId={clientId} clientName={clientName} onOpenBill={drillTo} />
       )}
 
       {/* ===================== MODALS + TOASTS ===================== */}
@@ -846,6 +850,23 @@ export function TrackerSurface({
         />
       )}
       <TrackToasts toasts={toasts} />
+
+      {/* ===================== BILL SIDE-DRAWER (P7 + P9) ===================== */}
+      {/* Same detail as Data Explorer (shared BillDetailBody), no navigation.
+          P9.1: shows "Track for <client>" when the bill isn't on the board (reuses
+          trackMutation). P9.2: shows the "Discussed in hearings" section inside. */}
+      <BillDrawer
+        open={drawerBillId !== null}
+        billId={drawerBillId}
+        clientId={clientId}
+        clientName={clientName}
+        isTracked={drawerBillId ? boardNums.has(drawerBillId) : false}
+        onTrack={(billId) => {
+          trackMutation.mutate({ billId, source: 'manual_search' });
+          pushToast({ text: `Tracking for ${clientName}` });
+        }}
+        onClose={() => setDrawerBillId(null)}
+      />
     </div>
   );
 }

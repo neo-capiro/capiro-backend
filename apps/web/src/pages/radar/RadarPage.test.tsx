@@ -54,6 +54,17 @@ function mockApi(flags: Record<string, boolean>) {
       return { data: { recommendations: [], aboveFloorCount: 0, total: 0, floor: 0.5 } };
     }
     if (url === '/api/intelligence/issue-areas') return { data: { issueAreas: [] } };
+    // Watchlist (P6 cold-start check + Configure panel). Default: configured
+    // (so Feed/Bills render the panel, not the guided first-run state).
+    if (url.endsWith('/tracker/watchlist')) {
+      return { data: { issueAreas: ['Defense'], tags: [] } };
+    }
+    if (url.endsWith('/tracker/alert-prefs')) {
+      return { data: { triggers: [], materiality: 'medium', emailEnabled: false } };
+    }
+    if (url.endsWith('/tracker/watchlist/seed-suggestions')) {
+      return { data: { tags: [], issueAreas: [] } };
+    }
     return { data: [] };
   });
 }
@@ -97,17 +108,16 @@ describe('RadarPage', () => {
     );
   });
 
-  test('hearings tab is global (no client) and keeps the Watchlists view reachable', async () => {
+  test('hearings tab is global (no client) and no longer carries a Watchlists view (absorbed by P5)', async () => {
     mockApi({ hearing_watch: true });
     renderRadar('/radar?tab=hearings');
 
     await waitFor(() => expect(screen.getByText('Hearing sessions')).toBeInTheDocument());
     expect(screen.getByText('Upcoming')).toBeInTheDocument();
     expect(screen.getByText('All hearings')).toBeInTheDocument();
-    // P4 review: Radar is now the ONLY route to the hearing term-watchlist CRUD
-    // (the standalone page redirects here), so the view stays until the unified
-    // editor (P5) absorbs it.
-    expect(screen.getByText('Watchlists')).toBeInTheDocument();
+    // P5: the hearing term-watchlist CRUD was absorbed into the unified editor on
+    // the Radar Watchlist tab — the Hearings surface no longer has its own view.
+    expect(screen.queryByText('Watchlists')).not.toBeInTheDocument();
   });
 
   test('hearings tab respects the hearing_watch flag', async () => {

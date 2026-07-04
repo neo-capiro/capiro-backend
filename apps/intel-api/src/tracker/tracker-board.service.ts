@@ -126,6 +126,12 @@ export interface BoardCard {
   trackedAt: Date;
   matchedTags: string[];
   changeChip: { label: string; changeType: string | null; at: Date } | null;
+  // Phase 9 (Bill→Hearing interlink): "discussed in N hearings" chip. Presence
+  // comes from the trackedBill hearing badge (set by the linker); the count is
+  // the number of distinct `combined` alerts for this bill.
+  lastHearingSessionId: string | null;
+  lastHearingAt: Date | null;
+  hearingCount: number;
 }
 export interface BoardColumn {
   id: BillStage;
@@ -261,7 +267,7 @@ export class TrackerBoardService {
     if (!tracked.length) return { columns: empty() };
 
     const billIds = tracked.map((t) => t.billId);
-    const [bills, { topics, issueAreas }, recentAlerts] = await Promise.all([
+    const [bills, { topics, issueAreas }, recentAlerts, hearingLinks] = await Promise.all([
       this.repo.fetchRecommendationBills(billIds),
       this.compiledTopics(tenantId, clientId),
       this.prisma.intelAlert.findMany({
@@ -275,6 +281,19 @@ export class TrackerBoardService {
         orderBy: { createdAt: 'desc' },
         select: { sourceRef: true, changeType: true, title: true, createdAt: true },
       }),
+      // Phase 9: per-bill "discussed in N hearings" count from the linker's
+      // `combined` alerts (tenant+client scoped; dismissed/snoozed excluded).
+      this.prisma.intelAlert.groupBy({
+        by: ['sourceRef'],
+        where: {
+          tenantId,
+          clientId,
+          sourceType: 'combined',
+          sourceRef: { in: billIds },
+          status: { notIn: ['dismissed', 'snoozed', 'suppressed'] },
+        },
+        _count: { _all: true },
+      }),
     ]);
     const billById = new Map(bills.map((b) => [b.id, b]));
     const chipByBill = new Map<string, { label: string; changeType: string | null; at: Date }>();
@@ -283,6 +302,8 @@ export class TrackerBoardService {
         chipByBill.set(a.sourceRef, { label: a.title, changeType: a.changeType, at: a.createdAt });
       }
     }
+    const hearingCountByBill = new Map<string, number>();
+    for (const g of hearingLinks) hearingCountByBill.set(g.sourceRef, g._count._all);
 
     const nowMs = Date.now();
     const columns = empty();
@@ -309,6 +330,9 @@ export class TrackerBoardService {
         trackedAt: t.trackedAt,
         matchedTags,
         changeChip: chipByBill.get(t.billId) ?? null,
+        lastHearingSessionId: t.lastHearingSessionId ?? null,
+        lastHearingAt: t.lastHearingAt ?? null,
+        hearingCount: hearingCountByBill.get(t.billId) ?? 0,
       };
       (colById.get(stage) ?? columns[0]!).cards.push(card);
     }

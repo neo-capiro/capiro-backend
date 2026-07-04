@@ -1,11 +1,10 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useState } from 'react';
 import type { ColumnsType } from 'antd/es/table';
 import {
   Alert,
   App as AntApp,
   Button,
   Card,
-  Drawer,
   Empty,
   Form,
   Input,
@@ -22,7 +21,6 @@ import {
 } from 'antd';
 import {
   AudioOutlined,
-  DeleteOutlined,
   PlusOutlined,
   CalendarOutlined,
   UnorderedListOutlined,
@@ -30,19 +28,12 @@ import {
 import { Link } from 'react-router-dom';
 import { useIntelFeatureEnabled } from '../../lib/intel-feature-flags.js';
 import {
-  TERM_TYPES,
-  useAddTerm,
   useBrowseHearings,
   useCreateHearing,
-  useCreateWatchlist,
   useHearingSessions,
-  useRemoveTerm,
-  useSetWatchlistActive,
   useUpcomingHearings,
-  useWatchlists,
   type HearingScope,
   type UpcomingHearing,
-  type Watchlist,
 } from '../../lib/hearing-watch-api.js';
 
 const { Title, Text, Paragraph } = Typography;
@@ -130,19 +121,19 @@ function buildHearingColumns(onWatch: (r: UpcomingHearing) => void): ColumnsType
   ];
 }
 
-type HearingWatchView = 'hearings' | 'upcoming' | 'browse' | 'watchlists';
+type HearingWatchView = 'hearings' | 'upcoming' | 'browse';
 
 /**
- * Hearing Watch body (sessions / upcoming / all-hearings [/ watchlists]) —
- * shared by the legacy HearingWatchPage and the Radar Hearings tab. The Radar
- * embedding hides the term-watchlists view (unifying it with the bill
- * watchlist is a later phase); the legacy page keeps it untouched.
+ * Hearing Watch body (sessions / upcoming / all-hearings) — shared by the legacy
+ * HearingWatchPage and the Radar Hearings tab.
+ *
+ * The term-watchlist CRUD that used to live here (P4's "Watchlists" view) was
+ * ABSORBED into the unified editor on the Radar Watchlist tab
+ * (TrackerConfigPanel, P5): one editor now owns both bill tags AND hearing terms
+ * across the full 11 term types, client-in-context (no raw-UUID entry). This
+ * panel is purely the hearing schedule/session surface.
  */
-export function HearingWatchPanel({
-  includeWatchlists = true,
-}: {
-  includeWatchlists?: boolean;
-}) {
+export function HearingWatchPanel() {
   const [view, setView] = useState<HearingWatchView>('hearings');
 
   return (
@@ -154,9 +145,6 @@ export function HearingWatchPanel({
           { label: 'Hearings', value: 'hearings', icon: <AudioOutlined /> },
           { label: 'Upcoming', value: 'upcoming', icon: <CalendarOutlined /> },
           { label: 'All hearings', value: 'browse', icon: <UnorderedListOutlined /> },
-          ...(includeWatchlists
-            ? [{ label: 'Watchlists', value: 'watchlists', icon: <PlusOutlined /> }]
-            : []),
         ]}
         style={{ marginBottom: 16 }}
       />
@@ -164,7 +152,6 @@ export function HearingWatchPanel({
       {view === 'hearings' && <HearingsTab />}
       {view === 'upcoming' && <UpcomingTab />}
       {view === 'browse' && <BrowseTab />}
-      {view === 'watchlists' && includeWatchlists && <WatchlistsTab />}
     </>
   );
 }
@@ -572,219 +559,6 @@ function BrowseTab() {
         presetSearchQuery={presetSearch}
       />
     </Card>
-  );
-}
-
-// ---- Watchlists tab --------------------------------------------------------
-
-function WatchlistsTab() {
-  const watchlists = useWatchlists();
-  const [createOpen, setCreateOpen] = useState(false);
-  const [editing, setEditing] = useState<Watchlist | null>(null);
-  const setActive = useSetWatchlistActive();
-
-  return (
-    <Card
-      title="Client watchlists"
-      size="small"
-      extra={
-        <Button type="primary" icon={<PlusOutlined />} onClick={() => setCreateOpen(true)}>
-          New Watchlist
-        </Button>
-      }
-    >
-      {watchlists.isLoading ? (
-        <Spin />
-      ) : watchlists.data && watchlists.data.length > 0 ? (
-        <List
-          dataSource={watchlists.data}
-          renderItem={(wl) => (
-            <List.Item
-              actions={[
-                <a key="edit" onClick={() => setEditing(wl)}>
-                  Edit terms
-                </a>,
-                <a
-                  key="tog"
-                  onClick={() => setActive.mutate({ id: wl.id, active: !wl.active })}
-                >
-                  {wl.active ? 'Deactivate' : 'Activate'}
-                </a>,
-              ]}
-            >
-              <List.Item.Meta
-                title={
-                  <Space>
-                    {wl.name}
-                    {wl.active ? <Tag color="green">active</Tag> : <Tag>paused</Tag>}
-                  </Space>
-                }
-                description={
-                  <span>
-                    {wl.terms.slice(0, 10).map((t) => (
-                      <Tag key={t.id}>{t.value}</Tag>
-                    ))}
-                    {wl.terms.length > 10 ? (
-                      <Text type="secondary">+{wl.terms.length - 10} more</Text>
-                    ) : null}
-                    {wl.terms.length === 0 ? <Text type="secondary">no terms yet</Text> : null}
-                  </span>
-                }
-              />
-            </List.Item>
-          )}
-        />
-      ) : (
-        <Empty description="No watchlists yet. Create one to start tracking terms." />
-      )}
-      <CreateWatchlistModal open={createOpen} onClose={() => setCreateOpen(false)} />
-      <EditTermsDrawer watchlist={editing} onClose={() => setEditing(null)} />
-    </Card>
-  );
-}
-
-function CreateWatchlistModal({ open, onClose }: { open: boolean; onClose: () => void }) {
-  const [form] = Form.useForm();
-  const create = useCreateWatchlist();
-  const { message } = AntApp.useApp();
-
-  return (
-    <Modal
-      title="New watchlist"
-      open={open}
-      onCancel={onClose}
-      okText="Create"
-      confirmLoading={create.isPending}
-      onOk={() => {
-        form.validateFields().then((v) => {
-          const terms = (v.terms || '')
-            .split('\n')
-            .map((s: string) => s.trim())
-            .filter(Boolean)
-            .map((value: string) => ({ termType: v.defaultType, value }));
-          create.mutate(
-            { clientId: v.clientId, name: v.name, terms },
-            {
-              onSuccess: () => {
-                message.success('Watchlist created');
-                form.resetFields();
-                onClose();
-              },
-              onError: (e: unknown) =>
-                message.error(`Could not create: ${(e as Error).message}`),
-            },
-          );
-        });
-      }}
-    >
-      <Form form={form} layout="vertical" initialValues={{ defaultType: 'topic' }}>
-        <Form.Item name="name" label="Watchlist name" rules={[{ required: true }]}>
-          <Input placeholder="e.g. Energy — SB 410 tracking" />
-        </Form.Item>
-        <Form.Item
-          name="clientId"
-          label="Client ID"
-          rules={[{ required: true }]}
-          tooltip="The client this watchlist scopes relevance to."
-        >
-          <Input placeholder="client UUID" />
-        </Form.Item>
-        <Form.Item name="defaultType" label="Default term type">
-          <Select options={TERM_TYPES.map((t) => ({ value: t, label: t }))} />
-        </Form.Item>
-        <Form.Item name="terms" label="Terms (one per line)">
-          <Input.TextArea
-            rows={5}
-            placeholder={'SB 410\ninterconnection queue\nratepayer impact\ndata centers'}
-          />
-        </Form.Item>
-      </Form>
-    </Modal>
-  );
-}
-
-function EditTermsDrawer({
-  watchlist,
-  onClose,
-}: {
-  watchlist: Watchlist | null;
-  onClose: () => void;
-}) {
-  const addTerm = useAddTerm();
-  const removeTerm = useRemoveTerm();
-  const { message } = AntApp.useApp();
-  const [form] = Form.useForm();
-  const wl = watchlist;
-  const terms = useMemo(() => wl?.terms ?? [], [wl]);
-
-  return (
-    <Drawer
-      title={wl ? `Terms — ${wl.name}` : ''}
-      open={!!wl}
-      onClose={onClose}
-      width={440}
-    >
-      {wl && (
-        <>
-          <Form
-            form={form}
-            layout="inline"
-            style={{ marginBottom: 16 }}
-            initialValues={{ termType: 'topic' }}
-            onFinish={(v) => {
-              addTerm.mutate(
-                { watchlistId: wl.id, termType: v.termType, value: v.value },
-                {
-                  onSuccess: () => {
-                    message.success('Term added');
-                    form.setFieldValue('value', '');
-                  },
-                  onError: (e: unknown) => message.error((e as Error).message),
-                },
-              );
-            }}
-          >
-            <Form.Item name="termType">
-              <Select
-                style={{ width: 140 }}
-                options={TERM_TYPES.map((t) => ({ value: t, label: t }))}
-              />
-            </Form.Item>
-            <Form.Item name="value" rules={[{ required: true }]}>
-              <Input placeholder="term" style={{ width: 150 }} />
-            </Form.Item>
-            <Form.Item>
-              <Button htmlType="submit" type="primary" icon={<PlusOutlined />} loading={addTerm.isPending} />
-            </Form.Item>
-          </Form>
-          <List
-            size="small"
-            dataSource={terms}
-            locale={{ emptyText: 'No terms yet' }}
-            renderItem={(t) => (
-              <List.Item
-                actions={[
-                  <Tooltip key="d" title="Remove">
-                    <DeleteOutlined
-                      onClick={() =>
-                        removeTerm.mutate(t.id, {
-                          onSuccess: () => message.success('Term removed'),
-                        })
-                      }
-                    />
-                  </Tooltip>,
-                ]}
-              >
-                <Space>
-                  <Tag>{t.termType}</Tag>
-                  {t.value}
-                </Space>
-              </List.Item>
-            )}
-          />
-        </>
-      )}
-    </Drawer>
   );
 }
 

@@ -48,6 +48,9 @@ export const intelTrackerPaths = {
   smsStart: (c: string) => `/intel-api/clients/${enc(c)}/tracker/sms/verify/start`,
   smsConfirm: (c: string) => `/intel-api/clients/${enc(c)}/tracker/sms/verify/confirm`,
   testAlert: (c: string) => `/intel-api/clients/${enc(c)}/tracker/test-alert`,
+  // Phase 9 — Bill→Hearing interlink: hearings that discussed a tracked bill.
+  billHearings: (c: string, billId: string) =>
+    `/intel-api/clients/${enc(c)}/bills/${enc(billId)}/hearings`,
 };
 
 // ── intel-api response shapes (subset consumed here) ────────────────────────
@@ -65,6 +68,10 @@ interface IntelBoardCard {
   trackedAt: string;
   matchedTags: string[];
   changeChip: { label: string; changeType: string | null; at: string } | null;
+  // Phase 9 (Bill→Hearing interlink): "discussed in N hearings" chip data.
+  lastHearingSessionId?: string | null;
+  lastHearingAt?: string | null;
+  hearingCount?: number;
 }
 interface IntelBoard {
   columns: Array<{ id: BillStage; label: string; cards: IntelBoardCard[] }>;
@@ -96,6 +103,8 @@ interface IntelWatchlist {
     priority: string;
     terms: Array<{ termType: string; value: string }>;
   }>;
+  /** P6 sector-default suggestion (set only when the client has no persisted watchlist). */
+  suggestedIssueAreas?: string[];
 }
 interface IntelAlertPrefs {
   triggers?: string[];
@@ -133,6 +142,8 @@ export function adaptBoard(b: IntelBoard): BoardResponse {
       trackedAt: typeof c.trackedAt === 'string' ? c.trackedAt : new Date(c.trackedAt).toISOString(),
       unread: Boolean(c.unread),
       change: changeChipToChange(c.changeChip),
+      hearingCount: c.hearingCount ?? 0,
+      lastHearingSessionId: c.lastHearingSessionId ?? null,
     }));
     return { id: col.id, label: col.label, count: bills.length, bills };
   });
@@ -169,9 +180,16 @@ export function adaptRecs(items: IntelRec[]): RecommendationsResponse {
   };
 }
 
-/** intel `GET tracker/watchlists/:c` → legacy WatchlistPayload. */
+/**
+ * The three LEGACY implicit term types owned by the Configure panel's chip
+ * inputs. Every other term type (the 11 canonical types + any unknown
+ * hearing-native type) rides in `WatchlistTag.typedTerms` so nothing is lost.
+ */
+const LEGACY_CHIP_TERM_TYPES = new Set(['synonym', 'entity', 'risk']);
+
+/** intel `GET tracker/watchlists/:c` → legacy WatchlistPayload (P5: all types round-trip). */
 export function adaptWatchlist(w: IntelWatchlist): WatchlistPayload {
-  return {
+  const payload: WatchlistPayload = {
     issueAreas: w.issueAreas ?? [],
     tags: (w.topics ?? []).map((t) => ({
       tag: t.label,
@@ -179,13 +197,23 @@ export function adaptWatchlist(w: IntelWatchlist): WatchlistPayload {
       synonyms: t.terms.filter((x) => x.termType === 'synonym').map((x) => x.value),
       relatedEntities: t.terms.filter((x) => x.termType === 'entity').map((x) => x.value),
       riskTerms: t.terms.filter((x) => x.termType === 'risk').map((x) => x.value),
+      // Everything that is NOT one of the three legacy chip types is preserved
+      // verbatim as a typed term (the 11 canonical types + unknown types).
+      typedTerms: t.terms
+        .filter((x) => !LEGACY_CHIP_TERM_TYPES.has(x.termType))
+        .map((x) => ({ termType: x.termType, value: x.value })),
       position: (t.position as TagPosition) ?? 'monitor',
       priority: (t.priority as TagPriority) ?? 'med',
     })),
   };
+  // P6: a never-configured client carries the sector-derived default (read hint).
+  if (w.suggestedIssueAreas && w.suggestedIssueAreas.length) {
+    payload.suggestedIssueAreas = w.suggestedIssueAreas;
+  }
+  return payload;
 }
 
-/** legacy WatchlistPayload → intel `PUT tracker/watchlists/:c` body. */
+/** legacy WatchlistPayload → intel `PUT tracker/watchlists/:c` body (P5: all types round-trip). */
 export function watchlistToIntel(w: WatchlistPayload) {
   return {
     issueAreas: w.issueAreas,
@@ -198,6 +226,8 @@ export function watchlistToIntel(w: WatchlistPayload) {
         ...t.synonyms.map((v) => ({ termType: 'synonym', value: v })),
         ...t.relatedEntities.map((v) => ({ termType: 'entity', value: v })),
         ...t.riskTerms.map((v) => ({ termType: 'risk', value: v })),
+        // Canonical + unknown typed terms, kept exactly as stored.
+        ...(t.typedTerms ?? []).map((x) => ({ termType: x.termType, value: x.value })),
       ],
     })),
   };

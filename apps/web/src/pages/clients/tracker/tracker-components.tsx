@@ -84,7 +84,44 @@ export function BillCard({
         </div>
       )}
       <ChangeChip change={bill.change} />
+      <HearingChip bill={bill} onOpen={onOpen} />
     </div>
+  );
+}
+
+/**
+ * P9.2 (Bill→Hearing interlink): "discussed in N hearings" chip on a board card.
+ * Shown when the bill has hearing links (hearingCount>0, or a lastHearingSessionId
+ * badge as a fallback). Opening it opens the same bill drawer — which shows the
+ * "Discussed in hearings" section with the exact moments.
+ */
+export function HearingChip({
+  bill,
+  onOpen,
+}: {
+  bill: BoardBill;
+  onOpen: (bill: BoardBill) => void;
+}) {
+  // Gate purely on the board's hearingCount (authoritative, excludes
+  // dismissed/snoozed/suppressed). lastHearingSessionId is a linker watermark
+  // that is never cleared, so keying off it left a stale "In hearings" chip
+  // opening an empty drawer after a user dismissed every hearing alert for the
+  // bill (P7/P9 review finding).
+  const count = bill.hearingCount ?? 0;
+  if (count <= 0) return null;
+  const label = `${count} hearing${count === 1 ? '' : 's'}`;
+  return (
+    <button
+      className="change-chip notable"
+      title="Discussed in hearings — open to see the moments"
+      style={{ cursor: 'pointer', border: 'none' }}
+      onClick={(e) => {
+        e.stopPropagation();
+        onOpen(bill);
+      }}
+    >
+      <Icon name="bell" size={11} /> {label}
+    </button>
   );
 }
 
