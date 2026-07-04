@@ -70,6 +70,48 @@ export interface RecommendationItem {
   matchReasons: MatchReason[];
 }
 
+/** One Add-bill-modal search hit (P1.1 — exact legacy BillSearchResult shape). */
+export interface BillSearchResult {
+  billId: string;
+  displayNum: string;
+  title: string | null;
+  stage: BillStage;
+  probability: number;
+}
+
+/**
+ * Build the two bound LIKE patterns for bill search (P1.1, ported from
+ * apps/api tracker.service.searchBills): a lowercase title substring, plus a
+ * bill-id token — "H.R. 4455" → "%hr-4455%" (strip dots/spaces, hyphen between
+ * the alpha type and the first digit) so the query matches the id form.
+ * Exported for the pure-unit spec.
+ */
+export function billSearchPatterns(query: string): { titleLike: string; idLike: string } {
+  const titleLike = `%${query.toLowerCase()}%`;
+  const idLike = `%${query
+    .toLowerCase()
+    .replace(/[.\s]+/g, '')
+    .replace(/^([a-z]+)(\d)/, '$1-$2')}%`;
+  return { titleLike, idLike };
+}
+
+/**
+ * Pure reducer for the client-profile tab-badge summary — legacy-identical
+ * `{ boardCount, unread }` (apps/api tracker.service.getSummary). The legacy
+ * service derives `unread` per card from change events vs 'opened' feedback;
+ * here `intel_tracked_bill.unread` already stores that bit (getBoard's cards
+ * read it verbatim), so counting rows matches the board without paying for fit
+ * scoring or alert lookups. Exported for the unit spec.
+ */
+export function summarizeTrackedRows(rows: Array<{ unread: boolean }>): {
+  boardCount: number;
+  unread: number;
+} {
+  let unread = 0;
+  for (const r of rows) if (r.unread) unread += 1;
+  return { boardCount: rows.length, unread };
+}
+
 export interface BoardCard {
   billId: string;
   displayNum: string;
@@ -271,6 +313,45 @@ export class TrackerBoardService {
       (colById.get(stage) ?? columns[0]!).cards.push(card);
     }
     return { columns };
+  }
+
+  /**
+   * Lightweight board counts for the client-profile tab badge (Phase 7 —
+   * repoints the legacy GET .../tracker/summary badge fetch). One tenant-scoped
+   * SELECT of the `unread` bits, reduced by the pure summarizeTrackedRows.
+   */
+  async getSummary(
+    tenantId: string,
+    clientId: string,
+  ): Promise<{ boardCount: number; unread: number }> {
+    const rows = await this.prisma.trackedBill.findMany({
+      where: { tenantId, clientId },
+      select: { unread: true },
+    });
+    return summarizeTrackedRows(rows);
+  }
+
+  /**
+   * Add-bill-modal text search (P1.1, ported from apps/api
+   * tracker.service.searchBills). Current Congress only; <2 chars → []. Tenant-
+   * independent by design (GLOBAL `congress_bill`; auth is the route guards).
+   */
+  async searchBills(q: string): Promise<BillSearchResult[]> {
+    const query = (q ?? '').trim();
+    if (query.length < 2) return [];
+    const { titleLike, idLike } = billSearchPatterns(query);
+    const rows = await this.repo.searchBillRows(titleLike, idLike, currentCongress());
+    return rows.map((b) => ({
+      billId: b.id,
+      displayNum: humanizeBillId(b.id),
+      title: b.title,
+      stage: billStage(b.latestActionText),
+      probability: passageProbability({
+        latestActionText: b.latestActionText,
+        title: b.title,
+        latestActionDate: b.latestActionDate,
+      }),
+    }));
   }
 
   /** Track a bill for a client (idempotent upsert). Verifies the bill exists. */

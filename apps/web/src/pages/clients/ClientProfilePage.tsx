@@ -57,7 +57,9 @@ import type { Client, ClientAttachment, ClientFormSubmit } from './clientTypes.j
 import { IntelligenceTab } from './IntelligenceTab.js';
 import { TargetsTab } from './TargetsTab.js';
 import { TrackerTab } from './tracker/TrackerTab.js';
-import type { TrackerSummary } from './tracker/tracker-api.js';
+import { trackerKeys, trackerPaths, type TrackerSummary } from './tracker/tracker-api.js';
+import { intelTrackerPaths } from './tracker/intel-tracker-api.js';
+import { useIntelFeature } from '../../lib/intel-feature-flags.js';
 import { FacilitiesEditor } from './FacilitiesEditor.js';
 import { DefenseBudgetExposureCard } from './DefenseBudgetExposureCard.js';
 import { getRelevantPesForClient } from './relevance-api.js';
@@ -193,12 +195,20 @@ export function ClientProfilePage({
   });
 
   // Tracker tab badge: number of bills on the board + an unread-alert dot.
+  // Dual-pathed like TrackerTab: intel-api serves a shape-identical summary when
+  // the tenant is on tracker_v2, and the fetch waits for the flag to resolve so
+  // a cold mount can't cache the legacy count under the flag-agnostic key.
+  const { enabled: trackerV2, ready: intelFlagsReady } = useIntelFeature('tracker_v2');
   const trackerSummary = useQuery<TrackerSummary>({
-    queryKey: ['tracker-summary', client.id],
+    queryKey: trackerKeys.summary(client.id),
     queryFn: async () =>
-      (await api.get<TrackerSummary>(`/api/intelligence/clients/${client.id}/tracker/summary`))
-        .data,
+      (
+        await api.get<TrackerSummary>(
+          trackerV2 ? intelTrackerPaths.summary(client.id) : trackerPaths.summary(client.id),
+        )
+      ).data,
     staleTime: 60_000,
+    enabled: intelFlagsReady,
   });
 
   const createCapability = useMutation({

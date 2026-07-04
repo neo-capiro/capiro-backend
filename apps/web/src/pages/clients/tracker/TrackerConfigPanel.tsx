@@ -452,7 +452,9 @@ export function TrackerConfigPanel({
       <div className="surface">
         <div className="surface-head">
           <h3>Alerts</h3>
-          <span className="sub">how this team gets notified</span>
+          {/* Prefs are per-user-per-client (keyed userId+clientId) — say so.
+              The old "this team" copy read firm-wide and was wrong (Q6). */}
+          <span className="sub">how you get notified about this client</span>
           <span className="save">
             <Icon name="check" size={13} /> Saved
           </span>

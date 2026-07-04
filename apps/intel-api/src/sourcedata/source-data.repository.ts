@@ -13,11 +13,12 @@ import { PrismaService } from '../prisma/prisma.service.js';
  *    is the pgvector literal, which is self-generated floats from
  *    `vectorLiteral()` (no injection surface — same rationale as the upstream
  *    embedder).
- *  - GLOBAL / NULL-tenant reads only in Phase 1. No tenant context is set:
- *    `congress_bill*` are RLS-free globals, and `context_embeddings` bill rows
- *    are NULL-tenant (the RLS policy `tenant_id IS NULL OR tenant_id =
- *    current_tenant_id` admits them to a no-tenant session). Tenant-scoped
- *    reads (`clients`) are deferred to Phase 3 — see `getClient` below.
+ *  - GLOBAL / NULL-tenant reads set no tenant context: `congress_bill*` are
+ *    RLS-free globals, and `context_embeddings` bill rows are NULL-tenant (the
+ *    RLS policy `tenant_id IS NULL OR tenant_id = current_tenant_id` admits
+ *    them to a no-tenant session). Tenant-scoped reads (`clients`,
+ *    `client_capabilities`) go through `withSystem` with an explicit bound
+ *    tenant_id WHERE clause — see the tenant-scoped section at the bottom.
  *
  * The constructor takes `PrismaService` (a PrismaClient subclass), so Nest DI
  * injects it in the running app AND the one-off `task` runner can construct it
@@ -79,6 +80,23 @@ export interface RecommendationBillRow {
   sponsorName: string | null;
   sponsorParty: string | null;
   cosponsorsCount: number | null;
+}
+
+export interface BillSearchRow {
+  id: string;
+  title: string | null;
+  latestActionText: string | null;
+  latestActionDate: Date | null;
+}
+
+export interface ClientProfileRow {
+  name: string | null;
+  sectorTag: string | null;
+}
+
+export interface ClientCapabilityRow {
+  tags: unknown; // JSONB — string[] by convention, validated by the caller
+  sector: string | null;
 }
 
 @Injectable()
@@ -326,6 +344,29 @@ export class SourceDataRepository {
     return rows.map((r) => r.id);
   }
 
+  /**
+   * Add-bill-modal text search over the GLOBAL `congress_bill` corpus (P1.1 port
+   * of apps/api tracker.service.searchBills). `titleLike`/`idLike` are caller-
+   * built LIKE patterns (lowercased title substring + the "hr-4455" id token) —
+   * bound, never interpolated, same as `keywordCandidateIds`. Current-Congress
+   * only; newest action first.
+   */
+  async searchBillRows(titleLike: string, idLike: string, congress: number): Promise<BillSearchRow[]> {
+    return this.prisma.$queryRawUnsafe<BillSearchRow[]>(
+      `SELECT cb.id,
+              cb.title,
+              cb.latest_action_text AS "latestActionText",
+              cb.latest_action_date AS "latestActionDate"
+         FROM congress_bill cb
+        WHERE cb.congress = $3 AND (LOWER(cb.title) LIKE $1 OR LOWER(cb.id) LIKE $2)
+        ORDER BY cb.latest_action_date DESC NULLS LAST
+        LIMIT 20`,
+      titleLike,
+      idLike,
+      congress,
+    );
+  }
+
   /** Bill rows with sponsor/cosponsor fields for the recommendations feed + board. */
   async fetchRecommendationBills(ids: string[]): Promise<RecommendationBillRow[]> {
     if (!ids.length) return [];
@@ -394,15 +435,37 @@ export class SourceDataRepository {
     );
   }
 
-  // getClient(clientId): NOT IMPLEMENTED in Phase 1.
-  //
-  // `clients` is TENANT-SCOPED (Postgres RLS). The `withTenant`/`withSystem`
-  // helpers are ported in Phase 1 (PrismaService) but stay inert here: without
-  // a resolved tenant context, RLS returns zero rows under the capiro_app role.
-  // Shipping a live method that silently returns [] would be a footgun.
-  //
-  // TODO(Phase 3): implement as
-  //   return this.prisma.withTenant(tenantId, (tx) =>
-  //     tx.$queryRawUnsafe(`SELECT id, lda_client_ids AS "ldaClientIds",
-  //       issue_codes AS "issueCodes" FROM clients WHERE id = $1`, clientId));
+  // ── Tenant-scoped reads (P1.1 aux endpoints) ───────────────────────────────
+  // `clients`/`client_capabilities` are TENANT-SCOPED (Postgres RLS). These
+  // reads use the same `withSystem` + explicit tenant_id/client_id WHERE-clause
+  // pattern as `clientTenantMap` above: the TenantGuard-resolved tenantId is a
+  // MANDATORY bound param, so no cross-tenant row can leak. Read-only (D2).
+
+  /** One client's display name + sector tag, or null (seed-suggestions, test-alert). */
+  async getClientProfile(tenantId: string, clientId: string): Promise<ClientProfileRow | null> {
+    const rows = await this.prisma.withSystem((tx) =>
+      tx.$queryRawUnsafe<ClientProfileRow[]>(
+        `SELECT name, sector_tag AS "sectorTag"
+           FROM clients
+          WHERE tenant_id = $1::uuid AND id = $2::uuid
+          LIMIT 1`,
+        tenantId,
+        clientId,
+      ),
+    );
+    return rows[0] ?? null;
+  }
+
+  /** A client's capability rows (tags + sector) for watchlist seed-suggestions. */
+  async getClientCapabilities(tenantId: string, clientId: string): Promise<ClientCapabilityRow[]> {
+    return this.prisma.withSystem((tx) =>
+      tx.$queryRawUnsafe<ClientCapabilityRow[]>(
+        `SELECT tags_jsonb AS tags, sector
+           FROM client_capabilities
+          WHERE tenant_id = $1::uuid AND client_id = $2::uuid`,
+        tenantId,
+        clientId,
+      ),
+    );
+  }
 }

@@ -28,6 +28,7 @@ import { IntelEmailService } from '../intel-alert/intel-email.service.js';
 import { TrackerWatchlistService } from '../tracker/tracker-watchlist.service.js';
 import { TrackerBoardService } from '../tracker/tracker-board.service.js';
 import { ParityService } from '../tracker/parity.service.js';
+import { DataParityService } from '../tracker/data-parity.service.js';
 import { WatchlistMatchPromoterService } from '../linking/watchlist-match-promoter.service.js';
 import { BillHearingLinkerService } from '../linking/bill-hearing-linker.service.js';
 
@@ -65,7 +66,12 @@ export const KNOWN_VERBS = [
   'promote-watchlist-matches', //   Phase 6: intel_watchlist_match → hearing intel_alert (§9.5)
   'link-bill-hearings', //          Phase 6: tracked bill × hearing → combined intel_alert (§9.2)
   'enable-feature', //              Phase 8 cutover: flip a tenant flag ON (tracker_owner_intel/tracker_v2)
+  'enable-feature-all', //          Phase 8 cutover: flip a flag ON for EVERY tenant (all-tenant flip)
+  'disable-feature-all', //         Phase 8 cutover: flip a flag OFF for EVERY tenant (all-tenant rollback)
   'cutover-status', //              Phase 8 cutover: read-only per-tenant go-live readiness report
+  'parity-data', //                 Phase 8 cutover: READ-ONLY diff of the 3 migrated data stores (gate)
+  'snapshot-legacy', //             Phase 8 cutover: READ-ONLY chunked JSON dump of the 3 legacy tables
+  'reconcile-intel-tracker', //     Phase 8 cutover: delete stale intel-only rows (unflipped tenants; dry-run default)
   'diag-replay-bill', //            Diagnostic: rewind one tracked bill's watermark + run detection (e2e proof)
   'diag-upcoming-hearings', //      Diagnostic: read committee_hearing (upcoming feed) — count + samples
 ] as const;
@@ -126,17 +132,22 @@ export async function runVerb(verb: string, args: string[], deps: VerbDeps): Pro
       return verifySourcedata(args[0] ?? '', deps);
     case 'sync-watchlists-from-legacy': {
       const r = await new WatchlistSyncService(deps.prisma).syncWatchlists(args[0]);
-      deps.log(`SYNC_DONE clients=${r.clients} changed=${r.changed} skipped=${r.skipped} swept=${r.swept}`);
+      deps.log(
+        `SYNC_DONE clients=${r.clients} changed=${r.changed} skipped=${r.skipped} swept=${r.swept} ` +
+          `skippedOwned=${r.skippedOwned}`,
+      );
       return;
     }
     case 'backfill-tracked-bills': {
       const r = await new WatchlistSyncService(deps.prisma).backfillTrackedBills(args[0]);
-      deps.log(`BACKFILL_TRACKED_BILLS count=${r.count}`);
+      deps.log(`BACKFILL_TRACKED_BILLS count=${r.count} skippedOwned=${r.skippedOwned}`);
       return;
     }
     case 'backfill-alert-prefs': {
       const r = await new WatchlistSyncService(deps.prisma).backfillAlertPrefs(args[0]);
-      deps.log(`BACKFILL_ALERT_PREFS count=${r.count}`);
+      deps.log(
+        `BACKFILL_ALERT_PREFS count=${r.count} skippedOwned=${r.skippedOwned} skippedNoClerkId=${r.skippedNoClerkId}`,
+      );
       return;
     }
     case 'disable-feature': {
@@ -149,6 +160,61 @@ export async function runVerb(verb: string, args: string[], deps: VerbDeps): Pro
       if (!args[0] || !args[1]) throw new Error('enable-feature requires <flag> <tenantSlugOrId>');
       const r = await new WatchlistSyncService(deps.prisma).setFeatureFlag(args[0], args[1], true);
       deps.log(`FEATURE_ENABLED feature=${r.feature} tenant=${r.tenantId}`);
+      return;
+    }
+    case 'enable-feature-all':
+    case 'disable-feature-all': {
+      if (!args[0]) throw new Error(`${verb} requires <flag>`);
+      const enabled = verb === 'enable-feature-all';
+      const r = await new WatchlistSyncService(deps.prisma).setFeatureFlagAll(args[0], enabled);
+      for (const t of r.tenants) deps.log(`  ${enabled ? 'ENABLED' : 'DISABLED'} ${args[0]} tenant=${t.slug} (${t.id})`);
+      deps.log(`FEATURE_ALL feature=${r.feature} enabled=${r.enabled} tenants=${r.tenants.length}`);
+      return;
+    }
+    case 'parity-data': {
+      const svc = new DataParityService(deps.prisma);
+      const r = await svc.run(args[0]);
+      deps.log(`DATA_PARITY_JSON ${JSON.stringify(r)}`);
+      deps.log(
+        `DATA_PARITY_DONE scope=${r.tenantScope} passed=${r.passed} reason=${r.reason ?? '-'} ` +
+          `wl=${r.watchlists.matched}/${r.watchlists.legacy} bills=${r.trackedBills.matched}/${r.trackedBills.legacy} ` +
+          `prefs=${r.alertPrefs.matched}/${r.alertPrefs.legacy} ` +
+          `intelOnly=[wl:${r.watchlists.intelOnly.length} bills:${r.trackedBills.intelOnly.length} prefs:${r.alertPrefs.intelOnly.length}] ` +
+          `watermarkDrift=${r.trackedBills.watermarkDrift.length}`,
+      );
+      // Pure-JSON line (whole log event) for a CloudWatch Logs metric filter on
+      // $.dataParityFailed — mirrors parity-report's parity_metric marker.
+      deps.log(
+        JSON.stringify({
+          marker: 'data_parity_metric',
+          scope: r.tenantScope,
+          passed: r.passed,
+          dataParityFailed: r.passed ? 0 : 1,
+          watchlistsMismatched: r.watchlists.mismatched.length,
+          watchlistsLegacyOnly: r.watchlists.legacyOnly.length,
+          billsMismatched: r.trackedBills.mismatched.length,
+          billsLegacyOnly: r.trackedBills.legacyOnly.length,
+          prefsMismatched: r.alertPrefs.mismatched.length,
+          prefsLegacyOnly: r.alertPrefs.legacyOnly.length,
+        }),
+      );
+      if (!r.passed) throw new Error(`DATA_PARITY_FAILED ${r.reason}`);
+      return;
+    }
+    case 'snapshot-legacy': {
+      await new DataParityService(deps.prisma).snapshotLegacy(deps.log);
+      return;
+    }
+    case 'reconcile-intel-tracker': {
+      const flags = parseFlags(args);
+      await new DataParityService(deps.prisma).reconcile(
+        {
+          apply: flags['apply'] === 'true',
+          createdBefore: flags['created-before'],
+          force: flags['force'] === 'true',
+        },
+        deps.log,
+      );
       return;
     }
     case 'cutover-status': {

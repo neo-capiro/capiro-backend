@@ -1,7 +1,10 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service.js';
 import { MIN_TERM_LEN } from '../watchlist/watchlist-mapping.js';
 import { compileWatchlist, type CompiledWatchlist } from '../watchlist/watchlist-compiler.js';
+import { normalizeE164 } from './sms/sms.service.js';
+
+const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
 /**
  * Read/write API for the UNIFIED tracker watchlist (Phase 2, plan §5.2).
@@ -39,6 +42,17 @@ export interface WatchlistView {
     terms: Array<{ termType: string; value: string }>;
   }>;
 }
+/** Legacy default alert triggers (apps/api tracker.types.DEFAULT_TRIGGERS). */
+export const DEFAULT_TRIGGERS: readonly string[] = [
+  'newMatch',
+  'amendment',
+  'hearing',
+  'committeeVote',
+  'floorVote',
+  'enactedFailed',
+  'companion',
+];
+
 export interface PutAlertPrefsInput {
   triggers?: string[];
   materiality?: string;
@@ -146,7 +160,40 @@ export class TrackerWatchlistService {
     };
   }
 
+  /**
+   * Legacy `assertClient` port: 404 unless `clientId` is a client of the
+   * caller's tenant. intel-api has no RLS, and (userId, clientId) — the pref
+   * unique key — carries no tenant, so every pref WRITE must first prove the
+   * client belongs to the caller (cross-tenant review finding, PR-1).
+   */
+  private async assertClientInTenant(tenantId: string, clientId: string): Promise<void> {
+    if (!UUID_RE.test(clientId)) throw new NotFoundException('Client not found');
+    const rows = await this.prisma.withSystem((tx) =>
+      tx.$queryRawUnsafe<Array<{ id: string }>>(
+        'SELECT id::text AS id FROM clients WHERE id = $1::uuid AND tenant_id = $2::uuid',
+        clientId,
+        tenantId,
+      ),
+    );
+    if (rows.length === 0) throw new NotFoundException('Client not found');
+  }
+
+  /**
+   * The upsert's update-branch guard: the unique key is tenant-free, so a row
+   * created under ANOTHER tenant (same user in two orgs) must read as absent —
+   * mirrors getAlertPrefs's `row.tenantId === tenantId` read guard.
+   */
+  private async assertPrefRowTenant(tenantId: string, clientId: string, userId: string): Promise<void> {
+    const existing = await this.prisma.intelAlertPreference.findUnique({
+      where: { userId_clientId: { userId, clientId } },
+      select: { tenantId: true },
+    });
+    if (existing && existing.tenantId !== tenantId) throw new NotFoundException('Client not found');
+  }
+
   async putAlertPrefs(tenantId: string, clientId: string, userId: string, input: PutAlertPrefsInput) {
+    await this.assertClientInTenant(tenantId, clientId);
+    await this.assertPrefRowTenant(tenantId, clientId, userId);
     const data = {
       triggers: input.triggers ?? [],
       materiality: input.materiality ?? 'medium',
@@ -154,7 +201,9 @@ export class TrackerWatchlistService {
       emailAddress: input.emailAddress ?? null,
       emailCadence: input.emailCadence ?? 'realtime',
       smsEnabled: input.smsEnabled ?? false,
-      smsPhone: input.smsPhone ?? null,
+      // Normalize like legacy putAlertPrefs — an un-normalized stored phone
+      // would never match the verify flow's normalized compare.
+      smsPhone: normalizeE164(input.smsPhone) ?? null,
       smsCadence: input.smsCadence ?? 'realtime',
       quietHoursStart: input.quietHoursStart ?? null,
       quietHoursEnd: input.quietHoursEnd ?? null,
@@ -163,6 +212,31 @@ export class TrackerWatchlistService {
       where: { userId_clientId: { userId, clientId } },
       create: { tenantId, clientId, userId, ...data },
       update: data,
+    });
+  }
+
+  /**
+   * Mark a verified phone on the user's pref (P1.1, called after OTP confirm —
+   * ported from apps/api tracker.service.markPhoneVerified). The confirm flow
+   * is the ONLY writer of `smsPhoneVerified` (putAlertPrefs never sets it),
+   * preserving the legacy consent contract. Client-ownership + row-tenant
+   * guards mirror legacy's assertClient (cross-tenant review finding, PR-1).
+   */
+  async markPhoneVerified(tenantId: string, clientId: string, userId: string, phone: string): Promise<void> {
+    await this.assertClientInTenant(tenantId, clientId);
+    await this.assertPrefRowTenant(tenantId, clientId, userId);
+    await this.prisma.intelAlertPreference.upsert({
+      where: { userId_clientId: { userId, clientId } },
+      update: { smsPhone: phone, smsPhoneVerified: true, smsEnabled: true },
+      create: {
+        tenantId,
+        clientId,
+        userId,
+        triggers: [...DEFAULT_TRIGGERS],
+        smsPhone: phone,
+        smsPhoneVerified: true,
+        smsEnabled: true,
+      },
     });
   }
 

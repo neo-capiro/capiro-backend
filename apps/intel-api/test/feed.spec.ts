@@ -2,6 +2,10 @@ import { FeedService, encodeCursor, DEFAULT_STATUSES } from '../src/feed/feed.se
 
 // Crypto stub that never decrypts (feed decrypt-on-read is a no-op).
 const NO_CRYPTO = { configured: false, decrypt: () => '' } as any;
+// Action-state stub: no memos/talking-points/report flags on any alert.
+// (FeedService grew the ActionItemService dep with the alert-actions feature;
+// this spec predated it and constructed FeedService without it.)
+const NO_ACTIONS = { summaryForAlerts: async () => new Map() } as any;
 
 function mockPrisma(rows: any[], groups?: any[]) {
   let lastArgs: any = null;
@@ -48,7 +52,7 @@ describe('encodeCursor', () => {
 describe('FeedService.getFeed', () => {
   it('always filters tenantId + clientId and applies default statuses', async () => {
     const { prisma, getArgs } = mockPrisma([mkRow(1, 0.5)], [{ sourceType: 'bill', _count: 1 }]);
-    await new FeedService(prisma, NO_CRYPTO).getFeed('t1', 'c1', {});
+    await new FeedService(prisma, NO_CRYPTO, NO_ACTIONS).getFeed('t1', 'c1', {});
     const w = getArgs().where;
     expect(w.tenantId).toBe('t1');
     expect(w.clientId).toBe('c1');
@@ -57,7 +61,7 @@ describe('FeedService.getFeed', () => {
 
   it('computes hasMore + nextCursor from the extra row', async () => {
     const { prisma } = mockPrisma(Array.from({ length: 26 }, (_, i) => mkRow(i, 0.5)));
-    const r = await new FeedService(prisma, NO_CRYPTO).getFeed('t1', 'c1', { limit: 25 });
+    const r = await new FeedService(prisma, NO_CRYPTO, NO_ACTIONS).getFeed('t1', 'c1', { limit: 25 });
     expect(r.items).toHaveLength(25);
     expect(r.hasMore).toBe(true);
     expect(r.nextCursor).toBeTruthy();
@@ -65,7 +69,7 @@ describe('FeedService.getFeed', () => {
 
   it('has no next page when rows ≤ limit', async () => {
     const { prisma } = mockPrisma(Array.from({ length: 10 }, (_, i) => mkRow(i, 0.5)));
-    const r = await new FeedService(prisma, NO_CRYPTO).getFeed('t1', 'c1', { limit: 25 });
+    const r = await new FeedService(prisma, NO_CRYPTO, NO_ACTIONS).getFeed('t1', 'c1', { limit: 25 });
     expect(r.hasMore).toBe(false);
     expect(r.nextCursor).toBeNull();
   });
@@ -73,7 +77,7 @@ describe('FeedService.getFeed', () => {
   it('builds a 2-part keyset for date order', async () => {
     const cursor = encodeCursor('date', { score: 0.5, createdAt: new Date('2026-06-24T00:00:00Z'), id: 'idX' });
     const { prisma, getArgs } = mockPrisma([mkRow(1, 0.5)]);
-    await new FeedService(prisma, NO_CRYPTO).getFeed('t1', 'c1', { order: 'date', cursor });
+    await new FeedService(prisma, NO_CRYPTO, NO_ACTIONS).getFeed('t1', 'c1', { order: 'date', cursor });
     const a = getArgs();
     expect(a.orderBy).toEqual([{ createdAt: 'desc' }, { id: 'desc' }]);
     expect(a.where.OR).toHaveLength(2);
@@ -82,7 +86,7 @@ describe('FeedService.getFeed', () => {
   it('builds a 3-part keyset for score order', async () => {
     const cursor = encodeCursor('score', { score: 0.7, createdAt: new Date('2026-06-24T00:00:00Z'), id: 'idX' });
     const { prisma, getArgs } = mockPrisma([mkRow(1, 0.5)]);
-    await new FeedService(prisma, NO_CRYPTO).getFeed('t1', 'c1', { order: 'score', cursor });
+    await new FeedService(prisma, NO_CRYPTO, NO_ACTIONS).getFeed('t1', 'c1', { order: 'score', cursor });
     const a = getArgs();
     expect(a.orderBy).toEqual([{ score: 'desc' }, { createdAt: 'desc' }, { id: 'desc' }]);
     expect(a.where.OR).toHaveLength(3);
@@ -90,13 +94,13 @@ describe('FeedService.getFeed', () => {
 
   it('clamps limit to 100', async () => {
     const { prisma, getArgs } = mockPrisma([mkRow(1, 0.5)]);
-    await new FeedService(prisma, NO_CRYPTO).getFeed('t1', 'c1', { limit: 9999 });
+    await new FeedService(prisma, NO_CRYPTO, NO_ACTIONS).getFeed('t1', 'c1', { limit: 9999 });
     expect(getArgs().take).toBe(101);
   });
 
   it('applies sourceType/severity/date filters and maps counts', async () => {
     const { prisma, getArgs } = mockPrisma([mkRow(1, 0.5)], [{ sourceType: 'bill', _count: 12 }, { sourceType: 'combined', _count: 3 }]);
-    const r = await new FeedService(prisma, NO_CRYPTO).getFeed('t1', 'c1', {
+    const r = await new FeedService(prisma, NO_CRYPTO, NO_ACTIONS).getFeed('t1', 'c1', {
       sourceTypes: ['combined'],
       severities: ['critical'],
       since: new Date('2026-06-01'),
@@ -145,7 +149,7 @@ describe('FeedService decrypt-on-read', () => {
   it('fills encrypted quotes via HearingCryptoService, leaves textPlain intact', async () => {
     const crypto = { configured: true, decrypt: () => 'DECRYPTED' } as any;
     const prisma = prismaWithSeg({ id: 'seg1', textCiphertext: 'ct', iv: 'iv', authTag: 'tag' });
-    const r = await new FeedService(prisma, crypto).getFeed('t1', 'c1', {});
+    const r = await new FeedService(prisma, crypto, NO_ACTIONS).getFeed('t1', 'c1', {});
     const mentions = (r.items[0] as any).evidence.hearing.mentions;
     expect(mentions[0].quote).toBe('DECRYPTED');
     expect(mentions[1].quote).toBe('already here');
@@ -159,13 +163,13 @@ describe('FeedService decrypt-on-read', () => {
       },
     } as any;
     const prisma = prismaWithSeg({ id: 'seg1', textCiphertext: 'ct', iv: 'iv', authTag: 'tag' });
-    const r = await new FeedService(prisma, crypto).getFeed('t1', 'c1', {});
+    const r = await new FeedService(prisma, crypto, NO_ACTIONS).getFeed('t1', 'c1', {});
     expect((r.items[0] as any).evidence.hearing.mentions[0].quote).toBeNull();
   });
 
   it('is a no-op when no key is configured', async () => {
     const prisma = prismaWithSeg({ id: 'seg1', textCiphertext: 'ct', iv: 'iv', authTag: 'tag' });
-    const r = await new FeedService(prisma, NO_CRYPTO).getFeed('t1', 'c1', {});
+    const r = await new FeedService(prisma, NO_CRYPTO, NO_ACTIONS).getFeed('t1', 'c1', {});
     expect((r.items[0] as any).evidence.hearing.mentions[0].quote).toBeNull();
   });
 });

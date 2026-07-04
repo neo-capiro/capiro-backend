@@ -8,6 +8,7 @@ import {
   type PutWatchlistInput,
   type PutAlertPrefsInput,
 } from './tracker-watchlist.service.js';
+import { TrackerSeedService } from './tracker-seed.service.js';
 
 /**
  * Unified tracker watchlist CRUD (Phase 2, plan §5.2).
@@ -22,7 +23,10 @@ import {
 @Controller('tracker/watchlists')
 @UseGuards(TenantGuard, TrackerOwnerGuard)
 export class TrackerWatchlistController {
-  constructor(private readonly svc: TrackerWatchlistService) {}
+  constructor(
+    private readonly svc: TrackerWatchlistService,
+    private readonly seeds: TrackerSeedService,
+  ) {}
 
   @Get(':clientId')
   getWatchlist(@CurrentTenant() ctx: WorkspaceTenantContext, @Param('clientId') clientId: string) {
@@ -36,6 +40,14 @@ export class TrackerWatchlistController {
     @Body() body: PutWatchlistInput,
   ) {
     return this.svc.putWatchlist(ctx.tenantId, clientId, ctx.clerkUserId, body);
+  }
+
+  // Suggested tags + issue areas to seed the watchlist from the client profile
+  // (capability tags + sector). Excludes anything already configured. P1.1 —
+  // legacy `{ tags, issueAreas }` shape, consumed by the web with no adapter.
+  @Get(':clientId/seed-suggestions')
+  getSeedSuggestions(@CurrentTenant() ctx: WorkspaceTenantContext, @Param('clientId') clientId: string) {
+    return this.seeds.getSeedSuggestions(ctx.tenantId, clientId);
   }
 
   @Get(':clientId/alert-prefs')

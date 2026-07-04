@@ -270,6 +270,27 @@ model IntelAlertDigestQueue {
   @@map("intel_alert_digest_queue")
 }
 
+/// One-time SMS phone-verification OTP (hashed). Consent record for the SMS
+/// channel — the verify step is the opt-in (P1.1 port of the legacy apps/api
+/// sms_verification; D2 forbids intel-api writing that table, so the consent
+/// ledger moves here with the service that will deliver SMS post-cutover).
+model IntelSmsVerification {
+  id        String   @id @default(cuid())
+  tenantId  String   @map("tenant_id")
+  userId    String   @map("user_id")
+  clientId  String?  @map("client_id")
+  phone     String //                  E.164
+  codeHash  String   @map("code_hash") // SHA-256 of `code:phone`
+  expiresAt DateTime @map("expires_at")
+  consumed  Boolean  @default(false)
+  attempts  Int      @default(0)
+  createdAt DateTime @default(now()) @map("created_at")
+
+  @@index([tenantId, userId, phone])
+  @@index([tenantId, clientId])
+  @@map("intel_sms_verification")
+}
+
 /// Feedback labels on alerts/bills/hearings/recommendations (§10 training set).
 model IntelFeedback {
   id         String   @id @default(cuid())

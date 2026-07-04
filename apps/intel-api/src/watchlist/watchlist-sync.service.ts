@@ -38,6 +38,8 @@ interface AlertPrefRow {
   client_id: string;
   tenant_id: string;
   user_id: string;
+  /** From `users.clerk_user_id` (LEFT JOIN) — the id space intel-api keys by. */
+  clerk_user_id: string | null;
   triggers: string[] | null;
   materiality: string;
   email_enabled: boolean;
@@ -54,6 +56,20 @@ interface AlertPrefRow {
 @Injectable()
 export class WatchlistSyncService {
   constructor(private readonly prisma: PrismaService) {}
+
+  /**
+   * Tenants whose tracker is intel-OWNED (`tracker_owner_intel` enabled).
+   * Sync + backfills SKIP these: after a tenant flips, intel_* is its source
+   * of truth and re-running legacy→intel copies would overwrite v2-native
+   * edits with stale legacy state (cutover review finding, PR-1).
+   */
+  private async ownedTenantIds(): Promise<Set<string>> {
+    const rows = await this.prisma.featureFlag.findMany({
+      where: { feature: 'tracker_owner_intel', enabled: true },
+      select: { tenantId: true },
+    });
+    return new Set(rows.map((r) => r.tenantId));
+  }
 
   /** Resolve a tenant slug or uuid to the tenant uuid, or null if unknown. */
   async resolveTenantId(slugOrId: string): Promise<string | null> {
@@ -79,11 +95,13 @@ export class WatchlistSyncService {
     changed: number;
     skipped: number;
     swept: number;
+    skippedOwned: number;
   }> {
     const tenantId = tenantSlugOrId ? await this.resolveTenantId(tenantSlugOrId) : null;
     if (tenantSlugOrId && !tenantId) throw new Error(`NO_TENANT_FOR ${tenantSlugOrId}`);
+    const owned = await this.ownedTenantIds();
 
-    const rows = await this.prisma.withSystem((tx) =>
+    const allRows = await this.prisma.withSystem((tx) =>
       tenantId
         ? tx.$queryRawUnsafe<LegacyWatchlistRow[]>(
             `SELECT client_id::text AS client_id, tenant_id::text AS tenant_id,
@@ -97,6 +115,9 @@ export class WatchlistSyncService {
                FROM client_watchlist`,
           ),
     );
+
+    const rows = allRows.filter((r) => !owned.has(r.tenant_id));
+    const skippedOwned = allRows.length - rows.length;
 
     let changed = 0;
     let skipped = 0;
@@ -184,34 +205,43 @@ export class WatchlistSyncService {
       });
     }
 
-    // Sweep: unified tracker watchlists (id LIKE 'wl:%') whose legacy row is gone.
+    // Sweep: unified tracker watchlists (id LIKE 'wl:%') whose legacy row is
+    // gone. NEVER sweeps intel-owned tenants — their `wl:` rows are v2-native
+    // truth with no legacy counterpart by design.
     const trackerWls = await this.prisma.watchlist.findMany({
       where: tenantId ? { tenantId, id: { startsWith: 'wl:' } } : { id: { startsWith: 'wl:' } },
-      select: { id: true, clientId: true },
+      select: { id: true, clientId: true, tenantId: true },
     });
     let swept = 0;
     for (const w of trackerWls) {
+      if (owned.has(w.tenantId)) continue;
       if (!legacyClientIds.has(w.clientId)) {
         await this.prisma.watchlist.delete({ where: { id: w.id } }); // cascade topics/terms
         swept += 1;
       }
     }
 
-    return { clients: rows.length, changed, skipped, swept };
+    return { clients: rows.length, changed, skipped, swept, skippedOwned };
   }
 
-  /** Backfill `tracked_bill` → `intel_tracked_bill` (idempotent on (clientId,billId)). */
-  async backfillTrackedBills(tenantSlugOrId?: string): Promise<{ count: number }> {
+  /**
+   * Backfill `tracked_bill` → `intel_tracked_bill` (idempotent on
+   * (clientId,billId)). Skips intel-owned tenants (see ownedTenantIds).
+   */
+  async backfillTrackedBills(tenantSlugOrId?: string): Promise<{ count: number; skippedOwned: number }> {
     const tenantId = tenantSlugOrId ? await this.resolveTenantId(tenantSlugOrId) : null;
     if (tenantSlugOrId && !tenantId) throw new Error(`NO_TENANT_FOR ${tenantSlugOrId}`);
+    const owned = await this.ownedTenantIds();
 
     const cols = `client_id::text AS client_id, tenant_id::text AS tenant_id, bill_id, note, source,
                   created_by, last_seen_action_text, last_seen_action_date, last_seen_at`;
-    const rows = await this.prisma.withSystem((tx) =>
+    const allRows = await this.prisma.withSystem((tx) =>
       tenantId
         ? tx.$queryRawUnsafe<TrackedBillRow[]>(`SELECT ${cols} FROM tracked_bill WHERE tenant_id = $1::uuid`, tenantId)
         : tx.$queryRawUnsafe<TrackedBillRow[]>(`SELECT ${cols} FROM tracked_bill`),
     );
+    const rows = allRows.filter((r) => !owned.has(r.tenant_id));
+    const skippedOwned = allRows.length - rows.length;
 
     let count = 0;
     for (const r of rows) {
@@ -231,25 +261,47 @@ export class WatchlistSyncService {
       });
       count += 1;
     }
-    return { count };
+    return { count, skippedOwned };
   }
 
-  /** Backfill `alert_preference` → `intel_alert_preference` (idempotent on (userId,clientId)). */
-  async backfillAlertPrefs(tenantSlugOrId?: string): Promise<{ count: number }> {
+  /**
+   * Backfill `alert_preference` → `intel_alert_preference` (idempotent on
+   * (userId,clientId)).
+   *
+   * ID-SPACE TRANSLATION (cutover review finding, PR-1 — CRITICAL): legacy
+   * `alert_preference.user_id` is the INTERNAL `users.id` uuid, but every
+   * intel-api runtime path keys prefs by the Clerk subject (`clerkUserId` from
+   * the JWT). Copying the uuid verbatim produced rows the runtime could never
+   * read (prefs "wiped" post-flip) while a user's first v2 save created a
+   * duplicate clerk-keyed row (double alert delivery). So: JOIN users and
+   * write `userId = clerk_user_id`; rows whose user has no clerk id (deleted
+   * users) are skipped and counted. Skips intel-owned tenants.
+   */
+  async backfillAlertPrefs(
+    tenantSlugOrId?: string,
+  ): Promise<{ count: number; skippedOwned: number; skippedNoClerkId: number }> {
     const tenantId = tenantSlugOrId ? await this.resolveTenantId(tenantSlugOrId) : null;
     if (tenantSlugOrId && !tenantId) throw new Error(`NO_TENANT_FOR ${tenantSlugOrId}`);
+    const owned = await this.ownedTenantIds();
 
-    const cols = `client_id::text AS client_id, tenant_id::text AS tenant_id, user_id, triggers, materiality,
-                  email_enabled, email_address, email_cadence, sms_enabled, sms_phone, sms_phone_verified,
-                  sms_cadence, quiet_hours_start, quiet_hours_end`;
-    const rows = await this.prisma.withSystem((tx) =>
+    const cols = `ap.client_id::text AS client_id, ap.tenant_id::text AS tenant_id, ap.user_id,
+                  u.clerk_user_id, ap.triggers, ap.materiality,
+                  ap.email_enabled, ap.email_address, ap.email_cadence, ap.sms_enabled, ap.sms_phone,
+                  ap.sms_phone_verified, ap.sms_cadence, ap.quiet_hours_start, ap.quiet_hours_end`;
+    const from = `FROM alert_preference ap LEFT JOIN users u ON u.id = ap.user_id`;
+    const allRows = await this.prisma.withSystem((tx) =>
       tenantId
-        ? tx.$queryRawUnsafe<AlertPrefRow[]>(`SELECT ${cols} FROM alert_preference WHERE tenant_id = $1::uuid`, tenantId)
-        : tx.$queryRawUnsafe<AlertPrefRow[]>(`SELECT ${cols} FROM alert_preference`),
+        ? tx.$queryRawUnsafe<AlertPrefRow[]>(`SELECT ${cols} ${from} WHERE ap.tenant_id = $1::uuid`, tenantId)
+        : tx.$queryRawUnsafe<AlertPrefRow[]>(`SELECT ${cols} ${from}`),
     );
+    const unowned = allRows.filter((r) => !owned.has(r.tenant_id));
+    const skippedOwned = allRows.length - unowned.length;
+    const rows = unowned.filter((r) => Boolean(r.clerk_user_id));
+    const skippedNoClerkId = unowned.length - rows.length;
 
     let count = 0;
     for (const r of rows) {
+      const clerkUserId = r.clerk_user_id as string;
       const data = {
         triggers: r.triggers ?? [],
         materiality: r.materiality,
@@ -264,13 +316,36 @@ export class WatchlistSyncService {
         quietHoursEnd: r.quiet_hours_end ?? null,
       };
       await this.prisma.intelAlertPreference.upsert({
-        where: { userId_clientId: { userId: r.user_id, clientId: r.client_id } },
-        create: { tenantId: r.tenant_id, clientId: r.client_id, userId: r.user_id, ...data },
+        where: { userId_clientId: { userId: clerkUserId, clientId: r.client_id } },
+        create: { tenantId: r.tenant_id, clientId: r.client_id, userId: clerkUserId, ...data },
         update: data,
       });
       count += 1;
     }
-    return { count };
+    return { count, skippedOwned, skippedNoClerkId };
+  }
+
+  /**
+   * Flip a feature for EVERY tenant in one pass (Phase-8 all-tenant cutover).
+   * Upsert-idempotent; returns the tenant list so the verb can log each slug.
+   */
+  async setFeatureFlagAll(
+    feature: string,
+    enabled: boolean,
+  ): Promise<{ feature: string; enabled: boolean; tenants: Array<{ id: string; slug: string }> }> {
+    const tenants = await this.prisma.withSystem((tx) =>
+      tx.$queryRawUnsafe<Array<{ id: string; slug: string }>>(
+        'SELECT id::text AS id, slug FROM tenants ORDER BY slug',
+      ),
+    );
+    for (const t of tenants) {
+      await this.prisma.featureFlag.upsert({
+        where: { feature_tenantId: { feature, tenantId: t.id } },
+        create: { feature, tenantId: t.id, enabled },
+        update: { enabled },
+      });
+    }
+    return { feature, enabled, tenants };
   }
 
   /** Set a tenant's feature flag (the `disable-feature` OFF path, §5.0.1; also enables). */

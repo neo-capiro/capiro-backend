@@ -4,6 +4,7 @@ import { CurrentTenant } from '../auth/current-tenant.decorator.js';
 import type { WorkspaceTenantContext } from '../auth/tenant-context.js';
 import { TrackerOwnerGuard } from './tracker-owner.guard.js';
 import { TrackerBoardService } from './tracker-board.service.js';
+import { BillSearchQueryDto } from './tracker.dto.js';
 
 /**
  * Unified tracker recommendation feed + tracked-bill curation (Phase 3 §6.2).
@@ -13,13 +14,16 @@ import { TrackerBoardService } from './tracker-board.service.js';
  * no reconciliation:
  *   GET  /intel-api/clients/:c/recommendations              (§6.2 — NO /tracker/ segment)
  *   GET  /intel-api/clients/:c/tracker/board
+ *   GET  /intel-api/clients/:c/tracker/summary               (tab-badge counts)
+ *   GET  /intel-api/clients/:c/tracker/bill-search?q=       (P1.1 aux port)
  *   POST /intel-api/clients/:c/tracker/track     { billId, note?, source?, isManual? }
  *   POST /intel-api/clients/:c/tracker/untrack   { billId }
  *   POST /intel-api/clients/:c/tracker/feedback  { targetRef, signal, targetType?, alertId? }
- * No collision: no other controller owns `/intel-api/clients/*`. Reachable via
- * the existing ALB rule `/intel-api/*`. Gated by `tracker_owner_intel` (404 when
- * off) → during shadow only the internal tenant reaches it; apps/api stays
- * source of truth (D6).
+ * No collision: the only other controller under `/intel-api/clients/*` is the
+ * P1.1 TrackerChannelController (sms/verify + test-alert — disjoint routes).
+ * Reachable via the existing ALB rule `/intel-api/*`. Gated by
+ * `tracker_owner_intel` (404 when off) → during shadow only the internal tenant
+ * reaches it; apps/api stays source of truth (D6).
  */
 @Controller('clients')
 @UseGuards(TenantGuard, TrackerOwnerGuard)
@@ -39,6 +43,19 @@ export class TrackerBoardController {
   @Get(':clientId/tracker/board')
   getBoard(@CurrentTenant() ctx: WorkspaceTenantContext, @Param('clientId') clientId: string) {
     return this.svc.getBoard(ctx.tenantId, clientId);
+  }
+
+  // Client-profile tab badge: legacy-identical `{ boardCount, unread }`.
+  @Get(':clientId/tracker/summary')
+  getSummary(@CurrentTenant() ctx: WorkspaceTenantContext, @Param('clientId') clientId: string) {
+    return this.svc.getSummary(ctx.tenantId, clientId);
+  }
+
+  // Add-bill-modal search. `:clientId` is vestigial (legacy contract — the
+  // Workspace ContextBuilder calls this shape too); only `q` drives the query.
+  @Get(':clientId/tracker/bill-search')
+  searchBills(@Query() query: BillSearchQueryDto) {
+    return this.svc.searchBills(query.q);
   }
 
   @Post(':clientId/tracker/track')

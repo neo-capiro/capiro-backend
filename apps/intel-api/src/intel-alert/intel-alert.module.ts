@@ -9,6 +9,7 @@ import { IntelEmailService } from './intel-email.service.js';
  */
 @Module({
   providers: [IntelAlertService, IntelEmailService],
-  exports: [IntelAlertService],
+  // IntelEmailService is also consumed by the P1.1 tracker test-alert endpoint.
+  exports: [IntelAlertService, IntelEmailService],
 })
 export class IntelAlertModule {}

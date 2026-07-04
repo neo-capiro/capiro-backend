@@ -25,8 +25,21 @@ export function useIntelFeatureFlags() {
   });
 }
 
+/**
+ * Flag value PLUS resolution state, for queries that must wait for the flag.
+ * Callers that pick their URL inside `queryFn` (legacy vs intel-api) but cache
+ * under flag-agnostic query keys would, on a cold mount, fetch the LEGACY path
+ * while the flags query is still loading and never refetch when the flag
+ * resolves true (a queryFn change alone never triggers a refetch). Gate those
+ * queries with `enabled: <existing conditions> && ready`; `ready` settles fast
+ * either way (retry:false + the fail-closed catch above).
+ */
+export function useIntelFeature(feature: string): { enabled: boolean; ready: boolean } {
+  const { data, isPending } = useIntelFeatureFlags();
+  return { enabled: Boolean(data?.[feature]), ready: !isPending };
+}
+
 /** Convenience: is a single intel feature enabled for this tenant? */
 export function useIntelFeatureEnabled(feature: string): boolean {
-  const { data } = useIntelFeatureFlags();
-  return Boolean(data?.[feature]);
+  return useIntelFeature(feature).enabled;
 }

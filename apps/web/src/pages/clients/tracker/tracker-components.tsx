@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { useApi } from '../../../lib/use-api.js';
+import { useIntelFeature } from '../../../lib/intel-feature-flags.js';
 import { Icon, StarIcon } from './tracker-icons.js';
 import {
   probClass,
@@ -9,6 +10,7 @@ import {
   type BoardBill,
   type RecommendationBill,
 } from './tracker-api.js';
+import { intelTrackerPaths } from './intel-tracker-api.js';
 
 export function PassageBar({ prob }: { prob: number }) {
   const percent = Math.round(prob > 1 ? prob : prob * 100);
@@ -208,6 +210,11 @@ export function AddBillModal({
   onClose: () => void;
 }) {
   const api = useApi();
+  // P1.1: bill-search is served by intel-api (legacy-identical shape) when the
+  // tenant is on tracker_v2 — same `trackerV2 ? intel : legacy` pattern as TrackerTab,
+  // including the `flagsReady` gate (don't cache a legacy hit under the
+  // flag-agnostic key before the flag resolves).
+  const { enabled: trackerV2, ready: flagsReady } = useIntelFeature('tracker_v2');
   const [q, setQ] = useState('');
   const [added, setAdded] = useState<Set<string>>(() => new Set());
   const inputRef = useRef<HTMLInputElement | null>(null);
@@ -218,9 +225,13 @@ export function AddBillModal({
   const results = useQuery<BillSearchResult[]>({
     queryKey: ['tracker-bill-search', clientId, q],
     queryFn: async () =>
-      (await api.get<BillSearchResult[]>(trackerPaths.billSearch(clientId), { params: { q } }))
-        .data,
-    enabled: q.trim().length >= 2,
+      (
+        await api.get<BillSearchResult[]>(
+          trackerV2 ? intelTrackerPaths.billSearch(clientId) : trackerPaths.billSearch(clientId),
+          { params: { q } },
+        )
+      ).data,
+    enabled: q.trim().length >= 2 && flagsReady,
     staleTime: 30_000,
   });
 

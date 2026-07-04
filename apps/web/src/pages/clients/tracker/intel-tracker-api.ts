@@ -6,11 +6,12 @@
  * frontend types in tracker-api.ts.
  *
  * SCOPE: Board, Recommendations, Watchlist, Alert-prefs, Track/Untrack/Feedback
- * repoint to intel-api. The auxiliary endpoints intel-api does not (yet) serve —
- * bill-search, seed-suggestions, SMS verify, test-alert, issue-areas — stay on
- * legacy apps/api regardless of the flag (see TrackerTab). During shadow the
- * intel watchlist is kept in sync from legacy (scheduled sync), so recs computed
- * from it stay consistent.
+ * repoint to intel-api, plus the five aux endpoints ported in P1.1 —
+ * bill-search, seed-suggestions, SMS verify, test-alert, issue-areas — and the
+ * tab-badge summary, which intel-api now serves with legacy-identical response
+ * shapes (no adapters).
+ * During shadow the intel watchlist is kept in sync from legacy (scheduled
+ * sync), so recs computed from it stay consistent.
  *
  * NOTE: dormant until `tracker_v2` is flipped at cutover — needs browser QA then.
  */
@@ -32,12 +33,21 @@ const enc = encodeURIComponent;
 
 export const intelTrackerPaths = {
   board: (c: string) => `/intel-api/clients/${enc(c)}/tracker/board`,
+  // Tab-badge counts (ClientProfilePage) — legacy-identical `{ boardCount, unread }`, no adapter.
+  summary: (c: string) => `/intel-api/clients/${enc(c)}/tracker/summary`,
   recommendations: (c: string) => `/intel-api/clients/${enc(c)}/recommendations`,
   track: (c: string) => `/intel-api/clients/${enc(c)}/tracker/track`,
   untrack: (c: string) => `/intel-api/clients/${enc(c)}/tracker/untrack`,
   feedback: (c: string) => `/intel-api/clients/${enc(c)}/tracker/feedback`,
   watchlist: (c: string) => `/intel-api/tracker/watchlists/${enc(c)}`,
   alertPrefs: (c: string) => `/intel-api/tracker/watchlists/${enc(c)}/alert-prefs`,
+  // P1.1 aux ports — legacy-identical response shapes, no adapters.
+  issueAreas: () => `/intel-api/tracker/issue-areas`,
+  billSearch: (c: string) => `/intel-api/clients/${enc(c)}/tracker/bill-search`,
+  seedSuggestions: (c: string) => `/intel-api/tracker/watchlists/${enc(c)}/seed-suggestions`,
+  smsStart: (c: string) => `/intel-api/clients/${enc(c)}/tracker/sms/verify/start`,
+  smsConfirm: (c: string) => `/intel-api/clients/${enc(c)}/tracker/sms/verify/confirm`,
+  testAlert: (c: string) => `/intel-api/clients/${enc(c)}/tracker/test-alert`,
 };
 
 // ── intel-api response shapes (subset consumed here) ────────────────────────

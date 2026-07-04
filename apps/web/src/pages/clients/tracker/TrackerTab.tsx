@@ -17,7 +17,7 @@ import {
 } from './tracker-components.js';
 import { TrackerConfigPanel } from './TrackerConfigPanel.js';
 import { TrackerFeedPanel } from './TrackerFeedPanel.js';
-import { useIntelFeatureEnabled } from '../../../lib/intel-feature-flags.js';
+import { useIntelFeature } from '../../../lib/intel-feature-flags.js';
 import {
   trackerKeys,
   trackerPaths,
@@ -96,7 +96,11 @@ export function TrackerTab({ clientId, clientName }: { clientId: string; clientN
   // The unified Feed is gated by `tracker_v2` (off for all real tenants during
   // shadow). If a stale sessionStorage value selects 'feed' without the flag,
   // fall back to Board so the panel is never orphaned.
-  const trackerV2 = useIntelFeatureEnabled('tracker_v2');
+  // `flagsReady` gates every query below: the queryFns branch on trackerV2 but
+  // cache under flag-agnostic trackerKeys, so a fetch fired while the flags
+  // query is still loading would cache the LEGACY response and never refetch
+  // when the flag resolves true.
+  const { enabled: trackerV2, ready: flagsReady } = useIntelFeature('tracker_v2');
   const activePanel: Panel = panel === 'feed' && !trackerV2 ? 'board' : panel;
 
   // Board controls
@@ -143,6 +147,7 @@ export function TrackerTab({ clientId, clientName }: { clientId: string; clientN
       trackerV2
         ? adaptBoard((await api.get<IntelBoard>(intelTrackerPaths.board(clientId))).data)
         : (await api.get<BoardResponse>(trackerPaths.board(clientId))).data,
+    enabled: flagsReady,
   });
   const recsQuery = useQuery<RecommendationsResponse>({
     queryKey: trackerKeys.recommendations(clientId),
@@ -151,11 +156,16 @@ export function TrackerTab({ clientId, clientName }: { clientId: string; clientN
         ? adaptRecs((await api.get<IntelRec[]>(intelTrackerPaths.recommendations(clientId))).data)
         : (await api.get<RecommendationsResponse>(trackerPaths.recommendations(clientId))).data,
     staleTime: 60_000,
+    enabled: flagsReady,
   });
   const issueAreasQuery = useQuery<{ issueAreas: string[] }>({
     queryKey: trackerKeys.issueAreas(),
-    queryFn: async () => (await api.get<{ issueAreas: string[] }>(trackerPaths.issueAreas())).data,
+    queryFn: async () =>
+      trackerV2
+        ? (await api.get<{ issueAreas: string[] }>(intelTrackerPaths.issueAreas())).data
+        : (await api.get<{ issueAreas: string[] }>(trackerPaths.issueAreas())).data,
     staleTime: 60 * 60_000,
+    enabled: flagsReady,
   });
   const watchlistQuery = useQuery<WatchlistPayload>({
     queryKey: trackerKeys.watchlist(clientId),
@@ -163,7 +173,7 @@ export function TrackerTab({ clientId, clientName }: { clientId: string; clientN
       trackerV2
         ? adaptWatchlist((await api.get<IntelWatchlist>(intelTrackerPaths.watchlist(clientId))).data)
         : (await api.get<WatchlistPayload>(trackerPaths.watchlist(clientId))).data,
-    enabled: activePanel === 'config',
+    enabled: activePanel === 'config' && flagsReady,
   });
   const prefsQuery = useQuery<AlertPrefsPayload>({
     queryKey: trackerKeys.alertPrefs(clientId),
@@ -171,15 +181,17 @@ export function TrackerTab({ clientId, clientName }: { clientId: string; clientN
       trackerV2
         ? adaptPrefs((await api.get<IntelAlertPrefs>(intelTrackerPaths.alertPrefs(clientId))).data)
         : (await api.get<AlertPrefsPayload>(trackerPaths.alertPrefs(clientId))).data,
-    enabled: activePanel === 'config',
+    enabled: activePanel === 'config' && flagsReady,
   });
   // Suggestions to seed the watchlist from the client profile (capability tags +
   // sector → issue area). Excludes anything already configured.
   const seedQuery = useQuery<SeedSuggestions>({
     queryKey: trackerKeys.seed(clientId),
     queryFn: async () =>
-      (await api.get<SeedSuggestions>(trackerPaths.seedSuggestions(clientId))).data,
-    enabled: activePanel === 'config',
+      trackerV2
+        ? (await api.get<SeedSuggestions>(intelTrackerPaths.seedSuggestions(clientId))).data
+        : (await api.get<SeedSuggestions>(trackerPaths.seedSuggestions(clientId))).data,
+    enabled: activePanel === 'config' && flagsReady,
     staleTime: 5 * 60_000,
   });
 
@@ -331,7 +343,12 @@ export function TrackerTab({ clientId, clientName }: { clientId: string; clientN
 
   const smsStartMutation = useMutation({
     mutationFn: async (phone: string) =>
-      (await api.post(trackerPaths.smsStart(clientId), { phone })).data as {
+      (
+        await api.post(
+          trackerV2 ? intelTrackerPaths.smsStart(clientId) : trackerPaths.smsStart(clientId),
+          { phone },
+        )
+      ).data as {
         dormant: boolean;
         masked: string;
         devCode?: string;
@@ -339,11 +356,21 @@ export function TrackerTab({ clientId, clientName }: { clientId: string; clientN
   });
   const smsConfirmMutation = useMutation({
     mutationFn: async ({ phone, code }: { phone: string; code: string }) =>
-      (await api.post(trackerPaths.smsConfirm(clientId), { phone, code })).data,
+      (
+        await api.post(
+          trackerV2 ? intelTrackerPaths.smsConfirm(clientId) : trackerPaths.smsConfirm(clientId),
+          { phone, code },
+        )
+      ).data,
   });
   const testAlertMutation = useMutation({
     mutationFn: async (channels: ('email' | 'sms' | 'in_app')[]) =>
-      (await api.post(trackerPaths.testAlert(clientId), { channels })).data as {
+      (
+        await api.post(
+          trackerV2 ? intelTrackerPaths.testAlert(clientId) : trackerPaths.testAlert(clientId),
+          { channels },
+        )
+      ).data as {
         channel: string;
         status: string;
       }[],
@@ -551,8 +578,10 @@ export function TrackerTab({ clientId, clientName }: { clientId: string; clientN
       </div>
 
       {/* ===================== BOARD ===================== */}
+      {/* isPending (not isLoading) so the flag-gated window renders as loading,
+          not as a flash of the zero-bill empty state. */}
       {activePanel === 'board' &&
-        (boardQuery.isLoading ? (
+        (boardQuery.isPending ? (
           <div className="trk-col-empty">Loading tracked bills…</div>
         ) : boardCount === 0 ? (
           <div className="trk-empty">
@@ -646,7 +675,7 @@ export function TrackerTab({ clientId, clientName }: { clientId: string; clientN
 
       {/* ===================== RECOMMENDATIONS ===================== */}
       {activePanel === 'recs' &&
-        (recsQuery.isLoading ? (
+        (recsQuery.isPending ? (
           <div className="trk-col-empty">Finding bills to recommend…</div>
         ) : recAll.length === 0 ? (
           <div className="trk-empty">
