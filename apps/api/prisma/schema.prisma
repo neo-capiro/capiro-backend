@@ -3977,6 +3977,17 @@ model ProgramOfficeProgramLink {
   sourceUrl    String?  @map("source_url")
   confidence   Float    @default(0.5)
   reviewStatus String   @default("candidate") @map("review_status") @db.VarChar(20)
+  /// Provenance for derived links (derive-office-program-links). Array of
+  /// { kind, detail, count?, sourceUrl? }. Empty for hand/import-created rows.
+  evidence     Json     @default("[]") @map("evidence_jsonb")
+  /// Highest tier that produced the link: owner_in_office | people_majority |
+  /// office_name_exact | por_majority | people_minority | office_name_trgm.
+  evidenceTier String?  @map("evidence_tier")
+  /// Human-readable basis ("7 of 9 office people map to program X").
+  matchBasis   String?  @map("match_basis") @db.Text
+  /// Regenerable cohort tag (e.g. 'derive-office-program-links@v1'); NULL for
+  /// hand/import-created links, which the deriver never clobbers.
+  derivedBy    String?  @map("derived_by")
   createdAt    DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
   updatedAt    DateTime @updatedAt @map("updated_at") @db.Timestamptz(6)
 
