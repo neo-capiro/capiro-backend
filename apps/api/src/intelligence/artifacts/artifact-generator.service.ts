@@ -1,9 +1,4 @@
-import {
-  Injectable,
-  Logger,
-  NotFoundException,
-  ServiceUnavailableException,
-} from '@nestjs/common';
+import { Injectable, Logger, NotFoundException, ServiceUnavailableException } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { Prisma } from '@prisma/client';
 import type { TenantContext } from '@capiro/shared';
@@ -12,13 +7,9 @@ import { PrismaService } from '../../prisma/prisma.service.js';
 import { ActionRecommendationReadService } from '../actions/action-recommendation-read.service.js';
 import type { ActionCard } from '../actions/action-recommendation-read.service.js';
 import { buildFactSheet, describeSourceRef } from './fact-sheet.js';
+import { renderArtifactDocx } from './artifact-docx.js';
 import { verifyArtifact } from './artifact-verifier.js';
-import type {
-  ArtifactType,
-  Claim,
-  FactSheet,
-  GeneratedParagraph,
-} from './artifact-types.js';
+import type { ArtifactType, Claim, FactSheet, GeneratedParagraph } from './artifact-types.js';
 
 /**
  * Step 3.3 — source-backed artifact generator (plan §18).
@@ -82,9 +73,7 @@ async function fetchWithTimeout(url: string, init: RequestInit): Promise<Respons
     return await fetch(url, { ...init, signal: controller.signal });
   } catch (err) {
     if ((err as Error).name === 'AbortError') {
-      throw new ServiceUnavailableException(
-        `AI request timed out after ${AI_TIMEOUT_MS / 1000}s`,
-      );
+      throw new ServiceUnavailableException(`AI request timed out after ${AI_TIMEOUT_MS / 1000}s`);
     }
     throw err;
   } finally {
@@ -96,8 +85,7 @@ function extractAnthropicText(json: Record<string, unknown>): string {
   const content = Array.isArray(json.content) ? json.content : [];
   return content
     .map((part) => {
-      const record =
-        part && typeof part === 'object' ? (part as Record<string, unknown>) : {};
+      const record = part && typeof part === 'object' ? (part as Record<string, unknown>) : {};
       return record.type === 'text' && typeof record.text === 'string' ? record.text : '';
     })
     .join('\n')
@@ -276,10 +264,13 @@ export class ArtifactGeneratorService {
       if (!existing) throw new NotFoundException(`Artifact ${artifactId} not found`);
 
       const prevMeta =
-        existing.metadata && typeof existing.metadata === 'object' && !Array.isArray(existing.metadata)
+        existing.metadata &&
+        typeof existing.metadata === 'object' &&
+        !Array.isArray(existing.metadata)
           ? (existing.metadata as Record<string, unknown>)
           : {};
-      const prevVersion = typeof prevMeta.version === 'number' ? prevMeta.version : ARTIFACT_VERSION;
+      const prevVersion =
+        typeof prevMeta.version === 'number' ? prevMeta.version : ARTIFACT_VERSION;
       const nextMeta = {
         ...prevMeta,
         version: prevVersion + 1,
@@ -304,6 +295,29 @@ export class ArtifactGeneratorService {
         metadata: nextMeta as unknown as ArtifactMetadata,
       };
     });
+  }
+
+  /**
+   * Render a stored artifact as a client-ready .docx. Tenant-scoped (same
+   * ownership guard as updateContent); returns the buffer + a safe filename so
+   * the controller can stream it as a download. NO LLM call — pure serialization
+   * of the already-verified, already-persisted bodyText.
+   */
+  async renderDocx(
+    ctx: TenantContext,
+    artifactId: string,
+  ): Promise<{ filename: string; buffer: Buffer }> {
+    const artifact = await this.prisma.withTenant(ctx.tenantId, (tx) =>
+      tx.clioArtifact.findFirst({
+        where: { id: artifactId, tenantId: ctx.tenantId },
+        select: { title: true, bodyText: true },
+      }),
+    );
+    if (!artifact) throw new NotFoundException(`Artifact ${artifactId} not found`);
+
+    const title = artifact.title || 'Intelligence Artifact';
+    const buffer = await renderArtifactDocx({ title, bodyText: artifact.bodyText ?? '' });
+    return { filename: `${slugifyFilename(title)}.docx`, buffer };
   }
 
   /**
@@ -499,4 +513,14 @@ function assembleBody(args: {
   }
 
   return lines.join('\n').trimEnd() + '\n';
+}
+
+/** Filesystem-safe slug for a download filename. */
+function slugifyFilename(title: string): string {
+  const slug = (title || 'artifact')
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/^-+|-+$/g, '')
+    .slice(0, 80);
+  return slug || 'artifact';
 }

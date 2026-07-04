@@ -53,9 +53,8 @@ export function useActionArtifacts(actionId: string, enabled: boolean) {
     queryKey: actionArtifactsQueryKey(actionId),
     enabled: enabled && Boolean(actionId),
     queryFn: async () => {
-      const rows = (
-        await api.get<GeneratedArtifact[]>(`${BASE}/actions/${actionId}/artifacts`)
-      ).data;
+      const rows = (await api.get<GeneratedArtifact[]>(`${BASE}/actions/${actionId}/artifacts`))
+        .data;
       return Array.isArray(rows) ? rows : [];
     },
     staleTime: 30_000,
@@ -76,9 +75,7 @@ export function useGenerateArtifact() {
   const qc = useQueryClient();
   return useMutation<GeneratedArtifact, Error, GenerateArtifactInput>({
     mutationFn: async ({ actionId, type }) =>
-      (
-        await api.post<GeneratedArtifact>(`${BASE}/actions/${actionId}/artifacts`, { type })
-      ).data,
+      (await api.post<GeneratedArtifact>(`${BASE}/actions/${actionId}/artifacts`, { type })).data,
     onSuccess: (_data, input) => {
       void qc.invalidateQueries({ queryKey: actionArtifactsQueryKey(input.actionId) });
     },
@@ -105,6 +102,33 @@ export function useUpdateArtifact() {
       (await api.patch<GeneratedArtifact>(`${BASE}/artifacts/${artifactId}`, { bodyText })).data,
     onSuccess: (_data, input) => {
       void qc.invalidateQueries({ queryKey: actionArtifactsQueryKey(input.actionId) });
+    },
+  });
+}
+
+/**
+ * GET /api/intelligence/artifacts/:id/export/docx — download the artifact as a client-ready
+ * .docx. Server renders via the `docx` lib; we stream the blob and trigger a browser download.
+ * Mirrors workspace `useExportDocx`.
+ */
+export function useExportArtifactDocx() {
+  const api = useApi();
+  return useMutation<void, Error, { artifactId: string; filenameHint?: string }>({
+    mutationFn: async ({ artifactId, filenameHint }) => {
+      const res = await api.get<Blob>(`${BASE}/artifacts/${artifactId}/export/docx`, {
+        responseType: 'blob',
+      });
+      const blob = new Blob([res.data], {
+        type: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+      });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `${(filenameHint || 'artifact').replace(/[^a-z0-9]+/gi, '-').toLowerCase()}.docx`;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      URL.revokeObjectURL(url);
     },
   });
 }

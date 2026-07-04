@@ -1,4 +1,5 @@
-import { Body, Controller, Get, Param, Patch, Post, UseGuards } from '@nestjs/common';
+import { Body, Controller, Get, Param, Patch, Post, Res, UseGuards } from '@nestjs/common';
+import type { Response } from 'express';
 import { IsIn, IsString, MinLength } from 'class-validator';
 import type { TenantContext } from '@capiro/shared';
 import { Roles } from '../../auth/roles.decorator.js';
@@ -68,5 +69,21 @@ export class ArtifactController {
     @Body() body: UpdateArtifactDto,
   ) {
     return this.generator.updateContent(ctx, id, body.bodyText);
+  }
+
+  /** Download the (already-verified) artifact as a client-ready .docx. */
+  @Get('artifacts/:id/export/docx')
+  async exportDocx(
+    @CurrentTenant() ctx: TenantContext,
+    @Param('id') id: string,
+    @Res() res: Response,
+  ) {
+    const { filename, buffer } = await this.generator.renderDocx(ctx, id);
+    res.setHeader(
+      'Content-Type',
+      'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+    );
+    res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
+    res.send(buffer);
   }
 }

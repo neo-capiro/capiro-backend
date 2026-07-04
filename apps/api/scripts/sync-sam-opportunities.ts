@@ -14,6 +14,17 @@
  * run's watermark (ctx.since), or an explicit `--since YYYY-MM-DD`. DoD-filtered via
  * the deptname API filter AND a client-side org-path check (defense in depth).
  *
+ * HISTORICAL BACKFILL. The daily job only pulls the last ~30 days; older/closed
+ * notices need a one-off backfill. SAM.gov caps a single search's date span at ~1
+ * year, so walk it in <=1yr windows (newest first is fine — upsert is idempotent):
+ *   tsx scripts/sync-sam-opportunities.ts --backfill --since 2024-07-01 --posted-to 2025-06-30 --commit
+ *   tsx scripts/sync-sam-opportunities.ts --backfill --since 2023-07-01 --posted-to 2024-06-30 --commit
+ * `--backfill` bypasses the "already running" guard (so a manual run isn't skipped
+ * by the daily cron) and does NOT touch the incremental watermark (the SyncRun's
+ * startedAt is wall-clock now, so the daily floor is unaffected). Raise the page
+ * circuit-breaker for dense windows with SAM_MAX_PAGES (default 50 -> 5,000 rows);
+ * if a window is capped the run logs a loud CAPPED warning so no gap goes silent.
+ *
  * Review gating (sam-opportunity-matcher):
  *   - a verbatim PE-code hit in the text         -> review_status 'accepted'
  *   - a program alias + office/PSC agreement     -> review_status 'candidate'
@@ -41,7 +52,9 @@ const SAM_URL = 'https://api.sam.gov/opportunities/v2/search';
 const SOURCE = 'sync-sam-opportunities';
 const DEFAULT_LOOKBACK_DAYS = 30;
 const PAGE_LIMIT = 100;
-const MAX_PAGES = 50; // circuit breaker
+// Circuit breaker on pages/run (PAGE_LIMIT rows each). Env-overridable so a dense
+// historical backfill window can pull deeper than the daily's 5,000-row default.
+const MAX_PAGES = Number(process.env.SAM_MAX_PAGES) || 50;
 
 function arg(name: string): string | undefined {
   const i = process.argv.indexOf(`--${name}`);
@@ -113,8 +126,11 @@ interface SamSearchResponse {
 
 /** Is this notice from DoD? (org-path / department check — mirrors the personnel sync). */
 function isDod(rec: SamOpportunityRecord): boolean {
-  const hay = `${rec.fullParentPathName ?? ''} ${rec.department ?? ''} ${rec.subTier ?? ''}`.toUpperCase();
-  return /DEPT OF DEFENSE|DEPARTMENT OF DEFENSE|\bDOD\b|DEPT OF THE (ARMY|NAVY|AIR FORCE)|DEFENSE/.test(hay);
+  const hay =
+    `${rec.fullParentPathName ?? ''} ${rec.department ?? ''} ${rec.subTier ?? ''}`.toUpperCase();
+  return /DEPT OF DEFENSE|DEPARTMENT OF DEFENSE|\bDOD\b|DEPT OF THE (ARMY|NAVY|AIR FORCE)|DEFENSE/.test(
+    hay,
+  );
 }
 
 /** Sub-department agency from the org path. SAM's `department`/`subTier` fields
@@ -152,11 +168,18 @@ function officeOf(rec: SamOpportunityRecord): string | null {
 
 /** First POC's name + email (public header fields). */
 function primaryPoc(rec: SamOpportunityRecord): { name: string | null; email: string | null } {
-  const poc = (rec.pointOfContact ?? []).find((p) => (p.type ?? '').toLowerCase() === 'primary') ?? (rec.pointOfContact ?? [])[0];
+  const poc =
+    (rec.pointOfContact ?? []).find((p) => (p.type ?? '').toLowerCase() === 'primary') ??
+    (rec.pointOfContact ?? [])[0];
   return { name: str(poc?.fullName), email: str(poc?.email) };
 }
 
-async function fetchPage(apiKey: string, postedFrom: string, postedTo: string, offset: number): Promise<SamSearchResponse> {
+async function fetchPage(
+  apiKey: string,
+  postedFrom: string,
+  postedTo: string,
+  offset: number,
+): Promise<SamSearchResponse> {
   const params = new URLSearchParams({
     api_key: apiKey,
     postedFrom,
@@ -168,7 +191,9 @@ async function fetchPage(apiKey: string, postedFrom: string, postedTo: string, o
   const res = await fetch(`${SAM_URL}?${params.toString()}`);
   const json = (await res.json()) as SamSearchResponse;
   if (!res.ok) {
-    throw new Error(`SAM.gov ${res.status}: ${json.error?.message ?? JSON.stringify(json).slice(0, 200)}`);
+    throw new Error(
+      `SAM.gov ${res.status}: ${json.error?.message ?? JSON.stringify(json).slice(0, 200)}`,
+    );
   }
   return json;
 }
@@ -179,7 +204,13 @@ async function fetchPage(apiKey: string, postedFrom: string, postedTo: string, o
  * program's metadata, when present). Pure shaping — no network.
  */
 function buildAliasIndex(
-  aliases: Array<{ programId: string; aliasNormalized: string; aliasType: string; officeHint?: string | null; pscHints?: string[] }>,
+  aliases: Array<{
+    programId: string;
+    aliasNormalized: string;
+    aliasType: string;
+    officeHint?: string | null;
+    pscHints?: string[];
+  }>,
 ): AliasForMatch[] {
   return aliases.map((a) => ({
     programId: a.programId,
@@ -195,9 +226,15 @@ async function main(): Promise<void> {
   const apiKey = process.env.SAM_GOV_API_KEY ?? '';
   if (!apiKey) throw new Error('SAM_GOV_API_KEY not configured');
   const commit = flag('commit');
+  const backfill = flag('backfill');
   const sinceArg = arg('since');
+  // Explicit window end for a backfill (SAM caps a search's span at ~1yr); default now.
+  const postedToArg = arg('posted-to');
+  const postedToDate = safeDate(postedToArg) ?? new Date();
   const t0 = Date.now();
-  console.log(`[sam-opportunities] starting (${commit ? 'COMMIT' : 'DRY-RUN'})`);
+  console.log(
+    `[sam-opportunities] starting (${commit ? 'COMMIT' : 'DRY-RUN'}${backfill ? ', BACKFILL' : ''}) maxPages=${MAX_PAGES}`,
+  );
 
   const prisma = new PrismaClient();
   try {
@@ -206,9 +243,10 @@ async function main(): Promise<void> {
       SOURCE,
       async (ctx): Promise<RunCounts> => {
         // Incremental window: explicit --since wins; else the watermark; else lookback.
+        // Window end is `now` for the daily, or an explicit --posted-to for a backfill.
         const since = ctx.since ?? new Date(Date.now() - DEFAULT_LOOKBACK_DAYS * 86_400_000);
         const postedFrom = samDate(since);
-        const postedTo = samDate(new Date());
+        const postedTo = samDate(postedToDate);
         console.log(`[sam-opportunities] window postedFrom=${postedFrom} postedTo=${postedTo}`);
 
         // Known PEs (for verbatim PE-code matching) + the program alias universe.
@@ -218,14 +256,19 @@ async function main(): Promise<void> {
           select: { programId: true, aliasNormalized: true, aliasType: true },
         });
         const aliasIndex = buildAliasIndex(aliasRows);
-        console.log(`[sam-opportunities] ${knownPeCodes.size} known PEs, ${aliasIndex.length} program aliases`);
+        console.log(
+          `[sam-opportunities] ${knownPeCodes.size} known PEs, ${aliasIndex.length} program aliases`,
+        );
 
         const counts: RunCounts = { inserted: 0, updated: 0, skipped: 0, errors: 0 };
         let matchesWritten = 0;
         let offset = 0;
+        let totalRecords: number | undefined;
+        let capped = false;
 
         for (let page = 0; page < MAX_PAGES; page += 1) {
           const resp = await fetchPage(apiKey, postedFrom, postedTo, offset);
+          totalRecords = resp.totalRecords;
           const batch = resp.opportunitiesData ?? [];
           if (batch.length === 0) break;
 
@@ -296,12 +339,28 @@ async function main(): Promise<void> {
               }
             } catch (err) {
               counts.errors += 1;
-              console.warn(`[sam-opportunities] upsert/match failed for ${noticeId}: ${(err as Error).message}`);
+              console.warn(
+                `[sam-opportunities] upsert/match failed for ${noticeId}: ${(err as Error).message}`,
+              );
             }
           }
 
           offset += PAGE_LIMIT;
           if (resp.totalRecords !== undefined && offset >= resp.totalRecords) break;
+          // Ran out of page budget with more records still available -> capped window.
+          if (
+            page === MAX_PAGES - 1 &&
+            resp.totalRecords !== undefined &&
+            offset < resp.totalRecords
+          ) {
+            capped = true;
+          }
+        }
+
+        if (capped) {
+          console.warn(
+            `[sam-opportunities] ⚠️ CAPPED: window ${postedFrom}..${postedTo} has ${totalRecords} records but the page budget stopped at ${offset} (SAM_MAX_PAGES=${MAX_PAGES}). Narrow the window (--posted-to) or raise SAM_MAX_PAGES; the tail was NOT ingested.`,
+          );
         }
 
         const elapsed = ((Date.now() - t0) / 1000).toFixed(1);
@@ -310,7 +369,8 @@ async function main(): Promise<void> {
         );
         return counts;
       },
-      { overrideSince: sinceArg ?? null },
+      // A manual backfill must not be skipped by an in-flight daily run.
+      { overrideSince: sinceArg ?? null, skipIfRunning: !backfill },
     );
   } finally {
     await prisma.$disconnect();
@@ -323,7 +383,11 @@ async function main(): Promise<void> {
  * functional-unique index via a manual find-or-create (Prisma cannot target a
  * coalesce()-based unique index in upsert).
  */
-async function persistMatches(prisma: PrismaClient, opportunityId: string, proposed: ProposedSamMatch[]): Promise<number> {
+async function persistMatches(
+  prisma: PrismaClient,
+  opportunityId: string,
+  proposed: ProposedSamMatch[],
+): Promise<number> {
   let written = 0;
   for (const m of proposed) {
     const existing = await prisma.samOpportunityMatch.findFirst({

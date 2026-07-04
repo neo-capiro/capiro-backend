@@ -17,20 +17,17 @@
  * guarded — a thin or malformed payload renders an honest empty state, never a crash.
  */
 import { useEffect, useMemo, useState } from 'react';
+import { App as AntApp, Button, Drawer, Dropdown, Input, Space, Spin, Tag, Typography } from 'antd';
 import {
-  App as AntApp,
-  Button,
-  Drawer,
-  Dropdown,
-  Input,
-  Space,
-  Spin,
-  Tag,
-  Typography,
-} from 'antd';
-import { CopyOutlined, EditOutlined, FileTextOutlined, WarningOutlined } from '@ant-design/icons';
+  CopyOutlined,
+  DownloadOutlined,
+  EditOutlined,
+  FileTextOutlined,
+  WarningOutlined,
+} from '@ant-design/icons';
 import {
   useActionArtifacts,
+  useExportArtifactDocx,
   useGenerateArtifact,
   useUpdateArtifact,
   type GeneratedArtifact,
@@ -82,6 +79,7 @@ function ArtifactViewer({
 }) {
   const { message } = AntApp.useApp();
   const updateArtifact = useUpdateArtifact();
+  const exportDocx = useExportArtifactDocx();
 
   const [editing, setEditing] = useState(false);
   const [draft, setDraft] = useState(artifact.bodyText ?? '');
@@ -98,7 +96,7 @@ function ArtifactViewer({
   const isEdited = version > 1;
 
   async function handleCopy() {
-    const text = editing ? draft : artifact.bodyText ?? '';
+    const text = editing ? draft : (artifact.bodyText ?? '');
     try {
       await navigator.clipboard?.writeText(text);
       message.success('Copied to clipboard');
@@ -129,6 +127,13 @@ function ArtifactViewer({
         },
         onError: (err) => message.error(err.message || 'Could not save artifact'),
       },
+    );
+  }
+
+  function handleDownload() {
+    exportDocx.mutate(
+      { artifactId: artifact.id, filenameHint: artifact.title || artifactTypeLabel(artifact) },
+      { onError: (err) => message.error(err.message || 'Could not download .docx') },
     );
   }
 
@@ -174,9 +179,18 @@ function ArtifactViewer({
               </Button>
             </>
           ) : (
-            <Button icon={<EditOutlined />} onClick={startEdit}>
-              Edit
-            </Button>
+            <>
+              <Button
+                icon={<DownloadOutlined />}
+                onClick={handleDownload}
+                loading={exportDocx.isPending}
+              >
+                Download .docx
+              </Button>
+              <Button icon={<EditOutlined />} onClick={startEdit}>
+                Edit
+              </Button>
+            </>
           )}
         </Space>
       }
@@ -290,7 +304,12 @@ export function ArtifactsPanel({
           }}
           disabled={generate.isPending}
         >
-          <Button size="small" type="primary" icon={<FileTextOutlined />} loading={generate.isPending}>
+          <Button
+            size="small"
+            type="primary"
+            icon={<FileTextOutlined />}
+            loading={generate.isPending}
+          >
             Generate
           </Button>
         </Dropdown>
@@ -328,11 +347,7 @@ export function ArtifactsPanel({
                 <span className="artifact-row-badges">
                   <Tag>{artifactTypeLabel(artifact)}</Tag>
                   <Tag color="blue">v{artifactVersion(artifact)}</Tag>
-                  {dropped > 0 ? (
-                    <Tag color="warning">
-                      {dropped} dropped
-                    </Tag>
-                  ) : null}
+                  {dropped > 0 ? <Tag color="warning">{dropped} dropped</Tag> : null}
                 </span>
               </button>
             );
