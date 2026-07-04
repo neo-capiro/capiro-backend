@@ -1,0 +1,36 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>{{TITLE}}</title>
+<meta name="description" content="{{DESCRIPTION}}">
+<link rel="canonical" href="{{CANONICAL}}">
+<meta name="robots" content="index, follow">
+<meta property="og:type" content="website">
+<meta property="og:site_name" content="Capiro">
+<meta property="og:title" content="{{OG_TITLE}}">
+<meta property="og:description" content="{{DESCRIPTION}}">
+<meta property="og:url" content="{{CANONICAL}}">
+<meta property="og:image" content="https://capiro.ai/assets/hero-poster.jpg">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="{{OG_TITLE}}">
+<meta name="twitter:description" content="{{DESCRIPTION}}">
+<meta name="twitter:image" content="https://capiro.ai/assets/hero-poster.jpg">
+<link rel="icon" type="image/svg+xml" href="/assets/favicon.svg">
+<link href="https://fonts.googleapis.com/css2?family=Instrument+Serif:ital@0;1&family=DM+Sans:opsz,wght@9..40,300;400;500;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="/assets/styles.css">
+{{HEAD_EXTRA}}</head>
+<body>
+<nav>
+  <a class="nav-logo" href="/">Capiro</a>
+  <button class="nav-burger" id="navBurger" aria-label="Menu" aria-expanded="false" onclick="toggleNav()"><span></span><span></span><span></span></button>
+  <ul class="nav-links" id="navLinks">
+    <li><a href="/platform" onclick="closeNav()">Platform</a></li>
+    <li><a href="/solutions" onclick="closeNav()">Solutions</a></li>
+    <li><a href="/insights" onclick="closeNav()">Insights</a></li>
+    <li><a href="/pricing" onclick="closeNav()">Pricing</a></li>
+    <li><a class="nav-signin" href="https://app.capiro.ai/sign-in" target="_blank">Sign in</a></li>
+    <li><a class="nav-cta" href="#" onclick="openModal();closeNav();return false;">Request a demo</a></li>
+  </ul>
+</nav>

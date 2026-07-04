@@ -1,0 +1,84 @@
+<footer>
+  <div class="footer-top">
+    <div>
+      <div class="footer-logo">Capiro</div>
+      <div class="footer-tagline">The Government Affairs Operating Platform</div>
+    </div>
+    <div class="footer-col">
+      <div class="footer-col-title">Contact</div>
+      <a href="mailto:info@capiro.ai">info@capiro.ai</a>
+      <a href="#" onclick="openModal();return false;">Request a demo</a>
+      <a href="https://www.linkedin.com/company/capirohq" target="_blank">LinkedIn</a>
+    </div>
+  </div>
+  <div class="footer-bottom">
+    <div class="footer-copy">&copy; 2026 Capiro, Inc. Washington, DC. All rights reserved.</div>
+    <div class="footer-legal"><a href="/privacy">Privacy</a><a href="/terms">Terms</a></div>
+  </div>
+</footer>
+<div class="modal-overlay" id="demoModal" onclick="closeModalOutside(event)">
+  <div class="modal-box">
+    <button class="modal-close" onclick="closeModal()">&times;</button>
+    <div id="modalForm">
+      <div class="modal-eyebrow">Request a demo</div>
+      <div class="modal-title">See Capiro in action.</div>
+      <p class="modal-sub">Tell us about your practice and we will be in touch within one business day.</p>
+      <div class="form-row">
+        <div class="form-group no-mb"><label class="form-label">First name</label><input type="text" class="form-input" id="firstName" placeholder="First"></div>
+        <div class="form-group no-mb"><label class="form-label">Last name</label><input type="text" class="form-input" id="lastName" placeholder="Last"></div>
+      </div>
+      <div class="form-group"><label class="form-label">Work email</label><input type="email" class="form-input" id="workEmail" placeholder="you@yourfirm.com"></div>
+      <div class="form-group"><label class="form-label">Firm or organization</label><input type="text" class="form-input" id="firmName" placeholder="Your firm name"></div>
+      <div class="form-group"><label class="form-label">Your role</label>
+        <div class="form-select-wrap"><select class="form-select" id="role">
+          <option value="" disabled selected>Select your role</option>
+          <option value="founder-owner">Founder / Owner</option>
+          <option value="principal-partner">Principal / Partner / Managing Director</option>
+          <option value="vp-director">VP or Director, Government Affairs</option>
+          <option value="senior-associate">Senior Associate / Senior Advisor</option>
+          <option value="ga-manager">Government Affairs Manager</option>
+          <option value="policy-director">Policy Director</option>
+          <option value="chief-of-staff">Chief of Staff</option>
+          <option value="other">Other</option>
+        </select></div>
+      </div>
+      <div class="form-group"><label class="form-label">What best describes your practice?</label>
+        <div class="form-select-wrap"><select class="form-select" id="practiceType">
+          <option value="" disabled selected>Select practice type</option>
+          <option value="lobbying-firm">Lobbying / Government affairs firm</option>
+          <option value="boutique-ga">Boutique government affairs consultancy</option>
+          <option value="corporate-ga">Corporate government affairs team</option>
+          <option value="defense-contractor">Defense contractor</option>
+          <option value="trade-association">Trade association</option>
+          <option value="nonprofit-advocacy">Nonprofit / Advocacy organization</option>
+          <option value="other">Other</option>
+        </select></div>
+      </div>
+      <div class="form-group"><label class="form-label">Active lobbying clients <span>optional</span></label>
+        <div class="form-select-wrap"><select class="form-select" id="clientCount">
+          <option value="" disabled selected>Select a range</option>
+          <option value="5-10">5 to 10</option>
+          <option value="11-25">11 to 25</option>
+          <option value="26-50">26 to 50</option>
+          <option value="51-100">51 to 100</option>
+          <option value="100+">More than 100</option>
+        </select></div>
+      </div>
+      <button class="form-submit" onclick="submitDemo()">Request a demo</button>
+      <p class="form-note">Work email required. We will respond within one business day.</p>
+    </div>
+    <div class="form-success" id="formSuccess">
+      <div class="fs-icon"><svg viewBox="0 0 24 24"><polyline points="20 6 9 17 4 12"/></svg></div>
+      <div class="fs-title">Request received.</div>
+      <p class="fs-sub">We will be in touch within one business day.</p>
+      <div class="fs-divider"></div>
+      <div class="fs-sched-label">Schedule your demo</div>
+      <p class="fs-sched-text">Pick a time on Jordan's calendar. About 30 minutes, tailored to your practice.</p>
+      <a href="https://meetings-na2.hubspot.com/jclayton?uuid=40e2c023-c4eb-4c69-8c8a-970d15a0e0bf" target="_blank" class="btn-schedule">Choose a time &rarr;</a>
+      <a href="#" class="fs-skip" onclick="closeModal();return false;">I will wait for your outreach instead</a>
+    </div>
+  </div>
+</div>
+<script src="/assets/main.js"></script>
+</body>
+</html>
