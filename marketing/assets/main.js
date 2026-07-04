@@ -57,6 +57,8 @@ function showDemoSuccess(){
   // marketing/build.mjs TRACKING are set; this push is a harmless no-op otherwise).
   window.dataLayer=window.dataLayer||[];
   window.dataLayer.push({event:'demo_request'});
+  // LinkedIn Insight Tag event-specific conversion (conversion_id injected by build.mjs TRACKING).
+  if(window.lintrk&&window._capiroLiConversionId){window.lintrk('track',{conversion_id:window._capiroLiConversionId});}
 }
 function submitDemo(){
   const first=document.getElementById('firstName').value.trim();

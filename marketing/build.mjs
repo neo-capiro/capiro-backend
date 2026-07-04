@@ -29,6 +29,7 @@ const OG_IMAGE = SITE + '/assets/hero-poster.jpg';
 const TRACKING = {
   gtmId: process.env.GTM_ID || '',                          // e.g. 'GTM-XXXXXXX' (none yet — no GTM container)
   linkedInPartnerId: process.env.LI_PARTNER_ID || '9369930', // LinkedIn Insight Tag partner id (Capiro Campaign Manager)
+  linkedInConversionId: process.env.LI_CONVERSION_ID || '28743210', // LinkedIn "Demo Request" event-specific conversion id (fired by main.js on demo success)
 };
 
 function trackingHead() {
@@ -43,6 +44,10 @@ function trackingHead() {
       '<!-- LinkedIn Insight Tag -->\n<script type="text/javascript">_linkedin_partner_id="' +
       TRACKING.linkedInPartnerId +
       '";window._linkedin_data_partner_ids=window._linkedin_data_partner_ids||[];window._linkedin_data_partner_ids.push(_linkedin_partner_id);</script>\n<script type="text/javascript">(function(l){if(!l){window.lintrk=function(a,b){window.lintrk.q.push([a,b])};window.lintrk.q=[]}var s=document.getElementsByTagName("script")[0];var b=document.createElement("script");b.type="text/javascript";b.async=true;b.src="https://snap.licdn.com/li.lms-analytics/insight.min.js";s.parentNode.insertBefore(b,s);})(window.lintrk);</script>\n<!-- End LinkedIn Insight Tag -->\n';
+  }
+  if (TRACKING.linkedInConversionId) {
+    // Exposed for main.js showDemoSuccess() -> lintrk('track', {conversion_id}).
+    out += '<script>window._capiroLiConversionId=' + TRACKING.linkedInConversionId + ';</script>\n';
   }
   return out;
 }
