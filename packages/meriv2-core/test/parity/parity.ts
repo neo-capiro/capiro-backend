@@ -40,12 +40,97 @@ async function runSurface<I extends { id: string }>(
   return { surface, total: fixtures.length, failed };
 }
 
+const WORKSPACE_GEN_POLICY: ParityFieldPolicy[] = [
+  { path: 'documents.length', kind: 'deterministic' },
+  { path: 'docTitle', kind: 'graded' },
+];
+
+function requireEnv(name: string): string {
+  const v = process.env[name];
+  if (!v) throw new Error(`Live parity requires env ${name}`);
+  return v;
+}
+
+async function postJson(url: string, bearer: string, body: unknown): Promise<unknown> {
+  const res = await fetch(url, {
+    method: 'POST',
+    headers: { authorization: `Bearer ${bearer}`, 'content-type': 'application/json' },
+    body: JSON.stringify(body),
+  });
+  if (!res.ok) throw new Error(`${url} -> HTTP ${res.status} ${res.statusText}`);
+  return res.json();
+}
+
+/**
+ * A4 — live both-paths parity (SC0.3). Requires a running stack + env:
+ *   PARITY_API_BASE_URL   e.g. https://app.capiro.ai/api      (legacy in-editor)
+ *   PARITY_ORCH_BASE_URL  e.g. https://app.capiro.ai          (orchestrator)
+ *   PARITY_WS_BASE_URL    e.g. https://app.capiro.ai/workspace-api (legacy gen)
+ *   PARITY_BEARER_TOKEN   a valid Clerk session JWT for the pilot tenant
+ *   PARITY_CLIENT_ID      real client id substituted into in-editor fixtures
+ *   PARITY_DRAFT_ID       real draft id substituted into workspace-gen fixtures
+ * Fixture tenant/client/draft ids are synthetic — the remap swaps in real ids
+ * so the corpus runs against actual rows. NOTE: the orchestrator surface
+ * endpoints (A3) must exist for the ON path; until then the ON runner fails
+ * loudly — a wired-but-red harness is the correct pre-A3 state, never a silent
+ * skip.
+ */
+async function runLive(): Promise<void> {
+  const apiBase = requireEnv('PARITY_API_BASE_URL').replace(/\/+$/, '');
+  const orchBase = requireEnv('PARITY_ORCH_BASE_URL').replace(/\/+$/, '');
+  const bearer = requireEnv('PARITY_BEARER_TOKEN');
+  const clientId = requireEnv('PARITY_CLIENT_ID');
+
+  const results = [] as Array<{ surface: string; total: number; failed: number }>;
+
+  results.push(
+    await runSurface(
+      'in-editor[live]',
+      inEditorFixtures,
+      (fx) => postJson(`${apiBase}/workspace/assistant`, bearer, { ...fx.dto, clientId }),
+      (fx) => postJson(`${orchBase}/meri-api/in-editor-assistant`, bearer, { ...fx.dto, clientId }),
+      IN_EDITOR_POLICY,
+    ),
+  );
+
+  // Workspace-gen live parity is heavier (each call regenerates a real draft
+  // and writes ws_draft.config); it runs only when the extra env is present.
+  const wsBase = process.env.PARITY_WS_BASE_URL?.replace(/\/+$/, '');
+  const draftId = process.env.PARITY_DRAFT_ID;
+  if (wsBase && draftId) {
+    results.push(
+      await runSurface(
+        'workspace-gen[live]',
+        workspaceGenFixtures.slice(0, 1), // one real regeneration per run — it mutates the draft
+        () => postJson(`${wsBase}/drafts/${draftId}/generate-all`, bearer, {}),
+        () =>
+          postJson(`${orchBase}/meri-api/workspace-generation`, bearer, {
+            tenantId: 'ignored-resolved-from-jwt',
+            draftId,
+          }),
+        WORKSPACE_GEN_POLICY,
+      ),
+    );
+  } else {
+    // eslint-disable-next-line no-console
+    console.log(
+      'workspace-gen[live]: SKIPPED (set PARITY_WS_BASE_URL + PARITY_DRAFT_ID to run) — not silently passed.',
+    );
+  }
+
+  let failed = 0;
+  for (const r of results) {
+    failed += r.failed;
+    // eslint-disable-next-line no-console
+    console.log(`${r.surface}: ${r.total - r.failed}/${r.total} parity-identical.`);
+  }
+  if (failed > 0) process.exit(1);
+}
+
 async function main(): Promise<void> {
   if (process.env.MERIV2_PARITY_LIVE === '1') {
-    throw new Error(
-      'Live parity runners are not wired in this environment — they require a running ' +
-        'api + meriv2-orchestrator + DB + model. See docs/plans/2026-06-30-meriv2-REPORT.md.',
-    );
+    await runLive();
+    return;
   }
 
   // Self-check: deterministic fields identical → pass; graded reply differs but

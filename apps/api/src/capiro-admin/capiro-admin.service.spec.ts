@@ -48,6 +48,7 @@ describe('CapiroAdminService — analyst console (Step 3.5)', () => {
       personnelWriter as never,
       {} as never,
       {} as never,
+      { invalidate: jest.fn() } as never,
     );
   });
 
@@ -413,6 +414,7 @@ describe('CapiroAdminService — AI keys & usage console', () => {
       {} as never,
       aiUsage as never,
       aiCredentials as never,
+      { invalidate: jest.fn() } as never,
     );
   });
 

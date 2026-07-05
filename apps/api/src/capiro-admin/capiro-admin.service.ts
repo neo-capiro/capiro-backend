@@ -12,6 +12,8 @@ import type { PeRecordInput } from '../program-element/types.js';
 import { AcquisitionPersonnelWriterService } from '../acquisition-personnel/acquisition-personnel-writer.service.js';
 import type { PersonRecordInput } from '../acquisition-personnel/types.js';
 import { AiUsageService } from '../ai-usage/ai-usage.service.js';
+import { MeriFeatureFlagsService } from '../meri/meri-feature-flags.service.js';
+import { MERIV2_FLAGS, type MeriV2FlagKey } from '../common/tenant-flags.js';
 import {
   AiCredentialStoreService,
   type UpsertAiCredentialInput,
@@ -75,7 +77,46 @@ export class CapiroAdminService {
     private readonly personnelWriter: AcquisitionPersonnelWriterService,
     private readonly aiUsage: AiUsageService,
     private readonly aiCredentials: AiCredentialStoreService,
+    private readonly meriFlags: MeriFeatureFlagsService,
   ) {}
+
+  /**
+   * A6 — the deployed admin flip path for MeriV2 rollout flags. Merges the flag
+   * into tenants.settings_jsonb.clioFeatureFlags (spread-preserve BOTH levels,
+   * mirroring tenant-admin's contactInfo write) and busts the apps/api flag
+   * cache via invalidate(), so apps/api surfaces see the flip immediately
+   * (< 5s). NOTE: apps/workspace's MeriV2FlagsService keeps its own 60s TTL
+   * cache with no invalidate — the instant cross-service rollback lever remains
+   * the MERIV2_ENABLED env kill-switch (checked per-call on both services).
+   */
+  async setMeriV2Flag(tenantId: string, flag: MeriV2FlagKey, enabled: boolean) {
+    if (!Object.values(MERIV2_FLAGS).includes(flag)) {
+      throw new BadRequestException(`Unknown MeriV2 flag: ${flag}`);
+    }
+    const flags = await this.prisma.withSystem(async (tx) => {
+      const tenant = await tx.tenant.findUnique({
+        where: { id: tenantId },
+        select: { settings: true },
+      });
+      if (!tenant) throw new NotFoundException('Tenant not found');
+      const settings = (tenant.settings ?? {}) as Record<string, unknown>;
+      const clioFeatureFlags = {
+        ...((settings.clioFeatureFlags ?? {}) as Record<string, unknown>),
+        [flag]: enabled,
+      };
+      await tx.tenant.update({
+        where: { id: tenantId },
+        data: {
+          settings: { ...settings, clioFeatureFlags } as unknown as Prisma.InputJsonValue,
+        },
+      });
+      return clioFeatureFlags;
+    });
+    // Cache bust AFTER the committed write: next read re-fetches from the DB.
+    this.meriFlags.invalidate(tenantId);
+    this.logger.log(`MeriV2 flag flip: tenant=${tenantId} ${flag}=${enabled}`);
+    return { tenantId, flag, enabled, clioFeatureFlags: flags };
+  }
 
   async listTenants() {
     return this.prisma.withSystem(async (tx) => {

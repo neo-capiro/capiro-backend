@@ -1,4 +1,5 @@
-import { Body, Controller, Post, UseGuards } from '@nestjs/common';
+import { Body, Controller, Post, Req, UseGuards } from '@nestjs/common';
+import type { Request } from 'express';
 import type { TenantContext } from '@capiro/shared';
 import { Roles } from '../auth/roles.decorator.js';
 import { RolesGuard } from '../auth/roles.guard.js';
@@ -19,7 +20,21 @@ export class WorkspaceAssistantController {
   constructor(private readonly assistant: WorkspaceAssistantService) {}
 
   @Post('assistant')
-  run(@CurrentTenant() ctx: TenantContext, @Body() dto: WorkspaceAssistantDto) {
-    return this.assistant.run(ctx, dto);
+  run(
+    @CurrentTenant() ctx: TenantContext,
+    @Body() dto: WorkspaceAssistantDto,
+    @Req() req: Request,
+  ) {
+    // Forward the caller's bearer so the MeriV2 proxy branch (flag-gated, OFF
+    // by default) can authenticate to the orchestrator. Without this, flipping
+    // meriv2.inEditorAssistant ON fails every request with "requires the
+    // caller bearer token". No-op for the legacy in-process path.
+    return this.assistant.run(ctx, dto, { bearerToken: extractBearer(req) });
   }
+}
+
+function extractBearer(req: Request): string | undefined {
+  const header = req.headers.authorization;
+  const match = typeof header === 'string' ? header.match(/^Bearer\s+(.+)$/i) : null;
+  return match?.[1]?.trim() || undefined;
 }

@@ -15,6 +15,7 @@ import { Roles } from '../auth/roles.decorator.js';
 import { RolesGuard } from '../auth/roles.guard.js';
 import { CurrentTenant } from '../tenant/current-tenant.decorator.js';
 import { CapiroAdminService } from './capiro-admin.service.js';
+import { MERIV2_FLAGS, type MeriV2FlagKey } from '../common/tenant-flags.js';
 import { BillingService } from '../billing/billing.service.js';
 import { AI_PROVIDERS } from '../ai-usage/ai-credential-store.service.js';
 import type { AiProvider } from '../engagement/ai-credential-resolver.service.js';
@@ -183,6 +184,14 @@ class QuarantineListQueryDto {
  * Routes here run cross-tenant, the caller's TenantContext is the
  * `capiro-internal` synthetic tenant; data access is via prisma.withSystem.
  */
+class SetMeriV2FlagDto {
+  @IsIn(Object.values(MERIV2_FLAGS))
+  flag!: MeriV2FlagKey;
+
+  @IsBoolean()
+  enabled!: boolean;
+}
+
 @Controller('capiro-admin')
 @UseGuards(RolesGuard)
 @Roles('capiro_admin')
@@ -210,6 +219,12 @@ export class CapiroAdminController {
   @Delete('tenants/:tenantId')
   deleteTenant(@Param('tenantId') tenantId: string) {
     return this.service.deleteTenant(tenantId);
+  }
+
+  /** A6: flip a MeriV2 rollout flag for one tenant (+ instant cache bust). */
+  @Post('tenants/:tenantId/meriv2-flags')
+  setMeriV2Flag(@Param('tenantId') tenantId: string, @Body() body: SetMeriV2FlagDto) {
+    return this.service.setMeriV2Flag(tenantId, body.flag, body.enabled);
   }
 
   @Post('tenants/:tenantId/admins/resend')

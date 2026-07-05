@@ -1,4 +1,5 @@
-import { Body, Controller, Param, Post, UseGuards } from '@nestjs/common';
+import { Body, Controller, Param, Post, Req, UseGuards } from '@nestjs/common';
+import type { Request } from 'express';
 import { IsOptional, IsString, MinLength } from 'class-validator';
 import { TenantGuard } from '../auth/tenant.guard.js';
 import { CurrentTenant } from '../auth/current-tenant.decorator.js';
@@ -42,8 +43,18 @@ export class GenerationController {
    * Returns the refreshed draft so the client can re-hydrate.
    */
   @Post('generate-all')
-  generateAll(@CurrentTenant() ctx: WorkspaceTenantContext, @Param('draftId') draftId: string) {
-    return this.generation.generateAllSections(ctx.tenantId, draftId);
+  generateAll(
+    @CurrentTenant() ctx: WorkspaceTenantContext,
+    @Param('draftId') draftId: string,
+    @Req() req: Request,
+  ) {
+    // Forward the caller's bearer so the MeriV2 proxy branch (flag-gated, OFF
+    // by default) can authenticate to the orchestrator; flipping
+    // meriv2.workspaceGen ON without this fails every generate-all with
+    // "requires the caller bearer token". No-op for the legacy path.
+    return this.generation.generateAllSections(ctx.tenantId, draftId, {
+      bearerToken: extractGenBearer(req),
+    });
   }
 }
 
@@ -61,4 +72,10 @@ export class MeriIntakeController {
   intake(@CurrentTenant() ctx: WorkspaceTenantContext, @Body() dto: MeriIntakeDto) {
     return this.generation.meriIntake(ctx.tenantId, ctx.clerkUserId, dto.prompt, dto.client);
   }
+}
+
+function extractGenBearer(req: Request): string | undefined {
+  const header = req.headers.authorization;
+  const match = typeof header === 'string' ? header.match(/^Bearer\s+(.+)$/i) : null;
+  return match?.[1]?.trim() || undefined;
 }
