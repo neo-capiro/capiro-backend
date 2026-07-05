@@ -80,6 +80,21 @@ function watchSearchQuery(r: UpcomingHearing): string {
   return [r.committee, r.title].filter(Boolean).join(' ').slice(0, 160);
 }
 
+/** Matches CreateSessionDto's `@MaxLength(300)` on `title` (intel-api). */
+const HEARING_TITLE_MAX = 300;
+
+/**
+ * Preset title for the "Watch" prefill. Congress.gov titles are unbounded —
+ * multi-nominee nomination hearings routinely produce a `committee — title`
+ * string well past 300 chars, which the server DTO rejects with a bare 400
+ * ("Request failed with status code 400", no indication why). Truncate here
+ * so the common case (long real titles) never blocks session creation.
+ */
+function buildPresetTitle(r: UpcomingHearing): string {
+  const full = `${r.committee} — ${r.title}`;
+  return full.length > HEARING_TITLE_MAX ? `${full.slice(0, HEARING_TITLE_MAX - 1)}…` : full;
+}
+
 /** PRIVATE source types (P8/D11): these require a consent attestation; public
  *  hearing/markup do not. Kept in sync with intel-api's requiresConsent(). */
 const PRIVATE_SOURCE_TYPES = new Set(['meeting', 'webinar', 'agency_session']);
@@ -411,8 +426,17 @@ function NewHearingModal({
                 form.resetFields();
                 onClose();
               },
-              onError: (e: unknown) =>
-                message.error(`Could not create session: ${(e as Error).message}`),
+              onError: (e: unknown) => {
+                // Surface the server's actual validation reason (class-validator
+                // returns a message array, e.g. "title must be shorter than or
+                // equal to 300 characters") instead of the generic axios status
+                // text — a bare "Request failed with status code 400" gave no
+                // way to diagnose why a create failed.
+                const data = (e as { response?: { data?: { message?: string | string[] } } })
+                  ?.response?.data;
+                const detail = Array.isArray(data?.message) ? data.message.join('; ') : data?.message;
+                message.error(`Could not create session: ${detail ?? (e as Error).message}`);
+              },
             },
           );
         });
@@ -556,8 +580,19 @@ function NewHearingModal({
           />
         ) : null}
 
-        <Form.Item name="title" label="Hearing title" rules={[{ required: true }]}>
-          <Input placeholder="e.g. Senate Energy Committee — Interconnection Reform" />
+        <Form.Item
+          name="title"
+          label="Hearing title"
+          rules={[
+            { required: true },
+            { max: HEARING_TITLE_MAX, message: `Title must be ${HEARING_TITLE_MAX} characters or fewer` },
+          ]}
+        >
+          <Input
+            placeholder="e.g. Senate Energy Committee — Interconnection Reform"
+            maxLength={HEARING_TITLE_MAX}
+            showCount
+          />
         </Form.Item>
         <Form.Item name="sourceType" label="Source type" rules={[{ required: true }]}>
           <Select
@@ -647,7 +682,7 @@ function UpcomingTab() {
   const [open, setOpen] = useState(false);
 
   const onWatch = (r: UpcomingHearing) => {
-    setPresetTitle(`${r.committee} — ${r.title}`);
+    setPresetTitle(buildPresetTitle(r));
     setPresetUrl(r.url ?? undefined);
     setPresetSearch(watchSearchQuery(r));
     setPresetHearingId(r.id);
@@ -717,7 +752,7 @@ function BrowseTab() {
   const [open, setOpen] = useState(false);
 
   const onWatch = (r: UpcomingHearing) => {
-    setPresetTitle(`${r.committee} — ${r.title}`);
+    setPresetTitle(buildPresetTitle(r));
     setPresetUrl(r.url ?? undefined);
     setPresetSearch(watchSearchQuery(r));
     setPresetHearingId(r.id);
