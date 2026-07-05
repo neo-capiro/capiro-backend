@@ -184,7 +184,11 @@ export class MeriService {
 
   async status(ctx: TenantContext) {
     const profile = await this.currentProfile(ctx);
-    const configured = Boolean(this.config.get('ANTHROPIC_API_KEY', { infer: true }));
+    // BYOK: "configured" reflects tenant reality (a tenant key OR the global
+    // fallback), resolved through the one tenant-aware credential path rather
+    // than a bare global-env read, so a tenant with only its own key still
+    // shows as online.
+    const configured = Boolean(await this.aiCredentials.resolveProvider(ctx, 'anthropic'));
     return {
       brand: PRODUCT_NAME,
       runtime: RUNTIME_NAME,
@@ -600,7 +604,7 @@ export class MeriService {
     });
 
     // Classify intent
-    const intent = await this.classifyIntent(content);
+    const intent = await this.classifyIntent(ctx.tenantId, content);
     this.logger.debug(`Stream intent: ${intent}`);
 
     // Firm-authored skills (F6b): tenant skills fire by intent or literal
@@ -1184,6 +1188,7 @@ export class MeriService {
     const deliverable = producedArtifacts.find((a) => a.bodyText && a.bodyText.trim().length > 0);
     if (deliverable?.bodyText) {
       verification = await this.verifyDeliverable(
+        ctx.tenantId,
         deliverable.bodyText,
         buildVerifierSources(finalCitations, groundingByN),
       );
@@ -1234,7 +1239,11 @@ export class MeriService {
     // streamed as chips. Skipped on abort / trivial answers; fail-open.
     let suggestions: string[] = [];
     if (this.suggestionsEnabled() && !aborted && assistantContent.trim().length > 40) {
-      suggestions = await this.generateSuggestions(streamControl.cleanContent, assistantContent);
+      suggestions = await this.generateSuggestions(
+        ctx.tenantId,
+        streamControl.cleanContent,
+        assistantContent,
+      );
       if (suggestions.length) {
         sse.write(`data: ${JSON.stringify({ type: 'suggestions', suggestions })}\n\n`);
       }
@@ -1487,7 +1496,7 @@ export class MeriService {
       existingSummary,
       turns: plan.toSummarize.map((m) => ({ role: m.role, body: m.body })),
     });
-    const raw = await this.completeWithIntentModel(prompt.system, prompt.user, 1200);
+    const raw = await this.completeWithIntentModel(ctx.tenantId, prompt.system, prompt.user, 1200);
     const summary = raw ? sanitizeSummaryOutput(raw) : null;
     if (!summary) return;
     await this.prisma.withTenant(ctx.tenantId, (tx) =>
@@ -1507,13 +1516,18 @@ export class MeriService {
 
   /** One cheap, non-streaming intent-model completion. Fail-open (null). */
   private async completeWithIntentModel(
+    tenantId: string,
     system: string,
     user: string,
     maxTokens = 800,
   ): Promise<string | null> {
     try {
-      const anthropicKey = this.config.get('ANTHROPIC_API_KEY', { infer: true });
-      if (!anthropicKey) return null;
+      // BYOK: run the cheap intent-model call on the tenant's own key when set,
+      // else the global fallback (resolver). Model stays CLIO_INTENT_MODEL — the
+      // KEY is tenant-scoped; the model default is deliberately preserved.
+      const resolved = await this.aiCredentials.resolveProviderByTenantId(tenantId, 'anthropic');
+      if (!resolved) return null;
+      const anthropicKey = resolved.apiKey;
       const res = await fetch('https://api.anthropic.com/v1/messages', {
         method: 'POST',
         headers: {
@@ -1970,9 +1984,11 @@ export class MeriService {
     };
   }
 
-  private async classifyIntent(message: string): Promise<string> {
-    const anthropicKey = this.config.get('ANTHROPIC_API_KEY', { infer: true });
-    if (!anthropicKey) return 'general_question';
+  private async classifyIntent(tenantId: string, message: string): Promise<string> {
+    // BYOK: tenant key (or global fallback) via resolver; model unchanged.
+    const resolved = await this.aiCredentials.resolveProviderByTenantId(tenantId, 'anthropic');
+    if (!resolved) return 'general_question';
+    const anthropicKey = resolved.apiKey;
     try {
       const res = await fetch('https://api.anthropic.com/v1/messages', {
         method: 'POST',
@@ -2014,12 +2030,16 @@ export class MeriService {
    * any error, so verification never blocks the deliverable itself.
    */
   private async verifyDeliverable(
+    tenantId: string,
     output: string,
     sources: Array<{ n: number; title: string; snippet: string | null }>,
   ): Promise<VerificationResult | null> {
     if (!this.config.get('CLIO_VERIFIER_ENABLED', { infer: true })) return null;
-    const anthropicKey = this.config.get('ANTHROPIC_API_KEY', { infer: true });
-    if (!anthropicKey || !output.trim()) return null;
+    if (!output.trim()) return null;
+    // BYOK: tenant key (or global fallback) via resolver; model unchanged.
+    const resolved = await this.aiCredentials.resolveProviderByTenantId(tenantId, 'anthropic');
+    if (!resolved) return null;
+    const anthropicKey = resolved.apiKey;
     try {
       const sourceList = sources.length
         ? sources.map((s) => `[${s.n}] ${s.title}${s.snippet ? ` — ${s.snippet}` : ''}`).join('\n')
@@ -2282,10 +2302,16 @@ export class MeriService {
    * Cheap follow-up suggestion pass (P2-4): asks the intent model for 2-3 likely
    * next prompts. Fail-open — returns [] on any error so it never blocks a turn.
    */
-  private async generateSuggestions(userMessage: string, answer: string): Promise<string[]> {
+  private async generateSuggestions(
+    tenantId: string,
+    userMessage: string,
+    answer: string,
+  ): Promise<string[]> {
     try {
-      const anthropicKey = this.config.get('ANTHROPIC_API_KEY', { infer: true });
-      if (!anthropicKey) return [];
+      // BYOK: tenant key (or global fallback) via resolver; model unchanged.
+      const resolved = await this.aiCredentials.resolveProviderByTenantId(tenantId, 'anthropic');
+      if (!resolved) return [];
+      const anthropicKey = resolved.apiKey;
       const res = await fetch('https://api.anthropic.com/v1/messages', {
         method: 'POST',
         headers: {
@@ -2517,8 +2543,10 @@ export class MeriService {
   ): Promise<void> {
     if (!this.shouldAttemptMemoryLearning(userMessage, assistantResponse)) return;
 
-    const anthropicKey = this.config.get('ANTHROPIC_API_KEY', { infer: true });
-    if (!anthropicKey) return;
+    // BYOK: tenant key (or global fallback) via resolver; model unchanged.
+    const resolved = await this.aiCredentials.resolveProviderByTenantId(tenantId, 'anthropic');
+    if (!resolved) return;
+    const anthropicKey = resolved.apiKey;
 
     try {
       const res = await fetch('https://api.anthropic.com/v1/messages', {
@@ -3030,8 +3058,8 @@ export class MeriService {
   // ── Embedding-based memory search (Phase 4 semantic) ──────────────────
 
   async embedAndStoreMemory(tenantId: string, key: string, value: string): Promise<void> {
-    const anthropicKey = this.config.get('ANTHROPIC_API_KEY', { infer: true });
-    // Use OpenAI for embeddings (1536-dim text-embedding-3-small)
+    // Use OpenAI for embeddings (1536-dim text-embedding-3-small). No Anthropic
+    // call happens here (the previous ANTHROPIC_API_KEY read was dead code).
     const openaiKey = this.config.get('OPENAI_API_KEY', { infer: true });
     if (!openaiKey) return;
 

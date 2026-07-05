@@ -134,6 +134,25 @@ function makeConfig(overrides: Record<string, unknown> = {}) {
 }
 
 /**
+ * AI-credential resolver stub (BYOK): both resolve* methods return the global
+ * test key, mirroring the pre-BYOK behavior where the key came from
+ * config.get('ANTHROPIC_API_KEY'). usedTenantKey=false = global fallback path.
+ */
+function makeAiCredentials() {
+  const resolved = {
+    provider: 'anthropic' as const,
+    apiKey: 'test-key',
+    model: 'claude-test',
+    usedTenantKey: false,
+    modelOverridden: false,
+  };
+  return {
+    resolveProvider: async () => resolved,
+    resolveProviderByTenantId: async () => resolved,
+  } as unknown as ConstructorParameters<typeof MeriResearchService>[3];
+}
+
+/**
  * Prisma stub: withTenant just runs the callback with a tx whose model methods
  * resolve to minimal shapes. findFirst returns the session (for ensureSession);
  * create returns ids; update is a no-op.
@@ -212,7 +231,7 @@ describe('MeriResearchService — forced synthesis', () => {
     }) as unknown as jest.Mock;
     global.fetch = fetchMock as unknown as typeof fetch;
 
-    const svc = new MeriResearchService(makePrisma(), makeConfig(), makeTools());
+    const svc = new MeriResearchService(makePrisma(), makeConfig(), makeTools(), makeAiCredentials());
 
     const events: Array<Record<string, unknown>> = [];
     const sse = {
@@ -286,7 +305,7 @@ describe('MeriResearchService — forced synthesis', () => {
     }) as unknown as jest.Mock;
     global.fetch = fetchMock as unknown as typeof fetch;
 
-    const svc = new MeriResearchService(makePrisma(), makeConfig(), makeTools());
+    const svc = new MeriResearchService(makePrisma(), makeConfig(), makeTools(), makeAiCredentials());
     const events: Array<Record<string, unknown>> = [];
     const sse = {
       write: (data: string) => {
@@ -326,7 +345,7 @@ describe('MeriResearchService — forced synthesis', () => {
     }) as unknown as jest.Mock;
     global.fetch = fetchMock as unknown as typeof fetch;
 
-    const svc = new MeriResearchService(makePrisma(), makeConfig(), makeTools());
+    const svc = new MeriResearchService(makePrisma(), makeConfig(), makeTools(), makeAiCredentials());
     const events: Array<Record<string, unknown>> = [];
     const sse = {
       write: (data: string) => {

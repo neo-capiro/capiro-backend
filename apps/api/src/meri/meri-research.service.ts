@@ -5,6 +5,7 @@ import type { TenantContext } from '@capiro/shared';
 import type { AppConfig } from '../config/config.schema.js';
 import { PrismaService } from '../prisma/prisma.service.js';
 import { MeriToolsService } from './meri-tools.service.js';
+import { AiCredentialResolverService } from '../engagement/ai-credential-resolver.service.js';
 import {
   assembleReportArtifact,
   buildPlanSystemPrompt,
@@ -62,6 +63,7 @@ export class MeriResearchService {
     private readonly prisma: PrismaService,
     private readonly config: ConfigService<AppConfig, true>,
     private readonly tools: MeriToolsService,
+    private readonly aiCredentials: AiCredentialResolverService,
   ) {}
 
   // ── Session CRUD ─────────────────────────────────────────────────────────
@@ -204,7 +206,7 @@ export class MeriResearchService {
 
     let proposal: PlanProposal;
     try {
-      const raw = await this.anthropicComplete(system, user);
+      const raw = await this.anthropicComplete(ctx.tenantId, system, user);
       proposal = parsePlanProposal(raw, session.topic);
     } catch (err) {
       const msg = err instanceof Error ? err.message : 'Planning failed';
@@ -249,12 +251,15 @@ export class MeriResearchService {
 
     sse.write(sseEvent({ type: 'phase', phase: 'gather' }));
 
-    const anthropicKey = this.config.get('ANTHROPIC_API_KEY', { infer: true });
-    if (!anthropicKey) {
+    // BYOK: run Deep Research gather on the tenant's own key when set, else the
+    // global fallback (resolver). Model stays CLIO_RESEARCH_MODEL.
+    const resolved = await this.aiCredentials.resolveProvider(ctx, 'anthropic');
+    if (!resolved) {
       sse.write(sseEvent({ type: 'error', message: 'ANTHROPIC_API_KEY not configured' }));
       sse.write(sseEvent({ type: 'done' }));
       return;
     }
+    const anthropicKey = resolved.apiKey;
 
     const model = this.config.get('CLIO_RESEARCH_MODEL', { infer: true });
     const maxTokens = this.config.get('CLIO_RESEARCH_MAX_TOKENS', { infer: true });
@@ -688,9 +693,11 @@ export class MeriResearchService {
   }
 
   /** Single non-streaming Anthropic completion (used for the PLAN phase). */
-  private async anthropicComplete(system: string, user: string): Promise<string> {
-    const anthropicKey = this.config.get('ANTHROPIC_API_KEY', { infer: true });
-    if (!anthropicKey) throw new Error('ANTHROPIC_API_KEY not configured');
+  private async anthropicComplete(tenantId: string, system: string, user: string): Promise<string> {
+    // BYOK: tenant key (or global fallback) via resolver; model unchanged.
+    const resolved = await this.aiCredentials.resolveProviderByTenantId(tenantId, 'anthropic');
+    if (!resolved) throw new Error('ANTHROPIC_API_KEY not configured');
+    const anthropicKey = resolved.apiKey;
     const model = this.config.get('CLIO_RESEARCH_PLAN_MODEL', { infer: true });
     const timeoutMs = this.config.get('CLIO_REQUEST_TIMEOUT_MS', { infer: true });
 
