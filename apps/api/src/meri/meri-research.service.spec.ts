@@ -179,11 +179,32 @@ function makePrisma() {
   } as unknown as ConstructorParameters<typeof MeriResearchService>[0];
 }
 
+// Mirror of apps/api/src/meri/meri-tools.service.ts SIDE_EFFECTING_TOOLS — the
+// write/send/docgen tools that must never be offered to (or run by) the
+// read-only Deep Research gather loop.
+const SIDE_EFFECTING_TEST = new Set([
+  'create_meeting_brief',
+  'draft_policy_memo',
+  'save_note',
+  'send_email',
+  'reply_email',
+  'save_memory',
+  'create_word',
+  'create_excel',
+  'create_powerpoint',
+  'schedule_task',
+  'cancel_scheduled_task',
+  'create_task',
+  'update_task',
+  'update_client_profile',
+]);
+
 function makeTools() {
   return {
     anthropicToolSchemas: () => [
       { name: 'searchBills', description: 'x', input_schema: { type: 'object', properties: {} } },
     ],
+    isConcurrencySafe: (name: string) => !SIDE_EFFECTING_TEST.has(name),
     execute: async () => ({ items: [{ id: 1 }], count: 1 }),
   } as unknown as ConstructorParameters<typeof MeriResearchService>[2];
 }
@@ -369,5 +390,60 @@ describe('MeriResearchService — forced synthesis', () => {
     const report = events.find((e) => e.type === 'report');
     expect(report).toBeTruthy();
     expect(String(report?.body ?? '')).toContain('Executive Summary');
+  });
+
+  it('excludes side-effecting tools from the gather schema and blocks them if called (B5)', async () => {
+    const REPORT = '# Executive Summary\n\nRead-only research report.';
+    const executeSpy = jest.fn(async () => ({ ok: true }));
+    // Offers BOTH a read-only tool and a write tool; the service must filter the
+    // write tool out of the schema it sends to the model.
+    const tools = {
+      anthropicToolSchemas: () => [
+        { name: 'searchBills', description: 'x', input_schema: { type: 'object', properties: {} } },
+        { name: 'send_email', description: 'x', input_schema: { type: 'object', properties: {} } },
+      ],
+      isConcurrencySafe: (name: string) => !SIDE_EFFECTING_TEST.has(name),
+      execute: executeSpy,
+    } as unknown as ConstructorParameters<typeof MeriResearchService>[2];
+
+    // Every tools-enabled call FORCES a send_email tool_use (simulating a
+    // schema-filter regression / model hallucination) to exercise the
+    // defense-in-depth execution guard; the no-tools call returns the report.
+    fetchMock = jest.fn(async (_url: string, init?: RequestInit) => {
+      captureBody(init);
+      const body = JSON.parse(String(init?.body ?? '{}'));
+      if (body.tools) {
+        return okResponse(sseBody(toolOnlyRound('send_email')));
+      }
+      return okResponse(sseBody(proseRound(REPORT)));
+    }) as unknown as jest.Mock;
+    global.fetch = fetchMock as unknown as typeof fetch;
+
+    const svc = new MeriResearchService(makePrisma(), makeConfig(), tools, makeAiCredentials());
+    const events: Array<Record<string, unknown>> = [];
+    const sse = {
+      write: (data: string) => {
+        const line = data.split('\n').find((l) => l.startsWith('data: '));
+        if (line) {
+          try {
+            events.push(JSON.parse(line.slice(6)));
+          } catch {
+            /* ignore */
+          }
+        }
+      },
+    };
+
+    await svc.streamResearch(CTX, 'sess-1', sse);
+
+    // (1) Schema filter: the tools offered to the model exclude the write tool.
+    const firstToolsCall = fetchBodies.find((b) => Array.isArray(b.tools));
+    const offered = ((firstToolsCall?.tools as Array<{ name: string }>) ?? []).map((t) => t.name);
+    expect(offered).toContain('searchBills');
+    expect(offered).not.toContain('send_email');
+
+    // (2) Defense-in-depth: even though the mock forced a send_email tool_use,
+    //     execute() was never invoked (the guard blocked it before execution).
+    expect(executeSpy).not.toHaveBeenCalled();
   });
 });

@@ -275,7 +275,16 @@ export class MeriResearchService {
     // short interactive-chat one — a single gather/synthesis turn runs minutes.
     const timeoutMs = this.config.get('CLIO_RESEARCH_TIMEOUT_MS', { infer: true });
     const maxRounds = this.config.get('CLIO_RESEARCH_MAX_TOOL_ROUNDS', { infer: true });
-    const toolSchemas = this.tools.anthropicToolSchemas();
+    // Deep Research is a read-only GATHER agent: it must NOT be able to call
+    // side-effecting tools (send_email/reply_email/save_memory/create_task/
+    // update_client_profile/docgen/...). A long-running agentic loop over the full
+    // tool set could otherwise autonomously send mail or mutate data. Filter to
+    // concurrency-safe (== read-only, i.e. not in SIDE_EFFECTING_TOOLS) tools;
+    // the final report is persisted by this service, not via a write tool. This
+    // mirrors the read-only hardening on the scheduled-tasks runner.
+    const toolSchemas = this.tools
+      .anthropicToolSchemas()
+      .filter((s) => this.tools.isConcurrencySafe(s.name));
     const system = buildResearchSystemPrompt(PRODUCT_NAME);
 
     const messages: Array<{ role: 'user' | 'assistant'; content: unknown }> = [
@@ -453,11 +462,22 @@ export class MeriResearchService {
 
           let resultPayload: unknown;
           let isError = false;
-          try {
-            resultPayload = await this.tools.execute(ctx, t.name as never, parsedInput);
-          } catch (err) {
+          // Defense-in-depth: never execute a side-effecting tool in the
+          // read-only research loop, even if one somehow reaches this point
+          // (schema-filter regression, model hallucinating a tool name).
+          if (!this.tools.isConcurrencySafe(t.name)) {
             isError = true;
-            resultPayload = { error: err instanceof Error ? err.message : 'Tool execution failed' };
+            resultPayload = { error: `Tool "${t.name}" is not permitted in read-only research` };
+            this.logger.warn(
+              `Deep Research blocked a side-effecting tool call: ${t.name} (session ${session.id})`,
+            );
+          } else {
+            try {
+              resultPayload = await this.tools.execute(ctx, t.name as never, parsedInput);
+            } catch (err) {
+              isError = true;
+              resultPayload = { error: err instanceof Error ? err.message : 'Tool execution failed' };
+            }
           }
 
           const { count, detail } = summarizeToolResultForTrust(resultPayload);
