@@ -53,7 +53,10 @@ export class OrchestratorClient {
     const controller = new AbortController();
     const timer = setTimeout(() => controller.abort(), this.timeoutMs);
     try {
-      const res = await fetch(`${this.baseUrl}/meri-api/tools/tag_live_policy_mentions`, {
+      // Generic registry contract: hit `/tools/:name/invoke`, wrap the tool input
+      // under `input` (the controller reads `body.input`), and read the tool's
+      // return value back under `result` (the controller returns `{ tool, result }`).
+      const res = await fetch(`${this.baseUrl}/meri-api/tools/tag_live_policy_mentions/invoke`, {
         method: 'POST',
         headers: {
           'content-type': 'application/json',
@@ -61,9 +64,11 @@ export class OrchestratorClient {
           'x-tenant-id': params.tenantId,
         },
         body: JSON.stringify({
-          sessionId: params.sessionId,
-          segment: params.segment,
-          context: params.sessionContext,
+          input: {
+            sessionId: params.sessionId,
+            segment: params.segment,
+            context: params.sessionContext,
+          },
         }),
         signal: controller.signal,
       });
@@ -71,7 +76,8 @@ export class OrchestratorClient {
         this.logger.warn(`orchestrator extract HTTP ${res.status}; degrading to raw segment`);
         return empty;
       }
-      const data = (await res.json()) as Partial<ExtractionResult>;
+      const envelope = (await res.json()) as { result?: Partial<ExtractionResult> } | null;
+      const data: Partial<ExtractionResult> = envelope?.result ?? {};
       return {
         entityMentions: data.entityMentions ?? [],
         keyQuote: data.keyQuote,
@@ -115,25 +121,38 @@ export class OrchestratorClient {
     const controller = new AbortController();
     const timer = setTimeout(() => controller.abort(), this.timeoutMs * 3);
     try {
-      const res = await fetch(`${this.baseUrl}/meri-api/tools/generate_post_hearing_summary`, {
+      const res = await fetch(`${this.baseUrl}/meri-api/tools/generate_post_hearing_summary/invoke`, {
         method: 'POST',
         headers: {
           'content-type': 'application/json',
           authorization: `Bearer ${params.authToken}`,
           'x-tenant-id': params.tenantId,
         },
-        body: JSON.stringify(params),
+        // Only the tool's schema fields belong in `input`; tenantId/authToken are
+        // transport concerns (x-tenant-id header + bearer), not tool input.
+        body: JSON.stringify({
+          input: {
+            sessionId: params.sessionId,
+            title: params.title,
+            quotes: params.quotes,
+            mentions: params.mentions,
+            actionItems: params.actionItems,
+          },
+        }),
         signal: controller.signal,
       });
       if (!res.ok) return null;
-      return (await res.json()) as {
-        executiveSummary: string;
-        tone: string;
-        risks: string[];
-        opportunities: string[];
-        recommendedNextSteps: string[];
-        draftClientEmail: { subject: string; body: string };
-      };
+      const envelope = (await res.json()) as {
+        result?: {
+          executiveSummary: string;
+          tone: string;
+          risks: string[];
+          opportunities: string[];
+          recommendedNextSteps: string[];
+          draftClientEmail: { subject: string; body: string };
+        };
+      } | null;
+      return envelope?.result ?? null;
     } catch {
       return null;
     } finally {

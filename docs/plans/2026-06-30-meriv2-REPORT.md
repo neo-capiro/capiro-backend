@@ -70,14 +70,25 @@ all `meriv2.*` flags ship **OFF**.
 
 ## 2. Live components touched
 
+> **CORRECTION (2026-07-05, Workstream A1 truth-up):** the "State" cells below for
+> `apps/meriv2-orchestrator` and `infra/cdk`, and the "No `cdk deploy` ran; no AWS
+> resource was created" clause at the end of this section, are a **pre-escalation
+> snapshot** from the original build-and-prove-only run. They are **superseded by §0
+> "SHIPPED — live deployment"**: the orchestrator IS deployed and LIVE on `capiro-dev`
+> (task def `capiro-dev-meriv2-orchestrator` active, ALB target healthy), additively and
+> behind OFF flags with zero user traffic. **§0 is the source of truth for deploy
+> status.** NOTE: the Claim/Evidence/ComplianceCheck **migration** line still stands —
+> it is present on `main` but **not verified-applied to prod** (a gate, per the
+> 2026-07-05 migration-readiness report).
+
 | Component | State | How to reach / test |
 |---|---|---|
 | `packages/meriv2-core` (NEW) | built, 36 unit tests pass | `pnpm --filter @capiro/meriv2-core test` |
-| `apps/meriv2-orchestrator` (NEW) | builds; boots locally; **NOT deployed** | `node apps/meriv2-orchestrator/dist/main.js` then `curl :4300/meri-api/health` |
+| `apps/meriv2-orchestrator` (NEW) | ~~builds; boots locally; NOT deployed~~ → **DEPLOYED & LIVE** on `capiro-dev` (superseded 2026-07-05; see §0) | `curl https://app.capiro.ai/meri-api/health` (prod) / `node apps/meriv2-orchestrator/dist/main.js` then `curl :4300/meri-api/health` (local) |
 | `apps/api` | **behavior unchanged** (flags OFF) | additive: flag helpers, MeriModule export, dormant proxy branch in workspace-assistant |
 | `apps/workspace` | **behavior unchanged** (flags OFF) | additive: dormant proxy branch in generateAllSections |
 | `apps/api/prisma/schema.prisma` | +3 additive tables (claim/evidence/compliance_check) | migration written; **not applied** to any live DB |
-| `infra/cdk` | orchestrator wiring added; **not synthed/deployed** | `pnpm --filter @capiro/infra-cdk typecheck` (passes) |
+| `infra/cdk` | orchestrator wiring added; ~~not synthed/deployed~~ → **deployed** (orchestrator ECR repo + task def + Fargate service live; superseded 2026-07-05, see §0) | `pnpm --filter @capiro/infra-cdk typecheck` (passes) |
 | `.github/workflows` | `ci-pr.yml` + `meriv2-evals.yml` added | run on next PR; eval gate proven locally |
 
 **Explicit confirmation:** `api`, `web`, and `workspace` were NOT behaviorally changed — every edit
