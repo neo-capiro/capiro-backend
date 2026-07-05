@@ -43,6 +43,29 @@ jobs:
           "packages/meriv2-core/**/*.ts"
           "apps/meriv2-orchestrator/**/*.ts"
 
+      # BYOK4 guard: no MeriV2 code may read the global Anthropic key directly.
+      # The ONLY permitted reference is the orchestrator's resolver wiring
+      # (meri-registry.service.ts injects the env fallback into
+      # RequestScopedLlmClient) and its specs. packages/meriv2-core must have
+      # ZERO references. This is what keeps "every MeriV2 LLM call is
+      # tenant-scoped" true after the initial conversion.
+      - name: BYOK guard (no direct Anthropic env keys in MeriV2 surfaces)
+        run: |
+          set -e
+          violations=$(grep -rn "ANTHROPIC_API_KEY" \
+            packages/meriv2-core/src \
+            apps/meriv2-orchestrator/src \
+            --include='*.ts' \
+            | grep -v "apps/meriv2-orchestrator/src/meri/meri-registry.service.ts" \
+            | grep -v "\.spec\.ts:" \
+            || true)
+          if [ -n "$violations" ]; then
+            echo "BYOK violation — direct ANTHROPIC_API_KEY reference outside the resolver:"
+            echo "$violations"
+            exit 1
+          fi
+          echo "BYOK guard passed."
+
       # Typecheck every package, api INCLUDED. The prior `@jest/globals`
       # resolution failure in api spec files is resolved — `tsc --noEmit` is now
       # clean across the whole api project, spec files included — so the

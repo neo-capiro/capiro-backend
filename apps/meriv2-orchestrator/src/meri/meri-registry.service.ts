@@ -1,7 +1,6 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import {
-  AnthropicLlmClient,
   InMemoryToolRegistry,
   PolicyApprovalGate,
   staticCompliancePolicy,
@@ -11,6 +10,7 @@ import {
   type ToolRegistry,
 } from '@capiro/meriv2-core';
 import { ApiClientContextRepo } from './api-client-context.repo.js';
+import { RequestScopedLlmClient } from './request-scoped-llm.client.js';
 
 /**
  * Owns the single MeriV2 tool registry the orchestrator hosts. Registers the
@@ -39,16 +39,20 @@ export class MeriRegistryService {
     });
     registry.register(createGetClientContextTool(clientContextRepo));
 
+    // BYOK2: LLM tools bind the request-scoped client, which prefers the
+    // caller-passed tenant credential (x-capiro-ai-provider, option c) and only
+    // falls back to the global env key inside the resolver. Tools register
+    // UNCONDITIONALLY — a tenant-key-only deployment (no global key) must still
+    // serve them; with neither key the call throws and intel-api's extraction
+    // degrades gracefully.
     const apiKey = config.get<string>('ANTHROPIC_API_KEY');
     const model = config.get<string>('ANTHROPIC_MODEL') ?? 'claude-sonnet-4-5';
-    if (apiKey) {
-      const llm = new AnthropicLlmClient({ apiKey, model });
-      registry.register(createTagLivePolicyMentionsTool(llm));
-      registry.register(createGeneratePostHearingSummaryTool(llm));
-      this.logger.log(`Hearing reasoning tools registered (model=${model})`);
-    } else {
-      this.logger.warn('ANTHROPIC_API_KEY unset — hearing reasoning tools NOT registered');
-    }
+    const llm = new RequestScopedLlmClient(apiKey, model);
+    registry.register(createTagLivePolicyMentionsTool(llm));
+    registry.register(createGeneratePostHearingSummaryTool(llm));
+    this.logger.log(
+      `Hearing reasoning tools registered (defaultModel=${model}, globalKeyFallback=${Boolean(apiKey)})`,
+    );
 
     this.registry = registry;
   }

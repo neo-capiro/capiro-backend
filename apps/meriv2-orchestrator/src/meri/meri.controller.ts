@@ -16,10 +16,47 @@ import { CurrentTenant } from '../auth/current-tenant.decorator.js';
 import type { OrchestratorTenantContext } from '../auth/tenant-context.js';
 import { MeriRegistryService } from './meri-registry.service.js';
 import { MeriContextResolver } from './meri-context.resolver.js';
-import { RequestCredentialsStore } from '../request/request-credentials.store.js';
+import {
+  RequestCredentialsStore,
+  type ResolvedAiProvider,
+} from '../request/request-credentials.store.js';
 
 interface InvokeBody {
   input?: unknown;
+}
+
+/**
+ * Parse the caller-resolved tenant AI credential (BYOK option c) from the
+ * `x-capiro-ai-provider` header: JSON `{provider,apiKey,model,usedTenantKey,
+ * modelOverridden}` produced by apps/api's AiCredentialResolverService and sent
+ * over the already-authenticated TLS request. Malformed/incomplete values are
+ * DROPPED (global-fallback path) rather than rejected, and the header content
+ * is never logged — it carries key material.
+ */
+export function parseAiProviderHeader(req: Request): ResolvedAiProvider | undefined {
+  const raw = req.headers['x-capiro-ai-provider'];
+  if (!raw || typeof raw !== 'string') return undefined;
+  try {
+    const p = JSON.parse(raw) as Partial<ResolvedAiProvider>;
+    if (
+      (p.provider === 'anthropic' || p.provider === 'openai') &&
+      typeof p.apiKey === 'string' &&
+      p.apiKey.length > 0 &&
+      typeof p.model === 'string' &&
+      p.model.length > 0
+    ) {
+      return {
+        provider: p.provider,
+        apiKey: p.apiKey,
+        model: p.model,
+        usedTenantKey: p.usedTenantKey === true,
+        modelOverridden: p.modelOverridden === true,
+      };
+    }
+  } catch {
+    /* malformed → treated as absent */
+  }
+  return undefined;
 }
 
 /**
@@ -50,12 +87,17 @@ export class MeriController {
   ): Promise<{ tool: string; result: unknown }> {
     const meriCtx = await this.resolver.resolve(tc);
     const token = extractBearerToken(req);
+    const aiProvider = parseAiProviderHeader(req);
     const exec = () => this.registryService.registry.invoke(name, body?.input ?? {}, meriCtx);
 
     try {
-      const result = token
-        ? await RequestCredentialsStore.run({ bearerToken: token }, exec)
-        : await exec();
+      const result =
+        token || aiProvider
+          ? await RequestCredentialsStore.run(
+              { bearerToken: token ?? '', ...(aiProvider ? { aiProvider } : {}) },
+              exec,
+            )
+          : await exec();
       return { tool: name, result };
     } catch (err) {
       if (err instanceof ToolNotFoundError) throw new NotFoundException(err.message);

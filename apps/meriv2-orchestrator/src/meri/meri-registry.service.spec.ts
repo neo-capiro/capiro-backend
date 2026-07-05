@@ -22,9 +22,14 @@ describe('MeriRegistryService', () => {
     expect(svc.registry.list()).toContain('generate_post_hearing_summary');
   });
 
-  it('omits hearing tools when no key is configured', () => {
+  it('registers hearing tools even with NO global key (BYOK2: tenant key may arrive per-request)', () => {
     const config = { get: () => undefined } as unknown as ConfigService;
     const svc = new MeriRegistryService(fakeRepo, config);
-    expect(svc.registry.list()).not.toContain('tag_live_policy_mentions');
+    // BYOK2 changed this deliberately: the request-scoped LLM client resolves a
+    // caller-passed tenant credential at call time, so a tenant-key-only
+    // deployment still serves the tools; with neither key the call throws and
+    // intel-api degrades gracefully.
+    expect(svc.registry.list()).toContain('tag_live_policy_mentions');
+    expect(svc.registry.list()).toContain('generate_post_hearing_summary');
   });
 });
