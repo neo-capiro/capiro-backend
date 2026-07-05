@@ -3,6 +3,7 @@ import { ConfigService } from '@nestjs/config';
 import {
   InMemoryToolRegistry,
   PolicyApprovalGate,
+  registerDelegatedTools,
   staticCompliancePolicy,
   createGetClientContextTool,
   createTagLivePolicyMentionsTool,
@@ -10,7 +11,9 @@ import {
   type ToolRegistry,
 } from '@capiro/meriv2-core';
 import { ApiClientContextRepo } from './api-client-context.repo.js';
+import { ApiToolExecutorRepo } from './api-tool-executor.repo.js';
 import { RequestScopedLlmClient } from './request-scoped-llm.client.js';
+import { IN_EDITOR_DELEGATED_TOOLS } from './delegated-tools.catalog.js';
 
 /**
  * Owns the single MeriV2 tool registry the orchestrator hosts. Registers the
@@ -28,16 +31,29 @@ export class MeriRegistryService {
   readonly registry: ToolRegistry;
   private readonly logger = new Logger(MeriRegistryService.name);
 
-  constructor(clientContextRepo: ApiClientContextRepo, config: ConfigService) {
+  constructor(
+    clientContextRepo: ApiClientContextRepo,
+    toolExecutor: ApiToolExecutorRepo,
+    config: ConfigService,
+  ) {
     // Write tools fail closed: the registry requires an ApprovalGate for any
     // `readOnly:false` tool. Wire the compliance gate now (fallback WARN =>
     // requires human approval) so that when write tools are ported (Workstream
-    // C) they are gated from the first registration. No write tools are
-    // registered yet, so this is a no-op for the current read-only surface.
+    // C) they are gated from the first registration. Only read-only delegated
+    // tools are registered below, so the gate is not yet exercised.
     const registry = new InMemoryToolRegistry({
       approvalGate: new PolicyApprovalGate(staticCompliancePolicy({ fallback: 'WARN' })),
     });
     registry.register(createGetClientContextTool(clientContextRepo));
+
+    // Workstream C (strangler-fig): register the read-only Meri tool surface as
+    // DELEGATED tools — each forwards execution to apps/api's authenticated
+    // /api/clio/tools/:name (one impl, tenant-scoped, BYOK), reusing the same
+    // bridge get_client_context uses. get_client_context is already registered
+    // natively above, so it is skipped here to avoid a duplicate registration.
+    const delegated = IN_EDITOR_DELEGATED_TOOLS.filter((t) => t.name !== 'get_client_context');
+    const names = registerDelegatedTools((def) => registry.register(def), delegated, toolExecutor);
+    this.logger.log(`Registered ${names.length} delegated read-only tools`);
 
     // BYOK2: LLM tools bind the request-scoped client, which prefers the
     // caller-passed tenant credential (x-capiro-ai-provider, option c) and only
