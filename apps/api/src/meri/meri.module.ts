@@ -9,6 +9,7 @@ import { IntelligenceModule } from '../intelligence/intelligence.module.js';
 import { ClientsModule } from '../clients/clients.module.js';
 import { RegulatoryDocketModule } from '../regulatory-docket/regulatory-docket.module.js';
 import { EmbeddingsModule } from '../embeddings/embeddings.module.js';
+import { MemoryModule } from '../memory/memory.module.js';
 import { MeriController } from './meri.controller.js';
 import { MeriService } from './meri.service.js';
 import { MeriToolsService } from './meri-tools.service.js';
@@ -32,6 +33,7 @@ import { MeriFeatureFlagsService } from './meri-feature-flags.service.js';
     ClientsModule,
     RegulatoryDocketModule,
     EmbeddingsModule,
+    MemoryModule,
   ],
   controllers: [MeriController, MeriMcpOAuthController],
   providers: [

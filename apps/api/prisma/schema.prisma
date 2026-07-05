@@ -1207,6 +1207,11 @@ model ClioMemory {
 
   tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
 
+  // Firm-scope rows (owner_user_id IS NULL) are additionally guarded by a
+  // PARTIAL unique index `clio_memory_firm_key_uniq` (tenant_id, scope, key)
+  // WHERE owner_user_id IS NULL, created raw in migration 20260705120000 because
+  // Prisma cannot express partial indexes. Do NOT let `prisma migrate dev`
+  // reconcile it away. The @@unique below still enforces the user_private case.
   @@unique([tenantId, scope, ownerUserId, key], map: "clio_memory_tenant_scope_owner_key_uniq")
   @@index([tenantId, scope, ownerUserId, updatedAt(sort: Desc)], map: "clio_memory_scope_owner_updated_idx")
   @@index([tenantId, scope, updatedAt(sort: Desc)], map: "clio_memory_scope_updated_idx")

@@ -2,7 +2,7 @@ import { Injectable, Logger } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service.js';
 import { TenantContextStore } from '../tenant/tenant-context.store.js';
 import { MemoryStoreService } from './memory-store.service.js';
-import { clioMemoryToItem, type ClioMemoryRow, type NameResolver } from './memory-clio-adapter.helpers.js';
+import { clioMemoryToItem, clioMemorySlug, type ClioMemoryRow, type NameResolver } from './memory-clio-adapter.helpers.js';
 import { meetingToItem, emailThreadToItem, meriSessionToItem } from './memory-ingest.helpers.js';
 import type { MemoryItem } from './memory.types.js';
 import { MEMORY_SCHEMA_VERSION } from './memory.types.js';
@@ -56,9 +56,17 @@ export class MemoryIngestService {
   ) {}
 
   /** Run the full backfill for the current tenant. Returns per-phase counts. */
-  async backfillCurrentTenant(): Promise<{ clients: number; clioMemories: number; meetings: number; emails: number; meriSessions: number; embedded: number }> {
+  async backfillCurrentTenant(): Promise<{
+    clients: number; clioMemories: number; meetings: number; emails: number;
+    meriSessions: number; embedded: number; failed: number;
+    failures: Array<{ slug: string; error: string }>;
+  }> {
     const ctx = this.tenantCtx.require();
-    const counts = { clients: 0, clioMemories: 0, meetings: 0, emails: 0, meriSessions: 0, embedded: 0 };
+    const counts = {
+      clients: 0, clioMemories: 0, meetings: 0, emails: 0, meriSessions: 0,
+      embedded: 0, failed: 0,
+      failures: [] as Array<{ slug: string; error: string }>,
+    };
 
     // ---- Phase A: client entity nodes ----
     const clients = await this.prisma.withSystem((tx) =>
@@ -181,25 +189,31 @@ export class MemoryIngestService {
     }
 
     // ---- Phase E: Meri sessions (user-private, distilled — never raw
-    // transcripts; promotion to firm memory is human-gated). Group chat_message
-    // rows by session. ----
+    // transcripts; promotion to firm memory is human-gated). A "session" is a
+    // clio_conversation; its turns live in clio_messages — the LIVE Meri backing
+    // store. (The old legacy chat table this used to read was dropped by
+    // migration 20260627130000; only substantive user/assistant turns count.) ----
     const sessions = await this.prisma.withSystem((tx) =>
       tx.$queryRaw<Array<{
-        session_id: string; user_id: string; ended_at: Date; turns: bigint;
+        session_id: string; user_id: string; client_id: string | null; ended_at: Date; turns: bigint;
       }>>`
-        SELECT session_id, (array_agg(user_id))[1] AS user_id,
-               max(created_at) AS ended_at, count(*) AS turns
-        FROM chat_message
-        WHERE tenant_id = ${ctx.tenantId}::uuid
-        GROUP BY session_id
+        SELECT c.id AS session_id, c.user_id, c.client_id,
+               max(m.created_at) AS ended_at, count(*) AS turns
+        FROM clio_conversations c
+        JOIN clio_messages m ON m.conversation_id = c.id
+        WHERE c.tenant_id = ${ctx.tenantId}::uuid
+          AND m.role IN ('user', 'assistant')
+        GROUP BY c.id, c.user_id, c.client_id
         HAVING count(*) >= 2
       `,
     );
     for (const s of sessions) {
       const turns = await this.prisma.withSystem((tx) =>
         tx.$queryRaw<Array<{ role: string; content: string }>>`
-          SELECT role, content FROM chat_message
-          WHERE tenant_id = ${ctx.tenantId}::uuid AND session_id = ${s.session_id}
+          SELECT role, body AS content FROM clio_messages
+          WHERE tenant_id = ${ctx.tenantId}::uuid
+            AND conversation_id = ${s.session_id}::uuid
+            AND role IN ('user', 'assistant')
           ORDER BY created_at ASC
         `,
       );
@@ -210,6 +224,11 @@ export class MemoryIngestService {
           tenantId: ctx.tenantId,
           sessionId: s.session_id,
           ownerUserId: s.user_id,
+          // clientId stays null on purpose. meriSessionToItem always emits
+          // visibility:'user' (private) and memory_items RLS is tenant-only, so a
+          // client-linked private session would be reachable from the client
+          // graph before owner-gating is structural. Client-linking is deferred
+          // until the Phase 3 fail-closed hardening lands.
           clientId: null,
           title: firstUser,
           endedAt: new Date(s.ended_at).toISOString(),
@@ -222,11 +241,13 @@ export class MemoryIngestService {
 
     // ---- Phase F: embeddings — make memory semantically searchable. Read all
     // of the tenant's memory_items and embed (idempotent via content hash, so
-    // re-runs only embed changed items). Failures are logged, never fatal. ----
+    // re-runs only embed changed items). Each item embeds independently: a
+    // failure is recorded in counts.failures and the pass continues (never
+    // aborts), so one bad row can't strand the rest. ----
     try {
       const items = await this.prisma.withSystem((tx) =>
-        tx.$queryRaw<Array<{ id: string; client_id: string | null; type: string; title: string; sections: unknown }>>`
-          SELECT id, client_id, type, title, sections_jsonb AS sections
+        tx.$queryRaw<Array<{ id: string; client_id: string | null; type: string; title: string; slug: string; sections: unknown }>>`
+          SELECT id, client_id, type, title, slug, sections_jsonb AS sections
           FROM memory_items WHERE tenant_id = ${ctx.tenantId}::uuid
         `,
       );
@@ -234,22 +255,109 @@ export class MemoryIngestService {
         const sections = Array.isArray(it.sections) ? (it.sections as MemoryItem['sections']) : [];
         const text = embeddableText({ title: it.title, sections } as MemoryItem);
         if (text.length < 10) continue;
-        const outcome = await embedAndUpsert(this.prisma as never, {
-          tenantId: ctx.tenantId,
-          clientId: it.client_id,
+        try {
+          const outcome = await embedAndUpsert(this.prisma as never, {
+            tenantId: ctx.tenantId,
+            clientId: it.client_id,
+            sourceType: 'memory_item',
+            sourceId: it.id,
+            text,
+            bypassRls: true,
+          });
+          if (outcome !== 'skipped') counts.embedded++;
+        } catch (err) {
+          counts.failures.push({ slug: it.slug, error: (err as Error).message });
+        }
+      }
+    } catch (err) {
+      // Failure to even LIST items strands the whole pass — record it as a
+      // single synthetic failure so the caller sees the pass did not complete.
+      this.logger.warn(`memory embedding pass failed: ${(err as Error).message}`);
+      counts.failures.push({ slug: '(embedding-pass)', error: (err as Error).message });
+    }
+    counts.failed = counts.failures.length;
+
+    this.logger.log(
+      `backfill tenant=${ctx.tenantId} ${JSON.stringify({ ...counts, failures: counts.failures.length })}`,
+    );
+    return counts;
+  }
+
+  /**
+   * Write-through projection for a SINGLE ClioMemory row (Gap 6). Meri calls this
+   * right after it writes clio_memory so the memory graph + semantic index
+   * reflect the save immediately, without waiting for the nightly refresh.
+   *
+   * Runs under withSystem (trusted projection; clio_memory + memory_items are
+   * RLS-protected). No name resolver at request time — slug-form [[type:slug]]
+   * tokens already in the memory text are still captured as edges, and the
+   * nightly refresh-memory-graph adds full name-based links. The embedding is
+   * fire-and-forget in spirit: this method NEVER throws, so a projection/embed
+   * failure can never fail the user's save. Callers invoke it with `void`.
+   */
+  async projectClioMemory(tenantId: string, clioMemoryId: string): Promise<void> {
+    try {
+      const rows = await this.prisma.withSystem((tx) =>
+        tx.$queryRaw<ClioMemoryRow[]>`
+          SELECT id, tenant_id AS "tenantId", scope, owner_user_id AS "ownerUserId",
+                 key, value, source, metadata_jsonb AS metadata,
+                 created_at AS "createdAt", updated_at AS "updatedAt"
+          FROM clio_memory
+          WHERE id = ${clioMemoryId}::uuid AND tenant_id = ${tenantId}::uuid
+        `,
+      );
+      const m = rows[0];
+      if (!m) return; // row was deleted/never existed — nothing to project
+      const row: ClioMemoryRow = {
+        ...m,
+        createdAt: new Date(m.createdAt as unknown as string).toISOString(),
+        updatedAt: new Date(m.updatedAt as unknown as string).toISOString(),
+      };
+      const item = clioMemoryToItem(row);
+      const itemId = await this.store.upsertSystem(item);
+      const text = embeddableText(item);
+      if (text.length >= 10) {
+        await embedAndUpsert(this.prisma as never, {
+          tenantId,
+          clientId: item.clientId,
           sourceType: 'memory_item',
-          sourceId: it.id,
+          sourceId: itemId,
           text,
           bypassRls: true,
         });
-        if (outcome !== 'skipped') counts.embedded++;
       }
     } catch (err) {
-      this.logger.warn(`memory embedding pass failed: ${(err as Error).message}`);
+      this.logger.warn(`projectClioMemory ${clioMemoryId} failed (non-fatal): ${(err as Error).message}`);
     }
+  }
 
-    this.logger.log(`backfill tenant=${ctx.tenantId} ${JSON.stringify(counts)}`);
-    return counts;
+  /**
+   * Write-through removal for a DELETED ClioMemory row (Gap 6). Removes the
+   * projected memory_item (its memory_edges cascade via FK) and its
+   * context_embeddings row (which has no cascade). Non-fatal; never throws.
+   */
+  async removeClioMemory(tenantId: string, clioMemoryId: string): Promise<void> {
+    try {
+      const slug = clioMemorySlug(clioMemoryId);
+      await this.prisma.withSystem(async (tx) => {
+        const rows = await tx.$queryRaw<Array<{ id: string }>>`
+          SELECT id FROM memory_items
+          WHERE tenant_id = ${tenantId}::uuid AND type = 'note' AND slug = ${slug}
+          LIMIT 1
+        `;
+        const itemId = rows[0]?.id;
+        if (!itemId) return;
+        // context_embeddings.source_id is the memory_item id as text; no FK cascade.
+        await tx.$executeRaw`
+          DELETE FROM context_embeddings
+          WHERE source_type = 'memory_item' AND source_id = ${itemId}
+        `;
+        // memory_edges cascade via memory_items_src_fk ON DELETE CASCADE.
+        await tx.$executeRaw`DELETE FROM memory_items WHERE id = ${itemId}::uuid`;
+      });
+    } catch (err) {
+      this.logger.warn(`removeClioMemory ${clioMemoryId} failed (non-fatal): ${(err as Error).message}`);
+    }
   }
 }
 

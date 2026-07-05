@@ -6,6 +6,7 @@ import type { AppConfig } from '../config/config.schema.js';
 import { PrismaService } from '../prisma/prisma.service.js';
 import { MeriToolsService } from './meri-tools.service.js';
 import { AiCredentialResolverService } from '../engagement/ai-credential-resolver.service.js';
+import { MemoryIngestService } from '../memory/memory-ingest.service.js';
 import { recordAiUsageEvent } from '../engagement/ai-usage-record.js';
 import {
   addUsage,
@@ -178,6 +179,7 @@ export class MeriService {
     private readonly mcp: MeriMcpService,
     private readonly firmSkills: MeriFirmSkillsService,
     private readonly aiCredentials: AiCredentialResolverService,
+    private readonly memoryIngest: MemoryIngestService,
   ) {}
 
   async status(ctx: TenantContext) {
@@ -1313,6 +1315,7 @@ export class MeriService {
         conversationId,
         content,
         assistantContent,
+        ctx.role,
       ).catch(() => {});
     }
 
@@ -2510,6 +2513,7 @@ export class MeriService {
     conversationId: string,
     userMessage: string,
     assistantResponse: string,
+    callerRole: string,
   ): Promise<void> {
     if (!this.shouldAttemptMemoryLearning(userMessage, assistantResponse)) return;
 
@@ -2572,7 +2576,12 @@ export class MeriService {
         const styleType = this.classifyMemoryType(normalized.key, normalized.value); // 'firm' | 'user_private'
         const promoteToFirm =
           extractorScope === 'firm' && confidence >= 0.85 && styleType === 'firm';
-        const scope: 'firm' | 'user_private' = promoteToFirm ? 'firm' : 'user_private';
+        // Governance (Phase 4a): auto-learn may write FIRM scope only for admins.
+        // For everyone else a "firm" candidate is kept as personal memory (never
+        // dropped) so a single chat can't seed firm-wide truth.
+        const isAdmin = callerRole === 'user_admin' || callerRole === 'capiro_admin';
+        const scope: 'firm' | 'user_private' =
+          promoteToFirm && isAdmin ? 'firm' : 'user_private';
         const ownerUserId = scope === 'user_private' ? userId : null;
         const storedKey =
           scope === 'user_private'
@@ -2609,6 +2618,7 @@ export class MeriService {
           }),
         );
 
+        let learnedId: string;
         if (existing) {
           await this.prisma.withTenant(tenantId, (tx) =>
             tx.clioMemory.update({
@@ -2620,8 +2630,9 @@ export class MeriService {
               },
             }),
           );
+          learnedId = existing.id;
         } else {
-          await this.prisma.withTenant(tenantId, (tx) =>
+          const created = await this.prisma.withTenant(tenantId, (tx) =>
             tx.clioMemory.create({
               data: {
                 tenantId,
@@ -2632,11 +2643,15 @@ export class MeriService {
                 source,
                 metadata: { ...memoryMetadata, createdBy: 'auto' },
               },
+              select: { id: true },
             }),
           );
+          learnedId = created.id;
         }
 
         void this.embedAndStoreMemory(tenantId, storedKey, normalized.value).catch(() => {});
+        // Write-through: reflect the auto-learned fact in the memory graph + index.
+        void this.memoryIngest.projectClioMemory(tenantId, learnedId);
       }
     } catch (err) {
       this.logger.debug(`Memory extraction failed: ${(err as Error).message}`);
@@ -3032,11 +3047,15 @@ export class MeriService {
       if (!embedding || embedding.length !== 1536) return;
 
       const vecStr = `[${embedding.join(',')}]`;
-      await this.prisma.$executeRawUnsafe(
-        `UPDATE clio_memory SET embedding = $1::vector WHERE tenant_id = $2::uuid AND key = $3`,
-        vecStr,
-        tenantId,
-        key,
+      // withTenant: clio_memory is RLS-protected; a bare write would match 0 rows
+      // under FORCE ROW LEVEL SECURITY and silently drop the embedding.
+      await this.prisma.withTenant(tenantId, (tx) =>
+        tx.$executeRawUnsafe(
+          `UPDATE clio_memory SET embedding = $1::vector WHERE tenant_id = $2::uuid AND key = $3`,
+          vecStr,
+          tenantId,
+          key,
+        ),
       );
     } catch (err) {
       this.logger.debug(`Embedding failed for memory ${key}: ${(err as Error).message}`);
@@ -3064,10 +3083,12 @@ export class MeriService {
       if (!embedding || embedding.length !== 1536) return [];
 
       const vecStr = `[${embedding.join(',')}]`;
-      const results = await this.prisma.$queryRawUnsafe<
-        Array<{ key: string; value: string; score: number }>
-      >(
-        `SELECT key, value, 1 - (embedding <=> $1::vector) as score
+      // withTenant: clio_memory is RLS-protected; a bare read would return 0 rows
+      // under FORCE ROW LEVEL SECURITY (no tenant GUC set). The manual tenant_id +
+      // scope/owner predicates stay as defense-in-depth (RLS only isolates tenant).
+      const results = await this.prisma.withTenant(tenantId, (tx) =>
+        tx.$queryRawUnsafe<Array<{ key: string; value: string; score: number }>>(
+          `SELECT key, value, 1 - (embedding <=> $1::vector) as score
          FROM clio_memory
          WHERE tenant_id = $2::uuid
            AND embedding IS NOT NULL
@@ -3077,10 +3098,11 @@ export class MeriService {
            )
          ORDER BY embedding <=> $1::vector
          LIMIT $4`,
-        vecStr,
-        tenantId,
-        userId,
-        limit,
+          vecStr,
+          tenantId,
+          userId,
+          limit,
+        ),
       );
       return results.filter((r) => r.score > 0.3);
     } catch (err) {
@@ -3144,6 +3166,8 @@ export class MeriService {
     await this.prisma.withTenant(ctx.tenantId, (tx) =>
       tx.clioMemory.deleteMany({ where: { id: memoryId, tenantId: ctx.tenantId } }),
     );
+    // Write-through: drop the projected memory_item + its embedding/edges.
+    void this.memoryIngest.removeClioMemory(ctx.tenantId, memoryId);
     return { ok: true, id: memoryId };
   }
 
@@ -3210,6 +3234,8 @@ export class MeriService {
         },
       }),
     );
+    // Write-through: refresh the projected memory_item + embedding.
+    void this.memoryIngest.projectClioMemory(ctx.tenantId, memoryId);
     return { ok: true, id: memoryId, value: next };
   }
 }

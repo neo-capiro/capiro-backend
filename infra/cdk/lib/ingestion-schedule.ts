@@ -401,4 +401,19 @@ export const INGESTION_JOBS: ScheduledIngestionJob[] = [
     tier: 'agent',
     description: 'Meri self-scheduled research tasks (hourly drain of clio_scheduled_task)',
   },
+
+  // ── TIER 8 — INSTITUTIONAL MEMORY (daily, off-peak) ───────────────────────
+  // Rebuilds the memory knowledge graph + embeddings for every tenant so the
+  // graph reflects new clients/memories/meetings/emails/Meri sessions without
+  // anyone clicking "Populate graph". Idempotent (stable slugs + content-hash
+  // embedding skip); the embedding pass fails open, so a Bedrock hiccup never
+  // fails the rebuild. Runs on the shared api-sync-jobs task def + apiTaskRole
+  // (same Aurora + embedding access as every other job here).
+  {
+    id: 'RefreshMemoryGraph',
+    command: ['refresh-memory-graph', '--all-tenants'],
+    cron: { minute: '30', hour: '4' },
+    tier: 'daily',
+    description: 'Rebuild institutional memory graph + embeddings (all tenants, off-peak)',
+  },
 ];

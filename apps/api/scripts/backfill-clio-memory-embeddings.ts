@@ -9,9 +9,23 @@
  * DRY-RUN by default: prints how many rows WOULD be embedded. Pass --commit to
  * actually call OpenAI + write embeddings. Requires OPENAI_API_KEY.
  */
-import { PrismaClient } from '@prisma/client';
+import { PrismaClient, Prisma } from '@prisma/client';
 
 const prisma = new PrismaClient();
+
+/**
+ * clio_memory is RLS-protected (tenant isolation). This reconciler runs
+ * cross-tenant as a trusted job, so every statement runs inside a transaction
+ * that flips the bypass GUC — otherwise FORCE ROW LEVEL SECURITY returns 0 rows
+ * and silently drops the UPDATE. Mirrors PrismaService.withSystem and
+ * scripts/embed-backfill.ts.
+ */
+async function withBypass<T>(fn: (tx: Prisma.TransactionClient) => Promise<T>): Promise<T> {
+  return prisma.$transaction(async (tx) => {
+    await tx.$executeRawUnsafe(`SET LOCAL app.bypass_rls = 'on'`);
+    return fn(tx);
+  });
+}
 
 const COMMIT = process.argv.includes('--commit');
 const LIMIT = (() => {
@@ -43,14 +57,17 @@ async function embed(text: string, apiKey: string): Promise<number[] | null> {
 }
 
 async function main(): Promise<void> {
-  const pending = await prisma.$queryRawUnsafe<PendingRow[]>(
-    `SELECT id, key, value FROM clio_memory WHERE embedding IS NULL ORDER BY created_at ASC LIMIT ${LIMIT}`,
-  );
-
-  const totalNullRows = await prisma.$queryRawUnsafe<Array<{ c: bigint }>>(
-    `SELECT COUNT(*)::bigint AS c FROM clio_memory WHERE embedding IS NULL`,
-  );
-  const candidateCount = Number(totalNullRows?.[0]?.c ?? 0);
+  // Reads run under the RLS bypass GUC (see withBypass) — clio_memory is
+  // tenant-isolated and this reconciler is a trusted cross-tenant job.
+  const { pending, candidateCount } = await withBypass(async (tx) => {
+    const pending = await tx.$queryRawUnsafe<PendingRow[]>(
+      `SELECT id, key, value FROM clio_memory WHERE embedding IS NULL ORDER BY created_at ASC LIMIT ${LIMIT}`,
+    );
+    const totalNullRows = await tx.$queryRawUnsafe<Array<{ c: bigint }>>(
+      `SELECT COUNT(*)::bigint AS c FROM clio_memory WHERE embedding IS NULL`,
+    );
+    return { pending, candidateCount: Number(totalNullRows?.[0]?.c ?? 0) };
+  });
 
   if (!COMMIT) {
     console.log(
@@ -86,10 +103,12 @@ async function main(): Promise<void> {
     }
     const literal = `[${vec.join(',')}]`;
     try {
-      await prisma.$executeRawUnsafe(
-        `UPDATE clio_memory SET embedding = $1::vector WHERE id = $2`,
-        literal,
-        row.id,
+      await withBypass((tx) =>
+        tx.$executeRawUnsafe(
+          `UPDATE clio_memory SET embedding = $1::vector WHERE id = $2`,
+          literal,
+          row.id,
+        ),
       );
       embedded++;
     } catch {

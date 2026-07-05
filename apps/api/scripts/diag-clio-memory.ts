@@ -21,8 +21,13 @@ interface TenantRow {
 }
 
 async function main(): Promise<void> {
-  const rows = await prisma.$queryRawUnsafe<TenantRow[]>(
-    `SELECT
+  // clio_memory is RLS-protected; this read-only diag runs cross-tenant, so it
+  // must set the bypass GUC inside a transaction or FORCE ROW LEVEL SECURITY
+  // returns 0 rows (mirrors PrismaService.withSystem / embed-backfill.ts).
+  const rows = await prisma.$transaction(async (tx) => {
+    await tx.$executeRawUnsafe(`SET LOCAL app.bypass_rls = 'on'`);
+    return tx.$queryRawUnsafe<TenantRow[]>(
+      `SELECT
        tenant_id,
        COUNT(*)::bigint AS total,
        COUNT(*) FILTER (WHERE scope = 'firm')::bigint AS firm,
@@ -33,7 +38,8 @@ async function main(): Promise<void> {
      FROM clio_memory
      GROUP BY tenant_id
      ORDER BY total DESC`,
-  );
+    );
+  });
 
   const perTenant = rows.map((r) => {
     const total = Number(r.total);

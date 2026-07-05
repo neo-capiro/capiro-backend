@@ -18,6 +18,7 @@ import {
   type CreateCapabilityInput,
 } from '../clients/client-capabilities.service.js';
 import { ClientPeopleService } from '../clients/client-people.service.js';
+import { MemoryIngestService } from '../memory/memory-ingest.service.js';
 import {
   ClientFacilitiesService,
   type CreateFacilityInput,
@@ -407,6 +408,7 @@ export class MeriToolsService {
     private readonly clientKb: ClientKbService,
     private readonly featureFlags: MeriFeatureFlagsService,
     private readonly clients: ClientsService,
+    private readonly memoryIngest: MemoryIngestService,
   ) {}
 
   manifest() {
@@ -1260,6 +1262,19 @@ export class MeriToolsService {
     const record = buildSavedMemoryRecord({ content, key, scope, userId: ctx.userId });
     if (!record) throw new BadRequestException('save_memory requires non-empty content');
 
+    // Governance (Phase 4a): only admins may write firm-wide memory. A non-admin
+    // firm request is refused (not silently downgraded) so the user knows it did
+    // not become firm-wide truth; they can re-save it as personal instead.
+    const isAdmin = ctx.role === 'user_admin' || ctx.role === 'capiro_admin';
+    if (record.scope === 'firm' && !isAdmin) {
+      return {
+        saved: false,
+        scope: 'firm' as const,
+        message:
+          'Firm-wide memory can only be saved by an admin. I can save this as your personal memory instead — just say so.',
+      };
+    }
+
     const metadata = {
       tool: 'save_memory',
       createdBy: 'user-requested',
@@ -1267,45 +1282,74 @@ export class MeriToolsService {
       visibility: record.scope,
     };
 
-    // Upsert on the (tenant, scope, owner, key) unique constraint so repeated
-    // "remember this" requests update in place instead of erroring/duplicating.
-    const existing = await this.prisma.withTenant(ctx.tenantId, (tx) =>
-      tx.clioMemory.findFirst({
-        where: {
-          tenantId: ctx.tenantId,
-          scope: record.scope,
-          ownerUserId: record.ownerUserId,
-          key: record.key,
-        },
-        select: { id: true },
-      }),
-    );
-
-    if (existing) {
-      await this.prisma.withTenant(ctx.tenantId, (tx) =>
-        tx.clioMemory.update({
-          where: { id: existing.id },
-          data: { value: record.value, source: record.source, metadata },
-        }),
-      );
-    } else {
-      await this.prisma.withTenant(ctx.tenantId, (tx) =>
-        tx.clioMemory.create({
-          data: {
+    // Concurrency-safe upsert. We can't use prisma.upsert() on the
+    // (tenant, scope, owner, key) compound unique because firm memory has
+    // owner_user_id = NULL (SQL NULLs aren't matchable through a compound-unique
+    // where), and firm-scope uniqueness is enforced by a partial index Prisma
+    // doesn't model (migration 20260705120000). So: find→update, else create,
+    // and if a concurrent save wins the insert race (P2002), re-find + update.
+    // Mirrors the ActionRecommendationService P2002 idiom.
+    const findExisting = () =>
+      this.prisma.withTenant(ctx.tenantId, (tx) =>
+        tx.clioMemory.findFirst({
+          where: {
             tenantId: ctx.tenantId,
             scope: record.scope,
             ownerUserId: record.ownerUserId,
             key: record.key,
-            value: record.value,
-            source: record.source,
-            metadata,
           },
+          select: { id: true },
         }),
       );
+    const updateExisting = (id: string) =>
+      this.prisma.withTenant(ctx.tenantId, (tx) =>
+        tx.clioMemory.update({
+          where: { id },
+          data: { value: record.value, source: record.source, metadata },
+        }),
+      );
+
+    let memoryId: string | undefined;
+    const existing = await findExisting();
+    if (existing) {
+      await updateExisting(existing.id);
+      memoryId = existing.id;
+    } else {
+      try {
+        const created = await this.prisma.withTenant(ctx.tenantId, (tx) =>
+          tx.clioMemory.create({
+            data: {
+              tenantId: ctx.tenantId,
+              scope: record.scope,
+              ownerUserId: record.ownerUserId,
+              key: record.key,
+              value: record.value,
+              source: record.source,
+              metadata,
+            },
+            select: { id: true },
+          }),
+        );
+        memoryId = created.id;
+      } catch (err) {
+        // A concurrent save created the same (tenant, scope, owner, key) first.
+        if (err instanceof Prisma.PrismaClientKnownRequestError && err.code === 'P2002') {
+          const raced = await findExisting();
+          if (!raced) throw err;
+          await updateExisting(raced.id);
+          memoryId = raced.id;
+        } else {
+          throw err;
+        }
+      }
     }
 
     // Embed for semantic recall (best-effort; never blocks the tool result).
     void this.embedMemory(ctx.tenantId, record.key, record.value).catch(() => {});
+    // Write-through: project into the institutional-memory graph + index so the
+    // fact is retrievable via search_memory without waiting for the nightly
+    // refresh. Fire-and-forget + non-fatal (projectClioMemory never throws).
+    if (memoryId) void this.memoryIngest.projectClioMemory(ctx.tenantId, memoryId);
 
     this.logger.log(
       `save_memory: stored ${record.scope} memory "${record.key}" for tenant ${ctx.tenantId}`,
@@ -1338,11 +1382,15 @@ export class MeriToolsService {
     const embedding = json.data?.[0]?.embedding;
     if (!embedding || embedding.length !== 1536) return;
     const vecStr = `[${embedding.join(',')}]`;
-    await this.prisma.$executeRawUnsafe(
-      `UPDATE clio_memory SET embedding = $1::vector WHERE tenant_id = $2::uuid AND key = $3`,
-      vecStr,
-      tenantId,
-      key,
+    // withTenant: clio_memory is RLS-protected; a bare write matches 0 rows under
+    // FORCE ROW LEVEL SECURITY and silently drops the embedding.
+    await this.prisma.withTenant(tenantId, (tx) =>
+      tx.$executeRawUnsafe(
+        `UPDATE clio_memory SET embedding = $1::vector WHERE tenant_id = $2::uuid AND key = $3`,
+        vecStr,
+        tenantId,
+        key,
+      ),
     );
   }
 

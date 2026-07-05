@@ -2,7 +2,9 @@
 //
 // Memory exists in two synchronized representations with one canonical owner:
 //   1. MEMORY STORE (canonical)  — structured rows + graph edges, what the AI queries.
-//   2. MARKDOWN VAULT (projection) — Obsidian-format files humans read + edit.
+//   2. MARKDOWN PROJECTION        — Obsidian-format markdown served by the API and
+//      edited via the Settings "Memory" UI. This is a RENDERED projection of the
+//      store, not a synced file vault: there is no bidirectional .md file drop.
 //
 // These types describe the canonical store item. The renderer projects an item
 // to markdown; the parser reads human edits back into an item. See

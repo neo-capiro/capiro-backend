@@ -125,6 +125,41 @@ export class MemoryFkLoader {
         });
       }
 
+      // client -> office (the congressional/report-target offices this client
+      // engages in outreach). Tenant-scoped (engagement_report_target_offices has
+      // tenant_id + client_id) and bounded by the client's own target list.
+      //
+      // NOTE: we intentionally do NOT source office nodes from the global DoD
+      // program_office / derive-office-program-links reference data. That data has
+      // no tenant scope, so loading it here would flood every tenant's graph with
+      // the entire org chart; wiring those offices to a specific client requires
+      // the acquisition-personnel role chain (client -> PE relevance -> program ->
+      // office), which lives in the intelligence subsystem, not this FK backbone.
+      // Node id: office:<officeKey>, matching the advertised convention.
+      const offices = await tx.$queryRaw<
+        Array<{ client_id: string; client_name: string; office_key: string; member_principal: string | null; committee: string | null; building: string | null }>
+      >`
+        SELECT DISTINCT ON (rto.client_id, rto.office_key)
+               rto.client_id, c.name AS client_name, rto.office_key,
+               rto.member_principal, rto.committee, rto.building
+        FROM engagement_report_target_offices rto
+        JOIN clients c ON c.id = rto.client_id
+        WHERE rto.tenant_id = ${ctx.tenantId}::uuid
+          AND rto.client_id IS NOT NULL
+        ORDER BY rto.client_id, rto.office_key, rto.updated_at DESC
+      `;
+      for (const o of offices) {
+        const attrs: Record<string, string> = {};
+        if (o.committee) attrs.committee = o.committee;
+        if (o.building) attrs.building = o.building;
+        out.push({
+          srcType: 'client', srcSlug: o.client_id, srcLabel: o.client_name,
+          dstType: 'office', dstSlug: o.office_key,
+          dstLabel: o.member_principal || o.office_key, dstAttrs: attrs,
+          relation: 'targets',
+        });
+      }
+
       return out;
     });
   }
