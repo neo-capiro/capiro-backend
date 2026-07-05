@@ -54,6 +54,11 @@ export function LiveHearingRoomPage() {
   const [interim, setInterim] = useState<string>('');
   const [cards, setCards] = useState<Card_[]>([]);
   const [error, setError] = useState<string | null>(null);
+  // Human-readable progress from the server's `status` frames (connecting,
+  // ingesting, transcribing, reconnecting, ended). Without surfacing these the
+  // room looked identical whether ingestion was working, still starting, or had
+  // failed — the "nothing happens" report.
+  const [statusText, setStatusText] = useState<string | null>(null);
   const wsRef = useRef<WebSocket | null>(null);
   const audioUrlRef = useRef('');
   const ingestSentRef = useRef(false);
@@ -82,9 +87,45 @@ export function LiveHearingRoomPage() {
     ingestSentRef.current = false;
     const ws = new WebSocket(wsUrl(id, token));
     wsRef.current = ws;
-    ws.onopen = () => setConnected(true);
-    ws.onclose = () => setConnected(false);
+    ws.onopen = () => {
+      setConnected(true);
+      setStatusText('Connected — starting transcription…');
+    };
+    ws.onclose = () => {
+      setConnected(false);
+      setStatusText(null);
+    };
     ws.onerror = () => setError('WebSocket connection error');
+
+    // Map the server's free-form `status` frames to a readable line. The
+    // 'connected' case also auto-starts ingestion when a URL is present.
+    const handleStatus = (s: string) => {
+      if (s === 'connected') {
+        setStatusText('Connected — starting transcription…');
+        // Auto-start ingestion when a stream URL is present (from the session or
+        // the field), so the user doesn't have to paste + click. Small delay: the
+        // server registers its message handler just after sending 'connected'.
+        if (audioUrlRef.current.trim() && !ingestSentRef.current) {
+          ingestSentRef.current = true;
+          setStatusText('Starting ingestion…');
+          setTimeout(() => {
+            const w = wsRef.current;
+            if (w && w.readyState === WebSocket.OPEN) {
+              w.send(JSON.stringify({ type: 'ingest', audioUrl: audioUrlRef.current.trim() }));
+            }
+          }, 1200);
+        }
+      } else if (s === 'ingesting') setStatusText('Ingesting the stream…');
+      else if (s === 'transcribing') setStatusText('Listening for audio…');
+      else if (s.startsWith('reconnecting')) setStatusText('Reconnecting to transcription…');
+      else if (s === 'max_duration_reached')
+        setStatusText('Session reached the maximum duration and was stopped.');
+      else if (s.startsWith('ingestion_ended')) {
+        const reason = s.slice('ingestion_ended:'.length).trim();
+        setStatusText(reason ? `Stream ended: ${reason}` : 'Stream ended.');
+      } else if (s) setStatusText(s);
+    };
+
     ws.onmessage = (ev) => {
       try {
         const msg = JSON.parse(ev.data);
@@ -93,20 +134,13 @@ export function LiveHearingRoomPage() {
           setInterim('');
           if (msg.segment) setSegments((s) => [...s, msg.segment]);
         } else if (msg.type === 'card' && msg.card) setCards((c) => [msg.card, ...c]);
-        else if (msg.type === 'error') setError(msg.message ?? 'stream error');
-        else if (msg.type === 'status' && msg.status === 'connected') {
-          // Auto-start ingestion when a stream URL is present (from the session
-          // or the field), so the user doesn't paste + click. Small delay: the
-          // server registers its message handler just after sending 'connected'.
-          if (audioUrlRef.current.trim() && !ingestSentRef.current) {
-            ingestSentRef.current = true;
-            setTimeout(() => {
-              const w = wsRef.current;
-              if (w && w.readyState === WebSocket.OPEN) {
-                w.send(JSON.stringify({ type: 'ingest', audioUrl: audioUrlRef.current.trim() }));
-              }
-            }, 1200);
-          }
+        else if (msg.type === 'error') {
+          // A hard failure (e.g. ffmpeg couldn't open the stream). Show it and
+          // clear the transient status so the room doesn't look stuck "starting".
+          setError(msg.message ?? 'stream error');
+          setStatusText(null);
+        } else if (msg.type === 'status') {
+          handleStatus(String(msg.status ?? ''));
         }
       } catch {
         /* ignore malformed frame */
@@ -130,6 +164,10 @@ export function LiveHearingRoomPage() {
       setError('Enter a hearing audio/stream URL.');
       return;
     }
+    // Acknowledge the click immediately — the server's first status frame can be
+    // a second or two out, and previously nothing changed on screen until then.
+    setError(null);
+    setStatusText('Starting ingestion…');
     ws.send(JSON.stringify({ type: 'ingest', audioUrl: audioUrl.trim() }));
     ingestSentRef.current = true;
   }, [audioUrl]);
@@ -187,6 +225,7 @@ export function LiveHearingRoomPage() {
             onClick={() => {
               wsRef.current?.close();
               setConnected(false);
+              setStatusText(null);
             }}
           >
             Stop
@@ -220,10 +259,22 @@ export function LiveHearingRoomPage() {
         </Button>
       </Space.Compact>
 
+      {statusText && !error && (
+        <div style={{ marginBottom: 12 }}>
+          <Badge status="processing" text={statusText} />
+        </div>
+      )}
+
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 380px', gap: 16 }}>
         <Card title="Transcript" size="small" style={{ minHeight: 420 }}>
           {segments.length === 0 && !interim ? (
-            <Empty description="No transcript yet. Connect to begin." />
+            <Empty
+              description={
+                error
+                  ? 'Stream could not be transcribed — see the error above.'
+                  : statusText ?? 'No transcript yet. Connect to begin.'
+              }
+            />
           ) : (
             <div style={{ maxHeight: 520, overflowY: 'auto' }}>
               {segments.map((s, i) => (

@@ -37,17 +37,22 @@ export interface IngestionCallbacks {
  * browser UA (gov/broadcast HLS origins reject a bare ffmpeg UA).
  *
  * ffmpeg does its OWN network I/O once spawned, so `start()` also locks it down:
- *  - `-follow_redirects 0` — ffmpeg's http protocol follows 3xx by default; a
- *    redirect off an allowlisted host would bypass the guard. The resolver hands
- *    us the FINAL post-redirect URL (guardedProbe re-validated every hop), so
- *    ffmpeg never needs to follow a redirect itself.
  *  - `-protocol_whitelist crypto,data,http,https,tcp,tls` — restricts what a
  *    fetched manifest can pull in. `file` is DELIBERATELY EXCLUDED so a malicious
  *    HLS manifest cannot make ffmpeg read local files; `crypto`+`data` stay for
  *    AES-128 HLS keys + inline data URIs.
- * RESIDUAL: a malicious manifest on an allowlisted host can still list ABSOLUTE
- * http(s) segment URIs at internal IPs — see net-guard.ts "RESIDUAL RISK" note
- * and the TODO(infra) egress-deny follow-up.
+ *
+ * REDIRECTS: we do NOT pass `-follow_redirects 0` — the ffmpeg build shipped in
+ * the runtime image (Debian bookworm, apt) rejects that option at argument-parse
+ * time ("Unrecognized option 'follow_redirects'" -> "Error splitting the argument
+ * list"), which aborts ffmpeg BEFORE it opens any input and silently broke all
+ * ingestion. ffmpeg therefore follows 3xx as usual. The redirect vector is
+ * covered instead by (a) the resolver handing us the FINAL post-redirect URL
+ * (guardedProbe re-validates every hop) so ffmpeg normally has nothing to follow,
+ * and (b) the network-layer egress deny.
+ * RESIDUAL: a redirect — or a malicious manifest listing ABSOLUTE segment URIs —
+ * pointing at an internal IP is fetched by ffmpeg unseen. See net-guard.ts
+ * "RESIDUAL RISK" note and the TODO(infra) egress-deny follow-up, the real fix.
  */
 @Injectable()
 export class StreamIngestionService {
@@ -111,16 +116,15 @@ export class StreamIngestionService {
       '1',
       '-reconnect_delay_max',
       '5',
-      // SSRF hardening (P8): ffmpeg does its own fetching once spawned. Do NOT let
-      // it follow HTTP redirects (the resolver already handed us the final,
-      // guard-validated URL) — a redirect off an allowlisted host would bypass
-      // net-guard. Must precede `-i` (it is an http-protocol input option).
-      '-follow_redirects',
-      '0',
-      // Restrict the protocols a fetched manifest may pull in. `file` is
-      // DELIBERATELY OMITTED so a malicious HLS manifest can't make ffmpeg read
-      // local files; crypto+data stay for AES-128 HLS keys + inline data URIs.
-      // Must precede `-i`.
+      // SSRF hardening (P8): restrict the protocols a fetched manifest may pull
+      // in. `file` is DELIBERATELY OMITTED so a malicious HLS manifest can't make
+      // ffmpeg read local files; crypto+data stay for AES-128 HLS keys + inline
+      // data URIs. Must precede `-i`.
+      //
+      // NOTE: we intentionally do NOT pass `-follow_redirects 0` here — the
+      // runtime image's ffmpeg build rejects that option and aborts before it
+      // opens ANY input (it silently broke all ingestion). See the class-doc
+      // "REDIRECTS" note for how the redirect vector is covered instead.
       '-protocol_whitelist',
       'crypto,data,http,https,tcp,tls',
       '-i',
@@ -143,18 +147,40 @@ export class StreamIngestionService {
     }
 
     let stopped = false;
+    let bytesEmitted = 0;
+    let lastStderr = '';
     proc.stdout.on('data', (chunk: Buffer) => {
-      if (!stopped) cb.onAudio(chunk);
+      if (stopped) return;
+      bytesEmitted += chunk.length;
+      cb.onAudio(chunk);
     });
     proc.stderr.on('data', (d: Buffer) => {
-      const line = d.toString().trim();
-      if (line) this.logger.warn(`ffmpeg: ${line}`);
+      const text = d.toString().trim();
+      if (!text) return;
+      // Keep the most recent non-empty line — ffmpeg's last stderr line is the
+      // useful one for the operator ("Server returned 404 Not Found", "Invalid
+      // data found when processing input", etc.).
+      lastStderr = text.split('\n').filter(Boolean).pop() ?? text;
+      this.logger.warn(`ffmpeg: ${text}`);
     });
     proc.on('error', (err) => {
-      if (!stopped) cb.onError(new Error(`ffmpeg spawn error: ${err.message}`));
+      if (!stopped) cb.onError(new Error(`Could not start ffmpeg: ${err.message}`));
     });
     proc.on('close', (code) => {
-      if (!stopped) cb.onEnd(`ffmpeg exited (code ${code ?? 'null'})`);
+      if (stopped) return;
+      // Distinguish a real failure-to-open from a benign end. ZERO audio means
+      // ffmpeg never opened the stream (dead/expired live URL, 404, geoblock,
+      // unparseable manifest, or — historically — a rejected ffmpeg arg): surface
+      // it as an actionable error carrying ffmpeg's own last line, so the UI can
+      // say WHY nothing transcribed instead of showing an empty room. If audio
+      // DID flow, a non-zero exit just means the live stream dropped or ended.
+      if (bytesEmitted === 0) {
+        const detail =
+          lastStderr || `ffmpeg exited (code ${code ?? 'null'}) before producing any audio`;
+        cb.onError(new Error(`Could not open the stream: ${detail}`));
+      } else {
+        cb.onEnd(code === 0 ? 'completed' : `stream ended (code ${code})`);
+      }
     });
 
     this.logger.log(`ingestion started pid=${proc.pid} url=${parsed.host}${parsed.pathname}`);
