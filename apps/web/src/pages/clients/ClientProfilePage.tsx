@@ -36,6 +36,8 @@ import {
   Upload,
 } from 'antd';
 import { useApi } from '../../lib/use-api.js';
+import { useMe } from '../../lib/me.js';
+import { MemoryFileEditor } from '../../components/MemoryFileEditor.js';
 import { useClientFilter } from '../../state/client-filter.js';
 import {
   clearChatSession,
@@ -621,6 +623,8 @@ function OverviewTab({
   onAddCap: () => void;
 }) {
   const api = useApi();
+  const me = useMe();
+  const isAdmin = me.data?.role === 'user_admin' || me.data?.role === 'capiro_admin';
 
   // Defense budget exposure: PEs this client is most relevant to (>= the API floor).
   // Fetched here so the card lives on the Overview tab; presentational card receives the data.
@@ -670,6 +674,7 @@ function OverviewTab({
   );
 
   return (
+    <>
     <div className="overview-grid">
       <div>
         {/* Company information */}
@@ -937,6 +942,18 @@ function OverviewTab({
         </section>
       </div>
     </div>
+
+      {/* Client memory — configured here (per-client), not on the Settings page. */}
+      <section className="surface" style={{ marginTop: 14 }}>
+        <header className="surface-head">
+          <h3>Client memory</h3>
+          <span className="sub">Grounds Meri and the knowledge graph for this client</span>
+        </header>
+        <div style={{ padding: '6px 14px 14px' }}>
+          <MemoryFileEditor scope="client" slug={client.id} ready canEdit={isAdmin} />
+        </div>
+      </section>
+    </>
   );
 }
 

@@ -69,9 +69,11 @@ export function KnowledgeGraphPanel() {
   // but we fetch the canonical list for stable labels).
   const clientsQuery = useQuery<{ id: string; name: string }[]>({
     queryKey: ['memory-graph-clients'],
-    queryFn: async () => (await api.get<{ data: { id: string; name: string }[] }>(
-      '/api/lda-intel/clients', { params: { limit: 200 } },
-    )).data.data ?? [],
+    // The firm's own tenant-scoped clients (bare array). NOT /api/lda-intel/clients,
+    // which is the global federal LDA database and won't contain the firm's clients
+    // — that mismatch is why this dropdown was empty.
+    queryFn: async () => (await api.get<Array<{ id: string; name: string }>>(
+      '/api/clients')).data ?? [],
     staleTime: 10 * 60 * 1000,
     retry: 1,
   });
