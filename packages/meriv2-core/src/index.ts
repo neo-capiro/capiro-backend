@@ -4,6 +4,7 @@
 export * from './registry/types';
 export * from './registry/tool-registry';
 export * from './compliance/approval-gate';
+export * from './alerts/alert';
 export * from './scoping/scoping-wrapper';
 export * from './intent/intent-router';
 export * from './grounding/claim-map';
