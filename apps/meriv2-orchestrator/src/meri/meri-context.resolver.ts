@@ -25,13 +25,90 @@ export class MeriContextResolver {
     if (!user) {
       throw new UnauthorizedException('No Capiro user for the authenticated identity');
     }
+    const [firmMemory, userVoice] = await Promise.all([
+      this.loadFirmMemory(tc.tenantId),
+      this.loadUserVoice(tc.tenantId, user.id),
+    ]);
     return {
       tenantId: tc.tenantId,
       userId: user.id,
       clerkUserId: tc.clerkUserId,
       role: mapRole(tc.role),
+      ...(firmMemory ? { firmMemory } : {}),
+      ...(userVoice ? { userVoice } : {}),
     };
   }
+
+  /**
+   * Firm Soul + Firm Compass (memory_items type='firm-soul'/'firm-compass',
+   * slug='firm', visibility='tenant') — unconditional, every tool call carries
+   * firm identity. Mirrors apps/api meri.service.ts's loadUserVoiceContext.
+   * Best-effort: a query failure must never block a tool invocation.
+   */
+  private async loadFirmMemory(tenantId: string): Promise<MeriContext['firmMemory'] | undefined> {
+    try {
+      const rows = await this.prisma.withTenant(
+        tenantId,
+        (tx) =>
+          tx.$queryRaw<Array<{ type: string; sections: unknown }>>`
+          SELECT type, sections_jsonb AS sections
+          FROM memory_items
+          WHERE tenant_id = ${tenantId}::uuid
+            AND type IN ('firm-soul', 'firm-compass')
+            AND slug = 'firm'
+        `,
+      );
+      const bodyFor = (t: string): string | undefined => {
+        const row = rows.find((r) => r.type === t);
+        return row ? renderHumanSections(row.sections) : undefined;
+      };
+      const soul = bodyFor('firm-soul');
+      const compass = bodyFor('firm-compass');
+      if (!soul && !compass) return undefined;
+      return { ...(soul ? { soul } : {}), ...(compass ? { compass } : {}) };
+    } catch {
+      return undefined;
+    }
+  }
+
+  /**
+   * The caller's "My Writing Style" file (memory_items type='user-voice',
+   * owner_user_id=userId). Best-effort, same failure contract as loadFirmMemory.
+   */
+  private async loadUserVoice(tenantId: string, userId: string): Promise<string | undefined> {
+    try {
+      const rows = await this.prisma.withTenant(
+        tenantId,
+        (tx) =>
+          tx.$queryRaw<Array<{ sections: unknown }>>`
+          SELECT sections_jsonb AS sections
+          FROM memory_items
+          WHERE tenant_id = ${tenantId}::uuid
+            AND type = 'user-voice'
+            AND owner_user_id = ${userId}::uuid
+          LIMIT 1
+        `,
+      );
+      const body = rows[0] ? renderHumanSections(rows[0].sections) : undefined;
+      return body || undefined;
+    } catch {
+      return undefined;
+    }
+  }
+}
+
+/** Render only human-authored sections as "Heading: body" lines. Pure. */
+function renderHumanSections(sections: unknown): string | undefined {
+  if (!Array.isArray(sections)) return undefined;
+  const body = sections
+    .filter((s) => s && typeof s === 'object' && (s as { owner?: string }).owner === 'human')
+    .map((s) => {
+      const sec = s as { heading?: string; body?: string };
+      return sec.body?.trim() ? `${sec.heading}: ${sec.body.trim()}` : '';
+    })
+    .filter(Boolean)
+    .join('\n');
+  return body || undefined;
 }
 
 /**

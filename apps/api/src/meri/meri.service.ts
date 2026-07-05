@@ -2455,6 +2455,19 @@ export class MeriService {
           AND owner_user_id = ${ctx.userId}::uuid
       `,
     );
+    // Firm Soul/Compass: unconditional (every conversation, not just
+    // client-linked) — this IS the firm the user works for.
+    const firmRows = await this.prisma.withTenant(
+      ctx.tenantId,
+      (tx) =>
+        tx.$queryRaw<Array<{ type: string; title: string; sections: unknown }>>`
+        SELECT type, title, sections_jsonb AS sections
+        FROM memory_items
+        WHERE tenant_id = ${ctx.tenantId}::uuid
+          AND type IN ('firm-soul', 'firm-compass')
+          AND slug = 'firm'
+      `,
+    );
     // Client soul/compass (tenant-visible) when this is a client conversation.
     const clientRows = clientId
       ? await this.prisma.withTenant(
@@ -2491,12 +2504,17 @@ export class MeriService {
       const block = render(label, r.sections);
       if (block) blocks.push(block);
     }
+    for (const r of firmRows) {
+      const label = r.type === 'firm-soul' ? 'Firm identity (Firm Soul)' : 'Firm direction (Firm Compass)';
+      const block = render(label, r.sections);
+      if (block) blocks.push(block);
+    }
     for (const r of clientRows) {
       const block = render(`Client memory (${r.title})`, r.sections);
       if (block) blocks.push(block);
     }
     if (!blocks.length) return null;
-    return `User & client memory files (authoritative for voice and strategy):\n\n${blocks.join('\n\n')}`;
+    return `Firm, user & client memory files (authoritative for voice and strategy):\n\n${blocks.join('\n\n')}`;
   }
 
   private async loadRelevantMemories(

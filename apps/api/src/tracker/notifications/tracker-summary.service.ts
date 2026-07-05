@@ -31,11 +31,18 @@ export interface SummaryInput {
   label: string;
   /** Raw latest-action text for this move. */
   actionText: string;
+  /**
+   * Rendered Firm Soul + Firm Compass memory files (optional). The cycle is
+   * tenant-wide with no natural per-alert user, so only firm identity is
+   * carried here — never a specific user's writing voice.
+   */
+  firmContext?: string;
 }
 
 /** Build the user prompt for a factual, non-client-specific event summary. */
 export function buildSummaryPrompt(input: SummaryInput): string {
   return [
+    ...(input.firmContext ? [input.firmContext, ''] : []),
     `Bill: ${input.displayNum} — ${input.billTitle}`,
     `Stage: ${input.label}`,
     `Latest action: ${input.actionText}`,
@@ -90,6 +97,47 @@ export class TrackerSummaryService {
   }
 
   /**
+   * Firm Soul + Firm Compass (memory_items type='firm-soul'/'firm-compass',
+   * slug='firm'), rendered for the summary prompt. No natural per-alert user
+   * exists in this cross-tenant cycle, so only firm identity is loaded — never
+   * a specific user's writing voice. Best-effort: never blocks the alert.
+   */
+  private async loadFirmContext(tenantId: string): Promise<string | undefined> {
+    try {
+      const rows = await this.prisma.withTenant(tenantId, (tx) =>
+        tx.$queryRaw<Array<{ type: string; sections: unknown }>>`
+          SELECT type, sections_jsonb AS sections
+          FROM memory_items
+          WHERE tenant_id = ${tenantId}::uuid
+            AND type IN ('firm-soul', 'firm-compass')
+            AND slug = 'firm'
+        `,
+      );
+      const renderHuman = (sections: unknown): string => {
+        if (!Array.isArray(sections)) return '';
+        return sections
+          .filter((s) => s && typeof s === 'object' && (s as { owner?: string }).owner === 'human')
+          .map((s) => {
+            const sec = s as { heading?: string; body?: string };
+            return sec.body?.trim() ? `${sec.heading}: ${sec.body.trim()}` : '';
+          })
+          .filter(Boolean)
+          .join('\n');
+      };
+      const blocks: string[] = [];
+      for (const r of rows) {
+        const body = renderHuman(r.sections);
+        if (!body) continue;
+        blocks.push(r.type === 'firm-soul' ? `Firm identity (Firm Soul):\n${body}` : `Firm direction (Firm Compass):\n${body}`);
+      }
+      return blocks.length ? blocks.join('\n\n') : undefined;
+    } catch (e) {
+      this.logger.warn(`Firm memory load failed (non-fatal): ${(e as Error).message}`);
+      return undefined;
+    }
+  }
+
+  /**
    * Generate a one-to-two sentence summary of the bill action, or null when
    * disabled / no credential / any failure. Never throws.
    */
@@ -103,6 +151,8 @@ export class TrackerSummaryService {
         return null;
       });
     if (!cred) return null; // no tenant or global Anthropic key configured
+
+    const firmContext = await this.loadFirmContext(input.tenantId);
 
     const controller = new AbortController();
     const timer = setTimeout(() => controller.abort(), SUMMARY_TIMEOUT_MS);
@@ -118,7 +168,7 @@ export class TrackerSummaryService {
           model: cred.model,
           max_tokens: SUMMARY_MAX_TOKENS,
           system: SUMMARY_SYSTEM_PROMPT,
-          messages: [{ role: 'user', content: buildSummaryPrompt(input) }],
+          messages: [{ role: 'user', content: buildSummaryPrompt({ ...input, firmContext }) }],
         }),
         signal: controller.signal,
       });

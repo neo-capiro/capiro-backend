@@ -143,6 +143,7 @@ export class CommentsService {
       client: (cfg.client as string | null) ?? draft?.client ?? null,
       offices: (cfg.offices as string[] | undefined) ?? [],
       anonymize: Boolean(cfg.anonymize),
+      ownerId: draft?.ownerId,
     });
   }
 

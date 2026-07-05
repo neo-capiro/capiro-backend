@@ -14,6 +14,19 @@ export interface MeriContext {
   clerkUserId: string;
   role: TenantRole;
   org?: { id: string; slug: string; role: string };
+  /**
+   * The tenant's Firm Soul / Firm Compass memory files (rendered human-authored
+   * sections only), loaded unconditionally by the orchestrator's context
+   * resolver — every tool call carries firm identity, not just client-linked
+   * ones. Absent when the tenant hasn't written either file yet.
+   */
+  firmMemory?: { soul?: string; compass?: string };
+  /**
+   * The calling user's "My Writing Style" memory file (rendered), so any
+   * narrative a tool drafts can mirror the author's voice. Absent when the
+   * user hasn't written one.
+   */
+  userVoice?: string;
 }
 
 /** Adapt a `@capiro/shared` `TenantContext` into a `MeriContext`. */

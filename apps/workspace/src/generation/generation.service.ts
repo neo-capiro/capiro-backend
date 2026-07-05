@@ -127,6 +127,8 @@ export class GenerationService {
     const suggestedPages = WSC.suggestedPages(product);
     const targetPages = Number(cfg.pages) > 0 ? Number(cfg.pages) : suggestedPages;
 
+    const steering = await this.loadSteeringMemories(tenantId, draft.ownerId);
+
     const prompt = this.buildSectionPrompt({
       product,
       docTitle: draft.docTitle,
@@ -139,6 +141,8 @@ export class GenerationService {
       client: anonymize ? null : client,
       targetPages,
       suggestedPages,
+      firmContext: steering.firmContext,
+      userVoiceContext: steering.userVoiceContext,
     });
 
     // Strip client/office names from the prompt when anonymizing.
@@ -409,6 +413,8 @@ export class GenerationService {
     client: string | null;
     offices: string[];
     anonymize: boolean;
+    /** The draft owner (for "My Writing Style" grounding). Optional — omit if unknown. */
+    ownerId?: string | null;
   }): Promise<{ before: string; after: string; model: string }> {
     const cred = await this.creds.resolveAnthropic(args.tenantId);
     if (!cred) {
@@ -416,6 +422,8 @@ export class GenerationService {
         'No Anthropic credential available (tenant or global). Configure an AI key.',
       );
     }
+
+    const steering = await this.loadSteeringMemories(args.tenantId, args.ownerId ?? undefined);
 
     const thread = [args.commentBody, ...args.replies].filter(Boolean).join('\n- ');
     const prompt = [
@@ -426,6 +434,8 @@ export class GenerationService {
         : args.client
           ? `Client: ${args.client}.`
           : '',
+      steering.firmContext ? `\n${steering.firmContext}` : '',
+      steering.userVoiceContext ? `\nWrite in this author's voice:\n${steering.userVoiceContext}` : '',
       '',
       `Highlighted passage:\n"""${args.quote}"""`,
       '',
@@ -447,6 +457,65 @@ export class GenerationService {
       : raw;
 
     return { before: args.quote, after, model: cred.model };
+  }
+
+  /**
+   * Firm Soul + Firm Compass (unconditional) + the draft owner's "My Writing
+   * Style" (if ownerId is known), rendered for prompt injection. `memory_items`
+   * is apps/api-owned and RLS-protected (FORCE ROW LEVEL SECURITY, tenant-only
+   * policy) — this workspace service has no withTenant() helper of its own
+   * (its own ws_* tables use app-level tenant filtering, not RLS), so the raw
+   * query below sets the `app.current_tenant` GUC itself inside a transaction.
+   * Without that, the query would silently return zero rows. Best-effort: any
+   * failure returns empty context rather than blocking generation.
+   */
+  private async loadSteeringMemories(
+    tenantId: string,
+    ownerId?: string,
+  ): Promise<{ firmContext?: string; userVoiceContext?: string }> {
+    try {
+      const rows = await this.prisma.$transaction(async (tx) => {
+        // Parameterized set_config (mirrors apps/api + meriv2-orchestrator's
+        // PrismaService.withTenant) — never string-interpolate the GUC value.
+        await tx.$executeRaw`SELECT set_config('app.current_tenant', ${tenantId}, true)`;
+        return tx.$queryRaw<Array<{ type: string; sections: unknown }>>`
+          SELECT type, sections_jsonb AS sections
+          FROM memory_items
+          WHERE tenant_id = ${tenantId}::uuid
+            AND (
+              (type IN ('firm-soul', 'firm-compass') AND slug = 'firm')
+              OR (${ownerId ?? null}::uuid IS NOT NULL AND type = 'user-voice' AND owner_user_id = ${ownerId ?? null}::uuid)
+            )
+        `;
+      });
+      const renderHuman = (sections: unknown): string => {
+        if (!Array.isArray(sections)) return '';
+        return sections
+          .filter((s) => s && typeof s === 'object' && (s as { owner?: string }).owner === 'human')
+          .map((s) => {
+            const sec = s as { heading?: string; body?: string };
+            return sec.body?.trim() ? `${sec.heading}: ${sec.body.trim()}` : '';
+          })
+          .filter(Boolean)
+          .join('\n');
+      };
+      const firmBlocks: string[] = [];
+      let userVoiceContext: string | undefined;
+      for (const r of rows) {
+        const body = renderHuman(r.sections);
+        if (!body) continue;
+        if (r.type === 'firm-soul') firmBlocks.push(`Firm identity (Firm Soul):\n${body}`);
+        else if (r.type === 'firm-compass') firmBlocks.push(`Firm direction (Firm Compass):\n${body}`);
+        else if (r.type === 'user-voice') userVoiceContext = body;
+      }
+      return {
+        firmContext: firmBlocks.length ? firmBlocks.join('\n\n') : undefined,
+        userVoiceContext,
+      };
+    } catch (e) {
+      this.logger.warn(`Steering memory load failed (non-fatal): ${(e as Error).message}`);
+      return {};
+    }
   }
 
   private parseIntakeJson(
@@ -503,6 +572,10 @@ export class GenerationService {
     /** Setup "Length target" (cfg.pages) + the product's suggested pages. */
     targetPages: number;
     suggestedPages: number;
+    /** Firm Soul + Firm Compass, rendered (see loadSteeringMemories). */
+    firmContext?: string;
+    /** The draft owner's "My Writing Style" file, rendered. */
+    userVoiceContext?: string;
   }): string {
     const sectionGuide = WSC.suggestedSections(args.product);
     // E-4: match Meri's length + format to the section's purpose instead of one
@@ -541,6 +614,8 @@ export class GenerationService {
       `This section sits within the standard structure: ${sectionGuide.join(' → ')}.`,
       `The full document targets about ${args.targetPages} page${args.targetPages === 1 ? '' : 's'} — size this section proportionally so the whole document lands near that length.`,
       args.context ? `Ground the content in these facts:\n- ${args.context}` : '',
+      args.firmContext ? `\n${args.firmContext}` : '',
+      args.userVoiceContext ? `\nDraft in this author's voice:\n${args.userVoiceContext}` : '',
       '',
       DOMAIN_PRIMER,
       '',

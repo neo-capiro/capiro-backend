@@ -61,8 +61,16 @@ export function createGeneratePostHearingSummaryTool(
       'draft client email) for a post-hearing brief from extracted quotes and entities.',
     readOnly: true,
     inputSchema: generatePostHearingSummaryInputSchema,
-    handler: async (input, _ctx: MeriContext): Promise<GeneratePostHearingSummaryResult> => {
+    handler: async (input, ctx: MeriContext): Promise<GeneratePostHearingSummaryResult> => {
+      const steering = [
+        ctx.firmMemory?.soul ? `Firm identity (Firm Soul):\n${ctx.firmMemory.soul}` : '',
+        ctx.firmMemory?.compass ? `Firm direction (Firm Compass):\n${ctx.firmMemory.compass}` : '',
+        ctx.userVoice ? `Draft the client email in this author's voice:\n${ctx.userVoice}` : '',
+      ]
+        .filter(Boolean)
+        .join('\n\n');
       const prompt =
+        (steering ? `${steering}\n\n` : '') +
         `Hearing: "${input.title}"\n\n` +
         `Flagged quotes:\n${input.quotes.map((q) => `- ${q.speakerName ? q.speakerName + ': ' : ''}"${q.text}" (@${q.timestampMs}ms)`).join('\n')}\n\n` +
         `Entities mentioned: ${input.mentions.map((m) => `${m.type}:${m.label}`).join(', ') || 'none'}\n\n` +
