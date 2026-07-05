@@ -6,7 +6,9 @@ import { HearingWatchFeatureGuard } from '../feature-flags/hearing-watch-feature
 import { HearingSessionService } from './hearing-session.service.js';
 import { PostHearingService } from './post-hearing.service.js';
 import { HearingBriefService } from './hearing-brief.service.js';
+import { StreamResolverService } from './stream-resolver.service.js';
 import { ConfirmConsentDto, CreateSessionDto } from './dto/session.dto.js';
+import { ResolveStreamDto } from './dto/resolve-stream.dto.js';
 
 /**
  * Live Hearing REST surface (tenant-scoped via TenantGuard). The live audio
@@ -23,11 +25,24 @@ export class HearingController {
     private readonly sessions: HearingSessionService,
     private readonly post: PostHearingService,
     private readonly brief: HearingBriefService,
+    private readonly resolver: StreamResolverService,
   ) {}
 
   @Post()
   create(@CurrentTenant() ctx: WorkspaceTenantContext, @Body() dto: CreateSessionDto) {
     return this.sessions.create(ctx.tenantId, ctx.clerkUserId, dto);
+  }
+
+  /**
+   * P8: one-click stream resolver. Turns a hearing/page (or hearing id) into an
+   * ingestible media URL via the provider adapters (Senate ISVP + congress-event
+   * default ON; C-SPAN + YouTube-live counsel-gated OFF → return a `reference`).
+   * SSRF-guarded server-side. Tenant-scoped by the guards; reads only public /
+   * global data.
+   */
+  @Post('resolve-stream')
+  resolveStream(@CurrentTenant() _ctx: WorkspaceTenantContext, @Body() dto: ResolveStreamDto) {
+    return this.resolver.resolve({ pageUrl: dto.pageUrl, hearingId: dto.hearingId });
   }
 
   @Get()

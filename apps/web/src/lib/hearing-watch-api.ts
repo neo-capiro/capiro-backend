@@ -55,12 +55,55 @@ export function useCreateHearing() {
       audioSource: string;
       recordingPolicy: string;
       sourceUrl?: string;
+      consentAttestation?: string;
       clientId?: string;
       issueIds?: string[];
       billIds?: string[];
       committeeId?: string;
     }) => (await api.post<LiveHearingSession>('/intel-api/hearings', input)).data,
     onSuccess: () => qc.invalidateQueries({ queryKey: ['intel', 'hearings'] }),
+  });
+}
+
+// ---- stream resolver (P8) --------------------------------------------------
+
+export type ResolveStatus = 'resolved' | 'candidates' | 'pending' | 'unresolvable';
+
+export interface ResolvedMedia {
+  url: string;
+  kind: 'hls' | 'mp3' | 'mp4';
+  provider: string;
+  ipBound?: boolean;
+  expiresAt?: string;
+}
+
+export interface ResolveCandidate {
+  title: string;
+  pageUrl: string;
+  programId?: string;
+}
+
+export interface ResolveStreamResult {
+  status: ResolveStatus;
+  media?: ResolvedMedia;
+  meta?: { title?: string; date?: string; durationSec?: number };
+  candidates?: ResolveCandidate[];
+  reference?: string;
+  note?: string;
+}
+
+/**
+ * One-click stream resolver: POST a page URL and/or hearing id, get back an
+ * ingestible media URL (`resolved`), a pick-list (`candidates`), a not-live-yet
+ * signal (`pending`), or a `reference` fallback (`unresolvable`) for the
+ * assisted-paste path. Server-side SSRF-guarded; counsel-gated adapters return a
+ * reference instead of auto-extracting.
+ */
+export function useResolveStream() {
+  const api = useApi();
+  return useMutation({
+    mutationFn: async (input: { pageUrl?: string; hearingId?: string }) =>
+      (await api.post<ResolveStreamResult>('/intel-api/hearings/resolve-stream', input)).data,
   });
 }
 
@@ -81,8 +124,11 @@ export function useConfirmConsent() {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: async (input: { id: string; attestation: string }) =>
-      (await api.post(`/intel-api/hearings/${input.id}/consent`, { attestation: input.attestation }))
-        .data,
+      (
+        await api.post(`/intel-api/hearings/${input.id}/consent`, {
+          attestation: input.attestation,
+        })
+      ).data,
     onSuccess: () => qc.invalidateQueries({ queryKey: ['intel', 'hearings'] }),
   });
 }
@@ -136,8 +182,9 @@ export function useBrowseHearings(params: {
       if (params.chamber) q.set('chamber', params.chamber);
       q.set('limit', String(params.limit));
       q.set('offset', String(params.offset));
-      return (await api.get<BrowseHearingsResult>(`/intel-api/upcoming-hearings/browse?${q.toString()}`))
-        .data;
+      return (
+        await api.get<BrowseHearingsResult>(`/intel-api/upcoming-hearings/browse?${q.toString()}`)
+      ).data;
     },
     retry: false,
     staleTime: 60_000,

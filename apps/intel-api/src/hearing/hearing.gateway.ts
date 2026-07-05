@@ -1,14 +1,13 @@
 import { Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
-import {
-  OnGatewayConnection,
-  OnGatewayDisconnect,
-  WebSocketGateway,
-} from '@nestjs/websockets';
+import { OnGatewayConnection, OnGatewayDisconnect, WebSocketGateway } from '@nestjs/websockets';
 import type { WebSocket } from 'ws';
 import type { IncomingMessage } from 'node:http';
 import { ClerkService } from '../auth/clerk.service.js';
-import { FeatureFlagService, HEARING_WATCH_FEATURE } from '../feature-flags/feature-flag.service.js';
+import {
+  FeatureFlagService,
+  HEARING_WATCH_FEATURE,
+} from '../feature-flags/feature-flag.service.js';
 import { HearingSessionService } from './hearing-session.service.js';
 import { SegmentCommitService } from './segment-commit.service.js';
 import { WatchlistService } from '../watchlist/watchlist.service.js';
@@ -142,7 +141,9 @@ export class HearingGateway implements OnGatewayConnection, OnGatewayDisconnect 
         }
       }, MAX_SESSION_MS);
 
-      client.on('message', (raw: Buffer, isBinary: boolean) => this.onMessage(client, raw, isBinary));
+      client.on('message', (raw: Buffer, isBinary: boolean) =>
+        this.onMessage(client, raw, isBinary),
+      );
     } catch (err) {
       this.reject(client, (err as Error).message);
     }
@@ -155,7 +156,9 @@ export class HearingGateway implements OnGatewayConnection, OnGatewayDisconnect 
     conn.deepgram.stop();
     this.conns.delete(client);
     try {
-      await this.sessions.markStatus(conn.tenantId, conn.sessionId, 'ended', { endedAt: new Date() });
+      await this.sessions.markStatus(conn.tenantId, conn.sessionId, 'ended', {
+        endedAt: new Date(),
+      });
     } catch (err) {
       this.logger.warn(`markStatus ended failed: ${(err as Error).message}`);
     }
@@ -176,7 +179,9 @@ export class HearingGateway implements OnGatewayConnection, OnGatewayDisconnect 
         `hearing-end auto-link session=${sessionId} promoted=${promoted.alerts} combined=${linked.combined}`,
       );
     } catch (err) {
-      this.logger.warn(`hearing-end auto-link failed session=${sessionId}: ${(err as Error).message}`);
+      this.logger.warn(
+        `hearing-end auto-link failed session=${sessionId}: ${(err as Error).message}`,
+      );
     }
   }
 
@@ -218,6 +223,21 @@ export class HearingGateway implements OnGatewayConnection, OnGatewayDisconnect 
       this.send(client, { type: 'error', message: 'Missing audioUrl' });
       return;
     }
+    // SSRF gate (P8): validate the operator-supplied URL BEFORE any teardown or
+    // ffmpeg spawn — host allowlist + private/link-local IP deny + DNS-rebind
+    // check. Reject early with a clear error; the socket stays open for a retry.
+    try {
+      await this.ingestionSvc.assertIngestible(audioUrl);
+    } catch (err) {
+      this.logger.warn(
+        `ingestion URL rejected session=${conn.sessionId}: ${(err as Error).message}`,
+      );
+      this.send(client, {
+        type: 'error',
+        message: `Stream URL rejected: ${(err as Error).message}`,
+      });
+      return;
+    }
     // Tear down the default (opus) manager + any prior ingestion.
     conn.ingestion?.stop();
     conn.deepgram.stop();
@@ -237,7 +257,8 @@ export class HearingGateway implements OnGatewayConnection, OnGatewayDisconnect 
       try {
         conn.ingestion = this.ingestionSvc.start(audioUrl, {
           onAudio: (pcm) => linearDeepgram.sendAudio(pcm),
-          onEnd: (reason) => this.send(client, { type: 'status', status: `ingestion_ended:${reason}` }),
+          onEnd: (reason) =>
+            this.send(client, { type: 'status', status: `ingestion_ended:${reason}` }),
           onError: (err) => this.send(client, { type: 'error', message: err.message }),
         });
         this.send(client, { type: 'status', status: 'ingesting' });
@@ -273,7 +294,13 @@ export class HearingGateway implements OnGatewayConnection, OnGatewayDisconnect 
 
   private async handleFinal(
     client: WebSocket,
-    segment: { startMs: number; endMs: number; text: string; speakerLabel?: string; confidence?: number },
+    segment: {
+      startMs: number;
+      endMs: number;
+      text: string;
+      speakerLabel?: string;
+      confidence?: number;
+    },
   ): Promise<void> {
     const conn = this.conns.get(client);
     if (!conn) return;
@@ -321,7 +348,9 @@ export class HearingGateway implements OnGatewayConnection, OnGatewayDisconnect 
           });
         }
       } catch (err) {
-        this.logger.warn(`watchlist match failed session=${conn.sessionId}: ${(err as Error).message}`);
+        this.logger.warn(
+          `watchlist match failed session=${conn.sessionId}: ${(err as Error).message}`,
+        );
       }
     }
     if (extraction.summaryCard) {
@@ -366,7 +395,13 @@ function extractToken(req: IncomingMessage, url: URL): string | null {
   // Browsers can pass the token via the WS subprotocol header.
   const proto = req.headers['sec-websocket-protocol'];
   if (typeof proto === 'string' && proto.length > 0) {
-    return proto.split(',').map((s) => s.trim()).filter(Boolean).pop() ?? null;
+    return (
+      proto
+        .split(',')
+        .map((s) => s.trim())
+        .filter(Boolean)
+        .pop() ?? null
+    );
   }
   return null;
 }

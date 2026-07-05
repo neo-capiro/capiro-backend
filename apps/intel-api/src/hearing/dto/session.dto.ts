@@ -40,6 +40,15 @@ export class CreateSessionDto {
    *  ingestion in the room. Kept as a lenient string (stream URLs vary widely). */
   @IsOptional() @IsString() @MaxLength(2000) sourceUrl?: string;
 
+  /**
+   * Consent attestation. REQUIRED (server-enforced) only for PRIVATE source
+   * types (meeting / webinar / agency_session) — capturing a private session
+   * needs the operator to attest they're authorized. PUBLIC congressional
+   * hearing/markup skip it (public proceedings, consent not required). See
+   * HearingSessionService.create. Public types ignore any value sent.
+   */
+  @IsOptional() @IsString() @MaxLength(2000) consentAttestation?: string;
+
   @IsOptional() @IsString() clientId?: string;
   @IsOptional() @IsString() matterId?: string;
   @IsOptional() @IsString() hearingId?: string;

@@ -322,6 +322,31 @@ export class SourceDataRepository {
     return { rows, total };
   }
 
+  /**
+   * One `committee_hearing` row by its string id PK (GLOBAL, RLS-free, READ-ONLY),
+   * or null. Used by the stream resolver's hearingId path — a bound-param SELECT
+   * by id instead of a date-DESC top-N scan, so resolve-by-hearingId works for
+   * ANY hearing in the corpus, not just the ~100 most recent.
+   */
+  async getCommitteeHearingById(id: string): Promise<UpcomingCommitteeHearing | null> {
+    const rows = await this.prisma.$queryRawUnsafe<UpcomingCommitteeHearing[]>(
+      `SELECT id,
+              title,
+              committee_name AS "committeeName",
+              chamber,
+              date,
+              time,
+              location,
+              type,
+              url
+         FROM committee_hearing
+        WHERE id = $1
+        LIMIT 1`,
+      id,
+    );
+    return rows[0] ?? null;
+  }
+
   /** Keyword/subject candidate bill ids, scoped to a Congress (§6.2 recommendations). */
   async keywordCandidateIds(terms: string[], congress: number): Promise<string[]> {
     const lower = terms.map((t) => t.toLowerCase()).filter((t) => t.length >= 3);

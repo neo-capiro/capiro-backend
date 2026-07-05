@@ -444,6 +444,12 @@ model LiveHearingSession {
   startedAt         DateTime?              @map("started_at")
   endedAt           DateTime?              @map("ended_at")
   consentStatus     ConsentStatus          @default(needs_review) @map("consent_status")
+  // Consent attestation audit (P8/D11): for PRIVATE sessions the operator's full
+  // attestation text is a durable compliance artifact — persisted here (not just
+  // logged/truncated), with who attested + when. NULL for public proceedings.
+  consentAttestation String?               @map("consent_attestation")
+  attestedBy         String?               @map("attested_by") // clerk user id
+  attestedAt         DateTime?             @map("attested_at")
   recordingPolicy   RecordingPolicy        @default(transcript_only) @map("recording_policy")
   claimMapId        String?                @map("claim_map_id")
   createdBy         String                 @map("created_by") // clerk user id
