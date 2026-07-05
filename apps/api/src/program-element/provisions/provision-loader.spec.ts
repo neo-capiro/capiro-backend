@@ -49,7 +49,7 @@ function makeFakePrisma(opts: {
     loadAliases: jest.fn(async () => opts.aliases ?? []),
     loadProjectTitles: jest.fn(async () => opts.projectTitles ?? []),
     filterExistingPeCodes: jest.fn(async (candidates: string[]) => candidates.filter((c) => existing.has(c))),
-    upsertProvision: jest.fn(async (input) => {
+    upsertProvision: jest.fn(async (input: Parameters<ProvisionLoaderPrisma['upsertProvision']>[0]) => {
       provisionUpsertCalls.push(input as unknown as Record<string, unknown>);
       const key = [input.sourceDocumentId ?? '', input.committee, input.fy, input.heading, input.pageStart ?? ''].join('::');
       const prev = provisionsByKey.get(key);

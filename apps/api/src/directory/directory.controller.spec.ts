@@ -14,7 +14,9 @@ describe('DirectoryController — member FEC summary', () => {
   function make() {
     const service = {
       getMemberFecSummary: jest.fn(),
-    } as unknown as DirectoryService & { getMemberFecSummary: jest.Mock };
+    } as unknown as DirectoryService & {
+      getMemberFecSummary: jest.MockedFunction<DirectoryService['getMemberFecSummary']>;
+    };
     const controller = new DirectoryController(service);
     return { controller, service };
   }

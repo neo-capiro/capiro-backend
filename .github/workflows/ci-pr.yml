@@ -43,14 +43,14 @@ jobs:
           "packages/meriv2-core/**/*.ts"
           "apps/meriv2-orchestrator/**/*.ts"
 
-      # Typecheck every package EXCEPT @capiro/api: the api's `tsc --noEmit`
-      # has pre-existing failures resolving '@jest/globals' in its spec files
-      # (its nest build excludes specs, so this never blocked before there was a
-      # PR gate). The api is still type-gated by its image build (nest build).
-      # Follow-up: fix the api typecheck (moduleResolution / exclude specs) then
-      # drop this exclusion.
-      - name: Typecheck (turbo, excluding api)
-        run: pnpm turbo run typecheck --filter=!@capiro/api
+      # Typecheck every package, api INCLUDED. The prior `@jest/globals`
+      # resolution failure in api spec files is resolved — `tsc --noEmit` is now
+      # clean across the whole api project, spec files included — so the
+      # exclusion is dropped and every PR type-gates apps/api directly, not just
+      # via the slower image build. (Follow-up: add an apps/api jest step; that
+      # needs a CI Postgres service since much of the api suite is DB-backed.)
+      - name: Typecheck (turbo)
+        run: pnpm turbo run typecheck
 
       # Unit tests for the new orchestrator core (DB-free). The api/workspace
       # suites need a live Postgres and run via their own image/e2e paths; the
