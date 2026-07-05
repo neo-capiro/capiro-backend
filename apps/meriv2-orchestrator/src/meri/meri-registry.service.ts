@@ -3,6 +3,8 @@ import { ConfigService } from '@nestjs/config';
 import {
   AnthropicLlmClient,
   InMemoryToolRegistry,
+  PolicyApprovalGate,
+  staticCompliancePolicy,
   createGetClientContextTool,
   createTagLivePolicyMentionsTool,
   createGeneratePostHearingSummaryTool,
@@ -27,7 +29,14 @@ export class MeriRegistryService {
   private readonly logger = new Logger(MeriRegistryService.name);
 
   constructor(clientContextRepo: ApiClientContextRepo, config: ConfigService) {
-    const registry = new InMemoryToolRegistry();
+    // Write tools fail closed: the registry requires an ApprovalGate for any
+    // `readOnly:false` tool. Wire the compliance gate now (fallback WARN =>
+    // requires human approval) so that when write tools are ported (Workstream
+    // C) they are gated from the first registration. No write tools are
+    // registered yet, so this is a no-op for the current read-only surface.
+    const registry = new InMemoryToolRegistry({
+      approvalGate: new PolicyApprovalGate(staticCompliancePolicy({ fallback: 'WARN' })),
+    });
     registry.register(createGetClientContextTool(clientContextRepo));
 
     const apiKey = config.get<string>('ANTHROPIC_API_KEY');
