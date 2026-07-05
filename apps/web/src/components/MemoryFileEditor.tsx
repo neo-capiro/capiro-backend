@@ -1,8 +1,8 @@
 import { useEffect, useMemo, useState } from 'react';
 import {
-  Alert, App, Button, Drawer, Empty, Input, Select, Space, Spin, Tag, Typography,
+  Alert, App, Button, Empty, Input, Select, Space, Spin, Tag, Typography,
 } from 'antd';
-import { RobotOutlined, SaveOutlined } from '@ant-design/icons';
+import { SaveOutlined } from '@ant-design/icons';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useApi } from '../lib/use-api.js';
 
@@ -10,9 +10,10 @@ const { Text, Paragraph } = Typography;
 
 /**
  * Shared editor for a scoped memory file (firm / client / user). Renders a file
- * picker for the scope, the section editors (with greyed catalog help), a save
- * button, and a "Fill with Meri" interview drawer. Used by both the Settings
- * Memory tab (firm + user) and the client profile Overview (client).
+ * picker for the scope and the section editors (with greyed catalog help), plus
+ * Save buttons at the top and bottom. All content is entered manually. Used by
+ * both the Settings Memory tab (firm + user) and the client profile Overview
+ * (client).
  *
  * The caller supplies the scope + slug (firm -> 'firm'; user -> 'me'; client ->
  * clientId) and whether the caller may edit (client/firm require admin).
@@ -42,7 +43,6 @@ export function MemoryFileEditor({ scope, slug, ready, canEdit }: {
 
   const [fileType, setFileType] = useState<string>(() => defaultFileType(scope));
   const [drafts, setDrafts] = useState<Record<string, string>>({});
-  const [interviewOpen, setInterviewOpen] = useState(false);
 
   const catalogQuery = useQuery<FileDef[]>({
     queryKey: ['memory-catalog'],
@@ -79,8 +79,25 @@ export function MemoryFileEditor({ scope, slug, ready, canEdit }: {
   });
 
   const bodyFor = (s: ItemSection): string => drafts[s.key] ?? s.body;
-  const dirty = Object.keys(drafts).length > 0;
-  const onSave = () => saveMutation.mutate(Object.entries(drafts).map(([key, body]) => ({ key, body })));
+
+  // Save persists the CURRENT value of every human-editable section (the server
+  // ignores engine-owned sections). We don't gate on "dirty" so the Save button
+  // is always actionable when you can edit — a no-op save is harmless.
+  const onSave = () => {
+    const human = (itemQuery.data?.sections ?? []).filter((s) => s.owner === 'human');
+    saveMutation.mutate(human.map((s) => ({ key: s.key, body: bodyFor(s) })));
+  };
+
+  const canSave = canEdit && !!itemQuery.data && !saveMutation.isPending;
+
+  const saveButton = (
+    <Button
+      type="primary" icon={<SaveOutlined />} onClick={onSave}
+      loading={saveMutation.isPending} disabled={!canSave}
+    >
+      Save changes
+    </Button>
+  );
 
   return (
     <Space direction="vertical" size="middle" style={{ width: '100%' }}>
@@ -91,15 +108,7 @@ export function MemoryFileEditor({ scope, slug, ready, canEdit }: {
           onChange={(v) => { setFileType(v); setDrafts({}); }}
           options={filesForScope.map((f) => ({ label: f.label, value: f.type }))}
         />
-        <Button icon={<RobotOutlined />} onClick={() => setInterviewOpen(true)} disabled={!ready}>
-          Fill with Meri
-        </Button>
-        <Button
-          type="primary" icon={<SaveOutlined />} onClick={onSave}
-          loading={saveMutation.isPending} disabled={!dirty || !canEdit}
-        >
-          Save changes
-        </Button>
+        {saveButton}
       </Space>
 
       {!canEdit && (
@@ -110,105 +119,31 @@ export function MemoryFileEditor({ scope, slug, ready, canEdit }: {
       {ready && itemQuery.isError && <Empty description="Couldn't load this file. Try again." />}
 
       {ready && itemQuery.data && (
-        <Space direction="vertical" size="middle" style={{ width: '100%' }}>
-          {itemQuery.data.sections.map((s) => (
-            <div key={s.key}>
-              <Space>
-                <Text strong>{s.heading}</Text>
-                {s.owner === 'engine' && <Tag color="default">auto-generated</Tag>}
-              </Space>
-              <Paragraph type="secondary" style={{ margin: '2px 0', fontSize: 12 }}>
-                {s.prompt} {s.example && <Text type="secondary" italic>e.g. “{s.example}”</Text>}
-              </Paragraph>
-              <Input.TextArea
-                value={bodyFor(s)}
-                autoSize={{ minRows: s.key === 'samples' ? 6 : 2, maxRows: 16 }}
-                readOnly={s.owner === 'engine' || !canEdit}
-                onChange={(e) => setDrafts((d) => ({ ...d, [s.key]: e.target.value }))}
-                style={s.owner === 'engine' ? { background: '#f5f5f5' } : undefined}
-              />
-            </div>
-          ))}
-        </Space>
+        <>
+          <Space direction="vertical" size="middle" style={{ width: '100%' }}>
+            {itemQuery.data.sections.map((s) => (
+              <div key={s.key}>
+                <Space>
+                  <Text strong>{s.heading}</Text>
+                  {s.owner === 'engine' && <Tag color="default">auto-generated</Tag>}
+                </Space>
+                <Paragraph type="secondary" style={{ margin: '2px 0', fontSize: 12 }}>
+                  {s.prompt} {s.example && <Text type="secondary" italic>e.g. “{s.example}”</Text>}
+                </Paragraph>
+                <Input.TextArea
+                  value={bodyFor(s)}
+                  autoSize={{ minRows: s.key === 'samples' ? 6 : 2, maxRows: 16 }}
+                  readOnly={s.owner === 'engine' || !canEdit}
+                  onChange={(e) => setDrafts((d) => ({ ...d, [s.key]: e.target.value }))}
+                  style={s.owner === 'engine' ? { background: '#f5f5f5' } : undefined}
+                />
+              </div>
+            ))}
+          </Space>
+          {/* Bottom save so it's reachable after a long form. */}
+          <div style={{ display: 'flex', justifyContent: 'flex-end' }}>{saveButton}</div>
+        </>
       )}
-
-      <InterviewDrawer
-        open={interviewOpen}
-        onClose={() => setInterviewOpen(false)}
-        fileType={fileType}
-        fileLabel={filesForScope.find((f) => f.type === fileType)?.label ?? fileType}
-        onApply={(sections) => {
-          setDrafts((d) => {
-            const next = { ...d };
-            for (const s of sections) next[s.key] = s.body;
-            return next;
-          });
-          setInterviewOpen(false);
-          message.info('Draft applied — review and Save changes.');
-        }}
-      />
     </Space>
-  );
-}
-
-interface InterviewQuestion { sectionKey: string; heading: string; question: string; example: string }
-
-function InterviewDrawer(props: {
-  open: boolean; onClose: () => void; fileType: string; fileLabel: string;
-  onApply: (sections: { key: string; body: string }[]) => void;
-}) {
-  const api = useApi();
-  const { message } = App.useApp();
-  const [answers, setAnswers] = useState<Record<string, string>>({});
-
-  const questionsQuery = useQuery<{ questions: InterviewQuestion[] }>({
-    queryKey: ['memory-interview-q', props.fileType],
-    queryFn: async () => (await api.get(`/api/memory/interview/${props.fileType}/questions`)).data,
-    enabled: props.open,
-  });
-
-  const draftMutation = useMutation({
-    mutationFn: async () => {
-      const payload = Object.entries(answers)
-        .filter(([, v]) => v.trim())
-        .map(([sectionKey, answer]) => ({ sectionKey, answer }));
-      return (await api.post(`/api/memory/interview/${props.fileType}/draft`, { answers: payload })).data as {
-        sections: { key: string; body: string }[];
-      };
-    },
-    onSuccess: (data) => props.onApply(data.sections ?? []),
-    onError: (e: unknown) => message.error(e instanceof Error ? e.message : 'Draft failed'),
-  });
-
-  return (
-    <Drawer
-      title={<Space><RobotOutlined /> Fill “{props.fileLabel}” with Meri</Space>}
-      width={520} open={props.open} onClose={props.onClose}
-      extra={
-        <Button type="primary" loading={draftMutation.isPending}
-          onClick={() => draftMutation.mutate()}
-          disabled={!Object.values(answers).some((v) => v.trim())}>
-          Generate draft
-        </Button>
-      }
-    >
-      <Paragraph type="secondary">
-        Answer in plain language — Meri turns your answers into the file. You can edit everything before saving.
-      </Paragraph>
-      {questionsQuery.isLoading && <Spin />}
-      <Space direction="vertical" size="middle" style={{ width: '100%' }}>
-        {(questionsQuery.data?.questions ?? []).map((q) => (
-          <div key={q.sectionKey}>
-            <Text strong>{q.question}</Text>
-            <Paragraph type="secondary" italic style={{ margin: '2px 0', fontSize: 12 }}>e.g. “{q.example}”</Paragraph>
-            <Input.TextArea
-              autoSize={{ minRows: 2, maxRows: 6 }}
-              value={answers[q.sectionKey] ?? ''}
-              onChange={(e) => setAnswers((a) => ({ ...a, [q.sectionKey]: e.target.value }))}
-            />
-          </div>
-        ))}
-      </Space>
-    </Drawer>
   );
 }

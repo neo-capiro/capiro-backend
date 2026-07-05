@@ -53,9 +53,12 @@ export function KnowledgeGraphPanel() {
 
   // Populate the graph from the tenant's DB data (idempotent backfill).
   const populateMutation = useMutation({
+    // A full backfill (clients + memories + meetings + emails + Meri sessions +
+    // embeddings) can run for minutes on a large tenant — the 30s default axios
+    // timeout aborts it. Give it 10 min (well under the 4000s ALB idle timeout).
     mutationFn: async () =>
       (await api.post<{ counts: { clients: number; clioMemories: number; meetings: number } }>(
-        '/api/memory/backfill', {},
+        '/api/memory/backfill', {}, { timeout: 600_000 },
       )).data,
     onSuccess: (d) => {
       const c = d.counts;
