@@ -19,6 +19,7 @@ import { FileInterceptor } from '@nestjs/platform-express';
 import {
   ArrayMaxSize,
   IsArray,
+  IsBoolean,
   IsIn,
   IsObject,
   IsOptional,
@@ -40,6 +41,7 @@ import { MeriMcpService, type CatalogAddInput, type McpServerInput } from './mer
 import { MeriMcpOAuthService } from './meri-mcp-oauth.service.js';
 import { MeriFirmSkillsService } from './meri-firm-skills.service.js';
 import { MeriApprovalService } from './meri-approval.service.js';
+import { MeriComplianceAuditService } from './meri-compliance-audit.service.js';
 import { renderReportToBrowserHtml, renderReportToWordHtml } from './meri-research.helpers.js';
 
 class CreateMeriConversationDto {
@@ -108,6 +110,35 @@ class AnswerClarificationsDto {
   answers!: Record<string, string>;
 }
 
+class RecordComplianceCheckDto {
+  @IsString()
+  @Length(1, 120)
+  trigger!: string;
+
+  @IsIn(['PASS', 'WARN', 'BLOCK'])
+  decision!: 'PASS' | 'WARN' | 'BLOCK';
+
+  @IsString()
+  @Length(0, 4000)
+  reason!: string;
+
+  @IsOptional()
+  @IsString()
+  ruleSource?: string;
+
+  @IsOptional()
+  @IsBoolean()
+  requiredApproval?: boolean;
+
+  @IsOptional()
+  @IsString()
+  entityType?: string;
+
+  @IsOptional()
+  @IsString()
+  entityId?: string;
+}
+
 @Controller('clio')
 @UseGuards(RolesGuard)
 @Roles('standard_user')
@@ -121,6 +152,7 @@ export class MeriController {
     private readonly mcpOAuth: MeriMcpOAuthService,
     private readonly firmSkills: MeriFirmSkillsService,
     private readonly approvals: MeriApprovalService,
+    private readonly complianceAudit: MeriComplianceAuditService,
   ) {}
 
   @Get('status')
@@ -269,6 +301,31 @@ export class MeriController {
     @Body() body: { fingerprint: string; tool: string },
   ) {
     return this.approvals.approve(ctx, body);
+  }
+
+  // Compliance audit store (B2 / SC2.3): the orchestrator posts one row per
+  // write-gate decision (PASS/WARN/BLOCK) — fire-and-forget, forwarding the
+  // caller bearer, so the audit is tenant+user scoped by CurrentTenant + RLS.
+  @Post('compliance-checks')
+  recordComplianceCheck(
+    @CurrentTenant() ctx: TenantContext,
+    @Body() body: RecordComplianceCheckDto,
+  ) {
+    return this.complianceAudit.record(ctx, {
+      trigger: body.trigger,
+      decision: body.decision,
+      reason: body.reason,
+      ruleSource: body.ruleSource ?? null,
+      ...(body.requiredApproval !== undefined ? { requiredApproval: body.requiredApproval } : {}),
+      entityType: body.entityType ?? null,
+      entityId: body.entityId ?? null,
+    });
+  }
+
+  @Get('compliance-checks')
+  listComplianceChecks(@CurrentTenant() ctx: TenantContext, @Query('limit') limit?: string) {
+    const parsed = limit ? Math.min(Math.max(parseInt(limit, 10) || 50, 1), 200) : 50;
+    return this.complianceAudit.list(ctx, parsed);
   }
 
   @Get('approvals')

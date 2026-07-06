@@ -4,6 +4,7 @@ import { computeActionFingerprint, type MeriContext, type ToolRegistry } from '@
 import { MeriRegistryService } from '../meri-registry.service.js';
 import { RequestScopedLlmClient, type AnthropicToolSchema } from '../request-scoped-llm.client.js';
 import { RequestCredentialsStore } from '../../request/request-credentials.store.js';
+import { ApiComplianceAuditRepo } from '../api-compliance-audit.repo.js';
 import {
   buildChatSystemPrompt,
   toolLabel,
@@ -55,7 +56,11 @@ export class ChatAssistantService {
   private readonly apiBaseUrl: string;
   private readonly callTimeoutMs: number;
 
-  constructor(registryService: MeriRegistryService, config: ConfigService) {
+  constructor(
+    registryService: MeriRegistryService,
+    config: ConfigService,
+    private readonly audit: ApiComplianceAuditRepo,
+  ) {
     this.registry = registryService.registry;
     this.llm = registryService.llm; // single global-key-read site lives in the registry (BYOK4-clean)
     this.callTimeoutMs = Number.parseInt(config.get<string>('MERIV2_TIMEOUT_MS') ?? '120000', 10);
@@ -181,11 +186,22 @@ export class ChatAssistantService {
     emit: (event: ChatStreamEvent) => void = () => {},
   ): Promise<unknown> {
     const label = toolLabel(name);
+    // Only write tools (readOnly:false) pass through the compliance gate, so
+    // only they produce an auditable decision.
+    const isWrite = this.registry.get(name)?.readOnly === false;
     emit({ type: 'tool_call', tool: name, label });
     try {
       const result = await this.registry.invoke(name, input, ctx);
       steps.push({ tool: name, label, status: 'done' });
       emit({ type: 'tool_done', tool: name, label, status: 'done' });
+      // A write tool that resolved passed the gate (PASS or an approved WARN).
+      if (isWrite) {
+        this.audit.record({
+          trigger: name,
+          decision: 'PASS',
+          reason: 'Passed the compliance gate.',
+        });
+      }
       return result;
     } catch (e) {
       const err = e as Error;
@@ -195,6 +211,7 @@ export class ChatAssistantService {
         pendingApprovals.push({ tool: name, fingerprint, reason: err.message });
         emit({ type: 'tool_done', tool: name, label, status: 'pending_approval' });
         emit({ type: 'pending_approval', tool: name, label, fingerprint, reason: err.message });
+        this.audit.record({ trigger: name, decision: 'WARN', reason: err.message });
         return {
           pendingApproval: true,
           fingerprint,
@@ -205,6 +222,7 @@ export class ChatAssistantService {
         const detail = err.message.slice(0, 120);
         steps.push({ tool: name, label, status: 'blocked', detail });
         emit({ type: 'tool_done', tool: name, label, status: 'blocked', detail });
+        this.audit.record({ trigger: name, decision: 'BLOCK', reason: err.message });
         return { blocked: true, message: `Blocked by compliance policy: ${err.message}` };
       }
       const detail = err.message.slice(0, 120);

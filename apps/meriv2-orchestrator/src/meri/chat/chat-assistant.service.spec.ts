@@ -4,6 +4,7 @@ import { MeriRegistryService } from '../meri-registry.service';
 import type { ApiClientContextRepo } from '../api-client-context.repo';
 import type { ApiToolExecutorRepo } from '../api-tool-executor.repo';
 import type { ApiApprovalRepo } from '../api-approval.repo';
+import type { ApiComplianceAuditRepo } from '../api-compliance-audit.repo';
 import { RequestCredentialsStore } from '../../request/request-credentials.store';
 import { computeActionFingerprint, type MeriContext } from '@capiro/meriv2-core';
 
@@ -33,11 +34,13 @@ const clientRepo = {
   loadClientContext: async () => ({ client: { id: 'c', name: 'n' } }),
 } as unknown as ApiClientContextRepo;
 
+const auditRepo = { record: jest.fn() } as unknown as ApiComplianceAuditRepo;
+
 function makeService(executor: ApiToolExecutorRepo, approvals?: ApiApprovalRepo) {
   const approvalRepo =
     approvals ?? ({ isApproved: async () => false } as unknown as ApiApprovalRepo);
   const registryService = new MeriRegistryService(clientRepo, executor, approvalRepo, config);
-  return new ChatAssistantService(registryService, config);
+  return new ChatAssistantService(registryService, config, auditRepo);
 }
 
 const anthropic = (content: unknown[], stop_reason: string) => ({
@@ -123,6 +126,44 @@ describe('ChatAssistantService.run', () => {
     // The surfaced fingerprint matches what the gate computed for this action.
     expect(out.pendingApprovals?.[0]?.fingerprint).toBe(
       computeActionFingerprint('send_email', emailInput, ctx),
+    );
+  });
+
+  it('audits every write-gate decision (WARN when held) and never audits a read tool', async () => {
+    (auditRepo.record as jest.Mock).mockClear();
+    const executor = {
+      execute: jest.fn(async () => ({ items: [] })),
+    } as unknown as ApiToolExecutorRepo;
+    let call = 0;
+    (global as unknown as { fetch: unknown }).fetch = jest.fn(async (url: string) => {
+      if (url.includes('/api/clio/tool-schemas'))
+        return schemasResponse(['search_congress_bills', 'send_email']);
+      call += 1;
+      if (call === 1)
+        return anthropic(
+          [
+            { type: 'tool_use', id: 't1', name: 'search_congress_bills', input: { q: 'x' } },
+            {
+              type: 'tool_use',
+              id: 't2',
+              name: 'send_email',
+              input: { to: 'a@b.com', subject: 's', body: 'b' },
+            },
+          ],
+          'tool_use',
+        );
+      return anthropic([{ type: 'text', text: 'done' }], 'end_turn');
+    });
+
+    await RequestCredentialsStore.run({ bearerToken: 'jwt' }, () =>
+      makeService(executor).run(ctx, { messages: [{ role: 'user', text: 'go' }] }),
+    );
+
+    const calls = (auditRepo.record as jest.Mock).mock.calls.map((c) => c[0]);
+    // The read tool produced NO audit row; the held write produced exactly one WARN.
+    expect(calls.some((c) => c.trigger === 'search_congress_bills')).toBe(false);
+    expect(calls).toContainEqual(
+      expect.objectContaining({ trigger: 'send_email', decision: 'WARN' }),
     );
   });
 
