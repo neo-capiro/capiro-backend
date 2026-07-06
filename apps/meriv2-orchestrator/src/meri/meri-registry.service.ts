@@ -3,6 +3,7 @@ import { ConfigService } from '@nestjs/config';
 import {
   InMemoryToolRegistry,
   PolicyApprovalGate,
+  PROPOSED_CAPIRO_RULES,
   registerDelegatedTools,
   ruleBasedCompliancePolicy,
   RepoBackedApprovalStore,
@@ -48,17 +49,19 @@ export class MeriRegistryService {
     config: ConfigService,
   ) {
     // Write tools fail closed: the registry requires an ApprovalGate for any
-    // `readOnly:false` tool. The gate runs the B2 rules engine
-    // (ruleBasedCompliancePolicy — every write => WARN by the seed rule, with an
-    // auditable rule id) and, on WARN, consults the ApprovalStore (B3/B4): the
-    // RepoBackedApprovalStore fingerprints the proposed action and asks apps/api
-    // (ApiApprovalRepo) whether a human approved THIS exact action. Unapproved
-    // → ApprovalPendingError (write held); approved → proceeds. The repo is
-    // fail-closed (any error → not approved), so a WARN write never slips
-    // through unapproved. No live surface calls the write path yet.
+    // `readOnly:false` tool. The gate runs the B2 rules engine on the TIERED
+    // production ruleset (PROPOSED_CAPIRO_RULES — external sends / CRM
+    // mutations / standing automation => WARN; internal artifacts + task
+    // bookkeeping => PASS, matching what the legacy surface already executes
+    // freely; anything unnamed falls back to WARN) and, on WARN, consults the
+    // ApprovalStore (B3/B4): the RepoBackedApprovalStore fingerprints the
+    // proposed action and asks apps/api (ApiApprovalRepo) whether a human
+    // approved THIS exact action. Unapproved → ApprovalPendingError (write
+    // held); approved → proceeds. The repo is fail-closed (any error → not
+    // approved), so a WARN write never slips through unapproved.
     const registry = new InMemoryToolRegistry({
       approvalGate: new PolicyApprovalGate(
-        ruleBasedCompliancePolicy(),
+        ruleBasedCompliancePolicy([...PROPOSED_CAPIRO_RULES]),
         new RepoBackedApprovalStore(approvalRepo),
       ),
     });

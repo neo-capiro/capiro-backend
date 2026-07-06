@@ -1,6 +1,7 @@
 import {
   DEFAULT_COMPLIANCE_RULES,
   EXAMPLE_RULES,
+  PROPOSED_CAPIRO_RULES,
   ruleBasedCompliancePolicy,
   type ComplianceRule,
 } from './compliance-rules';
@@ -97,5 +98,55 @@ describe('ruleBasedCompliancePolicy — engine mechanics (via EXAMPLE_RULES)', (
 
   it('empty rule set → fallback WARN', () => {
     expect(decide(ruleBasedCompliancePolicy([]), 'anything').outcome).toBe('WARN');
+  });
+});
+
+describe('PROPOSED_CAPIRO_RULES — the tiered production proposal', () => {
+  const policy = ruleBasedCompliancePolicy([...PROPOSED_CAPIRO_RULES]);
+
+  it('holds external sends for approval (WARN, external_send)', () => {
+    for (const tool of ['send_email', 'reply_email']) {
+      const d = decide(policy, tool, { to: 'x@y.com' });
+      expect(d.outcome).toBe('WARN');
+      expect(d.code).toBe('external_send');
+      expect(d.ruleId).toBe('send.requires_approval');
+    }
+  });
+
+  it('holds client-profile mutations for approval (WARN, crm_mutation)', () => {
+    const d = decide(policy, 'update_client_profile', { clientId: 'c1' });
+    expect(d.outcome).toBe('WARN');
+    expect(d.code).toBe('crm_mutation');
+  });
+
+  it('holds standing automation for approval (WARN, standing_automation)', () => {
+    for (const tool of ['schedule_task', 'cancel_scheduled_task']) {
+      expect(decide(policy, tool).outcome).toBe('WARN');
+      expect(decide(policy, tool).code).toBe('standing_automation');
+    }
+  });
+
+  it('pre-approves internal artifacts + task bookkeeping (PASS, audited)', () => {
+    for (const tool of [
+      'save_note',
+      'save_memory',
+      'create_task',
+      'update_task',
+      'create_word',
+      'create_excel',
+      'create_powerpoint',
+      'create_meeting_brief',
+      'draft_policy_memo',
+    ]) {
+      const d = decide(policy, tool);
+      expect(d.outcome).toBe('PASS');
+      expect(d.ruleId).toBe('internal_artifacts.pass');
+    }
+  });
+
+  it('any write tool NOT named falls back to WARN (new capability never self-approves)', () => {
+    const d = decide(policy, 'some_future_write_tool');
+    expect(d.outcome).toBe('WARN');
+    expect(d.ruleId).toBeUndefined(); // fallback, not a rule
   });
 });

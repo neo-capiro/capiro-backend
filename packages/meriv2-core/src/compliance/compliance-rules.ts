@@ -65,6 +65,78 @@ export const DEFAULT_COMPLIANCE_RULES: readonly ComplianceRule[] = [
 ];
 
 /**
+ * PROPOSED production ruleset — tiered by blast radius, awaiting Neo's sign-off
+ * (merging the PR that wires this IS the sign-off). Rationale, tier by tier:
+ *
+ * WARN (human approval required) — actions that leave the firm or mutate the
+ * client record:
+ *   - send_email / reply_email: external communications. STRICTER than legacy
+ *     chat, which sends after a conversational OK; here every send needs an
+ *     explicit approval click.
+ *   - update_client_profile: CRM record mutation — client data is the product.
+ *   - schedule_task / cancel_scheduled_task: standing automation that will act
+ *     again later without a human in the loop.
+ *
+ * PASS (pre-approved, still audited) — internal, reversible artifacts and task
+ * bookkeeping. The legacy chat surface has executed exactly these freely in
+ * production since 2026-06-10 (prompt-level propose-then-ask + per-action
+ * audit), so PASS here is no more permissive than current observable behavior:
+ *   - save_note, save_memory (internal knowledge, user-visible/undoable)
+ *   - create_task, update_task (engagement bookkeeping)
+ *   - create_word, create_excel, create_powerpoint, create_meeting_brief,
+ *     draft_policy_memo (document drafts — inert until a human sends them)
+ *
+ * Fallback WARN: any write tool not named above (including future ones) holds
+ * for approval by default — new capability never silently self-approves.
+ *
+ * No BLOCK rules yet: the lobbying/ethics/gift/pay-to-play BLOCK conditions
+ * (SC2.3) still need Neo's domain definitions; EXAMPLE_RULES proves the BLOCK
+ * path works when they arrive.
+ */
+export const PROPOSED_CAPIRO_RULES: readonly ComplianceRule[] = [
+  {
+    id: 'send.requires_approval',
+    description: 'Outbound email leaves the firm — requires explicit human approval.',
+    outcome: 'WARN',
+    code: 'external_send',
+    matches: (toolName) => toolName === 'send_email' || toolName === 'reply_email',
+  },
+  {
+    id: 'client_profile.requires_approval',
+    description: 'Client-profile mutations change the CRM record — requires human approval.',
+    outcome: 'WARN',
+    code: 'crm_mutation',
+    matches: (toolName) => toolName === 'update_client_profile',
+  },
+  {
+    id: 'automation.requires_approval',
+    description:
+      'Standing automation (scheduled tasks) acts later without a human — requires approval.',
+    outcome: 'WARN',
+    code: 'standing_automation',
+    matches: (toolName) => toolName === 'schedule_task' || toolName === 'cancel_scheduled_task',
+  },
+  {
+    id: 'internal_artifacts.pass',
+    description:
+      'Internal, reversible artifacts and task bookkeeping are pre-approved (audited, parity with the legacy surface).',
+    outcome: 'PASS',
+    matches: (toolName) =>
+      [
+        'save_note',
+        'save_memory',
+        'create_task',
+        'update_task',
+        'create_word',
+        'create_excel',
+        'create_powerpoint',
+        'create_meeting_brief',
+        'draft_policy_memo',
+      ].includes(toolName),
+  },
+];
+
+/**
  * Illustrative rules — NOT part of the default set. They exist to prove (in the
  * spec) that the engine supports per-tool BLOCK, per-tool PASS, and
  * input-conditional matching. They are examples of the SHAPE a real rule takes,
