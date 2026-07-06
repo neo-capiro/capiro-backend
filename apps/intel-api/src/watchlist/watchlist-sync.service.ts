@@ -64,10 +64,14 @@ export class WatchlistSyncService {
    * edits with stale legacy state (cutover review finding, PR-1).
    */
   private async ownedTenantIds(): Promise<Set<string>> {
-    const rows = await this.prisma.featureFlag.findMany({
-      where: { feature: 'tracker_owner_intel', enabled: true },
-      select: { tenantId: true },
-    });
+    // Cross-tenant: reads owned-flags for EVERY tenant to drive the sweep/skip
+    // logic → withSystem (bypass RLS on intel_feature_flag).
+    const rows = await this.prisma.withSystem((tx) =>
+      tx.featureFlag.findMany({
+        where: { feature: 'tracker_owner_intel', enabled: true },
+        select: { tenantId: true },
+      }),
+    );
     return new Set(rows.map((r) => r.tenantId));
   }
 
@@ -132,9 +136,15 @@ export class WatchlistSyncService {
         // Serialize concurrent syncs of the SAME client (auto-released at commit).
         // $executeRawUnsafe (not $queryRawUnsafe): pg_advisory_xact_lock returns
         // `void`, which the query path cannot deserialize; execute discards it.
-        await tx.$executeRawUnsafe('SELECT pg_advisory_xact_lock(hashtext($1))', `intel_wl_sync:${cw.client_id}`);
+        await tx.$executeRawUnsafe(
+          'SELECT pg_advisory_xact_lock(hashtext($1))',
+          `intel_wl_sync:${cw.client_id}`,
+        );
 
-        const existWl = await tx.watchlist.findUnique({ where: { id: wlId }, select: { issueAreas: true } });
+        const existWl = await tx.watchlist.findUnique({
+          where: { id: wlId },
+          select: { issueAreas: true },
+        });
         if (existWl) {
           const existTopics = await tx.watchlistTopic.findMany({
             where: { watchlistId: wlId },
@@ -153,9 +163,15 @@ export class WatchlistSyncService {
             priority: t.priority as ExpandedTopic['priority'],
             terms: existTerms
               .filter((r) => r.topicId === t.id)
-              .map((r) => ({ termType: r.termType as 'synonym' | 'entity' | 'risk', value: r.value })),
+              .map((r) => ({
+                termType: r.termType as 'synonym' | 'entity' | 'risk',
+                value: r.value,
+              })),
           }));
-          const existHash = watchlistContentHash({ issueAreas: existWl.issueAreas, topics: existExpandedTopics });
+          const existHash = watchlistContentHash({
+            issueAreas: existWl.issueAreas,
+            topics: existExpandedTopics,
+          });
           if (existHash === newHash) {
             skipped += 1;
             return;
@@ -208,15 +224,18 @@ export class WatchlistSyncService {
     // Sweep: unified tracker watchlists (id LIKE 'wl:%') whose legacy row is
     // gone. NEVER sweeps intel-owned tenants — their `wl:` rows are v2-native
     // truth with no legacy counterpart by design.
-    const trackerWls = await this.prisma.watchlist.findMany({
-      where: tenantId ? { tenantId, id: { startsWith: 'wl:' } } : { id: { startsWith: 'wl:' } },
-      select: { id: true, clientId: true, tenantId: true },
-    });
+    const trackerWls = await this.prisma.withSystem((tx) =>
+      tx.watchlist.findMany({
+        where: tenantId ? { tenantId, id: { startsWith: 'wl:' } } : { id: { startsWith: 'wl:' } },
+        select: { id: true, clientId: true, tenantId: true },
+      }),
+    );
     let swept = 0;
     for (const w of trackerWls) {
       if (owned.has(w.tenantId)) continue;
       if (!legacyClientIds.has(w.clientId)) {
-        await this.prisma.watchlist.delete({ where: { id: w.id } }); // cascade topics/terms
+        // cascade topics/terms; cross-tenant sweep → withSystem
+        await this.prisma.withSystem((tx) => tx.watchlist.delete({ where: { id: w.id } }));
         swept += 1;
       }
     }
@@ -228,7 +247,9 @@ export class WatchlistSyncService {
    * Backfill `tracked_bill` → `intel_tracked_bill` (idempotent on
    * (clientId,billId)). Skips intel-owned tenants (see ownedTenantIds).
    */
-  async backfillTrackedBills(tenantSlugOrId?: string): Promise<{ count: number; skippedOwned: number }> {
+  async backfillTrackedBills(
+    tenantSlugOrId?: string,
+  ): Promise<{ count: number; skippedOwned: number }> {
     const tenantId = tenantSlugOrId ? await this.resolveTenantId(tenantSlugOrId) : null;
     if (tenantSlugOrId && !tenantId) throw new Error(`NO_TENANT_FOR ${tenantSlugOrId}`);
     const owned = await this.ownedTenantIds();
@@ -237,7 +258,10 @@ export class WatchlistSyncService {
                   created_by, last_seen_action_text, last_seen_action_date, last_seen_at`;
     const allRows = await this.prisma.withSystem((tx) =>
       tenantId
-        ? tx.$queryRawUnsafe<TrackedBillRow[]>(`SELECT ${cols} FROM tracked_bill WHERE tenant_id = $1::uuid`, tenantId)
+        ? tx.$queryRawUnsafe<TrackedBillRow[]>(
+            `SELECT ${cols} FROM tracked_bill WHERE tenant_id = $1::uuid`,
+            tenantId,
+          )
         : tx.$queryRawUnsafe<TrackedBillRow[]>(`SELECT ${cols} FROM tracked_bill`),
     );
     const rows = allRows.filter((r) => !owned.has(r.tenant_id));
@@ -254,11 +278,13 @@ export class WatchlistSyncService {
         lastSeenActionDate: r.last_seen_action_date ?? null,
         lastSeenAt: r.last_seen_at ?? null,
       };
-      await this.prisma.trackedBill.upsert({
-        where: { clientId_billId: { clientId: r.client_id, billId: r.bill_id } },
-        create: { tenantId: r.tenant_id, clientId: r.client_id, billId: r.bill_id, ...data },
-        update: data,
-      });
+      await this.prisma.withSystem((tx) =>
+        tx.trackedBill.upsert({
+          where: { clientId_billId: { clientId: r.client_id, billId: r.bill_id } },
+          create: { tenantId: r.tenant_id, clientId: r.client_id, billId: r.bill_id, ...data },
+          update: data,
+        }),
+      );
       count += 1;
     }
     return { count, skippedOwned };
@@ -293,7 +319,10 @@ export class WatchlistSyncService {
     const from = `FROM alert_preference ap LEFT JOIN users u ON u.id::text = ap.user_id`;
     const allRows = await this.prisma.withSystem((tx) =>
       tenantId
-        ? tx.$queryRawUnsafe<AlertPrefRow[]>(`SELECT ${cols} ${from} WHERE ap.tenant_id = $1::uuid`, tenantId)
+        ? tx.$queryRawUnsafe<AlertPrefRow[]>(
+            `SELECT ${cols} ${from} WHERE ap.tenant_id = $1::uuid`,
+            tenantId,
+          )
         : tx.$queryRawUnsafe<AlertPrefRow[]>(`SELECT ${cols} ${from}`),
     );
     const unowned = allRows.filter((r) => !owned.has(r.tenant_id));
@@ -317,11 +346,13 @@ export class WatchlistSyncService {
         quietHoursStart: r.quiet_hours_start ?? null,
         quietHoursEnd: r.quiet_hours_end ?? null,
       };
-      await this.prisma.intelAlertPreference.upsert({
-        where: { userId_clientId: { userId: clerkUserId, clientId: r.client_id } },
-        create: { tenantId: r.tenant_id, clientId: r.client_id, userId: clerkUserId, ...data },
-        update: data,
-      });
+      await this.prisma.withSystem((tx) =>
+        tx.intelAlertPreference.upsert({
+          where: { userId_clientId: { userId: clerkUserId, clientId: r.client_id } },
+          create: { tenantId: r.tenant_id, clientId: r.client_id, userId: clerkUserId, ...data },
+          update: data,
+        }),
+      );
       count += 1;
     }
     return { count, skippedOwned, skippedNoClerkId };
@@ -341,11 +372,14 @@ export class WatchlistSyncService {
       ),
     );
     for (const t of tenants) {
-      await this.prisma.featureFlag.upsert({
-        where: { feature_tenantId: { feature, tenantId: t.id } },
-        create: { feature, tenantId: t.id, enabled },
-        update: { enabled },
-      });
+      // Bulk all-tenant admin write → withSystem (bypass RLS on intel_feature_flag).
+      await this.prisma.withSystem((tx) =>
+        tx.featureFlag.upsert({
+          where: { feature_tenantId: { feature, tenantId: t.id } },
+          create: { feature, tenantId: t.id, enabled },
+          update: { enabled },
+        }),
+      );
     }
     return { feature, enabled, tenants };
   }
@@ -358,11 +392,13 @@ export class WatchlistSyncService {
   ): Promise<{ feature: string; tenantId: string; enabled: boolean }> {
     const tenantId = await this.resolveTenantId(tenantSlugOrId);
     if (!tenantId) throw new Error(`NO_TENANT_FOR ${tenantSlugOrId}`);
-    await this.prisma.featureFlag.upsert({
-      where: { feature_tenantId: { feature, tenantId } },
-      create: { feature, tenantId, enabled },
-      update: { enabled },
-    });
+    await this.prisma.withTenant(tenantId, (tx) =>
+      tx.featureFlag.upsert({
+        where: { feature_tenantId: { feature, tenantId } },
+        create: { feature, tenantId, enabled },
+        update: { enabled },
+      }),
+    );
     return { feature, tenantId, enabled };
   }
 }

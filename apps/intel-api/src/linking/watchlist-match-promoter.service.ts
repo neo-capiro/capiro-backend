@@ -42,10 +42,14 @@ export class WatchlistMatchPromoterService {
   /** Sweep every session with watchlist matches (optionally since an ISO time). */
   async promoteAll(sinceIso?: string): Promise<PromoteSweepResult> {
     const since = sinceIso ? new Date(sinceIso) : undefined;
-    const groups = await this.prisma.watchlistMatch.groupBy({
-      by: ['tenantId', 'sessionId'],
-      where: since ? { createdAt: { gte: since } } : {},
-    });
+    // Cross-tenant sweep: groups matches across ALL tenants to fan out, then
+    // promotes each under its own tenant scope. Under RLS this MUST bypass.
+    const groups = await this.prisma.withSystem((tx) =>
+      tx.watchlistMatch.groupBy({
+        by: ['tenantId', 'sessionId'],
+        where: since ? { createdAt: { gte: since } } : {},
+      }),
+    );
     let alerts = 0;
     let skipped = 0;
     for (const g of groups) {
@@ -63,7 +67,10 @@ export class WatchlistMatchPromoterService {
    * the `dedupe_key` unique constraint is the correctness backstop.
    */
   async promoteMatches(tenantId: string, sessionId: string): Promise<PromoteSessionResult> {
-    return this.prisma.$transaction(async (tx) => {
+    // withTenant IS a $transaction (same advisory-lock + dedupe-upsert
+    // semantics) that additionally sets app.current_tenant so the intel_*
+    // reads/writes below respect RLS.
+    return this.prisma.withTenant(tenantId, async (tx) => {
       const lock = await tx.$queryRawUnsafe<Array<{ locked: boolean }>>(
         `SELECT pg_try_advisory_xact_lock(hashtext($1)) AS locked`,
         `promote:${sessionId}`,
@@ -128,7 +135,7 @@ export class WatchlistMatchPromoterService {
                 segmentId: m.segmentId,
                 timestampMs: m.startMs,
                 speakerName: seg?.resolvedSpeakerName ?? null,
-                quote: hasPlain ? seg?.textPlain ?? null : null,
+                quote: hasPlain ? (seg?.textPlain ?? null) : null,
                 quoteSource: hasPlain ? 'textPlain' : 'encrypted',
                 issueTags: seg?.issueTags ?? [],
                 term: m.termValue,

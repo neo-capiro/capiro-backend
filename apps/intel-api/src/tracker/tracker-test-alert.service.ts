@@ -45,9 +45,11 @@ export class TrackerTestAlertService {
     userId: string,
     channels: TestAlertChannel[],
   ): Promise<{ channel: TestAlertChannel; status: string }[]> {
-    const prefRow = await this.prisma.intelAlertPreference.findUnique({
-      where: { userId_clientId: { userId, clientId } },
-    });
+    const prefRow = await this.prisma.withTenant(tenantId, (tx) =>
+      tx.intelAlertPreference.findUnique({
+        where: { userId_clientId: { userId, clientId } },
+      }),
+    );
     const pref = prefRow && prefRow.tenantId === tenantId ? prefRow : null;
     const client = await this.repo.getClientProfile(tenantId, clientId);
     const out: { channel: TestAlertChannel; status: string }[] = [];

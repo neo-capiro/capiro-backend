@@ -41,7 +41,11 @@ export class ParityService {
    * @param tenants 'all' (every tracker decision, cross-tenant) or a single
    *                tenant slug/id (scopes both sides to that tenant's clients).
    */
-  async run(opts: { windowDays: number; tenants: string; gitSha?: string | null }): Promise<ParityRunResult> {
+  async run(opts: {
+    windowDays: number;
+    tenants: string;
+    gitSha?: string | null;
+  }): Promise<ParityRunResult> {
     const windowDays = opts.windowDays > 0 ? opts.windowDays : 7;
     const all = opts.tenants === 'all' || opts.tenants === '';
 
@@ -58,22 +62,24 @@ export class ParityService {
     }
 
     // Legacy (ground truth) — durable intelligence_change decisions.
-    const legacy: ParityDecision[] = await this.repo.legacyTrackerDecisions(
-      clientIds,
-      windowDays,
-      [...KNOWN_CHANGE_TYPES],
-    );
+    const legacy: ParityDecision[] = await this.repo.legacyTrackerDecisions(clientIds, windowDays, [
+      ...KNOWN_CHANGE_TYPES,
+    ]);
 
-    // Shadow — intel_alert (bill path). intel_* has no RLS → plain filtered read.
+    // Shadow — intel_alert (bill path). Audit job: 'all' mode reads across every
+    // tenant, scoped mode filters by clientId. Either way this is a cross-tenant
+    // audit read → withSystem (bypass RLS).
     const since = new Date(Date.now() - windowDays * DAY_MS);
-    const intelRows = await this.prisma.intelAlert.findMany({
-      where: {
-        sourceType: 'bill',
-        createdAt: { gte: since },
-        ...(clientIds ? { clientId: { in: clientIds } } : {}),
-      },
-      select: { clientId: true, sourceRef: true, changeType: true, severity: true },
-    });
+    const intelRows = await this.prisma.withSystem((tx) =>
+      tx.intelAlert.findMany({
+        where: {
+          sourceType: 'bill',
+          createdAt: { gte: since },
+          ...(clientIds ? { clientId: { in: clientIds } } : {}),
+        },
+        select: { clientId: true, sourceRef: true, changeType: true, severity: true },
+      }),
+    );
     const intel: ParityDecision[] = intelRows.map((r) => ({
       clientId: r.clientId,
       billId: r.sourceRef,
@@ -89,7 +95,10 @@ export class ParityService {
 
     // Append the audit row under an advisory lock (idempotent per scope+window).
     const lockKey = `intel:parity:${tenantScope}:${windowDays}`;
-    const wrote = await this.prisma.$transaction(async (tx) => {
+    // Audit write to intel_parity_run (bypass-only RLS policy — tenant_id is
+    // nullable in 'all' mode). withSystem IS a $transaction, so the advisory
+    // lock + create keep their atomicity.
+    const wrote = await this.prisma.withSystem(async (tx) => {
       const lockRows = await tx.$queryRawUnsafe<Array<{ locked: boolean }>>(
         `SELECT pg_try_advisory_xact_lock(hashtext($1)) AS locked`,
         lockKey,
@@ -136,8 +145,9 @@ export class ParityService {
    * plus the distinct-day count so a scheduling gap can't masquerade as a streak.
    */
   async greenStreak(tenantScope: string): Promise<{ greenStreak: number; distinctDays: number }> {
-    const rows = await this.prisma.$queryRawUnsafe<Array<{ green_streak: bigint; distinct_days: bigint }>>(
-      `WITH daily AS (
+    const rows = await this.prisma.withSystem((tx) =>
+      tx.$queryRawUnsafe<Array<{ green_streak: bigint; distinct_days: bigint }>>(
+        `WITH daily AS (
          SELECT run_at::date AS d, bool_and(passed) AS ok
            FROM intel_parity_run
           WHERE tenant_scope = $1 AND run_at >= now() - interval '30 days'
@@ -150,9 +160,13 @@ export class ParityService {
          (SELECT count(*) FROM daily
            WHERE d > COALESCE((SELECT max(d) FROM daily WHERE NOT ok), '-infinity'::date)
          ) AS distinct_days`,
-      tenantScope,
+        tenantScope,
+      ),
     );
     const r = rows[0];
-    return { greenStreak: Number(r?.green_streak ?? 0), distinctDays: Number(r?.distinct_days ?? 0) };
+    return {
+      greenStreak: Number(r?.green_streak ?? 0),
+      distinctDays: Number(r?.distinct_days ?? 0),
+    };
   }
 }

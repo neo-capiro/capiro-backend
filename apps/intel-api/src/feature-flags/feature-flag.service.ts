@@ -31,15 +31,19 @@ export class FeatureFlagService {
 
   async isEnabled(feature: string, tenantId: string): Promise<boolean> {
     if (this.internalTenantId && tenantId === this.internalTenantId) return true;
-    const row = await this.prisma.featureFlag.findUnique({
-      where: { feature_tenantId: { feature, tenantId } },
-    });
+    const row = await this.prisma.withTenant(tenantId, (tx) =>
+      tx.featureFlag.findUnique({
+        where: { feature_tenantId: { feature, tenantId } },
+      }),
+    );
     return Boolean(row?.enabled);
   }
 
   /** Map of all features enabled for a tenant (for the UI's /feature-flags). */
   async enabledFor(tenantId: string): Promise<Record<string, boolean>> {
-    const rows = await this.prisma.featureFlag.findMany({ where: { tenantId, enabled: true } });
+    const rows = await this.prisma.withTenant(tenantId, (tx) =>
+      tx.featureFlag.findMany({ where: { tenantId, enabled: true } }),
+    );
     const out: Record<string, boolean> = {};
     for (const r of rows) out[r.feature] = true;
     if (this.internalTenantId && tenantId === this.internalTenantId) {
