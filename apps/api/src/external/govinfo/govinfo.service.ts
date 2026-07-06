@@ -1,4 +1,4 @@
-import { Injectable, Logger, ServiceUnavailableException } from '@nestjs/common';
+import { Injectable, Logger, Optional, ServiceUnavailableException } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { S3Client, GetObjectCommand, PutObjectCommand } from '@aws-sdk/client-s3';
 import { XMLParser } from 'fast-xml-parser';
@@ -139,8 +139,10 @@ export class GovInfoService {
     private readonly prisma: PrismaService,
     config: ConfigService<AppConfig, true>,
     // Injectable for tests; defaults to a real client in the given region.
-    s3?: S3Client,
-    limiter?: TokenBucket,
+    // @Optional so Nest can instantiate GovInfoService (these aren't providers) —
+    // without it, importing GovInfoModule into AppModule fails app boot.
+    @Optional() s3?: S3Client,
+    @Optional() limiter?: TokenBucket,
   ) {
     this.apiKey = config.get('GOVINFO_API_KEY', { infer: true });
     this.cacheBucket = config.get('GOVINFO_CACHE_BUCKET', { infer: true });
