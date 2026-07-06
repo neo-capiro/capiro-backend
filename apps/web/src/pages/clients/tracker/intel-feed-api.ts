@@ -80,6 +80,10 @@ export interface FeedItem {
   urgency: string | null;
   title: string;
   whyItMatters: string | null;
+  /** The matched watchlist tag (topic label / term), for the calm feed card's
+   *  tag CHIP (LegiWatch v2). Null/absent when no structured tag is available
+   *  (optional so a cached page or a not-yet-deployed intel-api degrades cleanly). */
+  tag?: string | null;
   recommendedAction: string | null;
   evidence: FeedEvidence;
   status: string;

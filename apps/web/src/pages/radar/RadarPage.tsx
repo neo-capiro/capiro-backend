@@ -197,7 +197,10 @@ export function RadarPage() {
           // P11 global altitude: no client selected → the tenant-wide roll-up
           // (instead of the ClientGate picker prompt Bills/Watchlist still use).
           <div className="trk">
-            <RadarGlobalFeedTab clientNameById={clientNameById} />
+            <RadarGlobalFeedTab
+              clientNameById={clientNameById}
+              onScopeClient={(id) => setParam('client', id)}
+            />
           </div>
         ))}
 
@@ -358,7 +361,14 @@ function RadarFeedTab({ clientId, clientName }: { clientId: string; clientName: 
  * scoped to that alert's client — the board query + track mutation are lazily
  * bound to the drawer's client so tracking still works cross-client.
  */
-function RadarGlobalFeedTab({ clientNameById }: { clientNameById: Map<string, string> }) {
+function RadarGlobalFeedTab({
+  clientNameById,
+  onScopeClient,
+}: {
+  clientNameById: Map<string, string>;
+  /** LegiWatch v2 (L1): scope the whole feature to a client (from a feed card's label). */
+  onScopeClient: (clientId: string) => void;
+}) {
   const api = useApi();
   const qc = useQueryClient();
   const { message } = AntApp.useApp();
@@ -400,6 +410,7 @@ function RadarGlobalFeedTab({ clientNameById }: { clientNameById: Map<string, st
     <>
       <TrackerFeedPanel
         global
+        onScopeClient={onScopeClient}
         onOpenBill={(billId, cId) => setDrawer({ billId, clientId: cId })}
       />
       <BillDrawer

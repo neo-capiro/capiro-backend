@@ -179,6 +179,10 @@ export class FeedService {
         evidence: true,
         status: true,
         createdAt: true,
+        // termId → the matched WatchlistTerm → its WatchlistTopic ("tag"). Used to
+        // surface a clean tag CHIP on the calm feed card (LegiWatch v2 / L1),
+        // resolved in a single batched read below (no hot-path per-row join).
+        termId: true,
       },
     });
 
@@ -205,6 +209,25 @@ export class FeedService {
       items.map((i) => i.id),
     );
 
+    // Matched-tag resolution (LegiWatch v2 / L1): batch-resolve each alert's
+    // termId → its WatchlistTerm → owning WatchlistTopic label ("tag"), in ONE
+    // tenant-scoped read (no per-row join, mirrors decryptQuotes/getClientNames).
+    // The calm feed card shows this as a chip instead of the "why it matters"
+    // prose. Falls back (in deriveTag) to a denormalized hearing-mention term.
+    const termIds = [
+      ...new Set(items.map((i) => i.termId).filter((x): x is string => Boolean(x))),
+    ];
+    const termTagById = termIds.length
+      ? new Map(
+          (
+            await this.prisma.watchlistTerm.findMany({
+              where: { id: { in: termIds }, tenantId },
+              select: { id: true, value: true, topic: { select: { label: true } } },
+            })
+          ).map((t) => [t.id, t.topic?.label ?? t.value]),
+        )
+      : new Map<string, string>();
+
     // Global roll-up: resolve display names for the page's client ids in one
     // tenant-scoped read so each card can label its client (no-op/skip for the
     // per-client view — it already knows the name from the URL). Never blocks the
@@ -218,6 +241,7 @@ export class FeedService {
     const decorated = items.map((it) => ({
       ...it,
       clientName: clientNames.get(it.clientId) ?? null,
+      tag: deriveTag(it, termTagById),
       recommendedActions: recommendedActionsFor({
         sourceType: it.sourceType,
         severity: it.severity,
@@ -229,4 +253,26 @@ export class FeedService {
 
     return { items: decorated, nextCursor, hasMore, counts };
   }
+}
+
+/**
+ * The single matched watchlist "tag" to chip on a feed card (LegiWatch v2 / L1).
+ * Prefers the alert's matched term's owning topic label (a real bill-tracker tag);
+ * falls back to a denormalized hearing-mention term, then a hearing issue tag.
+ * Returns null when no structured tag is available (the card then shows no chip —
+ * never the old "matches tag …" prose).
+ */
+function deriveTag(
+  it: { termId: string | null; evidence: unknown },
+  termTagById: Map<string, string>,
+): string | null {
+  if (it.termId && termTagById.has(it.termId)) return termTagById.get(it.termId) ?? null;
+  const ev = it.evidence as
+    | { hearing?: { mentions?: Array<{ term?: string | null; issueTags?: string[] | null }> } }
+    | null;
+  const mentions = ev?.hearing?.mentions ?? [];
+  const byTerm = mentions.find((m) => m?.term)?.term;
+  if (byTerm) return byTerm;
+  const byIssue = mentions.flatMap((m) => m?.issueTags ?? [])[0];
+  return byIssue ?? null;
 }

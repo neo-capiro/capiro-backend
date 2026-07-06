@@ -31,8 +31,6 @@ const SEV_COLOR: Record<FeedSeverity, string> = {
   notable: 'var(--notable, #d98324)',
   info: 'var(--info, #4a7bd6)',
 };
-const SEV_LABEL: Record<FeedSeverity, string> = { critical: 'Critical', notable: 'Notable', info: 'Info' };
-
 function fmtDate(iso: string): string {
   const d = new Date(iso);
   return Number.isNaN(d.getTime()) ? '' : d.toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
@@ -43,24 +41,23 @@ function fmtTs(ms: number | null): string {
   return `${Math.floor(s / 60)}:${String(s % 60).padStart(2, '0')}`;
 }
 
-function SourceBadge({ t }: { t: FeedItem['sourceType'] }) {
-  const bg = t === 'combined' ? 'var(--accent, #6b4fbb)' : t === 'hearing' ? 'var(--info, #4a7bd6)' : 'var(--notable, #d98324)';
-  return (
-    <span
-      style={{
-        fontSize: 10,
-        fontWeight: 700,
-        textTransform: 'uppercase',
-        letterSpacing: 0.4,
-        color: '#fff',
-        background: bg,
-        borderRadius: 4,
-        padding: '2px 6px',
-      }}
-    >
-      {SOURCE_LABEL[t]}
-    </span>
-  );
+/** Group a flat, already-ordered feed page by client, preserving first-seen order
+ *  (LegiWatch v2 "Grouped by client" arrangement at the all-clients altitude). */
+function groupByClient(
+  items: FeedItem[],
+): Array<{ clientId: string; clientName: string; list: FeedItem[] }> {
+  const order: string[] = [];
+  const map = new Map<string, { clientId: string; clientName: string; list: FeedItem[] }>();
+  for (const it of items) {
+    let g = map.get(it.clientId);
+    if (!g) {
+      g = { clientId: it.clientId, clientName: it.clientName ?? 'Client', list: [] };
+      map.set(it.clientId, g);
+      order.push(it.clientId);
+    }
+    g.list.push(it);
+  }
+  return order.map((id) => map.get(id)!);
 }
 
 /** Render one recommended action as a compact chip; the primary one is filled. */
@@ -83,103 +80,177 @@ function FeedCard({
   item,
   onAction,
   showClient = false,
+  onScopeClient,
 }: {
   item: FeedItem;
   onAction: (a: RecommendedAction, item: FeedItem) => void;
   /** P11 global feed: render a client label so cross-client alerts are attributable. */
   showClient?: boolean;
+  /** LegiWatch v2: clicking the client label scopes the whole feature to it. */
+  onScopeClient?: (clientId: string) => void;
 }) {
+  // LegiWatch v2 (L1): calm card — collapsed by default, expands on demand.
+  const [open, setOpen] = useState(false);
+  const [showAllQuotes, setShowAllQuotes] = useState(false);
   const ev = item.evidence ?? {};
   const mentions = ev.hearing?.mentions ?? [];
   const actions = item.recommendedActions ?? [];
+  const primary = actions.find((a) => a.primary) ?? actions[0];
+  const drafted = !!item.actions?.memo;
+  const inReport = !!item.actions?.inReport;
+  const muted = 'var(--muted, #8a8a96)';
+
   return (
     <div
       style={{
         border: '1px solid var(--border, #e4e4ea)',
+        // The ONLY severity cue (spec U2): the colored left edge. No severity word,
+        // no filled badge.
         borderLeft: `3px solid ${SEV_COLOR[item.severity]}`,
         borderRadius: 8,
-        padding: '12px 14px',
         background: 'var(--surface, #fff)',
-        display: 'flex',
-        flexDirection: 'column',
-        gap: 8,
+        overflow: 'hidden',
       }}
     >
-      <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
-        <SourceBadge t={item.sourceType} />
-        <span style={{ fontSize: 11, fontWeight: 600, color: SEV_COLOR[item.severity] }}>{SEV_LABEL[item.severity]}</span>
-        {showClient && (
-          <span
+      {/* Collapsed head — the whole row toggles expansion. */}
+      <div
+        onClick={() => setOpen((o) => !o)}
+        style={{ display: 'flex', alignItems: 'flex-start', gap: 10, padding: '11px 14px', cursor: 'pointer' }}
+      >
+        <div style={{ flex: 1, minWidth: 0 }}>
+          <div
             style={{
-              fontSize: 10.5,
+              fontSize: 14,
               fontWeight: 600,
-              color: 'var(--accent, #6b4fbb)',
-              background: 'var(--accent-soft, #f1eefb)',
-              borderRadius: 4,
-              padding: '2px 6px',
+              lineHeight: 1.3,
+              ...(open ? {} : { whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }),
             }}
-            title="Client this alert is for"
           >
-            {item.clientName ?? 'Client'}
+            {item.title}
+          </div>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap', marginTop: 5 }}>
+            {showClient &&
+              (onScopeClient ? (
+                <button
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    onScopeClient(item.clientId);
+                  }}
+                  title="View only this client"
+                  style={{
+                    border: 'none',
+                    background: 'none',
+                    padding: 0,
+                    cursor: 'pointer',
+                    fontSize: 11.5,
+                    fontWeight: 600,
+                    color: 'var(--accent, #6b4fbb)',
+                  }}
+                >
+                  {item.clientName ?? 'Client'}
+                </button>
+              ) : (
+                <span style={{ fontSize: 11.5, fontWeight: 600, color: 'var(--accent, #6b4fbb)' }}>
+                  {item.clientName ?? 'Client'}
+                </span>
+              ))}
+            <span style={{ fontSize: 11, color: muted }}>{SOURCE_LABEL[item.sourceType]}</span>
+            {item.tag && (
+              <span
+                style={{
+                  fontSize: 10.5,
+                  fontWeight: 600,
+                  color: 'var(--text-2, #55555f)',
+                  background: 'var(--surface-2, #f6f6f9)',
+                  border: '1px solid var(--border, #e4e4ea)',
+                  borderRadius: 4,
+                  padding: '1px 7px',
+                }}
+                title="Matched watchlist tag"
+              >
+                #{item.tag}
+              </span>
+            )}
+            {drafted && (
+              <span style={{ fontSize: 10.5, fontWeight: 600, color: 'var(--good, #2f7a57)' }}>memo drafted ✓</span>
+            )}
+            {inReport && (
+              <span style={{ fontSize: 10.5, fontWeight: 600, color: 'var(--good, #2f7a57)' }}>in weekly report</span>
+            )}
+            <span style={{ fontSize: 11, color: muted }}>{fmtDate(item.createdAt)}</span>
+          </div>
+        </div>
+        {!open && primary && (
+          <span onClick={(e) => e.stopPropagation()}>
+            <ActionChip a={{ ...primary, primary: true }} item={item} onAction={onAction} />
           </span>
         )}
-        {item.actions?.memo && <span style={{ fontSize: 10.5, fontWeight: 600, color: 'var(--good, #2f7a57)' }}>memo drafted ✓</span>}
-        <span style={{ flex: 1 }} />
-        <span style={{ fontSize: 11, color: 'var(--muted, #8a8a96)' }} title="Priority score (0–1)">
-          score {item.score.toFixed(2)}
-        </span>
-        <span style={{ fontSize: 11, color: 'var(--muted, #8a8a96)' }}>{fmtDate(item.createdAt)}</span>
+        <span style={{ fontSize: 12, color: muted, lineHeight: '22px' }}>{open ? '▾' : '▸'}</span>
       </div>
 
-      <div style={{ fontSize: 14, fontWeight: 600, lineHeight: 1.3 }}>{item.title}</div>
-      {item.whyItMatters && (
-        <div style={{ fontSize: 12.5, color: 'var(--text-2, #55555f)', lineHeight: 1.4 }}>{item.whyItMatters}</div>
-      )}
-
-      {ev.bill && (
-        <button
-          onClick={() => onAction({ kind: 'open_bill', label: 'Open bill', target: { billId: ev.bill!.billId } }, item)}
+      {open && (
+        <div
           style={{
-            textAlign: 'left',
-            fontSize: 12,
-            color: 'var(--text-2, #55555f)',
-            background: 'var(--surface-2, #f6f6f9)',
-            border: '1px solid var(--border, #e4e4ea)',
-            borderRadius: 6,
-            padding: '6px 8px',
-            cursor: 'pointer',
+            display: 'flex',
+            flexDirection: 'column',
+            gap: 8,
+            padding: '10px 14px 12px',
+            borderTop: '1px solid var(--border, #e4e4ea)',
           }}
-          title="Open in Explorer"
         >
-          <b>{ev.bill.displayNum}</b> · {ev.bill.stage}
-          {ev.bill.actionText ? ` — ${ev.bill.actionText}` : ''}
-          {ev.bill.actionDate ? ` (${ev.bill.actionDate})` : ''}
-        </button>
-      )}
+          {ev.bill && (
+            <button
+              onClick={() =>
+                onAction({ kind: 'open_bill', label: 'Open bill', target: { billId: ev.bill!.billId } }, item)
+              }
+              style={{
+                textAlign: 'left',
+                fontSize: 12,
+                color: 'var(--text-2, #55555f)',
+                background: 'var(--surface-2, #f6f6f9)',
+                border: '1px solid var(--border, #e4e4ea)',
+                borderRadius: 6,
+                padding: '6px 8px',
+                cursor: 'pointer',
+              }}
+              title="Open bill"
+            >
+              <b>{ev.bill.displayNum}</b> · {ev.bill.stage}
+              {ev.bill.actionText ? ` — ${ev.bill.actionText}` : ''}
+              {ev.bill.actionDate ? ` (${ev.bill.actionDate})` : ''}
+            </button>
+          )}
 
-      {ev.hearing && (
-        <div style={{ fontSize: 12, color: 'var(--text-2, #55555f)' }}>
-          <div style={{ fontWeight: 600, marginBottom: 4 }}>
-            {ev.hearing.title ?? 'Hearing'}
-            {mentions.length ? ` · ${mentions.length} mention${mentions.length === 1 ? '' : 's'}` : ''}
-          </div>
-          {mentions.slice(0, 3).map((m, i) => (
-            <div key={m.segmentId ?? i} style={{ display: 'flex', gap: 6, padding: '2px 0' }}>
-              <span style={{ color: 'var(--muted, #8a8a96)', minWidth: 38 }}>{fmtTs(m.timestampMs)}</span>
-              <span>
-                {m.speakerName ? <b>{m.speakerName}: </b> : null}
-                {m.quote ? `“${m.quote}”` : <i style={{ color: 'var(--muted, #8a8a96)' }}>[encrypted — open hearing to view]</i>}
-              </span>
+          {mentions.length > 0 && (
+            <div style={{ fontSize: 12, color: 'var(--text-2, #55555f)' }}>
+              {(showAllQuotes ? mentions : mentions.slice(0, 1)).map((m, i) => (
+                <div key={m.segmentId ?? i} style={{ display: 'flex', gap: 6, padding: '2px 0' }}>
+                  <span style={{ color: muted, minWidth: 38 }}>{fmtTs(m.timestampMs)}</span>
+                  <span>
+                    {m.speakerName ? <b>{m.speakerName}: </b> : null}
+                    {m.quote ? `“${m.quote}”` : <i style={{ color: muted }}>[encrypted — open hearing to view]</i>}
+                  </span>
+                </div>
+              ))}
+              {mentions.length > 1 && !showAllQuotes && (
+                <button
+                  className="btn"
+                  style={{ fontSize: 11.5, padding: '2px 8px', marginTop: 4 }}
+                  onClick={() => setShowAllQuotes(true)}
+                >
+                  +{mentions.length - 1} more quote{mentions.length - 1 === 1 ? '' : 's'}
+                </button>
+              )}
             </div>
-          ))}
-        </div>
-      )}
+          )}
 
-      {actions.length > 0 && (
-        <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', marginTop: 2 }}>
-          {actions.map((a) => (
-            <ActionChip key={a.kind} a={a} item={item} onAction={onAction} />
-          ))}
+          {actions.length > 0 && (
+            <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', marginTop: 2 }}>
+              {actions.map((a) => (
+                <ActionChip key={a.kind} a={a} item={item} onAction={onAction} />
+              ))}
+            </div>
+          )}
         </div>
       )}
     </div>
@@ -190,11 +261,17 @@ export function TrackerFeedPanel({
   clientId,
   clientName,
   onOpenBill,
+  onScopeClient,
   global = false,
 }: {
   /** Per-client mode: the client to scope to. Omitted/ignored in `global` mode. */
   clientId?: string;
   clientName?: string;
+  /**
+   * LegiWatch v2 (L1): global feed only — clicking a card's client label scopes the
+   * whole feature to that client. RadarPage passes a setter for the `client` URL param.
+   */
+  onScopeClient?: (clientId: string) => void;
   /**
    * P3/P9.1: when provided, `open_bill` alert actions open the bill in place
    * (the Radar/profile bill side-drawer) instead of navigating to Data Explorer.
@@ -215,6 +292,9 @@ export function TrackerFeedPanel({
   const { message } = AntApp.useApp();
   const [source, setSource] = useState<FeedFilter>('all');
   const [order, setOrder] = useState<FeedOrder>('date');
+  // LegiWatch v2 (L1): global feed arrangement — single stream (default) or grouped
+  // by client. Never the default; only offered at the all-clients altitude.
+  const [group, setGroup] = useState(false);
   const [composerItem, setComposerItem] = useState<FeedItem | null>(null);
   const [tpItem, setTpItem] = useState<FeedItem | null>(null);
   const [tpText, setTpText] = useState('');
@@ -371,6 +451,16 @@ export function TrackerFeedPanel({
         <button className="btn" onClick={() => setOrder(order === 'date' ? 'score' : 'date')} style={{ fontSize: 12 }}>
           Sort: {order === 'date' ? 'Most recent' : 'Priority'}
         </button>
+        {global && (
+          <button
+            className="btn"
+            onClick={() => setGroup((g) => !g)}
+            style={{ fontSize: 12 }}
+            title="Arrange the all-clients stream"
+          >
+            {group ? 'Grouped by client' : 'Single stream'}
+          </button>
+        )}
       </div>
 
       {query.isLoading ? (
@@ -388,9 +478,48 @@ export function TrackerFeedPanel({
         </div>
       ) : (
         <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-          {items.map((it) => (
-            <FeedCard key={it.id} item={it} onAction={onAction} showClient={global} />
-          ))}
+          {global && group
+            ? groupByClient(items).map((g) => (
+                <div key={g.clientId} style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginTop: 2 }}>
+                    <button
+                      onClick={() => onScopeClient?.(g.clientId)}
+                      style={{
+                        border: 'none',
+                        background: 'none',
+                        padding: 0,
+                        cursor: onScopeClient ? 'pointer' : 'default',
+                        fontSize: 12.5,
+                        fontWeight: 700,
+                        color: 'var(--accent, #6b4fbb)',
+                      }}
+                    >
+                      {g.clientName}
+                    </button>
+                    <span style={{ fontSize: 11, color: 'var(--muted, #8a8a96)' }}>
+                      {g.list.length} update{g.list.length === 1 ? '' : 's'}
+                    </span>
+                  </div>
+                  {g.list.map((it) => (
+                    <FeedCard
+                      key={it.id}
+                      item={it}
+                      onAction={onAction}
+                      showClient={false}
+                      onScopeClient={onScopeClient}
+                    />
+                  ))}
+                </div>
+              ))
+            : items.map((it) => (
+                <FeedCard
+                  key={it.id}
+                  item={it}
+                  onAction={onAction}
+                  showClient={global}
+                  onScopeClient={onScopeClient}
+                />
+              ))}
           {query.hasNextPage && (
             <button
               className="trk-more"
