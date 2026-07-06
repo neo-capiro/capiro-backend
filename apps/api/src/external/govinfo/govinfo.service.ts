@@ -241,19 +241,26 @@ export class GovInfoService {
    */
   async getHearingText(packageId: string): Promise<HearingText> {
     const summary = await this.getPackageSummary(packageId);
+    // CHRG package summaries don't populate download.txtLink/htmLink, but the
+    // rendered transcript lives at a deterministic content path. Prefer any
+    // summary links; otherwise fall back to /content/pkg/{id}/html/{id}.htm.
+    // (No plain-.txt is published for CHRG, so htm + tag-strip is the path.)
     const txt = summary.download?.txtLink;
-    const htm = summary.download?.htmLink;
+    const htm =
+      summary.download?.htmLink ??
+      `https://www.govinfo.gov/content/pkg/${encodeURIComponent(packageId)}/html/${encodeURIComponent(packageId)}.htm`;
     const link = txt ?? htm;
-    if (!link) {
+    const raw = await this.fetchText(link);
+    const format: 'txt' | 'htm' = txt ? 'txt' : 'htm';
+    const text = format === 'htm' ? stripHtmlTags(raw) : raw;
+    if (!text.trim()) {
       throw new ServiceUnavailableException(
         `No text transcript available for hearing ${packageId}`,
       );
     }
-    const raw = await this.fetchText(link);
-    const format: 'txt' | 'htm' = txt ? 'txt' : 'htm';
     return {
       packageId,
-      text: format === 'htm' ? stripHtmlTags(raw) : raw,
+      text,
       format,
       sourceUrl: link,
       dateIssued: summary.dateIssued ?? null,
