@@ -2,8 +2,10 @@ import { fmtMoneyMBare } from './format.js';
 
 export interface DeltaDatum {
   fy: string | number;
-  /** Enacted minus request in $ millions; null renders a placeholder dot. */
+  /** Congress position minus request in $ millions; null renders a placeholder dot. */
   delta: number | null;
+  /** Which stage `delta` was measured from: enacted | conference | SAC-D | … */
+  basis?: string | null;
 }
 
 export interface DeltaBarsProps {
@@ -68,7 +70,13 @@ export function DeltaBars({ data, height = 150 }: DeltaBarsProps) {
               rx="3"
               fill={pos ? 'var(--success)' : 'var(--critical)'}
               opacity="0.9"
-            />
+            >
+              <title>
+                {`${d.fy}: ${d.basis ?? 'enacted'} ${pos ? '+' : '−'}${fmtMoneyMBare(
+                  Math.abs(d.delta),
+                )} vs request`}
+              </title>
+            </rect>
             <text
               x={x(i)}
               y={pos ? zeroY - hh - 6 : zeroY + hh + 14}

@@ -139,7 +139,10 @@ function statusPillClass(status: string): string {
   return 'muted';
 }
 
-function peBadge(detail: { budgetActivity: string | null; appropriationType: string | null }): string {
+function peBadge(detail: {
+  budgetActivity: string | null;
+  appropriationType: string | null;
+}): string {
   const ba = detail.budgetActivity ?? '';
   const m = ba.match(/(\d(?:\.\d)?)/);
   if (m) return `BA ${m[1]}`;
@@ -371,20 +374,31 @@ export function ProgramElementWatchPage() {
   }
 
   const detail = detailQuery.data;
-  const detailRaw = (detail as { raw?: { pDocDetail?: PdocDetail | null; op5Detail?: DescriptionSource['op5Detail'] } | null })
-    .raw ?? {};
+  const detailRaw =
+    (
+      detail as {
+        raw?: { pDocDetail?: PdocDetail | null; op5Detail?: DescriptionSource['op5Detail'] } | null;
+      }
+    ).raw ?? {};
   const pDocDetail = detailRaw.pDocDetail ?? null;
   // PdocDetailPanel already shows its own "Source: ... P-40 exhibit" line when it
   // renders (i.e. when the line has structured P-40 fields); only pass the
   // source-book fallback here for lines where pDocDetail exists but is otherwise
   // empty (so PdocDetailPanel itself renders null) — avoids a duplicate citation.
-  const pdocPanelWillRender = !!pDocDetail && (
-    !!pDocDetail.procurementQty?.length || !!pDocDetail.netProcurementM?.length ||
-    !!pDocDetail.unitCostK?.length || !!pDocDetail.unitCostM?.length ||
-    !!pDocDetail.mdapCode || !!pDocDetail.idCode || !!pDocDetail.relatedPEs ||
-    !!pDocDetail.llm?.acquisitionStrategy || !!pDocDetail.llm?.programOffice ||
-    !!pDocDetail.llm?.contractors?.length || !!pDocDetail.llm?.milestones?.length || !!pDocDetail.llm?.risks?.length
-  );
+  const pdocPanelWillRender =
+    !!pDocDetail &&
+    (!!pDocDetail.procurementQty?.length ||
+      !!pDocDetail.netProcurementM?.length ||
+      !!pDocDetail.unitCostK?.length ||
+      !!pDocDetail.unitCostM?.length ||
+      !!pDocDetail.mdapCode ||
+      !!pDocDetail.idCode ||
+      !!pDocDetail.relatedPEs ||
+      !!pDocDetail.llm?.acquisitionStrategy ||
+      !!pDocDetail.llm?.programOffice ||
+      !!pDocDetail.llm?.contractors?.length ||
+      !!pDocDetail.llm?.milestones?.length ||
+      !!pDocDetail.llm?.risks?.length);
   const years = detail.years ?? [];
   const chartYears = [...years].sort((a, b) => a.fy - b.fy);
   const latestRequest = latestMeaningful(years, 'request');
@@ -399,9 +413,15 @@ export function ProgramElementWatchPage() {
   // e.g. RDT&E finished and the program moved to procurement — so it reads as
   // intentionally historical rather than a broken/empty-looking page.
   const peLatestFy = years.reduce<number | null>((max, y) => {
-    const hasAny = [y.request, y.hascMark, y.sascMark, y.hacDMark, y.sacDMark, y.conference, y.enacted].some(
-      (v) => numberOrNull(v) != null,
-    );
+    const hasAny = [
+      y.request,
+      y.hascMark,
+      y.sascMark,
+      y.hacDMark,
+      y.sacDMark,
+      y.conference,
+      y.enacted,
+    ].some((v) => numberOrNull(v) != null);
     if (!hasAny) return max;
     return max == null || y.fy > max ? y.fy : max;
   }, null);
@@ -434,7 +454,11 @@ export function ProgramElementWatchPage() {
 
   const lineLabels = chartYears.map((y) => fyLabel(y.fy));
   const lineSeries = [
-    { name: 'Enacted', color: 'var(--accent)', values: chartYears.map((y) => numberOrNull(y.enacted)) },
+    {
+      name: 'Enacted',
+      color: 'var(--accent)',
+      values: chartYears.map((y) => numberOrNull(y.enacted)),
+    },
     {
       name: 'Request',
       color: '#B0433B',
@@ -451,12 +475,31 @@ export function ProgramElementWatchPage() {
   ).length;
   const winRate = bothYears.length ? `${Math.round((wins / bothYears.length) * 100)}%` : '—';
 
+  // Congress's position vs the President's Budget, using the furthest-along number
+  // available for each year: enacted once final, else the latest committee/conference
+  // mark. Without this the chart is a flat zero for every not-yet-enacted year (FY26+),
+  // hiding the adds/cuts the marks already show.
+  const congressPosition = (
+    y: (typeof chartYears)[number],
+  ): { v: number; basis: string } | null => {
+    const stages: Array<[number | null, string]> = [
+      [numberOrNull(y.enacted), 'enacted'],
+      [numberOrNull(y.conference), 'conference'],
+      [numberOrNull(y.sacDMark), 'SAC-D'],
+      [numberOrNull(y.hacDMark), 'HAC-D'],
+      [numberOrNull(y.sascMark), 'SASC'],
+      [numberOrNull(y.hascMark), 'HASC'],
+    ];
+    const hit = stages.find(([v]) => v != null);
+    return hit && hit[0] != null ? { v: hit[0], basis: hit[1] } : null;
+  };
   const deltaData = chartYears.map((y) => {
-    const enacted = numberOrNull(y.enacted);
     const request = numberOrNull(y.request);
+    const pos = congressPosition(y);
     return {
       fy: fyLabel(y.fy),
-      delta: enacted != null && request != null ? enacted - request : null,
+      delta: pos != null && request != null ? pos.v - request : null,
+      basis: pos?.basis ?? null,
     };
   });
 
@@ -494,7 +537,10 @@ export function ProgramElementWatchPage() {
   const timelineEvents: LegEvent[] =
     historyEvents.length > 0
       ? historyEvents
-          .filter((e, i, all) => e.peCodeCount < 200 || all.findIndex((x) => x.billId === e.billId) >= i - 8)
+          .filter(
+            (e, i, all) =>
+              e.peCodeCount < 200 || all.findIndex((x) => x.billId === e.billId) >= i - 8,
+          )
           .slice(0, 60)
           .map((e) => ({
             date: e.date,
@@ -578,7 +624,10 @@ export function ProgramElementWatchPage() {
               series={lineSeries}
               height={252}
               mode="area"
-              onPointClick={(i) => { const yr = chartYears[i]; if (yr) openFy(yr.fy); }}
+              onPointClick={(i) => {
+                const yr = chartYears[i];
+                if (yr) openFy(yr.fy);
+              }}
             />
             <div className="pe-chart-foot">
               <div className="pe-cf-item">
@@ -588,13 +637,17 @@ export function ProgramElementWatchPage() {
               <div className="pe-cf-item">
                 <span className="pe-cf-l">Latest request</span>
                 <span className="pe-cf-v">
-                  {latestRequest ? `${fmtMoneyM(latestRequest.value)} · ${fyLabel(latestRequest.fy)}` : '—'}
+                  {latestRequest
+                    ? `${fmtMoneyM(latestRequest.value)} · ${fyLabel(latestRequest.fy)}`
+                    : '—'}
                 </span>
               </div>
               <div className="pe-cf-item">
                 <span className="pe-cf-l">Latest enacted</span>
                 <span className="pe-cf-v">
-                  {latestEnacted ? `${fmtMoneyM(latestEnacted.value)} · ${fyLabel(latestEnacted.fy)}` : '—'}
+                  {latestEnacted
+                    ? `${fmtMoneyM(latestEnacted.value)} · ${fyLabel(latestEnacted.fy)}`
+                    : '—'}
                 </span>
               </div>
             </div>
@@ -635,7 +688,10 @@ export function ProgramElementWatchPage() {
             })}
           </div>
         ) : (
-          <Empty image={Empty.PRESENTED_IMAGE_SIMPLE} description="No dated legislative actions yet." />
+          <Empty
+            image={Empty.PRESENTED_IMAGE_SIMPLE}
+            description="No dated legislative actions yet."
+          />
         )}
       </ChartCard>
 
@@ -661,7 +717,11 @@ export function ProgramElementWatchPage() {
           <span className="pe-surface-sub">normalized committee events · latest</span>
         </div>
         <div className="bl-panel-body">
-          <BudgetActionsFeed actions={actionsQuery.data} loading={actionsQuery.isLoading} limit={4} />
+          <BudgetActionsFeed
+            actions={actionsQuery.data}
+            loading={actionsQuery.isLoading}
+            limit={4}
+          />
         </div>
       </div>
 
@@ -674,8 +734,8 @@ export function ProgramElementWatchPage() {
   const fundingTab = (
     <div className="pe-dt-panel">
       <ChartCard
-        title="Enacted vs. request delta"
-        sub="Congress adds (green) or cuts (red) against the President's Budget"
+        title="Congress vs. request delta"
+        sub="Adds (green) or cuts (red) vs the President's Budget — enacted where final, else the latest committee mark"
         span2
         pad
       >
@@ -887,7 +947,10 @@ export function ProgramElementWatchPage() {
           <span className="pe-surface-sub">performer → award → budget triangulation</span>
         </div>
         <div className="bl-panel-body">
-          <IncumbentMapPanel incumbents={incumbentsQuery.data} loading={incumbentsQuery.isLoading} />
+          <IncumbentMapPanel
+            incumbents={incumbentsQuery.data}
+            loading={incumbentsQuery.isLoading}
+          />
         </div>
       </div>
       <div className="pe-surface pe-plain-surface span-2">
@@ -902,7 +965,10 @@ export function ProgramElementWatchPage() {
         <WhatChangedPanel deltas={deltasQuery.data?.data} loading={deltasQuery.isLoading} />
       </div>
       <div className="pe-surface pe-plain-surface span-2">
-        <PdocDetailPanel detail={pDocDetail} onOpenPe={(pe) => navigate(`/program-elements/${pe}`)} />
+        <PdocDetailPanel
+          detail={pDocDetail}
+          onOpenPe={(pe) => navigate(`/program-elements/${pe}`)}
+        />
       </div>
       <div className="pe-surface pe-plain-surface span-2">
         <ClientRelevancePanel
@@ -989,7 +1055,9 @@ export function ProgramElementWatchPage() {
               ) : null}
             </div>
             <div className="pe-hero-tags">
-              {detail.budgetActivity ? <span className="pe-tag">{detail.budgetActivity}</span> : null}
+              {detail.budgetActivity ? (
+                <span className="pe-tag">{detail.budgetActivity}</span>
+              ) : null}
               {detail.appropriationType ? (
                 <span className="pe-tag">{detail.appropriationType}</span>
               ) : null}
@@ -1000,7 +1068,9 @@ export function ProgramElementWatchPage() {
                 <Tooltip
                   title={`No FY${detail.currentCycleFy} entry in the current budget cycle — this line's last budget-year record was FY${peLatestFy}. Likely wound down, transitioned to a later acquisition phase, or superseded; not necessarily an ingestion gap.`}
                 >
-                  <span className="pill muted">Historical — no FY{detail.currentCycleFy} entry</span>
+                  <span className="pill muted">
+                    Historical — no FY{detail.currentCycleFy} entry
+                  </span>
                 </Tooltip>
               ) : null}
             </div>
@@ -1018,7 +1088,8 @@ export function ProgramElementWatchPage() {
                 { peCode: normalizedPeCode, watching: !detail.currentUserIsWatching },
                 {
                   onSuccess: (_r, vars) => {
-                    if (vars.watching) message.success("You'll be notified when this PE has updates");
+                    if (vars.watching)
+                      message.success("You'll be notified when this PE has updates");
                   },
                 },
               )
@@ -1067,7 +1138,13 @@ export function ProgramElementWatchPage() {
             {latestEnacted ? <span className="pe-fy-pill">FY{latestEnacted.fy}</span> : null}
             {encSpark.length > 1 ? (
               <span className="pe-strip-spark">
-                <Sparkline data={encSpark} width={56} height={20} area={false} color="var(--accent)" />
+                <Sparkline
+                  data={encSpark}
+                  width={56}
+                  height={20}
+                  area={false}
+                  color="var(--accent)"
+                />
               </span>
             ) : null}
           </div>
