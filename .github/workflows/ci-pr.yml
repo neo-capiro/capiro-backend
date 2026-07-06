@@ -90,3 +90,9 @@ jobs:
       # approval gate) would type-check clean and still merge.
       - name: Test meriv2-orchestrator
         run: pnpm --filter @capiro/meriv2-orchestrator test
+
+      # @capiro/auth — the shared Clerk-verify guard (auth-extraction Option N).
+      # DB-free unit suite: guard 401/403 matrix + v1/v2 claims normalization.
+      # An auth regression here would gate every orchestrator/workspace route.
+      - name: Test auth package
+        run: pnpm --filter @capiro/auth test
