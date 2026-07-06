@@ -78,6 +78,14 @@ interface MeetingDetail {
   // Public-facing links (event page, video). The list/detail `url` is the API
   // endpoint and requires an api_key — never store it for the UI.
   videos?: Array<{ name?: string | null; url?: string | null }> | null;
+  // Witnesses are on the committee-meeting record (same payload we already fetch
+  // for Source 1) — populated as a committee posts them, often for UPCOMING
+  // hearings. Previously dropped; H1c stores them so hearing-prep sees them early.
+  witnesses?: Array<{
+    name?: string | null;
+    position?: string | null;
+    organization?: string | null;
+  }> | null;
 }
 
 interface HearingListItem {
@@ -217,8 +225,25 @@ async function buildCommitteeNameCache(): Promise<Map<string, string>> {
   return cache;
 }
 
+/** Normalize a witnesses[] payload to "Name, Position, Organization" strings. */
+function formatWitnesses(
+  witnesses:
+    | Array<{ name?: string | null; position?: string | null; organization?: string | null }>
+    | null
+    | undefined,
+): string[] {
+  return (witnesses ?? [])
+    .map((w) =>
+      [w.name?.trim(), w.position?.trim(), w.organization?.trim()]
+        .filter((p): p is string => !!p)
+        .join(', '),
+    )
+    .filter((s) => s.length > 0);
+}
+
 /** Witnesses live on the committee-meeting record (the /hearing endpoint has
- *  none). Returns "Name, Position, Organization" strings. */
+ *  none). Fetches the committee-meeting detail by eventId (used by Source 2,
+ *  which only has a jacket + associatedMeeting eventID). */
 async function fetchWitnesses(
   congress: number,
   chamber: string,
@@ -228,14 +253,7 @@ async function fetchWitnesses(
   const chamberSlug = chamber.toLowerCase();
   const url = `${CONGRESS_BASE}/committee-meeting/${congress}/${chamberSlug}/${eventId}?api_key=${API_KEY}&format=json`;
   const resp = await fetchJson<{ committeeMeeting: CommitteeMeetingWitnessDetail }>(url);
-  const witnesses = resp?.committeeMeeting?.witnesses ?? [];
-  return witnesses
-    .map((w) =>
-      [w.name?.trim(), w.position?.trim(), w.organization?.trim()]
-        .filter((p): p is string => !!p)
-        .join(', '),
-    )
-    .filter((s) => s.length > 0);
+  return formatWitnesses(resp?.committeeMeeting?.witnesses);
 }
 
 /* ── docs.house.gov helpers ─────────────────────────────────────────────── */
@@ -430,6 +448,12 @@ async function main() {
                 ? `[${status}] ${baseTitle}`
                 : baseTitle;
 
+            // H1c: witnesses ride on the committee-meeting detail we already
+            // fetched — store them (populated as a committee posts them, so
+            // upcoming hearings surface their witness list once announced). The
+            // detail is authoritative for cm-* rows, so setting it each run is
+            // idempotent; Source 3 (docs.house) preserves this on its later merge.
+            const witnesses = formatWitnesses(d.witnesses);
             const id = `cm-${congress}-${item.eventId}`;
             const row = {
               title,
@@ -440,12 +464,13 @@ async function main() {
               time: formatTime(d.date),
               location: formatLocation(d.location),
               type: d.type?.trim() || 'Meeting',
+              witnesses,
               url: meetingPublicUrl(d, congress, chamber, item.eventId),
             };
             await prisma.committeeHearing.upsert({
               where: { id },
               update: { ...row, syncedAt: new Date() },
-              create: { id, witnesses: [], ...row },
+              create: { id, ...row },
             });
             meetingUpserts++;
           }
