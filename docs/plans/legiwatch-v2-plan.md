@@ -196,3 +196,27 @@ Most spec "open questions" are **already answered by the shipped build**; the re
   Chrome MCP on a real client (cold + configured).
 - L6 extra: prove tenant isolation on Saved-recap read/write with a regression test (zero cross-tenant
   rows), and confirm the KB write lands in the right client's knowledge.
+
+---
+
+## Delivery status & live verification (2026-07-06)
+
+**SHIPPED to prod (capiro-dev / app.capiro.ai) + live-verified via browser:**
+
+| Phase | PR | Live check |
+|---|---|---|
+| L0 rename → LegiWatch + /legiwatch (redirect /radar) | #266 | ✅ /radar→/legiwatch; nav+title "LegiWatch"; tabs Feed·Bills·Hearings·Configure |
+| L1 calm Feed cards | #267 | ✅ collapse/expand, one severity cue (left edge), tag chip (#…), client label, "+N more" quotes, full action set on expand |
+| L2 Bills recs-above-board | #270 | ✅ "Recommended by Meri" section always above a read-only "Your board"; Fit/probability/Track |
+| L3 Hearings schedule-default + Watch live/recording + My Sessions | #271 | ✅ lands on Upcoming; "Watch live"; "My Sessions" with plain labels |
+| L4 Configure explainer + "Your alerts for [client]" | #272 | ✅ priority/position explainer; "Your alerts for Aperture Defense Systems" (per-user) |
+| L4b SMS "coming soon" | #280 | ✅ SMS badge "Coming soon", toggle disabled, "email is the live channel today" |
+| L5 Orientation intro + How it works | #275 | ✅ "How it works" control; first-run modal + per-user seen flag (Vitest-covered) |
+| L6 Save Recap → Documents + Meri knowledge | #278 | ✅ ended session → "Save recap" → Meri-synthesized recap preview → client picker → save (files a client Document; createAttachmentFromBuffer auto-indexes it into the client's Meri knowledge / client_doc_chunk) |
+
+Gate on every phase: CI green, tsc clean (web + intel-api where touched), Vitest green (RadarPage 7/7), inline adversarial self-review (full workflow fan-out blocked by the org spend limit). No DB migrations. L7 = the inline integrated review (no blocking defects).
+
+**Remaining follow-ons (documented; NOT rushed — each needs new backend / a restructure and would violate the "flawless, ships-live" bar if crammed in):**
+1. **L2b — all-clients Bills roll-up** (Gherkin "All-clients board" + U1). Today Bills at the all-clients altitude shows a client-gate; the roll-up needs a tenant-wide board endpoint + index in intel-api (mirror the P11 `_all/feed`) + a `global` client-labelled mode in `TrackerSurface`'s bills variant. `getBoard` is per-client with compiled-topics + alert logic, so this is a real backend addition.
+2. **L3 hearing refinements** — merge Upcoming+Archive into one segmented toggle; "watched archive → open saved session" (needs hearing↔session correlation); per-row "N watchlist matches"/"recap saved" (needs a session-list API enrichment — `LiveHearingSession` list lacks those fields).
+3. **G7 client-profile reorg** into Feed/Bills/Hearings/Saved sub-tabs (the profile LegiWatch tab still renders the tracker toggle; "Saved" is already covered by the existing Documents tab per decision #2).
