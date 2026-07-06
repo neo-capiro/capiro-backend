@@ -19,7 +19,14 @@
  * tool calls and feeds findings into the verification result.
  */
 
-/** Kept ≤ ~1.2k chars so it never blows the prompt budget (asserted in spec). */
+/**
+ * Kept ≤ ~1.2k chars so it never blows the prompt budget (asserted in spec).
+ * SYNC NOTE: an identical copy lives in @capiro/meriv2-core
+ * (src/domain/domain-primer.ts) for the MeriV2 orchestrator's in-editor
+ * assistant — apps/api does not depend on that package, so the two are kept in
+ * sync by hand. If you edit one, edit the other. (Follow-up: unify via a shared
+ * dep once apps/api takes a meriv2-core dependency.)
+ */
 export const DOMAIN_PRIMER = [
   'DEFENSE BUDGET STRUCTURE — validate, never assume:',
   '• A Program Element (PE) is a typed record, not just a number. Before citing one, confirm its appropriation type and budget activity match the ask.',
@@ -63,7 +70,9 @@ export function planFanOutQueries(
     if (out.length < maxQueries) out.push(q);
   };
 
-  const aboutKinetic = /\b(missile|interceptor|munition|kinetic|counter-?uas|c-?uas|drone)\b/i.test(text);
+  const aboutKinetic = /\b(missile|interceptor|munition|kinetic|counter-?uas|c-?uas|drone)\b/i.test(
+    text,
+  );
   const aboutAffordableMass = /\b(affordable|mass[\s-]produc|low[\s-]cost|sub-?\$?\d)/i.test(text);
   const claimsPrimary =
     /\bprimary\b[^.]*\b(vehicle|lane|line|account|program)\b/i.test(text) ||
@@ -79,7 +88,8 @@ export function planFanOutQueries(
       push({
         kind: 'better_fit_lane',
         peCode: pe.peCode,
-        reason: 'Check for a better-fit funding lane for this capability (e.g. an affordable-mass-missiles line).',
+        reason:
+          'Check for a better-fit funding lane for this capability (e.g. an affordable-mass-missiles line).',
       });
     }
     if (claimsPrimary) {

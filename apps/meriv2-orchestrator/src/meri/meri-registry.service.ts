@@ -29,6 +29,12 @@ import { IN_EDITOR_DELEGATED_TOOLS } from './delegated-tools.catalog.js';
 @Injectable()
 export class MeriRegistryService {
   readonly registry: ToolRegistry;
+  /**
+   * The ONE request-scoped LLM client (BYOK2 resolver). Exposed so other
+   * orchestrator surfaces (the in-editor assistant loop) reuse the same
+   * tenant-first client — keeping the single global-key-read site here.
+   */
+  readonly llm: RequestScopedLlmClient;
   private readonly logger = new Logger(MeriRegistryService.name);
 
   constructor(
@@ -71,5 +77,6 @@ export class MeriRegistryService {
     );
 
     this.registry = registry;
+    this.llm = llm;
   }
 }
