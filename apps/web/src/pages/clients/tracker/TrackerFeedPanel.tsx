@@ -241,7 +241,7 @@ export function TrackerFeedPanel({
         kind: 'intel' as const,
         title: item.title,
         body,
-        tag: 'Radar alert',
+        tag: 'LegiWatch alert',
         scope: 'all' as const,
         note: '',
       };

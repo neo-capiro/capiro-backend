@@ -1,4 +1,4 @@
-import { Navigate, Route, Routes, useParams } from 'react-router-dom';
+import { Navigate, Route, Routes, useLocation, useParams } from 'react-router-dom';
 import { lazy, Suspense } from 'react';
 import { SignIn, SignUp, useAuth } from '@clerk/clerk-react';
 import { config } from './env.js';
@@ -120,9 +120,12 @@ export function App() {
           }
         />
         <Route path="/explorer" element={<DataExplorerPage />} />
-        {/* Radar (P4) — Feed · Bills · Hearings · Watchlist, unifying the Bill
-            Tracker + Hearing Watch surfaces under one destination. */}
-        <Route path="/radar" element={<RadarPage />} />
+        {/* LegiWatch (Radar renamed) — Feed · Bills · Hearings · Configure,
+            unifying the Bill Tracker + Hearing Watch surfaces under one
+            destination. Canonical path is /legiwatch; /radar is kept as a
+            query-preserving redirect for live alert-email deep-links. */}
+        <Route path="/legiwatch" element={<RadarPage />} />
+        <Route path="/radar" element={<LegacyRadarRedirect />} />
         <Route path="/actions" element={<ActionBoardPage />} />
         <Route
           path="/program-elements"
@@ -219,11 +222,11 @@ export function App() {
         <Route path="/intelligence" element={<Navigate to="/explorer" replace />} />
         <Route path="/intelligence/changes" element={<ChangesInboxPage />} />
         <Route path="/intelligence/graph" element={<KnowledgeGraphPage />} />
-        {/* Hearing Watch's list surface moved into Radar's Hearings tab; the
+        {/* Hearing Watch's list surface moved into LegiWatch's Hearings tab; the
             live hearing room keeps its deep-linkable route. */}
         <Route
           path="/intelligence/hearing-watch"
-          element={<Navigate to="/radar?tab=hearings" replace />}
+          element={<Navigate to="/legiwatch?tab=hearings" replace />}
         />
         <Route path="/intelligence/hearing-watch/:id" element={<LiveHearingRoomPage />} />
         <Route path="/intelligence/issues/:code" element={<IssueLeaderboardPage />} />
@@ -301,6 +304,13 @@ function BillDetailRedirectRoute() {
   const encodedBill = bill ? encodeURIComponent(bill) : '';
   const target = encodedBill ? `/explorer?bill=${encodedBill}` : '/explorer';
   return <Navigate to={target} replace />;
+}
+
+// Radar was renamed to LegiWatch; /radar → /legiwatch, preserving the query
+// string so live alert-email deep-links (?tab=…&client=…) keep working.
+function LegacyRadarRedirect() {
+  const { search } = useLocation();
+  return <Navigate to={`/legiwatch${search}`} replace />;
 }
 
 function AuthPage({ mode }: { mode: 'sign-in' | 'sign-up' }) {

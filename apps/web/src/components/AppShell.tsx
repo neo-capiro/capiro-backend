@@ -139,8 +139,8 @@ const NAV: NavItem[] = [
     children: [
       {
         key: 'radar',
-        label: 'Radar',
-        path: '/radar',
+        label: 'LegiWatch',
+        path: '/legiwatch',
         icon: <AimOutlined />,
       },
       {
@@ -1021,7 +1021,8 @@ function pageKeyFor(pathname: string): AppSection {
   if (pathname.startsWith('/engagement')) return 'engagement';
   if (pathname.startsWith('/workspace')) return 'workspace';
   if (pathname.startsWith('/actions')) return 'actions';
-  if (pathname.startsWith('/radar')) return 'radar';
+  // LegiWatch (canonical /legiwatch; /radar kept as a redirect for live deep-links).
+  if (pathname.startsWith('/legiwatch') || pathname.startsWith('/radar')) return 'radar';
   // Knowledge Graph has its own nav entry — match its specific route BEFORE the
   // general /intelligence prefix, otherwise it falls through to 'intelligence'
   // (Data Explorer) and the wrong child highlights.
@@ -1054,7 +1055,7 @@ function pageConfigFor(pathname: string): PageConfig {
     actions: 'Action Board',
     'pe-group': 'Program Elements',
     'program-elements': 'Program Elements',
-    radar: 'Radar',
+    radar: 'LegiWatch',
     'hearing-watch': 'Hearing Watch',
     'analyst-console': 'Analyst Console',
     directory: 'Directory',

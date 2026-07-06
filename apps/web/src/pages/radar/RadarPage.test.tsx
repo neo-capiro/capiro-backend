@@ -102,9 +102,9 @@ describe('RadarPage', () => {
     mockApi({});
     renderRadar('/radar');
 
-    expect(screen.getByText('Radar')).toBeInTheDocument();
+    expect(screen.getByText('LegiWatch')).toBeInTheDocument();
     // All four tabs render regardless of flags.
-    for (const label of ['Feed', 'Bills', 'Hearings', 'Watchlist']) {
+    for (const label of ['Feed', 'Bills', 'Hearings', 'Configure']) {
       expect(screen.getByText(label)).toBeInTheDocument();
     }
     // P11: the Feed no longer prompts for a client at global altitude; without
@@ -141,7 +141,7 @@ describe('RadarPage', () => {
     expect(screen.getByText('Upcoming')).toBeInTheDocument();
     expect(screen.getByText('All hearings')).toBeInTheDocument();
     // P5: the hearing term-watchlist CRUD was absorbed into the unified editor on
-    // the Radar Watchlist tab — the Hearings surface no longer has its own view.
+    // the LegiWatch Configure tab — the Hearings surface no longer has its own view.
     expect(screen.queryByText('Watchlists')).not.toBeInTheDocument();
   });
 
@@ -162,8 +162,10 @@ describe('RadarPage', () => {
 
     await waitFor(() => expect(screen.getByText('Board')).toBeInTheDocument());
     expect(screen.getByText(/Recommendations/)).toBeInTheDocument();
-    // Bills variant hides the profile-only Configure/Feed sub-nav entries.
-    expect(screen.queryByText('Configure')).not.toBeInTheDocument();
+    // "Configure" now names the outer LegiWatch tab (renamed from "Watchlist"),
+    // so it renders as a tab here; the bills surface itself still exposes only its
+    // Board/Recommendations sub-nav (the profile-only entries stay hidden).
+    expect(screen.getByText('Configure')).toBeInTheDocument();
     await waitFor(() =>
       expect(screen.getByText(/No bills on the board yet/i)).toBeInTheDocument(),
     );

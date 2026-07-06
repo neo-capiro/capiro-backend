@@ -125,7 +125,7 @@ export function RadarPage() {
     <Select
       allowClear
       showSearch
-      aria-label="Radar client"
+      aria-label="LegiWatch client"
       placeholder={clients.isLoading ? 'Loading clients…' : 'Select a client'}
       loading={clients.isLoading}
       style={{ minWidth: 240 }}
@@ -148,7 +148,7 @@ export function RadarPage() {
     >
       <div style={{ display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap' }}>
         <Title level={3} style={{ margin: 0 }}>
-          <AimOutlined /> Radar
+          <AimOutlined /> LegiWatch
         </Title>
         <span style={{ flex: 1 }} />
         {clientPicker}
@@ -165,7 +165,7 @@ export function RadarPage() {
           { label: 'Feed', value: 'feed', icon: <BellOutlined /> },
           { label: 'Bills', value: 'bills', icon: <FileTextOutlined /> },
           { label: 'Hearings', value: 'hearings', icon: <AudioOutlined /> },
-          { label: 'Watchlist', value: 'watchlist', icon: <EyeOutlined /> },
+          { label: 'Configure', value: 'watchlist', icon: <EyeOutlined /> },
         ]}
         style={{ marginBottom: 16 }}
       />
