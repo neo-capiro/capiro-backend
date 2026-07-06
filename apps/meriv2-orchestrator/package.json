@@ -11,6 +11,7 @@
     "test": "jest --detectOpenHandles --forceExit"
   },
   "dependencies": {
+    "@capiro/auth": "workspace:*",
     "@capiro/meriv2-core": "workspace:*",
     "@capiro/shared": "workspace:*",
     "@clerk/backend": "^1.13.5",

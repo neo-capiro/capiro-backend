@@ -28,6 +28,7 @@ RUN apt-get update \
 
 COPY pnpm-workspace.yaml package.json pnpm-lock.yaml* tsconfig.base.json ./
 COPY apps/meriv2-orchestrator/package.json apps/meriv2-orchestrator/package.json
+COPY packages/auth/package.json packages/auth/package.json
 COPY packages/meriv2-core/package.json packages/meriv2-core/package.json
 COPY packages/shared/package.json packages/shared/package.json
 # api manifest + prisma schema are needed only to generate the shared client.
@@ -35,11 +36,14 @@ COPY apps/api/package.json apps/api/package.json
 RUN --mount=type=cache,id=pnpm,target=/pnpm/store \
     pnpm install --frozen-lockfile \
       --filter=@capiro/meriv2-orchestrator... \
+      --filter=@capiro/auth... \
       --filter=@capiro/meriv2-core... \
       --filter=@capiro/shared...
 
 COPY packages/shared/src packages/shared/src
 COPY packages/shared/tsconfig.json packages/shared/tsconfig.json
+COPY packages/auth/src packages/auth/src
+COPY packages/auth/tsconfig.json packages/auth/tsconfig.json
 COPY packages/meriv2-core/src packages/meriv2-core/src
 COPY packages/meriv2-core/tsconfig.json packages/meriv2-core/tsconfig.json
 # Copy the api Prisma schema INTO the orchestrator's own prisma dir so we can
@@ -51,6 +55,7 @@ COPY apps/meriv2-orchestrator/src apps/meriv2-orchestrator/src
 COPY apps/meriv2-orchestrator/tsconfig.json apps/meriv2-orchestrator/tsconfig.build.json apps/meriv2-orchestrator/nest-cli.json apps/meriv2-orchestrator/
 
 RUN pnpm --filter @capiro/shared build
+RUN pnpm --filter @capiro/auth build
 RUN pnpm --filter @capiro/meriv2-core build
 # Generate the @prisma/client the orchestrator imports (mirrors apps/api's
 # `pnpm --filter @capiro/api exec prisma generate`; the --prod prune below keeps
@@ -61,6 +66,7 @@ RUN pnpm --filter @capiro/meriv2-orchestrator build
 RUN --mount=type=cache,id=pnpm,target=/pnpm/store \
     pnpm install --frozen-lockfile --prod \
       --filter=@capiro/meriv2-orchestrator... \
+      --filter=@capiro/auth... \
       --filter=@capiro/meriv2-core... \
       --filter=@capiro/shared...
 
@@ -88,6 +94,14 @@ COPY --chown=capiro:capiro --from=build /workspace/packages/meriv2-core/package.
 # .pnpm store under /app/node_modules). Without this, `require('zod')` from
 # packages/meriv2-core/dist fails (pnpm does not hoist to the root).
 COPY --chown=capiro:capiro --from=build /workspace/packages/meriv2-core/node_modules /app/packages/meriv2-core/node_modules
+# @capiro/auth (Option N shared guard): dist + manifest + its OWN node_modules —
+# same pnpm-no-hoist rule as meriv2-core; without it `require('@nestjs/common')`
+# from packages/auth/dist fails at runtime (peers don't materialize for
+# workspace packages, hence auth declares them as regular deps whose ranges
+# MATCH the consumers so pnpm dedupes to one instance — DI identity).
+COPY --chown=capiro:capiro --from=build /workspace/packages/auth/dist /app/packages/auth/dist
+COPY --chown=capiro:capiro --from=build /workspace/packages/auth/package.json /app/packages/auth/package.json
+COPY --chown=capiro:capiro --from=build /workspace/packages/auth/node_modules /app/packages/auth/node_modules
 COPY --chown=capiro:capiro --from=build /workspace/apps/meriv2-orchestrator/dist /app/apps/meriv2-orchestrator/dist
 COPY --chown=capiro:capiro --from=build /workspace/apps/meriv2-orchestrator/node_modules /app/apps/meriv2-orchestrator/node_modules
 COPY --chown=capiro:capiro --from=build /workspace/apps/meriv2-orchestrator/package.json /app/apps/meriv2-orchestrator/package.json

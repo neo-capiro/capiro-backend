@@ -304,6 +304,9 @@ importers:
 
   apps/meriv2-orchestrator:
     dependencies:
+      '@capiro/auth':
+        specifier: workspace:*
+        version: link:../../packages/auth
       '@capiro/meriv2-core':
         specifier: workspace:*
         version: link:../../packages/meriv2-core
@@ -592,16 +595,17 @@ importers:
         version: 5.9.3
 
   packages/auth:
-    devDependencies:
+    dependencies:
       '@clerk/backend':
         specifier: ^1.13.5
         version: 1.34.0(react-dom@18.3.1(react@18.3.1))(react@18.3.1)(svix@1.92.2)
       '@nestjs/common':
-        specifier: ^10.4.22
+        specifier: ^10.4.4
         version: 10.4.22(class-transformer@0.5.1)(class-validator@0.14.4)(reflect-metadata@0.2.2)(rxjs@7.8.2)
       '@nestjs/config':
         specifier: ^3.2.3
         version: 3.3.0(@nestjs/common@10.4.22(class-transformer@0.5.1)(class-validator@0.14.4)(reflect-metadata@0.2.2)(rxjs@7.8.2))(rxjs@7.8.2)
+    devDependencies:
       '@types/express':
         specifier: ^4.17.21
         version: 4.17.25

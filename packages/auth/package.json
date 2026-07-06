@@ -18,15 +18,12 @@
     "test": "jest --detectOpenHandles --forceExit",
     "clean": "rm -rf dist"
   },
-  "peerDependencies": {
+  "dependencies": {
     "@clerk/backend": "^1.13.5",
-    "@nestjs/common": "^10.0.0",
-    "@nestjs/config": "^3.0.0"
+    "@nestjs/common": "^10.4.4",
+    "@nestjs/config": "^3.2.3"
   },
   "devDependencies": {
-    "@clerk/backend": "^1.13.5",
-    "@nestjs/common": "^10.4.22",
-    "@nestjs/config": "^3.2.3",
     "@types/express": "^4.17.21",
     "@types/jest": "^29.5.13",
     "@types/node": "^20.16.10",
