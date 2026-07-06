@@ -700,12 +700,19 @@ export function TrackerConfigPanel({
                   </span>
                   <div style={{ flex: 1 }}>
                     <div className="chan-name">
-                      SMS <span className="urgent-hint">Urgent only</span>
+                      SMS <span className="urgent-hint">Coming soon</span>
                     </div>
-                    <div className="chan-sub">Short, high-signal — reserved for material moves</div>
+                    <div className="chan-sub">
+                      Out of scope this round — email is the live channel today.
+                    </div>
                   </div>
+                  {/* LegiWatch v2 (L4/U6/D12): SMS is "coming soon" — disabled so it
+                      can't be newly enabled; the verify/cadence flow stays in code. */}
                   <button
                     className={`tgl${smsEnabled ? ' on' : ''}`}
+                    disabled
+                    title="SMS delivery is coming soon"
+                    style={{ cursor: 'not-allowed', opacity: 0.5 }}
                     onClick={() => setSmsEnabled((v) => !v)}
                   />
                 </div>
