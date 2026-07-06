@@ -289,6 +289,7 @@ export function TrackerConfigPanel({
   watchlist,
   prefs,
   seed,
+  clientName,
   onSaveWatchlist,
   onSavePrefs,
   onRequestVerify,
@@ -296,6 +297,8 @@ export function TrackerConfigPanel({
   typedTermsEnabled = false,
 }: {
   allIssueAreas: string[];
+  /** LegiWatch v2 (L4): titles the per-user alerts section "Your alerts for [client]". */
+  clientName?: string;
   watchlist: WatchlistPayload;
   prefs: AlertPrefsPayload;
   seed?: { tags: WatchlistTag[]; issueAreas: string[] };
@@ -551,6 +554,12 @@ export function TrackerConfigPanel({
 
           <div className="cfg-block" style={{ marginTop: 22 }}>
             <div className="cfg-label">Client tags &amp; watchlist</div>
+            {/* LegiWatch v2 (L4): explain priority vs position inline (Gherkin U6). */}
+            <div className="cfg-help" style={{ marginTop: 2, marginBottom: 10 }}>
+              Each tag carries a <b>priority</b> (how much it matters — this drives how alerts are
+              ranked) and a <b>position</b> (this client’s stance: Support, Oppose, or Monitor).
+              Click either pill to change it.
+            </div>
             <div className="tag-list">
               {tags.map((t, i) => (
                 <TagRow
@@ -578,10 +587,11 @@ export function TrackerConfigPanel({
       {/* Alerts */}
       <div className="surface">
         <div className="surface-head">
-          <h3>Alerts</h3>
-          {/* Prefs are per-user-per-client (keyed userId+clientId) — say so.
-              The old "this team" copy read firm-wide and was wrong (Q6). */}
-          <span className="sub">how you get notified about this client</span>
+          {/* LegiWatch v2 (L4/U6): per-user, per-client — titled "Your alerts for
+              [client]" (keyed userId+clientId). The old "this team" copy read
+              firm-wide and was wrong (Q6). */}
+          <h3>{clientName ? `Your alerts for ${clientName}` : 'Your alerts'}</h3>
+          <span className="sub">per-user — only you get these, not the whole team</span>
           <span className="save">
             <Icon name="check" size={13} /> Saved
           </span>

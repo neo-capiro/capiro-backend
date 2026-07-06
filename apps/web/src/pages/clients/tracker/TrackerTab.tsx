@@ -851,6 +851,7 @@ export function TrackerSurface({
         ) : (
           <TrackerConfigPanel
             allIssueAreas={allIssueAreas}
+            clientName={clientName}
             watchlist={watchlistQuery.data ?? { issueAreas: [], tags: [] }}
             prefs={prefsQuery.data}
             seed={seedQuery.data}
