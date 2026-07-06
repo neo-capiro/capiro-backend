@@ -5,6 +5,7 @@ import { SegmentCommitService } from './segment-commit.service.js';
 import { StreamIngestionService } from './stream-ingestion.service.js';
 import { HearingCryptoService } from './hearing-crypto.service.js';
 import { OrchestratorClient } from './orchestrator.client.js';
+import { HearingAiCredentialResolver } from './hearing-ai-credential-resolver.client.js';
 import { PostHearingService } from './post-hearing.service.js';
 import { HearingBriefService } from './hearing-brief.service.js';
 import { HearingGateway } from './hearing.gateway.js';
@@ -27,6 +28,7 @@ import { SourceDataModule } from '../sourcedata/source-data.module.js';
     SegmentCommitService,
     HearingCryptoService,
     OrchestratorClient,
+    HearingAiCredentialResolver,
     PostHearingService,
     HearingBriefService,
     StreamIngestionService,

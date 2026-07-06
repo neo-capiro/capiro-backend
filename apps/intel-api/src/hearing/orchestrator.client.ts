@@ -1,6 +1,7 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import type { FinalSegment, ExtractionResult } from './hearing.types.js';
+import { HearingAiCredentialResolver } from './hearing-ai-credential-resolver.client.js';
 
 /**
  * Calls the MeriV2 orchestrator tool registry to turn a final transcript
@@ -21,7 +22,10 @@ export class OrchestratorClient {
   private readonly baseUrl?: string;
   private readonly timeoutMs: number;
 
-  constructor(config: ConfigService) {
+  constructor(
+    config: ConfigService,
+    private readonly aiCredentials: HearingAiCredentialResolver,
+  ) {
     this.baseUrl = config.get<string>('MERIV2_ORCHESTRATOR_URL');
     this.timeoutMs = Number.parseInt(config.get<string>('MERIV2_TIMEOUT_MS') ?? '8000', 10);
   }
@@ -50,6 +54,12 @@ export class OrchestratorClient {
     const empty: ExtractionResult = { entityMentions: [], issueTags: [] };
     if (!this.baseUrl) return empty;
 
+    // BYOK3: resolve the tenant's key (cached) so this runs on THEIR credential,
+    // not the orchestrator's global fallback. Absent/failed resolve → the
+    // header is simply omitted and the orchestrator falls back exactly as it
+    // does today (no behavior change for a tenant with no key configured).
+    const aiProvider = await this.aiCredentials.resolve(params.tenantId);
+
     const controller = new AbortController();
     const timer = setTimeout(() => controller.abort(), this.timeoutMs);
     try {
@@ -62,6 +72,7 @@ export class OrchestratorClient {
           'content-type': 'application/json',
           authorization: `Bearer ${params.authToken}`,
           'x-tenant-id': params.tenantId,
+          ...(aiProvider ? { 'x-capiro-ai-provider': JSON.stringify(aiProvider) } : {}),
         },
         body: JSON.stringify({
           input: {
@@ -89,7 +100,9 @@ export class OrchestratorClient {
         summaryCard: data.summaryCard,
       };
     } catch (err) {
-      this.logger.warn(`orchestrator extract failed (${(err as Error).message}); degrading to raw segment`);
+      this.logger.warn(
+        `orchestrator extract failed (${(err as Error).message}); degrading to raw segment`,
+      );
       return empty;
     } finally {
       clearTimeout(timer);
@@ -118,29 +131,34 @@ export class OrchestratorClient {
     draftClientEmail: { subject: string; body: string };
   } | null> {
     if (!this.baseUrl) return null;
+    const aiProvider = await this.aiCredentials.resolve(params.tenantId);
     const controller = new AbortController();
     const timer = setTimeout(() => controller.abort(), this.timeoutMs * 3);
     try {
-      const res = await fetch(`${this.baseUrl}/meri-api/tools/generate_post_hearing_summary/invoke`, {
-        method: 'POST',
-        headers: {
-          'content-type': 'application/json',
-          authorization: `Bearer ${params.authToken}`,
-          'x-tenant-id': params.tenantId,
-        },
-        // Only the tool's schema fields belong in `input`; tenantId/authToken are
-        // transport concerns (x-tenant-id header + bearer), not tool input.
-        body: JSON.stringify({
-          input: {
-            sessionId: params.sessionId,
-            title: params.title,
-            quotes: params.quotes,
-            mentions: params.mentions,
-            actionItems: params.actionItems,
+      const res = await fetch(
+        `${this.baseUrl}/meri-api/tools/generate_post_hearing_summary/invoke`,
+        {
+          method: 'POST',
+          headers: {
+            'content-type': 'application/json',
+            authorization: `Bearer ${params.authToken}`,
+            'x-tenant-id': params.tenantId,
+            ...(aiProvider ? { 'x-capiro-ai-provider': JSON.stringify(aiProvider) } : {}),
           },
-        }),
-        signal: controller.signal,
-      });
+          // Only the tool's schema fields belong in `input`; tenantId/authToken are
+          // transport concerns (x-tenant-id header + bearer), not tool input.
+          body: JSON.stringify({
+            input: {
+              sessionId: params.sessionId,
+              title: params.title,
+              quotes: params.quotes,
+              mentions: params.mentions,
+              actionItems: params.actionItems,
+            },
+          }),
+          signal: controller.signal,
+        },
+      );
       if (!res.ok) return null;
       const envelope = (await res.json()) as {
         result?: {

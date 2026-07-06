@@ -5,6 +5,7 @@ import { LobbyIntelModule } from '../lobby-intel/lobby-intel.module.js';
 import { FederalSpendingModule } from '../federal-spending/federal-spending.module.js';
 import { EmbeddingsModule } from '../embeddings/embeddings.module.js';
 import { EngagementController } from './engagement.controller.js';
+import { InternalAiCredentialsController } from './internal-ai-credentials.controller.js';
 import { AiCredentialResolverService } from './ai-credential-resolver.service.js';
 import { ClientAssociationService } from './client-association.service.js';
 import { EngagementAiService } from './engagement-ai.service.js';
@@ -16,8 +17,14 @@ import { MicrosoftOAuthService } from './microsoft/microsoft-oauth.service.js';
 import { TokenCryptoService } from './microsoft/token-crypto.service.js';
 
 @Module({
-  imports: [PrismaModule, DirectoryModule, LobbyIntelModule, FederalSpendingModule, EmbeddingsModule],
-  controllers: [EngagementController, MicrosoftOAuthController],
+  imports: [
+    PrismaModule,
+    DirectoryModule,
+    LobbyIntelModule,
+    FederalSpendingModule,
+    EmbeddingsModule,
+  ],
+  controllers: [EngagementController, MicrosoftOAuthController, InternalAiCredentialsController],
   providers: [
     EngagementService,
     ClientAssociationService,
