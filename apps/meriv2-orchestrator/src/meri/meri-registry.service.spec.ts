@@ -42,8 +42,31 @@ describe('MeriRegistryService', () => {
     expect(list).toContain('query_economic_data');
     // get_client_context is registered exactly once (native), not duplicated.
     expect(list.filter((n) => n === 'get_client_context')).toHaveLength(1);
-    // No write tool leaked into the registry.
-    expect(list).not.toContain('send_email');
-    expect(list).not.toContain('update_client_profile');
+  });
+
+  it('registers the delegated write tool surface, gated (Workstream C write-tool porting)', () => {
+    const config = { get: () => undefined } as unknown as ConfigService;
+    const list = make(config).registry.list();
+    expect(list).toContain('send_email');
+    expect(list).toContain('update_client_profile');
+    expect(list).toContain('create_task');
+  });
+
+  it('fails closed: invoking a write tool throws ApprovalPendingError and NEVER reaches apps/api', async () => {
+    const config = { get: () => undefined } as unknown as ConfigService;
+    const spyExecutor = {
+      execute: jest.fn(async () => ({ ok: true })),
+    } as unknown as ApiToolExecutorRepo;
+    const svc = new MeriRegistryService(fakeRepo, spyExecutor, config);
+    const ctx = {
+      tenantId: 'tenant-1',
+      userId: 'user-1',
+      clerkUserId: 'clerk_1',
+      role: 'standard_user' as const,
+    };
+    await expect(
+      svc.registry.invoke('send_email', { to: 'a@b.com', subject: 's', body: 'b' }, ctx),
+    ).rejects.toThrow(/requires approval|ApprovalPendingError/i);
+    expect(spyExecutor.execute as jest.Mock).not.toHaveBeenCalled();
   });
 });

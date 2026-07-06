@@ -14,6 +14,7 @@ import { ApiClientContextRepo } from './api-client-context.repo.js';
 import { ApiToolExecutorRepo } from './api-tool-executor.repo.js';
 import { RequestScopedLlmClient } from './request-scoped-llm.client.js';
 import { IN_EDITOR_DELEGATED_TOOLS } from './delegated-tools.catalog.js';
+import { WRITE_DELEGATED_TOOLS } from './write-tools.catalog.js';
 
 /**
  * Owns the single MeriV2 tool registry the orchestrator hosts. Registers the
@@ -45,8 +46,7 @@ export class MeriRegistryService {
     // Write tools fail closed: the registry requires an ApprovalGate for any
     // `readOnly:false` tool. Wire the compliance gate now (fallback WARN =>
     // requires human approval) so that when write tools are ported (Workstream
-    // C) they are gated from the first registration. Only read-only delegated
-    // tools are registered below, so the gate is not yet exercised.
+    // C) they are gated from the first registration.
     const registry = new InMemoryToolRegistry({
       approvalGate: new PolicyApprovalGate(staticCompliancePolicy({ fallback: 'WARN' })),
     });
@@ -58,8 +58,29 @@ export class MeriRegistryService {
     // bridge get_client_context uses. get_client_context is already registered
     // natively above, so it is skipped here to avoid a duplicate registration.
     const delegated = IN_EDITOR_DELEGATED_TOOLS.filter((t) => t.name !== 'get_client_context');
-    const names = registerDelegatedTools((def) => registry.register(def), delegated, toolExecutor);
-    this.logger.log(`Registered ${names.length} delegated read-only tools`);
+    const readNames = registerDelegatedTools(
+      (def) => registry.register(def),
+      delegated,
+      toolExecutor,
+    );
+    this.logger.log(`Registered ${readNames.length} delegated read-only tools`);
+
+    // Workstream C (write-tool porting): the 14 side-effecting Meri tools,
+    // delegated the same way, but `readOnly:false` — every invoke now runs the
+    // PolicyApprovalGate above BEFORE the delegated call. With no ApprovalStore
+    // wired yet (B3/B4) and the WARN fallback, invoking one of these ALWAYS
+    // throws `ApprovalPendingError` and never reaches apps/api — registering
+    // them here proves the gate mechanism end-to-end without executing a real
+    // side effect or inventing an approval UX. No live surface calls these
+    // tools yet (in-editor stays read-only; full chat is not built on MeriV2).
+    const writeNames = registerDelegatedTools(
+      (def) => registry.register(def),
+      WRITE_DELEGATED_TOOLS,
+      toolExecutor,
+    );
+    this.logger.log(
+      `Registered ${writeNames.length} delegated write tools (gated, fail-closed pending B3/B4)`,
+    );
 
     // BYOK2: LLM tools bind the request-scoped client, which prefers the
     // caller-passed tenant credential (x-capiro-ai-provider, option c) and only
