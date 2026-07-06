@@ -4,7 +4,7 @@ import {
   InMemoryToolRegistry,
   PolicyApprovalGate,
   registerDelegatedTools,
-  staticCompliancePolicy,
+  ruleBasedCompliancePolicy,
   createGetClientContextTool,
   createTagLivePolicyMentionsTool,
   createGeneratePostHearingSummaryTool,
@@ -45,11 +45,14 @@ export class MeriRegistryService {
     config: ConfigService,
   ) {
     // Write tools fail closed: the registry requires an ApprovalGate for any
-    // `readOnly:false` tool. Wire the compliance gate now (fallback WARN =>
-    // requires human approval) so that when write tools are ported (Workstream
-    // C) they are gated from the first registration.
+    // `readOnly:false` tool. The gate runs the B2 rules engine
+    // (ruleBasedCompliancePolicy — every write => WARN by the seed rule, with an
+    // auditable rule id) and, on WARN, consults the ApprovalStore. The store
+    // defaults to denyAllApprovals (dormant/fail-closed) until B4 wires the
+    // apps/api-backed RepoBackedApprovalStore, so today every write still holds
+    // as ApprovalPendingError — no behavior change, now via the real engine.
     const registry = new InMemoryToolRegistry({
-      approvalGate: new PolicyApprovalGate(staticCompliancePolicy({ fallback: 'WARN' })),
+      approvalGate: new PolicyApprovalGate(ruleBasedCompliancePolicy()),
     });
     registry.register(createGetClientContextTool(clientContextRepo));
 
