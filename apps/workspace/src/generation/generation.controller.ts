@@ -1,13 +1,20 @@
 import { Body, Controller, Param, Post, Req, UseGuards } from '@nestjs/common';
 import type { Request } from 'express';
-import { IsOptional, IsString, MinLength } from 'class-validator';
+import { IsArray, IsObject, IsOptional, IsString, MinLength } from 'class-validator';
 import { TenantGuard } from '../auth/tenant.guard.js';
 import { CurrentTenant } from '../auth/current-tenant.decorator.js';
 import type { WorkspaceTenantContext } from '../auth/tenant-context.js';
 import { GenerationService } from './generation.service.js';
+import type { PeStructuralWarning } from './domain-grounding.helpers.js';
 
 export class GenerateSectionDto {
   @IsString() @MinLength(1) section!: string;
+}
+
+export class ApplyGeneratedSectionsDto {
+  @IsOptional() @IsObject() sectionContent?: Record<string, string>;
+  @IsOptional() @IsObject() sectionMeta?: Record<string, { status: string }>;
+  @IsOptional() @IsArray() structuralWarnings?: PeStructuralWarning[];
 }
 
 export class MeriIntakeDto {
@@ -55,6 +62,24 @@ export class GenerationController {
     return this.generation.generateAllSections(ctx.tenantId, draftId, {
       bearerToken: extractGenBearer(req),
     });
+  }
+
+  /**
+   * POST /workspace-api/drafts/:draftId/apply-generated-sections
+   * Write-back half of the MeriV2 orchestrator-generation contract: the
+   * orchestrator does the reasoning (dormant proxy branch in generate-all)
+   * and calls back here, forwarding the caller's bearer, so apps/workspace
+   * remains the only writer of ws_draft.config. Tenant-scoped like every
+   * other draft mutation — grants no capability beyond what the normal editor
+   * save path already allows for a caller's own draft.
+   */
+  @Post('apply-generated-sections')
+  applyGeneratedSections(
+    @CurrentTenant() ctx: WorkspaceTenantContext,
+    @Param('draftId') draftId: string,
+    @Body() dto: ApplyGeneratedSectionsDto,
+  ) {
+    return this.generation.applyGeneratedSections(ctx.tenantId, draftId, dto);
   }
 }
 
