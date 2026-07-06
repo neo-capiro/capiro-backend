@@ -1,4 +1,5 @@
 import { buildChatSystemPrompt } from './chat-prompt';
+import { KeywordIntentRouter } from '@capiro/meriv2-core';
 import type { MeriContext } from '@capiro/meriv2-core';
 
 const ctx: MeriContext = {
@@ -34,5 +35,28 @@ describe('buildChatSystemPrompt', () => {
     expect(prompt).toContain('call search_memory FIRST');
     expect(prompt).toContain('query_debriefs');
     expect(prompt).toContain('never use them for firm-internal questions');
+  });
+});
+
+describe('plan-mode steering (agent-map wiring)', () => {
+  it('injects a mode steer when a non-default mode classifies with signal', () => {
+    const intent = new KeywordIntentRouter().classify('draft a memo about the NDAA');
+    expect(intent.mode).toBe('writing');
+    const prompt = buildChatSystemPrompt({}, ctx, intent);
+    expect(prompt).toContain('# Mode: writing');
+    expect(prompt).toContain('Produce the document itself');
+  });
+
+  it('stays byte-identical for research/zero-signal turns (the common case)', () => {
+    const noSignal = new KeywordIntentRouter().classify('hello there');
+    expect(noSignal.confidence).toBe(0);
+    expect(buildChatSystemPrompt({}, ctx, noSignal)).toBe(buildChatSystemPrompt({}, ctx));
+  });
+
+  it('compliance questions get the accuracy-over-helpfulness steer', () => {
+    const intent = new KeywordIntentRouter().classify('do I have an LDA disclosure obligation?');
+    expect(intent.mode).toBe('compliance');
+    const prompt = buildChatSystemPrompt({}, ctx, intent);
+    expect(prompt).toContain('# Mode: compliance');
   });
 });

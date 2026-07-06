@@ -103,3 +103,24 @@ export class KeywordIntentRouter implements IntentRouter {
     return { mode: bestMode, confidence, signals: bestSignals };
   }
 }
+
+/**
+ * Prompt steering per plan-mode (the wiring that makes the router DO something,
+ * P3/agent-map). Returns a short steer the surface appends to its system prompt
+ * when a mode classifies with confidence > 0; `research` (also the zero-hit
+ * fallback) returns '' so the common case is byte-identical to before.
+ */
+export function planModeSteering(mode: PlanMode): string {
+  switch (mode) {
+    case 'writing':
+      return 'The user wants a DRAFT. Produce the document itself (memo/letter/one-pager) in the firm’s register — not advice about writing it. Retrieve the facts you cite first.';
+    case 'monitoring':
+      return 'The user wants ongoing AWARENESS. Prefer setting up tracking — alerts, watchlists, scheduled tasks — over a one-shot answer, and say what will be watched and when they’ll hear about it.';
+    case 'analytics':
+      return 'The user wants ANALYSIS. Pull the underlying data with tools, then compare/rank/quantify with explicit numbers and state the basis of every figure.';
+    case 'compliance':
+      return 'This touches COMPLIANCE (LDA/FARA/ethics/gifts). Prioritize accuracy over helpfulness: surface the specific disclosure obligation or restriction, cite its source, and when unsure say so rather than guess.';
+    case 'research':
+      return '';
+  }
+}

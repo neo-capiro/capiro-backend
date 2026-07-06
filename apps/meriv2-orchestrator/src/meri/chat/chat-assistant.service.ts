@@ -1,6 +1,11 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
-import { computeActionFingerprint, type MeriContext, type ToolRegistry } from '@capiro/meriv2-core';
+import {
+  computeActionFingerprint,
+  KeywordIntentRouter,
+  type MeriContext,
+  type ToolRegistry,
+} from '@capiro/meriv2-core';
 import { MeriRegistryService } from '../meri-registry.service.js';
 import { RequestScopedLlmClient, type AnthropicToolSchema } from '../request-scoped-llm.client.js';
 import { RequestCredentialsStore } from '../../request/request-credentials.store.js';
@@ -81,7 +86,11 @@ export class ChatAssistantService {
       return { reply: 'What can I help you with?' };
     }
 
-    const system = buildChatSystemPrompt(dto, ctx);
+    // Plan-mode routing (deterministic keyword router): classify the last user
+    // turn and steer the prompt when a non-default mode matches.
+    const lastUserText = String(messages[messages.length - 1]?.content ?? '');
+    const intent = new KeywordIntentRouter().classify(lastUserText);
+    const system = buildChatSystemPrompt(dto, ctx, intent);
     const toolSchemas = await this.fetchToolSchemas();
     const steps: ChatStep[] = [];
     const pendingApprovals: NonNullable<ChatResult['pendingApprovals']> = [];

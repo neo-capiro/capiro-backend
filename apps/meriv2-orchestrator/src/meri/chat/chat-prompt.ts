@@ -1,4 +1,9 @@
-import { DOMAIN_PRIMER, type MeriContext } from '@capiro/meriv2-core';
+import {
+  DOMAIN_PRIMER,
+  planModeSteering,
+  type IntentClassification,
+  type MeriContext,
+} from '@capiro/meriv2-core';
 
 /**
  * Full Meri chat (Workstream C4) — pure prompt/label logic, kept dependency-light
@@ -125,7 +130,11 @@ const TOOL_LABELS: Record<string, string> = {
 };
 
 /** System prompt: who Meri is, the firm/user voice, the tool contract, the gate. */
-export function buildChatSystemPrompt(dto: ChatInput, ctx: MeriContext): string {
+export function buildChatSystemPrompt(
+  dto: ChatInput,
+  ctx: MeriContext,
+  intent?: IntentClassification,
+): string {
   const firm = ctx.firmMemory;
   const voice = ctx.userVoice;
   return [
@@ -139,6 +148,14 @@ export function buildChatSystemPrompt(dto: ChatInput, ctx: MeriContext): string 
     voice ? `\n# The user's writing voice (mirror it when you draft)\n${voice}` : '',
     dto.memoryContext?.length
       ? `\n# What you remember (firm + this user)\nThese are stored memories relevant to this conversation — use them directly when they answer the question:\n${dto.memoryContext.map((m) => `- ${m}`).join('\n')}`
+      : '',
+    // Plan-mode steering (agent-map wiring): only when a mode classified with
+    // signal — `research` is also the zero-hit fallback, so the common case
+    // stays byte-identical to before.
+    intent && intent.mode !== 'research' && intent.confidence > 0
+      ? `
+# Mode: ${intent.mode}
+${planModeSteering(intent.mode)}`
       : '',
     '',
     '# Tools',
