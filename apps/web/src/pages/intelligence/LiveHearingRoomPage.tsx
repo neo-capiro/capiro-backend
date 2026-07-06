@@ -1,21 +1,34 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import { useAuth } from '@clerk/clerk-react';
+import { useQuery } from '@tanstack/react-query';
 import {
   App as AntApp,
   Alert,
   Badge,
   Button,
   Card,
+  Divider,
   Empty,
   Input,
+  Modal,
+  Select,
   Space,
+  Spin,
   Tag,
   Typography,
 } from 'antd';
-import { ArrowLeftOutlined, AudioOutlined } from '@ant-design/icons';
+import { ArrowLeftOutlined, AudioOutlined, SaveOutlined } from '@ant-design/icons';
+import { useApi } from '../../lib/use-api.js';
 import { useIntelFeatureEnabled } from '../../lib/intel-feature-flags.js';
-import { useConfirmConsent, useHearingSession } from '../../lib/hearing-watch-api.js';
+import {
+  briefToMarkdown,
+  useConfirmConsent,
+  useGenerateBrief,
+  useHearingSession,
+  useSaveRecap,
+  type HearingBrief,
+} from '../../lib/hearing-watch-api.js';
 
 const { Title, Text, Paragraph } = Typography;
 
@@ -48,6 +61,17 @@ export function LiveHearingRoomPage() {
   const confirmConsent = useConfirmConsent();
 
   const session = useHearingSession(id);
+  const api = useApi();
+  // Clients (id→name) to resolve the recap's target client + label the picker.
+  const clientsQuery = useQuery<Array<{ id: string; name: string }>>({
+    queryKey: ['clients'],
+    queryFn: async () => (await api.get<Array<{ id: string; name: string }>>('/api/clients')).data,
+    staleTime: 60_000,
+  });
+  // Post-session (L6): once the session has ended (server status or a local Stop),
+  // surface "Save recap" → files a client Document + indexes into Meri's knowledge.
+  const [stopped, setStopped] = useState(false);
+  const [recapOpen, setRecapOpen] = useState(false);
   const [connected, setConnected] = useState(false);
   const [audioUrl, setAudioUrl] = useState('');
   const [segments, setSegments] = useState<Segment[]>([]);
@@ -226,6 +250,7 @@ export function LiveHearingRoomPage() {
               wsRef.current?.close();
               setConnected(false);
               setStatusText(null);
+              setStopped(true);
             }}
           >
             Stop
@@ -246,6 +271,15 @@ export function LiveHearingRoomPage() {
           Confirm consent
         </Button>
       </Space>
+
+      {(stopped || session.data?.status === 'ended') && (
+        <Space style={{ marginBottom: 12 }} wrap>
+          <Text type="secondary">Session ended — act on it:</Text>
+          <Button type="primary" icon={<SaveOutlined />} onClick={() => setRecapOpen(true)}>
+            Save recap
+          </Button>
+        </Space>
+      )}
 
       <Space.Compact style={{ display: 'flex', marginBottom: 12, maxWidth: 720 }}>
         <Input
@@ -319,7 +353,138 @@ export function LiveHearingRoomPage() {
           )}
         </Card>
       </div>
+
+      {recapOpen && (
+        <SaveRecapModal
+          sessionId={id}
+          sessionTitle={session.data?.title ?? 'Hearing'}
+          defaultClientId={session.data?.clientId ?? undefined}
+          clients={clientsQuery.data ?? []}
+          onClose={() => setRecapOpen(false)}
+        />
+      )}
     </div>
+  );
+}
+
+/**
+ * L6 — Save Recap. Generates the post-hearing brief, previews it, and files it to
+ * a client's Documents (which auto-indexes into that client's Meri knowledge).
+ */
+function SaveRecapModal({
+  sessionId,
+  sessionTitle,
+  defaultClientId,
+  clients,
+  onClose,
+}: {
+  sessionId: string;
+  sessionTitle: string;
+  defaultClientId?: string;
+  clients: Array<{ id: string; name: string }>;
+  onClose: () => void;
+}) {
+  const { message } = AntApp.useApp();
+  const gen = useGenerateBrief();
+  const save = useSaveRecap();
+  const [brief, setBrief] = useState<HearingBrief | null>(null);
+  const [failed, setFailed] = useState(false);
+  const [clientId, setClientId] = useState(defaultClientId ?? '');
+
+  useEffect(() => {
+    gen.mutate(sessionId, {
+      onSuccess: (b) => (b ? setBrief(b) : setFailed(true)),
+      onError: () => setFailed(true),
+    });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [sessionId]);
+
+  const clientName = clients.find((c) => c.id === clientId)?.name ?? '';
+  const onSave = () => {
+    if (!brief || !clientId) return;
+    save.mutate(
+      { clientId, clientName, title: `Hearing recap — ${sessionTitle}`, markdown: briefToMarkdown(brief) },
+      {
+        onSuccess: () => {
+          message.success(`Recap saved to ${clientName}'s Documents and added to Meri's knowledge`);
+          onClose();
+        },
+        onError: (e: unknown) => {
+          const detail = (e as { response?: { data?: { message?: string | string[] } } })?.response?.data
+            ?.message;
+          message.error(
+            `Could not save recap: ${
+              Array.isArray(detail) ? detail.join('; ') : detail ?? (e as Error).message
+            }`,
+          );
+        },
+      },
+    );
+  };
+
+  return (
+    <Modal
+      open
+      onCancel={onClose}
+      title="Save hearing recap"
+      width={640}
+      destroyOnHidden
+      footer={[
+        <Button key="cancel" onClick={onClose}>
+          Cancel
+        </Button>,
+        <Button
+          key="save"
+          type="primary"
+          icon={<SaveOutlined />}
+          loading={save.isPending}
+          disabled={!brief || !clientId}
+          onClick={onSave}
+        >
+          Save to Client Profile
+        </Button>,
+      ]}
+    >
+      {!brief && !failed ? (
+        <div style={{ textAlign: 'center', padding: 32 }}>
+          <Spin />
+          <div style={{ marginTop: 12 }}>Meri is writing the recap…</div>
+        </div>
+      ) : failed ? (
+        <Alert
+          type="warning"
+          showIcon
+          message="No recap available yet"
+          description="This session has no transcribed content to summarize. Connect and transcribe the hearing first."
+        />
+      ) : (
+        <div>
+          <div style={{ marginBottom: 4, fontSize: 12, color: 'var(--muted, #8a8a96)' }}>Save to client</div>
+          <Select
+            style={{ minWidth: 300 }}
+            placeholder="Choose a client"
+            value={clientId || undefined}
+            options={clients.map((c) => ({ value: c.id, label: c.name }))}
+            onChange={setClientId}
+            showSearch
+            optionFilterProp="label"
+          />
+          <Divider style={{ margin: '12px 0' }} />
+          <Paragraph strong style={{ marginBottom: 6 }}>
+            {brief!.title}
+          </Paragraph>
+          <Paragraph
+            type="secondary"
+            style={{ whiteSpace: 'pre-wrap', maxHeight: 300, overflow: 'auto', fontSize: 12.5 }}
+          >
+            {briefToMarkdown(brief!)}
+          </Paragraph>
+          <Text type="secondary" style={{ fontSize: 12 }}>
+            Saving files this into the client&rsquo;s Documents and adds it to Meri&rsquo;s knowledge.
+          </Text>
+        </div>
+      )}
+    </Modal>
   );
 }
 

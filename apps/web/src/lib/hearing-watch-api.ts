@@ -190,3 +190,102 @@ export function useBrowseHearings(params: {
     staleTime: 60_000,
   });
 }
+
+// ---- Post-session recap (L6) -----------------------------------------------
+//
+// Save Recap = generate the post-hearing brief (intel-api synthesizes it), then
+// file it as a client Document via apps/api's alert-memo/save path — which ALSO
+// fire-and-forget indexes the doc into the client's Meri knowledge
+// (createAttachmentFromBuffer → indexAttachmentFireAndForget → client_doc_chunk).
+// So one save satisfies both "client Documents" and "Meri knowledge" (decision #2).
+
+export interface HearingBrief {
+  sessionId: string;
+  title: string;
+  generatedAt: string;
+  executiveSummary: string;
+  keyMoments: Array<{ segmentId: string; timestampMs: number; speakerName?: string; text: string }>;
+  relevantQuotes: Array<{ segmentId: string; timestampMs: number; speakerName?: string; text: string }>;
+  supporters: string[];
+  opponents: string[];
+  tone: string;
+  risks: string[];
+  opportunities: string[];
+  recommendedNextSteps: string[];
+  draftClientEmail: { subject: string; body: string };
+  synthesisSource: 'orchestrator' | 'deterministic';
+}
+
+const fmtBriefTs = (ms: number): string => {
+  const s = Math.floor(ms / 1000);
+  return `${Math.floor(s / 60)}:${String(s % 60).padStart(2, '0')}`;
+};
+
+/** Render a HearingBrief to a client-ready Markdown recap (filed as the Document
+ *  and ingested into Meri's knowledge). */
+export function briefToMarkdown(brief: HearingBrief): string {
+  const L: string[] = [];
+  L.push(`# Hearing recap — ${brief.title}`, '');
+  L.push(
+    `_Generated ${new Date(brief.generatedAt).toLocaleString()} · ${
+      brief.synthesisSource === 'orchestrator' ? 'Meri synthesis' : 'source-verified assembly'
+    }_`,
+    '',
+  );
+  L.push('## Executive summary', brief.executiveSummary || '_(pending)_', '');
+  if (brief.supporters.length) L.push(`**Supporters:** ${brief.supporters.join(', ')}`, '');
+  if (brief.opponents.length) L.push(`**Opponents:** ${brief.opponents.join(', ')}`, '');
+  if (brief.tone) L.push(`**Tone:** ${brief.tone}`, '');
+  if (brief.keyMoments.length) {
+    L.push('## Key moments');
+    for (const m of brief.keyMoments)
+      L.push(`- **${fmtBriefTs(m.timestampMs)}** ${m.speakerName ? `${m.speakerName}: ` : ''}${m.text}`);
+    L.push('');
+  }
+  if (brief.risks.length) {
+    L.push('## Risks');
+    for (const r of brief.risks) L.push(`- ${r}`);
+    L.push('');
+  }
+  if (brief.opportunities.length) {
+    L.push('## Opportunities');
+    for (const o of brief.opportunities) L.push(`- ${o}`);
+    L.push('');
+  }
+  if (brief.recommendedNextSteps.length) {
+    L.push('## Recommended next steps');
+    for (const n of brief.recommendedNextSteps) L.push(`- ${n}`);
+    L.push('');
+  }
+  return L.join('\n').trim();
+}
+
+/** Generate the post-hearing brief on demand. */
+export function useGenerateBrief() {
+  const api = useApi();
+  return useMutation({
+    mutationFn: async (sessionId: string) =>
+      (await api.get<HearingBrief | null>(`/intel-api/hearings/${encodeURIComponent(sessionId)}/brief`))
+        .data,
+  });
+}
+
+/** Save a recap as a client Document (+ auto Meri-knowledge index). Reuses the
+ *  alert-memo save path; title is capped at the DTO's 300-char limit. */
+export function useSaveRecap() {
+  const api = useApi();
+  return useMutation({
+    mutationFn: async (input: {
+      clientId: string;
+      clientName: string;
+      title: string;
+      markdown: string;
+    }) =>
+      (
+        await api.post<{ document: { attachmentId: string; fileName: string } | null; title: string }>(
+          `/api/intelligence/clients/${encodeURIComponent(input.clientId)}/alert-memo/save`,
+          { title: input.title.slice(0, 300), markdown: input.markdown, clientName: input.clientName },
+        )
+      ).data,
+  });
+}
