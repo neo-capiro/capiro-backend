@@ -3,6 +3,10 @@ import { App as AntApp } from 'antd';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useApi } from '../../../lib/use-api.js';
 import './tracker.css';
+// The calm LegiWatch component classes (.bcard/.rcard/.board/.tagrow/.pick-chip …)
+// used by this surface live here; import so they load wherever TrackerTab renders
+// (Radar Bills/Configure AND the client-profile LegiWatch tab), not just on /legiwatch.
+import '../../radar/legiwatch.css';
 import { Icon, StarIcon } from './tracker-icons.js';
 import {
   AddBillModal,
@@ -142,7 +146,6 @@ export function TrackerSurface({
   const [sort, setSort] = useState<'prob' | 'num' | 'changed'>('prob');
   const [filter, setFilter] = useState<'all' | 'highfit' | 'highprob'>('all');
   const [menu, setMenu] = useState<string | null>(null);
-  const [expandedCols, setExpandedCols] = useState<Set<string>>(() => new Set());
   const [justLanded, setJustLanded] = useState<string | null>(null);
 
   // Recs controls
@@ -636,14 +639,17 @@ export function TrackerSurface({
       )}
 
       {/* LegiWatch v2 (L2): Bills tab — "Recommended by Meri" section header, always
-          above the board. */}
+          above the board. Calm re-skin: Meri orb + title/subtext + controls. */}
       {billsStacked && (
-        <div className="trk-head lw-section-head">
-          <div className="lw-section-title">
-            <Icon name="sparkle" size={15} style={{ color: 'var(--accent)' }} />
+        <div className="sec-head">
+          <span className="orb">
+            <Icon name="sparkle" size={14} style={{ color: '#fff' }} />
+          </span>
+          <div className="st">
             <b>Recommended by Meri</b>
+            <p>Bills scored against {clientName}’s watchlist — add the ones worth following to your board.</p>
           </div>
-          <div className="trk-spacer" />
+          <span className="grow" />
           {recsControls}
         </div>
       )}
@@ -655,18 +661,20 @@ export function TrackerSurface({
         (recsQuery.isPending ? (
           <div className="trk-col-empty">Finding bills to recommend…</div>
         ) : recAll.length === 0 ? (
-          <div className="trk-empty">
-            <div className="ico">
-              <Icon name="sparkle" size={22} />
+          <div className="guide">
+            <div className="gico">
+              <Icon name="sparkle" size={20} />
             </div>
             <h4>No new recommendations</h4>
             <p>Add tags or confirm issue areas to widen the matcher.</p>
-            <button
-              className="btn btn-accent"
-              onClick={() => (variant === 'bills' ? onOpenConfigure?.() : setPanel('config'))}
-            >
-              Open Configure →
-            </button>
+            <div className="row">
+              <button
+                className="btn btn-accent"
+                onClick={() => (variant === 'bills' ? onOpenConfigure?.() : setPanel('config'))}
+              >
+                Open Configure →
+              </button>
+            </div>
           </div>
         ) : (
           <>
@@ -696,7 +704,7 @@ export function TrackerSurface({
               </div>
             )}
 
-            <div className="rec-grid">
+            <div className="recs">
               {recList.map((b: RecommendationBill) => (
                 <RecCard
                   key={b.billId}
@@ -734,15 +742,19 @@ export function TrackerSurface({
           </>
         ))}
 
-      {/* Board section header for the stacked Bills tab (L2). */}
+      {/* Board section header for the stacked Bills tab (L2). Calm re-skin. */}
       {billsStacked && (
-        <div className="trk-head lw-section-head">
-          <div className="lw-section-title">
-            <StarIcon size={14} />
+        <div className="sec-head" style={{ marginTop: 22 }}>
+          <span className="orb" style={{ background: 'var(--bg-dark)' }}>
+            <StarIcon size={13} />
+          </span>
+          <div className="st">
             <b>Your board</b>
+            <p>Bills you track, grouped by live legislative status — updates automatically.</p>
           </div>
-          <div className="trk-spacer" />
+          <span className="grow" />
           {boardControls}
+          <span className="chip muted">{boardCount} tracked</span>
         </div>
       )}
 
@@ -753,95 +765,49 @@ export function TrackerSurface({
         (boardQuery.isPending ? (
           <div className="trk-col-empty">Loading tracked bills…</div>
         ) : boardCount === 0 ? (
-          <div className="trk-empty">
-            <div className="ico">
-              <StarIcon size={22} />
+          <div className="guide">
+            <div className="gico">
+              <StarIcon size={20} />
             </div>
-            <h4>No bills on the board yet</h4>
+            <h4>Your board is empty</h4>
             <p>
-              Capiro has surfaced {aboveFloorCount} bills it thinks {clientName} should track.
+              The board fills in as you track bills. Start from the {aboveFloorCount} recommendations
+              Capiro scored against {clientName}’s watchlist.
             </p>
             {!billsStacked && (
-              <button className="btn btn-accent" onClick={() => setPanel('recs')}>
-                Review {aboveFloorCount} recommended bills →
-              </button>
+              <div className="row">
+                <button className="btn btn-accent" onClick={() => setPanel('recs')}>
+                  Review {aboveFloorCount} recommended bills →
+                </button>
+              </div>
             )}
           </div>
         ) : (
-          <>
-            <div className="trk-legend">
-              <span className="item">
-                <span className="sw" style={{ background: 'var(--info)' }} /> Columns = official
-                legislative <b>stage</b>
-              </span>
-              <span className="sep">·</span>
-              <span className="item">
-                <span style={{ display: 'inline-flex', gap: 2 }}>
-                  <span className="sw" style={{ background: 'var(--info)', width: 6 }} />
-                  <span className="sw" style={{ background: 'var(--notable)', width: 6 }} />
-                  <span className="sw" style={{ background: 'var(--success)', width: 6 }} />
-                </span>{' '}
-                meter = <b>passage probability</b>
-              </span>
-              <span className="sep">·</span>
-              <span className="item">
-                <span className="star">
-                  <StarIcon filled size={12} />
-                </span>{' '}
-                click to <b>untrack</b>
-              </span>
-            </div>
-
-            <div className="trk-board">
-              {boardColumns.map((col) => {
-                const isOpen = expandedCols.has(col.id);
-                const shown = isOpen ? col.bills : col.bills.slice(0, 5);
-                const overflow = col.bills.length - shown.length;
-                return (
-                  <div key={col.id} className="trk-col" data-stage={col.id}>
-                    <div className="trk-col-head">
-                      <span className="seg" />
-                      <span className="ttl">{col.label}</span>
-                      <span className="ct num">{col.bills.length}</span>
-                    </div>
-                    {shown.map((b) => (
-                      <BillCard
-                        key={b.billId}
-                        bill={b}
-                        issueSet={issueSet}
-                        justLanded={justLanded === b.billId}
-                        onUntrack={(id) => untrackMutation.mutate(id)}
-                        onOpen={(bb) => openBoardBill(bb.billId, bb.unread)}
-                      />
-                    ))}
-                    {col.bills.length === 0 && <div className="trk-col-empty">No bills</div>}
-                    {overflow > 0 && (
-                      <button
-                        className="trk-more"
-                        onClick={() => setExpandedCols((s) => new Set(s).add(col.id))}
-                      >
-                        +{overflow} more
-                      </button>
-                    )}
-                    {isOpen && col.bills.length > 5 && (
-                      <button
-                        className="trk-more"
-                        onClick={() =>
-                          setExpandedCols((s) => {
-                            const n = new Set(s);
-                            n.delete(col.id);
-                            return n;
-                          })
-                        }
-                      >
-                        Show less
-                      </button>
-                    )}
-                  </div>
-                );
-              })}
-            </div>
-          </>
+          <div className="board">
+            {boardColumns.map((col) => (
+              <div key={col.id} className="bcol" data-stage={col.id}>
+                <div className="bcol-head">
+                  <span className="sq" />
+                  <span className="ttl">{col.label}</span>
+                  <span className="ct num">{col.bills.length}</span>
+                </div>
+                {col.bills.length === 0 ? (
+                  <div className="bcol-empty">Nothing here</div>
+                ) : (
+                  col.bills.map((b) => (
+                    <BillCard
+                      key={b.billId}
+                      bill={b}
+                      issueSet={issueSet}
+                      justLanded={justLanded === b.billId}
+                      onUntrack={(id) => untrackMutation.mutate(id)}
+                      onOpen={(bb) => openBoardBill(bb.billId, bb.unread)}
+                    />
+                  ))
+                )}
+              </div>
+            ))}
+          </div>
         ))}
 
       {/* ===================== CONFIGURE ===================== */}

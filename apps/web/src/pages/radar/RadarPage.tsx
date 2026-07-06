@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState, type ReactNode } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { App as AntApp, Button, Empty, Modal, Segmented, Select, Spin, Typography } from 'antd';
+import { App as AntApp, Button, Empty, Select, Spin } from 'antd';
 import {
   AimOutlined,
   AudioOutlined,
@@ -14,6 +14,7 @@ import { useApi } from '../../lib/use-api.js';
 import { useIntelFeature } from '../../lib/intel-feature-flags.js';
 import { TrackerSurface } from '../clients/tracker/TrackerTab.js';
 import { TrackerFeedPanel } from '../clients/tracker/TrackerFeedPanel.js';
+import { PassageBar } from '../clients/tracker/tracker-components.js';
 import { BillDrawer } from './BillDrawer.js';
 import { HearingWatchPanel } from '../intelligence/HearingWatchPage.js';
 import {
@@ -30,81 +31,85 @@ import {
   type IntelWatchlist,
 } from '../clients/tracker/intel-tracker-api.js';
 import type { Client } from '../clients/clientTypes.js';
-
-const { Title, Paragraph, Text } = Typography;
+import './legiwatch.css';
 
 type RadarTab = 'feed' | 'bills' | 'hearings' | 'watchlist';
 const RADAR_TABS: readonly RadarTab[] = ['feed', 'bills', 'hearings', 'watchlist'];
 
 const INTRO_SEEN_KEY = 'legiwatch-intro-seen-v1';
 
-/** Plain-language first-run orientation — the four-step LegiWatch loop (L5). */
+/** Client initials for the calm client chip (.chip.client .cdot). */
+function initials(name: string): string {
+  return (
+    name
+      .split(/\s+/)
+      .slice(0, 2)
+      .map((w) => w[0] ?? '')
+      .join('')
+      .toUpperCase() || '•'
+  );
+}
+
+/** Plain-language first-run orientation — the four-step LegiWatch loop (L5).
+ *  Calm re-skin: the prototype's navy-hero `.intro` card (rendered inside the
+ *  `.lw-root` scope so the scoped classes apply). */
 function LegiWatchIntro({ open, onClose }: { open: boolean; onClose: () => void }) {
-  const steps: Array<{ n: number; title: string; body: string }> = [
+  if (!open) return null;
+  const steps: Array<{ icon: ReactNode; title: string; body: string }> = [
     {
-      n: 1,
-      title: 'Configure',
-      body: 'Tell LegiWatch what a client cares about — issue areas and watchlist tags. This one list drives everything else.',
+      icon: <EyeOutlined />,
+      title: 'You set a watchlist for each client',
+      body: 'Pick the client’s issue areas and add terms, bills, people, or agencies to watch. Nothing works until this is set.',
     },
     {
-      n: 2,
-      title: 'Bills',
-      body: 'Meri recommends legislation to track against that watchlist; tracked bills sit on a board that mirrors their live status.',
+      icon: <FileTextOutlined />,
+      title: 'LegiWatch finds matching bills',
+      body: 'It scores new legislation against that watchlist and lists the matches. You choose which to track; tracked bills go on a board that shows each one’s current status.',
     },
     {
-      n: 3,
-      title: 'Hearings',
-      body: 'Watch a hearing and LegiWatch transcribes it and flags the moments that hit the watchlist.',
+      icon: <AudioOutlined />,
+      title: 'It transcribes the hearings you pick',
+      body: 'Choose a hearing and LegiWatch transcribes it and marks the moments that hit the watchlist.',
     },
     {
-      n: 4,
-      title: 'Feed',
-      body: 'Everything that changed — bill moves and hearing moments — lands in one stream. Act from there: draft a memo, start outreach, or add it to the weekly report.',
+      icon: <BellOutlined />,
+      title: 'Everything that changed shows up in the Feed',
+      body: 'Bill moves and hearing moments land in one list. From there you can save a recap, draft a memo, or start outreach.',
     },
   ];
   return (
-    <Modal
-      open={open}
-      onCancel={onClose}
-      onOk={onClose}
-      okText="Got it"
-      cancelButtonProps={{ style: { display: 'none' } }}
-      title="How LegiWatch works"
-      width={560}
-      destroyOnHidden
-    >
-      <Paragraph type="secondary" style={{ marginTop: 0 }}>
-        LegiWatch unifies bill tracking and hearing intelligence around one per-client watchlist —
-        four steps, one loop.
-      </Paragraph>
-      <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
-        {steps.map((s) => (
-          <div key={s.n} style={{ display: 'flex', gap: 12 }}>
-            <div
-              style={{
-                flexShrink: 0,
-                width: 26,
-                height: 26,
-                borderRadius: '50%',
-                background: 'var(--accent, #6b4fbb)',
-                color: '#fff',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                fontWeight: 700,
-                fontSize: 13,
-              }}
-            >
-              {s.n}
-            </div>
-            <div>
-              <div style={{ fontWeight: 600 }}>{s.title}</div>
-              <div style={{ color: 'var(--text-2, #55555f)', fontSize: 13 }}>{s.body}</div>
-            </div>
+    <div className="intro-veil" onClick={onClose} role="dialog" aria-modal="true">
+      <div className="intro" onClick={(e) => e.stopPropagation()}>
+        <div className="intro-hero">
+          <div className="k">Intelligence · LegiWatch</div>
+          <h2>What LegiWatch does</h2>
+          <p>
+            It tracks bills and congressional hearings for each of your clients and shows you what
+            changed. Here’s the flow, start to finish.
+          </p>
+        </div>
+        <div className="intro-body">
+          <div className="loop">
+            {steps.map((s) => (
+              <div className="loop-step" key={s.title}>
+                <span className="ln">{s.icon}</span>
+                <div className="lt">
+                  <b>{s.title}</b>
+                  <p>{s.body}</p>
+                </div>
+              </div>
+            ))}
           </div>
-        ))}
+        </div>
+        <div className="intro-foot">
+          <span className="mini muted">Reopen this anytime from “How it works.”</span>
+          <span className="grow" />
+          <button className="btn btn-accent" onClick={onClose}>
+            Got it
+          </button>
+        </div>
       </div>
-    </Modal>
+    </div>
   );
 }
 
@@ -229,42 +234,53 @@ export function RadarPage() {
     />
   );
 
+  const TABS: Array<{ v: RadarTab; label: string; icon: ReactNode }> = [
+    { v: 'feed', label: 'Feed', icon: <BellOutlined /> },
+    { v: 'bills', label: 'Bills', icon: <FileTextOutlined /> },
+    { v: 'hearings', label: 'Hearings', icon: <AudioOutlined /> },
+    { v: 'watchlist', label: 'Configure', icon: <EyeOutlined /> },
+  ];
+
   return (
     <div
-      className="redesign"
+      className="lw-root redesign"
       style={{
-        padding: '24px 32px',
+        padding: '22px 32px 80px',
         overflow: 'auto',
         height: '100%',
         background: 'var(--bg-canvas)',
       }}
     >
-      <div style={{ display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap' }}>
-        <Title level={3} style={{ margin: 0 }}>
-          <AimOutlined /> LegiWatch
-        </Title>
-        <span style={{ flex: 1 }} />
-        {clientPicker}
-        <Button icon={<QuestionCircleOutlined />} onClick={() => setShowIntro(true)}>
-          How it works
-        </Button>
+      <div className="pg-head">
+        <div className="pg-top">
+          <h1 className="pg-title">
+            <AimOutlined /> LegiWatch
+          </h1>
+          <span className="grow" />
+          {clientPicker}
+          <button className="btn btn-ghost" onClick={() => setShowIntro(true)}>
+            <QuestionCircleOutlined /> How it works
+          </button>
+        </div>
+        <p className="pg-desc">
+          Bills and hearings that matter to your clients — the unified alert feed, the tracked-bill
+          board, the hearing schedule, and watchlist targeting in one place.
+        </p>
       </div>
-      <Paragraph type="secondary" style={{ margin: '4px 0 16px' }}>
-        Bills and hearings that matter to your clients — the unified alert feed, the tracked-bill
-        board, the hearing schedule, and watchlist targeting in one place.
-      </Paragraph>
 
-      <Segmented
-        value={tab}
-        onChange={(v) => setParam('tab', v as RadarTab)}
-        options={[
-          { label: 'Feed', value: 'feed', icon: <BellOutlined /> },
-          { label: 'Bills', value: 'bills', icon: <FileTextOutlined /> },
-          { label: 'Hearings', value: 'hearings', icon: <AudioOutlined /> },
-          { label: 'Configure', value: 'watchlist', icon: <EyeOutlined /> },
-        ]}
-        style={{ marginBottom: 16 }}
-      />
+      <div className="tabs" role="tablist" style={{ marginBottom: 16 }}>
+        {TABS.map((t) => (
+          <button
+            key={t.v}
+            role="tab"
+            aria-selected={tab === t.v}
+            className={tab === t.v ? 'active' : ''}
+            onClick={() => setParam('tab', t.v)}
+          >
+            {t.icon} {t.label}
+          </button>
+        ))}
+      </div>
 
       {tab === 'feed' &&
         (!trackerReady ? (
@@ -567,25 +583,35 @@ function RadarGlobalBillsTab({ onScopeClient }: { onScopeClient: (clientId: stri
   });
 
   if (board.isPending) return <PanelLoading />;
-  if (board.isError) return <Empty description="Could not load the all-clients board." />;
+  if (board.isError)
+    return (
+      <div className="guide plain">
+        <h4>Couldn’t load the all-clients board</h4>
+        <p>Try again in a moment.</p>
+      </div>
+    );
 
   const columns = board.data?.columns ?? [];
   const total = columns.reduce((n, c) => n + c.cards.length, 0);
   if (total === 0) {
-    return <Empty description="No tracked bills across your clients yet — pick a client to start tracking." />;
+    return (
+      <div className="guide">
+        <div className="gico">
+          <FileTextOutlined />
+        </div>
+        <h4>Your board is empty across all clients</h4>
+        <p>The board fills in as you track bills. Pick a client to see its recommendations and start tracking.</p>
+      </div>
+    );
   }
   const pass = (c: TenantBoardCard) =>
     filter === 'hifit' ? c.matchedTags.length > 0 : filter === 'hiprob' ? c.passageProbability >= 70 : true;
-  const probColor = (p: number) =>
-    p >= 70 ? 'var(--good, #2f7a57)' : p >= 40 ? 'var(--notable, #d98324)' : 'var(--muted, #8a8a96)';
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-      <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-        <Text type="secondary" style={{ fontSize: 12 }}>
-          Every client&rsquo;s tracked bills, by legislative stage.
-        </Text>
-        <span style={{ flex: 1 }} />
+    <div className="stack" style={{ gap: 14 }}>
+      <div className="ctx-strip" style={{ margin: 0 }}>
+        <span className="lead">Every client’s tracked bills, by legislative stage.</span>
+        <span className="grow" />
         <Select
           size="small"
           value={filter}
@@ -598,93 +624,60 @@ function RadarGlobalBillsTab({ onScopeClient }: { onScopeClient: (clientId: stri
           ]}
         />
       </div>
-      <div
-        style={{
-          display: 'grid',
-          gridTemplateColumns: `repeat(${columns.length}, minmax(220px, 1fr))`,
-          gap: 12,
-          overflowX: 'auto',
-        }}
-      >
+      <div className="board">
         {columns.map((col) => {
           const cards = col.cards.filter(pass);
           return (
-            <div key={col.id} style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 12.5, fontWeight: 600 }}>
-                <span>{col.label}</span>
-                <span style={{ color: 'var(--muted, #8a8a96)' }}>{cards.length}</span>
+            <div key={col.id} className="bcol" data-stage={col.id}>
+              <div className="bcol-head">
+                <span className="sq" />
+                <span className="ttl">{col.label}</span>
+                <span className="ct num">{cards.length}</span>
               </div>
               {cards.length === 0 ? (
-                <div style={{ fontSize: 11.5, color: 'var(--muted, #8a8a96)', padding: '6px 0' }}>Nothing here</div>
+                <div className="bcol-empty">Nothing here</div>
               ) : (
                 cards.map((c) => (
                   <div
                     key={c.clientId + c.billId}
+                    className="bcard"
                     onClick={() =>
                       setDrawer({ billId: c.billId, clientId: c.clientId, clientName: c.clientName ?? 'Client' })
                     }
-                    style={{
-                      border: '1px solid var(--border, #e4e4ea)',
-                      borderRadius: 8,
-                      background: 'var(--surface, #fff)',
-                      padding: '10px 12px',
-                      cursor: 'pointer',
-                      display: 'flex',
-                      flexDirection: 'column',
-                      gap: 6,
-                    }}
                   >
-                    <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-                      <span style={{ fontSize: 12, fontWeight: 600 }}>{c.displayNum}</span>
-                      {c.unread && (
-                        <span style={{ width: 6, height: 6, borderRadius: '50%', background: 'var(--accent, #6b4fbb)' }} />
-                      )}
-                      <span style={{ flex: 1 }} />
+                    <div className="b-top">
+                      <span className="b-num">{c.displayNum}</span>
+                      {c.unread && <span className="b-unread" title="Unseen change" />}
+                      <span className="grow" />
                       {c.changeChip && (
-                        <span
-                          style={{ width: 7, height: 7, borderRadius: '50%', background: 'var(--notable, #d98324)' }}
-                          title={c.changeChip.label}
-                        />
+                        <span className="dot notable" style={{ width: 7, height: 7 }} title={c.changeChip.label} />
                       )}
                     </div>
-                    <div style={{ fontSize: 12.5, lineHeight: 1.3 }}>{c.title ?? c.displayNum}</div>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-                      <div
-                        style={{
-                          flex: 1,
-                          height: 4,
-                          background: 'var(--surface-2, #f0f0f4)',
-                          borderRadius: 2,
-                          overflow: 'hidden',
-                        }}
-                      >
-                        <div
-                          style={{ width: `${c.passageProbability}%`, height: '100%', background: probColor(c.passageProbability) }}
-                        />
-                      </div>
-                      <span style={{ fontSize: 10.5, color: 'var(--muted, #8a8a96)' }}>{c.passageProbability}%</span>
-                    </div>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
+                    <div className="b-title">{c.title ?? c.displayNum}</div>
+                    <PassageBar prob={c.passageProbability} />
+                    <div className="b-foot">
                       <button
+                        className="chip client"
                         onClick={(e) => {
                           e.stopPropagation();
                           onScopeClient(c.clientId);
                         }}
                         title="View only this client"
-                        style={{
-                          border: 'none',
-                          background: 'none',
-                          padding: 0,
-                          cursor: 'pointer',
-                          fontSize: 11,
-                          fontWeight: 600,
-                          color: 'var(--accent, #6b4fbb)',
-                        }}
                       >
+                        <span className="cdot">{initials(c.clientName ?? 'Client')}</span>
                         {c.clientName ?? 'Client'}
                       </button>
                       {!!c.hearingCount && c.hearingCount > 0 && (
-                        <span style={{ fontSize: 10.5, color: 'var(--info, #4a7bd6)' }}>
+                        <span
+                          className="chip"
+                          style={{
+                            border: 'none',
+                            background: 'var(--info-soft)',
+                            color: 'var(--info)',
+                            fontWeight: 600,
+                            fontSize: 10.5,
+                          }}
+                        >
                           in {c.hearingCount} hearing{c.hearingCount > 1 ? 's' : ''}
                         </span>
                       )}
@@ -733,32 +726,20 @@ function FirstRunGate({
   if (loading) return <PanelLoading />;
   if (!cold) return <>{children}</>;
   return (
-    <div
-      style={{
-        display: 'flex',
-        flexDirection: 'column',
-        alignItems: 'center',
-        gap: 16,
-        padding: '56px 24px',
-        textAlign: 'center',
-      }}
-    >
-      <Empty
-        image={Empty.PRESENTED_IMAGE_SIMPLE}
-        description={
-          <span>
-            Capiro doesn&apos;t know what <b>{clientName}</b> cares about yet.
-            <br />
-            <Text type="secondary">
-              Set up issue areas and watchlist tags to unlock recommendations, the tracked-bill
-              board, and the alert feed.
-            </Text>
-          </span>
-        }
-      />
-      <Button type="primary" size="large" onClick={onSetup}>
-        Set up what {clientName} cares about →
-      </Button>
+    <div className="guide" style={{ margin: '8px auto' }}>
+      <div className="gico">
+        <EyeOutlined />
+      </div>
+      <h4>Capiro doesn’t know what {clientName} cares about yet</h4>
+      <p>
+        Set up issue areas and watchlist tags to unlock recommendations, the tracked-bill board, and
+        the alert feed.
+      </p>
+      <div className="row">
+        <button className="btn btn-accent" onClick={onSetup}>
+          Set up what {clientName} cares about →
+        </button>
+      </div>
     </div>
   );
 }
@@ -783,26 +764,13 @@ function ClientGate({
   if (client) return <>{children(client)}</>;
   if (clientsLoading) return <PanelLoading />;
   return (
-    <div
-      style={{
-        display: 'flex',
-        flexDirection: 'column',
-        alignItems: 'center',
-        gap: 16,
-        padding: '48px 0',
-      }}
-    >
-      <Empty
-        image={Empty.PRESENTED_IMAGE_SIMPLE}
-        description={
-          <span>
-            Select a client to view {what}.
-            <br />
-            <Text type="secondary">Feed, Bills, and Watchlist are scoped to one client.</Text>
-          </span>
-        }
-      />
-      {picker}
+    <div className="guide" style={{ margin: '8px auto' }}>
+      <div className="gico">
+        <EyeOutlined />
+      </div>
+      <h4>Choose a client</h4>
+      <p>Select a client to view {what}. Feed, Bills, and Configure are scoped to one client.</p>
+      <div className="row">{picker}</div>
     </div>
   );
 }

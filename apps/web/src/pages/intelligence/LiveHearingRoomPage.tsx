@@ -21,6 +21,7 @@ import {
 import { ArrowLeftOutlined, AudioOutlined, SaveOutlined } from '@ant-design/icons';
 import { useApi } from '../../lib/use-api.js';
 import { useIntelFeatureEnabled } from '../../lib/intel-feature-flags.js';
+import '../radar/legiwatch.css';
 import {
   briefToMarkdown,
   useConfirmConsent,
@@ -214,14 +215,23 @@ export function LiveHearingRoomPage() {
 
   if (!enabled) {
     return (
-      <div style={{ padding: 24 }}>
-        <Empty description="Hearing Watch is not enabled for this workspace." />
+      <div
+        className="lw-root redesign"
+        style={{ padding: '22px 32px 80px', background: 'var(--bg-canvas)', minHeight: '100%' }}
+      >
+        <div className="guide plain">
+          <h4>Hearing Watch is not enabled</h4>
+          <p>This workspace doesn’t have Hearing Watch turned on yet.</p>
+        </div>
       </div>
     );
   }
 
   return (
-    <div style={{ padding: 24 }}>
+    <div
+      className="lw-root redesign"
+      style={{ padding: '22px 32px 80px', background: 'var(--bg-canvas)', minHeight: '100%' }}
+    >
       <Space style={{ marginBottom: 12 }}>
         <Link to="/intelligence/hearing-watch">
           <Button icon={<ArrowLeftOutlined />} size="small">
@@ -429,6 +439,7 @@ function SaveRecapModal({
       title="Save hearing recap"
       width={640}
       destroyOnHidden
+      rootClassName="redesign"
       footer={[
         <Button key="cancel" onClick={onClose}>
           Cancel

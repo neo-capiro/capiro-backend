@@ -171,25 +171,30 @@ function TagRow({
   const patch = (p: Partial<WatchlistTag>) => onChange({ ...tag, ...p });
   const priority = tag.priority ?? 'med';
   const position = tag.position ?? 'monitor';
+  const termCount =
+    tag.synonyms.length +
+    tag.relatedEntities.length +
+    tag.riskTerms.length +
+    (tag.typedTerms?.length ?? 0);
   return (
-    <div className={`tag-row${open ? ' open' : ''}`}>
-      <div className="tag-row-head" onClick={onToggleOpen}>
+    <div className={`tagrow${open ? ' open' : ''}`}>
+      <div className="tagrow-head" onClick={onToggleOpen}>
         <span className="tg-name">
           <span className="hash">#</span>
           {tag.tag || 'new tag'}
         </span>
         <button
-          className={`tag-meta-pill prio-${priority}`}
+          className={`tag-pill prio-${priority}`}
           onClick={(e) => {
             e.stopPropagation();
             patch({ priority: PRIO_CYCLE[priority] });
           }}
           title="Priority — click to change"
         >
-          {PRIO_LABEL[priority]}
+          {PRIO_LABEL[priority]} priority
         </button>
         <button
-          className={`tag-meta-pill pos-${position}`}
+          className={`tag-pill pos-${position}`}
           onClick={(e) => {
             e.stopPropagation();
             patch({ position: POS_CYCLE[position] });
@@ -198,9 +203,9 @@ function TagRow({
         >
           {POS_LABEL[position]}
         </button>
-        <span className="tg-spacer" />
-        <span className="tg-adv">
-          <Icon name="settings" size={12} /> Advanced
+        <span className="grow" />
+        <span className="mini muted">
+          {termCount} term{termCount === 1 ? '' : 's'}
         </span>
         <span
           className="tg-trash"
@@ -217,7 +222,7 @@ function TagRow({
         </span>
       </div>
       {open && (
-        <div className="tag-adv-body">
+        <div className="tag-adv">
           <div className="adv-field">
             <div className="af-label">Synonyms</div>
             <ChipInput
@@ -244,7 +249,7 @@ function TagRow({
             />
           </div>
           {typedTermsEnabled && (
-            <div className="adv-field">
+            <div className="adv-field" style={{ gridColumn: '1 / -1' }}>
               <div className="af-label">
                 Typed terms
                 <span className="af-hint">
@@ -481,20 +486,17 @@ export function TrackerConfigPanel({
   };
 
   return (
-    <div className="cfg">
+    <div className="wl">
       {/* Targeting */}
-      <div className="surface">
-        <div className="surface-head">
+      <div className="card">
+        <div className="card-head">
           <h3>Targeting</h3>
           <span className="sub">what Capiro watches for this client</span>
-          <span className="save">
-            <Icon name="check" size={13} /> Saved
-          </span>
         </div>
-        <div className="cfg-body">
+        <div className="card-body">
           {seedCount > 0 && (
-            <div className="cfg-seed">
-              <span className="cfg-seed-txt">
+            <div className="wl-seed">
+              <span className="t">
                 Seed from this client's profile —{' '}
                 {seed!.tags.length > 0 && (
                   <b>
@@ -509,8 +511,8 @@ export function TrackerConfigPanel({
                 )}
                 .
               </span>
-              <button className="btn-seed" onClick={importFromProfile}>
-                <Icon name="plus" size={13} /> Import
+              <button className="btn btn-accent sm" onClick={importFromProfile}>
+                <Icon name="plus" size={12} /> Import
               </button>
             </div>
           )}
@@ -532,16 +534,14 @@ export function TrackerConfigPanel({
                 </span>
               </div>
             )}
-            <div className="issue-row">
+            <div className="chips-wrap">
               {allIssueAreas.map((a) => (
                 <button
                   key={a}
-                  className={`issue-chip${issues.has(a) ? ' on' : ''}`}
+                  className={`pick-chip${issues.has(a) ? ' on' : ''}`}
                   onClick={() => toggleIssue(a)}
                 >
-                  <span className="ic">
-                    <Icon name="check" size={12} />
-                  </span>
+                  {issues.has(a) && <Icon name="check" size={11} />}
                   {a}
                 </button>
               ))}
@@ -555,12 +555,15 @@ export function TrackerConfigPanel({
           <div className="cfg-block" style={{ marginTop: 22 }}>
             <div className="cfg-label">Client tags &amp; watchlist</div>
             {/* LegiWatch v2 (L4): explain priority vs position inline (Gherkin U6). */}
-            <div className="cfg-help" style={{ marginTop: 2, marginBottom: 10 }}>
+            <span className="hint" style={{ marginTop: 2, marginBottom: 12 }}>
+              <span className="hico">
+                <Icon name="settings" size={13} />
+              </span>
               Each tag carries a <b>priority</b> (how much it matters — this drives how alerts are
-              ranked) and a <b>position</b> (this client’s stance: Support, Oppose, or Monitor).
-              Click either pill to change it.
-            </div>
-            <div className="tag-list">
+              ranked) and a <b>position</b> (this client’s stance: Support, Oppose, or Monitor). Click
+              either pill to change it.
+            </span>
+            <div className="stack" style={{ gap: 10 }}>
               {tags.map((t, i) => (
                 <TagRow
                   key={i}
@@ -573,8 +576,8 @@ export function TrackerConfigPanel({
                 />
               ))}
             </div>
-            <button className="add-tag-btn" onClick={addTag}>
-              <Icon name="plus" size={13} /> Add tag
+            <button className="add-btn" onClick={addTag} style={{ marginTop: 12 }}>
+              <Icon name="plus" size={12} /> Add tag
             </button>
             <div className="cfg-help" style={{ marginTop: 10 }}>
               Synonyms, related entities, and risk terms tune the embeddings + keyword match behind
@@ -585,18 +588,15 @@ export function TrackerConfigPanel({
       </div>
 
       {/* Alerts */}
-      <div className="surface">
-        <div className="surface-head">
+      <div className="card">
+        <div className="card-head">
           {/* LegiWatch v2 (L4/U6): per-user, per-client — titled "Your alerts for
               [client]" (keyed userId+clientId). The old "this team" copy read
               firm-wide and was wrong (Q6). */}
           <h3>{clientName ? `Your alerts for ${clientName}` : 'Your alerts'}</h3>
           <span className="sub">per-user — only you get these, not the whole team</span>
-          <span className="save">
-            <Icon name="check" size={13} /> Saved
-          </span>
         </div>
-        <div className="cfg-body">
+        <div className="card-body">
           <div className="cfg-block">
             <div className="cfg-label">Alert triggers</div>
             <div className="trig-grid">

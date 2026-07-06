@@ -154,10 +154,11 @@ describe('RadarPage', () => {
     renderRadar('/radar');
 
     // No client selected → the tenant-wide feed panel renders (empty here), NOT
-    // the ClientGate picker prompt. The empty-state copy is the global variant.
+    // the ClientGate picker prompt. The empty-state copy is the global variant
+    // (LegiWatch v2 calm re-skin).
     await waitFor(() =>
       expect(
-        screen.getByText(/alerts across all your clients will appear here/i),
+        screen.getByText(/a hearing hits any client’s watchlist, it lands here/i),
       ).toBeInTheDocument(),
     );
     // It must hit the tenant-wide roll-up endpoint, not a per-client feed.
@@ -200,9 +201,8 @@ describe('RadarPage', () => {
     expect(screen.getByText(/Recommended by Meri/)).toBeInTheDocument();
     // "Configure" names the outer LegiWatch tab (renamed from "Watchlist").
     expect(screen.getByText('Configure')).toBeInTheDocument();
-    await waitFor(() =>
-      expect(screen.getByText(/No bills on the board yet/i)).toBeInTheDocument(),
-    );
+    // Calm re-skin board-empty guide copy.
+    await waitFor(() => expect(screen.getByText(/Your board is empty/i)).toBeInTheDocument());
   });
 
   test('L5: first-run orientation auto-opens, dismiss persists, and a "How it works" control exists', async () => {
@@ -211,7 +211,7 @@ describe('RadarPage', () => {
     mockApi({});
     renderRadar('/radar');
 
-    await waitFor(() => expect(screen.getByText('How LegiWatch works')).toBeInTheDocument());
+    await waitFor(() => expect(screen.getByText('What LegiWatch does')).toBeInTheDocument());
     // The permanent reopen control is present in the top bar.
     expect(screen.getByRole('button', { name: /How it works/i })).toBeInTheDocument();
     // Dismiss ("Got it") persists the per-user seen-flag so it won't reappear.
@@ -250,6 +250,6 @@ describe('RadarPage', () => {
     renderRadar('/radar');
 
     await waitFor(() => expect(screen.getByText('LegiWatch')).toBeInTheDocument());
-    expect(screen.queryByText('How LegiWatch works')).not.toBeInTheDocument();
+    expect(screen.queryByText('What LegiWatch does')).not.toBeInTheDocument();
   });
 });

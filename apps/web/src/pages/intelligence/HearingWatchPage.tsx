@@ -1,52 +1,53 @@
 import { useEffect, useState } from 'react';
-import type { ColumnsType } from 'antd/es/table';
-import {
-  Alert,
-  App as AntApp,
-  Button,
-  Card,
-  Empty,
-  Form,
-  Input,
-  List,
-  Modal,
-  Segmented,
-  Select,
-  Space,
-  Spin,
-  Table,
-  Tag,
-  Tooltip,
-  Typography,
-} from 'antd';
-import {
-  AudioOutlined,
-  PlusOutlined,
-  CalendarOutlined,
-  UnorderedListOutlined,
-} from '@ant-design/icons';
-import { Link } from 'react-router-dom';
+import { Alert, App as AntApp, Button, Form, Input, List, Modal, Select, Spin, Tag, Typography } from 'antd';
+import { AudioOutlined } from '@ant-design/icons';
+import { useNavigate } from 'react-router-dom';
 import { useIntelFeatureEnabled } from '../../lib/intel-feature-flags.js';
+import '../radar/legiwatch.css';
 import {
   useBrowseHearings,
   useCreateHearing,
   useHearingSessions,
   useResolveStream,
   useUpcomingHearings,
-  type HearingScope,
   type ResolveStreamResult,
   type UpcomingHearing,
 } from '../../lib/hearing-watch-api.js';
 
-const { Title, Text, Paragraph } = Typography;
+const { Text } = Typography;
 
-const STATUS_COLOR: Record<string, string> = {
-  live: 'red',
-  scheduled: 'blue',
-  paused: 'orange',
-  ended: 'green',
-  failed: 'default',
-};
+/** Compact inline icon set for the calm hearings surface (matches the prototype). */
+function Ic({ n, size = 13 }: { n: string; size?: number }) {
+  if (n === 'play') {
+    return (
+      <svg width={size} height={size} viewBox="0 0 24 24" fill="currentColor" aria-hidden>
+        <path d="M7 5l12 7-12 7z" />
+      </svg>
+    );
+  }
+  const paths: Record<string, string> = {
+    search: 'M11 4a7 7 0 1 0 0 14 7 7 0 0 0 0-14z M20 20l-3.6-3.6',
+    chevR: 'M9 6l6 6-6 6',
+    audio: 'M12 3v12 M8 7a4 4 0 0 0 8 0 M5 19h14',
+    clock: 'M12 3a9 9 0 1 0 0 18 9 9 0 0 0 0-18z M12 7v5l3 2',
+    layers: 'M12 3l9 5-9 5-9-5z M3 13l9 5 9-5',
+  };
+  return (
+    <svg
+      width={size}
+      height={size}
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth={2}
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      aria-hidden
+    >
+      <path d={paths[n] ?? paths.chevR} />
+    </svg>
+  );
+}
 
 /** Render the upcoming-hearing date. scheduledAt is a date-only 'YYYY-MM-DD'
  *  string; parse the parts explicitly to avoid a UTC→local day shift. */
@@ -99,168 +100,300 @@ function buildPresetTitle(r: UpcomingHearing): string {
  *  hearing/markup do not. Kept in sync with intel-api's requiresConsent(). */
 const PRIVATE_SOURCE_TYPES = new Set(['meeting', 'webinar', 'agency_session']);
 
-/** Shared columns for the Upcoming + All-hearings tables. `watchLabel` reflects
- *  live vs recorded (LegiWatch v2 / L3): "Watch live" upcoming, "Watch recording"
- *  in the archive. */
-function buildHearingColumns(
-  onWatch: (r: UpcomingHearing) => void,
-  watchLabel: string,
-): ColumnsType<UpcomingHearing> {
-  return [
-    {
-      title: 'When',
-      dataIndex: 'scheduledAt',
-      width: 170,
-      render: (v: string, r) => (
-        <span>
-          {formatHearingDate(v)}
-          {r.time ? <Text type="secondary"> · {r.time}</Text> : null}
-        </span>
-      ),
-    },
-    { title: 'Chamber', dataIndex: 'chamber', width: 90 },
-    { title: 'Committee', dataIndex: 'committee', ellipsis: true },
-    {
-      title: 'Title',
-      dataIndex: 'title',
-      render: (v: string, r) => (
-        <Space size={6} wrap>
-          {r.type ? <Tag>{prettyType(r.type)}</Tag> : null}
-          {r.url ? (
-            <a href={r.url} target="_blank" rel="noreferrer">
-              {v}
-            </a>
-          ) : (
-            <span>{v}</span>
-          )}
-        </Space>
-      ),
-    },
-    {
-      title: '',
-      key: 'act',
-      width: 90,
-      render: (_: unknown, r) => (
-        <Button size="small" type="primary" onClick={() => onWatch(r)}>
-          {watchLabel}
-        </Button>
-      ),
-    },
-  ];
-}
-
-type HearingWatchView = 'hearings' | 'upcoming' | 'browse';
+type HearingSub = 'schedule' | 'sessions';
 
 /**
- * Hearing Watch body (sessions / upcoming / all-hearings) — shared by the legacy
- * HearingWatchPage and the Radar Hearings tab.
+ * Hearing Watch body — the calm LegiWatch schedule + watch history. Two views:
+ * "All hearings" (an Upcoming|Archive segmented toggle over an editorial table,
+ * Watch = the primary action) and "My Sessions" (the transcription history).
+ * "Add hearing manually" opens the resolver modal as a fallback.
  *
  * The term-watchlist CRUD that used to live here (P4's "Watchlists" view) was
- * ABSORBED into the unified editor on the Radar Watchlist tab
- * (TrackerConfigPanel, P5): one editor now owns both bill tags AND hearing terms
- * across the full 11 term types, client-in-context (no raw-UUID entry). This
- * panel is purely the hearing schedule/session surface.
+ * ABSORBED into the unified editor on the Radar Watchlist tab (TrackerConfigPanel,
+ * P5). This panel is purely the hearing schedule/session surface.
  */
 export function HearingWatchPanel() {
-  // LegiWatch v2 (L3): land on the full schedule (Gherkin "Hearings defaults to
-  // the full schedule"), not the watch history. The watch history is "My Sessions".
-  const [view, setView] = useState<HearingWatchView>('upcoming');
+  const [sub, setSub] = useState<HearingSub>('schedule');
+  const [manual, setManual] = useState<{
+    presetTitle?: string;
+    presetUrl?: string;
+    presetSearch?: string;
+    presetHearingId?: string;
+  } | null>(null);
+
+  const onWatch = (r: UpcomingHearing) =>
+    setManual({
+      presetTitle: buildPresetTitle(r),
+      presetUrl: r.url ?? undefined,
+      presetSearch: watchSearchQuery(r),
+      presetHearingId: r.id,
+    });
 
   return (
-    <>
-      <Segmented
-        value={view}
-        onChange={(v) => setView(v as HearingWatchView)}
-        options={[
-          { label: 'Upcoming', value: 'upcoming', icon: <CalendarOutlined /> },
-          { label: 'All hearings', value: 'browse', icon: <UnorderedListOutlined /> },
-          { label: 'My Sessions', value: 'hearings', icon: <AudioOutlined /> },
-        ]}
-        style={{ marginBottom: 16 }}
-      />
+    <div className="stack" style={{ gap: 12 }}>
+      <div className="ctx-strip" style={{ margin: '0 0 2px' }}>
+        <div className="subnav">
+          <button className={sub === 'schedule' ? 'active' : ''} onClick={() => setSub('schedule')}>
+            All hearings
+          </button>
+          <button className={sub === 'sessions' ? 'active' : ''} onClick={() => setSub('sessions')}>
+            My Sessions
+          </button>
+        </div>
+        <span className="grow" />
+        <button className="link-btn" onClick={() => setManual({})}>
+          Add hearing manually
+        </button>
+      </div>
 
-      {view === 'hearings' && <HearingsTab />}
-      {view === 'upcoming' && <UpcomingTab />}
-      {view === 'browse' && <BrowseTab />}
-    </>
+      {sub === 'schedule' ? <ScheduleView onWatch={onWatch} /> : <SessionsView />}
+
+      <NewHearingModal
+        open={manual !== null}
+        onClose={() => setManual(null)}
+        presetTitle={manual?.presetTitle}
+        presetUrl={manual?.presetUrl}
+        presetSearchQuery={manual?.presetSearch}
+        presetHearingId={manual?.presetHearingId}
+      />
+    </div>
+  );
+}
+
+/** The schedule: Upcoming|Archive segmented toggle + search over an editorial table. */
+function ScheduleView({ onWatch }: { onWatch: (r: UpcomingHearing) => void }) {
+  const [when, setWhen] = useState<'upcoming' | 'past'>('upcoming');
+  const [q, setQ] = useState('');
+  const upcoming = useUpcomingHearings();
+  const archive = useBrowseHearings({
+    scope: 'past',
+    search: q.trim() || undefined,
+    limit: 50,
+    offset: 0,
+  });
+
+  const loading = when === 'upcoming' ? upcoming.isLoading : archive.isLoading;
+  const rows: UpcomingHearing[] =
+    when === 'upcoming'
+      ? (upcoming.data ?? []).filter(
+          (r) => !q.trim() || `${r.title} ${r.committee}`.toLowerCase().includes(q.toLowerCase()),
+        )
+      : archive.data?.items ?? [];
+  const archiveTotal = archive.data?.total ?? 0;
+
+  return (
+    <div className="stack" style={{ gap: 12 }}>
+      <div className="ctx-strip" style={{ margin: 0 }}>
+        <div className="seg-toggle">
+          <button className={when === 'upcoming' ? 'on' : ''} onClick={() => setWhen('upcoming')}>
+            Upcoming
+          </button>
+          <button className={when === 'past' ? 'on' : ''} onClick={() => setWhen('past')}>
+            Archive
+          </button>
+        </div>
+        <span className="grow" />
+        <div
+          className="row"
+          style={{
+            border: '1px solid var(--border-1)',
+            borderRadius: 'var(--r-sm)',
+            padding: '6px 11px',
+            background: 'var(--bg-surface)',
+            minWidth: 240,
+            gap: 8,
+          }}
+        >
+          <Ic n="search" />
+          <input
+            value={q}
+            onChange={(e) => setQ(e.target.value)}
+            placeholder="Search hearings…"
+            style={{ border: 'none', outline: 'none', background: 'transparent', fontSize: 12.5, flex: 1 }}
+          />
+        </div>
+      </div>
+
+      <div className="card" style={{ overflow: 'hidden' }}>
+        <table className="htable">
+          <thead>
+            <tr>
+              <th style={{ width: 130 }}>Date</th>
+              <th style={{ width: 210 }}>Committee</th>
+              <th style={{ width: 74 }}>Type</th>
+              <th>Title</th>
+              <th style={{ width: 140 }} />
+            </tr>
+          </thead>
+          <tbody>
+            {loading ? (
+              <tr>
+                <td colSpan={5} style={{ textAlign: 'center', padding: 28 }}>
+                  <Spin />
+                </td>
+              </tr>
+            ) : rows.length === 0 ? (
+              <tr>
+                <td colSpan={5} style={{ textAlign: 'center', padding: 28 }}>
+                  <span className="muted mini">
+                    {when === 'upcoming'
+                      ? 'No upcoming hearings scheduled right now (Congress may be in recess). Check the archive.'
+                      : 'No hearings match your search.'}
+                  </span>
+                </td>
+              </tr>
+            ) : (
+              rows.map((r) => (
+                <tr key={r.id}>
+                  <td className="num" style={{ whiteSpace: 'nowrap' }}>
+                    {formatHearingDate(r.scheduledAt)}
+                    {r.time ? <span className="muted"> · {r.time}</span> : null}
+                  </td>
+                  <td>{r.committee}</td>
+                  <td>
+                    {r.type ? (
+                      <span className="chip muted" style={{ fontSize: 10.5 }}>
+                        {prettyType(r.type)}
+                      </span>
+                    ) : null}
+                  </td>
+                  <td style={{ fontWeight: 500 }}>
+                    {r.url ? (
+                      <a href={r.url} target="_blank" rel="noreferrer">
+                        {r.title}
+                      </a>
+                    ) : (
+                      r.title
+                    )}
+                  </td>
+                  <td style={{ textAlign: 'right' }}>
+                    <button className="btn btn-accent sm" onClick={() => onWatch(r)}>
+                      <Ic n="play" size={12} /> {when === 'past' ? 'Watch recording' : 'Watch live'}
+                    </button>
+                  </td>
+                </tr>
+              ))
+            )}
+          </tbody>
+        </table>
+      </div>
+      {when === 'past' && archiveTotal > rows.length && (
+        <div className="muted mini" style={{ textAlign: 'center' }}>
+          Showing {rows.length} of {archiveTotal.toLocaleString()} — refine your search to narrow.
+        </div>
+      )}
+    </div>
+  );
+}
+
+/** Watch history — every hearing session (transcribed / live). */
+function SessionsView() {
+  const navigate = useNavigate();
+  const sessions = useHearingSessions();
+
+  if (sessions.isLoading) {
+    return (
+      <div style={{ padding: '48px 0', textAlign: 'center' }}>
+        <Spin />
+      </div>
+    );
+  }
+  if (!sessions.data || sessions.data.length === 0) {
+    return (
+      <div className="guide">
+        <div className="gico">
+          <Ic n="audio" size={20} />
+        </div>
+        <h4>No sessions yet</h4>
+        <p>
+          Watch a hearing from the schedule and it becomes a session here — your full transcription
+          history.
+        </p>
+      </div>
+    );
+  }
+
+  return (
+    <div className="stack" style={{ gap: 10, maxWidth: 820 }}>
+      <span className="hint">
+        <span className="hico">
+          <Ic n="layers" size={13} />
+        </span>
+        Every hearing you’ve watched or transcribed. The recaps you save to a client live in that
+        client’s profile under <b>Saved</b>.
+      </span>
+      {sessions.data.map((s) => {
+        const live = s.status === 'live';
+        return (
+          <div
+            key={s.id}
+            className={'hsession' + (live ? ' live' : '')}
+            onClick={() => navigate(`/intelligence/hearing-watch/${s.id}`)}
+          >
+            <span className="sico">
+              <Ic n={live ? 'audio' : 'clock'} size={16} />
+            </span>
+            <div className="st">
+              <div className="t1">{s.title}</div>
+              <div className="t2">
+                <span>{s.sourceType}</span>
+                {s.startedAt ? (
+                  <>
+                    <span>·</span>
+                    <span>started {new Date(s.startedAt).toLocaleDateString()}</span>
+                  </>
+                ) : null}
+              </div>
+            </div>
+            {live ? (
+              <span
+                className="chip"
+                style={{ background: 'var(--critical)', color: '#fff', border: 'none', fontSize: 10.5 }}
+              >
+                <span className="dot pulse" style={{ background: '#fff' }} />
+                LIVE
+              </span>
+            ) : (
+              <span className="chip muted" style={{ fontSize: 10.5 }}>
+                {s.status}
+              </span>
+            )}
+            <Ic n="chevR" size={14} />
+          </div>
+        );
+      })}
+    </div>
   );
 }
 
 export function HearingWatchPage() {
   const enabled = useIntelFeatureEnabled('hearing_watch');
 
-  if (!enabled) {
-    return (
-      <div style={{ padding: 24 }}>
-        <Empty description="Hearing Watch is not enabled for this workspace." />
-      </div>
-    );
-  }
-
   return (
-    <div style={{ padding: 24, maxWidth: 1180 }}>
-      <Title level={3} style={{ marginBottom: 4 }}>
-        <AudioOutlined /> Hearing Watch
-      </Title>
-      <Paragraph type="secondary" style={{ marginTop: 0 }}>
-        Client-ready intelligence from public hearings — track terms, watch hearings live, and get
-        post-hearing briefs.
-      </Paragraph>
-
-      <HearingWatchPanel />
-    </div>
-  );
-}
-
-// ---- Hearings tab ----------------------------------------------------------
-
-function HearingsTab() {
-  const sessions = useHearingSessions();
-  const [open, setOpen] = useState(false);
-
-  return (
-    <Card
-      title="My Sessions"
-      size="small"
-      extra={
-        <Button type="primary" icon={<PlusOutlined />} onClick={() => setOpen(true)}>
-          New Hearing
-        </Button>
-      }
+    <div
+      className="lw-root redesign"
+      style={{ padding: '22px 32px 80px', background: 'var(--bg-canvas)', minHeight: '100%' }}
     >
-      {sessions.isLoading ? (
-        <Spin />
-      ) : sessions.data && sessions.data.length > 0 ? (
-        <List
-          dataSource={sessions.data}
-          renderItem={(s) => (
-            <List.Item
-              actions={[
-                <Tag key="st" color={STATUS_COLOR[s.status] ?? 'default'}>
-                  {s.status}
-                </Tag>,
-                <Link key="open" to={`/intelligence/hearing-watch/${s.id}`}>
-                  Open room
-                </Link>,
-              ]}
-            >
-              <List.Item.Meta
-                title={s.title}
-                description={
-                  <Text type="secondary">
-                    {s.sourceType}
-                    {s.startedAt ? ` · started ${new Date(s.startedAt).toLocaleString()}` : ''}
-                  </Text>
-                }
-              />
-            </List.Item>
-          )}
-        />
+      {!enabled ? (
+        <div className="guide plain">
+          <h4>Hearing Watch is not enabled</h4>
+          <p>This workspace doesn’t have Hearing Watch turned on yet.</p>
+        </div>
       ) : (
-        <Empty description="No sessions yet — every hearing you watch or transcribe shows up here." />
+        <>
+          <div className="pg-head">
+            <h1 className="pg-title">
+              <AudioOutlined /> Hearing Watch
+            </h1>
+            <p className="pg-desc">
+              Client-ready intelligence from public hearings — track terms, watch hearings live, and
+              get post-hearing briefs.
+            </p>
+          </div>
+          <HearingWatchPanel />
+        </>
       )}
-      <NewHearingModal open={open} onClose={() => setOpen(false)} />
-    </Card>
+    </div>
   );
 }
 
@@ -675,176 +808,6 @@ function NewHearingModal({
         ) : null}
       </Form>
     </Modal>
-  );
-}
-
-// ---- Upcoming tab ----------------------------------------------------------
-
-function UpcomingTab() {
-  const upcoming = useUpcomingHearings();
-  const [presetTitle, setPresetTitle] = useState<string | undefined>();
-  const [presetUrl, setPresetUrl] = useState<string | undefined>();
-  const [presetSearch, setPresetSearch] = useState<string | undefined>();
-  const [presetHearingId, setPresetHearingId] = useState<string | undefined>();
-  const [open, setOpen] = useState(false);
-
-  const onWatch = (r: UpcomingHearing) => {
-    setPresetTitle(buildPresetTitle(r));
-    setPresetUrl(r.url ?? undefined);
-    setPresetSearch(watchSearchQuery(r));
-    setPresetHearingId(r.id);
-    setOpen(true);
-  };
-
-  return (
-    <Card
-      title="Upcoming public hearings"
-      size="small"
-      extra={
-        <Tooltip title="Congress schedules hearings ~1 week ahead; the list is thin during a recess. Use “All hearings” to search the full archive.">
-          <Text type="secondary" style={{ fontSize: 12 }}>
-            forward window
-          </Text>
-        </Tooltip>
-      }
-    >
-      {upcoming.isLoading ? (
-        <Spin />
-      ) : upcoming.isError ? (
-        <Empty description="Upcoming-hearings feed is not available yet." />
-      ) : upcoming.data && upcoming.data.length > 0 ? (
-        <Table
-          rowKey="id"
-          size="small"
-          pagination={{ pageSize: 10 }}
-          dataSource={upcoming.data}
-          columns={buildHearingColumns(onWatch, 'Watch live')}
-        />
-      ) : (
-        <Empty description="No upcoming hearings scheduled right now (Congress may be in recess). Try “All hearings” to browse the full schedule." />
-      )}
-      <NewHearingModal
-        open={open}
-        onClose={() => setOpen(false)}
-        presetTitle={presetTitle}
-        presetUrl={presetUrl}
-        presetSearchQuery={presetSearch}
-        presetHearingId={presetHearingId}
-      />
-    </Card>
-  );
-}
-
-// ---- All hearings (browse) tab ---------------------------------------------
-
-function BrowseTab() {
-  const [scope, setScope] = useState<HearingScope>('upcoming');
-  const [search, setSearch] = useState('');
-  const [chamber, setChamber] = useState('');
-  const [page, setPage] = useState(1);
-  const pageSize = 25;
-
-  const query = useBrowseHearings({
-    scope,
-    search: search || undefined,
-    chamber: chamber || undefined,
-    limit: pageSize,
-    offset: (page - 1) * pageSize,
-  });
-
-  const [presetTitle, setPresetTitle] = useState<string | undefined>();
-  const [presetUrl, setPresetUrl] = useState<string | undefined>();
-  const [presetSearch, setPresetSearch] = useState<string | undefined>();
-  const [presetHearingId, setPresetHearingId] = useState<string | undefined>();
-  const [open, setOpen] = useState(false);
-
-  const onWatch = (r: UpcomingHearing) => {
-    setPresetTitle(buildPresetTitle(r));
-    setPresetUrl(r.url ?? undefined);
-    setPresetSearch(watchSearchQuery(r));
-    setPresetHearingId(r.id);
-    setOpen(true);
-  };
-
-  const total = query.data?.total ?? 0;
-
-  return (
-    <Card
-      title="All hearings"
-      size="small"
-      extra={
-        query.data ? (
-          <Text type="secondary" style={{ fontSize: 12 }}>
-            {total.toLocaleString()} hearings
-          </Text>
-        ) : null
-      }
-    >
-      <Space wrap style={{ marginBottom: 12 }}>
-        <Segmented
-          value={scope}
-          onChange={(v) => {
-            setScope(v as HearingScope);
-            setPage(1);
-          }}
-          options={[
-            { label: 'Upcoming', value: 'upcoming' },
-            { label: 'Past', value: 'past' },
-            { label: 'All', value: 'all' },
-          ]}
-        />
-        <Select
-          value={chamber}
-          style={{ width: 140 }}
-          onChange={(v) => {
-            setChamber(v);
-            setPage(1);
-          }}
-          options={[
-            { value: '', label: 'All chambers' },
-            { value: 'House', label: 'House' },
-            { value: 'Senate', label: 'Senate' },
-            { value: 'Joint', label: 'Joint' },
-          ]}
-        />
-        <Input.Search
-          allowClear
-          placeholder="Search title or committee"
-          style={{ width: 300 }}
-          onSearch={(v) => {
-            setSearch(v.trim());
-            setPage(1);
-          }}
-        />
-      </Space>
-
-      {query.isLoading ? (
-        <Spin />
-      ) : (
-        <Table
-          rowKey="id"
-          size="small"
-          dataSource={query.data?.items ?? []}
-          columns={buildHearingColumns(onWatch, 'Watch recording')}
-          locale={{ emptyText: <Empty description="No hearings match your filters." /> }}
-          pagination={{
-            current: page,
-            pageSize,
-            total,
-            showSizeChanger: false,
-            onChange: (p) => setPage(p),
-          }}
-        />
-      )}
-      <NewHearingModal
-        open={open}
-        onClose={() => setOpen(false)}
-        presetTitle={presetTitle}
-        presetUrl={presetUrl}
-        presetSearchQuery={presetSearch}
-        presetHearingId={presetHearingId}
-      />
-    </Card>
   );
 }
 

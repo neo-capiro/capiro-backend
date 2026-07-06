@@ -56,35 +56,52 @@ export function BillCard({
   onUntrack: (billId: string) => void;
   onOpen: (bill: BoardBill) => void;
 }) {
+  // LegiWatch v2 calm re-skin: `.bcard` — bill number + unread + change dot on top,
+  // title, passage meter, then a foot row of issue/hearing chips. Click opens the
+  // side-drawer; the small filled star untracks (kept off the prototype's chrome
+  // but preserved so the board isn't read-only without the drawer).
   return (
-    <div className={`bill-card${justLanded ? ' just-landed' : ''}`} onClick={() => onOpen(bill)}>
-      <div className="bc-top">
-        <span className="bc-num">{bill.displayNum}</span>
-        {bill.unread && <span className="bc-unread" title="Unread alert" />}
+    <div className={`bcard${justLanded ? ' just-landed' : ''}`} onClick={() => onOpen(bill)}>
+      <div className="b-top">
+        <span className="b-num">{bill.displayNum}</span>
+        {bill.unread && <span className="b-unread" title="Unseen change" />}
+        <span className="grow" />
+        {bill.change && (
+          <span
+            className={`dot ${bill.change.tone}`}
+            style={{ width: 7, height: 7 }}
+            title={bill.change.label}
+          />
+        )}
         <button
-          className="bc-star"
+          className="bc-untrack"
           title="Tracked — remove from board"
+          style={{
+            border: 'none',
+            background: 'none',
+            padding: 0,
+            cursor: 'pointer',
+            color: 'var(--ink-4)',
+            display: 'inline-flex',
+          }}
           onClick={(e) => {
             e.stopPropagation();
             onUntrack(bill.billId);
           }}
         >
-          <StarIcon filled />
+          <StarIcon filled size={12} />
         </button>
       </div>
-      <div className="bc-title">{bill.title}</div>
+      <div className="b-title">{bill.title}</div>
       <PassageBar prob={bill.probability} />
-      {bill.tags && bill.tags.length > 0 && (
-        <div className="trk-tags">
-          {bill.tags.slice(0, 3).map((t) => (
-            <span key={t} className={`trk-tag${issueSet.has(t) ? ' issue' : ''}`}>
-              {t}
-            </span>
-          ))}
-        </div>
-      )}
-      <ChangeChip change={bill.change} />
-      <HearingChip bill={bill} onOpen={onOpen} />
+      <div className="b-foot">
+        {(bill.tags ?? []).slice(0, 2).map((t) => (
+          <span key={t} className={`chip ${issueSet.has(t) ? 'issue' : 'muted'}`} style={{ fontSize: 10.5 }}>
+            {t}
+          </span>
+        ))}
+        <HearingChip bill={bill} onOpen={onOpen} />
+      </div>
     </div>
   );
 }
@@ -109,18 +126,24 @@ export function HearingChip({
   // bill (P7/P9 review finding).
   const count = bill.hearingCount ?? 0;
   if (count <= 0) return null;
-  const label = `${count} hearing${count === 1 ? '' : 's'}`;
   return (
     <button
-      className="change-chip notable"
+      className="chip"
       title="Discussed in hearings — open to see the moments"
-      style={{ cursor: 'pointer', border: 'none' }}
+      style={{
+        cursor: 'pointer',
+        border: 'none',
+        background: 'var(--info-soft)',
+        color: 'var(--info)',
+        fontWeight: 600,
+        fontSize: 10.5,
+      }}
       onClick={(e) => {
         e.stopPropagation();
         onOpen(bill);
       }}
     >
-      <Icon name="bell" size={11} /> {label}
+      in {count} hearing{count > 1 ? 's' : ''}
     </button>
   );
 }
@@ -144,67 +167,58 @@ export function RecCard({
   onDismiss: (billId: string) => void;
   onOpen: (bill: RecommendationBill) => void;
 }) {
+  // LegiWatch v2 calm re-skin: `.rcard` — a violet-edged card with the big FIT
+  // score on the left, the "why it matches" prose, sponsor, and a Track action.
+  const fitPct = Math.round(bill.fit > 1 ? bill.fit : bill.fit * 100);
+  const sponsor =
+    bill.sponsorName != null
+      ? `${bill.sponsorName}${bill.sponsorParty ? ` (${bill.sponsorParty})` : ''}`
+      : bill.latestActionDate;
   return (
-    <div className={`rec-card${selected ? ' selected' : ''}`}>
-      <div className="rc-row1">
-        {selectMode && (
-          <span
-            className={`rc-check${selected ? ' on' : ''}`}
-            onClick={() => onToggleSelect(bill.billId)}
-            title="Select"
-          >
-            {selected && <Icon name="check" size={12} />}
+    <div className={`rcard${selected ? ' selected' : ''}`}>
+      <div className="r-fit">
+        <span className="fnum">{fitPct}</span>
+        <span className="flab">Fit</span>
+      </div>
+      <div className="r-main">
+        <div className="row" style={{ gap: 8 }}>
+          {selectMode && (
+            <span
+              className={`rc-check${selected ? ' on' : ''}`}
+              onClick={() => onToggleSelect(bill.billId)}
+              title="Select"
+            >
+              {selected && <Icon name="check" size={12} />}
+            </span>
+          )}
+          <span className="r-num" onClick={() => onOpen(bill)} style={{ cursor: 'pointer' }}>
+            {bill.displayNum}
           </span>
-        )}
-        <span className="rc-num" onClick={() => onOpen(bill)}>
-          {bill.displayNum}
-        </span>
-        <span style={{ marginLeft: 'auto' }}>
-          <FitPill fit={bill.fit} />
-        </span>
-      </div>
-      <div className="rc-title" onClick={() => onOpen(bill)}>
-        {bill.title}
-      </div>
-      <PassageBar prob={bill.probability} />
-      {bill.matchedTags.length > 0 && (
-        <div className="trk-tags" style={{ marginBottom: 2 }}>
-          {bill.matchedTags.map((t) => (
-            <span key={t} className={`trk-tag${issueSet.has(t) ? ' issue' : ''}`}>
+        </div>
+        <div className="r-title" onClick={() => onOpen(bill)} style={{ cursor: 'pointer' }}>
+          {bill.title}
+        </div>
+        <div className="r-why">{bill.why}</div>
+        <div className="r-foot">
+          {bill.matchedTags.slice(0, 2).map((t) => (
+            <span key={t} className={`chip ${issueSet.has(t) ? 'issue' : 'muted'}`} style={{ fontSize: 10.5 }}>
               {t}
             </span>
           ))}
+          {sponsor && <span className="mini muted num">{sponsor}</span>}
         </div>
-      )}
-      <div className="why-line">
-        <span className="wk">{bill.whyKind}</span>
-        <span className="wt">{bill.why}</span>
       </div>
-      <div className="rc-latest">
-        <span>Latest action</span>
-        <span className="dotsep">·</span>
-        <span>{bill.latestAction ?? '—'}</span>
-        {bill.latestActionDate && (
-          <>
-            <span className="dotsep">·</span>
-            <span className="num">{bill.latestActionDate}</span>
-          </>
-        )}
-      </div>
-      <div className="rc-actions">
-        <button className="btn-track" onClick={() => onTrack(bill.billId)}>
-          <StarIcon size={13} /> Track
+      <div className="r-act" style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: 6 }}>
+        <button className="btn btn-accent sm" onClick={() => onTrack(bill.billId)}>
+          <Icon name="plus" size={11} /> Track
         </button>
         <button
-          className="btn-dismiss"
+          className="btn btn-ghost sm"
           onClick={() => onDismiss(bill.billId)}
           title="Dismiss — trains the feed"
         >
           Not relevant
         </button>
-        <span className="rc-open" title="Open bill detail" onClick={() => onOpen(bill)}>
-          <Icon name="arrow-up-right" size={14} />
-        </span>
       </div>
     </div>
   );

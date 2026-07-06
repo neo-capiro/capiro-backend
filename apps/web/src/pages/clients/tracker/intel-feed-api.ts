@@ -99,6 +99,8 @@ export interface FeedResponse {
   nextCursor: string | null;
   hasMore: boolean;
   counts: Partial<Record<FeedSourceType, number>>;
+  /** Per-severity totals (tenant/client-scoped) for the Feed rail "At a glance". */
+  severityCounts?: Partial<Record<FeedSeverity, number>>;
 }
 
 export type FeedFilter = 'all' | FeedSourceType;

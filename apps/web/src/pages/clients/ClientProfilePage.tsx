@@ -525,7 +525,14 @@ export function ClientProfilePage({
               onViewIntelligence={() => setActiveTab('intelligence')}
             />
           )}
-          {activeTab === 'tracker' && <TrackerTab clientId={client.id} clientName={client.name} />}
+          {activeTab === 'tracker' && (
+            // LegiWatch calm re-skin: the profile tab renders the same TrackerSurface
+            // as /legiwatch, so it needs the `.lw-root` scope (+ redesign fonts/canvas)
+            // for the calm component classes to apply.
+            <div className="lw-root redesign" style={{ background: 'var(--bg-canvas)' }}>
+              <TrackerTab clientId={client.id} clientName={client.name} />
+            </div>
+          )}
           {activeTab === 'people' && (
             <PeopleTab
               people={people.data ?? []}

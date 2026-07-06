@@ -214,16 +214,22 @@ export class FeedService {
     const last = items[items.length - 1];
     const nextCursor = hasMore && last ? encodeCursor(order, last) : null;
 
-    // Per-sourceType counts for the SubNav badges — same filters MINUS sourceType.
-    const grouped = await this.prisma.withTenant(tenantId, (tx) =>
-      tx.intelAlert.groupBy({
-        by: ['sourceType'],
-        where: baseWhere,
-        _count: true,
-      }),
-    );
+    // Per-sourceType counts for the SubNav badges + per-severity counts for the
+    // Feed rail's "At a glance" panel (LegiWatch v2). Both over `baseWhere`, which
+    // omits the sourceType facet and (in this UI) carries no severity filter — so
+    // each reflects true tenant/client-scoped totals, not the loaded page.
+    const [grouped, groupedSev] = await Promise.all([
+      this.prisma.withTenant(tenantId, (tx) =>
+        tx.intelAlert.groupBy({ by: ['sourceType'], where: baseWhere, _count: true }),
+      ),
+      this.prisma.withTenant(tenantId, (tx) =>
+        tx.intelAlert.groupBy({ by: ['severity'], where: baseWhere, _count: true }),
+      ),
+    ]);
     const counts: Record<string, number> = {};
     for (const g of grouped) counts[g.sourceType] = g._count;
+    const severityCounts: Record<string, number> = {};
+    for (const g of groupedSev) severityCounts[g.severity] = g._count;
 
     await this.decryptQuotes(tenantId, items); // fill encrypted hearing quotes (fail-closed)
 
@@ -279,7 +285,7 @@ export class FeedService {
       actions: actionState.get(it.id) ?? { inReport: false, talkingPoints: 0 },
     }));
 
-    return { items: decorated, nextCursor, hasMore, counts };
+    return { items: decorated, nextCursor, hasMore, counts, severityCounts };
   }
 }
 

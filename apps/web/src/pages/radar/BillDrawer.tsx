@@ -111,7 +111,10 @@ export function BillDrawer({
       open={open}
       onClose={onClose}
       width={Math.min(640, typeof window !== 'undefined' ? window.innerWidth - 60 : 640)}
-      destroyOnClose
+      destroyOnHidden
+      // LegiWatch calm re-skin: the drawer renders in a portal (outside .lw-root),
+      // so opt its root into the `.redesign` scope for the Hanken stack + tokens.
+      rootClassName="redesign"
       title={
         <span style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
           <span

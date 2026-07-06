@@ -12,7 +12,6 @@ import {
   type FeedItem,
   type FeedOrder,
   type FeedResponse,
-  type FeedSeverity,
   type RecommendedAction,
 } from './intel-feed-api.js';
 import { useAddTalkingPoint, useSetReport } from './alert-actions-api.js';
@@ -24,13 +23,13 @@ import { MemoComposerDrawer } from './MemoComposerDrawer.js';
  * pull quotes / add to weekly report / open source). The memo is generated in
  * apps/api (Memory-grounded) and auto-filed to the client's Documents; the alert
  * shows "memo drafted" once done. Gated by `tracker_v2`.
+ *
+ * LegiWatch v2 re-skin: the "calm design" — collapsible `.acard` cards (one
+ * severity cue = the colored left edge), a right rail (Show / Arrange / At a
+ * glance), Hanken/Newsreader/JetBrains type. Markup uses the shared calm classes
+ * from `radar/legiwatch.css` (scoped under `.lw-root`).
  */
 
-const SEV_COLOR: Record<FeedSeverity, string> = {
-  critical: 'var(--critical, #d64545)',
-  notable: 'var(--notable, #d98324)',
-  info: 'var(--info, #4a7bd6)',
-};
 function fmtDate(iso: string): string {
   const d = new Date(iso);
   return Number.isNaN(d.getTime()) ? '' : d.toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
@@ -40,6 +39,58 @@ function fmtTs(ms: number | null): string {
   const s = Math.floor(ms / 1000);
   return `${Math.floor(s / 60)}:${String(s % 60).padStart(2, '0')}`;
 }
+function initials(name: string): string {
+  return (
+    name
+      .split(/\s+/)
+      .slice(0, 2)
+      .map((w) => w[0] ?? '')
+      .join('')
+      .toUpperCase() || '•'
+  );
+}
+
+/** Compact inline icon set (matches the prototype's action glyphs). */
+function Ic({ n, size = 12 }: { n: string; size?: number }) {
+  const paths: Record<string, string> = {
+    doc: 'M6 2h7l5 5v15H6z M13 2v5h5',
+    mail: 'M3 5h18v14H3z M3 6l9 7 9-7',
+    check: 'M4 12l5 5L20 6',
+    file: 'M6 2h7l5 5v15H6z',
+    audio: 'M12 3v12 M8 7a4 4 0 0 0 8 0 M5 19h14',
+    spark: 'M12 3l2 5 5 2-5 2-2 5-2-5-5-2 5-2z',
+    quote: 'M7 7H4v6h3l-1 4 M17 7h-3v6h3l-1 4',
+    plus: 'M12 5v14 M5 12h14',
+    chevR: 'M9 6l6 6-6 6',
+  };
+  return (
+    <svg
+      width={size}
+      height={size}
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth={2}
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      aria-hidden
+    >
+      <path d={paths[n] ?? paths.file} />
+    </svg>
+  );
+}
+
+const ACTION_ICON: Record<string, string> = {
+  save_recap: 'spark',
+  draft_memo: 'doc',
+  send_outreach: 'mail',
+  draft_outreach: 'mail',
+  add_to_report: 'check',
+  open_bill: 'file',
+  open_hearing: 'audio',
+  pull_quotes: 'quote',
+  add_talking_point: 'plus',
+};
 
 /** Group a flat, already-ordered feed page by client, preserving first-seen order
  *  (LegiWatch v2 "Grouped by client" arrangement at the all-clients altitude). */
@@ -60,20 +111,10 @@ function groupByClient(
   return order.map((id) => map.get(id)!);
 }
 
-/** Render one recommended action as a compact chip; the primary one is filled. */
-function ActionChip({ a, item, onAction }: { a: RecommendedAction; item: FeedItem; onAction: (a: RecommendedAction, item: FeedItem) => void }) {
-  const drafted = a.kind === 'draft_memo' && !!item.actions?.memo;
-  const inReport = a.kind === 'add_to_report' && !!item.actions?.inReport;
-  const label = drafted ? 'Redraft memo' : inReport ? 'In weekly report ✓' : a.label;
-  return (
-    <button
-      className={a.primary ? 'btn btn-accent' : 'btn'}
-      style={{ fontSize: 11.5, padding: '3px 9px' }}
-      onClick={() => onAction(a, item)}
-    >
-      {label}
-    </button>
-  );
+function actionLabel(a: RecommendedAction, item: FeedItem): string {
+  if (a.kind === 'draft_memo' && item.actions?.memo) return 'Redraft memo';
+  if (a.kind === 'add_to_report') return item.actions?.inReport ? 'In weekly report ✓' : a.label;
+  return a.label;
 }
 
 function FeedCard({
@@ -98,156 +139,111 @@ function FeedCard({
   const primary = actions.find((a) => a.primary) ?? actions[0];
   const drafted = !!item.actions?.memo;
   const inReport = !!item.actions?.inReport;
-  const muted = 'var(--muted, #8a8a96)';
 
   return (
-    <div
-      style={{
-        border: '1px solid var(--border, #e4e4ea)',
-        // The ONLY severity cue (spec U2): the colored left edge. No severity word,
-        // no filled badge.
-        borderLeft: `3px solid ${SEV_COLOR[item.severity]}`,
-        borderRadius: 8,
-        background: 'var(--surface, #fff)',
-        overflow: 'hidden',
-      }}
-    >
-      {/* Collapsed head — the whole row toggles expansion. */}
-      <div
-        onClick={() => setOpen((o) => !o)}
-        style={{ display: 'flex', alignItems: 'flex-start', gap: 10, padding: '11px 14px', cursor: 'pointer' }}
-      >
-        <div style={{ flex: 1, minWidth: 0 }}>
-          <div
-            style={{
-              fontSize: 14,
-              fontWeight: 600,
-              lineHeight: 1.3,
-              ...(open ? {} : { whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }),
-            }}
-          >
-            {item.title}
-          </div>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap', marginTop: 5 }}>
-            {showClient &&
-              (onScopeClient ? (
-                <button
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    onScopeClient(item.clientId);
-                  }}
-                  title="View only this client"
-                  style={{
-                    border: 'none',
-                    background: 'none',
-                    padding: 0,
-                    cursor: 'pointer',
-                    fontSize: 11.5,
-                    fontWeight: 600,
-                    color: 'var(--accent, #6b4fbb)',
-                  }}
-                >
-                  {item.clientName ?? 'Client'}
-                </button>
-              ) : (
-                <span style={{ fontSize: 11.5, fontWeight: 600, color: 'var(--accent, #6b4fbb)' }}>
-                  {item.clientName ?? 'Client'}
-                </span>
-              ))}
-            <span style={{ fontSize: 11, color: muted }}>{SOURCE_LABEL[item.sourceType]}</span>
-            {item.tag && (
-              <span
-                style={{
-                  fontSize: 10.5,
-                  fontWeight: 600,
-                  color: 'var(--text-2, #55555f)',
-                  background: 'var(--surface-2, #f6f6f9)',
-                  border: '1px solid var(--border, #e4e4ea)',
-                  borderRadius: 4,
-                  padding: '1px 7px',
+    <div className={'acard' + (open ? ' open' : '')} data-sev={item.severity}>
+      <div className="acard-head" onClick={() => setOpen((o) => !o)}>
+        <div className="acard-main">
+          <div className={'acard-title' + (open ? '' : ' clip')}>{item.title}</div>
+          <div className="acard-meta">
+            {showClient && (
+              <button
+                className="chip client"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onScopeClient?.(item.clientId);
                 }}
-                title="Matched watchlist tag"
+                title="View only this client"
               >
+                <span className="cdot">{initials(item.clientName ?? 'Client')}</span>
+                {item.clientName ?? 'Client'}
+              </button>
+            )}
+            <span className="src-label">{SOURCE_LABEL[item.sourceType]}</span>
+            {item.tag && (
+              <span className="chip tag" title="Matched watchlist tag">
                 #{item.tag}
               </span>
             )}
             {drafted && (
-              <span style={{ fontSize: 10.5, fontWeight: 600, color: 'var(--good, #2f7a57)' }}>memo drafted ✓</span>
+              <span className="done-flag">
+                <Ic n="check" size={10} /> memo drafted
+              </span>
             )}
             {inReport && (
-              <span style={{ fontSize: 10.5, fontWeight: 600, color: 'var(--good, #2f7a57)' }}>in weekly report</span>
+              <span className="chip success" style={{ fontSize: 10.5 }}>
+                in weekly report
+              </span>
             )}
-            <span style={{ fontSize: 11, color: muted }}>{fmtDate(item.createdAt)}</span>
+            <span className="acard-date">{fmtDate(item.createdAt)}</span>
           </div>
         </div>
         {!open && primary && (
-          <span onClick={(e) => e.stopPropagation()}>
-            <ActionChip a={{ ...primary, primary: true }} item={item} onAction={onAction} />
+          <span className="acard-primary" onClick={(e) => e.stopPropagation()}>
+            <button className="btn sm" onClick={() => onAction(primary, item)}>
+              <Ic n={ACTION_ICON[primary.kind] ?? 'file'} /> {actionLabel(primary, item)}
+            </button>
           </span>
         )}
-        <span style={{ fontSize: 12, color: muted, lineHeight: '22px' }}>{open ? '▾' : '▸'}</span>
+        <span className="acard-chev">
+          <Ic n="chevR" size={15} />
+        </span>
       </div>
 
       {open && (
-        <div
-          style={{
-            display: 'flex',
-            flexDirection: 'column',
-            gap: 8,
-            padding: '10px 14px 12px',
-            borderTop: '1px solid var(--border, #e4e4ea)',
-          }}
-        >
+        <div className="acard-body">
           {ev.bill && (
-            <button
+            <div
+              className="acard-evi"
               onClick={() =>
                 onAction({ kind: 'open_bill', label: 'Open bill', target: { billId: ev.bill!.billId } }, item)
               }
-              style={{
-                textAlign: 'left',
-                fontSize: 12,
-                color: 'var(--text-2, #55555f)',
-                background: 'var(--surface-2, #f6f6f9)',
-                border: '1px solid var(--border, #e4e4ea)',
-                borderRadius: 6,
-                padding: '6px 8px',
-                cursor: 'pointer',
-              }}
-              title="Open bill"
             >
-              <b>{ev.bill.displayNum}</b> · {ev.bill.stage}
-              {ev.bill.actionText ? ` — ${ev.bill.actionText}` : ''}
-              {ev.bill.actionDate ? ` (${ev.bill.actionDate})` : ''}
-            </button>
+              <span className="evnum">{ev.bill.displayNum}</span>
+              <span>
+                {ev.bill.stage}
+                {ev.bill.actionText ? ` — ${ev.bill.actionText}` : ''}{' '}
+                {ev.bill.actionDate ? <span className="muted num">({ev.bill.actionDate})</span> : null}
+              </span>
+            </div>
           )}
 
           {mentions.length > 0 && (
-            <div style={{ fontSize: 12, color: 'var(--text-2, #55555f)' }}>
+            <div>
               {(showAllQuotes ? mentions : mentions.slice(0, 1)).map((m, i) => (
-                <div key={m.segmentId ?? i} style={{ display: 'flex', gap: 6, padding: '2px 0' }}>
-                  <span style={{ color: muted, minWidth: 38 }}>{fmtTs(m.timestampMs)}</span>
+                <div className="acard-quote" key={m.segmentId ?? i}>
+                  <span className="qts">{fmtTs(m.timestampMs)}</span>
                   <span>
                     {m.speakerName ? <b>{m.speakerName}: </b> : null}
-                    {m.quote ? `“${m.quote}”` : <i style={{ color: muted }}>[encrypted — open hearing to view]</i>}
+                    {m.quote ? `“${m.quote}”` : <i className="muted">[encrypted — open hearing to view]</i>}
                   </span>
                 </div>
               ))}
               {mentions.length > 1 && !showAllQuotes && (
-                <button
-                  className="btn"
-                  style={{ fontSize: 11.5, padding: '2px 8px', marginTop: 4 }}
-                  onClick={() => setShowAllQuotes(true)}
-                >
+                <div className="more-quotes" onClick={() => setShowAllQuotes(true)}>
                   +{mentions.length - 1} more quote{mentions.length - 1 === 1 ? '' : 's'}
-                </button>
+                </div>
               )}
             </div>
           )}
 
           {actions.length > 0 && (
-            <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', marginTop: 2 }}>
-              {actions.map((a) => (
-                <ActionChip key={a.kind} a={a} item={item} onAction={onAction} />
+            <div className="acard-actions">
+              {actions.map((a, i) => (
+                <button
+                  key={a.kind}
+                  className={
+                    'btn sm' +
+                    (i === 0
+                      ? ' btn-accent'
+                      : a.kind === 'open_bill' || a.kind === 'open_hearing'
+                        ? ' btn-ghost'
+                        : '')
+                  }
+                  onClick={() => onAction(a, item)}
+                >
+                  <Ic n={ACTION_ICON[a.kind] ?? 'file'} /> {actionLabel(a, item)}
+                </button>
               ))}
             </div>
           )}
@@ -291,7 +287,9 @@ export function TrackerFeedPanel({
   const navigate = useNavigate();
   const { message } = AntApp.useApp();
   const [source, setSource] = useState<FeedFilter>('all');
-  const [order, setOrder] = useState<FeedOrder>('date');
+  // LegiWatch v2 leads with newest-first (the feed-lead copy says so); priority
+  // ordering isn't surfaced as a control in the calm design.
+  const order: FeedOrder = 'date';
   // LegiWatch v2 (L1): global feed arrangement — single stream (default) or grouped
   // by client. Never the default; only offered at the all-clients altitude.
   const [group, setGroup] = useState(false);
@@ -379,6 +377,8 @@ export function TrackerFeedPanel({
 
   const items = query.data?.pages.flatMap((p) => p.items) ?? [];
   const counts = query.data?.pages[0]?.counts ?? {};
+  const sevCounts = query.data?.pages[0]?.severityCounts ?? {};
+  const totalUpdates = Object.values(counts).reduce((n, v) => n + (v ?? 0), 0);
 
   const onAction = (a: RecommendedAction, item: FeedItem) => {
     switch (a.kind) {
@@ -424,106 +424,76 @@ export function TrackerFeedPanel({
     }
   };
 
-  const chips: Array<{ v: FeedFilter; l: string; n?: number }> = [
-    { v: 'all', l: 'All' },
-    { v: 'bill', l: 'Bills', n: counts.bill },
-    { v: 'hearing', l: 'Hearings', n: counts.hearing },
-    { v: 'combined', l: 'Bill + Hearing', n: counts.combined },
+  // Right-rail "Show" options — source facet with tenant/client-scoped counts.
+  const srcOpts: Array<{ v: FeedFilter; label: string; n?: number }> = [
+    { v: 'all', label: 'All sources' },
+    { v: 'bill', label: 'Bill moves', n: counts.bill ?? 0 },
+    { v: 'hearing', label: 'Hearings', n: counts.hearing ?? 0 },
+    { v: 'combined', label: 'Bill + Hearing', n: counts.combined ?? 0 },
   ];
 
-  return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-      <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
-        <div style={{ display: 'flex', gap: 6 }}>
-          {chips.map((c) => (
-            <button
-              key={c.v}
-              className={source === c.v ? 'btn btn-accent' : 'btn'}
-              onClick={() => setSource(c.v)}
-              style={{ fontSize: 12 }}
-            >
-              {c.l}
-              {c.n ? <span className="seg-badge" style={{ marginLeft: 6 }}>{c.n}</span> : null}
-            </button>
+  const body = (() => {
+    if (query.isLoading) {
+      return (
+        <div className="feed">
+          {[86, 64, 72].map((h, i) => (
+            <div key={i} className="skel" style={{ height: h }} />
           ))}
         </div>
-        <span style={{ flex: 1 }} />
-        <button className="btn" onClick={() => setOrder(order === 'date' ? 'score' : 'date')} style={{ fontSize: 12 }}>
-          Sort: {order === 'date' ? 'Most recent' : 'Priority'}
-        </button>
-        {global && (
-          <button
-            className="btn"
-            onClick={() => setGroup((g) => !g)}
-            style={{ fontSize: 12 }}
-            title="Arrange the all-clients stream"
-          >
-            {group ? 'Grouped by client' : 'Single stream'}
-          </button>
-        )}
-      </div>
-
-      {query.isLoading ? (
-        <div className="trk-col-empty">Loading feed…</div>
-      ) : query.isError ? (
-        <div className="trk-col-empty">Feed unavailable.</div>
-      ) : items.length === 0 ? (
-        <div className="trk-empty">
-          <h4>No intelligence yet</h4>
+      );
+    }
+    if (query.isError) {
+      return (
+        <div className="guide plain">
+          <h4>Feed unavailable</h4>
+          <p>We couldn’t load the alert feed. Try again in a moment.</p>
+        </div>
+      );
+    }
+    if (items.length === 0) {
+      return (
+        <div className="guide">
+          <div className="gico">
+            <Ic n="check" size={20} />
+          </div>
+          <h4>Nothing new right now</h4>
           <p>
             {global
-              ? 'Bill changes, hearing mentions, and combined alerts across all your clients will appear here.'
-              : 'Bill changes, hearing mentions, and combined alerts for this client will appear here.'}
+              ? 'When a tracked bill moves or a hearing hits any client’s watchlist, it lands here — newest first.'
+              : `When a tracked bill moves or a hearing mentions ${clientName ?? 'this client'}’s watchlist, it lands here.`}
           </p>
         </div>
-      ) : (
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-          {global && group
-            ? groupByClient(items).map((g) => (
-                <div key={g.clientId} style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginTop: 2 }}>
-                    <button
-                      onClick={() => onScopeClient?.(g.clientId)}
-                      style={{
-                        border: 'none',
-                        background: 'none',
-                        padding: 0,
-                        cursor: onScopeClient ? 'pointer' : 'default',
-                        fontSize: 12.5,
-                        fontWeight: 700,
-                        color: 'var(--accent, #6b4fbb)',
-                      }}
-                    >
-                      {g.clientName}
-                    </button>
-                    <span style={{ fontSize: 11, color: 'var(--muted, #8a8a96)' }}>
-                      {g.list.length} update{g.list.length === 1 ? '' : 's'}
-                    </span>
-                  </div>
-                  {g.list.map((it) => (
-                    <FeedCard
-                      key={it.id}
-                      item={it}
-                      onAction={onAction}
-                      showClient={false}
-                      onScopeClient={onScopeClient}
-                    />
-                  ))}
-                </div>
-              ))
-            : items.map((it) => (
-                <FeedCard
-                  key={it.id}
-                  item={it}
-                  onAction={onAction}
-                  showClient={global}
-                  onScopeClient={onScopeClient}
-                />
-              ))}
+      );
+    }
+    if (global && group) {
+      return (
+        <div className="feed">
+          {groupByClient(items).map((g) => (
+            <div key={g.clientId}>
+              <div className="group-label">
+                <button
+                  className="chip client"
+                  onClick={() => onScopeClient?.(g.clientId)}
+                  title="View only this client"
+                >
+                  <span className="cdot">{initials(g.clientName)}</span>
+                  {g.clientName}
+                </button>
+                <span className="muted mini">
+                  {g.list.length} update{g.list.length === 1 ? '' : 's'}
+                </span>
+              </div>
+              <div className="feed" style={{ marginTop: 6 }}>
+                {g.list.map((it) => (
+                  <FeedCard key={it.id} item={it} onAction={onAction} showClient={false} onScopeClient={onScopeClient} />
+                ))}
+              </div>
+            </div>
+          ))}
           {query.hasNextPage && (
             <button
-              className="trk-more"
-              style={{ maxWidth: 240, margin: '2px auto 0' }}
+              className="btn"
+              style={{ margin: '4px auto 0' }}
               disabled={query.isFetchingNextPage}
               onClick={() => void query.fetchNextPage()}
             >
@@ -531,12 +501,86 @@ export function TrackerFeedPanel({
             </button>
           )}
         </div>
-      )}
+      );
+    }
+    return (
+      <div className="feed">
+        {items.map((it) => (
+          <FeedCard key={it.id} item={it} onAction={onAction} showClient={global} onScopeClient={onScopeClient} />
+        ))}
+        {query.hasNextPage && (
+          <button
+            className="btn"
+            style={{ margin: '4px auto 0' }}
+            disabled={query.isFetchingNextPage}
+            onClick={() => void query.fetchNextPage()}
+          >
+            {query.isFetchingNextPage ? 'Loading…' : 'Load more'}
+          </button>
+        )}
+      </div>
+    );
+  })();
+
+  return (
+    <div className="feed-layout">
+      <div className="feed-main">
+        <div className="feed-lead">
+          {global ? 'What changed across all clients' : `What changed for ${clientName ?? 'this client'}`} ·{' '}
+          {totalUpdates} update{totalUpdates === 1 ? '' : 's'}
+        </div>
+        {body}
+      </div>
+
+      <aside className="feed-rail">
+        <div className="rail-card">
+          <div className="rc-t">Show</div>
+          {srcOpts.map((o) => (
+            <button
+              key={o.v}
+              className={'rail-opt' + (source === o.v ? ' on' : '')}
+              onClick={() => setSource(o.v)}
+            >
+              {o.label}
+              {o.n != null && <span className="n">{o.n}</span>}
+            </button>
+          ))}
+        </div>
+
+        {global && (
+          <div className="rail-card">
+            <div className="rc-t">Arrange</div>
+            <button className={'rail-opt' + (!group ? ' on' : '')} onClick={() => setGroup(false)}>
+              Single stream
+            </button>
+            <button className={'rail-opt' + (group ? ' on' : '')} onClick={() => setGroup(true)}>
+              Grouped by client
+            </button>
+          </div>
+        )}
+
+        <div className="rail-card">
+          <div className="rc-t">At a glance</div>
+          <div className="rail-stat">
+            <span className="dot critical" />
+            Critical
+            <span className="n">{sevCounts.critical ?? 0}</span>
+          </div>
+          <div className="rail-stat">
+            <span className="dot notable" />
+            Notable
+            <span className="n">{sevCounts.notable ?? 0}</span>
+          </div>
+          <div className="rail-stat">
+            <span className="dot info" />
+            Info
+            <span className="n">{sevCounts.info ?? 0}</span>
+          </div>
+        </div>
+      </aside>
 
       {/* Client-scoped drawers derive their client from the alert itself so they
-          work in both per-client and global (P11) mode. In the per-client feed the
-          alert's clientId equals the panel's clientId; in global mode it's the
-          alert's own client, with the roll-up-resolved name. */}
+          work in both per-client and global (P11) mode. */}
       <MemoComposerDrawer
         open={!!composerItem}
         onClose={() => setComposerItem(null)}
