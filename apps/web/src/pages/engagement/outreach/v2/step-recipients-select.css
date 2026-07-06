@@ -601,12 +601,25 @@
   padding: 0;
   flex: none;
 }
-.ov2-rs-add:hover {
+.ov2-rs-add:hover:not(:disabled) {
   background: var(--ov2-accent-soft);
 }
 .ov2-rs-add.added {
   background: var(--ov2-accent);
   border-color: var(--ov2-accent);
+  color: #fff;
+}
+/* Disabled while building a list — the checkbox is the only live control, so
+   the "+" (and the "added" check) is greyed out to steer users to the checkbox. */
+.ov2-rs-add:disabled {
+  border-color: var(--ov2-border-2);
+  color: var(--ov2-border-2);
+  background: var(--ov2-bg-surface);
+  cursor: not-allowed;
+  opacity: 0.55;
+}
+.ov2-rs-add.added:disabled {
+  background: var(--ov2-border-2);
   color: #fff;
 }
 .ov2-rs-star {

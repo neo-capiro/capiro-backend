@@ -1859,7 +1859,7 @@ function CongressTab({
         {builderKind === 'group'
           ? 'Check members to include in the group. All checked recipients will receive one email together.'
           : builderKind === 'list'
-            ? 'Check members and staffers to include them in the list. Click + to add to a field instead.'
+            ? 'Check members and staffers to include them in the list. Each checked recipient gets their own email.'
             : 'Showing the directory A–Z. Click + on any member or staffer to add them to To. Use the caret to expand staffers.'}
       </div>
 
@@ -1934,16 +1934,23 @@ function AddControl({
   // only in a group (they can still get their own individual email). Only an
   // existing individual / list slot marks the row as added.
   const membership = membershipOf(targets, key, 'personal');
+  // While building a LIST the "+" is disabled (but still shown) so it's
+  // unmistakable that the checkbox — not the "+" — is how you add people to the
+  // new list. (Groups hide the "+" entirely, below.)
+  const addDisabled = builderKind === 'list';
   const addButton = membership ? (
     <button
       type="button"
       className="ov2-rs-add added"
+      disabled={addDisabled}
       title={
-        membership === 'individual'
-          ? 'Added to To — click to remove'
-          : 'Already in a list — manage it in the panel above'
+        addDisabled
+          ? 'Use the checkbox to add to the list'
+          : membership === 'individual'
+            ? 'Added to To — click to remove'
+            : 'Already in a list — manage it in the panel above'
       }
-      onClick={() => membership === 'individual' && onRemoveIndividual(key)}
+      onClick={() => !addDisabled && membership === 'individual' && onRemoveIndividual(key)}
       aria-label="Added"
     >
       <CheckOutlined />
@@ -1952,7 +1959,9 @@ function AddControl({
     <button
       type="button"
       className="ov2-rs-add"
-      onClick={() => onAdd(recipient)}
+      disabled={addDisabled}
+      title={addDisabled ? 'Use the checkbox to add to the list' : undefined}
+      onClick={() => !addDisabled && onAdd(recipient)}
       aria-label="Add to To"
     >
       <PlusOutlined />
@@ -1960,9 +1969,10 @@ function AddControl({
   );
   if (builderKind) {
     // Build mode: the checkbox collects people into the new list/group.
-    // Lists (board 5b) keep + alongside so you can still add straight to To;
-    // groups (board 7b) hide + — checked rows tint amber and the checkbox is
-    // amber — because a group is built only from the checked set.
+    // Lists (board 5b) keep the + alongside but DISABLED, so the checkbox is the
+    // only live control (it wasn't clear you had to check a box); groups
+    // (board 7b) hide + — checked rows tint amber and the checkbox is amber —
+    // because a group is built only from the checked set.
     return (
       <>
         <Checkbox
@@ -2267,7 +2277,7 @@ function ClientsTab({
         {builderKind === 'group'
           ? 'Check contacts to include in the group. All checked recipients will receive one email together.'
           : builderKind === 'list'
-            ? 'Check contacts to include them in the list. Click + to add to a field instead.'
+            ? 'Check contacts to include them in the list. Each checked recipient gets their own email.'
             : 'Showing all clients A–Z. Use the caret to expand contacts. Click + to add a contact to To.'}
       </div>
 

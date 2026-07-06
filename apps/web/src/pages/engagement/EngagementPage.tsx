@@ -1018,27 +1018,23 @@ export function EngagementPage() {
                   <MeetingWeekNav
                     rangeStart={rangeStart}
                     rangeEnd={rangeEnd}
-                    onShiftWeek={(delta) => {
+                    onShiftWindow={(delta) => {
                       setHistoryBatch(0);
-                      setRangeStart(
-                        inputValueFromDate(
-                          addLocalDays(localDateFromInput(rangeStart), delta * 7),
-                        ),
-                      );
-                      setRangeEnd(
-                        inputValueFromDate(addLocalDays(localDateFromInput(rangeEnd), delta * 7)),
-                      );
+                      // Page by the CURRENT window's length so ‹ › works for any
+                      // selected range, not just a fixed week.
+                      const start = localDateFromInput(rangeStart);
+                      const end = localDateFromInput(rangeEnd);
+                      const spanDays =
+                        Math.round((end.getTime() - start.getTime()) / 86_400_000) + 1;
+                      setRangeStart(inputValueFromDate(addLocalDays(start, delta * spanDays)));
+                      setRangeEnd(inputValueFromDate(addLocalDays(end, delta * spanDays)));
                     }}
-                    onJump={(dateStr) => {
+                    onRangeChange={(start, end) => {
                       setHistoryBatch(0);
-                      // Snap to the Monday–Sunday week containing the picked date.
-                      const picked = localDateFromInput(dateStr);
-                      const daysSinceMonday = (picked.getDay() + 6) % 7; // Mon=0 … Sun=6
-                      const monday = addLocalDays(picked, -daysSinceMonday);
-                      setRangeStart(inputValueFromDate(monday));
-                      setRangeEnd(inputValueFromDate(addLocalDays(monday, 6)));
-                      // Highlight the picked day in the Day view.
-                      setMeetingFocusDayKey(dateStr);
+                      setRangeStart(start);
+                      setRangeEnd(end);
+                      // Highlight the first day of the new range in the Day view.
+                      setMeetingFocusDayKey(start);
                     }}
                   />
 
@@ -1402,54 +1398,75 @@ export function EngagementPage() {
 }
 
 /**
- * Week navigation shared across List / Calendar / Day (spec §3.1). Replaces the
- * old two-input "Date Range … TO …" selector: ‹ caret · centred week label · ›
- * caret · divider · a single date picker for arbitrary jumps. The carets step
- * one Monday–Sunday week; the picker jumps to the week containing the picked
- * date. Both ultimately set rangeStart/rangeEnd, so the meetings query and the
- * three views are driven exactly as before.
+ * Date-range navigation shared across List / Calendar / Day (spec §3.1). The
+ * centred label is the single, canonical selected-range display for every view;
+ * the ‹ › carets page by the current window's length; and the start→end date
+ * pickers select an arbitrary range (not just one day). All paths set
+ * rangeStart/rangeEnd, so the meetings query and the three views are driven
+ * exactly as before.
  */
 function MeetingWeekNav({
   rangeStart,
   rangeEnd,
-  onShiftWeek,
-  onJump,
+  onShiftWindow,
+  onRangeChange,
 }: {
   rangeStart: string;
   rangeEnd: string;
-  onShiftWeek: (delta: number) => void;
-  onJump: (dateStr: string) => void;
+  onShiftWindow: (delta: number) => void;
+  onRangeChange: (start: string, end: string) => void;
 }) {
   const label = formatCalendarRange(localDateFromInput(rangeStart), localDateFromInput(rangeEnd));
+  // Keep start ≤ end: moving one endpoint past the other drags the other with it.
+  const pickStart = (value: string) => {
+    if (!value) return;
+    onRangeChange(value, value > rangeEnd ? value : rangeEnd);
+  };
+  const pickEnd = (value: string) => {
+    if (!value) return;
+    onRangeChange(value < rangeStart ? value : rangeStart, value);
+  };
   return (
-    <div className="engagement-week-nav" aria-label="Week navigation">
-      <button
-        type="button"
-        className="engagement-week-nav-caret"
-        aria-label="Previous week"
-        onClick={() => onShiftWeek(-1)}
-      >
-        ‹
-      </button>
-      <span className="engagement-week-nav-label">{label}</span>
-      <button
-        type="button"
-        className="engagement-week-nav-caret"
-        aria-label="Next week"
-        onClick={() => onShiftWeek(1)}
-      >
-        ›
-      </button>
-      <span className="engagement-week-nav-divider" aria-hidden="true" />
-      <Input
-        aria-label="Jump to date"
-        className="engagement-week-nav-date"
-        type="date"
-        value={rangeStart}
-        onChange={(event) => {
-          if (event.target.value) onJump(event.target.value);
-        }}
-      />
+    <div className="engagement-week-nav" aria-label="Date range navigation">
+      <span className="engagement-week-nav-spacer" aria-hidden="true" />
+      <div className="engagement-week-nav-center">
+        <button
+          type="button"
+          className="engagement-week-nav-caret"
+          aria-label="Previous range"
+          onClick={() => onShiftWindow(-1)}
+        >
+          ‹
+        </button>
+        <span className="engagement-week-nav-label">{label}</span>
+        <button
+          type="button"
+          className="engagement-week-nav-caret"
+          aria-label="Next range"
+          onClick={() => onShiftWindow(1)}
+        >
+          ›
+        </button>
+      </div>
+      <div className="engagement-week-nav-range">
+        <Input
+          aria-label="Range start"
+          className="engagement-week-nav-date"
+          type="date"
+          value={rangeStart}
+          max={rangeEnd}
+          onChange={(event) => pickStart(event.target.value)}
+        />
+        <span className="engagement-week-nav-range-sep">to</span>
+        <Input
+          aria-label="Range end"
+          className="engagement-week-nav-date"
+          type="date"
+          value={rangeEnd}
+          min={rangeStart}
+          onChange={(event) => pickEnd(event.target.value)}
+        />
+      </div>
     </div>
   );
 }
@@ -1641,13 +1658,12 @@ function MeetingCalendarList({
   const days = dateRangeDays(rangeStart, rangeEnd);
   const grouped = groupMeetingsByDate(meetings);
   const counts = meetingStatusCounts(meetings);
-  const firstDay = days[0] ?? localDateFromInput(rangeStart);
-  const lastDay = days[days.length - 1] ?? localDateFromInput(rangeEnd);
 
   return (
     <div className="engagement-week-calendar">
+      {/* Range label lives once in the centred week-nav above; the toolbar keeps
+          only the view-specific count so the date isn't shown twice. */}
       <div className="engagement-week-toolbar">
-        <Typography.Text strong>{formatCalendarRange(firstDay, lastDay)}</Typography.Text>
         <Typography.Text type="secondary">{days.length} days selected</Typography.Text>
       </div>
       <div
@@ -1701,7 +1717,7 @@ function MeetingCalendarList({
       </div>
       <div className="engagement-week-legend">
         <span>
-          <i className="missing" /> {counts.debriefMissing} Debrief Missing
+          <i className="missing" /> {counts.debriefMissing} Debrief Not Completed
         </span>
         <span>
           <i className="needs-prep" /> {counts.needsPrep} Need Prep
@@ -1906,9 +1922,6 @@ function MeetingDetailPanel({
 
   const prep = meeting.preps[0];
   const participants = meetingParticipants(meeting);
-  const status = meetingStatus(meeting);
-  const hasSavedDebrief = meeting.debriefs.length > 0 || debriefs.length > 0;
-  const meetingHasEnded = new Date(meeting.endsAt).getTime() < Date.now();
 
   return (
     <aside className="engagement-panel engagement-detail-panel">
@@ -1939,11 +1952,6 @@ function MeetingDetailPanel({
           <div className="engagement-detail-badge-row">
             <DebriefBadge meeting={meeting} />
           </div>
-          {status.kind === 'missing' && !hasSavedDebrief ? (
-            <Typography.Text className="engagement-detail-warning">
-              Debrief Not Completed
-            </Typography.Text>
-          ) : null}
         </div>
         <Button
           size="small"
@@ -3168,20 +3176,21 @@ function formatMeetingDay(value: string): string {
 }
 
 function formatCalendarRange(start: Date, end: Date): string {
-  // Build the label explicitly: a partial Intl format with only {day, year}
-  // (no month) renders as locale garbage (e.g. "2026 (day: 28)") in some locales.
+  // Build the label explicitly. Month uses a safe single-field Intl format
+  // ("Jul"); the day-of-month and year are plain numbers via getDate()/
+  // getFullYear() — NOT Intl with { day: 'numeric' }, which renders as locale
+  // garbage (e.g. "Jul (day: 28), 2026") in some ICU/locale combinations.
   const monthFmt = new Intl.DateTimeFormat(undefined, { month: 'short' });
-  const dayFmt = new Intl.DateTimeFormat(undefined, { day: 'numeric' });
   const year = end.getFullYear();
   if (start.getTime() === end.getTime()) {
-    return `${monthFmt.format(start)} ${dayFmt.format(start)}, ${year}`;
+    return `${monthFmt.format(start)} ${start.getDate()}, ${year}`;
   }
   const sameMonth =
     start.getMonth() === end.getMonth() && start.getFullYear() === end.getFullYear();
   if (sameMonth) {
-    return `${monthFmt.format(start)} ${dayFmt.format(start)} – ${dayFmt.format(end)}, ${year}`;
+    return `${monthFmt.format(start)} ${start.getDate()} – ${end.getDate()}, ${year}`;
   }
-  return `${monthFmt.format(start)} ${dayFmt.format(start)} – ${monthFmt.format(end)} ${dayFmt.format(end)}, ${year}`;
+  return `${monthFmt.format(start)} ${start.getDate()} – ${monthFmt.format(end)} ${end.getDate()}, ${year}`;
 }
 
 function formatTimeRange(start: string, end: string): string {
@@ -3316,15 +3325,15 @@ function startOfLocalWeek(date: Date): Date {
 function formatWeekRangeLabel(weekStart: Date): string {
   const weekEnd = addLocalDays(weekStart, 6);
   const monthFormatter = new Intl.DateTimeFormat(undefined, { month: 'short' });
-  const dayFormatter = new Intl.DateTimeFormat(undefined, { day: 'numeric' });
-  const yearFormatter = new Intl.DateTimeFormat(undefined, { year: 'numeric' });
 
   const startMonth = monthFormatter.format(weekStart);
   const endMonth = monthFormatter.format(weekEnd);
-  const startDay = dayFormatter.format(weekStart);
-  const endDay = dayFormatter.format(weekEnd);
-  const startYear = yearFormatter.format(weekStart);
-  const endYear = yearFormatter.format(weekEnd);
+  // Plain numbers — Intl with { day: 'numeric' } / { year: 'numeric' } can
+  // render as locale garbage (e.g. "(day: 28)"), which is what we're avoiding.
+  const startDay = weekStart.getDate();
+  const endDay = weekEnd.getDate();
+  const startYear = weekStart.getFullYear();
+  const endYear = weekEnd.getFullYear();
 
   if (startMonth === endMonth && startYear === endYear) {
     return `Week of ${startMonth} ${startDay}-${endDay}, ${startYear}`;
@@ -3412,10 +3421,10 @@ function meetingStatus(meeting: Meeting): {
     return {
       kind: 'missing',
       tone: 'danger',
-      label: 'Debrief Missing',
+      label: 'Debrief Not Completed',
       actionLabel: 'Start Debrief',
       primaryAction: 'debrief',
-      chips: [{ label: 'Debrief Missing', tone: 'danger', action: 'debrief' }],
+      chips: [{ label: 'Debrief Not Completed', tone: 'danger', action: 'debrief' }],
     };
   }
   if (hasEnded && hasDebrief) {
