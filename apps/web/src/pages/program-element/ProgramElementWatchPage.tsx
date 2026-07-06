@@ -176,6 +176,16 @@ function fyLabel(fy: number): string {
   return `FY${String(fy).slice(-2)}`;
 }
 
+/** Line type from appropriation (mirrors LINE_TYPE_FOR in budget-lines-read.service).
+ *  Drives which type-specific tabs/panels the 360 profile shows. */
+function lineTypeFor(appropriationType: string | null | undefined): string | null {
+  const t = (appropriationType ?? '').toUpperCase();
+  if (t.startsWith('RDT')) return 'RDTE_PE';
+  if (t === 'PROC') return 'PROCUREMENT_BLIN';
+  if (t === 'OM') return 'OM_BLI';
+  return null;
+}
+
 /** A chart-surface card wrapper matching the redesign spec. */
 function ChartCard({
   title,
@@ -590,6 +600,14 @@ export function ProgramElementWatchPage() {
   const reqFmt = latestRequest ? fmtMoneyM(latestRequest.value) : null;
   const enactedFmt = latestEnacted ? fmtMoneyM(latestEnacted.value) : null;
 
+  // Line-type-aware profile: the 8-tab shell is common, but type-specific surfaces
+  // vary. Derive from appropriation (immediate on detail); fall back to the
+  // intelligence-cache lineType. Unknown type keeps the fuller RDT&E-style layout.
+  const lineType =
+    lineTypeFor(detail.appropriationType) ?? intelligenceQuery.data?.lineType ?? null;
+  const isRdte = lineType === 'RDTE_PE' || lineType === null;
+  const isProc = lineType === 'PROCUREMENT_BLIN';
+
   // ── Tab content ─────────────────────────────────────────────────────────
   const overviewTab = (
     <div className="pe-dt-panel">
@@ -725,9 +743,11 @@ export function ProgramElementWatchPage() {
         </div>
       </div>
 
-      <div className="pe-surface pe-plain-surface">
-        <ProjectsPanel projects={projects} loading={projectsQuery.isLoading} />
-      </div>
+      {isRdte ? (
+        <div className="pe-surface pe-plain-surface">
+          <ProjectsPanel projects={projects} loading={projectsQuery.isLoading} />
+        </div>
+      ) : null}
     </div>
   );
 
@@ -778,11 +798,24 @@ export function ProgramElementWatchPage() {
           </Card>
         )}
       </div>
+    </div>
+  );
 
+  // Procurement-only detail: P-40 secondary distribution (recipients · quantity ·
+  // unit cost) + the P-Doc detail. These carry data only for PROCUREMENT_BLIN lines,
+  // so they get their own tab there instead of rendering empty on RDT&E/O&M.
+  const procurementDetailTab = (
+    <div className="pe-dt-panel">
       <div className="pe-surface pe-plain-surface span-2">
         <SecondaryDistributionPanel
           data={procurementLinesQuery.data}
           loading={procurementLinesQuery.isLoading}
+        />
+      </div>
+      <div className="pe-surface pe-plain-surface span-2">
+        <PdocDetailPanel
+          detail={pDocDetail}
+          onOpenPe={(pe) => navigate(`/program-elements/${pe}`)}
         />
       </div>
     </div>
@@ -862,15 +895,17 @@ export function ProgramElementWatchPage() {
           />
         </div>
       </div>
-      <div className="pe-surface pe-plain-surface span-2">
-        <div className="pe-surface-head">
-          <h3>Transition maturity</h3>
-          <span className="pe-surface-sub">research → contracts · per-rung evidence</span>
+      {isRdte ? (
+        <div className="pe-surface pe-plain-surface span-2">
+          <div className="pe-surface-head">
+            <h3>Transition maturity</h3>
+            <span className="pe-surface-sub">research → contracts · per-rung evidence</span>
+          </div>
+          <div className="bl-panel-body">
+            <MaturityLadderPanel ladder={intelligenceQuery.data?.maturityLadder} />
+          </div>
         </div>
-        <div className="bl-panel-body">
-          <MaturityLadderPanel ladder={intelligenceQuery.data?.maturityLadder} />
-        </div>
-      </div>
+      ) : null}
       <div className="pe-surface pe-plain-surface span-2">
         <ProgramsPanel programs={programsQuery.data} loading={programsQuery.isLoading} />
       </div>
@@ -965,12 +1000,6 @@ export function ProgramElementWatchPage() {
         <WhatChangedPanel deltas={deltasQuery.data?.data} loading={deltasQuery.isLoading} />
       </div>
       <div className="pe-surface pe-plain-surface span-2">
-        <PdocDetailPanel
-          detail={pDocDetail}
-          onOpenPe={(pe) => navigate(`/program-elements/${pe}`)}
-        />
-      </div>
-      <div className="pe-surface pe-plain-surface span-2">
         <ClientRelevancePanel
           clients={clientRelevanceQuery.data}
           loading={clientRelevanceQuery.isLoading}
@@ -983,9 +1012,14 @@ export function ProgramElementWatchPage() {
   );
 
   const relCount = relationshipsQuery.data?.length ?? 0;
+  // Line-type-aware tab set: money-graph tabs are common; Procurement detail shows
+  // only for procurement lines, and Incumbents (R-3 performers) only for RDT&E.
   const tabItems = [
     { key: 'overview', label: 'Overview', children: overviewTab },
     { key: 'funding', label: 'Funding', children: fundingTab },
+    ...(isProc
+      ? [{ key: 'procurement', label: 'Procurement detail', children: procurementDetailTab }]
+      : []),
     {
       key: 'legislation',
       label: <TabLabel text="Legislation" count={bills.length} />,
@@ -996,11 +1030,15 @@ export function ProgramElementWatchPage() {
       label: <TabLabel text="Relationships" count={relCount} />,
       children: relationshipsTab,
     },
-    {
-      key: 'incumbents',
-      label: <TabLabel text="Incumbents" count={incumbentsQuery.data?.length ?? 0} />,
-      children: incumbentsTab,
-    },
+    ...(isRdte
+      ? [
+          {
+            key: 'incumbents',
+            label: <TabLabel text="Incumbents" count={incumbentsQuery.data?.length ?? 0} />,
+            children: incumbentsTab,
+          },
+        ]
+      : []),
     {
       key: 'team',
       label: <TabLabel text="People & office" count={programTeam.length} />,
