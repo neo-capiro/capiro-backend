@@ -60,6 +60,24 @@ export interface PublicLaw {
   pdfBuffer: Buffer;
 }
 
+export interface HearingSummary {
+  hearingId: string; // GovInfo packageId, e.g. "CHRG-119shrg58001"
+  congress: number;
+  title: string | null;
+  dateIssued: string | null; // ISO date the transcript was published
+  lastModified: string | null;
+  packageLink: string | null;
+}
+
+export interface HearingText {
+  packageId: string;
+  text: string;
+  format: 'txt' | 'htm';
+  sourceUrl: string;
+  dateIssued: string | null;
+  title: string | null;
+}
+
 // ── Internal GovInfo API shapes (only the fields we read) ─────────────────────
 
 interface GovInfoCollectionResponse {
@@ -83,6 +101,7 @@ interface GovInfoDownloadLinks {
   xmlLink?: string;
   pdfLink?: string;
   modsLink?: string;
+  htmLink?: string;
 }
 
 export interface GovInfoPackageSummary {
@@ -195,6 +214,49 @@ export class GovInfoService {
     if (!pdfLink) throw new ServiceUnavailableException(`No PDF available for public law ${plawId}`);
     const pdfBuffer = await this.fetchPdfCached(plawId, pdfLink);
     return { url: pdfLink, pdfBuffer };
+  }
+
+  // ── Congressional hearings (CHRG) — Track B official transcripts (H2) ─────────
+
+  /** List CHRG (Congressional Hearings) packages for a congress. */
+  async listHearings(congress: number, updatedSince?: string): Promise<HearingSummary[]> {
+    const rows = await this.listCollection('CHRG', congress, { updatedSince });
+    return rows.map((r) => ({
+      hearingId: r.packageId,
+      congress: this.toCongress(r.congress, congress),
+      title: r.title ?? null,
+      dateIssued: r.dateIssued ?? null,
+      lastModified: r.lastModified ?? null,
+      packageLink: r.packageLink ?? null,
+    }));
+  }
+
+  /**
+   * Fetch a hearing's OFFICIAL transcript as plain text. CHRG packages publish a
+   * `txtLink` (plain text) — preferred; falls back to `htmLink` (tags stripped).
+   * Throws 503 when neither exists (e.g. scan-only PDF hearings). Text runs
+   * through the same 24h JSON cache (for the summary) + rate limiter as the rest.
+   */
+  async getHearingText(packageId: string): Promise<HearingText> {
+    const summary = await this.getPackageSummary(packageId);
+    const txt = summary.download?.txtLink;
+    const htm = summary.download?.htmLink;
+    const link = txt ?? htm;
+    if (!link) {
+      throw new ServiceUnavailableException(
+        `No text transcript available for hearing ${packageId}`,
+      );
+    }
+    const raw = await this.fetchText(link);
+    const format: 'txt' | 'htm' = txt ? 'txt' : 'htm';
+    return {
+      packageId,
+      text: format === 'htm' ? stripHtmlTags(raw) : raw,
+      format,
+      sourceUrl: link,
+      dateIssued: summary.dateIssued ?? null,
+      title: summary.title ?? null,
+    };
   }
 
   // ── Internals ─────────────────────────────────────────────────────────────────
@@ -377,4 +439,19 @@ export class GovInfoService {
     const m = packageId.match(/[a-z]+(\d+)[a-z]*$/i);
     return m ? m[1]! : null;
   }
+}
+
+/** Minimal HTML→text for the GovInfo HTM transcript fallback (txt is preferred):
+ *  drop script/style + tags, decode a few entities, collapse whitespace. */
+function stripHtmlTags(html: string): string {
+  return html
+    .replace(/<(script|style)[\s\S]*?<\/\1>/gi, ' ')
+    .replace(/<[^>]+>/g, ' ')
+    .replace(/&nbsp;/g, ' ')
+    .replace(/&amp;/g, '&')
+    .replace(/&lt;/g, '<')
+    .replace(/&gt;/g, '>')
+    .replace(/&#(\d+);/g, (_, n) => String.fromCodePoint(Number(n)))
+    .replace(/\s+/g, ' ')
+    .trim();
 }

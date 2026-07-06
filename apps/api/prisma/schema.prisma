@@ -3455,6 +3455,36 @@ model CommitteeHearing {
 }
 
 // ─────────────────────────────────────────────────────────────────────────
+// OfficialHearingTranscript — Track B (H2): the OFFICIAL published hearing
+// transcript TEXT, ingested from GovInfo's Congressional Hearings (CHRG)
+// collection (txtLink = plain text). Distinct from the machine (Deepgram) live
+// transcript in intel-api. GLOBAL public-record table, no tenant_id / no RLS —
+// same posture as committee_hearing. `hearingId` soft-links to a committee_hearing
+// row when correlated (nullable — official transcripts often predate/aren't
+// matched to a scheduled-meeting row). Scoped to 2026 by the ingestion sync.
+model OfficialHearingTranscript {
+  id            String    @id // GovInfo packageId, e.g. "CHRG-119hhrg58001"
+  hearingId     String?   @map("hearing_id") // soft ref to committee_hearing.id
+  source        String    @default("govinfo") // 'govinfo' | 'congress'
+  congress      Int
+  chamber       String
+  committeeName String?   @map("committee_name")
+  title         String    @db.Text
+  date          DateTime  @db.Date
+  sourceUrl     String    @map("source_url") // the GovInfo package/txt link
+  format        String    @default("txt") // 'txt' | 'htm' | 'pdf'
+  text          String    @db.Text // extracted plain-text transcript
+  charCount     Int       @map("char_count")
+  publishedAt   DateTime? @map("published_at") @db.Timestamptz(6)
+  fetchedAt     DateTime  @default(now()) @map("fetched_at") @db.Timestamptz(6)
+
+  @@index([hearingId])
+  @@index([congress, chamber, date])
+  @@index([date])
+  @@map("official_hearing_transcript")
+}
+
+// ─────────────────────────────────────────────────────────────────────────
 // SyncRun, observability for sync scripts
 // GLOBAL table, no tenant_id, no RLS. One row per sync execution.
 // ─────────────────────────────────────────────────────────────────────────

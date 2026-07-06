@@ -38,6 +38,7 @@
     "sync:sam-opportunities": "tsx scripts/sync-sam-opportunities.ts",
     "match:pe-person": "tsx scripts/match-pe-person.ts",
     "extract:hearing-witnesses": "tsx scripts/extract-hearing-witnesses.ts",
+    "sync:hearing-transcripts": "tsx scripts/sync-hearing-transcripts.ts",
     "extract:gao-interviewees": "tsx scripts/extract-gao-interviewees.ts",
     "sync:fec-pac": "tsx scripts/sync-fec-pac.ts",
     "sync:entity-resolution": "tsx scripts/sync-entity-resolution.ts",
