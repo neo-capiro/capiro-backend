@@ -80,6 +80,14 @@ WORKDIR /app
 COPY --chown=capiro:capiro --from=build /workspace/node_modules /app/node_modules
 COPY --chown=capiro:capiro --from=build /workspace/packages/shared/dist /app/packages/shared/dist
 COPY --chown=capiro:capiro --from=build /workspace/packages/shared/package.json /app/packages/shared/package.json
+# @capiro/auth (Option N shared guard): dist + manifest + its OWN node_modules
+# — root /app/node_modules/@capiro/auth is a pnpm symlink to here, and
+# packages/auth/dist requires @nestjs/common / @clerk/backend from its own
+# node_modules (pnpm doesn't hoist). Without these three the workspace crashes
+# at boot with "Cannot find module '@capiro/auth'".
+COPY --chown=capiro:capiro --from=build /workspace/packages/auth/dist /app/packages/auth/dist
+COPY --chown=capiro:capiro --from=build /workspace/packages/auth/package.json /app/packages/auth/package.json
+COPY --chown=capiro:capiro --from=build /workspace/packages/auth/node_modules /app/packages/auth/node_modules
 COPY --chown=capiro:capiro --from=build /workspace/apps/workspace/dist /app/apps/workspace/dist
 COPY --chown=capiro:capiro --from=build /workspace/apps/workspace/node_modules /app/apps/workspace/node_modules
 COPY --chown=capiro:capiro --from=build /workspace/apps/workspace/package.json /app/apps/workspace/package.json
