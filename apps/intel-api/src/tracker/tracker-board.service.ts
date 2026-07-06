@@ -377,6 +377,113 @@ export class TrackerBoardService {
   }
 
   /**
+   * LegiWatch v2 (L2b): the ALL-CLIENTS board roll-up — every client's tracked
+   * bills in the same stage columns, each card labelled with its client (U4 /
+   * Gherkin "All-clients board roll-up"). Tenant-scoped (intel-api has no RLS):
+   * reads only this tenant's tracked bills + alerts. Change-chip and hearing
+   * counts are keyed per (client, bill) since alerts are per-client; matchedTags
+   * (the High-fit filter) use each card's OWN client's compiled watchlist,
+   * batch-resolved per distinct client (bounded by client count, no per-row work).
+   */
+  async getTenantBoard(tenantId: string): Promise<{
+    columns: Array<{
+      id: BillStage;
+      label: string;
+      cards: Array<BoardCard & { clientId: string; clientName: string | null }>;
+    }>;
+  }> {
+    type Card = BoardCard & { clientId: string; clientName: string | null };
+    const empty = () =>
+      BILL_STAGES.map((s) => ({ id: s.id, label: s.label, cards: [] as Card[] }));
+    const tracked = await this.prisma.trackedBill.findMany({
+      where: { tenantId },
+      orderBy: { trackedAt: 'desc' },
+    });
+    if (!tracked.length) return { columns: empty() };
+
+    const billIds = Array.from(new Set(tracked.map((t) => t.billId)));
+    const clientIds = Array.from(new Set(tracked.map((t) => t.clientId)));
+    const [bills, recentAlerts, hearingLinks, clientNames] = await Promise.all([
+      this.repo.fetchRecommendationBills(billIds),
+      this.prisma.intelAlert.findMany({
+        where: {
+          tenantId,
+          sourceType: 'bill',
+          sourceRef: { in: billIds },
+          createdAt: { gte: new Date(Date.now() - RECENT_CHANGE_DAYS * DAY_MS) },
+        },
+        orderBy: { createdAt: 'desc' },
+        select: { sourceRef: true, clientId: true, changeType: true, title: true, createdAt: true },
+      }),
+      this.prisma.intelAlert.groupBy({
+        by: ['sourceRef', 'clientId'],
+        where: {
+          tenantId,
+          sourceType: 'combined',
+          sourceRef: { in: billIds },
+          status: { notIn: ['dismissed', 'snoozed', 'suppressed'] },
+        },
+        _count: { _all: true },
+      }),
+      this.repo.getClientNames(tenantId, clientIds).catch(() => new Map<string, string>()),
+    ]);
+
+    // Per-client compiled watchlist (for matchedTags / the High-fit filter).
+    const topicsByClient = new Map<string, { topics: CompiledTopicForFit[]; issueAreas: string[] }>();
+    await Promise.all(
+      clientIds.map(async (cid) => {
+        const { topics, issueAreas } = await this.compiledTopics(tenantId, cid);
+        topicsByClient.set(cid, { topics, issueAreas });
+      }),
+    );
+
+    const billById = new Map(bills.map((b) => [b.id, b]));
+    const ck = (cid: string, bid: string) => `${cid}:${bid}`;
+    const chipByCB = new Map<string, { label: string; changeType: string | null; at: Date }>();
+    for (const a of recentAlerts) {
+      const k = ck(a.clientId, a.sourceRef);
+      if (!chipByCB.has(k)) chipByCB.set(k, { label: a.title, changeType: a.changeType, at: a.createdAt });
+    }
+    const hearingCountByCB = new Map<string, number>();
+    for (const g of hearingLinks) hearingCountByCB.set(ck(g.clientId, g.sourceRef), g._count._all);
+
+    const nowMs = Date.now();
+    const columns = empty();
+    const colById = new Map(columns.map((c) => [c.id, c]));
+    for (const t of tracked) {
+      const bill = billById.get(t.billId) ?? null;
+      const latestActionText = bill?.latestActionText ?? t.lastSeenActionText ?? null;
+      const latestActionDate = bill?.latestActionDate ?? t.lastSeenActionDate ?? null;
+      const stage = (t.stage as BillStage | null) ?? billStage(latestActionText);
+      const ct = topicsByClient.get(t.clientId);
+      const matchedTags =
+        bill && ct ? scoreBillFit(toRelevanceBill(bill), ct.topics, ct.issueAreas, 0, false).matchedTags : [];
+      const card: Card = {
+        billId: t.billId,
+        displayNum: humanizeBillId(t.billId),
+        title: bill?.title ?? null,
+        stage,
+        passageProbability: passageProbability({ latestActionText, title: bill?.title ?? null, latestActionDate, nowMs }),
+        latestActionText,
+        latestActionDate,
+        note: t.note ?? null,
+        isManual: t.isManual,
+        unread: t.unread,
+        trackedAt: t.trackedAt,
+        matchedTags,
+        changeChip: chipByCB.get(ck(t.clientId, t.billId)) ?? null,
+        lastHearingSessionId: t.lastHearingSessionId ?? null,
+        lastHearingAt: t.lastHearingAt ?? null,
+        hearingCount: hearingCountByCB.get(ck(t.clientId, t.billId)) ?? 0,
+        clientId: t.clientId,
+        clientName: clientNames.get(t.clientId) ?? null,
+      };
+      (colById.get(stage) ?? columns[0]!).cards.push(card);
+    }
+    return { columns };
+  }
+
+  /**
    * Lightweight board counts for the client-profile tab badge (Phase 7 —
    * repoints the legacy GET .../tracker/summary badge fetch). One tenant-scoped
    * SELECT of the `unread` bits, reduced by the pure summarizeTrackedRows.

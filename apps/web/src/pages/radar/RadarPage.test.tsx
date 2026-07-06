@@ -49,6 +49,34 @@ function mockApi(flags: Record<string, boolean>) {
     if (url.startsWith('/intel-api/upcoming-hearings/browse')) {
       return { data: { items: [], total: 0 } };
     }
+    // L2b all-clients board roll-up: client-labelled cards across the tenant.
+    if (url.endsWith('/_all/tracker/board')) {
+      return {
+        data: {
+          columns: [
+            { id: 'introduced', label: 'Introduced', cards: [] },
+            {
+              id: 'committee',
+              label: 'In committee',
+              cards: [
+                {
+                  billId: 'hr-1',
+                  displayNum: 'H.R. 1',
+                  title: 'Test Roll-up Act',
+                  passageProbability: 80,
+                  unread: false,
+                  matchedTags: [],
+                  changeChip: null,
+                  hearingCount: 0,
+                  clientId: 'c1',
+                  clientName: 'Acme Aerospace',
+                },
+              ],
+            },
+          ],
+        },
+      };
+    }
     if (url.endsWith('/tracker/board')) return { data: { columns: [], total: 0 } };
     if (url.endsWith('/tracker/recommendations')) {
       return { data: { recommendations: [], aboveFloorCount: 0, total: 0, floor: 0.5 } };
@@ -190,6 +218,29 @@ describe('RadarPage', () => {
     fireEvent.click(screen.getByRole('button', { name: /Got it/i }));
     await waitFor(() =>
       expect(window.localStorage.getItem('legiwatch-intro-seen-v1')).toBe('1'),
+    );
+  });
+
+  test('L2b: Bills at all-clients (tracker_v2 on) shows the tenant board roll-up with client labels', async () => {
+    mockApi({ tracker_v2: true });
+    renderRadar('/radar?tab=bills');
+
+    await waitFor(() => expect(screen.getByText('H.R. 1')).toBeInTheDocument());
+    expect(screen.getByText('Test Roll-up Act')).toBeInTheDocument();
+    // Each card is labelled with its client (U4 roll-up).
+    expect(screen.getByText('Acme Aerospace')).toBeInTheDocument();
+    // It fetches the tenant-wide board, not a per-client one.
+    expect(
+      apiGetMock.mock.calls.some((args: unknown[]) => String(args[0]).includes('/_all/tracker/board')),
+    ).toBe(true);
+  });
+
+  test('L2b: Bills at all-clients without tracker_v2 falls back to the client-gate', async () => {
+    mockApi({});
+    renderRadar('/radar?tab=bills');
+
+    await waitFor(() =>
+      expect(screen.getByText(/Select a client to view its bill board/i)).toBeInTheDocument(),
     );
   });
 

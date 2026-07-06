@@ -300,31 +300,40 @@ export function RadarPage() {
           </div>
         ))}
 
-      {tab === 'bills' && (
-        <ClientGate
-          client={selectedClient}
-          clientsLoading={clients.isLoading}
-          picker={clientPicker}
-          what="its bill board and recommendations"
-        >
-          {(client) => (
-            <FirstRunGate
-              loading={!coldStartReady}
-              cold={isColdStart}
-              clientName={client.name}
-              onSetup={() => setParam('tab', 'watchlist')}
-            >
-              <TrackerSurface
-                key={client.id}
-                clientId={client.id}
-                clientName={client.name}
-                variant="bills"
-                onOpenConfigure={() => setParam('tab', 'watchlist')}
-              />
-            </FirstRunGate>
-          )}
-        </ClientGate>
-      )}
+      {tab === 'bills' &&
+        (selectedClient ? (
+          <FirstRunGate
+            loading={!coldStartReady}
+            cold={isColdStart}
+            clientName={selectedClient.name}
+            onSetup={() => setParam('tab', 'watchlist')}
+          >
+            <TrackerSurface
+              key={selectedClient.id}
+              clientId={selectedClient.id}
+              clientName={selectedClient.name}
+              variant="bills"
+              onOpenConfigure={() => setParam('tab', 'watchlist')}
+            />
+          </FirstRunGate>
+        ) : trackerReady && trackerV2 ? (
+          // L2b all-clients altitude: the tenant-wide board roll-up (every
+          // client's tracked bills, client-labelled). Recommendations stay
+          // per-client (they score against one client's watchlist), so the
+          // roll-up is board-only; pick a client for recs + tracking.
+          <div className="trk">
+            <RadarGlobalBillsTab onScopeClient={(id) => setParam('client', id)} />
+          </div>
+        ) : (
+          <ClientGate
+            client={selectedClient}
+            clientsLoading={clients.isLoading}
+            picker={clientPicker}
+            what="its bill board and recommendations"
+          >
+            {() => null}
+          </ClientGate>
+        ))}
 
       {tab === 'hearings' &&
         (!hearingReady ? (
@@ -521,6 +530,182 @@ function RadarGlobalFeedTab({
         onClose={() => setDrawer(null)}
       />
     </>
+  );
+}
+
+/** One tenant-board card (per-client tracked bill) from `_all/tracker/board`. */
+type TenantBoardCard = {
+  billId: string;
+  displayNum: string;
+  title: string | null;
+  passageProbability: number;
+  unread: boolean;
+  matchedTags: string[];
+  changeChip: { label: string; changeType: string | null } | null;
+  hearingCount?: number;
+  clientId: string;
+  clientName: string | null;
+};
+type TenantBoard = { columns: Array<{ id: string; label: string; cards: TenantBoardCard[] }> };
+
+/**
+ * L2b — the ALL-CLIENTS Bills board roll-up (U4 / Gherkin "All-clients board").
+ * Read-only: every client's tracked bills in the same stage columns, each card
+ * labelled with its client; opening a card shows the shared bill side-drawer
+ * (scoped to that card's client), and the client label scopes the whole feature.
+ * Recommendations are per-client (they score against one client's watchlist), so
+ * they're intentionally absent here — pick a client for recs + track/untrack.
+ */
+function RadarGlobalBillsTab({ onScopeClient }: { onScopeClient: (clientId: string) => void }) {
+  const api = useApi();
+  const [drawer, setDrawer] = useState<{ billId: string; clientId: string; clientName: string } | null>(null);
+  const [filter, setFilter] = useState<'all' | 'hifit' | 'hiprob'>('all');
+  const board = useQuery<TenantBoard>({
+    queryKey: ['radar-tenant-board'],
+    queryFn: async () => (await api.get<TenantBoard>(intelTrackerPaths.board('_all'))).data,
+    staleTime: 30_000,
+  });
+
+  if (board.isPending) return <PanelLoading />;
+  if (board.isError) return <Empty description="Could not load the all-clients board." />;
+
+  const columns = board.data?.columns ?? [];
+  const total = columns.reduce((n, c) => n + c.cards.length, 0);
+  if (total === 0) {
+    return <Empty description="No tracked bills across your clients yet — pick a client to start tracking." />;
+  }
+  const pass = (c: TenantBoardCard) =>
+    filter === 'hifit' ? c.matchedTags.length > 0 : filter === 'hiprob' ? c.passageProbability >= 70 : true;
+  const probColor = (p: number) =>
+    p >= 70 ? 'var(--good, #2f7a57)' : p >= 40 ? 'var(--notable, #d98324)' : 'var(--muted, #8a8a96)';
+
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+        <Text type="secondary" style={{ fontSize: 12 }}>
+          Every client&rsquo;s tracked bills, by legislative stage.
+        </Text>
+        <span style={{ flex: 1 }} />
+        <Select
+          size="small"
+          value={filter}
+          style={{ minWidth: 190 }}
+          onChange={(v) => setFilter(v as 'all' | 'hifit' | 'hiprob')}
+          options={[
+            { value: 'all', label: 'All tracked bills' },
+            { value: 'hifit', label: 'Priority-tag bills' },
+            { value: 'hiprob', label: 'High probability (≥70%)' },
+          ]}
+        />
+      </div>
+      <div
+        style={{
+          display: 'grid',
+          gridTemplateColumns: `repeat(${columns.length}, minmax(220px, 1fr))`,
+          gap: 12,
+          overflowX: 'auto',
+        }}
+      >
+        {columns.map((col) => {
+          const cards = col.cards.filter(pass);
+          return (
+            <div key={col.id} style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 12.5, fontWeight: 600 }}>
+                <span>{col.label}</span>
+                <span style={{ color: 'var(--muted, #8a8a96)' }}>{cards.length}</span>
+              </div>
+              {cards.length === 0 ? (
+                <div style={{ fontSize: 11.5, color: 'var(--muted, #8a8a96)', padding: '6px 0' }}>Nothing here</div>
+              ) : (
+                cards.map((c) => (
+                  <div
+                    key={c.clientId + c.billId}
+                    onClick={() =>
+                      setDrawer({ billId: c.billId, clientId: c.clientId, clientName: c.clientName ?? 'Client' })
+                    }
+                    style={{
+                      border: '1px solid var(--border, #e4e4ea)',
+                      borderRadius: 8,
+                      background: 'var(--surface, #fff)',
+                      padding: '10px 12px',
+                      cursor: 'pointer',
+                      display: 'flex',
+                      flexDirection: 'column',
+                      gap: 6,
+                    }}
+                  >
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                      <span style={{ fontSize: 12, fontWeight: 600 }}>{c.displayNum}</span>
+                      {c.unread && (
+                        <span style={{ width: 6, height: 6, borderRadius: '50%', background: 'var(--accent, #6b4fbb)' }} />
+                      )}
+                      <span style={{ flex: 1 }} />
+                      {c.changeChip && (
+                        <span
+                          style={{ width: 7, height: 7, borderRadius: '50%', background: 'var(--notable, #d98324)' }}
+                          title={c.changeChip.label}
+                        />
+                      )}
+                    </div>
+                    <div style={{ fontSize: 12.5, lineHeight: 1.3 }}>{c.title ?? c.displayNum}</div>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                      <div
+                        style={{
+                          flex: 1,
+                          height: 4,
+                          background: 'var(--surface-2, #f0f0f4)',
+                          borderRadius: 2,
+                          overflow: 'hidden',
+                        }}
+                      >
+                        <div
+                          style={{ width: `${c.passageProbability}%`, height: '100%', background: probColor(c.passageProbability) }}
+                        />
+                      </div>
+                      <span style={{ fontSize: 10.5, color: 'var(--muted, #8a8a96)' }}>{c.passageProbability}%</span>
+                    </div>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          onScopeClient(c.clientId);
+                        }}
+                        title="View only this client"
+                        style={{
+                          border: 'none',
+                          background: 'none',
+                          padding: 0,
+                          cursor: 'pointer',
+                          fontSize: 11,
+                          fontWeight: 600,
+                          color: 'var(--accent, #6b4fbb)',
+                        }}
+                      >
+                        {c.clientName ?? 'Client'}
+                      </button>
+                      {!!c.hearingCount && c.hearingCount > 0 && (
+                        <span style={{ fontSize: 10.5, color: 'var(--info, #4a7bd6)' }}>
+                          in {c.hearingCount} hearing{c.hearingCount > 1 ? 's' : ''}
+                        </span>
+                      )}
+                    </div>
+                  </div>
+                ))
+              )}
+            </div>
+          );
+        })}
+      </div>
+      <BillDrawer
+        open={drawer !== null}
+        billId={drawer?.billId ?? null}
+        clientId={drawer?.clientId ?? ''}
+        clientName={drawer?.clientName ?? ''}
+        isTracked
+        onTrack={() => undefined}
+        onClose={() => setDrawer(null)}
+      />
+    </div>
   );
 }
 

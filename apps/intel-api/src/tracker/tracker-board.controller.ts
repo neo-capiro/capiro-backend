@@ -40,9 +40,14 @@ export class TrackerBoardController {
     return this.svc.getRecommendations(ctx.tenantId, clientId, Number.isFinite(n) && n > 0 ? Math.min(n, 100) : 25);
   }
 
+  // `_all` → the LegiWatch all-clients board roll-up (L2b); any real clientId →
+  // that client's board. (Handled on one route to avoid `:clientId` capturing
+  // the literal `_all`.)
   @Get(':clientId/tracker/board')
   getBoard(@CurrentTenant() ctx: WorkspaceTenantContext, @Param('clientId') clientId: string) {
-    return this.svc.getBoard(ctx.tenantId, clientId);
+    return clientId === '_all'
+      ? this.svc.getTenantBoard(ctx.tenantId)
+      : this.svc.getBoard(ctx.tenantId, clientId);
   }
 
   // Client-profile tab badge: legacy-identical `{ boardCount, unread }`.
