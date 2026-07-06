@@ -5,6 +5,7 @@ import {
   PolicyApprovalGate,
   registerDelegatedTools,
   ruleBasedCompliancePolicy,
+  RepoBackedApprovalStore,
   createGetClientContextTool,
   createTagLivePolicyMentionsTool,
   createGeneratePostHearingSummaryTool,
@@ -12,6 +13,7 @@ import {
 } from '@capiro/meriv2-core';
 import { ApiClientContextRepo } from './api-client-context.repo.js';
 import { ApiToolExecutorRepo } from './api-tool-executor.repo.js';
+import { ApiApprovalRepo } from './api-approval.repo.js';
 import { RequestScopedLlmClient } from './request-scoped-llm.client.js';
 import { IN_EDITOR_DELEGATED_TOOLS } from './delegated-tools.catalog.js';
 import { WRITE_DELEGATED_TOOLS } from './write-tools.catalog.js';
@@ -42,17 +44,23 @@ export class MeriRegistryService {
   constructor(
     clientContextRepo: ApiClientContextRepo,
     toolExecutor: ApiToolExecutorRepo,
+    approvalRepo: ApiApprovalRepo,
     config: ConfigService,
   ) {
     // Write tools fail closed: the registry requires an ApprovalGate for any
     // `readOnly:false` tool. The gate runs the B2 rules engine
     // (ruleBasedCompliancePolicy — every write => WARN by the seed rule, with an
-    // auditable rule id) and, on WARN, consults the ApprovalStore. The store
-    // defaults to denyAllApprovals (dormant/fail-closed) until B4 wires the
-    // apps/api-backed RepoBackedApprovalStore, so today every write still holds
-    // as ApprovalPendingError — no behavior change, now via the real engine.
+    // auditable rule id) and, on WARN, consults the ApprovalStore (B3/B4): the
+    // RepoBackedApprovalStore fingerprints the proposed action and asks apps/api
+    // (ApiApprovalRepo) whether a human approved THIS exact action. Unapproved
+    // → ApprovalPendingError (write held); approved → proceeds. The repo is
+    // fail-closed (any error → not approved), so a WARN write never slips
+    // through unapproved. No live surface calls the write path yet.
     const registry = new InMemoryToolRegistry({
-      approvalGate: new PolicyApprovalGate(ruleBasedCompliancePolicy()),
+      approvalGate: new PolicyApprovalGate(
+        ruleBasedCompliancePolicy(),
+        new RepoBackedApprovalStore(approvalRepo),
+      ),
     });
     registry.register(createGetClientContextTool(clientContextRepo));
 

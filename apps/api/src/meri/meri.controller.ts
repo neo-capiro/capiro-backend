@@ -39,6 +39,7 @@ import { ClientKbService } from '../embeddings/client-kb.service.js';
 import { MeriMcpService, type CatalogAddInput, type McpServerInput } from './meri-mcp.service.js';
 import { MeriMcpOAuthService } from './meri-mcp-oauth.service.js';
 import { MeriFirmSkillsService } from './meri-firm-skills.service.js';
+import { MeriApprovalService } from './meri-approval.service.js';
 import { renderReportToBrowserHtml, renderReportToWordHtml } from './meri-research.helpers.js';
 
 class CreateMeriConversationDto {
@@ -119,6 +120,7 @@ export class MeriController {
     private readonly mcp: MeriMcpService,
     private readonly mcpOAuth: MeriMcpOAuthService,
     private readonly firmSkills: MeriFirmSkillsService,
+    private readonly approvals: MeriApprovalService,
   ) {}
 
   @Get('status')
@@ -232,6 +234,31 @@ export class MeriController {
     @Body() body: Record<string, unknown>,
   ) {
     return this.tools.executeFromAuthenticatedUser(ctx, name, body);
+  }
+
+  // ── MeriV2 write-tool approvals (Workstream B4) ──
+  // Backs the orchestrator's ApprovalStore: check whether a proposed write
+  // (identified by its meriv2-core fingerprint) is approved, and record an
+  // approval. Tenant+user scoped by CurrentTenant + the meri_action_approval
+  // RLS policy. `check` is called by the orchestrator (forwarding the caller
+  // bearer); `approve`/`list` are the human/surface actions.
+  @Post('approvals/check')
+  checkApproval(@CurrentTenant() ctx: TenantContext, @Body() body: { fingerprint: string }) {
+    return this.approvals.check(ctx, body?.fingerprint);
+  }
+
+  @Post('approvals/approve')
+  approveAction(
+    @CurrentTenant() ctx: TenantContext,
+    @Body() body: { fingerprint: string; tool: string },
+  ) {
+    return this.approvals.approve(ctx, body);
+  }
+
+  @Get('approvals')
+  listApprovals(@CurrentTenant() ctx: TenantContext, @Query('limit') limit?: string) {
+    const parsed = limit ? Math.min(Math.max(parseInt(limit, 10) || 50, 1), 200) : 50;
+    return this.approvals.list(ctx, parsed);
   }
 
   // ── Meri Email endpoints ──

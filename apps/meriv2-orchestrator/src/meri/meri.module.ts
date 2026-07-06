@@ -5,6 +5,7 @@ import { MeriRegistryService } from './meri-registry.service.js';
 import { MeriContextResolver } from './meri-context.resolver.js';
 import { ApiClientContextRepo } from './api-client-context.repo.js';
 import { ApiToolExecutorRepo } from './api-tool-executor.repo.js';
+import { ApiApprovalRepo } from './api-approval.repo.js';
 import { InEditorController } from './in-editor/in-editor.controller.js';
 import { InEditorAssistantService } from './in-editor/in-editor-assistant.service.js';
 
@@ -22,6 +23,7 @@ import { InEditorAssistantService } from './in-editor/in-editor-assistant.servic
     MeriContextResolver,
     ApiClientContextRepo,
     ApiToolExecutorRepo,
+    ApiApprovalRepo,
     MeriRegistryService,
     InEditorAssistantService,
   ],

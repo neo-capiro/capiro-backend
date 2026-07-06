@@ -1,6 +1,7 @@
 import { MeriRegistryService } from './meri-registry.service';
 import type { ApiClientContextRepo } from './api-client-context.repo';
 import type { ApiToolExecutorRepo } from './api-tool-executor.repo';
+import type { ApiApprovalRepo } from './api-approval.repo';
 import type { ConfigService } from '@nestjs/config';
 
 describe('MeriRegistryService', () => {
@@ -8,7 +9,10 @@ describe('MeriRegistryService', () => {
     loadClientContext: async () => ({ client: { id: 'c', name: 'n' } }),
   } as unknown as ApiClientContextRepo;
   const fakeExecutor = { execute: async () => ({ ok: true }) } as unknown as ApiToolExecutorRepo;
-  const make = (config: ConfigService) => new MeriRegistryService(fakeRepo, fakeExecutor, config);
+  // Fail-closed default: the approval repo denies everything (no human approval).
+  const denyApprovals = { isApproved: async () => false } as unknown as ApiApprovalRepo;
+  const make = (config: ConfigService) =>
+    new MeriRegistryService(fakeRepo, fakeExecutor, denyApprovals, config);
 
   it('registers the get_client_context migration-template tool', () => {
     const config = { get: () => undefined } as unknown as ConfigService;
@@ -57,7 +61,7 @@ describe('MeriRegistryService', () => {
     const spyExecutor = {
       execute: jest.fn(async () => ({ ok: true })),
     } as unknown as ApiToolExecutorRepo;
-    const svc = new MeriRegistryService(fakeRepo, spyExecutor, config);
+    const svc = new MeriRegistryService(fakeRepo, spyExecutor, denyApprovals, config);
     const ctx = {
       tenantId: 'tenant-1',
       userId: 'user-1',
@@ -68,5 +72,25 @@ describe('MeriRegistryService', () => {
       svc.registry.invoke('send_email', { to: 'a@b.com', subject: 's', body: 'b' }, ctx),
     ).rejects.toThrow(/requires approval|ApprovalPendingError/i);
     expect(spyExecutor.execute as jest.Mock).not.toHaveBeenCalled();
+  });
+
+  it('B4: once the approval repo approves the action, the write executes (delegates)', async () => {
+    const config = { get: () => undefined } as unknown as ConfigService;
+    const spyExecutor = {
+      execute: jest.fn(async () => ({ ok: true })),
+    } as unknown as ApiToolExecutorRepo;
+    // Approve everything → the gate's WARN clears and the delegated call runs.
+    const approveAll = { isApproved: async () => true } as unknown as ApiApprovalRepo;
+    const svc = new MeriRegistryService(fakeRepo, spyExecutor, approveAll, config);
+    const ctx = {
+      tenantId: 'tenant-1',
+      userId: 'user-1',
+      clerkUserId: 'clerk_1',
+      role: 'standard_user' as const,
+    };
+    await expect(
+      svc.registry.invoke('send_email', { to: 'a@b.com', subject: 's', body: 'b' }, ctx),
+    ).resolves.toEqual({ ok: true });
+    expect(spyExecutor.execute as jest.Mock).toHaveBeenCalledTimes(1);
   });
 });
