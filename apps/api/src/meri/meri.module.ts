@@ -22,6 +22,7 @@ import { MeriFirmSkillsService } from './meri-firm-skills.service.js';
 import { MeriFeatureFlagsService } from './meri-feature-flags.service.js';
 import { MeriApprovalService } from './meri-approval.service.js';
 import { MeriComplianceAuditService } from './meri-compliance-audit.service.js';
+import { MeriClaimWriterService } from './meri-claim-writer.js';
 import { MeriV2ChatClient } from './meriv2-chat.client.js';
 
 @Module({
@@ -50,6 +51,7 @@ import { MeriV2ChatClient } from './meriv2-chat.client.js';
     MeriFeatureFlagsService,
     MeriApprovalService,
     MeriComplianceAuditService,
+    MeriClaimWriterService,
     MeriV2ChatClient,
   ],
   // Exported so the in-editor workspace assistant can reuse the tool harness

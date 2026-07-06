@@ -143,10 +143,14 @@ export class InEditorAssistantService {
         const input = propose.input ?? {};
         const reply = typeof input.reply === 'string' && input.reply.trim() ? input.reply : textOut;
         const edits = sanitizeEdits(input.edits);
+        const subjectId = String(
+          (dto.document as Record<string, unknown> | undefined)?.id ?? 'in-editor',
+        );
         const { confidence, structuralWarnings } = await this.verifyEdits(
           edits,
           groundingBodies,
           citedPeRecords,
+          subjectId,
         );
         return { reply: reply || 'Done.', edits, confidence, structuralWarnings, steps };
       }
@@ -283,6 +287,7 @@ export class InEditorAssistantService {
     edits: AssistantEdit[],
     groundingBodies: string[],
     citedPeRecords: Map<string, PeRecordForValidation>,
+    subjectId = 'in-editor',
   ): Promise<{ confidence?: Confidence; structuralWarnings?: PeStructuralWarning[] }> {
     try {
       const editText = edits
@@ -299,7 +304,7 @@ export class InEditorAssistantService {
       }
       const structuralWarnings = collectPeStructuralWarnings(pes, editText);
 
-      return await this.verifyEditsInner(editText, groundingBodies, structuralWarnings);
+      return await this.verifyEditsInner(editText, groundingBodies, structuralWarnings, subjectId);
     } catch (e) {
       // Non-essential enrichment: never let it fail the turn. Return edits
       // unannotated.
@@ -314,6 +319,7 @@ export class InEditorAssistantService {
     editText: string,
     groundingBodies: string[],
     structuralWarnings: PeStructuralWarning[],
+    subjectId = 'in-editor',
   ): Promise<{ confidence?: Confidence; structuralWarnings?: PeStructuralWarning[] }> {
     let confidence: Confidence | undefined;
     if (this.verifierEnabled) {
@@ -329,6 +335,9 @@ export class InEditorAssistantService {
         const claims = parseVerifierClaims(JSON.stringify(raw));
         if (claims.length) {
           confidence = confidenceLevel(summarizeVerification(claims).unsupportedRatio);
+          // Claim/Evidence store: persist the verified claims via apps/api
+          // (fire-and-forget, fail-open — grounding audit never blocks a turn).
+          this.persistClaims(subjectId, claims, groundingBodies);
         }
       } catch (e) {
         this.logger.warn(`in-editor verifyEdits grounding pass failed: ${(e as Error).message}`);
@@ -339,5 +348,40 @@ export class InEditorAssistantService {
       confidence,
       structuralWarnings: structuralWarnings.length ? structuralWarnings : undefined,
     };
+  }
+
+  /**
+   * Persist verified claims to apps/api's Claim/Evidence store
+   * (POST /api/clio/claims) with the caller's forwarded bearer, so the rows are
+   * tenant-scoped by RLS. Fire-and-forget + fail-open: no bearer / non-2xx /
+   * network error is logged and swallowed — never blocks or fails the turn.
+   */
+  private persistClaims(
+    subjectId: string,
+    claims: Array<{ claim: string; supported: boolean; sourceIds: number[] }>,
+    groundingBodies: string[],
+  ): void {
+    const bearer = RequestCredentialsStore.get()?.bearerToken;
+    if (!bearer) return;
+    const sources = groundingBodies.map((b, i) => ({
+      n: i + 1,
+      type: 'grounding',
+      id: '',
+      title: b.slice(0, 120),
+      snippet: b.slice(0, 500),
+    }));
+    void fetch(`${this.apiBaseUrl}/api/clio/claims`, {
+      method: 'POST',
+      headers: {
+        authorization: `Bearer ${bearer}`,
+        'content-type': 'application/json',
+        accept: 'application/json',
+      },
+      body: JSON.stringify({ subjectType: 'document', subjectId, claims, sources }),
+    })
+      .then((res) => {
+        if (!res.ok) this.logger.warn(`claim persist -> ${res.status}`);
+      })
+      .catch((e) => this.logger.warn(`claim persist failed (${(e as Error).message})`));
   }
 }

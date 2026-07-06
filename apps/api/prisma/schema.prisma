@@ -3083,6 +3083,10 @@ model IntelligenceChange {
   data             Json     @default("{}")
   detectedAt       DateTime @default(now()) @map("detected_at") @db.Timestamptz(6)
   consumed         Boolean  @default(false)
+  // Freshness-layer idempotency (P1-T4): a stable `source:windowBucket:sampleSig`
+  // key so a same-window re-run of emit-changes never double-emits. Nullable —
+  // historical rows and non-emit-changes writers don't carry one.
+  dedupeKey        String?  @unique @map("dedupe_key")
 
   @@index([detectedAt(sort: Desc)])
   @@index([source, changeType])

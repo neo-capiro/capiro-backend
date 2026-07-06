@@ -42,6 +42,7 @@ import { MeriMcpOAuthService } from './meri-mcp-oauth.service.js';
 import { MeriFirmSkillsService } from './meri-firm-skills.service.js';
 import { MeriApprovalService } from './meri-approval.service.js';
 import { MeriComplianceAuditService } from './meri-compliance-audit.service.js';
+import { MeriClaimWriterService } from './meri-claim-writer.js';
 import { renderReportToBrowserHtml, renderReportToWordHtml } from './meri-research.helpers.js';
 
 class CreateMeriConversationDto {
@@ -139,6 +140,35 @@ class RecordComplianceCheckDto {
   entityId?: string;
 }
 
+class RecordClaimsDto {
+  @IsString()
+  @Length(1, 60)
+  subjectType!: string;
+
+  @IsString()
+  @Length(1, 200)
+  subjectId!: string;
+
+  @IsOptional()
+  @IsUUID()
+  artifactId?: string;
+
+  @IsArray()
+  @ArrayMaxSize(50)
+  claims!: Array<{ claim: string; supported: boolean; sourceIds: number[] }>;
+
+  @IsArray()
+  @ArrayMaxSize(100)
+  sources!: Array<{
+    n: number;
+    type: string;
+    id: string;
+    title: string;
+    url?: string | null;
+    snippet?: string | null;
+  }>;
+}
+
 @Controller('clio')
 @UseGuards(RolesGuard)
 @Roles('standard_user')
@@ -153,6 +183,7 @@ export class MeriController {
     private readonly firmSkills: MeriFirmSkillsService,
     private readonly approvals: MeriApprovalService,
     private readonly complianceAudit: MeriComplianceAuditService,
+    private readonly claimWriter: MeriClaimWriterService,
   ) {}
 
   @Get('status')
@@ -326,6 +357,23 @@ export class MeriController {
   listComplianceChecks(@CurrentTenant() ctx: TenantContext, @Query('limit') limit?: string) {
     const parsed = limit ? Math.min(Math.max(parseInt(limit, 10) || 50, 1), 200) : 50;
     return this.complianceAudit.list(ctx, parsed);
+  }
+
+  // Claim/Evidence store writer (Phase-0 tables): the orchestrator's in-editor
+  // verifier posts its claims here (fire-and-forget, forwarding the caller
+  // bearer) so grounded claims persist tenant-scoped like the chat surface's.
+  @Post('claims')
+  recordClaims(@CurrentTenant() ctx: TenantContext, @Body() body: RecordClaimsDto) {
+    return this.claimWriter.persistClaims(
+      ctx.tenantId,
+      {
+        subjectType: body.subjectType,
+        subjectId: body.subjectId,
+        artifactId: body.artifactId ?? null,
+      },
+      body.claims ?? [],
+      body.sources ?? [],
+    );
   }
 
   @Get('approvals')

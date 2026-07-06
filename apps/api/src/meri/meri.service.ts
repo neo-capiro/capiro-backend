@@ -53,6 +53,7 @@ import { classifyToolAction, isSideEffectingTool } from './meri-actions.helpers.
 import { MeriFeatureFlagsService } from './meri-feature-flags.service.js';
 import { MERIV2_FLAGS } from '../common/tenant-flags.js';
 import { MeriV2ChatClient, type MeriV2ChatStreamEvent } from './meriv2-chat.client.js';
+import { MeriClaimWriterService } from './meri-claim-writer.js';
 import mammoth from 'mammoth';
 import { extractPdfText } from './meri-attachment-extract.js';
 import {
@@ -185,6 +186,7 @@ export class MeriService {
     private readonly memoryIngest: MemoryIngestService,
     private readonly meriFlags: MeriFeatureFlagsService,
     private readonly meriV2Chat: MeriV2ChatClient,
+    private readonly claimWriter: MeriClaimWriterService,
   ) {}
 
   async status(ctx: TenantContext) {
@@ -1294,6 +1296,7 @@ export class MeriService {
       kind: string;
       bodyText: string;
     }> = [];
+    let verifiedArtifactId: string | null = null;
     await this.prisma.withTenant(ctx.tenantId, async (tx) => {
       const message = await tx.clioMessage.create({
         data: {
@@ -1333,6 +1336,7 @@ export class MeriService {
             ...art,
           },
         });
+        if (art === deliverable) verifiedArtifactId = createdArtifact.id;
         const artMeta = art.metadata as Record<string, unknown> | null;
         const isImageArtifact = typeof artMeta?.imageBase64 === 'string';
         if ((art.bodyText && art.bodyText.trim()) || isImageArtifact) {
@@ -1352,6 +1356,33 @@ export class MeriService {
     // open them in the side canvas (copy / download / version).
     for (const deliverable of createdDeliverables) {
       sse.write(`data: ${JSON.stringify({ type: 'artifact', artifact: deliverable })}\n\n`);
+    }
+
+    // Claim/Evidence store (Phase-0 tables, first writer): materialize the
+    // verifier pass's claims against their numbered citations. Fire-and-forget +
+    // fail-open — grounding audit must never block the stream.
+    if (verification?.claims?.length) {
+      void this.claimWriter
+        .persistClaimsSafe(
+          ctx.tenantId,
+          verifiedArtifactId
+            ? {
+                subjectType: 'artifact',
+                subjectId: verifiedArtifactId,
+                artifactId: verifiedArtifactId,
+              }
+            : { subjectType: 'conversation', subjectId: conversationId },
+          verification.claims,
+          finalCitations.map((c) => ({
+            n: c.n,
+            type: c.type,
+            id: c.id,
+            title: c.title,
+            url: c.url,
+            snippet: c.snippet ?? null,
+          })),
+        )
+        .catch(() => {});
     }
 
     // Auto-summarize for memory (if substantial)
