@@ -61,6 +61,15 @@ describe('senate ISVP', () => {
       expect.objectContaining({ comm: 'epw', filename: 'epw062025' }),
     );
   });
+  it('finds an ENTITY-ENCODED ISVP embed (real committee-page markup)', () => {
+    // Verbatim shape from armed-services.senate.gov (2026-07-06): iframe srcs are
+    // HTML-entity-encoded, so a raw URLSearchParams parse yields `amp;filename`
+    // keys and silently fails — the bug that made EVERY Senate page unresolvable.
+    const html = `<iframe title="…" src="https://www.senate.gov/isvp/?auto_play=false&amp;comm=armed&amp;poster=https://www.armed-services.senate.gov/assets/images/video-poster.png&amp;filename=armedC051226"></iframe>`;
+    expect(findIsvpInHtml(html)).toEqual(
+      expect.objectContaining({ comm: 'armed', filename: 'armedC051226' }),
+    );
+  });
   it('constructs the Akamai master.m3u8 from the streamId table', () => {
     // judiciary → 2036788 (proven in the spec)
     expect(constructSenateIsvpUrl({ comm: 'judiciary', filename: 'judiciary051926' })).toBe(
@@ -78,6 +87,24 @@ describe('senate ISVP', () => {
     const urls = senateIsvpFallbackUrls({ comm: 'finance', filename: 'finance010125' });
     expect(urls[0]).toContain('www-senate-gov-msl3archive.akamaized.net');
     expect(urls[1]).toContain('finance-f.akamaihd.net');
+  });
+  it('uses the msl3 ARCHIVE label (not comm, never poster) for the msl3archive URL', () => {
+    // armed's archive label is "armedservices" — proven live 2026-07-06:
+    // msl3archive…/armedservices/armedC051226_1/master.m3u8 → 200 (comm → 404).
+    const urls = senateIsvpFallbackUrls({
+      comm: 'armed',
+      filename: 'armedC051226',
+      poster: 'https://www.armed-services.senate.gov/assets/images/video-poster.png',
+    });
+    expect(urls[0]).toBe(
+      'https://www-senate-gov-msl3archive.akamaized.net/armedservices/armedC051226_1/master.m3u8',
+    );
+    // Legacy fallback carries the committee streamNum, not a hardcoded @1.
+    expect(urls[1]).toBe('https://armed-f.akamaihd.net/i/armedC051226_1@76445/master.m3u8');
+    // Unknown committee falls back to comm + @1 (probe decides).
+    const unknown = senateIsvpFallbackUrls({ comm: 'nonexistent', filename: 'x010101' });
+    expect(unknown[0]).toContain('/nonexistent/x010101_1/');
+    expect(unknown[1]).toContain('_1@1/');
   });
 });
 

@@ -42,46 +42,65 @@ export function classifyMediaUrl(rawUrl: string): MediaKind | null {
 
 // ── Senate ISVP ─────────────────────────────────────────────────────────────
 
+/** One ISVP committee's stream coordinates (see SENATE_ISVP_COMMITTEES). */
+export interface SenateIsvpCommittee {
+  /** srs live streamId (Akamai /hls/live/{id}/…). Absent for legacy-only comms. */
+  streamId?: string;
+  /** Legacy per-committee akamaihd stream number ({file}_1@{num}). */
+  streamNum?: string;
+  /** msl3archive path label — often ≠ comm (armed→armedservices, govtaff→hsgac). */
+  msl3: string;
+}
+
 /**
- * Per-committee Akamai streamId table (from yt-dlp senategov.py). Maps an ISVP
- * `comm` code → the numeric streamId in the Akamai HLS path. Kept as a frozen
- * literal; table rot has precedent (June 2022), so the resolver ALSO keeps the
- * msl3archive + legacy probes as fallbacks and assisted-paste as the terminal.
+ * Per-committee ISVP stream table, transcribed VERBATIM from the senate.gov ISVP
+ * player's own `streamInfo` table (fetched 2026-07-06 — the authoritative source;
+ * the prior yt-dlp-derived streamId table had rotted: half the live ids were
+ * shifted onto the wrong committees, and the archive labels were missing
+ * entirely). Row shape upstream: [comm, streamNum, domain, streamId, msl3].
+ * Table rot has precedent, so the resolver ALSO keeps probe fallbacks and
+ * assisted-paste as the terminal.
  */
-export const SENATE_ISVP_STREAM_IDS: Readonly<Record<string, string>> = Object.freeze({
-  ag: '2036785',
-  aging: '2036787',
-  approps: '2036786',
-  armed: '2036800',
-  banking: '2036799',
-  budget: '2036801',
-  cecc: '2036796',
-  commerce: '2036803',
-  csce: '2036805',
-  dpc: '2036807',
-  energy: '2036782',
-  epw: '2036783',
-  ethics: '2036803',
-  finance: '2036795',
-  foreign: '2036799',
-  govtaff: '2036792',
-  help: '2036797',
-  indian: '2036803',
-  intel: '2036805',
-  jccic: '2036807',
-  jec: '2036807',
-  judiciary: '2036788',
-  rules: '2036790',
-  saa: '2036807',
-  scpc: '2036807',
-  smbiz: '2036794',
-  vetaff: '2036803',
-});
+export const SENATE_ISVP_COMMITTEES: Readonly<Record<string, SenateIsvpCommittee>> = Object.freeze(
+  {
+    ag: { streamNum: '76440', streamId: '2036803', msl3: 'agriculture' },
+    aging: { streamNum: '76442', streamId: '2036801', msl3: 'aging' },
+    approps: { streamNum: '76441', streamId: '2036802', msl3: 'appropriations' },
+    armed: { streamNum: '76445', streamId: '2036800', msl3: 'armedservices' },
+    banking: { streamNum: '76446', streamId: '2036799', msl3: 'banking' },
+    budget: { streamNum: '76447', streamId: '2036798', msl3: 'budget' },
+    cecc: { streamNum: '76486', streamId: '2036782', msl3: 'srs_cecc' },
+    commerce: { streamNum: '80177', streamId: '2036779', msl3: 'commerce' },
+    csce: { streamNum: '75229', streamId: '2036777', msl3: 'srs_srs' },
+    dpc: { streamNum: '76590', msl3: 'dpc' },
+    energy: { streamNum: '76448', streamId: '2036797', msl3: 'energy' },
+    epw: { streamNum: '76478', streamId: '2036783', msl3: 'environment' },
+    ethics: { streamNum: '76449', streamId: '2036796', msl3: 'ethics' },
+    finance: { streamNum: '76450', streamId: '2036795', msl3: 'finance_finance' },
+    foreign: { streamNum: '76451', streamId: '2036794', msl3: 'foreignrelations' },
+    govtaff: { streamNum: '76453', streamId: '2036792', msl3: 'hsgac' },
+    help: { streamNum: '76452', streamId: '2036793', msl3: 'help' },
+    indian: { streamNum: '76455', streamId: '2036791', msl3: 'indianaffairs' },
+    intel: { streamNum: '76456', streamId: '2036790', msl3: 'intelligence' },
+    intlnarc: { streamNum: '76457', msl3: 'internationalnarcoticscaucus' },
+    jccic: { streamNum: '85180', streamId: '2036778', msl3: 'jccic' },
+    jec: { streamNum: '76458', streamId: '2036789', msl3: 'jointeconomic' },
+    judiciary: { streamNum: '76459', streamId: '2036788', msl3: 'judiciary' },
+    rpc: { streamNum: '76591', msl3: 'rpc' },
+    rules: { streamNum: '76460', streamId: '2036787', msl3: 'rules' },
+    saa: { streamNum: '76489', streamId: '2036780', msl3: 'srs_saa' },
+    smbiz: { streamNum: '76461', streamId: '2036786', msl3: 'smallbusiness' },
+    srs: { streamNum: '75229', streamId: '2031966', msl3: 'srs_srs' },
+    uscc: { streamNum: '76487', streamId: '2036781', msl3: 'srs_uscc' },
+    vetaff: { streamNum: '76462', streamId: '2036785', msl3: 'veteransaffairs' },
+  },
+);
 
 export interface IsvpParams {
   comm: string;
   filename: string;
-  /** Only present on the archive form; used for the msl3archive fallback. */
+  /** Poster image URL from the embed (informational only — NEVER a path label;
+   *  modern embeds carry a full https image URL here). */
   poster?: string;
   streamType?: string;
 }
@@ -93,14 +112,21 @@ export interface IsvpParams {
  * Pure.
  */
 export function parseIsvpParams(input: string): IsvpParams | null {
+  // Committee pages entity-encode iframe srcs (`?comm=armed&amp;filename=…`) —
+  // URLSearchParams would then produce keys like `amp;filename` and the parse
+  // silently fails for EVERY senate.gov page. Decode ampersand entities first.
+  const decoded = input
+    .replace(/&amp;/gi, '&')
+    .replace(/&#0*38;/g, '&')
+    .replace(/&#x0*26;/gi, '&');
   let qs: URLSearchParams;
   try {
     // Full URL form.
-    const u = new URL(input);
+    const u = new URL(decoded);
     qs = u.searchParams;
   } catch {
     // Bare query-string / fragment form.
-    const q = input.includes('?') ? input.slice(input.indexOf('?') + 1) : input;
+    const q = decoded.includes('?') ? decoded.slice(decoded.indexOf('?') + 1) : decoded;
     qs = new URLSearchParams(q);
   }
   const comm = qs.get('comm')?.trim().toLowerCase();
@@ -133,7 +159,7 @@ export function findIsvpInHtml(html: string): IsvpParams | null {
  * Pure — the caller probes the result (404 ⇒ pending/postponed).
  */
 export function constructSenateIsvpUrl(params: IsvpParams): string | null {
-  const streamId = SENATE_ISVP_STREAM_IDS[params.comm];
+  const streamId = SENATE_ISVP_COMMITTEES[params.comm]?.streamId;
   if (!streamId) return null;
   return `https://www-senate-gov-media-srs.akamaized.net/hls/live/${streamId}/${params.comm}/${params.filename}/master.m3u8`;
 }
@@ -145,12 +171,18 @@ export function constructSenateIsvpUrl(params: IsvpParams): string | null {
  * *.akamaihd.net). Pure.
  */
 export function senateIsvpFallbackUrls(params: IsvpParams): string[] {
+  const info = SENATE_ISVP_COMMITTEES[params.comm];
   const urls: string[] = [];
-  const label = params.poster || params.comm;
+  // Archived VOD lives under the committee's msl3 LABEL, which often differs
+  // from the comm code (armed→armedservices — proven live: armedC051226 → 200).
+  // The old code used `poster` here, but modern embeds carry a full image URL
+  // in poster, which produced a garbage path; never use it.
   urls.push(
-    `https://www-senate-gov-msl3archive.akamaized.net/${label}/${params.filename}_1/master.m3u8`,
+    `https://www-senate-gov-msl3archive.akamaized.net/${info?.msl3 ?? params.comm}/${params.filename}_1/master.m3u8`,
   );
-  urls.push(`https://${params.comm}-f.akamaihd.net/i/${params.filename}_1@1/master.m3u8`);
+  urls.push(
+    `https://${params.comm}-f.akamaihd.net/i/${params.filename}_1@${info?.streamNum ?? '1'}/master.m3u8`,
+  );
   return urls;
 }
 
