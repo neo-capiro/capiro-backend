@@ -1,4 +1,4 @@
-import { render, screen, waitFor } from '@testing-library/react';
+import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { beforeEach, describe, expect, test, vi } from 'vitest';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { MemoryRouter, Route, Routes } from 'react-router-dom';
@@ -95,6 +95,11 @@ describe('RadarPage', () => {
   beforeEach(() => {
     apiGetMock.mockReset();
     window.sessionStorage.clear();
+    window.localStorage.clear();
+    // Default to the returning-user state so the first-run orientation modal
+    // (L5) doesn't auto-open and collide with tab-label assertions. The intro
+    // itself is covered by its own test below.
+    window.localStorage.setItem('legiwatch-intro-seen-v1', '1');
     setupBrowserMocks();
   });
 
@@ -170,5 +175,30 @@ describe('RadarPage', () => {
     await waitFor(() =>
       expect(screen.getByText(/No bills on the board yet/i)).toBeInTheDocument(),
     );
+  });
+
+  test('L5: first-run orientation auto-opens, dismiss persists, and a "How it works" control exists', async () => {
+    // First run: no seen-flag → the orientation auto-opens.
+    window.localStorage.removeItem('legiwatch-intro-seen-v1');
+    mockApi({});
+    renderRadar('/radar');
+
+    await waitFor(() => expect(screen.getByText('How LegiWatch works')).toBeInTheDocument());
+    // The permanent reopen control is present in the top bar.
+    expect(screen.getByRole('button', { name: /How it works/i })).toBeInTheDocument();
+    // Dismiss ("Got it") persists the per-user seen-flag so it won't reappear.
+    fireEvent.click(screen.getByRole('button', { name: /Got it/i }));
+    await waitFor(() =>
+      expect(window.localStorage.getItem('legiwatch-intro-seen-v1')).toBe('1'),
+    );
+  });
+
+  test('L5: returning user (seen-flag set) does not see the orientation on load', async () => {
+    window.localStorage.setItem('legiwatch-intro-seen-v1', '1');
+    mockApi({});
+    renderRadar('/radar');
+
+    await waitFor(() => expect(screen.getByText('LegiWatch')).toBeInTheDocument());
+    expect(screen.queryByText('How LegiWatch works')).not.toBeInTheDocument();
   });
 });

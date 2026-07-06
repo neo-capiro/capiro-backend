@@ -1,13 +1,14 @@
-import { useMemo, useState, type ReactNode } from 'react';
+import { useEffect, useMemo, useState, type ReactNode } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { App as AntApp, Button, Empty, Segmented, Select, Spin, Typography } from 'antd';
+import { App as AntApp, Button, Empty, Modal, Segmented, Select, Spin, Typography } from 'antd';
 import {
   AimOutlined,
   AudioOutlined,
   BellOutlined,
   EyeOutlined,
   FileTextOutlined,
+  QuestionCircleOutlined,
 } from '@ant-design/icons';
 import { useApi } from '../../lib/use-api.js';
 import { useIntelFeature } from '../../lib/intel-feature-flags.js';
@@ -34,6 +35,78 @@ const { Title, Paragraph, Text } = Typography;
 
 type RadarTab = 'feed' | 'bills' | 'hearings' | 'watchlist';
 const RADAR_TABS: readonly RadarTab[] = ['feed', 'bills', 'hearings', 'watchlist'];
+
+const INTRO_SEEN_KEY = 'legiwatch-intro-seen-v1';
+
+/** Plain-language first-run orientation — the four-step LegiWatch loop (L5). */
+function LegiWatchIntro({ open, onClose }: { open: boolean; onClose: () => void }) {
+  const steps: Array<{ n: number; title: string; body: string }> = [
+    {
+      n: 1,
+      title: 'Configure',
+      body: 'Tell LegiWatch what a client cares about — issue areas and watchlist tags. This one list drives everything else.',
+    },
+    {
+      n: 2,
+      title: 'Bills',
+      body: 'Meri recommends legislation to track against that watchlist; tracked bills sit on a board that mirrors their live status.',
+    },
+    {
+      n: 3,
+      title: 'Hearings',
+      body: 'Watch a hearing and LegiWatch transcribes it and flags the moments that hit the watchlist.',
+    },
+    {
+      n: 4,
+      title: 'Feed',
+      body: 'Everything that changed — bill moves and hearing moments — lands in one stream. Act from there: draft a memo, start outreach, or add it to the weekly report.',
+    },
+  ];
+  return (
+    <Modal
+      open={open}
+      onCancel={onClose}
+      onOk={onClose}
+      okText="Got it"
+      cancelButtonProps={{ style: { display: 'none' } }}
+      title="How LegiWatch works"
+      width={560}
+      destroyOnHidden
+    >
+      <Paragraph type="secondary" style={{ marginTop: 0 }}>
+        LegiWatch unifies bill tracking and hearing intelligence around one per-client watchlist —
+        four steps, one loop.
+      </Paragraph>
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+        {steps.map((s) => (
+          <div key={s.n} style={{ display: 'flex', gap: 12 }}>
+            <div
+              style={{
+                flexShrink: 0,
+                width: 26,
+                height: 26,
+                borderRadius: '50%',
+                background: 'var(--accent, #6b4fbb)',
+                color: '#fff',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                fontWeight: 700,
+                fontSize: 13,
+              }}
+            >
+              {s.n}
+            </div>
+            <div>
+              <div style={{ fontWeight: 600 }}>{s.title}</div>
+              <div style={{ color: 'var(--text-2, #55555f)', fontSize: 13 }}>{s.body}</div>
+            </div>
+          </div>
+        ))}
+      </div>
+    </Modal>
+  );
+}
 
 /**
  * Radar (P4 shell) — one destination unifying the Bill Tracker and Hearing
@@ -121,6 +194,26 @@ export function RadarPage() {
     (coldStartQuery.data?.issueAreas.length ?? 0) === 0 &&
     (coldStartQuery.data?.tags.length ?? 0) === 0;
 
+  // LegiWatch v2 (L5): one-time, plain-language orientation on first run, plus a
+  // permanent "How it works" control. Seen-state is per-user-per-device
+  // (localStorage) — an intro doesn't warrant a server round-trip.
+  const [showIntro, setShowIntro] = useState(false);
+  useEffect(() => {
+    try {
+      if (!window.localStorage.getItem(INTRO_SEEN_KEY)) setShowIntro(true);
+    } catch {
+      /* private mode / no storage — just don't auto-open */
+    }
+  }, []);
+  const dismissIntro = () => {
+    try {
+      window.localStorage.setItem(INTRO_SEEN_KEY, '1');
+    } catch {
+      /* ignore */
+    }
+    setShowIntro(false);
+  };
+
   const clientPicker = (
     <Select
       allowClear
@@ -152,6 +245,9 @@ export function RadarPage() {
         </Title>
         <span style={{ flex: 1 }} />
         {clientPicker}
+        <Button icon={<QuestionCircleOutlined />} onClick={() => setShowIntro(true)}>
+          How it works
+        </Button>
       </div>
       <Paragraph type="secondary" style={{ margin: '4px 0 16px' }}>
         Bills and hearings that matter to your clients — the unified alert feed, the tracked-bill
@@ -276,6 +372,8 @@ export function RadarPage() {
           )}
         </ClientGate>
       )}
+
+      <LegiWatchIntro open={showIntro} onClose={dismissIntro} />
     </div>
   );
 }
