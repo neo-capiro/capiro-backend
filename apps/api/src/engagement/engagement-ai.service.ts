@@ -37,6 +37,9 @@ export interface MeetingPrepInput {
   tasks: Array<Record<string, unknown>>;
   /** Free-form context the user typed to ground/steer the prep generation. */
   additionalContext?: string | null;
+  /** Firm identity + author voice + client strategic memory (rendered), for
+   *  strategic framing, emphasis, and tone — NOT a source of meeting facts. */
+  steeringContext?: string | null;
 }
 
 export interface MeetingPrepResult {
@@ -146,6 +149,9 @@ export interface MeetingDebriefDraftInput {
   congressionalDirectoryMatches: Array<Record<string, unknown>>;
   recentMeetings: Array<Record<string, unknown>>;
   recentThreads: Array<Record<string, unknown>>;
+  /** Firm identity + author voice + client strategic memory (rendered),
+   *  standing background for framing/tone only — never treated as meeting facts. */
+  steeringContext?: string | null;
 }
 
 export interface MeetingDebriefDraftResult {
@@ -984,6 +990,11 @@ export class EngagementAiService {
     const hasTasks = input.tasks.length > 0;
     const userContext = (input.additionalContext ?? '').trim();
     const hasUserContext = userContext.length > 0;
+    // Firm/author/client standing memory — HOW to frame + whose voice, not a
+    // record of this meeting. Kept out of the JSON so the strict grounding rule
+    // can't mine it for invented facts; labeled as background below.
+    const steeringBlock = (input.steeringContext ?? '').trim();
+    const hasSteering = steeringBlock.length > 0;
     // "Substantive" context = anything beyond the bare meeting record (subject,
     // time, attendee names). With none of it, the model must NOT invent a brief.
     const hasSubstantiveContext =
@@ -1012,6 +1023,10 @@ export class EngagementAiService {
       hasUserContext
         ? `USER-PROVIDED ADDITIONAL CONTEXT (authoritative; treat as factual input from the user and incorporate it):\n${userContext}`
         : 'No additional context was provided by the user.',
+      '',
+      hasSteering
+        ? `FIRM, AUTHOR & CLIENT MEMORY (authoritative standing context — use it to shape strategy, emphasis, and tone; it is background, NOT a record of this meeting's events, so never present it as something said or decided here):\n${steeringBlock}`
+        : '',
       '',
       hasLocation
         ? `MEETING LOGISTICS: this meeting has a location ("${location}"). OPEN the summary with a one-line logistics header stating the meeting date/time and this location, before any narrative. Make a "Logistics" item the FIRST entry in the agenda, naming the location and time. Use only the supplied meeting date/time fields verbatim; do not guess a timezone or reformat into one.`
@@ -1172,6 +1187,12 @@ export class EngagementAiService {
   private buildDebriefPrompt(input: MeetingDebriefDraftInput): string {
     const sourceText = (input.source?.text ?? '').trim();
     const hasSource = sourceText.length > 0;
+    // Firm/author/client memory is standing BACKGROUND for framing + tone; hoist
+    // it out of the JSON dump so the strict "only supplied context" rule can't
+    // mine invented "facts" from it, and label it so the model never treats it
+    // as something that happened in this meeting.
+    const steeringBlock = (input.steeringContext ?? '').trim();
+    const { steeringContext: _steering, ...inputForJson } = input;
 
     return [
       'Write a concise, lobbyist-ready post-meeting debrief for CRM records.',
@@ -1191,9 +1212,14 @@ export class EngagementAiService {
       'notes: brief internal notes for next touch (tone, strategic signal, cautions) only if directly supported by source text.',
       '',
       'Style: direct, brief, and actionable. No fluff. No speculation.',
+      steeringBlock
+        ? `FIRM, AUTHOR & CLIENT BACKGROUND (standing memory for FRAMING and TONE only — NOT a record of this meeting; never state it as an attendee, commitment, or event that occurred here):\n${steeringBlock}`
+        : '',
       'Return JSON only with recap, actionItems, and notes.',
-      JSON.stringify(input, null, 2),
-    ].join('\n');
+      JSON.stringify(inputForJson, null, 2),
+    ]
+      .filter(Boolean)
+      .join('\n');
   }
 
   private buildCampaignPrompt(input: CampaignEmailInput): string {

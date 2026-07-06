@@ -1110,6 +1110,16 @@ export class EngagementService {
             `,
           )
         : [];
+      // Firm Soul + Firm Compass (tenant-wide identity, slug='firm') — always
+      // included so every draft speaks for THIS firm, not a generic one.
+      const firmRows = await this.prisma.withTenant(ctx.tenantId, (tx) =>
+        tx.$queryRaw<Array<{ type: string; sections: unknown }>>`
+          SELECT type, sections_jsonb AS sections
+          FROM memory_items
+          WHERE tenant_id = ${ctx.tenantId}::uuid
+            AND type IN ('firm-soul', 'firm-compass') AND slug = 'firm'
+        `,
+      );
       const renderHuman = (sections: unknown): string => {
         if (!Array.isArray(sections)) return '';
         return sections
@@ -1130,6 +1140,14 @@ export class EngagementService {
             ? `WRITE IN THIS AUTHOR'S VOICE (mirror the style and any sample writings below closely; do not invent facts):\n${body}`
             : `About the author:\n${body}`,
         );
+      }
+      for (const r of firmRows) {
+        const body = renderHuman(r.sections);
+        if (body) {
+          parts.push(
+            `Firm ${r.type === 'firm-soul' ? 'identity (Firm Soul)' : 'direction (Firm Compass)'}:\n${body}`,
+          );
+        }
       }
       for (const r of clientRows) {
         const body = renderHuman(r.sections);
@@ -3401,6 +3419,13 @@ export class EngagementService {
       this.directoryProfilesForMeeting(context.meeting).catch(() => []),
     ]);
 
+    // Firm identity + author voice + client strategic memory — for FRAMING/tone
+    // only (the debrief prompt is strictly grounded in the meeting notes and
+    // labels this as background, never as meeting facts).
+    const steeringContext = await this.loadUserVoiceBlock(
+      ctx,
+      context.client?.id ?? context.meeting.clientId ?? null,
+    );
     const generated = await this.ai.generateMeetingDebrief(
       {
         meeting: pruneForAi(context.meeting),
@@ -3413,6 +3438,7 @@ export class EngagementService {
         congressionalDirectoryMatches: directoryProfiles.map(pruneForAi),
         recentMeetings: context.recentMeetings.map(pruneForAi),
         recentThreads: context.recentThreads.map(prepareThreadForAi),
+        steeringContext,
       },
       ctx,
     );
@@ -3864,6 +3890,13 @@ export class EngagementService {
     });
 
     const directoryProfiles = await this.directoryProfilesForMeeting(context.meeting);
+    // Firm identity + author voice + client strategic memory — the same steering
+    // block outreach uses, so preps reflect the firm, the client's strategy, and
+    // the author's voice. Best-effort (null when nothing is written).
+    const steeringContext = await this.loadUserVoiceBlock(
+      ctx,
+      context.client?.id ?? context.meeting.clientId ?? null,
+    );
     const promptContext = {
       meeting: pruneForAi(context.meeting),
       client: context.client ? pruneForAi(context.client) : null,
@@ -3873,6 +3906,7 @@ export class EngagementService {
       recentThreads: context.recentThreads.map(prepareThreadForAi),
       tasks: context.meeting.tasks.map(pruneForAi),
       additionalContext: additionalContext?.trim() || null,
+      steeringContext,
     };
     const promptHash = createHash('sha256').update(JSON.stringify(promptContext)).digest('hex');
     const generated = await this.ai.generateMeetingPrep(promptContext, ctx);
