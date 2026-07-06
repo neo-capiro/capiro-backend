@@ -35,17 +35,21 @@ RUN apt-get update \
 
 COPY pnpm-workspace.yaml package.json pnpm-lock.yaml* tsconfig.base.json ./
 COPY apps/workspace/package.json apps/workspace/package.json
+COPY packages/auth/package.json packages/auth/package.json
 COPY packages/shared/package.json packages/shared/package.json
 RUN --mount=type=cache,id=pnpm,target=/pnpm/store \
-    pnpm install --frozen-lockfile --filter=@capiro/workspace... --filter=@capiro/shared...
+    pnpm install --frozen-lockfile --filter=@capiro/workspace... --filter=@capiro/auth... --filter=@capiro/shared...
 
 COPY packages/shared/src packages/shared/src
 COPY packages/shared/tsconfig.json packages/shared/tsconfig.json
+COPY packages/auth/src packages/auth/src
+COPY packages/auth/tsconfig.json packages/auth/tsconfig.json
 COPY apps/workspace/src apps/workspace/src
 COPY apps/workspace/prisma apps/workspace/prisma
 COPY apps/workspace/tsconfig.json apps/workspace/tsconfig.build.json apps/workspace/nest-cli.json apps/workspace/
 
 RUN pnpm --filter @capiro/shared build
+RUN pnpm --filter @capiro/auth build
 # Generate the Prisma client (outputs to apps/workspace/generated/prisma-client)
 # BEFORE the Nest build, since src imports the generated client.
 RUN cd apps/workspace && pnpm exec prisma generate
@@ -54,7 +58,7 @@ RUN pnpm --filter @capiro/workspace build
 # Prune dev dependencies in place (matches the apps/api pattern; keeps the
 # .pnpm store intact for Phase 2's generated Prisma client).
 RUN --mount=type=cache,id=pnpm,target=/pnpm/store \
-    pnpm install --frozen-lockfile --prod --filter=@capiro/workspace... --filter=@capiro/shared...
+    pnpm install --frozen-lockfile --prod --filter=@capiro/workspace... --filter=@capiro/auth... --filter=@capiro/shared...
 
 # -------- runtime -------------------------------------------------------------
 FROM node:${NODE_VERSION}-bookworm-slim AS runtime

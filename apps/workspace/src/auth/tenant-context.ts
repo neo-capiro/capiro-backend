@@ -1,15 +1,6 @@
-/**
- * Phase 1 tenant context, populated by TenantGuard from a verified Clerk JWT.
- *
- * NOTE: this is intentionally a NARROWER shape than @capiro/shared's
- * `TenantContext`. The workspace service does not (yet) own the tenant /
- * user / membership tables; it trusts the verified Clerk claim for tenantId
- * and never synthesizes a Capiro userId. The full membership cross-check
- * against the shared tenant tables is deferred to Phase 3 and will produce
- * the canonical TenantContext at that point.
- */
-export interface WorkspaceTenantContext {
-  tenantId: string;
-  clerkUserId: string;
-  role: string | null;
-}
+// Auth-extraction Option N (DECISIONS D8, approved 2026-07-06): the narrow
+// tenant context now lives in @capiro/auth, shared with the orchestrator. This
+// re-export seam preserves every existing import path (WorkspaceTenantContext)
+// in this service. Change-control on auth still applies — edits happen in
+// packages/auth with Neo's approval.
+export type { AuthTenantContext as WorkspaceTenantContext } from '@capiro/auth';

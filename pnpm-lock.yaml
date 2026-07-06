@@ -483,6 +483,9 @@ importers:
 
   apps/workspace:
     dependencies:
+      '@capiro/auth':
+        specifier: workspace:*
+        version: link:../../packages/auth
       '@capiro/shared':
         specifier: workspace:*
         version: link:../../packages/shared
