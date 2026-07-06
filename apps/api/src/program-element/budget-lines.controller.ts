@@ -1,4 +1,4 @@
-import { Controller, Get, Param, UseGuards } from '@nestjs/common';
+import { Controller, Get, Param, Query, UseGuards } from '@nestjs/common';
 import type { TenantContext } from '@capiro/shared';
 import { Roles } from '../auth/roles.decorator.js';
 import { RolesGuard } from '../auth/roles.guard.js';
@@ -46,6 +46,16 @@ export class BudgetLinesController {
   @Get('budget-lines/capabilities/:slug/recommendations')
   capabilityRecommendations(@Param('slug') slug: string) {
     return this.service.getCapabilityRecommendations(slug);
+  }
+
+  /**
+   * Free-text semantic capability search (the hero box): query embedding vs
+   * PE mission embeddings. AI suggestions — labeled as such, never merged with
+   * the curated capability matches. Degrades to empty, never 500s.
+   */
+  @Get('budget-lines/capability-search')
+  capabilitySearch(@Query('q') q?: string) {
+    return this.service.searchCapabilityLines(q ?? '');
   }
 
   // ── Per-line graph reads (PE profile tabs) ────────────────────────────

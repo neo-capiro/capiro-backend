@@ -1,9 +1,9 @@
 import { useMemo, useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
-import { Alert, Empty, Input, Skeleton } from 'antd';
+import { Alert, Button, Empty, Input, Skeleton } from 'antd';
 import { CompassOutlined, RightOutlined, SearchOutlined } from '@ant-design/icons';
 import { useApi } from '../../lib/use-api.js';
-import { getCapabilities, getCapabilityRecommendations } from './api.js';
+import { getCapabilities, getCapabilityRecommendations, searchCapabilityLines } from './api.js';
 import {
   ActionSignalChip,
   LINE_TYPES,
@@ -14,7 +14,7 @@ import {
   TierBadge,
 } from './pe-shared.js';
 import { fmtMoneyM } from './charts/index.js';
-import type { CapabilitySummary } from './types.js';
+import type { CapabilityRecommendation, CapabilitySummary } from './types.js';
 
 /**
  * Capability finder (F4 + F25): "I sell X — where's the money?" — no PE code
@@ -40,31 +40,83 @@ function WedgeChip({ wedge }: { wedge: string }) {
   );
 }
 
+/** One ranked budget-line row — shared by curated recommendations and semantic search. */
+function RecRow({
+  r,
+  rank,
+  onOpen,
+  evidence,
+}: {
+  r: CapabilityRecommendation;
+  rank: number;
+  onOpen: (peCode: string) => void;
+  evidence: React.ReactNode;
+}) {
+  return (
+    <div className="pe-rec-row" onClick={() => onOpen(r.peCode)}>
+      <div className="pe-rec-rank">{rank}</div>
+      <div className="pe-rec-main">
+        <div className="pe-rec-top">
+          <PeCodeBadge code={r.peCode} />
+          <span className="pe-rec-name">{r.title}</span>
+          <LineTypeBadge lineType={r.lineType} small />
+        </div>
+        <div className="pe-rec-foot">
+          <WedgeChip wedge={r.wedge} />
+          <ServiceCell service={r.service} />
+          <span className="pe-rec-money">
+            {r.latestRequest != null
+              ? `${fmtMoneyM(r.latestRequest)}${r.latestRequestFy ? ` · FY${String(r.latestRequestFy).slice(-2)}` : ''}`
+              : '—'}
+          </span>
+          {evidence}
+        </div>
+      </div>
+      <div className="pe-rec-right">
+        {r.appropScore != null ? (
+          <TierBadge tier={r.appropTier} label={`Approp ${r.appropScore}`} />
+        ) : (
+          <span className="pe-dash">—</span>
+        )}
+        <MaturityMini value={r.maturity} />
+        <ActionSignalChip type={r.signalType} tone={r.signalTone} />
+        <RightOutlined className="pe-rec-chev" />
+      </div>
+    </div>
+  );
+}
+
 /** Search hero shown at the top of the Budget Lines catalog (capEntry=prominent). */
 export function CapabilityHero({
   capabilities,
   onFind,
+  onSearch,
   loading,
 }: {
   capabilities: CapabilitySummary[];
   onFind: (slug: string) => void;
+  /** Free-text semantic search — fires when the query matches no curated capability. */
+  onSearch?: (q: string) => void;
   loading: boolean;
 }) {
   const [q, setQ] = useState('');
   const suggested = capabilities.slice(0, 6);
   const submit = () => {
     const needle = q.trim().toLowerCase();
-    if (!needle) {
-      if (capabilities[0]) onFind(capabilities[0].slug);
+    if (!needle) return;
+    // Exact curated hit → the deterministic, evidence-bearing capability view.
+    const hit = capabilities.find(
+      (c) =>
+        c.name.toLowerCase().includes(needle) ||
+        c.aliases.some((a) => a.toLowerCase().includes(needle)),
+    );
+    if (hit) {
+      onFind(hit.slug);
       return;
     }
-    const hit =
-      capabilities.find(
-        (c) =>
-          c.name.toLowerCase().includes(needle) ||
-          c.aliases.some((a) => a.toLowerCase().includes(needle)),
-      ) ?? capabilities[0];
-    if (hit) onFind(hit.slug);
+    // No curated match → semantic search. NEVER silently open an unrelated
+    // capability (the old capabilities[0] fallback masqueraded as an answer).
+    onSearch?.(q.trim());
   };
   if (loading) return null;
   if (capabilities.length === 0) return null; // taxonomy not seeded yet — no fake hero
@@ -75,8 +127,8 @@ export function CapabilityHero({
           <CompassOutlined /> Capability → money
         </div>
         <h2 className="pe-cap-hero-q">
-          I sell <span className="pe-cap-hero-blank">{q || 'GPS-denied autonomy'}</span> — where&apos;s
-          the money?
+          I sell <span className="pe-cap-hero-blank">{q || 'GPS-denied autonomy'}</span> —
+          where&apos;s the money?
         </h2>
         <div className="pe-cap-hero-search">
           <Input
@@ -93,7 +145,12 @@ export function CapabilityHero({
         <div className="pe-cap-hero-chips">
           <span className="pe-cap-hero-try">Try:</span>
           {suggested.map((c) => (
-            <button key={c.slug} type="button" className="pe-cap-chip" onClick={() => onFind(c.slug)}>
+            <button
+              key={c.slug}
+              type="button"
+              className="pe-cap-chip"
+              onClick={() => onFind(c.slug)}
+            >
               {c.name.split(' / ')[0]}
             </button>
           ))}
@@ -122,9 +179,12 @@ export function CapabilityHero({
 /** Full Capability finder module view. */
 export function CapabilityFinder({
   initialSlug,
+  initialQuery,
   onOpen,
 }: {
   initialSlug: string | null;
+  /** Free-text query from the hero — opens in semantic-search mode. */
+  initialQuery?: string | null;
   onOpen: (peCode: string) => void;
 }) {
   const api = useApi();
@@ -135,12 +195,20 @@ export function CapabilityFinder({
   });
   const caps = useMemo(() => capsQuery.data ?? [], [capsQuery.data]);
   const [slug, setSlug] = useState<string | null>(initialSlug);
+  const [searchQ, setSearchQ] = useState<string | null>(initialQuery?.trim() || null);
   const activeSlug = slug ?? initialSlug ?? caps[0]?.slug ?? null;
 
   const recsQuery = useQuery({
     queryKey: ['budget-lines-capability-recs', activeSlug],
     queryFn: () => getCapabilityRecommendations(api, activeSlug as string),
-    enabled: !!activeSlug,
+    enabled: !!activeSlug && !searchQ,
+    staleTime: 5 * 60 * 1000,
+  });
+
+  const searchQuery = useQuery({
+    queryKey: ['budget-lines-capability-search', searchQ],
+    queryFn: () => searchCapabilityLines(api, searchQ as string),
+    enabled: !!searchQ,
     staleTime: 5 * 60 * 1000,
   });
 
@@ -148,9 +216,57 @@ export function CapabilityFinder({
   if (capsQuery.isError) {
     return <Alert type="error" showIcon message="Unable to load capabilities" />;
   }
-  if (caps.length === 0) {
+  if (caps.length === 0 && !searchQ) {
     return (
       <Empty description="The capability taxonomy hasn't been seeded yet. Once seed-capabilities runs, lines matched to each capability appear here with auditable evidence." />
+    );
+  }
+
+  // ── Semantic-search mode: AI suggestions ranked by mission similarity. ──
+  // Deliberately a separate, clearly-labeled surface so the curated taxonomy's
+  // "every match carries its evidence" story is never diluted.
+  if (searchQ) {
+    const rows = searchQuery.data?.data ?? [];
+    return (
+      <div className="pe-cap-finder">
+        <div className="pe-idx-card">
+          <div className="pe-idx-card-head">
+            <h3>Semantic matches for “{searchQ}”</h3>
+            <span className="pe-idx-count">
+              AI suggestions ranked by mission similarity — not curated evidence
+            </span>
+            <Button size="small" onClick={() => setSearchQ(null)}>
+              Back to capabilities
+            </Button>
+          </div>
+          {searchQuery.isLoading ? (
+            <Skeleton active paragraph={{ rows: 5 }} />
+          ) : searchQuery.isError ? (
+            <Alert type="error" showIcon message="Search failed — try again." />
+          ) : rows.length === 0 ? (
+            <Empty description="No confident matches for that phrase — try a capability chip, or rephrase (e.g. 'counter-UAS radar')." />
+          ) : (
+            <div className="pe-rec-list">
+              {rows.map((r, i) => (
+                <RecRow
+                  key={r.peCode}
+                  r={r}
+                  rank={i + 1}
+                  onOpen={onOpen}
+                  evidence={
+                    <span
+                      className="pe-rec-evidence"
+                      title="Semantic similarity between your phrase and this line's mission text — an AI suggestion, not a curated match"
+                    >
+                      ≈{r.matchedOn.replace(/^semantic:/, '')} · AI suggestion
+                    </span>
+                  }
+                />
+              ))}
+            </div>
+          )}
+        </div>
+      </div>
     );
   }
 
@@ -168,7 +284,8 @@ export function CapabilityFinder({
             <CompassOutlined /> Capability → money
           </div>
           <h2 className="pe-cfh-q">
-            Where&apos;s the money for <span className="pe-cfh-blank">{active.name.split(' / ')[0]}</span>?
+            Where&apos;s the money for{' '}
+            <span className="pe-cfh-blank">{active.name.split(' / ')[0]}</span>?
           </h2>
           <div className="pe-cfh-path">{active.taxonomyPath}</div>
           <div className="pe-cfh-aliases">
@@ -182,7 +299,8 @@ export function CapabilityFinder({
         <div className="pe-cfh-r">
           <div className="pe-cfh-total">{fmtMoneyM(active.requestTotal)}</div>
           <div className="pe-cfh-total-l">
-            latest requests across {active.lineCount} matched line{active.lineCount === 1 ? '' : 's'}
+            latest requests across {active.lineCount} matched line
+            {active.lineCount === 1 ? '' : 's'}
           </div>
           {splitTotal > 0 ? (
             <>
@@ -243,38 +361,17 @@ export function CapabilityFinder({
         ) : (
           <div className="pe-rec-list">
             {recs.map((r, i) => (
-              <div key={r.peCode} className="pe-rec-row" onClick={() => onOpen(r.peCode)}>
-                <div className="pe-rec-rank">{i + 1}</div>
-                <div className="pe-rec-main">
-                  <div className="pe-rec-top">
-                    <PeCodeBadge code={r.peCode} />
-                    <span className="pe-rec-name">{r.title}</span>
-                    <LineTypeBadge lineType={r.lineType} small />
-                  </div>
-                  <div className="pe-rec-foot">
-                    <WedgeChip wedge={r.wedge} />
-                    <ServiceCell service={r.service} />
-                    <span className="pe-rec-money">
-                      {r.latestRequest != null
-                        ? `${fmtMoneyM(r.latestRequest)}${r.latestRequestFy ? ` · FY${String(r.latestRequestFy).slice(-2)}` : ''}`
-                        : '—'}
-                    </span>
-                    <span className="pe-rec-evidence" title={`Match evidence: ${r.matchedOn}`}>
-                      matched on {r.matchedOn.replace(/^(title|description):/, '$1 ')}
-                    </span>
-                  </div>
-                </div>
-                <div className="pe-rec-right">
-                  {r.appropScore != null ? (
-                    <TierBadge tier={r.appropTier} label={`Approp ${r.appropScore}`} />
-                  ) : (
-                    <span className="pe-dash">—</span>
-                  )}
-                  <MaturityMini value={r.maturity} />
-                  <ActionSignalChip type={r.signalType} tone={r.signalTone} />
-                  <RightOutlined className="pe-rec-chev" />
-                </div>
-              </div>
+              <RecRow
+                key={r.peCode}
+                r={r}
+                rank={i + 1}
+                onOpen={onOpen}
+                evidence={
+                  <span className="pe-rec-evidence" title={`Match evidence: ${r.matchedOn}`}>
+                    matched on {r.matchedOn.replace(/^(title|description):/, '$1 ')}
+                  </span>
+                }
+              />
             ))}
           </div>
         )}

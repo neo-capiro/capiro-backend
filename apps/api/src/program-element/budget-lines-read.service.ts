@@ -13,10 +13,11 @@
  *    them dashed + labeled; they are never merged into accepted.
  *  - Aggregates never mix FYs: heatmap/conference read the open cycle only.
  */
-import { Injectable } from '@nestjs/common';
+import { Injectable, Logger } from '@nestjs/common';
 import { Prisma } from '@prisma/client';
 import type { TenantContext } from '@capiro/shared';
 import { PrismaService } from '../prisma/prisma.service.js';
+import { EMBEDDING_MODEL, embedText, vectorLiteral } from '../embeddings/embedder.js';
 
 const num = (v: Prisma.Decimal | null): number | null => (v === null ? null : Number(v));
 
@@ -40,6 +41,8 @@ const WEDGE_FOR: Record<string, string> = {
 
 @Injectable()
 export class BudgetLinesReadService {
+  private readonly logger = new Logger(BudgetLinesReadService.name);
+
   constructor(private readonly prisma: PrismaService) {}
 
   // ── Per-line: normalized budget actions (§1.2) ──────────────────────────
@@ -77,7 +80,13 @@ export class BudgetLinesReadService {
       }),
       this.prisma.programElementIntelligenceCache.findMany({
         where: { peCode: { in: otherCodes } },
-        select: { peCode: true, lineType: true, maturity: true, appropTier: true, appropScore: true },
+        select: {
+          peCode: true,
+          lineType: true,
+          maturity: true,
+          appropTier: true,
+          appropScore: true,
+        },
       }),
     ]);
     const lineByCode = new Map(others.map((o) => [o.peCode, o]));
@@ -146,7 +155,15 @@ export class BudgetLinesReadService {
     // attribution is strong (uei-confirmed or unambiguous); otherwise candidate.
     const byContractor = new Map<
       string,
-      { name: string; total: number; count: number; strong: boolean; sources: Set<string>; office: string | null; fys: Set<number> }
+      {
+        name: string;
+        total: number;
+        count: number;
+        strong: boolean;
+        sources: Set<string>;
+        office: string | null;
+        fys: Set<number>;
+      }
     >();
     for (const a of awards) {
       const name = (a.contractorName ?? '').trim();
@@ -159,9 +176,15 @@ export class BudgetLinesReadService {
         a.peCodeCandidateCount === 1;
       const g =
         byContractor.get(key) ??
-        ({ name, total: 0, count: 0, strong: false, sources: new Set(), office: null, fys: new Set() } as NonNullable<
-          ReturnType<typeof byContractor.get>
-        >);
+        ({
+          name,
+          total: 0,
+          count: 0,
+          strong: false,
+          sources: new Set(),
+          office: null,
+          fys: new Set(),
+        } as NonNullable<ReturnType<typeof byContractor.get>>);
       g.total += Number(a.amount ?? 0);
       g.count += 1;
       g.strong = g.strong || strong;
@@ -171,14 +194,21 @@ export class BudgetLinesReadService {
       byContractor.set(key, g);
     }
 
-    const performerByName = new Map<string, { name: string; roles: Set<string>; fys: Set<number>; totalM: number; cite: string | null }>();
+    const performerByName = new Map<
+      string,
+      { name: string; roles: Set<string>; fys: Set<number>; totalM: number; cite: string | null }
+    >();
     for (const p of performers) {
       const key = p.performerNormalized;
       const g =
         performerByName.get(key) ??
-        ({ name: p.performer, roles: new Set(), fys: new Set(), totalM: 0, cite: null } as NonNullable<
-          ReturnType<typeof performerByName.get>
-        >);
+        ({
+          name: p.performer,
+          roles: new Set(),
+          fys: new Set(),
+          totalM: 0,
+          cite: null,
+        } as NonNullable<ReturnType<typeof performerByName.get>>);
       if (p.costCategory) g.roles.add(p.costCategory);
       g.fys.add(p.fy);
       g.totalM += Number(p.totalCostM ?? 0);
@@ -240,7 +270,10 @@ export class BudgetLinesReadService {
         awardCount: 0,
         office: null,
         role: [...g.roles].slice(0, 2).join('; ') || null,
-        evidence: `Named in the R-3 exhibit (${[...g.fys].sort().map((f) => `FY${f}`).join(', ')}) — budget-justification performer; no matched award yet.`,
+        evidence: `Named in the R-3 exhibit (${[...g.fys]
+          .sort()
+          .map((f) => `FY${f}`)
+          .join(', ')}) — budget-justification performer; no matched award yet.`,
         sourceUrl: g.cite,
       });
     }
@@ -360,13 +393,22 @@ export class BudgetLinesReadService {
         senate: r.senate,
         basis: r.basis,
         gap: r.house !== null && r.senate !== null ? Math.abs(r.house - r.senate) : null,
-        lean: r.house !== null && r.senate !== null ? (r.house > r.senate ? 'house' : 'senate') : null,
+        lean:
+          r.house !== null && r.senate !== null ? (r.house > r.senate ? 'house' : 'senate') : null,
       }));
 
     // Anomalies (F9) from the cache — already engine-verdicts, top by count.
-    const anomalies: Array<{ peCode: string; title: string; kind: string; tone: string; note: string }> = [];
+    const anomalies: Array<{
+      peCode: string;
+      title: string;
+      kind: string;
+      tone: string;
+      note: string;
+    }> = [];
     for (const c of caches) {
-      const list = Array.isArray(c.anomaliesJson) ? (c.anomaliesJson as Array<Record<string, unknown>>) : [];
+      const list = Array.isArray(c.anomaliesJson)
+        ? (c.anomaliesJson as Array<Record<string, unknown>>)
+        : [];
       for (const a of list) {
         if (anomalies.length >= 30) break;
         const l = lineByCode.get(c.peCode);
@@ -380,8 +422,12 @@ export class BudgetLinesReadService {
       }
     }
 
-    const adds = actions.filter((a) => a.fy === openFy && Number(a.amount ?? 0) > 0 && a.action === 'add');
-    const cuts = actions.filter((a) => a.fy === openFy && Number(a.amount ?? 0) < 0 && a.action === 'cut');
+    const adds = actions.filter(
+      (a) => a.fy === openFy && Number(a.amount ?? 0) > 0 && a.action === 'add',
+    );
+    const cuts = actions.filter(
+      (a) => a.fy === openFy && Number(a.amount ?? 0) < 0 && a.action === 'cut',
+    );
     return {
       openFy,
       kpis: {
@@ -479,7 +525,12 @@ export class BudgetLinesReadService {
   async listCapabilities() {
     const caps = await this.prisma.capability.findMany({ orderBy: { name: 'asc' } });
     // Per-capability aggregates: line count + latest-request dollars by lineType.
-    type AggRow = { slug: string; lineType: string | null; lines: number; requestTotal: number | null };
+    type AggRow = {
+      slug: string;
+      lineType: string | null;
+      lines: number;
+      requestTotal: number | null;
+    };
     const aggs = await this.prisma.$queryRaw<AggRow[]>(Prisma.sql`
       SELECT c.slug, ic.line_type AS "lineType",
         COUNT(DISTINCT m.pe_code)::int AS lines,
@@ -494,7 +545,10 @@ export class BudgetLinesReadService {
       ) lr ON TRUE
       GROUP BY c.slug, ic.line_type
     `);
-    const bySlug = new Map<string, { lines: number; total: number; byType: Record<string, number> }>();
+    const bySlug = new Map<
+      string,
+      { lines: number; total: number; byType: Record<string, number> }
+    >();
     for (const a of aggs) {
       const g = bySlug.get(a.slug) ?? { lines: 0, total: 0, byType: {} };
       g.lines += a.lines;
@@ -531,7 +585,9 @@ export class BudgetLinesReadService {
       this.prisma.programElementIntelligenceCache.findMany({
         where: { peCode: { in: codes } },
       }),
-      this.prisma.$queryRaw<Array<{ peCode: string; request: number | null; fy: number | null }>>(Prisma.sql`
+      this.prisma.$queryRaw<
+        Array<{ peCode: string; request: number | null; fy: number | null }>
+      >(Prisma.sql`
         SELECT y.pe_code AS "peCode", y.request::double precision AS request, y.fy
         FROM program_element_year y
         JOIN (
@@ -577,5 +633,102 @@ export class BudgetLinesReadService {
       },
       data,
     };
+  }
+
+  /**
+   * Free-text "capability → money" search (the hero box). Embeds the query
+   * (Bedrock, same model as embed-program-elements) and ranks active budget
+   * lines by cosine similarity of their MISSION embeddings (context_embeddings,
+   * source_type='pe'), then enriches to the exact CapabilityRecommendation row
+   * shape so the finder renders them unchanged.
+   *
+   * HONESTY: these are AI SUGGESTIONS ranked by semantic mission similarity —
+   * NOT the curated, keyword-evidenced capability matches — and each row's
+   * matchedOn says so with the similarity %. Degrades to an empty result (never
+   * throws) when Bedrock/pgvector/embeddings are unavailable, so the hero shows
+   * an honest empty state instead of a 500.
+   */
+  async searchCapabilityLines(qRaw: string) {
+    const q = (qRaw ?? '').trim().slice(0, 300);
+    if (!q) return { query: q, data: [] };
+
+    // Query→document cosine floor. Doc↔doc similarity (related-PEs panel) uses
+    // 0.7, but a short buyer phrase vs a long mission narrative scores lower for
+    // the same relevance; 0.35 keeps recall without surfacing boilerplate noise.
+    const SIMILARITY_FLOOR = 0.35;
+    const LIMIT = 25;
+
+    let hits: Array<{ peCode: string; score: number }> = [];
+    try {
+      const vec = vectorLiteral(await embedText(q));
+      hits = await this.prisma.$queryRaw<Array<{ peCode: string; score: number }>>(Prisma.sql`
+        SELECT ce.source_id AS "peCode",
+               (1 - (ce.embedding <=> ${vec}::vector))::float8 AS "score"
+        FROM context_embeddings ce
+        JOIN program_element pe ON pe.pe_code = ce.source_id
+        WHERE ce.source_type = 'pe'
+          AND ce.model = ${EMBEDDING_MODEL}
+          AND ce.embedding IS NOT NULL
+          AND pe.retired_at IS NULL
+          AND (1 - (ce.embedding <=> ${vec}::vector)) >= ${SIMILARITY_FLOOR}
+        ORDER BY ce.embedding <=> ${vec}::vector
+        LIMIT ${LIMIT}
+      `);
+    } catch (err) {
+      this.logger.warn(`capability search degraded to empty: ${(err as Error).message}`);
+      return { query: q, data: [] };
+    }
+    if (hits.length === 0) return { query: q, data: [] };
+
+    const codes = hits.map((h) => h.peCode);
+    const scoreByCode = new Map(hits.map((h) => [h.peCode, h.score]));
+    const [lines, caches, latestRequests] = await Promise.all([
+      this.prisma.programElement.findMany({
+        where: { peCode: { in: codes }, retiredAt: null },
+        select: { peCode: true, title: true, service: true, appropriationType: true },
+      }),
+      this.prisma.programElementIntelligenceCache.findMany({
+        where: { peCode: { in: codes } },
+      }),
+      this.prisma.$queryRaw<
+        Array<{ peCode: string; request: number | null; fy: number | null }>
+      >(Prisma.sql`
+        SELECT y.pe_code AS "peCode", y.request::double precision AS request, y.fy
+        FROM program_element_year y
+        JOIN (
+          SELECT pe_code, MAX(fy) AS fy FROM program_element_year
+          WHERE request IS NOT NULL AND request <> 0 AND pe_code IN (${Prisma.join(codes)})
+          GROUP BY pe_code
+        ) latest ON latest.pe_code = y.pe_code AND latest.fy = y.fy
+      `),
+    ]);
+    const cacheByCode = new Map(caches.map((c) => [c.peCode, c]));
+    const reqByCode = new Map(latestRequests.map((r) => [r.peCode, r]));
+    const data = lines
+      .map((l) => {
+        const cache = cacheByCode.get(l.peCode);
+        const score = scoreByCode.get(l.peCode) ?? 0;
+        const lineType = cache?.lineType ?? LINE_TYPE_FOR(l.appropriationType);
+        return {
+          peCode: l.peCode,
+          title: l.title,
+          service: l.service,
+          lineType,
+          wedge: lineType ? (WEDGE_FOR[lineType] ?? 'rdte-eval') : 'rdte-eval',
+          maturity: cache?.maturity ?? null,
+          appropTier: cache?.appropTier ?? null,
+          appropScore: cache?.appropScore ?? null,
+          signalType: cache?.signalType ?? null,
+          signalTone: cache?.signalTone ?? null,
+          valleyOfDeath: cache?.valleyOfDeath ?? false,
+          matchConfidence: score.toFixed(2),
+          matchedOn: `semantic:${Math.round(score * 100)}% mission similarity`,
+          latestRequest: reqByCode.get(l.peCode)?.request ?? null,
+          latestRequestFy: reqByCode.get(l.peCode)?.fy ?? null,
+        };
+      })
+      // Relevance order (semantic rank), NOT appropriability — this is a search.
+      .sort((a, b) => (scoreByCode.get(b.peCode) ?? 0) - (scoreByCode.get(a.peCode) ?? 0));
+    return { query: q, data };
   }
 }

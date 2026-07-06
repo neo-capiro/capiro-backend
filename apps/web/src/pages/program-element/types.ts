@@ -192,6 +192,12 @@ export interface CapabilityRecommendationsResponse {
   data: CapabilityRecommendation[];
 }
 
+/** Free-text semantic search over PE mission embeddings (AI suggestions, not curated). */
+export interface CapabilitySearchResponse {
+  query: string;
+  data: CapabilityRecommendation[];
+}
+
 // ── BL-2: per-line money-graph reads ─────────────────────────────────────────
 /** One normalized committee/appropriations event (§1.2). */
 export interface BudgetActionItem {

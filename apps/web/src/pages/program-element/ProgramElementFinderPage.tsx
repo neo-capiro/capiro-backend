@@ -40,12 +40,13 @@ export function ProgramElementFinderPage() {
   const [service, setService] = useState<string | null>(null);
   const [lineType, setLineType] = useState<string | null>(null);
   const [capabilitySlug, setCapabilitySlug] = useState<string | null>(null);
+  const [capabilityQuery, setCapabilityQuery] = useState<string | null>(null);
   const [hasDataOnly, setHasDataOnly] = useState(false);
   const [page, setPage] = useState(1);
 
   const q = term.trim();
   const watch = useWatchToggle();
-  const busyCode = watch.isPending ? watch.variables?.peCode ?? null : null;
+  const busyCode = watch.isPending ? (watch.variables?.peCode ?? null) : null;
 
   const onOpen = (peCode: string) => navigate(`/program-elements/${encodeURIComponent(peCode)}`);
   const onToggleWatch = (row: ProgramElementListItem) =>
@@ -87,6 +88,13 @@ export function ProgramElementFinderPage() {
   });
   const openCapability = (slug: string) => {
     setCapabilitySlug(slug);
+    setCapabilityQuery(null);
+    setView('capability');
+  };
+  // Hero free-text that matched no curated capability → semantic-search mode.
+  const openCapabilitySearch = (query: string) => {
+    setCapabilitySlug(null);
+    setCapabilityQuery(query);
     setView('capability');
   };
 
@@ -165,7 +173,12 @@ export function ProgramElementFinderPage() {
       />
 
       {view === 'capability' ? (
-        <CapabilityFinder initialSlug={capabilitySlug} onOpen={onOpen} />
+        <CapabilityFinder
+          key={capabilityQuery ?? capabilitySlug ?? 'default'}
+          initialSlug={capabilitySlug}
+          initialQuery={capabilityQuery}
+          onOpen={onOpen}
+        />
       ) : view === 'movement' ? (
         <MovementView onOpen={onOpen} />
       ) : view === 'graph' ? (
@@ -176,6 +189,7 @@ export function ProgramElementFinderPage() {
             capabilities={capabilitiesQuery.data ?? []}
             loading={capabilitiesQuery.isLoading}
             onFind={openCapability}
+            onSearch={openCapabilitySearch}
           />
           <FinderSummaryStrip
             summary={summaryQuery.data}
@@ -307,7 +321,8 @@ export function ProgramElementFinderPage() {
                     <div key={s.id} className="bl-mv-row" onClick={() => onOpen(s.peCode)}>
                       <div className="bl-mv-main">
                         <div className="bl-mv-t">
-                          {s.title} <span className="bl-stage-chip">{s.stage.replace('_', '-')}</span>
+                          {s.title}{' '}
+                          <span className="bl-stage-chip">{s.stage.replace('_', '-')}</span>
                         </div>
                         {s.note ? <div className="bl-mv-why">{s.note}</div> : null}
                         <div className="bl-mv-meta">

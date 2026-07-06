@@ -21,6 +21,7 @@ import type {
   ProgramElementSummary,
   CapabilitySummary,
   CapabilityRecommendationsResponse,
+  CapabilitySearchResponse,
   BudgetActionItem,
   RelationshipItem,
   IncumbentItem,
@@ -122,9 +123,7 @@ export async function getProgramElementProvisions(
   peCode: string,
 ): Promise<ProvisionItem[]> {
   return (
-    await api.get<ProvisionItem[]>(
-      `/api/program-elements/${encodeURIComponent(peCode)}/provisions`,
-    )
+    await api.get<ProvisionItem[]>(`/api/program-elements/${encodeURIComponent(peCode)}/provisions`)
   ).data;
 }
 
@@ -236,6 +235,19 @@ export async function getCapabilityRecommendations(
   ).data;
 }
 
+/** Free-text semantic capability search (AI suggestions over PE mission embeddings). */
+export async function searchCapabilityLines(
+  api: AxiosInstance,
+  q: string,
+): Promise<CapabilitySearchResponse> {
+  const res = (
+    await api.get<CapabilitySearchResponse>('/api/budget-lines/capability-search', {
+      params: { q },
+    })
+  ).data;
+  return res && Array.isArray(res.data) ? res : { query: q, data: [] };
+}
+
 // ── BL-3: Movement / Money graph / Watchlist signals ─────────────────────────
 export async function getMovement(api: AxiosInstance): Promise<MovementResponse> {
   return (await api.get<MovementResponse>('/api/budget-lines/movement')).data;
@@ -259,9 +271,7 @@ export async function getBudgetActions(
   peCode: string,
 ): Promise<BudgetActionItem[]> {
   const rows = (
-    await api.get<BudgetActionItem[]>(
-      `/api/program-elements/${encodeURIComponent(peCode)}/actions`,
-    )
+    await api.get<BudgetActionItem[]>(`/api/program-elements/${encodeURIComponent(peCode)}/actions`)
   ).data;
   return Array.isArray(rows) ? rows : [];
 }
@@ -278,10 +288,7 @@ export async function getBudgetLineRelationships(
   return Array.isArray(rows) ? rows : [];
 }
 
-export async function getIncumbents(
-  api: AxiosInstance,
-  peCode: string,
-): Promise<IncumbentItem[]> {
+export async function getIncumbents(api: AxiosInstance, peCode: string): Promise<IncumbentItem[]> {
   const rows = (
     await api.get<{ data: IncumbentItem[] }>(
       `/api/program-elements/${encodeURIComponent(peCode)}/incumbents`,
