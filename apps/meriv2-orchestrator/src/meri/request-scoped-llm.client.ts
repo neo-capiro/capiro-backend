@@ -94,12 +94,19 @@ export class RequestScopedLlmClient implements LlmClient {
     tools: AnthropicToolSchema[];
     maxTokens: number;
     timeoutMs?: number;
+    /** Optional external cancellation (streaming client disconnect) — composed with the timeout. */
+    signal?: AbortSignal;
   }): Promise<ToolLoopResponse> {
     const { apiKey, model, usedTenantKey } = this.resolve();
     this.logger.debug(`LLM tool round (model=${model}, usedTenantKey=${usedTenantKey})`);
     const controller = new AbortController();
     const timeout = params.timeoutMs ?? this.timeoutMs ?? 120_000;
     const timer = setTimeout(() => controller.abort(), timeout);
+    const onExternalAbort = () => controller.abort();
+    if (params.signal) {
+      if (params.signal.aborted) controller.abort();
+      else params.signal.addEventListener('abort', onExternalAbort, { once: true });
+    }
     try {
       const res = await fetch(ANTHROPIC_URL, {
         method: 'POST',
@@ -131,6 +138,7 @@ export class RequestScopedLlmClient implements LlmClient {
       };
     } finally {
       clearTimeout(timer);
+      params.signal?.removeEventListener('abort', onExternalAbort);
     }
   }
 }

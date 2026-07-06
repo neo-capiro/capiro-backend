@@ -172,4 +172,115 @@ describe('ChatAssistantService.run', () => {
     expect(out.reply).toMatch(/What can I help/);
     expect(fetchSpy).not.toHaveBeenCalled();
   });
+
+  it('streams progressive events (onEvent) without changing the returned ChatResult', async () => {
+    const executor = {
+      execute: jest.fn(async () => ({ items: [], count: 0 })),
+    } as unknown as ApiToolExecutorRepo;
+
+    let call = 0;
+    (global as unknown as { fetch: unknown }).fetch = jest.fn(async (url: string) => {
+      if (url.includes('/api/clio/tool-schemas')) return schemasResponse(['search_congress_bills']);
+      call += 1;
+      if (call === 1)
+        return anthropic(
+          [
+            { type: 'text', text: 'Let me look that up.' },
+            { type: 'tool_use', id: 't1', name: 'search_congress_bills', input: { q: 'ndaa' } },
+          ],
+          'tool_use',
+        );
+      return anthropic([{ type: 'text', text: 'Final answer.' }], 'end_turn');
+    });
+
+    const events: Array<{ type: string; [k: string]: unknown }> = [];
+    const out = await RequestCredentialsStore.run({ bearerToken: 'jwt' }, () =>
+      makeService(executor).run(
+        ctx,
+        { messages: [{ role: 'user', text: 'ndaa status?' }] },
+        { onEvent: (e) => events.push(e as never) },
+      ),
+    );
+
+    // Contract: reply stays the FINAL round's text (streaming must not change it).
+    expect(out.reply).toBe('Final answer.');
+    // Progressive order: intermediate text → tool_call → tool_done → final text.
+    const types = events.map((e) => e.type);
+    expect(types).toEqual(['text', 'tool_call', 'tool_done', 'text']);
+    expect(events[0]).toMatchObject({ type: 'text', text: 'Let me look that up.\n\n' });
+    expect(events[1]).toMatchObject({ type: 'tool_call', tool: 'search_congress_bills' });
+    expect(events[2]).toMatchObject({
+      type: 'tool_done',
+      tool: 'search_congress_bills',
+      status: 'done',
+    });
+    expect(events[3]).toMatchObject({ type: 'text', text: 'Final answer.' });
+  });
+
+  it('streams pending_approval (with the gate fingerprint) for a held write', async () => {
+    const executor = { execute: jest.fn() } as unknown as ApiToolExecutorRepo;
+    const emailInput = { to: 'a@b.com', subject: 's', body: 'b' };
+
+    let call = 0;
+    (global as unknown as { fetch: unknown }).fetch = jest.fn(async (url: string) => {
+      if (url.includes('/api/clio/tool-schemas')) return schemasResponse(['send_email']);
+      call += 1;
+      if (call === 1)
+        return anthropic(
+          [{ type: 'tool_use', id: 't1', name: 'send_email', input: emailInput }],
+          'tool_use',
+        );
+      return anthropic([{ type: 'text', text: 'Awaiting your approval.' }], 'end_turn');
+    });
+
+    const events: Array<{ type: string; [k: string]: unknown }> = [];
+    await RequestCredentialsStore.run({ bearerToken: 'jwt' }, () =>
+      makeService(executor).run(
+        ctx,
+        { messages: [{ role: 'user', text: 'email them' }] },
+        { onEvent: (e) => events.push(e as never) },
+      ),
+    );
+
+    const pending = events.find((e) => e.type === 'pending_approval');
+    expect(pending).toMatchObject({
+      tool: 'send_email',
+      fingerprint: computeActionFingerprint('send_email', emailInput, ctx),
+    });
+    // The trust-step resolution frame marks the write as held, never done.
+    expect(events.find((e) => e.type === 'tool_done' && e.tool === 'send_email')).toMatchObject({
+      status: 'pending_approval',
+    });
+  });
+
+  it('stops the loop when the signal aborts (no further model calls)', async () => {
+    const abort = new AbortController();
+    const executor = {
+      execute: jest.fn(async () => ({ items: [] })),
+    } as unknown as ApiToolExecutorRepo;
+    const fetchSpy = jest.fn(async (url: string) => {
+      if (url.includes('/api/clio/tool-schemas')) return schemasResponse(['search_congress_bills']);
+      // Round 1 answers with tool_use — the loop WOULD normally run round 2.
+      // The abort fires mid-round; the round-2 loop-top guard must catch it.
+      abort.abort();
+      return anthropic(
+        [{ type: 'tool_use', id: 't1', name: 'search_congress_bills', input: { q: 'x' } }],
+        'tool_use',
+      );
+    });
+    (global as unknown as { fetch: unknown }).fetch = fetchSpy;
+
+    const out = await RequestCredentialsStore.run({ bearerToken: 'jwt' }, () =>
+      makeService(executor).run(
+        ctx,
+        { messages: [{ role: 'user', text: 'hi' }] },
+        { signal: abort.signal },
+      ),
+    );
+    const modelCalls = fetchSpy.mock.calls.filter(
+      (c) => !(c[0] as string).includes('tool-schemas'),
+    );
+    expect(modelCalls).toHaveLength(1); // round 2 never ran
+    expect(out.reply).toBe(''); // aborted turns return empty, not an apology
+  });
 });

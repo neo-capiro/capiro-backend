@@ -415,6 +415,68 @@
   font-size: 11px;
 }
 
+/* MeriV2 gate-held writes (meriv2.fullChat) — the approve-and-run card. */
+.chat-pending-approvals {
+  margin-top: 6px;
+  border: 1px solid var(--warning-soft, var(--border-1));
+  background: var(--bg-surface);
+  border-radius: var(--r-md);
+  padding: 8px 10px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.chat-pending-approvals-title {
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--ink-2);
+}
+
+.chat-pending-approval-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  font-size: 11px;
+  color: var(--ink-2);
+}
+
+.chat-pending-approval-label {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.chat-pending-approval-actions {
+  display: flex;
+  gap: 6px;
+  flex-shrink: 0;
+}
+
+.chat-pending-approval-approve,
+.chat-pending-approval-dismiss {
+  border-radius: var(--r-md);
+  padding: 3px 10px;
+  font-size: 11px;
+  font-weight: 600;
+  cursor: pointer;
+  border: 1px solid var(--border-1);
+  background: var(--bg-surface);
+  color: var(--ink-2);
+}
+
+.chat-pending-approval-approve {
+  background: var(--accent, var(--ink-1));
+  border-color: var(--accent, var(--ink-1));
+  color: var(--bg-surface);
+}
+
+.chat-pending-approval-approve:disabled,
+.chat-pending-approval-dismiss:disabled {
+  opacity: 0.6;
+  cursor: default;
+}
+
 .chat-orchestrator-template {
   margin-top: 6px;
   border: 1px solid var(--border-1);

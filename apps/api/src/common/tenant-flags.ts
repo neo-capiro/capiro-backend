@@ -34,6 +34,10 @@ export function tenantFeatureEnabled(
 export const MERIV2_FLAGS = {
   inEditorAssistant: 'meriv2.inEditorAssistant',
   workspaceGen: 'meriv2.workspaceGen',
+  // C4: the full Meri chat surface. When ON (and MERIV2_ENABLED), apps/api's
+  // chat route proxies to the orchestrator's /meri-api/chat loop instead of
+  // running the in-process MeriService path.
+  fullChat: 'meriv2.fullChat',
 } as const;
 
 export type MeriV2FlagKey = (typeof MERIV2_FLAGS)[keyof typeof MERIV2_FLAGS];

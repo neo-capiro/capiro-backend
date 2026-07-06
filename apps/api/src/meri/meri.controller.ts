@@ -198,6 +198,21 @@ export class MeriController {
     res.on('error', () => {
       /* swallow socket errors on client disconnect */
     });
+    // The raw bearer rides along for the MeriV2 full-chat proxy branch only
+    // (delegated tools + the approval check re-authenticate with it); the
+    // legacy in-process path ignores it.
+    //
+    // IMPERSONATED turns (x-capiro-impersonate-tenant) must NOT route to
+    // MeriV2: impersonation is app-level (middleware swaps ctx.tenantId), but
+    // the orchestrator resolves tenant purely from the admin's JWT claims — the
+    // forwarded bearer would execute every delegated tool against the admin's
+    // HOME tenant while the reply persists (and the BYOK key bills) under the
+    // impersonated tenant. Withholding the bearer makes the service branch fall
+    // through to the legacy in-process path, which runs entirely under the one
+    // swapped ctx and handles impersonation correctly.
+    const impersonated = Boolean(req.headers['x-capiro-impersonate-tenant']);
+    const bearerMatch = (req.headers.authorization ?? '').match(/^Bearer\s+(.+)$/i);
+    const bearerToken = impersonated ? undefined : bearerMatch?.[1]?.trim() || undefined;
     await this.service.streamMessage(
       ctx,
       id,
@@ -206,6 +221,7 @@ export class MeriController {
       abort.signal,
       body.mode ?? 'new',
       body.attachmentIds ?? [],
+      bearerToken,
     );
     res.end();
   }

@@ -10,7 +10,14 @@ import {
   type ChatInput,
   type ChatResult,
   type ChatStep,
+  type ChatStreamEvent,
 } from './chat-prompt.js';
+
+/** Optional streaming hooks: progressive events + caller-driven cancellation. */
+export interface ChatRunOptions {
+  onEvent?: (event: ChatStreamEvent) => void;
+  signal?: AbortSignal;
+}
 
 const MAX_ROUNDS = 8;
 const MAX_TOKENS = 4096;
@@ -57,7 +64,8 @@ export class ChatAssistantService {
     ).replace(/\/+$/, '');
   }
 
-  async run(ctx: MeriContext, dto: ChatInput): Promise<ChatResult> {
+  async run(ctx: MeriContext, dto: ChatInput, opts: ChatRunOptions = {}): Promise<ChatResult> {
+    const emit = opts.onEvent ?? (() => {});
     const messages: Array<{ role: 'user' | 'assistant'; content: unknown }> = (dto.messages ?? [])
       .filter(
         (m) => m && (m.role === 'user' || m.role === 'assistant') && typeof m.text === 'string',
@@ -74,6 +82,10 @@ export class ChatAssistantService {
     const pendingApprovals: NonNullable<ChatResult['pendingApprovals']> = [];
 
     for (let round = 0; round < MAX_ROUNDS; round += 1) {
+      if (opts.signal?.aborted) {
+        // Caller went away (streaming client disconnect) — stop burning tokens.
+        return { reply: '', steps, ...(pendingApprovals.length ? { pendingApprovals } : {}) };
+      }
       let content: ContentBlock[];
       let stopReason: string | null;
       try {
@@ -83,10 +95,14 @@ export class ChatAssistantService {
           tools: toolSchemas as AnthropicToolSchema[],
           maxTokens: MAX_TOKENS,
           timeoutMs: this.callTimeoutMs,
+          ...(opts.signal ? { signal: opts.signal } : {}),
         });
         content = resp.content as ContentBlock[];
         stopReason = resp.stopReason;
       } catch (e) {
+        if (opts.signal?.aborted) {
+          return { reply: '', steps, ...(pendingApprovals.length ? { pendingApprovals } : {}) };
+        }
         this.logger.warn(`chat model call failed: ${(e as Error).message}`);
         return {
           reply: 'Sorry — I hit an error reaching the model. Please try again in a moment.',
@@ -106,12 +122,18 @@ export class ChatAssistantService {
       );
 
       if (!toolUses.length || stopReason !== 'tool_use') {
+        if (textOut) emit({ type: 'text', text: textOut });
         return {
           reply: textOut || 'Done.',
           steps,
           ...(pendingApprovals.length ? { pendingApprovals } : {}),
         };
       }
+
+      // Intermediate round text ("Let me look that up…") streams to the client
+      // but stays OUT of ChatResult.reply — reply remains the final round's text
+      // (the non-streaming contract existing callers/tests pin).
+      if (textOut) emit({ type: 'text', text: `${textOut}\n\n` });
 
       messages.push({ role: 'assistant', content });
       const results = await Promise.all(
@@ -122,6 +144,7 @@ export class ChatAssistantService {
             tu.input ?? {},
             steps,
             pendingApprovals,
+            emit,
           );
           return {
             type: 'tool_result' as const,
@@ -155,17 +178,23 @@ export class ChatAssistantService {
     input: Record<string, unknown>,
     steps: ChatStep[],
     pendingApprovals: NonNullable<ChatResult['pendingApprovals']>,
+    emit: (event: ChatStreamEvent) => void = () => {},
   ): Promise<unknown> {
+    const label = toolLabel(name);
+    emit({ type: 'tool_call', tool: name, label });
     try {
       const result = await this.registry.invoke(name, input, ctx);
-      steps.push({ tool: name, label: toolLabel(name), status: 'done' });
+      steps.push({ tool: name, label, status: 'done' });
+      emit({ type: 'tool_done', tool: name, label, status: 'done' });
       return result;
     } catch (e) {
       const err = e as Error;
       if (err.name === 'ApprovalPendingError') {
         const fingerprint = computeActionFingerprint(name, input, ctx);
-        steps.push({ tool: name, label: toolLabel(name), status: 'pending_approval' });
+        steps.push({ tool: name, label, status: 'pending_approval' });
         pendingApprovals.push({ tool: name, fingerprint, reason: err.message });
+        emit({ type: 'tool_done', tool: name, label, status: 'pending_approval' });
+        emit({ type: 'pending_approval', tool: name, label, fingerprint, reason: err.message });
         return {
           pendingApproval: true,
           fingerprint,
@@ -173,20 +202,14 @@ export class ChatAssistantService {
         };
       }
       if (err.name === 'ComplianceBlockedError') {
-        steps.push({
-          tool: name,
-          label: toolLabel(name),
-          status: 'blocked',
-          detail: err.message.slice(0, 120),
-        });
+        const detail = err.message.slice(0, 120);
+        steps.push({ tool: name, label, status: 'blocked', detail });
+        emit({ type: 'tool_done', tool: name, label, status: 'blocked', detail });
         return { blocked: true, message: `Blocked by compliance policy: ${err.message}` };
       }
-      steps.push({
-        tool: name,
-        label: toolLabel(name),
-        status: 'error',
-        detail: err.message.slice(0, 120),
-      });
+      const detail = err.message.slice(0, 120);
+      steps.push({ tool: name, label, status: 'error', detail });
+      emit({ type: 'tool_done', tool: name, label, status: 'error', detail });
       return { error: err.message };
     }
   }

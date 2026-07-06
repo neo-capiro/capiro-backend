@@ -35,6 +35,26 @@ export interface ChatResult {
   pendingApprovals?: Array<{ tool: string; fingerprint: string; reason: string }>;
 }
 
+/**
+ * Progressive events the chat loop emits while it runs — the streaming
+ * transport's contract (POST /meri-api/chat/stream). Orchestrator-shaped, NOT
+ * the legacy ChatDrawer SSE union: the apps/api proxy translates. Per-round
+ * granularity (completeWithTools is non-streaming): tool activity streams live
+ * as it happens; each round's text arrives when the round completes. Token-level
+ * deltas of the final reply are a deliberate follow-up.
+ */
+export type ChatStreamEvent =
+  | { type: 'tool_call'; tool: string; label: string }
+  | {
+      type: 'tool_done';
+      tool: string;
+      label: string;
+      status: ChatStep['status'];
+      detail?: string;
+    }
+  | { type: 'pending_approval'; tool: string; label: string; fingerprint: string; reason: string }
+  | { type: 'text'; text: string };
+
 /** Friendly label for a tool name, for the chat's thought-process trace. */
 export function toolLabel(tool: string): string {
   return TOOL_LABELS[tool] ?? `Ran ${tool}`;

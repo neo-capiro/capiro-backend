@@ -1,5 +1,5 @@
-import { Body, Controller, Post, Req, UseGuards } from '@nestjs/common';
-import type { Request } from 'express';
+import { Body, Controller, Post, Req, Res, UseGuards } from '@nestjs/common';
+import type { Request, Response } from 'express';
 import { TenantGuard } from '../../auth/tenant.guard.js';
 import { CurrentTenant } from '../../auth/current-tenant.decorator.js';
 import type { OrchestratorTenantContext } from '../../auth/tenant-context.js';
@@ -16,9 +16,13 @@ import type { ChatInput, ChatResult } from './chat-prompt.js';
  * forwarded-credential scope so delegated tool calls (Bearer), the approval
  * check (Bearer), and the LLM (tenant credential, BYOK2) all resolve.
  *
- * DORMANT: no apps/api caller proxies here yet (the full-chat proxy in apps/api
- * is a follow-up, gated behind a per-tenant flag the same way in-editor is), so
- * this endpoint exists but takes no production traffic until that flag ships.
+ * Two transports over the SAME loop:
+ *   - POST /meri-api/chat        → one complete ChatResult (request/response)
+ *   - POST /meri-api/chat/stream → SSE-style `data: <json>\n\n` frames of
+ *     ChatStreamEvent, terminated by `done` (carrying the aggregates the
+ *     apps/api proxy persists) or `error`. The apps/api full-chat proxy
+ *     (meriv2.fullChat flag) consumes the stream and translates to the legacy
+ *     ChatDrawer event union.
  */
 @Controller('chat')
 @UseGuards(TenantGuard)
@@ -44,6 +48,60 @@ export class ChatController {
           exec,
         )
       : exec();
+  }
+
+  @Post('stream')
+  async stream(
+    @Body() dto: ChatInput,
+    @CurrentTenant() tc: OrchestratorTenantContext,
+    @Req() req: Request,
+    @Res() res: Response,
+  ): Promise<void> {
+    const meriCtx = await this.resolver.resolve(tc);
+    const token = extractBearerToken(req);
+    const aiProvider = parseAiProviderHeader(req);
+
+    res.setHeader('Content-Type', 'text/event-stream');
+    res.setHeader('Cache-Control', 'no-cache');
+    res.setHeader('Connection', 'keep-alive');
+    res.setHeader('X-Accel-Buffering', 'no');
+    // Cancel the loop when the caller disconnects — stop burning tokens for an
+    // answer nobody is reading (same P0-4 discipline as the legacy stream).
+    const abort = new AbortController();
+    req.on('close', () => abort.abort());
+    res.on('error', () => {
+      /* swallow socket errors on client disconnect */
+    });
+    const frame = (event: unknown) => {
+      if (!res.writableEnded) res.write(`data: ${JSON.stringify(event)}\n\n`);
+    };
+
+    const exec = async () => {
+      frame({ type: 'start' });
+      try {
+        const result = await this.chat.run(meriCtx, dto ?? {}, {
+          onEvent: frame,
+          signal: abort.signal,
+        });
+        frame({
+          type: 'done',
+          reply: result.reply,
+          steps: result.steps ?? [],
+          ...(result.pendingApprovals?.length ? { pendingApprovals: result.pendingApprovals } : {}),
+          aborted: abort.signal.aborted,
+        });
+      } catch (e) {
+        frame({ type: 'error', message: (e as Error).message });
+      }
+      res.end();
+    };
+
+    await (token || aiProvider
+      ? RequestCredentialsStore.run(
+          { bearerToken: token ?? '', ...(aiProvider ? { aiProvider } : {}) },
+          exec,
+        )
+      : exec());
   }
 }
 

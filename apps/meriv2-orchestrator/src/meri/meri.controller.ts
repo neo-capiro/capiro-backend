@@ -1,7 +1,9 @@
 import {
   BadRequestException,
   Body,
+  ConflictException,
   Controller,
+  ForbiddenException,
   Get,
   NotFoundException,
   Param,
@@ -102,6 +104,24 @@ export class MeriController {
     } catch (err) {
       if (err instanceof ToolNotFoundError) throw new NotFoundException(err.message);
       if (err instanceof ToolInputValidationError) throw new BadRequestException(err.message);
+      // Gate outcomes are structured API responses, not 500s: a held write is a
+      // 409 carrying the same {pendingApproval, message} shape the chat surface
+      // returns, so a direct invoker can approve (POST /api/clio/approvals/
+      // approve) and retry; a policy block is a 403.
+      if ((err as Error).name === 'ApprovalPendingError') {
+        throw new ConflictException({
+          pendingApproval: true,
+          tool: name,
+          message: (err as Error).message,
+        });
+      }
+      if ((err as Error).name === 'ComplianceBlockedError') {
+        throw new ForbiddenException({
+          blocked: true,
+          tool: name,
+          message: (err as Error).message,
+        });
+      }
       throw err;
     }
   }

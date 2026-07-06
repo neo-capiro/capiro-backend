@@ -82,6 +82,17 @@ type SseEvent =
     }
   | { type: 'text'; text: string }
   | { type: 'thinking'; text: string }
+  // MeriV2 full chat (meriv2.fullChat): a write the compliance gate held for
+  // human approval. Rendered as an approve card; approving posts the
+  // fingerprint to /api/clio/approvals/approve then re-runs the turn. Legacy
+  // turns never emit this (unknown event types are ignored by older clients).
+  | {
+      type: 'pending_approval';
+      tool: string;
+      label?: string;
+      fingerprint: string;
+      reason?: string;
+    }
   | { type: 'done' }
   | { type: 'error'; message: string }
   | {
@@ -238,6 +249,12 @@ export function ChatDrawer({ selectedClientName }: ChatDrawerProps) {
     title: string;
     detail: string;
   } | null>(null);
+  // MeriV2 gate-held writes for the in-flight/last turn (meriv2.fullChat).
+  // Same lifecycle as trustSteps: cleared on each new send.
+  const [pendingApprovals, setPendingApprovals] = useState<
+    Array<{ tool: string; label?: string; fingerprint: string; reason?: string }>
+  >([]);
+  const [approvingFingerprint, setApprovingFingerprint] = useState<string | null>(null);
   const [orchestratorTemplate, setOrchestratorTemplate] = useState<{
     heading: string;
     sections: string[];
@@ -907,6 +924,23 @@ export function ChatDrawer({ selectedClientName }: ChatDrawerProps) {
               setTrustSteps([]);
               setPlanSteps([]);
               setReasoningText('');
+              setPendingApprovals([]);
+            } else if (event.type === 'pending_approval') {
+              // MeriV2 gate-held write — dedupe by fingerprint (a re-proposed
+              // identical action carries the same fingerprint).
+              setPendingApprovals((prev) =>
+                prev.some((p) => p.fingerprint === event.fingerprint)
+                  ? prev
+                  : [
+                      ...prev,
+                      {
+                        tool: event.tool,
+                        label: event.label,
+                        fingerprint: event.fingerprint,
+                        reason: event.reason,
+                      },
+                    ],
+              );
             } else if (event.type === 'trace') {
               if (event.policy?.tier) setOrchestratorTier(event.policy.tier);
             } else if (event.type === 'plan') {
@@ -1083,6 +1117,67 @@ export function ChatDrawer({ selectedClientName }: ChatDrawerProps) {
     truncateMessagesAfter(lastUser.id);
     void sendMessage(lastUser.content, { mode: 'regenerate' });
   }, [isStreaming, messages, sendMessage]);
+
+  // Approve a MeriV2 gate-held write (meriv2.fullChat): record the approval
+  // against its fingerprint, then re-run the turn — on the retry the compliance
+  // gate finds the approval and the write executes. When several actions are
+  // held, the re-run waits until the LAST card is resolved (a re-run before
+  // that would just hold the others again); dismissing the last card still
+  // re-runs when something was approved this round, so an approved action never
+  // sits unexecuted.
+  const approvedThisRoundRef = useRef(false);
+  const handleApprovePending = useCallback(
+    async (fingerprint: string, tool: string) => {
+      if (isStreaming || approvingFingerprint) return;
+      setApprovingFingerprint(fingerprint);
+      try {
+        const res = await fetch(`${config.apiBaseUrl}/api/clio/approvals/approve`, {
+          method: 'POST',
+          headers: await authHeaders(),
+          body: JSON.stringify({ fingerprint, tool }),
+        });
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        approvedThisRoundRef.current = true;
+        // Compute the remainder from the CURRENT state, not inside the updater —
+        // React batches updater execution, so a variable assigned in the updater
+        // isn't reliably readable on the next line.
+        const next = pendingApprovals.filter((p) => p.fingerprint !== fingerprint);
+        setPendingApprovals(next);
+        if (next.length === 0) {
+          approvedThisRoundRef.current = false;
+          handleRegenerate();
+        }
+      } catch {
+        setOrchestratorConflict({
+          title: 'Approval failed',
+          detail: 'The approval did not save — please try again.',
+        });
+      } finally {
+        setApprovingFingerprint(null);
+      }
+    },
+    [isStreaming, approvingFingerprint, pendingApprovals, authHeaders, handleRegenerate],
+  );
+
+  const handleDismissPending = useCallback(
+    (fingerprint: string) => {
+      const next = pendingApprovals.filter((p) => p.fingerprint !== fingerprint);
+      setPendingApprovals(next);
+      // Dismissing the last card after approving others: run the approved ones.
+      if (next.length === 0 && approvedThisRoundRef.current && !isStreaming) {
+        approvedThisRoundRef.current = false;
+        handleRegenerate();
+      }
+    },
+    [pendingApprovals, isStreaming, handleRegenerate],
+  );
+
+  // Held-approval cards belong to ONE conversation — switching sessions must
+  // not carry them over (approving would re-run the WRONG conversation's turn).
+  useEffect(() => {
+    setPendingApprovals([]);
+    approvedThisRoundRef.current = false;
+  }, [sessionId]);
 
   const handleEditResend = useCallback(() => {
     const text = editingText.trim();
@@ -1402,6 +1497,40 @@ export function ChatDrawer({ selectedClientName }: ChatDrawerProps) {
           {orchestratorConflict && (
             <div className="chat-orchestrator-conflict" role="status">
               <strong>{orchestratorConflict.title}</strong>: {orchestratorConflict.detail}
+            </div>
+          )}
+          {pendingApprovals.length > 0 && !isStreaming && (
+            <div className="chat-pending-approvals" role="status">
+              <div className="chat-pending-approvals-title">
+                Meri proposed {pendingApprovals.length === 1 ? 'an action' : 'actions'} that need
+                your approval
+              </div>
+              {pendingApprovals.map((p) => (
+                <div key={p.fingerprint} className="chat-pending-approval-row">
+                  <span className="chat-pending-approval-label">
+                    <strong>{p.label || p.tool}</strong>
+                    {p.reason ? ` — ${p.reason}` : ''}
+                  </span>
+                  <span className="chat-pending-approval-actions">
+                    <button
+                      type="button"
+                      className="chat-pending-approval-approve"
+                      disabled={Boolean(approvingFingerprint)}
+                      onClick={() => void handleApprovePending(p.fingerprint, p.tool)}
+                    >
+                      {approvingFingerprint === p.fingerprint ? 'Approving…' : 'Approve & run'}
+                    </button>
+                    <button
+                      type="button"
+                      className="chat-pending-approval-dismiss"
+                      disabled={Boolean(approvingFingerprint)}
+                      onClick={() => handleDismissPending(p.fingerprint)}
+                    >
+                      Dismiss
+                    </button>
+                  </span>
+                </div>
+              ))}
             </div>
           )}
           {orchestratorTemplate && (

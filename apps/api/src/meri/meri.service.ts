@@ -50,6 +50,9 @@ import { normalizeFeedback, type NormalizedFeedback } from './meri-feedback.help
 import { COMPLIANCE_GUARDRAILS, screenComplianceRisk } from './meri-compliance.helpers.js';
 import { confidenceLevel } from './meri-confidence.helpers.js';
 import { classifyToolAction, isSideEffectingTool } from './meri-actions.helpers.js';
+import { MeriFeatureFlagsService } from './meri-feature-flags.service.js';
+import { MERIV2_FLAGS } from '../common/tenant-flags.js';
+import { MeriV2ChatClient, type MeriV2ChatStreamEvent } from './meriv2-chat.client.js';
 import mammoth from 'mammoth';
 import { extractPdfText } from './meri-attachment-extract.js';
 import {
@@ -180,6 +183,8 @@ export class MeriService {
     private readonly firmSkills: MeriFirmSkillsService,
     private readonly aiCredentials: AiCredentialResolverService,
     private readonly memoryIngest: MemoryIngestService,
+    private readonly meriFlags: MeriFeatureFlagsService,
+    private readonly meriV2Chat: MeriV2ChatClient,
   ) {}
 
   async status(ctx: TenantContext) {
@@ -407,6 +412,10 @@ export class MeriService {
     clientSignal?: AbortSignal,
     mode: 'new' | 'regenerate' | 'resend' = 'new',
     attachmentIds: string[] = [],
+    // The caller's raw Clerk bearer — required ONLY by the MeriV2 full-chat
+    // proxy branch (delegated tools + the approval check re-authenticate with
+    // it downstream). The legacy in-process path never touches it.
+    bearerToken?: string,
   ) {
     const conversation = await this.ensureConversation(ctx, conversationId);
     const streamControl = this.extractStreamControl(body);
@@ -602,6 +611,35 @@ export class MeriService {
       }
       return { role: m.role as 'user' | 'assistant', body: parts.join('\n\n') };
     });
+
+    // MeriV2 full-chat proxy (Workstream C4, flag `meriv2.fullChat`): serve the
+    // turn from the orchestrator's agentic loop instead of the in-process one.
+    // Branch point is deliberate: the user turn is already persisted, the
+    // regenerate/resend rerun is already planned, and replayHistory already
+    // inlines document-attachment text — so those all work on the MeriV2 path.
+    // Cases the orchestrator can't serve yet stay legacy IN THE SAME TURN
+    // (page-write mode, vision/images, missing bearer): the tenant flag routes
+    // the surface, these conditions route the turn.
+    if (
+      !streamControl.pageWriteEnabled &&
+      currentTurnImages.length === 0 &&
+      bearerToken &&
+      this.meriV2Chat.configured &&
+      (await this.meriFlags.isMeriV2SurfaceEnabled(ctx.tenantId, MERIV2_FLAGS.fullChat))
+    ) {
+      await this.streamMessageViaMeriV2({
+        ctx,
+        conversation: { clientId: conversation.clientId ?? null },
+        conversationId,
+        content,
+        replayHistory,
+        sse,
+        bearerToken,
+        complianceScreen,
+        ...(clientSignal ? { clientSignal } : {}),
+      });
+      return;
+    }
 
     // Classify intent
     const intent = await this.classifyIntent(ctx.tenantId, content);
@@ -1341,6 +1379,216 @@ export class MeriService {
     });
 
     sse.write(`data: ${JSON.stringify({ type: 'done' })}\n\n`);
+  }
+
+  /**
+   * Serve one chat turn from the MeriV2 orchestrator (flag `meriv2.fullChat`),
+   * translating its stream into the legacy ChatDrawer SSE union and persisting
+   * the assistant ClioMessage with the same metadata keys the legacy loop
+   * writes (history replay parity). Once a turn routes here there is NO silent
+   * fallback to the legacy loop (matching the in-editor proxy's discipline) —
+   * a mid-stream failure surfaces as the `error` frame; rollback is the flag.
+   *
+   * Known v1 deltas vs legacy (deliberate): the reply text arrives per round,
+   * not token-streamed; no citations/verification/suggestions blocks (the
+   * orchestrator loop doesn't produce them yet); gate-held writes surface as a
+   * NEW `pending_approval` frame the drawer renders as an approve card.
+   */
+  private async streamMessageViaMeriV2(args: {
+    ctx: TenantContext;
+    conversation: { clientId: string | null };
+    conversationId: string;
+    content: string;
+    replayHistory: Array<{ role: 'user' | 'assistant'; body: string }>;
+    sse: { write: (data: string) => void };
+    clientSignal?: AbortSignal;
+    bearerToken: string;
+    complianceScreen: { flagged: boolean; category?: string | null };
+  }): Promise<void> {
+    const { ctx, sse } = args;
+    const emit = (event: Record<string, unknown>) =>
+      sse.write(`data: ${JSON.stringify(event)}\n\n`);
+
+    // BYOK: resolve the tenant credential here (apps/api owns the store) and
+    // forward it per-invocation — same pattern as the in-editor proxy.
+    const aiProvider = await this.aiCredentials.resolveProvider(ctx, 'anthropic');
+
+    emit({ type: 'start', intent: 'general', tier: 'fast' });
+
+    let accumulated = '';
+    const collectedSteps: Array<{
+      tool: string;
+      label: string;
+      detail?: string;
+      status: 'done' | 'error' | 'pending_approval' | 'blocked';
+    }> = [];
+    const pendingApprovals: Array<{
+      tool: string;
+      label?: string;
+      fingerprint: string;
+      reason: string;
+    }> = [];
+    let doneFrame: Extract<MeriV2ChatStreamEvent, { type: 'done' }> | null = null;
+    let errorMessage: string | null = null;
+
+    const translate = (event: MeriV2ChatStreamEvent) => {
+      switch (event.type) {
+        case 'start':
+          return; // legacy start already emitted
+        case 'tool_call':
+          emit({ type: 'tool_call', tool: event.tool, label: event.label });
+          return;
+        case 'tool_done': {
+          collectedSteps.push(event);
+          // The drawer resolves the running trust step via a `sources` frame:
+          // sources[0].confidence 'high' → done, 'low' → error-styled. Held and
+          // blocked writes deliberately resolve low so the step never shows a
+          // completed checkmark for an action that did not run.
+          const summary =
+            event.status === 'done'
+              ? 'Completed'
+              : event.status === 'pending_approval'
+                ? 'Held for your approval'
+                : event.status === 'blocked'
+                  ? (event.detail ?? 'Blocked by compliance policy')
+                  : (event.detail ?? 'Errored');
+          emit({
+            type: 'sources',
+            sources: [
+              {
+                tool: event.tool,
+                label: event.label,
+                count: null,
+                summary,
+                confidence: event.status === 'done' ? 'high' : 'low',
+              },
+            ],
+          });
+          return;
+        }
+        case 'pending_approval':
+          pendingApprovals.push(event);
+          emit({
+            type: 'pending_approval',
+            tool: event.tool,
+            label: event.label,
+            fingerprint: event.fingerprint,
+            reason: event.reason,
+          });
+          return;
+        case 'text':
+          accumulated += event.text;
+          emit({ type: 'text', text: event.text });
+          return;
+        case 'done':
+          doneFrame = event;
+          return;
+        case 'error':
+          errorMessage = event.message;
+          return;
+      }
+    };
+
+    try {
+      await this.meriV2Chat.streamChat({
+        bearerToken: args.bearerToken,
+        input: {
+          messages: args.replayHistory.map((m) => ({ role: m.role, text: m.body })),
+          ...(args.conversation.clientId ? { clientId: args.conversation.clientId } : {}),
+          conversationId: args.conversationId,
+        },
+        ...(aiProvider ? { aiProvider } : {}),
+        ...(args.clientSignal ? { signal: args.clientSignal } : {}),
+        onEvent: translate,
+      });
+    } catch (e) {
+      if (!args.clientSignal?.aborted) {
+        errorMessage = errorMessage ?? 'MeriV2 chat is unavailable right now — please try again.';
+        this.logger.error(`MeriV2 full-chat proxy failed: ${(e as Error).message}`);
+      }
+    }
+
+    const aborted = args.clientSignal?.aborted ?? false;
+    // `doneFrame` is assigned inside the onEvent closure — TS's control-flow
+    // narrowing can't see that, so re-widen explicitly.
+    const frame = doneFrame as Extract<MeriV2ChatStreamEvent, { type: 'done' }> | null;
+    const steps = frame?.steps ?? collectedSteps;
+    const assistantContent = (accumulated.trim() || frame?.reply || '').trim();
+
+    // Some loop outcomes return a reply WITHOUT emitting any text event (the
+    // empty-history short-circuit, the "Done." fallback, the model-error
+    // apology). Without this the drawer would show an empty assistant bubble
+    // while history replays the persisted body — emit the reply so live and
+    // replay match.
+    if (!accumulated.trim() && assistantContent && !aborted && !errorMessage) {
+      emit({ type: 'text', text: assistantContent });
+    }
+
+    // Persist the assistant turn with the legacy metadata keys so history
+    // replay (GET conversations/:id/messages) keeps every affordance. Skip only
+    // when nothing at all happened (e.g. connect failure before any frame).
+    if (assistantContent || steps.length) {
+      await this.prisma.withTenant(ctx.tenantId, async (tx) => {
+        await tx.clioMessage.create({
+          data: {
+            tenantId: ctx.tenantId,
+            userId: ctx.userId,
+            clientId: args.conversation.clientId,
+            conversationId: args.conversationId,
+            role: 'assistant',
+            body:
+              assistantContent ||
+              'Sorry — something went wrong serving this turn. Please try again.',
+            metadata: {
+              intent: 'general',
+              model: 'meriv2-orchestrator',
+              tier: 'fast',
+              servedBy: 'meriv2',
+              preWarmSources: [],
+              toolsUsed: steps.map((s) => s.tool),
+              usage: {},
+              citations: [] as unknown as Prisma.InputJsonValue,
+              finishReason: aborted ? 'aborted' : errorMessage ? 'error' : 'stop',
+              trace: [] as unknown as Prisma.InputJsonValue,
+              suggestions: [],
+              actions: steps
+                .filter((s) => s.status === 'done' && isSideEffectingTool(s.tool))
+                .map((s) => ({ tool: s.tool, kind: classifyToolAction(s.tool), ok: true })),
+              ...(pendingApprovals.length
+                ? { pendingApprovals: pendingApprovals as unknown as Prisma.InputJsonValue }
+                : {}),
+              ...(args.complianceScreen.flagged
+                ? { compliance: { flagged: true, category: args.complianceScreen.category } }
+                : {}),
+            },
+          },
+        });
+      });
+    }
+
+    if (assistantContent.length > 200) {
+      void this.maybeLearnFromConversation(
+        ctx.tenantId,
+        ctx.userId,
+        args.conversationId,
+        args.content,
+        assistantContent,
+        ctx.role,
+      ).catch(() => {});
+    }
+    setImmediate(() => {
+      this.afterTurnMaintenance(ctx, args.conversationId).catch((err) => {
+        this.logger.warn(
+          `Meri after-turn maintenance failed [conv ${args.conversationId}]: ${err instanceof Error ? err.message : err}`,
+        );
+      });
+    });
+
+    if (errorMessage && !aborted) {
+      emit({ type: 'error', message: errorMessage });
+      return;
+    }
+    emit({ type: 'done' });
   }
 
   /** PNG bytes for an analysis-chart artifact (F4 chat/docgen rendering). */
@@ -2505,7 +2753,8 @@ export class MeriService {
       if (block) blocks.push(block);
     }
     for (const r of firmRows) {
-      const label = r.type === 'firm-soul' ? 'Firm identity (Firm Soul)' : 'Firm direction (Firm Compass)';
+      const label =
+        r.type === 'firm-soul' ? 'Firm identity (Firm Soul)' : 'Firm direction (Firm Compass)';
       const block = render(label, r.sections);
       if (block) blocks.push(block);
     }
@@ -2626,8 +2875,7 @@ export class MeriService {
         // For everyone else a "firm" candidate is kept as personal memory (never
         // dropped) so a single chat can't seed firm-wide truth.
         const isAdmin = callerRole === 'user_admin' || callerRole === 'capiro_admin';
-        const scope: 'firm' | 'user_private' =
-          promoteToFirm && isAdmin ? 'firm' : 'user_private';
+        const scope: 'firm' | 'user_private' = promoteToFirm && isAdmin ? 'firm' : 'user_private';
         const ownerUserId = scope === 'user_private' ? userId : null;
         const storedKey =
           scope === 'user_private'
