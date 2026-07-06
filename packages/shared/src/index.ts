@@ -510,3 +510,112 @@ export interface BillingSummary {
   /** Whether a Stripe customer/subscription exists (drives portal vs checkout). */
   hasSubscription: boolean;
 }
+
+// ---------------------------------------------------------------------------
+// Canonical Alert (MeriV2 Phase-1, SC1.1/SC1.2)
+// ---------------------------------------------------------------------------
+// The ONE seven-field alert shape all three alert surfaces (Tracker,
+// Intelligence, the web feed) import — no surface invents a divergent
+// "almost-alert". buildAlert FLAGS missing required fields rather than
+// dropping the alert (SC1.2). Lives here (not @capiro/meriv2-core) because
+// this is the lowest common dependency of all three surfaces — apps/web and
+// apps/intel-api depend on @capiro/shared but not on meriv2-core; meriv2-core
+// re-exports it so its existing importers are unchanged. Pure and DB-free.
+
+/** Source taxonomy across the three surfaces. Optional — never affects completeness. */
+export type SourceType =
+  | 'bill'
+  | 'hearing'
+  | 'combined'
+  | 'comment_deadline'
+  | 'comment_overdue'
+  | 'competitor_filing'
+  | 'contract_award'
+  | 'bill_movement';
+
+export const SOURCE_TYPES: readonly SourceType[] = [
+  'bill',
+  'hearing',
+  'combined',
+  'comment_deadline',
+  'comment_overdue',
+  'competitor_filing',
+  'contract_award',
+  'bill_movement',
+] as const;
+
+export interface Alert {
+  /** What changed — the underlying event, in plain language. Required. */
+  whatChanged: string;
+  /** Why it matters to THIS client. Required. */
+  whyItMatters: string;
+  /** The client this alert is for. Required. */
+  clientId: string;
+  /** The issue / interest area it maps to. Required. */
+  issueId: string;
+  /** Who should act (role or person). Required. */
+  whoActs: string;
+  /** Optional action deadline (ISO-8601 date/datetime); null when none. */
+  deadline?: string | null;
+  /** Optional drafted artifact (memo/email) prepared for the action. */
+  draftArtifactId?: string | null;
+  /** Optional compliance-check id gating any action taken from this alert. */
+  complianceCheckId?: string | null;
+  /** Optional source taxonomy (never affects completeness). */
+  sourceType?: SourceType;
+}
+
+/** The five fields an alert MUST have to be actionable (SC1.2). */
+export const REQUIRED_ALERT_FIELDS = [
+  'whatChanged',
+  'whyItMatters',
+  'clientId',
+  'issueId',
+  'whoActs',
+] as const;
+
+export type RequiredAlertField = (typeof REQUIRED_ALERT_FIELDS)[number];
+
+export interface AlertBuildResult {
+  /** The normalized alert. Present even when incomplete — never dropped. */
+  alert: Alert;
+  /** Required fields that were absent/blank — surfaced, never swallowed. */
+  missingFields: RequiredAlertField[];
+  /** True iff no required field is missing. */
+  complete: boolean;
+}
+
+/**
+ * Build a canonical `Alert`, FLAGGING (not dropping) any missing required field.
+ * A blank/whitespace/absent required value is recorded in `missingFields` and
+ * the alert is still returned (with that field as an empty string) so the
+ * caller can render it marked-incomplete. Optional fields normalize to `null`
+ * when absent. Never throws.
+ */
+export function buildAlert(input: Partial<Alert>): AlertBuildResult {
+  const str = (v: unknown): string => (typeof v === 'string' ? v.trim() : '');
+  const optId = (v: unknown): string | null => {
+    const s = str(v);
+    return s.length > 0 ? s : null;
+  };
+
+  const alert: Alert = {
+    whatChanged: str(input.whatChanged),
+    whyItMatters: str(input.whyItMatters),
+    clientId: str(input.clientId),
+    issueId: str(input.issueId),
+    whoActs: str(input.whoActs),
+    deadline: optId(input.deadline),
+    draftArtifactId: optId(input.draftArtifactId),
+    complianceCheckId: optId(input.complianceCheckId),
+    ...(input.sourceType ? { sourceType: input.sourceType } : {}),
+  };
+
+  const missingFields = REQUIRED_ALERT_FIELDS.filter((field) => alert[field].length === 0);
+  return { alert, missingFields, complete: missingFields.length === 0 };
+}
+
+/** Convenience: true iff every required field is present. */
+export function isAlertComplete(input: Partial<Alert>): boolean {
+  return buildAlert(input).complete;
+}

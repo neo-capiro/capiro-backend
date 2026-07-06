@@ -4,6 +4,7 @@ import { useNavigate } from 'react-router-dom';
 import { App as AntApp, Input, Modal } from 'antd';
 import { useApi } from '../../../lib/use-api.js';
 import {
+  toCanonicalAlert,
   feedQueryString,
   intelFeedKeys,
   intelFeedPaths,
@@ -32,7 +33,9 @@ import { MemoComposerDrawer } from './MemoComposerDrawer.js';
 
 function fmtDate(iso: string): string {
   const d = new Date(iso);
-  return Number.isNaN(d.getTime()) ? '' : d.toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
+  return Number.isNaN(d.getTime())
+    ? ''
+    : d.toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
 }
 function fmtTs(ms: number | null): string {
   if (ms == null) return '';
@@ -165,6 +168,15 @@ function FeedCard({
                 #{item.tag}
               </span>
             )}
+            {!toCanonicalAlert(item).complete && (
+              <span
+                className="chip"
+                style={{ fontSize: 10.5, opacity: 0.65 }}
+                title={`Incomplete alert — missing: ${toCanonicalAlert(item).missingFields.join(', ')}`}
+              >
+                incomplete
+              </span>
+            )}
             {drafted && (
               <span className="done-flag">
                 <Ic n="check" size={10} /> memo drafted
@@ -196,14 +208,19 @@ function FeedCard({
             <div
               className="acard-evi"
               onClick={() =>
-                onAction({ kind: 'open_bill', label: 'Open bill', target: { billId: ev.bill!.billId } }, item)
+                onAction(
+                  { kind: 'open_bill', label: 'Open bill', target: { billId: ev.bill!.billId } },
+                  item,
+                )
               }
             >
               <span className="evnum">{ev.bill.displayNum}</span>
               <span>
                 {ev.bill.stage}
                 {ev.bill.actionText ? ` — ${ev.bill.actionText}` : ''}{' '}
-                {ev.bill.actionDate ? <span className="muted num">({ev.bill.actionDate})</span> : null}
+                {ev.bill.actionDate ? (
+                  <span className="muted num">({ev.bill.actionDate})</span>
+                ) : null}
               </span>
             </div>
           )}
@@ -215,7 +232,11 @@ function FeedCard({
                   <span className="qts">{fmtTs(m.timestampMs)}</span>
                   <span>
                     {m.speakerName ? <b>{m.speakerName}: </b> : null}
-                    {m.quote ? `“${m.quote}”` : <i className="muted">[encrypted — open hearing to view]</i>}
+                    {m.quote ? (
+                      `“${m.quote}”`
+                    ) : (
+                      <i className="muted">[encrypted — open hearing to view]</i>
+                    )}
                   </span>
                 </div>
               ))}
@@ -359,20 +380,28 @@ export function TrackerFeedPanel({
       message.success('Outreach draft created — opening the wizard');
       navigate(`/engagement/outreach/draft/${encodeURIComponent(record.id)}`);
     },
-    onError: (e: unknown) => message.error(`Could not create outreach draft: ${(e as Error).message}`),
+    onError: (e: unknown) =>
+      message.error(`Could not create outreach draft: ${(e as Error).message}`),
   });
 
   // P11: global mode reads the tenant-wide roll-up (`_all/feed`) under a distinct
   // cache key; per-client mode is unchanged. The path/key switch is the ONLY
   // difference — filters, keyset cursor, and page shape are identical.
   const query = useInfiniteQuery({
-    queryKey: global ? intelFeedKeys.tenantFeed(source, order) : intelFeedKeys.feed(clientId!, source, order),
+    queryKey: global
+      ? intelFeedKeys.tenantFeed(source, order)
+      : intelFeedKeys.feed(clientId!, source, order),
     queryFn: async ({ pageParam }) => {
       const path = global ? intelFeedPaths.tenantFeed() : intelFeedPaths.feed(clientId!);
-      return (await api.get<FeedResponse>(`${path}?${feedQueryString(source, order, pageParam || undefined)}`)).data;
+      return (
+        await api.get<FeedResponse>(
+          `${path}?${feedQueryString(source, order, pageParam || undefined)}`,
+        )
+      ).data;
     },
     initialPageParam: '',
-    getNextPageParam: (last: FeedResponse) => (last.hasMore && last.nextCursor ? last.nextCursor : undefined),
+    getNextPageParam: (last: FeedResponse) =>
+      last.hasMore && last.nextCursor ? last.nextCursor : undefined,
   });
 
   const items = query.data?.pages.flatMap((p) => p.items) ?? [];
@@ -392,7 +421,8 @@ export function TrackerFeedPanel({
         }
         break;
       case 'open_hearing':
-        if (a.target?.sessionId) navigate(`/intelligence/hearing-watch/${encodeURIComponent(a.target.sessionId)}`);
+        if (a.target?.sessionId)
+          navigate(`/intelligence/hearing-watch/${encodeURIComponent(a.target.sessionId)}`);
         break;
       case 'pull_quotes': {
         const qs = (item.evidence?.hearing?.mentions ?? [])
@@ -411,13 +441,18 @@ export function TrackerFeedPanel({
         break;
       case 'add_talking_point':
         setTpItem(item);
-        setTpText(`${item.title}${item.whyItMatters ? ` — ${item.whyItMatters}` : ''}`.slice(0, 300));
+        setTpText(
+          `${item.title}${item.whyItMatters ? ` — ${item.whyItMatters}` : ''}`.slice(0, 300),
+        );
         break;
       case 'add_to_report': {
         const on = !item.actions?.inReport;
         setReport.mutate(
           { clientId: item.clientId, alertId: item.id, on },
-          { onSuccess: () => message.success(on ? 'Added to weekly report' : 'Removed from weekly report') },
+          {
+            onSuccess: () =>
+              message.success(on ? 'Added to weekly report' : 'Removed from weekly report'),
+          },
         );
         break;
       }
@@ -485,7 +520,13 @@ export function TrackerFeedPanel({
               </div>
               <div className="feed" style={{ marginTop: 6 }}>
                 {g.list.map((it) => (
-                  <FeedCard key={it.id} item={it} onAction={onAction} showClient={false} onScopeClient={onScopeClient} />
+                  <FeedCard
+                    key={it.id}
+                    item={it}
+                    onAction={onAction}
+                    showClient={false}
+                    onScopeClient={onScopeClient}
+                  />
                 ))}
               </div>
             </div>
@@ -506,7 +547,13 @@ export function TrackerFeedPanel({
     return (
       <div className="feed">
         {items.map((it) => (
-          <FeedCard key={it.id} item={it} onAction={onAction} showClient={global} onScopeClient={onScopeClient} />
+          <FeedCard
+            key={it.id}
+            item={it}
+            onAction={onAction}
+            showClient={global}
+            onScopeClient={onScopeClient}
+          />
         ))}
         {query.hasNextPage && (
           <button
@@ -526,8 +573,10 @@ export function TrackerFeedPanel({
     <div className="feed-layout">
       <div className="feed-main">
         <div className="feed-lead">
-          {global ? 'What changed across all clients' : `What changed for ${clientName ?? 'this client'}`} ·{' '}
-          {totalUpdates} update{totalUpdates === 1 ? '' : 's'}
+          {global
+            ? 'What changed across all clients'
+            : `What changed for ${clientName ?? 'this client'}`}{' '}
+          · {totalUpdates} update{totalUpdates === 1 ? '' : 's'}
         </div>
         {body}
       </div>

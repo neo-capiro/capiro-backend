@@ -5,6 +5,7 @@ import {
   TRACKER_OWNER_FEATURE,
 } from '../feature-flags/feature-flag.service.js';
 import { IntelEmailService } from './intel-email.service.js';
+import { toCanonicalAlert } from './canonical-alert.adapter.js';
 import {
   clearsMateriality,
   type AlertSeverity,
@@ -74,6 +75,21 @@ export class IntelAlertService {
    * claim `suppressed_shadow`, send nothing. Returns per-run counters.
    */
   async fanOut(event: IntelAlertEvent): Promise<{ suppressed: number; sent: number }> {
+    // Canonical 7-field Alert (SC1.1/SC1.2): map + LOG ONLY — completeness
+    // flags surface the field gaps (whoActs/issueId/whyItMatters have no
+    // tracker source yet) without ever touching the suppress/send branch.
+    const canonical = toCanonicalAlert(event);
+    if (!canonical.complete) {
+      this.logger.log(
+        JSON.stringify({
+          canonicalAlertIncomplete: true,
+          missingFields: canonical.missingFields,
+          clientId: event.clientId,
+          billId: event.billId,
+          changeType: event.changeType,
+        }),
+      );
+    }
     const owned = await this.flags.isEnabled(TRACKER_OWNER_FEATURE, event.tenantId);
     const canSend = owned && !this.killSwitchOff(); // shadow: false (kill-switch off)
     const alertId = IntelAlertService.alertId(event.clientId, event.billId, event.changeType);

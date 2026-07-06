@@ -8,6 +8,7 @@ import {
 } from '@capiro/shared';
 import { PrismaService } from '../prisma/prisma.service.js';
 import { EMBEDDING_MODEL, embedText, normalize, vectorLiteral } from '../embeddings/embedder.js';
+import { toCanonicalAlert } from './canonical-alert.adapter.js';
 import { classifyTrajectory } from './trajectory-classifier.model.js';
 import { addDateInZone, dateBoundsInZone, dayBoundsInZone } from './time-bounds.js';
 import { FEC_DISCLAIMER } from './fec-disclaimer.js';
@@ -6223,6 +6224,9 @@ export class IntelligenceService {
           };
           const topAlerts = profile?.sections?.snapshot?.topAlerts ?? [];
           for (const alert of topAlerts) {
+            // Canonical 7-field Alert sidecar (SC1.1/SC1.2): completeness flags
+            // ride along; rows are NEVER filtered or hidden on incompleteness.
+            const canonical = toCanonicalAlert(alert, client.id);
             tagged.push({
               ...alert,
               // Namespace the id with the client so identical alert ids across
@@ -6230,6 +6234,8 @@ export class IntelligenceService {
               id: `${client.id}:${String(alert.id ?? '')}`,
               clientId: client.id,
               clientName: client.name,
+              canonicalComplete: canonical.complete,
+              canonicalMissingFields: canonical.missingFields,
             });
           }
         } catch (err) {

@@ -1,3 +1,4 @@
+import { buildAlert, type AlertBuildResult } from '@capiro/shared';
 /**
  * Typed client + query keys for the unified intel FEED (Phase 6 §9.7).
  * Reads intel-api `GET /intel-api/clients/:clientId/feed` (bill|hearing|combined
@@ -39,7 +40,13 @@ export interface FeedHearingEvidence {
 export interface FeedEvidence {
   bill?: FeedBillEvidence;
   hearing?: FeedHearingEvidence;
-  link?: { via?: string; confidence?: number; matchCount?: number; billAlertId?: string | null; hearingAlertId?: string | null };
+  link?: {
+    via?: string;
+    confidence?: number;
+    matchCount?: number;
+    billAlertId?: string | null;
+    hearingAlertId?: string | null;
+  };
 }
 
 export type RecommendedActionKind =
@@ -140,3 +147,22 @@ export const SOURCE_LABEL: Record<FeedSourceType, string> = {
   hearing: 'Hearing',
   combined: 'Bill + Hearing',
 };
+
+/**
+ * Feed → canonical Alert adapter (MeriV2 Phase-1, SC1.1/SC1.2): maps a
+ * FeedItem onto the ONE seven-field Alert. Used ONLY to render an
+ * "incomplete" flag on feed cards — items are never hidden or filtered on
+ * incompleteness (drop-nothing). whoActs has no feed source today → always
+ * flagged; issueId ← the matched watchlist tag when present.
+ */
+export function toCanonicalAlert(item: FeedItem): AlertBuildResult {
+  return buildAlert({
+    whatChanged: item.title,
+    whyItMatters: item.whyItMatters ?? '',
+    clientId: item.clientId,
+    issueId: item.tag ?? '',
+    whoActs: '',
+    deadline: item.evidence.bill?.actionDate ?? item.evidence.hearing?.occurredAt ?? null,
+    sourceType: item.sourceType,
+  });
+}
