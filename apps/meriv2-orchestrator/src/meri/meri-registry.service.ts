@@ -91,7 +91,7 @@ export class MeriRegistryService {
       toolExecutor,
     );
     this.logger.log(
-      `Registered ${writeNames.length} delegated write tools (gated, fail-closed pending B3/B4)`,
+      `Registered ${writeNames.length} delegated write tools (gated: B2 rules + B3/B4 approval store)`,
     );
 
     // Workstream C4 substrate: the remaining read-only apps/api tools not in

@@ -1,8 +1,10 @@
 import {
   classifyChange,
   selectMaterialEvents,
+  TrackerChangeDetectorService,
   type ActionLike,
 } from './tracker-change-detector.service.js';
+import type { PrismaService } from '../prisma/prisma.service.js';
 
 const d = (s: string) => new Date(s);
 
@@ -113,5 +115,34 @@ describe('selectMaterialEvents', () => {
     expect(selectMaterialEvents([{ date: d('2026-06-10'), text: 'Introduced.' }], null)).toEqual(
       [],
     );
+  });
+});
+
+describe('intelOwnedTenantIds — RLS double-send guard (regression)', () => {
+  // Once intel_full_rls_hold FORCE-enables RLS on intel_feature_flag, a bare
+  // read on apps/api's connection (no GUC) returns 0 rows → apps/api would think
+  // NO tenant is intel-owned and DOUBLE-SEND bill alerts. This must run under
+  // withSystem (bypass) so it reads all rows regardless of tenant context.
+  it('reads intel_feature_flag via prisma.withSystem, not a bare query', async () => {
+    const withSystem = jest.fn((fn: (tx: unknown) => unknown) =>
+      fn({ $queryRawUnsafe: async () => [{ tenant_id: 't1' }, { tenant_id: 't2' }] }),
+    );
+    const bareQuery = jest.fn();
+    const prisma = { withSystem, $queryRawUnsafe: bareQuery } as unknown as PrismaService;
+    const svc = new TrackerChangeDetectorService(
+      prisma,
+      {} as never,
+      {} as never,
+      {} as never,
+      {} as never,
+    );
+
+    const owned = await (
+      svc as unknown as { intelOwnedTenantIds(): Promise<Set<string>> }
+    ).intelOwnedTenantIds();
+
+    expect(withSystem).toHaveBeenCalledTimes(1);
+    expect(bareQuery).not.toHaveBeenCalled(); // never a bare, RLS-blankable read
+    expect(owned).toEqual(new Set(['t1', 't2']));
   });
 });

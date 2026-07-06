@@ -10,16 +10,15 @@ import type { DelegatedToolSpec } from '@capiro/meriv2-core';
  * SIDE_EFFECTING_TOOLS exactly.
  *
  * `readOnly:false` means `InMemoryToolRegistry.invoke` runs the
- * `PolicyApprovalGate` BEFORE the delegated call (tool-registry.ts) — with the
- * gate's current `fallback: 'WARN'` policy and no real `ApprovalStore` wired
- * (B3/B4 not built), every invocation of one of these tools throws
- * `ApprovalPendingError` and NEVER reaches apps/api. This is intentional:
- * registering the catalog closes the "write tools aren't in the MeriV2
- * registry" gap without inventing a new approval UX or silently starting to
- * execute real side effects. Nothing on a live surface calls these tools yet
- * (the in-editor allowlist is read-only-only; the full-chat surface does not
- * exist on MeriV2). Wiring a real `ApprovalStore` (B3/B4) or a per-tool
- * `CompliancePolicy` (B2) is the follow-up before any surface may use these.
+ * `PolicyApprovalGate` BEFORE the delegated call (tool-registry.ts). The gate
+ * now runs the B2 rules engine (ruleBasedCompliancePolicy — every write => WARN
+ * by the seed rule) and, on WARN, consults the B3/B4 ApprovalStore
+ * (RepoBackedApprovalStore → apps/api /clio/approvals/check): an unapproved
+ * action throws `ApprovalPendingError` and NEVER reaches apps/api; an approved
+ * action proceeds. So these tools are fully gated + functional. The full-chat
+ * surface (C4) exercises them; the in-editor allowlist remains read-only. Real
+ * per-tool BLOCK/PASS compliance rules (B2) + approval policy (TTL/four-eyes,
+ * B4) are the domain-input follow-ups, seeded conservatively (all writes WARN).
  */
 export const WRITE_DELEGATED_TOOLS: readonly DelegatedToolSpec[] = [
   {

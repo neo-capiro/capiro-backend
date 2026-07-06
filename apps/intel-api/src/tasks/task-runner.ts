@@ -44,7 +44,11 @@ function parseFlags(args: string[]): Record<string, string> {
 
 /** Build the shadow-guarded alert service for one-off delivery verbs. */
 function buildAlertService(prisma: PrismaService): IntelAlertService {
-  return new IntelAlertService(prisma, new FeatureFlagService(prisma, new ConfigService()), new IntelEmailService());
+  return new IntelAlertService(
+    prisma,
+    new FeatureFlagService(prisma, new ConfigService()),
+    new IntelEmailService(),
+  );
 }
 
 /** Candidate cosine floor for bill semantic search (ported: EMBED_CANDIDATE_FLOOR). */
@@ -167,7 +171,8 @@ export async function runVerb(verb: string, args: string[], deps: VerbDeps): Pro
       if (!args[0]) throw new Error(`${verb} requires <flag>`);
       const enabled = verb === 'enable-feature-all';
       const r = await new WatchlistSyncService(deps.prisma).setFeatureFlagAll(args[0], enabled);
-      for (const t of r.tenants) deps.log(`  ${enabled ? 'ENABLED' : 'DISABLED'} ${args[0]} tenant=${t.slug} (${t.id})`);
+      for (const t of r.tenants)
+        deps.log(`  ${enabled ? 'ENABLED' : 'DISABLED'} ${args[0]} tenant=${t.slug} (${t.id})`);
       deps.log(`FEATURE_ALL feature=${r.feature} enabled=${r.enabled} tenants=${r.tenants.length}`);
       return;
     }
@@ -222,20 +227,29 @@ export async function runVerb(verb: string, args: string[], deps: VerbDeps): Pro
       const sync = new WatchlistSyncService(deps.prisma);
       const tenantId = await sync.resolveTenantId(args[0]);
       if (!tenantId) throw new Error(`NO_TENANT_FOR ${args[0]}`);
+      // tenant-scoped reads → withTenant (RLS: the GUC must be set post-migration,
+      // else these return 0 and the readiness report is silently FALSE).
       const flag = async (feature: string) =>
         Boolean(
-          (await deps.prisma.featureFlag.findUnique({ where: { feature_tenantId: { feature, tenantId } } }))?.enabled,
+          (
+            await deps.prisma.withTenant(tenantId, (tx) =>
+              tx.featureFlag.findUnique({ where: { feature_tenantId: { feature, tenantId } } }),
+            )
+          )?.enabled,
         );
       const parity = new ParityService(deps.prisma, new SourceDataRepository(deps.prisma));
-      const [owner, v2, tenantStreak, allStreak, trackedBills, alertPrefs, intelAlerts] = await Promise.all([
-        flag('tracker_owner_intel'),
-        flag('tracker_v2'),
-        parity.greenStreak(tenantId),
-        parity.greenStreak('all'),
-        deps.prisma.trackedBill.count({ where: { tenantId } }),
-        deps.prisma.intelAlertPreference.count({ where: { tenantId } }),
-        deps.prisma.intelAlert.count({ where: { tenantId } }),
-      ]);
+      const [owner, v2, tenantStreak, allStreak, trackedBills, alertPrefs, intelAlerts] =
+        await Promise.all([
+          flag('tracker_owner_intel'),
+          flag('tracker_v2'),
+          parity.greenStreak(tenantId),
+          parity.greenStreak('all'),
+          deps.prisma.withTenant(tenantId, (tx) => tx.trackedBill.count({ where: { tenantId } })),
+          deps.prisma.withTenant(tenantId, (tx) =>
+            tx.intelAlertPreference.count({ where: { tenantId } }),
+          ),
+          deps.prisma.withTenant(tenantId, (tx) => tx.intelAlert.count({ where: { tenantId } })),
+        ]);
       const parityGreen = tenantStreak.greenStreak >= 7 || allStreak.greenStreak >= 7;
       deps.log(
         `CUTOVER_STATUS tenant=${tenantId} owner=${owner} v2=${v2} ` +
@@ -258,10 +272,17 @@ export async function runVerb(verb: string, args: string[], deps: VerbDeps): Pro
       if (!args[0]) throw new Error('diag-replay-bill requires <billId> [tenantId]');
       const billId = args[0];
       const tenantId = args[1];
-      const rewound = await deps.prisma.trackedBill.updateMany({
+      const replayData = {
         where: { billId, ...(tenantId ? { tenantId } : {}) },
-        data: { lastSeenActionText: '__diag_replay__', lastSeenActionDate: new Date('2000-01-01T00:00:00Z') },
-      });
+        data: {
+          lastSeenActionText: '__diag_replay__',
+          lastSeenActionDate: new Date('2000-01-01T00:00:00Z'),
+        },
+      };
+      // Scoped to a tenant → withTenant; all-tenants replay → withSystem (RLS).
+      const rewound = tenantId
+        ? await deps.prisma.withTenant(tenantId, (tx) => tx.trackedBill.updateMany(replayData))
+        : await deps.prisma.withSystem((tx) => tx.trackedBill.updateMany(replayData));
       deps.log(`DIAG_REWOUND billId=${billId} tenant=${tenantId ?? '(all)'} rows=${rewound.count}`);
       const svc = new BillChangeDetectorService(deps.prisma, new SourceDataRepository(deps.prisma));
       const r = await svc.runDetectionCycle();
@@ -287,7 +308,9 @@ export async function runVerb(verb: string, args: string[], deps: VerbDeps): Pro
         );
       }
       if (rows.length === 0) {
-        deps.log('UPCOMING_EMPTY — committee_hearing has no rows with date>=today (sync-hearings may not have run)');
+        deps.log(
+          'UPCOMING_EMPTY — committee_hearing has no rows with date>=today (sync-hearings may not have run)',
+        );
       }
       return;
     }
@@ -312,7 +335,8 @@ export async function runVerb(verb: string, args: string[], deps: VerbDeps): Pro
       return;
     }
     case 'shadow-selftest': {
-      if (!args[0] || !args[1]) throw new Error('shadow-selftest requires <tenantSlugOrId> <clientId>');
+      if (!args[0] || !args[1])
+        throw new Error('shadow-selftest requires <tenantSlugOrId> <clientId>');
       const tenantId = await new WatchlistSyncService(deps.prisma).resolveTenantId(args[0]);
       if (!tenantId) throw new Error(`NO_TENANT_FOR ${args[0]}`);
       const r = await buildAlertService(deps.prisma).shadowSelftest(tenantId, args[1]);
@@ -328,10 +352,13 @@ export async function runVerb(verb: string, args: string[], deps: VerbDeps): Pro
         tenantId = await new WatchlistSyncService(deps.prisma).resolveTenantId(args[0]);
         if (!tenantId) throw new Error(`NO_TENANT_FOR ${args[0]}`);
       } else {
-        const wl = await deps.prisma.watchlist.findFirst({
-          orderBy: { updatedAt: 'desc' },
-          select: { tenantId: true, clientId: true },
-        });
+        // Cross-tenant: most-recently-updated watchlist across all tenants → withSystem (RLS).
+        const wl = await deps.prisma.withSystem((tx) =>
+          tx.watchlist.findFirst({
+            orderBy: { updatedAt: 'desc' },
+            select: { tenantId: true, clientId: true },
+          }),
+        );
         if (!wl) throw new Error('NO_WATCHLIST_FOUND — run sync-watchlists-from-legacy first');
         tenantId = wl.tenantId;
         clientId = wl.clientId;
@@ -352,7 +379,9 @@ export async function runVerb(verb: string, args: string[], deps: VerbDeps): Pro
       }
       const b = await board.getBoard(tenantId, clientId);
       const total = b.columns.reduce((n, c) => n + c.cards.length, 0);
-      deps.log(`BOARD_OK ${b.columns.map((c) => `${c.id}:${c.cards.length}`).join(' ')} total=${total}`);
+      deps.log(
+        `BOARD_OK ${b.columns.map((c) => `${c.id}:${c.cards.length}`).join(' ')} total=${total}`,
+      );
       return;
     }
     case 'parity-report': {
@@ -421,14 +450,19 @@ export async function runVerb(verb: string, args: string[], deps: VerbDeps): Pro
       if (flags['session']) {
         let tenant = flags['tenant'];
         if (!tenant) {
-          const s = await deps.prisma.liveHearingSession.findUnique({
-            where: { id: flags['session'] },
-            select: { tenantId: true },
-          });
+          // Cross-tenant: resolve a session's tenant by id → withSystem (RLS).
+          const s = await deps.prisma.withSystem((tx) =>
+            tx.liveHearingSession.findUnique({
+              where: { id: flags['session'] },
+              select: { tenantId: true },
+            }),
+          );
           tenant = s?.tenantId ?? '';
         }
         const r = await svc.promoteMatches(tenant, flags['session']);
-        deps.log(`PROMOTE_DONE session=${flags['session']} alerts=${r.alerts} skipped=${r.skipped}`);
+        deps.log(
+          `PROMOTE_DONE session=${flags['session']} alerts=${r.alerts} skipped=${r.skipped}`,
+        );
       } else {
         const r = await svc.promoteAll(flags['since']);
         deps.log(`PROMOTE_DONE sessions=${r.sessions} alerts=${r.alerts} skipped=${r.skipped}`);
@@ -441,14 +475,19 @@ export async function runVerb(verb: string, args: string[], deps: VerbDeps): Pro
       if (flags['session']) {
         let tenant = flags['tenant'];
         if (!tenant) {
-          const s = await deps.prisma.liveHearingSession.findUnique({
-            where: { id: flags['session'] },
-            select: { tenantId: true },
-          });
+          // Cross-tenant: resolve a session's tenant by id → withSystem (RLS).
+          const s = await deps.prisma.withSystem((tx) =>
+            tx.liveHearingSession.findUnique({
+              where: { id: flags['session'] },
+              select: { tenantId: true },
+            }),
+          );
           tenant = s?.tenantId ?? '';
         }
         const r = await svc.linkSession(tenant, flags['session']);
-        deps.log(`LINK_DONE session=${flags['session']} combined=${r.combined} skipped=${r.skipped}`);
+        deps.log(
+          `LINK_DONE session=${flags['session']} combined=${r.combined} skipped=${r.skipped}`,
+        );
       } else {
         const r = await svc.linkAll(flags['since']);
         deps.log(`LINK_DONE sessions=${r.sessions} combined=${r.combined} skipped=${r.skipped}`);
