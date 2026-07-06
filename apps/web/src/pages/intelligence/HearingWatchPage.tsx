@@ -243,36 +243,69 @@ function ScheduleView({ onWatch }: { onWatch: (r: UpcomingHearing) => void }) {
                 </td>
               </tr>
             ) : (
-              rows.map((r) => (
-                <tr key={r.id}>
-                  <td className="num" style={{ whiteSpace: 'nowrap' }}>
-                    {formatHearingDate(r.scheduledAt)}
-                    {r.time ? <span className="muted"> · {r.time}</span> : null}
-                  </td>
-                  <td>{r.committee}</td>
-                  <td>
-                    {r.type ? (
-                      <span className="chip muted" style={{ fontSize: 10.5 }}>
-                        {prettyType(r.type)}
+              rows.map((r) => {
+                // sync-hearings prefixes a non-scheduled meetingStatus into the
+                // title (e.g. "[Postponed] …"). Postponed/cancelled meetings never
+                // happened — there's nothing to watch, so render the status as a
+                // chip instead of a dead-end Watch button (rescheduled ones still
+                // occur, so those keep the action).
+                const statusMatch = /^\[([^\]]+)\]\s*/.exec(r.title);
+                const statusLabel = statusMatch?.[1] ?? null;
+                const cleanTitle = statusMatch ? r.title.slice(statusMatch[0].length) : r.title;
+                const noRecording = !!statusLabel && /postpon|cancel/i.test(statusLabel);
+                return (
+                  <tr key={r.id}>
+                    <td className="num" style={{ whiteSpace: 'nowrap' }}>
+                      {formatHearingDate(r.scheduledAt)}
+                      {r.time ? <span className="muted"> · {r.time}</span> : null}
+                    </td>
+                    <td>{r.committee}</td>
+                    <td>
+                      <span style={{ display: 'inline-flex', gap: 4, flexWrap: 'wrap' }}>
+                        {r.type ? (
+                          <span className="chip muted" style={{ fontSize: 10.5 }}>
+                            {prettyType(r.type)}
+                          </span>
+                        ) : null}
+                        {statusLabel ? (
+                          <span
+                            className="chip"
+                            style={{
+                              fontSize: 10.5,
+                              border: 'none',
+                              background: 'var(--notable-soft)',
+                              color: 'var(--notable)',
+                              fontWeight: 600,
+                            }}
+                          >
+                            {statusLabel}
+                          </span>
+                        ) : null}
                       </span>
-                    ) : null}
-                  </td>
-                  <td style={{ fontWeight: 500 }}>
-                    {r.url ? (
-                      <a href={r.url} target="_blank" rel="noreferrer">
-                        {r.title}
-                      </a>
-                    ) : (
-                      r.title
-                    )}
-                  </td>
-                  <td style={{ textAlign: 'right' }}>
-                    <button className="btn btn-accent sm" onClick={() => onWatch(r)}>
-                      <Ic n="play" size={12} /> {when === 'past' ? 'Watch recording' : 'Watch live'}
-                    </button>
-                  </td>
-                </tr>
-              ))
+                    </td>
+                    <td style={{ fontWeight: 500 }}>
+                      {r.url ? (
+                        <a href={r.url} target="_blank" rel="noreferrer">
+                          {cleanTitle}
+                        </a>
+                      ) : (
+                        cleanTitle
+                      )}
+                    </td>
+                    <td style={{ textAlign: 'right' }}>
+                      {noRecording ? (
+                        <span className="mini muted" title={`${statusLabel} — nothing to watch`}>
+                          No recording
+                        </span>
+                      ) : (
+                        <button className="btn btn-accent sm" onClick={() => onWatch(r)}>
+                          <Ic n="play" size={12} /> {when === 'past' ? 'Watch recording' : 'Watch live'}
+                        </button>
+                      )}
+                    </td>
+                  </tr>
+                );
+              })
             )}
           </tbody>
         </table>
@@ -453,8 +486,14 @@ function NewHearingModal({
       sourceUrl: presetIsMedia ? presetUrl : undefined,
       consentAttestation: undefined,
     });
+    // Auto-resolve on open when launched from a hearing row ("Watch live" /
+    // "Watch recording") — a first-party (.gov) stream becomes one-click, and
+    // when nothing is playable the user sees WHY immediately instead of a bare
+    // paste form. Manual "Add hearing" (no preset) keeps the paste-first flow;
+    // an already-usable media URL needs no resolve.
+    if (!presetIsMedia && (presetUrl || presetHearingId)) runResolve();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [open, presetTitle, presetUrl]);
+  }, [open, presetTitle, presetUrl, presetHearingId]);
 
   const runResolve = () => {
     const pageUrl = (form.getFieldValue('sourceUrl') as string | undefined)?.trim() || presetUrl;
@@ -601,6 +640,18 @@ function NewHearingModal({
           />
         ) : null}
 
+        {/* Auto-resolve in flight (opened from a hearing row). */}
+        {resolve.isPending ? (
+          <Alert
+            type="info"
+            showIcon
+            icon={<Spin size="small" />}
+            style={{ marginBottom: 12 }}
+            message="Finding a playable stream…"
+            description="Checking congress.gov video links and first-party committee sources."
+          />
+        ) : null}
+
         {/* Resolver outcomes ------------------------------------------------- */}
         {resolved?.status === 'resolved' && provenance ? (
           <Alert
@@ -680,7 +731,8 @@ function NewHearingModal({
             Renders for EVERY unresolvable outcome (so the user always gets
             feedback), even when there's no reference link (e.g. an SSRF-blocked
             note) — in that case it shows just the note. */}
-        {resolved?.status === 'unresolvable' || (!resolved && (eventPageUrl || cspanUrl)) ? (
+        {!resolve.isPending &&
+        (resolved?.status === 'unresolvable' || (!resolved && (eventPageUrl || cspanUrl))) ? (
           <Alert
             type="info"
             showIcon
