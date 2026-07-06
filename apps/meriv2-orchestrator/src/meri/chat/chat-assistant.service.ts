@@ -1,0 +1,219 @@
+import { Injectable, Logger } from '@nestjs/common';
+import { ConfigService } from '@nestjs/config';
+import { computeActionFingerprint, type MeriContext, type ToolRegistry } from '@capiro/meriv2-core';
+import { MeriRegistryService } from '../meri-registry.service.js';
+import { RequestScopedLlmClient, type AnthropicToolSchema } from '../request-scoped-llm.client.js';
+import { RequestCredentialsStore } from '../../request/request-credentials.store.js';
+import {
+  buildChatSystemPrompt,
+  toolLabel,
+  type ChatInput,
+  type ChatResult,
+  type ChatStep,
+} from './chat-prompt.js';
+
+const MAX_ROUNDS = 8;
+const MAX_TOKENS = 4096;
+const TOOL_RESULT_CHARS = 12_000;
+
+interface ContentBlock {
+  type: string;
+  text?: string;
+  id?: string;
+  name?: string;
+  input?: Record<string, unknown>;
+  [k: string]: unknown;
+}
+
+/**
+ * MeriV2-served full chat surface (Workstream C4). The bounded agentic loop over
+ * the ENTIRE tool registry (all read tools + the gated write tools), on the
+ * tenant's key (BYOK via the shared RequestScopedLlmClient). Read tools delegate
+ * to apps/api; write tools run through the registry's B1-B4 compliance gate —
+ * an unapproved write comes back as `pending_approval` (with the fingerprint the
+ * surface uses to approve), NOT as a completed action, and the model is told so.
+ *
+ * SCOPE (v1): stateless per turn — the caller threads `messages[]` (same
+ * contract as the in-editor surface). STREAMING (SSE) and server-side
+ * conversation-history persistence are deliberate follow-ups: the orchestrator
+ * has no SSE transport yet and apps/api exposes no message-append delegation
+ * endpoint, so inventing either here would be speculative. This returns a
+ * complete result; a streaming transport can wrap the same loop later.
+ */
+@Injectable()
+export class ChatAssistantService {
+  private readonly logger = new Logger(ChatAssistantService.name);
+  private readonly registry: ToolRegistry;
+  private readonly llm: RequestScopedLlmClient;
+  private readonly apiBaseUrl: string;
+  private readonly callTimeoutMs: number;
+
+  constructor(registryService: MeriRegistryService, config: ConfigService) {
+    this.registry = registryService.registry;
+    this.llm = registryService.llm; // single global-key-read site lives in the registry (BYOK4-clean)
+    this.callTimeoutMs = Number.parseInt(config.get<string>('MERIV2_TIMEOUT_MS') ?? '120000', 10);
+    this.apiBaseUrl = (
+      config.get<string>('MERIV2_API_BASE_URL') ?? 'http://localhost:3000'
+    ).replace(/\/+$/, '');
+  }
+
+  async run(ctx: MeriContext, dto: ChatInput): Promise<ChatResult> {
+    const messages: Array<{ role: 'user' | 'assistant'; content: unknown }> = (dto.messages ?? [])
+      .filter(
+        (m) => m && (m.role === 'user' || m.role === 'assistant') && typeof m.text === 'string',
+      )
+      .slice(-30)
+      .map((m) => ({ role: m.role as 'user' | 'assistant', content: m.text as string }));
+    if (!messages.length || messages[messages.length - 1]?.role !== 'user') {
+      return { reply: 'What can I help you with?' };
+    }
+
+    const system = buildChatSystemPrompt(dto, ctx);
+    const toolSchemas = await this.fetchToolSchemas();
+    const steps: ChatStep[] = [];
+    const pendingApprovals: NonNullable<ChatResult['pendingApprovals']> = [];
+
+    for (let round = 0; round < MAX_ROUNDS; round += 1) {
+      let content: ContentBlock[];
+      let stopReason: string | null;
+      try {
+        const resp = await this.llm.completeWithTools({
+          system,
+          messages,
+          tools: toolSchemas as AnthropicToolSchema[],
+          maxTokens: MAX_TOKENS,
+          timeoutMs: this.callTimeoutMs,
+        });
+        content = resp.content as ContentBlock[];
+        stopReason = resp.stopReason;
+      } catch (e) {
+        this.logger.warn(`chat model call failed: ${(e as Error).message}`);
+        return {
+          reply: 'Sorry — I hit an error reaching the model. Please try again in a moment.',
+          steps,
+          ...(pendingApprovals.length ? { pendingApprovals } : {}),
+        };
+      }
+
+      const textOut = content
+        .filter((b) => b.type === 'text' && typeof b.text === 'string')
+        .map((b) => b.text as string)
+        .join('\n')
+        .trim();
+      const toolUses = content.filter(
+        (b): b is ContentBlock & { id: string; name: string; input?: Record<string, unknown> } =>
+          b.type === 'tool_use' && typeof b.name === 'string' && typeof b.id === 'string',
+      );
+
+      if (!toolUses.length || stopReason !== 'tool_use') {
+        return {
+          reply: textOut || 'Done.',
+          steps,
+          ...(pendingApprovals.length ? { pendingApprovals } : {}),
+        };
+      }
+
+      messages.push({ role: 'assistant', content });
+      const results = await Promise.all(
+        toolUses.map(async (tu) => {
+          const result = await this.invokeTool(
+            ctx,
+            tu.name,
+            tu.input ?? {},
+            steps,
+            pendingApprovals,
+          );
+          return {
+            type: 'tool_result' as const,
+            tool_use_id: tu.id,
+            content: JSON.stringify(result ?? {}).slice(0, TOOL_RESULT_CHARS),
+          };
+        }),
+      );
+      messages.push({ role: 'user', content: results });
+    }
+
+    return {
+      reply:
+        'I gathered a lot of context but ran out of steps before finishing — ask again and I’ll continue.',
+      steps,
+      ...(pendingApprovals.length ? { pendingApprovals } : {}),
+    };
+  }
+
+  /**
+   * Run one tool through the registry (scoping + write gate enforced). A gated
+   * write throws ApprovalPendingError / ComplianceBlockedError — caught here and
+   * turned into a `pending_approval` / `blocked` step + a tool_result the model
+   * reads, so it tells the user the action awaits approval instead of claiming
+   * it ran. The fingerprint (recomputed with the same pure function the gate
+   * used) is surfaced so the client can approve, then re-run.
+   */
+  private async invokeTool(
+    ctx: MeriContext,
+    name: string,
+    input: Record<string, unknown>,
+    steps: ChatStep[],
+    pendingApprovals: NonNullable<ChatResult['pendingApprovals']>,
+  ): Promise<unknown> {
+    try {
+      const result = await this.registry.invoke(name, input, ctx);
+      steps.push({ tool: name, label: toolLabel(name), status: 'done' });
+      return result;
+    } catch (e) {
+      const err = e as Error;
+      if (err.name === 'ApprovalPendingError') {
+        const fingerprint = computeActionFingerprint(name, input, ctx);
+        steps.push({ tool: name, label: toolLabel(name), status: 'pending_approval' });
+        pendingApprovals.push({ tool: name, fingerprint, reason: err.message });
+        return {
+          pendingApproval: true,
+          fingerprint,
+          message: `This action needs the user's approval before it runs: ${err.message}`,
+        };
+      }
+      if (err.name === 'ComplianceBlockedError') {
+        steps.push({
+          tool: name,
+          label: toolLabel(name),
+          status: 'blocked',
+          detail: err.message.slice(0, 120),
+        });
+        return { blocked: true, message: `Blocked by compliance policy: ${err.message}` };
+      }
+      steps.push({
+        tool: name,
+        label: toolLabel(name),
+        status: 'error',
+        detail: err.message.slice(0, 120),
+      });
+      return { error: err.message };
+    }
+  }
+
+  /**
+   * Fetch the Anthropic tool schemas from apps/api (single source) with the
+   * caller's bearer — the FULL set (chat may use any registered tool). Filtered
+   * to what the registry actually knows so a schema for an unregistered tool
+   * can't be offered. On failure, degrade to no data tools (still answers).
+   */
+  private async fetchToolSchemas(): Promise<AnthropicToolSchema[]> {
+    const bearer = RequestCredentialsStore.get()?.bearerToken;
+    if (!bearer) {
+      this.logger.warn('chat: no bearer to fetch tool schemas; proceeding without data tools');
+      return [];
+    }
+    try {
+      const res = await fetch(`${this.apiBaseUrl}/api/clio/tool-schemas`, {
+        headers: { authorization: `Bearer ${bearer}`, accept: 'application/json' },
+      });
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      const body = (await res.json()) as { schemas?: AnthropicToolSchema[] };
+      const known = new Set(this.registry.list());
+      return (body.schemas ?? []).filter((s) => known.has(s.name));
+    } catch (e) {
+      this.logger.warn(`chat: tool-schema fetch failed (${(e as Error).message})`);
+      return [];
+    }
+  }
+}

@@ -4,7 +4,8 @@ import {
   InMemoryToolRegistry,
   PolicyApprovalGate,
   registerDelegatedTools,
-  staticCompliancePolicy,
+  ruleBasedCompliancePolicy,
+  RepoBackedApprovalStore,
   createGetClientContextTool,
   createTagLivePolicyMentionsTool,
   createGeneratePostHearingSummaryTool,
@@ -12,8 +13,11 @@ import {
 } from '@capiro/meriv2-core';
 import { ApiClientContextRepo } from './api-client-context.repo.js';
 import { ApiToolExecutorRepo } from './api-tool-executor.repo.js';
+import { ApiApprovalRepo } from './api-approval.repo.js';
 import { RequestScopedLlmClient } from './request-scoped-llm.client.js';
 import { IN_EDITOR_DELEGATED_TOOLS } from './delegated-tools.catalog.js';
+import { WRITE_DELEGATED_TOOLS } from './write-tools.catalog.js';
+import { FULL_CHAT_READ_TOOLS } from './full-chat-read-tools.catalog.js';
 
 /**
  * Owns the single MeriV2 tool registry the orchestrator hosts. Registers the
@@ -40,15 +44,23 @@ export class MeriRegistryService {
   constructor(
     clientContextRepo: ApiClientContextRepo,
     toolExecutor: ApiToolExecutorRepo,
+    approvalRepo: ApiApprovalRepo,
     config: ConfigService,
   ) {
     // Write tools fail closed: the registry requires an ApprovalGate for any
-    // `readOnly:false` tool. Wire the compliance gate now (fallback WARN =>
-    // requires human approval) so that when write tools are ported (Workstream
-    // C) they are gated from the first registration. Only read-only delegated
-    // tools are registered below, so the gate is not yet exercised.
+    // `readOnly:false` tool. The gate runs the B2 rules engine
+    // (ruleBasedCompliancePolicy — every write => WARN by the seed rule, with an
+    // auditable rule id) and, on WARN, consults the ApprovalStore (B3/B4): the
+    // RepoBackedApprovalStore fingerprints the proposed action and asks apps/api
+    // (ApiApprovalRepo) whether a human approved THIS exact action. Unapproved
+    // → ApprovalPendingError (write held); approved → proceeds. The repo is
+    // fail-closed (any error → not approved), so a WARN write never slips
+    // through unapproved. No live surface calls the write path yet.
     const registry = new InMemoryToolRegistry({
-      approvalGate: new PolicyApprovalGate(staticCompliancePolicy({ fallback: 'WARN' })),
+      approvalGate: new PolicyApprovalGate(
+        ruleBasedCompliancePolicy(),
+        new RepoBackedApprovalStore(approvalRepo),
+      ),
     });
     registry.register(createGetClientContextTool(clientContextRepo));
 
@@ -58,8 +70,45 @@ export class MeriRegistryService {
     // bridge get_client_context uses. get_client_context is already registered
     // natively above, so it is skipped here to avoid a duplicate registration.
     const delegated = IN_EDITOR_DELEGATED_TOOLS.filter((t) => t.name !== 'get_client_context');
-    const names = registerDelegatedTools((def) => registry.register(def), delegated, toolExecutor);
-    this.logger.log(`Registered ${names.length} delegated read-only tools`);
+    const readNames = registerDelegatedTools(
+      (def) => registry.register(def),
+      delegated,
+      toolExecutor,
+    );
+    this.logger.log(`Registered ${readNames.length} delegated read-only tools`);
+
+    // Workstream C (write-tool porting): the 14 side-effecting Meri tools,
+    // delegated the same way, but `readOnly:false` — every invoke now runs the
+    // PolicyApprovalGate above BEFORE the delegated call. With no ApprovalStore
+    // wired yet (B3/B4) and the WARN fallback, invoking one of these ALWAYS
+    // throws `ApprovalPendingError` and never reaches apps/api — registering
+    // them here proves the gate mechanism end-to-end without executing a real
+    // side effect or inventing an approval UX. No live surface calls these
+    // tools yet (in-editor stays read-only; full chat is not built on MeriV2).
+    const writeNames = registerDelegatedTools(
+      (def) => registry.register(def),
+      WRITE_DELEGATED_TOOLS,
+      toolExecutor,
+    );
+    this.logger.log(
+      `Registered ${writeNames.length} delegated write tools (gated: B2 rules + B3/B4 approval store)`,
+    );
+
+    // Workstream C4 substrate: the remaining read-only apps/api tools not in
+    // the in-editor allowlist (run_analysis, search_public_web, query_tasks,
+    // etc.) — closes the catalog gap toward a future full-chat surface. Same
+    // dormant registration as the write tools above: no live surface calls
+    // these yet (C4's streaming loop is not built), but the registry now has
+    // apps/api's COMPLETE 53-tool surface available (see
+    // full-chat-read-tools.catalog.spec.ts's combined-coverage assertion).
+    const fullChatReadNames = registerDelegatedTools(
+      (def) => registry.register(def),
+      FULL_CHAT_READ_TOOLS,
+      toolExecutor,
+    );
+    this.logger.log(
+      `Registered ${fullChatReadNames.length} additional read-only tools (C4 substrate)`,
+    );
 
     // BYOK2: LLM tools bind the request-scoped client, which prefers the
     // caller-passed tenant credential (x-capiro-ai-provider, option c) and only

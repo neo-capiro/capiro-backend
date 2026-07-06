@@ -177,7 +177,8 @@ export class TrackerBoardService {
     }));
     const termSet = new Set<string>();
     for (const t of topics) {
-      for (const v of [...t.keywords, ...t.synonyms, ...t.entities, ...t.riskPhrases]) termSet.add(v);
+      for (const v of [...t.keywords, ...t.synonyms, ...t.entities, ...t.riskPhrases])
+        termSet.add(v);
     }
     for (const a of compiled.issueAreas) termSet.add(a);
     return { topics, issueAreas: compiled.issueAreas, terms: Array.from(termSet) };
@@ -189,7 +190,11 @@ export class TrackerBoardService {
    * and dismissed bills, scored by the composite fit and floored at
    * RECOMMENDATION_FLOOR. Embeddings failure degrades to keyword-only.
    */
-  async getRecommendations(tenantId: string, clientId: string, limit = 25): Promise<RecommendationItem[]> {
+  async getRecommendations(
+    tenantId: string,
+    clientId: string,
+    limit = 25,
+  ): Promise<RecommendationItem[]> {
     const { topics, issueAreas, terms } = await this.compiledTopics(tenantId, clientId);
     if (!terms.length) return [];
     const congress = currentCongress();
@@ -198,7 +203,11 @@ export class TrackerBoardService {
     const semantic = new Map<string, number>();
     try {
       const vec = await embedText(normalize(terms.join('. ')));
-      const scores = await this.repo.semanticBillScores(vectorLiteral(vec), EMBEDDING_MODEL, EMBED_CANDIDATE_FLOOR);
+      const scores = await this.repo.semanticBillScores(
+        vectorLiteral(vec),
+        EMBEDDING_MODEL,
+        EMBED_CANDIDATE_FLOOR,
+      );
       for (const s of scores) {
         if (congressFromBillId(s.sourceId) === congress) semantic.set(s.sourceId, s.score);
       }
@@ -208,14 +217,24 @@ export class TrackerBoardService {
 
     const keywordIds = new Set(await this.repo.keywordCandidateIds(terms, congress));
 
-    const [tracked, dismissed] = await Promise.all([
-      this.prisma.trackedBill.findMany({ where: { tenantId, clientId }, select: { billId: true } }),
-      this.prisma.intelFeedback.findMany({
-        where: { tenantId, clientId, targetType: 'bill', signal: { in: ['dismissed', 'marked_irrelevant'] } },
-        select: { targetRef: true },
-      }),
+    const [tracked, dismissed] = await this.prisma.withTenant(tenantId, (tx) =>
+      Promise.all([
+        tx.trackedBill.findMany({ where: { tenantId, clientId }, select: { billId: true } }),
+        tx.intelFeedback.findMany({
+          where: {
+            tenantId,
+            clientId,
+            targetType: 'bill',
+            signal: { in: ['dismissed', 'marked_irrelevant'] },
+          },
+          select: { targetRef: true },
+        }),
+      ]),
+    );
+    const excluded = new Set<string>([
+      ...tracked.map((t) => t.billId),
+      ...dismissed.map((d) => d.targetRef),
     ]);
-    const excluded = new Set<string>([...tracked.map((t) => t.billId), ...dismissed.map((d) => d.targetRef)]);
 
     const candidateIds = Array.from(new Set<string>([...semantic.keys(), ...keywordIds])).filter(
       (id) => !excluded.has(id),
@@ -226,7 +245,13 @@ export class TrackerBoardService {
     const nowMs = Date.now();
     const items: RecommendationItem[] = [];
     for (const b of bills) {
-      const fit = scoreBillFit(toRelevanceBill(b), topics, issueAreas, semantic.get(b.id) ?? 0, keywordIds.has(b.id));
+      const fit = scoreBillFit(
+        toRelevanceBill(b),
+        topics,
+        issueAreas,
+        semantic.get(b.id) ?? 0,
+        keywordIds.has(b.id),
+      );
       if (fit.fit <= 0 || fit.belowFloor) continue;
       const stage = billStage(b.latestActionText);
       items.push({
@@ -259,41 +284,48 @@ export class TrackerBoardService {
 
   /** The curated tracker board: tracked bills bucketed by stage, newest-first per column. */
   async getBoard(tenantId: string, clientId: string): Promise<{ columns: BoardColumn[] }> {
-    const empty = () => BILL_STAGES.map((s) => ({ id: s.id, label: s.label, cards: [] as BoardCard[] }));
-    const tracked = await this.prisma.trackedBill.findMany({
-      where: { tenantId, clientId },
-      orderBy: { trackedAt: 'desc' },
-    });
+    const empty = () =>
+      BILL_STAGES.map((s) => ({ id: s.id, label: s.label, cards: [] as BoardCard[] }));
+    const tracked = await this.prisma.withTenant(tenantId, (tx) =>
+      tx.trackedBill.findMany({
+        where: { tenantId, clientId },
+        orderBy: { trackedAt: 'desc' },
+      }),
+    );
     if (!tracked.length) return { columns: empty() };
 
     const billIds = tracked.map((t) => t.billId);
     const [bills, { topics, issueAreas }, recentAlerts, hearingLinks] = await Promise.all([
       this.repo.fetchRecommendationBills(billIds),
       this.compiledTopics(tenantId, clientId),
-      this.prisma.intelAlert.findMany({
-        where: {
-          tenantId,
-          clientId,
-          sourceType: 'bill',
-          sourceRef: { in: billIds },
-          createdAt: { gte: new Date(Date.now() - RECENT_CHANGE_DAYS * DAY_MS) },
-        },
-        orderBy: { createdAt: 'desc' },
-        select: { sourceRef: true, changeType: true, title: true, createdAt: true },
-      }),
+      this.prisma.withTenant(tenantId, (tx) =>
+        tx.intelAlert.findMany({
+          where: {
+            tenantId,
+            clientId,
+            sourceType: 'bill',
+            sourceRef: { in: billIds },
+            createdAt: { gte: new Date(Date.now() - RECENT_CHANGE_DAYS * DAY_MS) },
+          },
+          orderBy: { createdAt: 'desc' },
+          select: { sourceRef: true, changeType: true, title: true, createdAt: true },
+        }),
+      ),
       // Phase 9: per-bill "discussed in N hearings" count from the linker's
       // `combined` alerts (tenant+client scoped; dismissed/snoozed excluded).
-      this.prisma.intelAlert.groupBy({
-        by: ['sourceRef'],
-        where: {
-          tenantId,
-          clientId,
-          sourceType: 'combined',
-          sourceRef: { in: billIds },
-          status: { notIn: ['dismissed', 'snoozed', 'suppressed'] },
-        },
-        _count: { _all: true },
-      }),
+      this.prisma.withTenant(tenantId, (tx) =>
+        tx.intelAlert.groupBy({
+          by: ['sourceRef'],
+          where: {
+            tenantId,
+            clientId,
+            sourceType: 'combined',
+            sourceRef: { in: billIds },
+            status: { notIn: ['dismissed', 'snoozed', 'suppressed'] },
+          },
+          _count: { _all: true },
+        }),
+      ),
     ]);
     const billById = new Map(bills.map((b) => [b.id, b]));
     const chipByBill = new Map<string, { label: string; changeType: string | null; at: Date }>();
@@ -321,7 +353,12 @@ export class TrackerBoardService {
         displayNum: humanizeBillId(t.billId),
         title: bill?.title ?? null,
         stage,
-        passageProbability: passageProbability({ latestActionText, title: bill?.title ?? null, latestActionDate, nowMs }),
+        passageProbability: passageProbability({
+          latestActionText,
+          title: bill?.title ?? null,
+          latestActionDate,
+          nowMs,
+        }),
         latestActionText,
         latestActionDate,
         note: t.note ?? null,
@@ -348,10 +385,12 @@ export class TrackerBoardService {
     tenantId: string,
     clientId: string,
   ): Promise<{ boardCount: number; unread: number }> {
-    const rows = await this.prisma.trackedBill.findMany({
-      where: { tenantId, clientId },
-      select: { unread: true },
-    });
+    const rows = await this.prisma.withTenant(tenantId, (tx) =>
+      tx.trackedBill.findMany({
+        where: { tenantId, clientId },
+        select: { unread: true },
+      }),
+    );
     return summarizeTrackedRows(rows);
   }
 
@@ -389,32 +428,47 @@ export class TrackerBoardService {
     const bill = await this.repo.getBillById(billId);
     if (!bill) throw new NotFoundException(`Bill ${billId} not found`);
     const stage = billStage(bill.latestActionText);
-    const tb = await this.prisma.trackedBill.upsert({
-      where: { clientId_billId: { clientId, billId } },
-      create: {
-        tenantId,
-        clientId,
-        billId,
-        source: opts?.source ?? 'congress',
-        note: opts?.note ?? null,
-        isManual: opts?.isManual ?? false,
-        trackedBy: userId,
-        stage,
-        lastSeenActionText: bill.latestActionText,
-        lastSeenActionDate: bill.latestActionDate,
-        lastSeenAt: new Date(),
-      },
-      update: opts?.note !== undefined ? { note: opts.note } : {},
-    });
-    await this.prisma.intelFeedback
-      .create({ data: { tenantId, clientId, userId, targetType: 'bill', targetRef: billId, signal: 'tracked' } })
+    const tb = await this.prisma.withTenant(tenantId, (tx) =>
+      tx.trackedBill.upsert({
+        where: { clientId_billId: { clientId, billId } },
+        create: {
+          tenantId,
+          clientId,
+          billId,
+          source: opts?.source ?? 'congress',
+          note: opts?.note ?? null,
+          isManual: opts?.isManual ?? false,
+          trackedBy: userId,
+          stage,
+          lastSeenActionText: bill.latestActionText,
+          lastSeenActionDate: bill.latestActionDate,
+          lastSeenAt: new Date(),
+        },
+        update: opts?.note !== undefined ? { note: opts.note } : {},
+      }),
+    );
+    await this.prisma
+      .withTenant(tenantId, (tx) =>
+        tx.intelFeedback.create({
+          data: {
+            tenantId,
+            clientId,
+            userId,
+            targetType: 'bill',
+            targetRef: billId,
+            signal: 'tracked',
+          },
+        }),
+      )
       .catch(() => undefined);
     return tb;
   }
 
   /** Untrack a bill (pure removal — does NOT suppress future recommendations). */
   async untrackBill(tenantId: string, clientId: string, billId: string) {
-    const res = await this.prisma.trackedBill.deleteMany({ where: { tenantId, clientId, billId } });
+    const res = await this.prisma.withTenant(tenantId, (tx) =>
+      tx.trackedBill.deleteMany({ where: { tenantId, clientId, billId } }),
+    );
     return { ok: true, removed: res.count };
   }
 
@@ -434,17 +488,19 @@ export class TrackerBoardService {
       throw new BadRequestException(`Unknown feedback signal "${input.signal}"`);
     }
     if (!input.targetRef?.trim()) throw new BadRequestException('targetRef is required');
-    await this.prisma.intelFeedback.create({
-      data: {
-        tenantId,
-        clientId,
-        userId,
-        alertId: input.alertId ?? null,
-        targetType: input.targetType ?? 'bill',
-        targetRef: input.targetRef,
-        signal: input.signal,
-      },
-    });
+    await this.prisma.withTenant(tenantId, (tx) =>
+      tx.intelFeedback.create({
+        data: {
+          tenantId,
+          clientId,
+          userId,
+          alertId: input.alertId ?? null,
+          targetType: input.targetType ?? 'bill',
+          targetRef: input.targetRef,
+          signal: input.signal,
+        },
+      }),
+    );
     return { ok: true };
   }
 }

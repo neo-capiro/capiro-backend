@@ -1,4 +1,4 @@
-import { DOMAIN_PRIMER } from '@capiro/meriv2-core';
+import { DOMAIN_PRIMER, type Confidence, type PeStructuralWarning } from '@capiro/meriv2-core';
 
 /**
  * In-editor assistant — pure prompt/edit logic, reproduced faithfully from
@@ -35,6 +35,10 @@ export interface AssistantStep {
 export interface AssistantResult {
   reply: string;
   edits: AssistantEdit[];
+  /** Grounding confidence on the proposed edits (parity with full Meri / legacy in-editor). */
+  confidence?: Confidence;
+  /** Deterministic PE structural warnings (RDT&E vs procurement, etc.). */
+  structuralWarnings?: PeStructuralWarning[];
   steps?: AssistantStep[];
 }
 

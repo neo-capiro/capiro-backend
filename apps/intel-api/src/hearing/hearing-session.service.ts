@@ -63,48 +63,54 @@ export class HearingSessionService {
       );
     }
 
-    return this.prisma.liveHearingSession.create({
-      data: {
-        tenantId,
-        createdBy: userId,
-        title: dto.title,
-        sourceType: dto.sourceType,
-        audioSource: dto.audioSource,
-        sourceUrl: dto.sourceUrl?.trim() || null,
-        recordingPolicy: dto.recordingPolicy ?? 'transcript_only',
-        consentStatus,
-        // Persist the full attestation + who/when for PRIVATE sessions (P8/D11
-        // compliance record). Public proceedings store nothing here.
-        consentAttestation: isPrivate ? attestation! : null,
-        attestedBy: isPrivate ? userId : null,
-        attestedAt: isPrivate ? new Date() : null,
-        clientId: dto.clientId ?? null,
-        matterId: dto.matterId ?? null,
-        hearingId: dto.hearingId ?? null,
-        committeeId: dto.committeeId ?? null,
-        issueIds: dto.issueIds ?? [],
-        billIds: dto.billIds ?? [],
-        programElementIds: dto.programElementIds ?? [],
-        agencyIds: dto.agencyIds ?? [],
-      },
-    });
+    return this.prisma.withTenant(tenantId, (tx) =>
+      tx.liveHearingSession.create({
+        data: {
+          tenantId,
+          createdBy: userId,
+          title: dto.title,
+          sourceType: dto.sourceType,
+          audioSource: dto.audioSource,
+          sourceUrl: dto.sourceUrl?.trim() || null,
+          recordingPolicy: dto.recordingPolicy ?? 'transcript_only',
+          consentStatus,
+          // Persist the full attestation + who/when for PRIVATE sessions (P8/D11
+          // compliance record). Public proceedings store nothing here.
+          consentAttestation: isPrivate ? attestation! : null,
+          attestedBy: isPrivate ? userId : null,
+          attestedAt: isPrivate ? new Date() : null,
+          clientId: dto.clientId ?? null,
+          matterId: dto.matterId ?? null,
+          hearingId: dto.hearingId ?? null,
+          committeeId: dto.committeeId ?? null,
+          issueIds: dto.issueIds ?? [],
+          billIds: dto.billIds ?? [],
+          programElementIds: dto.programElementIds ?? [],
+          agencyIds: dto.agencyIds ?? [],
+        },
+      }),
+    );
   }
 
   /** Tenant-scoped fetch; throws 404 if not found in this tenant. */
   async getOwned(tenantId: string, sessionId: string) {
-    const session = await this.prisma.liveHearingSession.findFirst({
-      where: { id: sessionId, tenantId },
-    });
+    const session = await this.prisma.withTenant(tenantId, (tx) =>
+      tx.liveHearingSession.findFirst({
+        where: { id: sessionId, tenantId },
+      }),
+    );
     if (!session) throw new NotFoundException('Live hearing session not found');
     return session;
   }
 
   async list(tenantId: string) {
-    return this.prisma.liveHearingSession.findMany({
-      where: { tenantId },
-      orderBy: { createdAt: 'desc' },
-      take: 100,
-    });
+    return this.prisma.withTenant(tenantId, (tx) =>
+      tx.liveHearingSession.findMany({
+        where: { tenantId },
+        orderBy: { createdAt: 'desc' },
+        take: 100,
+      }),
+    );
   }
 
   /** Confirm consent (needs_review -> confirmed). Persists the attestation. */
@@ -115,15 +121,17 @@ export class HearingSessionService {
     this.logger.log(
       `consent confirmed session=${sessionId} tenant=${tenantId} user=${userId} attestation="${attestation.slice(0, 80)}"`,
     );
-    return this.prisma.liveHearingSession.update({
-      where: { id: sessionId },
-      data: {
-        consentStatus: 'confirmed',
-        consentAttestation: attestation,
-        attestedBy: userId,
-        attestedAt: new Date(),
-      },
-    });
+    return this.prisma.withTenant(tenantId, (tx) =>
+      tx.liveHearingSession.update({
+        where: { id: sessionId },
+        data: {
+          consentStatus: 'confirmed',
+          consentAttestation: attestation,
+          attestedBy: userId,
+          attestedAt: new Date(),
+        },
+      }),
+    );
   }
 
   /**
@@ -147,13 +155,15 @@ export class HearingSessionService {
     patch?: { startedAt?: Date; endedAt?: Date },
   ) {
     await this.getOwned(tenantId, sessionId);
-    return this.prisma.liveHearingSession.update({
-      where: { id: sessionId },
-      data: {
-        status: status as never,
-        ...(patch?.startedAt ? { startedAt: patch.startedAt } : {}),
-        ...(patch?.endedAt ? { endedAt: patch.endedAt } : {}),
-      },
-    });
+    return this.prisma.withTenant(tenantId, (tx) =>
+      tx.liveHearingSession.update({
+        where: { id: sessionId },
+        data: {
+          status: status as never,
+          ...(patch?.startedAt ? { startedAt: patch.startedAt } : {}),
+          ...(patch?.endedAt ? { endedAt: patch.endedAt } : {}),
+        },
+      }),
+    );
   }
 }

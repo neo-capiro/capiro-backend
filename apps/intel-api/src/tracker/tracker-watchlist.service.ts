@@ -89,10 +89,12 @@ export class TrackerWatchlistService {
 
   async getWatchlist(tenantId: string, clientId: string): Promise<WatchlistView> {
     const wlId = `wl:${clientId}`;
-    const wl = await this.prisma.watchlist.findFirst({
-      where: { id: wlId, tenantId },
-      select: { issueAreas: true },
-    });
+    const wl = await this.prisma.withTenant(tenantId, (tx) =>
+      tx.watchlist.findFirst({
+        where: { id: wlId, tenantId },
+        select: { issueAreas: true },
+      }),
+    );
     // Never configured → surface the sector-derived issue area as a suggestion
     // so the cold client isn't blank (P6). No write on read; the editor opts in.
     if (!wl) {
@@ -104,26 +106,27 @@ export class TrackerWatchlistService {
         ...(suggested.length ? { suggestedIssueAreas: suggested } : {}),
       };
     }
-    const topics = await this.prisma.watchlistTopic.findMany({
-      where: { watchlistId: wlId, tenantId },
-      select: { id: true, label: true, issueArea: true, position: true, priority: true },
-    });
+    const topics = await this.prisma.withTenant(tenantId, (tx) =>
+      tx.watchlistTopic.findMany({
+        where: { watchlistId: wlId, tenantId },
+        select: { id: true, label: true, issueArea: true, position: true, priority: true },
+      }),
+    );
     const topicIds = topics.map((t) => t.id);
     // Topic-scoped terms + any hearing-native FLAT terms on this SAME row
     // (topicId NULL). The old WatchlistsTab wrote flat terms; the unified editor
     // now owns them, so fold them into a synthetic topic rather than dropping
     // them (putWatchlist re-persists them as topic terms — see below).
-    const terms = await this.prisma.watchlistTerm.findMany({
-      where: {
-        watchlistId: wlId,
-        tenantId,
-        OR: [
-          ...(topicIds.length ? [{ topicId: { in: topicIds } }] : []),
-          { topicId: null },
-        ],
-      },
-      select: { topicId: true, termType: true, value: true },
-    });
+    const terms = await this.prisma.withTenant(tenantId, (tx) =>
+      tx.watchlistTerm.findMany({
+        where: {
+          watchlistId: wlId,
+          tenantId,
+          OR: [...(topicIds.length ? [{ topicId: { in: topicIds } }] : []), { topicId: null }],
+        },
+        select: { topicId: true, termType: true, value: true },
+      }),
+    );
     const outTopics = topics.map((t) => ({
       label: t.label,
       issueArea: t.issueArea,
@@ -182,7 +185,8 @@ export class TrackerWatchlistService {
     const wlId = `wl:${clientId}`;
     const issueAreas = Array.isArray(input.issueAreas) ? input.issueAreas : [];
     const topics = Array.isArray(input.topics) ? input.topics : [];
-    await this.prisma.$transaction(async (tx) => {
+    // withTenant IS a $transaction (same atomic rebuild) + sets the tenant GUC.
+    await this.prisma.withTenant(tenantId, async (tx) => {
       await tx.watchlist.upsert({
         where: { id: wlId },
         create: { id: wlId, tenantId, clientId, name: 'Watchlist', createdBy: userId, issueAreas },
@@ -212,7 +216,13 @@ export class TrackerWatchlistService {
         });
         const rows = (tp.terms ?? [])
           .filter((t) => t?.value && t.value.trim().length >= MIN_TERM_LEN && t.termType)
-          .map((t) => ({ watchlistId: wlId, tenantId, topicId: topic.id, termType: t.termType, value: t.value.trim() }));
+          .map((t) => ({
+            watchlistId: wlId,
+            tenantId,
+            topicId: topic.id,
+            termType: t.termType,
+            value: t.value.trim(),
+          }));
         if (rows.length) await tx.watchlistTerm.createMany({ data: rows });
       }
     });
@@ -220,9 +230,11 @@ export class TrackerWatchlistService {
   }
 
   async getAlertPrefs(tenantId: string, clientId: string, userId: string) {
-    const row = await this.prisma.intelAlertPreference.findUnique({
-      where: { userId_clientId: { userId, clientId } },
-    });
+    const row = await this.prisma.withTenant(tenantId, (tx) =>
+      tx.intelAlertPreference.findUnique({
+        where: { userId_clientId: { userId, clientId } },
+      }),
+    );
     if (row && row.tenantId === tenantId) return row;
     return {
       clientId,
@@ -264,15 +276,26 @@ export class TrackerWatchlistService {
    * created under ANOTHER tenant (same user in two orgs) must read as absent —
    * mirrors getAlertPrefs's `row.tenantId === tenantId` read guard.
    */
-  private async assertPrefRowTenant(tenantId: string, clientId: string, userId: string): Promise<void> {
-    const existing = await this.prisma.intelAlertPreference.findUnique({
-      where: { userId_clientId: { userId, clientId } },
-      select: { tenantId: true },
-    });
+  private async assertPrefRowTenant(
+    tenantId: string,
+    clientId: string,
+    userId: string,
+  ): Promise<void> {
+    const existing = await this.prisma.withTenant(tenantId, (tx) =>
+      tx.intelAlertPreference.findUnique({
+        where: { userId_clientId: { userId, clientId } },
+        select: { tenantId: true },
+      }),
+    );
     if (existing && existing.tenantId !== tenantId) throw new NotFoundException('Client not found');
   }
 
-  async putAlertPrefs(tenantId: string, clientId: string, userId: string, input: PutAlertPrefsInput) {
+  async putAlertPrefs(
+    tenantId: string,
+    clientId: string,
+    userId: string,
+    input: PutAlertPrefsInput,
+  ) {
     await this.assertClientInTenant(tenantId, clientId);
     await this.assertPrefRowTenant(tenantId, clientId, userId);
     const data = {
@@ -289,11 +312,13 @@ export class TrackerWatchlistService {
       quietHoursStart: input.quietHoursStart ?? null,
       quietHoursEnd: input.quietHoursEnd ?? null,
     };
-    return this.prisma.intelAlertPreference.upsert({
-      where: { userId_clientId: { userId, clientId } },
-      create: { tenantId, clientId, userId, ...data },
-      update: data,
-    });
+    return this.prisma.withTenant(tenantId, (tx) =>
+      tx.intelAlertPreference.upsert({
+        where: { userId_clientId: { userId, clientId } },
+        create: { tenantId, clientId, userId, ...data },
+        update: data,
+      }),
+    );
   }
 
   /**
@@ -303,31 +328,48 @@ export class TrackerWatchlistService {
    * preserving the legacy consent contract. Client-ownership + row-tenant
    * guards mirror legacy's assertClient (cross-tenant review finding, PR-1).
    */
-  async markPhoneVerified(tenantId: string, clientId: string, userId: string, phone: string): Promise<void> {
+  async markPhoneVerified(
+    tenantId: string,
+    clientId: string,
+    userId: string,
+    phone: string,
+  ): Promise<void> {
     await this.assertClientInTenant(tenantId, clientId);
     await this.assertPrefRowTenant(tenantId, clientId, userId);
-    await this.prisma.intelAlertPreference.upsert({
-      where: { userId_clientId: { userId, clientId } },
-      update: { smsPhone: phone, smsPhoneVerified: true, smsEnabled: true },
-      create: {
-        tenantId,
-        clientId,
-        userId,
-        triggers: [...DEFAULT_TRIGGERS],
-        smsPhone: phone,
-        smsPhoneVerified: true,
-        smsEnabled: true,
-      },
-    });
+    await this.prisma.withTenant(tenantId, (tx) =>
+      tx.intelAlertPreference.upsert({
+        where: { userId_clientId: { userId, clientId } },
+        update: { smsPhone: phone, smsPhoneVerified: true, smsEnabled: true },
+        create: {
+          tenantId,
+          clientId,
+          userId,
+          triggers: [...DEFAULT_TRIGGERS],
+          smsPhone: phone,
+          smsPhoneVerified: true,
+          smsEnabled: true,
+        },
+      }),
+    );
   }
 
   async getCompiled(tenantId: string, clientId: string): Promise<CompiledWatchlist> {
     const wl = await this.getWatchlist(tenantId, clientId);
     return compileWatchlist({
       issueAreas: wl.issueAreas,
-      topics: wl.topics.map((t) => ({ label: t.label, issueArea: t.issueArea, position: t.position, priority: t.priority })),
+      topics: wl.topics.map((t) => ({
+        label: t.label,
+        issueArea: t.issueArea,
+        position: t.position,
+        priority: t.priority,
+      })),
       terms: wl.topics.flatMap((t) =>
-        t.terms.map((x) => ({ termType: x.termType, value: x.value, weight: 1, topicLabel: t.label })),
+        t.terms.map((x) => ({
+          termType: x.termType,
+          value: x.value,
+          weight: 1,
+          topicLabel: t.label,
+        })),
       ),
     });
   }

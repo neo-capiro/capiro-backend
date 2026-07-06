@@ -50,7 +50,8 @@ interface ScoreCursor {
   id: string;
 }
 
-const b64encode = (obj: unknown): string => Buffer.from(JSON.stringify(obj), 'utf8').toString('base64url');
+const b64encode = (obj: unknown): string =>
+  Buffer.from(JSON.stringify(obj), 'utf8').toString('base64url');
 const b64decode = (cur: string): any => {
   try {
     return JSON.parse(Buffer.from(cur, 'base64url').toString('utf8'));
@@ -59,7 +60,10 @@ const b64decode = (cur: string): any => {
   }
 };
 
-export function encodeCursor(order: 'date' | 'score', row: { score: number; createdAt: Date; id: string }): string {
+export function encodeCursor(
+  order: 'date' | 'score',
+  row: { score: number; createdAt: Date; id: string },
+): string {
   return order === 'score'
     ? b64encode({ s: row.score, t: row.createdAt.toISOString(), id: row.id } satisfies ScoreCursor)
     : b64encode({ t: row.createdAt.toISOString(), id: row.id } satisfies DateCursor);
@@ -80,29 +84,46 @@ export class FeedService {
    * the page (no N+1). On any decrypt/read failure the quote stays null — NEVER
    * leak ciphertext. No-op when no key is configured (e.g. non-serve contexts).
    */
-  private async decryptQuotes(items: Array<{ evidence: unknown }>): Promise<void> {
+  private async decryptQuotes(
+    tenantId: string,
+    items: Array<{ evidence: unknown }>,
+  ): Promise<void> {
     if (!this.crypto.configured) return;
     const segIds = new Set<string>();
     for (const it of items) {
-      const ev = it.evidence as { hearing?: { mentions?: Array<{ quoteSource?: string; quote?: unknown; segmentId?: string | null }> } } | null;
+      const ev = it.evidence as {
+        hearing?: {
+          mentions?: Array<{ quoteSource?: string; quote?: unknown; segmentId?: string | null }>;
+        };
+      } | null;
       for (const m of ev?.hearing?.mentions ?? []) {
         if (m?.quoteSource === 'encrypted' && !m.quote && m.segmentId) segIds.add(m.segmentId);
       }
     }
     if (!segIds.size) return;
-    const segs = await this.prisma.transcriptSegment.findMany({
-      where: { id: { in: [...segIds] } },
-      select: { id: true, textCiphertext: true, iv: true, authTag: true },
-    });
+    const segs = await this.prisma.withTenant(tenantId, (tx) =>
+      tx.transcriptSegment.findMany({
+        where: { id: { in: [...segIds] } },
+        select: { id: true, textCiphertext: true, iv: true, authTag: true },
+      }),
+    );
     const cipherById = new Map(segs.map((s) => [s.id, s]));
     for (const it of items) {
-      const ev = it.evidence as { hearing?: { mentions?: Array<{ quoteSource?: string; quote?: unknown; segmentId?: string | null }> } } | null;
+      const ev = it.evidence as {
+        hearing?: {
+          mentions?: Array<{ quoteSource?: string; quote?: unknown; segmentId?: string | null }>;
+        };
+      } | null;
       for (const m of ev?.hearing?.mentions ?? []) {
         if (m?.quoteSource !== 'encrypted' || m.quote || !m.segmentId) continue;
         const c = cipherById.get(m.segmentId);
         if (!c?.textCiphertext || !c.iv || !c.authTag) continue;
         try {
-          m.quote = this.crypto.decrypt({ textCiphertext: c.textCiphertext, iv: c.iv, authTag: c.authTag });
+          m.quote = this.crypto.decrypt({
+            textCiphertext: c.textCiphertext,
+            iv: c.iv,
+            authTag: c.authTag,
+          });
         } catch {
           /* fail closed: leave quote null, never leak ciphertext */
         }
@@ -158,33 +179,35 @@ export class FeedService {
         ? [{ score: 'desc' as const }, { createdAt: 'desc' as const }, { id: 'desc' as const }]
         : [{ createdAt: 'desc' as const }, { id: 'desc' as const }];
 
-    const rows = await this.prisma.intelAlert.findMany({
-      where,
-      orderBy,
-      take: limit + 1, // one extra to compute hasMore
-      select: {
-        id: true,
-        clientId: true,
-        sourceType: true,
-        sourceRef: true,
-        kind: true,
-        severity: true,
-        materiality: true,
-        score: true,
-        clientImpact: true,
-        urgency: true,
-        title: true,
-        whyItMatters: true,
-        recommendedAction: true,
-        evidence: true,
-        status: true,
-        createdAt: true,
-        // termId → the matched WatchlistTerm → its WatchlistTopic ("tag"). Used to
-        // surface a clean tag CHIP on the calm feed card (LegiWatch v2 / L1),
-        // resolved in a single batched read below (no hot-path per-row join).
-        termId: true,
-      },
-    });
+    const rows = await this.prisma.withTenant(tenantId, (tx) =>
+      tx.intelAlert.findMany({
+        where,
+        orderBy,
+        take: limit + 1, // one extra to compute hasMore
+        select: {
+          id: true,
+          clientId: true,
+          sourceType: true,
+          sourceRef: true,
+          kind: true,
+          severity: true,
+          materiality: true,
+          score: true,
+          clientImpact: true,
+          urgency: true,
+          title: true,
+          whyItMatters: true,
+          recommendedAction: true,
+          evidence: true,
+          status: true,
+          createdAt: true,
+          // termId → the matched WatchlistTerm → its WatchlistTopic ("tag"). Used to
+          // surface a clean tag CHIP on the calm feed card (LegiWatch v2 / L1),
+          // resolved in a single batched read below (no hot-path per-row join).
+          termId: true,
+        },
+      }),
+    );
 
     const hasMore = rows.length > limit;
     const items = hasMore ? rows.slice(0, limit) : rows;
@@ -192,15 +215,17 @@ export class FeedService {
     const nextCursor = hasMore && last ? encodeCursor(order, last) : null;
 
     // Per-sourceType counts for the SubNav badges — same filters MINUS sourceType.
-    const grouped = await this.prisma.intelAlert.groupBy({
-      by: ['sourceType'],
-      where: baseWhere,
-      _count: true,
-    });
+    const grouped = await this.prisma.withTenant(tenantId, (tx) =>
+      tx.intelAlert.groupBy({
+        by: ['sourceType'],
+        where: baseWhere,
+        _count: true,
+      }),
+    );
     const counts: Record<string, number> = {};
     for (const g of grouped) counts[g.sourceType] = g._count;
 
-    await this.decryptQuotes(items); // fill encrypted hearing quotes (fail-closed)
+    await this.decryptQuotes(tenantId, items); // fill encrypted hearing quotes (fail-closed)
 
     // Decorate each alert with its intelligent next-actions + current action state
     // (memo drafted? in weekly report? talking points?) — batch-loaded, no N+1.
@@ -214,16 +239,16 @@ export class FeedService {
     // tenant-scoped read (no per-row join, mirrors decryptQuotes/getClientNames).
     // The calm feed card shows this as a chip instead of the "why it matters"
     // prose. Falls back (in deriveTag) to a denormalized hearing-mention term.
-    const termIds = [
-      ...new Set(items.map((i) => i.termId).filter((x): x is string => Boolean(x))),
-    ];
+    const termIds = [...new Set(items.map((i) => i.termId).filter((x): x is string => Boolean(x)))];
     const termTagById = termIds.length
       ? new Map(
           (
-            await this.prisma.watchlistTerm.findMany({
-              where: { id: { in: termIds }, tenantId },
-              select: { id: true, value: true, topic: { select: { label: true } } },
-            })
+            await this.prisma.withTenant(tenantId, (tx) =>
+              tx.watchlistTerm.findMany({
+                where: { id: { in: termIds }, tenantId },
+                select: { id: true, value: true, topic: { select: { label: true } } },
+              }),
+            )
           ).map((t) => [t.id, t.topic?.label ?? t.value]),
         )
       : new Map<string, string>();
@@ -235,7 +260,10 @@ export class FeedService {
     const clientNames = clientId
       ? new Map<string, string>()
       : await this.sourceData
-          .getClientNames(tenantId, items.map((i) => i.clientId))
+          .getClientNames(
+            tenantId,
+            items.map((i) => i.clientId),
+          )
           .catch(() => new Map<string, string>());
 
     const decorated = items.map((it) => ({
@@ -267,9 +295,9 @@ function deriveTag(
   termTagById: Map<string, string>,
 ): string | null {
   if (it.termId && termTagById.has(it.termId)) return termTagById.get(it.termId) ?? null;
-  const ev = it.evidence as
-    | { hearing?: { mentions?: Array<{ term?: string | null; issueTags?: string[] | null }> } }
-    | null;
+  const ev = it.evidence as {
+    hearing?: { mentions?: Array<{ term?: string | null; issueTags?: string[] | null }> };
+  } | null;
   const mentions = ev?.hearing?.mentions ?? [];
   const byTerm = mentions.find((m) => m?.term)?.term;
   if (byTerm) return byTerm;

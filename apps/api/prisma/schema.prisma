@@ -194,6 +194,7 @@ model Tenant {
   clioMemories                 ClioMemory[]
   clioProactiveAlerts          ClioProactiveAlert[]
   clioScheduledTasks           ClioScheduledTask[]
+  meriActionApprovals          MeriActionApproval[]
   clioAttachments              ClioAttachment[]
   clioMcpServers               ClioMcpServer[]
   clioMcpOAuthCredentials      ClioMcpOAuthCredential[]
@@ -1216,6 +1217,39 @@ model ClioMemory {
   @@index([tenantId, scope, ownerUserId, updatedAt(sort: Desc)], map: "clio_memory_scope_owner_updated_idx")
   @@index([tenantId, scope, updatedAt(sort: Desc)], map: "clio_memory_scope_updated_idx")
   @@map("clio_memory")
+}
+
+/// MeriV2 write-tool approval record (Workstream B4 — the ApprovalStore's
+/// persistence). When a compliance decision is WARN, the orchestrator's gate
+/// holds the write (ApprovalPendingError) until a human approves THIS exact
+/// action. The action is identified by a stable `fingerprint` (sha256 over
+/// tenant+user+tool+canonicalized input, computed in @capiro/meriv2-core's
+/// computeActionFingerprint) — so an approval can never be replayed against a
+/// mutated action. One approved row per (tenant, user, fingerprint).
+///
+/// POLICY not yet decided (needs Neo): approval TTL (rows never expire today),
+/// WHO may approve (self-approve today; four-eyes would add an approverUserId
+/// distinct from userId), and whether one approval survives a re-run (it does
+/// today — the row persists). These are enforced by the service/endpoint on top
+/// of this table, not by the table shape. Tenant-cascade.
+model MeriActionApproval {
+  id          String   @id @default(uuid()) @db.Uuid
+  tenantId    String   @map("tenant_id") @db.Uuid
+  /// Clerk subject of the user the approval is scoped to (matches MeriContext.userId).
+  userId      String   @map("user_id")
+  /// sha256 hex from meriv2-core computeActionFingerprint (opaque to apps/api).
+  fingerprint String   @db.VarChar(64)
+  /// The write tool this approval authorizes (for display/audit; not part of the key).
+  tool        String   @db.VarChar(120)
+  status      String   @default("approved")
+  approvedBy  String   @map("approved_by")
+  createdAt   DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  @@unique([tenantId, userId, fingerprint], map: "meri_action_approval_tenant_user_fp_uniq")
+  @@index([tenantId, userId, createdAt(sort: Desc)], map: "meri_action_approval_user_created_idx")
+  @@map("meri_action_approval")
 }
 
 /// Clio self-scheduled recurring task (W3). A user asks Clio to run something on

@@ -90,18 +90,24 @@ export class BillHearingsService {
   constructor(private readonly prisma: PrismaService) {}
 
   /** Hearings that discussed a bill, for a (tenant, client). Tenant-scoped. */
-  async getBillHearings(tenantId: string, clientId: string, billId: string): Promise<BillHearingsResult> {
-    const rows = await this.prisma.intelAlert.findMany({
-      where: {
-        tenantId,
-        clientId,
-        sourceType: 'combined',
-        sourceRef: billId,
-        status: { notIn: ['dismissed', 'snoozed', 'suppressed'] },
-      },
-      orderBy: { createdAt: 'desc' },
-      select: { sourceRef: true, evidence: true, createdAt: true },
-    });
+  async getBillHearings(
+    tenantId: string,
+    clientId: string,
+    billId: string,
+  ): Promise<BillHearingsResult> {
+    const rows = await this.prisma.withTenant(tenantId, (tx) =>
+      tx.intelAlert.findMany({
+        where: {
+          tenantId,
+          clientId,
+          sourceType: 'combined',
+          sourceRef: billId,
+          status: { notIn: ['dismissed', 'snoozed', 'suppressed'] },
+        },
+        orderBy: { createdAt: 'desc' },
+        select: { sourceRef: true, evidence: true, createdAt: true },
+      }),
+    );
     return mapCombinedAlertsToHearings(rows);
   }
 }

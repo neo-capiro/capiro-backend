@@ -242,6 +242,14 @@ export const configSchema = z.object({
   AI_CREDENTIAL_ENCRYPTION_KEY: z.string().optional(),
   AI_CREDENTIAL_ENCRYPTION_KEY_VERSION: z.string().default('v1'),
 
+  // Shared secret for trusted backend-service callers (currently: intel-api's
+  // live-hearing tenant-AI-credential resolve, BYOK3). Checked by
+  // InternalServiceGuard against the `x-internal-service-secret` header — NOT
+  // a user-facing auth path, so it never returns a raw provider key to a
+  // browser-held Clerk JWT. Unset = the guarded route is fully disabled
+  // (fail-closed), not fail-open.
+  INTERNAL_SERVICE_SECRET: z.string().optional(),
+
   // 32+ byte secret used to HMAC-sign the `state` parameter in OAuth flows so
   // a callback can be tied back to the connection that started it.
   OAUTH_STATE_SECRET: z.string().optional(),

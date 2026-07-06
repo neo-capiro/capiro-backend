@@ -80,3 +80,13 @@ jobs:
       # cross-client-leakage + grounding gate is meriv2-evals.yml.
       - name: Test meriv2-core
         run: pnpm --filter @capiro/meriv2-core test
+
+      # meriv2-orchestrator's own suite (registry wiring, delegated-tool
+      # catalogs, in-editor loop, write-tool gate proof) is ALSO DB-free — every
+      # I/O boundary (apps/api tool calls, the Anthropic API) is mocked at the
+      # fetch layer. Previously untested in CI: this workflow ran typecheck for
+      # the whole repo but only ever unit-tested meriv2-core, so a regression in
+      # the orchestrator's own logic (e.g. a write tool silently bypassing the
+      # approval gate) would type-check clean and still merge.
+      - name: Test meriv2-orchestrator
+        run: pnpm --filter @capiro/meriv2-orchestrator test

@@ -25,75 +25,116 @@ export class ActionItemService {
     userId: string,
     memo: { documentAttachmentId?: string | null; title?: string | null },
   ) {
-    const existing = await this.prisma.intelActionItem.findFirst({
-      where: { tenantId, alertId, kind: 'memo' },
-      select: { id: true },
-    });
     const data = {
       documentAttachmentId: memo.documentAttachmentId ?? null,
       title: memo.title ?? null,
     };
-    if (existing) {
-      return this.prisma.intelActionItem.update({ where: { id: existing.id }, data });
-    }
-    return this.prisma.intelActionItem.create({
-      data: { tenantId, clientId, alertId, kind: 'memo', createdBy: userId, ...data },
+    return this.prisma.withTenant(tenantId, async (tx) => {
+      const existing = await tx.intelActionItem.findFirst({
+        where: { tenantId, alertId, kind: 'memo' },
+        select: { id: true },
+      });
+      if (existing) {
+        return tx.intelActionItem.update({ where: { id: existing.id }, data });
+      }
+      return tx.intelActionItem.create({
+        data: { tenantId, clientId, alertId, kind: 'memo', createdBy: userId, ...data },
+      });
     });
   }
 
   /** The memo link for an alert, if one exists (for "View memo" + reopen). */
   async getMemo(tenantId: string, alertId: string) {
-    return this.prisma.intelActionItem.findFirst({
-      where: { tenantId, alertId, kind: 'memo' },
-    });
+    return this.prisma.withTenant(tenantId, (tx) =>
+      tx.intelActionItem.findFirst({
+        where: { tenantId, alertId, kind: 'memo' },
+      }),
+    );
   }
 
   /** Append a talking point (many allowed per alert). */
-  async addTalkingPoint(tenantId: string, clientId: string, alertId: string, userId: string, text: string) {
-    return this.prisma.intelActionItem.create({
-      data: { tenantId, clientId, alertId, kind: 'talking_point', text: text.slice(0, 2000), createdBy: userId },
-    });
+  async addTalkingPoint(
+    tenantId: string,
+    clientId: string,
+    alertId: string,
+    userId: string,
+    text: string,
+  ) {
+    return this.prisma.withTenant(tenantId, (tx) =>
+      tx.intelActionItem.create({
+        data: {
+          tenantId,
+          clientId,
+          alertId,
+          kind: 'talking_point',
+          text: text.slice(0, 2000),
+          createdBy: userId,
+        },
+      }),
+    );
   }
 
   /** Toggle the weekly-report flag on an alert (idempotent). */
-  async setReport(tenantId: string, clientId: string, alertId: string, userId: string, on: boolean) {
+  async setReport(
+    tenantId: string,
+    clientId: string,
+    alertId: string,
+    userId: string,
+    on: boolean,
+  ) {
     if (!on) {
-      await this.prisma.intelActionItem.deleteMany({ where: { tenantId, alertId, kind: 'report' } });
+      await this.prisma.withTenant(tenantId, (tx) =>
+        tx.intelActionItem.deleteMany({ where: { tenantId, alertId, kind: 'report' } }),
+      );
       return { inReport: false };
     }
-    const existing = await this.prisma.intelActionItem.findFirst({
-      where: { tenantId, alertId, kind: 'report' },
-      select: { id: true },
-    });
-    if (!existing) {
-      await this.prisma.intelActionItem.create({
-        data: { tenantId, clientId, alertId, kind: 'report', createdBy: userId },
+    await this.prisma.withTenant(tenantId, async (tx) => {
+      const existing = await tx.intelActionItem.findFirst({
+        where: { tenantId, alertId, kind: 'report' },
+        select: { id: true },
       });
-    }
+      if (!existing) {
+        await tx.intelActionItem.create({
+          data: { tenantId, clientId, alertId, kind: 'report', createdBy: userId },
+        });
+      }
+    });
     return { inReport: true };
   }
 
   /** List a client's curation items (talking points / report set), newest first. */
   async listForClient(tenantId: string, clientId: string, kind?: string) {
-    return this.prisma.intelActionItem.findMany({
-      where: { tenantId, clientId, ...(kind ? { kind } : { kind: { in: ['talking_point', 'report'] } }) },
-      orderBy: { createdAt: 'desc' },
-      take: 200,
-    });
+    return this.prisma.withTenant(tenantId, (tx) =>
+      tx.intelActionItem.findMany({
+        where: {
+          tenantId,
+          clientId,
+          ...(kind ? { kind } : { kind: { in: ['talking_point', 'report'] } }),
+        },
+        orderBy: { createdAt: 'desc' },
+        take: 200,
+      }),
+    );
   }
 
   /** Batch action-state for a page of alerts (Feed decoration; no N+1). */
-  async summaryForAlerts(tenantId: string, alertIds: string[]): Promise<Map<string, AlertActionsSummary>> {
+  async summaryForAlerts(
+    tenantId: string,
+    alertIds: string[],
+  ): Promise<Map<string, AlertActionsSummary>> {
     const out = new Map<string, AlertActionsSummary>();
     if (!alertIds.length) return out;
-    const rows = await this.prisma.intelActionItem.findMany({
-      where: { tenantId, alertId: { in: alertIds } },
-      select: { alertId: true, kind: true, documentAttachmentId: true, title: true },
-    });
+    const rows = await this.prisma.withTenant(tenantId, (tx) =>
+      tx.intelActionItem.findMany({
+        where: { tenantId, alertId: { in: alertIds } },
+        select: { alertId: true, kind: true, documentAttachmentId: true, title: true },
+      }),
+    );
     for (const id of alertIds) out.set(id, { inReport: false, talkingPoints: 0 });
     for (const r of rows) {
       const s = out.get(r.alertId) ?? { inReport: false, talkingPoints: 0 };
-      if (r.kind === 'memo') s.memo = { documentAttachmentId: r.documentAttachmentId, title: r.title };
+      if (r.kind === 'memo')
+        s.memo = { documentAttachmentId: r.documentAttachmentId, title: r.title };
       else if (r.kind === 'report') s.inReport = true;
       else if (r.kind === 'talking_point') s.talkingPoints += 1;
       out.set(r.alertId, s);

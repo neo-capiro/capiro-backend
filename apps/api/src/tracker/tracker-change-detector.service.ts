@@ -457,8 +457,15 @@ export class TrackerChangeDetectorService {
   /**
    * Tenants intel-api has taken DELIVERY ownership of for the tracker cutover:
    * an ENABLED `intel_feature_flag` row for feature='tracker_owner_intel'. Reads
-   * the intel-api-owned table directly (shared Aurora; intel_* tables carry no
-   * RLS, so a plain read returns all rows regardless of tenant context).
+   * the intel-api-owned table directly (shared Aurora), cross-tenant.
+   *
+   * MUST run under `withSystem` (RLS bypass): once the intel_full_rls_hold
+   * migration FORCE-enables RLS on intel_feature_flag, a plain read on apps/api's
+   * connection (which sets no tenant GUC) returns ZERO rows — apps/api would then
+   * conclude NO tenant is intel-owned and keep delivering bill alerts for tenants
+   * intel-api is ALSO delivering for = a silent DOUBLE-SEND to real recipients
+   * (breaks the no-double-send invariant). withSystem sets app.bypass_rls so the
+   * policy admits all rows regardless of tenant context.
    *
    * Deliberately does NOT honor intel-api's internal-tenant always-on hardcode
    * (CAPIRO_INTERNAL_TENANT_ID): intel does not DELIVER for the internal tenant
@@ -467,8 +474,10 @@ export class TrackerChangeDetectorService {
    * cycle rather than deliver from both senders (no-double-send invariant).
    */
   private async intelOwnedTenantIds(): Promise<Set<string>> {
-    const rows = await this.prisma.$queryRawUnsafe<Array<{ tenant_id: string }>>(
-      `SELECT tenant_id FROM intel_feature_flag WHERE feature = 'tracker_owner_intel' AND enabled = true`,
+    const rows = await this.prisma.withSystem((tx) =>
+      tx.$queryRawUnsafe<Array<{ tenant_id: string }>>(
+        `SELECT tenant_id FROM intel_feature_flag WHERE feature = 'tracker_owner_intel' AND enabled = true`,
+      ),
     );
     return new Set(rows.map((r) => r.tenant_id));
   }

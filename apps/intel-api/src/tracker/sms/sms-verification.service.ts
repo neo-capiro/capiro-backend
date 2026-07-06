@@ -42,9 +42,11 @@ export class SmsVerificationService {
     const codeHash = hashCode(code, phone);
     const expiresAt = new Date(Date.now() + OTP_TTL_MS);
 
-    await this.prisma.intelSmsVerification.create({
-      data: { tenantId, userId, clientId: clientId ?? null, phone, codeHash, expiresAt },
-    });
+    await this.prisma.withTenant(tenantId, (tx) =>
+      tx.intelSmsVerification.create({
+        data: { tenantId, userId, clientId: clientId ?? null, phone, codeHash, expiresAt },
+      }),
+    );
 
     const result = await this.sms.send(
       phone,
@@ -70,10 +72,12 @@ export class SmsVerificationService {
     const cleanCode = (code ?? '').replace(/[^\d]/g, '');
     if (cleanCode.length !== 6) throw new BadRequestException('Enter the 6-digit code');
 
-    const row = await this.prisma.intelSmsVerification.findFirst({
-      where: { tenantId, userId, phone, consumed: false },
-      orderBy: { createdAt: 'desc' },
-    });
+    const row = await this.prisma.withTenant(tenantId, (tx) =>
+      tx.intelSmsVerification.findFirst({
+        where: { tenantId, userId, phone, consumed: false },
+        orderBy: { createdAt: 'desc' },
+      }),
+    );
     if (!row) throw new BadRequestException('No pending verification — request a new code');
     if (row.expiresAt.getTime() < Date.now()) {
       throw new BadRequestException('That code expired — request a new one');
@@ -82,16 +86,20 @@ export class SmsVerificationService {
       throw new BadRequestException('Too many attempts — request a new code');
     }
     if (row.codeHash !== hashCode(cleanCode, phone)) {
-      await this.prisma.intelSmsVerification.update({
-        where: { id: row.id },
-        data: { attempts: { increment: 1 } },
-      });
+      await this.prisma.withTenant(tenantId, (tx) =>
+        tx.intelSmsVerification.update({
+          where: { id: row.id },
+          data: { attempts: { increment: 1 } },
+        }),
+      );
       throw new BadRequestException('Incorrect code');
     }
-    await this.prisma.intelSmsVerification.update({
-      where: { id: row.id },
-      data: { consumed: true },
-    });
+    await this.prisma.withTenant(tenantId, (tx) =>
+      tx.intelSmsVerification.update({
+        where: { id: row.id },
+        data: { consumed: true },
+      }),
+    );
     return { verified: true, phone };
   }
 }

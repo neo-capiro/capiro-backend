@@ -4,6 +4,8 @@
 export * from './registry/types';
 export * from './registry/tool-registry';
 export * from './compliance/approval-gate';
+export * from './compliance/compliance-rules';
+export * from './compliance/action-approval';
 export * from './alerts/alert';
 export * from './scoping/scoping-wrapper';
 export * from './intent/intent-router';
@@ -14,3 +16,7 @@ export * from './tools/delegated/delegated-tool';
 export * from './domain/domain-primer';
 export * from './tools/hearing/tag-live-policy-mentions';
 export * from './tools/hearing/generate-post-hearing-summary';
+export * from './verifier/confidence';
+export * from './verifier/verifier-claims';
+export * from './verifier/pe-structural';
+export * from './verifier/grounding-sources';

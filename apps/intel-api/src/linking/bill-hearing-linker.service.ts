@@ -16,7 +16,16 @@ import { humanizeBillId } from '../tracker/relevance.util.js';
  * and existence-checked before use. Does NOT decrypt transcripts (§9.3).
  */
 
-const BILL_TYPE_TOKENS = new Set(['hr', 's', 'hjres', 'sjres', 'hconres', 'sconres', 'hres', 'sres']);
+const BILL_TYPE_TOKENS = new Set([
+  'hr',
+  's',
+  'hjres',
+  'sjres',
+  'hconres',
+  'sconres',
+  'hres',
+  'sres',
+]);
 
 /**
  * Best-effort canonicalize a hearing bill reference → congress_bill.id form
@@ -25,7 +34,11 @@ const BILL_TYPE_TOKENS = new Set(['hr', 's', 'hjres', 'sjres', 'hconres', 'sconr
  * billIds first, else fall back to the current congress. Returns null if the ref
  * isn't a recognizable bill token (caller drops it; existence is verified after).
  */
-export function canonicalizeBillRef(ref: string, sessionBillIds: string[], congress: number): string | null {
+export function canonicalizeBillRef(
+  ref: string,
+  sessionBillIds: string[],
+  congress: number,
+): string | null {
   const raw = (ref ?? '').trim().toLowerCase();
   if (!raw) return null;
   if (/^\d+-[a-z]+-\d+$/.test(raw)) return raw; // already canonical
@@ -81,11 +94,16 @@ export class BillHearingLinkerService {
   /** Sweep hearing sessions ended since an ISO time (default: all with billIds). */
   async linkAll(sinceIso?: string): Promise<LinkSweepResult> {
     const since = sinceIso ? new Date(sinceIso) : undefined;
-    const sessions = await this.prisma.liveHearingSession.findMany({
-      where: since ? { endedAt: { gte: since } } : {},
-      select: { id: true, tenantId: true },
-      orderBy: { endedAt: 'desc' },
-    });
+    // Cross-tenant sweep: reads sessions across ALL tenants to fan out, then
+    // links each under its own tenant scope (linkSession). Under RLS this MUST
+    // bypass (withSystem) — a tenant-scoped read would see only one tenant.
+    const sessions = await this.prisma.withSystem((tx) =>
+      tx.liveHearingSession.findMany({
+        where: since ? { endedAt: { gte: since } } : {},
+        select: { id: true, tenantId: true },
+        orderBy: { endedAt: 'desc' },
+      }),
+    );
     let combined = 0;
     let skipped = 0;
     for (const s of sessions) {
@@ -102,7 +120,11 @@ export class BillHearingLinkerService {
    * the correctness backstop.
    */
   async linkSession(tenantId: string, sessionId: string): Promise<LinkSessionResult> {
-    return this.prisma.$transaction(async (tx) => {
+    // withTenant IS a $transaction (same advisory-lock + upsert semantics) that
+    // additionally sets app.current_tenant, so the intel_* reads/writes below
+    // (entityMention, transcriptSegment, trackedBill, intelAlert) respect RLS.
+    // GLOBAL reads (congress_bill via raw SQL) are unaffected — not intel_*.
+    return this.prisma.withTenant(tenantId, async (tx) => {
       const lock = await tx.$queryRawUnsafe<Array<{ locked: boolean }>>(
         `SELECT pg_try_advisory_xact_lock(hashtext($1)) AS locked`,
         `link:${sessionId}`,
@@ -111,7 +133,14 @@ export class BillHearingLinkerService {
 
       const session = await tx.liveHearingSession.findUnique({
         where: { id: sessionId },
-        select: { clientId: true, billIds: true, title: true, committeeId: true, startedAt: true, endedAt: true },
+        select: {
+          clientId: true,
+          billIds: true,
+          title: true,
+          committeeId: true,
+          startedAt: true,
+          endedAt: true,
+        },
       });
       if (!session) return { combined: 0, skipped: false };
 
@@ -144,13 +173,22 @@ export class BillHearingLinkerService {
       // Resolve mention segments once (speaker/quote/tags per §9.3 — no decryption).
       const segIds = Array.from(
         new Set(
-          [...mentionsByBill.values()].flat().map((x) => x.segmentId).filter((x): x is string => Boolean(x)),
+          [...mentionsByBill.values()]
+            .flat()
+            .map((x) => x.segmentId)
+            .filter((x): x is string => Boolean(x)),
         ),
       );
       const segs = segIds.length
         ? await tx.transcriptSegment.findMany({
             where: { id: { in: segIds } },
-            select: { id: true, startMs: true, resolvedSpeakerName: true, textPlain: true, issueTags: true },
+            select: {
+              id: true,
+              startMs: true,
+              resolvedSpeakerName: true,
+              textPlain: true,
+              issueTags: true,
+            },
           })
         : [];
       const segById = new Map(segs.map((s) => [s.id, s]));
@@ -202,7 +240,9 @@ export class BillHearingLinkerService {
               url: bill.url,
               stage,
               actionText: bill.latestActionText,
-              actionDate: bill.latestActionDate ? bill.latestActionDate.toISOString().slice(0, 10) : null,
+              actionDate: bill.latestActionDate
+                ? bill.latestActionDate.toISOString().slice(0, 10)
+                : null,
             },
             hearing: {
               sessionId,
@@ -216,7 +256,7 @@ export class BillHearingLinkerService {
                   segmentId: m.segmentId,
                   timestampMs: seg?.startMs ?? null,
                   speakerName: seg?.resolvedSpeakerName ?? null,
-                  quote: hasPlain ? seg?.textPlain ?? null : null,
+                  quote: hasPlain ? (seg?.textPlain ?? null) : null,
                   quoteSource: hasPlain ? 'textPlain' : 'encrypted',
                   issueTags: seg?.issueTags ?? [],
                 };

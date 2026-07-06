@@ -1,8 +1,15 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service.js';
-import { FeatureFlagService, TRACKER_OWNER_FEATURE } from '../feature-flags/feature-flag.service.js';
+import {
+  FeatureFlagService,
+  TRACKER_OWNER_FEATURE,
+} from '../feature-flags/feature-flag.service.js';
 import { IntelEmailService } from './intel-email.service.js';
-import { clearsMateriality, type AlertSeverity, type IntelAlertEvent } from './intel-alert.types.js';
+import {
+  clearsMateriality,
+  type AlertSeverity,
+  type IntelAlertEvent,
+} from './intel-alert.types.js';
 
 type Channel = 'email' | 'sms' | 'in_app';
 
@@ -16,8 +23,10 @@ type Channel = 'email' | 'sms' | 'in_app';
  * with status `suppressed_shadow`, and RETURNS before `email.send()`. Even the
  * always-owned internal tenant never sends, because the kill-switch is off.
  *
- * All tables are `intel_*` (no RLS) → plain tenant-filtered queries; no
- * withTenant/withSystem needed here.
+ * RLS (G3): per-tenant reads/writes go through `withTenant`; the cross-tenant
+ * sweeps (emitNewBillAlerts scans all tenants' new bill alerts, flushDigests
+ * drains the queue by cadence across tenants) go through `withSystem` and then
+ * fan out per-tenant.
  */
 @Injectable()
 export class IntelAlertService {
@@ -47,10 +56,12 @@ export class IntelAlertService {
     status: string,
   ): Promise<string | null> {
     try {
-      const row = await this.prisma.intelNotificationLog.create({
-        data: { tenantId, clientId, userId, alertId, channel, status },
-        select: { id: true },
-      });
+      const row = await this.prisma.withTenant(tenantId, (tx) =>
+        tx.intelNotificationLog.create({
+          data: { tenantId, clientId, userId, alertId, channel, status },
+          select: { id: true },
+        }),
+      );
       return row.id;
     } catch (e) {
       if ((e as { code?: string }).code === 'P2002') return null;
@@ -66,9 +77,11 @@ export class IntelAlertService {
     const owned = await this.flags.isEnabled(TRACKER_OWNER_FEATURE, event.tenantId);
     const canSend = owned && !this.killSwitchOff(); // shadow: false (kill-switch off)
     const alertId = IntelAlertService.alertId(event.clientId, event.billId, event.changeType);
-    const prefs = await this.prisma.intelAlertPreference.findMany({
-      where: { tenantId: event.tenantId, clientId: event.clientId },
-    });
+    const prefs = await this.prisma.withTenant(event.tenantId, (tx) =>
+      tx.intelAlertPreference.findMany({
+        where: { tenantId: event.tenantId, clientId: event.clientId },
+      }),
+    );
 
     let suppressed = 0;
     let sent = 0;
@@ -94,19 +107,39 @@ export class IntelAlertService {
             wouldSendAt: new Date().toISOString(),
           }),
         );
-        await this.claim(event.tenantId, event.clientId, pref.userId, alertId, 'email', 'suppressed_shadow');
+        await this.claim(
+          event.tenantId,
+          event.clientId,
+          pref.userId,
+          alertId,
+          'email',
+          'suppressed_shadow',
+        );
         suppressed += 1;
         continue;
       }
 
       // owned && kill-switch on → real delivery (Phase 8 cutover ONLY).
-      const logId = await this.claim(event.tenantId, event.clientId, pref.userId, alertId, 'email', 'sending');
+      const logId = await this.claim(
+        event.tenantId,
+        event.clientId,
+        pref.userId,
+        alertId,
+        'email',
+        'sending',
+      );
       if (logId) {
         const res = await this.email.send(pref.emailAddress, subject, `<p>${subject}</p>`, subject);
-        await this.prisma.intelNotificationLog.update({
-          where: { id: logId },
-          data: { status: res.sent ? 'sent' : 'failed', providerMessageId: res.messageId ?? null, error: res.error ?? null },
-        });
+        await this.prisma.withTenant(event.tenantId, (tx) =>
+          tx.intelNotificationLog.update({
+            where: { id: logId },
+            data: {
+              status: res.sent ? 'sent' : 'failed',
+              providerMessageId: res.messageId ?? null,
+              error: res.error ?? null,
+            },
+          }),
+        );
         if (res.sent) sent += 1;
       }
     }
@@ -118,11 +151,15 @@ export class IntelAlertService {
    * the notification-log @@unique makes re-runs no-ops. Returns counters.
    */
   async emitNewBillAlerts(): Promise<{ alerts: number; suppressed: number; sent: number }> {
-    const rows = await this.prisma.intelAlert.findMany({
-      where: { sourceType: 'bill', status: 'new', deliveredAt: null },
-      orderBy: { createdAt: 'asc' },
-      take: 5000,
-    });
+    // Cross-tenant emit sweep: reads NEW bill alerts across ALL tenants, then
+    // fanOut re-scopes each to its own tenant. Under RLS this MUST bypass.
+    const rows = await this.prisma.withSystem((tx) =>
+      tx.intelAlert.findMany({
+        where: { sourceType: 'bill', status: 'new', deliveredAt: null },
+        orderBy: { createdAt: 'asc' },
+        take: 5000,
+      }),
+    );
     let suppressed = 0;
     let sent = 0;
     for (const a of rows) {
@@ -161,9 +198,20 @@ export class IntelAlertService {
    */
   async flushDigests(cadence: 'daily' | 'weekly'): Promise<{ flushed: number; sent: number }> {
     // Claim-on-read: atomically mark a batch flushed and return it, so a
-    // concurrent run cannot grab the same rows (§7.3a).
-    const claimed = await this.prisma.$queryRawUnsafe<Array<{ id: string; tenant_id: string; user_id: string; channel: string; client_id: string }>>(
-      `UPDATE intel_alert_digest_queue
+    // concurrent run cannot grab the same rows (§7.3a). Cross-tenant drain by
+    // cadence → withSystem (bypass RLS); the per-group send below re-checks the
+    // per-tenant ownership flag.
+    const claimed = await this.prisma.withSystem((tx) =>
+      tx.$queryRawUnsafe<
+        Array<{
+          id: string;
+          tenant_id: string;
+          user_id: string;
+          channel: string;
+          client_id: string;
+        }>
+      >(
+        `UPDATE intel_alert_digest_queue
           SET flushed = true
         WHERE id IN (
           SELECT id FROM intel_alert_digest_queue
@@ -173,14 +221,19 @@ export class IntelAlertService {
            FOR UPDATE SKIP LOCKED
         )
       RETURNING id, tenant_id, user_id, channel, client_id`,
-      cadence,
+        cadence,
+      ),
     );
     if (!claimed.length) return { flushed: 0, sent: 0 };
 
     let sent = 0;
     const groups = new Map<string, { tenantId: string; userId: string; clientId: string }>();
     for (const r of claimed) {
-      groups.set(`${r.tenant_id}|${r.user_id}|${r.channel}`, { tenantId: r.tenant_id, userId: r.user_id, clientId: r.client_id });
+      groups.set(`${r.tenant_id}|${r.user_id}|${r.channel}`, {
+        tenantId: r.tenant_id,
+        userId: r.user_id,
+        clientId: r.client_id,
+      });
     }
     for (const g of groups.values()) {
       const owned = await this.flags.isEnabled(TRACKER_OWNER_FEATURE, g.tenantId);
@@ -195,13 +248,28 @@ export class IntelAlertService {
    * for a synthetic alert, proving it LOGS a would-send + writes a
    * `suppressed_shadow` row + sends nothing, without needing a real bill move.
    */
-  async shadowSelftest(tenantId: string, clientId: string, email = 'selftest@example.com'): Promise<{ suppressed: boolean; sent: number }> {
+  async shadowSelftest(
+    tenantId: string,
+    clientId: string,
+    email = 'selftest@example.com',
+  ): Promise<{ suppressed: boolean; sent: number }> {
     const owned = await this.flags.isEnabled(TRACKER_OWNER_FEATURE, tenantId);
     const canSend = owned && !this.killSwitchOff();
     const alertId = IntelAlertService.alertId(clientId, 'selftest-bill', 'bill_amendment');
     const subject = '[Capiro] SELFTEST: shadow suppress';
     this.logger.log(
-      JSON.stringify({ shadow: true, selftest: true, tenantId, clientId, alertId, channel: 'email', to: email, subject, canSend, wouldSendAt: new Date().toISOString() }),
+      JSON.stringify({
+        shadow: true,
+        selftest: true,
+        tenantId,
+        clientId,
+        alertId,
+        channel: 'email',
+        to: email,
+        subject,
+        canSend,
+        wouldSendAt: new Date().toISOString(),
+      }),
     );
     if (canSend) {
       // Would be a real send at cutover; NOT exercised here (selftest asserts shadow).

@@ -98,8 +98,7 @@ export class GenerationService {
         | Array<{ peCode?: string; title?: string; context?: string }>
         | undefined) ?? [];
     const authPes =
-      authoritativePes ??
-      (await this.peResolver.resolve(linkedPes.map((pe) => pe.peCode)));
+      authoritativePes ?? (await this.peResolver.resolve(linkedPes.map((pe) => pe.peCode)));
     const authByCode = new Map(authPes.map((r) => [r.peCode.toUpperCase(), r]));
 
     const peText = linkedPes
@@ -283,8 +282,26 @@ export class GenerationService {
     // inferred return type (the orchestrator returns the same draft shape by
     // contract); the parity harness (SC0.3) is the gate before enablement.
     if (await this.meriV2Flags.isWorkspaceGenEnabled(tenantId)) {
-      return (await this.meriV2.proxyGenerateAllSections(tenantId, draftId, opts?.bearerToken)) as never;
+      return (await this.meriV2.proxyGenerateAllSections(
+        tenantId,
+        draftId,
+        opts?.bearerToken,
+      )) as never;
     }
+    return this.generateAllSectionsInProcess(tenantId, draftId);
+  }
+
+  /**
+   * The in-process generate-all body (prompt assembly + LLM + anonymization +
+   * structural warnings + persist). Extracted verbatim from generateAllSections
+   * so BOTH the flag-off path above AND the orchestrator-routed direct endpoint
+   * (generate-all-direct → this) share ONE implementation — the compliance-
+   * sensitive anonymization and PE grounding stay HERE (apps/workspace owns its
+   * data + doctrine), never duplicated into the orchestrator. The orchestrator's
+   * /meri-api/workspace-generation is the routing seam; deeper reasoning-
+   * consolidation into meriv2-core awaits the ws_* ownership decision (Neo).
+   */
+  async generateAllSectionsInProcess(tenantId: string, draftId: string) {
     const draft = await this.prisma.wsDraft.findFirst({ where: { id: draftId, tenantId } });
     if (!draft) throw new ServiceUnavailableException('Draft not found');
     const cfg = draft.config as Record<string, unknown>;
@@ -301,8 +318,7 @@ export class GenerationService {
     // each draft is grounded in real mission/appropriation/budget data and we
     // don't issue N duplicate lookups. Best-effort: an unresolved PE falls back
     // to attached context inside generateSection.
-    const linkedPes =
-      (cfg.linkedProgramElements as Array<{ peCode?: string }> | undefined) ?? [];
+    const linkedPes = (cfg.linkedProgramElements as Array<{ peCode?: string }> | undefined) ?? [];
     const authPes = await this.peResolver.resolve(linkedPes.map((pe) => pe.peCode));
 
     await Promise.all(
@@ -324,13 +340,82 @@ export class GenerationService {
     // warnings at creation time — not just on edit.
     const structuralWarnings = this.computeStructuralWarnings(cfg, sectionContent, authPes);
 
+    return this.persistGeneratedSections(tenantId, draftId, cfg, {
+      sectionContent,
+      sectionMeta,
+      structuralWarnings,
+    });
+  }
+
+  /**
+   * Persist already-generated section content into the draft's config
+   * (REPLACES sectionContent/sectionMeta/structuralWarnings; every other cfg
+   * field is preserved). The one write path both `generateAllSections`
+   * (in-process reasoning) and `applyGeneratedSections` (orchestrator-driven
+   * reasoning) funnel through — "workspace is the only writer" holds no
+   * matter which surface computed the content.
+   */
+  private async persistGeneratedSections(
+    tenantId: string,
+    draftId: string,
+    cfg: Record<string, unknown>,
+    sections: {
+      sectionContent: Record<string, string>;
+      sectionMeta: Record<string, { status: string }>;
+      structuralWarnings: PeStructuralWarning[];
+    },
+  ) {
     await this.prisma.wsDraft.update({
       where: { id: draftId },
-      data: { config: { ...cfg, sectionContent, sectionMeta, structuralWarnings } as never },
+      data: { config: { ...cfg, ...sections } as never },
     });
     return this.prisma.wsDraft.findFirst({
       where: { id: draftId, tenantId },
       include: { documents: { orderBy: { ordinal: 'asc' } } },
+    });
+  }
+
+  /**
+   * Apply section content the MeriV2 orchestrator generated (the dormant
+   * flag-gated proxy branch in `generateAllSections`) — the write-back half of
+   * the orchestrator-generation contract. The orchestrator does the
+   * REASONING (prompt assembly + LLM call, mirroring this service's own
+   * generateSection); apps/workspace still performs the ONLY write to
+   * ws_draft.config, so the "workspace is the only writer" doctrine holds
+   * literally even when the content came from a different reasoning surface.
+   * Tenant-scoped like every other draft mutation — a caller can already set
+   * their own draft's section content via the normal editor save path, so this
+   * grants no new capability, only a new source for the content.
+   */
+  async applyGeneratedSections(
+    tenantId: string,
+    draftId: string,
+    input: {
+      sectionContent?: Record<string, string>;
+      sectionMeta?: Record<string, { status: string }>;
+      structuralWarnings?: PeStructuralWarning[];
+    },
+  ) {
+    const draft = await this.prisma.wsDraft.findFirst({ where: { id: draftId, tenantId } });
+    if (!draft) throw new ServiceUnavailableException('Draft not found');
+    const cfg = draft.config as Record<string, unknown>;
+
+    const sectionContent =
+      input.sectionContent && typeof input.sectionContent === 'object'
+        ? input.sectionContent
+        : ((cfg.sectionContent as Record<string, string> | undefined) ?? {});
+    const sectionMeta =
+      input.sectionMeta && typeof input.sectionMeta === 'object'
+        ? input.sectionMeta
+        : ((cfg.sectionMeta as Record<string, { status: string }> | undefined) ?? {});
+    const structuralWarnings = Array.isArray(input.structuralWarnings)
+      ? input.structuralWarnings
+      : [];
+
+    return this.persistGeneratedSections(tenantId, draftId, cfg, {
+      sectionContent,
+      sectionMeta,
+      structuralWarnings,
     });
   }
 
@@ -346,11 +431,18 @@ export class GenerationService {
     sectionContent: Record<string, string>,
     authPes: AuthoritativePeRecord[] = [],
   ): PeStructuralWarning[] {
-    const fullText = Object.values(sectionContent).join('\n').replace(/<[^>]*>/g, ' ');
+    const fullText = Object.values(sectionContent)
+      .join('\n')
+      .replace(/<[^>]*>/g, ' ');
     if (!fullText.trim()) return [];
     const linkedPes =
       (cfg.linkedProgramElements as
-        | Array<{ peCode?: string; title?: string; appropriationType?: string; budgetActivity?: string }>
+        | Array<{
+            peCode?: string;
+            title?: string;
+            appropriationType?: string;
+            budgetActivity?: string;
+          }>
         | undefined) ?? [];
     const pes: PeRecordForValidation[] = [];
     const seen = new Set<string>();
@@ -435,7 +527,9 @@ export class GenerationService {
           ? `Client: ${args.client}.`
           : '',
       steering.firmContext ? `\n${steering.firmContext}` : '',
-      steering.userVoiceContext ? `\nWrite in this author's voice:\n${steering.userVoiceContext}` : '',
+      steering.userVoiceContext
+        ? `\nWrite in this author's voice:\n${steering.userVoiceContext}`
+        : '',
       '',
       `Highlighted passage:\n"""${args.quote}"""`,
       '',
@@ -505,7 +599,8 @@ export class GenerationService {
         const body = renderHuman(r.sections);
         if (!body) continue;
         if (r.type === 'firm-soul') firmBlocks.push(`Firm identity (Firm Soul):\n${body}`);
-        else if (r.type === 'firm-compass') firmBlocks.push(`Firm direction (Firm Compass):\n${body}`);
+        else if (r.type === 'firm-compass')
+          firmBlocks.push(`Firm direction (Firm Compass):\n${body}`);
         else if (r.type === 'user-voice') userVoiceContext = body;
       }
       return {

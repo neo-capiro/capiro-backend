@@ -49,15 +49,19 @@ export class TrackerSeedService {
   async getSeedSuggestions(tenantId: string, clientId: string): Promise<SeedSuggestions> {
     const wlId = `wl:${clientId}`;
     const [wl, client, caps] = await Promise.all([
-      this.prisma.watchlist.findFirst({ where: { id: wlId, tenantId }, select: { issueAreas: true } }),
+      this.prisma.withTenant(tenantId, (tx) =>
+        tx.watchlist.findFirst({ where: { id: wlId, tenantId }, select: { issueAreas: true } }),
+      ),
       this.repo.getClientProfile(tenantId, clientId),
       this.repo.getClientCapabilities(tenantId, clientId),
     ]);
     const topics = wl
-      ? await this.prisma.watchlistTopic.findMany({
-          where: { watchlistId: wlId, tenantId },
-          select: { label: true },
-        })
+      ? await this.prisma.withTenant(tenantId, (tx) =>
+          tx.watchlistTopic.findMany({
+            where: { watchlistId: wlId, tenantId },
+            select: { label: true },
+          }),
+        )
       : [];
 
     const clientArea = issueAreaForSector(client?.sectorTag);

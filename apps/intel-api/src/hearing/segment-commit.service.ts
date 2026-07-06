@@ -61,33 +61,42 @@ export class SegmentCommitService {
     const textFields = this.buildTextFields(segment.text, clientRelevant);
 
     try {
-      const created = await this.prisma.transcriptSegment.upsert({
-        where: {
-          sessionId_startMs_endMs: {
+      const created = await this.prisma.withTenant(tenantId, (tx) =>
+        tx.transcriptSegment.upsert({
+          where: {
+            sessionId_startMs_endMs: {
+              sessionId,
+              startMs: segment.startMs,
+              endMs: segment.endMs,
+            },
+          },
+          update: {}, // idempotent: a replayed final after reconnect is a no-op
+          create: {
             sessionId,
+            tenantId,
             startMs: segment.startMs,
             endMs: segment.endMs,
+            speakerLabel: segment.speakerLabel ?? null,
+            resolvedSpeakerId: extraction.resolvedSpeakerId ?? null,
+            resolvedSpeakerName: extraction.resolvedSpeakerName ?? null,
+            isFinal: true,
+            confidence: segment.confidence ?? null,
+            source: 'deepgram',
+            clientRelevanceScore: extraction.clientRelevanceScore ?? null,
+            issueTags: extraction.issueTags,
+            ...textFields,
           },
-        },
-        update: {}, // idempotent: a replayed final after reconnect is a no-op
-        create: {
-          sessionId,
-          tenantId,
-          startMs: segment.startMs,
-          endMs: segment.endMs,
-          speakerLabel: segment.speakerLabel ?? null,
-          resolvedSpeakerId: extraction.resolvedSpeakerId ?? null,
-          resolvedSpeakerName: extraction.resolvedSpeakerName ?? null,
-          isFinal: true,
-          confidence: segment.confidence ?? null,
-          source: 'deepgram',
-          clientRelevanceScore: extraction.clientRelevanceScore ?? null,
-          issueTags: extraction.issueTags,
-          ...textFields,
-        },
-      });
+        }),
+      );
 
-      await this.persistDerived(tenantId, sessionId, created.id, segment.startMs, extraction, clientRelevant);
+      await this.persistDerived(
+        tenantId,
+        sessionId,
+        created.id,
+        segment.startMs,
+        extraction,
+        clientRelevant,
+      );
       return created.id;
     } catch (err) {
       this.logger.error(`commitFinal failed for session ${sessionId}: ${(err as Error).message}`);
@@ -126,17 +135,19 @@ export class SegmentCommitService {
 
     for (const m of extraction.entityMentions) {
       ops.push(
-        this.prisma.entityMention.create({
-          data: {
-            sessionId,
-            tenantId,
-            segmentId,
-            entityType: m.entityType,
-            entityRef: m.entityRef ?? null,
-            entityLabel: m.entityLabel,
-            confidence: m.confidence ?? null,
-          },
-        }),
+        this.prisma.withTenant(tenantId, (tx) =>
+          tx.entityMention.create({
+            data: {
+              sessionId,
+              tenantId,
+              segmentId,
+              entityType: m.entityType,
+              entityRef: m.entityRef ?? null,
+              entityLabel: m.entityLabel,
+              confidence: m.confidence ?? null,
+            },
+          }),
+        ),
       );
     }
 
@@ -144,45 +155,57 @@ export class SegmentCommitService {
       const q = extraction.keyQuote;
       const qText = clientRelevant && this.crypto.configured ? this.crypto.encrypt(q.text) : null;
       ops.push(
-        this.prisma.keyQuote.create({
-          data: {
-            sessionId,
-            tenantId,
-            segmentId,
-            startMs,
-            confidence: q.confidence ?? null,
-            issueTags: q.issueTags,
-            textCiphertext: qText?.textCiphertext ?? null,
-            iv: qText?.iv ?? null,
-            authTag: qText?.authTag ?? null,
-            keyVersion: qText?.keyVersion ?? null,
-            textPlain: qText ? null : clientRelevant ? null : q.text,
-          },
-        }),
+        this.prisma.withTenant(tenantId, (tx) =>
+          tx.keyQuote.create({
+            data: {
+              sessionId,
+              tenantId,
+              segmentId,
+              startMs,
+              confidence: q.confidence ?? null,
+              issueTags: q.issueTags,
+              textCiphertext: qText?.textCiphertext ?? null,
+              iv: qText?.iv ?? null,
+              authTag: qText?.authTag ?? null,
+              keyVersion: qText?.keyVersion ?? null,
+              textPlain: qText ? null : clientRelevant ? null : q.text,
+            },
+          }),
+        ),
       );
     }
 
     if (extraction.actionItem) {
       ops.push(
-        this.prisma.liveActionItem.create({
-          data: { sessionId, tenantId, segmentId, startMs, description: extraction.actionItem.description },
-        }),
+        this.prisma.withTenant(tenantId, (tx) =>
+          tx.liveActionItem.create({
+            data: {
+              sessionId,
+              tenantId,
+              segmentId,
+              startMs,
+              description: extraction.actionItem!.description,
+            },
+          }),
+        ),
       );
     }
 
     if (extraction.summaryCard) {
       ops.push(
-        this.prisma.liveSummaryCard.create({
-          data: {
-            sessionId,
-            tenantId,
-            segmentId,
-            startMs,
-            cardType: extraction.summaryCard.cardType,
-            title: extraction.summaryCard.title,
-            body: extraction.summaryCard.body ?? null,
-          },
-        }),
+        this.prisma.withTenant(tenantId, (tx) =>
+          tx.liveSummaryCard.create({
+            data: {
+              sessionId,
+              tenantId,
+              segmentId,
+              startMs,
+              cardType: extraction.summaryCard!.cardType,
+              title: extraction.summaryCard!.title,
+              body: extraction.summaryCard!.body ?? null,
+            },
+          }),
+        ),
       );
     }
 

@@ -148,6 +148,14 @@ export class AppModule implements NestModule {
         // Public marketing endpoint (capiro.ai Insights page) — no Clerk session.
         { path: '/api/insights', method: RequestMethod.GET },
         { path: 'api/insights', method: RequestMethod.GET },
+        // Internal service-to-service endpoints (BYOK3: intel-api resolves a
+        // tenant AI credential for live-hearing extraction). Authenticated by
+        // InternalServiceGuard (shared INTERNAL_SERVICE_SECRET header), NOT a
+        // Clerk session — the caller sends no Bearer, so TenantContextMiddleware
+        // MUST be excluded or it 401s before the guard runs (the endpoint reads
+        // tenantId from the body, never from req.tenantContext).
+        { path: '/api/internal/(.*)', method: RequestMethod.ALL },
+        { path: 'api/internal/(.*)', method: RequestMethod.ALL },
       )
       .forRoutes('*');
 

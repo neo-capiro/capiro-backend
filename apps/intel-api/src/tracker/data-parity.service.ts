@@ -51,7 +51,10 @@ export class DataParityService {
   private async legacyRows<T>(cols: string, table: string, tenantId: string | null): Promise<T[]> {
     return this.prisma.withSystem((tx) =>
       tenantId
-        ? tx.$queryRawUnsafe<T[]>(`SELECT ${cols} FROM ${table} WHERE tenant_id = $1::uuid`, tenantId)
+        ? tx.$queryRawUnsafe<T[]>(
+            `SELECT ${cols} FROM ${table} WHERE tenant_id = $1::uuid`,
+            tenantId,
+          )
         : tx.$queryRawUnsafe<T[]>(`SELECT ${cols} FROM ${table}`),
     );
   }
@@ -95,7 +98,9 @@ export class DataParityService {
             `SELECT ${cols} ${from} WHERE ap.tenant_id = $1::uuid`,
             tenantId,
           )
-        : tx.$queryRawUnsafe<Array<LegacyAlertPrefRow & { user_id: string | null }>>(`SELECT ${cols} ${from}`),
+        : tx.$queryRawUnsafe<Array<LegacyAlertPrefRow & { user_id: string | null }>>(
+            `SELECT ${cols} ${from}`,
+          ),
     );
     const rows = all.filter((r): r is LegacyAlertPrefRow => Boolean(r.user_id));
     return { rows, skippedNoClerkId: all.length - rows.length };
@@ -114,34 +119,40 @@ export class DataParityService {
 
   /** Rebuild the sync's expanded-topic shape from persisted unified rows. */
   private async intelWatchlistHashes(tenantId: string | null): Promise<Map<string, string>> {
-    const wls = await this.prisma.watchlist.findMany({
-      where: { id: { startsWith: 'wl:' }, ...(tenantId ? { tenantId } : {}) },
-      select: { id: true, clientId: true, issueAreas: true },
-    });
-    const out = new Map<string, string>();
-    for (const wl of wls) {
-      const topics = await this.prisma.watchlistTopic.findMany({
-        where: { watchlistId: wl.id },
-        select: { id: true, label: true, issueArea: true, position: true, priority: true },
+    // Cross-tenant audit read (all tenants when tenantId is null) → withSystem.
+    return this.prisma.withSystem(async (tx) => {
+      const wls = await tx.watchlist.findMany({
+        where: { id: { startsWith: 'wl:' }, ...(tenantId ? { tenantId } : {}) },
+        select: { id: true, clientId: true, issueAreas: true },
       });
-      const terms = topics.length
-        ? await this.prisma.watchlistTerm.findMany({
-            where: { topicId: { in: topics.map((t) => t.id) } },
-            select: { topicId: true, termType: true, value: true },
-          })
-        : [];
-      const expanded: ExpandedTopic[] = topics.map((t) => ({
-        label: t.label,
-        issueArea: t.issueArea,
-        position: t.position as ExpandedTopic['position'],
-        priority: t.priority as ExpandedTopic['priority'],
-        terms: terms
-          .filter((r) => r.topicId === t.id)
-          .map((r) => ({ termType: r.termType as 'synonym' | 'entity' | 'risk', value: r.value })),
-      }));
-      out.set(wl.clientId, watchlistContentHash({ issueAreas: wl.issueAreas, topics: expanded }));
-    }
-    return out;
+      const out = new Map<string, string>();
+      for (const wl of wls) {
+        const topics = await tx.watchlistTopic.findMany({
+          where: { watchlistId: wl.id },
+          select: { id: true, label: true, issueArea: true, position: true, priority: true },
+        });
+        const terms = topics.length
+          ? await tx.watchlistTerm.findMany({
+              where: { topicId: { in: topics.map((t) => t.id) } },
+              select: { topicId: true, termType: true, value: true },
+            })
+          : [];
+        const expanded: ExpandedTopic[] = topics.map((t) => ({
+          label: t.label,
+          issueArea: t.issueArea,
+          position: t.position as ExpandedTopic['position'],
+          priority: t.priority as ExpandedTopic['priority'],
+          terms: terms
+            .filter((r) => r.topicId === t.id)
+            .map((r) => ({
+              termType: r.termType as 'synonym' | 'entity' | 'risk',
+              value: r.value,
+            })),
+        }));
+        out.set(wl.clientId, watchlistContentHash({ issueAreas: wl.issueAreas, topics: expanded }));
+      }
+      return out;
+    });
   }
 
   /** READ-ONLY data-parity run. `tenantSlugOrId` omitted = all tenants. */
@@ -150,27 +161,50 @@ export class DataParityService {
     const tenantId = tenantSlugOrId ? await sync.resolveTenantId(tenantSlugOrId) : null;
     if (tenantSlugOrId && !tenantId) throw new Error(`NO_TENANT_FOR ${tenantSlugOrId}`);
 
-    const [legacyWls, legacyBills, legacyPrefsT, intelHashes, intelBills, intelPrefs] = await Promise.all([
-      this.legacyWatchlists(tenantId),
-      this.legacyTrackedBills(tenantId),
-      this.legacyAlertPrefsTranslated(tenantId),
-      this.intelWatchlistHashes(tenantId),
-      this.prisma.trackedBill.findMany({
-        where: tenantId ? { tenantId } : {},
-        select: {
-          clientId: true, tenantId: true, billId: true, note: true, isManual: true, trackedBy: true,
-          lastSeenActionText: true, lastSeenActionDate: true, lastSeenAt: true,
-        },
-      }),
-      this.prisma.intelAlertPreference.findMany({
-        where: tenantId ? { tenantId } : {},
-        select: {
-          clientId: true, tenantId: true, userId: true, triggers: true, materiality: true,
-          emailEnabled: true, emailAddress: true, emailCadence: true, smsEnabled: true,
-          smsPhone: true, smsPhoneVerified: true, smsCadence: true, quietHoursStart: true, quietHoursEnd: true,
-        },
-      }),
-    ]);
+    const [legacyWls, legacyBills, legacyPrefsT, intelHashes, intelBills, intelPrefs] =
+      await Promise.all([
+        this.legacyWatchlists(tenantId),
+        this.legacyTrackedBills(tenantId),
+        this.legacyAlertPrefsTranslated(tenantId),
+        this.intelWatchlistHashes(tenantId),
+        this.prisma.withSystem((tx) =>
+          tx.trackedBill.findMany({
+            where: tenantId ? { tenantId } : {},
+            select: {
+              clientId: true,
+              tenantId: true,
+              billId: true,
+              note: true,
+              isManual: true,
+              trackedBy: true,
+              lastSeenActionText: true,
+              lastSeenActionDate: true,
+              lastSeenAt: true,
+            },
+          }),
+        ),
+        this.prisma.withSystem((tx) =>
+          tx.intelAlertPreference.findMany({
+            where: tenantId ? { tenantId } : {},
+            select: {
+              clientId: true,
+              tenantId: true,
+              userId: true,
+              triggers: true,
+              materiality: true,
+              emailEnabled: true,
+              emailAddress: true,
+              emailCadence: true,
+              smsEnabled: true,
+              smsPhone: true,
+              smsPhoneVerified: true,
+              smsCadence: true,
+              quietHoursStart: true,
+              quietHoursEnd: true,
+            },
+          }),
+        ),
+      ]);
 
     const legacyHashes = new Map<string, string>();
     for (const cw of legacyWls) {
@@ -201,13 +235,19 @@ export class DataParityService {
    */
   async snapshotLegacy(log: (msg: string) => void): Promise<void> {
     const CHUNK = 20;
-    const dump = async (table: string, rows: Array<Record<string, unknown>>, pk: (r: Record<string, unknown>) => string) => {
+    const dump = async (
+      table: string,
+      rows: Array<Record<string, unknown>>,
+      pk: (r: Record<string, unknown>) => string,
+    ) => {
       const sorted = [...rows].sort((a, b) => pk(a).localeCompare(pk(b)));
       const canonical = JSON.stringify(sorted);
       const md5 = createHash('md5').update(canonical).digest('hex');
       const of = Math.max(1, Math.ceil(sorted.length / CHUNK));
       for (let c = 0; c < of; c++) {
-        log(`SNAPSHOT_JSON ${JSON.stringify({ table, chunk: c + 1, of, rows: sorted.slice(c * CHUNK, (c + 1) * CHUNK) })}`);
+        log(
+          `SNAPSHOT_JSON ${JSON.stringify({ table, chunk: c + 1, of, rows: sorted.slice(c * CHUNK, (c + 1) * CHUNK) })}`,
+        );
       }
       log(`SNAPSHOT_SUMMARY table=${table} rows=${sorted.length} md5=${md5}`);
     };
@@ -234,11 +274,21 @@ export class DataParityService {
     const prefsMd5 = createHash('md5')
       .update(JSON.stringify([...prefsFull].sort((a, b) => prefsPk(a).localeCompare(prefsPk(b)))))
       .digest('hex');
-    await dump('client_watchlist', wls as unknown as Array<Record<string, unknown>>, (r) => `${r.tenant_id}:${r.client_id}`);
-    await dump('tracked_bill', bills as unknown as Array<Record<string, unknown>>, (r) => `${r.client_id}:${r.bill_id}`);
+    await dump(
+      'client_watchlist',
+      wls as unknown as Array<Record<string, unknown>>,
+      (r) => `${r.tenant_id}:${r.client_id}`,
+    );
+    await dump(
+      'tracked_bill',
+      bills as unknown as Array<Record<string, unknown>>,
+      (r) => `${r.client_id}:${r.bill_id}`,
+    );
     await dump('alert_preference', redact(prefs) as Array<Record<string, unknown>>, prefsPk);
     log(`SNAPSHOT_PII alert_preference redacted=true fullContentMd5=${prefsMd5}`);
-    log(`SNAPSHOT_DONE tables=3 watchlists=${wls.length} trackedBills=${bills.length} alertPrefs=${prefs.length}`);
+    log(
+      `SNAPSHOT_DONE tables=3 watchlists=${wls.length} trackedBills=${bills.length} alertPrefs=${prefs.length}`,
+    );
   }
 
   /**
@@ -259,9 +309,11 @@ export class DataParityService {
     // tenants. A disabled tracker_owner_intel row is evidence of a rollback —
     // those tenants' v2-era writes exist ONLY in intel_* and would look
     // "stale" here. Refuse to delete unless the operator forces it.
-    const rolledBack = await this.prisma.featureFlag.count({
-      where: { feature: 'tracker_owner_intel', enabled: false },
-    });
+    const rolledBack = await this.prisma.withSystem((tx) =>
+      tx.featureFlag.count({
+        where: { feature: 'tracker_owner_intel', enabled: false },
+      }),
+    );
     if (apply && rolledBack > 0 && !force) {
       throw new Error(
         `RECONCILE_REFUSED ${rolledBack} tenant(s) have tracker_owner_intel=disabled (rollback evidence): ` +
@@ -275,19 +327,25 @@ export class DataParityService {
     // flip so v2-native writes are structurally out of reach.
     const cutoff = opts.createdBefore ? new Date(opts.createdBefore) : null;
     if (apply && (!cutoff || Number.isNaN(cutoff.getTime()))) {
-      throw new Error('RECONCILE_REFUSED --apply=true requires a valid --created-before=<ISO timestamp>');
+      throw new Error(
+        'RECONCILE_REFUSED --apply=true requires a valid --created-before=<ISO timestamp>',
+      );
     }
     // Protect the internal tenant by DB slug lookup, NOT only by env: the verb
     // task-def does not set CAPIRO_INTERNAL_TENANT_ID, and the internal tenant
     // writes v2-native rows during shadow that have no legacy counterpart —
     // deleting those would be silent data loss. Env kept as belt-and-braces.
     const internalRows = await this.prisma.withSystem((tx) =>
-      tx.$queryRawUnsafe<Array<{ id: string }>>(`SELECT id::text AS id FROM tenants WHERE slug = 'capiro-internal'`),
+      tx.$queryRawUnsafe<Array<{ id: string }>>(
+        `SELECT id::text AS id FROM tenants WHERE slug = 'capiro-internal'`,
+      ),
     );
-    const owned = await this.prisma.featureFlag.findMany({
-      where: { feature: 'tracker_owner_intel', enabled: true },
-      select: { tenantId: true },
-    });
+    const owned = await this.prisma.withSystem((tx) =>
+      tx.featureFlag.findMany({
+        where: { feature: 'tracker_owner_intel', enabled: true },
+        select: { tenantId: true },
+      }),
+    );
     const protectedTenants = new Set<string>(
       [
         ...owned.map((f) => f.tenantId),
@@ -303,14 +361,19 @@ export class DataParityService {
       this.legacyWatchlists(null),
     ]);
     const legacyBillKeys = new Set(legacyBills.map((r) => trackedBillKey(r.client_id, r.bill_id)));
-    const legacyPrefKeys = new Set(legacyPrefsT.rows.map((r) => alertPrefKey(r.user_id, r.client_id)));
+    const legacyPrefKeys = new Set(
+      legacyPrefsT.rows.map((r) => alertPrefKey(r.user_id, r.client_id)),
+    );
     const legacyWlClients = new Set(legacyWls.map((r) => r.client_id));
-    const beforeCutoff = (createdAt: Date) => (cutoff ? createdAt.getTime() < cutoff.getTime() : true);
+    const beforeCutoff = (createdAt: Date) =>
+      cutoff ? createdAt.getTime() < cutoff.getTime() : true;
 
     const staleBills = (
-      await this.prisma.trackedBill.findMany({
-        select: { id: true, tenantId: true, clientId: true, billId: true, createdAt: true },
-      })
+      await this.prisma.withSystem((tx) =>
+        tx.trackedBill.findMany({
+          select: { id: true, tenantId: true, clientId: true, billId: true, createdAt: true },
+        }),
+      )
     ).filter(
       (r) =>
         !protectedTenants.has(r.tenantId) &&
@@ -318,9 +381,11 @@ export class DataParityService {
         !legacyBillKeys.has(trackedBillKey(r.clientId, r.billId)),
     );
     const stalePrefs = (
-      await this.prisma.intelAlertPreference.findMany({
-        select: { id: true, tenantId: true, clientId: true, userId: true, createdAt: true },
-      })
+      await this.prisma.withSystem((tx) =>
+        tx.intelAlertPreference.findMany({
+          select: { id: true, tenantId: true, clientId: true, userId: true, createdAt: true },
+        }),
+      )
     ).filter(
       (r) =>
         !protectedTenants.has(r.tenantId) &&
@@ -328,24 +393,40 @@ export class DataParityService {
         !legacyPrefKeys.has(alertPrefKey(r.userId, r.clientId)),
     );
     const staleWls = (
-      await this.prisma.watchlist.findMany({
-        where: { id: { startsWith: 'wl:' } },
-        select: { id: true, tenantId: true, clientId: true, createdAt: true },
-      })
+      await this.prisma.withSystem((tx) =>
+        tx.watchlist.findMany({
+          where: { id: { startsWith: 'wl:' } },
+          select: { id: true, tenantId: true, clientId: true, createdAt: true },
+        }),
+      )
     ).filter(
-      (r) => !protectedTenants.has(r.tenantId) && beforeCutoff(r.createdAt) && !legacyWlClients.has(r.clientId),
+      (r) =>
+        !protectedTenants.has(r.tenantId) &&
+        beforeCutoff(r.createdAt) &&
+        !legacyWlClients.has(r.clientId),
     );
 
-    for (const b of staleBills) log(`RECONCILE_STALE tracked_bill ${b.tenantId} ${b.clientId}:${b.billId}`);
-    for (const p of stalePrefs) log(`RECONCILE_STALE alert_pref ${p.tenantId} ${p.userId}:${p.clientId}`);
+    for (const b of staleBills)
+      log(`RECONCILE_STALE tracked_bill ${b.tenantId} ${b.clientId}:${b.billId}`);
+    for (const p of stalePrefs)
+      log(`RECONCILE_STALE alert_pref ${p.tenantId} ${p.userId}:${p.clientId}`);
     for (const w of staleWls) log(`RECONCILE_STALE watchlist ${w.tenantId} ${w.id}`);
 
     if (apply) {
+      // Cross-tenant reconcile deletes (protected tenants already excluded above)
+      // → withSystem (bypass RLS).
       if (staleBills.length)
-        await this.prisma.trackedBill.deleteMany({ where: { id: { in: staleBills.map((r) => r.id) } } });
+        await this.prisma.withSystem((tx) =>
+          tx.trackedBill.deleteMany({ where: { id: { in: staleBills.map((r) => r.id) } } }),
+        );
       if (stalePrefs.length)
-        await this.prisma.intelAlertPreference.deleteMany({ where: { id: { in: stalePrefs.map((r) => r.id) } } });
-      for (const w of staleWls) await this.prisma.watchlist.delete({ where: { id: w.id } }); // cascade topics/terms
+        await this.prisma.withSystem((tx) =>
+          tx.intelAlertPreference.deleteMany({
+            where: { id: { in: stalePrefs.map((r) => r.id) } },
+          }),
+        );
+      for (const w of staleWls)
+        await this.prisma.withSystem((tx) => tx.watchlist.delete({ where: { id: w.id } })); // cascade topics/terms
     }
     log(
       `RECONCILE_DONE apply=${apply} cutoff=${cutoff ? cutoff.toISOString() : '(none — dry-run listing)'} ` +

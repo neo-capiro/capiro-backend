@@ -1,0 +1,101 @@
+import {
+  DEFAULT_COMPLIANCE_RULES,
+  EXAMPLE_RULES,
+  ruleBasedCompliancePolicy,
+  type ComplianceRule,
+} from './compliance-rules';
+import type { CompliancePolicy, ComplianceDecision } from './approval-gate';
+import type { MeriContext } from '../registry/types';
+
+const ctx: MeriContext = {
+  tenantId: 'tenant-1',
+  userId: 'user-1',
+  clerkUserId: 'clerk_1',
+  role: 'standard_user',
+};
+
+/** The seed policy evaluates synchronously; cast the union return for terse asserts. */
+function decide(
+  policy: CompliancePolicy,
+  tool: string,
+  input: unknown = {},
+): ComplianceDecision & {
+  ruleId?: string;
+} {
+  return policy.evaluate(tool, input, ctx) as ComplianceDecision & { ruleId?: string };
+}
+
+describe('ruleBasedCompliancePolicy — default seed', () => {
+  const policy = ruleBasedCompliancePolicy();
+
+  it("defaults every write tool to WARN (preserves today's behavior)", () => {
+    for (const tool of ['send_email', 'create_task', 'update_client_profile', 'anything_else']) {
+      expect(decide(policy, tool).outcome).toBe('WARN');
+    }
+  });
+
+  it('records the matched rule id on the decision (auditability)', () => {
+    expect(decide(policy, 'send_email').ruleId).toBe('write.requires_approval');
+  });
+
+  it('the seed set is a single catch-all WARN rule (no invented BLOCK policy)', () => {
+    expect(DEFAULT_COMPLIANCE_RULES).toHaveLength(1);
+    expect(DEFAULT_COMPLIANCE_RULES[0]?.outcome).toBe('WARN');
+  });
+});
+
+describe('ruleBasedCompliancePolicy — engine mechanics (via EXAMPLE_RULES)', () => {
+  // Prove BLOCK / PASS / input-conditional all work; examples are not policy.
+  const policy = ruleBasedCompliancePolicy([...EXAMPLE_RULES, ...DEFAULT_COMPLIANCE_RULES]);
+
+  it('applies a per-tool BLOCK rule', () => {
+    const d = decide(policy, 'example_blocked_tool');
+    expect(d.outcome).toBe('BLOCK');
+    expect(d.code).toBe('example_block');
+    expect(d.ruleId).toBe('example.block_tool');
+  });
+
+  it('applies a per-tool PASS rule (pre-approved)', () => {
+    expect(decide(policy, 'example_safe_tool').outcome).toBe('PASS');
+  });
+
+  it('applies an input-conditional BLOCK, else falls through to WARN', () => {
+    expect(decide(policy, 'send_email', { to: 'x@example.gov' }).outcome).toBe('BLOCK');
+    expect(decide(policy, 'send_email', { to: 'x@acme.com' }).outcome).toBe('WARN');
+  });
+
+  it('first matching rule wins (order matters)', () => {
+    const first: ComplianceRule = {
+      id: 'a.pass',
+      description: 'pass first',
+      outcome: 'PASS',
+      matches: () => true,
+    };
+    const second: ComplianceRule = {
+      id: 'b.block',
+      description: 'block second',
+      outcome: 'BLOCK',
+      matches: () => true,
+    };
+    expect(decide(ruleBasedCompliancePolicy([first, second]), 't').outcome).toBe('PASS');
+    expect(decide(ruleBasedCompliancePolicy([second, first]), 't').outcome).toBe('BLOCK');
+  });
+
+  it('fails safe: a rule whose matcher throws is skipped, not crashed open', () => {
+    const throwing: ComplianceRule = {
+      id: 'boom',
+      description: 'throws',
+      outcome: 'PASS',
+      matches: () => {
+        throw new Error('boom');
+      },
+    };
+    // The throwing PASS rule is skipped → falls through to the catch-all WARN.
+    const policyWithThrow = ruleBasedCompliancePolicy([throwing, ...DEFAULT_COMPLIANCE_RULES]);
+    expect(decide(policyWithThrow, 'send_email').outcome).toBe('WARN');
+  });
+
+  it('empty rule set → fallback WARN', () => {
+    expect(decide(ruleBasedCompliancePolicy([]), 'anything').outcome).toBe('WARN');
+  });
+});

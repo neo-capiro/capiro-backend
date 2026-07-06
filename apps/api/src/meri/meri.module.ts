@@ -20,6 +20,7 @@ import { MeriMcpOAuthService } from './meri-mcp-oauth.service.js';
 import { MeriMcpOAuthController } from './meri-mcp-oauth.controller.js';
 import { MeriFirmSkillsService } from './meri-firm-skills.service.js';
 import { MeriFeatureFlagsService } from './meri-feature-flags.service.js';
+import { MeriApprovalService } from './meri-approval.service.js';
 
 @Module({
   imports: [
@@ -45,6 +46,7 @@ import { MeriFeatureFlagsService } from './meri-feature-flags.service.js';
     MeriMcpOAuthService,
     MeriFirmSkillsService,
     MeriFeatureFlagsService,
+    MeriApprovalService,
   ],
   // Exported so the in-editor workspace assistant can reuse the tool harness
   // (a constrained, read-only subset) without duplicating tool logic, and the

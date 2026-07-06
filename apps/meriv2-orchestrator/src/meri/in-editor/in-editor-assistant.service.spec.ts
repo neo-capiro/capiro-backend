@@ -3,6 +3,7 @@ import { InEditorAssistantService } from './in-editor-assistant.service';
 import { MeriRegistryService } from '../meri-registry.service';
 import type { ApiClientContextRepo } from '../api-client-context.repo';
 import type { ApiToolExecutorRepo } from '../api-tool-executor.repo';
+import type { ApiApprovalRepo } from '../api-approval.repo';
 import { RequestCredentialsStore } from '../../request/request-credentials.store';
 import type { MeriContext } from '@capiro/meriv2-core';
 
@@ -33,8 +34,12 @@ const clientRepo = {
   loadClientContext: async () => ({ client: { id: 'c', name: 'n' } }),
 } as unknown as ApiClientContextRepo;
 
+// In-editor is a read-only surface; the approval repo is never consulted (no
+// write tool is in ASSISTANT_TOOLS). Deny-all keeps it inert either way.
+const denyApprovals = { isApproved: async () => false } as unknown as ApiApprovalRepo;
+
 function makeService(executor: ApiToolExecutorRepo) {
-  const registryService = new MeriRegistryService(clientRepo, executor, config);
+  const registryService = new MeriRegistryService(clientRepo, executor, denyApprovals, config);
   return new InEditorAssistantService(registryService, config);
 }
 
@@ -154,5 +159,208 @@ describe('InEditorAssistantService.run', () => {
     );
     expect(out.reply).toMatch(/error reaching the model/);
     expect(out.edits).toEqual([]);
+  });
+
+  it('flags a PE structural mismatch on the proposed edits (verifier LLM disabled)', async () => {
+    // get_program_element returns an RDT&E PE; the proposed edit uses
+    // procurement-intent language against it => rdte_procurement_mismatch,
+    // computed deterministically without any verifier model call.
+    const executor = {
+      execute: jest.fn(async () => ({
+        programElement: {
+          peCode: '0207179F',
+          title: 'Autonomous Collaborative Platforms',
+          service: 'Air Force',
+          appropriationType: 'RDT&E',
+          budgetActivity: '04',
+        },
+      })),
+    } as unknown as ApiToolExecutorRepo;
+
+    let anthropicCall = 0;
+    (global as unknown as { fetch: unknown }).fetch = jest.fn(async (url: string) => {
+      if (url.includes('/api/clio/tool-schemas')) {
+        return {
+          ok: true,
+          status: 200,
+          json: async () => ({
+            schemas: [
+              { name: 'get_program_element', description: 'x', input_schema: { type: 'object' } },
+            ],
+          }),
+        };
+      }
+      anthropicCall += 1;
+      if (anthropicCall === 1) {
+        return anthropic(
+          [
+            {
+              type: 'tool_use',
+              id: 'tu1',
+              name: 'get_program_element',
+              input: { peCode: '0207179F' },
+            },
+          ],
+          'tool_use',
+        );
+      }
+      return anthropic(
+        [
+          {
+            type: 'tool_use',
+            id: 'tu2',
+            name: 'propose_document_edits',
+            input: {
+              reply: 'Updated the ask.',
+              edits: [
+                {
+                  op: 'replace_section',
+                  section: 'Ask',
+                  content:
+                    '<p>Recommend directed procurement of PE 0207179F to buy units at scale.</p>',
+                },
+              ],
+            },
+          },
+        ],
+        'tool_use',
+      );
+    });
+
+    const svc = makeService(executor);
+    const out = await RequestCredentialsStore.run({ bearerToken: 'jwt' }, () =>
+      svc.run(ctx, { messages: [{ role: 'user', text: 'tighten the ask' }] }),
+    );
+
+    expect(out.confidence).toBeUndefined(); // verifier disabled — no LLM claims pass
+    expect(out.structuralWarnings).toHaveLength(1);
+    expect(out.structuralWarnings?.[0]?.code).toBe('rdte_procurement_mismatch');
+    expect(out.structuralWarnings?.[0]?.peCode).toBe('0207179F');
+  });
+
+  it('computes confidence from the grounding verifier when CLIO_VERIFIER_ENABLED', async () => {
+    const verifierConfig = {
+      get: (k: string) =>
+        k === 'MERIV2_API_BASE_URL'
+          ? 'http://api.test'
+          : k === 'ANTHROPIC_API_KEY'
+            ? 'sk-global'
+            : k === 'CLIO_VERIFIER_ENABLED'
+              ? 'true'
+              : undefined,
+    } as unknown as ConfigService;
+    const executor = { execute: jest.fn() } as unknown as ApiToolExecutorRepo;
+
+    let anthropicCall = 0;
+    (global as unknown as { fetch: unknown }).fetch = jest.fn(async (url: string) => {
+      if (url.includes('/api/clio/tool-schemas')) {
+        return { ok: true, status: 200, json: async () => ({ schemas: [] }) };
+      }
+      anthropicCall += 1;
+      if (anthropicCall === 1) {
+        // propose_document_edits straight away (no data tool needed)
+        return anthropic(
+          [
+            {
+              type: 'tool_use',
+              id: 'tu1',
+              name: 'propose_document_edits',
+              input: {
+                reply: 'Done.',
+                edits: [
+                  {
+                    op: 'replace_section',
+                    section: 'Summary',
+                    content: '<p>Fully backed claim.</p>',
+                  },
+                ],
+              },
+            },
+          ],
+          'tool_use',
+        );
+      }
+      // The grounding-verifier completeJson call.
+      return anthropic(
+        [
+          {
+            type: 'text',
+            text: JSON.stringify({ claims: [{ claim: 'x', supported: true, sourceIds: [1] }] }),
+          },
+        ],
+        'end_turn',
+      );
+    });
+
+    const registryService = new MeriRegistryService(
+      clientRepo,
+      executor,
+      denyApprovals,
+      verifierConfig,
+    );
+    const svc = new InEditorAssistantService(registryService, verifierConfig);
+    const out = await RequestCredentialsStore.run({ bearerToken: 'jwt' }, () =>
+      svc.run(ctx, { messages: [{ role: 'user', text: 'draft it' }] }),
+    );
+
+    expect(out.confidence?.level).toBe('high');
+  });
+
+  it('fails open (no confidence, edits still returned) if the verifier LLM call throws', async () => {
+    const verifierConfig = {
+      get: (k: string) =>
+        k === 'MERIV2_API_BASE_URL'
+          ? 'http://api.test'
+          : k === 'ANTHROPIC_API_KEY'
+            ? 'sk-global'
+            : k === 'CLIO_VERIFIER_ENABLED'
+              ? 'true'
+              : undefined,
+    } as unknown as ConfigService;
+    const executor = { execute: jest.fn() } as unknown as ApiToolExecutorRepo;
+
+    let anthropicCall = 0;
+    (global as unknown as { fetch: unknown }).fetch = jest.fn(async (url: string) => {
+      if (url.includes('/api/clio/tool-schemas')) {
+        return { ok: true, status: 200, json: async () => ({ schemas: [] }) };
+      }
+      anthropicCall += 1;
+      if (anthropicCall === 1) {
+        return anthropic(
+          [
+            {
+              type: 'tool_use',
+              id: 'tu1',
+              name: 'propose_document_edits',
+              input: {
+                reply: 'Done.',
+                edits: [
+                  { op: 'replace_section', section: 'Summary', content: '<p>Some claim.</p>' },
+                ],
+              },
+            },
+          ],
+          'tool_use',
+        );
+      }
+      // The grounding-verifier call fails. AnthropicLlmClient.completeJson
+      // always calls res.json() (even on !ok), unlike completeWithTools.
+      return { ok: false, status: 500, json: async () => ({ error: { message: 'boom' } }) };
+    });
+
+    const registryService = new MeriRegistryService(
+      clientRepo,
+      executor,
+      denyApprovals,
+      verifierConfig,
+    );
+    const svc = new InEditorAssistantService(registryService, verifierConfig);
+    const out = await RequestCredentialsStore.run({ bearerToken: 'jwt' }, () =>
+      svc.run(ctx, { messages: [{ role: 'user', text: 'draft it' }] }),
+    );
+
+    expect(out.reply).toBe('Done.');
+    expect(out.edits).toHaveLength(1);
+    expect(out.confidence).toBeUndefined();
   });
 });
