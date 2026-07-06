@@ -15,6 +15,11 @@
  *
  * Boots a Nest application context so GovInfoService's config (GOVINFO_API_KEY),
  * 24h response cache, and rate limiter all go through the normal service path.
+ * GovInfoService is resolved with { strict: false } and requires GovInfoModule to
+ * be imported by AppModule (wired in #309).
+ *
+ * Run as an ECS one-off with the full-app task-def + TMPDIR=/dev/shm (the tsx IPC
+ * dir; the server task-def's default /app/tmp isn't writable — infra_tsx_tmpdir_bug).
  */
 import { config as dotenvConfig } from 'dotenv';
 import { NestFactory } from '@nestjs/core';
