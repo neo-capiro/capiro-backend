@@ -15,6 +15,7 @@ import { ApiToolExecutorRepo } from './api-tool-executor.repo.js';
 import { RequestScopedLlmClient } from './request-scoped-llm.client.js';
 import { IN_EDITOR_DELEGATED_TOOLS } from './delegated-tools.catalog.js';
 import { WRITE_DELEGATED_TOOLS } from './write-tools.catalog.js';
+import { FULL_CHAT_READ_TOOLS } from './full-chat-read-tools.catalog.js';
 
 /**
  * Owns the single MeriV2 tool registry the orchestrator hosts. Registers the
@@ -80,6 +81,22 @@ export class MeriRegistryService {
     );
     this.logger.log(
       `Registered ${writeNames.length} delegated write tools (gated, fail-closed pending B3/B4)`,
+    );
+
+    // Workstream C4 substrate: the remaining read-only apps/api tools not in
+    // the in-editor allowlist (run_analysis, search_public_web, query_tasks,
+    // etc.) — closes the catalog gap toward a future full-chat surface. Same
+    // dormant registration as the write tools above: no live surface calls
+    // these yet (C4's streaming loop is not built), but the registry now has
+    // apps/api's COMPLETE 53-tool surface available (see
+    // full-chat-read-tools.catalog.spec.ts's combined-coverage assertion).
+    const fullChatReadNames = registerDelegatedTools(
+      (def) => registry.register(def),
+      FULL_CHAT_READ_TOOLS,
+      toolExecutor,
+    );
+    this.logger.log(
+      `Registered ${fullChatReadNames.length} additional read-only tools (C4 substrate)`,
     );
 
     // BYOK2: LLM tools bind the request-scoped client, which prefers the
