@@ -379,8 +379,9 @@ export class TrackerBoardService {
   /**
    * LegiWatch v2 (L2b): the ALL-CLIENTS board roll-up — every client's tracked
    * bills in the same stage columns, each card labelled with its client (U4 /
-   * Gherkin "All-clients board roll-up"). Tenant-scoped (intel-api has no RLS):
-   * reads only this tenant's tracked bills + alerts. Change-chip and hearing
+   * Gherkin "All-clients board roll-up"). Tenant-scoped: every intel_* read goes
+   * through `withTenant` (sets the RLS GUC — same as getBoard), so it returns
+   * only this tenant's tracked bills + alerts. Change-chip and hearing
    * counts are keyed per (client, bill) since alerts are per-client; matchedTags
    * (the High-fit filter) use each card's OWN client's compiled watchlist,
    * batch-resolved per distinct client (bounded by client count, no per-row work).
@@ -395,36 +396,42 @@ export class TrackerBoardService {
     type Card = BoardCard & { clientId: string; clientName: string | null };
     const empty = () =>
       BILL_STAGES.map((s) => ({ id: s.id, label: s.label, cards: [] as Card[] }));
-    const tracked = await this.prisma.trackedBill.findMany({
-      where: { tenantId },
-      orderBy: { trackedAt: 'desc' },
-    });
+    const tracked = await this.prisma.withTenant(tenantId, (tx) =>
+      tx.trackedBill.findMany({
+        where: { tenantId },
+        orderBy: { trackedAt: 'desc' },
+      }),
+    );
     if (!tracked.length) return { columns: empty() };
 
     const billIds = Array.from(new Set(tracked.map((t) => t.billId)));
     const clientIds = Array.from(new Set(tracked.map((t) => t.clientId)));
     const [bills, recentAlerts, hearingLinks, clientNames] = await Promise.all([
       this.repo.fetchRecommendationBills(billIds),
-      this.prisma.intelAlert.findMany({
-        where: {
-          tenantId,
-          sourceType: 'bill',
-          sourceRef: { in: billIds },
-          createdAt: { gte: new Date(Date.now() - RECENT_CHANGE_DAYS * DAY_MS) },
-        },
-        orderBy: { createdAt: 'desc' },
-        select: { sourceRef: true, clientId: true, changeType: true, title: true, createdAt: true },
-      }),
-      this.prisma.intelAlert.groupBy({
-        by: ['sourceRef', 'clientId'],
-        where: {
-          tenantId,
-          sourceType: 'combined',
-          sourceRef: { in: billIds },
-          status: { notIn: ['dismissed', 'snoozed', 'suppressed'] },
-        },
-        _count: { _all: true },
-      }),
+      this.prisma.withTenant(tenantId, (tx) =>
+        tx.intelAlert.findMany({
+          where: {
+            tenantId,
+            sourceType: 'bill',
+            sourceRef: { in: billIds },
+            createdAt: { gte: new Date(Date.now() - RECENT_CHANGE_DAYS * DAY_MS) },
+          },
+          orderBy: { createdAt: 'desc' },
+          select: { sourceRef: true, clientId: true, changeType: true, title: true, createdAt: true },
+        }),
+      ),
+      this.prisma.withTenant(tenantId, (tx) =>
+        tx.intelAlert.groupBy({
+          by: ['sourceRef', 'clientId'],
+          where: {
+            tenantId,
+            sourceType: 'combined',
+            sourceRef: { in: billIds },
+            status: { notIn: ['dismissed', 'snoozed', 'suppressed'] },
+          },
+          _count: { _all: true },
+        }),
+      ),
       this.repo.getClientNames(tenantId, clientIds).catch(() => new Map<string, string>()),
     ]);
 
