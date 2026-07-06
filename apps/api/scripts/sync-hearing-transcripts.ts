@@ -70,8 +70,10 @@ async function main() {
   const app = await NestFactory.createApplicationContext(AppModule, { logger: ['warn', 'error'] });
   const t0 = Date.now();
   try {
-    const gov = app.get(GovInfoService);
-    const prisma = app.get(PrismaService);
+    // strict:false — resolve providers that live in feature modules (GovInfoService
+    // is in GovInfoModule, not the root/global scope).
+    const gov = app.get(GovInfoService, { strict: false });
+    const prisma = app.get(PrismaService, { strict: false });
 
     await runWithSyncRun(prisma, 'sync-hearing-transcripts', async () => {
       console.log(
