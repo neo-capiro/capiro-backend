@@ -99,6 +99,83 @@ describe('RequestScopedLlmClient (BYOK2 resolution order)', () => {
   });
 });
 
+describe('RequestScopedLlmClient.completeWithTools (tool-use round)', () => {
+  const toolUseResponse = {
+    ok: true,
+    status: 200,
+    json: async () => ({
+      content: [
+        { type: 'text', text: 'looking that up' },
+        { type: 'tool_use', id: 'tu_1', name: 'search_congress_bills', input: { q: 'ndaa' } },
+      ],
+      stop_reason: 'tool_use',
+    }),
+  };
+  function mockToolFetch() {
+    const calls: Array<{ headers: Record<string, string>; body: Record<string, unknown> }> = [];
+    (global as unknown as { fetch: unknown }).fetch = jest.fn(
+      async (_url: string, init: { headers: Record<string, string>; body: string }) => {
+        calls.push({ headers: init.headers, body: JSON.parse(init.body) });
+        return toolUseResponse;
+      },
+    );
+    return calls;
+  }
+
+  const tools = [
+    { name: 'search_congress_bills', description: 'x', input_schema: { type: 'object' } },
+  ];
+
+  it('sends system+messages+tools on the tenant key and returns content + stopReason', async () => {
+    const calls = mockToolFetch();
+    const client = new RequestScopedLlmClient('sk-global', 'claude-default');
+    const out = await RequestCredentialsStore.run(
+      { bearerToken: 't', aiProvider: tenantCred },
+      () =>
+        client.completeWithTools({
+          system: 'sys',
+          messages: [{ role: 'user', content: 'find bills' }],
+          tools,
+          maxTokens: 1024,
+        }),
+    );
+    expect(out.stopReason).toBe('tool_use');
+    expect(out.content).toHaveLength(2);
+    expect(calls[0]?.headers['x-api-key']).toBe('sk-tenant-abc');
+    expect(calls[0]?.body.model).toBe('claude-default');
+    expect(calls[0]?.body.tools).toEqual(tools);
+    expect(calls[0]?.body.system).toBe('sys');
+  });
+
+  it('falls back to the global key with no tenant credential', async () => {
+    const calls = mockToolFetch();
+    const client = new RequestScopedLlmClient('sk-global', 'claude-default');
+    await client.completeWithTools({ system: 's', messages: [], tools, maxTokens: 10 });
+    expect(calls[0]?.headers['x-api-key']).toBe('sk-global');
+  });
+
+  it('throws on a non-2xx response (caller degrades)', async () => {
+    (global as unknown as { fetch: unknown }).fetch = jest.fn(async () => ({
+      ok: false,
+      status: 529,
+      text: async () => 'overloaded',
+    }));
+    const client = new RequestScopedLlmClient('sk-global', 'claude-default');
+    await expect(
+      client.completeWithTools({ system: 's', messages: [], tools, maxTokens: 10 }),
+    ).rejects.toThrow(/Anthropic HTTP 529/);
+  });
+
+  it('throws with no credential and never calls fetch', async () => {
+    mockToolFetch();
+    const client = new RequestScopedLlmClient(undefined, 'claude-default');
+    await expect(
+      client.completeWithTools({ system: 's', messages: [], tools, maxTokens: 10 }),
+    ).rejects.toThrow(/No Anthropic credential available/);
+    expect(global.fetch).not.toHaveBeenCalled();
+  });
+});
+
 describe('parseAiProviderHeader', () => {
   const reqWith = (value: unknown): Request =>
     ({ headers: { 'x-capiro-ai-provider': value } }) as unknown as Request;

@@ -20,6 +20,24 @@ import { RequestCredentialsStore } from '../request/request-credentials.store.js
  * The tenant key is held in-process for the single completion and is never
  * logged or persisted — observability records only `usedTenantKey`.
  */
+export type AnthropicContentBlock =
+  | { type: 'text'; text: string }
+  | { type: 'tool_use'; id: string; name: string; input: Record<string, unknown> }
+  | { type: string; [k: string]: unknown };
+
+export interface AnthropicToolSchema {
+  name: string;
+  description: string;
+  input_schema: Record<string, unknown>;
+}
+
+export interface ToolLoopResponse {
+  content: AnthropicContentBlock[];
+  stopReason: string | null;
+}
+
+const ANTHROPIC_URL = 'https://api.anthropic.com/v1/messages';
+
 export class RequestScopedLlmClient implements LlmClient {
   private readonly logger = new Logger(RequestScopedLlmClient.name);
 
@@ -29,11 +47,12 @@ export class RequestScopedLlmClient implements LlmClient {
     private readonly timeoutMs?: number,
   ) {}
 
-  async completeJson(params: {
-    system: string;
-    prompt: string;
-    maxTokens?: number;
-  }): Promise<Record<string, unknown>> {
+  /**
+   * Resolve the credential for one call: request-scoped tenant credential first
+   * (BYOK option c), else the constructor-injected global key. Model: the
+   * tenant's explicit override wins, else the orchestrator default.
+   */
+  private resolve(): { apiKey: string; model: string; usedTenantKey: boolean } {
     const cred = RequestCredentialsStore.get()?.aiProvider;
     const apiKey = cred?.apiKey ?? this.globalApiKey;
     if (!apiKey) {
@@ -43,6 +62,15 @@ export class RequestScopedLlmClient implements LlmClient {
     }
     const model = cred?.modelOverridden ? cred.model : this.defaultModel;
     const usedTenantKey = Boolean(cred?.usedTenantKey && cred.apiKey);
+    return { apiKey, model, usedTenantKey };
+  }
+
+  async completeJson(params: {
+    system: string;
+    prompt: string;
+    maxTokens?: number;
+  }): Promise<Record<string, unknown>> {
+    const { apiKey, model, usedTenantKey } = this.resolve();
     this.logger.debug(`LLM completion (model=${model}, usedTenantKey=${usedTenantKey})`);
     const client = new AnthropicLlmClient({
       apiKey,
@@ -50,5 +78,59 @@ export class RequestScopedLlmClient implements LlmClient {
       ...(this.timeoutMs !== undefined ? { timeoutMs: this.timeoutMs } : {}),
     });
     return client.completeJson(params);
+  }
+
+  /**
+   * One round of a tool-use loop: send system + messages + tool schemas and
+   * return the model's content blocks + stop_reason (the caller drives the loop,
+   * executing tool_use blocks through the registry and feeding tool_result back).
+   * Uses the same request-scoped credential resolution as completeJson, so the
+   * whole in-editor loop runs on the tenant's key. Throws on a non-2xx/timeout;
+   * the caller degrades gracefully.
+   */
+  async completeWithTools(params: {
+    system: string;
+    messages: Array<{ role: 'user' | 'assistant'; content: unknown }>;
+    tools: AnthropicToolSchema[];
+    maxTokens: number;
+    timeoutMs?: number;
+  }): Promise<ToolLoopResponse> {
+    const { apiKey, model, usedTenantKey } = this.resolve();
+    this.logger.debug(`LLM tool round (model=${model}, usedTenantKey=${usedTenantKey})`);
+    const controller = new AbortController();
+    const timeout = params.timeoutMs ?? this.timeoutMs ?? 120_000;
+    const timer = setTimeout(() => controller.abort(), timeout);
+    try {
+      const res = await fetch(ANTHROPIC_URL, {
+        method: 'POST',
+        headers: {
+          'x-api-key': apiKey,
+          'anthropic-version': '2023-06-01',
+          'content-type': 'application/json',
+        },
+        body: JSON.stringify({
+          model,
+          max_tokens: params.maxTokens,
+          system: params.system,
+          tools: params.tools,
+          messages: params.messages,
+        }),
+        signal: controller.signal,
+      });
+      if (!res.ok) {
+        const body = await res.text().catch(() => '');
+        throw new Error(`Anthropic HTTP ${res.status}${body ? `: ${body.slice(0, 200)}` : ''}`);
+      }
+      const data = (await res.json()) as {
+        content?: AnthropicContentBlock[];
+        stop_reason?: string | null;
+      };
+      return {
+        content: Array.isArray(data.content) ? data.content : [],
+        stopReason: data.stop_reason ?? null,
+      };
+    } finally {
+      clearTimeout(timer);
+    }
   }
 }
