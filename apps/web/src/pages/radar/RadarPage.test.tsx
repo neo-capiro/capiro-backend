@@ -137,7 +137,8 @@ describe('RadarPage', () => {
     mockApi({ hearing_watch: true });
     renderRadar('/radar?tab=hearings');
 
-    await waitFor(() => expect(screen.getByText('Hearing sessions')).toBeInTheDocument());
+    // LegiWatch v2 (L3): lands on the schedule; the watch history is "My Sessions".
+    await waitFor(() => expect(screen.getByText('My Sessions')).toBeInTheDocument());
     expect(screen.getByText('Upcoming')).toBeInTheDocument();
     expect(screen.getByText('All hearings')).toBeInTheDocument();
     // P5: the hearing term-watchlist CRUD was absorbed into the unified editor on

@@ -99,8 +99,13 @@ function buildPresetTitle(r: UpcomingHearing): string {
  *  hearing/markup do not. Kept in sync with intel-api's requiresConsent(). */
 const PRIVATE_SOURCE_TYPES = new Set(['meeting', 'webinar', 'agency_session']);
 
-/** Shared columns for the Upcoming + All-hearings tables. */
-function buildHearingColumns(onWatch: (r: UpcomingHearing) => void): ColumnsType<UpcomingHearing> {
+/** Shared columns for the Upcoming + All-hearings tables. `watchLabel` reflects
+ *  live vs recorded (LegiWatch v2 / L3): "Watch live" upcoming, "Watch recording"
+ *  in the archive. */
+function buildHearingColumns(
+  onWatch: (r: UpcomingHearing) => void,
+  watchLabel: string,
+): ColumnsType<UpcomingHearing> {
   return [
     {
       title: 'When',
@@ -136,8 +141,8 @@ function buildHearingColumns(onWatch: (r: UpcomingHearing) => void): ColumnsType
       key: 'act',
       width: 90,
       render: (_: unknown, r) => (
-        <Button size="small" onClick={() => onWatch(r)}>
-          Watch
+        <Button size="small" type="primary" onClick={() => onWatch(r)}>
+          {watchLabel}
         </Button>
       ),
     },
@@ -157,7 +162,9 @@ type HearingWatchView = 'hearings' | 'upcoming' | 'browse';
  * panel is purely the hearing schedule/session surface.
  */
 export function HearingWatchPanel() {
-  const [view, setView] = useState<HearingWatchView>('hearings');
+  // LegiWatch v2 (L3): land on the full schedule (Gherkin "Hearings defaults to
+  // the full schedule"), not the watch history. The watch history is "My Sessions".
+  const [view, setView] = useState<HearingWatchView>('upcoming');
 
   return (
     <>
@@ -165,9 +172,9 @@ export function HearingWatchPanel() {
         value={view}
         onChange={(v) => setView(v as HearingWatchView)}
         options={[
-          { label: 'Hearings', value: 'hearings', icon: <AudioOutlined /> },
           { label: 'Upcoming', value: 'upcoming', icon: <CalendarOutlined /> },
           { label: 'All hearings', value: 'browse', icon: <UnorderedListOutlined /> },
+          { label: 'My Sessions', value: 'hearings', icon: <AudioOutlined /> },
         ]}
         style={{ marginBottom: 16 }}
       />
@@ -213,7 +220,7 @@ function HearingsTab() {
 
   return (
     <Card
-      title="Hearing sessions"
+      title="My Sessions"
       size="small"
       extra={
         <Button type="primary" icon={<PlusOutlined />} onClick={() => setOpen(true)}>
@@ -250,7 +257,7 @@ function HearingsTab() {
           )}
         />
       ) : (
-        <Empty description="No hearing sessions yet. Start one with “New Hearing”." />
+        <Empty description="No sessions yet — every hearing you watch or transcribe shows up here." />
       )}
       <NewHearingModal open={open} onClose={() => setOpen(false)} />
     </Card>
@@ -711,7 +718,7 @@ function UpcomingTab() {
           size="small"
           pagination={{ pageSize: 10 }}
           dataSource={upcoming.data}
-          columns={buildHearingColumns(onWatch)}
+          columns={buildHearingColumns(onWatch, 'Watch live')}
         />
       ) : (
         <Empty description="No upcoming hearings scheduled right now (Congress may be in recess). Try “All hearings” to browse the full schedule." />
@@ -818,7 +825,7 @@ function BrowseTab() {
           rowKey="id"
           size="small"
           dataSource={query.data?.items ?? []}
-          columns={buildHearingColumns(onWatch)}
+          columns={buildHearingColumns(onWatch, 'Watch recording')}
           locale={{ emptyText: <Empty description="No hearings match your filters." /> }}
           pagination={{
             current: page,
