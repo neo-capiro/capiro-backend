@@ -1,14 +1,23 @@
 import { crossTenantLeakageCase } from './leakage/cross-tenant-leakage.eval';
 import { claimGroundingCase } from './grounding/claim-grounding.eval';
+import { complianceGateCase } from './compliance/gate-enforcement.eval';
 import type { EvalCase } from './types';
 
 /**
- * MeriV2 CI eval gate (SC0.6). Runs the cross-client-leakage + grounding suites
- * and exits non-zero on any regression, failing the `meriv2-evals` PR check.
- * Set MERIV2_EVAL_SEED_FAILURE=1 to inject a deliberately-failing case (proves
- * the gate goes red); unset → green.
+ * MeriV2 CI eval gate (SC0.6). Runs the deterministic, DB-free safety suites —
+ * cross-client-leakage (full tenant matrix), claim-grounding, and
+ * compliance-gate enforcement — and exits non-zero on any regression, failing
+ * the `meriv2-evals` PR check. Set MERIV2_EVAL_SEED_FAILURE=1 to inject a
+ * deliberately-failing leakage case (proves the gate goes red); unset → green.
+ *
+ * SCOPE: this gate covers MECHANISM invariants that can be tested
+ * deterministically. LLM-behavioral eval categories (hallucination,
+ * tool-selection accuracy, refusal/red-team, wrong-bill-version/member) require
+ * a live-LLM eval harness and CANNOT gate CI deterministically — they belong in
+ * a separate, scheduled (non-blocking) eval run, tracked as a follow-up rather
+ * than faked here.
  */
-const CASES: EvalCase[] = [crossTenantLeakageCase, claimGroundingCase];
+const CASES: EvalCase[] = [crossTenantLeakageCase, claimGroundingCase, complianceGateCase];
 
 async function main(): Promise<void> {
   let failed = 0;

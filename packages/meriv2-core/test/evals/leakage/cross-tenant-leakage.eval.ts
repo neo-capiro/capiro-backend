@@ -2,11 +2,18 @@ import { z } from 'zod';
 import { InMemoryToolRegistry, type MeriContext, type ToolDefinition } from '../../../src/index';
 import type { EvalCase } from '../types';
 
-/** Multi-tenant fixture; a correctly-scoped tool returns ONLY ctx.tenantId rows. */
+/**
+ * Multi-tenant fixture. A correctly-scoped tool returns ONLY ctx.tenantId rows.
+ * More than two tenants so the eval exercises the full ordered caller×victim
+ * matrix (P4-T2), not just a single a→b pair — a scoping bug that only leaks
+ * between a specific pair would slip past a 2-tenant test.
+ */
 const STORE: Record<string, string[]> = {
   'tenant-a': ['a-secret-1', 'a-secret-2'],
   'tenant-b': ['b-secret-1'],
+  'tenant-c': ['c-secret-1', 'c-secret-2', 'c-secret-3'],
 };
+const TENANTS = Object.keys(STORE);
 
 type Empty = Record<string, never>;
 
@@ -35,31 +42,45 @@ function leakyTool(): ToolDefinition<Empty, { items: string[] }> {
   };
 }
 
-const ctxA: MeriContext = {
-  tenantId: 'tenant-a',
-  userId: 'user-a',
-  clerkUserId: 'clerk_a',
+const ctxFor = (tenantId: string): MeriContext => ({
+  tenantId,
+  userId: `user-${tenantId}`,
+  clerkUserId: `clerk_${tenantId}`,
   role: 'standard_user',
-};
+});
 
 export const crossTenantLeakageCase: EvalCase = {
-  id: 'leakage.cross-tenant.list_secrets',
+  id: 'leakage.cross-tenant.matrix',
   category: 'leakage',
-  description: 'a tool invoked as tenant-a must never return tenant-b rows',
+  description:
+    'across the full ordered tenant matrix, a tool invoked as one tenant never returns another tenant’s rows',
   async run() {
     const registry = new InMemoryToolRegistry();
     const seedFailure = process.env.MERIV2_EVAL_SEED_FAILURE === '1';
     registry.register(seedFailure ? leakyTool() : scopedTool());
 
-    const out = await registry.invoke<{ items: string[] }>('list_secrets', {}, ctxA);
-    const allowed = STORE['tenant-a'] ?? [];
-    const leaked = out.items.filter((row) => !allowed.includes(row));
+    const leaks: string[] = [];
+    let checked = 0;
+    // Every tenant as the CALLER; every OTHER tenant's rows are forbidden.
+    for (const caller of TENANTS) {
+      checked += 1;
+      const out = await registry.invoke<{ items: string[] }>('list_secrets', {}, ctxFor(caller));
+      const allowed = new Set(STORE[caller] ?? []);
+      const foreign = out.items.filter((row) => !allowed.has(row));
+      if (foreign.length) {
+        // Attribute each leaked row to the victim tenant for a precise report.
+        for (const row of foreign) {
+          const victim = TENANTS.find((t) => (STORE[t] ?? []).includes(row)) ?? 'unknown';
+          leaks.push(`${caller}←${victim}:${row}`);
+        }
+      }
+    }
     return {
-      pass: leaked.length === 0,
+      pass: leaks.length === 0,
       detail:
-        leaked.length === 0
-          ? `no cross-tenant rows returned (${out.items.length} own rows)`
-          : `LEAK: returned foreign rows [${leaked.join(', ')}]`,
+        leaks.length === 0
+          ? `no cross-tenant rows across ${checked} callers (${TENANTS.length}-tenant matrix)`
+          : `LEAK across matrix: [${leaks.join(', ')}]`,
     };
   },
 };
