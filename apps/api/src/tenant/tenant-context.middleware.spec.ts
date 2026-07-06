@@ -96,6 +96,28 @@ describe('TenantContextMiddleware', () => {
     expect(tx.tenantMembership.findMany).not.toHaveBeenCalled();
   });
 
+  test('bypasses tenant auth for BYOK3 /api/internal/* (InternalServiceGuard, no bearer token)', async () => {
+    const tx = makeTx();
+    const { middleware } = build({}, tx);
+    const req = {
+      headers: { 'x-internal-service-secret': 'shared-secret' }, // NO authorization/bearer
+      path: '/api/internal/ai-credentials/resolve',
+      originalUrl: '/api/internal/ai-credentials/resolve',
+      baseUrl: '',
+      url: '/api/internal/ai-credentials/resolve',
+      hostname: 'app.capiro.ai',
+      header: jest.fn(() => undefined),
+    } as unknown as Request;
+    const next = jest.fn();
+    // Must NOT throw "Missing bearer token" — intel-api's service-to-service
+    // call carries the shared secret, not a Clerk JWT; InternalServiceGuard
+    // authenticates it downstream. Regression: the app.module `.exclude()`
+    // misses under setGlobalPrefix('api'), so this list must catch it.
+    await expect(middleware.use(req, {} as Response, next)).resolves.toBeUndefined();
+    expect(next).toHaveBeenCalledTimes(1);
+    expect(tx.tenantMembership.findMany).not.toHaveBeenCalled();
+  });
+
   test('resolves an existing active membership (regression — no self-heal)', async () => {
     const tx = makeTx();
     tx.user.findUnique.mockResolvedValue({ id: 'u1', clerkUserId: 'clerk_user' });

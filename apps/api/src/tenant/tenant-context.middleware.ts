@@ -79,6 +79,14 @@ export class TenantContextMiddleware implements NestMiddleware {
       '/api/clio/runtime',
       '/api/clio/mcp-oauth/callback',
       '/api/insights',
+      // BYOK3 service-to-service endpoints: intel-api resolves a tenant AI
+      // credential for live-hearing extraction. These authenticate via
+      // InternalServiceGuard (shared INTERNAL_SERVICE_SECRET header), NOT a
+      // Clerk session, so they carry no bearer token and must bypass tenant
+      // resolution here (the guard reads tenantId from the body). The
+      // app.module.ts `.exclude()` misses because setGlobalPrefix('api')
+      // shifts the matcher — this internal list is the mechanism that works.
+      '/api/internal',
     ];
     if (bypassPaths.some((bypassPath) => isBypassPath(bypassPath, path, originalUrl, baseUrl))) {
       this.logger.log(
