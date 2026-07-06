@@ -81,6 +81,24 @@ export class GenerationController {
   ) {
     return this.generation.applyGeneratedSections(ctx.tenantId, draftId, dto);
   }
+
+  /**
+   * POST /workspace-api/drafts/:draftId/generate-all-direct
+   * The NON-PROXY generate-all entry the MeriV2 orchestrator routes to
+   * (/meri-api/workspace-generation → here, forwarding the caller's bearer).
+   * Runs generateAllSectionsInProcess directly, so it NEVER re-enters the
+   * meriv2.workspaceGen proxy branch (no orchestrator→workspace→orchestrator
+   * recursion). Identical result to the flag-off generate-all path — the
+   * reasoning + anonymization stay in apps/workspace where they are proven.
+   * Tenant-scoped; same capability as the normal editor generate.
+   */
+  @Post('generate-all-direct')
+  generateAllDirect(
+    @CurrentTenant() ctx: WorkspaceTenantContext,
+    @Param('draftId') draftId: string,
+  ) {
+    return this.generation.generateAllSectionsInProcess(ctx.tenantId, draftId);
+  }
 }
 
 /**

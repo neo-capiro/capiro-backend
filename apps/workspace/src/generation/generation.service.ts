@@ -288,6 +288,20 @@ export class GenerationService {
         opts?.bearerToken,
       )) as never;
     }
+    return this.generateAllSectionsInProcess(tenantId, draftId);
+  }
+
+  /**
+   * The in-process generate-all body (prompt assembly + LLM + anonymization +
+   * structural warnings + persist). Extracted verbatim from generateAllSections
+   * so BOTH the flag-off path above AND the orchestrator-routed direct endpoint
+   * (generate-all-direct → this) share ONE implementation — the compliance-
+   * sensitive anonymization and PE grounding stay HERE (apps/workspace owns its
+   * data + doctrine), never duplicated into the orchestrator. The orchestrator's
+   * /meri-api/workspace-generation is the routing seam; deeper reasoning-
+   * consolidation into meriv2-core awaits the ws_* ownership decision (Neo).
+   */
+  async generateAllSectionsInProcess(tenantId: string, draftId: string) {
     const draft = await this.prisma.wsDraft.findFirst({ where: { id: draftId, tenantId } });
     if (!draft) throw new ServiceUnavailableException('Draft not found');
     const cfg = draft.config as Record<string, unknown>;
