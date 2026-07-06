@@ -2,6 +2,15 @@ import { Injectable, Logger } from '@nestjs/common';
 import type { TenantContext } from '@capiro/shared';
 import type { WorkspaceAssistantDto } from './workspace-assistant.dto.js';
 
+/** The resolved tenant AI credential forwarded to the orchestrator (BYOK). */
+export interface ResolvedAiForHeader {
+  provider: 'anthropic' | 'openai';
+  apiKey: string;
+  model: string;
+  usedTenantKey: boolean;
+  modelOverridden: boolean;
+}
+
 /**
  * Thin HTTP client to the MeriV2 orchestrator (/meri-api/*). Used ONLY by the
  * dormant flag-gated proxy branch (P0-T4): when meriv2.inEditorAssistant is ON
@@ -26,6 +35,7 @@ export class MeriV2OrchestratorClient {
     _ctx: TenantContext,
     dto: WorkspaceAssistantDto,
     bearerToken: string | undefined,
+    aiProvider?: ResolvedAiForHeader,
   ): Promise<T> {
     if (!this.baseUrl) {
       throw new Error('MERIV2_ORCHESTRATOR_URL is not configured');
@@ -33,9 +43,20 @@ export class MeriV2OrchestratorClient {
     if (!bearerToken) {
       throw new Error('MeriV2 in-editor-assistant proxy requires the caller bearer token');
     }
+    const headers: Record<string, string> = {
+      authorization: `Bearer ${bearerToken}`,
+      'content-type': 'application/json',
+    };
+    // BYOK option (c): pass the tenant's RESOLVED provider so the orchestrator
+    // runs the in-editor loop on the tenant's key (not its global fallback). The
+    // key travels only over this authenticated TLS request and is held
+    // in-process for the tool call — never persisted by the orchestrator.
+    if (aiProvider) {
+      headers['x-capiro-ai-provider'] = JSON.stringify(aiProvider);
+    }
     const res = await fetch(`${this.baseUrl}/meri-api/in-editor-assistant`, {
       method: 'POST',
-      headers: { authorization: `Bearer ${bearerToken}`, 'content-type': 'application/json' },
+      headers,
       body: JSON.stringify(dto),
     });
     if (!res.ok) {

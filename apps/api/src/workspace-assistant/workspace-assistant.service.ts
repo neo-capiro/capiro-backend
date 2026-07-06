@@ -193,7 +193,17 @@ export class WorkspaceAssistantService {
     // (everything below) is byte-for-byte unchanged (SC0.2). The parity harness
     // (SC0.3) is the gate that must pass before any tenant is flagged ON.
     if (await this.meriFlags.isMeriV2SurfaceEnabled(ctx.tenantId, MERIV2_FLAGS.inEditorAssistant)) {
-      return this.meriV2.runInEditorAssistant<AssistantResult>(ctx, dto, opts?.bearerToken);
+      // BYOK option (c): resolve the tenant's AI credential here (apps/api owns
+      // the credential store) and forward it, so the orchestrator's in-editor
+      // loop runs on the TENANT's key — not its global fallback. Parity with the
+      // in-process path, which resolves the same way below.
+      const resolved = await this.aiCredentials.resolveProvider(ctx, 'anthropic');
+      return this.meriV2.runInEditorAssistant<AssistantResult>(
+        ctx,
+        dto,
+        opts?.bearerToken,
+        resolved ?? undefined,
+      );
     }
 
     const resolved = await this.aiCredentials.resolveProvider(ctx, 'anthropic');
@@ -211,8 +221,7 @@ export class WorkspaceAssistantService {
     // explicit modelOverride still drives the model. Mirrors meri.service.ts.
     const workspaceModel = this.config.get('CLIO_MODEL', { infer: true });
     const model =
-      resolved.usedTenantKey &&
-      resolved.model !== this.aiCredentials.defaultModelFor('anthropic')
+      resolved.usedTenantKey && resolved.model !== this.aiCredentials.defaultModelFor('anthropic')
         ? resolved.model
         : workspaceModel;
 
@@ -320,7 +329,12 @@ export class WorkspaceAssistantService {
           let result: unknown;
           if (!ASSISTANT_TOOLS.has(tu.name)) {
             result = { error: `Tool "${tu.name}" is not available in the document assistant.` };
-            steps.push({ tool: tu.name, label: toolLabel(tu.name), status: 'error', detail: 'unavailable' });
+            steps.push({
+              tool: tu.name,
+              label: toolLabel(tu.name),
+              status: 'error',
+              detail: 'unavailable',
+            });
           } else {
             try {
               result = await this.tools.execute(ctx, tu.name as never, tu.input ?? {});
@@ -329,7 +343,12 @@ export class WorkspaceAssistantService {
               steps.push({ tool: tu.name, label: toolLabel(tu.name), status: 'done' });
             } catch (e) {
               result = { error: (e as Error).message };
-              steps.push({ tool: tu.name, label: toolLabel(tu.name), status: 'error', detail: (e as Error).message.slice(0, 120) });
+              steps.push({
+                tool: tu.name,
+                label: toolLabel(tu.name),
+                status: 'error',
+                detail: (e as Error).message.slice(0, 120),
+              });
             }
           }
           return {
@@ -453,7 +472,9 @@ export class WorkspaceAssistantService {
     } catch (e) {
       // Non-essential enrichment: never let it fail the turn (would surface as a
       // 500 → "something went wrong" in the editor). Return edits unannotated.
-      this.logger.warn(`workspace verifyEdits failed (returning edits unannotated): ${(e as Error).message}`);
+      this.logger.warn(
+        `workspace verifyEdits failed (returning edits unannotated): ${(e as Error).message}`,
+      );
       return {};
     }
   }
@@ -484,7 +505,10 @@ export class WorkspaceAssistantService {
               system:
                 'You are a strict grounding verifier for a government-affairs assistant. Given SOURCES and a DOCUMENT, extract the document\'s distinct factual claims (skip headings, opinions, and generic advice). For each claim decide whether the SOURCES substantiate it. Return ONLY JSON: {"claims":[{"claim":"<short paraphrase>","supported":true|false,"sourceIds":[<source numbers>]}]}. Mark supported=true only when a listed source backs the claim. Be conservative: if unsure, use supported=false with sourceIds [].',
               messages: [
-                { role: 'user', content: `SOURCES:\n${sourceList}\n\nDOCUMENT:\n${editText.slice(0, 12_000)}` },
+                {
+                  role: 'user',
+                  content: `SOURCES:\n${sourceList}\n\nDOCUMENT:\n${editText.slice(0, 12_000)}`,
+                },
               ],
             }),
           });
