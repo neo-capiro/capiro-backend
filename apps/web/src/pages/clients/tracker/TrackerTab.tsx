@@ -530,105 +530,226 @@ export function TrackerSurface({
     setSelectMode(false);
   };
 
+  // LegiWatch v2 (L2): the Bills tab shows Recommendations ABOVE the board (both
+  // always visible), not a Board|Recs toggle. Extract the two control groups so
+  // they render either in the profile sub-nav header OR in each stacked section.
+  const billsStacked = variant === 'bills';
+
+  const boardControls = (
+    <div className="trk-controls">
+      <TrkDropdown
+        open={menu === 'b-filter'}
+        onToggle={() => setMenu(menu === 'b-filter' ? null : 'b-filter')}
+        label="Filter"
+        value={filter}
+        onSelect={(v) => {
+          setFilter(v as typeof filter);
+          setMenu(null);
+        }}
+        options={[
+          { v: 'all', l: 'All bills' },
+          { v: 'highfit', l: 'High-fit (priority tag)' },
+          { v: 'highprob', l: 'High-probability (≥70%)' },
+        ]}
+      />
+      <TrkDropdown
+        open={menu === 'b-sort'}
+        onToggle={() => setMenu(menu === 'b-sort' ? null : 'b-sort')}
+        label="Sort"
+        value={sort}
+        onSelect={(v) => {
+          setSort(v as typeof sort);
+          setMenu(null);
+        }}
+        options={[
+          { v: 'prob', l: 'Probability' },
+          { v: 'num', l: 'Bill number' },
+          { v: 'changed', l: 'Recently changed' },
+        ]}
+      />
+      <button className="btn btn-primary" onClick={() => setModal('addBill')}>
+        <Icon name="plus" size={13} /> Add bill
+      </button>
+    </div>
+  );
+
+  const recsControls = (
+    <div className="trk-controls">
+      <TrkDropdown
+        open={menu === 'r-tag'}
+        onToggle={() => setMenu(menu === 'r-tag' ? null : 'r-tag')}
+        label="Tag"
+        value={recTag}
+        onSelect={(v) => {
+          setRecTag(v);
+          setMenu(null);
+        }}
+        options={recTagOptions.map((t) => ({ v: t, l: t === 'all' ? 'All tags' : t }))}
+      />
+      <TrkDropdown
+        open={menu === 'r-sort'}
+        onToggle={() => setMenu(menu === 'r-sort' ? null : 'r-sort')}
+        label="Sort"
+        value={recSort}
+        onSelect={(v) => {
+          setRecSort(v as typeof recSort);
+          setMenu(null);
+        }}
+        options={[
+          { v: 'relevance', l: 'Relevance' },
+          { v: 'probability', l: 'Probability' },
+          { v: 'newest', l: 'Newest action' },
+        ]}
+      />
+      <button
+        className={`btn${selectMode ? ' btn-accent' : ''}`}
+        onClick={() => {
+          setSelectMode(!selectMode);
+          setSelected(new Set());
+        }}
+      >
+        {selectMode ? 'Done' : 'Select'}
+      </button>
+    </div>
+  );
+
   return (
     <div className="trk">
       {/* header: sub-nav + contextual controls (the watchlist variant renders
           the Configure panel bare — Radar owns its tab strip) */}
-      {variant !== 'watchlist' && (
-      <div className="trk-head">
-        <SubNav
-          panel={activePanel}
-          setPanel={setPanel}
-          recCount={aboveFloorCount}
-          showFeed={variant === 'profile' && trackerV2}
-          showConfig={variant === 'profile'}
-        />
-        <div className="trk-spacer" />
+      {/* Profile variant keeps the Board|Recs|Feed|Configure sub-nav toggle. The
+          Radar/LegiWatch Bills tab (billsStacked) renders Recs-above-Board instead
+          (each section carries its own controls — see below). */}
+      {variant === 'profile' && (
+        <div className="trk-head">
+          <SubNav
+            panel={activePanel}
+            setPanel={setPanel}
+            recCount={aboveFloorCount}
+            showFeed={trackerV2}
+            showConfig
+          />
+          <div className="trk-spacer" />
+          {activePanel === 'board' && boardControls}
+          {activePanel === 'recs' && recsControls}
+        </div>
+      )}
 
-        {activePanel === 'board' && (
-          <div className="trk-controls">
-            <TrkDropdown
-              open={menu === 'b-filter'}
-              onToggle={() => setMenu(menu === 'b-filter' ? null : 'b-filter')}
-              label="Filter"
-              value={filter}
-              onSelect={(v) => {
-                setFilter(v as typeof filter);
-                setMenu(null);
-              }}
-              options={[
-                { v: 'all', l: 'All bills' },
-                { v: 'highfit', l: 'High-fit (priority tag)' },
-                { v: 'highprob', l: 'High-probability (≥70%)' },
-              ]}
-            />
-            <TrkDropdown
-              open={menu === 'b-sort'}
-              onToggle={() => setMenu(menu === 'b-sort' ? null : 'b-sort')}
-              label="Sort"
-              value={sort}
-              onSelect={(v) => {
-                setSort(v as typeof sort);
-                setMenu(null);
-              }}
-              options={[
-                { v: 'prob', l: 'Probability' },
-                { v: 'num', l: 'Bill number' },
-                { v: 'changed', l: 'Recently changed' },
-              ]}
-            />
-            <button className="btn btn-primary" onClick={() => setModal('addBill')}>
-              <Icon name="plus" size={13} /> Add bill
-            </button>
+      {/* LegiWatch v2 (L2): Bills tab — "Recommended by Meri" section header, always
+          above the board. */}
+      {billsStacked && (
+        <div className="trk-head lw-section-head">
+          <div className="lw-section-title">
+            <Icon name="sparkle" size={15} style={{ color: 'var(--accent)' }} />
+            <b>Recommended by Meri</b>
           </div>
-        )}
+          <div className="trk-spacer" />
+          {recsControls}
+        </div>
+      )}
 
-        {activePanel === 'recs' && (
-          <div className="trk-controls">
-            <TrkDropdown
-              open={menu === 'r-tag'}
-              onToggle={() => setMenu(menu === 'r-tag' ? null : 'r-tag')}
-              label="Tag"
-              value={recTag}
-              onSelect={(v) => {
-                setRecTag(v);
-                setMenu(null);
-              }}
-              options={recTagOptions.map((t) => ({ v: t, l: t === 'all' ? 'All tags' : t }))}
-            />
-            <TrkDropdown
-              open={menu === 'r-sort'}
-              onToggle={() => setMenu(menu === 'r-sort' ? null : 'r-sort')}
-              label="Sort"
-              value={recSort}
-              onSelect={(v) => {
-                setRecSort(v as typeof recSort);
-                setMenu(null);
-              }}
-              options={[
-                { v: 'relevance', l: 'Relevance' },
-                { v: 'probability', l: 'Probability' },
-                { v: 'newest', l: 'Newest action' },
-              ]}
-            />
+      {/* ===================== RECOMMENDATIONS ===================== */}
+      {/* LegiWatch v2 (L2): on the Bills tab (billsStacked) this renders ABOVE the
+          board and is ALWAYS visible; the profile variant still toggles it. */}
+      {(billsStacked || activePanel === 'recs') &&
+        (recsQuery.isPending ? (
+          <div className="trk-col-empty">Finding bills to recommend…</div>
+        ) : recAll.length === 0 ? (
+          <div className="trk-empty">
+            <div className="ico">
+              <Icon name="sparkle" size={22} />
+            </div>
+            <h4>No new recommendations</h4>
+            <p>Add tags or confirm issue areas to widen the matcher.</p>
             <button
-              className={`btn${selectMode ? ' btn-accent' : ''}`}
-              onClick={() => {
-                setSelectMode(!selectMode);
-                setSelected(new Set());
-              }}
+              className="btn btn-accent"
+              onClick={() => (variant === 'bills' ? onOpenConfigure?.() : setPanel('config'))}
             >
-              {selectMode ? 'Done' : 'Select'}
+              Open Configure →
             </button>
           </div>
-        )}
-      </div>
+        ) : (
+          <>
+            <div className="rec-toolbar">
+              <div className="rec-note">
+                <Icon name="sparkle" size={14} style={{ color: 'var(--accent)' }} />
+                <span>
+                  <b>{aboveFloorCount}</b> bills match this client’s watchlist.
+                </span>
+                <span className="arrow">Track →</span>
+                <span>
+                  moves a bill onto your <b>Board</b>.
+                </span>
+              </div>
+            </div>
+
+            {selectMode && selected.size > 0 && (
+              <div className="bulk-bar">
+                <span className="ct">{selected.size} selected</span>
+                <span className="spacer" />
+                <button className="b-cancel" onClick={() => setSelected(new Set())}>
+                  Clear
+                </button>
+                <button className="b-track" onClick={trackSelected}>
+                  Track selected
+                </button>
+              </div>
+            )}
+
+            <div className="rec-grid">
+              {recList.map((b: RecommendationBill) => (
+                <RecCard
+                  key={b.billId}
+                  bill={b}
+                  issueSet={issueSet}
+                  selectMode={selectMode}
+                  selected={selected.has(b.billId)}
+                  onToggleSelect={toggleSel}
+                  onTrack={trackRec}
+                  onDismiss={(id) => dismissMutation.mutate(id)}
+                  onOpen={(bb) => drillTo(bb.billId)}
+                />
+              ))}
+            </div>
+
+            {!showAll && recAll.length > aboveFloor.length && (
+              <button
+                className="trk-more"
+                style={{ maxWidth: 320, margin: '2px auto 0' }}
+                onClick={() => setShowAll(true)}
+              >
+                Show all ({recAll.length}) — {recAll.length - aboveFloor.length} below relevance
+                floor
+              </button>
+            )}
+            {showAll && (
+              <button
+                className="trk-more"
+                style={{ maxWidth: 200, margin: '2px auto 0' }}
+                onClick={() => setShowAll(false)}
+              >
+                Show fewer
+              </button>
+            )}
+          </>
+        ))}
+
+      {/* Board section header for the stacked Bills tab (L2). */}
+      {billsStacked && (
+        <div className="trk-head lw-section-head">
+          <div className="lw-section-title">
+            <StarIcon size={14} />
+            <b>Your board</b>
+          </div>
+          <div className="trk-spacer" />
+          {boardControls}
+        </div>
       )}
 
       {/* ===================== BOARD ===================== */}
       {/* isPending (not isLoading) so the flag-gated window renders as loading,
           not as a flash of the zero-bill empty state. */}
-      {activePanel === 'board' &&
+      {(billsStacked || activePanel === 'board') &&
         (boardQuery.isPending ? (
           <div className="trk-col-empty">Loading tracked bills…</div>
         ) : boardCount === 0 ? (
@@ -640,9 +761,11 @@ export function TrackerSurface({
             <p>
               Capiro has surfaced {aboveFloorCount} bills it thinks {clientName} should track.
             </p>
-            <button className="btn btn-accent" onClick={() => setPanel('recs')}>
-              Review {aboveFloorCount} recommended bills →
-            </button>
+            {!billsStacked && (
+              <button className="btn btn-accent" onClick={() => setPanel('recs')}>
+                Review {aboveFloorCount} recommended bills →
+              </button>
+            )}
           </div>
         ) : (
           <>
@@ -718,90 +841,6 @@ export function TrackerSurface({
                 );
               })}
             </div>
-          </>
-        ))}
-
-      {/* ===================== RECOMMENDATIONS ===================== */}
-      {activePanel === 'recs' &&
-        (recsQuery.isPending ? (
-          <div className="trk-col-empty">Finding bills to recommend…</div>
-        ) : recAll.length === 0 ? (
-          <div className="trk-empty">
-            <div className="ico">
-              <Icon name="sparkle" size={22} />
-            </div>
-            <h4>No new recommendations</h4>
-            <p>Add tags or confirm issue areas to widen the matcher.</p>
-            <button
-              className="btn btn-accent"
-              onClick={() => (variant === 'bills' ? onOpenConfigure?.() : setPanel('config'))}
-            >
-              {variant === 'bills' ? 'Open Watchlist →' : 'Open Configure →'}
-            </button>
-          </div>
-        ) : (
-          <>
-            <div className="rec-toolbar">
-              <div className="rec-note">
-                <Icon name="sparkle" size={14} style={{ color: 'var(--accent)' }} />
-                <span>
-                  <b>{aboveFloorCount}</b> bills match this client’s watchlist.
-                </span>
-                <span className="arrow">Track →</span>
-                <span>
-                  moves a bill onto your <b>Board</b>.
-                </span>
-              </div>
-            </div>
-
-            {selectMode && selected.size > 0 && (
-              <div className="bulk-bar">
-                <span className="ct">{selected.size} selected</span>
-                <span className="spacer" />
-                <button className="b-cancel" onClick={() => setSelected(new Set())}>
-                  Clear
-                </button>
-                <button className="b-track" onClick={trackSelected}>
-                  Track selected
-                </button>
-              </div>
-            )}
-
-            <div className="rec-grid">
-              {recList.map((b: RecommendationBill) => (
-                <RecCard
-                  key={b.billId}
-                  bill={b}
-                  issueSet={issueSet}
-                  selectMode={selectMode}
-                  selected={selected.has(b.billId)}
-                  onToggleSelect={toggleSel}
-                  onTrack={trackRec}
-                  onDismiss={(id) => dismissMutation.mutate(id)}
-                  onOpen={(bb) => drillTo(bb.billId)}
-                />
-              ))}
-            </div>
-
-            {!showAll && recAll.length > aboveFloor.length && (
-              <button
-                className="trk-more"
-                style={{ maxWidth: 320, margin: '2px auto 0' }}
-                onClick={() => setShowAll(true)}
-              >
-                Show all ({recAll.length}) — {recAll.length - aboveFloor.length} below relevance
-                floor
-              </button>
-            )}
-            {showAll && (
-              <button
-                className="trk-more"
-                style={{ maxWidth: 200, margin: '2px auto 0' }}
-                onClick={() => setShowAll(false)}
-              >
-                Show fewer
-              </button>
-            )}
           </>
         ))}
 

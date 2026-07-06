@@ -160,11 +160,11 @@ describe('RadarPage', () => {
     mockApi({});
     renderRadar('/radar?tab=bills&client=c1');
 
-    await waitFor(() => expect(screen.getByText('Board')).toBeInTheDocument());
-    expect(screen.getByText(/Recommendations/)).toBeInTheDocument();
-    // "Configure" now names the outer LegiWatch tab (renamed from "Watchlist"),
-    // so it renders as a tab here; the bills surface itself still exposes only its
-    // Board/Recommendations sub-nav (the profile-only entries stay hidden).
+    // LegiWatch v2 (L2): the Bills tab stacks "Recommended by Meri" above "Your
+    // board" (no Board|Recs sub-nav toggle) — both section headers are present.
+    await waitFor(() => expect(screen.getByText('Your board')).toBeInTheDocument());
+    expect(screen.getByText(/Recommended by Meri/)).toBeInTheDocument();
+    // "Configure" names the outer LegiWatch tab (renamed from "Watchlist").
     expect(screen.getByText('Configure')).toBeInTheDocument();
     await waitFor(() =>
       expect(screen.getByText(/No bills on the board yet/i)).toBeInTheDocument(),

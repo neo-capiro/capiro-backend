@@ -30,6 +30,19 @@
   gap: 14px;
   flex-wrap: wrap;
 }
+/* LegiWatch v2 (L2): stacked Bills section headers ("Recommended by Meri" / "Your
+   board") — each carries its own controls, divided from the section above. */
+.redesign .lw-section-head {
+  margin-top: 4px;
+  padding-top: 12px;
+  border-top: 1px solid var(--border-1);
+}
+.redesign .lw-section-title {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 14px;
+}
 .redesign .trk-seg {
   display: inline-flex;
   background: var(--bg-sunken);
