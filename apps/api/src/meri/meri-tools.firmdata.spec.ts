@@ -58,7 +58,13 @@ function makeMocks() {
       }),
     ),
   };
-  const clientPeople = { listPeople: jest.fn().mockResolvedValue([]) };
+  const clientPeople = {
+    listPeople: jest.fn().mockResolvedValue([]),
+    createPerson: jest.fn(async (_ctx: unknown, _clientId: string, input: { name: string }) => ({
+      id: 'person-1',
+      name: input.name,
+    })),
+  };
   const clientFacilities = {
     listFacilities: jest.fn().mockResolvedValue([]),
     createFacility: jest.fn(async (_ctx: unknown, _clientId: string, input: { name: string }) => ({
@@ -552,17 +558,61 @@ describe('update_client_profile (Meri writes to the web app)', () => {
     expect(result.fieldsWritten).toEqual([]);
   });
 
+  it('appends key people discovered on the website', async () => {
+    const m = makeMocks();
+    const result = (await m.service.execute(ctx, 'update_client_profile', {
+      clientId: 'client-1',
+      people: [
+        {
+          name: 'Jane Doe',
+          title: 'VP of Government Affairs',
+          email: 'jane@acme.example',
+          role: 'decision-maker',
+          lastContact: '2026-07-01',
+        },
+        { title: 'no name here' }, // dropped: no name
+      ],
+    })) as {
+      updated: boolean;
+      peopleCreated: string[];
+      fieldsWritten: string[];
+    };
+
+    // Scalar update skipped (no scalar fields), person row appended.
+    expect(m.clients.update).not.toHaveBeenCalled();
+    expect(m.clientPeople.createPerson).toHaveBeenCalledTimes(1);
+    const [, personClientId, personInput] = m.clientPeople.createPerson.mock.calls[0] as [
+      unknown,
+      string,
+      Record<string, unknown>,
+    ];
+    expect(personClientId).toBe('client-1');
+    expect(personInput).toMatchObject({
+      name: 'Jane Doe',
+      title: 'VP of Government Affairs',
+      email: 'jane@acme.example',
+      role: 'decision-maker',
+      lastContact: '2026-07-01',
+    });
+    expect(result.updated).toBe(true);
+    expect(result.peopleCreated).toEqual(['Jane Doe']);
+    expect(result.fieldsWritten).toEqual([]);
+  });
+
   it('writes scalar fields AND appends children in one call', async () => {
     const m = makeMocks();
     const result = (await m.service.execute(ctx, 'update_client_profile', {
       clientId: 'client-1',
       sectorTag: 'DEFENSE',
       facilities: [{ name: 'Plant 2', state: 'TX' }],
-    })) as { facilitiesCreated: string[]; fieldsWritten: string[] };
+      people: [{ name: 'John Roe', title: 'CEO' }],
+    })) as { facilitiesCreated: string[]; peopleCreated: string[]; fieldsWritten: string[] };
     expect(m.clients.update).toHaveBeenCalledTimes(1);
     expect(m.clientFacilities.createFacility).toHaveBeenCalledTimes(1);
+    expect(m.clientPeople.createPerson).toHaveBeenCalledTimes(1);
     expect(result.fieldsWritten).toEqual(['sectorTag']);
     expect(result.facilitiesCreated).toEqual(['Plant 2']);
+    expect(result.peopleCreated).toEqual(['John Roe']);
   });
 
   it('rejects when only empty/nameless children are supplied', async () => {
@@ -572,10 +622,12 @@ describe('update_client_profile (Meri writes to the web app)', () => {
         clientId: 'client-1',
         facilities: [{ city: 'Nowhere' }],
         capabilities: [{ type: 'product' }],
+        people: [{ title: 'nobody' }],
       }),
     ).rejects.toBeInstanceOf(BadRequestException);
     expect(m.clients.update).not.toHaveBeenCalled();
     expect(m.clientFacilities.createFacility).not.toHaveBeenCalled();
+    expect(m.clientPeople.createPerson).not.toHaveBeenCalled();
   });
 });
 

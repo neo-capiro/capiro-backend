@@ -17,7 +17,7 @@ import {
   ClientCapabilitiesService,
   type CreateCapabilityInput,
 } from '../clients/client-capabilities.service.js';
-import { ClientPeopleService } from '../clients/client-people.service.js';
+import { ClientPeopleService, type CreatePersonInput } from '../clients/client-people.service.js';
 import { MemoryIngestService } from '../memory/memory-ingest.service.js';
 import {
   ClientFacilitiesService,
@@ -323,11 +323,13 @@ export const TOOL_DEFINITIONS = [
       'name, website, description, productDescription, primaryContactName, primaryContactEmail, ' +
       'primaryContactPhone, sectorTag, issueCodes, uei, cageCode, naicsCodes, pscCodes. ' +
       'You may ALSO append facilities (locations: name, address, city, state, ZIP, ' +
-      'congressionalDistrict, employeeCount) and capabilities (products/technologies the ' +
-      "organization offers: name, type, description, sector) discovered on the client's " +
-      'website or in filings -- pass them as the facilities[] and capabilities[] arrays. ' +
-      'Each facility/capability in those arrays is APPENDED (new rows), never used to delete ' +
-      'existing ones. Only call this AFTER you have shown the user the proposed values (ideally ' +
+      'congressionalDistrict, employeeCount), capabilities (products/technologies the ' +
+      'organization offers: name, type, description, sector), and people (key contacts / ' +
+      'personnel: name, title, email, phone, role, lastContact, notes) discovered on the ' +
+      "client's website or in filings -- pass them as the facilities[], capabilities[], and " +
+      'people[] arrays. Each facility/capability/person in those arrays is APPENDED (new rows), ' +
+      'never used to delete existing ones. Only call this AFTER you have shown the user the ' +
+      'proposed values (ideally ' +
       'with a source for each, e.g. from search_public_web / scrape_web_page / LDA filings) and ' +
       'they have approved them. Pass only the fields/rows you are changing. Requires user approval.',
   },
@@ -921,6 +923,34 @@ export class MeriToolsService {
                 type: { type: 'string', description: 'e.g. "product", "technology", "service"' },
                 description: { type: 'string', description: 'What it is / what it does' },
                 sector: { type: 'string', description: 'Sector/domain, e.g. "DEFENSE"' },
+                notes: { type: 'string', description: 'Optional notes' },
+              },
+              required: ['name'],
+            },
+          },
+          people: {
+            type: 'array',
+            description:
+              'Key people / contacts (personnel at the client organization) to APPEND ' +
+              '(each becomes a new row on the People tab). Only include what you found and the user approved.',
+            items: {
+              type: 'object',
+              properties: {
+                name: { type: 'string', description: 'Person full name (required)' },
+                title: {
+                  type: 'string',
+                  description: 'Job title, e.g. "VP of Government Affairs"',
+                },
+                email: { type: 'string', description: 'Email address' },
+                phone: { type: 'string', description: 'Phone number' },
+                role: {
+                  type: 'string',
+                  description: 'Their role relative to the engagement, e.g. "decision-maker"',
+                },
+                lastContact: {
+                  type: 'string',
+                  description: 'Date of last contact (ISO date, e.g. "2026-07-01")',
+                },
                 notes: { type: 'string', description: 'Optional notes' },
               },
               required: ['name'],
@@ -3788,19 +3818,21 @@ export class MeriToolsService {
 
     const writtenFields = Object.keys(update);
 
-    // Optional child-record appends (facilities / capabilities). These are
-    // separate tables from the scalar Client profile, so an import that only
-    // adds facilities/capabilities is valid even with no scalar field changes.
+    // Optional child-record appends (facilities / capabilities / people). These
+    // are separate tables from the scalar Client profile, so an import that only
+    // adds child records is valid even with no scalar field changes.
     const facilityInputs = parseFacilityInputs(input.facilities);
     const capabilityInputs = parseCapabilityInputs(input.capabilities);
+    const peopleInputs = parsePeopleInputs(input.people);
 
     if (
       writtenFields.length === 0 &&
       facilityInputs.length === 0 &&
-      capabilityInputs.length === 0
+      capabilityInputs.length === 0 &&
+      peopleInputs.length === 0
     ) {
       throw new BadRequestException(
-        'update_client_profile: no recognized profile fields, facilities, or capabilities to write',
+        'update_client_profile: no recognized profile fields, facilities, capabilities, or people to write',
       );
     }
 
@@ -3838,12 +3870,14 @@ export class MeriToolsService {
       clientName = updated.name;
     }
 
-    // Append facilities, then capabilities. Each create is tenant-scoped and
-    // 404s outside the tenant, so a bad clientId can't cross tenants. We collect
-    // per-row outcomes so a single bad row (e.g. invalid district) doesn't abort
-    // the whole import; the model can relay failures back to the user.
+    // Append facilities, then capabilities, then people. Each create is
+    // tenant-scoped and 404s outside the tenant, so a bad clientId can't cross
+    // tenants. We collect per-row outcomes so a single bad row (e.g. invalid
+    // district) doesn't abort the whole import; the model can relay failures
+    // back to the user.
     const facilitiesCreated: string[] = [];
     const capabilitiesCreated: string[] = [];
+    const peopleCreated: string[] = [];
     const rowErrors: string[] = [];
     for (const f of facilityInputs) {
       try {
@@ -3861,6 +3895,14 @@ export class MeriToolsService {
         rowErrors.push(`capability "${c.name}": ${(err as Error).message}`);
       }
     }
+    for (const p of peopleInputs) {
+      try {
+        const created = await this.clientPeople.createPerson(ctx, clientId, p);
+        peopleCreated.push(created.name);
+      } catch (err) {
+        rowErrors.push(`person "${p.name}": ${(err as Error).message}`);
+      }
+    }
 
     return {
       tool: 'update_client_profile',
@@ -3871,6 +3913,7 @@ export class MeriToolsService {
       fieldsWritten: writtenFields,
       facilitiesCreated,
       capabilitiesCreated,
+      peopleCreated,
       rowErrors,
     };
   }
@@ -4167,6 +4210,35 @@ function parseCapabilityInputs(value: unknown): CreateCapabilityInput[] {
       type: optionalString(row, 'type', 60) ?? undefined,
       description: optionalString(row, 'description', 4000) ?? undefined,
       sector: optionalString(row, 'sector', 120) ?? undefined,
+      notes: optionalString(row, 'notes', 2000) ?? undefined,
+    });
+    if (out.length >= 50) break;
+  }
+  return out;
+}
+
+/**
+ * Parse the optional `people[]` payload of update_client_profile into
+ * CreatePersonInput rows (the People / key-contacts tab). Non-objects and rows
+ * without a usable `name` are dropped. List capped at 50; each string field
+ * trimmed/capped. `lastContact` is passed through as a string — the service
+ * coerces it to a Date (invalid dates become null there).
+ */
+function parsePeopleInputs(value: unknown): CreatePersonInput[] {
+  if (!Array.isArray(value)) return [];
+  const out: CreatePersonInput[] = [];
+  for (const raw of value) {
+    if (!raw || typeof raw !== 'object' || Array.isArray(raw)) continue;
+    const row = raw as Record<string, unknown>;
+    const name = optionalString(row, 'name', 200);
+    if (!name) continue;
+    out.push({
+      name,
+      title: optionalString(row, 'title', 200) ?? undefined,
+      email: optionalString(row, 'email', 200) ?? undefined,
+      phone: optionalString(row, 'phone', 60) ?? undefined,
+      role: optionalString(row, 'role', 120) ?? undefined,
+      lastContact: optionalString(row, 'lastContact', 40) ?? undefined,
       notes: optionalString(row, 'notes', 2000) ?? undefined,
     });
     if (out.length >= 50) break;
