@@ -413,6 +413,8 @@ case "${1:-serve}" in
   export-master-lists) shift; exec ./node_modules/.bin/tsx scripts/export-master-lists.ts "$@" ;;
   # Read-only graph-coverage baseline (org/program/person link counts by status).
   diag-graph-coverage) shift; exec ./node_modules/.bin/tsx scripts/diag-graph-coverage.ts "$@" ;;
+  # Read-only per-PE data-presence report ("why is PE X thin?"). --pe=CODE.
+  diag-pe) shift; exec ./node_modules/.bin/tsx scripts/diag-pe.ts "$@" ;;
   backfill-appropriation-type) shift; exec ./node_modules/.bin/tsx scripts/backfill-appropriation-type.ts "$@" ;;
   # Personnel + derived jobs that were missing dispatch cases (Production
   # Ingestion plan, Phase 2). Scheduled via EventBridge in infra/cdk.
