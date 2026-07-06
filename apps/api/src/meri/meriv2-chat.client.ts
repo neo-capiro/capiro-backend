@@ -76,6 +76,8 @@ export class MeriV2ChatClient {
       messages: Array<{ role: 'user' | 'assistant'; text: string }>;
       clientId?: string;
       conversationId?: string;
+      /** Pre-warmed memory recall lines (loadRelevantMemories) — legacy parity. */
+      memoryContext?: string[];
     };
     aiProvider?: ResolvedAiForChatHeader;
     signal?: AbortSignal;
@@ -93,9 +95,7 @@ export class MeriV2ChatClient {
         authorization: `Bearer ${params.bearerToken}`,
         'content-type': 'application/json',
         accept: 'text/event-stream',
-        ...(params.aiProvider
-          ? { 'x-capiro-ai-provider': JSON.stringify(params.aiProvider) }
-          : {}),
+        ...(params.aiProvider ? { 'x-capiro-ai-provider': JSON.stringify(params.aiProvider) } : {}),
       },
       body: JSON.stringify(params.input),
       ...(params.signal ? { signal: params.signal } : {}),

@@ -14,6 +14,14 @@ export interface ChatInput {
   clientId?: string;
   /** Opaque conversation id the caller threads across turns (persistence is the caller's; C4 is stateless per turn). */
   conversationId?: string;
+  /**
+   * Pre-warmed memory recall, provided by the apps/api proxy (which owns the
+   * clio_memory store + embeddings): the same loadRelevantMemories() lines the
+   * LEGACY chat injects before answering. Without this, "what is my nickname"-
+   * class questions fail — the model has no reason to know a memory exists
+   * (canary regression, 2026-07-06). One line per memory, already formatted.
+   */
+  memoryContext?: string[];
 }
 
 export interface ChatStep {
@@ -129,10 +137,18 @@ export function buildChatSystemPrompt(dto: ChatInput, ctx: MeriContext): string 
     firm?.soul ? `\n# Firm identity\n${firm.soul}` : '',
     firm?.compass ? `\n# Firm compass\n${firm.compass}` : '',
     voice ? `\n# The user's writing voice (mirror it when you draft)\n${voice}` : '',
+    dto.memoryContext?.length
+      ? `\n# What you remember (firm + this user)\nThese are stored memories relevant to this conversation — use them directly when they answer the question:\n${dto.memoryContext.map((m) => `- ${m}`).join('\n')}`
+      : '',
     '',
     '# Tools',
     'Call the provided tools to look up firm/client data and federal intelligence, and to draft or take actions. Ground every factual claim in retrieved data — never fabricate figures, bill numbers, names, or citations. If you lack the data, say so and offer to look it up.',
     'RETRIEVE BEFORE YOU ASSERT: before stating anything about a Program Element, bill, person, or budget figure, call the relevant tool and quote the returned values.',
+    '',
+    '# Where firm data lives (route the question to the RIGHT tool)',
+    'Questions about the USER or the FIRM (their preferences, nicknames, people, prior decisions, anything "about me/us"): call search_memory FIRST — never say you have no record before searching memory.',
+    'Meetings and meeting history/debriefs: query_debriefs. Tasks and to-dos: query_tasks. Outreach and past communications: query_outreach. Emails: list_emails. A client’s profile, team, and context: get_client_context (use the conversation’s client focus, or search memory/knowledge for the client first).',
+    'search_research_sources, search_public_web, and the congress/PE/LDA tools are for FEDERAL and legislative research — never use them for firm-internal questions like meetings, clients, or user facts.',
     '',
     '# Actions require approval',
     'Some tools take real actions (sending email, creating tasks, updating a client profile, generating documents, saving memory). When you call one, the system holds it for the user to approve — you will see it come back as "pending approval", NOT as a completed action. Never tell the user an action is done when it is only pending; say you have proposed it and it awaits their approval.',

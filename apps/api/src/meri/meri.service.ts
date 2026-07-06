@@ -1413,6 +1413,16 @@ export class MeriService {
     // forward it per-invocation — same pattern as the in-editor proxy.
     const aiProvider = await this.aiCredentials.resolveProvider(ctx, 'anthropic');
 
+    // Memory pre-warm (legacy parity): the orchestrator has no access to the
+    // clio_memory store, so recall the same lines the legacy loop injects and
+    // send them along. Without this, "what is my nickname"-class questions fail
+    // — the model has no reason to know a memory exists (canary regression,
+    // 2026-07-06). Fail-open: recall trouble must never block the turn.
+    const recalled = await this.loadRelevantMemories(ctx.tenantId, ctx.userId, args.content).catch(
+      () => [] as Array<{ key: string; value: string }>,
+    );
+    const memoryContext = recalled.map((m) => `${m.key}: ${m.value}`);
+
     emit({ type: 'start', intent: 'general', tier: 'fast' });
 
     let accumulated = '';
@@ -1496,6 +1506,7 @@ export class MeriService {
           messages: args.replayHistory.map((m) => ({ role: m.role, text: m.body })),
           ...(args.conversation.clientId ? { clientId: args.conversation.clientId } : {}),
           conversationId: args.conversationId,
+          ...(memoryContext.length ? { memoryContext } : {}),
         },
         ...(aiProvider ? { aiProvider } : {}),
         ...(args.clientSignal ? { signal: args.clientSignal } : {}),
