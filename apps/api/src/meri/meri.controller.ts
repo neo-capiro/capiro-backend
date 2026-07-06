@@ -213,6 +213,18 @@ export class MeriController {
     return this.tools.manifest();
   }
 
+  /**
+   * Anthropic-native tool JSON-schemas (name/description/input_schema). The
+   * MeriV2 orchestrator's in-editor surface fetches these at request time (with
+   * the caller's bearer) to present the exact tool schemas to the model, so the
+   * tool definitions live in ONE place (MeriToolsService) — no drift-prone copy
+   * in the orchestrator. Read-only; tenant-guarded like every /api/clio route.
+   */
+  @Get('tool-schemas')
+  toolSchemas() {
+    return { schemas: this.tools.anthropicToolSchemas() };
+  }
+
   @Post('tools/:name')
   executeTool(
     @CurrentTenant() ctx: TenantContext,
