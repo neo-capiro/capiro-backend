@@ -38,12 +38,18 @@ import { AcquisitionPersonnelModule } from './acquisition-personnel/acquisition-
 import { AiUsageModule } from './ai-usage/ai-usage.module.js';
 import { BillingModule } from './billing/billing.module.js';
 import { MemoryModule } from './memory/memory.module.js';
+import { GovInfoModule } from './external/govinfo/govinfo.module.js';
 import { ApiLatencyMiddleware } from './observability/api-latency.middleware.js';
 
 @Module({
   imports: [
     ProgramElementModule,
     AcquisitionPersonnelModule,
+    // GovInfoModule was defined but never imported — wired here so GovInfoService
+    // is resolvable app-wide (the sync-hearing-transcripts verb needs it; safe/
+    // additive — the service fails closed only when GOVINFO_API_KEY is used, not
+    // at boot).
+    GovInfoModule,
     ConfigModule.forRoot({
       isGlobal: true,
       cache: true,
