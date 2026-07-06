@@ -279,8 +279,11 @@ export class GovInfoService {
     congress: number,
     opts: { docClass?: string; updatedSince?: string },
   ): Promise<GovInfoPackageRow[]> {
-    const start = opts.updatedSince ?? '1970-01-01T00:00:00Z';
-    const end = new Date().toISOString();
+    // GovInfo's collections endpoint requires yyyy-MM-dd'T'HH:mm:ss'Z' (NO
+    // milliseconds); toISOString() emits ".sssZ", which returns 400 Bad Request.
+    const noMs = (iso: string) => iso.replace(/\.\d+Z$/, 'Z');
+    const start = noMs(opts.updatedSince ?? '1970-01-01T00:00:00Z');
+    const end = noMs(new Date().toISOString());
     const path = `collections/${collection}/${encodeURIComponent(start)}/${encodeURIComponent(end)}`;
     const params: Record<string, string> = {
       congress: String(congress),
