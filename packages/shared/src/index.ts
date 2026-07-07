@@ -619,3 +619,146 @@ export function buildAlert(input: Partial<Alert>): AlertBuildResult {
 export function isAlertComplete(input: Partial<Alert>): boolean {
   return buildAlert(input).complete;
 }
+
+// ---------------------------------------------------------------------------
+// Canonical entity IDs (Bucket-#3 C6 / architecture-plan Appendix B)
+// ---------------------------------------------------------------------------
+// THE registry of external-identifier types every tool and sync speaks. One
+// validator + normalizer per type so "does this member/bill/company exist"
+// checks (SC2.2-class evals) have a single source of truth. Pure + DB-free;
+// crosswalk PERSISTENCE lives in apps/api (entity_crosswalk).
+
+export const CANONICAL_ID_TYPES = [
+  'bioguide', // Congress member (B000944)
+  'billId', // Capiro house format "{congress}-{type}-{number}" e.g. "119-hr-8800"
+  'committee', // Congress.gov systemCode e.g. hsas00 / ssas00
+  'cik', // SEC Central Index Key (numeric, ≤10 digits)
+  'uei', // SAM.gov Unique Entity ID (12 alphanumeric, no I/O)
+  'cage', // CAGE code (5 alphanumeric)
+  'rin', // Regulation Identifier Number (4 alnum agency + '-' + 4 alnum)
+  'docketId', // regulations.gov docket e.g. EPA-HQ-OAR-2021-0317
+  'fain', // Federal Award Identification Number (grants)
+  'piid', // Procurement Instrument ID (contracts)
+  'naics', // NAICS code (2-6 digits)
+  'peCode', // DoD Program Element e.g. 0603270A
+] as const;
+
+export type CanonicalIdType = (typeof CANONICAL_ID_TYPES)[number];
+
+/** Congress.gov bill types, lowercase (the segment in our billId + API paths). */
+export const BILL_TYPES = [
+  'hr',
+  's',
+  'hjres',
+  'sjres',
+  'hconres',
+  'sconres',
+  'hres',
+  'sres',
+] as const;
+export type BillType = (typeof BILL_TYPES)[number];
+
+const PATTERNS: Record<CanonicalIdType, RegExp> = {
+  bioguide: /^[A-Z][0-9]{6}$/,
+  billId: new RegExp(`^[0-9]{2,3}-(${BILL_TYPES.join('|')})-[0-9]{1,5}$`),
+  committee: /^[hsj][sc][a-z]{2}[0-9]{2}$/,
+  cik: /^[0-9]{1,10}$/,
+  uei: /^[A-HJ-NP-Z0-9]{12}$/,
+  cage: /^[A-Z0-9]{5}$/,
+  rin: /^[A-Z0-9]{4}-[A-Z0-9]{2,4}$/,
+  docketId: /^[A-Z0-9]{2,10}(-[A-Za-z0-9]+)+$/,
+  fain: /^[A-Z0-9][A-Z0-9.-]{3,29}$/,
+  piid: /^[A-Z0-9]{4,17}$/,
+  naics: /^[0-9]{2,6}$/,
+  peCode: /^[0-9]{7}[A-Z]{1,2}$/,
+};
+
+/** True iff `value` (after normalizeCanonicalId) is a well-formed id of `type`. */
+export function isValidCanonicalId(type: CanonicalIdType, value: string): boolean {
+  return PATTERNS[type].test(normalizeCanonicalId(type, value));
+}
+
+/**
+ * Normalize an id to its canonical textual form (what we store and compare):
+ * trims, then per-type casing — bioguide/committee ids are case-normalized,
+ * CIK strips leading zeros, billId lowercases its type segment. Never throws;
+ * returns the trimmed input when no rule applies.
+ */
+export function normalizeCanonicalId(type: CanonicalIdType, value: string): string {
+  const v = (value ?? '').trim();
+  switch (type) {
+    case 'bioguide':
+      return v.toUpperCase();
+    case 'committee':
+      return v.toLowerCase();
+    case 'cik':
+      return v.replace(/^0+(?=[0-9])/, '');
+    case 'uei':
+    case 'cage':
+    case 'rin':
+      return v.toUpperCase();
+    case 'billId':
+      return v.toLowerCase();
+    case 'naics':
+    case 'fain':
+    case 'piid':
+    case 'docketId':
+    case 'peCode':
+    default:
+      return v;
+  }
+}
+
+export interface ParsedBillId {
+  congress: number;
+  type: BillType;
+  number: number;
+}
+
+/** Parse OUR bill-id house format ("119-hr-8800"). Null when malformed. */
+export function parseBillId(billId: string): ParsedBillId | null {
+  const v = normalizeCanonicalId('billId', billId);
+  if (!PATTERNS.billId.test(v)) return null;
+  const [congress, type, number] = v.split('-');
+  return { congress: Number(congress), type: type as BillType, number: Number(number) };
+}
+
+/** Format the canonical Capiro bill id from its parts. */
+export function formatBillId(congress: number, type: string, number: number): string | null {
+  const t = type.toLowerCase().replace(/[^a-z]/g, '');
+  if (!(BILL_TYPES as readonly string[]).includes(t)) return null;
+  if (!Number.isInteger(congress) || congress < 1 || !Number.isInteger(number) || number < 1) {
+    return null;
+  }
+  return `${congress}-${t}-${number}`;
+}
+
+/**
+ * Parse a human/citation bill designation ("H.R. 8800", "S. 663", "H. Res. 5",
+ * with optional trailing congress like "H.R. 8800 (119th)") into parts, given a
+ * default congress. Whitespace/punctuation tolerant — feed-normalization for
+ * floor schedules and vote records ("H.R. 5347 " with trailing space, etc.).
+ */
+export function parseBillDesignation(text: string, defaultCongress: number): ParsedBillId | null {
+  const cleaned = (text ?? '').trim();
+  const congressMatch = cleaned.match(/\((\d{2,3})(?:st|nd|rd|th)?\)\s*$/);
+  const congress = congressMatch ? Number(congressMatch[1]) : defaultCongress;
+  const body = congressMatch ? cleaned.slice(0, congressMatch.index).trim() : cleaned;
+  const m = body.match(
+    /^(h\.?\s*r\.?|s\.?|h\.?\s*j\.?\s*res\.?|s\.?\s*j\.?\s*res\.?|h\.?\s*con\.?\s*res\.?|s\.?\s*con\.?\s*res\.?|h\.?\s*res\.?|s\.?\s*res\.?)\s*(\d{1,5})$/i,
+  );
+  if (!m || !m[1] || !m[2]) return null;
+  const rawType = m[1].toLowerCase().replace(/[^a-z]/g, '');
+  // "s" designations: plain "S. 663" is type 's'; the res forms already parsed.
+  const type = (BILL_TYPES as readonly string[]).includes(rawType) ? (rawType as BillType) : null;
+  if (!type) return null;
+  const number = Number(m[2]);
+  const id = formatBillId(congress, type, number);
+  return id ? { congress, type, number } : null;
+}
+
+/** The api.congress.gov path segment for a bill ("/bill/119/hr/8800"). */
+export function billIdToCongressGovPath(billId: string): string | null {
+  const p = parseBillId(billId);
+  return p ? `/bill/${p.congress}/${p.type}/${p.number}` : null;
+}

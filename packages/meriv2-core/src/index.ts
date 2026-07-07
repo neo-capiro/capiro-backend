@@ -7,6 +7,7 @@ export * from './compliance/approval-gate';
 export * from './compliance/compliance-rules';
 export * from './compliance/action-approval';
 export * from './alerts/alert';
+export * from './ids/canonical-ids';
 export * from './scoping/scoping-wrapper';
 export * from './intent/intent-router';
 export * from './grounding/claim-map';
