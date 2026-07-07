@@ -12,42 +12,55 @@ import { AdminsPage } from './pages/funnel/AdminsPage';
 import { ClientsPage } from './pages/funnel/ClientsPage';
 import { OrgPage } from './pages/funnel/OrgPage';
 import { ConfirmPage } from './pages/funnel/ConfirmPage';
-import { SetupPage } from './pages/funnel/SetupPage';
+import { SetupDashboardPage } from './pages/setup/SetupDashboardPage';
+import { AcceptInvitePage } from './pages/setup/AcceptInvitePage';
+import { ItAdminPage } from './pages/it/ItAdminPage';
+import { ItDonePage } from './pages/it/ItDonePage';
+import { ItErrorPage } from './pages/it/ItErrorPage';
 
 /**
- * Route map (fills in as the phases land):
+ * Route map:
  *   Flow 1 funnel:  /register /verify /plan /legal /billing /admins /clients
- *                   /org /confirm                              (this phase)
- *   Flow 2A:        /setup (placeholder), /accept-invite       (Phase 4)
- *   IT admin:       /it/:token                                 (Phase 4)
+ *                   /org /confirm                     (gated by funnelEnabled)
+ *   Flow 2A:        /setup (dashboard), /accept-invite
+ *   IT admin:       /it/done /it/error /it/:token (unauthenticated; must work
+ *                   even when funnelEnabled is false — live tenants' IT links
+ *                   and invited admins never touch the Flow-1 funnel)
  */
 export function App() {
   const config = useConfig();
-  if (!config.funnelEnabled) {
-    return (
-      <Routes>
-        <Route path="/" element={<Navigate to="/register" replace />} />
-        <Route path="*" element={<ComingSoon funnelEnabled={config.funnelEnabled} />} />
-      </Routes>
-    );
-  }
   const guarded = (route: FunnelRoute, element: ReactElement) => (
     <FunnelStepGuard route={route}>{element}</FunnelStepGuard>
   );
   return (
     <Routes>
-      <Route path="/" element={<Navigate to="/register" replace />} />
-      <Route path="/register" element={guarded('/register', <RegisterPage />)} />
-      <Route path="/verify" element={guarded('/verify', <VerifyPage />)} />
-      <Route path="/plan" element={guarded('/plan', <PlanPage />)} />
-      <Route path="/legal" element={guarded('/legal', <LegalPage />)} />
-      <Route path="/billing" element={guarded('/billing', <BillingPage />)} />
-      <Route path="/admins" element={guarded('/admins', <AdminsPage />)} />
-      <Route path="/clients" element={guarded('/clients', <ClientsPage />)} />
-      <Route path="/org" element={guarded('/org', <OrgPage />)} />
-      <Route path="/confirm" element={guarded('/confirm', <ConfirmPage />)} />
-      <Route path="/setup" element={<SetupPage />} />
-      <Route path="*" element={<Navigate to="/register" replace />} />
+      {/* Flow-2A + IT routes render regardless of funnelEnabled. */}
+      <Route path="/accept-invite" element={<AcceptInvitePage />} />
+      <Route path="/setup" element={<SetupDashboardPage />} />
+      {/* Terminal pages first so they match before the :token catch. */}
+      <Route path="/it/done" element={<ItDonePage />} />
+      <Route path="/it/error" element={<ItErrorPage />} />
+      <Route path="/it/:token" element={<ItAdminPage />} />
+      {config.funnelEnabled ? (
+        <>
+          <Route path="/" element={<Navigate to="/register" replace />} />
+          <Route path="/register" element={guarded('/register', <RegisterPage />)} />
+          <Route path="/verify" element={guarded('/verify', <VerifyPage />)} />
+          <Route path="/plan" element={guarded('/plan', <PlanPage />)} />
+          <Route path="/legal" element={guarded('/legal', <LegalPage />)} />
+          <Route path="/billing" element={guarded('/billing', <BillingPage />)} />
+          <Route path="/admins" element={guarded('/admins', <AdminsPage />)} />
+          <Route path="/clients" element={guarded('/clients', <ClientsPage />)} />
+          <Route path="/org" element={guarded('/org', <OrgPage />)} />
+          <Route path="/confirm" element={guarded('/confirm', <ConfirmPage />)} />
+          <Route path="*" element={<Navigate to="/register" replace />} />
+        </>
+      ) : (
+        <>
+          <Route path="/" element={<Navigate to="/register" replace />} />
+          <Route path="*" element={<ComingSoon funnelEnabled={config.funnelEnabled} />} />
+        </>
+      )}
     </Routes>
   );
 }
