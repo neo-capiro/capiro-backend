@@ -18,6 +18,12 @@
       "Resource": [
         "arn:aws:secretsmanager:us-east-1:967807252336:secret:capiro/dev/onboard/*"
       ]
+    },
+    {
+      "Sid": "OnboardApiLogs",
+      "Effect": "Allow",
+      "Action": ["logs:CreateLogStream", "logs:PutLogEvents"],
+      "Resource": "arn:aws:logs:us-east-1:967807252336:log-group:/capiro/dev/onboard-api:*"
     }
   ]
 }
