@@ -1064,6 +1064,8 @@ export function EngagementPage() {
                         rangeStart={rangeStart}
                         rangeEnd={rangeEnd}
                         focusDayKey={meetingFocusDayKey}
+                        aiConfigured={Boolean(capabilities.data?.ai.activeProvider)}
+                        generatingMeetingId={generatingPrepMeetingId}
                         onSelect={(meetingId) => {
                           setSelectedMeetingId(meetingId);
                           setMeetingDetailTab('prep');
@@ -1071,6 +1073,10 @@ export function EngagementPage() {
                         onAction={(meetingId, tab) => {
                           setSelectedMeetingId(meetingId);
                           setMeetingDetailTab(tab);
+                        }}
+                        onGeneratePrep={(meetingId) => {
+                          const meeting = visibleMeetings.find((m) => m.id === meetingId);
+                          if (meeting) handleGeneratePrep(meeting);
                         }}
                       />
                     ) : (
@@ -1736,16 +1742,22 @@ function MeetingDayTimeline({
   rangeStart,
   rangeEnd,
   focusDayKey,
+  aiConfigured,
+  generatingMeetingId,
   onSelect,
   onAction,
+  onGeneratePrep,
 }: {
   meetings: Meeting[];
   selectedId: string | null;
   rangeStart: string;
   rangeEnd: string;
   focusDayKey: string | null;
+  aiConfigured: boolean;
+  generatingMeetingId: string | null;
   onSelect: (id: string) => void;
   onAction: (id: string, tab: string) => void;
+  onGeneratePrep: (id: string) => void;
 }) {
   const days = dateRangeDays(rangeStart, rangeEnd);
   const grouped = groupMeetingsByDate(meetings);
@@ -1815,23 +1827,49 @@ function MeetingDayTimeline({
             dayMeetings.map((meeting) => {
               const status = meetingStatus(meeting);
               return (
-                <button
+                <div
                   key={meeting.id}
-                  type="button"
+                  role="button"
+                  tabIndex={0}
                   className={`engagement-week-event engagement-week-event--${status.kind} engagement-week-event--tone-${status.tone}${meeting.id === selectedId ? ' selected' : ''}`}
                   style={{ borderLeftColor: meetingBorderColor(meeting) }}
                   onClick={() => onSelect(meeting.id)}
+                  onKeyDown={(event) => {
+                    if (event.key === 'Enter' || event.key === ' ') {
+                      event.preventDefault();
+                      onSelect(meeting.id);
+                    }
+                  }}
                 >
                   <span>{formatTime(meeting.startsAt)}</span>
                   <strong>{meeting.subject}</strong>
                   <small>
                     {meeting.client?.name ?? meeting.location ?? sourceLabel(meeting.source)}
                   </small>
-                  <DebriefBadge
-                    meeting={meeting}
-                    onAction={(tab) => onAction(meeting.id, tab)}
-                  />
-                </button>
+                  <div className="engagement-day-event-foot">
+                    <DebriefBadge meeting={meeting} />
+                    <Button
+                      size="small"
+                      className="engagement-day-event-action"
+                      disabled={status.primaryAction === 'prep' && !aiConfigured}
+                      loading={generatingMeetingId === meeting.id}
+                      onClick={(event) => {
+                        event.stopPropagation();
+                        if (status.primaryAction === 'debrief') {
+                          onAction(meeting.id, 'debrief');
+                          return;
+                        }
+                        if (status.primaryAction === 'prep') {
+                          onGeneratePrep(meeting.id);
+                          return;
+                        }
+                        onAction(meeting.id, 'prep');
+                      }}
+                    >
+                      {status.actionLabel}
+                    </Button>
+                  </div>
+                </div>
               );
             })
           ) : (
@@ -2077,7 +2115,7 @@ function MeetingDetailPanel({
         />
       </div>
       {activeTab === 'prep' && prep ? (
-        <div className="engagement-detail-actions" style={{ flexWrap: 'wrap' }}>
+        <div className="engagement-detail-actions">
           <Input.TextArea
             value={prepContext}
             onChange={(e) => setPrepContext(e.target.value)}

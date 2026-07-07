@@ -1402,6 +1402,11 @@ function PreviewTemplateModal({
           : null
       }
       width={640}
+      /* Cap the body and scroll inside it so a long sample output (or the full
+         prompt) is entirely reachable and the footer stays pinned — previously
+         a tall template pushed the bottom of the sample past the viewport with
+         no way to scroll to it. */
+      styles={{ body: { maxHeight: 'calc(100vh - 220px)', overflowY: 'auto' } }}
     >
       {template && (
         <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>

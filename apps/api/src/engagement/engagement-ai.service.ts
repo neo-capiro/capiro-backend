@@ -1069,7 +1069,7 @@ export class EngagementAiService {
   private buildOutreachPrompt(input: OutreachDraftInput): string {
     const workflowGuidance = {
       campaign:
-        'Draft a campaign for congressional recipients. Do not output literal variable tokens such as {district}, {committee}, {personal_note}, {address}, or {member_priority}. Use supplied recipient data only when it is present; otherwise write around the missing detail. Do not invent recipient-specific facts.',
+        'Draft a campaign for congressional recipients. ALWAYS open the email body with a brief, natural greeting that addresses the recipient by their real first name from the recipient data / RECIPIENT PROFILE (e.g. "Hi Dana —" or "Dana,"); never open with "Dear", and if no recipient name is available use a short professional greeting such as "Hello,". This greeting rule applies to every template, including memo- and brief-style templates. Do not output literal variable tokens such as {district}, {committee}, {personal_note}, {address}, or {member_priority}. Use supplied recipient data only when it is present; otherwise write around the missing detail. Do not invent recipient-specific facts.',
       follow_up:
         'Draft a post-meeting follow-up email. Include a brief recap, action items, and next steps from the supplied debrief/prep/context.',
       prep: 'Draft a clean prep distribution summary suitable for a colleague or client before the meeting. Include logistics, context, talking points, and participants from the approved prep.',
@@ -1146,9 +1146,18 @@ export class EngagementAiService {
       typeof input.context?.senderSignature === 'string' && input.context.senderSignature.trim()
         ? input.context.senderSignature.trim()
         : null;
-    const signatureGuidance = senderName
-      ? `Sign off the email as the sender, ${senderName}. Use exactly this signature block at the end and do not invent a different name, company, or title:\n${senderSignature ?? senderName}`
-      : 'Do not fabricate a sender name in the sign-off. If no sender name is provided, end the email without a made-up signature (use a neutral close such as "Best regards,").';
+    // Campaign drafts (the v2 Outreach wizard) MUST NOT carry a signature block:
+    // the sender's saved signature is appended separately at send time via the
+    // wizard's "Append my email signature" toggle (see sendBatchEmails). Baking a
+    // signature into the draft here produced duplicate/stale sign-offs the user
+    // had to delete by hand. Other workflows (follow-up, prep) open a mailto and
+    // never get an auto-append, so they keep signing off as before.
+    const signatureGuidance =
+      input.workflow === 'campaign'
+        ? 'Do NOT add a signature block, sender name, title, company, or contact details at the end of the email — the app inserts the sender\'s signature separately after generation. You may end with a short closing line such as "Best," or "Thank you," on its own line, but write nothing after it.'
+        : senderName
+          ? `Sign off the email as the sender, ${senderName}. Use exactly this signature block at the end and do not invent a different name, company, or title:\n${senderSignature ?? senderName}`
+          : 'Do not fabricate a sender name in the sign-off. If no sender name is provided, end the email without a made-up signature (use a neutral close such as "Best regards,").';
 
     const contextItemsGuidance = contextItemsBlock
       ? [

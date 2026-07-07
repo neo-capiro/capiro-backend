@@ -4839,7 +4839,7 @@ body {
      viewport, which adds a SECOND outer page scrollbar on top of the inner
      content scroll and pushes the Prep/Debrief action bar below the fold.
      Let the viewport-relative height govern. */
-  height: calc(100vh - 240px);
+  height: calc(100vh - 200px);
   min-height: 0;
 }
 
@@ -5488,6 +5488,26 @@ button.engagement-debrief-badge--action:hover {
   color: #b42318;
 }
 
+/* Day-view event footer: status badge on the left, the same primary action
+   button the List view exposes (Generate Prep / Start Debrief / View Prep) on
+   the right, so the Day view can trigger prep without opening the detail pane
+   first. Lives inside the event card (a div[role=button]) — the action button
+   stops propagation so it doesn't also select the meeting. */
+.engagement-day-event-foot {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  margin-top: 6px;
+}
+
+.engagement-day-event-foot .engagement-day-event-action {
+  flex: 0 0 auto;
+  border-radius: 8px;
+  font-size: 12px;
+  font-weight: 800;
+}
+
 .engagement-day-timeline-scroll {
   flex: 1 1 auto;
   min-height: 0;
@@ -5854,17 +5874,23 @@ button.engagement-debrief-badge--action:hover {
 
 .engagement-detail-actions {
   display: flex;
-  flex-wrap: nowrap;
+  /* Wrap the buttons onto as many rows as needed instead of squeezing them
+     into one horizontally-scrolling strip. On the fixed 380px detail column
+     four action buttons never fit on one line, so the old `nowrap` +
+     `overflow-x: auto` hid Regenerate / Edit / Export behind a scrollbar.
+     Wrapping keeps every action visible; flex-shrink:0 keeps the whole bar
+     pinned at the bottom of the panel. */
+  flex-wrap: wrap;
+  flex-shrink: 0;
   gap: 10px;
   padding: 16px 20px;
-  overflow-x: auto;
   border-top: 1px solid #e4e9f2;
   background: #fff;
 }
 
 .engagement-detail-actions .ant-btn {
-  flex: 1 0 96px;
-  min-width: 96px;
+  flex: 1 1 100px;
+  min-width: 100px;
   min-height: 44px;
   padding-inline: 8px;
   border-radius: 8px;
