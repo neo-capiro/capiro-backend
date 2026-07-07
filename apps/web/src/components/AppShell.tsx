@@ -41,6 +41,8 @@ import {
 import { useMe } from '../lib/me.js';
 import { useApi } from '../lib/use-api.js';
 import { useIntelFeatureFlags } from '../lib/intel-feature-flags.js';
+import { OnboardingGates, START_TOUR_EVENT } from './onboarding/OnboardingGates.js';
+import { TrialBanner } from './onboarding/TrialBanner.js';
 import { useClientFilter } from '../state/client-filter.js';
 import { useImpersonation } from '../state/impersonation.js';
 import type { Client } from '../pages/clients/clientTypes.js';
@@ -59,6 +61,9 @@ interface NavItem {
   minRole?: TenantRole;
   /** When set, the item is only shown when this feature flag is enabled for the tenant. */
   featureFlag?: string;
+  /** Product-tour anchor: rendered as `data-tour` on the nav label so the
+   * onboarding DashboardTour (prototype OB_TOUR nav keys) can spotlight it. */
+  tourId?: string;
   /** Sub-items rendered as an expandable submenu (e.g. the Program Elements group). */
   children?: NavItem[];
 }
@@ -116,16 +121,36 @@ const NAV: NavItem[] = [
     label: 'Dashboard',
     path: '/',
     icon: <DashboardOutlined />,
+    tourId: 'Dashboard',
   },
   {
     key: 'engagement',
     label: 'Engagement',
     path: '/engagement',
     icon: <CalendarOutlined />,
+    tourId: 'Engagement',
   },
-  { key: 'clients', label: 'Portfolio', path: '/clients', icon: <ApartmentOutlined /> },
-  { key: 'workspace', label: 'Workspace', path: '/workspace', icon: <FolderOpenOutlined /> },
-  { key: 'directory', label: 'Directory', path: '/directory', icon: <IdcardOutlined /> },
+  {
+    key: 'clients',
+    label: 'Portfolio',
+    path: '/clients',
+    icon: <ApartmentOutlined />,
+    tourId: 'Portfolio',
+  },
+  {
+    key: 'workspace',
+    label: 'Workspace',
+    path: '/workspace',
+    icon: <FolderOpenOutlined />,
+    tourId: 'Workspace',
+  },
+  {
+    key: 'directory',
+    label: 'Directory',
+    path: '/directory',
+    icon: <IdcardOutlined />,
+    tourId: 'Directory',
+  },
   // Intelligence group (kept LAST in the nav): Radar (the unified Tracker +
   // Hearing Watch surface) first, then the Intelligence Center (live Explorer)
   // plus Program Elements nested beneath it. The former PE sub-items (Action
@@ -136,6 +161,7 @@ const NAV: NavItem[] = [
     key: 'pe-group',
     label: 'Intelligence',
     icon: <RadarChartOutlined />,
+    tourId: 'Intelligence',
     children: [
       {
         key: 'radar',
@@ -333,7 +359,7 @@ export function AppShell() {
     const buildLeaf = (n: NavItem) => {
       const count = navCounts[n.key];
       const labelInner = (
-        <span className="app-nav-label-row">
+        <span className="app-nav-label-row" data-tour={n.tourId}>
           <span className="app-nav-label-text">{n.label}</span>
           {count != null && count > 0 ? (
             <span className="app-nav-count num" aria-label={`${count} items`}>
@@ -384,7 +410,7 @@ export function AppShell() {
           icon: n.icon,
           title: n.label,
           label: (
-            <span className="app-nav-label-row">
+            <span className="app-nav-label-row" data-tour={n.tourId}>
               <span className="app-nav-label-text">{n.label}</span>
             </span>
           ),
@@ -496,6 +522,28 @@ export function AppShell() {
                 <span>Settings</span>
               </Link>
 
+              {/* Onboarding v1 (Flow 2B.4): re-open the product tour from any
+                  page. Visible to ALL tenants (harmless); only onboarding
+                  tenants auto-launch it. Navigates to the Dashboard first,
+                  then starts at step 1. */}
+              <button
+                type="button"
+                className="app-bottom-nav-item"
+                onClick={() => {
+                  if (workflowLocked) {
+                    message.info(
+                      'Cancel or complete the outreach workflow before navigating away.',
+                    );
+                    return;
+                  }
+                  navigate('/');
+                  window.dispatchEvent(new Event(START_TOUR_EVENT));
+                }}
+              >
+                <QuestionCircleOutlined />
+                <span>Help &amp; product tour</span>
+              </button>
+
               <Link
                 to="/help"
                 className={`app-bottom-nav-item${selectedKey === 'help' ? ' is-active' : ''}`}
@@ -555,6 +603,11 @@ export function AppShell() {
             </Dropdown>
           </Header>
 
+          {/* Onboarding v1 (Flow 3): persistent free-trial strip under the top
+              bar on every screen. Renders null unless onboardingFlowVersion===1
+              AND status==='trialing' — legacy tenants see zero change. */}
+          <TrialBanner />
+
           {page.showClientDropdown && selectedClient ? (
             <ClientContextBanner client={selectedClient} onClear={clearClientFilter} />
           ) : null}
@@ -579,7 +632,11 @@ export function AppShell() {
                 className="app-content-alert"
               />
             ) : null}
-            <Outlet />
+            {/* Onboarding v1 gate chain (setup gate → personal email/calendar
+                gate → tour). Renders children untouched for legacy tenants. */}
+            <OnboardingGates>
+              <Outlet />
+            </OnboardingGates>
           </Content>
         </Layout>
       </Layout>

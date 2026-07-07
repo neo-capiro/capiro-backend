@@ -696,6 +696,53 @@ scripts/                     onboard-alb-rules.sh; deploy-dev.sh --onboard-only
 
 ---
 
+## 7-A. DEPLOY WORKSHEET (live AWS facts, verified 2026-07-07 via capirocli)
+
+- Cluster `capiro-dev`; existing services: api(:34), web(:6), marketing, workspace,
+  meriv2-orchestrator, intel-api(:8), clio-sandbox.
+- Subnets `subnet-0e38bd390f8961fef, subnet-0920665f91c905f01, subnet-06db79cd21239de19`;
+  SG `sg-01def4e5c0fe44d4a`; assignPublicIp DISABLED (mirror for onboard-api).
+- Roles (shared by intel-api — reused in the onboard taskdefs):
+  exec `…role/Capiro-dev-Compute-ApiTaskDefExecutionRoleE6ABB053-YlEDKuUPHjLg`,
+  task `…role/Capiro-dev-Compute-ApiTaskRole12FAD4A7-szq3QeeZJSCQ` (has SES send —
+  tracker emails run under it).
+- ALB `capiro-prod-alb` (arn …7a4acb332b261724, dns capiro-prod-alb-57164953…,
+  hosted-zone Z35SXDOTRQ7X7K). HTTPS listener `…e2d19b3dd47fc440`.
+  **Actual rules**: p10 /api/* → capiro-prod-api-tg · p12 /workspace-api/* · p13
+  /meri-api/* · p14 /intel-api/* → capiro-dev-intelapi-albtg · p15 /webhooks/* →
+  api-tg · p20 host capiro.ai,www → marketing · default → web.
+  → onboard rules use free priorities **8 (host onboarding.capiro.ai)** and
+  **9 (path /onboard-api/*)** via scripts/onboard-alb-rules.sh.
+- Cert on the 443 listener: b3ed3fa7… SANs app.capiro.ai + capiro.ai + **\*.capiro.ai
+  — onboarding.capiro.ai is ALREADY covered; NO new ACM cert needed** (red-flag
+  cert item dissolves).
+- Route53: zone Z085985135X6Q5QT98ZBK (capiro.ai) → create A/AAAA alias
+  onboarding.capiro.ai → the ALB.
+- Secrets (real ARNs, already wired into infra/deploy/onboard-api-*.json):
+  clerk secret `/capiro/dev/clerk/secret-key-FT67tM`; internal secret
+  `capiro/dev/internal-service-secret-6cEZG4`; oauth-state
+  `capiro/dev/oauth-state-secret-XOOzYB`; ms client id
+  `capiro/dev/microsoft-client-id-AU8xuO`; aurora master `-P4z1Vo` (host/port; +
+  username/password for the MIGRATE task, matching capiro-dev-api-admin-migrate)
+  and app `-zNPtsU` (username/password for serve). DB_NAME=capiro via env.
+  **No Stripe secret exists anywhere in Secrets Manager** → P8 creates
+  `capiro/dev/onboard/stripe-secret-key` + `…/stripe-webhook-secret` after the
+  key is retrieved from the Stripe dashboard (Chrome).
+- Clerk publishable key (public): `pk_live_Y2xlcmsuYXBwLmNhcGlyby5haSQ`.
+- SES: domain identity capiro.ai VERIFIED → onboarding@capiro.ai sends under it.
+- DONE 2026-07-07 (additive, invisible until service exists): ECR repo
+  `capiro/dev/onboard-api` (scanOnPush) ✓; `capiro-gha-api` ecr-push policy
+  extended (+dev/staging onboard-api; 16 resources verified) ✓; log group
+  `/capiro/dev/onboard-api` ✓; exec-role inline policy `onboard-api-ecr-secrets`
+  (ECR pull + `capiro/dev/onboard/*` secret reads; recorded at
+  infra/deploy/onboard-api-execrole-inline-policy.json) ✓.
+- Still to create in P8: the 2 Stripe secrets under `capiro/dev/onboard/*`,
+  register the two taskdefs, TG `capiro-dev-onboardapi-albtg` (port 4400, health
+  `/health`), service `capiro-dev-onboard-api`, the 2 ALB rules, Route53 alias
+  (defer DNS until rules exist so the host never falls through to the web SPA),
+  EventBridge rules for `task report-llm-overage` + `task lifecycle-daily`,
+  Entra app: add redirect URI https://app.capiro.ai/onboard-api/it/microsoft/callback.
+
 ## 8. Red flags (surfaced during audit — please read)
 
 1. **Prod ALB is hand-managed and ComputeStack is wedged** (references a deleted ALB;

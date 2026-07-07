@@ -5,21 +5,20 @@
   "cpu": "256",
   "memory": "512",
   "runtimePlatform": { "cpuArchitecture": "ARM64", "operatingSystemFamily": "LINUX" },
-  "executionRoleArn": "REPLACE_WITH_EXECUTION_ROLE_ARN",
-  "taskRoleArn": "REPLACE_WITH_TASK_ROLE_ARN",
+  "executionRoleArn": "arn:aws:iam::967807252336:role/Capiro-dev-Compute-ApiTaskDefExecutionRoleE6ABB053-YlEDKuUPHjLg",
+  "taskRoleArn": "arn:aws:iam::967807252336:role/Capiro-dev-Compute-ApiTaskRole12FAD4A7-szq3QeeZJSCQ",
   "containerDefinitions": [
     {
       "name": "onboard-api-migrate",
-      "image": "REPLACE_WITH_ECR_IMAGE_URI",
+      "image": "967807252336.dkr.ecr.us-east-1.amazonaws.com/capiro/dev/onboard-api:latest",
       "essential": true,
       "command": ["migrate"],
-      "environment": [],
+      "environment": [{ "name": "DB_NAME", "value": "capiro" }],
       "secrets": [
-        { "name": "DB_HOST", "valueFrom": "REPLACE_WITH_AURORA_SECRET_ARN:host::" },
-        { "name": "DB_PORT", "valueFrom": "REPLACE_WITH_AURORA_SECRET_ARN:port::" },
-        { "name": "DB_USER", "valueFrom": "REPLACE_WITH_AURORA_SECRET_ARN:username::" },
-        { "name": "DB_PASSWORD", "valueFrom": "REPLACE_WITH_AURORA_SECRET_ARN:password::" },
-        { "name": "DB_NAME", "valueFrom": "REPLACE_WITH_AURORA_SECRET_ARN:dbname::" }
+        { "name": "DB_HOST", "valueFrom": "arn:aws:secretsmanager:us-east-1:967807252336:secret:/capiro/dev/aurora/master-P4z1Vo:host::" },
+        { "name": "DB_PORT", "valueFrom": "arn:aws:secretsmanager:us-east-1:967807252336:secret:/capiro/dev/aurora/master-P4z1Vo:port::" },
+        { "name": "DB_USER", "valueFrom": "arn:aws:secretsmanager:us-east-1:967807252336:secret:/capiro/dev/aurora/master-P4z1Vo:username::" },
+        { "name": "DB_PASSWORD", "valueFrom": "arn:aws:secretsmanager:us-east-1:967807252336:secret:/capiro/dev/aurora/master-P4z1Vo:password::" }
       ],
       "logConfiguration": {
         "logDriver": "awslogs",

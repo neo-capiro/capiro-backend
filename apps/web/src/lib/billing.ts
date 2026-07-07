@@ -13,6 +13,8 @@ export interface BillingState {
   usedSlots: number;
   trialEndsAt: string | null;
   onboardingFlowVersion: number | null;
+  /** Wire/ACH lockout — all access suspended until payment confirms. */
+  locked: boolean;
 }
 
 export function useBillingState() {

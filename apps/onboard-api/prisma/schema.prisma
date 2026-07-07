@@ -341,6 +341,7 @@ model Tenant {
   courtesySwapUsed       Boolean       @default(false) @map("courtesy_swap_used")
   deletionHold           Boolean       @default(false) @map("deletion_hold")
   canceledAt             DateTime?     @map("canceled_at") @db.Timestamptz(6)
+  lockedAt               DateTime?     @map("locked_at") @db.Timestamptz(6)
   createdAt              DateTime      @default(now()) @map("created_at") @db.Timestamptz(6)
   updatedAt              DateTime      @updatedAt @map("updated_at") @db.Timestamptz(6)
 

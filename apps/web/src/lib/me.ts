@@ -14,6 +14,8 @@ export interface MeResponse {
     // HTML itself is loaded on demand via GET /api/me/email-signature.
     emailSignatureEnabled: boolean;
     hasEmailSignature: boolean;
+    /** Onboarding v1 (Flow 2B.4): the first-login tour was finished/skipped. */
+    tourCompleted: boolean;
   };
   tenant: { id: string; slug: string; name: string };
   role: TenantRole;

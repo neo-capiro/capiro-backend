@@ -1,6 +1,7 @@
-import { Navigate, Route, Routes, useLocation, useParams } from 'react-router-dom';
+import { Navigate, Route, Routes, useLocation, useParams, useSearchParams } from 'react-router-dom';
 import { lazy, Suspense } from 'react';
 import { SignIn, SignUp, useAuth } from '@clerk/clerk-react';
+import { TicketSignUpPage } from './pages/auth/TicketSignUpPage.js';
 import { config } from './env.js';
 import { AppShell } from './components/AppShell.js';
 import { PlaceholderPage } from './pages/PlaceholderPage.js';
@@ -15,6 +16,7 @@ import { BillingPage } from './pages/admin/BillingPage.js';
 import { CustomersPage } from './pages/admin/CustomersPage.js';
 import { SubscribePage } from './pages/onboarding/SubscribePage.js';
 import { useBillingState } from './lib/billing.js';
+import { LockoutScreen } from './components/onboarding/LockoutScreen.js';
 import { CapiroAdminPage } from './pages/capiro-admin/CapiroAdminPage.js';
 import { ClientWorkspacePage } from './pages/clients/ClientWorkspacePage.js';
 import { DirectoryPage } from './pages/directory/DirectoryPage.js';
@@ -299,6 +301,11 @@ function BillingGate() {
   if (data?.billingEnabled && (data.status === 'none' || data.status === 'canceled')) {
     return <Navigate to="/onboarding/subscribe" replace />;
   }
+  // Wire/ACH lockout (Gherkin bridge): all access suspended until the open
+  // invoice is paid — the lifecycle cron clears locked when payment lands.
+  if (data?.billingEnabled && data.locked) {
+    return <LockoutScreen />;
+  }
   return <AppShell />;
 }
 
@@ -317,6 +324,12 @@ function LegacyRadarRedirect() {
 }
 
 function AuthPage({ mode }: { mode: 'sign-in' | 'sign-up' }) {
+  // Invitation links carry Clerk's ticket param; those get the custom
+  // confirm-password form (onboarding v1 — the hosted component asks for the
+  // password only once). Ticket-less sign-up keeps the hosted component,
+  // preserving the invitation-only posture on this surface.
+  const [params] = useSearchParams();
+  const ticket = params.get('__clerk_ticket');
   return (
     <main className="auth-page">
       <section className="auth-shell" aria-label={mode === 'sign-in' ? 'Sign in' : 'Sign up'}>
@@ -324,6 +337,8 @@ function AuthPage({ mode }: { mode: 'sign-in' | 'sign-up' }) {
         <div className="auth-clerk-frame">
           {mode === 'sign-in' ? (
             <SignIn routing="path" path="/sign-in" signUpUrl="/sign-up" fallbackRedirectUrl="/" />
+          ) : ticket ? (
+            <TicketSignUpPage ticket={ticket} />
           ) : (
             <SignUp routing="path" path="/sign-up" signInUrl="/sign-in" fallbackRedirectUrl="/" />
           )}

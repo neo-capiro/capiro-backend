@@ -10,6 +10,11 @@ class UpdateMeDto {
   @IsString()
   @MaxLength(120)
   title?: string;
+
+  /** Guided-tour completion (onboarding v1 Flow 2B.4): true on Finish/Skip. */
+  @IsOptional()
+  @IsBoolean()
+  tourCompleted?: boolean;
 }
 
 class UpdateEmailSignatureDto {
@@ -69,6 +74,7 @@ export class UsersController {
             title: true,
             emailSignatureHtml: true,
             emailSignatureEnabled: true,
+            tourCompletedAt: true,
           },
         }),
         tx.tenant.findUnique({
@@ -96,6 +102,7 @@ export class UsersController {
         title: profile.user?.title ?? null,
         emailSignatureEnabled: profile.user?.emailSignatureEnabled ?? false,
         hasEmailSignature: Boolean(profile.user?.emailSignatureHtml),
+        tourCompleted: Boolean(profile.user?.tourCompletedAt),
       },
       tenant: {
         id: ctx.tenantId,
@@ -111,20 +118,25 @@ export class UsersController {
 
   @Patch('me')
   async updateMe(@CurrentTenant() ctx: TenantContext, @Body() body: UpdateMeDto) {
-    // Only `title` is editable from the client for now. firstName/lastName/email
-    // are owned by Clerk and synced on login.
-    if (body.title === undefined) {
+    // Editable from the client: `title` and the tour-completion flag.
+    // firstName/lastName/email are owned by Clerk and synced on login.
+    if (body.title === undefined && body.tourCompleted === undefined) {
       throw new BadRequestException('No editable fields provided');
     }
     const normalized = body.title?.trim() ?? '';
     const next = normalized.length ? normalized : null;
+    const data: { title?: string | null; tourCompletedAt?: Date | null } = {};
+    if (body.title !== undefined) data.title = next;
+    if (body.tourCompleted !== undefined) {
+      data.tourCompletedAt = body.tourCompleted ? new Date() : null;
+    }
     // Return the SAME full shape as GET /me — the client writes this straight
     // into the ['me'] cache, so a partial response would blank tenant/role and
     // the signature flags until the next refetch.
     const profile = await this.prisma.withTenant(ctx.tenantId, async (tx) => {
       const user = await tx.user.update({
         where: { id: ctx.userId },
-        data: { title: next },
+        data,
         select: {
           email: true,
           firstName: true,
@@ -132,6 +144,7 @@ export class UsersController {
           title: true,
           emailSignatureHtml: true,
           emailSignatureEnabled: true,
+          tourCompletedAt: true,
         },
       });
       const tenant = await tx.tenant.findUnique({
@@ -154,6 +167,7 @@ export class UsersController {
         title: profile.user.title,
         emailSignatureEnabled: profile.user.emailSignatureEnabled,
         hasEmailSignature: Boolean(profile.user.emailSignatureHtml),
+        tourCompleted: Boolean(profile.user.tourCompletedAt),
       },
       tenant: {
         id: ctx.tenantId,

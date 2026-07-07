@@ -54,6 +54,7 @@ export class BillingService {
           trialEndsAt: true,
           onboardingFlowVersion: true,
           currentPeriodEnd: true,
+          lockedAt: true,
         },
       });
       const usedSlots = await tx.client.count({
@@ -69,6 +70,8 @@ export class BillingService {
       usedSlots,
       trialEndsAt: tenant?.trialEndsAt ? tenant.trialEndsAt.toISOString() : null,
       onboardingFlowVersion: tenant?.onboardingFlowVersion ?? null,
+      // Wire/ACH lockout (Gherkin bridge): all access suspended while set.
+      locked: this.billingEnforced && Boolean(tenant?.lockedAt),
     };
   }
 
@@ -210,6 +213,8 @@ export interface BillingState {
   usedSlots: number;
   trialEndsAt: string | null;
   onboardingFlowVersion: number | null;
+  /** Wire/ACH lockout — access suspended until payment confirms. */
+  locked: boolean;
 }
 
 export interface AdminCustomerRow {

@@ -38,6 +38,7 @@ import { AcquisitionPersonnelModule } from './acquisition-personnel/acquisition-
 import { AiUsageModule } from './ai-usage/ai-usage.module.js';
 import { BillingModule } from './billing/billing.module.js';
 import { MemoryModule } from './memory/memory.module.js';
+import { InternalOnboardingModule } from './internal-onboarding/internal-onboarding.module.js';
 import { GovInfoModule } from './external/govinfo/govinfo.module.js';
 import { ApiLatencyMiddleware } from './observability/api-latency.middleware.js';
 
@@ -95,6 +96,7 @@ import { ApiLatencyMiddleware } from './observability/api-latency.middleware.js'
     AiUsageModule,
     BillingModule,
     MemoryModule,
+    InternalOnboardingModule,
   ],
   controllers: [HealthController],
   providers: [{ provide: APP_GUARD, useClass: ThrottlerGuard }],

@@ -1889,6 +1889,7 @@ export function ChatDrawer({ selectedClientName }: ChatDrawerProps) {
         <button
           type="button"
           className={`chat-toggle-fab${isOpen ? ' chat-toggle-fab--hidden' : ''}`}
+          data-tour="Meri"
           onClick={toggleChat}
           aria-label="Open Meri"
           title="Meri"

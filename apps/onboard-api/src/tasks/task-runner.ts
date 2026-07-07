@@ -3,6 +3,8 @@ import { NestFactory } from '@nestjs/core';
 import { Logger } from '@nestjs/common';
 import { AppModule } from '../app.module.js';
 import { BillingOverageService } from '../billing/billing-overage.service.js';
+import { LegalService } from '../legal/legal.service.js';
+import { LifecycleService } from '../lifecycle/lifecycle.service.js';
 
 /**
  * One-off task runner (entrypoint `task <verb> [args...]`). Boots the Nest
@@ -13,7 +15,7 @@ import { BillingOverageService } from '../billing/billing-overage.service.js';
  *   • lifecycle-daily  — trial conversions, reminder cadence, lockout,
  *                        retention sweep, never-started backstop (Phase 6).
  *   • report-llm-overage — daily Stripe overage meter reporting (Phase 2).
- *   • seed-legal-docs  — upsert the active ToS/SA versions (Phase 3).
+ *   • seed-legal-docs  — upsert the active ToS/SA versions (Phase 3, live).
  */
 type Verb = (
   args: string[],
@@ -26,6 +28,18 @@ const VERBS: Record<string, Verb> = {
   noop: async () => {
     // eslint-disable-next-line no-console
     console.log('onboard task-runner: noop ok');
+  },
+
+  /**
+   * Daily trial/billing lifecycle engine (Phase 6): day-31 conversions,
+   * reminder cadence, never-started backstop, wire/ACH lockout, 90-day
+   * retention. EventBridge → RunTask ["task", "lifecycle-daily"].
+   */
+  'lifecycle-daily': async (_args, app) => {
+    const lifecycle = app.get(LifecycleService);
+    const summary = await lifecycle.runDaily();
+    // eslint-disable-next-line no-console
+    console.log(`lifecycle-daily summary: ${JSON.stringify(summary)}`);
   },
 
   /**
@@ -46,6 +60,22 @@ const VERBS: Record<string, Verb> = {
       console.log(
         `  ${r.tenantSlug}: +${r.reportedDeltaCents}¢ (used $${r.usedUsd.toFixed(2)} / allow $${r.allowanceUsd.toFixed(2)})`,
       );
+    }
+  },
+
+  /**
+   * Seed/refresh the ACTIVE legal documents (Phase 3): ToS (variant 'all') +
+   * SA trial/paid variants, version 2026.07-draft1. The content is the
+   * COUNSEL-PENDING prototype draft (decision Q7) — see
+   * src/legal/legal-doc-seed.ts. Idempotent: upserts by
+   * (docType, planVariant, version) and de-activates older versions.
+   */
+  'seed-legal-docs': async (_args, app) => {
+    const legal = app.get(LegalService);
+    const seeded = await legal.seedDraftDocs();
+    for (const doc of seeded) {
+      // eslint-disable-next-line no-console
+      console.log(`seed-legal-docs: ${doc.docType}/${doc.planVariant} v${doc.version} active`);
     }
   },
 };

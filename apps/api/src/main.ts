@@ -35,6 +35,9 @@ async function bootstrap() {
       ...(process.env.WEB_ORIGIN?.split(',') ?? ['http://localhost:5173']),
       'https://capiro.ai',
       'https://www.capiro.ai',
+      // Onboarding v1: the external setup dashboard calls tenant APIs (LDA
+      // import, team invites, firm memory) with the admin's own Clerk JWT.
+      'https://onboarding.capiro.ai',
     ]
       .map((origin) => origin.trim())
       .filter(Boolean),
