@@ -369,6 +369,16 @@ model TenantMembership {
   @@map("tenant_memberships")
 }
 
+/// Client profiles (apps/api-owned, RLS'd) — mirrored read-only for slot
+/// counts (billing summary / cap math). onboard-api never writes clients.
+model Client {
+  id       String @id @db.Uuid
+  tenantId String @map("tenant_id") @db.Uuid
+  status   String
+
+  @@map("clients")
+}
+
 /// Stripe webhook idempotency log (created by apps/api's 20260614120000_billing
 /// migration; onboard-api becomes its only writer).
 model StripeEvent {

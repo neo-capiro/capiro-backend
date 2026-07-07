@@ -14,7 +14,7 @@ import { ClientsPage } from './pages/admin/ClientsPage.js';
 import { BillingPage } from './pages/admin/BillingPage.js';
 import { CustomersPage } from './pages/admin/CustomersPage.js';
 import { SubscribePage } from './pages/onboarding/SubscribePage.js';
-import { useBilling } from './lib/billing.js';
+import { useBillingState } from './lib/billing.js';
 import { CapiroAdminPage } from './pages/capiro-admin/CapiroAdminPage.js';
 import { ClientWorkspacePage } from './pages/clients/ClientWorkspacePage.js';
 import { DirectoryPage } from './pages/directory/DirectoryPage.js';
@@ -114,7 +114,9 @@ export function App() {
         <Route
           path="/workspace/*"
           element={
-            <Suspense fallback={<PlaceholderPage title="Loading Workspace" description="Please wait..." />}>
+            <Suspense
+              fallback={<PlaceholderPage title="Loading Workspace" description="Please wait..." />}
+            >
               <WorkspaceRoutes />
             </Suspense>
           }
@@ -281,17 +283,18 @@ export function App() {
 /**
  * Wraps the authenticated app shell with a billing paywall. A tenant whose
  * subscription is missing or canceled is routed to the welcome/subscribe screen
- * before it can use the product. Fails OPEN: standard users (who can't read
- * billing) and any summary error render the app normally — only a definitive
- * non-entitled status from the server gates. comped/active/trialing pass through.
+ * before it can use the product. Uses the role-safe /api/billing/state read
+ * (the full summary is billing-admin-only under onboarding v1). Fails OPEN:
+ * any state error renders the app normally — only a definitive non-entitled
+ * status from the server gates. comped/active/trialing pass through.
  */
 function BillingGate() {
-  const billing = useBilling();
+  const billing = useBillingState();
   if (billing.isLoading) {
     return <PlaceholderPage title="Loading" description="Please wait..." />;
   }
   const data = billing.data;
-  // Only paywall when billing is actually enabled (Stripe configured). While
+  // Only paywall when billing is actually enabled (BILLING_ENFORCED). While
   // dormant, billingEnabled is false → the app behaves exactly as before.
   if (data?.billingEnabled && (data.status === 'none' || data.status === 'canceled')) {
     return <Navigate to="/onboarding/subscribe" replace />;

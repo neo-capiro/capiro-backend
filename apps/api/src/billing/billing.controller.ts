@@ -1,55 +1,37 @@
 /**
- * Tenant-facing billing endpoints (/api/billing). Gated to tenant admins
- * (user_admin and above) and scoped to the caller's own tenant via ctx — there
- * is no tenantId input on this surface. Capiro-admin cross-tenant views live on
- * the capiro-admin console instead.
+ * Read-only billing endpoints (/api/billing) — onboarding v1 split:
+ *   GET /api/billing/state    — minimal posture, ANY authenticated role
+ *                               (BillingGate, trial banner, slot counters).
+ *   GET /api/billing/summary  — full detail, billing admins + capiro_admin
+ *                               only (Gherkin: billing entirely hidden from
+ *                               everyone else).
+ * All billing MUTATIONS (checkout/portal/comp) live on apps/onboard-api at
+ * /onboard-api/billing/* — the web app calls them same-origin via the ALB
+ * path rule.
  */
-import { Body, Controller, Get, Post, UseGuards } from '@nestjs/common';
-import { IsInt, IsOptional, IsString, Length, Max, Min } from 'class-validator';
-import { Type } from 'class-transformer';
-import { MIN_CLIENT_SLOTS, type TenantContext } from '@capiro/shared';
+import { Controller, Get, UseGuards } from '@nestjs/common';
+import type { TenantContext } from '@capiro/shared';
 import { Roles } from '../auth/roles.decorator.js';
 import { RolesGuard } from '../auth/roles.guard.js';
 import { CurrentTenant } from '../tenant/current-tenant.decorator.js';
+import { BillingAdminGuard } from './billing-admin.guard.js';
 import { BillingService } from './billing.service.js';
 
-class CheckoutDto {
-  @Type(() => Number)
-  @IsInt()
-  @Min(MIN_CLIENT_SLOTS)
-  @Max(100_000)
-  quantity!: number;
-
-  @IsOptional()
-  @IsString()
-  @Length(1, 64)
-  promoCode?: string;
-}
-
 @Controller('billing')
-@UseGuards(RolesGuard)
-@Roles('user_admin')
 export class BillingController {
   constructor(private readonly billing: BillingService) {}
 
-  /** Current plan / slots / LLM usage — powers the settings page + subscribe gate. */
+  /** Minimal billing posture — safe for every role (paywall + banner). */
+  @Get('state')
+  state(@CurrentTenant() ctx: TenantContext) {
+    return this.billing.getState(ctx);
+  }
+
+  /** Full plan / slots / LLM usage — billing admins only. */
   @Get('summary')
+  @UseGuards(RolesGuard, BillingAdminGuard)
+  @Roles('user_admin')
   summary(@CurrentTenant() ctx: TenantContext) {
     return this.billing.getSummary(ctx);
-  }
-
-  /** Start a Checkout flow to subscribe or add slots; returns a hosted URL. */
-  @Post('checkout')
-  checkout(@CurrentTenant() ctx: TenantContext, @Body() body: CheckoutDto) {
-    return this.billing.createCheckoutSession(ctx, {
-      quantity: body.quantity,
-      promoCode: body.promoCode,
-    });
-  }
-
-  /** Open the Stripe Customer Portal (manage payment, change quantity, invoices). */
-  @Post('portal')
-  portal(@CurrentTenant() ctx: TenantContext) {
-    return this.billing.createPortalSession(ctx);
   }
 }

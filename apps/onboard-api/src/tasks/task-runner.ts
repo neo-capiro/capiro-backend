@@ -2,6 +2,7 @@ import 'reflect-metadata';
 import { NestFactory } from '@nestjs/core';
 import { Logger } from '@nestjs/common';
 import { AppModule } from '../app.module.js';
+import { BillingOverageService } from '../billing/billing-overage.service.js';
 
 /**
  * One-off task runner (entrypoint `task <verb> [args...]`). Boots the Nest
@@ -14,14 +15,38 @@ import { AppModule } from '../app.module.js';
  *   • report-llm-overage — daily Stripe overage meter reporting (Phase 2).
  *   • seed-legal-docs  — upsert the active ToS/SA versions (Phase 3).
  */
-type Verb = (args: string[], app: Awaited<ReturnType<typeof NestFactory.createApplicationContext>>) => Promise<void>;
+type Verb = (
+  args: string[],
+  app: Awaited<ReturnType<typeof NestFactory.createApplicationContext>>,
+) => Promise<void>;
 
 const VERBS: Record<string, Verb> = {
-  // Registered by later phases. Keeping an explicit placeholder verb lets the
-  // deploy pipeline smoke-test the runner before any real verb ships.
+  // Keeping an explicit placeholder verb lets the deploy pipeline smoke-test
+  // the runner before any real verb ships.
   noop: async () => {
     // eslint-disable-next-line no-console
     console.log('onboard task-runner: noop ok');
+  },
+
+  /**
+   * Daily LLM-overage meter report (EventBridge → RunTask ["task",
+   * "report-llm-overage"]). Moved from apps/api/scripts/report-llm-overage.ts
+   * — onboard-api is the single Stripe writer.
+   */
+  'report-llm-overage': async (_args, app) => {
+    const overage = app.get(BillingOverageService);
+    const results = await overage.reportOverageForAllTenants();
+    const reported = results.filter((r) => r.reportedDeltaCents > 0);
+    // eslint-disable-next-line no-console
+    console.log(
+      `report-llm-overage: ${results.length} paying tenants, ${reported.length} with new overage`,
+    );
+    for (const r of reported) {
+      // eslint-disable-next-line no-console
+      console.log(
+        `  ${r.tenantSlug}: +${r.reportedDeltaCents}¢ (used $${r.usedUsd.toFixed(2)} / allow $${r.allowanceUsd.toFixed(2)})`,
+      );
+    }
   },
 };
 

@@ -56,7 +56,7 @@ export class UsersController {
   @Get('me')
   async me(@CurrentTenant() ctx: TenantContext) {
     const profile = await this.prisma.withTenant(ctx.tenantId, async (tx) => {
-      const [user, tenant] = await Promise.all([
+      const [user, tenant, membership] = await Promise.all([
         tx.user.findUnique({
           where: { id: ctx.userId },
           // emailSignatureHtml is fetched only to derive the `hasEmailSignature`
@@ -75,8 +75,15 @@ export class UsersController {
           where: { id: ctx.tenantId },
           select: { name: true },
         }),
-      ]);
-      return { user, tenant };
+        // billing_admin permission bit (onboarding v1) — drives billing-tab
+        // visibility + purchase CTAs in the web app. Deliberately read here
+        // rather than in the change-controlled tenant-context middleware.
+        tx.tenantMembership.findUnique({
+          where: { tenantId_userId: { tenantId: ctx.tenantId, userId: ctx.userId } },
+          select: { billingAdmin: true },
+        }),
+      ] as const);
+      return { user, tenant, membership };
     });
 
     return {
@@ -96,6 +103,9 @@ export class UsersController {
         name: profile.tenant?.name ?? ctx.tenantSlug,
       },
       role: ctx.role,
+      // capiro_admin implicitly has billing powers; tenant users need the
+      // explicit membership bit (the Gherkin "Super Admin").
+      billingAdmin: ctx.role === 'capiro_admin' || (profile.membership?.billingAdmin ?? false),
     };
   }
 
@@ -128,7 +138,11 @@ export class UsersController {
         where: { id: ctx.tenantId },
         select: { name: true },
       });
-      return { user, tenant };
+      const membership = await tx.tenantMembership.findUnique({
+        where: { tenantId_userId: { tenantId: ctx.tenantId, userId: ctx.userId } },
+        select: { billingAdmin: true },
+      });
+      return { user, tenant, membership };
     });
     return {
       user: {
@@ -147,6 +161,7 @@ export class UsersController {
         name: profile.tenant?.name ?? ctx.tenantSlug,
       },
       role: ctx.role,
+      billingAdmin: ctx.role === 'capiro_admin' || (profile.membership?.billingAdmin ?? false),
     };
   }
 

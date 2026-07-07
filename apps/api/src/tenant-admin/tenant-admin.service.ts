@@ -79,9 +79,52 @@ export class TenantAdminService {
         lastName: m.user.lastName,
         role: m.role,
         status: m.status,
+        billingAdmin: m.billingAdmin,
         joinedAt: m.joinedAt,
         lastSeenAt: m.user.lastSeenAt,
       }));
+    });
+  }
+
+  /**
+   * Grant/revoke the billing permission (onboarding v1 "Super Admin" bit).
+   * Grantable by capiro_admin or a member who already holds it (Ninja
+   * decision Q6 — no minimum count is enforced; if a tenant removes its last
+   * billing admin, capiro_admin can re-grant). Only user_admins can hold it.
+   */
+  async setBillingAdmin(ctx: TenantContext, userId: string, billingAdmin: boolean) {
+    if (ctx.role !== 'capiro_admin') {
+      const caller = await this.prisma.withTenant(ctx.tenantId, (tx) =>
+        tx.tenantMembership.findUnique({
+          where: { tenantId_userId: { tenantId: ctx.tenantId, userId: ctx.userId } },
+          select: { billingAdmin: true, status: true },
+        }),
+      );
+      if (caller?.status !== 'active' || !caller.billingAdmin) {
+        throw new ForbiddenException('Only a billing admin can change billing permissions');
+      }
+    }
+
+    return this.prisma.withTenant(ctx.tenantId, async (tx) => {
+      const membership = await tx.tenantMembership.findUnique({
+        where: { tenantId_userId: { tenantId: ctx.tenantId, userId } },
+        select: { role: true, status: true },
+      });
+      if (!membership) throw new NotFoundException('Membership not found');
+      if (membership.status !== 'active') {
+        throw new BadRequestException('Only active members can hold the billing permission');
+      }
+      if (billingAdmin && membership.role !== 'user_admin') {
+        throw new BadRequestException('Only admins (user_admin) can be granted billing access');
+      }
+      await tx.tenantMembership.update({
+        where: { tenantId_userId: { tenantId: ctx.tenantId, userId } },
+        data: { billingAdmin },
+      });
+      this.logger.log(
+        `billing_admin ${billingAdmin ? 'granted to' : 'revoked from'} user ${userId} in tenant ${ctx.tenantId} by ${ctx.userId}`,
+      );
+      return { userId, billingAdmin };
     });
   }
 
@@ -293,7 +336,9 @@ export class TenantAdminService {
       const currentSettings = (tenant?.settings ?? {}) as Record<string, unknown>;
       const updated = await tx.tenant.update({
         where: { id: ctx.tenantId },
-        data: { settings: { ...currentSettings, contactInfo: input } as unknown as Prisma.InputJsonValue },
+        data: {
+          settings: { ...currentSettings, contactInfo: input } as unknown as Prisma.InputJsonValue,
+        },
         select: { settings: true },
       });
       const settings = updated.settings as Record<string, unknown>;
@@ -345,11 +390,14 @@ export class TenantAdminService {
     // email links). Split, pick the first non-empty entry. Operators can
     // override with INVITATION_REDIRECT_URL when they want the invitation
     // link to go to a non-primary host.
-    const override = this.config.get('INVITATION_REDIRECT_URL', { infer: true }) as string | undefined;
+    const override = this.config.get('INVITATION_REDIRECT_URL', { infer: true }) as
+      | string
+      | undefined;
     if (override) return override;
     const rawOrigin = this.config.get('WEB_ORIGIN', { infer: true }) as string | undefined;
     const firstOrigin = rawOrigin?.split(',')[0]?.trim();
-    const origin = firstOrigin && /^https?:\/\//.test(firstOrigin) ? firstOrigin : 'https://app.capiro.ai';
+    const origin =
+      firstOrigin && /^https?:\/\//.test(firstOrigin) ? firstOrigin : 'https://app.capiro.ai';
     return `${origin.replace(/\/$/, '')}/sign-up`;
   }
 }

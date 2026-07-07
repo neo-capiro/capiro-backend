@@ -11,18 +11,19 @@ import {
 import { ConfigService } from '@nestjs/config';
 import type { Request } from 'express';
 import type Stripe from 'stripe';
-import type { AppConfig } from '../config/config.schema.js';
 import { StripeClient } from './stripe.client.js';
 import { StripeWebhookService } from './stripe-webhook.service.js';
 
 /**
  * Stripe webhook receiver. Endpoint registered in the Stripe dashboard:
- *   https://app.capiro.ai/webhooks/stripe
+ *   https://app.capiro.ai/onboard-api/webhooks/stripe
+ * (path chosen so the existing ALB `/webhooks/*`→apps/api rule is untouched —
+ * `/onboard-api/*` routes here).
  *
- * Signature verification uses the Stripe SDK against STRIPE_WEBHOOK_SECRET. The
- * raw body is required, main.ts mounts the `raw()` parser on this exact path
- * (alongside /webhooks/clerk). When billing is not configured on the env, the
- * endpoint accepts and ignores deliveries (204) so health/probes never error.
+ * Signature verification uses the Stripe SDK against STRIPE_WEBHOOK_SECRET.
+ * The raw body is required; main.ts mounts `express.raw()` on this exact path.
+ * When billing is not configured on the env, deliveries are accepted and
+ * ignored (204) so probes never error.
  */
 @Controller('webhooks/stripe')
 export class StripeWebhookController {
@@ -30,11 +31,11 @@ export class StripeWebhookController {
   private readonly secret?: string;
 
   constructor(
-    config: ConfigService<AppConfig, true>,
+    config: ConfigService,
     private readonly stripe: StripeClient,
     private readonly service: StripeWebhookService,
   ) {
-    this.secret = config.get('STRIPE_WEBHOOK_SECRET', { infer: true });
+    this.secret = config.get<string>('STRIPE_WEBHOOK_SECRET') || undefined;
   }
 
   @Post()

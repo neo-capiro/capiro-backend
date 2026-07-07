@@ -6,20 +6,20 @@ import {
 } from '@capiro/shared';
 import { billingPeriodStart } from './billing.service.js';
 
-describe('client slot volume pricing', () => {
-  it('prices per slot at the tier boundaries (10 / 50 / 100)', () => {
+describe('client slot pricing (flat $200 — onboarding v1 decision Q2)', () => {
+  it('prices every self-serve quantity at $200/slot (volume tiers removed)', () => {
     expect(pricePerSlotUsd(10)).toBe(200);
     expect(pricePerSlotUsd(49)).toBe(200);
-    expect(pricePerSlotUsd(50)).toBe(180);
-    expect(pricePerSlotUsd(99)).toBe(180);
-    expect(pricePerSlotUsd(100)).toBe(160);
-    expect(pricePerSlotUsd(5000)).toBe(160);
+    expect(pricePerSlotUsd(50)).toBe(200);
+    expect(pricePerSlotUsd(99)).toBe(200);
+    expect(pricePerSlotUsd(100)).toBe(200);
+    expect(pricePerSlotUsd(5000)).toBe(200);
   });
 
-  it('computes monthly totals with all-units (volume) semantics', () => {
+  it('computes flat monthly totals', () => {
     expect(monthlySlotCostUsd(10)).toBe(2000); // 10 × $200
-    expect(monthlySlotCostUsd(50)).toBe(9000); // 50 × $180
-    expect(monthlySlotCostUsd(100)).toBe(16000); // 100 × $160
+    expect(monthlySlotCostUsd(50)).toBe(10000); // 50 × $200
+    expect(monthlySlotCostUsd(100)).toBe(20000); // 100 × $200
   });
 });
 

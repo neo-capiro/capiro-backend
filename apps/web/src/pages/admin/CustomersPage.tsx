@@ -45,9 +45,14 @@ export function CustomersPage() {
   });
 
   const comp = useMutation({
+    // Comp writes moved to onboard-api (the single billing writer, onboarding
+    // v1) — same-origin path via the ALB /onboard-api/* rule.
     mutationFn: async (input: { tenantId: string; comped: boolean }) =>
-      (await api.post(`/api/capiro-admin/tenants/${input.tenantId}/comp`, { comped: input.comped }))
-        .data,
+      (
+        await api.post(`/onboard-api/admin/billing/tenants/${input.tenantId}/comp`, {
+          comped: input.comped,
+        })
+      ).data,
     onSuccess: () => {
       message.success('Updated');
       qc.invalidateQueries({ queryKey: ['admin', 'billing', 'customers'] });

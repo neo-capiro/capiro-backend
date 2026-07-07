@@ -53,7 +53,7 @@ async function bootstrap() {
   // Webhook signature verification needs the raw (unparsed) body. Mount the raw
   // parser ONLY on the webhook paths; everything else gets normal JSON.
   app.use('/webhooks/clerk', raw({ type: '*/*', limit: '1mb' }));
-  app.use('/webhooks/stripe', raw({ type: '*/*', limit: '1mb' }));
+  // (Stripe webhooks moved to onboard-api: /onboard-api/webhooks/stripe.)
   // The email-signature endpoint carries a branded HTML signature that can embed
   // a base64 logo / uploaded signature image, so its JSON body legitimately
   // exceeds the global 1mb cap. Give just this route a larger limit: the server

@@ -4,16 +4,17 @@ import { PrismaService } from '../prisma/prisma.service.js';
 import { BillingService } from './billing.service.js';
 
 /**
- * Processes Stripe webhook events. Idempotent: every event is recorded in
- * stripe_events keyed by the Stripe event id; re-deliveries are skipped once
- * processed (mirrors the Clerk webhook service).
+ * Processes Stripe webhook events (ported from apps/api verbatim; the
+ * endpoint moved to /onboard-api/webhooks/stripe). Idempotent: every event is
+ * recorded in stripe_events keyed by the Stripe event id; re-deliveries are
+ * skipped once processed.
  *
- * Unlike the Clerk handler we do NOT dispatch inside the idempotency
- * transaction, because the downstream BillingService.syncSubscription opens its
- * own withSystem transaction (Prisma forbids nesting). Instead we claim the
- * event, dispatch, then mark processed. Dispatch is idempotent (it writes the
- * subscription's current state), so a crash between dispatch and the mark just
- * results in a harmless reprocess on Stripe's retry.
+ * We do NOT dispatch inside the idempotency transaction, because the
+ * downstream BillingService.syncSubscription opens its own withSystem
+ * transaction (Prisma forbids nesting). Instead we claim the event, dispatch,
+ * then mark processed. Dispatch is idempotent (it writes the subscription's
+ * current state), so a crash between dispatch and the mark just results in a
+ * harmless reprocess on Stripe's retry.
  */
 @Injectable()
 export class StripeWebhookService {

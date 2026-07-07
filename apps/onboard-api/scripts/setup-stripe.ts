@@ -1,22 +1,28 @@
 /**
- * One-shot, idempotent Stripe resource bootstrap for Capiro billing.
+ * One-shot, idempotent Stripe resource bootstrap for Capiro billing
+ * (onboarding v1 — lives in onboard-api, the single Stripe writer).
  *
- *   STRIPE_SECRET_KEY=sk_test_... BILLING_RETURN_URL=http://localhost:5173 \
- *     pnpm --filter @capiro/api exec tsx scripts/setup-stripe.ts
+ *   STRIPE_SECRET_KEY=sk_test_... \
+ *     pnpm --filter @capiro/onboard-api exec tsx scripts/setup-stripe.ts
  *
  * Creates (or reuses, keyed by price lookup_key / promo code / webhook url):
- *   • Product "Capiro Client Slots"  → recurring monthly, tiered VOLUME price
- *       10–49 = $200, 50–99 = $180, 100+ = $160   (lookup_key capiro_client_slots)
+ *   • Product "Capiro Client Slots"  → recurring monthly, FLAT $200/slot
+ *       (lookup_key capiro_client_slots_flat200 — Ninja decision Q2:
+ *        limited-time $200 locked 24 months; volume discounts are
+ *        contact-sales only, never automatic)
  *   • Product "Capiro LLM Overage"   → metered price, $0.01 per unit, bound to a
  *       Billing Meter "llm_overage_cents" (sum)    (lookup_key capiro_llm_overage)
  *   • 100%-off forever coupon + promotion code CAPIRO-INTERNAL (staff / comp)
- *   • Webhook endpoint → {BILLING_RETURN_URL}/webhooks/stripe (prints the secret)
+ *   • Webhook endpoint → {ONBOARD_WEBHOOK_BASE}/onboard-api/webhooks/stripe
+ *     (prints the secret; the path is onboard-api's — NOT apps/api's
+ *      /webhooks/* ALB rule)
  *
  * Prints the env values to wire into Secrets Manager. Safe to re-run.
  *
  * NOT done here (must be set in the Stripe Dashboard once):
- *   • Enable payment methods: card, link, paypal, cashapp (Apple/Google Pay are
- *     automatic on hosted Checkout — no domain registration needed).
+ *   • Enable payment methods: card, link, us_bank_account (ACH debit), and
+ *     customer_balance/bank-transfer (wire invoices). Apple/Google Pay are
+ *     automatic on hosted Checkout.
  *   • Customer Portal: allow quantity changes, payment-method updates, invoices.
  */
 import { config as dotenvConfig } from 'dotenv';
@@ -26,17 +32,20 @@ dotenvConfig();
 
 const PROMO_CODE = 'CAPIRO-INTERNAL';
 const METER_EVENT = process.env.STRIPE_OVERAGE_METER_EVENT ?? 'llm_overage_cents';
-const SLOTS_LOOKUP = 'capiro_client_slots';
+// _flat200 suffix: distinct from the legacy tiered lookup key so a re-run on
+// an account that once held the $200/$180/$160 volume price creates the flat
+// price instead of silently reusing the tiered one.
+const SLOTS_LOOKUP = 'capiro_client_slots_flat200';
 const OVERAGE_LOOKUP = 'capiro_llm_overage';
 
 async function main(): Promise<void> {
   const key = process.env.STRIPE_SECRET_KEY;
   if (!key) throw new Error('STRIPE_SECRET_KEY is required');
-  const returnUrl = process.env.BILLING_RETURN_URL ?? 'https://app.capiro.ai';
+  const webhookBase = process.env.ONBOARD_WEBHOOK_BASE ?? 'https://app.capiro.ai';
   const stripe = new Stripe(key, { appInfo: { name: 'Capiro setup' } });
   const log = (...a: unknown[]) => console.log(...a);
 
-  // --- Slots price (tiered volume) ------------------------------------------
+  // --- Slots price (flat $200/slot — decision Q2) ----------------------------
   let slotsPrice = (await stripe.prices.list({ lookup_keys: [SLOTS_LOOKUP], limit: 1 })).data[0];
   if (!slotsPrice) {
     const product = await stripe.products.create({
@@ -48,13 +57,7 @@ async function main(): Promise<void> {
       product: product.id,
       lookup_key: SLOTS_LOOKUP,
       recurring: { interval: 'month' },
-      billing_scheme: 'tiered',
-      tiers_mode: 'volume',
-      tiers: [
-        { up_to: 49, unit_amount: 20_000 },
-        { up_to: 99, unit_amount: 18_000 },
-        { up_to: 'inf', unit_amount: 16_000 },
-      ],
+      unit_amount: 20_000, // $200/slot/month, flat
     });
     log(`✓ created slots price ${slotsPrice.id}`);
   } else {
@@ -106,7 +109,7 @@ async function main(): Promise<void> {
   }
 
   // --- Webhook endpoint ------------------------------------------------------
-  const webhookUrl = `${returnUrl.replace(/\/$/, '')}/webhooks/stripe`;
+  const webhookUrl = `${webhookBase.replace(/\/$/, '')}/onboard-api/webhooks/stripe`;
   const endpoints = await stripe.webhookEndpoints.list({ limit: 100 });
   const existingHook = endpoints.data.find((e) => e.url === webhookUrl);
   let webhookSecret = '(unchanged — secret only shown at creation)';
@@ -118,6 +121,7 @@ async function main(): Promise<void> {
         'customer.subscription.created',
         'customer.subscription.updated',
         'customer.subscription.deleted',
+        'customer.subscription.trial_will_end',
         'invoice.payment_failed',
       ],
     });

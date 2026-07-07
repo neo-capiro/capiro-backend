@@ -151,11 +151,6 @@ class SetTenantAiCredentialDto {
   modelOverride?: string;
 }
 
-class SetCompDto {
-  @IsBoolean()
-  comped!: boolean;
-}
-
 class QuarantineListQueryDto {
   @IsIn(['program_element', 'acquisition_personnel'])
   type!: 'program_element' | 'acquisition_personnel';
@@ -305,11 +300,9 @@ export class CapiroAdminController {
     return this.billing.adminListCustomers();
   }
 
-  /** Comp / un-comp a tenant (Capiro staff + courtesy accounts pay $0). */
-  @Post('tenants/:tenantId/comp')
-  setTenantComp(@Param('tenantId', ParseUUIDPipe) tenantId: string, @Body() body: SetCompDto) {
-    return this.billing.setComped(tenantId, body.comped);
-  }
+  // (Comp / un-comp moved to onboard-api — POST
+  //  /onboard-api/admin/billing/tenants/:tenantId/comp — the single Stripe/
+  //  billing writer. The web console calls it same-origin via the ALB rule.)
 
   // --- Step 3.5: analyst console -------------------------------------------
 

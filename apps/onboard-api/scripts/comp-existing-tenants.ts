@@ -5,8 +5,8 @@
  * has billing_status='none' (the column default), so this flips them to
  * 'comped'. New tenants created afterwards keep 'none' and must subscribe.
  *
- *   pnpm --filter @capiro/api exec tsx scripts/comp-existing-tenants.ts          # dry-run
- *   pnpm --filter @capiro/api exec tsx scripts/comp-existing-tenants.ts --commit # apply
+ *   pnpm --filter @capiro/onboard-api exec tsx scripts/comp-existing-tenants.ts          # dry-run
+ *   pnpm --filter @capiro/onboard-api exec tsx scripts/comp-existing-tenants.ts --commit # apply
  *
  * Idempotent: only touches tenants currently in 'none'. Boots a Nest context to
  * reuse the RLS-aware PrismaService (withSystem). Mirrors prepopulate-all.ts.

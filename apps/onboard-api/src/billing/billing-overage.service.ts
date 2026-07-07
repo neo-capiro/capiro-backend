@@ -1,9 +1,8 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { LLM_OVERAGE_MULTIPLIER } from '@capiro/shared';
-import type { AppConfig } from '../config/config.schema.js';
 import { PrismaService } from '../prisma/prisma.service.js';
-import { AiUsageService } from '../ai-usage/ai-usage.service.js';
+import { AiUsageReaderService } from './ai-usage-reader.service.js';
 import { StripeClient } from './stripe.client.js';
 import { billingPeriodStart } from './billing.service.js';
 
@@ -18,13 +17,13 @@ export interface OverageReportResult {
 
 /**
  * Computes per-tenant LLM overage and reports the incremental amount to the
- * Stripe metered "overage" price. Designed to run daily as a one-off job
- * (scripts/report-llm-overage.ts).
+ * Stripe metered "overage" price (ported from apps/api; runs daily via the
+ * `task report-llm-overage` entrypoint verb).
  *
  * Billing model: each tenant gets a pooled allowance of
  *   llmAllowanceUsdPerSlot × clientSlots
- * of REAL LLM cost (ai_usage_events.cost_usd) per billing period. Beyond that,
- * overage is billed at LLM_OVERAGE_MULTIPLIER × the real cost.
+ * of REAL LLM cost (ai_usage_events.cost_usd) per billing period. Beyond
+ * that, overage is billed at LLM_OVERAGE_MULTIPLIER × the real cost.
  *
  * Idempotent / no double-billing: tenant_usage_meters tracks cumulative cents
  * already reported for the period; we only ever report the positive delta. A
@@ -38,16 +37,16 @@ export class BillingOverageService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly stripe: StripeClient,
-    private readonly aiUsage: AiUsageService,
-    private readonly config: ConfigService<AppConfig, true>,
+    private readonly aiUsage: AiUsageReaderService,
+    private readonly config: ConfigService,
   ) {}
 
   private get meterEventName(): string {
-    return this.config.get('STRIPE_OVERAGE_METER_EVENT', { infer: true });
+    return this.config.get<string>('STRIPE_OVERAGE_METER_EVENT') ?? 'llm_overage_cents';
   }
 
   private get overageConfigured(): boolean {
-    return this.stripe.enabled && Boolean(this.config.get('STRIPE_PRICE_OVERAGE', { infer: true }));
+    return this.stripe.enabled && Boolean(this.config.get<string>('STRIPE_PRICE_OVERAGE'));
   }
 
   /** Run the overage computation + report for every paying tenant. */
@@ -100,8 +99,7 @@ export class BillingOverageService {
     currentPeriodEnd: Date | null;
   }): Promise<OverageReportResult> {
     const periodStart = billingPeriodStart(t.currentPeriodEnd);
-    const usage = await this.aiUsage.tenantSummaryByTenantId(t.id, { from: periodStart });
-    const usedUsd = usage.totalCostUsd;
+    const usedUsd = await this.aiUsage.tenantCostUsdSince(t.id, periodStart);
     const allowanceUsd = t.clientSlots * t.allowancePerSlot;
     const overageUsd = Math.max(0, usedUsd - allowanceUsd);
     const billableOverageCents = Math.round(overageUsd * LLM_OVERAGE_MULTIPLIER * 100);

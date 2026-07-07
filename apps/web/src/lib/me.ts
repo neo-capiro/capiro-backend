@@ -17,6 +17,12 @@ export interface MeResponse {
   };
   tenant: { id: string; slug: string; name: string };
   role: TenantRole;
+  /**
+   * Billing permission (onboarding v1 "Super Admin"): true for capiro_admin
+   * and for user_admins whose membership carries billing_admin. Drives the
+   * Billing/AI-usage tab visibility and every purchase/upgrade CTA.
+   */
+  billingAdmin: boolean;
 }
 
 export function useMe() {
