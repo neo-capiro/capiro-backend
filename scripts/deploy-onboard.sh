@@ -117,8 +117,8 @@ fi
 
 log "Done. Verify:"
 cat <<'EOF'
-  curl -s https://onboarding.capiro.ai/onboard-api/health          # {"ok":true,...}
-  curl -s https://app.capiro.ai/onboard-api/health                 # {"ok":true,...}
+  curl -s https://onboarding.capiro.ai/health                      # {"ok":true,...} (health sits OUTSIDE the /onboard-api prefix — it is the TG check path)
+  curl -s https://app.capiro.ai/onboard-api/public/config          # 200 JSON (proves the /onboard-api/* path rule)
   curl -s -o /dev/null -w '%{http_code}\n' https://app.capiro.ai/api/health  # 200 (unchanged)
   MSYS_NO_PATHCONV=1 aws logs filter-log-events --log-group-name /capiro/dev/onboard-api \
     --start-time $(( $(date +%s)000 - 300000 )) \
