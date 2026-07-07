@@ -36,6 +36,7 @@ jobs:
           pnpm --filter @capiro/api exec prisma generate
           pnpm --filter @capiro/workspace exec prisma generate
           pnpm --filter @capiro/intel-api exec prisma generate
+          pnpm --filter @capiro/onboard-api exec prisma generate
 
       - name: Prettier (MeriV2 code)
         run: >

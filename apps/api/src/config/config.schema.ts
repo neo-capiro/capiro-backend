@@ -304,23 +304,17 @@ export const configSchema = z.object({
   // S3 bucket for cached GovInfo PDFs (committee reports, public laws).
   GOVINFO_CACHE_BUCKET: z.string().optional(),
 
-  // Stripe billing (Stripe-direct: Checkout + Customer Portal + webhooks).
-  // All optional so non-prod boots without billing wired; the BillingService
-  // returns a fail-soft "billing not configured" state when STRIPE_SECRET_KEY
-  // is unset (mirrors the AI-key BYO pattern). Sourced from Secrets Manager and
-  // injected as env by CDK in deployed envs.
-  STRIPE_SECRET_KEY: z.string().optional(),
-  STRIPE_WEBHOOK_SECRET: z.string().optional(),
-  // Recurring Price id for the volume-tiered "Capiro Client Slots" product.
-  STRIPE_PRICE_SLOTS: z.string().optional(),
-  // Recurring metered Price id for "Capiro LLM Overage" (bound to a Billing
-  // Meter; usage reported in cents of billable overage).
-  STRIPE_PRICE_OVERAGE: z.string().optional(),
-  // Event name of the Stripe Billing Meter the overage price is bound to.
-  STRIPE_OVERAGE_METER_EVENT: z.string().default('llm_overage_cents'),
-  // Base URL the Checkout/Portal return flows redirect back to. Defaults to the
-  // prod app; override per env (e.g. http://localhost:5173 locally).
-  BILLING_RETURN_URL: z.string().url().default('https://app.capiro.ai'),
+  // Billing enforcement (onboarding v1). ALL Stripe access moved to
+  // apps/onboard-api (the single Stripe writer — checkout/portal/webhooks/
+  // overage; see docs/plans/onboarding-v1-plan.md). apps/api keeps only the
+  // read-side billing views (summary/state) and the 402 client-slot gate,
+  // switched by this explicit flag now that the old implicit
+  // Boolean(STRIPE_SECRET_KEY) signal no longer exists in this service.
+  // Flip to true at billing activation (after comp-existing-tenants has run).
+  BILLING_ENFORCED: z
+    .string()
+    .default('false')
+    .transform((v) => ['1', 'true', 'yes', 'on'].includes(v.toLowerCase())),
 
   // ── Client-profile Tracker tab: bill-change alert delivery ────────────────
   // Master kill-switch for the alert pipeline (change detection + fan-out).

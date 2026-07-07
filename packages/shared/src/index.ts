@@ -426,18 +426,31 @@ export const TENANT_HEADER = 'x-capiro-tenant';
 export const MIN_CLIENT_SLOTS = 10;
 
 /**
- * Volume pricing for client slots, in whole USD per slot per month. "Volume"
- * (all-units) semantics: every slot is priced at the tier the TOTAL quantity
- * falls into — matches Stripe `tiers_mode: 'volume'`.
- *   10–49 → $200, 50–99 → $180, 100+ → $160.
+ * Client-slot pricing (onboarding v1, Ninja decision Q2 2026-07-06): FLAT
+ * $200/slot/month for every self-serve quantity. The previous $180/$160
+ * volume tiers were removed — volume discounts are contact-sales only, never
+ * automatic. Matches the flat Stripe price (lookup_key
+ * capiro_client_slots_flat200 in onboard-api's setup-stripe.ts).
  */
-export const CLIENT_SLOT_TIERS = [
-  { minSlots: 100, pricePerSlotUsd: 160 },
-  { minSlots: 50, pricePerSlotUsd: 180 },
-  { minSlots: MIN_CLIENT_SLOTS, pricePerSlotUsd: 200 },
-] as const;
+export const CLIENT_SLOT_TIERS = [{ minSlots: MIN_CLIENT_SLOTS, pricePerSlotUsd: 200 }] as const;
 
-/** Per-slot monthly price for a given purchased quantity (volume pricing). */
+/**
+ * Subscribing locks the $200/slot price for this many months
+ * (tenants.price_lock_expires_at); the "limited-time" launch offer copy.
+ */
+export const PRICE_LOCK_MONTHS = 24;
+
+/** Pricing headline shown wherever the $200 price appears (Ninja copy ask). */
+export const PRICE_LOCK_COPY = 'Limited-time price — lock in $200/profile for 2 years.';
+
+/**
+ * "Prices subject to change" language reconciled with the 24-month lock
+ * (shown on-screen on plan selection, not buried in the legal docs).
+ */
+export const PRICE_CHANGE_COPY =
+  'Your price is locked for 24 months from subscription; thereafter prices are subject to change.';
+
+/** Per-slot monthly price for a given purchased quantity (flat $200). */
 export function pricePerSlotUsd(quantity: number): number {
   for (const tier of CLIENT_SLOT_TIERS) {
     if (quantity >= tier.minSlots) return tier.pricePerSlotUsd;

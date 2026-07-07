@@ -1,5 +1,14 @@
-import { BadRequestException, Injectable, Logger, NotFoundException } from '@nestjs/common';
-import type { TenantContext } from '@capiro/shared';
+import {
+  BadRequestException,
+  HttpException,
+  HttpStatus,
+  Injectable,
+  Logger,
+  NotFoundException,
+} from '@nestjs/common';
+import { ConfigService } from '@nestjs/config';
+import { CLIENT_SLOT_LIMIT_CODE, type TenantContext } from '@capiro/shared';
+import type { AppConfig } from '../config/config.schema.js';
 import { PrismaService } from '../prisma/prisma.service.js';
 import { ClientPrepopulationService } from './client-prepopulation.service.js';
 import { SamEntityEnrichmentService } from './sam-entity.service.js';
@@ -36,12 +45,19 @@ export interface ImportCandidate {
 @Injectable()
 export class FirmOnboardingService {
   private readonly logger = new Logger(FirmOnboardingService.name);
+  // Same enforcement switch as ClientsService: the LDA import previously
+  // bypassed the client-slot cap entirely (onboarding-v1 audit finding) — a
+  // tenant could import an unlimited portfolio around the 402 gate.
+  private readonly billingEnforced: boolean;
 
   constructor(
     private readonly prisma: PrismaService,
     private readonly prepopulation: ClientPrepopulationService,
     private readonly samEntity: SamEntityEnrichmentService,
-  ) {}
+    config: ConfigService<AppConfig, true>,
+  ) {
+    this.billingEnforced = config.get('BILLING_ENFORCED', { infer: true });
+  }
 
   /** Trigram search over LDA registrants so a firm can find itself. */
   async searchRegistrants(q: string): Promise<RegistrantHit[]> {
@@ -149,6 +165,31 @@ export class FirmOnboardingService {
       throw new BadRequestException('Set your firm (LDA registrant) before importing clients');
     }
 
+    // Client-slot cap (mirrors ClientsService.create): already at/over the
+    // limit → 402 up front. Mid-batch cap hits are reported per-row instead
+    // (see the in-transaction check below) so partial imports stay usable.
+    const slotGate = await this.prisma.withTenant(ctx.tenantId, async (tx) => {
+      const tenant = await tx.tenant.findUnique({
+        where: { id: ctx.tenantId },
+        select: { billingStatus: true, clientSlots: true },
+      });
+      const current = await tx.client.count({ where: { status: { not: 'archived' } } });
+      return { tenant, current };
+    });
+    const slotsEnforced =
+      this.billingEnforced && slotGate.tenant && slotGate.tenant.billingStatus !== 'comped';
+    if (slotsEnforced && slotGate.current >= slotGate.tenant!.clientSlots) {
+      throw new HttpException(
+        {
+          code: CLIENT_SLOT_LIMIT_CODE,
+          message: `You've used all ${slotGate.tenant!.clientSlots} client slots.`,
+          limit: slotGate.tenant!.clientSlots,
+          current: slotGate.current,
+        },
+        HttpStatus.PAYMENT_REQUIRED,
+      );
+    }
+
     // Only allow importing the firm's OWN clients (not arbitrary global ids).
     const ownRows = await this.prisma.ldaFiling.findMany({
       where: { registrantId: ldaRegistrantId, clientId: { in: ids } },
@@ -189,6 +230,14 @@ export class FirmOnboardingService {
             select: { name: true },
           });
           if (dup) return { dup: dup.name };
+          if (slotsEnforced) {
+            // Re-count inside the row transaction so a batch stops exactly at
+            // the cap instead of overshooting.
+            const count = await tx.client.count({ where: { status: { not: 'archived' } } });
+            if (count >= slotGate.tenant!.clientSlots) {
+              return { capped: slotGate.tenant!.clientSlots };
+            }
+          }
           const client = await tx.client.create({
             data: {
               tenantId: ctx.tenantId,
@@ -223,6 +272,11 @@ export class FirmOnboardingService {
 
         if ('dup' in result) {
           skipped.push({ ldaClientId: id, reason: `already onboarded as "${result.dup}"` });
+        } else if ('capped' in result) {
+          skipped.push({
+            ldaClientId: id,
+            reason: `${CLIENT_SLOT_LIMIT_CODE}: client slot limit (${result.capped}) reached`,
+          });
         } else {
           created.push({ id: result.client.id, name: result.client.name, ldaClientId: id });
           // Layer in LDA-derived signals + union issue codes (idempotent). Never

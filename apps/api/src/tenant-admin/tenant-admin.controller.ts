@@ -1,5 +1,14 @@
 import { Body, Controller, Delete, Get, Param, Post, Put, UseGuards } from '@nestjs/common';
-import { IsEmail, IsIn, IsOptional, IsString, IsUrl, Length, MinLength } from 'class-validator';
+import {
+  IsBoolean,
+  IsEmail,
+  IsIn,
+  IsOptional,
+  IsString,
+  IsUrl,
+  Length,
+  MinLength,
+} from 'class-validator';
 import type { ContactInfoInput } from './tenant-admin.service.js';
 import type { TenantContext } from '@capiro/shared';
 import { Roles } from '../auth/roles.decorator.js';
@@ -34,6 +43,11 @@ class UpdateTeamMemberRoleDto {
   @IsString()
   @IsIn(['user_admin', 'standard_user'])
   role!: 'user_admin' | 'standard_user';
+}
+
+class SetBillingAdminDto {
+  @IsBoolean()
+  billingAdmin!: boolean;
 }
 
 class UpdateContactInfoDto implements ContactInfoInput {
@@ -140,6 +154,20 @@ export class TenantAdminController {
     @Body() body: UpdateTeamMemberRoleDto,
   ) {
     return this.service.updateMemberRole(ctx, userId, body.role);
+  }
+
+  /**
+   * Grant/revoke the billing permission (onboarding v1 "Super Admin" bit).
+   * Route min-role is user_admin; the service additionally requires the
+   * caller to be capiro_admin or an existing billing admin.
+   */
+  @Put('team/:userId/billing-admin')
+  setBillingAdmin(
+    @CurrentTenant() ctx: TenantContext,
+    @Param('userId') userId: string,
+    @Body() body: SetBillingAdminDto,
+  ) {
+    return this.service.setBillingAdmin(ctx, userId, body.billingAdmin);
   }
 
   @Get('contact-info')

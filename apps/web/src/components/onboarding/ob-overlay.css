@@ -1,0 +1,29 @@
+/* ── Onboarding overlay token scope (Phase 5, onboarding v1) ──────────────
+   The onboarding gate/tour/banner components are pixel-ports of
+   apps/onboard-web/prototype/04-app-env3.jsx and reference the prototype's
+   CSS custom properties. apps/web's src/theme.css already defines every
+   COLOR token with identical values at :root (--bg-canvas, --bg-surface-2,
+   --bg-sunken, --border-1/2/strong, --ink-1..4, --accent, --accent-ink,
+   --accent-soft, --accent-glow, --critical(-soft), --notable(-soft),
+   --success(-soft)) — so only the FONT tokens are missing (theme.css names
+   them --font-sans-rd / --font-serif-rd / --font-mono-rd). This wrapper
+   class supplies the prototype-named font vars, scoped so nothing else in
+   the app changes. The font FILES (Hanken Grotesk / Newsreader /
+   JetBrains Mono) are already self-hosted app-wide via
+   components/chat/chat-fonts.css (imported by chat.css → ChatDrawer, which
+   AppShell always renders). */
+
+.ob-overlay {
+  --font-sans: 'Hanken Grotesk', ui-sans-serif, system-ui, sans-serif;
+  --font-serif: 'Newsreader', 'Iowan Old Style', 'Charter', Georgia, serif;
+  --font-mono: 'JetBrains Mono', ui-monospace, 'SF Mono', Menlo, monospace;
+  font-family: var(--font-sans);
+  color: var(--ink-1);
+}
+
+/* Prototype Spinner keyframes (01-primitives.jsx uses `ob-spin`). */
+@keyframes ob-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}

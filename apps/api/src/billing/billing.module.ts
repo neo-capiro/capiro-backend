@@ -1,24 +1,21 @@
 import { Module } from '@nestjs/common';
 import { PrismaModule } from '../prisma/prisma.module.js';
 import { AiUsageModule } from '../ai-usage/ai-usage.module.js';
-import { StripeClient } from './stripe.client.js';
 import { BillingService } from './billing.service.js';
 import { BillingController } from './billing.controller.js';
-import { StripeWebhookService } from './stripe-webhook.service.js';
-import { StripeWebhookController } from './stripe-webhook.controller.js';
-import { BillingOverageService } from './billing-overage.service.js';
+import { BillingAdminGuard } from './billing-admin.guard.js';
 
 /**
- * Stripe-direct billing: Checkout + Customer Portal + webhook sync, plus the
- * LLM-overage metering service used by the report-llm-overage job. Imports
- * AiUsageModule for the usage aggregator that backs the LLM allowance/overage
- * math. Exports BillingService + BillingOverageService so the capiro-admin
- * console (customers list / comp) and the scheduled job can reuse them.
+ * READ-ONLY billing views (onboarding v1). The Stripe integration —
+ * checkout, portal, webhooks, comp toggle, overage metering — moved to
+ * apps/onboard-api (the single Stripe writer). This module keeps the summary/
+ * state reads that power the paywall, trial banner, Settings → Billing, and
+ * the capiro-admin Customers console.
  */
 @Module({
   imports: [PrismaModule, AiUsageModule],
-  controllers: [BillingController, StripeWebhookController],
-  providers: [StripeClient, BillingService, StripeWebhookService, BillingOverageService],
-  exports: [BillingService, BillingOverageService, StripeClient],
+  controllers: [BillingController],
+  providers: [BillingService, BillingAdminGuard],
+  exports: [BillingService, BillingAdminGuard],
 })
 export class BillingModule {}

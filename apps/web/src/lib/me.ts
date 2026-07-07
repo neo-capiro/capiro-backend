@@ -14,9 +14,17 @@ export interface MeResponse {
     // HTML itself is loaded on demand via GET /api/me/email-signature.
     emailSignatureEnabled: boolean;
     hasEmailSignature: boolean;
+    /** Onboarding v1 (Flow 2B.4): the first-login tour was finished/skipped. */
+    tourCompleted: boolean;
   };
   tenant: { id: string; slug: string; name: string };
   role: TenantRole;
+  /**
+   * Billing permission (onboarding v1 "Super Admin"): true for capiro_admin
+   * and for user_admins whose membership carries billing_admin. Drives the
+   * Billing/AI-usage tab visibility and every purchase/upgrade CTA.
+   */
+  billingAdmin: boolean;
 }
 
 export function useMe() {

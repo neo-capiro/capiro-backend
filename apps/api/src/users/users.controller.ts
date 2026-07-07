@@ -10,6 +10,11 @@ class UpdateMeDto {
   @IsString()
   @MaxLength(120)
   title?: string;
+
+  /** Guided-tour completion (onboarding v1 Flow 2B.4): true on Finish/Skip. */
+  @IsOptional()
+  @IsBoolean()
+  tourCompleted?: boolean;
 }
 
 class UpdateEmailSignatureDto {
@@ -56,7 +61,7 @@ export class UsersController {
   @Get('me')
   async me(@CurrentTenant() ctx: TenantContext) {
     const profile = await this.prisma.withTenant(ctx.tenantId, async (tx) => {
-      const [user, tenant] = await Promise.all([
+      const [user, tenant, membership] = await Promise.all([
         tx.user.findUnique({
           where: { id: ctx.userId },
           // emailSignatureHtml is fetched only to derive the `hasEmailSignature`
@@ -69,14 +74,22 @@ export class UsersController {
             title: true,
             emailSignatureHtml: true,
             emailSignatureEnabled: true,
+            tourCompletedAt: true,
           },
         }),
         tx.tenant.findUnique({
           where: { id: ctx.tenantId },
           select: { name: true },
         }),
-      ]);
-      return { user, tenant };
+        // billing_admin permission bit (onboarding v1) — drives billing-tab
+        // visibility + purchase CTAs in the web app. Deliberately read here
+        // rather than in the change-controlled tenant-context middleware.
+        tx.tenantMembership.findUnique({
+          where: { tenantId_userId: { tenantId: ctx.tenantId, userId: ctx.userId } },
+          select: { billingAdmin: true },
+        }),
+      ] as const);
+      return { user, tenant, membership };
     });
 
     return {
@@ -89,6 +102,7 @@ export class UsersController {
         title: profile.user?.title ?? null,
         emailSignatureEnabled: profile.user?.emailSignatureEnabled ?? false,
         hasEmailSignature: Boolean(profile.user?.emailSignatureHtml),
+        tourCompleted: Boolean(profile.user?.tourCompletedAt),
       },
       tenant: {
         id: ctx.tenantId,
@@ -96,25 +110,33 @@ export class UsersController {
         name: profile.tenant?.name ?? ctx.tenantSlug,
       },
       role: ctx.role,
+      // capiro_admin implicitly has billing powers; tenant users need the
+      // explicit membership bit (the Gherkin "Super Admin").
+      billingAdmin: ctx.role === 'capiro_admin' || (profile.membership?.billingAdmin ?? false),
     };
   }
 
   @Patch('me')
   async updateMe(@CurrentTenant() ctx: TenantContext, @Body() body: UpdateMeDto) {
-    // Only `title` is editable from the client for now. firstName/lastName/email
-    // are owned by Clerk and synced on login.
-    if (body.title === undefined) {
+    // Editable from the client: `title` and the tour-completion flag.
+    // firstName/lastName/email are owned by Clerk and synced on login.
+    if (body.title === undefined && body.tourCompleted === undefined) {
       throw new BadRequestException('No editable fields provided');
     }
     const normalized = body.title?.trim() ?? '';
     const next = normalized.length ? normalized : null;
+    const data: { title?: string | null; tourCompletedAt?: Date | null } = {};
+    if (body.title !== undefined) data.title = next;
+    if (body.tourCompleted !== undefined) {
+      data.tourCompletedAt = body.tourCompleted ? new Date() : null;
+    }
     // Return the SAME full shape as GET /me — the client writes this straight
     // into the ['me'] cache, so a partial response would blank tenant/role and
     // the signature flags until the next refetch.
     const profile = await this.prisma.withTenant(ctx.tenantId, async (tx) => {
       const user = await tx.user.update({
         where: { id: ctx.userId },
-        data: { title: next },
+        data,
         select: {
           email: true,
           firstName: true,
@@ -122,13 +144,18 @@ export class UsersController {
           title: true,
           emailSignatureHtml: true,
           emailSignatureEnabled: true,
+          tourCompletedAt: true,
         },
       });
       const tenant = await tx.tenant.findUnique({
         where: { id: ctx.tenantId },
         select: { name: true },
       });
-      return { user, tenant };
+      const membership = await tx.tenantMembership.findUnique({
+        where: { tenantId_userId: { tenantId: ctx.tenantId, userId: ctx.userId } },
+        select: { billingAdmin: true },
+      });
+      return { user, tenant, membership };
     });
     return {
       user: {
@@ -140,6 +167,7 @@ export class UsersController {
         title: profile.user.title,
         emailSignatureEnabled: profile.user.emailSignatureEnabled,
         hasEmailSignature: Boolean(profile.user.emailSignatureHtml),
+        tourCompleted: Boolean(profile.user.tourCompletedAt),
       },
       tenant: {
         id: ctx.tenantId,
@@ -147,6 +175,7 @@ export class UsersController {
         name: profile.tenant?.name ?? ctx.tenantSlug,
       },
       role: ctx.role,
+      billingAdmin: ctx.role === 'capiro_admin' || (profile.membership?.billingAdmin ?? false),
     };
   }
 

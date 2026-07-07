@@ -3,9 +3,34 @@ import type { BillingSummary } from '@capiro/shared';
 import { useApi } from './use-api.js';
 
 /**
- * Current tenant billing posture (plan, slots, LLM usage). Gated server-side to
- * user_admin+, so for standard users the query 403s — callers treat an error as
- * "unknown / don't block" (fail open). retry:false keeps the paywall gate snappy.
+ * Minimal billing posture — safe for EVERY role (no costs, prices, or payment
+ * info). Powers the BillingGate paywall, trial banner, and slot counters.
+ */
+export interface BillingState {
+  billingEnabled: boolean;
+  status: BillingSummary['status'];
+  slots: number;
+  usedSlots: number;
+  trialEndsAt: string | null;
+  onboardingFlowVersion: number | null;
+  /** Wire/ACH lockout — all access suspended until payment confirms. */
+  locked: boolean;
+}
+
+export function useBillingState() {
+  const api = useApi();
+  return useQuery<BillingState>({
+    queryKey: ['billing', 'state'],
+    queryFn: async () => (await api.get<BillingState>('/api/billing/state')).data,
+    staleTime: 30_000,
+    retry: false,
+  });
+}
+
+/**
+ * Full tenant billing detail (plan, slots, LLM usage, payment posture). Gated
+ * server-side to billing admins (user_admin + billing_admin) and capiro_admin —
+ * everyone else 403s (billing is entirely hidden from non-billing-admins).
  */
 export function useBilling() {
   const api = useApi();
@@ -17,12 +42,16 @@ export function useBilling() {
   });
 }
 
+// Billing MUTATIONS live on onboard-api (the single Stripe writer, onboarding
+// v1). Same-origin path — the ALB forwards /onboard-api/* to that service.
+
 /** Open Stripe Checkout for `quantity` slots (+ optional promo). Redirects on success. */
 export function useCheckout() {
   const api = useApi();
   return useMutation({
     mutationFn: async (input: { quantity: number; promoCode?: string }) => {
-      const { url } = (await api.post<{ url: string }>('/api/billing/checkout', input)).data;
+      const { url } = (await api.post<{ url: string }>('/onboard-api/billing/checkout', input))
+        .data;
       return url;
     },
     onSuccess: (url) => {
@@ -36,7 +65,7 @@ export function usePortal() {
   const api = useApi();
   return useMutation({
     mutationFn: async () => {
-      const { url } = (await api.post<{ url: string }>('/api/billing/portal', {})).data;
+      const { url } = (await api.post<{ url: string }>('/onboard-api/billing/portal', {})).data;
       return url;
     },
     onSuccess: (url) => {

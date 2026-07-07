@@ -69,9 +69,10 @@ export class ClientsService {
   private readonly s3: S3Client;
   private readonly bucket?: string;
   private readonly logger = new Logger(ClientsService.name);
-  // Billing is DORMANT until Stripe is configured: with no STRIPE_SECRET_KEY we
-  // never enforce the client-slot cap (the paywall is likewise off client-side),
-  // so the feature ships inert and is turned on later by wiring Stripe.
+  // Billing is DORMANT until BILLING_ENFORCED=true (onboarding v1: Stripe
+  // itself moved to onboard-api, so the old implicit STRIPE_SECRET_KEY signal
+  // no longer exists in this service). While false we never enforce the
+  // client-slot cap; flipped at billing activation after comp-existing-tenants.
   private readonly billingEnforced: boolean;
 
   constructor(
@@ -84,7 +85,7 @@ export class ClientsService {
   ) {
     this.bucket = config.get('ASSETS_BUCKET', { infer: true });
     this.s3 = new S3Client({ region: config.get('AWS_REGION_DEFAULT', { infer: true }) });
-    this.billingEnforced = Boolean(config.get('STRIPE_SECRET_KEY', { infer: true }));
+    this.billingEnforced = config.get('BILLING_ENFORCED', { infer: true });
   }
 
   async list(ctx: TenantContext, filter: ListClientsFilter = {}) {

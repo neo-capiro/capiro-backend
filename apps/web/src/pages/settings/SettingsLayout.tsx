@@ -8,6 +8,8 @@ interface Tab {
   key: string;
   label: string;
   minRole?: TenantRole;
+  /** Onboarding v1: billing detail is visible ONLY to billing admins. */
+  billingAdminOnly?: boolean;
 }
 
 const TABS: Tab[] = [
@@ -18,8 +20,8 @@ const TABS: Tab[] = [
   { key: '/settings/branding', label: 'Branding', minRole: 'user_admin' },
   { key: '/settings/clients', label: 'Clients', minRole: 'user_admin' },
   { key: '/settings/integrations', label: 'Integrations' },
-  { key: '/settings/billing', label: 'Billing', minRole: 'user_admin' },
-  { key: '/settings/ai-usage', label: 'AI Usage', minRole: 'user_admin' },
+  { key: '/settings/billing', label: 'Billing', minRole: 'user_admin', billingAdminOnly: true },
+  { key: '/settings/ai-usage', label: 'AI Usage', minRole: 'user_admin', billingAdminOnly: true },
   { key: '/settings/intelligence-mappings', label: 'Intelligence', minRole: 'user_admin' },
   { key: '/settings/skills', label: 'Skills', minRole: 'user_admin' },
   { key: '/settings/tenants', label: 'Tenants', minRole: 'capiro_admin' },
@@ -30,10 +32,11 @@ const TABS: Tab[] = [
  * Settings is the single home for both personal and admin configuration.
  * Tabs are filtered by the caller's role: standard_user sees just Personal;
  * standard_user can connect personal email integrations; user_admin gains
- * Team / Branding / Clients / Billing; capiro_admin also
- * sees Tenants (cross-tenant management + impersonation).
+ * Team / Branding / Clients; Billing + AI Usage require the billing_admin
+ * permission (onboarding v1 — billing detail is entirely hidden from
+ * everyone else); capiro_admin also sees Tenants (cross-tenant management).
  *
- * The server-side RolesGuard on every endpoint is the security boundary;
+ * The server-side guards on every endpoint are the security boundary;
  * this filter is purely UI affordance.
  */
 export function SettingsLayout() {
@@ -42,6 +45,7 @@ export function SettingsLayout() {
   const visibleTabs = useMemo(() => {
     if (!me.data) return [];
     return TABS.filter((t) => {
+      if (t.billingAdminOnly && !me.data.billingAdmin) return false;
       if (!t.minRole) return true;
       return ROLE_RANK[me.data.role] >= ROLE_RANK[t.minRole];
     });

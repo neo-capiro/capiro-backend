@@ -149,6 +149,21 @@ model Tenant {
   llmAllowanceUsdPerSlot Decimal       @default(20) @map("llm_allowance_usd_per_slot") @db.Decimal(12, 2)
   llmHardCapUsd          Decimal?      @map("llm_hard_cap_usd") @db.Decimal(12, 2)
   currentPeriodEnd       DateTime?     @map("current_period_end") @db.Timestamptz(6)
+  // Self-service onboarding v1 (docs/plans/onboarding-v1-plan.md). NULL
+  // onboarding_flow_version = legacy tenant (pre-self-serve); 1 = provisioned
+  // by the onboarding funnel — every onboarding gate/banner/tour keys off it.
+  // Billing WRITES for these fields live in apps/onboard-api (single Stripe
+  // writer); apps/api only reads them.
+  onboardingFlowVersion  Int?          @map("onboarding_flow_version")
+  trialEndsAt            DateTime?     @map("trial_ends_at") @db.Timestamptz(6)
+  priceLockExpiresAt     DateTime?     @map("price_lock_expires_at") @db.Timestamptz(6)
+  importMode             String?       @map("import_mode")
+  courtesySwapUsed       Boolean       @default(false) @map("courtesy_swap_used")
+  deletionHold           Boolean       @default(false) @map("deletion_hold")
+  canceledAt             DateTime?     @map("canceled_at") @db.Timestamptz(6)
+  /// Wire/ACH lockout (set/cleared by onboard-api's lifecycle cron when
+  /// billing stays past_due beyond the window). Non-null = access suspended.
+  lockedAt               DateTime?     @map("locked_at") @db.Timestamptz(6)
   createdAt       DateTime     @default(now()) @map("created_at") @db.Timestamptz(6)
   updatedAt       DateTime     @updatedAt @map("updated_at") @db.Timestamptz(6)
 
@@ -225,6 +240,10 @@ model User {
   // append-by-default preference; each campaign can still override at send time.
   emailSignatureHtml    String?  @map("email_signature_html")
   emailSignatureEnabled Boolean  @default(false) @map("email_signature_enabled")
+  // Guided product tour (onboarding v1, Flow 2B.4): set when the user finishes
+  // or skips the first-login tour; NULL = auto-launch on next dashboard load.
+  // Server-side so the choice follows the user across devices.
+  tourCompletedAt DateTime? @map("tour_completed_at") @db.Timestamptz(6)
   lastSeenAt  DateTime? @map("last_seen_at") @db.Timestamptz(6)
   createdAt   DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
   updatedAt   DateTime  @updatedAt @map("updated_at") @db.Timestamptz(6)
@@ -259,6 +278,10 @@ model TenantMembership {
   userId    String           @map("user_id") @db.Uuid
   role      TenantRole
   status    MembershipStatus @default(invited)
+  /// The "Super Admin" permission bit (onboarding v1): view billing, purchase/
+  /// upgrade slots. Only meaningful on role='user_admin'. Grantable by
+  /// capiro_admin or an existing billing admin (Settings → Team).
+  billingAdmin Boolean @default(false) @map("billing_admin")
   invitedBy String?          @map("invited_by") @db.Uuid
   joinedAt  DateTime?        @map("joined_at") @db.Timestamptz(6)
   createdAt DateTime         @default(now()) @map("created_at") @db.Timestamptz(6)

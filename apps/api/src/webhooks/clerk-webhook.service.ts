@@ -37,8 +37,14 @@ interface ClerkOrgMembershipPayload {
   // first_name/last_name here at invite time (the invitee's name is known
   // before they accept), so this is the authoritative name source when the
   // user never typed a name into Clerk's sign-up form (public_user_data names
-  // are null in that common case).
-  public_metadata?: { first_name?: string | null; last_name?: string | null };
+  // are null in that common case). capiro_billing_admin rides the onboarding
+  // Super-Admin invitations (onboarding v1) and is mirrored onto the
+  // membership's billing_admin bit below.
+  public_metadata?: {
+    first_name?: string | null;
+    last_name?: string | null;
+    capiro_billing_admin?: boolean;
+  };
   role: string; // e.g. "org:admin" or "org:member" depending on Clerk config
 }
 
@@ -181,6 +187,12 @@ export class ClerkWebhookService {
         });
 
         const role = mapClerkRoleToCapiro(m.organization.slug, m.role);
+        // Onboarding v1 (approved 2026-07-06): a Super-Admin designation at
+        // the funnel's role step rides the invitation metadata and is mirrored
+        // onto the membership's billing_admin bit here. GRANT-ONLY — the
+        // webhook never unsets it; revocation is owned by the Settings→Team
+        // toggle (tenant-admin setBillingAdmin).
+        const grantBillingAdmin = m.public_metadata?.capiro_billing_admin === true;
         await tx.tenantMembership.upsert({
           where: { tenantId_userId: { tenantId: tenant.id, userId: user.id } },
           create: {
@@ -188,9 +200,15 @@ export class ClerkWebhookService {
             userId: user.id,
             role,
             status: 'active',
+            billingAdmin: grantBillingAdmin,
             joinedAt: new Date(),
           },
-          update: { role, status: 'active', joinedAt: new Date() },
+          update: {
+            role,
+            status: 'active',
+            joinedAt: new Date(),
+            ...(grantBillingAdmin ? { billingAdmin: true } : {}),
+          },
         });
         return;
       }

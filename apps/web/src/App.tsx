@@ -1,6 +1,7 @@
-import { Navigate, Route, Routes, useLocation, useParams } from 'react-router-dom';
+import { Navigate, Route, Routes, useLocation, useParams, useSearchParams } from 'react-router-dom';
 import { lazy, Suspense } from 'react';
 import { SignIn, SignUp, useAuth } from '@clerk/clerk-react';
+import { TicketSignUpPage } from './pages/auth/TicketSignUpPage.js';
 import { config } from './env.js';
 import { AppShell } from './components/AppShell.js';
 import { PlaceholderPage } from './pages/PlaceholderPage.js';
@@ -14,7 +15,8 @@ import { ClientsPage } from './pages/admin/ClientsPage.js';
 import { BillingPage } from './pages/admin/BillingPage.js';
 import { CustomersPage } from './pages/admin/CustomersPage.js';
 import { SubscribePage } from './pages/onboarding/SubscribePage.js';
-import { useBilling } from './lib/billing.js';
+import { useBillingState } from './lib/billing.js';
+import { LockoutScreen } from './components/onboarding/LockoutScreen.js';
 import { CapiroAdminPage } from './pages/capiro-admin/CapiroAdminPage.js';
 import { ClientWorkspacePage } from './pages/clients/ClientWorkspacePage.js';
 import { DirectoryPage } from './pages/directory/DirectoryPage.js';
@@ -114,7 +116,9 @@ export function App() {
         <Route
           path="/workspace/*"
           element={
-            <Suspense fallback={<PlaceholderPage title="Loading Workspace" description="Please wait..." />}>
+            <Suspense
+              fallback={<PlaceholderPage title="Loading Workspace" description="Please wait..." />}
+            >
               <WorkspaceRoutes />
             </Suspense>
           }
@@ -281,20 +285,26 @@ export function App() {
 /**
  * Wraps the authenticated app shell with a billing paywall. A tenant whose
  * subscription is missing or canceled is routed to the welcome/subscribe screen
- * before it can use the product. Fails OPEN: standard users (who can't read
- * billing) and any summary error render the app normally — only a definitive
- * non-entitled status from the server gates. comped/active/trialing pass through.
+ * before it can use the product. Uses the role-safe /api/billing/state read
+ * (the full summary is billing-admin-only under onboarding v1). Fails OPEN:
+ * any state error renders the app normally — only a definitive non-entitled
+ * status from the server gates. comped/active/trialing pass through.
  */
 function BillingGate() {
-  const billing = useBilling();
+  const billing = useBillingState();
   if (billing.isLoading) {
     return <PlaceholderPage title="Loading" description="Please wait..." />;
   }
   const data = billing.data;
-  // Only paywall when billing is actually enabled (Stripe configured). While
+  // Only paywall when billing is actually enabled (BILLING_ENFORCED). While
   // dormant, billingEnabled is false → the app behaves exactly as before.
   if (data?.billingEnabled && (data.status === 'none' || data.status === 'canceled')) {
     return <Navigate to="/onboarding/subscribe" replace />;
+  }
+  // Wire/ACH lockout (Gherkin bridge): all access suspended until the open
+  // invoice is paid — the lifecycle cron clears locked when payment lands.
+  if (data?.billingEnabled && data.locked) {
+    return <LockoutScreen />;
   }
   return <AppShell />;
 }
@@ -314,6 +324,12 @@ function LegacyRadarRedirect() {
 }
 
 function AuthPage({ mode }: { mode: 'sign-in' | 'sign-up' }) {
+  // Invitation links carry Clerk's ticket param; those get the custom
+  // confirm-password form (onboarding v1 — the hosted component asks for the
+  // password only once). Ticket-less sign-up keeps the hosted component,
+  // preserving the invitation-only posture on this surface.
+  const [params] = useSearchParams();
+  const ticket = params.get('__clerk_ticket');
   return (
     <main className="auth-page">
       <section className="auth-shell" aria-label={mode === 'sign-in' ? 'Sign in' : 'Sign up'}>
@@ -321,6 +337,8 @@ function AuthPage({ mode }: { mode: 'sign-in' | 'sign-up' }) {
         <div className="auth-clerk-frame">
           {mode === 'sign-in' ? (
             <SignIn routing="path" path="/sign-in" signUpUrl="/sign-up" fallbackRedirectUrl="/" />
+          ) : ticket ? (
+            <TicketSignUpPage ticket={ticket} />
           ) : (
             <SignUp routing="path" path="/sign-up" signInUrl="/sign-in" fallbackRedirectUrl="/" />
           )}

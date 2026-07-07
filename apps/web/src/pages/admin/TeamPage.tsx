@@ -1,5 +1,19 @@
 import { useState } from 'react';
-import { App, Button, Form, Input, Modal, Popconfirm, Select, Space, Table, Tabs, Tag } from 'antd';
+import {
+  App,
+  Button,
+  Form,
+  Input,
+  Modal,
+  Popconfirm,
+  Select,
+  Space,
+  Switch,
+  Table,
+  Tabs,
+  Tag,
+  Tooltip,
+} from 'antd';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useApi } from '../../lib/use-api.js';
 import { useMe } from '../../lib/me.js';
@@ -12,6 +26,7 @@ interface TeamRow {
   lastName: string | null;
   role: 'capiro_admin' | 'user_admin' | 'standard_user' | 'client_portal_user';
   status: 'invited' | 'active' | 'removed';
+  billingAdmin: boolean;
   joinedAt: string | null;
   lastSeenAt: string | null;
 }
@@ -92,6 +107,26 @@ export function TeamPage() {
     onError: (err) => message.error((err as Error).message),
   });
 
+  // Billing permission (onboarding v1 "Super Admin" bit). Server enforces the
+  // grant rule: capiro_admin or an existing billing admin.
+  const setBillingAdmin = useMutation({
+    mutationFn: async (input: { userId: string; billingAdmin: boolean }) =>
+      (
+        await api.put(`/api/tenant-admin/team/${input.userId}/billing-admin`, {
+          billingAdmin: input.billingAdmin,
+        })
+      ).data,
+    onSuccess: (_data, variables) => {
+      message.success(
+        variables.billingAdmin ? 'Billing permission granted' : 'Billing permission removed',
+      );
+      qc.invalidateQueries({ queryKey: ['team'] });
+      qc.invalidateQueries({ queryKey: ['me'] });
+    },
+    onError: (err) => message.error((err as Error).message),
+  });
+  const canGrantBilling = Boolean(me.data?.billingAdmin);
+
   return (
     <>
       <Space style={{ marginBottom: 16, justifyContent: 'flex-end', width: '100%' }}>
@@ -142,6 +177,32 @@ export function TeamPage() {
                         />
                       ) : (
                         <Tag>{v.replace(/_/g, ' ')}</Tag>
+                      ),
+                  },
+                  {
+                    title: (
+                      <Tooltip title="Billing admins can view billing, invoices, and purchase or upgrade client profiles. Grantable by an existing billing admin or Capiro staff.">
+                        Billing
+                      </Tooltip>
+                    ),
+                    dataIndex: 'billingAdmin',
+                    width: 90,
+                    render: (v: boolean, r) =>
+                      r.status === 'active' && (r.role === 'user_admin' || v) ? (
+                        <Switch
+                          size="small"
+                          checked={v}
+                          disabled={
+                            !canGrantBilling ||
+                            setBillingAdmin.isPending ||
+                            (r.role !== 'user_admin' && !v)
+                          }
+                          onChange={(billingAdmin) =>
+                            setBillingAdmin.mutate({ userId: r.userId, billingAdmin })
+                          }
+                        />
+                      ) : (
+                        <Tag>—</Tag>
                       ),
                   },
                   {

@@ -6,6 +6,11 @@
   "engines": {
     "node": ">=20.11.0"
   },
+  "pnpm": {
+    "neverBuiltDependencies": [
+      "@nestjs/core"
+    ]
+  },
   "scripts": {
     "build": "turbo run build",
     "dev": "turbo run dev",
