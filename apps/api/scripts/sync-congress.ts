@@ -26,6 +26,11 @@ dotenvConfig();
 // off via env when smoke-testing the sync logic without burning Bedrock.
 const EMBED_ON_SYNC = process.env.EMBED_ON_SYNC !== '0';
 
+// Toggle for the per-bill cosponsors fetch (Bucket-#3 C6.P6.1). Defaults on;
+// set CONGRESS_COSPONSORS=0 for FULL multi-congress backfills where the extra
+// request per lobbying-relevant bill (~+20% volume) matters on the shared key.
+const COSPONSORS_ON_SYNC = process.env.CONGRESS_COSPONSORS !== '0';
+
 const CONGRESS_BASE = 'https://api.congress.gov/v3';
 const CONGRESS_API_KEY = process.env.CONGRESS_API_KEY ?? '';
 const LIMIT = 100;
@@ -119,6 +124,7 @@ interface CongressBillSummary {
   // primary); the old code read a singular `sponsor` the API never sends, so
   // sponsor_name was always null. Read the array (singular kept as a fallback).
   sponsors?: Array<{
+    bioguideId?: string | null;
     fullName?: string | null;
     party?: string | null;
     state?: string | null;
@@ -186,6 +192,28 @@ interface CongressActionsResponse {
     sourceSystem?: { code?: number; name?: string } | null;
     chamber?: string | null;
   }[];
+}
+
+// /bill/{c}/{t}/{n}/cosponsors (Bucket-#3 C6.P6.1 / C1.V4). Live-verified
+// shape 2026-07-06: district is a number, isOriginalCosponsor a boolean,
+// sponsorshipWithdrawnDate present only when withdrawn. pagination.count
+// EXCLUDES withdrawn cosponsors; countIncludingWithdrawnCosponsors has all.
+interface CongressCosponsorsResponse {
+  cosponsors?: {
+    bioguideId?: string | null;
+    fullName?: string | null;
+    party?: string | null;
+    state?: string | null;
+    district?: number | null;
+    sponsorshipDate?: string | null;
+    isOriginalCosponsor?: boolean | null;
+    sponsorshipWithdrawnDate?: string | null;
+  }[];
+  pagination?: {
+    count?: number;
+    countIncludingWithdrawnCosponsors?: number;
+    next?: string | null;
+  };
 }
 
 interface CongressBillListResponse {
@@ -356,6 +384,17 @@ async function main() {
                   type: string | null;
                   chamber: string | null;
                 }[] = [];
+                let cosponsorsData: {
+                  bioguideId: string;
+                  fullName: string;
+                  party: string | null;
+                  state: string | null;
+                  district: number | null;
+                  sponsorshipDate: Date | null;
+                  isOriginal: boolean;
+                  withdrawnDate: Date | null;
+                }[] = [];
+                let cosponsorsFetchFailed = false;
 
                 if (isLobbyingRelevant) {
                   await new Promise((r) => setTimeout(r, 200));
@@ -414,6 +453,57 @@ async function main() {
                   } catch {
                     // actions stay empty
                   }
+
+                  // Cosponsor rows (Bucket-#3 C6.P6.1 / C1.V4): one extra
+                  // request per lobbying-relevant bill (paginated at 250),
+                  // skipped entirely when the detail says there are none.
+                  // COSPONSORS_ON_SYNC=0 skips the fetch — use it on FULL
+                  // 117-119 backfills, where the extra ~30k requests deepen
+                  // the 429-exhaustion window on the shared key.
+                  const cosponsorTotal = billData.cosponsors?.count ?? bill.cosponsors?.count ?? 0;
+                  if (COSPONSORS_ON_SYNC && cosponsorTotal > 0) {
+                    await new Promise((r) => setTimeout(r, 200));
+                    try {
+                      let cosponsorOffset = 0;
+                      for (;;) {
+                        const cosponsorsResp = await fetchJson<CongressCosponsorsResponse>(
+                          congressUrl(`/bill/${congress}/${type}/${bill.number}/cosponsors`, {
+                            limit: 250,
+                            offset: cosponsorOffset,
+                          }),
+                        );
+                        const page = cosponsorsResp?.cosponsors ?? [];
+                        if (!page.length) break;
+                        for (const c of page) {
+                          if (!c.bioguideId) continue;
+                          cosponsorsData.push({
+                            bioguideId: c.bioguideId.toUpperCase(),
+                            fullName: c.fullName ?? '',
+                            party: c.party ?? null,
+                            state: c.state ?? null,
+                            district: typeof c.district === 'number' ? c.district : null,
+                            sponsorshipDate: safeDate(c.sponsorshipDate),
+                            isOriginal: c.isOriginalCosponsor === true,
+                            withdrawnDate: safeDate(c.sponsorshipWithdrawnDate),
+                          });
+                        }
+                        cosponsorOffset += page.length;
+                        const total =
+                          cosponsorsResp?.pagination?.countIncludingWithdrawnCosponsors ??
+                          cosponsorsResp?.pagination?.count;
+                        if (total !== undefined && cosponsorOffset >= total) break;
+                        if (!cosponsorsResp?.pagination?.next) break;
+                        await new Promise((r) => setTimeout(r, 200));
+                      }
+                    } catch {
+                      // A mid-pagination failure leaves cosponsorsData PARTIAL
+                      // (earlier pages already pushed). Mark it so persistence
+                      // below skips the replace — a truncated roster must not
+                      // overwrite a complete one (the bill's updateDate has
+                      // already advanced, so incremental runs would never heal it).
+                      cosponsorsFetchFailed = true;
+                    }
+                  }
                 }
 
                 const sponsor =
@@ -432,6 +522,7 @@ async function main() {
                     sponsorName: sponsor?.fullName ?? null,
                     sponsorState: sponsor?.state ?? null,
                     sponsorParty: sponsor?.party ?? null,
+                    sponsorBioguideId: sponsor?.bioguideId?.toUpperCase() ?? null,
                     latestActionText: latestAction?.text ?? null,
                     latestActionDate: safeDate(latestAction?.actionDate),
                     policyArea: policyAreaName,
@@ -453,6 +544,7 @@ async function main() {
                     sponsorName: sponsor?.fullName ?? null,
                     sponsorState: sponsor?.state ?? null,
                     sponsorParty: sponsor?.party ?? null,
+                    sponsorBioguideId: sponsor?.bioguideId?.toUpperCase() ?? null,
                     latestActionText: latestAction?.text ?? null,
                     latestActionDate: safeDate(latestAction?.actionDate),
                     policyArea: policyAreaName,
@@ -542,6 +634,20 @@ async function main() {
                     await prisma.congressBillSubject.createMany({
                       data: subjects.map((name) => ({ billId: id, name })),
                     });
+                  }
+
+                  // Cosponsor rows: replace only when the fetch FULLY
+                  // succeeded — a failed or mid-pagination-truncated fetch
+                  // must NOT overwrite rows from a previous run. Atomic swap
+                  // so readers never observe the between-state.
+                  if (cosponsorsData.length > 0 && !cosponsorsFetchFailed) {
+                    await prisma.$transaction([
+                      prisma.congressBillCosponsor.deleteMany({ where: { billId: id } }),
+                      prisma.congressBillCosponsor.createMany({
+                        data: cosponsorsData.map((c) => ({ billId: id, ...c })),
+                        skipDuplicates: true,
+                      }),
+                    ]);
                   }
                 }
 

@@ -2134,6 +2134,8 @@ model CongressBill {
   sponsorName      String?   @map("sponsor_name")
   sponsorState     String?   @map("sponsor_state")
   sponsorParty     String?   @map("sponsor_party")
+  // Canonical sponsor identity (Bucket-#3 C6.P6.1) — soft ref -> congress_member.bioguide_id
+  sponsorBioguideId String?  @map("sponsor_bioguide_id")
   latestActionText String?   @map("latest_action_text")
   latestActionDate DateTime? @map("latest_action_date") @db.Date
   policyArea       String?   @map("policy_area")
@@ -2149,10 +2151,12 @@ model CongressBill {
   actions       CongressBillAction[]
   committeeRefs CongressBillCommittee[]
   subjectRefs   CongressBillSubject[]
+  cosponsors    CongressBillCosponsor[]
 
   @@index([congress], map: "congress_bill_congress_idx")
   @@index([policyArea], map: "congress_bill_policy_area_idx")
   @@index([peCodes], map: "congress_bill_pe_codes_gin_idx", type: Gin)
+  @@index([sponsorBioguideId], map: "congress_bill_sponsor_bioguide_idx")
   @@map("congress_bill")
 }
 
@@ -2203,6 +2207,94 @@ model CongressMember {
   @@index([lastName])
   @@index([isCurrent])
   @@map("congress_member")
+}
+
+// Per-bill cosponsor rows (Bucket-#3 C6.P6.1 / C1.V4). GLOBAL. Populated by
+// sync-congress from /bill/{c}/{t}/{n}/cosponsors for lobbying-relevant bills.
+// bioguideId soft-refs congress_member; withdrawn cosponsors kept with their
+// withdrawnDate (pagination.count on the API excludes them — we keep both).
+model CongressBillCosponsor {
+  id              String    @id @default(uuid()) @db.Uuid
+  billId          String    @map("bill_id")
+  bioguideId      String    @map("bioguide_id")
+  fullName        String    @map("full_name")
+  party           String?
+  state           String?
+  district        Int?
+  sponsorshipDate DateTime? @map("sponsorship_date") @db.Date
+  isOriginal      Boolean   @default(false) @map("is_original")
+  withdrawnDate   DateTime? @map("withdrawn_date") @db.Date
+  lastSyncedAt    DateTime  @default(now()) @map("last_synced_at") @db.Timestamptz(6)
+
+  bill CongressBill @relation(fields: [billId], references: [id], onDelete: Cascade)
+
+  @@unique([billId, bioguideId])
+  @@index([bioguideId])
+  @@map("congress_bill_cosponsor")
+}
+
+// Canonical congressional committee registry (Bucket-#3 C6.P6.1). GLOBAL.
+// Keyed by the Congress.gov systemCode (the registry's 'committee' canonical
+// id, e.g. "hsag00"; subcommittees "hsag16" with parentSystemCode "hsag00").
+// Source: CC0 unitedstates/congress-legislators committees-current.json —
+// thomas_id maps deterministically to systemCode (lowercase + "00" for full
+// committees, lowercase parent + 2-digit sub id for subcommittees).
+model CongressCommittee {
+  systemCode       String   @id @map("system_code")
+  thomasId         String   @map("thomas_id")
+  name             String
+  chamber          String // 'house' | 'senate' | 'joint'
+  parentSystemCode String?  @map("parent_system_code")
+  url              String?
+  jurisdiction     String?  @db.Text
+  isCurrent        Boolean  @default(true) @map("is_current")
+  lastSyncedAt     DateTime @default(now()) @map("last_synced_at") @db.Timestamptz(6)
+
+  memberships CongressCommitteeMembership[]
+
+  @@index([chamber])
+  @@index([parentSystemCode])
+  @@map("congress_committee")
+}
+
+// Committee membership rosters (Bucket-#3 C6.P6.1). GLOBAL. Source: CC0
+// committee-membership-current.json — the ONLY machine-readable roster source
+// (the Congress.gov API has no membership endpoint, verified). side is the
+// dataset's 'majority'/'minority' (join congress_member for actual party).
+model CongressCommitteeMembership {
+  id           String   @id @default(uuid()) @db.Uuid
+  systemCode   String   @map("system_code")
+  bioguideId   String   @map("bioguide_id")
+  side         String // 'majority' | 'minority'
+  rank         Int?
+  title        String? // 'Chair' | 'Chairman' | 'Ranking Member' | 'Ex Officio' | ...
+  lastSyncedAt DateTime @default(now()) @map("last_synced_at") @db.Timestamptz(6)
+
+  committee CongressCommittee @relation(fields: [systemCode], references: [systemCode], onDelete: Cascade)
+
+  @@unique([systemCode, bioguideId])
+  @@index([bioguideId])
+  @@map("congress_committee_membership")
+}
+
+// Generic external-id -> canonical-entity crosswalk (Bucket-#3 C6, Appendix B).
+// GLOBAL. idType is a free-form source namespace ('lis', 'fec', 'opensecrets',
+// 'govtrack', 'wikidata', 'thomas', ...) — broader than CanonicalIdType, since
+// its whole purpose is resolving NON-canonical ids to canonical entities.
+// entityKey is the canonical id (bioguideId / systemCode / billId / ...).
+model EntityCrosswalk {
+  id           String   @id @default(uuid()) @db.Uuid
+  idType       String   @map("id_type")
+  idValue      String   @map("id_value")
+  entityType   String   @map("entity_type") // 'member' | 'committee' | 'bill' | 'company' | ...
+  entityKey    String   @map("entity_key")
+  source       String // which sync wrote it (e.g. 'sync-congress-members')
+  confidence   Float    @default(1.0)
+  lastSyncedAt DateTime @default(now()) @map("last_synced_at") @db.Timestamptz(6)
+
+  @@unique([idType, idValue])
+  @@index([entityType, entityKey])
+  @@map("entity_crosswalk")
 }
 
 /// Cached full bill text fetched from GovInfo, used by the bill PE-code extractor.

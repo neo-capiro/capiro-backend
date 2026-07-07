@@ -48,20 +48,63 @@ interface LegislatorRecord {
   terms?: Array<{ type?: string; state?: string; party?: string }>;
 }
 
-async function fetchJson<T>(url: string, attempt = 1): Promise<T | null> {
+// Retries 429 AND 5xx, then THROWS. A roster page that silently fails must
+// fail the RUN — treating it as end-of-data truncates the walk and (worse)
+// makes the crosswalk snapshot-replace below delete rows for every member on
+// the unfetched pages. Matches sync-congress's fetchJson posture.
+async function fetchJson<T>(url: string, attempt = 1): Promise<T> {
+  let res: Response;
   try {
-    const res = await fetch(url, { headers: { accept: 'application/json' } });
-    if (res.status === 429 && attempt <= 3) {
-      const wait = Number(res.headers.get('retry-after') ?? '30') * 1000;
-      await new Promise((r) => setTimeout(r, wait));
+    res = await fetch(url, { headers: { accept: 'application/json' } });
+  } catch (err) {
+    if (attempt <= 3) {
+      await new Promise((r) => setTimeout(r, attempt * 2000));
       return fetchJson<T>(url, attempt + 1);
     }
-    if (!res.ok) throw new Error(`HTTP ${res.status}`);
-    return (await res.json()) as T;
-  } catch (err) {
-    console.error(`[sync-congress-members] fetch failed ${url}:`, err);
-    return null;
+    throw err;
   }
+  if ((res.status === 429 || res.status >= 500) && attempt <= 3) {
+    const wait = Number(res.headers.get('retry-after') ?? String(attempt * 15)) * 1000;
+    await new Promise((r) => setTimeout(r, wait));
+    return fetchJson<T>(url, attempt + 1);
+  }
+  if (!res.ok) throw new Error(`HTTP ${res.status} for ${url}`);
+  return (await res.json()) as T;
+}
+
+// External-id namespaces worth crosswalking (Bucket-#3 C6, entity_crosswalk).
+// lis = Senate roll-call XML key; fec is an ARRAY in the source (one id per
+// candidacy). Everything else in the id block (ballotpedia, cspan, ...) is
+// noise for lobbying workflows — extend deliberately, not wholesale.
+const CROSSWALK_ID_TYPES = ['lis', 'fec', 'opensecrets', 'govtrack', 'wikidata', 'thomas'] as const;
+
+export function buildCrosswalkRows(
+  bioguideId: string,
+  ids: Record<string, unknown>,
+): { idType: string; idValue: string; entityType: string; entityKey: string; source: string }[] {
+  const rows: {
+    idType: string;
+    idValue: string;
+    entityType: string;
+    entityKey: string;
+    source: string;
+  }[] = [];
+  for (const idType of CROSSWALK_ID_TYPES) {
+    const raw = ids[idType];
+    const values = Array.isArray(raw) ? raw : raw !== undefined && raw !== null ? [raw] : [];
+    for (const v of values) {
+      const idValue = String(v).trim();
+      if (!idValue) continue;
+      rows.push({
+        idType,
+        idValue,
+        entityType: 'member',
+        entityKey: bioguideId,
+        source: 'sync-congress-members',
+      });
+    }
+  }
+  return rows;
 }
 
 function splitName(full: string): { first: string; last: string } {
@@ -85,7 +128,13 @@ async function main() {
     let errors = 0;
 
     // 1. The CC0 crosswalk: bioguide -> full id block (lis for senators).
-    const legislators = (await fetchJson<LegislatorRecord[]>(LEGISLATORS_URL)) ?? [];
+    // Tolerated failure: rosters still sync without it (lis ids just lag).
+    let legislators: LegislatorRecord[] = [];
+    try {
+      legislators = await fetchJson<LegislatorRecord[]>(LEGISLATORS_URL);
+    } catch (err) {
+      console.error('[sync-congress-members] crosswalk fetch failed:', err);
+    }
     const idsByBioguide = new Map<string, Record<string, unknown>>();
     for (const rec of legislators) {
       const bioguide = rec.id?.bioguide;
@@ -96,6 +145,7 @@ async function main() {
     }
 
     // 2. Official roster per target congress (paginated, 250/page).
+    const allSeen = new Set<string>();
     for (const congress of TARGET_CONGRESSES) {
       const seen = new Set<string>();
       let offset = 0;
@@ -113,6 +163,7 @@ async function main() {
             continue;
           }
           seen.add(bioguideId);
+          allSeen.add(bioguideId);
           const { first, last } = splitName(m.name ?? '');
           const latestTerm = m.terms?.item?.[m.terms.item.length - 1];
           const chamber = latestTerm?.chamber?.toLowerCase().includes('senate')
@@ -162,7 +213,39 @@ async function main() {
       console.log(`[sync-congress-members] congress ${congress}: ${seen.size} members`);
     }
 
-    // 3. Crosswalk-lag alarm: current senators without a lis id break the
+    // 3. entity_crosswalk (Bucket-#3 C6): external-id -> bioguide rows for
+    // every member this run touched. Snapshot-replace for THIS source only —
+    // other syncs' crosswalk rows are untouched. Guards: skip the replace on
+    // a valid-but-partial legislators payload (~535 current members) or when
+    // the new snapshot shrank suspiciously vs the DB; swap atomically so the
+    // live resolve_entity reader never observes an empty table mid-swap.
+    const crosswalkRows = Array.from(allSeen).flatMap((bioguideId) => {
+      const ids = idsByBioguide.get(bioguideId);
+      return ids ? buildCrosswalkRows(bioguideId, ids) : [];
+    });
+    const existingCrosswalk = await prisma.entityCrosswalk.count({
+      where: { source: 'sync-congress-members' },
+    });
+    if (legislators.length < 400) {
+      console.warn(
+        `[sync-congress-members] legislators payload small (${legislators.length}) — keeping existing crosswalk rows`,
+      );
+    } else if (
+      crosswalkRows.length === 0 ||
+      (existingCrosswalk > 0 && crosswalkRows.length < existingCrosswalk * 0.5)
+    ) {
+      console.warn(
+        `[sync-congress-members] crosswalk snapshot suspiciously small (${crosswalkRows.length} vs ${existingCrosswalk} in DB) — keeping existing rows`,
+      );
+    } else {
+      await prisma.$transaction([
+        prisma.entityCrosswalk.deleteMany({ where: { source: 'sync-congress-members' } }),
+        prisma.entityCrosswalk.createMany({ data: crosswalkRows, skipDuplicates: true }),
+      ]);
+      console.log(`[sync-congress-members] entity_crosswalk: ${crosswalkRows.length} rows`);
+    }
+
+    // 4. Crosswalk-lag alarm: current senators without a lis id break the
     // Senate vote sync — surface loudly.
     const missingLis = await prisma.congressMember.count({
       where: { isCurrent: true, chamber: 'senate', lisId: null },
@@ -177,9 +260,11 @@ async function main() {
   });
 }
 
-main()
-  .catch((e) => {
-    console.error(e);
-    process.exit(1);
-  })
-  .finally(() => prisma.$disconnect());
+if (require.main === module) {
+  main()
+    .catch((e) => {
+      console.error(e);
+      process.exit(1);
+    })
+    .finally(() => prisma.$disconnect());
+}

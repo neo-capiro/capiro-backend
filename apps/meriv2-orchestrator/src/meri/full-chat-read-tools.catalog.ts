@@ -2,22 +2,16 @@ import type { DelegatedToolSpec } from '@capiro/meriv2-core';
 
 /**
  * The remaining read-only apps/api Meri tools NOT in the in-editor allowlist
- * (delegated-tools.catalog.ts's 24) — substrate toward Workstream C4 (the full
- * chat surface). Names + descriptions transcribed verbatim from apps/api's
- * TOOL_DEFINITIONS (meri-tools.service.ts); a drift test
+ * (delegated-tools.catalog.ts's 24) — the full chat surface's (C4, live since
+ * #298) extra read set. Names + descriptions transcribed verbatim from
+ * apps/api's TOOL_DEFINITIONS (meri-tools.service.ts); a drift test
  * (full-chat-read-tools.catalog.spec.ts) asserts, together with the other two
- * catalogs, exact coverage of apps/api's full 53-tool surface.
+ * catalogs, exact coverage of apps/api's full 55-tool surface.
  *
- * All 15 are absent from apps/api's SIDE_EFFECTING_TOOLS set, so all are
+ * All 17 are absent from apps/api's SIDE_EFFECTING_TOOLS set, so all are
  * readOnly:true here too (the C-workstream rule: this classification MUST
  * match apps/api's, since a delegated write registered readOnly would bypass
  * the B1 gate).
- *
- * Registered in the orchestrator's registry (meri-registry.service.ts) but not
- * wired into any live surface — C4 (the full chat loop that would actually call
- * these) does not exist yet. Closing this catalog gap is a real, safe
- * prerequisite regardless of how C4's streaming/intent-classification/
- * conversation-persistence gets built.
  */
 export const FULL_CHAT_READ_TOOLS: readonly DelegatedToolSpec[] = [
   {
@@ -60,6 +54,12 @@ export const FULL_CHAT_READ_TOOLS: readonly DelegatedToolSpec[] = [
     name: 'search_cbo_cost_estimates',
     description:
       'Look up CBO cost estimates (budget scores) for congressional bills. Filter by bill id ("119-hr-8800") or keyword. Explicitly reports when NO estimate exists — never guess a score.',
+    readOnly: true,
+  },
+  {
+    name: 'resolve_entity',
+    description:
+      'Resolve a member of Congress, congressional committee, or bill to its CANONICAL identity in the Capiro registry (Bioguide ID, committee systemCode, or bill id like "119-hr-8800"). Accepts a canonical id, an external id (LIS, FEC, OpenSecrets, GovTrack), a bill designation ("H.R. 8800"), or a name. Use this BEFORE citing any member, committee, or bill to ground the reference — it explicitly reports when NO entity matches; never fabricate an identifier.',
     readOnly: true,
   },
   {

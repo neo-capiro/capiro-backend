@@ -8,6 +8,12 @@ import {
 import { ConfigService } from '@nestjs/config';
 import { EngagementTaskStatus, Prisma } from '@prisma/client';
 import type { TenantContext } from '@capiro/shared';
+import {
+  formatBillId,
+  isValidCanonicalId,
+  normalizeCanonicalId,
+  parseBillDesignation,
+} from '@capiro/shared';
 import type { AppConfig } from '../config/config.schema.js';
 import { EngagementService } from '../engagement/engagement.service.js';
 import { IntelligenceService } from '../intelligence/intelligence.service.js';
@@ -108,6 +114,11 @@ export const TOOL_DEFINITIONS = [
     name: 'search_cbo_cost_estimates',
     description:
       'Look up CBO cost estimates (budget scores) for congressional bills in the Capiro database. Filter by bill id ("119-hr-8800") or keyword. Returns the estimate title, publication date, and cbo.gov link. Explicitly reports when NO estimate exists for a bill — never guess a score.',
+  },
+  {
+    name: 'resolve_entity',
+    description:
+      'Resolve a member of Congress, congressional committee, or bill to its CANONICAL identity in the Capiro registry (Bioguide ID, committee systemCode, or bill id like "119-hr-8800"). Accepts a canonical id, an external id (LIS, FEC, OpenSecrets, GovTrack), a bill designation ("H.R. 8800"), or a name. Use this BEFORE citing any member, committee, or bill to ground the reference — it explicitly reports when NO entity matches; never fabricate an identifier.',
   },
   {
     name: 'search_lda_filings',
@@ -532,6 +543,16 @@ export class MeriToolsService {
         congress: int('Congress number filter'),
         limit: int('Max results (1-25, default 10)'),
       }),
+      resolve_entity: obj(
+        {
+          query: str(
+            'What to resolve: a canonical id ("A000360", "hsag00", "119-hr-8800"), an external id (LIS "S390", FEC, OpenSecrets, GovTrack), a bill designation ("H.R. 8800"), or a person/committee name',
+          ),
+          type: str('Optional filter: "member", "committee", or "bill"'),
+          limit: int('Max matches (1-10, default 5)'),
+        },
+        ['query'],
+      ),
       search_lda_filings: obj({
         clientName: str('Client name filter'),
         registrantName: str('Lobbying registrant filter'),
@@ -1205,6 +1226,8 @@ export class MeriToolsService {
         return this.searchCongressBills(input);
       case 'search_cbo_cost_estimates':
         return this.searchCboCostEstimates(input);
+      case 'resolve_entity':
+        return this.resolveEntity(input);
       case 'search_lda_filings':
         return this.searchLdaFilings(input);
       case 'search_sec_filings':
@@ -1885,6 +1908,185 @@ export class MeriToolsService {
             note: billId
               ? `No CBO cost estimate on record for ${billId}. Say so explicitly — do not estimate or guess a score.`
               : 'No CBO cost estimates matched. Say so explicitly — do not estimate or guess a score.',
+          }
+        : {}),
+    };
+  }
+
+  /**
+   * Canonical entity resolution (Bucket-#3 C6.P6.2, SC2.2): id / external-id /
+   * designation / name -> canonical registry rows. Zero matches returns an
+   * EXPLICIT not-found note — the model must never fabricate an identifier.
+   */
+  private async resolveEntity(input: Record<string, unknown>) {
+    const query = optionalString(input, 'query', 200)?.trim();
+    const type = optionalString(input, 'type', 20)?.toLowerCase();
+    const limit = clampInt(input.limit, 1, 10, 5);
+    if (!query) {
+      return {
+        tool: 'resolve_entity',
+        generatedAt: new Date().toISOString(),
+        matchesFound: 0,
+        matches: [],
+        note: 'resolve_entity requires a query (an id, bill designation, or name).',
+      };
+    }
+
+    type EntityMatch = Record<string, unknown> & {
+      entityType: string;
+      canonicalIdType: string;
+      canonicalId: string;
+      matchedBy: string;
+    };
+    const matches: EntityMatch[] = [];
+    const memberMatch = (
+      m: {
+        bioguideId: string;
+        fullName: string;
+        party: string | null;
+        state: string | null;
+        district: number | null;
+        chamber: string;
+        lisId: string | null;
+        isCurrent: boolean;
+      },
+      matchedBy: string,
+    ): EntityMatch => ({
+      entityType: 'member',
+      canonicalIdType: 'bioguide',
+      canonicalId: m.bioguideId,
+      display: m.fullName,
+      party: m.party,
+      state: m.state,
+      district: m.district,
+      chamber: m.chamber,
+      lisId: m.lisId,
+      isCurrent: m.isCurrent,
+      matchedBy,
+    });
+    const committeeMatch = (
+      c: {
+        systemCode: string;
+        name: string;
+        chamber: string;
+        parentSystemCode: string | null;
+        isCurrent: boolean;
+      },
+      matchedBy: string,
+    ): EntityMatch => ({
+      entityType: 'committee',
+      canonicalIdType: 'committee',
+      canonicalId: c.systemCode,
+      display: c.name,
+      chamber: c.chamber,
+      parentSystemCode: c.parentSystemCode,
+      isCurrent: c.isCurrent,
+      matchedBy,
+    });
+
+    // 1. Direct canonical-id hits.
+    if (!type || type === 'member') {
+      const bioguide = normalizeCanonicalId('bioguide', query);
+      if (isValidCanonicalId('bioguide', bioguide)) {
+        const m = await this.prisma.congressMember.findUnique({ where: { bioguideId: bioguide } });
+        if (m) matches.push(memberMatch(m, 'bioguide-id'));
+      }
+    }
+    if (!type || type === 'committee') {
+      const systemCode = normalizeCanonicalId('committee', query);
+      if (isValidCanonicalId('committee', systemCode)) {
+        const c = await this.prisma.congressCommittee.findUnique({ where: { systemCode } });
+        if (c) matches.push(committeeMatch(c, 'system-code'));
+      }
+    }
+    if (!type || type === 'bill') {
+      const currentCongress = Math.floor((new Date().getUTCFullYear() - 1789) / 2) + 1;
+      const norm = normalizeCanonicalId('billId', query);
+      let billIdCandidate = isValidCanonicalId('billId', norm) ? norm : null;
+      if (!billIdCandidate) {
+        const parsed = parseBillDesignation(query, currentCongress);
+        if (parsed) billIdCandidate = formatBillId(parsed.congress, parsed.type, parsed.number);
+      }
+      if (billIdCandidate) {
+        const b = await this.prisma.congressBill.findUnique({
+          where: { id: billIdCandidate },
+          select: {
+            id: true,
+            title: true,
+            congress: true,
+            sponsorName: true,
+            sponsorBioguideId: true,
+            latestActionText: true,
+            latestActionDate: true,
+          },
+        });
+        if (b) {
+          matches.push({
+            entityType: 'bill',
+            canonicalIdType: 'billId',
+            canonicalId: b.id,
+            display: b.title,
+            congress: b.congress,
+            sponsorName: b.sponsorName,
+            sponsorBioguideId: b.sponsorBioguideId,
+            latestActionText: b.latestActionText,
+            latestActionDate: b.latestActionDate,
+            matchedBy: 'bill-id',
+          });
+        }
+      }
+    }
+
+    // 2. External-id crosswalk (LIS, FEC, OpenSecrets, GovTrack, ...).
+    if (matches.length === 0) {
+      const crosswalk = await this.prisma.entityCrosswalk.findMany({
+        where: { idValue: { equals: query, mode: 'insensitive' } },
+        take: limit,
+      });
+      for (const row of crosswalk) {
+        if (row.entityType === 'member' && (!type || type === 'member')) {
+          const m = await this.prisma.congressMember.findUnique({
+            where: { bioguideId: row.entityKey },
+          });
+          if (m) matches.push(memberMatch(m, `${row.idType}-crosswalk`));
+        }
+      }
+    }
+
+    // 3. Name search (members + committees; current entities first).
+    if (matches.length === 0 && /[a-z]/i.test(query)) {
+      if (!type || type === 'member') {
+        const members = await this.prisma.congressMember.findMany({
+          where: {
+            OR: [
+              { fullName: { contains: query, mode: 'insensitive' } },
+              { lastName: { contains: query, mode: 'insensitive' } },
+            ],
+          },
+          orderBy: [{ isCurrent: 'desc' }, { lastName: 'asc' }],
+          take: limit,
+        });
+        for (const m of members) matches.push(memberMatch(m, 'name-search'));
+      }
+      if ((!type || type === 'committee') && matches.length < limit) {
+        const committeesFound = await this.prisma.congressCommittee.findMany({
+          where: { name: { contains: query, mode: 'insensitive' } },
+          orderBy: [{ isCurrent: 'desc' }, { systemCode: 'asc' }],
+          take: limit - matches.length,
+        });
+        for (const c of committeesFound) matches.push(committeeMatch(c, 'name-search'));
+      }
+    }
+
+    const trimmed = matches.slice(0, limit);
+    return {
+      tool: 'resolve_entity',
+      generatedAt: new Date().toISOString(),
+      matchesFound: trimmed.length,
+      matches: trimmed,
+      ...(trimmed.length === 0
+        ? {
+            note: `No canonical entity matched "${query}". Say so explicitly — do NOT fabricate a member, committee, or bill identifier.`,
           }
         : {}),
     };

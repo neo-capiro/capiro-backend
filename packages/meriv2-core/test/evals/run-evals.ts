@@ -1,6 +1,7 @@
 import { crossTenantLeakageCase } from './leakage/cross-tenant-leakage.eval';
 import { claimGroundingCase } from './grounding/claim-grounding.eval';
 import { complianceGateCase } from './compliance/gate-enforcement.eval';
+import { entityGroundingCase } from './entity/entity-grounding.eval';
 import type { EvalCase } from './types';
 
 /**
@@ -17,7 +18,12 @@ import type { EvalCase } from './types';
  * a separate, scheduled (non-blocking) eval run, tracked as a follow-up rather
  * than faked here.
  */
-const CASES: EvalCase[] = [crossTenantLeakageCase, claimGroundingCase, complianceGateCase];
+const CASES: EvalCase[] = [
+  crossTenantLeakageCase,
+  claimGroundingCase,
+  complianceGateCase,
+  entityGroundingCase,
+];
 
 async function main(): Promise<void> {
   let failed = 0;

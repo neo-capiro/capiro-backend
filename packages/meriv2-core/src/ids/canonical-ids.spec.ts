@@ -5,6 +5,9 @@ import {
   normalizeCanonicalId,
   parseBillDesignation,
   parseBillId,
+  zBioguideId,
+  zBillId,
+  zCommitteeSystemCode,
 } from './canonical-ids';
 
 describe('canonical-ID registry (C6.P6.0)', () => {
@@ -62,5 +65,19 @@ describe('canonical-ID registry (C6.P6.0)', () => {
       number: 7,
     });
     expect(parseBillDesignation('the NDAA', 119)).toBeNull();
+  });
+});
+
+describe('canonical-id zod schemas (C6.P6.2 tool enforcement)', () => {
+  it('normalizes then accepts real ids', () => {
+    expect(zBioguideId.parse('a000360')).toBe('A000360');
+    expect(zBillId.parse('119-HR-8800')).toBe('119-hr-8800');
+    expect(zCommitteeSystemCode.parse('HSAG00')).toBe('hsag00');
+  });
+
+  it('rejects names and fabricated shapes at the schema gate', () => {
+    expect(zBioguideId.safeParse('Nancy Pelosi').success).toBe(false);
+    expect(zBillId.safeParse('119-xx-8800').success).toBe(false);
+    expect(zCommitteeSystemCode.safeParse('House Agriculture').success).toBe(false);
   });
 });

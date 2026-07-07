@@ -22,6 +22,10 @@ const EXPECTED_TOOLS = [
   'find_path_to',
   'search_memory',
   'search_congress_bills',
+  // Budget-score spine (Bucket-#3 C4.F1, SC2.4)
+  'search_cbo_cost_estimates',
+  // Canonical entity resolution (Bucket-#3 C6.P6.2, SC2.2)
+  'resolve_entity',
   'search_lda_filings',
   'search_sec_filings',
   'search_fara_registrations',
@@ -96,6 +100,7 @@ const REQUIRED_INPUTS: Record<string, string[]> = {
   get_acquisition_person: ['id'],
   find_path_to: ['to'],
   search_memory: ['query'],
+  resolve_entity: ['query'],
   create_word: ['title', 'sections'],
   create_excel: ['title', 'sheets'],
   create_powerpoint: ['title', 'slides'],

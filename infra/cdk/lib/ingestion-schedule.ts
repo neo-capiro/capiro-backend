@@ -39,6 +39,27 @@ export const INGESTION_JOBS: ScheduledIngestionJob[] = [
     description: 'Congress bills/actions (daily, incremental)',
   },
   {
+    id: 'SyncCbo',
+    command: ['sync-cbo'],
+    cron: { minute: '10', hour: '6' },
+    tier: 'daily',
+    description: 'CBO cost-estimate RSS discovery (daily — freshness is the product)',
+  },
+  {
+    id: 'SyncCongressMembers',
+    command: ['sync-congress-members'],
+    cron: { minute: '20', hour: '5', weekDay: 'MON,THU' },
+    tier: 'weekly',
+    description: 'Canonical member roster + entity crosswalk (Mon+Thu — roster churn is slow)',
+  },
+  {
+    id: 'SyncCommittees',
+    command: ['sync-committees'],
+    cron: { minute: '40', hour: '5', weekDay: 'MON,THU' },
+    tier: 'weekly',
+    description: 'Committee registry + membership rosters (Mon+Thu, CC0 dataset)',
+  },
+  {
     id: 'SyncFederalRegister',
     command: ['sync-federal-register'],
     cron: { minute: '15', hour: '6' },
