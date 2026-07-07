@@ -17,6 +17,7 @@ import { LINE_TYPES, serviceLabel, useWatchToggle } from './pe-shared.js';
 import { FinderSummaryStrip } from './FinderSummaryStrip.js';
 import { FinderCatalogTable } from './FinderCatalogTable.js';
 import { FinderWatchlist } from './FinderWatchlist.js';
+import { PeAlertEmailControl } from './PeAlertEmailControl.js';
 import { CapabilityFinder, CapabilityHero } from './CapabilityFinder.js';
 import { MovementView } from './MovementView.js';
 import { MoneyGraphView } from './MoneyGraphView.js';
@@ -355,9 +356,12 @@ export function ProgramElementFinderPage() {
               watchBusyCode={busyCode}
             />
           )}
+          <div style={{ marginTop: 12 }}>
+            <PeAlertEmailControl />
+          </div>
           <Typography.Paragraph type="secondary" className="pe-watchlist-foot">
             Signals are drawn from your intelligence change feed, scoped to the program elements you
-            watch.
+            watch. Email alerts deliver the same signals as a daily digest.
           </Typography.Paragraph>
         </>
       )}

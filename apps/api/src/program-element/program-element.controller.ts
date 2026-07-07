@@ -1,4 +1,4 @@
-import { Body, Controller, Get, Param, Post, Query, UseGuards } from '@nestjs/common';
+import { Body, Controller, Get, Param, Post, Put, Query, UseGuards } from '@nestjs/common';
 import { IsIn, IsNumber, IsOptional, IsString } from 'class-validator';
 import type { TenantContext } from '@capiro/shared';
 import { Roles } from '../auth/roles.decorator.js';
@@ -9,6 +9,12 @@ import { WatchProgramElementDto } from './dto/watch-program-element.dto.js';
 import { ProgramElementReadService, type ReconciliationDecision } from './program-element-read.service.js';
 import { ProgramElementWriterService } from './program-element-writer.service.js';
 import { MANUAL_OVERRIDE_SOURCE, type PeYearInput } from './types.js';
+
+class SetPeAlertEmailPrefDto {
+  /** PE Watch email-alert mode (plan Phase 2). */
+  @IsIn(['off', 'daily', 'daily_plus_critical'])
+  mode!: string;
+}
 
 class ResolveReconciliationDto {
   @IsIn(['keep_current', 'accept_conflicting', 'manual_value'])
@@ -98,6 +104,18 @@ export class ProgramElementController {
   @Get('summary')
   summary(@CurrentTenant() ctx: TenantContext, @Query() query: QueryProgramElementsDto) {
     return this.service.getSummary({ service: query.service, hasData: query.has_data }, ctx);
+  }
+
+  // PE Watch email-alert preference (PE Watch plan Phase 2). Static routes
+  // declared before ':peCode' so 'alerts' is not captured as a peCode.
+  @Get('alerts/email-pref')
+  getAlertEmailPref(@CurrentTenant() ctx: TenantContext) {
+    return this.service.getPeAlertEmailPref(ctx);
+  }
+
+  @Put('alerts/email-pref')
+  setAlertEmailPref(@CurrentTenant() ctx: TenantContext, @Body() body: SetPeAlertEmailPrefDto) {
+    return this.service.setPeAlertEmailPref(body.mode, ctx);
   }
 
   @Get(':peCode')

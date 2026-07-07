@@ -343,7 +343,13 @@ Automates everything about a new budget document *except the commit decision*.
 | `capiro-dev-diag-graph-coverage` | `diag-graph-coverage` | cron(0 11 ? * MON *) | 2026-07-06 | 0 |
 | `capiro-dev-export-master-lists` | `export-master-lists` | cron(30 11 ? * MON *) | 2026-07-06 | 0 |
 | `capiro-dev-sync-task-failures` | (event pattern, not cron): ECS Task State Change, migrate-family task STOPPED with non-zero exit → SNS `capiro-dev-alerts` (topic policy has an events.amazonaws.com statement scoped to this rule) | n/a | 2026-07-06 | 0 |
-| `capiro-dev-watch-budget-docs` | `watch-budget-docs --commit` | cron(0 12 * * ? *) | pending | 1 |
+| `capiro-dev-watch-budget-docs` | `watch-budget-docs --commit` | cron(0 12 * * ? *) | pending merge | 1 |
+| `capiro-dev-match-pe-mentions` | `match-pe-mentions --commit --limit 50` | cron(45 12 * * ? *) | pending merge | 3 |
+
+Phase 2 email delivery has NO separate rule: `send-pe-alert-emails` runs as the final step of
+`run-pe-derive-chain` (nightly 10:30). Its canary gate is the `PE_ALERT_EMAIL_TENANTS` env var
+(comma tenant UUIDs or `all`; unset = dark) — set via the chain rule's containerOverrides
+`environment`, so the canary flips without a task-def revision.
 
 Note (discovered during Phase 0): the CDK `ApiSyncJobsLogs`/`IngestionErrorMetricFilter`/
 `api-sync-jobs` constructs in `compute-stack.ts` are NOT deployed in prod (ComputeStack is

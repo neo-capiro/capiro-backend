@@ -8,6 +8,10 @@
  * ProgramElementYear.enacted via the program-element writer under source
  * 'public_law_fy<NN>'. The writer validates pe_codes (quarantining bad ones),
  * applies source priority, and emits IntelligenceChange on deltas. Idempotent.
+ *
+ * DRY RUN by default (PE Watch plan Phase 4): without --commit this prints a
+ * diff of the artifact against current enacted values and writes NOTHING.
+ * Enacted dollars are the most sensitive field — always inspect the diff.
  */
 import { config as dotenvConfig } from 'dotenv';
 import * as fs from 'node:fs';
@@ -21,6 +25,7 @@ import {
   parseExtractedRows,
 } from '../src/program-element/parsers/conference-report-parser.service.js';
 import type { ExtractedReportRow } from '../src/program-element/parsers/committee-report-parser.js';
+import { diffMarks } from '../src/program-element/parsers/mark-dry-run-diff.js';
 import {
   upsertSourceDocument,
   sha256OfFile,
@@ -55,12 +60,38 @@ async function main(): Promise<void> {
     process.exit(1);
   }
 
+  const commit = process.argv.includes('--commit');
   const prisma = new PrismaService();
   await prisma.$connect();
   try {
     const writer = new ProgramElementWriterService(prisma);
     const parser = new ConferenceReportParserService(writer);
     const records = parseExtractedRows(artifact.rows ?? [], { fy });
+
+    if (!commit) {
+      const peCodes = [...new Set(records.map((r) => r.peCode))];
+      const pes = await prisma.programElement.findMany({
+        where: { peCode: { in: peCodes } },
+        select: { peCode: true },
+      });
+      const years = await prisma.programElementYear.findMany({
+        where: { fy, peCode: { in: peCodes } },
+        select: { peCode: true, enacted: true },
+      });
+      const existing = new Map(
+        years.map((y) => [
+          y.peCode,
+          { currentMillions: y.enacted === null ? null : Number(y.enacted) },
+        ]),
+      );
+      const diff = diffMarks(records, existing, new Set(pes.map((p) => p.peCode)));
+      console.log(
+        JSON.stringify({ mode: 'DRY_RUN', stage: 'public_law', fy, artifact: artifactPath, diff }, null, 2),
+      );
+      console.log('DRY RUN — inspect the diff, then re-run with --commit to load.');
+      return;
+    }
+
     const result = await parser.load(records, 'public_law', fy);
 
     const source = conferenceReportSource('public_law', fy);

@@ -399,6 +399,19 @@ case "${1:-serve}" in
   # intelligence cache), aborting on first failure. Dry-run default; the
   # EventBridge rule passes --commit. SyncRun source: pe-derive-chain.
   run-pe-derive-chain) shift; exec ./node_modules/.bin/tsx scripts/run-pe-derive-chain.ts "$@" ;;
+  # Budget-document watcher (PE Watch plan, Phase 1): diff publisher indexes +
+  # committee-report listings against known detections + the source_document
+  # registry; sha-check registry heads for republications. Dry-run default; the
+  # EventBridge rule passes --commit. First prod run: --commit --baseline.
+  watch-budget-docs) shift; exec ./node_modules/.bin/tsx scripts/watch-budget-docs.ts "$@" ;;
+  # PE Watch alert emails + client-watchlist stamping (PE Watch plan, Phase 2).
+  # Canary-gated by PE_ALERT_EMAIL_TENANTS (unset = dark). Runs as the final
+  # step of run-pe-derive-chain; also dispatchable standalone. Dry-run default.
+  send-pe-alert-emails) shift; exec ./node_modules/.bin/tsx scripts/send-pe-alert-emails.ts "$@" ;;
+  # Phase 3 — hearing-transcript PE mentions + bill-title candidate links
+  # (dry-run default; --commit, --limit N, --since YYYY-MM-DD). Candidates only;
+  # nothing fuzzy auto-accepts.
+  match-pe-mentions) shift; exec ./node_modules/.bin/tsx scripts/match-pe-mentions.ts "$@" ;;
   derive-relationships) shift; exec ./node_modules/.bin/tsx scripts/derive-relationships.ts "$@" ;;
   seed-capabilities) shift; exec ./node_modules/.bin/tsx scripts/seed-capabilities.ts "$@" ;;
   derive-intelligence-cache) shift; exec ./node_modules/.bin/tsx scripts/derive-intelligence-cache.ts "$@" ;;
@@ -459,7 +472,7 @@ case "${1:-serve}" in
     exec node dist/main.js
     ;;
   *)
-    echo "Unknown command: $1 (expected: serve | migrate | seed-workflows | bootstrap-capiro-admin | bootstrap-tenant | bootstrap-roles | emit-changes | emit-bill-alerts | backfill-sectors | generate-briefings | compute-health-scores | check-comment-periods | embed-backfill | embed-program-elements | sync-lda | sync-congress | sync-congress-members | sync-cbo | sync-committees | sync-federal-register | sync-regulations | sync-hearings | sync-hearing-transcripts | sync-gao | sync-crs | sync-fec | sync-federal-award | enrich-award-districts | enrich-award-pe | seed-acq-program-map | report-award-pe-coverage | extract-press-personnel | sync-sam-personnel | sync-fec-pac | sync-fara | sync-fara-enrichment | sync-sec-edgar | sync-rss-intel | sync-openstates | sync-bls | sync-bea | sync-census | sync-grants | sync-openlobby | sync-openspending | sync-lobby-trending | refresh-lobby-intel-mv | sync-comptroller-jbooks | sync-jbook-r2 | import-dow-directory | import-dow-directory-v6 | sync-dow-headshots | generate-pe-person-candidates | auto-confirm-pe-person-candidates | derive-office-program-links | sync-peo-rosters | sync-dod-orgcharts | sync-dod-press-personnel | sync-cpe-roster | recompute-conference-probability | extract-bill-pe-codes | extract-gao-interviewees | extract-hearing-witnesses | parse-hasc-report | parse-sasc-report | parse-hac-d-report | parse-sac-d-report | parse-ndaa-conference | parse-defense-approps-public-law | parse-pdoc | run-pe-derive-chain | rebuild-pe-years | normalize-pe-units | diag-stale-directory | reconcile-personnel-supersede | reconcile-stale-pes | repair-person-pe-links | diag-client-resolution | diag-phantom-imports | diag-clio-memory | backfill-clio-memory-embeddings | run-clio-scheduled-tasks | refresh-memory-graph | prepopulate-all | fill-govids-all)" >&2
+    echo "Unknown command: $1 (expected: serve | migrate | seed-workflows | bootstrap-capiro-admin | bootstrap-tenant | bootstrap-roles | emit-changes | emit-bill-alerts | backfill-sectors | generate-briefings | compute-health-scores | check-comment-periods | embed-backfill | embed-program-elements | sync-lda | sync-congress | sync-congress-members | sync-cbo | sync-committees | sync-federal-register | sync-regulations | sync-hearings | sync-hearing-transcripts | sync-gao | sync-crs | sync-fec | sync-federal-award | enrich-award-districts | enrich-award-pe | seed-acq-program-map | report-award-pe-coverage | extract-press-personnel | sync-sam-personnel | sync-fec-pac | sync-fara | sync-fara-enrichment | sync-sec-edgar | sync-rss-intel | sync-openstates | sync-bls | sync-bea | sync-census | sync-grants | sync-openlobby | sync-openspending | sync-lobby-trending | refresh-lobby-intel-mv | sync-comptroller-jbooks | sync-jbook-r2 | import-dow-directory | import-dow-directory-v6 | sync-dow-headshots | generate-pe-person-candidates | auto-confirm-pe-person-candidates | derive-office-program-links | sync-peo-rosters | sync-dod-orgcharts | sync-dod-press-personnel | sync-cpe-roster | recompute-conference-probability | extract-bill-pe-codes | extract-gao-interviewees | extract-hearing-witnesses | parse-hasc-report | parse-sasc-report | parse-hac-d-report | parse-sac-d-report | parse-ndaa-conference | parse-defense-approps-public-law | parse-pdoc | run-pe-derive-chain | watch-budget-docs | send-pe-alert-emails | match-pe-mentions | rebuild-pe-years | normalize-pe-units | diag-stale-directory | reconcile-personnel-supersede | reconcile-stale-pes | repair-person-pe-links | diag-client-resolution | diag-phantom-imports | diag-clio-memory | backfill-clio-memory-embeddings | run-clio-scheduled-tasks | refresh-memory-graph | prepopulate-all | fill-govids-all)" >&2
     exit 1
     ;;
 esac

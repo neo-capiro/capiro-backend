@@ -1457,6 +1457,42 @@ export class ProgramElementReadService {
   }
 
   /**
+   * PE Watch email-alert preference (PE Watch plan Phase 2). Absence of a row
+   * means 'daily' — the opt-out default for users who watch PEs.
+   */
+  async getPeAlertEmailPref(ctx: TenantContext) {
+    return this.prisma.withTenant(ctx.tenantId, async (tx) => {
+      const row = await tx.peAlertEmailPref.findFirst({
+        where: { userId: ctx.userId, tenantId: ctx.tenantId },
+        select: { mode: true },
+      });
+      return { mode: row?.mode ?? 'daily' };
+    });
+  }
+
+  async setPeAlertEmailPref(mode: string, ctx: TenantContext) {
+    return this.prisma.withTenant(ctx.tenantId, async (tx) => {
+      await tx.peAlertEmailPref.upsert({
+        where: { userId_tenantId: { userId: ctx.userId, tenantId: ctx.tenantId } },
+        create: { userId: ctx.userId, tenantId: ctx.tenantId, mode },
+        update: { mode },
+      });
+      await tx.auditLog.create({
+        data: {
+          tenantId: ctx.tenantId,
+          actorUserId: ctx.userId,
+          actorRole: ctx.role,
+          action: 'program_element.alert_email_pref.set',
+          entityType: 'pe_alert_email_pref',
+          entityId: null,
+          after: { mode },
+        },
+      });
+      return { mode };
+    });
+  }
+
+  /**
    * Cross-source reconciliation review queue (Step 29 §4.1). Global table —
    * capiro_admin only (gated at the controller). Not tenant-scoped: it reflects
    * intel-data conflicts, not tenant data.

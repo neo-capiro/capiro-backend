@@ -47,6 +47,10 @@ const STEPS: readonly Step[] = [
     args: ['--artifact', 'scripts/__data__/corrected_json/capabilities_seed.json'],
   },
   { script: 'derive-intelligence-cache' },
+  // Phase 2: alerts fire only after fresh derivations. Email delivery inside is
+  // canary-gated by PE_ALERT_EMAIL_TENANTS (unset = dark); watchlist stamping
+  // always runs on --commit.
+  { script: 'send-pe-alert-emails' },
 ];
 
 function runStep(step: Step, commit: boolean): Promise<number> {

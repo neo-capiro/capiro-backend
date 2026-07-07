@@ -188,6 +188,25 @@ export async function linkProgramElementPersonToCrm(
   ).data;
 }
 
+/** PE Watch email-alert preference (PE Watch plan Phase 2; config lives on this surface). */
+export type PeAlertEmailMode = 'off' | 'daily' | 'daily_plus_critical';
+
+export async function getPeAlertEmailPref(
+  api: AxiosInstance,
+): Promise<{ mode: PeAlertEmailMode }> {
+  return (await api.get<{ mode: PeAlertEmailMode }>('/api/program-elements/alerts/email-pref'))
+    .data;
+}
+
+export async function setPeAlertEmailPref(
+  api: AxiosInstance,
+  mode: PeAlertEmailMode,
+): Promise<{ mode: PeAlertEmailMode }> {
+  return (
+    await api.put<{ mode: PeAlertEmailMode }>('/api/program-elements/alerts/email-pref', { mode })
+  ).data;
+}
+
 /** Tenant CRM contacts, used by the "link to CRM" picker on the PE program team. */
 export async function getEngagementContacts(
   api: AxiosInstance,

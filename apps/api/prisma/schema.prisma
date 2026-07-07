@@ -215,6 +215,7 @@ model Tenant {
   clioMcpOAuthCredentials      ClioMcpOAuthCredential[]
   clioFirmSkills               ClioFirmSkill[]
   programElementWatches        ProgramElementWatch[]
+  peAlertEmailPrefs            PeAlertEmailPref[]
   actionRecommendations        ActionRecommendation[]
   aiUsageEvents                AiUsageEvent[]
   aiCredentials                TenantAiCredential[]
@@ -268,6 +269,7 @@ model User {
   clioAttachments           ClioAttachment[]               @relation("ClioAttachmentUser")
   createdCampaigns          EngagementCampaign[]           @relation("CampaignCreator")
   programElementWatches     ProgramElementWatch[]
+  peAlertEmailPrefs         PeAlertEmailPref[]
 
   @@map("users")
 }
@@ -2804,6 +2806,26 @@ model ProgramElementWatch {
   @@unique([userId, peCode], map: "program_element_watch_user_pe_code_key")
   @@index([tenantId, peCode], map: "program_element_watch_tenant_pe_code_idx")
   @@map("program_element_watch")
+}
+
+/// Per-user PE Watch email-alert preference (PE Watch plan Phase 2; configured
+/// from the /program-elements surface — Ninja decision 2026-07-06). Absence of
+/// a row means 'daily' for users with >=1 program_element_watch (opt-out model).
+/// mode: off | daily | daily_plus_critical. RLS tenant-scoped.
+model PeAlertEmailPref {
+  id        String   @id @default(uuid()) @db.Uuid
+  userId    String   @map("user_id") @db.Uuid
+  tenantId  String   @map("tenant_id") @db.Uuid
+  mode      String   @default("daily") @db.VarChar(24)
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt DateTime @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, tenantId], map: "pe_alert_email_pref_user_tenant_key")
+  @@index([tenantId], map: "pe_alert_email_pref_tenant_idx")
+  @@map("pe_alert_email_pref")
 }
 
 model AcquisitionPersonnel {
