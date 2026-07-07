@@ -57,6 +57,12 @@ export const FULL_CHAT_READ_TOOLS: readonly DelegatedToolSpec[] = [
     readOnly: true,
   },
   {
+    name: 'search_cbo_cost_estimates',
+    description:
+      'Look up CBO cost estimates (budget scores) for congressional bills. Filter by bill id ("119-hr-8800") or keyword. Explicitly reports when NO estimate exists — never guess a score.',
+    readOnly: true,
+  },
+  {
     name: 'search_public_web',
     description:
       'Search the public web (general results and news) for recent developments. Use this only as supplemental context after Capiro internal data tools for government-affairs answers.',

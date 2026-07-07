@@ -47,9 +47,11 @@ const MAX_PAGES_PER_CONGRESS = Number(process.env.CONGRESS_MAX_PAGES) || 500;
 // Default to the three congresses we track. Override with CONGRESS_TARGETS
 // (comma-separated, e.g. "119") to scope a one-off full backfill to a single
 // congress instead of re-walking all of them.
-const TARGET_CONGRESSES = (process.env.CONGRESS_TARGETS
-  ? process.env.CONGRESS_TARGETS.split(',').map((s) => Number(s.trim())).filter((n) => Number.isInteger(n))
-  : [117, 118, 119]);
+const TARGET_CONGRESSES = process.env.CONGRESS_TARGETS
+  ? process.env.CONGRESS_TARGETS.split(',')
+      .map((s) => Number(s.trim()))
+      .filter((n) => Number.isInteger(n))
+  : [117, 118, 119];
 
 // Incremental mode: pass `--incremental` (or set CONGRESS_SYNC_INCREMENTAL=1)
 // to limit the upstream fetch to bills updated since the most recent
@@ -57,8 +59,7 @@ const TARGET_CONGRESSES = (process.env.CONGRESS_TARGETS
 // `fromDateTime` (ISO Z format). The hard MAX_PAGES_PER_CONGRESS cap stays
 // in place as a safety bound.
 const INCREMENTAL =
-  process.argv.includes('--incremental') ||
-  process.env.CONGRESS_SYNC_INCREMENTAL === '1';
+  process.argv.includes('--incremental') || process.env.CONGRESS_SYNC_INCREMENTAL === '1';
 // Lookback when there's no DB row yet, or when --since is explicit.
 const SINCE_OVERRIDE = (() => {
   const i = process.argv.indexOf('--since');
@@ -117,7 +118,11 @@ interface CongressBillSummary {
   // Congress.gov returns the PRIMARY sponsor inside a `sponsors` ARRAY ([0] is
   // primary); the old code read a singular `sponsor` the API never sends, so
   // sponsor_name was always null. Read the array (singular kept as a fallback).
-  sponsors?: Array<{ fullName?: string | null; party?: string | null; state?: string | null }> | null;
+  sponsors?: Array<{
+    fullName?: string | null;
+    party?: string | null;
+    state?: string | null;
+  }> | null;
   policyArea?: { name: string } | null;
   cosponsors?: { count?: number } | null;
 }
@@ -142,6 +147,12 @@ interface CongressBillDetail {
       url?: string;
     } | null;
     cosponsors?: { count?: number } | null;
+    cboCostEstimates?: Array<{
+      pubDate?: string | null;
+      title?: string | null;
+      url?: string | null;
+      description?: string | null;
+    }> | null;
     originChamber?: string | null;
     updateDate?: string | null;
     url?: string | null;
@@ -222,7 +233,9 @@ async function fetchJson<T>(url: string): Promise<T | null> {
     if ((resp.status === 429 || resp.status >= 500) && attempt < MAX_RETRIES) {
       const retryAfter = Number(resp.headers.get('retry-after'));
       const waitMs =
-        Number.isFinite(retryAfter) && retryAfter > 0 ? retryAfter * 1000 : 1000 * 2 ** (attempt - 1);
+        Number.isFinite(retryAfter) && retryAfter > 0
+          ? retryAfter * 1000
+          : 1000 * 2 ** (attempt - 1);
       console.warn(
         `[congress-sync] ${resp.status} on ${redactKey(url)} — retry ${attempt}/${MAX_RETRIES} in ${waitMs}ms`,
       );
@@ -264,273 +277,333 @@ async function main() {
       async (_ctx) => {
         let totalBills = 0;
 
-    for (const congress of TARGET_CONGRESSES) {
-      // Resolve fromDateTime for this congress. In incremental mode we read
-      // the max(updateDate) for this congress's bills out of Postgres. If
-      // nothing has ever been synced for this congress, fall back to a wide
-      // window (Jan 1 2021), Congress.gov rejects requests with no scope.
-      let fromDateTime: string | undefined;
-      if (SINCE_OVERRIDE) {
-        fromDateTime = toCongressDateTime(new Date(SINCE_OVERRIDE));
-      } else if (INCREMENTAL) {
-        const latest = await prisma.congressBill.findFirst({
-          where: { congress },
-          orderBy: { updateDate: 'desc' },
-          select: { updateDate: true },
-        });
-        if (latest?.updateDate) {
-          fromDateTime = toCongressDateTime(latest.updateDate);
-        }
-      }
-      console.log(
-        `[congress-sync] fetching ${congress}th Congress bills` +
-          (fromDateTime ? ` since ${fromDateTime}` : ' (full window)'),
-      );
-      let offset = 0;
-      let congressBills = 0;
-      let reachedEnd = false;
-
-      for (let pageNum = 0; pageNum < MAX_PAGES_PER_CONGRESS; pageNum++) {
-        let listResp: CongressBillListResponse | null;
-        try {
-          listResp = await fetchJson<CongressBillListResponse>(
-            congressUrl(`/bill/${congress}`, {
-              limit: LIMIT,
-              offset,
-              ...(fromDateTime ? { fromDateTime } : {}),
-            }),
+        for (const congress of TARGET_CONGRESSES) {
+          // Resolve fromDateTime for this congress. In incremental mode we read
+          // the max(updateDate) for this congress's bills out of Postgres. If
+          // nothing has ever been synced for this congress, fall back to a wide
+          // window (Jan 1 2021), Congress.gov rejects requests with no scope.
+          let fromDateTime: string | undefined;
+          if (SINCE_OVERRIDE) {
+            fromDateTime = toCongressDateTime(new Date(SINCE_OVERRIDE));
+          } else if (INCREMENTAL) {
+            const latest = await prisma.congressBill.findFirst({
+              where: { congress },
+              orderBy: { updateDate: 'desc' },
+              select: { updateDate: true },
+            });
+            if (latest?.updateDate) {
+              fromDateTime = toCongressDateTime(latest.updateDate);
+            }
+          }
+          console.log(
+            `[congress-sync] fetching ${congress}th Congress bills` +
+              (fromDateTime ? ` since ${fromDateTime}` : ' (full window)'),
           );
-        } catch (err) {
-          console.warn(`[congress-sync] failed to fetch bill list congress=${congress} offset=${offset}:`, err instanceof Error ? err.message : err);
-          break;
-        }
+          let offset = 0;
+          let congressBills = 0;
+          let reachedEnd = false;
 
-        if (!listResp?.bills?.length) {
-          reachedEnd = true;
-          break;
-        }
-
-        for (const bill of listResp.bills) {
-          try {
-            const type = bill.type?.toLowerCase() ?? '';
-            const id = billId(congress, type, bill.number);
-
-            // Fetch bill detail (includes policyArea and sponsor).
-            let detail: CongressBillDetail | null = null;
+          for (let pageNum = 0; pageNum < MAX_PAGES_PER_CONGRESS; pageNum++) {
+            let listResp: CongressBillListResponse | null;
             try {
-              detail = await fetchJson<CongressBillDetail>(
-                congressUrl(`/bill/${congress}/${type}/${bill.number}`),
+              listResp = await fetchJson<CongressBillListResponse>(
+                congressUrl(`/bill/${congress}`, {
+                  limit: LIMIT,
+                  offset,
+                  ...(fromDateTime ? { fromDateTime } : {}),
+                }),
               );
             } catch (err) {
-              // Proceed without detail, will use list data
+              console.warn(
+                `[congress-sync] failed to fetch bill list congress=${congress} offset=${offset}:`,
+                err instanceof Error ? err.message : err,
+              );
+              break;
             }
 
-            const billData = detail?.bill ?? bill as unknown as CongressBillDetail['bill'];
-            const policyAreaName = billData.policyArea?.name ?? bill.policyArea?.name ?? null;
-            const isLobbyingRelevant = policyAreaName ? LOBBYING_POLICY_AREAS.has(policyAreaName) : false;
+            if (!listResp?.bills?.length) {
+              reachedEnd = true;
+              break;
+            }
 
-            // Fetch subjects, committees, and actions only for lobbying-relevant bills.
-            let subjects: string[] = [];
-            let committees: object[] = [];
-            let actionsData: { date: Date; text: string; type: string | null; chamber: string | null }[] = [];
-
-            if (isLobbyingRelevant) {
-              await new Promise((r) => setTimeout(r, 200));
-
+            for (const bill of listResp.bills) {
               try {
-                const subjectsResp = await fetchJson<CongressSubjectsResponse>(
-                  congressUrl(`/bill/${congress}/${type}/${bill.number}/subjects`),
-                );
-                if (subjectsResp?.subjects?.legislativeSubjects) {
-                  subjects = subjectsResp.subjects.legislativeSubjects
-                    .map((s) => s.name)
-                    .filter((s): s is string => typeof s === 'string' && s.length > 0);
+                const type = bill.type?.toLowerCase() ?? '';
+                const id = billId(congress, type, bill.number);
+
+                // Fetch bill detail (includes policyArea and sponsor).
+                let detail: CongressBillDetail | null = null;
+                try {
+                  detail = await fetchJson<CongressBillDetail>(
+                    congressUrl(`/bill/${congress}/${type}/${bill.number}`),
+                  );
+                } catch (err) {
+                  // Proceed without detail, will use list data
                 }
-              } catch {
-                // subjects stay empty
-              }
 
-              await new Promise((r) => setTimeout(r, 200));
+                const billData = detail?.bill ?? (bill as unknown as CongressBillDetail['bill']);
+                const policyAreaName = billData.policyArea?.name ?? bill.policyArea?.name ?? null;
+                const isLobbyingRelevant = policyAreaName
+                  ? LOBBYING_POLICY_AREAS.has(policyAreaName)
+                  : false;
 
-              try {
-                const committeesResp = await fetchJson<CongressCommitteesResponse>(
-                  congressUrl(`/bill/${congress}/${type}/${bill.number}/committees`),
-                );
-                if (committeesResp?.committees) {
-                  committees = committeesResp.committees.map((c) => ({
-                    name: c.name ?? null,
-                    chamber: c.chamber ?? null,
-                    type: c.type ?? null,
-                    systemCode: c.systemCode ?? null,
-                  }));
+                // Fetch subjects, committees, and actions only for lobbying-relevant bills.
+                let subjects: string[] = [];
+                let committees: object[] = [];
+                let actionsData: {
+                  date: Date;
+                  text: string;
+                  type: string | null;
+                  chamber: string | null;
+                }[] = [];
+
+                if (isLobbyingRelevant) {
+                  await new Promise((r) => setTimeout(r, 200));
+
+                  try {
+                    const subjectsResp = await fetchJson<CongressSubjectsResponse>(
+                      congressUrl(`/bill/${congress}/${type}/${bill.number}/subjects`),
+                    );
+                    if (subjectsResp?.subjects?.legislativeSubjects) {
+                      subjects = subjectsResp.subjects.legislativeSubjects
+                        .map((s) => s.name)
+                        .filter((s): s is string => typeof s === 'string' && s.length > 0);
+                    }
+                  } catch {
+                    // subjects stay empty
+                  }
+
+                  await new Promise((r) => setTimeout(r, 200));
+
+                  try {
+                    const committeesResp = await fetchJson<CongressCommitteesResponse>(
+                      congressUrl(`/bill/${congress}/${type}/${bill.number}/committees`),
+                    );
+                    if (committeesResp?.committees) {
+                      committees = committeesResp.committees.map((c) => ({
+                        name: c.name ?? null,
+                        chamber: c.chamber ?? null,
+                        type: c.type ?? null,
+                        systemCode: c.systemCode ?? null,
+                      }));
+                    }
+                  } catch {
+                    // committees stay empty
+                  }
+
+                  await new Promise((r) => setTimeout(r, 200));
+
+                  try {
+                    const actionsResp = await fetchJson<CongressActionsResponse>(
+                      congressUrl(`/bill/${congress}/${type}/${bill.number}/actions`, {
+                        limit: 250,
+                      }),
+                    );
+                    if (actionsResp?.actions) {
+                      for (const a of actionsResp.actions) {
+                        const d = safeDate(a.actionDate);
+                        if (!d || !a.text) continue;
+                        actionsData.push({
+                          date: d,
+                          text: a.text,
+                          type: a.type ?? null,
+                          chamber: a.chamber ?? null,
+                        });
+                      }
+                    }
+                  } catch {
+                    // actions stay empty
+                  }
                 }
-              } catch {
-                // committees stay empty
-              }
 
-              await new Promise((r) => setTimeout(r, 200));
+                const sponsor =
+                  billData.sponsors?.[0] ??
+                  bill.sponsors?.[0] ??
+                  billData.sponsor ??
+                  bill.sponsor ??
+                  null;
+                const latestAction = billData.latestAction ?? bill.latestAction ?? null;
 
-              try {
-                const actionsResp = await fetchJson<CongressActionsResponse>(
-                  congressUrl(`/bill/${congress}/${type}/${bill.number}/actions`, { limit: 250 }),
-                );
-                if (actionsResp?.actions) {
-                  for (const a of actionsResp.actions) {
-                    const d = safeDate(a.actionDate);
-                    if (!d || !a.text) continue;
-                    actionsData.push({
-                      date: d,
-                      text: a.text,
-                      type: a.type ?? null,
-                      chamber: a.chamber ?? null,
+                await prisma.congressBill.upsert({
+                  where: { id },
+                  update: {
+                    title: billData.title ?? bill.title,
+                    introducedDate: safeDate(billData.introducedDate ?? bill.introducedDate),
+                    sponsorName: sponsor?.fullName ?? null,
+                    sponsorState: sponsor?.state ?? null,
+                    sponsorParty: sponsor?.party ?? null,
+                    latestActionText: latestAction?.text ?? null,
+                    latestActionDate: safeDate(latestAction?.actionDate),
+                    policyArea: policyAreaName,
+                    subjects,
+                    committees: committees as object,
+                    cosponsorsCount: billData.cosponsors?.count ?? bill.cosponsors?.count ?? 0,
+                    originChamber: billData.originChamber ?? bill.originChamber ?? null,
+                    updateDate: safeDate(billData.updateDate ?? bill.updateDate),
+                    url: bill.url ?? null,
+                    lastSyncedAt: new Date(),
+                  },
+                  create: {
+                    id,
+                    congress,
+                    billType: type,
+                    billNumber: bill.number,
+                    title: billData.title ?? bill.title,
+                    introducedDate: safeDate(billData.introducedDate ?? bill.introducedDate),
+                    sponsorName: sponsor?.fullName ?? null,
+                    sponsorState: sponsor?.state ?? null,
+                    sponsorParty: sponsor?.party ?? null,
+                    latestActionText: latestAction?.text ?? null,
+                    latestActionDate: safeDate(latestAction?.actionDate),
+                    policyArea: policyAreaName,
+                    subjects,
+                    committees: committees as object,
+                    cosponsorsCount: billData.cosponsors?.count ?? bill.cosponsors?.count ?? 0,
+                    originChamber: billData.originChamber ?? bill.originChamber ?? null,
+                    updateDate: safeDate(billData.updateDate ?? bill.updateDate),
+                    url: bill.url ?? null,
+                  },
+                });
+
+                // CBO cost estimates (Bucket-#3 C4.F1, SC2.4): the detail response
+                // already carries cboCostEstimates[] — persist at zero extra API
+                // cost. Publication id parsed from the URL is the stable key.
+                for (const est of billData.cboCostEstimates ?? []) {
+                  if (!est?.url || !est.pubDate) continue;
+                  const pubIdMatch = est.url.match(/publication\/(\d+)/);
+                  const estId = pubIdMatch?.[1] ?? `url:${est.url.slice(-80)}`;
+                  const pub = safeDate(est.pubDate);
+                  if (!pub) continue;
+                  try {
+                    await prisma.cboCostEstimate.upsert({
+                      where: { id: estId },
+                      update: {
+                        billId: id,
+                        title: est.title ?? 'CBO cost estimate',
+                        description: est.description ?? null,
+                        pubDate: pub,
+                        lastSyncedAt: new Date(),
+                      },
+                      create: {
+                        id: estId,
+                        billId: id,
+                        congress,
+                        billType: type,
+                        billNumber: bill.number,
+                        title: est.title ?? 'CBO cost estimate',
+                        description: est.description ?? null,
+                        pubDate: pub,
+                        cboUrl: est.url,
+                        source: 'congress-api',
+                      },
+                    });
+                  } catch (err) {
+                    console.warn(`[sync-congress] cbo estimate upsert failed for ${id}:`, err);
+                  }
+                }
+
+                // Upsert normalized actions, committees, subjects for lobbying-relevant bills.
+                if (isLobbyingRelevant) {
+                  // Delete existing rows and re-insert (simpler than diffing).
+                  await prisma.congressBillAction.deleteMany({ where: { billId: id } });
+                  if (actionsData.length > 0) {
+                    await prisma.congressBillAction.createMany({
+                      data: actionsData.map((a) => ({
+                        billId: id,
+                        date: a.date,
+                        text: a.text,
+                        type: a.type,
+                        chamber: a.chamber,
+                      })),
+                    });
+                  }
+
+                  await prisma.congressBillCommittee.deleteMany({ where: { billId: id } });
+                  const committeeObjects = committees as {
+                    name?: string | null;
+                    chamber?: string | null;
+                    systemCode?: string | null;
+                  }[];
+                  if (committeeObjects.length > 0) {
+                    await prisma.congressBillCommittee.createMany({
+                      data: committeeObjects
+                        .filter((c) => c.name)
+                        .map((c) => ({
+                          billId: id,
+                          committeeName: c.name!,
+                          committeeCode: c.systemCode ?? null,
+                          chamber: c.chamber ?? null,
+                        })),
+                    });
+                  }
+
+                  await prisma.congressBillSubject.deleteMany({ where: { billId: id } });
+                  if (subjects.length > 0) {
+                    await prisma.congressBillSubject.createMany({
+                      data: subjects.map((name) => ({ billId: id, name })),
                     });
                   }
                 }
-              } catch {
-                // actions stay empty
+
+                // Embed the bill inline. content_hash in embedAndUpsert means a
+                // re-sync of unchanged bills is free. Caught here so a Bedrock
+                // hiccup doesn't kill the whole sync run.
+                if (EMBED_ON_SYNC) {
+                  try {
+                    await embedAndUpsert(prisma, {
+                      tenantId: null,
+                      sourceType: 'bill',
+                      sourceId: id,
+                      text: buildBillText({
+                        billNumber: bill.number,
+                        billType: type,
+                        congress,
+                        title: billData.title ?? bill.title,
+                        policyArea: policyAreaName,
+                        subjects,
+                        latestActionText: latestAction?.text ?? null,
+                        sponsorName: sponsor?.fullName ?? null,
+                      }),
+                      bypassRls: true,
+                    });
+                  } catch (e) {
+                    console.error(`[congress-sync] embed ${id} failed:`, (e as Error).message);
+                  }
+                }
+
+                congressBills++;
+                totalBills++;
+                if (totalBills % 500 === 0) {
+                  console.log(`[congress-sync]   ${totalBills} bills processed...`);
+                }
+              } catch (err) {
+                console.warn(
+                  `[congress-sync] skip bill:`,
+                  err instanceof Error ? err.message : err,
+                );
               }
             }
 
-            const sponsor =
-              billData.sponsors?.[0] ?? bill.sponsors?.[0] ?? billData.sponsor ?? bill.sponsor ?? null;
-            const latestAction = billData.latestAction ?? bill.latestAction ?? null;
-
-            await prisma.congressBill.upsert({
-              where: { id },
-              update: {
-                title: billData.title ?? bill.title,
-                introducedDate: safeDate(billData.introducedDate ?? bill.introducedDate),
-                sponsorName: sponsor?.fullName ?? null,
-                sponsorState: sponsor?.state ?? null,
-                sponsorParty: sponsor?.party ?? null,
-                latestActionText: latestAction?.text ?? null,
-                latestActionDate: safeDate(latestAction?.actionDate),
-                policyArea: policyAreaName,
-                subjects,
-                committees: committees as object,
-                cosponsorsCount: billData.cosponsors?.count ?? bill.cosponsors?.count ?? 0,
-                originChamber: billData.originChamber ?? bill.originChamber ?? null,
-                updateDate: safeDate(billData.updateDate ?? bill.updateDate),
-                url: bill.url ?? null,
-                lastSyncedAt: new Date(),
-              },
-              create: {
-                id,
-                congress,
-                billType: type,
-                billNumber: bill.number,
-                title: billData.title ?? bill.title,
-                introducedDate: safeDate(billData.introducedDate ?? bill.introducedDate),
-                sponsorName: sponsor?.fullName ?? null,
-                sponsorState: sponsor?.state ?? null,
-                sponsorParty: sponsor?.party ?? null,
-                latestActionText: latestAction?.text ?? null,
-                latestActionDate: safeDate(latestAction?.actionDate),
-                policyArea: policyAreaName,
-                subjects,
-                committees: committees as object,
-                cosponsorsCount: billData.cosponsors?.count ?? bill.cosponsors?.count ?? 0,
-                originChamber: billData.originChamber ?? bill.originChamber ?? null,
-                updateDate: safeDate(billData.updateDate ?? bill.updateDate),
-                url: bill.url ?? null,
-              },
-            });
-
-            // Upsert normalized actions, committees, subjects for lobbying-relevant bills.
-            if (isLobbyingRelevant) {
-              // Delete existing rows and re-insert (simpler than diffing).
-              await prisma.congressBillAction.deleteMany({ where: { billId: id } });
-              if (actionsData.length > 0) {
-                await prisma.congressBillAction.createMany({
-                  data: actionsData.map((a) => ({
-                    billId: id,
-                    date: a.date,
-                    text: a.text,
-                    type: a.type,
-                    chamber: a.chamber,
-                  })),
-                });
-              }
-
-              await prisma.congressBillCommittee.deleteMany({ where: { billId: id } });
-              const committeeObjects = committees as { name?: string | null; chamber?: string | null; systemCode?: string | null }[];
-              if (committeeObjects.length > 0) {
-                await prisma.congressBillCommittee.createMany({
-                  data: committeeObjects
-                    .filter((c) => c.name)
-                    .map((c) => ({
-                      billId: id,
-                      committeeName: c.name!,
-                      committeeCode: c.systemCode ?? null,
-                      chamber: c.chamber ?? null,
-                    })),
-                });
-              }
-
-              await prisma.congressBillSubject.deleteMany({ where: { billId: id } });
-              if (subjects.length > 0) {
-                await prisma.congressBillSubject.createMany({
-                  data: subjects.map((name) => ({ billId: id, name })),
-                });
-              }
+            offset += LIMIT;
+            if (!listResp.pagination?.next) {
+              reachedEnd = true;
+              break;
             }
-
-            // Embed the bill inline. content_hash in embedAndUpsert means a
-            // re-sync of unchanged bills is free. Caught here so a Bedrock
-            // hiccup doesn't kill the whole sync run.
-            if (EMBED_ON_SYNC) {
-              try {
-                await embedAndUpsert(prisma, {
-                  tenantId: null,
-                  sourceType: 'bill',
-                  sourceId: id,
-                  text: buildBillText({
-                    billNumber: bill.number,
-                    billType: type,
-                    congress,
-                    title: billData.title ?? bill.title,
-                    policyArea: policyAreaName,
-                    subjects,
-                    latestActionText: latestAction?.text ?? null,
-                    sponsorName: sponsor?.fullName ?? null,
-                  }),
-                  bypassRls: true,
-                });
-              } catch (e) {
-                console.error(`[congress-sync] embed ${id} failed:`, (e as Error).message);
-              }
-            }
-
-            congressBills++;
-            totalBills++;
-            if (totalBills % 500 === 0) {
-              console.log(`[congress-sync]   ${totalBills} bills processed...`);
-            }
-          } catch (err) {
-            console.warn(`[congress-sync] skip bill:`, err instanceof Error ? err.message : err);
           }
+
+          if (!reachedEnd) {
+            console.warn(
+              `[congress-sync] ${congress}th Congress: STOPPED at the MAX_PAGES_PER_CONGRESS=${MAX_PAGES_PER_CONGRESS} ` +
+                `safety cap (${congressBills} bills) but the API still had more pages — coverage is INCOMPLETE. ` +
+                `Re-run a full (non-incremental) sync with a higher CONGRESS_MAX_PAGES.`,
+            );
+          }
+          console.log(`[congress-sync] ${congress}th Congress: ${congressBills} bills`);
         }
 
-        offset += LIMIT;
-        if (!listResp.pagination?.next) {
-          reachedEnd = true;
-          break;
-        }
-      }
-
-      if (!reachedEnd) {
-        console.warn(
-          `[congress-sync] ${congress}th Congress: STOPPED at the MAX_PAGES_PER_CONGRESS=${MAX_PAGES_PER_CONGRESS} ` +
-            `safety cap (${congressBills} bills) but the API still had more pages — coverage is INCOMPLETE. ` +
-            `Re-run a full (non-incremental) sync with a higher CONGRESS_MAX_PAGES.`,
-        );
-      }
-      console.log(`[congress-sync] ${congress}th Congress: ${congressBills} bills`);
-    }
-
-    console.log(`[congress-sync] total bills: ${totalBills}`);
-    const elapsed = ((Date.now() - t0) / 1000 / 60).toFixed(1);
-    console.log(`[congress-sync] DONE in ${elapsed}m`);
+        console.log(`[congress-sync] total bills: ${totalBills}`);
+        const elapsed = ((Date.now() - t0) / 1000 / 60).toFixed(1);
+        console.log(`[congress-sync] DONE in ${elapsed}m`);
         return { inserted: 0, updated: totalBills, skipped: 0, errors: 0 };
       },
       { overrideSince: SINCE_OVERRIDE ?? null },

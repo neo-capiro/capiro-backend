@@ -2156,6 +2156,55 @@ model CongressBill {
   @@map("congress_bill")
 }
 
+// CBO cost estimates (Bucket-#3 C4.F1, SC2.4). GLOBAL public-record table —
+// populated by sync-congress from the bill-detail cboCostEstimates[] the sync
+// already fetches (zero extra API calls) + later the CBO RSS discovery job.
+model CboCostEstimate {
+  id          String   @id // CBO publication id parsed from the URL (e.g. "62540")
+  billId      String?  @map("bill_id") // soft ref -> congress_bill.id ("119-hr-8800")
+  congress    Int
+  billType    String   @map("bill_type")
+  billNumber  String   @map("bill_number")
+  title       String   @db.Text
+  description String?  @db.Text
+  pubDate     DateTime @map("pub_date") @db.Timestamptz(6)
+  cboUrl      String   @unique @map("cbo_url")
+  source      String   @default("congress-api") // 'congress-api' | 'cbo-rss'
+  lastSyncedAt DateTime @default(now()) @map("last_synced_at") @db.Timestamptz(6)
+
+  @@index([billId])
+  @@index([pubDate(sort: Desc)])
+  @@map("cbo_cost_estimate")
+}
+
+// Canonical congressional-member roster (Bucket-#3 C6.P6.1 / C1.V1). GLOBAL
+// public-record table — the entity-normalization anchor for Bioguide IDs
+// (SC2.2: every member a tool cites must resolve to a row here). lisId is the
+// Senate LIS id the senate.gov roll-call XML uses (crosswalk via the CC0
+// unitedstates/congress-legislators dataset); idsJsonb carries the full id
+// block (fec/opensecrets/govtrack/wikidata/...).
+model CongressMember {
+  bioguideId   String    @id @map("bioguide_id")
+  firstName    String    @map("first_name")
+  lastName     String    @map("last_name")
+  fullName     String    @map("full_name")
+  party        String?
+  state        String?
+  district     Int?
+  chamber      String // 'house' | 'senate'
+  lisId        String?   @unique @map("lis_id")
+  isCurrent    Boolean   @default(false) @map("is_current")
+  congresses   Int[]     @default([])
+  idsJsonb     Json      @default("{}") @map("ids_jsonb")
+  updateDate   DateTime? @map("update_date") @db.Timestamptz(6)
+  lastSyncedAt DateTime  @default(now()) @map("last_synced_at") @db.Timestamptz(6)
+
+  @@index([chamber, state])
+  @@index([lastName])
+  @@index([isCurrent])
+  @@map("congress_member")
+}
+
 /// Cached full bill text fetched from GovInfo, used by the bill PE-code extractor.
 /// Global table — no tenant_id, no RLS. One row per bill (bill_id unique).
 model BillText {

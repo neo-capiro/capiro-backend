@@ -105,6 +105,11 @@ export const TOOL_DEFINITIONS = [
       'Search congressional bills in the Capiro database (118th and 119th Congress). Filter by keyword, policy area, congress number, or recent activity date. Returns bill title, sponsor, latest action, policy area, and cosponsors count.',
   },
   {
+    name: 'search_cbo_cost_estimates',
+    description:
+      'Look up CBO cost estimates (budget scores) for congressional bills in the Capiro database. Filter by bill id ("119-hr-8800") or keyword. Returns the estimate title, publication date, and cbo.gov link. Explicitly reports when NO estimate exists for a bill — never guess a score.',
+  },
+  {
     name: 'search_lda_filings',
     description:
       'Search LDA lobbying disclosure filings in the Capiro database. Filter by client name, registrant, issue area, or keyword.',
@@ -520,6 +525,12 @@ export class MeriToolsService {
         activeSince: str('ISO date; only bills with action since then'),
         limit: int('Max results (1-50)'),
         page: int('Page number'),
+      }),
+      search_cbo_cost_estimates: obj({
+        billId: str('Capiro bill id, e.g. "119-hr-8800"'),
+        query: str('Keyword search over estimate titles'),
+        congress: int('Congress number filter'),
+        limit: int('Max results (1-25, default 10)'),
       }),
       search_lda_filings: obj({
         clientName: str('Client name filter'),
@@ -1192,6 +1203,8 @@ export class MeriToolsService {
         return this.searchMemory(ctx, input);
       case 'search_congress_bills':
         return this.searchCongressBills(input);
+      case 'search_cbo_cost_estimates':
+        return this.searchCboCostEstimates(input);
       case 'search_lda_filings':
         return this.searchLdaFilings(input);
       case 'search_sec_filings':
@@ -1827,6 +1840,53 @@ export class MeriToolsService {
       tool: 'search_congress_bills',
       generatedAt: new Date().toISOString(),
       ...bills,
+    };
+  }
+
+  /**
+   * CBO cost estimates (SC2.4): bill -> score mapping where one exists, and an
+   * EXPLICIT no-estimate answer (never a guess) where none does.
+   */
+  private async searchCboCostEstimates(input: Record<string, unknown>) {
+    const billId = optionalString(input, 'billId', 40);
+    const query = optionalString(input, 'query', 200);
+    const congress = input.congress ? Number(input.congress) : undefined;
+    const limit = clampInt(input.limit, 1, 25, 10);
+
+    const where: Record<string, unknown> = {};
+    if (billId) where.billId = billId.toLowerCase().trim();
+    if (congress) where.congress = congress;
+    if (query) where.title = { contains: query, mode: 'insensitive' };
+
+    const estimates = await this.prisma.cboCostEstimate.findMany({
+      where,
+      orderBy: { pubDate: 'desc' },
+      take: limit,
+      select: {
+        id: true,
+        billId: true,
+        congress: true,
+        billType: true,
+        billNumber: true,
+        title: true,
+        description: true,
+        pubDate: true,
+        cboUrl: true,
+      },
+    });
+
+    return {
+      tool: 'search_cbo_cost_estimates',
+      generatedAt: new Date().toISOString(),
+      estimatesFound: estimates.length,
+      estimates,
+      ...(estimates.length === 0
+        ? {
+            note: billId
+              ? `No CBO cost estimate on record for ${billId}. Say so explicitly — do not estimate or guess a score.`
+              : 'No CBO cost estimates matched. Say so explicitly — do not estimate or guess a score.',
+          }
+        : {}),
     };
   }
 
