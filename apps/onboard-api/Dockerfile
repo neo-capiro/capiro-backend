@@ -83,6 +83,10 @@ COPY --chown=capiro:capiro --from=build /workspace/packages/shared/dist /app/pac
 COPY --chown=capiro:capiro --from=build /workspace/packages/shared/package.json /app/packages/shared/package.json
 COPY --chown=capiro:capiro --from=build /workspace/packages/auth/dist /app/packages/auth/dist
 COPY --chown=capiro:capiro --from=build /workspace/packages/auth/package.json /app/packages/auth/package.json
+# @capiro/auth is consumed UNBUNDLED (nest build, not the orchestrator's
+# webpack) — its dist resolves @nestjs/*+@clerk/backend through its own pnpm
+# symlink dir, which must ship or the service dies at boot (MODULE_NOT_FOUND).
+COPY --chown=capiro:capiro --from=build /workspace/packages/auth/node_modules /app/packages/auth/node_modules
 COPY --chown=capiro:capiro --from=build /workspace/apps/onboard-api/dist /app/apps/onboard-api/dist
 COPY --chown=capiro:capiro --from=build /workspace/apps/onboard-api/node_modules /app/apps/onboard-api/node_modules
 COPY --chown=capiro:capiro --from=build /workspace/apps/onboard-api/package.json /app/apps/onboard-api/package.json
