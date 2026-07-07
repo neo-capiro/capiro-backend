@@ -343,13 +343,37 @@ Automates everything about a new budget document *except the commit decision*.
 | `capiro-dev-diag-graph-coverage` | `diag-graph-coverage` | cron(0 11 ? * MON *) | 2026-07-06 | 0 |
 | `capiro-dev-export-master-lists` | `export-master-lists` | cron(30 11 ? * MON *) | 2026-07-06 | 0 |
 | `capiro-dev-sync-task-failures` | (event pattern, not cron): ECS Task State Change, migrate-family task STOPPED with non-zero exit → SNS `capiro-dev-alerts` (topic policy has an events.amazonaws.com statement scoped to this rule) | n/a | 2026-07-06 | 0 |
-| `capiro-dev-watch-budget-docs` | `watch-budget-docs --commit` | cron(0 12 * * ? *) | pending merge | 1 |
-| `capiro-dev-match-pe-mentions` | `match-pe-mentions --commit --limit 50` | cron(45 12 * * ? *) | pending merge | 3 |
+| `capiro-dev-watch-budget-docs` | `watch-budget-docs --commit` | cron(0 12 * * ? *) | 2026-07-07 ENABLED | 1 |
+| `capiro-dev-match-pe-mentions` | `match-pe-mentions --commit --limit 50` | cron(45 12 * * ? *) | 2026-07-07 **DISABLED** | 3 |
 
-Phase 2 email delivery has NO separate rule: `send-pe-alert-emails` runs as the final step of
+**Phase 1 — LIVE.** Baselined on prod 2026-07-07: 168 scanned / 45 already-known → 69 baseline
+rows written (`consumed=true`, no email); a follow-up dry-run confirmed 0 false-new (known rose
+to 114, `new_detections: []`). Bounded to the current + prior budget cycle (`budgetCyclePlan`) —
+the first dry-run caught it crawling 20 years of archives (1,396 docs) and flagging each as a
+critical fy_index; now only the current-or-newer FY index page is a detection.
+
+**Phase 3 — DISABLED (plumbing ready, activation gated on C6).** The matcher is built, merged,
+and safe, but the name bank is `program_name`-only (the `pe_title` and `capability_alias` tiers
+were dropped after prod dry-runs — both fan a single generic word out to every tagged PE:
+capability_alias alone produced 5,388 rows across 40 transcripts). With today's data, the 113
+curated MDAP canonical names match ~0 transcript/bill prose (witnesses say "the Sentinel", not
+the formal program name). Meaningful recall needs the **C6 program-alias expansion** (colloquial
+aliases). Enable when that lands: `aws events enable-rule --name capiro-dev-match-pe-mentions`.
+
+**Phase 4 — gates LIVE, no scheduled rule.** `parse-ndaa-conference` + `parse-defense-approps-public-law`
+are dry-run-by-default; a human runs `--commit` per document. NOTE (2026-07-07 dry-run): loading
+the committed `ndaa_conference_fy2026.json` would CHANGE 703 of 799 FY2026 conference marks — the
+"fixed extractor" artifact disagrees with what is currently stored. Needs human adjudication before
+any commit.
+
+**Phase 2 email delivery has NO separate rule:** `send-pe-alert-emails` runs as the final step of
 `run-pe-derive-chain` (nightly 10:30). Its canary gate is the `PE_ALERT_EMAIL_TENANTS` env var
 (comma tenant UUIDs or `all`; unset = dark) — set via the chain rule's containerOverrides
-`environment`, so the canary flips without a task-def revision.
+`environment`, so the canary flips without a task-def revision. **Currently unset = DARK**
+(watchlist stamping runs; no emails). The `pe_alert_email_pref` migration is applied to prod. The
+`/program-elements/alerts/email-pref` endpoint + the `PeAlertEmailControl` web toggle need the next
+`capiro-dev-api` / `capiro-dev-web` service roll to go live — deferred here because those services
+track `:latest`, so a roll now would also ship all accumulated main (onboarding v1, Wave 1).
 
 Note (discovered during Phase 0): the CDK `ApiSyncJobsLogs`/`IngestionErrorMetricFilter`/
 `api-sync-jobs` constructs in `compute-stack.ts` are NOT deployed in prod (ComputeStack is
