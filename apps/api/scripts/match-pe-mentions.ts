@@ -8,16 +8,22 @@
  *   flags: --limit N            transcripts per run (default 50, newest fetchedAt first)
  *          --since YYYY-MM-DD   window override (default: last 30 days)
  *
- * Name bank (curated / accepted-only, high-precision sources ONLY):
+ * Name bank — NAMED PROGRAMS ONLY (high precision):
  *   program_name      (0.90) — Program.canonicalName via ACCEPTED pe_program_match rows
- *   capability_alias  (0.70) — Capability.name + aliases via ACCEPTED capability_budget_line_match rows
  *
- * The pe_title tier (raw ProgramElement.title) is DELIBERATELY EXCLUDED: a prod
- * dry-run produced ~136 mentions/transcript because generic titles ("Aircraft
- * Modifications", "Base Support") match transcript prose everywhere. The bill
- * matcher already excludes pe_title for the same reason; transcripts are longer
- * free text, so the noise is worse. Recall for un-curated programs is the job of
- * a program-alias expansion (post-C6 entity-norm), not generic titles.
+ * Two tiers are DELIBERATELY EXCLUDED, both proven noisy by prod dry-runs:
+ *   - pe_title (raw ProgramElement.title): generic titles ("Aircraft
+ *     Modifications", "Base Support") match transcript prose everywhere
+ *     (~136 mentions/transcript).
+ *   - capability_alias (Capability.name + aliases): a single thematic word
+ *     like "artificial intelligence" fans out to EVERY PE tagged with that
+ *     capability (one AI-heavy hearing → thousands of identical per-PE rows).
+ *     That is capability-LEVEL interest, not a per-PE "this program was
+ *     discussed" signal, and belongs to a future capability-mention feature
+ *     that attributes to the capability, not fanned to each PE.
+ * A named program in a transcript/bill title (F-35, CCA, LRHW) IS a genuine
+ * per-PE signal, so program_name is the v1 bar. Broader recall is the post-C6
+ * program-alias-expansion job.
  *
  * Hearing mentions land as IntelligenceChange rows (source='pe_hearing_mention',
  * changeType='hearing_mention', one row per transcript × PE, dedupeKey
@@ -62,7 +68,7 @@ function arg(name: string): string | undefined {
   return i >= 0 ? process.argv[i + 1] : undefined;
 }
 
-/** Bank rows from the three curated sources (accepted matches only). */
+/** Bank rows — NAMED PROGRAMS ONLY (accepted matches). See the header note. */
 async function loadNameBankEntries(prisma: PrismaClient): Promise<NameBankEntryInput[]> {
   const entries: NameBankEntryInput[] = [];
 
@@ -74,17 +80,10 @@ async function loadNameBankEntries(prisma: PrismaClient): Promise<NameBankEntryI
     entries.push({ peCode: m.peCode, term: m.program.canonicalName, tier: 'program_name' });
   }
 
-  const capabilityMatches = await prisma.capabilityBudgetLineMatch.findMany({
-    where: { status: 'accepted' },
-    select: { peCode: true, capability: { select: { name: true, aliases: true } } },
-  });
-  for (const m of capabilityMatches) {
-    for (const term of [m.capability.name, ...m.capability.aliases]) {
-      entries.push({ peCode: m.peCode, term, tier: 'capability_alias' });
-    }
-  }
-
-  // pe_title tier intentionally omitted — see the header note (precision).
+  // capability_alias and pe_title tiers are intentionally omitted — see the
+  // header note. Both fan a single thematic word ("artificial intelligence")
+  // out to every PE tagged with that capability, which is capability-level
+  // interest, not a per-PE "this program was discussed" signal.
 
   return entries;
 }
