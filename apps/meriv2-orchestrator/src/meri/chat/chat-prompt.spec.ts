@@ -36,6 +36,18 @@ describe('buildChatSystemPrompt', () => {
     expect(prompt).toContain('query_debriefs');
     expect(prompt).toContain('never use them for firm-internal questions');
   });
+
+  it('tells the model document tools RUN (no approval hold) and to report the real result — never a phantom download', () => {
+    const prompt = buildChatSystemPrompt({}, ctx);
+    // Document tools are PASS-classified: they run immediately, they are NOT held.
+    expect(prompt).toContain('run IMMEDIATELY (no approval hold)');
+    expect(prompt).toContain('create_word');
+    // The crux of the false-"ready for download" bug: report the actual result.
+    expect(prompt).toContain('REPORT ITS ACTUAL RESULT');
+    expect(prompt).toContain(
+      'do NOT claim a downloadable file exists when the tool did not return one',
+    );
+  });
 });
 
 describe('plan-mode steering (agent-map wiring)', () => {

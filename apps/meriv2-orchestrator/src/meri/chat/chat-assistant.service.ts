@@ -13,6 +13,7 @@ import { ApiComplianceAuditRepo } from '../api-compliance-audit.repo.js';
 import {
   buildChatSystemPrompt,
   toolLabel,
+  type ChatArtifact,
   type ChatInput,
   type ChatResult,
   type ChatStep,
@@ -94,11 +95,20 @@ export class ChatAssistantService {
     const toolSchemas = await this.fetchToolSchemas();
     const steps: ChatStep[] = [];
     const pendingApprovals: NonNullable<ChatResult['pendingApprovals']> = [];
+    const artifacts: ChatArtifact[] = [];
+    // Every exit shares the same aggregates (steps + gate-held writes + produced
+    // deliverables), so build the result in one place.
+    const finalize = (reply: string): ChatResult => ({
+      reply,
+      steps,
+      ...(pendingApprovals.length ? { pendingApprovals } : {}),
+      ...(artifacts.length ? { artifacts } : {}),
+    });
 
     for (let round = 0; round < MAX_ROUNDS; round += 1) {
       if (opts.signal?.aborted) {
         // Caller went away (streaming client disconnect) — stop burning tokens.
-        return { reply: '', steps, ...(pendingApprovals.length ? { pendingApprovals } : {}) };
+        return finalize('');
       }
       let content: ContentBlock[];
       let stopReason: string | null;
@@ -115,14 +125,10 @@ export class ChatAssistantService {
         stopReason = resp.stopReason;
       } catch (e) {
         if (opts.signal?.aborted) {
-          return { reply: '', steps, ...(pendingApprovals.length ? { pendingApprovals } : {}) };
+          return finalize('');
         }
         this.logger.warn(`chat model call failed: ${(e as Error).message}`);
-        return {
-          reply: 'Sorry — I hit an error reaching the model. Please try again in a moment.',
-          steps,
-          ...(pendingApprovals.length ? { pendingApprovals } : {}),
-        };
+        return finalize('Sorry — I hit an error reaching the model. Please try again in a moment.');
       }
 
       const textOut = content
@@ -137,11 +143,7 @@ export class ChatAssistantService {
 
       if (!toolUses.length || stopReason !== 'tool_use') {
         if (textOut) emit({ type: 'text', text: textOut });
-        return {
-          reply: textOut || 'Done.',
-          steps,
-          ...(pendingApprovals.length ? { pendingApprovals } : {}),
-        };
+        return finalize(textOut || 'Done.');
       }
 
       // Intermediate round text ("Let me look that up…") streams to the client
@@ -155,9 +157,10 @@ export class ChatAssistantService {
           const result = await this.invokeTool(
             ctx,
             tu.name,
-            tu.input ?? {},
+            this.augmentToolInput(dto, tu.input ?? {}),
             steps,
             pendingApprovals,
+            artifacts,
             emit,
           );
           return {
@@ -170,12 +173,32 @@ export class ChatAssistantService {
       messages.push({ role: 'user', content: results });
     }
 
-    return {
-      reply:
-        'I gathered a lot of context but ran out of steps before finishing — ask again and I’ll continue.',
-      steps,
-      ...(pendingApprovals.length ? { pendingApprovals } : {}),
-    };
+    return finalize(
+      'I gathered a lot of context but ran out of steps before finishing — ask again and I’ll continue.',
+    );
+  }
+
+  /**
+   * Thread the conversation context the model never sees into a tool input —
+   * mirroring the legacy loop (apps/api MeriService): default clientId from the
+   * conversation focus, and ALWAYS supply the active conversationId. The
+   * artifact-producing write tools (create_word / create_excel /
+   * create_powerpoint, create_meeting_brief, draft_policy_memo) REQUIRE
+   * conversationId to persist their ClioArtifact row — without it apps/api returns
+   * { persisted: false }, the generated Office document is dropped, and no
+   * download URL comes back. Only fills a field the model left unset; apps/api
+   * re-validates and ignores fields a tool does not use.
+   */
+  private augmentToolInput(
+    dto: ChatInput,
+    input: Record<string, unknown>,
+  ): Record<string, unknown> {
+    const out = { ...input };
+    if (dto.clientId && out.clientId === undefined) out.clientId = dto.clientId;
+    if (dto.conversationId && out.conversationId === undefined) {
+      out.conversationId = dto.conversationId;
+    }
+    return out;
   }
 
   /**
@@ -192,6 +215,7 @@ export class ChatAssistantService {
     input: Record<string, unknown>,
     steps: ChatStep[],
     pendingApprovals: NonNullable<ChatResult['pendingApprovals']>,
+    artifacts: ChatArtifact[],
     emit: (event: ChatStreamEvent) => void = () => {},
   ): Promise<unknown> {
     const label = toolLabel(name);
@@ -203,6 +227,15 @@ export class ChatAssistantService {
       const result = await this.registry.invoke(name, input, ctx);
       steps.push({ tool: name, label, status: 'done' });
       emit({ type: 'tool_done', tool: name, label, status: 'done' });
+      // Surface any deliverable the tool produced + persisted (a generated
+      // document, meeting brief, or policy memo) so the client can render a
+      // download / canvas card — the apps/api proxy maps this to the legacy
+      // ChatDrawer `artifact` frame. A tool that could not persist (no
+      // conversation context) returns { persisted: false } and is skipped.
+      for (const art of extractChatArtifacts(result)) {
+        artifacts.push(art);
+        emit({ type: 'artifact', artifact: art });
+      }
       // A write tool that resolved passed the gate (PASS or an approved WARN).
       if (isWrite) {
         this.audit.record({
@@ -266,4 +299,44 @@ export class ChatAssistantService {
       return [];
     }
   }
+}
+
+/**
+ * Pull persisted deliverables out of a tool result. The artifact-producing Meri
+ * tools return either `{ artifact: {...} }` (create_word/excel/powerpoint,
+ * create_meeting_brief, draft_policy_memo) or `{ artifacts: [...] }`; the
+ * persisted row carries an `id`, and the document tools add top-level
+ * `downloadUrl` / `filename` / `mimeType`. A tool that could not persist returns
+ * the row as `{ persisted: false }` (no id) — skipped so we never surface a card
+ * for a document that was silently dropped. Same contract apps/api's
+ * extractToolArtifacts reads.
+ */
+function extractChatArtifacts(result: unknown): ChatArtifact[] {
+  if (!result || typeof result !== 'object') return [];
+  const r = result as Record<string, unknown>;
+  const candidates: unknown[] = [];
+  if (r.artifact) candidates.push(r.artifact);
+  if (Array.isArray(r.artifacts)) candidates.push(...r.artifacts);
+  const out: ChatArtifact[] = [];
+  for (const candidate of candidates) {
+    if (!candidate || typeof candidate !== 'object') continue;
+    const a = candidate as Record<string, unknown>;
+    if (a.persisted === false) continue;
+    const id = typeof a.id === 'string' ? a.id : null;
+    if (!id) continue;
+    const title =
+      typeof a.title === 'string' && a.title.trim()
+        ? a.title.trim()
+        : typeof r.title === 'string' && r.title.trim()
+          ? (r.title as string).trim()
+          : 'Meri deliverable';
+    const kind = typeof a.kind === 'string' && a.kind.trim() ? a.kind.trim() : 'document';
+    const art: ChatArtifact = { id, title, kind };
+    if (typeof a.bodyText === 'string') art.bodyText = a.bodyText;
+    if (typeof r.downloadUrl === 'string') art.downloadUrl = r.downloadUrl;
+    if (typeof r.filename === 'string') art.filename = r.filename;
+    if (typeof r.mimeType === 'string') art.mimeType = r.mimeType;
+    out.push(art);
+  }
+  return out;
 }

@@ -201,6 +201,117 @@ describe('ChatAssistantService.run', () => {
     expect(out.pendingApprovals).toBeUndefined();
   });
 
+  it('threads conversationId + clientId into a document tool and surfaces the download artifact', async () => {
+    // create_word is PASS-classified (internal_artifacts.pass), so it runs even
+    // with the fail-closed approval repo — no approval hold for a document.
+    const executeSpy = jest.fn(
+      async (_ctx: MeriContext, _name: string, _input: Record<string, unknown>) => ({
+        tool: 'create_word',
+        format: 'docx',
+        title: 'Defense Brief',
+        filename: 'defense-brief.docx',
+        mimeType: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+        artifact: { id: 'art-1', title: 'Defense Brief', kind: 'word_document' },
+        downloadUrl: '/api/clio/artifacts/art-1/download',
+        note: 'Document generated and available for download.',
+      }),
+    );
+    const executor = { execute: executeSpy } as unknown as ApiToolExecutorRepo;
+
+    let call = 0;
+    (global as unknown as { fetch: unknown }).fetch = jest.fn(async (url: string) => {
+      if (url.includes('/api/clio/tool-schemas')) return schemasResponse(['create_word']);
+      call += 1;
+      if (call === 1)
+        return anthropic(
+          [
+            {
+              type: 'tool_use',
+              id: 't1',
+              name: 'create_word',
+              input: { title: 'Defense Brief', sections: [] },
+            },
+          ],
+          'tool_use',
+        );
+      return anthropic(
+        [{ type: 'text', text: 'Your Word document is ready to download.' }],
+        'end_turn',
+      );
+    });
+
+    const events: Array<{ type: string; [k: string]: unknown }> = [];
+    const out = await RequestCredentialsStore.run({ bearerToken: 'jwt' }, () =>
+      makeService(executor).run(
+        ctx,
+        {
+          messages: [{ role: 'user', text: 'make me a word doc' }],
+          clientId: 'client-9',
+          conversationId: 'conv-9',
+        },
+        { onEvent: (e) => events.push(e as never) },
+      ),
+    );
+
+    // Gap 1: the delegated create_word received the context the model never sees —
+    // without conversationId apps/api can't persist the artifact (no download).
+    expect(executeSpy).toHaveBeenCalledTimes(1);
+    const passedInput = executeSpy.mock.calls[0]?.[2];
+    expect(passedInput).toMatchObject({ conversationId: 'conv-9', clientId: 'client-9' });
+
+    // Gap 2: the persisted deliverable is surfaced on the result AND as a live
+    // event, so the proxy renders a download card.
+    expect(out.artifacts).toEqual([
+      expect.objectContaining({
+        id: 'art-1',
+        kind: 'word_document',
+        downloadUrl: '/api/clio/artifacts/art-1/download',
+      }),
+    ]);
+    expect(events.find((e) => e.type === 'artifact')).toMatchObject({
+      artifact: { id: 'art-1', kind: 'word_document' },
+    });
+  });
+
+  it('does NOT surface an artifact when a document tool could not persist (no download)', async () => {
+    // Missing conversationId → apps/api returns { persisted: false }, null URL.
+    const executeSpy = jest.fn(async () => ({
+      tool: 'create_word',
+      format: 'docx',
+      title: 'Brief',
+      filename: 'brief.docx',
+      artifact: { persisted: false, reason: 'No conversationId was supplied to the tool call.' },
+      downloadUrl: null,
+      note: 'Document generated but not persisted (no conversation context); ask the user to retry within a chat.',
+    }));
+    const executor = { execute: executeSpy } as unknown as ApiToolExecutorRepo;
+
+    let call = 0;
+    (global as unknown as { fetch: unknown }).fetch = jest.fn(async (url: string) => {
+      if (url.includes('/api/clio/tool-schemas')) return schemasResponse(['create_word']);
+      call += 1;
+      if (call === 1)
+        return anthropic(
+          [{ type: 'tool_use', id: 't1', name: 'create_word', input: { title: 'Brief' } }],
+          'tool_use',
+        );
+      return anthropic([{ type: 'text', text: 'I could not save the document.' }], 'end_turn');
+    });
+
+    const events: Array<{ type: string; [k: string]: unknown }> = [];
+    const out = await RequestCredentialsStore.run({ bearerToken: 'jwt' }, () =>
+      // No conversationId in the dto (direct caller, not the proxy).
+      makeService(executor).run(
+        ctx,
+        { messages: [{ role: 'user', text: 'make a doc' }] },
+        { onEvent: (e) => events.push(e as never) },
+      ),
+    );
+
+    expect(out.artifacts).toBeUndefined();
+    expect(events.find((e) => e.type === 'artifact')).toBeUndefined();
+  });
+
   it('prompts for input when the last message is not from the user (no model call)', async () => {
     const fetchSpy = jest.fn();
     (global as unknown as { fetch: unknown }).fetch = fetchSpy;

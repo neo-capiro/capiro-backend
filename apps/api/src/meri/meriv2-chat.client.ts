@@ -26,6 +26,18 @@ export type MeriV2ChatStreamEvent =
       detail?: string;
     }
   | { type: 'pending_approval'; tool: string; label: string; fingerprint: string; reason: string }
+  | {
+      type: 'artifact';
+      artifact: {
+        id: string;
+        title: string;
+        kind: string;
+        bodyText?: string;
+        downloadUrl?: string;
+        filename?: string;
+        mimeType?: string;
+      };
+    }
   | { type: 'text'; text: string }
   | {
       type: 'done';

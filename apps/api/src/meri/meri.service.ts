@@ -1469,6 +1469,10 @@ export class MeriService {
       fingerprint: string;
       reason: string;
     }> = [];
+    // Ids of deliverables the delegated create_* tools persisted this turn (with
+    // the conversationId the orchestrator threads). They are linked to the
+    // assistant message once it is created, so history replay attaches them.
+    const producedArtifactIds: string[] = [];
     let doneFrame: Extract<MeriV2ChatStreamEvent, { type: 'done' }> | null = null;
     let errorMessage: string | null = null;
 
@@ -1515,6 +1519,21 @@ export class MeriService {
             label: event.label,
             fingerprint: event.fingerprint,
             reason: event.reason,
+          });
+          return;
+        case 'artifact':
+          // Same frame the legacy loop emits (line ~1358) so the ChatDrawer /
+          // canvas renders the download card. The row already exists (the
+          // delegated tool persisted it); we only link it to the message below.
+          producedArtifactIds.push(event.artifact.id);
+          emit({
+            type: 'artifact',
+            artifact: {
+              id: event.artifact.id,
+              title: event.artifact.title,
+              kind: event.artifact.kind,
+              bodyText: event.artifact.bodyText ?? '',
+            },
           });
           return;
         case 'text':
@@ -1571,7 +1590,7 @@ export class MeriService {
     // when nothing at all happened (e.g. connect failure before any frame).
     if (assistantContent || steps.length) {
       await this.prisma.withTenant(ctx.tenantId, async (tx) => {
-        await tx.clioMessage.create({
+        const assistantMessage = await tx.clioMessage.create({
           data: {
             tenantId: ctx.tenantId,
             userId: ctx.userId,
@@ -1604,7 +1623,25 @@ export class MeriService {
                 : {}),
             },
           },
+          select: { id: true },
         });
+        // Link the deliverables produced this turn (persisted by the delegated
+        // create_* tools with the threaded conversationId, not yet tied to a
+        // message) to this assistant message, so history replay
+        // (GET conversations/:id/messages includes artifacts) attaches them under
+        // the turn — parity with the legacy loop's messageId linkage.
+        if (producedArtifactIds.length) {
+          await tx.clioArtifact.updateMany({
+            where: {
+              id: { in: producedArtifactIds },
+              tenantId: ctx.tenantId,
+              userId: ctx.userId,
+              conversationId: args.conversationId,
+              messageId: null,
+            },
+            data: { messageId: assistantMessage.id },
+          });
+        }
       });
     }
 

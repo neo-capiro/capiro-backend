@@ -36,6 +36,24 @@ export interface ChatStep {
   status: 'done' | 'error' | 'pending_approval' | 'blocked';
 }
 
+/**
+ * A deliverable a tool produced AND persisted this turn — a generated Word/Excel/
+ * PowerPoint document, a meeting brief, or a policy memo. Carries the persisted
+ * ClioArtifact id so the surface can render a download / canvas card; the apps/api
+ * proxy translates this to the legacy ChatDrawer `artifact` frame. Downloadable
+ * Office documents also carry `downloadUrl` (the /api/clio/artifacts/:id/download
+ * endpoint). Absent when the tool could not persist (no conversation context).
+ */
+export interface ChatArtifact {
+  id: string;
+  title: string;
+  kind: string;
+  bodyText?: string;
+  downloadUrl?: string;
+  filename?: string;
+  mimeType?: string;
+}
+
 export interface ChatResult {
   reply: string;
   steps?: ChatStep[];
@@ -46,6 +64,8 @@ export interface ChatResult {
    * when nothing was gated.
    */
   pendingApprovals?: Array<{ tool: string; fingerprint: string; reason: string }>;
+  /** Deliverables produced + persisted this turn (documents, briefs, memos). */
+  artifacts?: ChatArtifact[];
 }
 
 /**
@@ -66,6 +86,7 @@ export type ChatStreamEvent =
       detail?: string;
     }
   | { type: 'pending_approval'; tool: string; label: string; fingerprint: string; reason: string }
+  | { type: 'artifact'; artifact: ChatArtifact }
   | { type: 'text'; text: string };
 
 /** Friendly label for a tool name, for the chat's thought-process trace. */
@@ -112,21 +133,24 @@ const TOOL_LABELS: Record<string, string> = {
   query_outreach: 'Reviewed outreach',
   list_emails: 'Listed emails',
   list_scheduled_tasks: 'Listed scheduled tasks',
-  // Write tools (gate-held) — labelled for the trace even when they don't run.
+  // Approval-gated write tools — labelled as "Proposed" for the trace because
+  // they come back pending until the user approves (they don't run this turn).
   create_task: 'Proposed creating a task',
   update_task: 'Proposed updating a task',
   update_client_profile: 'Proposed a client-profile update',
   send_email: 'Proposed sending an email',
   reply_email: 'Proposed an email reply',
-  save_note: 'Proposed saving a note',
-  save_memory: 'Proposed saving a memory',
-  create_word: 'Proposed a Word document',
-  create_excel: 'Proposed an Excel workbook',
-  create_powerpoint: 'Proposed a PowerPoint deck',
-  create_meeting_brief: 'Proposed a meeting brief',
-  draft_policy_memo: 'Proposed a policy memo',
   schedule_task: 'Proposed a scheduled task',
   cancel_scheduled_task: 'Proposed cancelling a scheduled task',
+  // Pre-approved (PASS) write tools — these run immediately, so the trace names
+  // the completed action rather than a proposal.
+  save_note: 'Saved a note',
+  save_memory: 'Saved a memory',
+  create_word: 'Generated a Word document',
+  create_excel: 'Generated an Excel workbook',
+  create_powerpoint: 'Generated a PowerPoint deck',
+  create_meeting_brief: 'Created a meeting brief',
+  draft_policy_memo: 'Drafted a policy memo',
 };
 
 /** System prompt: who Meri is, the firm/user voice, the tool contract, the gate. */
@@ -167,8 +191,10 @@ ${planModeSteering(intent.mode)}`
     'Meetings and meeting history/debriefs: query_debriefs. Tasks and to-dos: query_tasks. Outreach and past communications: query_outreach. Emails: list_emails. A client’s profile, team, and context: get_client_context (use the conversation’s client focus, or search memory/knowledge for the client first).',
     'search_research_sources, search_public_web, and the congress/PE/LDA tools are for FEDERAL and legislative research — never use them for firm-internal questions like meetings, clients, or user facts.',
     '',
-    '# Actions require approval',
-    'Some tools take real actions (sending email, creating tasks, updating a client profile, generating documents, saving memory). When you call one, the system holds it for the user to approve — you will see it come back as "pending approval", NOT as a completed action. Never tell the user an action is done when it is only pending; say you have proposed it and it awaits their approval.',
+    '# Actions & deliverables',
+    'Some tools change the outside world or the client record — sending or replying to email, updating a client profile, and scheduling or cancelling a recurring task. The system HOLDS these for the user to approve: they come back as "pending approval", NOT as completed. Never tell the user such an action is done when it is only pending — say you have proposed it and it awaits their approval.',
+    'Document, note, and task tools run IMMEDIATELY (no approval hold): create_word, create_excel, create_powerpoint, create_meeting_brief, draft_policy_memo, save_note, save_memory, create_task, update_task. To produce a Word doc, spreadsheet, deck, brief, or memo as a file, you MUST call the matching tool — describing the content in prose does NOT create a file.',
+    'When you call a document tool, REPORT ITS ACTUAL RESULT — never assume success. If the tool returns a "downloadUrl" (its note says the document is available for download), tell the user the file is ready and reference the download. If it returns "downloadUrl": null or a note that it was NOT persisted, tell the user the document could not be generated and to try again — do NOT claim a downloadable file exists when the tool did not return one.',
     '',
     `# Domain knowledge\n${DOMAIN_PRIMER}`,
     '',
