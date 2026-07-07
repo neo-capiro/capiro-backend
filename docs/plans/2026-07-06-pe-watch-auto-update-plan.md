@@ -338,11 +338,18 @@ Automates everything about a new budget document *except the commit decision*.
 
 | Rule | Command | Schedule (UTC) | Added | Phase |
 |---|---|---|---|---|
-| `capiro-dev-enrich-award-pe` | `enrich-award-pe --limit 5000` | cron(15 10 * * ? *) | pending | 0 |
-| `capiro-dev-pe-derive-chain` | `run-pe-derive-chain` | cron(30 10 * * ? *) | pending | 0 |
-| `capiro-dev-diag-graph-coverage` | `diag-graph-coverage` | cron(0 11 ? * MON *) | pending | 0 |
-| `capiro-dev-export-master-lists` | `export-master-lists` | cron(30 11 ? * MON *) | pending | 0 |
+| `capiro-dev-enrich-award-pe` | `enrich-award-pe --limit 5000` | cron(15 10 * * ? *) | 2026-07-06 | 0 |
+| `capiro-dev-pe-derive-chain` | `run-pe-derive-chain --commit` | cron(30 10 * * ? *) | 2026-07-06 | 0 |
+| `capiro-dev-diag-graph-coverage` | `diag-graph-coverage` | cron(0 11 ? * MON *) | 2026-07-06 | 0 |
+| `capiro-dev-export-master-lists` | `export-master-lists` | cron(30 11 ? * MON *) | 2026-07-06 | 0 |
+| `capiro-dev-sync-task-failures` | (event pattern, not cron): ECS Task State Change, migrate-family task STOPPED with non-zero exit → SNS `capiro-dev-alerts` (topic policy has an events.amazonaws.com statement scoped to this rule) | n/a | 2026-07-06 | 0 |
 | `capiro-dev-watch-budget-docs` | `watch-budget-docs --commit` | cron(0 12 * * ? *) | pending | 1 |
+
+Note (discovered during Phase 0): the CDK `ApiSyncJobsLogs`/`IngestionErrorMetricFilter`/
+`api-sync-jobs` constructs in `compute-stack.ts` are NOT deployed in prod (ComputeStack is
+wedged); live scheduled tasks run on the migrate family and log to `/capiro/dev/api`. The
+`capiro-dev-sync-task-failures` rule above is the operative failure alerting for ALL
+migrate-family one-off tasks, not just PE jobs.
 
 All copy the `sync-federal-award` target: cluster `capiro-dev`, task-def **family**
 `capiro-dev-api-migrate` (family ref → auto-picks new revisions incl. the AI-credential secret),
