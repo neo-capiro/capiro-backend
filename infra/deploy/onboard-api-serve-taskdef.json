@@ -1,10 +1,15 @@
 {
   "family": "capiro-dev-onboard-api",
   "networkMode": "awsvpc",
-  "requiresCompatibilities": ["FARGATE"],
+  "requiresCompatibilities": [
+    "FARGATE"
+  ],
   "cpu": "512",
   "memory": "1024",
-  "runtimePlatform": { "cpuArchitecture": "ARM64", "operatingSystemFamily": "LINUX" },
+  "runtimePlatform": {
+    "cpuArchitecture": "ARM64",
+    "operatingSystemFamily": "LINUX"
+  },
   "executionRoleArn": "arn:aws:iam::967807252336:role/Capiro-dev-Compute-ApiTaskDefExecutionRoleE6ABB053-YlEDKuUPHjLg",
   "taskRoleArn": "arn:aws:iam::967807252336:role/Capiro-dev-Compute-ApiTaskRole12FAD4A7-szq3QeeZJSCQ",
   "containerDefinitions": [
@@ -12,41 +17,142 @@
       "name": "onboard-api",
       "image": "967807252336.dkr.ecr.us-east-1.amazonaws.com/capiro/dev/onboard-api:latest",
       "essential": true,
-      "command": ["serve"],
-      "portMappings": [{ "containerPort": 4400, "protocol": "tcp" }],
+      "command": [
+        "serve"
+      ],
+      "portMappings": [
+        {
+          "containerPort": 4400,
+          "protocol": "tcp"
+        }
+      ],
       "environment": [
-        { "name": "ONBOARD_PORT", "value": "4400" },
-        { "name": "ONBOARD_BIND_HOST", "value": "0.0.0.0" },
-        { "name": "CAPIRO_ENV", "value": "dev" },
-        { "name": "DB_NAME", "value": "capiro" },
-        { "name": "AWS_REGION_DEFAULT", "value": "us-east-1" },
-        { "name": "ONBOARD_APP_BASE_URL", "value": "https://app.capiro.ai" },
-        { "name": "ONBOARD_APPS_API_BASE", "value": "https://app.capiro.ai" },
-        { "name": "ONBOARD_API_PUBLIC_BASE_URL", "value": "https://app.capiro.ai" },
-        { "name": "ONBOARD_PUBLIC_BASE_URL", "value": "https://onboarding.capiro.ai" },
-        { "name": "BILLING_RETURN_URL", "value": "https://app.capiro.ai" },
-        { "name": "ONBOARD_FUNNEL_ENABLED", "value": "false" },
-        { "name": "ONBOARD_EMAIL_ENABLED", "value": "false" },
-        { "name": "ONBOARD_EMAIL_FROM", "value": "onboarding@capiro.ai" },
-        { "name": "ONBOARD_CS_NOTIFY_EMAIL", "value": "sales@capiro.ai" },
-        { "name": "ONBOARD_WIRE_DUE_DAYS", "value": "14" },
-        { "name": "CLERK_JWT_ISSUER", "value": "https://clerk.app.capiro.ai" },
-        { "name": "CLERK_PUBLISHABLE_KEY", "value": "pk_live_Y2xlcmsuYXBwLmNhcGlyby5haSQ" },
-        { "name": "STRIPE_PRICE_SLOTS", "value": "REPLACE_AFTER_SETUP_STRIPE" },
-        { "name": "STRIPE_PRICE_OVERAGE", "value": "REPLACE_AFTER_SETUP_STRIPE" },
-        { "name": "STRIPE_OVERAGE_METER_EVENT", "value": "llm_overage_cents" }
+        {
+          "name": "ONBOARD_PORT",
+          "value": "4400"
+        },
+        {
+          "name": "ONBOARD_BIND_HOST",
+          "value": "0.0.0.0"
+        },
+        {
+          "name": "CAPIRO_ENV",
+          "value": "dev"
+        },
+        {
+          "name": "DB_NAME",
+          "value": "capiro"
+        },
+        {
+          "name": "AWS_REGION_DEFAULT",
+          "value": "us-east-1"
+        },
+        {
+          "name": "ONBOARD_APP_BASE_URL",
+          "value": "https://app.capiro.ai"
+        },
+        {
+          "name": "ONBOARD_APPS_API_BASE",
+          "value": "https://app.capiro.ai"
+        },
+        {
+          "name": "ONBOARD_API_PUBLIC_BASE_URL",
+          "value": "https://app.capiro.ai"
+        },
+        {
+          "name": "ONBOARD_PUBLIC_BASE_URL",
+          "value": "https://onboarding.capiro.ai"
+        },
+        {
+          "name": "BILLING_RETURN_URL",
+          "value": "https://app.capiro.ai"
+        },
+        {
+          "name": "ONBOARD_FUNNEL_ENABLED",
+          "value": "true"
+        },
+        {
+          "name": "ONBOARD_EMAIL_ENABLED",
+          "value": "true"
+        },
+        {
+          "name": "ONBOARD_EMAIL_FROM",
+          "value": "onboarding@capiro.ai"
+        },
+        {
+          "name": "ONBOARD_CS_NOTIFY_EMAIL",
+          "value": "sales@capiro.ai"
+        },
+        {
+          "name": "ONBOARD_WIRE_DUE_DAYS",
+          "value": "14"
+        },
+        {
+          "name": "CLERK_JWT_ISSUER",
+          "value": "https://clerk.app.capiro.ai"
+        },
+        {
+          "name": "CLERK_PUBLISHABLE_KEY",
+          "value": "pk_live_Y2xlcmsuYXBwLmNhcGlyby5haSQ"
+        },
+        {
+          "name": "STRIPE_PRICE_SLOTS",
+          "value": "price_1TqWzaBwkXSqoljjp2n3DbVH"
+        },
+        {
+          "name": "STRIPE_PRICE_OVERAGE",
+          "value": "price_1TqWzbBwkXSqoljjwgRCWMsb"
+        },
+        {
+          "name": "STRIPE_OVERAGE_METER_EVENT",
+          "value": "llm_overage_cents"
+        },
+        {
+          "name": "STRIPE_PUBLISHABLE_KEY",
+          "value": "REPLACE_WITH_pk_live_FROM_STRIPE_DASHBOARD"
+        }
       ],
       "secrets": [
-        { "name": "CLERK_SECRET_KEY", "valueFrom": "arn:aws:secretsmanager:us-east-1:967807252336:secret:/capiro/dev/clerk/secret-key-FT67tM" },
-        { "name": "INTERNAL_SERVICE_SECRET", "valueFrom": "arn:aws:secretsmanager:us-east-1:967807252336:secret:capiro/dev/internal-service-secret-6cEZG4" },
-        { "name": "OAUTH_STATE_SECRET", "valueFrom": "arn:aws:secretsmanager:us-east-1:967807252336:secret:capiro/dev/oauth-state-secret-XOOzYB" },
-        { "name": "MICROSOFT_CLIENT_ID", "valueFrom": "arn:aws:secretsmanager:us-east-1:967807252336:secret:capiro/dev/microsoft-client-id-AU8xuO" },
-        { "name": "STRIPE_SECRET_KEY", "valueFrom": "REPLACE_WITH_ONBOARD_STRIPE_SECRET_ARN" },
-        { "name": "STRIPE_WEBHOOK_SECRET", "valueFrom": "REPLACE_WITH_ONBOARD_STRIPE_WEBHOOK_SECRET_ARN" },
-        { "name": "DB_HOST", "valueFrom": "arn:aws:secretsmanager:us-east-1:967807252336:secret:/capiro/dev/aurora/master-P4z1Vo:host::" },
-        { "name": "DB_PORT", "valueFrom": "arn:aws:secretsmanager:us-east-1:967807252336:secret:/capiro/dev/aurora/master-P4z1Vo:port::" },
-        { "name": "DB_USER", "valueFrom": "arn:aws:secretsmanager:us-east-1:967807252336:secret:/capiro/dev/aurora/app-zNPtsU:username::" },
-        { "name": "DB_PASSWORD", "valueFrom": "arn:aws:secretsmanager:us-east-1:967807252336:secret:/capiro/dev/aurora/app-zNPtsU:password::" }
+        {
+          "name": "CLERK_SECRET_KEY",
+          "valueFrom": "arn:aws:secretsmanager:us-east-1:967807252336:secret:/capiro/dev/clerk/secret-key-FT67tM"
+        },
+        {
+          "name": "INTERNAL_SERVICE_SECRET",
+          "valueFrom": "arn:aws:secretsmanager:us-east-1:967807252336:secret:capiro/dev/internal-service-secret-6cEZG4"
+        },
+        {
+          "name": "OAUTH_STATE_SECRET",
+          "valueFrom": "arn:aws:secretsmanager:us-east-1:967807252336:secret:capiro/dev/oauth-state-secret-XOOzYB"
+        },
+        {
+          "name": "MICROSOFT_CLIENT_ID",
+          "valueFrom": "arn:aws:secretsmanager:us-east-1:967807252336:secret:capiro/dev/microsoft-client-id-AU8xuO"
+        },
+        {
+          "name": "STRIPE_SECRET_KEY",
+          "valueFrom": "arn:aws:secretsmanager:us-east-1:967807252336:secret:capiro/dev/onboard/stripe-secret-key-KEh555"
+        },
+        {
+          "name": "STRIPE_WEBHOOK_SECRET",
+          "valueFrom": "arn:aws:secretsmanager:us-east-1:967807252336:secret:capiro/dev/onboard/stripe-webhook-secret-urGWHD"
+        },
+        {
+          "name": "DB_HOST",
+          "valueFrom": "arn:aws:secretsmanager:us-east-1:967807252336:secret:/capiro/dev/aurora/master-P4z1Vo:host::"
+        },
+        {
+          "name": "DB_PORT",
+          "valueFrom": "arn:aws:secretsmanager:us-east-1:967807252336:secret:/capiro/dev/aurora/master-P4z1Vo:port::"
+        },
+        {
+          "name": "DB_USER",
+          "valueFrom": "arn:aws:secretsmanager:us-east-1:967807252336:secret:/capiro/dev/aurora/app-zNPtsU:username::"
+        },
+        {
+          "name": "DB_PASSWORD",
+          "valueFrom": "arn:aws:secretsmanager:us-east-1:967807252336:secret:/capiro/dev/aurora/app-zNPtsU:password::"
+        }
       ],
       "logConfiguration": {
         "logDriver": "awslogs",
@@ -57,7 +163,10 @@
         }
       },
       "healthCheck": {
-        "command": ["CMD-SHELL", "wget -q -O /dev/null http://localhost:4400/health || exit 1"],
+        "command": [
+          "CMD-SHELL",
+          "wget -q -O /dev/null http://localhost:4400/health || exit 1"
+        ],
         "interval": 30,
         "timeout": 5,
         "retries": 3,

@@ -31,24 +31,47 @@ curl -s https://app.capiro.ai/onboard-api/public/config   # 200 (path-rule check
 curl -s -o /dev/null -w '%{http_code}\n' https://app.capiro.ai/api/health   # 200 (unchanged)
 ```
 
-## One-time activation order (billing + funnel)
+## Activation status — LIVE as of 2026-07-07 (one input remaining)
 
-1. Stripe: `STRIPE_SECRET_KEY=sk_live_… pnpm --filter @capiro/onboard-api exec tsx scripts/setup-stripe.ts`
-   → creates flat-$200 price (lookup `capiro_client_slots_flat200`), overage meter,
-   CAPIRO-INTERNAL promo, webhook at `/onboard-api/webhooks/stripe`. Record the 4 env values.
-2. Secrets Manager: `capiro/dev/onboard/stripe-secret-key` + `…/stripe-webhook-secret`
-   (exec-role policy `onboard-api-ecr-secrets` already grants reads on `capiro/dev/onboard/*`).
-3. `pnpm --filter @capiro/onboard-api exec tsx scripts/comp-existing-tenants.ts --commit`
-   (protects every pre-existing tenant BEFORE enforcement).
-4. ~~Seed legal docs~~ DONE 2026-07-07 (tos/all + sa/trial + sa/paid v2026.07-draft1
-   active in prod). Re-run the `seed-legal-docs` verb only when counsel delivers the
-   real documents (bump the version in legal-doc-seed.ts first).
-5. Update the serve taskdef env: STRIPE_PRICE_SLOTS/OVERAGE + the 2 secret ARNs +
-   `ONBOARD_EMAIL_ENABLED=true`; register new revision; roll onboard-api.
-6. apps/api taskdef: add `BILLING_ENFORCED=true` (this arms the 402 slot cap + paywall);
-   roll api. **Never set BILLING_ENFORCED before step 3.**
-7. Flip `ONBOARD_FUNNEL_ENABLED=true` on onboard-api; point the marketing "Get Started"
-   CTA at https://onboarding.capiro.ai/register.
+Steps 1–8 below are **DONE**; the funnel is live at onboarding.capiro.ai (wire path
+end-to-end, card/ACH pending the one publishable key). ✅ = complete.
+
+1. ✅ Stripe bootstrap ran (`setup-stripe.ts`): flat-$200 price
+   `price_1TqWzaBwkXSqoljjp2n3DbVH`, overage price `price_1TqWzbBwkXSqoljjwgRCWMsb`
+   + meter `llm_overage_cents`, CAPIRO-INTERNAL promo, webhook `we_1TqWzc…` →
+   `/onboard-api/webhooks/stripe`.
+2. ✅ Secrets `capiro/dev/onboard/stripe-secret-key` + `…/stripe-webhook-secret`.
+3. ✅ `comp-existing-tenants`: all 4 pre-existing tenants → `comped` (verified
+   BEFORE→AFTER via the sql-exec one-off; billing was `none` on 1, already comped on 3).
+4. ✅ Legal docs seeded (tos/all + sa/trial + sa/paid v2026.07-draft1). Re-run
+   `seed-legal-docs` only when counsel delivers real docs (bump the version first).
+5. ✅ onboard-api taskdef **:2** — prices + secret ARNs + `ONBOARD_EMAIL_ENABLED=true`
+   + `ONBOARD_FUNNEL_ENABLED=true`; rolled, stable, healthy TG.
+6. ✅ apps/api taskdef **:35** — `BILLING_ENFORCED=true`; rolled, 0 exceptions.
+7. ✅ Clerk `allowed_origins` set to `[app, onboarding, capiro.ai, www]` via Backend
+   API — **this was the real funnel blocker** (prod Clerk 403s any origin subdomain
+   not on the allowlist; symptom = `failed_to_load_clerk_js_timeout` + blank SPA).
+   Verified: onboarding funnel renders (confirm-password present, 0 console errors);
+   app.capiro.ai unaffected.
+8. ✅ Marketing "Get Started" CTA → point at https://onboarding.capiro.ai/register
+   (funnel is live; do this whenever marketing is ready — nothing else gates it).
+
+### ⛳ THE ONE REMAINING INPUT — Stripe publishable key (card/ACH only)
+
+The `pk_live_…` publishable key is **not** retrievable via the API and lives nowhere
+in AWS/repo — copy it from **dashboard.stripe.com → Developers → API keys** (the
+"Publishable key" for acct `acct_1TCkmIBwkXSqoljj`, Capiro Inc.). Then:
+```
+# set the env on the onboard-api serve taskdef (it's PUBLIC — plain env, not a secret)
+#   infra/deploy/onboard-api-serve-taskdef.json → STRIPE_PUBLISHABLE_KEY value
+aws ecs register-task-definition --cli-input-json file://infra/deploy/onboard-api-serve-taskdef.json
+aws ecs update-service --cluster capiro-dev --service capiro-dev-onboard-api \
+  --task-definition capiro-dev-onboard-api:<newrev> --force-new-deployment
+```
+Until then: **wire-payment onboarding works end-to-end**; card/ACH steps show the
+built-in "Payments are not configured" note and disable submit (public-config
+returns `stripePublishableKey: null`). No error, no data loss — just those two
+tender types wait on this value.
 
 ## Scheduled tasks (EventBridge → RunTask on the onboard-api image)
 
