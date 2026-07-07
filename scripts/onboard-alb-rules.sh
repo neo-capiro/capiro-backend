@@ -63,8 +63,8 @@ case "${1:-}" in
       --conditions "Field=path-pattern,Values=$PATH_PATTERN" \
       --actions "Type=forward,TargetGroupArn=$TG_ARN"
     echo "Created. Verify routing:"
-    echo "  curl -s -o /dev/null -w '%{http_code}' https://$HOST/onboard-api/health   # expect 200"
-    echo "  curl -s -o /dev/null -w '%{http_code}' https://app.capiro.ai/onboard-api/health  # expect 200"
+    echo "  curl -s -o /dev/null -w '%{http_code}' https://$HOST/health   # expect 200 (health sits outside the prefix)"
+    echo "  curl -s -o /dev/null -w '%{http_code}' https://app.capiro.ai/onboard-api/public/config  # expect 200"
     echo "  curl -s -o /dev/null -w '%{http_code}' https://app.capiro.ai/api/health   # expect 200 (unchanged)"
     ;;
   --delete)

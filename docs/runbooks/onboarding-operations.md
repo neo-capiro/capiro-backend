@@ -26,8 +26,8 @@ Stripe secret ARNs are placeholders until activation).
 
 Post-deploy verification (every roll):
 ```
-curl -s https://onboarding.capiro.ai/onboard-api/health   # {"ok":true,...}
-curl -s https://app.capiro.ai/onboard-api/health          # {"ok":true,...}
+curl -s https://onboarding.capiro.ai/health   # {"ok":true,...} (outside the /onboard-api prefix)
+curl -s https://app.capiro.ai/onboard-api/public/config   # 200 (path-rule check)
 curl -s -o /dev/null -w '%{http_code}\n' https://app.capiro.ai/api/health   # 200 (unchanged)
 ```
 
@@ -40,8 +40,9 @@ curl -s -o /dev/null -w '%{http_code}\n' https://app.capiro.ai/api/health   # 20
    (exec-role policy `onboard-api-ecr-secrets` already grants reads on `capiro/dev/onboard/*`).
 3. `pnpm --filter @capiro/onboard-api exec tsx scripts/comp-existing-tenants.ts --commit`
    (protects every pre-existing tenant BEFORE enforcement).
-4. Seed legal docs: run task verb `seed-legal-docs` (one-off ECS task, command
-   `["task","seed-legal-docs"]`). ToS/SA v2026.07-draft1 are COUNSEL-PENDING drafts.
+4. ~~Seed legal docs~~ DONE 2026-07-07 (tos/all + sa/trial + sa/paid v2026.07-draft1
+   active in prod). Re-run the `seed-legal-docs` verb only when counsel delivers the
+   real documents (bump the version in legal-doc-seed.ts first).
 5. Update the serve taskdef env: STRIPE_PRICE_SLOTS/OVERAGE + the 2 secret ARNs +
    `ONBOARD_EMAIL_ENABLED=true`; register new revision; roll onboard-api.
 6. apps/api taskdef: add `BILLING_ENFORCED=true` (this arms the 402 slot cap + paywall);

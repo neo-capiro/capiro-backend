@@ -1,6 +1,12 @@
 # Capiro Self-Service Onboarding v1 — Deployment Plan (`onboard-api`)
 
-> Status: **APPROVED — EXECUTING** (Ninja, 2026-07-06). Decisions locked (see §9-A below).
+> Status: **SHIPPED DARK — 2026-07-07.** All code merged (PR #331 + hotfixes 13d3f12/
+> 2e1bd42) and deployed: onboard-api LIVE on capiro-dev (service stable, healthy TG,
+> alarms wired), all migrations applied, ALB rules p8/p9 + onboarding.capiro.ai DNS
+> live, both lifecycle crons scheduled, legal drafts seeded, Clerk sign-up=public
+> (captcha on, disposable-blocking on, canary passed). Funnel is FLAG-OFF and billing
+> DORMANT pending the activation order in docs/runbooks/onboarding-operations.md —
+> sole blocker: the Stripe secret key (dashboard login needed). Decisions in §9-A.
 > Execution directives: no shortcuts, no guesses, UI must match the prototype exactly,
 > production level. Resolve all §8 red flags during deployment except #3/#4 (accepted
 > risks — proceed anyway); flag #9 resolved per the new pricing instructions.
