@@ -173,6 +173,30 @@ export function loaderHintFor(docType: BudgetDocType, publisher: string): string
   }
 }
 
+/**
+ * The comptroller index links EVERY historical fiscal-year archive page
+ * (budget2027 … budget2006). We only care about the current PB cycle and the
+ * one immediately prior (prior-year exhibits still get revised during the
+ * conference/enacted window). Given the fiscal years of all discovered
+ * fy_index links, decide which FY pages to crawl and which years count as a
+ * real fy_index detection.
+ *
+ *   crawlFloor  = maxFy - 1  → crawl current + prior cycle only
+ *   detectFloor = maxFy      → a page is a "new PB cycle" detection only if it
+ *                              is the current max or newer (so a future
+ *                              budget2028 appearing fires; the archive never does)
+ */
+export function budgetCyclePlan(fiscalYears: number[]): {
+  maxFy: number | null;
+  crawlFloor: number;
+  detectFloor: number;
+} {
+  const valid = fiscalYears.filter((y) => Number.isFinite(y));
+  if (valid.length === 0) return { maxFy: null, crawlFloor: 0, detectFloor: 0 };
+  const maxFy = Math.max(...valid);
+  return { maxFy, crawlFloor: maxFy - 1, detectFloor: maxFy };
+}
+
 /** New detections = current inventory minus everything already known. */
 export function diffNew(current: DetectedDoc[], knownKeys: Set<string>): DetectedDoc[] {
   const seen = new Set<string>();

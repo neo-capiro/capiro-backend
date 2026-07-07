@@ -1,4 +1,5 @@
 import {
+  budgetCyclePlan,
   classifyComptrollerLink,
   classifyServiceLink,
   dedupeKeyForReport,
@@ -134,6 +135,35 @@ describe('budget-doc-watch pure logic', () => {
     it('never emits the same key twice in one run (index pages repeat links)', () => {
       const current = [doc('a'), doc('a')];
       expect(diffNew(current, new Set())).toHaveLength(1);
+    });
+  });
+
+  describe('budgetCyclePlan — bound to current + prior cycle, not 20 years of archives', () => {
+    it('picks max FY as the detect floor and max-1 as the crawl floor', () => {
+      // The comptroller index links budget2027 down to budget2006.
+      const years = Array.from({ length: 22 }, (_, i) => 2027 - i);
+      const plan = budgetCyclePlan(years);
+      expect(plan.maxFy).toBe(2027);
+      expect(plan.detectFloor).toBe(2027); // only budget2027 (or newer) is a detection
+      expect(plan.crawlFloor).toBe(2026); // crawl current + immediately prior
+    });
+
+    it('a future PB page becomes the new detect floor', () => {
+      const plan = budgetCyclePlan([2028, 2027, 2026, 2025]);
+      expect(plan.detectFloor).toBe(2028);
+      expect(plan.crawlFloor).toBe(2027);
+    });
+
+    it('handles an empty link set', () => {
+      expect(budgetCyclePlan([])).toEqual({ maxFy: null, crawlFloor: 0, detectFloor: 0 });
+    });
+
+    it('the archive years fall below both floors (no detection, no crawl)', () => {
+      const plan = budgetCyclePlan([2027, 2026, 2010, 2006]);
+      expect(2010 < plan.crawlFloor).toBe(true);
+      expect(2006 < plan.detectFloor).toBe(true);
+      expect(2026 >= plan.crawlFloor).toBe(true); // prior cycle still crawled
+      expect(2027 >= plan.detectFloor).toBe(true); // current cycle still detected
     });
   });
 

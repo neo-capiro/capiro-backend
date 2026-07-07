@@ -8,10 +8,16 @@
  *   flags: --limit N            transcripts per run (default 50, newest fetchedAt first)
  *          --since YYYY-MM-DD   window override (default: last 30 days)
  *
- * Name bank (all curated / accepted-only sources):
+ * Name bank (curated / accepted-only, high-precision sources ONLY):
  *   program_name      (0.90) — Program.canonicalName via ACCEPTED pe_program_match rows
  *   capability_alias  (0.70) — Capability.name + aliases via ACCEPTED capability_budget_line_match rows
- *   pe_title          (0.55) — ProgramElement.title (retiredAt null only)
+ *
+ * The pe_title tier (raw ProgramElement.title) is DELIBERATELY EXCLUDED: a prod
+ * dry-run produced ~136 mentions/transcript because generic titles ("Aircraft
+ * Modifications", "Base Support") match transcript prose everywhere. The bill
+ * matcher already excludes pe_title for the same reason; transcripts are longer
+ * free text, so the noise is worse. Recall for un-curated programs is the job of
+ * a program-alias expansion (post-C6 entity-norm), not generic titles.
  *
  * Hearing mentions land as IntelligenceChange rows (source='pe_hearing_mention',
  * changeType='hearing_mention', one row per transcript × PE, dedupeKey
@@ -78,13 +84,7 @@ async function loadNameBankEntries(prisma: PrismaClient): Promise<NameBankEntryI
     }
   }
 
-  const peTitles = await prisma.programElement.findMany({
-    where: { retiredAt: null },
-    select: { peCode: true, title: true },
-  });
-  for (const pe of peTitles) {
-    entries.push({ peCode: pe.peCode, term: pe.title, tier: 'pe_title' });
-  }
+  // pe_title tier intentionally omitted — see the header note (precision).
 
   return entries;
 }

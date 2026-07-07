@@ -32,6 +32,7 @@ import { config as dotenvConfig } from 'dotenv';
 import { PrismaClient, Prisma } from '@prisma/client';
 import { SESv2Client, SendEmailCommand } from '@aws-sdk/client-sesv2';
 import {
+  budgetCyclePlan,
   classifyComptrollerLink,
   classifyServiceLink,
   dedupeKeyForReport,
@@ -74,17 +75,27 @@ async function fetchText(url: string, ua: string): Promise<string> {
   return res.text();
 }
 
-/** Comptroller: index + per-FY pages. Returns docs incl. fy_index links themselves. */
+/**
+ * Comptroller: index + per-FY pages. The index links every historical FY
+ * archive (budget2027 … budget2006); we bound to the current + prior cycle
+ * (budgetCyclePlan) so we neither crawl 20 years of archives daily nor flag
+ * them as detections. Only the current-or-newer FY index page is itself a
+ * detection (a future budget page = a new PB cycle = critical).
+ */
 async function scanComptroller(statuses: SourceStatus[]): Promise<DetectedDoc[]> {
   const docs: DetectedDoc[] = [];
-  const fyPages = new Set<string>();
+  const fyLinks: Array<{ href: string; fiscalYear: number }> = [];
+  const topLevelDocs: DetectedDoc[] = [];
   try {
     const html = await fetchText(COMPTROLLER_INDEX, WATCH_UA);
     for (const link of extractLinks(html, COMPTROLLER_INDEX)) {
       const c = classifyComptrollerLink(link.href, link.text);
       if (!c) continue;
-      if (c.docType === 'fy_index') fyPages.add(link.href);
-      docs.push({
+      if (c.docType === 'fy_index') {
+        if (c.fiscalYear !== null) fyLinks.push({ href: link.href, fiscalYear: c.fiscalYear });
+        continue; // fy_index detection decision deferred to the cycle plan below
+      }
+      topLevelDocs.push({
         dedupeKey: dedupeKeyForUrl(link.href),
         url: link.href,
         title: link.text || link.href.split('/').pop() || link.href,
@@ -100,8 +111,27 @@ async function scanComptroller(statuses: SourceStatus[]): Promise<DetectedDoc[]>
     statuses.push({ source: 'comptroller-index', ok: false, detail: (e as Error).message });
     return docs;
   }
+  docs.push(...topLevelDocs);
 
-  for (const page of fyPages) {
+  const plan = budgetCyclePlan(fyLinks.map((l) => l.fiscalYear));
+  // Only the current-or-newer FY index page is a detection; the archive is not.
+  for (const l of fyLinks) {
+    if (l.fiscalYear < plan.detectFloor) continue;
+    docs.push({
+      dedupeKey: dedupeKeyForUrl(l.href),
+      url: l.href,
+      title: l.href.split('/').pop() || l.href,
+      publisher: 'comptroller',
+      docType: 'fy_index',
+      fiscalYear: l.fiscalYear,
+      fetchable: true,
+      loaderHint: loaderHintFor('fy_index', 'comptroller'),
+    });
+  }
+
+  // Crawl only the current + prior cycle FY pages for their exhibits.
+  const pagesToCrawl = fyLinks.filter((l) => l.fiscalYear >= plan.crawlFloor);
+  for (const { href: page } of pagesToCrawl) {
     await sleep(DELAY_MS);
     try {
       const html = await fetchText(page, WATCH_UA);
