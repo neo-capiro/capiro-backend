@@ -1,0 +1,398 @@
+// Capiro Onboard API schema.
+//
+// Scope: the self-service onboarding + billing service. Owns ONLY onboard_*
+// tables in the shared Aurora cluster, PLUS it is the single WRITER of the
+// Stripe billing state that lives on apps/api-owned tables (tenants billing
+// columns, stripe_events, tenant_usage_meters).
+//
+// This is a SEPARATE Prisma schema from apps/api / apps/workspace /
+// apps/intel-api. Ownership rules:
+//   • onboard_* models below are DEFINED AND MIGRATED here (this app's
+//     prisma/migrations create them).
+//   • Models in the "EXTERNAL (apps/api-owned)" section MIRROR tables that
+//     apps/api defines and migrates. They exist so the ported billing module
+//     can keep using the Prisma client. onboard-api migrations MUST NEVER
+//     create/alter/drop those tables — any structural change happens in
+//     apps/api/prisma and is then reflected here by hand.
+//   • No cross-schema FKs to external tables; reference by id only.
+
+generator client {
+  provider        = "prisma-client-js"
+  // Custom output isolates this client from apps/api's @prisma/client in the
+  // shared pnpm monorepo. Import via `../generated/prisma-client`.
+  output          = "../generated/prisma-client"
+  previewFeatures = ["postgresqlExtensions"]
+  binaryTargets   = ["native", "linux-arm64-openssl-3.0.x"]
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ── enums ────────────────────────────────────────────────────────────────────
+
+/// Funnel state machine. Forward-only except failed; provisioning is entered
+/// exactly once (guarded by a conditional update) so double-submits cannot
+/// provision two tenants.
+enum OnboardSessionState {
+  registered
+  verified
+  plan_selected
+  legal_accepted
+  payment_on_file
+  roles_designated
+  import_pref
+  org_setup
+  provisioning
+  provisioned
+  failed
+
+  @@map("onboard_session_state")
+}
+
+enum OnboardPlan {
+  trial
+  paid
+
+  @@map("onboard_plan")
+}
+
+enum OnboardPayMethod {
+  card
+  ach
+  wire
+
+  @@map("onboard_pay_method")
+}
+
+/// Org-level setup tasks on the external dashboard (Flow 2A). One row per
+/// (tenant, task); status transitions are compare-and-set so two admins
+/// working in parallel cannot double-run a task.
+enum OnboardTaskKey {
+  it_email
+  import
+  firm_ai
+  invites
+
+  @@map("onboard_task_key")
+}
+
+enum OnboardTaskStatus {
+  none
+  waiting
+  verifying
+  done
+
+  @@map("onboard_task_status")
+}
+
+enum OnboardItInviteStatus {
+  sent
+  granted
+  verified
+  failed
+  revoked
+
+  @@map("onboard_it_invite_status")
+}
+
+enum OnboardLegalDocType {
+  tos
+  sa
+
+  @@map("onboard_legal_doc_type")
+}
+
+// ── onboard-owned models ─────────────────────────────────────────────────────
+
+/// The person who registers and pays. NOT a platform user unless they
+/// designate themselves a role at the role-designation step (in which case a
+/// Clerk org membership is created for the same Clerk user).
+model OnboardPurchaser {
+  id               String   @id @default(uuid()) @db.Uuid
+  clerkUserId      String   @unique @map("clerk_user_id")
+  email            String   @map("email")
+  firstName        String?  @map("first_name")
+  lastName         String?  @map("last_name")
+  orgName          String?  @map("org_name")
+  /// Set once provisioning links this purchaser to a tenant.
+  tenantId         String?  @map("tenant_id") @db.Uuid
+  stripeCustomerId String?  @unique @map("stripe_customer_id")
+  createdAt        DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt        DateTime @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  sessions OnboardSession[]
+  consents OnboardConsent[]
+
+  @@index([email])
+  @@map("onboard_purchaser")
+}
+
+/// One resumable funnel run. A purchaser has at most one active (non-failed,
+/// non-provisioned) session; killing the browser mid-funnel resumes at `state`.
+model OnboardSession {
+  id          String              @id @default(uuid()) @db.Uuid
+  purchaserId String              @map("purchaser_id") @db.Uuid
+  purchaser   OnboardPurchaser    @relation(fields: [purchaserId], references: [id], onDelete: Cascade)
+  state       OnboardSessionState @default(registered)
+  plan        OnboardPlan?
+  payMethod   OnboardPayMethod?   @map("pay_method")
+  /// Paid tier: number of client profiles purchased (>= 10). Trial: fixed 10.
+  profiles    Int?
+  /// 'self' (purchaser is the billing admin) | 'invite'.
+  roleMode    String?             @map("role_mode")
+  /// [{email, role: 'super'|'admin', firstName?, lastName?}] — designated at 1.7.
+  roleDesignations Json           @default("[]") @map("role_designations")
+  /// 'self' | 'managed' (Capiro-managed kicks off the CS handoff).
+  importMode  String?             @map("import_mode")
+  itAdminEmails String[]          @default([]) @map("it_admin_emails")
+  /// {legalName, vertical, teamSize, timezone, locale, address:{street,city,state,zip}}
+  orgProfile  Json                @default("{}") @map("org_profile")
+  /// Server-generated slug (never user input). Set during provisioning.
+  slugFinal   String?             @map("slug_final")
+  /// Stripe SetupIntent id (trial method-on-file) — verified before provisioning.
+  stripeSetupIntentId String?     @map("stripe_setup_intent_id")
+  /// Stripe Subscription id (paid path) — created at the payment step.
+  stripeSubscriptionId String?    @map("stripe_subscription_id")
+  /// The tenant this session provisioned. UNIQUE — the idempotency backstop.
+  tenantId    String?             @unique @map("tenant_id") @db.Uuid
+  failureReason String?           @map("failure_reason")
+  createdAt   DateTime            @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt   DateTime            @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  consents OnboardConsent[]
+
+  @@index([purchaserId])
+  @@index([state])
+  @@map("onboard_session")
+}
+
+/// One consent record per accepted document (two per signup: tos + sa).
+model OnboardConsent {
+  id          String              @id @default(uuid()) @db.Uuid
+  sessionId   String              @map("session_id") @db.Uuid
+  session     OnboardSession      @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+  purchaserId String              @map("purchaser_id") @db.Uuid
+  purchaser   OnboardPurchaser    @relation(fields: [purchaserId], references: [id], onDelete: Cascade)
+  clerkUserId String              @map("clerk_user_id")
+  docType     OnboardLegalDocType @map("doc_type")
+  docVersion  String              @map("doc_version")
+  acceptedAt  DateTime            @default(now()) @map("accepted_at") @db.Timestamptz(6)
+  ip          String?
+  userAgent   String?             @map("user_agent")
+
+  @@index([sessionId])
+  @@index([clerkUserId])
+  @@map("onboard_consent")
+}
+
+/// Versioned legal documents. `planVariant` = 'all' | 'trial' | 'paid' — the
+/// SA text shown is tailored to the plan chosen. Exactly one active row per
+/// (docType, planVariant) is enforced in application code.
+model OnboardLegalDoc {
+  id          String              @id @default(uuid()) @db.Uuid
+  docType     OnboardLegalDocType @map("doc_type")
+  version     String
+  planVariant String              @default("all") @map("plan_variant")
+  html        String
+  pdfS3Key    String?             @map("pdf_s3_key")
+  active      Boolean             @default(false)
+  effectiveAt DateTime            @default(now()) @map("effective_at") @db.Timestamptz(6)
+  createdAt   DateTime            @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  @@unique([docType, planVariant, version])
+  @@index([docType, active])
+  @@map("onboard_legal_doc")
+}
+
+/// Org-level Flow-2A task state (multi-admin safe; see OnboardTaskKey).
+model OnboardSetupTask {
+  id          String            @id @default(uuid()) @db.Uuid
+  tenantId    String            @map("tenant_id") @db.Uuid
+  task        OnboardTaskKey
+  status      OnboardTaskStatus @default(none)
+  /// Task-specific payload (e.g. import progress, firm-AI section completion).
+  detail      Json              @default("{}")
+  completedBy String?           @map("completed_by")
+  completedAt DateTime?         @map("completed_at") @db.Timestamptz(6)
+  createdAt   DateTime          @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt   DateTime          @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  @@unique([tenantId, task])
+  @@map("onboard_setup_task")
+}
+
+/// IT-admin invite. The IT admin has NO Capiro account: the emailed link
+/// carries a single-purpose token (stored hashed) that opens the one-task
+/// connect page. Multiple simultaneous invites per tenant are allowed.
+model OnboardItInvite {
+  id            String                @id @default(uuid()) @db.Uuid
+  tenantId      String                @map("tenant_id") @db.Uuid
+  email         String
+  tokenHash     String                @unique @map("token_hash")
+  /// 'microsoft' — set when the grant lands. (Google deferred: buttons render
+  /// disabled "Coming soon"; no google grant path in v1.)
+  provider      String?
+  status        OnboardItInviteStatus @default(sent)
+  /// Customer Entra tenant id captured from the admin-consent callback.
+  entraTenantId String?               @map("entra_tenant_id")
+  expiresAt     DateTime              @map("expires_at") @db.Timestamptz(6)
+  grantedAt     DateTime?             @map("granted_at") @db.Timestamptz(6)
+  verifiedAt    DateTime?             @map("verified_at") @db.Timestamptz(6)
+  createdBy     String?               @map("created_by")
+  createdAt     DateTime              @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  @@index([tenantId])
+  @@map("onboard_it_invite")
+}
+
+/// Outbound onboarding/lifecycle email log. `dedupeKey` makes every send
+/// idempotent (e.g. "trial_d25:<tenantId>:<periodKey>") so cron double-runs
+/// can never double-send.
+model OnboardEmailLog {
+  id           String   @id @default(uuid()) @db.Uuid
+  tenantId     String?  @map("tenant_id") @db.Uuid
+  purchaserId  String?  @map("purchaser_id") @db.Uuid
+  kind         String
+  dedupeKey    String   @unique @map("dedupe_key")
+  toEmail      String   @map("to_email")
+  sesMessageId String?  @map("ses_message_id")
+  sentAt       DateTime @default(now()) @map("sent_at") @db.Timestamptz(6)
+
+  @@index([tenantId, kind])
+  @@map("onboard_email_log")
+}
+
+/// Append-only audit of billing/lifecycle transitions per tenant (SOC 2
+/// evidence + debugging: who/what moved billing_status, slots, locks).
+model OnboardBillingEvent {
+  id        String   @id @default(uuid()) @db.Uuid
+  tenantId  String   @map("tenant_id") @db.Uuid
+  type      String
+  data      Json     @default("{}")
+  actor     String?
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  @@index([tenantId, type])
+  @@map("onboard_billing_event")
+}
+
+// ── EXTERNAL (apps/api-owned) — mirrored, NEVER migrated here ───────────────
+// These mirror the columns onboard-api actually reads/writes. apps/api's
+// prisma/migrations own the tables. Keep field mappings in lockstep with
+// apps/api/prisma/schema.prisma.
+
+enum BillingStatus {
+  none
+  trialing
+  active
+  past_due
+  canceled
+  comped
+
+  @@map("billing_status")
+}
+
+enum TenantStatus {
+  active
+  suspended
+  pending
+
+  @@map("tenant_status")
+}
+
+enum TenantRole {
+  capiro_admin
+  user_admin
+  standard_user
+  client_portal_user
+
+  @@map("tenant_role")
+}
+
+enum MembershipStatus {
+  invited
+  active
+  removed
+
+  @@map("membership_status")
+}
+
+model Tenant {
+  id                     String        @id @db.Uuid
+  slug                   String        @unique @db.Citext
+  name                   String
+  status                 TenantStatus  @default(pending)
+  clerkOrgId             String?       @unique @map("clerk_org_id")
+  settings               Json          @map("settings_jsonb")
+  stripeCustomerId       String?       @unique @map("stripe_customer_id")
+  stripeSubscriptionId   String?       @unique @map("stripe_subscription_id")
+  billingStatus          BillingStatus @default(none) @map("billing_status")
+  clientSlots            Int           @default(0) @map("client_slots")
+  llmAllowanceUsdPerSlot Decimal       @map("llm_allowance_usd_per_slot") @db.Decimal(12, 2)
+  llmHardCapUsd          Decimal?      @map("llm_hard_cap_usd") @db.Decimal(12, 2)
+  currentPeriodEnd       DateTime?     @map("current_period_end") @db.Timestamptz(6)
+  // Onboarding columns (added by apps/api migration 20260706_onboarding_v1):
+  onboardingFlowVersion  Int?          @map("onboarding_flow_version")
+  trialEndsAt            DateTime?     @map("trial_ends_at") @db.Timestamptz(6)
+  priceLockExpiresAt     DateTime?     @map("price_lock_expires_at") @db.Timestamptz(6)
+  importMode             String?       @map("import_mode")
+  courtesySwapUsed       Boolean       @default(false) @map("courtesy_swap_used")
+  deletionHold           Boolean       @default(false) @map("deletion_hold")
+  canceledAt             DateTime?     @map("canceled_at") @db.Timestamptz(6)
+  createdAt              DateTime      @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt              DateTime      @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  @@map("tenants")
+}
+
+model User {
+  id          String  @id @db.Uuid
+  clerkUserId String  @unique @map("clerk_user_id")
+  email       String  @unique @db.Citext
+  firstName   String? @map("first_name")
+  lastName    String? @map("last_name")
+
+  @@map("users")
+}
+
+model TenantMembership {
+  id           String           @id @db.Uuid
+  tenantId     String           @map("tenant_id") @db.Uuid
+  userId       String           @map("user_id") @db.Uuid
+  role         TenantRole
+  status       MembershipStatus
+  billingAdmin Boolean          @default(false) @map("billing_admin")
+
+  @@unique([tenantId, userId], map: "tenant_memberships_tenant_user_unique")
+  @@map("tenant_memberships")
+}
+
+/// Stripe webhook idempotency log (created by apps/api's 20260614120000_billing
+/// migration; onboard-api becomes its only writer).
+model StripeEvent {
+  id          String    @id @default(uuid()) @db.Uuid
+  eventId     String    @unique @map("event_id")
+  eventType   String    @map("event_type")
+  payload     Json      @map("payload_jsonb")
+  receivedAt  DateTime  @default(now()) @map("received_at") @db.Timestamptz(6)
+  processedAt DateTime? @map("processed_at") @db.Timestamptz(6)
+  error       String?
+
+  @@map("stripe_events")
+}
+
+/// LLM-overage meter state per tenant per billing period (apps/api-owned
+/// table; onboard-api's overage cron becomes its only writer).
+model TenantUsageMeter {
+  id                   String   @id @default(uuid()) @db.Uuid
+  tenantId             String   @map("tenant_id") @db.Uuid
+  periodStart          DateTime @map("period_start") @db.Timestamptz(6)
+  reportedOverageCents Int      @default(0) @map("reported_overage_cents")
+  createdAt            DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt            DateTime @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  @@unique([tenantId, periodStart])
+  @@map("tenant_usage_meters")
+}

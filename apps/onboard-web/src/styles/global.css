@@ -1,0 +1,140 @@
+/* ============================================================
+   Capiro Onboarding — global styles.
+   Tokens are a 1:1 extraction from the onboarding prototype
+   (Capiro design system). Do not tweak values here — fidelity
+   to the prototype is a hard requirement; change the prototype
+   first, then re-extract.
+   ============================================================ */
+
+/* ── Vendored webfonts (latin-subset variable woff2, self-hosted — no
+      runtime fonts.googleapis.com dependency; mirrors apps/web) ── */
+
+@font-face {
+  font-family: 'Hanken Grotesk';
+  font-style: normal;
+  font-weight: 100 900;
+  font-display: swap;
+  src: url('../assets/fonts/hanken-grotesk-latin.woff2') format('woff2');
+  unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA,
+    U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193,
+    U+2212, U+2215, U+FEFF, U+FFFD;
+}
+
+@font-face {
+  font-family: 'Newsreader';
+  font-style: normal;
+  font-weight: 200 800;
+  font-display: swap;
+  src: url('../assets/fonts/newsreader-latin.woff2') format('woff2');
+  unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA,
+    U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193,
+    U+2212, U+2215, U+FEFF, U+FFFD;
+}
+
+@font-face {
+  font-family: 'JetBrains Mono';
+  font-style: normal;
+  font-weight: 100 800;
+  font-display: swap;
+  src: url('../assets/fonts/jetbrains-mono-latin.woff2') format('woff2');
+  unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA,
+    U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193,
+    U+2212, U+2215, U+FEFF, U+FFFD;
+}
+
+/* ── Color tokens ── */
+:root {
+  /* Surfaces */
+  --bg-canvas: #F4F2EC;
+  --bg-surface: #FFFFFF;
+  --bg-surface-2: #FBF9F4;
+  --bg-sunken: #EFECE4;
+  --bg-dark: #0C1A38;
+  --bg-dark-2: #15264A;
+
+  /* Borders & dividers */
+  --border-1: #E6E1D6;
+  --border-2: #D8D2C4;
+  --border-strong: #C8C1B0;
+  --border-dark: rgba(255, 255, 255, 0.08);
+
+  /* Text (on light) */
+  --ink-1: #15161A;
+  --ink-2: #4F525A;
+  --ink-3: #8A8780;
+  --ink-4: #B5B0A4;
+
+  /* Text (on navy) */
+  --ink-on-dark: #F5F2EB;
+  --ink-on-dark-2: rgba(245, 242, 235, 0.66);
+  --ink-on-dark-3: rgba(245, 242, 235, 0.42);
+
+  /* Brand accent */
+  --accent: #2A57CE;
+  --accent-ink: #1A3F9F;
+  --accent-soft: #DEE6F8;
+  --accent-glow: rgba(42, 87, 206, 0.18);
+
+  /* Severity / semantic */
+  --critical: #B5301B;
+  --critical-soft: #F6DDD6;
+  --notable: #A26913;
+  --notable-soft: #F4E5C3;
+  --info: #2C5BD4;
+  --info-soft: #DCE4F8;
+  --success: #2E6B43;
+  --success-soft: #DDEBDE;
+  --positive: #3A7A4D;
+
+  /* Typography */
+  --font-sans: 'Hanken Grotesk', ui-sans-serif, system-ui, sans-serif;
+  --font-mono: 'JetBrains Mono', ui-monospace, 'SF Mono', Menlo, monospace;
+  --font-serif: 'Newsreader', 'Iowan Old Style', 'Charter', Georgia, serif;
+
+  /* Radii */
+  --r-xs: 4px;
+  --r-sm: 6px;
+  --r-md: 8px;
+  --r-lg: 12px;
+  --r-xl: 16px;
+  --r-pill: 999px;
+
+  /* Elevation */
+  --shadow-1: 0 1px 2px rgba(16, 18, 24, 0.04), 0 1px 0 rgba(16, 18, 24, 0.03);
+  --shadow-2: 0 2px 4px rgba(16, 18, 24, 0.04), 0 8px 24px rgba(16, 18, 24, 0.06);
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body,
+#root {
+  margin: 0;
+  padding: 0;
+  min-height: 100vh;
+}
+
+body {
+  font-family: var(--font-sans);
+  font-feature-settings: 'ss01', 'cv11';
+  color: var(--ink-1);
+  background: var(--bg-canvas);
+  letter-spacing: -0.005em;
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+}
+
+button,
+input,
+textarea,
+select {
+  font-family: var(--font-sans);
+}
+
+@keyframes ob-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
