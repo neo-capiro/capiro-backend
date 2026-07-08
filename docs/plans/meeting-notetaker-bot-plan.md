@@ -3,7 +3,7 @@
 **Status:** 🟢 **DEPLOYED + CANARY LIVE on capiro-internal (2026-07-08).** Phases 0+1 shipped via PR #344 (`08a651d`); migration applied; webhook verified live (signed-event 204 end-to-end); `NOTETAKER_ENABLED=true` (task-def rev 38) + tenant flag ON for capiro-internal. Remaining: item F (Recall DPA/subprocessor/legal + trial upgrade) in the [go-live checklist](meeting-notetaker-go-live-checklist.md), the first real-meeting smoke test, then the Phase-1 canary exit gate (§10).
 **Author:** Claude (Opus 4.8), 2026-07-07
 **Scope:** A bot that joins Zoom / Google Meet / Microsoft Teams meetings, transcribes them, generates meeting notes, and auto-saves them into the Capiro **Meeting Debrief**.
-**Companion docs:** [consent copy (for legal)](meeting-notetaker-consent-copy.md) · [Phase 0 infra & secret-wiring runbook](meeting-notetaker-phase0-infra.md) · [go-live checklist](meeting-notetaker-go-live-checklist.md) · Phase 0 build log = Appendix C, Phase 1 build log = Appendix D below.
+**Companion docs:** [consent copy (for legal)](meeting-notetaker-consent-copy.md) · [Phase 0 infra & secret-wiring runbook](meeting-notetaker-phase0-infra.md) · [go-live checklist](meeting-notetaker-go-live-checklist.md) · [signed-in bots / branded avatar scope](meeting-notetaker-signed-in-bots.md) · Phase 0 build log = Appendix C, Phase 1 build log = Appendix D below.
 
 ---
 

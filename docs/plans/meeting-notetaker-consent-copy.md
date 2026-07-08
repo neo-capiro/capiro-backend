@@ -66,3 +66,8 @@ Auto-dispatch (Phase 2) is **opt-in per client**, never firm-wide-silent:
 5. Required updates to our **ToS / privacy policy / DPA** and the **subprocessor disclosure** (adding Recall.ai) before GA.
 6. Retention default (proposed 30–90 days, tenant-configurable) — any legal floor/ceiling?
 7. Do we need a documented mechanism for a participant to request **deletion** of a transcript they're in (ties to the open GDPR/CCPA erasure work)?
+
+**Added 2026-07-08 — if we adopt "signed-in bots" (branded avatar + `(External)` instead of `(Unverified)` label; see [meeting-notetaker-signed-in-bots.md](meeting-notetaker-signed-in-bots.md)):**
+8. Does giving the bot a **verified/branded identity** (logo avatar, `(External)` tag) change the informed-consent analysis in the 13 all-party-consent states, or is it cosmetic to the affirmative disclosure we already deliver? (Our read: it does not weaken notice — the `(recording)` name + chat disclosure are unchanged and the `(External)` tag reinforces third-party presence — but confirm.)
+9. Acceptable identity constraints: a **logo-only** avatar + a name that retains the `(recording)` suffix is fine; a **human-likeness** avatar or a name that reads as a plausible human is prohibited (would read as a covert human attendee). Confirm.
+10. Does authenticating the bot into Microsoft/Google/Zoom **accounts** violate those platforms' automated-use / bot-account **terms of service** — a platform-ToS question separate from recording-consent doctrine?
