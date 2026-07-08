@@ -104,6 +104,16 @@ export interface FunnelStatus {
 
 type GetToken = () => Promise<string | null>;
 
+/** Error carrying the HTTP status so callers can branch (e.g. 404 → no session). */
+export class OnboardApiError extends Error {
+  readonly status: number;
+  constructor(status: number, message: string) {
+    super(message);
+    this.name = 'OnboardApiError';
+    this.status = status;
+  }
+}
+
 async function authedFetch(
   getToken: GetToken,
   path: string,
@@ -131,7 +141,7 @@ async function authedFetch(
     } catch {
       /* keep the default message */
     }
-    throw new Error(message);
+    throw new OnboardApiError(res.status, message);
   }
   if (res.status === 204) return undefined;
   return res.json();
@@ -185,9 +195,24 @@ export const FUNNEL_SESSION_KEY = ['funnel', 'session'] as const;
 export function useFunnelSession(options?: { enabled?: boolean }) {
   const api = useFunnelApi();
   const { isLoaded, isSignedIn } = useAuth();
-  return useQuery({
+  return useQuery<FunnelSession | null>({
     queryKey: FUNNEL_SESSION_KEY,
-    queryFn: () => api.getSession(),
+    // "Not registered yet" (404) is a NORMAL state — a signed-in user who
+    // hasn't POSTed /funnel/register. Resolve it to a stable `null` SUCCESS
+    // instead of an error: an errored query is always considered stale, so
+    // react-query re-fetches it on every observer mount, and the funnel's
+    // guard/verify remount churn turned that into a ~20 req/s loop that never
+    // settled (guard stuck on isLoading → VerifyPage never mounted → its
+    // recovery redirect never ran). A fresh `null` success settles isLoading
+    // and honours staleTime, so consumers route deterministically.
+    queryFn: async () => {
+      try {
+        return await api.getSession();
+      } catch (err) {
+        if (err instanceof OnboardApiError && err.status === 404) return null;
+        throw err;
+      }
+    },
     enabled: isLoaded && !!isSignedIn && (options?.enabled ?? true),
     retry: false,
     staleTime: 5_000,
