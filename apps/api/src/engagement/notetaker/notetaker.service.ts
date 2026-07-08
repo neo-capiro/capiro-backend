@@ -320,6 +320,7 @@ export class NotetakerService implements OnModuleInit, OnModuleDestroy {
           requestedByUserId: ctx.userId,
         },
         recordingPolicy,
+        platform,
         joinAt: input.joinAt,
         disclosureMessage: this.disclosureMessage(tenant?.name ?? null),
       });

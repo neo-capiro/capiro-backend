@@ -35,6 +35,12 @@ export interface DispatchBotInput {
   metadata?: Record<string, string>;
   /** Our recording policy for this session (drives provider retention + our S3 handling). */
   recordingPolicy: RecordingPolicy;
+  /**
+   * Normalized platform label (zoom|meet|teams|webex|slack|null). Lets a provider
+   * gate platform-specific features — e.g. the branded camera tile is supported on
+   * Zoom/Meet/Teams/Webex but NOT Slack huddles, so it's only attached off-Slack.
+   */
+  platform?: string | null;
   /** ISO8601 time to join later; omit to join immediately. */
   joinAt?: string;
   /**

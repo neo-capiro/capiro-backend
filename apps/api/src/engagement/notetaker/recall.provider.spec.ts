@@ -125,6 +125,53 @@ describe('RecallProvider.dispatchBot error translation', () => {
   });
 });
 
+describe('RecallProvider.dispatchBot — branded camera tile (automatic_video_output)', () => {
+  const realFetch = global.fetch;
+  afterEach(() => {
+    global.fetch = realFetch;
+  });
+
+  // Capture the create-bot request body and return a valid bot id.
+  function captureBody() {
+    const calls: Array<{ url: string; body: unknown }> = [];
+    global.fetch = jest.fn(async (url: string, init: { body?: string }) => {
+      calls.push({ url, body: init.body ? JSON.parse(init.body) : undefined });
+      return { ok: true, status: 200, text: async () => JSON.stringify({ id: 'bot_1' }) };
+    }) as unknown as typeof fetch;
+    return calls;
+  }
+
+  const base = {
+    meetingUrl: 'https://us02web.zoom.us/j/1',
+    botName: 'Meri Notetaker (recording)',
+    recordingPolicy: 'transcript_only' as const,
+  };
+
+  test('attaches the Meri JPEG as the camera feed for both recording states on a normal platform', async () => {
+    const calls = captureBody();
+    await makeProvider().dispatchBot({ ...base, platform: 'zoom' });
+    const body = calls[0]?.body as {
+      automatic_video_output?: {
+        in_call_recording?: { kind?: string; b64_data?: string };
+        in_call_not_recording?: { kind?: string; b64_data?: string };
+      };
+    };
+    const avo = body.automatic_video_output;
+    expect(avo?.in_call_recording?.kind).toBe('jpeg');
+    expect(avo?.in_call_not_recording?.kind).toBe('jpeg');
+    // Real base64 payload, not empty.
+    expect((avo?.in_call_recording?.b64_data ?? '').length).toBeGreaterThan(1000);
+    expect(avo?.in_call_not_recording?.b64_data).toBe(avo?.in_call_recording?.b64_data);
+  });
+
+  test('omits the camera feed for Slack huddles (unsupported by Recall)', async () => {
+    const calls = captureBody();
+    await makeProvider().dispatchBot({ ...base, platform: 'slack' });
+    const body = calls[0]?.body as { automatic_video_output?: unknown };
+    expect(body.automatic_video_output).toBeUndefined();
+  });
+});
+
 describe('normalizeEvent classification', () => {
   test('bot.* events are status changes with the nested code', () => {
     const event = normalizeEvent({

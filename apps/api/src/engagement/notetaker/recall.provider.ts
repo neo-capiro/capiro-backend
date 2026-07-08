@@ -9,6 +9,7 @@ import {
 import { ConfigService } from '@nestjs/config';
 import { Webhook } from 'svix';
 import type { AppConfig } from '../../config/config.schema.js';
+import { MERI_CAMERA_JPEG_B64 } from './meri-camera-image.js';
 import {
   type MeetingBotProvider,
   type DispatchBotInput,
@@ -88,6 +89,20 @@ export class RecallProvider implements MeetingBotProvider {
     };
     if (input.metadata) body.metadata = input.metadata;
     if (input.joinAt) body.join_at = input.joinAt;
+    // Brand the bot's camera tile with the Meri mark so participants see whose
+    // tool is present (also softens the anonymous/"(Unverified)" appearance). This
+    // is Recall's automatic_video_output — a static JPEG streamed as the bot's
+    // camera feed; it is NOT the name-adjacent profile avatar (that needs a
+    // signed-in bot — see docs/plans/meeting-notetaker-signed-in-bots.md). Same
+    // image whether or not we're recording. Supported on Zoom/Meet/Teams/Webex but
+    // NOT Slack huddles, so skip it there to avoid a create-bot rejection.
+    if (input.platform !== 'slack') {
+      const cameraImage = { kind: 'jpeg', b64_data: MERI_CAMERA_JPEG_B64 };
+      body.automatic_video_output = {
+        in_call_recording: cameraImage,
+        in_call_not_recording: cameraImage,
+      };
+    }
     if (input.disclosureMessage) {
       // Top-level `chat` object (NOT under recording_config): post the consent
       // disclosure the moment the bot joins, and re-post to each late-joiner so

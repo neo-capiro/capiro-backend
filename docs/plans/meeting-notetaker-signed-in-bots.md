@@ -1,6 +1,6 @@
 # Meri Notetaker — Signed-In Bots + branded avatar (scoped follow-up)
 
-**Status:** SCOPED, not built (2026-07-08). Companion to [meeting-notetaker-bot-plan.md](meeting-notetaker-bot-plan.md).
+**Status:** Fix A (camera-tile logo) **SHIPPED 2026-07-08**; Fix B (signed-in bot) SCOPED, gated on SOC 2 + counsel. Companion to [meeting-notetaker-bot-plan.md](meeting-notetaker-bot-plan.md).
 **Why this exists:** on a live Teams canary, Meri shows as **"Meri Notetaker (recording) (Unverified)"** with no profile photo. Ninja asked to (1) remove the "Unverified" label and (2) show the Meri logo as the bot's photo. This doc is the grounded scope for both, from a 5-dimension research pass over Recall's docs + our codebase + the consent design.
 
 ---
@@ -34,7 +34,11 @@ Signing the bot in (Fix B) changes `(Unverified)` → `(External)` **only when t
 
 ---
 
-## Fix A — logo on the camera tile (`automatic_video_output`)
+## Fix A — logo on the camera tile (`automatic_video_output`) — ✅ SHIPPED 2026-07-08
+
+Built exactly as scoped below. The canonical Meri mark (`apps/web/src/assets/chat/meri-bubble.png` — the navy "meri" wordmark) was letterboxed onto a 1280×720 brand-navy (#01226a) JPEG (`apps/api/src/engagement/notetaker/assets/meri-camera.jpg`, 19 KB) and inlined as base64 in `meri-camera-image.ts` (so it can't go missing in the compiled `dist/` or across worktrees). `RecallProvider.dispatchBot()` attaches it via `automatic_video_output` (both `in_call_recording` + `in_call_not_recording`), gated off Slack (`input.platform !== 'slack'`) since Recall doesn't support the feature on Slack huddles. `DispatchBotInput` gained an optional `platform` field for that gate; the service passes the platform it already computes. 49/49 notetaker tests. Reminder: this is the **camera tile**, not the name-adjacent avatar — that's still Fix B.
+
+### (original scope, for reference)
 
 - **Mechanism:** add `automatic_video_output` to the Create Bot payload with a base64 JPEG for the `in_call_recording` and `in_call_not_recording` states. Recall renders it as the bot's **camera video feed** on Zoom/Meet/Teams/Webex (not Slack).
 - **Works anonymously — no account, ships now.**
