@@ -77,6 +77,19 @@ export function FunnelStepGuard({
     );
   }
   const allowed = routeForState(session.data.state);
-  if (route !== allowed) return <Navigate to={allowed} replace />;
+  // Once provisioning has started (org_setup → …), pin the user to the
+  // confirmation screen — earlier steps can no longer be edited.
+  if (allowed === '/confirm') {
+    return route === '/confirm' ? children : <Navigate to="/confirm" replace />;
+  }
+  // Otherwise let the user step BACK to any completed data-entry page (down to
+  // /plan) while still bouncing forward jumps to the furthest allowed step.
+  const allowedIdx = FUNNEL_ROUTES.indexOf(allowed);
+  const routeIdx = FUNNEL_ROUTES.indexOf(route);
+  const backFloorIdx = FUNNEL_ROUTES.indexOf('/plan');
+  const minIdx = Math.min(allowedIdx, backFloorIdx);
+  if (routeIdx < minIdx || routeIdx > allowedIdx) {
+    return <Navigate to={allowed} replace />;
+  }
   return children;
 }

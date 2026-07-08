@@ -49,6 +49,10 @@ const stripeAppearance: Appearance = {
 
 const sleep = (ms: number) => new Promise<void>((resolve) => setTimeout(resolve, ms));
 
+// Mirrors the onboard-api EMAIL_RE — an invalid billing contact must be
+// blocked inline, not 400 the whole payment request.
+const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+
 const notConfiguredNote = (
   <div style={{ fontSize: 11.5, color: 'var(--critical)', lineHeight: 1.5 }}>
     Payments are not configured
@@ -179,7 +183,11 @@ function F1PayTrial({ session }: { session: FunnelSession }) {
   const [wireBusy, setWireBusy] = React.useState(false);
   const [wireError, setWireError] = React.useState<string | null>(null);
   const [billingContact, setBillingContact] = React.useState(session.email);
-  const requestedRef = React.useRef<Partial<Record<'card' | 'ach', boolean>>>({});
+  const seqRef = React.useRef(0);
+
+  const billingContactTrimmed = billingContact.trim();
+  const billingContactInvalid =
+    billingContactTrimmed.length > 0 && !EMAIL_RE.test(billingContactTrimmed);
 
   const setTab = (id: PayMethod) => {
     setTabState(id);
@@ -187,23 +195,38 @@ function F1PayTrial({ session }: { session: FunnelSession }) {
     setWireError(null);
   };
 
-  // Create the SetupIntent for the focused tab (once per method).
+  // Create a FRESH SetupIntent every time a Stripe tab is activated. The
+  // server stores only the latest-created intent id, so reusing a cached
+  // intent after Card↔ACH switches meant confirming one intent while the
+  // server validated another ("Payment method is not ready"). The seq guard
+  // drops stale responses (tab flips, StrictMode double-run).
   React.useEffect(() => {
     if (tab === 'wire' || !stripePk) return;
     const method = tab;
-    if (requestedRef.current[method]) return;
-    requestedRef.current[method] = true;
+    const seq = ++seqRef.current;
+    setSecrets((s) => ({ ...s, [method]: undefined }));
     api
       .createSetupIntent(method)
-      .then((r) => setSecrets((s) => ({ ...s, [method]: r.clientSecret })))
+      .then((r) => {
+        if (seqRef.current === seq) setSecrets((s) => ({ ...s, [method]: r.clientSecret }));
+      })
       .catch((err) => {
-        requestedRef.current[method] = false;
-        setSetupError(errorMessage(err));
+        if (seqRef.current === seq) setSetupError(errorMessage(err));
       });
   }, [tab, stripePk, api]);
 
   const completeTrial = async (method: PayMethod) => {
-    await api.trialComplete(method);
+    // Tell the server WHICH intent was confirmed (belt-and-braces vs. the
+    // stored-latest-id mismatch); the id is the clientSecret's prefix.
+    const secret = method === 'wire' ? undefined : secrets[method];
+    const setupIntentId = secret ? secret.split('_secret')[0] : undefined;
+    await api.trialComplete({
+      method,
+      ...(setupIntentId ? { setupIntentId } : {}),
+      ...(method === 'wire' && billingContactTrimmed && !billingContactInvalid
+        ? { billingContact: billingContactTrimmed }
+        : {}),
+    });
     advanceSession({ state: 'payment_on_file', payMethod: method });
     navigate('/admins');
   };
@@ -312,16 +335,23 @@ function F1PayTrial({ session }: { session: FunnelSession }) {
                   </span>
                 </div>
                 <Field label="Billing contact (for invoice)">
-                  <TextInput
-                    value={billingContact}
-                    onChange={(e) => setBillingContact(e.target.value)}
-                  />
+                  <>
+                    <TextInput
+                      value={billingContact}
+                      onChange={(e) => setBillingContact(e.target.value)}
+                    />
+                    {billingContactInvalid && (
+                      <span style={{ fontSize: 11.5, color: 'var(--critical)', lineHeight: 1.45 }}>
+                        Enter a valid email address for the invoice recipient.
+                      </span>
+                    )}
+                  </>
                 </Field>
               </div>
               {wireError && <ErrorText>{wireError}</ErrorText>}
               <Btn
                 variant="primary"
-                disabled={wireBusy}
+                disabled={wireBusy || billingContactInvalid}
                 onClick={() => void completeWire()}
                 style={{ width: '100%', marginTop: 18 }}
               >
@@ -405,6 +435,10 @@ function F1PayPaid({ session }: { session: FunnelSession }) {
   const n = Math.max(10, profiles || 10);
   const price = (n * 200).toLocaleString();
 
+  const billingContactTrimmed = billingContact.trim();
+  const billingContactInvalid =
+    billingContactTrimmed.length > 0 && !EMAIL_RE.test(billingContactTrimmed);
+
   const setTab = (id: PayMethod) => {
     setTabState(id);
     setError(null);
@@ -436,11 +470,15 @@ function F1PayPaid({ session }: { session: FunnelSession }) {
   };
 
   const subscribeWire = async () => {
-    if (busy) return;
+    if (busy || billingContactInvalid) return;
     setBusy(true);
     setError(null);
     try {
-      const res = await api.subscribe({ profiles: n, method: 'wire' });
+      const res = await api.subscribe({
+        profiles: n,
+        method: 'wire',
+        ...(billingContactTrimmed ? { billingContact: billingContactTrimmed } : {}),
+      });
       if (res.hostedInvoiceUrl) setInvoiceUrl(res.hostedInvoiceUrl);
       await finish('wire');
     } catch (err) {
@@ -587,16 +625,25 @@ function F1PayPaid({ session }: { session: FunnelSession }) {
                     </span>
                   </div>
                   <Field label="Billing contact (for invoice)">
-                    <TextInput
-                      value={billingContact}
-                      onChange={(e) => setBillingContact(e.target.value)}
-                    />
+                    <>
+                      <TextInput
+                        value={billingContact}
+                        onChange={(e) => setBillingContact(e.target.value)}
+                      />
+                      {billingContactInvalid && (
+                        <span
+                          style={{ fontSize: 11.5, color: 'var(--critical)', lineHeight: 1.45 }}
+                        >
+                          Enter a valid email address for the invoice recipient.
+                        </span>
+                      )}
+                    </>
                   </Field>
                 </div>
                 {error && <ErrorText>{error}</ErrorText>}
                 <Btn
                   variant="primary"
-                  disabled={n < 10 || busy}
+                  disabled={n < 10 || busy || billingContactInvalid}
                   onClick={() => void subscribeWire()}
                   style={{ width: '100%', marginTop: 18 }}
                 >

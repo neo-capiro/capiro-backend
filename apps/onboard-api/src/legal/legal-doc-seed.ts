@@ -110,16 +110,22 @@ export const LEGAL_DOC_SEEDS: LegalDocSeed[] = [
     version: LEGAL_SEED_VERSION,
     html: sectionsToHtml(TOS_SECTIONS),
   },
+  // The SA variants encode the plan variant INTO the version string: consent
+  // rows store (docType, docVersion) only, so a shared version made a consent
+  // recorded against the trial SA indistinguishable from the materially
+  // different paid SA (SOC 2 consent-integrity). Re-run `task seed-legal-docs`
+  // after deploying a version change — it activates the new versions and
+  // de-activates the old ones.
   {
     docType: 'sa',
     planVariant: 'trial',
-    version: LEGAL_SEED_VERSION,
+    version: `${LEGAL_SEED_VERSION}-trial`,
     html: sectionsToHtml([SA_TRIAL_PREAMBLE, ...SA_SECTIONS]),
   },
   {
     docType: 'sa',
     planVariant: 'paid',
-    version: LEGAL_SEED_VERSION,
+    version: `${LEGAL_SEED_VERSION}-paid`,
     html: sectionsToHtml([SA_PAID_PREAMBLE, ...SA_SECTIONS]),
   },
 ];

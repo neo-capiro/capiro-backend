@@ -5,6 +5,7 @@ import { AppModule } from '../app.module.js';
 import { BillingOverageService } from '../billing/billing-overage.service.js';
 import { LegalService } from '../legal/legal.service.js';
 import { LifecycleService } from '../lifecycle/lifecycle.service.js';
+import { PrismaService } from '../prisma/prisma.service.js';
 
 /**
  * One-off task runner (entrypoint `task <verb> [args...]`). Boots the Nest
@@ -59,6 +60,42 @@ const VERBS: Record<string, Verb> = {
       // eslint-disable-next-line no-console
       console.log(
         `  ${r.tenantSlug}: +${r.reportedDeltaCents}¢ (used $${r.usedUsd.toFixed(2)} / allow $${r.allowanceUsd.toFixed(2)})`,
+      );
+    }
+  },
+
+  /**
+   * READ-ONLY billing-posture dump for every tenant (ops/diag — safe to run
+   * any time as a one-off ECS task). Prints one JSON line per tenant so a
+   * lockout/enforcement question ("will tenant X get locked out?") is
+   * answerable from CloudWatch logs without ad-hoc SQL.
+   */
+  'diag-billing-state': async (_args, app) => {
+    const prisma = app.get(PrismaService);
+    const rows = await prisma.withSystem((tx) =>
+      tx.tenant.findMany({
+        select: {
+          slug: true,
+          billingStatus: true,
+          lockedAt: true,
+          onboardingFlowVersion: true,
+          trialEndsAt: true,
+          clientSlots: true,
+          stripeCustomerId: true,
+          stripeSubscriptionId: true,
+          priceLockExpiresAt: true,
+        },
+        orderBy: { slug: 'asc' },
+      }),
+    );
+    for (const r of rows) {
+      // eslint-disable-next-line no-console
+      console.log(
+        `diag-billing-state: ${JSON.stringify({
+          ...r,
+          stripeCustomerId: r.stripeCustomerId ? 'set' : null,
+          stripeSubscriptionId: r.stripeSubscriptionId ? 'set' : null,
+        })}`,
       );
     }
   },

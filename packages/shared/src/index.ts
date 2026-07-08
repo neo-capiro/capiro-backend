@@ -438,17 +438,17 @@ export const CLIENT_SLOT_TIERS = [{ minSlots: MIN_CLIENT_SLOTS, pricePerSlotUsd:
  * Subscribing locks the $200/slot price for this many months
  * (tenants.price_lock_expires_at); the "limited-time" launch offer copy.
  */
-export const PRICE_LOCK_MONTHS = 24;
+export const PRICE_LOCK_MONTHS = 12;
 
 /** Pricing headline shown wherever the $200 price appears (Ninja copy ask). */
-export const PRICE_LOCK_COPY = 'Limited-time price — lock in $200/profile for 2 years.';
+export const PRICE_LOCK_COPY = 'Limited-time price — lock in $200/profile for 1 year.';
 
 /**
- * "Prices subject to change" language reconciled with the 24-month lock
+ * "Prices subject to change" language reconciled with the 12-month lock
  * (shown on-screen on plan selection, not buried in the legal docs).
  */
 export const PRICE_CHANGE_COPY =
-  'Your price is locked for 24 months from subscription; thereafter prices are subject to change.';
+  'Your price is locked for 12 months from subscription; thereafter prices are subject to change.';
 
 /** Per-slot monthly price for a given purchased quantity (flat $200). */
 export function pricePerSlotUsd(quantity: number): number {

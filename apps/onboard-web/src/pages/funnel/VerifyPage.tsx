@@ -49,10 +49,16 @@ export function VerifyPage() {
       registeredRef.current = true; // we register right here — skip the fallback effect
       await setActive({ session: attempt.createdSessionId });
       const draft = readRegistrationDraft();
+      // orgName exists only in the local draft (Clerk never stores it) and
+      // RegisterDto rejects an empty one — re-collect instead of 400ing.
+      if (!draft?.orgName?.trim()) {
+        navigate('/register', { replace: true });
+        return;
+      }
       const snapshot = await api.register({
-        firstName: draft?.firstName ?? attempt.firstName ?? '',
-        lastName: draft?.lastName ?? attempt.lastName ?? '',
-        orgName: draft?.orgName ?? '',
+        firstName: draft.firstName || attempt.firstName || '',
+        lastName: draft.lastName || attempt.lastName || '',
+        orgName: draft.orgName,
       });
       queryClient.setQueryData(FUNNEL_SESSION_KEY, snapshot);
       const check = await api.verifyCheck();
@@ -62,7 +68,7 @@ export function VerifyPage() {
       }
       // If not verified yet, the signed-in verify-check poll below takes over.
     },
-    [setActive, api, queryClient, advanceSession],
+    [setActive, api, queryClient, advanceSession, navigate],
   );
 
   // Send (or re-send) the 6-digit verification code.
@@ -112,25 +118,31 @@ export function VerifyPage() {
 
   // ── Fallback: signed in but no funnel session yet (e.g. the sign-up was
   // completed elsewhere) — snapshot the registration so verify-check can run.
+  // Without a stored draft (orgName is never in Clerk) an empty register POST
+  // would 400 into a dead-end, so send the user back to /register instead.
   React.useEffect(() => {
     if (!authLoaded || !isSignedIn) return;
     if (session.isLoading || session.data) return;
     if (registeredRef.current) return;
     registeredRef.current = true;
     void (async () => {
+      const draft = readRegistrationDraft();
+      if (!draft?.orgName?.trim()) {
+        navigate('/register', { replace: true });
+        return;
+      }
       try {
-        const draft = readRegistrationDraft();
         const snapshot = await api.register({
-          firstName: draft?.firstName ?? '',
-          lastName: draft?.lastName ?? '',
-          orgName: draft?.orgName ?? '',
+          firstName: draft.firstName ?? '',
+          lastName: draft.lastName ?? '',
+          orgName: draft.orgName,
         });
         queryClient.setQueryData(FUNNEL_SESSION_KEY, snapshot);
       } catch (err) {
         setFlowError(errorMessage(err));
       }
     })();
-  }, [authLoaded, isSignedIn, session.isLoading, session.data, api, queryClient]);
+  }, [authLoaded, isSignedIn, session.isLoading, session.data, api, queryClient, navigate]);
 
   // ── Signed-in path (resumed session): POST /funnel/verify-check, polling
   // every 3s while unverified as a safety net for out-of-band verification.

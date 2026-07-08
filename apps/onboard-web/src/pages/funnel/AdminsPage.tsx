@@ -27,6 +27,10 @@ interface InviteRow {
   role: InviteRole;
 }
 
+// Mirror the onboard-api EMAIL_RE so the "Continue" gate matches server-side
+// validation — `foo@bar` (no TLD dot) must NOT count as a valid Super Admin.
+const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+
 export function AdminsPage() {
   const session = useFunnelSession();
   if (!session.data) return null;
@@ -56,18 +60,30 @@ function F1Roles({ session }: { session: FunnelSession }) {
     );
   };
   const hasSuper =
-    roleMode === 'self' || invites.some((v) => v.role === 'Super Admin' && v.email.includes('@'));
+    roleMode === 'self' ||
+    invites.some((v) => v.role === 'Super Admin' && EMAIL_RE.test(v.email.trim()));
+  // EVERY non-empty row must be a valid email — the backend validates all
+  // designations, so one bad extra row would 400 the whole request with no
+  // per-row indication.
+  const invalidRows =
+    roleMode === 'invite'
+      ? invites.filter((v) => v.email.trim() && !EMAIL_RE.test(v.email.trim()))
+      : [];
+  const rowInvalid = (v: InviteRow) => v.email.trim().length > 0 && !EMAIL_RE.test(v.email.trim());
 
   const submit = async () => {
-    if (!hasSuper || busy) return;
+    if (!hasSuper || busy || invalidRows.length > 0) return;
     setBusy(true);
     setError(null);
     try {
       const designations: RoleDesignation[] =
         roleMode === 'invite'
           ? invites
-              .filter((v) => v.email)
-              .map((v) => ({ email: v.email, role: v.role === 'Super Admin' ? 'super' : 'admin' }))
+              .filter((v) => v.email.trim())
+              .map((v) => ({
+                email: v.email.trim(),
+                role: v.role === 'Super Admin' ? 'super' : 'admin',
+              }))
           : [];
       await api.setRoles({ roleMode, designations });
       advanceSession({ state: 'roles_designated', roleMode, roleDesignations: designations });
@@ -193,17 +209,25 @@ function F1Roles({ session }: { session: FunnelSession }) {
         ) : (
           <div style={{ display: 'grid', gap: 10 }}>
             {invites.map((v, i) => (
-              <div key={i} style={{ display: 'grid', gridTemplateColumns: '1fr 150px', gap: 10 }}>
-                <TextInput
-                  placeholder="name@firm.com"
-                  value={v.email}
-                  onChange={(e) => setInvite(i, { email: e.target.value })}
-                />
-                <SelectInput
-                  options={['Super Admin', 'Admin']}
-                  value={v.role}
-                  onChange={(r) => setInvite(i, { role: r as InviteRole })}
-                />
+              <div key={i} style={{ display: 'grid', gap: 4 }}>
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 150px', gap: 10 }}>
+                  <TextInput
+                    placeholder="name@firm.com"
+                    value={v.email}
+                    onChange={(e) => setInvite(i, { email: e.target.value })}
+                    style={rowInvalid(v) ? { borderColor: 'var(--critical)' } : undefined}
+                  />
+                  <SelectInput
+                    options={['Super Admin', 'Admin']}
+                    value={v.role}
+                    onChange={(r) => setInvite(i, { role: r as InviteRole })}
+                  />
+                </div>
+                {rowInvalid(v) && (
+                  <span style={{ fontSize: 11.5, color: 'var(--critical)', lineHeight: 1.45 }}>
+                    Enter a valid email address (or clear this row).
+                  </span>
+                )}
               </div>
             ))}
             <a
@@ -251,7 +275,7 @@ function F1Roles({ session }: { session: FunnelSession }) {
         {error && <ErrorText>{error}</ErrorText>}
         <Btn
           variant="primary"
-          disabled={!hasSuper || busy}
+          disabled={!hasSuper || busy || invalidRows.length > 0}
           onClick={() => void submit()}
           style={{ width: '100%', marginTop: 16 }}
         >

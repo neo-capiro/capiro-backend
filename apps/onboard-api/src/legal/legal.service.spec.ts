@@ -27,10 +27,11 @@ function doc(
 }
 
 /** Minimal prisma double: findFirst filters on docType/planVariant/active. */
-function mockPrisma(docs: FakeDoc[]) {
+function mockPrisma(docs: FakeDoc[], existingConsents: Array<Record<string, unknown>> = []) {
   const createMany = jest.fn(async (_args: { data: Array<Record<string, unknown>> }) => ({
     count: 2,
   }));
+  const consentFindMany = jest.fn(async () => existingConsents);
   const findFirst = jest.fn(
     async ({ where }: { where: { docType: string; planVariant: string; active: boolean } }) =>
       docs.find(
@@ -43,9 +44,10 @@ function mockPrisma(docs: FakeDoc[]) {
   return {
     prisma: {
       onboardLegalDoc: { findFirst },
-      onboardConsent: { createMany },
+      onboardConsent: { createMany, findMany: consentFindMany },
     } as unknown as PrismaService,
     createMany,
+    consentFindMany,
     findFirst,
   };
 }
@@ -166,6 +168,40 @@ describe('LegalService', () => {
         }),
       ).rejects.toBeInstanceOf(BadRequestException);
       expect(createMany).not.toHaveBeenCalled();
+    });
+
+    it('is idempotent: a re-accept of already-recorded versions inserts nothing', async () => {
+      const { prisma, createMany } = mockPrisma(seeded, [
+        { docType: 'tos', docVersion: 'tos-v2' },
+        { docType: 'sa', docVersion: 'sa-v2-paid' },
+      ]);
+      const service = new LegalService(prisma);
+      await service.recordConsents({
+        ...baseConsentInput,
+        plan: 'paid',
+        accepts: [
+          { docType: 'tos', version: 'tos-v2' },
+          { docType: 'sa', version: 'sa-v2-paid' },
+        ],
+      });
+      expect(createMany).not.toHaveBeenCalled();
+    });
+
+    it('inserts only the missing row when one consent already exists', async () => {
+      const { prisma, createMany } = mockPrisma(seeded, [{ docType: 'tos', docVersion: 'tos-v2' }]);
+      const service = new LegalService(prisma);
+      await service.recordConsents({
+        ...baseConsentInput,
+        plan: 'paid',
+        accepts: [
+          { docType: 'tos', version: 'tos-v2' },
+          { docType: 'sa', version: 'sa-v2-paid' },
+        ],
+      });
+      expect(createMany).toHaveBeenCalledTimes(1);
+      const rows = createMany.mock.calls[0]![0]!.data;
+      expect(rows).toHaveLength(1);
+      expect(rows[0]!.docType).toBe('sa');
     });
   });
 });

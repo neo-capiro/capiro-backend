@@ -106,6 +106,20 @@ export class FunnelService {
 
     let session = await this.findActiveSession(purchaser.id);
     if (!session) {
+      // A purchaser whose funnel already PROVISIONED a tenant must not start a
+      // second run (it would mint a duplicate tenant + Stripe subscription and
+      // overwrite purchaser.tenantId). Return the provisioned session instead;
+      // multi-org needs an explicit flow, not a silent re-register.
+      const latest = await this.prisma.onboardSession.findFirst({
+        where: { purchaserId: purchaser.id },
+        orderBy: { createdAt: 'desc' },
+      });
+      if (latest && (purchaser.tenantId || latest.state === 'provisioned')) {
+        this.logger.warn(
+          `register() for already-provisioned purchaser ${purchaser.id} — returning existing session`,
+        );
+        return this.snapshot(purchaser, latest);
+      }
       session = await this.prisma.onboardSession.create({ data: { purchaserId: purchaser.id } });
       this.logger.log(`New funnel session ${session.id} for purchaser ${purchaser.id}`);
     }
@@ -157,6 +171,22 @@ export class FunnelService {
 
   async selectPlan(auth: PurchaserAuth, plan: 'trial' | 'paid'): Promise<{ ok: true }> {
     const { session } = await this.requireStep(auth.clerkUserId, 'verified');
+    // Once payment is committed (SetupIntent stored / subscription created /
+    // method on file) the plan is FROZEN: flipping paid→trial after a real
+    // charge would mislabel a charged customer as a $0 trial (and trial→paid
+    // would provision a paid tenant that never ran the subscribe step). The
+    // Back button may revisit this step, but only to look.
+    // (A dangling stripeSetupIntentId alone does NOT freeze the plan — the
+    // billing page creates one on load before anything is stored or charged.)
+    const paymentCommitted =
+      isAtLeast(session.state, 'payment_on_file') ||
+      session.payMethod !== null ||
+      session.stripeSubscriptionId !== null;
+    if (paymentCommitted && session.plan !== plan) {
+      throw new ConflictException(
+        'Your payment is already set up for the selected plan — contact support@capiro.ai to change plans.',
+      );
+    }
     await this.advance(session, 'plan_selected', { plan });
     return { ok: true };
   }
@@ -239,6 +269,7 @@ export class FunnelService {
   async trialComplete(
     auth: PurchaserAuth,
     method: 'card' | 'ach' | 'wire',
+    opts: { billingContact?: string; setupIntentId?: string } = {},
   ): Promise<{ ok: true; method: string; setupIntentStatus?: string }> {
     const { purchaser, session } = await this.requireStep(auth.clerkUserId, 'legal_accepted');
     if (session.plan !== 'trial') {
@@ -247,18 +278,45 @@ export class FunnelService {
 
     if (method === 'wire') {
       // "Wire on file" is billing-contact-only (plan §8 red flag 6): nothing
-      // is storable — day-31 conversion just issues an invoice.
+      // is storable — day-31 conversion just issues an invoice. BUT the
+      // conversion query skips tenants with no Stripe customer, so create the
+      // purchaser's customer NOW (no payment method needed for send_invoice
+      // subscriptions) — otherwise a wire trial never converts and keeps free
+      // access forever.
+      if (this.stripe.enabled) {
+        const stripe = this.stripe.require();
+        const customerId = await this.ensurePurchaserCustomer(purchaser, stripe);
+        await this.applyBillingContact(stripe, customerId, purchaser.email, opts.billingContact);
+      }
       await this.advance(session, 'payment_on_file', { payMethod: 'wire' });
       return { ok: true, method };
     }
 
-    if (!session.stripeSetupIntentId) {
+    // Prefer the SetupIntent the CLIENT confirmed: the session stores only the
+    // LATEST-created intent, which after Card↔ACH tab switching can be a
+    // different, never-confirmed one — failing a perfectly valid confirmation.
+    const intentId = opts.setupIntentId ?? session.stripeSetupIntentId;
+    if (!intentId) {
       throw new BadRequestException(
         'No payment method in progress — call payment/setup-intent first.',
       );
     }
     const stripe = this.stripe.require();
-    const si = await stripe.setupIntents.retrieve(session.stripeSetupIntentId);
+    const si = await stripe.setupIntents.retrieve(intentId);
+    // Anti-spoofing: a client-supplied intent must belong to THIS purchaser.
+    const siCustomer = typeof si.customer === 'string' ? si.customer : si.customer?.id;
+    if (
+      opts.setupIntentId &&
+      (!purchaser.stripeCustomerId || siCustomer !== purchaser.stripeCustomerId)
+    ) {
+      throw new BadRequestException('That payment setup does not belong to this account.');
+    }
+    if (opts.setupIntentId && opts.setupIntentId !== session.stripeSetupIntentId) {
+      await this.prisma.onboardSession.update({
+        where: { id: session.id },
+        data: { stripeSetupIntentId: opts.setupIntentId },
+      });
+    }
     // ACH micro-deposit verification completes later; card must be fully set up.
     const acceptable =
       method === 'card' ? ['succeeded'] : ['succeeded', 'processing', 'requires_action'];
@@ -284,7 +342,7 @@ export class FunnelService {
 
   async subscribe(
     auth: PurchaserAuth,
-    dto: { profiles: number; method: 'card' | 'ach' | 'wire' },
+    dto: { profiles: number; method: 'card' | 'ach' | 'wire'; billingContact?: string },
   ): Promise<{
     subscriptionId: string;
     status: string;
@@ -315,13 +373,26 @@ export class FunnelService {
           return this.subscribeResult(existing, session.payMethod ?? dto.method);
         }
       } catch (err) {
+        // Only a genuinely-missing subscription may fall through to create a
+        // new one. A transient retrieve failure (Stripe 5xx / rate limit /
+        // network) while the stored subscription is LIVE would otherwise mint
+        // a second subscription on the same customer — a double charge.
+        const stripeErr = err as Stripe.errors.StripeError;
+        if (stripeErr.code !== 'resource_missing' && stripeErr.statusCode !== 404) {
+          throw err;
+        }
         this.logger.warn(
-          `Stale subscription ${session.stripeSubscriptionId} unreadable: ${(err as Error).message}`,
+          `Stored subscription ${session.stripeSubscriptionId} missing on Stripe — creating fresh`,
         );
       }
     }
 
     const customerId = await this.ensurePurchaserCustomer(purchaser, stripe);
+    if (dto.method === 'wire') {
+      // Invoice recipient: the wire form's "Billing contact" field (an AP
+      // inbox, typically) — previously collected but silently discarded.
+      await this.applyBillingContact(stripe, customerId, purchaser.email, dto.billingContact);
+    }
     const items: Stripe.SubscriptionCreateParams.Item[] = [{ price: this.slotsPriceId, quantity }];
     if (this.overagePriceId) items.push({ price: this.overagePriceId }); // metered — no quantity
     const base: Stripe.SubscriptionCreateParams = {
@@ -549,6 +620,28 @@ export class FunnelService {
       email: primary.emailAddress.toLowerCase(),
       verified: primary.verification?.status === 'verified',
     };
+  }
+
+  /**
+   * Point Stripe invoice emails at the wire "Billing contact" when one was
+   * provided and differs from the account email. Best-effort: a Stripe
+   * hiccup here must not fail the payment step itself.
+   */
+  private async applyBillingContact(
+    stripe: Stripe,
+    customerId: string,
+    accountEmail: string,
+    billingContact?: string,
+  ): Promise<void> {
+    const contact = billingContact?.trim().toLowerCase();
+    if (!contact || !EMAIL_RE.test(contact) || contact === accountEmail) return;
+    try {
+      await stripe.customers.update(customerId, { email: contact });
+    } catch (err) {
+      this.logger.warn(
+        `Billing-contact update failed for ${customerId}: ${(err as Error).message}`,
+      );
+    }
   }
 
   /** Find-or-create the PURCHASER's Stripe customer (pre-tenant). */

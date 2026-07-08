@@ -39,6 +39,11 @@ function F1Confirm({ session }: { session: FunnelSession }) {
     const later = (fn: () => void, ms: number) => {
       timers.push(window.setTimeout(fn, ms));
     };
+    // Bounded: a session stuck in a non-terminal state (server crashed after
+    // claiming 'provisioning') must surface an actionable error, not an
+    // infinite spinner. ~4 minutes is far beyond a normal provision.
+    const deadline = Date.now() + 4 * 60 * 1000;
+    let reProvisioned = false;
 
     void (async () => {
       if (!provisionFiredRef.current) {
@@ -74,8 +79,24 @@ function F1Confirm({ session }: { session: FunnelSession }) {
             setFailureReason(status.failureReason || 'Provisioning failed.');
             return;
           }
+          // Still org_setup: our provision call never claimed the session
+          // (e.g. it failed before the claim). Re-issue it once.
+          if (status.state === 'org_setup' && !reProvisioned) {
+            reProvisioned = true;
+            try {
+              await api.provision();
+            } catch {
+              /* the next poll or the deadline surfaces the outcome */
+            }
+          }
         } catch {
           // transient poll error — keep trying
+        }
+        if (Date.now() >= deadline) {
+          setFailureReason(
+            'Provisioning is taking longer than expected. Our team has been alerted — contact support@capiro.ai and we will finish your setup.',
+          );
+          return;
         }
         later(() => void poll(), 1500);
       };

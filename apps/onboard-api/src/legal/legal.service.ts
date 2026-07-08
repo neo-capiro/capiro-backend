@@ -90,8 +90,16 @@ export class LegalService {
       );
     }
 
-    await this.prisma.onboardConsent.createMany({
-      data: (['tos', 'sa'] as const).map((docType) => ({
+    // Idempotent per (sessionId, docType, docVersion): the Back button lets a
+    // user revisit /legal and re-submit — re-accepts must not append duplicate
+    // rows to the SOC 2 consent-evidence table.
+    const existing = await this.prisma.onboardConsent.findMany({
+      where: { sessionId: input.sessionId, docType: { in: ['tos', 'sa'] } },
+      select: { docType: true, docVersion: true },
+    });
+    const already = new Set(existing.map((r) => `${r.docType}:${r.docVersion}`));
+    const rows = (['tos', 'sa'] as const)
+      .map((docType) => ({
         sessionId: input.sessionId,
         purchaserId: input.purchaserId,
         clerkUserId: input.clerkUserId,
@@ -99,8 +107,11 @@ export class LegalService {
         docVersion: docType === 'tos' ? active.tos.version : active.sa.version,
         ip: input.ip,
         userAgent: input.userAgent,
-      })),
-    });
+      }))
+      .filter((r) => !already.has(`${r.docType}:${r.docVersion}`));
+    if (rows.length > 0) {
+      await this.prisma.onboardConsent.createMany({ data: rows });
+    }
   }
 
   /**

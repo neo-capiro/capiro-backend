@@ -39,13 +39,16 @@ export interface OrgAddress {
   zip: string;
 }
 
+// Mirrors the backend OrgProfileDto: everything but legalName is optional, and
+// empty strings must be OMITTED (the DTO's @Length(1,…) rejects ''), so the
+// submit path builds this with conditional spreads.
 export interface OrgProfile {
   legalName: string;
-  vertical: string;
-  teamSize: string;
-  timezone: string;
-  locale: string;
-  address: OrgAddress;
+  vertical?: string;
+  teamSize?: string;
+  timezone?: string;
+  locale?: string;
+  address?: OrgAddress;
 }
 
 export interface FunnelSession {
@@ -154,8 +157,9 @@ export function createFunnelApi(getToken: GetToken) {
       post('/funnel/legal-accept', body),
     createSetupIntent: (method: 'card' | 'ach') =>
       post('/funnel/payment/setup-intent', { method }) as Promise<{ clientSecret: string }>,
-    trialComplete: (method: PayMethod) => post('/funnel/payment/trial-complete', { method }),
-    subscribe: (body: { profiles: number; method: PayMethod }) =>
+    trialComplete: (body: { method: PayMethod; billingContact?: string; setupIntentId?: string }) =>
+      post('/funnel/payment/trial-complete', body),
+    subscribe: (body: { profiles: number; method: PayMethod; billingContact?: string }) =>
       post('/funnel/payment/subscribe', body) as Promise<SubscribeResult>,
     paidStatus: () => post('/funnel/payment/paid-status') as Promise<PaidStatusResult>,
     setRoles: (body: { roleMode: RoleMode; designations: RoleDesignation[] }) =>
@@ -214,9 +218,12 @@ export interface RegistrationDraft {
   orgName: string;
 }
 
+// localStorage (not sessionStorage): the draft carries orgName, which Clerk
+// never stores — it must survive a closed browser so a signed-in user whose
+// register POST failed can still complete registration on return.
 export function storeRegistrationDraft(draft: RegistrationDraft): void {
   try {
-    sessionStorage.setItem(REGISTRATION_STORAGE_KEY, JSON.stringify(draft));
+    localStorage.setItem(REGISTRATION_STORAGE_KEY, JSON.stringify(draft));
   } catch {
     /* storage unavailable — the verify page falls back to Clerk profile data */
   }
@@ -224,7 +231,9 @@ export function storeRegistrationDraft(draft: RegistrationDraft): void {
 
 export function readRegistrationDraft(): RegistrationDraft | null {
   try {
-    const raw = sessionStorage.getItem(REGISTRATION_STORAGE_KEY);
+    const raw =
+      localStorage.getItem(REGISTRATION_STORAGE_KEY) ??
+      sessionStorage.getItem(REGISTRATION_STORAGE_KEY); // pre-fix drafts
     return raw ? (JSON.parse(raw) as RegistrationDraft) : null;
   } catch {
     return null;

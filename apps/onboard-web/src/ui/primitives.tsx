@@ -5,7 +5,9 @@
 // the prototype: EnvBar (the fake browser chrome was a demo affordance) and
 // the Navigator harness.
 import React from 'react';
+import { useLocation, useNavigate } from 'react-router-dom';
 import {
+  ArrowLeft,
   ArrowRight,
   Bell,
   Check,
@@ -48,6 +50,7 @@ import {
 // Named registry keeps the prototype's `<Icon name="..."/>` call sites
 // verbatim while letting Vite tree-shake the rest of lucide.
 const ICONS: Record<string, LucideIcon> = {
+  ArrowLeft,
   ArrowRight,
   Bell,
   Check,
@@ -572,6 +575,10 @@ export function StepRail({ current }: { current: number }) {
 
 // Funnel page shell — the registration flow (no sidebar). The prototype's
 // EnvBar (fake browser chrome) is intentionally not rendered in production.
+// Data-entry steps the user may step BACK through (identity + provisioning
+// screens are excluded). Kept in sync with FunnelStepGuard's ladder.
+const FUNNEL_BACK_ORDER = ['/plan', '/legal', '/billing', '/admins', '/clients', '/org'];
+
 export function FunnelShell({
   step,
   children,
@@ -581,6 +588,10 @@ export function FunnelShell({
   children?: React.ReactNode;
   maxWidth?: number;
 }) {
+  const location = useLocation();
+  const navigate = useNavigate();
+  const backIdx = FUNNEL_BACK_ORDER.indexOf(location.pathname);
+  const backTo = backIdx > 0 ? FUNNEL_BACK_ORDER[backIdx - 1] : null;
   return (
     <div
       style={{
@@ -613,7 +624,32 @@ export function FunnelShell({
           padding: '44px 40px 64px',
         }}
       >
-        <div style={{ width: '100%', maxWidth }}>{children}</div>
+        <div style={{ width: '100%', maxWidth }}>
+          {backTo && (
+            <button
+              type="button"
+              onClick={() => navigate(backTo)}
+              style={{
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: 5,
+                marginBottom: 16,
+                padding: 0,
+                border: 'none',
+                background: 'transparent',
+                cursor: 'pointer',
+                fontFamily: 'var(--font-sans)',
+                fontSize: 12.5,
+                fontWeight: 600,
+                color: 'var(--ink-3)',
+              }}
+            >
+              <ArrowLeft size={14} />
+              Back
+            </button>
+          )}
+          {children}
+        </div>
       </div>
     </div>
   );
@@ -785,7 +821,12 @@ export function InfoBlock({
           {tag}
         </div>
         <div
-          style={{ fontSize: 12, color: 'var(--ink-2)', lineHeight: 1.55, overflowWrap: 'break-word' }}
+          style={{
+            fontSize: 12,
+            color: 'var(--ink-2)',
+            lineHeight: 1.55,
+            overflowWrap: 'break-word',
+          }}
         >
           {children}
         </div>

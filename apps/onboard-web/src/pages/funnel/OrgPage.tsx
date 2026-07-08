@@ -23,6 +23,9 @@ import {
 } from '../../lib/funnel';
 import { ErrorText, errorMessage } from './shared';
 
+// Mirrors the onboard-api EMAIL_RE (a no-TLD email would 400 the whole submit).
+const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+
 export function OrgPage() {
   const session = useFunnelSession();
   if (!session.data) return null;
@@ -40,33 +43,58 @@ function F1Org({ session }: { session: FunnelSession }) {
   const [teamSize, setTeamSize] = React.useState<string | null>(saved?.teamSize || null);
   const [tz, setTz] = React.useState<string | null>(saved?.timezone || null);
   const [locale, setLocale] = React.useState<string>(saved?.locale || 'en-US · USD');
-  const [street, setStreet] = React.useState(saved?.address.street ?? '');
-  const [city, setCity] = React.useState(saved?.address.city ?? '');
-  const [state, setState] = React.useState(saved?.address.state ?? '');
-  const [zip, setZip] = React.useState(saved?.address.zip ?? '');
+  const [street, setStreet] = React.useState(saved?.address?.street ?? '');
+  const [city, setCity] = React.useState(saved?.address?.city ?? '');
+  const [state, setState] = React.useState(saved?.address?.state ?? '');
+  const [zip, setZip] = React.useState(saved?.address?.zip ?? '');
   const [logoFile, setLogoFile] = React.useState<File | null>(null);
   const [itEmail, setItEmail] = React.useState(session.itAdminEmails?.[0] ?? '');
   const [busy, setBusy] = React.useState(false);
   const [error, setError] = React.useState<string | null>(null);
 
+  // The backend DTO rejects empty strings (@Length(1,…)) and requires all
+  // four address fields together — validate here so an optional-field typo
+  // can't 400 the whole submit and block provisioning.
+  const itEmailTrimmed = itEmail.trim();
+  const itEmailInvalid = itEmailTrimmed.length > 0 && !EMAIL_RE.test(itEmailTrimmed);
+  const streetTrimmed = street.trim();
+  const cityTrimmed = city.trim();
+  const stateTrimmed = state.trim();
+  const zipTrimmed = zip.trim();
+  const addressFilled = [streetTrimmed, cityTrimmed, stateTrimmed, zipTrimmed].filter(
+    Boolean,
+  ).length;
+  const addressPartial = addressFilled > 0 && addressFilled < 4;
+
   const submit = async () => {
-    if (!orgName || busy) return;
+    if (!orgName.trim() || busy || itEmailInvalid || addressPartial) return;
     setBusy(true);
     setError(null);
     try {
+      // Empty optional fields are OMITTED, never sent as '' (mirrors the
+      // backend's conditional merge in funnel.service.setOrg).
       const orgProfile = {
-        legalName: orgName,
-        vertical: vertical ?? '',
-        teamSize: teamSize ?? '',
-        timezone: tz ?? '',
-        locale,
-        address: { street, city, state, zip },
+        legalName: orgName.trim(),
+        ...(vertical ? { vertical } : {}),
+        ...(teamSize ? { teamSize } : {}),
+        ...(tz ? { timezone: tz } : {}),
+        ...(locale ? { locale } : {}),
+        ...(addressFilled === 4
+          ? {
+              address: {
+                street: streetTrimmed,
+                city: cityTrimmed,
+                state: stateTrimmed,
+                zip: zipTrimmed,
+              },
+            }
+          : {}),
       };
-      await api.setOrg({ orgProfile, itAdminEmail: itEmail || undefined });
+      await api.setOrg({ orgProfile, itAdminEmail: itEmailTrimmed || undefined });
       advanceSession({
         state: 'org_setup',
         orgProfile,
-        itAdminEmails: itEmail ? [itEmail] : session.itAdminEmails,
+        itAdminEmails: itEmailTrimmed ? [itEmailTrimmed] : session.itAdminEmails,
       });
       navigate('/confirm');
     } catch (err) {
@@ -153,6 +181,11 @@ function F1Org({ session }: { session: FunnelSession }) {
                 />
                 <TextInput placeholder="ZIP" value={zip} onChange={(e) => setZip(e.target.value)} />
               </div>
+              {addressPartial && (
+                <span style={{ fontSize: 11.5, color: 'var(--critical)', lineHeight: 1.45 }}>
+                  Complete all four address fields (or leave the address entirely blank).
+                </span>
+              )}
             </div>
           </Field>
           <Field label="Logo" optional>
@@ -226,11 +259,24 @@ function F1Org({ session }: { session: FunnelSession }) {
               placeholder="it@yourfirm.com"
               style={{ background: '#fff' }}
             />
+            {itEmailInvalid && (
+              <span
+                style={{
+                  display: 'block',
+                  marginTop: 6,
+                  fontSize: 11.5,
+                  color: 'var(--critical)',
+                  lineHeight: 1.45,
+                }}
+              >
+                Enter a valid email address (or leave it blank to do this later).
+              </span>
+            )}
           </div>
           {error && <ErrorText style={{ marginTop: 0 }}>{error}</ErrorText>}
           <Btn
             variant="primary"
-            disabled={!orgName || busy}
+            disabled={!orgName.trim() || busy || itEmailInvalid || addressPartial}
             onClick={() => void submit()}
             style={{ width: '100%', marginTop: 4 }}
           >

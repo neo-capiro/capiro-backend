@@ -64,18 +64,22 @@ export function RegisterPage() {
   const confirmMismatch = confirmPassword.length > 0 && confirmPassword !== password;
 
   // Already signed in with a session (guard only lets that through when no
-  // funnel session exists yet): POST /funnel/register and skip to the right step.
+  // funnel session exists yet): POST /funnel/register and skip to the right
+  // step — but ONLY when the stored draft carries orgName (RegisterDto rejects
+  // an empty one with a 400 dead-end). Without a draft, show the form so the
+  // user can re-enter the details; the signed-in submit path below handles it.
   const autoRegisterRef = React.useRef(false);
   React.useEffect(() => {
     if (!authLoaded || !isSignedIn || autoRegisterRef.current) return;
+    const draft = readRegistrationDraft();
+    if (!draft?.orgName?.trim()) return; // fall through to the manual form
     autoRegisterRef.current = true;
     void (async () => {
       try {
-        const draft = readRegistrationDraft();
         const snapshot = await api.register({
-          firstName: draft?.firstName ?? user?.firstName ?? '',
-          lastName: draft?.lastName ?? user?.lastName ?? '',
-          orgName: draft?.orgName ?? '',
+          firstName: draft.firstName || user?.firstName || '',
+          lastName: draft.lastName || user?.lastName || '',
+          orgName: draft.orgName,
         });
         queryClient.setQueryData(FUNNEL_SESSION_KEY, snapshot);
         navigate(routeForState(snapshot.state), { replace: true });
@@ -87,12 +91,24 @@ export function RegisterPage() {
 
   const submit = async () => {
     if (submitting) return;
-    if (password !== confirmPassword) return;
-    if (!signUpLoaded || !signUp) return;
+    if (!isSignedIn && (!password || password !== confirmPassword)) return;
     setSubmitting(true);
     setErrors({});
     try {
       storeRegistrationDraft({ firstName, lastName, orgName });
+
+      // Signed-in recovery path (#9): the Clerk account exists but the funnel
+      // register POST never landed — a signUp.create would throw ("already
+      // signed in"), so register directly with the re-entered form values.
+      if (isSignedIn) {
+        autoRegisterRef.current = true;
+        const snapshot = await api.register({ firstName, lastName, orgName });
+        queryClient.setQueryData(FUNNEL_SESSION_KEY, snapshot);
+        navigate(routeForState(snapshot.state), { replace: true });
+        return;
+      }
+
+      if (!signUpLoaded || !signUp) return;
       const attempt = await signUp.create({
         emailAddress: email,
         password,
@@ -106,7 +122,7 @@ export function RegisterPage() {
         queryClient.setQueryData(FUNNEL_SESSION_KEY, snapshot);
       }
       // Email verification pending ('missing_requirements'): the verify page
-      // starts the email-link flow and completes registration afterwards.
+      // starts the email-code flow and completes registration afterwards.
       navigate('/verify');
     } catch (err) {
       setErrors(clerkFieldErrors(err));
@@ -166,7 +182,16 @@ export function RegisterPage() {
           {errors.form && <ErrorText style={{ marginTop: 0 }}>{errors.form}</ErrorText>}
           <Btn
             variant="primary"
-            disabled={submitting || confirmMismatch}
+            // Every early-return in submit() is mirrored here so the button
+            // never presents an enabled dead click (e.g. password filled but
+            // confirm-password still empty).
+            disabled={
+              submitting ||
+              !firstName.trim() ||
+              !lastName.trim() ||
+              !orgName.trim() ||
+              (!isSignedIn && (!email.trim() || !password || !confirmPassword || confirmMismatch))
+            }
             onClick={() => void submit()}
             style={{ marginTop: 4, width: '100%' }}
           >

@@ -28,8 +28,23 @@ function PlanForm({ session }: { session: FunnelSession }) {
   const [busy, setBusy] = React.useState(false);
   const [error, setError] = React.useState<string | null>(null);
 
+  // Once payment is committed the plan is FROZEN (the backend rejects a
+  // change too): the Back button may revisit this step, but flipping the plan
+  // after a real charge would corrupt billing vs. what the customer paid.
+  const paymentCommitted = session.payMethod !== null;
+  const pick = (choice: PlanChoice) => {
+    if (paymentCommitted) return;
+    setPlan(choice);
+  };
+
   const submit = async () => {
     if (!plan || busy) return;
+    // Nothing to change — just move forward (avoids a needless POST and the
+    // server-side 409 that a frozen plan would return).
+    if (paymentCommitted || session.plan === plan) {
+      navigate('/legal');
+      return;
+    }
     setBusy(true);
     setError(null);
     try {
@@ -45,26 +60,46 @@ function PlanForm({ session }: { session: FunnelSession }) {
   return (
     <FunnelShell step={2} maxWidth={560}>
       <ScreenTitle title="Choose how to start" />
+      {paymentCommitted && (
+        <div
+          style={{
+            marginBottom: 14,
+            fontSize: 12.5,
+            color: 'var(--ink-2)',
+            background: 'var(--bg-surface-2)',
+            border: '1px solid var(--border-1)',
+            borderRadius: 6,
+            padding: '10px 14px',
+            lineHeight: 1.5,
+          }}
+        >
+          Your payment is already set up for this plan, so it can no longer be changed here. Contact{' '}
+          <a href="mailto:support@capiro.ai" style={{ color: 'var(--accent)' }}>
+            support@capiro.ai
+          </a>{' '}
+          to switch plans.
+        </div>
+      )}
       <OptionCard
         selected={plan === 'paid'}
-        onClick={() => setPlan('paid')}
+        onClick={() => pick('paid')}
         title="Subscribe Now"
         badge={<Tag tone="blue">Recommended</Tag>}
         price="$200 / profile · billed monthly · 10-profile minimum ($2,000/month)"
       >
         Choose your client profile tier and get started with your full portfolio from day one.
         <ul style={{ margin: '10px 0 0', padding: '0 0 0 16px', display: 'grid', gap: 4 }}>
-          <li>Limited-time price — lock in $200/profile for 2 years</li>
+          <li>Limited-time price — lock in $200/profile for 1 year</li>
           <li>Pay by card, wire, or ACH</li>
           <li>Volume discounts available for large accounts — contact sales</li>
           <li>
-            Your price is locked for 24 months from subscription; thereafter prices are subject to
+            Your price is locked for 12 months from subscription; thereafter prices are subject to
             change
           </li>
         </ul>
       </OptionCard>
       <div
-        onClick={() => setPlan('trial')}
+        onClick={() => pick('trial')}
         style={{
           display: 'flex',
           gap: 10,

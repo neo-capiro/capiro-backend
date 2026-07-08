@@ -41,13 +41,40 @@ export class CapiroAdminGuard implements CanActivate {
     }
     if (!claims.sub) throw new UnauthorizedException('Token missing subject');
 
+    // Fast path: org claims present in the token (Clerk default session token).
     const orgSlug = claims.org_slug ?? null;
     const orgRole = (claims.org_role ?? claims.capiro_org_role ?? '').toLowerCase();
-    if (orgSlug !== CAPIRO_INTERNAL_SLUG || !orgRole.includes('admin')) {
-      throw new ForbiddenException('Capiro staff only');
+    if (orgSlug === CAPIRO_INTERNAL_SLUG && orgRole.includes('admin')) {
+      req.capiroAdmin = { clerkUserId: claims.sub };
+      return true;
     }
 
-    req.capiroAdmin = { clerkUserId: claims.sub };
-    return true;
+    // Fallback: the `capiro` JWT template (what apps/web actually sends via
+    // useApi) carries NO org_slug/org_role claims — deliberately, see the
+    // template-drift note in apps/api. Without this Backend-API membership
+    // check every comp-toggle click from Settings → Customers 403'd. Resolve
+    // the user's org memberships server-side and pass capiro-internal admins.
+    if (await this.isCapiroInternalAdmin(claims.sub)) {
+      req.capiroAdmin = { clerkUserId: claims.sub };
+      return true;
+    }
+    throw new ForbiddenException('Capiro staff only');
+  }
+
+  private async isCapiroInternalAdmin(clerkUserId: string): Promise<boolean> {
+    try {
+      const memberships = await this.clerk.backend.users.getOrganizationMembershipList({
+        userId: clerkUserId,
+        limit: 50,
+      });
+      return memberships.data.some(
+        (m) =>
+          m.organization.slug === CAPIRO_INTERNAL_SLUG && m.role.toLowerCase().includes('admin'),
+      );
+    } catch (err) {
+      // Fail CLOSED: a Backend API hiccup must never grant staff access.
+      this.logger.warn(`capiro-admin membership lookup failed: ${(err as Error).message}`);
+      return false;
+    }
   }
 }

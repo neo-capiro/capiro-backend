@@ -86,17 +86,33 @@ export class ProvisioningService {
     }
     this.logger.log(`Provisioning claimed for session ${session.id} (${purchaser.email})`);
 
-    // ── 1. Create tenant + Clerk org via the apps/api internal endpoint ─────
-    const secret = this.config.get<string>('INTERNAL_SERVICE_SECRET');
-    if (!secret) {
-      return this.failSession(session, purchaser, 'INTERNAL_SERVICE_SECRET is not configured');
-    }
     const orgProfile = (session.orgProfile ?? {}) as Record<string, unknown>;
     const legalName =
       typeof orgProfile.legalName === 'string' && orgProfile.legalName.trim()
         ? orgProfile.legalName.trim()
         : undefined;
     const designations = (session.roleDesignations ?? []) as unknown as RoleDesignation[];
+
+    // ── Retry after a failed health check (ops reset → org_setup): the tenant
+    // + Clerk org already exist and are linked to this session. Re-POSTing the
+    // internal endpoint would mint a DUPLICATE tenant (pickSlug appends -2),
+    // so resume from the linking step instead. Admin invites were held by the
+    // failed health check — CS re-sends them from the tenant-admin console.
+    if (session.tenantId && session.slugFinal) {
+      this.logger.warn(
+        `Session ${session.id} retrying with existing tenant ${session.slugFinal} — skipping tenant creation`,
+      );
+      return this.finalizeProvision(purchaser, session, session.tenantId, session.slugFinal, {
+        legalName,
+        designations,
+      });
+    }
+
+    // ── 1. Create tenant + Clerk org via the apps/api internal endpoint ─────
+    const secret = this.config.get<string>('INTERNAL_SERVICE_SECRET');
+    if (!secret) {
+      return this.failSession(session, purchaser, 'INTERNAL_SERVICE_SECRET is not configured');
+    }
     const payload = {
       name: legalName ?? purchaser.orgName ?? '',
       plan: session.plan,
@@ -157,6 +173,21 @@ export class ProvisioningService {
       );
     }
     if (!result.healthy || !result.tenantId || !result.slug) {
+      // The tenant may have been CREATED before the health check failed —
+      // persist the link so the documented ops retry (reset → org_setup)
+      // resumes this tenant instead of creating a duplicate (-2 slug).
+      if (result.tenantId) {
+        await this.prisma.onboardSession
+          .update({
+            where: { id: session.id },
+            data: { tenantId: result.tenantId, slugFinal: result.slug ?? null },
+          })
+          .catch((err) =>
+            this.logger.error(
+              `Persisting failed-provision tenant link failed: ${(err as Error).message}`,
+            ),
+          );
+      }
       return this.failSession(
         session,
         purchaser,
@@ -164,8 +195,25 @@ export class ProvisioningService {
       );
     }
 
+    return this.finalizeProvision(purchaser, session, result.tenantId, result.slug, {
+      legalName,
+      designations,
+    });
+  }
+
+  /**
+   * Steps 2-4 of provisioning — everything after the tenant + Clerk org
+   * exist. Shared by the fresh path and the retry-with-existing-tenant path.
+   */
+  private async finalizeProvision(
+    purchaser: OnboardPurchaser,
+    session: OnboardSession,
+    tenantId: string,
+    slug: string,
+    ctx: { legalName: string | undefined; designations: RoleDesignation[] },
+  ): Promise<ProvisionStatus> {
+    const { legalName, designations } = ctx;
     // ── 2. Link session/purchaser → tenant; sync Stripe billing state ───────
-    const { tenantId, slug } = result;
     await this.prisma.onboardSession.update({
       where: { id: session.id },
       data: { tenantId, slugFinal: slug, state: 'provisioned' },

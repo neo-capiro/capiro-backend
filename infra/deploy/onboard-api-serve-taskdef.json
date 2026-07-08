@@ -109,7 +109,7 @@
         },
         {
           "name": "STRIPE_PUBLISHABLE_KEY",
-          "value": "REPLACE_WITH_pk_live_FROM_STRIPE_DASHBOARD"
+          "value": "pk_live_51TCkmIBwkXSqoljjIdEXZIwqgeS2D6afTtvAJ0J3UhDNQN6nqKxixoIrDDSgbWJ4OziGNY40TxVVcCfRvjXaoLK200lAYmuEB4"
         }
       ],
       "secrets": [

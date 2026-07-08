@@ -62,6 +62,22 @@ class SetupIntentDto {
 class PayMethodDto {
   @IsIn(['card', 'ach', 'wire'])
   method!: 'card' | 'ach' | 'wire';
+
+  /** Wire only: invoice recipient when it differs from the account email. */
+  @IsOptional()
+  @IsEmail()
+  billingContact?: string;
+
+  /**
+   * Card/ACH: the SetupIntent the CLIENT actually confirmed. The server
+   * stores only the latest-created intent id, which can be a different
+   * (never-confirmed) one after tab switching — validating the client's id
+   * closes that mismatch.
+   */
+  @IsOptional()
+  @IsString()
+  @Length(1, 128)
+  setupIntentId?: string;
 }
 
 class SubscribeDto {
@@ -73,6 +89,11 @@ class SubscribeDto {
 
   @IsIn(['card', 'ach', 'wire'])
   method!: 'card' | 'ach' | 'wire';
+
+  /** Wire only: invoice recipient when it differs from the account email. */
+  @IsOptional()
+  @IsEmail()
+  billingContact?: string;
 }
 
 class RoleDesignationDto {
@@ -236,7 +257,10 @@ export class FunnelController {
   @Post('payment/trial-complete')
   @HttpCode(200)
   trialComplete(@CurrentPurchaser() auth: PurchaserAuth, @Body() body: PayMethodDto) {
-    return this.funnel.trialComplete(auth, body.method);
+    return this.funnel.trialComplete(auth, body.method, {
+      billingContact: body.billingContact,
+      setupIntentId: body.setupIntentId,
+    });
   }
 
   @Post('payment/subscribe')

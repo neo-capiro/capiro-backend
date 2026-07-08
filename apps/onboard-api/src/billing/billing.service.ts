@@ -46,8 +46,8 @@ export function billingPeriodStart(currentPeriodEnd: Date | null | undefined): D
   return new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), 1));
 }
 
-/** Price-lock horizon (Ninja decision Q2): $200/slot locked for 24 months. */
-export const PRICE_LOCK_MONTHS = 24;
+/** Price-lock horizon (Ninja decision Q2): $200/slot locked for 12 months. */
+export const PRICE_LOCK_MONTHS = 12;
 
 /**
  * Stripe billing core — ported from apps/api (PR #stripe-dormant, 2026-06-14)
@@ -212,7 +212,7 @@ export class BillingService {
    * Write subscription state onto the owning tenant. Tenant is located by
    * Stripe customer id, falling back to the tenantId we stamp in metadata.
    * Never downgrades a 'comped' tenant. On the FIRST transition into a paying
-   * status, stamps price_lock_expires_at (24-month $200 lock, decision Q2).
+   * status, stamps price_lock_expires_at (12-month $200 lock, decision Q2).
    */
   async syncSubscription(sub: Stripe.Subscription): Promise<void> {
     const customerId = typeof sub.customer === 'string' ? sub.customer : sub.customer.id;
@@ -293,7 +293,13 @@ export class BillingService {
   ): Promise<{ status: BillingStatus }> {
     const status: BillingStatus = comped ? 'comped' : 'none';
     await this.prisma.withSystem(async (tx) => {
-      await tx.tenant.update({ where: { id: tenantId }, data: { billingStatus: status } });
+      await tx.tenant.update({
+        where: { id: tenantId },
+        // Comping is the staff bypass — it must take effect IMMEDIATELY, so a
+        // past-due lockout is cleared here rather than waiting for the next
+        // daily lifecycle run (which only clears non-past_due tenants anyway).
+        data: { billingStatus: status, ...(comped ? { lockedAt: null } : {}) },
+      });
       await tx.onboardBillingEvent.create({
         data: { tenantId, type: 'comp_toggled', data: { comped }, actor: actor ?? null },
       });
