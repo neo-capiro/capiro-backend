@@ -5874,24 +5874,24 @@ button.engagement-debrief-badge--action:hover {
 
 .engagement-detail-actions {
   display: flex;
-  /* Wrap the buttons onto as many rows as needed instead of squeezing them
-     into one horizontally-scrolling strip. On the fixed 380px detail column
-     four action buttons never fit on one line, so the old `nowrap` +
-     `overflow-x: auto` hid Regenerate / Edit / Export behind a scrollbar.
-     Wrapping keeps every action visible; flex-shrink:0 keeps the whole bar
-     pinned at the bottom of the panel. */
+  /* Wrap the buttons instead of squeezing them into one horizontally-scrolling
+     strip (the old `nowrap` + `overflow-x: auto` hid Regenerate / Edit / Export
+     behind a scrollbar). flex-shrink:0 keeps every action visible and pinned at
+     the panel bottom. Keep the bar COMPACT — short buttons + tight padding — so
+     it doesn't collapse the Prep content above it to a sliver on shorter
+     viewports; at the usual panel width all four buttons sit on one row. */
   flex-wrap: wrap;
   flex-shrink: 0;
-  gap: 10px;
-  padding: 16px 20px;
+  gap: 8px;
+  padding: 12px 16px;
   border-top: 1px solid #e4e9f2;
   background: #fff;
 }
 
 .engagement-detail-actions .ant-btn {
-  flex: 1 1 100px;
-  min-width: 100px;
-  min-height: 44px;
+  flex: 1 1 auto;
+  min-width: 90px;
+  min-height: 36px;
   padding-inline: 8px;
   border-radius: 8px;
   font-size: 12px;
