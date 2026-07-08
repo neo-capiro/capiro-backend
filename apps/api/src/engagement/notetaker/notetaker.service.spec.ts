@@ -476,17 +476,29 @@ describe('pure helpers', () => {
     expect(() => validateMeetingUrl('ftp://example.com/x')).toThrow('http(s)');
   });
 
-  test('detectPlatform recognizes the big three (and webex, and zoomgov)', () => {
+  test('detectPlatform covers Recall’s full supported set (Zoom/ZoomGov, Meet, Teams incl. US-Gov, Webex, GoTo, Slack Huddles)', () => {
     expect(detectPlatform('https://us02web.zoom.us/j/123')).toBe('zoom');
     expect(detectPlatform('https://agency.zoomgov.com/j/160123')).toBe('zoom');
     expect(detectPlatform('https://meet.google.com/abc-defg-hij')).toBe('meet');
     expect(detectPlatform('https://teams.microsoft.com/l/meetup-join/xyz')).toBe('teams');
+    // US-Government Teams (GCC-High / DoD) — routine for a federal-lobbying base.
+    expect(detectPlatform('https://gov.teams.microsoft.us/l/meetup-join/19%3ameeting_x')).toBe(
+      'teams',
+    );
+    expect(detectPlatform('https://dod.teams.microsoft.us/l/meetup-join/abc')).toBe('teams');
     expect(detectPlatform('https://acme.webex.com/meet/neo')).toBe('webex');
+    expect(detectPlatform('https://meet.goto.com/123456789')).toBe('goto');
+    expect(detectPlatform('https://global.gotomeeting.com/join/123456789')).toBe('goto');
+    expect(detectPlatform('https://gotomeet.me/neo')).toBe('goto');
+    expect(detectPlatform('https://app.slack.com/huddle/T0123/C0456')).toBe('slack');
+    // A general Slack link (not a huddle) is NOT a meeting.
+    expect(detectPlatform('https://app.slack.com/client/T0123/C0456')).toBeNull();
     expect(detectPlatform('https://example.com/call')).toBeNull();
     // The Outlook calendar webLink is NOT a join link.
     expect(detectPlatform('https://outlook.office365.com/owa/?itemid=AAMkAD')).toBeNull();
     // Never fooled by look-alike hosts.
     expect(detectPlatform('https://zoom.us.evil.com/j/1')).toBeNull();
+    expect(detectPlatform('https://teams.microsoft.us.evil.com/l/x')).toBeNull();
   });
 
   test('mapRecallStatus maps the documented codes and ignores unknown ones', () => {

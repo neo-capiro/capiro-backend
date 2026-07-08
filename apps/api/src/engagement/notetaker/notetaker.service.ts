@@ -134,7 +134,7 @@ export class NotetakerService {
     const platform = detectPlatform(meetingUrl);
     if (!platform) {
       throw new BadRequestException(
-        "That link doesn't look like a meeting join URL — paste the Zoom, Google Meet, Microsoft Teams, or Webex link from the calendar invite",
+        "That link doesn't look like a meeting join URL — paste the Zoom, Microsoft Teams, Google Meet, Webex, GoTo, or Slack link from the calendar invite",
       );
     }
 
@@ -725,18 +725,28 @@ export function validateMeetingUrl(rawUrl: string | undefined): string {
 }
 
 /**
- * Best-effort platform label from the join URL. Doubles as the dispatch gate for
- * supported platforms (null ⇒ dispatch refuses before any session/vendor call),
- * so keep it in sync with what Recall accepts. ZoomGov included — agency-hosted
- * meetings are routine for this customer base.
+ * Best-effort platform label from the join URL. Doubles as the dispatch gate:
+ * null ⇒ dispatch refuses before any session/vendor call. Its ONLY job is to
+ * catch obvious non-meeting URLs (calendar webLinks, arbitrary pages) early —
+ * Recall itself is the real authority on joinability, and the provider layer
+ * translates a Recall create-bot rejection into a friendly error. So err toward
+ * recognizing anything platform-shaped: covers Recall's full supported set
+ * (Zoom incl. ZoomGov, Google Meet, Teams incl. US-Gov GCC/GCC-High/DoD, Webex,
+ * GoTo, Slack Huddles). Agency-hosted meetings (zoomgov.com, *.teams.microsoft.us)
+ * are routine for this federal-lobbying customer base.
+ *
+ * MUST stay in lockstep with the web mirrors isSupportedJoinUrl()/JOIN_URL_PATTERN
+ * (apps/web/src/pages/engagement/EngagementPage.tsx) — a drift where one accepts a
+ * URL the other rejects surfaces as a confusing "not a join link" dead-end.
  */
 export function detectPlatform(meetingUrl: string): string | null {
-  let host: string;
+  let url: URL;
   try {
-    host = new URL(meetingUrl).hostname.toLowerCase();
+    url = new URL(meetingUrl);
   } catch {
     return null;
   }
+  const host = url.hostname.toLowerCase();
   if (
     host === 'zoom.us' ||
     host.endsWith('.zoom.us') ||
@@ -746,8 +756,29 @@ export function detectPlatform(meetingUrl: string): string | null {
     return 'zoom';
   }
   if (host === 'meet.google.com') return 'meet';
-  if (host === 'teams.microsoft.com' || host === 'teams.live.com') return 'teams';
-  if (host.endsWith('.webex.com')) return 'webex';
+  // Commercial (teams.microsoft.com / teams.live.com) AND US-Government tenants,
+  // which live on *.teams.microsoft.us (gov. = GCC-High, dod. = DoD).
+  if (
+    host === 'teams.microsoft.com' ||
+    host === 'teams.live.com' ||
+    host === 'teams.microsoft.us' ||
+    host.endsWith('.teams.microsoft.us')
+  ) {
+    return 'teams';
+  }
+  if (host === 'webex.com' || host.endsWith('.webex.com')) return 'webex';
+  if (
+    host === 'goto.com' ||
+    host.endsWith('.goto.com') ||
+    host === 'gotomeeting.com' ||
+    host.endsWith('.gotomeeting.com') ||
+    host === 'gotomeet.me'
+  ) {
+    return 'goto';
+  }
+  // Slack Huddles only — app.slack.com also serves ordinary Slack, so require the
+  // /huddle/ path so a message permalink isn't mistaken for a joinable meeting.
+  if (host === 'app.slack.com' && url.pathname.includes('/huddle/')) return 'slack';
   return null;
 }
 

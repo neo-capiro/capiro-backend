@@ -1586,7 +1586,7 @@ export function EngagementPage() {
                     ? Promise.resolve()
                     : Promise.reject(
                         new Error(
-                          "That doesn't look like a join link — use the Zoom, Google Meet, Teams, or Webex URL from the invite.",
+                          "That doesn't look like a join link — use the Zoom, Teams, Google Meet, Webex, GoTo, or Slack URL from the invite.",
                         ),
                       ),
               },
@@ -3850,15 +3850,19 @@ function meetingBorderColor(meeting: Meeting): string {
  * a join link and must never be treated as one.
  */
 const JOIN_URL_PATTERN =
-  /https:\/\/(?:[\w-]+\.)?(?:zoom\.us|zoomgov\.com)\/[jsw]\/[^\s<>"')\]]+|https:\/\/meet\.google\.com\/[a-z0-9-]+|https:\/\/teams\.(?:microsoft\.com|live\.com)\/[^\s<>"')\]]+|https:\/\/[\w-]+\.webex\.com\/[^\s<>"')\]]+/i;
+  /https:\/\/(?:[\w-]+\.)?(?:zoom\.us|zoomgov\.com)\/[jsw]\/[^\s<>"')\]]+|https:\/\/meet\.google\.com\/[a-z0-9-]+|https:\/\/(?:[\w-]+\.)?teams\.(?:microsoft\.(?:com|us)|live\.com)\/[^\s<>"')\]]+|https:\/\/(?:[\w-]+\.)?webex\.com\/[^\s<>"')\]]+|https:\/\/(?:[\w-]+\.)?(?:goto\.com|gotomeeting\.com)\/[^\s<>"')\]]+|https:\/\/gotomeet\.me\/[^\s<>"')\]]+|https:\/\/app\.slack\.com\/huddle\/[^\s<>"')\]]+/i;
 
+// MUST stay in lockstep with the server gate detectPlatform()
+// (apps/api/src/engagement/notetaker/notetaker.service.ts) — covers Recall's full
+// supported set incl. US-Gov Teams (*.teams.microsoft.us), GoTo, and Slack Huddles.
 function isSupportedJoinUrl(value: string): boolean {
-  let host: string;
+  let url: URL;
   try {
-    host = new URL(value.trim()).hostname.toLowerCase();
+    url = new URL(value.trim());
   } catch {
     return false;
   }
+  const host = url.hostname.toLowerCase();
   return (
     host === 'zoom.us' ||
     host.endsWith('.zoom.us') ||
@@ -3867,7 +3871,16 @@ function isSupportedJoinUrl(value: string): boolean {
     host === 'meet.google.com' ||
     host === 'teams.microsoft.com' ||
     host === 'teams.live.com' ||
-    host.endsWith('.webex.com')
+    host === 'teams.microsoft.us' ||
+    host.endsWith('.teams.microsoft.us') ||
+    host === 'webex.com' ||
+    host.endsWith('.webex.com') ||
+    host === 'goto.com' ||
+    host.endsWith('.goto.com') ||
+    host === 'gotomeeting.com' ||
+    host.endsWith('.gotomeeting.com') ||
+    host === 'gotomeet.me' ||
+    (host === 'app.slack.com' && url.pathname.includes('/huddle/'))
   );
 }
 
