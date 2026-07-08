@@ -1,10 +1,13 @@
 // 1.3 Email Verification — F1Verify (prototype/02-flow1.jsx), wired to Clerk's
-// email_link sign-up verification (signUp.createEmailLinkFlow) + verify-check.
+// email_code sign-up verification (prepareEmailAddressVerification +
+// attemptEmailAddressVerification). The Clerk instance issues one-time codes,
+// not magic links (email_link is disabled), so we send a 6-digit code and
+// verify it inline in the same tab — no redirect-URL round-trip.
 import React from 'react';
 import { Navigate, useNavigate } from 'react-router-dom';
 import { useAuth, useSignUp } from '@clerk/clerk-react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
-import { Btn, Card, FunnelShell, Icon } from '../../ui/primitives';
+import { Btn, Card, FunnelShell, Icon, TextInput } from '../../ui/primitives';
 import {
   FUNNEL_SESSION_KEY,
   readRegistrationDraft,
@@ -25,15 +28,16 @@ export function VerifyPage() {
 
   const [verified, setVerified] = React.useState(false);
   const [flowError, setFlowError] = React.useState<string | null>(null);
+  const [code, setCode] = React.useState('');
+  const [submitting, setSubmitting] = React.useState(false);
 
   const signUpInProgress = !!signUp?.emailAddress;
   const email = session.data?.email || signUp?.emailAddress || '';
 
-  // ── Signed-out path: an in-progress Clerk sign-up awaits its email link.
-  // startEmailLinkFlow sends the link and resolves once the user clicks it.
-  const flowStartedRef = React.useRef(false);
+  // ── Signed-out path: an in-progress Clerk sign-up awaits its email code. We
+  // send the code once on mount, then verify whatever the user types below.
+  const codeSentRef = React.useRef(false);
   const registeredRef = React.useRef(false);
-  const cancelFlowRef = React.useRef<(() => void) | null>(null);
 
   const finalizeSignUp = React.useCallback(
     async (attempt: {
@@ -61,24 +65,18 @@ export function VerifyPage() {
     [setActive, api, queryClient, advanceSession],
   );
 
-  const runEmailLinkFlow = React.useCallback(async () => {
+  // Send (or re-send) the 6-digit verification code.
+  const sendCode = React.useCallback(async () => {
     if (!signUp) return;
     setFlowError(null);
     try {
-      // The tab the email link opens lands here with the sign-up already
-      // complete — finish it directly instead of sending another link.
+      // The tab may already have a complete sign-up (resumed) — finish it
+      // directly instead of sending another code.
       if (signUp.status === 'complete') {
         await finalizeSignUp(signUp);
         return;
       }
-      const { startEmailLinkFlow, cancelEmailLinkFlow } = signUp.createEmailLinkFlow();
-      cancelFlowRef.current = cancelEmailLinkFlow;
-      const attempt = await startEmailLinkFlow({
-        redirectUrl: `${window.location.origin}/verify?complete=1`,
-      });
-      if (attempt.status === 'complete') {
-        await finalizeSignUp(attempt);
-      }
+      await signUp.prepareEmailAddressVerification({ strategy: 'email_code' });
     } catch (err) {
       setFlowError(errorMessage(err));
     }
@@ -87,10 +85,30 @@ export function VerifyPage() {
   React.useEffect(() => {
     if (!signUpLoaded || !authLoaded) return;
     if (isSignedIn || !signUpInProgress) return;
-    if (flowStartedRef.current) return;
-    flowStartedRef.current = true;
-    void runEmailLinkFlow();
-  }, [signUpLoaded, authLoaded, isSignedIn, signUpInProgress, runEmailLinkFlow]);
+    if (codeSentRef.current) return;
+    codeSentRef.current = true;
+    void sendCode();
+  }, [signUpLoaded, authLoaded, isSignedIn, signUpInProgress, sendCode]);
+
+  const submitCode = React.useCallback(async () => {
+    if (!signUp || submitting) return;
+    const trimmed = code.trim();
+    if (trimmed.length < 6) return;
+    setSubmitting(true);
+    setFlowError(null);
+    try {
+      const attempt = await signUp.attemptEmailAddressVerification({ code: trimmed });
+      if (attempt.status === 'complete') {
+        await finalizeSignUp(attempt);
+      } else {
+        setFlowError('That code didn’t complete verification — request a new one and try again.');
+      }
+    } catch (err) {
+      setFlowError(errorMessage(err));
+    } finally {
+      setSubmitting(false);
+    }
+  }, [signUp, submitting, code, finalizeSignUp]);
 
   // ── Fallback: signed in but no funnel session yet (e.g. the sign-up was
   // completed elsewhere) — snapshot the registration so verify-check can run.
@@ -114,8 +132,8 @@ export function VerifyPage() {
     })();
   }, [authLoaded, isSignedIn, session.isLoading, session.data, api, queryClient]);
 
-  // ── Signed-in path (resumed session, or the tab the email link opened):
-  // POST /funnel/verify-check, polling every 3s while unverified.
+  // ── Signed-in path (resumed session): POST /funnel/verify-check, polling
+  // every 3s while unverified as a safety net for out-of-band verification.
   const verifyCheck = useQuery({
     queryKey: ['funnel', 'verify-check'],
     queryFn: () => api.verifyCheck(),
@@ -132,8 +150,8 @@ export function VerifyPage() {
   }, [checkVerified, verified, advanceSession]);
 
   const resend = () => {
-    cancelFlowRef.current?.();
-    void runEmailLinkFlow();
+    setCode('');
+    void sendCode();
   };
 
   if (!authLoaded || !signUpLoaded) return null;
@@ -170,14 +188,30 @@ export function VerifyPage() {
         <p
           style={{ margin: '10px 0 22px', fontSize: 13.5, color: 'var(--ink-2)', lineHeight: 1.6 }}
         >
-          We sent a verification link to <b style={{ color: 'var(--ink-1)' }}>{email}</b>.
+          We sent a 6-digit code to <b style={{ color: 'var(--ink-1)' }}>{email}</b>.
           <br />
-          You can't continue until your email is verified.
+          Enter it below to verify your email — you can’t continue until it’s verified.
         </p>
         {!verified ? (
           <div style={{ display: 'grid', gap: 10 }}>
-            <Btn variant="primary" disabled>
-              Continue
+            <TextInput
+              value={code}
+              onChange={(e) => setCode(e.target.value.replace(/\D/g, '').slice(0, 6))}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter') void submitCode();
+              }}
+              placeholder="000000"
+              inputMode="numeric"
+              autoComplete="one-time-code"
+              aria-label="Verification code"
+              style={{ textAlign: 'center', letterSpacing: '0.4em', fontSize: 18, fontWeight: 600 }}
+            />
+            <Btn
+              variant="primary"
+              disabled={code.trim().length < 6 || submitting}
+              onClick={() => void submitCode()}
+            >
+              {submitting ? 'Verifying…' : 'Verify email'}
             </Btn>
           </div>
         ) : (
@@ -212,7 +246,7 @@ export function VerifyPage() {
             }}
             style={{ color: 'var(--accent)' }}
           >
-            Resend link
+            Resend code
           </a>
         </div>
       </Card>
