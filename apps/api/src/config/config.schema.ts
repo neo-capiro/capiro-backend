@@ -250,6 +250,24 @@ export const configSchema = z.object({
   // (fail-closed), not fail-open.
   INTERNAL_SERVICE_SECRET: z.string().optional(),
 
+  // Recall.ai meeting-notetaker bot (docs/plans/meeting-notetaker-bot-plan.md).
+  // RECALL_API_KEY authenticates outbound bot dispatch/poll calls (sent as the
+  // `Authorization: Token <key>` scheme, NOT Bearer). RECALL_WEBHOOK_SECRET
+  // (whsec_…) verifies inbound Svix-signed Recall webhooks. RECALL_API_BASE_URL
+  // selects the region host — Recall regions are isolated deployments with their
+  // own keys/data-residency, so this must match the region the API key belongs
+  // to. Capiro's Recall workspace is us-west-2 (US West / Oregon). The two secrets
+  // are optional: unset = the notetaker feature is inert (no bot can be
+  // dispatched), matching the fail-closed posture of the other provider keys.
+  RECALL_API_KEY: z.string().optional(),
+  RECALL_WEBHOOK_SECRET: z.string().optional(),
+  RECALL_API_BASE_URL: z.string().url().default('https://us-west-2.recall.ai'),
+  // Global kill-switch for the meeting-notetaker feature. Read directly from
+  // process.env by tenant-flags.notetakerEnabled(); declared here for validation
+  // and visibility. Only the literal 'true' enables; ANDed with the per-tenant
+  // `notetaker.enabled` flag so the feature stays dormant until BOTH are on.
+  NOTETAKER_ENABLED: z.string().optional(),
+
   // 32+ byte secret used to HMAC-sign the `state` parameter in OAuth flows so
   // a callback can be tied back to the connection that started it.
   OAUTH_STATE_SECRET: z.string().optional(),

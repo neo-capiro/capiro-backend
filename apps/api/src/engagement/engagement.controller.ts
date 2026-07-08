@@ -37,6 +37,7 @@ import { Roles } from '../auth/roles.decorator.js';
 import { RolesGuard } from '../auth/roles.guard.js';
 import { CurrentTenant } from '../tenant/current-tenant.decorator.js';
 import { EngagementService } from './engagement.service.js';
+import { NotetakerService } from './notetaker/notetaker.service.js';
 
 /**
  * Coerce empty/whitespace-only strings to `undefined` BEFORE validation runs.
@@ -188,6 +189,38 @@ class GenerateDebriefDraftDto {
   @IsString()
   @MinLength(1)
   sourceText!: string;
+}
+
+class DispatchNotetakerDto {
+  @IsString()
+  @Length(1, 2000)
+  meetingUrl!: string;
+
+  // Strict-consent affirmation — must be true (re-enforced in the service).
+  @IsBoolean()
+  authorizedToRecord!: boolean;
+
+  @IsOptional()
+  @IsBoolean()
+  allPartiesWillBeNotified?: boolean;
+
+  @IsOptional()
+  @IsArray()
+  @ArrayMaxSize(60)
+  @IsString({ each: true })
+  allPartyStates?: string[];
+
+  // 'audio_and_transcript' is deliberately NOT accepted: the MVP pipeline always
+  // deletes vendor media after pulling the transcript, so offering it would be a
+  // silent downgrade of a consent-critical choice. Add it here only when audio
+  // retention is actually implemented.
+  @IsOptional()
+  @IsIn(['no_storage', 'transcript_only'])
+  recordingPolicy?: 'no_storage' | 'transcript_only';
+
+  @IsOptional()
+  @IsDateString()
+  joinAt?: string;
 }
 
 class GenerateMeetingPrepDto {
@@ -1206,7 +1239,10 @@ class ListContactsQueryDto {
 @UseGuards(RolesGuard)
 @Roles('standard_user')
 export class EngagementController {
-  constructor(private readonly service: EngagementService) {}
+  constructor(
+    private readonly service: EngagementService,
+    private readonly notetaker: NotetakerService,
+  ) {}
 
   @Get('capabilities')
   capabilities() {
@@ -1329,6 +1365,26 @@ export class EngagementController {
     @Body() body: GenerateDebriefDraftDto,
   ) {
     return this.service.generateMeetingDebriefDraft(ctx, meetingId, body);
+  }
+
+  @Post('meetings/:id/notetaker')
+  dispatchNotetaker(
+    @CurrentTenant() ctx: TenantContext,
+    @Param('id') meetingId: string,
+    @Body() body: DispatchNotetakerDto,
+  ) {
+    return this.notetaker.dispatch(ctx, meetingId, body);
+  }
+
+  @Get('meetings/:id/notetaker')
+  meetingNotetaker(@CurrentTenant() ctx: TenantContext, @Param('id') meetingId: string) {
+    return this.notetaker.getSessionForMeeting(ctx, meetingId);
+  }
+
+  // Kill switch (plan §5 consent control): the bot leaves the call immediately.
+  @Delete('meetings/:id/notetaker')
+  removeNotetaker(@CurrentTenant() ctx: TenantContext, @Param('id') meetingId: string) {
+    return this.notetaker.remove(ctx, meetingId);
   }
 
   @Post('meetings/:id/prep')

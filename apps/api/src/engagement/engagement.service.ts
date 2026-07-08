@@ -506,7 +506,7 @@ const SYSTEM_AI_TEMPLATES = [
       'Generate a congressional office intelligence memo that helps the lobbyist decide how to approach this office — not just who the member is — delivered as an email. Subject: "Office memo — " plus the office name. Use selected context first; include generic biography only when it affects strategy; do not invent. Body in Markdown: **Bottom line** (why this office matters to the client; champion / persuadable / information target / blocker; best way to approach); **Office profile** (party, state/district, committees, leadership roles, caucuses, relevant staff, district/state interests — only what is supported); **Policy interests** (from bills, committee activity, statements, hearings, funding requests, district economic profile); **Connection to client** (Strong alignment / Possible / Weak / Friction); **Recent activity that matters** (what happened, why it matters, how to use it); **Influence assessment** (policy influence, political relevance, client relevance — each High/Medium/Low, with reasoning); **Best engagement strategy** (messenger, argument, proof point, ask, follow-up material); **Talking points**; **Questions to ask**; **Risks and watch-outs**.',
     description: 'How to approach an office: posture, interests, influence, engagement strategy.',
     samplePreview:
-      '## Bottom line\nLikely persuadable. The member sits on the relevant subcommittee and has a major employer in-district, so lead with the jobs angle and bring the readiness data.\n\n## Office profile\nMajority member; serves on the authorizing subcommittee; district hosts a key supplier.\n\n## Connection to client\nPossible alignment — the client\'s work supports an in-district program.\n\n## Best engagement strategy\nMessenger: the client\'s program lead. Argument: jobs plus capability. Ask: a member meeting before markup, with a staff briefing as the fallback.',
+      "## Bottom line\nLikely persuadable. The member sits on the relevant subcommittee and has a major employer in-district, so lead with the jobs angle and bring the readiness data.\n\n## Office profile\nMajority member; serves on the authorizing subcommittee; district hosts a key supplier.\n\n## Connection to client\nPossible alignment — the client's work supports an in-district program.\n\n## Best engagement strategy\nMessenger: the client's program lead. Argument: jobs plus capability. Ask: a member meeting before markup, with a staff briefing as the fallback.",
     tone: 'professional',
     usageCount: 0,
   },
@@ -532,7 +532,7 @@ const SYSTEM_AI_TEMPLATES = [
       'Prepare a hearing intelligence brief, delivered as an email — what is likely to happen, why it matters, and how to use the hearing before and after. Subject: "Hearing prep — " plus the hearing title. Use the supplied hearing details, witnesses, members, client, and selected context; do not invent testimony, questions, or positions. Body in Markdown: **Bottom line** (why this hearing matters to the client, the main issue, likely political frame, what to watch); **Hearing setup** (committee/subcommittee, chair and ranking member, witnesses, jurisdiction, related bills/programs/funding); **Likely themes** (per theme: why likely, who raises it, client relevance, risk/opportunity); **Witness read** (per witness: role, likely perspective, relevant prior activity, effect on the client); **Member dynamics** (who shapes the hearing and how); **Likely questions** (majority / minority / client-relevant / risk-creating); **Client implications** (policy, oversight, appropriations, regulation, reputation, business development, coalition); **Recommended pre-hearing actions**; **Recommended post-hearing actions**; **Watch-outs**.',
     description: 'Hearing brief: likely themes, witness read, member dynamics, pre/post actions.',
     samplePreview:
-      '## Bottom line\nThe hearing is framed around readiness, but the real action for the client is the Q&A on the modernization account — that is where funding signals will surface.\n\n## Hearing setup\nFull committee; the chair and ranking member both have programs in the client\'s space; two DoD witnesses.\n\n## Likely themes\nReadiness shortfalls, schedule slips, and modernization trade-offs.\n\n## Recommended pre-hearing actions\nSend committee staff a short data sheet on the client\'s program.\n\n## Recommended post-hearing actions\nFollow up on any question that touches the modernization account within 24 hours.',
+      "## Bottom line\nThe hearing is framed around readiness, but the real action for the client is the Q&A on the modernization account — that is where funding signals will surface.\n\n## Hearing setup\nFull committee; the chair and ranking member both have programs in the client's space; two DoD witnesses.\n\n## Likely themes\nReadiness shortfalls, schedule slips, and modernization trade-offs.\n\n## Recommended pre-hearing actions\nSend committee staff a short data sheet on the client's program.\n\n## Recommended post-hearing actions\nFollow up on any question that touches the modernization account within 24 hours.",
     tone: 'professional',
     usageCount: 0,
   },
@@ -559,7 +559,7 @@ const SYSTEM_AI_TEMPLATES = [
       'Generate a stakeholder intelligence profile that helps the lobbyist decide how to approach this person — not just their resume — delivered as an email. Subject: "Stakeholder profile — " plus the name. Use selected context first; do not invent activity, positions, or relationships. Body in Markdown: **Bottom line** (why this person matters, what they likely care about, how to approach them, what to avoid); **Role and influence** (formal authority, informal influence, decision power, relationship to relevant committees/agencies/programs); **Issue alignment** (Strong / Possible / Friction / Unknown); **Relevant activity** (statements, bills, hearings, votes, funding, lobbying connections, agency actions, news — from context); **Relationship strategy** (best reason to engage, messenger, opening, proof point, ask, follow-up); **Talking points** (5, tailored); **Questions to ask** (5); **Watch-outs**.',
     description: 'Read on a person: influence, alignment, and how to build the relationship.',
     samplePreview:
-      '## Bottom line\nThe staff director is the real decision-maker here — pragmatic, data-driven, and skeptical of vendor pitches. Lead with the readiness data, not the relationship.\n\n## Role and influence\nControls the subcommittee\'s pen and the member\'s schedule on defense issues.\n\n## Issue alignment\nPossible — has backed similar capabilities when the data was strong.\n\n## Relationship strategy\nMessenger: a technical lead, not a lobbyist. Opening: the committee\'s own readiness question. Ask: a 15-minute briefing.',
+      "## Bottom line\nThe staff director is the real decision-maker here — pragmatic, data-driven, and skeptical of vendor pitches. Lead with the readiness data, not the relationship.\n\n## Role and influence\nControls the subcommittee's pen and the member's schedule on defense issues.\n\n## Issue alignment\nPossible — has backed similar capabilities when the data was strong.\n\n## Relationship strategy\nMessenger: a technical lead, not a lobbyist. Opening: the committee's own readiness question. Ask: a 15-minute briefing.",
     tone: 'professional',
     usageCount: 0,
   },
@@ -572,7 +572,7 @@ const SYSTEM_AI_TEMPLATES = [
       'Generate a daily government affairs brief for a client, delivered as an email. Include only developments that could realistically affect this client — not everything. Subject: "Daily brief — " plus the client and date if known. Use only the supplied client and selected context; do not invent developments. Body in Markdown: **Bottom line** (the short version of what the client needs to know today); **Critical** (items needing attention or action — per item: what happened, why it matters, recommended action, owner if known, timing); **Important** (meaningful but not urgent — what happened, why it matters, recommended action); **Monitor** (lower-priority signals — the signal, why we are watching, what would escalate it); **Recommended actions today**; **Questions for the client** (only those that improve strategy). If nothing material is in the context, say so plainly rather than padding.',
     description: 'Daily client roundup triaged into Critical / Important / Monitor with actions.',
     samplePreview:
-      '## Bottom line\nOne item needs a decision today: the markup amendment dropped last night and touches your contract directly.\n\n## Critical\n- A manager\'s amendment adds a reporting gate on your program. Why it matters: it could delay obligation. Recommended action: approve outreach to the two authorizing offices this morning.\n\n## Important\n- A competitor\'s contract award posted; worth a competitive read this week.\n\n## Monitor\n- Appropriations mark expected next week.\n\n## Recommended actions today\nApprove the outreach and confirm staff meeting times.',
+      "## Bottom line\nOne item needs a decision today: the markup amendment dropped last night and touches your contract directly.\n\n## Critical\n- A manager's amendment adds a reporting gate on your program. Why it matters: it could delay obligation. Recommended action: approve outreach to the two authorizing offices this morning.\n\n## Important\n- A competitor's contract award posted; worth a competitive read this week.\n\n## Monitor\n- Appropriations mark expected next week.\n\n## Recommended actions today\nApprove the outreach and confirm staff meeting times.",
     tone: 'professional',
     usageCount: 0,
   },
@@ -1092,18 +1092,25 @@ export class EngagementService {
    * Returns a compact text block to drop into the draft context, or null.
    * RLS-scoped (own user files + tenant-visible client files). Best-effort.
    */
-  private async loadUserVoiceBlock(ctx: TenantContext, clientId: string | null): Promise<string | null> {
+  private async loadUserVoiceBlock(
+    ctx: TenantContext,
+    clientId: string | null,
+  ): Promise<string | null> {
     try {
-      const userRows = await this.prisma.withTenant(ctx.tenantId, (tx) =>
-        tx.$queryRaw<Array<{ type: string; sections: unknown }>>`
+      const userRows = await this.prisma.withTenant(
+        ctx.tenantId,
+        (tx) =>
+          tx.$queryRaw<Array<{ type: string; sections: unknown }>>`
           SELECT type, sections_jsonb AS sections
           FROM memory_items
           WHERE type IN ('user-voice', 'user-profile') AND owner_user_id = ${ctx.userId}::uuid
         `,
       );
       const clientRows = clientId
-        ? await this.prisma.withTenant(ctx.tenantId, (tx) =>
-            tx.$queryRaw<Array<{ type: string; sections: unknown }>>`
+        ? await this.prisma.withTenant(
+            ctx.tenantId,
+            (tx) =>
+              tx.$queryRaw<Array<{ type: string; sections: unknown }>>`
               SELECT type, sections_jsonb AS sections
               FROM memory_items
               WHERE type IN ('client-soul', 'client-compass') AND client_id = ${clientId}::uuid
@@ -1112,8 +1119,10 @@ export class EngagementService {
         : [];
       // Firm Soul + Firm Compass (tenant-wide identity, slug='firm') — always
       // included so every draft speaks for THIS firm, not a generic one.
-      const firmRows = await this.prisma.withTenant(ctx.tenantId, (tx) =>
-        tx.$queryRaw<Array<{ type: string; sections: unknown }>>`
+      const firmRows = await this.prisma.withTenant(
+        ctx.tenantId,
+        (tx) =>
+          tx.$queryRaw<Array<{ type: string; sections: unknown }>>`
           SELECT type, sections_jsonb AS sections
           FROM memory_items
           WHERE tenant_id = ${ctx.tenantId}::uuid
@@ -2320,11 +2329,7 @@ export class EngagementService {
         : '';
 
     const escapeToHtml = (s: string) =>
-      s
-        .replace(/&/g, '&amp;')
-        .replace(/</g, '&lt;')
-        .replace(/>/g, '&gt;')
-        .replace(/\n/g, '<br>');
+      s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/\n/g, '<br>');
 
     // Append the signature to a rendered body. A plaintext body is escaped to
     // HTML first so the signature's markup renders; the result always sends as
@@ -2538,8 +2543,7 @@ export class EngagementService {
           .trim()
           .slice(0, 20_000) || null
       : null;
-    const title =
-      (input.campaignName?.trim() || subject || 'Outreach').slice(0, 240) || 'Outreach';
+    const title = (input.campaignName?.trim() || subject || 'Outreach').slice(0, 240) || 'Outreach';
     // Any success counts as sent; only a total failure is recorded as failed.
     const status: 'sent' | 'failed' = sent.length > 0 ? 'sent' : 'failed';
     const now = new Date();
@@ -3540,9 +3544,7 @@ export class EngagementService {
     query: { clientId?: string; recipientEmails?: string[] },
   ) {
     const clientId = query.clientId?.trim() || null;
-    const emails = (query.recipientEmails ?? [])
-      .map((e) => e.trim().toLowerCase())
-      .filter(Boolean);
+    const emails = (query.recipientEmails ?? []).map((e) => e.trim().toLowerCase()).filter(Boolean);
     // Scope debriefs to the campaign's client AND/OR to meetings that involve
     // the chosen recipients (by attendee email) — so a no-client outreach to
     // congressional offices still surfaces relevant debriefs. Bodies remain
@@ -4501,12 +4503,23 @@ export class EngagementService {
    * Server-side attachment create from an in-memory buffer. Mirrors
    * confirmAttachment but PUTs the bytes itself instead of relying on a browser
    * presigned upload — used by the alert→memo flow to auto-file a generated
-   * deliverable in the client's Documents. Tenant-scoped + KB-indexed like any
-   * other client document.
+   * deliverable in the client's Documents, and by the notetaker to file the
+   * meeting transcript. Tenant-scoped; client-linked rows are KB-indexed like
+   * any other client document. Storing through this path (an
+   * EngagementAttachment row) is what wires the object into the existing
+   * erasure path — deleteAttachment removes the S3 object, the row, and any KB
+   * chunks together.
    */
   async createAttachmentFromBuffer(
     ctx: TenantContext,
-    input: { clientId: string; fileName: string; contentType: string; buffer: Buffer; source?: string },
+    input: {
+      clientId?: string | null;
+      meetingId?: string | null;
+      fileName: string;
+      contentType: string;
+      buffer: Buffer;
+      source?: string;
+    },
   ): Promise<{ id: string; fileName: string; s3Key: string }> {
     if (!this.bucket) throw new ServiceUnavailableException('ASSETS_BUCKET is not configured');
     if (!isAllowedAttachmentContentType(input.contentType)) {
@@ -4517,6 +4530,10 @@ export class EngagementService {
     if (input.buffer.byteLength > MAX_ATTACHMENT_BYTES) {
       throw new BadRequestException(`Attachment must be <= ${MAX_ATTACHMENT_BYTES} bytes`);
     }
+    await this.validateAttachmentParents(ctx, {
+      clientId: input.clientId ?? undefined,
+      meetingId: input.meetingId ?? undefined,
+    });
     const safeName = safeFileName(input.fileName);
     const s3Key = `tenants/${ctx.tenantId}/engagement/${randomUUID()}/${safeName}`;
     await this.s3.send(
@@ -4531,7 +4548,8 @@ export class EngagementService {
       tx.engagementAttachment.create({
         data: {
           tenantId: ctx.tenantId,
-          clientId: input.clientId,
+          clientId: input.clientId ?? null,
+          meetingId: input.meetingId ?? null,
           fileName: input.fileName,
           contentType: input.contentType,
           byteSize: input.buffer.byteLength,
@@ -4542,7 +4560,9 @@ export class EngagementService {
         },
       }),
     );
-    this.clientKb.indexAttachmentFireAndForget(ctx.tenantId, attachment.id);
+    if (attachment.clientId) {
+      this.clientKb.indexAttachmentFireAndForget(ctx.tenantId, attachment.id);
+    }
     return { id: attachment.id, fileName: attachment.fileName, s3Key };
   }
 
@@ -5684,7 +5704,6 @@ async function extractPdfBuffer(buffer: Buffer): Promise<string> {
   }
 }
 
-
 function isTranscribableAttachment(fileName: string, contentType: string): boolean {
   const normalized = contentType.toLowerCase();
   return (
@@ -5694,7 +5713,13 @@ function isTranscribableAttachment(fileName: string, contentType: string): boole
   );
 }
 
-function ownMeetingWhere(userId: string): Prisma.MeetingWhereInput {
+/**
+ * Exported for NotetakerService: bot dispatch must enforce the SAME ownership
+ * predicate as generateMeetingDebriefDraft/createMeetingDebrief, so a dispatch
+ * for a meeting the user doesn't own fails fast at dispatch time — not after a
+ * whole meeting has already been recorded.
+ */
+export function ownMeetingWhere(userId: string): Prisma.MeetingWhereInput {
   return {
     OR: [{ createdByUserId: userId }, { connection: { createdByUserId: userId } }],
   };

@@ -59,3 +59,30 @@ export function meriV2FlagEnabled(
 ): boolean {
   return meriV2Enabled(env) && tenantFeatureEnabled(settings, flag, false);
 }
+
+/**
+ * Meeting Notetaker (docs/plans/meeting-notetaker-bot-plan.md). Governs whether a
+ * tenant's users can dispatch the Recall.ai bot to join/transcribe meetings.
+ * Modeled on the MeriV2 surface flags: ANDed with a global env kill-switch
+ * (NOTETAKER_ENABLED) and defaulting OFF per-tenant, so the feature stays dormant
+ * until a human flips BOTH the env switch and the per-tenant flag. The
+ * belt-and-suspenders gate is deliberate — this drives an external media
+ * processor (Recall) that records third parties, so it must not go live by
+ * accident. Per-tenant canary flip is via SQL UPDATE on tenants.settings_jsonb
+ * (same path used for the MeriV2 flips) until an admin surface is added.
+ */
+export const NOTETAKER_FLAG = 'notetaker.enabled' as const;
+
+/** Global env kill-switch for the notetaker. Default OFF — only the literal 'true' enables. */
+export function notetakerEnvEnabled(env: NodeJS.ProcessEnv = process.env): boolean {
+  return env.NOTETAKER_ENABLED === 'true';
+}
+
+/**
+ * The notetaker is active for a tenant only when the env kill-switch is on AND
+ * the per-tenant `notetaker.enabled` flag resolves true (tenant default false).
+ * Either side OFF → the feature is dormant.
+ */
+export function notetakerEnabled(settings: unknown, env: NodeJS.ProcessEnv = process.env): boolean {
+  return notetakerEnvEnabled(env) && tenantFeatureEnabled(settings, NOTETAKER_FLAG, false);
+}

@@ -218,6 +218,26 @@ export class ComputeStack extends cdk.Stack {
       `capiro/${cfg.envName}/sam-gov-api-key`,
       cfg.externalSecretArns?.samGovApiKey,
     );
+    // Recall.ai meeting-notetaker bot (docs/plans/meeting-notetaker-bot-plan.md,
+    // SERVE task only — dispatch + webhook processing both run there; migrations
+    // never create bots). The webhook signing secret is GATED on its ARN being
+    // present in config: it is created together with the Recall dashboard
+    // webhook endpoint, and wiring a not-yet-existing secret would make every
+    // new serve task fail to start ("unable to pull secrets" → rollback).
+    const recallApiKeySecret = importExternalSecret(
+      this,
+      'ImportedRecallApiKey',
+      `capiro/${cfg.envName}/recall-api-key`,
+      cfg.externalSecretArns?.recallApiKey,
+    );
+    const recallWebhookSecret = cfg.externalSecretArns?.recallWebhookSecret
+      ? importExternalSecret(
+          this,
+          'ImportedRecallWebhookSecret',
+          `capiro/${cfg.envName}/recall-webhook-secret`,
+          cfg.externalSecretArns.recallWebhookSecret,
+        )
+      : undefined;
 
     // ------------------------------------------------------------------ ECR
     // Repos are pre-created out-of-band so images can be pushed BEFORE the
@@ -315,6 +335,8 @@ export class ComputeStack extends cdk.Stack {
           `arn:aws:secretsmanager:${this.region}:${this.account}:secret:capiro/${cfg.envName}/notes-encryption-key*`,
           `arn:aws:secretsmanager:${this.region}:${this.account}:secret:capiro/${cfg.envName}/openai-api-key*`,
           `arn:aws:secretsmanager:${this.region}:${this.account}:secret:capiro/${cfg.envName}/anthropic-api-key*`,
+          `arn:aws:secretsmanager:${this.region}:${this.account}:secret:capiro/${cfg.envName}/recall-api-key*`,
+          `arn:aws:secretsmanager:${this.region}:${this.account}:secret:capiro/${cfg.envName}/recall-webhook-secret*`,
         ],
       }),
     );
@@ -375,6 +397,11 @@ export class ComputeStack extends cdk.Stack {
       OPENAI_API_KEY: ecs.Secret.fromSecretsManager(openaiApiKeySecret),
       ANTHROPIC_API_KEY: ecs.Secret.fromSecretsManager(anthropicApiKeySecret),
       GOVINFO_API_KEY: ecs.Secret.fromSecretsManager(govInfoApiKeyImported),
+      // Meeting notetaker (serve only — see the import above for the gating).
+      RECALL_API_KEY: ecs.Secret.fromSecretsManager(recallApiKeySecret),
+      ...(recallWebhookSecret
+        ? { RECALL_WEBHOOK_SECRET: ecs.Secret.fromSecretsManager(recallWebhookSecret) }
+        : {}),
     };
     const apiMigrateSecrets = {
       CLERK_SECRET_KEY: ecs.Secret.fromSecretsManager(clerkSecretKeyImported),
@@ -475,6 +502,9 @@ export class ComputeStack extends cdk.Stack {
       `arn:aws:secretsmanager:${this.region}:${this.account}:secret:capiro/${cfg.envName}/govinfo_api_key*`,
       // SAM.gov key provisioned out-of-band (capiro/<env>/sam-gov-api-key).
       `arn:aws:secretsmanager:${this.region}:${this.account}:secret:capiro/${cfg.envName}/sam-gov-api-key*`,
+      // Recall.ai meeting-notetaker secrets (serve task).
+      `arn:aws:secretsmanager:${this.region}:${this.account}:secret:capiro/${cfg.envName}/recall-api-key*`,
+      `arn:aws:secretsmanager:${this.region}:${this.account}:secret:capiro/${cfg.envName}/recall-webhook-secret*`,
     ];
 
     grantSecretsAndKmsToExecutionRole(
@@ -816,7 +846,11 @@ export class ComputeStack extends cdk.Stack {
     meriv2OrchestratorTaskRole.addToPolicy(
       new iam.PolicyStatement({
         actions: ['secretsmanager:GetSecretValue', 'secretsmanager:DescribeSecret'],
-        resources: [dbSecretImported.secretArn, appDbSecretImported.secretArn, clerkSecretKeyImported.secretArn],
+        resources: [
+          dbSecretImported.secretArn,
+          appDbSecretImported.secretArn,
+          clerkSecretKeyImported.secretArn,
+        ],
       }),
     );
     meriv2OrchestratorTaskRole.addToPolicy(
@@ -844,16 +878,20 @@ export class ComputeStack extends cdk.Stack {
       MERIV2_API_BASE_URL: `https://${cfg.appHost}`,
     };
 
-    const meriv2OrchestratorTaskDef = new ecs.FargateTaskDefinition(this, 'MeriV2OrchestratorTaskDef', {
-      family: `capiro-${cfg.envName}-meriv2-orchestrator`,
-      cpu: cfg.meriv2OrchestratorCpu,
-      memoryLimitMiB: cfg.meriv2OrchestratorMemoryMib,
-      runtimePlatform: {
-        cpuArchitecture: ecs.CpuArchitecture.ARM64,
-        operatingSystemFamily: ecs.OperatingSystemFamily.LINUX,
+    const meriv2OrchestratorTaskDef = new ecs.FargateTaskDefinition(
+      this,
+      'MeriV2OrchestratorTaskDef',
+      {
+        family: `capiro-${cfg.envName}-meriv2-orchestrator`,
+        cpu: cfg.meriv2OrchestratorCpu,
+        memoryLimitMiB: cfg.meriv2OrchestratorMemoryMib,
+        runtimePlatform: {
+          cpuArchitecture: ecs.CpuArchitecture.ARM64,
+          operatingSystemFamily: ecs.OperatingSystemFamily.LINUX,
+        },
+        taskRole: meriv2OrchestratorTaskRole,
       },
-      taskRole: meriv2OrchestratorTaskRole,
-    });
+    );
     grantSecretsAndKmsToExecutionRole(
       meriv2OrchestratorTaskDef,
       [dbSecretImported.secretArn, appDbSecretImported.secretArn, clerkSecretKeyImported.secretArn],

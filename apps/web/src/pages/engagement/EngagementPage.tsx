@@ -17,6 +17,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import {
   App,
   Button,
+  Checkbox,
   Dropdown,
   Empty,
   Form,
@@ -131,6 +132,42 @@ interface MeetingDebrief extends MeetingDebriefSummary {
   body: string | null;
   restricted: boolean;
   updatedAt: string;
+}
+
+type MeetingBotStatus =
+  | 'requested'
+  | 'joining'
+  | 'in_call'
+  | 'recording'
+  | 'processing'
+  | 'drafting'
+  | 'done'
+  | 'failed'
+  | 'no_show'
+  | 'denied_consent'
+  | 'removed';
+
+interface MeetingBotSession {
+  id: string;
+  meetingId: string;
+  clientId: string | null;
+  provider: string;
+  platform: string | null;
+  status: MeetingBotStatus;
+  recordingPolicy: string;
+  externalBotId: string | null;
+  debriefId: string | null;
+  error: string | null;
+  startedAt: string | null;
+  endedAt: string | null;
+  createdAt: string;
+  updatedAt: string;
+}
+
+interface NotetakerFormValues {
+  meetingUrl: string;
+  authorizedToRecord: boolean;
+  allPartiesWillBeNotified: boolean;
 }
 
 interface MeetingDebriefDraft {
@@ -350,6 +387,7 @@ export function EngagementPage() {
   const [meetingModalOpen, setMeetingModalOpen] = useState(false);
   const [taskModalOpen, setTaskModalOpen] = useState(false);
   const [targetOfficeModalOpen, setTargetOfficeModalOpen] = useState(false);
+  const [notetakerModalOpen, setNotetakerModalOpen] = useState(false);
   const [reportMeetingRow, setReportMeetingRow] = useState<EngagementReportRow | null>(null);
   const [editingPrep, setEditingPrep] = useState<{ meeting: Meeting; prep: MeetingPrep } | null>(
     null,
@@ -358,6 +396,11 @@ export function EngagementPage() {
   const [taskForm] = Form.useForm<TaskFormValues>();
   const [prepForm] = Form.useForm<PrepFormValues>();
   const [targetOfficeForm] = Form.useForm<TargetOfficeFormValues>();
+  const [notetakerForm] = Form.useForm<NotetakerFormValues>();
+  // Live checkbox state so the consent modal's OK button stays disabled until
+  // both required acknowledgements are checked.
+  const notetakerAuthorized = Form.useWatch('authorizedToRecord', notetakerForm);
+  const notetakerNotified = Form.useWatch('allPartiesWillBeNotified', notetakerForm);
   const syncingFromUrlRef = useRef(false);
   const lastProcessedUrlRef = useRef<string>('');
 
@@ -591,6 +634,22 @@ export function EngagementPage() {
     enabled: Boolean(selectedMeeting?.id),
   });
 
+  const notetakerSession = useQuery<MeetingBotSession | null>({
+    queryKey: ['engagement-meeting-notetaker', selectedMeeting?.id],
+    queryFn: async () =>
+      (
+        await api.get<MeetingBotSession | null>(
+          `/api/engagement/meetings/${selectedMeeting?.id}/notetaker`,
+        )
+      ).data,
+    enabled: Boolean(selectedMeeting?.id),
+    // Poll while Meri is working, stop once the session settles (or is absent).
+    refetchInterval: (query) => {
+      const status = query.state.data?.status;
+      return status && isNotetakerActive(status) ? 15000 : false;
+    },
+  });
+
   const tasks = useQuery<EngagementTask[]>({
     queryKey: ['engagement-tasks', selectedClientId],
     queryFn: async () =>
@@ -740,6 +799,84 @@ export function EngagementPage() {
     },
     onError: (err) => message.error(errorMessage(err)),
   });
+
+  const dispatchNotetaker = useMutation({
+    mutationFn: async ({
+      meetingId,
+      meetingUrl,
+      authorizedToRecord,
+      allPartiesWillBeNotified,
+    }: {
+      meetingId: string;
+      meetingUrl: string;
+      authorizedToRecord: boolean;
+      allPartiesWillBeNotified: boolean;
+    }) =>
+      (
+        await api.post<MeetingBotSession>(`/api/engagement/meetings/${meetingId}/notetaker`, {
+          meetingUrl,
+          authorizedToRecord,
+          allPartiesWillBeNotified,
+        })
+      ).data,
+    onSuccess: (_session, { meetingId }) => {
+      message.success('Meri is joining the meeting');
+      setNotetakerModalOpen(false);
+      notetakerForm.resetFields();
+      qc.invalidateQueries({ queryKey: ['engagement-meeting', meetingId] });
+      qc.invalidateQueries({ queryKey: ['engagement-meetings'] });
+      qc.invalidateQueries({ queryKey: ['engagement-calendar-meetings'] });
+      qc.invalidateQueries({ queryKey: ['engagement-meeting-notetaker', meetingId] });
+    },
+    onError: (err) => message.error(errorMessage(err)),
+  });
+
+  const openNotetakerModal = () => {
+    // Prefill the join URL from the meeting's webLink when it's a real URL
+    // (reuses openUrl's https:// validation); otherwise the user pastes one.
+    notetakerForm.setFieldsValue({
+      meetingUrl: selectedMeeting ? (openUrl(selectedMeeting) ?? '') : '',
+      authorizedToRecord: false,
+      allPartiesWillBeNotified: false,
+    });
+    setNotetakerModalOpen(true);
+  };
+
+  const removeNotetaker = useMutation({
+    mutationFn: async (meetingId: string) =>
+      (await api.delete<MeetingBotSession>(`/api/engagement/meetings/${meetingId}/notetaker`)).data,
+    onSuccess: (_session, meetingId) => {
+      message.success('Meri is leaving the meeting');
+      qc.invalidateQueries({ queryKey: ['engagement-meeting-notetaker', meetingId] });
+    },
+    onError: (err) => message.error(errorMessage(err)),
+  });
+
+  // Completion signal: the detail poll notices the session settling and we toast
+  // once per transition (the plan's "Meri drafted your debrief" notification).
+  const notetakerStatusRef = useRef<string | null>(null);
+  const notetakerStatus = notetakerSession.data?.status ?? null;
+  const notetakerSessionId = notetakerSession.data?.id ?? null;
+  useEffect(() => {
+    const key = notetakerSessionId ? `${notetakerSessionId}:${notetakerStatus}` : null;
+    const prev = notetakerStatusRef.current;
+    notetakerStatusRef.current = key;
+    if (!key || !notetakerSessionId || prev === key) return;
+    // Only announce transitions we actually observed (skip the initial load,
+    // where prev is for a different session or null).
+    if (!prev || !prev.startsWith(`${notetakerSessionId}:`)) return;
+    if (notetakerStatus === 'done') {
+      message.success('Meri drafted your debrief — review it in the Debrief tab');
+      qc.invalidateQueries({
+        queryKey: ['engagement-meeting-debriefs', notetakerSession.data?.meetingId],
+      });
+      qc.invalidateQueries({
+        queryKey: ['engagement-meeting-attachments', notetakerSession.data?.meetingId],
+      });
+    } else if (notetakerStatus === 'failed') {
+      message.error("Meri couldn't finish the debrief for this meeting");
+    }
+  }, [notetakerStatus, notetakerSessionId, notetakerSession.data?.meetingId, message, qc]);
 
   const updatePrep = useMutation({
     mutationFn: async ({ prepId, values }: { prepId: string; values: PrepFormValues }) =>
@@ -1164,6 +1301,11 @@ export function EngagementPage() {
                       context: clientContext.data,
                     })
                   }
+                  notetakerSession={notetakerSession.data ?? null}
+                  dispatchingNotetaker={dispatchNotetaker.isPending}
+                  onSendNotetaker={openNotetakerModal}
+                  removingNotetaker={removeNotetaker.isPending}
+                  onRemoveNotetaker={(meetingId) => removeNotetaker.mutate(meetingId)}
                 />
               </div>
             ),
@@ -1396,6 +1538,76 @@ export function EngagementPage() {
           </Form.Item>
           <Form.Item name="emailEvidenceText" label="Email recap">
             <Input.TextArea rows={4} placeholder="One correspondence bullet per line" />
+          </Form.Item>
+        </Form>
+      </Modal>
+
+      <Modal
+        title="Send Meri to take notes?"
+        open={notetakerModalOpen}
+        onCancel={() => setNotetakerModalOpen(false)}
+        onOk={() => notetakerForm.submit()}
+        okText="Send Meri"
+        confirmLoading={dispatchNotetaker.isPending}
+        okButtonProps={{ disabled: !(notetakerAuthorized && notetakerNotified) }}
+        width={560}
+      >
+        <Typography.Paragraph type="secondary">
+          Meri will join as a visible participant named "Meri Notetaker (recording)", transcribe the
+          meeting, and draft a private debrief for your review. A notice is posted in the meeting so
+          participants know recording is happening. You're responsible for ensuring you're permitted
+          to record this meeting.
+        </Typography.Paragraph>
+        <Form
+          form={notetakerForm}
+          layout="vertical"
+          onFinish={(values) => {
+            if (!selectedMeeting) return;
+            dispatchNotetaker.mutate({
+              meetingId: selectedMeeting.id,
+              meetingUrl: values.meetingUrl,
+              authorizedToRecord: true,
+              allPartiesWillBeNotified: true,
+            });
+          }}
+        >
+          <Form.Item
+            name="meetingUrl"
+            label="Meeting join URL"
+            rules={[{ required: true, message: 'Paste the meeting join URL.' }]}
+          >
+            <Input placeholder="https://..." />
+          </Form.Item>
+          <Form.Item
+            name="authorizedToRecord"
+            valuePropName="checked"
+            rules={[
+              {
+                validator: (_rule, value: boolean) =>
+                  value
+                    ? Promise.resolve()
+                    : Promise.reject(new Error('Please confirm you are authorized.')),
+              },
+            ]}
+          >
+            <Checkbox>I&apos;m authorized to have this meeting transcribed for my firm.</Checkbox>
+          </Form.Item>
+          <Form.Item
+            name="allPartiesWillBeNotified"
+            valuePropName="checked"
+            rules={[
+              {
+                validator: (_rule, value: boolean) =>
+                  value
+                    ? Promise.resolve()
+                    : Promise.reject(new Error('Please acknowledge participant notification.')),
+              },
+            ]}
+          >
+            <Checkbox>
+              I understand participants will be notified, and I&apos;ll obtain any additional
+              consent required where participants are located.
+            </Checkbox>
           </Form.Item>
         </Form>
       </Modal>
@@ -1912,6 +2124,11 @@ function MeetingDetailPanel({
   onEditPrep,
   onApprovePrep,
   onExportPdf,
+  notetakerSession,
+  dispatchingNotetaker,
+  onSendNotetaker,
+  removingNotetaker,
+  onRemoveNotetaker,
 }: {
   meeting: Meeting | null;
   context?: ClientContext;
@@ -1943,6 +2160,11 @@ function MeetingDetailPanel({
   onEditPrep: (meeting: Meeting, prep: MeetingPrep) => void;
   onApprovePrep: (prep: MeetingPrep) => void;
   onExportPdf: (meeting: Meeting) => void;
+  notetakerSession: MeetingBotSession | null;
+  dispatchingNotetaker: boolean;
+  onSendNotetaker: () => void;
+  removingNotetaker: boolean;
+  onRemoveNotetaker: (meetingId: string) => void;
 }) {
   // Optional free-form context the user can add to steer prep generation.
   const [prepContext, setPrepContext] = useState('');
@@ -2101,6 +2323,11 @@ function MeetingDetailPanel({
                     onGenerateDebrief(meeting, method, sourceText)
                   }
                   onSave={(body, debriefId) => onSaveDebrief(meeting, body, debriefId)}
+                  notetakerSession={notetakerSession}
+                  dispatchingNotetaker={dispatchingNotetaker}
+                  onSendNotetaker={onSendNotetaker}
+                  removingNotetaker={removingNotetaker}
+                  onRemoveNotetaker={onRemoveNotetaker}
                 />
               ),
             },
@@ -2223,6 +2450,11 @@ function DebriefPanel({
   onRemoveAttachment,
   onGenerate,
   onSave,
+  notetakerSession,
+  dispatchingNotetaker,
+  onSendNotetaker,
+  removingNotetaker,
+  onRemoveNotetaker,
 }: {
   meeting: Meeting;
   participants: MeetingParticipant[];
@@ -2245,9 +2477,18 @@ function DebriefPanel({
     sourceText: string,
   ) => Promise<MeetingDebriefDraft>;
   onSave: (body: string, debriefId?: string) => Promise<unknown>;
+  notetakerSession: MeetingBotSession | null;
+  dispatchingNotetaker: boolean;
+  onSendNotetaker: () => void;
+  removingNotetaker: boolean;
+  onRemoveNotetaker: (meetingId: string) => void;
 }) {
   const { message } = App.useApp();
   const meetingHasEnded = new Date(meeting.endsAt).getTime() < Date.now();
+  const notetakerActive = notetakerSession ? isNotetakerActive(notetakerSession.status) : false;
+  const notetakerRemovable = notetakerSession
+    ? isNotetakerRemovable(notetakerSession.status)
+    : false;
   const latestDebrief = debriefs[0];
   const initialDraft = useMemo(
     () => parseDebriefBody(latestDebrief?.body ?? ''),
@@ -2359,8 +2600,34 @@ function DebriefPanel({
           <ClockCircleOutlined />
           <Typography.Text strong>This meeting hasn't taken place yet</Typography.Text>
           <Typography.Text type="secondary">
-            Come back after the meeting to complete your debrief.
+            Come back after the meeting to complete your debrief, or send Meri to join and take
+            notes live.
           </Typography.Text>
+          {notetakerSession ? (
+            <Tag color={notetakerStatusColor(notetakerSession.status)} style={{ margin: '4px 0' }}>
+              {notetakerStatusLabel(notetakerSession.status)}
+            </Tag>
+          ) : null}
+          {notetakerRemovable ? (
+            <Button
+              danger
+              icon={<RobotOutlined />}
+              loading={removingNotetaker}
+              onClick={() => onRemoveNotetaker(meeting.id)}
+            >
+              Remove Meri from the meeting
+            </Button>
+          ) : (
+            <Button
+              type="primary"
+              icon={<RobotOutlined />}
+              loading={dispatchingNotetaker}
+              disabled={notetakerActive || dispatchingNotetaker}
+              onClick={onSendNotetaker}
+            >
+              Send Meri to take notes
+            </Button>
+          )}
         </div>
       </div>
     );
@@ -2370,6 +2637,23 @@ function DebriefPanel({
     <div className="engagement-debrief-panel">
       <div className="engagement-detail-stack engagement-debrief-scroll">
         <ParticipantsList participants={participants} />
+        {notetakerSession ? (
+          <div>
+            <Tag color={notetakerStatusColor(notetakerSession.status)}>
+              {notetakerStatusLabel(notetakerSession.status)}
+            </Tag>
+            {notetakerRemovable ? (
+              <Button
+                danger
+                size="small"
+                loading={removingNotetaker}
+                onClick={() => onRemoveNotetaker(meeting.id)}
+              >
+                Remove Meri
+              </Button>
+            ) : null}
+          </div>
+        ) : null}
         <Typography.Text type="secondary">
           Input notes from your completed meeting to generate a debrief.
         </Typography.Text>
@@ -3543,6 +3827,80 @@ function meetingBorderColor(meeting: Meeting): string {
  * all other meetings still select via the surrounding row/card and act via the
  * row's action button.
  */
+/**
+ * A notetaker session is "active" while Meri is still working the meeting — the
+ * detail poll keeps refetching in these states and the send button stays locked.
+ */
+function isNotetakerActive(status: MeetingBotStatus): boolean {
+  return (
+    status === 'requested' ||
+    status === 'joining' ||
+    status === 'in_call' ||
+    status === 'recording' ||
+    status === 'processing' ||
+    status === 'drafting'
+  );
+}
+
+/** The bot is (or may still be) in the call — the "Remove Meri" kill switch applies. */
+function isNotetakerRemovable(status: MeetingBotStatus): boolean {
+  return (
+    status === 'requested' || status === 'joining' || status === 'in_call' || status === 'recording'
+  );
+}
+
+function notetakerStatusLabel(status: MeetingBotStatus): string {
+  switch (status) {
+    case 'requested':
+    case 'joining':
+      return 'Meri is joining';
+    case 'in_call':
+      return 'Meri joined';
+    case 'recording':
+      return 'Meri is recording';
+    case 'processing':
+    case 'drafting':
+      return 'Meri is writing the debrief';
+    case 'done':
+      return "Meri's debrief is ready";
+    case 'failed':
+      return "Meri couldn't finish";
+    case 'no_show':
+      return "Meri couldn't join";
+    case 'denied_consent':
+      return 'Recording was declined';
+    case 'removed':
+      return 'Meri was removed';
+    default:
+      return status;
+  }
+}
+
+function notetakerStatusColor(status: MeetingBotStatus): string {
+  switch (status) {
+    case 'requested':
+    case 'joining':
+      return 'gold';
+    case 'in_call':
+      return 'blue';
+    case 'recording':
+      return 'processing';
+    case 'processing':
+    case 'drafting':
+      return 'geekblue';
+    case 'done':
+      return 'success';
+    case 'failed':
+    case 'no_show':
+      return 'error';
+    case 'denied_consent':
+    case 'removed':
+      return 'default';
+    default:
+      return 'default';
+  }
+}
+
 function DebriefBadge({
   meeting,
   onAction,

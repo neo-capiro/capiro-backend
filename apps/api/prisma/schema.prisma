@@ -192,6 +192,7 @@ model Tenant {
   outreachAudiences            OutreachAudience[]
   outreachAudienceMembers      OutreachAudienceMember[]
   MeetingDebrief               MeetingDebrief[]
+  meetingBotSessions           MeetingBotSession[]
   clioConversations            ClioConversation[]
   clioMessages                 ClioMessage[]
   clioArtifacts                ClioArtifact[]
@@ -392,6 +393,7 @@ model Client {
   engagementAttachments   EngagementAttachment[]
   meetingNotes            MeetingNote[]
   meetingDebriefs         MeetingDebrief[]
+  meetingBotSessions      MeetingBotSession[]
   meetingPreps            MeetingPrep[]
   engagementTasks         EngagementTask[]
   associationOverrides    ClientAssociationOverride[]
@@ -564,6 +566,7 @@ model Meeting {
   attachments     EngagementAttachment[]
   notes           MeetingNote[]
   debriefs        MeetingDebrief[]
+  botSessions     MeetingBotSession[]
   preps           MeetingPrep[]
   tasks           EngagementTask[]
   outreachRecords OutreachRecord[]
@@ -762,6 +765,53 @@ model MeetingDebrief {
 
   @@index([tenantId, meetingId, createdAt], map: "meeting_debriefs_tenant_meeting_created_idx")
   @@map("meeting_debriefs")
+}
+
+/// Meeting Notetaker bot session — docs/plans/meeting-notetaker-bot-plan.md (Phase 0).
+/// One row per dispatch of a meeting bot (Recall.ai) to a meeting: the bot joins
+/// Zoom/Meet/Teams and records; transcription runs on OUR Deepgram (Recall BYO-key);
+/// the transcript then feeds generateMeetingDebriefDraft → createMeetingDebrief.
+/// Tenant-scoped with RLS (see the matching migration). Strict-consent affirmation
+/// is persisted in `consent`. Every access MUST go through prisma.withTenant.
+model MeetingBotSession {
+  id                String    @id @default(uuid()) @db.Uuid
+  tenantId          String    @map("tenant_id") @db.Uuid
+  meetingId         String    @map("meeting_id") @db.Uuid
+  clientId          String?   @map("client_id") @db.Uuid
+  requestedByUserId String?   @map("requested_by_user_id") @db.Uuid
+  // Vendor + region (Recall regions are isolated deployments with their own keys).
+  provider          String    @default("recall")
+  region            String?
+  // Recall resource ids captured across the async choreography (bot → recording → transcript).
+  externalBotId     String?   @map("external_bot_id")
+  recordingId       String?   @map("recording_id")
+  transcriptId      String?   @map("transcript_id")
+  platform          String?
+  joinUrl           String    @map("join_url")
+  // Lifecycle: requested|joining|in_call|recording|processing|done|failed|no_show|denied_consent
+  status            String    @default("requested")
+  // no_storage|transcript_only|audio_and_transcript (default: no audio at rest).
+  recordingPolicy   String    @default("transcript_only") @map("recording_policy")
+  // { mode, affirmedByUserId, affirmedAt, allPartyStatesFlagged, disclosurePosted }
+  consent           Json      @default("{}") @map("consent_jsonb")
+  transcriptS3Key   String?   @map("transcript_s3_key")
+  // Loose ref (no FK) to the resulting MeetingDebrief row, if one was created.
+  debriefId         String?   @map("debrief_id") @db.Uuid
+  error             String?
+  startedAt         DateTime? @map("started_at") @db.Timestamptz(6)
+  endedAt           DateTime? @map("ended_at") @db.Timestamptz(6)
+  metadata          Json      @default("{}") @map("metadata_jsonb")
+  raw               Json?     @map("raw_jsonb")
+  createdAt         DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt         DateTime  @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  tenant  Tenant  @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  meeting Meeting @relation(fields: [meetingId], references: [id], onDelete: Cascade)
+  client  Client? @relation(fields: [clientId], references: [id], onDelete: SetNull)
+
+  @@index([tenantId, meetingId, createdAt], map: "meeting_bot_sessions_tenant_meeting_created_idx")
+  @@index([externalBotId], map: "meeting_bot_sessions_external_bot_idx")
+  @@map("meeting_bot_sessions")
 }
 
 model EngagementTask {

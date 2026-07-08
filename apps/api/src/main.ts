@@ -56,6 +56,9 @@ async function bootstrap() {
   // Webhook signature verification needs the raw (unparsed) body. Mount the raw
   // parser ONLY on the webhook paths; everything else gets normal JSON.
   app.use('/webhooks/clerk', raw({ type: '*/*', limit: '1mb' }));
+  // Recall.ai (meeting notetaker) webhooks are Svix-signed over the exact raw
+  // bytes, same as Clerk. Registered endpoint: https://app.capiro.ai/webhooks/recall
+  app.use('/webhooks/recall', raw({ type: '*/*', limit: '1mb' }));
   // (Stripe webhooks moved to onboard-api: /onboard-api/webhooks/stripe.)
   // The email-signature endpoint carries a branded HTML signature that can embed
   // a base64 logo / uploaded signature image, so its JSON body legitimately

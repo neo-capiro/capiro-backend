@@ -56,6 +56,14 @@ export interface EnvConfig {
     notesEncryptionKey: string;
     samGovApiKey?: string;
     aiCredentialEncryptionKey?: string;
+    recallApiKey?: string;
+    // Meeting-notetaker webhook signing secret. OPTIONAL AND GATING: the
+    // compute stack only wires RECALL_WEBHOOK_SECRET onto the serve task when
+    // this ARN is present. The secret is created together with the Recall
+    // dashboard webhook endpoint (go-live checklist item E) — wiring a
+    // not-yet-existing secret would make every new task fail to start
+    // ("unable to pull secrets" → circuit-breaker rollback).
+    recallWebhookSecret?: string;
   };
 }
 
@@ -186,17 +194,36 @@ export function loadConfig(app: cdk.App): EnvConfig {
             // Run for each: aws secretsmanager describe-secret \
             //   --secret-id capiro/dev/<name> --query ARN --output text
             externalSecretArns: {
-              microsoftClientId:       'arn:aws:secretsmanager:us-east-1:967807252336:secret:capiro/dev/microsoft-client-id-AU8xuO',
-              microsoftTenantId:       'arn:aws:secretsmanager:us-east-1:967807252336:secret:capiro/dev/microsoft-tenant-id-cC9TIB',
-              microsoftCertThumbprint: 'arn:aws:secretsmanager:us-east-1:967807252336:secret:capiro/dev/microsoft-cert-thumbprint-gJsG0v',
-              microsoftCertPrivateKey: 'arn:aws:secretsmanager:us-east-1:967807252336:secret:capiro/dev/microsoft-cert-private-key-rW9ERB',
-              oauthTokenEncryptionKey: 'arn:aws:secretsmanager:us-east-1:967807252336:secret:capiro/dev/oauth-token-encryption-key-VQCjD8',
-              oauthStateSecret:        'arn:aws:secretsmanager:us-east-1:967807252336:secret:capiro/dev/oauth-state-secret-XOOzYB',
-              openaiApiKey:            'arn:aws:secretsmanager:us-east-1:967807252336:secret:capiro/dev/openai-api-key-7nAmib',
-              anthropicApiKey:         'arn:aws:secretsmanager:us-east-1:967807252336:secret:capiro/dev/anthropic-api-key-3nhKhF',
-              notesEncryptionKey:      'arn:aws:secretsmanager:us-east-1:967807252336:secret:capiro/dev/notes-encryption-key-Vf2rhI',
-              samGovApiKey:            'arn:aws:secretsmanager:us-east-1:967807252336:secret:capiro/dev/sam-gov-api-key-0gcMpp',
-              aiCredentialEncryptionKey: 'arn:aws:secretsmanager:us-east-1:967807252336:secret:capiro/dev/ai-credential-encryption-key-ohnjaH',
+              microsoftClientId:
+                'arn:aws:secretsmanager:us-east-1:967807252336:secret:capiro/dev/microsoft-client-id-AU8xuO',
+              microsoftTenantId:
+                'arn:aws:secretsmanager:us-east-1:967807252336:secret:capiro/dev/microsoft-tenant-id-cC9TIB',
+              microsoftCertThumbprint:
+                'arn:aws:secretsmanager:us-east-1:967807252336:secret:capiro/dev/microsoft-cert-thumbprint-gJsG0v',
+              microsoftCertPrivateKey:
+                'arn:aws:secretsmanager:us-east-1:967807252336:secret:capiro/dev/microsoft-cert-private-key-rW9ERB',
+              oauthTokenEncryptionKey:
+                'arn:aws:secretsmanager:us-east-1:967807252336:secret:capiro/dev/oauth-token-encryption-key-VQCjD8',
+              oauthStateSecret:
+                'arn:aws:secretsmanager:us-east-1:967807252336:secret:capiro/dev/oauth-state-secret-XOOzYB',
+              openaiApiKey:
+                'arn:aws:secretsmanager:us-east-1:967807252336:secret:capiro/dev/openai-api-key-7nAmib',
+              anthropicApiKey:
+                'arn:aws:secretsmanager:us-east-1:967807252336:secret:capiro/dev/anthropic-api-key-3nhKhF',
+              notesEncryptionKey:
+                'arn:aws:secretsmanager:us-east-1:967807252336:secret:capiro/dev/notes-encryption-key-Vf2rhI',
+              samGovApiKey:
+                'arn:aws:secretsmanager:us-east-1:967807252336:secret:capiro/dev/sam-gov-api-key-0gcMpp',
+              aiCredentialEncryptionKey:
+                'arn:aws:secretsmanager:us-east-1:967807252336:secret:capiro/dev/ai-credential-encryption-key-ohnjaH',
+              // Meeting notetaker (Recall.ai). Both secrets hold real values and
+              // are live on the serve task (wired out-of-band as task-def rev 37,
+              // 2026-07-08 — see the go-live checklist item C / drift warning).
+              // These entries keep a future CDK reconciliation from dropping them.
+              recallApiKey:
+                'arn:aws:secretsmanager:us-east-1:967807252336:secret:capiro/dev/recall-api-key-WDNzEP',
+              recallWebhookSecret:
+                'arn:aws:secretsmanager:us-east-1:967807252336:secret:capiro/dev/recall-webhook-secret-FxKv9v',
             },
           };
 

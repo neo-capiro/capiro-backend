@@ -4,12 +4,14 @@ import { DirectoryModule } from '../directory/directory.module.js';
 import { LobbyIntelModule } from '../lobby-intel/lobby-intel.module.js';
 import { FederalSpendingModule } from '../federal-spending/federal-spending.module.js';
 import { EmbeddingsModule } from '../embeddings/embeddings.module.js';
+import { NotetakerModule } from './notetaker/notetaker.module.js';
 import { EngagementController } from './engagement.controller.js';
 import { InternalAiCredentialsController } from './internal-ai-credentials.controller.js';
 import { AiCredentialResolverService } from './ai-credential-resolver.service.js';
 import { ClientAssociationService } from './client-association.service.js';
 import { EngagementAiService } from './engagement-ai.service.js';
 import { EngagementService } from './engagement.service.js';
+import { NotetakerService } from './notetaker/notetaker.service.js';
 import { MeetingNotesCryptoService } from './meeting-notes-crypto.service.js';
 import { MicrosoftGraphSyncService } from './microsoft/microsoft-graph-sync.service.js';
 import { MicrosoftOAuthController } from './microsoft/microsoft-oauth.controller.js';
@@ -23,10 +25,12 @@ import { TokenCryptoService } from './microsoft/token-crypto.service.js';
     LobbyIntelModule,
     FederalSpendingModule,
     EmbeddingsModule,
+    NotetakerModule,
   ],
   controllers: [EngagementController, MicrosoftOAuthController, InternalAiCredentialsController],
   providers: [
     EngagementService,
+    NotetakerService,
     ClientAssociationService,
     EngagementAiService,
     AiCredentialResolverService,
@@ -35,6 +39,11 @@ import { TokenCryptoService } from './microsoft/token-crypto.service.js';
     MicrosoftOAuthService,
     TokenCryptoService,
   ],
-  exports: [EngagementService, MicrosoftGraphSyncService, AiCredentialResolverService],
+  exports: [
+    EngagementService,
+    NotetakerService,
+    MicrosoftGraphSyncService,
+    AiCredentialResolverService,
+  ],
 })
 export class EngagementModule {}
