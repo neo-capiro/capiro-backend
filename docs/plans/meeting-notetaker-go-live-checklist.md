@@ -57,7 +57,14 @@ Endpoint `https://app.capiro.ai/webhooks/recall` created in the Recall dashboard
 - Upgrade Recall off the **$5 trial** before real meeting volume.
 
 ---
-**Status 2026-07-08: A ✅ B ✅ C ✅ E ✅.** Remaining, in order:
-1. **Merge [PR #344](https://github.com/neo-capiro/capirov2/pull/344)** and deploy the image (`scripts/deploy-dev.sh` — runs the `meeting_bot_sessions` migration and rolls api/web; mind the ECR `:latest` SHA race). Until this ships, `/webhooks/recall` 404s — harmless, since no bots exist and the Recall endpoint receives no deliveries.
-2. **F — compliance/legal** (Recall DPA, subprocessor listing, consent-copy review, upgrade off the $5 trial before real volume).
-3. **D — canary**: add `NOTETAKER_ENABLED=true` env to the task def (same out-of-band procedure as C) + flip the `notetaker.enabled` tenant flag on capiro-internal.
+## 🟢 Status 2026-07-08 (later): A ✅ B ✅ C ✅ E ✅ MERGE+DEPLOY ✅ D ✅ — **LIVE ON capiro-internal**
+
+Executed on Ninja's "finish it":
+- **PR #344 squash-merged** (`08a651d`); CI built `:latest` = merge SHA (race-checked); `scripts/deploy-dev.sh` ran clean — migration `20260707120000_meeting_bot_sessions` **applied** (visible in the migrate-task log), api + web rolled and stable.
+- **Webhook verified live end-to-end:** unsigned POST → 400; a **real svix-signed** synthetic event → **204** with the expected `NotetakerService` log line (session-miss warn) — proving ALB routing → raw mount → secret resolution → signature verify → normalize → DB lookup, in prod.
+- **D done:** task-def **rev 38** (= rev 37 + `NOTETAKER_ENABLED=true`) rolled stable (2/2); tenant flag flipped via the sql-exec merge-preserve one-off — capiro-internal flags now `{meriv2.* …, "notetaker.enabled": true}` (all pre-existing flags preserved). 0 exceptions post-deploy.
+- Flip script note for future flips: the old `NODE_PATH=/app/node_modules` recipe broke on the current image layout — resolve `@prisma/client` via `require.resolve('@prisma/client', { paths: ['/app/apps/api'] })` instead.
+
+**The ONLY open item is F — compliance/business:** Recall DPA + subprocessor/Trust-Center listing + SOC 2 report on file; legal review of the consent copy (7 questions queued); **upgrade off the $5 trial** — the canary is live, so every recorded meeting now burns trial credit (~$0.76/hr all-in).
+
+**First smoke test (Ninja):** in Engagement → Meetings on capiro-internal, open/create a meeting with a Zoom/Meet/Teams link, click **"Send Meri to take notes"**, tick both consent boxes, and run a short throwaway call. Expect: bot joins named "Meri Notetaker (recording)" + posts the chat disclosure → status chip advances → debrief lands in the Debrief tab ≤5 min after the call + transcript appears as a meeting attachment → confirm the transcription shows in OUR Deepgram usage dashboard (BYO-key proof, Phase-0 exit criterion). "Remove Meri" mid-call exercises the kill switch. Rollback any time: flag off (same one-off, `false`) or unset `NOTETAKER_ENABLED`.
