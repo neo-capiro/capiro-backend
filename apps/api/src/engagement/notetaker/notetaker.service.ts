@@ -126,6 +126,17 @@ export class NotetakerService {
       );
     }
     const meetingUrl = validateMeetingUrl(input.meetingUrl);
+    // Reject non-meeting URLs BEFORE creating a session or calling the vendor.
+    // The prime real-world offender: Outlook-synced meetings carry a calendar
+    // webLink (outlook.office365.com/...), which the UI used to prefill — Recall
+    // then 400s with "meeting_url is malformed, or for an unsupported platform"
+    // AFTER a session row exists. Fail fast with an actionable message instead.
+    const platform = detectPlatform(meetingUrl);
+    if (!platform) {
+      throw new BadRequestException(
+        "That link doesn't look like a meeting join URL — paste the Zoom, Google Meet, Microsoft Teams, or Webex link from the calendar invite",
+      );
+    }
 
     const recordingPolicy: RecordingPolicy = input.recordingPolicy ?? 'transcript_only';
     // Only the policies the pipeline actually honors are accepted (the DTO
@@ -166,7 +177,7 @@ export class NotetakerService {
           requestedByUserId: ctx.userId,
           provider: 'recall',
           region: this.recallRegion(),
-          platform: detectPlatform(meetingUrl),
+          platform,
           joinUrl: meetingUrl,
           status: 'requested',
           recordingPolicy,
@@ -713,7 +724,12 @@ export function validateMeetingUrl(rawUrl: string | undefined): string {
   return meetingUrl;
 }
 
-/** Best-effort platform label from the join URL (for the UI + Phase-2 metrics). */
+/**
+ * Best-effort platform label from the join URL. Doubles as the dispatch gate for
+ * supported platforms (null ⇒ dispatch refuses before any session/vendor call),
+ * so keep it in sync with what Recall accepts. ZoomGov included — agency-hosted
+ * meetings are routine for this customer base.
+ */
 export function detectPlatform(meetingUrl: string): string | null {
   let host: string;
   try {
@@ -721,7 +737,14 @@ export function detectPlatform(meetingUrl: string): string | null {
   } catch {
     return null;
   }
-  if (host === 'zoom.us' || host.endsWith('.zoom.us')) return 'zoom';
+  if (
+    host === 'zoom.us' ||
+    host.endsWith('.zoom.us') ||
+    host === 'zoomgov.com' ||
+    host.endsWith('.zoomgov.com')
+  ) {
+    return 'zoom';
+  }
   if (host === 'meet.google.com') return 'meet';
   if (host === 'teams.microsoft.com' || host === 'teams.live.com') return 'teams';
   if (host.endsWith('.webex.com')) return 'webex';

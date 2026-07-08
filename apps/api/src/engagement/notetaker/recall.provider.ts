@@ -23,6 +23,21 @@ import {
 
 /** Outbound request timeout to the Recall REST API. */
 const RECALL_TIMEOUT_MS = 30_000;
+
+/**
+ * Non-2xx from the Recall API, carrying the status + (truncated) response body so
+ * call sites can translate SPECIFIC vendor rejections (e.g. a bad meeting_url)
+ * into user-actionable errors. Extends ServiceUnavailableException so untranslated
+ * cases keep today's 503 behavior. Exported for unit tests.
+ */
+export class RecallApiHttpError extends ServiceUnavailableException {
+  constructor(
+    readonly httpStatus: number,
+    readonly detail: string,
+  ) {
+    super(`Recall API error (HTTP ${httpStatus})`);
+  }
+}
 /**
  * How long Recall retains the recording media. Async (BYO-Deepgram) transcription
  * needs the media to exist to transcribe + download, so literal zero-retention is
@@ -83,7 +98,24 @@ export class RecallProvider implements MeetingBotProvider {
       };
     }
 
-    const bot = await this.request<{ id: string }>('POST', '/api/v1/bot/', body);
+    let bot: { id: string } | undefined;
+    try {
+      bot = await this.request<{ id: string }>('POST', '/api/v1/bot/', body);
+    } catch (err) {
+      // Recall's create-bot 400 on the URL is really the USER's error (they
+      // pasted a calendar link, not a join link) — translate it so the modal
+      // shows something actionable instead of "Recall API error (HTTP 400)".
+      if (
+        err instanceof RecallApiHttpError &&
+        err.httpStatus === 400 &&
+        err.detail.includes('meeting_url')
+      ) {
+        throw new BadRequestException(
+          'The meeting provider rejected that link — paste the actual Zoom / Google Meet / Teams join URL from the calendar invite',
+        );
+      }
+      throw err;
+    }
     if (!bot?.id) {
       this.logger.warn('Recall create-bot returned no id');
       throw new ServiceUnavailableException('Recall did not return a bot id');
@@ -218,7 +250,7 @@ export class RecallProvider implements MeetingBotProvider {
         this.logger.warn(
           `Recall API ${init.method} ${url} -> HTTP ${res.status} ${detail.slice(0, 500)}`,
         );
-        throw new ServiceUnavailableException(`Recall API error (HTTP ${res.status})`);
+        throw new RecallApiHttpError(res.status, detail.slice(0, 500));
       }
       // Some endpoints (leave_call, delete_media) may return an empty body. The
       // abort timer stays armed through this body read (cleared only in the

@@ -197,6 +197,20 @@ describe('NotetakerService.dispatch (strict consent gate)', () => {
     expect(bot.dispatchBot).not.toHaveBeenCalled();
   });
 
+  test('refuses a non-meeting URL (e.g. the Outlook calendar webLink) before any session exists', async () => {
+    const tx = makeTx();
+    const { service, bot } = makeService(tx);
+    await expect(
+      service.dispatch(ctx, 'm1', {
+        ...input,
+        meetingUrl:
+          'https://outlook.office365.com/owa/?itemid=AAMkAD&exvsurl=1&path=/calendar/item',
+      }),
+    ).rejects.toThrow("doesn't look like a meeting join URL");
+    expect(tx.meetingBotSession.create).not.toHaveBeenCalled();
+    expect(bot.dispatchBot).not.toHaveBeenCalled();
+  });
+
   test('refuses when a notetaker is already active for the meeting', async () => {
     const tx = makeTx();
     tx.meetingBotSession.findFirst.mockResolvedValue({ id: 'existing' });
@@ -462,12 +476,15 @@ describe('pure helpers', () => {
     expect(() => validateMeetingUrl('ftp://example.com/x')).toThrow('http(s)');
   });
 
-  test('detectPlatform recognizes the big three (and webex)', () => {
+  test('detectPlatform recognizes the big three (and webex, and zoomgov)', () => {
     expect(detectPlatform('https://us02web.zoom.us/j/123')).toBe('zoom');
+    expect(detectPlatform('https://agency.zoomgov.com/j/160123')).toBe('zoom');
     expect(detectPlatform('https://meet.google.com/abc-defg-hij')).toBe('meet');
     expect(detectPlatform('https://teams.microsoft.com/l/meetup-join/xyz')).toBe('teams');
     expect(detectPlatform('https://acme.webex.com/meet/neo')).toBe('webex');
     expect(detectPlatform('https://example.com/call')).toBeNull();
+    // The Outlook calendar webLink is NOT a join link.
+    expect(detectPlatform('https://outlook.office365.com/owa/?itemid=AAMkAD')).toBeNull();
     // Never fooled by look-alike hosts.
     expect(detectPlatform('https://zoom.us.evil.com/j/1')).toBeNull();
   });

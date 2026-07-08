@@ -832,10 +832,13 @@ export function EngagementPage() {
   });
 
   const openNotetakerModal = () => {
-    // Prefill the join URL from the meeting's webLink when it's a real URL
-    // (reuses openUrl's https:// validation); otherwise the user pastes one.
+    // Prefill ONLY when we can find an actual meeting join link (Zoom/Meet/
+    // Teams/Webex) in the meeting's webLink/location/description. The Outlook
+    // webLink is a CALENDAR link, not a join link — prefill with it and Recall
+    // rejects the dispatch ("meeting_url is malformed") after the user already
+    // affirmed consent. Blank + a clear placeholder beats a wrong prefill.
     notetakerForm.setFieldsValue({
-      meetingUrl: selectedMeeting ? (openUrl(selectedMeeting) ?? '') : '',
+      meetingUrl: selectedMeeting ? (extractMeetingJoinUrl(selectedMeeting) ?? '') : '',
       authorizedToRecord: false,
       allPartiesWillBeNotified: false,
     });
@@ -1574,9 +1577,22 @@ export function EngagementPage() {
           <Form.Item
             name="meetingUrl"
             label="Meeting join URL"
-            rules={[{ required: true, message: 'Paste the meeting join URL.' }]}
+            extra="The link participants click to join — from the calendar invite body, not the invite itself."
+            rules={[
+              { required: true, message: 'Paste the meeting join URL.' },
+              {
+                validator: (_rule, value: string) =>
+                  !value || isSupportedJoinUrl(value)
+                    ? Promise.resolve()
+                    : Promise.reject(
+                        new Error(
+                          "That doesn't look like a join link — use the Zoom, Google Meet, Teams, or Webex URL from the invite.",
+                        ),
+                      ),
+              },
+            ]}
           >
-            <Input placeholder="https://..." />
+            <Input placeholder="https://zoom.us/j/… · meet.google.com/… · teams.microsoft.com/…" />
           </Form.Item>
           <Form.Item
             name="authorizedToRecord"
@@ -3827,6 +3843,50 @@ function meetingBorderColor(meeting: Meeting): string {
  * all other meetings still select via the surrounding row/card and act via the
  * row's action button.
  */
+/**
+ * A meeting JOIN link on a platform the notetaker supports (mirror of the
+ * server's detectPlatform gate). Matches inside larger text too, so it can pull
+ * a join URL out of an Outlook invite body. The Outlook calendar webLink is NOT
+ * a join link and must never be treated as one.
+ */
+const JOIN_URL_PATTERN =
+  /https:\/\/(?:[\w-]+\.)?(?:zoom\.us|zoomgov\.com)\/[jsw]\/[^\s<>"')\]]+|https:\/\/meet\.google\.com\/[a-z0-9-]+|https:\/\/teams\.(?:microsoft\.com|live\.com)\/[^\s<>"')\]]+|https:\/\/[\w-]+\.webex\.com\/[^\s<>"')\]]+/i;
+
+function isSupportedJoinUrl(value: string): boolean {
+  let host: string;
+  try {
+    host = new URL(value.trim()).hostname.toLowerCase();
+  } catch {
+    return false;
+  }
+  return (
+    host === 'zoom.us' ||
+    host.endsWith('.zoom.us') ||
+    host === 'zoomgov.com' ||
+    host.endsWith('.zoomgov.com') ||
+    host === 'meet.google.com' ||
+    host === 'teams.microsoft.com' ||
+    host === 'teams.live.com' ||
+    host.endsWith('.webex.com')
+  );
+}
+
+/**
+ * Find a real join link for the meeting: webLink only if it IS one (it usually
+ * isn't — Outlook's webLink opens the calendar item), then location, then the
+ * invite body. Outlook HTML-escapes URLs in the description, so unescape &amp;
+ * on the match (Teams links carry query params).
+ */
+function extractMeetingJoinUrl(meeting: Meeting): string | null {
+  const webLink = typeof meeting.metadata?.webLink === 'string' ? meeting.metadata.webLink : '';
+  if (webLink && isSupportedJoinUrl(webLink)) return webLink;
+  for (const text of [meeting.location ?? '', meeting.description ?? '']) {
+    const match = JOIN_URL_PATTERN.exec(text);
+    if (match) return match[0].replace(/&amp;/g, '&');
+  }
+  return null;
+}
+
 /**
  * A notetaker session is "active" while Meri is still working the meeting — the
  * detail poll keeps refetching in these states and the send button stays locked.

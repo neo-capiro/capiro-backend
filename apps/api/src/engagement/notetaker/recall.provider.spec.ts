@@ -1,4 +1,4 @@
-import { describe, expect, test } from '@jest/globals';
+import { afterEach, describe, expect, jest, test } from '@jest/globals';
 import { Webhook } from 'svix';
 import type { ConfigService } from '@nestjs/config';
 import type { AppConfig } from '../../config/config.schema.js';
@@ -79,6 +79,49 @@ describe('RecallProvider.verifyAndParseWebhook', () => {
       'svix-signature': modern['webhook-signature'],
     };
     expect(provider.verifyAndParseWebhook(legacy, payload).kind).toBe('status_change');
+  });
+});
+
+describe('RecallProvider.dispatchBot error translation', () => {
+  const realFetch = global.fetch;
+  afterEach(() => {
+    global.fetch = realFetch;
+  });
+
+  const dispatchInput = {
+    meetingUrl: 'https://outlook.office365.com/owa/?itemid=x',
+    botName: 'Meri Notetaker (recording)',
+    recordingPolicy: 'transcript_only' as const,
+  };
+
+  // Plain object shaped like the Response surface fetchJson touches — the jest
+  // node env's Response global is not fetch-compatible.
+  const fakeResponse = (status: number, body: unknown) => ({
+    ok: false,
+    status,
+    text: async () => JSON.stringify(body),
+  });
+
+  test("Recall's meeting_url 400 becomes an actionable BadRequest, not a generic 503", async () => {
+    global.fetch = jest.fn(async () =>
+      fakeResponse(400, {
+        meeting_url: ['The meeting_url is malformed, or for an unsupported platform.'],
+      }),
+    ) as unknown as typeof fetch;
+    const provider = makeProvider();
+    await expect(provider.dispatchBot(dispatchInput)).rejects.toThrow(
+      'paste the actual Zoom / Google Meet / Teams join URL',
+    );
+  });
+
+  test('other Recall 4xx/5xx stay generic (no detail leaked to the user)', async () => {
+    global.fetch = jest.fn(async () =>
+      fakeResponse(429, { detail: 'quota exceeded' }),
+    ) as unknown as typeof fetch;
+    const provider = makeProvider();
+    await expect(provider.dispatchBot(dispatchInput)).rejects.toThrow(
+      'Recall API error (HTTP 429)',
+    );
   });
 });
 
