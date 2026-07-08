@@ -69,4 +69,34 @@ describe('diffMarks (parse-verb dry-run gate)', () => {
     const out = diffMarks(many, existing, known, 15);
     expect(out.samples).toHaveLength(15);
   });
+
+  it('reports maxAbsDeltaMillions and surfaces the biggest change first (ceiling check)', () => {
+    // A pile of tiny rounding refinements plus one real multi-million overwrite.
+    const existing = new Map([
+      ['0601102A', { currentMillions: 237.68 }],
+      ['0603270A', { currentMillions: 78.95 }],
+      ['0207138F', { currentMillions: 100.0 }], // real change buried here
+    ]);
+    const out = diffMarks(
+      [
+        rec('0601102A', 237_678_000), // Δ $2K (rounding)
+        rec('0603270A', 78_947_000), // Δ $3K (rounding)
+        rec('0207138F', 150_000_000), // Δ $50M (real — must surface first)
+      ],
+      existing,
+      known,
+      2,
+    );
+    expect(out.changed).toBe(3);
+    expect(out.maxAbsDeltaMillions).toBeCloseTo(50, 5);
+    // Sorted most-material-first, so the $50M change is sample #1 even at limit 2.
+    expect(out.samples[0]?.peCode).toBe('0207138F');
+    expect(out.samples).toHaveLength(2);
+  });
+
+  it('maxAbsDeltaMillions is null when nothing changes', () => {
+    const existing = new Map([['0601102A', { currentMillions: 12.5 }]]);
+    const out = diffMarks([rec('0601102A', 12_500_000)], existing, known);
+    expect(out.maxAbsDeltaMillions).toBeNull();
+  });
 });

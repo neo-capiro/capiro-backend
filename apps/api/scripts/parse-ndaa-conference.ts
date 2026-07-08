@@ -86,7 +86,9 @@ async function main(): Promise<void> {
           { currentMillions: y.conference === null ? null : Number(y.conference) },
         ]),
       );
-      const diff = diffMarks(records, existing, new Set(pes.map((p) => p.peCode)));
+      const dlIdx = process.argv.indexOf('--diff-limit');
+      const diffLimit = dlIdx >= 0 ? Number(process.argv[dlIdx + 1]) : 15;
+      const diff = diffMarks(records, existing, new Set(pes.map((p) => p.peCode)), diffLimit);
       console.log(
         JSON.stringify({ mode: 'DRY_RUN', stage: 'conference', fy, artifact: artifactPath, diff }, null, 2),
       );

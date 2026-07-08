@@ -30,11 +30,25 @@ export interface MarkDiffResult {
   unchanged: number;
   /** peCode not in program_element → the writer would quarantine. */
   missingPe: number;
-  /** Up to `sampleLimit` changed/new rows for eyeballing. */
+  /**
+   * Largest absolute overwrite among `changed` rows, in $MILLIONS. This is the
+   * ceiling a human checks: if it's a few $K it's rounding precision; if it's
+   * millions, a real number is moving. null when nothing changed.
+   */
+  maxAbsDeltaMillions: number | null;
+  /** Sample rows, MOST MATERIAL FIRST (biggest delta / magnitude), capped at `sampleLimit`. */
   samples: MarkDiffSample[];
 }
 
 const EPSILON_MILLIONS = 0.0005; // half a $K — below artifact precision
+
+/** Sort magnitude: how big a movement this row represents, in $MILLIONS. */
+function sampleMagnitude(s: MarkDiffSample): number {
+  if (s.kind === 'changed' && s.currentMillions !== null && s.incomingMillions !== null) {
+    return Math.abs(s.currentMillions - s.incomingMillions);
+  }
+  return Math.abs(s.incomingMillions ?? 0); // new_value / missing_pe: the value being written
+}
 
 export function diffMarks(
   records: CommitteeReportMarkRecord[],
@@ -49,8 +63,10 @@ export function diffMarks(
     changed: 0,
     unchanged: 0,
     missingPe: 0,
+    maxAbsDeltaMillions: null,
     samples: [],
   };
+  const candidates: MarkDiffSample[] = [];
 
   for (const r of records) {
     if (r.mark === null) {
@@ -60,38 +76,27 @@ export function diffMarks(
     const incomingMillions = r.mark / 1_000_000;
     if (!knownPeCodes.has(r.peCode)) {
       result.missingPe += 1;
-      pushSample(result, sampleLimit, {
-        peCode: r.peCode,
-        currentMillions: null,
-        incomingMillions,
-        kind: 'missing_pe',
-      });
+      candidates.push({ peCode: r.peCode, currentMillions: null, incomingMillions, kind: 'missing_pe' });
       continue;
     }
     const current = existing.get(r.peCode)?.currentMillions ?? null;
     if (current === null) {
       result.newValue += 1;
-      pushSample(result, sampleLimit, {
-        peCode: r.peCode,
-        currentMillions: null,
-        incomingMillions,
-        kind: 'new_value',
-      });
+      candidates.push({ peCode: r.peCode, currentMillions: null, incomingMillions, kind: 'new_value' });
     } else if (Math.abs(current - incomingMillions) <= EPSILON_MILLIONS) {
       result.unchanged += 1;
     } else {
       result.changed += 1;
-      pushSample(result, sampleLimit, {
-        peCode: r.peCode,
-        currentMillions: current,
-        incomingMillions,
-        kind: 'changed',
-      });
+      const abs = Math.abs(current - incomingMillions);
+      if (result.maxAbsDeltaMillions === null || abs > result.maxAbsDeltaMillions) {
+        result.maxAbsDeltaMillions = abs;
+      }
+      candidates.push({ peCode: r.peCode, currentMillions: current, incomingMillions, kind: 'changed' });
     }
   }
-  return result;
-}
 
-function pushSample(result: MarkDiffResult, limit: number, s: MarkDiffSample): void {
-  if (result.samples.length < limit) result.samples.push(s);
+  // Most material first, so a capped sample still proves the ceiling.
+  candidates.sort((a, b) => sampleMagnitude(b) - sampleMagnitude(a));
+  result.samples = candidates.slice(0, sampleLimit);
+  return result;
 }
