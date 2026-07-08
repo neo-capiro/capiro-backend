@@ -5,7 +5,7 @@
  *   watch-budget-docs                     # DRY RUN: print detections, write nothing
  *   watch-budget-docs --commit            # record detections + send the alert email
  *   watch-budget-docs --commit --baseline # first run: record current inventory, NO email
- *   flags: --skip-email, --skip-revisions
+ *   flags: --skip-email
  *
  * Sources polled (per plan §5.1 decisions + money-graph §7.3g routing):
  *   - comptroller.war.gov Budget-Materials index + per-FY pages (direct fetch OK)
@@ -27,7 +27,6 @@
  * dashboard + INGESTION_METRIC + the one-instance guard. Alert email goes via
  * SESv2 (same rail as tracker alerts) to WATCH_BUDGET_DOCS_EMAIL_TO.
  */
-import { createHash } from 'node:crypto';
 import { config as dotenvConfig } from 'dotenv';
 import { PrismaClient, Prisma } from '@prisma/client';
 import { SESv2Client, SendEmailCommand } from '@aws-sdk/client-sesv2';
@@ -283,61 +282,6 @@ function buildPublicReportUrl(r: CongressReportItem): string {
   return `https://www.congress.gov/congressional-report/${r.congress}th-congress/${kind}/${r.number}`;
 }
 
-/** sha-check registry live heads on comptroller for silent republications. */
-async function scanRevisions(
-  prisma: PrismaClient,
-  statuses: SourceStatus[],
-): Promise<RevisedDoc[]> {
-  const revised: RevisedDoc[] = [];
-  const heads = await prisma.sourceDocument.findMany({
-    where: {
-      supersededByDocumentId: null,
-      sha256: { not: null },
-      sourceUrl: { startsWith: 'https://comptroller.war.gov/' },
-    },
-    select: { sourceKey: true, sourceUrl: true, sha256: true, byteSize: true, documentType: true },
-  });
-  for (const head of heads) {
-    await sleep(DELAY_MS);
-    try {
-      // Byte-size short-circuit: only download when the size changed or HEAD fails.
-      if (head.byteSize) {
-        try {
-          const headRes = await fetch(head.sourceUrl, {
-            method: 'HEAD',
-            headers: { 'User-Agent': WATCH_UA },
-          });
-          const len = Number(headRes.headers.get('content-length') ?? NaN);
-          if (headRes.ok && Number.isFinite(len) && len === head.byteSize) continue;
-        } catch {
-          /* fall through to GET */
-        }
-      }
-      const res = await fetch(head.sourceUrl, { headers: { 'User-Agent': WATCH_UA } });
-      if (!res.ok) throw new Error(`HTTP ${res.status}`);
-      const buf = Buffer.from(await res.arrayBuffer());
-      const sha = createHash('sha256').update(buf).digest('hex');
-      if (sha !== head.sha256) {
-        revised.push({
-          dedupeKey: `rev:${dedupeKeyForUrl(head.sourceUrl)}:${sha}`,
-          sourceKey: head.sourceKey,
-          url: head.sourceUrl,
-          priorSha256: head.sha256 ?? '',
-          newSha256: sha,
-          loaderHint: loaderHintFor(
-            head.documentType === 'r1' ? 'r1' : head.documentType === 'p1' ? 'p1' : 'jbook_detail',
-            'comptroller',
-          ),
-        });
-      }
-      statuses.push({ source: `revision-check:${head.sourceKey}`, ok: true });
-    } catch (e) {
-      statuses.push({ source: `revision-check:${head.sourceKey}`, ok: false, detail: (e as Error).message });
-    }
-  }
-  return revised;
-}
-
 async function loadKnownKeys(prisma: PrismaClient): Promise<Set<string>> {
   const known = new Set<string>();
   const changes = await prisma.intelligenceChange.findMany({
@@ -345,7 +289,14 @@ async function loadKnownKeys(prisma: PrismaClient): Promise<Set<string>> {
     select: { dedupeKey: true, data: true },
   });
   for (const c of changes) {
-    const key = c.dedupeKey ?? (c.data as { dedupeKey?: string } | null)?.dedupeKey;
+    // diffNew compares the UNPREFIXED url key (dedupeKeyForUrl). The unique
+    // column is namespaced 'budget-doc:<key>' to avoid colliding with other
+    // IntelligenceChange sources, so read the unprefixed copy from data (or
+    // strip the prefix). Reading the prefixed column here was the bug that
+    // re-alerted every already-detected doc on every run.
+    const key =
+      (c.data as { dedupeKey?: string } | null)?.dedupeKey ??
+      c.dedupeKey?.replace(/^budget-doc:/, '');
     if (key) known.add(key);
   }
   const registry = await prisma.sourceDocument.findMany({ select: { sourceUrl: true } });
@@ -456,7 +407,6 @@ async function main(): Promise<void> {
   const commit = flag('commit');
   const baseline = flag('baseline');
   const skipEmail = flag('skip-email');
-  const skipRevisions = flag('skip-revisions');
   if (baseline && !commit) {
     console.error('--baseline requires --commit');
     process.exit(1);
@@ -479,7 +429,13 @@ async function main(): Promise<void> {
         await scanServiceIndexes(statuses),
         await scanCommitteeReports(since, statuses),
       ];
-      const revised = skipRevisions || baseline ? [] : await scanRevisions(prisma, statuses);
+      // Revision detection is intentionally disabled: the source_document
+      // registry stores the sha of the extracted JSON *artifact*, not of the
+      // live PDF at sourceUrl, so a live-PDF sha-check can never match and
+      // flagged every registry doc REVISED on every run. Real PDF-revision
+      // detection needs a dedicated pdf-fingerprint the watcher maintains
+      // itself (follow-up); until then we do not guess.
+      const revised: RevisedDoc[] = [];
 
       const current = [...comptroller, ...services, ...reports];
       const fresh = diffNew(current, known);
