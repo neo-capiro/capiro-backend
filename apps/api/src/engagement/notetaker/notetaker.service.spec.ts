@@ -39,6 +39,7 @@ function makeTx() {
     meetingBotSession: {
       create: asyncMock({ id: 's1' }),
       findFirst: asyncMock(null),
+      findMany: asyncMock([]),
       update: asyncMock({ id: 's1' }),
       updateMany: asyncMock({ count: 1 }),
     },
@@ -464,6 +465,134 @@ describe('NotetakerService.handleBotEvent (at-least-once webhook semantics)', ()
       makeEvent({ kind: 'recording_ready', recordingId: 'r1', metadata: {}, botId: 'bot_x' }),
     );
     expect(bot.createAsyncTranscript).not.toHaveBeenCalled();
+  });
+});
+
+describe('NotetakerService.reconcileStaleTranscripts (self-heal a dropped transcript.done webhook)', () => {
+  // Confirmed in prod (2026-07-08): Recall delivered a bot.status_change webhook
+  // for a bot fine, but the SAME bot's transcript.done a few seconds later never
+  // arrived, leaving the session stuck at 'processing' with recordingId +
+  // transcriptId already set — exactly what this sweep finds and finishes.
+  const staleRow = {
+    id: 's-stale',
+    tenantId: 't1',
+    meetingId: 'm1',
+    clientId: 'c1',
+    requestedByUserId: 'u1',
+    externalBotId: 'bot_1',
+    recordingPolicy: 'transcript_only',
+    transcriptId: 'tr1',
+  };
+
+  test('finishes a stale session exactly as the webhook path would', async () => {
+    const tx = makeTx();
+    tx.meetingBotSession.findMany.mockResolvedValue([staleRow]);
+    const { service, engagement } = makeService(tx);
+
+    const count = await service.reconcileStaleTranscripts();
+
+    expect(count).toBe(1);
+    // The query itself must target the confirmed failure shape.
+    expect(tx.meetingBotSession.findMany).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: expect.objectContaining({
+          status: 'processing',
+          transcriptId: { not: null },
+          debriefId: null,
+          updatedAt: expect.objectContaining({ lt: expect.any(Date) }),
+        }),
+      }),
+    );
+    expect(engagement.generateMeetingDebriefDraft).toHaveBeenCalledTimes(1);
+    expect(engagement.createMeetingDebrief).toHaveBeenCalledTimes(1);
+    // The atomic claim (shared with the webhook path) must still fire — this is
+    // what makes a same-moment real webhook delivery race harmlessly.
+    expect(tx.meetingBotSession.updateMany).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({ status: 'drafting', transcriptId: 'tr1' }),
+      }),
+    );
+  });
+
+  test('does nothing when no sessions are stale', async () => {
+    const tx = makeTx();
+    const { service, engagement } = makeService(tx);
+
+    expect(await service.reconcileStaleTranscripts()).toBe(0);
+    expect(engagement.generateMeetingDebriefDraft).not.toHaveBeenCalled();
+  });
+
+  test('a per-row failure does not stop the sweep or escape as an unhandled rejection', async () => {
+    const tx = makeTx();
+    tx.meetingBotSession.findMany.mockResolvedValue([staleRow]);
+    // Force the atomic claim itself to blow up (e.g. a transient DB error) —
+    // finishTranscript's own try/catches only cover ITS internal awaits, so this
+    // exercises the sweep's own backstop catch.
+    tx.meetingBotSession.updateMany.mockRejectedValueOnce(new Error('db blip'));
+    const { service } = makeService(tx);
+
+    await expect(service.reconcileStaleTranscripts()).resolves.toBe(1);
+  });
+});
+
+describe('NotetakerService lifecycle (periodic reconciliation timer)', () => {
+  beforeEach(() => {
+    jest.useFakeTimers();
+  });
+  afterEach(() => {
+    jest.useRealTimers();
+  });
+
+  // advanceTimersByTime is synchronous and doesn't flush the real microtask
+  // queue, so a couple of empty microtask turns let the sweep's own
+  // .then/.catch/.finally chain settle before assertions run.
+  async function tick(ms: number) {
+    jest.advanceTimersByTime(ms);
+    await Promise.resolve();
+    await Promise.resolve();
+  }
+
+  test('onModuleInit schedules the sweep, and onModuleDestroy stops it', async () => {
+    const { service } = makeService(makeTx());
+    const spy = jest.spyOn(service, 'reconcileStaleTranscripts').mockResolvedValue(0);
+
+    service.onModuleInit();
+    expect(spy).not.toHaveBeenCalled();
+
+    await tick(60_000);
+    expect(spy).toHaveBeenCalledTimes(1);
+
+    service.onModuleDestroy();
+    await tick(120_000);
+    expect(spy).toHaveBeenCalledTimes(1);
+  });
+
+  test('a slow-running sweep is not started twice concurrently', async () => {
+    const { service } = makeService(makeTx());
+    let resolveSweep!: () => void;
+    const spy = jest
+      .spyOn(service, 'reconcileStaleTranscripts')
+      .mockImplementation(
+        () => new Promise<number>((resolve) => (resolveSweep = () => resolve(0))),
+      );
+
+    service.onModuleInit();
+    await tick(60_000);
+    expect(spy).toHaveBeenCalledTimes(1);
+
+    // The first sweep is still in flight — a second tick must be skipped.
+    await tick(60_000);
+    expect(spy).toHaveBeenCalledTimes(1);
+
+    // Flush microtasks BEFORE advancing the clock again, so the resolved
+    // sweep's .finally() clears `reconciling` before the next tick checks it.
+    resolveSweep();
+    await Promise.resolve();
+    await Promise.resolve();
+    await tick(60_000);
+    expect(spy).toHaveBeenCalledTimes(2);
+
+    service.onModuleDestroy();
   });
 });
 

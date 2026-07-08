@@ -5,6 +5,8 @@ import {
   BadRequestException,
   ForbiddenException,
   NotFoundException,
+  type OnModuleInit,
+  type OnModuleDestroy,
 } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import type { TenantContext, TenantRole } from '@capiro/shared';
@@ -61,6 +63,25 @@ const STATUS_RANK: Record<string, number> = {
 /** Statuses in which the bot is (or may still be) in the call and can be removed. */
 const REMOVABLE_STATUSES = ['requested', 'joining', 'in_call', 'recording'];
 
+/**
+ * How long to wait after async transcription is kicked off before treating a
+ * missing `transcript.done` webhook as dropped rather than "still transcribing".
+ * Confirmed in prod (2026-07-08): a `bot.status_change` webhook for a bot
+ * delivered fine, but the SAME bot's `transcript.done` a few seconds later never
+ * arrived — Recall can drop an individual delivery even when the endpoint and
+ * signature verification are healthy. Recall's real turnaround is ~10s for short
+ * meetings, so 90s gives genuine jobs headroom before the reconciliation sweep
+ * (below) steps in and finishes the pipeline itself via the SAME Retrieve
+ * Transcript API call a real webhook would have triggered.
+ */
+const STALE_TRANSCRIPT_MS = 90_000;
+
+/** How often the in-process sweep checks for a `transcript.done` the webhook missed. */
+const RECONCILE_SWEEP_INTERVAL_MS = 60_000;
+
+/** Cap a single sweep so a large backlog can't make one tick run unboundedly long. */
+const RECONCILE_SWEEP_BATCH_SIZE = 25;
+
 export interface DispatchNotetakerInput {
   /** The meeting join URL (Zoom/Meet/Teams) the bot should join. */
   meetingUrl: string;
@@ -92,10 +113,18 @@ export interface DispatchNotetakerInput {
  * Registered in EngagementModule (not NotetakerModule) so it can inject
  * EngagementService; NotetakerModule (imported by EngagementModule) supplies the
  * MEETING_BOT_PROVIDER token.
+ *
+ * Also runs a periodic reconciliation sweep (onModuleInit/onModuleDestroy) that
+ * self-heals sessions stuck waiting on a `transcript.done` webhook that Recall
+ * never delivered — see STALE_TRANSCRIPT_MS. Every ECS replica runs its own
+ * timer; that's fine because finishTranscript's atomic claim means only one
+ * replica's attempt ever does real work for a given session.
  */
 @Injectable()
-export class NotetakerService {
+export class NotetakerService implements OnModuleInit, OnModuleDestroy {
   private readonly logger = new Logger(NotetakerService.name);
+  private reconcileTimer?: ReturnType<typeof setInterval>;
+  private reconciling = false;
 
   constructor(
     private readonly prisma: PrismaService,
@@ -103,6 +132,90 @@ export class NotetakerService {
     private readonly engagement: EngagementService,
     private readonly config: ConfigService<AppConfig, true>,
   ) {}
+
+  onModuleInit(): void {
+    this.reconcileTimer = setInterval(() => {
+      // Skip this tick rather than overlap if the previous sweep (LLM debrief
+      // generation can take real time) is still running.
+      if (this.reconciling) return;
+      this.reconciling = true;
+      this.reconcileStaleTranscripts()
+        .catch((err) =>
+          this.logger.error(`transcript reconciliation sweep failed: ${(err as Error).message}`),
+        )
+        .finally(() => {
+          this.reconciling = false;
+        });
+    }, RECONCILE_SWEEP_INTERVAL_MS);
+    // Never let this timer keep the process alive past a graceful shutdown.
+    this.reconcileTimer.unref?.();
+  }
+
+  onModuleDestroy(): void {
+    if (this.reconcileTimer) clearInterval(this.reconcileTimer);
+  }
+
+  /**
+   * Find sessions whose async transcription finished on Recall's side (we have a
+   * transcriptId) but never got a `transcript.done` webhook, and drive them to
+   * completion ourselves via the same finishTranscript() a real webhook uses.
+   * Cross-tenant by design — this is an operational maintenance sweep, not a
+   * per-tenant request. Returns the number of sessions attempted.
+   */
+  async reconcileStaleTranscripts(): Promise<number> {
+    const cutoff = new Date(Date.now() - STALE_TRANSCRIPT_MS);
+    const stale = await this.prisma.withSystem((tx) =>
+      tx.meetingBotSession.findMany({
+        where: {
+          status: 'processing',
+          transcriptId: { not: null },
+          debriefId: null,
+          updatedAt: { lt: cutoff },
+        },
+        select: {
+          id: true,
+          tenantId: true,
+          meetingId: true,
+          clientId: true,
+          requestedByUserId: true,
+          externalBotId: true,
+          recordingPolicy: true,
+          transcriptId: true,
+        },
+        take: RECONCILE_SWEEP_BATCH_SIZE,
+      }),
+    );
+
+    for (const row of stale) {
+      this.logger.warn(
+        `reconciling session ${row.id} — transcript ${row.transcriptId} has had no ` +
+          `transcript.done webhook for over ${STALE_TRANSCRIPT_MS / 1000}s; finishing it directly`,
+      );
+      try {
+        // finishTranscript re-derives freshness via its own atomic claim, so a
+        // webhook that lands in the gap between this query and this call just
+        // wins the race harmlessly (this attempt no-ops).
+        await this.finishTranscript(
+          row.tenantId,
+          {
+            id: row.id,
+            meetingId: row.meetingId,
+            clientId: row.clientId,
+            requestedByUserId: row.requestedByUserId,
+            externalBotId: row.externalBotId,
+            recordingPolicy: row.recordingPolicy,
+          },
+          row.transcriptId!,
+        );
+      } catch (err) {
+        // finishTranscript already routes its own failures through failSession
+        // without throwing; this is a backstop so one bad row (e.g. a DB blip on
+        // the claim write) can't take down the rest of the sweep.
+        this.logger.error(`reconciliation failed for session ${row.id}: ${(err as Error).message}`);
+      }
+    }
+    return stale.length;
+  }
 
   /** Send a meeting bot to a meeting the caller owns. Strict-consent gated. */
   async dispatch(ctx: TenantContext, meetingId: string, input: DispatchNotetakerInput) {
