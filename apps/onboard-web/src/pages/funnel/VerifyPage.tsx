@@ -30,6 +30,12 @@ export function VerifyPage() {
   const [flowError, setFlowError] = React.useState<string | null>(null);
   const [code, setCode] = React.useState('');
   const [submitting, setSubmitting] = React.useState(false);
+  // True from the moment a completed sign-up starts finalizing (setActive →
+  // register → verify-check). CRITICAL: when the PIN is accepted, Clerk
+  // consumes the sign-up resource (signUpInProgress flips false) BEFORE
+  // setActive signs the user in — without this flag the render guard below
+  // bounces to /register in that window, unmounting the page mid-finalize.
+  const [finalizing, setFinalizing] = React.useState(false);
 
   const signUpInProgress = !!signUp?.emailAddress;
   const email = session.data?.email || signUp?.emailAddress || '';
@@ -47,26 +53,43 @@ export function VerifyPage() {
     }) => {
       if (!setActive) return;
       registeredRef.current = true; // we register right here — skip the fallback effect
-      await setActive({ session: attempt.createdSessionId });
-      const draft = readRegistrationDraft();
-      // orgName exists only in the local draft (Clerk never stores it) and
-      // RegisterDto rejects an empty one — re-collect instead of 400ing.
-      if (!draft?.orgName?.trim()) {
-        navigate('/register', { replace: true });
-        return;
+      setFinalizing(true); // hold the render guard: keep this page mounted
+      try {
+        await setActive({ session: attempt.createdSessionId });
+        const draft = readRegistrationDraft();
+        // orgName exists only in the local draft (Clerk never stores it) and
+        // RegisterDto rejects an empty one — re-collect instead of 400ing.
+        if (!draft?.orgName?.trim()) {
+          navigate('/register', { replace: true });
+          return;
+        }
+        const registerBody = {
+          firstName: draft.firstName || attempt.firstName || '',
+          lastName: draft.lastName || attempt.lastName || '',
+          orgName: draft.orgName,
+        };
+        let snapshot;
+        try {
+          snapshot = await api.register(registerBody);
+        } catch {
+          // The Clerk token can lag setActive by a beat — one retry covers it.
+          await new Promise((resolve) => setTimeout(resolve, 1200));
+          snapshot = await api.register(registerBody);
+        }
+        queryClient.setQueryData(FUNNEL_SESSION_KEY, snapshot);
+        const check = await api.verifyCheck();
+        if (check.verified) {
+          advanceSession({ state: 'verified' });
+          setVerified(true);
+        }
+        // If not verified yet, the signed-in verify-check poll below takes over.
+      } catch (err) {
+        // Recoverable: the signed-in fallback effect (or a manual retry) can
+        // finish registration — release both latches before surfacing.
+        registeredRef.current = false;
+        setFinalizing(false);
+        throw err;
       }
-      const snapshot = await api.register({
-        firstName: draft.firstName || attempt.firstName || '',
-        lastName: draft.lastName || attempt.lastName || '',
-        orgName: draft.orgName,
-      });
-      queryClient.setQueryData(FUNNEL_SESSION_KEY, snapshot);
-      const check = await api.verifyCheck();
-      if (check.verified) {
-        advanceSession({ state: 'verified' });
-        setVerified(true);
-      }
-      // If not verified yet, the signed-in verify-check poll below takes over.
     },
     [setActive, api, queryClient, advanceSession, navigate],
   );
@@ -121,7 +144,7 @@ export function VerifyPage() {
   // Without a stored draft (orgName is never in Clerk) an empty register POST
   // would 400 into a dead-end, so send the user back to /register instead.
   React.useEffect(() => {
-    if (!authLoaded || !isSignedIn) return;
+    if (!authLoaded || !isSignedIn || finalizing) return;
     if (session.isLoading || session.data) return;
     if (registeredRef.current) return;
     registeredRef.current = true;
@@ -142,7 +165,16 @@ export function VerifyPage() {
         setFlowError(errorMessage(err));
       }
     })();
-  }, [authLoaded, isSignedIn, session.isLoading, session.data, api, queryClient, navigate]);
+  }, [
+    authLoaded,
+    isSignedIn,
+    finalizing,
+    session.isLoading,
+    session.data,
+    api,
+    queryClient,
+    navigate,
+  ]);
 
   // ── Signed-in path (resumed session): POST /funnel/verify-check, polling
   // every 3s while unverified as a safety net for out-of-band verification.
@@ -167,8 +199,13 @@ export function VerifyPage() {
   };
 
   if (!authLoaded || !signUpLoaded) return null;
-  // Nothing to verify: no sign-up in flight and no signed-in session.
-  if (!isSignedIn && !signUpInProgress) return <Navigate to="/register" replace />;
+  // Nothing to verify: no sign-up in flight and no signed-in session — but
+  // NEVER bounce while a completed sign-up is finalizing: in that window the
+  // sign-up resource is already consumed and isSignedIn hasn't flipped yet,
+  // so this guard used to fire and dump the user back on /register.
+  if (!isSignedIn && !signUpInProgress && !finalizing) {
+    return <Navigate to="/register" replace />;
+  }
 
   return (
     <FunnelShell step={1} maxWidth={460}>
