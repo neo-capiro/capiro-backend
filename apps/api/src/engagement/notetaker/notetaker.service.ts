@@ -432,6 +432,15 @@ export class NotetakerService implements OnModuleInit, OnModuleDestroy {
    */
   receiveWebhook(headers: Record<string, string | undefined>, rawBody: Buffer | string): void {
     const event = this.bot.verifyAndParseWebhook(headers, rawBody);
+    // Unconditional, every-delivery log line (never gated on outcome). Every
+    // other log in this file only fires on a FAILURE, so a webhook that arrives
+    // and is silently ignored (unknown kind, no matching handler branch) left
+    // zero trace — indistinguishable from "never delivered". Confirmed painful
+    // in prod 2026-07-08: diagnosing a stuck debrief required a live session-row
+    // query + direct Recall API calls instead of just reading this log line.
+    this.logger.log(
+      `Recall webhook received: event=${event.event} kind=${event.kind} bot=${event.botId ?? 'n/a'}`,
+    );
     void this.handleBotEvent(event).catch((err) =>
       this.logger.error(
         `notetaker webhook processing failed (event=${event.event}): ${(err as Error).message}`,
@@ -526,7 +535,17 @@ export class NotetakerService implements OnModuleInit, OnModuleDestroy {
     // Transcript done → pull it, store it, generate + save the debrief, delete media.
     if (event.kind === 'transcript_done' && event.transcriptId) {
       await this.finishTranscript(tenantId, session, event.transcriptId);
+      return;
     }
+
+    // Reached only for an unclassified event kind, or a kind whose required
+    // field (e.g. transcript_done with no transcriptId) was missing — a webhook
+    // that genuinely arrived and matched a session but did nothing. Loud on
+    // purpose: this is exactly the failure mode a dropped-delivery incident
+    // (2026-07-08) looks identical to in the logs without this line.
+    this.logger.warn(
+      `Recall webhook for session ${sessionId} matched no handler (event=${event.event}, kind=${event.kind})`,
+    );
   }
 
   // ── internals ─────────────────────────────────────────────────────────────

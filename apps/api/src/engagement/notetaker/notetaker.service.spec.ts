@@ -1,4 +1,5 @@
 import { afterEach, beforeEach, describe, expect, jest, test } from '@jest/globals';
+import { Logger } from '@nestjs/common';
 import type { ConfigService } from '@nestjs/config';
 import type { PrismaService } from '../../prisma/prisma.service.js';
 import type { EngagementService } from '../engagement.service.js';
@@ -465,6 +466,23 @@ describe('NotetakerService.handleBotEvent (at-least-once webhook semantics)', ()
       makeEvent({ kind: 'recording_ready', recordingId: 'r1', metadata: {}, botId: 'bot_x' }),
     );
     expect(bot.createAsyncTranscript).not.toHaveBeenCalled();
+  });
+
+  test('an event that matches a session but no handler branch does not throw (and is logged, not silent)', async () => {
+    const tx = makeTx();
+    tx.meetingBotSession.findFirst.mockResolvedValue(baseSession);
+    const { service } = makeService(tx);
+    const warnSpy = jest.spyOn(Logger.prototype, 'warn').mockImplementation(() => undefined);
+
+    // 'unknown' kind, and transcript_done missing its required transcriptId,
+    // both fall through every handler branch — this must not throw silently.
+    await expect(service.handleBotEvent(makeEvent({ kind: 'unknown' }))).resolves.toBeUndefined();
+    await expect(
+      service.handleBotEvent(makeEvent({ kind: 'transcript_done', transcriptId: null })),
+    ).resolves.toBeUndefined();
+    expect(warnSpy).toHaveBeenCalledWith(expect.stringContaining('matched no handler'));
+
+    warnSpy.mockRestore();
   });
 });
 
