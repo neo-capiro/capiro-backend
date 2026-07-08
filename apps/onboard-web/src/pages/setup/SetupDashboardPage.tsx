@@ -129,7 +129,9 @@ export function SetupDashboardPage() {
   const doneCount = [emailDone, importDone, aiDone, tasks.invites === 'done'].filter(
     Boolean,
   ).length;
-  const invitesUnlocked = emailDone && importDone && aiDone;
+  // Firm AI settings are OPTIONAL — only email + import gate the team invites
+  // (mirrors the server-side blockers in setup.service.completeSetup).
+  const invitesUnlocked = emailDone && importDone;
 
   const cap = S.cap;
   const atCap = S.imported >= cap;
@@ -418,12 +420,12 @@ export function SetupDashboardPage() {
           )}
         </TaskCard>
 
-        {/* Task 3 — Firm AI settings */}
+        {/* Task 3 — Firm AI settings (OPTIONAL — does not gate invites) */}
         <TaskCard
           num="3"
           title="Configure firm AI settings"
           status={tasks.firm_ai}
-          desc="Set guardrails, tone, and preferences for your whole team."
+          desc="Optional — set guardrails, tone, and preferences for your whole team. You can also do this later from Settings."
           action={
             tasks.firm_ai === 'done' ? (
               <Btn size="sm" onClick={() => setOverlay('ai')}>
@@ -446,7 +448,7 @@ export function SetupDashboardPage() {
           desc={
             invitesUnlocked
               ? 'Your workspace is ready for the rest of the firm.'
-              : 'Available once all above steps are complete.'
+              : 'Available once the email provider is connected and clients are imported.'
           }
           action={
             invitesUnlocked && tasks.invites !== 'done' ? (

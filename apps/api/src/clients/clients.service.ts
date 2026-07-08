@@ -11,7 +11,7 @@ import { S3Client, GetObjectCommand, HeadObjectCommand } from '@aws-sdk/client-s
 import { createPresignedPost } from '@aws-sdk/s3-presigned-post';
 import { getSignedUrl } from '@aws-sdk/s3-request-presigner';
 import type { TenantContext } from '@capiro/shared';
-import { CLIENT_SLOT_LIMIT_CODE } from '@capiro/shared';
+import { CLIENT_SLOT_LIMIT_CODE, effectiveClientSlots } from '@capiro/shared';
 import type { AppConfig } from '../config/config.schema.js';
 import { PrismaService } from '../prisma/prisma.service.js';
 import { EntityResolutionService } from '../intelligence/entity-resolution.service.js';
@@ -121,15 +121,18 @@ export class ClientsService {
         select: { ldaRegistrantId: true, clientSlots: true, billingStatus: true },
       });
       if (this.billingEnforced && tenant && tenant.billingStatus !== 'comped') {
+        // Trials get at least the 10-profile allowance regardless of the
+        // stamped clientSlots (shared with the LDA import + setup dashboard).
+        const slotLimit = effectiveClientSlots(tenant.billingStatus, tenant.clientSlots);
         const current = await tx.client.count({
           where: { tenantId: ctx.tenantId, status: { not: 'archived' } },
         });
-        if (current >= tenant.clientSlots) {
+        if (current >= slotLimit) {
           throw new HttpException(
             {
               code: CLIENT_SLOT_LIMIT_CODE,
-              message: `You've used all ${tenant.clientSlots} client slots on your plan. Add more slots to create another client.`,
-              limit: tenant.clientSlots,
+              message: `You've used all ${slotLimit} client slots on your plan. Add more slots to create another client.`,
+              limit: slotLimit,
               current,
             },
             HttpStatus.PAYMENT_REQUIRED,
@@ -230,7 +233,7 @@ export class ClientsService {
     });
     let remainingSlots =
       this.billingEnforced && tenant && tenant.billingStatus !== 'comped'
-        ? Math.max(0, tenant.clientSlots - activeCount)
+        ? Math.max(0, effectiveClientSlots(tenant.billingStatus, tenant.clientSlots) - activeCount)
         : Number.POSITIVE_INFINITY;
     const existingNames = new Set(existing.map((c) => c.name.trim().toLowerCase()));
     // Also dedupe within the import payload itself: two rows with the same

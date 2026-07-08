@@ -9,6 +9,7 @@ import {
 } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import type { AuthTenantContext } from '@capiro/auth';
+import { effectiveClientSlots } from '@capiro/shared';
 import type { OnboardTaskKey, OnboardTaskStatus } from '../../generated/prisma-client/index.js';
 import { PrismaService } from '../prisma/prisma.service.js';
 import { TenantResolverService } from '../auth/tenant-resolver.service.js';
@@ -122,7 +123,10 @@ export class SetupService {
       slug: tenant.slug,
       plan: tenant.billingStatus === 'trialing' ? 'trial' : 'paid',
       imported,
-      cap: tenant.clientSlots,
+      // A trial always gets at least the 10-profile allowance (Gherkin Flow 1:
+      // "10 client profile limit") even if the tenant row was stamped with a
+      // smaller/zero clientSlots — the import UI drives selection off this cap.
+      cap: effectiveClientSlots(tenant.billingStatus, tenant.clientSlots),
       trialEndsAt: tenant.trialEndsAt ? tenant.trialEndsAt.toISOString() : null,
       itInvites: invites.map((i) => ({
         id: i.id,
@@ -253,17 +257,16 @@ export class SetupService {
 
   /**
    * Finalize setup after the team invites were sent (Gherkin 2A.5). Gated on
-   * the three org tasks; flips `invites` to done and — for trials — starts
-   * the 30-day clock (tenants.trial_ends_at) exactly once.
+   * email + import only — firm AI settings are OPTIONAL (Ninja 2026-07-08);
+   * flips `invites` to done and — for trials — starts the 30-day clock
+   * (tenants.trial_ends_at) exactly once.
    */
   async completeSetup(ctx: AuthTenantContext): Promise<SetupState> {
     this.assertAdmin(ctx);
     const tenantId = await this.tenants.resolveTenantUuid(ctx);
     const tasks = await this.prisma.onboardSetupTask.findMany({ where: { tenantId } });
     const byKey = new Map(tasks.map((t) => [t.task, t.status]));
-    const blockers = (['it_email', 'import', 'firm_ai'] as const).filter(
-      (k) => byKey.get(k) !== 'done',
-    );
+    const blockers = (['it_email', 'import'] as const).filter((k) => byKey.get(k) !== 'done');
     if (blockers.length > 0) {
       throw new BadRequestException(
         `Setup steps still pending: ${blockers.join(', ')} — the team invites step unlocks once they're complete`,

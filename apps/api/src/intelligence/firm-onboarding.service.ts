@@ -7,7 +7,7 @@ import {
   NotFoundException,
 } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
-import { CLIENT_SLOT_LIMIT_CODE, type TenantContext } from '@capiro/shared';
+import { CLIENT_SLOT_LIMIT_CODE, effectiveClientSlots, type TenantContext } from '@capiro/shared';
 import type { AppConfig } from '../config/config.schema.js';
 import { PrismaService } from '../prisma/prisma.service.js';
 import { ClientPrepopulationService } from './client-prepopulation.service.js';
@@ -178,12 +178,17 @@ export class FirmOnboardingService {
     });
     const slotsEnforced =
       this.billingEnforced && slotGate.tenant && slotGate.tenant.billingStatus !== 'comped';
-    if (slotsEnforced && slotGate.current >= slotGate.tenant!.clientSlots) {
+    // Trials get at least the 10-profile allowance regardless of the stamped
+    // clientSlots — shared with ClientsService + the setup dashboard cap.
+    const slotLimit = slotGate.tenant
+      ? effectiveClientSlots(slotGate.tenant.billingStatus, slotGate.tenant.clientSlots)
+      : 0;
+    if (slotsEnforced && slotGate.current >= slotLimit) {
       throw new HttpException(
         {
           code: CLIENT_SLOT_LIMIT_CODE,
-          message: `You've used all ${slotGate.tenant!.clientSlots} client slots.`,
-          limit: slotGate.tenant!.clientSlots,
+          message: `You've used all ${slotLimit} client slots.`,
+          limit: slotLimit,
           current: slotGate.current,
         },
         HttpStatus.PAYMENT_REQUIRED,
@@ -234,8 +239,8 @@ export class FirmOnboardingService {
             // Re-count inside the row transaction so a batch stops exactly at
             // the cap instead of overshooting.
             const count = await tx.client.count({ where: { status: { not: 'archived' } } });
-            if (count >= slotGate.tenant!.clientSlots) {
-              return { capped: slotGate.tenant!.clientSlots };
+            if (count >= slotLimit) {
+              return { capped: slotLimit };
             }
           }
           const client = await tx.client.create({

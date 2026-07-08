@@ -426,6 +426,20 @@ export const TENANT_HEADER = 'x-capiro-tenant';
 export const MIN_CLIENT_SLOTS = 10;
 
 /**
+ * The slot allowance ENFORCEMENT should use, given a tenant's billing status.
+ * A trialing tenant always gets at least the 10-profile trial allowance
+ * (Gherkin Flow 1: "10 client profile limit"), even if its clientSlots column
+ * was stamped smaller — every slot gate (LDA import, client create, CSV) and
+ * the setup dashboard cap must agree on this number.
+ */
+export function effectiveClientSlots(
+  billingStatus: string | null | undefined,
+  clientSlots: number,
+): number {
+  return billingStatus === 'trialing' ? Math.max(clientSlots, MIN_CLIENT_SLOTS) : clientSlots;
+}
+
+/**
  * Client-slot pricing (onboarding v1, Ninja decision Q2 2026-07-06): FLAT
  * $200/slot/month for every self-serve quantity. The previous $180/$160
  * volume tiers were removed — volume discounts are contact-sales only, never
