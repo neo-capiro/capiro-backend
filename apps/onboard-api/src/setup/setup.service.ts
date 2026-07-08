@@ -27,6 +27,13 @@ export interface SetupTaskRow {
 
 export interface SetupState {
   complete: boolean;
+  /**
+   * True when the active workspace is NOT a self-serve onboarding-v1 tenant
+   * (e.g. a legacy/staff org like capiro-internal). The dashboard must show a
+   * workspace-switch notice instead of rendering — otherwise a shared browser
+   * session displays the wrong firm and sends wrong-branded IT invites.
+   */
+  legacyTenant: boolean;
   tasks: SetupTaskRow;
   orgName: string;
   slug: string;
@@ -79,6 +86,25 @@ export class SetupService {
     }
   }
 
+  /**
+   * Setup mutations only apply to self-serve (onboarding v1) tenants. A user
+   * whose ACTIVE org is a legacy workspace (shared browser session, staff
+   * account) must never send IT invites or flip tasks branded as that firm.
+   */
+  private async requireV1Tenant(tenantId: string): Promise<void> {
+    const tenant = await this.prisma.withSystem((tx) =>
+      tx.tenant.findUnique({
+        where: { id: tenantId },
+        select: { onboardingFlowVersion: true },
+      }),
+    );
+    if (tenant?.onboardingFlowVersion !== 1) {
+      throw new BadRequestException(
+        'The active workspace does not use the setup dashboard — switch to your new firm workspace first.',
+      );
+    }
+  }
+
   async getState(ctx: AuthTenantContext): Promise<SetupState> {
     const tenantId = await this.tenants.resolveTenantUuid(ctx);
     const [tenant, tasks, invites, imported] = await Promise.all([
@@ -118,6 +144,7 @@ export class SetupService {
       // Legacy tenants (no onboarding flow) are always "complete" — the
       // in-app SetupGate keys off this and must never hold them.
       complete: tenant.onboardingFlowVersion !== 1 || taskRow.invites === 'done',
+      legacyTenant: tenant.onboardingFlowVersion !== 1,
       tasks: taskRow,
       orgName: tenant.name,
       slug: tenant.slug,
@@ -150,6 +177,7 @@ export class SetupService {
   ): Promise<{ task: OnboardTaskKey; status: OnboardTaskStatus }> {
     this.assertAdmin(ctx);
     const tenantId = await this.tenants.resolveTenantUuid(ctx);
+    await this.requireV1Tenant(tenantId);
     if (task === 'invites') {
       throw new BadRequestException('The invites step completes via /setup/complete');
     }
@@ -172,6 +200,7 @@ export class SetupService {
   async createItInvite(ctx: AuthTenantContext, email: string): Promise<SetupState['itInvites']> {
     this.assertAdmin(ctx);
     const tenantId = await this.tenants.resolveTenantUuid(ctx);
+    await this.requireV1Tenant(tenantId);
     const normalized = email.trim().toLowerCase();
     if (!normalized.includes('@')) throw new BadRequestException('A valid email is required');
 
@@ -221,6 +250,7 @@ export class SetupService {
   async resendItInvite(ctx: AuthTenantContext, inviteId: string): Promise<{ ok: true }> {
     this.assertAdmin(ctx);
     const tenantId = await this.tenants.resolveTenantUuid(ctx);
+    await this.requireV1Tenant(tenantId);
     const invite = await this.prisma.onboardItInvite.findFirst({
       where: { id: inviteId, tenantId },
     });
@@ -264,6 +294,7 @@ export class SetupService {
   async completeSetup(ctx: AuthTenantContext): Promise<SetupState> {
     this.assertAdmin(ctx);
     const tenantId = await this.tenants.resolveTenantUuid(ctx);
+    await this.requireV1Tenant(tenantId);
     const tasks = await this.prisma.onboardSetupTask.findMany({ where: { tenantId } });
     const byKey = new Map(tasks.map((t) => [t.task, t.status]));
     const blockers = (['it_email', 'import'] as const).filter((k) => byKey.get(k) !== 'done');

@@ -216,6 +216,24 @@ export interface RegistrationDraft {
   firstName: string;
   lastName: string;
   orgName: string;
+  /**
+   * The email the registrant TYPED. Auto-registration paths must refuse to
+   * run when the signed-in session belongs to a different email — otherwise a
+   * shared browser session silently makes the WRONG account the purchaser
+   * (e.g. a staff session hijacking a test persona's sign-up).
+   */
+  email?: string;
+}
+
+/** True when the draft was written for this signed-in user (or predates the
+ * email field). A mismatch means "different person" — never auto-register. */
+export function draftMatchesUser(
+  draft: RegistrationDraft | null,
+  sessionEmail: string | null | undefined,
+): boolean {
+  if (!draft?.email) return true; // legacy draft — no identity to compare
+  if (!sessionEmail) return true;
+  return draft.email.trim().toLowerCase() === sessionEmail.trim().toLowerCase();
 }
 
 // localStorage (not sessionStorage): the draft carries orgName, which Clerk

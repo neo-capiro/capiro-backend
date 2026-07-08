@@ -2,11 +2,12 @@
 // headless Clerk sign-up (useSignUp) + POST /funnel/register.
 import React from 'react';
 import { useNavigate } from 'react-router-dom';
-import { useAuth, useSignUp, useUser } from '@clerk/clerk-react';
+import { useAuth, useClerk, useSignUp, useUser } from '@clerk/clerk-react';
 import { isClerkAPIResponseError } from '@clerk/clerk-react/errors';
 import { useQueryClient } from '@tanstack/react-query';
 import { Btn, Card, Field, FunnelShell, ScreenTitle, TextInput } from '../../ui/primitives';
 import {
+  draftMatchesUser,
   FUNNEL_SESSION_KEY,
   readRegistrationDraft,
   storeRegistrationDraft,
@@ -51,6 +52,8 @@ export function RegisterPage() {
   const { isLoaded: authLoaded, isSignedIn } = useAuth();
   const { isLoaded: signUpLoaded, signUp, setActive } = useSignUp();
   const { user } = useUser();
+  const clerk = useClerk();
+  const sessionEmail = user?.primaryEmailAddress?.emailAddress ?? null;
 
   const [firstName, setFirstName] = React.useState('');
   const [lastName, setLastName] = React.useState('');
@@ -73,6 +76,10 @@ export function RegisterPage() {
     if (!authLoaded || !isSignedIn || autoRegisterRef.current) return;
     const draft = readRegistrationDraft();
     if (!draft?.orgName?.trim()) return; // fall through to the manual form
+    // The draft was typed by a DIFFERENT person than the signed-in session
+    // (shared browser): auto-registering would silently make the wrong
+    // account the purchaser. Show the form + identity banner instead.
+    if (!draftMatchesUser(draft, sessionEmail)) return;
     autoRegisterRef.current = true;
     void (async () => {
       try {
@@ -95,12 +102,23 @@ export function RegisterPage() {
     setSubmitting(true);
     setErrors({});
     try {
-      storeRegistrationDraft({ firstName, lastName, orgName });
+      storeRegistrationDraft({ firstName, lastName, orgName, email: email.trim() });
 
       // Signed-in recovery path (#9): the Clerk account exists but the funnel
       // register POST never landed — a signUp.create would throw ("already
       // signed in"), so register directly with the re-entered form values.
+      // HARD IDENTITY CHECK: registering under a session whose email differs
+      // from the one typed silently makes the WRONG account the purchaser
+      // (the tenant + Super Admin land on the signed-in user, not the person
+      // on the form). Refuse and point at sign-out.
       if (isSignedIn) {
+        const typed = email.trim().toLowerCase();
+        if (typed && sessionEmail && typed !== sessionEmail.toLowerCase()) {
+          setErrors({
+            email: `You're signed in as ${sessionEmail}, so this registration would belong to that account — sign out first to register as ${typed}.`,
+          });
+          return;
+        }
         autoRegisterRef.current = true;
         const snapshot = await api.register({ firstName, lastName, orgName });
         queryClient.setQueryData(FUNNEL_SESSION_KEY, snapshot);
@@ -140,6 +158,33 @@ export function RegisterPage() {
       />
       <Card>
         <div style={{ display: 'grid', gap: 14 }}>
+          {isSignedIn && sessionEmail && (
+            <div
+              style={{
+                fontSize: 12.5,
+                lineHeight: 1.55,
+                background: 'var(--accent-soft)',
+                border: '1px solid var(--accent)',
+                borderRadius: 6,
+                padding: '10px 14px',
+                color: 'var(--accent-ink)',
+              }}
+            >
+              You're signed in as <b>{sessionEmail}</b> — this registration (and the new workspace)
+              will belong to that account.{' '}
+              <a
+                href="#"
+                onClick={(e) => {
+                  e.preventDefault();
+                  void clerk.signOut().then(() => window.location.reload());
+                }}
+                style={{ color: 'var(--accent-ink)', fontWeight: 700 }}
+              >
+                Sign out
+              </a>{' '}
+              to register as someone else.
+            </div>
+          )}
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
             <Field label="First name">
               <TextInput value={firstName} onChange={(e) => setFirstName(e.target.value)} />

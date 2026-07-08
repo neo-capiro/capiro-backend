@@ -120,6 +120,46 @@ export function SetupDashboardPage() {
   }
 
   const S: SetupState = state.data;
+
+  // The ACTIVE Clerk org is a legacy workspace (e.g. capiro-internal): this
+  // dashboard would render the wrong firm's state and brand IT invites with
+  // the wrong name (Clerk's session cookie is shared across *.capiro.ai, so a
+  // staff session can shadow a test/customer persona). Offer the switch.
+  if (S.legacyTenant) {
+    const otherOrgs = (orgList.userMemberships?.data ?? []).filter(
+      (m) => m.organization.id !== orgId,
+    );
+    return (
+      <ExtShell orgName={S.orgName}>
+        <CenteredNotice>
+          <p style={{ margin: '0 0 16px', fontSize: 13.5, color: 'var(--ink-2)', lineHeight: 1.6 }}>
+            You're signed in as <b>{user?.primaryEmailAddress?.emailAddress}</b> with the{' '}
+            <b>{S.orgName}</b> workspace active — that workspace doesn't use this setup dashboard.
+          </p>
+          {otherOrgs.length > 0 && (
+            <div style={{ display: 'grid', gap: 8, marginBottom: 16 }}>
+              {otherOrgs.map((m) => (
+                <Btn
+                  key={m.organization.id}
+                  variant="primary"
+                  onClick={() =>
+                    void (async () => {
+                      await orgList.setActive?.({ organization: m.organization.id });
+                      window.location.reload();
+                    })()
+                  }
+                >
+                  Switch to {m.organization.name}
+                </Btn>
+              ))}
+            </div>
+          )}
+          <Btn onClick={() => window.location.assign(config.appBaseUrl)}>Go to Capiro</Btn>
+        </CenteredNotice>
+      </ExtShell>
+    );
+  }
+
   const tasks = S.tasks;
   const refetch = () => state.refetch();
 

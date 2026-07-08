@@ -5,10 +5,11 @@
 // verify it inline in the same tab — no redirect-URL round-trip.
 import React from 'react';
 import { Navigate, useNavigate } from 'react-router-dom';
-import { useAuth, useSignUp } from '@clerk/clerk-react';
+import { useAuth, useSignUp, useUser } from '@clerk/clerk-react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { Btn, Card, FunnelShell, Icon, TextInput } from '../../ui/primitives';
 import {
+  draftMatchesUser,
   FUNNEL_SESSION_KEY,
   readRegistrationDraft,
   useAdvanceSession,
@@ -24,6 +25,7 @@ export function VerifyPage() {
   const advanceSession = useAdvanceSession();
   const { isLoaded: authLoaded, isSignedIn } = useAuth();
   const { isLoaded: signUpLoaded, signUp, setActive } = useSignUp();
+  const { user } = useUser();
   const session = useFunnelSession();
 
   const [verified, setVerified] = React.useState(false);
@@ -150,7 +152,13 @@ export function VerifyPage() {
     registeredRef.current = true;
     void (async () => {
       const draft = readRegistrationDraft();
-      if (!draft?.orgName?.trim()) {
+      // No usable draft, OR a draft typed by a DIFFERENT person than this
+      // session (shared browser) — never register the wrong account as the
+      // purchaser; /register shows the identity banner and re-collects.
+      if (
+        !draft?.orgName?.trim() ||
+        !draftMatchesUser(draft, user?.primaryEmailAddress?.emailAddress)
+      ) {
         navigate('/register', { replace: true });
         return;
       }
@@ -174,6 +182,7 @@ export function VerifyPage() {
     api,
     queryClient,
     navigate,
+    user,
   ]);
 
   // ── Signed-in path (resumed session): POST /funnel/verify-check, polling
