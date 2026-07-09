@@ -21642,3 +21642,396 @@ button.engagement-debrief-badge--action:hover {
     grid-template-columns: repeat(2, 1fr);
   }
 }
+
+/* ── Legislation tab: bill-action swimlane timeline (LEG-A) ─────────────── */
+/* Legislative bill swimlane */
+.pe-watch-page .pe-swimlane-card .ant-card-body {
+  padding-top: 12px;
+}
+.pe-watch-page .pe-swimlane {
+  min-width: 520px;
+}
+.pe-watch-page .pe-swimlane-head,
+.pe-watch-page .pe-swimlane-row {
+  display: grid;
+  grid-template-columns: 112px minmax(360px, 1fr);
+  gap: 10px;
+}
+.pe-watch-page .pe-swimlane-head {
+  align-items: end;
+  padding: 0 0 6px;
+  border-bottom: 1px solid var(--border-1);
+}
+.pe-watch-page .pe-swimlane-head-label {
+  font-size: 10px;
+  font-weight: 650;
+  color: var(--ink-3);
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+.pe-watch-page .pe-swimlane-axis {
+  display: grid;
+  grid-auto-flow: column;
+  grid-auto-columns: 1fr;
+  align-items: end;
+  color: var(--ink-3);
+  font-family: var(--font-mono-rd);
+  font-size: 10.5px;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+}
+.pe-watch-page .pe-year-label {
+  display: block;
+  text-align: left;
+}
+.pe-watch-page .pe-swimlane-body {
+  display: flex;
+  flex-direction: column;
+}
+.pe-watch-page .pe-swimlane-row {
+  align-items: stretch;
+  min-height: 58px;
+  border-bottom: 1px solid var(--border-1);
+}
+.pe-watch-page .pe-swimlane-row:last-child {
+  border-bottom: none;
+}
+.pe-watch-page .pe-swimlane-row:hover {
+  background: var(--bg-surface-2);
+}
+.pe-watch-page .pe-lane-bill {
+  border: none;
+  background: transparent;
+  min-width: 0;
+  padding: 9px 0 8px 2px;
+  text-align: left;
+  cursor: pointer;
+  font: inherit;
+  color: inherit;
+}
+.pe-watch-page .pe-lane-bill:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+  border-radius: var(--r-sm);
+}
+.pe-watch-page .pe-lane-bill-num {
+  display: block;
+  font-family: var(--font-mono-rd);
+  font-size: 12px;
+  font-weight: 650;
+  color: var(--accent);
+  line-height: 1.2;
+  white-space: nowrap;
+}
+.pe-watch-page .pe-lane-bill-sub {
+  display: block;
+  margin-top: 2px;
+  font-size: 10px;
+  color: var(--ink-3);
+  line-height: 1.25;
+}
+.pe-watch-page .pe-lane-track {
+  position: relative;
+  min-height: 58px;
+  overflow: hidden;
+}
+.pe-watch-page .pe-lane-line {
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: 25px;
+  height: 2px;
+  background: var(--border-2);
+}
+.pe-watch-page .pe-year-grid {
+  position: absolute;
+  top: 9px;
+  bottom: 8px;
+  width: 1px;
+  background: color-mix(in srgb, var(--border-1) 72%, transparent);
+  pointer-events: none;
+}
+.pe-watch-page .pe-event-mark {
+  position: absolute;
+  top: 25px;
+  transform: translate(-50%, -50%);
+  z-index: 2;
+  width: 13px;
+  height: 13px;
+  border-radius: 999px;
+  border: 2px solid var(--bg-surface);
+  background: var(--ink-3);
+  box-shadow: 0 0 0 1px var(--border-1);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  color: #fff;
+  font-size: 8px;
+  font-weight: 750;
+  line-height: 1;
+}
+.pe-watch-page .pe-event-mark.reported {
+  background: var(--info);
+}
+.pe-watch-page .pe-event-mark.committee {
+  width: 12px;
+  height: 12px;
+  border-radius: 3px;
+  background: var(--notable);
+  transform: translate(-50%, -50%) rotate(45deg);
+}
+.pe-watch-page .pe-event-mark.passed {
+  width: 15px;
+  height: 15px;
+  background: var(--accent);
+}
+.pe-watch-page .pe-event-mark.president,
+.pe-watch-page .pe-event-mark.law {
+  width: 16px;
+  height: 16px;
+  background: var(--success);
+  color: #fff;
+}
+.pe-watch-page .pe-event-mark.procedural {
+  background: var(--bg-surface);
+  border-color: var(--ink-4);
+  color: var(--ink-3);
+  box-shadow: none;
+}
+.pe-watch-page .pe-event-mark.is-cluster {
+  width: auto;
+  min-width: 22px;
+  height: 16px;
+  padding: 0 5px;
+  border-radius: 999px;
+  transform: translate(-50%, -50%);
+  font-family: var(--font-mono-rd);
+  font-size: 9px;
+}
+.pe-watch-page .pe-event-mark.committee.is-cluster {
+  border-radius: 999px;
+  transform: translate(-50%, -50%);
+}
+.pe-watch-page .pe-event-label {
+  position: absolute;
+  top: 36px;
+  transform: translateX(-50%);
+  max-width: 88px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 10.5px;
+  font-weight: 600;
+  color: var(--ink-2);
+  line-height: 1.2;
+  pointer-events: none;
+}
+.pe-watch-page .pe-swimlane-legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px 10px;
+  padding: 10px 0 2px;
+  border-top: 1px solid var(--border-1);
+}
+.pe-watch-page .pe-legend-item {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 10.5px;
+  color: var(--ink-3);
+}
+.pe-watch-page .pe-legend-mark {
+  position: static;
+  transform: none;
+  flex: 0 0 auto;
+}
+.pe-watch-page .pe-legend-mark.committee {
+  transform: rotate(45deg);
+}
+.pe-watch-page .pe-action-history {
+  margin-top: 12px;
+  padding-top: 10px;
+  border-top: 1px solid var(--border-1);
+}
+.pe-watch-page .pe-action-history-title {
+  margin-bottom: 7px;
+  font-size: 10px;
+  font-weight: 700;
+  color: var(--ink-3);
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+.pe-watch-page .pe-action-table {
+  display: flex;
+  flex-direction: column;
+  border: 1px solid var(--border-1);
+  border-radius: var(--r-md);
+  overflow: hidden;
+  background: var(--bg-surface);
+}
+.pe-watch-page .pe-action-row {
+  display: grid;
+  grid-template-columns: 58px 74px minmax(0, 1fr);
+  gap: 8px;
+  align-items: start;
+  padding: 7px 9px;
+  border-top: 1px solid var(--border-1);
+  font-size: 11.5px;
+  line-height: 1.35;
+}
+.pe-watch-page .pe-action-row:first-child {
+  border-top: none;
+}
+.pe-watch-page .pe-action-head {
+  background: var(--bg-sunken);
+  color: var(--ink-3);
+  font-size: 9.5px;
+  font-weight: 700;
+  letter-spacing: 0.07em;
+  text-transform: uppercase;
+}
+.pe-watch-page .pe-action-date,
+.pe-watch-page .pe-action-bill {
+  font-family: var(--font-mono-rd);
+  font-size: 10.5px;
+  color: var(--ink-3);
+  font-variant-numeric: tabular-nums;
+}
+.pe-watch-page .pe-action-bill {
+  color: var(--accent);
+  font-weight: 650;
+}
+.pe-watch-page .pe-action-text {
+  min-width: 0;
+  color: var(--ink-2);
+}
+.pe-watch-page .pe-action-kind {
+  display: inline-flex;
+  margin-right: 6px;
+  padding: 1px 5px;
+  border-radius: 3px;
+  font-size: 9px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  vertical-align: 1px;
+  background: var(--bg-sunken);
+  color: var(--ink-2);
+}
+.pe-watch-page .pe-action-kind.reported,
+.pe-watch-page .pe-action-kind.passed {
+  background: var(--info-soft);
+  color: var(--info);
+}
+.pe-watch-page .pe-action-kind.committee {
+  background: var(--notable-soft);
+  color: var(--notable);
+}
+.pe-watch-page .pe-action-kind.president,
+.pe-watch-page .pe-action-kind.law {
+  background: var(--success-soft);
+  color: var(--success);
+}
+.pe-watch-page .pe-swimlane-empty,
+.pe-watch-page .pe-action-empty {
+  padding: 18px 12px;
+  border: 1px dashed var(--border-2);
+  border-radius: var(--r-md);
+  background: var(--bg-surface-2);
+  color: var(--ink-3);
+  font-size: 12px;
+  text-align: center;
+}
+.pe-watch-page .pe-swimlane-empty b {
+  display: block;
+  color: var(--ink-2);
+  margin-bottom: 3px;
+}
+.pe-watch-page .pe-undated-bills {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin-top: 12px;
+}
+.pe-watch-page .pe-undated-bill {
+  display: grid;
+  grid-template-columns: 82px minmax(0, 1fr);
+  gap: 8px;
+  align-items: center;
+  border: 1px solid var(--border-1);
+  border-radius: var(--r-md);
+  background: var(--bg-surface);
+  padding: 7px 9px;
+  text-align: left;
+  cursor: pointer;
+  font: inherit;
+}
+.pe-watch-page .pe-undated-bill:hover {
+  background: var(--bg-surface-2);
+}
+.pe-watch-page .pe-undated-bill span {
+  font-family: var(--font-mono-rd);
+  color: var(--accent);
+  font-size: 11px;
+  font-weight: 650;
+}
+.pe-watch-page .pe-undated-bill small {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: var(--ink-2);
+  font-size: 11.5px;
+}
+
+/* ── Panel scrollers: show ~5 rows, then scroll, so no gadget runs too long.
+   Each panel's body scrolls internally; the card header stays pinned. The
+   max-heights are tuned to the per-row heights above (bill ≈ 72px incl. padding,
+   contractor table row ≈ 54px, team row ≈ 66px) so roughly five rows are
+   visible before the scrollbar appears. */
+.pe-watch-page .pe-scroll-5 {
+  max-height: 360px;
+  overflow-y: auto;
+  overflow-x: hidden;
+  /* room so the last visible row isn't clipped against the scrollbar */
+  padding-right: 4px;
+}
+.pe-watch-page .pe-scroll-5.pe-scroll-table {
+  max-height: 320px;
+}
+.pe-watch-page .pe-scroll-5.pe-scroll-swimlane {
+  max-height: 540px;
+  overflow-x: auto;
+}
+.pe-watch-page .pe-scroll-5::-webkit-scrollbar {
+  width: 8px;
+}
+.pe-watch-page .pe-scroll-5::-webkit-scrollbar-thumb {
+  background: var(--border-2);
+  border-radius: 999px;
+}
+.pe-watch-page .pe-scroll-5::-webkit-scrollbar-track {
+  background: transparent;
+}
+/* Keep the contractor sub-tables' sticky header readable while the body scrolls. */
+.pe-watch-page .pe-scroll-5 .ant-table-thead > tr > th {
+  position: sticky;
+  top: 0;
+  z-index: 1;
+}
+
+@media (max-width: 720px) {
+  .pe-watch-page .pe-swimlane-head,
+  .pe-watch-page .pe-swimlane-row {
+    grid-template-columns: 96px minmax(340px, 1fr);
+  }
+  .pe-watch-page .pe-action-row {
+    grid-template-columns: 52px 68px minmax(0, 1fr);
+    padding: 7px;
+  }
+}
+
+/* Blanket authorizer (NDAA-scale) swimlane rows are de-emphasized. */
+.pe-watch-page .pe-swimlane-row.pe-bill-blanket {
+  opacity: 0.72;
+}

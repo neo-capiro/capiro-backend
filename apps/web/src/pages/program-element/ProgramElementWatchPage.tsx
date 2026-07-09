@@ -564,6 +564,23 @@ export function ProgramElementWatchPage() {
           kind: classifyAction(b.latestActionText),
         }));
 
+  // LEG-A: attach the (already-fetched) stage-classified action feed to each bill
+  // so the bill-timeline swimlane renders full per-bill histories rather than a
+  // single latest-action dot. historyEvents is capped server-side; bills with no
+  // events in the feed fall back to their latestAction inside the panel.
+  const billsWithActions: ProgramElementBill[] = bills.map((b) => ({
+    ...b,
+    actions: historyEvents
+      .filter((e) => e.billId === b.id)
+      .map((e, i) => ({
+        id: `${e.billId}-${e.date}-${i}`,
+        date: e.date,
+        text: e.text,
+        type: e.type,
+        chamber: e.chamber,
+      })),
+  }));
+
   const projects = projectsQuery.data ?? [];
 
   const byOrg = Object.entries(
@@ -872,7 +889,7 @@ export function ProgramElementWatchPage() {
         </div>
       </div>
       <div className="pe-surface pe-plain-surface span-2">
-        <BillsTouchingPePanel bills={bills} loading={billsQuery.isLoading} />
+        <BillsTouchingPePanel bills={billsWithActions} loading={billsQuery.isLoading} />
       </div>
       <div className="pe-surface pe-plain-surface span-2">
         <ProvisionsPanel provisions={provisionsQuery.data} loading={provisionsQuery.isLoading} />

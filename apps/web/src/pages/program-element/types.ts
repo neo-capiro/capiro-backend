@@ -404,6 +404,17 @@ export interface ProgramElementBill {
     evidence: string;
     status: string; // accepted | candidate
   } | null;
+  /** LEG-A: per-bill stage-classified actions that feed the bill-timeline swimlane. */
+  actions?: ProgramElementBillAction[];
+}
+
+/** One legislative action rendered on the bill-timeline swimlane (BillsTouchingPePanel). */
+export interface ProgramElementBillAction {
+  id: string;
+  date: string;
+  text: string;
+  type: string | null;
+  chamber: string | null;
 }
 
 /** LEG-A: one stage-classified legislative action from a bill touching the PE. */

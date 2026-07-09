@@ -1,7 +1,8 @@
 import { fireEvent, render, screen } from '@testing-library/react';
+import { beforeEach, describe, expect, test, vi } from 'vitest';
 import { MemoryRouter } from 'react-router-dom';
-import { describe, expect, test, vi } from 'vitest';
-import { BillsTouchingPePanel, billProbabilityColor } from './BillsTouchingPePanel.js';
+import { BillsTouchingPePanel } from './BillsTouchingPePanel.js';
+import type { ProgramElementBill } from './types.js';
 
 const navigateMock = vi.fn();
 
@@ -13,91 +14,176 @@ vi.mock('react-router-dom', async () => {
   };
 });
 
-describe('BillsTouchingPePanel', () => {
-  test('setup browser mocks', () => {
-    Object.defineProperty(window, 'matchMedia', {
-      writable: true,
-      value: vi.fn().mockImplementation((query: string) => ({
-        matches: false,
-        media: query,
-        onchange: null,
-        addListener: vi.fn(),
-        removeListener: vi.fn(),
-        addEventListener: vi.fn(),
-        removeEventListener: vi.fn(),
-        dispatchEvent: vi.fn(),
-      })),
-    });
-
-    class ResizeObserverMock {
-      observe() {}
-      unobserve() {}
-      disconnect() {}
-    }
-    vi.stubGlobal('ResizeObserver', ResizeObserverMock);
-    expect(true).toBe(true);
+beforeEach(() => {
+  navigateMock.mockReset();
+  Object.defineProperty(window, 'matchMedia', {
+    writable: true,
+    value: vi.fn().mockImplementation((query: string) => ({
+      matches: false,
+      media: query,
+      onchange: null,
+      addListener: vi.fn(),
+      removeListener: vi.fn(),
+      addEventListener: vi.fn(),
+      removeEventListener: vi.fn(),
+      dispatchEvent: vi.fn(),
+    })),
   });
 
-  test('renders mock data and probability colors helper', () => {
+  class ResizeObserverMock {
+    observe() {}
+    unobserve() {}
+    disconnect() {}
+  }
+  vi.stubGlobal('ResizeObserver', ResizeObserverMock);
+});
+
+function bill(partial: Partial<ProgramElementBill>): ProgramElementBill {
+  return {
+    id: '119-hr-123',
+    congress: 119,
+    billType: 'HR',
+    billNumber: '123',
+    title: 'Focused program bill',
+    policyArea: null,
+    latestActionText: null,
+    latestActionDate: null,
+    url: null,
+    sponsor: 'Rep. Doe',
+    committee: 'Armed Services',
+    peCodeCount: 2,
+    ...partial,
+  };
+}
+
+describe('BillsTouchingPePanel', () => {
+  test('renders a compact swimlane and chronological action history', () => {
     render(
       <MemoryRouter>
         <BillsTouchingPePanel
           bills={[
-            {
-              id: 'HR-123',
-              congress: 119,
+            bill({
+              id: '118-hr-2670',
+              congress: 118,
               billType: 'HR',
-              billNumber: '123',
-              title:
-                'A very long bill title that should be truncated because it is over sixty characters long for rendering checks',
-              policyArea: null,
-              latestActionText: null,
-              latestActionDate: null,
-              url: null,
-              sponsor: 'Rep. Doe',
-              committee: 'Armed Services',
-              passageProbability: 0.75,
-            },
-            {
-              id: 'S-456',
-              congress: 119,
+              billNumber: '2670',
+              title: 'National Defense Authorization Act for Fiscal Year 2024',
+              latestActionText: 'Became Public Law No: 118-31.',
+              latestActionDate: '2023-12-22',
+              peCodeCount: 746,
+              actions: [
+                {
+                  id: 'a1',
+                  date: '2023-06-22',
+                  text: 'Reported by the Committee on Armed Services.',
+                  type: null,
+                  chamber: 'House',
+                },
+                {
+                  id: 'a2',
+                  date: '2023-12-14',
+                  text: 'Passed House.',
+                  type: null,
+                  chamber: 'House',
+                },
+                {
+                  id: 'a3',
+                  date: '2023-12-22',
+                  text: 'Became Public Law No: 118-31.',
+                  type: null,
+                  chamber: null,
+                },
+              ],
+            }),
+            bill({
+              id: '119-s-2296',
               billType: 'S',
-              billNumber: '456',
-              title: 'Senate measure',
-              policyArea: null,
-              latestActionText: null,
-              latestActionDate: null,
-              url: null,
-              sponsor: 'Sen. Roe',
-              committee: 'Appropriations',
-              passageProbability: 0.4,
-            },
-            {
-              id: 'HR-789',
-              congress: 119,
-              billType: 'HR',
-              billNumber: '789',
-              title: 'House red probability',
-              policyArea: null,
-              latestActionText: null,
-              latestActionDate: null,
-              url: null,
-              sponsor: 'Rep. Poe',
-              committee: 'Rules',
-              passageProbability: 0.1,
-            },
+              billNumber: '2296',
+              title: 'Senate defense measure',
+              latestActionText: 'Passed Senate.',
+              latestActionDate: '2026-01-14',
+              actions: [
+                {
+                  id: 'b1',
+                  date: '2025-12-16',
+                  text: 'Reported by the Committee on Armed Services.',
+                  type: null,
+                  chamber: 'Senate',
+                },
+                {
+                  id: 'b2',
+                  date: '2026-01-14',
+                  text: 'Passed Senate.',
+                  type: null,
+                  chamber: 'Senate',
+                },
+              ],
+            }),
           ]}
         />
       </MemoryRouter>,
     );
 
-    expect(screen.getByText(/Bills touching this PE/i)).toBeInTheDocument();
-    expect(screen.getByText(/H\.R\. 123/i)).toBeInTheDocument();
-    expect(screen.getByText(/Rep. Doe • Armed Services/i)).toBeInTheDocument();
+    expect(screen.getByText(/Legislative bill timeline/i)).toBeInTheDocument();
+    expect(screen.getAllByText(/H\.R\. 2670/i).length).toBeGreaterThan(0);
+    expect(screen.getAllByText(/S\. 2296/i).length).toBeGreaterThan(0);
+    expect(screen.getByText(/2023/i)).toBeInTheDocument();
+    expect(screen.getByText(/2026/i)).toBeInTheDocument();
+    expect(screen.getAllByText(/Became law/i).length).toBeGreaterThan(0);
+    expect(screen.getAllByText(/Reported/i).length).toBeGreaterThan(0);
+    expect(screen.getByText(/Action history/i)).toBeInTheDocument();
+    expect(screen.getByText(/Became Public Law No: 118-31/i)).toBeInTheDocument();
+    expect(screen.getByText(/746 PEs/i)).toBeInTheDocument();
+  });
 
-    expect(billProbabilityColor(0.75)).toBe('green');
-    expect(billProbabilityColor(0.5)).toBe('gold');
-    expect(billProbabilityColor(0.2)).toBe('red');
+  test('does not infer chamber-specific labels when action text is generic', () => {
+    render(
+      <MemoryRouter>
+        <BillsTouchingPePanel
+          bills={[
+            bill({
+              id: '119-s-2296',
+              billType: 'S',
+              billNumber: '2296',
+              title: 'Senate defense measure',
+              latestActionText: 'Passed.',
+              latestActionDate: '2026-01-14',
+              actions: [
+                {
+                  id: 'b1',
+                  date: '2026-01-14',
+                  text: 'Passed.',
+                  type: null,
+                  chamber: 'Senate',
+                },
+              ],
+            }),
+          ]}
+        />
+      </MemoryRouter>,
+    );
+
+    expect(screen.getAllByText(/^Passed$/i).length).toBeGreaterThan(0);
+    expect(screen.queryByText(/Passed Senate/i)).not.toBeInTheDocument();
+  });
+
+  test('falls back to latest action when detailed actions are absent', () => {
+    render(
+      <MemoryRouter>
+        <BillsTouchingPePanel
+          bills={[
+            bill({
+              latestActionText: 'Reported by the Committee on Armed Services.',
+              latestActionDate: '2026-02-01',
+            }),
+          ]}
+        />
+      </MemoryRouter>,
+    );
+
+    expect(screen.getAllByText(/H\.R\. 123/i).length).toBeGreaterThan(0);
+    expect(screen.getAllByText(/Reported/i).length).toBeGreaterThan(0);
+    expect(screen.getByText(/Reported by the Committee on Armed Services/i)).toBeInTheDocument();
   });
 
   test('empty state renders', () => {
@@ -115,71 +201,38 @@ describe('BillsTouchingPePanel', () => {
       <MemoryRouter>
         <BillsTouchingPePanel
           bills={[
-            {
+            bill({
               id: 'HR-123',
-              congress: 119,
-              billType: 'HR',
-              billNumber: '123',
-              title: 'Title',
-              policyArea: null,
-              latestActionText: null,
-              latestActionDate: null,
-              url: null,
-              sponsor: 'Rep. Doe',
-              committee: 'Armed Services',
-              passageProbability: 0.75,
-            },
+              latestActionText: 'Reported by committee.',
+              latestActionDate: '2026-02-01',
+            }),
           ]}
         />
       </MemoryRouter>,
     );
 
-    fireEvent.click(screen.getByText(/H\.R\. 123/i));
+    fireEvent.click(screen.getByRole('button', { name: /H\.R\. 123/i }));
     expect(navigateMock).toHaveBeenCalledWith('/intelligence/bills/HR-123');
   });
 
-  test('blanket authorizer (NDAA, many PEs) is tagged; PE-specific bill is not', () => {
+  test('linked bills without dated actions still render as rows', () => {
     render(
       <MemoryRouter>
         <BillsTouchingPePanel
           bills={[
-            {
-              id: 'HR-2670',
-              congress: 118,
-              billType: 'HR',
-              billNumber: '2670',
-              title: 'National Defense Authorization Act for Fiscal Year 2024',
-              policyArea: null,
-              latestActionText: 'Became Public Law',
-              latestActionDate: '2023-12-22',
-              url: null,
-              sponsor: 'Rep. Rogers',
-              committee: 'Armed Services',
-              peCodeCount: 746,
-            },
-            {
-              id: 'HR-100',
-              congress: 119,
-              billType: 'HR',
+            bill({
+              id: '119-hr-100',
               billNumber: '100',
               title: 'A targeted program bill',
-              policyArea: null,
               latestActionText: null,
               latestActionDate: null,
-              url: null,
-              sponsor: 'Rep. Doe',
-              committee: 'Armed Services',
-              peCodeCount: 2,
-            },
+            }),
           ]}
         />
       </MemoryRouter>,
     );
 
-    // The NDAA carries the blanket-authorizer tag with its PE count.
-    expect(screen.getByText(/Blanket authorizer · 746 PEs/i)).toBeInTheDocument();
-    // The targeted bill renders but is NOT tagged.
     expect(screen.getByText(/A targeted program bill/i)).toBeInTheDocument();
-    expect(screen.queryByText(/Blanket authorizer · 2 PEs/i)).toBeNull();
+    expect(screen.getByText(/No dated legislative actions/i)).toBeInTheDocument();
   });
 });

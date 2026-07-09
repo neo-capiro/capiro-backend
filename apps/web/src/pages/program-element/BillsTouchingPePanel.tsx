@@ -1,7 +1,7 @@
-import { Card, Empty, List, Skeleton, Tag, Tooltip, Typography } from 'antd';
-import { FolderOutlined } from '@ant-design/icons';
+import { ArrowRightOutlined, CheckOutlined } from '@ant-design/icons';
+import { Card, Empty, Skeleton, Tooltip, Typography } from 'antd';
 import { useNavigate } from 'react-router-dom';
-import type { ProgramElementBill } from './types.js';
+import type { ProgramElementBill, ProgramElementBillAction } from './types.js';
 
 const { Text } = Typography;
 
@@ -10,12 +10,50 @@ export interface BillsTouchingPePanelProps {
   loading?: boolean;
 }
 
-function truncate(value: string, max = 90): string {
-  if (value.length <= max) return value;
-  return `${value.slice(0, max - 1)}…`;
+type EventKind = 'reported' | 'committee' | 'passed' | 'president' | 'law' | 'procedural';
+
+interface ActionStyle {
+  kind: EventKind;
+  label: string;
+  chartLabel: string | null;
+  rank: number;
 }
 
-// Congress.gov bill-type codes → conventional citation form (e.g. HR → "H.R.").
+interface TimelineEvent {
+  id: string;
+  billId: string;
+  billLabel: string;
+  date: Date;
+  dateKey: string;
+  text: string;
+  kind: EventKind;
+  label: string;
+  chartLabel: string | null;
+  rank: number;
+  chamber: string | null;
+}
+
+interface BillLane {
+  bill: ProgramElementBill;
+  label: string;
+  latestDate: Date | null;
+  outcomeRank: number;
+  events: TimelineEvent[];
+}
+
+interface PositionedEvent {
+  event: TimelineEvent;
+  left: number;
+}
+
+interface EventCluster {
+  id: string;
+  left: number;
+  events: TimelineEvent[];
+  representative: TimelineEvent;
+}
+
+// Congress.gov bill-type codes -> conventional citation form (e.g. HR -> "H.R.").
 const BILL_TYPE_LABELS: Record<string, string> = {
   HR: 'H.R.',
   S: 'S.',
@@ -27,70 +65,266 @@ const BILL_TYPE_LABELS: Record<string, string> = {
   SRES: 'S.Res.',
 };
 
+const BLANKET_PE_THRESHOLD = 50;
+
+const EVENT_LEGEND: Array<{ kind: EventKind; label: string }> = [
+  { kind: 'reported', label: 'Reported' },
+  { kind: 'committee', label: 'Committee' },
+  { kind: 'passed', label: 'Passed' },
+  { kind: 'president', label: 'To President' },
+  { kind: 'law', label: 'Became law' },
+  { kind: 'procedural', label: 'Other action' },
+];
+
 function billLabel(bill: ProgramElementBill): string {
   const type = BILL_TYPE_LABELS[bill.billType?.toUpperCase()] ?? bill.billType ?? '';
   return `${type} ${bill.billNumber}`.trim() || bill.id;
 }
 
-// Chamber eyebrow derived from bill type (H* = House, S* = Senate).
 function chamberLabel(bill: ProgramElementBill): string {
   const t = (bill.billType ?? '').toUpperCase();
-  if (t.startsWith('H')) return 'HOUSE';
-  if (t.startsWith('S')) return 'SENATE';
-  return 'CONGRESS';
+  if (t.startsWith('H')) return 'House';
+  if (t.startsWith('S')) return 'Senate';
+  return 'Congress';
 }
-
-// Status pill from the latest-action text. Honest: only label states we can
-// confidently infer from the action text; otherwise show nothing.
-function statusPill(bill: ProgramElementBill): { label: string; cls: string } | null {
-  const text = (bill.latestActionText ?? '').toLowerCase();
-  if (!text) return null;
-  if (text.includes('became public law') || text.includes('signed by president') || text.includes('became law')) {
-    return { label: 'BECAME LAW', cls: 'success' };
-  }
-  if (text.includes('reported')) return { label: 'REPORTED', cls: 'info' };
-  if (text.includes('passed')) return { label: 'PASSED', cls: 'info' };
-  if (text.includes('referred') || text.includes('introduced')) return { label: 'INTRODUCED', cls: 'muted' };
-  return null;
-}
-
-function formatActionDate(value: string | null): string | null {
-  if (!value) return null;
-  const d = new Date(value);
-  if (Number.isNaN(d.getTime())) return null;
-  return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
-}
-
-function probabilityColor(probability: number | null | undefined): string {
-  const p = typeof probability === 'number' ? probability : 0;
-  if (p > 0.7) return 'green';
-  if (p >= 0.4) return 'gold';
-  return 'red';
-}
-
-function probabilityLabel(probability: number | null | undefined): string {
-  if (typeof probability !== 'number') return 'N/A';
-  return `${Math.round(probability * 100)}%`;
-}
-
-// LEG-B: how this bill was linked to THIS pe — rendered as an evidence chip.
-const LINK_TYPE_LABEL: Record<string, string> = {
-  explicit_pe_code: 'PE code in text',
-  budget_table_row: 'Budget table row',
-  committee_mark_row: 'Committee mark',
-  report_language: 'Report language',
-  title_match: 'Title match',
-  manual: 'Manually linked',
-};
-
-// A bill that references this many distinct PEs or more is a blanket authorizer
-// (the annual NDAA references ~700) rather than a PE-specific bill. We still show
-// it — it's real legislation — but tag it and let the API sink it to the bottom
-// so the genuinely PE-specific bills lead.
-const BLANKET_PE_THRESHOLD = 50;
 
 function isBlanketAuthorizer(bill: ProgramElementBill): boolean {
   return (bill.peCodeCount ?? 0) >= BLANKET_PE_THRESHOLD;
+}
+
+function parseDateOnly(value: string | Date | null | undefined): Date | null {
+  if (!value) return null;
+  if (value instanceof Date) return Number.isNaN(value.getTime()) ? null : value;
+
+  const match = /^(\d{4})-(\d{2})-(\d{2})/.exec(value);
+  if (match) {
+    const [, year, month, day] = match;
+    return new Date(Number(year), Number(month) - 1, Number(day));
+  }
+
+  const parsed = new Date(value);
+  return Number.isNaN(parsed.getTime()) ? null : parsed;
+}
+
+function dateKey(date: Date): string {
+  const yyyy = date.getFullYear();
+  const mm = `${date.getMonth() + 1}`.padStart(2, '0');
+  const dd = `${date.getDate()}`.padStart(2, '0');
+  return `${yyyy}-${mm}-${dd}`;
+}
+
+function formatActionDate(value: string | Date | null | undefined): string | null {
+  const d = parseDateOnly(value);
+  if (!d) return null;
+  return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+}
+
+function compactDate(value: Date): string {
+  return value.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+}
+
+function actionStyle(text: string): ActionStyle {
+  const normalized = text.toLowerCase();
+
+  if (
+    normalized.includes('became public law') ||
+    normalized.includes('became law') ||
+    normalized.includes('signed by president') ||
+    /public law no/.test(normalized)
+  ) {
+    return { kind: 'law', label: 'Became law', chartLabel: 'Became law', rank: 0 };
+  }
+
+  if (
+    normalized.includes('presented to president') ||
+    normalized.includes('to president') ||
+    normalized.includes('ordered to be presented')
+  ) {
+    return { kind: 'president', label: 'To President', chartLabel: 'To President', rank: 1 };
+  }
+
+  if (normalized.includes('passed') || normalized.includes('agreed to')) {
+    const chamberLabel = normalized.includes('senate')
+      ? 'Passed Senate'
+      : normalized.includes('house')
+        ? 'Passed House'
+        : 'Passed';
+    return { kind: 'passed', label: chamberLabel, chartLabel: chamberLabel, rank: 2 };
+  }
+
+  if (normalized.includes('reported')) {
+    return { kind: 'reported', label: 'Reported', chartLabel: 'Reported', rank: 3 };
+  }
+
+  if (
+    normalized.includes('markup') ||
+    normalized.includes('mark-up') ||
+    normalized.includes('committee') ||
+    normalized.includes('ordered to be reported')
+  ) {
+    return { kind: 'committee', label: 'Committee action', chartLabel: null, rank: 4 };
+  }
+
+  if (
+    normalized.includes('calendar') ||
+    normalized.includes('cloture') ||
+    normalized.includes('referred') ||
+    normalized.includes('introduced') ||
+    normalized.includes('received') ||
+    normalized.includes('read the first') ||
+    normalized.includes('read the second')
+  ) {
+    return { kind: 'procedural', label: 'Procedural', chartLabel: null, rank: 5 };
+  }
+
+  return { kind: 'procedural', label: 'Action', chartLabel: null, rank: 5 };
+}
+
+function toTimelineEvent(
+  bill: ProgramElementBill,
+  action: ProgramElementBillAction,
+): TimelineEvent | null {
+  const date = parseDateOnly(action.date);
+  if (!date || !action.text) return null;
+  const style = actionStyle(action.text);
+  return {
+    id: action.id,
+    billId: bill.id,
+    billLabel: billLabel(bill),
+    date,
+    dateKey: dateKey(date),
+    text: action.text,
+    kind: style.kind,
+    label: style.label,
+    chartLabel: style.chartLabel,
+    rank: style.rank,
+    chamber: action.chamber,
+  };
+}
+
+function latestActionEvent(bill: ProgramElementBill): TimelineEvent | null {
+  if (!bill.latestActionDate || !bill.latestActionText) return null;
+  return toTimelineEvent(bill, {
+    id: `${bill.id}-latest`,
+    date: bill.latestActionDate,
+    text: bill.latestActionText,
+    type: null,
+    chamber: null,
+  });
+}
+
+function eventsForBill(bill: ProgramElementBill): TimelineEvent[] {
+  const fromActions = (bill.actions ?? [])
+    .map((action) => toTimelineEvent(bill, action))
+    .filter((event): event is TimelineEvent => event != null);
+
+  const fallback = fromActions.length === 0 ? latestActionEvent(bill) : null;
+  const events = fallback ? [fallback] : fromActions;
+  return events.sort((a, b) => a.date.getTime() - b.date.getTime());
+}
+
+function latestEventDate(events: TimelineEvent[], bill: ProgramElementBill): Date | null {
+  if (events.length) return events[events.length - 1]?.date ?? null;
+  return parseDateOnly(bill.latestActionDate);
+}
+
+function outcomeRank(events: TimelineEvent[], bill: ProgramElementBill): number {
+  if (events.length) return Math.min(...events.map((event) => event.rank));
+  const fallback = actionStyle(bill.latestActionText ?? '');
+  return fallback.rank;
+}
+
+function buildLanes(bills: ProgramElementBill[]): BillLane[] {
+  return bills
+    .map((bill) => {
+      const events = eventsForBill(bill);
+      return {
+        bill,
+        label: billLabel(bill),
+        latestDate: latestEventDate(events, bill),
+        outcomeRank: outcomeRank(events, bill),
+        events,
+      };
+    })
+    .sort((a, b) => {
+      if (a.outcomeRank !== b.outcomeRank) return a.outcomeRank - b.outcomeRank;
+      const aTime = a.latestDate?.getTime() ?? 0;
+      const bTime = b.latestDate?.getTime() ?? 0;
+      if (aTime !== bTime) return bTime - aTime;
+      return a.label.localeCompare(b.label);
+    });
+}
+
+function timelineRange(
+  events: TimelineEvent[],
+): { start: number; end: number; years: number[] } | null {
+  if (events.length === 0) return null;
+  const times = events.map((event) => event.date.getTime());
+  const minDate = new Date(Math.min(...times));
+  const maxDate = new Date(Math.max(...times));
+  const minYear = minDate.getFullYear();
+  const maxYear = maxDate.getFullYear();
+  const start = new Date(minYear, 0, 1).getTime();
+  const end = new Date(maxYear, 11, 31, 23, 59, 59).getTime();
+  const years = Array.from({ length: maxYear - minYear + 1 }, (_, idx) => minYear + idx);
+  return { start, end, years };
+}
+
+function positionForDate(date: Date, start: number, end: number): number {
+  if (end <= start) return 0;
+  const raw = ((date.getTime() - start) / (end - start)) * 100;
+  return Math.max(0, Math.min(100, raw));
+}
+
+function clusterEvents(events: TimelineEvent[], start: number, end: number): EventCluster[] {
+  const positioned = events.map<PositionedEvent>((event) => ({
+    event,
+    left: positionForDate(event.date, start, end),
+  }));
+
+  const clusters: EventCluster[] = [];
+  for (const item of positioned) {
+    const last = clusters[clusters.length - 1];
+    if (!last || item.left - last.left > 3.1) {
+      clusters.push({
+        id: item.event.id,
+        left: item.left,
+        events: [item.event],
+        representative: item.event,
+      });
+      continue;
+    }
+
+    last.events.push(item.event);
+    last.left =
+      last.events.reduce((sum, event) => sum + positionForDate(event.date, start, end), 0) /
+      last.events.length;
+    last.representative = [...last.events].sort(
+      (a, b) => a.rank - b.rank || b.date.getTime() - a.date.getTime(),
+    )[0]!;
+  }
+
+  return clusters;
+}
+
+function yearPosition(year: number, start: number, end: number): number {
+  return positionForDate(new Date(year, 0, 1), start, end);
+}
+
+function markerContent(kind: EventKind, count: number) {
+  if (count > 1) return `+${count}`;
+  if (kind === 'law') return <CheckOutlined />;
+  if (kind === 'president') return <ArrowRightOutlined />;
+  return null;
+}
+
+function clusterTooltip(cluster: EventCluster): string {
+  return cluster.events
+    .map(
+      (event) =>
+        `${formatActionDate(event.date) ?? event.dateKey} - ${event.billLabel}: ${event.text}`,
+    )
+    .join('\n');
 }
 
 export function BillsTouchingPePanel({ bills, loading = false }: BillsTouchingPePanelProps) {
@@ -98,7 +332,7 @@ export function BillsTouchingPePanel({ bills, loading = false }: BillsTouchingPe
 
   if (loading) {
     return (
-      <Card title="Bills touching this PE">
+      <Card title="Legislative bill timeline">
         <Skeleton active paragraph={{ rows: 4 }} />
       </Card>
     );
@@ -106,101 +340,168 @@ export function BillsTouchingPePanel({ bills, loading = false }: BillsTouchingPe
 
   if (bills.length === 0) {
     return (
-      <Card title="Bills touching this PE">
+      <Card title="Legislative bill timeline">
         <Empty description="No linked bills yet" />
       </Card>
     );
   }
 
+  const lanes = buildLanes(bills);
+  const allEvents = lanes.flatMap((lane) => lane.events);
+  const range = timelineRange(allEvents);
+  const detailEvents = [...allEvents].sort((a, b) => b.date.getTime() - a.date.getTime());
+
   return (
     <Card
-      className="pe-bills-card"
-      title="Bills touching this PE"
-      extra={<Text type="secondary">{bills.length} linked</Text>}
+      className="pe-bills-card pe-swimlane-card"
+      title="Legislative bill timeline"
+      extra={
+        <Text type="secondary">
+          {bills.length} bills / {allEvents.length} actions
+        </Text>
+      }
     >
-      <div className="pe-scroll-5">
-        <List
-          className="pe-bills-list"
-          dataSource={bills}
-          renderItem={(bill) => {
-            // Honest action chip: show passage probability only when the model
-            // actually produced one; otherwise surface the policy area, which is
-            // real metadata, instead of a misleading "N/A" score.
-            const hasProbability = typeof bill.passageProbability === 'number';
-            const actionDate = formatActionDate(bill.latestActionDate);
-            const pill = statusPill(bill);
-            const blanket = isBlanketAuthorizer(bill);
-            const meta = [bill.sponsor ?? 'Sponsor N/A', bill.committee ?? 'Committee N/A'];
-            if (actionDate) meta.push(`Last action ${actionDate}`);
+      <div className="pe-scroll-5 pe-scroll-swimlane">
+        {range ? (
+          <div className="pe-swimlane" role="group" aria-label="Bill-by-bill legislative timeline">
+            <div className="pe-swimlane-head">
+              <div className="pe-swimlane-head-label">Bill / measure</div>
+              <div className="pe-swimlane-axis">
+                {range.years.map((year) => (
+                  <span key={year} className="pe-year-label">
+                    {year}
+                  </span>
+                ))}
+              </div>
+            </div>
 
-            return (
-              <List.Item
-                key={bill.id}
-                className={`pe-bill-row${blanket ? ' pe-bill-blanket' : ''}`}
-                role="button"
-                tabIndex={0}
-                onClick={() => navigate(`/intelligence/bills/${encodeURIComponent(bill.id)}`)}
-                onKeyDown={(event) => {
-                  if (event.key === 'Enter' || event.key === ' ') {
-                    event.preventDefault();
-                    navigate(`/intelligence/bills/${encodeURIComponent(bill.id)}`);
-                  }
-                }}
-                style={{ cursor: 'pointer' }}
-              >
-                <div className="pe-bill-ident">
-                  <span className="pe-bill-num">{billLabel(bill)}</span>
-                  <span className="pe-bill-chamber">{chamberLabel(bill)}</span>
-                </div>
-                <div className="pe-bill-body">
-                  <div className="pe-bill-title">{truncate(bill.title)}</div>
-                  <div className="pe-bill-meta">{meta.join(' • ')}</div>
-                  <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
-                    {bill.policyArea ? (
-                      <span className="pe-bill-policy">
-                        <FolderOutlined /> {bill.policyArea}
+            <div className="pe-swimlane-body">
+              {lanes.map((lane) => {
+                const blanket = isBlanketAuthorizer(lane.bill);
+                const clusters = clusterEvents(lane.events, range.start, range.end);
+                return (
+                  <div
+                    key={lane.bill.id}
+                    className={`pe-swimlane-row${blanket ? ' pe-bill-blanket' : ''}`}
+                  >
+                    <button
+                      type="button"
+                      className="pe-lane-bill"
+                      onClick={() =>
+                        navigate(`/intelligence/bills/${encodeURIComponent(lane.bill.id)}`)
+                      }
+                      title={lane.bill.title}
+                    >
+                      <span className="pe-lane-bill-num">{lane.label}</span>
+                      <span className="pe-lane-bill-sub">
+                        {chamberLabel(lane.bill)}
+                        {blanket && lane.bill.peCodeCount
+                          ? ` / ${lane.bill.peCodeCount.toLocaleString()} PEs`
+                          : ''}
                       </span>
-                    ) : null}
-                    {blanket ? (
-                      <Tooltip
-                        title={`This bill references ${bill.peCodeCount?.toLocaleString()} program elements — it's a blanket authorizer (e.g. the annual NDAA), not a PE-specific bill.`}
-                      >
-                        <span className="pe-bill-blanket-tag">
-                          Blanket authorizer · {bill.peCodeCount?.toLocaleString()} PEs
-                        </span>
-                      </Tooltip>
-                    ) : null}
-                    {bill.link ? (
-                      <Tooltip title={bill.link.evidence}>
+                    </button>
+                    <div className="pe-lane-track">
+                      <span className="pe-lane-line" />
+                      {range.years.map((year) => (
                         <span
-                          className={`pe-bill-link-chip${bill.link.status === 'candidate' ? ' cand' : ''}`}
-                        >
-                          {LINK_TYPE_LABEL[bill.link.type] ?? bill.link.type.replace(/_/g, ' ')}
-                          {bill.link.status === 'candidate' ? ' · needs review' : ''}
-                        </span>
-                      </Tooltip>
-                    ) : null}
+                          key={year}
+                          className="pe-year-grid"
+                          style={{ left: `${yearPosition(year, range.start, range.end)}%` }}
+                        />
+                      ))}
+                      {clusters.map((cluster) => {
+                        const rep = cluster.representative;
+                        return (
+                          <Tooltip key={cluster.id} title={clusterTooltip(cluster)}>
+                            <span
+                              className={`pe-event-mark ${rep.kind}${
+                                cluster.events.length > 1 ? ' is-cluster' : ''
+                              }`}
+                              style={{ left: `${cluster.left}%` }}
+                            >
+                              {markerContent(rep.kind, cluster.events.length)}
+                            </span>
+                          </Tooltip>
+                        );
+                      })}
+                      {clusters.map((cluster) => {
+                        const label = cluster.representative.chartLabel;
+                        if (!label) return null;
+                        return (
+                          <span
+                            key={`${cluster.id}-label`}
+                            className="pe-event-label"
+                            style={{ left: `${cluster.left}%` }}
+                          >
+                            {label}
+                          </span>
+                        );
+                      })}
+                    </div>
                   </div>
+                );
+              })}
+            </div>
+
+            <div className="pe-swimlane-legend" aria-label="Timeline legend">
+              {EVENT_LEGEND.map((item) => (
+                <span key={item.kind} className="pe-legend-item">
+                  <span className={`pe-event-mark ${item.kind} pe-legend-mark`}>
+                    {markerContent(item.kind, 1)}
+                  </span>
+                  {item.label}
+                </span>
+              ))}
+            </div>
+          </div>
+        ) : (
+          <div className="pe-swimlane-empty">
+            <b>No dated legislative actions</b>
+            <span>Linked bills are present, but no dated actions are available for this view.</span>
+            <div className="pe-undated-bills">
+              {lanes.map((lane) => (
+                <button
+                  key={lane.bill.id}
+                  type="button"
+                  className="pe-undated-bill"
+                  onClick={() =>
+                    navigate(`/intelligence/bills/${encodeURIComponent(lane.bill.id)}`)
+                  }
+                  title={lane.bill.title}
+                >
+                  <span>{lane.label}</span>
+                  <small>{lane.bill.title}</small>
+                </button>
+              ))}
+            </div>
+          </div>
+        )}
+
+        <div className="pe-action-history">
+          <div className="pe-action-history-title">Action history</div>
+          {detailEvents.length > 0 ? (
+            <div className="pe-action-table">
+              <div className="pe-action-row pe-action-head">
+                <span>Date</span>
+                <span>Bill</span>
+                <span>Action</span>
+              </div>
+              {detailEvents.map((event) => (
+                <div key={`${event.billId}-${event.id}`} className="pe-action-row">
+                  <span className="pe-action-date">{compactDate(event.date)}</span>
+                  <span className="pe-action-bill">{event.billLabel}</span>
+                  <span className="pe-action-text">
+                    <span className={`pe-action-kind ${event.kind}`}>{event.label}</span>
+                    {event.text}
+                  </span>
                 </div>
-                <div className="pe-bill-status">
-                  {pill ? <span className={`pill ${pill.cls}`}>{pill.label}</span> : null}
-                  {hasProbability ? (
-                    <Tag color={probabilityColor(bill.passageProbability)}>
-                      {probabilityLabel(bill.passageProbability)}
-                    </Tag>
-                  ) : !pill ? (
-                    <Text type="secondary">{bill.congress}th</Text>
-                  ) : null}
-                </div>
-              </List.Item>
-            );
-          }}
-        />
+              ))}
+            </div>
+          ) : (
+            <div className="pe-action-empty">No action history synced yet.</div>
+          )}
+        </div>
       </div>
     </Card>
   );
-}
-
-export function billProbabilityColor(probability: number | null | undefined): string {
-  return probabilityColor(probability);
 }
