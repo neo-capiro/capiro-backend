@@ -62,3 +62,6 @@ apps/web/lh-*.json
 # DoW directory org-chart images are large binaries -> S3/R2, not git
 apps/api/scripts/__data__/dow_directory_v6/assets/*.png
 apps/api/scripts/__data__/_incoming/
+apps/api/scripts/__tools__/b2/
+apps/api/scripts/__tools__/b10/
+apps/api/scripts/__tools__/b11/
