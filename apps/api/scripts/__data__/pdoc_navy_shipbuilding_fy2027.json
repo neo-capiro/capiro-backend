@@ -1,0 +1,1567 @@
+{
+  "service": "NAVY",
+  "fy": 2027,
+  "sourceUrl": "https://www.secnav.navy.mil/fmc/fmb/Documents/27pres/SCN_Book.pdf",
+  "pes": [
+    {
+      "peCode": "1611N1045",
+      "title": "COLUMBIA Class Submarine",
+      "budgetActivity": "BA 01",
+      "lineNumber": "1611N1045",
+      "programOfRecord": null,
+      "fyData": [
+        {
+          "fy": 2025,
+          "quantity": null,
+          "requestDollarsThousands": 0,
+          "unitCostDollars": null
+        },
+        {
+          "fy": 2026,
+          "quantity": 1,
+          "requestDollarsThousands": 3928828.0,
+          "unitCostDollars": 10744317.0
+        },
+        {
+          "fy": 2027,
+          "quantity": 1,
+          "requestDollarsThousands": 6904785.0,
+          "unitCostDollars": 10486369.0
+        },
+        {
+          "fy": 2028,
+          "quantity": 1,
+          "requestDollarsThousands": 6379022.0,
+          "unitCostDollars": 10137078.0
+        },
+        {
+          "fy": 2029,
+          "quantity": 1,
+          "requestDollarsThousands": 6057819.0,
+          "unitCostDollars": 10360998.0
+        },
+        {
+          "fy": 2030,
+          "quantity": 1,
+          "requestDollarsThousands": 6011645.0,
+          "unitCostDollars": 10441001.0
+        },
+        {
+          "fy": 2031,
+          "quantity": 1,
+          "requestDollarsThousands": 6303401.0,
+          "unitCostDollars": 10693082.0
+        }
+      ],
+      "lineItems": []
+    },
+    {
+      "peCode": "1611N2001",
+      "title": "Carrier Replacement Program",
+      "budgetActivity": "BA 02",
+      "lineNumber": "1611N2001",
+      "programOfRecord": null,
+      "fyData": [
+        {
+          "fy": 2025,
+          "quantity": null,
+          "requestDollarsThousands": 0,
+          "unitCostDollars": null
+        },
+        {
+          "fy": 2026,
+          "quantity": null,
+          "requestDollarsThousands": 0,
+          "unitCostDollars": null
+        },
+        {
+          "fy": 2027,
+          "quantity": null,
+          "requestDollarsThousands": 0,
+          "unitCostDollars": null
+        },
+        {
+          "fy": 2028,
+          "quantity": null,
+          "requestDollarsThousands": 0,
+          "unitCostDollars": null
+        },
+        {
+          "fy": 2029,
+          "quantity": 1,
+          "requestDollarsThousands": 1742651.0,
+          "unitCostDollars": 10410753.0
+        },
+        {
+          "fy": 2030,
+          "quantity": null,
+          "requestDollarsThousands": 0,
+          "unitCostDollars": null
+        },
+        {
+          "fy": 2031,
+          "quantity": null,
+          "requestDollarsThousands": 0,
+          "unitCostDollars": null
+        }
+      ],
+      "lineItems": []
+    },
+    {
+      "peCode": "1611N2004",
+      "title": "CVN-81",
+      "budgetActivity": "BA 02",
+      "lineNumber": "1611N2004",
+      "programOfRecord": null,
+      "fyData": [
+        {
+          "fy": 2025,
+          "quantity": null,
+          "requestDollarsThousands": 0,
+          "unitCostDollars": null
+        },
+        {
+          "fy": 2026,
+          "quantity": null,
+          "requestDollarsThousands": 0,
+          "unitCostDollars": null
+        },
+        {
+          "fy": 2027,
+          "quantity": null,
+          "requestDollarsThousands": 0,
+          "unitCostDollars": null
+        },
+        {
+          "fy": 2028,
+          "quantity": null,
+          "requestDollarsThousands": 0,
+          "unitCostDollars": null
+        },
+        {
+          "fy": 2029,
+          "quantity": null,
+          "requestDollarsThousands": 0,
+          "unitCostDollars": null
+        },
+        {
+          "fy": 2030,
+          "quantity": null,
+          "requestDollarsThousands": 0,
+          "unitCostDollars": null
+        },
+        {
+          "fy": 2031,
+          "quantity": null,
+          "requestDollarsThousands": 0,
+          "unitCostDollars": null
+        }
+      ],
+      "lineItems": []
+    },
+    {
+      "peCode": "1611N2013",
+      "title": "Virginia Class Submarine",
+      "budgetActivity": "BA 02",
+      "lineNumber": "1611N2013",
+      "programOfRecord": null,
+      "fyData": [
+        {
+          "fy": 2025,
+          "quantity": 1,
+          "requestDollarsThousands": 7356904.0,
+          "unitCostDollars": 9500534.0
+        },
+        {
+          "fy": 2026,
+          "quantity": 1,
+          "requestDollarsThousands": 2740305.0,
+          "unitCostDollars": 5389109.0
+        },
+        {
+          "fy": 2027,
+          "quantity": 2,
+          "requestDollarsThousands": 8402316.0,
+          "unitCostDollars": 5718518.0
+        },
+        {
+          "fy": 2028,
+          "quantity": 2,
+          "requestDollarsThousands": 8149065.0,
+          "unitCostDollars": 5642412.0
+        },
+        {
+          "fy": 2029,
+          "quantity": 2,
+          "requestDollarsThousands": 7876466.0,
+          "unitCostDollars": 5549213.0
+        },
+        {
+          "fy": 2030,
+          "quantity": 2,
+          "requestDollarsThousands": 7283370.0,
+          "unitCostDollars": 5098307.0
+        },
+        {
+          "fy": 2031,
+          "quantity": 2,
+          "requestDollarsThousands": 7423079.0,
+          "unitCostDollars": 5297115.0
+        }
+      ],
+      "lineItems": []
+    },
+    {
+      "peCode": "1611N2056",
+      "title": "BBG(X)",
+      "budgetActivity": "BA 02",
+      "lineNumber": "1611N2056",
+      "programOfRecord": null,
+      "fyData": [
+        {
+          "fy": 2025,
+          "quantity": null,
+          "requestDollarsThousands": 0,
+          "unitCostDollars": null
+        },
+        {
+          "fy": 2026,
+          "quantity": null,
+          "requestDollarsThousands": 0,
+          "unitCostDollars": null
+        },
+        {
+          "fy": 2027,
+          "quantity": null,
+          "requestDollarsThousands": 0,
+          "unitCostDollars": null
+        },
+        {
+          "fy": 2028,
+          "quantity": 1,
+          "requestDollarsThousands": 16470000,
+          "unitCostDollars": 17470000
+        },
+        {
+          "fy": 2029,
+          "quantity": null,
+          "requestDollarsThousands": 0,
+          "unitCostDollars": null
+        },
+        {
+          "fy": 2030,
+          "quantity": 1,
+          "requestDollarsThousands": 12528000,
+          "unitCostDollars": 13528000
+        },
+        {
+          "fy": 2031,
+          "quantity": 1,
+          "requestDollarsThousands": 11028000,
+          "unitCostDollars": 12028000
+        }
+      ],
+      "lineItems": []
+    },
+    {
+      "peCode": "1611N2086",
+      "title": "CVN Refueling Overhauls",
+      "budgetActivity": "BA 02",
+      "lineNumber": "1611N2086",
+      "programOfRecord": null,
+      "fyData": [
+        {
+          "fy": 2025,
+          "quantity": 1,
+          "requestDollarsThousands": 811143.0,
+          "unitCostDollars": 8548712.0
+        },
+        {
+          "fy": 2026,
+          "quantity": null,
+          "requestDollarsThousands": 0,
+          "unitCostDollars": null
+        },
+        {
+          "fy": 2027,
+          "quantity": null,
+          "requestDollarsThousands": 0,
+          "unitCostDollars": null
+        },
+        {
+          "fy": 2028,
+          "quantity": null,
+          "requestDollarsThousands": 0,
+          "unitCostDollars": null
+        },
+        {
+          "fy": 2029,
+          "quantity": null,
+          "requestDollarsThousands": 0,
+          "unitCostDollars": null
+        },
+        {
+          "fy": 2030,
+          "quantity": null,
+          "requestDollarsThousands": 0,
+          "unitCostDollars": null
+        },
+        {
+          "fy": 2031,
+          "quantity": 1,
+          "requestDollarsThousands": 3407443.0,
+          "unitCostDollars": 9288866.0
+        }
+      ],
+      "lineItems": []
+    },
+    {
+      "peCode": "1611N2119",
+      "title": "DDG 1000",
+      "budgetActivity": "BA 02",
+      "lineNumber": "1611N2119",
+      "programOfRecord": null,
+      "fyData": [
+        {
+          "fy": 2025,
+          "quantity": null,
+          "requestDollarsThousands": 0,
+          "unitCostDollars": null
+        },
+        {
+          "fy": 2026,
+          "quantity": null,
+          "requestDollarsThousands": 0,
+          "unitCostDollars": null
+        },
+        {
+          "fy": 2027,
+          "quantity": null,
+          "requestDollarsThousands": 0,
+          "unitCostDollars": null
+        },
+        {
+          "fy": 2028,
+          "quantity": null,
+          "requestDollarsThousands": 0,
+          "unitCostDollars": null
+        },
+        {
+          "fy": 2029,
+          "quantity": null,
+          "requestDollarsThousands": 0,
+          "unitCostDollars": null
+        },
+        {
+          "fy": 2030,
+          "quantity": null,
+          "requestDollarsThousands": 0,
+          "unitCostDollars": null
+        },
+        {
+          "fy": 2031,
+          "quantity": null,
+          "requestDollarsThousands": 0,
+          "unitCostDollars": null
+        }
+      ],
+      "lineItems": []
+    },
+    {
+      "peCode": "1611N2122",
+      "title": "DDG-51",
+      "budgetActivity": "BA 02",
+      "lineNumber": "1611N2122",
+      "programOfRecord": null,
+      "fyData": [
+        {
+          "fy": 2025,
+          "quantity": 3,
+          "requestDollarsThousands": 6268519.0,
+          "unitCostDollars": 2619605.0
+        },
+        {
+          "fy": 2026,
+          "quantity": null,
+          "requestDollarsThousands": 10773.0,
+          "unitCostDollars": null
+        },
+        {
+          "fy": 2027,
+          "quantity": 1,
+          "requestDollarsThousands": 2954238.0,
+          "unitCostDollars": 4256914.0
+        },
+        {
+          "fy": 2028,
+          "quantity": 1,
+          "requestDollarsThousands": 4026201.0,
+          "unitCostDollars": 4026201.0
+        },
+        {
+          "fy": 2029,
+          "quantity": 1,
+          "requestDollarsThousands": 3707169.0,
+          "unitCostDollars": 4209440.0
+        },
+        {
+          "fy": 2030,
+          "quantity": 2,
+          "requestDollarsThousands": 6110880.0,
+          "unitCostDollars": 3306576.0
+        },
+        {
+          "fy": 2031,
+          "quantity": 2,
+          "requestDollarsThousands": 6461913.0,
+          "unitCostDollars": 3482109.0
+        }
+      ],
+      "lineItems": []
+    },
+    {
+      "peCode": "1611N2127",
+      "title": "Littoral Combat Ship (LCS)",
+      "budgetActivity": "BA 02",
+      "lineNumber": "1611N2127",
+      "programOfRecord": null,
+      "fyData": [
+        {
+          "fy": 2025,
+          "quantity": null,
+          "requestDollarsThousands": 0,
+          "unitCostDollars": null
+        },
+        {
+          "fy": 2026,
+          "quantity": null,
+          "requestDollarsThousands": 0,
+          "unitCostDollars": null
+        },
+        {
+          "fy": 2027,
+          "quantity": null,
+          "requestDollarsThousands": 0,
+          "unitCostDollars": null
+        },
+        {
+          "fy": 2028,
+          "quantity": null,
+          "requestDollarsThousands": 0,
+          "unitCostDollars": null
+        },
+        {
+          "fy": 2029,
+          "quantity": null,
+          "requestDollarsThousands": 0,
+          "unitCostDollars": null
+        },
+        {
+          "fy": 2030,
+          "quantity": null,
+          "requestDollarsThousands": 0,
+          "unitCostDollars": null
+        },
+        {
+          "fy": 2031,
+          "quantity": null,
+          "requestDollarsThousands": 0,
+          "unitCostDollars": null
+        }
+      ],
+      "lineItems": []
+    },
+    {
+      "peCode": "1611N2128",
+      "title": "FFG-Frigate",
+      "budgetActivity": "BA 02",
+      "lineNumber": "1611N2128",
+      "programOfRecord": null,
+      "fyData": [
+        {
+          "fy": 2025,
+          "quantity": null,
+          "requestDollarsThousands": 0,
+          "unitCostDollars": null
+        },
+        {
+          "fy": 2026,
+          "quantity": null,
+          "requestDollarsThousands": 100000,
+          "unitCostDollars": null
+        },
+        {
+          "fy": 2027,
+          "quantity": null,
+          "requestDollarsThousands": 0,
+          "unitCostDollars": null
+        },
+        {
+          "fy": 2028,
+          "quantity": null,
+          "requestDollarsThousands": 0,
+          "unitCostDollars": null
+        },
+        {
+          "fy": 2029,
+          "quantity": null,
+          "requestDollarsThousands": 0,
+          "unitCostDollars": null
+        },
+        {
+          "fy": 2030,
+          "quantity": null,
+          "requestDollarsThousands": 0,
+          "unitCostDollars": null
+        },
+        {
+          "fy": 2031,
+          "quantity": null,
+          "requestDollarsThousands": 0,
+          "unitCostDollars": null
+        }
+      ],
+      "lineItems": []
+    },
+    {
+      "peCode": "1611N2133",
+      "title": "FF(X)",
+      "budgetActivity": "BA 02",
+      "lineNumber": "1611N2133",
+      "programOfRecord": null,
+      "fyData": [
+        {
+          "fy": 2025,
+          "quantity": null,
+          "requestDollarsThousands": 0,
+          "unitCostDollars": null
+        },
+        {
+          "fy": 2026,
+          "quantity": null,
+          "requestDollarsThousands": 0,
+          "unitCostDollars": null
+        },
+        {
+          "fy": 2027,
+          "quantity": 1,
+          "requestDollarsThousands": 1429000,
+          "unitCostDollars": 1671000
+        },
+        {
+          "fy": 2028,
+          "quantity": null,
+          "requestDollarsThousands": 0,
+          "unitCostDollars": null
+        },
+        {
+          "fy": 2029,
+          "quantity": 1,
+          "requestDollarsThousands": 1650000,
+          "unitCostDollars": 1947000
+        },
+        {
+          "fy": 2030,
+          "quantity": null,
+          "requestDollarsThousands": 0,
+          "unitCostDollars": null
+        },
+        {
+          "fy": 2031,
+          "quantity": 2,
+          "requestDollarsThousands": 2760000,
+          "unitCostDollars": 1836000
+        }
+      ],
+      "lineItems": []
+    },
+    {
+      "peCode": "1611N3010",
+      "title": "LPD Flight II",
+      "budgetActivity": "BA 03",
+      "lineNumber": "1611N3010",
+      "programOfRecord": null,
+      "fyData": [
+        {
+          "fy": 2025,
+          "quantity": 1,
+          "requestDollarsThousands": 1561963.0,
+          "unitCostDollars": 2062963.0
+        },
+        {
+          "fy": 2026,
+          "quantity": null,
+          "requestDollarsThousands": 0,
+          "unitCostDollars": null
+        },
+        {
+          "fy": 2027,
+          "quantity": 1,
+          "requestDollarsThousands": 2188700.0,
+          "unitCostDollars": 2188700.0
+        },
+        {
+          "fy": 2028,
+          "quantity": 1,
+          "requestDollarsThousands": 2292264.0,
+          "unitCostDollars": 2648214.0
+        },
+        {
+          "fy": 2029,
+          "quantity": 1,
+          "requestDollarsThousands": 2421002.0,
+          "unitCostDollars": 2421002.0
+        },
+        {
+          "fy": 2030,
+          "quantity": 1,
+          "requestDollarsThousands": 2431835.0,
+          "unitCostDollars": 2805583.0
+        },
+        {
+          "fy": 2031,
+          "quantity": 1,
+          "requestDollarsThousands": 2507200.0,
+          "unitCostDollars": 2807200.0
+        }
+      ],
+      "lineItems": []
+    },
+    {
+      "peCode": "1611N3039",
+      "title": "Expeditionary Sea Base (ESB)",
+      "budgetActivity": "BA 03",
+      "lineNumber": "1611N3039",
+      "programOfRecord": null,
+      "fyData": [
+        {
+          "fy": 2025,
+          "quantity": null,
+          "requestDollarsThousands": 0,
+          "unitCostDollars": null
+        },
+        {
+          "fy": 2026,
+          "quantity": null,
+          "requestDollarsThousands": 0,
+          "unitCostDollars": null
+        },
+        {
+          "fy": 2027,
+          "quantity": null,
+          "requestDollarsThousands": 0,
+          "unitCostDollars": null
+        },
+        {
+          "fy": 2028,
+          "quantity": null,
+          "requestDollarsThousands": 0,
+          "unitCostDollars": null
+        },
+        {
+          "fy": 2029,
+          "quantity": null,
+          "requestDollarsThousands": 0,
+          "unitCostDollars": null
+        },
+        {
+          "fy": 2030,
+          "quantity": null,
+          "requestDollarsThousands": 0,
+          "unitCostDollars": null
+        },
+        {
+          "fy": 2031,
+          "quantity": null,
+          "requestDollarsThousands": 0,
+          "unitCostDollars": null
+        }
+      ],
+      "lineItems": []
+    },
+    {
+      "peCode": "1611N3041",
+      "title": "LHA Replacement",
+      "budgetActivity": "BA 03",
+      "lineNumber": "1611N3041",
+      "programOfRecord": null,
+      "fyData": [
+        {
+          "fy": 2025,
+          "quantity": null,
+          "requestDollarsThousands": 0,
+          "unitCostDollars": null
+        },
+        {
+          "fy": 2026,
+          "quantity": null,
+          "requestDollarsThousands": 0,
+          "unitCostDollars": null
+        },
+        {
+          "fy": 2027,
+          "quantity": 1,
+          "requestDollarsThousands": 3850319.0,
+          "unitCostDollars": 4202537.0
+        },
+        {
+          "fy": 2028,
+          "quantity": null,
+          "requestDollarsThousands": 0,
+          "unitCostDollars": null
+        },
+        {
+          "fy": 2029,
+          "quantity": null,
+          "requestDollarsThousands": 0,
+          "unitCostDollars": null
+        },
+        {
+          "fy": 2030,
+          "quantity": 1,
+          "requestDollarsThousands": 2433299.0,
+          "unitCostDollars": 5713299.0
+        },
+        {
+          "fy": 2031,
+          "quantity": null,
+          "requestDollarsThousands": 0,
+          "unitCostDollars": null
+        }
+      ],
+      "lineItems": []
+    },
+    {
+      "peCode": "1611N3043",
+      "title": "Expeditionary Fast Transport (EPF)",
+      "budgetActivity": "BA 03",
+      "lineNumber": "1611N3043",
+      "programOfRecord": null,
+      "fyData": [
+        {
+          "fy": 2025,
+          "quantity": null,
+          "requestDollarsThousands": 0,
+          "unitCostDollars": null
+        },
+        {
+          "fy": 2026,
+          "quantity": null,
+          "requestDollarsThousands": 0,
+          "unitCostDollars": null
+        },
+        {
+          "fy": 2027,
+          "quantity": null,
+          "requestDollarsThousands": 0,
+          "unitCostDollars": null
+        },
+        {
+          "fy": 2028,
+          "quantity": null,
+          "requestDollarsThousands": 0,
+          "unitCostDollars": null
+        },
+        {
+          "fy": 2029,
+          "quantity": null,
+          "requestDollarsThousands": 0,
+          "unitCostDollars": null
+        },
+        {
+          "fy": 2030,
+          "quantity": null,
+          "requestDollarsThousands": 0,
+          "unitCostDollars": null
+        },
+        {
+          "fy": 2031,
+          "quantity": null,
+          "requestDollarsThousands": 0,
+          "unitCostDollars": null
+        }
+      ],
+      "lineItems": []
+    },
+    {
+      "peCode": "1611N3050",
+      "title": "Medium Landing Ship",
+      "budgetActivity": "BA 03",
+      "lineNumber": "1611N3050",
+      "programOfRecord": null,
+      "fyData": [
+        {
+          "fy": 2025,
+          "quantity": null,
+          "requestDollarsThousands": 29668.0,
+          "unitCostDollars": null
+        },
+        {
+          "fy": 2026,
+          "quantity": 2,
+          "requestDollarsThousands": 800000,
+          "unitCostDollars": 400000
+        },
+        {
+          "fy": 2027,
+          "quantity": null,
+          "requestDollarsThousands": 0,
+          "unitCostDollars": null
+        },
+        {
+          "fy": 2028,
+          "quantity": 6,
+          "requestDollarsThousands": 1765000,
+          "unitCostDollars": 294167.0
+        },
+        {
+          "fy": 2029,
+          "quantity": 4,
+          "requestDollarsThousands": 1191000,
+          "unitCostDollars": 297750.0
+        },
+        {
+          "fy": 2030,
+          "quantity": 4,
+          "requestDollarsThousands": 1166000,
+          "unitCostDollars": 291500.0
+        },
+        {
+          "fy": 2031,
+          "quantity": 3,
+          "requestDollarsThousands": 839310.0,
+          "unitCostDollars": 279770.0
+        }
+      ],
+      "lineItems": []
+    },
+    {
+      "peCode": "1611N5010",
+      "title": "AS Submarine Tender",
+      "budgetActivity": "BA 05",
+      "lineNumber": "1611N5010",
+      "programOfRecord": null,
+      "fyData": [
+        {
+          "fy": 2025,
+          "quantity": null,
+          "requestDollarsThousands": 0,
+          "unitCostDollars": null
+        },
+        {
+          "fy": 2026,
+          "quantity": null,
+          "requestDollarsThousands": 0,
+          "unitCostDollars": null
+        },
+        {
+          "fy": 2027,
+          "quantity": 2,
+          "requestDollarsThousands": 4444000,
+          "unitCostDollars": 2222000
+        },
+        {
+          "fy": 2028,
+          "quantity": null,
+          "requestDollarsThousands": 0,
+          "unitCostDollars": null
+        },
+        {
+          "fy": 2029,
+          "quantity": null,
+          "requestDollarsThousands": 0,
+          "unitCostDollars": null
+        },
+        {
+          "fy": 2030,
+          "quantity": null,
+          "requestDollarsThousands": 0,
+          "unitCostDollars": null
+        },
+        {
+          "fy": 2031,
+          "quantity": null,
+          "requestDollarsThousands": 0,
+          "unitCostDollars": null
+        }
+      ],
+      "lineItems": []
+    },
+    {
+      "peCode": "1611N5025",
+      "title": "TAO Fleet Oiler",
+      "budgetActivity": "BA 05",
+      "lineNumber": "1611N5025",
+      "programOfRecord": null,
+      "fyData": [
+        {
+          "fy": 2025,
+          "quantity": null,
+          "requestDollarsThousands": 0,
+          "unitCostDollars": null
+        },
+        {
+          "fy": 2026,
+          "quantity": null,
+          "requestDollarsThousands": 8346.0,
+          "unitCostDollars": null
+        },
+        {
+          "fy": 2027,
+          "quantity": 2,
+          "requestDollarsThousands": 1946063.0,
+          "unitCostDollars": 973032.0
+        },
+        {
+          "fy": 2028,
+          "quantity": 1,
+          "requestDollarsThousands": 1122661.0,
+          "unitCostDollars": 1122661.0
+        },
+        {
+          "fy": 2029,
+          "quantity": 1,
+          "requestDollarsThousands": 1033286.0,
+          "unitCostDollars": 1033286.0
+        },
+        {
+          "fy": 2030,
+          "quantity": 1,
+          "requestDollarsThousands": 984356.0,
+          "unitCostDollars": 984356.0
+        },
+        {
+          "fy": 2031,
+          "quantity": 2,
+          "requestDollarsThousands": 2100961.0,
+          "unitCostDollars": 1050481.0
+        }
+      ],
+      "lineItems": []
+    },
+    {
+      "peCode": "1611N5030",
+      "title": "TAGOS Surtass Ships",
+      "budgetActivity": "BA 05",
+      "lineNumber": "1611N5030",
+      "programOfRecord": null,
+      "fyData": [
+        {
+          "fy": 2025,
+          "quantity": null,
+          "requestDollarsThousands": 0,
+          "unitCostDollars": null
+        },
+        {
+          "fy": 2026,
+          "quantity": 1,
+          "requestDollarsThousands": 612205.0,
+          "unitCostDollars": 612205.0
+        },
+        {
+          "fy": 2027,
+          "quantity": 1,
+          "requestDollarsThousands": 610664.0,
+          "unitCostDollars": 610664.0
+        },
+        {
+          "fy": 2028,
+          "quantity": 1,
+          "requestDollarsThousands": 594364.0,
+          "unitCostDollars": 594364.0
+        },
+        {
+          "fy": 2029,
+          "quantity": 1,
+          "requestDollarsThousands": 601000,
+          "unitCostDollars": 601000
+        },
+        {
+          "fy": 2030,
+          "quantity": 1,
+          "requestDollarsThousands": 569728.0,
+          "unitCostDollars": 569728.0
+        },
+        {
+          "fy": 2031,
+          "quantity": 1,
+          "requestDollarsThousands": 579492.0,
+          "unitCostDollars": 579492.0
+        }
+      ],
+      "lineItems": []
+    },
+    {
+      "peCode": "1611N5035",
+      "title": "Towing, Salvage, and Rescue Ship (ATS)",
+      "budgetActivity": "BA 05",
+      "lineNumber": "1611N5035",
+      "programOfRecord": null,
+      "fyData": [
+        {
+          "fy": 2025,
+          "quantity": null,
+          "requestDollarsThousands": 0,
+          "unitCostDollars": null
+        },
+        {
+          "fy": 2026,
+          "quantity": null,
+          "requestDollarsThousands": 141500.0,
+          "unitCostDollars": null
+        },
+        {
+          "fy": 2027,
+          "quantity": null,
+          "requestDollarsThousands": 0,
+          "unitCostDollars": null
+        },
+        {
+          "fy": 2028,
+          "quantity": null,
+          "requestDollarsThousands": 0,
+          "unitCostDollars": null
+        },
+        {
+          "fy": 2029,
+          "quantity": null,
+          "requestDollarsThousands": 0,
+          "unitCostDollars": null
+        },
+        {
+          "fy": 2030,
+          "quantity": null,
+          "requestDollarsThousands": 0,
+          "unitCostDollars": null
+        },
+        {
+          "fy": 2031,
+          "quantity": null,
+          "requestDollarsThousands": 0,
+          "unitCostDollars": null
+        }
+      ],
+      "lineItems": []
+    },
+    {
+      "peCode": "1611N5087",
+      "title": "Oceanographic Ships",
+      "budgetActivity": "BA 05",
+      "lineNumber": "1611N5087",
+      "programOfRecord": null,
+      "fyData": [
+        {
+          "fy": 2025,
+          "quantity": null,
+          "requestDollarsThousands": 0,
+          "unitCostDollars": null
+        },
+        {
+          "fy": 2026,
+          "quantity": null,
+          "requestDollarsThousands": 0,
+          "unitCostDollars": null
+        },
+        {
+          "fy": 2027,
+          "quantity": null,
+          "requestDollarsThousands": 0,
+          "unitCostDollars": null
+        },
+        {
+          "fy": 2028,
+          "quantity": null,
+          "requestDollarsThousands": 0,
+          "unitCostDollars": null
+        },
+        {
+          "fy": 2029,
+          "quantity": null,
+          "requestDollarsThousands": 0,
+          "unitCostDollars": null
+        },
+        {
+          "fy": 2030,
+          "quantity": null,
+          "requestDollarsThousands": 0,
+          "unitCostDollars": null
+        },
+        {
+          "fy": 2031,
+          "quantity": null,
+          "requestDollarsThousands": 0,
+          "unitCostDollars": null
+        }
+      ],
+      "lineItems": []
+    },
+    {
+      "peCode": "1611N5100",
+      "title": "LCU 1700",
+      "budgetActivity": "BA 05",
+      "lineNumber": "1611N5100",
+      "programOfRecord": null,
+      "fyData": [
+        {
+          "fy": 2025,
+          "quantity": null,
+          "requestDollarsThousands": 0,
+          "unitCostDollars": null
+        },
+        {
+          "fy": 2026,
+          "quantity": null,
+          "requestDollarsThousands": 0,
+          "unitCostDollars": null
+        },
+        {
+          "fy": 2027,
+          "quantity": null,
+          "requestDollarsThousands": 0,
+          "unitCostDollars": null
+        },
+        {
+          "fy": 2028,
+          "quantity": null,
+          "requestDollarsThousands": 0,
+          "unitCostDollars": null
+        },
+        {
+          "fy": 2029,
+          "quantity": null,
+          "requestDollarsThousands": 0,
+          "unitCostDollars": null
+        },
+        {
+          "fy": 2030,
+          "quantity": null,
+          "requestDollarsThousands": 0,
+          "unitCostDollars": null
+        },
+        {
+          "fy": 2031,
+          "quantity": null,
+          "requestDollarsThousands": 0,
+          "unitCostDollars": null
+        }
+      ],
+      "lineItems": []
+    },
+    {
+      "peCode": "1611N5104",
+      "title": "Strategic Sealift",
+      "budgetActivity": "BA 05",
+      "lineNumber": "1611N5104",
+      "programOfRecord": null,
+      "fyData": [
+        {
+          "fy": 2025,
+          "quantity": null,
+          "requestDollarsThousands": 0,
+          "unitCostDollars": null
+        },
+        {
+          "fy": 2026,
+          "quantity": null,
+          "requestDollarsThousands": 0,
+          "unitCostDollars": null
+        },
+        {
+          "fy": 2027,
+          "quantity": 1,
+          "requestDollarsThousands": 450000,
+          "unitCostDollars": 450000
+        },
+        {
+          "fy": 2028,
+          "quantity": 1,
+          "requestDollarsThousands": 350000,
+          "unitCostDollars": 350000
+        },
+        {
+          "fy": 2029,
+          "quantity": null,
+          "requestDollarsThousands": 0,
+          "unitCostDollars": null
+        },
+        {
+          "fy": 2030,
+          "quantity": 1,
+          "requestDollarsThousands": 350000,
+          "unitCostDollars": 350000
+        },
+        {
+          "fy": 2031,
+          "quantity": 2,
+          "requestDollarsThousands": 700000,
+          "unitCostDollars": 350000
+        }
+      ],
+      "lineItems": []
+    },
+    {
+      "peCode": "1611N5112",
+      "title": "Ship to Shore Connector",
+      "budgetActivity": "BA 05",
+      "lineNumber": "1611N5112",
+      "programOfRecord": null,
+      "fyData": [
+        {
+          "fy": 2025,
+          "quantity": 3,
+          "requestDollarsThousands": 480000,
+          "unitCostDollars": 160000
+        },
+        {
+          "fy": 2026,
+          "quantity": 2,
+          "requestDollarsThousands": 320000,
+          "unitCostDollars": 160000
+        },
+        {
+          "fy": 2027,
+          "quantity": 4,
+          "requestDollarsThousands": 733895.0,
+          "unitCostDollars": 183474.0
+        },
+        {
+          "fy": 2028,
+          "quantity": 4,
+          "requestDollarsThousands": 733059.0,
+          "unitCostDollars": 183265.0
+        },
+        {
+          "fy": 2029,
+          "quantity": 4,
+          "requestDollarsThousands": 733159.0,
+          "unitCostDollars": 183290.0
+        },
+        {
+          "fy": 2030,
+          "quantity": 4,
+          "requestDollarsThousands": 733101.0,
+          "unitCostDollars": 183275.0
+        },
+        {
+          "fy": 2031,
+          "quantity": 4,
+          "requestDollarsThousands": 733268.0,
+          "unitCostDollars": 183317.0
+        }
+      ],
+      "lineItems": []
+    },
+    {
+      "peCode": "1611N5113",
+      "title": "Service Craft",
+      "budgetActivity": "BA 05",
+      "lineNumber": "1611N5113",
+      "programOfRecord": null,
+      "fyData": [
+        {
+          "fy": 2025,
+          "quantity": null,
+          "requestDollarsThousands": 41426.0,
+          "unitCostDollars": null
+        },
+        {
+          "fy": 2026,
+          "quantity": null,
+          "requestDollarsThousands": 174602.0,
+          "unitCostDollars": null
+        },
+        {
+          "fy": 2027,
+          "quantity": null,
+          "requestDollarsThousands": 177079.0,
+          "unitCostDollars": null
+        },
+        {
+          "fy": 2028,
+          "quantity": null,
+          "requestDollarsThousands": 37044.0,
+          "unitCostDollars": null
+        },
+        {
+          "fy": 2029,
+          "quantity": null,
+          "requestDollarsThousands": 104977.0,
+          "unitCostDollars": null
+        },
+        {
+          "fy": 2030,
+          "quantity": null,
+          "requestDollarsThousands": 98954.0,
+          "unitCostDollars": null
+        },
+        {
+          "fy": 2031,
+          "quantity": null,
+          "requestDollarsThousands": 100983.0,
+          "unitCostDollars": null
+        }
+      ],
+      "lineItems": []
+    },
+    {
+      "peCode": "1611N5114",
+      "title": "Auxiliary Personnel Lighter",
+      "budgetActivity": "BA 05",
+      "lineNumber": "1611N5114",
+      "programOfRecord": null,
+      "fyData": [
+        {
+          "fy": 2025,
+          "quantity": null,
+          "requestDollarsThousands": 76168.0,
+          "unitCostDollars": null
+        },
+        {
+          "fy": 2026,
+          "quantity": null,
+          "requestDollarsThousands": 79000,
+          "unitCostDollars": null
+        },
+        {
+          "fy": 2027,
+          "quantity": null,
+          "requestDollarsThousands": 83000,
+          "unitCostDollars": null
+        },
+        {
+          "fy": 2028,
+          "quantity": null,
+          "requestDollarsThousands": 83088.0,
+          "unitCostDollars": null
+        },
+        {
+          "fy": 2029,
+          "quantity": null,
+          "requestDollarsThousands": 83732.0,
+          "unitCostDollars": null
+        },
+        {
+          "fy": 2030,
+          "quantity": null,
+          "requestDollarsThousands": 86218.0,
+          "unitCostDollars": null
+        },
+        {
+          "fy": 2031,
+          "quantity": null,
+          "requestDollarsThousands": 87942.0,
+          "unitCostDollars": null
+        }
+      ],
+      "lineItems": []
+    },
+    {
+      "peCode": "1611N5118",
+      "title": "Bulk Fuel Vessel",
+      "budgetActivity": "BA 05",
+      "lineNumber": "1611N5118",
+      "programOfRecord": null,
+      "fyData": [
+        {
+          "fy": 2025,
+          "quantity": null,
+          "requestDollarsThousands": 0,
+          "unitCostDollars": null
+        },
+        {
+          "fy": 2026,
+          "quantity": null,
+          "requestDollarsThousands": 0,
+          "unitCostDollars": null
+        },
+        {
+          "fy": 2027,
+          "quantity": 1,
+          "requestDollarsThousands": 450000,
+          "unitCostDollars": 450000
+        },
+        {
+          "fy": 2028,
+          "quantity": 1,
+          "requestDollarsThousands": 450000,
+          "unitCostDollars": 450000
+        },
+        {
+          "fy": 2029,
+          "quantity": null,
+          "requestDollarsThousands": 0,
+          "unitCostDollars": null
+        },
+        {
+          "fy": 2030,
+          "quantity": 1,
+          "requestDollarsThousands": 450000,
+          "unitCostDollars": 450000
+        },
+        {
+          "fy": 2031,
+          "quantity": 2,
+          "requestDollarsThousands": 900000,
+          "unitCostDollars": 450000
+        }
+      ],
+      "lineItems": []
+    },
+    {
+      "peCode": "1611N5139",
+      "title": "LCAC SLEP",
+      "budgetActivity": "BA 05",
+      "lineNumber": "1611N5139",
+      "programOfRecord": null,
+      "fyData": [
+        {
+          "fy": 2025,
+          "quantity": 2,
+          "requestDollarsThousands": 45087.0,
+          "unitCostDollars": 22544.0
+        },
+        {
+          "fy": 2026,
+          "quantity": null,
+          "requestDollarsThousands": 0,
+          "unitCostDollars": null
+        },
+        {
+          "fy": 2027,
+          "quantity": 2,
+          "requestDollarsThousands": 37998.0,
+          "unitCostDollars": 18999.0
+        },
+        {
+          "fy": 2028,
+          "quantity": 2,
+          "requestDollarsThousands": 38949.0,
+          "unitCostDollars": 19475.0
+        },
+        {
+          "fy": 2029,
+          "quantity": null,
+          "requestDollarsThousands": 0,
+          "unitCostDollars": null
+        },
+        {
+          "fy": 2030,
+          "quantity": null,
+          "requestDollarsThousands": 0,
+          "unitCostDollars": null
+        },
+        {
+          "fy": 2031,
+          "quantity": null,
+          "requestDollarsThousands": 0,
+          "unitCostDollars": null
+        }
+      ],
+      "lineItems": []
+    },
+    {
+      "peCode": "1611N5201",
+      "title": "Auxiliary Vessels (Used Sealift)",
+      "budgetActivity": "BA 05",
+      "lineNumber": "1611N5201",
+      "programOfRecord": null,
+      "fyData": [
+        {
+          "fy": 2025,
+          "quantity": 2,
+          "requestDollarsThousands": 204939.0,
+          "unitCostDollars": 102470.0
+        },
+        {
+          "fy": 2026,
+          "quantity": 2,
+          "requestDollarsThousands": 290000,
+          "unitCostDollars": 145000
+        },
+        {
+          "fy": 2027,
+          "quantity": null,
+          "requestDollarsThousands": 0,
+          "unitCostDollars": null
+        },
+        {
+          "fy": 2028,
+          "quantity": 1,
+          "requestDollarsThousands": 130000,
+          "unitCostDollars": 130000
+        },
+        {
+          "fy": 2029,
+          "quantity": null,
+          "requestDollarsThousands": 0,
+          "unitCostDollars": null
+        },
+        {
+          "fy": 2030,
+          "quantity": null,
+          "requestDollarsThousands": 0,
+          "unitCostDollars": null
+        },
+        {
+          "fy": 2031,
+          "quantity": null,
+          "requestDollarsThousands": 0,
+          "unitCostDollars": null
+        }
+      ],
+      "lineItems": []
+    },
+    {
+      "peCode": "1611N5300",
+      "title": "Completion of PY Shpbldg Progr",
+      "budgetActivity": "BA 05",
+      "lineNumber": "1611N5300",
+      "programOfRecord": null,
+      "fyData": [
+        {
+          "fy": 2025,
+          "quantity": null,
+          "requestDollarsThousands": 0,
+          "unitCostDollars": null
+        },
+        {
+          "fy": 2026,
+          "quantity": null,
+          "requestDollarsThousands": 0,
+          "unitCostDollars": null
+        },
+        {
+          "fy": 2027,
+          "quantity": null,
+          "requestDollarsThousands": 2611990.0,
+          "unitCostDollars": null
+        },
+        {
+          "fy": 2028,
+          "quantity": null,
+          "requestDollarsThousands": 2261121.0,
+          "unitCostDollars": null
+        },
+        {
+          "fy": 2029,
+          "quantity": null,
+          "requestDollarsThousands": 1853300.0,
+          "unitCostDollars": null
+        },
+        {
+          "fy": 2030,
+          "quantity": null,
+          "requestDollarsThousands": 1259129.0,
+          "unitCostDollars": null
+        },
+        {
+          "fy": 2031,
+          "quantity": null,
+          "requestDollarsThousands": 1006002.0,
+          "unitCostDollars": null
+        }
+      ],
+      "lineItems": []
+    }
+  ]
+}

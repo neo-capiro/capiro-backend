@@ -1,0 +1,1411 @@
+{
+  "service": "SF",
+  "fy": 2027,
+  "sourceUrl": "https://www.saffm.hq.af.mil/fy2027/SF_Space_Proc.pdf",
+  "pes": [
+    {
+      "peCode": "3022FAFSCOM",
+      "title": "AF Satellite Comm System",
+      "budgetActivity": "BA 01",
+      "lineNumber": "3022FAFSCOM",
+      "programOfRecord": null,
+      "fyData": [
+        {
+          "fy": 2025,
+          "quantity": null,
+          "requestDollarsThousands": 88836.0,
+          "unitCostDollars": null
+        },
+        {
+          "fy": 2026,
+          "quantity": null,
+          "requestDollarsThousands": 68238.0,
+          "unitCostDollars": null
+        },
+        {
+          "fy": 2027,
+          "quantity": null,
+          "requestDollarsThousands": 54391.0,
+          "unitCostDollars": null
+        },
+        {
+          "fy": 2028,
+          "quantity": null,
+          "requestDollarsThousands": 55445.0,
+          "unitCostDollars": null
+        },
+        {
+          "fy": 2029,
+          "quantity": null,
+          "requestDollarsThousands": 56412.0,
+          "unitCostDollars": null
+        },
+        {
+          "fy": 2030,
+          "quantity": null,
+          "requestDollarsThousands": 57655.0,
+          "unitCostDollars": null
+        },
+        {
+          "fy": 2031,
+          "quantity": null,
+          "requestDollarsThousands": 58811.0,
+          "unitCostDollars": null
+        }
+      ],
+      "lineItems": []
+    },
+    {
+      "peCode": "3022FAUX000",
+      "title": "Auxiliary Payloads",
+      "budgetActivity": "BA 01",
+      "lineNumber": "3022FAUX000",
+      "programOfRecord": null,
+      "fyData": [
+        {
+          "fy": 2025,
+          "quantity": null,
+          "requestDollarsThousands": 0,
+          "unitCostDollars": null
+        },
+        {
+          "fy": 2026,
+          "quantity": null,
+          "requestDollarsThousands": 156244.0,
+          "unitCostDollars": null
+        },
+        {
+          "fy": 2027,
+          "quantity": null,
+          "requestDollarsThousands": 241076.0,
+          "unitCostDollars": null
+        },
+        {
+          "fy": 2028,
+          "quantity": null,
+          "requestDollarsThousands": 526526.0,
+          "unitCostDollars": null
+        },
+        {
+          "fy": 2029,
+          "quantity": null,
+          "requestDollarsThousands": 497475.0,
+          "unitCostDollars": null
+        },
+        {
+          "fy": 2030,
+          "quantity": null,
+          "requestDollarsThousands": 473728.0,
+          "unitCostDollars": null
+        },
+        {
+          "fy": 2031,
+          "quantity": null,
+          "requestDollarsThousands": 483199.0,
+          "unitCostDollars": null
+        }
+      ],
+      "lineItems": []
+    },
+    {
+      "peCode": "3022FCTRSPC",
+      "title": "Counterspace Systems",
+      "budgetActivity": "BA 01",
+      "lineNumber": "3022FCTRSPC",
+      "programOfRecord": null,
+      "fyData": [
+        {
+          "fy": 2025,
+          "quantity": null,
+          "requestDollarsThousands": 4277.0,
+          "unitCostDollars": null
+        },
+        {
+          "fy": 2026,
+          "quantity": null,
+          "requestDollarsThousands": 2027.0,
+          "unitCostDollars": null
+        },
+        {
+          "fy": 2027,
+          "quantity": null,
+          "requestDollarsThousands": 459466.0,
+          "unitCostDollars": null
+        },
+        {
+          "fy": 2028,
+          "quantity": null,
+          "requestDollarsThousands": 353457.0,
+          "unitCostDollars": null
+        },
+        {
+          "fy": 2029,
+          "quantity": null,
+          "requestDollarsThousands": 4143.0,
+          "unitCostDollars": null
+        },
+        {
+          "fy": 2030,
+          "quantity": null,
+          "requestDollarsThousands": 113222.0,
+          "unitCostDollars": null
+        },
+        {
+          "fy": 2031,
+          "quantity": null,
+          "requestDollarsThousands": 134967.0,
+          "unitCostDollars": null
+        }
+      ],
+      "lineItems": []
+    },
+    {
+      "peCode": "3022FESS000",
+      "title": "Evolved Strategic SATCOM (ESS)",
+      "budgetActivity": "BA 01",
+      "lineNumber": "3022FESS000",
+      "programOfRecord": null,
+      "fyData": [
+        {
+          "fy": 2025,
+          "quantity": null,
+          "requestDollarsThousands": 0,
+          "unitCostDollars": null
+        },
+        {
+          "fy": 2026,
+          "quantity": null,
+          "requestDollarsThousands": 0,
+          "unitCostDollars": null
+        },
+        {
+          "fy": 2027,
+          "quantity": null,
+          "requestDollarsThousands": 0,
+          "unitCostDollars": null
+        },
+        {
+          "fy": 2028,
+          "quantity": 1,
+          "requestDollarsThousands": 461572.0,
+          "unitCostDollars": 521572.0
+        },
+        {
+          "fy": 2029,
+          "quantity": 1,
+          "requestDollarsThousands": 538645.0,
+          "unitCostDollars": 618345.0
+        },
+        {
+          "fy": 2030,
+          "quantity": 1,
+          "requestDollarsThousands": 666696.0,
+          "unitCostDollars": 666696.0
+        },
+        {
+          "fy": 2031,
+          "quantity": 1,
+          "requestDollarsThousands": 650533.0,
+          "unitCostDollars": 650533.0
+        }
+      ],
+      "lineItems": []
+    },
+    {
+      "peCode": "3022FFBLOST",
+      "title": "Family of Beyond Line-of-Sight Terminals",
+      "budgetActivity": "BA 01",
+      "lineNumber": "3022FFBLOST",
+      "programOfRecord": null,
+      "fyData": [
+        {
+          "fy": 2025,
+          "quantity": null,
+          "requestDollarsThousands": 20717.0,
+          "unitCostDollars": null
+        },
+        {
+          "fy": 2026,
+          "quantity": null,
+          "requestDollarsThousands": 15404.0,
+          "unitCostDollars": null
+        },
+        {
+          "fy": 2027,
+          "quantity": null,
+          "requestDollarsThousands": 0,
+          "unitCostDollars": null
+        },
+        {
+          "fy": 2028,
+          "quantity": null,
+          "requestDollarsThousands": 0,
+          "unitCostDollars": null
+        },
+        {
+          "fy": 2029,
+          "quantity": null,
+          "requestDollarsThousands": 0,
+          "unitCostDollars": null
+        },
+        {
+          "fy": 2030,
+          "quantity": null,
+          "requestDollarsThousands": 0,
+          "unitCostDollars": null
+        },
+        {
+          "fy": 2031,
+          "quantity": null,
+          "requestDollarsThousands": 0,
+          "unitCostDollars": null
+        }
+      ],
+      "lineItems": []
+    },
+    {
+      "peCode": "3022FFET000",
+      "title": "FABT FORCE ELEMENT TERMINAL",
+      "budgetActivity": "BA 01",
+      "lineNumber": "3022FFET000",
+      "programOfRecord": null,
+      "fyData": [
+        {
+          "fy": 2025,
+          "quantity": null,
+          "requestDollarsThousands": 206702.0,
+          "unitCostDollars": null
+        },
+        {
+          "fy": 2026,
+          "quantity": null,
+          "requestDollarsThousands": 0,
+          "unitCostDollars": null
+        },
+        {
+          "fy": 2027,
+          "quantity": null,
+          "requestDollarsThousands": 0,
+          "unitCostDollars": null
+        },
+        {
+          "fy": 2028,
+          "quantity": null,
+          "requestDollarsThousands": 0,
+          "unitCostDollars": null
+        },
+        {
+          "fy": 2029,
+          "quantity": null,
+          "requestDollarsThousands": 0,
+          "unitCostDollars": null
+        },
+        {
+          "fy": 2030,
+          "quantity": null,
+          "requestDollarsThousands": 0,
+          "unitCostDollars": null
+        },
+        {
+          "fy": 2031,
+          "quantity": null,
+          "requestDollarsThousands": 0,
+          "unitCostDollars": null
+        }
+      ],
+      "lineItems": []
+    },
+    {
+      "peCode": "3022FGAP000",
+      "title": "Wideband Gapfiller Satellites(Space)",
+      "budgetActivity": "BA 01",
+      "lineNumber": "3022FGAP000",
+      "programOfRecord": null,
+      "fyData": [
+        {
+          "fy": 2025,
+          "quantity": null,
+          "requestDollarsThousands": 10020.0,
+          "unitCostDollars": null
+        },
+        {
+          "fy": 2026,
+          "quantity": null,
+          "requestDollarsThousands": 0,
+          "unitCostDollars": null
+        },
+        {
+          "fy": 2027,
+          "quantity": null,
+          "requestDollarsThousands": 0,
+          "unitCostDollars": null
+        },
+        {
+          "fy": 2028,
+          "quantity": null,
+          "requestDollarsThousands": 0,
+          "unitCostDollars": null
+        },
+        {
+          "fy": 2029,
+          "quantity": null,
+          "requestDollarsThousands": 0,
+          "unitCostDollars": null
+        },
+        {
+          "fy": 2030,
+          "quantity": null,
+          "requestDollarsThousands": 0,
+          "unitCostDollars": null
+        },
+        {
+          "fy": 2031,
+          "quantity": null,
+          "requestDollarsThousands": 0,
+          "unitCostDollars": null
+        }
+      ],
+      "lineItems": []
+    },
+    {
+      "peCode": "3022FGMTI00",
+      "title": "Ground Moving Target Indicator (GMTI)",
+      "budgetActivity": "BA 01",
+      "lineNumber": "3022FGMTI00",
+      "programOfRecord": null,
+      "fyData": [
+        {
+          "fy": 2025,
+          "quantity": null,
+          "requestDollarsThousands": 0,
+          "unitCostDollars": null
+        },
+        {
+          "fy": 2026,
+          "quantity": null,
+          "requestDollarsThousands": 154500.0,
+          "unitCostDollars": null
+        },
+        {
+          "fy": 2027,
+          "quantity": null,
+          "requestDollarsThousands": 1016612.0,
+          "unitCostDollars": null
+        },
+        {
+          "fy": 2028,
+          "quantity": null,
+          "requestDollarsThousands": 321600.0,
+          "unitCostDollars": null
+        },
+        {
+          "fy": 2029,
+          "quantity": null,
+          "requestDollarsThousands": 569000,
+          "unitCostDollars": null
+        },
+        {
+          "fy": 2030,
+          "quantity": null,
+          "requestDollarsThousands": 543316.0,
+          "unitCostDollars": null
+        },
+        {
+          "fy": 2031,
+          "quantity": null,
+          "requestDollarsThousands": 15830.0,
+          "unitCostDollars": null
+        }
+      ],
+      "lineItems": []
+    },
+    {
+      "peCode": "3022FGNRLIT",
+      "title": "General Information Tech - Space",
+      "budgetActivity": "BA 01",
+      "lineNumber": "3022FGNRLIT",
+      "programOfRecord": null,
+      "fyData": [
+        {
+          "fy": 2025,
+          "quantity": null,
+          "requestDollarsThousands": 2189.0,
+          "unitCostDollars": null
+        },
+        {
+          "fy": 2026,
+          "quantity": null,
+          "requestDollarsThousands": 1835.0,
+          "unitCostDollars": null
+        },
+        {
+          "fy": 2027,
+          "quantity": null,
+          "requestDollarsThousands": 14895.0,
+          "unitCostDollars": null
+        },
+        {
+          "fy": 2028,
+          "quantity": null,
+          "requestDollarsThousands": 1932.0,
+          "unitCostDollars": null
+        },
+        {
+          "fy": 2029,
+          "quantity": null,
+          "requestDollarsThousands": 1965.0,
+          "unitCostDollars": null
+        },
+        {
+          "fy": 2030,
+          "quantity": null,
+          "requestDollarsThousands": 2005.0,
+          "unitCostDollars": null
+        },
+        {
+          "fy": 2031,
+          "quantity": null,
+          "requestDollarsThousands": 2045.0,
+          "unitCostDollars": null
+        }
+      ],
+      "lineItems": []
+    },
+    {
+      "peCode": "3022FGPS03C",
+      "title": "GPSIII Follow On",
+      "budgetActivity": "BA 01",
+      "lineNumber": "3022FGPS03C",
+      "programOfRecord": null,
+      "fyData": [
+        {
+          "fy": 2025,
+          "quantity": 2,
+          "requestDollarsThousands": 647165.0,
+          "unitCostDollars": 323583.0
+        },
+        {
+          "fy": 2026,
+          "quantity": 2,
+          "requestDollarsThousands": 637944.0,
+          "unitCostDollars": 318972.0
+        },
+        {
+          "fy": 2027,
+          "quantity": 2,
+          "requestDollarsThousands": 680875.0,
+          "unitCostDollars": 340438.0
+        },
+        {
+          "fy": 2028,
+          "quantity": 2,
+          "requestDollarsThousands": 666783.0,
+          "unitCostDollars": 333392.0
+        },
+        {
+          "fy": 2029,
+          "quantity": 2,
+          "requestDollarsThousands": 687649.0,
+          "unitCostDollars": 343825.0
+        },
+        {
+          "fy": 2030,
+          "quantity": 2,
+          "requestDollarsThousands": 696497.0,
+          "unitCostDollars": 348249.0
+        },
+        {
+          "fy": 2031,
+          "quantity": 2,
+          "requestDollarsThousands": 710465.0,
+          "unitCostDollars": 355233.0
+        }
+      ],
+      "lineItems": []
+    },
+    {
+      "peCode": "3022FGPSIII",
+      "title": "GPS III Space Segment",
+      "budgetActivity": "BA 01",
+      "lineNumber": "3022FGPSIII",
+      "programOfRecord": null,
+      "fyData": [
+        {
+          "fy": 2025,
+          "quantity": null,
+          "requestDollarsThousands": 54805.0,
+          "unitCostDollars": null
+        },
+        {
+          "fy": 2026,
+          "quantity": null,
+          "requestDollarsThousands": 29274.0,
+          "unitCostDollars": null
+        },
+        {
+          "fy": 2027,
+          "quantity": null,
+          "requestDollarsThousands": 0,
+          "unitCostDollars": null
+        },
+        {
+          "fy": 2028,
+          "quantity": null,
+          "requestDollarsThousands": 0,
+          "unitCostDollars": null
+        },
+        {
+          "fy": 2029,
+          "quantity": null,
+          "requestDollarsThousands": 0,
+          "unitCostDollars": null
+        },
+        {
+          "fy": 2030,
+          "quantity": null,
+          "requestDollarsThousands": 0,
+          "unitCostDollars": null
+        },
+        {
+          "fy": 2031,
+          "quantity": null,
+          "requestDollarsThousands": 0,
+          "unitCostDollars": null
+        }
+      ],
+      "lineItems": []
+    },
+    {
+      "peCode": "3022FGPSSPC",
+      "title": "Global Postioning (Space)",
+      "budgetActivity": "BA 01",
+      "lineNumber": "3022FGPSSPC",
+      "programOfRecord": null,
+      "fyData": [
+        {
+          "fy": 2025,
+          "quantity": null,
+          "requestDollarsThousands": 835.0,
+          "unitCostDollars": null
+        },
+        {
+          "fy": 2026,
+          "quantity": null,
+          "requestDollarsThousands": 870.0,
+          "unitCostDollars": null
+        },
+        {
+          "fy": 2027,
+          "quantity": null,
+          "requestDollarsThousands": 0,
+          "unitCostDollars": null
+        },
+        {
+          "fy": 2028,
+          "quantity": null,
+          "requestDollarsThousands": 0,
+          "unitCostDollars": null
+        },
+        {
+          "fy": 2029,
+          "quantity": null,
+          "requestDollarsThousands": 0,
+          "unitCostDollars": null
+        },
+        {
+          "fy": 2030,
+          "quantity": null,
+          "requestDollarsThousands": 0,
+          "unitCostDollars": null
+        },
+        {
+          "fy": 2031,
+          "quantity": null,
+          "requestDollarsThousands": 0,
+          "unitCostDollars": null
+        }
+      ],
+      "lineItems": []
+    },
+    {
+      "peCode": "3022FMC0MSE",
+      "title": "Spaceborne Equip (Comsec)",
+      "budgetActivity": "BA 01",
+      "lineNumber": "3022FMC0MSE",
+      "programOfRecord": null,
+      "fyData": [
+        {
+          "fy": 2025,
+          "quantity": null,
+          "requestDollarsThousands": 83829.0,
+          "unitCostDollars": null
+        },
+        {
+          "fy": 2026,
+          "quantity": null,
+          "requestDollarsThousands": 84044.0,
+          "unitCostDollars": null
+        },
+        {
+          "fy": 2027,
+          "quantity": null,
+          "requestDollarsThousands": 95061.0,
+          "unitCostDollars": null
+        },
+        {
+          "fy": 2028,
+          "quantity": null,
+          "requestDollarsThousands": 95414.0,
+          "unitCostDollars": null
+        },
+        {
+          "fy": 2029,
+          "quantity": null,
+          "requestDollarsThousands": 103563.0,
+          "unitCostDollars": null
+        },
+        {
+          "fy": 2030,
+          "quantity": null,
+          "requestDollarsThousands": 102467.0,
+          "unitCostDollars": null
+        },
+        {
+          "fy": 2031,
+          "quantity": null,
+          "requestDollarsThousands": 106723.0,
+          "unitCostDollars": null
+        }
+      ],
+      "lineItems": []
+    },
+    {
+      "peCode": "3022FMILSAT",
+      "title": "MILSATCOM",
+      "budgetActivity": "BA 01",
+      "lineNumber": "3022FMILSAT",
+      "programOfRecord": null,
+      "fyData": [
+        {
+          "fy": 2025,
+          "quantity": null,
+          "requestDollarsThousands": 37684.0,
+          "unitCostDollars": null
+        },
+        {
+          "fy": 2026,
+          "quantity": null,
+          "requestDollarsThousands": 36447.0,
+          "unitCostDollars": null
+        },
+        {
+          "fy": 2027,
+          "quantity": null,
+          "requestDollarsThousands": 38067.0,
+          "unitCostDollars": null
+        },
+        {
+          "fy": 2028,
+          "quantity": null,
+          "requestDollarsThousands": 28233.0,
+          "unitCostDollars": null
+        },
+        {
+          "fy": 2029,
+          "quantity": null,
+          "requestDollarsThousands": 25039.0,
+          "unitCostDollars": null
+        },
+        {
+          "fy": 2030,
+          "quantity": null,
+          "requestDollarsThousands": 28223.0,
+          "unitCostDollars": null
+        },
+        {
+          "fy": 2031,
+          "quantity": null,
+          "requestDollarsThousands": 22333.0,
+          "unitCostDollars": null
+        }
+      ],
+      "lineItems": []
+    },
+    {
+      "peCode": "3022FMSSBIR",
+      "title": "SBIR High (Space)",
+      "budgetActivity": "BA 01",
+      "lineNumber": "3022FMSSBIR",
+      "programOfRecord": null,
+      "fyData": [
+        {
+          "fy": 2025,
+          "quantity": null,
+          "requestDollarsThousands": 59300.0,
+          "unitCostDollars": null
+        },
+        {
+          "fy": 2026,
+          "quantity": null,
+          "requestDollarsThousands": 0,
+          "unitCostDollars": null
+        },
+        {
+          "fy": 2027,
+          "quantity": null,
+          "requestDollarsThousands": 0,
+          "unitCostDollars": null
+        },
+        {
+          "fy": 2028,
+          "quantity": null,
+          "requestDollarsThousands": 0,
+          "unitCostDollars": null
+        },
+        {
+          "fy": 2029,
+          "quantity": null,
+          "requestDollarsThousands": 0,
+          "unitCostDollars": null
+        },
+        {
+          "fy": 2030,
+          "quantity": null,
+          "requestDollarsThousands": 0,
+          "unitCostDollars": null
+        },
+        {
+          "fy": 2031,
+          "quantity": null,
+          "requestDollarsThousands": 0,
+          "unitCostDollars": null
+        }
+      ],
+      "lineItems": []
+    },
+    {
+      "peCode": "3022FMSSPAC",
+      "title": "Special Space Activities",
+      "budgetActivity": "BA 01",
+      "lineNumber": "3022FMSSPAC",
+      "programOfRecord": null,
+      "fyData": [
+        {
+          "fy": 2025,
+          "quantity": null,
+          "requestDollarsThousands": 411697.0,
+          "unitCostDollars": null
+        },
+        {
+          "fy": 2026,
+          "quantity": null,
+          "requestDollarsThousands": 454003.0,
+          "unitCostDollars": null
+        },
+        {
+          "fy": 2027,
+          "quantity": null,
+          "requestDollarsThousands": 2021299.0,
+          "unitCostDollars": null
+        },
+        {
+          "fy": 2028,
+          "quantity": null,
+          "requestDollarsThousands": 2228670.0,
+          "unitCostDollars": null
+        },
+        {
+          "fy": 2029,
+          "quantity": null,
+          "requestDollarsThousands": 3177701.0,
+          "unitCostDollars": null
+        },
+        {
+          "fy": 2030,
+          "quantity": null,
+          "requestDollarsThousands": 1992033.0,
+          "unitCostDollars": null
+        },
+        {
+          "fy": 2031,
+          "quantity": null,
+          "requestDollarsThousands": 1834254.0,
+          "unitCostDollars": null
+        }
+      ],
+      "lineItems": []
+    },
+    {
+      "peCode": "3022FMUOS00",
+      "title": "Mobile User Objective System",
+      "budgetActivity": "BA 01",
+      "lineNumber": "3022FMUOS00",
+      "programOfRecord": null,
+      "fyData": [
+        {
+          "fy": 2025,
+          "quantity": null,
+          "requestDollarsThousands": 64665.0,
+          "unitCostDollars": null
+        },
+        {
+          "fy": 2026,
+          "quantity": null,
+          "requestDollarsThousands": 48977.0,
+          "unitCostDollars": null
+        },
+        {
+          "fy": 2027,
+          "quantity": null,
+          "requestDollarsThousands": 50640.0,
+          "unitCostDollars": null
+        },
+        {
+          "fy": 2028,
+          "quantity": null,
+          "requestDollarsThousands": 51622.0,
+          "unitCostDollars": null
+        },
+        {
+          "fy": 2029,
+          "quantity": null,
+          "requestDollarsThousands": 52529.0,
+          "unitCostDollars": null
+        },
+        {
+          "fy": 2030,
+          "quantity": null,
+          "requestDollarsThousands": 53685.0,
+          "unitCostDollars": null
+        },
+        {
+          "fy": 2031,
+          "quantity": null,
+          "requestDollarsThousands": 54761.0,
+          "unitCostDollars": null
+        }
+      ],
+      "lineItems": []
+    },
+    {
+      "peCode": "3022FNSSL00",
+      "title": "National Security Space Launch",
+      "budgetActivity": "BA 01",
+      "lineNumber": "3022FNSSL00",
+      "programOfRecord": null,
+      "fyData": [
+        {
+          "fy": 2025,
+          "quantity": 7,
+          "requestDollarsThousands": 1769486.0,
+          "unitCostDollars": 252784.0
+        },
+        {
+          "fy": 2026,
+          "quantity": 4,
+          "requestDollarsThousands": 1329263.0,
+          "unitCostDollars": 332316.0
+        },
+        {
+          "fy": 2027,
+          "quantity": 13,
+          "requestDollarsThousands": 3370958.0,
+          "unitCostDollars": 259304.0
+        },
+        {
+          "fy": 2028,
+          "quantity": 21,
+          "requestDollarsThousands": 4737696.0,
+          "unitCostDollars": 225605.0
+        },
+        {
+          "fy": 2029,
+          "quantity": 22,
+          "requestDollarsThousands": 5206069.0,
+          "unitCostDollars": 236640.0
+        },
+        {
+          "fy": 2030,
+          "quantity": 22,
+          "requestDollarsThousands": 5163734.0,
+          "unitCostDollars": 234715.0
+        },
+        {
+          "fy": 2031,
+          "quantity": 19,
+          "requestDollarsThousands": 4455648.0,
+          "unitCostDollars": 234508.0
+        }
+      ],
+      "lineItems": []
+    },
+    {
+      "peCode": "3022FPTES00",
+      "title": "PTES HUB",
+      "budgetActivity": "BA 01",
+      "lineNumber": "3022FPTES00",
+      "programOfRecord": null,
+      "fyData": [
+        {
+          "fy": 2025,
+          "quantity": 12,
+          "requestDollarsThousands": 56148.0,
+          "unitCostDollars": 4679.0
+        },
+        {
+          "fy": 2026,
+          "quantity": null,
+          "requestDollarsThousands": 29949.0,
+          "unitCostDollars": null
+        },
+        {
+          "fy": 2027,
+          "quantity": null,
+          "requestDollarsThousands": 12046.0,
+          "unitCostDollars": null
+        },
+        {
+          "fy": 2028,
+          "quantity": null,
+          "requestDollarsThousands": 0,
+          "unitCostDollars": null
+        },
+        {
+          "fy": 2029,
+          "quantity": null,
+          "requestDollarsThousands": 0,
+          "unitCostDollars": null
+        },
+        {
+          "fy": 2030,
+          "quantity": null,
+          "requestDollarsThousands": 0,
+          "unitCostDollars": null
+        },
+        {
+          "fy": 2031,
+          "quantity": null,
+          "requestDollarsThousands": 0,
+          "unitCostDollars": null
+        }
+      ],
+      "lineItems": []
+    },
+    {
+      "peCode": "3022FSDALCH",
+      "title": "Space Development Agency Launch",
+      "budgetActivity": "BA 01",
+      "lineNumber": "3022FSDALCH",
+      "programOfRecord": null,
+      "fyData": [
+        {
+          "fy": 2025,
+          "quantity": 4,
+          "requestDollarsThousands": 326868.0,
+          "unitCostDollars": 81717.0
+        },
+        {
+          "fy": 2026,
+          "quantity": 7,
+          "requestDollarsThousands": 648446.0,
+          "unitCostDollars": 92635.0
+        },
+        {
+          "fy": 2027,
+          "quantity": 9,
+          "requestDollarsThousands": 835197.0,
+          "unitCostDollars": 92800.0
+        },
+        {
+          "fy": 2028,
+          "quantity": 2,
+          "requestDollarsThousands": 282672.0,
+          "unitCostDollars": 141336.0
+        },
+        {
+          "fy": 2029,
+          "quantity": 3,
+          "requestDollarsThousands": 286712.0,
+          "unitCostDollars": 95571.0
+        },
+        {
+          "fy": 2030,
+          "quantity": 3,
+          "requestDollarsThousands": 298125.0,
+          "unitCostDollars": 99375.0
+        },
+        {
+          "fy": 2031,
+          "quantity": 3,
+          "requestDollarsThousands": 298051.0,
+          "unitCostDollars": 99350.0
+        }
+      ],
+      "lineItems": []
+    },
+    {
+      "peCode": "3022FSDN000",
+      "title": "Space Digital Integrated Network (SDIN)",
+      "budgetActivity": "BA 01",
+      "lineNumber": "3022FSDN000",
+      "programOfRecord": null,
+      "fyData": [
+        {
+          "fy": 2025,
+          "quantity": null,
+          "requestDollarsThousands": 0,
+          "unitCostDollars": null
+        },
+        {
+          "fy": 2026,
+          "quantity": null,
+          "requestDollarsThousands": 4984.0,
+          "unitCostDollars": null
+        },
+        {
+          "fy": 2027,
+          "quantity": null,
+          "requestDollarsThousands": 5119.0,
+          "unitCostDollars": null
+        },
+        {
+          "fy": 2028,
+          "quantity": null,
+          "requestDollarsThousands": 5209.0,
+          "unitCostDollars": null
+        },
+        {
+          "fy": 2029,
+          "quantity": null,
+          "requestDollarsThousands": 5299.0,
+          "unitCostDollars": null
+        },
+        {
+          "fy": 2030,
+          "quantity": null,
+          "requestDollarsThousands": 5401.0,
+          "unitCostDollars": null
+        },
+        {
+          "fy": 2031,
+          "quantity": null,
+          "requestDollarsThousands": 5509.0,
+          "unitCostDollars": null
+        }
+      ],
+      "lineItems": []
+    },
+    {
+      "peCode": "3022FSPCMOD",
+      "title": "Space Mods",
+      "budgetActivity": "BA 01",
+      "lineNumber": "3022FSPCMOD",
+      "programOfRecord": null,
+      "fyData": [
+        {
+          "fy": 2025,
+          "quantity": null,
+          "requestDollarsThousands": 48152.0,
+          "unitCostDollars": null
+        },
+        {
+          "fy": 2026,
+          "quantity": null,
+          "requestDollarsThousands": 115498.0,
+          "unitCostDollars": null
+        },
+        {
+          "fy": 2027,
+          "quantity": null,
+          "requestDollarsThousands": 448674.0,
+          "unitCostDollars": null
+        },
+        {
+          "fy": 2028,
+          "quantity": null,
+          "requestDollarsThousands": 91792.0,
+          "unitCostDollars": null
+        },
+        {
+          "fy": 2029,
+          "quantity": null,
+          "requestDollarsThousands": 92067.0,
+          "unitCostDollars": null
+        },
+        {
+          "fy": 2030,
+          "quantity": null,
+          "requestDollarsThousands": 95722.0,
+          "unitCostDollars": null
+        },
+        {
+          "fy": 2031,
+          "quantity": null,
+          "requestDollarsThousands": 91008.0,
+          "unitCostDollars": null
+        }
+      ],
+      "lineItems": []
+    },
+    {
+      "peCode": "3022FSPRNGE",
+      "title": "Spacelift Range System Space",
+      "budgetActivity": "BA 01",
+      "lineNumber": "3022FSPRNGE",
+      "programOfRecord": null,
+      "fyData": [
+        {
+          "fy": 2025,
+          "quantity": null,
+          "requestDollarsThousands": 63798.0,
+          "unitCostDollars": null
+        },
+        {
+          "fy": 2026,
+          "quantity": null,
+          "requestDollarsThousands": 64321.0,
+          "unitCostDollars": null
+        },
+        {
+          "fy": 2027,
+          "quantity": null,
+          "requestDollarsThousands": 64885.0,
+          "unitCostDollars": null
+        },
+        {
+          "fy": 2028,
+          "quantity": null,
+          "requestDollarsThousands": 64356.0,
+          "unitCostDollars": null
+        },
+        {
+          "fy": 2029,
+          "quantity": null,
+          "requestDollarsThousands": 65240.0,
+          "unitCostDollars": null
+        },
+        {
+          "fy": 2030,
+          "quantity": null,
+          "requestDollarsThousands": 66672.0,
+          "unitCostDollars": null
+        },
+        {
+          "fy": 2031,
+          "quantity": null,
+          "requestDollarsThousands": 68008.0,
+          "unitCostDollars": null
+        }
+      ],
+      "lineItems": []
+    },
+    {
+      "peCode": "3022FWSOMS0",
+      "title": "Wideband SATCOM Operational Management S...",
+      "budgetActivity": "BA 01",
+      "lineNumber": "3022FWSOMS0",
+      "programOfRecord": null,
+      "fyData": [
+        {
+          "fy": 2025,
+          "quantity": null,
+          "requestDollarsThousands": 0,
+          "unitCostDollars": null
+        },
+        {
+          "fy": 2026,
+          "quantity": null,
+          "requestDollarsThousands": 92380.0,
+          "unitCostDollars": null
+        },
+        {
+          "fy": 2027,
+          "quantity": null,
+          "requestDollarsThousands": 81483.0,
+          "unitCostDollars": null
+        },
+        {
+          "fy": 2028,
+          "quantity": null,
+          "requestDollarsThousands": 38217.0,
+          "unitCostDollars": null
+        },
+        {
+          "fy": 2029,
+          "quantity": null,
+          "requestDollarsThousands": 39435.0,
+          "unitCostDollars": null
+        },
+        {
+          "fy": 2030,
+          "quantity": null,
+          "requestDollarsThousands": 38511.0,
+          "unitCostDollars": null
+        },
+        {
+          "fy": 2031,
+          "quantity": null,
+          "requestDollarsThousands": 39283.0,
+          "unitCostDollars": null
+        }
+      ],
+      "lineItems": []
+    },
+    {
+      "peCode": "3022FSSPARE",
+      "title": "Spares and Repair Parts",
+      "budgetActivity": "BA 02",
+      "lineNumber": "3022FSSPARE",
+      "programOfRecord": null,
+      "fyData": [
+        {
+          "fy": 2025,
+          "quantity": null,
+          "requestDollarsThousands": 722.0,
+          "unitCostDollars": null
+        },
+        {
+          "fy": 2026,
+          "quantity": null,
+          "requestDollarsThousands": 938.0,
+          "unitCostDollars": null
+        },
+        {
+          "fy": 2027,
+          "quantity": null,
+          "requestDollarsThousands": 971.0,
+          "unitCostDollars": null
+        },
+        {
+          "fy": 2028,
+          "quantity": null,
+          "requestDollarsThousands": 990.0,
+          "unitCostDollars": null
+        },
+        {
+          "fy": 2029,
+          "quantity": null,
+          "requestDollarsThousands": 1008.0,
+          "unitCostDollars": null
+        },
+        {
+          "fy": 2030,
+          "quantity": null,
+          "requestDollarsThousands": 1028.0,
+          "unitCostDollars": null
+        },
+        {
+          "fy": 2031,
+          "quantity": null,
+          "requestDollarsThousands": 1048.0,
+          "unitCostDollars": null
+        }
+      ],
+      "lineItems": []
+    },
+    {
+      "peCode": "3022FSFV000",
+      "title": "USSF Vehicles",
+      "budgetActivity": "BA 03",
+      "lineNumber": "3022FSFV000",
+      "programOfRecord": null,
+      "fyData": [
+        {
+          "fy": 2025,
+          "quantity": null,
+          "requestDollarsThousands": 0,
+          "unitCostDollars": null
+        },
+        {
+          "fy": 2026,
+          "quantity": null,
+          "requestDollarsThousands": 5000,
+          "unitCostDollars": null
+        },
+        {
+          "fy": 2027,
+          "quantity": null,
+          "requestDollarsThousands": 6032.0,
+          "unitCostDollars": null
+        },
+        {
+          "fy": 2028,
+          "quantity": null,
+          "requestDollarsThousands": 5227.0,
+          "unitCostDollars": null
+        },
+        {
+          "fy": 2029,
+          "quantity": null,
+          "requestDollarsThousands": 5321.0,
+          "unitCostDollars": null
+        },
+        {
+          "fy": 2030,
+          "quantity": null,
+          "requestDollarsThousands": 5429.0,
+          "unitCostDollars": null
+        },
+        {
+          "fy": 2031,
+          "quantity": null,
+          "requestDollarsThousands": 5537.0,
+          "unitCostDollars": null
+        }
+      ],
+      "lineItems": []
+    },
+    {
+      "peCode": "3022FPOWCON",
+      "title": "Power Conditioning Equipment",
+      "budgetActivity": "BA 04",
+      "lineNumber": "3022FPOWCON",
+      "programOfRecord": null,
+      "fyData": [
+        {
+          "fy": 2025,
+          "quantity": null,
+          "requestDollarsThousands": 3189.0,
+          "unitCostDollars": null
+        },
+        {
+          "fy": 2026,
+          "quantity": null,
+          "requestDollarsThousands": 20449.0,
+          "unitCostDollars": null
+        },
+        {
+          "fy": 2027,
+          "quantity": null,
+          "requestDollarsThousands": 7906.0,
+          "unitCostDollars": null
+        },
+        {
+          "fy": 2028,
+          "quantity": null,
+          "requestDollarsThousands": 7965.0,
+          "unitCostDollars": null
+        },
+        {
+          "fy": 2029,
+          "quantity": null,
+          "requestDollarsThousands": 8023.0,
+          "unitCostDollars": null
+        },
+        {
+          "fy": 2030,
+          "quantity": null,
+          "requestDollarsThousands": 6491.0,
+          "unitCostDollars": null
+        },
+        {
+          "fy": 2031,
+          "quantity": null,
+          "requestDollarsThousands": 6663.0,
+          "unitCostDollars": null
+        }
+      ],
+      "lineItems": []
+    }
+  ]
+}

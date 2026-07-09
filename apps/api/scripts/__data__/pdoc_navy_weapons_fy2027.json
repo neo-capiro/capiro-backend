@@ -1,0 +1,2139 @@
+{
+  "service": "NAVY",
+  "fy": 2027,
+  "sourceUrl": "https://www.secnav.navy.mil/fmc/fmb/Documents/27pres/WPN_Book.pdf",
+  "pes": [
+    {
+      "peCode": "1507N1160",
+      "title": "Conventional Prompt Strike",
+      "budgetActivity": "BA 01",
+      "lineNumber": "1507N1160",
+      "programOfRecord": null,
+      "fyData": [
+        {
+          "fy": 2025,
+          "quantity": null,
+          "requestDollarsThousands": 0,
+          "unitCostDollars": null
+        },
+        {
+          "fy": 2026,
+          "quantity": null,
+          "requestDollarsThousands": 0,
+          "unitCostDollars": null
+        },
+        {
+          "fy": 2027,
+          "quantity": 12,
+          "requestDollarsThousands": 750387.0,
+          "unitCostDollars": 62532250.0
+        },
+        {
+          "fy": 2028,
+          "quantity": 11,
+          "requestDollarsThousands": 708521.0,
+          "unitCostDollars": 64411000
+        },
+        {
+          "fy": 2029,
+          "quantity": 10,
+          "requestDollarsThousands": 668301.0,
+          "unitCostDollars": 66830100.0
+        },
+        {
+          "fy": 2030,
+          "quantity": 9,
+          "requestDollarsThousands": 623786.0,
+          "unitCostDollars": 69309556.0
+        },
+        {
+          "fy": 2031,
+          "quantity": 17,
+          "requestDollarsThousands": 1202642.0,
+          "unitCostDollars": 70743647.0
+        }
+      ],
+      "lineItems": []
+    },
+    {
+      "peCode": "1507N1250",
+      "title": "TRIDENT II Mods",
+      "budgetActivity": "BA 01",
+      "lineNumber": "1507N1250",
+      "programOfRecord": null,
+      "fyData": [
+        {
+          "fy": 2025,
+          "quantity": null,
+          "requestDollarsThousands": 1793867.0,
+          "unitCostDollars": null
+        },
+        {
+          "fy": 2026,
+          "quantity": null,
+          "requestDollarsThousands": 2541712.0,
+          "unitCostDollars": null
+        },
+        {
+          "fy": 2027,
+          "quantity": null,
+          "requestDollarsThousands": 3912267.0,
+          "unitCostDollars": null
+        },
+        {
+          "fy": 2028,
+          "quantity": null,
+          "requestDollarsThousands": 4728112.0,
+          "unitCostDollars": null
+        },
+        {
+          "fy": 2029,
+          "quantity": null,
+          "requestDollarsThousands": 5371076.0,
+          "unitCostDollars": null
+        },
+        {
+          "fy": 2030,
+          "quantity": null,
+          "requestDollarsThousands": 6309768.0,
+          "unitCostDollars": null
+        },
+        {
+          "fy": 2031,
+          "quantity": null,
+          "requestDollarsThousands": 6849011.0,
+          "unitCostDollars": null
+        }
+      ],
+      "lineItems": []
+    },
+    {
+      "peCode": "1507N1350",
+      "title": "Missile Industrial Facilities",
+      "budgetActivity": "BA 01",
+      "lineNumber": "1507N1350",
+      "programOfRecord": null,
+      "fyData": [
+        {
+          "fy": 2025,
+          "quantity": null,
+          "requestDollarsThousands": 8133.0,
+          "unitCostDollars": null
+        },
+        {
+          "fy": 2026,
+          "quantity": null,
+          "requestDollarsThousands": 0,
+          "unitCostDollars": null
+        },
+        {
+          "fy": 2027,
+          "quantity": null,
+          "requestDollarsThousands": 0,
+          "unitCostDollars": null
+        },
+        {
+          "fy": 2028,
+          "quantity": null,
+          "requestDollarsThousands": 0,
+          "unitCostDollars": null
+        },
+        {
+          "fy": 2029,
+          "quantity": null,
+          "requestDollarsThousands": 0,
+          "unitCostDollars": null
+        },
+        {
+          "fy": 2030,
+          "quantity": null,
+          "requestDollarsThousands": 0,
+          "unitCostDollars": null
+        },
+        {
+          "fy": 2031,
+          "quantity": null,
+          "requestDollarsThousands": 0,
+          "unitCostDollars": null
+        }
+      ],
+      "lineItems": []
+    },
+    {
+      "peCode": "1507N2101",
+      "title": "Tomahawk",
+      "budgetActivity": "BA 02",
+      "lineNumber": "1507N2101",
+      "programOfRecord": null,
+      "fyData": [
+        {
+          "fy": 2025,
+          "quantity": 20,
+          "requestDollarsThousands": 95940.0,
+          "unitCostDollars": null
+        },
+        {
+          "fy": 2026,
+          "quantity": null,
+          "requestDollarsThousands": 7193.0,
+          "unitCostDollars": null
+        },
+        {
+          "fy": 2027,
+          "quantity": 58,
+          "requestDollarsThousands": 1015106.0,
+          "unitCostDollars": null
+        },
+        {
+          "fy": 2028,
+          "quantity": 557,
+          "requestDollarsThousands": 2165160.0,
+          "unitCostDollars": null
+        },
+        {
+          "fy": 2029,
+          "quantity": 551,
+          "requestDollarsThousands": 2198222.0,
+          "unitCostDollars": null
+        },
+        {
+          "fy": 2030,
+          "quantity": 526,
+          "requestDollarsThousands": 2190458.0,
+          "unitCostDollars": null
+        },
+        {
+          "fy": 2031,
+          "quantity": 577,
+          "requestDollarsThousands": 2505205.0,
+          "unitCostDollars": null
+        }
+      ],
+      "lineItems": []
+    },
+    {
+      "peCode": "1507N2206",
+      "title": "AMRAAM",
+      "budgetActivity": "BA 02",
+      "lineNumber": "1507N2206",
+      "programOfRecord": null,
+      "fyData": [
+        {
+          "fy": 2025,
+          "quantity": 155,
+          "requestDollarsThousands": 207093.0,
+          "unitCostDollars": null
+        },
+        {
+          "fy": 2026,
+          "quantity": 41,
+          "requestDollarsThousands": 69913.0,
+          "unitCostDollars": null
+        },
+        {
+          "fy": 2027,
+          "quantity": 106,
+          "requestDollarsThousands": 167439.0,
+          "unitCostDollars": null
+        },
+        {
+          "fy": 2028,
+          "quantity": 480,
+          "requestDollarsThousands": 772776.0,
+          "unitCostDollars": null
+        },
+        {
+          "fy": 2029,
+          "quantity": 480,
+          "requestDollarsThousands": 800917.0,
+          "unitCostDollars": null
+        },
+        {
+          "fy": 2030,
+          "quantity": 480,
+          "requestDollarsThousands": 821665.0,
+          "unitCostDollars": null
+        },
+        {
+          "fy": 2031,
+          "quantity": 480,
+          "requestDollarsThousands": 844568.0,
+          "unitCostDollars": null
+        }
+      ],
+      "lineItems": []
+    },
+    {
+      "peCode": "1507N2209",
+      "title": "Sidewinder",
+      "budgetActivity": "BA 02",
+      "lineNumber": "1507N2209",
+      "programOfRecord": null,
+      "fyData": [
+        {
+          "fy": 2025,
+          "quantity": 608,
+          "requestDollarsThousands": 295280.0,
+          "unitCostDollars": null
+        },
+        {
+          "fy": 2026,
+          "quantity": 146,
+          "requestDollarsThousands": 84713.0,
+          "unitCostDollars": null
+        },
+        {
+          "fy": 2027,
+          "quantity": 306,
+          "requestDollarsThousands": 174750.0,
+          "unitCostDollars": null
+        },
+        {
+          "fy": 2028,
+          "quantity": 320,
+          "requestDollarsThousands": 185837.0,
+          "unitCostDollars": null
+        },
+        {
+          "fy": 2029,
+          "quantity": 358,
+          "requestDollarsThousands": 203559.0,
+          "unitCostDollars": null
+        },
+        {
+          "fy": 2030,
+          "quantity": 380,
+          "requestDollarsThousands": 217543.0,
+          "unitCostDollars": null
+        },
+        {
+          "fy": 2031,
+          "quantity": 385,
+          "requestDollarsThousands": 222995.0,
+          "unitCostDollars": null
+        }
+      ],
+      "lineItems": []
+    },
+    {
+      "peCode": "1507N2210",
+      "title": "Joint Advance Tactical Missile (JATM)",
+      "budgetActivity": "BA 02",
+      "lineNumber": "1507N2210",
+      "programOfRecord": null,
+      "fyData": [
+        {
+          "fy": 2025,
+          "quantity": null,
+          "requestDollarsThousands": 0,
+          "unitCostDollars": null
+        },
+        {
+          "fy": 2026,
+          "quantity": null,
+          "requestDollarsThousands": 301858.0,
+          "unitCostDollars": null
+        },
+        {
+          "fy": 2027,
+          "quantity": null,
+          "requestDollarsThousands": 557806.0,
+          "unitCostDollars": null
+        },
+        {
+          "fy": 2028,
+          "quantity": null,
+          "requestDollarsThousands": 1027474.0,
+          "unitCostDollars": null
+        },
+        {
+          "fy": 2029,
+          "quantity": null,
+          "requestDollarsThousands": 1378874.0,
+          "unitCostDollars": null
+        },
+        {
+          "fy": 2030,
+          "quantity": null,
+          "requestDollarsThousands": 1331850.0,
+          "unitCostDollars": null
+        },
+        {
+          "fy": 2031,
+          "quantity": null,
+          "requestDollarsThousands": 1331134.0,
+          "unitCostDollars": null
+        }
+      ],
+      "lineItems": []
+    },
+    {
+      "peCode": "1507N2234",
+      "title": "Standard Missile",
+      "budgetActivity": "BA 02",
+      "lineNumber": "1507N2234",
+      "programOfRecord": null,
+      "fyData": [
+        {
+          "fy": 2025,
+          "quantity": 102,
+          "requestDollarsThousands": 670676.0,
+          "unitCostDollars": 7727676.0
+        },
+        {
+          "fy": 2026,
+          "quantity": 55,
+          "requestDollarsThousands": 362375.0,
+          "unitCostDollars": 8550509.0
+        },
+        {
+          "fy": 2027,
+          "quantity": 106,
+          "requestDollarsThousands": 733159.0,
+          "unitCostDollars": 6916594.0
+        },
+        {
+          "fy": 2028,
+          "quantity": 436,
+          "requestDollarsThousands": 3841893.0,
+          "unitCostDollars": 8811681.0
+        },
+        {
+          "fy": 2029,
+          "quantity": 424,
+          "requestDollarsThousands": 3915799.0,
+          "unitCostDollars": 9235375.0
+        },
+        {
+          "fy": 2030,
+          "quantity": 413,
+          "requestDollarsThousands": 4027999.0,
+          "unitCostDollars": 9753024.0
+        },
+        {
+          "fy": 2031,
+          "quantity": 413,
+          "requestDollarsThousands": 4136011.0,
+          "unitCostDollars": 10014554.0
+        }
+      ],
+      "lineItems": []
+    },
+    {
+      "peCode": "1507N2238",
+      "title": "Small Diameter Bomb II (SDB II)",
+      "budgetActivity": "BA 02",
+      "lineNumber": "1507N2238",
+      "programOfRecord": null,
+      "fyData": [
+        {
+          "fy": 2025,
+          "quantity": 262,
+          "requestDollarsThousands": 79283.0,
+          "unitCostDollars": 302606870.0
+        },
+        {
+          "fy": 2026,
+          "quantity": 245,
+          "requestDollarsThousands": 78892.0,
+          "unitCostDollars": 322008160.0
+        },
+        {
+          "fy": 2027,
+          "quantity": 512,
+          "requestDollarsThousands": 166688.0,
+          "unitCostDollars": 325562500.0
+        },
+        {
+          "fy": 2028,
+          "quantity": 330,
+          "requestDollarsThousands": 110840.0,
+          "unitCostDollars": 335878790.0
+        },
+        {
+          "fy": 2029,
+          "quantity": 338,
+          "requestDollarsThousands": 112426.0,
+          "unitCostDollars": 332621300.0
+        },
+        {
+          "fy": 2030,
+          "quantity": 334,
+          "requestDollarsThousands": 113780.0,
+          "unitCostDollars": 340658680.0
+        },
+        {
+          "fy": 2031,
+          "quantity": 342,
+          "requestDollarsThousands": 115543.0,
+          "unitCostDollars": 337845030.0
+        }
+      ],
+      "lineItems": []
+    },
+    {
+      "peCode": "1507N2242",
+      "title": "Rolling Airframe Missile (RAM)",
+      "budgetActivity": "BA 02",
+      "lineNumber": "1507N2242",
+      "programOfRecord": null,
+      "fyData": [
+        {
+          "fy": 2025,
+          "quantity": 148,
+          "requestDollarsThousands": 145268.0,
+          "unitCostDollars": 981540540.0
+        },
+        {
+          "fy": 2026,
+          "quantity": 123,
+          "requestDollarsThousands": 122372.0,
+          "unitCostDollars": 994894310.0
+        },
+        {
+          "fy": 2027,
+          "quantity": 116,
+          "requestDollarsThousands": 119166.0,
+          "unitCostDollars": null
+        },
+        {
+          "fy": 2028,
+          "quantity": 134,
+          "requestDollarsThousands": 133943.0,
+          "unitCostDollars": 999574630.0
+        },
+        {
+          "fy": 2029,
+          "quantity": 137,
+          "requestDollarsThousands": 141519.0,
+          "unitCostDollars": null
+        },
+        {
+          "fy": 2030,
+          "quantity": 137,
+          "requestDollarsThousands": 144175.0,
+          "unitCostDollars": null
+        },
+        {
+          "fy": 2031,
+          "quantity": 137,
+          "requestDollarsThousands": 147097.0,
+          "unitCostDollars": null
+        }
+      ],
+      "lineItems": []
+    },
+    {
+      "peCode": "1507N2247",
+      "title": "MSE Missile",
+      "budgetActivity": "BA 02",
+      "lineNumber": "1507N2247",
+      "programOfRecord": null,
+      "fyData": [
+        {
+          "fy": 2025,
+          "quantity": null,
+          "requestDollarsThousands": 0,
+          "unitCostDollars": null
+        },
+        {
+          "fy": 2026,
+          "quantity": null,
+          "requestDollarsThousands": 0,
+          "unitCostDollars": null
+        },
+        {
+          "fy": 2027,
+          "quantity": 23,
+          "requestDollarsThousands": 97835.0,
+          "unitCostDollars": null
+        },
+        {
+          "fy": 2028,
+          "quantity": 244,
+          "requestDollarsThousands": 1049821.0,
+          "unitCostDollars": null
+        },
+        {
+          "fy": 2029,
+          "quantity": 249,
+          "requestDollarsThousands": 1096938.0,
+          "unitCostDollars": null
+        },
+        {
+          "fy": 2030,
+          "quantity": 246,
+          "requestDollarsThousands": 1121588.0,
+          "unitCostDollars": null
+        },
+        {
+          "fy": 2031,
+          "quantity": 247,
+          "requestDollarsThousands": 1151693.0,
+          "unitCostDollars": null
+        }
+      ],
+      "lineItems": []
+    },
+    {
+      "peCode": "1507N2248",
+      "title": "Joint Air Ground Missile (JAGM)",
+      "budgetActivity": "BA 02",
+      "lineNumber": "1507N2248",
+      "programOfRecord": null,
+      "fyData": [
+        {
+          "fy": 2025,
+          "quantity": 175,
+          "requestDollarsThousands": 55315.0,
+          "unitCostDollars": 316085710.0
+        },
+        {
+          "fy": 2026,
+          "quantity": 277,
+          "requestDollarsThousands": 74152.0,
+          "unitCostDollars": 267696750.0
+        },
+        {
+          "fy": 2027,
+          "quantity": 282,
+          "requestDollarsThousands": 73226.0,
+          "unitCostDollars": 259666670.0
+        },
+        {
+          "fy": 2028,
+          "quantity": 329,
+          "requestDollarsThousands": 87093.0,
+          "unitCostDollars": 264720360.0
+        },
+        {
+          "fy": 2029,
+          "quantity": 260,
+          "requestDollarsThousands": 84490.0,
+          "unitCostDollars": 324961540.0
+        },
+        {
+          "fy": 2030,
+          "quantity": 317,
+          "requestDollarsThousands": 86143.0,
+          "unitCostDollars": 271744480.0
+        },
+        {
+          "fy": 2031,
+          "quantity": 300,
+          "requestDollarsThousands": 87883.0,
+          "unitCostDollars": 292943330.0
+        }
+      ],
+      "lineItems": []
+    },
+    {
+      "peCode": "1507N2280",
+      "title": "Aerial Targets",
+      "budgetActivity": "BA 02",
+      "lineNumber": "1507N2280",
+      "programOfRecord": null,
+      "fyData": [
+        {
+          "fy": 2025,
+          "quantity": null,
+          "requestDollarsThousands": 180233.0,
+          "unitCostDollars": null
+        },
+        {
+          "fy": 2026,
+          "quantity": null,
+          "requestDollarsThousands": 182704.0,
+          "unitCostDollars": null
+        },
+        {
+          "fy": 2027,
+          "quantity": null,
+          "requestDollarsThousands": 179931.0,
+          "unitCostDollars": null
+        },
+        {
+          "fy": 2028,
+          "quantity": null,
+          "requestDollarsThousands": 225505.0,
+          "unitCostDollars": null
+        },
+        {
+          "fy": 2029,
+          "quantity": null,
+          "requestDollarsThousands": 254307.0,
+          "unitCostDollars": null
+        },
+        {
+          "fy": 2030,
+          "quantity": null,
+          "requestDollarsThousands": 249390.0,
+          "unitCostDollars": null
+        },
+        {
+          "fy": 2031,
+          "quantity": null,
+          "requestDollarsThousands": 254422.0,
+          "unitCostDollars": null
+        }
+      ],
+      "lineItems": []
+    },
+    {
+      "peCode": "1507N2290",
+      "title": "Other Missile Support",
+      "budgetActivity": "BA 02",
+      "lineNumber": "1507N2290",
+      "programOfRecord": null,
+      "fyData": [
+        {
+          "fy": 2025,
+          "quantity": null,
+          "requestDollarsThousands": 3411.0,
+          "unitCostDollars": null
+        },
+        {
+          "fy": 2026,
+          "quantity": null,
+          "requestDollarsThousands": 3490.0,
+          "unitCostDollars": null
+        },
+        {
+          "fy": 2027,
+          "quantity": null,
+          "requestDollarsThousands": 3877.0,
+          "unitCostDollars": null
+        },
+        {
+          "fy": 2028,
+          "quantity": null,
+          "requestDollarsThousands": 3872.0,
+          "unitCostDollars": null
+        },
+        {
+          "fy": 2029,
+          "quantity": null,
+          "requestDollarsThousands": 3866.0,
+          "unitCostDollars": null
+        },
+        {
+          "fy": 2030,
+          "quantity": null,
+          "requestDollarsThousands": 3937.0,
+          "unitCostDollars": null
+        },
+        {
+          "fy": 2031,
+          "quantity": null,
+          "requestDollarsThousands": 4017.0,
+          "unitCostDollars": null
+        }
+      ],
+      "lineItems": []
+    },
+    {
+      "peCode": "1507N2291",
+      "title": "LRASM",
+      "budgetActivity": "BA 02",
+      "lineNumber": "1507N2291",
+      "programOfRecord": null,
+      "fyData": [
+        {
+          "fy": 2025,
+          "quantity": 164,
+          "requestDollarsThousands": 597530.0,
+          "unitCostDollars": null
+        },
+        {
+          "fy": 2026,
+          "quantity": 136,
+          "requestDollarsThousands": 656724.0,
+          "unitCostDollars": null
+        },
+        {
+          "fy": 2027,
+          "quantity": 129,
+          "requestDollarsThousands": 670456.0,
+          "unitCostDollars": null
+        },
+        {
+          "fy": 2028,
+          "quantity": 164,
+          "requestDollarsThousands": 844558.0,
+          "unitCostDollars": null
+        },
+        {
+          "fy": 2029,
+          "quantity": 168,
+          "requestDollarsThousands": 872355.0,
+          "unitCostDollars": null
+        },
+        {
+          "fy": 2030,
+          "quantity": 169,
+          "requestDollarsThousands": 880239.0,
+          "unitCostDollars": null
+        },
+        {
+          "fy": 2031,
+          "quantity": 178,
+          "requestDollarsThousands": 931882.0,
+          "unitCostDollars": null
+        }
+      ],
+      "lineItems": []
+    },
+    {
+      "peCode": "1507N2292",
+      "title": "Naval Strike Missile (NSM)",
+      "budgetActivity": "BA 02",
+      "lineNumber": "1507N2292",
+      "programOfRecord": null,
+      "fyData": [
+        {
+          "fy": 2025,
+          "quantity": 10,
+          "requestDollarsThousands": 29858.0,
+          "unitCostDollars": null
+        },
+        {
+          "fy": 2026,
+          "quantity": 16,
+          "requestDollarsThousands": 32238.0,
+          "unitCostDollars": null
+        },
+        {
+          "fy": 2027,
+          "quantity": 32,
+          "requestDollarsThousands": 75972.0,
+          "unitCostDollars": null
+        },
+        {
+          "fy": 2028,
+          "quantity": 20,
+          "requestDollarsThousands": 49421.0,
+          "unitCostDollars": null
+        },
+        {
+          "fy": 2029,
+          "quantity": 17,
+          "requestDollarsThousands": 47097.0,
+          "unitCostDollars": null
+        },
+        {
+          "fy": 2030,
+          "quantity": 18,
+          "requestDollarsThousands": 49659.0,
+          "unitCostDollars": null
+        },
+        {
+          "fy": 2031,
+          "quantity": 18,
+          "requestDollarsThousands": 50670.0,
+          "unitCostDollars": null
+        }
+      ],
+      "lineItems": []
+    },
+    {
+      "peCode": "1507N2294",
+      "title": "Multi-mission Affordable Capacity Effect...",
+      "budgetActivity": "BA 02",
+      "lineNumber": "1507N2294",
+      "programOfRecord": null,
+      "fyData": [
+        {
+          "fy": 2025,
+          "quantity": null,
+          "requestDollarsThousands": 0,
+          "unitCostDollars": null
+        },
+        {
+          "fy": 2026,
+          "quantity": null,
+          "requestDollarsThousands": 0,
+          "unitCostDollars": null
+        },
+        {
+          "fy": 2027,
+          "quantity": null,
+          "requestDollarsThousands": 0,
+          "unitCostDollars": null
+        },
+        {
+          "fy": 2028,
+          "quantity": 691,
+          "requestDollarsThousands": 299966.0,
+          "unitCostDollars": 434104.0
+        },
+        {
+          "fy": 2029,
+          "quantity": 976,
+          "requestDollarsThousands": 399937.0,
+          "unitCostDollars": 409772.0
+        },
+        {
+          "fy": 2030,
+          "quantity": 1115,
+          "requestDollarsThousands": 399843.0,
+          "unitCostDollars": 358604.0
+        },
+        {
+          "fy": 2031,
+          "quantity": 1375,
+          "requestDollarsThousands": 500455.0,
+          "unitCostDollars": 363967.0
+        }
+      ],
+      "lineItems": []
+    },
+    {
+      "peCode": "1507N2295",
+      "title": "Precision Attack Strike Munition (PASM)",
+      "budgetActivity": "BA 02",
+      "lineNumber": "1507N2295",
+      "programOfRecord": null,
+      "fyData": [
+        {
+          "fy": 2025,
+          "quantity": null,
+          "requestDollarsThousands": 0,
+          "unitCostDollars": null
+        },
+        {
+          "fy": 2026,
+          "quantity": null,
+          "requestDollarsThousands": 0,
+          "unitCostDollars": null
+        },
+        {
+          "fy": 2027,
+          "quantity": 4,
+          "requestDollarsThousands": 4019.0,
+          "unitCostDollars": null
+        },
+        {
+          "fy": 2028,
+          "quantity": 44,
+          "requestDollarsThousands": 29824.0,
+          "unitCostDollars": 677818180.0
+        },
+        {
+          "fy": 2029,
+          "quantity": 175,
+          "requestDollarsThousands": 102887.0,
+          "unitCostDollars": 587925710.0
+        },
+        {
+          "fy": 2030,
+          "quantity": 185,
+          "requestDollarsThousands": 103855.0,
+          "unitCostDollars": 561378380.0
+        },
+        {
+          "fy": 2031,
+          "quantity": 182,
+          "requestDollarsThousands": 103380.0,
+          "unitCostDollars": 568021980.0
+        }
+      ],
+      "lineItems": []
+    },
+    {
+      "peCode": "1507N2301",
+      "title": "Tomahawk Mods",
+      "budgetActivity": "BA 02",
+      "lineNumber": "1507N2301",
+      "programOfRecord": null,
+      "fyData": [
+        {
+          "fy": 2025,
+          "quantity": null,
+          "requestDollarsThousands": 285157.0,
+          "unitCostDollars": null
+        },
+        {
+          "fy": 2026,
+          "quantity": null,
+          "requestDollarsThousands": 6283.0,
+          "unitCostDollars": null
+        },
+        {
+          "fy": 2027,
+          "quantity": null,
+          "requestDollarsThousands": 799139.0,
+          "unitCostDollars": null
+        },
+        {
+          "fy": 2028,
+          "quantity": null,
+          "requestDollarsThousands": 1400564.0,
+          "unitCostDollars": null
+        },
+        {
+          "fy": 2029,
+          "quantity": null,
+          "requestDollarsThousands": 1428153.0,
+          "unitCostDollars": null
+        },
+        {
+          "fy": 2030,
+          "quantity": null,
+          "requestDollarsThousands": 1465503.0,
+          "unitCostDollars": null
+        },
+        {
+          "fy": 2031,
+          "quantity": null,
+          "requestDollarsThousands": 1485223.0,
+          "unitCostDollars": null
+        }
+      ],
+      "lineItems": []
+    },
+    {
+      "peCode": "1507N2307",
+      "title": "Evolved Sea Sparrow Missile (ESSM)",
+      "budgetActivity": "BA 02",
+      "lineNumber": "1507N2307",
+      "programOfRecord": null,
+      "fyData": [
+        {
+          "fy": 2025,
+          "quantity": 374,
+          "requestDollarsThousands": 624821.0,
+          "unitCostDollars": null
+        },
+        {
+          "fy": 2026,
+          "quantity": 305,
+          "requestDollarsThousands": 503381.0,
+          "unitCostDollars": null
+        },
+        {
+          "fy": 2027,
+          "quantity": 290,
+          "requestDollarsThousands": 521006.0,
+          "unitCostDollars": null
+        },
+        {
+          "fy": 2028,
+          "quantity": 302,
+          "requestDollarsThousands": 551272.0,
+          "unitCostDollars": null
+        },
+        {
+          "fy": 2029,
+          "quantity": 330,
+          "requestDollarsThousands": 599196.0,
+          "unitCostDollars": null
+        },
+        {
+          "fy": 2030,
+          "quantity": 342,
+          "requestDollarsThousands": 637568.0,
+          "unitCostDollars": null
+        },
+        {
+          "fy": 2031,
+          "quantity": 343,
+          "requestDollarsThousands": 650476.0,
+          "unitCostDollars": null
+        }
+      ],
+      "lineItems": []
+    },
+    {
+      "peCode": "1507N2327",
+      "title": "AARGM-ER",
+      "budgetActivity": "BA 02",
+      "lineNumber": "1507N2327",
+      "programOfRecord": null,
+      "fyData": [
+        {
+          "fy": 2025,
+          "quantity": 157,
+          "requestDollarsThousands": 193213.0,
+          "unitCostDollars": 1442586.0
+        },
+        {
+          "fy": 2026,
+          "quantity": 99,
+          "requestDollarsThousands": 193213.0,
+          "unitCostDollars": 2301182.0
+        },
+        {
+          "fy": 2027,
+          "quantity": null,
+          "requestDollarsThousands": 20.0,
+          "unitCostDollars": null
+        },
+        {
+          "fy": 2028,
+          "quantity": 40,
+          "requestDollarsThousands": 139146.0,
+          "unitCostDollars": 3608900.0
+        },
+        {
+          "fy": 2029,
+          "quantity": 39,
+          "requestDollarsThousands": 119967.0,
+          "unitCostDollars": 3210667.0
+        },
+        {
+          "fy": 2030,
+          "quantity": 42,
+          "requestDollarsThousands": 126865.0,
+          "unitCostDollars": 3149286.0
+        },
+        {
+          "fy": 2031,
+          "quantity": 50,
+          "requestDollarsThousands": 153535.0,
+          "unitCostDollars": 3405540.0
+        }
+      ],
+      "lineItems": []
+    },
+    {
+      "peCode": "1507N2356",
+      "title": "Standard Missiles Mods",
+      "budgetActivity": "BA 02",
+      "lineNumber": "1507N2356",
+      "programOfRecord": null,
+      "fyData": [
+        {
+          "fy": 2025,
+          "quantity": null,
+          "requestDollarsThousands": 109267.0,
+          "unitCostDollars": null
+        },
+        {
+          "fy": 2026,
+          "quantity": null,
+          "requestDollarsThousands": 25800.0,
+          "unitCostDollars": null
+        },
+        {
+          "fy": 2027,
+          "quantity": null,
+          "requestDollarsThousands": 69579.0,
+          "unitCostDollars": null
+        },
+        {
+          "fy": 2028,
+          "quantity": 26,
+          "requestDollarsThousands": 205509.0,
+          "unitCostDollars": null
+        },
+        {
+          "fy": 2029,
+          "quantity": 26,
+          "requestDollarsThousands": 207778.0,
+          "unitCostDollars": null
+        },
+        {
+          "fy": 2030,
+          "quantity": 26,
+          "requestDollarsThousands": 211811.0,
+          "unitCostDollars": null
+        },
+        {
+          "fy": 2031,
+          "quantity": 26,
+          "requestDollarsThousands": 216072.0,
+          "unitCostDollars": null
+        }
+      ],
+      "lineItems": []
+    },
+    {
+      "peCode": "1507N2420",
+      "title": "Weapons Industrial Facilities",
+      "budgetActivity": "BA 02",
+      "lineNumber": "1507N2420",
+      "programOfRecord": null,
+      "fyData": [
+        {
+          "fy": 2025,
+          "quantity": null,
+          "requestDollarsThousands": 81490.0,
+          "unitCostDollars": null
+        },
+        {
+          "fy": 2026,
+          "quantity": null,
+          "requestDollarsThousands": 127222.0,
+          "unitCostDollars": null
+        },
+        {
+          "fy": 2027,
+          "quantity": null,
+          "requestDollarsThousands": 62403.0,
+          "unitCostDollars": null
+        },
+        {
+          "fy": 2028,
+          "quantity": null,
+          "requestDollarsThousands": 64757.0,
+          "unitCostDollars": null
+        },
+        {
+          "fy": 2029,
+          "quantity": null,
+          "requestDollarsThousands": 64592.0,
+          "unitCostDollars": null
+        },
+        {
+          "fy": 2030,
+          "quantity": null,
+          "requestDollarsThousands": 3099.0,
+          "unitCostDollars": null
+        },
+        {
+          "fy": 2031,
+          "quantity": null,
+          "requestDollarsThousands": 3189.0,
+          "unitCostDollars": null
+        }
+      ],
+      "lineItems": []
+    },
+    {
+      "peCode": "1507N2421",
+      "title": "Industrial Preparedness",
+      "budgetActivity": "BA 02",
+      "lineNumber": "1507N2421",
+      "programOfRecord": null,
+      "fyData": [
+        {
+          "fy": 2025,
+          "quantity": null,
+          "requestDollarsThousands": 0,
+          "unitCostDollars": null
+        },
+        {
+          "fy": 2026,
+          "quantity": null,
+          "requestDollarsThousands": 0,
+          "unitCostDollars": null
+        },
+        {
+          "fy": 2027,
+          "quantity": null,
+          "requestDollarsThousands": 640.0,
+          "unitCostDollars": null
+        },
+        {
+          "fy": 2028,
+          "quantity": null,
+          "requestDollarsThousands": 27424.0,
+          "unitCostDollars": null
+        },
+        {
+          "fy": 2029,
+          "quantity": null,
+          "requestDollarsThousands": 1875.0,
+          "unitCostDollars": null
+        },
+        {
+          "fy": 2030,
+          "quantity": null,
+          "requestDollarsThousands": 1408.0,
+          "unitCostDollars": null
+        },
+        {
+          "fy": 2031,
+          "quantity": null,
+          "requestDollarsThousands": 2071.0,
+          "unitCostDollars": null
+        }
+      ],
+      "lineItems": []
+    },
+    {
+      "peCode": "1507N2500",
+      "title": "Ordnance Support Equipment",
+      "budgetActivity": "BA 02",
+      "lineNumber": "1507N2500",
+      "programOfRecord": null,
+      "fyData": [
+        {
+          "fy": 2025,
+          "quantity": null,
+          "requestDollarsThousands": 311294.0,
+          "unitCostDollars": null
+        },
+        {
+          "fy": 2026,
+          "quantity": null,
+          "requestDollarsThousands": 37059.0,
+          "unitCostDollars": null
+        },
+        {
+          "fy": 2027,
+          "quantity": null,
+          "requestDollarsThousands": 43261.0,
+          "unitCostDollars": null
+        },
+        {
+          "fy": 2028,
+          "quantity": null,
+          "requestDollarsThousands": 452162.0,
+          "unitCostDollars": null
+        },
+        {
+          "fy": 2029,
+          "quantity": null,
+          "requestDollarsThousands": 601465.0,
+          "unitCostDollars": null
+        },
+        {
+          "fy": 2030,
+          "quantity": null,
+          "requestDollarsThousands": 777897.0,
+          "unitCostDollars": null
+        },
+        {
+          "fy": 2031,
+          "quantity": null,
+          "requestDollarsThousands": 1001496.0,
+          "unitCostDollars": null
+        }
+      ],
+      "lineItems": []
+    },
+    {
+      "peCode": "1507N3113",
+      "title": "Surface Ship Torpedo Def (SSTD)",
+      "budgetActivity": "BA 03",
+      "lineNumber": "1507N3113",
+      "programOfRecord": null,
+      "fyData": [
+        {
+          "fy": 2025,
+          "quantity": null,
+          "requestDollarsThousands": 4317.0,
+          "unitCostDollars": null
+        },
+        {
+          "fy": 2026,
+          "quantity": null,
+          "requestDollarsThousands": 4789.0,
+          "unitCostDollars": null
+        },
+        {
+          "fy": 2027,
+          "quantity": null,
+          "requestDollarsThousands": 3969.0,
+          "unitCostDollars": null
+        },
+        {
+          "fy": 2028,
+          "quantity": null,
+          "requestDollarsThousands": 3934.0,
+          "unitCostDollars": null
+        },
+        {
+          "fy": 2029,
+          "quantity": null,
+          "requestDollarsThousands": 3870.0,
+          "unitCostDollars": null
+        },
+        {
+          "fy": 2030,
+          "quantity": 10,
+          "requestDollarsThousands": 13405.0,
+          "unitCostDollars": null
+        },
+        {
+          "fy": 2031,
+          "quantity": 10,
+          "requestDollarsThousands": 13706.0,
+          "unitCostDollars": null
+        }
+      ],
+      "lineItems": []
+    },
+    {
+      "peCode": "1507N3117",
+      "title": "MK-48 Torpedo",
+      "budgetActivity": "BA 03",
+      "lineNumber": "1507N3117",
+      "programOfRecord": null,
+      "fyData": [
+        {
+          "fy": 2025,
+          "quantity": 85,
+          "requestDollarsThousands": 352047.0,
+          "unitCostDollars": null
+        },
+        {
+          "fy": 2026,
+          "quantity": null,
+          "requestDollarsThousands": 4581.0,
+          "unitCostDollars": null
+        },
+        {
+          "fy": 2027,
+          "quantity": 141,
+          "requestDollarsThousands": 571274.0,
+          "unitCostDollars": null
+        },
+        {
+          "fy": 2028,
+          "quantity": 120,
+          "requestDollarsThousands": 671521.0,
+          "unitCostDollars": null
+        },
+        {
+          "fy": 2029,
+          "quantity": 120,
+          "requestDollarsThousands": 603572.0,
+          "unitCostDollars": null
+        },
+        {
+          "fy": 2030,
+          "quantity": 120,
+          "requestDollarsThousands": 734731.0,
+          "unitCostDollars": null
+        },
+        {
+          "fy": 2031,
+          "quantity": 120,
+          "requestDollarsThousands": 788114.0,
+          "unitCostDollars": null
+        }
+      ],
+      "lineItems": []
+    },
+    {
+      "peCode": "1507N3141",
+      "title": "ASW Targets",
+      "budgetActivity": "BA 03",
+      "lineNumber": "1507N3141",
+      "programOfRecord": null,
+      "fyData": [
+        {
+          "fy": 2025,
+          "quantity": null,
+          "requestDollarsThousands": 30476.0,
+          "unitCostDollars": null
+        },
+        {
+          "fy": 2026,
+          "quantity": null,
+          "requestDollarsThousands": 38386.0,
+          "unitCostDollars": null
+        },
+        {
+          "fy": 2027,
+          "quantity": null,
+          "requestDollarsThousands": 47277.0,
+          "unitCostDollars": null
+        },
+        {
+          "fy": 2028,
+          "quantity": null,
+          "requestDollarsThousands": 49567.0,
+          "unitCostDollars": null
+        },
+        {
+          "fy": 2029,
+          "quantity": null,
+          "requestDollarsThousands": 53231.0,
+          "unitCostDollars": null
+        },
+        {
+          "fy": 2030,
+          "quantity": null,
+          "requestDollarsThousands": 54594.0,
+          "unitCostDollars": null
+        },
+        {
+          "fy": 2031,
+          "quantity": null,
+          "requestDollarsThousands": 56027.0,
+          "unitCostDollars": null
+        }
+      ],
+      "lineItems": []
+    },
+    {
+      "peCode": "1507N3215",
+      "title": "MK-54 Torpedo Mods",
+      "budgetActivity": "BA 03",
+      "lineNumber": "1507N3215",
+      "programOfRecord": null,
+      "fyData": [
+        {
+          "fy": 2025,
+          "quantity": null,
+          "requestDollarsThousands": 81614.0,
+          "unitCostDollars": null
+        },
+        {
+          "fy": 2026,
+          "quantity": null,
+          "requestDollarsThousands": 16692.0,
+          "unitCostDollars": null
+        },
+        {
+          "fy": 2027,
+          "quantity": null,
+          "requestDollarsThousands": 112126.0,
+          "unitCostDollars": null
+        },
+        {
+          "fy": 2028,
+          "quantity": null,
+          "requestDollarsThousands": 118158.0,
+          "unitCostDollars": null
+        },
+        {
+          "fy": 2029,
+          "quantity": null,
+          "requestDollarsThousands": 185951.0,
+          "unitCostDollars": null
+        },
+        {
+          "fy": 2030,
+          "quantity": null,
+          "requestDollarsThousands": 192937.0,
+          "unitCostDollars": null
+        },
+        {
+          "fy": 2031,
+          "quantity": null,
+          "requestDollarsThousands": 196826.0,
+          "unitCostDollars": null
+        }
+      ],
+      "lineItems": []
+    },
+    {
+      "peCode": "1507N3225",
+      "title": "MK-48 Torpedo ADCAP Mods",
+      "budgetActivity": "BA 03",
+      "lineNumber": "1507N3225",
+      "programOfRecord": null,
+      "fyData": [
+        {
+          "fy": 2025,
+          "quantity": null,
+          "requestDollarsThousands": 17363.0,
+          "unitCostDollars": null
+        },
+        {
+          "fy": 2026,
+          "quantity": null,
+          "requestDollarsThousands": 31479.0,
+          "unitCostDollars": null
+        },
+        {
+          "fy": 2027,
+          "quantity": null,
+          "requestDollarsThousands": 67279.0,
+          "unitCostDollars": null
+        },
+        {
+          "fy": 2028,
+          "quantity": null,
+          "requestDollarsThousands": 75896.0,
+          "unitCostDollars": null
+        },
+        {
+          "fy": 2029,
+          "quantity": null,
+          "requestDollarsThousands": 90465.0,
+          "unitCostDollars": null
+        },
+        {
+          "fy": 2030,
+          "quantity": null,
+          "requestDollarsThousands": 242548.0,
+          "unitCostDollars": null
+        },
+        {
+          "fy": 2031,
+          "quantity": null,
+          "requestDollarsThousands": 261810.0,
+          "unitCostDollars": null
+        }
+      ],
+      "lineItems": []
+    },
+    {
+      "peCode": "1507N3231",
+      "title": "Maritime Mines",
+      "budgetActivity": "BA 03",
+      "lineNumber": "1507N3231",
+      "programOfRecord": null,
+      "fyData": [
+        {
+          "fy": 2025,
+          "quantity": null,
+          "requestDollarsThousands": 100022.0,
+          "unitCostDollars": null
+        },
+        {
+          "fy": 2026,
+          "quantity": null,
+          "requestDollarsThousands": 0,
+          "unitCostDollars": null
+        },
+        {
+          "fy": 2027,
+          "quantity": null,
+          "requestDollarsThousands": 251724.0,
+          "unitCostDollars": null
+        },
+        {
+          "fy": 2028,
+          "quantity": null,
+          "requestDollarsThousands": 243073.0,
+          "unitCostDollars": null
+        },
+        {
+          "fy": 2029,
+          "quantity": null,
+          "requestDollarsThousands": 244972.0,
+          "unitCostDollars": null
+        },
+        {
+          "fy": 2030,
+          "quantity": null,
+          "requestDollarsThousands": 241528.0,
+          "unitCostDollars": null
+        },
+        {
+          "fy": 2031,
+          "quantity": null,
+          "requestDollarsThousands": 245101.0,
+          "unitCostDollars": null
+        }
+      ],
+      "lineItems": []
+    },
+    {
+      "peCode": "1507N3301",
+      "title": "Torpedo Support Equipment",
+      "budgetActivity": "BA 03",
+      "lineNumber": "1507N3301",
+      "programOfRecord": null,
+      "fyData": [
+        {
+          "fy": 2025,
+          "quantity": null,
+          "requestDollarsThousands": 145655.0,
+          "unitCostDollars": null
+        },
+        {
+          "fy": 2026,
+          "quantity": null,
+          "requestDollarsThousands": 153418.0,
+          "unitCostDollars": null
+        },
+        {
+          "fy": 2027,
+          "quantity": null,
+          "requestDollarsThousands": 160445.0,
+          "unitCostDollars": null
+        },
+        {
+          "fy": 2028,
+          "quantity": null,
+          "requestDollarsThousands": 173466.0,
+          "unitCostDollars": null
+        },
+        {
+          "fy": 2029,
+          "quantity": null,
+          "requestDollarsThousands": 165967.0,
+          "unitCostDollars": null
+        },
+        {
+          "fy": 2030,
+          "quantity": null,
+          "requestDollarsThousands": 158196.0,
+          "unitCostDollars": null
+        },
+        {
+          "fy": 2031,
+          "quantity": null,
+          "requestDollarsThousands": 161409.0,
+          "unitCostDollars": null
+        }
+      ],
+      "lineItems": []
+    },
+    {
+      "peCode": "1507N3302",
+      "title": "ASW Range Support",
+      "budgetActivity": "BA 03",
+      "lineNumber": "1507N3302",
+      "programOfRecord": null,
+      "fyData": [
+        {
+          "fy": 2025,
+          "quantity": null,
+          "requestDollarsThousands": 4039.0,
+          "unitCostDollars": null
+        },
+        {
+          "fy": 2026,
+          "quantity": null,
+          "requestDollarsThousands": 4328.0,
+          "unitCostDollars": null
+        },
+        {
+          "fy": 2027,
+          "quantity": null,
+          "requestDollarsThousands": 4438.0,
+          "unitCostDollars": null
+        },
+        {
+          "fy": 2028,
+          "quantity": null,
+          "requestDollarsThousands": 4474.0,
+          "unitCostDollars": null
+        },
+        {
+          "fy": 2029,
+          "quantity": null,
+          "requestDollarsThousands": 4565.0,
+          "unitCostDollars": null
+        },
+        {
+          "fy": 2030,
+          "quantity": null,
+          "requestDollarsThousands": 4648.0,
+          "unitCostDollars": null
+        },
+        {
+          "fy": 2031,
+          "quantity": null,
+          "requestDollarsThousands": 4742.0,
+          "unitCostDollars": null
+        }
+      ],
+      "lineItems": []
+    },
+    {
+      "peCode": "1507N2410",
+      "title": "First Destination Transportation",
+      "budgetActivity": "BA 03",
+      "lineNumber": "1507N2410",
+      "programOfRecord": null,
+      "fyData": [
+        {
+          "fy": 2025,
+          "quantity": null,
+          "requestDollarsThousands": 5669.0,
+          "unitCostDollars": null
+        },
+        {
+          "fy": 2026,
+          "quantity": null,
+          "requestDollarsThousands": 5346.0,
+          "unitCostDollars": null
+        },
+        {
+          "fy": 2027,
+          "quantity": null,
+          "requestDollarsThousands": 6011.0,
+          "unitCostDollars": null
+        },
+        {
+          "fy": 2028,
+          "quantity": null,
+          "requestDollarsThousands": 7308.0,
+          "unitCostDollars": null
+        },
+        {
+          "fy": 2029,
+          "quantity": null,
+          "requestDollarsThousands": 7442.0,
+          "unitCostDollars": null
+        },
+        {
+          "fy": 2030,
+          "quantity": null,
+          "requestDollarsThousands": 10210.0,
+          "unitCostDollars": null
+        },
+        {
+          "fy": 2031,
+          "quantity": null,
+          "requestDollarsThousands": 10450.0,
+          "unitCostDollars": null
+        }
+      ],
+      "lineItems": []
+    },
+    {
+      "peCode": "1507N4129",
+      "title": "Small Arms and Weapons",
+      "budgetActivity": "BA 04",
+      "lineNumber": "1507N4129",
+      "programOfRecord": null,
+      "fyData": [
+        {
+          "fy": 2025,
+          "quantity": null,
+          "requestDollarsThousands": 21318.0,
+          "unitCostDollars": null
+        },
+        {
+          "fy": 2026,
+          "quantity": null,
+          "requestDollarsThousands": 9987.0,
+          "unitCostDollars": null
+        },
+        {
+          "fy": 2027,
+          "quantity": null,
+          "requestDollarsThousands": 13946.0,
+          "unitCostDollars": null
+        },
+        {
+          "fy": 2028,
+          "quantity": null,
+          "requestDollarsThousands": 25135.0,
+          "unitCostDollars": null
+        },
+        {
+          "fy": 2029,
+          "quantity": null,
+          "requestDollarsThousands": 18330.0,
+          "unitCostDollars": null
+        },
+        {
+          "fy": 2030,
+          "quantity": null,
+          "requestDollarsThousands": 18647.0,
+          "unitCostDollars": null
+        },
+        {
+          "fy": 2031,
+          "quantity": null,
+          "requestDollarsThousands": 19024.0,
+          "unitCostDollars": null
+        }
+      ],
+      "lineItems": []
+    },
+    {
+      "peCode": "1507N4205",
+      "title": "Close-In Wpns Sys (CIWS) Mods",
+      "budgetActivity": "BA 04",
+      "lineNumber": "1507N4205",
+      "programOfRecord": null,
+      "fyData": [
+        {
+          "fy": 2025,
+          "quantity": null,
+          "requestDollarsThousands": 5118.0,
+          "unitCostDollars": null
+        },
+        {
+          "fy": 2026,
+          "quantity": null,
+          "requestDollarsThousands": 8122.0,
+          "unitCostDollars": null
+        },
+        {
+          "fy": 2027,
+          "quantity": null,
+          "requestDollarsThousands": 7939.0,
+          "unitCostDollars": null
+        },
+        {
+          "fy": 2028,
+          "quantity": null,
+          "requestDollarsThousands": 7969.0,
+          "unitCostDollars": null
+        },
+        {
+          "fy": 2029,
+          "quantity": null,
+          "requestDollarsThousands": 7981.0,
+          "unitCostDollars": null
+        },
+        {
+          "fy": 2030,
+          "quantity": null,
+          "requestDollarsThousands": 8127.0,
+          "unitCostDollars": null
+        },
+        {
+          "fy": 2031,
+          "quantity": null,
+          "requestDollarsThousands": 8289.0,
+          "unitCostDollars": null
+        }
+      ],
+      "lineItems": []
+    },
+    {
+      "peCode": "1507N4206",
+      "title": "Coast Guard Weapons",
+      "budgetActivity": "BA 04",
+      "lineNumber": "1507N4206",
+      "programOfRecord": null,
+      "fyData": [
+        {
+          "fy": 2025,
+          "quantity": null,
+          "requestDollarsThousands": 44718.0,
+          "unitCostDollars": null
+        },
+        {
+          "fy": 2026,
+          "quantity": null,
+          "requestDollarsThousands": 44455.0,
+          "unitCostDollars": null
+        },
+        {
+          "fy": 2027,
+          "quantity": null,
+          "requestDollarsThousands": 49537.0,
+          "unitCostDollars": null
+        },
+        {
+          "fy": 2028,
+          "quantity": null,
+          "requestDollarsThousands": 51620.0,
+          "unitCostDollars": null
+        },
+        {
+          "fy": 2029,
+          "quantity": null,
+          "requestDollarsThousands": 50886.0,
+          "unitCostDollars": null
+        },
+        {
+          "fy": 2030,
+          "quantity": null,
+          "requestDollarsThousands": 51862.0,
+          "unitCostDollars": null
+        },
+        {
+          "fy": 2031,
+          "quantity": null,
+          "requestDollarsThousands": 52216.0,
+          "unitCostDollars": null
+        }
+      ],
+      "lineItems": []
+    },
+    {
+      "peCode": "1507N4217",
+      "title": "Gun Mount Mods",
+      "budgetActivity": "BA 04",
+      "lineNumber": "1507N4217",
+      "programOfRecord": null,
+      "fyData": [
+        {
+          "fy": 2025,
+          "quantity": null,
+          "requestDollarsThousands": 122246.0,
+          "unitCostDollars": null
+        },
+        {
+          "fy": 2026,
+          "quantity": null,
+          "requestDollarsThousands": 107696.0,
+          "unitCostDollars": null
+        },
+        {
+          "fy": 2027,
+          "quantity": null,
+          "requestDollarsThousands": 84004.0,
+          "unitCostDollars": null
+        },
+        {
+          "fy": 2028,
+          "quantity": null,
+          "requestDollarsThousands": 88725.0,
+          "unitCostDollars": null
+        },
+        {
+          "fy": 2029,
+          "quantity": null,
+          "requestDollarsThousands": 90296.0,
+          "unitCostDollars": null
+        },
+        {
+          "fy": 2030,
+          "quantity": null,
+          "requestDollarsThousands": 91901.0,
+          "unitCostDollars": null
+        },
+        {
+          "fy": 2031,
+          "quantity": null,
+          "requestDollarsThousands": 94762.0,
+          "unitCostDollars": null
+        }
+      ],
+      "lineItems": []
+    },
+    {
+      "peCode": "1507N4221",
+      "title": "LCS Module Weapons",
+      "budgetActivity": "BA 04",
+      "lineNumber": "1507N4221",
+      "programOfRecord": null,
+      "fyData": [
+        {
+          "fy": 2025,
+          "quantity": 42,
+          "requestDollarsThousands": 6438.0,
+          "unitCostDollars": 153285710.0
+        },
+        {
+          "fy": 2026,
+          "quantity": 10,
+          "requestDollarsThousands": 2200.0,
+          "unitCostDollars": 220000000
+        },
+        {
+          "fy": 2027,
+          "quantity": 10,
+          "requestDollarsThousands": 2190.0,
+          "unitCostDollars": 219000000
+        },
+        {
+          "fy": 2028,
+          "quantity": 10,
+          "requestDollarsThousands": 2255.0,
+          "unitCostDollars": 225500000
+        },
+        {
+          "fy": 2029,
+          "quantity": 12,
+          "requestDollarsThousands": 2295.0,
+          "unitCostDollars": 191250000
+        },
+        {
+          "fy": 2030,
+          "quantity": 12,
+          "requestDollarsThousands": 2336.0,
+          "unitCostDollars": 194666670.0
+        },
+        {
+          "fy": 2031,
+          "quantity": 12,
+          "requestDollarsThousands": 2384.0,
+          "unitCostDollars": 198666670.0
+        }
+      ],
+      "lineItems": []
+    },
+    {
+      "peCode": "1507N4225",
+      "title": "Airborne Mine Neutralization Systems",
+      "budgetActivity": "BA 04",
+      "lineNumber": "1507N4225",
+      "programOfRecord": null,
+      "fyData": [
+        {
+          "fy": 2025,
+          "quantity": null,
+          "requestDollarsThousands": 11635.0,
+          "unitCostDollars": null
+        },
+        {
+          "fy": 2026,
+          "quantity": null,
+          "requestDollarsThousands": 14413.0,
+          "unitCostDollars": null
+        },
+        {
+          "fy": 2027,
+          "quantity": null,
+          "requestDollarsThousands": 14265.0,
+          "unitCostDollars": null
+        },
+        {
+          "fy": 2028,
+          "quantity": null,
+          "requestDollarsThousands": 15737.0,
+          "unitCostDollars": null
+        },
+        {
+          "fy": 2029,
+          "quantity": null,
+          "requestDollarsThousands": 15921.0,
+          "unitCostDollars": null
+        },
+        {
+          "fy": 2030,
+          "quantity": null,
+          "requestDollarsThousands": 16188.0,
+          "unitCostDollars": null
+        },
+        {
+          "fy": 2031,
+          "quantity": null,
+          "requestDollarsThousands": 16502.0,
+          "unitCostDollars": null
+        }
+      ],
+      "lineItems": []
+    },
+    {
+      "peCode": "1507N6120",
+      "title": "Spares and Repair Parts",
+      "budgetActivity": "BA 06",
+      "lineNumber": "1507N6120",
+      "programOfRecord": null,
+      "fyData": [
+        {
+          "fy": 2025,
+          "quantity": null,
+          "requestDollarsThousands": 240697.0,
+          "unitCostDollars": null
+        },
+        {
+          "fy": 2026,
+          "quantity": null,
+          "requestDollarsThousands": 202425.0,
+          "unitCostDollars": null
+        },
+        {
+          "fy": 2027,
+          "quantity": null,
+          "requestDollarsThousands": 167242.0,
+          "unitCostDollars": null
+        },
+        {
+          "fy": 2028,
+          "quantity": null,
+          "requestDollarsThousands": 189946.0,
+          "unitCostDollars": null
+        },
+        {
+          "fy": 2029,
+          "quantity": null,
+          "requestDollarsThousands": 182531.0,
+          "unitCostDollars": null
+        },
+        {
+          "fy": 2030,
+          "quantity": null,
+          "requestDollarsThousands": 181332.0,
+          "unitCostDollars": null
+        },
+        {
+          "fy": 2031,
+          "quantity": null,
+          "requestDollarsThousands": 184262.0,
+          "unitCostDollars": null
+        }
+      ],
+      "lineItems": []
+    }
+  ]
+}

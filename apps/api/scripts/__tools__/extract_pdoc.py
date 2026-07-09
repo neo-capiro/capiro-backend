@@ -84,7 +84,12 @@ HEADER_CODE_RE = re.compile(r"\b([0-9]{4}[A-Z]{1,2}[0-9A-Z]{4,5})\s*/\s*(.+)$")
 # "1506N: Aircraft Procurement, Navy / BA 01: ...". The canonical prod keyspace
 # concatenates them (pe_code = <appropriation><line> -> "1506N0145"), so this
 # fallback synthesizes exactly that when no long-form BLIN is present.
-SHORT_LI_FOOTER_RE = re.compile(r"\bLI\s+(\d{4})\s*-\s*(.+)$")
+# Navy prints a 4-digit line ("LI 0145"); Air Force prints a letter+digit line
+# ("LI B02100 - B-21 Raider AP"). Accept both alnum forms (4-8 chars) so the
+# synthesized pe_code = <appropriation><line> matches the prod keyspace
+# (1506N0145 for Navy, 3010FB02100 for AF). Army 10-char BLINs never reach here
+# — they match the long-BLIN branches (HEADER_CODE_RE / LI_FOOTER_RE) first.
+SHORT_LI_FOOTER_RE = re.compile(r"\bLI\s+([A-Z0-9]{4,8})\s*-\s*(.+)$")
 # Appropriation code, contiguous digits+letters immediately followed by a colon
 # ("1506N: Aircraft Procurement, Navy"). Contiguity keeps "PB 2027 Navy Date:"
 # and "BA 01:" from matching.

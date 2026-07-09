@@ -1,0 +1,1619 @@
+{
+  "service": "AF",
+  "fy": 2027,
+  "sourceUrl": "https://www.saffm.hq.af.mil/fy2027/AF_Aircraft_Vol1.pdf",
+  "pes": [
+    {
+      "peCode": "3010FB02100",
+      "title": "B-21 Raider AP",
+      "budgetActivity": "BA 01",
+      "lineNumber": "3010FB02100",
+      "programOfRecord": null,
+      "fyData": [
+        {
+          "fy": 2025,
+          "quantity": null,
+          "requestDollarsThousands": 1878868.0,
+          "unitCostDollars": null
+        },
+        {
+          "fy": 2026,
+          "quantity": null,
+          "requestDollarsThousands": 1970016.0,
+          "unitCostDollars": null
+        },
+        {
+          "fy": 2027,
+          "quantity": null,
+          "requestDollarsThousands": 2230615.0,
+          "unitCostDollars": null
+        },
+        {
+          "fy": 2028,
+          "quantity": null,
+          "requestDollarsThousands": 4533456.0,
+          "unitCostDollars": null
+        },
+        {
+          "fy": 2029,
+          "quantity": null,
+          "requestDollarsThousands": 6073473.0,
+          "unitCostDollars": null
+        },
+        {
+          "fy": 2030,
+          "quantity": null,
+          "requestDollarsThousands": 8315364.0,
+          "unitCostDollars": null
+        },
+        {
+          "fy": 2031,
+          "quantity": null,
+          "requestDollarsThousands": 9202810.0,
+          "unitCostDollars": null
+        }
+      ],
+      "lineItems": []
+    },
+    {
+      "peCode": "3010FATA000",
+      "title": "F-35",
+      "budgetActivity": "BA 01",
+      "lineNumber": "3010FATA000",
+      "programOfRecord": null,
+      "fyData": [
+        {
+          "fy": 2025,
+          "quantity": 40,
+          "requestDollarsThousands": 4489930.0,
+          "unitCostDollars": 120213.0
+        },
+        {
+          "fy": 2026,
+          "quantity": 24,
+          "requestDollarsThousands": 3913477.0,
+          "unitCostDollars": 180153.0
+        },
+        {
+          "fy": 2027,
+          "quantity": 24,
+          "requestDollarsThousands": 2393723.0,
+          "unitCostDollars": 122612.0
+        },
+        {
+          "fy": 2028,
+          "quantity": 42,
+          "requestDollarsThousands": 4763605.0,
+          "unitCostDollars": 130386.0
+        },
+        {
+          "fy": 2029,
+          "quantity": 46,
+          "requestDollarsThousands": 5280436.0,
+          "unitCostDollars": 132226.0
+        },
+        {
+          "fy": 2030,
+          "quantity": 48,
+          "requestDollarsThousands": 5409608.0,
+          "unitCostDollars": 130369.0
+        },
+        {
+          "fy": 2031,
+          "quantity": 48,
+          "requestDollarsThousands": 5376456.0,
+          "unitCostDollars": 129807.0
+        }
+      ],
+      "lineItems": []
+    },
+    {
+      "peCode": "3010FCCA000",
+      "title": "Collaborative Combat Aircraft AP",
+      "budgetActivity": "BA 01",
+      "lineNumber": "3010FCCA000",
+      "programOfRecord": null,
+      "fyData": [
+        {
+          "fy": 2025,
+          "quantity": null,
+          "requestDollarsThousands": 0,
+          "unitCostDollars": null
+        },
+        {
+          "fy": 2026,
+          "quantity": null,
+          "requestDollarsThousands": 0,
+          "unitCostDollars": null
+        },
+        {
+          "fy": 2027,
+          "quantity": null,
+          "requestDollarsThousands": 996528.0,
+          "unitCostDollars": null
+        },
+        {
+          "fy": 2028,
+          "quantity": null,
+          "requestDollarsThousands": 2046432.0,
+          "unitCostDollars": null
+        },
+        {
+          "fy": 2029,
+          "quantity": null,
+          "requestDollarsThousands": 1981046.0,
+          "unitCostDollars": null
+        },
+        {
+          "fy": 2030,
+          "quantity": null,
+          "requestDollarsThousands": 2077911.0,
+          "unitCostDollars": null
+        },
+        {
+          "fy": 2031,
+          "quantity": null,
+          "requestDollarsThousands": 2259734.0,
+          "unitCostDollars": null
+        }
+      ],
+      "lineItems": []
+    },
+    {
+      "peCode": "3010FF015EX",
+      "title": "F-15EX",
+      "budgetActivity": "BA 01",
+      "lineNumber": "3010FF015EX",
+      "programOfRecord": null,
+      "fyData": [
+        {
+          "fy": 2025,
+          "quantity": 18,
+          "requestDollarsThousands": 1808472.0,
+          "unitCostDollars": 113137.0
+        },
+        {
+          "fy": 2026,
+          "quantity": 1,
+          "requestDollarsThousands": 115000,
+          "unitCostDollars": 115000
+        },
+        {
+          "fy": 2027,
+          "quantity": 24,
+          "requestDollarsThousands": 2656716.0,
+          "unitCostDollars": 110697.0
+        },
+        {
+          "fy": 2028,
+          "quantity": 24,
+          "requestDollarsThousands": 2758000,
+          "unitCostDollars": 114917.0
+        },
+        {
+          "fy": 2029,
+          "quantity": 28,
+          "requestDollarsThousands": 3262510.0,
+          "unitCostDollars": 116518.0
+        },
+        {
+          "fy": 2030,
+          "quantity": 36,
+          "requestDollarsThousands": 4535950.0,
+          "unitCostDollars": 125999.0
+        },
+        {
+          "fy": 2031,
+          "quantity": 36,
+          "requestDollarsThousands": 4762750.0,
+          "unitCostDollars": 132299.0
+        }
+      ],
+      "lineItems": []
+    },
+    {
+      "peCode": "3010FJSE000",
+      "title": "Joint Simulation Environment",
+      "budgetActivity": "BA 01",
+      "lineNumber": "3010FJSE000",
+      "programOfRecord": null,
+      "fyData": [
+        {
+          "fy": 2025,
+          "quantity": null,
+          "requestDollarsThousands": 0,
+          "unitCostDollars": null
+        },
+        {
+          "fy": 2026,
+          "quantity": null,
+          "requestDollarsThousands": 12985.0,
+          "unitCostDollars": null
+        },
+        {
+          "fy": 2027,
+          "quantity": null,
+          "requestDollarsThousands": 52695.0,
+          "unitCostDollars": null
+        },
+        {
+          "fy": 2028,
+          "quantity": null,
+          "requestDollarsThousands": 120688.0,
+          "unitCostDollars": null
+        },
+        {
+          "fy": 2029,
+          "quantity": null,
+          "requestDollarsThousands": 121299.0,
+          "unitCostDollars": null
+        },
+        {
+          "fy": 2030,
+          "quantity": null,
+          "requestDollarsThousands": 53136.0,
+          "unitCostDollars": null
+        },
+        {
+          "fy": 2031,
+          "quantity": null,
+          "requestDollarsThousands": 176268.0,
+          "unitCostDollars": null
+        }
+      ],
+      "lineItems": []
+    },
+    {
+      "peCode": "3010FKC046A",
+      "title": "KC-46A MDAP",
+      "budgetActivity": "BA 02",
+      "lineNumber": "3010FKC046A",
+      "programOfRecord": null,
+      "fyData": [
+        {
+          "fy": 2025,
+          "quantity": 15,
+          "requestDollarsThousands": 2779618.0,
+          "unitCostDollars": 185308.0
+        },
+        {
+          "fy": 2026,
+          "quantity": 15,
+          "requestDollarsThousands": 2749974.0,
+          "unitCostDollars": 183332.0
+        },
+        {
+          "fy": 2027,
+          "quantity": 15,
+          "requestDollarsThousands": 3520530.0,
+          "unitCostDollars": 234702.0
+        },
+        {
+          "fy": 2028,
+          "quantity": 18,
+          "requestDollarsThousands": 6011690.0,
+          "unitCostDollars": 333983.0
+        },
+        {
+          "fy": 2029,
+          "quantity": 18,
+          "requestDollarsThousands": 6116345.0,
+          "unitCostDollars": 339797.0
+        },
+        {
+          "fy": 2030,
+          "quantity": 18,
+          "requestDollarsThousands": 6174432.0,
+          "unitCostDollars": 343024.0
+        },
+        {
+          "fy": 2031,
+          "quantity": 18,
+          "requestDollarsThousands": 6296780.0,
+          "unitCostDollars": 349821.0
+        }
+      ],
+      "lineItems": []
+    },
+    {
+      "peCode": "3010FC130J0",
+      "title": "C-130J",
+      "budgetActivity": "BA 02",
+      "lineNumber": "3010FC130J0",
+      "programOfRecord": null,
+      "fyData": [
+        {
+          "fy": 2025,
+          "quantity": 1,
+          "requestDollarsThousands": 414005.0,
+          "unitCostDollars": 414005.0
+        },
+        {
+          "fy": 2026,
+          "quantity": 7,
+          "requestDollarsThousands": 1191000,
+          "unitCostDollars": 170143.0
+        },
+        {
+          "fy": 2027,
+          "quantity": null,
+          "requestDollarsThousands": 636680.0,
+          "unitCostDollars": null
+        },
+        {
+          "fy": 2028,
+          "quantity": null,
+          "requestDollarsThousands": 115100.0,
+          "unitCostDollars": null
+        },
+        {
+          "fy": 2029,
+          "quantity": null,
+          "requestDollarsThousands": 0,
+          "unitCostDollars": null
+        },
+        {
+          "fy": 2030,
+          "quantity": null,
+          "requestDollarsThousands": 0,
+          "unitCostDollars": null
+        },
+        {
+          "fy": 2031,
+          "quantity": null,
+          "requestDollarsThousands": 0,
+          "unitCostDollars": null
+        }
+      ],
+      "lineItems": []
+    },
+    {
+      "peCode": "3010FAPT000",
+      "title": "Advanced Pilot Training T-7A AP",
+      "budgetActivity": "BA 03",
+      "lineNumber": "3010FAPT000",
+      "programOfRecord": null,
+      "fyData": [
+        {
+          "fy": 2025,
+          "quantity": null,
+          "requestDollarsThousands": 20780.0,
+          "unitCostDollars": null
+        },
+        {
+          "fy": 2026,
+          "quantity": 14,
+          "requestDollarsThousands": 362083.0,
+          "unitCostDollars": 25863.0
+        },
+        {
+          "fy": 2027,
+          "quantity": 23,
+          "requestDollarsThousands": 529464.0,
+          "unitCostDollars": 23020.0
+        },
+        {
+          "fy": 2028,
+          "quantity": 36,
+          "requestDollarsThousands": 915479.0,
+          "unitCostDollars": 27366.0
+        },
+        {
+          "fy": 2029,
+          "quantity": 42,
+          "requestDollarsThousands": 875143.0,
+          "unitCostDollars": 22552.0
+        },
+        {
+          "fy": 2030,
+          "quantity": 60,
+          "requestDollarsThousands": 1121762.0,
+          "unitCostDollars": 20388.0
+        },
+        {
+          "fy": 2031,
+          "quantity": 60,
+          "requestDollarsThousands": 1004753.0,
+          "unitCostDollars": 18427.0
+        }
+      ],
+      "lineItems": []
+    },
+    {
+      "peCode": "3010FH0106O",
+      "title": "MH-139A",
+      "budgetActivity": "BA 04",
+      "lineNumber": "3010FH0106O",
+      "programOfRecord": null,
+      "fyData": [
+        {
+          "fy": 2025,
+          "quantity": 8,
+          "requestDollarsThousands": 279095.0,
+          "unitCostDollars": 34887.0
+        },
+        {
+          "fy": 2026,
+          "quantity": 2,
+          "requestDollarsThousands": 67428.0,
+          "unitCostDollars": 33714.0
+        },
+        {
+          "fy": 2027,
+          "quantity": 4,
+          "requestDollarsThousands": 252949.0,
+          "unitCostDollars": 63237.0
+        },
+        {
+          "fy": 2028,
+          "quantity": 7,
+          "requestDollarsThousands": 310278.0,
+          "unitCostDollars": 44325.0
+        },
+        {
+          "fy": 2029,
+          "quantity": 3,
+          "requestDollarsThousands": 146005.0,
+          "unitCostDollars": 48668.0
+        },
+        {
+          "fy": 2030,
+          "quantity": null,
+          "requestDollarsThousands": 10087.0,
+          "unitCostDollars": null
+        },
+        {
+          "fy": 2031,
+          "quantity": null,
+          "requestDollarsThousands": 10284.0,
+          "unitCostDollars": null
+        }
+      ],
+      "lineItems": []
+    },
+    {
+      "peCode": "3010FH060WH",
+      "title": "Combat Rescue Helicopter",
+      "budgetActivity": "BA 04",
+      "lineNumber": "3010FH060WH",
+      "programOfRecord": null,
+      "fyData": [
+        {
+          "fy": 2025,
+          "quantity": 4,
+          "requestDollarsThousands": 355185.0,
+          "unitCostDollars": 88796.0
+        },
+        {
+          "fy": 2026,
+          "quantity": 2,
+          "requestDollarsThousands": 207500.0,
+          "unitCostDollars": 103750.0
+        },
+        {
+          "fy": 2027,
+          "quantity": null,
+          "requestDollarsThousands": 69395.0,
+          "unitCostDollars": null
+        },
+        {
+          "fy": 2028,
+          "quantity": null,
+          "requestDollarsThousands": 0,
+          "unitCostDollars": null
+        },
+        {
+          "fy": 2029,
+          "quantity": null,
+          "requestDollarsThousands": 0,
+          "unitCostDollars": null
+        },
+        {
+          "fy": 2030,
+          "quantity": null,
+          "requestDollarsThousands": 0,
+          "unitCostDollars": null
+        },
+        {
+          "fy": 2031,
+          "quantity": null,
+          "requestDollarsThousands": 0,
+          "unitCostDollars": null
+        }
+      ],
+      "lineItems": []
+    },
+    {
+      "peCode": "3010FC03700",
+      "title": "C-37A",
+      "budgetActivity": "BA 04",
+      "lineNumber": "3010FC03700",
+      "programOfRecord": null,
+      "fyData": [
+        {
+          "fy": 2025,
+          "quantity": null,
+          "requestDollarsThousands": 0,
+          "unitCostDollars": null
+        },
+        {
+          "fy": 2026,
+          "quantity": null,
+          "requestDollarsThousands": 0,
+          "unitCostDollars": null
+        },
+        {
+          "fy": 2027,
+          "quantity": 1,
+          "requestDollarsThousands": 208000,
+          "unitCostDollars": 208000
+        },
+        {
+          "fy": 2028,
+          "quantity": 3,
+          "requestDollarsThousands": 340000,
+          "unitCostDollars": 113333.0
+        },
+        {
+          "fy": 2029,
+          "quantity": 4,
+          "requestDollarsThousands": 548000,
+          "unitCostDollars": 137000
+        },
+        {
+          "fy": 2030,
+          "quantity": 4,
+          "requestDollarsThousands": 548000,
+          "unitCostDollars": 137000
+        },
+        {
+          "fy": 2031,
+          "quantity": 5,
+          "requestDollarsThousands": 548000,
+          "unitCostDollars": 109600.0
+        }
+      ],
+      "lineItems": []
+    },
+    {
+      "peCode": "3010FC0400D",
+      "title": "C-40 Fleet Expansion",
+      "budgetActivity": "BA 04",
+      "lineNumber": "3010FC0400D",
+      "programOfRecord": null,
+      "fyData": [
+        {
+          "fy": 2025,
+          "quantity": null,
+          "requestDollarsThousands": 10000,
+          "unitCostDollars": null
+        },
+        {
+          "fy": 2026,
+          "quantity": 1,
+          "requestDollarsThousands": 250000,
+          "unitCostDollars": 250000
+        },
+        {
+          "fy": 2027,
+          "quantity": null,
+          "requestDollarsThousands": 0,
+          "unitCostDollars": null
+        },
+        {
+          "fy": 2028,
+          "quantity": null,
+          "requestDollarsThousands": 0,
+          "unitCostDollars": null
+        },
+        {
+          "fy": 2029,
+          "quantity": null,
+          "requestDollarsThousands": 0,
+          "unitCostDollars": null
+        },
+        {
+          "fy": 2030,
+          "quantity": null,
+          "requestDollarsThousands": 0,
+          "unitCostDollars": null
+        },
+        {
+          "fy": 2031,
+          "quantity": null,
+          "requestDollarsThousands": 0,
+          "unitCostDollars": null
+        }
+      ],
+      "lineItems": []
+    },
+    {
+      "peCode": "3010FCAPAC0",
+      "title": "Civil Air Patrol A/C",
+      "budgetActivity": "BA 04",
+      "lineNumber": "3010FCAPAC0",
+      "programOfRecord": null,
+      "fyData": [
+        {
+          "fy": 2025,
+          "quantity": null,
+          "requestDollarsThousands": 15000,
+          "unitCostDollars": null
+        },
+        {
+          "fy": 2026,
+          "quantity": null,
+          "requestDollarsThousands": 17800.0,
+          "unitCostDollars": null
+        },
+        {
+          "fy": 2027,
+          "quantity": null,
+          "requestDollarsThousands": 3219.0,
+          "unitCostDollars": null
+        },
+        {
+          "fy": 2028,
+          "quantity": null,
+          "requestDollarsThousands": 3285.0,
+          "unitCostDollars": null
+        },
+        {
+          "fy": 2029,
+          "quantity": null,
+          "requestDollarsThousands": 3346.0,
+          "unitCostDollars": null
+        },
+        {
+          "fy": 2030,
+          "quantity": null,
+          "requestDollarsThousands": 3407.0,
+          "unitCostDollars": null
+        },
+        {
+          "fy": 2031,
+          "quantity": null,
+          "requestDollarsThousands": 3474.0,
+          "unitCostDollars": null
+        }
+      ],
+      "lineItems": []
+    },
+    {
+      "peCode": "3010F10TRGT",
+      "title": "Target Drones",
+      "budgetActivity": "BA 04",
+      "lineNumber": "3010F10TRGT",
+      "programOfRecord": null,
+      "fyData": [
+        {
+          "fy": 2025,
+          "quantity": 14,
+          "requestDollarsThousands": 37581.0,
+          "unitCostDollars": 2684.0
+        },
+        {
+          "fy": 2026,
+          "quantity": 20,
+          "requestDollarsThousands": 34224.0,
+          "unitCostDollars": 1711.0
+        },
+        {
+          "fy": 2027,
+          "quantity": 10,
+          "requestDollarsThousands": 31912.0,
+          "unitCostDollars": 3191.0
+        },
+        {
+          "fy": 2028,
+          "quantity": 11,
+          "requestDollarsThousands": 33219.0,
+          "unitCostDollars": 3020.0
+        },
+        {
+          "fy": 2029,
+          "quantity": 11,
+          "requestDollarsThousands": 33799.0,
+          "unitCostDollars": 3073.0
+        },
+        {
+          "fy": 2030,
+          "quantity": 11,
+          "requestDollarsThousands": 34529.0,
+          "unitCostDollars": 3139.0
+        },
+        {
+          "fy": 2031,
+          "quantity": 11,
+          "requestDollarsThousands": 35202.0,
+          "unitCostDollars": 3200.0
+        }
+      ],
+      "lineItems": []
+    },
+    {
+      "peCode": "3010FCALL00",
+      "title": "Compass Call",
+      "budgetActivity": "BA 04",
+      "lineNumber": "3010FCALL00",
+      "programOfRecord": null,
+      "fyData": [
+        {
+          "fy": 2025,
+          "quantity": null,
+          "requestDollarsThousands": 0,
+          "unitCostDollars": null
+        },
+        {
+          "fy": 2026,
+          "quantity": 2,
+          "requestDollarsThousands": 400000,
+          "unitCostDollars": 200000
+        },
+        {
+          "fy": 2027,
+          "quantity": 3,
+          "requestDollarsThousands": 660000,
+          "unitCostDollars": 220000
+        },
+        {
+          "fy": 2028,
+          "quantity": 2,
+          "requestDollarsThousands": 440000,
+          "unitCostDollars": 220000
+        },
+        {
+          "fy": 2029,
+          "quantity": 2,
+          "requestDollarsThousands": 440000,
+          "unitCostDollars": 220000
+        },
+        {
+          "fy": 2030,
+          "quantity": 2,
+          "requestDollarsThousands": 620000,
+          "unitCostDollars": 310000
+        },
+        {
+          "fy": 2031,
+          "quantity": 1,
+          "requestDollarsThousands": 334000,
+          "unitCostDollars": 334000
+        }
+      ],
+      "lineItems": []
+    },
+    {
+      "peCode": "3010FE00700",
+      "title": "E-7",
+      "budgetActivity": "BA 04",
+      "lineNumber": "3010FE00700",
+      "programOfRecord": null,
+      "fyData": [
+        {
+          "fy": 2025,
+          "quantity": null,
+          "requestDollarsThousands": 0,
+          "unitCostDollars": null
+        },
+        {
+          "fy": 2026,
+          "quantity": null,
+          "requestDollarsThousands": 0,
+          "unitCostDollars": null
+        },
+        {
+          "fy": 2027,
+          "quantity": null,
+          "requestDollarsThousands": 0,
+          "unitCostDollars": null
+        },
+        {
+          "fy": 2028,
+          "quantity": null,
+          "requestDollarsThousands": 0,
+          "unitCostDollars": null
+        },
+        {
+          "fy": 2029,
+          "quantity": null,
+          "requestDollarsThousands": 16931.0,
+          "unitCostDollars": null
+        },
+        {
+          "fy": 2030,
+          "quantity": null,
+          "requestDollarsThousands": 46267.0,
+          "unitCostDollars": null
+        },
+        {
+          "fy": 2031,
+          "quantity": null,
+          "requestDollarsThousands": 47169.0,
+          "unitCostDollars": null
+        }
+      ],
+      "lineItems": []
+    },
+    {
+      "peCode": "3010FQ020BR",
+      "title": "RQ-20B Puma",
+      "budgetActivity": "BA 04",
+      "lineNumber": "3010FQ020BR",
+      "programOfRecord": null,
+      "fyData": [
+        {
+          "fy": 2025,
+          "quantity": 6,
+          "requestDollarsThousands": 11283.0,
+          "unitCostDollars": 1881.0
+        },
+        {
+          "fy": 2026,
+          "quantity": 6,
+          "requestDollarsThousands": 11437.0,
+          "unitCostDollars": 1906.0
+        },
+        {
+          "fy": 2027,
+          "quantity": 6,
+          "requestDollarsThousands": 15513.0,
+          "unitCostDollars": 2586.0
+        },
+        {
+          "fy": 2028,
+          "quantity": 6,
+          "requestDollarsThousands": 11999.0,
+          "unitCostDollars": 2000
+        },
+        {
+          "fy": 2029,
+          "quantity": 6,
+          "requestDollarsThousands": 12221.0,
+          "unitCostDollars": 2037.0
+        },
+        {
+          "fy": 2030,
+          "quantity": 6,
+          "requestDollarsThousands": 12451.0,
+          "unitCostDollars": 2075.0
+        },
+        {
+          "fy": 2031,
+          "quantity": null,
+          "requestDollarsThousands": 12694.0,
+          "unitCostDollars": null
+        }
+      ],
+      "lineItems": []
+    },
+    {
+      "peCode": "3010F000999",
+      "title": "Initial Spares/Repair Parts",
+      "budgetActivity": "BA 06",
+      "lineNumber": "3010F000999",
+      "programOfRecord": null,
+      "fyData": [
+        {
+          "fy": 2025,
+          "quantity": null,
+          "requestDollarsThousands": 982491.0,
+          "unitCostDollars": null
+        },
+        {
+          "fy": 2026,
+          "quantity": null,
+          "requestDollarsThousands": 1193535.0,
+          "unitCostDollars": null
+        },
+        {
+          "fy": 2027,
+          "quantity": null,
+          "requestDollarsThousands": 1441052.0,
+          "unitCostDollars": null
+        },
+        {
+          "fy": 2028,
+          "quantity": null,
+          "requestDollarsThousands": 2344419.0,
+          "unitCostDollars": null
+        },
+        {
+          "fy": 2029,
+          "quantity": null,
+          "requestDollarsThousands": 2421611.0,
+          "unitCostDollars": null
+        },
+        {
+          "fy": 2030,
+          "quantity": null,
+          "requestDollarsThousands": 2221321.0,
+          "unitCostDollars": null
+        },
+        {
+          "fy": 2031,
+          "quantity": null,
+          "requestDollarsThousands": 1945193.0,
+          "unitCostDollars": null
+        }
+      ],
+      "lineItems": []
+    },
+    {
+      "peCode": "3010F000071",
+      "title": "Aircraft Replacement Support Equip",
+      "budgetActivity": "BA 07",
+      "lineNumber": "3010F000071",
+      "programOfRecord": null,
+      "fyData": [
+        {
+          "fy": 2025,
+          "quantity": null,
+          "requestDollarsThousands": 162813.0,
+          "unitCostDollars": null
+        },
+        {
+          "fy": 2026,
+          "quantity": null,
+          "requestDollarsThousands": 156776.0,
+          "unitCostDollars": null
+        },
+        {
+          "fy": 2027,
+          "quantity": null,
+          "requestDollarsThousands": 252808.0,
+          "unitCostDollars": null
+        },
+        {
+          "fy": 2028,
+          "quantity": null,
+          "requestDollarsThousands": 446231.0,
+          "unitCostDollars": null
+        },
+        {
+          "fy": 2029,
+          "quantity": null,
+          "requestDollarsThousands": 463580.0,
+          "unitCostDollars": null
+        },
+        {
+          "fy": 2030,
+          "quantity": null,
+          "requestDollarsThousands": 544086.0,
+          "unitCostDollars": null
+        },
+        {
+          "fy": 2031,
+          "quantity": null,
+          "requestDollarsThousands": 443965.0,
+          "unitCostDollars": null
+        }
+      ],
+      "lineItems": []
+    },
+    {
+      "peCode": "3010FB00200",
+      "title": "B-2A",
+      "budgetActivity": "BA 07",
+      "lineNumber": "3010FB00200",
+      "programOfRecord": null,
+      "fyData": [
+        {
+          "fy": 2025,
+          "quantity": null,
+          "requestDollarsThousands": 1885.0,
+          "unitCostDollars": null
+        },
+        {
+          "fy": 2026,
+          "quantity": null,
+          "requestDollarsThousands": 0,
+          "unitCostDollars": null
+        },
+        {
+          "fy": 2027,
+          "quantity": null,
+          "requestDollarsThousands": 0,
+          "unitCostDollars": null
+        },
+        {
+          "fy": 2028,
+          "quantity": null,
+          "requestDollarsThousands": 0,
+          "unitCostDollars": null
+        },
+        {
+          "fy": 2029,
+          "quantity": null,
+          "requestDollarsThousands": 0,
+          "unitCostDollars": null
+        },
+        {
+          "fy": 2030,
+          "quantity": null,
+          "requestDollarsThousands": 0,
+          "unitCostDollars": null
+        },
+        {
+          "fy": 2031,
+          "quantity": null,
+          "requestDollarsThousands": 0,
+          "unitCostDollars": null
+        }
+      ],
+      "lineItems": []
+    },
+    {
+      "peCode": "3010FB002B0",
+      "title": "B-2B",
+      "budgetActivity": "BA 07",
+      "lineNumber": "3010FB002B0",
+      "programOfRecord": null,
+      "fyData": [
+        {
+          "fy": 2025,
+          "quantity": null,
+          "requestDollarsThousands": 15709.0,
+          "unitCostDollars": null
+        },
+        {
+          "fy": 2026,
+          "quantity": null,
+          "requestDollarsThousands": 18969.0,
+          "unitCostDollars": null
+        },
+        {
+          "fy": 2027,
+          "quantity": null,
+          "requestDollarsThousands": 95457.0,
+          "unitCostDollars": null
+        },
+        {
+          "fy": 2028,
+          "quantity": null,
+          "requestDollarsThousands": 112164.0,
+          "unitCostDollars": null
+        },
+        {
+          "fy": 2029,
+          "quantity": null,
+          "requestDollarsThousands": 63508.0,
+          "unitCostDollars": null
+        },
+        {
+          "fy": 2030,
+          "quantity": null,
+          "requestDollarsThousands": 60526.0,
+          "unitCostDollars": null
+        },
+        {
+          "fy": 2031,
+          "quantity": null,
+          "requestDollarsThousands": 76824.0,
+          "unitCostDollars": null
+        }
+      ],
+      "lineItems": []
+    },
+    {
+      "peCode": "3010FB05200",
+      "title": "B-52",
+      "budgetActivity": "BA 07",
+      "lineNumber": "3010FB05200",
+      "programOfRecord": null,
+      "fyData": [
+        {
+          "fy": 2025,
+          "quantity": null,
+          "requestDollarsThousands": 0,
+          "unitCostDollars": null
+        },
+        {
+          "fy": 2026,
+          "quantity": null,
+          "requestDollarsThousands": 111.0,
+          "unitCostDollars": null
+        },
+        {
+          "fy": 2027,
+          "quantity": null,
+          "requestDollarsThousands": 114.0,
+          "unitCostDollars": null
+        },
+        {
+          "fy": 2028,
+          "quantity": null,
+          "requestDollarsThousands": 116.0,
+          "unitCostDollars": null
+        },
+        {
+          "fy": 2029,
+          "quantity": null,
+          "requestDollarsThousands": 50159.0,
+          "unitCostDollars": null
+        },
+        {
+          "fy": 2030,
+          "quantity": null,
+          "requestDollarsThousands": 118403.0,
+          "unitCostDollars": null
+        },
+        {
+          "fy": 2031,
+          "quantity": null,
+          "requestDollarsThousands": 92073.0,
+          "unitCostDollars": null
+        }
+      ],
+      "lineItems": []
+    },
+    {
+      "peCode": "3010FC01700",
+      "title": "C-17A",
+      "budgetActivity": "BA 07",
+      "lineNumber": "3010FC01700",
+      "programOfRecord": null,
+      "fyData": [
+        {
+          "fy": 2025,
+          "quantity": null,
+          "requestDollarsThousands": 0,
+          "unitCostDollars": null
+        },
+        {
+          "fy": 2026,
+          "quantity": null,
+          "requestDollarsThousands": 2672.0,
+          "unitCostDollars": null
+        },
+        {
+          "fy": 2027,
+          "quantity": null,
+          "requestDollarsThousands": 3027.0,
+          "unitCostDollars": null
+        },
+        {
+          "fy": 2028,
+          "quantity": null,
+          "requestDollarsThousands": 483.0,
+          "unitCostDollars": null
+        },
+        {
+          "fy": 2029,
+          "quantity": null,
+          "requestDollarsThousands": 924.0,
+          "unitCostDollars": null
+        },
+        {
+          "fy": 2030,
+          "quantity": null,
+          "requestDollarsThousands": 2123.0,
+          "unitCostDollars": null
+        },
+        {
+          "fy": 2031,
+          "quantity": null,
+          "requestDollarsThousands": 2164.0,
+          "unitCostDollars": null
+        }
+      ],
+      "lineItems": []
+    },
+    {
+      "peCode": "3010FC0V220",
+      "title": "CV-22 Post Production Support",
+      "budgetActivity": "BA 07",
+      "lineNumber": "3010FC0V220",
+      "programOfRecord": null,
+      "fyData": [
+        {
+          "fy": 2025,
+          "quantity": null,
+          "requestDollarsThousands": 9604.0,
+          "unitCostDollars": null
+        },
+        {
+          "fy": 2026,
+          "quantity": null,
+          "requestDollarsThousands": 0,
+          "unitCostDollars": null
+        },
+        {
+          "fy": 2027,
+          "quantity": null,
+          "requestDollarsThousands": 5088.0,
+          "unitCostDollars": null
+        },
+        {
+          "fy": 2028,
+          "quantity": null,
+          "requestDollarsThousands": 5019.0,
+          "unitCostDollars": null
+        },
+        {
+          "fy": 2029,
+          "quantity": null,
+          "requestDollarsThousands": 5012.0,
+          "unitCostDollars": null
+        },
+        {
+          "fy": 2030,
+          "quantity": null,
+          "requestDollarsThousands": 5147.0,
+          "unitCostDollars": null
+        },
+        {
+          "fy": 2031,
+          "quantity": null,
+          "requestDollarsThousands": 5247.0,
+          "unitCostDollars": null
+        }
+      ],
+      "lineItems": []
+    },
+    {
+      "peCode": "3010FF01500",
+      "title": "F-15",
+      "budgetActivity": "BA 07",
+      "lineNumber": "3010FF01500",
+      "programOfRecord": null,
+      "fyData": [
+        {
+          "fy": 2025,
+          "quantity": null,
+          "requestDollarsThousands": 0,
+          "unitCostDollars": null
+        },
+        {
+          "fy": 2026,
+          "quantity": null,
+          "requestDollarsThousands": 5112.0,
+          "unitCostDollars": null
+        },
+        {
+          "fy": 2027,
+          "quantity": null,
+          "requestDollarsThousands": 0,
+          "unitCostDollars": null
+        },
+        {
+          "fy": 2028,
+          "quantity": null,
+          "requestDollarsThousands": 0,
+          "unitCostDollars": null
+        },
+        {
+          "fy": 2029,
+          "quantity": null,
+          "requestDollarsThousands": 0,
+          "unitCostDollars": null
+        },
+        {
+          "fy": 2030,
+          "quantity": null,
+          "requestDollarsThousands": 0,
+          "unitCostDollars": null
+        },
+        {
+          "fy": 2031,
+          "quantity": null,
+          "requestDollarsThousands": 0,
+          "unitCostDollars": null
+        }
+      ],
+      "lineItems": []
+    },
+    {
+      "peCode": "3010FF0160P",
+      "title": "F-16 Post Production Support",
+      "budgetActivity": "BA 07",
+      "lineNumber": "3010FF0160P",
+      "programOfRecord": null,
+      "fyData": [
+        {
+          "fy": 2025,
+          "quantity": null,
+          "requestDollarsThousands": 62368.0,
+          "unitCostDollars": null
+        },
+        {
+          "fy": 2026,
+          "quantity": null,
+          "requestDollarsThousands": 18402.0,
+          "unitCostDollars": null
+        },
+        {
+          "fy": 2027,
+          "quantity": null,
+          "requestDollarsThousands": 57781.0,
+          "unitCostDollars": null
+        },
+        {
+          "fy": 2028,
+          "quantity": null,
+          "requestDollarsThousands": 36275.0,
+          "unitCostDollars": null
+        },
+        {
+          "fy": 2029,
+          "quantity": null,
+          "requestDollarsThousands": 57403.0,
+          "unitCostDollars": null
+        },
+        {
+          "fy": 2030,
+          "quantity": null,
+          "requestDollarsThousands": 31623.0,
+          "unitCostDollars": null
+        },
+        {
+          "fy": 2031,
+          "quantity": null,
+          "requestDollarsThousands": 40390.0,
+          "unitCostDollars": null
+        }
+      ],
+      "lineItems": []
+    },
+    {
+      "peCode": "3010FHCMC00",
+      "title": "HC/MC-130 Post Prod",
+      "budgetActivity": "BA 07",
+      "lineNumber": "3010FHCMC00",
+      "programOfRecord": null,
+      "fyData": [
+        {
+          "fy": 2025,
+          "quantity": null,
+          "requestDollarsThousands": 18604.0,
+          "unitCostDollars": null
+        },
+        {
+          "fy": 2026,
+          "quantity": null,
+          "requestDollarsThousands": 17986.0,
+          "unitCostDollars": null
+        },
+        {
+          "fy": 2027,
+          "quantity": null,
+          "requestDollarsThousands": 20415.0,
+          "unitCostDollars": null
+        },
+        {
+          "fy": 2028,
+          "quantity": null,
+          "requestDollarsThousands": 19469.0,
+          "unitCostDollars": null
+        },
+        {
+          "fy": 2029,
+          "quantity": null,
+          "requestDollarsThousands": 19588.0,
+          "unitCostDollars": null
+        },
+        {
+          "fy": 2030,
+          "quantity": null,
+          "requestDollarsThousands": 20185.0,
+          "unitCostDollars": null
+        },
+        {
+          "fy": 2031,
+          "quantity": null,
+          "requestDollarsThousands": 20583.0,
+          "unitCostDollars": null
+        }
+      ],
+      "lineItems": []
+    },
+    {
+      "peCode": "3010FPRDTB5",
+      "title": "MQ-9 Post Prod",
+      "budgetActivity": "BA 07",
+      "lineNumber": "3010FPRDTB5",
+      "programOfRecord": null,
+      "fyData": [
+        {
+          "fy": 2025,
+          "quantity": null,
+          "requestDollarsThousands": 0,
+          "unitCostDollars": null
+        },
+        {
+          "fy": 2026,
+          "quantity": null,
+          "requestDollarsThousands": 0,
+          "unitCostDollars": null
+        },
+        {
+          "fy": 2027,
+          "quantity": null,
+          "requestDollarsThousands": 15365.0,
+          "unitCostDollars": null
+        },
+        {
+          "fy": 2028,
+          "quantity": null,
+          "requestDollarsThousands": 0,
+          "unitCostDollars": null
+        },
+        {
+          "fy": 2029,
+          "quantity": null,
+          "requestDollarsThousands": 0,
+          "unitCostDollars": null
+        },
+        {
+          "fy": 2030,
+          "quantity": null,
+          "requestDollarsThousands": 0,
+          "unitCostDollars": null
+        },
+        {
+          "fy": 2031,
+          "quantity": null,
+          "requestDollarsThousands": 0,
+          "unitCostDollars": null
+        }
+      ],
+      "lineItems": []
+    },
+    {
+      "peCode": "3010F000073",
+      "title": "Industrial Responsiveness",
+      "budgetActivity": "BA 07",
+      "lineNumber": "3010F000073",
+      "programOfRecord": null,
+      "fyData": [
+        {
+          "fy": 2025,
+          "quantity": null,
+          "requestDollarsThousands": 20004.0,
+          "unitCostDollars": null
+        },
+        {
+          "fy": 2026,
+          "quantity": null,
+          "requestDollarsThousands": 19998.0,
+          "unitCostDollars": null
+        },
+        {
+          "fy": 2027,
+          "quantity": null,
+          "requestDollarsThousands": 20590.0,
+          "unitCostDollars": null
+        },
+        {
+          "fy": 2028,
+          "quantity": null,
+          "requestDollarsThousands": 21101.0,
+          "unitCostDollars": null
+        },
+        {
+          "fy": 2029,
+          "quantity": null,
+          "requestDollarsThousands": 21488.0,
+          "unitCostDollars": null
+        },
+        {
+          "fy": 2030,
+          "quantity": null,
+          "requestDollarsThousands": 21907.0,
+          "unitCostDollars": null
+        },
+        {
+          "fy": 2031,
+          "quantity": null,
+          "requestDollarsThousands": 22334.0,
+          "unitCostDollars": null
+        }
+      ],
+      "lineItems": []
+    },
+    {
+      "peCode": "3010F000074",
+      "title": "War Consumables",
+      "budgetActivity": "BA 07",
+      "lineNumber": "3010F000074",
+      "programOfRecord": null,
+      "fyData": [
+        {
+          "fy": 2025,
+          "quantity": null,
+          "requestDollarsThousands": 25908.0,
+          "unitCostDollars": null
+        },
+        {
+          "fy": 2026,
+          "quantity": null,
+          "requestDollarsThousands": 26323.0,
+          "unitCostDollars": null
+        },
+        {
+          "fy": 2027,
+          "quantity": null,
+          "requestDollarsThousands": 85387.0,
+          "unitCostDollars": null
+        },
+        {
+          "fy": 2028,
+          "quantity": null,
+          "requestDollarsThousands": 65181.0,
+          "unitCostDollars": null
+        },
+        {
+          "fy": 2029,
+          "quantity": null,
+          "requestDollarsThousands": 66798.0,
+          "unitCostDollars": null
+        },
+        {
+          "fy": 2030,
+          "quantity": null,
+          "requestDollarsThousands": 67805.0,
+          "unitCostDollars": null
+        },
+        {
+          "fy": 2031,
+          "quantity": null,
+          "requestDollarsThousands": 68847.0,
+          "unitCostDollars": null
+        }
+      ],
+      "lineItems": []
+    },
+    {
+      "peCode": "3010F000075",
+      "title": "Other Production Charges",
+      "budgetActivity": "BA 07",
+      "lineNumber": "3010F000075",
+      "programOfRecord": null,
+      "fyData": [
+        {
+          "fy": 2025,
+          "quantity": null,
+          "requestDollarsThousands": 1559926.0,
+          "unitCostDollars": null
+        },
+        {
+          "fy": 2026,
+          "quantity": null,
+          "requestDollarsThousands": 1462290.0,
+          "unitCostDollars": null
+        },
+        {
+          "fy": 2027,
+          "quantity": null,
+          "requestDollarsThousands": 2528401.0,
+          "unitCostDollars": null
+        },
+        {
+          "fy": 2028,
+          "quantity": null,
+          "requestDollarsThousands": 2482120.0,
+          "unitCostDollars": null
+        },
+        {
+          "fy": 2029,
+          "quantity": null,
+          "requestDollarsThousands": 2533431.0,
+          "unitCostDollars": null
+        },
+        {
+          "fy": 2030,
+          "quantity": null,
+          "requestDollarsThousands": 2472641.0,
+          "unitCostDollars": null
+        },
+        {
+          "fy": 2031,
+          "quantity": null,
+          "requestDollarsThousands": 2468405.0,
+          "unitCostDollars": null
+        }
+      ],
+      "lineItems": []
+    }
+  ]
+}
