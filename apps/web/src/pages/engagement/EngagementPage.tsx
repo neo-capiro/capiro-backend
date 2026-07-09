@@ -12,6 +12,7 @@ import {
   PlusOutlined,
   RobotOutlined,
   TeamOutlined,
+  VideoCameraOutlined,
 } from '@ant-design/icons';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import {
@@ -388,6 +389,13 @@ export function EngagementPage() {
   const [taskModalOpen, setTaskModalOpen] = useState(false);
   const [targetOfficeModalOpen, setTargetOfficeModalOpen] = useState(false);
   const [notetakerModalOpen, setNotetakerModalOpen] = useState(false);
+  // The meeting a consent-modal dispatch targets. Set when "Send Meri" is opened
+  // from EITHER the detail panel or a meeting-list row — the row may not be the
+  // currently-selected meeting, and selectedMeeting updates async, so we key the
+  // dispatch off this explicit id rather than the (possibly stale) selection.
+  const [notetakerTargetMeetingId, setNotetakerTargetMeetingId] = useState<string | null>(null);
+  // Meeting whose saved notes are shown in the quick-view modal (list-row action).
+  const [notesModalMeetingId, setNotesModalMeetingId] = useState<string | null>(null);
   const [reportMeetingRow, setReportMeetingRow] = useState<EngagementReportRow | null>(null);
   const [editingPrep, setEditingPrep] = useState<{ meeting: Meeting; prep: MeetingPrep } | null>(
     null,
@@ -650,6 +658,18 @@ export function EngagementPage() {
     },
   });
 
+  // Full debrief bodies for the quick notes modal — the list row only carries
+  // meeting.debriefs summaries (no body), so a list-row "Notes" click loads the
+  // body here. Shares the ['engagement-meeting-debriefs', id] cache with the
+  // detail-panel query, so opening notes for the selected meeting is a cache hit.
+  const notesModalDebriefs = useQuery<MeetingDebrief[]>({
+    queryKey: ['engagement-meeting-debriefs', notesModalMeetingId],
+    queryFn: async () =>
+      (await api.get<MeetingDebrief[]>(`/api/engagement/meetings/${notesModalMeetingId}/debriefs`))
+        .data,
+    enabled: Boolean(notesModalMeetingId),
+  });
+
   const tasks = useQuery<EngagementTask[]>({
     queryKey: ['engagement-tasks', selectedClientId],
     queryFn: async () =>
@@ -831,18 +851,29 @@ export function EngagementPage() {
     onError: (err) => message.error(errorMessage(err)),
   });
 
-  const openNotetakerModal = () => {
+  // Open the consent modal for a SPECIFIC meeting (detail panel passes the
+  // selected meeting; a list row passes its own). The target id drives the
+  // dispatch so a row action can't be misattributed to the selected meeting.
+  const openNotetakerModal = (meeting: Meeting | null) => {
+    setNotetakerTargetMeetingId(meeting?.id ?? null);
     // Prefill ONLY when we can find an actual meeting join link (Zoom/Meet/
     // Teams/Webex) in the meeting's webLink/location/description. The Outlook
     // webLink is a CALENDAR link, not a join link — prefill with it and Recall
     // rejects the dispatch ("meeting_url is malformed") after the user already
     // affirmed consent. Blank + a clear placeholder beats a wrong prefill.
     notetakerForm.setFieldsValue({
-      meetingUrl: selectedMeeting ? (extractMeetingJoinUrl(selectedMeeting) ?? '') : '',
+      meetingUrl: meeting ? (extractMeetingJoinUrl(meeting) ?? '') : '',
       authorizedToRecord: false,
       allPartiesWillBeNotified: false,
     });
     setNotetakerModalOpen(true);
+  };
+
+  // Open a meeting's online join link in a new tab (the real join URL, not the
+  // Outlook calendar webLink). No-op if the meeting has no supported join link.
+  const handleJoinMeeting = (meeting: Meeting) => {
+    const url = extractMeetingJoinUrl(meeting);
+    if (url) window.open(url, '_blank', 'noopener,noreferrer');
   };
 
   const removeNotetaker = useMutation({
@@ -1195,6 +1226,9 @@ export function EngagementPage() {
                         onGeneratePrep={(meeting) => {
                           handleGeneratePrep(meeting);
                         }}
+                        onJoin={handleJoinMeeting}
+                        onSendNotetaker={openNotetakerModal}
+                        onViewNotes={(meeting) => setNotesModalMeetingId(meeting.id)}
                         onLoadMore={() => setHistoryBatch((value) => value + 1)}
                       />
                     ) : meetingViewMode === 'day' ? (
@@ -1218,6 +1252,9 @@ export function EngagementPage() {
                           const meeting = visibleMeetings.find((m) => m.id === meetingId);
                           if (meeting) handleGeneratePrep(meeting);
                         }}
+                        onJoin={handleJoinMeeting}
+                        onSendNotetaker={openNotetakerModal}
+                        onViewNotes={(meeting) => setNotesModalMeetingId(meeting.id)}
                       />
                     ) : (
                       <MeetingCalendarList
@@ -1233,6 +1270,9 @@ export function EngagementPage() {
                           setSelectedMeetingId(meetingId);
                           setMeetingDetailTab(tab);
                         }}
+                        onJoin={handleJoinMeeting}
+                        onSendNotetaker={openNotetakerModal}
+                        onViewNotes={(meeting) => setNotesModalMeetingId(meeting.id)}
                       />
                     )
                   ) : (
@@ -1306,7 +1346,7 @@ export function EngagementPage() {
                   }
                   notetakerSession={notetakerSession.data ?? null}
                   dispatchingNotetaker={dispatchNotetaker.isPending}
-                  onSendNotetaker={openNotetakerModal}
+                  onSendNotetaker={() => openNotetakerModal(selectedMeeting)}
                   removingNotetaker={removeNotetaker.isPending}
                   onRemoveNotetaker={(meetingId) => removeNotetaker.mutate(meetingId)}
                 />
@@ -1565,9 +1605,9 @@ export function EngagementPage() {
           form={notetakerForm}
           layout="vertical"
           onFinish={(values) => {
-            if (!selectedMeeting) return;
+            if (!notetakerTargetMeetingId) return;
             dispatchNotetaker.mutate({
-              meetingId: selectedMeeting.id,
+              meetingId: notetakerTargetMeetingId,
               meetingUrl: values.meetingUrl,
               authorizedToRecord: true,
               allPartiesWillBeNotified: true,
@@ -1626,6 +1666,45 @@ export function EngagementPage() {
             </Checkbox>
           </Form.Item>
         </Form>
+      </Modal>
+
+      <Modal
+        title="Meeting notes"
+        open={Boolean(notesModalMeetingId)}
+        onCancel={() => setNotesModalMeetingId(null)}
+        footer={null}
+        width={640}
+      >
+        {(() => {
+          const meeting = visibleMeetings.find((m) => m.id === notesModalMeetingId) ?? null;
+          if (notesModalDebriefs.isLoading) {
+            return <Typography.Text type="secondary">Loading notes...</Typography.Text>;
+          }
+          // Skip restricted debriefs / empty bodies (mirrors the PDF export guard).
+          const debrief = (notesModalDebriefs.data ?? []).find((d) => !d.restricted && d.body);
+          if (!debrief || !debrief.body) {
+            return <Empty description="No saved notes for this meeting yet." />;
+          }
+          const draft = parseDebriefBody(debrief.body);
+          return (
+            <div className="engagement-debrief-output">
+              {meeting ? (
+                <Typography.Title level={5} style={{ marginTop: 0 }}>
+                  {meeting.subject}
+                </Typography.Title>
+              ) : null}
+              <DetailBlock title="Recap">
+                <Typography.Paragraph>{draft.recap || 'No recap saved.'}</Typography.Paragraph>
+              </DetailBlock>
+              <DetailBlock title="Action Items">
+                <BulletList items={draft.actionItems} empty="No action items saved." />
+              </DetailBlock>
+              <DetailBlock title="Notes">
+                <Typography.Paragraph>{draft.notes || 'No notes saved.'}</Typography.Paragraph>
+              </DetailBlock>
+            </div>
+          );
+        })()}
       </Modal>
     </section>
   );
@@ -1705,6 +1784,78 @@ function MeetingWeekNav({
   );
 }
 
+/**
+ * Per-meeting quick actions rendered on every meeting-list surface (list / day /
+ * calendar): Join the online meeting, Send Meri to take notes, and View saved
+ * notes. Each button stops propagation so it doesn't also trigger the row's
+ * select handler. Gating:
+ *  - Join / Send Meri: only for meetings that haven't ended AND have a supported
+ *    online join link (a bot can only join a real Zoom/Meet/Teams/… URL).
+ *  - View notes: only when the meeting already has a saved debrief.
+ * Renders nothing when a meeting offers none of these.
+ */
+function MeetingQuickActions({
+  meeting,
+  onJoin,
+  onSendNotetaker,
+  onViewNotes,
+}: {
+  meeting: Meeting;
+  onJoin: (meeting: Meeting) => void;
+  onSendNotetaker: (meeting: Meeting) => void;
+  onViewNotes: (meeting: Meeting) => void;
+}) {
+  const status = meetingStatus(meeting);
+  const ended = status.kind === 'complete' || status.kind === 'missing';
+  const joinUrl = extractMeetingJoinUrl(meeting);
+  const hasNotes = meeting.debriefs.length > 0;
+  const canJoinOrRecord = !ended && Boolean(joinUrl);
+  if (!canJoinOrRecord && !hasNotes) return null;
+  return (
+    <div
+      className="engagement-meeting-quick-actions"
+      style={{ display: 'flex', flexWrap: 'wrap', gap: 6, marginTop: 6 }}
+    >
+      {canJoinOrRecord ? (
+        <Button
+          size="small"
+          icon={<VideoCameraOutlined />}
+          onClick={(event) => {
+            event.stopPropagation();
+            onJoin(meeting);
+          }}
+        >
+          Join
+        </Button>
+      ) : null}
+      {canJoinOrRecord ? (
+        <Button
+          size="small"
+          icon={<RobotOutlined />}
+          onClick={(event) => {
+            event.stopPropagation();
+            onSendNotetaker(meeting);
+          }}
+        >
+          Send Meri
+        </Button>
+      ) : null}
+      {hasNotes ? (
+        <Button
+          size="small"
+          icon={<FileTextOutlined />}
+          onClick={(event) => {
+            event.stopPropagation();
+            onViewNotes(meeting);
+          }}
+        >
+          Notes
+        </Button>
+      ) : null}
+    </div>
+  );
+}
+
 function MeetingListView({
   meetings,
   selectedId,
@@ -1713,6 +1864,9 @@ function MeetingListView({
   generatingMeetingId,
   onSelect,
   onGeneratePrep,
+  onJoin,
+  onSendNotetaker,
+  onViewNotes,
   onLoadMore,
 }: {
   meetings: Meeting[];
@@ -1722,6 +1876,9 @@ function MeetingListView({
   generatingMeetingId: string | null;
   onSelect: (meeting: Meeting, tab?: string) => void;
   onGeneratePrep: (meeting: Meeting) => void;
+  onJoin: (meeting: Meeting) => void;
+  onSendNotetaker: (meeting: Meeting) => void;
+  onViewNotes: (meeting: Meeting) => void;
   onLoadMore: () => void;
 }) {
   const weekGroups = groupMeetingsByLocalWeek(meetings);
@@ -1754,6 +1911,9 @@ function MeetingListView({
                     generating={generatingMeetingId === meeting.id}
                     onSelect={(tab) => onSelect(meeting, tab)}
                     onGeneratePrep={() => onGeneratePrep(meeting)}
+                    onJoin={onJoin}
+                    onSendNotetaker={onSendNotetaker}
+                    onViewNotes={onViewNotes}
                   />
                 ))}
               </div>
@@ -1778,6 +1938,9 @@ function MeetingListItem({
   generating,
   onSelect,
   onGeneratePrep,
+  onJoin,
+  onSendNotetaker,
+  onViewNotes,
 }: {
   meeting: Meeting;
   selected: boolean;
@@ -1785,6 +1948,9 @@ function MeetingListItem({
   generating: boolean;
   onSelect: (tab?: string) => void;
   onGeneratePrep: () => void;
+  onJoin: (meeting: Meeting) => void;
+  onSendNotetaker: (meeting: Meeting) => void;
+  onViewNotes: (meeting: Meeting) => void;
 }) {
   const status = meetingStatus(meeting);
   return (
@@ -1813,6 +1979,12 @@ function MeetingListItem({
         <div className="engagement-agenda-tags">
           <DebriefBadge meeting={meeting} />
         </div>
+        <MeetingQuickActions
+          meeting={meeting}
+          onJoin={onJoin}
+          onSendNotetaker={onSendNotetaker}
+          onViewNotes={onViewNotes}
+        />
       </div>
       <Button
         size="small"
@@ -1881,6 +2053,9 @@ function MeetingCalendarList({
   rangeEnd,
   onSelect,
   onAction,
+  onJoin,
+  onSendNotetaker,
+  onViewNotes,
 }: {
   meetings: Meeting[];
   selectedId: string | null;
@@ -1888,6 +2063,9 @@ function MeetingCalendarList({
   rangeEnd: string;
   onSelect: (id: string) => void;
   onAction: (id: string, tab: string) => void;
+  onJoin: (meeting: Meeting) => void;
+  onSendNotetaker: (meeting: Meeting) => void;
+  onViewNotes: (meeting: Meeting) => void;
 }) {
   const days = dateRangeDays(rangeStart, rangeEnd);
   const grouped = groupMeetingsByDate(meetings);
@@ -1920,14 +2098,24 @@ function MeetingCalendarList({
                   dayMeetings.map((meeting) => {
                     const status = meetingStatus(meeting);
                     return (
-                      <button
+                      // role=button div (not a <button>) so the per-meeting
+                      // quick-action buttons can nest without invalid-HTML /
+                      // hydration warnings (mirrors the Day view rows).
+                      <div
                         key={meeting.id}
-                        type="button"
+                        role="button"
+                        tabIndex={0}
                         className={`engagement-week-event engagement-week-event--${status.kind} engagement-week-event--tone-${status.tone}${
                           meeting.id === selectedId ? ' selected' : ''
                         }`}
                         style={{ borderLeftColor: meetingBorderColor(meeting) }}
                         onClick={() => onSelect(meeting.id)}
+                        onKeyDown={(event) => {
+                          if (event.key === 'Enter' || event.key === ' ') {
+                            event.preventDefault();
+                            onSelect(meeting.id);
+                          }
+                        }}
                       >
                         <span>{formatTime(meeting.startsAt)}</span>
                         <strong>{meeting.subject}</strong>
@@ -1938,7 +2126,13 @@ function MeetingCalendarList({
                           meeting={meeting}
                           onAction={(tab) => onAction(meeting.id, tab)}
                         />
-                      </button>
+                        <MeetingQuickActions
+                          meeting={meeting}
+                          onJoin={onJoin}
+                          onSendNotetaker={onSendNotetaker}
+                          onViewNotes={onViewNotes}
+                        />
+                      </div>
                     );
                   })
                 ) : (
@@ -1975,6 +2169,9 @@ function MeetingDayTimeline({
   onSelect,
   onAction,
   onGeneratePrep,
+  onJoin,
+  onSendNotetaker,
+  onViewNotes,
 }: {
   meetings: Meeting[];
   selectedId: string | null;
@@ -1986,6 +2183,9 @@ function MeetingDayTimeline({
   onSelect: (id: string) => void;
   onAction: (id: string, tab: string) => void;
   onGeneratePrep: (id: string) => void;
+  onJoin: (meeting: Meeting) => void;
+  onSendNotetaker: (meeting: Meeting) => void;
+  onViewNotes: (meeting: Meeting) => void;
 }) {
   const days = dateRangeDays(rangeStart, rangeEnd);
   const grouped = groupMeetingsByDate(meetings);
@@ -2097,6 +2297,12 @@ function MeetingDayTimeline({
                       {status.actionLabel}
                     </Button>
                   </div>
+                  <MeetingQuickActions
+                    meeting={meeting}
+                    onJoin={onJoin}
+                    onSendNotetaker={onSendNotetaker}
+                    onViewNotes={onViewNotes}
+                  />
                 </div>
               );
             })
