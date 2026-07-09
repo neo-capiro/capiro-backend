@@ -75,7 +75,8 @@ function WatchCard({
   onToggleWatch: (row: ProgramElementListItem) => void;
   busy?: boolean;
 }) {
-  const trendUp = pe.spark && pe.spark.length > 1 ? pe.spark[pe.spark.length - 1]! >= pe.spark[0]! : true;
+  const trendUp =
+    pe.spark && pe.spark.length > 1 ? pe.spark[pe.spark.length - 1]! >= pe.spark[0]! : true;
   const signal = signalMeta(pe);
   return (
     <div
@@ -122,12 +123,14 @@ function WatchCard({
 
       <div className="pe-wc-stats">
         <div className="pe-wc-stat">
-          <div className="pe-wc-sl">Enacted</div>
-          <div className="pe-wc-sv">{fmtMoneyM(pe.latestEnacted ?? null)}</div>
+          <div className="pe-wc-sl">Current</div>
+          <div className="pe-wc-sv">{fmtMoneyM(pe.latestCurrent ?? pe.latestEnacted ?? null)}</div>
         </div>
         <div className="pe-wc-stat">
           <div className="pe-wc-sl">Δ vs req</div>
-          <div className={`pe-wc-sv ${pe.deltaPct == null ? '' : pe.deltaPct >= 0 ? 'pe-up' : 'pe-down'}`}>
+          <div
+            className={`pe-wc-sv ${pe.deltaPct == null ? '' : pe.deltaPct >= 0 ? 'pe-up' : 'pe-down'}`}
+          >
             {pe.deltaPct == null ? '—' : `${pe.deltaPct >= 0 ? '+' : ''}${pe.deltaPct.toFixed(1)}%`}
           </div>
         </div>
@@ -157,7 +160,9 @@ export function FinderWatchlist({
   onToggleWatch,
   watchBusyCode,
 }: Props) {
-  const needsAttention = feed.filter((c) => c.severity === 'critical' || c.severity === 'notable').length;
+  const needsAttention = feed.filter(
+    (c) => c.severity === 'critical' || c.severity === 'notable',
+  ).length;
 
   return (
     <div className="pe-watchlist">
@@ -225,7 +230,9 @@ export function FinderWatchlist({
                       <div className="pe-signal-title">{c.title}</div>
                       <div className="pe-signal-meta">
                         {code ? <PeCodeBadge code={code} size="sm" /> : null}
-                        {c.description ? <span className="pe-signal-desc">{c.description}</span> : null}
+                        {c.description ? (
+                          <span className="pe-signal-desc">{c.description}</span>
+                        ) : null}
                       </div>
                     </div>
                     <div className="pe-signal-when">{relativeTime(c.detectedAt)}</div>

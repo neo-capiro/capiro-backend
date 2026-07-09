@@ -56,6 +56,12 @@ const ROW: ProgramElementListItem = {
   latestRequestFy: 2027,
   latestEnacted: 297.7, // $ millions
   latestEnactedFy: 2025,
+  // Canonical current = FY27 conference mark — furthest-along, deliberately
+  // distinct from the FY25 enacted so the test proves the headline shows
+  // "current", not stale enacted.
+  latestCurrent: 310.5,
+  latestCurrentFy: 2027,
+  latestCurrentStage: 'conference',
   deltaPct: 19.0,
   spark: [258, 273, 281, 298, 233, 215],
   signalType: 'mark_vs_request',
@@ -102,14 +108,20 @@ describe('PE finder data-mapping / display', () => {
 
   test('catalog row renders enriched money/Δ/signal in $M with correct labels', () => {
     render(
-      <FinderCatalogTable rows={[ROW]} loading={false} onOpen={() => {}} onToggleWatch={() => {}} />,
+      <FinderCatalogTable
+        rows={[ROW]}
+        loading={false}
+        onOpen={() => {}}
+        onToggleWatch={() => {}}
+      />,
     );
     expect(screen.getByText('0601102A')).toBeInTheDocument();
     expect(screen.getByText('Defense Research Sciences')).toBeInTheDocument();
     expect(screen.getByText('Army')).toBeInTheDocument(); // service CODE -> label
     expect(screen.getByText('RDT&E PE')).toBeInTheDocument(); // lineType -> badge (BL-1)
     expect(screen.getByText('$215.3M')).toBeInTheDocument(); // latestRequest, millions
-    expect(screen.getByText('$297.7M')).toBeInTheDocument(); // latestEnacted, millions
+    expect(screen.getByText('$310.5M')).toBeInTheDocument(); // latestCurrent (FY27 conference), millions
+    expect(screen.getByText('Conference')).toBeInTheDocument(); // current stage label on the headline cell
     expect(screen.getByText('+19.0%')).toBeInTheDocument(); // deltaPct sign + 1dp
     expect(screen.getByTitle('Transition maturity 2/5')).toBeInTheDocument(); // maturity pips
     expect(screen.getByText('61')).toBeInTheDocument(); // appropriability score badge
@@ -169,9 +181,11 @@ describe('PE finder data-mapping / display', () => {
       />,
     );
     // Watch card stats (enriched list fields, $M).
-    const card = screen.getByText('Defense Research Sciences').closest('.pe-watch-card') as HTMLElement;
+    const card = screen
+      .getByText('Defense Research Sciences')
+      .closest('.pe-watch-card') as HTMLElement;
     expect(card).toBeTruthy();
-    expect(within(card).getByText('$297.7M')).toBeInTheDocument(); // enacted
+    expect(within(card).getByText('$310.5M')).toBeInTheDocument(); // current (FY27 conference)
     expect(within(card).getByText('+19.0%')).toBeInTheDocument(); // Δ vs req
     // Signal feed row.
     expect(screen.getByText('Senate markup added funding over the PB request')).toBeInTheDocument();

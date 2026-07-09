@@ -2,6 +2,7 @@ import { BadRequestException, Injectable, NotFoundException } from '@nestjs/comm
 import { Prisma } from '@prisma/client';
 import LRUCache = require('lru-cache');
 import type { TenantContext } from '@capiro/shared';
+import { fundingCurrentCoalesceSql, fundingCurrentStageSql } from '@capiro/shared';
 import { PrismaService } from '../prisma/prisma.service.js';
 import { ClientPeRelevanceService } from '../intelligence/client-pe-relevance.service.js';
 import { EMBEDDING_MODEL } from '../embeddings/embedder.js';
@@ -141,6 +142,9 @@ export class ProgramElementReadService {
       latestRequestFy: number | null;
       latestEnacted: number | null;
       latestEnactedFy: number | null;
+      latestCurrent: number | null;
+      latestCurrentFy: number | null;
+      latestCurrentStage: string | null;
       deltaPct: number | null;
       spark: number[] | null;
       signalType: string | null;
@@ -224,6 +228,9 @@ export class ProgramElementReadService {
         lr.fy AS "latestRequestFy",
         le.enacted::double precision AS "latestEnacted",
         le.fy AS "latestEnactedFy",
+        ${Prisma.raw(fundingCurrentCoalesceSql('lc.'))}::double precision AS "latestCurrent",
+        lc.fy AS "latestCurrentFy",
+        ${Prisma.raw(fundingCurrentStageSql('lc.'))} AS "latestCurrentStage",
         CASE
           WHEN le.enacted IS NOT NULL AND ler.request IS NOT NULL AND ler.request <> 0
           THEN ((le.enacted::double precision - ler.request::double precision) / ler.request::double precision) * 100
@@ -258,6 +265,13 @@ export class ProgramElementReadService {
         LIMIT 1
       ) le ON TRUE
       LEFT JOIN LATERAL (
+        SELECT y.request, y.hasc_mark, y.sasc_mark, y.hac_d_mark, y.sac_d_mark, y.conference, y.enacted, y.fy
+        FROM program_element_year y
+        WHERE y.pe_code = f.pe_code AND ${Prisma.raw(fundingCurrentCoalesceSql('y.'))} IS NOT NULL
+        ORDER BY y.fy DESC
+        LIMIT 1
+      ) lc ON TRUE
+      LEFT JOIN LATERAL (
         SELECT y.request
         FROM program_element_year y
         WHERE y.pe_code = f.pe_code AND y.fy = le.fy
@@ -266,9 +280,9 @@ export class ProgramElementReadService {
       LEFT JOIN LATERAL (
         SELECT json_agg(v ORDER BY fy) AS spark
         FROM (
-          SELECT y.fy AS fy, COALESCE(y.enacted, y.conference, y.request)::double precision AS v
+          SELECT y.fy AS fy, ${Prisma.raw(fundingCurrentCoalesceSql('y.'))}::double precision AS v
           FROM program_element_year y
-          WHERE y.pe_code = f.pe_code AND COALESCE(y.enacted, y.conference, y.request) IS NOT NULL
+          WHERE y.pe_code = f.pe_code AND ${Prisma.raw(fundingCurrentCoalesceSql('y.'))} IS NOT NULL
           ORDER BY y.fy DESC
           LIMIT 6
         ) s
@@ -458,7 +472,11 @@ export class ProgramElementReadService {
       // FY chip — the per-FY forward/backward picture lives in the trend sparkline
       // and the detail page's own funding chart.
       this.prisma.$queryRaw<
-        Array<{ totalRequest: number | null; totalEnacted: number | null; avgDeltaPct: number | null }>
+        Array<{
+          totalRequest: number | null;
+          totalEnacted: number | null;
+          avgDeltaPct: number | null;
+        }>
       >(Prisma.sql`
         SELECT
           COALESCE(SUM(ler.request) FILTER (WHERE ler.request IS NOT NULL AND ler.request <> 0), 0)::double precision AS "totalRequest",
@@ -490,7 +508,7 @@ export class ProgramElementReadService {
       `),
       this.prisma.$queryRaw<Array<{ fy: number; total: number }>>(Prisma.sql`
         WITH mx AS (SELECT MAX(fy) AS fy FROM program_element_year)
-        SELECT y.fy AS fy, COALESCE(SUM(COALESCE(y.enacted, y.conference, y.request)), 0)::double precision AS total
+        SELECT y.fy AS fy, COALESCE(SUM(${Prisma.raw(fundingCurrentCoalesceSql('y.'))}), 0)::double precision AS total
         FROM program_element_year y, mx
         WHERE y.fy > mx.fy - 6
         GROUP BY y.fy
@@ -548,20 +566,29 @@ export class ProgramElementReadService {
         years: {
           orderBy: { fy: 'asc' },
           select: {
-            fy: true, request: true, hascMark: true, sascMark: true,
-            hacDMark: true, sacDMark: true, conference: true, enacted: true,
+            fy: true,
+            request: true,
+            hascMark: true,
+            sascMark: true,
+            hacDMark: true,
+            sacDMark: true,
+            conference: true,
+            enacted: true,
           },
         },
       },
     });
     if (!pe) throw new NotFoundException(`Unknown program element ${peCode}`);
-    const dec = (v: unknown): number | null =>
-      v === null || v === undefined ? null : Number(v);
+    const dec = (v: unknown): number | null => (v === null || v === undefined ? null : Number(v));
     const years = pe.years.map((y) => ({
       fy: y.fy,
-      request: dec(y.request), hascMark: dec(y.hascMark), sascMark: dec(y.sascMark),
-      hacDMark: dec(y.hacDMark), sacDMark: dec(y.sacDMark),
-      conference: dec(y.conference), enacted: dec(y.enacted),
+      request: dec(y.request),
+      hascMark: dec(y.hascMark),
+      sascMark: dec(y.sascMark),
+      hacDMark: dec(y.hacDMark),
+      sacDMark: dec(y.sacDMark),
+      conference: dec(y.conference),
+      enacted: dec(y.enacted),
     }));
     // Stated FYDP outyears (PB budget positions) extend the runway series.
     const positions = await this.prisma.programElementBudgetPosition.findMany({
@@ -1056,7 +1083,12 @@ export class ProgramElementReadService {
     const years = Array.from(new Set(rows.map((r) => r.fy))).sort((a, b) => a - b);
     const byRecipient = new Map<
       string,
-      Array<{ fy: number; quantity: number | null; dollars: number | null; unitCost: number | null }>
+      Array<{
+        fy: number;
+        quantity: number | null;
+        dollars: number | null;
+        unitCost: number | null;
+      }>
     >();
     for (const r of rows) {
       if (!byRecipient.has(r.lineDescription)) byRecipient.set(r.lineDescription, []);
@@ -1210,7 +1242,10 @@ export class ProgramElementReadService {
     peCode: string,
     opts: { deltaType?: string; fy?: number; page?: number; limit?: number } = {},
   ) {
-    const exists = await this.prisma.programElement.findUnique({ where: { peCode }, select: { peCode: true } });
+    const exists = await this.prisma.programElement.findUnique({
+      where: { peCode },
+      select: { peCode: true },
+    });
     if (!exists) throw new NotFoundException(`Program element ${peCode} not found`);
 
     const take = Math.min(Math.max(opts.limit ?? 50, 1), 200);
@@ -1261,7 +1296,9 @@ export class ProgramElementReadService {
       const effectiveScore = Math.min(1, r.materialityScore + (clientRelevant ? 0.15 : 0));
       return { ...r, clientRelevant, effectiveScore };
     });
-    decorated.sort((a, b) => b.effectiveScore - a.effectiveScore || b.materialityScore - a.materialityScore);
+    decorated.sort(
+      (a, b) => b.effectiveScore - a.effectiveScore || b.materialityScore - a.materialityScore,
+    );
     return { data: decorated.slice(0, take), total: decorated.length, minScore };
   }
 
@@ -1277,8 +1314,14 @@ export class ProgramElementReadService {
     if (peCodes.length === 0) return new Set<string>();
     const set = await this.prisma.withTenant(ctx.tenantId, async (tx) => {
       const [watches, caps] = await Promise.all([
-        tx.programElementWatch.findMany({ where: { peCode: { in: peCodes } }, select: { peCode: true } }),
-        tx.clientCapability.findMany({ where: { peNumber: { in: peCodes } }, select: { peNumber: true } }),
+        tx.programElementWatch.findMany({
+          where: { peCode: { in: peCodes } },
+          select: { peCode: true },
+        }),
+        tx.clientCapability.findMany({
+          where: { peNumber: { in: peCodes } },
+          select: { peNumber: true },
+        }),
       ]);
       const found = new Set<string>();
       for (const w of watches) found.add(w.peCode);
@@ -1294,9 +1337,7 @@ export class ProgramElementReadService {
       // tenant with no watches/caps probes every over-fetched PE) would fire hundreds of
       // sequential transactions per request. peCodes derives from the materiality-sorted
       // delta page, so slicing to MAX_RELEVANCE_PROBES keeps the most material PEs.
-      const probeCodes = peCodes
-        .filter((code) => !set.has(code))
-        .slice(0, MAX_RELEVANCE_PROBES);
+      const probeCodes = peCodes.filter((code) => !set.has(code)).slice(0, MAX_RELEVANCE_PROBES);
       await Promise.all(
         probeCodes.map(async (peCode) => {
           try {
@@ -1540,7 +1581,12 @@ export class ProgramElementReadService {
       // slip past the guard and silently write $0 as the canonical value.
       const rawSource: string | number | null | undefined =
         input.decision === 'accept_conflicting' ? entry.conflictingValue : input.manualValue;
-      if (rawSource === null || rawSource === undefined || rawSource === '' || !Number.isFinite(Number(rawSource))) {
+      if (
+        rawSource === null ||
+        rawSource === undefined ||
+        rawSource === '' ||
+        !Number.isFinite(Number(rawSource))
+      ) {
         throw new BadRequestException(
           input.decision === 'manual_value'
             ? 'manualValue (number, in $ millions) is required for decision=manual_value'
@@ -1695,7 +1741,12 @@ export class ProgramElementReadService {
     const [directLinks, programLinks] = await Promise.all([
       this.prisma.provisionPeLink.findMany({
         where: { peCode: code, reviewStatus: { in: ['accepted', 'candidate'] } },
-        select: { matchBasis: true, reviewStatus: true, confidence: true, provision: { select: provisionSelect } },
+        select: {
+          matchBasis: true,
+          reviewStatus: true,
+          confidence: true,
+          provision: { select: provisionSelect },
+        },
       }),
       programIds.length
         ? this.prisma.provisionPeLink.findMany({
@@ -1703,7 +1754,12 @@ export class ProgramElementReadService {
               programId: { in: programIds },
               reviewStatus: { in: ['accepted', 'candidate'] },
             },
-            select: { matchBasis: true, reviewStatus: true, confidence: true, provision: { select: provisionSelect } },
+            select: {
+              matchBasis: true,
+              reviewStatus: true,
+              confidence: true,
+              provision: { select: provisionSelect },
+            },
           })
         : Promise.resolve([]),
     ]);

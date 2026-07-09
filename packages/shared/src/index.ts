@@ -1089,3 +1089,162 @@ export function classifyVoteResult(result: string | null | undefined): 'pass' | 
   if (/agreed to|passed|adopted|prevail/.test(t)) return 'pass';
   return null;
 }
+
+// ─────────────────────────────────────────────────────────────────────────
+// PE funding lifecycle — THE canonical per-FY "which stage counts" precedence.
+// The PE detail page (apps/web funding-model.ts) and every server-side funding
+// figure (finder list current, spark, summary trend, capability current) MUST
+// derive from THIS so no surface invents a divergent rule. Inlined here (not a
+// re-exported ./funding-model file) for the Rollup/CJS reason at the top of
+// this module. Pure + DB-free; all values are $ MILLIONS (program_element_year).
+// ─────────────────────────────────────────────────────────────────────────
+
+/** A point in the appropriations lifecycle a funding value can come from. */
+export type FundingStage =
+  | 'enacted'
+  | 'conference'
+  | 'sacd'
+  | 'hacd'
+  | 'sasc'
+  | 'hasc'
+  | 'request'
+  | 'none';
+
+/** Human-facing label for each funding stage (legends, tooltips, "Latest: …"). */
+export const FUNDING_STAGE_LABEL: Record<FundingStage, string> = {
+  enacted: 'Enacted',
+  conference: 'Conference',
+  sacd: 'SAC-D',
+  hacd: 'HAC-D',
+  sasc: 'SASC',
+  hasc: 'HASC',
+  request: 'Request',
+  none: 'No data',
+};
+
+/**
+ * Congressional-position precedence: furthest-along stage EXCLUDING the
+ * President's request, latest-stage first. Delta-vs-request uses this so a
+ * request-only year (no congressional action) has no "position".
+ */
+export const FUNDING_CONGRESSIONAL_PRECEDENCE = [
+  'enacted',
+  'conference',
+  'sacd',
+  'hacd',
+  'sasc',
+  'hasc',
+] as const satisfies readonly FundingStage[];
+
+/**
+ * "Current authoritative number" precedence: the congressional ladder, then the
+ * request as the baseline fallback. Drives the trajectory line, the bar chart,
+ * the finder headline, the spark, and the capability current.
+ */
+export const FUNDING_CURRENT_PRECEDENCE = [
+  ...FUNDING_CONGRESSIONAL_PRECEDENCE,
+  'request',
+] as const satisfies readonly FundingStage[];
+
+/** Per-FY stage values after numeric coercion. */
+export interface FundingStageValues {
+  request: number | null;
+  hascMark: number | null;
+  sascMark: number | null;
+  hacDMark: number | null;
+  sacDMark: number | null;
+  conference: number | null;
+  enacted: number | null;
+}
+
+export interface FundingPick {
+  value: number | null;
+  stage: FundingStage;
+}
+
+/** Map a stage key to its value in a FundingStageValues record. */
+export function fundingValueForStage(
+  values: FundingStageValues,
+  stage: FundingStage,
+): number | null {
+  switch (stage) {
+    case 'enacted':
+      return values.enacted;
+    case 'conference':
+      return values.conference;
+    case 'sacd':
+      return values.sacDMark;
+    case 'hacd':
+      return values.hacDMark;
+    case 'sasc':
+      return values.sascMark;
+    case 'hasc':
+      return values.hascMark;
+    case 'request':
+      return values.request;
+    case 'none':
+      return null;
+  }
+}
+
+/** Walk a precedence list and return the first stage that has a value. */
+export function pickFunding(
+  values: FundingStageValues,
+  precedence: readonly FundingStage[],
+): FundingPick {
+  for (const stage of precedence) {
+    const value = fundingValueForStage(values, stage);
+    if (value != null) return { value, stage };
+  }
+  return { value: null, stage: 'none' };
+}
+
+/** The furthest-along authoritative number for a year (request as fallback). */
+export function currentFunding(values: FundingStageValues): FundingPick {
+  return pickFunding(values, FUNDING_CURRENT_PRECEDENCE);
+}
+
+/** Congress's furthest-along position for a year, or {null,'none'} if none. */
+export function congressionalPosition(values: FundingStageValues): FundingPick {
+  return pickFunding(values, FUNDING_CONGRESSIONAL_PRECEDENCE);
+}
+
+/**
+ * DB column name (snake_case program_element_year) for each stage — lets the API
+ * GENERATE its SQL COALESCE ladder from FUNDING_CURRENT_PRECEDENCE instead of
+ * hand-ordering columns, so the server "current" can never drift from this
+ * precedence. 'none' has no column.
+ */
+export const FUNDING_STAGE_DB_COLUMN: Record<Exclude<FundingStage, 'none'>, string> = {
+  enacted: 'enacted',
+  conference: 'conference',
+  sacd: 'sac_d_mark',
+  hacd: 'hac_d_mark',
+  sasc: 'sasc_mark',
+  hasc: 'hasc_mark',
+  request: 'request',
+};
+
+/**
+ * Build a SQL `COALESCE(<prefix>enacted, <prefix>conference, …, <prefix>request)`
+ * fragment in the canonical current precedence order. Callers interpolate this
+ * only with a trusted table-alias prefix (e.g. "y.") — never user input.
+ */
+export function fundingCurrentCoalesceSql(prefix = ''): string {
+  const cols = FUNDING_CURRENT_PRECEDENCE.map((s) => `${prefix}${FUNDING_STAGE_DB_COLUMN[s]}`);
+  return `COALESCE(${cols.join(', ')})`;
+}
+
+/**
+ * Build a SQL `CASE WHEN <prefix>enacted IS NOT NULL THEN 'enacted' … ELSE 'none' END`
+ * that yields the winning FundingStage key in canonical current precedence — the
+ * stage counterpart to fundingCurrentCoalesceSql, so a server row can report
+ * WHICH stage its "current" value came from without shipping every column. Same
+ * trusted-prefix contract (no user input).
+ */
+export function fundingCurrentStageSql(prefix = ''): string {
+  const whens = FUNDING_CURRENT_PRECEDENCE.map(
+    (s) => `WHEN ${prefix}${FUNDING_STAGE_DB_COLUMN[s]} IS NOT NULL THEN '${s}'`,
+  );
+  return `CASE ${whens.join(' ')} ELSE 'none' END`;
+}

@@ -1,99 +1,53 @@
 /**
- * funding-model — the SINGLE source of truth for a Program Element's per-FY
- * funding lifecycle. Every funding visualization on the PE page (Overview
- * "Funding trajectory", the Funding-tab bar chart, the Congress-vs-request
- * delta bars) must derive from `buildFundingSeries` so they cannot disagree.
+ * funding-model — the PE detail page's per-FY funding lifecycle view-model.
  *
- * Before this module each chart re-invented its own "which stage counts" rule:
- * the Overview plotted enacted+request, the Funding bar blended
- * enacted→conference→request (ignoring committee marks — so a line Congress
- * marked at $1.5B but hasn't enacted showed a $0 bar), and the delta bars used
- * a third ladder. Same data, three answers. This model fixes the precedence in
- * one place.
+ * The canonical "which stage counts" precedence now lives in @capiro/shared
+ * (currentFunding / congressionalPosition / FUNDING_*_PRECEDENCE) so the API's
+ * server-side funding figures (finder list current, spark, capability current)
+ * and this page share ONE implementation and cannot drift. This module keeps
+ * the web-shaped `buildFundingSeries` (coerces the API's string|number|null
+ * money fields, returns a per-FY series) and re-exports the shared primitives
+ * under the historical names its importers already use.
  *
- * Pure + deterministic (no React, no I/O) so it is golden-fixture spec'd. All
- * dollar values are the canonical PE unit: MILLIONS (program_element_year is
+ * All dollar values are the canonical PE unit: MILLIONS (program_element_year is
  * stored in millions; this module never rescales).
  */
 import type { ProgramElementYearPoint } from './types.js';
+import {
+  FUNDING_STAGE_LABEL,
+  FUNDING_CURRENT_PRECEDENCE,
+  FUNDING_CONGRESSIONAL_PRECEDENCE,
+  currentFunding as sharedCurrentFunding,
+  congressionalPosition as sharedCongressionalPosition,
+  type FundingStage as SharedFundingStage,
+  type FundingPick,
+  type FundingStageValues,
+} from '@capiro/shared';
 
-/** A point in the appropriations lifecycle a funding value can come from. */
-export type FundingStage =
-  | 'enacted'
-  | 'conference'
-  | 'sacd'
-  | 'hacd'
-  | 'sasc'
-  | 'hasc'
-  | 'request'
-  | 'none';
+// Re-export the shared canonical primitives under this module's historical
+// names so existing importers (FyHistoryChart, ProgramElementWatchPage, tests)
+// are unchanged while the ONE implementation lives in @capiro/shared.
+export type FundingStage = SharedFundingStage;
+export type StagePick = FundingPick;
+export const STAGE_LABEL = FUNDING_STAGE_LABEL;
+export const CURRENT_PRECEDENCE = FUNDING_CURRENT_PRECEDENCE;
+export const CONGRESSIONAL_PRECEDENCE = FUNDING_CONGRESSIONAL_PRECEDENCE;
+export const currentFunding = sharedCurrentFunding;
+export const congressionalPosition = sharedCongressionalPosition;
 
-/** Human-facing label for each stage (legends, tooltips, "Latest: …"). */
-export const STAGE_LABEL: Record<FundingStage, string> = {
-  enacted: 'Enacted',
-  conference: 'Conference',
-  sacd: 'SAC-D',
-  hacd: 'HAC-D',
-  sasc: 'SASC',
-  hasc: 'HASC',
-  request: 'Request',
-  none: 'No data',
-};
-
-/**
- * Congressional-position precedence: the furthest-along point in the process,
- * EXCLUDING the President's request. Order = latest stage first. Used for the
- * delta-vs-request bars, which must stay null for years Congress hasn't touched
- * (a request-only year has no "position").
- */
-export const CONGRESSIONAL_PRECEDENCE = [
-  'enacted',
-  'conference',
-  'sacd',
-  'hacd',
-  'sasc',
-  'hasc',
-] as const satisfies readonly FundingStage[];
-
-/**
- * "Current authoritative number" precedence: the congressional ladder, then the
- * request as the baseline fallback. Used for the trajectory line + the bar
- * chart, which should always plot *something* when a request exists.
- */
-export const CURRENT_PRECEDENCE = [
-  ...CONGRESSIONAL_PRECEDENCE,
-  'request',
-] as const satisfies readonly FundingStage[];
-
-/** Per-FY stage values after numeric coercion. */
-interface StageValues {
-  request: number | null;
-  hascMark: number | null;
-  sascMark: number | null;
-  hacDMark: number | null;
-  sacDMark: number | null;
-  conference: number | null;
-  enacted: number | null;
-}
-
-export interface StagePick {
-  value: number | null;
-  stage: FundingStage;
-}
-
-export interface FundingPoint extends StageValues {
+export interface FundingPoint extends FundingStageValues {
   fy: number;
   /**
    * Furthest-along value INCLUDING the request fallback — what the trajectory
    * line and the bar chart plot. `stage` names where it came from. `value` is
    * null (stage 'none') only when the year carries no stage at all.
    */
-  current: StagePick;
+  current: FundingPick;
   /**
    * Furthest-along CONGRESSIONAL value, excluding the request. `value` null
    * (stage 'none') for request-only or empty years.
    */
-  congressional: StagePick;
+  congressional: FundingPick;
   /** congressional.value − request, when both exist; else null. + = Congress added. */
   deltaVsRequest: number | null;
 }
@@ -108,47 +62,6 @@ function toNum(v: string | number | null | undefined): number | null {
   return Number.isFinite(n) ? n : null;
 }
 
-/** Map a stage key to its value in a StageValues record. */
-function valueForStage(values: StageValues, stage: FundingStage): number | null {
-  switch (stage) {
-    case 'enacted':
-      return values.enacted;
-    case 'conference':
-      return values.conference;
-    case 'sacd':
-      return values.sacDMark;
-    case 'hacd':
-      return values.hacDMark;
-    case 'sasc':
-      return values.sascMark;
-    case 'hasc':
-      return values.hascMark;
-    case 'request':
-      return values.request;
-    case 'none':
-      return null;
-  }
-}
-
-/** Walk a precedence list and return the first stage that has a value. */
-function pick(values: StageValues, precedence: readonly FundingStage[]): StagePick {
-  for (const stage of precedence) {
-    const value = valueForStage(values, stage);
-    if (value != null) return { value, stage };
-  }
-  return { value: null, stage: 'none' };
-}
-
-/** The furthest-along authoritative number for a year (request as fallback). */
-export function currentFunding(values: StageValues): StagePick {
-  return pick(values, CURRENT_PRECEDENCE);
-}
-
-/** Congress's furthest-along position for a year, or {null,'none'} if none. */
-export function congressionalPosition(values: StageValues): StagePick {
-  return pick(values, CONGRESSIONAL_PRECEDENCE);
-}
-
 /**
  * Build the canonical per-FY funding series, sorted ascending by fiscal year.
  * Every funding chart consumes this — no chart re-derives stage precedence.
@@ -156,7 +69,7 @@ export function congressionalPosition(values: StageValues): StagePick {
 export function buildFundingSeries(years: ProgramElementYearPoint[]): FundingPoint[] {
   return [...years]
     .map((year): FundingPoint => {
-      const values: StageValues = {
+      const values: FundingStageValues = {
         request: toNum(year.request),
         hascMark: toNum(year.hascMark),
         sascMark: toNum(year.sascMark),

@@ -14,6 +14,7 @@ import {
   TierBadge,
 } from './pe-shared.js';
 import { fmtMoneyM } from './charts/index.js';
+import { STAGE_LABEL, type FundingStage } from './funding-model.js';
 import type { CapabilityRecommendation, CapabilitySummary } from './types.js';
 
 /**
@@ -65,9 +66,15 @@ function RecRow({
           <WedgeChip wedge={r.wedge} />
           <ServiceCell service={r.service} />
           <span className="pe-rec-money">
-            {r.latestRequest != null
-              ? `${fmtMoneyM(r.latestRequest)}${r.latestRequestFy ? ` · FY${String(r.latestRequestFy).slice(-2)}` : ''}`
-              : '—'}
+            {r.latestCurrent != null
+              ? `${fmtMoneyM(r.latestCurrent)}${r.latestCurrentFy ? ` · FY${String(r.latestCurrentFy).slice(-2)}` : ''}${
+                  r.latestCurrentStage && r.latestCurrentStage !== 'none'
+                    ? ` · ${STAGE_LABEL[r.latestCurrentStage as FundingStage] ?? r.latestCurrentStage}`
+                    : ''
+                }`
+              : r.latestRequest != null
+                ? `${fmtMoneyM(r.latestRequest)}${r.latestRequestFy ? ` · FY${String(r.latestRequestFy).slice(-2)}` : ''}`
+                : '—'}
           </span>
           {evidence}
         </div>

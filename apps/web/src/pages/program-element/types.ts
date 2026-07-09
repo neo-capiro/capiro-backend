@@ -131,6 +131,15 @@ export interface ProgramElementListItem {
   /** Most recent FY (and its value, $M) that carries a real enacted appropriation. */
   latestEnacted?: number | null;
   latestEnactedFy?: number | null;
+  /**
+   * Canonical "current" funding, $M — the furthest-along stage at the PE's
+   * latest year of record (enacted→conference→SAC-D→HAC-D→SASC→HASC→request),
+   * matching the detail page. `latestCurrentStage` is the FundingStage it came
+   * from so the headline can say which stage the number represents.
+   */
+  latestCurrent?: number | null;
+  latestCurrentFy?: number | null;
+  latestCurrentStage?: string | null;
   /** Enacted-vs-request % for the latest-enacted FY (Congress over/under the PB). */
   deltaPct?: number | null;
   /** Last 6 fiscal years of enacted-or-conference-or-request ($M), ascending, for the row sparkline. */
@@ -185,6 +194,10 @@ export interface CapabilityRecommendation {
   matchedOn: string;
   latestRequest: number | null;
   latestRequestFy: number | null;
+  /** Canonical current funding ($M) + the stage it came from — matches the PE detail page. */
+  latestCurrent: number | null;
+  latestCurrentFy: number | null;
+  latestCurrentStage: string | null;
 }
 
 export interface CapabilityRecommendationsResponse {

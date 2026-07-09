@@ -16,6 +16,7 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { Prisma } from '@prisma/client';
 import type { TenantContext } from '@capiro/shared';
+import { fundingCurrentCoalesceSql, fundingCurrentStageSql } from '@capiro/shared';
 import { PrismaService } from '../prisma/prisma.service.js';
 import { EMBEDDING_MODEL, embedText, vectorLiteral } from '../embeddings/embedder.js';
 
@@ -569,6 +570,47 @@ export class BudgetLinesReadService {
     };
   }
 
+  /**
+   * Canonical "current" funding per PE (value + fy + stage) at each PE's latest
+   * FY carrying ANY stage, using the SHARED funding precedence — so capability
+   * rows show the same authoritative number as the PE detail page instead of a
+   * request-only figure. Empty map for an empty code list.
+   */
+  private async latestCurrentByCode(
+    codes: string[],
+  ): Promise<
+    Map<string, { current: number | null; currentFy: number | null; currentStage: string | null }>
+  > {
+    if (codes.length === 0) return new Map();
+    const rows = await this.prisma.$queryRaw<
+      Array<{
+        peCode: string;
+        current: number | null;
+        currentFy: number | null;
+        currentStage: string | null;
+      }>
+    >(Prisma.sql`
+      SELECT y.pe_code AS "peCode",
+             ${Prisma.raw(fundingCurrentCoalesceSql('y.'))}::double precision AS current,
+             y.fy AS "currentFy",
+             ${Prisma.raw(fundingCurrentStageSql('y.'))} AS "currentStage"
+      FROM program_element_year y
+      JOIN (
+        SELECT pe_code, MAX(fy) AS fy
+        FROM program_element_year
+        WHERE ${Prisma.raw(fundingCurrentCoalesceSql(''))} IS NOT NULL
+          AND pe_code IN (${Prisma.join(codes)})
+        GROUP BY pe_code
+      ) latest ON latest.pe_code = y.pe_code AND latest.fy = y.fy
+    `);
+    return new Map(
+      rows.map((r) => [
+        r.peCode,
+        { current: r.current, currentFy: r.currentFy, currentStage: r.currentStage },
+      ]),
+    );
+  }
+
   async getCapabilityRecommendations(slug: string) {
     const cap = await this.prisma.capability.findUnique({ where: { slug } });
     if (!cap) return { capability: null, data: [] };
@@ -600,6 +642,7 @@ export class BudgetLinesReadService {
     const matchByCode = new Map(matches.map((m) => [m.peCode, m]));
     const cacheByCode = new Map(caches.map((c) => [c.peCode, c]));
     const reqByCode = new Map(latestRequests.map((r) => [r.peCode, r]));
+    const curByCode = await this.latestCurrentByCode(codes);
     const data = lines
       .map((l) => {
         const cache = cacheByCode.get(l.peCode);
@@ -621,6 +664,9 @@ export class BudgetLinesReadService {
           matchedOn: match.matchedOn,
           latestRequest: reqByCode.get(l.peCode)?.request ?? null,
           latestRequestFy: reqByCode.get(l.peCode)?.fy ?? null,
+          latestCurrent: curByCode.get(l.peCode)?.current ?? null,
+          latestCurrentFy: curByCode.get(l.peCode)?.currentFy ?? null,
+          latestCurrentStage: curByCode.get(l.peCode)?.currentStage ?? null,
         };
       })
       .sort((a, b) => (b.appropScore ?? -1) - (a.appropScore ?? -1));
@@ -704,6 +750,7 @@ export class BudgetLinesReadService {
     ]);
     const cacheByCode = new Map(caches.map((c) => [c.peCode, c]));
     const reqByCode = new Map(latestRequests.map((r) => [r.peCode, r]));
+    const curByCode = await this.latestCurrentByCode(codes);
     const data = lines
       .map((l) => {
         const cache = cacheByCode.get(l.peCode);
@@ -725,6 +772,9 @@ export class BudgetLinesReadService {
           matchedOn: `semantic:${Math.round(score * 100)}% mission similarity`,
           latestRequest: reqByCode.get(l.peCode)?.request ?? null,
           latestRequestFy: reqByCode.get(l.peCode)?.fy ?? null,
+          latestCurrent: curByCode.get(l.peCode)?.current ?? null,
+          latestCurrentFy: curByCode.get(l.peCode)?.currentFy ?? null,
+          latestCurrentStage: curByCode.get(l.peCode)?.currentStage ?? null,
         };
       })
       // Relevance order (semantic rank), NOT appropriability — this is a search.

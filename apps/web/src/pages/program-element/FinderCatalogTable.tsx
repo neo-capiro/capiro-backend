@@ -13,12 +13,13 @@ import {
   WatchStar,
 } from './pe-shared.js';
 import type { ProgramElementListItem } from './types.js';
+import { STAGE_LABEL, type FundingStage } from './funding-model.js';
 
 type SortKey =
   | 'peCode'
   | 'service'
   | 'latestRequest'
-  | 'latestEnacted'
+  | 'latestCurrent'
   | 'deltaPct'
   | 'maturity'
   | 'appropScore';
@@ -48,12 +49,23 @@ function compare(a: ProgramElementListItem, b: ProgramElementListItem, key: Sort
   return (av as number) - (bv as number);
 }
 
-function MoneyCell({ value, fy }: { value: number | null | undefined; fy: number | null | undefined }) {
+function MoneyCell({
+  value,
+  fy,
+  stage,
+}: {
+  value: number | null | undefined;
+  fy: number | null | undefined;
+  stage?: string | null;
+}) {
   if (value == null) return <span className="pe-dash">—</span>;
+  const stageLabel =
+    stage && stage !== 'none' ? (STAGE_LABEL[stage as FundingStage] ?? null) : null;
   return (
     <span className="pe-money-cell">
       <span className="pe-money-v">{fmtMoneyM(value)}</span>
       {fy ? <span className="pe-money-fy">FY{String(fy).slice(-2)}</span> : null}
+      {stageLabel ? <span className="pe-money-stage">{stageLabel}</span> : null}
     </span>
   );
 }
@@ -67,7 +79,7 @@ const HEADERS: Array<{
   { key: null, label: 'Type', align: 'c' },
   { key: 'service', label: 'Service', align: 'c' },
   { key: 'latestRequest', label: 'Request', align: 'r' },
-  { key: 'latestEnacted', label: 'Enacted', align: 'r' },
+  { key: 'latestCurrent', label: 'Current', align: 'r' },
   { key: 'deltaPct', label: 'Δ vs req', align: 'r' },
   { key: null, label: '6-yr', align: 'c' },
   { key: 'maturity', label: 'Maturity', align: 'c' },
@@ -95,9 +107,7 @@ export function FinderCatalogTable({ rows, loading, onOpen, onToggleWatch, watch
 
   const toggleSort = (key: SortKey) =>
     setSort((prev) =>
-      prev.key === key
-        ? { key, dir: prev.dir === 'desc' ? 'asc' : 'desc' }
-        : { key, dir: 'desc' },
+      prev.key === key ? { key, dir: prev.dir === 'desc' ? 'asc' : 'desc' } : { key, dir: 'desc' },
     );
 
   return (
@@ -111,7 +121,9 @@ export function FinderCatalogTable({ rows, loading, onOpen, onToggleWatch, watch
               className={`pe-th${h.align ? ` ${h.align}` : ''}`}
               onClick={() => toggleSort(h.key as SortKey)}
               role="columnheader"
-              aria-sort={sort.key === h.key ? (sort.dir === 'asc' ? 'ascending' : 'descending') : 'none'}
+              aria-sort={
+                sort.key === h.key ? (sort.dir === 'asc' ? 'ascending' : 'descending') : 'none'
+              }
             >
               {h.label}
               {sort.key === h.key ? (
@@ -143,9 +155,7 @@ export function FinderCatalogTable({ rows, loading, onOpen, onToggleWatch, watch
       ) : (
         sorted.map((pe) => {
           const trendUp =
-            pe.spark && pe.spark.length > 1
-              ? pe.spark[pe.spark.length - 1]! >= pe.spark[0]!
-              : true;
+            pe.spark && pe.spark.length > 1 ? pe.spark[pe.spark.length - 1]! >= pe.spark[0]! : true;
           return (
             <div
               key={pe.peCode}
@@ -176,7 +186,11 @@ export function FinderCatalogTable({ rows, loading, onOpen, onToggleWatch, watch
                 <MoneyCell value={pe.latestRequest} fy={pe.latestRequestFy} />
               </div>
               <div className="pe-td r pe-strong" role="cell">
-                <MoneyCell value={pe.latestEnacted} fy={pe.latestEnactedFy} />
+                <MoneyCell
+                  value={pe.latestCurrent}
+                  fy={pe.latestCurrentFy}
+                  stage={pe.latestCurrentStage}
+                />
               </div>
               <div
                 className={`pe-td r pe-num ${pe.deltaPct == null ? '' : pe.deltaPct >= 0 ? 'pe-up' : 'pe-down'}`}

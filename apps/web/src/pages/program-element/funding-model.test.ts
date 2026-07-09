@@ -8,6 +8,7 @@ import {
   CONGRESSIONAL_PRECEDENCE,
   type FundingStage,
 } from './funding-model.js';
+import { fundingCurrentCoalesceSql } from '@capiro/shared';
 import type { ProgramElementYearPoint } from './types.js';
 
 /** Build a sparse year point; `?? null` keeps an explicit 0 (E-7 FY27 request=0). */
@@ -255,5 +256,22 @@ describe('funding-model — cross-chart consistency invariants', () => {
         expect(p.current.value!).toBeCloseTo(p.congressional.value!, 6);
       }
     }
+  });
+});
+
+describe('shared SQL current-coalesce generation (API↔web drift guard)', () => {
+  // The API builds its server-side "current" COALESCE ladder from the SAME
+  // shared precedence via fundingCurrentCoalesceSql, so it cannot drift from the
+  // client model. This locks the generated column order + snake_case mapping.
+  it('emits the COALESCE ladder in canonical precedence order with a table prefix', () => {
+    expect(fundingCurrentCoalesceSql('y.')).toBe(
+      'COALESCE(y.enacted, y.conference, y.sac_d_mark, y.hac_d_mark, y.sasc_mark, y.hasc_mark, y.request)',
+    );
+  });
+
+  it('supports no prefix', () => {
+    expect(fundingCurrentCoalesceSql()).toBe(
+      'COALESCE(enacted, conference, sac_d_mark, hac_d_mark, sasc_mark, hasc_mark, request)',
+    );
   });
 });
