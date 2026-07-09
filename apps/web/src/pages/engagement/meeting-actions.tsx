@@ -4,7 +4,7 @@
 // in one module so the notetaker CONSENT COPY (compliance-reviewed) and the
 // join-link detection live in exactly one place and can't drift between pages.
 import { type ReactNode } from 'react';
-import { Button, Checkbox, Form, Input, Typography } from 'antd';
+import { Button, Checkbox, Form, Input, Tooltip, Typography } from 'antd';
 import { FileTextOutlined, RobotOutlined, VideoCameraOutlined } from '@ant-design/icons';
 
 // ── Join-link detection ─────────────────────────────────────────────────────
@@ -88,66 +88,102 @@ export interface MeetingActionInfo extends MeetingJoinInfo {
  *  - Notes: only when the meeting already has a saved debrief.
  * Renders nothing when a meeting offers none of these. Callbacks are bound by
  * the caller (which holds the full meeting object).
+ *
+ * Semantic colors so the actions read at a glance: Join = green (go/join, the
+ * live-meeting convention), Send Meri = brand navy (the Meri feature), Notes =
+ * neutral tonal (informational). `compact` renders icon-only buttons with
+ * tooltips for tight surfaces (the narrow home dashboard strip); otherwise
+ * icon + label for the roomier Engagement views.
  */
 export function MeetingQuickActions({
   meeting,
   onJoin,
   onSendNotetaker,
   onViewNotes,
+  compact = false,
 }: {
   meeting: MeetingActionInfo;
   onJoin: () => void;
   onSendNotetaker: () => void;
   onViewNotes: () => void;
+  compact?: boolean;
 }) {
   const ended = new Date(meeting.endsAt).getTime() < Date.now();
   const hasNotes = meeting.debriefs.length > 0;
   const canJoinOrRecord = !ended && Boolean(extractMeetingJoinUrl(meeting));
   if (!canJoinOrRecord && !hasNotes) return null;
+
+  const handler =
+    (fn: () => void) => (event: { stopPropagation: () => void; preventDefault: () => void }) => {
+      event.stopPropagation();
+      event.preventDefault();
+      fn();
+    };
+
+  const actions: Array<{
+    key: string;
+    label: string;
+    icon: ReactNode;
+    onClick: () => void;
+    color: 'green' | 'primary' | 'default';
+    variant: 'solid' | 'filled';
+  }> = [];
+  if (canJoinOrRecord) {
+    actions.push({
+      key: 'join',
+      label: 'Join',
+      icon: <VideoCameraOutlined />,
+      onClick: onJoin,
+      color: 'green',
+      variant: 'solid',
+    });
+    actions.push({
+      key: 'meri',
+      label: 'Send Meri',
+      icon: <RobotOutlined />,
+      onClick: onSendNotetaker,
+      color: 'primary',
+      variant: 'solid',
+    });
+  }
+  if (hasNotes) {
+    actions.push({
+      key: 'notes',
+      label: 'Notes',
+      icon: <FileTextOutlined />,
+      onClick: onViewNotes,
+      color: 'default',
+      variant: 'filled',
+    });
+  }
+
   return (
-    <div
-      className="engagement-meeting-quick-actions"
-      style={{ display: 'flex', flexWrap: 'wrap', gap: 6, marginTop: 6 }}
-    >
-      {canJoinOrRecord ? (
-        <Button
-          size="small"
-          icon={<VideoCameraOutlined />}
-          onClick={(event) => {
-            event.stopPropagation();
-            event.preventDefault();
-            onJoin();
-          }}
-        >
-          Join
-        </Button>
-      ) : null}
-      {canJoinOrRecord ? (
-        <Button
-          size="small"
-          icon={<RobotOutlined />}
-          onClick={(event) => {
-            event.stopPropagation();
-            event.preventDefault();
-            onSendNotetaker();
-          }}
-        >
-          Send Meri
-        </Button>
-      ) : null}
-      {hasNotes ? (
-        <Button
-          size="small"
-          icon={<FileTextOutlined />}
-          onClick={(event) => {
-            event.stopPropagation();
-            event.preventDefault();
-            onViewNotes();
-          }}
-        >
-          Notes
-        </Button>
-      ) : null}
+    <div className="engagement-meeting-quick-actions" style={{ display: 'flex', gap: 6 }}>
+      {actions.map((action) =>
+        compact ? (
+          <Tooltip key={action.key} title={action.label}>
+            <Button
+              size="small"
+              color={action.color}
+              variant={action.variant}
+              icon={action.icon}
+              aria-label={action.label}
+              onClick={handler(action.onClick)}
+            />
+          </Tooltip>
+        ) : (
+          <Button
+            key={action.key}
+            size="small"
+            color={action.color}
+            variant={action.variant}
+            icon={action.icon}
+            onClick={handler(action.onClick)}
+          >
+            {action.label}
+          </Button>
+        ),
+      )}
     </div>
   );
 }

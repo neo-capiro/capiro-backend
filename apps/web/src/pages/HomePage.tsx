@@ -681,6 +681,7 @@ function ClientEngagement({ meetings, loading }: { meetings: DashMeeting[]; load
                 </Link>
                 <MeetingQuickActions
                   meeting={m}
+                  compact
                   onJoin={() => openMeetingJoinLink(m)}
                   onSendNotetaker={() => openNotetaker(m)}
                   onViewNotes={() => setNotesMeetingId(m.id)}
