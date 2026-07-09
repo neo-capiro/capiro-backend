@@ -30,15 +30,25 @@ describe('MeriFeatureFlagsService.isMeriV2SurfaceEnabled', () => {
     ).resolves.toBe(false);
   });
 
-  test('with env on, defaults to false when the tenant flag is unset', async () => {
+  test('GA: with env on, defaults to TRUE when the tenant flag is unset', async () => {
     process.env.MERIV2_ENABLED = 'true';
     const svc = new MeriFeatureFlagsService(prismaWithSettings({}));
-    await expect(
-      svc.isMeriV2SurfaceEnabled('tenant-1', MERIV2_FLAGS.workspaceGen),
-    ).resolves.toBe(false);
+    await expect(svc.isMeriV2SurfaceEnabled('tenant-1', MERIV2_FLAGS.workspaceGen)).resolves.toBe(
+      true,
+    );
   });
 
-  test('true only when env on AND the per-tenant flag is on', async () => {
+  test('an explicit false opts the tenant OUT even with env on', async () => {
+    process.env.MERIV2_ENABLED = 'true';
+    const svc = new MeriFeatureFlagsService(
+      prismaWithSettings({ clioFeatureFlags: { [MERIV2_FLAGS.fullChat]: false } }),
+    );
+    await expect(svc.isMeriV2SurfaceEnabled('tenant-1', MERIV2_FLAGS.fullChat)).resolves.toBe(
+      false,
+    );
+  });
+
+  test('true when env on AND the per-tenant flag is on', async () => {
     process.env.MERIV2_ENABLED = 'true';
     const svc = new MeriFeatureFlagsService(
       prismaWithSettings({ clioFeatureFlags: { [MERIV2_FLAGS.inEditorAssistant]: true } }),

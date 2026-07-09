@@ -39,12 +39,18 @@ export class MeriFeatureFlagsService {
   /**
    * MeriV2 surface gate (P0-T3): a surface proxies to the meriv2-orchestrator
    * ONLY when the global MERIV2_ENABLED env kill-switch is on AND the per-tenant
-   * flag resolves true. Both default OFF, so existing surfaces run their
-   * in-process path unchanged (SC0.2) until a human flips both. Reuses the same
-   * 60s-cached `isEnabled` read, so a flip lands within the cache window (SC0.4).
+   * flag resolves true.
+   *
+   * GA (2026-07): MeriV2 is now the default for every tenant. The per-tenant
+   * flag defaults ON, so a tenant WITHOUT an explicit flag (including every
+   * future tenant, no matter which creation path made it) runs on MeriV2 as
+   * soon as MERIV2_ENABLED is set. To opt a tenant OUT, set the flag explicitly
+   * to `false` in settings_jsonb.clioFeatureFlags. MERIV2_ENABLED=false is still
+   * the instant global kill-switch. The 60s cache means a flip lands within a
+   * minute (SC0.4).
    */
   async isMeriV2SurfaceEnabled(tenantId: string, flag: MeriV2FlagKey): Promise<boolean> {
     if (!meriV2Enabled()) return false;
-    return this.isEnabled(tenantId, flag, false);
+    return this.isEnabled(tenantId, flag, true);
   }
 }

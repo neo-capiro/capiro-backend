@@ -7,9 +7,13 @@ import { PrismaService } from '../prisma/prisma.service.js';
  * The workspace service owns only ws_* tables, so it reads the per-tenant flag
  * directly from the shared `tenants` table via $queryRaw (mirroring the
  * tenants.settings_jsonb.clioFeatureFlags convention apps/api uses). ANDed with
- * the MERIV2_ENABLED env kill-switch; both default OFF → dormant (the existing
- * in-process generation path runs unchanged, SC0.2). 60s cache so a flip lands
- * within a minute (SC0.4).
+ * the MERIV2_ENABLED env kill-switch.
+ *
+ * GA (2026-07): the per-tenant flag defaults ON (matching apps/api), so a
+ * tenant without an explicit flag runs workspace-gen on MeriV2 once
+ * MERIV2_ENABLED is set. Opt out per tenant with an explicit `false`. A DB read
+ * FAILURE still falls back to the in-process path (conservative — a transient
+ * read error must not fan every tenant onto the proxy). 60s cache (SC0.4).
  */
 @Injectable()
 export class MeriV2FlagsService {
@@ -36,7 +40,9 @@ export class MeriV2FlagsService {
       const rows = await this.prisma.$queryRaw<Array<{ settings_jsonb: unknown }>>`
         SELECT settings_jsonb FROM tenants WHERE id = ${tenantId}::uuid LIMIT 1
       `;
-      on = readClioFlag(rows[0]?.settings_jsonb, MeriV2FlagsService.WORKSPACE_GEN_FLAG);
+      // GA default ON: absent flag → true. Read failure keeps `on = false`
+      // (the catch below), so the in-process path stays the failure fallback.
+      on = readClioFlag(rows[0]?.settings_jsonb, MeriV2FlagsService.WORKSPACE_GEN_FLAG, true);
     } catch (e) {
       this.logger.warn(`MeriV2 flag read failed: ${(e as Error).message}`);
       on = false;
@@ -46,7 +52,7 @@ export class MeriV2FlagsService {
   }
 }
 
-function readClioFlag(settings: unknown, flag: string): boolean {
+function readClioFlag(settings: unknown, flag: string, defaultValue = false): boolean {
   if (settings && typeof settings === 'object' && !Array.isArray(settings)) {
     const flags = (settings as Record<string, unknown>).clioFeatureFlags;
     if (flags && typeof flags === 'object' && !Array.isArray(flags)) {
@@ -54,5 +60,5 @@ function readClioFlag(settings: unknown, flag: string): boolean {
       if (typeof value === 'boolean') return value;
     }
   }
-  return false;
+  return defaultValue;
 }

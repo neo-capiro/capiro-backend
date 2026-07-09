@@ -8,8 +8,12 @@ import {
 
 describe('tenantFeatureEnabled', () => {
   test('reads explicit booleans from settings.clioFeatureFlags', () => {
-    expect(tenantFeatureEnabled({ clioFeatureFlags: { runAnalysis: true } }, 'runAnalysis', false)).toBe(true);
-    expect(tenantFeatureEnabled({ clioFeatureFlags: { runAnalysis: false } }, 'runAnalysis', true)).toBe(false);
+    expect(
+      tenantFeatureEnabled({ clioFeatureFlags: { runAnalysis: true } }, 'runAnalysis', false),
+    ).toBe(true);
+    expect(
+      tenantFeatureEnabled({ clioFeatureFlags: { runAnalysis: false } }, 'runAnalysis', true),
+    ).toBe(false);
   });
 
   test('falls back to the feature default when unset or malformed', () => {
@@ -17,7 +21,9 @@ describe('tenantFeatureEnabled', () => {
     expect(tenantFeatureEnabled({}, 'runAnalysis', true)).toBe(true);
     expect(tenantFeatureEnabled(null, 'runAnalysis', false)).toBe(false);
     expect(tenantFeatureEnabled({ clioFeatureFlags: 'oops' }, 'runAnalysis', true)).toBe(true);
-    expect(tenantFeatureEnabled({ clioFeatureFlags: { runAnalysis: 'yes' } }, 'x', false)).toBe(false);
+    expect(tenantFeatureEnabled({ clioFeatureFlags: { runAnalysis: 'yes' } }, 'x', false)).toBe(
+      false,
+    );
   });
 });
 
@@ -30,12 +36,13 @@ describe('meriV2Enabled (env kill-switch, default OFF)', () => {
   });
 });
 
-describe('meriV2FlagEnabled (env AND tenant flag, both default OFF)', () => {
+describe('meriV2FlagEnabled (GA: env kill-switch AND tenant flag default ON)', () => {
   const envOn = { MERIV2_ENABLED: 'true' } as NodeJS.ProcessEnv;
   const envOff = {} as NodeJS.ProcessEnv;
   const tenantOn = { clioFeatureFlags: { [MERIV2_FLAGS.inEditorAssistant]: true } };
+  const tenantOptedOut = { clioFeatureFlags: { [MERIV2_FLAGS.inEditorAssistant]: false } };
 
-  test('true only when BOTH the env switch and the tenant flag are on', () => {
+  test('on when the env switch is on and the tenant flag is on', () => {
     expect(meriV2FlagEnabled(tenantOn, MERIV2_FLAGS.inEditorAssistant, envOn)).toBe(true);
   });
 
@@ -43,8 +50,13 @@ describe('meriV2FlagEnabled (env AND tenant flag, both default OFF)', () => {
     expect(meriV2FlagEnabled(tenantOn, MERIV2_FLAGS.inEditorAssistant, envOff)).toBe(false);
   });
 
-  test('dormant by default when the tenant flag is absent', () => {
-    expect(meriV2FlagEnabled({}, MERIV2_FLAGS.inEditorAssistant, envOn)).toBe(false);
-    expect(meriV2FlagEnabled({}, MERIV2_FLAGS.workspaceGen, envOn)).toBe(false);
+  test('GA default ON when the tenant flag is absent (every tenant + future tenants)', () => {
+    expect(meriV2FlagEnabled({}, MERIV2_FLAGS.inEditorAssistant, envOn)).toBe(true);
+    expect(meriV2FlagEnabled({}, MERIV2_FLAGS.workspaceGen, envOn)).toBe(true);
+    expect(meriV2FlagEnabled({}, MERIV2_FLAGS.fullChat, envOn)).toBe(true);
+  });
+
+  test('explicit false opts a tenant OUT (overrides the GA default)', () => {
+    expect(meriV2FlagEnabled(tenantOptedOut, MERIV2_FLAGS.inEditorAssistant, envOn)).toBe(false);
   });
 });

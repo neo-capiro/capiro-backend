@@ -48,16 +48,17 @@ export function meriV2Enabled(env: NodeJS.ProcessEnv = process.env): boolean {
 }
 
 /**
- * A MeriV2 surface flag is active only when the env kill-switch is on AND the
- * per-tenant flag resolves true (tenant default false). Either side OFF →
- * dormant (the existing in-process path runs unchanged).
+ * A MeriV2 surface flag is active when the env kill-switch is on AND the
+ * per-tenant flag resolves true. GA (2026-07): the tenant flag defaults ON, so
+ * a tenant without an explicit flag is on MeriV2 whenever MERIV2_ENABLED is set
+ * — opt out with an explicit `false`. MERIV2_ENABLED off → dormant everywhere.
  */
 export function meriV2FlagEnabled(
   settings: unknown,
   flag: MeriV2FlagKey,
   env: NodeJS.ProcessEnv = process.env,
 ): boolean {
-  return meriV2Enabled(env) && tenantFeatureEnabled(settings, flag, false);
+  return meriV2Enabled(env) && tenantFeatureEnabled(settings, flag, true);
 }
 
 /**
