@@ -39,6 +39,20 @@ describe('deriveBillStatus', () => {
     ).toBe('floor');
   });
 
+  it('a FAILED own floor vote → failed even when the latest action text is procedural (the rule hres case)', () => {
+    expect(
+      deriveBillStatus({
+        latestActionText:
+          'POSTPONED PROCEEDINGS - The Chair put the question on the motion to reconsider.',
+        failedChamber: true,
+      }).status,
+    ).toBe('failed');
+    // ...but an actual passage still outranks a failed-vote signal.
+    expect(
+      deriveBillStatus({ latestActionText: 'x', passedChamber: true, failedChamber: true }).status,
+    ).toBe('passed_chamber');
+  });
+
   it('a real chamber-passage vote outranks rule state', () => {
     expect(
       deriveBillStatus({

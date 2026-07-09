@@ -139,32 +139,65 @@ model WatchlistMatch {
 /// A client's curated tracked bill + the lastSeen snapshot used by shadow change
 /// detection. billId is the raw congress_bill.id string (e.g. "119-hr-1234").
 model TrackedBill {
-  id                 String    @id @default(cuid())
-  tenantId           String    @map("tenant_id")
-  clientId           String    @map("client_id")
-  billId             String    @map("bill_id")
-  source             String    @default("congress") // 'congress'|'state'
-  note               String?
-  isManual           Boolean   @default(false) @map("is_manual")
-  trackedBy          String?   @map("tracked_by")
-  trackedAt          DateTime  @default(now()) @map("tracked_at")
-  stage              String?
-  lastSeenActionText String?   @map("last_seen_action_text")
-  lastSeenActionDate DateTime? @map("last_seen_action_date")
-  lastSeenAt         DateTime? @map("last_seen_at")
-  unread             Boolean   @default(false)
+  id                   String    @id @default(cuid())
+  tenantId             String    @map("tenant_id")
+  clientId             String    @map("client_id")
+  billId               String    @map("bill_id")
+  source               String    @default("congress") // 'congress'|'state'
+  note                 String?
+  isManual             Boolean   @default(false) @map("is_manual")
+  trackedBy            String?   @map("tracked_by")
+  trackedAt            DateTime  @default(now()) @map("tracked_at")
+  stage                String?
+  lastSeenActionText   String?   @map("last_seen_action_text")
+  lastSeenActionDate   DateTime? @map("last_seen_action_date")
+  lastSeenAt           DateTime? @map("last_seen_at")
+  // LegiWatch B watermarks — separate signals the action-text watermark can't
+  // see: canonical status transitions (rule_failed/passed_chamber), cosponsor
+  // count deltas (momentum), and text-version changes (updateDateIncludingText).
+  lastSeenStatus       String?   @map("last_seen_status")
+  lastSeenCosponsors   Int?      @map("last_seen_cosponsors")
+  lastSeenTextDate     DateTime? @map("last_seen_text_date")
+  // Last-alerted CBO estimate id / hearing id — gate B7 fiscal + B3 hearing to
+  // fire only on a genuinely new id (else pre-existing rows false-alert on the
+  // 2nd sweep and re-fire every 14 days). Baselined on the first B-sweep.
+  lastSeenFiscalId     String?   @map("last_seen_fiscal_id")
+  lastSeenHearingKey   String?   @map("last_seen_hearing_key")
+  unread               Boolean   @default(false)
   // Phase 6 (§9.2 step E): Board "discussed at hearing" badge. Set by the
   // bill-hearing linker; kept SEPARATE from the lastSeenAction* congress watermark
   // (which detect-bill-changes owns — clobbering it corrupts change detection).
-  lastHearingSessionId String? @map("last_hearing_session_id")
+  lastHearingSessionId String?   @map("last_hearing_session_id")
   lastHearingAt        DateTime? @map("last_hearing_at")
-  createdAt          DateTime  @default(now()) @map("created_at")
-  updatedAt          DateTime  @updatedAt @map("updated_at")
+  createdAt            DateTime  @default(now()) @map("created_at")
+  updatedAt            DateTime  @updatedAt @map("updated_at")
 
   @@unique([clientId, billId])
   @@index([tenantId, clientId])
   @@index([billId])
   @@map("intel_tracked_bill")
+}
+
+/// Per-(client,bill) recommendation-match snapshot (LegiWatch B1, new_match).
+/// Recommendations were compute-on-read only; this persists which bills have
+/// already crossed a client's watchlist fit floor, so the new-match detector
+/// can anti-join and fire exactly once per newly-matching bill (dedup = the
+/// unique key, not the 14-day window). NOT a tracked bill — a candidate the
+/// client has not yet added to the board.
+model BillMatch {
+  id          String   @id @default(cuid())
+  tenantId    String   @map("tenant_id")
+  clientId    String   @map("client_id")
+  billId      String   @map("bill_id")
+  fit         Float
+  matchedTags String[] @map("matched_tags")
+  congress    Int
+  firstSeenAt DateTime @default(now()) @map("first_seen_at")
+  lastFitAt   DateTime @default(now()) @map("last_fit_at")
+
+  @@unique([clientId, billId])
+  @@index([tenantId, clientId])
+  @@map("intel_bill_match")
 }
 
 // --- unified alert (bill + hearing + combined) ------------------------------
@@ -343,26 +376,26 @@ model IntelActionItem {
 /// this row is the ONLY write the parity task performs. `git_sha` attributes a
 /// green streak to a specific image.
 model IntelParityRun {
-  id                        String   @id @default(cuid())
-  runAt                     DateTime @default(now()) @map("run_at")
-  windowDays                Int      @map("window_days")
-  tenantScope               String   @map("tenant_scope") // 'all' | tenant slug/id
-  tenantId                  String?  @map("tenant_id")
-  clientCount               Int      @map("client_count")
-  legacyCount               Int      @map("legacy_count") //  |L|
-  intelCount                Int      @map("intel_count") //   |I|
-  intersection              Int //                            |L ∩ I|
-  overlap                   Float //                          Jaccard |∩|/|∪|
-  recall                    Float //                          |∩|/|L| (1.0 when |L|=0)
-  precision                 Float //                          |∩|/|I| (1.0 when |I|=0)
-  missedCriticals           Int      @map("missed_criticals")
-  severityCriticalMismatches Int     @map("severity_critical_mismatches")
-  maxScoreDelta             Float?   @map("max_score_delta") // null = not recomputed (legacy stores no fit)
-  p95ScoreDelta             Float?   @map("p95_score_delta")
-  passed                    Boolean
-  reason                    String? //                        e.g. NO_DATA, GATE_RED:<metric>
-  gitSha                    String?  @map("git_sha")
-  createdAt                 DateTime @default(now()) @map("created_at")
+  id                         String   @id @default(cuid())
+  runAt                      DateTime @default(now()) @map("run_at")
+  windowDays                 Int      @map("window_days")
+  tenantScope                String   @map("tenant_scope") // 'all' | tenant slug/id
+  tenantId                   String?  @map("tenant_id")
+  clientCount                Int      @map("client_count")
+  legacyCount                Int      @map("legacy_count") //  |L|
+  intelCount                 Int      @map("intel_count") //   |I|
+  intersection               Int //                            |L ∩ I|
+  overlap                    Float //                          Jaccard |∩|/|∪|
+  recall                     Float //                          |∩|/|L| (1.0 when |L|=0)
+  precision                  Float //                          |∩|/|I| (1.0 when |I|=0)
+  missedCriticals            Int      @map("missed_criticals")
+  severityCriticalMismatches Int      @map("severity_critical_mismatches")
+  maxScoreDelta              Float?   @map("max_score_delta") // null = not recomputed (legacy stores no fit)
+  p95ScoreDelta              Float?   @map("p95_score_delta")
+  passed                     Boolean
+  reason                     String? //                        e.g. NO_DATA, GATE_RED:<metric>
+  gitSha                     String?  @map("git_sha")
+  createdAt                  DateTime @default(now()) @map("created_at")
 
   @@index([tenantScope, runAt])
   @@map("intel_parity_run")
@@ -421,40 +454,40 @@ enum RecordingPolicy {
 /// apps/api-owned records (client, hearing, committee, bill, PE, agency) BY ID
 /// only — no cross-schema FK.
 model LiveHearingSession {
-  id                String                 @id @default(cuid())
-  tenantId          String                 @map("tenant_id")
-  clientId          String?                @map("client_id")
-  matterId          String?                @map("matter_id")
-  issueIds          String[]               @map("issue_ids")
-  hearingId         String?                @map("hearing_id")
-  committeeId       String?                @map("committee_id")
-  billIds           String[]               @map("bill_ids")
-  programElementIds String[]               @map("program_element_ids")
-  agencyIds         String[]               @map("agency_ids")
-  title             String
-  sourceType        LiveHearingSourceType  @map("source_type")
-  audioSource       LiveHearingAudioSource @map("audio_source")
+  id                 String                 @id @default(cuid())
+  tenantId           String                 @map("tenant_id")
+  clientId           String?                @map("client_id")
+  matterId           String?                @map("matter_id")
+  issueIds           String[]               @map("issue_ids")
+  hearingId          String?                @map("hearing_id")
+  committeeId        String?                @map("committee_id")
+  billIds            String[]               @map("bill_ids")
+  programElementIds  String[]               @map("program_element_ids")
+  agencyIds          String[]               @map("agency_ids")
+  title              String
+  sourceType         LiveHearingSourceType  @map("source_type")
+  audioSource        LiveHearingAudioSource @map("audio_source")
   // Optional direct media URL (HLS .m3u8 / MP3 / AAC / MP4) captured at session
   // creation so the Live Hearing Room pre-fills + auto-starts ingestion instead
   // of the user pasting it by hand. NULL = enter it in the room. Never a
   // congress.gov event page (that's not a stream); a real media URL from the
   // committee stream / C-SPAN.
-  sourceUrl         String?                @map("source_url")
-  status            LiveHearingStatus      @default(scheduled)
-  startedAt         DateTime?              @map("started_at")
-  endedAt           DateTime?              @map("ended_at")
-  consentStatus     ConsentStatus          @default(needs_review) @map("consent_status")
+  sourceUrl          String?                @map("source_url")
+  status             LiveHearingStatus      @default(scheduled)
+  startedAt          DateTime?              @map("started_at")
+  endedAt            DateTime?              @map("ended_at")
+  consentStatus      ConsentStatus          @default(needs_review) @map("consent_status")
   // Consent attestation audit (P8/D11): for PRIVATE sessions the operator's full
   // attestation text is a durable compliance artifact — persisted here (not just
   // logged/truncated), with who attested + when. NULL for public proceedings.
-  consentAttestation String?               @map("consent_attestation")
-  attestedBy         String?               @map("attested_by") // clerk user id
-  attestedAt         DateTime?             @map("attested_at")
-  recordingPolicy   RecordingPolicy        @default(transcript_only) @map("recording_policy")
-  claimMapId        String?                @map("claim_map_id")
-  createdBy         String                 @map("created_by") // clerk user id
-  createdAt         DateTime               @default(now()) @map("created_at")
-  updatedAt         DateTime               @updatedAt @map("updated_at")
+  consentAttestation String?                @map("consent_attestation")
+  attestedBy         String?                @map("attested_by") // clerk user id
+  attestedAt         DateTime?              @map("attested_at")
+  recordingPolicy    RecordingPolicy        @default(transcript_only) @map("recording_policy")
+  claimMapId         String?                @map("claim_map_id")
+  createdBy          String                 @map("created_by") // clerk user id
+  createdAt          DateTime               @default(now()) @map("created_at")
+  updatedAt          DateTime               @updatedAt @map("updated_at")
 
   transcriptSegments TranscriptSegment[]
   keyQuotes          KeyQuote[]
@@ -474,29 +507,29 @@ model LiveHearingSession {
 /// authTag + keyVersion. Non-sensitive public text MAY be stored as textPlain.
 /// NEVER both. Interim (non-final) transcripts are NOT persisted.
 model TranscriptSegment {
-  id                   String  @id @default(cuid())
-  sessionId            String  @map("session_id")
-  tenantId             String  @map("tenant_id") // denormalized for scope-safe queries
-  startMs              Int     @map("start_ms")
-  endMs                Int     @map("end_ms")
-  speakerLabel         String? @map("speaker_label")
-  resolvedSpeakerId    String? @map("resolved_speaker_id")
-  resolvedSpeakerName  String? @map("resolved_speaker_name")
-  isFinal              Boolean @default(false) @map("is_final")
+  id                   String   @id @default(cuid())
+  sessionId            String   @map("session_id")
+  tenantId             String   @map("tenant_id") // denormalized for scope-safe queries
+  startMs              Int      @map("start_ms")
+  endMs                Int      @map("end_ms")
+  speakerLabel         String?  @map("speaker_label")
+  resolvedSpeakerId    String?  @map("resolved_speaker_id")
+  resolvedSpeakerName  String?  @map("resolved_speaker_name")
+  isFinal              Boolean  @default(false) @map("is_final")
   confidence           Float?
-  source               String  @default("deepgram")
+  source               String   @default("deepgram")
   // Encrypted text (client-relevant):
-  textCiphertext       String? @map("text_ciphertext")
+  textCiphertext       String?  @map("text_ciphertext")
   iv                   String?
-  authTag              String? @map("auth_tag")
-  keyVersion           String? @map("key_version")
+  authTag              String?  @map("auth_tag")
+  keyVersion           String?  @map("key_version")
   // Plaintext text (non-client-relevant public hearing content only):
-  textPlain            String? @map("text_plain")
-  clientRelevanceScore Float?  @map("client_relevance_score")
+  textPlain            String?  @map("text_plain")
+  clientRelevanceScore Float?   @map("client_relevance_score")
   issueTags            String[] @map("issue_tags")
   createdAt            DateTime @default(now()) @map("created_at")
 
-  session  LiveHearingSession @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+  session   LiveHearingSession @relation(fields: [sessionId], references: [id], onDelete: Cascade)
   keyQuotes KeyQuote[]
 
   @@unique([sessionId, startMs, endMs])
@@ -510,21 +543,21 @@ model TranscriptSegment {
 /// A flagged quote worth saving. Points to a transcript segment + timestamp
 /// (satisfies SC5.6). Quote text inherits the segment's encryption posture.
 model KeyQuote {
-  id            String  @id @default(cuid())
-  sessionId     String  @map("session_id")
-  tenantId      String  @map("tenant_id")
-  segmentId     String  @map("segment_id")
-  startMs       Int     @map("start_ms")
-  speakerName   String? @map("speaker_name")
-  confidence    Float?
-  issueTags     String[] @map("issue_tags")
+  id             String   @id @default(cuid())
+  sessionId      String   @map("session_id")
+  tenantId       String   @map("tenant_id")
+  segmentId      String   @map("segment_id")
+  startMs        Int      @map("start_ms")
+  speakerName    String?  @map("speaker_name")
+  confidence     Float?
+  issueTags      String[] @map("issue_tags")
   // Encrypted quote text:
-  textCiphertext String? @map("text_ciphertext")
-  iv            String?
-  authTag       String? @map("auth_tag")
-  keyVersion    String? @map("key_version")
-  textPlain     String? @map("text_plain")
-  createdAt     DateTime @default(now()) @map("created_at")
+  textCiphertext String?  @map("text_ciphertext")
+  iv             String?
+  authTag        String?  @map("auth_tag")
+  keyVersion     String?  @map("key_version")
+  textPlain      String?  @map("text_plain")
+  createdAt      DateTime @default(now()) @map("created_at")
 
   session LiveHearingSession @relation(fields: [sessionId], references: [id], onDelete: Cascade)
   segment TranscriptSegment  @relation(fields: [segmentId], references: [id], onDelete: Cascade)
@@ -535,13 +568,13 @@ model KeyQuote {
 
 /// An action item / follow-up extracted from a hearing statement.
 model LiveActionItem {
-  id          String  @id @default(cuid())
-  sessionId   String  @map("session_id")
-  tenantId    String  @map("tenant_id")
-  segmentId   String? @map("segment_id")
-  startMs     Int?    @map("start_ms")
+  id          String   @id @default(cuid())
+  sessionId   String   @map("session_id")
+  tenantId    String   @map("tenant_id")
+  segmentId   String?  @map("segment_id")
+  startMs     Int?     @map("start_ms")
   description String
-  status      String  @default("open")
+  status      String   @default("open")
   createdAt   DateTime @default(now()) @map("created_at")
 
   session LiveHearingSession @relation(fields: [sessionId], references: [id], onDelete: Cascade)
@@ -553,13 +586,13 @@ model LiveActionItem {
 /// A policy entity detected in a segment (bill/client/PE/agency/office/company).
 /// entityRef is the canonical id (bill_id, committee_id, UEI, PE id, etc.).
 model EntityMention {
-  id          String  @id @default(cuid())
-  sessionId   String  @map("session_id")
-  tenantId    String  @map("tenant_id")
-  segmentId   String? @map("segment_id")
-  entityType  String  @map("entity_type")
-  entityRef   String? @map("entity_ref") // canonical id when resolved
-  entityLabel String  @map("entity_label")
+  id          String   @id @default(cuid())
+  sessionId   String   @map("session_id")
+  tenantId    String   @map("tenant_id")
+  segmentId   String?  @map("segment_id")
+  entityType  String   @map("entity_type")
+  entityRef   String?  @map("entity_ref") // canonical id when resolved
+  entityLabel String   @map("entity_label")
   confidence  Float?
   createdAt   DateTime @default(now()) @map("created_at")
 
@@ -572,14 +605,14 @@ model EntityMention {
 
 /// A live summary card pushed to the Live Hearing Room UI.
 model LiveSummaryCard {
-  id        String  @id @default(cuid())
-  sessionId String  @map("session_id")
-  tenantId  String  @map("tenant_id")
-  cardType  String  @map("card_type")
+  id        String   @id @default(cuid())
+  sessionId String   @map("session_id")
+  tenantId  String   @map("tenant_id")
+  cardType  String   @map("card_type")
   title     String
   body      String?
-  segmentId String? @map("segment_id")
-  startMs   Int?    @map("start_ms")
+  segmentId String?  @map("segment_id")
+  startMs   Int?     @map("start_ms")
   createdAt DateTime @default(now()) @map("created_at")
 
   session LiveHearingSession @relation(fields: [sessionId], references: [id], onDelete: Cascade)

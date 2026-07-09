@@ -59,7 +59,15 @@ export interface WatchlistView {
    */
   suggestedIssueAreas?: string[];
 }
-/** Legacy default alert triggers (apps/api tracker.types.DEFAULT_TRIGGERS). */
+/**
+ * Default alert triggers seeded on a new subscriber pref (kept in sync with
+ * apps/api tracker.types.DEFAULT_TRIGGERS). LegiWatch B deliberately turns
+ * `fiscalNote` + `sponsorMomentum` default-ON now that emitters exist for them
+ * (they were defined-but-dead before); `newMatch` and the text-changed→`amendment`
+ * key were already default-on. Existing subscribers pick these up via the
+ * idempotent `backfill-default-triggers` verb (they were never deliverable, so
+ * appending them can't clobber a deliberate opt-out).
+ */
 export const DEFAULT_TRIGGERS: readonly string[] = [
   'newMatch',
   'amendment',
@@ -67,6 +75,8 @@ export const DEFAULT_TRIGGERS: readonly string[] = [
   'committeeVote',
   'floorVote',
   'enactedFailed',
+  'fiscalNote',
+  'sponsorMomentum',
   'companion',
 ];
 

@@ -86,6 +86,17 @@ interface MeetingDetail {
     position?: string | null;
     organization?: string | null;
   }> | null;
+  // Bills/resolutions on the meeting agenda (LegiWatch B3). Congress.gov nests
+  // them under relatedItems.bills[]; the array is inlined in this same detail
+  // payload (previously fetched then dropped). Each carries type/number/congress.
+  relatedItems?: {
+    bills?: Array<{
+      type?: string | null; // "HR" | "S" | "HRES" | "HJRES" | ...
+      number?: number | string | null;
+      congress?: number | null;
+      url?: string | null;
+    }> | null;
+  } | null;
 }
 
 interface HearingListItem {
@@ -136,6 +147,37 @@ function safeDate(v: string | null | undefined): Date | null {
   return isNaN(d.getTime()) ? null : d;
 }
 
+/**
+ * Canonical congress_bill ids for the bills on a meeting agenda (LegiWatch B3),
+ * from the detail's relatedItems.bills[]. "HR"/"H.R." → "hr", so a
+ * {congress:119,type:"HR",number:8800} becomes "119-hr-8800" (soft ref — the
+ * bill may be untracked). Tolerant of the nested `{ bill: [...] }` envelope
+ * Congress.gov sometimes uses; skips rows missing any of the three keys.
+ */
+function relatedAgendaBills(d: MeetingDetail): Array<{ billId: string; congress: number }> {
+  const raw: unknown = d.relatedItems?.bills;
+  const arr: unknown[] = Array.isArray(raw)
+    ? raw
+    : Array.isArray((raw as { bill?: unknown[] } | null)?.bill)
+      ? ((raw as { bill: unknown[] }).bill ?? [])
+      : [];
+  const out: Array<{ billId: string; congress: number }> = [];
+  const seen = new Set<string>();
+  for (const b of arr as Array<{ type?: unknown; number?: unknown; congress?: unknown }>) {
+    const congress = Number(b?.congress);
+    const type = String(b?.type ?? '')
+      .toLowerCase()
+      .replace(/[.\s]/g, '');
+    const number = String(b?.number ?? '').trim();
+    if (!Number.isFinite(congress) || congress <= 0 || !type || !number) continue;
+    const billId = `${congress}-${type}-${number}`;
+    if (seen.has(billId)) continue;
+    seen.add(billId);
+    out.push({ billId, congress });
+  }
+  return out;
+}
+
 /** Format the time-of-day from an ISO datetime as "2:15 PM" (UTC). Congress.gov
  *  encodes hearing times as UTC wall-clock for the chamber; we render as-is. */
 function formatTime(iso: string | null | undefined): string | null {
@@ -177,9 +219,7 @@ function meetingPublicUrl(
   chamber: string,
   eventId: string,
 ): string | null {
-  const fromVideo = detail.videos?.find(
-    (v) => v.url && v.url.includes('congress.gov/event'),
-  )?.url;
+  const fromVideo = detail.videos?.find((v) => v.url && v.url.includes('congress.gov/event'))?.url;
   if (fromVideo) return fromVideo;
   const chamberSlug = chamber.toLowerCase();
   if (chamberSlug !== 'house' && chamberSlug !== 'senate') return null;
@@ -280,8 +320,20 @@ async function fetchHouseHtml(url: string): Promise<string | null> {
 }
 
 const ENTITIES: Record<string, string> = {
-  amp: '&', lt: '<', gt: '>', quot: '"', apos: "'", nbsp: ' ', rsquo: "'", lsquo: "'",
-  ldquo: '"', rdquo: '"', ndash: '-', mdash: '-', hellip: '...', '#39': "'",
+  amp: '&',
+  lt: '<',
+  gt: '>',
+  quot: '"',
+  apos: "'",
+  nbsp: ' ',
+  rsquo: "'",
+  lsquo: "'",
+  ldquo: '"',
+  rdquo: '"',
+  ndash: '-',
+  mdash: '-',
+  hellip: '...',
+  '#39': "'",
 };
 
 function decodeEntities(s: string): string {
@@ -395,6 +447,7 @@ async function main() {
   let meetingUpserts = 0;
   let meetingSkippedNoDate = 0;
   let meetingDetailFails = 0;
+  let hearingBillLinks = 0;
   let hearingUpserts = 0;
   let hearingSkippedNoDate = 0;
   let hearingDetailFails = 0;
@@ -473,6 +526,25 @@ async function main() {
               create: { id, ...row },
             });
             meetingUpserts++;
+
+            // B3: persist the meeting's agenda bills (relatedItems.bills[]),
+            // previously dropped. Idempotent on (hearingId, billId).
+            const agendaBills = relatedAgendaBills(d);
+            if (d.relatedItems?.bills && !agendaBills.length) {
+              // relatedItems present but nothing parsed → likely the {count,url}
+              // reference envelope, not inline. Log so we can add a sub-fetch.
+              console.warn(
+                `[hearings-sync] ${id}: relatedItems.bills present but 0 parsed (reference envelope?)`,
+              );
+            }
+            for (const rb of agendaBills) {
+              await prisma.committeeHearingBill.upsert({
+                where: { hearingId_billId: { hearingId: id, billId: rb.billId } },
+                update: { syncedAt: new Date() },
+                create: { hearingId: id, billId: rb.billId, congress: rb.congress },
+              });
+              hearingBillLinks++;
+            }
           }
 
           scanned += list.committeeMeetings.length;
@@ -598,7 +670,7 @@ async function main() {
       const totalUpserts = meetingUpserts + hearingUpserts + houseDocsUpserts;
       console.log(
         `[hearings-sync] DONE: meeting-upserts ${meetingUpserts}, hearing-upserts ${hearingUpserts}, ` +
-          `house-docs-upserts ${houseDocsUpserts}, ` +
+          `house-docs-upserts ${houseDocsUpserts}, agenda-bill-links ${hearingBillLinks}, ` +
           `skipped(no-date) ${meetingSkippedNoDate + hearingSkippedNoDate}, detail-fails ${meetingDetailFails + hearingDetailFails} ` +
           `in ${((Date.now() - t0) / 1000).toFixed(1)}s`,
       );

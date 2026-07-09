@@ -99,6 +99,7 @@ enum EngagementTaskStatus {
 
   @@map("engagement_task_status")
 }
+
 enum BillingStatus {
   none
   trialing
@@ -111,32 +112,32 @@ enum BillingStatus {
 }
 
 model Tenant {
-  id              String       @id @default(uuid()) @db.Uuid
-  slug            String       @unique @db.Citext
-  name            String
-  status          TenantStatus @default(pending)
-  plan            String?
-  settings        Json         @default("{}") @map("settings_jsonb")
-  kmsKeyArn       String?      @map("kms_key_arn")
-  soc2AuditWindow Json?        @map("soc2_audit_window")
+  id                     String        @id @default(uuid()) @db.Uuid
+  slug                   String        @unique @db.Citext
+  name                   String
+  status                 TenantStatus  @default(pending)
+  plan                   String?
+  settings               Json          @default("{}") @map("settings_jsonb")
+  kmsKeyArn              String?       @map("kms_key_arn")
+  soc2AuditWindow        Json?         @map("soc2_audit_window")
   // Clerk Organization id this tenant maps to. Populated by the
   // bootstrap-tenant script and used by the middleware to cross-check the
   // Clerk JWT's `org_id` claim against the tenant resolved via slug/UUID.
-  clerkOrgId      String?      @unique @map("clerk_org_id")
+  clerkOrgId             String?       @unique @map("clerk_org_id")
   // Brand assets, logo lives in S3 under `tenants/{id}/branding/...`.
   // Upload is gated to user_admin (own tenant) and capiro_admin (any tenant).
-  logoS3Key       String?      @map("logo_s3_key")
-  logoContentType String?      @map("logo_content_type")
-  logoUploadedAt  DateTime?    @map("logo_uploaded_at") @db.Timestamptz(6)
+  logoS3Key              String?       @map("logo_s3_key")
+  logoContentType        String?       @map("logo_content_type")
+  logoUploadedAt         DateTime?     @map("logo_uploaded_at") @db.Timestamptz(6)
   // Portfolio Tab v2 additions
-  accountType     String?      @map("account_type")
-  planTier        String       @default("FOUNDATION") @map("plan_tier")
+  accountType            String?       @map("account_type")
+  planTier               String        @default("FOUNDATION") @map("plan_tier")
   // Client→data association overhaul: the lobbying firm this tenant files as.
   // Anchors client→LDA resolution to this registrant's filings
   // (lda_filing.registrant_id), collapsing the candidate set from ~46k global
   // LDA clients to just the clients this firm has actually filed for.
-  ldaRegistrantId   Int?       @map("lda_registrant_id")
-  ldaRegistrantName String?    @map("lda_registrant_name")
+  ldaRegistrantId        Int?          @map("lda_registrant_id")
+  ldaRegistrantName      String?       @map("lda_registrant_name")
   // Billing (Stripe-direct). billingStatus gates the app + slot enforcement;
   // 'comped' (Capiro staff / promo) bypasses paywalls. clientSlots is the
   // purchased capacity (0 until first checkout); creating a client beyond it
@@ -164,8 +165,8 @@ model Tenant {
   /// Wire/ACH lockout (set/cleared by onboard-api's lifecycle cron when
   /// billing stays past_due beyond the window). Non-null = access suspended.
   lockedAt               DateTime?     @map("locked_at") @db.Timestamptz(6)
-  createdAt       DateTime     @default(now()) @map("created_at") @db.Timestamptz(6)
-  updatedAt       DateTime     @updatedAt @map("updated_at") @db.Timestamptz(6)
+  createdAt              DateTime      @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt              DateTime      @updatedAt @map("updated_at") @db.Timestamptz(6)
 
   memberships                  TenantMembership[]
   auditLogs                    AuditLog[]
@@ -228,27 +229,27 @@ model Tenant {
 }
 
 model User {
-  id          String    @id @default(uuid()) @db.Uuid
-  clerkUserId String    @unique @map("clerk_user_id")
-  email       String    @unique @db.Citext
-  firstName   String?   @map("first_name")
-  lastName    String?   @map("last_name")
+  id                    String    @id @default(uuid()) @db.Uuid
+  clerkUserId           String    @unique @map("clerk_user_id")
+  email                 String    @unique @db.Citext
+  firstName             String?   @map("first_name")
+  lastName              String?   @map("last_name")
   // Free-form job title displayed under the user's name in the top-right
   // profile widget. User-editable via /settings.
-  title       String?
+  title                 String?
   // Per-user HTML email signature appended to outbound outreach emails.
   // Server-sanitized (sanitize-signature.ts) on save; stored already-clean so
   // the send path can append it without re-stripping. `enabled` is the
   // append-by-default preference; each campaign can still override at send time.
-  emailSignatureHtml    String?  @map("email_signature_html")
-  emailSignatureEnabled Boolean  @default(false) @map("email_signature_enabled")
+  emailSignatureHtml    String?   @map("email_signature_html")
+  emailSignatureEnabled Boolean   @default(false) @map("email_signature_enabled")
   // Guided product tour (onboarding v1, Flow 2B.4): set when the user finishes
   // or skips the first-login tour; NULL = auto-launch on next dashboard load.
   // Server-side so the choice follows the user across devices.
-  tourCompletedAt DateTime? @map("tour_completed_at") @db.Timestamptz(6)
-  lastSeenAt  DateTime? @map("last_seen_at") @db.Timestamptz(6)
-  createdAt   DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
-  updatedAt   DateTime  @updatedAt @map("updated_at") @db.Timestamptz(6)
+  tourCompletedAt       DateTime? @map("tour_completed_at") @db.Timestamptz(6)
+  lastSeenAt            DateTime? @map("last_seen_at") @db.Timestamptz(6)
+  createdAt             DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt             DateTime  @updatedAt @map("updated_at") @db.Timestamptz(6)
 
   memberships               TenantMembership[]
   auditLogs                 AuditLog[]                     @relation("AuditActor")
@@ -276,19 +277,19 @@ model User {
 }
 
 model TenantMembership {
-  id        String           @id @default(uuid()) @db.Uuid
-  tenantId  String           @map("tenant_id") @db.Uuid
-  userId    String           @map("user_id") @db.Uuid
-  role      TenantRole
-  status    MembershipStatus @default(invited)
+  id           String           @id @default(uuid()) @db.Uuid
+  tenantId     String           @map("tenant_id") @db.Uuid
+  userId       String           @map("user_id") @db.Uuid
+  role         TenantRole
+  status       MembershipStatus @default(invited)
   /// The "Super Admin" permission bit (onboarding v1): view billing, purchase/
   /// upgrade slots. Only meaningful on role='user_admin'. Grantable by
   /// capiro_admin or an existing billing admin (Settings → Team).
-  billingAdmin Boolean @default(false) @map("billing_admin")
-  invitedBy String?          @map("invited_by") @db.Uuid
-  joinedAt  DateTime?        @map("joined_at") @db.Timestamptz(6)
-  createdAt DateTime         @default(now()) @map("created_at") @db.Timestamptz(6)
-  updatedAt DateTime         @updatedAt @map("updated_at") @db.Timestamptz(6)
+  billingAdmin Boolean          @default(false) @map("billing_admin")
+  invitedBy    String?          @map("invited_by") @db.Uuid
+  joinedAt     DateTime?        @map("joined_at") @db.Timestamptz(6)
+  createdAt    DateTime         @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt    DateTime         @updatedAt @map("updated_at") @db.Timestamptz(6)
 
   tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
   user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
@@ -1332,28 +1333,28 @@ model MeriActionApproval {
 /// executes due rows through the Clio tool engine with the task's tool allow-list.
 /// Scope mirrors ClioMemory ('firm' shared | 'user_private' owner-only). Tenant-cascade.
 model ClioScheduledTask {
-  id            String   @id @default(uuid()) @db.Uuid
-  tenantId      String   @map("tenant_id") @db.Uuid
-  ownerUserId   String   @map("owner_user_id") @db.Uuid
+  id              String    @id @default(uuid()) @db.Uuid
+  tenantId        String    @map("tenant_id") @db.Uuid
+  ownerUserId     String    @map("owner_user_id") @db.Uuid
   // 'firm' | 'user_private' (TEXT + app-level union, same rationale as ClioMemory).
-  scope         String   @default("user_private")
-  name          String   @db.VarChar(200)
+  scope           String    @default("user_private")
+  name            String    @db.VarChar(200)
   // The instruction Clio runs each tick (a natural-language prompt).
-  prompt        String   @db.Text
+  prompt          String    @db.Text
   // Cadence in minutes between runs (>=60 enforced at the tool layer).
-  intervalMinutes Int    @map("interval_minutes")
+  intervalMinutes Int       @map("interval_minutes")
   // JSON array of tool names this task is allowed to call. Defaults to read-only
   // research tools; side-effecting tools require explicit opt-in + confirm.
-  toolAllowList Json     @default("[]") @map("tool_allow_list")
-  enabled       Boolean  @default(true)
-  lastRunAt     DateTime? @map("last_run_at") @db.Timestamptz(6)
-  nextRunAt     DateTime @map("next_run_at") @db.Timestamptz(6)
-  lastStatus    String?  @map("last_status") @db.VarChar(20)
-  runCount      Int      @default(0) @map("run_count")
-  createdBy     String   @default("clio") @map("created_by") @db.VarChar(40)
-  metadata      Json     @default("{}") @map("metadata_jsonb")
-  createdAt     DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
-  updatedAt     DateTime @updatedAt @map("updated_at") @db.Timestamptz(6)
+  toolAllowList   Json      @default("[]") @map("tool_allow_list")
+  enabled         Boolean   @default(true)
+  lastRunAt       DateTime? @map("last_run_at") @db.Timestamptz(6)
+  nextRunAt       DateTime  @map("next_run_at") @db.Timestamptz(6)
+  lastStatus      String?   @map("last_status") @db.VarChar(20)
+  runCount        Int       @default(0) @map("run_count")
+  createdBy       String    @default("clio") @map("created_by") @db.VarChar(40)
+  metadata        Json      @default("{}") @map("metadata_jsonb")
+  createdAt       DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt       DateTime  @updatedAt @map("updated_at") @db.Timestamptz(6)
 
   tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
 
@@ -1405,7 +1406,7 @@ model ClioMcpServer {
   createdAt           DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
   updatedAt           DateTime  @updatedAt @map("updated_at") @db.Timestamptz(6)
 
-  tenant         Tenant                  @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  tenant          Tenant                  @relation(fields: [tenantId], references: [id], onDelete: Cascade)
   oauthCredential ClioMcpOAuthCredential?
 
   // Per-user uniqueness: two users can each add "Notion". Firm-wide rows have
@@ -1593,6 +1594,7 @@ model AuditLog {
   @@index([tenantId, action], map: "audit_logs_tenant_action_idx")
   @@map("audit_logs")
 }
+
 model ClientCapability {
   id                   String   @id @default(uuid()) @db.Uuid
   tenantId             String   @map("tenant_id") @db.Uuid
@@ -1790,6 +1792,7 @@ model ActionRecommendation {
   @@index([tenantId, clientId], map: "action_recommendation_tenant_client_idx")
   @@map("action_recommendation")
 }
+
 model EngagementCampaign {
   id              String    @id @default(uuid()) @db.Uuid
   tenantId        String    @map("tenant_id") @db.Uuid
@@ -2200,26 +2203,26 @@ model FecPacContribution {
 
 model CongressBill {
   // Bills from Congress.gov (118th and 119th Congress).
-  id               String    @id // e.g. "119-hr-1234"
-  congress         Int
-  billType         String    @map("bill_type")
-  billNumber       String    @map("bill_number")
-  title            String
-  introducedDate   DateTime? @map("introduced_date") @db.Date
-  sponsorName      String?   @map("sponsor_name")
-  sponsorState     String?   @map("sponsor_state")
-  sponsorParty     String?   @map("sponsor_party")
+  id                      String    @id // e.g. "119-hr-1234"
+  congress                Int
+  billType                String    @map("bill_type")
+  billNumber              String    @map("bill_number")
+  title                   String
+  introducedDate          DateTime? @map("introduced_date") @db.Date
+  sponsorName             String?   @map("sponsor_name")
+  sponsorState            String?   @map("sponsor_state")
+  sponsorParty            String?   @map("sponsor_party")
   // Canonical sponsor identity (Bucket-#3 C6.P6.1) — soft ref -> congress_member.bioguide_id
-  sponsorBioguideId String?  @map("sponsor_bioguide_id")
-  latestActionText String?   @map("latest_action_text")
-  latestActionDate DateTime? @map("latest_action_date") @db.Date
-  policyArea       String?   @map("policy_area")
-  subjects         String[]  @default([])
-  peCodes          String[]  @default([]) @map("pe_codes")
-  committees       Json      @default("[]")
-  cosponsorsCount  Int       @default(0) @map("cosponsors_count")
-  originChamber    String?   @map("origin_chamber")
-  updateDate       DateTime? @map("update_date") @db.Timestamptz(6)
+  sponsorBioguideId       String?   @map("sponsor_bioguide_id")
+  latestActionText        String?   @map("latest_action_text")
+  latestActionDate        DateTime? @map("latest_action_date") @db.Date
+  policyArea              String?   @map("policy_area")
+  subjects                String[]  @default([])
+  peCodes                 String[]  @default([]) @map("pe_codes")
+  committees              Json      @default("[]")
+  cosponsorsCount         Int       @default(0) @map("cosponsors_count")
+  originChamber           String?   @map("origin_chamber")
+  updateDate              DateTime? @map("update_date") @db.Timestamptz(6)
   // Advances when the bill TEXT changes even if no action fired (LegiWatch A3,
   // text-changed alert). Congress.gov returns it; we persist it now.
   updateDateIncludingText DateTime? @map("update_date_including_text") @db.Timestamptz(6)
@@ -2227,10 +2230,10 @@ model CongressBill {
   // (deriveBillStage in @capiro/shared) over action history + rule outcomes +
   // roll-call votes. e.g. introduced|committee|reported|rule_pending|
   // rule_failed|floor|passed_chamber|resolving|to_president|enacted|failed|vetoed
-  status           String?
-  statusAt         DateTime? @map("status_at") @db.Timestamptz(6)
-  url              String?
-  lastSyncedAt     DateTime  @default(now()) @map("last_synced_at") @db.Timestamptz(6)
+  status                  String?
+  statusAt                DateTime? @map("status_at") @db.Timestamptz(6)
+  url                     String?
+  lastSyncedAt            DateTime  @default(now()) @map("last_synced_at") @db.Timestamptz(6)
 
   actions       CongressBillAction[]
   committeeRefs CongressBillCommittee[]
@@ -2249,16 +2252,16 @@ model CongressBill {
 // populated by sync-congress from the bill-detail cboCostEstimates[] the sync
 // already fetches (zero extra API calls) + later the CBO RSS discovery job.
 model CboCostEstimate {
-  id          String   @id // CBO publication id parsed from the URL (e.g. "62540")
-  billId      String?  @map("bill_id") // soft ref -> congress_bill.id ("119-hr-8800")
-  congress    Int
-  billType    String   @map("bill_type")
-  billNumber  String   @map("bill_number")
-  title       String   @db.Text
-  description String?  @db.Text
-  pubDate     DateTime @map("pub_date") @db.Timestamptz(6)
-  cboUrl      String   @unique @map("cbo_url")
-  source      String   @default("congress-api") // 'congress-api' | 'cbo-rss'
+  id           String   @id // CBO publication id parsed from the URL (e.g. "62540")
+  billId       String?  @map("bill_id") // soft ref -> congress_bill.id ("119-hr-8800")
+  congress     Int
+  billType     String   @map("bill_type")
+  billNumber   String   @map("bill_number")
+  title        String   @db.Text
+  description  String?  @db.Text
+  pubDate      DateTime @map("pub_date") @db.Timestamptz(6)
+  cboUrl       String   @unique @map("cbo_url")
+  source       String   @default("congress-api") // 'congress-api' | 'cbo-rss'
   lastSyncedAt DateTime @default(now()) @map("last_synced_at") @db.Timestamptz(6)
 
   @@index([billId])
@@ -3781,6 +3784,25 @@ model CommitteeHearing {
   @@map("committee_hearing")
 }
 
+// Hearing → bill agenda link (LegiWatch B3). GLOBAL public-record table, no
+// tenant_id / no RLS — same posture as committee_hearing. sync-hearings reads
+// the committee-meeting detail's `relatedItems.bills[]` (already fetched, was
+// dropped) and writes one row per (hearing, bill) on the agenda. billId is a
+// SOFT ref to congress_bill.id ("119-hr-8800") — a meeting can list a bill we
+// don't track. intel-api's detector joins tracked bills × upcoming hearings
+// here to fire the `bill_hearing_scheduled` alert.
+model CommitteeHearingBill {
+  id        String   @id @default(uuid())
+  hearingId String   @map("hearing_id") // → committee_hearing.id
+  billId    String   @map("bill_id") // soft ref → congress_bill.id
+  congress  Int
+  syncedAt  DateTime @default(now()) @map("synced_at") @db.Timestamptz(6)
+
+  @@unique([hearingId, billId])
+  @@index([billId])
+  @@map("committee_hearing_bill")
+}
+
 // ─────────────────────────────────────────────────────────────────────────
 // OfficialHearingTranscript — Track B (H2): the OFFICIAL published hearing
 // transcript TEXT, ingested from GovInfo's Congressional Hearings (CHRG)
@@ -4157,34 +4179,34 @@ model PeProgramMatch {
 /// Loaded by sync-sam-opportunities (DoD-filtered, incremental). Global table —
 /// no tenant_id, no RLS (federal reference data, same as federal_award).
 model SamOpportunity {
-  id                  String    @id @default(uuid()) @db.Uuid
+  id                 String    @id @default(uuid()) @db.Uuid
   /// SAM.gov noticeId — stable idempotency key.
-  noticeId            String    @unique @map("notice_id")
-  solicitationNumber  String?   @map("solicitation_number")
-  title               String
+  noticeId           String    @unique @map("notice_id")
+  solicitationNumber String?   @map("solicitation_number")
+  title              String
   /// SAM.gov notice type (e.g. 'Solicitation', 'Combined Synopsis/Solicitation',
   /// 'Presolicitation', 'Sources Sought', 'Award Notice').
-  noticeType          String    @map("notice_type") @db.VarChar(32)
-  agency              String?
-  office              String?
+  noticeType         String    @map("notice_type") @db.VarChar(32)
+  agency             String?
+  office             String?
   /// Product/Service Code.
-  pscCode             String?   @map("psc_code") @db.VarChar(8)
-  naicsCode           String?   @map("naics_code") @db.VarChar(8)
-  postedDate          DateTime? @map("posted_date") @db.Timestamptz(6)
-  responseDeadline    DateTime? @map("response_deadline") @db.Timestamptz(6)
-  archiveDate         DateTime? @map("archive_date") @db.Timestamptz(6)
-  description         String?   @db.Text
+  pscCode            String?   @map("psc_code") @db.VarChar(8)
+  naicsCode          String?   @map("naics_code") @db.VarChar(8)
+  postedDate         DateTime? @map("posted_date") @db.Timestamptz(6)
+  responseDeadline   DateTime? @map("response_deadline") @db.Timestamptz(6)
+  archiveDate        DateTime? @map("archive_date") @db.Timestamptz(6)
+  description        String?   @db.Text
   /// Primary point-of-contact name (public header field).
-  pocName             String?   @map("poc_name")
-  pocEmail            String?   @map("poc_email")
-  placeOfPerformance  Json      @default("{}") @map("place_of_performance_jsonb")
-  sourceUrl           String?   @map("source_url")
+  pocName            String?   @map("poc_name")
+  pocEmail           String?   @map("poc_email")
+  placeOfPerformance Json      @default("{}") @map("place_of_performance_jsonb")
+  sourceUrl          String?   @map("source_url")
   /// Derived from archiveDate: false once the notice's archive date has passed.
-  active              Boolean   @default(true)
-  raw                 Json      @default("{}") @map("raw_jsonb")
-  lastSyncedAt        DateTime  @default(now()) @map("last_synced_at") @db.Timestamptz(6)
-  createdAt           DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
-  updatedAt           DateTime  @updatedAt @map("updated_at") @db.Timestamptz(6)
+  active             Boolean   @default(true)
+  raw                Json      @default("{}") @map("raw_jsonb")
+  lastSyncedAt       DateTime  @default(now()) @map("last_synced_at") @db.Timestamptz(6)
+  createdAt          DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt          DateTime  @updatedAt @map("updated_at") @db.Timestamptz(6)
 
   matches SamOpportunityMatch[]
 

@@ -1,15 +1,38 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service.js';
-import { SourceDataRepository, type SourceBill } from '../sourcedata/source-data.repository.js';
+import {
+  SourceDataRepository,
+  type SourceBill,
+  type SourceRuleVote,
+  type SourceFiscalNote,
+  type SourceCosponsorMomentum,
+  type SourceHearingForBill,
+} from '../sourcedata/source-data.repository.js';
 import {
   classifyChange,
+  classifyStatusChange,
+  cosponsorMomentumClass,
+  dedupeByChangeType,
+  parseTally,
   selectMaterialEvents,
   severityToMateriality,
+  FISCAL_NOTE_CLASS,
+  TEXT_CHANGED_CLASS,
+  HEARING_SCHEDULED_CLASS,
   type ActionLike,
   type MaterialEvent,
 } from './change-detector.util.js';
 import { explainMatch, humanizeBillId, type WatchlistLike } from './relevance.util.js';
 import { scoreShadowAlert } from '../intel-alert/alert-scorer.js';
+
+/** Minimum new-cosponsors-in-7d to fire a momentum alert (plan B8 default 5). */
+const COSPONSOR_MOMENTUM_MIN_7D = (() => {
+  const n = Number(process.env.LEGIWATCH_COSPONSOR_MIN_7D);
+  return Number.isFinite(n) && n > 0 ? Math.floor(n) : 5;
+})();
+/** Rolling window (days) for the CBO-fiscal-note sweep — matches the 14-day alert dedup. */
+const DERIVED_WINDOW_DAYS = 14;
+const COSPONSOR_WINDOW_DAYS = 7;
 
 /**
  * Shadow bill-change detector (Phase 3, plan §6.3) — a faithful port of legacy
@@ -37,6 +60,27 @@ type TrackedRow = {
   lastSeenActionText: string | null;
   lastSeenActionDate: Date | null;
   lastSeenAt: Date | null;
+  // LegiWatch B derived-signal watermarks (advance atomically with the action
+  // watermark in snapshot()); null on legacy rows until the first sweep baselines.
+  lastSeenStatus: string | null;
+  lastSeenCosponsors: number | null;
+  lastSeenTextDate: Date | null;
+  // Last-alerted CBO estimate id / soonest-hearing id — B7/B3 fire only on a new
+  // id, so a pre-existing estimate/hearing can't false-alert and neither re-fires
+  // every time the 14-day alert-dedup window lapses.
+  lastSeenFiscalId: string | null;
+  lastSeenHearingKey: string | null;
+};
+
+/** The watermarks snapshot() persists together (retry-safe: only after every event is durably written). */
+type Watermark = {
+  actionText: string | null;
+  actionDate: Date | null;
+  status: string | null;
+  cosponsors: number | null;
+  textDate: Date | null;
+  fiscalId: string | null;
+  hearingKey: string | null;
 };
 
 export interface DetectionSummary {
@@ -82,6 +126,11 @@ export class BillChangeDetectorService {
           lastSeenActionText: true,
           lastSeenActionDate: true,
           lastSeenAt: true,
+          lastSeenStatus: true,
+          lastSeenCosponsors: true,
+          lastSeenTextDate: true,
+          lastSeenFiscalId: true,
+          lastSeenHearingKey: true,
         },
       }),
     );
@@ -101,6 +150,28 @@ export class BillChangeDetectorService {
       }
     }
 
+    // ── LegiWatch B: batch-fetch the GLOBAL derived signals the action-text
+    // watermark can't see. All keyed by billId; RLS-free reads (SourceDataRepo).
+    const ruleVoteByBill = new Map<string, SourceRuleVote>();
+    for (const rv of await this.source.getGoverningRuleVotes(billIds)) {
+      ruleVoteByBill.set(rv.targetBillId, rv); // DISTINCT ON gives the latest rule vote per target
+    }
+    const fiscalByBill = new Map<string, SourceFiscalNote>();
+    const fiscalSince = new Date(Date.now() - DERIVED_WINDOW_DAYS * 86_400_000).toISOString();
+    for (const fn of await this.source.getNewFiscalNotes(billIds, fiscalSince)) {
+      if (fn.billId && !fiscalByBill.has(fn.billId)) fiscalByBill.set(fn.billId, fn); // newest-first → keep first
+    }
+    const cosponsorByBill = new Map<string, SourceCosponsorMomentum>();
+    for (const cm of await this.source.getCosponsorMomentum(billIds, COSPONSOR_WINDOW_DAYS)) {
+      cosponsorByBill.set(cm.billId, cm);
+    }
+    const hearingByBill = new Map<string, SourceHearingForBill[]>();
+    for (const h of await this.source.getUpcomingHearingsForBills(billIds)) {
+      const arr = hearingByBill.get(h.billId) ?? [];
+      arr.push(h);
+      hearingByBill.set(h.billId, arr);
+    }
+
     const watchlistByClient = new Map<string, WatchlistLike>();
     let baseline = 0;
     let changed = 0;
@@ -112,42 +183,107 @@ export class BillChangeDetectorService {
       const bill = billById.get(row.billId);
       if (!bill) continue;
 
-      // First sighting → baseline the snapshot, never alert on historical state.
+      const cm = cosponsorByBill.get(row.billId);
+      const fn = fiscalByBill.get(row.billId);
+      // The soonest upcoming hearing for this bill (B3) — computed once here so
+      // the watermark and the emitter agree on which hearing is "current".
+      const hearings = hearingByBill.get(row.billId);
+      const soonestHearing =
+        hearings && hearings.length
+          ? hearings.reduce((a, b) =>
+              (a.date?.getTime() ?? Infinity) <= (b.date?.getTime() ?? Infinity) ? a : b,
+            )
+          : undefined;
+      // The watermark we'll persist for this row this cycle (all signals). Fiscal
+      // and hearing keep their prior value when nothing current exists, so an
+      // estimate aging out of the 14-day window / a hearing passing is not seen
+      // as a "change".
+      const target: Watermark = {
+        actionText: bill.latestActionText,
+        actionDate: bill.latestActionDate,
+        status: bill.status ?? null,
+        cosponsors: cm?.liveCount ?? bill.cosponsorsCount ?? null,
+        textDate: bill.updateDateIncludingText,
+        fiscalId: fn?.cboId ?? row.lastSeenFiscalId ?? null,
+        hearingKey: soonestHearing?.hearingId ?? row.lastSeenHearingKey ?? null,
+      };
+
+      // First sighting → baseline ALL watermarks, never alert on historical state.
       if (!row.lastSeenAt) {
-        await this.snapshot(row.tenantId, row.id, bill.latestActionText, bill.latestActionDate);
+        await this.snapshot(row.tenantId, row.id, target);
         baseline += 1;
         continue;
       }
 
+      // Legacy rows predate the B watermarks (all three null). Their action
+      // watermark is already baselined, so the action-text path runs as before,
+      // but we suppress derived emission on this first B-sweep — the derived
+      // signals get baselined by the snapshot below instead of alerting on
+      // pre-existing state (Workstream-E "baseline then detect").
+      const derivedBaselined =
+        row.lastSeenStatus != null ||
+        row.lastSeenCosponsors != null ||
+        row.lastSeenTextDate != null;
+
+      // ── action-text events (unchanged legacy behavior) ──
       const textChanged = (bill.latestActionText ?? '') !== (row.lastSeenActionText ?? '');
       const dateAdvanced =
         bill.latestActionDate != null &&
         (row.lastSeenActionDate == null ||
           bill.latestActionDate.getTime() > row.lastSeenActionDate.getTime());
-      if (!textChanged && !dateAdvanced) continue;
-
-      let events: MaterialEvent[];
-      if (scanHistory) {
-        const newActions = (actionsByBill.get(row.billId) ?? []).filter(
-          (a) =>
-            a.date != null &&
-            (row.lastSeenActionDate == null || a.date.getTime() > row.lastSeenActionDate.getTime()),
-        );
-        const latest: ActionLike | null =
-          bill.latestActionText != null || bill.latestActionDate != null
-            ? { date: bill.latestActionDate, text: bill.latestActionText }
-            : null;
-        events = selectMaterialEvents(newActions, latest);
-      } else {
-        const cls = classifyChange(bill.latestActionText);
-        events = cls
-          ? [{ cls, text: bill.latestActionText ?? '', date: bill.latestActionDate }]
-          : [];
+      let actionEvents: MaterialEvent[] = [];
+      if (textChanged || dateAdvanced) {
+        if (scanHistory) {
+          const newActions = (actionsByBill.get(row.billId) ?? []).filter(
+            (a) =>
+              a.date != null &&
+              (row.lastSeenActionDate == null ||
+                a.date.getTime() > row.lastSeenActionDate.getTime()),
+          );
+          const latest: ActionLike | null =
+            bill.latestActionText != null || bill.latestActionDate != null
+              ? { date: bill.latestActionDate, text: bill.latestActionText }
+              : null;
+          actionEvents = selectMaterialEvents(newActions, latest);
+        } else {
+          const cls = classifyChange(bill.latestActionText);
+          actionEvents = cls
+            ? [{ cls, text: bill.latestActionText ?? '', date: bill.latestActionDate }]
+            : [];
+        }
+        // B4: enrich committee/floor-vote events with the {yeas, nays} tally the
+        // action text carries, so the alert quote shows the numbers. No-op for
+        // non-vote actions (parseTally requires a vote phrase + dash tally).
+        for (const ev of actionEvents) {
+          const tally = parseTally(ev.text);
+          if (tally) ev.extra = { ...(ev.extra ?? {}), yeas: tally.yeas, nays: tally.nays };
+        }
       }
 
+      // ── derived events (B5 rule status, B7 fiscal, B8 momentum, B2 text, B3 hearing) ──
+      const derivedEvents = derivedBaselined
+        ? this.buildDerivedEvents(row, bill, cm, fn, soonestHearing, ruleVoteByBill)
+        : [];
+
+      // Derived changeTypes are disjoint from action-text ones; dedupe defensively,
+      // derived-first so the more-specific signal wins any future collision.
+      const events = dedupeByChangeType([...derivedEvents, ...actionEvents]);
+
+      const watermarkMoved =
+        target.actionText !== (row.lastSeenActionText ?? null) ||
+        (target.actionDate?.getTime() ?? null) !== (row.lastSeenActionDate?.getTime() ?? null) ||
+        target.status !== (row.lastSeenStatus ?? null) ||
+        target.cosponsors !== (row.lastSeenCosponsors ?? null) ||
+        (target.textDate?.getTime() ?? null) !== (row.lastSeenTextDate?.getTime() ?? null) ||
+        target.fiscalId !== (row.lastSeenFiscalId ?? null) ||
+        target.hearingKey !== (row.lastSeenHearingKey ?? null);
+
       if (!events.length) {
-        // Routine churn — advance the snapshot, no alert.
-        await this.snapshot(row.tenantId, row.id, bill.latestActionText, bill.latestActionDate);
+        // No material event. Advance the watermark if anything moved, or if we
+        // still owe this row its derived baseline; otherwise fast-path skip.
+        if (watermarkMoved || !derivedBaselined) {
+          await this.snapshot(row.tenantId, row.id, target);
+        }
         continue;
       }
 
@@ -183,7 +319,7 @@ export class BillChangeDetectorService {
           }
         }
         // Advance snapshot only after every event was durably written (retry-safe).
-        await this.snapshot(row.tenantId, row.id, bill.latestActionText, bill.latestActionDate);
+        await this.snapshot(row.tenantId, row.id, target);
         changed += 1;
       } catch (e) {
         this.logger.error(
@@ -193,6 +329,136 @@ export class BillChangeDetectorService {
     }
 
     return { scanned: tracked.length, baseline, changed, alertsWritten, skippedDedup, byType };
+  }
+
+  /**
+   * Build the derived (non-action-text) events for one tracked row against its
+   * watermark. Each returns at most one event per type; the emit loop applies
+   * the 14-day per-(client,bill,changeType) dedup on top. Detail strings become
+   * the alert's `evidence.actionText` (the "from the record" quote in Workstream C).
+   */
+  private buildDerivedEvents(
+    row: TrackedRow,
+    bill: SourceBill,
+    cm: SourceCosponsorMomentum | undefined,
+    fn: SourceFiscalNote | undefined,
+    soonestHearing: SourceHearingForBill | undefined,
+    ruleVoteByBill: Map<string, SourceRuleVote>,
+  ): MaterialEvent[] {
+    const out: MaterialEvent[] = [];
+    const displayNum = humanizeBillId(row.billId);
+
+    // B5 — canonical status transition the action-text timeline never shows:
+    // a governing rule failing (stalls the bill) or being adopted (→ floor).
+    const statusChanged = (bill.status ?? null) !== (row.lastSeenStatus ?? null);
+    const scls = classifyStatusChange(bill.status);
+    if (statusChanged && scls) {
+      const rv = ruleVoteByBill.get(row.billId);
+      out.push({
+        cls: scls,
+        text: rv ? this.ruleVoteSentence(displayNum, rv) : `${displayNum}: ${scls.label}.`,
+        date: rv?.voteDate ?? bill.statusAt ?? null,
+        sourceUrl: rv?.sourceUrl ?? null,
+        extra: rv
+          ? {
+              ruleBillId: rv.ruleBillId,
+              rollNumber: rv.rollNumber,
+              chamber: rv.chamber,
+              result: rv.result,
+              yeas: rv.yeas,
+              nays: rv.nays,
+              question: rv.question,
+            }
+          : undefined,
+      });
+    }
+
+    // B7 — a NEW CBO cost estimate for this bill: fire only when the estimate id
+    // differs from the last one we alerted (the watermark). A pre-existing
+    // estimate present at baseline shares the id we snapshot, so it never
+    // false-alerts, and it can't re-fire every 14 days.
+    if (fn && fn.cboId !== (row.lastSeenFiscalId ?? null)) {
+      const firstSentence = (fn.description ?? '').split(/(?<=[.!?])\s/)[0]?.trim() ?? '';
+      out.push({
+        cls: FISCAL_NOTE_CLASS,
+        text: `CBO cost estimate — ${fn.title}${firstSentence ? `: ${firstSentence}` : ''}`,
+        date: fn.pubDate ?? null,
+        sourceUrl: fn.cboUrl ?? null,
+        extra: { cboId: fn.cboId, cboUrl: fn.cboUrl, fiscalTitle: fn.title },
+      });
+    }
+
+    // B8 — cosponsor momentum: only when the live count GREW since the last
+    // snapshot AND the 7-day surge clears the floor (default 5). Snapshotting the
+    // new count below stops it re-firing until the next surge.
+    if (
+      cm &&
+      cm.liveCount > (row.lastSeenCosponsors ?? 0) &&
+      cm.new7d >= COSPONSOR_MOMENTUM_MIN_7D
+    ) {
+      const names = (cm.recentNames ?? []).slice(0, 6).join('; ');
+      out.push({
+        cls: cosponsorMomentumClass(cm.new7d),
+        text:
+          `+${cm.new7d} cosponsors in the last ${COSPONSOR_WINDOW_DAYS} days ` +
+          `(now ${cm.liveCount})${names ? ` — ${names}` : ''}`,
+        date: null,
+        sourceUrl: bill.url ?? null,
+        extra: { new7d: cm.new7d, liveCount: cm.liveCount, newCosponsors: cm.recentNames ?? [] },
+      });
+    }
+
+    // B2 — bill TEXT changed even though no action fired (updateDateIncludingText
+    // advanced). Distinct from the regex `bill_amendment` action-text signal.
+    const textDateAdvanced =
+      bill.updateDateIncludingText != null &&
+      (row.lastSeenTextDate == null ||
+        bill.updateDateIncludingText.getTime() > row.lastSeenTextDate.getTime());
+    if (textDateAdvanced) {
+      out.push({
+        cls: TEXT_CHANGED_CLASS,
+        text: `Bill text updated${bill.title ? ` — ${bill.title}` : ''}`,
+        date: bill.updateDateIncludingText,
+        sourceUrl: bill.url ?? null,
+      });
+    }
+
+    // B3 — a NEW upcoming committee hearing has this bill on its agenda (via the
+    // committee_hearing_bill link; empty until sync-hearings populates it). Gated
+    // on the hearing id differing from the watermark, so a still-upcoming hearing
+    // doesn't re-alert every 14 days and a pre-existing one baselines silently.
+    if (soonestHearing && soonestHearing.hearingId !== (row.lastSeenHearingKey ?? null)) {
+      const soonest = soonestHearing;
+      const when = soonest.date ? soonest.date.toISOString().slice(0, 10) : 'TBD';
+      out.push({
+        cls: HEARING_SCHEDULED_CLASS,
+        text:
+          `Scheduled for a hearing ${when}` +
+          `${soonest.committeeName ? ` — ${soonest.committeeName}` : ''}` +
+          `${soonest.title ? ` (${soonest.title})` : ''}`,
+        date: soonest.date ?? null,
+        sourceUrl: soonest.url ?? bill.url ?? null,
+        extra: {
+          hearingId: soonest.hearingId,
+          committeeName: soonest.committeeName,
+          chamber: soonest.chamber,
+          hearingDate: soonest.date ? soonest.date.toISOString().slice(0, 10) : null,
+        },
+      });
+    }
+
+    return out;
+  }
+
+  /** Verbatim "from the record" sentence for a governing-rule roll-call vote (B5 context). */
+  private ruleVoteSentence(targetDisplayNum: string, rv: SourceRuleVote): string {
+    const rule = humanizeBillId(rv.ruleBillId);
+    const tally = rv.yeas != null && rv.nays != null ? ` ${rv.yeas}–${rv.nays}` : '';
+    const roll = rv.rollNumber != null ? `, Roll no. ${rv.rollNumber}` : '';
+    const q = rv.question ? `${rv.question}: ` : '';
+    const outcome = rv.result ?? 'voted';
+    // e.g. "Governing rule H. Res. 1398 (On agreeing to the resolution: Not agreed to 198–224, Roll no. 232) — H.R. 8800 is stalled on the floor."
+    return `Governing rule ${rule} (${q}${outcome}${tally}${roll}) — ${targetDisplayNum}.`;
   }
 
   /** Write one shadow `intel_alert` (status='new', never delivered). 14-day dedup. Returns false when deduped. */
@@ -249,10 +515,14 @@ export class BillChangeDetectorService {
           title: `${humanizeBillId(row.billId)}: ${ev.cls.label}`,
           whyItMatters: why,
           evidence: {
+            // Event-specific structured fields (tally, party splits, cosponsor
+            // names, cbo url, fit, …) first — so the fixed keys below always win.
+            ...(ev.extra ?? {}),
             stage: ev.cls.label,
-            actionText: detail,
+            actionText: detail, // the verbatim "from the record" quote (Workstream C)
             actionDate,
-            url: bill.url ?? null,
+            url: ev.sourceUrl ?? bill.url ?? null,
+            sourceUrl: ev.sourceUrl ?? bill.url ?? null, // canonical deep link (Workstream C)
             why,
             matchedTags,
             tone: ev.cls.tone,
@@ -268,18 +538,19 @@ export class BillChangeDetectorService {
     return true;
   }
 
-  private async snapshot(
-    tenantId: string,
-    trackedBillId: string,
-    actionText: string | null,
-    actionDate: Date | null,
-  ): Promise<void> {
+  /** Persist all watermarks together (action text/date + status + cosponsors + text-date + fiscal id + hearing id). */
+  private async snapshot(tenantId: string, trackedBillId: string, wm: Watermark): Promise<void> {
     await this.prisma.withTenant(tenantId, (tx) =>
       tx.trackedBill.update({
         where: { id: trackedBillId },
         data: {
-          lastSeenActionText: actionText,
-          lastSeenActionDate: actionDate,
+          lastSeenActionText: wm.actionText,
+          lastSeenActionDate: wm.actionDate,
+          lastSeenStatus: wm.status,
+          lastSeenCosponsors: wm.cosponsors,
+          lastSeenTextDate: wm.textDate,
+          lastSeenFiscalId: wm.fiscalId,
+          lastSeenHearingKey: wm.hearingKey,
           lastSeenAt: new Date(),
         },
       }),

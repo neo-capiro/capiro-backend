@@ -22,6 +22,7 @@ import { EMBEDDING_MODEL, embedText, normalize, vectorLiteral } from '../embeddi
 import { ConfigService } from '@nestjs/config';
 import { WatchlistSyncService } from '../watchlist/watchlist-sync.service.js';
 import { BillChangeDetectorService } from '../tracker/bill-change-detector.service.js';
+import { NewMatchDetectorService } from '../tracker/new-match-detector.service.js';
 import { FeatureFlagService } from '../feature-flags/feature-flag.service.js';
 import { IntelAlertService } from '../intel-alert/intel-alert.service.js';
 import { IntelEmailService } from '../intel-alert/intel-email.service.js';
@@ -61,6 +62,8 @@ export const KNOWN_VERBS = [
   'backfill-alert-prefs', //        Phase 2: alert_preference → intel_alert_preference
   'disable-feature', //             Phase 2: feature-flag OFF path (§5.0.1)
   'detect-bill-changes', //         Phase 3: shadow change detection → intel_alert (no delivery)
+  'detect-new-matches', //          LegiWatch B1: candidate × watchlist → intel_bill_match + bill_new_match alert
+  'backfill-default-triggers', //   LegiWatch B: turn fiscalNote/sponsorMomentum on for existing subscriber prefs
   'emit-bill-alerts', //            Phase 4: fan out NEW intel_alert (SHADOW: suppress+log, no send)
   'flush-digests', //               Phase 4: drain digest queue (SHADOW: no send)
   'shadow-selftest', //             Phase 4: live proof of the shadow suppress path
@@ -323,9 +326,30 @@ export async function runVerb(verb: string, args: string[], deps: VerbDeps): Pro
       );
       return;
     }
+    case 'detect-new-matches': {
+      const board = new TrackerBoardService(
+        deps.prisma,
+        new SourceDataRepository(deps.prisma),
+        new TrackerWatchlistService(deps.prisma),
+      );
+      const svc = new NewMatchDetectorService(deps.prisma, board);
+      const r = await svc.runNewMatchCycle();
+      deps.log(
+        `NEW_MATCH_DONE clients=${r.clients} candidates=${r.candidates} ` +
+          `newMatches=${r.newMatches} alerts=${r.alertsWritten} refreshed=${r.refreshed}`,
+      );
+      return;
+    }
     case 'emit-bill-alerts': {
       const r = await buildAlertService(deps.prisma).emitNewBillAlerts();
-      deps.log(`EMIT_DONE alerts=${r.alerts} suppressed=${r.suppressed} sent=${r.sent}`);
+      deps.log(
+        `EMIT_DONE alerts=${r.alerts} suppressed=${r.suppressed} sent=${r.sent} failed=${r.failed}`,
+      );
+      return;
+    }
+    case 'backfill-default-triggers': {
+      const r = await buildAlertService(deps.prisma).backfillDefaultTriggers();
+      deps.log(`BACKFILL_TRIGGERS_DONE updated=${r.updated}`);
       return;
     }
     case 'flush-digests': {

@@ -94,17 +94,20 @@ async function main() {
       if (o === 'adopted' || !cur) targetOutcome.set(l.targetBillId, o);
     }
 
-    // 2. Bills with a chamber-passage roll-call vote of their own.
+    // 2. Bills with a chamber PASSAGE or FAILED-passage roll-call vote of their
+    // own. failedChamber catches a measure that lost a floor vote while its
+    // latest action text is procedural (e.g. a rule hres whose vote failed).
     const passageVotes = await prisma.rollCallVote.findMany({
       where: { result: { not: null } },
       select: { billId: true, result: true, question: true },
     });
     const passedChamber = new Set<string>();
+    const failedChamber = new Set<string>();
     for (const v of passageVotes) {
-      if (!v.billId) continue;
-      if (classifyVoteResult(v.result) === 'pass' && isPassageQuestion(v.question)) {
-        passedChamber.add(v.billId);
-      }
+      if (!v.billId || !isPassageQuestion(v.question)) continue;
+      const c = classifyVoteResult(v.result);
+      if (c === 'pass') passedChamber.add(v.billId);
+      else if (c === 'fail') failedChamber.add(v.billId);
     }
 
     // 3. Recompute status for every bill in scope.
@@ -118,6 +121,7 @@ async function main() {
           latestActionText: b.latestActionText,
           ruleOutcome: targetOutcome.get(b.id) ?? null,
           passedChamber: passedChamber.has(b.id),
+          failedChamber: failedChamber.has(b.id),
         });
         await prisma.congressBill.update({
           where: { id: b.id },

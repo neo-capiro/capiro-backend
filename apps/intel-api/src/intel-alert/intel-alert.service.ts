@@ -47,7 +47,14 @@ export class IntelAlertService {
     return !['true', '1', 'yes'].includes((process.env.TRACKER_ALERTS_ENABLED ?? '').toLowerCase());
   }
 
-  /** Insert a notification-log row; P2002 (already claimed) → null. Idempotent. */
+  /**
+   * Claim a (alertId,userId,channel) notification slot. First delivery inserts
+   * the log row and returns its id. A re-run hits the @@unique (P2002): if the
+   * existing row is TERMINAL (`sent` / `suppressed_shadow`) → return null (skip,
+   * no double-send); if it is a prior `failed`/`sending` (a soft failure or a
+   * crashed mid-send) → reclaim it (flip to the new status) and return its id so
+   * the send is retried. Without this, a soft failure permanently blocks the slot.
+   */
   private async claim(
     tenantId: string,
     clientId: string,
@@ -65,8 +72,17 @@ export class IntelAlertService {
       );
       return row.id;
     } catch (e) {
-      if ((e as { code?: string }).code === 'P2002') return null;
-      throw e;
+      if ((e as { code?: string }).code !== 'P2002') throw e;
+      return this.prisma.withTenant(tenantId, async (tx) => {
+        const existing = await tx.intelNotificationLog.findFirst({
+          where: { alertId, userId, channel },
+          select: { id: true, status: true },
+        });
+        if (!existing) return null; // vanished in a race — treat as claimed
+        if (existing.status === 'sent' || existing.status === 'suppressed_shadow') return null;
+        await tx.intelNotificationLog.update({ where: { id: existing.id }, data: { status } });
+        return existing.id;
+      });
     }
   }
 
@@ -74,7 +90,11 @@ export class IntelAlertService {
    * Fan one alert out to every eligible pref for the client. In shadow: log +
    * claim `suppressed_shadow`, send nothing. Returns per-run counters.
    */
-  async fanOut(event: IntelAlertEvent): Promise<{ suppressed: number; sent: number }> {
+  async fanOut(event: IntelAlertEvent): Promise<{
+    suppressed: number;
+    sent: number;
+    failed: number;
+  }> {
     // Canonical 7-field Alert (SC1.1/SC1.2): map + LOG ONLY — completeness
     // flags surface the field gaps (whoActs/issueId/whyItMatters have no
     // tracker source yet) without ever touching the suppress/send branch.
@@ -92,7 +112,13 @@ export class IntelAlertService {
     }
     const owned = await this.flags.isEnabled(TRACKER_OWNER_FEATURE, event.tenantId);
     const canSend = owned && !this.killSwitchOff(); // shadow: false (kill-switch off)
-    const alertId = IntelAlertService.alertId(event.clientId, event.billId, event.changeType);
+    // Claim key = the specific intel_alert ROW id (unique per occurrence), NOT the
+    // deterministic (client,bill,changeType). The composite would permanently
+    // block any changeType that legitimately recurs after the 14-day dedup window
+    // (its second row shares the composite → claim P2002 → never delivered). The
+    // row id dedups per-occurrence AND still blocks a double-send of the SAME row.
+    const alertId =
+      event.alertRowId ?? IntelAlertService.alertId(event.clientId, event.billId, event.changeType);
     const prefs = await this.prisma.withTenant(event.tenantId, (tx) =>
       tx.intelAlertPreference.findMany({
         where: { tenantId: event.tenantId, clientId: event.clientId },
@@ -101,6 +127,7 @@ export class IntelAlertService {
 
     let suppressed = 0;
     let sent = 0;
+    let failed = 0;
     for (const pref of prefs) {
       if (!pref.triggers.includes(event.triggerKey)) continue;
       if (!clearsMateriality(event.severity, pref.materiality)) continue;
@@ -156,33 +183,66 @@ export class IntelAlertService {
             },
           }),
         );
+        // A soft failure (res.sent === false, no throw) is NOT delivered — count
+        // it so emitNewBillAlerts leaves deliveredAt null and retries next sweep
+        // (claim() reclaims the 'failed' log row rather than blocking it).
         if (res.sent) sent += 1;
+        else failed += 1;
       }
     }
-    return { suppressed, sent };
+    return { suppressed, sent, failed };
   }
 
   /**
-   * Read undelivered (`status='new'`) bill alerts and fan each out (shadow). Idempotent:
-   * the notification-log @@unique makes re-runs no-ops. Returns counters.
+   * Read undelivered (`status='new'`, `deliveredAt=null`) bill alerts and fan
+   * each out, then STAMP `deliveredAt` so the row is never reprocessed.
+   *
+   * Idempotency (plan §7 SC6) has two independent guards, both required:
+   *  - `deliveredAt` (per alert ROW): set here after a clean fan-out, so the next
+   *    sweep's `deliveredAt: null` filter skips it. Fixes the old gap where the
+   *    filter was read but never written — every sweep re-processed every alert.
+   *  - `intel_notification_log` @@unique (per RECIPIENT): the `claim()` guard, so
+   *    even a concurrent/overlapping sweep can't double-send to one user.
+   * Stamping in shadow is deliberate: it also stops a cutover (kill-switch flip)
+   * from flooding a week of shadow-suppressed backlog as a single send storm.
+   * A row is stamped ONLY if its fan-out didn't throw, so a transient failure
+   * retries on the next sweep instead of being silently marked delivered.
    */
-  async emitNewBillAlerts(): Promise<{ alerts: number; suppressed: number; sent: number }> {
-    // Cross-tenant emit sweep: reads NEW bill alerts across ALL tenants, then
-    // fanOut re-scopes each to its own tenant. Under RLS this MUST bypass.
+  async emitNewBillAlerts(): Promise<{
+    alerts: number;
+    suppressed: number;
+    sent: number;
+    failed: number;
+  }> {
+    // Cross-tenant emit sweep: reads NEW alerts across ALL tenants, then fanOut
+    // re-scopes each to its own tenant. Under RLS this MUST bypass.
+    //
+    // Source-type scope is env-driven (default `bill` = historical behavior).
+    // Widening to `bill,hearing,combined` sweeps the Phase-6 hearing/combined
+    // alerts into the same delivery path — plan §8 decision 3 (Ninja's call at
+    // cutover), a config flip, not a code change. Only bill alerts carry the full
+    // evidence the fanOut event-map expects today; hearing/combined without a
+    // valid `evidence.triggerKey` fall through the pref filter harmlessly.
+    const sourceTypes = (process.env.LEGIWATCH_EMIT_SOURCE_TYPES ?? 'bill')
+      .split(',')
+      .map((s) => s.trim())
+      .filter(Boolean);
     const rows = await this.prisma.withSystem((tx) =>
       tx.intelAlert.findMany({
-        where: { sourceType: 'bill', status: 'new', deliveredAt: null },
+        where: { sourceType: { in: sourceTypes }, status: 'new', deliveredAt: null },
         orderBy: { createdAt: 'asc' },
         take: 5000,
       }),
     );
     let suppressed = 0;
     let sent = 0;
+    let failed = 0;
     for (const a of rows) {
       const ev = (a.evidence ?? {}) as Record<string, unknown>;
       const event: IntelAlertEvent = {
         tenantId: a.tenantId,
         clientId: a.clientId,
+        alertRowId: a.id, // per-occurrence claim key (recurrences deliver; same row can't double-send)
         billId: a.sourceRef,
         displayNum: (ev.displayNum as string) ?? a.sourceRef,
         billTitle: (ev.billTitle as string) ?? a.title,
@@ -198,11 +258,57 @@ export class IntelAlertService {
         score: a.score,
         band: (ev.band as string) ?? undefined,
       };
-      const r = await this.fanOut(event);
-      suppressed += r.suppressed;
-      sent += r.sent;
+      try {
+        const r = await this.fanOut(event);
+        suppressed += r.suppressed;
+        sent += r.sent;
+        failed += r.failed;
+        // Mark processed ONLY when no recipient's send soft-failed — otherwise
+        // leave deliveredAt null so the next sweep retries (claim() reclaims the
+        // 'failed' log row). A clean run (all sent, all suppressed, or no eligible
+        // recipient) stamps and is never reprocessed.
+        if (r.failed === 0) {
+          await this.prisma.withTenant(a.tenantId, (tx) =>
+            tx.intelAlert.update({ where: { id: a.id }, data: { deliveredAt: new Date() } }),
+          );
+        } else {
+          this.logger.warn(
+            `emit: alert ${a.id} (${a.sourceRef}) had ${r.failed} soft send failure(s); left undelivered for retry`,
+          );
+        }
+      } catch (e) {
+        failed += 1;
+        this.logger.error(
+          `emit fan-out failed for alert ${a.id} (${a.sourceRef}, tenant ${a.tenantId}); left undelivered for retry: ${(e as Error).message}`,
+        );
+      }
     }
-    return { alerts: rows.length, suppressed, sent };
+    return { alerts: rows.length, suppressed, sent, failed };
+  }
+
+  /**
+   * Idempotently turn LegiWatch-B's newly-default-on trigger keys on for EXISTING
+   * subscribers who predate the emitters (fiscalNote, sponsorMomentum). Safe to
+   * re-run and safe against deliberate opt-outs: these keys had no emitter before
+   * B, so no subscriber could have intentionally removed them. Cross-tenant sweep
+   * → `withSystem` (RLS bypass); `array_append` guarded by a `NOT (… = ANY …)`
+   * predicate makes each key append exactly once. Returns rows touched.
+   */
+  async backfillDefaultTriggers(): Promise<{ updated: number }> {
+    const NEWLY_DEFAULT_ON = ['fiscalNote', 'sponsorMomentum'];
+    let updated = 0;
+    for (const key of NEWLY_DEFAULT_ON) {
+      const n = await this.prisma.withSystem((tx) =>
+        tx.$executeRawUnsafe(
+          `UPDATE intel_alert_preference
+              SET triggers = array_append(triggers, $1)
+            WHERE NOT ($1 = ANY(triggers))`,
+          key,
+        ),
+      );
+      updated += Number(n);
+    }
+    return { updated };
   }
 
   /**

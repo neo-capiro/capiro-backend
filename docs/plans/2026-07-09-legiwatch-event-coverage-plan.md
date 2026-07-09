@@ -127,6 +127,27 @@ Also in B: fix `emitNewBillAlerts` deliveredAt idempotency; sweep hearing/`combi
 email delivery (pref-gated); add the new changeTypes to `DEFAULT_TRIGGERS` deliberately
 (momentum/fiscal default-on, text-changed default-on, new-match default-on).
 
+### B — build status (2026-07-09)
+
+**Shipped (all 8 events fire end-to-end):** B1 new-match (`intel_bill_match` + `detect-new-matches`
+verb), B2 text-changed (via `updateDateIncludingText`), B3 hearing-scheduled (new
+`committee_hearing_bill` agenda link populated by `sync-hearings` + detector join), B4 committee/
+floor-vote tally parser (`parseTally` → `{yeas,nays}` in evidence), B5 rule_failed/adopted status
+transition with roll-call citation, B6 enacted/failed (existing), B7 fiscal note, B8 cosponsor
+momentum. Delivery: `deliveredAt` idempotency, `fiscalNote`/`sponsorMomentum` default-on +
+`backfill-default-triggers`, env-gated `sourceType` sweep scope.
+
+**Deliberately routed to Workstream C (evidence block), NOT a coverage gap — these events already
+fire; the items below only enrich their evidence:**
+
+- **B2 amendment sub-resource** (structured amendment purpose/sponsor). The `bill_amendment` event
+  already fires (regex) and the `bill_text_changed` derived event covers text revisions. Fetching
+  `/bill/{c}/{t}/{n}/amendments` + each amendment's detail is an N+1 ingestion whose only payoff is
+  richer evidence — precisely C's mandate. Build it with the C evidence block.
+- **B6 veto-override / pocket-veto patterns.** `enactedFailed` already fires on `/veto/`; the
+  override/pocket-veto refinement is a label nicety that also touches the parity-gated
+  `classifyChange` (would need mirroring in the apps/api legacy copy). Fold into C's renderer work.
+
 ## 4. Workstream C — Source context in every alert (no more "the House voted…")
 
 Extend `IntelAlertEvent` + the `intel_alert.evidence` JSON with a mandatory **evidence block**:
@@ -157,8 +178,8 @@ Two layers, both strictly grounded on the evidence block — port of the proven
   Tenant BYOK via `resolveProviderByTenantId`, metered via `recordAiUsageEvent`
   (workflow `legiwatch_alert_enrichment`), model override honored.
 - **Where it runs:** intel-api has no LLM client or BYOK store — enrichment lives in apps/api
-  behind an internal service endpoint (`POST /api/internal/alert-enrichment`, INTERNAL_SERVICE_SECRET
-  auth — the BYOK3 precedent), called fire-and-forget from the emit path _before_ fan-out with a
+  behind an internal service endpoint (`POST /api/internal/alert-enrichment`, INTERNAL*SERVICE_SECRET
+  auth — the BYOK3 precedent), called fire-and-forget from the emit path \_before* fan-out with a
   hard budget (aim 15s timeout, batch by bill).
 - **Grounding guard:** `verifyGrounded`-style gate (from alert-memo) — enrichment sentences must
   trace to evidence-block facts; ungrounded output dropped, deterministic `why` (explainMatch)

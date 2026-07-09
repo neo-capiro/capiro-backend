@@ -36,6 +36,12 @@ export interface SourceBill {
   subjects: string[] | null;
   peCodes: string[] | null;
   url: string | null;
+  // LegiWatch B: canonical status + text-version + cosponsor-count signals the
+  // action-text watermark can't see (populated by the Workstream-A truth layer).
+  status: string | null;
+  statusAt: Date | null;
+  updateDateIncludingText: Date | null;
+  cosponsorsCount: number | null;
 }
 
 export interface SourceBillAction {
@@ -45,6 +51,43 @@ export interface SourceBillAction {
   text: string;
   type: string | null;
   chamber: string | null;
+}
+
+// LegiWatch B derived-emitter read shapes.
+export interface SourceFiscalNote {
+  cboId: string;
+  billId: string;
+  title: string;
+  description: string | null;
+  cboUrl: string;
+  pubDate: Date | null;
+}
+export interface SourceCosponsorMomentum {
+  billId: string;
+  liveCount: number;
+  new7d: number;
+  recentNames: string[] | null;
+}
+export interface SourceRuleVote {
+  targetBillId: string;
+  ruleBillId: string;
+  chamber: string | null;
+  rollNumber: number | null;
+  result: string | null;
+  yeas: number | null;
+  nays: number | null;
+  question: string | null;
+  sourceUrl: string | null;
+  voteDate: Date | null;
+}
+export interface SourceHearingForBill {
+  billId: string;
+  hearingId: string;
+  title: string | null;
+  committeeName: string | null;
+  chamber: string | null;
+  date: Date | null;
+  url: string | null;
 }
 
 export interface SourceBillCommittee {
@@ -206,11 +249,138 @@ export class SourceDataRepository {
               policy_area        AS "policyArea",
               subjects,
               pe_codes           AS "peCodes",
-              url
+              url,
+              status,
+              status_at                    AS "statusAt",
+              update_date_including_text   AS "updateDateIncludingText",
+              cosponsors_count             AS "cosponsorsCount"
          FROM congress_bill
         WHERE id = ANY($1::text[])`,
       ids,
     );
+  }
+
+  /**
+   * LegiWatch B7 — CBO cost estimates for the given bills seen at/after a
+   * watermark (GLOBAL `cbo_cost_estimate`, populated by apps/api sync-cbo). Read
+   * only; intel-api never writes it. billId is nullable upstream (RSS rows may
+   * lack it) — those can't join and are excluded by the `= ANY` filter.
+   */
+  async getNewFiscalNotes(billIds: string[], sinceIso: string): Promise<SourceFiscalNote[]> {
+    if (!billIds.length) return [];
+    return this.prisma.$queryRawUnsafe<SourceFiscalNote[]>(
+      `SELECT id            AS "cboId",
+              bill_id        AS "billId",
+              title,
+              description,
+              cbo_url        AS "cboUrl",
+              pub_date       AS "pubDate"
+         FROM cbo_cost_estimate
+        WHERE bill_id = ANY($1::text[])
+          AND last_synced_at >= $2::timestamptz
+        ORDER BY pub_date DESC`,
+      billIds,
+      sinceIso,
+    );
+  }
+
+  /**
+   * LegiWatch B8 — cosponsor-momentum snapshot: current live cosponsor count +
+   * the count/names added within the last `days` (GLOBAL
+   * `congress_bill_cosponsor`, sponsorshipDate time series; withdrawn excluded).
+   * Rows with a null sponsorship_date can't be windowed (excluded from new7d).
+   */
+  async getCosponsorMomentum(billIds: string[], days: number): Promise<SourceCosponsorMomentum[]> {
+    if (!billIds.length) return [];
+    return this.prisma.$queryRawUnsafe<SourceCosponsorMomentum[]>(
+      `SELECT bill_id AS "billId",
+              count(*) FILTER (WHERE withdrawn_date IS NULL)::int AS "liveCount",
+              count(*) FILTER (
+                WHERE withdrawn_date IS NULL
+                  AND sponsorship_date >= (CURRENT_DATE - ($2::int))
+              )::int AS "new7d",
+              (array_agg(full_name || ' (' || COALESCE(party,'?') || ')'
+                         ORDER BY sponsorship_date DESC)
+                 FILTER (WHERE withdrawn_date IS NULL
+                           AND sponsorship_date >= (CURRENT_DATE - ($2::int)))
+              )[1:10] AS "recentNames"
+         FROM congress_bill_cosponsor
+        WHERE bill_id = ANY($1::text[])
+        GROUP BY bill_id`,
+      billIds,
+      days,
+    );
+  }
+
+  /**
+   * LegiWatch B5 — the governing RULE for each target bill + that rule's most
+   * recent roll-call vote, so a rule_failed/rule_adopted alert can cite the roll
+   * number + tally (GLOBAL `bill_rule_link` + `roll_call_vote`). Latest rule vote
+   * per target.
+   */
+  async getGoverningRuleVotes(targetBillIds: string[]): Promise<SourceRuleVote[]> {
+    if (!targetBillIds.length) return [];
+    return this.prisma.$queryRawUnsafe<SourceRuleVote[]>(
+      `SELECT DISTINCT ON (l.target_bill_id)
+              l.target_bill_id AS "targetBillId",
+              l.rule_bill_id   AS "ruleBillId",
+              v.chamber,
+              v.roll_number    AS "rollNumber",
+              v.result,
+              v.yeas,
+              v.nays,
+              v.question,
+              v.source_url     AS "sourceUrl",
+              v.vote_date      AS "voteDate"
+         FROM bill_rule_link l
+         JOIN roll_call_vote v ON v.bill_id = l.rule_bill_id
+        WHERE l.target_bill_id = ANY($1::text[])
+        ORDER BY l.target_bill_id, v.vote_date DESC`,
+      targetBillIds,
+    );
+  }
+
+  /**
+   * LegiWatch B3 — upcoming committee hearings that list one of the given bills
+   * on their agenda (GLOBAL `committee_hearing_bill` link + `committee_hearing`),
+   * today or later. The link table is populated by apps/api `sync-hearings` from
+   * the committee-meeting detail's agenda items. Returns [] (resiliently) if the
+   * link table doesn't exist yet — a cross-app table this repo reads but never
+   * creates (decision D2); deploy the apps/api migration first.
+   */
+  async getUpcomingHearingsForBills(billIds: string[]): Promise<SourceHearingForBill[]> {
+    if (!billIds.length) return [];
+    try {
+      return await this.prisma.$queryRawUnsafe<SourceHearingForBill[]>(
+        `SELECT hb.bill_id        AS "billId",
+                h.id              AS "hearingId",
+                h.title,
+                h.committee_name  AS "committeeName",
+                h.chamber,
+                h.date,
+                h.url
+           FROM committee_hearing_bill hb
+           JOIN committee_hearing h ON h.id = hb.hearing_id
+          WHERE hb.bill_id = ANY($1::text[])
+            AND h.date >= CURRENT_DATE
+          ORDER BY h.date ASC`,
+        billIds,
+      );
+    } catch (e) {
+      // undefined_table (42P01): the apps/api migration that creates
+      // committee_hearing_bill hasn't landed yet. Prisma wraps a raw-query DB
+      // error as PrismaClientKnownRequestError code 'P2010' with the Postgres
+      // SQLSTATE at `.meta.code` — so check both places (and the message) rather
+      // than only `.code`, or the guard never matches and the whole detection
+      // cycle throws before the table exists.
+      const err = e as { code?: string; meta?: { code?: unknown }; message?: string };
+      const isUndefinedTable =
+        err.code === '42P01' ||
+        (err.meta && (err.meta as { code?: unknown }).code === '42P01') ||
+        /relation ".*" does not exist|42P01|undefined_table/i.test(err.message ?? '');
+      if (isUndefinedTable) return [];
+      throw e;
+    }
   }
 
   /** Batch-read GLOBAL `congress_bill_action` rows for many bills, oldest-first (catch-up). */
@@ -293,7 +463,8 @@ export class SourceDataRepository {
     else if (opts.scope === 'past') clauses.push(`date < CURRENT_DATE`);
     const where = clauses.length ? `WHERE ${clauses.join(' AND ')}` : '';
     // Upcoming reads soonest-first; past/all read most-recent-first.
-    const order = opts.scope === 'upcoming' ? 'date ASC, committee_name ASC' : 'date DESC, committee_name ASC';
+    const order =
+      opts.scope === 'upcoming' ? 'date ASC, committee_name ASC' : 'date DESC, committee_name ASC';
 
     const countRows = await this.prisma.$queryRawUnsafe<Array<{ count: number }>>(
       `SELECT COUNT(*)::int AS count FROM committee_hearing ${where}`,
@@ -376,7 +547,11 @@ export class SourceDataRepository {
    * bound, never interpolated, same as `keywordCandidateIds`. Current-Congress
    * only; newest action first.
    */
-  async searchBillRows(titleLike: string, idLike: string, congress: number): Promise<BillSearchRow[]> {
+  async searchBillRows(
+    titleLike: string,
+    idLike: string,
+    congress: number,
+  ): Promise<BillSearchRow[]> {
     return this.prisma.$queryRawUnsafe<BillSearchRow[]>(
       `SELECT cb.id,
               cb.title,
@@ -448,7 +623,9 @@ export class SourceDataRepository {
    * bypass RLS) since `clients` is tenant-scoped. Used to scope both parity sides
    * to the same client population.
    */
-  async clientTenantMap(tenantIds: string[]): Promise<Array<{ clientId: string; tenantId: string }>> {
+  async clientTenantMap(
+    tenantIds: string[],
+  ): Promise<Array<{ clientId: string; tenantId: string }>> {
     if (!tenantIds.length) return [];
     return this.prisma.withSystem((tx) =>
       tx.$queryRawUnsafe(

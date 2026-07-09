@@ -1034,6 +1034,13 @@ export function deriveBillStatus(input: {
   ruleOutcome?: 'adopted' | 'failed' | null;
   /** True when a roll_call_vote on THIS bill (not its rule) passed a chamber. */
   passedChamber?: boolean;
+  /**
+   * True when a roll_call_vote on THIS bill was a FAILED passage vote. Needed
+   * because a bill/resolution can fail a floor vote while its latest action
+   * text is procedural (e.g. a rule hres whose vote failed but whose last
+   * action is "POSTPONED PROCEEDINGS…") — text alone would mislabel it.
+   */
+  failedChamber?: boolean;
 }): BillStatusResult {
   const t = (input.latestActionText ?? '').toLowerCase();
   const mk = (status: BillStatus): BillStatusResult => ({ status, ...BILL_STATUS_META[status] });
@@ -1062,6 +1069,11 @@ export function deriveBillStatus(input: {
   ) {
     return mk('passed_chamber');
   }
+
+  // A real FAILED passage vote on this measure (outranks the rule-governed and
+  // procedural fallbacks, but not an actual passage above). Only when the bill
+  // hasn't otherwise advanced past a floor decision.
+  if (input.failedChamber) return mk('failed');
 
   // Governing-rule outcome — the H.R. 8800 fix. A "rule reported" bill whose
   // rule FAILED is stalled, not advancing; a rule ADOPTED sends it to the floor.

@@ -6,7 +6,11 @@
 export type AlertSeverity = 'critical' | 'notable' | 'info';
 
 export const SEVERITY_RANK: Record<AlertSeverity, number> = { info: 1, notable: 2, critical: 3 };
-export const MATERIALITY_RANK: Record<'low' | 'medium' | 'high', number> = { low: 1, medium: 2, high: 3 };
+export const MATERIALITY_RANK: Record<'low' | 'medium' | 'high', number> = {
+  low: 1,
+  medium: 2,
+  high: 3,
+};
 
 /** Does this event clear the user's materiality floor? */
 export function clearsMateriality(severity: AlertSeverity, materiality: string): boolean {
@@ -18,6 +22,13 @@ export function clearsMateriality(severity: AlertSeverity, materiality: string):
 export interface IntelAlertEvent {
   tenantId: string;
   clientId: string;
+  /**
+   * The intel_alert ROW id, when this event came from a persisted row. Used as
+   * the notification-log claim key so each occurrence dedups independently (a
+   * changeType recurring after the 14-day window still delivers) while the same
+   * row can never double-send. Absent for the synthetic shadow self-test.
+   */
+  alertRowId?: string;
   billId: string;
   displayNum: string;
   billTitle: string;
