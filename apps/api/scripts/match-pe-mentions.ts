@@ -7,11 +7,20 @@
  *   match-pe-mentions --commit             # write IntelligenceChange mention rows + candidate links
  *   flags: --limit N            transcripts per run (default 50, newest fetchedAt first)
  *          --since YYYY-MM-DD   window override (default: last 30 days)
+ *          --max-fan N          drop a designator that funds > N live PEs (default 25)
  *
- * Name bank — NAMED PROGRAMS ONLY (high precision):
- *   program_name      (0.90) — Program.canonicalName via ACCEPTED pe_program_match rows
+ * Name bank — HIGH-PRECISION, LOW-FAN tiers only:
+ *   program_name        (0.90) — Program.canonicalName via ACCEPTED pe_program_match rows
+ *   platform_designator (0.75) — bare weapon-system designators ("F-35", "B-21",
+ *     "CH-53K") pulled from live ProgramElement.title via extractDesignatorTerms.
+ *     Curated program names are formal ("F-35 Lightning II Joint Strike Fighter")
+ *     and miss hearing/bill prose; the bare designator is what actually appears.
+ *     Hyphen + ≥3 alphanumerics required, so ambiguous ground/short codes
+ *     ("M10", "C-2") are excluded by construction. A designator can fund many
+ *     PEs, so `--max-fan` drops any that blanket the graph (kept generous — a
+ *     marquee platform legitimately touches ~a dozen PEs).
  *
- * Two tiers are DELIBERATELY EXCLUDED, both proven noisy by prod dry-runs:
+ * Two tiers stay DELIBERATELY EXCLUDED, both proven noisy by prod dry-runs:
  *   - pe_title (raw ProgramElement.title): generic titles ("Aircraft
  *     Modifications", "Base Support") match transcript prose everywhere
  *     (~136 mentions/transcript).
@@ -21,9 +30,6 @@
  *     That is capability-LEVEL interest, not a per-PE "this program was
  *     discussed" signal, and belongs to a future capability-mention feature
  *     that attributes to the capability, not fanned to each PE.
- * A named program in a transcript/bill title (F-35, CCA, LRHW) IS a genuine
- * per-PE signal, so program_name is the v1 bar. Broader recall is the post-C6
- * program-alias-expansion job.
  *
  * Hearing mentions land as IntelligenceChange rows (source='pe_hearing_mention',
  * changeType='hearing_mention', one row per transcript × PE, dedupeKey
@@ -41,6 +47,7 @@ import { PrismaClient, Prisma } from '@prisma/client';
 import {
   aggregateMentionsByPe,
   buildNameBank,
+  extractDesignatorTerms,
   findMentions,
   matchBillTitles,
   mentionDedupeKey,
@@ -59,6 +66,8 @@ const LINK_TYPE = 'title_match';
 const MENTION_SOURCE = 'pe_hearing_mention';
 const DEFAULT_LIMIT = 50;
 const DEFAULT_WINDOW_DAYS = 30;
+/** A designator funding more live PEs than this is too broad — dropped. */
+const DEFAULT_MAX_FAN = 25;
 
 function flag(name: string): boolean {
   return process.argv.includes(`--${name}`);
@@ -68,8 +77,28 @@ function arg(name: string): string | undefined {
   return i >= 0 ? process.argv[i + 1] : undefined;
 }
 
-/** Bank rows — NAMED PROGRAMS ONLY (accepted matches). See the header note. */
-async function loadNameBankEntries(prisma: PrismaClient): Promise<NameBankEntryInput[]> {
+interface DesignatorStats {
+  /** Distinct designators admitted to the bank (after the fan cap). */
+  admitted: number;
+  /** Designators dropped for funding more than maxFan live PEs. */
+  droppedHighFan: string[];
+  /** (designator, #PEs) for the widest-fanning admitted designators. */
+  topFan: Array<{ term: string; peCount: number }>;
+}
+
+interface BankLoad {
+  entries: NameBankEntryInput[];
+  designatorStats: DesignatorStats;
+}
+
+/**
+ * Bank rows — high-precision, low-fan tiers only (see the header note):
+ *   program_name        — canonicalName of ACCEPTED pe_program_match rows.
+ *   platform_designator — bare designators from LIVE PE titles, fan-capped.
+ * capability_alias and pe_title stay omitted: a single thematic word fans to
+ * every PE tagged with that capability — capability-level, not per-PE, interest.
+ */
+async function loadNameBankEntries(prisma: PrismaClient, maxFan: number): Promise<BankLoad> {
   const entries: NameBankEntryInput[] = [];
 
   const programMatches = await prisma.peProgramMatch.findMany({
@@ -80,12 +109,47 @@ async function loadNameBankEntries(prisma: PrismaClient): Promise<NameBankEntryI
     entries.push({ peCode: m.peCode, term: m.program.canonicalName, tier: 'program_name' });
   }
 
-  // capability_alias and pe_title tiers are intentionally omitted — see the
-  // header note. Both fan a single thematic word ("artificial intelligence")
-  // out to every PE tagged with that capability, which is capability-level
-  // interest, not a per-PE "this program was discussed" signal.
+  // platform_designator — extract bare designators from LIVE (non-retired) PE
+  // titles, then fan-cap. One designator (e.g. "F-35") legitimately funds many
+  // PEs across services; drop only the pathologically broad ones so a single
+  // token can't blanket the graph.
+  const pes = await prisma.programElement.findMany({
+    where: { retiredAt: null },
+    select: { peCode: true, title: true },
+  });
+  const peCodesByDesignator = new Map<string, Set<string>>();
+  for (const pe of pes) {
+    for (const term of extractDesignatorTerms(pe.title ?? '')) {
+      const key = term.toLowerCase();
+      const set = peCodesByDesignator.get(key);
+      if (set) set.add(pe.peCode);
+      else peCodesByDesignator.set(key, new Set([pe.peCode]));
+    }
+  }
+  const droppedHighFan: string[] = [];
+  const fanSizes: Array<{ term: string; peCount: number }> = [];
+  for (const [key, peCodes] of peCodesByDesignator) {
+    const display = key.toUpperCase(); // canonical display: "f-35" -> "F-35"
+    if (peCodes.size > maxFan) {
+      droppedHighFan.push(`${display}(${peCodes.size})`);
+      continue;
+    }
+    fanSizes.push({ term: display, peCount: peCodes.size });
+    for (const peCode of peCodes) {
+      entries.push({ peCode, term: display, tier: 'platform_designator' });
+    }
+  }
+  fanSizes.sort((a, b) => b.peCount - a.peCount || a.term.localeCompare(b.term));
+  droppedHighFan.sort();
 
-  return entries;
+  return {
+    entries,
+    designatorStats: {
+      admitted: fanSizes.length,
+      droppedHighFan,
+      topFan: fanSizes.slice(0, 15),
+    },
+  };
 }
 
 interface MentionRow {
@@ -348,12 +412,19 @@ async function main(): Promise<void> {
     ? new Date(`${sinceArg}T00:00:00Z`)
     : new Date(Date.now() - DEFAULT_WINDOW_DAYS * 24 * 3600 * 1000);
 
+  const maxFanArg = arg('max-fan');
+  const maxFan = maxFanArg ? Number(maxFanArg) : DEFAULT_MAX_FAN;
+  if (!Number.isInteger(maxFan) || maxFan <= 0) {
+    console.error(`Invalid --max-fan ${maxFanArg}`);
+    process.exit(1);
+  }
+
   const prisma = new PrismaClient();
   await prisma.$connect();
   try {
     const run = async (): Promise<RunCounts> => {
       // ── name bank ────────────────────────────────────────────────────
-      const bankInputs = await loadNameBankEntries(prisma);
+      const { entries: bankInputs, designatorStats } = await loadNameBankEntries(prisma, maxFan);
       const bank = buildNameBank(bankInputs);
 
       // ── hearing-transcript mentions ──────────────────────────────────
@@ -385,8 +456,12 @@ async function main(): Promise<void> {
         mode: commit ? 'COMMIT' : 'DRY_RUN',
         since: since.toISOString(),
         limit,
+        max_fan: maxFan,
         bank_terms: bank.entries.length,
         bank_terms_rejected: bank.rejectedCount,
+        designators_admitted: designatorStats.admitted,
+        designators_dropped_high_fan: designatorStats.droppedHighFan,
+        designator_top_fan: designatorStats.topFan,
         transcripts_scanned: transcriptsScanned,
         mentions_found: rawMentions,
         pe_mention_rows: rows.length,

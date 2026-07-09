@@ -1,8 +1,10 @@
 import {
   aggregateMentionsByPe,
   buildNameBank,
+  extractDesignatorTerms,
   extractSnippet,
   findMentions,
+  isDesignatorToken,
   isTermAcceptable,
   matchBillTitles,
   mentionDedupeKey,
@@ -438,6 +440,148 @@ describe('pe-mention-matcher', () => {
         bank,
       );
       expect(candidates).toEqual([]);
+    });
+  });
+
+  // ───────────────────────────────────────────────────────────────────────
+  // platform_designator tier — bare weapon-system designators pulled from PE
+  // titles (F-35, B-21, CH-53K). The recall lever the enabled match-pe-mentions
+  // rule needs: curated program names miss the corpus, designators hit it.
+  // ───────────────────────────────────────────────────────────────────────
+  describe('platform_designator tier', () => {
+    describe('extractDesignatorTerms', () => {
+      it.each([
+        ['B-21 Raider Advance Procurement (CY) Forces', ['B-21']],
+        ['CH-53K (Heavy Lift Replacement)', ['CH-53K']],
+        ['AH-64 Apache Block IIIA Reman', ['AH-64']],
+        ['KC-130J', ['KC-130J']],
+        ['E-2D Advanced Hawkeye', ['E-2D']],
+        ['P-8A Poseidon (MYP)', ['P-8A']],
+        // multiple distinct designators in one title, de-duped + order-stable
+        ['F-15EX and F-16 Modifications', ['F-15EX', 'F-16']],
+        ['F-16 Block Upgrade / F-16 Radar', ['F-16']],
+        // hard negatives — no admissible designator
+        ['Base Support', []],
+        ['Spares and Repair Parts', []],
+        ['M10 BOOKER', []], // no hyphen
+        ['M777 Howitzer Modifications', []], // no hyphen
+        ['C-2 Greyhound', []], // < 3 alphanumerics
+        ['Common Ground Equipment', []],
+        ['Aircraft Modifications', []],
+        // appropriation/budget-activity tags are designator-SHAPED but not platforms
+        ['Modification Of In-Svc Equipment (OPA-3)', []],
+        ['Physical Security Systems (OPA-3)', []],
+        ['Other Support Equipment (OPN-1)', []],
+      ] as Array<[string, string[]]>)('"%s" -> %j', (title, expected) => {
+        expect(extractDesignatorTerms(title)).toEqual(expected);
+      });
+    });
+
+    describe('isDesignatorToken', () => {
+      it.each([
+        ['F-35', true],
+        ['B-21', true],
+        ['CH-53K', true],
+        ['KC-130J', true],
+        ['AH-64E', true],
+        ['E-2D', true],
+        ['C-2', false], // 2 alphanumerics
+        ['E-2', false], // 2 alphanumerics
+        ['M10', false], // no hyphen
+        ['M1A2', false], // no hyphen
+        ['Sentinel', false], // no digit
+        ['y-12', false], // stoplist
+        ['OPA-3', false], // appropriation tag (Other Procurement, Army, BA-3)
+        ['OPN-1', false], // appropriation tag (Other Procurement, Navy, BA-1)
+        ['APN-5', false], // appropriation tag (Aircraft Procurement, Navy)
+      ] as Array<[string, boolean]>)('"%s" -> %s', (token, ok) => {
+        expect(isDesignatorToken(token)).toBe(ok);
+      });
+
+      it('isTermAcceptable admits designators only under the platform_designator tier', () => {
+        // "F-35" is rejected as a program_name (< 5 chars) but valid as a designator.
+        expect(isTermAcceptable('F-35', 'program_name')).toBe(false);
+        expect(isTermAcceptable('F-35', 'platform_designator')).toBe(true);
+        expect(isTermAcceptable('C-2', 'platform_designator')).toBe(false);
+        expect(isTermAcceptable('M10', 'platform_designator')).toBe(false);
+      });
+    });
+
+    describe('matching over a designator bank', () => {
+      // F-35 fans to three funding PEs (Navy proc + AF proc + RDT&E); the rest
+      // are 1:1. C-2 / M10 / y-12 must be rejected at build.
+      const designatorBank = buildNameBank([
+        { peCode: '3010FB02100', term: 'B-21', tier: 'platform_designator' },
+        { peCode: '1506N0158', term: 'CH-53K', tier: 'platform_designator' },
+        { peCode: '0207142F', term: 'F-35', tier: 'platform_designator' },
+        { peCode: '0204136N', term: 'F-35', tier: 'platform_designator' },
+        { peCode: '0604800F', term: 'F-35', tier: 'platform_designator' },
+        { peCode: '9999999X', term: 'C-2', tier: 'platform_designator' }, // <3 alnum
+        { peCode: '8888888X', term: 'M10', tier: 'platform_designator' }, // no hyphen
+        { peCode: '7777777X', term: 'y-12', tier: 'platform_designator' }, // stoplist
+      ]);
+
+      it('rejects the three ineligible designators at build time', () => {
+        expect(designatorBank.rejectedCount).toBe(3);
+        expect(designatorBank.entries).toHaveLength(5);
+      });
+
+      it('matches bare designators in transcript prose with 0.75 confidence', () => {
+        const mentions = findMentions(
+          'The B-21 Raider entered flight test as the CH-53K achieved full-rate production.',
+          designatorBank,
+        );
+        expect(
+          mentions
+            .map((m) => ({ peCode: m.peCode, term: m.term, tier: m.tier }))
+            .sort((a, b) => a.peCode.localeCompare(b.peCode)),
+        ).toEqual([
+          { peCode: '1506N0158', term: 'CH-53K', tier: 'platform_designator' },
+          { peCode: '3010FB02100', term: 'B-21', tier: 'platform_designator' },
+        ]);
+        expect(mentions.every((m) => m.confidence === TIER_CONFIDENCE.platform_designator)).toBe(
+          true,
+        );
+      });
+
+      it('fans a shared designator to every funding PE (one mention row each)', () => {
+        const mentions = findMentions(
+          'Members pressed the witness on F-35 readiness.',
+          designatorBank,
+        );
+        expect(mentions.map((m) => m.peCode).sort()).toEqual(['0204136N', '0207142F', '0604800F']);
+        expect(new Set(mentions.map((m) => m.term))).toEqual(new Set(['F-35']));
+      });
+
+      it('NEGATIVE: whole-word rule blocks a designator matching inside a variant', () => {
+        // bank has "F-35" (not "F-35A"); "F-35A" text must NOT match.
+        expect(
+          findMentions('The F-35A sustainment tail cost was debated.', designatorBank),
+        ).toEqual([]);
+      });
+
+      it('NEGATIVE: rejected designators never match even when present in text', () => {
+        expect(
+          findMentions('The C-2 Greyhound and M10 Booker were mentioned.', designatorBank),
+        ).toEqual([]);
+      });
+
+      it('links a designator in a bill title (tier participates in bill matching)', () => {
+        const candidates = matchBillTitles(
+          [{ billId: '119-hr-9100', title: 'F-35 Readiness and Sustainment Improvement Act' }],
+          designatorBank,
+        );
+        expect(candidates.map((c) => c.peCode).sort()).toEqual([
+          '0204136N',
+          '0207142F',
+          '0604800F',
+        ]);
+        for (const c of candidates) {
+          expect(c.tier).toBe('platform_designator');
+          expect(c.evidence).toContain('platform designator');
+          expect(c.evidence).toContain('"F-35"');
+        }
+      });
     });
   });
 });

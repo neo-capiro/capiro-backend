@@ -13,18 +13,27 @@
  * Prisma wiring (bank loading, dedupe against intelligence_change, upserts).
  */
 
-export type NameBankTier = 'program_name' | 'capability_alias' | 'pe_title';
+export type NameBankTier = 'program_name' | 'platform_designator' | 'capability_alias' | 'pe_title';
 
 /** Tier → candidate confidence (plan Phase 3: fuzzy tiers, never 1.0). */
 export const TIER_CONFIDENCE: Record<NameBankTier, number> = {
   program_name: 0.9,
+  // A bare weapon-system designator ("F-35", "CH-53K") extracted from a PE title
+  // is a strong per-PE signal — an unambiguous platform token — but below the
+  // curated program_name bar, since it can fan to every PE that funds the platform.
+  platform_designator: 0.75,
   capability_alias: 0.7,
   pe_title: 0.55,
 };
 
-/** Bill titles only match the two strong tiers — pe_title is too noisy there. */
-export const BILL_MATCH_TIERS: ReadonlySet<NameBankTier> = new Set([
+/**
+ * Bill titles only match the strong, low-fan tiers — pe_title is too noisy and
+ * capability_alias fans one thematic word to every tagged PE. A designator in a
+ * bill title ("F-35 Sustainment Act") is a genuine, specific link, so it joins.
+ */
+export const BILL_MATCH_TIERS: ReadonlySet<NameBankTier> = new Set<NameBankTier>([
   'program_name',
+  'platform_designator',
   'capability_alias',
 ]);
 
@@ -132,17 +141,98 @@ export function normalizeTerm(raw: string): string {
 const DESIGNATOR_RE = /[a-z]-?\d|\d-?[a-z]/i;
 
 /**
+ * A BARE weapon-system designator token: a short alpha prefix, a REQUIRED
+ * hyphen, 1–4 digits, and an optional 1–2 letter suffix — "F-35", "B-21",
+ * "MQ-25", "CH-53K", "KC-130J", "AH-64E", "E-2D", "P-8A", "EA-18G". The hyphen
+ * requirement is deliberate: no-hyphen ground codes ("M1", "M10", "C2") are
+ * ambiguous (a road, a tag, "command and control") and excluded from v1.
+ * `_ANCHORED` validates one token; `_SCAN` pulls tokens out of a title.
+ */
+const DESIGNATOR_TOKEN_ANCHORED_RE = /^[a-z]{1,3}-\d{1,4}[a-z]{0,2}$/i;
+const DESIGNATOR_TOKEN_SCAN_RE = /\b[a-z]{1,3}-\d{1,4}[a-z]{0,2}\b/gi;
+
+/**
+ * Designator-SHAPED tokens that are not programs (sites, standards, dates).
+ * Compared lowercased. Kept tiny on purpose — the ≥3-alphanumeric + hyphen
+ * rule already excludes the common ambiguous forms.
+ */
+export const DESIGNATOR_STOPLIST: ReadonlySet<string> = new Set<string>(['y-12']);
+
+/**
+ * Procurement-appropriation prefixes that form designator-SHAPED budget tags in
+ * PE titles — "(OPA-3)" is Other Procurement, Army, Budget Activity 3, not a
+ * platform; likewise OPN/APN/APA/WPN/PMC/OMA/OMN. No real weapon designator uses
+ * these 3-letter prefixes, so rejecting the whole family is safe (and beats a
+ * hand-maintained token list of every BA suffix).
+ */
+const APPROPRIATION_PREFIXES: ReadonlySet<string> = new Set<string>([
+  'opa',
+  'opn',
+  'apn',
+  'apa',
+  'wpn',
+  'pmc',
+  'oma',
+  'omn',
+]);
+
+/** Count of [A-Za-z0-9] chars in a token (the hyphen does not count). */
+function alphanumLength(token: string): number {
+  let n = 0;
+  for (let i = 0; i < token.length; i += 1) {
+    const c = token.charCodeAt(i);
+    if ((c >= 97 && c <= 122) || (c >= 65 && c <= 90) || (c >= 48 && c <= 57)) n += 1;
+  }
+  return n;
+}
+
+/** True when a NORMALIZED single token is an admissible weapon-system designator. */
+export function isDesignatorToken(token: string): boolean {
+  if (!DESIGNATOR_TOKEN_ANCHORED_RE.test(token)) return false;
+  if (alphanumLength(token) < 3) return false;
+  const lower = token.toLowerCase();
+  if (DESIGNATOR_STOPLIST.has(lower)) return false;
+  const prefix = lower.slice(0, lower.indexOf('-'));
+  if (APPROPRIATION_PREFIXES.has(prefix)) return false;
+  return true;
+}
+
+/**
+ * Pull admissible bare designators out of a PE title — the source rows for the
+ * platform_designator tier. "B-21 Raider Advance Procurement" -> ["B-21"];
+ * "CH-53K (Heavy Lift Replacement)" -> ["CH-53K"]; "Base Support" -> [].
+ * De-duped, order-stable.
+ */
+export function extractDesignatorTerms(title: string): string[] {
+  const out: string[] = [];
+  const seen = new Set<string>();
+  const matches = (title ?? '').match(DESIGNATOR_TOKEN_SCAN_RE) ?? [];
+  for (const raw of matches) {
+    const token = normalizeTerm(raw);
+    if (!isDesignatorToken(token)) continue;
+    const lower = token.toLowerCase();
+    if (seen.has(lower)) continue;
+    seen.add(lower);
+    out.push(token);
+  }
+  return out;
+}
+
+/**
  * Term-quality gate (expects a NORMALIZED term).
  *
  * Base rule: accept only ≥8 chars AND ≥2 whitespace-separated tokens — single
  * generic words ("aircraft", "munitions", "hypersonics") are noise at every tier.
  * Exception: tier='program_name' with length ≥5 also passes when it is
  * multi-token OR carries a digit+letter designator pattern ("MQ-9A", "F-35A").
- * "F-35" (4 chars) and bare acronyms ("CCA") stay rejected — too risky.
+ * "F-35" (4 chars) and bare acronyms ("CCA") stay rejected AS program names —
+ * too risky as curated names. The platform_designator tier admits those bare
+ * designators separately (hyphen + ≥3 alphanumerics), a distinct evidence class.
  * Stoplisted phrases are rejected at every tier.
  */
 export function isTermAcceptable(term: string, tier: NameBankTier): boolean {
   if (TERM_STOPLIST.has(term.toLowerCase())) return false;
+  if (tier === 'platform_designator') return isDesignatorToken(term);
   const multiWord = term.includes(' ');
   if (term.length >= 8 && multiWord) return true;
   if (tier === 'program_name' && term.length >= 5 && (multiWord || DESIGNATOR_RE.test(term))) {
@@ -360,6 +450,7 @@ export interface BillLinkCandidate {
 
 const TIER_LABEL: Record<NameBankTier, string> = {
   program_name: 'program name',
+  platform_designator: 'platform designator',
   capability_alias: 'capability alias',
   pe_title: 'PE title',
 };
