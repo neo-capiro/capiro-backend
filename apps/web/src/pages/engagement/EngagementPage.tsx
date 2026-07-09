@@ -12,7 +12,6 @@ import {
   PlusOutlined,
   RobotOutlined,
   TeamOutlined,
-  VideoCameraOutlined,
 } from '@ant-design/icons';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import {
@@ -37,6 +36,13 @@ import { useClientFilter } from '../../state/client-filter.js';
 import type { Client } from '../clients/clientTypes.js';
 import { OverviewTab } from './OverviewTab.js';
 import { OutreachView } from './OutreachView.js';
+import {
+  DebriefNotesView,
+  extractMeetingJoinUrl,
+  MeetingQuickActions,
+  NotetakerConsentFields,
+  parseDebriefBody,
+} from './meeting-actions.js';
 
 interface EngagementCapabilities {
   ai: { activeProvider: 'openai' | 'anthropic' | null };
@@ -1595,12 +1601,6 @@ export function EngagementPage() {
         okButtonProps={{ disabled: !(notetakerAuthorized && notetakerNotified) }}
         width={560}
       >
-        <Typography.Paragraph type="secondary">
-          Meri will join as a visible participant named "Meri Notetaker (recording)", transcribe the
-          meeting, and draft a private debrief for your review. A notice is posted in the meeting so
-          participants know recording is happening. You're responsible for ensuring you're permitted
-          to record this meeting.
-        </Typography.Paragraph>
         <Form
           form={notetakerForm}
           layout="vertical"
@@ -1614,57 +1614,7 @@ export function EngagementPage() {
             });
           }}
         >
-          <Form.Item
-            name="meetingUrl"
-            label="Meeting join URL"
-            extra="The link participants click to join — from the calendar invite body, not the invite itself."
-            rules={[
-              { required: true, message: 'Paste the meeting join URL.' },
-              {
-                validator: (_rule, value: string) =>
-                  !value || isSupportedJoinUrl(value)
-                    ? Promise.resolve()
-                    : Promise.reject(
-                        new Error(
-                          "That doesn't look like a join link — use the Zoom, Teams, Google Meet, Webex, GoTo, or Slack URL from the invite.",
-                        ),
-                      ),
-              },
-            ]}
-          >
-            <Input placeholder="https://zoom.us/j/… · meet.google.com/… · teams.microsoft.com/…" />
-          </Form.Item>
-          <Form.Item
-            name="authorizedToRecord"
-            valuePropName="checked"
-            rules={[
-              {
-                validator: (_rule, value: boolean) =>
-                  value
-                    ? Promise.resolve()
-                    : Promise.reject(new Error('Please confirm you are authorized.')),
-              },
-            ]}
-          >
-            <Checkbox>I&apos;m authorized to have this meeting transcribed for my firm.</Checkbox>
-          </Form.Item>
-          <Form.Item
-            name="allPartiesWillBeNotified"
-            valuePropName="checked"
-            rules={[
-              {
-                validator: (_rule, value: boolean) =>
-                  value
-                    ? Promise.resolve()
-                    : Promise.reject(new Error('Please acknowledge participant notification.')),
-              },
-            ]}
-          >
-            <Checkbox>
-              I understand participants will be notified, and I&apos;ll obtain any additional
-              consent required where participants are located.
-            </Checkbox>
-          </Form.Item>
+          <NotetakerConsentFields />
         </Form>
       </Modal>
 
@@ -1685,24 +1635,15 @@ export function EngagementPage() {
           if (!debrief || !debrief.body) {
             return <Empty description="No saved notes for this meeting yet." />;
           }
-          const draft = parseDebriefBody(debrief.body);
           return (
-            <div className="engagement-debrief-output">
+            <>
               {meeting ? (
                 <Typography.Title level={5} style={{ marginTop: 0 }}>
                   {meeting.subject}
                 </Typography.Title>
               ) : null}
-              <DetailBlock title="Recap">
-                <Typography.Paragraph>{draft.recap || 'No recap saved.'}</Typography.Paragraph>
-              </DetailBlock>
-              <DetailBlock title="Action Items">
-                <BulletList items={draft.actionItems} empty="No action items saved." />
-              </DetailBlock>
-              <DetailBlock title="Notes">
-                <Typography.Paragraph>{draft.notes || 'No notes saved.'}</Typography.Paragraph>
-              </DetailBlock>
-            </div>
+              <DebriefNotesView body={debrief.body} />
+            </>
           );
         })()}
       </Modal>
@@ -1780,78 +1721,6 @@ function MeetingWeekNav({
           onChange={(event) => pickEnd(event.target.value)}
         />
       </div>
-    </div>
-  );
-}
-
-/**
- * Per-meeting quick actions rendered on every meeting-list surface (list / day /
- * calendar): Join the online meeting, Send Meri to take notes, and View saved
- * notes. Each button stops propagation so it doesn't also trigger the row's
- * select handler. Gating:
- *  - Join / Send Meri: only for meetings that haven't ended AND have a supported
- *    online join link (a bot can only join a real Zoom/Meet/Teams/… URL).
- *  - View notes: only when the meeting already has a saved debrief.
- * Renders nothing when a meeting offers none of these.
- */
-function MeetingQuickActions({
-  meeting,
-  onJoin,
-  onSendNotetaker,
-  onViewNotes,
-}: {
-  meeting: Meeting;
-  onJoin: (meeting: Meeting) => void;
-  onSendNotetaker: (meeting: Meeting) => void;
-  onViewNotes: (meeting: Meeting) => void;
-}) {
-  const status = meetingStatus(meeting);
-  const ended = status.kind === 'complete' || status.kind === 'missing';
-  const joinUrl = extractMeetingJoinUrl(meeting);
-  const hasNotes = meeting.debriefs.length > 0;
-  const canJoinOrRecord = !ended && Boolean(joinUrl);
-  if (!canJoinOrRecord && !hasNotes) return null;
-  return (
-    <div
-      className="engagement-meeting-quick-actions"
-      style={{ display: 'flex', flexWrap: 'wrap', gap: 6, marginTop: 6 }}
-    >
-      {canJoinOrRecord ? (
-        <Button
-          size="small"
-          icon={<VideoCameraOutlined />}
-          onClick={(event) => {
-            event.stopPropagation();
-            onJoin(meeting);
-          }}
-        >
-          Join
-        </Button>
-      ) : null}
-      {canJoinOrRecord ? (
-        <Button
-          size="small"
-          icon={<RobotOutlined />}
-          onClick={(event) => {
-            event.stopPropagation();
-            onSendNotetaker(meeting);
-          }}
-        >
-          Send Meri
-        </Button>
-      ) : null}
-      {hasNotes ? (
-        <Button
-          size="small"
-          icon={<FileTextOutlined />}
-          onClick={(event) => {
-            event.stopPropagation();
-            onViewNotes(meeting);
-          }}
-        >
-          Notes
-        </Button>
-      ) : null}
     </div>
   );
 }
@@ -1981,9 +1850,9 @@ function MeetingListItem({
         </div>
         <MeetingQuickActions
           meeting={meeting}
-          onJoin={onJoin}
-          onSendNotetaker={onSendNotetaker}
-          onViewNotes={onViewNotes}
+          onJoin={() => onJoin(meeting)}
+          onSendNotetaker={() => onSendNotetaker(meeting)}
+          onViewNotes={() => onViewNotes(meeting)}
         />
       </div>
       <Button
@@ -2128,9 +1997,9 @@ function MeetingCalendarList({
                         />
                         <MeetingQuickActions
                           meeting={meeting}
-                          onJoin={onJoin}
-                          onSendNotetaker={onSendNotetaker}
-                          onViewNotes={onViewNotes}
+                          onJoin={() => onJoin(meeting)}
+                          onSendNotetaker={() => onSendNotetaker(meeting)}
+                          onViewNotes={() => onViewNotes(meeting)}
                         />
                       </div>
                     );
@@ -2299,9 +2168,9 @@ function MeetingDayTimeline({
                   </div>
                   <MeetingQuickActions
                     meeting={meeting}
-                    onJoin={onJoin}
-                    onSendNotetaker={onSendNotetaker}
-                    onViewNotes={onViewNotes}
+                    onJoin={() => onJoin(meeting)}
+                    onSendNotetaker={() => onSendNotetaker(meeting)}
+                    onViewNotes={() => onViewNotes(meeting)}
                   />
                 </div>
               );
@@ -4055,57 +3924,6 @@ function meetingBorderColor(meeting: Meeting): string {
  * a join URL out of an Outlook invite body. The Outlook calendar webLink is NOT
  * a join link and must never be treated as one.
  */
-const JOIN_URL_PATTERN =
-  /https:\/\/(?:[\w-]+\.)?(?:zoom\.us|zoomgov\.com)\/[jsw]\/[^\s<>"')\]]+|https:\/\/meet\.google\.com\/[a-z0-9-]+|https:\/\/(?:[\w-]+\.)?teams\.(?:microsoft\.(?:com|us)|live\.com)\/[^\s<>"')\]]+|https:\/\/(?:[\w-]+\.)?webex\.com\/[^\s<>"')\]]+|https:\/\/(?:[\w-]+\.)?(?:goto\.com|gotomeeting\.com)\/[^\s<>"')\]]+|https:\/\/gotomeet\.me\/[^\s<>"')\]]+|https:\/\/app\.slack\.com\/huddle\/[^\s<>"')\]]+/i;
-
-// MUST stay in lockstep with the server gate detectPlatform()
-// (apps/api/src/engagement/notetaker/notetaker.service.ts) — covers Recall's full
-// supported set incl. US-Gov Teams (*.teams.microsoft.us), GoTo, and Slack Huddles.
-function isSupportedJoinUrl(value: string): boolean {
-  let url: URL;
-  try {
-    url = new URL(value.trim());
-  } catch {
-    return false;
-  }
-  const host = url.hostname.toLowerCase();
-  return (
-    host === 'zoom.us' ||
-    host.endsWith('.zoom.us') ||
-    host === 'zoomgov.com' ||
-    host.endsWith('.zoomgov.com') ||
-    host === 'meet.google.com' ||
-    host === 'teams.microsoft.com' ||
-    host === 'teams.live.com' ||
-    host === 'teams.microsoft.us' ||
-    host.endsWith('.teams.microsoft.us') ||
-    host === 'webex.com' ||
-    host.endsWith('.webex.com') ||
-    host === 'goto.com' ||
-    host.endsWith('.goto.com') ||
-    host === 'gotomeeting.com' ||
-    host.endsWith('.gotomeeting.com') ||
-    host === 'gotomeet.me' ||
-    (host === 'app.slack.com' && url.pathname.includes('/huddle/'))
-  );
-}
-
-/**
- * Find a real join link for the meeting: webLink only if it IS one (it usually
- * isn't — Outlook's webLink opens the calendar item), then location, then the
- * invite body. Outlook HTML-escapes URLs in the description, so unescape &amp;
- * on the match (Teams links carry query params).
- */
-function extractMeetingJoinUrl(meeting: Meeting): string | null {
-  const webLink = typeof meeting.metadata?.webLink === 'string' ? meeting.metadata.webLink : '';
-  if (webLink && isSupportedJoinUrl(webLink)) return webLink;
-  for (const text of [meeting.location ?? '', meeting.description ?? '']) {
-    const match = JOIN_URL_PATTERN.exec(text);
-    if (match) return match[0].replace(/&amp;/g, '&');
-  }
-  return null;
-}
-
 /**
  * A notetaker session is "active" while Meri is still working the meeting — the
  * detail poll keeps refetching in these states and the send button stays locked.
@@ -4537,20 +4355,6 @@ function exportDebriefPdf({ meeting, draft }: { meeting: Meeting; draft: Debrief
   link.click();
   link.remove();
   URL.revokeObjectURL(url);
-}
-
-function parseDebriefBody(body: string): DebriefDraftState {
-  const fallback = { recap: body.trim(), actionItems: [], notes: '' };
-  if (!body.trim()) return { recap: '', actionItems: [], notes: '' };
-  const recap = sectionText(body, 'Recap', 'Action Items');
-  const actionItems = sectionText(body, 'Action Items', 'Notes');
-  const notes = sectionText(body, 'Notes');
-  if (!recap && !actionItems && !notes) return fallback;
-  return {
-    recap: recap || fallback.recap,
-    actionItems: linesToArray(actionItems.replace(/^- /gm, '')),
-    notes,
-  };
 }
 
 function formatDebriefBody(draft: DebriefDraftState): string {

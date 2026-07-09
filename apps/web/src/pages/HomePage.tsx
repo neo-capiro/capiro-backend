@@ -1,9 +1,16 @@
 import { useMemo, useState, type ReactNode } from 'react';
 import { useUser } from '@clerk/clerk-react';
-import { useQuery } from '@tanstack/react-query';
-import { Empty, Skeleton, Tag } from 'antd';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { App, Empty, Form, Modal, Skeleton, Tag } from 'antd';
 import { Link } from 'react-router-dom';
 import { useApi } from '../lib/use-api.js';
+import {
+  DebriefNotesView,
+  extractMeetingJoinUrl,
+  MeetingQuickActions,
+  NotetakerConsentFields,
+  openMeetingJoinLink,
+} from './engagement/meeting-actions.js';
 import type { Client } from './clients/clientTypes.js';
 import type {
   ComingUpItem,
@@ -37,6 +44,11 @@ interface DashMeeting {
   id: string;
   subject: string;
   location: string | null;
+  // description + metadata come back on the same /api/engagement/meetings payload
+  // (this is a lean projection type); needed by extractMeetingJoinUrl to find the
+  // real online join link in the invite body / Outlook webLink.
+  description: string | null;
+  metadata: Record<string, unknown> | null;
   source: string;
   startsAt: string;
   endsAt: string;
@@ -45,6 +57,13 @@ interface DashMeeting {
   attendees: Array<{ name: string | null; role: string | null }>;
   preps: Array<{ status: string }>;
   debriefs: Array<{ id: string }>;
+}
+
+/** Minimal saved-debrief shape for the home notes modal. */
+interface HomeDebrief {
+  id: string;
+  body: string | null;
+  restricted: boolean;
 }
 
 interface DashOutreach {
@@ -521,10 +540,59 @@ function renderBrief(text: string): ReactNode[] {
 /* ── Client engagement: week strip + per-day meetings (fixed height) ─────── */
 
 function ClientEngagement({ meetings, loading }: { meetings: DashMeeting[]; loading: boolean }) {
+  const api = useApi();
+  const qc = useQueryClient();
+  const { message } = App.useApp();
   const now = useMemo(() => new Date(), []);
   const days = useMemo(() => weekDays(now), [now]);
   const todayKey = dayKey(now);
   const [selectedDay, setSelectedDay] = useState<string>(todayKey);
+
+  // ── Send Meri + view-notes wiring (mirrors the Engagement Manager; the modal
+  // bodies come from the shared meeting-actions module so the compliance-reviewed
+  // consent copy stays single-sourced). ──
+  const [notetakerForm] = Form.useForm();
+  const notetakerAuthorized = Form.useWatch('authorizedToRecord', notetakerForm);
+  const notetakerNotified = Form.useWatch('allPartiesWillBeNotified', notetakerForm);
+  const [notetakerOpen, setNotetakerOpen] = useState(false);
+  const [notetakerTargetId, setNotetakerTargetId] = useState<string | null>(null);
+  const [notesMeetingId, setNotesMeetingId] = useState<string | null>(null);
+
+  const dispatchNotetaker = useMutation({
+    mutationFn: async ({ meetingId, meetingUrl }: { meetingId: string; meetingUrl: string }) =>
+      (
+        await api.post(`/api/engagement/meetings/${meetingId}/notetaker`, {
+          meetingUrl,
+          authorizedToRecord: true,
+          allPartiesWillBeNotified: true,
+        })
+      ).data,
+    onSuccess: () => {
+      message.success('Meri is joining the meeting');
+      setNotetakerOpen(false);
+      notetakerForm.resetFields();
+      qc.invalidateQueries({ queryKey: ['engagement-meetings-week'] });
+    },
+    onError: (err: unknown) =>
+      message.error(err instanceof Error ? err.message : 'Could not send Meri'),
+  });
+
+  const notesQuery = useQuery<HomeDebrief[]>({
+    queryKey: ['engagement-meeting-debriefs', notesMeetingId],
+    queryFn: async () =>
+      (await api.get<HomeDebrief[]>(`/api/engagement/meetings/${notesMeetingId}/debriefs`)).data,
+    enabled: Boolean(notesMeetingId),
+  });
+
+  const openNotetaker = (meeting: DashMeeting) => {
+    setNotetakerTargetId(meeting.id);
+    notetakerForm.setFieldsValue({
+      meetingUrl: extractMeetingJoinUrl(meeting) ?? '',
+      authorizedToRecord: false,
+      allPartiesWillBeNotified: false,
+    });
+    setNotetakerOpen(true);
+  };
 
   const meetingDayKeys = useMemo(
     () => new Set(meetings.map((m) => dayKey(new Date(m.startsAt)))),
@@ -591,28 +659,84 @@ function ClientEngagement({ meetings, loading }: { meetings: DashMeeting[]; load
             const who =
               m.organizerName || m.attendees.find((a) => a.name)?.name || m.client?.name || '';
             return (
-              <Link
-                key={m.id}
-                to={`/engagement/meetings/${encodeURIComponent(m.id)}`}
-                className="home-panel-row"
-              >
-                <div className="home-panel-row-main">
-                  <span className="home-meeting-when num">
-                    {formatCompactTime(new Date(m.startsAt))}
-                  </span>
-                  <span className="home-panel-row-title">{m.subject}</span>
-                  <span className="home-panel-row-sub">
-                    {[who, channel].filter(Boolean).join(' · ') || ' '}
-                  </span>
-                </div>
-                <Tag color={status.color} className="home-panel-tag">
-                  {status.label}
-                </Tag>
-              </Link>
+              // Actions live OUTSIDE the <Link> (buttons can't nest inside an
+              // anchor) so a Join/Send-Meri/Notes click doesn't also navigate.
+              <div key={m.id} className="home-panel-row-wrap">
+                <Link
+                  to={`/engagement/meetings/${encodeURIComponent(m.id)}`}
+                  className="home-panel-row"
+                >
+                  <div className="home-panel-row-main">
+                    <span className="home-meeting-when num">
+                      {formatCompactTime(new Date(m.startsAt))}
+                    </span>
+                    <span className="home-panel-row-title">{m.subject}</span>
+                    <span className="home-panel-row-sub">
+                      {[who, channel].filter(Boolean).join(' · ') || ' '}
+                    </span>
+                  </div>
+                  <Tag color={status.color} className="home-panel-tag">
+                    {status.label}
+                  </Tag>
+                </Link>
+                <MeetingQuickActions
+                  meeting={m}
+                  onJoin={() => openMeetingJoinLink(m)}
+                  onSendNotetaker={() => openNotetaker(m)}
+                  onViewNotes={() => setNotesMeetingId(m.id)}
+                />
+              </div>
             );
           })}
         </div>
       )}
+
+      <Modal
+        title="Send Meri to take notes?"
+        open={notetakerOpen}
+        onCancel={() => setNotetakerOpen(false)}
+        onOk={() => notetakerForm.submit()}
+        okText="Send Meri"
+        confirmLoading={dispatchNotetaker.isPending}
+        okButtonProps={{ disabled: !(notetakerAuthorized && notetakerNotified) }}
+        width={560}
+      >
+        <Form
+          form={notetakerForm}
+          layout="vertical"
+          onFinish={(values) => {
+            if (!notetakerTargetId) return;
+            dispatchNotetaker.mutate({
+              meetingId: notetakerTargetId,
+              meetingUrl: values.meetingUrl,
+            });
+          }}
+        >
+          <NotetakerConsentFields />
+        </Form>
+      </Modal>
+
+      <Modal
+        title="Meeting notes"
+        open={Boolean(notesMeetingId)}
+        onCancel={() => setNotesMeetingId(null)}
+        footer={null}
+        width={640}
+      >
+        {(() => {
+          if (notesQuery.isLoading) return <span>Loading notes...</span>;
+          const debrief = (notesQuery.data ?? []).find((d) => !d.restricted && d.body);
+          if (!debrief || !debrief.body) {
+            return (
+              <Empty
+                image={Empty.PRESENTED_IMAGE_SIMPLE}
+                description="No saved notes for this meeting yet."
+              />
+            );
+          }
+          return <DebriefNotesView body={debrief.body} />;
+        })()}
+      </Modal>
     </div>
   );
 }
