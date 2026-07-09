@@ -13,6 +13,8 @@ import {
   isValidCanonicalId,
   normalizeCanonicalId,
   parseBillDesignation,
+  currentCongress,
+  billStatusLabel,
 } from '@capiro/shared';
 import type { AppConfig } from '../config/config.schema.js';
 import { EngagementService } from '../engagement/engagement.service.js';
@@ -108,7 +110,17 @@ export const TOOL_DEFINITIONS = [
   {
     name: 'search_congress_bills',
     description:
-      'Search congressional bills in the Capiro database (118th and 119th Congress). Filter by keyword, policy area, congress number, or recent activity date. Returns bill title, sponsor, latest action, policy area, and cosponsors count.',
+      'Search congressional bills in the Capiro database (118th and 119th Congress). Filter by keyword, policy area, congress number, or recent activity date. Accepts a bill designation or id ("H.R. 8800", "119-hr-8800") as the query for a direct lookup. Returns bill title, sponsor, latest action, canonical STATUS (e.g. rule_failed, passed_chamber), policy area, and cosponsors count.',
+  },
+  {
+    name: 'get_bill_status',
+    description:
+      'Get the authoritative legislative status of ONE bill (by id "119-hr-8800" or designation "H.R. 8800"): its canonical status, recent action timeline, roll-call VOTES on the bill (with tallies + party splits), and — critically — the outcome of any RULE that governs its floor consideration. Use this to answer "did it pass / advance / stall / what happened to it". A bill whose latest action is only "rule reported" but whose rule FAILED is reported as stalled, not advancing. Explicitly states when there is NO recorded floor vote — never infer passage.',
+  },
+  {
+    name: 'search_floor_votes',
+    description:
+      "Search congressional roll-call votes (House + Senate) in the Capiro database. Filter by bill (id/designation), keyword over the vote question/title, chamber, congress, or a specific member (Bioguide id or name). Returns each vote's question, result, yea/nay/present tally, party splits, date, and source link — and the member's own position when a member is given. Explicitly reports when NO matching roll call exists; never infer a vote outcome.",
   },
   {
     name: 'search_cbo_cost_estimates',
@@ -530,12 +542,26 @@ export class MeriToolsService {
         ['query'],
       ),
       search_congress_bills: obj({
-        query: str('Keyword search'),
+        query: str('Keyword search, or a bill designation/id ("H.R. 8800", "119-hr-8800")'),
         policyArea: str('Policy area filter'),
         congress: int('Congress number, e.g. 118 or 119'),
         activeSince: str('ISO date; only bills with action since then'),
         limit: int('Max results (1-50)'),
         page: int('Page number'),
+      }),
+      get_bill_status: obj(
+        {
+          billId: str('Bill id ("119-hr-8800") or designation ("H.R. 8800")'),
+        },
+        ['billId'],
+      ),
+      search_floor_votes: obj({
+        billId: str('Bill id/designation to scope votes to'),
+        query: str('Keyword over the vote question/title'),
+        member: str('Member Bioguide id ("A000360") or name'),
+        chamber: str('"house" or "senate"'),
+        congress: int('Congress number filter'),
+        limit: int('Max results (1-25, default 10)'),
       }),
       search_cbo_cost_estimates: obj({
         billId: str('Capiro bill id, e.g. "119-hr-8800"'),
@@ -1224,6 +1250,10 @@ export class MeriToolsService {
         return this.searchMemory(ctx, input);
       case 'search_congress_bills':
         return this.searchCongressBills(input);
+      case 'get_bill_status':
+        return this.getBillStatus(input);
+      case 'search_floor_votes':
+        return this.searchFloorVotes(input);
       case 'search_cbo_cost_estimates':
         return this.searchCboCostEstimates(input);
       case 'resolve_entity':
@@ -1842,6 +1872,19 @@ export class MeriToolsService {
     };
   }
 
+  /**
+   * Resolve a free-form bill reference ("H.R. 8800", "119-hr-8800") to a
+   * canonical bill id, or null. Shared by the congress-bill / status / votes
+   * tools so a designation query becomes a direct lookup, not a title guess.
+   */
+  private resolveBillId(raw: string | null | undefined): string | null {
+    if (!raw) return null;
+    const norm = normalizeCanonicalId('billId', raw);
+    if (isValidCanonicalId('billId', norm)) return norm;
+    const parsed = parseBillDesignation(raw, currentCongress());
+    return parsed ? formatBillId(parsed.congress, parsed.type, parsed.number) : null;
+  }
+
   private async searchCongressBills(input: Record<string, unknown>) {
     const search = optionalString(input, 'query', 240) ?? optionalString(input, 'search', 240);
     const policyArea = optionalString(input, 'policyArea', 120);
@@ -1849,6 +1892,24 @@ export class MeriToolsService {
     const activeSince = optionalString(input, 'activeSince', 30);
     const limit = clampInt(input.limit, 1, 50, 20);
     const page = clampInt(input.page, 1, 100, 1);
+
+    // Direct lookup when the query is itself a bill designation/id — a title
+    // substring search would otherwise miss "H.R. 8800".
+    const directId = this.resolveBillId(search);
+    if (directId) {
+      const bill = await this.prisma.congressBill.findUnique({ where: { id: directId } });
+      if (bill) {
+        return {
+          tool: 'search_congress_bills',
+          generatedAt: new Date().toISOString(),
+          data: [bill],
+          total: 1,
+          page: 1,
+          limit,
+          resolvedBy: 'bill-id',
+        };
+      }
+    }
 
     const bills = await this.ldaIntel.getCongressBills(
       search ?? undefined,
@@ -1863,6 +1924,305 @@ export class MeriToolsService {
       tool: 'search_congress_bills',
       generatedAt: new Date().toISOString(),
       ...bills,
+    };
+  }
+
+  /**
+   * Authoritative single-bill status (LegiWatch A5) — the fix for the H.R. 8800
+   * blindness. Returns the canonical status, action timeline, roll-call votes on
+   * the bill (tallies + party splits), and the outcome of any RULE governing its
+   * floor consideration. Explicit no-vote honesty note; never infers passage.
+   */
+  private async getBillStatus(input: Record<string, unknown>) {
+    const raw = optionalString(input, 'billId', 60) ?? optionalString(input, 'query', 60);
+    const billId = this.resolveBillId(raw);
+    if (!billId) {
+      return {
+        tool: 'get_bill_status',
+        generatedAt: new Date().toISOString(),
+        found: false,
+        note: 'Provide a bill id ("119-hr-8800") or designation ("H.R. 8800").',
+      };
+    }
+    const bill = await this.prisma.congressBill.findUnique({
+      where: { id: billId },
+      select: {
+        id: true,
+        title: true,
+        congress: true,
+        status: true,
+        statusAt: true,
+        latestActionText: true,
+        latestActionDate: true,
+        sponsorName: true,
+        sponsorBioguideId: true,
+        cosponsorsCount: true,
+        policyArea: true,
+      },
+    });
+    if (!bill) {
+      return {
+        tool: 'get_bill_status',
+        generatedAt: new Date().toISOString(),
+        billId,
+        found: false,
+        note: `No bill ${billId} on record in the Capiro database. Say so explicitly — do not describe its status from memory.`,
+      };
+    }
+
+    const [actions, votes, ruleLinks] = await Promise.all([
+      this.prisma.congressBillAction.findMany({
+        where: { billId },
+        orderBy: { date: 'desc' },
+        take: 15,
+        select: { date: true, text: true, type: true, chamber: true },
+      }),
+      this.prisma.rollCallVote.findMany({
+        where: { billId },
+        orderBy: { voteDate: 'desc' },
+        take: 15,
+        select: {
+          chamber: true,
+          rollNumber: true,
+          question: true,
+          result: true,
+          voteType: true,
+          voteDate: true,
+          yeas: true,
+          nays: true,
+          present: true,
+          notVoting: true,
+          partyTotals: true,
+          sourceUrl: true,
+        },
+      }),
+      this.prisma.billRuleLink.findMany({
+        where: { targetBillId: billId },
+        select: { ruleBillId: true, source: true },
+      }),
+    ]);
+
+    const governingRules = await Promise.all(
+      ruleLinks.map(async (l) => {
+        const ruleBill = await this.prisma.congressBill.findUnique({
+          where: { id: l.ruleBillId },
+          select: { status: true, latestActionText: true, title: true },
+        });
+        const ruleVotes = await this.prisma.rollCallVote.findMany({
+          where: { billId: l.ruleBillId },
+          orderBy: { voteDate: 'desc' },
+          take: 3,
+          select: {
+            rollNumber: true,
+            result: true,
+            yeas: true,
+            nays: true,
+            voteDate: true,
+            question: true,
+            sourceUrl: true,
+          },
+        });
+        return {
+          ruleBillId: l.ruleBillId,
+          ruleTitle: ruleBill?.title ?? null,
+          ruleStatus: ruleBill?.status ?? null,
+          ruleLatestAction: ruleBill?.latestActionText ?? null,
+          ruleVotes,
+        };
+      }),
+    );
+
+    const notes: string[] = [];
+    if (votes.length === 0) {
+      notes.push(
+        'No recorded roll-call vote on this bill itself. Do NOT infer that it passed or failed a chamber from the absence of a vote.',
+      );
+    }
+    if (bill.status === 'rule_failed') {
+      notes.push(
+        'The rule governing this bill FAILED — the bill did NOT advance to the floor under that rule; it is stalled, not pending passage.',
+      );
+    }
+
+    return {
+      tool: 'get_bill_status',
+      generatedAt: new Date().toISOString(),
+      billId,
+      found: true,
+      title: bill.title,
+      congress: bill.congress,
+      status: bill.status,
+      statusLabel: billStatusLabel(bill.status),
+      statusAt: bill.statusAt,
+      latestAction: { text: bill.latestActionText, date: bill.latestActionDate },
+      sponsor: { name: bill.sponsorName, bioguideId: bill.sponsorBioguideId },
+      cosponsorsCount: bill.cosponsorsCount,
+      recentActions: actions,
+      floorVotes: votes,
+      governingRules,
+      ...(notes.length ? { note: notes.join(' ') } : {}),
+    };
+  }
+
+  /**
+   * Search roll-call votes (LegiWatch A5). Filter by bill/keyword/chamber/
+   * congress/member. Explicit no-match note; never infers a vote outcome.
+   */
+  private async searchFloorVotes(input: Record<string, unknown>) {
+    const billId = this.resolveBillId(optionalString(input, 'billId', 60) ?? undefined);
+    const query = optionalString(input, 'query', 200);
+    const memberRaw = optionalString(input, 'member', 80);
+    const chamber = optionalString(input, 'chamber', 10)?.toLowerCase();
+    const congress = input.congress ? Number(input.congress) : undefined;
+    const limit = clampInt(input.limit, 1, 25, 10);
+
+    const where: Record<string, unknown> = {};
+    if (billId) where.billId = billId;
+    if (congress) where.congress = congress;
+    if (chamber === 'house' || chamber === 'senate') where.chamber = chamber;
+    if (query) {
+      where.OR = [
+        { question: { contains: query, mode: 'insensitive' } },
+        { title: { contains: query, mode: 'insensitive' } },
+      ];
+    }
+
+    // Member filter: accept a Bioguide id directly, else resolve a NAME. Name
+    // resolution must never silently mislead — an unresolvable or AMBIGUOUS
+    // name short-circuits with an explicit answer rather than returning
+    // unscoped or wrong-member votes (adversarial-review fixes).
+    let resolvedMember: {
+      bioguideId: string;
+      lisId: string | null;
+      fullName: string;
+      chamber: string;
+      state: string | null;
+    } | null = null;
+    if (memberRaw) {
+      const norm = normalizeCanonicalId('bioguide', memberRaw);
+      if (isValidCanonicalId('bioguide', norm)) {
+        const m = await this.prisma.congressMember.findUnique({
+          where: { bioguideId: norm },
+          select: { bioguideId: true, lisId: true, fullName: true, chamber: true, state: true },
+        });
+        if (!m) {
+          return {
+            tool: 'search_floor_votes',
+            generatedAt: new Date().toISOString(),
+            votesFound: 0,
+            votes: [],
+            note: `No member with Bioguide id ${norm} is on record. Results are NOT scoped to a member — say so; do not attribute votes.`,
+          };
+        }
+        resolvedMember = m;
+      } else {
+        const candidates = await this.prisma.congressMember.findMany({
+          where: {
+            OR: [
+              { fullName: { contains: memberRaw, mode: 'insensitive' } },
+              { lastName: { contains: memberRaw, mode: 'insensitive' } },
+            ],
+          },
+          orderBy: [{ isCurrent: 'desc' }, { lastName: 'asc' }],
+          take: 8,
+          select: {
+            bioguideId: true,
+            lisId: true,
+            fullName: true,
+            chamber: true,
+            state: true,
+            party: true,
+            isCurrent: true,
+          },
+        });
+        if (candidates.length === 0) {
+          return {
+            tool: 'search_floor_votes',
+            generatedAt: new Date().toISOString(),
+            votesFound: 0,
+            votes: [],
+            note: `Could not resolve a member named "${memberRaw}". Results are NOT scoped to that member — say so explicitly; do not attribute any vote to them.`,
+          };
+        }
+        if (candidates.length > 1) {
+          return {
+            tool: 'search_floor_votes',
+            generatedAt: new Date().toISOString(),
+            votesFound: 0,
+            votes: [],
+            ambiguousMember: candidates.map((c) => ({
+              bioguideId: c.bioguideId,
+              fullName: c.fullName,
+              chamber: c.chamber,
+              state: c.state,
+              party: c.party,
+              isCurrent: c.isCurrent,
+            })),
+            note: `"${memberRaw}" matches ${candidates.length} members — ask the user which (by state/chamber/full name) before attributing votes. Results are NOT scoped to a member yet.`,
+          };
+        }
+        resolvedMember = candidates[0]!;
+      }
+      // Match rows keyed by bioguide OR by lisId (Senate rows can carry a null
+      // bioguide during crosswalk lag — see sync-senate-votes memberKey).
+      const memberOr: Record<string, unknown>[] = [{ bioguideId: resolvedMember.bioguideId }];
+      if (resolvedMember.lisId) memberOr.push({ lisId: resolvedMember.lisId });
+      where.memberVotes = { some: { OR: memberOr } };
+    }
+
+    const memberVoteFilter = resolvedMember
+      ? {
+          where: {
+            OR: [
+              { bioguideId: resolvedMember.bioguideId },
+              ...(resolvedMember.lisId ? [{ lisId: resolvedMember.lisId }] : []),
+            ],
+          },
+          select: { voteCast: true, party: true, state: true },
+        }
+      : null;
+
+    const votes = await this.prisma.rollCallVote.findMany({
+      where,
+      orderBy: { voteDate: 'desc' },
+      take: limit,
+      select: {
+        id: true,
+        chamber: true,
+        congress: true,
+        session: true,
+        rollNumber: true,
+        billId: true,
+        question: true,
+        result: true,
+        voteType: true,
+        voteDate: true,
+        yeas: true,
+        nays: true,
+        present: true,
+        notVoting: true,
+        partyTotals: true,
+        title: true,
+        sourceUrl: true,
+        ...(memberVoteFilter ? { memberVotes: memberVoteFilter } : {}),
+      },
+    });
+
+    return {
+      tool: 'search_floor_votes',
+      generatedAt: new Date().toISOString(),
+      votesFound: votes.length,
+      ...(resolvedMember
+        ? { member: { bioguideId: resolvedMember.bioguideId, fullName: resolvedMember.fullName } }
+        : {}),
+      votes,
+      ...(votes.length === 0
+        ? {
+            note: resolvedMember
+              ? `No roll-call vote on record matches — including none cast by ${resolvedMember.fullName} under these filters. Say so explicitly; do not infer a vote.`
+              : 'No roll-call vote on record matches that. Say so explicitly — do not infer a vote outcome or tally.',
+          }
+        : {}),
     };
   }
 

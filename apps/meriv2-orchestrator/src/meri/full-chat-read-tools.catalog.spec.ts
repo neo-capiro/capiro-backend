@@ -4,7 +4,7 @@ import { WRITE_DELEGATED_TOOLS } from './write-tools.catalog';
 
 /**
  * Full apps/api Meri tool surface (meri-tools.service.ts TOOL_DEFINITIONS),
- * transcribed verbatim — 55 tools. Kept as an explicit expected set because
+ * transcribed verbatim — 57 tools. Kept as an explicit expected set because
  * apps/api is not importable from the orchestrator package.
  */
 const ALL_APPS_API_TOOLS = [
@@ -17,6 +17,8 @@ const ALL_APPS_API_TOOLS = [
   'find_path_to',
   'search_memory',
   'search_congress_bills',
+  'get_bill_status',
+  'search_floor_votes',
   'search_cbo_cost_estimates',
   'resolve_entity',
   'search_lda_filings',
@@ -66,7 +68,7 @@ const ALL_APPS_API_TOOLS = [
 ].sort();
 
 describe('FULL_CHAT_READ_TOOLS catalog', () => {
-  it('matches the expected 17-tool set, all read-only', () => {
+  it('matches the expected 19-tool set, all read-only', () => {
     const expected = [
       'run_analysis',
       'search_memory',
@@ -76,6 +78,8 @@ describe('FULL_CHAT_READ_TOOLS catalog', () => {
       'search_state_bills',
       'search_cbo_cost_estimates',
       'resolve_entity',
+      'get_bill_status',
+      'search_floor_votes',
       'search_public_web',
       'scrape_web_page',
       'list_emails',
@@ -87,7 +91,7 @@ describe('FULL_CHAT_READ_TOOLS catalog', () => {
       'query_outreach',
     ].sort();
     expect(FULL_CHAT_READ_TOOLS.map((t) => t.name).sort()).toEqual(expected);
-    expect(FULL_CHAT_READ_TOOLS).toHaveLength(17);
+    expect(FULL_CHAT_READ_TOOLS).toHaveLength(19);
     expect(FULL_CHAT_READ_TOOLS.every((t) => t.readOnly === true)).toBe(true);
   });
 

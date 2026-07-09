@@ -60,6 +60,28 @@ export const INGESTION_JOBS: ScheduledIngestionJob[] = [
     description: 'Committee registry + membership rosters (Mon+Thu, CC0 dataset)',
   },
   {
+    id: 'SyncHouseVotes',
+    command: ['sync-house-votes'],
+    cron: { minute: '5', hour: '0/6' },
+    tier: 'daily',
+    description: 'House roll-call votes (LegiWatch A1, every 6h — floor outcomes)',
+  },
+  {
+    id: 'SyncSenateVotes',
+    command: ['sync-senate-votes'],
+    cron: { minute: '15', hour: '0/6' },
+    tier: 'daily',
+    description: 'Senate roll-call votes via LIS XML (LegiWatch A1, every 6h)',
+  },
+  {
+    id: 'DeriveBillStatus',
+    command: ['derive-bill-status'],
+    cron: { minute: '40', hour: '0/6' },
+    tier: 'derived',
+    description:
+      'Canonical congress_bill.status from actions + votes + rule links (after the vote syncs)',
+  },
+  {
     id: 'SyncFederalRegister',
     command: ['sync-federal-register'],
     cron: { minute: '15', hour: '6' },

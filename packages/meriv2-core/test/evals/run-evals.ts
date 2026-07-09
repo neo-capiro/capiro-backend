@@ -2,6 +2,7 @@ import { crossTenantLeakageCase } from './leakage/cross-tenant-leakage.eval';
 import { claimGroundingCase } from './grounding/claim-grounding.eval';
 import { complianceGateCase } from './compliance/gate-enforcement.eval';
 import { entityGroundingCase } from './entity/entity-grounding.eval';
+import { billStatusCase } from './legislation/bill-status.eval';
 import type { EvalCase } from './types';
 
 /**
@@ -23,6 +24,7 @@ const CASES: EvalCase[] = [
   claimGroundingCase,
   complianceGateCase,
   entityGroundingCase,
+  billStatusCase,
 ];
 
 async function main(): Promise<void> {

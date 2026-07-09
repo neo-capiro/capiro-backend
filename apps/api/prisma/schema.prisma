@@ -2220,6 +2220,15 @@ model CongressBill {
   cosponsorsCount  Int       @default(0) @map("cosponsors_count")
   originChamber    String?   @map("origin_chamber")
   updateDate       DateTime? @map("update_date") @db.Timestamptz(6)
+  // Advances when the bill TEXT changes even if no action fired (LegiWatch A3,
+  // text-changed alert). Congress.gov returns it; we persist it now.
+  updateDateIncludingText DateTime? @map("update_date_including_text") @db.Timestamptz(6)
+  // Canonical derived legislative stage (LegiWatch A4). ONE source of truth
+  // (deriveBillStage in @capiro/shared) over action history + rule outcomes +
+  // roll-call votes. e.g. introduced|committee|reported|rule_pending|
+  // rule_failed|floor|passed_chamber|resolving|to_president|enacted|failed|vetoed
+  status           String?
+  statusAt         DateTime? @map("status_at") @db.Timestamptz(6)
   url              String?
   lastSyncedAt     DateTime  @default(now()) @map("last_synced_at") @db.Timestamptz(6)
 
@@ -2232,6 +2241,7 @@ model CongressBill {
   @@index([policyArea], map: "congress_bill_policy_area_idx")
   @@index([peCodes], map: "congress_bill_pe_codes_gin_idx", type: Gin)
   @@index([sponsorBioguideId], map: "congress_bill_sponsor_bioguide_idx")
+  @@index([status], map: "congress_bill_status_idx")
   @@map("congress_bill")
 }
 
@@ -2370,6 +2380,83 @@ model EntityCrosswalk {
   @@unique([idType, idValue])
   @@index([entityType, entityKey])
   @@map("entity_crosswalk")
+}
+
+// Roll-call votes (LegiWatch A1 / Bucket-#3 C1.V2-V3). GLOBAL public-record
+// table. House from Congress.gov /v3/house-vote; Senate from senate.gov LIS
+// XML. billId is a SOFT ref (a vote may reference a bill we don't track) —
+// parsed from House legislationType+Number or Senate document_name. A House
+// RULE vote has billId = the hres (e.g. "119-hres-1398"); its target bills
+// (H.R. 8800 …) receive the outcome via bill_rule_link. NO FK on billId so a
+// vote on an untracked measure still persists.
+model RollCallVote {
+  id           String   @id // "{chamber}-{congress}-{session}-{roll}" e.g. "house-119-1-240"
+  chamber      String // 'house' | 'senate'
+  congress     Int
+  session      Int
+  rollNumber   Int      @map("roll_number")
+  billId       String?  @map("bill_id") // soft ref -> congress_bill.id
+  question     String?  @db.Text
+  result       String? // "Passed" | "Failed" | "Agreed to" | "Rejected" | ...
+  voteType     String?  @map("vote_type")
+  voteDate     DateTime @map("vote_date") @db.Timestamptz(6)
+  yeas         Int      @default(0)
+  nays         Int      @default(0)
+  present      Int      @default(0)
+  notVoting    Int      @default(0) @map("not_voting")
+  partyTotals  Json     @default("{}") @map("party_totals")
+  title        String?  @db.Text
+  sourceUrl    String?  @map("source_url")
+  source       String // 'house-api' | 'senate-lis'
+  lastSyncedAt DateTime @default(now()) @map("last_synced_at") @db.Timestamptz(6)
+
+  memberVotes MemberVote[]
+
+  @@index([billId])
+  @@index([chamber, congress, session])
+  @@index([voteDate(sort: Desc)])
+  @@map("roll_call_vote")
+}
+
+// Per-member positions on a roll-call vote (LegiWatch A1). GLOBAL. memberKey is
+// the non-null natural key: the resolved bioguide, else "lis:{lisId}" when a
+// Senate lis id has no crosswalk row yet — so the tally stays COMPLETE and the
+// crosswalk lag is visible rather than silently dropping members. bioguideId is
+// null for those unresolved rows; queries "how did member X vote" filter on it.
+model MemberVote {
+  id         String  @id @default(uuid()) @db.Uuid
+  voteId     String  @map("vote_id")
+  memberKey  String  @map("member_key") // bioguide, or "lis:{lisId}" when unresolved
+  bioguideId String? @map("bioguide_id") // null when a Senate lis id didn't resolve
+  lisId      String? @map("lis_id")
+  voteCast   String  @map("vote_cast") // 'Yea' | 'Nay' | 'Present' | 'Not Voting'
+  party      String?
+  state      String?
+
+  vote RollCallVote @relation(fields: [voteId], references: [id], onDelete: Cascade)
+
+  @@unique([voteId, memberKey])
+  @@index([bioguideId])
+  @@map("member_vote")
+}
+
+// Rule resolution -> target bill linkage (LegiWatch A2). GLOBAL. A House rule
+// (hres) "provides for consideration of" one or more measures; its adoption/
+// failure is the real gate on whether those measures advance, but Congress.gov
+// records the rule's fate on the RULE, not the target bill. This link lets the
+// tracker propagate a rule's outcome onto every target bill. Soft refs both
+// sides (no FK) — rule or target may not both be in congress_bill.
+model BillRuleLink {
+  id           String   @id @default(uuid()) @db.Uuid
+  ruleBillId   String   @map("rule_bill_id") // the hres, e.g. "119-hres-1398"
+  targetBillId String   @map("target_bill_id") // e.g. "119-hr-8800"
+  source       String // 'title-parse' | 'action-parse'
+  createdAt    DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  lastSyncedAt DateTime @default(now()) @map("last_synced_at") @db.Timestamptz(6)
+
+  @@unique([ruleBillId, targetBillId])
+  @@index([targetBillId])
+  @@map("bill_rule_link")
 }
 
 /// Cached full bill text fetched from GovInfo, used by the bill PE-code extractor.

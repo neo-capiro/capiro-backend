@@ -789,3 +789,303 @@ export function billIdToCongressGovPath(billId: string): string | null {
   const p = parseBillId(billId);
   return p ? `/bill/${p.congress}/${p.type}/${p.number}` : null;
 }
+
+// ─────────────────────────────────────────────────────────────────────────
+// Bill stage / status (LegiWatch A4). ONE canonical home — the tracker board
+// helpers (billStage/passageProbability/currentCongress/…) and the per-action
+// normalizer (normalizeBillStage) were duplicated across apps/api, apps/intel-api
+// and apps/web; those files now re-export from here. deriveBillStatus is the NEW
+// rich, rule- and vote-aware bill-LEVEL status behind congress_bill.status.
+// ─────────────────────────────────────────────────────────────────────────
+
+/** The four kanban board columns (simple bill-level stage). */
+export type BillStage = 'introduced' | 'committee' | 'passed' | 'enacted';
+
+export const BILL_STAGES: ReadonlyArray<{ id: BillStage; label: string }> = [
+  { id: 'introduced', label: 'Introduced' },
+  { id: 'committee', label: 'In committee' },
+  { id: 'passed', label: 'Passed chamber' },
+  { id: 'enacted', label: 'Enacted' },
+];
+
+/** Classify a bill's latest action text into a board stage (status-driven). */
+export function billStage(latestActionText: string | null | undefined): BillStage {
+  const txt = (latestActionText ?? '').toLowerCase();
+  if (/signed|enacted|public law|pl\s+\d/.test(txt)) return 'enacted';
+  if (/passed|agreed to/.test(txt)) return 'passed';
+  if (/committee|referred|reported|markup/.test(txt)) return 'committee';
+  return 'introduced';
+}
+
+/**
+ * Calibrated passage-likelihood heuristic (0..1). NOT a trained model. `nowMs`
+ * is injectable for tests (defaults to Date.now()).
+ */
+export function passageProbability(bill: {
+  latestActionText: string | null;
+  title?: string | null;
+  latestActionDate?: Date | null;
+  nowMs?: number;
+}): number {
+  const stage = billStage(bill.latestActionText);
+  if (stage === 'enacted') return 0.99;
+  const mustPass =
+    /national defense authorization|consolidated appropriations|making appropriations|defense appropriation|continuing appropriations|further (consolidated |additional )?appropriations/i.test(
+      bill.title ?? '',
+    );
+  let p =
+    stage === 'passed'
+      ? mustPass
+        ? 0.85
+        : 0.4
+      : stage === 'committee'
+        ? mustPass
+          ? 0.55
+          : 0.12
+        : mustPass
+          ? 0.3
+          : 0.04;
+  const actionMs = bill.latestActionDate ? bill.latestActionDate.getTime() : null;
+  if (actionMs != null) {
+    const days = ((bill.nowMs ?? Date.now()) - actionMs) / 86_400_000;
+    if (days > 270) p *= 0.6;
+    else if (days < 45) p = Math.min(0.95, p * 1.15);
+  }
+  return Math.max(0.02, Math.min(0.97, p));
+}
+
+/** The current US Congress number (a Congress spans 2 years from the odd year). */
+export function currentCongress(now: Date = new Date()): number {
+  return Math.floor((now.getFullYear() - 1789) / 2) + 1;
+}
+
+/** Parse the leading Congress number from a bill id ("119-hr-7702" → 119), or null. */
+export function congressFromBillId(id: string): number | null {
+  const n = Number((id ?? '').split('-')[0]);
+  return Number.isFinite(n) && n > 0 ? n : null;
+}
+
+const BILL_TYPE_LABEL: Record<string, string> = {
+  hr: 'H.R.',
+  s: 'S.',
+  hjres: 'H.J.Res.',
+  sjres: 'S.J.Res.',
+  hconres: 'H.Con.Res.',
+  sconres: 'S.Con.Res.',
+  hres: 'H.Res.',
+  sres: 'S.Res.',
+};
+
+/** Humanize a congress_bill id ("119-hr-7702") into a display label ("H.R. 7702"). */
+export function humanizeBillId(id: string): string {
+  const parts = (id ?? '').split('-');
+  if (parts.length < 3) return id;
+  const type = parts[1] ?? '';
+  const number = parts.slice(2).join('-');
+  if (!type) return id;
+  const prefix = BILL_TYPE_LABEL[type.toLowerCase()] ?? type.toUpperCase();
+  return `${prefix} ${number}`;
+}
+
+// Per-ACTION stage normalizer (legislative-timeline). Distinct from the
+// bill-level BillStage above: classifies a single action row for the timeline
+// display. Type names kept as ActionStage/ActionStageResult here (the
+// program-element module re-exports them under its historical BillStage names).
+export type ActionStage =
+  | 'introduced'
+  | 'referred'
+  | 'markup'
+  | 'reported'
+  | 'passed_house'
+  | 'passed_senate'
+  | 'conference'
+  | 'to_president'
+  | 'enacted'
+  | 'other';
+
+export interface ActionStageResult {
+  stage: ActionStage;
+  label: string;
+  rank: number;
+}
+
+const ACTION_STAGE_META: Record<ActionStage, { label: string; rank: number }> = {
+  introduced: { label: 'Introduced', rank: 0 },
+  referred: { label: 'Referred', rank: 1 },
+  markup: { label: 'Markup', rank: 2 },
+  reported: { label: 'Reported', rank: 3 },
+  passed_house: { label: 'Passed House', rank: 4 },
+  passed_senate: { label: 'Passed Senate', rank: 5 },
+  conference: { label: 'Conference', rank: 6 },
+  to_president: { label: 'To President', rank: 7 },
+  enacted: { label: 'Became law', rank: 8 },
+  other: { label: 'Action', rank: -1 },
+};
+
+function actionResult(stage: ActionStage): ActionStageResult {
+  return { stage, ...ACTION_STAGE_META[stage] };
+}
+
+/** Classify one congress_bill_action into a normalized timeline stage. */
+export function normalizeBillStage(
+  text: string | null | undefined,
+  type?: string | null,
+  chamber?: string | null,
+): ActionStageResult {
+  const t = (text ?? '').toLowerCase();
+  const ch = (chamber ?? '').toLowerCase();
+  if (
+    t.includes('became public law') ||
+    t.includes('became law') ||
+    t.includes('signed by president') ||
+    t.includes('public law no')
+  ) {
+    return actionResult('enacted');
+  }
+  if (t.includes('presented to president') || t.includes('to president')) {
+    return actionResult('to_president');
+  }
+  if (
+    t.includes('conference report') ||
+    t.includes('conferees') ||
+    t.includes('resolving differences') ||
+    t.includes('amendment between the houses')
+  ) {
+    return actionResult('conference');
+  }
+  if (t.includes('passed') || t.includes('agreed to')) {
+    if (t.includes('senate') || ch === 'senate') return actionResult('passed_senate');
+    if (t.includes('house') || ch === 'house') return actionResult('passed_house');
+    return actionResult('other');
+  }
+  if (t.includes('markup') || t.includes('ordered to be reported')) {
+    return actionResult('markup');
+  }
+  if (t.includes('reported')) {
+    return actionResult('reported');
+  }
+  if (t.includes('referred to')) {
+    return actionResult('referred');
+  }
+  if (t.includes('introduced')) {
+    return actionResult('introduced');
+  }
+  const ty = (type ?? '').toLowerCase();
+  if (ty === 'introreferral') return actionResult('referred');
+  if (ty === 'becamelaw') return actionResult('enacted');
+  if (ty === 'president') return actionResult('to_president');
+  return actionResult('other');
+}
+
+/**
+ * Rich, canonical bill-LEVEL legislative status (LegiWatch A4) — the source of
+ * truth behind congress_bill.status and the get_bill_status Meri tool. Unlike
+ * the 4-value billStage board classifier, this distinguishes rule_pending from
+ * rule_failed: a bill whose own latest action is only "Rules Committee
+ * Resolution ... Reported" READS like it is advancing, but if its governing
+ * rule FAILED the bill is stalled. That distinction is the exact H.R. 8800 miss
+ * — so the caller passes the governing rule's outcome + any chamber-passage
+ * vote (both from the DB) and this function resolves the honest status.
+ */
+export type BillStatus =
+  | 'introduced'
+  | 'committee'
+  | 'reported'
+  | 'rule_pending'
+  | 'rule_failed'
+  | 'floor'
+  | 'passed_chamber'
+  | 'resolving'
+  | 'to_president'
+  | 'enacted'
+  | 'failed'
+  | 'vetoed';
+
+const BILL_STATUS_META: Record<BillStatus, { label: string; rank: number }> = {
+  introduced: { label: 'Introduced', rank: 0 },
+  committee: { label: 'In committee', rank: 1 },
+  reported: { label: 'Reported out of committee', rank: 2 },
+  rule_pending: { label: 'Rule granted (floor pending)', rank: 3 },
+  rule_failed: { label: 'Rule failed — stalled on the floor', rank: 3 },
+  floor: { label: 'On the floor', rank: 4 },
+  passed_chamber: { label: 'Passed a chamber', rank: 5 },
+  resolving: { label: 'Resolving differences', rank: 6 },
+  to_president: { label: 'Sent to the President', rank: 7 },
+  enacted: { label: 'Enacted', rank: 9 },
+  failed: { label: 'Failed', rank: 9 },
+  vetoed: { label: 'Vetoed', rank: 9 },
+};
+
+export interface BillStatusResult {
+  status: BillStatus;
+  label: string;
+  rank: number;
+}
+
+/** Human label for a persisted congress_bill.status value (or the raw value). */
+export function billStatusLabel(status: string | null | undefined): string {
+  if (status && status in BILL_STATUS_META) return BILL_STATUS_META[status as BillStatus].label;
+  return status ?? 'Unknown';
+}
+
+export function deriveBillStatus(input: {
+  latestActionText?: string | null;
+  /** Outcome of the bill's most recent GOVERNING rule (from bill_rule_link + the rule's vote/status). */
+  ruleOutcome?: 'adopted' | 'failed' | null;
+  /** True when a roll_call_vote on THIS bill (not its rule) passed a chamber. */
+  passedChamber?: boolean;
+}): BillStatusResult {
+  const t = (input.latestActionText ?? '').toLowerCase();
+  const mk = (status: BillStatus): BillStatusResult => ({ status, ...BILL_STATUS_META[status] });
+
+  // Terminal / advanced states from the bill's own action text win first.
+  if (/became (public )?law|public law no|signed by (the )?president|\benacted\b/.test(t)) {
+    return mk('enacted');
+  }
+  if (/vetoed|veto message/.test(t)) return mk('vetoed');
+  if (
+    /failed of passage|failed to pass|rejected|motion to table agreed|failed by the yeas/.test(t)
+  ) {
+    return mk('failed');
+  }
+  if (/presented to (the )?president|\bto president\b/.test(t)) return mk('to_president');
+  if (
+    /resolving differences|conference report|amendment(s)? between the houses|conferees/.test(t)
+  ) {
+    return mk('resolving');
+  }
+
+  // A real chamber-passage vote (from roll_call_vote) or explicit passage text.
+  if (
+    input.passedChamber ||
+    /passed (the )?(house|senate)|passed\/agreed to in (house|senate)/.test(t)
+  ) {
+    return mk('passed_chamber');
+  }
+
+  // Governing-rule outcome — the H.R. 8800 fix. A "rule reported" bill whose
+  // rule FAILED is stalled, not advancing; a rule ADOPTED sends it to the floor.
+  if (input.ruleOutcome === 'failed') return mk('rule_failed');
+  if (input.ruleOutcome === 'adopted') return mk('floor');
+
+  // The bill's own rule-granted marker (rule reported, floor not yet resolved).
+  if (/rules committee resolution/.test(t)) return mk('rule_pending');
+
+  if (/ordered to be reported|\breported\b/.test(t)) return mk('reported');
+  if (/committee|referred|markup|hearing/.test(t)) return mk('committee');
+  return mk('introduced');
+}
+
+/**
+ * Classify a roll-call / action RESULT string into pass / fail (LegiWatch A4).
+ * Used to derive a rule resolution's outcome from its own vote or action text.
+ * Order matters: "not agreed to" must read as fail even though it contains
+ * "agreed to".
+ */
+export function classifyVoteResult(result: string | null | undefined): 'pass' | 'fail' | null {
+  const t = (result ?? '').toLowerCase();
+  if (!t) return null;
+  if (/not agreed|fail|reject|defeat|not passed|motion to table agreed/.test(t)) return 'fail';
+  if (/agreed to|passed|adopted|prevail/.test(t)) return 'pass';
+  return null;
+}

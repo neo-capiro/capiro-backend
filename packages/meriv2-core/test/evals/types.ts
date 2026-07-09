@@ -1,4 +1,4 @@
-export type EvalCategory = 'leakage' | 'grounding' | 'compliance' | 'entity';
+export type EvalCategory = 'leakage' | 'grounding' | 'compliance' | 'entity' | 'legislation';
 
 export interface EvalOutcome {
   pass: boolean;

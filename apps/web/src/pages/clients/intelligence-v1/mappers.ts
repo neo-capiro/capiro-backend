@@ -57,10 +57,14 @@ export const SECTION_ORDER: SectionMeta[] = [
   },
 ];
 
-export function buildSectionNavMeta(profile: ClientIntelProfile | null | undefined): SectionNavMeta {
-  const sourceCount = [profile?.lda?.matched, profile?.contracting?.matched, profile?.lobbyIntel?.matched].filter(
-    Boolean,
-  ).length;
+export function buildSectionNavMeta(
+  profile: ClientIntelProfile | null | undefined,
+): SectionNavMeta {
+  const sourceCount = [
+    profile?.lda?.matched,
+    profile?.contracting?.matched,
+    profile?.lobbyIntel?.matched,
+  ].filter(Boolean).length;
 
   return {
     syncedAt: profile?.lastUpdated ?? null,
@@ -201,7 +205,11 @@ export interface ClientProfileV1 {
             committeeName: string | null;
             totalAmount: number;
             disbursementCount: number;
-            recipients: Array<{ recipientName: string; candidateName: string | null; totalAmount: number }>;
+            recipients: Array<{
+              recipientName: string;
+              candidateName: string | null;
+              totalAmount: number;
+            }>;
           }>;
           summary?: { totalAmount: number; disbursementCount: number; recipientCount: number };
         };
@@ -209,7 +217,14 @@ export interface ClientProfileV1 {
         disclaimer?: string;
       };
       districtNexus: {
-        topDistricts: Array<{ district: string; jobs: number; capability: string; dataYear: number; spend?: number; awardCount?: number }>;
+        topDistricts: Array<{
+          district: string;
+          jobs: number;
+          capability: string;
+          dataYear: number;
+          spend?: number;
+          awardCount?: number;
+        }>;
         capabilities?: Array<{
           capabilityId: string;
           capabilityName: string;
@@ -266,7 +281,11 @@ export interface ClientProfileV1 {
     };
     relationships: {
       scopedGraph: {
-        resolutionQuality: { avgConfidence: number; confirmedCount: number; unconfirmedCount: number };
+        resolutionQuality: {
+          avgConfidence: number;
+          confirmedCount: number;
+          unconfirmedCount: number;
+        };
         meta: { lobbyistCount: number; memberCount: number; committeeCount: number };
       };
       officeRecommender: Array<{
@@ -380,13 +399,9 @@ export function daysUntil(dateStr: string | null | undefined): number | null {
   return Math.ceil((d.getTime() - Date.now()) / (1000 * 60 * 60 * 24));
 }
 
-/** Derive kanban stage from a bill's latest action text */
-export type BillStage = 'introduced' | 'committee' | 'passed' | 'enacted';
-
-export function billStage(latestActionText: string | null | undefined): BillStage {
-  const txt = (latestActionText ?? '').toLowerCase();
-  if (/signed|enacted|public law|pl \d/.test(txt)) return 'enacted';
-  if (/passed|agreed to/.test(txt)) return 'passed';
-  if (/committee|referred|reported|markup/.test(txt)) return 'committee';
-  return 'introduced';
-}
+/**
+ * Kanban stage from a bill's latest action text. Implementation now lives in
+ * @capiro/shared (LegiWatch A4 — one canonical home); re-exported so existing
+ * importers of this module keep their path.
+ */
+export { billStage, type BillStage } from '@capiro/shared';

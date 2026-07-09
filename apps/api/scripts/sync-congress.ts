@@ -18,6 +18,11 @@ import { config as dotenvConfig } from 'dotenv';
 import { PrismaClient } from '@prisma/client';
 import { runWithSyncRun } from '../src/ingestion/sync-run.helper.js';
 import { buildBillText, embedAndUpsert } from '../src/embeddings/embedder.js';
+import {
+  isRuleResolutionTitle,
+  parseRuleTargets,
+  parseRuleFromBillAction,
+} from '../src/ingestion/rule-link.util.js';
 
 dotenvConfig();
 
@@ -161,6 +166,7 @@ interface CongressBillDetail {
     }> | null;
     originChamber?: string | null;
     updateDate?: string | null;
+    updateDateIncludingText?: string | null;
     url?: string | null;
   };
 }
@@ -305,6 +311,41 @@ async function main() {
       async (_ctx) => {
         let totalBills = 0;
 
+        // LegiWatch A3: fetch the full sub-resource set (incl. /actions) for
+        // TRACKED bills regardless of policy area — a tracked bill with a null
+        // or non-lobbying policyArea would otherwise miss its action history.
+        // intel_tracked_bill is RLS-protected and not in apps/api's Prisma
+        // schema, so read it cross-tenant via withSystem raw (bypass GUC);
+        // UNION the legacy tracked_bill. Best-effort — on any failure we simply
+        // fall back to the lobbying gate.
+        const trackedBillIds = new Set<string>();
+        try {
+          // Raw PrismaClient (not the Nest wrapper) → replicate withSystem: set
+          // the tx-local bypass GUC the intel_* RLS policies honor, then read.
+          const rows = await prisma.$transaction(async (tx) => {
+            await tx.$executeRawUnsafe("SELECT set_config('app.bypass_rls', 'on', true)");
+            const a = await tx.$queryRawUnsafe<{ bill_id: string }[]>(
+              'select distinct bill_id from intel_tracked_bill',
+            );
+            let b: { bill_id: string }[] = [];
+            try {
+              b = await tx.$queryRawUnsafe<{ bill_id: string }[]>(
+                'select distinct bill_id from tracked_bill',
+              );
+            } catch {
+              /* legacy table may be absent in some envs */
+            }
+            return [...a, ...b];
+          });
+          for (const r of rows) if (r.bill_id) trackedBillIds.add(r.bill_id);
+          console.log(`[sync-congress] tracked-bill set: ${trackedBillIds.size} ids`);
+        } catch (err) {
+          console.warn(
+            '[sync-congress] tracked-bill preload failed (using lobbying gate only):',
+            err,
+          );
+        }
+
         for (const congress of TARGET_CONGRESSES) {
           // Resolve fromDateTime for this congress. In incremental mode we read
           // the max(updateDate) for this congress's bills out of Postgres. If
@@ -374,8 +415,16 @@ async function main() {
                 const isLobbyingRelevant = policyAreaName
                   ? LOBBYING_POLICY_AREAS.has(policyAreaName)
                   : false;
+                // LegiWatch A3: also fetch the sub-resource set (esp. /actions)
+                // for TRACKED bills (any policy area) and for RULE resolutions
+                // (null policyArea) so procedural/floor outcomes aren't dropped
+                // by the lobbying gate — the exact H.Res. 1398 miss.
+                const isRuleHres =
+                  type === 'hres' && isRuleResolutionTitle(billData.title ?? bill.title);
+                const fetchSubResources =
+                  isLobbyingRelevant || trackedBillIds.has(id) || isRuleHres;
 
-                // Fetch subjects, committees, and actions only for lobbying-relevant bills.
+                // Fetch subjects, committees, and actions for relevant/tracked/rule bills.
                 let subjects: string[] = [];
                 let committees: object[] = [];
                 let actionsData: {
@@ -396,7 +445,7 @@ async function main() {
                 }[] = [];
                 let cosponsorsFetchFailed = false;
 
-                if (isLobbyingRelevant) {
+                if (fetchSubResources) {
                   await new Promise((r) => setTimeout(r, 200));
 
                   try {
@@ -531,6 +580,9 @@ async function main() {
                     cosponsorsCount: billData.cosponsors?.count ?? bill.cosponsors?.count ?? 0,
                     originChamber: billData.originChamber ?? bill.originChamber ?? null,
                     updateDate: safeDate(billData.updateDate ?? bill.updateDate),
+                    updateDateIncludingText: safeDate(
+                      billData.updateDateIncludingText ?? bill.updateDateIncludingText,
+                    ),
                     url: bill.url ?? null,
                     lastSyncedAt: new Date(),
                   },
@@ -553,9 +605,55 @@ async function main() {
                     cosponsorsCount: billData.cosponsors?.count ?? bill.cosponsors?.count ?? 0,
                     originChamber: billData.originChamber ?? bill.originChamber ?? null,
                     updateDate: safeDate(billData.updateDate ?? bill.updateDate),
+                    updateDateIncludingText: safeDate(
+                      billData.updateDateIncludingText ?? bill.updateDateIncludingText,
+                    ),
                     url: bill.url ?? null,
                   },
                 });
+
+                // Rule -> target bill linkage (LegiWatch A2). A rule hres
+                // enumerates its targets in its title; a target bill's action
+                // names its rule. Populate BOTH directions (idempotent) — runs
+                // for EVERY bill regardless of the lobbying gate, because a rule
+                // hres (e.g. H.Res. 1398) has a null policyArea and would
+                // otherwise be skipped. This is what lets a rule's outcome reach
+                // the target bill even though Congress.gov never appends it there.
+                try {
+                  const billTitle = billData.title ?? bill.title;
+                  if (type === 'hres' && isRuleResolutionTitle(billTitle)) {
+                    for (const targetId of parseRuleTargets(billTitle, congress)) {
+                      if (targetId === id) continue;
+                      await prisma.billRuleLink.upsert({
+                        where: {
+                          ruleBillId_targetBillId: { ruleBillId: id, targetBillId: targetId },
+                        },
+                        update: { source: 'title-parse', lastSyncedAt: new Date() },
+                        create: { ruleBillId: id, targetBillId: targetId, source: 'title-parse' },
+                      });
+                    }
+                  }
+                  const actionTexts = [
+                    latestAction?.text,
+                    ...actionsData.map((a) => a.text),
+                  ].filter((x): x is string => !!x);
+                  const seenRules = new Set<string>();
+                  for (const txt of actionTexts) {
+                    const ruleId = parseRuleFromBillAction(txt, congress);
+                    if (ruleId && ruleId !== id && !seenRules.has(ruleId)) {
+                      seenRules.add(ruleId);
+                      await prisma.billRuleLink.upsert({
+                        where: {
+                          ruleBillId_targetBillId: { ruleBillId: ruleId, targetBillId: id },
+                        },
+                        update: { source: 'action-parse', lastSyncedAt: new Date() },
+                        create: { ruleBillId: ruleId, targetBillId: id, source: 'action-parse' },
+                      });
+                    }
+                  }
+                } catch (err) {
+                  console.warn(`[sync-congress] rule-link upsert failed for ${id}:`, err);
+                }
 
                 // CBO cost estimates (Bucket-#3 C4.F1, SC2.4): the detail response
                 // already carries cboCostEstimates[] — persist at zero extra API
@@ -594,8 +692,8 @@ async function main() {
                   }
                 }
 
-                // Upsert normalized actions, committees, subjects for lobbying-relevant bills.
-                if (isLobbyingRelevant) {
+                // Upsert normalized actions, committees, subjects for relevant/tracked/rule bills.
+                if (fetchSubResources) {
                   // Delete existing rows and re-insert (simpler than diffing).
                   await prisma.congressBillAction.deleteMany({ where: { billId: id } });
                   if (actionsData.length > 0) {

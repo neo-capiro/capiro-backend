@@ -22,6 +22,9 @@ const EXPECTED_TOOLS = [
   'find_path_to',
   'search_memory',
   'search_congress_bills',
+  // Vote/status truth layer (LegiWatch A5)
+  'get_bill_status',
+  'search_floor_votes',
   // Budget-score spine (Bucket-#3 C4.F1, SC2.4)
   'search_cbo_cost_estimates',
   // Canonical entity resolution (Bucket-#3 C6.P6.2, SC2.2)
@@ -101,6 +104,7 @@ const REQUIRED_INPUTS: Record<string, string[]> = {
   find_path_to: ['to'],
   search_memory: ['query'],
   resolve_entity: ['query'],
+  get_bill_status: ['billId'],
   create_word: ['title', 'sections'],
   create_excel: ['title', 'sheets'],
   create_powerpoint: ['title', 'slides'],

@@ -6,9 +6,9 @@ import type { DelegatedToolSpec } from '@capiro/meriv2-core';
  * #298) extra read set. Names + descriptions transcribed verbatim from
  * apps/api's TOOL_DEFINITIONS (meri-tools.service.ts); a drift test
  * (full-chat-read-tools.catalog.spec.ts) asserts, together with the other two
- * catalogs, exact coverage of apps/api's full 55-tool surface.
+ * catalogs, exact coverage of apps/api's full 57-tool surface.
  *
- * All 17 are absent from apps/api's SIDE_EFFECTING_TOOLS set, so all are
+ * All 19 are absent from apps/api's SIDE_EFFECTING_TOOLS set, so all are
  * readOnly:true here too (the C-workstream rule: this classification MUST
  * match apps/api's, since a delegated write registered readOnly would bypass
  * the B1 gate).
@@ -60,6 +60,18 @@ export const FULL_CHAT_READ_TOOLS: readonly DelegatedToolSpec[] = [
     name: 'resolve_entity',
     description:
       'Resolve a member of Congress, congressional committee, or bill to its CANONICAL identity in the Capiro registry (Bioguide ID, committee systemCode, or bill id like "119-hr-8800"). Accepts a canonical id, an external id (LIS, FEC, OpenSecrets, GovTrack), a bill designation ("H.R. 8800"), or a name. Use this BEFORE citing any member, committee, or bill to ground the reference — it explicitly reports when NO entity matches; never fabricate an identifier.',
+    readOnly: true,
+  },
+  {
+    name: 'get_bill_status',
+    description:
+      'Get the authoritative legislative status of ONE bill (by id "119-hr-8800" or designation "H.R. 8800"): its canonical status, recent action timeline, roll-call VOTES on the bill (with tallies + party splits), and — critically — the outcome of any RULE that governs its floor consideration. Use this to answer "did it pass / advance / stall / what happened to it". A bill whose latest action is only "rule reported" but whose rule FAILED is reported as stalled, not advancing. Explicitly states when there is NO recorded floor vote — never infer passage.',
+    readOnly: true,
+  },
+  {
+    name: 'search_floor_votes',
+    description:
+      "Search congressional roll-call votes (House + Senate) in the Capiro database. Filter by bill (id/designation), keyword over the vote question/title, chamber, congress, or a specific member (Bioguide id or name). Returns each vote's question, result, yea/nay/present tally, party splits, date, and source link — and the member's own position when a member is given. Explicitly reports when NO matching roll call exists; never infer a vote outcome.",
     readOnly: true,
   },
   {
