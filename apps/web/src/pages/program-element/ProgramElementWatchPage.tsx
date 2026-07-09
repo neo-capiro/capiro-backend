@@ -57,16 +57,7 @@ import { ProcurementActivityPanel } from './ProcurementActivityPanel.js';
 import { RelatedPesPanel } from './RelatedPesPanel.js';
 import { SecondaryDistributionPanel } from './SecondaryDistributionPanel.js';
 import { LINE_TYPES, useWatchToggle } from './pe-shared.js';
-import {
-  Sparkline,
-  LineChart,
-  DeltaBars,
-  Donut,
-  HBars,
-  LegTimeline,
-  fmtMoneyM,
-  type LegEvent,
-} from './charts/index.js';
+import { Sparkline, LineChart, DeltaBars, Donut, HBars, fmtMoneyM } from './charts/index.js';
 import type {
   ProgramElementBill,
   ProgramElementContractorsResponse,
@@ -543,26 +534,6 @@ export function ProgramElementWatchPage() {
   // peCodeCount) are capped to their most recent actions so a 700-PE bill's
   // procedural churn doesn't drown the PE-specific story.
   const historyEvents = billActionsQuery.data ?? [];
-  const timelineEvents: LegEvent[] =
-    historyEvents.length > 0
-      ? historyEvents
-          .filter(
-            (e, i, all) =>
-              e.peCodeCount < 200 || all.findIndex((x) => x.billId === e.billId) >= i - 8,
-          )
-          .slice(0, 60)
-          .map((e) => ({
-            date: e.date,
-            label: truncate(e.stageLabel === 'Action' ? e.text : e.stageLabel, 22),
-            num: `${e.billType} ${e.billNumber}`,
-            kind: e.stage,
-          }))
-      : datedBills.map((b) => ({
-          date: b.latestActionDate as string,
-          label: truncate(b.latestActionText ?? b.title, 22),
-          num: `${b.billType} ${b.billNumber}`,
-          kind: classifyAction(b.latestActionText),
-        }));
 
   // LEG-A: attach the (already-fetched) stage-classified action feed to each bill
   // so the bill-timeline swimlane renders full per-bill histories rather than a
@@ -847,37 +818,9 @@ export function ProgramElementWatchPage() {
 
   const legislationTab = (
     <div className="pe-dt-panel">
-      <ChartCard
-        title="Legislative timeline"
-        sub="Bill actions touching this PE"
-        span2
-        pad
-        extra={
-          <div className="pe-chart-legend sm">
-            <span className="pe-cl">
-              <span className="pe-dotk" style={{ background: KIND_COLOR.report }} />
-              Reported
-            </span>
-            <span className="pe-cl">
-              <span className="pe-dotk" style={{ background: KIND_COLOR.markup }} />
-              Markup
-            </span>
-            <span className="pe-cl">
-              <span className="pe-dotk" style={{ background: KIND_COLOR.law }} />
-              Enacted
-            </span>
-          </div>
-        }
-      >
-        {timelineEvents.length ? (
-          <LegTimeline events={timelineEvents} />
-        ) : (
-          <Empty
-            image={Empty.PRESENTED_IMAGE_SIMPLE}
-            description="No dated bill actions to plot yet."
-          />
-        )}
-      </ChartCard>
+      <div className="pe-surface pe-plain-surface span-2">
+        <BillsTouchingPePanel bills={billsWithActions} loading={billsQuery.isLoading} />
+      </div>
 
       <div className="pe-surface pe-plain-surface span-2">
         <div className="pe-surface-head">
@@ -887,9 +830,6 @@ export function ProgramElementWatchPage() {
         <div className="bl-panel-body">
           <BudgetActionsFeed actions={actionsQuery.data} loading={actionsQuery.isLoading} />
         </div>
-      </div>
-      <div className="pe-surface pe-plain-surface span-2">
-        <BillsTouchingPePanel bills={billsWithActions} loading={billsQuery.isLoading} />
       </div>
       <div className="pe-surface pe-plain-surface span-2">
         <ProvisionsPanel provisions={provisionsQuery.data} loading={provisionsQuery.isLoading} />
