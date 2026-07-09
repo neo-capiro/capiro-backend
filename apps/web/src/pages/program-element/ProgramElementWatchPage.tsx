@@ -39,6 +39,7 @@ import {
   getProgramElementProcurementLines,
 } from './api.js';
 import { FyHistoryChart } from './FyHistoryChart.js';
+import { buildFundingSeries, STAGE_LABEL } from './funding-model.js';
 import { BillsTouchingPePanel } from './BillsTouchingPePanel.js';
 import { ContractorsPanel } from './ContractorsPanel.js';
 import { ProofPackPanel } from './ProofPackPanel.js';
@@ -414,6 +415,13 @@ export function ProgramElementWatchPage() {
   const latestRequest = latestMeaningful(years, 'request');
   const latestEnacted = latestMeaningful(years, 'enacted');
   const historyRows = toHistoryRows(years);
+  // Canonical per-FY funding lifecycle — the SINGLE source every funding chart
+  // on this page reads (Overview trajectory, Funding-tab bar, delta bars) so
+  // they cannot disagree. See funding-model.ts.
+  const funding = buildFundingSeries(years);
+  // Latest FY that has a furthest-along ("current") value — drives the headline
+  // stat so the number always states which stage it represents.
+  const latestCurrent = [...funding].reverse().find((p) => p.current.value != null);
   const hasBudgetData = years.length > 0;
 
   // The PE's own most recent year carrying ANY real budget field (not just
@@ -462,18 +470,24 @@ export function ProgramElementWatchPage() {
     .map((y) => numberOrNull(y.enacted))
     .filter((v): v is number => v != null && v !== 0);
 
-  const lineLabels = chartYears.map((y) => fyLabel(y.fy));
+  // Overview trajectory: the President's request (dashed baseline) vs the
+  // "current" number per FY — the furthest-along stage from the shared
+  // funding-model (enacted → conference → committee mark → request). Plotting
+  // `current` (not raw enacted) is what makes this agree with the Funding-tab
+  // bar chart: a not-yet-enacted year shows its conference/committee value on
+  // both, instead of a request line here and a conference bar there.
+  const lineLabels = funding.map((p) => fyLabel(p.fy));
   const lineSeries = [
     {
-      name: 'Enacted',
+      name: 'Current',
       color: 'var(--accent)',
-      values: chartYears.map((y) => numberOrNull(y.enacted)),
+      values: funding.map((p) => p.current.value),
     },
     {
       name: 'Request',
       color: '#B0433B',
       dash: '5 4',
-      values: chartYears.map((y) => numberOrNull(y.request)),
+      values: funding.map((p) => p.request),
     },
   ];
 
@@ -485,51 +499,36 @@ export function ProgramElementWatchPage() {
   ).length;
   const winRate = bothYears.length ? `${Math.round((wins / bothYears.length) * 100)}%` : '—';
 
-  // Congress's position vs the President's Budget, using the furthest-along number
-  // available for each year: enacted once final, else the latest committee/conference
-  // mark. Without this the chart is a flat zero for every not-yet-enacted year (FY26+),
-  // hiding the adds/cuts the marks already show.
-  const congressPosition = (
-    y: (typeof chartYears)[number],
-  ): { v: number; basis: string } | null => {
-    const stages: Array<[number | null, string]> = [
-      [numberOrNull(y.enacted), 'enacted'],
-      [numberOrNull(y.conference), 'conference'],
-      [numberOrNull(y.sacDMark), 'SAC-D'],
-      [numberOrNull(y.hacDMark), 'HAC-D'],
-      [numberOrNull(y.sascMark), 'SASC'],
-      [numberOrNull(y.hascMark), 'HASC'],
-    ];
-    const hit = stages.find(([v]) => v != null);
-    return hit && hit[0] != null ? { v: hit[0], basis: hit[1] } : null;
-  };
-  const deltaData = chartYears.map((y) => {
-    const request = numberOrNull(y.request);
-    const pos = congressPosition(y);
-    return {
-      fy: fyLabel(y.fy),
-      delta: pos != null && request != null ? pos.v - request : null,
-      basis: pos?.basis ?? null,
-    };
-  });
+  // Congress-vs-request delta from the shared funding-model: congressional
+  // position (furthest-along stage EXCLUDING request) minus request. Null for
+  // request-only years (no position yet) — the delta bar shows a placeholder,
+  // not a fake 0. `basis` names the stage the position came from.
+  const deltaData = funding.map((p) => ({
+    fy: fyLabel(p.fy),
+    delta: p.deltaVsRequest,
+    basis: p.congressional.stage === 'none' ? null : STAGE_LABEL[p.congressional.stage],
+  }));
 
-  const markYear = [...chartYears]
+  // Committee-positions drill-down: every stage value for the latest FY that
+  // carries any committee/conference/enacted mark. Sourced from the same
+  // funding-model points (already numeric-coerced) as the trajectory + bars.
+  const markYear = [...funding]
     .reverse()
-    .find((y) =>
-      [y.hascMark, y.sascMark, y.hacDMark, y.sacDMark, y.conference, y.enacted].some(
-        (v) => numberOrNull(v) != null,
+    .find((p) =>
+      [p.hascMark, p.sascMark, p.hacDMark, p.sacDMark, p.conference, p.enacted].some(
+        (v) => v != null,
       ),
     );
   const markBars = markYear
     ? (
         [
-          { label: 'PB request', value: numberOrNull(markYear.request), color: 'var(--ink-3)' },
-          { label: 'HASC', value: numberOrNull(markYear.hascMark), color: '#7A9BE6' },
-          { label: 'SASC', value: numberOrNull(markYear.sascMark), color: '#4E78D8' },
-          { label: 'HAC-D', value: numberOrNull(markYear.hacDMark), color: '#7A3FB5' },
-          { label: 'SAC-D', value: numberOrNull(markYear.sacDMark), color: '#A26913' },
-          { label: 'Conference', value: numberOrNull(markYear.conference), color: 'var(--accent)' },
-          { label: 'Enacted', value: numberOrNull(markYear.enacted), color: 'var(--success)' },
+          { label: 'PB request', value: markYear.request, color: 'var(--ink-3)' },
+          { label: 'HASC', value: markYear.hascMark, color: '#7A9BE6' },
+          { label: 'SASC', value: markYear.sascMark, color: '#4E78D8' },
+          { label: 'HAC-D', value: markYear.hacDMark, color: '#7A3FB5' },
+          { label: 'SAC-D', value: markYear.sacDMark, color: '#A26913' },
+          { label: 'Conference', value: markYear.conference, color: 'var(--accent)' },
+          { label: 'Enacted', value: markYear.enacted, color: 'var(--success)' },
         ] as Array<{ label: string; value: number | null; color: string }>
       ).filter((b): b is { label: string; value: number; color: string } => b.value != null)
     : [];
@@ -626,7 +625,7 @@ export function ProgramElementWatchPage() {
           <div className="pe-chart-legend">
             <span className="pe-cl">
               <span className="pe-cl-ln accent" />
-              Enacted
+              Current
             </span>
             <span className="pe-cl">
               <span className="pe-cl-ln req" />
@@ -643,11 +642,19 @@ export function ProgramElementWatchPage() {
               height={252}
               mode="area"
               onPointClick={(i) => {
-                const yr = chartYears[i];
+                const yr = funding[i];
                 if (yr) openFy(yr.fy);
               }}
             />
             <div className="pe-chart-foot">
+              <div className="pe-cf-item">
+                <span className="pe-cf-l">Current (latest)</span>
+                <span className="pe-cf-v">
+                  {latestCurrent && latestCurrent.current.value != null
+                    ? `${fmtMoneyM(latestCurrent.current.value)} · ${STAGE_LABEL[latestCurrent.current.stage]} · ${fyLabel(latestCurrent.fy)}`
+                    : '—'}
+                </span>
+              </div>
               <div className="pe-cf-item">
                 <span className="pe-cf-l">Realization rate over request</span>
                 <span className="pe-cf-v up">{winRate}</span>

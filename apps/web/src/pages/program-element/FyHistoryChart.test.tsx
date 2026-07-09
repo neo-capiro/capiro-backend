@@ -1,7 +1,24 @@
 import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { describe, expect, test, vi } from 'vitest';
-import { FyHistoryChart, TooltipContent } from './FyHistoryChart.js';
+import { FyHistoryChart, TooltipContent, toChartPoint } from './FyHistoryChart.js';
 import type { ProgramElementHistoryRow } from './types.js';
+
+/** Sparse history row; `?? null` keeps an explicit 0 (E-7 FY27 request=0). */
+function row(fy: number, f: Partial<ProgramElementHistoryRow>): ProgramElementHistoryRow {
+  return {
+    id: `y${fy}`,
+    fy,
+    request: f.request ?? null,
+    hascMark: f.hascMark ?? null,
+    sascMark: f.sascMark ?? null,
+    hacDMark: f.hacDMark ?? null,
+    sacDMark: f.sacDMark ?? null,
+    conference: f.conference ?? null,
+    enacted: f.enacted ?? null,
+    projectedEnacted: f.enacted == null,
+    sourceAttribution: {},
+  };
+}
 
 const fiveYears: ProgramElementHistoryRow[] = [
   {
@@ -180,5 +197,40 @@ describe('FyHistoryChart', () => {
     expect(screen.getByText(/Enacted \(Projected\)/i)).toBeInTheDocument();
     expect(screen.getByText(/\[rdoc\]/i)).toBeInTheDocument();
     expect(screen.getByText(/\[projected\]/i)).toBeInTheDocument();
+  });
+});
+
+describe('toChartPoint — shared funding-model precedence', () => {
+  test('committee mark drives the bar when nothing final exists (E-7 FY27 shape)', () => {
+    // Real E-7 FY27: request 0, SASC 1500, HAC-D 1549.1. The old blend showed $0.
+    const p = toChartPoint(row(2027, { request: 0, sascMark: 1500, hacDMark: 1549.1 }));
+    expect(p.funding).toBeCloseTo(1549.1, 2);
+    expect(p.fundingStage).toBe('Committee');
+  });
+
+  test('conference outranks committee marks (Sentinel FY26 shape)', () => {
+    const p = toChartPoint(
+      row(2026, { request: 2647.56, hascMark: 3047.56, sascMark: 4647.56, conference: 3847.56 }),
+    );
+    expect(p.funding).toBeCloseTo(3847.56, 2);
+    expect(p.fundingStage).toBe('Conference');
+  });
+
+  test('enacted wins → Enacted', () => {
+    const p = toChartPoint(row(2025, { request: 3721.02, enacted: 2011.02, hascMark: 3721.02 }));
+    expect(p.funding).toBeCloseTo(2011.02, 2);
+    expect(p.fundingStage).toBe('Enacted');
+  });
+
+  test('request-only year → Requested', () => {
+    const p = toChartPoint(row(2028, { request: 3261.2 }));
+    expect(p.funding).toBeCloseTo(3261.2, 2);
+    expect(p.fundingStage).toBe('Requested');
+  });
+
+  test('empty year → Pending, funding 0', () => {
+    const p = toChartPoint(row(2030, {}));
+    expect(p.funding).toBe(0);
+    expect(p.fundingStage).toBe('Pending');
   });
 });

@@ -10,7 +10,12 @@ import {
   CartesianGrid,
   ReferenceLine,
 } from 'recharts';
-import type { FyHistoryChartProps, ProgramElementHistoryRow, ProgramElementSourceField } from './types.js';
+import type {
+  FyHistoryChartProps,
+  ProgramElementHistoryRow,
+  ProgramElementSourceField,
+} from './types.js';
+import { currentFunding, type FundingStage } from './funding-model.js';
 
 const { Text } = Typography;
 
@@ -18,12 +23,12 @@ interface ChartPoint {
   fy: number;
   request: number;
   enacted: number;
-  // Best-available funding figure for the year: enacted → conference → request.
-  // This is the continuous series the timeline plots so EVERY year shows a real
-  // bar, even when (as is normal) historical years carry only `enacted` and budget
-  // years carry only `request`. `fundingStage` labels which one it came from.
+  // Furthest-along funding figure for the year, from the SHARED funding-model
+  // precedence (enacted → conference → SAC-D → HAC-D → SASC → HASC → request) so
+  // the bar matches the Overview trajectory + delta bars exactly. `fundingStage`
+  // is the coarse display bucket (committee marks collapse to 'Committee').
   funding: number;
-  fundingStage: 'Enacted' | 'Conference' | 'Requested' | 'Pending';
+  fundingStage: 'Enacted' | 'Conference' | 'Committee' | 'Requested' | 'Pending';
   projected: boolean;
   requestSource: string;
   hascMark: number | null;
@@ -47,22 +52,34 @@ function sourceFor(row: ProgramElementHistoryRow, field: ProgramElementSourceFie
   return row.sourceAttribution[field] ?? 'n/a';
 }
 
-function toChartPoint(row: ProgramElementHistoryRow): ChartPoint {
-  // Best-available funding figure + the stage it came from. Historical years
-  // typically have only enacted; budget years only request — so picking the best
-  // available value gives a continuous, honest timeline instead of half-empty bars.
-  let funding = 0;
-  let fundingStage: ChartPoint['fundingStage'] = 'Pending';
-  if (row.enacted != null) {
-    funding = row.enacted;
-    fundingStage = row.projectedEnacted ? 'Pending' : 'Enacted';
-  } else if (row.conference != null) {
-    funding = row.conference;
-    fundingStage = 'Conference';
-  } else if (row.request != null) {
-    funding = row.request;
-    fundingStage = 'Requested';
-  }
+/** funding-model stage → the bar's coarse display bucket (committee marks merge). */
+const DISPLAY_STAGE: Record<FundingStage, ChartPoint['fundingStage']> = {
+  enacted: 'Enacted',
+  conference: 'Conference',
+  sacd: 'Committee',
+  hacd: 'Committee',
+  sasc: 'Committee',
+  hasc: 'Committee',
+  request: 'Requested',
+  none: 'Pending',
+};
+
+export function toChartPoint(row: ProgramElementHistoryRow): ChartPoint {
+  // Furthest-along value for the year from the shared funding-model, so the bar
+  // agrees with the Overview trajectory + delta bars. The old blend was
+  // enacted→conference→request only, so a line Congress marked but hadn't
+  // enacted (e.g. request 0, HAC-D 1549.1) drew a misleading $0 bar.
+  const pick = currentFunding({
+    request: row.request,
+    hascMark: row.hascMark,
+    sascMark: row.sascMark,
+    hacDMark: row.hacDMark,
+    sacDMark: row.sacDMark,
+    conference: row.conference,
+    enacted: row.enacted,
+  });
+  const funding = pick.value ?? 0;
+  const fundingStage = DISPLAY_STAGE[pick.stage];
   return {
     fy: row.fy,
     request: row.request ?? 0,
@@ -86,7 +103,13 @@ function toChartPoint(row: ProgramElementHistoryRow): ChartPoint {
   };
 }
 
-export function TooltipContent({ active, payload }: { active?: boolean; payload?: Array<{ payload: ChartPoint }> }) {
+export function TooltipContent({
+  active,
+  payload,
+}: {
+  active?: boolean;
+  payload?: Array<{ payload: ChartPoint }>;
+}) {
   if (!active || !payload || payload.length === 0) return null;
   const first = payload[0];
   if (!first) return null;
@@ -113,7 +136,15 @@ export function TooltipContent({ active, payload }: { active?: boolean; payload?
   );
 }
 
-function TooltipRow({ label, value, source }: { label: string; value: number | null; source: string }) {
+function TooltipRow({
+  label,
+  value,
+  source,
+}: {
+  label: string;
+  value: number | null;
+  source: string;
+}) {
   return (
     <div style={{ display: 'flex', justifyContent: 'space-between', gap: 8 }}>
       <Text type="secondary">{label}</Text>
@@ -148,7 +179,12 @@ function RealizationRateLabel({ rows }: { rows: ProgramElementHistoryRow[] }) {
   const sign = pct >= 0 ? '+' : '';
   return (
     <span className="pe-winrate" data-testid="pe-win-rate-label">
-      Realization rate (5y) <b className={pct >= 0 ? 'pe-pos' : 'pe-neg'}>{sign}{pct.toFixed(1)}%</b> over request
+      Realization rate (5y){' '}
+      <b className={pct >= 0 ? 'pe-pos' : 'pe-neg'}>
+        {sign}
+        {pct.toFixed(1)}%
+      </b>{' '}
+      over request
     </span>
   );
 }
@@ -232,6 +268,7 @@ export function FyHistoryChart({ rows, loading = false, onFyClick }: FyHistoryCh
                 const fillByStage: Record<ChartPoint['fundingStage'], string> = {
                   Enacted: '#2a57ce',
                   Conference: '#5b7fd6',
+                  Committee: '#7b9be0',
                   Requested: '#9db8ff',
                   Pending: '#d8d2c4',
                 };
@@ -263,6 +300,10 @@ export function FyHistoryChart({ rows, loading = false, onFyClick }: FyHistoryCh
           <span className="pe-leg">
             <i style={{ background: '#9db8ff' }} />
             Request
+          </span>
+          <span className="pe-leg">
+            <i style={{ background: '#7b9be0' }} />
+            Committee mark
           </span>
           <span className="pe-leg">
             <i style={{ background: '#5b7fd6' }} />
