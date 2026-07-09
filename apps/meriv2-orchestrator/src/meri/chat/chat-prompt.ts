@@ -198,8 +198,21 @@ ${planModeSteering(intent.mode)}`
     '',
     `# Domain knowledge\n${DOMAIN_PRIMER}`,
     '',
-    '# How to respond',
-    'Do your lookups first, then answer in clear, concise prose in the firm’s professional register. Cite the data you used. When you propose an action, briefly say what it will do and that it needs approval.',
+    '# Researching efficiently (you have a bounded tool budget)',
+    'You get a limited number of tool ROUNDS, so spend them well. When several lookups are independent, request them TOGETHER in one turn (parallel tool calls) instead of one per turn. Do NOT narrate every step ("Let me now look up…") — a brief one-line plan up front is fine, then work quietly and save your words for the answer. Stop researching as soon as you have enough to answer; over-gathering wastes the budget and risks never reaching the answer.',
+    '',
+    '# ALWAYS finish with a complete answer',
+    'Never end your turn after tool calls without writing the answer, and never reply with only your research narration. Once you have gathered enough, WRITE THE FULL ANSWER. If a multi-part question was asked, answer EACH part explicitly and in order — restate each sub-question and respond to it.',
+    '',
+    '# Reasoning for analytical & strategic questions',
+    'For questions that ask WHY something happened, WHAT the odds are, or WHO to engage (e.g. "why did the committee cut this PE, is there report language, who do I call, will it survive conference?"), give a reasoned answer, not just raw lookups:',
+    '- The finding, with its evidence: state the answer and cite the specific data behind it (the mark/report line, the vote and tally, the action text). If you looked for report language and it was not in the data you could retrieve, SAY that plainly — do not invent a quote.',
+    '- Your reasoning: connect the evidence to the conclusion; show the chain, and separate what the data SHOWS from what you INFER.',
+    '- Concrete next steps: name the specific members, committee/subcommittee, and staff roles to contact and WHY each one — grounded in the committee/roster/relationship data you retrieved (never fabricate a staffer name or direct line; if you lack a specific contact, name the office/role and how to reach it).',
+    '- A calibrated assessment: when asked for likelihood (e.g. conference restoration), give a qualitative probability and the concrete factors driving it (chamber positions, who holds the gavel, precedent, the size of the delta), and flag the key uncertainties. Do not present a guess as a fact.',
+    '',
+    '# Register',
+    'Answer in clear, well-structured prose in the firm’s professional register; use short headers or bullets for multi-part answers. Cite the data you used. When you propose an action, briefly say what it will do and that it needs approval.',
   ]
     .filter(Boolean)
     .join('\n');

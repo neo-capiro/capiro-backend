@@ -405,6 +405,84 @@ describe('ChatAssistantService.run', () => {
     });
   });
 
+  it('forces a final synthesis when the tool-round budget is exhausted (no canned fallback, context not discarded)', async () => {
+    // The reported bug: a complex question keeps asking for tools past the round
+    // cap; the old loop returned "ran out of steps" and threw the research away.
+    const executor = {
+      execute: jest.fn(async () => ({ items: [{ id: 'x' }], count: 1 })),
+    } as unknown as ApiToolExecutorRepo;
+    const bodies: Array<Record<string, unknown>> = [];
+    (global as unknown as { fetch: unknown }).fetch = jest.fn(
+      async (url: string, init?: { body?: string }) => {
+        if (url.includes('/api/clio/tool-schemas'))
+          return schemasResponse(['search_congress_bills']);
+        const body = init?.body ? (JSON.parse(init.body) as Record<string, unknown>) : {};
+        bodies.push(body);
+        if ((body.tool_choice as { type?: string } | undefined)?.type === 'none') {
+          return anthropic(
+            [{ type: 'text', text: 'Synthesized answer from everything I gathered.' }],
+            'end_turn',
+          );
+        }
+        // Every tool round keeps requesting a tool → the loop never terminates on its own.
+        return anthropic(
+          [
+            {
+              type: 'tool_use',
+              id: `t${bodies.length}`,
+              name: 'search_congress_bills',
+              input: { q: 'x' },
+            },
+          ],
+          'tool_use',
+        );
+      },
+    );
+
+    const out = await RequestCredentialsStore.run({ bearerToken: 'jwt' }, () =>
+      makeService(executor).run(ctx, {
+        messages: [{ role: 'user', text: 'deep analytical question' }],
+      }),
+    );
+
+    expect(out.reply).toBe('Synthesized answer from everything I gathered.');
+    expect(out.reply).not.toMatch(/ran out of steps/i);
+    // The forced synthesis turn ran exactly once and disabled tools (tool_choice:none)…
+    const synth = bodies.filter(
+      (b) => (b.tool_choice as { type?: string } | undefined)?.type === 'none',
+    );
+    expect(synth).toHaveLength(1);
+    // …after the full 14-round tool budget was spent.
+    const toolRounds = bodies.filter((b) => !b.tool_choice);
+    expect(toolRounds).toHaveLength(14);
+  });
+
+  it('forces synthesis when a turn ends with no prose (never ships a bare "Done.")', async () => {
+    const executor = { execute: jest.fn() } as unknown as ApiToolExecutorRepo;
+    const bodies: Array<Record<string, unknown>> = [];
+    (global as unknown as { fetch: unknown }).fetch = jest.fn(
+      async (url: string, init?: { body?: string }) => {
+        if (url.includes('/api/clio/tool-schemas'))
+          return schemasResponse(['search_congress_bills']);
+        const body = init?.body ? (JSON.parse(init.body) as Record<string, unknown>) : {};
+        bodies.push(body);
+        if ((body.tool_choice as { type?: string } | undefined)?.type === 'none')
+          return anthropic([{ type: 'text', text: 'Here is the answer.' }], 'end_turn');
+        // First turn: model ends with NO text and NO tools (a stray stop).
+        return anthropic([], 'end_turn');
+      },
+    );
+
+    const out = await RequestCredentialsStore.run({ bearerToken: 'jwt' }, () =>
+      makeService(executor).run(ctx, { messages: [{ role: 'user', text: 'q' }] }),
+    );
+
+    expect(out.reply).toBe('Here is the answer.');
+    expect(
+      bodies.filter((b) => (b.tool_choice as { type?: string } | undefined)?.type === 'none'),
+    ).toHaveLength(1);
+  });
+
   it('stops the loop when the signal aborts (no further model calls)', async () => {
     const abort = new AbortController();
     const executor = {

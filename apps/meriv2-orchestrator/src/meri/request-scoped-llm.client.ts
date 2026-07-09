@@ -94,6 +94,13 @@ export class RequestScopedLlmClient implements LlmClient {
     tools: AnthropicToolSchema[];
     maxTokens: number;
     timeoutMs?: number;
+    /**
+     * Force the model's use of tools this call. Omit (default) = Anthropic
+     * `auto`. `'none'` sends `tool_choice: {type:'none'}` so the model MUST
+     * answer in text — the mechanism the loop uses to force a final synthesis
+     * turn when the tool-round budget is spent (never end on a bare tool call).
+     */
+    toolChoice?: 'auto' | 'none';
     /** Optional external cancellation (streaming client disconnect) — composed with the timeout. */
     signal?: AbortSignal;
   }): Promise<ToolLoopResponse> {
@@ -120,6 +127,9 @@ export class RequestScopedLlmClient implements LlmClient {
           max_tokens: params.maxTokens,
           system: params.system,
           tools: params.tools,
+          // Default (undefined) = Anthropic `auto`. `'none'` forces a text-only
+          // synthesis turn (the loop's forced-completion mechanism).
+          ...(params.toolChoice === 'none' ? { tool_choice: { type: 'none' } } : {}),
           messages: params.messages,
         }),
         signal: controller.signal,

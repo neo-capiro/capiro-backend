@@ -26,8 +26,17 @@ export interface ChatRunOptions {
   signal?: AbortSignal;
 }
 
-const MAX_ROUNDS = 8;
-const MAX_TOKENS = 4096;
+// A complex analyst question ("why was this PE cut, is there report language,
+// who do I call, will it survive conference?") legitimately fans out to a dozen+
+// tool calls. 8 rounds capped that mid-research; the loop then returned a canned
+// "ran out of steps" line and DISCARDED everything it had gathered — the reported
+// "Meri never answers" bug. 14 rounds gives real headroom, and on exhaustion we
+// now force a synthesis turn (below) instead of throwing the context away.
+const MAX_ROUNDS = 14;
+// Output budget. 4096 could truncate a thorough strategic answer mid-sentence
+// (another flavor of "incomplete"); tool-call rounds rarely emit near this, so
+// the extra ceiling only ever helps the prose answer.
+const MAX_TOKENS = 8192;
 const TOOL_RESULT_CHARS = 12_000;
 
 interface ContentBlock {
@@ -142,8 +151,16 @@ export class ChatAssistantService {
       );
 
       if (!toolUses.length || stopReason !== 'tool_use') {
-        if (textOut) emit({ type: 'text', text: textOut });
-        return finalize(textOut || 'Done.');
+        if (textOut) {
+          emit({ type: 'text', text: textOut });
+          return finalize(textOut);
+        }
+        // The model ended its turn with no prose (a stray stop / whitespace-only
+        // turn). Never ship a bare "Done." — force one tool-free synthesis pass
+        // over the context already in `messages`.
+        return finalize(
+          await this.synthesizeFinalAnswer(system, toolSchemas, messages, emit, opts),
+        );
       }
 
       // Intermediate round text ("Let me look that up…") streams to the client
@@ -173,9 +190,59 @@ export class ChatAssistantService {
       messages.push({ role: 'user', content: results });
     }
 
-    return finalize(
-      'I gathered a lot of context but ran out of steps before finishing — ask again and I’ll continue.',
-    );
+    // Tool-round budget spent while the model still wanted tools. Do NOT discard
+    // the research — force a final tool-free synthesis over everything gathered.
+    return finalize(await this.synthesizeFinalAnswer(system, toolSchemas, messages, emit, opts));
+  }
+
+  /**
+   * Force a final, TOOL-FREE answer from everything gathered so far. Invoked when
+   * the tool-round budget is spent (or a turn ended with no prose) so the loop
+   * never returns bare "Let me look that up…" narration or a canned "ran out of
+   * steps" line while throwing real context away — the reported completion bug.
+   * Sends `tool_choice:'none'` with a synthesis directive appended to the system
+   * prompt; degrades to a helpful message (never empty) on model error.
+   */
+  private async synthesizeFinalAnswer(
+    system: string,
+    toolSchemas: AnthropicToolSchema[],
+    messages: Array<{ role: 'user' | 'assistant'; content: unknown }>,
+    emit: (event: ChatStreamEvent) => void,
+    opts: ChatRunOptions,
+  ): Promise<string> {
+    if (opts.signal?.aborted) return '';
+    const synthesisSystem =
+      `${system}\n\n# FINISH NOW — write the answer\n` +
+      'You have completed your research and must NOT call any more tools. Using ' +
+      'everything gathered in the conversation above, write your complete final ' +
+      "answer now. Address every part of the user's question directly and in " +
+      'order; cite the specific data you retrieved (figures, bill numbers, names, ' +
+      'report language). Where the data is incomplete, state what you found and ' +
+      'flag what remains uncertain rather than guessing or leaving it unfinished.';
+    try {
+      const resp = await this.llm.completeWithTools({
+        system: synthesisSystem,
+        messages,
+        tools: toolSchemas as AnthropicToolSchema[],
+        toolChoice: 'none',
+        maxTokens: MAX_TOKENS,
+        timeoutMs: this.callTimeoutMs,
+        ...(opts.signal ? { signal: opts.signal } : {}),
+      });
+      const text = (resp.content as ContentBlock[])
+        .filter((b) => b.type === 'text' && typeof b.text === 'string')
+        .map((b) => b.text as string)
+        .join('\n')
+        .trim();
+      if (text) emit({ type: 'text', text });
+      return (
+        text || 'I gathered the context but could not compose a final answer — please ask again.'
+      );
+    } catch (e) {
+      if (opts.signal?.aborted) return '';
+      this.logger.warn(`chat synthesis call failed: ${(e as Error).message}`);
+      return 'I gathered a lot of context but hit an error composing the final answer — please ask again.';
+    }
   }
 
   /**

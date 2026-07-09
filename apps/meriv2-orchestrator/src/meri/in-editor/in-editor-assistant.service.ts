@@ -37,8 +37,12 @@ const VERIFIER_SYSTEM_PROMPT =
   'Mark supported=true only when a listed source backs the claim. Be conservative: if unsure, use ' +
   'supported=false with sourceIds [].';
 
-const MAX_ROUNDS = 5;
-const MAX_TOKENS = 4096;
+// 5 rounds cut off document tasks that needed a few lookups before proposing
+// edits; on exhaustion the loop returned a canned "ran out of steps" line and
+// dropped its context (same completion bug as the chat surface). 8 rounds + a
+// forced prose synthesis on exhaustion (below) fixes it.
+const MAX_ROUNDS = 8;
+const MAX_TOKENS = 8192;
 const TOOL_RESULT_CHARS = 12_000;
 
 interface ContentBlock {
@@ -200,12 +204,30 @@ export class InEditorAssistantService {
       messages.push({ role: 'user', content: results });
     }
 
-    return {
-      reply:
-        'I gathered some context but ran out of steps before composing a full answer — ask again and I’ll continue.',
-      edits: [],
-      steps,
-    };
+    // Tool-round budget spent before the model proposed edits. Rather than
+    // discarding the research, force one tool-free pass so the user gets Meri's
+    // findings + recommendation in prose (no edits) instead of a canned line.
+    let reply =
+      'I gathered a lot of context but ran out of steps before finishing — ask again and I’ll continue.';
+    try {
+      const resp = await this.llm.completeWithTools({
+        system: `${system}\n\n# FINISH NOW\nYou have used your research budget and must NOT call any more tools (including propose_document_edits). Summarize what you found and give your recommended change in prose so the user can ask you to apply it. Cite the data you gathered; flag anything still uncertain.`,
+        messages,
+        tools: toolSchemas as AnthropicToolSchema[],
+        toolChoice: 'none',
+        maxTokens: MAX_TOKENS,
+        timeoutMs: this.callTimeoutMs,
+      });
+      const text = (resp.content as ContentBlock[])
+        .filter((b) => b.type === 'text' && typeof b.text === 'string')
+        .map((b) => b.text as string)
+        .join('\n')
+        .trim();
+      if (text) reply = text;
+    } catch (e) {
+      this.logger.warn(`in-editor synthesis call failed: ${(e as Error).message}`);
+    }
+    return { reply, edits: [], steps };
   }
 
   /**
