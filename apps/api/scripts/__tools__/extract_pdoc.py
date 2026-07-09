@@ -78,6 +78,18 @@ LI_FOOTER_RE = re.compile(r"\bLI\s+([0-9][0-9A-Z]{8,11})\s*-\s*(.+)$")
 # Header line carrying the authoritative "<BLIN> / <Title>" pair.
 HEADER_CODE_RE = re.compile(r"\b([0-9]{4}[A-Z]{1,2}[0-9A-Z]{4,5})\s*/\s*(.+)$")
 
+# --- Navy/short-form P-1 line numbers -------------------------------------
+# Navy (and Marine Corps) books key P-40s by a SHORT line number within an
+# appropriation: footer reads "LI 0145 - FA-18E/F" and the header block carries
+# "1506N: Aircraft Procurement, Navy / BA 01: ...". The canonical prod keyspace
+# concatenates them (pe_code = <appropriation><line> -> "1506N0145"), so this
+# fallback synthesizes exactly that when no long-form BLIN is present.
+SHORT_LI_FOOTER_RE = re.compile(r"\bLI\s+(\d{4})\s*-\s*(.+)$")
+# Appropriation code, contiguous digits+letters immediately followed by a colon
+# ("1506N: Aircraft Procurement, Navy"). Contiguity keeps "PB 2027 Navy Date:"
+# and "BA 01:" from matching.
+APPROP_RE = re.compile(r"\b(\d{4}[A-Z]{1,2}):")
+
 AMOUNT = r"\(?-?\$?[\d,]+(?:\.\d+)?\)?"
 AMOUNT_RE = re.compile(AMOUNT)
 
@@ -198,7 +210,29 @@ def _parse_p40(words, fy):
                 blin, title = m.group(1), m.group(2).strip()
                 break
     if blin is None or not BLIN_RE.match(blin):
-        return None
+        # Navy/short-form fallback: synthesize <appropriation><line> from the
+        # "NNNNX:" appropriation header + the short "LI NNNN - Title" footer.
+        approp = short_line = short_title = None
+        for r in rows:
+            line = " ".join(w["text"] for w in r)
+            if approp is None:
+                am = APPROP_RE.search(line)
+                if am:
+                    approp = am.group(1)
+            if short_line is None:
+                sm = SHORT_LI_FOOTER_RE.search(line)
+                if sm:
+                    short_line, short_title = sm.group(1), sm.group(2).strip()
+            if approp and short_line:
+                break
+        if approp and short_line:
+            blin, title = f"{approp}{short_line}", short_title
+        else:
+            return None
+    # The footer row often carries the page classification marker on the same
+    # visual line ("LI 0145 - FA-18E/F   UNCLASSIFIED") — strip it from titles.
+    if title:
+        title = re.sub(r"\s*UNCLASSIFIED\s*$", "", title).strip()
 
     # --- locate the FY column x-centres from the Resource Summary header ---
     # The header row reads: ... FY 2024  FY 2025  Base OOC Total  FY 2027 ...

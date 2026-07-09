@@ -1,0 +1,735 @@
+{
+  "service": "NAVY",
+  "fy": 2027,
+  "sourceUrl": "https://www.secnav.navy.mil/fmc/fmb/Documents/27pres/APN_BA1-4_Book.pdf",
+  "pes": [
+    {
+      "peCode": "1506N0145",
+      "title": "FA-18E/F",
+      "budgetActivity": "BA 01",
+      "lineNumber": "1506N0145",
+      "programOfRecord": null,
+      "fyData": [
+        {
+          "fy": 2025,
+          "quantity": null,
+          "requestDollarsThousands": 28554.0,
+          "unitCostDollars": null
+        },
+        {
+          "fy": 2026,
+          "quantity": null,
+          "requestDollarsThousands": 29506.0,
+          "unitCostDollars": null
+        },
+        {
+          "fy": 2027,
+          "quantity": null,
+          "requestDollarsThousands": 49088.0,
+          "unitCostDollars": null
+        },
+        {
+          "fy": 2028,
+          "quantity": null,
+          "requestDollarsThousands": 58256.0,
+          "unitCostDollars": null
+        },
+        {
+          "fy": 2029,
+          "quantity": null,
+          "requestDollarsThousands": 25469.0,
+          "unitCostDollars": null
+        },
+        {
+          "fy": 2030,
+          "quantity": null,
+          "requestDollarsThousands": 411.0,
+          "unitCostDollars": null
+        },
+        {
+          "fy": 2031,
+          "quantity": null,
+          "requestDollarsThousands": 419.0,
+          "unitCostDollars": null
+        }
+      ],
+      "lineItems": []
+    },
+    {
+      "peCode": "1506N0147",
+      "title": "Joint Strike Fighter CV",
+      "budgetActivity": "BA 01",
+      "lineNumber": "1506N0147",
+      "programOfRecord": null,
+      "fyData": [
+        {
+          "fy": 2025,
+          "quantity": 17,
+          "requestDollarsThousands": 2315259.0,
+          "unitCostDollars": 145503235.0
+        },
+        {
+          "fy": 2026,
+          "quantity": 12,
+          "requestDollarsThousands": 1920924.0,
+          "unitCostDollars": 174710417.0
+        },
+        {
+          "fy": 2027,
+          "quantity": 8,
+          "requestDollarsThousands": 995707.0,
+          "unitCostDollars": 171520375.0
+        },
+        {
+          "fy": 2028,
+          "quantity": 33,
+          "requestDollarsThousands": 4296916.0,
+          "unitCostDollars": 149754121.0
+        },
+        {
+          "fy": 2029,
+          "quantity": 30,
+          "requestDollarsThousands": 3902382.0,
+          "unitCostDollars": 149892233.0
+        },
+        {
+          "fy": 2030,
+          "quantity": 31,
+          "requestDollarsThousands": 3753410.0,
+          "unitCostDollars": 141160194.0
+        },
+        {
+          "fy": 2031,
+          "quantity": 31,
+          "requestDollarsThousands": 3697931.0,
+          "unitCostDollars": 139539129.0
+        }
+      ],
+      "lineItems": []
+    },
+    {
+      "peCode": "1506N0152",
+      "title": "JSF STOVL",
+      "budgetActivity": "BA 01",
+      "lineNumber": "1506N0152",
+      "programOfRecord": null,
+      "fyData": [
+        {
+          "fy": 2025,
+          "quantity": 13,
+          "requestDollarsThousands": 1971687.0,
+          "unitCostDollars": 163850000
+        },
+        {
+          "fy": 2026,
+          "quantity": 11,
+          "requestDollarsThousands": 1787313.0,
+          "unitCostDollars": 176443636.0
+        },
+        {
+          "fy": 2027,
+          "quantity": null,
+          "requestDollarsThousands": 62363.0,
+          "unitCostDollars": null
+        },
+        {
+          "fy": 2028,
+          "quantity": 10,
+          "requestDollarsThousands": 1864288.0,
+          "unitCostDollars": 193764700.0
+        },
+        {
+          "fy": 2029,
+          "quantity": 9,
+          "requestDollarsThousands": 1634078.0,
+          "unitCostDollars": 204172444.0
+        },
+        {
+          "fy": 2030,
+          "quantity": 6,
+          "requestDollarsThousands": 1083193.0,
+          "unitCostDollars": 203297500.0
+        },
+        {
+          "fy": 2031,
+          "quantity": 6,
+          "requestDollarsThousands": 1003458.0,
+          "unitCostDollars": 190302167.0
+        }
+      ],
+      "lineItems": []
+    },
+    {
+      "peCode": "1506N0158",
+      "title": "CH-53K (Heavy Lift)",
+      "budgetActivity": "BA 01",
+      "lineNumber": "1506N0158",
+      "programOfRecord": null,
+      "fyData": [
+        {
+          "fy": 2025,
+          "quantity": 18,
+          "requestDollarsThousands": 2193657.0,
+          "unitCostDollars": 145102667.0
+        },
+        {
+          "fy": 2026,
+          "quantity": 14,
+          "requestDollarsThousands": 1920788.0,
+          "unitCostDollars": 162043571.0
+        },
+        {
+          "fy": 2027,
+          "quantity": 22,
+          "requestDollarsThousands": 3044450.0,
+          "unitCostDollars": 154481864.0
+        },
+        {
+          "fy": 2028,
+          "quantity": 23,
+          "requestDollarsThousands": 3261204.0,
+          "unitCostDollars": 161633217.0
+        },
+        {
+          "fy": 2029,
+          "quantity": 20,
+          "requestDollarsThousands": 2810913.0,
+          "unitCostDollars": 167796700.0
+        },
+        {
+          "fy": 2030,
+          "quantity": 16,
+          "requestDollarsThousands": 2509871.0,
+          "unitCostDollars": 180716625.0
+        },
+        {
+          "fy": 2031,
+          "quantity": 15,
+          "requestDollarsThousands": 2341657.0,
+          "unitCostDollars": 178739000
+        }
+      ],
+      "lineItems": []
+    },
+    {
+      "peCode": "1506N0164",
+      "title": "V-22 (Medium Lift)",
+      "budgetActivity": "BA 01",
+      "lineNumber": "1506N0164",
+      "programOfRecord": null,
+      "fyData": [
+        {
+          "fy": 2025,
+          "quantity": null,
+          "requestDollarsThousands": 30118.0,
+          "unitCostDollars": null
+        },
+        {
+          "fy": 2026,
+          "quantity": null,
+          "requestDollarsThousands": 47196.0,
+          "unitCostDollars": null
+        },
+        {
+          "fy": 2027,
+          "quantity": null,
+          "requestDollarsThousands": 0,
+          "unitCostDollars": null
+        },
+        {
+          "fy": 2028,
+          "quantity": null,
+          "requestDollarsThousands": 0,
+          "unitCostDollars": null
+        },
+        {
+          "fy": 2029,
+          "quantity": null,
+          "requestDollarsThousands": 0,
+          "unitCostDollars": null
+        },
+        {
+          "fy": 2030,
+          "quantity": null,
+          "requestDollarsThousands": 0,
+          "unitCostDollars": null
+        },
+        {
+          "fy": 2031,
+          "quantity": null,
+          "requestDollarsThousands": 0,
+          "unitCostDollars": null
+        }
+      ],
+      "lineItems": []
+    },
+    {
+      "peCode": "1506N0178",
+      "title": "UH-1Y/AH-1Z",
+      "budgetActivity": "BA 01",
+      "lineNumber": "1506N0178",
+      "programOfRecord": null,
+      "fyData": [
+        {
+          "fy": 2025,
+          "quantity": null,
+          "requestDollarsThousands": 8701.0,
+          "unitCostDollars": null
+        },
+        {
+          "fy": 2026,
+          "quantity": null,
+          "requestDollarsThousands": 8305.0,
+          "unitCostDollars": null
+        },
+        {
+          "fy": 2027,
+          "quantity": null,
+          "requestDollarsThousands": 5974.0,
+          "unitCostDollars": null
+        },
+        {
+          "fy": 2028,
+          "quantity": null,
+          "requestDollarsThousands": 6794.0,
+          "unitCostDollars": null
+        },
+        {
+          "fy": 2029,
+          "quantity": null,
+          "requestDollarsThousands": 6958.0,
+          "unitCostDollars": null
+        },
+        {
+          "fy": 2030,
+          "quantity": null,
+          "requestDollarsThousands": 7078.0,
+          "unitCostDollars": null
+        },
+        {
+          "fy": 2031,
+          "quantity": null,
+          "requestDollarsThousands": 7211.0,
+          "unitCostDollars": null
+        }
+      ],
+      "lineItems": []
+    },
+    {
+      "peCode": "1506N0193",
+      "title": "P-8A Poseidon",
+      "budgetActivity": "BA 01",
+      "lineNumber": "1506N0193",
+      "programOfRecord": null,
+      "fyData": [
+        {
+          "fy": 2025,
+          "quantity": null,
+          "requestDollarsThousands": 12424.0,
+          "unitCostDollars": null
+        },
+        {
+          "fy": 2026,
+          "quantity": null,
+          "requestDollarsThousands": 13631.0,
+          "unitCostDollars": null
+        },
+        {
+          "fy": 2027,
+          "quantity": 12,
+          "requestDollarsThousands": 4227350.0,
+          "unitCostDollars": 352279167.0
+        },
+        {
+          "fy": 2028,
+          "quantity": null,
+          "requestDollarsThousands": 23287.0,
+          "unitCostDollars": null
+        },
+        {
+          "fy": 2029,
+          "quantity": null,
+          "requestDollarsThousands": 23985.0,
+          "unitCostDollars": null
+        },
+        {
+          "fy": 2030,
+          "quantity": null,
+          "requestDollarsThousands": 24704.0,
+          "unitCostDollars": null
+        },
+        {
+          "fy": 2031,
+          "quantity": null,
+          "requestDollarsThousands": 25444.0,
+          "unitCostDollars": null
+        }
+      ],
+      "lineItems": []
+    },
+    {
+      "peCode": "1506N0195",
+      "title": "E-2D AHE",
+      "budgetActivity": "BA 01",
+      "lineNumber": "1506N0195",
+      "programOfRecord": null,
+      "fyData": [
+        {
+          "fy": 2025,
+          "quantity": null,
+          "requestDollarsThousands": 95219.0,
+          "unitCostDollars": null
+        },
+        {
+          "fy": 2026,
+          "quantity": 3,
+          "requestDollarsThousands": 1100800.0,
+          "unitCostDollars": 366933333.0
+        },
+        {
+          "fy": 2027,
+          "quantity": 6,
+          "requestDollarsThousands": 2075025.0,
+          "unitCostDollars": 345837500.0
+        },
+        {
+          "fy": 2028,
+          "quantity": 2,
+          "requestDollarsThousands": 525025.0,
+          "unitCostDollars": 412512500.0
+        },
+        {
+          "fy": 2029,
+          "quantity": 4,
+          "requestDollarsThousands": 700026.0,
+          "unitCostDollars": 325006500.0
+        },
+        {
+          "fy": 2030,
+          "quantity": null,
+          "requestDollarsThousands": 26.0,
+          "unitCostDollars": null
+        },
+        {
+          "fy": 2031,
+          "quantity": null,
+          "requestDollarsThousands": 26.0,
+          "unitCostDollars": null
+        }
+      ],
+      "lineItems": []
+    },
+    {
+      "peCode": "1506N0343",
+      "title": "Multi-Engine Training System (METS)",
+      "budgetActivity": "BA 03",
+      "lineNumber": "1506N0343",
+      "programOfRecord": null,
+      "fyData": [
+        {
+          "fy": 2025,
+          "quantity": 27,
+          "requestDollarsThousands": 301303.0,
+          "unitCostDollars": 11159370.0
+        },
+        {
+          "fy": 2026,
+          "quantity": null,
+          "requestDollarsThousands": 0,
+          "unitCostDollars": null
+        },
+        {
+          "fy": 2027,
+          "quantity": null,
+          "requestDollarsThousands": 0,
+          "unitCostDollars": null
+        },
+        {
+          "fy": 2028,
+          "quantity": null,
+          "requestDollarsThousands": 0,
+          "unitCostDollars": null
+        },
+        {
+          "fy": 2029,
+          "quantity": null,
+          "requestDollarsThousands": 0,
+          "unitCostDollars": null
+        },
+        {
+          "fy": 2030,
+          "quantity": null,
+          "requestDollarsThousands": 0,
+          "unitCostDollars": null
+        },
+        {
+          "fy": 2031,
+          "quantity": null,
+          "requestDollarsThousands": 0,
+          "unitCostDollars": null
+        }
+      ],
+      "lineItems": []
+    },
+    {
+      "peCode": "1506N0416",
+      "title": "KC-130J",
+      "budgetActivity": "BA 04",
+      "lineNumber": "1506N0416",
+      "programOfRecord": null,
+      "fyData": [
+        {
+          "fy": 2025,
+          "quantity": 2,
+          "requestDollarsThousands": 294406.0,
+          "unitCostDollars": 147203000
+        },
+        {
+          "fy": 2026,
+          "quantity": 4,
+          "requestDollarsThousands": 518017.0,
+          "unitCostDollars": 129504250.0
+        },
+        {
+          "fy": 2027,
+          "quantity": 11,
+          "requestDollarsThousands": 1601906.0,
+          "unitCostDollars": 145627818.0
+        },
+        {
+          "fy": 2028,
+          "quantity": 1,
+          "requestDollarsThousands": 190057.0,
+          "unitCostDollars": 190057000
+        },
+        {
+          "fy": 2029,
+          "quantity": 1,
+          "requestDollarsThousands": 142262.0,
+          "unitCostDollars": 142262000
+        },
+        {
+          "fy": 2030,
+          "quantity": 1,
+          "requestDollarsThousands": 145426.0,
+          "unitCostDollars": 145426000
+        },
+        {
+          "fy": 2031,
+          "quantity": 1,
+          "requestDollarsThousands": 148250.0,
+          "unitCostDollars": 148250000
+        }
+      ],
+      "lineItems": []
+    },
+    {
+      "peCode": "1506N0442",
+      "title": "MQ-4 TRITON",
+      "budgetActivity": "BA 04",
+      "lineNumber": "1506N0442",
+      "programOfRecord": null,
+      "fyData": [
+        {
+          "fy": 2025,
+          "quantity": null,
+          "requestDollarsThousands": 159226.0,
+          "unitCostDollars": null
+        },
+        {
+          "fy": 2026,
+          "quantity": null,
+          "requestDollarsThousands": 123839.0,
+          "unitCostDollars": null
+        },
+        {
+          "fy": 2027,
+          "quantity": null,
+          "requestDollarsThousands": 104326.0,
+          "unitCostDollars": null
+        },
+        {
+          "fy": 2028,
+          "quantity": null,
+          "requestDollarsThousands": 86414.0,
+          "unitCostDollars": null
+        },
+        {
+          "fy": 2029,
+          "quantity": null,
+          "requestDollarsThousands": 96509.0,
+          "unitCostDollars": null
+        },
+        {
+          "fy": 2030,
+          "quantity": null,
+          "requestDollarsThousands": 83667.0,
+          "unitCostDollars": null
+        },
+        {
+          "fy": 2031,
+          "quantity": null,
+          "requestDollarsThousands": 201.0,
+          "unitCostDollars": null
+        }
+      ],
+      "lineItems": []
+    },
+    {
+      "peCode": "1506N0449",
+      "title": "MQ-25",
+      "budgetActivity": "BA 04",
+      "lineNumber": "1506N0449",
+      "programOfRecord": null,
+      "fyData": [
+        {
+          "fy": 2025,
+          "quantity": null,
+          "requestDollarsThousands": 50000,
+          "unitCostDollars": null
+        },
+        {
+          "fy": 2026,
+          "quantity": 3,
+          "requestDollarsThousands": 387686.0,
+          "unitCostDollars": 129228667.0
+        },
+        {
+          "fy": 2027,
+          "quantity": 3,
+          "requestDollarsThousands": 771177.0,
+          "unitCostDollars": 274456000
+        },
+        {
+          "fy": 2028,
+          "quantity": 5,
+          "requestDollarsThousands": 881278.0,
+          "unitCostDollars": 192448600.0
+        },
+        {
+          "fy": 2029,
+          "quantity": 7,
+          "requestDollarsThousands": 1295789.0,
+          "unitCostDollars": 197317857.0
+        },
+        {
+          "fy": 2030,
+          "quantity": 7,
+          "requestDollarsThousands": 1128226.0,
+          "unitCostDollars": 173703000
+        },
+        {
+          "fy": 2031,
+          "quantity": 7,
+          "requestDollarsThousands": 1038266.0,
+          "unitCostDollars": 161127571.0
+        }
+      ],
+      "lineItems": []
+    },
+    {
+      "peCode": "1506N0452",
+      "title": "Marine Group 5 UAS",
+      "budgetActivity": "BA 04",
+      "lineNumber": "1506N0452",
+      "programOfRecord": null,
+      "fyData": [
+        {
+          "fy": 2025,
+          "quantity": null,
+          "requestDollarsThousands": 19081.0,
+          "unitCostDollars": null
+        },
+        {
+          "fy": 2026,
+          "quantity": null,
+          "requestDollarsThousands": 15162.0,
+          "unitCostDollars": null
+        },
+        {
+          "fy": 2027,
+          "quantity": 5,
+          "requestDollarsThousands": 118600.0,
+          "unitCostDollars": 23720000
+        },
+        {
+          "fy": 2028,
+          "quantity": null,
+          "requestDollarsThousands": 0,
+          "unitCostDollars": null
+        },
+        {
+          "fy": 2029,
+          "quantity": null,
+          "requestDollarsThousands": 0,
+          "unitCostDollars": null
+        },
+        {
+          "fy": 2030,
+          "quantity": null,
+          "requestDollarsThousands": 0,
+          "unitCostDollars": null
+        },
+        {
+          "fy": 2031,
+          "quantity": null,
+          "requestDollarsThousands": 0,
+          "unitCostDollars": null
+        }
+      ],
+      "lineItems": []
+    },
+    {
+      "peCode": "1506N0465",
+      "title": "Other Support Aircraft",
+      "budgetActivity": "BA 04",
+      "lineNumber": "1506N0465",
+      "programOfRecord": null,
+      "fyData": [
+        {
+          "fy": 2025,
+          "quantity": null,
+          "requestDollarsThousands": 0,
+          "unitCostDollars": null
+        },
+        {
+          "fy": 2026,
+          "quantity": 1,
+          "requestDollarsThousands": 19812.0,
+          "unitCostDollars": null
+        },
+        {
+          "fy": 2027,
+          "quantity": 10,
+          "requestDollarsThousands": 204476.0,
+          "unitCostDollars": null
+        },
+        {
+          "fy": 2028,
+          "quantity": 7,
+          "requestDollarsThousands": 143133.0,
+          "unitCostDollars": null
+        },
+        {
+          "fy": 2029,
+          "quantity": null,
+          "requestDollarsThousands": 0,
+          "unitCostDollars": null
+        },
+        {
+          "fy": 2030,
+          "quantity": null,
+          "requestDollarsThousands": 0,
+          "unitCostDollars": null
+        },
+        {
+          "fy": 2031,
+          "quantity": null,
+          "requestDollarsThousands": 0,
+          "unitCostDollars": null
+        }
+      ],
+      "lineItems": []
+    }
+  ]
+}
