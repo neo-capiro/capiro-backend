@@ -1,7 +1,7 @@
 import { describe, expect, it } from '@jest/globals';
-import { AI_PRICING, computeAiCostUsd } from './ai-pricing.js';
+import { AI_PRICING, computeAiCostUsd } from '@capiro/shared';
 
-describe('computeAiCostUsd', () => {
+describe('computeAiCostUsd (lifted into @capiro/shared, Phase 1 M5.0)', () => {
   it('computes cost from input+output tokens for a known model', () => {
     // gpt-4.1: $2.00 / 1M input, $8.00 / 1M output
     const cost = computeAiCostUsd('gpt-4.1', 1_000_000, 1_000_000);

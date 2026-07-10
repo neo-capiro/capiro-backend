@@ -559,7 +559,8 @@ export type SourceType =
   | 'competitor_filing'
   | 'contract_award'
   | 'bill_movement'
-  | 'state_bill';
+  | 'state_bill'
+  | 'regulation';
 
 export const SOURCE_TYPES: readonly SourceType[] = [
   'bill',
@@ -571,6 +572,7 @@ export const SOURCE_TYPES: readonly SourceType[] = [
   'contract_award',
   'bill_movement',
   'state_bill',
+  'regulation',
 ] as const;
 
 export interface Alert {
@@ -1334,6 +1336,230 @@ export function stateBillSessionLabel(sessionKey: string): string {
 }
 
 // ─────────────────────────────────────────────────────────────────────────
+// Deadline Physics (Phase 1 M2.1/M2.3/M2.4, PD5) — the SAME "which cutoff is
+// this bill racing" computation for both the intel-api alert emitter (M2.3)
+// and apps/api's ChokepointService.deadlineRisk (M2.4), so a days-to-cutoff
+// figure means the same thing everywhere it's shown ("Canonical... deadlines
+// ... must be deterministic").
+// ─────────────────────────────────────────────────────────────────────────
+
+export type StateDeadlineCutoffType =
+  | 'committeeCutoff'
+  | 'crossover'
+  | 'secondCommitteeCutoff'
+  | 'sineDie';
+
+export interface StateSessionCalendar {
+  committeeCutoffDate?: string | null;
+  crossoverDate?: string | null;
+  secondCommitteeCutoffDate?: string | null;
+  sineDie?: string | null;
+}
+
+export interface StateDeadlineRisk {
+  daysUntil: number;
+  cutoffDate: string;
+  cutoffType: StateDeadlineCutoffType;
+  /** true when the computed cutoff has already passed (bill's status hasn't caught up to dead_by_deadline yet — a rare lag, not the common case). */
+  isPastCutoff: boolean;
+}
+
+function daysBetweenDateStrings(fromISO: string, toISO: string): number {
+  const from = Date.UTC(
+    ...(fromISO.slice(0, 10).split('-').map(Number) as [number, number, number]),
+  );
+  const to = Date.UTC(...(toISO.slice(0, 10).split('-').map(Number) as [number, number, number]));
+  return Math.round((to - from) / 86_400_000);
+}
+
+/**
+ * "The soonest of crossover/cutoff/sineDie that the bill hasn't already
+ * cleared, given its deriveStateBillStatus" (PD5). Which calendar field is
+ * even a CANDIDATE depends on the bill's current stage (rank from
+ * `stateBillStatusRank`):
+ *   - introduced/committee (rank 0-1): still in its originating chamber's
+ *     committee -> committeeCutoffDate is the live constraint.
+ *   - reported/floor (rank 2-3): cleared committee, awaiting a floor vote in
+ *     its originating chamber -> crossoverDate.
+ *   - passed_chamber (rank 4): crossed over, now in the SECOND chamber's
+ *     committee -> secondCommitteeCutoffDate.
+ *   - resolving/to_governor (rank 5-6) or a terminal status (rank 9): no
+ *     committee/floor cutoff is still live — returns null (terminal) or falls
+ *     through to sineDie alone (resolving/to_governor).
+ * sineDie is always an additional candidate (a session ending kills anything
+ * not yet enacted, regardless of stage). A state with only sineDie curated
+ * (the common case for non-priority states, M2.1) still gets a sineDie-only
+ * risk — graceful degradation, never a fabricated cutoff for an uncurated
+ * field. Returns null when the bill is already terminal, or when NOTHING is
+ * curated for this session at all.
+ */
+export function computeStateDeadlineRisk(input: {
+  status: string | null | undefined;
+  session: StateSessionCalendar;
+  today: string;
+}): StateDeadlineRisk | null {
+  const rank = stateBillStatusRank(input.status);
+  if (rank >= 9) return null; // already terminal — no deadline risk left to report
+
+  const candidates: Array<{ type: StateDeadlineCutoffType; date: string | null | undefined }> = [];
+  if (rank <= 1)
+    candidates.push({ type: 'committeeCutoff', date: input.session.committeeCutoffDate });
+  else if (rank <= 3) candidates.push({ type: 'crossover', date: input.session.crossoverDate });
+  else if (rank === 4)
+    candidates.push({
+      type: 'secondCommitteeCutoff',
+      date: input.session.secondCommitteeCutoffDate,
+    });
+  candidates.push({ type: 'sineDie', date: input.session.sineDie });
+
+  const valid = candidates.filter(
+    (c): c is { type: StateDeadlineCutoffType; date: string } => !!c.date,
+  );
+  if (!valid.length) return null;
+
+  const withDays = valid.map((c) => ({ ...c, days: daysBetweenDateStrings(input.today, c.date) }));
+  const future = withDays.filter((c) => c.days >= 0).sort((a, b) => a.days - b.days);
+  const chosen = future.length ? future[0]! : withDays.sort((a, b) => b.days - a.days)[0]!;
+  return {
+    daysUntil: chosen.days,
+    cutoffDate: chosen.date,
+    cutoffType: chosen.type,
+    isPastCutoff: chosen.days < 0,
+  };
+}
+
+/** A rule/notice's position in the standard rulemaking pipeline, both rails. */
+export type RuleLifecycleStage = 'notice' | 'nprm' | 'comment_closed' | 'final' | 'effective';
+
+/** Display labels + ordering for `RuleLifecycleStage`, both rails' UI rails. */
+export const RULE_LIFECYCLE_STAGES: ReadonlyArray<{
+  key: RuleLifecycleStage;
+  label: string;
+}> = [
+  { key: 'notice', label: 'Notice' },
+  { key: 'nprm', label: 'NPRM' },
+  { key: 'comment_closed', label: 'Comment closed' },
+  { key: 'final', label: 'Final rule' },
+  { key: 'effective', label: 'Effective' },
+];
+
+/**
+ * Canonical rulemaking-lifecycle stage, both rails (Phase 1 M4.2) — a rule's
+ * `documentType`/`ruleType` plus its comment/effective dates deterministically
+ * place it on the pipeline; never inferred from prose. Originally
+ * `intelligence.service.ts`'s federal-only `deriveRegStage` (inline closure,
+ * FR document types RULE/PROPOSED_RULE/NOTICE/PRESIDENTIAL_DOCUMENT only);
+ * lifted here unchanged for that caller and extended with `StateRule.ruleType`
+ * ('proposed' | 'emergency' | 'final' | 'notice' | 'executive_order') so
+ * `get_state_rule_status` (Meri, both rails) and the federal aggregate share
+ * one derivation. State 'emergency' rules take effect immediately upon
+ * publication with no separate comment/final split modeled in v1 — treated
+ * like a self-executing federal PRESIDENTIAL_DOCUMENT. State 'executive_order'
+ * is likewise self-executing, mirroring PRESIDENTIAL_DOCUMENT.
+ */
+export function deriveRuleLifecycleStage(input: {
+  documentType: string | null | undefined;
+  commentEndDate: Date | null;
+  effectiveDate: Date | null;
+  today?: Date;
+}): RuleLifecycleStage {
+  const today = input.today ?? new Date();
+  const type = (input.documentType ?? '').toUpperCase();
+  const commentClosed =
+    input.commentEndDate != null && input.commentEndDate.getTime() < today.getTime();
+  const isEffective =
+    input.effectiveDate != null && input.effectiveDate.getTime() <= today.getTime();
+
+  switch (type) {
+    case 'PROPOSED_RULE':
+    case 'PROPOSED':
+      // NPRM: open comment period unless the comment deadline has passed.
+      return commentClosed ? 'comment_closed' : 'nprm';
+    case 'RULE':
+    case 'FINAL':
+    case 'PRESIDENTIAL_DOCUMENT':
+    case 'EXECUTIVE_ORDER':
+    case 'EMERGENCY':
+      // A final rule, emergency rule, or executive/presidential directive
+      // (all self-executing or past the comment stage): 'effective' once its
+      // effective date has arrived, otherwise 'final'.
+      return isEffective ? 'effective' : 'final';
+    case 'NOTICE':
+    default:
+      // Notices (incl. ANPRMs / requests for comment) and any unknown type
+      // sit at the pre-proposal notice stage.
+      return 'notice';
+  }
+}
+
+/**
+ * Federal committee-referral crosswalk (Phase 1 M2.2, PD3 substrate; lifted
+ * from apps/api's chokepoint module into `@capiro/shared` in M4.3 so the
+ * meriv2-evals CI gate can pin "never guess a committee" as a mechanism
+ * case, the same way it pins `deriveBillStatus`/`deriveStateBillStatus`).
+ *
+ * `CongressBillCommittee.committeeName/committeeCode` (`sync-congress.ts`) is
+ * free text harvested from Congress.gov's `/bill/.../committees` endpoint —
+ * `committeeCode` is that endpoint's own `systemCode` field when Congress.gov
+ * returns one (verified in `sync-congress.ts`'s `CongressCommitteesResponse`),
+ * so it usually already IS the crosswalk target; this resolver only falls back
+ * to name-matching when no code was captured. Never a fuzzy guess: a name that
+ * matches zero or more-than-one current committee resolves to `null` and is
+ * logged, per PD2's "never guess" standard applied to committees.
+ */
+export interface CommitteeReferral {
+  committeeName: string;
+  committeeCode: string | null;
+  chamber: string | null;
+}
+
+export interface CommitteeCandidate {
+  systemCode: string;
+  name: string;
+  chamber: string;
+  parentSystemCode: string | null;
+}
+
+export interface ResolvedCommittee extends CommitteeCandidate {
+  matchedBy: 'code' | 'name';
+}
+
+/** Strip the boilerplate wrapper words so "House Armed Services Committee" and
+ *  "Committee on Armed Services" normalize to the same key. */
+export function normalizeCommitteeName(name: string): string {
+  return name
+    .toLowerCase()
+    .replace(/^(house|senate|joint)\s+/, '')
+    .replace(/^committee on\s+/, '')
+    .replace(/\s+committee$/, '')
+    .replace(/[^a-z0-9]+/g, ' ')
+    .trim();
+}
+
+/**
+ * Resolve one referral against the pool of current committees. Pure —
+ * callers own the DB fetch (`ChokepointService`/`MeriToolsService`).
+ */
+export function resolveCommittee(
+  referral: CommitteeReferral,
+  candidates: CommitteeCandidate[],
+): ResolvedCommittee | null {
+  if (referral.committeeCode) {
+    const byCode = candidates.find((c) => c.systemCode === referral.committeeCode);
+    if (byCode) return { ...byCode, matchedBy: 'code' };
+  }
+  const target = normalizeCommitteeName(referral.committeeName);
+  if (!target) return null;
+  const nameMatches = candidates.filter(
+    (c) =>
+      normalizeCommitteeName(c.name) === target &&
+      (!referral.chamber || c.chamber === referral.chamber),
+  );
+  if (nameMatches.length === 1) return { ...nameMatches[0]!, matchedBy: 'name' };
+  return null;
+}
+
+// ─────────────────────────────────────────────────────────────────────────
 // PE funding lifecycle — THE canonical per-FY "which stage counts" precedence.
 // The PE detail page (apps/web funding-model.ts) and every server-side funding
 // figure (finder list current, spark, summary trend, capability current) MUST
@@ -1490,4 +1716,163 @@ export function fundingCurrentStageSql(prefix = ''): string {
     (s) => `WHEN ${prefix}${FUNDING_STAGE_DB_COLUMN[s]} IS NOT NULL THEN '${s}'`,
   );
   return `CASE ${whens.join(' ')} ELSE 'none' END`;
+}
+
+// ─────────────────────────────────────────────────────────────────────────
+// AI usage metering (Phase 1 M5.0, H-1 hardening) — lifted from apps/api's
+// engagement/{ai-pricing,ai-usage-parse,ai-usage-record}.ts into
+// `@capiro/shared` so `apps/meriv2-orchestrator` (a SEPARATE app whose chat/
+// in-editor tool-calling loops were a verified H-1 metering gap) can call the
+// SAME pricing table + recorder apps/api uses — one choke point, not a
+// duplicated-and-drifting pricing table. `recordAiUsageEvent` is DI-shaped
+// (accepts `deps.prisma`/`deps.logger`) precisely so either app's own
+// PrismaService/Logger satisfies it without a shared runtime dependency.
+// ─────────────────────────────────────────────────────────────────────────
+
+export interface ModelPrice {
+  inputPerM: number;
+  outputPerM: number;
+}
+
+/**
+ * Model->price lookup used to compute the ESTIMATED cost persisted on every
+ * AiUsageEvent. Prices are USD per 1,000,000 tokens, hand-maintained against
+ * the providers' public pricing pages -- they are estimates, not
+ * provider-billed truth, and the UI labels them accordingly.
+ *
+ * Verified 2026-06-11 (OpenAI pricing page; Anthropic models reference).
+ * Update when provider pricing changes or a new model is adopted.
+ */
+export const AI_PRICING: Record<string, ModelPrice> = {
+  // OpenAI
+  'gpt-4.1': { inputPerM: 2.0, outputPerM: 8.0 },
+  'gpt-4.1-mini': { inputPerM: 0.4, outputPerM: 1.6 },
+  'gpt-4o': { inputPerM: 2.5, outputPerM: 10.0 },
+  // Anthropic (keyed by alias; dated full IDs resolve via the suffix-strip
+  // fallback in computeAiCostUsd)
+  'claude-haiku-4-5': { inputPerM: 1.0, outputPerM: 5.0 },
+  'claude-haiku-4-5-20251001': { inputPerM: 1.0, outputPerM: 5.0 },
+  'claude-sonnet-4-5': { inputPerM: 3.0, outputPerM: 15.0 },
+  'claude-sonnet-4-6': { inputPerM: 3.0, outputPerM: 15.0 },
+};
+
+export function computeAiCostUsd(model: string, inputTokens: number, outputTokens: number): number {
+  const price = AI_PRICING[model] ?? AI_PRICING[model.replace(/-\d{8}$/, '')];
+  if (!price) return 0;
+  return (
+    (inputTokens / 1_000_000) * price.inputPerM + (outputTokens / 1_000_000) * price.outputPerM
+  );
+}
+
+export interface ProviderUsage {
+  inputTokens: number;
+  outputTokens: number;
+}
+
+/**
+ * Extract token usage from a raw AI provider response. Both the OpenAI
+ * responses API and the Anthropic messages API report
+ * `usage.input_tokens` / `usage.output_tokens`, so one parser covers both.
+ * Pure + total: any malformed payload yields zeros -- metering must never
+ * throw into a generation path.
+ */
+export function parseProviderUsage(raw: unknown): ProviderUsage {
+  if (!raw || typeof raw !== 'object' || Array.isArray(raw)) {
+    return { inputTokens: 0, outputTokens: 0 };
+  }
+  const usage = (raw as { usage?: unknown }).usage;
+  if (!usage || typeof usage !== 'object' || Array.isArray(usage)) {
+    return { inputTokens: 0, outputTokens: 0 };
+  }
+  const u = usage as { input_tokens?: unknown; output_tokens?: unknown };
+  return {
+    inputTokens: toTokenCount(u.input_tokens),
+    outputTokens: toTokenCount(u.output_tokens),
+  };
+}
+
+function toTokenCount(value: unknown): number {
+  const n = typeof value === 'string' ? Number(value) : value;
+  if (typeof n !== 'number' || !Number.isFinite(n) || n <= 0) return 0;
+  return Math.floor(n);
+}
+
+/**
+ * Best-effort AI usage metering. Persists one AiUsageEvent row (tenant,
+ * workflow, provider, model, tokens, estimated cost). A metering failure
+ * must NEVER fail the user's generation, so every error is swallowed and
+ * logged by the caller's own logger.
+ *
+ * Tenant-agnostic path (Phase 1 M5.0, agentic doc SS5.2): a cached-L1
+ * enrichment run (e.g. a generic, non-tenant-specific rule/bill analysis
+ * shared across every tenant) has no single owning tenant. `ctx.tenantId
+ * === null` routes the write through `deps.prisma.withSystem` (RLS bypass)
+ * instead of `withTenant`, inserting `tenant_id = NULL` -- the ONLY way such
+ * a row can be written (`ai_usage_events`'s RLS policy rejects a
+ * null-tenant insert from an ordinary tenant session). These rows are
+ * excluded from per-tenant usage/billing reports and bucket into a
+ * platform-cost rollup instead. Tier-2 targeting/rules runs are always
+ * tenant-scoped and meter normally through `withTenant`.
+ */
+export interface AiUsageRecorderDeps<Tx = unknown> {
+  prisma: {
+    withTenant<T>(tenantId: string, fn: (tx: Tx) => Promise<T>): Promise<T>;
+    withSystem<T>(fn: (tx: Tx) => Promise<T>): Promise<T>;
+  };
+  logger: { warn(message: string): void };
+}
+
+export interface AiUsageContext {
+  /** Null = tenant-agnostic (cached-L1) run -- meters via the system path. */
+  tenantId: string | null;
+  userId?: string | null;
+}
+
+export interface AiGenerationUsageLike {
+  provider: string;
+  model: string;
+  usage?: ProviderUsage;
+  /** Set by the credential resolver when the call ran on the tenant's own key. */
+  usedTenantKey?: boolean;
+}
+
+export async function recordAiUsageEvent<Tx = unknown>(
+  deps: AiUsageRecorderDeps<Tx>,
+  ctx: AiUsageContext,
+  workflow: string,
+  generated: AiGenerationUsageLike,
+): Promise<void> {
+  try {
+    const usage = generated.usage ?? { inputTokens: 0, outputTokens: 0 };
+    const costUsd = computeAiCostUsd(generated.model, usage.inputTokens, usage.outputTokens);
+    const data = {
+      tenantId: ctx.tenantId,
+      userId: ctx.userId ?? null,
+      workflow,
+      provider: generated.provider,
+      model: generated.model,
+      inputTokens: usage.inputTokens,
+      outputTokens: usage.outputTokens,
+      costUsd,
+      usedTenantKey: generated.usedTenantKey ?? false,
+    };
+    if (ctx.tenantId == null) {
+      await deps.prisma.withSystem((tx) =>
+        (
+          tx as { aiUsageEvent: { create(args: { data: typeof data }): Promise<unknown> } }
+        ).aiUsageEvent.create({ data }),
+      );
+    } else {
+      const tenantId = ctx.tenantId;
+      await deps.prisma.withTenant(tenantId, (tx) =>
+        (
+          tx as { aiUsageEvent: { create(args: { data: typeof data }): Promise<unknown> } }
+        ).aiUsageEvent.create({ data }),
+      );
+    }
+  } catch (err) {
+    deps.logger.warn(
+      `AI usage metering write failed (generation unaffected): ${(err as Error).message}`,
+    );
+  }
 }

@@ -8,7 +8,7 @@
  * `floorVote` (matches source lines 79–80; the registry's `committeeVote` is
  * wrong).
  */
-import { stateBillStatusLabel } from '@capiro/shared';
+import { stateBillStatusLabel, type StateDeadlineCutoffType } from '@capiro/shared';
 export type ChangeTone = 'success' | 'critical' | 'notable' | 'info';
 export type AlertSeverity = 'info' | 'notable' | 'critical';
 
@@ -271,6 +271,36 @@ export const NEW_MATCH_CLASS: ChangeClass = {
   tone: 'info',
   severity: 'info',
 };
+
+const DEADLINE_CUTOFF_LABEL: Record<StateDeadlineCutoffType, string> = {
+  committeeCutoff: 'committee cutoff',
+  crossover: 'crossover day',
+  secondCommitteeCutoff: 'second-chamber committee cutoff',
+  sineDie: 'sine die',
+};
+
+/**
+ * Deadline Physics (Phase 1 M2.1/M2.3, PD5) — first emitter for the NEW
+ * `deadline` trigger key (a predictive event; doesn't map to any of the
+ * existing 9 keys). Severity mirrors the federal comment-period pattern
+ * (`check-comment-periods.ts`): critical <3d, notable <=7d, info <=14d.
+ * `bill_dead_by_deadline` (the retroactive twin) already fires via
+ * `classifyStateStatusChange('dead_by_deadline')` on the EXISTING
+ * `enactedFailed` key — this class is only for the upcoming-deadline warning.
+ */
+export function stateDeadlineClass(
+  daysUntil: number,
+  cutoffType: StateDeadlineCutoffType,
+): ChangeClass {
+  const severity: AlertSeverity = daysUntil < 3 ? 'critical' : daysUntil <= 7 ? 'notable' : 'info';
+  return {
+    changeType: 'state_bill_deadline_approaching',
+    triggerKey: 'deadline',
+    label: `${daysUntil}d to ${DEADLINE_CUTOFF_LABEL[cutoffType]}`,
+    tone: severity === 'critical' ? 'critical' : severity === 'notable' ? 'notable' : 'info',
+    severity,
+  };
+}
 
 /** Cosponsor-momentum class; severity rises with the size of the 7-day surge. */
 export function cosponsorMomentumClass(new7d: number): ChangeClass {

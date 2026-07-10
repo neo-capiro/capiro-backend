@@ -1,5 +1,6 @@
 import { Logger } from '@nestjs/common';
 import { AnthropicLlmClient, type LlmClient } from '@capiro/meriv2-core';
+import { parseProviderUsage, type ProviderUsage } from '@capiro/shared';
 import { RequestCredentialsStore } from '../request/request-credentials.store.js';
 
 /**
@@ -34,6 +35,10 @@ export interface AnthropicToolSchema {
 export interface ToolLoopResponse {
   content: AnthropicContentBlock[];
   stopReason: string | null;
+  /** Token usage for THIS round — Phase 1 M5.0 (H-1): the caller meters one `ai_usage_events` row per round. */
+  usage: ProviderUsage;
+  model: string;
+  usedTenantKey: boolean;
 }
 
 const ANTHROPIC_URL = 'https://api.anthropic.com/v1/messages';
@@ -78,6 +83,30 @@ export class RequestScopedLlmClient implements LlmClient {
       ...(this.timeoutMs !== undefined ? { timeoutMs: this.timeoutMs } : {}),
     });
     return client.completeJson(params);
+  }
+
+  /**
+   * Schema-forced completion (Phase 1 M5.0) — delegates to `AnthropicLlmClient`
+   * on the SAME request-scoped credential as every other method here, so a
+   * `GroundedJson` caller running through the orchestrator also runs on the
+   * tenant's key.
+   */
+  async completeWithSchema(params: {
+    system: string;
+    prompt: string;
+    toolName: string;
+    toolDescription: string;
+    inputSchema: Record<string, unknown>;
+    maxTokens?: number;
+  }): Promise<{ input: unknown; usage: { inputTokens: number; outputTokens: number } }> {
+    const { apiKey, model, usedTenantKey } = this.resolve();
+    this.logger.debug(`LLM schema completion (model=${model}, usedTenantKey=${usedTenantKey})`);
+    const client = new AnthropicLlmClient({
+      apiKey,
+      model,
+      ...(this.timeoutMs !== undefined ? { timeoutMs: this.timeoutMs } : {}),
+    });
+    return client.completeWithSchema(params);
   }
 
   /**
@@ -141,10 +170,14 @@ export class RequestScopedLlmClient implements LlmClient {
       const data = (await res.json()) as {
         content?: AnthropicContentBlock[];
         stop_reason?: string | null;
+        usage?: unknown;
       };
       return {
         content: Array.isArray(data.content) ? data.content : [],
         stopReason: data.stop_reason ?? null,
+        usage: parseProviderUsage(data),
+        model,
+        usedTenantKey,
       };
     } finally {
       clearTimeout(timer);

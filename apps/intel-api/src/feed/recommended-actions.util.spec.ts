@@ -48,4 +48,19 @@ describe('recommendedActionsFor', () => {
       'open_bill',
     );
   });
+
+  it('District Impact Engine (Phase 1 M1.5): offers district_brief for BOTH a federal bill alert and a state_bill alert', () => {
+    expect(
+      recommendedActionsFor({ sourceType: 'bill', severity: 'notable' }).map((a) => a.kind),
+    ).toContain('district_brief');
+    expect(
+      recommendedActionsFor({ sourceType: 'state_bill', severity: 'notable' }).map((a) => a.kind),
+    ).toContain('district_brief');
+  });
+
+  it('district_brief is omitted for a pure hearing alert (no bill to ground it in)', () => {
+    expect(
+      recommendedActionsFor({ sourceType: 'hearing', severity: 'notable' }).map((a) => a.kind),
+    ).not.toContain('district_brief');
+  });
 });

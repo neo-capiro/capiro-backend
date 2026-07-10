@@ -1,6 +1,6 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service.js';
-import { humanizeStateBillKey } from '@capiro/shared';
+import { humanizeStateBillKey, computeStateDeadlineRisk } from '@capiro/shared';
 import {
   SourceDataRepository,
   type SourceBill,
@@ -15,6 +15,7 @@ import {
   type SourceStateSponsorMomentum,
   type SourceStateVote,
   type SourceMovedCompanion,
+  type SourceStateSessionCalendar,
 } from '../sourcedata/state-source-data.repository.js';
 import {
   classifyChange,
@@ -22,6 +23,7 @@ import {
   classifyStateStatusChange,
   stateVoteRecordedClass,
   STATE_COMPANION_MOVED_CLASS,
+  stateDeadlineClass,
   cosponsorMomentumClass,
   dedupeByChangeType,
   parseTally,
@@ -44,6 +46,11 @@ const COSPONSOR_MOMENTUM_MIN_7D = (() => {
 /** Rolling window (days) for the CBO-fiscal-note sweep — matches the 14-day alert dedup. */
 const DERIVED_WINDOW_DAYS = 14;
 const COSPONSOR_WINDOW_DAYS = 7;
+
+/** YYYY-MM-DD for `computeStateDeadlineRisk` (M2.3) — null-safe. */
+function toDateOnly(d: Date | null | undefined): string | null {
+  return d ? d.toISOString().slice(0, 10) : null;
+}
 
 /**
  * Shadow bill-change detector (Phase 3, plan §6.3) — a faithful port of legacy
@@ -431,6 +438,10 @@ export class BillChangeDetectorService {
       arr.push(c);
       companionsByBill.set(c.billKey, arr);
     }
+    const calendarByBill = new Map<string, SourceStateSessionCalendar>();
+    for (const cal of await this.stateSource.getStateSessionCalendars(billKeys)) {
+      calendarByBill.set(cal.billKey, cal);
+    }
 
     const watchlistByClient = new Map<string, WatchlistLike>();
     let baseline = 0;
@@ -511,6 +522,7 @@ export class BillChangeDetectorService {
             voteByBill.get(row.billId),
             soonestEvent,
             companionsByBill.get(row.billId) ?? [],
+            calendarByBill.get(row.billId),
           )
         : [];
 
@@ -590,6 +602,7 @@ export class BillChangeDetectorService {
     vote: SourceStateVote | undefined,
     soonestEvent: SourceHearingForBill | undefined,
     companions: SourceMovedCompanion[],
+    calendar: SourceStateSessionCalendar | undefined,
   ): MaterialEvent[] {
     const out: MaterialEvent[] = [];
     const displayNum = humanizeStateBillKey(row.billId);
@@ -695,6 +708,39 @@ export class BillChangeDetectorService {
         },
       });
       break; // at most one companion-moved event per cycle, same "one event per type" contract
+    }
+
+    // Deadline approaching — first emitter for the `deadline` trigger key
+    // (M2.3, PD5). `bill_dead_by_deadline` (the retroactive twin) already
+    // fires above via classifyStateStatusChange on the EXISTING enactedFailed
+    // key; this is only the upcoming-deadline warning. Re-fires every cycle
+    // while within the window — the generic 14-day dedup in writeShadowAlert
+    // (same changeType/sourceRef) is what limits it to "once per (bill,
+    // cutoff, 14-day window)" (M2-C), not a bespoke watermark here.
+    if (calendar) {
+      const risk = computeStateDeadlineRisk({
+        status: bill.status,
+        session: {
+          committeeCutoffDate: toDateOnly(calendar.committeeCutoffDate),
+          crossoverDate: toDateOnly(calendar.crossoverDate),
+          secondCommitteeCutoffDate: toDateOnly(calendar.secondCommitteeCutoffDate),
+          sineDie: toDateOnly(calendar.sineDie),
+        },
+        today: toDateOnly(new Date())!,
+      });
+      if (risk && !risk.isPastCutoff && risk.daysUntil <= 14) {
+        out.push({
+          cls: stateDeadlineClass(risk.daysUntil, risk.cutoffType),
+          text: `${displayNum}: ${risk.daysUntil} day(s) until its ${risk.cutoffType} (${risk.cutoffDate}).`,
+          date: null,
+          sourceUrl: bill.stateUrl ?? bill.url ?? null,
+          extra: {
+            cutoffDate: risk.cutoffDate,
+            cutoffType: risk.cutoffType,
+            daysUntil: risk.daysUntil,
+          },
+        });
+      }
     }
 
     return out;

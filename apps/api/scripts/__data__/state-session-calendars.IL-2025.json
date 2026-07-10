@@ -1,0 +1,17 @@
+{
+  "state": "IL",
+  "yearStart": 2025,
+  "convene": "2026-01-14",
+  "crossoverDate": "2026-04-17",
+  "committeeCutoffDate": "2026-03-13",
+  "secondCommitteeCutoffDate": "2026-05-08",
+  "sineDie": "2026-05-31",
+  "calendarSource": "manual",
+  "calendarConfidence": "high",
+  "sourceUrls": [
+    "https://www.ilga.gov/Uploads/Schedules/House/2026_104th_GA_House_Session.pdf",
+    "https://www.ilga.gov/Uploads/Schedules/Senate/2026_104th_GA_Senate_Session.pdf",
+    "https://www.ncsl.org/about-state-legislatures/2026-state-legislative-session-calendar"
+  ],
+  "notes": "104th General Assembly (2025-2026 biennium); dates above are the 2026 Spring Session calendar (year 2 of the biennium — the operative floor/committee deadlines for bills still pending). committeeCutoffDate is the ORIGINATING chamber's own committee deadline; House and Senate each have their own (House-bills-out-of-House-committee = 2026-03-27, Senate-bills-out-of-Senate-committee = 2026-03-13) — the earlier (Senate) date is used since a single column can't carry two dates; crossoverDate/secondCommitteeCutoffDate are common to both chambers per the published calendars."
+}

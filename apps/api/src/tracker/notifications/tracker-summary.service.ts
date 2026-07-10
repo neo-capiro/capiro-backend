@@ -16,8 +16,7 @@ import { ConfigService } from '@nestjs/config';
 import type { AppConfig } from '../../config/config.schema.js';
 import { PrismaService } from '../../prisma/prisma.service.js';
 import { AiCredentialResolverService } from '../../engagement/ai-credential-resolver.service.js';
-import { recordAiUsageEvent } from '../../engagement/ai-usage-record.js';
-import { parseProviderUsage } from '../../engagement/ai-usage-parse.js';
+import { recordAiUsageEvent, parseProviderUsage } from '@capiro/shared';
 
 const SUMMARY_TIMEOUT_MS = 15_000;
 const SUMMARY_MAX_TOKENS = 160;

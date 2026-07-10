@@ -3,8 +3,11 @@ import {
   normalizeBillNumber,
   buildStateBillKey,
   normalizeLegiscanBill,
+  normalizeLegiscanChamber,
+  resolveCurrentCommittee,
 } from './legiscan-normalize.js';
 import type { LegiscanBill } from '../external/legiscan/legiscan.client.js';
+import type { PrismaClient } from '@prisma/client';
 
 describe('computeSessionKey', () => {
   it('regular session -> plain year_start', () => {
@@ -163,5 +166,82 @@ describe('normalizeLegiscanBill', () => {
       'TX',
     );
     expect(n?.links).toEqual([]);
+  });
+
+  it('normalizes a committee referral, mapping the LegiScan chamber code (Phase 1 M2.2)', () => {
+    const n = normalizeLegiscanBill(
+      fixtureBill({ committee: { committee_id: 410, chamber: 'H', name: 'State Affairs' } }),
+      'TX',
+    );
+    expect(n?.committee).toEqual({
+      legiscanCommitteeId: 410,
+      name: 'State Affairs',
+      chamber: 'lower',
+    });
+  });
+
+  it('has a null committee when the bill is not currently in one', () => {
+    const n = normalizeLegiscanBill(fixtureBill(), 'TX');
+    expect(n?.committee).toBeNull();
+  });
+});
+
+describe('normalizeLegiscanChamber', () => {
+  it('maps House/Assembly codes to "lower" and Senate to "upper"', () => {
+    expect(normalizeLegiscanChamber('H')).toBe('lower');
+    expect(normalizeLegiscanChamber('A')).toBe('lower');
+    expect(normalizeLegiscanChamber('S')).toBe('upper');
+    expect(normalizeLegiscanChamber('h')).toBe('lower'); // case-insensitive
+  });
+  it('never guesses an unrecognized code', () => {
+    expect(normalizeLegiscanChamber('X')).toBeNull();
+    expect(normalizeLegiscanChamber(null)).toBeNull();
+    expect(normalizeLegiscanChamber(undefined)).toBeNull();
+  });
+});
+
+describe('resolveCurrentCommittee (Phase 1 M2.2)', () => {
+  function fakePrisma(existing: Array<{ id: string; legiscanCommitteeId: number | null }> = []) {
+    const upserts: unknown[] = [];
+    return {
+      client: {
+        stateCommittee: {
+          upsert: jest.fn(async (args: { where: { id: string }; create: unknown }) => {
+            upserts.push(args);
+            return existing.find((e) => e.id === args.where.id) ?? args.create;
+          }),
+        },
+      } as unknown as PrismaClient,
+      upserts,
+    };
+  }
+
+  it('upserts state_committee using the SAME "<state>-<chamber>-<slug>" scheme as the OpenStates roster path', async () => {
+    const { client, upserts } = fakePrisma();
+    const id = await resolveCurrentCommittee(client, 'TX', {
+      legiscanCommitteeId: 410,
+      name: 'State Affairs',
+      chamber: 'lower',
+    });
+    expect(id).toBe('TX-lower-state-affairs');
+    expect(upserts).toHaveLength(1);
+  });
+
+  it('returns null (and never upserts) when the referral has no committee', async () => {
+    const { client, upserts } = fakePrisma();
+    const id = await resolveCurrentCommittee(client, 'TX', null);
+    expect(id).toBeNull();
+    expect(upserts).toHaveLength(0);
+  });
+
+  it('returns null (and never upserts/guesses) when the chamber could not be normalized', async () => {
+    const { client, upserts } = fakePrisma();
+    const id = await resolveCurrentCommittee(client, 'TX', {
+      legiscanCommitteeId: 410,
+      name: 'State Affairs',
+      chamber: null,
+    });
+    expect(id).toBeNull();
+    expect(upserts).toHaveLength(0);
   });
 });

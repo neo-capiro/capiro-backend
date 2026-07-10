@@ -13,6 +13,7 @@ import type { TenantContext } from '@capiro/shared';
 import type { AppConfig } from '../config/config.schema.js';
 import { PrismaService } from '../prisma/prisma.service.js';
 import { FEC_DISCLAIMER } from '../intelligence/fec-disclaimer.js';
+import { RepresentationResolverService } from '../clients/representation-resolver.service.js';
 
 type Chamber = 'House' | 'Senate' | 'Governor';
 type Party = 'D' | 'R' | 'I';
@@ -547,6 +548,7 @@ export class DirectoryService implements OnModuleInit {
   constructor(
     config: ConfigService<AppConfig, true>,
     private readonly prisma: PrismaService,
+    private readonly representation: RepresentationResolverService,
   ) {
     const region = config.get('AWS_REGION_DEFAULT', { infer: true });
     this.s3 = new S3Client({ region });
@@ -1104,6 +1106,31 @@ export class DirectoryService implements OnModuleInit {
         orderBy: { createdAt: 'desc' },
       }),
     );
+  }
+
+  /**
+   * District Impact Engine (Phase 1 M1.4) — "Represents client facilities":
+   * for one directory member, every client (tenant-wide, any client) with at
+   * least one facility in this member's district. Deterministic (PD2) — the
+   * exact join discovery confirmed "does NOT exist today" (facility-district
+   * <-> directory member had no live path). House at-large uses the same
+   * sentinel rule as the forward resolver (`districtNo > 0` here mirrors
+   * `formatDistrict`'s own convention for "this member has no numbered
+   * district").
+   */
+  async getMemberRepresentationSummary(ctx: TenantContext, contactId: string) {
+    const normalizedContactId = normalizeContactId(contactId);
+    const { contacts } = await this.getDirectoryData();
+    const contact = contacts.find((c) => c.id === normalizedContactId);
+    if (!contact || contact.chamber === 'Governor' || !contact.bioguideId) return { clients: [] };
+    const districtNo = Number(contact.district);
+    const clients = await this.representation.clientsRepresentedByMember(ctx.tenantId, {
+      bioguideId: contact.bioguideId,
+      chamber: contact.chamber === 'Senate' ? 'senate' : 'house',
+      state: contact.state,
+      district: Number.isFinite(districtNo) && districtNo > 0 ? districtNo : null,
+    });
+    return { clients };
   }
 
   /**

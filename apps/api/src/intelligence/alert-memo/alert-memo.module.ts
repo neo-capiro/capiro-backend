@@ -1,6 +1,7 @@
 import { Module } from '@nestjs/common';
 import { EngagementModule } from '../../engagement/engagement.module.js';
 import { MemoryModule } from '../../memory/memory.module.js';
+import { PrismaModule } from '../../prisma/prisma.module.js';
 import { AlertMemoController } from './alert-memo.controller.js';
 import { AlertMemoService } from './alert-memo.service.js';
 
@@ -9,11 +10,12 @@ import { AlertMemoService } from './alert-memo.service.js';
  * the memo needs without widening the intelligence module's dependency graph:
  *   - EngagementModule → EngagementService (Documents auto-file) + AiCredentialResolverService (per-tenant key)
  *   - MemoryModule → MemoryStoreService (client Memory files as steering)
+ *   - PrismaModule → recordAiUsageEvent metering (Phase 1 M5.0, H-1)
  * The docx is rendered by the module-local `renderMemoDocx` (a dedicated memo
  * template), so no doc-gen service dependency is needed.
  */
 @Module({
-  imports: [EngagementModule, MemoryModule],
+  imports: [EngagementModule, MemoryModule, PrismaModule],
   controllers: [AlertMemoController],
   providers: [AlertMemoService],
 })

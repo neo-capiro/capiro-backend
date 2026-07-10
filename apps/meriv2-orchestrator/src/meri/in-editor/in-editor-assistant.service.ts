@@ -13,9 +13,15 @@ import {
   type PeStructuralWarning,
   type ToolRegistry,
 } from '@capiro/meriv2-core';
+import { recordAiUsageEvent } from '@capiro/shared';
 import { MeriRegistryService } from '../meri-registry.service.js';
-import { RequestScopedLlmClient, type AnthropicToolSchema } from '../request-scoped-llm.client.js';
+import {
+  RequestScopedLlmClient,
+  type AnthropicToolSchema,
+  type ToolLoopResponse,
+} from '../request-scoped-llm.client.js';
 import { RequestCredentialsStore } from '../../request/request-credentials.store.js';
+import { PrismaService } from '../../prisma/prisma.service.js';
 import {
   ASSISTANT_TOOLS,
   PROPOSE_EDITS_TOOL,
@@ -77,7 +83,11 @@ export class InEditorAssistantService {
   /** Mirrors apps/api's CLIO_VERIFIER_ENABLED — fail-open enrichment, off by default. */
   private readonly verifierEnabled: boolean;
 
-  constructor(registryService: MeriRegistryService, config: ConfigService) {
+  constructor(
+    registryService: MeriRegistryService,
+    config: ConfigService,
+    private readonly prisma: PrismaService,
+  ) {
     this.registry = registryService.registry;
     // Reuse the ONE request-scoped LLM client (BYOK2) the registry built — the
     // single global-key-read site lives in MeriRegistryService, so this surface
@@ -121,6 +131,7 @@ export class InEditorAssistantService {
           maxTokens: MAX_TOKENS,
           timeoutMs: this.callTimeoutMs,
         });
+        void this.meterRound(ctx, resp);
         content = resp.content as ContentBlock[];
         stopReason = resp.stopReason;
       } catch (e) {
@@ -218,6 +229,7 @@ export class InEditorAssistantService {
         maxTokens: MAX_TOKENS,
         timeoutMs: this.callTimeoutMs,
       });
+      void this.meterRound(ctx, resp);
       const text = (resp.content as ContentBlock[])
         .filter((b) => b.type === 'text' && typeof b.text === 'string')
         .map((b) => b.text as string)
@@ -228,6 +240,24 @@ export class InEditorAssistantService {
       this.logger.warn(`in-editor synthesis call failed: ${(e as Error).message}`);
     }
     return { reply, edits: [], steps };
+  }
+
+  /**
+   * Best-effort metering for one `completeWithTools` round (Phase 1 M5.0, H-1) —
+   * one `ai_usage_events` row per round. `recordAiUsageEvent` never throws.
+   */
+  private async meterRound(ctx: MeriContext, resp: ToolLoopResponse): Promise<void> {
+    await recordAiUsageEvent(
+      { prisma: this.prisma, logger: this.logger },
+      { tenantId: ctx.tenantId, userId: ctx.userId },
+      'meriv2_in_editor',
+      {
+        provider: 'anthropic',
+        model: resp.model,
+        usage: resp.usage,
+        usedTenantKey: resp.usedTenantKey,
+      },
+    );
   }
 
   /**

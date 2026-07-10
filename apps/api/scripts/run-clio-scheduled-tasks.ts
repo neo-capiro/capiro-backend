@@ -25,7 +25,7 @@
 import { config as dotenvConfig } from 'dotenv';
 import { NestFactory } from '@nestjs/core';
 import { Logger } from '@nestjs/common';
-import type { TenantContext } from '@capiro/shared';
+import { recordAiUsageEvent, parseProviderUsage, type TenantContext } from '@capiro/shared';
 import {
   computeNextRunAtAnchored,
   isAllowListSafe,
@@ -96,8 +96,10 @@ async function runResearch(
   toolsService: any,
   apiKey: string,
   model: string,
+  usedTenantKey: boolean,
   allowList: string[],
   logger: Logger,
+  prisma: any,
 ): Promise<{ text: string; toolsUsed: string[] } | null> {
   // Filter the full Meri tool schema list to the task's allow-list, and harden:
   // never attach a tool that isn't read-only-safe (defense in depth on top of
@@ -142,6 +144,15 @@ async function runResearch(
       logger.warn(`[task ${task.id}] anthropic call failed: ${(err as Error).message}`);
       return lastText ? { text: lastText, toolsUsed } : null;
     }
+
+    // Phase 1 M5.0 (H-1): meter this round — one ai_usage_events row per
+    // Anthropic call, same as the interactive chat/in-editor loops.
+    await recordAiUsageEvent(
+      { prisma, logger },
+      { tenantId: ctx.tenantId, userId: ctx.userId },
+      'clio_scheduled_task',
+      { provider: 'anthropic', model, usage: parseProviderUsage(json), usedTenantKey },
+    );
 
     const content: Array<any> = Array.isArray(json.content) ? json.content : [];
     const textBlocks = content.filter((b) => b.type === 'text' && typeof b.text === 'string');
@@ -286,7 +297,15 @@ async function main(): Promise<void> {
       let result: { text: string; toolsUsed: string[] } | null = null;
       try {
         result = await runResearch(
-          task, ctx, toolsService, resolved.apiKey, resolved.model, allowList, logger,
+          task,
+          ctx,
+          toolsService,
+          resolved.apiKey,
+          resolved.model,
+          resolved.usedTenantKey,
+          allowList,
+          logger,
+          prisma,
         );
       } catch (err) {
         logger.warn(`[task ${task.id}] research failed: ${(err as Error).message}`);

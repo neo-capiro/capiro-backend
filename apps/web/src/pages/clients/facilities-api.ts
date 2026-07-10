@@ -21,6 +21,14 @@ export interface ClientFacility {
   districtSource: string | null;
   employeeCount: number | null;
   notes: string | null;
+  /** District Impact Engine (Phase 1 M1.4) — Census Geocoder outputs. */
+  latitude: number | null;
+  longitude: number | null;
+  stateHouseDistrict: string | null;
+  stateSenateDistrict: string | null;
+  geocodedAt: string | null;
+  /** 'matched' | 'no_match' | 'ambiguous' | 'error' | null (never attempted). */
+  geocodeStatus: string | null;
   createdAt: string;
   updatedAt: string;
 }
@@ -34,6 +42,9 @@ export interface FacilityPayload {
   zip?: string | null;
   congressionalDistrict?: string | null;
   districtSource?: string | null;
+  /** District Impact Engine (Phase 1 M1.4) — manual fallback, geocoder overwrites once matched. */
+  stateHouseDistrict?: string | null;
+  stateSenateDistrict?: string | null;
   employeeCount?: number | null;
   notes?: string | null;
 }
@@ -158,6 +169,14 @@ export const US_HOUSE_SEATS: Readonly<Record<string, number>> = {
   VI: 1,
   AS: 1,
   MP: 1,
+};
+
+/** District Impact Engine (Phase 1 M1.4) — geocode-status display labels. */
+export const GEOCODE_STATUS_LABEL: Record<string, string> = {
+  matched: 'Geocoded',
+  no_match: 'No match — confirm address',
+  ambiguous: 'Ambiguous — confirm address',
+  error: 'Geocode failed — will retry',
 };
 
 /** Combine a bare district number + state into the "ST-NN" display form. */

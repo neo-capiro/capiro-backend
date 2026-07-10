@@ -4,6 +4,7 @@ import { isStateBillKey } from '@capiro/shared';
 import { BillDetailBody, DrillSection, formatDate } from '../explorer/bill-detail.js';
 import { StateBillDetailBody } from '../explorer/state-bill-detail.js';
 import { useBillHearings, type BillHearing } from '../clients/tracker/bill-hearings-api.js';
+import { ChokepointSection } from './ChokepointSection.js';
 
 /**
  * Radar bill side-drawer (P7, spec D9: opening a bill NEVER routes to Data
@@ -71,8 +72,13 @@ function HearingRow({ hearing }: { hearing: BillHearing }) {
       {mentions.length ? (
         <div style={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
           {mentions.slice(0, 5).map((m, i) => (
-            <div key={m.segmentId ?? i} style={{ display: 'flex', gap: 6, fontSize: 12, lineHeight: 1.4 }}>
-              <span className="num" style={{ color: 'var(--ink-3)', minWidth: 38 }}>{fmtTs(m.timestampMs)}</span>
+            <div
+              key={m.segmentId ?? i}
+              style={{ display: 'flex', gap: 6, fontSize: 12, lineHeight: 1.4 }}
+            >
+              <span className="num" style={{ color: 'var(--ink-3)', minWidth: 38 }}>
+                {fmtTs(m.timestampMs)}
+              </span>
               <span>
                 {m.speakerName ? <b>{m.speakerName}: </b> : null}
                 {m.quote ? (
@@ -110,9 +116,10 @@ export function BillDrawer({
 }) {
   // State Legislation Platform (S7.3) — jurisdiction switch: a state bill key
   // ("tx-2025-hb1234") renders the state-aware body; anything else keeps the
-  // existing federal body untouched. Hearing links are federal-only in Phase 0
-  // (no state bill<->hearing linker exists yet), so the state body's `extra` is
-  // omitted rather than firing a lookup that can only ever come back empty.
+  // existing federal body untouched. Hearing links are federal-only (no state
+  // bill<->hearing linker exists yet), so HearingLinkSection is federal-only;
+  // ChokepointSection (M2.5) works on both rails and is passed via `extra` to
+  // both bodies.
   const isState = billId != null && isStateBillKey(billId);
   return (
     <Drawer
@@ -154,9 +161,20 @@ export function BillDrawer({
     >
       {billId ? (
         isState ? (
-          <StateBillDetailBody id={billId} />
+          <StateBillDetailBody
+            id={billId}
+            extra={<ChokepointSection billId={billId} clientId={clientId} />}
+          />
         ) : (
-          <BillDetailBody id={billId} extra={<HearingLinkSection clientId={clientId} billId={billId} />} />
+          <BillDetailBody
+            id={billId}
+            extra={
+              <>
+                <HearingLinkSection clientId={clientId} billId={billId} />
+                <ChokepointSection billId={billId} clientId={clientId} />
+              </>
+            }
+          />
         )
       ) : (
         <Empty description="No bill selected." />

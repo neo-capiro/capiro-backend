@@ -1,7 +1,7 @@
 import { describe, expect, it } from '@jest/globals';
-import { parseProviderUsage } from './ai-usage-parse.js';
+import { parseProviderUsage } from '@capiro/shared';
 
-describe('parseProviderUsage', () => {
+describe('parseProviderUsage (lifted into @capiro/shared, Phase 1 M5.0)', () => {
   it('parses OpenAI responses-API usage', () => {
     const raw = {
       id: 'resp_123',

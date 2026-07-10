@@ -17,6 +17,7 @@ import {
 import { useApi } from '../../lib/use-api.js';
 import {
   DISTRICT_PATTERN,
+  GEOCODE_STATUS_LABEL,
   US_HOUSE_SEATS,
   US_STATE_CODES,
   createClientFacility,
@@ -219,6 +220,28 @@ function FacilityCard({
             {facility.employeeCount} employee{facility.employeeCount === 1 ? '' : 's'}
           </span>
         ) : null}
+        {/* District Impact Engine (Phase 1 M1.4) — state legislative chambers +
+            geocode status. "district undetermined" is explicit, never silent
+            (M1.3's `unresolved` guardrail mirrored in the UI). */}
+        {(facility.stateHouseDistrict || facility.stateSenateDistrict) && (
+          <span style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
+            {facility.stateSenateDistrict ? (
+              <Tag color="blue" style={{ marginInlineEnd: 0 }}>
+                State Senate {facility.stateSenateDistrict}
+              </Tag>
+            ) : null}
+            {facility.stateHouseDistrict ? (
+              <Tag color="geekblue" style={{ marginInlineEnd: 0 }}>
+                State House {facility.stateHouseDistrict}
+              </Tag>
+            ) : null}
+          </span>
+        )}
+        {facility.geocodeStatus && facility.geocodeStatus !== 'matched' ? (
+          <Typography.Text type="warning" style={{ fontSize: 11 }}>
+            {GEOCODE_STATUS_LABEL[facility.geocodeStatus] ?? facility.geocodeStatus}
+          </Typography.Text>
+        ) : null}
         {facility.notes ? (
           <Typography.Text type="secondary" style={{ fontSize: 11, marginTop: 4 }}>
             {facility.notes}
@@ -258,10 +281,18 @@ function FacilityModal({
         state: facility.state ?? undefined,
         zip: facility.zip ?? undefined,
         congressionalDistrict: facility.congressionalDistrict ?? undefined,
+        stateHouseDistrict: facility.stateHouseDistrict ?? undefined,
+        stateSenateDistrict: facility.stateSenateDistrict ?? undefined,
         employeeCount: facility.employeeCount ?? undefined,
         notes: facility.notes ?? undefined,
       }
     : {};
+  // District Impact Engine (Phase 1 M1.4) — manual fallback: no map-pin-drop
+  // exists, so once a geocode fails/is ambiguous, offer plain text entry for
+  // BOTH state chambers (federal congressionalDistrict is always editable
+  // above). A never-attempted facility (geocodeStatus null, brand new) also
+  // shows the fields so a first-time add can seed them by hand.
+  const showManualStateDistricts = !facility || facility.geocodeStatus !== 'matched';
 
   return (
     <Modal
@@ -289,6 +320,8 @@ function FacilityModal({
             state: optional(values.state),
             zip: optional(values.zip),
             congressionalDistrict: optional(values.congressionalDistrict),
+            stateHouseDistrict: optional(values.stateHouseDistrict),
+            stateSenateDistrict: optional(values.stateSenateDistrict),
             employeeCount:
               values.employeeCount === undefined || values.employeeCount === null
                 ? null
@@ -370,6 +403,28 @@ function FacilityModal({
           <Typography.Text type="secondary" style={{ display: 'block', marginTop: -8, marginBottom: 12 }}>
             District: <Tag color="purple">{districtPreview}</Tag>
           </Typography.Text>
+        ) : null}
+        {/* District Impact Engine (Phase 1 M1.4) — manual fallback for the two
+            state legislative chambers. Plain text entry (no map-pin-drop UI
+            exists); a future successful geocode overwrites these. Shown once
+            the geocoder has run and failed/is ambiguous, or the facility is
+            brand new. */}
+        {showManualStateDistricts ? (
+          <>
+            <Typography.Text type="secondary" style={{ display: 'block', marginBottom: 6, fontSize: 12 }}>
+              {facility && facility.geocodeStatus && facility.geocodeStatus !== 'matched'
+                ? 'District undetermined — the address geocode failed. Enter state districts manually, or fix the address above.'
+                : 'State legislative districts (optional — the nightly geocoder fills these in automatically once the address matches).'}
+            </Typography.Text>
+            <div style={{ display: 'flex', gap: 12 }}>
+              <Form.Item name="stateSenateDistrict" label="State Senate district" style={{ flex: 1 }}>
+                <Input placeholder="e.g. 3" maxLength={8} />
+              </Form.Item>
+              <Form.Item name="stateHouseDistrict" label="State House district" style={{ flex: 1 }}>
+                <Input placeholder="e.g. 9" maxLength={8} />
+              </Form.Item>
+            </div>
+          </>
         ) : null}
         <Form.Item name="notes" label="Notes">
           <Input.TextArea rows={2} />

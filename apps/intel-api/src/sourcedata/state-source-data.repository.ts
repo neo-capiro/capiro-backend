@@ -62,6 +62,15 @@ export interface SourceMovedCompanion {
   linkType: string;
 }
 
+/** Deadline Physics (Phase 1 M2.1/M2.3) — the bill's session procedural calendar, joined by (state, sessionKey). All-null when uncurated for this state/session (graceful degradation, M2.1). */
+export interface SourceStateSessionCalendar {
+  billKey: string;
+  committeeCutoffDate: Date | null;
+  crossoverDate: Date | null;
+  secondCommitteeCutoffDate: Date | null;
+  sineDie: Date | null;
+}
+
 @Injectable()
 export class StateSourceDataRepository {
   constructor(private readonly prisma: PrismaService) {}
@@ -213,6 +222,22 @@ export class StateSourceDataRepository {
          LEFT JOIN state_bill rb ON rb.id = l.related_bill_key
         WHERE l.bill_key = ANY($1::text[])
           AND l.related_bill_key IS NOT NULL`,
+      keys,
+    );
+  }
+
+  /** Deadline Physics (Phase 1 M2.1/M2.3) — session calendar for each bill's own (state, sessionKey). */
+  async getStateSessionCalendars(keys: string[]): Promise<SourceStateSessionCalendar[]> {
+    if (!keys.length) return [];
+    return this.prisma.$queryRawUnsafe<SourceStateSessionCalendar[]>(
+      `SELECT b.id                            AS "billKey",
+              s.committee_cutoff_date         AS "committeeCutoffDate",
+              s.crossover_date                AS "crossoverDate",
+              s.second_committee_cutoff_date  AS "secondCommitteeCutoffDate",
+              s.sine_die                      AS "sineDie"
+         FROM state_bill b
+         JOIN state_session s ON s.state = b.state AND s.session_key = b.session_key
+        WHERE b.id = ANY($1::text[])`,
       keys,
     );
   }

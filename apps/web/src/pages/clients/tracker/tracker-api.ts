@@ -242,6 +242,7 @@ export const TRIGGER_LABELS: Record<string, string> = {
   fiscalNote: 'New fiscal note',
   sponsorMomentum: 'Sponsor / cosponsor momentum',
   companion: 'Companion bill moved',
+  deadline: 'Deadline approaching (state bills)',
 };
 export const TRIGGER_ORDER = [
   'newMatch',
@@ -253,4 +254,5 @@ export const TRIGGER_ORDER = [
   'fiscalNote',
   'sponsorMomentum',
   'companion',
+  'deadline',
 ];

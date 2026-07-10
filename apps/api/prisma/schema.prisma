@@ -220,6 +220,7 @@ model Tenant {
   peAlertEmailPrefs            PeAlertEmailPref[]
   actionRecommendations        ActionRecommendation[]
   aiUsageEvents                AiUsageEvent[]
+  aiRuns                       AiRun[]
   aiCredentials                TenantAiCredential[]
   usageMeters                  TenantUsageMeter[]
   memoryItems                  MemoryItem[]
@@ -1500,7 +1501,9 @@ model ClioFirmSkill {
 /// failed insert never fails the user's generation.
 model AiUsageEvent {
   id            String   @id @default(uuid()) @db.Uuid
-  tenantId      String   @map("tenant_id") @db.Uuid
+  /// Null = a tenant-agnostic (cached-L1) run, metered but excluded from
+  /// per-tenant usage/billing reports (M5.0 agentic prerequisite).
+  tenantId      String?  @map("tenant_id") @db.Uuid
   userId        String?  @map("user_id") @db.Uuid
   /// 'outreach_campaign' | 'meeting_prep' | 'meeting_debrief' | 'campaign_email' | 'talking_points' | ...
   workflow      String   @db.VarChar(48)
@@ -1513,10 +1516,64 @@ model AiUsageEvent {
   usedTenantKey Boolean  @default(false) @map("used_tenant_key")
   createdAt     DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
 
-  tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  tenant Tenant? @relation(fields: [tenantId], references: [id], onDelete: Cascade)
 
   @@index([tenantId, createdAt], map: "ai_usage_events_tenant_created_idx")
   @@map("ai_usage_events")
+}
+
+/// Agentic Tier-1/Tier-2 run provenance (Phase 1 M5.0, agentic doc §5.1) —
+/// modeled on `ProgramElementIngestRun`'s shape-precedent, but a DISTINCT
+/// table (that model tracks PE-budget ingest-loader rows/quarantine counts;
+/// this tracks one AGENT INVOCATION's full envelope). Every column the
+/// proposal's per-output guardrail list demands (schema, source ids,
+/// evidence, confidence, model + prompt version, run id, tool calls,
+/// validation status, human-review status) as columns, not prose. Written
+/// by every Tier-1/Tier-2 caller BEFORE `ai_usage_events` metering (the two
+/// are siblings, not the same row — `ai_run` is provenance/QA, `ai_usage_events`
+/// is spend). `tenantId = null` marks a tenant-agnostic cached-L1 run (global
+/// row, not RLS-isolated to one tenant); tenant-scoped rows are RLS'd like
+/// `ai_usage_events`.
+model AiRun {
+  id               String    @id @default(uuid()) @db.Uuid
+  /// Matches `ai_usage_events.workflow`'s vocabulary, e.g. 'legiwatch_alert_enrichment' | 'intel_targeting' | 'intel_rules_comparison' | 'intel_qa_review'.
+  workflow         String    @db.VarChar(48)
+  /// 'federal' | 'state'
+  rail             String    @db.VarChar(16)
+  /// The envelope's subject — e.g. subjectType='bill', subjectKey='119-hr-8800' or 'fl-2026-hb1234'.
+  subjectType      String    @map("subject_type") @db.VarChar(32)
+  subjectKey       String    @map("subject_key")
+  /// Null = tenant-agnostic (cached-generic L1 enrichment); set = a tenant-scoped Tier-2 run.
+  tenantId         String?   @map("tenant_id") @db.Uuid
+  promptVersion    String    @map("prompt_version") @db.VarChar(32)
+  model            String    @db.VarChar(80)
+  /// 'openai' | 'anthropic'
+  provider         String    @db.VarChar(16)
+  usedTenantKey    Boolean   @default(false) @map("used_tenant_key")
+  /// Source record ids the run read (bill keys, rule ids, member ids, ...).
+  inputRefs        Json      @default("[]") @map("input_refs")
+  /// The tool-call trace (name + args + result summary) for audit/replay.
+  toolCalls        Json      @default("[]") @map("tool_calls")
+  /// The GroundedJson output (or null if the run failed before producing one).
+  output           Json?
+  confidence       Float?
+  /// 'passed' | 'failed' | 'skipped' — the M5.0 deterministic validator gate's outcome.
+  validationStatus String    @map("validation_status") @db.VarChar(16)
+  /// 'approved' | 'warning' | 'human_review' | 'rejected' | 'none' — the interim QA-gating state (§5.4 doc).
+  qaStatus         String    @default("none") @map("qa_status") @db.VarChar(16)
+  humanReviewedBy  String?   @map("human_reviewed_by") @db.Uuid
+  humanReviewedAt  DateTime? @map("human_reviewed_at") @db.Timestamptz(6)
+  /// 'ok' | 'failed' | 'timeout' | 'fallback'
+  status           String    @db.VarChar(16)
+  durationMs       Int       @map("duration_ms")
+  createdAt        DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  tenant Tenant? @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  @@index([workflow, createdAt])
+  @@index([subjectType, subjectKey])
+  @@index([tenantId, createdAt])
+  @@map("ai_run")
 }
 
 /// Per-tenant AI provider key, AES-256-GCM encrypted at rest with
@@ -1676,26 +1733,38 @@ model ClientPerson {
 }
 
 model ClientFacility {
-  id                    String   @id @default(uuid()) @db.Uuid
-  tenantId              String   @map("tenant_id") @db.Uuid
-  clientId              String   @map("client_id") @db.Uuid
+  id                    String    @id @default(uuid()) @db.Uuid
+  tenantId              String    @map("tenant_id") @db.Uuid
+  clientId              String    @map("client_id") @db.Uuid
   name                  String
-  addressLine           String?  @map("address_line")
+  addressLine           String?   @map("address_line")
   city                  String?
-  state                 String?  @db.VarChar(2)
-  zip                   String?  @db.VarChar(10)
-  congressionalDistrict String?  @map("congressional_district") @db.VarChar(2)
-  districtSource        String?  @map("district_source") @db.VarChar(16)
-  employeeCount         Int?     @map("employee_count")
+  state                 String?   @db.VarChar(2)
+  zip                   String?   @db.VarChar(10)
+  congressionalDistrict String?   @map("congressional_district") @db.VarChar(2)
+  districtSource        String?   @map("district_source") @db.VarChar(16)
+  employeeCount         Int?      @map("employee_count")
   notes                 String?
-  createdAt             DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
-  updatedAt             DateTime @updatedAt @map("updated_at") @db.Timestamptz(6)
+  // District Impact Engine (Phase 1 M1.1) — Census Geocoder outputs. One batch
+  // call yields the federal CD (above) AND both state legislative chambers, so
+  // these ride alongside the existing federal column rather than a new model.
+  latitude              Float?
+  longitude             Float?
+  stateHouseDistrict    String?   @map("state_house_district") @db.VarChar(8)
+  stateSenateDistrict   String?   @map("state_senate_district") @db.VarChar(8)
+  geocodedAt            DateTime? @map("geocoded_at") @db.Timestamptz(6)
+  // 'matched' | 'no_match' | 'ambiguous' | 'error' — never silently absent when a geocode was attempted.
+  geocodeStatus         String?   @map("geocode_status") @db.VarChar(16)
+  createdAt             DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt             DateTime  @updatedAt @map("updated_at") @db.Timestamptz(6)
 
   tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
   client Client @relation(fields: [clientId], references: [id], onDelete: Cascade)
 
   @@index([tenantId, clientId], map: "client_facilities_tenant_client_idx")
   @@index([state, congressionalDistrict], map: "client_facilities_district_idx")
+  @@index([state, stateHouseDistrict], map: "client_facilities_state_house_idx")
+  @@index([state, stateSenateDistrict], map: "client_facilities_state_senate_idx")
   @@map("client_facilities")
 }
 
@@ -3698,6 +3767,13 @@ model StateBill {
   legiscanChangeHash String?   @map("legiscan_change_hash")
   openstatesId       String?   @map("openstates_id") // pre-re-key id, kept for cross-check
   syncedAt           DateTime  @default(now()) @map("synced_at") @db.Timestamptz(6)
+  // Current committee referral (Phase 1 M2.2, PD3 substrate) — LegiScan's
+  // getBill.committee is mutable bill state (which committee holds it NOW),
+  // not a derivable join, so it's captured per-sync like status/latestAction.
+  // Soft ref (StateCommittee.id's own "<state>-<chamber>-<slug(name)>" scheme
+  // is the crosswalk — same id lands whether the committee was first seen via
+  // this referral or via the OpenStates roster normalization, M2.2).
+  currentCommitteeId String?   @map("current_committee_id")
 
   actions        StateBillAction[]
   sponsors       StateBillSponsor[]
@@ -3708,6 +3784,7 @@ model StateBill {
   @@index([state, session])
   @@index([state, latestActionDate])
   @@index([state, status])
+  @@index([currentCommitteeId])
   @@map("state_bill")
 }
 
@@ -3725,6 +3802,8 @@ model StateLegislator {
   active           Boolean  @default(true)
   legiscanPeopleId Int?     @unique @map("legiscan_people_id")
   syncedAt         DateTime @default(now()) @map("synced_at") @db.Timestamptz(6)
+
+  committeeMemberships StateCommitteeMembership[]
 
   @@index([state, chamber])
   @@index([party, state])
@@ -3883,6 +3962,17 @@ model StateSession {
   prior             Boolean   @default(false)
   lastSyncedAt      DateTime  @default(now()) @map("last_synced_at") @db.Timestamptz(6)
 
+  // Procedural calendar (Phase 1 M2.1, PD5). sineDie stays LegiScan-automated;
+  // these are NCSL manual curation, priority states first — a `load-state-calendars`
+  // seed load, never guessed (calendarSource/calendarConfidence carry provenance so
+  // the deadline emitter can tell a curated cutoff from an absent one).
+  convene                   DateTime? @db.Date
+  crossoverDate             DateTime? @map("crossover_date") @db.Date
+  committeeCutoffDate       DateTime? @map("committee_cutoff_date") @db.Date
+  secondCommitteeCutoffDate DateTime? @map("second_committee_cutoff_date") @db.Date
+  calendarSource            String?   @map("calendar_source") // 'legiscan' | 'ncsl' | 'manual'
+  calendarConfidence        String?   @map("calendar_confidence") // 'high' | 'curated' | 'estimated'
+
   @@index([state])
   @@map("state_session")
 }
@@ -3898,7 +3988,29 @@ model StateCommittee {
   legiscanCommitteeId Int?     @unique @map("legiscan_committee_id")
   lastSyncedAt        DateTime @default(now()) @map("last_synced_at") @db.Timestamptz(6)
 
+  memberships StateCommitteeMembership[]
+
   @@map("state_committee")
+}
+
+// Committee roster (Phase 1 M2.2, PD3/PD8 substrate). Normalized out of
+// StateLegislator.committees Json ([{name, role}], sync-openstates.ts) —
+// role is OpenStates' raw string ('Chair' | 'Vice Chair' | 'Member' | ...),
+// kept verbatim rather than coerced into the federal 'Chair'/'Ranking Member'
+// vocabulary since state chambers don't share a minority-leadership title.
+model StateCommitteeMembership {
+  id           String   @id @default(uuid()) @db.Uuid
+  committeeId  String   @map("committee_id")
+  legislatorId String   @map("legislator_id")
+  role         String?
+  lastSyncedAt DateTime @default(now()) @map("last_synced_at") @db.Timestamptz(6)
+
+  committee  StateCommittee  @relation(fields: [committeeId], references: [id], onDelete: Cascade)
+  legislator StateLegislator @relation(fields: [legislatorId], references: [id], onDelete: Cascade)
+
+  @@unique([committeeId, legislatorId])
+  @@index([legislatorId])
+  @@map("state_committee_membership")
 }
 
 // Per-(state,session) LegiScan cursor: change_hash cache for the masterlist
@@ -3919,6 +4031,39 @@ model StateSyncCursor {
 
   @@index([state])
   @@map("state_sync_cursor")
+}
+
+// State agency rulemaking (Phase 1 M3.1) — GLOBAL, no tenant_id/RLS, same
+// source-table convention as state_bill/state_committee. Field set
+// deliberately mirrors FederalRegisterDocument (above) so the unified
+// rule-emitter (M3.3, intel-api) treats federal + state rules with one code
+// path — jurisdiction distinguishes them, exactly like state_bill vs
+// congress_bill. State EOs get ruleType='executive_order' (federal EOs
+// already live in FederalRegisterDocument as PRESIDENTIAL_DOCUMENT — no
+// separate model, matching that precedent).
+model StateRule {
+  id               String    @id // "<state>-<register-doc-id>"
+  state            String
+  agency           String
+  title            String    @db.Text
+  abstract         String?   @db.Text
+  ruleType         String    @map("rule_type") // 'proposed' | 'emergency' | 'final' | 'notice' | 'executive_order'
+  docketId         String?   @map("docket_id")
+  registerCitation String?   @map("register_citation")
+  publicationDate  DateTime  @map("publication_date") @db.Date
+  commentStartDate DateTime? @map("comment_start_date") @db.Date
+  // The deadline anchor M3.4's comment-period reuse (check-comment-periods.ts) reads.
+  commentEndDate   DateTime? @map("comment_end_date") @db.Date
+  effectiveDate    DateTime? @map("effective_date") @db.Date
+  sourceUrl        String    @map("source_url")
+  // Bill -> rule successor (deferred to P2 per the plan; column ships now so a
+  // later linker doesn't need a migration).
+  linkedBillKeys   String[]  @default([]) @map("linked_bill_keys")
+  syncedAt         DateTime  @default(now()) @map("synced_at") @db.Timestamptz(6)
+
+  @@index([state, publicationDate])
+  @@index([commentEndDate])
+  @@map("state_rule")
 }
 
 // ─────────────────────────────────────────────────────────────────────────

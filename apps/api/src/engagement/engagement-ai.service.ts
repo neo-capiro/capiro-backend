@@ -1,10 +1,9 @@
 import { Injectable, Logger, ServiceUnavailableException } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
-import type { TenantContext } from '@capiro/shared';
+import { parseProviderUsage, type ProviderUsage, type TenantContext } from '@capiro/shared';
 import type { AppConfig } from '../config/config.schema.js';
 import { LobbyIntelService } from '../lobby-intel/lobby-intel.service.js';
 import { FederalSpendingService } from '../federal-spending/federal-spending.service.js';
-import { parseProviderUsage, type ProviderUsage } from './ai-usage-parse.js';
 import {
   AiCredentialResolverService,
   type ResolvedAiCredential,

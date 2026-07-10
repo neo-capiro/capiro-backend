@@ -1,0 +1,16 @@
+{
+  "state": "MA",
+  "yearStart": 2025,
+  "convene": "2026-01-07",
+  "crossoverDate": null,
+  "committeeCutoffDate": "2025-12-03",
+  "secondCommitteeCutoffDate": null,
+  "sineDie": null,
+  "calendarSource": "manual",
+  "calendarConfidence": "high",
+  "sourceUrls": [
+    "https://malegislature.gov/ClerksOffice/Senate/Deadlines",
+    "https://karenspilka.com/updates/factsheet-jointrules"
+  ],
+  "notes": "194th General Court, 2025-2026 biennium (Second Annual Session convenes 2026-01-07). Massachusetts has NO crossover-day system (continuous two-year body) and NO true sine die — closest analogs are 'last day for formal sessions' (2026-07-31, informal sessions continue after) and the full biennium's formal end (2027-01-05); neither is modeled as sineDie to avoid asserting a false 'session ends here'. committeeCutoffDate is Joint Rule 10's 'last day for reports from joint committees' (2025-12-03, on matters referred before 2025-10-01) — MA committees are JOINT (House+Senate sit together), so there is no second/opposite-chamber committee cutoff as a separate concept. A conflicting third-party date (massachusettsalmanac.com) was checked and rejected — it disagreed with both the official Clerk's Office page and the Senate President's own fact sheet."
+}

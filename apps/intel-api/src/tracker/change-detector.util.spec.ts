@@ -5,6 +5,7 @@ import {
   stateVoteRecordedClass,
   STATE_COMPANION_MOVED_CLASS,
   cosponsorMomentumClass,
+  stateDeadlineClass,
 } from './change-detector.util.js';
 
 describe('classifyStateStatusChange (State Legislation Platform S4.3)', () => {
@@ -48,6 +49,24 @@ describe('STATE_COMPANION_MOVED_CLASS', () => {
   it('is the first-ever emitter for the companion trigger key', () => {
     expect(STATE_COMPANION_MOVED_CLASS.triggerKey).toBe('companion');
     expect(STATE_COMPANION_MOVED_CLASS.changeType).toBe('state_companion_moved');
+  });
+});
+
+describe('stateDeadlineClass (Phase 1 M2.3, PD5) — first emitter for the `deadline` trigger key', () => {
+  it('is critical under 3 days', () => {
+    expect(stateDeadlineClass(2, 'committeeCutoff').severity).toBe('critical');
+  });
+  it('is notable at 3-7 days', () => {
+    expect(stateDeadlineClass(3, 'crossover').severity).toBe('notable');
+    expect(stateDeadlineClass(7, 'crossover').severity).toBe('notable');
+  });
+  it('is info beyond 7 days', () => {
+    expect(stateDeadlineClass(14, 'sineDie').severity).toBe('info');
+  });
+  it('always uses the deadline trigger key + a fixed changeType (dedup keys off this)', () => {
+    const cls = stateDeadlineClass(5, 'secondCommitteeCutoff');
+    expect(cls.triggerKey).toBe('deadline');
+    expect(cls.changeType).toBe('state_bill_deadline_approaching');
   });
 });
 

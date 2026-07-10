@@ -90,7 +90,16 @@ const BASE_BILL = {
   subjects: ['Government Operations'],
 };
 
-function makeStateSourceRepo(bill: typeof BASE_BILL) {
+function makeStateSourceRepo(
+  bill: typeof BASE_BILL,
+  calendar?: {
+    billKey: string;
+    committeeCutoffDate: Date | null;
+    crossoverDate: Date | null;
+    secondCommitteeCutoffDate: Date | null;
+    sineDie: Date | null;
+  },
+) {
   return {
     getStateBillsByIds: jest.fn().mockResolvedValue([bill]),
     getStateBillActionsByIds: jest.fn().mockResolvedValue([]),
@@ -98,6 +107,7 @@ function makeStateSourceRepo(bill: typeof BASE_BILL) {
     getStateVotesForBills: jest.fn().mockResolvedValue([]),
     getUpcomingStateEventsForBills: jest.fn().mockResolvedValue([]),
     getMovedCompanions: jest.fn().mockResolvedValue([]),
+    getStateSessionCalendars: jest.fn().mockResolvedValue(calendar ? [calendar] : []),
   } as unknown as StateSourceDataRepository;
 }
 
@@ -207,5 +217,106 @@ describe('BillChangeDetectorService — state partition (DD3)', () => {
     );
     await svc.runDetectionCycle();
     expect(FAKE_CONGRESS_SOURCE.getBillsByIds).not.toHaveBeenCalled();
+  });
+});
+
+/** N days from now, as a Date at UTC midnight (deadline-risk math is date-only). */
+function daysFromNow(n: number): Date {
+  const d = new Date();
+  d.setUTCHours(0, 0, 0, 0);
+  d.setUTCDate(d.getUTCDate() + n);
+  return d;
+}
+
+describe('BillChangeDetectorService — state deadline-approaching emitter (Phase 1 M2.3, PD5)', () => {
+  const ALREADY_SEEN: TrackedBillRow = {
+    id: 'tb-deadline',
+    tenantId: 't1',
+    clientId: 'c1',
+    billId: BASE_BILL.id,
+    source: 'state',
+    lastSeenActionText: 'Filed',
+    lastSeenActionDate: new Date('2025-01-15'),
+    lastSeenAt: new Date('2025-01-16'),
+    lastSeenStatus: 'introduced', // derived-baselined, still in committee
+    lastSeenCosponsors: 2,
+    lastSeenTextDate: null,
+    lastSeenFiscalId: null,
+    lastSeenHearingKey: null,
+  };
+
+  it('fires a deadline_approaching alert on the new `deadline` trigger key, with cutoff evidence', async () => {
+    const calendar = {
+      billKey: BASE_BILL.id,
+      committeeCutoffDate: daysFromNow(2),
+      crossoverDate: null,
+      secondCommitteeCutoffDate: null,
+      sineDie: daysFromNow(30),
+    };
+    const { prisma, alerts } = makeHarness([ALREADY_SEEN]);
+    const svc = new BillChangeDetectorService(
+      prisma,
+      FAKE_CONGRESS_SOURCE,
+      makeStateSourceRepo(BASE_BILL, calendar),
+    );
+    const summary = await svc.runDetectionCycle();
+
+    expect(summary.byType['state_bill_deadline_approaching']).toBe(1);
+    const alert = alerts.find((a) => a.changeType === 'state_bill_deadline_approaching') as
+      | { evidence: Record<string, unknown>; severity: string }
+      | undefined;
+    expect(alert).toBeDefined();
+    expect(alert!.evidence.cutoffType).toBe('committeeCutoff');
+    expect(alert!.severity).toBe('critical'); // 2 days out
+  });
+
+  it('does NOT fire when nothing is curated for this state/session (graceful degradation, M2.1)', async () => {
+    const { prisma, alerts } = makeHarness([ALREADY_SEEN]);
+    const svc = new BillChangeDetectorService(
+      prisma,
+      FAKE_CONGRESS_SOURCE,
+      makeStateSourceRepo(BASE_BILL), // no calendar row at all
+    );
+    await svc.runDetectionCycle();
+    expect(alerts.find((a) => a.changeType === 'state_bill_deadline_approaching')).toBeUndefined();
+  });
+
+  it('does NOT fire when the nearest cutoff is more than 14 days out', async () => {
+    const calendar = {
+      billKey: BASE_BILL.id,
+      committeeCutoffDate: daysFromNow(40),
+      crossoverDate: null,
+      secondCommitteeCutoffDate: null,
+      sineDie: daysFromNow(60),
+    };
+    const { prisma, alerts } = makeHarness([ALREADY_SEEN]);
+    const svc = new BillChangeDetectorService(
+      prisma,
+      FAKE_CONGRESS_SOURCE,
+      makeStateSourceRepo(BASE_BILL, calendar),
+    );
+    await svc.runDetectionCycle();
+    expect(alerts.find((a) => a.changeType === 'state_bill_deadline_approaching')).toBeUndefined();
+  });
+
+  it('dedups a re-run within the 14-day window (M2-C) — the generic changeType/sourceRef dedup applies', async () => {
+    const calendar = {
+      billKey: BASE_BILL.id,
+      committeeCutoffDate: daysFromNow(5),
+      crossoverDate: null,
+      secondCommitteeCutoffDate: null,
+      sineDie: daysFromNow(30),
+    };
+    const { prisma, alerts } = makeHarness([ALREADY_SEEN]);
+    const svc = new BillChangeDetectorService(
+      prisma,
+      FAKE_CONGRESS_SOURCE,
+      makeStateSourceRepo(BASE_BILL, calendar),
+    );
+    await svc.runDetectionCycle();
+    await svc.runDetectionCycle();
+    expect(alerts.filter((a) => a.changeType === 'state_bill_deadline_approaching')).toHaveLength(
+      1,
+    );
   });
 });

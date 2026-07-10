@@ -103,6 +103,7 @@ function makeMocks() {
     clientCapabilities as never,
     clientPeople as never,
     clientFacilities as never,
+    { representationForClient: jest.fn().mockResolvedValue([]) } as never, // representation
     { search: jest.fn().mockResolvedValue([]) } as never, // clientKb
     { isEnabled: jest.fn().mockResolvedValue(false) } as never, // featureFlags
     clients as never,

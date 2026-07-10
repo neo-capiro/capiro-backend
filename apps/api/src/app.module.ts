@@ -26,6 +26,9 @@ import { FederalRegisterModule } from './federal-register/federal-register.modul
 import { RegulatoryDocketModule } from './regulatory-docket/regulatory-docket.module.js';
 import { IntelligenceModule } from './intelligence/intelligence.module.js';
 import { AlertMemoModule } from './intelligence/alert-memo/alert-memo.module.js';
+import { DistrictBriefModule } from './intelligence/alert-memo/district-brief.module.js';
+import { ChokepointModule } from './intelligence/chokepoint/chokepoint.module.js';
+import { AgenticModule } from './agentic/agentic.module.js';
 import { TrackerModule } from './tracker/tracker.module.js';
 import { WorkspaceCollabModule } from './workspace-collab/workspace-collab.module.js';
 import { WorkspaceAssistantModule } from './workspace-assistant/workspace-assistant.module.js';
@@ -85,6 +88,9 @@ import { ApiLatencyMiddleware } from './observability/api-latency.middleware.js'
     RegulatoryDocketModule,
     IntelligenceModule,
     AlertMemoModule,
+    DistrictBriefModule,
+    ChokepointModule,
+    AgenticModule,
     TrackerModule,
     WorkspaceCollabModule,
     WorkspaceAssistantModule,

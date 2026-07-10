@@ -52,16 +52,21 @@ export function feedItemToMemoAlert(item: FeedItem): AlertMemoAlertInput {
       atSec: m.timestampMs != null ? Math.floor(m.timestampMs / 1000) : undefined,
     }))
     .filter((q) => q.text.trim());
-  const tags = Array.from(new Set((hearing?.mentions ?? []).flatMap((m) => m.issueTags ?? []).filter(Boolean)));
+  const tags = Array.from(
+    new Set((hearing?.mentions ?? []).flatMap((m) => m.issueTags ?? []).filter(Boolean)),
+  );
   return {
     alertId: item.id,
-    // State Legislation Platform (S7): the memo generator doesn't accept
-    // sourceType='state_bill' yet (out of Phase 0 scope — recommendedActionsFor
-    // in intel-api never offers "Draft memo" for a state bill alert, so this
-    // path shouldn't be reachable in practice); map defensively to 'bill'
-    // rather than sending a value the server's @IsIn(['bill','hearing',
-    // 'combined']) would reject.
-    sourceType: item.sourceType === 'state_bill' ? 'bill' : item.sourceType,
+    // State Legislation Platform (S7) + Phase 1 M3.3: the memo generator only
+    // accepts 'bill'|'hearing'|'combined' — recommendedActionsFor in intel-api
+    // never offers "Draft memo"/"Generate district brief" for a state_bill or
+    // regulation alert, so this path shouldn't be reachable for either in
+    // practice; map defensively to 'bill' rather than sending a value the
+    // server's @IsIn(['bill','hearing','combined']) would reject.
+    sourceType:
+      item.sourceType === 'state_bill' || item.sourceType === 'regulation'
+        ? 'bill'
+        : item.sourceType,
     title: item.title,
     whyItMatters: item.whyItMatters,
     severity: item.severity,
@@ -78,6 +83,13 @@ export function feedItemToMemoAlert(item: FeedItem): AlertMemoAlertInput {
   };
 }
 
+/**
+ * The district-brief generator's DTO has the exact same shape/validator as the
+ * memo's (Phase 1 M1.5) — including the same 'state_bill' -> 'bill' mapping —
+ * so it reuses feedItemToMemoAlert directly rather than duplicating it.
+ */
+export const feedItemToDistrictBriefAlert = feedItemToMemoAlert;
+
 export function useGenerateAlertMemo() {
   const api = useApi();
   return useMutation({
@@ -88,11 +100,46 @@ export function useGenerateAlertMemo() {
       replaceAttachmentId?: string;
     }) =>
       (
-        await api.post<AlertMemoResult>(`/api/intelligence/clients/${encodeURIComponent(input.clientId)}/alert-memo`, {
-          clientName: input.clientName,
-          alert: input.alert,
-          replaceAttachmentId: input.replaceAttachmentId,
-        })
+        await api.post<AlertMemoResult>(
+          `/api/intelligence/clients/${encodeURIComponent(input.clientId)}/alert-memo`,
+          {
+            clientName: input.clientName,
+            alert: input.alert,
+            replaceAttachmentId: input.replaceAttachmentId,
+          },
+        )
+      ).data,
+  });
+}
+
+export interface DistrictBriefResult {
+  title: string;
+  markdown: string;
+  sections: Array<{ heading: string; paragraphs: Array<{ text: string; claimIds: string[] }> }>;
+  sources: Array<{ claimId: string; label: string; url?: string | null }>;
+  document: { attachmentId: string; fileName: string } | null;
+  usedTenantKey: boolean;
+  model: string;
+  lowConfidence: boolean;
+  memoryFilesUsed: string[];
+  facility: { id: string; name: string; city: string | null; state: string | null };
+}
+
+/** District-impact one-pager (Phase 1 M1.5, PD6) — same alert shape as the memo, plus which facility to ground it in. */
+export function useGenerateDistrictBrief() {
+  const api = useApi();
+  return useMutation({
+    mutationFn: async (input: {
+      clientId: string;
+      facilityId: string;
+      alert: AlertMemoAlertInput;
+      replaceAttachmentId?: string;
+    }) =>
+      (
+        await api.post<DistrictBriefResult>(
+          `/api/intelligence/clients/${encodeURIComponent(input.clientId)}/facilities/${encodeURIComponent(input.facilityId)}/district-brief`,
+          { alert: input.alert, replaceAttachmentId: input.replaceAttachmentId },
+        )
       ).data,
   });
 }
@@ -109,10 +156,10 @@ export function useSaveAlertMemo() {
       replaceAttachmentId?: string;
     }) =>
       (
-        await api.post<{ document: { attachmentId: string; fileName: string } | null; title: string }>(
-          `/api/intelligence/clients/${encodeURIComponent(input.clientId)}/alert-memo/save`,
-          input,
-        )
+        await api.post<{
+          document: { attachmentId: string; fileName: string } | null;
+          title: string;
+        }>(`/api/intelligence/clients/${encodeURIComponent(input.clientId)}/alert-memo/save`, input)
       ).data,
   });
 }
@@ -121,7 +168,12 @@ export function useRecordMemoLink() {
   const api = useApi();
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: async (input: { clientId: string; alertId: string; documentAttachmentId?: string; title?: string }) =>
+    mutationFn: async (input: {
+      clientId: string;
+      alertId: string;
+      documentAttachmentId?: string;
+      title?: string;
+    }) =>
       (
         await api.post(
           `/intel-api/clients/${encodeURIComponent(input.clientId)}/alerts/${encodeURIComponent(input.alertId)}/memo-link`,

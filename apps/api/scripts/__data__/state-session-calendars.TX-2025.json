@@ -1,0 +1,17 @@
+{
+  "state": "TX",
+  "yearStart": 2025,
+  "convene": "2025-01-14",
+  "crossoverDate": "2025-05-16",
+  "committeeCutoffDate": "2025-05-12",
+  "secondCommitteeCutoffDate": "2025-05-24",
+  "sineDie": "2025-06-02",
+  "calendarSource": "manual",
+  "calendarConfidence": "high",
+  "sourceUrls": [
+    "https://tlc.texas.gov/docs/DeadlineActionCalendar.pdf",
+    "https://lrl.texas.gov/whatsNew/client/index.cfm/2025/1/14/Preview-of-the-89th-Legislature",
+    "https://www.sll.texas.gov/spotlight/2025/05/sine-die-89th-regular-session-ends-june-2nd-2025/"
+  ],
+  "notes": "Texas meets in regular session only in ODD years (140-day session, Tex. Const.) — there is NO 2026 regular session; the 90th Legislature next convenes 2027-01-12. Dates above are the 89th Legislature's 2025 session ('Day 119' committee cutoff for House bills, 'Day 123' House floor deadline used as crossoverDate, 'Day 131' second-chamber committee cutoff, 'Day 140' sine die). Texas has no rule-codified 'crossover day' or Senate committee-report deadline as such — crossoverDate/committeeCutoffDate above are the nearest House-side rule deadlines (the practical equivalents); the Senate's binding constraint is its own floor deadline ('Day 134', not modeled as a separate column)."
+}

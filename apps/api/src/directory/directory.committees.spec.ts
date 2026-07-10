@@ -16,7 +16,8 @@ function makeService(): DirectoryService {
     get: () => 'us-east-1',
   } as unknown as ConfigService<AppConfig, true>;
   const prisma = {} as never;
-  return new DirectoryService(config, prisma);
+  const representation = {} as never;
+  return new DirectoryService(config, prisma, representation);
 }
 
 const OFFICES = {

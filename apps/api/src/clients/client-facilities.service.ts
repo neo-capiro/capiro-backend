@@ -1,8 +1,9 @@
-import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
+import { BadRequestException, Injectable, Logger, NotFoundException } from '@nestjs/common';
 import type { TenantContext } from '@capiro/shared';
 import { PrismaService } from '../prisma/prisma.service.js';
 import { ClientKbService } from '../embeddings/client-kb.service.js';
 import { isValidDistrictForState } from '../common/us-congressional-districts.js';
+import { computeFacilityGeocode } from './facility-geocode.util.js';
 
 export interface CreateFacilityInput {
   name: string;
@@ -16,6 +17,11 @@ export interface CreateFacilityInput {
   // How the district was determined: 'user' (manually entered) or 'geocoded'
   // (derived from the address). Defaults to 'user' when omitted on create.
   districtSource?: string;
+  // District Impact Engine (Phase 1 M1.4) — manual fallback for the two state
+  // legislative chambers when the geocoder returns no_match/ambiguous. A
+  // future successful geocode overwrites these (geocoded wins, PD1.2).
+  stateHouseDistrict?: string;
+  stateSenateDistrict?: string;
   employeeCount?: number;
   notes?: string;
 }
@@ -24,10 +30,36 @@ export type UpdateFacilityInput = Partial<CreateFacilityInput>;
 
 @Injectable()
 export class ClientFacilitiesService {
+  private readonly logger = new Logger(ClientFacilitiesService.name);
+
   constructor(
     private readonly prisma: PrismaService,
     private readonly clientKb: ClientKbService,
   ) {}
+
+  /**
+   * District Impact Engine (Phase 1 M1.2) — best-effort, non-blocking geocode
+   * on facility create/edit. The row already saved; a geocode failure here
+   * never surfaces to the caller (the nightly `geocode-facilities` verb
+   * backfills any miss). Re-scopes to the facility's own tenant.
+   */
+  private geocodeFacilityFireAndForget(tenantId: string, facilityId: string): void {
+    void this.prisma
+      .withTenant(tenantId, async (tx) => {
+        const facility = await tx.clientFacility.findUnique({ where: { id: facilityId } });
+        if (!facility) return;
+        const outcome = await computeFacilityGeocode(facility);
+        if (outcome.discrepancy) {
+          this.logger.warn(
+            `Geocode discrepancy for facility ${facilityId}: hand="${outcome.discrepancy.handEntered}" geocoded="${outcome.discrepancy.geocoded}"`,
+          );
+        }
+        if (outcome.update) {
+          await tx.clientFacility.update({ where: { id: facilityId }, data: outcome.update });
+        }
+      })
+      .catch((err) => this.logger.warn(`Inline geocode failed for facility ${facilityId}: ${err.message}`));
+  }
 
   async listFacilities(ctx: TenantContext, clientId: string) {
     return this.prisma.withTenant(ctx.tenantId, async (tx) => {
@@ -61,6 +93,8 @@ export class ClientFacilitiesService {
           zip: input.zip ?? null,
           congressionalDistrict: input.congressionalDistrict ?? null,
           districtSource: input.districtSource ?? 'user',
+          stateHouseDistrict: input.stateHouseDistrict ?? null,
+          stateSenateDistrict: input.stateSenateDistrict ?? null,
           employeeCount: input.employeeCount ?? null,
           notes: input.notes ?? null,
         },
@@ -68,6 +102,7 @@ export class ClientFacilitiesService {
     });
     // Client KB (F5): keep retrieval in sync with the Facilities tab.
     this.clientKb.indexFacilityFireAndForget(ctx.tenantId, facility.id);
+    this.geocodeFacilityFireAndForget(ctx.tenantId, facility.id);
     return facility;
   }
 
@@ -122,12 +157,28 @@ export class ClientFacilitiesService {
             : 'congressionalDistrict' in input
               ? { districtSource: 'user' }
               : {}),
+          ...('stateHouseDistrict' in input
+            ? { stateHouseDistrict: input.stateHouseDistrict ?? null }
+            : {}),
+          ...('stateSenateDistrict' in input
+            ? { stateSenateDistrict: input.stateSenateDistrict ?? null }
+            : {}),
           ...('employeeCount' in input ? { employeeCount: input.employeeCount ?? null } : {}),
           ...('notes' in input ? { notes: input.notes ?? null } : {}),
         },
       });
     });
     this.clientKb.indexFacilityFireAndForget(ctx.tenantId, facility.id);
+    // Only re-geocode when the address itself changed — an unrelated field
+    // edit (notes, employeeCount) shouldn't fire a Census API call.
+    if (
+      'addressLine' in input ||
+      'city' in input ||
+      'state' in input ||
+      'zip' in input
+    ) {
+      this.geocodeFacilityFireAndForget(ctx.tenantId, facility.id);
+    }
     return facility;
   }
 

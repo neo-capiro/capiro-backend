@@ -1095,6 +1095,7 @@ export function DirectoryPage() {
                           </Card>
                         ) : null}
                         <DirectoryNotesPanel entry={selectedEntry} />
+                        <DirectoryRepresentationPanel entry={selectedEntry} />
                         <DirectoryFecPanel entry={selectedEntry} />
                       </Col>
                     </Row>
@@ -2456,6 +2457,58 @@ function formatUsd(n: number): string {
   if (n >= 1_000_000) return `$${(n / 1_000_000).toFixed(1)}M`;
   if (n >= 1_000) return `$${(n / 1_000).toFixed(1)}K`;
   return `$${n.toFixed(0)}`;
+}
+
+interface MemberRepresentationSummary {
+  clients: Array<{
+    clientId: string;
+    clientName: string;
+    facilities: Array<{ id: string; name: string }>;
+  }>;
+}
+
+/**
+ * District Impact Engine (Phase 1 M1.4) — "Represents client facilities":
+ * every client (tenant-wide) with a facility in this member's district.
+ * Deterministic (bioguideId + district join) — NOT name-matched like the FEC
+ * panel below, so no approximate-match disclaimer is needed.
+ */
+function DirectoryRepresentationPanel({ entry }: { entry: DirectoryEntry }) {
+  const api = useApi();
+  const query = useQuery<MemberRepresentationSummary>({
+    queryKey: ['directory-contact-representation', entry.id],
+    queryFn: async () =>
+      (
+        await api.get<MemberRepresentationSummary>(
+          `/api/directory/contacts/${encodeURIComponent(entry.id)}/representation-summary`,
+        )
+      ).data,
+    staleTime: 5 * 60_000,
+  });
+  const clients = query.data?.clients ?? [];
+  if (!query.isLoading && clients.length === 0) return null;
+  return (
+    <Card className="directory-side-card" title="Represents client facilities">
+      <Space direction="vertical" size={10} style={{ display: 'flex' }}>
+        {query.isLoading ? (
+          <Spin size="small" />
+        ) : (
+          clients.map((c) => (
+            <div key={c.clientId} className="directory-note-preview">
+              <Typography.Text strong>{c.clientName}</Typography.Text>
+              <div>
+                <Space size={[6, 6]} wrap>
+                  {c.facilities.map((f) => (
+                    <Tag key={f.id}>{f.name}</Tag>
+                  ))}
+                </Space>
+              </div>
+            </div>
+          ))
+        )}
+      </Space>
+    </Card>
+  );
 }
 
 /**

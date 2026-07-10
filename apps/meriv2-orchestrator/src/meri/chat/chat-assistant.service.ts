@@ -6,10 +6,16 @@ import {
   type MeriContext,
   type ToolRegistry,
 } from '@capiro/meriv2-core';
+import { recordAiUsageEvent } from '@capiro/shared';
 import { MeriRegistryService } from '../meri-registry.service.js';
-import { RequestScopedLlmClient, type AnthropicToolSchema } from '../request-scoped-llm.client.js';
+import {
+  RequestScopedLlmClient,
+  type AnthropicToolSchema,
+  type ToolLoopResponse,
+} from '../request-scoped-llm.client.js';
 import { RequestCredentialsStore } from '../../request/request-credentials.store.js';
 import { ApiComplianceAuditRepo } from '../api-compliance-audit.repo.js';
+import { PrismaService } from '../../prisma/prisma.service.js';
 import {
   buildChatSystemPrompt,
   toolLabel,
@@ -75,6 +81,7 @@ export class ChatAssistantService {
     registryService: MeriRegistryService,
     config: ConfigService,
     private readonly audit: ApiComplianceAuditRepo,
+    private readonly prisma: PrismaService,
   ) {
     this.registry = registryService.registry;
     this.llm = registryService.llm; // single global-key-read site lives in the registry (BYOK4-clean)
@@ -130,6 +137,7 @@ export class ChatAssistantService {
           timeoutMs: this.callTimeoutMs,
           ...(opts.signal ? { signal: opts.signal } : {}),
         });
+        void this.meterRound(ctx, resp);
         content = resp.content as ContentBlock[];
         stopReason = resp.stopReason;
       } catch (e) {
@@ -159,7 +167,7 @@ export class ChatAssistantService {
         // turn). Never ship a bare "Done." — force one tool-free synthesis pass
         // over the context already in `messages`.
         return finalize(
-          await this.synthesizeFinalAnswer(system, toolSchemas, messages, emit, opts),
+          await this.synthesizeFinalAnswer(ctx, system, toolSchemas, messages, emit, opts),
         );
       }
 
@@ -192,7 +200,29 @@ export class ChatAssistantService {
 
     // Tool-round budget spent while the model still wanted tools. Do NOT discard
     // the research — force a final tool-free synthesis over everything gathered.
-    return finalize(await this.synthesizeFinalAnswer(system, toolSchemas, messages, emit, opts));
+    return finalize(
+      await this.synthesizeFinalAnswer(ctx, system, toolSchemas, messages, emit, opts),
+    );
+  }
+
+  /**
+   * Best-effort metering for one `completeWithTools` round (Phase 1 M5.0, H-1) —
+   * one `ai_usage_events` row per round (each round is its own Anthropic API
+   * call). `recordAiUsageEvent` never throws (it swallows + logs its own
+   * failures), so this is fire-and-forget from the caller's perspective.
+   */
+  private async meterRound(ctx: MeriContext, resp: ToolLoopResponse): Promise<void> {
+    await recordAiUsageEvent(
+      { prisma: this.prisma, logger: this.logger },
+      { tenantId: ctx.tenantId, userId: ctx.userId },
+      'meriv2_chat',
+      {
+        provider: 'anthropic',
+        model: resp.model,
+        usage: resp.usage,
+        usedTenantKey: resp.usedTenantKey,
+      },
+    );
   }
 
   /**
@@ -204,6 +234,7 @@ export class ChatAssistantService {
    * prompt; degrades to a helpful message (never empty) on model error.
    */
   private async synthesizeFinalAnswer(
+    ctx: MeriContext,
     system: string,
     toolSchemas: AnthropicToolSchema[],
     messages: Array<{ role: 'user' | 'assistant'; content: unknown }>,
@@ -229,6 +260,7 @@ export class ChatAssistantService {
         timeoutMs: this.callTimeoutMs,
         ...(opts.signal ? { signal: opts.signal } : {}),
       });
+      void this.meterRound(ctx, resp);
       const text = (resp.content as ContentBlock[])
         .filter((b) => b.type === 'text' && typeof b.text === 'string')
         .map((b) => b.text as string)

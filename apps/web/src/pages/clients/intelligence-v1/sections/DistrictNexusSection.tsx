@@ -18,6 +18,12 @@ import { useQuery } from '@tanstack/react-query';
 import { useApi } from '../../../../lib/use-api.js';
 import { formatCompact } from '../mappers.js';
 import { getClientDistrictNexus, type DistrictNexus } from '../district-nexus-api.js';
+import {
+  getClientRepresentation,
+  type FacilityRepresentation,
+  type FederalMemberSummary,
+  type StateLegislatorSummary,
+} from '../representation-api.js';
 
 interface DistrictNexusSectionProps {
   clientId: string;
@@ -37,6 +43,15 @@ export function DistrictNexusSection({ clientId }: DistrictNexusSectionProps) {
     enabled: !!clientId,
     staleTime: 2 * 60 * 1000,
   });
+  // District Impact Engine (Phase 1 M1.4) — independent of the contract-spend
+  // linkage above; a client with no confirmed contractor mapping still has a
+  // resolvable representation from its geocoded facilities.
+  const repQuery = useQuery<FacilityRepresentation[]>({
+    queryKey: ['client-representation', clientId],
+    queryFn: async () => getClientRepresentation(api, clientId),
+    enabled: !!clientId,
+    staleTime: 5 * 60 * 1000,
+  });
 
   const data = query.data;
   const districts = data && data.linked ? data.districts : [];
@@ -48,6 +63,8 @@ export function DistrictNexusSection({ clientId }: DistrictNexusSectionProps) {
         <h2>District Nexus</h2>
         <span className="iv1-sec-sub">Federal contract spend by congressional district</span>
       </div>
+
+      <YourRepresentativesBlock data={repQuery.data} loading={repQuery.isLoading} />
 
       {query.isLoading ? (
         <div className="iv1-surface">
@@ -144,5 +161,99 @@ export function DistrictNexusSection({ clientId }: DistrictNexusSectionProps) {
         </>
       )}
     </section>
+  );
+}
+
+/**
+ * District Impact Engine (Phase 1 M1.4) — "Your representatives" block, per
+ * facility: federal House + both senators, state upper/lower. Deterministic
+ * (PD2) — never a guess. A facility that hasn't geocoded yet shows an
+ * explicit "district undetermined" line rather than nothing.
+ */
+function YourRepresentativesBlock({
+  data,
+  loading,
+}: {
+  data: FacilityRepresentation[] | undefined;
+  loading: boolean;
+}) {
+  if (loading) return null;
+  if (!data || data.length === 0) return null;
+  return (
+    <div className="iv1-surface" style={{ marginBottom: 14 }}>
+      <div className="iv1-surface-head">
+        <h3>Your representatives</h3>
+        <span className="iv1-surface-sub">
+          Federal House + Senate, state upper + lower — resolved from each facility&apos;s
+          geocoded district
+        </span>
+      </div>
+      <div className="iv1-dnx-list">
+        {data.map(({ facility, representation }) => (
+          <div className="iv1-dnx-row" key={facility.id}>
+            <div className="iv1-dnx-row-top">
+              <span className="iv1-dnx-district">
+                {facility.name}
+                {facility.city || facility.state
+                  ? ` — ${[facility.city, facility.state].filter(Boolean).join(', ')}`
+                  : ''}
+              </span>
+            </div>
+            {representation.unresolved ? (
+              <div className="iv1-dnx-row-sub">
+                {representation.reason === 'no_state'
+                  ? 'District undetermined — no state on file for this facility.'
+                  : 'District undetermined — confirm the address (Facilities tab).'}
+              </div>
+            ) : (
+              <div className="iv1-dnx-row-sub" style={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
+                <FederalMemberLine label="House" member={representation.federal.house} />
+                {representation.federal.senate.map((s) => (
+                  <FederalMemberLine key={s.bioguideId} label="Senate" member={s} />
+                ))}
+                <StateLegislatorLine label="State Senate" legislator={representation.state.upper} />
+                <StateLegislatorLine label="State House" legislator={representation.state.lower} />
+              </div>
+            )}
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+function FederalMemberLine({ label, member }: { label: string; member: FederalMemberSummary | null }) {
+  if (!member) return <span>{label}: —</span>;
+  return (
+    <span>
+      {label}:{' '}
+      <Link className="iv1-link" to={`/directory?profile=${encodeURIComponent(member.bioguideId)}`}>
+        {member.fullName}
+      </Link>
+      {member.party ? ` (${member.party})` : ''}
+    </span>
+  );
+}
+
+function StateLegislatorLine({
+  label,
+  legislator,
+}: {
+  label: string;
+  legislator: StateLegislatorSummary | null;
+}) {
+  if (!legislator) return <span>{label}: —</span>;
+  return (
+    <span>
+      {label}:{' '}
+      {legislator.url ? (
+        <a className="iv1-link" href={legislator.url} target="_blank" rel="noreferrer">
+          {legislator.name}
+        </a>
+      ) : (
+        legislator.name
+      )}
+      {legislator.party ? ` (${legislator.party})` : ''}
+    </span>
   );
 }

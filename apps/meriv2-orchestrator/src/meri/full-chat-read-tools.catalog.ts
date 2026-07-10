@@ -11,9 +11,12 @@ import type { DelegatedToolSpec } from '@capiro/meriv2-core';
  * get_state_legislator); get_state_bill_status and the upgraded search_state_bills
  * moved to the in-editor catalog instead (still reachable from full-chat, which
  * is a superset — in-editor's tools + this file's — not duplicated here, per
- * the strict-disjointness contract the coverage spec enforces).
+ * the strict-disjointness contract the coverage spec enforces). Phase 1 M4.1/
+ * M4.2 (50-state analyst) added 3 more HERE (get_committee_roster,
+ * get_representation, get_state_rule_status) — all thin reads over
+ * already-existing tables/resolvers, no new write surface.
  *
- * All 20 are absent from apps/api's SIDE_EFFECTING_TOOLS set, so all are
+ * All 23 are absent from apps/api's SIDE_EFFECTING_TOOLS set, so all are
  * readOnly:true here too (the C-workstream rule: this classification MUST
  * match apps/api's, since a delegated write registered readOnly would bypass
  * the B1 gate).
@@ -59,6 +62,24 @@ export const FULL_CHAT_READ_TOOLS: readonly DelegatedToolSpec[] = [
     name: 'get_state_legislator',
     description:
       'Look up a state legislator by name + state, or by an OpenStates/LegiScan external id. Returns chamber, district, party, and committee memberships. Explicitly reports ambiguous name matches (asks which one) and NO-match cases — never fabricates a legislator.',
+    readOnly: true,
+  },
+  {
+    name: 'get_committee_roster',
+    description:
+      'Get the full roster of ONE committee: chair, vice chair, ranking member, and every member (grouped by side/rank for federal; role for state — state chambers do not share a minority-leadership vocabulary). `jurisdiction` is required (federal and state committees are separate namespaces — never guessed from the committee string alone); `state` is required when jurisdiction=state. Matches by exact systemCode/committee id first, then by name — reports "committee referral unmatched" rather than guessing when the name matches zero or more than one committee.',
+    readOnly: true,
+  },
+  {
+    name: 'get_representation',
+    description:
+      "Who represents a client's facility footprint — the federal House member + both senators and the state upper/lower legislators for each of the client's geocoded facilities (optionally filtered to one state). Deterministic join over the geocoded district (District Impact Engine) — never a language-model guess at which district contains an address. Explicitly reports an ungeocoded facility rather than guessing its representative.",
+    readOnly: true,
+  },
+  {
+    name: 'get_state_rule_status',
+    description:
+      'Look up ONE rule/notice\'s status and lifecycle stage — state agency register or Federal Register, whichever matches. Accepts an exact id ("FL-31100933", or a Federal Register document number like "2026-01234") or a title keyword; `state` scopes a keyword search to that state\'s register (omit to also search federal + other states). Stage (notice/nprm/comment_closed/final/effective) is derived deterministically from the rule\'s type and comment/effective dates — never guessed. Explicitly reports ambiguous keyword matches (asks which one) and NO-match cases — never fabricates a rule\'s status.',
     readOnly: true,
   },
   {

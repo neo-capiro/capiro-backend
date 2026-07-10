@@ -7,7 +7,8 @@ const ctxA = { tenantId: TENANT_A, userId: 'ua', role: 'standard_user' } as neve
 
 interface Row {
   id: string;
-  tenantId: string;
+  /** Null = a tenant-agnostic (cached-L1) metering row (Phase 1 M5.0). */
+  tenantId: string | null;
   userId: string | null;
   workflow: string;
   provider: string;
@@ -20,7 +21,7 @@ interface Row {
 }
 
 let seq = 0;
-function row(partial: Partial<Row> & { tenantId: string }): Row {
+function row(partial: Partial<Row> & { tenantId: string | null }): Row {
   seq += 1;
   return {
     id: `00000000-0000-0000-0000-${String(seq).padStart(12, '0')}`,
@@ -227,5 +228,28 @@ describe('AiUsageService.adminAllTenantsSummary', () => {
       eventCount: 3,
     });
     expect(all[1]?.totalCostUsd).toBeCloseTo(0.08, 6);
+  });
+
+  it('PINNED (Phase 1 M5.0): excludes tenant-agnostic (tenant_id = NULL) rows from the per-tenant report', async () => {
+    const rows = [
+      ...seeded(),
+      row({
+        tenantId: null,
+        workflow: 'legiwatch_alert_enrichment',
+        costUsd: 500.0,
+        createdAt: new Date('2026-06-09T09:00:00Z'),
+      }),
+    ];
+    const svc = new AiUsageService(makePrisma(rows) as never);
+    const all = await svc.adminAllTenantsSummary({
+      from: new Date('2026-06-01T00:00:00Z'),
+      to: new Date('2026-06-11T00:00:00Z'),
+    });
+    // Still exactly the 2 real tenants — the huge $500 tenant-agnostic row
+    // must never surface as (or inflate) a per-tenant entry.
+    expect(all).toHaveLength(2);
+    expect(all.some((t) => t.tenantId == null)).toBe(false);
+    expect(all.find((t) => t.tenantId === TENANT_A)?.totalCostUsd).toBeCloseTo(0.08, 6);
+    expect(all.find((t) => t.tenantId === TENANT_B)?.totalCostUsd).toBeCloseTo(99.0, 6);
   });
 });

@@ -37,6 +37,15 @@ describe('buildChatSystemPrompt', () => {
     expect(prompt).toContain('never use them for firm-internal questions');
   });
 
+  it('routes state-legislation and cross-jurisdiction questions to the right tools (Phase 1 M4.3)', () => {
+    const prompt = buildChatSystemPrompt({}, ctx);
+    expect(prompt).toContain('State legislation & agency rules');
+    expect(prompt).toContain('get_state_rule_status');
+    expect(prompt).toContain('get_committee_roster');
+    expect(prompt).toContain('get_representation');
+    expect(prompt).toContain("never imply one rail's status maps onto the other's");
+  });
+
   it('tells the model document tools RUN (no approval hold) and to report the real result — never a phantom download', () => {
     const prompt = buildChatSystemPrompt({}, ctx);
     // Document tools are PASS-classified: they run immediately, they are NOT held.

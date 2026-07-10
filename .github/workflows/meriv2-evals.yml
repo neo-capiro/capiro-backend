@@ -15,6 +15,12 @@ on:
       # change could break either eval's mechanism test without the gate
       # firing on that PR.
       - 'packages/shared/**'
+      # Phase 1 M4.3: the get_committee_roster/get_representation/
+      # get_state_rule_status tool surface lives in apps/api (not watched
+      # elsewhere by this workflow) — a rename/removal there should re-run
+      # the mechanism gate even though the eval cases exercise the shared
+      # pure functions, not this file directly.
+      - 'apps/api/src/meri/meri-tools.service.ts'
       - '.github/workflows/meriv2-evals.yml'
 
 permissions:

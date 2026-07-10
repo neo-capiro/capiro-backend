@@ -11,12 +11,16 @@ import { ClientTargetsController } from './client-targets.controller.js';
 import { ClientTargetsService } from './client-targets.service.js';
 import { ClientTargetRecommendationsController } from './client-target-recommendations.controller.js';
 import { ClientTargetRecommendationsService } from './client-target-recommendations.service.js';
+import { RepresentationModule } from './representation.module.js';
 import { EmbeddingsModule } from '../embeddings/embeddings.module.js';
 import { IntelligenceModule } from '../intelligence/intelligence.module.js';
 import { DirectoryModule } from '../directory/directory.module.js';
 
 @Module({
-  imports: [EmbeddingsModule, IntelligenceModule, DirectoryModule],
+  // RepresentationModule (not folded in here) so DirectoryModule can ALSO
+  // depend on it without a cycle — ClientsModule already imports
+  // DirectoryModule for the Facilities tab's directory cross-links.
+  imports: [EmbeddingsModule, IntelligenceModule, DirectoryModule, RepresentationModule],
   controllers: [
     ClientsController,
     ClientCapabilitiesController,

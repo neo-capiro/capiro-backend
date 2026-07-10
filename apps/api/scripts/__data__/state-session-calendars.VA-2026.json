@@ -1,0 +1,16 @@
+{
+  "state": "VA",
+  "yearStart": 2026,
+  "convene": "2026-01-14",
+  "crossoverDate": "2026-02-17",
+  "committeeCutoffDate": "2026-02-17",
+  "secondCommitteeCutoffDate": "2026-03-09",
+  "sineDie": "2026-03-14",
+  "calendarSource": "manual",
+  "calendarConfidence": "high",
+  "sourceUrls": [
+    "https://dls.virginia.gov/pubs/calendar/cal2026_2.pdf",
+    "https://www.vaco.org/capitol-contact/key-dates-for-2026-general-assembly-session/"
+  ],
+  "notes": "Virginia publishes no committee-only deadline distinct from crossover for a bill's ORIGINATING chamber — committee action on own-chamber bills must conclude by the same crossover date (2026-02-17), so committeeCutoffDate mirrors crossoverDate here (not a duplication error). secondCommitteeCutoffDate (2026-03-09) is the second/opposite-chamber committee deadline. The budget bill runs on a separate sub-schedule (e.g. Budget Sunday committee deadline 2026-02-22) not captured here. A reconvened/veto session is scheduled 2026-04-22, after sineDie."
+}

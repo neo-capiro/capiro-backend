@@ -5,6 +5,8 @@ import {
   ldaCodesForSectors,
   normalizeSector,
   type SectorTag,
+  deriveRuleLifecycleStage,
+  RULE_LIFECYCLE_STAGES,
 } from '@capiro/shared';
 import { PrismaService } from '../prisma/prisma.service.js';
 import { EMBEDDING_MODEL, embedText, normalize, vectorLiteral } from '../embeddings/embedder.js';
@@ -13,6 +15,7 @@ import { classifyTrajectory } from './trajectory-classifier.model.js';
 import { addDateInZone, dateBoundsInZone, dayBoundsInZone } from './time-bounds.js';
 import { FEC_DISCLAIMER } from './fec-disclaimer.js';
 import { expandTerms, isKnownAcronym, MIN_KEYWORD_TOKEN_LENGTH } from './term-expansion.js';
+import { commentDeadlineDedupeKey } from './comment-deadline.util.js';
 import { ClientPrepopulationService } from './client-prepopulation.service.js';
 import { OfficeRecommenderService } from './office-recommender.service.js';
 import type { OfficeRecommendation } from './office-recommender.service.js';
@@ -1031,56 +1034,32 @@ export class IntelligenceService {
     // is one of RULE / PROPOSED_RULE / NOTICE / PRESIDENTIAL_DOCUMENT (see the
     // sync normalizer + schema), which — together with the comment/effective
     // dates — tells us the real stage. Previously `currentStage` was hardcoded
-    // to 'NPRM' for every regulation regardless of its actual type.
-    const REG_LIFECYCLE_STAGES = [
-      { key: 'notice', label: 'Notice' },
-      { key: 'nprm', label: 'NPRM' },
-      { key: 'comment_closed', label: 'Comment closed' },
-      { key: 'final', label: 'Final rule' },
-      { key: 'effective', label: 'Effective' },
-    ] as const;
-
-    const deriveRegStage = (reg: {
-      type: string;
-      commentEndDate: Date | null;
-      effectiveDate: Date | null;
-    }): string => {
-      const type = (reg.type ?? '').toUpperCase();
-      const commentClosed =
-        reg.commentEndDate != null && reg.commentEndDate.getTime() < now.getTime();
-      const isEffective = reg.effectiveDate != null && reg.effectiveDate.getTime() <= now.getTime();
-
-      switch (type) {
-        case 'PROPOSED_RULE':
-          // NPRM: open comment period unless the comment deadline has passed.
-          return commentClosed ? 'comment_closed' : 'nprm';
-        case 'RULE':
-        case 'PRESIDENTIAL_DOCUMENT':
-          // A final rule (or a presidential directive, which is self-executing):
-          // 'effective' once its effective date has arrived, otherwise 'final'.
-          return isEffective ? 'effective' : 'final';
-        case 'NOTICE':
-        default:
-          // Notices (incl. ANPRMs / requests for comment) and any unknown type
-          // sit at the pre-proposal notice stage.
-          return 'notice';
-      }
-    };
-
+    // to 'NPRM' for every regulation regardless of its actual type. Derivation
+    // lives in `@capiro/shared`'s `deriveRuleLifecycleStage` (Phase 1 M4.2) so
+    // this federal rail and the state-rule Meri tool (`get_state_rule_status`)
+    // can never disagree about what stage a rule is at.
     const regulatoryRails = Array.from(regDocByNumber.values())
       .sort((a, b) => b.publicationDate.getTime() - a.publicationDate.getTime())
       .slice(0, 8)
-      .map((reg) => ({
-        documentNumber: reg.documentNumber,
-        title: reg.title,
-        agencyNames: reg.agencyNames,
-        linkedBills: reg.linkedBills,
-        currentStage: deriveRegStage(reg),
-        // For an open NPRM the actionable deadline is the comment close date.
-        // Once the rule is final/effective there is no open comment deadline.
-        deadline: deriveRegStage(reg) === 'nprm' ? reg.commentEndDate : null,
-        stages: REG_LIFECYCLE_STAGES.map((s) => ({ key: s.key, label: s.label })),
-      }));
+      .map((reg) => {
+        const currentStage = deriveRuleLifecycleStage({
+          documentType: reg.type,
+          commentEndDate: reg.commentEndDate,
+          effectiveDate: reg.effectiveDate,
+          today: now,
+        });
+        return {
+          documentNumber: reg.documentNumber,
+          title: reg.title,
+          agencyNames: reg.agencyNames,
+          linkedBills: reg.linkedBills,
+          currentStage,
+          // For an open NPRM the actionable deadline is the comment close date.
+          // Once the rule is final/effective there is no open comment deadline.
+          deadline: currentStage === 'nprm' ? reg.commentEndDate : null,
+          stages: RULE_LIFECYCLE_STAGES.map((s) => ({ key: s.key, label: s.label })),
+        };
+      });
 
     // ── Hearings & markups: CLIENT-SCOPED (accuracy-critical) ──────────────
     // `hearings` (settled index 11) is the GLOBAL congressional calendar for the
@@ -4207,6 +4186,7 @@ export class IntelligenceService {
     }> = [];
 
     const changesToCreate: Array<{
+      dedupeKey: string;
       source: string;
       changeType: string;
       severity: string;
@@ -4304,6 +4284,7 @@ export class IntelligenceService {
           ? ldaCodesForSectors([...matchedSectors])
           : docLdaCodes;
         changesToCreate.push({
+          dedupeKey: commentDeadlineDedupeKey('federal_register', doc.id, client.id),
           source: 'federal_register',
           changeType: 'comment_deadline_approaching',
           severity,
@@ -4316,12 +4297,20 @@ export class IntelligenceService {
       }
     }
 
-    // Emit changes (fire-and-forget errors)
+    // Emit changes (fire-and-forget errors). Idempotent: upsert on the SAME
+    // dedupeKey `check-comment-periods.ts` uses for this (document, client)
+    // pair, so a re-run of the scheduled verb OR simply reloading this
+    // on-demand dashboard read never creates a second row (M3.4/M4.2 —
+    // comment-deadline.util.ts's doc comment previously described this as
+    // already done for both callers; this caller had not actually been
+    // switched over to `upsert` yet).
     await Promise.all(
       changesToCreate.map((c) =>
-        this.prisma.intelligenceChange.create({ data: c }).catch((err) => {
-          this.logger.warn(`Failed to emit comment-period change: ${err.message}`);
-        }),
+        this.prisma.intelligenceChange
+          .upsert({ where: { dedupeKey: c.dedupeKey }, create: c, update: c })
+          .catch((err) => {
+            this.logger.warn(`Failed to emit comment-period change: ${err.message}`);
+          }),
       ),
     );
 

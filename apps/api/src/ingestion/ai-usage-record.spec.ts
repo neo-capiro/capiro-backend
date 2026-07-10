@@ -1,5 +1,5 @@
 import { describe, expect, it, jest } from '@jest/globals';
-import { recordAiUsageEvent } from './ai-usage-record.js';
+import { recordAiUsageEvent } from '@capiro/shared';
 
 const ctx = {
   tenantId: 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa',
@@ -11,12 +11,13 @@ function makeDeps(createImpl?: () => Promise<unknown>) {
   const tx = { aiUsageEvent: { create } };
   const prisma = {
     withTenant: jest.fn(async (_tenantId: string, fn: (tx: unknown) => Promise<unknown>) => fn(tx)),
+    withSystem: jest.fn(async (fn: (tx: unknown) => Promise<unknown>) => fn(tx)),
   };
   const logger = { warn: jest.fn() };
   return { prisma, logger, create };
 }
 
-describe('recordAiUsageEvent', () => {
+describe('recordAiUsageEvent (Phase 1 M5.0 — lifted into @capiro/shared)', () => {
   it('writes exactly one event with tenant, tokens, and computed cost', async () => {
     const { prisma, logger, create } = makeDeps();
 
@@ -107,5 +108,48 @@ describe('recordAiUsageEvent', () => {
       }),
     ).resolves.toBeUndefined();
     expect(logger.warn).toHaveBeenCalled();
+  });
+
+  describe('tenant-agnostic path (Phase 1 M5.0)', () => {
+    it('PINNED: a null tenantId meters via withSystem (not withTenant), writing tenant_id = NULL', async () => {
+      const { prisma, logger, create } = makeDeps();
+      const agnosticCtx = { tenantId: null };
+
+      await recordAiUsageEvent(
+        { prisma, logger } as never,
+        agnosticCtx,
+        'legiwatch_alert_enrichment',
+        {
+          provider: 'anthropic',
+          model: 'claude-haiku-4-5-20251001',
+          usage: { inputTokens: 100, outputTokens: 50 },
+        },
+      );
+
+      expect(prisma.withSystem).toHaveBeenCalledTimes(1);
+      expect(prisma.withTenant).not.toHaveBeenCalled();
+      const data = (create.mock.calls[0] as unknown as [{ data: Record<string, unknown> }])[0].data;
+      expect(data.tenantId).toBeNull();
+      expect(logger.warn).not.toHaveBeenCalled();
+    });
+
+    it('never throws when the system-scoped write fails', async () => {
+      const prisma = { withSystem: jest.fn(() => Promise.reject(new Error('bypass denied'))) };
+      const logger = { warn: jest.fn() };
+
+      await expect(
+        recordAiUsageEvent(
+          { prisma, logger } as never,
+          { tenantId: null },
+          'legiwatch_alert_enrichment',
+          {
+            provider: 'anthropic',
+            model: 'claude-haiku-4-5-20251001',
+            usage: { inputTokens: 5, outputTokens: 5 },
+          },
+        ),
+      ).resolves.toBeUndefined();
+      expect(logger.warn).toHaveBeenCalled();
+    });
   });
 });

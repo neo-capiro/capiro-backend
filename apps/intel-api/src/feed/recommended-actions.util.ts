@@ -13,6 +13,7 @@
 
 export type RecommendedActionKind =
   | 'draft_memo'
+  | 'district_brief'
   | 'draft_outreach'
   | 'pull_quotes'
   | 'add_to_report'
@@ -49,14 +50,23 @@ export function recommendedActionsFor(alert: AlertShape): RecommendedAction[] {
   // memo drafting for state bills is out of Phase 0 scope, so it's excluded
   // below rather than offering a chip that 400s.
   const isBill =
-    alert.sourceType === 'bill' || alert.sourceType === 'combined' || alert.sourceType === 'state_bill';
+    alert.sourceType === 'bill' ||
+    alert.sourceType === 'combined' ||
+    alert.sourceType === 'state_bill';
   const isHearing = alert.sourceType === 'hearing' || alert.sourceType === 'combined';
   const canMemo = alert.sourceType !== 'state_bill';
   const sessionId = sessionIdOf(alert.evidence);
 
   const actions: RecommendedAction[] = [];
   // Memo — primary on meaningful alerts, still offered (non-primary) on routine ones.
-  if (canMemo) actions.push({ kind: 'draft_memo', label: 'Draft client memo', primary: meaningful });
+  if (canMemo)
+    actions.push({ kind: 'draft_memo', label: 'Draft client memo', primary: meaningful });
+  // District Impact Engine (Phase 1 M1.5) — works for a federal OR a state bill
+  // alert alike (the composer resolves the client's facility + representation);
+  // offered whenever the alert is bill-shaped. Whether the client actually has a
+  // geocoded facility to ground it in is a UI-time check, not a feed-shape one —
+  // same "always offer, let the composer degrade" pattern as draft_memo above.
+  if (isBill) actions.push({ kind: 'district_brief', label: 'Generate district brief' });
   // Hearing-specific: jump to / copy the matched quotes.
   if (isHearing) actions.push({ kind: 'pull_quotes', label: 'Pull key quotes' });
   // Outreach: turn the development into a note to the Hill / client.
@@ -65,8 +75,10 @@ export function recommendedActionsFor(alert: AlertShape): RecommendedAction[] {
   actions.push({ kind: 'add_talking_point', label: 'Add talking point' });
   actions.push({ kind: 'add_to_report', label: 'Add to weekly report' });
   // Navigate to the source.
-  if (isBill && alert.sourceRef) actions.push({ kind: 'open_bill', label: 'Open bill', target: { billId: alert.sourceRef } });
-  if (isHearing && sessionId) actions.push({ kind: 'open_hearing', label: 'Open hearing', target: { sessionId } });
+  if (isBill && alert.sourceRef)
+    actions.push({ kind: 'open_bill', label: 'Open bill', target: { billId: alert.sourceRef } });
+  if (isHearing && sessionId)
+    actions.push({ kind: 'open_hearing', label: 'Open hearing', target: { sessionId } });
 
   return actions;
 }

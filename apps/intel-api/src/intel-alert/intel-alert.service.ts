@@ -298,14 +298,17 @@ export class IntelAlertService {
 
   /**
    * Idempotently turn LegiWatch-B's newly-default-on trigger keys on for EXISTING
-   * subscribers who predate the emitters (fiscalNote, sponsorMomentum). Safe to
-   * re-run and safe against deliberate opt-outs: these keys had no emitter before
-   * B, so no subscriber could have intentionally removed them. Cross-tenant sweep
-   * → `withSystem` (RLS bypass); `array_append` guarded by a `NOT (… = ANY …)`
-   * predicate makes each key append exactly once. Returns rows touched.
+   * subscribers who predate the emitters (fiscalNote, sponsorMomentum, and —
+   * fixing a gap found while adding `deadline`, Phase 1 M2.3 — `companion`,
+   * which was added to DEFAULT_TRIGGERS but never backfilled onto existing
+   * prefs). Safe to re-run and safe against deliberate opt-outs: these keys had
+   * no emitter before their respective PRs, so no subscriber could have
+   * intentionally removed them. Cross-tenant sweep → `withSystem` (RLS bypass);
+   * `array_append` guarded by a `NOT (… = ANY …)` predicate makes each key
+   * append exactly once. Returns rows touched.
    */
   async backfillDefaultTriggers(): Promise<{ updated: number }> {
-    const NEWLY_DEFAULT_ON = ['fiscalNote', 'sponsorMomentum'];
+    const NEWLY_DEFAULT_ON = ['fiscalNote', 'sponsorMomentum', 'companion', 'deadline'];
     let updated = 0;
     for (const key of NEWLY_DEFAULT_ON) {
       const n = await this.prisma.withSystem((tx) =>

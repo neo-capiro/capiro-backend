@@ -112,6 +112,16 @@ export class DirectoryController {
     return this.service.getMemberFecSummary(ctx, contactId);
   }
 
+  // District Impact Engine (Phase 1 M1.4) — "Represents client facilities":
+  // deterministic (bioguideId + district join, PD2), unlike the FEC summary.
+  @Get('contacts/:contactId/representation-summary')
+  contactRepresentationSummary(
+    @CurrentTenant() ctx: TenantContext,
+    @Param('contactId') contactId: string,
+  ) {
+    return this.service.getMemberRepresentationSummary(ctx, contactId);
+  }
+
   // Recent press items for the member (pre-ingested into member_press_item by the
   // sync-member-press job). Global directory data — auth-gated by the class guard.
   @Get('contacts/:contactId/news')

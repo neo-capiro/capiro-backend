@@ -171,6 +171,12 @@ export class AiUsageService {
       const names = new Map(tenants.map((t) => [t.id, t.name]));
       const byTenant = new Map<string, AdminTenantUsageRow>();
       for (const r of rows) {
+        // M5.0: a tenant-agnostic (cached-L1) run metering row has
+        // tenant_id = NULL — excluded from this PER-TENANT report by design
+        // (it isn't billed to any one tenant). It still counts toward
+        // platform spend; a dedicated platform-cost rollup is a documented
+        // follow-up, not built here since nothing consumes it yet.
+        if (r.tenantId == null) continue;
         const entry = byTenant.get(r.tenantId) ?? {
           tenantId: r.tenantId,
           tenantName: names.get(r.tenantId) ?? r.tenantId,

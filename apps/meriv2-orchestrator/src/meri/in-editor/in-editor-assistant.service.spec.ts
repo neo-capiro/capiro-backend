@@ -38,9 +38,16 @@ const clientRepo = {
 // write tool is in ASSISTANT_TOOLS). Deny-all keeps it inert either way.
 const denyApprovals = { isApproved: async () => false } as unknown as ApiApprovalRepo;
 
+// Phase 1 M5.0 (H-1): the loop meters every round via recordAiUsageEvent,
+// which needs prisma.withTenant/withSystem. A no-op fake is enough here.
+const fakePrisma = {
+  withTenant: async (_tenantId: string, fn: (tx: unknown) => Promise<unknown>) => fn({}),
+  withSystem: async (fn: (tx: unknown) => Promise<unknown>) => fn({}),
+} as never;
+
 function makeService(executor: ApiToolExecutorRepo) {
   const registryService = new MeriRegistryService(clientRepo, executor, denyApprovals, config);
-  return new InEditorAssistantService(registryService, config);
+  return new InEditorAssistantService(registryService, config, fakePrisma);
 }
 
 const anthropic = (content: unknown[], stop_reason: string) => ({
@@ -298,7 +305,7 @@ describe('InEditorAssistantService.run', () => {
       denyApprovals,
       verifierConfig,
     );
-    const svc = new InEditorAssistantService(registryService, verifierConfig);
+    const svc = new InEditorAssistantService(registryService, verifierConfig, fakePrisma);
     const out = await RequestCredentialsStore.run({ bearerToken: 'jwt' }, () =>
       svc.run(ctx, { messages: [{ role: 'user', text: 'draft it' }] }),
     );
@@ -354,7 +361,7 @@ describe('InEditorAssistantService.run', () => {
       denyApprovals,
       verifierConfig,
     );
-    const svc = new InEditorAssistantService(registryService, verifierConfig);
+    const svc = new InEditorAssistantService(registryService, verifierConfig, fakePrisma);
     const out = await RequestCredentialsStore.run({ bearerToken: 'jwt' }, () =>
       svc.run(ctx, { messages: [{ role: 'user', text: 'draft it' }] }),
     );

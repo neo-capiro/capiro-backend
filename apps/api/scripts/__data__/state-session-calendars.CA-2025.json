@@ -1,0 +1,17 @@
+{
+  "state": "CA",
+  "yearStart": 2025,
+  "convene": "2024-12-02",
+  "crossoverDate": "2026-05-29",
+  "committeeCutoffDate": "2026-05-01",
+  "secondCommitteeCutoffDate": "2026-07-02",
+  "sineDie": "2026-11-30",
+  "calendarSource": "manual",
+  "calendarConfidence": "high",
+  "sourceUrls": [
+    "https://www.senate.ca.gov/sites/senate.ca.gov/files/2024_senate_legislative_deadlines.pdf",
+    "https://www.senate.ca.gov/system/files/2025-10/2026-senate-legislative-deadlines.pdf",
+    "https://www.senate.ca.gov/system/files/2024-10/2025-proposed-calendar-updated.pdf"
+  ],
+  "notes": "California's 2025-2026 session is a single two-year biennium (Cal. Const. Art. IV §3(a)); nothing dies at end of calendar-year 2025 — unpassed bills carry over as 'two-year bills'. Dates above are the SECOND-YEAR (2026) deadlines (J.R. 61(b)) since this is the operative floor/committee calendar for a bill still pending as of this seed's load date. committeeCutoffDate/secondCommitteeCutoffDate are the POLICY-committee deadlines (fiscal-committee deadlines run ~2 weeks later per J.R. 61(b)(8)/(14) and are not separately modeled here). A distinct Jan 31, 2026 deadline applies only to already-2025-introduced bills that must still pass their house of origin (J.R. 61(b)(3)) — not captured as a separate column."
+}

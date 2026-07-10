@@ -92,6 +92,21 @@ export class CreateFacilityDto {
   @IsIn(['user', 'geocoded'])
   districtSource?: string;
 
+  // District Impact Engine (Phase 1 M1.4) — manual fallback when the Census
+  // Geocoder returns no_match/ambiguous (no map-pin-drop UI exists). Bare
+  // district code, e.g. "9" or "3A" (a few states use alpha-suffixed
+  // districts) — no seat-count cross-validation exists for state chambers
+  // (unlike US_HOUSE_SEATS for the federal side), so only format is checked.
+  @IsOptional()
+  @IsString()
+  @Matches(/^[A-Za-z0-9-]{1,8}$/, { message: 'stateHouseDistrict must be 1-8 alphanumeric characters' })
+  stateHouseDistrict?: string;
+
+  @IsOptional()
+  @IsString()
+  @Matches(/^[A-Za-z0-9-]{1,8}$/, { message: 'stateSenateDistrict must be 1-8 alphanumeric characters' })
+  stateSenateDistrict?: string;
+
   @IsOptional()
   @IsInt()
   @Min(0)
@@ -138,6 +153,16 @@ export class UpdateFacilityDto {
   @IsOptional()
   @IsIn(['user', 'geocoded'])
   districtSource?: string;
+
+  @IsOptional()
+  @IsString()
+  @Matches(/^[A-Za-z0-9-]{1,8}$/, { message: 'stateHouseDistrict must be 1-8 alphanumeric characters' })
+  stateHouseDistrict?: string;
+
+  @IsOptional()
+  @IsString()
+  @Matches(/^[A-Za-z0-9-]{1,8}$/, { message: 'stateSenateDistrict must be 1-8 alphanumeric characters' })
+  stateSenateDistrict?: string;
 
   @IsOptional()
   @IsInt()

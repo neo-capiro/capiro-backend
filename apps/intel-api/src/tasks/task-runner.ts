@@ -23,6 +23,8 @@ import { EMBEDDING_MODEL, embedText, normalize, vectorLiteral } from '../embeddi
 import { ConfigService } from '@nestjs/config';
 import { WatchlistSyncService } from '../watchlist/watchlist-sync.service.js';
 import { BillChangeDetectorService } from '../tracker/bill-change-detector.service.js';
+import { RuleChangeDetectorService } from '../tracker/rule-change-detector.service.js';
+import { SourceRuleRepository } from '../sourcedata/rule-source-data.repository.js';
 import { NewMatchDetectorService } from '../tracker/new-match-detector.service.js';
 import { FeatureFlagService } from '../feature-flags/feature-flag.service.js';
 import { IntelAlertService } from '../intel-alert/intel-alert.service.js';
@@ -63,6 +65,7 @@ export const KNOWN_VERBS = [
   'backfill-alert-prefs', //        Phase 2: alert_preference → intel_alert_preference
   'disable-feature', //             Phase 2: feature-flag OFF path (§5.0.1)
   'detect-bill-changes', //         Phase 3: shadow change detection → intel_alert (no delivery)
+  'detect-rule-changes', //         Phase 1 M3.3: federal_register_document + state_rule × watchlist → regulation intel_alert
   'detect-new-matches', //          LegiWatch B1: candidate × watchlist → intel_bill_match + bill_new_match alert
   'backfill-default-triggers', //   LegiWatch B: turn fiscalNote/sponsorMomentum on for existing subscriber prefs
   'emit-bill-alerts', //            Phase 4: fan out NEW intel_alert (SHADOW: suppress+log, no send)
@@ -332,6 +335,15 @@ export async function runVerb(verb: string, args: string[], deps: VerbDeps): Pro
       deps.log(
         `DETECT_DONE scanned=${r.scanned} baseline=${r.baseline} changed=${r.changed} ` +
           `alerts=${r.alertsWritten} skippedDedup=${r.skippedDedup} byType=${JSON.stringify(r.byType)}`,
+      );
+      return;
+    }
+    case 'detect-rule-changes': {
+      const svc = new RuleChangeDetectorService(deps.prisma, new SourceRuleRepository(deps.prisma));
+      const r = await svc.runDetectionCycle();
+      deps.log(
+        `DETECT_RULES_DONE scanned=${r.scanned} matched=${r.matched} ` +
+          `alerts=${r.alertsWritten} skippedDedup=${r.skippedDedup}`,
       );
       return;
     }

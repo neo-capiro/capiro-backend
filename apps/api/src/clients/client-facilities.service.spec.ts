@@ -60,6 +60,13 @@ function makePrisma(seed: { clients?: Row[]; facilities?: Row[] }) {
         scopedFacilities().filter((f) => matchWhere(f, where)),
       findFirst: async ({ where }: { where: Row }) =>
         scopedFacilities().find((f) => matchWhere(f, where)) ?? null,
+      // District Impact Engine (Phase 1 M1.2) — the create/update paths fire a
+      // best-effort, non-blocking geocode that reads the row back by id. The
+      // fake resolves `null` here (never `undefined`/throw) so that
+      // fire-and-forget path short-circuits cleanly instead of making a real
+      // network call to the Census Geocoder from a unit test, or logging a
+      // harmless-but-noisy "findUnique is not a function" warning.
+      findUnique: async (_args: { where: { id: string } }) => null,
       create: async ({ data }: { data: Row }) => {
         const row = { id: `facility-${++facilitySeq}`, createdAt: new Date(), ...data };
         store.facilities.push(row);

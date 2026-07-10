@@ -1,0 +1,171 @@
+import { computeFacilityGeocode, type FacilityGeocodeInput } from './facility-geocode.util.js';
+import * as censusClient from '../external/census-geocoder/census-geocoder.client.js';
+
+jest.mock('../external/census-geocoder/census-geocoder.client.js', () => ({
+  geocodeAddress: jest.fn(),
+}));
+
+const geocodeAddress = censusClient.geocodeAddress as jest.Mock;
+
+const BASE: FacilityGeocodeInput = {
+  id: 'f1',
+  addressLine: '400 S Monroe St',
+  city: 'Tallahassee',
+  state: 'FL',
+  zip: '32301',
+  congressionalDistrict: null,
+  districtSource: null,
+  stateHouseDistrict: null,
+  stateSenateDistrict: null,
+  latitude: null,
+  longitude: null,
+  geocodeStatus: null,
+};
+
+const MATCHED = {
+  status: 'matched' as const,
+  latitude: 30.4,
+  longitude: -84.28,
+  congressionalDistrict: '02',
+  stateHouseDistrict: '9',
+  stateSenateDistrict: '3',
+  matchedAddress: 'x',
+};
+
+describe('computeFacilityGeocode', () => {
+  beforeEach(() => geocodeAddress.mockReset());
+
+  it('a never-geocoded facility with a matched address writes lat/lng + districts + geocoded provenance', async () => {
+    geocodeAddress.mockResolvedValue(MATCHED);
+    const out = await computeFacilityGeocode(BASE);
+    expect(out.update).toEqual({
+      latitude: 30.4,
+      longitude: -84.28,
+      congressionalDistrict: '02',
+      districtSource: 'geocoded',
+      stateHouseDistrict: '9',
+      stateSenateDistrict: '3',
+      geocodedAt: expect.any(Date),
+      geocodeStatus: 'matched',
+    });
+    expect(out.status).toBe('matched');
+    expect(out.discrepancy).toBeNull();
+  });
+
+  it('M1-C idempotency: re-running against an already-matching row produces no update', async () => {
+    geocodeAddress.mockResolvedValue(MATCHED);
+    const already: FacilityGeocodeInput = {
+      ...BASE,
+      congressionalDistrict: '02',
+      districtSource: 'geocoded',
+      stateHouseDistrict: '9',
+      stateSenateDistrict: '3',
+      latitude: 30.4,
+      longitude: -84.28,
+      geocodeStatus: 'matched',
+    };
+    const out = await computeFacilityGeocode(already);
+    expect(out.update).toBeNull();
+  });
+
+  it('a hand-entered district that disagrees with the geocode is OVERWRITTEN (geocoded wins) but logged as a discrepancy', async () => {
+    geocodeAddress.mockResolvedValue(MATCHED);
+    const handEntered: FacilityGeocodeInput = {
+      ...BASE,
+      congressionalDistrict: '05', // wrong, hand-typed
+      districtSource: 'user',
+    };
+    const out = await computeFacilityGeocode(handEntered);
+    expect(out.update?.congressionalDistrict).toBe('02');
+    expect(out.update?.districtSource).toBe('geocoded');
+    expect(out.discrepancy).toEqual({ handEntered: '05', geocoded: '02' });
+  });
+
+  it('a hand-entered district that AGREES with the geocode is not flagged as a discrepancy', async () => {
+    geocodeAddress.mockResolvedValue(MATCHED);
+    const handEntered: FacilityGeocodeInput = {
+      ...BASE,
+      congressionalDistrict: '02',
+      districtSource: 'user',
+    };
+    const out = await computeFacilityGeocode(handEntered);
+    expect(out.discrepancy).toBeNull();
+  });
+
+  it('no_match never clobbers a previously good district/coords — only status+timestamp change', async () => {
+    geocodeAddress.mockResolvedValue({
+      status: 'no_match',
+      latitude: null,
+      longitude: null,
+      congressionalDistrict: null,
+      stateHouseDistrict: null,
+      stateSenateDistrict: null,
+      matchedAddress: null,
+    });
+    const previouslyGood: FacilityGeocodeInput = {
+      ...BASE,
+      congressionalDistrict: '02',
+      districtSource: 'geocoded',
+      latitude: 30.4,
+      longitude: -84.28,
+      stateHouseDistrict: '9',
+      stateSenateDistrict: '3',
+      geocodeStatus: 'matched',
+    };
+    const out = await computeFacilityGeocode(previouslyGood);
+    expect(out.status).toBe('no_match');
+    // Update writes ONLY status/timestamp — lat/lng/districts pass through unchanged, never nulled.
+    expect(out.update).toEqual({
+      latitude: 30.4,
+      longitude: -84.28,
+      stateHouseDistrict: '9',
+      stateSenateDistrict: '3',
+      geocodedAt: expect.any(Date),
+      geocodeStatus: 'no_match',
+    });
+  });
+
+  it('a repeated no_match (status unchanged) produces no update at all — never re-writes the same status', async () => {
+    geocodeAddress.mockResolvedValue({
+      status: 'no_match',
+      latitude: null,
+      longitude: null,
+      congressionalDistrict: null,
+      stateHouseDistrict: null,
+      stateSenateDistrict: null,
+      matchedAddress: null,
+    });
+    const alreadyNoMatch: FacilityGeocodeInput = { ...BASE, geocodeStatus: 'no_match' };
+    const out = await computeFacilityGeocode(alreadyNoMatch);
+    expect(out.update).toBeNull();
+  });
+
+  it('a facility with no street/city/state is never sent to the geocoder', async () => {
+    const empty: FacilityGeocodeInput = { ...BASE, addressLine: null };
+    const out = await computeFacilityGeocode(empty);
+    expect(geocodeAddress).not.toHaveBeenCalled();
+    expect(out.update).toBeNull();
+    expect(out.status).toBe('no_match');
+  });
+
+  it('a network/API error never throws — resolves to status=error with no update', async () => {
+    geocodeAddress.mockRejectedValue(new Error('boom'));
+    // computeFacilityGeocode itself doesn't catch — geocodeAddress's own
+    // client never rejects (it catches internally), so simulate that
+    // contract here by resolving to the client's own error shape instead.
+    geocodeAddress.mockReset();
+    geocodeAddress.mockResolvedValue({
+      status: 'error',
+      latitude: null,
+      longitude: null,
+      congressionalDistrict: null,
+      stateHouseDistrict: null,
+      stateSenateDistrict: null,
+      matchedAddress: null,
+    });
+    const out = await computeFacilityGeocode(BASE);
+    expect(out.status).toBe('error');
+    // First-ever attempt (geocodeStatus was null) -> status changed -> writes the attempt.
+    expect(out.update?.geocodeStatus).toBe('error');
+  });
+});

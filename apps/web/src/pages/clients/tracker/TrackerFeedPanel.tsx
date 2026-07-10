@@ -17,6 +17,7 @@ import {
 } from './intel-feed-api.js';
 import { useAddTalkingPoint, useSetReport } from './alert-actions-api.js';
 import { MemoComposerDrawer } from './MemoComposerDrawer.js';
+import { DistrictBriefComposerDrawer } from './DistrictBriefComposerDrawer.js';
 
 /**
  * Unified intel FEED panel (Phase 6 §9.7) — bill | hearing | combined alerts with
@@ -86,6 +87,7 @@ function Ic({ n, size = 12 }: { n: string; size?: number }) {
 const ACTION_ICON: Record<string, string> = {
   save_recap: 'spark',
   draft_memo: 'doc',
+  district_brief: 'file',
   send_outreach: 'mail',
   draft_outreach: 'mail',
   add_to_report: 'check',
@@ -315,6 +317,7 @@ export function TrackerFeedPanel({
   // by client. Never the default; only offered at the all-clients altitude.
   const [group, setGroup] = useState(false);
   const [composerItem, setComposerItem] = useState<FeedItem | null>(null);
+  const [briefItem, setBriefItem] = useState<FeedItem | null>(null);
   const [tpItem, setTpItem] = useState<FeedItem | null>(null);
   const [tpText, setTpText] = useState('');
 
@@ -414,6 +417,9 @@ export function TrackerFeedPanel({
       case 'draft_memo':
         setComposerItem(item);
         break;
+      case 'district_brief':
+        setBriefItem(item);
+        break;
       case 'open_bill':
         if (a.target?.billId) {
           if (onOpenBill) onOpenBill(a.target.billId, item.clientId);
@@ -466,6 +472,7 @@ export function TrackerFeedPanel({
     { v: 'state_bill', label: 'State bills', n: counts.state_bill ?? 0 },
     { v: 'hearing', label: 'Hearings', n: counts.hearing ?? 0 },
     { v: 'combined', label: 'Bill + Hearing', n: counts.combined ?? 0 },
+    { v: 'regulation', label: 'Regulations', n: counts.regulation ?? 0 },
   ];
 
   const body = (() => {
@@ -637,6 +644,13 @@ export function TrackerFeedPanel({
         clientId={composerItem?.clientId ?? clientId ?? ''}
         clientName={composerItem?.clientName ?? clientName ?? ''}
         item={composerItem}
+      />
+
+      <DistrictBriefComposerDrawer
+        open={!!briefItem}
+        onClose={() => setBriefItem(null)}
+        clientId={briefItem?.clientId ?? clientId ?? ''}
+        item={briefItem}
       />
 
       <Modal

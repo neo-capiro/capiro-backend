@@ -1,0 +1,16 @@
+{
+  "state": "FL",
+  "yearStart": 2026,
+  "convene": "2026-01-13",
+  "crossoverDate": null,
+  "committeeCutoffDate": "2026-03-03",
+  "secondCommitteeCutoffDate": null,
+  "sineDie": "2026-03-13",
+  "calendarSource": "manual",
+  "calendarConfidence": "high",
+  "sourceUrls": [
+    "https://www.flsenate.gov/Session/Calendar/2026/Session%20Dates%202025-08-11%20102219.PDF",
+    "https://documents.ncsl.org/wwwncsl/About-State-Legislatures/session-calendar-2026mar23.pdf"
+  ],
+  "notes": "Florida has no crossover-day concept and no split committee cutoff by originating/second chamber — one session-wide cutoff (Senate Rule 2.9(2)); a House-specific cutoff could not be independently confirmed. sineDie is the constitutional 60th day (Art. III §3(d))."
+}

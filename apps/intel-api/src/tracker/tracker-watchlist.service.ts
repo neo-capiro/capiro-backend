@@ -69,7 +69,8 @@ export interface WatchlistView {
  * apps/api tracker.types.DEFAULT_TRIGGERS). LegiWatch B deliberately turns
  * `fiscalNote` + `sponsorMomentum` default-ON now that emitters exist for them
  * (they were defined-but-dead before); `newMatch` and the text-changed→`amendment`
- * key were already default-on. Existing subscribers pick these up via the
+ * key were already default-on. `deadline` (Phase 1 M2.3) joins the same way —
+ * the emitter now exists. Existing subscribers pick these up via the
  * idempotent `backfill-default-triggers` verb (they were never deliverable, so
  * appending them can't clobber a deliberate opt-out).
  */
@@ -83,6 +84,7 @@ export const DEFAULT_TRIGGERS: readonly string[] = [
   'fiscalNote',
   'sponsorMomentum',
   'companion',
+  'deadline',
 ];
 
 export interface PutAlertPrefsInput {

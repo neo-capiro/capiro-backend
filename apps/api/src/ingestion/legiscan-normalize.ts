@@ -74,6 +74,8 @@ export interface NormalizedStateBill {
   stateUrl: string | null;
   legiscanBillId: number;
   legiscanChangeHash: string;
+  /** Current committee referral (Phase 1 M2.2) — LegiScan's getBill.committee, or null when the bill isn't currently in committee. */
+  committee: { legiscanCommitteeId: number; name: string; chamber: string | null } | null;
   actions: Array<{
     date: Date;
     text: string;
@@ -110,6 +112,29 @@ function safeDate(v: string | null | undefined): Date | null {
   if (!v) return null;
   const d = new Date(v);
   return isNaN(d.getTime()) ? null : d;
+}
+
+/**
+ * LegiScan's committee.chamber is a single-letter code ('H' House, 'S' Senate,
+ * 'A' Assembly — verified against the LegiScan API user manual + fulltext-search
+ * chamber-prefix docs), while `state_legislator.chamber` (OpenStates) is
+ * 'upper'/'lower' — normalize to the latter so a committee first seen via a
+ * LegiScan bill referral and later via OpenStates roster normalization (M2.2)
+ * converge on the SAME `StateCommittee.id`. An unrecognized code maps to null
+ * rather than a guess.
+ */
+export function normalizeLegiscanChamber(
+  code: string | null | undefined,
+): 'upper' | 'lower' | null {
+  switch ((code ?? '').toUpperCase()) {
+    case 'H':
+    case 'A':
+      return 'lower';
+    case 'S':
+      return 'upper';
+    default:
+      return null;
+  }
 }
 
 const SAST_LINK_TYPES: Record<number, string> = {
@@ -201,6 +226,14 @@ export function normalizeLegiscanBill(
     stateUrl: raw.state_link ?? raw.url ?? null,
     legiscanBillId: raw.bill_id,
     legiscanChangeHash: raw.change_hash,
+    committee:
+      raw.committee?.committee_id != null && raw.committee.name
+        ? {
+            legiscanCommitteeId: raw.committee.committee_id,
+            name: raw.committee.name,
+            chamber: normalizeLegiscanChamber(raw.committee.chamber),
+          }
+        : null,
     actions,
     sponsors,
     versions,
@@ -208,6 +241,46 @@ export function normalizeLegiscanBill(
     calendarEvents,
     voteStubs: raw.votes ?? [],
   };
+}
+
+function slugifyCommitteeName(s: string): string {
+  return s
+    .toLowerCase()
+    .replace(/&/g, 'and')
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/^-+|-+$/g, '')
+    .slice(0, 200);
+}
+
+/**
+ * Upsert the bill's current committee referral into `state_committee` and
+ * return its id (Phase 1 M2.2). Uses the SAME `"<state>-<chamber>-<slug(name)>"`
+ * scheme `normalize-state-committees.ts` uses for the OpenStates roster path,
+ * so a committee first seen here and later normalized from
+ * `StateLegislator.committees` (or vice versa) converges on one row. A
+ * referral with an unrecognized chamber code resolves to `null` — the id
+ * scheme needs a chamber, and guessing one would be exactly the kind of guess
+ * PD2 forbids.
+ */
+export async function resolveCurrentCommittee(
+  prisma: PrismaClient,
+  state: string,
+  committee: NormalizedStateBill['committee'],
+): Promise<string | null> {
+  if (!committee || !committee.chamber) return null;
+  const id = `${state}-${committee.chamber}-${slugifyCommitteeName(committee.name)}`;
+  await prisma.stateCommittee.upsert({
+    where: { id },
+    create: {
+      id,
+      state,
+      chamber: committee.chamber,
+      name: committee.name,
+      legiscanCommitteeId: committee.legiscanCommitteeId,
+    },
+    update: { name: committee.name, legiscanCommitteeId: committee.legiscanCommitteeId },
+  });
+  return id;
 }
 
 /**
@@ -225,6 +298,8 @@ export async function upsertNormalizedStateBill(
     select: { id: true },
   });
   const isNew = !existing;
+
+  const currentCommitteeId = await resolveCurrentCommittee(prisma, n.state, n.committee);
 
   const billData = {
     state: n.state,
@@ -249,6 +324,7 @@ export async function upsertNormalizedStateBill(
     stateUrl: n.stateUrl,
     legiscanBillId: n.legiscanBillId,
     legiscanChangeHash: n.legiscanChangeHash,
+    currentCommitteeId,
     syncedAt: new Date(),
   };
   await prisma.stateBill.upsert({

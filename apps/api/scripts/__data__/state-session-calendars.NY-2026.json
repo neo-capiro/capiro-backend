@@ -1,0 +1,16 @@
+{
+  "state": "NY",
+  "yearStart": 2026,
+  "convene": "2026-01-07",
+  "crossoverDate": null,
+  "committeeCutoffDate": null,
+  "secondCommitteeCutoffDate": null,
+  "sineDie": "2026-06-04",
+  "calendarSource": "manual",
+  "calendarConfidence": "high",
+  "sourceUrls": [
+    "https://nyassembly.gov/write/upload/leg/session_cal/session_calendar_2026.pdf",
+    "https://www.ncsl.org/about-state-legislatures/2026-state-legislative-session-calendar"
+  ],
+  "notes": "New York has NO codified crossover day and NO committee-cutoff deadline by design — committees run on schedules set by chamber leadership, not statute/rule. sineDie is the last officially scheduled session day per the published calendar; actual floor adjournment ran past midnight into 2026-06-05 in both chambers, but the calendar's own last scheduled day is used as the deterministic value rather than the informal overrun."
+}

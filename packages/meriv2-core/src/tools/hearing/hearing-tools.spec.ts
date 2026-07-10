@@ -11,6 +11,11 @@ const ctx: MeriContext = {
   role: 'member' as never,
 };
 
+/** None of these hearing tools use schema-forced completion — a fake that throws if ever called. */
+const completeWithSchema: LlmClient['completeWithSchema'] = async () => {
+  throw new Error('completeWithSchema not used in this test');
+};
+
 describe('llm-client helpers', () => {
   it('parses JSON from a fenced code block', () => {
     expect(parseJsonObject('```json\n{"a":1}\n```')).toEqual({ a: 1 });
@@ -37,6 +42,7 @@ describe('tag_live_policy_mentions tool', () => {
       issueTags: ['funding'],
       summaryCard: { cardType: 'bill_mention', title: 'H.R. 1 discussed' },
     }),
+    completeWithSchema,
   };
 
   it('normalizes the LLM output into a structured result', async () => {
@@ -59,6 +65,7 @@ describe('tag_live_policy_mentions tool', () => {
   it('drops malformed entities (no label/type)', async () => {
     const badLlm: LlmClient = {
       completeJson: async () => ({ entityMentions: [{ foo: 'bar' }], issueTags: [] }),
+      completeWithSchema,
     };
     const tool = createTagLivePolicyMentionsTool(badLlm);
     const out = await tool.handler(
@@ -83,6 +90,7 @@ describe('generate_post_hearing_summary tool', () => {
       recommendedNextSteps: ['Send one-pager'],
       draftClientEmail: { subject: 'Recap', body: 'Hi, here is the recap.' },
     }),
+    completeWithSchema,
   };
 
   it('produces the narrative brief sections', async () => {
@@ -103,7 +111,10 @@ describe('generate_post_hearing_summary tool', () => {
   });
 
   it('falls back to action items for next steps when LLM omits them', async () => {
-    const llm: LlmClient = { completeJson: async () => ({ executiveSummary: 'x' }) };
+    const llm: LlmClient = {
+      completeJson: async () => ({ executiveSummary: 'x' }),
+      completeWithSchema,
+    };
     const tool = createGeneratePostHearingSummaryTool(llm);
     const out = await tool.handler(
       { sessionId: 's1', title: 'T', quotes: [], mentions: [], actionItems: ['follow up'] },

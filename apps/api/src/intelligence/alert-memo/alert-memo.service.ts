@@ -1,9 +1,10 @@
 import { Injectable, Logger, ServiceUnavailableException } from '@nestjs/common';
-import type { TenantContext } from '@capiro/shared';
+import { recordAiUsageEvent, parseProviderUsage, type TenantContext } from '@capiro/shared';
 import { AiCredentialResolverService } from '../../engagement/ai-credential-resolver.service.js';
 import { EngagementService } from '../../engagement/engagement.service.js';
 import { MemoryStoreService } from '../../memory/memory-store.service.js';
 import type { MemoryItemType } from '../../memory/memory.types.js';
+import { PrismaService } from '../../prisma/prisma.service.js';
 import { renderMemoDocx, type MemoDocInput } from './alert-memo-docx.js';
 import type {
   AlertMemoAlertInput,
@@ -60,6 +61,7 @@ export class AlertMemoService {
     private readonly credentials: AiCredentialResolverService,
     private readonly memory: MemoryStoreService,
     private readonly engagement: EngagementService,
+    private readonly prisma: PrismaService,
   ) {}
 
   async generate(
@@ -77,9 +79,15 @@ export class AlertMemoService {
 
     let sections: GenSection[] = [];
     let lowConfidence = false;
+    let rawUsage: unknown = null;
     try {
-      const raw = await this.callAnthropic(cred.apiKey, cred.model, buildUserPrompt(alert, clientName, steering, claims));
-      sections = verifyGrounded(parseSections(raw), claims);
+      const { text, raw } = await this.callAnthropic(
+        cred.apiKey,
+        cred.model,
+        buildUserPrompt(alert, clientName, steering, claims),
+      );
+      rawUsage = raw;
+      sections = verifyGrounded(parseSections(text), claims);
     } catch (err) {
       this.logger.warn(`alert-memo generation failed (${(err as Error).message}); using scaffold`);
     }
@@ -87,6 +95,18 @@ export class AlertMemoService {
       sections = scaffold(alert, claims);
       lowConfidence = true;
     }
+
+    await recordAiUsageEvent(
+      { prisma: this.prisma, logger: this.logger },
+      { tenantId: ctx.tenantId, userId: ctx.userId },
+      'alert_memo',
+      {
+        provider: 'anthropic',
+        model: cred.model,
+        usage: parseProviderUsage(rawUsage),
+        usedTenantKey: cred.usedTenantKey,
+      },
+    );
 
     const title = `Client memo — ${alert.billDisplayNum ?? alert.hearingTitle ?? alert.title}`.slice(0, 200);
     const markdown = toMarkdown(title, sections, claims, sources, clientName);
@@ -186,7 +206,11 @@ export class AlertMemoService {
   }
 
   /** The only network call. Direct Anthropic Messages with the resolved per-tenant key. */
-  private async callAnthropic(apiKey: string, model: string, prompt: string): Promise<string> {
+  private async callAnthropic(
+    apiKey: string,
+    model: string,
+    prompt: string,
+  ): Promise<{ text: string; raw: unknown }> {
     const controller = new AbortController();
     const timer = setTimeout(() => controller.abort(), MEMO_TIMEOUT_MS);
     try {
@@ -210,13 +234,14 @@ export class AlertMemoService {
         throw new ServiceUnavailableException(`Anthropic failed: ${JSON.stringify(json).slice(0, 200)}`);
       }
       const content = Array.isArray(json.content) ? json.content : [];
-      return content
+      const text = content
         .map((part) => {
           const r = part && typeof part === 'object' ? (part as Record<string, unknown>) : {};
           return r.type === 'text' && typeof r.text === 'string' ? r.text : '';
         })
         .join('\n')
         .trim();
+      return { text, raw: json };
     } finally {
       clearTimeout(timer);
     }

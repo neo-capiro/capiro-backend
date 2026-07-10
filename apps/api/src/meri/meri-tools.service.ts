@@ -18,6 +18,11 @@ import {
   isStateBillKey,
   parseStateBillDesignation,
   stateBillStatusLabel,
+  deriveRuleLifecycleStage,
+  RULE_LIFECYCLE_STAGES,
+  resolveCommittee,
+  normalizeCommitteeName,
+  type CommitteeCandidate,
 } from '@capiro/shared';
 import type { AppConfig } from '../config/config.schema.js';
 import { EngagementService } from '../engagement/engagement.service.js';
@@ -35,6 +40,7 @@ import {
   type CreateFacilityInput,
 } from '../clients/client-facilities.service.js';
 import { ClientsService } from '../clients/clients.service.js';
+import { RepresentationResolverService } from '../clients/representation-resolver.service.js';
 import { RegulatoryDocketService } from '../regulatory-docket/regulatory-docket.service.js';
 import { MicrosoftGraphSyncService } from '../engagement/microsoft/microsoft-graph-sync.service.js';
 import { LdaIntelService } from '../lda-intel/lda-intel.service.js';
@@ -68,6 +74,13 @@ import { buildKnowledgeGraph, walkFrom, type FkRelation } from '../memory/memory
 import { embedText, vectorLiteral, normalize } from '../embeddings/embedder.js';
 
 const PRODUCT_NAME = 'Meri';
+
+// get_committee_roster (M4.1) title-matching — duplicated from
+// chokepoint.service.ts's (unexported) FEDERAL_*_TITLES rather than shared,
+// matching this codebase's established per-site convention.
+const FEDERAL_ROSTER_CHAIR_TITLES = new Set(['Chair', 'Chairman']);
+const FEDERAL_ROSTER_VICE_CHAIR_TITLES = new Set(['Vice Chair', 'Vice Chairman']);
+const FEDERAL_ROSTER_RANKING_TITLES = new Set(['Ranking Member']);
 
 // Exported for the tool-registration regression spec (meri-tools.registration.spec.ts).
 export const TOOL_DEFINITIONS = [
@@ -184,6 +197,21 @@ export const TOOL_DEFINITIONS = [
     name: 'get_state_legislator',
     description:
       'Look up a state legislator by name + state, or by an OpenStates/LegiScan external id. Returns chamber, district, party, and committee memberships. Explicitly reports ambiguous name matches (asks which one) and NO-match cases — never fabricates a legislator.',
+  },
+  {
+    name: 'get_committee_roster',
+    description:
+      'Get the full roster of ONE committee: chair, vice chair, ranking member, and every member (grouped by side/rank for federal; role for state — state chambers do not share a minority-leadership vocabulary). `jurisdiction` is required (federal and state committees are separate namespaces — never guessed from the committee string alone); `state` is required when jurisdiction=state. Matches by exact systemCode/committee id first, then by name — reports "committee referral unmatched" rather than guessing when the name matches zero or more than one committee.',
+  },
+  {
+    name: 'get_representation',
+    description:
+      "Who represents a client's facility footprint — the federal House member + both senators and the state upper/lower legislators for each of the client's geocoded facilities (optionally filtered to one state). Deterministic join over the geocoded district (District Impact Engine) — never a language-model guess at which district contains an address. Explicitly reports an ungeocoded facility rather than guessing its representative.",
+  },
+  {
+    name: 'get_state_rule_status',
+    description:
+      'Look up ONE rule/notice\'s status and lifecycle stage — state agency register or Federal Register, whichever matches. Accepts an exact id ("FL-31100933", or a Federal Register document number like "2026-01234") or a title keyword; `state` scopes a keyword search to that state\'s register (omit to also search federal + other states). Stage (notice/nprm/comment_closed/final/effective) is derived deterministically from the rule\'s type and comment/effective dates — never guessed. Explicitly reports ambiguous keyword matches (asks which one) and NO-match cases — never fabricates a rule\'s status.',
   },
   {
     name: 'search_intel_articles',
@@ -453,6 +481,7 @@ export class MeriToolsService {
     private readonly clientCapabilities: ClientCapabilitiesService,
     private readonly clientPeople: ClientPeopleService,
     private readonly clientFacilities: ClientFacilitiesService,
+    private readonly representation: RepresentationResolverService,
     private readonly clientKb: ClientKbService,
     private readonly featureFlags: MeriFeatureFlagsService,
     private readonly clients: ClientsService,
@@ -664,6 +693,31 @@ export class MeriToolsService {
           query: str('Legislator name, or an OpenStates/LegiScan external id'),
           state: str('Two-letter state code (recommended when searching by name)'),
           limit: int('Max matches (1-8, default 5)'),
+        },
+        ['query'],
+      ),
+      get_committee_roster: obj(
+        {
+          committee: str('Committee systemCode/id or name, e.g. "Armed Services" or "hsas00"'),
+          jurisdiction: str('"federal" or "state" — required, the two are separate namespaces'),
+          state: str('Two-letter state code — required when jurisdiction=state'),
+          chamber: str('Optional chamber filter: house | senate | upper | lower'),
+        },
+        ['committee', 'jurisdiction'],
+      ),
+      get_representation: obj(
+        {
+          clientId: str('Client UUID'),
+          state: str("Optional two-letter state code to filter to that state's facilities"),
+        },
+        ['clientId'],
+      ),
+      get_state_rule_status: obj(
+        {
+          query: str(
+            'Rule/notice id ("FL-31100933"), a Federal Register document number ("2026-01234"), or a title keyword',
+          ),
+          state: str("Two-letter state code — scopes a keyword search to that state's register"),
         },
         ['query'],
       ),
@@ -1321,6 +1375,12 @@ export class MeriToolsService {
         return this.searchStateFloorVotes(input);
       case 'get_state_legislator':
         return this.getStateLegislator(input);
+      case 'get_committee_roster':
+        return this.getCommitteeRoster(input);
+      case 'get_representation':
+        return this.getRepresentation(ctx, input);
+      case 'get_state_rule_status':
+        return this.getStateRuleStatus(input);
       case 'search_intel_articles':
         return this.searchIntelArticles(input);
       case 'search_committee_hearings':
@@ -3387,6 +3447,373 @@ export class MeriToolsService {
           matchedBy: 'name-search',
         },
       ],
+    };
+  }
+
+  /**
+   * M4.1 (PD3) — "who chairs this committee" without guessing. Federal and
+   * state are separate namespaces (a "Rules" committee exists in both, with
+   * unrelated membership) so `jurisdiction` is required and never inferred
+   * from the committee string alone; reuses the same resolver/query shapes
+   * as `ChokepointService` (M2.4) so this tool and the Chokepoint UI can
+   * never disagree about who a committee's chair is.
+   */
+  private async getCommitteeRoster(input: Record<string, unknown>) {
+    const committeeQuery = optionalString(input, 'committee', 200);
+    const jurisdiction = optionalString(input, 'jurisdiction', 10)?.toLowerCase();
+    const chamber = optionalString(input, 'chamber', 10)?.toLowerCase();
+    const state = optionalString(input, 'state', 2)?.toUpperCase();
+
+    if (!committeeQuery || (jurisdiction !== 'federal' && jurisdiction !== 'state')) {
+      return {
+        tool: 'get_committee_roster',
+        generatedAt: new Date().toISOString(),
+        committee: null,
+        chair: null,
+        viceChair: null,
+        rankingMember: null,
+        members: [],
+        note: 'Provide a committee id/name AND jurisdiction ("federal" or "state") — the two are separate namespaces and cannot be guessed from the name alone.',
+      };
+    }
+    if (jurisdiction === 'state' && !state) {
+      return {
+        tool: 'get_committee_roster',
+        generatedAt: new Date().toISOString(),
+        committee: null,
+        chair: null,
+        viceChair: null,
+        rankingMember: null,
+        members: [],
+        note: 'state is required when jurisdiction=state — state committee ids/names are only unique within a state.',
+      };
+    }
+
+    return jurisdiction === 'federal'
+      ? this.federalCommitteeRoster(committeeQuery, chamber)
+      : this.stateCommitteeRoster(committeeQuery, state!, chamber);
+  }
+
+  private async federalCommitteeRoster(query: string, chamberFilter: string | null | undefined) {
+    const candidates = await this.prisma.congressCommittee.findMany({
+      where: { isCurrent: true, ...(chamberFilter ? { chamber: chamberFilter } : {}) },
+      select: { systemCode: true, name: true, chamber: true, parentSystemCode: true },
+    });
+    const match = resolveCommittee(
+      { committeeName: query, committeeCode: query, chamber: chamberFilter ?? null },
+      candidates as CommitteeCandidate[],
+    );
+    if (!match) {
+      return {
+        tool: 'get_committee_roster',
+        generatedAt: new Date().toISOString(),
+        committee: null,
+        chair: null,
+        viceChair: null,
+        rankingMember: null,
+        members: [],
+        note: `No federal committee matched "${query}"${chamberFilter ? ` in ${chamberFilter}` : ''} — say so explicitly, do not guess.`,
+      };
+    }
+
+    const memberships = await this.prisma.congressCommitteeMembership.findMany({
+      where: { systemCode: match.systemCode },
+      select: { bioguideId: true, side: true, rank: true, title: true },
+    });
+    const members = memberships.length
+      ? await this.prisma.congressMember.findMany({
+          where: { bioguideId: { in: memberships.map((m) => m.bioguideId) } },
+          select: { bioguideId: true, fullName: true, party: true, state: true },
+        })
+      : [];
+    const memberById = new Map(members.map((m) => [m.bioguideId, m]));
+    const roster = memberships
+      .map((m) => {
+        const person = memberById.get(m.bioguideId);
+        if (!person) return null;
+        return {
+          id: m.bioguideId,
+          name: person.fullName,
+          party: person.party,
+          state: person.state,
+          side: m.side,
+          rank: m.rank,
+          title: m.title,
+        };
+      })
+      .filter((m): m is NonNullable<typeof m> => !!m)
+      .sort((a, b) => (a.rank ?? 999) - (b.rank ?? 999));
+
+    const chairEntry = roster.find((m) => FEDERAL_ROSTER_CHAIR_TITLES.has(m.title ?? ''));
+    const viceChairEntry = roster.find((m) => FEDERAL_ROSTER_VICE_CHAIR_TITLES.has(m.title ?? ''));
+    const rankingEntry = roster.find((m) => FEDERAL_ROSTER_RANKING_TITLES.has(m.title ?? ''));
+
+    return {
+      tool: 'get_committee_roster',
+      generatedAt: new Date().toISOString(),
+      committee: {
+        id: match.systemCode,
+        name: match.name,
+        chamber: match.chamber,
+        jurisdiction: 'federal',
+        isSubcommittee: match.parentSystemCode != null,
+        matchedBy: match.matchedBy,
+      },
+      chair: chairEntry ?? null,
+      viceChair: viceChairEntry ?? null,
+      rankingMember: rankingEntry ?? null,
+      members: roster,
+      note: roster.length
+        ? null
+        : 'Committee resolved but no roster rows are synced for it yet — say so explicitly, do not guess membership.',
+    };
+  }
+
+  private async stateCommitteeRoster(
+    query: string,
+    state: string,
+    chamberFilter: string | null | undefined,
+  ) {
+    const candidates = await this.prisma.stateCommittee.findMany({
+      where: { state, ...(chamberFilter ? { chamber: chamberFilter } : {}) },
+      select: { id: true, name: true, chamber: true },
+    });
+    let match: { id: string; name: string; chamber: string | null } | null =
+      candidates.find((c) => c.id.toLowerCase() === query.toLowerCase()) ?? null;
+    let matchedBy: 'id' | 'name' = 'id';
+    if (!match) {
+      const needle = normalizeCommitteeName(query);
+      const nameMatches = candidates.filter((c) => normalizeCommitteeName(c.name) === needle);
+      if (nameMatches.length === 1) {
+        match = nameMatches[0]!;
+        matchedBy = 'name';
+      }
+    }
+    if (!match) {
+      return {
+        tool: 'get_committee_roster',
+        generatedAt: new Date().toISOString(),
+        committee: null,
+        chair: null,
+        viceChair: null,
+        rankingMember: null,
+        members: [],
+        note: `No ${state} committee matched "${query}"${chamberFilter ? ` in the ${chamberFilter} chamber` : ''} — say so explicitly, do not guess.`,
+      };
+    }
+
+    const roster = await this.prisma.stateCommitteeMembership.findMany({
+      where: { committeeId: match.id },
+      select: {
+        role: true,
+        legislator: {
+          select: { id: true, name: true, chamber: true, party: true, district: true },
+        },
+      },
+    });
+    const members = roster.map((r) => ({
+      id: r.legislator.id,
+      name: r.legislator.name,
+      party: r.legislator.party,
+      chamber: r.legislator.chamber,
+      district: r.legislator.district,
+      role: r.role,
+    }));
+    const chairEntry = members.find((m) => /^chair$/i.test((m.role ?? '').trim()));
+    const viceChairEntry = members.find((m) => /^vice[\s-]?chair$/i.test((m.role ?? '').trim()));
+
+    return {
+      tool: 'get_committee_roster',
+      generatedAt: new Date().toISOString(),
+      committee: {
+        id: match.id,
+        name: match.name,
+        chamber: match.chamber,
+        jurisdiction: 'state',
+        matchedBy,
+      },
+      chair: chairEntry ?? null,
+      viceChair: viceChairEntry ?? null,
+      // State chambers do not share a common minority-leadership vocabulary
+      // (survival-heuristic.ts's own documented limitation) — never guessed.
+      rankingMember: null,
+      members,
+      note: members.length
+        ? null
+        : 'Committee resolved but no roster rows are synced for it yet — say so explicitly, do not guess membership.',
+    };
+  }
+
+  /**
+   * M4.2 (PD2/PD7) — "who represents this client's footprint," every
+   * geocoded facility, federal + state. Thin wrap of the District Impact
+   * Engine (M1.3) so Meri and the Client Intelligence "Your representatives"
+   * UI can never disagree — same resolver, same join, no LLM guess at which
+   * district contains an address.
+   */
+  private async getRepresentation(ctx: TenantContext, input: Record<string, unknown>) {
+    const clientId = optionalString(input, 'clientId', 64);
+    const stateFilter = optionalString(input, 'state', 2)?.toUpperCase();
+    if (!clientId) {
+      return {
+        tool: 'get_representation',
+        generatedAt: new Date().toISOString(),
+        facilities: [],
+        note: 'Provide a client UUID.',
+      };
+    }
+
+    const rows = await this.representation.representationForClient(ctx.tenantId, clientId);
+    const filtered = stateFilter ? rows.filter((r) => r.facility.state === stateFilter) : rows;
+
+    return {
+      tool: 'get_representation',
+      generatedAt: new Date().toISOString(),
+      facilities: filtered.map((r) => ({
+        facilityId: r.facility.id,
+        facilityName: r.facility.name,
+        city: r.facility.city,
+        state: r.facility.state,
+        representation: r.representation.unresolved
+          ? { unresolved: true, reason: r.representation.reason }
+          : {
+              federal: {
+                house: r.representation.federal.house,
+                senate: r.representation.federal.senate,
+              },
+              state: { lower: r.representation.state.lower, upper: r.representation.state.upper },
+            },
+      })),
+      note: filtered.length
+        ? null
+        : `No facilities found for this client${stateFilter ? ` in ${stateFilter}` : ''} — say so explicitly, do not guess a representative.`,
+    };
+  }
+
+  /**
+   * M4.2 (PD5/PD8) — rule/notice status + lifecycle stage, both rails. A
+   * `state_rule` id and a `federal_register_document.documentNumber` are
+   * disjoint natural-key formats ("<state>-…" vs "<year>-<seq>"), so an
+   * exact-id lookup can safely try both without risk of collision. Stage is
+   * derived via the SAME `deriveRuleLifecycleStage` the federal Intelligence
+   * aggregate's `regulatoryLifecycle` rail uses (M4.2 extraction into
+   * `@capiro/shared`) — this tool and that UI rail can never disagree.
+   */
+  private async getStateRuleStatus(input: Record<string, unknown>) {
+    const query = optionalString(input, 'query', 200);
+    const state = optionalString(input, 'state', 2)?.toUpperCase();
+    if (!query) {
+      return {
+        tool: 'get_state_rule_status',
+        generatedAt: new Date().toISOString(),
+        found: false,
+        note: 'Provide a rule/notice id ("FL-31100933", a Federal Register document number like "2026-01234"), or a title keyword.',
+      };
+    }
+
+    if (!state) {
+      const fr = await this.prisma.federalRegisterDocument.findUnique({
+        where: { documentNumber: query },
+      });
+      if (fr) return this.formatRuleStatus('federal', fr);
+    }
+    const sr = await this.prisma.stateRule.findUnique({ where: { id: query } });
+    if (sr) return this.formatRuleStatus('state', sr);
+
+    const stateMatches = await this.prisma.stateRule.findMany({
+      where: { title: { contains: query, mode: 'insensitive' }, ...(state ? { state } : {}) },
+      take: 6,
+    });
+    const federalMatches = state
+      ? []
+      : await this.prisma.federalRegisterDocument.findMany({
+          where: { title: { contains: query, mode: 'insensitive' } },
+          take: 6,
+        });
+
+    const total = stateMatches.length + federalMatches.length;
+    if (total === 0) {
+      return {
+        tool: 'get_state_rule_status',
+        generatedAt: new Date().toISOString(),
+        found: false,
+        note: `No rule or notice matched "${query}"${state ? ` in ${state}` : ''}. Say so explicitly — do not describe a rule's status from memory.`,
+      };
+    }
+    if (total > 1) {
+      return {
+        tool: 'get_state_rule_status',
+        generatedAt: new Date().toISOString(),
+        found: false,
+        ambiguousMatches: [
+          ...stateMatches.map((r) => ({
+            id: r.id,
+            title: r.title,
+            jurisdiction: 'state' as const,
+            state: r.state,
+          })),
+          ...federalMatches.map((r) => ({
+            id: r.documentNumber,
+            title: r.title,
+            jurisdiction: 'federal' as const,
+            state: null,
+          })),
+        ],
+        note: `"${query}" matches ${total} rules/notices — ask which one (by id) before describing its status.`,
+      };
+    }
+    return stateMatches.length
+      ? this.formatRuleStatus('state', stateMatches[0]!)
+      : this.formatRuleStatus('federal', federalMatches[0]!);
+  }
+
+  private formatRuleStatus(jurisdiction: 'federal' | 'state', row: Record<string, unknown>) {
+    const ruleType =
+      jurisdiction === 'federal' ? (row.type as string) : ((row.ruleType as string) ?? null);
+    const commentEndDate = (row.commentEndDate as Date | null) ?? null;
+    const effectiveDate = (row.effectiveDate as Date | null) ?? null;
+    const stage = deriveRuleLifecycleStage({
+      documentType: ruleType,
+      commentEndDate,
+      effectiveDate,
+    });
+    const stageLabel = RULE_LIFECYCLE_STAGES.find((s) => s.key === stage)?.label ?? stage;
+
+    const notes: string[] = [];
+    if (stage === 'nprm' && !commentEndDate) {
+      notes.push('No comment-end date on record for this open rule — do not assert a deadline.');
+    }
+
+    return {
+      tool: 'get_state_rule_status',
+      generatedAt: new Date().toISOString(),
+      found: true,
+      jurisdiction,
+      id: jurisdiction === 'federal' ? (row.documentNumber as string) : (row.id as string),
+      title: row.title as string,
+      abstract: (row.abstract as string | null) ?? null,
+      agencyNames:
+        jurisdiction === 'federal' ? (row.agencyNames as string[]) : [row.agency as string],
+      ruleType,
+      stage,
+      stageLabel,
+      publicationDate: row.publicationDate as Date,
+      commentPeriod: {
+        start: jurisdiction === 'state' ? ((row.commentStartDate as Date | null) ?? null) : null,
+        end: commentEndDate,
+        isOpen: stage === 'nprm',
+      },
+      effectiveDate,
+      docketIds:
+        jurisdiction === 'federal'
+          ? (row.docketIds as string[])
+          : [row.docketId as string | null].filter((d): d is string => !!d),
+      sourceUrl:
+        jurisdiction === 'federal'
+          ? ((row.htmlUrl as string | null) ?? (row.pdfUrl as string | null))
+          : (row.sourceUrl as string),
+      linkedBillKeys: jurisdiction === 'state' ? (row.linkedBillKeys as string[]) : [],
+      ...(notes.length ? { note: notes.join(' ') } : {}),
     };
   }
 

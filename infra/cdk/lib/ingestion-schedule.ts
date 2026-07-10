@@ -88,6 +88,17 @@ export const INGESTION_JOBS: ScheduledIngestionJob[] = [
     tier: 'daily',
     description: 'Federal Register documents (daily)',
   },
+  // ── State Rules & Agency Watch (Phase 1 M3.2) — FL FAR only for v1; the
+  // other 7 priority states need their own feasibility spike (CA is
+  // spike-confirmed NOT feasible — PDF-only, no structured feed).
+  {
+    id: 'SyncStateRegisterFl',
+    command: ['sync-state-register'],
+    cron: { minute: '45', hour: '6' },
+    tier: 'daily',
+    description:
+      'Florida Administrative Register notices (daily) — set STATE_REGISTER_STATES=FL out-of-band',
+  },
   {
     id: 'SyncRegulations',
     command: ['sync-regulations'],
@@ -203,6 +214,14 @@ export const INGESTION_JOBS: ScheduledIngestionJob[] = [
     description:
       'State legislators/committees only (weekly Mon) — LegiScan is the bill spine now (DD2)',
   },
+  {
+    id: 'NormalizeStateCommittees',
+    command: ['normalize-state-committees'],
+    cron: { minute: '30', hour: '8', weekDay: 'MON' },
+    tier: 'weekly',
+    description:
+      'Roster normalization (Phase 1 M2.2) — state_legislator.committees Json into state_committee/state_committee_membership rows, after sync-openstates',
+  },
   // ── State Legislation Platform (Phase 0 S1) — LegiScan bill spine ─────────
   // Priority-state vs wide-sweep masterlist rules share `command`; the actual
   // LEGISCAN_STATES env split is applied on the rule's containerOverrides
@@ -247,6 +266,27 @@ export const INGESTION_JOBS: ScheduledIngestionJob[] = [
     tier: 'derived',
     description:
       'intelligence_change rows for material state_bill status transitions (dashboard/changes-inbox rail, DD4) — after derive-state-bill-status',
+  },
+  // Phase 1 M5.1 — Tier-2 agentic worker (targeting-brief mode). Staggered a
+  // full hour after the 0/6 derive-chain cycle (derive-bill-status :40,
+  // derive-state-bill-status :50, emit-state-changes :55) so chokepoint/
+  // status truth is fresh before the worker reads it.
+  {
+    id: 'RunIntelWorkflows',
+    command: ['run-intel-workflows', '--commit'],
+    cron: { minute: '10', hour: '1,7,13,19' },
+    tier: 'derived',
+    description:
+      'Tier-2 agentic worker (M5.1/M5.2 targeting-brief) — polls recent high-severity bill/state_bill alerts, one hour after the derive chain',
+  },
+  // ── District Impact Engine (Phase 1 M1) ────────────────────────────────────
+  {
+    id: 'GeocodeFacilities',
+    command: ['geocode-facilities'],
+    cron: { minute: '15', hour: '4' },
+    tier: 'daily',
+    description:
+      'Census Geocoder backfill for client facilities (keyless, low volume — federal CD + both state legislative chambers in one call per facility)',
   },
   {
     id: 'SyncSecEdgar',

@@ -36,11 +36,19 @@ const clientRepo = {
 
 const auditRepo = { record: jest.fn() } as unknown as ApiComplianceAuditRepo;
 
+// Phase 1 M5.0 (H-1): the chat loop meters every round via recordAiUsageEvent,
+// which needs prisma.withTenant/withSystem. A no-op fake is enough here — the
+// metering write itself is unit-tested in @capiro/shared's own spec.
+const fakePrisma = {
+  withTenant: async (_tenantId: string, fn: (tx: unknown) => Promise<unknown>) => fn({}),
+  withSystem: async (fn: (tx: unknown) => Promise<unknown>) => fn({}),
+} as never;
+
 function makeService(executor: ApiToolExecutorRepo, approvals?: ApiApprovalRepo) {
   const approvalRepo =
     approvals ?? ({ isApproved: async () => false } as unknown as ApiApprovalRepo);
   const registryService = new MeriRegistryService(clientRepo, executor, approvalRepo, config);
-  return new ChatAssistantService(registryService, config, auditRepo);
+  return new ChatAssistantService(registryService, config, auditRepo, fakePrisma);
 }
 
 const anthropic = (content: unknown[], stop_reason: string) => ({

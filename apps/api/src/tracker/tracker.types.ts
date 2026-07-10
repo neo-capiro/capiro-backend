@@ -20,6 +20,7 @@ export const ALERT_TRIGGERS: readonly string[] = [
   'fiscalNote',
   'sponsorMomentum',
   'companion',
+  'deadline',
 ];
 
 export const DEFAULT_TRIGGERS: readonly string[] = [

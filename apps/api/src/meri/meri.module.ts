@@ -7,6 +7,7 @@ import { ProgramElementModule } from '../program-element/program-element.module.
 import { AcquisitionPersonnelModule } from '../acquisition-personnel/acquisition-personnel.module.js';
 import { IntelligenceModule } from '../intelligence/intelligence.module.js';
 import { ClientsModule } from '../clients/clients.module.js';
+import { RepresentationModule } from '../clients/representation.module.js';
 import { RegulatoryDocketModule } from '../regulatory-docket/regulatory-docket.module.js';
 import { EmbeddingsModule } from '../embeddings/embeddings.module.js';
 import { MemoryModule } from '../memory/memory.module.js';
@@ -35,6 +36,7 @@ import { MeriV2ChatClient } from './meriv2-chat.client.js';
     AcquisitionPersonnelModule,
     IntelligenceModule,
     ClientsModule,
+    RepresentationModule,
     RegulatoryDocketModule,
     EmbeddingsModule,
     MemoryModule,

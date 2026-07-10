@@ -7,7 +7,7 @@ import { buildAlert, type AlertBuildResult } from '@capiro/shared';
  * apps/intel-api/src/feed/feed.service.ts.
  */
 
-export type FeedSourceType = 'bill' | 'hearing' | 'combined' | 'state_bill';
+export type FeedSourceType = 'bill' | 'hearing' | 'combined' | 'state_bill' | 'regulation';
 export type FeedSeverity = 'info' | 'notable' | 'critical';
 
 export interface FeedBillEvidence {
@@ -53,6 +53,7 @@ export interface FeedEvidence {
 
 export type RecommendedActionKind =
   | 'draft_memo'
+  | 'district_brief'
   | 'draft_outreach'
   | 'pull_quotes'
   | 'add_to_report'
@@ -149,6 +150,7 @@ export const SOURCE_LABEL: Record<FeedSourceType, string> = {
   hearing: 'Hearing',
   combined: 'Bill + Hearing',
   state_bill: 'State bill',
+  regulation: 'Regulation',
 };
 
 /**
