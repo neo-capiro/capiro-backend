@@ -27,6 +27,15 @@ const STATUS_COLOR: Record<BillingStatus, string> = {
   comped: 'gold',
 };
 
+interface ManagedImportRow {
+  tenantId: string;
+  name: string;
+  slug: string;
+  importStatus: 'none' | 'waiting' | 'verifying' | 'done';
+  clientCount: number;
+  createdAt: string;
+}
+
 const money = (n: number) => `$${n.toLocaleString(undefined, { maximumFractionDigits: 2 })}`;
 
 /**
@@ -60,10 +69,29 @@ export function CustomersPage() {
     onError: (err) => message.error((err as Error).message),
   });
 
+  // Capiro-managed (white-glove) client imports awaiting completion.
+  const managedImports = useQuery<ManagedImportRow[]>({
+    queryKey: ['admin', 'managed-imports'],
+    queryFn: async () =>
+      (await api.get<ManagedImportRow[]>('/onboard-api/admin/setup/managed-imports')).data,
+  });
+
+  const markImportComplete = useMutation({
+    mutationFn: async (tenantId: string) =>
+      (await api.post(`/onboard-api/admin/setup/tenants/${tenantId}/mark-import-complete`)).data,
+    onSuccess: () => {
+      message.success('Client import marked complete');
+      qc.invalidateQueries({ queryKey: ['admin', 'managed-imports'] });
+    },
+    onError: (err) => message.error((err as Error).message),
+  });
+
   const rows = customers.data ?? [];
   const totalMrr = rows.reduce((sum, r) => sum + r.mrrUsd, 0);
   const totalOverage = rows.reduce((sum, r) => sum + r.llmOverageUsd, 0);
   const payingCount = rows.filter((r) => r.mrrUsd > 0).length;
+  const managedRows = managedImports.data ?? [];
+  const pendingManaged = managedRows.filter((r) => r.importStatus !== 'done');
 
   return (
     <Space direction="vertical" size={16} style={{ width: '100%' }}>
@@ -73,6 +101,72 @@ export function CustomersPage() {
           <Statistic title="Monthly recurring revenue" value={money(totalMrr)} />
           <Statistic title="Overage (this period)" value={money(totalOverage)} />
         </Space>
+      </Card>
+
+      <Card
+        title="Capiro-managed client imports"
+        extra={
+          pendingManaged.length > 0 ? (
+            <Tag color="gold">{pendingManaged.length} awaiting completion</Tag>
+          ) : null
+        }
+      >
+        <Typography.Paragraph type="secondary" style={{ marginTop: -4 }}>
+          Firms that chose white-glove import. Once you've added a firm's clients, mark it complete
+          to unblock their “Invite your team” step on the setup dashboard.
+        </Typography.Paragraph>
+        <Table<ManagedImportRow>
+          rowKey="tenantId"
+          loading={managedImports.isLoading}
+          dataSource={managedRows}
+          pagination={false}
+          locale={{ emptyText: 'No Capiro-managed imports' }}
+          columns={[
+            {
+              title: 'Tenant',
+              dataIndex: 'name',
+              render: (name, r) => (
+                <span>
+                  {name} <Typography.Text type="secondary">/{r.slug}</Typography.Text>
+                </span>
+              ),
+            },
+            {
+              title: 'Clients added',
+              dataIndex: 'clientCount',
+              width: 130,
+            },
+            {
+              title: 'Import step',
+              dataIndex: 'importStatus',
+              width: 130,
+              render: (s: ManagedImportRow['importStatus']) =>
+                s === 'done' ? (
+                  <Tag color="green">complete</Tag>
+                ) : (
+                  <Tag color="gold">in progress</Tag>
+                ),
+            },
+            {
+              title: 'Action',
+              width: 180,
+              render: (_v, r) =>
+                r.importStatus === 'done' ? (
+                  <Typography.Text type="secondary">—</Typography.Text>
+                ) : (
+                  <Popconfirm
+                    title="Mark client import complete?"
+                    description={`This unblocks ${r.name}'s team-invite step. Do this only after their clients are added.`}
+                    onConfirm={() => markImportComplete.mutate(r.tenantId)}
+                  >
+                    <Button size="small" type="primary">
+                      Mark import complete
+                    </Button>
+                  </Popconfirm>
+                ),
+            },
+          ]}
+        />
       </Card>
 
       <Card title="Customers">

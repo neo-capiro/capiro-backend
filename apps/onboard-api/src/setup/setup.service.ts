@@ -333,4 +333,109 @@ export class SetupService {
     }
     return this.getState(ctx);
   }
+
+  // ---------------------------------------------------------------------------
+  // Capiro-admin: managed-import completion (capiro_admin only — controller-gated)
+  // ---------------------------------------------------------------------------
+
+  /** Every Capiro-managed (white-glove) onboarding tenant, with its import
+   *  step status + how many clients Capiro has added so far. */
+  async adminListManagedImports(): Promise<
+    Array<{
+      tenantId: string;
+      name: string;
+      slug: string;
+      importStatus: OnboardTaskStatus;
+      clientCount: number;
+      createdAt: string;
+    }>
+  > {
+    const tenants = await this.prisma.withSystem((tx) =>
+      tx.tenant.findMany({
+        where: { onboardingFlowVersion: 1, importMode: 'managed' },
+        select: { id: true, name: true, slug: true, createdAt: true },
+        orderBy: { createdAt: 'desc' },
+      }),
+    );
+    if (tenants.length === 0) return [];
+    const ids = tenants.map((t) => t.id);
+    const [taskRows, clientCounts] = await Promise.all([
+      this.prisma.onboardSetupTask.findMany({
+        where: { tenantId: { in: ids }, task: 'import' },
+        select: { tenantId: true, status: true },
+      }),
+      this.prisma.withSystem((tx) =>
+        tx.client.groupBy({
+          by: ['tenantId'],
+          where: { tenantId: { in: ids }, status: { not: 'archived' } },
+          _count: { _all: true },
+        }),
+      ),
+    ]);
+    const statusByTenant = new Map(taskRows.map((r) => [r.tenantId, r.status]));
+    const countByTenant = new Map(clientCounts.map((c) => [c.tenantId, c._count._all]));
+    return tenants.map((t) => ({
+      tenantId: t.id,
+      name: t.name,
+      slug: t.slug,
+      importStatus: statusByTenant.get(t.id) ?? 'none',
+      clientCount: countByTenant.get(t.id) ?? 0,
+      createdAt: t.createdAt.toISOString(),
+    }));
+  }
+
+  /**
+   * Capiro staff mark a managed tenant's client import complete (once they've
+   * added the clients). Flips onboard_setup_task.import → done, which unblocks
+   * the tenant's "Invite your team" step on the external dashboard. Scoped to
+   * managed tenants so it can't silently complete a self-serve firm's import.
+   */
+  async adminMarkImportComplete(
+    tenantId: string,
+    actor?: string,
+  ): Promise<{ ok: true; status: 'done' }> {
+    const tenant = await this.prisma.withSystem((tx) =>
+      tx.tenant.findUnique({
+        where: { id: tenantId },
+        select: { importMode: true, onboardingFlowVersion: true },
+      }),
+    );
+    if (!tenant || tenant.onboardingFlowVersion !== 1) {
+      throw new NotFoundException('Onboarding tenant not found');
+    }
+    if (tenant.importMode !== 'managed') {
+      throw new BadRequestException('This tenant is not on Capiro-managed import');
+    }
+    const res = await this.prisma.onboardSetupTask.updateMany({
+      where: { tenantId, task: 'import', status: { not: 'done' } },
+      data: { status: 'done', completedBy: actor ?? 'capiro-admin', completedAt: new Date() },
+    });
+    if (res.count === 0) {
+      // Idempotent: create the row only if it's genuinely missing (otherwise
+      // it was already done — a no-op).
+      const existing = await this.prisma.onboardSetupTask.findFirst({
+        where: { tenantId, task: 'import' },
+      });
+      if (!existing) {
+        await this.prisma.onboardSetupTask.create({
+          data: {
+            tenantId,
+            task: 'import',
+            status: 'done',
+            completedBy: actor ?? 'capiro-admin',
+            completedAt: new Date(),
+          },
+        });
+      }
+    }
+    await this.prisma.onboardBillingEvent
+      .create({
+        data: { tenantId, type: 'managed_import_completed', data: {}, actor: actor ?? null },
+      })
+      .catch(() => undefined);
+    this.logger.log(
+      `Managed import marked complete for tenant ${tenantId} by ${actor ?? 'capiro-admin'}`,
+    );
+    return { ok: true, status: 'done' };
+  }
 }

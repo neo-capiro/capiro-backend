@@ -405,22 +405,16 @@ export function SetupDashboardPage() {
           )}
         </TaskCard>
 
-        {/* Task 2 — Import client profiles. Capiro-managed tenants don't
-            self-import: our team adds their clients, so the card explains that
-            and offers a "mark complete" unblock (final trigger pending Lia). */}
+        {/* Task 2 — Import client profiles. Capiro-managed is EXCLUSIVELY a
+            Capiro-run path: no customer self-import, no "mark complete" here.
+            The card is informational; a Capiro team member marks it done from
+            the admin panel once the clients are in (that flips tasks.import). */}
         {managedImport ? (
           <TaskCard
             num="2"
             title="Import client profiles"
             status={tasks.import}
-            desc="Capiro-managed — our team is importing your client portfolio for you."
-            action={
-              tasks.import === 'done' ? null : (
-                <Btn variant="primary" size="sm" onClick={() => void transitionToDone('import')}>
-                  Mark complete
-                </Btn>
-              )
-            }
+            desc="Capiro-managed — our team adds your clients for you."
           >
             <div style={{ fontSize: 12.5, color: 'var(--ink-2)', lineHeight: 1.55 }}>
               {tasks.import === 'done' ? (
@@ -438,19 +432,8 @@ export function SetupDashboardPage() {
                 </span>
               ) : (
                 <>
-                  You chose white-glove import — Capiro is adding your clients ({S.imported} in so
-                  far). Once they're all in, mark this step complete to unlock team invites, or{' '}
-                  <a
-                    href="#"
-                    onClick={(e) => {
-                      e.preventDefault();
-                      setOverlay('import');
-                    }}
-                    style={{ color: 'var(--accent)', fontWeight: 600 }}
-                  >
-                    add some yourself
-                  </a>
-                  .
+                  Capiro will reach out via email within 1 business day to gather your client list.
+                  This step will be marked completed once your clients have been added.
                 </>
               )}
             </div>
