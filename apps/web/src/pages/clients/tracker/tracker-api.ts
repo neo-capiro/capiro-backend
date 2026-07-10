@@ -27,6 +27,8 @@ export interface BoardBill {
   // only the intel board (adaptBoard) populates it; the legacy board omits it.
   hearingCount?: number;
   lastHearingSessionId?: string | null;
+  /** State Legislation Platform (S7.2) — 2-letter state code; absent/'US' = federal. */
+  jurisdiction?: string;
 }
 export interface BoardColumn {
   id: BillStage;
@@ -60,6 +62,8 @@ export interface RecommendationBill {
   sponsorName: string | null;
   sponsorParty: string | null;
   cosponsorsCount: number;
+  /** State Legislation Platform (S7.2) — 2-letter state code; absent/'US' = federal. */
+  jurisdiction?: string;
 }
 export interface RecommendationsResponse {
   recommendations: RecommendationBill[];
@@ -145,6 +149,14 @@ export interface WatchlistPayload {
    * as a pre-selection suggestion. Not a persisted field — a read-time hint.
    */
   suggestedIssueAreas?: string[];
+  /**
+   * State Legislation Platform (S7.2, DD5) — 2-letter state codes this client's
+   * watchlist also matches against. Empty/absent = federal-only (unchanged
+   * default behavior).
+   */
+  jurisdictions?: string[];
+  /** Sector/facility-derived jurisdiction suggestion (S5.1) — same read-time-hint posture as suggestedIssueAreas. */
+  suggestedJurisdictions?: string[];
 }
 
 export type Materiality = 'low' | 'medium' | 'high';
@@ -162,6 +174,8 @@ export interface AlertPrefsPayload {
   smsCadence: SmsCadence;
   quietHoursStart: string | null;
   quietHoursEnd: string | null;
+  /** State Legislation Platform (S7.1, DD5) — empty = ALL jurisdictions the client's watchlist produces. */
+  jurisdictions?: string[];
 }
 
 export interface BillSearchResult {

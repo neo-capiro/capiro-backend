@@ -55,6 +55,8 @@ const ASSISTANT_TOOLS = new Set<string>([
   'search_acquisition_personnel',
   'get_acquisition_person',
   'query_economic_data',
+  'search_state_bills',
+  'get_state_bill_status',
 ]);
 
 /** Friendly label for a tool name, for the editor's thought-process view. */
@@ -84,6 +86,8 @@ function toolLabel(tool: string): string {
     search_acquisition_personnel: 'Searched acquisition personnel',
     get_acquisition_person: 'Looked up an acquisition contact',
     query_economic_data: 'Queried economic data',
+    search_state_bills: 'Searched state bills',
+    get_state_bill_status: 'Looked up a state bill status',
   };
   return map[tool] ?? `Ran ${tool}`;
 }

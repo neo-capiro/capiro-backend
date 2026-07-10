@@ -28,7 +28,7 @@ export interface RecommendedAction {
 }
 
 export interface AlertShape {
-  sourceType: string; // 'bill' | 'hearing' | 'combined'
+  sourceType: string; // 'bill' | 'hearing' | 'combined' | 'state_bill'
   severity?: string | null; // 'critical' | 'notable' | 'info'
   sourceRef?: string | null;
   evidence?: unknown;
@@ -43,13 +43,20 @@ function sessionIdOf(evidence: unknown): string | undefined {
 
 export function recommendedActionsFor(alert: AlertShape): RecommendedAction[] {
   const meaningful = MEANINGFUL.has((alert.severity ?? '').toLowerCase());
-  const isBill = alert.sourceType === 'bill' || alert.sourceType === 'combined';
+  // State Legislation Platform (S7): a state bill IS a bill for "open the
+  // source" purposes (isBill), but the memo generator's DTO doesn't accept
+  // sourceType='state_bill' yet (apps/api alert-memo.controller.ts @IsIn) —
+  // memo drafting for state bills is out of Phase 0 scope, so it's excluded
+  // below rather than offering a chip that 400s.
+  const isBill =
+    alert.sourceType === 'bill' || alert.sourceType === 'combined' || alert.sourceType === 'state_bill';
   const isHearing = alert.sourceType === 'hearing' || alert.sourceType === 'combined';
+  const canMemo = alert.sourceType !== 'state_bill';
   const sessionId = sessionIdOf(alert.evidence);
 
   const actions: RecommendedAction[] = [];
   // Memo — primary on meaningful alerts, still offered (non-primary) on routine ones.
-  actions.push({ kind: 'draft_memo', label: 'Draft client memo', primary: meaningful });
+  if (canMemo) actions.push({ kind: 'draft_memo', label: 'Draft client memo', primary: meaningful });
   // Hearing-specific: jump to / copy the matched quotes.
   if (isHearing) actions.push({ kind: 'pull_quotes', label: 'Pull key quotes' });
   // Outreach: turn the development into a note to the Hill / client.

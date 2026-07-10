@@ -72,6 +72,8 @@ interface IntelBoardCard {
   lastHearingSessionId?: string | null;
   lastHearingAt?: string | null;
   hearingCount?: number;
+  /** State Legislation Platform (S7.2) — 2-letter state code; absent/'US' = federal. */
+  jurisdiction?: string;
 }
 interface IntelBoard {
   columns: Array<{ id: BillStage; label: string; cards: IntelBoardCard[] }>;
@@ -92,6 +94,8 @@ interface IntelRec {
   why: string;
   whyKind: MatchReasonKind;
   matchReasons: MatchReason[];
+  /** State Legislation Platform (S7.2) — 2-letter state code; absent/'US' = federal. */
+  jurisdiction?: string;
 }
 interface IntelWatchlist {
   clientId: string;
@@ -105,6 +109,10 @@ interface IntelWatchlist {
   }>;
   /** P6 sector-default suggestion (set only when the client has no persisted watchlist). */
   suggestedIssueAreas?: string[];
+  /** State Legislation Platform (DD5) — empty = federal-only. */
+  jurisdictions?: string[];
+  /** Facility-derived jurisdiction suggestion (S5.1), same posture as suggestedIssueAreas. */
+  suggestedJurisdictions?: string[];
 }
 interface IntelAlertPrefs {
   triggers?: string[];
@@ -118,6 +126,8 @@ interface IntelAlertPrefs {
   smsCadence?: string;
   quietHoursStart?: string | null;
   quietHoursEnd?: string | null;
+  /** State Legislation Platform (DD5) — empty = ALL jurisdictions the client's watchlist produces. */
+  jurisdictions?: string[];
 }
 
 const CRITICAL_CHANGE_TYPES = ['bill_enacted', 'bill_to_president', 'bill_failed'];
@@ -144,6 +154,7 @@ export function adaptBoard(b: IntelBoard): BoardResponse {
       change: changeChipToChange(c.changeChip),
       hearingCount: c.hearingCount ?? 0,
       lastHearingSessionId: c.lastHearingSessionId ?? null,
+      jurisdiction: c.jurisdiction,
     }));
     return { id: col.id, label: col.label, count: bills.length, bills };
   });
@@ -171,6 +182,7 @@ export function adaptRecs(items: IntelRec[]): RecommendationsResponse {
     sponsorName: r.sponsorName ?? null,
     sponsorParty: r.sponsorParty ?? null,
     cosponsorsCount: r.cosponsorsCount ?? 0,
+    jurisdiction: r.jurisdiction,
   }));
   return {
     recommendations,
@@ -210,6 +222,11 @@ export function adaptWatchlist(w: IntelWatchlist): WatchlistPayload {
   if (w.suggestedIssueAreas && w.suggestedIssueAreas.length) {
     payload.suggestedIssueAreas = w.suggestedIssueAreas;
   }
+  // State Legislation Platform (DD5) — empty = federal-only (unchanged default).
+  payload.jurisdictions = w.jurisdictions ?? [];
+  if (w.suggestedJurisdictions && w.suggestedJurisdictions.length) {
+    payload.suggestedJurisdictions = w.suggestedJurisdictions;
+  }
   return payload;
 }
 
@@ -217,6 +234,7 @@ export function adaptWatchlist(w: IntelWatchlist): WatchlistPayload {
 export function watchlistToIntel(w: WatchlistPayload) {
   return {
     issueAreas: w.issueAreas,
+    jurisdictions: w.jurisdictions ?? [],
     topics: w.tags.map((t) => ({
       label: t.tag,
       issueArea: t.issueArea ?? null,
@@ -247,6 +265,7 @@ export function adaptPrefs(p: IntelAlertPrefs): AlertPrefsPayload {
     smsCadence: (p.smsCadence as AlertPrefsPayload['smsCadence']) ?? 'realtime',
     quietHoursStart: p.quietHoursStart ?? null,
     quietHoursEnd: p.quietHoursEnd ?? null,
+    jurisdictions: p.jurisdictions ?? [],
   };
 }
 
@@ -263,6 +282,7 @@ export function prefsToIntel(p: AlertPrefsPayload) {
     smsCadence: p.smsCadence,
     quietHoursStart: p.quietHoursStart,
     quietHoursEnd: p.quietHoursEnd,
+    jurisdictions: p.jurisdictions ?? [],
   };
 }
 

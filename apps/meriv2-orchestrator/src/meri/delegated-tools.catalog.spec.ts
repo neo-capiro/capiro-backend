@@ -33,13 +33,15 @@ const EXPECTED_IN_EDITOR_TOOLS = [
   'search_acquisition_personnel',
   'get_acquisition_person',
   'query_economic_data',
+  'search_state_bills',
+  'get_state_bill_status',
 ].sort();
 
 describe('IN_EDITOR_DELEGATED_TOOLS catalog', () => {
-  it('matches the apps/api in-editor allowlist exactly (24 tools)', () => {
+  it('matches the apps/api in-editor allowlist exactly (26 tools)', () => {
     const names = IN_EDITOR_DELEGATED_TOOLS.map((t) => t.name).sort();
     expect(names).toEqual(EXPECTED_IN_EDITOR_TOOLS);
-    expect(IN_EDITOR_DELEGATED_TOOLS).toHaveLength(24);
+    expect(IN_EDITOR_DELEGATED_TOOLS).toHaveLength(26);
   });
 
   it('is ALL read-only (no write tool delegated on the read surface)', () => {

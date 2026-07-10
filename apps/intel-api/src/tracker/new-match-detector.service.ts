@@ -1,4 +1,5 @@
 import { Injectable, Logger } from '@nestjs/common';
+import { isStateBillKey } from '@capiro/shared';
 import { PrismaService } from '../prisma/prisma.service.js';
 import { TrackerBoardService, type RecommendationItem } from './tracker-board.service.js';
 import { NEW_MATCH_CLASS, severityToMateriality } from './change-detector.util.js';
@@ -129,7 +130,8 @@ export class NewMatchDetectorService {
       actionDate: rec.latestActionDate,
       matchedTags: rec.matchedTags,
     });
-    const url = this.billUrl(rec.billId);
+    const isState = isStateBillKey(rec.billId);
+    const url = this.billUrl(rec.billId, rec.stateUrl, rec.url);
     try {
       await this.prisma.withTenant(tenantId, async (tx) => {
         await tx.billMatch.create({
@@ -139,14 +141,16 @@ export class NewMatchDetectorService {
             billId: rec.billId,
             fit: rec.fit,
             matchedTags: rec.matchedTags,
-            congress: this.congressOf(rec.billId),
+            congress: isState ? null : this.congressOf(rec.billId),
+            jurisdiction:
+              rec.jurisdiction ?? (isState ? rec.billId.split('-')[0]!.toUpperCase() : 'US'),
           },
         });
         await tx.intelAlert.create({
           data: {
             tenantId,
             clientId,
-            sourceType: 'bill',
+            sourceType: isState ? 'state_bill' : 'bill',
             sourceRef: rec.billId,
             watchlistId: `wl:${clientId}`,
             kind: cls.changeType,
@@ -175,6 +179,7 @@ export class NewMatchDetectorService {
               triggerKey: cls.triggerKey,
               billTitle: rec.title,
               displayNum: rec.displayNum,
+              jurisdiction: rec.jurisdiction ?? 'US',
             },
             status: 'new',
           },
@@ -193,8 +198,18 @@ export class NewMatchDetectorService {
     return Number.isFinite(n) && n > 0 ? Math.floor(n) : 0;
   }
 
-  /** Canonical congress.gov bill URL from "119-hr-1234"; null for unknown bill types. */
-  private billUrl(billId: string): string | null {
+  /**
+   * Canonical deep link. A state bill (S5.1) prefers the hydrated row's
+   * official `stateUrl`, falling back to the LegiScan/OpenStates `url` —
+   * never a synthesized congress.gov slug. Congress bills keep the existing
+   * synthesis from the id alone (no stored URL needed).
+   */
+  private billUrl(
+    billId: string,
+    stateUrl?: string | null,
+    sourceUrl?: string | null,
+  ): string | null {
+    if (isStateBillKey(billId)) return stateUrl ?? sourceUrl ?? null;
     const [c, type, num] = billId.split('-');
     if (!c || !type || !num) return null;
     const slug: Record<string, string> = {

@@ -10,6 +10,11 @@ on:
     paths:
       - 'packages/meriv2-core/**'
       - 'apps/meriv2-orchestrator/**'
+      # State Legislation Platform S6.4 CI-gap closure: deriveBillStatus and
+      # deriveStateBillStatus both live in packages/shared — a shared-only
+      # change could break either eval's mechanism test without the gate
+      # firing on that PR.
+      - 'packages/shared/**'
       - '.github/workflows/meriv2-evals.yml'
 
 permissions:

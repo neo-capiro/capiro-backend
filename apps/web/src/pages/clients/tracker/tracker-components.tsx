@@ -43,6 +43,17 @@ export function ChangeChip({ change }: { change: BoardBill['change'] }) {
   );
 }
 
+/**
+ * State Legislation Platform (S7.2) — jurisdiction pill for a board/rec card.
+ * Absent or 'US' = federal, rendered as nothing (the board is jurisdiction-mixed
+ * only once a client's watchlist opts into state jurisdictions, DD5). Reuses the
+ * same `.state-pill` class as the Data Explorer state-bill/legislator columns.
+ */
+export function JurisdictionPill({ jurisdiction }: { jurisdiction?: string }) {
+  if (!jurisdiction || jurisdiction === 'US') return null;
+  return <span className="state-pill num">{jurisdiction}</span>;
+}
+
 export function BillCard({
   bill,
   issueSet,
@@ -64,6 +75,7 @@ export function BillCard({
     <div className={`bcard${justLanded ? ' just-landed' : ''}`} onClick={() => onOpen(bill)}>
       <div className="b-top">
         <span className="b-num">{bill.displayNum}</span>
+        <JurisdictionPill jurisdiction={bill.jurisdiction} />
         {bill.unread && <span className="b-unread" title="Unseen change" />}
         <span className="grow" />
         {bill.change && (
@@ -194,6 +206,7 @@ export function RecCard({
           <span className="r-num" onClick={() => onOpen(bill)} style={{ cursor: 'pointer' }}>
             {bill.displayNum}
           </span>
+          <JurisdictionPill jurisdiction={bill.jurisdiction} />
         </div>
         <div className="r-title" onClick={() => onOpen(bill)} style={{ cursor: 'pointer' }}>
           {bill.title}

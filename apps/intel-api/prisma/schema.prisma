@@ -61,6 +61,10 @@ model Watchlist {
   // Bill-tracker unification (Phase 2): enabled issue areas carried from the
   // legacy ClientWatchlist.issue_areas. The ONLY column added to this table.
   issueAreas String[]         @default([]) @map("issue_areas")
+  // State Legislation Platform (Phase 0, DD5) — additive, default-preserving:
+  // empty = federal-only (today's behavior, zero migration surprise);
+  // non-null entries also match the state corpus for those states.
+  jurisdictions String[]      @default([]) @map("jurisdictions")
   terms      WatchlistTerm[]
   topics     WatchlistTopic[]
 
@@ -185,15 +189,18 @@ model TrackedBill {
 /// unique key, not the 14-day window). NOT a tracked bill — a candidate the
 /// client has not yet added to the board.
 model BillMatch {
-  id          String   @id @default(cuid())
-  tenantId    String   @map("tenant_id")
-  clientId    String   @map("client_id")
-  billId      String   @map("bill_id")
-  fit         Float
-  matchedTags String[] @map("matched_tags")
-  congress    Int
-  firstSeenAt DateTime @default(now()) @map("first_seen_at")
-  lastFitAt   DateTime @default(now()) @map("last_fit_at")
+  id           String   @id @default(cuid())
+  tenantId     String   @map("tenant_id")
+  clientId     String   @map("client_id")
+  billId       String   @map("bill_id")
+  fit          Float
+  matchedTags  String[] @map("matched_tags")
+  // Nullable (State Legislation Platform, Phase 0) — congress is meaningless
+  // for a state-bill match row. jurisdiction carries 'US' | <state code>.
+  congress     Int?
+  jurisdiction String   @default("US")
+  firstSeenAt  DateTime @default(now()) @map("first_seen_at")
+  lastFitAt    DateTime @default(now()) @map("last_fit_at")
 
   @@unique([clientId, billId])
   @@index([tenantId, clientId])
@@ -265,6 +272,10 @@ model IntelAlertPreference {
   smsCadence       String   @default("realtime") @map("sms_cadence")
   quietHoursStart  String?  @map("quiet_hours_start")
   quietHoursEnd    String?  @map("quiet_hours_end")
+  // State Legislation Platform (Phase 0, DD5) — empty = ALL jurisdictions the
+  // client's watchlist produces (today's behavior: state alerts are already
+  // gated by the watchlist opt-in above, so no one gets state spam by default).
+  jurisdictions    String[] @default([]) @map("jurisdictions")
   createdAt        DateTime @default(now()) @map("created_at")
   updatedAt        DateTime @updatedAt @map("updated_at")
 

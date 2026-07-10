@@ -8,10 +8,12 @@ import type { DelegatedToolSpec } from '@capiro/meriv2-core';
  * (delegated-tools.catalog.spec.ts) asserts the set matches the in-editor
  * allowlist.
  *
- * Scope: exactly the 24 read-only tools the in-editor assistant allows
- * (workspace-assistant.service.ts ASSISTANT_TOOLS). All readOnly:true — no write
- * tool is delegated here (writes must go through the compliance gate before any
- * delegated call, added deliberately when write surfaces are ported).
+ * Scope: exactly the 26 read-only tools the in-editor assistant allows
+ * (workspace-assistant.service.ts ASSISTANT_TOOLS — State Legislation Platform
+ * Phase 0 S6 added search_state_bills + get_state_bill_status). All
+ * readOnly:true — no write tool is delegated here (writes must go through the
+ * compliance gate before any delegated call, added deliberately when write
+ * surfaces are ported).
  */
 export const IN_EDITOR_DELEGATED_TOOLS: readonly DelegatedToolSpec[] = [
   {
@@ -155,6 +157,18 @@ export const IN_EDITOR_DELEGATED_TOOLS: readonly DelegatedToolSpec[] = [
     name: 'query_economic_data',
     description:
       'Query economic indicators from BLS (Bureau of Labor Statistics), Census (ACS district demographics), and BEA (Bureau of Economic Analysis GDP/industry data). Specify data source and parameters like state, district, series, or year.',
+    readOnly: true,
+  },
+  {
+    name: 'search_state_bills',
+    description:
+      'Search state legislature bills (LegiScan is the source of record; OpenStates cross-checks). Filter by state (2-letter code), keyword, subject, session, or canonical STATUS. Returns identifier, title, sponsor, latest action, canonical status, sponsor count, and links. Explicitly reports when NO bill matches.',
+    readOnly: true,
+  },
+  {
+    name: 'get_state_bill_status',
+    description:
+      'Get the authoritative legislative status of ONE state bill (by canonical id "tx-2025-hb1234" or a designation like "TX HB 1234" — state required if not embedded in the designation): its canonical status (introduced/committee/reported/floor/passed_chamber/resolving/to_governor/enacted/vetoed/veto_overridden/failed/dead_by_deadline), recent action timeline, roll-call votes, and companion-bill links with their status. Explicitly states when there is NO recorded vote (never infer passage) and when the bill is dead_by_deadline (session adjourned sine die — dead absent a special session).',
     readOnly: true,
   },
 ] as const;

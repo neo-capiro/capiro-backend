@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { Icon } from './tracker-icons.js';
+import { US_STATE_CODES } from '../facilities-api.js';
 import {
   TERM_TYPES,
   TERM_TYPE_LABELS,
@@ -300,6 +301,7 @@ export function TrackerConfigPanel({
   onRequestVerify,
   onTestAlert,
   typedTermsEnabled = false,
+  jurisdictionsEnabled = false,
 }: {
   allIssueAreas: string[];
   /** LegiWatch v2 (L4): titles the per-user alerts section "Your alerts for [client]". */
@@ -313,9 +315,15 @@ export function TrackerConfigPanel({
   onTestAlert: (channels: ('email' | 'sms' | 'in_app')[]) => void;
   /** Show the 11-type typed-term editor (only persists via intel-api/tracker_v2). */
   typedTermsEnabled?: boolean;
+  /** Show the Jurisdictions selectors (State Legislation Platform, DD4/DD5 — intel-api/tracker_v2 only). */
+  jurisdictionsEnabled?: boolean;
 }) {
   // ── Targeting ──
   const [issues, setIssues] = useState<Set<string>>(() => new Set(watchlist.issueAreas));
+  // State Legislation Platform (S7.2, DD5) — empty = federal-only (unchanged default).
+  const [jurisdictions, setJurisdictions] = useState<Set<string>>(
+    () => new Set(watchlist.jurisdictions ?? []),
+  );
   const [tags, setTags] = useState<WatchlistTag[]>(() =>
     watchlist.tags.map((t) => ({
       ...t,
@@ -339,6 +347,11 @@ export function TrackerConfigPanel({
   const [smsCadence, setSmsCadence] = useState(prefs.smsCadence);
   const [quietStart, setQuietStart] = useState(prefs.quietHoursStart ?? '22:00');
   const [quietEnd, setQuietEnd] = useState(prefs.quietHoursEnd ?? '07:00');
+  // State Legislation Platform (S7.1, DD5) — empty = every jurisdiction the
+  // client's watchlist produces (unchanged default: no per-user narrowing).
+  const [prefJurisdictions, setPrefJurisdictions] = useState<Set<string>>(
+    () => new Set(prefs.jurisdictions ?? []),
+  );
 
   // Debounced autosave (skip the initial mount).
   const wlMounted = useRef(false);
@@ -348,12 +361,17 @@ export function TrackerConfigPanel({
       return;
     }
     const id = window.setTimeout(
-      () => onSaveWatchlist({ issueAreas: Array.from(issues), tags }),
+      () =>
+        onSaveWatchlist({
+          issueAreas: Array.from(issues),
+          tags,
+          jurisdictions: Array.from(jurisdictions),
+        }),
       600,
     );
     return () => window.clearTimeout(id);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [issues, tags]);
+  }, [issues, tags, jurisdictions]);
 
   const prefsMounted = useRef(false);
   useEffect(() => {
@@ -375,6 +393,7 @@ export function TrackerConfigPanel({
           smsCadence,
           quietHoursStart: quietStart || null,
           quietHoursEnd: quietEnd || null,
+          jurisdictions: Array.from(prefJurisdictions),
         }),
       600,
     );
@@ -392,12 +411,25 @@ export function TrackerConfigPanel({
     smsCadence,
     quietStart,
     quietEnd,
+    prefJurisdictions,
   ]);
 
   const toggleIssue = (a: string) =>
     setIssues((s) => {
       const n = new Set(s);
       n.has(a) ? n.delete(a) : n.add(a);
+      return n;
+    });
+  const toggleJurisdiction = (st: string) =>
+    setJurisdictions((s) => {
+      const n = new Set(s);
+      n.has(st) ? n.delete(st) : n.add(st);
+      return n;
+    });
+  const togglePrefJurisdiction = (st: string) =>
+    setPrefJurisdictions((s) => {
+      const n = new Set(s);
+      n.has(st) ? n.delete(st) : n.add(st);
       return n;
     });
   const patchTag = (i: number, t: WatchlistTag) =>
@@ -476,6 +508,9 @@ export function TrackerConfigPanel({
   // (returned by getWatchlist without being persisted). Hide any the user has
   // already selected so the prompt only shows what's still un-added.
   const suggestedAreas = (watchlist.suggestedIssueAreas ?? []).filter((a) => !issues.has(a));
+  // State Legislation Platform (S5.1) — facility-derived jurisdiction suggestion,
+  // same read-time-hint posture as suggestedAreas (never auto-selected).
+  const suggestedJ = (watchlist.suggestedJurisdictions ?? []).filter((s) => !jurisdictions.has(s));
 
   const verifySms = () => onRequestVerify(smsPhone, () => setSmsVerified(true));
   const testChannels = () => {
@@ -552,6 +587,44 @@ export function TrackerConfigPanel({
             </div>
           </div>
 
+          {jurisdictionsEnabled && (
+            <div className="cfg-block" style={{ marginTop: 22 }}>
+              <div className="cfg-label">Jurisdictions</div>
+              {/* State Legislation Platform (S7.2, DD5): empty = federal legislation
+                  only (unchanged default). Selecting states also matches this
+                  client against those states' bill corpus (LegiScan). */}
+              {suggestedJ.length > 0 && (
+                <div className="cfg-suggest">
+                  <span className="cfg-suggest-txt">
+                    Suggested from this client's facility locations:{' '}
+                    {suggestedJ.map((s) => (
+                      <button key={s} className="suggest-chip" onClick={() => toggleJurisdiction(s)}>
+                        <Icon name="plus" size={11} /> {s}
+                      </button>
+                    ))}
+                  </span>
+                </div>
+              )}
+              <div className="chips-wrap">
+                {US_STATE_CODES.map((s) => (
+                  <button
+                    key={s}
+                    className={`pick-chip${jurisdictions.has(s) ? ' on' : ''}`}
+                    onClick={() => toggleJurisdiction(s)}
+                  >
+                    {jurisdictions.has(s) && <Icon name="check" size={11} />}
+                    {s}
+                  </button>
+                ))}
+              </div>
+              <div className="cfg-help">
+                {jurisdictions.size === 0
+                  ? 'Federal only — no states selected. Bills, hearings, and alerts cover Congress alone.'
+                  : `Federal + ${jurisdictions.size} state${jurisdictions.size === 1 ? '' : 's'}: this client's board, recommendations, and alerts also cover those states' legislatures.`}
+              </div>
+            </div>
+          )}
+
           <div className="cfg-block" style={{ marginTop: 22 }}>
             <div className="cfg-label">Client tags &amp; watchlist</div>
             {/* LegiWatch v2 (L4): explain priority vs position inline (Gherkin U6). */}
@@ -616,6 +689,46 @@ export function TrackerConfigPanel({
               ))}
             </div>
           </div>
+
+          {/* State Legislation Platform (S7.1, DD5): only shown once the client's
+              watchlist actually covers state jurisdictions — otherwise there is
+              nothing for a per-user filter to narrow. Empty selection = every
+              jurisdiction the watchlist produces (unchanged default). */}
+          {jurisdictionsEnabled && jurisdictions.size > 0 && (
+            <div className="cfg-block" style={{ marginTop: 22 }}>
+              <div className="cfg-label">Jurisdictions</div>
+              <div className="chips-wrap">
+                {/* 'US' (federal) is its own explicit entry, not an implicit
+                    carve-out — a non-empty selection means EXACTLY these
+                    entries, so a user narrowing to one state must also pick
+                    Federal to keep getting federal alerts too. */}
+                <button
+                  className={`pick-chip${prefJurisdictions.has('US') ? ' on' : ''}`}
+                  onClick={() => togglePrefJurisdiction('US')}
+                >
+                  {prefJurisdictions.has('US') && <Icon name="check" size={11} />}
+                  Federal
+                </button>
+                {Array.from(jurisdictions)
+                  .sort()
+                  .map((s) => (
+                    <button
+                      key={s}
+                      className={`pick-chip${prefJurisdictions.has(s) ? ' on' : ''}`}
+                      onClick={() => togglePrefJurisdiction(s)}
+                    >
+                      {prefJurisdictions.has(s) && <Icon name="check" size={11} />}
+                      {s}
+                    </button>
+                  ))}
+              </div>
+              <div className="cfg-help">
+                {prefJurisdictions.size === 0
+                  ? "Alerts for every jurisdiction this client's watchlist covers (federal + all selected states)."
+                  : `Alerts limited to exactly: ${Array.from(prefJurisdictions).sort().join(', ')}. Unchecked jurisdictions above stop delivering to you.`}
+              </div>
+            </div>
+          )}
 
           <div className="cfg-block" style={{ marginTop: 22 }}>
             <div className="cfg-label">Materiality threshold</div>

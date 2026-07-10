@@ -15,6 +15,9 @@ import {
   parseBillDesignation,
   currentCongress,
   billStatusLabel,
+  isStateBillKey,
+  parseStateBillDesignation,
+  stateBillStatusLabel,
 } from '@capiro/shared';
 import type { AppConfig } from '../config/config.schema.js';
 import { EngagementService } from '../engagement/engagement.service.js';
@@ -165,7 +168,22 @@ export const TOOL_DEFINITIONS = [
   {
     name: 'search_state_bills',
     description:
-      'Search state legislature bills via OpenStates data. Filter by state (2-letter code), keyword, subject, or session. Returns identifier, title, sponsor, latest action, and subjects.',
+      'Search state legislature bills (LegiScan is the source of record; OpenStates cross-checks). Filter by state (2-letter code), keyword, subject, session, or canonical STATUS. Returns identifier, title, sponsor, latest action, canonical status, sponsor count, and links. Explicitly reports when NO bill matches.',
+  },
+  {
+    name: 'get_state_bill_status',
+    description:
+      'Get the authoritative legislative status of ONE state bill (by canonical id "tx-2025-hb1234" or a designation like "TX HB 1234" — state required if not embedded in the designation): its canonical status (introduced/committee/reported/floor/passed_chamber/resolving/to_governor/enacted/vetoed/veto_overridden/failed/dead_by_deadline), recent action timeline, roll-call votes, and companion-bill links with their status. Explicitly states when there is NO recorded vote (never infer passage) and when the bill is dead_by_deadline (session adjourned sine die — dead absent a special session).',
+  },
+  {
+    name: 'search_state_floor_votes',
+    description:
+      "Search state legislature roll-call votes. Filter by bill (canonical id or designation), keyword over the motion text, state, chamber, or limit. Returns each vote's motion, tally, passed/failed result, date, and source link. Member-level filtering is not yet available for state votes (crosswalk hardening in progress) — never promise a member-scoped result. Explicitly reports when NO matching vote exists.",
+  },
+  {
+    name: 'get_state_legislator',
+    description:
+      'Look up a state legislator by name + state, or by an OpenStates/LegiScan external id. Returns chamber, district, party, and committee memberships. Explicitly reports ambiguous name matches (asks which one) and NO-match cases — never fabricates a legislator.',
   },
   {
     name: 'search_intel_articles',
@@ -622,8 +640,33 @@ export class MeriToolsService {
         query: str('Keyword search'),
         state: str('Two-letter state code'),
         session: str('Legislative session'),
+        status: str(
+          'Canonical status filter: introduced | committee | reported | floor | passed_chamber | resolving | to_governor | enacted | vetoed | veto_overridden | failed | dead_by_deadline',
+        ),
         limit: int('Max results (1-50)'),
       }),
+      get_state_bill_status: obj(
+        {
+          billId: str('Canonical state bill id ("tx-2025-hb1234") or designation ("TX HB 1234")'),
+          state: str('Two-letter state code — required if not embedded in the designation'),
+        },
+        ['billId'],
+      ),
+      search_state_floor_votes: obj({
+        billId: str('Canonical state bill id or designation'),
+        query: str('Keyword over the motion text'),
+        state: str('Two-letter state code filter'),
+        chamber: str('"upper" or "lower"'),
+        limit: int('Max results (1-25, default 10)'),
+      }),
+      get_state_legislator: obj(
+        {
+          query: str('Legislator name, or an OpenStates/LegiScan external id'),
+          state: str('Two-letter state code (recommended when searching by name)'),
+          limit: int('Max matches (1-8, default 5)'),
+        },
+        ['query'],
+      ),
       search_intel_articles: obj({
         query: str('Keyword search'),
         source: str('Source filter, e.g. Roll Call, Politico'),
@@ -1272,6 +1315,12 @@ export class MeriToolsService {
         return this.searchGaoReports(input);
       case 'search_state_bills':
         return this.searchStateBills(input);
+      case 'get_state_bill_status':
+        return this.getStateBillStatus(input);
+      case 'search_state_floor_votes':
+        return this.searchStateFloorVotes(input);
+      case 'get_state_legislator':
+        return this.getStateLegislator(input);
       case 'search_intel_articles':
         return this.searchIntelArticles(input);
       case 'search_committee_hearings':
@@ -1885,6 +1934,50 @@ export class MeriToolsService {
     return parsed ? formatBillId(parsed.congress, parsed.type, parsed.number) : null;
   }
 
+  /**
+   * Resolve a free-form state bill reference ("tx-2025-hb1234", "TX HB 1234")
+   * to a canonical DD1 key, or an explicit note when it can't be resolved (S6
+   * honesty contract — never guess). A bare designation needs a state, either
+   * embedded in the text or passed via `stateHint`; once state+billNumber are
+   * known, the most-recently-synced matching bill wins when multiple sessions
+   * share the same number (the common case: the user means the current one).
+   */
+  private async resolveStateBillKey(
+    raw: string | null | undefined,
+    stateHint: string | null | undefined,
+  ): Promise<{ key: string | null; note?: string }> {
+    if (!raw) {
+      return {
+        key: null,
+        note: 'Provide a state bill id ("tx-2025-hb1234") or designation ("TX HB 1234").',
+      };
+    }
+    const normKey = normalizeCanonicalId('stateBillKey', raw);
+    if (isValidCanonicalId('stateBillKey', normKey)) return { key: normKey };
+
+    const parsed = parseStateBillDesignation(raw, stateHint ?? null);
+    if (!parsed) {
+      return {
+        key: null,
+        note: stateHint
+          ? `Could not parse "${raw}" as a state bill designation.`
+          : `Could not parse "${raw}" as a state bill designation — specify the state, e.g. "TX HB 1234".`,
+      };
+    }
+    const candidates = await this.prisma.withSystem((tx) =>
+      tx.stateBill.findMany({
+        where: { state: parsed.state, billNumber: parsed.billNumber },
+        orderBy: { syncedAt: 'desc' },
+        select: { id: true },
+        take: 1,
+      }),
+    );
+    if (!candidates.length) {
+      return { key: null, note: `No bill found matching "${raw}" in ${parsed.state}.` };
+    }
+    return { key: candidates[0]!.id };
+  }
+
   private async searchCongressBills(input: Record<string, unknown>) {
     const search = optionalString(input, 'query', 240) ?? optionalString(input, 'search', 240);
     const policyArea = optionalString(input, 'policyArea', 120);
@@ -2343,6 +2436,29 @@ export class MeriToolsService {
       isCurrent: c.isCurrent,
       matchedBy,
     });
+    const stateLegislatorMatch = (
+      m: {
+        id: string;
+        name: string;
+        state: string;
+        chamber: string | null;
+        district: string | null;
+        party: string | null;
+        active: boolean;
+      },
+      matchedBy: string,
+    ): EntityMatch => ({
+      entityType: 'state_legislator',
+      canonicalIdType: 'openstatesPersonId',
+      canonicalId: m.id,
+      display: m.name,
+      state: m.state,
+      chamber: m.chamber,
+      district: m.district,
+      party: m.party,
+      isCurrent: m.active,
+      matchedBy,
+    });
 
     // 1. Direct canonical-id hits.
     if (!type || type === 'member') {
@@ -2396,8 +2512,56 @@ export class MeriToolsService {
         }
       }
     }
+    if (!type || type === 'state_bill') {
+      const normKey = normalizeCanonicalId('stateBillKey', query);
+      let billKeyCandidate = isValidCanonicalId('stateBillKey', normKey) ? normKey : null;
+      if (!billKeyCandidate) {
+        const parsed = parseStateBillDesignation(query, null);
+        if (parsed) {
+          const candidates = await this.prisma.withSystem((tx) =>
+            tx.stateBill.findMany({
+              where: { state: parsed.state, billNumber: parsed.billNumber },
+              orderBy: { syncedAt: 'desc' },
+              select: { id: true },
+              take: 1,
+            }),
+          );
+          billKeyCandidate = candidates[0]?.id ?? null;
+        }
+      }
+      if (billKeyCandidate) {
+        const b = await this.prisma.withSystem((tx) =>
+          tx.stateBill.findUnique({
+            where: { id: billKeyCandidate! },
+            select: {
+              id: true,
+              title: true,
+              state: true,
+              sessionKey: true,
+              sponsorName: true,
+              latestActionText: true,
+              latestActionDate: true,
+            },
+          }),
+        );
+        if (b) {
+          matches.push({
+            entityType: 'state_bill',
+            canonicalIdType: 'stateBillKey',
+            canonicalId: b.id,
+            display: b.title,
+            state: b.state,
+            session: b.sessionKey,
+            sponsorName: b.sponsorName,
+            latestActionText: b.latestActionText,
+            latestActionDate: b.latestActionDate,
+            matchedBy: 'state-bill-key',
+          });
+        }
+      }
+    }
 
-    // 2. External-id crosswalk (LIS, FEC, OpenSecrets, GovTrack, ...).
+    // 2. External-id crosswalk (LIS, FEC, OpenSecrets, GovTrack, LegiScan, OpenStates...).
     if (matches.length === 0) {
       const crosswalk = await this.prisma.entityCrosswalk.findMany({
         where: { idValue: { equals: query, mode: 'insensitive' } },
@@ -2410,10 +2574,46 @@ export class MeriToolsService {
           });
           if (m) matches.push(memberMatch(m, `${row.idType}-crosswalk`));
         }
+        if (row.entityType === 'state_bill' && (!type || type === 'state_bill')) {
+          const b = await this.prisma.withSystem((tx) =>
+            tx.stateBill.findUnique({
+              where: { id: row.entityKey },
+              select: {
+                id: true,
+                title: true,
+                state: true,
+                sessionKey: true,
+                sponsorName: true,
+                latestActionText: true,
+                latestActionDate: true,
+              },
+            }),
+          );
+          if (b) {
+            matches.push({
+              entityType: 'state_bill',
+              canonicalIdType: 'stateBillKey',
+              canonicalId: b.id,
+              display: b.title,
+              state: b.state,
+              session: b.sessionKey,
+              sponsorName: b.sponsorName,
+              latestActionText: b.latestActionText,
+              latestActionDate: b.latestActionDate,
+              matchedBy: `${row.idType}-crosswalk`,
+            });
+          }
+        }
+        if (row.entityType === 'state_legislator' && (!type || type === 'state_legislator')) {
+          const m = await this.prisma.withSystem((tx) =>
+            tx.stateLegislator.findUnique({ where: { id: row.entityKey } }),
+          );
+          if (m) matches.push(stateLegislatorMatch(m, `${row.idType}-crosswalk`));
+        }
       }
     }
 
-    // 3. Name search (members + committees; current entities first).
+    // 3. Name search (members + committees + state legislators; current entities first).
     if (matches.length === 0 && /[a-z]/i.test(query)) {
       if (!type || type === 'member') {
         const members = await this.prisma.congressMember.findMany({
@@ -2435,6 +2635,16 @@ export class MeriToolsService {
           take: limit - matches.length,
         });
         for (const c of committeesFound) matches.push(committeeMatch(c, 'name-search'));
+      }
+      if ((!type || type === 'state_legislator') && matches.length < limit) {
+        const legislators = await this.prisma.withSystem((tx) =>
+          tx.stateLegislator.findMany({
+            where: { name: { contains: query, mode: 'insensitive' } },
+            orderBy: [{ active: 'desc' }, { name: 'asc' }],
+            take: limit - matches.length,
+          }),
+        );
+        for (const m of legislators) matches.push(stateLegislatorMatch(m, 'name-search'));
       }
     }
 
@@ -2825,6 +3035,7 @@ export class MeriToolsService {
     const query = optionalString(input, 'query', 240);
     const state = optionalString(input, 'state', 2);
     const session = optionalString(input, 'session', 60);
+    const status = optionalString(input, 'status', 30);
     const limit = clampInt(input.limit, 1, 50, 20);
 
     const where: Record<string, unknown> = {};
@@ -2837,6 +3048,7 @@ export class MeriToolsService {
     }
     if (state) where.state = state.toUpperCase();
     if (session) where.session = session;
+    if (status) where.status = status;
 
     const [data, total] = await Promise.all([
       this.prisma.withSystem((tx) =>
@@ -2861,12 +3073,320 @@ export class MeriToolsService {
         title: summarizeText(b.title, 240),
         chamber: b.chamber,
         subjects: b.subjects,
+        status: b.status,
+        statusLabel: stateBillStatusLabel(b.status),
         sponsorName: b.sponsorName,
         sponsorParty: b.sponsorParty,
+        sponsorCount: b.sponsorCount,
         latestActionDate: b.latestActionDate,
         latestActionText: b.latestActionText,
+        stateUrl: b.stateUrl,
         url: b.url,
       })),
+      ...(total === 0
+        ? {
+            note: 'No state bill on record matches that. Say so explicitly — do not describe a bill from memory.',
+          }
+        : {}),
+    };
+  }
+
+  /**
+   * Authoritative state-bill status (S6.1) — mirrors getBillStatus's shape:
+   * resolve → look up → honesty note on empty vote history / dead_by_deadline
+   * → typed return with companions and their own status.
+   */
+  private async getStateBillStatus(input: Record<string, unknown>) {
+    const raw = optionalString(input, 'billId', 60) ?? optionalString(input, 'query', 60);
+    const stateHint = optionalString(input, 'state', 2);
+    const resolved = await this.resolveStateBillKey(raw, stateHint);
+    if (!resolved.key) {
+      return {
+        tool: 'get_state_bill_status',
+        generatedAt: new Date().toISOString(),
+        found: false,
+        note: resolved.note,
+      };
+    }
+    const billId = resolved.key;
+    const bill = await this.prisma.withSystem((tx) =>
+      tx.stateBill.findUnique({
+        where: { id: billId },
+        select: {
+          id: true,
+          state: true,
+          sessionKey: true,
+          identifier: true,
+          title: true,
+          status: true,
+          statusAt: true,
+          latestActionText: true,
+          latestActionDate: true,
+          sponsorName: true,
+          sponsorParty: true,
+          sponsorCount: true,
+          stateUrl: true,
+          url: true,
+        },
+      }),
+    );
+    if (!bill) {
+      return {
+        tool: 'get_state_bill_status',
+        generatedAt: new Date().toISOString(),
+        billId,
+        found: false,
+        note: `No bill ${billId} on record in the Capiro database. Say so explicitly — do not describe its status from memory.`,
+      };
+    }
+
+    const [actions, votes, links] = await Promise.all([
+      this.prisma.withSystem((tx) =>
+        tx.stateBillAction.findMany({
+          where: { billKey: billId },
+          orderBy: { date: 'desc' },
+          take: 15,
+          select: { date: true, text: true, chamber: true, importance: true },
+        }),
+      ),
+      this.prisma.withSystem((tx) =>
+        tx.stateRollCallVote.findMany({
+          where: { billKey: billId },
+          orderBy: { date: 'desc' },
+          take: 15,
+          select: {
+            chamber: true,
+            motion: true,
+            date: true,
+            yeas: true,
+            nays: true,
+            nv: true,
+            absent: true,
+            passed: true,
+            sourceUrl: true,
+          },
+        }),
+      ),
+      this.prisma.withSystem((tx) =>
+        tx.stateBillLink.findMany({
+          where: { billKey: billId },
+          select: { relatedBillKey: true, linkType: true },
+        }),
+      ),
+    ]);
+
+    const companions = await Promise.all(
+      links
+        .filter((l): l is typeof l & { relatedBillKey: string } => !!l.relatedBillKey)
+        .map(async (l) => {
+          const rb = await this.prisma.withSystem((tx) =>
+            tx.stateBill.findUnique({
+              where: { id: l.relatedBillKey },
+              select: { identifier: true, status: true, title: true },
+            }),
+          );
+          return {
+            relatedBillKey: l.relatedBillKey,
+            linkType: l.linkType,
+            identifier: rb?.identifier ?? null,
+            status: rb?.status ?? null,
+            statusLabel: rb ? stateBillStatusLabel(rb.status) : null,
+          };
+        }),
+    );
+
+    const notes: string[] = [];
+    if (votes.length === 0) {
+      notes.push(
+        'No recorded roll-call vote on this bill. Do NOT infer that it passed or failed a chamber from the absence of a vote.',
+      );
+    }
+    if (bill.status === 'dead_by_deadline') {
+      notes.push(
+        'The legislative session adjourned sine die before this bill reached a terminal outcome — it is dead absent a special session, not merely "pending."',
+      );
+    }
+
+    return {
+      tool: 'get_state_bill_status',
+      generatedAt: new Date().toISOString(),
+      billId,
+      found: true,
+      state: bill.state,
+      session: bill.sessionKey,
+      identifier: bill.identifier,
+      title: bill.title,
+      status: bill.status,
+      statusLabel: stateBillStatusLabel(bill.status),
+      statusAt: bill.statusAt,
+      latestAction: { text: bill.latestActionText, date: bill.latestActionDate },
+      sponsor: { name: bill.sponsorName, party: bill.sponsorParty, count: bill.sponsorCount },
+      recentActions: actions,
+      votes,
+      companions,
+      url: bill.stateUrl ?? bill.url,
+      ...(notes.length ? { note: notes.join(' ') } : {}),
+    };
+  }
+
+  /**
+   * Search state roll-call votes (S6.1). No member-level filter in P0 —
+   * per-member votes exist but name-resolution ships with the crosswalk
+   * hardening; the tool description says so explicitly.
+   */
+  private async searchStateFloorVotes(input: Record<string, unknown>) {
+    const rawBillId = optionalString(input, 'billId', 60);
+    const stateHint = optionalString(input, 'state', 2);
+    const billKey = rawBillId ? (await this.resolveStateBillKey(rawBillId, stateHint)).key : null;
+    const query = optionalString(input, 'query', 200);
+    const state = optionalString(input, 'state', 2)?.toUpperCase();
+    const chamber = optionalString(input, 'chamber', 10)?.toLowerCase();
+    const limit = clampInt(input.limit, 1, 25, 10);
+
+    const where: Record<string, unknown> = {};
+    if (billKey) where.billKey = billKey;
+    else if (state) where.billKey = { startsWith: `${state.toLowerCase()}-` };
+    if (chamber === 'upper' || chamber === 'lower') where.chamber = chamber;
+    if (query) where.motion = { contains: query, mode: 'insensitive' };
+
+    const votes = await this.prisma.withSystem((tx) =>
+      tx.stateRollCallVote.findMany({
+        where,
+        orderBy: { date: 'desc' },
+        take: limit,
+        select: {
+          id: true,
+          billKey: true,
+          chamber: true,
+          motion: true,
+          date: true,
+          yeas: true,
+          nays: true,
+          nv: true,
+          absent: true,
+          passed: true,
+          sourceUrl: true,
+        },
+      }),
+    );
+
+    return {
+      tool: 'search_state_floor_votes',
+      generatedAt: new Date().toISOString(),
+      votesFound: votes.length,
+      votes,
+      ...(votes.length === 0
+        ? {
+            note: 'No state roll-call vote on record matches that. Say so explicitly — do not infer a vote outcome or tally. Member-level filtering is not available for state votes yet.',
+          }
+        : {}),
+    };
+  }
+
+  /**
+   * Look up a state legislator by name+state or an external id (S6.1/S6.2).
+   * Ambiguity/no-match contracts mirror searchFloorVotes's member resolution.
+   */
+  private async getStateLegislator(input: Record<string, unknown>) {
+    const query = optionalString(input, 'query', 120);
+    const state = optionalString(input, 'state', 2)?.toUpperCase();
+    const limit = clampInt(input.limit, 1, 8, 5);
+    if (!query) {
+      return {
+        tool: 'get_state_legislator',
+        generatedAt: new Date().toISOString(),
+        matchesFound: 0,
+        matches: [],
+        note: 'Provide a legislator name or an OpenStates/LegiScan id.',
+      };
+    }
+
+    const crosswalk = await this.prisma.entityCrosswalk.findMany({
+      where: {
+        idValue: { equals: query, mode: 'insensitive' },
+        entityType: 'state_legislator',
+      },
+      take: 1,
+    });
+    if (crosswalk.length) {
+      const legislator = await this.prisma.withSystem((tx) =>
+        tx.stateLegislator.findUnique({ where: { id: crosswalk[0]!.entityKey } }),
+      );
+      if (legislator) {
+        return {
+          tool: 'get_state_legislator',
+          generatedAt: new Date().toISOString(),
+          matchesFound: 1,
+          matches: [
+            {
+              id: legislator.id,
+              name: legislator.name,
+              state: legislator.state,
+              chamber: legislator.chamber,
+              district: legislator.district,
+              party: legislator.party,
+              committees: legislator.committees,
+              active: legislator.active,
+              matchedBy: `${crosswalk[0]!.idType}-crosswalk`,
+            },
+          ],
+        };
+      }
+    }
+
+    const where: Record<string, unknown> = { name: { contains: query, mode: 'insensitive' } };
+    if (state) where.state = state;
+    const candidates = await this.prisma.withSystem((tx) =>
+      tx.stateLegislator.findMany({
+        where,
+        orderBy: [{ active: 'desc' }, { name: 'asc' }],
+        take: limit,
+      }),
+    );
+    if (!candidates.length) {
+      return {
+        tool: 'get_state_legislator',
+        generatedAt: new Date().toISOString(),
+        matchesFound: 0,
+        matches: [],
+        note: `No state legislator matched "${query}"${state ? ` in ${state}` : ''}. Say so explicitly — do not fabricate a legislator.`,
+      };
+    }
+    if (candidates.length > 1) {
+      return {
+        tool: 'get_state_legislator',
+        generatedAt: new Date().toISOString(),
+        matchesFound: 0,
+        matches: [],
+        ambiguousLegislator: candidates.map((c) => ({
+          id: c.id,
+          name: c.name,
+          state: c.state,
+          chamber: c.chamber,
+          district: c.district,
+          party: c.party,
+        })),
+        note: `"${query}" matches ${candidates.length} state legislators — ask the user which (by state/chamber/district) before attributing anything to them.`,
+      };
+    }
+    const m = candidates[0]!;
+    return {
+      tool: 'get_state_legislator',
+      generatedAt: new Date().toISOString(),
+      matchesFound: 1,
+      matches: [
+        {
+          id: m.id,
+          name: m.name,
+          state: m.state,
+          chamber: m.chamber,
+          district: m.district,
+          party: m.party,
+          committees: m.committees,
+          active: m.active,
+          matchedBy: 'name-search',
+        },
+      ],
     };
   }
 

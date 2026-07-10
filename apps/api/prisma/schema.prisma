@@ -3653,44 +3653,272 @@ model GaoReport {
 // Source: v3.openstates.org/
 // ─────────────────────────────────────────────────────────────────────────
 
+// State Legislation Platform Phase 0 (S2 truth layer, 2026-07-10). `id` is the
+// canonical DD1 natural key "<state>-<sessionKey>-<billnumber>" (e.g.
+// "tx-2025-hb1234"), mirroring congress_bill's "119-hr-8800" convention — NOT
+// the old openstates bill id (that lives in `openstatesId`). LegiScan is the
+// bill spine (getMasterListRaw change_hash diff + getBill payload); OpenStates
+// stays for people/committees only. Re-keyed via a one-time wipe-and-resync
+// (migration 20260710000000_state_truth_layer) — safe because nothing has an
+// inbound FK to state_bill.id (verified: intel_tracked_bill only accepts
+// congress ids today; Explorer/search_state_bills reads are pass-through).
 model StateBill {
-  id               String    @id // openstates bill ID
-  state            String // 2-letter state code
-  session          String // legislative session
-  identifier       String // e.g. "HB 1234"
-  title            String    @db.Text
-  chamber          String? // upper, lower
-  classification   String[]  @default([]) // bill, resolution, etc.
-  subjects         String[]  @default([])
-  sponsorName      String?   @map("sponsor_name")
-  sponsorParty     String?   @map("sponsor_party")
-  latestActionDate DateTime? @map("latest_action_date") @db.Date
-  latestActionText String?   @map("latest_action_text")
-  url              String?
-  syncedAt         DateTime  @default(now()) @map("synced_at") @db.Timestamptz(6)
+  id                 String    @id // DD1 key: "<state>-<sessionKey>-<billnumber>"
+  state              String // 2-letter state code
+  session            String // legislative session (display name)
+  sessionKey         String    @map("session_key") // DD1: LegiScan session.year_start, or "<year_start>x<session_id>" for specials
+  identifier         String // e.g. "HB 1234"
+  billNumber         String    @map("bill_number") // normalized "HB1234" (DD1 key component)
+  title              String    @db.Text
+  chamber            String? // upper, lower
+  classification     String[]  @default([]) // bill, resolution, etc.
+  subjects           String[]  @default([])
+  description        String?   @db.Text // LegiScan description -> Explorer "abstract"
+  sponsorName        String?   @map("sponsor_name")
+  sponsorParty       String?   @map("sponsor_party")
+  sponsorCount       Int       @default(0) @map("sponsor_count")
+  // Canonical derived status (S3, deriveStateBillStatus in @capiro/shared).
+  status             String?
+  statusAt           DateTime? @map("status_at") @db.Timestamptz(6)
+  statusSource       String?   @map("status_source") // 'derived'
+  // Raw LegiScan facts the S3 deriver reads (DD8 — coded facts are the
+  // derivation spine, text-regex is fallback only). status: 1 Introduced /
+  // 2 Engrossed / 3 Enrolled / 4 Passed / 5 Vetoed / 6 Failed. progress[]:
+  // {date, event} where event 7=Override, 8=Chaptered, 10=Report Pass,
+  // 11=Report DNP (LegiScan's own progress-event codes).
+  legiscanStatus     Int?      @map("legiscan_status")
+  legiscanProgress   Json      @default("[]") @map("legiscan_progress")
+  // B2 text-changed watermark (latest texts[].date) — metadata only, no blobs (DD7).
+  textDate           DateTime? @map("text_date") @db.Timestamptz(6)
+  latestActionDate   DateTime? @map("latest_action_date") @db.Date
+  latestActionText   String?   @map("latest_action_text")
+  url                String? // legiscan/openstates source link
+  stateUrl           String?   @map("state_url") // official state_link (LegiScan)
+  legiscanBillId     Int?      @unique @map("legiscan_bill_id")
+  legiscanChangeHash String?   @map("legiscan_change_hash")
+  openstatesId       String?   @map("openstates_id") // pre-re-key id, kept for cross-check
+  syncedAt           DateTime  @default(now()) @map("synced_at") @db.Timestamptz(6)
+
+  actions        StateBillAction[]
+  sponsors       StateBillSponsor[]
+  versions       StateBillVersion[]
+  calendarEvents StateBillCalendarEvent[]
+  links          StateBillLink[]          @relation("StateBillLinkFromBill")
 
   @@index([state, session])
   @@index([state, latestActionDate])
+  @@index([state, status])
   @@map("state_bill")
 }
 
 model StateLegislator {
-  id         String   @id // openstates person ID
-  name       String
-  state      String
-  chamber    String? // upper, lower
-  district   String?
-  party      String?
-  email      String?
-  image      String?
-  url        String?
-  committees Json     @default("[]") // [{name, role}]
-  active     Boolean  @default(true)
-  syncedAt   DateTime @default(now()) @map("synced_at") @db.Timestamptz(6)
+  id               String   @id // openstates person ID (kept as PK — no re-key needed)
+  name             String
+  state            String
+  chamber          String? // upper, lower
+  district         String?
+  party            String?
+  email            String?
+  image            String?
+  url              String?
+  committees       Json     @default("[]") // [{name, role}]
+  active           Boolean  @default(true)
+  legiscanPeopleId Int?     @unique @map("legiscan_people_id")
+  syncedAt         DateTime @default(now()) @map("synced_at") @db.Timestamptz(6)
 
   @@index([state, chamber])
   @@index([party, state])
   @@map("state_legislator")
+}
+
+// State bill action history (mirrors CongressBillAction). Append-only via
+// anti-join on (billKey, date, orderKey) — firstSeenAt is never touched on
+// re-drain (S1.4); this is the honest anchor the SLA telemetry (S1.6) measures.
+model StateBillAction {
+  id          String    @id @default(uuid()) @db.Uuid
+  billKey     String    @map("bill_key")
+  date        DateTime  @db.Date
+  text        String    @db.Text
+  chamber     String?
+  importance  Int? // LegiScan's own significance bit
+  orderKey    Int       @map("order_key") // stable sort within a day (LegiScan history array order)
+  firstSeenAt DateTime  @default(now()) @map("first_seen_at") @db.Timestamptz(6)
+  bill        StateBill @relation(fields: [billKey], references: [id], onDelete: Cascade)
+
+  @@unique([billKey, date, orderKey])
+  @@index([billKey, date])
+  @@index([firstSeenAt])
+  @@map("state_bill_action")
+}
+
+// State bill sponsors (mirrors CongressBillCosponsor). Diff-synced — new rows
+// inserted via anti-join (stamping firstSeenAt), withdrawals removed, existing
+// rows never blanket-recreated (S1.4) — firstSeenAt is the only honest
+// sponsor-momentum anchor since LegiScan carries no per-sponsor add-date.
+model StateBillSponsor {
+  id               String    @id @default(uuid()) @db.Uuid
+  billKey          String    @map("bill_key")
+  legiscanPeopleId Int?      @map("legiscan_people_id")
+  legislatorId     String?   @map("legislator_id") // soft ref -> state_legislator.id via crosswalk
+  name             String
+  party            String?
+  sponsorType      String    @map("sponsor_type") // 'primary' | 'cosponsor'
+  sponsorOrder     Int       @map("sponsor_order")
+  firstSeenAt      DateTime  @default(now()) @map("first_seen_at") @db.Timestamptz(6)
+  lastSyncedAt     DateTime  @default(now()) @map("last_synced_at") @db.Timestamptz(6)
+  bill             StateBill @relation(fields: [billKey], references: [id], onDelete: Cascade)
+
+  @@unique([billKey, legiscanPeopleId])
+  @@index([legislatorId])
+  @@map("state_bill_sponsor")
+}
+
+// State roll-call votes (mirrors RollCallVote). billKey is a SOFT ref (no FK)
+// — matches the federal RollCallVote.billId pattern, since a vote may
+// reference a bill not yet drained.
+model StateRollCallVote {
+  id                 String   @id // "<state>-rc-<legiscan_roll_call_id>"
+  billKey            String?  @map("bill_key")
+  legiscanRollCallId Int      @unique @map("legiscan_roll_call_id")
+  chamber            String?
+  date               DateTime @db.Date
+  motion             String?  @db.Text // LegiScan vote desc
+  yeas               Int      @default(0)
+  nays               Int      @default(0)
+  nv                 Int      @default(0)
+  absent             Int      @default(0)
+  passed             Boolean?
+  sourceUrl          String?  @map("source_url")
+  lastSyncedAt       DateTime @default(now()) @map("last_synced_at") @db.Timestamptz(6)
+
+  memberVotes StateMemberVote[]
+
+  @@index([billKey])
+  @@index([date(sort: Desc)])
+  @@map("state_roll_call_vote")
+}
+
+// Per-member positions on a state roll call (mirrors MemberVote). legislatorId
+// is null until crosswalk-resolved (the Senate-LIS lag pattern federally).
+model StateMemberVote {
+  id               String            @id @default(uuid()) @db.Uuid
+  voteId           String            @map("vote_id")
+  legiscanPeopleId Int               @map("legiscan_people_id")
+  legislatorId     String?           @map("legislator_id")
+  voteCast         String            @map("vote_cast") // 'Yea' | 'Nay' | 'NV' | 'Absent'
+  vote             StateRollCallVote @relation(fields: [voteId], references: [id], onDelete: Cascade)
+
+  @@unique([voteId, legiscanPeopleId])
+  @@index([legislatorId])
+  @@map("state_member_vote")
+}
+
+// State bill version metadata ONLY (DD7 — no text blobs in Phase 0; the
+// text-changed emitter anchors on StateBill.textDate, not content).
+model StateBillVersion {
+  id            String    @id @default(uuid()) @db.Uuid
+  billKey       String    @map("bill_key")
+  legiscanDocId Int       @unique @map("legiscan_doc_id")
+  versionType   String    @map("version_type") // Introduced|Amended|Engrossed|Enrolled|Chaptered|Comm Sub|...
+  date          DateTime  @db.Date
+  stateUrl      String?   @map("state_url")
+  mime          String?
+  lastSyncedAt  DateTime  @default(now()) @map("last_synced_at") @db.Timestamptz(6)
+  bill          StateBill @relation(fields: [billKey], references: [id], onDelete: Cascade)
+
+  @@index([billKey, date])
+  @@map("state_bill_version")
+}
+
+// Bill<->bill relationships from LegiScan `sasts` (mirrors BillRuleLink,
+// generalized). relatedBillKey is a SOFT ref — null until the target bill is
+// ingested (S4 companion-moved detection tolerates this).
+model StateBillLink {
+  id                    String    @id @default(uuid()) @db.Uuid
+  billKey               String    @map("bill_key")
+  relatedBillKey        String?   @map("related_bill_key")
+  legiscanRelatedBillId Int       @map("legiscan_related_bill_id")
+  linkType              String    @map("link_type") // 'same_as'|'companion'|'similar'|'replaces'|'replaced_by'
+  lastSyncedAt          DateTime  @default(now()) @map("last_synced_at") @db.Timestamptz(6)
+  bill                  StateBill @relation("StateBillLinkFromBill", fields: [billKey], references: [id], onDelete: Cascade)
+
+  @@unique([billKey, legiscanRelatedBillId])
+  @@index([relatedBillKey])
+  @@map("state_bill_link")
+}
+
+// State bill calendar events (hearing/exec session/floor). Flattened —
+// LegiScan calendar[] arrives per-bill. eventKey is the S4 hearing watermark
+// value; delete-and-recreate per drain (no watermark semantics on the rows
+// themselves, DD7-adjacent — small sets).
+model StateBillCalendarEvent {
+  id           String    @id @default(uuid()) @db.Uuid
+  billKey      String    @map("bill_key")
+  eventType    String    @map("event_type") // hearing|executive session|floor
+  date         DateTime  @db.Date
+  time         String?
+  location     String?
+  eventKey     String    @map("event_key") // "<billKey>:<type>:<date>:<location>"
+  lastSyncedAt DateTime  @default(now()) @map("last_synced_at") @db.Timestamptz(6)
+  bill         StateBill @relation(fields: [billKey], references: [id], onDelete: Cascade)
+
+  @@unique([billKey, eventKey])
+  @@index([date])
+  @@map("state_bill_calendar_event")
+}
+
+// LegiScan session registry — sineDie backs the dead_by_deadline status (S3);
+// convene/crossover/cutoff procedural-calendar fields are added progressively
+// in Phase 1 (M2), priority states first.
+model StateSession {
+  id                String    @id // "<state>-<legiscan_session_id>"
+  state             String
+  legiscanSessionId Int       @unique @map("legiscan_session_id")
+  sessionKey        String    @map("session_key") // DD1 sessionKey
+  name              String
+  yearStart         Int       @map("year_start")
+  yearEnd           Int       @map("year_end")
+  special           Boolean   @default(false)
+  sineDie           DateTime? @map("sine_die") @db.Date
+  prior             Boolean   @default(false)
+  lastSyncedAt      DateTime  @default(now()) @map("last_synced_at") @db.Timestamptz(6)
+
+  @@index([state])
+  @@map("state_session")
+}
+
+// Committee registry, populated from getBill.committee refs during the bill
+// drain. Roster normalization (from StateLegislator.committees Json) stays
+// Phase 1 per the parent plan's scoping.
+model StateCommittee {
+  id                  String   @id // "<state>-<chamber>-<slug(name)>"
+  state               String
+  chamber             String?
+  name                String
+  legiscanCommitteeId Int?     @unique @map("legiscan_committee_id")
+  lastSyncedAt        DateTime @default(now()) @map("last_synced_at") @db.Timestamptz(6)
+
+  @@map("state_committee")
+}
+
+// Per-(state,session) LegiScan cursor: change_hash cache for the masterlist
+// diff, the bill-drain queue, and quota self-accounting (LegiScan sends no
+// quota headers). Hash-cache loss is harmless — the next masterlist marks
+// everything changed and the drain re-upserts idempotently.
+model StateSyncCursor {
+  id           String    @id // "<state>-<legiscan_session_id>"
+  state        String
+  sessionId    Int       @map("session_id")
+  sessionKey   String    @map("session_key")
+  billHashes   Json      @default("{}") @map("bill_hashes") // { "<bill_id>": "<change_hash>" }
+  pendingBills Int[]     @default([]) @map("pending_bills") // drain queue of changed bill_ids
+  queriesUsed  Int       @default(0) @map("queries_used") // month-to-date self-accounting
+  quotaMonth   String?   @map("quota_month") // "2026-07"; reset on rollover
+  lastListAt   DateTime? @map("last_list_at") @db.Timestamptz(6)
+  lastDrainAt  DateTime? @map("last_drain_at") @db.Timestamptz(6)
+
+  @@index([state])
+  @@map("state_sync_cursor")
 }
 
 // ─────────────────────────────────────────────────────────────────────────

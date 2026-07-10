@@ -361,7 +361,16 @@ export function TrackerSurface({
         ? adaptWatchlist(
             (await api.put<IntelWatchlist>(intelTrackerPaths.watchlist(clientId), watchlistToIntel(w))).data,
           )
-        : (await api.put<WatchlistPayload>(trackerPaths.watchlist(clientId), w)).data,
+        : // State Legislation Platform (DD5) is intel-api-only — the legacy
+          // WatchlistDto has no `jurisdictions` field and the API's global
+          // ValidationPipe runs forbidNonWhitelisted:true, so forwarding it
+          // here would 400 the save. Strip before hitting the legacy endpoint.
+          (
+            await api.put<WatchlistPayload>(trackerPaths.watchlist(clientId), {
+              issueAreas: w.issueAreas,
+              tags: w.tags,
+            })
+          ).data,
     onSuccess: (data) => {
       // Seed the cache with the server-normalized value so the Configure form
       // (and recs) reflect what was actually persisted.
@@ -377,7 +386,23 @@ export function TrackerSurface({
     mutationFn: async (p: AlertPrefsPayload) =>
       trackerV2
         ? adaptPrefs((await api.put<IntelAlertPrefs>(intelTrackerPaths.alertPrefs(clientId), prefsToIntel(p))).data)
-        : (await api.put<AlertPrefsPayload>(trackerPaths.alertPrefs(clientId), p)).data,
+        : // Same DD5 rationale as saveWatchlistMutation — the legacy AlertPrefsDto
+          // has no `jurisdictions` field and would 400 under forbidNonWhitelisted.
+          (
+            await api.put<AlertPrefsPayload>(trackerPaths.alertPrefs(clientId), {
+              triggers: p.triggers,
+              materiality: p.materiality,
+              emailEnabled: p.emailEnabled,
+              emailAddress: p.emailAddress,
+              emailCadence: p.emailCadence,
+              smsEnabled: p.smsEnabled,
+              smsPhone: p.smsPhone,
+              smsPhoneVerified: p.smsPhoneVerified,
+              smsCadence: p.smsCadence,
+              quietHoursStart: p.quietHoursStart,
+              quietHoursEnd: p.quietHoursEnd,
+            })
+          ).data,
     onSuccess: (data) => qc.setQueryData(trackerKeys.alertPrefs(clientId), data),
     onError: () => message.error('Could not save alert preferences'),
   });
@@ -826,6 +851,11 @@ export function TrackerSurface({
             onRequestVerify={requestVerify}
             onTestAlert={fireTest}
             typedTermsEnabled={trackerV2}
+            // State Legislation Platform (DD4/DD5) is intel-api-only — the
+            // legacy (pre-tracker_v2) watchlist/prefs can't persist
+            // jurisdictions at all, so the selectors are hidden rather than
+            // rendering a control that silently no-ops on save.
+            jurisdictionsEnabled={trackerV2}
           />
         ))}
 

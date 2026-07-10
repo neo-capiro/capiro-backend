@@ -1,7 +1,9 @@
 import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service.js';
 import { SourceDataRepository } from '../sourcedata/source-data.repository.js';
+import { StateSourceDataRepository } from '../sourcedata/state-source-data.repository.js';
 import { TrackerWatchlistService } from './tracker-watchlist.service.js';
+import { isStateBillKey, humanizeStateBillKey, stateBillStatusRank } from '@capiro/shared';
 import { embedText, normalize, vectorLiteral, EMBEDDING_MODEL } from '../embeddings/embedder.js';
 import {
   scoreBillFit,
@@ -34,6 +36,17 @@ import { humanizeBillId } from './relevance.util.js';
 
 /** Candidate floor for the semantic pre-filter (cosine ≥ this to be a candidate). */
 export const EMBED_CANDIDATE_FLOOR = 0.3;
+/**
+ * State-candidate fit floor (DD6, S5.1) — LOWER than the federal
+ * RECOMMENDATION_FLOOR (0.45) on purpose: state candidates never carry a
+ * semantic component (embed-state-bills ships dark in P0), so scoreBillFit's
+ * achievable max for a state bill is 0.60 (textMatch+exactEntity+
+ * subjectMatch+priorityBoost), not 1.0 — the federal floor would starve
+ * genuine matches. `fit.belowFloor` (computed against the federal floor) is
+ * NOT used for state candidates; compare `fit.fit` against this constant
+ * directly.
+ */
+export const LEGIWATCH_STATE_FIT_FLOOR = Number(process.env.LEGIWATCH_STATE_FIT_FLOOR ?? '0.40');
 /** Change-chip lookback for the board (a tracked bill "changed recently"). */
 const RECENT_CHANGE_DAYS = 21;
 const DAY_MS = 86_400_000;
@@ -68,6 +81,12 @@ export interface RecommendationItem {
   why: string;
   whyKind: MatchReasonKind;
   matchReasons: MatchReason[];
+  /** 'US' | <state code> (State Legislation Platform, S5/S7.2). Absent = 'US' — every pre-Phase-0 caller stays unaffected. */
+  jurisdiction?: string;
+  /** Official state deep link (a state candidate only) — new-match-detector's billUrl() prefers this over any congress.gov synthesis. */
+  stateUrl?: string | null;
+  /** LegiScan/OpenStates source link (a state candidate only) — the billUrl() fallback below stateUrl. */
+  url?: string | null;
 }
 
 /** One Add-bill-modal search hit (P1.1 — exact legacy BillSearchResult shape). */
@@ -132,6 +151,8 @@ export interface BoardCard {
   lastHearingSessionId: string | null;
   lastHearingAt: Date | null;
   hearingCount: number;
+  /** 'US' | <state code> (State Legislation Platform, S7.2). Absent = 'US'. */
+  jurisdiction?: string;
 }
 export interface BoardColumn {
   id: BillStage;
@@ -159,12 +180,85 @@ export class TrackerBoardService {
     private readonly prisma: PrismaService,
     private readonly repo: SourceDataRepository,
     private readonly watchlists: TrackerWatchlistService,
+    private readonly stateRepo: StateSourceDataRepository,
   ) {}
+
+  /** Bucket a state_bill status rank (0-9) into the board's 4 congress-shaped columns (S4.5 — no status ladder in P0; the drawer shows the real status). */
+  private stateStatusToBoardStage(status: string | null): BillStage {
+    const rank = stateBillStatusRank(status);
+    if (rank >= 9) return 'enacted';
+    if (rank >= 3) return 'passed';
+    if (rank >= 1) return 'committee';
+    return 'introduced';
+  }
+
+  /**
+   * Batch-fetch bills for a jurisdiction-mixed set of ids, keyed by id — a DD1
+   * key routes to StateSourceDataRepository, everything else to the congress
+   * SourceDataRepository (S4.4/S7.6: board/recs are jurisdiction-mixed, no
+   * separate state tab). ID shape alone disambiguates (congress ids start
+   * with 2-3 digits; DD1 keys start with a 2-letter state code) — no need to
+   * thread `source` through the caller.
+   */
+  private async fetchMergedBills(billIds: string[]): Promise<
+    Map<
+      string,
+      {
+        title: string | null;
+        latestActionText: string | null;
+        latestActionDate: Date | null;
+        policyArea: string | null;
+        subjects: string[] | null;
+      }
+    >
+  > {
+    const congressIds = billIds.filter((id) => !isStateBillKey(id));
+    const stateIds = billIds.filter((id) => isStateBillKey(id));
+    const [congressBills, stateBills] = await Promise.all([
+      congressIds.length ? this.repo.fetchRecommendationBills(congressIds) : Promise.resolve([]),
+      stateIds.length ? this.stateRepo.getStateBillsByIds(stateIds) : Promise.resolve([]),
+    ]);
+    const out = new Map<
+      string,
+      {
+        title: string | null;
+        latestActionText: string | null;
+        latestActionDate: Date | null;
+        policyArea: string | null;
+        subjects: string[] | null;
+      }
+    >();
+    for (const b of congressBills) out.set(b.id, b);
+    for (const b of stateBills) {
+      out.set(b.id, {
+        title: b.title,
+        latestActionText: b.latestActionText,
+        latestActionDate: b.latestActionDate,
+        policyArea: null,
+        subjects: b.subjects,
+      });
+    }
+    return out;
+  }
+
+  private displayNumFor(billId: string): string {
+    return isStateBillKey(billId) ? humanizeStateBillKey(billId) : humanizeBillId(billId);
+  }
+
+  /** 'US' | <state code>, derived from the id shape alone (the DD1 key's leading 2-letter segment). */
+  private jurisdictionFor(billId: string): string {
+    return isStateBillKey(billId) ? (billId.split('-')[0]?.toUpperCase() ?? 'US') : 'US';
+  }
 
   private async compiledTopics(
     tenantId: string,
     clientId: string,
-  ): Promise<{ topics: CompiledTopicForFit[]; issueAreas: string[]; terms: string[] }> {
+  ): Promise<{
+    topics: CompiledTopicForFit[];
+    issueAreas: string[];
+    terms: string[];
+    jurisdictions: string[];
+  }> {
     const compiled = await this.watchlists.getCompiled(tenantId, clientId);
     const topics: CompiledTopicForFit[] = compiled.billMatchSet.map((t) => ({
       label: t.label,
@@ -181,7 +275,12 @@ export class TrackerBoardService {
         termSet.add(v);
     }
     for (const a of compiled.issueAreas) termSet.add(a);
-    return { topics, issueAreas: compiled.issueAreas, terms: Array.from(termSet) };
+    return {
+      topics,
+      issueAreas: compiled.issueAreas,
+      terms: Array.from(termSet),
+      jurisdictions: compiled.jurisdictions,
+    };
   }
 
   /**
@@ -195,7 +294,10 @@ export class TrackerBoardService {
     clientId: string,
     limit = 25,
   ): Promise<RecommendationItem[]> {
-    const { topics, issueAreas, terms } = await this.compiledTopics(tenantId, clientId);
+    const { topics, issueAreas, terms, jurisdictions } = await this.compiledTopics(
+      tenantId,
+      clientId,
+    );
     if (!terms.length) return [];
     const congress = currentCongress();
 
@@ -239,45 +341,105 @@ export class TrackerBoardService {
     const candidateIds = Array.from(new Set<string>([...semantic.keys(), ...keywordIds])).filter(
       (id) => !excluded.has(id),
     );
-    if (!candidateIds.length) return [];
 
-    const bills = await this.repo.fetchRecommendationBills(candidateIds);
     const nowMs = Date.now();
     const items: RecommendationItem[] = [];
-    for (const b of bills) {
-      const fit = scoreBillFit(
-        toRelevanceBill(b),
-        topics,
-        issueAreas,
-        semantic.get(b.id) ?? 0,
-        keywordIds.has(b.id),
-      );
-      if (fit.fit <= 0 || fit.belowFloor) continue;
-      const stage = billStage(b.latestActionText);
-      items.push({
-        billId: b.id,
-        displayNum: humanizeBillId(b.id),
-        title: b.title,
-        stage,
-        stageLabel: stageLabelOf(stage),
-        passageProbability: passageProbability({
-          latestActionText: b.latestActionText,
+    if (candidateIds.length) {
+      const bills = await this.repo.fetchRecommendationBills(candidateIds);
+      for (const b of bills) {
+        const fit = scoreBillFit(
+          toRelevanceBill(b),
+          topics,
+          issueAreas,
+          semantic.get(b.id) ?? 0,
+          keywordIds.has(b.id),
+        );
+        if (fit.fit <= 0 || fit.belowFloor) continue;
+        const stage = billStage(b.latestActionText);
+        items.push({
+          billId: b.id,
+          displayNum: humanizeBillId(b.id),
           title: b.title,
+          stage,
+          stageLabel: stageLabelOf(stage),
+          passageProbability: passageProbability({
+            latestActionText: b.latestActionText,
+            title: b.title,
+            latestActionDate: b.latestActionDate,
+            nowMs,
+          }),
+          latestActionText: b.latestActionText,
           latestActionDate: b.latestActionDate,
-          nowMs,
-        }),
-        latestActionText: b.latestActionText,
-        latestActionDate: b.latestActionDate,
-        sponsorName: b.sponsorName,
-        sponsorParty: b.sponsorParty,
-        cosponsorsCount: b.cosponsorsCount,
-        fit: fit.fit,
-        matchedTags: fit.matchedTags,
-        why: fit.why,
-        whyKind: fit.whyKind,
-        matchReasons: fit.matchReasons,
-      });
+          sponsorName: b.sponsorName,
+          sponsorParty: b.sponsorParty,
+          cosponsorsCount: b.cosponsorsCount,
+          fit: fit.fit,
+          matchedTags: fit.matchedTags,
+          why: fit.why,
+          whyKind: fit.whyKind,
+          matchReasons: fit.matchReasons,
+        });
+      }
     }
+
+    // ── State Legislation Platform (S5.1): a second candidate pass, EXPLICIT
+    // opt-in only — runs ONLY when the client's watchlist has jurisdictions
+    // configured (never auto-matched from facility geography in P0;
+    // suggestedJurisdictions is a hint, not an implicit filter). No semantic
+    // component (DD6 — embed-state-bills ships dark), so compare against the
+    // LOWER LEGIWATCH_STATE_FIT_FLOOR directly, not fit.belowFloor (the
+    // federal floor would starve every state match).
+    if (jurisdictions.length) {
+      const stateCandidateIds = (
+        await this.stateRepo.stateKeywordCandidateIds(terms, jurisdictions)
+      ).filter((id) => !excluded.has(id));
+      if (stateCandidateIds.length) {
+        const stateBills = await this.stateRepo.getStateBillsByIds(stateCandidateIds);
+        for (const b of stateBills) {
+          const fit = scoreBillFit(
+            {
+              title: b.title ?? '',
+              policyArea: null,
+              subjects: b.subjects,
+              latestActionText: b.latestActionText,
+            },
+            topics,
+            issueAreas,
+            0,
+            true,
+          );
+          if (fit.fit < LEGIWATCH_STATE_FIT_FLOOR) continue;
+          const stage = this.stateStatusToBoardStage(b.status);
+          items.push({
+            billId: b.id,
+            displayNum: humanizeStateBillKey(b.id),
+            title: b.title,
+            stage,
+            stageLabel: stageLabelOf(stage),
+            passageProbability: passageProbability({
+              latestActionText: b.latestActionText,
+              title: b.title,
+              latestActionDate: b.latestActionDate,
+              nowMs,
+            }),
+            latestActionText: b.latestActionText,
+            latestActionDate: b.latestActionDate,
+            sponsorName: b.sponsorName,
+            sponsorParty: b.sponsorParty,
+            cosponsorsCount: null, // state bills carry sponsorCount, not a cosponsor time series (S1.4)
+            fit: fit.fit,
+            matchedTags: fit.matchedTags,
+            why: fit.why,
+            whyKind: fit.whyKind,
+            matchReasons: fit.matchReasons,
+            jurisdiction: b.state,
+            stateUrl: b.stateUrl,
+            url: b.url,
+          });
+        }
+      }
+    }
+
     items.sort((a, b) => b.fit - a.fit || b.passageProbability - a.passageProbability);
     return items.slice(0, limit);
   }
@@ -296,14 +458,14 @@ export class TrackerBoardService {
 
     const billIds = tracked.map((t) => t.billId);
     const [bills, { topics, issueAreas }, recentAlerts, hearingLinks] = await Promise.all([
-      this.repo.fetchRecommendationBills(billIds),
+      this.fetchMergedBills(billIds),
       this.compiledTopics(tenantId, clientId),
       this.prisma.withTenant(tenantId, (tx) =>
         tx.intelAlert.findMany({
           where: {
             tenantId,
             clientId,
-            sourceType: 'bill',
+            sourceType: { in: ['bill', 'state_bill'] },
             sourceRef: { in: billIds },
             createdAt: { gte: new Date(Date.now() - RECENT_CHANGE_DAYS * DAY_MS) },
           },
@@ -327,7 +489,7 @@ export class TrackerBoardService {
         }),
       ),
     ]);
-    const billById = new Map(bills.map((b) => [b.id, b]));
+    const billById = bills;
     const chipByBill = new Map<string, { label: string; changeType: string | null; at: Date }>();
     for (const a of recentAlerts) {
       if (!chipByBill.has(a.sourceRef)) {
@@ -350,7 +512,7 @@ export class TrackerBoardService {
         : [];
       const card: BoardCard = {
         billId: t.billId,
-        displayNum: humanizeBillId(t.billId),
+        displayNum: this.displayNumFor(t.billId),
         title: bill?.title ?? null,
         stage,
         passageProbability: passageProbability({
@@ -370,6 +532,7 @@ export class TrackerBoardService {
         lastHearingSessionId: t.lastHearingSessionId ?? null,
         lastHearingAt: t.lastHearingAt ?? null,
         hearingCount: hearingCountByBill.get(t.billId) ?? 0,
+        jurisdiction: this.jurisdictionFor(t.billId),
       };
       (colById.get(stage) ?? columns[0]!).cards.push(card);
     }
@@ -394,8 +557,7 @@ export class TrackerBoardService {
     }>;
   }> {
     type Card = BoardCard & { clientId: string; clientName: string | null };
-    const empty = () =>
-      BILL_STAGES.map((s) => ({ id: s.id, label: s.label, cards: [] as Card[] }));
+    const empty = () => BILL_STAGES.map((s) => ({ id: s.id, label: s.label, cards: [] as Card[] }));
     const tracked = await this.prisma.withTenant(tenantId, (tx) =>
       tx.trackedBill.findMany({
         where: { tenantId },
@@ -407,17 +569,23 @@ export class TrackerBoardService {
     const billIds = Array.from(new Set(tracked.map((t) => t.billId)));
     const clientIds = Array.from(new Set(tracked.map((t) => t.clientId)));
     const [bills, recentAlerts, hearingLinks, clientNames] = await Promise.all([
-      this.repo.fetchRecommendationBills(billIds),
+      this.fetchMergedBills(billIds),
       this.prisma.withTenant(tenantId, (tx) =>
         tx.intelAlert.findMany({
           where: {
             tenantId,
-            sourceType: 'bill',
+            sourceType: { in: ['bill', 'state_bill'] },
             sourceRef: { in: billIds },
             createdAt: { gte: new Date(Date.now() - RECENT_CHANGE_DAYS * DAY_MS) },
           },
           orderBy: { createdAt: 'desc' },
-          select: { sourceRef: true, clientId: true, changeType: true, title: true, createdAt: true },
+          select: {
+            sourceRef: true,
+            clientId: true,
+            changeType: true,
+            title: true,
+            createdAt: true,
+          },
         }),
       ),
       this.prisma.withTenant(tenantId, (tx) =>
@@ -436,7 +604,10 @@ export class TrackerBoardService {
     ]);
 
     // Per-client compiled watchlist (for matchedTags / the High-fit filter).
-    const topicsByClient = new Map<string, { topics: CompiledTopicForFit[]; issueAreas: string[] }>();
+    const topicsByClient = new Map<
+      string,
+      { topics: CompiledTopicForFit[]; issueAreas: string[] }
+    >();
     await Promise.all(
       clientIds.map(async (cid) => {
         const { topics, issueAreas } = await this.compiledTopics(tenantId, cid);
@@ -444,12 +615,13 @@ export class TrackerBoardService {
       }),
     );
 
-    const billById = new Map(bills.map((b) => [b.id, b]));
+    const billById = bills;
     const ck = (cid: string, bid: string) => `${cid}:${bid}`;
     const chipByCB = new Map<string, { label: string; changeType: string | null; at: Date }>();
     for (const a of recentAlerts) {
       const k = ck(a.clientId, a.sourceRef);
-      if (!chipByCB.has(k)) chipByCB.set(k, { label: a.title, changeType: a.changeType, at: a.createdAt });
+      if (!chipByCB.has(k))
+        chipByCB.set(k, { label: a.title, changeType: a.changeType, at: a.createdAt });
     }
     const hearingCountByCB = new Map<string, number>();
     for (const g of hearingLinks) hearingCountByCB.set(ck(g.clientId, g.sourceRef), g._count._all);
@@ -464,13 +636,20 @@ export class TrackerBoardService {
       const stage = (t.stage as BillStage | null) ?? billStage(latestActionText);
       const ct = topicsByClient.get(t.clientId);
       const matchedTags =
-        bill && ct ? scoreBillFit(toRelevanceBill(bill), ct.topics, ct.issueAreas, 0, false).matchedTags : [];
+        bill && ct
+          ? scoreBillFit(toRelevanceBill(bill), ct.topics, ct.issueAreas, 0, false).matchedTags
+          : [];
       const card: Card = {
         billId: t.billId,
-        displayNum: humanizeBillId(t.billId),
+        displayNum: this.displayNumFor(t.billId),
         title: bill?.title ?? null,
         stage,
-        passageProbability: passageProbability({ latestActionText, title: bill?.title ?? null, latestActionDate, nowMs }),
+        passageProbability: passageProbability({
+          latestActionText,
+          title: bill?.title ?? null,
+          latestActionDate,
+          nowMs,
+        }),
         latestActionText,
         latestActionDate,
         note: t.note ?? null,
@@ -482,6 +661,7 @@ export class TrackerBoardService {
         lastHearingSessionId: t.lastHearingSessionId ?? null,
         lastHearingAt: t.lastHearingAt ?? null,
         hearingCount: hearingCountByCB.get(ck(t.clientId, t.billId)) ?? 0,
+        jurisdiction: this.jurisdictionFor(t.billId),
         clientId: t.clientId,
         clientName: clientNames.get(t.clientId) ?? null,
       };
@@ -531,6 +711,30 @@ export class TrackerBoardService {
     }));
   }
 
+  private async trackCongressStage(
+    billId: string,
+  ): Promise<{ stage: BillStage; latestActionText: string | null; latestActionDate: Date | null }> {
+    const bill = await this.repo.getBillById(billId);
+    if (!bill) throw new NotFoundException(`Bill ${billId} not found`);
+    return {
+      stage: billStage(bill.latestActionText),
+      latestActionText: bill.latestActionText,
+      latestActionDate: bill.latestActionDate,
+    };
+  }
+
+  private async trackStateStage(
+    billId: string,
+  ): Promise<{ stage: BillStage; latestActionText: string | null; latestActionDate: Date | null }> {
+    const bill = await this.stateRepo.getStateBillById(billId);
+    if (!bill) throw new NotFoundException(`Bill ${billId} not found`);
+    return {
+      stage: this.stateStatusToBoardStage(bill.status),
+      latestActionText: bill.latestActionText,
+      latestActionDate: bill.latestActionDate,
+    };
+  }
+
   /** Track a bill for a client (idempotent upsert). Verifies the bill exists. */
   async trackBill(
     tenantId: string,
@@ -539,9 +743,15 @@ export class TrackerBoardService {
     billId: string,
     opts?: { note?: string | null; source?: string; isManual?: boolean },
   ) {
-    const bill = await this.repo.getBillById(billId);
-    if (!bill) throw new NotFoundException(`Bill ${billId} not found`);
-    const stage = billStage(bill.latestActionText);
+    // State Legislation Platform (S4.5): a DD1-shaped id ("tx-2025-hb1234")
+    // routes to the state-bill lookup + status-rank stage bucketing instead
+    // of the congress path. `opts?.source` is honored when given, but the id
+    // shape is the authoritative signal — a caller passing a state key
+    // without opts.source='state' still tracks correctly.
+    const isState = isStateBillKey(billId) || opts?.source === 'state';
+    const stage = isState
+      ? await this.trackStateStage(billId)
+      : await this.trackCongressStage(billId);
     const tb = await this.prisma.withTenant(tenantId, (tx) =>
       tx.trackedBill.upsert({
         where: { clientId_billId: { clientId, billId } },
@@ -549,13 +759,13 @@ export class TrackerBoardService {
           tenantId,
           clientId,
           billId,
-          source: opts?.source ?? 'congress',
+          source: isState ? 'state' : (opts?.source ?? 'congress'),
           note: opts?.note ?? null,
           isManual: opts?.isManual ?? false,
           trackedBy: userId,
-          stage,
-          lastSeenActionText: bill.latestActionText,
-          lastSeenActionDate: bill.latestActionDate,
+          stage: stage.stage,
+          lastSeenActionText: stage.latestActionText,
+          lastSeenActionDate: stage.latestActionDate,
           lastSeenAt: new Date(),
         },
         update: opts?.note !== undefined ? { note: opts.note } : {},

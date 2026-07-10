@@ -1,6 +1,8 @@
 import { Button, Drawer, Empty } from 'antd';
 import { Link } from 'react-router-dom';
+import { isStateBillKey } from '@capiro/shared';
 import { BillDetailBody, DrillSection, formatDate } from '../explorer/bill-detail.js';
+import { StateBillDetailBody } from '../explorer/state-bill-detail.js';
 import { useBillHearings, type BillHearing } from '../clients/tracker/bill-hearings-api.js';
 
 /**
@@ -106,6 +108,12 @@ export function BillDrawer({
   onTrack?: (billId: string) => void;
   onClose: () => void;
 }) {
+  // State Legislation Platform (S7.3) — jurisdiction switch: a state bill key
+  // ("tx-2025-hb1234") renders the state-aware body; anything else keeps the
+  // existing federal body untouched. Hearing links are federal-only in Phase 0
+  // (no state bill<->hearing linker exists yet), so the state body's `extra` is
+  // omitted rather than firing a lookup that can only ever come back empty.
+  const isState = billId != null && isStateBillKey(billId);
   return (
     <Drawer
       open={open}
@@ -125,7 +133,7 @@ export function BillDrawer({
               letterSpacing: '0.06em',
             }}
           >
-            Bill
+            {isState ? 'State bill' : 'Bill'}
           </span>
           {billId && !isTracked && onTrack ? (
             <>
@@ -145,7 +153,11 @@ export function BillDrawer({
       className="explorer-drill-drawer"
     >
       {billId ? (
-        <BillDetailBody id={billId} extra={<HearingLinkSection clientId={clientId} billId={billId} />} />
+        isState ? (
+          <StateBillDetailBody id={billId} />
+        ) : (
+          <BillDetailBody id={billId} extra={<HearingLinkSection clientId={clientId} billId={billId} />} />
+        )
       ) : (
         <Empty description="No bill selected." />
       )}

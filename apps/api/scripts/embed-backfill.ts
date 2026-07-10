@@ -27,10 +27,7 @@
 
 import { config as dotenvConfig } from 'dotenv';
 import { PrismaClient } from '@prisma/client';
-import {
-  BedrockRuntimeClient,
-  InvokeModelCommand,
-} from '@aws-sdk/client-bedrock-runtime';
+import { BedrockRuntimeClient, InvokeModelCommand } from '@aws-sdk/client-bedrock-runtime';
 import { createHash } from 'node:crypto';
 import { parseArgs } from 'node:util';
 import {
@@ -76,12 +73,18 @@ const { values: args } = parseArgs({
   },
 });
 
-type SourceKind = 'bills' | 'lda' | 'capabilities';
+// State Legislation Platform (Phase 0 S5.2): `state_bills` ships DARK — it's a
+// valid --source but deliberately excluded from ALL_SOURCES, so the existing
+// daily `--source all` schedule never touches it until P1 explicitly enables
+// it (add an INGESTION_JOBS row + extend semanticBillScores with a
+// sourceType param, per the Phase 0 plan). Callable directly today:
+// `embed-backfill --source state_bills` for manual/staging verification.
+type SourceKind = 'bills' | 'lda' | 'capabilities' | 'state_bills';
 const ALL_SOURCES: SourceKind[] = ['bills', 'lda', 'capabilities'];
 const sourceArg = args.source as SourceKind | 'all' | undefined;
-if (!sourceArg || ![...ALL_SOURCES, 'all'].includes(sourceArg)) {
+if (!sourceArg || ![...ALL_SOURCES, 'state_bills', 'all'].includes(sourceArg)) {
   console.error(
-    'usage: embed-backfill --source <bills|lda|capabilities|all> [--tenant <uuid>] [--since <YYYY-MM-DD>] [--limit N] [--dryRun]',
+    'usage: embed-backfill --source <bills|lda|capabilities|state_bills|all> [--tenant <uuid>] [--since <YYYY-MM-DD>] [--limit N] [--dryRun]',
   );
   process.exit(2);
 }
@@ -103,11 +106,7 @@ function normalize(text: string): string {
 }
 
 /** Pool a function over an array with bounded concurrency. */
-async function pool<T, R>(
-  items: T[],
-  size: number,
-  fn: (item: T) => Promise<R>,
-): Promise<R[]> {
+async function pool<T, R>(items: T[], size: number, fn: (item: T) => Promise<R>): Promise<R[]> {
   const results: R[] = new Array(items.length);
   let cursor = 0;
   const workers = Array.from({ length: Math.min(size, items.length) }, async () => {
@@ -138,9 +137,7 @@ async function embed(text: string): Promise<number[]> {
     embedding?: number[];
   };
   if (!Array.isArray(parsed.embedding) || parsed.embedding.length !== DIMENSIONS) {
-    throw new Error(
-      `Titan returned a bad embedding (len=${parsed.embedding?.length ?? 'none'})`,
-    );
+    throw new Error(`Titan returned a bad embedding (len=${parsed.embedding?.length ?? 'none'})`);
   }
   return parsed.embedding;
 }
@@ -301,6 +298,28 @@ function capabilityText(c: {
   return normalize(parts.join('\n'));
 }
 
+/** State Legislation Platform (S5.2) — the state_bill twin of billText(). */
+function stateBillText(b: {
+  state: string;
+  sessionKey: string;
+  identifier: string;
+  title: string;
+  description: string | null;
+  subjects: string[];
+  sponsorName: string | null;
+  latestActionText: string | null;
+}): string {
+  const parts = [
+    `${b.state} ${b.identifier} (${b.sessionKey} session)`,
+    b.title,
+    b.description ? `Description: ${b.description}` : null,
+    b.subjects.length ? `Subjects: ${b.subjects.join(', ')}` : null,
+    b.sponsorName ? `Sponsor: ${b.sponsorName}` : null,
+    b.latestActionText ? `Latest action: ${b.latestActionText}` : null,
+  ].filter(Boolean);
+  return normalize(parts.join('\n'));
+}
+
 // ─── Drivers ──────────────────────────────────────────────────────────────────
 
 async function backfillBills(limit?: number): Promise<RunCounts> {
@@ -447,6 +466,87 @@ async function backfillLda(since: string | undefined, limit?: number): Promise<R
   return { inserted, updated, skipped, errors };
 }
 
+/**
+ * State Legislation Platform (S5.2) — embeds state_bill title+description
+ * into context_embeddings with source_type='state_bill' (the federal
+ * embedder, extended). Windowed on `syncedAt` (the state_bill twin of LDA's
+ * `dtPosted` window) rather than a full re-scan every run — the corpus can
+ * grow past 100k rows across 50 states, and unlike LDA there is no separate
+ * `--since`-aware precedent to mirror 1:1, so this follows LDA's shape.
+ */
+async function backfillStateBills(since: string | undefined, limit?: number): Promise<RunCounts> {
+  const where = since ? { syncedAt: { gte: new Date(since) } } : {};
+  const total = await prisma.stateBill.count({ where });
+  console.log(`[state_bills] ${total} rows matching since=${since ?? 'all'}`);
+
+  let processed = 0;
+  let inserted = 0;
+  let updated = 0;
+  let skipped = 0;
+  let errors = 0;
+  let lastId: string | undefined;
+
+  while (true) {
+    const batch = await prisma.stateBill.findMany({
+      take: PAGE_SIZE,
+      where,
+      ...(lastId ? { cursor: { id: lastId }, skip: 1 } : {}),
+      orderBy: { id: 'asc' },
+      select: {
+        id: true,
+        state: true,
+        sessionKey: true,
+        identifier: true,
+        title: true,
+        description: true,
+        subjects: true,
+        sponsorName: true,
+        latestActionText: true,
+      },
+    });
+    if (batch.length === 0) break;
+
+    const work = batch.map((b) => ({ b, text: stateBillText(b) }));
+    const results = await pool(work, CONCURRENCY, async ({ b, text }) => {
+      if (text.length < 10) return 'skip' as const;
+      const hash = sha256(text);
+      try {
+        const v = await embed(text);
+        return await upsertRow(
+          {
+            tenantId: null,
+            clientId: null,
+            sourceType: 'state_bill',
+            sourceId: b.id,
+            contentText: text,
+            contentHash: hash,
+            embedding: v,
+          },
+          true,
+        );
+      } catch (e) {
+        console.error(`[state_bills] ${b.id} failed:`, (e as Error).message);
+        return 'error' as const;
+      }
+    });
+
+    for (const r of results) {
+      if (r === 'inserted') inserted++;
+      else if (r === 'updated') updated++;
+      else if (r === 'skip') skipped++;
+      else if (r === 'error') errors++;
+    }
+    processed += batch.length;
+    lastId = batch[batch.length - 1]!.id;
+    console.log(
+      `[state_bills] processed=${processed}/${total} inserted=${inserted} updated=${updated} skipped=${skipped}`,
+    );
+
+    if (limit && processed >= limit) break;
+  }
+  return { inserted, updated, skipped, errors };
+}
+
 async function backfillCapabilities(
   tenantFilter: string | undefined,
   limit?: number,
@@ -545,10 +645,7 @@ async function lastSuccessfulSince(kind: SourceKind): Promise<Date | null> {
  * runs `fn`, then closes it with counts + status. On throw, records the error
  * and rethrows so the process exits non-zero (scheduler/alarm sees the failure).
  */
-async function withSyncRun(
-  kind: SourceKind,
-  fn: () => Promise<RunCounts>,
-): Promise<RunCounts> {
+async function withSyncRun(kind: SourceKind, fn: () => Promise<RunCounts>): Promise<RunCounts> {
   const run = await prisma.syncRun.create({
     data: { source: embedSyncSource(kind), startedAt: new Date(), status: 'running' },
     select: { id: true },
@@ -596,10 +693,24 @@ async function resolveLdaSince(): Promise<string | undefined> {
   return since;
 }
 
+/** State Legislation Platform (S5.2) — the state_bills twin of resolveLdaSince(). */
+async function resolveStateBillsSince(): Promise<string | undefined> {
+  const since = resolveSinceWindow(args.since, await lastSuccessfulSince('state_bills'));
+  if (args.since) {
+    // explicit flag
+  } else if (since) {
+    console.log(`[state_bills] no --since given; using SyncRun watermark since=${since}`);
+  } else {
+    console.log('[state_bills] no --since and no prior successful run; full backfill');
+  }
+  return since;
+}
+
 async function runSource(kind: SourceKind, limit?: number): Promise<RunCounts> {
   return withSyncRun(kind, async () => {
     if (kind === 'bills') return backfillBills(limit);
     if (kind === 'lda') return backfillLda(await resolveLdaSince(), limit);
+    if (kind === 'state_bills') return backfillStateBills(await resolveStateBillsSince(), limit);
     return backfillCapabilities(args.tenant, limit);
   });
 }
@@ -619,7 +730,15 @@ async function main(): Promise<void> {
       } else if (s === 'lda') {
         const since = await resolveLdaSince();
         const where = since ? { dtPosted: { gte: new Date(since) } } : {};
-        console.log(`lda total=${await prisma.ldaFiling.count({ where })} (since=${since ?? 'all'})`);
+        console.log(
+          `lda total=${await prisma.ldaFiling.count({ where })} (since=${since ?? 'all'})`,
+        );
+      } else if (s === 'state_bills') {
+        const since = await resolveStateBillsSince();
+        const where = since ? { syncedAt: { gte: new Date(since) } } : {};
+        console.log(
+          `state_bills total=${await prisma.stateBill.count({ where })} (since=${since ?? 'all'})`,
+        );
       } else {
         const where = args.tenant ? { tenantId: args.tenant } : {};
         console.log(`capabilities total=${await prisma.clientCapability.count({ where })}`);

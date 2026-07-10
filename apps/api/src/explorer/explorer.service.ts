@@ -1235,6 +1235,9 @@ export class ExplorerService {
         latestActionDate: b.latestActionDate?.toISOString() ?? null,
         latestActionText: b.latestActionText,
         url: b.url,
+        // State Legislation Platform (S7.4) — canonical derived status (S3),
+        // additive: null on any not-yet-derived row (pre-S3 backfill state).
+        status: b.status,
       })),
       total,
     };
@@ -1457,13 +1460,65 @@ export class ExplorerService {
     };
   }
 
+  /**
+   * State Legislation Platform (S7.4) — additive fields beyond the pre-Phase-0
+   * shape: status (S3 canonical derivation, already a plain column so free on
+   * the base spread), actions[] (newest 15), votes[] (roll-call summaries —
+   * NO per-member breakdown here, DD7 keeps this view metadata-only), versions[]
+   * (metadata only, no text blobs — DD7), links[] (companions/same-as/etc.).
+   * `state_roll_call_vote`/`state_bill_link` are SOFT refs (billKey nullable,
+   * no enforced FK — S1.4/S4 tolerate an unlinked vote/target), so votes are a
+   * separate query rather than a Prisma `include` relation.
+   */
   async stateBillDetail(id: string) {
-    const b = await this.prisma.stateBill.findUnique({ where: { id } });
+    const b = await this.prisma.stateBill.findUnique({
+      where: { id },
+      include: {
+        actions: { orderBy: [{ date: 'desc' }, { orderKey: 'desc' }], take: 15 },
+        versions: { orderBy: { date: 'desc' } },
+        links: true,
+      },
+    });
     if (!b) return null;
+    const votes = await this.prisma.stateRollCallVote.findMany({
+      where: { billKey: id },
+      orderBy: { date: 'desc' },
+    });
     return {
       bill: {
         ...b,
         latestActionDate: b.latestActionDate?.toISOString() ?? null,
+        statusAt: b.statusAt?.toISOString() ?? null,
+        textDate: b.textDate?.toISOString() ?? null,
+        actions: b.actions.map((a) => ({
+          id: a.id,
+          date: a.date.toISOString(),
+          text: a.text,
+          chamber: a.chamber,
+        })),
+        votes: votes.map((v) => ({
+          id: v.id,
+          date: v.date.toISOString(),
+          motion: v.motion,
+          chamber: v.chamber,
+          yeas: v.yeas,
+          nays: v.nays,
+          nv: v.nv,
+          absent: v.absent,
+          passed: v.passed,
+          sourceUrl: v.sourceUrl,
+        })),
+        versions: b.versions.map((v) => ({
+          id: v.id,
+          versionType: v.versionType,
+          date: v.date.toISOString(),
+          stateUrl: v.stateUrl,
+        })),
+        links: b.links.map((l) => ({
+          id: l.id,
+          linkType: l.linkType,
+          relatedBillKey: l.relatedBillKey,
+        })),
       },
     };
   }

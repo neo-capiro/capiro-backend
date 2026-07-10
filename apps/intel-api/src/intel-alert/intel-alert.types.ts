@@ -43,6 +43,8 @@ export interface IntelAlertEvent {
   matchedTags?: string[];
   score?: number;
   band?: string;
+  /** 'US' | <state code> (State Legislation Platform, DD5). Defaults to 'US' when absent — every pre-Phase-0 event stays federal-only. */
+  jurisdiction?: string;
 }
 
 /** Parse "HH:MM" to minutes-since-midnight, or null. */

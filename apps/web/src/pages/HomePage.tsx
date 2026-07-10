@@ -375,6 +375,22 @@ function NeedsAttention({
           href: '/intelligence/changes',
           rank: hoursSince(c.detectedAt),
         });
+      } else if (c.source === 'state_bill') {
+        // State Legislation Platform (S7.5) — DD4's second rail: apps/api's own
+        // emit-state-changes.ts writes these (intel-api never writes apps/api
+        // tables). Deep-links into LegiWatch's Bills tab, scoped to the first
+        // related client (the same ?tab=…&client=… pattern used by alert emails).
+        out.push({
+          id: `sb-${c.id}`,
+          sev,
+          eyebrow: `State bill · ${relativeTime(c.detectedAt)}`,
+          title: c.title,
+          context: names[0] ?? 'Tracked state bill',
+          href: c.relatedClientIds[0]
+            ? `/legiwatch?tab=bills&client=${encodeURIComponent(c.relatedClientIds[0])}`
+            : '/legiwatch?tab=bills',
+          rank: hoursSince(c.detectedAt),
+        });
       } else if (
         (c.source === 'federal_register_document' || c.source === 'fec_contribution') &&
         sev !== 'info'

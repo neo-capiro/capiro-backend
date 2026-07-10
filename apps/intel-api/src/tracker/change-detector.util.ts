@@ -8,6 +8,7 @@
  * `floorVote` (matches source lines 79–80; the registry's `committeeVote` is
  * wrong).
  */
+import { stateBillStatusLabel } from '@capiro/shared';
 export type ChangeTone = 'success' | 'critical' | 'notable' | 'info';
 export type AlertSeverity = 'info' | 'notable' | 'critical';
 
@@ -157,6 +158,90 @@ export function classifyStatusChange(status: string | null | undefined): ChangeC
       return null;
   }
 }
+
+// ── State Legislation Platform (Phase 0 S4.3): state-rail event classes ────
+// A parallel set, NOT a mutation of classifyChange/classifyStatusChange
+// above (which stay byte-identical for the federal parity gate). State
+// action-text events reuse classifyChange as-is (S4.3) — no new function
+// needed there.
+
+/**
+ * Map a canonical state_bill.status TRANSITION to an alert class. Unlike the
+ * federal `classifyStatusChange` (which only covers the rule_failed/rule_pending
+ * gap classifyChange can't see), this covers every status transition worth
+ * alerting on — state action text is far less standardized across 50
+ * legislatures than Congress.gov's, so the coded status is the primary signal,
+ * not a gap-filler. committee/introduced return null (routine, not alert-worthy).
+ */
+const STATE_STATUS_TRIGGER: Record<string, string> = {
+  enacted: 'enactedFailed',
+  vetoed: 'enactedFailed',
+  failed: 'enactedFailed',
+  dead_by_deadline: 'enactedFailed',
+  passed_chamber: 'floorVote',
+  floor: 'floorVote',
+  to_governor: 'floorVote',
+  veto_overridden: 'floorVote',
+  resolving: 'floorVote',
+  reported: 'committeeVote',
+};
+const STATE_STATUS_SEVERITY: Record<string, AlertSeverity> = {
+  enacted: 'critical',
+  vetoed: 'critical',
+  failed: 'critical',
+  dead_by_deadline: 'critical',
+  passed_chamber: 'notable',
+  floor: 'notable',
+  to_governor: 'notable',
+  veto_overridden: 'notable',
+  resolving: 'notable',
+  reported: 'notable',
+};
+const STATE_STATUS_TONE: Record<string, ChangeTone> = {
+  enacted: 'success',
+  vetoed: 'critical',
+  failed: 'critical',
+  dead_by_deadline: 'critical',
+  passed_chamber: 'success',
+  floor: 'info',
+  to_governor: 'info',
+  veto_overridden: 'info',
+  resolving: 'info',
+  reported: 'success',
+};
+
+export function classifyStateStatusChange(status: string | null | undefined): ChangeClass | null {
+  if (!status) return null;
+  const triggerKey = STATE_STATUS_TRIGGER[status];
+  if (!triggerKey) return null;
+  return {
+    changeType: `state_bill_${status}`,
+    triggerKey,
+    label: stateBillStatusLabel(status),
+    tone: STATE_STATUS_TONE[status] ?? 'info',
+    severity: STATE_STATUS_SEVERITY[status] ?? 'notable',
+  };
+}
+
+/** A recorded roll-call vote on a tracked state bill (fires even when it doesn't move canonical status — e.g. a failed floor vote). */
+export function stateVoteRecordedClass(isFinalPassageMotion: boolean): ChangeClass {
+  return {
+    changeType: 'state_bill_vote_recorded',
+    triggerKey: isFinalPassageMotion ? 'floorVote' : 'committeeVote',
+    label: 'Vote recorded',
+    tone: 'info',
+    severity: 'notable',
+  };
+}
+
+/** First-ever emitter for the `companion` trigger key (S4.3 — federal has none yet). */
+export const STATE_COMPANION_MOVED_CLASS: ChangeClass = {
+  changeType: 'state_companion_moved',
+  triggerKey: 'companion',
+  label: 'Companion bill moved',
+  tone: 'info',
+  severity: 'notable',
+};
 
 export const FISCAL_NOTE_CLASS: ChangeClass = {
   changeType: 'bill_fiscal_note',

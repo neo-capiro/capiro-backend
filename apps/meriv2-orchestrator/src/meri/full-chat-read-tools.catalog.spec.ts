@@ -28,6 +28,9 @@ const ALL_APPS_API_TOOLS = [
   'search_federal_awards',
   'search_gao_reports',
   'search_state_bills',
+  'get_state_bill_status',
+  'search_state_floor_votes',
+  'get_state_legislator',
   'search_intel_articles',
   'search_committee_hearings',
   'search_crs_reports',
@@ -68,14 +71,15 @@ const ALL_APPS_API_TOOLS = [
 ].sort();
 
 describe('FULL_CHAT_READ_TOOLS catalog', () => {
-  it('matches the expected 19-tool set, all read-only', () => {
+  it('matches the expected 20-tool set, all read-only', () => {
     const expected = [
       'run_analysis',
       'search_memory',
       'search_sec_filings',
       'search_fara_registrations',
       'search_federal_grants',
-      'search_state_bills',
+      'search_state_floor_votes',
+      'get_state_legislator',
       'search_cbo_cost_estimates',
       'resolve_entity',
       'get_bill_status',
@@ -91,7 +95,7 @@ describe('FULL_CHAT_READ_TOOLS catalog', () => {
       'query_outreach',
     ].sort();
     expect(FULL_CHAT_READ_TOOLS.map((t) => t.name).sort()).toEqual(expected);
-    expect(FULL_CHAT_READ_TOOLS).toHaveLength(19);
+    expect(FULL_CHAT_READ_TOOLS).toHaveLength(20);
     expect(FULL_CHAT_READ_TOOLS.every((t) => t.readOnly === true)).toBe(true);
   });
 

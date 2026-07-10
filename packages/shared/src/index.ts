@@ -558,7 +558,8 @@ export type SourceType =
   | 'comment_overdue'
   | 'competitor_filing'
   | 'contract_award'
-  | 'bill_movement';
+  | 'bill_movement'
+  | 'state_bill';
 
 export const SOURCE_TYPES: readonly SourceType[] = [
   'bill',
@@ -569,6 +570,7 @@ export const SOURCE_TYPES: readonly SourceType[] = [
   'competitor_filing',
   'contract_award',
   'bill_movement',
+  'state_bill',
 ] as const;
 
 export interface Alert {
@@ -668,6 +670,7 @@ export const CANONICAL_ID_TYPES = [
   'piid', // Procurement Instrument ID (contracts)
   'naics', // NAICS code (2-6 digits)
   'peCode', // DoD Program Element e.g. 0603270A
+  'stateBillKey', // State Legislation DD1 key "<state>-<sessionKey>-<billnumber>" e.g. "tx-2025-hb1234"
 ] as const;
 
 export type CanonicalIdType = (typeof CANONICAL_ID_TYPES)[number];
@@ -698,6 +701,7 @@ const PATTERNS: Record<CanonicalIdType, RegExp> = {
   piid: /^[A-Z0-9]{4,17}$/,
   naics: /^[0-9]{2,6}$/,
   peCode: /^[0-9]{7}[A-Z]{1,2}$/,
+  stateBillKey: /^[a-z]{2}-\d{4}(x\d+)?-[a-z]+\d+[a-z]?$/,
 };
 
 /** True iff `value` (after normalizeCanonicalId) is a well-formed id of `type`. */
@@ -726,6 +730,8 @@ export function normalizeCanonicalId(type: CanonicalIdType, value: string): stri
       return v.toUpperCase();
     case 'billId':
       return v.toLowerCase();
+    case 'stateBillKey':
+      return v.toLowerCase().replace(/\s+/g, '').replace(/\.+/g, '');
     case 'naics':
     case 'fain':
     case 'piid':
@@ -734,6 +740,76 @@ export function normalizeCanonicalId(type: CanonicalIdType, value: string): stri
     default:
       return v;
   }
+}
+
+/** True iff `value` is a well-formed DD1 state-bill key ("tx-2025-hb1234"). */
+export function isStateBillKey(value: string): boolean {
+  return isValidCanonicalId('stateBillKey', value);
+}
+
+export interface ParsedStateBillDesignation {
+  /** 2-letter state code, uppercase. */
+  state: string;
+  /** Normalized bill number, e.g. "hb1234". */
+  billNumber: string;
+  /** Canonical DD1 key, only populated when `sessionKey` was supplied. */
+  key: string | null;
+}
+
+/**
+ * Parse a human designation ("TX HB 1234", "HB 1234" with a separately-known
+ * state) into state + normalized bill number — the state twin of
+ * parseBillDesignation. Tries two interpretations and returns whichever
+ * parses (an explicit `state` param is tried FIRST — see below — but either
+ * can win): (1) the WHOLE text is just the bill designation and `state` names
+ * the jurisdiction ("HB 1234" + state="TX"); (2) the text itself leads with a
+ * 2-letter state code ("TX HB 1234"). Returns null when neither resolves a
+ * state (the caller must ask "which state?") or parses as a bill number.
+ * Does not resolve a session by itself — pass `sessionKey` (the caller's
+ * known/current session for that state) to also get the canonical `key`;
+ * without it `key` is null and the caller joins to a session separately.
+ *
+ * Trying the `state` param FIRST (not the text prefix) matters: a bare
+ * 2-letter bill type ("HB 1234", no state) also matches the leading-2-letters
+ * shape, so a text-first parse would misread "HB" as a bogus state code and
+ * never fall back to the real `state` param. Trying the hint first, then
+ * falling back to the text prefix, correctly handles both "HB 1234"+state and
+ * "TX HB 1234"+state (redundant) and "TX HB 1234" alone.
+ */
+export function parseStateBillDesignation(
+  text: string,
+  state?: string | null,
+  sessionKey?: string | null,
+): ParsedStateBillDesignation | null {
+  const cleaned = (text ?? '').trim();
+  const billNumberFrom = (body: string): string | null => {
+    // Strip periods before matching ("H.B. 1234" -> "HB 1234") — punctuation
+    // carries no meaning in a bill designation, same tolerance as the federal
+    // parseBillDesignation's per-letter optional dots.
+    const stripped = body.trim().replace(/\./g, '');
+    const m = stripped.match(/^([A-Za-z]+)\s*([0-9]+)([A-Za-z]?)$/);
+    if (!m || !m[1] || !m[2]) return null;
+    return `${m[1].toLowerCase()}${m[2]}${(m[3] ?? '').toLowerCase()}`;
+  };
+  const build = (resolvedState: string, billNumber: string): ParsedStateBillDesignation => ({
+    state: resolvedState,
+    billNumber,
+    key: sessionKey ? `${resolvedState.toLowerCase()}-${sessionKey}-${billNumber}` : null,
+  });
+
+  const hinted = (state ?? '').toUpperCase();
+  if (/^[A-Z]{2}$/.test(hinted)) {
+    const billNumber = billNumberFrom(cleaned);
+    if (billNumber) return build(hinted, billNumber);
+  }
+
+  const leadingState = cleaned.match(/^([A-Za-z]{2})\s+(.+)$/);
+  if (leadingState?.[1] && leadingState[2]) {
+    const billNumber = billNumberFrom(leadingState[2]);
+    if (billNumber) return build(leadingState[1].toUpperCase(), billNumber);
+  }
+
+  return null;
 }
 
 export interface ParsedBillId {
@@ -1100,6 +1176,161 @@ export function classifyVoteResult(result: string | null | undefined): 'pass' | 
   if (/not agreed|fail|reject|defeat|not passed|motion to table agreed/.test(t)) return 'fail';
   if (/agreed to|passed|adopted|prevail/.test(t)) return 'pass';
   return null;
+}
+
+// ─────────────────────────────────────────────────────────────────────────
+// State bill status (State Legislation Platform Phase 0, S3). Second
+// consumer of the deriveBillStatus pattern, one abstraction up — state
+// legislatures have no House-rule mechanic, so this is NOT a reuse of
+// BillStatus, it's a parallel vocabulary (DD8). Derivation spine = LegiScan's
+// own coded facts (status ints + progress events), text-regex only as
+// fallback — the exact inverse of the 4-copy regex bug fixed federally.
+// ─────────────────────────────────────────────────────────────────────────
+
+export type StateBillStatus =
+  | 'introduced'
+  | 'committee'
+  | 'reported'
+  | 'floor'
+  | 'passed_chamber'
+  | 'resolving'
+  | 'to_governor'
+  | 'enacted'
+  | 'vetoed'
+  | 'veto_overridden'
+  | 'failed'
+  | 'dead_by_deadline';
+
+const STATE_BILL_STATUS_META: Record<StateBillStatus, { label: string; rank: number }> = {
+  introduced: { label: 'Introduced', rank: 0 },
+  committee: { label: 'In committee', rank: 1 },
+  reported: { label: 'Reported out of committee', rank: 2 },
+  floor: { label: 'On the floor', rank: 3 },
+  passed_chamber: { label: 'Passed a chamber', rank: 4 },
+  resolving: { label: 'Resolving differences', rank: 5 },
+  to_governor: { label: 'Sent to the governor', rank: 6 },
+  enacted: { label: 'Enacted', rank: 9 },
+  vetoed: { label: 'Vetoed', rank: 9 },
+  veto_overridden: { label: 'Veto overridden', rank: 9 },
+  failed: { label: 'Failed', rank: 9 },
+  dead_by_deadline: { label: 'Dead — session adjourned sine die', rank: 9 },
+};
+
+export interface StateBillStatusResult {
+  status: StateBillStatus;
+  label: string;
+  rank: number;
+}
+
+/** Human label for a persisted state_bill.status value (or the raw value). */
+export function stateBillStatusLabel(status: string | null | undefined): string {
+  if (status && status in STATE_BILL_STATUS_META) {
+    return STATE_BILL_STATUS_META[status as StateBillStatus].label;
+  }
+  return status ?? 'Unknown';
+}
+
+/** Rank (0-9) for a persisted state_bill.status value — 0 for an unknown/null value. */
+export function stateBillStatusRank(status: string | null | undefined): number {
+  return status && status in STATE_BILL_STATUS_META
+    ? STATE_BILL_STATUS_META[status as StateBillStatus].rank
+    : 0;
+}
+
+/**
+ * Derive the canonical state_bill.status (LegiWatch pattern, generalized).
+ * Branch order (first match wins): the 5 hard terminals from LegiScan's own
+ * coded facts (enacted/veto_overridden/vetoed/failed/to_governor — a real
+ * failed-passage vote counts as the terminal `failed`, same as a failed
+ * status/progress code) win first; THEN `dead_by_deadline` (session's sine_die
+ * has passed and none of the 5 terminals matched) — positioned here
+ * deliberately, BEFORE the softer non-terminal signals (resolving,
+ * passed_chamber, reported, committee/floor regex fallback, introduced
+ * default): a bill that merely passed one chamber, or is stuck resolving
+ * differences, when the session ends before a terminal outcome is truthfully
+ * DEAD, not "passed_chamber" — the state twin of the H.R. 8800 lesson (a
+ * status that reads like progress must not outrank the fact that nothing
+ * further can happen this session).
+ */
+export function deriveStateBillStatus(input: {
+  legiscanStatus?: number | null;
+  progressEvents?: Array<{ event: number; date: string }> | null;
+  latestActionText?: string | null;
+  passedChamber?: boolean;
+  failedChamber?: boolean;
+  vetoed?: boolean;
+  overridden?: boolean;
+  sessionSineDie?: string | null;
+  today?: string;
+}): StateBillStatusResult {
+  const t = (input.latestActionText ?? '').toLowerCase();
+  const progress = input.progressEvents ?? [];
+  const mk = (status: StateBillStatus): StateBillStatusResult => ({
+    status,
+    ...STATE_BILL_STATUS_META[status],
+  });
+
+  // 1. Chaptered (progress 8) or status 4 (Passed) -> enacted.
+  if (progress.some((p) => p.event === 8) || input.legiscanStatus === 4) return mk('enacted');
+  // 2. Override flag or progress 7 (Override) -> veto_overridden.
+  if (input.overridden || progress.some((p) => p.event === 7)) return mk('veto_overridden');
+  // 3. Status 5 (Vetoed) or an explicit vetoed flag -> vetoed.
+  if (input.legiscanStatus === 5 || input.vetoed) return mk('vetoed');
+  // 4. Status 6 (Failed), progress 11 (Report DNP), or a real failed-passage
+  //    vote on this measure -> failed. All three are equally authoritative
+  //    terminal signals (a recorded floor loss is not "softer" than a coded
+  //    status int).
+  if (input.legiscanStatus === 6 || progress.some((p) => p.event === 11) || input.failedChamber) {
+    return mk('failed');
+  }
+  // 5. Status 3 (Enrolled) -> to_governor.
+  if (input.legiscanStatus === 3) return mk('to_governor');
+
+  // 6. Dead by deadline: the session's sine_die has passed and none of the 5
+  //    terminals above matched. Checked BEFORE the non-terminal signals below
+  //    on purpose (see function doc).
+  if (input.sessionSineDie && input.today && input.sessionSineDie < input.today) {
+    return mk('dead_by_deadline');
+  }
+
+  // 7. Resolving differences (conference committee / concurrence language).
+  if (/(amendments? (between|from)|concur|conference committee|refuse[sd] to concur)/i.test(t)) {
+    return mk('resolving');
+  }
+  // 8. A real chamber-passage vote or status 2 (Engrossed) -> passed_chamber.
+  if (input.passedChamber || input.legiscanStatus === 2) return mk('passed_chamber');
+  // 9. Progress 10 (Report Pass) or reported-out text -> reported.
+  if (progress.some((p) => p.event === 10) || /reported (favorably|out of committee)/i.test(t)) {
+    return mk('reported');
+  }
+  // 10. Text-regex fallback ladder (ONLY reached when no coded fact matched).
+  if (/(referred|committee|hearing|markup)/i.test(t)) return mk('committee');
+  if (/calendar|second reading|third reading|floor/i.test(t)) return mk('floor');
+  return mk('introduced');
+}
+
+/**
+ * Passage-question classifier for state roll-call motions — the state twin of
+ * `isPassageQuestion` (derive-bill-status.ts). Excludes committee/amendment
+ * motions so a procedural vote never masquerades as final passage.
+ */
+export function classifyStateVoteMotion(motion: string | null | undefined): boolean {
+  const m = (motion ?? '').toLowerCase();
+  if (/committee|amendment/.test(m)) return false;
+  return /third reading|final passage|on passage|do pass|concur|adoption/.test(m);
+}
+
+/** "tx-2025-hb1234" -> "TX HB 1234". Null-safe passthrough on a malformed key. */
+export function humanizeStateBillKey(key: string): string {
+  const m = key.match(/^([a-z]{2})-[a-z0-9]+-([a-z]+)(\d+[a-z]?)$/i);
+  if (!m || !m[1] || !m[2] || !m[3]) return key;
+  return `${m[1].toUpperCase()} ${m[2].toUpperCase()} ${m[3]}`;
+}
+
+/** "2025" -> "2025"; "2025x1987" -> "2025 (special session)" — display label for a DD1 sessionKey. */
+export function stateBillSessionLabel(sessionKey: string): string {
+  const m = sessionKey.match(/^(\d{4})x\d+$/);
+  return m ? `${m[1]} (special session)` : sessionKey;
 }
 
 // ─────────────────────────────────────────────────────────────────────────

@@ -17,6 +17,7 @@ import {
   SolutionOutlined,
   TeamOutlined,
 } from '@ant-design/icons';
+import { stateBillStatusLabel } from '@capiro/shared';
 import { useApi } from '../../lib/use-api.js';
 import {
   type BillFacets,
@@ -61,10 +62,10 @@ import {
   type StateLegislatorFacets,
   type SecDetail,
   type SecFacets,
-  type StateBillDetail,
   type StateBillFacets,
 } from './explorerTypes.js';
 import { BillDetailBody } from './bill-detail.js';
+import { StateBillDetailBody } from './state-bill-detail.js';
 
 const PAGE_SIZE = 25;
 
@@ -2156,6 +2157,7 @@ function StateBillsExplorer({ onRowClick }: { onRowClick: (id: string, row: Expl
           { title: 'State', dataIndex: 'state', width: 70, render: (s: string) => <span className="state-pill num">{s}</span> },
           { title: 'Bill', dataIndex: 'identifier', width: 100, render: (id: string) => <span className="num" style={{ fontWeight: 600 }}>{id}</span> },
           { title: 'Title', dataIndex: 'title', ellipsis: true },
+          { title: 'Status', dataIndex: 'status', width: 130, render: (s: string | null | undefined) => (s ? <Tag className="redesign-mono-tag">{stateBillStatusLabel(s)}</Tag> : '-') },
           { title: 'Sponsor', dataIndex: 'sponsorName', width: 180, render: (n: string | null, r: ExplorerStateBillRow) => n ? (
             <span>
               {n}
@@ -2599,32 +2601,11 @@ function IntelArticleDetailView({ id }: { id: string }) {
   );
 }
 
+// Delegates to the shared StateBillDetailBody (state-bill-detail.tsx, S7.3) so
+// the Explorer drill-in and the Radar bill drawer's jurisdiction-aware body
+// render identically with no duplicated fetch logic (mirrors BillDetailView).
 function StateBillDetailView({ id }: { id: string }) {
-  const api = useApi();
-  const query = useQuery<StateBillDetail | null>({
-    queryKey: ['explorer-state-bill-detail', id],
-    queryFn: async () => (await api.get<StateBillDetail>(`/api/explorer/state-bills/${id}`)).data,
-  });
-  if (query.isLoading) return <Skeleton active paragraph={{ rows: 8 }} />;
-  if (!query.data) return <Empty description="State bill not found." />;
-  const { bill: b } = query.data;
-  return (
-    <div className="drill-content">
-      <DrillSection title="Bill">
-        <DrillKV label="ID" value={<Tag className="redesign-mono-tag">{`${b.state} ${b.identifier}`}</Tag>} />
-        <DrillKV label="Title" value={b.title} />
-        <DrillKV label="State" value={b.state} />
-        <DrillKV label="Session" value={<span className="num">{b.session}</span>} />
-        {b.chamber ? <DrillKV label="Chamber" value={b.chamber} /> : null}
-        {b.sponsorName ? <DrillKV label="Sponsor" value={`${b.sponsorName}${b.sponsorParty ? ` (${b.sponsorParty})` : ''}`} /> : null}
-        {b.latestActionDate ? <DrillKV label="Latest action" value={`${formatDate(b.latestActionDate)}${b.latestActionText ? `, ${b.latestActionText}` : ''}`} /> : null}
-        {b.url ? <DrillKV label="Source" value={<a href={b.url} target="_blank" rel="noreferrer">Open on OpenStates →</a>} /> : null}
-      </DrillSection>
-      {b.abstract ? <DrillSection title="Abstract"><p style={{ fontSize: 13, lineHeight: 1.55 }}>{b.abstract}</p></DrillSection> : null}
-      {b.subjects?.length ? <DrillSection title="Subjects"><ChipList items={b.subjects} max={20} /></DrillSection> : null}
-      {b.classification?.length ? <DrillSection title="Classification"><ChipList items={b.classification} max={10} /></DrillSection> : null}
-    </div>
-  );
+  return <StateBillDetailBody id={id} />;
 }
 
 function DrillSection({ title, children }: { title: string; children: ReactNode }) {

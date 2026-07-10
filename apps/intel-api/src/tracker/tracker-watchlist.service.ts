@@ -40,10 +40,13 @@ export interface TrackerTopicInput {
 export interface PutWatchlistInput {
   issueAreas?: string[];
   topics?: TrackerTopicInput[];
+  /** State Legislation Platform (DD5) — empty = federal-only (unchanged default); non-empty also matches those states' bill corpus. */
+  jurisdictions?: string[];
 }
 export interface WatchlistView {
   clientId: string;
   issueAreas: string[];
+  jurisdictions: string[];
   topics: Array<{
     label: string;
     issueArea: string | null;
@@ -58,6 +61,8 @@ export interface WatchlistView {
    * compares persisted rows, not this hint).
    */
   suggestedIssueAreas?: string[];
+  /** Same posture, for state jurisdictions (S5.1) — derived from client_facilities.state, shown only while the client's own jurisdictions are empty. */
+  suggestedJurisdictions?: string[];
 }
 /**
  * Default alert triggers seeded on a new subscriber pref (kept in sync with
@@ -91,6 +96,8 @@ export interface PutAlertPrefsInput {
   smsCadence?: string;
   quietHoursStart?: string | null;
   quietHoursEnd?: string | null;
+  /** State Legislation Platform (DD5) — empty = ALL jurisdictions the client's watchlist produces. */
+  jurisdictions?: string[];
 }
 
 @Injectable()
@@ -102,18 +109,21 @@ export class TrackerWatchlistService {
     const wl = await this.prisma.withTenant(tenantId, (tx) =>
       tx.watchlist.findFirst({
         where: { id: wlId, tenantId },
-        select: { issueAreas: true },
+        select: { issueAreas: true, jurisdictions: true },
       }),
     );
     // Never configured → surface the sector-derived issue area as a suggestion
     // so the cold client isn't blank (P6). No write on read; the editor opts in.
     if (!wl) {
       const suggested = await this.getSectorSuggestion(tenantId, clientId);
+      const suggestedJ = await this.suggestedJurisdictions(tenantId, clientId);
       return {
         clientId,
         issueAreas: [],
+        jurisdictions: [],
         topics: [],
         ...(suggested.length ? { suggestedIssueAreas: suggested } : {}),
+        ...(suggestedJ.length ? { suggestedJurisdictions: suggestedJ } : {}),
       };
     }
     const topics = await this.prisma.withTenant(tenantId, (tx) =>
@@ -156,7 +166,16 @@ export class TrackerWatchlistService {
         terms: flatTerms.map((x) => ({ termType: x.termType, value: x.value })),
       });
     }
-    return { clientId, issueAreas: wl.issueAreas, topics: outTopics };
+    const suggestedJ = wl.jurisdictions.length
+      ? []
+      : await this.suggestedJurisdictions(tenantId, clientId);
+    return {
+      clientId,
+      issueAreas: wl.issueAreas,
+      jurisdictions: wl.jurisdictions,
+      topics: outTopics,
+      ...(suggestedJ.length ? { suggestedJurisdictions: suggestedJ } : {}),
+    };
   }
 
   /**
@@ -194,13 +213,24 @@ export class TrackerWatchlistService {
     await this.assertClientInTenant(tenantId, clientId);
     const wlId = `wl:${clientId}`;
     const issueAreas = Array.isArray(input.issueAreas) ? input.issueAreas : [];
+    const jurisdictions = Array.isArray(input.jurisdictions)
+      ? input.jurisdictions.map((j) => j.toUpperCase())
+      : [];
     const topics = Array.isArray(input.topics) ? input.topics : [];
     // withTenant IS a $transaction (same atomic rebuild) + sets the tenant GUC.
     await this.prisma.withTenant(tenantId, async (tx) => {
       await tx.watchlist.upsert({
         where: { id: wlId },
-        create: { id: wlId, tenantId, clientId, name: 'Watchlist', createdBy: userId, issueAreas },
-        update: { issueAreas },
+        create: {
+          id: wlId,
+          tenantId,
+          clientId,
+          name: 'Watchlist',
+          createdBy: userId,
+          issueAreas,
+          jurisdictions,
+        },
+        update: { issueAreas, jurisdictions },
       });
       // Rebuild the `wl:` row's topics (cascade-deletes their terms). This ONLY
       // touches the `wl:<clientId>` row — hearing FLAT terms on OTHER watchlist
@@ -260,6 +290,7 @@ export class TrackerWatchlistService {
       smsCadence: 'realtime',
       quietHoursStart: null,
       quietHoursEnd: null,
+      jurisdictions: [] as string[],
     };
   }
 
@@ -321,6 +352,9 @@ export class TrackerWatchlistService {
       smsCadence: input.smsCadence ?? 'realtime',
       quietHoursStart: input.quietHoursStart ?? null,
       quietHoursEnd: input.quietHoursEnd ?? null,
+      jurisdictions: Array.isArray(input.jurisdictions)
+        ? input.jurisdictions.map((j) => j.toUpperCase())
+        : [],
     };
     return this.prisma.withTenant(tenantId, (tx) =>
       tx.intelAlertPreference.upsert({
@@ -363,9 +397,12 @@ export class TrackerWatchlistService {
     );
   }
 
-  async getCompiled(tenantId: string, clientId: string): Promise<CompiledWatchlist> {
+  async getCompiled(
+    tenantId: string,
+    clientId: string,
+  ): Promise<CompiledWatchlist & { jurisdictions: string[] }> {
     const wl = await this.getWatchlist(tenantId, clientId);
-    return compileWatchlist({
+    const compiled = compileWatchlist({
       issueAreas: wl.issueAreas,
       topics: wl.topics.map((t) => ({
         label: t.label,
@@ -382,5 +419,28 @@ export class TrackerWatchlistService {
         })),
       ),
     });
+    // State Legislation Platform (DD5) — jurisdictions ride alongside the pure
+    // compiler output rather than threading through compileWatchlist itself
+    // (which stays a pure function of issueAreas/topics/terms only).
+    return { ...compiled, jurisdictions: wl.jurisdictions };
+  }
+
+  /**
+   * Facility-derived jurisdiction hint for a client (S5.1) — the exact
+   * suggestedIssueAreas precedent (getSectorSuggestion above): read-only,
+   * never written, absent once the client has explicitly configured
+   * jurisdictions. withSystem because client_facilities is tenant-scoped and
+   * intel-api has no RLS.
+   */
+  async suggestedJurisdictions(tenantId: string, clientId: string): Promise<string[]> {
+    if (!UUID_RE.test(clientId)) return [];
+    const rows = await this.prisma.withSystem((tx) =>
+      tx.$queryRawUnsafe<Array<{ state: string | null }>>(
+        'SELECT DISTINCT state FROM client_facilities WHERE tenant_id = $1::uuid AND client_id = $2::uuid AND state IS NOT NULL',
+        tenantId,
+        clientId,
+      ),
+    );
+    return rows.map((r) => r.state).filter((s): s is string => !!s);
   }
 }

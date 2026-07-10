@@ -18,6 +18,7 @@
 
 import { PrismaService } from '../prisma/prisma.service.js';
 import { SourceDataRepository } from '../sourcedata/source-data.repository.js';
+import { StateSourceDataRepository } from '../sourcedata/state-source-data.repository.js';
 import { EMBEDDING_MODEL, embedText, normalize, vectorLiteral } from '../embeddings/embedder.js';
 import { ConfigService } from '@nestjs/config';
 import { WatchlistSyncService } from '../watchlist/watchlist-sync.service.js';
@@ -287,7 +288,11 @@ export async function runVerb(verb: string, args: string[], deps: VerbDeps): Pro
         ? await deps.prisma.withTenant(tenantId, (tx) => tx.trackedBill.updateMany(replayData))
         : await deps.prisma.withSystem((tx) => tx.trackedBill.updateMany(replayData));
       deps.log(`DIAG_REWOUND billId=${billId} tenant=${tenantId ?? '(all)'} rows=${rewound.count}`);
-      const svc = new BillChangeDetectorService(deps.prisma, new SourceDataRepository(deps.prisma));
+      const svc = new BillChangeDetectorService(
+        deps.prisma,
+        new SourceDataRepository(deps.prisma),
+        new StateSourceDataRepository(deps.prisma),
+      );
       const r = await svc.runDetectionCycle();
       deps.log(
         `DETECT_DONE scanned=${r.scanned} baseline=${r.baseline} changed=${r.changed} ` +
@@ -318,7 +323,11 @@ export async function runVerb(verb: string, args: string[], deps: VerbDeps): Pro
       return;
     }
     case 'detect-bill-changes': {
-      const svc = new BillChangeDetectorService(deps.prisma, new SourceDataRepository(deps.prisma));
+      const svc = new BillChangeDetectorService(
+        deps.prisma,
+        new SourceDataRepository(deps.prisma),
+        new StateSourceDataRepository(deps.prisma),
+      );
       const r = await svc.runDetectionCycle();
       deps.log(
         `DETECT_DONE scanned=${r.scanned} baseline=${r.baseline} changed=${r.changed} ` +
@@ -331,6 +340,7 @@ export async function runVerb(verb: string, args: string[], deps: VerbDeps): Pro
         deps.prisma,
         new SourceDataRepository(deps.prisma),
         new TrackerWatchlistService(deps.prisma),
+        new StateSourceDataRepository(deps.prisma),
       );
       const svc = new NewMatchDetectorService(deps.prisma, board);
       const r = await svc.runNewMatchCycle();
@@ -392,6 +402,7 @@ export async function runVerb(verb: string, args: string[], deps: VerbDeps): Pro
         deps.prisma,
         new SourceDataRepository(deps.prisma),
         new TrackerWatchlistService(deps.prisma),
+        new StateSourceDataRepository(deps.prisma),
       );
       const recs = await board.getRecommendations(tenantId, clientId, 10);
       deps.log(`RECS_OK count=${recs.length}`);

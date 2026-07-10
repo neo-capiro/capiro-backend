@@ -200,7 +200,53 @@ export const INGESTION_JOBS: ScheduledIngestionJob[] = [
     command: ['sync-openstates'],
     cron: { minute: '0', hour: '8', weekDay: 'MON' },
     tier: 'weekly',
-    description: 'State bills/legislators (weekly Mon)',
+    description:
+      'State legislators/committees only (weekly Mon) — LegiScan is the bill spine now (DD2)',
+  },
+  // ── State Legislation Platform (Phase 0 S1) — LegiScan bill spine ─────────
+  // Priority-state vs wide-sweep masterlist rules share `command`; the actual
+  // LEGISCAN_STATES env split is applied on the rule's containerOverrides
+  // out-of-band (the PE_ALERT_EMAIL_TENANTS trick — flips without a task-def
+  // revision, docs/runbooks/out-of-band-ingestion-deploy.md).
+  {
+    id: 'SyncLegiscanMasterlist',
+    command: ['sync-legiscan-masterlist'],
+    cron: { minute: '10', hour: '*' },
+    tier: 'daily',
+    description:
+      'LegiScan change_hash diff, priority states hourly (set LEGISCAN_STATES=FL,CA,TX,NY,IL,MA,GA,VA out-of-band)',
+  },
+  {
+    id: 'SyncLegiscanMasterlistWide',
+    command: ['sync-legiscan-masterlist'],
+    cron: { minute: '25', hour: '1/6' },
+    tier: 'daily',
+    description:
+      'LegiScan change_hash diff, remaining 43 states every 6h (set LEGISCAN_STATES=<other 43> out-of-band)',
+  },
+  {
+    id: 'SyncLegiscanBills',
+    command: ['sync-legiscan-bills'],
+    cron: { minute: '30', hour: '*' },
+    tier: 'daily',
+    description:
+      'LegiScan getBill drain of the change queue (quota-governed, LEGISCAN_MONTHLY_BUDGET)',
+  },
+  {
+    id: 'DeriveStateBillStatus',
+    command: ['derive-state-bill-status'],
+    cron: { minute: '50', hour: '0/6' },
+    tier: 'derived',
+    description:
+      'Canonical state_bill.status from actions + votes + session calendars (after the LegiScan drains)',
+  },
+  {
+    id: 'EmitStateChanges',
+    command: ['emit-state-changes'],
+    cron: { minute: '55', hour: '0/6' },
+    tier: 'derived',
+    description:
+      'intelligence_change rows for material state_bill status transitions (dashboard/changes-inbox rail, DD4) — after derive-state-bill-status',
   },
   {
     id: 'SyncSecEdgar',

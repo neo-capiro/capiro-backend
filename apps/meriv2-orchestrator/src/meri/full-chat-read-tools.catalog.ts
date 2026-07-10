@@ -2,13 +2,18 @@ import type { DelegatedToolSpec } from '@capiro/meriv2-core';
 
 /**
  * The remaining read-only apps/api Meri tools NOT in the in-editor allowlist
- * (delegated-tools.catalog.ts's 24) — the full chat surface's (C4, live since
+ * (delegated-tools.catalog.ts's 26) — the full chat surface's (C4, live since
  * #298) extra read set. Names + descriptions transcribed verbatim from
  * apps/api's TOOL_DEFINITIONS (meri-tools.service.ts); a drift test
  * (full-chat-read-tools.catalog.spec.ts) asserts, together with the other two
- * catalogs, exact coverage of apps/api's full 57-tool surface.
+ * catalogs, exact coverage of apps/api's full 60-tool surface. State
+ * Legislation Platform (Phase 0 S6) added 2 tools HERE (search_state_floor_votes,
+ * get_state_legislator); get_state_bill_status and the upgraded search_state_bills
+ * moved to the in-editor catalog instead (still reachable from full-chat, which
+ * is a superset — in-editor's tools + this file's — not duplicated here, per
+ * the strict-disjointness contract the coverage spec enforces).
  *
- * All 19 are absent from apps/api's SIDE_EFFECTING_TOOLS set, so all are
+ * All 20 are absent from apps/api's SIDE_EFFECTING_TOOLS set, so all are
  * readOnly:true here too (the C-workstream rule: this classification MUST
  * match apps/api's, since a delegated write registered readOnly would bypass
  * the B1 gate).
@@ -45,9 +50,15 @@ export const FULL_CHAT_READ_TOOLS: readonly DelegatedToolSpec[] = [
     readOnly: true,
   },
   {
-    name: 'search_state_bills',
+    name: 'search_state_floor_votes',
     description:
-      'Search state legislature bills via OpenStates data. Filter by state (2-letter code), keyword, subject, or session. Returns identifier, title, sponsor, latest action, and subjects.',
+      "Search state legislature roll-call votes. Filter by bill (canonical id or designation), keyword over the motion text, state, chamber, or limit. Returns each vote's motion, tally, passed/failed result, date, and source link. Member-level filtering is not yet available for state votes (crosswalk hardening in progress) — never promise a member-scoped result. Explicitly reports when NO matching vote exists.",
+    readOnly: true,
+  },
+  {
+    name: 'get_state_legislator',
+    description:
+      'Look up a state legislator by name + state, or by an OpenStates/LegiScan external id. Returns chamber, district, party, and committee memberships. Explicitly reports ambiguous name matches (asks which one) and NO-match cases — never fabricates a legislator.',
     readOnly: true,
   },
   {

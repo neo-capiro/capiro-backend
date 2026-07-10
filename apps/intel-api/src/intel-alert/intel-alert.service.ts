@@ -131,6 +131,15 @@ export class IntelAlertService {
     for (const pref of prefs) {
       if (!pref.triggers.includes(event.triggerKey)) continue;
       if (!clearsMateriality(event.severity, pref.materiality)) continue;
+      // DD5: empty jurisdictions = ALL jurisdictions the client's watchlist
+      // produces (today's behavior, unchanged); non-empty = only those states
+      // (+ always 'US' is just another entry, no implicit federal carve-out).
+      if (
+        pref.jurisdictions.length > 0 &&
+        !pref.jurisdictions.includes(event.jurisdiction ?? 'US')
+      ) {
+        continue;
+      }
       if (!(pref.emailEnabled && pref.emailAddress)) continue;
 
       const subject = `[Capiro] ${event.displayNum}: ${event.label}`;
@@ -257,6 +266,7 @@ export class IntelAlertService {
         matchedTags: (ev.matchedTags as string[]) ?? [],
         score: a.score,
         band: (ev.band as string) ?? undefined,
+        jurisdiction: (ev.jurisdiction as string) ?? 'US',
       };
       try {
         const r = await this.fanOut(event);

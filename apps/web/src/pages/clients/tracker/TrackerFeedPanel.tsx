@@ -463,6 +463,7 @@ export function TrackerFeedPanel({
   const srcOpts: Array<{ v: FeedFilter; label: string; n?: number }> = [
     { v: 'all', label: 'All sources' },
     { v: 'bill', label: 'Bill moves', n: counts.bill ?? 0 },
+    { v: 'state_bill', label: 'State bills', n: counts.state_bill ?? 0 },
     { v: 'hearing', label: 'Hearings', n: counts.hearing ?? 0 },
     { v: 'combined', label: 'Bill + Hearing', n: counts.combined ?? 0 },
   ];

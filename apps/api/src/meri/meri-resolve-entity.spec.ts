@@ -36,6 +36,16 @@ const BILL = {
   latestActionDate: new Date('2026-06-01'),
 };
 
+type FakeTx = {
+  stateBill: {
+    findUnique: (args: { where: { id: string } }) => Promise<unknown>;
+    findMany: (args: unknown) => Promise<unknown[]>;
+  };
+  stateLegislator: {
+    findUnique: (args: { where: { id: string } }) => Promise<unknown>;
+    findMany: (args: unknown) => Promise<unknown[]>;
+  };
+};
 type FakePrisma = {
   congressMember: {
     findUnique: (args: { where: { bioguideId: string } }) => Promise<unknown>;
@@ -47,14 +57,24 @@ type FakePrisma = {
   };
   congressBill: { findUnique: (args: { where: { id: string } }) => Promise<unknown> };
   entityCrosswalk: { findMany: (args: unknown) => Promise<unknown[]> };
+  // State Legislation Platform (S6.2) — resolve_entity's state_bill/
+  // state_legislator tiers always run (they're gated on `!type ||
+  // type === '...'`, not on whether an earlier tier already matched), so
+  // EVERY test — including federal-only ones — must provide these.
+  withSystem: <T>(fn: (tx: FakeTx) => Promise<T> | T) => Promise<T> | T;
 };
 
 function emptyPrisma(): FakePrisma {
+  const tx: FakeTx = {
+    stateBill: { findUnique: async () => null, findMany: async () => [] },
+    stateLegislator: { findUnique: async () => null, findMany: async () => [] },
+  };
   return {
     congressMember: { findUnique: async () => null, findMany: async () => [] },
     congressCommittee: { findUnique: async () => null, findMany: async () => [] },
     congressBill: { findUnique: async () => null },
     entityCrosswalk: { findMany: async () => [] },
+    withSystem: (fn) => fn(tx),
   };
 }
 
@@ -136,5 +156,119 @@ describe('resolve_entity (SC2.2)', () => {
     expect(out.matchesFound).toBe(0);
     expect(out.note).toContain('No canonical entity matched');
     expect(out.note).toContain('do NOT fabricate');
+  });
+});
+
+describe('resolve_entity — state_bill / state_legislator (State Legislation Platform S6.2)', () => {
+  const STATE_BILL = {
+    id: 'tx-2025-hb1234',
+    title: 'Relating to a study on state legislative data.',
+    state: 'TX',
+    sessionKey: '2025',
+    sponsorName: 'Rep. Jane Doe',
+    latestActionText: 'Referred to Committee on State Affairs',
+    latestActionDate: new Date('2025-03-15'),
+  };
+  const STATE_LEGISLATOR = {
+    id: 'ocd-person/abc',
+    name: 'Rep. Jane Doe',
+    state: 'TX',
+    chamber: 'lower',
+    district: '12',
+    party: 'D',
+    active: true,
+  };
+
+  it('resolves a canonical state bill key directly ("tx-2025-hb1234")', async () => {
+    const prisma = emptyPrisma();
+    prisma.withSystem = (fn) =>
+      fn({
+        stateBill: {
+          findUnique: async ({ where }) => (where.id === 'tx-2025-hb1234' ? STATE_BILL : null),
+          findMany: async () => [{ id: 'tx-2025-hb1234' }],
+        },
+        stateLegislator: { findUnique: async () => null, findMany: async () => [] },
+      });
+    const out = (await invoke(prisma, { query: 'tx-2025-hb1234' })) as {
+      matches: Array<{ entityType: string; canonicalId: string; matchedBy: string }>;
+    };
+    expect(out.matches[0]).toMatchObject({
+      entityType: 'state_bill',
+      canonicalId: 'tx-2025-hb1234',
+      matchedBy: 'state-bill-key',
+    });
+  });
+
+  it('resolves a state bill designation ("TX HB 1234")', async () => {
+    const prisma = emptyPrisma();
+    prisma.withSystem = (fn) =>
+      fn({
+        stateBill: {
+          findUnique: async ({ where }) => (where.id === 'tx-2025-hb1234' ? STATE_BILL : null),
+          findMany: async () => [{ id: 'tx-2025-hb1234' }],
+        },
+        stateLegislator: { findUnique: async () => null, findMany: async () => [] },
+      });
+    const out = (await invoke(prisma, { query: 'TX HB 1234' })) as {
+      matches: Array<{ entityType: string; canonicalId: string }>;
+    };
+    expect(out.matches[0]).toMatchObject({
+      entityType: 'state_bill',
+      canonicalId: 'tx-2025-hb1234',
+    });
+  });
+
+  it('resolves a state legislator via entity_crosswalk (LegiScan/OpenStates external id)', async () => {
+    const prisma = emptyPrisma();
+    prisma.entityCrosswalk.findMany = async () => [
+      {
+        idType: 'legiscan_people',
+        idValue: '12345',
+        entityType: 'state_legislator',
+        entityKey: 'ocd-person/abc',
+      },
+    ];
+    prisma.withSystem = (fn) =>
+      fn({
+        stateBill: { findUnique: async () => null, findMany: async () => [] },
+        stateLegislator: {
+          findUnique: async ({ where }) =>
+            where.id === 'ocd-person/abc' ? STATE_LEGISLATOR : null,
+          findMany: async () => [],
+        },
+      });
+    const out = (await invoke(prisma, { query: '12345' })) as {
+      matches: Array<{ entityType: string; canonicalId: string; matchedBy: string }>;
+    };
+    expect(out.matches[0]).toMatchObject({
+      entityType: 'state_legislator',
+      canonicalId: 'ocd-person/abc',
+      matchedBy: 'legiscan_people-crosswalk',
+    });
+  });
+
+  it('falls back to state legislator name search when nothing else matches', async () => {
+    const prisma = emptyPrisma();
+    prisma.withSystem = (fn) =>
+      fn({
+        stateBill: { findUnique: async () => null, findMany: async () => [] },
+        stateLegislator: { findUnique: async () => null, findMany: async () => [STATE_LEGISLATOR] },
+      });
+    const out = (await invoke(prisma, { query: 'Jane Doe' })) as {
+      matches: Array<{ entityType: string; matchedBy: string }>;
+    };
+    expect(out.matches[0]).toMatchObject({
+      entityType: 'state_legislator',
+      matchedBy: 'name-search',
+    });
+  });
+
+  it('a `type` filter of "state_bill" never returns a member/committee match', async () => {
+    const prisma = emptyPrisma();
+    prisma.congressMember.findMany = async () => [MEMBER]; // would match if type filter were ignored
+    const out = (await invoke(prisma, { query: 'Van Hollen', type: 'state_bill' })) as {
+      matchesFound: number;
+    };
+    expect(out.matchesFound).toBe(0);
   });
 });

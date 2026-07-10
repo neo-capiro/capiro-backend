@@ -301,6 +301,8 @@ export interface ExplorerStateBillRow {
   latestActionDate: string | null;
   latestActionText: string | null;
   url: string | null;
+  /** State Legislation Platform (S7.4) — canonical derived status (S3); null on a not-yet-derived row. */
+  status?: string | null;
 }
 export interface StateBillFacets {
   states: string[];
@@ -419,5 +421,25 @@ export interface IntelArticleDetail {
 export interface StateBillDetail {
   bill: ExplorerStateBillRow & {
     abstract?: string | null;
+    /** S3 canonical status (already on the base row for the list; repeated here so the drill-in doesn't depend on it). */
+    status?: string | null;
+    statusAt?: string | null;
+    /** State Legislation Platform (S7.4) — additive drill-in fields, newest-first. */
+    actions: Array<{ id: string; date: string; text: string; chamber: string | null }>;
+    votes: Array<{
+      id: string;
+      date: string;
+      motion: string | null;
+      chamber: string | null;
+      yeas: number;
+      nays: number;
+      nv: number;
+      absent: number;
+      passed: boolean | null;
+      sourceUrl: string | null;
+    }>;
+    versions: Array<{ id: string; versionType: string; date: string; stateUrl: string | null }>;
+    links: Array<{ id: string; linkType: string; relatedBillKey: string | null }>;
+    stateUrl?: string | null;
   };
 }

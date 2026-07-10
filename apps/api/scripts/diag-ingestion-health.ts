@@ -52,8 +52,68 @@ const TABLES: Array<[string, string, string]> = [
   ['intelligence_change', 'detected_at', 'detected_at'],
 ];
 
+interface StateSlaRow {
+  state: string;
+  p50Minutes: number | null;
+  p95Minutes: number | null;
+  sampleSize: number;
+  lastDrainAt: string | null;
+  lastListAt: string | null;
+}
+
+/**
+ * State Legislation Platform SLA telemetry (Phase 0 S1.6) — measures
+ * INGESTION LAG (firstSeenAt - action.date), not legislative recency. A naive
+ * `max(action.date) - now` would misread quiet or out-of-session states as
+ * permanent SLA breaches; this is the marketed freshness number (parent plan
+ * SC-1) instead.
+ */
+async function stateIngestionSla(): Promise<StateSlaRow[]> {
+  try {
+    const percentiles = await prisma.$queryRawUnsafe<
+      Array<{ state: string; p50: number | null; p95: number | null; n: bigint }>
+    >(`
+      SELECT sb.state,
+             percentile_cont(0.5) WITHIN GROUP (
+               ORDER BY EXTRACT(EPOCH FROM (sba.first_seen_at - sba.date::timestamptz)) / 60
+             ) AS p50,
+             percentile_cont(0.95) WITHIN GROUP (
+               ORDER BY EXTRACT(EPOCH FROM (sba.first_seen_at - sba.date::timestamptz)) / 60
+             ) AS p95,
+             COUNT(*)::bigint AS n
+      FROM "state_bill_action" sba
+      JOIN "state_bill" sb ON sb.id = sba.bill_key
+      WHERE sba.first_seen_at > NOW() - INTERVAL '7 days'
+      GROUP BY sb.state
+      ORDER BY sb.state
+    `);
+    const lastSync = await prisma.$queryRawUnsafe<
+      Array<{ state: string; last_drain_at: Date | null; last_list_at: Date | null }>
+    >(`
+      SELECT state, MAX(last_drain_at) AS last_drain_at, MAX(last_list_at) AS last_list_at
+      FROM "state_sync_cursor"
+      GROUP BY state
+    `);
+    const syncByState = new Map(lastSync.map((r) => [r.state, r]));
+    return percentiles.map((r) => ({
+      state: r.state,
+      p50Minutes: r.p50 != null ? Math.round(r.p50) : null,
+      p95Minutes: r.p95 != null ? Math.round(r.p95) : null,
+      sampleSize: Number(r.n),
+      lastDrainAt: syncByState.get(r.state)?.last_drain_at?.toISOString() ?? null,
+      lastListAt: syncByState.get(r.state)?.last_list_at?.toISOString() ?? null,
+    }));
+  } catch (e) {
+    console.error('INGEST_ERR state SLA query failed', e instanceof Error ? e.message : String(e));
+    return [];
+  }
+}
+
 async function main(): Promise<void> {
-  const out: Record<string, { rows: number | string; latest: string | null; lastSynced: string | null }> = {};
+  const out: Record<
+    string,
+    { rows: number | string; latest: string | null; lastSynced: string | null }
+  > = {};
   for (const [t, contentCol, syncCol] of TABLES) {
     out[t] = {
       rows: await count(t),
@@ -61,7 +121,15 @@ async function main(): Promise<void> {
       lastSynced: await maxDate(t, syncCol),
     };
   }
-  console.log('INGEST_REPORT ' + JSON.stringify({ generatedAt: new Date().toISOString(), tables: out }, null, 2));
+  const stateSla = await stateIngestionSla();
+  console.log(
+    'INGEST_REPORT ' +
+      JSON.stringify(
+        { generatedAt: new Date().toISOString(), tables: out, stateLegislationSla: stateSla },
+        null,
+        2,
+      ),
+  );
 }
 
 main()

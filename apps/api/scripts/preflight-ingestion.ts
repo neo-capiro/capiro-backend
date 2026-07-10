@@ -35,15 +35,66 @@ interface KeyCheck {
 }
 
 const KEYS: KeyCheck[] = [
-  { env: 'FEC_API_KEY', level: 'required', usedBy: 'sync-fec, sync-fec-pac', note: 'script throws without it' },
-  { env: 'OPENSTATES_API_KEY', level: 'required', usedBy: 'sync-openstates', note: 'script throws without it' },
-  { env: 'SAM_GOV_API_KEY', level: 'required', usedBy: 'sync-sam-personnel', note: 'script throws without it' },
-  { env: 'OPENAI_API_KEY', level: 'required', usedBy: 'generate-briefings', note: 'briefings abort without it' },
-  { env: 'CONGRESS_API_KEY', level: 'recommended', usedBy: 'sync-congress', note: 'keyless = heavy rate limiting' },
-  { env: 'REGULATIONS_GOV_API_KEY', level: 'recommended', usedBy: 'sync-regulations', note: 'warns + likely throttled without it' },
-  { env: 'LDA_API_KEY', level: 'recommended', usedBy: 'sync-lda', note: 'adds auth header if present; higher limits' },
-  { env: 'FIRECRAWL_API_KEY', level: 'recommended', usedBy: 'PE .mil URL discovery (jbooks/orgcharts)', note: 'WAF unlock for finding source URLs' },
-  { env: 'ANTHROPIC_API_KEY', level: 'recommended', usedBy: 'clio, briefings fallback', note: 'LLM features degrade without it' },
+  {
+    env: 'FEC_API_KEY',
+    level: 'required',
+    usedBy: 'sync-fec, sync-fec-pac',
+    note: 'script throws without it',
+  },
+  {
+    env: 'OPENSTATES_API_KEY',
+    level: 'required',
+    usedBy: 'sync-openstates',
+    note: 'script throws without it',
+  },
+  {
+    env: 'LEGISCAN_API_KEY',
+    level: 'required',
+    usedBy: 'backfill-legiscan-datasets, sync-legiscan-masterlist, sync-legiscan-bills',
+    note: 'script throws without it',
+  },
+  {
+    env: 'SAM_GOV_API_KEY',
+    level: 'required',
+    usedBy: 'sync-sam-personnel',
+    note: 'script throws without it',
+  },
+  {
+    env: 'OPENAI_API_KEY',
+    level: 'required',
+    usedBy: 'generate-briefings',
+    note: 'briefings abort without it',
+  },
+  {
+    env: 'CONGRESS_API_KEY',
+    level: 'recommended',
+    usedBy: 'sync-congress',
+    note: 'keyless = heavy rate limiting',
+  },
+  {
+    env: 'REGULATIONS_GOV_API_KEY',
+    level: 'recommended',
+    usedBy: 'sync-regulations',
+    note: 'warns + likely throttled without it',
+  },
+  {
+    env: 'LDA_API_KEY',
+    level: 'recommended',
+    usedBy: 'sync-lda',
+    note: 'adds auth header if present; higher limits',
+  },
+  {
+    env: 'FIRECRAWL_API_KEY',
+    level: 'recommended',
+    usedBy: 'PE .mil URL discovery (jbooks/orgcharts)',
+    note: 'WAF unlock for finding source URLs',
+  },
+  {
+    env: 'ANTHROPIC_API_KEY',
+    level: 'recommended',
+    usedBy: 'clio, briefings fallback',
+    note: 'LLM features degrade without it',
+  },
 ];
 
 const { values } = parseArgs({
@@ -67,7 +118,14 @@ interface DataIntegrity {
   reason?: string;
   failed?: number;
   skipped?: number;
-  failingGroups?: Array<{ fy: number; cycle: string; component: string; field: string; extracted: number; control: number | null }>;
+  failingGroups?: Array<{
+    fy: number;
+    cycle: string;
+    component: string;
+    field: string;
+    extracted: number;
+    control: number | null;
+  }>;
 }
 
 /**
@@ -78,7 +136,8 @@ interface DataIntegrity {
  */
 async function runDataIntegrity(): Promise<DataIntegrity> {
   if (values['skip-data']) return { ran: false, ok: true, reason: 'skipped via --skip-data' };
-  if (!present('DATABASE_URL')) return { ran: false, ok: true, reason: 'no DATABASE_URL (data check skipped)' };
+  if (!present('DATABASE_URL'))
+    return { ran: false, ok: true, reason: 'no DATABASE_URL (data check skipped)' };
   if (!fs.existsSync(CONTROL_TOTALS_PATH)) {
     return { ran: false, ok: true, reason: 'no control_totals.json (data check skipped)' };
   }
@@ -105,7 +164,11 @@ async function runDataIntegrity(): Promise<DataIntegrity> {
         })),
     };
   } catch (err) {
-    return { ran: false, ok: true, reason: `data check skipped: ${err instanceof Error ? err.message : String(err)}` };
+    return {
+      ran: false,
+      ok: true,
+      reason: `data check skipped: ${err instanceof Error ? err.message : String(err)}`,
+    };
   } finally {
     await prisma?.$disconnect().catch(() => undefined);
   }
@@ -140,24 +203,34 @@ async function main(): Promise<void> {
     }
     console.log('');
     if (missingRequired.length > 0) {
-      console.log(`FAIL: ${missingRequired.length} REQUIRED key(s) missing: ${missingRequired.map((r) => r.env).join(', ')}`);
-      console.log('Create each as a secret (capiro/dev/<name>, no leading slash) and wire into the task env.');
+      console.log(
+        `FAIL: ${missingRequired.length} REQUIRED key(s) missing: ${missingRequired.map((r) => r.env).join(', ')}`,
+      );
+      console.log(
+        'Create each as a secret (capiro/dev/<name>, no leading slash) and wire into the task env.',
+      );
     } else {
       console.log('PASS: all required keys present.');
     }
     if (missingRecommended.length > 0) {
-      console.log(`Note: ${missingRecommended.length} recommended key(s) missing (degraded, not fatal): ${missingRecommended.map((r) => r.env).join(', ')}`);
+      console.log(
+        `Note: ${missingRecommended.length} recommended key(s) missing (degraded, not fatal): ${missingRecommended.map((r) => r.env).join(', ')}`,
+      );
     }
 
     console.log('\n=== Data integrity: budget reconciliation ===');
     if (!data.ran) {
       console.log(`[skip] ${data.reason}`);
     } else if (data.ok) {
-      console.log(`[OK  ] budget totals reconcile (${data.skipped ?? 0} group(s) skipped, no control total).`);
+      console.log(
+        `[OK  ] budget totals reconcile (${data.skipped ?? 0} group(s) skipped, no control total).`,
+      );
     } else {
       console.log(`[FAIL] ${data.failed} budget group(s) diverge from control totals:`);
       for (const g of data.failingGroups ?? []) {
-        console.log(`        FY${g.fy} ${g.cycle}/${g.component} ${g.field}: extracted ${g.extracted} vs control ${g.control}`);
+        console.log(
+          `        FY${g.fy} ${g.cycle}/${g.component} ${g.field}: extracted ${g.extracted} vs control ${g.control}`,
+        );
       }
       console.log('        -> a PE load is broken; run verify:budget-reconciliation for detail.');
     }

@@ -68,14 +68,14 @@ describe('G3 full sweep: per-tenant intel_* calls are scoped via withTenant', ()
 
   it('TrackerBoardService.getSummary scopes to the caller tenantId', async () => {
     const { prisma, withTenant } = makeFakePrisma();
-    const svc = new TrackerBoardService(prisma, {} as never, {} as never);
+    const svc = new TrackerBoardService(prisma, {} as never, {} as never, {} as never);
     await svc.getSummary('tenant-1', 'c1');
     expect(withTenant).toHaveBeenCalledWith('tenant-1', expect.any(Function));
   });
 
   it('TrackerBoardService.untrackBill scopes to the caller tenantId', async () => {
     const { prisma, withTenant } = makeFakePrisma();
-    const svc = new TrackerBoardService(prisma, {} as never, {} as never);
+    const svc = new TrackerBoardService(prisma, {} as never, {} as never, {} as never);
     await svc.untrackBill('tenant-1', 'c1', '119-hr-1');
     expect(withTenant).toHaveBeenCalledWith('tenant-1', expect.any(Function));
   });

@@ -126,4 +126,39 @@ describe('adaptWatchlist / watchlistToIntel round-trip', () => {
     const configured = adaptWatchlist({ clientId: 'c1', issueAreas: ['Energy'], topics: [] });
     expect(configured.suggestedIssueAreas).toBeUndefined();
   });
+
+  test('S7.2 (DD5): jurisdictions round-trips; absent reads as federal-only (empty), never omitted on write', () => {
+    const cold = adaptWatchlist({ clientId: 'c1', issueAreas: [], topics: [] });
+    expect(cold.jurisdictions).toEqual([]);
+
+    const withStates = adaptWatchlist({
+      clientId: 'c1',
+      issueAreas: [],
+      topics: [],
+      jurisdictions: ['TX', 'FL'],
+    });
+    expect(withStates.jurisdictions).toEqual(['TX', 'FL']);
+    expect(watchlistToIntel(withStates).jurisdictions).toEqual(['TX', 'FL']);
+    // Federal-only (empty) still round-trips as an explicit [] — never dropped
+    // from the PUT body, so a prior selection can be cleared.
+    expect(watchlistToIntel(cold).jurisdictions).toEqual([]);
+  });
+
+  test('S5.1: suggestedJurisdictions passes through when present, absent otherwise', () => {
+    const cold = adaptWatchlist({
+      clientId: 'c1',
+      issueAreas: [],
+      topics: [],
+      suggestedJurisdictions: ['VA'],
+    });
+    expect(cold.suggestedJurisdictions).toEqual(['VA']);
+
+    const configured = adaptWatchlist({
+      clientId: 'c1',
+      issueAreas: [],
+      topics: [],
+      jurisdictions: ['TX'],
+    });
+    expect(configured.suggestedJurisdictions).toBeUndefined();
+  });
 });

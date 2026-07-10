@@ -55,7 +55,13 @@ export function feedItemToMemoAlert(item: FeedItem): AlertMemoAlertInput {
   const tags = Array.from(new Set((hearing?.mentions ?? []).flatMap((m) => m.issueTags ?? []).filter(Boolean)));
   return {
     alertId: item.id,
-    sourceType: item.sourceType,
+    // State Legislation Platform (S7): the memo generator doesn't accept
+    // sourceType='state_bill' yet (out of Phase 0 scope — recommendedActionsFor
+    // in intel-api never offers "Draft memo" for a state bill alert, so this
+    // path shouldn't be reachable in practice); map defensively to 'bill'
+    // rather than sending a value the server's @IsIn(['bill','hearing',
+    // 'combined']) would reject.
+    sourceType: item.sourceType === 'state_bill' ? 'bill' : item.sourceType,
     title: item.title,
     whyItMatters: item.whyItMatters,
     severity: item.severity,
