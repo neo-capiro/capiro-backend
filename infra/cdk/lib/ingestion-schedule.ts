@@ -24,6 +24,17 @@ export interface ScheduledIngestionJob {
   description: string;
   /** Tier for grouping/observability. */
   tier: 'daily' | 'weekly' | 'monthly' | 'derived' | 'embeddings' | 'agent';
+  /**
+   * Whether the EventBridge rule is created enabled. Defaults to `true` when
+   * omitted (every existing job). Set `false` for a not-yet-safe capability
+   * that must ship dark (R7) — e.g. an agentic writer awaiting its
+   * kill-switch env var. This is a secondary/belt-and-braces layer: the
+   * PRIMARY dark-by-default guarantee for such a job must ALSO be enforced
+   * in the script's own code (see run-intel-workflows.ts's POSTURE), since
+   * this flag only takes effect on the next `cdk deploy Compute` (see
+   * infra_cdk_taskdef_drift memory — that deploy has its own risks).
+   */
+  enabled?: boolean;
 }
 
 // NOTE: AWS EventBridge cron requires exactly one of day-of-month / day-of-week
@@ -226,14 +237,20 @@ export const INGESTION_JOBS: ScheduledIngestionJob[] = [
   // Priority-state vs wide-sweep masterlist rules share `command`; the actual
   // LEGISCAN_STATES env split is applied on the rule's containerOverrides
   // out-of-band (the PE_ALERT_EMAIL_TENANTS trick — flips without a task-def
-  // revision, docs/runbooks/out-of-band-ingestion-deploy.md).
+  // revision, docs/runbooks/out-of-band-ingestion-deploy.md). 2026-07-10
+  // hot-fix (W1.2): ALSO set a distinct LEGISCAN_MASTERLIST_SOURCE_SUFFIX
+  // out-of-band per rule (e.g. `priority` / `wide`) so the two schedules
+  // record SEPARATE sync_run rows — before this, both wrote
+  // source='sync-legiscan-masterlist', so a slow wide-sweep run could make
+  // the priority rule's skipIfRunning guard falsely no-op (and vice versa),
+  // and per-schedule health was indistinguishable in diag-ingestion-health.
   {
     id: 'SyncLegiscanMasterlist',
     command: ['sync-legiscan-masterlist'],
     cron: { minute: '10', hour: '*' },
     tier: 'daily',
     description:
-      'LegiScan change_hash diff, priority states hourly (set LEGISCAN_STATES=FL,CA,TX,NY,IL,MA,GA,VA out-of-band)',
+      'LegiScan change_hash diff, priority states hourly (set LEGISCAN_STATES=FL,CA,TX,NY,IL,MA,GA,VA + LEGISCAN_MASTERLIST_SOURCE_SUFFIX=priority out-of-band)',
   },
   {
     id: 'SyncLegiscanMasterlistWide',
@@ -241,7 +258,7 @@ export const INGESTION_JOBS: ScheduledIngestionJob[] = [
     cron: { minute: '25', hour: '1/6' },
     tier: 'daily',
     description:
-      'LegiScan change_hash diff, remaining 43 states every 6h (set LEGISCAN_STATES=<other 43> out-of-band)',
+      'LegiScan change_hash diff, remaining 43 states every 6h (set LEGISCAN_STATES=<other 43> + LEGISCAN_MASTERLIST_SOURCE_SUFFIX=wide out-of-band)',
   },
   {
     id: 'SyncLegiscanBills',
@@ -271,13 +288,26 @@ export const INGESTION_JOBS: ScheduledIngestionJob[] = [
   // full hour after the 0/6 derive-chain cycle (derive-bill-status :40,
   // derive-state-bill-status :50, emit-state-changes :55) so chokepoint/
   // status truth is fresh before the worker reads it.
+  //
+  // 2026-07-10 hot-fix (R7, W1.2): created DISABLED. `--commit` stays in the
+  // command (harmless — the script's own POSTURE logic additionally requires
+  // INTEL_WORKFLOWS_TARGETING_ENABLED before it will ever write a cross-realm
+  // row; see run-intel-workflows.ts) but the rule itself ships dark as a
+  // second, independent layer. To go live: (1) confirm the M5-B anti-
+  // fabrication gates (Wave 3) have landed, (2) set
+  // INTEL_WORKFLOWS_TARGETING_ENABLED=true on the sync-jobs task out-of-band
+  // (do not `cdk deploy Compute` for this alone — infra_cdk_taskdef_drift),
+  // (3) enable this rule (an `aws events enable-rule` targeting
+  // `capiro-<env>-run-intel-workflows`, or flip `enabled` here and redeploy
+  // Compute once a Compute deploy is happening anyway for another reason).
   {
     id: 'RunIntelWorkflows',
     command: ['run-intel-workflows', '--commit'],
     cron: { minute: '10', hour: '1,7,13,19' },
     tier: 'derived',
+    enabled: false,
     description:
-      'Tier-2 agentic worker (M5.1/M5.2 targeting-brief) — polls recent high-severity bill/state_bill alerts, one hour after the derive chain',
+      'Tier-2 agentic worker (M5.1/M5.2 targeting-brief) — polls recent high-severity bill/state_bill alerts, one hour after the derive chain. DARK by default (see comment above) — requires INTEL_WORKFLOWS_TARGETING_ENABLED + this rule enabled to ever surface a brief.',
   },
   // ── District Impact Engine (Phase 1 M1) ────────────────────────────────────
   {
@@ -405,16 +435,20 @@ export const INGESTION_JOBS: ScheduledIngestionJob[] = [
   },
 
   // ── TIER 5 — DERIVED / EMITTERS (daily, after sources) ────────────────────
-  // LIVE-DRIFT WARNING (2026-06-07): none of the derived jobs below have a live
-  // EventBridge rule yet EXCEPT an orphan `capiro-dev-emit-changes-daily` rule
-  // (legacy name + dead `EventsServiceRole`, no ecs:RunTask/iam:PassRole) that
-  // silently fails every fire — which is why the Changes Inbox / "Needs
-  // Attention" surfaces only comment-deadline alerts. When this matrix is finally
-  // consumed by a CDK construct: (1) DELETE that orphan rule, and (2) create all
-  // derived jobs with the `capiro-dev-eventbridge-sync-invoker` role (same role
-  // the source syncs use; it already PassRoles the emit-changes task+exec roles).
-  // Full write-up + the out-of-band remediation command:
-  //   apps/api/reports/changes-inbox-emit-changes-role-2026-06-07.md
+  // UPDATED 2026-07-10 (was a stale LIVE-DRIFT WARNING dated 2026-06-07): this
+  // matrix IS consumed by a live CDK construct — `ScheduledIngestionJobs`
+  // (infra/cdk/lib/constructs/scheduled-ingestion-jobs.ts), instantiated from
+  // ComputeStack (compute-stack.ts) with `jobs: INGESTION_JOBS` — every entry
+  // below (derived or otherwise) becomes a real EventBridge rule + Fargate
+  // command override on the next `cdk deploy Compute`. Adding a new entry
+  // here, or flipping an existing entry's `enabled` flag, DOES change what
+  // fires in prod. See infra_cdk_taskdef_drift (memory) before running that
+  // deploy: it can drop out-of-band task-def secrets/env — apply schedule-only
+  // changes out-of-band (a targeted `aws events` CLI call) when possible
+  // rather than a full stack deploy. Historical note: an orphan legacy rule
+  // (`capiro-dev-emit-changes-daily`, dead `EventsServiceRole`) was cleaned up
+  // separately; see apps/api/reports/changes-inbox-emit-changes-role-2026-06-07.md
+  // for that incident's write-up.
   {
     id: 'ExtractBillPeCodes',
     command: ['extract-bill-pe-codes'],

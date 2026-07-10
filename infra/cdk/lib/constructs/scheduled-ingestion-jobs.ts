@@ -43,6 +43,10 @@ export class ScheduledIngestionJobs extends Construct {
           weekDay: job.cron.weekDay,
           year: '*',
         }),
+        // 2026-07-10 hot-fix (R7): a job may ship dark (enabled:false) while
+        // its code-level guard is the primary safety mechanism — see
+        // ScheduledIngestionJob.enabled's doc comment.
+        enabled: job.enabled ?? true,
       });
 
       rule.addTarget(

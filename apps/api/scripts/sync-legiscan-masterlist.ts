@@ -18,7 +18,13 @@
  *   pnpm --filter @capiro/api exec tsx scripts/sync-legiscan-masterlist.ts
  * Env: LEGISCAN_API_KEY (required), LEGISCAN_STATES (CSV, default the 8
  *      priority states — the wide sweep for the other 43 runs as a separate
- *      schedule row with LEGISCAN_STATES set to the rest).
+ *      schedule row with LEGISCAN_STATES set to the rest), and (2026-07-10
+ *      hot-fix, W1.2) LEGISCAN_MASTERLIST_SOURCE_SUFFIX (optional — set to
+ *      e.g. "priority"/"wide" on each schedule so the two rules record
+ *      DISTINCT sync_run sources; without it both share the bare
+ *      'sync-legiscan-masterlist' source, so a slow run on one schedule can
+ *      make the other's skipIfRunning guard falsely no-op, and per-schedule
+ *      health is indistinguishable in diag-ingestion-health).
  */
 import { config as dotenvConfig } from 'dotenv';
 import { PrismaClient } from '@prisma/client';
@@ -35,6 +41,10 @@ const STATES = (process.env.LEGISCAN_STATES ?? PRIORITY_STATE_CODES.join(','))
   .map((s) => s.trim().toUpperCase())
   .filter(Boolean);
 const SESSION_REFRESH_MS = 7 * 24 * 60 * 60 * 1000;
+const SOURCE_SUFFIX = process.env.LEGISCAN_MASTERLIST_SOURCE_SUFFIX?.trim();
+export const SYNC_RUN_SOURCE = SOURCE_SUFFIX
+  ? `sync-legiscan-masterlist-${SOURCE_SUFFIX}`
+  : 'sync-legiscan-masterlist';
 
 function currentQuotaMonth(): string {
   return new Date().toISOString().slice(0, 7);
@@ -60,7 +70,7 @@ async function activeSessions(
 async function main() {
   if (!LEGISCAN_API_KEY) throw new Error('LEGISCAN_API_KEY env var is required');
 
-  await runWithSyncRun(prisma as never, 'sync-legiscan-masterlist', async () => {
+  await runWithSyncRun(prisma as never, SYNC_RUN_SOURCE, async () => {
     let queued = 0;
     let errors = 0;
     let totalQueries = 0;
