@@ -297,18 +297,25 @@ export class IntelAlertService {
   }
 
   /**
-   * Idempotently turn LegiWatch-B's newly-default-on trigger keys on for EXISTING
-   * subscribers who predate the emitters (fiscalNote, sponsorMomentum, and —
-   * fixing a gap found while adding `deadline`, Phase 1 M2.3 — `companion`,
-   * which was added to DEFAULT_TRIGGERS but never backfilled onto existing
-   * prefs). Safe to re-run and safe against deliberate opt-outs: these keys had
-   * no emitter before their respective PRs, so no subscriber could have
+   * Idempotently turn LegiWatch-B's newly-default-on trigger keys on for
+   * EXISTING subscribers who predate the emitters (fiscalNote, sponsorMomentum,
+   * deadline). Safe to re-run and safe against deliberate opt-outs: these keys
+   * had no emitter before their respective PRs, so no subscriber could have
    * intentionally removed them. Cross-tenant sweep → `withSystem` (RLS bypass);
    * `array_append` guarded by a `NOT (… = ANY …)` predicate makes each key
    * append exactly once. Returns rows touched.
+   *
+   * 2026-07-10 (W2.1, D-7): `companion` deliberately EXCLUDED — unlike the 3
+   * keys above, its emitter shipped in Phase-0 (#374) BEFORE this backfill was
+   * ever written, so a subscriber who ran with `companion` on and explicitly
+   * opted out since then is indistinguishable, from this predicate alone, from
+   * one who never had it. Backfilling it here would silently override that
+   * opt-out. New subscribers already get `companion` from DEFAULT_TRIGGERS;
+   * only a genuinely-pre-#374 row needs it, and this verb can no longer tell
+   * the two apart safely, so it no longer tries.
    */
   async backfillDefaultTriggers(): Promise<{ updated: number }> {
-    const NEWLY_DEFAULT_ON = ['fiscalNote', 'sponsorMomentum', 'companion', 'deadline'];
+    const NEWLY_DEFAULT_ON = ['fiscalNote', 'sponsorMomentum', 'deadline'];
     let updated = 0;
     for (const key of NEWLY_DEFAULT_ON) {
       const n = await this.prisma.withSystem((tx) =>

@@ -46,15 +46,31 @@ function makeHarness(trackedRows: TrackedBillRow[]) {
         ),
     },
     intelAlert: {
-      findFirst: jest
-        .fn()
-        .mockImplementation(({ where }: { where: { changeType: string; sourceRef: string } }) =>
+      findFirst: jest.fn().mockImplementation(
+        ({
+          where,
+        }: {
+          where: {
+            changeType: string;
+            sourceRef: string;
+            evidence?: { path: string[]; equals: unknown };
+          };
+        }) =>
           Promise.resolve(
-            alerts.find(
-              (a) => a.changeType === where.changeType && a.sourceRef === where.sourceRef,
-            ) ?? null,
+            alerts.find((a) => {
+              if (a.changeType !== where.changeType || a.sourceRef !== where.sourceRef) {
+                return false;
+              }
+              if (where.evidence) {
+                const evidence = (a.evidence ?? {}) as Record<string, unknown>;
+                const key = where.evidence.path[0];
+                if (key === undefined) return false;
+                return evidence[key] === where.evidence.equals;
+              }
+              return true;
+            }) ?? null,
           ),
-        ),
+      ),
       create: jest.fn().mockImplementation(({ data }: { data: Record<string, unknown> }) => {
         alerts.push(data);
         return Promise.resolve(data);
@@ -318,5 +334,60 @@ describe('BillChangeDetectorService — state deadline-approaching emitter (Phas
     expect(alerts.filter((a) => a.changeType === 'state_bill_deadline_approaching')).toHaveLength(
       1,
     );
+  });
+
+  it('REGRESSION (2026-07-10, W2.1): a later CRITICAL cutoff (crossover) still fires after an earlier NOTABLE cutoff (committeeCutoff) already alerted within the same 14-day window — distinct cutoffs no longer collapse into one dedup slot', async () => {
+    const { prisma, alerts } = makeHarness([ALREADY_SEEN]);
+
+    // Cycle 1: still in committee (rank 1) — committeeCutoff is the only
+    // relevant candidate, 5 days out -> notable.
+    const introducedBill = { ...BASE_BILL, status: 'introduced' };
+    const calendar1 = {
+      billKey: BASE_BILL.id,
+      committeeCutoffDate: daysFromNow(5),
+      crossoverDate: null,
+      secondCommitteeCutoffDate: null,
+      sineDie: daysFromNow(30),
+    };
+    const svc1 = new BillChangeDetectorService(
+      prisma,
+      FAKE_CONGRESS_SOURCE,
+      makeStateSourceRepo(introducedBill, calendar1),
+    );
+    await svc1.runDetectionCycle();
+    const afterCycle1 = alerts.filter((a) => a.changeType === 'state_bill_deadline_approaching');
+    expect(afterCycle1).toHaveLength(1);
+    expect((afterCycle1[0]!.evidence as Record<string, unknown>).cutoffType).toBe(
+      'committeeCutoff',
+    );
+    expect(afterCycle1[0]!.severity).toBe('notable');
+
+    // Cycle 2 (still inside the same 14-day dedup window): the bill cleared
+    // committee — status moved to 'reported' (rank 2 -> crossover is now the
+    // relevant candidate) — and crossover is 2 days out -> critical. Before
+    // this fix, the generic (bill, changeType, 14d) dedup would find the
+    // cycle-1 row and silently swallow this critical warning.
+    const reportedBill = { ...BASE_BILL, status: 'reported' };
+    const calendar2 = {
+      billKey: BASE_BILL.id,
+      committeeCutoffDate: daysFromNow(5),
+      crossoverDate: daysFromNow(2),
+      secondCommitteeCutoffDate: null,
+      sineDie: daysFromNow(30),
+    };
+    const svc2 = new BillChangeDetectorService(
+      prisma,
+      FAKE_CONGRESS_SOURCE,
+      makeStateSourceRepo(reportedBill, calendar2),
+    );
+    await svc2.runDetectionCycle();
+
+    const afterCycle2 = alerts.filter((a) => a.changeType === 'state_bill_deadline_approaching');
+    expect(afterCycle2).toHaveLength(2); // committeeCutoff (cycle 1) + crossover (cycle 2)
+    const crossoverAlert = afterCycle2.find(
+      (a) => (a.evidence as Record<string, unknown>).cutoffType === 'crossover',
+    );
+    expect(crossoverAlert).toBeDefined();
+    expect(crossoverAlert!.severity).toBe('critical');
   });
 });

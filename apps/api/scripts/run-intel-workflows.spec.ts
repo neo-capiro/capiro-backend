@@ -80,6 +80,19 @@ describe('run-intel-workflows raw SQL — table-name safety net (2026-07-10 hot-
     expect(FIND_QUALIFYING_ALERTS_SQL).not.toMatch(/\bclient_facility\b(?!ies)/);
   });
 
+  // REGRESSION (2026-07-10, W2.3): QA-held and zero-target briefs never
+  // create an intel_action_item row (they `continue` before surfaceBrief), so
+  // the action-item NOT EXISTS above alone let them regenerate — and re-bill
+  // the LLM — on every run. This second guard excludes any bill with a
+  // recent ai_run of workflow='intel_targeting', independent of qaStatus.
+  it("FIND_QUALIFYING_ALERTS_SQL excludes bills with a recent workflow='intel_targeting' ai_run (W2.3 idempotency)", () => {
+    expect(FIND_QUALIFYING_ALERTS_SQL).toMatch(/FROM ai_run r/);
+    expect(FIND_QUALIFYING_ALERTS_SQL).toMatch(/r\.workflow = 'intel_targeting'/);
+    expect(FIND_QUALIFYING_ALERTS_SQL).toMatch(/r\.subject_key = a\.source_ref/);
+    // Same UUID-vs-TEXT cast convention as the client_facilities EXISTS above.
+    expect(FIND_QUALIFYING_ALERTS_SQL).toMatch(/r\.tenant_id::text = a\.tenant_id/);
+  });
+
   it('SURFACE_BRIEF_UPDATE_SQL and SURFACE_BRIEF_INSERT_SQL reference only real tables', () => {
     for (const sql of [SURFACE_BRIEF_UPDATE_SQL, SURFACE_BRIEF_INSERT_SQL]) {
       const tables = referencedTables(sql);

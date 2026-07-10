@@ -181,7 +181,7 @@ describe('IntelAlertService.emitNewBillAlerts (idempotency)', () => {
 });
 
 describe('IntelAlertService.backfillDefaultTriggers', () => {
-  it('appends fiscalNote + sponsorMomentum exactly once, idempotently', async () => {
+  it('appends fiscalNote + sponsorMomentum + deadline exactly once, idempotently', async () => {
     const calls: Array<{ sql: string; key: string }> = [];
     const inner = {
       $executeRawUnsafe: async (sql: string, key: string) => {
@@ -192,10 +192,30 @@ describe('IntelAlertService.backfillDefaultTriggers', () => {
     const prisma = { withSystem: async <T>(cb: (tx: typeof inner) => Promise<T>) => cb(inner) };
     const svc = new IntelAlertService(prisma as never, {} as never, {} as never);
     const r = await svc.backfillDefaultTriggers();
-    expect(r.updated).toBe(6); // 3 rows × 2 keys
-    expect(calls.map((c) => c.key)).toEqual(['fiscalNote', 'sponsorMomentum']);
+    expect(r.updated).toBe(9); // 3 rows × 3 keys
+    expect(calls.map((c) => c.key)).toEqual(['fiscalNote', 'sponsorMomentum', 'deadline']);
     // guard clause makes it a no-op on rows that already have the key
     expect(calls[0].sql).toMatch(/NOT \(\$1 = ANY\(triggers\)\)/);
+  });
+
+  // REGRESSION (2026-07-10, W2.1, D-7): `companion` shipped its emitter in
+  // Phase-0 (#374), BEFORE this backfill existed — unlike the other 3 keys, a
+  // subscriber could have deliberately opted OUT of `companion` since then,
+  // and this predicate can't tell that apart from "never had it." Backfilling
+  // it here would silently override a real opt-out, so it must never be
+  // among the keys this verb touches again.
+  it('REGRESSION: never backfills `companion` (D-7) — a real opt-out must not be silently overridden', async () => {
+    const calls: Array<{ key: string }> = [];
+    const inner = {
+      $executeRawUnsafe: async (_sql: string, key: string) => {
+        calls.push({ key });
+        return 1;
+      },
+    };
+    const prisma = { withSystem: async <T>(cb: (tx: typeof inner) => Promise<T>) => cb(inner) };
+    const svc = new IntelAlertService(prisma as never, {} as never, {} as never);
+    await svc.backfillDefaultTriggers();
+    expect(calls.map((c) => c.key)).not.toContain('companion');
   });
 });
 

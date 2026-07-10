@@ -92,6 +92,21 @@ describe('computeFacilityGeocode', () => {
     expect(out.discrepancy).toBeNull();
   });
 
+  // REGRESSION (2026-07-10, W2.2): the geocoder's MATCHED fixture above
+  // returns congressionalDistrict '02' — a hand-entered bare '2' is the SAME
+  // district, only missing the zero-pad. Comparing raw strings (the pre-fix
+  // behavior) flagged this as a discrepancy for every single-digit district.
+  it('a hand-entered district that agrees with the geocode ONLY MODULO zero-padding is not flagged as a discrepancy', async () => {
+    geocodeAddress.mockResolvedValue(MATCHED);
+    const handEntered: FacilityGeocodeInput = {
+      ...BASE,
+      congressionalDistrict: '2', // no leading zero — same district as MATCHED's '02'
+      districtSource: 'user',
+    };
+    const out = await computeFacilityGeocode(handEntered);
+    expect(out.discrepancy).toBeNull();
+  });
+
   it('no_match never clobbers a previously good district/coords — only status+timestamp change', async () => {
     geocodeAddress.mockResolvedValue({
       status: 'no_match',

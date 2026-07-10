@@ -23,6 +23,14 @@ export const ALERT_TRIGGERS: readonly string[] = [
   'deadline',
 ];
 
+/**
+ * 2026-07-10 (W2.1): kept in sync with apps/intel-api
+ * tracker-watchlist.service.DEFAULT_TRIGGERS — the two lists had diverged
+ * (this one was missing fiscalNote/sponsorMomentum/deadline, all of which now
+ * have live emitters and are intel-api's default-on set). A divergence test
+ * (tracker.types.spec.ts) enforces set-equality across both packages going
+ * forward.
+ */
 export const DEFAULT_TRIGGERS: readonly string[] = [
   'newMatch',
   'amendment',
@@ -30,7 +38,10 @@ export const DEFAULT_TRIGGERS: readonly string[] = [
   'committeeVote',
   'floorVote',
   'enactedFailed',
+  'fiscalNote',
+  'sponsorMomentum',
   'companion',
+  'deadline',
 ];
 
 export type TagPriority = 'low' | 'med' | 'high';

@@ -561,6 +561,20 @@ export class BillChangeDetectorService {
             },
             wl,
           );
+          // W2.1: the deadline emitter shares ONE changeType across 4 distinct
+          // cutoffs (committeeCutoff/crossover/secondCommitteeCutoff/sineDie —
+          // see stateDeadlineClass); sub-key the dedup on which cutoff this
+          // event is actually about so a later, more urgent cutoff still fires.
+          // Cast: `events`' mapped literal (line ~529) widens `extra` to just
+          // `{ jurisdiction: string }` under TS's spread inference, even
+          // though it's built from `{ ...(ev.extra ?? {}), jurisdiction }` and
+          // carries every other extra field (including cutoffType) at runtime.
+          const evExtra = ev.extra as Record<string, unknown> | undefined;
+          const dedupEvidenceKey =
+            ev.cls.changeType === 'state_bill_deadline_approaching' &&
+            typeof evExtra?.cutoffType === 'string'
+              ? { path: 'cutoffType', value: evExtra.cutoffType }
+              : undefined;
           const wrote = await this.writeShadowAlert(
             row,
             bill,
@@ -569,7 +583,7 @@ export class BillChangeDetectorService {
             actionDate,
             ex.why,
             ex.matchedTags,
-            { sourceType: 'state_bill', displayNum, jurisdiction: bill.state },
+            { sourceType: 'state_bill', displayNum, jurisdiction: bill.state, dedupEvidenceKey },
           );
           if (wrote) {
             alertsWritten += 1;
@@ -891,7 +905,21 @@ export class BillChangeDetectorService {
     actionDate: string | null,
     why: string | null,
     matchedTags: string[],
-    opts: { sourceType?: string; displayNum?: string; jurisdiction?: string } = {},
+    opts: {
+      sourceType?: string;
+      displayNum?: string;
+      jurisdiction?: string;
+      /**
+       * 2026-07-10 (W2.1): fold an extra `evidence` JSON-path match into the
+       * 14-day dedup so distinct sub-events sharing one changeType (e.g. the 4
+       * `cutoffType` values under `state_bill_deadline_approaching` — a bill's
+       * upcoming committee cutoff and its later crossover deadline are both
+       * this changeType) each fire once per (bill, value, 14d) instead of the
+       * first one silently suppressing every later one, including a critical
+       * <3-day warning, for the rest of the window (M2-C).
+       */
+      dedupEvidenceKey?: { path: string; value: string };
+    } = {},
   ): Promise<boolean> {
     const sourceType = opts.sourceType ?? 'bill';
     const displayNum = opts.displayNum ?? humanizeBillId(row.billId);
@@ -911,6 +939,14 @@ export class BillChangeDetectorService {
           changeType: ev.cls.changeType,
           sourceRef: row.billId,
           createdAt: { gte: dedupeSince },
+          ...(opts.dedupEvidenceKey
+            ? {
+                evidence: {
+                  path: [opts.dedupEvidenceKey.path],
+                  equals: opts.dedupEvidenceKey.value,
+                },
+              }
+            : {}),
         },
         select: { id: true },
       }),

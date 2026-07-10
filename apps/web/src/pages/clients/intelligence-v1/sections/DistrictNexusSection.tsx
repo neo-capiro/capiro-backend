@@ -64,12 +64,26 @@ export function DistrictNexusSection({ clientId }: DistrictNexusSectionProps) {
         <span className="iv1-sec-sub">Federal contract spend by congressional district</span>
       </div>
 
-      <YourRepresentativesBlock data={repQuery.data} loading={repQuery.isLoading} />
+      <YourRepresentativesBlock
+        data={repQuery.data}
+        loading={repQuery.isLoading}
+        error={repQuery.isError}
+      />
 
       {query.isLoading ? (
         <div className="iv1-surface">
           <div className="iv1-empty" style={{ padding: '24px 16px', textAlign: 'center' }}>
             <span>Loading district nexus…</span>
+          </div>
+        </div>
+      ) : query.isError ? (
+        // ── Fetch failed: distinct from "no contractor linked" so the user
+        // isn't told to go map a contractor when the real problem is a
+        // transient request failure (W2.2).
+        <div className="iv1-surface">
+          <div className="iv1-empty" style={{ padding: '24px 16px', textAlign: 'center' }}>
+            <b>Couldn&apos;t load district nexus</b>
+            <span>Something went wrong fetching this client&apos;s contract spend. Try refreshing.</span>
           </div>
         </div>
       ) : !data || !data.linked ? (
@@ -173,11 +187,25 @@ export function DistrictNexusSection({ clientId }: DistrictNexusSectionProps) {
 function YourRepresentativesBlock({
   data,
   loading,
+  error,
 }: {
   data: FacilityRepresentation[] | undefined;
   loading: boolean;
+  error: boolean;
 }) {
   if (loading) return null;
+  // W2.2: an explicit failure must not read as "this client has no
+  // facilities" — the two were previously indistinguishable (both rendered
+  // nothing).
+  if (error) {
+    return (
+      <div className="iv1-surface" style={{ marginBottom: 14 }}>
+        <div className="iv1-empty" style={{ padding: '16px', textAlign: 'center' }}>
+          <span>Couldn&apos;t load this client&apos;s representatives. Try refreshing.</span>
+        </div>
+      </div>
+    );
+  }
   if (!data || data.length === 0) return null;
   return (
     <div className="iv1-surface" style={{ marginBottom: 14 }}>

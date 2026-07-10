@@ -11,6 +11,7 @@
  */
 import { Injectable } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service.js';
+import { normalizeDistrictCode } from './district-code.util.js';
 
 export interface ResolvedRepresentation {
   unresolved: false;
@@ -57,17 +58,37 @@ export interface FacilityDistrictInput {
 }
 
 /**
- * Strip cosmetic variation ("HD-3", "003", " 3 ") down to a bare digit
- * string for comparison against a facility's geocoded BASENAME-style code.
- * `state_legislator.district` is populated verbatim from OpenStates
- * (`currentRole?.district?.toString()`) whose exact per-state format is not
- * guaranteed — never assume exact string equality (PD2).
+ * W2.2: a facility is resolvable once EITHER the geocoder has placed it OR a
+ * manual entry supplies at least one district — never gated on
+ * `geocodeStatus` alone. Before this fix, a manually-entered facility
+ * (`districtSource='user'`, `geocodeStatus` still `null`/`no_match`/`error`)
+ * was treated as fully unresolved even when it carried a hand-typed
+ * `stateHouseDistrict`/`stateSenateDistrict`/`congressionalDistrict` —
+ * silently dropping it from the "Your representatives" block, the chokepoint
+ * footprint, and both inverse joins below. One definition, used by the
+ * forward lookup AND every inverse `clientFacility` query in this file.
  */
-export function normalizeDistrictCode(raw: string | null | undefined): string | null {
-  if (raw == null) return null;
-  const digits = raw.trim().replace(/^\D+/, '').replace(/^0+(?=\d)/, '');
-  return digits || null;
+function isResolvableFacility(f: {
+  geocodeStatus: string | null;
+  congressionalDistrict: string | null;
+  stateHouseDistrict: string | null;
+  stateSenateDistrict: string | null;
+}): boolean {
+  return (
+    f.geocodeStatus === 'matched' ||
+    !!f.congressionalDistrict ||
+    !!f.stateHouseDistrict ||
+    !!f.stateSenateDistrict
+  );
 }
+
+/** Prisma OR-fragment mirroring `isResolvableFacility` for `findMany` `where` clauses. */
+const RESOLVABLE_FACILITY_OR = [
+  { geocodeStatus: 'matched' },
+  { congressionalDistrict: { not: null } },
+  { stateHouseDistrict: { not: null } },
+  { stateSenateDistrict: { not: null } },
+];
 
 @Injectable()
 export class RepresentationResolverService {
@@ -81,7 +102,7 @@ export class RepresentationResolverService {
    */
   async representativesForFacility(facility: FacilityDistrictInput): Promise<RepresentationResult> {
     if (!facility.state) return { unresolved: true, reason: 'no_state' };
-    if (facility.geocodeStatus !== 'matched' && !facility.congressionalDistrict) {
+    if (!isResolvableFacility(facility)) {
       return { unresolved: true, reason: 'no_geocode' };
     }
 
@@ -141,7 +162,7 @@ export class RepresentationResolverService {
     if (!member.state) return [];
     return this.prisma.withTenant(tenantId, async (tx) => {
       const facilities = await tx.clientFacility.findMany({
-        where: { tenantId, state: member.state, geocodeStatus: 'matched' },
+        where: { tenantId, state: member.state, OR: RESOLVABLE_FACILITY_OR },
         select: {
           id: true,
           name: true,
@@ -191,14 +212,14 @@ export class RepresentationResolverService {
         if (!member.state) return [];
         if (member.chamber === 'senate') {
           return tx.clientFacility.findMany({
-            where: { tenantId, clientId, state: member.state, geocodeStatus: 'matched' },
+            where: { tenantId, clientId, state: member.state, OR: RESOLVABLE_FACILITY_OR },
             select: { id: true, name: true },
           });
         }
         // House: at-large ("00") <-> stored district NULL, per the same
         // sentinel rule the resolver uses for the forward direction.
         const facilities = await tx.clientFacility.findMany({
-          where: { tenantId, clientId, state: member.state, geocodeStatus: 'matched' },
+          where: { tenantId, clientId, state: member.state, OR: RESOLVABLE_FACILITY_OR },
           select: { id: true, name: true, congressionalDistrict: true },
         });
         return facilities
@@ -206,7 +227,7 @@ export class RepresentationResolverService {
           .map((f) => ({ id: f.id, name: f.name }));
       }
       const facilities = await tx.clientFacility.findMany({
-        where: { tenantId, clientId, state: member.state, geocodeStatus: 'matched' },
+        where: { tenantId, clientId, state: member.state, OR: RESOLVABLE_FACILITY_OR },
         select: {
           id: true,
           name: true,

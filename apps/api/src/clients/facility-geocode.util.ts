@@ -9,6 +9,7 @@
  * actually differs from what's stored.
  */
 import { geocodeAddress, type GeocodeStatus } from '../external/census-geocoder/census-geocoder.client.js';
+import { normalizeDistrictCode } from './district-code.util.js';
 
 export interface FacilityGeocodeInput {
   id: string;
@@ -80,11 +81,16 @@ export async function computeFacilityGeocode(f: FacilityGeocodeInput): Promise<F
     };
   }
 
+  // W2.2: compare NORMALIZED codes — a hand-typed "2" vs a geocoded "02" is
+  // the SAME district (just zero-padding), not a real discrepancy. Comparing
+  // the raw strings (the pre-fix behavior) false-flagged every single-digit
+  // district that happened to agree, which is the common case for any state
+  // whose districts run 1-9.
   const discrepancy =
     f.congressionalDistrict &&
     result.congressionalDistrict &&
     f.districtSource !== 'geocoded' &&
-    f.congressionalDistrict !== result.congressionalDistrict
+    normalizeDistrictCode(f.congressionalDistrict) !== normalizeDistrictCode(result.congressionalDistrict)
       ? { handEntered: f.congressionalDistrict, geocoded: result.congressionalDistrict }
       : null;
 

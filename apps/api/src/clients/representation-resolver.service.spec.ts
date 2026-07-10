@@ -1,7 +1,6 @@
 import {
   RepresentationResolverService,
   districtMatchesHouse,
-  normalizeDistrictCode,
   type FacilityDistrictInput,
 } from './representation-resolver.service.js';
 import type { PrismaService } from '../prisma/prisma.service.js';
@@ -86,8 +85,48 @@ describe('RepresentationResolverService.representativesForFacility', () => {
       ...MATCHED_FACILITY,
       geocodeStatus: 'no_match',
       congressionalDistrict: null,
+      stateHouseDistrict: null,
+      stateSenateDistrict: null,
     });
     expect(out).toEqual({ unresolved: true, reason: 'no_geocode' });
+  });
+
+  // REGRESSION (2026-07-10, W2.2): a manually-entered facility
+  // (`districtSource='user'`) that never ran through the geocoder must still
+  // resolve using whichever district(s) were hand-typed — the old gate
+  // (`geocodeStatus !== 'matched' && !congressionalDistrict`) silently treated
+  // ANY non-matched facility with only a state district as fully unresolved.
+  it('a manually-entered facility (not geocoded) with only a hand-typed state house district resolves the state legislator, not federal', async () => {
+    const svc = new RepresentationResolverService(
+      fakePrisma({ stateLower: [STATE_LOWER] }),
+    );
+    const out = await svc.representativesForFacility({
+      state: 'FL',
+      congressionalDistrict: null,
+      stateHouseDistrict: '9',
+      stateSenateDistrict: null,
+      geocodeStatus: null, // never geocoded — this is the manual-entry case
+    });
+    expect(out.unresolved).toBe(false);
+    if (out.unresolved) throw new Error('expected resolved');
+    expect(out.state.lower?.id).toBe('ocd-1');
+    expect(out.federal.house).toBeNull(); // no congressionalDistrict supplied -> correctly null, not a guess
+  });
+
+  it('a manually-entered facility (geocodeStatus=error) with a hand-typed congressional district still resolves federal House', async () => {
+    const svc = new RepresentationResolverService(
+      fakePrisma({ houseMembers: [HOUSE_MEMBER], senators: [SENATOR_1, SENATOR_2] }),
+    );
+    const out = await svc.representativesForFacility({
+      state: 'FL',
+      congressionalDistrict: '02',
+      stateHouseDistrict: null,
+      stateSenateDistrict: null,
+      geocodeStatus: 'error', // geocoder failed, but the user supplied a district by hand
+    });
+    expect(out.unresolved).toBe(false);
+    if (out.unresolved) throw new Error('expected resolved');
+    expect(out.federal.house?.bioguideId).toBe('D000001');
   });
 
   it('resolves federal House + both senators + state upper/lower for a fixtured facility (M1-D)', async () => {
@@ -158,14 +197,6 @@ describe('RepresentationResolverService.representativesForFacility', () => {
   });
 });
 
-describe('normalizeDistrictCode', () => {
-  it('strips leading zeros', () => expect(normalizeDistrictCode('003')).toBe('3'));
-  it('strips a non-digit prefix', () => expect(normalizeDistrictCode('HD-9')).toBe('9'));
-  it('trims whitespace', () => expect(normalizeDistrictCode(' 3 ')).toBe('3'));
-  it('null passthrough', () => expect(normalizeDistrictCode(null)).toBeNull());
-  it('empty string -> null', () => expect(normalizeDistrictCode('')).toBeNull());
-});
-
 describe('RepresentationResolverService.facilitiesForMember (inverse)', () => {
   it('federal house: finds a client facility in the member district, respecting the at-large sentinel', async () => {
     const prisma = {
@@ -222,6 +253,42 @@ describe('RepresentationResolverService.clientsRepresentedByMember (M1.4 — ten
       ),
     } as unknown as PrismaService;
   }
+
+  // REGRESSION (2026-07-10, W2.2): pins the actual Prisma `where` shape — the
+  // other tests in this block use a fake findMany that ignores its `where`
+  // arg entirely, so they can't catch a regression back to a bare
+  // `geocodeStatus: 'matched'` filter that would silently re-exclude every
+  // manually-entered (not-yet-geocoded) facility from this query.
+  it('queries with the resolvable-facility OR (not a bare geocodeStatus filter)', async () => {
+    const findMany = jest.fn(
+      async (_args: { where: { OR?: unknown[]; geocodeStatus?: unknown } }) =>
+        [] as Array<Record<string, unknown>>,
+    );
+    const prisma = {
+      withTenant: jest.fn(async (_t: string, fn: (tx: unknown) => unknown) =>
+        fn({ clientFacility: { findMany } }),
+      ),
+    } as unknown as PrismaService;
+    const svc = new RepresentationResolverService(prisma);
+    await svc.clientsRepresentedByMember('t1', {
+      bioguideId: 'W000001',
+      chamber: 'house',
+      state: 'WY',
+      district: null,
+    });
+    const call = findMany.mock.calls[0];
+    if (!call) throw new Error('expected findMany to have been called');
+    const where = call[0].where;
+    expect(where.geocodeStatus).toBeUndefined();
+    expect(where.OR).toEqual(
+      expect.arrayContaining([
+        { geocodeStatus: 'matched' },
+        { congressionalDistrict: { not: null } },
+        { stateHouseDistrict: { not: null } },
+        { stateSenateDistrict: { not: null } },
+      ]),
+    );
+  });
 
   it('groups matching facilities by client, across every client in the tenant (House, at-large)', async () => {
     const prisma = fakeTenantWidePrisma([
