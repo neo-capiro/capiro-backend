@@ -24,6 +24,8 @@ export interface SetupState {
   complete: boolean;
   /** Active workspace is NOT an onboarding-v1 tenant — show the switch notice. */
   legacyTenant: boolean;
+  /** 'managed' = Capiro imports the clients; 'self' = the firm does it here. */
+  importMode: 'self' | 'managed';
   tasks: Record<SetupTaskKey, SetupTaskStatus>;
   orgName: string;
   slug: string;

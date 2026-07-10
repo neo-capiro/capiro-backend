@@ -51,8 +51,11 @@ export function ImportOverlay({
     retry: false,
   });
 
-  // Stage: search until the tenant has a registrant; "Change firm" overrides back.
-  const [stageOverride, setStageOverride] = React.useState<'search' | 'table' | null>(null);
+  // Stage: search until the tenant has a registrant; "Change firm" overrides
+  // back; "manual" is the type-it-in path for firms/clients not in LDA data.
+  const [stageOverride, setStageOverride] = React.useState<'search' | 'table' | 'manual' | null>(
+    null,
+  );
   const stage = stageOverride ?? (registrant.data?.ldaRegistrantId != null ? 'table' : 'search');
 
   const [q, setQ] = React.useState('');
@@ -61,6 +64,13 @@ export function ImportOverlay({
   const [sel, setSel] = React.useState<number[]>([]);
   const [importing, setImporting] = React.useState(false);
   const [error, setError] = React.useState<string | null>(null);
+
+  // Manual-add form (stage === 'manual').
+  const [mName, setMName] = React.useState('');
+  const [mWebsite, setMWebsite] = React.useState('');
+  const [mDesc, setMDesc] = React.useState('');
+  const [manualBusy, setManualBusy] = React.useState(false);
+  const [manualAdded, setManualAdded] = React.useState(0);
 
   const search = useQuery({
     queryKey: ['capiro', 'lda-registrants', submittedQ],
@@ -122,6 +132,142 @@ export function ImportOverlay({
     }
   };
 
+  const remainingAfterManual = Math.max(0, cap - imported - manualAdded);
+
+  const doManualAdd = async () => {
+    const name = mName.trim();
+    if (manualBusy || !name) return;
+    if (remainingAfterManual <= 0) {
+      setError(`That's your ${cap}-profile ${plan === 'paid' ? '' : 'trial '}limit.`);
+      return;
+    }
+    setManualBusy(true);
+    setError(null);
+    try {
+      await api.createClient({
+        name,
+        ...(mWebsite.trim() ? { website: mWebsite.trim() } : {}),
+        ...(mDesc.trim() ? { description: mDesc.trim() } : {}),
+      });
+      setManualAdded((n) => n + 1);
+      onImported(1); // completes the setup task + refreshes the dashboard count
+      setMName('');
+      setMWebsite('');
+      setMDesc('');
+    } catch (err) {
+      setError(errorMessage(err));
+    } finally {
+      setManualBusy(false);
+    }
+  };
+
+  if (stage === 'manual')
+    return (
+      <Modal title="Add a client manually" onClose={onClose} width={560}>
+        <p
+          style={{
+            margin: '-2px 0 14px',
+            fontSize: 13,
+            color: 'var(--ink-2)',
+            lineHeight: 1.6,
+            textWrap: 'pretty',
+          }}
+        >
+          Add clients that aren't in your LDA filings. Just the name is required to get started —
+          you'll <b>finish setting up each client in your Portfolio</b> (issues, contacts, federal
+          links, and more). Richer profiles give Meri the context it needs for the best results.
+        </p>
+        <div style={{ display: 'grid', gap: 12 }}>
+          <div>
+            <label style={{ fontSize: 12, fontWeight: 600, color: 'var(--ink-2)' }}>
+              Client name <span style={{ color: 'var(--critical)' }}>*</span>
+            </label>
+            <TextInput
+              placeholder="e.g. Overland AI"
+              value={mName}
+              onChange={(e) => setMName(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter') void doManualAdd();
+              }}
+              style={{ background: '#fff', marginTop: 4 }}
+            />
+          </div>
+          <div>
+            <label style={{ fontSize: 12, fontWeight: 600, color: 'var(--ink-2)' }}>
+              Website <span style={{ color: 'var(--ink-3)', fontWeight: 400 }}>(optional)</span>
+            </label>
+            <TextInput
+              placeholder="acme.com"
+              value={mWebsite}
+              onChange={(e) => setMWebsite(e.target.value)}
+              style={{ background: '#fff', marginTop: 4 }}
+            />
+          </div>
+          <div>
+            <label style={{ fontSize: 12, fontWeight: 600, color: 'var(--ink-2)' }}>
+              Short description{' '}
+              <span style={{ color: 'var(--ink-3)', fontWeight: 400 }}>(optional)</span>
+            </label>
+            <TextInput
+              placeholder="What they do / what you work on for them"
+              value={mDesc}
+              onChange={(e) => setMDesc(e.target.value)}
+              style={{ background: '#fff', marginTop: 4 }}
+            />
+          </div>
+        </div>
+        {manualAdded > 0 && (
+          <div
+            style={{
+              marginTop: 12,
+              display: 'flex',
+              alignItems: 'center',
+              gap: 7,
+              fontSize: 12.5,
+              color: 'var(--success)',
+              fontWeight: 600,
+            }}
+          >
+            <Icon name="CircleCheck" size={15} />
+            {manualAdded} client{manualAdded === 1 ? '' : 's'} added · {remainingAfterManual} of{' '}
+            {cap} profiles remaining
+          </div>
+        )}
+        {error && <ErrorText>{error}</ErrorText>}
+        <div
+          style={{
+            display: 'flex',
+            alignItems: 'center',
+            gap: 10,
+            borderTop: '1px solid var(--border-1)',
+            paddingTop: 14,
+            marginTop: 16,
+          }}
+        >
+          <a
+            href="#"
+            onClick={(e) => {
+              e.preventDefault();
+              setError(null);
+              setStageOverride('search');
+            }}
+            style={{ fontSize: 12.5, fontWeight: 600, color: 'var(--accent)' }}
+          >
+            ← Search LDA filings instead
+          </a>
+          <span style={{ flex: 1 }} />
+          <Btn onClick={onClose}>Done</Btn>
+          <Btn
+            variant="primary"
+            disabled={!mName.trim() || manualBusy || remainingAfterManual <= 0}
+            onClick={() => void doManualAdd()}
+          >
+            {manualBusy ? 'Adding…' : 'Add client'}
+          </Btn>
+        </div>
+      </Modal>
+    );
+
   if (stage === 'search')
     return (
       <Modal title="Find your firm in LDA filings" onClose={onClose} width={620}>
@@ -182,12 +328,27 @@ export function ImportOverlay({
           </div>
         )}
         {search.data && search.data.length === 0 && (
-          <div style={{ marginTop: 12, fontSize: 12.5, color: 'var(--ink-3)' }}>
-            No registrants matched — try a different spelling.
+          <div style={{ marginTop: 12, fontSize: 12.5, color: 'var(--ink-3)', lineHeight: 1.55 }}>
+            No registrants matched “{submittedQ}”. Check the spelling, or{' '}
+            <a
+              href="#"
+              onClick={(e) => {
+                e.preventDefault();
+                setError(null);
+                setMName(q.trim());
+                setStageOverride('manual');
+              }}
+              style={{ color: 'var(--accent)', fontWeight: 600 }}
+            >
+              add your clients manually
+            </a>
+            .
           </div>
         )}
         {search.data && search.data.length > 0 && (
-          <div style={{ marginTop: 12, display: 'grid', gap: 8 }}>
+          <div
+            style={{ marginTop: 12, display: 'grid', gap: 8, maxHeight: 340, overflowY: 'auto' }}
+          >
             {search.data.map((hit) => (
               <div
                 key={hit.id}
@@ -219,7 +380,19 @@ export function ImportOverlay({
           </div>
         )}
         {error && <ErrorText>{error}</ErrorText>}
-        <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: 16 }}>
+        <div style={{ display: 'flex', alignItems: 'center', marginTop: 16 }}>
+          <a
+            href="#"
+            onClick={(e) => {
+              e.preventDefault();
+              setError(null);
+              setStageOverride('manual');
+            }}
+            style={{ fontSize: 12.5, fontWeight: 600, color: 'var(--accent)' }}
+          >
+            Can't find your firm? Add clients manually
+          </a>
+          <span style={{ flex: 1 }} />
           <Btn onClick={onClose}>Cancel</Btn>
         </div>
       </Modal>
@@ -438,13 +611,25 @@ export function ImportOverlay({
       <div
         style={{
           display: 'flex',
-          justifyContent: 'flex-end',
+          alignItems: 'center',
           gap: 10,
           borderTop: '1px solid var(--border-1)',
           paddingTop: 14,
           marginTop: 14,
         }}
       >
+        <a
+          href="#"
+          onClick={(e) => {
+            e.preventDefault();
+            setError(null);
+            setStageOverride('manual');
+          }}
+          style={{ fontSize: 12.5, fontWeight: 600, color: 'var(--accent)' }}
+        >
+          + Add a client manually
+        </a>
+        <span style={{ flex: 1 }} />
         <Btn onClick={onClose}>Cancel</Btn>
         <Btn
           variant="primary"

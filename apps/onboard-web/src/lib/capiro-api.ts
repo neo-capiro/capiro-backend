@@ -158,6 +158,14 @@ export function createCapiroApi(baseUrl: string, getToken: GetToken) {
       get('/api/firm/import-candidates') as Promise<ImportCandidatesResult>,
 
     /**
+     * Manually create a client (for firms not in the LDA data, or clients not
+     * yet filed). Only `name` is required; the rest is fleshed out later in the
+     * Portfolio. Throws ApiError(402) when the client-slot cap is hit.
+     */
+    createClient: (body: { name: string; website?: string; description?: string }) =>
+      post('/api/clients', body) as Promise<{ id: string; name: string }>,
+
+    /**
      * Chunked import (100 ids/request). A 402 (client-slot cap) stops the run
      * and surfaces the server's cap message; earlier chunks' results are kept.
      */

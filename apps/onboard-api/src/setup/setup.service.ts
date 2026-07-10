@@ -38,6 +38,8 @@ export interface SetupState {
   orgName: string;
   slug: string;
   plan: 'trial' | 'paid';
+  /** 'managed' = Capiro imports the clients; 'self' = the firm does it here. */
+  importMode: 'self' | 'managed';
   imported: number;
   cap: number;
   trialEndsAt: string | null;
@@ -118,6 +120,7 @@ export class SetupService {
             clientSlots: true,
             trialEndsAt: true,
             onboardingFlowVersion: true,
+            importMode: true,
           },
         }),
       ),
@@ -149,6 +152,7 @@ export class SetupService {
       orgName: tenant.name,
       slug: tenant.slug,
       plan: tenant.billingStatus === 'trialing' ? 'trial' : 'paid',
+      importMode: tenant.importMode === 'managed' ? 'managed' : 'self',
       imported,
       // A trial always gets at least the 10-profile allowance (Gherkin Flow 1:
       // "10 client profile limit") even if the tenant row was stamped with a
