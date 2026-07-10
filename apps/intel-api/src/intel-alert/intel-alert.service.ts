@@ -15,6 +15,56 @@ import {
 type Channel = 'email' | 'sms' | 'in_app';
 
 /**
+ * State-rail changeType groups that share a subscriber triggerKey (2026-07-10
+ * hot-fix, D-2 cleanup) — see classifyStateStatusChange's STATE_STATUS_TRIGGER
+ * table and classifyChange's changeType/triggerKey pairs in
+ * change-detector.util.ts. Kept as a static, hand-verified table (rather than
+ * reconstructed from the classifiers at runtime) because both sides are fixed
+ * enum-like definitions, not data-dependent.
+ */
+const STATE_DOUBLE_EMIT_GROUPS: ReadonlyArray<{ coded: string[]; actionText: string[] }> = [
+  {
+    coded: [
+      'state_bill_enacted',
+      'state_bill_vetoed',
+      'state_bill_failed',
+      'state_bill_dead_by_deadline',
+    ],
+    actionText: ['bill_enacted', 'bill_to_president', 'bill_failed'],
+  },
+  {
+    coded: [
+      'state_bill_passed_chamber',
+      'state_bill_floor',
+      'state_bill_to_governor',
+      'state_bill_veto_overridden',
+      'state_bill_resolving',
+    ],
+    actionText: ['bill_passed_chamber', 'bill_rule_reported', 'bill_floor_scheduled'],
+  },
+  {
+    coded: ['state_bill_reported'],
+    actionText: ['bill_reported', 'bill_markup'],
+  },
+];
+/** A same-cycle write pair lands milliseconds/seconds apart; two genuinely
+ * distinct historical events sharing a triggerKey are separated by at least
+ * one detection-cycle cadence (hours). 5 minutes is comfortably narrower than
+ * any real cadence while covering any realistic same-cycle write latency. */
+const COLLISION_WINDOW_MINUTES = 5;
+
+export interface DedupeStateAlertCandidate {
+  tenantId: string;
+  clientId: string;
+  sourceRef: string;
+  keptId: string;
+  keptChangeType: string;
+  suppressId: string;
+  suppressChangeType: string;
+  suppressTitle: string;
+}
+
+/**
  * Unified alert delivery (Phase 4, plan §7) — SHADOW-FIRST.
  *
  * SINGLE-SENDER GUARANTEE (D5): a real send happens ONLY when a tenant is
@@ -319,6 +369,104 @@ export class IntelAlertService {
       updated += Number(n);
     }
     return { updated };
+  }
+
+  /**
+   * (2026-07-10 hot-fix, D-2) One-time cleanup for the state-rail double-emit
+   * bug fixed in bill-change-detector.service.ts's runStateDetectionCycle:
+   * before the fix, a single status TRANSITION could write BOTH a correctly
+   * classified coded alert (classifyStateStatusChange, changeType
+   * `state_bill_*`) and a text-regex-derived alert (classifyChange,
+   * changeType `bill_*`) sharing the same subscriber triggerKey — the latter
+   * sometimes mislabeling the transition (e.g. a veto shown as "Failed /
+   * rejected"). Finds (tenantId, clientId, sourceRef) groups where a coded
+   * alert and a same-triggerKey-group action-text alert exist within
+   * COLLISION_WINDOW_MINUTES of each other (a same-detection-cycle write —
+   * NOT two genuinely distinct historical events that happen to share a
+   * triggerKey weeks apart, which legitimately coexist) and marks the
+   * action-text duplicate `status='suppressed'`. Soft — never hard-deletes,
+   * fully reversible, preserves the audit trail — and never touches a row a
+   * human has already reviewed/sent/dismissed/snoozed (status must still be
+   * 'new'). DRY-RUN unless apply=true, mirroring
+   * DataParityService.reconcile's dual-gate convention (report first, apply
+   * only on explicit request).
+   */
+  async dedupeStateActionAlerts(
+    opts: { apply: boolean },
+    log: (msg: string) => void,
+  ): Promise<{ candidates: DedupeStateAlertCandidate[]; suppressed: number }> {
+    const rows = await this.prisma.withSystem((tx) =>
+      tx.intelAlert.findMany({
+        where: { sourceType: 'state_bill' },
+        select: {
+          id: true,
+          tenantId: true,
+          clientId: true,
+          sourceRef: true,
+          changeType: true,
+          title: true,
+          status: true,
+          createdAt: true,
+        },
+        orderBy: { createdAt: 'asc' },
+      }),
+    );
+
+    const byKey = new Map<string, typeof rows>();
+    for (const r of rows) {
+      const key = `${r.tenantId}:${r.clientId}:${r.sourceRef}`;
+      const arr = byKey.get(key) ?? [];
+      arr.push(r);
+      byKey.set(key, arr);
+    }
+
+    const candidates: DedupeStateAlertCandidate[] = [];
+    for (const group of byKey.values()) {
+      for (const groupDef of STATE_DOUBLE_EMIT_GROUPS) {
+        const coded = group.filter((r) => r.changeType && groupDef.coded.includes(r.changeType));
+        const actionText = group.filter(
+          (r) => r.changeType && groupDef.actionText.includes(r.changeType),
+        );
+        for (const c of coded) {
+          for (const a of actionText) {
+            const deltaMs = Math.abs(c.createdAt.getTime() - a.createdAt.getTime());
+            if (deltaMs <= COLLISION_WINDOW_MINUTES * 60 * 1000) {
+              candidates.push({
+                tenantId: c.tenantId,
+                clientId: c.clientId,
+                sourceRef: c.sourceRef,
+                keptId: c.id,
+                keptChangeType: c.changeType!,
+                suppressId: a.id,
+                suppressChangeType: a.changeType!,
+                suppressTitle: a.title,
+              });
+            }
+          }
+        }
+      }
+    }
+
+    for (const cand of candidates) {
+      log(
+        `DEDUPE_CANDIDATE tenant=${cand.tenantId} client=${cand.clientId} bill=${cand.sourceRef} ` +
+          `keep=${cand.keptChangeType}(${cand.keptId}) suppress=${cand.suppressChangeType}(${cand.suppressId}) "${cand.suppressTitle}"`,
+      );
+    }
+
+    let suppressed = 0;
+    if (opts.apply && candidates.length) {
+      const ids = candidates.map((c) => c.suppressId);
+      const r = await this.prisma.withSystem((tx) =>
+        tx.intelAlert.updateMany({
+          where: { id: { in: ids }, status: 'new' },
+          data: { status: 'suppressed' },
+        }),
+      );
+      suppressed = r.count;
+    }
+
+    return { candidates, suppressed };
   }
 
   /**

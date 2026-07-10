@@ -82,6 +82,7 @@ export const KNOWN_VERBS = [
   'reconcile-intel-tracker', //     Phase 8 cutover: delete stale intel-only rows (unflipped tenants; dry-run default)
   'diag-replay-bill', //            Diagnostic: rewind one tracked bill's watermark + run detection (e2e proof)
   'diag-upcoming-hearings', //      Diagnostic: read committee_hearing (upcoming feed) — count + samples
+  'dedupe-state-alerts', //         2026-07-10 hot-fix (D-2): report/suppress pre-fix state double-emit dupes (dry-run default)
 ] as const;
 export type Verb = (typeof KNOWN_VERBS)[number];
 
@@ -360,6 +361,21 @@ export async function runVerb(verb: string, args: string[], deps: VerbDeps): Pro
     case 'backfill-default-triggers': {
       const r = await buildAlertService(deps.prisma).backfillDefaultTriggers();
       deps.log(`BACKFILL_TRIGGERS_DONE updated=${r.updated}`);
+      return;
+    }
+    case 'dedupe-state-alerts': {
+      // 2026-07-10 hot-fix (D-2): clean up alerts double-emitted by the
+      // pre-fix state rail. DRY-RUN unless --apply=true is passed — review
+      // the DEDUPE_CANDIDATE lines before ever applying.
+      const flags = parseFlags(args);
+      const r = await buildAlertService(deps.prisma).dedupeStateActionAlerts(
+        { apply: flags['apply'] === 'true' },
+        deps.log,
+      );
+      deps.log(
+        `DEDUPE_STATE_ALERTS_DONE candidates=${r.candidates.length} suppressed=${r.suppressed} ` +
+          `mode=${flags['apply'] === 'true' ? 'APPLY' : 'DRY_RUN'}`,
+      );
       return;
     }
     case 'flush-digests': {

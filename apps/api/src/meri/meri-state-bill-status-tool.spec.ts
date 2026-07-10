@@ -164,6 +164,53 @@ describe('search_state_floor_votes (S6.1)', () => {
     expect(miss.note).toMatch(/do not infer a vote outcome/i);
     expect(miss.note).toMatch(/member-level filtering is not available/i);
   });
+
+  it('REGRESSION (2026-07-10 hot-fix): a SUPPLIED billId that fails to resolve short-circuits with votesFound:0 — it never falls through to an unrelated state-wide vote search', async () => {
+    const findManySpy = jest.fn(async () => [
+      // if the state-prefix fallback were ever reached, THESE unrelated
+      // votes would leak into the response — proving the bug if returned.
+      {
+        id: 'tx-rc-unrelated',
+        billKey: 'tx-2025-hb9999',
+        chamber: 'H',
+        motion: 'Third Reading',
+        yeas: 1,
+        nays: 1,
+        nv: 0,
+        absent: 0,
+        passed: true,
+        sourceUrl: null,
+      },
+    ]);
+    const prisma: Fake = withSystemFake({
+      stateBill: { findMany: async () => [] }, // no bill matches the designation
+      stateRollCallVote: { findMany: findManySpy },
+    });
+    const out = (await call(svc(prisma), 'searchStateFloorVotes', {
+      billId: 'HB 9999',
+      state: 'TX',
+    })) as { votesFound: number; votes: unknown[]; note: string };
+
+    expect(out.votesFound).toBe(0);
+    expect(out.votes).toEqual([]);
+    expect(out.note).toMatch(/no bill found matching/i);
+    expect(findManySpy).not.toHaveBeenCalled();
+  });
+
+  it('an OPEN-ENDED search (no billId) is unaffected by the fix — state-prefix filtering still works', async () => {
+    const prisma: Fake = withSystemFake({
+      stateRollCallVote: {
+        findMany: async ({ where }: { where: Record<string, unknown> }) => {
+          expect(where.billKey).toEqual({ startsWith: 'tx-' });
+          return [];
+        },
+      },
+    });
+    const out = (await call(svc(prisma), 'searchStateFloorVotes', { state: 'TX' })) as {
+      votesFound: number;
+    };
+    expect(out.votesFound).toBe(0);
+  });
 });
 
 describe('get_state_legislator (S6.1/S6.2)', () => {

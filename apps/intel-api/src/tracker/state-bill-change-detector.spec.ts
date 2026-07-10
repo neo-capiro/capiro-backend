@@ -183,6 +183,89 @@ describe('BillChangeDetectorService — state partition (DD3)', () => {
     expect(alerts).toHaveLength(1);
   });
 
+  it('REGRESSION (2026-07-10 hot-fix): a veto fires exactly ONE alert, correctly labeled "Vetoed" — not a second mislabeled "Failed / rejected" action-text duplicate', async () => {
+    const alreadySeen: TrackedBillRow = {
+      id: 'tb-veto',
+      tenantId: 't1',
+      clientId: 'c1',
+      billId: BASE_BILL.id,
+      source: 'state',
+      lastSeenActionText: 'Filed',
+      lastSeenActionDate: new Date('2025-01-15'),
+      lastSeenAt: new Date('2025-01-16'),
+      lastSeenStatus: 'to_governor', // derived-baselined
+      lastSeenCosponsors: 2,
+      lastSeenTextDate: null,
+      lastSeenFiscalId: null,
+      lastSeenHearingKey: null,
+    };
+    // Both the coded status AND the action text advance together — the
+    // exact scenario that double-emitted before the fix: the coded
+    // classifier (classifyStateStatusChange) fires 'state_bill_vetoed', and
+    // the action-text classifier (classifyChange) ALSO matches the generic
+    // /veto/ pattern and would fire 'bill_failed' ("Failed / rejected") for
+    // the SAME transition.
+    const vetoedBill = {
+      ...BASE_BILL,
+      status: 'vetoed',
+      statusAt: new Date('2025-06-01'),
+      latestActionText: 'Vetoed by the Governor',
+      latestActionDate: new Date('2025-06-01'),
+    };
+    const { prisma, alerts } = makeHarness([alreadySeen]);
+    const svc = new BillChangeDetectorService(
+      prisma,
+      FAKE_CONGRESS_SOURCE,
+      makeStateSourceRepo(vetoedBill),
+    );
+
+    const summary = await svc.runDetectionCycle();
+    expect(summary.alertsWritten).toBe(1);
+    expect(alerts).toHaveLength(1);
+    expect(summary.byType['state_bill_vetoed']).toBe(1);
+    expect(summary.byType['bill_failed']).toBeUndefined();
+    const alert = alerts[0] as { changeType: string; title: string };
+    expect(alert.changeType).toBe('state_bill_vetoed');
+    expect(alert.title).not.toMatch(/Failed \/ rejected/i);
+  });
+
+  it('REGRESSION (2026-07-10 hot-fix): an unrelated action-text signal (hearing scheduled) on the SAME cycle as a status transition is NOT suppressed — only the colliding triggerKey is dropped', async () => {
+    const alreadySeen: TrackedBillRow = {
+      id: 'tb-hearing',
+      tenantId: 't1',
+      clientId: 'c1',
+      billId: BASE_BILL.id,
+      source: 'state',
+      lastSeenActionText: 'Filed',
+      lastSeenActionDate: new Date('2025-01-15'),
+      lastSeenAt: new Date('2025-01-16'),
+      lastSeenStatus: 'introduced',
+      lastSeenCosponsors: 2,
+      lastSeenTextDate: null,
+      lastSeenFiscalId: null,
+      lastSeenHearingKey: null,
+    };
+    const reportedBill = {
+      ...BASE_BILL,
+      status: 'reported', // classifyStateStatusChange -> triggerKey 'committeeVote'
+      statusAt: new Date('2025-02-01'),
+      latestActionText: 'Hearing scheduled for March 3', // classifyChange -> triggerKey 'hearing' (no collision)
+      latestActionDate: new Date('2025-02-01'),
+    };
+    const { prisma, alerts } = makeHarness([alreadySeen]);
+    const svc = new BillChangeDetectorService(
+      prisma,
+      FAKE_CONGRESS_SOURCE,
+      makeStateSourceRepo(reportedBill),
+    );
+
+    const summary = await svc.runDetectionCycle();
+    expect(summary.alertsWritten).toBe(2);
+    expect(alerts).toHaveLength(2);
+    expect(summary.byType['state_bill_reported']).toBe(1);
+    expect(summary.byType['bill_hearing']).toBe(1);
+  });
+
   it('does not touch the congress partition when only state rows are tracked', async () => {
     const row: TrackedBillRow = {
       id: 'tb-3',

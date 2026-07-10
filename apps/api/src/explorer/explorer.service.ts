@@ -1487,6 +1487,13 @@ export class ExplorerService {
     return {
       bill: {
         ...b,
+        // 2026-07-10 hot-fix: the web drawer/drill-in reads `abstract` (the
+        // DTO/schema-comment contract), but the raw Prisma row only has
+        // `description` (LegiScan's own field name) — the Abstract section
+        // was always dead. Reconciled here rather than renaming the schema
+        // column, since `description` is the LegiScan-sourced field name
+        // used elsewhere in ingestion.
+        abstract: b.description ?? null,
         latestActionDate: b.latestActionDate?.toISOString() ?? null,
         statusAt: b.statusAt?.toISOString() ?? null,
         textDate: b.textDate?.toISOString() ?? null,

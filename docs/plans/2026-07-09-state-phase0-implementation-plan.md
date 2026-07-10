@@ -448,8 +448,18 @@ string|null; today?: string }): StateBillStatusResult`. Branch order (first matc
 ### S3.2 Verb — `apps/api/scripts/derive-state-bill-status.ts` (new; template = derive-bill-status.ts three-phase shape)
 
 1. Passage/veto sets: `state_roll_call_vote` non-null `passed`, filter
-   `classifyStateVoteMotion` → `passedChamber`/`failedChamber` sets by billKey; override
-   motions → `overridden` set.
+   `classifyStateVoteMotion` → `passedChamber`/`failedChamber` sets by billKey, keyed on
+   each bill's MOST RECENT qualifying vote (2026-07-10 hot-fix: a bill that failed then
+   was later reconsidered and passed must land in `passedChamber` only, never both —
+   see `buildPassageOutcomeSets`). **Amended 2026-07-10 (D-3):** the `overridden` set is
+   NOT vote-derived — `classifyStateVoteMotion`'s allowed-motion regex excludes anything
+   containing "override" by design, and no override-specific roll-call classifier exists.
+   The overridden signal is progress-event-7 (`legiscanProgress` code) plus a text-regex
+   fallback (`OVERRIDDEN_TEXT`) only, exactly as shipped in
+   `derive-state-bill-status.ts`. Building a vote-derived override set would require
+   verifying override roll-calls actually appear as distinct `state_roll_call_vote` rows
+   in live LegiScan data — unconfirmed from this environment — so the plan is amended to
+   match the verified, shipped signal rather than the unverified one.
 2. Sessions: `state_session` map for `sineDie`.
 3. Recompute every bill in `LEGISCAN_STATES` scope: `deriveStateBillStatus(...)` →
    `stateBill.update({status, statusAt: latestActionDate ?? textDate ?? now, statusSource:

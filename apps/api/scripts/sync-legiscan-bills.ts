@@ -34,6 +34,11 @@ import {
   crosswalkStateBill,
   stateRollCallId,
 } from '../src/ingestion/legiscan-normalize.js';
+import {
+  currentQuotaMonth,
+  monthToDateQueries,
+  quotaExhausted,
+} from '../src/ingestion/legiscan-quota.util.js';
 dotenvConfig();
 
 const prisma = new PrismaClient();
@@ -44,10 +49,6 @@ const STATES = (process.env.LEGISCAN_STATES ?? PRIORITY_STATE_CODES.join(','))
   .filter(Boolean);
 const DRAIN_CAP = Number(process.env.LEGISCAN_DRAIN_CAP ?? '400');
 const MONTHLY_BUDGET = Number(process.env.LEGISCAN_MONTHLY_BUDGET ?? '28000');
-
-function currentQuotaMonth(): string {
-  return new Date().toISOString().slice(0, 7);
-}
 
 /** Add `delta` to a cursor's month-to-date query counter, rolling over on a calendar-month change. */
 async function bumpCursorQueries(cursorId: string, delta: number): Promise<void> {
@@ -69,7 +70,8 @@ async function bumpCursorQueries(cursorId: string, delta: number): Promise<void>
   }
 }
 
-async function main() {
+/** Exported for the getRollCall-failure regression spec (mocks prisma + the legiscan/normalize modules). */
+export async function main() {
   if (!LEGISCAN_API_KEY) throw new Error('LEGISCAN_API_KEY env var is required');
 
   await runWithSyncRun(prisma as never, 'sync-legiscan-bills', async () => {
@@ -77,10 +79,8 @@ async function main() {
     const allCursors = await prisma.stateSyncCursor.findMany({
       select: { queriesUsed: true, quotaMonth: true },
     });
-    const usedThisMonth = allCursors
-      .filter((c) => c.quotaMonth === month)
-      .reduce((sum, c) => sum + c.queriesUsed, 0);
-    if (usedThisMonth >= MONTHLY_BUDGET) {
+    const usedThisMonth = monthToDateQueries(allCursors, month);
+    if (quotaExhausted(usedThisMonth, MONTHLY_BUDGET)) {
       console.log(
         `INGESTION_SKIP ${JSON.stringify({ source: 'sync-legiscan-bills', reason: 'quota', usedThisMonth, budget: MONTHLY_BUDGET })}`,
       );
@@ -141,6 +141,13 @@ async function main() {
           if (isNew) inserted++;
           else updated++;
 
+          // A failed getRollCall must NOT let the bill's hash advance below —
+          // otherwise the next masterlist diff sees a hash that already
+          // matches LegiScan's and never re-queues the bill, permanently
+          // losing that vote (2026-07-10 hot-fix). Tracked per-bill so ONE
+          // failed roll call blocks the advance even when sibling votes
+          // succeeded.
+          let voteFetchFailed = false;
           for (const stub of raw.votes ?? []) {
             const existing = await prisma.stateRollCallVote.findUnique({
               where: { id: stateRollCallId(queue.state, stub.roll_call_id) },
@@ -160,6 +167,7 @@ async function main() {
                 await upsertStateRollCallVote(prisma, queue.state, normalized.billKey, rollCall);
             } catch (err) {
               errors++;
+              voteFetchFailed = true;
               console.error(
                 `[sync-legiscan-bills] ${queue.state} roll call ${stub.roll_call_id} failed:`,
                 err,
@@ -169,7 +177,20 @@ async function main() {
 
           // Only advance the hash-cache AFTER a fully successful drain (see
           // header comment — a crash before this point re-queues on the next
-          // masterlist diff instead of silently losing the change).
+          // masterlist diff instead of silently losing the change). A failed
+          // vote fetch is treated exactly like the getBill-null / DD1-invalid
+          // paths above: pendingBills still drains this billId for THIS run
+          // (no busy-loop retry within the same invocation), but billHashes
+          // is left stale so the NEXT masterlist diff detects the mismatch
+          // and re-queues the bill for a fresh drain.
+          if (voteFetchFailed) {
+            await prisma.stateSyncCursor.update({
+              where: { id: cursorId },
+              data: { pendingBills: { set: queue.ids } },
+            });
+            await bumpCursorQueries(cursorId, queriesForBill);
+            continue;
+          }
           const cursor = await prisma.stateSyncCursor.findUnique({ where: { id: cursorId } });
           const billHashes = {
             ...((cursor?.billHashes as Record<string, string> | undefined) ?? {}),

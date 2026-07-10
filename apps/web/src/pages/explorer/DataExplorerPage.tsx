@@ -110,7 +110,7 @@ const SOURCES: SourceMeta[] = [
   { key: 'sam-opps', label: 'SAM.gov Opportunities', description: 'DoD contract opportunities & solicitations from SAM.gov.', icon: <SolutionOutlined /> },
   { key: 'federal-awards', label: 'Federal Awards', description: 'USAspending contract award line items — agency, contractor, amount.', icon: <DollarOutlined /> },
   { key: 'federal-grants', label: 'Federal Grants', description: 'Grants.gov funding opportunities by agency, deadline, ceiling.', icon: <BankOutlined /> },
-  { key: 'state-bills', label: 'State Bills', description: 'State legislation via OpenStates.', icon: <SolutionOutlined /> },
+  { key: 'state-bills', label: 'State Bills', description: 'State legislation via LegiScan.', icon: <SolutionOutlined /> },
   { key: 'state-legislators', label: 'State Legislators', description: 'State house & senate members by state, chamber, party.', icon: <TeamOutlined /> },
   { key: 'comment-deadlines', label: 'Comment Deadlines', description: 'Open comment periods on federal rules, closing soonest.', icon: <ClockCircleOutlined /> },
 ];

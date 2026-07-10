@@ -26,6 +26,12 @@ import { runWithSyncRun } from '../src/ingestion/sync-run.helper.js';
 import { getSessionList, getMasterListRaw } from '../src/external/legiscan/legiscan.client.js';
 import { PRIORITY_STATE_CODES } from '../src/external/legiscan/us-states.js';
 import { upsertStateSession } from '../src/ingestion/legiscan-normalize.js';
+import {
+  currentQuotaMonth,
+  monthToDateQueries,
+  quotaExhausted,
+  LEGISCAN_HARD_CAP,
+} from '../src/ingestion/legiscan-quota.util.js';
 dotenvConfig();
 
 const prisma = new PrismaClient();
@@ -36,8 +42,44 @@ const STATES = (process.env.LEGISCAN_STATES ?? PRIORITY_STATE_CODES.join(','))
   .filter(Boolean);
 const SESSION_REFRESH_MS = 7 * 24 * 60 * 60 * 1000;
 
-function currentQuotaMonth(): string {
-  return new Date().toISOString().slice(0, 7);
+export interface MasterlistDiffItem {
+  bill_id: number;
+  change_hash: string;
+}
+
+export interface MasterlistDiffResult {
+  /** True when the cursor has no billHashes yet (never backfilled) and the
+   * masterlist is non-trivial — the diff was skipped entirely. */
+  unprimed: boolean;
+  toQueue: number[];
+}
+
+/**
+ * Decide which bill_ids a masterlist diff should queue for drain — or skip
+ * entirely when the cursor is un-primed (2026-07-10 hot-fix). A
+ * never-backfilled cursor has an EMPTY billHashes map, so every bill in a
+ * non-trivial masterlist would otherwise read as "changed," queuing the
+ * ENTIRE session for an expensive bill-by-bill getBill/getRollCall drain
+ * instead of the cheap bulk-dataset backfill this architecture depends on
+ * (header comment: backfill-first is mandatory, masterlist-first burns
+ * months of quota). Pure and exported for testability.
+ */
+export function diffMasterlist(
+  masterlist: MasterlistDiffItem[],
+  billHashes: Record<string, string>,
+  alreadyPending: ReadonlySet<number>,
+): MasterlistDiffResult {
+  if (Object.keys(billHashes).length === 0 && masterlist.length > 0) {
+    return { unprimed: true, toQueue: [] };
+  }
+  const toQueue: number[] = [];
+  for (const item of masterlist) {
+    const known = billHashes[String(item.bill_id)];
+    if (known !== item.change_hash && !alreadyPending.has(item.bill_id)) {
+      toQueue.push(item.bill_id);
+    }
+  }
+  return { unprimed: false, toQueue };
 }
 
 /** Refresh the session list at most weekly (freshness read off state_session.lastSyncedAt). Returns [sessions, queriesSpent]. */
@@ -61,6 +103,22 @@ async function main() {
   if (!LEGISCAN_API_KEY) throw new Error('LEGISCAN_API_KEY env var is required');
 
   await runWithSyncRun(prisma as never, 'sync-legiscan-masterlist', async () => {
+    // 2026-07-10 hot-fix: gate on the TRUE hard cap, not sync-legiscan-bills'
+    // conservative soft budget — this diff is cheap (1-3 queries/state) and
+    // must keep running even when the drain has backed off; only the real
+    // LegiScan ceiling stops it (see legiscan-quota.util.ts).
+    const month = currentQuotaMonth();
+    const allCursors = await prisma.stateSyncCursor.findMany({
+      select: { queriesUsed: true, quotaMonth: true },
+    });
+    const usedThisMonth = monthToDateQueries(allCursors, month);
+    if (quotaExhausted(usedThisMonth, LEGISCAN_HARD_CAP)) {
+      console.log(
+        `INGESTION_SKIP ${JSON.stringify({ source: 'sync-legiscan-masterlist', reason: 'quota', usedThisMonth, budget: LEGISCAN_HARD_CAP })}`,
+      );
+      return { inserted: 0, updated: 0, skipped: 0, errors: 0 };
+    }
+
     let queued = 0;
     let errors = 0;
     let totalQueries = 0;
@@ -85,10 +143,17 @@ async function main() {
           const queriesThisSession = 1 + attributedSessionListQueries;
           attributedSessionListQueries = 0;
 
-          for (const item of masterlist) {
-            const known = billHashes[String(item.bill_id)];
-            if (known !== item.change_hash && !pending.has(item.bill_id)) {
-              pending.add(item.bill_id);
+          const diff = diffMasterlist(masterlist, billHashes, pending);
+          if (diff.unprimed) {
+            console.warn(
+              `[sync-legiscan-masterlist] ${state} session ${session.legiscanSessionId}: cursor has ` +
+                `no billHashes yet (never backfilled) but the masterlist returned ${masterlist.length} bills — ` +
+                `skipping the bill-by-bill diff to avoid an expensive cold drain. Run ` +
+                `backfill-legiscan-datasets for this state/session first.`,
+            );
+          } else {
+            for (const id of diff.toQueue) {
+              pending.add(id);
               queued++;
             }
           }
