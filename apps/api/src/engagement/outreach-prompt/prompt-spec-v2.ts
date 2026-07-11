@@ -314,6 +314,10 @@ const HANDLED_CONTEXT_KEYS = new Set([
   'relevantVotes',
   'upcomingHearings',
   'priorOutreach',
+  // Rich client-profile channels (OUTREACH_CLIENT_PROFILE) — recipient-invariant,
+  // rendered in the cached static prefix below.
+  'clientPeople',
+  'clientTargetOffices',
 ]);
 
 /**
@@ -435,6 +439,10 @@ export function buildOutreachPromptV2(input: OutreachPromptV2Input): OutreachPro
   const clientBrief = renderClientBrief(input.client);
   // W5.5 client watchlist — campaign-invariant, so it rides in the cacheable prefix.
   const watchlist = nonEmptyStr(context.clientWatchlist);
+  // Rich client-profile blocks (OUTREACH_CLIENT_PROFILE) — recipient-invariant,
+  // so they ride the cacheable prefix (paid ~once per batch, not per recipient).
+  const clientPeople = nonEmptyStr(context.clientPeople);
+  const clientTargetOffices = nonEmptyStr(context.clientTargetOffices);
 
   // ── userStatic: byte-stable campaign prefix (no per-recipient data) ──
   const staticParts = [
@@ -448,6 +456,8 @@ export function buildOutreachPromptV2(input: OutreachPromptV2Input): OutreachPro
     voiceRendered,
     clientBrief,
     watchlist ? `CLIENT WATCHLIST (SUPPORTING INTELLIGENCE):\n${watchlist}` : null,
+    clientTargetOffices ? `${clientTargetOffices}` : null,
+    clientPeople ? `${clientPeople}` : null,
   ].filter((s): s is string => Boolean(s));
 
   // ── userVolatile: per-recipient block ──

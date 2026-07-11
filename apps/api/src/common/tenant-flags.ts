@@ -143,3 +143,21 @@ export const OUTREACH_ASYNC_FLAG = 'outreachAsync.enabled' as const;
 export function outreachAsyncFlagEnabled(settings: unknown): boolean {
   return tenantFeatureEnabled(settings, OUTREACH_ASYNC_FLAG, false);
 }
+
+/**
+ * Rich client-profile outreach context (2026-07-11). When ON, campaign drafts get
+ * extra recipient-INVARIANT profile blocks in the cached v2 prefix — the "people
+ * this client works with" roster (client_people), the coordinated target-office
+ * map (ClientTarget ∪ OfficeRecommendation), and canonical status for the client's
+ * OWN tracked bills. Like meetingsV2 this is a PURE context/presentation change
+ * (no external processor, no compliance risk, additive SUPPORTING INTELLIGENCE),
+ * so it deliberately has NO env kill-switch (avoids a config-schema + task-def env
+ * change and the known CDK↔task-def drift). Per-tenant flag alone, default OFF,
+ * flipped via settings_jsonb.clioFeatureFlags (the standard rollout path).
+ */
+export const OUTREACH_CLIENT_PROFILE_FLAG = 'outreachClientProfile.enabled' as const;
+
+/** Whether a tenant gets the rich client-profile context blocks (default OFF). */
+export function outreachClientProfileEnabled(settings: unknown): boolean {
+  return tenantFeatureEnabled(settings, OUTREACH_CLIENT_PROFILE_FLAG, false);
+}

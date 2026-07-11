@@ -38,6 +38,7 @@ import { createHash, randomUUID } from 'node:crypto';
 import {
   recordAiUsageEvent,
   deriveMeetingVirtuality,
+  billStatusLabel,
   type AiGenerationUsageLike,
   type TenantContext,
 } from '@capiro/shared';
@@ -68,9 +69,13 @@ import {
   formatBillTruth,
   formatPeTruth,
   renderClientRelationshipSnapshot,
+  renderClientPeopleRoster,
+  renderClientTargetOffices,
   type BillVoteRow,
   type GoverningRuleRow,
+  type TargetOfficeLite,
 } from './outreach-context-enrichment.js';
+import { outreachClientProfileEnabled } from '../common/tenant-flags.js';
 
 export interface CreateIntegrationInput {
   provider: EngagementProvider;
@@ -1498,7 +1503,8 @@ export class EngagementService {
               tx.$queryRaw<Array<{ type: string; sections: unknown }>>`
               SELECT type, sections_jsonb AS sections
               FROM memory_items
-              WHERE type IN ('client-soul', 'client-compass') AND client_id = ${clientId}::uuid
+              WHERE type IN ('client-soul', 'client-compass', 'client-people')
+                AND client_id = ${clientId}::uuid
             `,
           )
         : [];
@@ -1545,7 +1551,14 @@ export class EngagementService {
       }
       for (const r of clientRows) {
         const body = renderHuman(r.sections);
-        if (body) parts.push(`Client strategic memory (${r.type}):\n${body}`);
+        if (!body) continue;
+        // client-people = the human-authored relationship file (their team, Hill
+        // offices, commitments made, key conversations) — label it distinctly.
+        const label =
+          r.type === 'client-people'
+            ? 'Client relationships & commitments (from memory)'
+            : `Client strategic memory (${r.type})`;
+        parts.push(`${label}:\n${body}`);
       }
       return parts.length ? parts.join('\n\n') : null;
     } catch {
@@ -2537,6 +2550,31 @@ export class EngagementService {
     const trackedBillIds = clientId
       ? await this.outreachTrackedBillIds(ctx, clientId).catch(() => [])
       : [];
+
+    // Rich client-profile context (OUTREACH_CLIENT_PROFILE, per-tenant flag). When
+    // ON, resolve the recipient-INVARIANT profile blocks once per campaign — the
+    // "people this client works with" roster and the coordinated target-office
+    // map. Off (or no clientId) → null, so the context object omits them and the
+    // prompt is byte-identical to today.
+    const clientProfileOn =
+      !!clientId &&
+      outreachClientProfileEnabled(
+        (
+          await this.prisma
+            .withTenant(ctx.tenantId, (tx) =>
+              tx.tenant.findFirst({ where: { id: ctx.tenantId }, select: { settings: true } }),
+            )
+            .catch(() => null)
+        )?.settings,
+      );
+    const clientPeopleBlock =
+      clientProfileOn && clientId
+        ? await this.outreachClientPeopleBlock(ctx, clientId).catch(() => null)
+        : null;
+    const clientTargetOfficesBlock =
+      clientProfileOn && clientId
+        ? await this.outreachClientTargetOfficesBlock(ctx, clientId).catch(() => null)
+        : null;
     const upcomingHearings = await this.outreachUpcomingHearings().catch(() => []);
 
     // Congressional directory profiles for the recipients, resolved in ONE
@@ -2738,6 +2776,10 @@ export class EngagementService {
           ...(additionalContext ? { additionalContext } : {}),
           ...(combinedContextNotes ? { contextItems: combinedContextNotes } : {}),
           ...(clientContextForCampaign ? { clientContext: clientContextForCampaign } : {}),
+          // Rich client-profile blocks (OUTREACH_CLIENT_PROFILE) — client-level /
+          // recipient-invariant, resolved once above (null when the flag is off).
+          ...(clientPeopleBlock ? { clientPeople: clientPeopleBlock } : {}),
+          ...(clientTargetOfficesBlock ? { clientTargetOffices: clientTargetOfficesBlock } : {}),
         };
 
         const generated = await this.ai.generateOutreachDraft(
@@ -5866,6 +5908,7 @@ export class EngagementService {
           billType: true,
           billNumber: true,
           title: true,
+          status: true,
           latestActionText: true,
           latestActionDate: true,
         },
@@ -5892,8 +5935,13 @@ export class EngagementService {
               latestActionDate ? ` (${latestActionDate.toISOString().slice(0, 10)})` : ''
             }`
           : '';
+        // Canonical LegiWatch status (rule_failed / passed_chamber / …) so a
+        // stalled tracked bill isn't narrated as advancing from a stale action
+        // string. One column on the row already selected — no extra query.
+        const status = bill.status as string | null;
+        const statusPart = status ? ` [status: ${billStatusLabel(status)}]` : '';
         const note = t.note?.trim() ? ` [client note: ${t.note.trim()}]` : '';
-        return `- ${num || t.billId}: ${bill.title as string}${action}${note}`;
+        return `- ${num || t.billId}: ${bill.title as string}${statusPart}${action}${note}`;
       })
       .filter((line): line is string => Boolean(line));
 
@@ -5927,9 +5975,10 @@ export class EngagementService {
 
   /**
    * W5.5 — the client's watchlist priority issues (issue areas + tracked tags).
-   * Renders the REAL watchlist signal (what the client cares about); it does NOT
-   * fabricate a support/oppose stance, because ClientWatchlist tags are
-   * issue-tracking terms with no stance/priority field in the schema. Client-level.
+   * Renders the REAL watchlist signal: each tag's declared position (support/
+   * oppose/monitor) and priority (low/med/high) when present on the tag object
+   * (schema: client_watchlist.tags[].position/.priority). We surface the client's
+   * stated stance but never invent one for a tag that has none. Client-level.
    */
   private async outreachClientWatchlistBlock(
     ctx: TenantContext,
@@ -5943,16 +5992,112 @@ export class EngagementService {
     );
     if (!wl) return null;
     const tags = Array.isArray(wl.tags) ? wl.tags : [];
+    // Each tag carries an optional declared position (support/oppose/monitor) and
+    // priority (low/med/high) — surface them so the draft can reflect the client's
+    // ACTUAL stance instead of a generic "cares about X". A tag with no stated
+    // position renders bare (we still never invent one).
     const tagLabels = tags
-      .map((t) => (t && typeof t === 'object' ? String((t as { tag?: unknown }).tag ?? '') : ''))
-      .map((s) => s.trim())
+      .map((t) => {
+        if (!t || typeof t !== 'object') return '';
+        const rec = t as { tag?: unknown; position?: unknown; priority?: unknown };
+        const label = String(rec.tag ?? '').trim();
+        if (!label) return '';
+        const pos = typeof rec.position === 'string' ? rec.position.trim() : '';
+        const pri = typeof rec.priority === 'string' ? rec.priority.trim() : '';
+        const meta = [pos, pri ? `${pri} priority` : ''].filter(Boolean).join(', ');
+        return meta ? `${label} (${meta})` : label;
+      })
       .filter(Boolean);
     const areas = (wl.issueAreas ?? []).map((s) => s.trim()).filter(Boolean);
     if (!tagLabels.length && !areas.length) return null;
     const parts: string[] = [];
     if (areas.length) parts.push(`Issue areas: ${areas.slice(0, 12).join(', ')}`);
-    if (tagLabels.length) parts.push(`Tracked priorities: ${tagLabels.slice(0, 12).join(', ')}`);
-    return `Client watchlist (the client's standing priority issues — align the ask to these where relevant; do not invent a position the client has not stated):\n${parts.join('\n')}`;
+    if (tagLabels.length) parts.push(`Tracked priorities: ${tagLabels.slice(0, 12).join('; ')}`);
+    return `Client watchlist (the client's standing priority issues and declared stance — align the ask to these where relevant; do not invent a position the client has not stated):\n${parts.join('\n')}`;
+  }
+
+  /**
+   * "People this client works with" roster (client_people) — the biggest
+   * who-does-this-client-know gap. Client-level / recipient-invariant, gated by
+   * OUTREACH_CLIENT_PROFILE. tenant-scoped (RLS). Bounded + rendered by the pure
+   * renderClientPeopleRoster. (Rich client-profile context.)
+   */
+  private async outreachClientPeopleBlock(
+    ctx: TenantContext,
+    clientId: string,
+  ): Promise<string | null> {
+    const people = await this.prisma.withTenant(ctx.tenantId, (tx) =>
+      tx.clientPerson.findMany({
+        where: { tenantId: ctx.tenantId, clientId },
+        orderBy: [{ lastContact: 'desc' }, { updatedAt: 'desc' }],
+        take: 15,
+        select: { name: true, title: true, role: true, notes: true, lastContact: true },
+      }),
+    );
+    return renderClientPeopleRoster(people);
+  }
+
+  /**
+   * The client's coordinated TARGET-OFFICE map: the team's explicit picks
+   * (client_targets) UNION Meri's office recommendations (client_target_
+   * recommendations), so a draft can frame the recipient as one of a planned set.
+   * Client-level / recipient-invariant, gated by OUTREACH_CLIENT_PROFILE. Explicit
+   * picks first; recommendations augment committee/billCount and fill the tail.
+   */
+  private async outreachClientTargetOfficesBlock(
+    ctx: TenantContext,
+    clientId: string,
+  ): Promise<string | null> {
+    const [targets, recs] = await Promise.all([
+      this.prisma.withTenant(ctx.tenantId, (tx) =>
+        tx.clientTarget.findMany({
+          where: { tenantId: ctx.tenantId, clientId },
+          orderBy: { addedAt: 'desc' },
+          take: 20,
+          select: {
+            memberId: true,
+            memberName: true,
+            party: true,
+            state: true,
+            chamber: true,
+            committee: true,
+          },
+        }),
+      ),
+      this.outreachTargetRecommendations(ctx, clientId),
+    ]);
+
+    const offices: TargetOfficeLite[] = [];
+    const seen = new Set<string>();
+    for (const t of targets) {
+      const rec = t.memberId ? recs.byMember.get(t.memberId) : undefined;
+      offices.push({
+        memberId: t.memberId,
+        office: t.memberName ?? rec?.office ?? null,
+        party: t.party ?? rec?.party ?? null,
+        state: t.state ?? rec?.state ?? null,
+        chamber: t.chamber ?? rec?.chamber ?? null,
+        committee: t.committee ?? rec?.committee ?? null,
+        billCount: rec?.billCount ?? null,
+        explicit: true,
+      });
+      if (t.memberId) seen.add(t.memberId);
+    }
+    // recs.byMember preserves the stored (score-sorted) recommendation order.
+    for (const [memberId, rec] of recs.byMember) {
+      if (seen.has(memberId)) continue;
+      offices.push({
+        memberId,
+        office: rec.office,
+        party: rec.party,
+        state: rec.state,
+        chamber: rec.chamber,
+        committee: rec.committee,
+        billCount: rec.billCount,
+        explicit: false,
+      });
+    }
+    return renderClientTargetOffices(offices);
   }
 
   /**
