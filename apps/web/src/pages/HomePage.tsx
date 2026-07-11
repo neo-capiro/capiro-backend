@@ -1,4 +1,4 @@
-import { useMemo, useState, type ReactNode } from 'react';
+import { useMemo, useState, type CSSProperties, type ReactNode } from 'react';
 import { useUser } from '@clerk/clerk-react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { App, Empty, Form, Modal, Skeleton, Tag } from 'antd';
@@ -7,13 +7,12 @@ import { useApi } from '../lib/use-api.js';
 import {
   DebriefNotesView,
   extractMeetingJoinUrl,
-  JoinLink,
   MeetingQuickActions,
-  MeriAttendingPill,
   NotetakerConsentFields,
   openMeetingJoinLink,
-  SendMeriButton,
 } from './engagement/meeting-actions.js';
+import { SectionLabel, SendMeriButton } from './engagement/meetings/meetings-ui.js';
+import type { Meeting } from './engagement/meetings/meetings-types.js';
 import { useMe } from '../lib/me.js';
 import type { Client } from './clients/clientTypes.js';
 import type {
@@ -564,6 +563,15 @@ function renderBrief(text: string): ReactNode[] {
 
 /* ── Client engagement: week strip + per-day meetings (fixed height) ─────── */
 
+// Neutral dashboard button sized to match the Send Meri / Join pills (so the
+// row's buttons look identical to the ones in the Meetings tab).
+const DASH_BTN: CSSProperties = {
+  padding: '6px 12px',
+  fontSize: 12.5,
+  borderRadius: 8,
+  fontWeight: 600,
+};
+
 function ClientEngagement({ meetings, loading }: { meetings: DashMeeting[]; loading: boolean }) {
   const api = useApi();
   const qc = useQueryClient();
@@ -611,6 +619,30 @@ function ClientEngagement({ meetings, loading }: { meetings: DashMeeting[]; load
       (await api.get<HomeDebrief[]>(`/api/engagement/meetings/${notesMeetingId}/debriefs`)).data,
     enabled: Boolean(notesMeetingId),
   });
+
+  // Meeting Prep (§8a): generate a prep in place; view the generated prep in a modal.
+  const [prepMeetingId, setPrepMeetingId] = useState<string | null>(null);
+  const [prepGenId, setPrepGenId] = useState<string | null>(null);
+  const prepQuery = useQuery<Meeting>({
+    queryKey: ['engagement-meeting-full', prepMeetingId],
+    queryFn: async () => (await api.get<Meeting>(`/api/engagement/meetings/${prepMeetingId}`)).data,
+    enabled: Boolean(prepMeetingId),
+  });
+  const generatePrep = useMutation({
+    mutationFn: async (meetingId: string) =>
+      (await api.post(`/api/engagement/meetings/${meetingId}/prep`, {})).data,
+    onSuccess: () => {
+      message.success('Prep generated.');
+      qc.invalidateQueries({ queryKey: ['engagement-meetings-week'] });
+    },
+    onError: (err: unknown) =>
+      message.error(err instanceof Error ? err.message : 'Could not generate prep'),
+    onSettled: () => setPrepGenId(null),
+  });
+  const runPrep = (id: string) => {
+    setPrepGenId(id);
+    generatePrep.mutate(id);
+  };
 
   const openNotetaker = (meeting: DashMeeting) => {
     setNotetakerTargetId(meeting.id);
@@ -682,13 +714,17 @@ function ClientEngagement({ meetings, loading }: { meetings: DashMeeting[]; load
       ) : (
         <div className="home-panel-list">
           {dayMeetings.map((m) => {
-            const status = meetingStatus(m, now);
             const channel = m.location || (m.source ? prettySource(m.source) : null);
             const who =
               m.organizerName || m.attendees.find((a) => a.name)?.name || m.client?.name || '';
+            const prepped = m.preps.length > 0;
+            const hasDebrief = m.debriefs.length > 0 || m.meri === 'done';
+            const canMeri =
+              (m.isVirtual ?? Boolean(extractMeetingJoinUrl(m))) &&
+              new Date(m.endsAt).getTime() >= now.getTime();
             return (
               // Actions live OUTSIDE the <Link> (buttons can't nest inside an
-              // anchor) so a Join/Send-Meri/Notes click doesn't also navigate.
+              // anchor) so a click doesn't also navigate.
               <div key={m.id} className="home-panel-row-wrap">
                 <Link
                   to={`/engagement/meetings/${encodeURIComponent(m.id)}`}
@@ -703,32 +739,45 @@ function ClientEngagement({ meetings, loading }: { meetings: DashMeeting[]; load
                       {[who, channel].filter(Boolean).join(' · ') || ' '}
                     </span>
                   </div>
-                  <Tag color={status.color} className="home-panel-tag">
-                    {status.label}
-                  </Tag>
                 </Link>
                 {meetingsV2 ? (
-                  <div className="engagement-meeting-quick-actions">
-                    {new Date(m.endsAt).getTime() >= now.getTime() &&
-                    (m.isVirtual ?? Boolean(extractMeetingJoinUrl(m))) ? (
-                      m.meri === 'scheduled' || m.meri === 'attending' ? (
-                        <MeriAttendingPill />
-                      ) : m.meri !== 'done' ? (
-                        <SendMeriButton onClick={() => openNotetaker(m)} />
-                      ) : null
-                    ) : null}
-                    <JoinLink joinUrl={m.joinLink ?? null} meeting={m} />
-                    {m.debriefs.length > 0 ? (
+                  <div
+                    className="engagement-meeting-quick-actions"
+                    style={{ display: 'flex', gap: 8, alignItems: 'center' }}
+                  >
+                    {/* Meeting Prep → View Prep once prepped */}
+                    {prepped ? (
                       <button
                         type="button"
-                        className="meri-join-link"
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          setNotesMeetingId(m.id);
-                        }}
+                        className="btn"
+                        style={DASH_BTN}
+                        onClick={() => setPrepMeetingId(m.id)}
                       >
-                        Notes
+                        View Prep
                       </button>
+                    ) : (
+                      <button
+                        type="button"
+                        className="btn"
+                        style={DASH_BTN}
+                        disabled={prepGenId === m.id}
+                        onClick={() => runPrep(m.id)}
+                      >
+                        {prepGenId === m.id ? 'Preparing…' : 'Meeting Prep'}
+                      </button>
+                    )}
+                    {/* Send Meri → Debrief once Meri has notes */}
+                    {hasDebrief ? (
+                      <button
+                        type="button"
+                        className="btn"
+                        style={DASH_BTN}
+                        onClick={() => setNotesMeetingId(m.id)}
+                      >
+                        Debrief
+                      </button>
+                    ) : canMeri ? (
+                      <SendMeriButton m={m} size="sm" onClick={() => openNotetaker(m)} />
                     ) : null}
                   </div>
                 ) : (
@@ -772,24 +821,139 @@ function ClientEngagement({ meetings, loading }: { meetings: DashMeeting[]; load
       </Modal>
 
       <Modal
-        title="Meeting notes"
+        title="Debrief"
         open={Boolean(notesMeetingId)}
         onCancel={() => setNotesMeetingId(null)}
         footer={null}
         width={640}
       >
         {(() => {
-          if (notesQuery.isLoading) return <span>Loading notes...</span>;
+          if (notesQuery.isLoading) return <span>Loading debrief…</span>;
           const debrief = (notesQuery.data ?? []).find((d) => !d.restricted && d.body);
           if (!debrief || !debrief.body) {
             return (
               <Empty
                 image={Empty.PRESENTED_IMAGE_SIMPLE}
-                description="No saved notes for this meeting yet."
+                description="No debrief for this meeting yet."
               />
             );
           }
           return <DebriefNotesView body={debrief.body} />;
+        })()}
+      </Modal>
+
+      <Modal
+        title="Meeting Prep"
+        open={Boolean(prepMeetingId)}
+        onCancel={() => setPrepMeetingId(null)}
+        footer={null}
+        width={640}
+      >
+        {(() => {
+          if (prepQuery.isLoading) return <span>Loading prep…</span>;
+          const prep = prepQuery.data?.preps?.[0] ?? null;
+          if (!prep) {
+            return (
+              <Empty
+                image={Empty.PRESENTED_IMAGE_SIMPLE}
+                description="No prep for this meeting yet."
+              />
+            );
+          }
+          return (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 18 }}>
+              {prep.summary && (
+                <div>
+                  <SectionLabel style={{ marginBottom: 7 }}>Summary</SectionLabel>
+                  <p style={{ fontSize: 13, lineHeight: 1.65, color: 'var(--ink-2)', margin: 0 }}>
+                    {prep.summary}
+                  </p>
+                </div>
+              )}
+              {prep.agenda.length > 0 && (
+                <div>
+                  <SectionLabel style={{ marginBottom: 7 }}>Agenda</SectionLabel>
+                  <ul
+                    style={{
+                      margin: 0,
+                      paddingLeft: 18,
+                      fontSize: 13,
+                      lineHeight: 1.6,
+                      color: 'var(--ink-1)',
+                    }}
+                  >
+                    {prep.agenda.map((a, i) => (
+                      <li key={i}>{a}</li>
+                    ))}
+                  </ul>
+                </div>
+              )}
+              {prep.talkingPoints.length > 0 && (
+                <div>
+                  <SectionLabel style={{ marginBottom: 9 }}>Talking points</SectionLabel>
+                  <ul
+                    style={{
+                      margin: 0,
+                      paddingLeft: 0,
+                      listStyle: 'none',
+                      display: 'flex',
+                      flexDirection: 'column',
+                      gap: 8,
+                    }}
+                  >
+                    {prep.talkingPoints.map((t, i) => (
+                      <li
+                        key={i}
+                        style={{
+                          display: 'flex',
+                          gap: 10,
+                          fontSize: 13,
+                          lineHeight: 1.55,
+                          color: 'var(--ink-1)',
+                        }}
+                      >
+                        <span
+                          style={{
+                            fontFamily: 'var(--font-mono)',
+                            fontSize: 11,
+                            fontWeight: 700,
+                            color: 'var(--accent)',
+                            flexShrink: 0,
+                            marginTop: 2,
+                          }}
+                        >
+                          {String(i + 1).padStart(2, '0')}
+                        </span>
+                        {t}
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              )}
+              {prep.risks.length > 0 && (
+                <div>
+                  <SectionLabel style={{ marginBottom: 9 }}>Watch-outs</SectionLabel>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: 7 }}>
+                    {prep.risks.map((r, i) => (
+                      <div
+                        key={i}
+                        style={{
+                          fontSize: 12.5,
+                          lineHeight: 1.5,
+                          color: 'var(--ink-2)',
+                          padding: '9px 12px',
+                          background: 'var(--notable-soft)',
+                          borderRadius: 7,
+                        }}
+                      >
+                        {r}
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </div>
+          );
         })()}
       </Modal>
     </div>
@@ -1009,19 +1173,6 @@ function formatCompactTime(d: Date): string {
   const mer = h >= 12 ? 'pm' : 'am';
   const h12 = h % 12 === 0 ? 12 : h % 12;
   return m === 0 ? `${h12}${mer}` : `${h12}:${String(m).padStart(2, '0')}${mer}`;
-}
-
-function meetingStatus(m: DashMeeting, now: Date): { label: string; color: string } {
-  const ended = new Date(m.endsAt).getTime() < now.getTime();
-  if (ended) {
-    return m.debriefs.length > 0
-      ? { label: 'Debriefed', color: 'green' }
-      : { label: 'Debrief needed', color: 'red' };
-  }
-  const prepped = m.preps.some(
-    (p) => p.status === 'approved' || p.status === 'edited' || p.status === 'generated',
-  );
-  return prepped ? { label: 'Prepped', color: 'green' } : { label: 'Prep needed', color: 'red' };
 }
 
 function relativeTime(iso: string): string {

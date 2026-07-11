@@ -9,7 +9,7 @@ import { useAssignMeetingClient, useClientOptions, useUnshareMeeting } from './m
 import { formatDayTitle, formatTimeRange } from './meetings-format.js';
 import {
   Ava,
-  JoinLink,
+  JoinButton,
   type MeetingStatus,
   ProviderTag,
   SectionLabel,
@@ -209,7 +209,6 @@ export function MeetingDetailPanel({
                   }}
                 />
                 <ProviderTag m={m} />
-                <JoinLink m={m} />
               </div>
               <h1
                 style={{
@@ -235,9 +234,10 @@ export function MeetingDetailPanel({
             </button>
           </div>
 
-          {showSendMeri(m) && (
-            <div style={{ marginBottom: 14 }}>
-              <SendMeriButton m={m} onClick={onSendMeri} size="sm" />
+          {(showSendMeri(m) || (m.isVirtual && m.joinLink)) && (
+            <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 14 }}>
+              {showSendMeri(m) && <SendMeriButton m={m} onClick={() => onSendMeri(m)} size="sm" />}
+              <JoinButton m={m} size="sm" />
             </div>
           )}
 

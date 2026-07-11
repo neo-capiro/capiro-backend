@@ -18,6 +18,7 @@ import {
   eligibleForMeri,
   type Meeting,
   type ArtifactKind,
+  type MeriState,
 } from './meetings-types.js';
 
 // ── Status model (spec §2.2 / §5): uniform gray = not complete, green =
@@ -53,10 +54,18 @@ export function MeriGlyph({
   tone = 'navy',
 }: {
   size?: number;
-  tone?: 'navy' | 'soft' | 'white';
+  tone?: 'navy' | 'soft' | 'white' | 'invert';
 }) {
-  const bg = tone === 'navy' ? '#0C1A38' : tone === 'soft' ? '#DEE6F8' : '#fff';
-  const fg = tone === 'navy' ? '#DCE4F8' : '#1A3F9F';
+  // 'invert' = transparent roundel + white mark, for use ON a colored button.
+  const bg =
+    tone === 'navy'
+      ? '#0C1A38'
+      : tone === 'soft'
+        ? '#DEE6F8'
+        : tone === 'invert'
+          ? 'transparent'
+          : '#fff';
+  const fg = tone === 'navy' ? '#DCE4F8' : tone === 'invert' ? '#fff' : '#1A3F9F';
   return (
     <span
       style={{
@@ -213,16 +222,24 @@ export function MaterialBadges({ m, status }: { m: Meeting; status?: MeetingStat
   );
 }
 
-// ── Send Meri button — navy → "Meri Attending" (scheduled) → gone (done).
-//    Prototype SendMeriButton, handling the scheduled state internally. ──
+/** Minimal shape both `Meeting` and the dashboard `DashMeeting` satisfy, so the
+ *  SAME button renders on both surfaces (no drift). */
+export interface MeriActionTarget {
+  meri?: MeriState | null;
+  isVirtual?: boolean;
+  joinLink?: string | null;
+}
+
+// ── Send Meri button — light-blue brand button → "Meri Attending" (scheduled)
+//    → gone (done). Same component used on Meetings + the dashboard strip. ──
 export function SendMeriButton({
   m,
   onClick,
   size = 'md',
   block = false,
 }: {
-  m: Meeting;
-  onClick?: (m: Meeting) => void;
+  m: MeriActionTarget;
+  onClick?: () => void;
   size?: 'sm' | 'md';
   block?: boolean;
 }) {
@@ -264,26 +281,33 @@ export function SendMeriButton({
       type="button"
       onClick={(e) => {
         e.stopPropagation();
-        onClick?.(m);
+        onClick?.();
       }}
       title={canDetect ? '' : 'No join link detected — paste it in the next step'}
       style={{
         ...base,
         border: 'none',
-        background: '#0C1A38',
-        color: '#F5F2EB',
+        background: 'var(--accent)',
+        color: '#fff',
         cursor: 'pointer',
       }}
     >
-      <MeriGlyph size={size === 'sm' ? 16 : 18} tone="navy" />
+      <MeriGlyph size={size === 'sm' ? 16 : 18} tone="invert" />
       Send Meri
     </button>
   );
 }
 
-// ── "Join" accent text-link (prototype meeting-panel header link) ──
-export function JoinLink({ m, size = 12 }: { m: Meeting; size?: number }) {
+// ── "Join" button — navy filled, same shape as Send Meri (opens the join link). ──
+export function JoinButton({
+  m,
+  size = 'md',
+}: {
+  m: { isVirtual?: boolean; joinLink?: string | null };
+  size?: 'sm' | 'md';
+}) {
   if (!(m.isVirtual && m.joinLink)) return null;
+  const pad = size === 'sm' ? '6px 12px' : '8px 14px';
   return (
     <a
       href={m.joinLink}
@@ -291,16 +315,23 @@ export function JoinLink({ m, size = 12 }: { m: Meeting; size?: number }) {
       rel="noopener noreferrer"
       onClick={(e) => e.stopPropagation()}
       style={{
-        color: 'var(--accent)',
-        textDecoration: 'none',
         display: 'inline-flex',
         alignItems: 'center',
-        gap: 4,
-        fontWeight: 500,
-        fontSize: size <= 12 ? 12 : 13,
+        justifyContent: 'center',
+        gap: 7,
+        borderRadius: 8,
+        padding: pad,
+        fontFamily: 'var(--font-sans)',
+        fontSize: size === 'sm' ? 12.5 : 13.5,
+        fontWeight: 600,
+        letterSpacing: '-0.005em',
+        whiteSpace: 'nowrap',
+        textDecoration: 'none',
+        background: '#0C1A38',
+        color: '#F5F2EB',
       }}
     >
-      <ExternalLink size={size} />
+      <ExternalLink size={size === 'sm' ? 14 : 16} />
       Join
     </a>
   );

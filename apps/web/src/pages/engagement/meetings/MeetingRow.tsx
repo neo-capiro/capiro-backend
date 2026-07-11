@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { ChevronRight } from 'lucide-react';
 import { formatTime } from './meetings-format.js';
 import {
-  JoinLink,
+  JoinButton,
   MaterialBadges,
   ProviderTag,
   SendMeriButton,
@@ -108,9 +108,9 @@ export function MeetingRow({
           <ProviderTag m={m} />
         </div>
         {(showMeri || showJoin) && (
-          <div style={{ marginTop: 11, display: 'flex', alignItems: 'center', gap: 14 }}>
-            {showMeri && <SendMeriButton m={m} onClick={onSendMeri} size="sm" />}
-            {showJoin && <JoinLink m={m} size={13} />}
+          <div style={{ marginTop: 11, display: 'flex', alignItems: 'center', gap: 10 }}>
+            {showMeri && <SendMeriButton m={m} onClick={() => onSendMeri(m)} size="sm" />}
+            {showJoin && <JoinButton m={m} size="sm" />}
           </div>
         )}
       </div>

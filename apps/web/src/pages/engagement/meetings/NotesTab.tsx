@@ -56,7 +56,7 @@ export function NotesTab({
           icon={<StickyNote size={20} />}
           title="No notes yet"
           body="Meeting notes will automatically populate here after Meri attends and summarizes the call. Use Send Meri to have Meri attend."
-          action={<SendMeriButton m={m} onClick={onSendMeri} size="sm" />}
+          action={<SendMeriButton m={m} onClick={() => onSendMeri(m)} size="sm" />}
         />
       );
     }
