@@ -4146,7 +4146,7 @@ export class IntelligenceService {
     const now = new Date();
     const fourteenDaysOut = new Date(now.getTime() + 14 * 24 * 60 * 60 * 1000);
 
-    const [clientsWithCaps, docs] = await Promise.all([
+    const [clientsWithCaps, docs, stateRules] = await Promise.all([
       this.prisma.withTenant(tenantId, (tx) =>
         tx.client.findMany({
           // Exclude soft-archived ("deleted") clients: archiving sets
@@ -4168,9 +4168,16 @@ export class IntelligenceService {
         },
         orderBy: { commentEndDate: 'asc' },
       }),
+      // W4.5 (M3-D): state_rule is a GLOBAL public table (R1) — read WITHOUT
+      // withTenant, exactly like federalRegisterDocument above and
+      // check-comment-periods.ts.
+      this.prisma.stateRule.findMany({
+        where: { commentEndDate: { gt: now, lte: fourteenDaysOut } },
+        orderBy: { commentEndDate: 'asc' },
+      }),
     ]);
 
-    if (!docs.length || !clientsWithCaps.length) return { alerts: [] };
+    if ((!docs.length && !stateRules.length) || !clientsWithCaps.length) return { alerts: [] };
 
     const alerts: Array<{
       documentId: string;
@@ -4293,6 +4300,75 @@ export class IntelligenceService {
           relatedClientIds: [client.id],
           relatedIssues: matchedLdaCodes,
           data: { documentId: doc.id, daysToDeadline, relevanceScore: finalScore },
+        });
+      }
+    }
+
+    // ── W4.5 (M3-D): STATE rules, matched EXACTLY as the scheduled
+    // check-comment-periods.ts verb does — capability-keyword overlap against
+    // the rule's title AND abstract (no AGENCY_SECTOR_MAP for state agencies
+    // yet, so no sector match; abstract is included to match that verb's header
+    // claim). Mirroring the scheduled verb is deliberate: both callers write the
+    // SAME ('state_register', ruleId, clientId) dedupeKey, so their match logic
+    // must agree or they'd upsert conflicting rows. Pushed into the SAME
+    // alerts/changes arrays so `criticalDeadlines` + the Top-alerts card include
+    // state rows too. ──
+    for (const rule of stateRules) {
+      const daysToDeadline = Math.ceil(
+        (rule.commentEndDate!.getTime() - now.getTime()) / (1000 * 60 * 60 * 24),
+      );
+      const urgencyMultiplier = daysToDeadline < 3 ? 2.0 : daysToDeadline <= 7 ? 1.5 : 1.0;
+      const severity = daysToDeadline < 3 ? 'critical' : daysToDeadline <= 7 ? 'notable' : 'info';
+      const haystack = `${rule.title} ${rule.abstract ?? ''}`.toLowerCase();
+
+      for (const client of clientsWithCaps) {
+        let baseRelevance = 0;
+        const capKeywords = new Set<string>();
+        for (const cap of client.capabilities) {
+          if (cap.sector) capKeywords.add(cap.sector.toLowerCase());
+          if (cap.name)
+            cap.name
+              .split(/\s+/)
+              .filter((w) => w.length > 3)
+              .forEach((w) => capKeywords.add(w.toLowerCase()));
+          const tags = Array.isArray(cap.tags) ? (cap.tags as unknown[]) : [];
+          for (const t of tags) {
+            if (typeof t === 'string' && t.length > 3) capKeywords.add(t.toLowerCase());
+          }
+        }
+        for (const kw of capKeywords) {
+          if (haystack.includes(kw)) {
+            baseRelevance = 0.7;
+            break;
+          }
+        }
+
+        const finalScore = baseRelevance * urgencyMultiplier;
+        if (finalScore <= 0.3) continue;
+
+        alerts.push({
+          documentId: rule.id,
+          title: rule.title,
+          type: rule.ruleType,
+          commentEndDate: rule.commentEndDate!,
+          daysToDeadline,
+          severity,
+          agencies: [rule.agency],
+          clientId: client.id,
+          clientName: client.name,
+          relevanceScore: Math.round(finalScore * 100) / 100,
+        });
+        changesToCreate.push({
+          dedupeKey: commentDeadlineDedupeKey('state_register', rule.id, client.id),
+          source: 'state_register',
+          changeType: 'comment_deadline_approaching',
+          severity,
+          title: `Comment period closing in ${daysToDeadline}d: ${rule.title.slice(0, 80)}`,
+          description: `${rule.ruleType} from ${rule.state} ${rule.agency} has a comment deadline in ${daysToDeadline} days. Relevant to ${client.name} (relevance: ${Math.round(finalScore * 100)}%).`,
+          relatedClientIds: [client.id],
+          // State agencies have no LDA-code mapping yet — empty, never a guess.
+          relatedIssues: [],
+          data: { documentId: rule.id, daysToDeadline, relevanceScore: finalScore },
         });
       }
     }

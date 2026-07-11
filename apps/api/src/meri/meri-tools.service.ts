@@ -3718,16 +3718,34 @@ export class MeriToolsService {
       if (fr) return this.formatRuleStatus('federal', fr);
     }
     const sr = await this.prisma.stateRule.findUnique({ where: { id: query } });
-    if (sr) return this.formatRuleStatus('state', sr);
+    // W4.5: honor the `state` filter on the exact-id path too — a caller who
+    // scoped to (say) FL must not get an exact-id hit for a rule in another
+    // state. state_rule.id is globally unique, so without this guard a mismatched
+    // state param was silently ignored.
+    if (sr && (!state || sr.state === state)) return this.formatRuleStatus('state', sr);
 
+    // W4.5: match on abstract as well as title (the header promises a keyword
+    // search over the notice text, and many rules carry the substantive keywords
+    // only in the abstract).
     const stateMatches = await this.prisma.stateRule.findMany({
-      where: { title: { contains: query, mode: 'insensitive' }, ...(state ? { state } : {}) },
+      where: {
+        OR: [
+          { title: { contains: query, mode: 'insensitive' } },
+          { abstract: { contains: query, mode: 'insensitive' } },
+        ],
+        ...(state ? { state } : {}),
+      },
       take: 6,
     });
     const federalMatches = state
       ? []
       : await this.prisma.federalRegisterDocument.findMany({
-          where: { title: { contains: query, mode: 'insensitive' } },
+          where: {
+            OR: [
+              { title: { contains: query, mode: 'insensitive' } },
+              { abstract: { contains: query, mode: 'insensitive' } },
+            ],
+          },
           take: 6,
         });
 
@@ -3771,6 +3789,8 @@ export class MeriToolsService {
     const ruleType =
       jurisdiction === 'federal' ? (row.type as string) : ((row.ruleType as string) ?? null);
     const commentEndDate = (row.commentEndDate as Date | null) ?? null;
+    const commentStartDate =
+      jurisdiction === 'state' ? ((row.commentStartDate as Date | null) ?? null) : null;
     const effectiveDate = (row.effectiveDate as Date | null) ?? null;
     const stage = deriveRuleLifecycleStage({
       documentType: ruleType,
@@ -3779,8 +3799,21 @@ export class MeriToolsService {
     });
     const stageLabel = RULE_LIFECYCLE_STAGES.find((s) => s.key === stage)?.label ?? stage;
 
+    // W4.5: `isOpen` = the comment WINDOW is actually open AND the rule is at a
+    // comment-accepting stage — not merely `stage === 'nprm'` (which wrongly
+    // reported a notice-stage rule with a live window as closed, and could
+    // report `open` for an nprm with no dated window). Never guesses: no
+    // end-date → not provably open → false, with an explicit note.
+    const COMMENT_ACCEPTING_STAGES: readonly string[] = ['notice', 'nprm'];
+    const nowMs = Date.now();
+    const commentWindowOpen =
+      commentEndDate != null &&
+      commentEndDate.getTime() > nowMs &&
+      (commentStartDate == null || commentStartDate.getTime() <= nowMs);
+    const commentIsOpen = COMMENT_ACCEPTING_STAGES.includes(stage) && commentWindowOpen;
+
     const notes: string[] = [];
-    if (stage === 'nprm' && !commentEndDate) {
+    if (COMMENT_ACCEPTING_STAGES.includes(stage) && !commentEndDate) {
       notes.push('No comment-end date on record for this open rule — do not assert a deadline.');
     }
 
@@ -3799,9 +3832,9 @@ export class MeriToolsService {
       stageLabel,
       publicationDate: row.publicationDate as Date,
       commentPeriod: {
-        start: jurisdiction === 'state' ? ((row.commentStartDate as Date | null) ?? null) : null,
+        start: commentStartDate,
         end: commentEndDate,
-        isOpen: stage === 'nprm',
+        isOpen: commentIsOpen,
       },
       effectiveDate,
       docketIds:

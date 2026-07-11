@@ -54,6 +54,9 @@ describe('IntelligenceService.getCommentPeriodAlerts — dedup (Phase 1 M4.2)', 
           },
         ]),
       },
+      // W4.5: getCommentPeriodAlerts now also scans state_rule (global table).
+      // Empty here keeps this fixture on the federal-only path it pins.
+      stateRule: { findMany: jest.fn(async () => []) },
       intelligenceChange: { upsert, create },
     };
     return { service: new IntelligenceService(prisma), upsert, create };
@@ -89,5 +92,75 @@ describe('IntelligenceService.getCommentPeriodAlerts — dedup (Phase 1 M4.2)', 
     const keySecond = (upsertSecond.mock.calls[0]![0] as { where: { dedupeKey: string } }).where
       .dedupeKey;
     expect(keyFirst).toBe(keySecond);
+  });
+});
+
+/**
+ * W4.5 (M3-D): the on-demand reader now also scans state_rule (global table),
+ * mirroring check-comment-periods.ts — capability-keyword overlap against the
+ * rule's title AND abstract, emitted as a `state_register` comment_deadline
+ * change so criticalDeadlines + the Top-alerts card include state rows.
+ */
+describe('IntelligenceService.getCommentPeriodAlerts — state rules (W4.5 / M3-D)', () => {
+  const tenantId = '00000000-0000-0000-0000-000000000001';
+  const clientId = '00000000-0000-0000-0000-000000000010';
+  const ruleId = 'FL-9999';
+
+  function makeService(capabilityName: string) {
+    const upsert = jest.fn(
+      async (args: { where: { dedupeKey: string }; create: any; update: unknown }) => args.create,
+    );
+    const tenantTx = {
+      client: {
+        findMany: jest.fn(async () => [
+          {
+            id: clientId,
+            name: 'Acme Defense',
+            sectorTag: null,
+            capabilities: [{ sector: null, name: capabilityName, tags: [] }],
+          },
+        ]),
+      },
+    };
+    const prisma: any = {
+      withTenant: jest.fn(async (_t: string, run: (tx: any) => Promise<any>) => run(tenantTx)),
+      federalRegisterDocument: { findMany: jest.fn(async () => []) },
+      stateRule: {
+        findMany: jest.fn(async () => [
+          {
+            id: ruleId,
+            state: 'FL',
+            agency: 'Department of Environmental Protection',
+            title: 'Water quality rule',
+            // keyword lives ONLY in the abstract — proves abstract is in the haystack.
+            abstract: 'Revised permitting standards for stormwater discharge.',
+            ruleType: 'proposed',
+            commentEndDate: new Date(Date.now() + 5 * 24 * 60 * 60 * 1000),
+            commentStartDate: null,
+          },
+        ]),
+      },
+      intelligenceChange: { upsert, create: jest.fn() },
+    };
+    return { service: new IntelligenceService(prisma), upsert };
+  }
+
+  it('surfaces a state rule whose ABSTRACT matches a client capability keyword, as a state_register change with the state dedupeKey', async () => {
+    const { service, upsert } = makeService('Stormwater Management');
+    const result = await service.getCommentPeriodAlerts(tenantId);
+
+    const stateAlert = result.alerts.find((a) => a.documentId === ruleId);
+    expect(stateAlert).toBeDefined();
+    expect(upsert).toHaveBeenCalledTimes(1);
+    const call = upsert.mock.calls[0]![0] as { where: { dedupeKey: string }; create: { source: string } };
+    expect(call.create.source).toBe('state_register');
+    expect(call.where.dedupeKey).toBe(commentDeadlineDedupeKey('state_register', ruleId, clientId));
+  });
+
+  it('does NOT surface a state rule with zero keyword overlap (mirrors the scheduled verb — no relevance, no chip)', async () => {
+    const { service, upsert } = makeService('Aerospace Manufacturing');
+    const result = await service.getCommentPeriodAlerts(tenantId);
+    expect(result.alerts.find((a) => a.documentId === ruleId)).toBeUndefined();
+    expect(upsert).not.toHaveBeenCalled();
   });
 });

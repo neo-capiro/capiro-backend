@@ -23,6 +23,7 @@ interface FrDoc {
 interface StateRuleDoc {
   id: string;
   title: string;
+  abstract: string | null;
   rule_type: string;
   comment_end_date: Date;
   agency: string;
@@ -59,7 +60,7 @@ async function main() {
   // real state agency names (added iteratively as sync-state-register
   // ingests them, matching the committee-crosswalk alias-map precedent).
   const stateDocs = await prisma.$queryRaw<StateRuleDoc[]>`
-    SELECT id, title, rule_type, comment_end_date, agency, state
+    SELECT id, title, abstract, rule_type, comment_end_date, agency, state
     FROM state_rule
     WHERE comment_end_date > ${now}
       AND comment_end_date <= ${fourteenDaysOut}
@@ -230,7 +231,9 @@ async function main() {
       // sector guess.
       const docSectors = new Set<SectorTag>();
       const docLdaCodes = ldaCodesForSectors([...docSectors]);
-      const titleLower = doc.title.toLowerCase();
+      // W4.5: keyword haystack = title AND abstract (the header comment above
+      // already promised this; the code previously matched title only).
+      const haystack = `${doc.title} ${doc.abstract ?? ''}`.toLowerCase();
 
       for (const client of clientsWithCaps) {
         let baseRelevance = 0;
@@ -262,7 +265,7 @@ async function main() {
             }
           }
           for (const kw of capKeywords) {
-            if (titleLower.includes(kw)) {
+            if (haystack.includes(kw)) {
               baseRelevance = Math.max(baseRelevance, 0.7);
               break;
             }
