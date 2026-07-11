@@ -563,6 +563,12 @@ model Meeting {
   connectionId       String?           @map("connection_id") @db.Uuid
   source             EngagementSource  @default(manual)
   externalId         String?           @map("external_id")
+  // Meetings v2 Phase 2 groundwork (2026-07-11): Microsoft Graph's cross-mailbox-
+  // stable event id. externalId is the per-MAILBOX event id, so two attendees'
+  // syncs of the same real meeting produce two rows with the SAME iCalUId — the
+  // key the (deferred) cross-user collision model groups/dedupes on. Captured
+  // now, DORMANT: nothing reads it until Phase 2's identity switch ships.
+  iCalUId            String?           @map("ical_uid")
   subject            String
   description        String?
   location           String?
@@ -609,6 +615,8 @@ model Meeting {
   @@unique([tenantId, source, externalId], map: "meetings_tenant_source_external_key")
   @@index([tenantId, startsAt], map: "meetings_tenant_starts_idx")
   @@index([tenantId, clientId, startsAt], map: "meetings_tenant_client_starts_idx")
+  // Phase 2 cross-mailbox grouping/matching lookups (WHERE tenant_id=? AND ical_uid=?).
+  @@index([tenantId, iCalUId], map: "meetings_tenant_ical_idx")
   @@map("meetings")
 }
 

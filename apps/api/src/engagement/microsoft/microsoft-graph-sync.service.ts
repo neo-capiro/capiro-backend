@@ -118,6 +118,8 @@ interface GraphRecipient {
 
 interface GraphEvent {
   id?: string;
+  // Cross-mailbox-stable meeting id (Phase 2 groundwork). Default event property.
+  iCalUId?: string | null;
   subject?: string | null;
   bodyPreview?: string | null;
   webLink?: string | null;
@@ -703,6 +705,8 @@ export class MicrosoftGraphSyncService {
           connectionId,
           source: EngagementSource.outlook,
           externalId: event.id!,
+          // Phase 2 groundwork: stored (dormant) for future cross-mailbox grouping.
+          iCalUId: event.iCalUId ?? null,
           subject: clean(event.subject) || 'Untitled calendar event',
           description: clean(event.bodyPreview),
           location: clean(event.location?.displayName),
