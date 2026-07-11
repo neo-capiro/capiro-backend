@@ -53,6 +53,7 @@ function makeHarness(trackedRows: TrackedBillRow[]) {
           where: {
             changeType: string;
             sourceRef: string;
+            severity?: string;
             evidence?: { path: string[]; equals: unknown };
           };
         }) =>
@@ -61,11 +62,16 @@ function makeHarness(trackedRows: TrackedBillRow[]) {
               if (a.changeType !== where.changeType || a.sourceRef !== where.sourceRef) {
                 return false;
               }
+              // Wave-2 closure: the deadline dedup now also keys on the severity
+              // column so an escalating info→critical alert isn't suppressed.
+              if (where.severity !== undefined && a.severity !== where.severity) {
+                return false;
+              }
               if (where.evidence) {
                 const evidence = (a.evidence ?? {}) as Record<string, unknown>;
                 const key = where.evidence.path[0];
                 if (key === undefined) return false;
-                return evidence[key] === where.evidence.equals;
+                if (evidence[key] !== where.evidence.equals) return false;
               }
               return true;
             }) ?? null,
@@ -389,5 +395,56 @@ describe('BillChangeDetectorService — state deadline-approaching emitter (Phas
     );
     expect(crossoverAlert).toBeDefined();
     expect(crossoverAlert!.severity).toBe('critical');
+  });
+
+  it('REGRESSION (2026-07-10, Wave-2 closure): the SAME cutoff escalating info→critical still fires the critical <3-day warning — an early info row must NOT swallow it', async () => {
+    // The dominant real case (and the one the pre-closure dedup broke): a bill
+    // sitting in front of its OWN committee cutoff as it counts down. The cutoff
+    // never changes; only the severity band does. Keying the dedup on cutoffType
+    // alone let the first (info, ~14d-out) row suppress the later critical (<3d)
+    // one for the whole 14-day window. Keying ALSO on severity fixes it.
+    const { prisma, alerts } = makeHarness([ALREADY_SEEN]);
+    const repo = makeStateSourceRepo(BASE_BILL);
+    const svc = new BillChangeDetectorService(prisma, FAKE_CONGRESS_SOURCE, repo);
+    const calendars = repo.getStateSessionCalendars as jest.Mock;
+
+    // Cycle 1: committeeCutoff 12 days out -> 'info'.
+    calendars.mockResolvedValue([
+      {
+        billKey: BASE_BILL.id,
+        committeeCutoffDate: daysFromNow(12),
+        crossoverDate: null,
+        secondCommitteeCutoffDate: null,
+        sineDie: daysFromNow(40),
+      },
+    ]);
+    await svc.runDetectionCycle();
+
+    // Cycle 2 (same cutoff, still in committee): committeeCutoff now 2 days out
+    // -> 'critical'. Same cutoffType, DIFFERENT severity -> must fire.
+    calendars.mockResolvedValue([
+      {
+        billKey: BASE_BILL.id,
+        committeeCutoffDate: daysFromNow(2),
+        crossoverDate: null,
+        secondCommitteeCutoffDate: null,
+        sineDie: daysFromNow(40),
+      },
+    ]);
+    await svc.runDetectionCycle();
+
+    const deadlineAlerts = alerts.filter(
+      (a) => a.changeType === 'state_bill_deadline_approaching',
+    );
+    const bySeverity = deadlineAlerts.map((a) => a.severity).sort();
+    expect(bySeverity).toEqual(['critical', 'info']); // BOTH fired, same cutoffType
+    const critical = deadlineAlerts.find((a) => a.severity === 'critical');
+    expect((critical!.evidence as Record<string, unknown>).cutoffType).toBe('committeeCutoff');
+
+    // Cycle 3: still critical, same cutoff, same band -> deduped (no per-cycle spam).
+    await svc.runDetectionCycle();
+    expect(
+      alerts.filter((a) => a.changeType === 'state_bill_deadline_approaching').length,
+    ).toBe(2);
   });
 });

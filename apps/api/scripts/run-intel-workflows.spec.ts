@@ -7,6 +7,7 @@ import {
   POSTURE,
   findQualifyingAlerts,
   surfaceBrief,
+  classifyBriefOutcome,
 } from './run-intel-workflows.js';
 
 /**
@@ -91,6 +92,15 @@ describe('run-intel-workflows raw SQL — table-name safety net (2026-07-10 hot-
     expect(FIND_QUALIFYING_ALERTS_SQL).toMatch(/r\.subject_key = a\.source_ref/);
     // Same UUID-vs-TEXT cast convention as the client_facilities EXISTS above.
     expect(FIND_QUALIFYING_ALERTS_SQL).toMatch(/r\.tenant_id::text = a\.tenant_id/);
+    // Wave-2 closure: pin the WINDOW predicate explicitly. Without this a future
+    // edit could replace the parameterized lookback with a constant (or drop the
+    // window entirely) and the substring checks above would still pass green,
+    // silently re-enabling per-run BYOK re-spend — the exact regression W2.3
+    // exists to prevent. The guard's recency must ride the same $1 lookback bind
+    // as the alert scan (findQualifyingAlerts passes LOOKBACK_HOURS once).
+    expect(FIND_QUALIFYING_ALERTS_SQL).toMatch(
+      /r\.created_at > now\(\) - \(\$1 \* interval '1 hour'\)/,
+    );
   });
 
   it('SURFACE_BRIEF_UPDATE_SQL and SURFACE_BRIEF_INSERT_SQL reference only real tables', () => {
@@ -253,5 +263,35 @@ describe('POSTURE (2026-07-10 hot-fix, W1.2 — R7 "new capability ships dark")'
       const mod = await import('./run-intel-workflows.js');
       expect(mod.POSTURE).toBe('attach');
     }
+  });
+});
+
+describe('classifyBriefOutcome (2026-07-10 Wave-2 closure — W2.3 behavioral invariant)', () => {
+  const brief = (targetCount: number, qaStatus: string) => ({
+    targets: Array.from({ length: targetCount }, (_, i) => ({ memberId: `m${i}` })),
+    qaStatus,
+  });
+
+  it('a zero-target brief NEVER surfaces (skip), in any posture', () => {
+    expect(classifyBriefOutcome(brief(0, 'approved'), 'attach')).toBe('skip_zero_target');
+    expect(classifyBriefOutcome(brief(0, 'pending'), 'attach')).toBe('skip_zero_target');
+    expect(classifyBriefOutcome(brief(0, 'approved'), 'shadow')).toBe('skip_zero_target');
+  });
+
+  it('a QA-held (pending) brief is HELD, never surfaced — even in attach posture (no cross-realm write until a human clears QA)', () => {
+    expect(classifyBriefOutcome(brief(2, 'pending'), 'attach')).toBe('held');
+    expect(classifyBriefOutcome(brief(2, 'pending'), 'shadow')).toBe('held');
+  });
+
+  it('an approved brief with targets surfaces ONLY in attach posture; shadow performs zero cross-realm writes (R7)', () => {
+    expect(classifyBriefOutcome(brief(2, 'approved'), 'attach')).toBe('surface');
+    expect(classifyBriefOutcome(brief(2, 'approved'), 'shadow')).toBe('shadow');
+  });
+
+  it('the QA-held / zero-target checks take precedence over posture (a held brief is held even when attach would otherwise surface)', () => {
+    // Pins the ordering the worker loop relies on: a pending brief must be
+    // classified 'held' before the attach→surface branch is ever reached, so
+    // an unreviewed high-materiality brief cannot leak to the client feed.
+    expect(classifyBriefOutcome(brief(5, 'pending'), 'attach')).not.toBe('surface');
   });
 });

@@ -268,7 +268,20 @@ export class TargetingBriefService {
         }),
       );
     } catch (err) {
-      this.logger.warn(`ai_run write failed (non-fatal): ${(err as Error).message}`);
+      // 2026-07-10 (Wave-2 closure): FAIL LOUD. W2.3 makes this ai_run row the
+      // SOLE idempotency record that stops a QA-held/zero-target brief from
+      // re-billing BYOK on the next run (in shadow posture — the default — no
+      // intel_action_item is written either, so ai_run is the only dedup trail
+      // for ALL briefs). Swallowing a write failure let the run report success
+      // with no trail, so the same alert re-qualified and re-spent every cycle,
+      // silently. Rethrowing surfaces it as a per-alert error in the worker loop
+      // (which W4.3 makes pageable) and bounds re-spend to the incident window
+      // instead of forever. Complete belt-and-braces — reserve-before-spend so a
+      // persistent write failure cannot re-charge at all — needs an ai_run
+      // idempotency key and lands in W3.1 (which adds client_id + the guard
+      // index to this table).
+      this.logger.error(`ai_run write failed: ${(err as Error).message}`);
+      throw err;
     }
   }
 }

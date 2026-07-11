@@ -230,6 +230,26 @@ export async function surfaceBrief(
   });
 }
 
+export type BriefOutcome = 'skip_zero_target' | 'held' | 'surface' | 'shadow';
+
+/**
+ * Decide what the worker does with a generated brief, given the run posture.
+ * Pure + exported so the W2.3 idempotency-adjacent invariant — a QA-held
+ * (`qaStatus==='pending'`) or zero-target brief NEVER surfaces a cross-realm
+ * write, and only `attach` posture surfaces at all — is unit-testable without
+ * booting Nest. Pairs with the SQL guard (FIND_QUALIFYING_ALERTS_SQL): the SQL
+ * stops a bill from being re-generated once it has a recent `ai_run`; this
+ * decides, per generation, whether the result surfaces.
+ */
+export function classifyBriefOutcome(
+  brief: { targets: unknown[]; qaStatus: string },
+  posture: Posture,
+): BriefOutcome {
+  if (!brief.targets.length) return 'skip_zero_target';
+  if (brief.qaStatus === 'pending') return 'held';
+  return posture === 'attach' ? 'surface' : 'shadow';
+}
+
 export async function main(): Promise<void> {
   const logger = new Logger('run-intel-workflows');
   const { AppModule, PrismaService, AiCredentialResolverService, TargetingBriefService } =
@@ -288,12 +308,13 @@ export async function main(): Promise<void> {
               llm,
               { model: resolved.model, usedTenantKey: resolved.usedTenantKey },
             );
-            if (!brief.targets.length) continue;
-            if (brief.qaStatus === 'pending') {
+            const outcome = classifyBriefOutcome(brief, POSTURE);
+            if (outcome === 'skip_zero_target') continue;
+            if (outcome === 'held') {
               held += 1;
               continue; // ai_run already carries the pending brief; nothing surfaces yet
             }
-            if (POSTURE === 'attach') {
+            if (outcome === 'surface') {
               await surfaceBrief(prisma, alert, brief);
               surfaced += 1;
             } else {

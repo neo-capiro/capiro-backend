@@ -561,18 +561,20 @@ export class BillChangeDetectorService {
             },
             wl,
           );
-          // W2.1: the deadline emitter shares ONE changeType across 4 distinct
-          // cutoffs (committeeCutoff/crossover/secondCommitteeCutoff/sineDie —
-          // see stateDeadlineClass); sub-key the dedup on which cutoff this
-          // event is actually about so a later, more urgent cutoff still fires.
+          // W2.1 + Wave-2 closure: the deadline emitter packs 4 cutoffs
+          // (committeeCutoff/crossover/secondCommitteeCutoff/sineDie) AND 3
+          // severity bands (info/notable/critical, by daysUntil) into ONE
+          // changeType. Sub-key the 14-day dedup on BOTH cutoffType AND severity
+          // so (a) a later, different cutoff still fires, and (b) the SAME cutoff
+          // escalating info→critical as it approaches still fires the critical
+          // <3-day warning instead of the day-~14 'info' row swallowing it.
           // Cast: `events`' mapped literal (line ~529) widens `extra` to just
-          // `{ jurisdiction: string }` under TS's spread inference, even
-          // though it's built from `{ ...(ev.extra ?? {}), jurisdiction }` and
-          // carries every other extra field (including cutoffType) at runtime.
+          // `{ jurisdiction: string }` under TS's spread inference, even though
+          // it carries `cutoffType` at runtime.
+          const isDeadline = ev.cls.changeType === 'state_bill_deadline_approaching';
           const evExtra = ev.extra as Record<string, unknown> | undefined;
           const dedupEvidenceKey =
-            ev.cls.changeType === 'state_bill_deadline_approaching' &&
-            typeof evExtra?.cutoffType === 'string'
+            isDeadline && typeof evExtra?.cutoffType === 'string'
               ? { path: 'cutoffType', value: evExtra.cutoffType }
               : undefined;
           const wrote = await this.writeShadowAlert(
@@ -583,7 +585,13 @@ export class BillChangeDetectorService {
             actionDate,
             ex.why,
             ex.matchedTags,
-            { sourceType: 'state_bill', displayNum, jurisdiction: bill.state, dedupEvidenceKey },
+            {
+              sourceType: 'state_bill',
+              displayNum,
+              jurisdiction: bill.state,
+              dedupEvidenceKey,
+              dedupSeverity: isDeadline ? ev.cls.severity : undefined,
+            },
           );
           if (wrote) {
             alertsWritten += 1;
@@ -910,15 +918,25 @@ export class BillChangeDetectorService {
       displayNum?: string;
       jurisdiction?: string;
       /**
-       * 2026-07-10 (W2.1): fold an extra `evidence` JSON-path match into the
-       * 14-day dedup so distinct sub-events sharing one changeType (e.g. the 4
-       * `cutoffType` values under `state_bill_deadline_approaching` — a bill's
-       * upcoming committee cutoff and its later crossover deadline are both
-       * this changeType) each fire once per (bill, value, 14d) instead of the
-       * first one silently suppressing every later one, including a critical
-       * <3-day warning, for the rest of the window (M2-C).
+       * 2026-07-10 (W2.1, hardened in Wave-2 closure): sub-key the 14-day dedup
+       * so distinct sub-events sharing ONE changeType each fire once within the
+       * window, instead of the first occurrence suppressing every later one.
+       * The deadline emitter (`state_bill_deadline_approaching`) needs BOTH
+       * dimensions, and neither alone is sufficient:
+       *   - dedupEvidenceKey (cutoffType): a bill's committee cutoff vs its later
+       *     crossover deadline are the same changeType but distinct events.
+       *   - dedupSeverity: the SAME cutoff escalates info→notable→critical as it
+       *     approaches (stateDeadlineClass buckets by daysUntil: <3 critical /
+       *     <=7 notable / else info). Without this, the day-~14 'info' row claims
+       *     the slot and the day-2 'critical' warning — the single signal the
+       *     feature exists to surface — is deduped away for the whole window.
+       * Combined key = (bill, changeType, cutoffType, severity, 14d): each
+       * (cutoff × severity-band) fires exactly once; a same-cutoff/same-band
+       * re-run within 14d still dedups (no per-cycle spam). `severity` is a
+       * real intel_alert column, so that dimension is a plain column predicate.
        */
       dedupEvidenceKey?: { path: string; value: string };
+      dedupSeverity?: string;
     } = {},
   ): Promise<boolean> {
     const sourceType = opts.sourceType ?? 'bill';
@@ -947,6 +965,7 @@ export class BillChangeDetectorService {
                 },
               }
             : {}),
+          ...(opts.dedupSeverity ? { severity: opts.dedupSeverity } : {}),
         },
         select: { id: true },
       }),

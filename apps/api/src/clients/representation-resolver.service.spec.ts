@@ -243,6 +243,42 @@ describe('RepresentationResolverService.facilitiesForMember (inverse)', () => {
     });
     expect(out).toEqual([{ id: 'fac-1', name: 'HQ' }]);
   });
+
+  // REGRESSION (2026-07-10, Wave-2 closure): all THREE facilitiesForMember
+  // branches (federal senate, federal house, state chamber) must query with the
+  // resolvable-facility OR, never a bare `geocodeStatus:'matched'`. The other
+  // tests in this block use fake findMany impls that IGNORE `where`, so this is
+  // the only pin on the query shape for the path that carries a manually-entered
+  // facility into the chokepoint footprint (blueprint W2.2 SC-5/M1-B). Without
+  // it, a future edit reintroducing the geocode-only filter would silently drop
+  // manual facilities from the footprint again, with all tests still green.
+  it.each([
+    ['federal senate', { type: 'federal', chamber: 'senate', state: 'FL', district: null }],
+    ['federal house', { type: 'federal', chamber: 'house', state: 'WY', district: null }],
+    ['state chamber', { type: 'state', chamber: 'lower', state: 'FL', district: '9' }],
+  ] as const)('%s branch queries with RESOLVABLE_FACILITY_OR, not a bare geocodeStatus filter', async (_label, member) => {
+    const findMany = jest.fn(async (_args: { where: Record<string, unknown> }) => []);
+    const prisma = {
+      withTenant: jest.fn(async (_t: string, fn: (tx: unknown) => unknown) =>
+        fn({ clientFacility: { findMany } }),
+      ),
+    } as unknown as PrismaService;
+    const svc = new RepresentationResolverService(prisma);
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    await svc.facilitiesForMember('t1', 'c1', member as any);
+    const call = findMany.mock.calls[0];
+    if (!call) throw new Error('expected clientFacility.findMany to have been called');
+    const where = call[0].where;
+    expect(where.geocodeStatus).toBeUndefined();
+    expect(where.OR).toEqual(
+      expect.arrayContaining([
+        { geocodeStatus: 'matched' },
+        { congressionalDistrict: { not: null } },
+        { stateHouseDistrict: { not: null } },
+        { stateSenateDistrict: { not: null } },
+      ]),
+    );
+  });
 });
 
 describe('RepresentationResolverService.clientsRepresentedByMember (M1.4 — tenant-wide inverse)', () => {
