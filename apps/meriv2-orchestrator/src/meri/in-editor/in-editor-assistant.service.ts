@@ -7,6 +7,7 @@ import {
   parseVerifierClaims,
   serializeRecordForGrounding,
   summarizeVerification,
+  wrapToolResultForPrompt,
   type Confidence,
   type MeriContext,
   type PeRecordForValidation,
@@ -197,7 +198,7 @@ export class InEditorAssistantService {
           return {
             type: 'tool_result' as const,
             tool_use_id: tu.id,
-            content: JSON.stringify(result ?? {}).slice(0, TOOL_RESULT_CHARS),
+            content: wrapToolResultForPrompt(tu.name, result, TOOL_RESULT_CHARS),
           };
         }),
       );
