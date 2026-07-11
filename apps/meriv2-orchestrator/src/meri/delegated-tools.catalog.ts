@@ -66,7 +66,7 @@ export const IN_EDITOR_DELEGATED_TOOLS: readonly DelegatedToolSpec[] = [
   {
     name: 'search_congress_bills',
     description:
-      'Search congressional bills in the Capiro database (118th and 119th Congress). Filter by keyword, policy area, congress number, or recent activity date. Returns bill title, sponsor, latest action, policy area, and cosponsors count.',
+      'Search congressional bills in the Capiro database (118th and 119th Congress). Filter by keyword, policy area, congress number, or recent activity date. Accepts a bill designation or id ("H.R. 8800", "119-hr-8800") as the query for a direct lookup. Returns bill title, sponsor, latest action, canonical STATUS (e.g. rule_failed, passed_chamber), policy area, and cosponsors count.',
     readOnly: true,
   },
   {

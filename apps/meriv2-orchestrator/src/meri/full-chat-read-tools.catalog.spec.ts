@@ -1,77 +1,16 @@
+import { MERI_TOOL_MANIFEST, MERI_TOOL_NAMES } from '@capiro/shared';
 import { FULL_CHAT_READ_TOOLS } from './full-chat-read-tools.catalog';
 import { IN_EDITOR_DELEGATED_TOOLS } from './delegated-tools.catalog';
 import { WRITE_DELEGATED_TOOLS } from './write-tools.catalog';
 
 /**
- * Full apps/api Meri tool surface (meri-tools.service.ts TOOL_DEFINITIONS),
- * transcribed verbatim — 60 tools. Kept as an explicit expected set because
- * apps/api is not importable from the orchestrator package.
+ * W4.6 / D-13: the canonical apps/api Meri tool surface is now the checked-in
+ * MERI_TOOL_MANIFEST in @capiro/shared (apps/api is not importable here). It is
+ * the single source both sides assert against — no more hand-maintained,
+ * silently-drifting name list transcribed into this file. Current surface: 63
+ * tools.
  */
-const ALL_APPS_API_TOOLS = [
-  'get_client_context',
-  'search_research_sources',
-  'run_analysis',
-  'search_client_knowledge',
-  'query_intelligence',
-  'query_knowledge_graph',
-  'find_path_to',
-  'search_memory',
-  'search_congress_bills',
-  'get_bill_status',
-  'search_floor_votes',
-  'search_cbo_cost_estimates',
-  'resolve_entity',
-  'search_lda_filings',
-  'search_sec_filings',
-  'search_fara_registrations',
-  'search_federal_grants',
-  'search_federal_awards',
-  'search_gao_reports',
-  'search_state_bills',
-  'get_state_bill_status',
-  'search_state_floor_votes',
-  'get_state_legislator',
-  'get_committee_roster',
-  'get_representation',
-  'get_state_rule_status',
-  'search_intel_articles',
-  'search_committee_hearings',
-  'search_crs_reports',
-  'query_economic_data',
-  'search_public_web',
-  'scrape_web_page',
-  'create_meeting_brief',
-  'draft_policy_memo',
-  'save_note',
-  'send_email',
-  'list_emails',
-  'reply_email',
-  'save_memory',
-  'search_program_elements',
-  'get_program_element',
-  'get_pe_budget_timeline',
-  'get_pe_contractors',
-  'get_pe_bills',
-  'search_acquisition_personnel',
-  'get_acquisition_person',
-  'create_word',
-  'create_excel',
-  'create_powerpoint',
-  'schedule_task',
-  'list_scheduled_tasks',
-  'cancel_scheduled_task',
-  'query_tasks',
-  'query_action_items',
-  'search_tracked_bills',
-  'query_regulatory_dockets',
-  'search_sam_opportunities',
-  'query_debriefs',
-  'query_outreach',
-  'read_client_documents',
-  'create_task',
-  'update_task',
-  'update_client_profile',
-].sort();
+const ALL_APPS_API_TOOLS = [...MERI_TOOL_NAMES];
 
 describe('FULL_CHAT_READ_TOOLS catalog', () => {
   it('matches the expected 23-tool set, all read-only', () => {
@@ -121,5 +60,18 @@ describe('Combined delegated-tool coverage (in-editor + write + full-chat-read)'
     ].sort();
     expect(combined).toEqual(ALL_APPS_API_TOOLS);
     expect(new Set(combined).size).toBe(combined.length); // no tool double-registered
+    expect(combined).toHaveLength(63);
+  });
+
+  it('W4.6 / D-13: the three catalogs match the canonical MERI_TOOL_MANIFEST VERBATIM (name AND description) — catches description drift the name-only check missed', () => {
+    const combined: Record<string, string> = {};
+    for (const t of [
+      ...IN_EDITOR_DELEGATED_TOOLS,
+      ...WRITE_DELEGATED_TOOLS,
+      ...FULL_CHAT_READ_TOOLS,
+    ]) {
+      combined[t.name] = t.description;
+    }
+    expect(combined).toEqual({ ...MERI_TOOL_MANIFEST });
   });
 });

@@ -57,12 +57,14 @@ export function feedItemToMemoAlert(item: FeedItem): AlertMemoAlertInput {
   );
   return {
     alertId: item.id,
-    // State Legislation Platform (S7) + Phase 1 M3.3: the memo generator only
-    // accepts 'bill'|'hearing'|'combined' — recommendedActionsFor in intel-api
-    // never offers "Draft memo"/"Generate district brief" for a state_bill or
-    // regulation alert, so this path shouldn't be reachable for either in
-    // practice; map defensively to 'bill' rather than sending a value the
-    // server's @IsIn(['bill','hearing','combined']) would reject.
+    // State Legislation Platform (S7) + Phase 1 M3.3 + W4.4: the memo generator
+    // only accepts 'bill'|'hearing'|'combined'. recommendedActionsFor (intel-api)
+    // does NOT offer "Draft memo" for a state_bill or a regulation alert (and a
+    // regulation gets no bill-shaped action at all — no memo, district brief, or
+    // open-bill), so this memo path shouldn't be reachable for those in practice.
+    // (A state_bill DOES still get "Generate district brief" — that has its own
+    // endpoint below and accepts state bills.) Map defensively to 'bill' rather
+    // than send a value the server's @IsIn(['bill','hearing','combined']) rejects.
     sourceType:
       item.sourceType === 'state_bill' || item.sourceType === 'regulation'
         ? 'bill'

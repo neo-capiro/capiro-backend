@@ -6,7 +6,8 @@ import type { DelegatedToolSpec } from '@capiro/meriv2-core';
  * #298) extra read set. Names + descriptions transcribed verbatim from
  * apps/api's TOOL_DEFINITIONS (meri-tools.service.ts); a drift test
  * (full-chat-read-tools.catalog.spec.ts) asserts, together with the other two
- * catalogs, exact coverage of apps/api's full 60-tool surface. State
+ * catalogs, exact name+description coverage of apps/api's full 63-tool surface
+ * against the canonical @capiro/shared MERI_TOOL_MANIFEST (W4.6/D-13). State
  * Legislation Platform (Phase 0 S6) added 2 tools HERE (search_state_floor_votes,
  * get_state_legislator); get_state_bill_status and the upgraded search_state_bills
  * moved to the in-editor catalog instead (still reachable from full-chat, which
@@ -85,7 +86,7 @@ export const FULL_CHAT_READ_TOOLS: readonly DelegatedToolSpec[] = [
   {
     name: 'search_cbo_cost_estimates',
     description:
-      'Look up CBO cost estimates (budget scores) for congressional bills. Filter by bill id ("119-hr-8800") or keyword. Explicitly reports when NO estimate exists — never guess a score.',
+      'Look up CBO cost estimates (budget scores) for congressional bills in the Capiro database. Filter by bill id ("119-hr-8800") or keyword. Returns the estimate title, publication date, and cbo.gov link. Explicitly reports when NO estimate exists for a bill — never guess a score.',
     readOnly: true,
   },
   {
