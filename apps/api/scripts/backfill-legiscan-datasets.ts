@@ -37,6 +37,12 @@ import {
   crosswalkLegiscanPerson,
   backfillStateBillLinkTargets,
 } from '../src/ingestion/legiscan-normalize.js';
+import {
+  currentQuotaMonth,
+  monthToDateQueries,
+  quotaExhausted,
+  LEGISCAN_HARD_CAP,
+} from '../src/ingestion/legiscan-quota.util.js';
 dotenvConfig();
 
 const prisma = new PrismaClient();
@@ -49,24 +55,53 @@ const STATES =
   RAW_STATES.length === 1 && RAW_STATES[0] === 'ALL' ? [...ALL_US_STATE_CODES] : RAW_STATES;
 const SESSIONS_MODE = (process.env.LEGISCAN_SESSIONS ?? 'current').toLowerCase();
 
-function currentQuotaMonth(): string {
-  return new Date().toISOString().slice(0, 7);
+/**
+ * (2026-07-10 hot-fix) The cost to attribute to ONE session's cursor this
+ * run: its own getDataset call (1), plus — ONLY for the first session
+ * processed this state-run — the two state-level calls (getSessionList +
+ * getDatasetList) that are made once per state, not once per session.
+ * Previously a single ever-growing `queries` counter was re-attributed IN
+ * FULL to every session's cursor, so a state with N sessions over-counted
+ * the aggregate governor total by roughly the state-level cost times
+ * (N choose 2) — inflating month-to-date spend and risking a premature
+ * quota-governor trip well before the true 30k/mo cap was reached.
+ */
+export function sessionQueryCost(isFirstSessionThisRun: boolean, stateLevelQueries: number): number {
+  return 1 + (isFirstSessionThisRun ? stateLevelQueries : 0);
+}
+
+/**
+ * (2026-07-10 hot-fix) The queriesUsed write for a cursor already on record:
+ * increment when the stored quotaMonth matches the current month, but RESET
+ * to just this run's cost on a month rollover — mirrors
+ * sync-legiscan-bills.ts's bumpCursorQueries. Previously this always
+ * incremented unconditionally, silently carrying a prior month's spend into
+ * the current month's tally.
+ */
+export function nextQueriesUsed(
+  existingQuotaMonth: string | null | undefined,
+  currentMonth: string,
+  queriesForThisCursor: number,
+): number | { increment: number } {
+  return existingQuotaMonth === currentMonth
+    ? { increment: queriesForThisCursor }
+    : queriesForThisCursor;
 }
 
 async function backfillState(
   state: string,
 ): Promise<{ bills: number; people: number; votes: number; errors: number; queries: number }> {
-  let queries = 0;
+  let stateLevelQueries = 0;
   let bills = 0;
   let people = 0;
   let votes = 0;
   let errors = 0;
 
   const sessions = await getSessionList(LEGISCAN_API_KEY, state);
-  queries++;
+  stateLevelQueries++;
   if (!sessions.length) {
     console.warn(`[backfill-legiscan] ${state}: no sessions returned`);
-    return { bills, people, votes, errors, queries };
+    return { bills, people, votes, errors, queries: stateLevelQueries };
   }
   for (const session of sessions) {
     await upsertStateSession(prisma, state, session);
@@ -74,7 +109,12 @@ async function backfillState(
 
   const targetSessions = sessions.filter((s) => (SESSIONS_MODE === 'all' ? true : s.prior !== 1));
   const datasetList = await getDatasetList(LEGISCAN_API_KEY, state);
-  queries++;
+  stateLevelQueries++;
+
+  // Attributed to the FIRST session's cursor this run only (2026-07-10
+  // hot-fix) — see sessionQueryCost's doc comment.
+  let stateLevelCreditAttributed = false;
+  let totalQueriesThisRun = 0;
 
   for (const session of targetSessions) {
     const listing = datasetList.find((d) => d.session_id === session.session_id);
@@ -86,7 +126,6 @@ async function backfillState(
     }
     try {
       const dataset = await getDataset(LEGISCAN_API_KEY, listing.session_id, listing.access_key);
-      queries++;
       if (!dataset?.zip) {
         console.warn(`[backfill-legiscan] ${state} session ${session.session_id}: empty dataset`);
         continue;
@@ -138,28 +177,47 @@ async function backfillState(
         }
       }
 
+      // 2026-07-10 hot-fix: this session's OWN cost, plus the state-level
+      // cost (getSessionList + getDatasetList) attributed ONCE to the first
+      // session that reaches this point this run — never the previous
+      // ever-growing cumulative `queries` counter re-attributed in full to
+      // every session (see sessionQueryCost's doc comment).
+      const queriesForThisCursor = sessionQueryCost(!stateLevelCreditAttributed, stateLevelQueries);
+      stateLevelCreditAttributed = true;
+      totalQueriesThisRun += queriesForThisCursor;
+
       const cursorId = `${state}-${session.session_id}`;
-      await prisma.stateSyncCursor.upsert({
+      const month = currentQuotaMonth();
+      const existingCursor = await prisma.stateSyncCursor.findUnique({
         where: { id: cursorId },
-        create: {
-          id: cursorId,
-          state,
-          sessionId: session.session_id,
-          sessionKey: normalizeSessionKeyFor(session),
-          billHashes,
-          queriesUsed: queries,
-          quotaMonth: currentQuotaMonth(),
-          lastListAt: new Date(),
-          lastDrainAt: new Date(),
-        },
-        update: {
-          billHashes,
-          queriesUsed: { increment: queries },
-          quotaMonth: currentQuotaMonth(),
-          lastListAt: new Date(),
-          lastDrainAt: new Date(),
-        },
+        select: { quotaMonth: true },
       });
+      if (existingCursor) {
+        await prisma.stateSyncCursor.update({
+          where: { id: cursorId },
+          data: {
+            billHashes,
+            queriesUsed: nextQueriesUsed(existingCursor.quotaMonth, month, queriesForThisCursor),
+            quotaMonth: month,
+            lastListAt: new Date(),
+            lastDrainAt: new Date(),
+          },
+        });
+      } else {
+        await prisma.stateSyncCursor.create({
+          data: {
+            id: cursorId,
+            state,
+            sessionId: session.session_id,
+            sessionKey: normalizeSessionKeyFor(session),
+            billHashes,
+            queriesUsed: queriesForThisCursor,
+            quotaMonth: month,
+            lastListAt: new Date(),
+            lastDrainAt: new Date(),
+          },
+        });
+      }
     } catch (err) {
       errors++;
       console.error(
@@ -170,7 +228,7 @@ async function backfillState(
   }
 
   await backfillStateBillLinkTargets(prisma);
-  return { bills, people, votes, errors, queries };
+  return { bills, people, votes, errors, queries: totalQueriesThisRun };
 }
 
 function normalizeSessionKeyFor(session: {
@@ -188,6 +246,22 @@ async function main() {
   console.log(`[backfill-legiscan] states: ${STATES.join(', ')} (sessions=${SESSIONS_MODE})`);
 
   await runWithSyncRun(prisma as never, 'backfill-legiscan-datasets', async () => {
+    // 2026-07-10 hot-fix: gate on the TRUE hard cap, not sync-legiscan-bills'
+    // conservative soft budget — this script is the explicit cheap fallback
+    // for when that soft budget trips (see header comment), so it must keep
+    // running past it; only the real LegiScan ceiling stops it.
+    const month = currentQuotaMonth();
+    const allCursors = await prisma.stateSyncCursor.findMany({
+      select: { queriesUsed: true, quotaMonth: true },
+    });
+    const usedThisMonth = monthToDateQueries(allCursors, month);
+    if (quotaExhausted(usedThisMonth, LEGISCAN_HARD_CAP)) {
+      console.log(
+        `INGESTION_SKIP ${JSON.stringify({ source: 'backfill-legiscan-datasets', reason: 'quota', usedThisMonth, budget: LEGISCAN_HARD_CAP })}`,
+      );
+      return { inserted: 0, updated: 0, skipped: 0, errors: 0 };
+    }
+
     let bills = 0;
     let people = 0;
     let votes = 0;

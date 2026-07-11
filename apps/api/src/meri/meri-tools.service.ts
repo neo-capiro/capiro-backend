@@ -3341,7 +3341,25 @@ export class MeriToolsService {
   private async searchStateFloorVotes(input: Record<string, unknown>) {
     const rawBillId = optionalString(input, 'billId', 60);
     const stateHint = optionalString(input, 'state', 2);
-    const billKey = rawBillId ? (await this.resolveStateBillKey(rawBillId, stateHint)).key : null;
+    // 2026-07-10 hot-fix: a SUPPLIED billId that fails to resolve must
+    // short-circuit here (mirroring getStateBillStatus's not-found
+    // contract) — falling through to the state-prefix branch below would
+    // silently return unrelated votes for the whole state instead of
+    // honestly reporting that the requested bill wasn't found.
+    let billKey: string | null = null;
+    if (rawBillId) {
+      const resolved = await this.resolveStateBillKey(rawBillId, stateHint);
+      if (!resolved.key) {
+        return {
+          tool: 'search_state_floor_votes',
+          generatedAt: new Date().toISOString(),
+          votesFound: 0,
+          votes: [],
+          note: resolved.note,
+        };
+      }
+      billKey = resolved.key;
+    }
     const query = optionalString(input, 'query', 200);
     const state = optionalString(input, 'state', 2)?.toUpperCase();
     const chamber = optionalString(input, 'chamber', 10)?.toLowerCase();

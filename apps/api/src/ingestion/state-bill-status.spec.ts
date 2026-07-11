@@ -119,6 +119,76 @@ describe('deriveStateBillStatus — precedence traps', () => {
     expect(r.status).toBe('dead_by_deadline');
     expect(r.status).not.toBe('committee');
   });
+
+  it('TRAP 7 (2026-07-10 hot-fix, the failed/passed inversion bug): a bill that failed a floor vote and was LATER reconsidered and passed reads passed_chamber, not failed — passedChamber outranks a roll-call-derived failedChamber signal', () => {
+    const r = deriveStateBillStatus({
+      failedChamber: true,
+      passedChamber: true,
+    });
+    expect(r.status).toBe('passed_chamber');
+  });
+
+  it('TRAP 8: TRAP 3 still holds when passedChamber is explicitly false (not just absent) — a real failed vote with no passage signal is still terminal failed', () => {
+    const r = deriveStateBillStatus({
+      failedChamber: true,
+      passedChamber: false,
+      sessionSineDie: '2025-05-30',
+      today: '2025-07-01',
+    });
+    expect(r.status).toBe('failed');
+  });
+
+  it('TRAP 9: the reconsideration ambiguity (both flags true) still loses to dead_by_deadline once the session has actually ended — a stale vote history never outranks the session ending', () => {
+    const r = deriveStateBillStatus({
+      failedChamber: true,
+      passedChamber: true,
+      sessionSineDie: '2025-05-30',
+      today: '2025-07-01',
+    });
+    expect(r.status).toBe('dead_by_deadline');
+  });
+
+  it('TRAP 10: a coded legiscanStatus=6 (Failed) remains authoritative and unconditional even if a (presumably mis-linked) passedChamber vote is also present — the coded fact is never weakened', () => {
+    const r = deriveStateBillStatus({
+      legiscanStatus: 6,
+      passedChamber: true,
+    });
+    expect(r.status).toBe('failed');
+  });
+});
+
+describe('deriveStateBillStatus — carryover self-heal (dead_by_deadline reversal)', () => {
+  it('a bill previously classified dead_by_deadline re-derives to its live underlying status once the session sine-die is null (LegiScan reopened/moved the bill) — pins the Phase-0 landmine note\'s claimed self-heal', () => {
+    const dead = deriveStateBillStatus({
+      legiscanStatus: 2, // Engrossed
+      sessionSineDie: '2025-05-30',
+      today: '2026-01-01',
+    });
+    expect(dead.status).toBe('dead_by_deadline');
+
+    const revived = deriveStateBillStatus({
+      legiscanStatus: 2,
+      sessionSineDie: null,
+      today: '2026-01-01',
+    });
+    expect(revived.status).toBe('passed_chamber');
+  });
+
+  it('same reversal when sine-die moves to a future date instead of being cleared entirely', () => {
+    const dead = deriveStateBillStatus({
+      latestActionText: 'Placed on the Local Calendar',
+      sessionSineDie: '2025-05-30',
+      today: '2026-01-01',
+    });
+    expect(dead.status).toBe('dead_by_deadline');
+
+    const revived = deriveStateBillStatus({
+      latestActionText: 'Placed on the Local Calendar',
+      sessionSineDie: '2027-05-30',
+      today: '2026-01-01',
+    });
+    expect(revived.status).toBe('floor');
+  });
 });
 
 describe('classifyStateVoteMotion', () => {

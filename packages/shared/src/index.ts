@@ -1322,11 +1322,25 @@ export function deriveStateBillStatus(input: {
   if (input.overridden || progress.some((p) => p.event === 7)) return mk('veto_overridden');
   // 3. Status 5 (Vetoed) or an explicit vetoed flag -> vetoed.
   if (input.legiscanStatus === 5 || input.vetoed) return mk('vetoed');
-  // 4. Status 6 (Failed), progress 11 (Report DNP), or a real failed-passage
-  //    vote on this measure -> failed. All three are equally authoritative
-  //    terminal signals (a recorded floor loss is not "softer" than a coded
-  //    status int).
-  if (input.legiscanStatus === 6 || progress.some((p) => p.event === 11) || input.failedChamber) {
+  // 4. Status 6 (Failed) or progress 11 (Report DNP) are LegiScan's own
+  //    coded facts about the BILL and are unconditionally terminal.
+  if (input.legiscanStatus === 6 || progress.some((p) => p.event === 11)) {
+    return mk('failed');
+  }
+  // 4b. A real failed-passage VOTE on this measure is ALSO terminal, UNLESS
+  //     a real chamber-passage vote is present too (input.passedChamber) —
+  //     a bill that failed a floor vote and was later reconsidered and
+  //     passed must read passed_chamber, not failed (the state twin of the
+  //     federal precedent: deriveBillStatus checks passedChamber before
+  //     failedChamber). Callers are expected to derive passedChamber /
+  //     failedChamber from each bill's MOST RECENT passage-type vote (see
+  //     derive-state-bill-status.ts's buildPassageOutcomeSets), so in
+  //     practice at most one is ever true for the same bill — the
+  //     `&& !input.passedChamber` guard is defense-in-depth for any other
+  //     caller that doesn't enforce that exclusivity itself. This guard is
+  //     scoped to the roll-call-derived boolean ONLY; it does not weaken
+  //     the coded-fact terminals above.
+  if (input.failedChamber && !input.passedChamber) {
     return mk('failed');
   }
   // 5. Status 3 (Enrolled) -> to_governor.

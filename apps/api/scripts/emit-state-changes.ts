@@ -60,6 +60,19 @@ async function readIntelCrossTenant<T>(fn: (tx: PrismaClient) => Promise<T>): Pr
   });
 }
 
+// Window on status_derived_at (INGESTION time, stamped by
+// derive-state-bill-status.ts) — never status_at, which is the legislative
+// EVENT date (@db.Date, midnight granularity) and is almost always EARLIER
+// than this same-day run's `since` (2026-07-10 hot-fix). status_at is still
+// selected for display/dedupeKey purposes. Exported as a named constant
+// (rather than inlined) so a regression spec can assert the windowing column
+// without needing a live Postgres connection — this script's core query has
+// no other unit-test path.
+export const MATERIAL_BILLS_QUERY = `SELECT id, state, identifier, status, status_at AS "statusAt", latest_action_text AS "latestActionText"
+         FROM state_bill
+        WHERE status_derived_at > $1
+          AND status = ANY($2::text[])`;
+
 async function main() {
   await runWithSyncRun(prisma as never, 'emit-state-changes', async (ctx) => {
     const since = ctx.since ?? new Date(0);
@@ -68,10 +81,7 @@ async function main() {
     let errors = 0;
 
     const bills = await prisma.$queryRawUnsafe<MaterialBill[]>(
-      `SELECT id, state, identifier, status, status_at AS "statusAt", latest_action_text AS "latestActionText"
-         FROM state_bill
-        WHERE status_at > $1
-          AND status = ANY($2::text[])`,
+      MATERIAL_BILLS_QUERY,
       since,
       MATERIAL_STATUSES,
     );

@@ -526,7 +526,31 @@ export class BillChangeDetectorService {
           )
         : [];
 
-      const events = dedupeByChangeType([...derivedEvents, ...actionEvents]).map((ev) => ({
+      // A coded state_bill status TRANSITION (classifyStateStatusChange,
+      // applied inside buildStateDerivedEvents above) is authoritative for
+      // its triggerKey — suppress any action-text event (classifyChange) on
+      // the SAME triggerKey this cycle, so one transition never double-emits
+      // as both a correctly-labeled coded alert AND a text-regex-derived
+      // alert that can mislabel it (e.g. a veto read as "Failed / rejected"
+      // by classifyChange's generic /veto/ match). Federal's
+      // `classifyStatusChange` already returns null for every status
+      // `classifyChange` covers, for exactly this reason (see
+      // buildDerivedEvents' B5 comment); the state coded classifier instead
+      // covers EVERY status (S4.3), so the mutual-exclusivity has to be
+      // enforced here, at merge time, rather than inside the classifier.
+      // Scoped to triggerKey (not changeType) because the two classifiers
+      // use disjoint naming conventions (`state_bill_*` vs `bill_*`) that
+      // dedupeByChangeType's changeType-based dedup can never collide on.
+      const statusChanged = (bill.status ?? null) !== (row.lastSeenStatus ?? null);
+      const suppressedTriggerKey =
+        derivedBaselined && statusChanged
+          ? (classifyStateStatusChange(bill.status)?.triggerKey ?? null)
+          : null;
+      const filteredActionEvents = suppressedTriggerKey
+        ? actionEvents.filter((ev) => ev.cls.triggerKey !== suppressedTriggerKey)
+        : actionEvents;
+
+      const events = dedupeByChangeType([...derivedEvents, ...filteredActionEvents]).map((ev) => ({
         ...ev,
         extra: { ...(ev.extra ?? {}), jurisdiction: bill.state },
       }));

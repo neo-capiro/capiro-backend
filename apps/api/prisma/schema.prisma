@@ -3898,6 +3898,14 @@ model StateBill {
   status             String?
   statusAt           DateTime? @map("status_at") @db.Timestamptz(6)
   statusSource       String?   @map("status_source") // 'derived'
+  // 2026-07-10 hot-fix (S5.3 emit-windowing bug): INGESTION-time anchor for
+  // when the deriver actually wrote a status change, set by
+  // derive-state-bill-status.ts. statusAt is the legislative EVENT date
+  // (@db.Date, midnight granularity) and must never be used to window an
+  // incremental sweep against a run's startedAt timestamp — nearly every
+  // transition's midnight-dated statusAt sits BEFORE the same day's later
+  // emit-run startedAt, so it was silently dropped from the changes inbox.
+  statusDerivedAt    DateTime? @map("status_derived_at") @db.Timestamptz(6)
   // Raw LegiScan facts the S3 deriver reads (DD8 — coded facts are the
   // derivation spine, text-regex is fallback only). status: 1 Introduced /
   // 2 Engrossed / 3 Enrolled / 4 Passed / 5 Vetoed / 6 Failed. progress[]:
@@ -3933,6 +3941,7 @@ model StateBill {
   @@index([state, latestActionDate])
   @@index([state, status])
   @@index([currentCommitteeId], map: "state_bill_currentCommitteeId_idx")
+  @@index([statusDerivedAt])
   @@map("state_bill")
 }
 
