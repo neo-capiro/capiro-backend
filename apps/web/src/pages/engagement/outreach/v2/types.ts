@@ -64,7 +64,10 @@ export interface WizardV2State {
   recipients: OutreachRecipient[];
   contextItems: SelectedContextItem[];
   templateId: string | null;
-  tone: 'Professional' | 'Friendly' | 'Formal' | 'Concise';
+  // Canonical lowercase tone — matches the values the template-create modal and
+  // the backend prompt use, so one value flows end-to-end (display labels are
+  // capitalized in the Select; resume lowercases legacy 'Professional' values).
+  tone: 'professional' | 'friendly' | 'formal' | 'concise';
   /**
    * Per-target generated drafts, keyed by GenerationTargetKey (see
    * generation.ts): `individual:<rk>` | `list:<aid>:<rk>` | `group:<aid>`.
@@ -74,7 +77,17 @@ export interface WizardV2State {
    */
   generatedEmails: Record<
     string,
-    { subject: string; body: string; status: 'pending' | 'ready' | 'edited' | 'error' }
+    {
+      subject: string;
+      body: string;
+      status: 'pending' | 'ready' | 'edited' | 'error';
+      /**
+       * Prior versions kept for one-click Revert after an "Improve" (revision).
+       * Newest-last; capped at the last 2 so a user can back out a bad rewrite
+       * without losing their current text (W2.6).
+       */
+      history?: Array<{ subject: string; body: string }>;
+    }
   >;
   /** Generate & Review: the GenerationTargetKey of the draft being edited. */
   selectedGenerationKey: string | null;
@@ -97,7 +110,7 @@ export const INITIAL_V2_STATE: WizardV2State = {
   recipients: [],
   contextItems: [],
   templateId: null,
-  tone: 'Professional',
+  tone: 'professional',
   generatedEmails: {},
   selectedGenerationKey: null,
   attachmentIds: [],
@@ -120,4 +133,20 @@ export type WizardStepId = (typeof WIZARD_STEPS)[number]['id'];
 /** Stable id for a recipient, same logic used by the older wizard. */
 export function recipientKey(r: OutreachRecipient): string {
   return r.id || r.directoryContactId || r.email || r.name || JSON.stringify(r);
+}
+
+/**
+ * Canonicalize a persisted tone to the lowercase enum. Lowercases legacy
+ * capitalized values ('Professional' → 'professional') saved before the enum
+ * was canonicalized, and falls back to the default for anything unrecognized —
+ * so resuming an old draft never silently resets or crashes on a bad tone.
+ */
+export function normalizeTone(raw: unknown): WizardV2State['tone'] {
+  const lowered = typeof raw === 'string' ? raw.toLowerCase() : '';
+  return lowered === 'professional' ||
+    lowered === 'friendly' ||
+    lowered === 'formal' ||
+    lowered === 'concise'
+    ? (lowered as WizardV2State['tone'])
+    : INITIAL_V2_STATE.tone;
 }

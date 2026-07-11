@@ -29,6 +29,48 @@ export const configSchema = z.object({
   ANTHROPIC_API_KEY: z.string().optional(),
   ANTHROPIC_MODEL: z.string().default('claude-haiku-4-5-20251001'),
 
+  // Outreach prompt-assembly version (plan W2). 'v1' = the legacy single-string
+  // prompt + JSON context dump; 'v2' = PromptSpec v2 (real system prompt, context
+  // precedence ladder, spotlighted untrusted content, no raw JSON dump). Defaults
+  // to 'v1' so the flip is an explicit, out-of-band config change validated by the
+  // outreach evals A/B (W2.7) — never on by a code deploy alone.
+  OUTREACH_PROMPT_SPEC: z.enum(['v1', 'v2']).default('v1'),
+
+  // Outreach task-tier model config (plan W3.2 / D2). The outreach draft path
+  // prefers OUTREACH_PROVIDER and, on that provider, uses OUTREACH_DRAFT_MODEL —
+  // unless a tenant set an explicit modelOverride (BYOK always wins). FAST_MODEL
+  // is reserved for cheaper outreach sub-tasks (talking points/preview) as they
+  // migrate onto the tiered client. Env-driven so the model can move without a
+  // code deploy (applied out-of-band per the task-def recipe).
+  OUTREACH_PROVIDER: z.enum(['openai', 'anthropic']).default('anthropic'),
+  OUTREACH_DRAFT_MODEL: z.string().default('claude-sonnet-4-6'),
+  OUTREACH_FAST_MODEL: z.string().default('claude-haiku-4-5-20251001'),
+
+  // Per-tenant daily outreach token ceiling (plan W3.4 / A7): total (input +
+  // output) AI tokens across outreach generation workflows in the current UTC
+  // day. Soft-warn at 80% (generation proceeds, wizard shows a banner), hard-stop
+  // at 100% (typed 429 the wizard renders). Default is generous (6M ≈ 5M in / 1M
+  // out); set 0 to disable the ceiling entirely.
+  OUTREACH_DAILY_TOKEN_BUDGET: z.coerce.number().int().nonnegative().default(6_000_000),
+
+  // Async outreach pipeline flags (plan W4). When ON, generate/send run as
+  // Postgres jobs off the request path (past the ALB idle ceiling); OFF keeps the
+  // synchronous endpoints. Rolled out independently and default OFF so the async
+  // path is opt-in per environment until canary-verified.
+  OUTREACH_ASYNC_GEN: z
+    .string()
+    .default('false')
+    .transform((v) => ['true', '1', 'yes', 'on'].includes(v.trim().toLowerCase())),
+  OUTREACH_ASYNC_SEND: z
+    .string()
+    .default('false')
+    .transform((v) => ['true', '1', 'yes', 'on'].includes(v.trim().toLowerCase())),
+  // Worker cadence + how long a claimed item may sit before it is considered
+  // abandoned (crash) and reclaimed. Generation reclaim is safe (at-least-once);
+  // send items stuck in 'sending' are NOT auto-reclaimed (at-most-once).
+  OUTREACH_JOB_SWEEP_MS: z.coerce.number().int().positive().default(5_000),
+  OUTREACH_JOB_STALE_MS: z.coerce.number().int().positive().default(120_000),
+
   // SAM.gov Contract Opportunities API key (api.data.gov). Stored in Secrets
   // Manager and injected as an env var; optional so non-prod boots without it.
   SAM_GOV_API_KEY: z.string().optional(),

@@ -242,7 +242,6 @@ interface ClientContext {
     mailThreads: number;
     contacts: number;
     openTasks: number;
-    rag: string;
   };
 }
 

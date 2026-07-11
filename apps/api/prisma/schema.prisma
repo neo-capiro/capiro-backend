@@ -215,6 +215,8 @@ model Tenant {
   outreachAudienceMembers      OutreachAudienceMember[]
   MeetingDebrief               MeetingDebrief[]
   meetingBotSessions           MeetingBotSession[]
+  outreachJobs                 OutreachJob[]
+  outreachJobItems             OutreachJobItem[]
   clioConversations            ClioConversation[]
   clioMessages                 ClioMessage[]
   clioArtifacts                ClioArtifact[]
@@ -1559,14 +1561,81 @@ model AiUsageEvent {
   model         String   @db.VarChar(80)
   inputTokens   Int      @map("input_tokens")
   outputTokens  Int      @map("output_tokens")
+  /// Prompt-cache token counters (W3.3): read = cache hit (discounted), creation
+  /// = cache write. Anthropic reports both; OpenAI reports cache reads only.
+  cacheReadTokens     Int @default(0) @map("cache_read_tokens")
+  cacheCreationTokens Int @default(0) @map("cache_creation_tokens")
   costUsd       Decimal  @map("cost_usd") @db.Decimal(12, 6)
   usedTenantKey Boolean  @default(false) @map("used_tenant_key")
+  /// Outreach prompt-assembly spec that produced this generation ('v1'|'v2'); null
+  /// for non-outreach workflows (A12 traceability).
+  promptSpecVersion String? @map("prompt_spec_version") @db.VarChar(8)
   createdAt     DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
 
   tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
 
   @@index([tenantId, createdAt], map: "ai_usage_events_tenant_created_idx")
   @@map("ai_usage_events")
+}
+
+/// Async outreach job (plan W4 / §3.3). One row per generate-or-send request the
+/// wizard submits; the claim-sweep worker drives it to completion off the request
+/// path (past the ALB idle ceiling). requestKey is the client idempotency token —
+/// a duplicate POST with the same (tenant, requestKey) returns the existing job.
+model OutreachJob {
+  id               String    @id @default(uuid()) @db.Uuid
+  tenantId         String    @map("tenant_id") @db.Uuid
+  userId           String?   @map("user_id") @db.Uuid
+  /// 'generate' | 'send'
+  kind             String    @db.VarChar(16)
+  outreachRecordId String?   @map("outreach_record_id") @db.Uuid
+  /// promptSpecVersion, model, provider, templateId, tone, length, direction, contextItems, appendSignature, attachmentIds, testMode …
+  params           Json      @default("{}") @map("params_jsonb")
+  /// queued | running | partial | complete | failed | canceled
+  status           String    @default("queued") @db.VarChar(16)
+  /// { queued, succeeded, failed, skipped }
+  totals           Json      @default("{}") @map("totals_jsonb")
+  requestKey       String    @map("request_key") @db.VarChar(128)
+  error            String?
+  startedAt        DateTime? @map("started_at") @db.Timestamptz(6)
+  finishedAt       DateTime? @map("finished_at") @db.Timestamptz(6)
+  createdAt        DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt        DateTime  @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  tenant Tenant            @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  items  OutreachJobItem[]
+
+  @@unique([tenantId, requestKey], map: "outreach_jobs_tenant_request_key")
+  @@index([status, createdAt], map: "outreach_jobs_status_created_idx")
+  @@map("outreach_jobs")
+}
+
+/// One recipient's unit of work within an OutreachJob. Claimed atomically
+/// (pending → claimed) so exactly one worker processes it; the (jobId,
+/// recipientKey) unique index is the server-side dedup + the resume anchor.
+model OutreachJobItem {
+  id           String    @id @default(uuid()) @db.Uuid
+  jobId        String    @map("job_id") @db.Uuid
+  tenantId     String    @map("tenant_id") @db.Uuid
+  recipientKey String    @map("recipient_key") @db.VarChar(256)
+  /// recipient snapshot (generate) or the draft to send (send)
+  payload      Json      @default("{}") @map("payload_jsonb")
+  /// pending | claimed | generating | done | failed | sending | sent | skipped
+  status       String    @default("pending") @db.VarChar(16)
+  /// { subject, body, contextNote } or { messageId }
+  result       Json?     @map("result_jsonb")
+  attempt      Int       @default(0)
+  error        String?
+  claimedAt    DateTime? @map("claimed_at") @db.Timestamptz(6)
+  createdAt    DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt    DateTime  @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  job    OutreachJob @relation(fields: [jobId], references: [id], onDelete: Cascade)
+  tenant Tenant      @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  @@unique([jobId, recipientKey], map: "outreach_job_items_job_recipient")
+  @@index([jobId, status], map: "outreach_job_items_job_status_idx")
+  @@map("outreach_job_items")
 }
 
 /// Per-tenant AI provider key, AES-256-GCM encrypted at rest with

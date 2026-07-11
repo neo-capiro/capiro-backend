@@ -1,6 +1,8 @@
 import {
   BadRequestException,
   ForbiddenException,
+  HttpException,
+  HttpStatus,
   Injectable,
   Logger,
   NotFoundException,
@@ -28,7 +30,6 @@ import {
   Prisma,
 } from '@prisma/client';
 import mammoth from 'mammoth';
-import sanitizeHtml from 'sanitize-html';
 import { sanitizeSignatureHtml } from '../common/sanitize-signature.js';
 import { meetingsCrossUserEnabled } from '../common/tenant-flags.js';
 import { extractXlsxText, isSpreadsheetAttachment } from './xlsx-extract.js';
@@ -45,6 +46,11 @@ import { FederalSpendingService } from '../federal-spending/federal-spending.ser
 import { ClientAssociationService } from './client-association.service.js';
 import { EngagementAiService } from './engagement-ai.service.js';
 import { recordAiUsageEvent, type AiGenerationUsageLike } from './ai-usage-record.js';
+import {
+  appendOutreachSignature,
+  renderOutreachBody,
+  type RenderedOutreachBody,
+} from './outreach-email-renderer.js';
 import { MeetingNotesCryptoService } from './meeting-notes-crypto.service.js';
 import { MicrosoftGraphSyncService } from './microsoft/microsoft-graph-sync.service.js';
 import { ClientKbService } from '../embeddings/client-kb.service.js';
@@ -260,6 +266,21 @@ export interface GenerateBatchEmailInput {
   // v2 wizard additions, older callers that omit these are unaffected.
   direction?: 'on-behalf' | 'to-clients';
   contextItems?: OutreachSelectedContextItemInput[];
+  /**
+   * Audience shape for this batch. The v2 wizard sends 'group' when the single
+   * supplied recipient represents a whole group that gets ONE shared email — the
+   * draft must then use a collective salutation and drop per-member tailoring.
+   * Absent/'individual' preserves the existing per-recipient behavior.
+   */
+  audienceKind?: 'individual' | 'group';
+  /**
+   * Revision ("Improve") mode. When `existingBody` is present on a SINGLE-recipient
+   * batch, the draft is edited in place per `reviseInstruction` (change nothing
+   * else) instead of written from scratch — PromptSpec v2 revision mode.
+   */
+  existingSubject?: string;
+  existingBody?: string;
+  reviseInstruction?: string;
 }
 
 export interface GenerateTalkingPointsInput {
@@ -380,6 +401,14 @@ export function isAllowedAttachmentContentType(contentType: string): boolean {
   );
 }
 const REPORT_STATUSES: ReportStatus[] = ['auto', 'not_started', 'in_progress', 'complete'];
+
+/** AiUsageEvent workflows counted against the daily outreach token budget (W3.4). */
+const OUTREACH_BUDGET_WORKFLOWS = [
+  'outreach_campaign',
+  'outreach_draft',
+  'template_preview',
+  'campaign_email',
+] as const;
 const OUTBOUND_CAMPAIGN_VARIABLES = [
   'current_date_time',
   'attendee_names',
@@ -630,6 +659,7 @@ export class EngagementService {
   private readonly s3: S3Client;
   private readonly bucket?: string;
   private readonly openAiApiKey?: string;
+  private readonly outreachDailyTokenBudget: number;
 
   constructor(
     private readonly prisma: PrismaService,
@@ -645,7 +675,49 @@ export class EngagementService {
   ) {
     this.bucket = config.get('ASSETS_BUCKET', { infer: true });
     this.openAiApiKey = config.get('OPENAI_API_KEY', { infer: true });
+    this.outreachDailyTokenBudget = config.get('OUTREACH_DAILY_TOKEN_BUDGET', { infer: true });
     this.s3 = new S3Client({ region: config.get('AWS_REGION_DEFAULT', { infer: true }) });
+  }
+
+  /**
+   * Per-tenant daily outreach token budget status (plan W3.4 / A7). Sums today's
+   * (UTC) input+output tokens across outreach generation workflows and compares
+   * to OUTREACH_DAILY_TOKEN_BUDGET. Best-effort: any read failure fails OPEN (no
+   * block) — a metering hiccup must never wedge outreach. Budget 0 = disabled.
+   */
+  private async outreachBudgetStatus(ctx: TenantContext): Promise<{
+    used: number;
+    budget: number;
+    ratio: number;
+    hardStop: boolean;
+    softWarn: boolean;
+  }> {
+    const budget = this.outreachDailyTokenBudget;
+    if (!budget || budget <= 0) {
+      return { used: 0, budget: 0, ratio: 0, hardStop: false, softWarn: false };
+    }
+    try {
+      const now = new Date();
+      const startOfDay = new Date(
+        Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate()),
+      );
+      const agg = await this.prisma.withTenant(ctx.tenantId, (tx) =>
+        tx.aiUsageEvent.aggregate({
+          where: {
+            tenantId: ctx.tenantId,
+            workflow: { in: [...OUTREACH_BUDGET_WORKFLOWS] },
+            createdAt: { gte: startOfDay },
+          },
+          _sum: { inputTokens: true, outputTokens: true },
+        }),
+      );
+      const used = (agg._sum.inputTokens ?? 0) + (agg._sum.outputTokens ?? 0);
+      const ratio = used / budget;
+      return { used, budget, ratio, hardStop: used >= budget, softWarn: ratio >= 0.8 };
+    } catch (err) {
+      this.logger.warn(`Outreach budget check failed (failing open): ${(err as Error).message}`);
+      return { used: 0, budget, ratio: 0, hardStop: false, softWarn: false };
+    }
   }
 
   /**
@@ -1522,6 +1594,7 @@ export class EngagementService {
           provider: generated.provider,
           model: generated.model,
           generatedAt: generatedAt.toISOString(),
+          promptSpecVersion: generated.promptSpecVersion ?? 'v1',
         },
       }),
       { direction, contextPool },
@@ -1660,7 +1733,8 @@ export class EngagementService {
       recipientsAttempted: recipients.length,
       recipientsSent: sent.length,
       recipientsFailed: errors.length,
-      openRate: '0%',
+      // Opens are NOT tracked (no tracking pixels — D8). Only real signals are
+      // persisted; reply detection updates replyCount when it lands.
       replyCount: 0,
       sent,
       ...(errors.length ? { errors } : {}),
@@ -2092,17 +2166,6 @@ export class EngagementService {
   async getOutreachInsights(ctx: TenantContext, query: { clientId?: string }) {
     const clientId = query.clientId?.trim() || null;
 
-    let clientName: string | null = null;
-    let clientLdaHistory: Array<{ year: number; filingCount: number; issueAreas: string[] }> = [];
-    let recentBills: Array<{
-      id: string;
-      billNumber: string;
-      title: string;
-      policyArea: string | null;
-      status: string | null;
-      latestAction: string | null;
-    }> = [];
-
     const billSelect = {
       id: true,
       billNumber: true,
@@ -2111,40 +2174,94 @@ export class EngagementService {
       latestActionText: true,
       latestActionDate: true,
     } as const;
+    type BillRow = {
+      id: string;
+      billNumber: string;
+      title: string;
+      policyArea: string | null;
+      latestActionText: string | null;
+      latestActionDate: Date | null;
+    };
+    const toRecentBill = (b: BillRow) => ({
+      id: b.id,
+      billNumber: b.billNumber,
+      title: b.title,
+      policyArea: b.policyArea,
+      status: b.latestActionDate ? b.latestActionDate.toISOString().slice(0, 10) : null,
+      latestAction: b.latestActionText ?? null,
+    });
+    // congress_bill is a GLOBAL (non-RLS) table, read directly like elsewhere in
+    // this method; the 10 most-recently-updated bills are the tenant-agnostic
+    // fallback used only when the client tracks nothing of its own.
+    const recentGlobalBills = (): Promise<BillRow[]> =>
+      this.prisma.congressBill.findMany({
+        orderBy: { updateDate: 'desc' },
+        take: 10,
+        select: billSelect,
+      });
+
+    let clientName: string | null = null;
+    let clientLdaHistory: Array<{ year: number; filingCount: number; issueAreas: string[] }> = [];
+    let recentBills: Array<ReturnType<typeof toRecentBill>> = [];
 
     if (clientId) {
-      const clientIdNum = Number(clientId);
-      const [client, ldaFilings, bills] = await Promise.all([
+      // A Capiro client maps to a SET of LDA registrant ids (client.ldaClientIds);
+      // the old code did `Number(<uuid>)` → NaN and the guard silently skipped the
+      // filing query, so LDA history was ALWAYS empty. Query by the real id set.
+      // In parallel, load the client's actively tracked bills — the "reason to
+      // write now" hook — which take precedence over the global recent list.
+      const [client, trackedBillRefs] = await Promise.all([
         this.prisma.withTenant(ctx.tenantId, (tx) =>
           tx.client.findFirst({
             where: { id: clientId, tenantId: ctx.tenantId },
-            select: { name: true },
+            select: { name: true, ldaClientIds: true },
           }),
         ),
-        isNaN(clientIdNum)
-          ? Promise.resolve([])
-          : this.prisma.ldaFiling.findMany({
-              where: { clientId: clientIdNum },
+        this.prisma.withTenant(ctx.tenantId, (tx) =>
+          tx.trackedBill.findMany({
+            where: { tenantId: ctx.tenantId, clientId },
+            orderBy: { updatedAt: 'desc' },
+            take: 10,
+            select: { billId: true },
+          }),
+        ),
+      ]);
+      clientName = client?.name ?? null;
+      const ldaClientIds = client?.ldaClientIds ?? [];
+      const trackedBillIds = trackedBillRefs.map((t) => t.billId);
+
+      const [ldaFilings, trackedBills] = await Promise.all([
+        ldaClientIds.length
+          ? this.prisma.ldaFiling.findMany({
+              where: { clientId: { in: ldaClientIds } },
               select: { filingYear: true, issueCodes: true },
               orderBy: { dtPosted: 'desc' },
               take: 100,
-            }),
-        this.prisma.congressBill.findMany({
-          orderBy: { updateDate: 'desc' },
-          take: 10,
-          select: billSelect,
-        }),
+            })
+          : Promise.resolve([] as Array<{ filingYear: number; issueCodes: string[] }>),
+        trackedBillIds.length
+          ? this.prisma.congressBill.findMany({
+              where: { id: { in: trackedBillIds } },
+              select: billSelect,
+            })
+          : Promise.resolve([] as BillRow[]),
       ]);
 
-      clientName = client?.name ?? null;
-      recentBills = bills.map((b) => ({
-        id: b.id,
-        billNumber: b.billNumber,
-        title: b.title,
-        policyArea: b.policyArea,
-        status: b.latestActionDate ? b.latestActionDate.toISOString().slice(0, 10) : null,
-        latestAction: b.latestActionText ?? null,
-      }));
+      if (trackedBills.length) {
+        // Preserve the tracked-bill recency order (trackedBillIds is ordered by
+        // updatedAt desc; congressBill.findMany order is not guaranteed).
+        const byId = new Map(trackedBills.map((b) => [b.id, b]));
+        recentBills = trackedBillIds
+          .map((id) => byId.get(id))
+          .filter((b): b is BillRow => Boolean(b))
+          .map(toRecentBill);
+      } else {
+        // Fall back to global recent bills whenever the client has no RESOLVED
+        // tracked bills — this covers both "tracks nothing" and "tracks bills
+        // whose ids aren't in congress_bill yet" (fetched only on this path so
+        // the common tracked case pays no extra query).
+        recentBills = (await recentGlobalBills()).map(toRecentBill);
+      }
 
       const byYear = new Map<number, Set<string>>();
       for (const filing of ldaFilings) {
@@ -2162,19 +2279,8 @@ export class EngagementService {
           issueAreas: Array.from(areas),
         }));
     } else {
-      const bills = await this.prisma.congressBill.findMany({
-        orderBy: { updateDate: 'desc' },
-        take: 10,
-        select: billSelect,
-      });
-      recentBills = bills.map((b) => ({
-        id: b.id,
-        billNumber: b.billNumber,
-        title: b.title,
-        policyArea: b.policyArea,
-        status: b.latestActionDate ? b.latestActionDate.toISOString().slice(0, 10) : null,
-        latestAction: b.latestActionText ?? null,
-      }));
+      const bills = await recentGlobalBills();
+      recentBills = bills.map(toRecentBill);
     }
 
     const [lobbyCtx, spendCtx] = await Promise.all([
@@ -2226,14 +2332,51 @@ export class EngagementService {
   async generateBatchEmails(ctx: TenantContext, input: GenerateBatchEmailInput) {
     const {
       templateId,
-      recipients,
       insights,
       additionalContext,
       tone,
       clientId,
       contextItems,
       direction,
+      audienceKind,
+      existingSubject,
+      existingBody,
+      reviseInstruction,
     } = input;
+
+    // Daily token budget gate (W3.4): hard-stop before spending anything when the
+    // tenant has hit its ceiling for the day; a typed 429 the wizard renders with
+    // the admin contact. (Soft-warn at 80% rides back on the response below.)
+    const budget = await this.outreachBudgetStatus(ctx);
+    if (budget.hardStop) {
+      throw new HttpException(
+        {
+          statusCode: HttpStatus.TOO_MANY_REQUESTS,
+          error: 'OUTREACH_TOKEN_BUDGET_EXCEEDED',
+          message:
+            'Your organization has reached its daily outreach AI limit. Drafting resets at 00:00 UTC — contact your Capiro admin to raise the limit.',
+        },
+        HttpStatus.TOO_MANY_REQUESTS,
+      );
+    }
+
+    // A 'group' batch is ONE shared email whose single recipient is a stand-in
+    // for the whole group; per-member enrichment (directory profile, that
+    // member's press / meeting / email history) must NOT be hoisted, or the
+    // draft tailors itself to one member (see buildOutreachPrompt group branch).
+    const isGroup = audienceKind === 'group';
+
+    // Revision ("Improve") mode: the wizard re-POSTs ONE draft with the user's
+    // current (possibly hand-edited) body + a freeform instruction. Guarded to a
+    // single recipient so a multi-recipient batch can never be revised against
+    // one body. Triggers PromptSpec v2 revision mode (edit-in-place, change
+    // nothing else) via existingBody + objective=instruction.
+    const isReviseSingle = Boolean(existingBody) && input.recipients.length === 1;
+
+    // Defense-in-depth dedup (A13): the wizard already POSTs unique recipients,
+    // but a duplicated recipientKey would otherwise fan out a redundant, billable
+    // AI call and produce two results under the same key. See dedupeOutreachRecipients.
+    const recipients = dedupeOutreachRecipients(input.recipients);
 
     const systemTemplate = SYSTEM_AI_TEMPLATES.find((t) => t.id === templateId);
     let templatePrompt: string;
@@ -2318,13 +2461,29 @@ export class EngagementService {
     // Author voice: sender writing-style + client soul/compass memory. Recipient-
     // invariant, so resolve once and reuse. Hoisted into the prompt's AUTHOR
     // VOICE section by buildOutreachPrompt (it reads context.userWritingStyle).
-    const userWritingStyle = await this.loadUserVoiceBlock(ctx, clientId ?? null).catch(() => null);
+    const voiceBlock = await this.loadUserVoiceBlock(ctx, clientId ?? null).catch(() => null);
+    // W5.6: append the author's own recent sent-outreach excerpts (PII-stripped)
+    // so drafts mirror their voice. Outreach-only (not in the shared voice block).
+    const voiceFewShots = await this.outreachVoiceFewShots(ctx).catch(() => null);
+    const userWritingStyle =
+      [voiceBlock, voiceFewShots].filter(Boolean).join('\n\n') || null;
 
     // Client's tracked legislation with latest action — a timely "reason to write
     // now" hook. Client-level, so resolve once.
     const trackedBillsBlock = clientId
       ? await this.outreachTrackedBillsBlock(ctx, clientId).catch(() => null)
       : null;
+
+    // W5 context channels, all client-level (resolved once): the watchlist
+    // priority issues, the tracked-bill ids (for the per-recipient vote join),
+    // and the upcoming-hearings window (filtered per recipient by committee).
+    const watchlistBlock = clientId
+      ? await this.outreachClientWatchlistBlock(ctx, clientId).catch(() => null)
+      : null;
+    const trackedBillIds = clientId
+      ? await this.outreachTrackedBillIds(ctx, clientId).catch(() => [])
+      : [];
+    const upcomingHearings = await this.outreachUpcomingHearings().catch(() => []);
 
     // Congressional directory profiles for the recipients, resolved in ONE
     // directory scan for the whole batch (the dataset is cached in-memory but
@@ -2388,6 +2547,18 @@ export class EngagementService {
       () => new Map<string, unknown[]>(),
     );
 
+    // W5 batched per-recipient channels: prior-outreach dedup (by email) and the
+    // recipient's votes on tracked bills (by bioguide). One query each.
+    const priorContactByEmail = await this.outreachPriorContactByEmail(
+      ctx,
+      clientId ?? null,
+      batchRecipientEmails,
+    ).catch(() => new Map<string, { sentAt: Date; subject: string | null }>());
+    const votesByBioguide = await this.outreachRelevantVotesByBioguide(
+      batchBioguideIds,
+      trackedBillIds,
+    ).catch(() => new Map<string, string>());
+
     // Generate per-recipient drafts with bounded concurrency. This was a
     // sequential await-loop, so a campaign's wall-clock was sum-of-all-calls
     // and large batches timed out before every draft came back. Running a few
@@ -2397,10 +2568,10 @@ export class EngagementService {
     // an entry, because the worker catches its own errors and yields a blank
     // draft — identical to the old per-iteration try/catch behavior.
     const OUTREACH_GEN_CONCURRENCY = 4;
-    const results = await mapWithConcurrency(
-      recipients,
-      OUTREACH_GEN_CONCURRENCY,
-      async (recipient, index) => {
+    const generateForRecipient = async (
+      recipient: (typeof recipients)[number],
+      index: number,
+    ) => {
         // Must match the frontend's recipientKey() chain (id first) so generated
         // drafts land under the key the wizard looks them up by. Previously this
         // started at directoryContactId, so to-clients recipients (which have
@@ -2469,18 +2640,42 @@ export class EngagementService {
             ? (threadsByEmail.get(recipientEmailLower) ?? [])
             : [];
 
+          // W5 per-recipient channels (all per-member ⇒ suppressed for a group,
+          // like the other per-member enrichment above; watchlist is client-level
+          // and included for groups too).
+          const relevantVotes = bioguideId ? (votesByBioguide.get(bioguideId) ?? null) : null;
+          const upcomingHearingsBlock = this.renderRecipientHearings(
+            upcomingHearings,
+            directoryMatch?.member?.committees ?? [],
+          );
+          const priorContact = recipientEmailLower
+            ? (priorContactByEmail.get(recipientEmailLower) ?? null)
+            : null;
+          const priorOutreachBlock = priorContact
+            ? `Your firm last emailed this recipient on ${priorContact.sentAt
+                .toISOString()
+                .slice(0, 10)}${priorContact.subject ? ` re: "${priorContact.subject}"` : ''} — do not repeat that ask verbatim; acknowledge or build on it.`
+            : null;
+
           const context: Record<string, unknown> = {
             tone: tone ?? 'professional',
             ...(direction ? { direction } : {}),
             ...(senderName ? { senderName } : {}),
             ...(senderSignature ? { senderSignature } : {}),
             ...(userWritingStyle ? { userWritingStyle } : {}),
-            ...(recipientProfile ? { recipientProfile } : {}),
+            // Per-member fields (profile, that member's press / meeting / email
+            // history) are suppressed for a group: they describe ONE member and
+            // would bias a one-email-to-all group draft toward that member.
+            ...(recipientProfile && !isGroup ? { recipientProfile } : {}),
             ...(trackedBillsBlock ? { trackedBills: trackedBillsBlock } : {}),
             ...(actionsBlock ? { actionRecommendations: actionsBlock } : {}),
-            ...(recentNews.length ? { recentNews } : {}),
-            ...(meetingHistory.length ? { meetingHistory } : {}),
-            ...(emailHistory.length ? { emailHistory } : {}),
+            ...(watchlistBlock ? { clientWatchlist: watchlistBlock } : {}),
+            ...(recentNews.length && !isGroup ? { recentNews } : {}),
+            ...(meetingHistory.length && !isGroup ? { meetingHistory } : {}),
+            ...(emailHistory.length && !isGroup ? { emailHistory } : {}),
+            ...(relevantVotes && !isGroup ? { relevantVotes } : {}),
+            ...(upcomingHearingsBlock && !isGroup ? { upcomingHearings: upcomingHearingsBlock } : {}),
+            ...(priorOutreachBlock && !isGroup ? { priorOutreach: priorOutreachBlock } : {}),
             ...(insightsContext ? { insights: insightsContext } : {}),
             ...(additionalContext ? { additionalContext } : {}),
             ...(combinedContextNotes ? { contextItems: combinedContextNotes } : {}),
@@ -2494,7 +2689,12 @@ export class EngagementService {
               recipients: [recipient as unknown as Record<string, unknown>],
               context,
               promptTemplate: 'custom',
-              objective: templatePrompt,
+              // In revise mode the freeform instruction becomes the objective the
+              // revision-mode prompt edits toward; otherwise the campaign prompt.
+              objective:
+                isReviseSingle && reviseInstruction ? reviseInstruction : templatePrompt,
+              ...(audienceKind ? { audienceKind } : {}),
+              ...(isReviseSingle ? { existingSubject, existingBody } : {}),
             },
             ctx,
           );
@@ -2509,10 +2709,37 @@ export class EngagementService {
           );
           return { recipientId, subject: '', body: '' };
         }
-      },
-    );
+      };
 
-    return { results };
+    // Warm-first fan-out (W3.3): when v2 prompt caching is active, draft
+    // recipient #1 alone so its cache WRITE lands before the parallel fan-out —
+    // drafts 2..N then read the cached byte-stable prefix (cache_read) instead of
+    // each re-paying the full shared input. Without caching, the plain bounded
+    // fan-out is faster (no reason to serialize the first call).
+    let results: Array<{ recipientId: string; subject: string; body: string }>;
+    if (this.ai.outreachCachingEnabled && recipients.length > 1) {
+      const head = await generateForRecipient(recipients[0]!, 0);
+      const tail = await mapWithConcurrency(
+        recipients.slice(1),
+        OUTREACH_GEN_CONCURRENCY,
+        (recipient, i) => generateForRecipient(recipient, i + 1),
+      );
+      results = [head, ...tail];
+    } else {
+      results = await mapWithConcurrency(
+        recipients,
+        OUTREACH_GEN_CONCURRENCY,
+        generateForRecipient,
+      );
+    }
+
+    // Soft-warn banner (W3.4): surfaced once the tenant crosses 80% of the daily
+    // budget so the human sees it coming before the hard-stop.
+    const budgetWarning = budget.softWarn
+      ? `Your organization has used ${Math.round(budget.ratio * 100)}% of today's outreach AI limit.`
+      : undefined;
+
+    return { results, ...(budgetWarning ? { budgetWarning } : {}) };
   }
 
   /**
@@ -2527,45 +2754,10 @@ export class EngagementService {
     if (!drafts.length) {
       throw new BadRequestException('No drafts to send. Generate emails first.');
     }
-    // v2 Generate & Review drafts are HTML; older/plain drafts are Text. For
-    // HTML, SANITIZE server-side (defense-in-depth — never trust the client
-    // body, even though the client also sanitizes) and send as Graph 'HTML';
-    // plain drafts pass through as 'Text' (the plaintext fallback).
-    const renderBody = (
-      raw: string | undefined,
-    ): { content: string; contentType: 'Text' | 'HTML' } => {
-      const body = raw ?? '';
-      if (!/<[a-z][\s\S]*>/i.test(body)) return { content: body, contentType: 'Text' };
-      return {
-        content: sanitizeHtml(body, {
-          allowedTags: [
-            'b',
-            'strong',
-            'i',
-            'em',
-            'u',
-            's',
-            'p',
-            'br',
-            'h2',
-            'h3',
-            'ul',
-            'ol',
-            'li',
-            'a',
-            'blockquote',
-            'div',
-            'span',
-          ],
-          allowedAttributes: { a: ['href', 'target', 'rel'] },
-          allowedSchemes: ['http', 'https', 'mailto'],
-          transformTags: {
-            a: sanitizeHtml.simpleTransform('a', { target: '_blank', rel: 'noopener noreferrer' }),
-          },
-        }),
-        contentType: 'HTML',
-      };
-    };
+    // v2 Generate & Review drafts are HTML; older/plain drafts are Text. Rendering
+    // (sanitize allowlist + plaintext escape + signature append) is the shared
+    // OutreachEmailRenderer (W6.1) so every send path produces identical output.
+    const renderBody = renderOutreachBody;
 
     const connection = await this.findCampaignSendConnection(ctx);
 
@@ -2596,24 +2788,10 @@ export class EngagementService {
         ? sanitizeSignatureHtml(sender.emailSignatureHtml)
         : '';
 
-    const escapeToHtml = (s: string) =>
-      s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/\n/g, '<br>');
-
-    // Append the signature to a rendered body. A plaintext body is escaped to
-    // HTML first so the signature's markup renders; the result always sends as
-    // HTML. No-op when there's no signature to append.
-    const withSignature = (rendered: {
-      content: string;
-      contentType: 'Text' | 'HTML';
-    }): { content: string; contentType: 'Text' | 'HTML' } => {
-      if (!signatureHtml) return rendered;
-      const bodyHtml =
-        rendered.contentType === 'HTML' ? rendered.content : escapeToHtml(rendered.content);
-      return {
-        content: `${bodyHtml}<br><br>${signatureHtml}`,
-        contentType: 'HTML',
-      };
-    };
+    // Signature append uses the shared renderer (W6.1); bind the resolved
+    // signature so call sites stay `withSignature(rendered)`.
+    const withSignature = (rendered: RenderedOutreachBody): RenderedOutreachBody =>
+      appendOutreachSignature(rendered, signatureHtml);
 
     // Resolve attachments once (same set for every recipient). Files above the
     // Graph simple-send inline limit (~3MB) are skipped and reported back; larger
@@ -2820,7 +2998,8 @@ export class EngagementService {
       recipientsAttempted: sent.length + errors.length,
       recipientsSent: sent.length,
       recipientsFailed: errors.length,
-      openRate: '0%',
+      // Opens are NOT tracked (no tracking pixels — D8). Only real signals are
+      // persisted; reply detection updates replyCount when it lands.
       replyCount: 0,
       sent,
       ...(errors.length ? { errors } : {}),
@@ -4617,7 +4796,6 @@ export class EngagementService {
           mailThreads: threads.length,
           contacts: keyStakeholders.length,
           openTasks: tasks.length,
-          rag: 'pgvector storage is provisioned; embeddings are written once an embedding provider is configured.',
         },
       };
     });
@@ -5456,6 +5634,235 @@ export class EngagementService {
     return `Recommended actions for this client (from the intelligence action feed):\n${lines.join(
       '\n',
     )}`;
+  }
+
+  /**
+   * W5.5 — the client's watchlist priority issues (issue areas + tracked tags).
+   * Renders the REAL watchlist signal (what the client cares about); it does NOT
+   * fabricate a support/oppose stance, because ClientWatchlist tags are
+   * issue-tracking terms with no stance/priority field in the schema. Client-level.
+   */
+  private async outreachClientWatchlistBlock(
+    ctx: TenantContext,
+    clientId: string,
+  ): Promise<string | null> {
+    const wl = await this.prisma.withTenant(ctx.tenantId, (tx) =>
+      tx.clientWatchlist.findFirst({
+        where: { tenantId: ctx.tenantId, clientId },
+        select: { issueAreas: true, tags: true },
+      }),
+    );
+    if (!wl) return null;
+    const tags = Array.isArray(wl.tags) ? wl.tags : [];
+    const tagLabels = tags
+      .map((t) => (t && typeof t === 'object' ? String((t as { tag?: unknown }).tag ?? '') : ''))
+      .map((s) => s.trim())
+      .filter(Boolean);
+    const areas = (wl.issueAreas ?? []).map((s) => s.trim()).filter(Boolean);
+    if (!tagLabels.length && !areas.length) return null;
+    const parts: string[] = [];
+    if (areas.length) parts.push(`Issue areas: ${areas.slice(0, 12).join(', ')}`);
+    if (tagLabels.length) parts.push(`Tracked priorities: ${tagLabels.slice(0, 12).join(', ')}`);
+    return `Client watchlist (the client's standing priority issues — align the ask to these where relevant; do not invent a position the client has not stated):\n${parts.join('\n')}`;
+  }
+
+  /**
+   * W5.2 — prior-outreach dedup. For each recipient email, the most recent SENT
+   * outreach in the last 90d, so the draft doesn't repeat an ask verbatim (and the
+   * wizard can badge "last contacted Nd ago"). Batched (one query) + tenant-scoped.
+   */
+  private async outreachPriorContactByEmail(
+    ctx: TenantContext,
+    clientId: string | null,
+    emailsLower: string[],
+  ): Promise<Map<string, { sentAt: Date; subject: string | null }>> {
+    const out = new Map<string, { sentAt: Date; subject: string | null }>();
+    if (!emailsLower.length) return out;
+    const wanted = new Set(emailsLower);
+    const since = new Date(Date.now() - 90 * 864e5);
+    const rows = await this.prisma
+      .withTenant(ctx.tenantId, (tx) =>
+        tx.outreachRecord.findMany({
+          where: {
+            tenantId: ctx.tenantId,
+            status: 'sent',
+            sentAt: { gte: since },
+            deletedAt: null,
+            ...(clientId ? { clientId } : {}),
+          },
+          orderBy: { sentAt: 'desc' },
+          take: 300,
+          select: { subject: true, sentAt: true, recipients: true },
+        }),
+      )
+      .catch(() => [] as Array<{ subject: string | null; sentAt: Date | null; recipients: unknown }>);
+    for (const r of rows) {
+      if (!r.sentAt) continue;
+      const recips = Array.isArray(r.recipients) ? r.recipients : [];
+      for (const rc of recips) {
+        const email =
+          rc && typeof rc === 'object'
+            ? String((rc as { email?: unknown }).email ?? '')
+                .trim()
+                .toLowerCase()
+            : '';
+        if (email && wanted.has(email) && !out.has(email)) {
+          out.set(email, { sentAt: r.sentAt, subject: r.subject });
+        }
+      }
+    }
+    return out;
+  }
+
+  /**
+   * W5.3 — upcoming hearings (next 30d) for the recipient's committees. Fetches
+   * the window once (global committee_hearing, no RLS); callers filter per
+   * recipient by committee name. Returns the raw rows so the per-recipient match
+   * can do a tolerant name comparison (directory + hearing naming drift).
+   */
+  private async outreachUpcomingHearings(): Promise<
+    Array<{ committeeName: string; chamber: string; title: string; date: Date }>
+  > {
+    const now = new Date();
+    const startOfToday = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate()));
+    const in30 = new Date(startOfToday.getTime() + 30 * 864e5);
+    return this.prisma.committeeHearing
+      .findMany({
+        where: { date: { gte: startOfToday, lte: in30 } },
+        orderBy: { date: 'asc' },
+        take: 300,
+        select: { committeeName: true, chamber: true, title: true, date: true },
+      })
+      .catch(() => []);
+  }
+
+  /** Render a recipient's upcoming hearings from the pre-fetched window (cap 3). */
+  private renderRecipientHearings(
+    hearings: Array<{ committeeName: string; chamber: string; title: string; date: Date }>,
+    committees: string[],
+  ): string | null {
+    if (!hearings.length || !committees.length) return null;
+    const wanted = committees.map((c) => c.trim().toLowerCase()).filter(Boolean);
+    const matches = hearings
+      .filter((h) => {
+        const name = h.committeeName.trim().toLowerCase();
+        return wanted.some((c) => c && (name.includes(c) || c.includes(name)));
+      })
+      .slice(0, 3);
+    if (!matches.length) return null;
+    const lines = matches.map(
+      (h) => `- ${h.date.toISOString().slice(0, 10)} — ${h.committeeName}: ${h.title}`,
+    );
+    return `Upcoming hearings on this recipient's committee(s) (next 30 days) — a timely reason to write now:\n${lines.join('\n')}`;
+  }
+
+  /**
+   * W5.1 — the recipient's recent floor votes on the CLIENT's tracked bills.
+   * billIds resolve once per campaign; votes/members are global (no RLS). Returns
+   * a bioguide → rendered-block map for per-recipient lookup. Zero fabrication:
+   * a recipient with no matching vote gets nothing.
+   */
+  private async outreachRelevantVotesByBioguide(
+    bioguideIds: string[],
+    trackedBillIds: string[],
+  ): Promise<Map<string, string>> {
+    const out = new Map<string, string>();
+    if (!bioguideIds.length || !trackedBillIds.length) return out;
+    const votes = await this.prisma.rollCallVote
+      .findMany({
+        where: { billId: { in: trackedBillIds } },
+        orderBy: { voteDate: 'desc' },
+        take: 120,
+        select: { id: true, billId: true, question: true, result: true, voteDate: true, title: true },
+      })
+      .catch(() => [] as Array<{ id: string; billId: string | null; question: string | null; result: string | null; voteDate: Date; title: string | null }>);
+    if (!votes.length) return out;
+    const voteById = new Map(votes.map((v) => [v.id, v]));
+    const members = await this.prisma.memberVote
+      .findMany({
+        where: { voteId: { in: votes.map((v) => v.id) }, bioguideId: { in: bioguideIds } },
+        orderBy: { id: 'asc' },
+        select: { voteId: true, bioguideId: true, voteCast: true },
+      })
+      .catch(() => [] as Array<{ voteId: string; bioguideId: string | null; voteCast: string }>);
+    const byBioguide = new Map<string, string[]>();
+    for (const m of members) {
+      if (!m.bioguideId) continue;
+      const v = voteById.get(m.voteId);
+      if (!v) continue;
+      const list = byBioguide.get(m.bioguideId) ?? [];
+      if (list.length >= 3) continue;
+      const label = v.question || v.title || 'floor vote';
+      list.push(
+        `- ${v.voteDate.toISOString().slice(0, 10)} — ${label}${v.result ? ` (${v.result})` : ''}: voted ${m.voteCast}`,
+      );
+      byBioguide.set(m.bioguideId, list);
+    }
+    for (const [bioguide, lines] of byBioguide) {
+      out.set(
+        bioguide,
+        `This recipient's recent floor votes on the client's tracked bills (reference these accurately; never imply a position beyond the recorded vote):\n${lines.join('\n')}`,
+      );
+    }
+    return out;
+  }
+
+  /**
+   * W5.6 — voice few-shots: 2-3 excerpts from the user's OWN recently sent
+   * outreach, so drafts sound like this author. PII-stripped (emails/phones
+   * scrubbed) and capped; style guidance only, never a source of facts. Scoped to
+   * the outreach path (appended to the voice block there), not the shared
+   * loadUserVoiceBlock used by meeting prep/debrief.
+   */
+  private async outreachVoiceFewShots(ctx: TenantContext): Promise<string | null> {
+    const rows = await this.prisma
+      .withTenant(ctx.tenantId, (tx) =>
+        tx.outreachRecord.findMany({
+          where: {
+            tenantId: ctx.tenantId,
+            createdByUserId: ctx.userId,
+            status: 'sent',
+            deletedAt: null,
+            body: { not: null },
+          },
+          orderBy: { sentAt: 'desc' },
+          take: 3,
+          select: { body: true },
+        }),
+      )
+      .catch(() => [] as Array<{ body: string | null }>);
+    const excerpts = rows
+      .map((r) => scrubPiiForVoice(r.body ?? ''))
+      .map((s) => s.trim())
+      .filter(Boolean)
+      .map((s) => (s.length > 400 ? `${s.slice(0, 399).trim()}…` : s));
+    if (!excerpts.length) return null;
+    // Total cap ~1200 chars across the (up to 3) excerpts.
+    const capped: string[] = [];
+    let total = 0;
+    for (const e of excerpts) {
+      if (total + e.length > 1200) break;
+      capped.push(e);
+      total += e.length;
+    }
+    if (!capped.length) return null;
+    return `RECENT SENT EXAMPLES BY THIS AUTHOR (mirror the tone, structure, and phrasing — do NOT copy content or reuse their specific facts):\n${capped
+      .map((e, i) => `Example ${i + 1}:\n${e}`)
+      .join('\n\n')}`;
+  }
+
+  /** Tracked bill ids for a client (client-level, resolved once per campaign). */
+  private async outreachTrackedBillIds(ctx: TenantContext, clientId: string): Promise<string[]> {
+    const rows = await this.prisma
+      .withTenant(ctx.tenantId, (tx) =>
+        tx.trackedBill.findMany({
+          where: { tenantId: ctx.tenantId, clientId },
+          select: { billId: true },
+          take: 50,
+        }),
+      )
+      .catch(() => [] as Array<{ billId: string }>);
+    return rows.map((r) => r.billId);
   }
 
   /**
@@ -7253,6 +7660,59 @@ async function ensureExists<T>(promise: Promise<T | null>, message: string): Pro
   const value = await promise;
   if (!value) throw new NotFoundException(message);
   return value;
+}
+
+/**
+ * Collapse duplicate outreach recipients by the SAME identifier chain the batch
+ * worker keys results on (id → directoryContactId → email(lowercased) → name),
+ * keep-first. Entries with none of those keep their slot (the worker falls back
+ * to the array index, which stays unique). Defense-in-depth against a
+ * duplicated recipientKey fanning out a redundant, billable AI call (A13).
+ * Exported for tests.
+ */
+export function dedupeOutreachRecipients(
+  recipients: OutreachRecipientInput[],
+): OutreachRecipientInput[] {
+  const out: OutreachRecipientInput[] = [];
+  const seen = new Set<string>();
+  for (const r of recipients) {
+    const rr = r as Record<string, unknown>;
+    // Key with the SAME raw id chain the batch worker uses for result.recipientId
+    // and the frontend uses for recipientKey (no trim/lowercase). Normalizing the
+    // email here would collapse case-variants to one result while the caller keys
+    // by the original case, silently dropping the variant recipient. Exact-dup
+    // recipientKeys (the real A13 target) still collapse.
+    const key =
+      rr.id?.toString() ||
+      rr.directoryContactId?.toString() ||
+      rr.email?.toString() ||
+      rr.name?.toString() ||
+      '';
+    if (key) {
+      if (seen.has(key)) continue;
+      seen.add(key);
+    }
+    out.push(r);
+  }
+  return out;
+}
+
+/**
+ * Scrub a sent-outreach body for use as a voice few-shot (W5.6). Strips HTML to
+ * text and redacts emails/phone numbers so an excerpt can never carry a
+ * recipient's contact details into another draft's prompt. Exported for the
+ * regex-guard test.
+ */
+export function scrubPiiForVoice(raw: string): string {
+  const text = raw
+    .replace(/<[^>]+>/g, ' ') // strip HTML tags (bodies are HTML)
+    .replace(/&nbsp;/gi, ' ')
+    .replace(/&amp;/gi, '&');
+  return text
+    .replace(/[\w.+-]+@[\w-]+\.[\w.-]+/g, '[email]') // email addresses
+    .replace(/\+?\d[\d\s().-]{8,}\d/g, '[phone]') // phone-ish digit runs
+    .replace(/\s+/g, ' ')
+    .trim();
 }
 
 function pruneForAi(value: unknown): Record<string, unknown> {

@@ -27,6 +27,8 @@ export interface AiGenerationUsageLike {
   usage?: ProviderUsage;
   /** Set by the credential resolver when the call ran on the tenant's own key. */
   usedTenantKey?: boolean;
+  /** Outreach prompt-assembly spec ('v1'|'v2'); undefined for non-outreach. */
+  promptSpecVersion?: string;
 }
 
 export async function recordAiUsageEvent(
@@ -48,8 +50,11 @@ export async function recordAiUsageEvent(
           model: generated.model,
           inputTokens: usage.inputTokens,
           outputTokens: usage.outputTokens,
+          cacheReadTokens: usage.cacheReadTokens ?? 0,
+          cacheCreationTokens: usage.cacheCreationTokens ?? 0,
           costUsd,
           usedTenantKey: generated.usedTenantKey ?? false,
+          promptSpecVersion: generated.promptSpecVersion ?? null,
         },
       }),
     );

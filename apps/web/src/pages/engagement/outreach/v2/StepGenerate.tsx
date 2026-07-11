@@ -14,10 +14,11 @@
 // component is the presentation + interaction layer.
 
 import { useEffect, useMemo, useState } from 'react';
-import { Button, Checkbox, Input, Select, Space, Typography, Upload } from 'antd';
+import { Alert, Button, Checkbox, Input, Select, Space, Typography, Upload } from 'antd';
 import {
   CheckOutlined,
   DownOutlined,
+  ExclamationCircleOutlined,
   PaperClipOutlined,
   RightOutlined,
   TeamOutlined,
@@ -46,6 +47,10 @@ interface Props {
   onSelectKey: (key: string) => void;
   onRegenerateAll: () => void;
   onRegenerateOne: (genKey: string) => void;
+  /** "Improve": revise the named draft in place per a freeform instruction. */
+  onImprove: (genKey: string, instruction: string) => void;
+  /** Revert the last "Improve" on the named draft. */
+  onRevert: (genKey: string) => void;
   /** Context (or template/tone) changed since these drafts were generated. */
   contextStale?: boolean;
   onEdit: (genKey: string, patch: { subject?: string; body?: string }) => void;
@@ -80,6 +85,8 @@ export function StepGenerate({
   onSelectKey,
   onRegenerateAll,
   onRegenerateOne,
+  onImprove,
+  onRevert,
   contextStale,
   onEdit,
   onApplyToList,
@@ -95,6 +102,8 @@ export function StepGenerate({
   const [collapsed, setCollapsed] = useState<Set<string>>(new Set());
   // The list-member draft just edited — drives the green propagation banner.
   const [bannerFor, setBannerFor] = useState<string | null>(null);
+  // Freeform "Improve" instruction for the active draft (cleared on switch/submit).
+  const [improveText, setImproveText] = useState('');
 
   // Flat lookup: genKey → { entity, slot }.
   const index = useMemo(() => {
@@ -118,8 +127,17 @@ export function StepGenerate({
   const batchGenerating = regenerating && !generatingKey;
 
   const select = (key: string) => {
-    if (key !== activeKey) setBannerFor(null);
+    if (key !== activeKey) {
+      setBannerFor(null);
+      setImproveText('');
+    }
     onSelectKey(key);
+  };
+
+  const submitImprove = () => {
+    if (!activeKey || !improveText.trim()) return;
+    onImprove(activeKey, improveText);
+    setImproveText('');
   };
 
   const editActive = (patch: { subject?: string; body?: string }) => {
@@ -234,10 +252,12 @@ export function StepGenerate({
               value={tone}
               onChange={onTone}
               className="ov2-gen-tone"
-              options={['Professional', 'Friendly', 'Formal', 'Concise'].map((t) => ({
-                value: t,
-                label: t,
-              }))}
+              options={[
+                { value: 'professional', label: 'Professional' },
+                { value: 'friendly', label: 'Friendly' },
+                { value: 'formal', label: 'Formal' },
+                { value: 'concise', label: 'Concise' },
+              ]}
             />
             <Button
               icon={<ThunderboltOutlined />}
@@ -280,6 +300,15 @@ export function StepGenerate({
           )}
 
           <div className="ov2-gen-editor-body">
+            {activeDraft?.status === 'error' && (
+              <Alert
+                type="warning"
+                showIcon
+                style={{ marginBottom: 12 }}
+                message="This draft couldn't be generated"
+                description='It won&apos;t be sent as-is. Edit the text below, or click "Regenerate this" to try again.'
+              />
+            )}
             {activeDraft ? (
               <>
                 <div className="ov2-gen-field-label">Subject</div>
@@ -296,6 +325,37 @@ export function StepGenerate({
                   onChange={(html) => editActive({ body: html })}
                   placeholder="Write the email…"
                 />
+                <div className="ov2-gen-improve" style={{ marginTop: 14 }}>
+                  <div className="ov2-gen-field-label">Improve with Meri</div>
+                  <div style={{ display: 'flex', gap: 8 }}>
+                    <Input
+                      value={improveText}
+                      onChange={(e) => setImproveText(e.target.value)}
+                      onPressEnter={submitImprove}
+                      placeholder="e.g. make it warmer, tighten the ask, add a line about the markup"
+                      disabled={!!activeKey && generatingKey === activeKey}
+                    />
+                    <Button
+                      type="primary"
+                      icon={<ThunderboltOutlined />}
+                      loading={!!activeKey && generatingKey === activeKey}
+                      disabled={!improveText.trim()}
+                      onClick={submitImprove}
+                    >
+                      Improve
+                    </Button>
+                  </div>
+                  {!!activeDraft.history?.length && (
+                    <Button
+                      type="link"
+                      size="small"
+                      style={{ paddingLeft: 0, marginTop: 4 }}
+                      onClick={() => activeKey && onRevert(activeKey)}
+                    >
+                      Revert last change
+                    </Button>
+                  )}
+                </div>
                 <Typography.Text type="secondary" className="ov2-gen-autosave">
                   Edits save automatically. Use “Save as draft” below to keep everything and finish
                   later.
@@ -397,6 +457,7 @@ function RailCard({
         <RailRow
           slot={slot}
           ready={isReady(generated[slot.genKey])}
+          errored={generated[slot.genKey]?.status === 'error'}
           active={activeKey === slot.genKey}
           onSelect={onSelect}
           onRegenerateOne={onRegenerateOne}
@@ -425,6 +486,7 @@ function RailCard({
             slot={slot}
             indented
             ready={isReady(generated[slot.genKey])}
+            errored={generated[slot.genKey]?.status === 'error'}
             active={activeKey === slot.genKey}
             onSelect={onSelect}
             onRegenerateOne={onRegenerateOne}
@@ -438,6 +500,7 @@ function RailCard({
 function RailRow({
   slot,
   ready,
+  errored,
   active,
   indented,
   onSelect,
@@ -446,6 +509,7 @@ function RailRow({
 }: {
   slot: RailSlot;
   ready: boolean;
+  errored?: boolean;
   active: boolean;
   indented?: boolean;
   onSelect: (key: string) => void;
@@ -458,7 +522,14 @@ function RailRow({
       onClick={() => onSelect(slot.genKey)}
     >
       <span className={'ov2-gen-check' + (ready ? ' ready' : '')}>
-        {ready && <CheckOutlined />}
+        {ready ? (
+          <CheckOutlined />
+        ) : errored ? (
+          <ExclamationCircleOutlined
+            style={{ color: 'var(--ov2-warn, #d97706)' }}
+            title="Generation failed — edit or regenerate before sending"
+          />
+        ) : null}
       </span>
       <div className="ov2-gen-row-main">
         <div className="ov2-gen-row-name">{slot.name}</div>
