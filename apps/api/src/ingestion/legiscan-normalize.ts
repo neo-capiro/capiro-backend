@@ -115,22 +115,34 @@ function safeDate(v: string | null | undefined): Date | null {
 }
 
 /**
- * LegiScan's committee.chamber is a single-letter code ('H' House, 'S' Senate,
- * 'A' Assembly — verified against the LegiScan API user manual + fulltext-search
- * chamber-prefix docs), while `state_legislator.chamber` (OpenStates) is
- * 'upper'/'lower' — normalize to the latter so a committee first seen via a
- * LegiScan bill referral and later via OpenStates roster normalization (M2.2)
- * converge on the SAME `StateCommittee.id`. An unrecognized code maps to null
- * rather than a guess.
+ * Normalize a LegiScan-sourced chamber string to OpenStates' 'upper'/'lower'
+ * vocabulary. LegiScan's committee.chamber is a single-letter code ('H' House,
+ * 'S' Senate, 'A' Assembly — verified against the LegiScan API user manual +
+ * fulltext-search chamber-prefix docs); bill.current_body/body is the same code
+ * family. `state_legislator.chamber` (OpenStates) is 'upper'/'lower', so a
+ * committee first seen via a LegiScan bill referral and later via OpenStates
+ * roster normalization (M2.2) converge on the SAME `StateCommittee.id`.
+ *
+ * W4.1 hardening: also accept the already-normalized forms ('upper'/'lower')
+ * and the spelled-out chamber names ('house'/'senate'/'assembly'), since this
+ * now normalizes `state_bill.chamber` too (consumed by the chokepoint
+ * own-chamber leadership filter) and its exact stored form is not guaranteed
+ * uniform across all 50 states' LegiScan feeds. An unrecognized value maps to
+ * null rather than a guess (the chokepoint filter then skips, never mis-attributes).
  */
 export function normalizeLegiscanChamber(
   code: string | null | undefined,
 ): 'upper' | 'lower' | null {
-  switch ((code ?? '').toUpperCase()) {
+  switch ((code ?? '').trim().toUpperCase()) {
     case 'H':
     case 'A':
+    case 'HOUSE':
+    case 'ASSEMBLY':
+    case 'LOWER':
       return 'lower';
     case 'S':
+    case 'SENATE':
+    case 'UPPER':
       return 'upper';
     default:
       return null;

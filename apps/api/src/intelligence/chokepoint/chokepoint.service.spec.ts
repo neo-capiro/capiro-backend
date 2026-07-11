@@ -105,15 +105,24 @@ function fakePrisma(data: FakeData) {
       ),
     },
     congressCommitteeMembership: {
-      findMany: jest.fn(async ({ where }: { where: { systemCode: { in: string[] } } }) =>
-        (data.congressCommitteeMembership ?? []).filter((m) =>
-          where.systemCode.in.includes(m.systemCode),
-        ),
+      // W4.1: two call shapes now — the referred/leadership committee lookup
+      // (where.systemCode.in) AND the sponsor's own memberships lookup
+      // (where.bioguideId), which replaced the old title-`in` findFirst so the
+      // shared matchesRole can recognize Chairwoman/Co-Chair.
+      findMany: jest.fn(
+        async ({ where }: { where: { systemCode?: { in: string[] }; bioguideId?: string } }) =>
+          (data.congressCommitteeMembership ?? []).filter((m) => {
+            if (where.systemCode) return where.systemCode.in.includes(m.systemCode);
+            if (where.bioguideId) return m.bioguideId === where.bioguideId;
+            return false;
+          }),
       ),
       findFirst: jest.fn(
-        async ({ where }: { where: { bioguideId: string; title: { in: string[] } } }) =>
+        async ({ where }: { where: { bioguideId: string; title?: { in: string[] } } }) =>
           (data.congressCommitteeMembership ?? []).find(
-            (m) => m.bioguideId === where.bioguideId && where.title.in.includes(m.title ?? ''),
+            (m) =>
+              m.bioguideId === where.bioguideId &&
+              (!where.title || where.title.in.includes(m.title ?? '')),
           ) ?? null,
       ),
     },
@@ -148,13 +157,15 @@ function fakePrisma(data: FakeData) {
         async ({ where }: { where: { id: string } }) =>
           (data.stateCommittee ?? []).find((c) => c.id === where.id) ?? null,
       ),
-      findMany: jest.fn(async ({ where }: { where: { state: string; OR?: unknown } }) =>
-        (data.stateCommittee ?? []).filter((c) => {
-          if (c.state !== where.state) return false;
-          if (!where.OR) return true;
-          const needle = /rules|calendar/i;
-          return needle.test(c.name);
-        }),
+      findMany: jest.fn(
+        async ({ where }: { where: { state: string; chamber?: string; OR?: unknown } }) =>
+          (data.stateCommittee ?? []).filter((c) => {
+            if (c.state !== where.state) return false;
+            // W4.1: honor the own-chamber filter the leadership query now applies.
+            if (where.chamber && c.chamber !== where.chamber) return false;
+            if (!where.OR) return true;
+            return /rules|calendar/i.test(c.name);
+          }),
       ),
     },
     stateCommitteeMembership: {
@@ -493,13 +504,18 @@ describe('ChokepointService.forBill — state', () => {
   });
 
   it('resolves chamberLeadership only when exactly one Rules/Calendar-named committee exists for the state', async () => {
+    // W4.1: the bill's chamber is LegiScan's raw current_body ('H' → lower);
+    // the leadership filter is now scoped to the bill's OWN chamber. To stay a
+    // genuine ambiguity, BOTH Rules/Calendar committees must be in that same
+    // (lower) chamber — a cross-chamber pair would be disambiguated by the
+    // filter instead. Two same-chamber matches → never guess → null.
     const ambiguousPrisma = fakePrisma({
       stateBill: [
         {
           id: 'tx-2025-hb4',
           state: 'TX',
           sessionKey: '2025',
-          chamber: 'lower',
+          chamber: 'H',
           status: 'introduced',
           currentCommitteeId: null,
         },
@@ -511,13 +527,13 @@ describe('ChokepointService.forBill — state', () => {
           chamber: 'lower',
           name: 'Rules and Legislative Procedure',
         },
-        { id: 'tx-upper-rules', state: 'TX', chamber: 'upper', name: 'Senate Rules' },
+        { id: 'tx-lower-calendars', state: 'TX', chamber: 'lower', name: 'Calendars' },
       ],
     });
     const ambiguous = await new ChokepointService(ambiguousPrisma, fakeRepresentation()).forBill(
       'tx-2025-hb4',
     );
-    expect(ambiguous.chamberLeadership).toBeNull(); // 2 matches -> never guess
+    expect(ambiguous.chamberLeadership).toBeNull(); // 2 matches in-chamber -> never guess
 
     const uniquePrisma = fakePrisma({
       stateBill: [
@@ -525,13 +541,16 @@ describe('ChokepointService.forBill — state', () => {
           id: 'fl-2025-hb4',
           state: 'FL',
           sessionKey: '2025',
-          chamber: 'lower',
+          chamber: 'H', // raw LegiScan house body → normalizes to 'lower'
           status: 'introduced',
           currentCommitteeId: null,
         },
       ],
       stateCommittee: [
         { id: 'fl-lower-rules', state: 'FL', chamber: 'lower', name: 'Rules Committee' },
+        // An upper-chamber Rules committee that must NOT be attributed to a
+        // lower-chamber bill (W4.1 own-chamber filter — the regression guard).
+        { id: 'fl-upper-rules', state: 'FL', chamber: 'upper', name: 'Senate Rules' },
       ],
       stateLegislator: [
         {

@@ -193,8 +193,17 @@ describe('normalizeLegiscanChamber', () => {
     expect(normalizeLegiscanChamber('S')).toBe('upper');
     expect(normalizeLegiscanChamber('h')).toBe('lower'); // case-insensitive
   });
+  it('W4.1: also accepts spelled-out names and already-normalized forms (state_bill.chamber varies)', () => {
+    expect(normalizeLegiscanChamber('House')).toBe('lower');
+    expect(normalizeLegiscanChamber('Assembly')).toBe('lower');
+    expect(normalizeLegiscanChamber('lower')).toBe('lower');
+    expect(normalizeLegiscanChamber('Senate')).toBe('upper');
+    expect(normalizeLegiscanChamber('upper')).toBe('upper');
+    expect(normalizeLegiscanChamber('  UPPER  ')).toBe('upper'); // trimmed + case-insensitive
+  });
   it('never guesses an unrecognized code', () => {
     expect(normalizeLegiscanChamber('X')).toBeNull();
+    expect(normalizeLegiscanChamber('L')).toBeNull(); // e.g. NE unicameral — not disambiguable, never guess
     expect(normalizeLegiscanChamber(null)).toBeNull();
     expect(normalizeLegiscanChamber(undefined)).toBeNull();
   });
