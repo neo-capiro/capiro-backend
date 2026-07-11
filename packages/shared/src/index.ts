@@ -1491,3 +1491,192 @@ export function fundingCurrentStageSql(prefix = ''): string {
   );
   return `CASE ${whens.join(' ')} ELSE 'none' END`;
 }
+
+// ─────────────────────────────────────────────────────────────────────────
+// Meeting join-link detection & virtual-meeting classification (Meetings v2,
+// docs/plans/2026-07-10-meetings-meri-v2-redesign-plan.md §5,§7). THE single
+// source of truth for "is this a joinable online meeting, on what platform, at
+// what URL". Consolidates what used to be duplicated between apps/web
+// (meeting-actions.tsx: JOIN_URL_PATTERN / isSupportedJoinUrl /
+// extractMeetingJoinUrl) and apps/api (notetaker.service.ts detectPlatform),
+// which carried an explicit "MUST stay in lockstep" warning — those now
+// delegate here so detection cannot drift. Pure + DB-free (regex + WHATWG URL),
+// so it runs identically under the Vite browser bundle and the NestJS CJS
+// runtime. Inlined into this module (not a separate file) for the Rollup/CJS
+// reason documented at the top of this file. Provider labels are the coarse set
+// the notetaker vendor (Recall) supports.
+// ─────────────────────────────────────────────────────────────────────────
+
+export type MeetingProvider = 'zoom' | 'meet' | 'teams' | 'webex' | 'goto' | 'slack';
+
+/**
+ * Recognizes a join URL embedded in free text (a calendar `location` or invite
+ * body). Covers the full supported set incl. US-Gov Teams (*.teams.microsoft.us),
+ * ZoomGov, GoTo, and Slack huddles. Kept byte-identical to the historical
+ * web/api copies. Case-insensitive, NON-global (safe to `.exec()` repeatedly —
+ * no lastIndex state).
+ */
+export const MEETING_JOIN_URL_PATTERN =
+  /https:\/\/(?:[\w-]+\.)?(?:zoom\.us|zoomgov\.com)\/[jsw]\/[^\s<>"')\]]+|https:\/\/meet\.google\.com\/[a-z0-9-]+|https:\/\/(?:[\w-]+\.)?teams\.(?:microsoft\.(?:com|us)|live\.com)\/[^\s<>"')\]]+|https:\/\/(?:[\w-]+\.)?webex\.com\/[^\s<>"')\]]+|https:\/\/(?:[\w-]+\.)?(?:goto\.com|gotomeeting\.com)\/[^\s<>"')\]]+|https:\/\/gotomeet\.me\/[^\s<>"')\]]+|https:\/\/app\.slack\.com\/huddle\/[^\s<>"')\]]+/i;
+
+/** True iff `value` parses as a URL on one of the supported meeting hosts. */
+export function isSupportedMeetingJoinUrl(value: string): boolean {
+  let url: URL;
+  try {
+    url = new URL(value.trim());
+  } catch {
+    return false;
+  }
+  const host = url.hostname.toLowerCase();
+  return (
+    host === 'zoom.us' ||
+    host.endsWith('.zoom.us') ||
+    host === 'zoomgov.com' ||
+    host.endsWith('.zoomgov.com') ||
+    host === 'meet.google.com' ||
+    host === 'teams.microsoft.com' ||
+    host === 'teams.live.com' ||
+    host === 'teams.microsoft.us' ||
+    host.endsWith('.teams.microsoft.us') ||
+    host === 'webex.com' ||
+    host.endsWith('.webex.com') ||
+    host === 'goto.com' ||
+    host.endsWith('.goto.com') ||
+    host === 'gotomeeting.com' ||
+    host.endsWith('.gotomeeting.com') ||
+    host === 'gotomeet.me' ||
+    (host === 'app.slack.com' && url.pathname.includes('/huddle/'))
+  );
+}
+
+/**
+ * Coarse platform label from a join URL — also the notetaker dispatch gate
+ * (null ⇒ not a recognizable meeting URL, refuse before any vendor call).
+ * Deliberately lenient: the vendor (Recall) is the real authority on
+ * joinability; this only catches obvious non-meeting URLs (calendar webLinks,
+ * arbitrary pages) early. Formerly notetaker.service.ts's `detectPlatform`.
+ */
+export function detectMeetingProvider(meetingUrl: string): MeetingProvider | null {
+  let url: URL;
+  try {
+    url = new URL(meetingUrl);
+  } catch {
+    return null;
+  }
+  const host = url.hostname.toLowerCase();
+  if (
+    host === 'zoom.us' ||
+    host.endsWith('.zoom.us') ||
+    host === 'zoomgov.com' ||
+    host.endsWith('.zoomgov.com')
+  ) {
+    return 'zoom';
+  }
+  if (host === 'meet.google.com') return 'meet';
+  if (
+    host === 'teams.microsoft.com' ||
+    host === 'teams.live.com' ||
+    host === 'teams.microsoft.us' ||
+    host.endsWith('.teams.microsoft.us')
+  ) {
+    return 'teams';
+  }
+  if (host === 'webex.com' || host.endsWith('.webex.com')) return 'webex';
+  if (
+    host === 'goto.com' ||
+    host.endsWith('.goto.com') ||
+    host === 'gotomeeting.com' ||
+    host.endsWith('.gotomeeting.com') ||
+    host === 'gotomeet.me'
+  ) {
+    return 'goto';
+  }
+  // Slack Huddles only — app.slack.com also serves ordinary Slack, so require
+  // the /huddle/ path so a message permalink isn't mistaken for a meeting.
+  if (host === 'app.slack.com' && url.pathname.includes('/huddle/')) return 'slack';
+  return null;
+}
+
+/** Minimal meeting fields needed to find a join link from free text. */
+export interface MeetingJoinSource {
+  location?: string | null;
+  description?: string | null;
+  metadata?: Record<string, unknown> | null;
+}
+
+/**
+ * Find a real join link: `metadata.webLink` only if it IS a supported meeting
+ * URL (Outlook's webLink usually just opens the calendar item), then the
+ * `location`, then the invite body. Outlook HTML-escapes `&` in the body, so
+ * unescape `&amp;` on the match (Teams links carry query params). Formerly the
+ * web `extractMeetingJoinUrl`.
+ */
+export function extractMeetingJoinUrl(meeting: MeetingJoinSource): string | null {
+  const webLink = typeof meeting.metadata?.webLink === 'string' ? meeting.metadata.webLink : '';
+  if (webLink && isSupportedMeetingJoinUrl(webLink)) return webLink;
+  for (const text of [meeting.location ?? '', meeting.description ?? '']) {
+    const match = MEETING_JOIN_URL_PATTERN.exec(text);
+    if (match) return match[0].replace(/&amp;/g, '&');
+  }
+  return null;
+}
+
+/** Map a Microsoft Graph `onlineMeetingProvider` enum to our coarse label. */
+function graphOnlineProvider(raw: unknown): MeetingProvider | null {
+  const v = typeof raw === 'string' ? raw.toLowerCase() : '';
+  if (v === 'teamsforbusiness') return 'teams';
+  // skypeForBusiness / skypeForConsumer are online but not vendor-joinable — no label.
+  return null;
+}
+
+/** Structured + free-text signals available at calendar-sync time. */
+export interface MeetingVirtualitySource extends MeetingJoinSource {
+  /** Microsoft Graph `event.onlineMeeting.joinUrl`, when present. */
+  onlineMeetingUrl?: string | null;
+  /** Microsoft Graph `event.isOnlineMeeting` flag, when present. */
+  isOnlineMeeting?: boolean | null;
+  /** Microsoft Graph `event.onlineMeetingProvider` (e.g. 'teamsForBusiness'). */
+  onlineMeetingProvider?: string | null;
+}
+
+export interface MeetingVirtuality {
+  /** True when this is an online/virtual meeting (may still lack a parseable link). */
+  isVirtual: boolean;
+  /** The joinable URL, or null. Meri-eligibility requires isVirtual AND joinLink. */
+  joinLink: string | null;
+  /** Coarse provider label for display, or null. */
+  provider: MeetingProvider | null;
+}
+
+/**
+ * Resolve the canonical virtual-meeting classification for a calendar event
+ * ONCE at sync/create time (persisted on `Meeting.{isVirtual,joinLink,provider}`
+ * instead of re-derived from free text on every render). Prefers Microsoft
+ * Graph's structured `onlineMeeting.joinUrl` when it's a supported host;
+ * otherwise regex-scans webLink/location/description. A Graph event flagged
+ * `isOnlineMeeting` with no parseable link is still virtual (so the UI can show
+ * e.g. "Teams · link not detected") but is NOT Meri-eligible.
+ */
+export function deriveMeetingVirtuality(src: MeetingVirtualitySource): MeetingVirtuality {
+  const structured = typeof src.onlineMeetingUrl === 'string' ? src.onlineMeetingUrl.trim() : '';
+  if (structured && isSupportedMeetingJoinUrl(structured)) {
+    return { isVirtual: true, joinLink: structured, provider: detectMeetingProvider(structured) };
+  }
+  const joinLink = extractMeetingJoinUrl(src);
+  if (joinLink) {
+    return { isVirtual: true, joinLink, provider: detectMeetingProvider(joinLink) };
+  }
+  if (src.isOnlineMeeting === true) {
+    return {
+      isVirtual: true,
+      joinLink: null,
+      provider: graphOnlineProvider(src.onlineMeetingProvider),
+    };
+  }
+  return { isVirtual: false, joinLink: null, provider: null };
+}
+
+/** Eligibility for the Meri notetaker: a virtual meeting with a join link (spec §4.1). */
+export function eligibleForMeri(m: { isVirtual: boolean; joinLink: string | null }): boolean {
+  return m.isVirtual && Boolean(m.joinLink);
+}

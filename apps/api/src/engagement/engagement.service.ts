@@ -22,7 +22,9 @@ import {
   EngagementProvider,
   EngagementSource,
   EngagementTaskStatus,
+  MeetingDebriefStatus,
   MeetingPrepStatus,
+  MeetingVisibility,
   Prisma,
 } from '@prisma/client';
 import mammoth from 'mammoth';
@@ -32,6 +34,7 @@ import { extractXlsxText, isSpreadsheetAttachment } from './xlsx-extract.js';
 import { extractPptxText, isPowerPointAttachment } from './pptx-extract.js';
 import { createHash, randomUUID } from 'node:crypto';
 import type { TenantContext } from '@capiro/shared';
+import { deriveMeetingVirtuality } from '@capiro/shared';
 import type { AppConfig } from '../config/config.schema.js';
 import { PrismaService } from '../prisma/prisma.service.js';
 import { DirectoryService, type DirectoryEmailMatch } from '../directory/directory.service.js';
@@ -774,11 +777,12 @@ export class EngagementService {
       };
 
       if (!query.clientId) {
-        return tx.meeting.findMany({
+        const rows = await tx.meeting.findMany({
           where: baseWhere,
           include: meetingInclude(),
           orderBy: { startsAt: 'asc' },
         });
+        return this.decorateMeetings(tx, ctx, rows);
       }
 
       const clientAssociationWhere = await this.clientMeetingAssociationWhere(
@@ -789,23 +793,24 @@ export class EngagementService {
       );
       const where: Prisma.MeetingWhereInput = { AND: [baseWhere, clientAssociationWhere] };
 
-      return tx.meeting.findMany({
+      const rows = await tx.meeting.findMany({
         where,
         include: meetingInclude(),
         orderBy: { startsAt: 'asc' },
       });
+      return this.decorateMeetings(tx, ctx, rows);
     });
   }
 
   async getMeeting(ctx: TenantContext, id: string) {
-    const meeting = await this.prisma.withTenant(ctx.tenantId, (tx) =>
-      tx.meeting.findFirst({
+    return this.prisma.withTenant(ctx.tenantId, async (tx) => {
+      const meeting = await tx.meeting.findFirst({
         where: { id, tenantId: ctx.tenantId, ...ownMeetingWhere(ctx.userId) },
         include: meetingInclude(),
-      }),
-    );
-    if (!meeting) throw new NotFoundException('Meeting not found');
-    return meeting;
+      });
+      if (!meeting) throw new NotFoundException('Meeting not found');
+      return (await this.decorateMeetings(tx, ctx, [meeting]))[0];
+    });
   }
 
   async createMeeting(ctx: TenantContext, input: CreateMeetingInput) {
@@ -837,7 +842,15 @@ export class EngagementService {
         input.attendees ?? [],
       );
 
-      return tx.meeting.create({
+      // Manual meetings carry no Graph online-meeting object, so classify from the
+      // location/description free text (Meetings v2 §5) — a user pasting a Zoom/
+      // Teams link into either field makes the meeting Meri-eligible.
+      const virtuality = deriveMeetingVirtuality({
+        location: input.location ?? null,
+        description: input.description ?? null,
+      });
+
+      const created = await tx.meeting.create({
         data: {
           tenantId: ctx.tenantId,
           clientId: autoAssociation.clientId,
@@ -849,6 +862,9 @@ export class EngagementService {
           endsAt,
           organizerEmail: input.organizerEmail?.trim().toLowerCase() || null,
           organizerName: input.organizerName?.trim() || null,
+          isVirtual: virtuality.isVirtual,
+          joinLink: virtuality.joinLink,
+          provider: virtuality.provider,
           associationScore: autoAssociation.score,
           associationReason: autoAssociation.reason,
           associationSignals: autoAssociation.signals as Prisma.InputJsonValue,
@@ -868,6 +884,7 @@ export class EngagementService {
         },
         include: meetingInclude(),
       });
+      return (await this.decorateMeetings(tx, ctx, [created]))[0];
     });
   }
 
@@ -877,6 +894,23 @@ export class EngagementService {
         where: { id, tenantId: ctx.tenantId, ...ownMeetingWhere(ctx.userId) },
       });
       if (!existing) throw new NotFoundException('Meeting not found');
+
+      // Re-derive the virtual-meeting classification (Meetings v2 §5) whenever the
+      // location or description changes — e.g. editing in a Zoom link should flip
+      // the meeting to Meri-eligible. Uses the incoming value for the changed
+      // field(s) and the stored value otherwise, and preserves any Graph webLink
+      // in metadata as a join-link source.
+      const reclassify = 'location' in input || 'description' in input;
+      const virtualityUpdate = reclassify
+        ? (({ isVirtual, joinLink, provider }) => ({ isVirtual, joinLink, provider }))(
+            deriveMeetingVirtuality({
+              location: 'location' in input ? (input.location ?? null) : existing.location,
+              description:
+                'description' in input ? (input.description ?? null) : existing.description,
+              metadata: (existing.metadata as Record<string, unknown> | null) ?? null,
+            }),
+          )
+        : {};
 
       const updated = await tx.meeting.update({
         where: { id },
@@ -888,6 +922,7 @@ export class EngagementService {
           ...('startsAt' in input ? { startsAt: parseDate(input.startsAt, 'startsAt') } : {}),
           ...('endsAt' in input ? { endsAt: parseDate(input.endsAt, 'endsAt') } : {}),
           ...('status' in input ? { status: input.status } : {}),
+          ...virtualityUpdate,
         },
         include: meetingInclude(),
       });
@@ -907,7 +942,227 @@ export class EngagementService {
         });
       }
 
-      return updated;
+      return (await this.decorateMeetings(tx, ctx, [updated]))[0];
+    });
+  }
+
+  /**
+   * Share a meeting record to its associated client (Meetings v2 §6). Flips the
+   * whole record to `shared` (approved Prep / Notes / Debrief become visible to
+   * the org on the client's Documents tab and in the Library). Sharing REQUIRES
+   * an associated client. Idempotent: if already shared, the FIRST sharer's
+   * attribution is preserved (forward-compatible with the Phase 2 multi-
+   * contributor model, where a meeting stays shared while ANY contributor has
+   * shared it).
+   */
+  async shareMeeting(ctx: TenantContext, meetingId: string) {
+    return this.prisma.withTenant(ctx.tenantId, async (tx) => {
+      const existing = await tx.meeting.findFirst({
+        where: { id: meetingId, tenantId: ctx.tenantId, ...ownMeetingWhere(ctx.userId) },
+        select: { id: true, clientId: true, visibility: true },
+      });
+      if (!existing) throw new NotFoundException('Meeting not found');
+      if (!existing.clientId) {
+        throw new BadRequestException(
+          'This meeting must be associated with a client before it can be shared',
+        );
+      }
+      const alreadyShared = existing.visibility === MeetingVisibility.shared;
+      const updated = await tx.meeting.update({
+        where: { id: meetingId },
+        data: {
+          visibility: MeetingVisibility.shared,
+          // Preserve the first sharer's stamp on a re-share (Phase 2 forward-compat).
+          ...(alreadyShared ? {} : { sharedAt: new Date(), sharedByUserId: ctx.userId }),
+        },
+        include: meetingInclude(),
+      });
+      return (await this.decorateMeetings(tx, ctx, [updated]))[0];
+    });
+  }
+
+  /**
+   * Un-share a meeting record — returns it to private (Meetings v2 §6). In Phase 1
+   * a meeting has a single owner/contributor, so this fully reverts visibility and
+   * clears the sharer stamp. (Phase 2 makes un-share per-contributor: the record
+   * stays shared until the last contributor un-shares.)
+   */
+  async unshareMeeting(ctx: TenantContext, meetingId: string) {
+    return this.prisma.withTenant(ctx.tenantId, async (tx) => {
+      const existing = await tx.meeting.findFirst({
+        where: { id: meetingId, tenantId: ctx.tenantId, ...ownMeetingWhere(ctx.userId) },
+        select: { id: true },
+      });
+      if (!existing) throw new NotFoundException('Meeting not found');
+      const updated = await tx.meeting.update({
+        where: { id: meetingId },
+        data: {
+          visibility: MeetingVisibility.private,
+          sharedAt: null,
+          sharedByUserId: null,
+        },
+        include: meetingInclude(),
+      });
+      return (await this.decorateMeetings(tx, ctx, [updated]))[0];
+    });
+  }
+
+  /**
+   * Meeting Library (Meetings v2 §6): the user's own meetings (private + shared)
+   * that have at least one APPROVED artifact, paginated newest-first. Filterable
+   * by client, artifact type, visibility, and date range. Owner-scoped via
+   * ownMeetingWhere (the Library is a personal archive — the org-visible view of
+   * shared material is the client Documents tab, listSharedMeetingsForClient).
+   */
+  async listMeetingLibrary(
+    ctx: TenantContext,
+    query: {
+      clientId?: string;
+      artifactType?: 'prep' | 'notes' | 'debrief';
+      visibility?: 'shared' | 'private';
+      from?: string;
+      to?: string;
+      page?: number;
+      limit?: number;
+    },
+  ) {
+    const page = normalizeLibraryPage(query.page);
+    const limit = normalizeLibraryLimit(query.limit);
+    const startsAt: Prisma.DateTimeFilter = {};
+    if (query.from) startsAt.gte = parseDate(query.from, 'from');
+    if (query.to) startsAt.lt = parseDate(query.to, 'to');
+
+    const where: Prisma.MeetingWhereInput = {
+      tenantId: ctx.tenantId,
+      ...ownMeetingWhere(ctx.userId),
+      ...(query.clientId ? { clientId: query.clientId } : {}),
+      ...(query.visibility
+        ? {
+            visibility:
+              query.visibility === 'shared' ? MeetingVisibility.shared : MeetingVisibility.private,
+          }
+        : {}),
+      ...(query.from || query.to ? { startsAt } : {}),
+      AND: [libraryArtifactWhere(query.artifactType)],
+    };
+
+    return this.prisma.withTenant(ctx.tenantId, async (tx) => {
+      const [total, rows] = await Promise.all([
+        tx.meeting.count({ where }),
+        tx.meeting.findMany({
+          where,
+          include: meetingInclude(),
+          orderBy: { startsAt: 'desc' },
+          skip: (page - 1) * limit,
+          take: limit,
+        }),
+      ]);
+      const data = await this.decorateMeetings(tx, ctx, rows);
+      return { data, total, page, limit };
+    });
+  }
+
+  /**
+   * Shared meeting records for a client's Documents tab (Meetings v2 §8). Returns
+   * the meetings SHARED to this client, newest-shared first. Deliberately TENANT-
+   * scoped (NOT ownMeetingWhere) — sharing to the client makes the record visible
+   * to the org, the same precedent as listClientDebriefs. Nested notes/debriefs
+   * are metadata-only (no decrypted bodies), so this list leaks no artifact content.
+   */
+  async listSharedMeetingsForClient(ctx: TenantContext, clientId: string) {
+    return this.prisma.withTenant(ctx.tenantId, async (tx) => {
+      const rows = await tx.meeting.findMany({
+        where: { tenantId: ctx.tenantId, clientId, visibility: MeetingVisibility.shared },
+        include: meetingInclude(),
+        orderBy: [{ sharedAt: 'desc' }, { startsAt: 'desc' }],
+      });
+      return this.decorateMeetings(tx, ctx, rows);
+    });
+  }
+
+  /**
+   * Augment meeting rows (from meetingInclude) with the computed response fields
+   * the Meetings v2 UI needs (docs/plans/2026-07-10-meetings-meri-v2-redesign-plan.md
+   * §6): `notesApproved`, the coarse notetaker `meri` state, the `contributors`
+   * array (always length-1 in Phase 1 — the single owner), and `sharedBy`. Names
+   * are batch-resolved for createdByUserId/sharedByUserId (those are bare UUIDs
+   * with no relation, by convention), and the latest bot-session status per meeting
+   * is fetched once for the whole set — no N+1.
+   */
+  private async decorateMeetings<
+    T extends {
+      id: string;
+      createdByUserId: string | null;
+      sharedByUserId: string | null;
+      notes: unknown[];
+      debriefs: Array<{ status: MeetingDebriefStatus }>;
+      preps: Array<{ status: MeetingPrepStatus }>;
+    },
+  >(tx: Prisma.TransactionClient, ctx: TenantContext, rows: T[]) {
+    const userIds = [
+      ...new Set(
+        rows
+          .flatMap((r) => [r.createdByUserId, r.sharedByUserId])
+          .filter((v): v is string => Boolean(v)),
+      ),
+    ];
+    const meetingIds = rows.map((r) => r.id);
+    const [users, sessions] = await Promise.all([
+      userIds.length
+        ? tx.user.findMany({
+            where: { id: { in: userIds } },
+            select: { id: true, firstName: true, lastName: true, email: true },
+          })
+        : Promise.resolve([] as Array<{ id: string }>),
+      meetingIds.length
+        ? tx.meetingBotSession.findMany({
+            where: { tenantId: ctx.tenantId, meetingId: { in: meetingIds } },
+            select: { meetingId: true, status: true },
+            orderBy: { createdAt: 'desc' },
+          })
+        : Promise.resolve([] as Array<{ meetingId: string; status: string }>),
+    ]);
+    const nameById = new Map(
+      (
+        users as Array<{
+          id: string;
+          firstName?: string | null;
+          lastName?: string | null;
+          email?: string | null;
+        }>
+      ).map((u) => [u.id, userDisplayName(u)]),
+    );
+    const latestSessionByMeeting = new Map<string, string>();
+    for (const s of sessions) {
+      if (!latestSessionByMeeting.has(s.meetingId))
+        latestSessionByMeeting.set(s.meetingId, s.status);
+    }
+
+    return rows.map((row) => {
+      const artifacts: Array<'prep' | 'notes' | 'debrief'> = [];
+      if (row.preps[0]?.status === MeetingPrepStatus.approved) artifacts.push('prep');
+      if (row.notes.length > 0) artifacts.push('notes');
+      if (row.debriefs.some((d) => d.status === MeetingDebriefStatus.approved)) {
+        artifacts.push('debrief');
+      }
+      const contributors = row.createdByUserId
+        ? [
+            {
+              userId: row.createdByUserId,
+              name: nameById.get(row.createdByUserId) ?? null,
+              artifacts,
+            },
+          ]
+        : [];
+      return {
+        ...row,
+        notesApproved: row.notes.length > 0,
+        meri: coarseMeriState(latestSessionByMeeting.get(row.id) ?? null),
+        contributors,
+        sharedBy: row.sharedByUserId
+          ? { userId: row.sharedByUserId, name: nameById.get(row.sharedByUserId) ?? null }
+          : null,
+      };
     });
   }
 
@@ -3300,9 +3555,38 @@ export class EngagementService {
           iv: encrypted.iv,
           authTag: encrypted.authTag,
           keyVersion: encrypted.keyVersion,
+          // A manual edit moves an approved/generated debrief back to `edited`
+          // (mirrors updateMeetingPrep), so it must be re-approved before it
+          // reaches the Library / is shareable.
+          status: MeetingDebriefStatus.edited,
           ...(input.confidential === undefined ? {} : { confidential: input.confidential }),
           ...(input.accessLevel === undefined ? {} : { accessLevel: input.accessLevel }),
         },
+        select: debriefMetadataSelect(),
+      });
+    });
+  }
+
+  /**
+   * Approve a meeting debrief (Meetings v2 §5) — the symmetric counterpart to
+   * approveMeetingPrep. Only an `approved` debrief is eligible for the Meeting
+   * Library and for sharing. Reuses the same owner-guard + author/admin edit
+   * check as updateMeetingDebrief.
+   */
+  async approveMeetingDebrief(ctx: TenantContext, meetingId: string, debriefId: string) {
+    return this.prisma.withTenant(ctx.tenantId, async (tx) => {
+      await this.ensureOwnMeeting(tx, ctx, meetingId);
+      const debrief = await tx.meetingDebrief.findFirst({
+        where: { id: debriefId, tenantId: ctx.tenantId, meetingId },
+        select: { id: true, authorUserId: true },
+      });
+      if (!debrief) throw new NotFoundException('Meeting debrief not found');
+      if (!canEditEncryptedEntry(ctx, debrief)) {
+        throw new ForbiddenException('You can only approve your own meeting debriefs');
+      }
+      return tx.meetingDebrief.update({
+        where: { id: debriefId },
+        data: { status: MeetingDebriefStatus.approved },
         select: debriefMetadataSelect(),
       });
     });
@@ -3524,6 +3808,7 @@ export class EngagementService {
           : null,
         confidential: debrief.confidential,
         accessLevel: debrief.accessLevel,
+        status: debrief.status,
         keyVersion: debrief.keyVersion,
         authorUserId: debrief.authorUserId,
         author: debrief.author,
@@ -3584,6 +3869,7 @@ export class EngagementService {
           : null,
         confidential: debrief.confidential,
         accessLevel: debrief.accessLevel,
+        status: debrief.status,
         authorUserId: debrief.authorUserId,
         author: debrief.author,
         createdAt: debrief.createdAt,
@@ -5808,6 +6094,7 @@ function debriefMetadataSelect() {
     author: { select: { id: true, email: true, firstName: true, lastName: true } },
     confidential: true,
     accessLevel: true,
+    status: true,
     keyVersion: true,
     createdAt: true,
     updatedAt: true,
@@ -5827,6 +6114,76 @@ function canReadEncryptedEntry(
 function canEditEncryptedEntry(ctx: TenantContext, note: { authorUserId: string | null }): boolean {
   if (note.authorUserId === ctx.userId) return true;
   return ctx.role === 'user_admin' || ctx.role === 'capiro_admin';
+}
+
+// ── Meetings v2 response helpers ────────────────────────────────────────────
+type MeriCoarseState = 'scheduled' | 'attending' | 'done';
+
+/**
+ * Collapse a raw MeetingBotSession.status into the coarse notetaker state the UI
+ * renders (Meetings v2 §9): scheduled/attending/done, or null when there is no
+ * active notetaker (never sent, or the last session failed/was denied/removed —
+ * in which case "Send Meri" should be offered again).
+ */
+function coarseMeriState(status: string | null): MeriCoarseState | null {
+  switch (status) {
+    case 'requested':
+      return 'scheduled';
+    case 'joining':
+    case 'in_call':
+    case 'recording':
+    case 'processing':
+    case 'drafting':
+      return 'attending';
+    case 'done':
+      return 'done';
+    default:
+      return null;
+  }
+}
+
+/** First+last name, falling back to email — the established display-name convention. */
+function userDisplayName(user: {
+  firstName?: string | null;
+  lastName?: string | null;
+  email?: string | null;
+}): string | null {
+  const name = [user.firstName, user.lastName].filter(Boolean).join(' ').trim();
+  return name || user.email || null;
+}
+
+/** Meeting Library pagination — house convention (default page 1, limit 50, cap 100). */
+function normalizeLibraryPage(page?: number): number {
+  const p = Number(page ?? 1);
+  if (!Number.isFinite(p) || p < 1) return 1;
+  return Math.floor(p);
+}
+
+function normalizeLibraryLimit(limit?: number): number {
+  const l = Number(limit ?? 50);
+  if (!Number.isFinite(l) || l < 1) return 50;
+  return Math.min(100, Math.floor(l));
+}
+
+/**
+ * Prisma `where` fragment for Library eligibility — "has at least one approved
+ * artifact." A note counts once it exists (notes are final on capture, per §5);
+ * prep/debrief must be `approved`. Narrows to a single artifact type when given.
+ */
+function libraryArtifactWhere(
+  artifactType?: 'prep' | 'notes' | 'debrief',
+): Prisma.MeetingWhereInput {
+  const prep: Prisma.MeetingWhereInput = {
+    preps: { some: { status: MeetingPrepStatus.approved } },
+  };
+  const debrief: Prisma.MeetingWhereInput = {
+    debriefs: { some: { status: MeetingDebriefStatus.approved } },
+  };
+  const notes: Prisma.MeetingWhereInput = { notes: { some: {} } };
+  if (artifactType === 'prep') return prep;
+  if (artifactType === 'debrief') return debrief;
+  if (artifactType === 'notes') return notes;
+  return { OR: [prep, debrief, notes] };
 }
 
 function normalizeStringArray(value?: string[]): string[] {

@@ -10,6 +10,7 @@ import {
 } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import type { TenantContext, TenantRole } from '@capiro/shared';
+import { detectMeetingProvider } from '@capiro/shared';
 import type { AppConfig } from '../../config/config.schema.js';
 import { PrismaService } from '../../prisma/prisma.service.js';
 import { notetakerEnabled } from '../../common/tenant-flags.js';
@@ -23,6 +24,23 @@ import {
 
 /** Bot display name in the participant list (part of the consent disclosure; Recall max 100). */
 const DEFAULT_BOT_NAME = 'Meri Notetaker (recording)';
+
+/**
+ * Per-sender bot display name (Meetings v2 §4.3): the notetaker is named after the
+ * user who sends it (e.g. "Neo's Meri Notetaker (recording)"), so its attribution
+ * follows into the participant list and the notes it produces. GUARDRAIL
+ * (docs/plans/meeting-notetaker-signed-in-bots.md): the "(recording)" suffix is
+ * retained and the name must never read as a plausible human — "{First}'s Meri
+ * Notetaker (recording)" satisfies both. Falls back to the shared default when the
+ * requester has no first name, and to the default if the composed name would exceed
+ * Recall's 100-char bot_name limit.
+ */
+export function notetakerBotName(user: { firstName?: string | null } | null | undefined): string {
+  const first = user?.firstName?.trim();
+  if (!first) return DEFAULT_BOT_NAME;
+  const name = `${first}'s Meri Notetaker (recording)`;
+  return name.length <= 100 ? name : DEFAULT_BOT_NAME;
+}
 
 /** Columns returned to the UI (never the raw consent/metadata blobs). */
 const SESSION_SELECT = {
@@ -219,11 +237,19 @@ export class NotetakerService implements OnModuleInit, OnModuleDestroy {
 
   /** Send a meeting bot to a meeting the caller owns. Strict-consent gated. */
   async dispatch(ctx: TenantContext, meetingId: string, input: DispatchNotetakerInput) {
-    const tenant = await this.prisma.withTenant(ctx.tenantId, (tx) =>
-      tx.tenant.findFirst({
-        where: { id: ctx.tenantId },
-        select: { settings: true, name: true },
-      }),
+    const [tenant, requester] = await this.prisma.withTenant(ctx.tenantId, (tx) =>
+      Promise.all([
+        tx.tenant.findFirst({
+          where: { id: ctx.tenantId },
+          select: { settings: true, name: true },
+        }),
+        // Requesting user's name → per-sender bot naming (§4.3). firstName is all
+        // notetakerBotName needs; the row is tenant-scoped so RLS covers it.
+        tx.user.findFirst({
+          where: { id: ctx.userId },
+          select: { firstName: true },
+        }),
+      ]),
     );
     // Env kill-switch AND per-tenant flag (default OFF) — belt-and-suspenders.
     if (!notetakerEnabled(tenant?.settings)) {
@@ -312,7 +338,7 @@ export class NotetakerService implements OnModuleInit, OnModuleDestroy {
     try {
       const result = await this.bot.dispatchBot({
         meetingUrl,
-        botName: DEFAULT_BOT_NAME,
+        botName: notetakerBotName(requester),
         metadata: {
           tenantId: ctx.tenantId,
           meetingBotSessionId: created.id,
@@ -868,51 +894,14 @@ export function validateMeetingUrl(rawUrl: string | undefined): string {
  * GoTo, Slack Huddles). Agency-hosted meetings (zoomgov.com, *.teams.microsoft.us)
  * are routine for this federal-lobbying customer base.
  *
- * MUST stay in lockstep with the web mirrors isSupportedJoinUrl()/JOIN_URL_PATTERN
- * (apps/web/src/pages/engagement/EngagementPage.tsx) — a drift where one accepts a
- * URL the other rejects surfaces as a confusing "not a join link" dead-end.
+ * The detection logic now lives in @capiro/shared (detectMeetingProvider) as the
+ * single source of truth, shared with the web's join-link detection — so the
+ * historical "MUST stay in lockstep with the web mirrors" hazard is now
+ * structurally enforced rather than maintained by hand. This thin wrapper keeps
+ * the local name/signature so existing call sites and unit tests are unchanged.
  */
 export function detectPlatform(meetingUrl: string): string | null {
-  let url: URL;
-  try {
-    url = new URL(meetingUrl);
-  } catch {
-    return null;
-  }
-  const host = url.hostname.toLowerCase();
-  if (
-    host === 'zoom.us' ||
-    host.endsWith('.zoom.us') ||
-    host === 'zoomgov.com' ||
-    host.endsWith('.zoomgov.com')
-  ) {
-    return 'zoom';
-  }
-  if (host === 'meet.google.com') return 'meet';
-  // Commercial (teams.microsoft.com / teams.live.com) AND US-Government tenants,
-  // which live on *.teams.microsoft.us (gov. = GCC-High, dod. = DoD).
-  if (
-    host === 'teams.microsoft.com' ||
-    host === 'teams.live.com' ||
-    host === 'teams.microsoft.us' ||
-    host.endsWith('.teams.microsoft.us')
-  ) {
-    return 'teams';
-  }
-  if (host === 'webex.com' || host.endsWith('.webex.com')) return 'webex';
-  if (
-    host === 'goto.com' ||
-    host.endsWith('.goto.com') ||
-    host === 'gotomeeting.com' ||
-    host.endsWith('.gotomeeting.com') ||
-    host === 'gotomeet.me'
-  ) {
-    return 'goto';
-  }
-  // Slack Huddles only — app.slack.com also serves ordinary Slack, so require the
-  // /huddle/ path so a message permalink isn't mistaken for a joinable meeting.
-  if (host === 'app.slack.com' && url.pathname.includes('/huddle/')) return 'slack';
-  return null;
+  return detectMeetingProvider(meetingUrl);
 }
 
 /**

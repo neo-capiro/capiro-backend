@@ -282,6 +282,18 @@ export class ClientKbService {
         bypassRls: true,
       });
     }
+
+    // Stamp the attachment as indexed (Meetings v2 §5) — reached only after the
+    // whole chunk loop succeeds, so the two early returns above (missing/no-client,
+    // quota exceeded) correctly leave indexedAt null. Drives the Documents-tab
+    // per-file "Indexed" badge. withTenant (not withSystem): the row is
+    // tenant-scoped and RLS must allow the UPDATE for this tenant.
+    await this.prisma.withTenant(tenantId, (tx) =>
+      tx.engagementAttachment.update({
+        where: { id: attachmentId },
+        data: { indexedAt: new Date() },
+      }),
+    );
   }
 
   /** S3 download + text extraction; null for image/unsupported kinds. */
@@ -435,14 +447,10 @@ export class ClientKbService {
   async search(
     tenantId: string,
     input: { query: string; clientId: string; kind?: string; limit?: number },
-  ): Promise<
-    Array<{ kind: string; id: string; title: string; snippet: string; score: number }>
-  > {
+  ): Promise<Array<{ kind: string; id: string; title: string; snippet: string; score: number }>> {
     const limit = Math.min(Math.max(input.limit ?? 8, 1), 20);
     const kindFilter =
-      input.kind && (KB_SOURCE_TYPES as readonly string[]).includes(input.kind)
-        ? input.kind
-        : null;
+      input.kind && (KB_SOURCE_TYPES as readonly string[]).includes(input.kind) ? input.kind : null;
     const vector = await embedText(normalize(input.query));
     const literal = vectorLiteral(vector);
     const rows = await this.prisma.withTenant(tenantId, (tx) =>
@@ -458,7 +466,12 @@ export class ClientKbService {
             AND model = $3
           ORDER BY embedding <=> '${literal}'::vector
           LIMIT ${limit}`,
-        ...([tenantId, input.clientId, EMBEDDING_MODEL, ...(kindFilter ? [kindFilter] : [])] as unknown[]),
+        ...([
+          tenantId,
+          input.clientId,
+          EMBEDDING_MODEL,
+          ...(kindFilter ? [kindFilter] : []),
+        ] as unknown[]),
       ),
     );
     return rows

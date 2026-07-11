@@ -90,6 +90,27 @@ enum MeetingPrepStatus {
   @@map("meeting_prep_status")
 }
 
+// Meetings v2 (2026-07): a meeting artifact record is private to its author
+// until explicitly shared to the associated client. Applies to the whole
+// meeting record (approved Prep / Notes / Debrief). See the Meetings & Meri
+// redesign plan (docs/plans/2026-07-10-meetings-meri-v2-redesign-plan.md §5-6).
+enum MeetingVisibility {
+  private
+  shared
+
+  @@map("meeting_visibility")
+}
+
+// Meetings v2 (2026-07): debrief lifecycle, mirroring MeetingPrepStatus. Only
+// an `approved` debrief is eligible for the Meeting Library and for sharing.
+enum MeetingDebriefStatus {
+  generated
+  edited
+  approved
+
+  @@map("meeting_debrief_status")
+}
+
 enum EngagementTaskStatus {
   todo
   in_progress
@@ -535,30 +556,42 @@ model EngagementContact {
 }
 
 model Meeting {
-  id                 String           @id @default(uuid()) @db.Uuid
-  tenantId           String           @map("tenant_id") @db.Uuid
-  clientId           String?          @map("client_id") @db.Uuid
-  isInternal         Boolean          @default(false) @map("is_internal")
-  connectionId       String?          @map("connection_id") @db.Uuid
-  source             EngagementSource @default(manual)
-  externalId         String?          @map("external_id")
+  id                 String            @id @default(uuid()) @db.Uuid
+  tenantId           String            @map("tenant_id") @db.Uuid
+  clientId           String?           @map("client_id") @db.Uuid
+  isInternal         Boolean           @default(false) @map("is_internal")
+  connectionId       String?           @map("connection_id") @db.Uuid
+  source             EngagementSource  @default(manual)
+  externalId         String?           @map("external_id")
   subject            String
   description        String?
   location           String?
-  startsAt           DateTime         @map("starts_at") @db.Timestamptz(6)
-  endsAt             DateTime         @map("ends_at") @db.Timestamptz(6)
-  organizerEmail     String?          @map("organizer_email") @db.Citext
-  organizerName      String?          @map("organizer_name")
-  status             String           @default("scheduled")
-  transcriptS3Key    String?          @map("transcript_s3_key")
-  metadata           Json             @default("{}") @map("metadata_jsonb")
-  raw                Json?            @map("raw_jsonb")
-  associationScore   Float?           @map("association_score")
-  associationReason  String?          @map("association_reason")
-  associationSignals Json             @default("{}") @map("association_signals_jsonb")
-  createdByUserId    String?          @map("created_by_user_id") @db.Uuid
-  createdAt          DateTime         @default(now()) @map("created_at") @db.Timestamptz(6)
-  updatedAt          DateTime         @updatedAt @map("updated_at") @db.Timestamptz(6)
+  startsAt           DateTime          @map("starts_at") @db.Timestamptz(6)
+  endsAt             DateTime          @map("ends_at") @db.Timestamptz(6)
+  organizerEmail     String?           @map("organizer_email") @db.Citext
+  organizerName      String?           @map("organizer_name")
+  status             String            @default("scheduled")
+  // Meetings v2 (2026-07): virtual-meeting classification derived once at
+  // sync/create time (see @capiro/shared deriveMeetingVirtuality) instead of
+  // regex-scanning free text on every render. eligibleForMeri = isVirtual && joinLink.
+  isVirtual          Boolean           @default(false) @map("is_virtual")
+  joinLink           String?           @map("join_link")
+  provider           String?
+  // Private-until-shared visibility. The record is private to createdByUserId
+  // until shared to the associated client (requires clientId). Un-share clears
+  // sharedAt/sharedByUserId. See redesign plan §5-6.
+  visibility         MeetingVisibility @default(private)
+  sharedAt           DateTime?         @map("shared_at") @db.Timestamptz(6)
+  sharedByUserId     String?           @map("shared_by_user_id") @db.Uuid
+  transcriptS3Key    String?           @map("transcript_s3_key")
+  metadata           Json              @default("{}") @map("metadata_jsonb")
+  raw                Json?             @map("raw_jsonb")
+  associationScore   Float?            @map("association_score")
+  associationReason  String?           @map("association_reason")
+  associationSignals Json              @default("{}") @map("association_signals_jsonb")
+  createdByUserId    String?           @map("created_by_user_id") @db.Uuid
+  createdAt          DateTime          @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt          DateTime          @updatedAt @map("updated_at") @db.Timestamptz(6)
 
   tenant          Tenant                 @relation(fields: [tenantId], references: [id], onDelete: Cascade)
   client          Client?                @relation(fields: [clientId], references: [id], onDelete: SetNull)
@@ -666,20 +699,25 @@ model MailMessage {
 }
 
 model EngagementAttachment {
-  id               String   @id @default(uuid()) @db.Uuid
-  tenantId         String   @map("tenant_id") @db.Uuid
-  clientId         String?  @map("client_id") @db.Uuid
-  meetingId        String?  @map("meeting_id") @db.Uuid
-  mailMessageId    String?  @map("mail_message_id") @db.Uuid
-  fileName         String   @map("file_name")
-  contentType      String   @map("content_type")
-  byteSize         Int?     @map("byte_size")
+  id               String    @id @default(uuid()) @db.Uuid
+  tenantId         String    @map("tenant_id") @db.Uuid
+  clientId         String?   @map("client_id") @db.Uuid
+  meetingId        String?   @map("meeting_id") @db.Uuid
+  mailMessageId    String?   @map("mail_message_id") @db.Uuid
+  fileName         String    @map("file_name")
+  contentType      String    @map("content_type")
+  byteSize         Int?      @map("byte_size")
   bucket           String
-  s3Key            String   @map("s3_key")
-  checksumSha256   String?  @map("checksum_sha256")
-  source           String   @default("manual")
-  uploadedByUserId String?  @map("uploaded_by_user_id") @db.Uuid
-  createdAt        DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  s3Key            String    @map("s3_key")
+  checksumSha256   String?   @map("checksum_sha256")
+  source           String    @default("manual")
+  uploadedByUserId String?   @map("uploaded_by_user_id") @db.Uuid
+  // Meetings v2 (2026-07): stamped by ClientKbService.indexAttachment when the
+  // client-KB indexing of this document completes, so the Documents tab can show
+  // a per-file "Indexed" badge (null = not yet / not indexable). Non-clientId
+  // attachments are never indexed and stay null.
+  indexedAt        DateTime? @map("indexed_at") @db.Timestamptz(6)
+  createdAt        DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
 
   tenant      Tenant       @relation(fields: [tenantId], references: [id], onDelete: Cascade)
   client      Client?      @relation(fields: [clientId], references: [id], onDelete: SetNull)
@@ -745,19 +783,23 @@ model MeetingPrep {
 }
 
 model MeetingDebrief {
-  id             String   @id @default(uuid()) @db.Uuid
-  tenantId       String   @map("tenant_id") @db.Uuid
-  meetingId      String   @map("meeting_id") @db.Uuid
-  clientId       String?  @map("client_id") @db.Uuid
-  authorUserId   String?  @map("author_user_id") @db.Uuid
-  bodyCiphertext String   @map("body_ciphertext")
+  id             String               @id @default(uuid()) @db.Uuid
+  tenantId       String               @map("tenant_id") @db.Uuid
+  meetingId      String               @map("meeting_id") @db.Uuid
+  clientId       String?              @map("client_id") @db.Uuid
+  authorUserId   String?              @map("author_user_id") @db.Uuid
+  bodyCiphertext String               @map("body_ciphertext")
   iv             String
-  authTag        String   @map("auth_tag")
-  keyVersion     String?  @map("key_version")
-  confidential   Boolean  @default(true)
-  accessLevel    String   @default("tenant_members") @map("access_level")
-  createdAt      DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
-  updatedAt      DateTime @updatedAt @map("updated_at") @db.Timestamptz(6)
+  authTag        String               @map("auth_tag")
+  keyVersion     String?              @map("key_version")
+  confidential   Boolean              @default(true)
+  accessLevel    String               @default("tenant_members") @map("access_level")
+  // Meetings v2 (2026-07): debrief lifecycle mirroring MeetingPrep.status. Only
+  // an `approved` debrief reaches the Library / is shareable. Existing rows
+  // backfill to `generated` (see migration) — behavior unchanged until a user approves.
+  status         MeetingDebriefStatus @default(generated)
+  createdAt      DateTime             @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt      DateTime             @updatedAt @map("updated_at") @db.Timestamptz(6)
 
   tenant  Tenant  @relation(fields: [tenantId], references: [id], onDelete: Cascade)
   meeting Meeting @relation(fields: [meetingId], references: [id], onDelete: Cascade)

@@ -266,6 +266,42 @@ class UpdateMeetingPrepDto {
   emailEvidence?: string[];
 }
 
+// Meeting Library filters (Meetings v2 §6). page/limit follow the house
+// pagination convention (default 1 / 50, capped at 100 server-side).
+class MeetingLibraryQueryDto {
+  @IsOptional()
+  @IsUUID()
+  clientId?: string;
+
+  @IsOptional()
+  @IsIn(['prep', 'notes', 'debrief'])
+  artifactType?: 'prep' | 'notes' | 'debrief';
+
+  @IsOptional()
+  @IsIn(['shared', 'private'])
+  visibility?: 'shared' | 'private';
+
+  @IsOptional()
+  @IsDateString()
+  from?: string;
+
+  @IsOptional()
+  @IsDateString()
+  to?: string;
+
+  @IsOptional()
+  @Type(() => Number)
+  @IsInt()
+  @Min(1)
+  page?: number;
+
+  @IsOptional()
+  @Type(() => Number)
+  @IsInt()
+  @Min(1)
+  limit?: number;
+}
+
 class CreateTaskDto {
   @IsOptional()
   @IsUUID()
@@ -1291,6 +1327,14 @@ export class EngagementController {
     });
   }
 
+  // Declared as a static segment BEFORE the dynamic ':id' route below so
+  // 'library' is never captured as a meeting id (same ordering rule as
+  // 'contacts' above).
+  @Get('meetings/library')
+  meetingLibrary(@CurrentTenant() ctx: TenantContext, @Query() query: MeetingLibraryQueryDto) {
+    return this.service.listMeetingLibrary(ctx, query);
+  }
+
   @Get('meetings/:id')
   meeting(@CurrentTenant() ctx: TenantContext, @Param('id') id: string) {
     return this.service.getMeeting(ctx, id);
@@ -1308,6 +1352,19 @@ export class EngagementController {
     @Body() body: UpdateMeetingDto,
   ) {
     return this.service.updateMeeting(ctx, id, body);
+  }
+
+  // Private-until-shared (Meetings v2 §6). Share requires an associated client
+  // (enforced in the service); the confirmation "what/where/who" is populated by
+  // the client from the meeting payload before this is called.
+  @Post('meetings/:id/share')
+  shareMeeting(@CurrentTenant() ctx: TenantContext, @Param('id') id: string) {
+    return this.service.shareMeeting(ctx, id);
+  }
+
+  @Post('meetings/:id/unshare')
+  unshareMeeting(@CurrentTenant() ctx: TenantContext, @Param('id') id: string) {
+    return this.service.unshareMeeting(ctx, id);
   }
 
   @Post('meetings/:id/notes')
@@ -1356,6 +1413,17 @@ export class EngagementController {
     @Body() body: CreateDebriefDto,
   ) {
     return this.service.updateMeetingDebrief(ctx, meetingId, debriefId, body);
+  }
+
+  // Approve a debrief (Meetings v2 §6) — symmetric with meeting-preps/:id/approve.
+  // Only an approved debrief reaches the Library / is shareable.
+  @Post('meetings/:id/debriefs/:debriefId/approve')
+  approveDebrief(
+    @CurrentTenant() ctx: TenantContext,
+    @Param('id') meetingId: string,
+    @Param('debriefId') debriefId: string,
+  ) {
+    return this.service.approveMeetingDebrief(ctx, meetingId, debriefId);
   }
 
   @Post('meetings/:id/debrief-draft')
@@ -1442,6 +1510,15 @@ export class EngagementController {
             .filter(Boolean)
         : undefined,
     });
+  }
+
+  // Shared meeting records for a client's Documents tab (Meetings v2 §8). Tenant-
+  // scoped (shared material is org-visible), NOT owner-scoped — mirrors the
+  // client-scoped debriefs feed above. Query-param client scoping matches the
+  // existing /engagement/attachments?clientId= and /engagement/debriefs?clientId= idiom.
+  @Get('shared-meetings')
+  sharedMeetings(@CurrentTenant() ctx: TenantContext, @Query('clientId') clientId: string) {
+    return this.service.listSharedMeetingsForClient(ctx, clientId);
   }
 
   @Get('outreach')

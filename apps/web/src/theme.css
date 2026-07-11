@@ -22035,3 +22035,666 @@ button.engagement-debrief-badge--action:hover {
 .pe-watch-page .pe-swimlane-row.pe-bill-blanket {
   opacity: 0.72;
 }
+
+/* ══════════════════════════════════════════════════════════════════════════
+   Meetings & Meri v2 (docs/plans/2026-07-10-meetings-meri-v2-redesign-plan.md)
+   Tokens map 1:1 to the prototype (--bg-dark=navy, --accent, --accent-soft,
+   --accent-ink, --bg-sunken, --success). No red on material status.
+   ═════════════════════════════════════════════════════════════════════════ */
+
+/* ── Shared action primitives (also used by the dashboard, §8a) ───────────── */
+.meri-send-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  border: none;
+  border-radius: var(--r-md);
+  background: var(--bg-dark);
+  color: var(--ink-on-dark);
+  font: 600 12.5px/1 var(--font-sans-rd);
+  padding: 6px 12px;
+  cursor: pointer;
+  transition: background 0.12s ease;
+}
+.meri-send-btn:hover:not(:disabled) {
+  background: var(--bg-dark-2);
+}
+.meri-send-btn:disabled {
+  opacity: 0.55;
+  cursor: default;
+}
+.meri-send-btn .anticon {
+  font-size: 13px;
+}
+
+.meri-attending-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  border-radius: var(--r-md);
+  background: var(--accent-soft);
+  color: var(--accent-ink);
+  font: 600 12.5px/1 var(--font-sans-rd);
+  padding: 6px 12px;
+  white-space: nowrap;
+}
+.meri-attending-pill .anticon {
+  font-size: 13px;
+}
+
+.meri-join-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  color: var(--accent);
+  font: 500 11.5px/1 var(--font-sans-rd);
+  text-decoration: none;
+  cursor: pointer;
+}
+.meri-join-link:hover {
+  color: var(--accent-ink);
+}
+
+/* ── Module shell + toolbar ───────────────────────────────────────────────── */
+.mtg-shell {
+  background: var(--bg-surface);
+  border: 1px solid var(--border-1);
+  border-radius: var(--r-lg);
+  overflow: hidden;
+}
+.mtg-toolbar {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 14px 18px;
+  border-bottom: 1px solid var(--border-1);
+  flex-wrap: wrap;
+}
+.mtg-toolbar-title {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  font-weight: 650;
+  font-size: 15px;
+  color: var(--ink-1);
+}
+.mtg-datenav {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  color: var(--ink-2);
+  font-weight: 600;
+  font-size: 13.5px;
+}
+.mtg-datenav button,
+.mtg-today-btn {
+  border: 1px solid var(--border-1);
+  background: var(--bg-surface);
+  border-radius: var(--r-sm);
+  color: var(--ink-2);
+  cursor: pointer;
+  padding: 3px 8px;
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 12.5px;
+}
+.mtg-datenav button:hover,
+.mtg-today-btn:hover {
+  background: var(--bg-sunken);
+}
+.mtg-toolbar-spacer {
+  flex: 1 1 auto;
+}
+.mtg-view-toggle {
+  display: inline-flex;
+  background: var(--bg-sunken);
+  border-radius: var(--r-md);
+  padding: 2px;
+  gap: 2px;
+}
+.mtg-view-toggle button {
+  border: none;
+  background: transparent;
+  color: var(--ink-2);
+  border-radius: 6px;
+  padding: 4px 12px;
+  font-size: 12.5px;
+  font-weight: 600;
+  cursor: pointer;
+}
+.mtg-view-toggle button.active {
+  background: var(--bg-dark);
+  color: var(--ink-on-dark);
+}
+.mtg-library-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  border: 1px solid var(--border-1);
+  background: var(--bg-surface);
+  border-radius: var(--r-md);
+  padding: 5px 12px;
+  font-size: 12.5px;
+  font-weight: 600;
+  color: var(--ink-1);
+  cursor: pointer;
+}
+.mtg-library-btn:hover {
+  background: var(--bg-sunken);
+}
+
+/* ── Week strip (Day view) ────────────────────────────────────────────────── */
+.mtg-weekstrip {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  border-bottom: 1px solid var(--border-1);
+  background: var(--bg-surface-2);
+}
+.mtg-weekstrip-day {
+  border: none;
+  background: transparent;
+  border-right: 1px solid var(--border-1);
+  padding: 10px 6px;
+  text-align: center;
+  cursor: pointer;
+  transition: background 0.12s ease;
+}
+.mtg-weekstrip-day:last-child {
+  border-right: none;
+}
+.mtg-weekstrip-day:hover {
+  background: var(--bg-sunken);
+}
+.mtg-weekstrip-day.is-selected {
+  background: var(--accent-soft);
+  box-shadow: inset 0 -2px 0 var(--accent);
+}
+.mtg-weekstrip-dow {
+  font-size: 10.5px;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  color: var(--ink-3);
+  text-transform: uppercase;
+}
+.mtg-weekstrip-num {
+  font-size: 20px;
+  font-weight: 650;
+  color: var(--ink-1);
+  line-height: 1.2;
+}
+.mtg-weekstrip-day.is-today .mtg-weekstrip-num {
+  color: var(--accent);
+}
+.mtg-weekstrip-count {
+  font-size: 11px;
+  color: var(--ink-3);
+}
+
+/* ── Day / List rows ──────────────────────────────────────────────────────── */
+.mtg-body {
+  max-height: 60vh;
+  overflow-y: auto;
+}
+.mtg-daygroup-head {
+  padding: 10px 18px 4px;
+  font-size: 12.5px;
+  font-weight: 650;
+  color: var(--accent-ink);
+}
+.mtg-row {
+  display: flex;
+  align-items: flex-start;
+  gap: 16px;
+  padding: 14px 18px;
+  border-bottom: 1px solid var(--border-1);
+  cursor: pointer;
+  transition: background 0.12s ease;
+}
+.mtg-row:hover {
+  background: var(--bg-sunken);
+}
+.mtg-row.is-selected {
+  background: var(--accent-soft);
+}
+.mtg-row-time {
+  width: 74px;
+  flex-shrink: 0;
+  font-size: 12.5px;
+  font-weight: 600;
+  color: var(--ink-2);
+  padding-top: 2px;
+}
+.mtg-row-main {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+.mtg-row-title {
+  font-size: 14px;
+  font-weight: 650;
+  color: var(--ink-1);
+}
+.mtg-row-sub {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-top: 2px;
+  font-size: 12px;
+  color: var(--ink-3);
+}
+.mtg-row-sub .anticon {
+  font-size: 12px;
+}
+.mtg-row-meri {
+  margin-top: 8px;
+}
+.mtg-row-right {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-shrink: 0;
+}
+.mtg-artifacts {
+  display: flex;
+  gap: 6px;
+}
+.mtg-artifact-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  border-radius: 999px;
+  padding: 2px 9px;
+  font-size: 11px;
+  font-weight: 600;
+  background: var(--bg-sunken);
+  color: var(--ink-3);
+  white-space: nowrap;
+}
+.mtg-artifact-pill.is-complete {
+  background: var(--success-soft);
+  color: var(--success);
+}
+.mtg-artifact-pill .anticon {
+  font-size: 10px;
+}
+.mtg-row-chevron {
+  color: var(--ink-4);
+  font-size: 12px;
+}
+.mtg-empty {
+  padding: 40px 18px;
+  text-align: center;
+  color: var(--ink-3);
+}
+
+/* ── Month grid ───────────────────────────────────────────────────────────── */
+.mtg-month {
+  display: flex;
+  flex-direction: column;
+}
+.mtg-month-dow {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  border-bottom: 1px solid var(--border-1);
+}
+.mtg-month-dow span {
+  padding: 8px 10px;
+  font-size: 10.5px;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--ink-3);
+}
+.mtg-month-grid {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+}
+.mtg-month-cell {
+  min-height: 104px;
+  border-right: 1px solid var(--border-1);
+  border-bottom: 1px solid var(--border-1);
+  padding: 6px;
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+.mtg-month-cell:nth-child(7n) {
+  border-right: none;
+}
+.mtg-month-cell.is-outside {
+  background: var(--bg-surface-2);
+}
+.mtg-month-datenum {
+  align-self: flex-end;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--ink-2);
+  width: 22px;
+  height: 22px;
+  display: grid;
+  place-items: center;
+}
+.mtg-month-cell.is-today .mtg-month-datenum {
+  background: var(--accent);
+  color: var(--ink-on-dark);
+  border-radius: 50%;
+}
+.mtg-month-chip {
+  border: none;
+  text-align: left;
+  background: var(--accent-soft);
+  color: var(--accent-ink);
+  border-radius: var(--r-xs);
+  padding: 2px 6px;
+  font-size: 11px;
+  cursor: pointer;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.mtg-month-chip:hover {
+  filter: brightness(0.97);
+}
+.mtg-month-more {
+  border: none;
+  background: transparent;
+  color: var(--ink-3);
+  font-size: 11px;
+  cursor: pointer;
+  padding: 0 6px;
+  text-align: left;
+}
+
+/* ── Detail drawer ────────────────────────────────────────────────────────── */
+.mtg-detail-meta {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 11.5px;
+  color: var(--ink-3);
+  flex-wrap: wrap;
+}
+.mtg-detail-title {
+  font-size: 20px;
+  font-weight: 650;
+  letter-spacing: -0.01em;
+  color: var(--ink-1);
+  margin: 8px 0 10px;
+}
+.mtg-detail-clientbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 12px;
+}
+.mtg-client-pill {
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--accent-ink);
+}
+.mtg-vis-toggle {
+  display: inline-flex;
+  background: var(--bg-sunken);
+  border-radius: var(--r-md);
+  padding: 2px;
+  gap: 2px;
+}
+.mtg-vis-toggle button {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  border: none;
+  background: transparent;
+  color: var(--ink-2);
+  border-radius: 6px;
+  padding: 4px 12px;
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+}
+.mtg-vis-toggle button.active {
+  background: var(--bg-dark);
+  color: var(--ink-on-dark);
+}
+.mtg-vis-toggle button.active.is-shared {
+  background: var(--success);
+}
+.mtg-attendees {
+  border: 1px solid var(--border-1);
+  border-radius: var(--r-md);
+  margin-bottom: 14px;
+}
+.mtg-attendees-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+  border: none;
+  background: transparent;
+  padding: 10px 12px;
+  cursor: pointer;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--ink-2);
+}
+.mtg-attendees-list {
+  max-height: 180px;
+  overflow-y: auto;
+  border-top: 1px solid var(--border-1);
+  padding: 6px 12px;
+}
+.mtg-attendee {
+  padding: 6px 0;
+  border-bottom: 1px solid var(--border-1);
+}
+.mtg-attendee:last-child {
+  border-bottom: none;
+}
+.mtg-attendee-name {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--ink-1);
+}
+.mtg-attendee-meta {
+  font-size: 11.5px;
+  color: var(--ink-3);
+}
+.mtg-saved-line {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
+  color: var(--success);
+  margin-bottom: 10px;
+}
+
+/* Artifact tab content */
+.mtg-tab-banner {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  background: var(--accent-soft);
+  color: var(--accent-ink);
+  border-radius: var(--r-md);
+  padding: 9px 12px;
+  font-size: 12.5px;
+  margin-bottom: 14px;
+}
+.mtg-section {
+  margin-bottom: 16px;
+}
+.mtg-section-label {
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--ink-3);
+  margin-bottom: 5px;
+}
+.mtg-talking-point {
+  display: flex;
+  gap: 10px;
+  padding: 4px 0;
+}
+.mtg-talking-point .idx {
+  color: var(--accent);
+  font-variant-numeric: tabular-nums;
+  font-weight: 700;
+  font-size: 12px;
+  flex-shrink: 0;
+}
+.mtg-watchout {
+  background: var(--notable-soft);
+  color: var(--notable);
+  border-radius: var(--r-md);
+  padding: 9px 12px;
+  font-size: 13px;
+}
+.mtg-tab-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+  margin-top: 14px;
+  padding-top: 14px;
+  border-top: 1px solid var(--border-1);
+}
+.mtg-tab-actions .mtg-approved-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  color: var(--success);
+  font-size: 12.5px;
+  font-weight: 600;
+  margin-left: auto;
+}
+.mtg-source-cards {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+  gap: 10px;
+  margin-top: 8px;
+}
+.mtg-source-card {
+  border: 1px solid var(--border-1);
+  border-radius: var(--r-md);
+  padding: 14px 12px;
+  text-align: center;
+  cursor: pointer;
+  background: var(--bg-surface);
+}
+.mtg-source-card:hover {
+  border-color: var(--accent);
+  background: var(--bg-sunken);
+}
+.mtg-source-card .anticon {
+  font-size: 20px;
+  color: var(--accent);
+}
+.mtg-source-card-label {
+  margin-top: 6px;
+  font-size: 12.5px;
+  font-weight: 600;
+  color: var(--ink-1);
+}
+.mtg-empty-tab {
+  text-align: center;
+  color: var(--ink-3);
+  padding: 24px 8px;
+}
+
+/* Contributor expander (Documents shared record + collision model §7) */
+.mtg-contrib-expander {
+  border: none;
+  background: transparent;
+  color: var(--accent);
+  cursor: pointer;
+  font-size: 12px;
+  font-weight: 600;
+  padding: 4px 0;
+}
+
+/* ── Library table ────────────────────────────────────────────────────────── */
+.mtg-library-filters {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+  padding: 14px 18px;
+  border-bottom: 1px solid var(--border-1);
+}
+.mtg-lib-intro {
+  color: var(--ink-2);
+  font-size: 13px;
+  padding: 12px 18px 0;
+}
+.mtg-chipfilter {
+  display: inline-flex;
+  background: var(--bg-sunken);
+  border-radius: var(--r-md);
+  padding: 2px;
+  gap: 2px;
+}
+.mtg-chipfilter button {
+  border: none;
+  background: transparent;
+  color: var(--ink-2);
+  border-radius: 6px;
+  padding: 4px 10px;
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+}
+.mtg-chipfilter button.active {
+  background: var(--bg-dark);
+  color: var(--ink-on-dark);
+}
+.mtg-vis-badge {
+  display: inline-block;
+  font-size: 10.5px;
+  font-weight: 700;
+  letter-spacing: 0.05em;
+  padding: 2px 8px;
+  border-radius: 4px;
+}
+.mtg-vis-badge.is-private {
+  background: var(--bg-sunken);
+  color: var(--ink-2);
+}
+.mtg-vis-badge.is-shared {
+  background: var(--success-soft);
+  color: var(--success);
+}
+
+/* ── Client Documents: "Shared from meetings" section ─────────────────────── */
+.mtg-shared-section {
+  margin: 20px 0;
+}
+.mtg-shared-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 0;
+  border-bottom: 1px solid var(--border-1);
+  cursor: pointer;
+}
+.mtg-shared-row:hover {
+  background: var(--bg-sunken);
+}
+.mtg-shared-main {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+.mtg-shared-title {
+  font-size: 13.5px;
+  font-weight: 650;
+  color: var(--ink-1);
+}
+.mtg-shared-sub {
+  font-size: 11.5px;
+  color: var(--ink-3);
+}

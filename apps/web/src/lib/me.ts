@@ -25,6 +25,14 @@ export interface MeResponse {
    * Billing/AI-usage tab visibility and every purchase/upgrade CTA.
    */
   billingAdmin: boolean;
+  /**
+   * Per-tenant feature flags the client needs to route/render. `meetingsV2`
+   * gates the redesigned Engagement → Meetings module (Day/Month/List, sharing,
+   * Library, Documents integration); default false until flipped per tenant.
+   */
+  features: {
+    meetingsV2: boolean;
+  };
 }
 
 export function useMe() {

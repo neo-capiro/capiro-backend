@@ -7,10 +7,14 @@ import { useApi } from '../lib/use-api.js';
 import {
   DebriefNotesView,
   extractMeetingJoinUrl,
+  JoinLink,
   MeetingQuickActions,
+  MeriAttendingPill,
   NotetakerConsentFields,
   openMeetingJoinLink,
+  SendMeriButton,
 } from './engagement/meeting-actions.js';
+import { useMe } from '../lib/me.js';
 import type { Client } from './clients/clientTypes.js';
 import type {
   ComingUpItem,
@@ -57,6 +61,11 @@ interface DashMeeting {
   attendees: Array<{ name: string | null; role: string | null }>;
   preps: Array<{ status: string }>;
   debriefs: Array<{ id: string }>;
+  // Meetings v2 fields (present once the API decorate layer is live): the stored
+  // join link + the coarse notetaker state driving the Meri/Join primitives (§8a).
+  isVirtual?: boolean;
+  joinLink?: string | null;
+  meri?: 'scheduled' | 'attending' | 'done' | null;
 }
 
 /** Minimal saved-debrief shape for the home notes modal. */
@@ -559,6 +568,9 @@ function ClientEngagement({ meetings, loading }: { meetings: DashMeeting[]; load
   const api = useApi();
   const qc = useQueryClient();
   const { message } = App.useApp();
+  // Meetings v2 (§8a): restyle the per-row Meri/Join actions to match the
+  // redesign when the tenant is on the flag; otherwise keep the current buttons.
+  const meetingsV2 = useMe().data?.features?.meetingsV2 ?? false;
   const now = useMemo(() => new Date(), []);
   const days = useMemo(() => weekDays(now), [now]);
   const todayKey = dayKey(now);
@@ -695,13 +707,39 @@ function ClientEngagement({ meetings, loading }: { meetings: DashMeeting[]; load
                     {status.label}
                   </Tag>
                 </Link>
-                <MeetingQuickActions
-                  meeting={m}
-                  compact
-                  onJoin={() => openMeetingJoinLink(m)}
-                  onSendNotetaker={() => openNotetaker(m)}
-                  onViewNotes={() => setNotesMeetingId(m.id)}
-                />
+                {meetingsV2 ? (
+                  <div className="engagement-meeting-quick-actions">
+                    {new Date(m.endsAt).getTime() >= now.getTime() &&
+                    (m.isVirtual ?? Boolean(extractMeetingJoinUrl(m))) ? (
+                      m.meri === 'scheduled' || m.meri === 'attending' ? (
+                        <MeriAttendingPill />
+                      ) : m.meri !== 'done' ? (
+                        <SendMeriButton onClick={() => openNotetaker(m)} />
+                      ) : null
+                    ) : null}
+                    <JoinLink joinUrl={m.joinLink ?? null} meeting={m} />
+                    {m.debriefs.length > 0 ? (
+                      <button
+                        type="button"
+                        className="meri-join-link"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setNotesMeetingId(m.id);
+                        }}
+                      >
+                        Notes
+                      </button>
+                    ) : null}
+                  </div>
+                ) : (
+                  <MeetingQuickActions
+                    meeting={m}
+                    compact
+                    onJoin={() => openMeetingJoinLink(m)}
+                    onSendNotetaker={() => openNotetaker(m)}
+                    onViewNotes={() => setNotesMeetingId(m.id)}
+                  />
+                )}
               </div>
             );
           })}

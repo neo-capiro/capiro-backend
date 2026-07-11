@@ -35,6 +35,7 @@ import { useApi } from '../../lib/use-api.js';
 import { useClientFilter } from '../../state/client-filter.js';
 import type { Client } from '../clients/clientTypes.js';
 import { OverviewTab } from './OverviewTab.js';
+import { MeetingsV2 } from './meetings/MeetingsV2.js';
 import { OutreachView } from './OutreachView.js';
 import {
   DebriefNotesView,
@@ -1162,7 +1163,12 @@ export function EngagementPage() {
           {
             key: 'meetings',
             label: 'Meetings',
-            children: (
+            children: me.data?.features?.meetingsV2 ? (
+              <MeetingsV2
+                clientId={selectedClientId}
+                aiConfigured={Boolean(capabilities.data?.ai.activeProvider)}
+              />
+            ) : (
               <div className="engagement-meeting-shell">
                 <div className="engagement-panel engagement-schedule-panel">
                   <div className="engagement-schedule-head">

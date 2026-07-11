@@ -4,6 +4,7 @@ import type { TenantContext } from '@capiro/shared';
 import { CurrentTenant } from '../tenant/current-tenant.decorator.js';
 import { PrismaService } from '../prisma/prisma.service.js';
 import { MAX_SIGNATURE_HTML_LENGTH, sanitizeSignatureHtml } from '../common/sanitize-signature.js';
+import { meetingsV2Enabled } from '../common/tenant-flags.js';
 
 class UpdateMeDto {
   @IsOptional()
@@ -79,7 +80,9 @@ export class UsersController {
         }),
         tx.tenant.findUnique({
           where: { id: ctx.tenantId },
-          select: { name: true },
+          // settings_jsonb is read to resolve per-tenant feature flags surfaced
+          // to the web (see `features` below) — it is NOT returned wholesale.
+          select: { name: true, settings: true },
         }),
         // billing_admin permission bit (onboarding v1) — drives billing-tab
         // visibility + purchase CTAs in the web app. Deliberately read here
@@ -113,6 +116,13 @@ export class UsersController {
       // capiro_admin implicitly has billing powers; tenant users need the
       // explicit membership bit (the Gherkin "Super Admin").
       billingAdmin: ctx.role === 'capiro_admin' || (profile.membership?.billingAdmin ?? false),
+      // Per-tenant feature flags the web needs to route/render. The first entry
+      // (Meetings & Meri redesign) gates the rebuilt Engagement → Meetings module;
+      // there was no prior flag-surfacing pipe (flags were server-side only), so
+      // this `features` block is the single place the web reads them.
+      features: {
+        meetingsV2: meetingsV2Enabled(profile.tenant?.settings),
+      },
     };
   }
 

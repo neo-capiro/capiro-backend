@@ -23,6 +23,7 @@ import {
 } from '@prisma/client';
 import { createHmac, randomUUID } from 'node:crypto';
 import type { TenantContext } from '@capiro/shared';
+import { deriveMeetingVirtuality } from '@capiro/shared';
 import type { AppConfig } from '../../config/config.schema.js';
 import { PrismaService } from '../../prisma/prisma.service.js';
 import { ClientAssociationService } from '../client-association.service.js';
@@ -121,6 +122,14 @@ interface GraphEvent {
   bodyPreview?: string | null;
   webLink?: string | null;
   isCancelled?: boolean | null;
+  // Structured online-meeting fields (Meetings v2 §5). Graph's default event
+  // representation on /calendarView(/delta) already returns these, so no $select
+  // change is needed (adding a $select to the delta query would risk the existing
+  // delta-cycle state). onlineMeeting.joinUrl is the authoritative Teams/… join
+  // link when present; deriveMeetingVirtuality falls back to the free-text scan.
+  isOnlineMeeting?: boolean | null;
+  onlineMeetingProvider?: string | null;
+  onlineMeeting?: { joinUrl?: string | null } | null;
   start?: { dateTime?: string | null; timeZone?: string | null } | null;
   end?: { dateTime?: string | null; timeZone?: string | null } | null;
   location?: { displayName?: string | null } | null;
@@ -677,6 +686,18 @@ export class MicrosoftGraphSyncService {
             : association.clientId;
 
         const contactsByEmail = await upsertContacts(tx, tenantId, attendees);
+        // Virtual-meeting classification derived once at sync time (Meetings v2
+        // §5): prefer Graph's structured onlineMeeting.joinUrl, else scan the
+        // webLink/location/invite body. Stored on the Meeting so the UI and the
+        // Meri-eligibility gate read a column instead of re-parsing free text.
+        const virtuality = deriveMeetingVirtuality({
+          location: clean(event.location?.displayName),
+          description: clean(event.bodyPreview),
+          metadata: { webLink: event.webLink ?? null },
+          onlineMeetingUrl: event.onlineMeeting?.joinUrl ?? null,
+          isOnlineMeeting: event.isOnlineMeeting ?? null,
+          onlineMeetingProvider: event.onlineMeetingProvider ?? null,
+        });
         const baseData = {
           clientId,
           connectionId,
@@ -690,6 +711,9 @@ export class MicrosoftGraphSyncService {
           organizerEmail,
           organizerName: clean(event.organizer?.emailAddress?.name),
           status: event.isCancelled ? 'cancelled' : 'scheduled',
+          isVirtual: virtuality.isVirtual,
+          joinLink: virtuality.joinLink,
+          provider: virtuality.provider,
           raw: event as Prisma.InputJsonValue,
           metadata: {
             webLink: event.webLink ?? null,
