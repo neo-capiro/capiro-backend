@@ -83,6 +83,12 @@ COPY --chown=capiro:capiro --from=build /workspace/packages/shared/dist /app/pac
 COPY --chown=capiro:capiro --from=build /workspace/packages/shared/package.json /app/packages/shared/package.json
 COPY --chown=capiro:capiro --from=build /workspace/packages/meriv2-core/dist /app/packages/meriv2-core/dist
 COPY --chown=capiro:capiro --from=build /workspace/packages/meriv2-core/package.json /app/packages/meriv2-core/package.json
+# meriv2-core (unlike leaf @capiro/shared) has workspace deps of its own —
+# packages/meriv2-core/dist/alerts/alert.js require()s @capiro/shared, and pnpm
+# links that (+ zod) under packages/meriv2-core/node_modules (relative symlinks
+# to /app/packages/shared and /app/node_modules/.pnpm), NOT hoisted to root. Copy
+# it or the API crashloops at boot with MODULE_NOT_FOUND '@capiro/shared'.
+COPY --chown=capiro:capiro --from=build /workspace/packages/meriv2-core/node_modules /app/packages/meriv2-core/node_modules
 COPY --chown=capiro:capiro --from=build /workspace/apps/api/dist /app/apps/api/dist
 COPY --chown=capiro:capiro --from=build /workspace/apps/api/node_modules /app/apps/api/node_modules
 COPY --chown=capiro:capiro --from=build /workspace/apps/api/prisma /app/apps/api/prisma
