@@ -293,6 +293,10 @@ G1 W0.2 (`da23b43`) · G2 W1.2 (`200a0e2`) · G3 runner/CI/baseline (`41ce174`) 
 
 **Remaining human/gated actions (handoff):** Ninja's W1.3 20-draft ranking (calibrates the judge → unblocks the W2.7 default-flip); D2/model-tier + prompt-spec flips (out-of-band env at deploy, on eval evidence); D4 sign-off for `/campaigns/*` retirement; D8 decision for reply detection; W3.3 cache-read measurement on a prod canary; interactive canary QA for the W4.4 job UI + W5.4 PE-Brief citation.
 
+## Shipped (2026-07-11)
+
+Merged to `main` as **PR #403** (squash `5e7e838`) after CI green (`verify` + `evals`). **Deployed to AWS** via `scripts/deploy-dev.sh`: ECR `:latest` verified = `5e7e838` for both api + web (ECR-race clear), migrate exit 0 (`No pending migrations` — this drive added none), `capiro-dev-api` + `capiro-dev-web` rolled to steady state. Post-deploy: **0 API exceptions**, `app.capiro.ai` 200, `/api/me` 401 (auth guard alive). All quality flips ship **off by default**, so production behavior is unchanged; the live changes are the correctness fix (W0.2), sticky provider (W3.2a, behavior-preserving for single-provider tenants), and additive UI (badge, PE tab). Follow-up **PR #404** fixes the `outreach-evals` CI workflow (build `@capiro/shared` before typecheck). The X1 orchestrator fix is in the image but takes effect only on a separate `meriv2-orchestrator` roll (fallback-only; no-op if `ANTHROPIC_MODEL` is set in prod).
+
 ## Status log
 
 - 2026-07-11: Plan authored from 8-gap research + adversarial verification pass. Beginning W0/G1.
