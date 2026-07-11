@@ -31,6 +31,20 @@ describe('recommendedActionsFor', () => {
     expect(openBill?.target?.billId).toBe('tx-2025-hb1234');
   });
 
+  it('W4.4 (D-12): a regulation alert offers NO draft_memo and NO open_bill (the memo is bill-shaped; a reg has no bill fields), but keeps the lighter actions', () => {
+    const kinds = recommendedActionsFor({
+      sourceType: 'regulation',
+      severity: 'notable',
+      sourceRef: '2026-01234',
+    }).map((a) => a.kind);
+    expect(kinds).not.toContain('draft_memo');
+    expect(kinds).not.toContain('open_bill');
+    expect(kinds).not.toContain('district_brief'); // not bill-shaped
+    expect(kinds).toEqual(
+      expect.arrayContaining(['draft_outreach', 'add_talking_point', 'add_to_report']),
+    );
+  });
+
   it('still offers the lighter actions (outreach/talking-point/report) on a state_bill alert', () => {
     const kinds = recommendedActionsFor({ sourceType: 'state_bill', severity: 'info' }).map(
       (a) => a.kind,

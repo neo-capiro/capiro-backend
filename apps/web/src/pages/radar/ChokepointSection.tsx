@@ -153,6 +153,18 @@ export function ChokepointSection({ billId, clientId }: { billId: string; client
       </DrillSection>
     );
   }
+  // W4.4: a fetch error must show an explicit "unavailable" notice, not render
+  // nothing — silent-null is indistinguishable from "no chokepoint data" and
+  // hides a real outage from the user.
+  if (query.isError) {
+    return (
+      <DrillSection title="Chokepoint">
+        <div style={{ fontSize: 12, color: 'var(--ink-3)', padding: '4px 0' }}>
+          Chokepoint analysis is temporarily unavailable. Try refreshing.
+        </div>
+      </DrillSection>
+    );
+  }
   if (!query.data) return null;
   return (
     <DrillSection title="Chokepoint">

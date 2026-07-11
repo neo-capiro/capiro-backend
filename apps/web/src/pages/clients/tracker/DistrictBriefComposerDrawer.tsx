@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { App as AntApp, Button, Empty, Modal, Select, Space, Tag, Tooltip, Typography } from 'antd';
 import { useApi } from '../../../lib/use-api.js';
+import { errorMessage } from '../../../lib/error-message.js';
 import { getClientFacilities, type ClientFacility } from '../facilities-api.js';
 import type { FeedItem } from './intel-feed-api.js';
 import {
@@ -63,7 +64,9 @@ export function DistrictBriefComposerDrawer({
         message.warning('District brief drafted (auto-file to Documents failed)');
       }
     } catch (e) {
-      message.error(`Could not draft district brief: ${(e as Error).message}`);
+      // W4.4: surface the SERVER's message (e.g. a 503 "No Anthropic credential"
+      // or a 404), not axios's generic "Request failed with status code …".
+      message.error(`Could not draft district brief: ${errorMessage(e)}`);
     }
   };
 

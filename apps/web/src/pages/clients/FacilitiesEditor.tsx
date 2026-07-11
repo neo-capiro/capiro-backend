@@ -15,6 +15,7 @@ import {
   Typography,
 } from 'antd';
 import { useApi } from '../../lib/use-api.js';
+import { errorMessage } from '../../lib/error-message.js';
 import {
   DISTRICT_PATTERN,
   GEOCODE_STATUS_LABEL,
@@ -437,15 +438,6 @@ function FacilityModal({
 function optional(value: unknown): string | null {
   const text = typeof value === 'string' ? value.trim() : '';
   return text.length ? text : null;
-}
-
-function errorMessage(error: unknown): string {
-  if (error && typeof error === 'object' && 'response' in error) {
-    const data = (error as { response?: { data?: { message?: unknown } } }).response?.data;
-    if (typeof data?.message === 'string') return data.message;
-    if (Array.isArray(data?.message)) return data.message.join(', ');
-  }
-  return error instanceof Error ? error.message : 'Request failed';
 }
 
 export default FacilitiesEditor;

@@ -54,7 +54,12 @@ export function recommendedActionsFor(alert: AlertShape): RecommendedAction[] {
     alert.sourceType === 'combined' ||
     alert.sourceType === 'state_bill';
   const isHearing = alert.sourceType === 'hearing' || alert.sourceType === 'combined';
-  const canMemo = alert.sourceType !== 'state_bill';
+  // W4.4 (D-12): the memo generator is BILL-shaped — a 'regulation' alert has no
+  // bill fields, so a "Draft client memo" chip on a regulation produced a memo
+  // with null bill fields. Exclude regulation (minimal fix; a real rule-shaped
+  // memo is a deferred feature). state_bill stays excluded (its DTO doesn't
+  // accept the sourceType yet); bill/combined/hearing behavior is unchanged.
+  const canMemo = alert.sourceType !== 'state_bill' && alert.sourceType !== 'regulation';
   const sessionId = sessionIdOf(alert.evidence);
 
   const actions: RecommendedAction[] = [];
