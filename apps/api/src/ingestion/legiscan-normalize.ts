@@ -40,6 +40,23 @@ export function normalizeBillNumber(number: string): string {
   return (number ?? '').toLowerCase().replace(/\./g, '').replace(/\s+/g, '');
 }
 
+/**
+ * The bill's display number, resilient to LegiScan's per-operation field split:
+ * getMasterList returns it as `number`; getBill AND the bulk dataset return it
+ * as `bill_number` (with `number` null). normalizeLegiscanBill is only ever fed
+ * getBill/dataset payloads (the drain + the backfill), so reading `raw.number`
+ * alone yielded undefined → an invalid canonical key → null → EVERY bill
+ * silently dropped (0 rows on the 2026-07-11 activation backfill; unit tests
+ * missed it because the fixture used `number` and the TS type declared it
+ * required). Prefer bill_number, fall back to number for any masterlist-shaped
+ * caller. Verified against a live getBill + getDataset for DC B26-0001.
+ */
+export function billDisplayNumber(
+  raw: Pick<LegiscanBill, 'number' | 'bill_number'>,
+): string {
+  return (raw.bill_number ?? raw.number ?? '').trim();
+}
+
 /** Build + validate the DD1 canonical key. Null when any part is malformed. */
 export function buildStateBillKey(
   state: string,
@@ -164,7 +181,8 @@ export function normalizeLegiscanBill(
   state: string,
 ): NormalizedStateBill | null {
   const sessionKey = computeSessionKey(raw.session);
-  const billKey = buildStateBillKey(state, sessionKey, raw.number);
+  const displayNumber = billDisplayNumber(raw);
+  const billKey = buildStateBillKey(state, sessionKey, displayNumber);
   if (!billKey) return null;
 
   const history = raw.history ?? [];
@@ -217,8 +235,8 @@ export function normalizeLegiscanBill(
     state: state.toUpperCase(),
     sessionKey,
     legiscanSessionId: raw.session.session_id,
-    identifier: raw.number,
-    billNumber: normalizeBillNumber(raw.number),
+    identifier: displayNumber,
+    billNumber: normalizeBillNumber(displayNumber),
     title: raw.title,
     chamber: raw.current_body ?? raw.body ?? null,
     classification: raw.bill_type ? [raw.bill_type] : [],

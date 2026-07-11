@@ -52,7 +52,12 @@ function fixtureBill(overrides: Partial<LegiscanBill> = {}): LegiscanBill {
     },
     url: 'https://legiscan.com/TX/bill/HB1234/2025',
     state_link: 'https://capitol.texas.gov/BillLookup/History.aspx?LegSess=89R&Bill=HB1234',
-    number: 'HB1234',
+    // Real getBill / bulk-dataset shape: the number is in bill_number and
+    // `number` is null (getMasterList is the only op that uses `number`). The
+    // fixture mirrors reality so the suite exercises the bill_number path the
+    // 2026-07-11 activation bug hit (reading `number` dropped every bill).
+    bill_number: 'HB1234',
+    number: null,
     bill_type: 'B',
     body: 'H',
     current_body: 'H',
@@ -130,8 +135,23 @@ describe('normalizeLegiscanBill', () => {
     expect(n?.calendarEvents[0]?.eventKey).toBe('tx-2025-hb1234:hearing:2025-02-01:Room E2.010');
   });
 
+  it('reads bill_number (getBill/dataset shape) — regression for the 2026-07-11 0-bill backfill', () => {
+    // getBill + bulk-dataset put the number in bill_number with `number` null.
+    // Reading `number` alone produced an invalid key → null → every bill dropped.
+    const n = normalizeLegiscanBill(fixtureBill({ bill_number: 'SB99', number: null }), 'CA');
+    expect(n?.billKey).toBe('ca-2025-sb99');
+    expect(n?.identifier).toBe('SB99');
+    expect(n?.billNumber).toBe('sb99');
+  });
+
+  it('falls back to number when bill_number is absent (getMasterList shape)', () => {
+    const n = normalizeLegiscanBill(fixtureBill({ bill_number: null, number: 'HR5' }), 'NY');
+    expect(n?.billKey).toBe('ny-2025-hr5');
+    expect(n?.identifier).toBe('HR5');
+  });
+
   it('returns null when the bill number does not form a valid DD1 key', () => {
-    const n = normalizeLegiscanBill(fixtureBill({ number: '' }), 'TX');
+    const n = normalizeLegiscanBill(fixtureBill({ bill_number: '', number: null }), 'TX');
     expect(n).toBeNull();
   });
 

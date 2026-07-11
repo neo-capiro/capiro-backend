@@ -211,7 +211,14 @@ export interface LegiscanBill {
   session: LegiscanSession;
   url?: string;
   state_link?: string;
-  number: string;
+  // LegiScan splits the bill number field by operation: getMasterList uses
+  // `number`, but getBill AND the bulk dataset use `bill_number` (with `number`
+  // null). normalizeLegiscanBill is fed by the getBill drain + dataset backfill,
+  // so it must read bill_number (see billDisplayNumber). Both optional/nullable
+  // to model every real payload. (Verified against live getBill + getDataset,
+  // DC B26-0001, 2026-07-11.)
+  number?: string | null;
+  bill_number?: string | null;
   bill_type?: string;
   body?: string;
   current_body?: string;
