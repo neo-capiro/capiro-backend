@@ -62,6 +62,15 @@ import {
 import { MeetingNotesCryptoService } from './meeting-notes-crypto.service.js';
 import { MicrosoftGraphSyncService } from './microsoft/microsoft-graph-sync.service.js';
 import { ClientKbService } from '../embeddings/client-kb.service.js';
+import {
+  billIdFromItemId,
+  peCodeFromItemId,
+  formatBillTruth,
+  formatPeTruth,
+  renderClientRelationshipSnapshot,
+  type BillVoteRow,
+  type GoverningRuleRow,
+} from './outreach-context-enrichment.js';
 
 export interface CreateIntegrationInput {
   provider: EngagementProvider;
@@ -2449,7 +2458,10 @@ export class EngagementService {
       : null;
 
     let client: Record<string, unknown> | null = null;
-    let clientContextForCampaign: Record<string, unknown> | null = null;
+    // Rendered to a compact STRING (not the raw object): PromptSpec v2 only
+    // renders string context values, so an object was silently dropped when v2
+    // went live. See renderClientRelationshipSnapshot.
+    let clientContextForCampaign: string | null = null;
     if (clientId) {
       const [row, context] = await Promise.all([
         this.prisma.withTenant(ctx.tenantId, (tx) =>
@@ -2458,18 +2470,25 @@ export class EngagementService {
         this.clientContext(ctx, clientId).catch(() => null),
       ]);
       if (row) client = pruneForAi(row);
-      if (context) clientContextForCampaign = pruneForAi(context);
+      if (context) clientContextForCampaign = renderClientRelationshipSnapshot(context);
     }
 
     const insightsContext = insights?.length
       ? `Selected intelligence insights:\n${insights.join('\n')}`
       : null;
 
+    // Accuracy fix (2026-07-11): replace thin client-supplied bill/PE bodies with
+    // an AUTHORITATIVE block from our own tables (canonical status + every
+    // congressional mark) BEFORE they become prompt text — the fix for reversed
+    // funding direction, omitted chamber cuts, and "stalled bill read as
+    // advancing". Best-effort per item; a lookup miss keeps the original body.
+    const enrichedContextItems = await this.enrichOutreachContextItems(contextItems ?? []);
+
     // Bucket the v2 wizard's scoped context items so we can hand the AI
     // shared-context-vs-recipient-context distinctly per draft below.
-    const sharedItems = (contextItems ?? []).filter((c) => c.scope === 'all');
+    const sharedItems = enrichedContextItems.filter((c) => c.scope === 'all');
     const recipientScopedItems = new Map<string, typeof sharedItems>();
-    for (const c of contextItems ?? []) {
+    for (const c of enrichedContextItems) {
       if (c.scope === 'all') continue;
       const bucket = recipientScopedItems.get(c.scope) ?? [];
       bucket.push(c);
@@ -5623,6 +5642,201 @@ export class EngagementService {
       ...meeting,
       debriefs: (debriefsByMeeting[index] ?? []).filter((debrief) => !debrief.restricted),
     }));
+  }
+
+  /**
+   * Accuracy fix (2026-07-11): rewrite the body of every attached `bill` /
+   * `programElement` context item with an AUTHORITATIVE block sourced from our
+   * own (global, non-RLS) tables, so drafts cite real canonical status and every
+   * congressional mark instead of narrating from a single stale string. Runs once
+   * per campaign, in parallel, best-effort: any lookup error/miss leaves the
+   * original client-supplied body untouched (never blocks a draft).
+   */
+  private async enrichOutreachContextItems(
+    items: OutreachSelectedContextItemInput[],
+  ): Promise<OutreachSelectedContextItemInput[]> {
+    if (!items.length) return items;
+    return Promise.all(
+      items.map(async (item) => {
+        try {
+          if (item.kind === 'bill') {
+            const billId = billIdFromItemId(item.id);
+            const block = billId ? await this.billTruthBlock(billId) : null;
+            return block ? { ...item, body: block } : item;
+          }
+          if (item.kind === 'programElement') {
+            const peCode = peCodeFromItemId(item.id);
+            const block = peCode ? await this.peTruthBlock(peCode) : null;
+            return block ? { ...item, body: block } : item;
+          }
+        } catch (err) {
+          this.logger.warn(
+            `outreach context enrichment failed for ${item.id}: ${(err as Error).message}`,
+          );
+        }
+        return item;
+      }),
+    );
+  }
+
+  /** Authoritative bill-truth block (see outreach-context-enrichment). Null if the
+   *  bill isn't on record — the caller then keeps the thin client body. */
+  private async billTruthBlock(billId: string): Promise<string | null> {
+    const bill = await this.prisma.congressBill.findUnique({
+      where: { id: billId },
+      select: {
+        id: true,
+        title: true,
+        status: true,
+        statusAt: true,
+        latestActionText: true,
+        latestActionDate: true,
+        sponsorName: true,
+        sponsorParty: true,
+        sponsorState: true,
+        cosponsorsCount: true,
+        committees: true,
+      },
+    });
+    if (!bill) return null;
+
+    const [votes, ruleLinks] = await Promise.all([
+      this.prisma.rollCallVote.findMany({
+        where: { billId },
+        orderBy: { voteDate: 'desc' },
+        take: 5,
+        select: {
+          chamber: true,
+          rollNumber: true,
+          question: true,
+          result: true,
+          yeas: true,
+          nays: true,
+          voteDate: true,
+        },
+      }),
+      this.prisma.billRuleLink.findMany({
+        where: { targetBillId: billId },
+        select: { ruleBillId: true },
+      }),
+    ]);
+
+    const governingRules: GoverningRuleRow[] = await Promise.all(
+      ruleLinks.map(async (l) => {
+        const [ruleBill, ruleVotes] = await Promise.all([
+          this.prisma.congressBill.findUnique({
+            where: { id: l.ruleBillId },
+            select: { status: true, latestActionText: true },
+          }),
+          this.prisma.rollCallVote.findMany({
+            where: { billId: l.ruleBillId },
+            orderBy: { voteDate: 'desc' },
+            take: 3,
+            select: {
+              chamber: true,
+              rollNumber: true,
+              question: true,
+              result: true,
+              yeas: true,
+              nays: true,
+              voteDate: true,
+            },
+          }),
+        ]);
+        return {
+          ruleBillId: l.ruleBillId,
+          ruleStatus: ruleBill?.status ?? null,
+          ruleLatestAction: ruleBill?.latestActionText ?? null,
+          ruleVotes: ruleVotes as BillVoteRow[],
+        };
+      }),
+    );
+
+    const committees = Array.isArray(bill.committees)
+      ? (bill.committees as unknown[])
+          .map((c) =>
+            typeof c === 'string'
+              ? c
+              : c && typeof c === 'object' && 'name' in c
+                ? String((c as { name: unknown }).name)
+                : null,
+          )
+          .filter((c): c is string => Boolean(c))
+      : [];
+
+    return formatBillTruth({
+      id: bill.id,
+      title: bill.title,
+      status: bill.status,
+      statusAt: bill.statusAt,
+      latestActionText: bill.latestActionText,
+      latestActionDate: bill.latestActionDate,
+      sponsorName: bill.sponsorName,
+      sponsorParty: bill.sponsorParty,
+      sponsorState: bill.sponsorState,
+      cosponsorsCount: bill.cosponsorsCount,
+      committees,
+      votes: votes as BillVoteRow[],
+      governingRules,
+    });
+  }
+
+  /** Authoritative PE-funding block (see outreach-context-enrichment). Null if the
+   *  PE isn't on record — the caller then keeps the thin client body. */
+  private async peTruthBlock(peCode: string): Promise<string | null> {
+    const pe = await this.prisma.programElement.findUnique({
+      where: { peCode },
+      select: { peCode: true, title: true, service: true, budgetActivityName: true },
+    });
+    if (!pe) return null;
+
+    const years = await this.prisma.programElementYear.findMany({
+      where: { peCode },
+      orderBy: { fy: 'desc' },
+      select: {
+        fy: true,
+        request: true,
+        hascMark: true,
+        sascMark: true,
+        hacDMark: true,
+        sacDMark: true,
+        conference: true,
+        enacted: true,
+      },
+    });
+    const num = (d: Prisma.Decimal | null): number | null => (d == null ? null : Number(d));
+    // Latest FY that carries any funding signal (matches the finder's "current").
+    const latest =
+      years
+        .map((y) => ({
+          fy: y.fy,
+          request: num(y.request),
+          hascMark: num(y.hascMark),
+          sascMark: num(y.sascMark),
+          hacDMark: num(y.hacDMark),
+          sacDMark: num(y.sacDMark),
+          conference: num(y.conference),
+          enacted: num(y.enacted),
+        }))
+        .find((y) =>
+          [
+            y.request,
+            y.hascMark,
+            y.sascMark,
+            y.hacDMark,
+            y.sacDMark,
+            y.conference,
+            y.enacted,
+          ].some((v) => v != null),
+        ) ?? null;
+
+    return formatPeTruth({
+      peCode: pe.peCode,
+      title: pe.title,
+      service: pe.service,
+      budgetActivityName: pe.budgetActivityName,
+      year: latest,
+    });
   }
 
   /**

@@ -445,4 +445,37 @@ export const OUTREACH_EVAL_FIXTURES: OutreachEvalFixture[] = [
       'Revision fidelity: the draft preserves the substance and structure of the existing body and changes only what the instruction asked for (warmer tone + one line about the markup), rather than rewriting from scratch.',
     ],
   },
+  {
+    // Accuracy regression (2026-07-11): the prod Jaia/Perseus memos treated a bill
+    // as "advancing / debate imminent" when only a thin title was supplied and no
+    // authoritative status was attached. This fixture attaches a bill with a TITLE
+    // ONLY (no status, votes, sponsor, or outlook) and asserts the draft stays
+    // honest — it must NOT manufacture legislative momentum. (When our DB has the
+    // bill, engagement.service enrichment supplies the real status; this guards the
+    // no-data path, which is where the fabrication happened.)
+    id: 'legislative-thin-honest-gap',
+    archetype: 'template-memo',
+    specVersion: 'v2',
+    description:
+      'Legislative memo with a title-only bill and NO status/outlook — the draft must not fabricate that the bill is advancing, scheduled, or likely to pass.',
+    input: {
+      workflow: 'campaign',
+      client: { ...APERTURE },
+      recipients: [REP_DANA],
+      context: {
+        tone: 'professional',
+        senderName: 'Uma Sender',
+        contextItems:
+          'Shared context (every recipient):\n- [bill] H.R. 8800, National Defense Authorization Act for Fiscal Year 2027',
+      },
+      promptTemplate: 'memo',
+      objective: "Assess H.R. 8800's impact for the client.",
+    },
+    promptMustContain: ['CURATED CONTEXT (the campaign spine', 'H.R. 8800'],
+    draftMustNotMatch: [/\{[a-z_]+\}/i],
+    judge: [
+      ...BASE_JUDGE,
+      'Legislative honesty: with only a bill title and NO status supplied, the draft does NOT assert the bill is advancing, scheduled for the floor, in active debate, likely to pass, or reduced/increased in funding. It does NOT invent sponsors, cosponsors, vote counts, committee dynamics, or a procedural outlook. If it references status at all, it hedges or notes the gap rather than asserting momentum.',
+    ],
+  },
 ];

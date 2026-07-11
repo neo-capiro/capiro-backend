@@ -55,6 +55,9 @@ jobs:
       # @capiro/api imports @capiro/shared — build it (and generate the Prisma
       # client) before the narrow typecheck/test, or tsc can't resolve the module.
       - run: pnpm --filter @capiro/shared build
+      # @capiro/api also imports @capiro/meriv2-core (agentic/*) — build it too or
+      # the whole-project `tsc --noEmit` fails to resolve the module (TS2307).
+      - run: pnpm --filter @capiro/meriv2-core build
       - run: pnpm --filter @capiro/api exec prisma generate
       - run: pnpm --filter @capiro/api typecheck
       - name: Deterministic prompt-assembly eval suite (no tokens)
@@ -84,6 +87,9 @@ jobs:
       # eval-outreach.ts (tsx) imports @capiro/api → @capiro/shared; build it + the
       # Prisma client so the run resolves the module graph.
       - run: pnpm --filter @capiro/shared build
+      # @capiro/api also imports @capiro/meriv2-core (agentic/*) — build it too or
+      # the whole-project `tsc --noEmit` fails to resolve the module (TS2307).
+      - run: pnpm --filter @capiro/meriv2-core build
       - run: pnpm --filter @capiro/api exec prisma generate
       - name: Skip when no API key secret is configured
         run: |

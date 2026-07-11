@@ -1,0 +1,191 @@
+import { describe, it, expect } from '@jest/globals';
+import {
+  billIdFromItemId,
+  peCodeFromItemId,
+  fmtM,
+  formatBillTruth,
+  formatPeTruth,
+  renderClientRelationshipSnapshot,
+  type BillTruth,
+  type PeTruth,
+} from './outreach-context-enrichment.js';
+
+describe('outreach-context-enrichment id parsing', () => {
+  it('extracts a bill id and pe code from the wizard item ids', () => {
+    expect(billIdFromItemId('bill-119-hr-8800')).toBe('119-hr-8800');
+    expect(peCodeFromItemId('pe-0603851F')).toBe('0603851F');
+    expect(billIdFromItemId('pe-0603851F')).toBeNull();
+    expect(peCodeFromItemId('bill-119-hr-8800')).toBeNull();
+  });
+});
+
+describe('fmtM (canonical $M)', () => {
+  it('formats millions and rolls to billions past 1000M', () => {
+    expect(fmtM(72.112)).toBe('$72.1M');
+    expect(fmtM(null)).toBe('—');
+    expect(fmtM(1250)).toBe('$1.25B');
+  });
+});
+
+describe('formatBillTruth — the H.R. 8800 "stalled bill read as advancing" fix', () => {
+  const bill: BillTruth = {
+    id: '119-hr-8800',
+    title: 'H.R. 8800 — National Defense Authorization Act for Fiscal Year 2027',
+    status: 'rule_failed',
+    statusAt: '2026-06-30T00:00:00.000Z',
+    latestActionText: 'Rule H.Res.1398 rejected',
+    latestActionDate: '2026-06-30T00:00:00.000Z',
+    sponsorName: 'Mike Rogers',
+    sponsorParty: 'R',
+    sponsorState: 'AL',
+    cosponsorsCount: 1,
+    committees: ['House Armed Services'],
+    votes: [],
+    governingRules: [
+      {
+        ruleBillId: '119-hres-1398',
+        ruleStatus: 'failed',
+        ruleLatestAction: 'Failed of adoption',
+        ruleVotes: [
+          {
+            chamber: 'house',
+            rollNumber: 231,
+            question: 'On agreeing to the resolution',
+            result: 'Failed',
+            yeas: 198,
+            nays: 224,
+            voteDate: '2026-06-30T00:00:00.000Z',
+          },
+        ],
+      },
+    ],
+  };
+
+  it('states the canonical status and explicitly flags the bill as stalled', () => {
+    const out = formatBillTruth(bill);
+    expect(out).toContain('AUTHORITATIVE BILL STATUS');
+    // billStatusLabel('rule_failed') is the human label; the stalled note is verbatim.
+    expect(out).toContain('did NOT advance to the floor');
+    expect(out).toContain('stalled, not pending passage');
+  });
+
+  it('surfaces the governing rule vote (198–224) and the no-vote-on-the-bill caveat', () => {
+    const out = formatBillTruth(bill);
+    expect(out).toContain('198–224');
+    expect(out).toContain('HRES-1398');
+    expect(out).toContain('No recorded roll-call vote on the bill itself');
+  });
+
+  it('reports the real sponsor and cosponsor count (not "spans committees")', () => {
+    const out = formatBillTruth(bill);
+    expect(out).toContain('Mike Rogers (R-AL)');
+    expect(out).toContain('cosponsors: 1');
+  });
+});
+
+describe('formatPeTruth — the reversed-direction + omitted-HASC-cut fix', () => {
+  it('ICBM Dem/Val: HAC-D plus-up reads as ABOVE the request, never a cut', () => {
+    const pe: PeTruth = {
+      peCode: '0603851F',
+      title: 'ICBM Dem/Val',
+      service: 'Air Force',
+      budgetActivityName: null,
+      year: {
+        fy: 2027,
+        request: 72.112,
+        hascMark: 72.112,
+        sascMark: 72.112,
+        hacDMark: 112.912,
+        sacDMark: null,
+        conference: null,
+        enacted: null,
+      },
+    };
+    const out = formatPeTruth(pe);
+    expect(out).toContain("President's request: $72.1M");
+    expect(out).toContain('HAC-D $112.9M');
+    expect(out).toContain('above the request'); // direction is explicit and correct
+    expect(out).not.toContain('below the request');
+    // current authoritative = the HAC-D mark, and it is NOT enacted
+    expect(out).toContain('Current authoritative figure: $112.9M (HAC-D)');
+    expect(out).toContain('NOT enacted');
+  });
+
+  it('CCA / Autonomous Collaborative Platforms: the HASC cut is visible, not "maintained"', () => {
+    const pe: PeTruth = {
+      peCode: '0207179F',
+      title: 'Autonomous Collaborative Platforms',
+      service: 'Air Force',
+      budgetActivityName: null,
+      year: {
+        fy: 2027,
+        request: 57.217,
+        hascMark: 51.496,
+        sascMark: 57.217,
+        hacDMark: 57.217,
+        sacDMark: null,
+        conference: null,
+        enacted: null,
+      },
+    };
+    const out = formatPeTruth(pe);
+    expect(out).toContain('HASC $51.5M');
+    expect(out).toContain('below the request'); // the HASC cut, stated as such
+  });
+
+  it('emits an honest gap when the PE has no funding rows (no invented figure)', () => {
+    const pe: PeTruth = {
+      peCode: '0000000X',
+      title: 'Unknown',
+      service: null,
+      budgetActivityName: null,
+      year: null,
+    };
+    const out = formatPeTruth(pe);
+    expect(out).toContain('No structured funding rows on record');
+    expect(out).not.toMatch(/\$\d/); // no dollar figure anywhere
+  });
+});
+
+describe('renderClientRelationshipSnapshot — the v2 clientContext drop fix', () => {
+  it('renders a compact, bounded, labeled snapshot from the aggregate', () => {
+    const out = renderClientRelationshipSnapshot({
+      keyStakeholders: [
+        { fullName: 'Jane Doe', title: 'Chief of Staff', organization: 'Rep. Reed', source: 'Contact + Meeting' },
+        { fullName: 'John Smith', title: 'LD', organization: null, source: 'Email' },
+      ],
+      recentActivity: [
+        { type: 'meeting', title: 'FY27 markup prep', date: '2026-07-01T00:00:00.000Z' },
+        { type: 'mail_thread', title: 'Follow-up on directed energy', date: '2026-06-28T00:00:00.000Z' },
+      ],
+      openTasks: [{ title: 'Send one-pager', dueDate: null }],
+    });
+    expect(out).toContain('CLIENT RELATIONSHIP SNAPSHOT');
+    expect(out).toContain('Jane Doe (Chief of Staff, Rep. Reed) [Contact + Meeting]');
+    expect(out).toContain('meeting "FY27 markup prep" (2026-07-01)');
+    expect(out).toContain('email "Follow-up on directed energy"'); // mail_thread → "email"
+    expect(out).toContain('Open tasks (1): "Send one-pager"');
+  });
+
+  it('caps contacts at 12 and activity at 6', () => {
+    const many = (n: number, f: (i: number) => unknown) => Array.from({ length: n }, (_, i) => f(i));
+    const out = renderClientRelationshipSnapshot({
+      keyStakeholders: many(30, (i) => ({ fullName: `Person ${i}`, title: 't', organization: 'o', source: 'Contact' })) as never,
+      recentActivity: many(30, (i) => ({ type: 'meeting', title: `M${i}`, date: null })) as never,
+      openTasks: [],
+    })!;
+    expect(out).toContain('Person 11');
+    expect(out).not.toContain('Person 12'); // 0..11 = 12 contacts
+    expect(out).toContain('M5');
+    expect(out).not.toContain('M6'); // 0..5 = 6 activities
+  });
+
+  it('returns null when there is nothing worth rendering', () => {
+    expect(renderClientRelationshipSnapshot(null)).toBeNull();
+    expect(renderClientRelationshipSnapshot({ keyStakeholders: [], recentActivity: [], openTasks: [] })).toBeNull();
+    // entries with no name/org and no title are dropped → still null
+    expect(
+      renderClientRelationshipSnapshot({ keyStakeholders: [{ title: 'x' }], recentActivity: [{ type: 'meeting' }] }),
+    ).toBeNull();
+  });
+});
