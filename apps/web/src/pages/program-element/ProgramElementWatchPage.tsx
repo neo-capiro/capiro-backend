@@ -986,7 +986,11 @@ export function ProgramElementWatchPage() {
 
   const relCount = relationshipsQuery.data?.length ?? 0;
   // Line-type-aware tab set: money-graph tabs are common; Procurement detail shows
-  // only for procurement lines, and Incumbents (R-3 performers) only for RDT&E.
+  // only for procurement lines. Incumbents (award-evidenced + R-3 performers) shows
+  // for RDT&E and Procurement — award linkage is actually strongest on Procurement
+  // lines (acq-program map resolution), so gating it RDT&E-only hid real data.
+  // O&M lines have neither R-3 exhibits nor meaningful award-PE linkage yet, so they
+  // skip it.
   const tabItems = [
     { key: 'overview', label: 'Overview', children: overviewTab },
     { key: 'funding', label: 'Funding', children: fundingTab },
@@ -1003,7 +1007,7 @@ export function ProgramElementWatchPage() {
       label: <TabLabel text="Relationships" count={relCount} />,
       children: relationshipsTab,
     },
-    ...(isRdte
+    ...(isRdte || isProc
       ? [
           {
             key: 'incumbents',
