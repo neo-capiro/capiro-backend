@@ -1,10 +1,12 @@
 import { BadRequestException, Body, Controller, Get, Patch, Put } from '@nestjs/common';
+import { ConfigService } from '@nestjs/config';
 import { IsBoolean, IsOptional, IsString, MaxLength } from 'class-validator';
 import type { TenantContext } from '@capiro/shared';
 import { CurrentTenant } from '../tenant/current-tenant.decorator.js';
 import { PrismaService } from '../prisma/prisma.service.js';
 import { MAX_SIGNATURE_HTML_LENGTH, sanitizeSignatureHtml } from '../common/sanitize-signature.js';
-import { meetingsV2Enabled } from '../common/tenant-flags.js';
+import { meetingsV2Enabled, outreachAsyncFlagEnabled } from '../common/tenant-flags.js';
+import type { AppConfig } from '../config/config.schema.js';
 
 class UpdateMeDto {
   @IsOptional()
@@ -57,7 +59,10 @@ class UpdateEmailSignatureDto {
  */
 @Controller()
 export class UsersController {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly config: ConfigService<AppConfig, true>,
+  ) {}
 
   @Get('me')
   async me(@CurrentTenant() ctx: TenantContext) {
@@ -122,6 +127,15 @@ export class UsersController {
       // this `features` block is the single place the web reads them.
       features: {
         meetingsV2: meetingsV2Enabled(profile.tenant?.settings),
+        // Async outreach (plan W4.4): the job-mode wizard UI is on for a tenant only
+        // when the GLOBAL env kill-switch is on AND the tenant has opted in (canary).
+        // Both default off, so flipping the env alone changes no tenant's UX.
+        outreachAsyncGen:
+          this.config.get('OUTREACH_ASYNC_GEN', { infer: true }) &&
+          outreachAsyncFlagEnabled(profile.tenant?.settings),
+        outreachAsyncSend:
+          this.config.get('OUTREACH_ASYNC_SEND', { infer: true }) &&
+          outreachAsyncFlagEnabled(profile.tenant?.settings),
       },
     };
   }

@@ -125,3 +125,21 @@ export const MEETINGS_CROSS_USER_FLAG = 'meetingsCrossUser.enabled' as const;
 export function meetingsCrossUserEnabled(settings: unknown): boolean {
   return tenantFeatureEnabled(settings, MEETINGS_CROSS_USER_FLAG, false);
 }
+
+/**
+ * Async outreach pipeline UI rollout (plan W4.4). The async job pipeline itself is
+ * gated by GLOBAL env kill-switches (OUTREACH_ASYNC_GEN / OUTREACH_ASYNC_SEND); this
+ * per-tenant flag is the CANARY lever on top — the wizard uses the job-mode UI for a
+ * tenant only when BOTH the env switch is on AND this flag resolves true. Default OFF
+ * so flipping the env var alone never changes any tenant's UX until it is explicitly
+ * canaried, mirroring the notetaker (env AND per-tenant) belt-and-suspenders. Flipped
+ * per tenant via settings_jsonb.clioFeatureFlags (the standard rollout path). Surfaced
+ * to the web (ANDed with the env switch) via GET /me `features.outreachAsyncGen/Send`.
+ */
+export const OUTREACH_ASYNC_FLAG = 'outreachAsync.enabled' as const;
+
+/** Per-tenant async-outreach opt-in (default OFF). ANDed with the env kill-switch by
+ *  the caller (GET /me) — this alone does not enable anything. */
+export function outreachAsyncFlagEnabled(settings: unknown): boolean {
+  return tenantFeatureEnabled(settings, OUTREACH_ASYNC_FLAG, false);
+}

@@ -248,9 +248,61 @@ export class OutreachJobService implements OnModuleInit, OnModuleDestroy {
       const items = await tx.outreachJobItem.findMany({
         where: { jobId, tenantId: ctx.tenantId },
         orderBy: { createdAt: 'asc' },
-        select: { recipientKey: true, status: true, result: true, error: true, attempt: true },
+        // `id` is exposed so the wizard can address a single failed item for retry.
+        select: {
+          id: true,
+          recipientKey: true,
+          status: true,
+          result: true,
+          error: true,
+          attempt: true,
+        },
       });
       return { job, items };
+    });
+  }
+
+  /**
+   * Retry ONE failed generation item (plan W4.4). Only 'generate' jobs and only
+   * items currently 'failed' are retryable: a 'send' item that reached 'sending'
+   * must never be auto-resent (at-most-once), and a 'sent'/'done' item is finished.
+   * Flips the item back to 'pending' (clearing its error) and, if the parent job
+   * had already finalized (complete|partial|failed), reopens it to 'running' and
+   * clears finishedAt so findRunnableJobId picks it up on the next sweep tick.
+   */
+  async retryItem(
+    ctx: TenantContext,
+    jobId: string,
+    itemId: string,
+  ): Promise<{ retried: boolean; reason?: string }> {
+    return this.prisma.withTenant(ctx.tenantId, async (tx) => {
+      const job = await tx.outreachJob.findFirst({
+        where: { id: jobId, tenantId: ctx.tenantId },
+        select: { id: true, kind: true, status: true },
+      });
+      if (!job) return { retried: false, reason: 'job not found' };
+      if (job.kind !== 'generate') {
+        return { retried: false, reason: 'only generation items can be retried' };
+      }
+      const item = await tx.outreachJobItem.findFirst({
+        where: { id: itemId, jobId, tenantId: ctx.tenantId },
+        select: { id: true, status: true },
+      });
+      if (!item) return { retried: false, reason: 'item not found' };
+      if (item.status !== 'failed') {
+        return { retried: false, reason: `item is ${item.status}, not failed` };
+      }
+      await tx.outreachJobItem.update({
+        where: { id: itemId },
+        data: { status: 'pending', error: null },
+      });
+      if (['complete', 'partial', 'failed'].includes(job.status)) {
+        await tx.outreachJob.update({
+          where: { id: jobId },
+          data: { status: 'running', finishedAt: null },
+        });
+      }
+      return { retried: true };
     });
   }
 
@@ -451,12 +503,16 @@ export class OutreachJobService implements OnModuleInit, OnModuleDestroy {
       const byKey = new Map(results.map((r) => [r.recipientId, r]));
       for (const item of batch) {
         const r = byKey.get(item.recipientKey);
-        const ok = Boolean(r && (r.subject?.trim() || r.body?.trim()));
+        // Gate on the authoritative per-item status the generator now returns —
+        // NOT a subject/body emptiness heuristic (which would wrongly accept a
+        // non-empty placeholder tagged 'error', and drifts from the frontend's
+        // own guard). A missing result (dropped recipient) is also a failure.
+        const ok = r?.status === 'ready';
         await this.setItem(
           item.id,
           ok ? 'done' : 'failed',
           ok ? { subject: r!.subject, body: r!.body } : null,
-          ok ? null : 'generation returned an empty draft',
+          ok ? null : (r?.error ?? 'generation returned no draft'),
         );
       }
     } catch (err) {

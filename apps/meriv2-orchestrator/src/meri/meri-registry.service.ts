@@ -120,7 +120,12 @@ export class MeriRegistryService {
     // serve them; with neither key the call throws and intel-api's extraction
     // degrades gracefully.
     const apiKey = config.get<string>('ANTHROPIC_API_KEY');
-    const model = config.get<string>('ANTHROPIC_MODEL') ?? 'claude-sonnet-4-5';
+    // X1 fix: the reasoning tools (post-hearing summaries, live policy-mention
+    // extraction) intentionally default to a STRONGER tier than the outreach-draft
+    // default — this is the single documented fallback. It was a stale
+    // `claude-sonnet-4-5`; bumped to the current sonnet the rest of the app uses
+    // (CLIO_MODEL) so an unset ANTHROPIC_MODEL no longer resolves a retired id.
+    const model = config.get<string>('ANTHROPIC_MODEL') ?? 'claude-sonnet-4-6';
     const llm = new RequestScopedLlmClient(apiKey, model);
     registry.register(createTagLivePolicyMentionsTool(llm));
     registry.register(createGeneratePostHearingSummaryTool(llm));
