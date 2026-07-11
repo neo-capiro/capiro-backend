@@ -709,9 +709,9 @@ function ClientEngagement({ meetings, loading }: { meetings: DashMeeting[]; load
               m.organizerName || m.attendees.find((a) => a.name)?.name || m.client?.name || '';
             const prepped = m.preps.length > 0;
             const hasDebrief = m.debriefs.length > 0 || m.meri === 'done';
-            const canMeri =
-              (m.isVirtual ?? Boolean(extractMeetingJoinUrl(m))) &&
-              new Date(m.endsAt).getTime() >= now.getTime();
+            // Show Send Meri for any virtual meeting without a debrief — same rule
+            // as the Meetings tab (no "already ended" gate, so it never disappears).
+            const canMeri = m.isVirtual ?? Boolean(extractMeetingJoinUrl(m));
             return (
               // Actions live OUTSIDE the <Link> (buttons can't nest inside an
               // anchor) so a click doesn't also navigate.
