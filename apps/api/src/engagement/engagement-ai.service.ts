@@ -276,7 +276,7 @@ export class EngagementAiService {
   private readonly openaiModel: string;
   private readonly anthropicModel: string;
   private readonly outreachPromptSpec: 'v1' | 'v2';
-  private readonly outreachProvider: 'openai' | 'anthropic';
+  private readonly outreachProvider?: 'openai' | 'anthropic';
   private readonly outreachDraftModel: string;
   /** D1 hardened completion client (retries, typed errors, caching, usage). */
   private readonly llm = new LlmCompletionService();
@@ -764,11 +764,14 @@ export class EngagementAiService {
     const isV2 = Boolean(assembled.spec);
 
     // Task-tier model (W3.2/D2): a tenant's explicit modelOverride always wins
-    // (BYOK); otherwise the outreach draft model applies on its provider
-    // (OUTREACH_DRAFT_MODEL is an Anthropic model, so it only overrides when the
-    // resolved provider is Anthropic — an OpenAI fallback keeps its own default).
+    // (BYOK); otherwise the configured OUTREACH_DRAFT_MODEL applies on Anthropic.
+    // When OUTREACH_DRAFT_MODEL is unset (the default), there is NO override —
+    // the resolved cred model is used, preserving current behavior so a deploy
+    // never silently changes the drafting model.
     const model =
-      cred.modelOverridden || cred.provider !== 'anthropic' ? cred.model : this.outreachDraftModel;
+      cred.modelOverridden || cred.provider !== 'anthropic' || !this.outreachDraftModel
+        ? cred.model
+        : this.outreachDraftModel;
 
     const baseMax = isV2
       ? resolveOutreachMaxTokens({

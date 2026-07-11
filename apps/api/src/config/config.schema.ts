@@ -36,15 +36,18 @@ export const configSchema = z.object({
   // outreach evals A/B (W2.7) — never on by a code deploy alone.
   OUTREACH_PROMPT_SPEC: z.enum(['v1', 'v2']).default('v1'),
 
-  // Outreach task-tier model config (plan W3.2 / D2). The outreach draft path
-  // prefers OUTREACH_PROVIDER and, on that provider, uses OUTREACH_DRAFT_MODEL —
-  // unless a tenant set an explicit modelOverride (BYOK always wins). FAST_MODEL
-  // is reserved for cheaper outreach sub-tasks (talking points/preview) as they
-  // migrate onto the tiered client. Env-driven so the model can move without a
-  // code deploy (applied out-of-band per the task-def recipe).
-  OUTREACH_PROVIDER: z.enum(['openai', 'anthropic']).default('anthropic'),
-  OUTREACH_DRAFT_MODEL: z.string().default('claude-sonnet-4-6'),
-  OUTREACH_FAST_MODEL: z.string().default('claude-haiku-4-5-20251001'),
+  // Outreach task-tier model config (plan W3.2 / D2). OPT-IN, exactly like the
+  // prompt-spec + async flags: defaults preserve current behavior (global
+  // provider order + the resolved cred model, i.e. today's gpt-4.1-mini/haiku),
+  // so a code deploy NEVER silently changes the drafting model or COGS. The D2
+  // flip — prefer Anthropic + draft on claude-sonnet-4-6 — is an explicit
+  // out-of-band env set (OUTREACH_PROVIDER=anthropic, OUTREACH_DRAFT_MODEL=
+  // claude-sonnet-4-6) applied per the task-def recipe AFTER eval validation +
+  // Ninja's COGS sign-off. Empty OUTREACH_DRAFT_MODEL = no override. FAST_MODEL
+  // is reserved for cheaper sub-tasks as they migrate onto the tiered client.
+  OUTREACH_PROVIDER: z.enum(['openai', 'anthropic']).optional(),
+  OUTREACH_DRAFT_MODEL: z.string().default(''),
+  OUTREACH_FAST_MODEL: z.string().default(''),
 
   // Per-tenant daily outreach token ceiling (plan W3.4 / A7): total (input +
   // output) AI tokens across outreach generation workflows in the current UTC

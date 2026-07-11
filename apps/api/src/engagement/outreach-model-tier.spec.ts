@@ -25,7 +25,10 @@ const INPUT: OutreachDraftInput = {
   objective: 'Request a meeting.',
 };
 
-function makeService(creds: ResolvedAiCredential[]): {
+function makeService(
+  creds: ResolvedAiCredential[],
+  cfg?: { provider?: 'openai' | 'anthropic'; draftModel?: string },
+): {
   service: EngagementAiService;
   captured: () => { provider: string; model: string } | null;
 } {
@@ -33,8 +36,10 @@ function makeService(creds: ResolvedAiCredential[]): {
   const service = Object.create(EngagementAiService.prototype) as EngagementAiService;
   const patch = service as unknown as Record<string, unknown>;
   patch.outreachPromptSpec = 'v1'; // keep the assembly path simple
-  patch.outreachProvider = 'anthropic';
-  patch.outreachDraftModel = 'claude-sonnet-4-6';
+  // No cfg → the configured D2 flip (out-of-band env). cfg given → use as-is,
+  // so the neutral-default case can pass undefined/'' (see below).
+  patch.outreachProvider = cfg ? cfg.provider : 'anthropic';
+  patch.outreachDraftModel = cfg ? (cfg.draftModel ?? '') : 'claude-sonnet-4-6';
   patch.credentials = { resolveOrder: async () => creds };
   patch.llm = {
     complete: async (req: { provider: string; model: string }) => {
@@ -96,5 +101,27 @@ describe('outreach model tier (W3.2)', () => {
     const { service, captured } = makeService([openai()]);
     await service.generateOutreachDraft(INPUT, ctx);
     expect(captured()).toEqual({ provider: 'openai', model: 'gpt-4.1-mini' });
+  });
+
+  // The critical safety property: with the DEFAULT (unset) config, a deploy must
+  // not change the drafting model or provider order — the D2 flip is opt-in.
+  test('behavior-neutral defaults: no provider preference, no model override', async () => {
+    const { service, captured } = makeService([openai(), anthropic()], {
+      provider: undefined,
+      draftModel: '',
+    });
+    await service.generateOutreachDraft(INPUT, ctx);
+    // No Anthropic-first reorder → the resolver's first cred (openai) is used,
+    // with its own model — exactly today's behavior.
+    expect(captured()).toEqual({ provider: 'openai', model: 'gpt-4.1-mini' });
+  });
+
+  test('behavior-neutral defaults: Anthropic cred keeps its resolved model (no sonnet override)', async () => {
+    const { service, captured } = makeService([anthropic()], {
+      provider: undefined,
+      draftModel: '',
+    });
+    await service.generateOutreachDraft(INPUT, ctx);
+    expect(captured()).toEqual({ provider: 'anthropic', model: 'claude-haiku-4-5-20251001' });
   });
 });
