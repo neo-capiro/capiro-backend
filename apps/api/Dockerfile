@@ -32,24 +32,28 @@ RUN apt-get update \
 COPY pnpm-workspace.yaml package.json pnpm-lock.yaml* tsconfig.base.json ./
 COPY apps/api/package.json apps/api/package.json
 COPY packages/shared/package.json packages/shared/package.json
+COPY packages/meriv2-core/package.json packages/meriv2-core/package.json
 RUN --mount=type=cache,id=pnpm,target=/pnpm/store \
-    pnpm install --frozen-lockfile --filter=@capiro/api... --filter=@capiro/shared...
+    pnpm install --frozen-lockfile --filter=@capiro/api... --filter=@capiro/shared... --filter=@capiro/meriv2-core...
 
 COPY packages/shared/src packages/shared/src
 COPY packages/shared/tsconfig.json packages/shared/tsconfig.json
+COPY packages/meriv2-core/src packages/meriv2-core/src
+COPY packages/meriv2-core/tsconfig.json packages/meriv2-core/tsconfig.json
 COPY apps/api/src apps/api/src
 COPY apps/api/tsconfig.json apps/api/tsconfig.build.json apps/api/nest-cli.json apps/api/
 COPY apps/api/prisma apps/api/prisma
 COPY apps/api/scripts apps/api/scripts
 
 RUN pnpm --filter @capiro/shared build
+RUN pnpm --filter @capiro/meriv2-core build
 RUN pnpm --filter @capiro/api exec prisma generate
 RUN pnpm --filter @capiro/api build
 
 # Prune dev dependencies in place (keeps the .pnpm store with the generated
 # Prisma client intact).
 RUN --mount=type=cache,id=pnpm,target=/pnpm/store \
-    pnpm install --frozen-lockfile --prod --filter=@capiro/api... --filter=@capiro/shared...
+    pnpm install --frozen-lockfile --prod --filter=@capiro/api... --filter=@capiro/shared... --filter=@capiro/meriv2-core...
 
 # -------- runtime -------------------------------------------------------------
 FROM node:${NODE_VERSION}-bookworm-slim AS runtime
@@ -77,6 +81,8 @@ WORKDIR /app
 COPY --chown=capiro:capiro --from=build /workspace/node_modules /app/node_modules
 COPY --chown=capiro:capiro --from=build /workspace/packages/shared/dist /app/packages/shared/dist
 COPY --chown=capiro:capiro --from=build /workspace/packages/shared/package.json /app/packages/shared/package.json
+COPY --chown=capiro:capiro --from=build /workspace/packages/meriv2-core/dist /app/packages/meriv2-core/dist
+COPY --chown=capiro:capiro --from=build /workspace/packages/meriv2-core/package.json /app/packages/meriv2-core/package.json
 COPY --chown=capiro:capiro --from=build /workspace/apps/api/dist /app/apps/api/dist
 COPY --chown=capiro:capiro --from=build /workspace/apps/api/node_modules /app/apps/api/node_modules
 COPY --chown=capiro:capiro --from=build /workspace/apps/api/prisma /app/apps/api/prisma
