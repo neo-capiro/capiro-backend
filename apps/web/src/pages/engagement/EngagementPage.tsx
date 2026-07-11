@@ -13,6 +13,7 @@ import {
   RobotOutlined,
   TeamOutlined,
 } from '@ant-design/icons';
+import { Library } from 'lucide-react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import {
   App,
@@ -393,6 +394,7 @@ export function EngagementPage() {
   const [reportStatusFilter, setReportStatusFilter] = useState<'all' | ReportStatus>('all');
   const [reportSort, setReportSort] = useState('member-asc');
   const [meetingModalOpen, setMeetingModalOpen] = useState(false);
+  const [meetingsLibraryOpen, setMeetingsLibraryOpen] = useState(false);
   const [taskModalOpen, setTaskModalOpen] = useState(false);
   const [targetOfficeModalOpen, setTargetOfficeModalOpen] = useState(false);
   const [notetakerModalOpen, setNotetakerModalOpen] = useState(false);
@@ -1131,11 +1133,21 @@ export function EngagementPage() {
         tabBarExtraContent={
           activeEngagementTab === 'meetings'
             ? {
-                right: (
+                right: me.data?.features?.meetingsV2 ? (
+                  // Prototype places the Library entry at the top-right of the
+                  // Engagement header (spec §3); the redesigned module owns
+                  // meeting creation, so no +Meeting button here.
+                  <button
+                    type="button"
+                    className="btn"
+                    style={{ gap: 7, fontWeight: 600 }}
+                    onClick={() => setMeetingsLibraryOpen(true)}
+                  >
+                    <Library size={15} />
+                    Meeting Library
+                  </button>
+                ) : (
                   <Space size={10} className="engagement-tab-actions">
-                    <Button icon={<PlusOutlined />} onClick={() => setTaskModalOpen(true)}>
-                      Task
-                    </Button>
                     <Button type="primary" icon={<PlusOutlined />} onClick={openMeetingModal}>
                       Meeting
                     </Button>
@@ -1167,6 +1179,8 @@ export function EngagementPage() {
               <MeetingsV2
                 clientId={selectedClientId}
                 aiConfigured={Boolean(capabilities.data?.ai.activeProvider)}
+                libraryOpen={meetingsLibraryOpen}
+                onLibraryOpenChange={setMeetingsLibraryOpen}
               />
             ) : (
               <div className="engagement-meeting-shell">

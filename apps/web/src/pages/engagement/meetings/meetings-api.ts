@@ -126,6 +126,35 @@ export function useInvalidateMeetings() {
   };
 }
 
+export interface ClientOption {
+  id: string;
+  name: string;
+  status?: string;
+}
+
+/** GET /api/clients — the tenant's clients, for the meeting client-assign picker. */
+export function useClientOptions(enabled = true) {
+  const api = useApi();
+  return useQuery<ClientOption[]>({
+    queryKey: ['clients-for-assign'],
+    queryFn: async () => (await api.get<ClientOption[]>('/api/clients')).data,
+    enabled,
+    staleTime: 60_000,
+    select: (rows) => rows.filter((c) => c.status !== 'archived'),
+  });
+}
+
+/** PUT /api/engagement/meetings/:id — assign / override the meeting's client. */
+export function useAssignMeetingClient() {
+  const api = useApi();
+  const invalidate = useInvalidateMeetings();
+  return useMutation<Meeting, Error, { meetingId: string; clientId: string | null }>({
+    mutationFn: async ({ meetingId, clientId }) =>
+      (await api.put<Meeting>(`${BASE}/meetings/${meetingId}`, { clientId })).data,
+    onSuccess: invalidate,
+  });
+}
+
 export function useShareMeeting() {
   const api = useApi();
   const invalidate = useInvalidateMeetings();

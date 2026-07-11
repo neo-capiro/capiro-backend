@@ -1,54 +1,20 @@
-import { CheckCircleFilled, RightOutlined, VideoCameraOutlined } from '@ant-design/icons';
-import { SendMeriButton, MeriAttendingPill } from '../meeting-actions.js';
-import { providerLabel } from './meetings-format.js';
+import { useState } from 'react';
+import { ChevronRight } from 'lucide-react';
+import { formatTime } from './meetings-format.js';
 import {
-  artifactStatus,
-  eligibleForMeri,
-  type ArtifactKind,
-  type Meeting,
-} from './meetings-types.js';
+  JoinLink,
+  MaterialBadges,
+  ProviderTag,
+  SendMeriButton,
+  showSendMeri,
+} from './meetings-ui.js';
+import type { Meeting } from './meetings-types.js';
 
-const ARTIFACT_LABELS: Record<ArtifactKind, string> = {
-  prep: 'Prep',
-  notes: 'Notes',
-  debrief: 'Debrief',
-};
-
-/** The Meri action for a row: Send button, Attending pill, or nothing. */
-function MeriAction({
-  meeting,
-  onSendMeri,
-}: {
-  meeting: Meeting;
-  onSendMeri: (m: Meeting) => void;
-}) {
-  if (!eligibleForMeri(meeting)) return null;
-  if (meeting.meri === 'scheduled' || meeting.meri === 'attending') return <MeriAttendingPill />;
-  if (meeting.meri === 'done') return null;
-  return <SendMeriButton onClick={() => onSendMeri(meeting)} />;
-}
-
-function SubLine({ meeting }: { meeting: Meeting }) {
-  const bits: string[] = [];
-  if (meeting.client) bits.push(meeting.client.name);
-  if (meeting.isVirtual) {
-    bits.push(providerLabel(meeting.provider) ?? 'Virtual');
-    if (!meeting.joinLink) bits.push('link not detected');
-  } else {
-    bits.push('In person');
-  }
-  return (
-    <div className="mtg-row-sub">
-      <VideoCameraOutlined />
-      <span>{bits.join(' · ')}</span>
-    </div>
-  );
-}
-
-/** A single meeting row (Day + List views). Rows never carry Join — that lives
- *  in the detail panel header (spec §3). */
+/** A single meeting row (Day + List views) — a direct port of the prototype
+ *  MeetingRow: time · identity + Meri/Join action on the left, uniform P/N/D
+ *  status + chevron on the right. */
 export function MeetingRow({
-  meeting,
+  meeting: m,
   selected,
   onSelect,
   onSendMeri,
@@ -58,43 +24,101 @@ export function MeetingRow({
   onSelect: (m: Meeting) => void;
   onSendMeri: (m: Meeting) => void;
 }) {
-  const status = artifactStatus(meeting);
+  const [hover, setHover] = useState(false);
+  const bg = selected ? 'var(--accent-soft)' : hover ? 'var(--bg-surface-2)' : 'var(--bg-surface)';
+  const showJoin = m.isVirtual && Boolean(m.joinLink);
+  const showMeri = showSendMeri(m);
   return (
     <div
-      className={`mtg-row${selected ? ' is-selected' : ''}`}
       role="button"
       tabIndex={0}
-      onClick={() => onSelect(meeting)}
+      onClick={() => onSelect(m)}
       onKeyDown={(e) => {
         if (e.key === 'Enter' || e.key === ' ') {
           e.preventDefault();
-          onSelect(meeting);
+          onSelect(m);
         }
       }}
+      onMouseEnter={() => setHover(true)}
+      onMouseLeave={() => setHover(false)}
+      style={{
+        display: 'flex',
+        alignItems: 'center',
+        gap: 16,
+        cursor: 'pointer',
+        minHeight: 76,
+        borderBottom: '1px solid var(--border-1)',
+        background: bg,
+        borderLeft: `3px solid ${selected ? 'var(--accent)' : 'transparent'}`,
+        padding: '14px 22px 14px 19px',
+      }}
     >
-      <div className="mtg-row-time">
-        {new Intl.DateTimeFormat(undefined, { hour: 'numeric', minute: '2-digit' }).format(
-          new Date(meeting.startsAt),
+      {/* Time */}
+      <div
+        style={{
+          width: 82,
+          flexShrink: 0,
+          textAlign: 'right',
+          fontSize: 13,
+          fontWeight: 500,
+          color: 'var(--ink-2)',
+          fontVariantNumeric: 'tabular-nums',
+        }}
+      >
+        {formatTime(m.startsAt)}
+      </div>
+      {/* Identity + Meri / Join action */}
+      <div style={{ flex: 1, minWidth: 0 }}>
+        <div
+          style={{
+            fontSize: 15,
+            fontWeight: 600,
+            color: 'var(--ink-1)',
+            letterSpacing: '-0.01em',
+            whiteSpace: 'nowrap',
+            overflow: 'hidden',
+            textOverflow: 'ellipsis',
+          }}
+        >
+          {m.subject}
+        </div>
+        <div
+          style={{
+            display: 'flex',
+            alignItems: 'center',
+            gap: 8,
+            marginTop: 3,
+            fontSize: 12.5,
+            color: 'var(--ink-3)',
+          }}
+        >
+          {m.client && (
+            <>
+              <span style={{ color: 'var(--ink-2)', fontWeight: 500 }}>{m.client.name}</span>
+              <span
+                style={{
+                  width: 3,
+                  height: 3,
+                  borderRadius: '50%',
+                  background: 'var(--border-strong)',
+                }}
+              />
+            </>
+          )}
+          <ProviderTag m={m} />
+        </div>
+        {(showMeri || showJoin) && (
+          <div style={{ marginTop: 11, display: 'flex', alignItems: 'center', gap: 14 }}>
+            {showMeri && <SendMeriButton m={m} onClick={onSendMeri} size="sm" />}
+            {showJoin && <JoinLink m={m} size={13} />}
+          </div>
         )}
       </div>
-      <div className="mtg-row-main">
-        <div className="mtg-row-title">{meeting.subject}</div>
-        <SubLine meeting={meeting} />
-        <div className="mtg-row-meri">
-          <MeriAction meeting={meeting} onSendMeri={onSendMeri} />
-        </div>
+      {/* Uniform status */}
+      <div style={{ flexShrink: 0, display: 'flex', alignItems: 'center' }}>
+        <MaterialBadges m={m} />
       </div>
-      <div className="mtg-row-right">
-        <div className="mtg-artifacts">
-          {(Object.keys(ARTIFACT_LABELS) as ArtifactKind[]).map((kind) => (
-            <span key={kind} className={`mtg-artifact-pill${status[kind] ? ' is-complete' : ''}`}>
-              {status[kind] ? <CheckCircleFilled /> : null}
-              {ARTIFACT_LABELS[kind]}
-            </span>
-          ))}
-        </div>
-        <RightOutlined className="mtg-row-chevron" />
-      </div>
+      <ChevronRight size={16} style={{ color: 'var(--ink-4)', flexShrink: 0 }} />
     </div>
   );
 }

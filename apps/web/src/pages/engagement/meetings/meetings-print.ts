@@ -19,8 +19,22 @@ export interface PrintSection {
 }
 
 export function exportArtifactPdf(title: string, subtitle: string, sections: PrintSection[]): void {
-  const win = window.open('', '_blank', 'noopener,noreferrer,width=820,height=1000');
-  if (!win) return;
+  // NB: no `noopener`/`noreferrer` here — those features make window.open return
+  // null, so we could never write the print document (this was the "Export PDF
+  // does nothing" bug). We need the handle to write + print, and immediately
+  // sever the opener below so the print tab still can't reach back into the app.
+  const win = window.open('', '_blank', 'width=820,height=1000');
+  if (!win) {
+    // Popup blocked — surface a hint rather than failing silently.
+    // eslint-disable-next-line no-alert
+    window.alert('Allow pop-ups for this site to export a PDF.');
+    return;
+  }
+  try {
+    win.opener = null;
+  } catch {
+    /* cross-origin guard already severed it */
+  }
   const blocks = sections
     .filter((s) => s.body || (s.items && s.items.length))
     .map((s) => {

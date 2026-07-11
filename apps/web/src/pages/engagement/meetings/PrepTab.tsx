@@ -1,32 +1,22 @@
-import { useState } from 'react';
-import { App, Button, Input, Modal, Spin } from 'antd';
-import {
-  CheckCircleFilled,
-  ExportOutlined,
-  ReloadOutlined,
-  ThunderboltOutlined,
-} from '@ant-design/icons';
+import { useEffect, useState } from 'react';
+import { App } from 'antd';
+import { FileText, Link as LinkIcon, TriangleAlert } from 'lucide-react';
 import { useApprovePrep, useGeneratePrep } from './meetings-api.js';
 import { exportArtifactPdf } from './meetings-print.js';
 import { formatDayTitle } from './meetings-format.js';
+import { Empty, MeriGlyph, SectionLabel } from './meetings-ui.js';
+import { ArtifactActionBar, GeneratingState } from './tab-kit.js';
 import type { Meeting } from './meetings-types.js';
 
-function Section({ label, children }: { label: string; children: React.ReactNode }) {
-  return (
-    <div className="mtg-section">
-      <div className="mtg-section-label">{label}</div>
-      {children}
-    </div>
-  );
-}
-
+/** Prep tab — a port of the prototype PrepPanel. Meri drafts prep; the user
+ *  refines (add context), regenerates, exports, and approves. */
 export function PrepTab({ meeting, aiConfigured }: { meeting: Meeting; aiConfigured: boolean }) {
   const { message } = App.useApp();
   const prep = meeting.preps[0] ?? null;
   const generate = useGeneratePrep();
   const approve = useApprovePrep();
-  const [addCtxOpen, setAddCtxOpen] = useState(false);
-  const [addCtx, setAddCtx] = useState('');
+  const [refine, setRefine] = useState('');
+  useEffect(() => setRefine(''), [meeting.id]);
 
   const runGenerate = async (additionalContext?: string) => {
     await generate.mutateAsync({ meetingId: meeting.id, additionalContext });
@@ -35,30 +25,32 @@ export function PrepTab({ meeting, aiConfigured }: { meeting: Meeting; aiConfigu
 
   if (generate.isPending) {
     return (
-      <div className="mtg-empty-tab">
-        <Spin /> <div style={{ marginTop: 8 }}>Meri is drafting your prep…</div>
-      </div>
+      <GeneratingState
+        label="Meri is drafting prep…"
+        sub="Pulling from the client profile, synced email, and any prior debriefs. Meri won't invent details."
+      />
     );
   }
 
   if (!prep) {
     return (
-      <div className="mtg-empty-tab">
-        <p>No prep yet. Meri can draft talking points, an agenda, and watch-outs.</p>
-        <Button
-          type="primary"
-          icon={<ThunderboltOutlined />}
-          disabled={!aiConfigured}
-          onClick={() => runGenerate()}
-        >
-          Generate Prep
-        </Button>
-        {!aiConfigured ? (
-          <div style={{ color: 'var(--ink-3)', marginTop: 8, fontSize: 12 }}>
-            AI isn&apos;t configured for your tenant yet.
-          </div>
-        ) : null}
-      </div>
+      <Empty
+        icon={<FileText size={20} />}
+        title="No prep generated yet"
+        body="Meri drafts prep from the client profile, synced email, and prior debriefs."
+        action={
+          <button
+            type="button"
+            className="btn sm btn-accent"
+            style={{ marginTop: 2, gap: 6 }}
+            disabled={!aiConfigured}
+            onClick={() => runGenerate()}
+          >
+            <MeriGlyph size={15} tone="white" />
+            Generate with Meri
+          </button>
+        }
+      />
     );
   }
 
@@ -72,122 +64,176 @@ export function PrepTab({ meeting, aiConfigured }: { meeting: Meeting; aiConfigu
     ]);
 
   return (
-    <div>
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
       {prep.status === 'stale' ? (
         <div
-          className="mtg-tab-banner"
-          style={{ background: 'var(--notable-soft)', color: 'var(--notable)' }}
+          style={{
+            display: 'flex',
+            gap: 8,
+            padding: '9px 12px',
+            borderRadius: 8,
+            background: 'var(--notable-soft)',
+            fontSize: 12,
+            color: 'var(--notable)',
+            alignItems: 'center',
+          }}
         >
-          Context changed since this prep was generated — regenerate for the latest.
+          <TriangleAlert size={14} />
+          <span>Context changed since this prep was generated — regenerate for the latest.</span>
         </div>
       ) : (
-        <div className="mtg-tab-banner">
-          Meri drafted this prep from your client context and recent activity.
+        <div
+          style={{
+            display: 'flex',
+            gap: 8,
+            padding: '9px 12px',
+            borderRadius: 8,
+            background: 'var(--accent-soft)',
+            fontSize: 12,
+            color: 'var(--accent-ink)',
+            alignItems: 'center',
+          }}
+        >
+          <LinkIcon size={13} />
+          <span>Meri drafted this prep from your client context and recent activity.</span>
         </div>
       )}
 
-      {prep.summary ? (
-        <Section label="Summary">
-          <p style={{ margin: 0 }}>{prep.summary}</p>
-        </Section>
-      ) : null}
+      {prep.summary && (
+        <div>
+          <SectionLabel style={{ marginBottom: 7 }}>Summary</SectionLabel>
+          <p style={{ fontSize: 13, lineHeight: 1.65, color: 'var(--ink-2)', margin: 0 }}>
+            {prep.summary}
+          </p>
+        </div>
+      )}
 
-      {prep.agenda.length ? (
-        <Section label="Agenda">
-          <ul className="engagement-bullet-list">
+      {prep.agenda.length > 0 && (
+        <div>
+          <SectionLabel style={{ marginBottom: 7 }}>Agenda</SectionLabel>
+          <ul
+            style={{
+              margin: 0,
+              paddingLeft: 18,
+              color: 'var(--ink-1)',
+              fontSize: 13,
+              lineHeight: 1.6,
+            }}
+          >
             {prep.agenda.map((a, i) => (
               <li key={i}>{a}</li>
             ))}
           </ul>
-        </Section>
-      ) : null}
+        </div>
+      )}
 
-      {prep.talkingPoints.length ? (
-        <Section label="Talking Points">
-          {prep.talkingPoints.map((t, i) => (
-            <div className="mtg-talking-point" key={i}>
-              <span className="idx">{String(i + 1).padStart(2, '0')}</span>
-              <span>{t}</span>
-            </div>
-          ))}
-        </Section>
-      ) : null}
+      {prep.talkingPoints.length > 0 && (
+        <div>
+          <SectionLabel style={{ marginBottom: 9 }}>Talking points</SectionLabel>
+          <ul
+            style={{
+              margin: 0,
+              paddingLeft: 0,
+              listStyle: 'none',
+              display: 'flex',
+              flexDirection: 'column',
+              gap: 8,
+            }}
+          >
+            {prep.talkingPoints.map((t, i) => (
+              <li
+                key={i}
+                style={{
+                  display: 'flex',
+                  gap: 10,
+                  fontSize: 13,
+                  lineHeight: 1.55,
+                  color: 'var(--ink-1)',
+                }}
+              >
+                <span
+                  style={{
+                    fontFamily: 'var(--font-mono)',
+                    fontSize: 11,
+                    fontWeight: 700,
+                    color: 'var(--accent)',
+                    flexShrink: 0,
+                    marginTop: 2,
+                  }}
+                >
+                  {String(i + 1).padStart(2, '0')}
+                </span>
+                {t}
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
 
-      {prep.risks.length ? (
-        <Section label="Watch-outs">
-          {prep.risks.map((r, i) => (
-            <div className="mtg-watchout" key={i} style={{ marginBottom: 6 }}>
-              {r}
-            </div>
-          ))}
-        </Section>
-      ) : null}
+      {prep.risks.length > 0 && (
+        <div>
+          <SectionLabel style={{ marginBottom: 9 }}>Watch-outs</SectionLabel>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 7 }}>
+            {prep.risks.map((r, i) => (
+              <div
+                key={i}
+                style={{
+                  display: 'flex',
+                  gap: 9,
+                  fontSize: 12.5,
+                  lineHeight: 1.5,
+                  color: 'var(--ink-2)',
+                  padding: '9px 12px',
+                  background: 'var(--notable-soft)',
+                  borderRadius: 7,
+                }}
+              >
+                <TriangleAlert
+                  size={14}
+                  style={{ color: 'var(--notable)', flexShrink: 0, marginTop: 1 }}
+                />
+                {r}
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
 
-      {prep.followUps.length ? (
-        <Section label="Follow-ups">
-          <ul className="engagement-bullet-list">
+      {prep.followUps.length > 0 && (
+        <div>
+          <SectionLabel style={{ marginBottom: 7 }}>Follow-ups</SectionLabel>
+          <ul
+            style={{
+              margin: 0,
+              paddingLeft: 18,
+              color: 'var(--ink-2)',
+              fontSize: 13,
+              lineHeight: 1.6,
+            }}
+          >
             {prep.followUps.map((f, i) => (
               <li key={i}>{f}</li>
             ))}
           </ul>
-        </Section>
-      ) : null}
+        </div>
+      )}
 
-      <div className="mtg-tab-actions">
-        <Button
-          size="small"
-          icon={<ReloadOutlined />}
-          disabled={!aiConfigured}
-          onClick={() => runGenerate()}
-        >
-          Regenerate
-        </Button>
-        <Button size="small" disabled={!aiConfigured} onClick={() => setAddCtxOpen(true)}>
-          Add context
-        </Button>
-        <Button size="small" icon={<ExportOutlined />} onClick={onExport}>
-          Export PDF
-        </Button>
-        {prep.status === 'approved' ? (
-          <span className="mtg-approved-chip">
-            <CheckCircleFilled /> Approved
-          </span>
-        ) : (
-          <Button
-            size="small"
-            type="primary"
-            loading={approve.isPending}
-            style={{ marginLeft: 'auto' }}
-            onClick={async () => {
-              await approve.mutateAsync(prep.id);
-              message.success('Prep approved.');
-            }}
-          >
-            Approve
-          </Button>
-        )}
-      </div>
-
-      <Modal
-        title="Add context and regenerate"
-        open={addCtxOpen}
-        onCancel={() => setAddCtxOpen(false)}
-        okText="Regenerate"
-        confirmLoading={generate.isPending}
-        rootClassName="redesign"
-        onOk={async () => {
-          await runGenerate(addCtx.trim() || undefined);
-          setAddCtx('');
-          setAddCtxOpen(false);
+      <ArtifactActionBar
+        refine
+        refineValue={refine}
+        onRefineChange={setRefine}
+        refinePlaceholder="Add additional context you'd like Meri to use, then Regenerate."
+        onRegenerate={() => void runGenerate(refine.trim() || undefined)}
+        regenerating={generate.isPending}
+        regenerateDisabled={!aiConfigured}
+        onExport={onExport}
+        approved={prep.status === 'approved'}
+        onApprove={async () => {
+          await approve.mutateAsync(prep.id);
+          message.success('Prep approved.');
         }}
-      >
-        <Input.TextArea
-          rows={4}
-          value={addCtx}
-          onChange={(e) => setAddCtx(e.target.value)}
-          placeholder="Anything Meri should factor in — a recent development, the ask, sensitivities…"
-        />
-      </Modal>
+        approving={approve.isPending}
+      />
     </div>
   );
 }

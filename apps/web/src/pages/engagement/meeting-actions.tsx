@@ -5,17 +5,14 @@
 // join-link detection live in exactly one place and can't drift between pages.
 import { type MouseEvent, type ReactNode } from 'react';
 import { Button, Checkbox, Form, Input, Tooltip, Typography } from 'antd';
-import {
-  ExportOutlined,
-  FileTextOutlined,
-  RobotOutlined,
-  VideoCameraOutlined,
-} from '@ant-design/icons';
+import { FileTextOutlined, RobotOutlined, VideoCameraOutlined } from '@ant-design/icons';
+import { ExternalLink } from 'lucide-react';
 import {
   extractMeetingJoinUrl as extractMeetingJoinUrlShared,
   isSupportedMeetingJoinUrl,
   type MeetingJoinSource,
 } from '@capiro/shared';
+import { MeriGlyph } from './meetings/meetings-ui.js';
 
 // ── Join-link detection ─────────────────────────────────────────────────────
 // The detection logic now lives in @capiro/shared (the single source of truth,
@@ -64,7 +61,7 @@ export function SendMeriButton({
         onClick(event);
       }}
     >
-      <RobotOutlined />
+      <MeriGlyph size={16} tone="navy" />
       <span>{label}</span>
     </button>
   );
@@ -74,7 +71,7 @@ export function SendMeriButton({
 export function MeriAttendingPill({ label = 'Meri Attending' }: { label?: string }) {
   return (
     <span className="meri-attending-pill">
-      <RobotOutlined />
+      <MeriGlyph size={16} tone="soft" />
       <span>{label}</span>
     </span>
   );
@@ -103,7 +100,7 @@ export function JoinLink({
       rel="noopener noreferrer"
       onClick={(event) => event.stopPropagation()}
     >
-      <ExportOutlined />
+      <ExternalLink size={13} />
       <span>Join</span>
     </a>
   );
