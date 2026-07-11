@@ -1630,7 +1630,7 @@ model AiRun {
   droppedOffRoster   Int     @default(0) @map("dropped_off_roster")
   /// 'passed' | 'failed' | 'skipped' — the M5.0 deterministic validator gate's outcome.
   validationStatus String    @map("validation_status") @db.VarChar(16)
-  /// 'approved' | 'warning' | 'human_review' | 'rejected' | 'none' — the interim QA-gating state (§5.4 doc).
+  /// 'approved' | 'pending' | 'warning' | 'human_review' | 'rejected' | 'none' — the interim QA-gating state (§5.4 doc). 'pending' = held for human QA (W3.1: written on any drop or high materiality); 'warning'/'human_review'/'rejected' are the reserved human-review vocabulary.
   qaStatus         String    @default("none") @map("qa_status") @db.VarChar(16)
   humanReviewedBy  String?   @map("human_reviewed_by") @db.Uuid
   humanReviewedAt  DateTime? @map("human_reviewed_at") @db.Timestamptz(6)
@@ -1641,9 +1641,9 @@ model AiRun {
 
   tenant Tenant? @relation(fields: [tenantId], references: [id], onDelete: Cascade)
 
-  @@index([workflow, createdAt])
-  @@index([subjectType, subjectKey])
-  @@index([tenantId, createdAt])
+  @@index([workflow, createdAt], map: "ai_run_workflow_created_idx")
+  @@index([subjectType, subjectKey], map: "ai_run_subject_idx")
+  @@index([tenantId, createdAt], map: "ai_run_tenant_created_idx")
   /// W3.1: covers the run-intel-workflows idempotency guard's correlated
   /// subquery (workflow + subject_key + tenant_id + client_id equality, then
   /// created_at range) so it probes an index rather than rescanning recent
@@ -3932,7 +3932,7 @@ model StateBill {
   @@index([state, session])
   @@index([state, latestActionDate])
   @@index([state, status])
-  @@index([currentCommitteeId])
+  @@index([currentCommitteeId], map: "state_bill_currentCommitteeId_idx")
   @@map("state_bill")
 }
 

@@ -108,7 +108,7 @@ export const INGESTION_JOBS: ScheduledIngestionJob[] = [
     cron: { minute: '45', hour: '6' },
     tier: 'daily',
     description:
-      'Florida Administrative Register notices (daily) — set STATE_REGISTER_STATES=FL out-of-band',
+      'Florida Administrative Register notices (daily). Defaults to FL (the only registered adapter) when STATE_REGISTER_STATES is unset — no env needed. Set STATE_REGISTER_STATES out-of-band only to narrow/expand the state set as more adapters ship. Writes only the global public feed (no tenant data).',
   },
   {
     id: 'SyncRegulations',

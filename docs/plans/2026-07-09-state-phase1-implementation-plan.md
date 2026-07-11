@@ -778,12 +778,24 @@ worker — so this is **two blessed cross-realm writes**, both acknowledged and 
 ## 9. Success-criteria roll-up
 
 Phase 1 exit = **all** M1–M5 workstream SCs green **plus** the parent + agentic phase-level
-criteria they map to:
+criteria they map to — **except the two data-blocked deferrals, which are explicitly OUT of the
+Phase-1 exit gate** (W5.4 deferral honesty; blocking data source stated at each SC):
+
+- **M5-D** (rules-comparison assist) is **deferred** — there is no rule-revision history and no
+  curated bill↔rule link (only fuzzy subject matching), so its "0 fabrications on the eval
+  corpus" criterion cannot be exercised on real data. It ships dark and is re-gated when a
+  curated rule↔bill linkage lands. **Not required for Phase-1 exit.**
+- The **SC-6 predictive half (M2-H)** is **deferred** pending point-in-time status snapshots
+  (see the SC-6 bullet). **Not required for Phase-1 exit.**
 
 - **Parent SC-5** (district engine, ≥95% geocode, 0 wrong-district) ← **M1-B**.
-- **Parent SC-6** (deadline physics ≥90% backtest) ← **M2-E** (the deterministic
-  `dead_by_deadline` derivation) **+ M2-H** (the survival-band accuracy backtest — the actual
-  predictive moat, which M2-E alone does not validate).
+- **Parent SC-6** (deadline physics) ← **M2-E** (the deterministic `dead_by_deadline`
+  derivation — validated) **only** for the Phase-1 gate. The **≥90% _predictive_ backtest
+  (M2-H)** is **DEFERRED**: the shipped `backtest-deadline-physics.ts` is a data-quality /
+  directional signal over the current archive, NOT a point-in-time predictive backtest — that
+  needs **point-in-time status snapshots** (each bill's status _as of_ each historical date),
+  which are not captured yet. SC-6 is therefore NOT marked green on the backtest's strength;
+  the predictive moat is re-gated when snapshotting lands.
 - **Parent SC-9** (rules watch, `state_rule` alert ≤24h w/ verbatim notice + register link) ←
   **M3-B**.
 - **Agentic P1 exit** (targeting brief names only deterministically-validated members/roles/

@@ -20,6 +20,8 @@ import {
   stateBillStatusLabel,
   deriveRuleLifecycleStage,
   RULE_LIFECYCLE_STAGES,
+  COMMENT_ACCEPTING_STAGES,
+  isRuleCommentOpen,
   resolveCommittee,
   normalizeCommitteeName,
   matchesRole,
@@ -3846,13 +3848,9 @@ export class MeriToolsService {
     // reported a notice-stage rule with a live window as closed, and could
     // report `open` for an nprm with no dated window). Never guesses: no
     // end-date → not provably open → false, with an explicit note.
-    const COMMENT_ACCEPTING_STAGES: readonly string[] = ['notice', 'nprm'];
-    const nowMs = Date.now();
-    const commentWindowOpen =
-      commentEndDate != null &&
-      commentEndDate.getTime() > nowMs &&
-      (commentStartDate == null || commentStartDate.getTime() <= nowMs);
-    const commentIsOpen = COMMENT_ACCEPTING_STAGES.includes(stage) && commentWindowOpen;
+    // W5.6: single source of truth — the isOpen gate is the shared
+    // `isRuleCommentOpen` predicate the meriv2-evals mechanism gate pins.
+    const commentIsOpen = isRuleCommentOpen({ stage, commentStartDate, commentEndDate });
 
     const notes: string[] = [];
     if (COMMENT_ACCEPTING_STAGES.includes(stage) && !commentEndDate) {

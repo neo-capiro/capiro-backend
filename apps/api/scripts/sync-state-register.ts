@@ -15,8 +15,10 @@
  * first and stops once a page's rows are all at-or-before the watermark.
  *
  *   pnpm --filter @capiro/api exec tsx scripts/sync-state-register.ts
- * Env: STATE_REGISTER_STATES (comma-separated; default = every registered
- *      adapter), STATE_REGISTER_MAX_PAGES (per-state safety cap, default 40
+ * Env: STATE_REGISTER_STATES (comma-separated; default when unset = every
+ *      registered adapter, currently FL only — so the daily schedule runs FL
+ *      with no env set; set this only to narrow/expand as adapters are added),
+ *      STATE_REGISTER_MAX_PAGES (per-state safety cap, default 40
  *      — ~1,200 notices, comfortably above one state's weekly volume),
  *      STATE_REGISTER_DELAY_MS (politeness delay between fetches, default 400).
  */

@@ -38,11 +38,22 @@ jobs:
           pnpm --filter @capiro/intel-api exec prisma generate
           pnpm --filter @capiro/onboard-api exec prisma generate
 
-      - name: Prettier (MeriV2 code)
+      - name: Prettier (MeriV2 + shared core)
+        # W5.7: packages/shared is now gated — it holds the deterministic engines
+        # the whole platform depends on (deriveBillStatus / deriveStateBillStatus,
+        # deriveRuleLifecycleStage, isRuleCommentOpen, MERI_TOOL_MANIFEST, funding
+        # precedence). A blanket apps/api / apps/intel-api / apps/web check is
+        # intentionally NOT added here: those trees carry pre-existing formatting
+        # debt OUTSIDE the state platform (e.g. engagement/outreach files), and a
+        # blanket check would break CI on unrelated files (G7: never touch
+        # unrelated pre-existing debt). State-platform code in apps/api is
+        # formatted file-by-file at authorship; a repo-wide changed-files gate is
+        # a separate follow-up once the apps/* debt is paid down.
         run: >
           pnpm exec prettier --check
           "packages/meriv2-core/**/*.ts"
           "apps/meriv2-orchestrator/**/*.ts"
+          "packages/shared/**/*.ts"
 
       # BYOK4 guard: no MeriV2 code may read the global Anthropic key directly.
       # The ONLY permitted reference is the orchestrator's resolver wiring

@@ -4,6 +4,7 @@ import { complianceGateCase } from './compliance/gate-enforcement.eval';
 import { entityGroundingCase } from './entity/entity-grounding.eval';
 import { billStatusCase } from './legislation/bill-status.eval';
 import { stateBillStatusCase } from './legislation/state-bill-status.eval';
+import { stateRuleStatusCase } from './legislation/state-rule-status.eval';
 import { committeeRosterCase } from './legislation/committee-roster.eval';
 import { multiStateComparisonCase } from './legislation/multi-state-comparison.eval';
 import { federalStateMixedCase } from './legislation/federal-state-mixed.eval';
@@ -30,6 +31,7 @@ const CASES: EvalCase[] = [
   entityGroundingCase,
   billStatusCase,
   stateBillStatusCase,
+  stateRuleStatusCase,
   committeeRosterCase,
   multiStateComparisonCase,
   federalStateMixedCase,

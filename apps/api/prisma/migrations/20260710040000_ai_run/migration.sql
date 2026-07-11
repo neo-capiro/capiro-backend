@@ -60,9 +60,26 @@ CREATE INDEX "ai_run_targeting_guard_idx" ON "ai_run" ("workflow", "subject_key"
 
 ALTER TABLE "ai_run" ENABLE ROW LEVEL SECURITY;
 ALTER TABLE "ai_run" FORCE ROW LEVEL SECURITY;
-CREATE POLICY "ai_run_isolation" ON "ai_run"
-    USING (rls_bypass() OR tenant_id = current_tenant_id() OR tenant_id IS NULL)
+-- W5.1: per-command policies, NOT a single FOR ALL. A tenant-agnostic
+-- (tenant_id IS NULL) row is GLOBAL provenance every tenant may READ, but only
+-- a system principal (rls_bypass) may write/reassign/delete it. A single FOR ALL
+-- USING that admitted "tenant_id IS NULL" would also govern UPDATE/DELETE row
+-- visibility -- letting any tenant session DELETE or reassign a global row.
+-- So SELECT is broad (own-tenant + global + system); INSERT/UPDATE/DELETE are
+-- own-tenant-or-system only (global rows are system-writable exclusively).
+CREATE POLICY "ai_run_select" ON "ai_run"
+    FOR SELECT
+    USING (rls_bypass() OR tenant_id = current_tenant_id() OR tenant_id IS NULL);
+CREATE POLICY "ai_run_insert" ON "ai_run"
+    FOR INSERT
     WITH CHECK (rls_bypass() OR tenant_id = current_tenant_id());
+CREATE POLICY "ai_run_update" ON "ai_run"
+    FOR UPDATE
+    USING (rls_bypass() OR tenant_id = current_tenant_id())
+    WITH CHECK (rls_bypass() OR tenant_id = current_tenant_id());
+CREATE POLICY "ai_run_delete" ON "ai_run"
+    FOR DELETE
+    USING (rls_bypass() OR tenant_id = current_tenant_id());
 
 -- recordAiUsageEvent tenant-agnostic path (M5.0): relax ai_usage_events.tenant_id
 -- to nullable so a system-scoped (withSystem) metering call for a
