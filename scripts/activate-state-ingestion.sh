@@ -28,12 +28,30 @@
 # EventBridge rules only. Never touches ECS services, the ALB, CDK/CFN, or any
 # existing rule. Idempotent — safe to re-run any phase.
 #
-# USAGE:
+# USAGE (run in order):
 #   bash scripts/activate-state-ingestion.sh preflight   # confirm LEGISCAN_API_KEY resolves, no writes
-#   bash scripts/activate-state-ingestion.sh register    # clone the 3 new task-def families
-#   bash scripts/activate-state-ingestion.sh smoke       # 1 real LegiScan masterlist pull, verify rows
-#   bash scripts/activate-state-ingestion.sh schedules   # create the 8 EventBridge rules (recurring)
-#   bash scripts/activate-state-ingestion.sh all         # register -> smoke -> (confirm) -> schedules
+#   bash scripts/activate-state-ingestion.sh register    # clone the 3 new task-def families + IAM grant
+#   bash scripts/activate-state-ingestion.sh backfill    # MANDATORY seed: bulk-dataset ZIPs → state_bill (~28 queries)
+#   bash scripts/activate-state-ingestion.sh smoke       # 1 real masterlist diff (proves cursor primed, ~0 changed)
+#   bash scripts/activate-state-ingestion.sh derive      # compute canonical status + confirm emit surfaces 0 (no tracked bills)
+#   bash scripts/activate-state-ingestion.sh schedules   # create the recurring EventBridge rules
+#   bash scripts/activate-state-ingestion.sh all         # register -> backfill -> smoke -> derive -> (confirm) -> schedules
+#
+# WHY backfill is mandatory + FIRST: sync-legiscan-masterlist is a CHANGE
+# detector — it diffs the live masterlist's change_hashes against
+# state_sync_cursor.billHashes and only drains bills whose hash moved. On a
+# never-seeded cursor it (correctly, W0.5 quota-governor) REFUSES the cold
+# bill-by-bill drain (NY alone is 25k bills = 25k getBill queries, blowing the
+# 30k/mo cap in one run) and logs "run backfill-legiscan-datasets first". The
+# backfill seeds the whole corpus from LegiScan's weekly bulk-dataset ZIPs
+# (~2-3 queries/state, not per-bill) AND primes billHashes so the masterlist
+# diff then only picks up genuine post-seed changes.
+#
+# SCOPE (MVP, D2): the 8 Rev-2 priority states (FL,CA,TX,NY,IL,MA,GA,VA) only.
+# The 43 "wide" states are NOT backfilled or scheduled here — scheduling their
+# masterlist before they're seeded would burn ~5k queries/mo cold-cursor
+# no-op polling for zero value. To add them later: LEGISCAN_STATES=<wide csv>
+# backfill, then re-run schedules with INCLUDE_WIDE=1.
 #
 # PREREQUISITE (blocks every phase — this script will not fabricate a key):
 #   aws secretsmanager create-secret --region us-east-1 \
@@ -79,18 +97,54 @@ before re-running this script. Not fabricating a placeholder — see file header
     --query 'Targets[0]' --output json) || die "Could not read the sync-openstates rule target"
   CLUSTER_ARN=$(echo "$netcfg" | jq -r '.Arn')
   SCHED_ROLE_ARN=$(echo "$netcfg" | jq -r '.RoleArn')
-  SUBNETS_JSON=$(echo "$netcfg" | jq -c '.EcsParameters.NetworkConfiguration.awsvpcConfiguration.subnets')
-  SG_JSON=$(echo "$netcfg" | jq -c '.EcsParameters.NetworkConfiguration.awsvpcConfiguration.securityGroups')
+  SUBNETS_JSON=$(echo "$netcfg" | jq -c '.EcsParameters.NetworkConfiguration.awsvpcConfiguration.Subnets')
+  SG_JSON=$(echo "$netcfg" | jq -c '.EcsParameters.NetworkConfiguration.awsvpcConfiguration.SecurityGroups')
   echo "  cluster: $CLUSTER_ARN"
   echo "  invoker role: $SCHED_ROLE_ARN"
   echo "  subnets: $SUBNETS_JSON  sg: $SG_JSON"
+
+  # The cloned task-defs inherit the template's EXECUTION role, which resolves
+  # each container secret at task-launch. That role grants GetSecretValue on a
+  # FIXED allowlist of secret ARNs (per-key inline policies SyncTaskApiKeys /
+  # SyncTaskApiKeysExtra, added out-of-band as new keys shipped). A brand-new
+  # secret is NOT on it, so the task dies at launch with
+  # ResourceInitializationError / AccessDeniedException GetSecretValue (exitCode
+  # null, stopCode TaskFailedToStart). ensure_secret_grant() closes that gap.
+  EXEC_ROLE_ARN=$($AWS ecs describe-task-definition --task-definition "$TPL_SINGLE_KEY" \
+    --query 'taskDefinition.executionRoleArn' --output text)
+  EXEC_ROLE_NAME="${EXEC_ROLE_ARN##*/}"
+  echo "  execution role: $EXEC_ROLE_NAME"
 }
 
 ###############################################################################
-# clone_family <new_family> <template_family> <new_container_name> <command_json_array> [extra_secret_name]
+# Grant the execution role GetSecretValue on the LegiScan secret. Additive +
+# idempotent: a dedicated inline policy (SyncTaskApiKeysState) mirroring the
+# existing SyncTaskApiKeys/…Extra pattern, so re-running just overwrites it with
+# the same doc and NEVER touches the other policies (rewriting a shared policy
+# risks dropping a sibling ARN). No KMS grant needed: the secret uses the
+# default aws/secretsmanager key, whose decrypt is auto-allowed for same-account
+# principals holding secretsmanager perms (kms:ViaService). This is an IAM-only
+# out-of-band change — it does NOT touch any task-def or the CDK-managed
+# DefaultPolicy, so it is safe w.r.t. the cdk↔task-def drift landmine.
+ensure_secret_grant() {
+  [ -n "${EXEC_ROLE_NAME:-}" ] || die "ensure_secret_grant called before discover()"
+  log "Granting $EXEC_ROLE_NAME GetSecretValue on $LEGISCAN_SECRET_NAME"
+  local doc
+  doc=$(jq -cn --arg arn "arn:aws:secretsmanager:${REGION}:967807252336:secret:${LEGISCAN_SECRET_NAME}*" \
+    '{Version:"2012-10-17",Statement:[{Effect:"Allow",Action:["secretsmanager:GetSecretValue","secretsmanager:DescribeSecret"],Resource:[$arn]}]}')
+  $AWS iam put-role-policy --role-name "$EXEC_ROLE_NAME" \
+    --policy-name SyncTaskApiKeysState --policy-document "$doc" >/dev/null
+  echo "  granted (inline policy SyncTaskApiKeysState)"
+  # IAM is eventually consistent; a task launched within a second or two of the
+  # grant can still 400. Small settle window before any run-task in this run.
+  sleep 8
+}
+
+###############################################################################
+# clone_family <new_family> <template_family> <new_container_name> <command_json_array> [extra_secret_name] [cpu] [memory]
 clone_family() {
-  local family="$1" template="$2" container="$3" cmd_json="$4" extra_secret_name="${5:-}"
-  log "Registering $family (clone of $template)"
+  local family="$1" template="$2" container="$3" cmd_json="$4" extra_secret_name="${5:-}" cpu="${6:-}" mem="${7:-}"
+  log "Registering $family (clone of $template)${cpu:+ [${cpu}cpu/${mem}mem]}"
   local src
   src=$($AWS ecs describe-task-definition --task-definition "$template" --query 'taskDefinition' --output json)
   local filtered
@@ -105,21 +159,29 @@ clone_family() {
       --arg name "$extra_secret_name" --arg arn "$LEGISCAN_SECRET_ARN" \
       '.containerDefinitions[0].secrets = ((.containerDefinitions[0].secrets // []) | map(select(.name != $name)) + [{name:$name, valueFrom:$arn}])')
   fi
-  echo "$filtered" > "/tmp/${family}.json"
+  # Task-level cpu/memory override. The openstates/fara templates are 512/1024
+  # — fine for a people/geo sync, but the LegiScan dataset backfill parses a
+  # whole session's ZIP in memory (NY current session ≈ 25k bills), so those
+  # two families get 1024/2048. Fargate valid combos: 1024 cpu pairs with 2048+.
+  if [ -n "$cpu" ]; then
+    filtered=$(echo "$filtered" | jq --arg cpu "$cpu" --arg mem "$mem" '.cpu=$cpu | .memory=$mem')
+  fi
   local td_arn
-  td_arn=$($AWS ecs register-task-definition --cli-input-json "file:///tmp/${family}.json" \
+  td_arn=$($AWS ecs register-task-definition --cli-input-json "$filtered" \
     --query 'taskDefinition.taskDefinitionArn' --output text)
   echo "  registered: $td_arn"
 }
 
 cmd_register() {
   discover
+  ensure_secret_grant
+  # LegiScan families sized up (1024/2048) for in-memory dataset-ZIP parsing.
   clone_family "capiro-${ENV}-api-sync-legiscan-masterlist" "$TPL_SINGLE_KEY" \
-    "api-sync-legiscan-masterlist" '["sync-legiscan-masterlist"]' "LEGISCAN_API_KEY"
+    "api-sync-legiscan-masterlist" '["sync-legiscan-masterlist"]' "LEGISCAN_API_KEY" "1024" "2048"
   clone_family "capiro-${ENV}-api-sync-legiscan-bills" "$TPL_SINGLE_KEY" \
-    "api-sync-legiscan-bills" '["sync-legiscan-bills"]' "LEGISCAN_API_KEY"
+    "api-sync-legiscan-bills" '["sync-legiscan-bills"]' "LEGISCAN_API_KEY" "1024" "2048"
   clone_family "capiro-${ENV}-api-sync-state-register" "$TPL_NO_KEY" \
-    "api-sync-state-register" '["sync-state-register"]' ""
+    "api-sync-state-register" '["sync-state-register"]' "" "" ""
   log "Registered all 3 new task-def families."
 }
 
@@ -140,34 +202,74 @@ run_job_wait() {  # $1=family  $2=container  $3..=command  (env overrides via JO
       '{containerOverrides:[{name:$cn,command:$cmd,environment:$env}]}')" \
     --query 'tasks[0].taskArn' --output text)
   [ -n "$task_arn" ] && [ "$task_arn" != "None" ] || die "run-task failed for $family"
-  echo "  task: $task_arn — waiting..."
-  $AWS ecs wait tasks-stopped --cluster "$CLUSTER_ARN" --tasks "$task_arn"
-  local code
+  echo "  task: $task_arn — waiting (budget ${WAIT_BUDGET:-900}s)..."
+  # Manual poll instead of `aws ecs wait tasks-stopped` (fixed 10-min budget):
+  # the dataset backfill of 8 large states can run longer, and a spurious
+  # "Max attempts exceeded" would abort the sequence on a still-healthy task.
+  local deadline=$(( ${WAIT_BUDGET:-900} / 10 )) status="" i=0
+  while [ "$i" -lt "$deadline" ]; do
+    status=$($AWS ecs describe-tasks --cluster "$CLUSTER_ARN" --tasks "$task_arn" \
+      --query 'tasks[0].lastStatus' --output text 2>/dev/null || echo UNKNOWN)
+    [ "$status" = "STOPPED" ] && break
+    sleep 10; i=$((i+1))
+  done
+  [ "$status" = "STOPPED" ] || die "$family still $status after ${WAIT_BUDGET:-900}s — inspect the task, do not assume failure"
+  local code reason
   code=$($AWS ecs describe-tasks --cluster "$CLUSTER_ARN" --tasks "$task_arn" \
     --query 'tasks[0].containers[0].exitCode' --output text)
-  echo "  exit code: $code   logs: CloudWatch /capiro/${ENV}/api-sync-jobs (or per-family log group), task ${task_arn##*/}"
-  [ "$code" = "0" ] || die "$family exited $code — inspect logs before proceeding"
+  reason=$($AWS ecs describe-tasks --cluster "$CLUSTER_ARN" --tasks "$task_arn" \
+    --query 'tasks[0].stoppedReason' --output text)
+  echo "  exit code: $code   stoppedReason: $reason"
+  echo "  logs: CloudWatch /capiro/${ENV}/api-migrate, stream sync-openstates/${container}/${task_arn##*/}"
+  [ "$code" = "0" ] || die "$family exited $code ($reason) — inspect logs before proceeding"
+}
+
+PRIORITY_STATES="FL,CA,TX,NY,IL,MA,GA,VA"
+
+cmd_backfill() {
+  discover
+  ensure_secret_grant
+  log "BACKFILL — bulk-dataset seed of the 8 priority states (current sessions)"
+  echo "  This is the MANDATORY prerequisite for masterlist diffing. Bulk ZIPs,"
+  echo "  ~2-3 queries/state, seeds state_bill + primes state_sync_cursor.billHashes."
+  # Big states (NY≈25k bills) parse a whole ZIP in memory + upsert bill-by-bill;
+  # give it a generous 40-min budget (it processes states sequentially).
+  WAIT_BUDGET=2400 JOB_ENV="LEGISCAN_STATES=${PRIORITY_STATES};LEGISCAN_SESSIONS=current" \
+    run_job_wait "capiro-${ENV}-api-sync-legiscan-masterlist" "api-sync-legiscan-masterlist" "backfill-legiscan-datasets"
+  echo "Backfill complete. Per-state bill counts are in the task log (grep '[backfill-legiscan]')."
 }
 
 cmd_smoke() {
   discover
-  log "SMOKE — one real LegiScan masterlist pull (priority states only, no bill drain yet)"
-  JOB_ENV="LEGISCAN_STATES=FL,CA,TX,NY,IL,MA,GA,VA;LEGISCAN_MASTERLIST_SOURCE_SUFFIX=priority" \
+  ensure_secret_grant
+  log "SMOKE — one masterlist diff (post-backfill: cursor primed, expect ~0 changed + NO 'never backfilled' warnings)"
+  WAIT_BUDGET=900 JOB_ENV="LEGISCAN_STATES=${PRIORITY_STATES};LEGISCAN_MASTERLIST_SOURCE_SUFFIX=priority" \
     run_job_wait "capiro-${ENV}-api-sync-legiscan-masterlist" "api-sync-legiscan-masterlist" "sync-legiscan-masterlist"
-  echo "Verify:  SELECT COUNT(*) FROM state_bill;"
-  echo "         SELECT source,status,rows_inserted,rows_updated FROM sync_run WHERE source LIKE 'sync-legiscan%' ORDER BY started_at DESC LIMIT 5;"
+  echo "Verify masterlist now diffs (not cold-skips): the log's per-state lines should"
+  echo "NOT say 'never backfilled'; 'queued N changed bills' N≈0 right after a seed is correct."
+}
+
+cmd_derive() {
+  discover
+  log "DERIVE — canonical state_bill.status from seeded actions/votes, then a safe emit dry pass"
+  WAIT_BUDGET=1200 \
+    run_job_wait "capiro-${ENV}-api-sync-legiscan-bills" "api-sync-legiscan-bills" "derive-state-bill-status"
+  log "EMIT — confirm the changes rail surfaces 0 (no client tracks a state bill yet → inherently gated)"
+  WAIT_BUDGET=900 \
+    run_job_wait "capiro-${ENV}-api-sync-legiscan-bills" "api-sync-legiscan-bills" "emit-state-changes"
+  echo "Expected: emit-state-changes logs 'N material transitions, 0 emitted' (all skipped, no client). Safe to schedule."
 }
 
 ###############################################################################
 cmd_schedules() {
   discover
+  ensure_secret_grant
   log "Creating EventBridge rules (recurring). Cadences mirror infra/cdk/lib/ingestion-schedule.ts."
 
   # name|family|container|cmd (space-sep)|cron|env (K=V;K2=V2 or empty)
   local WIDE_STATES="AL,AK,AZ,AR,CO,CT,DE,DC,HI,ID,IN,IA,KS,KY,LA,ME,MD,MI,MN,MS,MO,MT,NE,NV,NH,NJ,NM,NC,ND,OH,OK,OR,PA,RI,SC,SD,TN,UT,VT,WA,WV,WI,WY"
   local JOBS=(
-    "sync-legiscan-masterlist-priority|capiro-${ENV}-api-sync-legiscan-masterlist|api-sync-legiscan-masterlist|sync-legiscan-masterlist|cron(10 * * * ? *)|LEGISCAN_STATES=FL,CA,TX,NY,IL,MA,GA,VA;LEGISCAN_MASTERLIST_SOURCE_SUFFIX=priority"
-    "sync-legiscan-masterlist-wide|capiro-${ENV}-api-sync-legiscan-masterlist|api-sync-legiscan-masterlist|sync-legiscan-masterlist|cron(25 1/6 * * ? *)|LEGISCAN_STATES=${WIDE_STATES};LEGISCAN_MASTERLIST_SOURCE_SUFFIX=wide"
+    "sync-legiscan-masterlist-priority|capiro-${ENV}-api-sync-legiscan-masterlist|api-sync-legiscan-masterlist|sync-legiscan-masterlist|cron(10 * * * ? *)|LEGISCAN_STATES=${PRIORITY_STATES};LEGISCAN_MASTERLIST_SOURCE_SUFFIX=priority"
     "sync-legiscan-bills|capiro-${ENV}-api-sync-legiscan-bills|api-sync-legiscan-bills|sync-legiscan-bills|cron(30 * * * ? *)|"
     "sync-state-register|capiro-${ENV}-api-sync-state-register|api-sync-state-register|sync-state-register|cron(45 6 * * ? *)|"
     "derive-state-bill-status|capiro-${ENV}-api-sync-legiscan-bills|api-sync-legiscan-bills|derive-state-bill-status|cron(50 0/6 * * ? *)|"
@@ -175,6 +277,16 @@ cmd_schedules() {
     "normalize-state-committees|capiro-${ENV}-api-sync-state-register|api-sync-state-register|normalize-state-committees|cron(30 8 ? * MON *)|"
     "geocode-facilities|capiro-${ENV}-api-sync-state-register|api-sync-state-register|geocode-facilities|cron(15 4 * * ? *)|"
   )
+  # The wide-state masterlist is opt-in (INCLUDE_WIDE=1) and ONLY after the wide
+  # states are backfilled — otherwise it burns ~5k queries/mo cold-cursor
+  # no-op polling for zero value. Seed first: LEGISCAN_STATES="$WIDE_STATES"
+  # backfill-legiscan-datasets, then re-run schedules with INCLUDE_WIDE=1.
+  if [ "${INCLUDE_WIDE:-0}" = "1" ]; then
+    JOBS+=("sync-legiscan-masterlist-wide|capiro-${ENV}-api-sync-legiscan-masterlist|api-sync-legiscan-masterlist|sync-legiscan-masterlist|cron(25 1/6 * * ? *)|LEGISCAN_STATES=${WIDE_STATES};LEGISCAN_MASTERLIST_SOURCE_SUFFIX=wide")
+    echo "  INCLUDE_WIDE=1 → wide-state masterlist rule INCLUDED"
+  else
+    echo "  wide-state masterlist rule DEFERRED (set INCLUDE_WIDE=1 after wide backfill)"
+  fi
 
   local n=0
   for row in "${JOBS[@]}"; do
@@ -211,8 +323,10 @@ cmd_preflight() {
 
 cmd_all() {
   cmd_register
+  cmd_backfill
   cmd_smoke
-  echo; read -r -p "Smoke passed. Create recurring schedules now? [y/N] " yn
+  cmd_derive
+  echo; read -r -p "Backfill+derive verified. Create recurring schedules now? [y/N] " yn
   [ "${yn:-N}" = "y" ] && cmd_schedules || echo "Skipped (run later: $0 schedules)."
 }
 
@@ -221,8 +335,10 @@ ACTION="${1:-help}"
 case "$ACTION" in
   preflight) cmd_preflight ;;
   register)  cmd_register ;;
+  backfill)  cmd_backfill ;;
   smoke)     cmd_smoke ;;
+  derive)    cmd_derive ;;
   schedules) cmd_schedules ;;
   all)       cmd_all ;;
-  *) sed -n '2,40p' "$0"; exit 0 ;;
+  *) sed -n '2,52p' "$0"; exit 0 ;;
 esac
