@@ -1,104 +1,76 @@
 /**
- * Flip a per-tenant rollout feature flag in tenants.settings_jsonb.clioFeatureFlags.
+ * Set (or clear) a per-tenant feature flag under
+ * tenants.settings_jsonb.clioFeatureFlags — the generic counterpart to
+ * capiro-admin's MeriV2-only setMeriV2Flag, for canarying flags that have no
+ * dedicated admin surface (e.g. outreachClientProfile.enabled, notetaker.enabled).
  *
- * The general-purpose CLI equivalent of capiro-admin's setMeriV2Flag, for the
- * flags that have NO admin endpoint yet (meetingsV2, meriDockUndockUi,
- * notetaker, outreachAsync, meetingsCrossUser) and are documented as
- * "flipped via settings_jsonb.clioFeatureFlags" in tenant-flags.ts. Runs as a
- * one-off ECS task (entrypoint verb `set-tenant-flag`).
+ *   pnpm --filter @capiro/api set:tenant-flag -- \
+ *     --slug capiro-internal --flag outreachClientProfile.enabled --value true
+ *   (dry-run by default; add --commit to persist)
  *
- * Non-destructive: merges the single flag into the existing clioFeatureFlags
- * object, preserving all other settings + flags (mirrors setMeriV2Flag). The
- * flag name is validated against the known flag constants so a typo can't
- * write a junk flag that silently never reads back. Wrapped in a bypass_rls
- * transaction (plain-PrismaClient-script equivalent of withSystem, the
- * emit-state-changes / sync-congress precedent) since the tenants table is
- * RLS-scoped.
- *
- *   set-tenant-flag --slug capiro-internal --flag meriDockUndockUi.enabled --value true
- *   set-tenant-flag --tenant-id <uuid>     --flag meetingsV2.enabled       --value false
+ * SAFE: dry-run unless --commit; spread-merges so other flags/settings are
+ * untouched (mirrors capiro-admin.setMeriV2Flag); prints before/after. Exits
+ * non-zero on error / unknown slug. Run as a one-off ECS task against the
+ * deployed image (TMPDIR=/dev/shm on the server — see infra_tsx_tmpdir_bug).
  */
-import { config as dotenvConfig } from 'dotenv';
-import { PrismaClient, Prisma } from '@prisma/client';
-import {
-  MERIV2_FLAGS,
-  NOTETAKER_FLAG,
-  MEETINGS_V2_FLAG,
-  MERI_DOCK_UNDOCK_UI_FLAG,
-  MEETINGS_CROSS_USER_FLAG,
-  OUTREACH_ASYNC_FLAG,
-} from '../src/common/tenant-flags.js';
-dotenvConfig();
+import { Prisma, PrismaClient } from '@prisma/client';
 
-/** Every flag key the app actually reads from clioFeatureFlags. Guards typos. */
-const KNOWN_FLAGS = new Set<string>([
-  ...Object.values(MERIV2_FLAGS),
-  NOTETAKER_FLAG,
-  MEETINGS_V2_FLAG,
-  MERI_DOCK_UNDOCK_UI_FLAG,
-  MEETINGS_CROSS_USER_FLAG,
-  OUTREACH_ASYNC_FLAG,
-]);
+const prisma = new PrismaClient();
 
 function arg(name: string): string | undefined {
-  const i = process.argv.indexOf(`--${name}`);
-  return i >= 0 ? process.argv[i + 1] : undefined;
+  const p = `--${name}`;
+  const i = process.argv.indexOf(p);
+  if (i >= 0 && i + 1 < process.argv.length) return process.argv[i + 1];
+  const kv = process.argv.find((a) => a.startsWith(`${p}=`));
+  return kv ? kv.slice(p.length + 1) : undefined;
 }
 
-async function main() {
+async function main(): Promise<void> {
   const slug = arg('slug');
-  const tenantId = arg('tenant-id');
   const flag = arg('flag');
   const valueRaw = arg('value');
-
-  if ((!slug && !tenantId) || !flag || valueRaw == null) {
+  const commit = process.argv.includes('--commit');
+  if (!slug || !flag || valueRaw == null || (valueRaw !== 'true' && valueRaw !== 'false')) {
     throw new Error(
-      'usage: set-tenant-flag (--slug <slug> | --tenant-id <uuid>) --flag <key> --value <true|false>',
+      'Usage: --slug <tenant-slug> --flag <flag.key> --value <true|false> [--commit]',
     );
-  }
-  if (!KNOWN_FLAGS.has(flag)) {
-    throw new Error(`unknown flag '${flag}'. known: ${[...KNOWN_FLAGS].sort().join(', ')}`);
-  }
-  if (valueRaw !== 'true' && valueRaw !== 'false') {
-    throw new Error(`--value must be 'true' or 'false' (got '${valueRaw}')`);
   }
   const value = valueRaw === 'true';
 
-  const prisma = new PrismaClient();
-  try {
-    const result = await prisma.$transaction(async (tx) => {
-      await tx.$executeRawUnsafe("SELECT set_config('app.bypass_rls', 'on', true)");
-      const tenant = slug
-        ? await tx.tenant.findUnique({ where: { slug }, select: { id: true, slug: true, settings: true } })
-        : await tx.tenant.findUnique({
-            where: { id: tenantId as string },
-            select: { id: true, slug: true, settings: true },
-          });
-      if (!tenant) throw new Error(`tenant not found (${slug ?? tenantId})`);
-
-      const settings = (tenant.settings ?? {}) as Record<string, unknown>;
-      const clioFeatureFlags = {
-        ...((settings.clioFeatureFlags ?? {}) as Record<string, unknown>),
-        [flag]: value,
-      };
-      await tx.tenant.update({
-        where: { id: tenant.id },
-        data: { settings: { ...settings, clioFeatureFlags } as unknown as Prisma.InputJsonValue },
-      });
-      return { slug: tenant.slug, id: tenant.id, clioFeatureFlags };
-    });
-
-    console.log(
-      `[set-tenant-flag] tenant=${result.slug} (${result.id}) ${flag}=${value} — clioFeatureFlags now ${JSON.stringify(result.clioFeatureFlags)}`,
-    );
-  } finally {
-    await prisma.$disconnect();
-  }
-}
-
-if (require.main === module) {
-  main().catch((e) => {
-    console.error(e);
-    process.exit(1);
+  const tenant = await prisma.tenant.findFirst({
+    where: { slug },
+    select: { id: true, slug: true, settings: true },
   });
+  if (!tenant) throw new Error(`No tenant with slug "${slug}"`);
+
+  const settings = (tenant.settings ?? {}) as Record<string, unknown>;
+  const current = (settings.clioFeatureFlags ?? {}) as Record<string, unknown>;
+  // eslint-disable-next-line no-console
+  console.log(
+    `tenant ${tenant.slug} (${tenant.id})\n` +
+      `  current ${flag} = ${JSON.stringify(current[flag])}\n` +
+      `  ->      ${flag} = ${value}`,
+  );
+
+  if (!commit) {
+    // eslint-disable-next-line no-console
+    console.log('DRY RUN — pass --commit to persist.');
+    return;
+  }
+
+  const clioFeatureFlags = { ...current, [flag]: value };
+  await prisma.tenant.update({
+    where: { id: tenant.id },
+    data: { settings: { ...settings, clioFeatureFlags } as unknown as Prisma.InputJsonValue },
+  });
+  // eslint-disable-next-line no-console
+  console.log('COMMITTED.');
 }
+
+main()
+  .catch((err) => {
+    // eslint-disable-next-line no-console
+    console.error(err);
+    process.exit(1);
+  })
+  .finally(() => prisma.$disconnect());

@@ -190,12 +190,3 @@ export function approvedPrep(m: Meeting): MeetingPrep | null {
 export function approvedDebrief(m: Meeting): MeetingDebriefSummary | null {
   return m.debriefs.find((d) => d.status === 'approved') ?? null;
 }
-
-/** The set of complete (approved/present) artifacts, for the P/N/D status pills. */
-export function artifactStatus(m: Meeting): Record<ArtifactKind, boolean> {
-  return {
-    prep: Boolean(approvedPrep(m)),
-    notes: m.notesApproved,
-    debrief: Boolean(approvedDebrief(m)),
-  };
-}

@@ -309,3 +309,76 @@ export function renderClientRelationshipSnapshot(
     ...lines,
   ].join('\n');
 }
+
+// ── Client profile blocks (OUTREACH_CLIENT_PROFILE, 2026-07-11) ──────────────
+// Recipient-invariant blocks that ride the cached v2 prefix (paid ~once per
+// batch). All are bounded + relevance-filtered here (there is NO global input
+// truncation) and framed as SUPPORTING INTELLIGENCE, never citable facts.
+
+const trunc = (s: string, n: number): string => (s.length > n ? `${s.slice(0, n - 1)}…` : s);
+
+export interface ClientPersonLite {
+  name?: string | null;
+  title?: string | null;
+  role?: string | null;
+  notes?: string | null;
+  lastContact?: Date | string | null;
+}
+
+/** "People this client works with" roster (client_people). Warm-intro framing. */
+export function renderClientPeopleRoster(people: ClientPersonLite[]): string | null {
+  const rows = (people ?? [])
+    .filter((p) => p && p.name)
+    .slice(0, 15)
+    .map((p) => {
+      const meta = [p.title, p.role].filter(Boolean).join(', ');
+      const last = p.lastContact ? `last contact ${ymd(p.lastContact)}` : '';
+      const note = p.notes ? trunc(p.notes.trim(), 120) : '';
+      const tail = [last, note].filter(Boolean).join('; ');
+      return `- ${p.name}${meta ? ` (${meta})` : ''}${tail ? ` — ${tail}` : ''}`;
+    });
+  if (!rows.length) return null;
+  return [
+    "PEOPLE THIS CLIENT WORKS WITH (recipient-invariant — the client's known contacts/relationships; use for warm-intro framing only, do NOT claim a relationship the recipient has not confirmed):",
+    ...rows,
+  ].join('\n');
+}
+
+export interface TargetOfficeLite {
+  memberId?: string | null;
+  office?: string | null;
+  party?: string | null;
+  state?: string | null;
+  chamber?: string | null;
+  committee?: string | null;
+  billCount?: number | null;
+  /** true = the team's explicit ClientTarget pick (vs. a Meri recommendation). */
+  explicit?: boolean;
+}
+
+/**
+ * The client's coordinated TARGET-OFFICE map (ClientTarget ∪ OfficeRecommendation),
+ * so the model knows a recipient is one of a planned set — not an isolated ask.
+ * Explicit team picks first, then recommendations; capped.
+ */
+export function renderClientTargetOffices(offices: TargetOfficeLite[]): string | null {
+  const rows = (offices ?? [])
+    .filter((o) => o && (o.office || o.memberId))
+    .slice(0, 12)
+    .map((o) => {
+      const ps = [o.party, o.state].filter(Boolean).join('-');
+      const bits = [
+        o.committee ? `${o.committee}` : null,
+        o.billCount ? `${o.billCount} tracked bill${o.billCount === 1 ? '' : 's'}` : null,
+        o.explicit ? 'team target' : 'suggested',
+      ].filter(Boolean);
+      return `- ${o.office ?? o.memberId}${ps ? ` (${ps})` : ''}${
+        bits.length ? ` — ${bits.join('; ')}` : ''
+      }`;
+    });
+  if (!rows.length) return null;
+  return [
+    'CLIENT TARGET OFFICES (recipient-invariant — the offices this client is coordinating outreach across; use to frame this recipient as part of a broader strategy, not to invent positions):',
+    ...rows,
+  ].join('\n');
+}

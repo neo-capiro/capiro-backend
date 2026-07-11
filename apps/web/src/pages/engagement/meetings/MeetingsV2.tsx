@@ -143,7 +143,8 @@ export function MeetingsV2({
           flex: 1,
           display: 'flex',
           flexDirection: 'column',
-          minHeight: 520,
+          height: 'calc(100vh - 200px)',
+          minHeight: 0,
         }}
       >
         <MeetingLibraryView
@@ -156,7 +157,22 @@ export function MeetingsV2({
   }
 
   return (
-    <div ref={contentRef} style={{ position: 'relative', flex: 1, minWidth: 0 }}>
+    <div
+      ref={contentRef}
+      style={{
+        position: 'relative',
+        flex: 1,
+        minWidth: 0,
+        display: 'flex',
+        flexDirection: 'column',
+        // Bound to the viewport so the card — and the detail panel stacked atop
+        // it — always fill the available height instead of shrink-wrapping to
+        // however many meetings happen to be listed. No fixed min-height floor:
+        // that would force a second, outer page scrollbar on short viewports.
+        height: 'calc(100vh - 200px)',
+        minHeight: 0,
+      }}
+    >
       <div
         style={{
           background: 'var(--bg-surface)',
@@ -166,6 +182,8 @@ export function MeetingsV2({
           display: 'flex',
           flexDirection: 'column',
           boxShadow: 'var(--shadow-1)',
+          flex: 1,
+          minHeight: 0,
         }}
       >
         {/* Toolbar */}
@@ -362,7 +380,8 @@ export function MeetingsV2({
         ) : (
           <div
             style={{
-              maxHeight: '60vh',
+              flex: 1,
+              minHeight: 0,
               overflow: 'auto',
               overflowX: 'hidden',
               background: 'var(--bg-canvas)',

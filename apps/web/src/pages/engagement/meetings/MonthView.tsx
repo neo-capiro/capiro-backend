@@ -43,7 +43,7 @@ export function MonthView({
 
   return (
     <div
-      style={{ display: 'flex', flexDirection: 'column', maxHeight: '62vh', overflow: 'hidden' }}
+      style={{ display: 'flex', flexDirection: 'column', flex: 1, minHeight: 0, overflow: 'hidden' }}
     >
       <div
         style={{

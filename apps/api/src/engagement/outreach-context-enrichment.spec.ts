@@ -6,6 +6,8 @@ import {
   formatBillTruth,
   formatPeTruth,
   renderClientRelationshipSnapshot,
+  renderClientPeopleRoster,
+  renderClientTargetOffices,
   type BillTruth,
   type PeTruth,
 } from './outreach-context-enrichment.js';
@@ -187,5 +189,45 @@ describe('renderClientRelationshipSnapshot — the v2 clientContext drop fix', (
     expect(
       renderClientRelationshipSnapshot({ keyStakeholders: [{ title: 'x' }], recentActivity: [{ type: 'meeting' }] }),
     ).toBeNull();
+  });
+});
+
+describe('renderClientPeopleRoster (OUTREACH_CLIENT_PROFILE)', () => {
+  it('renders a bounded roster with warm-intro framing', () => {
+    const out = renderClientPeopleRoster([
+      { name: 'Alex Rivera', title: 'VP Gov Affairs', role: 'Primary contact', notes: 'Met at AUSA', lastContact: '2026-06-15T00:00:00.000Z' },
+      { name: 'Sam Cole', title: null, role: null, notes: null, lastContact: null },
+    ])!;
+    expect(out).toContain('PEOPLE THIS CLIENT WORKS WITH');
+    expect(out).toContain('Alex Rivera (VP Gov Affairs, Primary contact) — last contact 2026-06-15; Met at AUSA');
+    expect(out).toContain('- Sam Cole');
+    expect(out).toContain('do NOT claim a relationship the recipient has not confirmed');
+  });
+  it('caps at 15 and returns null when empty', () => {
+    const many = Array.from({ length: 25 }, (_, i) => ({ name: `P${i}` }));
+    const out = renderClientPeopleRoster(many)!;
+    expect(out).toContain('P14');
+    expect(out).not.toContain('P15');
+    expect(renderClientPeopleRoster([])).toBeNull();
+    expect(renderClientPeopleRoster([{ title: 'x' }])).toBeNull(); // no name → dropped
+  });
+});
+
+describe('renderClientTargetOffices (OUTREACH_CLIENT_PROFILE)', () => {
+  it('renders explicit team targets and suggestions with committee/billCount', () => {
+    const out = renderClientTargetOffices([
+      { office: 'Rep. Dana Reed', party: 'D', state: 'CA-12', committee: 'Armed Services', billCount: 3, explicit: true },
+      { office: 'Sen. John Cornyn', party: 'R', state: 'TX', committee: 'Appropriations', billCount: 0, explicit: false },
+    ])!;
+    expect(out).toContain('CLIENT TARGET OFFICES');
+    expect(out).toContain('Rep. Dana Reed (D-CA-12) — Armed Services; 3 tracked bills; team target');
+    expect(out).toContain('Sen. John Cornyn (R-TX) — Appropriations; suggested');
+  });
+  it('caps at 12 and returns null when empty', () => {
+    const many = Array.from({ length: 20 }, (_, i) => ({ office: `Office ${i}`, explicit: false }));
+    const out = renderClientTargetOffices(many)!;
+    expect(out).toContain('Office 11');
+    expect(out).not.toContain('Office 12');
+    expect(renderClientTargetOffices([])).toBeNull();
   });
 });

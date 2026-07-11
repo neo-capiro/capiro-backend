@@ -1,6 +1,7 @@
 import { useEffect } from 'react';
-import { App, Form, Radio } from 'antd';
-import { X } from 'lucide-react';
+import { createPortal } from 'react-dom';
+import { App, Form } from 'antd';
+import { Lock, X } from 'lucide-react';
 import { NotetakerConsentFields, extractMeetingJoinUrl } from '../meeting-actions.js';
 import { useDispatchNotetaker } from './meetings-api.js';
 import { MeriGlyph } from './meetings-ui.js';
@@ -10,14 +11,13 @@ interface FormValues {
   meetingUrl: string;
   authorizedToRecord: boolean;
   allPartiesWillBeNotified: boolean;
-  timing: 'schedule' | 'now';
 }
 
 /**
- * "Send Meri to take notes?" — prototype-styled consent card (custom overlay,
- * scoped to the meetings content so it never blanks the page) wrapping the
+ * "Send Meri to take notes?" — prototype-styled consent card wrapping the
  * compliance-reviewed consent form (NotetakerConsentFields — the single source
- * of that copy) plus scheduling (spec §4.2: schedule at start vs join now).
+ * of that copy; do not edit its wording here). Rendered via portal as a true
+ * full-viewport modal so it can never be cropped by an ancestor's bounds.
  */
 export function SendMeriModal({
   meeting,
@@ -33,7 +33,6 @@ export function SendMeriModal({
   const dispatch = useDispatchNotetaker();
   const authorized = Form.useWatch('authorizedToRecord', form);
   const notified = Form.useWatch('allPartiesWillBeNotified', form);
-  const startInFuture = meeting ? new Date(meeting.startsAt).getTime() > Date.now() : false;
 
   useEffect(() => {
     if (open && meeting) {
@@ -41,10 +40,9 @@ export function SendMeriModal({
         meetingUrl: meeting.joinLink ?? extractMeetingJoinUrl(meeting) ?? '',
         authorizedToRecord: false,
         allPartiesWillBeNotified: false,
-        timing: startInFuture ? 'schedule' : 'now',
       });
     }
-  }, [open, meeting, startInFuture, form]);
+  }, [open, meeting, form]);
 
   if (!open || !meeting) return null;
 
@@ -55,22 +53,20 @@ export function SendMeriModal({
       meetingUrl: values.meetingUrl,
       authorizedToRecord: values.authorizedToRecord,
       allPartiesWillBeNotified: values.allPartiesWillBeNotified,
-      joinAt: values.timing === 'schedule' ? meeting.startsAt : undefined,
+      joinAt: meeting.startsAt,
     });
-    message.success(
-      values.timing === 'schedule' ? 'Meri scheduled for this meeting.' : 'Meri is joining now.',
-    );
+    message.success('Meri is joining this meeting.');
     onClose();
   };
 
-  return (
+  return createPortal(
     <div
       onClick={onClose}
       style={{
-        position: 'absolute',
+        position: 'fixed',
         inset: 0,
         background: 'rgba(12,26,56,0.34)',
-        zIndex: 60,
+        zIndex: 1000,
         display: 'flex',
         alignItems: 'center',
         justifyContent: 'center',
@@ -119,20 +115,29 @@ export function SendMeriModal({
         </div>
 
         <div style={{ padding: '16px 20px' }}>
+          <div
+            style={{
+              display: 'flex',
+              gap: 9,
+              padding: '10px 12px',
+              marginBottom: 16,
+              background: 'var(--bg-sunken)',
+              borderRadius: 8,
+            }}
+          >
+            <Lock size={14} style={{ color: 'var(--ink-3)', marginTop: 2, flexShrink: 0 }} />
+            <div>
+              <div style={{ fontSize: 12.5, fontWeight: 700, color: 'var(--ink-1)' }}>
+                Private until you share it
+              </div>
+              <div style={{ fontSize: 12, lineHeight: 1.5, color: 'var(--ink-3)' }}>
+                You can share these notes with your organization at any time from the meeting
+                panel.
+              </div>
+            </div>
+          </div>
           <Form form={form} layout="vertical">
             <NotetakerConsentFields />
-            {startInFuture ? (
-              <Form.Item name="timing" label="When should Meri join?">
-                <Radio.Group>
-                  <Radio value="schedule">At meeting start (scheduled)</Radio>
-                  <Radio value="now">Now</Radio>
-                </Radio.Group>
-              </Form.Item>
-            ) : (
-              <Form.Item name="timing" hidden>
-                <input type="hidden" />
-              </Form.Item>
-            )}
           </Form>
         </div>
 
@@ -174,6 +179,7 @@ export function SendMeriModal({
           </button>
         </div>
       </div>
-    </div>
+    </div>,
+    document.body,
   );
 }

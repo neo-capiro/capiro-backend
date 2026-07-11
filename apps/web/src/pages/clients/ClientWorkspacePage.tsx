@@ -1,4 +1,5 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import {
   BankOutlined,
   FilterOutlined,
@@ -48,6 +49,15 @@ export function ClientWorkspacePage() {
   const qc = useQueryClient();
   const { message, modal } = AntApp.useApp();
   const [selectedId, setSelectedId] = useState<string | null>(null);
+  const [searchParams] = useSearchParams();
+
+  // Deep-link support: other pages (e.g. the Meetings share confirmation) link
+  // here as `/clients?clientId=<id>&tab=documents` — there's no `/clients/:id`
+  // route, so opening a specific client's profile is query-param driven.
+  useEffect(() => {
+    const linkedId = searchParams.get('clientId');
+    if (linkedId) setSelectedId(linkedId);
+  }, [searchParams]);
   const [modalMode, setModalMode] = useState<'create' | 'edit' | null>(null);
   const [editingClient, setEditingClient] = useState<Client | null>(null);
   const [bulkImportOpen, setBulkImportOpen] = useState(false);
@@ -290,6 +300,7 @@ export function ClientWorkspacePage() {
     return (
       <>
         <ClientProfilePage
+          key={selectedClient.data.id}
           client={selectedClient.data}
           canManageClients={canManageClients}
           canRemoveClients={canRemoveClients}
