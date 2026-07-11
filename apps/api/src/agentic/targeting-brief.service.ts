@@ -227,15 +227,6 @@ export class TargetingBriefService {
       .filter((id) => validIds.has(id))
       .map((id) => ({ memberId: id, memberName: memberById.get(id)!.name }));
 
-    const materiality: 'low' | 'high' = targets.some((t) => t.priority === 'primary')
-      ? 'high'
-      : 'low';
-    // Interim QA gating (agentic doc §5.4/parent M5.4): high-materiality
-    // briefs stay ai_run-only until a human clears them via the P0.5
-    // source-quality dashboard — not built this phase, so they stay
-    // unrendered rather than blocking on an unbuilt surface.
-    const qaStatus: 'approved' | 'pending' = materiality === 'high' ? 'pending' : 'approved';
-
     // W3.1 confidence = kept / (kept + every deterministic drop). null only when
     // the model emitted no targets at all (nothing to have confidence about).
     const droppedByGrounding = grounded.droppedClaims.length;
@@ -244,6 +235,25 @@ export class TargetingBriefService {
     const totalClaims =
       targets.length + droppedByGrounding + droppedByValidator + droppedOffRoster;
     const confidence = totalClaims > 0 ? targets.length / totalClaims : null;
+
+    const materiality: 'low' | 'high' = targets.some((t) => t.priority === 'primary')
+      ? 'high'
+      : 'low';
+    // Interim QA gating (agentic doc §5.4/parent M5.4): a brief stays ai_run-only
+    // (never surfaced) until a human clears it. Held when EITHER (a) it's
+    // high-materiality (a primary target), OR (b) ANY deterministic gate dropped
+    // something — grounding, validator, or the roster gate. (b) is the Wave-3
+    // adversarial-gate hardening: a per-target `rationale` is free model prose
+    // that the citation gate only checks for QUOTED substrings (unquoted
+    // interpretive prose citing a valid evidence id is a known, documented
+    // boundary of citation-grounding, shared by the memo generators and not
+    // deterministically closeable without an LLM judge). Rather than let that
+    // prose reach a client on a low-materiality auto-approve, any brief where the
+    // model ALREADY showed fabrication behavior (something had to be dropped) is
+    // routed to human review — a deterministic, complete backstop that pairs with
+    // the dark-by-default posture (attach requires INTEL_WORKFLOWS_TARGETING_ENABLED).
+    const anyDrops = droppedByGrounding + droppedByValidator + droppedOffRoster > 0;
+    const qaStatus: 'approved' | 'pending' = materiality === 'high' || anyDrops ? 'pending' : 'approved';
 
     await this.writeAiRun(trigger, credential, {
       rail: chokepoint.jurisdiction,

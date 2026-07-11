@@ -342,6 +342,41 @@ describe('TargetingBriefService.generate', () => {
     expect(out.qaStatus).toBe('approved');
   });
 
+  it('PINNED (Wave-3 gate hardening): a LOW-materiality brief is HELD for QA when ANY gate dropped something (fabrication signal) — the free-text rationale must not auto-surface', async () => {
+    // One valid secondary target (low materiality → would normally auto-approve)
+    // PLUS an off-roster target the roster gate drops. Because the model showed
+    // fabrication behavior, the whole brief (including the surviving target's
+    // unquoted rationale prose) is routed to human review instead of surfacing.
+    const { service, llm } = makeDeps({
+      llmInputs: [
+        {
+          input: {
+            targets: [
+              {
+                memberId: 'D000002',
+                priority: 'secondary',
+                rationale: 'D000002::ranking member, a courtesy call.',
+                evidenceIds: ['D000002'],
+              },
+              {
+                memberId: 'D000999',
+                priority: 'secondary',
+                rationale: 'D000999::off-roster fabrication.',
+                evidenceIds: ['D000001'],
+              },
+            ],
+            recommendedSequence: [],
+          },
+        },
+      ],
+    });
+
+    const out = await service.generate(TRIGGER, llm as never, CREDENTIAL);
+    expect(out.materiality).toBe('low'); // only a secondary survived
+    expect(out.droppedOffRoster).toBe(1); // the model fabricated an off-roster target
+    expect(out.qaStatus).toBe('pending'); // ...so it is held for review, not auto-approved
+  });
+
   it('writes ai_run with validationStatus=skipped (never calls the LLM) when the bill has no resolvable chokepoint roster', async () => {
     const chokepoint = {
       forBill: async () => ({

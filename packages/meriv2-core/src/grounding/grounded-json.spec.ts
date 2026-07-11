@@ -93,6 +93,26 @@ describe('checkGroundedCitations', () => {
     const { kept } = checkGroundedCitations(claims, curlyEvidence);
     expect(kept).toHaveLength(1);
   });
+
+  it('PINNED (Wave-3 gate hardening): a fabricated quote in GUILLEMETS «»/‹› or low-9 „ is dropped (the curly-only normalization missed these)', () => {
+    const fabricated: GroundedClaim[] = [
+      { text: 'The committee «voted unanimously to reject it.»', evidenceIds: ['e1'] },
+      { text: 'The sponsor ‹secretly opposes the bill.›', evidenceIds: ['e2'] },
+      { text: 'The chair „promised to kill it in markup.“', evidenceIds: ['e1'] },
+    ];
+    const { kept, dropped } = checkGroundedCitations(fabricated, EVIDENCE);
+    expect(kept).toHaveLength(0);
+    expect(dropped).toHaveLength(3);
+    expect(dropped.every((d) => d.reason === 'quote_not_found_in_evidence')).toBe(true);
+  });
+
+  it('Wave-3 gate hardening: a GENUINE quote in guillemets still survives (folded to straight before the check)', () => {
+    const claims: GroundedClaim[] = [
+      { text: 'The committee «voted 12-8 to advance the bill.»', evidenceIds: ['e1'] },
+    ];
+    const { kept } = checkGroundedCitations(claims, EVIDENCE);
+    expect(kept).toHaveLength(1);
+  });
 });
 
 const Schema = z.object({

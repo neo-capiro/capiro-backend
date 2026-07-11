@@ -48,16 +48,28 @@ export interface GroundedCitationCheckResult {
 }
 
 /**
- * Normalize typographic (curly/smart) quotes to their ASCII equivalents
- * (W3.2): “ ” → ", ‘ ’ → '. Applied to BOTH the claim text and the evidence
+ * Normalize the full common Unicode quotation set to ASCII (W3.2, hardened
+ * after the Wave-3 adversarial gate): every double-quote-family mark → ", every
+ * single-quote-family mark → '. Applied to BOTH the claim text and the evidence
  * before extraction and the `.includes` check, so a fabricated quotation the
- * model wrote with smart quotes (which the extractor's straight-quote regex
- * would otherwise never see, silently passing an ungrounded claim) is caught,
- * and a legitimate quote survives a straight-vs-curly mismatch between the
- * model's rendering and the source text.
+ * model wrote with ANY genuine quote style (curly, guillemets «»/‹›, low-9 „‚,
+ * high-reversed-9 ‟‛, prime ″′, or fullwidth ＂＇) is folded to a straight quote
+ * the extractor can see and check — closing the "only 4 curly chars were
+ * normalized, so a guillemet-wrapped fabrication passed" bypass the gate found.
+ * A legitimate quote also survives a straight-vs-typographic mismatch between
+ * the model's rendering and the source text.
+ *
+ * NOTE (honest boundary): this gate checks QUOTED substrings + evidence-id
+ * existence. Unquoted paraphrase that cites a real evidence id is NOT
+ * entailment-checked here (that would require an LLM judge) — the same boundary
+ * the two apps/api memo generators have. Interpretive prose is governed by the
+ * caller's own controls (validation + QA hold + dark-by-default), not by this
+ * substring gate.
  */
 function normalizeQuotes(text: string): string {
-  return text.replace(/[“”]/g, '"').replace(/[‘’]/g, "'");
+  return text
+    .replace(/[“”„‟«»″＂]/g, '"')
+    .replace(/[‘’‚‛‹›′＇]/g, "'");
 }
 
 /**
