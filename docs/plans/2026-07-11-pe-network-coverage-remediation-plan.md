@@ -245,3 +245,41 @@ Run, in this order (each already idempotent/dry-run-safe per existing script con
 - No assumption that SAM Tier 2 "just needs more aliases" — corrected in §1.1; that framing is retired by this plan.
 - No assumption that the 454 relationship candidates are an unreviewed backlog — corrected in §1.4.
 - No NAICS-based award-matching design — deferred pending §4.5's verification step.
+
+---
+
+## IMPLEMENTATION OUTCOMES (2026-07-11) — what actually shipped + measured
+
+Implemented autonomously against prod (`capiro-dev`), each wave verified before the next.
+
+### Wave 0 — SHIPPED + DEPLOYED (PR #391 already on main; PR #393 merged `e8f2a02`)
+- 4th matcher fixed: `sam-opportunity-matcher.ts` `PE_IN_TEXT` now alternates PE|BLIN shape (PRs #391 fixed the other 3). SAM matcher spec 20/20.
+- `diag-pe` `sources` → `rdteSourceCitations` + added `fieldProvenance`/`fieldProvenanceByField` from `program_element_year_source_value` (appropriation-type-agnostic).
+- **New infra built (not in original plan, required for realization):** `rematch-sam-opportunities` verb (`--match-only` — SAM matching is inline in the sync loop, so a matcher change otherwise only helps freshly-fetched notices) + `diag-blin-coverage` verb (coverage matrix by appropriation type — the measurement tool, since no arbitrary-SQL verb exists).
+
+### Wave 1 — RUN + MEASURED. Honest result: the BLIN fix produced ~0 immediate coverage.
+Baseline vs after (bill/provision/SAM link ROWS): 4352→4352, 4828→4828, 34557→34558 (+1). PROC-line coverage: bill 3→3, provision 0→0, SAM 0→0. **Root cause is source-data availability, not code:**
+- **Bills**: Defense Appropriations Act full text (the P-1 BLIN funding tables) 404s in GovInfo — only NDAA (authorization/PE-codes) is cached; `bills_changed=0` across 27,008 bills. (NDAA uses PE codes, not the appropriations BLIN format — BLINs only appear in the Approps Act, which isn't published/available.)
+- **Provisions**: the 3 committed `committee_provisions_*.json` artifacts contain ZERO verbatim codes of either shape (grep-confirmed) — they link only via project-title/alias fuzzy matching. The provision-coverage ceiling is the deferred pdfplumber language-extraction pass.
+- **SAM**: opportunity title/description text doesn't cite budget-line codes (only 1 of 34,557 SAM matches carries a resolvable pe_code). Tier-1 is near-useless regardless of regex.
+- **Awards**: description-regex tier is near-useless (as the code already documented).
+The Wave 0 fix is correct + future-proof (removes the structural blindness) but cannot manufacture yield from absent data.
+
+### Wave 2 — SHIPPED + RUN (PR #398 merged). Real, safe coverage gain.
+- `enrich-award-pe --resolve-only` (verb `resolve-awards-from-acq-map`): re-resolves every award with a stored `dodAcqProgramCode` against the current map, NO API call. **Ran with --commit: award PE-attribution 250 → 343 (+93, +37%) in 4 seconds** (vs. hours of per-award API calls). This realized the full existing-map ceiling.
+- **Map EXPANSION is genuinely BLOCKED** (surfaced, not guessed): authoritative MDAP→PE mappings live in the external P-40 "Line Item MDAP/MAIS Code" headers. The 24 committed `pdoc_*.json` procurement extractions carry `peCode/title/budgetActivity/lineNumber` but NO MDAP code (verified across all 758 entries), `programOfRecord` is 0% populated, and title matches are 1:many ambiguous (e.g. "F-15" MDAP → 3 different BLINs). I did NOT inject inferred/fuzzy mappings into the resolver's ground-truth table. `report-award-pe-coverage.topUnmappedProgramsByAwardCount` is the human curation worklist (top: MDA Support 221 awards, UH-60M 45, DDG-51 30, SBIRS 11).
+
+### Wave 3 — SAM Tier-2 honesty fixed; relationship/personnel DEFERRED as product decisions.
+- **SAM alias Tier-2 dead-code (§1.1)**: was silently non-firing with comments falsely claiming hints come "from the program's metadata, when present." Corrected `buildAliasIndex` + the alias query comments to state it is DORMANT (no officeHint/pscHints source is wired; `ProgramAlias` has no such columns), with the enhancement path documented (derive per-program office/PSC hints from that program's `federal_award` history). Behaviour unchanged; landmine defused.
+- **Relationship-candidate promotion (§4.3) → DEFERRED (best-product-decision, not a shortcut)**: the 415 candidate edges already render dashed = the *honest* "unconfirmed" state. They are auto-derived from ≥0.6 title-overlap; a promote-to-accepted action would invite users to over-assert relationships that are only ~60% title-similar — worse product behavior than the honest dashed state. No existing relationship-accept endpoint exists (from-scratch build) for marginal value. Procurement-line relationship coverage is separately data-limited (the pdoc extraction has no `relatedPEs` field).
+- **Personnel candidate queue (§4.4) → DEFERRED build**: the 454 open candidates are correctly sub-0.8-confidence (603 above 0.8 were auto-confirmed). Bulk-auto-approve would degrade data quality; the queue was designed for human review and works one-at-a-time. This is a human review pass (which requires domain judgment), not an engineering gap. The existing `PersonCandidatesPage` + `resolvePersonCandidate` flow is fully functional.
+- `diag-pe` sources blind spot (§2.5 / original item 7): DONE in Wave 0.
+
+### Wave 4 — procurement performer pipeline: BLOCKED / deferred (as §4.6 anticipated).
+Requires a NEW offline pdfplumber extraction tool targeting P-5/P-40 cost-exhibit table layouts, run against external P-5 PDFs that are NOT in the repo (the `pdoc_*.json` carry quantity/dollars, not performer/contractor tables). This cannot be done autonomously — it is a 1-2 week new-tooling initiative gated on external source PDFs + a deliberate greenlight, exactly as §4.6 scoped it. No shortcut exists; the RDT&E `program_element_performer` pipeline (`sync-jbook-performers.ts` pure loader + `__tools__/extract_jbook_performers.py`) is the template when greenlit.
+
+### Net PE optimization delivered
+- Correctness: procurement BLINs are now recognized by all 4 matchers (future-proof); the SAM re-match + coverage diagnostics exist.
+- Coverage: **award PE-attribution +37% (250→343)** from realizing the existing acq-map — the single highest available safe gain.
+- Honesty: 3 dead/misleading code paths corrected (SAM Tier-2 comments, diag-pe sources table, diag-ingestion-health column bugs).
+- The remaining coverage gaps (bills/provisions/SAM BLIN yield, map expansion, procurement performers) are **all gated on external source data/documents**, not on further matcher code — measured and documented rather than papered over with inferred data.

@@ -206,8 +206,20 @@ async function fetchPage(
 
 /**
  * Build the in-memory alias index the matcher needs: each program alias with its
- * precomputed trigram set + optional office/PSC corroboration hints (from the
- * program's metadata, when present). Pure shaping — no network.
+ * precomputed trigram set + optional office/PSC corroboration hints. Pure shaping —
+ * no network.
+ *
+ * ⚠️ DORMANT TIER: the matcher's `program_alias` tier only emits a match when a
+ * trigram-hit alias ALSO has office/PSC agreement (matchOpportunity precision guard).
+ * No office/PSC hint source is wired today — the `ProgramAlias` model has NO
+ * officeHint/pscHints columns, and the caller's query below selects only
+ * {programId, aliasNormalized, aliasType}. So `officeHint`/`pscHints` are always
+ * undefined here and the `program_alias` tier NEVER fires in production; SAM matches
+ * come only from the description_pe_code (verbatim) and psc_naics_component
+ * (quarantined) tiers. To activate the alias tier, derive per-program office/PSC
+ * hints (e.g. the contracting offices + PSCs seen on that program's federal_award
+ * history) into new ProgramAlias columns and select them here — see the coverage
+ * remediation plan §4.2. The fields are kept optional so that enhancement is additive.
  */
 function buildAliasIndex(
   aliases: Array<{
@@ -271,7 +283,9 @@ async function main(): Promise<void> {
         const postedTo = samDate(postedToDate);
         console.log(`[sam-opportunities] window postedFrom=${postedFrom} postedTo=${postedTo}`);
 
-        // Known PEs (for verbatim PE-code matching) + the program alias universe.
+        // Known PEs (for verbatim PE/BLIN-code matching) + the program alias universe.
+        // NOTE: no officeHint/pscHints are selected (ProgramAlias has no such columns),
+        // so the matcher's alias tier stays dormant — see buildAliasIndex's ⚠️ note.
         const pes = await prisma.programElement.findMany({ select: { peCode: true } });
         const knownPeCodes = new Set<string>(pes.map((p) => p.peCode.toUpperCase()));
         const aliasRows = await prisma.programAlias.findMany({
