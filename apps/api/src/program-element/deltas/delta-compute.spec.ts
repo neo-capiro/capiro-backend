@@ -21,7 +21,11 @@ const year = (over: Partial<YearLike> = {}): YearLike => ({
   ...over,
 });
 
-const total = (positionCycle: string, assertedFy: number, amount: number | null): BudgetPositionLike => ({
+const total = (
+  positionCycle: string,
+  assertedFy: number,
+  amount: number | null,
+): BudgetPositionLike => ({
   positionCycle,
   assertedFy,
   amount,
@@ -55,10 +59,40 @@ describe('deltasFromYear — stage-ladder deltas (REAL data today)', () => {
 
   test('conference_vs_marks + enacted_vs_request', () => {
     const d = deltasFromYear(year({ request: 100, hascMark: 120, conference: 110, enacted: 110 }));
-    expect(d.find((x) => x.deltaType === 'conference_vs_marks' && x.toRef === 'conference')).toBeTruthy();
+    expect(
+      d.find((x) => x.deltaType === 'conference_vs_marks' && x.toRef === 'conference'),
+    ).toBeTruthy();
     const enacted = d.find((x) => x.deltaType === 'enacted_vs_request')!;
     expect(enacted.amountTo).toBe(110);
     expect(enacted.stage).toBe('enacted');
+  });
+
+  test('mark_vs_mark is track-scoped — NEVER diffs an authorization mark against an appropriations mark', () => {
+    // HASC (authorization / NDAA) vs HAC-D (appropriations / Defense Approps) are
+    // different committees on different bills — this must NOT be a "divergence".
+    const cross = deltasFromYear(year({ hascMark: 100, hacDMark: 200 }));
+    expect(cross.filter((x) => x.deltaType === 'mark_vs_mark')).toHaveLength(0);
+
+    // All four marks present + all diverging → exactly two within-track pairs
+    // (HASC-vs-SASC and HAC-D-vs-SAC-D), never the 6 that an all-pairs loop makes.
+    const all = deltasFromYear(
+      year({ hascMark: 100, sascMark: 110, hacDMark: 200, sacDMark: 210 }),
+    );
+    const mm = all.filter((x) => x.deltaType === 'mark_vs_mark');
+    expect(mm).toHaveLength(2);
+    const pairs = mm.map((x) => `${x.fromRef}|${x.toRef}`).sort();
+    expect(pairs).toEqual(['hacDMark|sacDMark', 'hascMark|sascMark']);
+  });
+
+  test('conference reconciles authorization marks only (it is NDAA-sourced)', () => {
+    // conference = NDAA authorization conference; it must be compared to the
+    // authorization marks (HASC/SASC) and NOT to the appropriations marks.
+    const d = deltasFromYear(
+      year({ hascMark: 100, sascMark: 110, hacDMark: 200, sacDMark: 210, conference: 105 }),
+    );
+    const cvm = d.filter((x) => x.deltaType === 'conference_vs_marks');
+    expect(cvm.map((x) => x.fromRef).sort()).toEqual(['hascMark', 'sascMark']);
+    expect(cvm.some((x) => x.fromRef === 'hacDMark' || x.fromRef === 'sacDMark')).toBe(false);
   });
 
   test('zeroed when conference cuts a positive request to 0', () => {
@@ -83,10 +117,7 @@ describe('deltasFromPositions — PB / outyear deltas (dormant until ≥2 PB boo
   });
 
   test('pb_vs_prior_pb for an FY in both books', () => {
-    const d = deltasFromPositions([
-      total('pb_fy2027', 2027, 250),
-      total('pb_fy2026', 2027, 200),
-    ]);
+    const d = deltasFromPositions([total('pb_fy2027', 2027, 250), total('pb_fy2026', 2027, 200)]);
     const pb = d.find((x) => x.deltaType === 'pb_vs_prior_pb')!;
     expect(pb.amountFrom).toBe(200);
     expect(pb.amountTo).toBe(250);
@@ -193,7 +224,9 @@ describe('newStartFromYears', () => {
   });
 
   test('multi-FY PE is ongoing, not a new start', () => {
-    expect(newStartFromYears([year({ fy: 2026, request: 10 }), year({ fy: 2027, request: 12 })], false)).toEqual([]);
+    expect(
+      newStartFromYears([year({ fy: 2026, request: 10 }), year({ fy: 2027, request: 12 })], false),
+    ).toEqual([]);
   });
 
   test('suppressed when a prior PB exists (the PB path owns it)', () => {

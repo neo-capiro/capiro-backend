@@ -31,8 +31,8 @@ import {
  * DELTA TYPES & WHERE THEY COME FROM (authoritative definitions — the pure math lives in
  * delta-compute.ts):
  *   - mark_vs_request:     ProgramElementYear, a committee mark vs the request, same FY.  [REAL]
- *   - mark_vs_mark:        ProgramElementYear, one mark vs another, same FY.               [REAL]
- *   - conference_vs_marks: ProgramElementYear, conference vs the marks it reconciles.      [REAL]
+ *   - mark_vs_mark:        ProgramElementYear, two marks WITHIN a track (HASC/SASC|HAC-D/SAC-D). [REAL]
+ *   - conference_vs_marks: ProgramElementYear, NDAA conference vs the authorization marks.  [REAL]
  *   - enacted_vs_request:  ProgramElementYear, enacted public law vs the request.          [REAL]
  *   - new_start:           ProgramElementBudgetPosition (newInPb) OR a single brand-new FY
  *                          year row with no prior PB.                                       [REAL/year path]
