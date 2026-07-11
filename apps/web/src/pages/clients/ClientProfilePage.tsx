@@ -1378,6 +1378,7 @@ function DocumentsTab({
                   <div className="doc-meta">
                     {formatDate(doc.createdAt)}
                     {doc.byteSize != null ? ` · ${formatBytes(doc.byteSize)}` : ''}
+                    {doc.uploadedByName ? ` · ${doc.uploadedByName}` : ''}
                     {doc.indexedAt ? (
                       <Tag
                         color="blue"

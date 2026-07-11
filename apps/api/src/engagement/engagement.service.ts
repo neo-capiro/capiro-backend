@@ -4695,8 +4695,8 @@ export class EngagementService {
       throw new BadRequestException('An attachment parent (or unlinked=true) is required');
     }
     await this.validateAttachmentParents(ctx, query);
-    const rows = await this.prisma.withTenant(ctx.tenantId, (tx) =>
-      tx.engagementAttachment.findMany({
+    const { rows, uploaderNameById } = await this.prisma.withTenant(ctx.tenantId, async (tx) => {
+      const rows = await tx.engagementAttachment.findMany({
         where: {
           tenantId: ctx.tenantId,
           // "unlinked" = the tenant's general outreach library: files not tied
@@ -4711,11 +4711,27 @@ export class EngagementService {
           ...(query.mailMessageId ? { mailMessageId: query.mailMessageId } : {}),
         },
         orderBy: { createdAt: 'desc' },
-      }),
-    );
+      });
+      // Resolve uploader display names (Meetings v2 §8 — the Documents tab shows
+      // the uploader). uploadedByUserId is a bare UUID, so batch-look up the users.
+      const uploaderIds = [
+        ...new Set(rows.map((r) => r.uploadedByUserId).filter((v): v is string => Boolean(v))),
+      ];
+      const users = uploaderIds.length
+        ? await tx.user.findMany({
+            where: { id: { in: uploaderIds } },
+            select: { id: true, firstName: true, lastName: true, email: true },
+          })
+        : [];
+      const uploaderNameById = new Map(users.map((u) => [u.id, userDisplayName(u)]));
+      return { rows, uploaderNameById };
+    });
     return Promise.all(
       rows.map(async (row) => ({
         ...row,
+        uploadedByName: row.uploadedByUserId
+          ? (uploaderNameById.get(row.uploadedByUserId) ?? null)
+          : null,
         downloadUrl: await this.createAttachmentDownloadUrl(row.s3Key),
       })),
     );

@@ -112,17 +112,8 @@ export function MeetingDetailPanel({
           aria-label="Sharing"
           title={meeting.client ? undefined : 'Associate a client to share'}
         >
-          <button
-            type="button"
-            className={!shared ? 'active' : ''}
-            onClick={() => {
-              if (!shared) return;
-              // Shared → Private handled by the Popconfirm below (this branch is a no-op).
-            }}
-          >
-            {!shared ? <LockOutlined /> : null} Private
-          </button>
           {shared ? (
+            // Shared → clicking the (inactive) Private segment un-shares, with a confirm.
             <Popconfirm
               title="Make this meeting private?"
               description="It will be removed from the client's Documents and the Library."
@@ -132,11 +123,22 @@ export function MeetingDetailPanel({
                 message.success('Meeting is private again.');
               }}
             >
-              <button type="button" className="active is-shared">
-                Shared
+              <button type="button">
+                <LockOutlined /> Private
               </button>
             </Popconfirm>
           ) : (
+            // Already private → the active segment; clicking it is a no-op.
+            <button type="button" className="active">
+              <LockOutlined /> Private
+            </button>
+          )}
+          {shared ? (
+            <button type="button" className="active is-shared">
+              Shared
+            </button>
+          ) : (
+            // Private → clicking the (inactive) Shared segment opens the confirmation.
             <button
               type="button"
               disabled={!meeting.client}
