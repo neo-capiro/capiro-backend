@@ -1,22 +1,22 @@
 import { Injectable } from '@nestjs/common';
-import { isValidPeCode } from '../jbook/jbook-extract.js';
+import { isValidProgramCode } from '../jbook/jbook-extract.js';
 
 /**
- * Extracts a Program Element code from a USAspending award and validates it
- * against the known program_element universe (Step 28).
+ * Extracts a Program Element code or procurement BLIN from a USAspending award
+ * and validates it against the known program_element universe (Step 28).
  *
  * Resolution order:
- *   1. An explicit PE field on the award (program_element / pe_code), if present.
+ *   1. An explicit PE/BLIN field on the award (program_element / pe_code), if present.
  *   2. Otherwise, regex on the award description.
- * The first valid, DB-known PE wins. An award with no resolvable/known PE keeps
- * pe_code NULL — it is NOT quarantined (awards legitimately span many that have
- * no R-2 PE line, e.g. O&M / services).
+ * The first valid, DB-known code wins. An award with no resolvable/known code
+ * keeps pe_code NULL — it is NOT quarantined (awards legitimately span many that
+ * have no R-2 PE line, e.g. O&M / services).
  */
 
-// PE code in free text: 7 digits + service letter (+ optional suffix). Same canon
-// as the rest of the pipeline (jbook isValidPeCode). NB: a bare 7-digit number is
-// only a PE when followed by the service letter.
-const PE_IN_TEXT = /\b([0-9]{7}[A-Z][A-Z0-9]*)\b/g;
+// PE code OR procurement BLIN in free text. Same canon as the rest of the
+// pipeline (jbook isValidProgramCode = isValidPeCode || isValidProcurementCode).
+// NB: a bare 7-digit number is only a PE when followed by the service letter.
+const PE_IN_TEXT = /\b(?:[0-9]{7}[A-Z][A-Z0-9]*|[0-9]{4}[A-Z]{1,2}[0-9A-Z]{2,14})\b/g;
 
 export interface AwardLike {
   /** Explicit PE field if USAspending/source provides one. */
@@ -59,7 +59,7 @@ export class AwardPeExtractorService {
   extractPeCode(award: AwardLike, knownPeCodes: ReadonlySet<string>): string | null {
     // 1) explicit field
     const explicit = (award.programElement ?? award.peCode ?? '').toString().trim().toUpperCase();
-    if (explicit && isValidPeCode(explicit) && knownPeCodes.has(explicit)) {
+    if (explicit && isValidProgramCode(explicit) && knownPeCodes.has(explicit)) {
       return explicit;
     }
 
@@ -70,7 +70,7 @@ export class AwardPeExtractorService {
       if (matches) {
         for (const m of matches) {
           const candidate = m.trim().toUpperCase();
-          if (isValidPeCode(candidate) && knownPeCodes.has(candidate)) {
+          if (isValidProgramCode(candidate) && knownPeCodes.has(candidate)) {
             return candidate;
           }
         }
@@ -103,7 +103,7 @@ export class AwardPeExtractorService {
   ): ResolvedAwardPe | null {
     // 1) explicit field
     const explicit = (award.programElement ?? award.peCode ?? '').toString().trim().toUpperCase();
-    if (explicit && isValidPeCode(explicit) && knownPeCodes.has(explicit)) {
+    if (explicit && isValidProgramCode(explicit) && knownPeCodes.has(explicit)) {
       return { peCode: explicit, source: 'explicit' };
     }
 
@@ -126,7 +126,7 @@ export class AwardPeExtractorService {
       if (matches) {
         for (const m of matches) {
           const candidate = m.trim().toUpperCase();
-          if (isValidPeCode(candidate) && knownPeCodes.has(candidate)) {
+          if (isValidProgramCode(candidate) && knownPeCodes.has(candidate)) {
             return { peCode: candidate, source: 'description_regex' };
           }
         }

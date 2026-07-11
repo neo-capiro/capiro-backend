@@ -25,7 +25,7 @@
  *     (project_code is intentionally NOT part of the link key, matching the migration.)
  */
 
-import { extractPeCodes } from '../extractors/bill-pe-extractor.service.js';
+import { extractProgramCodes } from '../extractors/bill-pe-extractor.service.js';
 
 /** Trigram floor for a program-alias fuzzy link (candidate-only). */
 export const DEFAULT_ALIAS_TRGM_MIN = 0.6;
@@ -168,10 +168,10 @@ export function buildLinksForProvision(
   const haystack = `${provision.heading}\n${provision.text}`;
   const links: ProvisionLinkRow[] = [];
 
-  // ── 1. Verbatim PE codes (reuse the bill-PE-extractor regex) → ACCEPTED ──
-  // De-duped against the link conflict key (provision, peCode) — extractPeCodes already
-  // returns a de-duplicated set.
-  const peCandidates = extractPeCodes(haystack);
+  // ── 1. Verbatim PE codes / procurement BLINs (reuse the bill extractor's
+  // regex) → ACCEPTED. De-duped against the link conflict key (provision,
+  // peCode) — extractProgramCodes already returns a de-duplicated set.
+  const peCandidates = extractProgramCodes(haystack);
   const existing = peCandidates.filter((c) => existingPeCodes.has(c));
   for (const peCode of existing) {
     links.push({
@@ -266,7 +266,10 @@ export class ProvisionLoader {
    * Load a batch of artifacts. `commit=false` (dry run) still runs the full resolution +
    * link computation but performs NO DB write — it counts what WOULD be written.
    */
-  async load(artifacts: ProvisionArtifact[], opts: { commit: boolean } & LinkOptions): Promise<LoadSummary> {
+  async load(
+    artifacts: ProvisionArtifact[],
+    opts: { commit: boolean } & LinkOptions,
+  ): Promise<LoadSummary> {
     const summary: LoadSummary = {
       filesRead: artifacts.length,
       provisionsUpserted: 0,
@@ -287,9 +290,9 @@ export class ProvisionLoader {
         const pageStart = p.pageStart ?? null;
         const pageEnd = p.pageEnd ?? null;
 
-        // Resolve which verbatim PE codes in this provision actually exist (so a stray
-        // number that happens to match the regex doesn't create a phantom accepted link).
-        const peCandidates = extractPeCodes(`${p.heading}\n${p.text}`);
+        // Resolve which verbatim PE codes / BLINs in this provision actually exist (so
+        // a stray number that happens to match the regex doesn't create a phantom link).
+        const peCandidates = extractProgramCodes(`${p.heading}\n${p.text}`);
         const existingPeCodes = new Set(
           peCandidates.length ? await this.prisma.filterExistingPeCodes(peCandidates) : [],
         );

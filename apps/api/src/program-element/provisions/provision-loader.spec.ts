@@ -22,11 +22,21 @@ import {
  * synthetic fixture intentionally contains none).
  */
 
-const FIXTURE_PATH = path.resolve(__dirname, '__fixtures__/committee_provisions_SAMPLE_fixture.json');
+const FIXTURE_PATH = path.resolve(
+  __dirname,
+  '__fixtures__/committee_provisions_SAMPLE_fixture.json',
+);
 
 function readFixture(): ProvisionArtifact {
-  const raw = JSON.parse(fs.readFileSync(FIXTURE_PATH, 'utf8')) as ProvisionArtifact & { _note?: string };
-  return { committee: raw.committee, fy: raw.fy, sourceDocumentId: raw.sourceDocumentId ?? null, provisions: raw.provisions };
+  const raw = JSON.parse(fs.readFileSync(FIXTURE_PATH, 'utf8')) as ProvisionArtifact & {
+    _note?: string;
+  };
+  return {
+    committee: raw.committee,
+    fy: raw.fy,
+    sourceDocumentId: raw.sourceDocumentId ?? null,
+    provisions: raw.provisions,
+  };
 }
 
 /**
@@ -48,19 +58,29 @@ function makeFakePrisma(opts: {
   const fake: ProvisionLoaderPrisma = {
     loadAliases: jest.fn(async () => opts.aliases ?? []),
     loadProjectTitles: jest.fn(async () => opts.projectTitles ?? []),
-    filterExistingPeCodes: jest.fn(async (candidates: string[]) => candidates.filter((c) => existing.has(c))),
-    upsertProvision: jest.fn(async (input: Parameters<ProvisionLoaderPrisma['upsertProvision']>[0]) => {
-      provisionUpsertCalls.push(input as unknown as Record<string, unknown>);
-      const key = [input.sourceDocumentId ?? '', input.committee, input.fy, input.heading, input.pageStart ?? ''].join('::');
-      const prev = provisionsByKey.get(key);
-      if (prev) {
-        prev.actionType = input.actionType; // UPDATE semantics
-        return { id: prev.id };
-      }
-      const id = `prov-${provisionsByKey.size + 1}`;
-      provisionsByKey.set(key, { id, actionType: input.actionType });
-      return { id };
-    }),
+    filterExistingPeCodes: jest.fn(async (candidates: string[]) =>
+      candidates.filter((c) => existing.has(c)),
+    ),
+    upsertProvision: jest.fn(
+      async (input: Parameters<ProvisionLoaderPrisma['upsertProvision']>[0]) => {
+        provisionUpsertCalls.push(input as unknown as Record<string, unknown>);
+        const key = [
+          input.sourceDocumentId ?? '',
+          input.committee,
+          input.fy,
+          input.heading,
+          input.pageStart ?? '',
+        ].join('::');
+        const prev = provisionsByKey.get(key);
+        if (prev) {
+          prev.actionType = input.actionType; // UPDATE semantics
+          return { id: prev.id };
+        }
+        const id = `prov-${provisionsByKey.size + 1}`;
+        provisionsByKey.set(key, { id, actionType: input.actionType });
+        return { id };
+      },
+    ),
     insertLinkIfAbsent: jest.fn(async (link: ProvisionLinkRow) => {
       const key = [link.provisionId, link.peCode ?? '', link.programId ?? ''].join('::');
       if (linksByKey.has(key)) return 0; // ON CONFLICT DO NOTHING
@@ -92,8 +112,32 @@ describe('buildLinksForProvision (pure)', () => {
     );
     const peLinks = links.filter((l) => l.matchBasis === 'pe_code');
     expect(peLinks).toHaveLength(1);
-    expect(peLinks[0]).toMatchObject({ peCode: '0604801F', matchBasis: 'pe_code', reviewStatus: 'accepted' });
+    expect(peLinks[0]).toMatchObject({
+      peCode: '0604801F',
+      matchBasis: 'pe_code',
+      reviewStatus: 'accepted',
+    });
     expect(peLinks[0]!.confidence).toBeGreaterThanOrEqual(0.9);
+  });
+
+  test('a verbatim procurement BLIN yields an ACCEPTED pe_code link too, not just RDT&E PE codes', () => {
+    const links = buildLinksForProvision(
+      {
+        id: 'p1',
+        heading: 'Air defense targets',
+        text: 'The committee recommends full funding for line 1242C93000 to sustain training target production.',
+      },
+      new Set(['1242C93000']),
+      [],
+      [],
+    );
+    const peLinks = links.filter((l) => l.matchBasis === 'pe_code');
+    expect(peLinks).toHaveLength(1);
+    expect(peLinks[0]).toMatchObject({
+      peCode: '1242C93000',
+      matchBasis: 'pe_code',
+      reviewStatus: 'accepted',
+    });
   });
 
   test('a PE code that does NOT exist in program_element is not linked', () => {
@@ -107,10 +151,12 @@ describe('buildLinksForProvision (pure)', () => {
   });
 
   test('an alias-only match yields a CANDIDATE link (never accepted), capped + confidence < accept band', () => {
-    const aliasIndex = [{ programId: 'prog-lrf', aliasNormalized: 'LONG RANGE FIRES' }].map((a) => ({
-      ...a,
-      tg: trigrams(a.aliasNormalized),
-    }));
+    const aliasIndex = [{ programId: 'prog-lrf', aliasNormalized: 'LONG RANGE FIRES' }].map(
+      (a) => ({
+        ...a,
+        tg: trigrams(a.aliasNormalized),
+      }),
+    );
     const links = buildLinksForProvision(
       {
         id: 'p1',
@@ -164,7 +210,9 @@ describe('ProvisionLoader.load (injected fake prisma)', () => {
 
     await loader.load([artifact], { commit: true });
 
-    const byHeading = new Map(provisionUpsertCalls.map((c) => [c.heading as string, c.actionType as string | null]));
+    const byHeading = new Map(
+      provisionUpsertCalls.map((c) => [c.heading as string, c.actionType as string | null]),
+    );
     expect(byHeading.get('Briefing on hypersonic test infrastructure')).toBe('directs_briefing');
     expect(byHeading.get('Increase for long-range fires development')).toBe('adds');
     expect(byHeading.get('Limitation on retirement of legacy platform')).toBe('restricts');
