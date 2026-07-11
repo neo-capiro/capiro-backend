@@ -1,4 +1,5 @@
 import { App } from 'antd';
+import { createPortal } from 'react-dom';
 import { FileStack, FolderOpen, Info, Users } from 'lucide-react';
 import { useMe } from '../../../lib/me.js';
 import { useShareMeeting } from './meetings-api.js';
@@ -7,8 +8,9 @@ import type { Meeting } from './meetings-types.js';
 /**
  * Share confirmation (spec §6.2) — a port of the prototype ShareConfirm: states
  * WHAT is shared, WHERE it appears, and WHO can see it before applying, with the
- * co-share notice when someone else already shared this meeting. Custom overlay
- * (scoped to the meetings content region) so it never blanks the page.
+ * co-share notice when someone else already shared this meeting. Rendered via
+ * portal as a true full-viewport modal (same treatment as SendMeriModal) so it
+ * can never be cropped by an ancestor's bounds.
  */
 export function ShareConfirmation({
   meeting,
@@ -47,14 +49,14 @@ export function ShareConfirmation({
     onClose();
   };
 
-  return (
+  return createPortal(
     <div
       onClick={onClose}
       style={{
-        position: 'absolute',
+        position: 'fixed',
         inset: 0,
         background: 'rgba(12,26,56,0.34)',
-        zIndex: 65,
+        zIndex: 1000,
         display: 'flex',
         alignItems: 'center',
         justifyContent: 'center',
@@ -177,6 +179,7 @@ export function ShareConfirmation({
           </button>
         </div>
       </div>
-    </div>
+    </div>,
+    document.body,
   );
 }

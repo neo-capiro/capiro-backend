@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { App, Input, Modal } from 'antd';
-import { Mic, PenLine, Sparkles, Upload } from 'lucide-react';
+import { Lock, Mic, PenLine, Sparkles, Upload } from 'lucide-react';
 import { parseDebriefBody } from '../meeting-actions.js';
 import {
   useApproveDebrief,
@@ -11,7 +11,7 @@ import {
 } from './meetings-api.js';
 import { exportArtifactPdf } from './meetings-print.js';
 import { formatDayTitle } from './meetings-format.js';
-import { MeriGlyph, SectionLabel } from './meetings-ui.js';
+import { Empty, MeriGlyph, SectionLabel } from './meetings-ui.js';
 import { ArtifactActionBar, GeneratingState } from './tab-kit.js';
 import type { Meeting, MeetingDebriefDraft } from './meetings-types.js';
 
@@ -250,6 +250,10 @@ export function DebriefTab({ meeting }: { meeting: Meeting }) {
   useEffect(() => setRedraft(false), [meeting.id]);
 
   const busy = generate.isPending || save.isPending || uploadExtract.isPending;
+  // Belt-and-suspenders: the Debrief tab button is disabled while the meeting
+  // is still in progress (MeetingDetailPanel), but this guards direct access
+  // (e.g. a ?detail=debrief deep link) from ever reaching the source picker.
+  const locked = new Date(meeting.endsAt).getTime() > Date.now();
 
   const draftAndSave = async (method: 'manual' | 'upload' | 'voice', sourceText: string) => {
     if (!sourceText.trim()) {
@@ -278,22 +282,22 @@ export function DebriefTab({ meeting }: { meeting: Meeting }) {
     }
   };
 
+  if (locked) {
+    return (
+      <Empty
+        icon={<Lock size={20} />}
+        title="Debrief locked"
+        body="Debrief unlocks once this meeting ends."
+      />
+    );
+  }
+
   if (debriefs.isLoading) return <GeneratingState label="Loading debrief…" />;
   if (busy) {
     return (
       <GeneratingState
         label="Meri is drafting the debrief…"
         sub="Turning your source into a recap, action items, and intelligence gathered."
-      />
-    );
-  }
-
-  // Meri capturing → auto-draft coming
-  if (!current && (meeting.meri === 'scheduled' || meeting.meri === 'attending')) {
-    return (
-      <GeneratingState
-        label="Meri is capturing this meeting"
-        sub="A debrief will draft automatically once the call is summarized."
       />
     );
   }

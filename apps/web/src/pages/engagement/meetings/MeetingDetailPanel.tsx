@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { App, Select } from 'antd';
 import { Link } from 'react-router-dom';
-import { ChevronDown, ChevronRight, Plus, Users, X } from 'lucide-react';
+import { ChevronDown, ChevronRight, Lock, Plus, Users, X } from 'lucide-react';
 import { PrepTab } from './PrepTab.js';
 import { NotesTab } from './NotesTab.js';
 import { DebriefTab } from './DebriefTab.js';
@@ -35,7 +35,10 @@ function ClientAssign({ meeting }: { meeting: Meeting }) {
     return (
       <Select
         autoFocus
-        open
+        open={editing}
+        onOpenChange={(nextOpen) => {
+          if (!nextOpen) setEditing(false);
+        }}
         showSearch
         size="small"
         style={{ minWidth: 220 }}
@@ -116,13 +119,23 @@ export function MeetingDetailPanel({
     else setTab('prep');
   }, [m?.id]); // eslint-disable-line react-hooks/exhaustive-deps
 
+  // Debrief is locked until the meeting itself is over — debriefing something
+  // that hasn't happened yet doesn't make sense, Meri notetaker or not.
+  const debriefLocked = m ? new Date(m.endsAt).getTime() > Date.now() : false;
+
+  // Direct URL navigation (?detail=debrief) could otherwise land on a locked
+  // tab without ever going through the tab button's disabled state.
+  useEffect(() => {
+    if (tab === 'debrief' && debriefLocked) setTab('prep');
+  }, [tab, debriefLocked]);
+
   if (!m) return null;
 
   const shared = m.visibility === 'shared';
-  const tabs: { k: DetailTab; label: string; done: boolean }[] = [
+  const tabs: { k: DetailTab; label: string; done: boolean; disabled?: boolean }[] = [
     { k: 'prep', label: 'Prep', done: status.prep },
     { k: 'notes', label: 'Meeting Notes', done: status.notes },
-    { k: 'debrief', label: 'Debrief', done: status.debrief },
+    { k: 'debrief', label: 'Debrief', done: status.debrief, disabled: debriefLocked },
   ];
 
   const handleToggleShare = async (mm: Meeting) => {
@@ -251,7 +264,7 @@ export function MeetingDetailPanel({
               marginBottom: 14,
             }}
           >
-            <ClientAssign meeting={m} />
+            <ClientAssign key={m.id} meeting={m} />
             <div style={{ flex: 1, minWidth: 12 }} />
             <ShareToggle m={m} onToggle={handleToggleShare} />
           </div>
@@ -377,7 +390,7 @@ export function MeetingDetailPanel({
               <span>
                 Saved to{' '}
                 <Link
-                  to={`/clients/${m.client.id}?tab=documents`}
+                  to={`/clients?clientId=${m.client.id}&tab=documents`}
                   onClick={onClose}
                   style={{ color: 'var(--success)', fontWeight: 700, textDecoration: 'underline' }}
                 >
@@ -396,7 +409,9 @@ export function MeetingDetailPanel({
                 <button
                   key={t.k}
                   type="button"
-                  onClick={() => setTab(t.k)}
+                  disabled={t.disabled}
+                  onClick={() => !t.disabled && setTab(t.k)}
+                  title={t.disabled ? 'Debrief unlocks once this meeting ends' : undefined}
                   style={{
                     display: 'flex',
                     alignItems: 'center',
@@ -405,7 +420,8 @@ export function MeetingDetailPanel({
                     background: 'none',
                     padding: '11px 0 12px',
                     marginRight: 24,
-                    cursor: 'pointer',
+                    cursor: t.disabled ? 'not-allowed' : 'pointer',
+                    opacity: t.disabled ? 0.5 : 1,
                     fontFamily: 'var(--font-sans)',
                     borderBottom: on ? '2px solid var(--accent)' : '2px solid transparent',
                     marginBottom: -1,
@@ -420,6 +436,7 @@ export function MeetingDetailPanel({
                   >
                     {t.label}
                   </span>
+                  {t.disabled && <Lock size={11} style={{ color: 'var(--ink-3)' }} />}
                   {t.done && (
                     <span
                       style={{
