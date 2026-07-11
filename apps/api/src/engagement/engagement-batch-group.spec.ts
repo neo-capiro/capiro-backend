@@ -46,6 +46,15 @@ function serviceCapturingContext(): {
   const service = Object.create(EngagementService.prototype) as EngagementService;
   const patch = service as unknown as Record<string, unknown>;
   patch.ai = {
+    resolveOutreachCredentials: async () => [
+      {
+        provider: 'anthropic',
+        apiKey: 'k',
+        model: 'm',
+        usedTenantKey: false,
+        modelOverridden: false,
+      },
+    ],
     generateOutreachDraft: async (input: { context: Record<string, unknown> }) => {
       contexts.push(input.context);
       return { subject: 's', body: 'b', provider: 'anthropic', model: 'm', raw: {} };

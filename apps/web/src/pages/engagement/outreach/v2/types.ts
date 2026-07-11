@@ -19,7 +19,8 @@ export type ContextKind =
   | 'note'
   | 'document'
   | 'debrief'
-  | 'prep';
+  | 'prep'
+  | 'programElement';
 
 export interface ContextPoolItem {
   id: string;

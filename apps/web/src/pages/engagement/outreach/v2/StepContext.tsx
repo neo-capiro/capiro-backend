@@ -24,6 +24,7 @@ import { useQuery } from '@tanstack/react-query';
 import {
   BulbOutlined,
   CloseOutlined,
+  DollarOutlined,
   DownOutlined,
   FileTextOutlined,
   GlobalOutlined,
@@ -38,8 +39,10 @@ import {
   UserOutlined,
 } from '@ant-design/icons';
 import { useApi } from '../../../../lib/use-api.js';
+import type { ProgramElementListItem } from '../../../program-element/types.js';
 import type { OutreachRecipient } from '../../OutreachView.js';
 import type { OutreachTarget } from './targets.js';
+import { peToPoolItem } from './pe-context.js';
 import {
   recipientKey,
   type ContextKind,
@@ -84,6 +87,7 @@ interface ScopeOptions {
 // meetings was replaced by Meeting preps; Intel tab was removed earlier.)
 const TABS: Array<{ id: ContextKind; label: string; Icon: typeof FileTextOutlined }> = [
   { id: 'bill', label: 'Bills', Icon: FileTextOutlined },
+  { id: 'programElement', label: 'Program Elements', Icon: DollarOutlined },
   { id: 'email', label: 'Past emails', Icon: MailOutlined },
   { id: 'prep', label: 'Meeting preps', Icon: BulbOutlined },
   { id: 'debrief', label: 'Debriefs', Icon: SolutionOutlined },
@@ -105,6 +109,7 @@ const KIND_LABEL: Record<ContextKind, string> = {
   note: 'Note',
   document: 'Doc/Note',
   prep: 'Prep',
+  programElement: 'Program Element',
 };
 
 /** Compact secondary line for an individual recipient option/section. */
@@ -147,16 +152,31 @@ export function StepContext({ recipients, targets, selected, onChange, pool, loa
     },
   });
 
+  // Program Elements: live search over the global PE catalog (reuses the finder's
+  // GET /program-elements list endpoint; canonical-current funding per row).
+  const peSearchActive = tab === 'programElement' && debouncedSearch.length >= 2;
+  const peSearch = useQuery({
+    enabled: peSearchActive,
+    queryKey: ['ctx-pe-search', debouncedSearch],
+    queryFn: async () => {
+      const res = await api.get<{ data: ProgramElementListItem[] }>('/api/program-elements', {
+        params: { q: debouncedSearch, limit: 20 },
+      });
+      return res.data.data.map<ContextPoolItem>(peToPoolItem);
+    },
+  });
+
   const visible = useMemo(() => {
-    // Full-corpus bill search results take over the bill list while searching.
+    // Full-corpus bill / PE search results take over their list while searching.
     if (billSearchActive) return billSearch.data ?? [];
+    if (peSearchActive) return peSearch.data ?? [];
     const items = pool[tab] || [];
     if (!search) return items;
     const q = search.toLowerCase();
     return items.filter(
       (it) => it.title.toLowerCase().includes(q) || (it.body && it.body.toLowerCase().includes(q)),
     );
-  }, [pool, tab, search, billSearchActive, billSearch.data]);
+  }, [pool, tab, search, billSearchActive, billSearch.data, peSearchActive, peSearch.data]);
 
   // ---- Client sub-tabs (Docs & Notes / Debriefs / Preps) ----
   // These tabs group their pool by client and show a sub-tab per client; the
@@ -171,7 +191,8 @@ export function StepContext({ recipients, targets, selected, onChange, pool, loa
     (b.date ?? '').localeCompare(a.date ?? '');
 
   const clientGroups = useMemo(() => {
-    if (!isClientGrouped) return [] as Array<{ key: string; name: string; items: ContextPoolItem[] }>;
+    if (!isClientGrouped)
+      return [] as Array<{ key: string; name: string; items: ContextPoolItem[] }>;
     const map = new Map<string, { key: string; name: string; items: ContextPoolItem[] }>();
     for (const it of visible) {
       const key = it.clientId ?? '__none__';
@@ -197,7 +218,8 @@ export function StepContext({ recipients, targets, selected, onChange, pool, loa
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isClientGrouped, visible, clientTab, clientGroups]);
 
-  const listLoading = loading || (billSearchActive && billSearch.isLoading);
+  const listLoading =
+    loading || (billSearchActive && billSearch.isLoading) || (peSearchActive && peSearch.isLoading);
 
   const isOn = (id: string) => selected.some((c) => c.id === id);
 
@@ -405,7 +427,9 @@ export function StepContext({ recipients, targets, selected, onChange, pool, loa
               >
                 <t.Icon style={{ fontSize: 12 }} />
                 {t.label}
-                {(pool[t.id]?.length || 0) > 0 && <span className="badge">{pool[t.id].length}</span>}
+                {(pool[t.id]?.length || 0) > 0 && (
+                  <span className="badge">{pool[t.id].length}</span>
+                )}
               </div>
             ))}
           </div>
@@ -418,7 +442,11 @@ export function StepContext({ recipients, targets, selected, onChange, pool, loa
                   value={search}
                   onChange={(e) => setSearch(e.target.value)}
                   placeholder={
-                    tab === 'bill' ? 'Search all bills by title or sponsor…' : `Search ${tab}…`
+                    tab === 'bill'
+                      ? 'Search all bills by title or sponsor…'
+                      : tab === 'programElement'
+                        ? 'Search Program Elements by title or PE code…'
+                        : `Search ${tab}…`
                   }
                 />
               </div>
@@ -427,6 +455,13 @@ export function StepContext({ recipients, targets, selected, onChange, pool, loa
                   {billSearchActive
                     ? 'Searching every tracked bill in Congress.'
                     : 'Showing this client’s bills. Type to search the full bill database.'}
+                </div>
+              )}
+              {tab === 'programElement' && (
+                <div style={{ padding: '4px 12px 6px', fontSize: 11, color: 'var(--ov2-ink-3)' }}>
+                  {peSearchActive
+                    ? 'Searching the full Program Element catalog.'
+                    : 'Showing your watched Program Elements. Type to search the full catalog.'}
                 </div>
               )}
               {isClientGrouped && clientGroups.length > 0 && (
@@ -652,7 +687,8 @@ export function StepContext({ recipients, targets, selected, onChange, pool, loa
                   <span className="sec-count">{orphanItems.length}</span>
                 </div>
                 <div className="ov2-ctx-empty-row">
-                  Scoped to a recipient no longer shown above — re-route with “Applies to”, or remove.
+                  Scoped to a recipient no longer shown above — re-route with “Applies to”, or
+                  remove.
                 </div>
                 {orphanItems.map((c) => (
                   <ContextCard
@@ -782,9 +818,7 @@ function ScopeSelect({
             <span className="ov2-ctx-scope2-badge shared">Shared</span>
           </button>
 
-          {options.individuals.length > 0 && (
-            <div className="ov2-ctx-scope2-grp">Individuals</div>
-          )}
+          {options.individuals.length > 0 && <div className="ov2-ctx-scope2-grp">Individuals</div>}
           {options.individuals.map((o) => renderOpt(o, 'individual', <UserOutlined />))}
 
           {options.lists.length > 0 && <div className="ov2-ctx-scope2-grp">Lists</div>}

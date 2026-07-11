@@ -49,6 +49,11 @@ import { LobbyIntelService } from '../lobby-intel/lobby-intel.service.js';
 import { FederalSpendingService } from '../federal-spending/federal-spending.service.js';
 import { ClientAssociationService } from './client-association.service.js';
 import { EngagementAiService } from './engagement-ai.service.js';
+// #403 outreach gap-closure: credential-resolver type. recordAiUsageEvent +
+// AiGenerationUsageLike are imported from @capiro/shared above (Phase-1 M5.0
+// lift out of the now-deleted ./ai-usage-record.js), so #403's local import of
+// them is intentionally dropped here — same symbols, one source.
+import type { ResolvedAiCredential } from './ai-credential-resolver.service.js';
 import {
   appendOutreachSignature,
   renderOutreachBody,
@@ -250,7 +255,16 @@ export interface UpdateAiTemplateInput {
 /** v2 wizard's per-item scoped context object. */
 export interface OutreachSelectedContextItemInput {
   id: string;
-  kind: 'bill' | 'intel' | 'email' | 'meeting' | 'note' | 'document' | 'debrief' | 'prep';
+  kind:
+    | 'bill'
+    | 'intel'
+    | 'email'
+    | 'meeting'
+    | 'note'
+    | 'document'
+    | 'debrief'
+    | 'prep'
+    | 'programElement';
   title: string;
   body?: string;
   /** 'all' = shared across every recipient; else recipient-key string. */
@@ -284,6 +298,25 @@ export interface GenerateBatchEmailInput {
   existingSubject?: string;
   existingBody?: string;
   reviseInstruction?: string;
+}
+
+/**
+ * One per-recipient result from {@link EngagementService.generateBatchEmails}.
+ * `status` is the AUTHORITATIVE sendability signal — callers MUST gate on
+ * `status === 'error'`, never on subject/body emptiness (a same-batch generation
+ * failure returns empty strings tagged `error`; a legitimately short draft is not
+ * an error). This mirrors the frontend WizardV2State.generatedEmails[key].status
+ * vocabulary ('ready'|'error') so it forwards to the wizard with zero translation.
+ * It is a distinct concept from OutreachRecord.status (campaign-record lifecycle)
+ * and EngagementCampaignRecipient.status (legacy) — do not conflate.
+ */
+export interface OutreachBatchDraftResult {
+  recipientId: string;
+  subject: string;
+  body: string;
+  status: 'ready' | 'error';
+  /** Failure detail for telemetry/logs ONLY — never surface raw to end users. */
+  error?: string;
 }
 
 export interface GenerateTalkingPointsInput {
@@ -2468,8 +2501,7 @@ export class EngagementService {
     // W5.6: append the author's own recent sent-outreach excerpts (PII-stripped)
     // so drafts mirror their voice. Outreach-only (not in the shared voice block).
     const voiceFewShots = await this.outreachVoiceFewShots(ctx).catch(() => null);
-    const userWritingStyle =
-      [voiceBlock, voiceFewShots].filter(Boolean).join('\n\n') || null;
+    const userWritingStyle = [voiceBlock, voiceFewShots].filter(Boolean).join('\n\n') || null;
 
     // Client's tracked legislation with latest action — a timely "reason to write
     // now" hook. Client-level, so resolve once.
@@ -2574,166 +2606,206 @@ export class EngagementService {
     const generateForRecipient = async (
       recipient: (typeof recipients)[number],
       index: number,
-    ) => {
-        // Must match the frontend's recipientKey() chain (id first) so generated
-        // drafts land under the key the wizard looks them up by. Previously this
-        // started at directoryContactId, so to-clients recipients (which have
-        // `id` but no directoryContactId) got keyed by email and the wizard
-        // showed "no draft". The final fallback is the recipient's original
-        // index (was `results.length` in the old sequential loop — identical
-        // value, but stable now that generation runs concurrently).
-        const recipientId =
-          (recipient as Record<string, unknown>).id?.toString() ||
-          (recipient as Record<string, unknown>).directoryContactId?.toString() ||
-          (recipient as Record<string, unknown>).email?.toString() ||
-          (recipient as Record<string, unknown>).name?.toString() ||
-          String(index);
+      creds: ResolvedAiCredential[],
+    ): Promise<{ result: OutreachBatchDraftResult; provider: string | null }> => {
+      // Must match the frontend's recipientKey() chain (id first) so generated
+      // drafts land under the key the wizard looks them up by. Previously this
+      // started at directoryContactId, so to-clients recipients (which have
+      // `id` but no directoryContactId) got keyed by email and the wizard
+      // showed "no draft". The final fallback is the recipient's original
+      // index (was `results.length` in the old sequential loop — identical
+      // value, but stable now that generation runs concurrently).
+      const recipientId =
+        (recipient as Record<string, unknown>).id?.toString() ||
+        (recipient as Record<string, unknown>).directoryContactId?.toString() ||
+        (recipient as Record<string, unknown>).email?.toString() ||
+        (recipient as Record<string, unknown>).name?.toString() ||
+        String(index);
 
-        // Per-recipient scoped context, drawn from contextItems[].scope == this
-        // recipient's stable key. The wizard's recipient key is the same fallback
-        // chain used by recipientKey() on the frontend, so look up by every
-        // identifier we have rather than guessing.
-        const recipientKeyCandidates = [
-          (recipient as Record<string, unknown>).id?.toString(),
-          (recipient as Record<string, unknown>).directoryContactId?.toString(),
-          (recipient as Record<string, unknown>).email?.toString(),
-          (recipient as Record<string, unknown>).name?.toString(),
-        ].filter((s): s is string => Boolean(s));
-        const personalItems = recipientKeyCandidates.flatMap(
-          (k) => recipientScopedItems.get(k) ?? [],
-        );
-        const personalContextText = personalItems.length
-          ? `Personalized context for this recipient:\n${formatItems(personalItems)}`
+      // Per-recipient scoped context, drawn from contextItems[].scope == this
+      // recipient's stable key. The wizard's recipient key is the same fallback
+      // chain used by recipientKey() on the frontend, so look up by every
+      // identifier we have rather than guessing.
+      const recipientKeyCandidates = [
+        (recipient as Record<string, unknown>).id?.toString(),
+        (recipient as Record<string, unknown>).directoryContactId?.toString(),
+        (recipient as Record<string, unknown>).email?.toString(),
+        (recipient as Record<string, unknown>).name?.toString(),
+      ].filter((s): s is string => Boolean(s));
+      const personalItems = recipientKeyCandidates.flatMap(
+        (k) => recipientScopedItems.get(k) ?? [],
+      );
+      const personalContextText = personalItems.length
+        ? `Personalized context for this recipient:\n${formatItems(personalItems)}`
+        : null;
+      const combinedContextNotes = [sharedContextText, personalContextText]
+        .filter((s): s is string => Boolean(s))
+        .join('\n\n');
+
+      try {
+        // Per-recipient enrichment: directory profile + "why this office fits"
+        // reasoning (Tier-1/2), the recipient's prior correspondence, and their
+        // recent press. Keyed on email (directory/meetings/mail) and on the
+        // recipient's directory member id (target recs, joined to bioguide for
+        // press). Failures degrade to nothing via the batch helpers.
+        const recipientEmailLower =
+          (recipient as Record<string, unknown>).email?.toString()?.trim().toLowerCase() || null;
+        const directoryMatch = recipientEmailLower
+          ? (directoryByEmail.get(recipientEmailLower) ?? null)
           : null;
-        const combinedContextNotes = [sharedContextText, personalContextText]
-          .filter((s): s is string => Boolean(s))
-          .join('\n\n');
+        const recipientDirectoryId =
+          (recipient as Record<string, unknown>).directoryContactId?.toString() || null;
+        const targetRec = recipientDirectoryId
+          ? targetRecByMember.get(recipientDirectoryId)
+          : undefined;
+        // Directory profile ("who") + target rationale ("why them") form one
+        // hoisted RECIPIENT PROFILE section.
+        const recipientProfile =
+          [
+            formatRecipientDirectoryProfile(directoryMatch),
+            formatTargetRationale(targetRec, targetRecComputedAt),
+          ]
+            .filter(Boolean)
+            .join(' ') || null;
+        const bioguideId = directoryMatch?.member?.bioguideId || null;
+        const recentNews = bioguideId ? (pressByBioguide.get(bioguideId) ?? []) : [];
+        const meetingHistory = recipientEmailLower
+          ? (meetingsByEmail.get(recipientEmailLower) ?? [])
+          : [];
+        const emailHistory = recipientEmailLower
+          ? (threadsByEmail.get(recipientEmailLower) ?? [])
+          : [];
 
-        try {
-          // Per-recipient enrichment: directory profile + "why this office fits"
-          // reasoning (Tier-1/2), the recipient's prior correspondence, and their
-          // recent press. Keyed on email (directory/meetings/mail) and on the
-          // recipient's directory member id (target recs, joined to bioguide for
-          // press). Failures degrade to nothing via the batch helpers.
-          const recipientEmailLower =
-            (recipient as Record<string, unknown>).email?.toString()?.trim().toLowerCase() || null;
-          const directoryMatch = recipientEmailLower
-            ? (directoryByEmail.get(recipientEmailLower) ?? null)
-            : null;
-          const recipientDirectoryId =
-            (recipient as Record<string, unknown>).directoryContactId?.toString() || null;
-          const targetRec = recipientDirectoryId
-            ? targetRecByMember.get(recipientDirectoryId)
-            : undefined;
-          // Directory profile ("who") + target rationale ("why them") form one
-          // hoisted RECIPIENT PROFILE section.
-          const recipientProfile =
-            [
-              formatRecipientDirectoryProfile(directoryMatch),
-              formatTargetRationale(targetRec, targetRecComputedAt),
-            ]
-              .filter(Boolean)
-              .join(' ') || null;
-          const bioguideId = directoryMatch?.member?.bioguideId || null;
-          const recentNews = bioguideId ? (pressByBioguide.get(bioguideId) ?? []) : [];
-          const meetingHistory = recipientEmailLower
-            ? (meetingsByEmail.get(recipientEmailLower) ?? [])
-            : [];
-          const emailHistory = recipientEmailLower
-            ? (threadsByEmail.get(recipientEmailLower) ?? [])
-            : [];
+        // W5 per-recipient channels (all per-member ⇒ suppressed for a group,
+        // like the other per-member enrichment above; watchlist is client-level
+        // and included for groups too).
+        const relevantVotes = bioguideId ? (votesByBioguide.get(bioguideId) ?? null) : null;
+        const upcomingHearingsBlock = this.renderRecipientHearings(
+          upcomingHearings,
+          directoryMatch?.member?.committees ?? [],
+        );
+        const priorContact = recipientEmailLower
+          ? (priorContactByEmail.get(recipientEmailLower) ?? null)
+          : null;
+        const priorOutreachBlock = priorContact
+          ? `Your firm last emailed this recipient on ${priorContact.sentAt
+              .toISOString()
+              .slice(
+                0,
+                10,
+              )}${priorContact.subject ? ` re: "${priorContact.subject}"` : ''} — do not repeat that ask verbatim; acknowledge or build on it.`
+          : null;
 
-          // W5 per-recipient channels (all per-member ⇒ suppressed for a group,
-          // like the other per-member enrichment above; watchlist is client-level
-          // and included for groups too).
-          const relevantVotes = bioguideId ? (votesByBioguide.get(bioguideId) ?? null) : null;
-          const upcomingHearingsBlock = this.renderRecipientHearings(
-            upcomingHearings,
-            directoryMatch?.member?.committees ?? [],
-          );
-          const priorContact = recipientEmailLower
-            ? (priorContactByEmail.get(recipientEmailLower) ?? null)
-            : null;
-          const priorOutreachBlock = priorContact
-            ? `Your firm last emailed this recipient on ${priorContact.sentAt
-                .toISOString()
-                .slice(0, 10)}${priorContact.subject ? ` re: "${priorContact.subject}"` : ''} — do not repeat that ask verbatim; acknowledge or build on it.`
-            : null;
+        const context: Record<string, unknown> = {
+          tone: tone ?? 'professional',
+          ...(direction ? { direction } : {}),
+          ...(senderName ? { senderName } : {}),
+          ...(senderSignature ? { senderSignature } : {}),
+          ...(userWritingStyle ? { userWritingStyle } : {}),
+          // Per-member fields (profile, that member's press / meeting / email
+          // history) are suppressed for a group: they describe ONE member and
+          // would bias a one-email-to-all group draft toward that member.
+          ...(recipientProfile && !isGroup ? { recipientProfile } : {}),
+          ...(trackedBillsBlock ? { trackedBills: trackedBillsBlock } : {}),
+          ...(actionsBlock ? { actionRecommendations: actionsBlock } : {}),
+          ...(watchlistBlock ? { clientWatchlist: watchlistBlock } : {}),
+          ...(recentNews.length && !isGroup ? { recentNews } : {}),
+          ...(meetingHistory.length && !isGroup ? { meetingHistory } : {}),
+          ...(emailHistory.length && !isGroup ? { emailHistory } : {}),
+          ...(relevantVotes && !isGroup ? { relevantVotes } : {}),
+          ...(upcomingHearingsBlock && !isGroup ? { upcomingHearings: upcomingHearingsBlock } : {}),
+          ...(priorOutreachBlock && !isGroup ? { priorOutreach: priorOutreachBlock } : {}),
+          ...(insightsContext ? { insights: insightsContext } : {}),
+          ...(additionalContext ? { additionalContext } : {}),
+          ...(combinedContextNotes ? { contextItems: combinedContextNotes } : {}),
+          ...(clientContextForCampaign ? { clientContext: clientContextForCampaign } : {}),
+        };
 
-          const context: Record<string, unknown> = {
-            tone: tone ?? 'professional',
-            ...(direction ? { direction } : {}),
-            ...(senderName ? { senderName } : {}),
-            ...(senderSignature ? { senderSignature } : {}),
-            ...(userWritingStyle ? { userWritingStyle } : {}),
-            // Per-member fields (profile, that member's press / meeting / email
-            // history) are suppressed for a group: they describe ONE member and
-            // would bias a one-email-to-all group draft toward that member.
-            ...(recipientProfile && !isGroup ? { recipientProfile } : {}),
-            ...(trackedBillsBlock ? { trackedBills: trackedBillsBlock } : {}),
-            ...(actionsBlock ? { actionRecommendations: actionsBlock } : {}),
-            ...(watchlistBlock ? { clientWatchlist: watchlistBlock } : {}),
-            ...(recentNews.length && !isGroup ? { recentNews } : {}),
-            ...(meetingHistory.length && !isGroup ? { meetingHistory } : {}),
-            ...(emailHistory.length && !isGroup ? { emailHistory } : {}),
-            ...(relevantVotes && !isGroup ? { relevantVotes } : {}),
-            ...(upcomingHearingsBlock && !isGroup ? { upcomingHearings: upcomingHearingsBlock } : {}),
-            ...(priorOutreachBlock && !isGroup ? { priorOutreach: priorOutreachBlock } : {}),
-            ...(insightsContext ? { insights: insightsContext } : {}),
-            ...(additionalContext ? { additionalContext } : {}),
-            ...(combinedContextNotes ? { contextItems: combinedContextNotes } : {}),
-            ...(clientContextForCampaign ? { clientContext: clientContextForCampaign } : {}),
-          };
+        const generated = await this.ai.generateOutreachDraft(
+          {
+            workflow: 'campaign',
+            client,
+            recipients: [recipient as unknown as Record<string, unknown>],
+            context,
+            promptTemplate: 'custom',
+            // In revise mode the freeform instruction becomes the objective the
+            // revision-mode prompt edits toward; otherwise the campaign prompt.
+            objective: isReviseSingle && reviseInstruction ? reviseInstruction : templatePrompt,
+            ...(audienceKind ? { audienceKind } : {}),
+            ...(isReviseSingle ? { existingSubject, existingBody } : {}),
+          },
+          ctx,
+          // Campaign-sticky provider (M2/W3.2): use the pinned credential(s) the
+          // batch resolved once, so every recipient in this send uses the same
+          // provider+model — no mid-campaign voice split from a per-recipient
+          // fallback.
+          { creds },
+        );
+        // One usage event per recipient draft; rides inside the concurrent
+        // worker so metering overlaps generation instead of serializing it.
+        await this.recordAiUsage(ctx, 'outreach_campaign', generated);
 
-          const generated = await this.ai.generateOutreachDraft(
-            {
-              workflow: 'campaign',
-              client,
-              recipients: [recipient as unknown as Record<string, unknown>],
-              context,
-              promptTemplate: 'custom',
-              // In revise mode the freeform instruction becomes the objective the
-              // revision-mode prompt edits toward; otherwise the campaign prompt.
-              objective:
-                isReviseSingle && reviseInstruction ? reviseInstruction : templatePrompt,
-              ...(audienceKind ? { audienceKind } : {}),
-              ...(isReviseSingle ? { existingSubject, existingBody } : {}),
-            },
-            ctx,
-          );
-          // One usage event per recipient draft; rides inside the concurrent
-          // worker so metering overlaps generation instead of serializing it.
-          await this.recordAiUsage(ctx, 'outreach_campaign', generated);
+        return {
+          result: {
+            recipientId,
+            subject: generated.subject,
+            body: generated.body,
+            status: 'ready' as const,
+          },
+          provider: generated.provider,
+        };
+      } catch (err) {
+        this.logger.warn(
+          `Batch email generation failed for recipient ${recipientId}: ${(err as Error).message}`,
+        );
+        // Tag the failure explicitly so the wizard classifies it as 'error'
+        // from the moment it responds — never a blank draft masquerading as
+        // 'ready'. Sendability gates on this status, not on empty content.
+        return {
+          result: {
+            recipientId,
+            subject: '',
+            body: '',
+            status: 'error' as const,
+            error: (err as Error).message,
+          },
+          provider: null,
+        };
+      }
+    };
 
-          return { recipientId, subject: generated.subject, body: generated.body };
-        } catch (err) {
-          this.logger.warn(
-            `Batch email generation failed for recipient ${recipientId}: ${(err as Error).message}`,
-          );
-          return { recipientId, subject: '', body: '' };
-        }
-      };
+    // Campaign-sticky provider (M2/W3.2): resolve the credential order ONCE for
+    // the whole campaign (Anthropic-first per D2 when configured). Empty ⇒ AI is
+    // not configured; fail the whole batch loudly rather than emitting N per-item
+    // "not configured" errors.
+    const campaignCreds = await this.ai.resolveOutreachCredentials(ctx);
+    if (!campaignCreds.length) {
+      throw new ServiceUnavailableException(
+        'Outreach drafting is not configured. Set OPENAI_API_KEY or ANTHROPIC_API_KEY (or a tenant AI key).',
+      );
+    }
 
-    // Warm-first fan-out (W3.3): when v2 prompt caching is active, draft
-    // recipient #1 alone so its cache WRITE lands before the parallel fan-out —
-    // drafts 2..N then read the cached byte-stable prefix (cache_read) instead of
-    // each re-paying the full shared input. Without caching, the plain bounded
-    // fan-out is faster (no reason to serialize the first call).
-    let results: Array<{ recipientId: string; subject: string; body: string }>;
-    if (this.ai.outreachCachingEnabled && recipients.length > 1) {
-      const head = await generateForRecipient(recipients[0]!, 0);
+    // Establish + pin the provider on recipient #1 (which ALSO warms the v2 prompt
+    // cache: its cache WRITE lands before the fan-out so drafts 2..N read the
+    // cached byte-stable prefix — W3.3). Recipient #1 may fall back across the full
+    // ordered list; whichever provider wins is then PINNED for every other
+    // recipient so one send never mixes provider voices. If #1 fails outright,
+    // there is nothing to pin, so the rest fall back across the full list too.
+    let results: Array<OutreachBatchDraftResult>;
+    if (recipients.length > 1) {
+      const head = await generateForRecipient(recipients[0]!, 0, campaignCreds);
+      const pinnedCreds =
+        head.provider != null
+          ? campaignCreds.filter((c) => c.provider === head.provider)
+          : campaignCreds;
       const tail = await mapWithConcurrency(
         recipients.slice(1),
         OUTREACH_GEN_CONCURRENCY,
-        (recipient, i) => generateForRecipient(recipient, i + 1),
+        (recipient, i) => generateForRecipient(recipient, i + 1, pinnedCreds).then((r) => r.result),
       );
-      results = [head, ...tail];
+      results = [head.result, ...tail];
     } else {
-      results = await mapWithConcurrency(
-        recipients,
-        OUTREACH_GEN_CONCURRENCY,
-        generateForRecipient,
-      );
+      results = [(await generateForRecipient(recipients[0]!, 0, campaignCreds)).result];
     }
 
     // Soft-warn banner (W3.4): surfaced once the tenant crosses 80% of the daily
@@ -5698,7 +5770,9 @@ export class EngagementService {
           select: { subject: true, sentAt: true, recipients: true },
         }),
       )
-      .catch(() => [] as Array<{ subject: string | null; sentAt: Date | null; recipients: unknown }>);
+      .catch(
+        () => [] as Array<{ subject: string | null; sentAt: Date | null; recipients: unknown }>,
+      );
     for (const r of rows) {
       if (!r.sentAt) continue;
       const recips = Array.isArray(r.recipients) ? r.recipients : [];
@@ -5718,6 +5792,31 @@ export class EngagementService {
   }
 
   /**
+   * W5.2 — public read wrapper around outreachPriorContactByEmail, so the wizard's
+   * Recipients step can badge "last contacted Nd ago" DURING selection (before
+   * generation runs). Delegates verbatim to the private batch query the generator
+   * uses, so the badge and the prompt's priorOutreach line can never drift. Emails
+   * with no sent record in the 90-day window are simply absent from the result
+   * (never fabricated). Returns ISO date strings for the wire.
+   */
+  async getRecipientPriorContact(
+    ctx: TenantContext,
+    input: { clientId?: string | null; emails: string[] },
+  ): Promise<Array<{ email: string; sentAt: string; subject: string | null }>> {
+    const emailsLower = unique(input.emails.map((e) => e.trim().toLowerCase()).filter(Boolean));
+    const byEmail = await this.outreachPriorContactByEmail(
+      ctx,
+      input.clientId ?? null,
+      emailsLower,
+    );
+    return Array.from(byEmail.entries()).map(([email, v]) => ({
+      email,
+      sentAt: v.sentAt.toISOString(),
+      subject: v.subject,
+    }));
+  }
+
+  /**
    * W5.3 — upcoming hearings (next 30d) for the recipient's committees. Fetches
    * the window once (global committee_hearing, no RLS); callers filter per
    * recipient by committee name. Returns the raw rows so the per-recipient match
@@ -5727,7 +5826,9 @@ export class EngagementService {
     Array<{ committeeName: string; chamber: string; title: string; date: Date }>
   > {
     const now = new Date();
-    const startOfToday = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate()));
+    const startOfToday = new Date(
+      Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate()),
+    );
     const in30 = new Date(startOfToday.getTime() + 30 * 864e5);
     return this.prisma.committeeHearing
       .findMany({
@@ -5776,9 +5877,26 @@ export class EngagementService {
         where: { billId: { in: trackedBillIds } },
         orderBy: { voteDate: 'desc' },
         take: 120,
-        select: { id: true, billId: true, question: true, result: true, voteDate: true, title: true },
+        select: {
+          id: true,
+          billId: true,
+          question: true,
+          result: true,
+          voteDate: true,
+          title: true,
+        },
       })
-      .catch(() => [] as Array<{ id: string; billId: string | null; question: string | null; result: string | null; voteDate: Date; title: string | null }>);
+      .catch(
+        () =>
+          [] as Array<{
+            id: string;
+            billId: string | null;
+            question: string | null;
+            result: string | null;
+            voteDate: Date;
+            title: string | null;
+          }>,
+      );
     if (!votes.length) return out;
     const voteById = new Map(votes.map((v) => [v.id, v]));
     const members = await this.prisma.memberVote

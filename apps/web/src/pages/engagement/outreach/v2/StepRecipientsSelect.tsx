@@ -17,7 +17,9 @@
 // the campaign until the OutreachAudience persistence lands.
 
 import {
+  createContext,
   useCallback,
+  useContext,
   useEffect,
   useMemo,
   useRef,
@@ -65,12 +67,23 @@ import {
   type AudienceRow,
 } from './audiences.js';
 import { useGroups } from './groups.js';
+import { candidateEmails, formatLastContacted, usePriorContact } from './priorContact.js';
 import './step-recipients-select.css';
+
+/**
+ * "Last contacted Nd ago" badge (W5.2). Provided once at the top of the Recipients
+ * step; each selected-recipient row consumes it via context, so the badge lands in
+ * every row type without drilling a prop through SelectedPanel/ListEntity/GroupEntity.
+ * Default renders nothing (feature-absent / no prior contact).
+ */
+const LastContactContext = createContext<(email?: string | null) => ReactNode>(() => null);
 
 interface Props {
   clients: Client[];
   targets: OutreachTarget[];
   onChange: (patch: { targets?: OutreachTarget[] }) => void;
+  /** Campaign client (scopes the "last contacted" lookup); optional. */
+  clientId?: string | null;
 }
 
 type SourceTab = 'congress' | 'clients' | 'manual';
@@ -155,10 +168,25 @@ const MEMBERSHIP_TAG: Record<TargetType, { text: string; cls: string }> = {
 // Main step
 // =====================================================================
 
-export function StepRecipientsSelect({ clients, targets, onChange }: Props) {
+export function StepRecipientsSelect({ clients, targets, onChange, clientId }: Props) {
   const api = useApi();
   const qc = useQueryClient();
   const { message, notification } = App.useApp();
+  // "Last contacted" badge data for the currently-selected recipients (W5.2).
+  const priorEmails = useMemo(() => candidateEmails(targets), [targets]);
+  const { byEmail: priorContact } = usePriorContact(api, priorEmails, clientId ?? null);
+  const renderLastContact = useCallback(
+    (email?: string | null): ReactNode => {
+      const pc = email ? priorContact.get(email.trim().toLowerCase()) : undefined;
+      if (!pc) return null;
+      return (
+        <span className="ov2-rs-lastcontact" title={pc.subject ? `re: "${pc.subject}"` : undefined}>
+          {formatLastContacted(pc.sentAt)}
+        </span>
+      );
+    },
+    [priorContact],
+  );
   const [tab, setTab] = useState<SourceTab>('congress');
   const [builder, setBuilder] = useState<AudienceBuilderState | null>(null);
   const [saveListOpen, setSaveListOpen] = useState(false);
@@ -250,7 +278,9 @@ export function StepRecipientsSelect({ clients, targets, onChange }: Props) {
     const incoming = audience.members.map(audienceMemberToRecipient);
     // Skip only people already in the personal "To" (an individual or another
     // list); group members are still free to join a list.
-    const fresh = incoming.filter((r) => !membershipOf(currentTargets, recipientKey(r), 'personal'));
+    const fresh = incoming.filter(
+      (r) => !membershipOf(currentTargets, recipientKey(r), 'personal'),
+    );
     const skipped = incoming.length - fresh.length;
     if (fresh.length === 0) {
       message.info('Everyone in this list is already in the campaign.');
@@ -434,7 +464,9 @@ export function StepRecipientsSelect({ clients, targets, onChange }: Props) {
       </div>
 
       {targets.length > 0 && (
-        <SelectedPanel targets={targets} onTargets={setTargets} clients={clients} />
+        <LastContactContext.Provider value={renderLastContact}>
+          <SelectedPanel targets={targets} onTargets={setTargets} clients={clients} />
+        </LastContactContext.Provider>
       )}
 
       <div className="ov2-rs-tabs">
@@ -576,7 +608,10 @@ function contactInitials(name: string): string {
 }
 
 /** Merge new Cc/Bcc contacts into an existing list, deduped by email. */
-function mergeContacts(existing: CcBccContact[] | undefined, incoming: CcBccContact[]): CcBccContact[] {
+function mergeContacts(
+  existing: CcBccContact[] | undefined,
+  incoming: CcBccContact[],
+): CcBccContact[] {
   const out = [...(existing ?? [])];
   const seen = new Set(out.map((c) => c.email.toLowerCase()));
   for (const c of incoming) {
@@ -589,11 +624,7 @@ function mergeContacts(existing: CcBccContact[] | undefined, incoming: CcBccCont
 }
 
 /** Close on outside mousedown / Escape while `enabled` (individual popover only). */
-function useDismiss(
-  ref: RefObject<HTMLElement>,
-  enabled: boolean,
-  onClose: () => void,
-): void {
+function useDismiss(ref: RefObject<HTMLElement>, enabled: boolean, onClose: () => void): void {
   useEffect(() => {
     if (!enabled) return;
     const onDown = (e: MouseEvent) => {
@@ -700,12 +731,16 @@ function CcBccPopover({
       const key = contact.email.toLowerCase();
       // Hide contacts already applied to this recipient or already in the tray
       // — they can't be added again, so surfacing them would just no-op.
-      if (!contact.email || seen.has(key) || appliedEmails.has(key) || pendingEmails.has(key)) return;
+      if (!contact.email || seen.has(key) || appliedEmails.has(key) || pendingEmails.has(key))
+        return;
       seen.add(key);
       bucket.push({ contact, sub });
     };
     for (const m of dir.data?.contacts ?? []) {
-      if (m.email && (m.fullName.toLowerCase().includes(ql) || (m.office ?? '').toLowerCase().includes(ql))) {
+      if (
+        m.email &&
+        (m.fullName.toLowerCase().includes(ql) || (m.office ?? '').toLowerCase().includes(ql))
+      ) {
         push(
           congress,
           { id: m.id, name: m.fullName, email: m.email, source: 'congress' },
@@ -713,7 +748,10 @@ function CcBccPopover({
         );
       }
       for (const s of m.staff ?? []) {
-        if (s.email && (s.fullName.toLowerCase().includes(ql) || (s.title ?? '').toLowerCase().includes(ql))) {
+        if (
+          s.email &&
+          (s.fullName.toLowerCase().includes(ql) || (s.title ?? '').toLowerCase().includes(ql))
+        ) {
           push(
             congress,
             { id: `${m.id}:${s.id}`, name: s.fullName, email: s.email, source: 'congress' },
@@ -765,7 +803,10 @@ function CcBccPopover({
     }
     setPending((p) => [
       ...p,
-      { contact: { id: `manual:${email}`, name: `${first} ${last}`, email, source: 'manual' }, ccbcc: type },
+      {
+        contact: { id: `manual:${email}`, name: `${first} ${last}`, email, source: 'manual' },
+        ccbcc: type,
+      },
     ]);
     setMFirst('');
     setMLast('');
@@ -805,7 +846,9 @@ function CcBccPopover({
         <span className="nm">{r.contact.name}</span>
         <span className="sub">{r.sub || r.contact.email}</span>
       </span>
-      <span className={'ov2-rs-ccbcc-srctag ' + (r.contact.source === 'client' ? 'client' : 'congress')}>
+      <span
+        className={'ov2-rs-ccbcc-srctag ' + (r.contact.source === 'client' ? 'client' : 'congress')}
+      >
         {r.contact.source === 'client' ? 'Client' : 'Congress'}
       </span>
     </button>
@@ -847,7 +890,11 @@ function CcBccPopover({
             <span key={p.contact.email} className={'ov2-rs-ccpill ' + p.ccbcc}>
               <span className="px">{p.ccbcc === 'cc' ? 'Cc' : 'Bcc'}</span>
               <span className="nm">{p.contact.name}</span>
-              <button type="button" onClick={() => removePending(p.contact.email)} aria-label={`Remove ${p.contact.name}`}>
+              <button
+                type="button"
+                onClick={() => removePending(p.contact.email)}
+                aria-label={`Remove ${p.contact.name}`}
+              >
                 <CloseOutlined />
               </button>
             </span>
@@ -920,7 +967,9 @@ function CcBccPopover({
               </div>
             ) : (
               <div className="ov2-rs-ccbcc-hintrow">
-                {dir.isFetching || peopleLoading ? 'Searching…' : `No contacts match “${q.trim()}”.`}
+                {dir.isFetching || peopleLoading
+                  ? 'Searching…'
+                  : `No contacts match “${q.trim()}”.`}
               </div>
             )
           ) : (
@@ -942,7 +991,12 @@ function CcBccPopover({
       )}
 
       <div className="ov2-rs-ccbcc-foot">
-        <button type="button" className="ov2-rs-ccbcc-apply" disabled={applyDisabled} onClick={apply}>
+        <button
+          type="button"
+          className="ov2-rs-ccbcc-apply"
+          disabled={applyDisabled}
+          onClick={apply}
+        >
           {applyLabel}
         </button>
         {/* ✕ closes the popover. For bulk this returns to the banner (the
@@ -1087,9 +1141,7 @@ function SelectedPanel({
                 type="button"
                 className={'act' + (bulkPopoverOpen ? ' is-open' : '')}
                 disabled={selectedCount === 0}
-                title={
-                  selectedCount === 0 ? 'Select at least one recipient first' : undefined
-                }
+                title={selectedCount === 0 ? 'Select at least one recipient first' : undefined}
                 onClick={() => setBulkPopoverOpen((o) => !o)}
               >
                 Add Cc/Bcc to selected
@@ -1224,6 +1276,7 @@ function IndividualRow({
   // The per-row popover dismisses on outside click / Escape. Bulk mode disables
   // the individual button entirely, so there's nothing to dismiss then.
   useDismiss(anchorRef, popoverOpen && !bulkMode, onClosePopover);
+  const renderLastContact = useContext(LastContactContext);
 
   const r = target.recipients[0];
   if (!r) return null;
@@ -1246,6 +1299,7 @@ function IndividualRow({
       )}
       <span className="name">{r.name || r.email || 'Recipient'}</span>
       {r.email && <span className="email">{r.email}</span>}
+      {renderLastContact(r.email)}
       {cc.map((c) => (
         <span key={`cc-${c.email}`} className="ov2-rs-ccpill cc">
           <span className="px">Cc</span>
@@ -1435,7 +1489,9 @@ function ListEntity({
               <span className="nm">{c.name}</span>
               <button
                 type="button"
-                onClick={() => onUpdate({ bccContacts: listBcc.filter((x) => x.email !== c.email) })}
+                onClick={() =>
+                  onUpdate({ bccContacts: listBcc.filter((x) => x.email !== c.email) })
+                }
                 aria-label={`Remove Bcc ${c.name}`}
               >
                 <CloseOutlined />
@@ -1501,6 +1557,7 @@ function ListMemberRow({
 }) {
   const anchorRef = useRef<HTMLDivElement>(null);
   useDismiss(anchorRef, open, onClose);
+  const renderLastContact = useContext(LastContactContext);
   const appliedEmails = new Set([
     ...listAppliedEmails,
     ...[...memberCc, ...memberBcc].map((c) => c.email.toLowerCase()),
@@ -1510,11 +1567,16 @@ function ListMemberRow({
       <span className="bullet">•</span>
       <span className="name">{recipient.name || recipient.email}</span>
       {recipient.email && <span className="email">{recipient.email}</span>}
+      {renderLastContact(recipient.email)}
       {memberCc.map((c) => (
         <span key={`cc-${c.email}`} className="ov2-rs-ccpill cc">
           <span className="px">Cc</span>
           <span className="nm">{c.name}</span>
-          <button type="button" onClick={() => onRemoveContact('cc', c.email)} aria-label={`Remove Cc ${c.name}`}>
+          <button
+            type="button"
+            onClick={() => onRemoveContact('cc', c.email)}
+            aria-label={`Remove Cc ${c.name}`}
+          >
             <CloseOutlined />
           </button>
         </span>
@@ -1523,7 +1585,11 @@ function ListMemberRow({
         <span key={`bcc-${c.email}`} className="ov2-rs-ccpill bcc">
           <span className="px">Bcc</span>
           <span className="nm">{c.name}</span>
-          <button type="button" onClick={() => onRemoveContact('bcc', c.email)} aria-label={`Remove Bcc ${c.name}`}>
+          <button
+            type="button"
+            onClick={() => onRemoveContact('bcc', c.email)}
+            aria-label={`Remove Bcc ${c.name}`}
+          >
             <CloseOutlined />
           </button>
         </span>
@@ -1573,6 +1639,7 @@ function GroupEntity({
 }) {
   const [open, setOpen] = useState(true);
   const [popoverOpen, setPopoverOpen] = useState(false);
+  const renderLastContact = useContext(LastContactContext);
   const anchorRef = useRef<HTMLDivElement>(null);
   const closePopover = useCallback(() => setPopoverOpen(false), []);
   useDismiss(anchorRef, popoverOpen, closePopover);
@@ -1659,7 +1726,12 @@ function GroupEntity({
             />
           )}
         </div>
-        <button type="button" className="ov2-rs-remove" onClick={onRemove} aria-label="Remove group">
+        <button
+          type="button"
+          className="ov2-rs-remove"
+          onClick={onRemove}
+          aria-label="Remove group"
+        >
           <CloseOutlined />
         </button>
       </div>
@@ -1672,6 +1744,7 @@ function GroupEntity({
                 <span className="bullet">•</span>
                 <span className="name">{r.name || r.email}</span>
                 {r.email && <span className="email">{r.email}</span>}
+                {renderLastContact(r.email)}
                 <span className="spacer" />
                 <button
                   type="button"

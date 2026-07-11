@@ -218,14 +218,19 @@ export function projectDraftsForSend(
 ): SendDraft[] {
   const out: SendDraft[] = [];
   const seen = new Set<string>();
-  const push = (r: OutreachRecipient, draft?: { subject: string; body: string; status: string }) => {
+  const push = (
+    r: OutreachRecipient,
+    draft?: { subject: string; body: string; status: string },
+  ) => {
     if (!draft) return;
-    // A draft that FAILED to generate carries a placeholder body ("…generation
-    // failed…") and status 'error'. It must never be sent as-is — it only
-    // becomes sendable once the user edits it (→ 'edited') or a regenerate
-    // succeeds (→ 'ready'). Excluding it here is the hard gate behind the
-    // Generate/Send UI's softer warnings.
+    // `status === 'error'` is the AUTHORITATIVE unsendable signal — set
+    // unambiguously by the backend from the moment it responds (both whole-POST
+    // failures and same-batch per-recipient failures now carry it, via
+    // partitionGenerationResults below). It only becomes sendable once the user
+    // edits it (→ 'edited') or a regenerate succeeds (→ 'ready').
     if (draft.status === 'error') return;
+    // Secondary defense-in-depth: a user could blank a draft by hand without
+    // changing its status. Kept deliberately, but no longer the primary gate.
     if (!draft.subject?.trim() && !draft.body?.trim()) return;
     const id = recipientKey(r);
     if (seen.has(id)) return;
@@ -264,6 +269,91 @@ export function projectDraftsForSend(
   return out;
 }
 
+// ── Batch-generation result partitioning (W0.2) ──────────────────────────────
+
+/** A per-recipient result from POST /outreach/generate-batch. `status` is the
+ *  authoritative sendability signal — a same-batch failure comes back with
+ *  empty subject/body tagged 'error' (not silently 'ready'). */
+export interface BatchDraftResult {
+  recipientId: string;
+  subject: string;
+  body: string;
+  status: 'ready' | 'error';
+  error?: string;
+}
+
+/**
+ * Partition a chunk's slots against the backend results by resultId. A slot whose
+ * matching result is `status:'error'` — OR whose result is missing entirely (the
+ * backend dropped it) — goes to `failedGenKeys`; everything else becomes a ready
+ * draft. This replaces the wizard's old "trust every 200-OK item as ready" map so
+ * a per-recipient generation failure inside a successful batch is honestly surfaced
+ * as an error, not a blank draft with a false ready checkmark.
+ */
+export function partitionGenerationResults(
+  slots: Array<{ genKey: string; resultId: string }>,
+  results: BatchDraftResult[],
+): { drafts: Array<{ genKey: string; subject: string; body: string }>; failedGenKeys: string[] } {
+  const byId = new Map(results.map((r) => [r.recipientId, r]));
+  const drafts: Array<{ genKey: string; subject: string; body: string }> = [];
+  const failedGenKeys: string[] = [];
+  for (const s of slots) {
+    const r = byId.get(s.resultId);
+    if (r && r.status !== 'error')
+      drafts.push({ genKey: s.genKey, subject: r.subject, body: r.body });
+    else failedGenKeys.push(s.genKey);
+  }
+  return { drafts, failedGenKeys };
+}
+
+// ── Generate task construction (shared by sync POST + async job submit) ───────
+
+/** One unit of generation work: the recipients POSTed together, the slots whose
+ *  drafts that POST produces, and the group flag/context when applicable. */
+export interface GenerateTask {
+  recipients: OutreachRecipient[];
+  chunkSlots: GenSlot[];
+  additionalContext?: string;
+  audienceKind?: 'group';
+}
+
+/**
+ * Split slots into the exact task list the wizard sends: unique flat
+ * (individual/list-member) recipients chunked at `batchMax` (one POST each, the
+ * server's per-batch cap), plus one task per group slot carrying its member
+ * listing + the group flag. Extracted so the synchronous generate-batch path and
+ * the async job-submit path build IDENTICAL work units — no drift.
+ */
+export function buildGenerateTasks(slots: GenSlot[], batchMax: number): GenerateTask[] {
+  const tasks: GenerateTask[] = [];
+  const flatSlots = slots.filter((s) => s.appliesTo !== 'group');
+  if (flatSlots.length) {
+    const uniqueRecipients = new Map<string, OutreachRecipient>();
+    for (const s of flatSlots) {
+      const r = s.genRecipients[0];
+      if (r && !uniqueRecipients.has(s.resultId)) uniqueRecipients.set(s.resultId, r);
+    }
+    const uniqueEntries = [...uniqueRecipients.entries()];
+    for (let i = 0; i < uniqueEntries.length; i += batchMax) {
+      const chunk = uniqueEntries.slice(i, i + batchMax);
+      const chunkIds = new Set(chunk.map(([id]) => id));
+      tasks.push({
+        recipients: chunk.map(([, r]) => r),
+        chunkSlots: flatSlots.filter((s) => chunkIds.has(s.resultId)),
+      });
+    }
+  }
+  for (const slot of slots.filter((s) => s.appliesTo === 'group')) {
+    tasks.push({
+      recipients: slot.genRecipients,
+      chunkSlots: [slot],
+      additionalContext: slot.additionalContext,
+      audienceKind: 'group',
+    });
+  }
+  return tasks;
+}
+
 // ── Draft version history (W2.6 "Improve"/Revert) ────────────────────────────
 
 export interface DraftVersion {
@@ -283,7 +373,9 @@ interface DraftWithHistory {
  * unbounded growth. Returns the new history array (undefined if there is nothing
  * to snapshot).
  */
-export function appendDraftHistory(prior: DraftWithHistory | undefined): DraftVersion[] | undefined {
+export function appendDraftHistory(
+  prior: DraftWithHistory | undefined,
+): DraftVersion[] | undefined {
   if (!prior) return undefined;
   return [...(prior.history ?? []), { subject: prior.subject, body: prior.body }].slice(-2);
 }

@@ -203,3 +203,78 @@ describe('OutreachJobService send at-most-once (W4.3)', () => {
     expect(h.setCalls).toEqual([{ status: 'failed', error: 'graph 550' }]);
   });
 });
+
+/**
+ * Per-item retry (W4.4): a single FAILED generate item flips back to 'pending'
+ * (error cleared) and a finalized job reopens to 'running' so the sweep re-runs it.
+ * Non-generate jobs and non-failed items are refused.
+ */
+function makeRetryService(opts: {
+  jobKind: string;
+  jobStatus: string;
+  itemStatus: string | null; // null = item not found
+}) {
+  const itemUpdates: Array<Record<string, unknown>> = [];
+  const jobUpdates: Array<Record<string, unknown>> = [];
+  const service = Object.create(OutreachJobService.prototype) as OutreachJobService;
+  const patch = service as unknown as Record<string, unknown>;
+  patch.prisma = {
+    withTenant: (_t: string, fn: (tx: unknown) => unknown) =>
+      fn({
+        outreachJob: {
+          findFirst: async () => ({ id: 'job-1', kind: opts.jobKind, status: opts.jobStatus }),
+          update: async ({ data }: { data: Record<string, unknown> }) => {
+            jobUpdates.push(data);
+            return {};
+          },
+        },
+        outreachJobItem: {
+          findFirst: async () =>
+            opts.itemStatus ? { id: 'item-1', status: opts.itemStatus } : null,
+          update: async ({ data }: { data: Record<string, unknown> }) => {
+            itemUpdates.push(data);
+            return {};
+          },
+        },
+      }),
+  };
+  const ctx: TenantContext = { tenantId: 't1', userId: 'u1' } as TenantContext;
+  return {
+    run: () => service.retryItem(ctx, 'job-1', 'item-1'),
+    itemUpdates,
+    jobUpdates,
+  };
+}
+
+describe('OutreachJobService retryItem (W4.4)', () => {
+  test('a failed generate item in a finalized job → item pending + job reopened', async () => {
+    const h = makeRetryService({ jobKind: 'generate', jobStatus: 'partial', itemStatus: 'failed' });
+    const res = await h.run();
+    expect(res.retried).toBe(true);
+    expect(h.itemUpdates).toEqual([{ status: 'pending', error: null }]);
+    expect(h.jobUpdates).toEqual([{ status: 'running', finishedAt: null }]);
+  });
+
+  test('a still-running job is not reopened (only the item flips)', async () => {
+    const h = makeRetryService({ jobKind: 'generate', jobStatus: 'running', itemStatus: 'failed' });
+    const res = await h.run();
+    expect(res.retried).toBe(true);
+    expect(h.itemUpdates).toHaveLength(1);
+    expect(h.jobUpdates).toHaveLength(0);
+  });
+
+  test('a send job is refused (at-most-once — never auto-resend)', async () => {
+    const h = makeRetryService({ jobKind: 'send', jobStatus: 'partial', itemStatus: 'failed' });
+    const res = await h.run();
+    expect(res.retried).toBe(false);
+    expect(res.reason).toMatch(/only generation/i);
+    expect(h.itemUpdates).toHaveLength(0);
+  });
+
+  test('a non-failed item is refused', async () => {
+    const h = makeRetryService({ jobKind: 'generate', jobStatus: 'partial', itemStatus: 'done' });
+    const res = await h.run();
+    expect(res.retried).toBe(false);
+    expect(h.itemUpdates).toHaveLength(0);
+  });
+});

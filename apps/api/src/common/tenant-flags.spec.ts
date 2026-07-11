@@ -8,6 +8,8 @@ import {
   MEETINGS_V2_FLAG,
   meetingsCrossUserEnabled,
   MEETINGS_CROSS_USER_FLAG,
+  outreachAsyncFlagEnabled,
+  OUTREACH_ASYNC_FLAG,
 } from './tenant-flags.js';
 
 describe('tenantFeatureEnabled', () => {
@@ -81,5 +83,18 @@ describe('meetingsCrossUserEnabled (Phase 2 grouping, per-tenant, default OFF)',
     expect(
       meetingsCrossUserEnabled({ clioFeatureFlags: { [MEETINGS_CROSS_USER_FLAG]: true } }),
     ).toBe(true);
+  });
+});
+
+describe('outreachAsyncFlagEnabled (per-tenant canary, default OFF)', () => {
+  test('off by default; on only when the tenant flag is explicitly true', () => {
+    expect(outreachAsyncFlagEnabled({})).toBe(false);
+    expect(outreachAsyncFlagEnabled(null)).toBe(false);
+    expect(outreachAsyncFlagEnabled({ clioFeatureFlags: { [OUTREACH_ASYNC_FLAG]: true } })).toBe(
+      true,
+    );
+    expect(outreachAsyncFlagEnabled({ clioFeatureFlags: { [OUTREACH_ASYNC_FLAG]: false } })).toBe(
+      false,
+    );
   });
 });

@@ -1,0 +1,96 @@
+# Outreach eval gate (PromptSpec v2 rollout & measurement — plan §3.6 / DoD #4).
+#
+# Two layers, mirroring clio-evals.yml:
+#   1. `fixtures` (always, incl. push touching the outreach prompt/evals): typecheck
+#      + the deterministic prompt-assembly suite (outreach-evals.spec.ts) — asserts
+#      the golden fixtures' prompt invariants (precedence ladder, spotlighting,
+#      length/revision directives, no-JSON-dump) with NO tokens spent. This is the
+#      CI-gating half.
+#   2. `live-evals` (nightly cron + manual): the live baseline/judge runner against
+#      the real model, gated (OUTREACH_EVAL_GATE=1) so it exits non-zero on any
+#      deterministic hard failure (invalid draft / token leak / injection breach).
+#      A red night blocks default-on promotion of OUTREACH_PROMPT_SPEC=v2. Requires
+#      the ANTHROPIC_API_KEY secret; skips cleanly without it.
+#
+# The eval report uploads as an artifact (apps/api/reports/outreach-eval-*.json).
+
+name: outreach-evals
+
+on:
+  push:
+    paths:
+      - 'apps/api/src/engagement/outreach-prompt/**'
+      - 'apps/api/src/engagement/evals/**'
+      - 'apps/api/scripts/eval-outreach.ts'
+  schedule:
+    - cron: '37 7 * * *' # nightly, 07:37 UTC (offset from clio-evals' 07:17)
+  workflow_dispatch:
+    inputs:
+      spec:
+        description: 'Prompt spec to evaluate: v1 | v2'
+        required: false
+        default: 'v1'
+      models:
+        description: 'csv of models'
+        required: false
+        default: 'claude-haiku-4-5-20251001,claude-sonnet-4-6'
+
+permissions:
+  contents: read
+
+jobs:
+  fixtures:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      # pnpm version comes from package.json's `packageManager` field; passing
+      # `version:` too makes action-setup@v4 error on the duplicate.
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm --filter @capiro/api exec prisma generate
+      - run: pnpm --filter @capiro/api typecheck
+      - name: Deterministic prompt-assembly eval suite (no tokens)
+        run: pnpm --filter @capiro/api test -- outreach-evals.spec.ts
+
+  live-evals:
+    # Live model calls cost tokens: nightly + manual only, never on push.
+    if: github.event_name == 'schedule' || github.event_name == 'workflow_dispatch'
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    needs: fixtures
+    env:
+      ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+      OUTREACH_EVAL_SPEC: ${{ github.event.inputs.spec || 'v1' }}
+      OUTREACH_EVAL_MODELS: ${{ github.event.inputs.models || 'claude-haiku-4-5-20251001,claude-sonnet-4-6' }}
+      OUTREACH_EVAL_GATE: '1'
+    steps:
+      - uses: actions/checkout@v4
+      # pnpm version comes from package.json's `packageManager` field; passing
+      # `version:` too makes action-setup@v4 error on the duplicate.
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - name: Skip when no API key secret is configured
+        run: |
+          if [ -z "$ANTHROPIC_API_KEY" ]; then
+            echo "ANTHROPIC_API_KEY secret missing — live outreach evals skipped" >> "$GITHUB_STEP_SUMMARY"
+            echo "SKIP_LIVE=1" >> "$GITHUB_ENV"
+          fi
+      - name: Outreach live baseline + judge + gate
+        if: env.SKIP_LIVE != '1'
+        run: pnpm --filter @capiro/api eval:outreach
+      - name: Upload eval report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: outreach-eval-reports
+          path: apps/api/reports/outreach-eval-*.json
+          if-no-files-found: ignore

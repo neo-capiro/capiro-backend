@@ -4,7 +4,14 @@
 // (group:<targetKey>), sent as a single email to all members in To.
 
 import { describe, expect, it } from 'vitest';
-import { buildGenerationModel, listAidFromKey, projectDraftsForSend } from './generation.js';
+import {
+  buildGenerateTasks,
+  buildGenerationModel,
+  listAidFromKey,
+  partitionGenerationResults,
+  projectDraftsForSend,
+  type BatchDraftResult,
+} from './generation.js';
 import { normalizeTone } from './types.js';
 import type { OutreachTarget } from './targets.js';
 import type { OutreachRecipient } from '../../OutreachView.js';
@@ -151,6 +158,84 @@ describe('projectDraftsForSend — failed drafts are unsendable (W0.2)', () => {
       'individual:b@x.com': { subject: '[Placeholder]', body: 'failed', status: 'error' },
     });
     expect(drafts.map((d) => d.recipientId)).toEqual(['a@x.com']);
+  });
+});
+
+describe('buildGenerateTasks (shared sync + async task split, W4.4)', () => {
+  it('chunks unique flat recipients and emits one group task with its context', () => {
+    const { slots } = buildGenerationModel(mix); // individual a; list b,c; group d,e
+    const tasks = buildGenerateTasks(slots, 100);
+    // 1 flat chunk (a,b,c unique) + 1 group task.
+    expect(tasks).toHaveLength(2);
+    const flat = tasks.find((t) => !t.audienceKind)!;
+    expect(flat.recipients.map((r) => r.email).sort()).toEqual(['a@x.com', 'b@x.com', 'c@x.com']);
+    expect(flat.chunkSlots).toHaveLength(3);
+    const group = tasks.find((t) => t.audienceKind === 'group')!;
+    expect(group.recipients).toHaveLength(1); // one representative
+    expect(group.additionalContext).toContain('d@x.com');
+    expect(group.chunkSlots).toHaveLength(1);
+  });
+
+  it('splits flat recipients across chunks at batchMax', () => {
+    const { slots } = buildGenerationModel([
+      individual('a@x.com'),
+      individual('b@x.com'),
+      individual('c@x.com'),
+    ]);
+    const tasks = buildGenerateTasks(slots, 2);
+    expect(tasks).toHaveLength(2); // 3 recipients / 2 per chunk
+    expect(tasks[0]!.recipients).toHaveLength(2);
+    expect(tasks[1]!.recipients).toHaveLength(1);
+  });
+
+  it('a person in two lists is ONE unique recipient but both slots ride in chunkSlots', () => {
+    const dup = 'shared@x.com';
+    const targets = [list('L1', 'a1', [dup]), list('L2', 'a2', [dup])];
+    const { slots } = buildGenerationModel(targets);
+    const tasks = buildGenerateTasks(slots, 100);
+    expect(tasks).toHaveLength(1);
+    expect(tasks[0]!.recipients).toHaveLength(1); // deduped by resultId
+    expect(tasks[0]!.chunkSlots).toHaveLength(2); // both list-member slots
+  });
+});
+
+describe('partitionGenerationResults (W0.2 same-batch failure routing)', () => {
+  const slots = [
+    { genKey: 'individual:a', resultId: 'a' },
+    { genKey: 'individual:b', resultId: 'b' },
+  ];
+
+  it('routes a status:error item to failedGenKeys and a ready item to drafts', () => {
+    const results: BatchDraftResult[] = [
+      { recipientId: 'a', subject: 'SA', body: 'BA', status: 'ready' },
+      { recipientId: 'b', subject: '', body: '', status: 'error', error: 'boom' },
+    ];
+    const { drafts, failedGenKeys } = partitionGenerationResults(slots, results);
+    expect(drafts).toEqual([{ genKey: 'individual:a', subject: 'SA', body: 'BA' }]);
+    expect(failedGenKeys).toEqual(['individual:b']);
+  });
+
+  it('routes a slot with NO matching result (backend dropped it) to failedGenKeys', () => {
+    const results: BatchDraftResult[] = [
+      { recipientId: 'a', subject: 'SA', body: 'BA', status: 'ready' },
+      // no entry for 'b'
+    ];
+    const { drafts, failedGenKeys } = partitionGenerationResults(slots, results);
+    expect(drafts.map((d) => d.genKey)).toEqual(['individual:a']);
+    expect(failedGenKeys).toEqual(['individual:b']);
+  });
+
+  it('all ready → no failures; all error → no drafts', () => {
+    const allReady: BatchDraftResult[] = [
+      { recipientId: 'a', subject: 'SA', body: 'BA', status: 'ready' },
+      { recipientId: 'b', subject: 'SB', body: 'BB', status: 'ready' },
+    ];
+    expect(partitionGenerationResults(slots, allReady).failedGenKeys).toEqual([]);
+    const allError: BatchDraftResult[] = [
+      { recipientId: 'a', subject: '', body: '', status: 'error' },
+      { recipientId: 'b', subject: '', body: '', status: 'error' },
+    ];
+    expect(partitionGenerationResults(slots, allError).drafts).toEqual([]);
   });
 });
 

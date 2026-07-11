@@ -32,6 +32,15 @@ function serviceCapturingInput(): {
   const service = Object.create(EngagementService.prototype) as EngagementService;
   const patch = service as unknown as Record<string, unknown>;
   patch.ai = {
+    resolveOutreachCredentials: async () => [
+      {
+        provider: 'anthropic',
+        apiKey: 'k',
+        model: 'm',
+        usedTenantKey: false,
+        modelOverridden: false,
+      },
+    ],
     generateOutreachDraft: async (input: CapturedInput) => {
       inputs.push({
         objective: input.objective ?? null,

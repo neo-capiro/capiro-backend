@@ -11,7 +11,20 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useUser } from '@clerk/clerk-react';
-import { App, Button, Form, Input, Modal, Select, Skeleton, Space, Switch, Tag, Typography } from 'antd';
+import {
+  Alert,
+  App,
+  Button,
+  Form,
+  Input,
+  Modal,
+  Select,
+  Skeleton,
+  Space,
+  Switch,
+  Tag,
+  Typography,
+} from 'antd';
 import {
   ArrowRightOutlined,
   CheckCircleFilled,
@@ -28,6 +41,8 @@ import type { OutreachRecipient, OutreachRecord } from '../../OutreachView.js';
 import { StepCampaignSetup } from './StepCampaignSetup.js';
 import { StepDirectionLanding } from './StepDirectionLanding.js';
 import { StepContext } from './StepContext.js';
+import { peToPoolItem } from './pe-context.js';
+import type { ProgramElementListItem } from '../../../program-element/types.js';
 import { StepRecipientsSelect } from './StepRecipientsSelect.js';
 import { StepGenerate } from './StepGenerate.js';
 import {
@@ -38,12 +53,24 @@ import {
 } from './targets.js';
 import {
   appendDraftHistory,
+  buildGenerateTasks,
   buildGenerationModel,
   genInputSignature,
+  partitionGenerationResults,
   projectDraftsForSend,
   revertDraftHistory,
+  type BatchDraftResult,
   type GenSlot,
 } from './generation.js';
+import {
+  buildResultIdToGenKeys,
+  cancelOutreachJob,
+  jobItemsProgress,
+  mapJobItemsToDraftPatch,
+  retryOutreachJobItem,
+  submitOutreachGenerateJob,
+  useOutreachJobs,
+} from './jobs.js';
 import { htmlToPlainText, markdownishToHtml, sanitizeHtml } from './richtext.js';
 import {
   INITIAL_V2_STATE,
@@ -138,7 +165,6 @@ interface MailThreadsResponse {
   }>;
 }
 
-
 /** Pull a human-readable message out of an axios-style error, if present. */
 function apiErrorMessage(err: unknown): string | null {
   const resp = (err as { response?: { data?: { message?: unknown } } })?.response;
@@ -206,6 +232,13 @@ export function NewOutreachWizard({
   const [sentResult, setSentResult] = useState<{ sent: number; failed: number } | null>(null);
   // Recipient key currently being (re)generated individually, if any.
   const [generatingKey, setGeneratingKey] = useState<string | null>(null);
+  // Async job pipeline (W4.4): the generate-job ids currently being polled, plus
+  // the set of genKeys already merged from a TERMINAL job item — so a later poll
+  // never re-clobbers a draft the user has since edited. Job-mode runs only when
+  // GET /me reports the feature on (env kill-switch AND per-tenant canary flag);
+  // otherwise the synchronous generate-batch path is used, byte-for-byte unchanged.
+  const [activeJobIds, setActiveJobIds] = useState<string[]>([]);
+  const mergedGenKeysRef = useRef<Set<string>>(new Set());
 
   // Email signature: the sender's saved-in-Settings default + whether one
   // exists. `appendSigOverride` is the per-campaign choice (null = follow the
@@ -215,6 +248,9 @@ export function NewOutreachWizard({
   const hasSignature = me.data?.user.hasEmailSignature ?? false;
   const [appendSigOverride, setAppendSigOverride] = useState<boolean | null>(null);
   const appendSignature = appendSigOverride ?? signatureDefault;
+
+  // Async outreach job-mode is on only when GET /me says so (env AND tenant flag).
+  const asyncGen = me.data?.features.outreachAsyncGen === true;
 
   // WIZARD_STEPS is readonly + non-empty, but TS's noUncheckedIndexedAccess
   // narrows the indexed read to `T | undefined`. The clamp on stepIdx
@@ -427,6 +463,22 @@ export function NewOutreachWizard({
     staleTime: 60_000,
   });
 
+  // W5.4 — seed the Program Elements Build-Context tab with the user's WATCHED PEs
+  // (the `watched=true` filter resolves the caller's tenant/user automatically);
+  // typing in the tab then searches the full catalog server-side.
+  const peWatchlistQuery = useQuery<ProgramElementListItem[]>({
+    enabled: step.id === 'context',
+    queryKey: ['outreach-pool-pe-watched'],
+    queryFn: async () =>
+      (
+        await api.get<{ data: ProgramElementListItem[] }>('/api/program-elements', {
+          params: { watched: 'true', limit: 50 },
+        })
+      ).data.data,
+    retry: false,
+    staleTime: 60_000,
+  });
+
   // Documents for the Generate step's email-attachment picker (NOT the context
   // pool — that's the tenant-wide library above). With a client selected we show
   // that client's files; with no client we show the tenant's general (unlinked)
@@ -473,6 +525,7 @@ export function NewOutreachWizard({
       document: [],
       debrief: [],
       prep: [],
+      programElement: (peWatchlistQuery.data ?? []).map(peToPoolItem),
     };
 
     // ---- Docs & Notes, Debriefs, Preps: one tenant-wide library, per client ----
@@ -585,10 +638,13 @@ export function NewOutreachWizard({
     }
 
     return out;
-  }, [insightsQuery.data, mailQuery.data, contextLibraryQuery.data]);
+  }, [insightsQuery.data, mailQuery.data, contextLibraryQuery.data, peWatchlistQuery.data]);
 
   const poolLoading =
-    insightsQuery.isLoading || mailQuery.isLoading || contextLibraryQuery.isLoading;
+    insightsQuery.isLoading ||
+    mailQuery.isLoading ||
+    contextLibraryQuery.isLoading ||
+    peWatchlistQuery.isLoading;
 
   // ---- Gating ----
   const canAdvance = (): boolean => {
@@ -633,6 +689,136 @@ export function NewOutreachWizard({
     state.generatedInputSig != null &&
     state.generatedInputSig !== genSig;
 
+  // Shared generate-request params (client/template/tone/direction + DTO-shaped
+  // context items). Used by BOTH the sync mutation and the async job submitter so
+  // their request bodies never drift.
+  const buildBaseParams = () => ({
+    clientId: state.clientId ?? undefined,
+    templateId: state.templateId,
+    tone: state.tone,
+    direction: state.direction,
+    contextItems: expandContextItemScopes(state.contextItems, state.targets).map((item) => ({
+      id: item.id,
+      kind: item.kind,
+      title: item.title,
+      body: item.body,
+      scope: item.scope,
+      note: item.note,
+    })),
+  });
+
+  // ── Async job pipeline (W4.4) ──────────────────────────────────────────────
+  // Poll every active generate-job (2s while queued/running). This hook is always
+  // mounted; with no active jobs it polls nothing. Terminal item results merge
+  // into generatedEmails via the SAME shape the sync onSuccess writes, so Send /
+  // Save / Improve need no job awareness.
+  const { byJob, anyActive: jobsPolling } = useOutreachJobs(api, activeJobIds);
+  const jobMarkFreshRef = useRef<{ markFresh: boolean; sig: string | null }>({
+    markFresh: false,
+    sig: null,
+  });
+  const failedPlaceholder = () => ({
+    subject: `[Placeholder] ${state.campaignName || 'Outreach'}`,
+    body: sanitizeHtml(
+      markdownishToHtml(
+        `Hi there,\n\nThis is a placeholder draft because email generation failed. Edit this text directly, or try Regenerate — it will not be sent until you do.\n\nBest regards,\n${senderName}`,
+      ),
+    ),
+  });
+
+  useEffect(() => {
+    if (!activeJobIds.length) return;
+    const items = Object.values(byJob).flatMap((j) => j.items);
+    const map = buildResultIdToGenKeys(genModel.slots);
+    // Merge only TERMINAL items, and only genKeys not already merged — so a later
+    // poll never re-clobbers a draft the user edited after it first landed.
+    const fresh = mapJobItemsToDraftPatch(items, map, failedPlaceholder).filter(
+      (p) => !mergedGenKeysRef.current.has(p.genKey),
+    );
+    if (fresh.length) {
+      fresh.forEach((p) => mergedGenKeysRef.current.add(p.genKey));
+      setState((prev) => {
+        const generatedEmails = { ...prev.generatedEmails };
+        for (const p of fresh) {
+          if (generatedEmails[p.genKey]?.status === 'edited') continue; // never clobber edits
+          generatedEmails[p.genKey] = { subject: p.subject, body: p.body, status: p.status };
+        }
+        return { ...prev, generatedEmails };
+      });
+    }
+    // Every job settled → clear the active set, reset the merge guard, and (on a
+    // clean full regen) stamp the input signature so the "context changed" banner
+    // clears — mirroring the sync onSuccess.
+    if (!jobsPolling) {
+      const anyFailed = items.some((it) => it.status === 'failed');
+      const { markFresh, sig } = jobMarkFreshRef.current;
+      setActiveJobIds([]);
+      mergedGenKeysRef.current = new Set();
+      setGeneratingKey(null);
+      if (markFresh && sig != null && !anyFailed) {
+        setState((prev) => ({ ...prev, generatedInputSig: sig }));
+      }
+      jobMarkFreshRef.current = { markFresh: false, sig: null };
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [byJob, jobsPolling]);
+
+  // Submit a bulk generation as async jobs (one per buildGenerateTasks unit); the
+  // poll effect above fills drafts as items finish. Used only when asyncGen.
+  const submitGenerateJobs = async (slots: GenSlot[], markFresh?: boolean, sig?: string) => {
+    if (!slots.length) return;
+    const base = buildBaseParams();
+    const tasks = buildGenerateTasks(slots, GEN_BATCH_MAX);
+    jobMarkFreshRef.current = { markFresh: markFresh ?? false, sig: sig ?? null };
+    try {
+      const submitted = await Promise.all(
+        tasks.map((t) =>
+          submitOutreachGenerateJob(api, {
+            ...base,
+            recipients: t.recipients,
+            ...(t.additionalContext ? { additionalContext: t.additionalContext } : {}),
+            ...(t.audienceKind ? { audienceKind: t.audienceKind } : {}),
+          }),
+        ),
+      );
+      setActiveJobIds((prev) => Array.from(new Set([...prev, ...submitted.map((s) => s.jobId)])));
+    } catch (err) {
+      message.error(apiErrorMessage(err) || 'Could not start generation.');
+    }
+  };
+
+  const cancelActiveJobs = async () => {
+    await Promise.all(activeJobIds.map((id) => cancelOutreachJob(api, id).catch(() => undefined)));
+    // The poll observes 'canceled' → jobsPolling false → the effect clears state.
+  };
+
+  // Retry every failed generation item across the active jobs (uses the per-item
+  // retry endpoint; re-arms polling + lets the retried results re-merge).
+  const retryFailedJobItems = async () => {
+    const map = buildResultIdToGenKeys(genModel.slots);
+    const failed: Array<{ jobId: string; itemId: string; recipientKey: string }> = [];
+    for (const [jobId, j] of Object.entries(byJob))
+      for (const it of j.items)
+        if (it.status === 'failed')
+          failed.push({ jobId, itemId: it.id, recipientKey: it.recipientKey });
+    if (!failed.length) return;
+    await Promise.all(
+      failed.map((f) =>
+        retryOutreachJobItem(api, f.jobId, f.itemId).catch(() => ({ retried: false })),
+      ),
+    );
+    for (const f of failed)
+      for (const gk of map.get(f.recipientKey) ?? []) mergedGenKeysRef.current.delete(gk);
+    setActiveJobIds((prev) => Array.from(new Set([...prev, ...failed.map((f) => f.jobId)])));
+  };
+
+  // Aggregate job progress for the generate-step banner (null when not in job-mode).
+  const jobItemsAll = Object.values(byJob).flatMap((j) => j.items);
+  const jobProgress =
+    activeJobIds.length > 0
+      ? jobItemsProgress(jobItemsAll, jobsPolling ? 'running' : 'complete')
+      : null;
+
   // Generate (or regenerate) a set of draft slots. Non-group slots go in ONE
   // generate-batch call (one flat recipient each, mapped back by recipientId);
   // each group sends its single representative in its own call so it can carry
@@ -658,26 +844,12 @@ export function NewOutreachWizard({
       // expanded to per-member recipient keys first so the server's
       // per-recipient context routing delivers them (it matches scope to a
       // recipient key — it doesn't know about list/group scopes).
-      const contextItems = expandContextItemScopes(state.contextItems, state.targets).map(
-        (item) => ({
-          id: item.id,
-          kind: item.kind,
-          title: item.title,
-          body: item.body,
-          scope: item.scope,
-          note: item.note,
-        }),
-      );
       // Improve mode forwards the current (possibly hand-edited) draft + the
       // freeform instruction so the server revises in place (PromptSpec v2
       // revision mode). Only ever one slot, so top-level fields are unambiguous.
       const reviseDraft = vars.revise ? state.generatedEmails[vars.revise.genKey] : undefined;
       const base = {
-        clientId: state.clientId ?? undefined,
-        templateId: state.templateId,
-        tone: state.tone,
-        direction: state.direction,
-        contextItems,
+        ...buildBaseParams(),
         ...(vars.revise && reviseDraft
           ? {
               existingSubject: reviseDraft.subject,
@@ -695,9 +867,7 @@ export function NewOutreachWizard({
         // single recipient stands in for a whole group (collective salutation, no
         // per-member tailoring).
         api
-          .post<{
-            results: Array<{ recipientId: string; subject: string; body: string }>;
-          }>(
+          .post<{ results: BatchDraftResult[] }>(
             '/api/engagement/outreach/generate-batch',
             {
               ...base,
@@ -714,83 +884,50 @@ export function NewOutreachWizard({
       // discard the drafts the OTHER POSTs already produced. The old code joined
       // every POST with Promise.all — one failure rejected the whole mutation and
       // marked every slot 'error', throwing away already-succeeded work.
+      // A POST can now partially fail: the request returns 200, but individual
+      // recipients inside it may come back status:'error'. So the ok:true variant
+      // carries BOTH the succeeded drafts AND the same-batch failed genKeys; the
+      // ok:false variant is a WHOLE-POST failure (429, outage, validation reject).
+      // Each task CATCHES its own error and returns a discriminated result, so a
+      // single failing POST can never discard the drafts the OTHER POSTs produced.
+      // ok:true carries succeeded drafts AND same-batch failed genKeys; ok:false is
+      // a whole-POST failure. Task list is built by the SHARED buildGenerateTasks
+      // (identical to the async job path — no drift); each chunk is partitioned on
+      // each item's authoritative status.
       type TaskOut =
-        | { ok: true; drafts: GenDraft[] }
+        | { ok: true; drafts: GenDraft[]; failedGenKeys: string[] }
         | { ok: false; genKeys: string[]; message: string };
-      const tasks: Array<Promise<TaskOut>> = [];
-
-      // Non-group slots: POST each unique recipient ONCE (a person can back two
-      // slots, e.g. a member of two lists sharing a resultId) and fan the single
-      // result to every slot that shares it. Chunk into <=GEN_BATCH_MAX per POST
-      // so a large campaign generates across several POSTs instead of tripping
-      // the server's 100-recipient cap.
-      const flatSlots = vars.slots.filter((s) => s.appliesTo !== 'group');
-      if (flatSlots.length) {
-        const uniqueRecipients = new Map<string, OutreachRecipient>();
-        for (const s of flatSlots) {
-          const r = s.genRecipients[0];
-          if (r && !uniqueRecipients.has(s.resultId)) uniqueRecipients.set(s.resultId, r);
-        }
-        const uniqueEntries = [...uniqueRecipients.entries()];
-        for (let i = 0; i < uniqueEntries.length; i += GEN_BATCH_MAX) {
-          const chunk = uniqueEntries.slice(i, i + GEN_BATCH_MAX);
-          const chunkIds = new Set(chunk.map(([id]) => id));
-          const chunkSlots = flatSlots.filter((s) => chunkIds.has(s.resultId));
-          tasks.push(
-            post(chunk.map(([, r]) => r))
-              .then(
-                (results): TaskOut => {
-                  const byId = new Map(results.map((r) => [r.recipientId, r]));
-                  return {
-                    ok: true,
-                    drafts: chunkSlots.map((s) => {
-                      const r = byId.get(s.resultId);
-                      return { genKey: s.genKey, subject: r?.subject ?? '', body: r?.body ?? '' };
-                    }),
-                  };
-                },
-              )
+      const tasks = buildGenerateTasks(vars.slots, GEN_BATCH_MAX);
+      const outs = await Promise.all(
+        tasks.map(
+          (t): Promise<TaskOut> =>
+            post(
+              t.recipients,
+              t.additionalContext || t.audienceKind
+                ? { additionalContext: t.additionalContext, audienceKind: t.audienceKind }
+                : undefined,
+            )
+              .then((results): TaskOut => {
+                const { drafts, failedGenKeys } = partitionGenerationResults(
+                  t.chunkSlots.map((s) => ({ genKey: s.genKey, resultId: s.resultId })),
+                  results,
+                );
+                return { ok: true, drafts, failedGenKeys };
+              })
               .catch(
                 (err): TaskOut => ({
                   ok: false,
-                  genKeys: chunkSlots.map((s) => s.genKey),
+                  genKeys: t.chunkSlots.map((s) => s.genKey),
                   message: apiErrorMessage(err) || 'Generation failed.',
                 }),
               ),
-          );
-        }
-      }
-      // Group slots: one call each, carrying the member listing + the group flag
-      // so the server drafts ONE collective email (no per-member tailoring).
-      for (const slot of vars.slots.filter((s) => s.appliesTo === 'group')) {
-        tasks.push(
-          post(slot.genRecipients, {
-            additionalContext: slot.additionalContext,
-            audienceKind: 'group',
-          })
-            .then(
-              (results): TaskOut => {
-                const r = results[0];
-                return {
-                  ok: true,
-                  drafts: [{ genKey: slot.genKey, subject: r?.subject ?? '', body: r?.body ?? '' }],
-                };
-              },
-            )
-            .catch(
-              (err): TaskOut => ({
-                ok: false,
-                genKeys: [slot.genKey],
-                message: apiErrorMessage(err) || 'Generation failed.',
-              }),
-            ),
-        );
-      }
-
-      // Promise.all never rejects here — every task resolves to a TaskOut.
-      const outs = await Promise.all(tasks);
+        ),
+      );
       const succeeded = outs.flatMap((o) => (o.ok ? o.drafts : []));
-      const failed = outs.flatMap((o) => (o.ok ? [] : o.genKeys));
+      // `failed` now unions BOTH whole-POST failures (ok:false) AND same-batch
+      // per-recipient failures (ok:true, failedGenKeys) — both flow to the same
+      // 'error' placeholder path in onSuccess.
+      const failed = outs.flatMap((o) => (o.ok ? o.failedGenKeys : o.genKeys));
       const firstFailure = outs.find((o): o is Extract<TaskOut, { ok: false }> => !o.ok);
       return { succeeded, failed, errorMessage: firstFailure?.message };
     },
@@ -1024,16 +1161,14 @@ export function NewOutreachWizard({
   // map being empty) also covers resuming a partially-generated draft and
   // adding recipients then returning to this step.
   useEffect(() => {
-    if (step.id !== 'generate' || generateMutation.isPending) return;
+    if (step.id !== 'generate' || generateMutation.isPending || activeJobIds.length > 0) return;
     const missing = genModel.slots.filter((s) => !state.generatedEmails[s.genKey]);
-    if (missing.length > 0)
-      generateMutation.mutate({
-        slots: missing,
-        // First entry generates every slot → stamp the signature so the banner
-        // doesn't immediately flag freshly-generated drafts as stale.
-        markFresh: missing.length === genModel.slots.length,
-        sig: genSig,
-      });
+    if (missing.length === 0) return;
+    // First entry generates every slot → stamp the signature so the banner doesn't
+    // immediately flag freshly-generated drafts as stale.
+    const markFresh = missing.length === genModel.slots.length;
+    if (asyncGen) void submitGenerateJobs(missing, markFresh, genSig);
+    else generateMutation.mutate({ slots: missing, markFresh, sig: genSig });
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [step.id]);
 
@@ -1115,8 +1250,11 @@ export function NewOutreachWizard({
   };
   const regenerateAll = () => {
     setGeneratingKey(null);
-    // Full regen → stamp the current input signature so the banner clears.
-    generateMutation.mutate({ slots: genModel.slots, markFresh: true, sig: genSig });
+    // Full regen → stamp the current input signature so the banner clears. In
+    // job-mode this fans out async jobs; single-item regenerate/improve stay sync
+    // (one recipient completes in seconds — a job would only add poll latency).
+    if (asyncGen) void submitGenerateJobs(genModel.slots, true, genSig);
+    else generateMutation.mutate({ slots: genModel.slots, markFresh: true, sig: genSig });
   };
 
   // "Improve": revise ONE draft in place per a freeform instruction (keeps the
@@ -1234,6 +1372,7 @@ export function NewOutreachWizard({
             <StepRecipientsSelect
               clients={clients}
               targets={state.targets}
+              clientId={state.clientId}
               onChange={(patch) =>
                 setState((p) => {
                   const targets = patch.targets ?? p.targets;
@@ -1260,6 +1399,36 @@ export function NewOutreachWizard({
             />
           )}
 
+          {step.id === 'generate' && jobProgress && (
+            <Alert
+              type={jobProgress.active ? 'info' : jobProgress.failed > 0 ? 'warning' : 'success'}
+              showIcon
+              style={{ marginBottom: 12 }}
+              message={
+                jobProgress.active
+                  ? `Generating… ${jobProgress.settled} / ${jobProgress.total} done${
+                      jobProgress.failed ? ` · ${jobProgress.failed} failed` : ''
+                    }`
+                  : `Generation complete — ${jobProgress.done} ready${
+                      jobProgress.failed ? `, ${jobProgress.failed} failed` : ''
+                    }${jobProgress.skipped ? `, ${jobProgress.skipped} skipped` : ''}`
+              }
+              action={
+                <Space>
+                  {jobProgress.active && (
+                    <Button size="small" onClick={() => void cancelActiveJobs()}>
+                      Cancel
+                    </Button>
+                  )}
+                  {jobProgress.failed > 0 && (
+                    <Button size="small" onClick={() => void retryFailedJobItems()}>
+                      Retry failed
+                    </Button>
+                  )}
+                </Space>
+              }
+            />
+          )}
           {step.id === 'generate' && (
             <StepGenerate
               entities={genModel.entities}
@@ -1891,9 +2060,7 @@ function StepSend({
           }}
         >
           <Switch checked={appendSignature} onChange={onToggleSignature} size="small" />
-          <span style={{ fontSize: 13, color: 'var(--ov2-ink-1)' }}>
-            Append my email signature
-          </span>
+          <span style={{ fontSize: 13, color: 'var(--ov2-ink-1)' }}>Append my email signature</span>
         </div>
       )}
       <Space style={{ marginTop: 20 }}>

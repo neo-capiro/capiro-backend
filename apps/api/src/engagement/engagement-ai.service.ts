@@ -29,7 +29,9 @@ async function fetchWithTimeout(url: string, init: RequestInit): Promise<Respons
     return await fetch(url, { ...init, signal: controller.signal });
   } catch (err) {
     if ((err as Error).name === 'AbortError') {
-      throw new ServiceUnavailableException(`AI provider request timed out after ${AI_TIMEOUT_MS / 1000}s`);
+      throw new ServiceUnavailableException(
+        `AI provider request timed out after ${AI_TIMEOUT_MS / 1000}s`,
+      );
     }
     throw err;
   } finally {
@@ -337,9 +339,7 @@ export class EngagementAiService {
    * Try to extract a client name from various AI input shapes for federal
    * contractor lookup. Returns null when no name is present.
    */
-  private extractClientName(input: {
-    client?: Record<string, unknown> | null;
-  }): string | null {
+  private extractClientName(input: { client?: Record<string, unknown> | null }): string | null {
     const c = input.client;
     if (!c || typeof c !== 'object') return null;
     const name = (c as { name?: unknown }).name;
@@ -461,17 +461,39 @@ export class EngagementAiService {
   async generateOutreachDraft(
     input: OutreachDraftInput,
     ctx?: TenantContext | null,
+    opts?: { creds?: ResolvedAiCredential[] },
   ): Promise<OutreachDraftResult> {
     const federalContext = await this.buildFederalContextBlock(this.extractClientName(input));
     const enriched = federalContext
       ? { ...input, context: { ...input.context, federalLobbyIntel: federalContext } }
       : input;
+    // Campaign-sticky provider (M2/W3.2): when the caller supplies a pre-resolved
+    // credential list (the batch pins ONE provider for the whole campaign), use it
+    // as-is instead of re-resolving per recipient — so a mid-campaign fallback can
+    // never split one send across two provider "voices".
+    if (opts?.creds) {
+      return this.invokeWithCreds('AI outreach drafting', opts.creds, (cred) =>
+        this.draftOutreachViaClient(enriched, cred),
+      );
+    }
     return this.withCredentialFallback(
       'AI outreach drafting',
       ctx,
       (cred) => this.draftOutreachViaClient(enriched, cred),
       { preferredProvider: this.outreachProvider },
     );
+  }
+
+  /**
+   * Resolve the ordered outreach credential list (global resolver order, then the
+   * outreach provider preference applied — Anthropic-first per D2 when configured).
+   * The batch generator resolves this ONCE and pins the winning provider across the
+   * whole campaign (M2). Returns [] when nothing is configured; the caller decides
+   * whether that is a hard failure.
+   */
+  async resolveOutreachCredentials(ctx?: TenantContext | null): Promise<ResolvedAiCredential[]> {
+    const creds = await this.credentials.resolveOrder(ctx ?? null);
+    return this.applyPreferredProvider(creds, this.outreachProvider);
   }
 
   async generateMeetingDebrief(
@@ -607,26 +629,30 @@ export class EngagementAiService {
    * supplied and one exists, else global env keys) and try each provider in
    * turn — same fallback semantics the old providerOrder loop had.
    */
-  private async withCredentialFallback<T>(
+  /** Reorder so `preferred` provider's creds come first, without disturbing the
+   *  global resolver order used by other AI surfaces. */
+  private applyPreferredProvider(
+    creds: ResolvedAiCredential[],
+    preferred?: 'openai' | 'anthropic',
+  ): ResolvedAiCredential[] {
+    if (!preferred) return creds;
+    return [
+      ...creds.filter((c) => c.provider === preferred),
+      ...creds.filter((c) => c.provider !== preferred),
+    ];
+  }
+
+  /** Try each credential in order until one succeeds; throw typed once all fail. */
+  private async invokeWithCreds<T>(
     operation: string,
-    ctx: TenantContext | null | undefined,
+    creds: ResolvedAiCredential[],
     invoke: (cred: ResolvedAiCredential) => Promise<T>,
-    opts?: { preferredProvider?: 'openai' | 'anthropic' },
   ): Promise<T> {
-    let creds = await this.credentials.resolveOrder(ctx ?? null);
     if (!creds.length) {
       throw new ServiceUnavailableException(
         `${operation} is not configured. Set OPENAI_API_KEY or ANTHROPIC_API_KEY.`,
       );
     }
-    // Surface-specific provider preference (e.g. outreach prefers Anthropic per
-    // D2) without changing the global resolver order used by other AI surfaces.
-    if (opts?.preferredProvider) {
-      const preferred = creds.filter((c) => c.provider === opts.preferredProvider);
-      const rest = creds.filter((c) => c.provider !== opts.preferredProvider);
-      creds = [...preferred, ...rest];
-    }
-
     const failures: string[] = [];
     for (const cred of creds) {
       try {
@@ -641,10 +667,22 @@ export class EngagementAiService {
         }
       }
     }
-
     throw new ServiceUnavailableException(
       `${operation} failed for all configured providers. ${failures.join(' | ')}`,
     );
+  }
+
+  private async withCredentialFallback<T>(
+    operation: string,
+    ctx: TenantContext | null | undefined,
+    invoke: (cred: ResolvedAiCredential) => Promise<T>,
+    opts?: { preferredProvider?: 'openai' | 'anthropic' },
+  ): Promise<T> {
+    const creds = this.applyPreferredProvider(
+      await this.credentials.resolveOrder(ctx ?? null),
+      opts?.preferredProvider,
+    );
+    return this.invokeWithCreds(operation, creds, invoke);
   }
 
   private async generateWithOpenAi(
@@ -1142,8 +1180,7 @@ export class EngagementAiService {
     // language"). We hoist the block out of the raw JSON dump so the model
     // sees it as a first-class section with explicit guidance, and we
     // remove it from the JSON to avoid duplication that dilutes attention.
-    const direction =
-      typeof input.context?.direction === 'string' ? input.context.direction : null;
+    const direction = typeof input.context?.direction === 'string' ? input.context.direction : null;
     const contextItemsBlock =
       typeof input.context?.contextItems === 'string' &&
       (input.context.contextItems as string).trim().length > 0
@@ -1191,7 +1228,7 @@ export class EngagementAiService {
     const directionGuidance = direction
       ? direction === 'on-behalf'
         ? "Direction: on-behalf-of-client. The sender is the lobbyist's user, writing as the representative of `client`. The recipient is a congressional or federal-agency contact. Use the client's voice and the client's asks; reference the client by name where natural. Sign as the user, not the client."
-        : 'Direction: from-lobbyist-to-clients. The sender is the lobbyist writing directly to their own portfolio client(s). The tone is internal briefing, informative, candid, action-oriented. Do not write as if pitching the client; you ARE the client\'s trusted operator.'
+        : "Direction: from-lobbyist-to-clients. The sender is the lobbyist writing directly to their own portfolio client(s). The tone is internal briefing, informative, candid, action-oriented. Do not write as if pitching the client; you ARE the client's trusted operator."
       : null;
 
     // Sign-off must use the real logged-in user's name, never an invented one.
@@ -1263,7 +1300,7 @@ export class EngagementAiService {
 
     return [
       'Write a concise, lobbyist-ready post-meeting debrief for CRM records.',
-      'STRICT GROUNDING RULES (highest priority): the debrief MUST be built ONLY from the supplied source text (the user\'s meeting notes), visibleNotes, and the provided meeting/client/attendee/prep/directory context below. Do NOT invent facts, attendees, commitments, dates, numbers, policy positions, or outcomes. No outside knowledge. If a detail is not in the source text or supplied context, do not state it.',
+      "STRICT GROUNDING RULES (highest priority): the debrief MUST be built ONLY from the supplied source text (the user's meeting notes), visibleNotes, and the provided meeting/client/attendee/prep/directory context below. Do NOT invent facts, attendees, commitments, dates, numbers, policy positions, or outcomes. No outside knowledge. If a detail is not in the source text or supplied context, do not state it.",
       hasSource
         ? 'The user supplied meeting notes in source.text — treat that as the primary source of truth and stay within it.'
         : 'INSUFFICIENT CONTEXT: source.text is empty and there are no usable notes. Do NOT fabricate a debrief. Set recap to a short honest statement that there are no meeting notes to summarize yet (e.g., "No meeting notes were provided, so there is nothing to debrief yet. Add notes above to generate a debrief."), and return EMPTY arrays/empty notes. Do not invent what happened.',
@@ -1294,7 +1331,7 @@ export class EngagementAiService {
       post_meeting_followup:
         'This is a post-meeting follow-up email. Reference the specific meeting that occurred, key discussion points, commitments made, and next steps. The tone should be warm, professional, and action-oriented. Reference the attendees by name and role where available.',
       congressional_outreach:
-        'This is a congressional outreach email. It should be policy-focused, referencing the client\'s program, capabilities, or legislative ask. Tailor to the recipient\'s committee jurisdiction and known priorities.',
+        "This is a congressional outreach email. It should be policy-focused, referencing the client's program, capabilities, or legislative ask. Tailor to the recipient's committee jurisdiction and known priorities.",
       program_update:
         'This is a program update email to keep congressional contacts informed of client progress. Highlight recent milestones, upcoming activities, and any asks for continued support.',
       custom:
@@ -1397,14 +1434,17 @@ function formatMeetingPrepEmailHighlights(threads: Array<Record<string, unknown>
   for (const thread of threads.slice(0, 8)) {
     const threadRecord = toRecord(thread);
     const threadId = typeof threadRecord.id === 'string' ? threadRecord.id : 'unknown-thread';
-    const threadSubject = typeof threadRecord.subject === 'string' ? threadRecord.subject.trim() : '';
+    const threadSubject =
+      typeof threadRecord.subject === 'string' ? threadRecord.subject.trim() : '';
     const messages = Array.isArray(threadRecord.messages) ? threadRecord.messages : [];
-    const lastMessageAt = typeof threadRecord.lastMessageAt === 'string' ? threadRecord.lastMessageAt : '';
+    const lastMessageAt =
+      typeof threadRecord.lastMessageAt === 'string' ? threadRecord.lastMessageAt : '';
     const headline = `- Thread ${threadId}${threadSubject ? `: ${threadSubject}` : ''}${lastMessageAt ? ` (${lastMessageAt})` : ''}`;
     lines.push(headline);
 
     if (!messages.length) {
-      const snippet = typeof threadRecord.snippet === 'string' ? compactText(threadRecord.snippet) : '';
+      const snippet =
+        typeof threadRecord.snippet === 'string' ? compactText(threadRecord.snippet) : '';
       if (snippet) lines.push(`  - Snippet: "${snippet}"`);
       continue;
     }
@@ -1424,9 +1464,7 @@ function formatMeetingPrepEmailHighlights(threads: Array<Record<string, unknown>
           : typeof messageRecord.subject === 'string'
             ? compactText(messageRecord.subject)
             : '';
-      lines.push(
-        `  - ${sender}${sentAt ? ` @ ${sentAt}` : ''}${quote ? `: "${quote}"` : ''}`,
-      );
+      lines.push(`  - ${sender}${sentAt ? ` @ ${sentAt}` : ''}${quote ? `: "${quote}"` : ''}`);
     }
   }
 

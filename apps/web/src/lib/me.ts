@@ -32,6 +32,15 @@ export interface MeResponse {
    */
   features: {
     meetingsV2: boolean;
+    /**
+     * Async outreach job pipeline (plan W4.4). True only when the global env
+     * kill-switch (OUTREACH_ASYNC_GEN / _SEND) is on AND the tenant is canaried in
+     * (outreachAsync.enabled). The wizard uses the job-mode UI when true; otherwise
+     * it keeps the synchronous generate-batch/send-batch path. Optional so an older
+     * cached /me shape degrades to the sync path rather than crashing.
+     */
+    outreachAsyncGen?: boolean;
+    outreachAsyncSend?: boolean;
   };
 }
 

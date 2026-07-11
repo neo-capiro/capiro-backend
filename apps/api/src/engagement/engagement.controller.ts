@@ -993,8 +993,27 @@ class OutreachSelectedContextItemDto {
   // debriefs are a selectable context source that sends kind:'debrief'; a kind
   // missing here makes forbidNonWhitelisted 400 the whole generate-batch and
   // the wizard silently falls back to placeholder drafts.
-  @IsIn(['bill', 'intel', 'email', 'meeting', 'note', 'document', 'debrief', 'prep'])
-  kind!: 'bill' | 'intel' | 'email' | 'meeting' | 'note' | 'document' | 'debrief' | 'prep';
+  @IsIn([
+    'bill',
+    'intel',
+    'email',
+    'meeting',
+    'note',
+    'document',
+    'debrief',
+    'prep',
+    'programElement',
+  ])
+  kind!:
+    | 'bill'
+    | 'intel'
+    | 'email'
+    | 'meeting'
+    | 'note'
+    | 'document'
+    | 'debrief'
+    | 'prep'
+    | 'programElement';
 
   @IsString()
   title!: string;
@@ -1093,6 +1112,20 @@ export class OutreachGenerateJobDto extends GenerateBatchEmailDto {
   @IsString()
   @Length(8, 128)
   requestKey!: string;
+}
+
+/** Body for the "last contacted" badge lookup (W5.2). Cap matches the saved-audience
+ *  member cap (CreateOutreachAudienceDto @ArrayMaxSize(500)), so applying a full
+ *  audience in the Recipients step never 400s and silently drops badges. */
+export class GetPriorContactDto {
+  @IsOptional()
+  @IsUUID()
+  clientId?: string;
+
+  @IsArray()
+  @ArrayMaxSize(500)
+  @IsEmail({}, { each: true })
+  emails!: string[];
 }
 
 class SendBatchDraftDto {
@@ -1678,6 +1711,13 @@ export class EngagementController {
     return this.service.sendBatchEmails(ctx, body);
   }
 
+  // "Last contacted Nd ago" badge lookup for the Recipients step (W5.2). Cheap
+  // read (no AI), so no @Throttle override — same class as outreach-insights.
+  @Post('outreach/prior-contact')
+  getPriorContact(@CurrentTenant() ctx: TenantContext, @Body() body: GetPriorContactDto) {
+    return this.service.getRecipientPriorContact(ctx, body);
+  }
+
   // Async generation job (plan W4): returns 202 + jobId in ms; the claim-sweep
   // worker drafts off the request path. Gated on OUTREACH_ASYNC_GEN so the sync
   // generate-batch above stays the path until the async flag is flipped on.
@@ -1741,6 +1781,20 @@ export class EngagementController {
   @Post('outreach/jobs/:id/cancel')
   cancelOutreachJob(@CurrentTenant() ctx: TenantContext, @Param('id') id: string) {
     return this.outreachJobs.cancelJob(ctx, id);
+  }
+
+  // Retry ONE failed generation item (plan W4.4) without resubmitting the whole
+  // batch. Gated the same way as generate-job submission.
+  @Post('outreach/jobs/:id/items/:itemId/retry')
+  retryOutreachJobItem(
+    @CurrentTenant() ctx: TenantContext,
+    @Param('id') id: string,
+    @Param('itemId') itemId: string,
+  ) {
+    if (!this.outreachJobs.asyncEnabled('generate')) {
+      throw new BadRequestException('Async outreach generation is not enabled in this environment');
+    }
+    return this.outreachJobs.retryItem(ctx, id, itemId);
   }
 
   // Tenant-wide context library for the Build Context step (docs/notes, debriefs,
