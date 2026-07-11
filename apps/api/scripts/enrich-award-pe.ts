@@ -5,7 +5,9 @@
  *
  *   pnpm --filter @capiro/api enrich:award-pe -- --limit 2000
  *   tsx scripts/enrich-award-pe.ts --limit 2000 --min-amount 100000
- *   tsx scripts/enrich-award-pe.ts --refresh --limit 500   # re-read already-tagged rows
+ *   tsx scripts/enrich-award-pe.ts --refresh --limit 500     # re-read already-tagged rows (API)
+ *   tsx scripts/enrich-award-pe.ts --resolve-only --commit   # re-resolve ALL stored codes vs the
+ *                                                            # current map, NO API (verb: resolve-awards-from-acq-map)
  *
  * WHY: USAspending's spending_by_award SEARCH endpoint (used by sync-federal-award)
  * returns NO program element and NO acquisition program. The per-award DETAIL
@@ -125,6 +127,60 @@ async function main(): Promise<void> {
         `knownPEs=${knownPeCodes.size} acqMapEntries=${acqMap.size} coverage=${JSON.stringify(before)}`,
     );
 
+    // RESOLVE-ONLY: pure re-resolution against the CURRENT acq-program map, with NO
+    // USAspending detail API call — the acq code is already stored on the row. For
+    // every award that already has a dodAcqProgramCode, re-run resolvePe and set
+    // pe_code where it resolves. This realizes the FULL existing-map coverage instantly
+    // (the API-based enrich only walks --limit batches, one detail call each), and is
+    // the fast way to apply a grown curated map across the whole backlog. Idempotent;
+    // never clobbers an existing resolution with null. Dry-run unless --commit.
+    if (hasFlag('resolve-only')) {
+      const commit = hasFlag('commit');
+      const BATCH = 2000;
+      let scanned = 0;
+      let resolved = 0;
+      let updated = 0;
+      let cursor: string | undefined;
+      for (;;) {
+        const batch = await prisma.federalAward.findMany({
+          where: { dodAcqProgramCode: { not: null } },
+          select: { id: true, description: true, dodAcqProgramCode: true, peCode: true },
+          orderBy: { id: 'asc' },
+          take: BATCH,
+          ...(cursor ? { skip: 1, cursor: { id: cursor } } : {}),
+        });
+        if (batch.length === 0) break;
+        for (const row of batch) {
+          scanned += 1;
+          const r = extractor.resolvePe(
+            { description: row.description, dodAcqProgramCode: row.dodAcqProgramCode },
+            knownPeCodes,
+            acqMap,
+          );
+          if (!r) continue;
+          resolved += 1;
+          if (row.peCode === r.peCode) continue; // already resolved to the same PE
+          if (commit) {
+            await prisma.federalAward.update({
+              where: { id: row.id },
+              data: { peCode: r.peCode, peCodeSource: r.source },
+            });
+          }
+          updated += 1;
+        }
+        cursor = batch[batch.length - 1]!.id;
+        if (batch.length < BATCH) break;
+      }
+      const after = await coverage(prisma);
+      console.log(
+        `[enrich-award-pe] RESOLVE-ONLY done (${commit ? 'COMMIT' : 'DRY-RUN'}): ` +
+          `scanned=${scanned} resolvedByMap=${resolved} peCodeUpdates=${updated} ` +
+          `coverageBefore=${JSON.stringify(before)} coverageAfter=${JSON.stringify(after)} ` +
+          `in ${((Date.now() - t0) / 1000).toFixed(1)}s`,
+      );
+      return;
+    }
+
     const rows = await prisma.federalAward.findMany({
       where: {
         ...(refresh ? {} : { dodAcqProgramCode: null }),
@@ -181,7 +237,9 @@ async function main(): Promise<void> {
       taggedCode += 1;
       if (resolved) resolvedPe += 1;
       if (taggedCode % 100 === 0) {
-        console.log(`[enrich-award-pe] tagged=${taggedCode} resolvedPe=${resolvedPe} noData=${noData} failed=${failed}`);
+        console.log(
+          `[enrich-award-pe] tagged=${taggedCode} resolvedPe=${resolvedPe} noData=${noData} failed=${failed}`,
+        );
       }
     }
 

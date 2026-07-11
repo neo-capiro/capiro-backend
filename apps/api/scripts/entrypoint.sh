@@ -258,6 +258,11 @@ case "${1:-serve}" in
   # PE->contractor linkage: read the DoD acquisition (MDAP) program code off each
   # award detail, persist it, and resolve a PE via the curated acq-program map.
   enrich-award-pe) shift; exec ./node_modules/.bin/tsx scripts/enrich-award-pe.ts "$@" ;;
+  # Pure re-resolution: re-map EVERY award that already has a stored dodAcqProgramCode
+  # to a PE via the CURRENT curated acq-program map — NO USAspending API call. Realizes
+  # the full existing-map coverage across the backlog instantly, and re-applies a grown
+  # map. Dry-run by default; add --commit to persist. Idempotent.
+  resolve-awards-from-acq-map) shift; exec ./node_modules/.bin/tsx scripts/enrich-award-pe.ts --resolve-only "$@" ;;
   # Seed/refresh the curated DoD-acquisition-program -> PE map (idempotent upserts).
   seed-acq-program-map) shift; exec ./node_modules/.bin/tsx scripts/seed-acq-program-map.ts "$@" ;;
   # Materialize the Program graph from the curated MDAP map: one Program per MDAP
