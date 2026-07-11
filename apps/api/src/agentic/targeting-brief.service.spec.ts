@@ -203,6 +203,121 @@ describe('TargetingBriefService.generate', () => {
     expect(out.droppedByValidator).toBe(1);
   });
 
+  it('PINNED (M5-B, layer 3 — W3.1 ROSTER GATE): an off-roster REAL member that passes grounding is dropped BEFORE the validator (fails HEAD)', async () => {
+    // D000999 is NOT on this bill's roster {D000001, D000002, D000003}. It cites
+    // a REAL roster evidence id (D000001) with no quoted substrings, so the
+    // GroundedJson citation check keeps it; and the (fake) validator here rejects
+    // nothing, standing in for a real member who truly exists with a real role on
+    // some OTHER committee — exactly the case that made M5-B false before W3.1.
+    // The deterministic roster gate must drop it regardless.
+    const { service, llm, aiRuns } = makeDeps({
+      llmInputs: [
+        {
+          input: {
+            targets: [
+              {
+                memberId: 'D000999',
+                priority: 'primary',
+                rationale: 'D000999::a real member, but not on this bill.',
+                evidenceIds: ['D000001'],
+              },
+            ],
+            recommendedSequence: ['D000999'],
+          },
+        },
+      ],
+    });
+
+    const out = await service.generate(TRIGGER, llm as never, CREDENTIAL);
+
+    expect(out.targets).toHaveLength(0);
+    expect(out.droppedOffRoster).toBe(1);
+    expect(out.droppedByGrounding).toBe(0); // survived grounding — the roster gate is what caught it
+    expect(out.droppedByValidator).toBe(0); // never reached the validator
+    expect(out.recommendedSequence).toEqual([]); // the off-roster id is filtered out of the sequence too
+    // Provenance: the drop is inspectable from the ai_run row alone (M5-B).
+    expect((aiRuns[0] as { data: Record<string, unknown> }).data).toMatchObject({
+      droppedOffRoster: 1,
+      clientId: 'client-1',
+    });
+  });
+
+  it('PINNED (W3.1): recommendedSequence contains ONLY validated members — a dropped member id/name never leaks through it', async () => {
+    // Model returns two sequence ids: D000001 (a valid target) and D000002
+    // (which the validator drops). The surfaced sequence must contain only
+    // D000001, rendered with the roster name — never D000002.
+    const { service, llm } = makeDeps({
+      llmInputs: [
+        {
+          input: {
+            targets: [
+              {
+                memberId: 'D000001',
+                priority: 'primary',
+                rationale: 'D000001::chair, the gatekeeper.',
+                evidenceIds: ['D000001'],
+              },
+              {
+                memberId: 'D000002',
+                priority: 'secondary',
+                rationale: 'D000002::ranking member.',
+                evidenceIds: ['D000002'],
+              },
+            ],
+            recommendedSequence: ['D000001', 'D000002'],
+          },
+        },
+      ],
+      validatorDrops: ['D000002'],
+    });
+
+    const out = await service.generate(TRIGGER, llm as never, CREDENTIAL);
+
+    expect(out.recommendedSequence).toEqual([
+      { memberId: 'D000001', memberName: 'Rep. Chair Person' },
+    ]);
+    expect(out.recommendedSequence.some((s) => s.memberId === 'D000002')).toBe(false);
+    expect(out.droppedByValidator).toBe(1);
+  });
+
+  it('PINNED (W3.1): a gutted brief records confidence < 1.0 and per-gate drop counts on the ai_run row', async () => {
+    // One kept (D000001) + one validator-dropped (D000002): confidence =
+    // kept / (kept + grounding + validator + offRoster) = 1 / (1 + 0 + 1 + 0) = 0.5.
+    const { service, llm, aiRuns } = makeDeps({
+      llmInputs: [
+        {
+          input: {
+            targets: [
+              {
+                memberId: 'D000001',
+                priority: 'primary',
+                rationale: 'D000001::chair.',
+                evidenceIds: ['D000001'],
+              },
+              {
+                memberId: 'D000002',
+                priority: 'secondary',
+                rationale: 'D000002::ranking.',
+                evidenceIds: ['D000002'],
+              },
+            ],
+            recommendedSequence: [],
+          },
+        },
+      ],
+      validatorDrops: ['D000002'],
+    });
+
+    const out = await service.generate(TRIGGER, llm as never, CREDENTIAL);
+    expect(out.targets).toHaveLength(1);
+    expect(out.droppedByValidator).toBe(1);
+    const data = (aiRuns[0] as { data: Record<string, unknown> }).data;
+    expect(data.confidence).toBe(0.5);
+    expect(data.droppedByValidator).toBe(1);
+    expect(data.droppedByGrounding).toBe(0);
+    expect(data.droppedOffRoster).toBe(0);
+  });
+
   it('a secondary-only brief (no primary target) is low materiality and approved immediately (no QA hold)', async () => {
     const { service, llm } = makeDeps({
       llmInputs: [

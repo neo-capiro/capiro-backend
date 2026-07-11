@@ -92,6 +92,9 @@ describe('run-intel-workflows raw SQL — table-name safety net (2026-07-10 hot-
     expect(FIND_QUALIFYING_ALERTS_SQL).toMatch(/r\.subject_key = a\.source_ref/);
     // Same UUID-vs-TEXT cast convention as the client_facilities EXISTS above.
     expect(FIND_QUALIFYING_ALERTS_SQL).toMatch(/r\.tenant_id::text = a\.tenant_id/);
+    // W3.1: the guard is scoped to (bill, CLIENT, tenant) — ai_run.client_id was
+    // added so a second client tracking the same bill still gets its own brief.
+    expect(FIND_QUALIFYING_ALERTS_SQL).toMatch(/r\.client_id::text = a\.client_id/);
     // Wave-2 closure: pin the WINDOW predicate explicitly. Without this a future
     // edit could replace the parameterized lookback with a constant (or drop the
     // window entirely) and the substring checks above would still pass green,

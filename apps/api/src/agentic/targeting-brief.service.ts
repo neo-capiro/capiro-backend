@@ -57,12 +57,19 @@ export interface TargetingBriefResult {
   targets: Array<
     z.infer<typeof TargetTargetSchema> & { memberName: string; jurisdiction: 'federal' | 'state' }
   >;
-  recommendedSequence: string[];
+  /**
+   * W3.1 (D-8 strong form): each step is a VALIDATED member id + the roster name
+   * we resolved for it — never free text the model wrote. Steps referencing a
+   * dropped (off-roster / ungrounded / validator-rejected) member are removed,
+   * so no dropped member's id or name can leak through this structured field.
+   */
+  recommendedSequence: Array<{ memberId: string; memberName: string }>;
   validationStatus: 'passed' | 'failed';
   materiality: 'low' | 'high';
   qaStatus: 'approved' | 'pending';
   droppedByGrounding: number;
   droppedByValidator: number;
+  droppedOffRoster: number;
 }
 
 const TOOL_NAME = 'emit_targeting_brief';
@@ -120,6 +127,7 @@ export class TargetingBriefService {
         qaStatus: 'approved',
         droppedByGrounding: 0,
         droppedByValidator: 0,
+        droppedOffRoster: 0,
       };
     }
 
@@ -132,13 +140,15 @@ export class TargetingBriefService {
       inputSchema: TARGETING_BRIEF_JSON_SCHEMA,
       schema: TargetingBriefSchema,
       evidence,
-      extractClaims: (d) => d.targets.map(targetToClaim),
-      removeClaims: (d, dropped) => {
-        const droppedKeys = new Set(dropped.map(claimKey));
-        return {
-          ...d,
-          targets: d.targets.filter((t) => !droppedKeys.has(claimKey(targetToClaim(t)))),
-        };
+      claims: {
+        extract: (d) => d.targets.map(targetToClaim),
+        remove: (d, dropped) => {
+          const droppedKeys = new Set(dropped.map(claimKey));
+          return {
+            ...d,
+            targets: d.targets.filter((t) => !droppedKeys.has(claimKey(targetToClaim(t)))),
+          };
+        },
       },
       fallback: FALLBACK,
     });
@@ -155,17 +165,35 @@ export class TargetingBriefService {
       },
     );
 
+    const memberById = new Map(roster.map((m) => [m.id, m]));
+
+    // W3.1 — ROSTER-MEMBERSHIP GATE: a deterministic third drop layer, run
+    // BEFORE the validator. The validator (below) confirms a member EXISTS and
+    // has the claimed role/district in the source-of-truth tables, but NOT that
+    // they are on THIS bill's resolved chokepoint roster — so a real member
+    // holding a real role on some OTHER committee would sail through it (the
+    // M5-B false the audit flagged). Drop any target whose memberId is not a
+    // roster id, deterministically, so it never reaches the validator or output.
+    const onRosterTargets = grounded.data.targets.filter((t) => memberById.has(t.memberId));
+    const offRosterDropped = grounded.data.targets.filter((t) => !memberById.has(t.memberId));
+    if (offRosterDropped.length) {
+      this.logger.warn(
+        `targeting brief for ${trigger.billKey}: roster gate dropped ${offRosterDropped.length} off-roster target(s): ${offRosterDropped
+          .map((t) => t.memberId)
+          .join(', ')}`,
+      );
+    }
+
     // Belt-and-suspenders: re-derive independently from source-of-truth
     // tables (never trust that our own evidence construction was bug-free).
-    const memberById = new Map(roster.map((m) => [m.id, m]));
-    const claims: TargetingMemberClaim[] = grounded.data.targets.map((t) => {
-      const member = memberById.get(t.memberId);
+    const claims: TargetingMemberClaim[] = onRosterTargets.map((t) => {
+      const member = memberById.get(t.memberId)!; // guaranteed on-roster
       const overlap = chokepoint.footprintOverlap.find((o) => o.memberId === t.memberId);
       return {
         jurisdiction: chokepoint.jurisdiction,
         memberId: t.memberId,
-        memberName: member?.name ?? t.memberId,
-        claimedRole: member?.role ?? null,
+        memberName: member.name,
+        claimedRole: member.role ?? null,
         claimedDistrictFacilityId: overlap ? overlap.facilityId : null,
       };
     });
@@ -182,16 +210,22 @@ export class TargetingBriefService {
       );
     }
     const validIds = new Set(valid.map((c) => c.memberId));
-    const targets = grounded.data.targets
+    const targets = onRosterTargets
       .filter((t) => validIds.has(t.memberId))
-      .map((t) => {
-        const member = memberById.get(t.memberId);
-        return {
-          ...t,
-          memberName: member?.name ?? t.memberId,
-          jurisdiction: chokepoint.jurisdiction,
-        };
-      });
+      .map((t) => ({
+        ...t,
+        memberName: memberById.get(t.memberId)!.name,
+        jurisdiction: chokepoint.jurisdiction,
+      }));
+
+    // W3.1 (D-8 strong form): the model's recommendedSequence is a list of
+    // memberIds; keep only VALIDATED ids and render names from the roster
+    // (source of truth). A dropped member's id is filtered out and its name is
+    // never taken from the model — structurally impossible to leak a dropped
+    // member through this field.
+    const recommendedSequence = grounded.data.recommendedSequence
+      .filter((id) => validIds.has(id))
+      .map((id) => ({ memberId: id, memberName: memberById.get(id)!.name }));
 
     const materiality: 'low' | 'high' = targets.some((t) => t.priority === 'primary')
       ? 'high'
@@ -202,14 +236,24 @@ export class TargetingBriefService {
     // unrendered rather than blocking on an unbuilt surface.
     const qaStatus: 'approved' | 'pending' = materiality === 'high' ? 'pending' : 'approved';
 
+    // W3.1 confidence = kept / (kept + every deterministic drop). null only when
+    // the model emitted no targets at all (nothing to have confidence about).
+    const droppedByGrounding = grounded.droppedClaims.length;
+    const droppedByValidator = validatorDropped.length;
+    const droppedOffRoster = offRosterDropped.length;
+    const totalClaims =
+      targets.length + droppedByGrounding + droppedByValidator + droppedOffRoster;
+    const confidence = totalClaims > 0 ? targets.length / totalClaims : null;
+
     await this.writeAiRun(trigger, credential, {
       rail: chokepoint.jurisdiction,
       promptVersion: PROMPT_VERSION,
       inputRefs: roster.map((m) => m.id),
-      output: { targets, recommendedSequence: grounded.data.recommendedSequence },
-      confidence: targets.length
-        ? 1 - grounded.droppedClaims.length / (targets.length + grounded.droppedClaims.length)
-        : null,
+      output: { targets, recommendedSequence },
+      confidence,
+      droppedByGrounding,
+      droppedByValidator,
+      droppedOffRoster,
       validationStatus: grounded.validationStatus,
       qaStatus,
       status: grounded.usedFallback ? 'fallback' : 'ok',
@@ -219,12 +263,13 @@ export class TargetingBriefService {
     return {
       billKey: trigger.billKey,
       targets,
-      recommendedSequence: grounded.data.recommendedSequence,
+      recommendedSequence,
       validationStatus: grounded.validationStatus,
       materiality,
       qaStatus,
-      droppedByGrounding: grounded.droppedClaims.length,
-      droppedByValidator: validatorDropped.length,
+      droppedByGrounding,
+      droppedByValidator,
+      droppedOffRoster,
     };
   }
 
@@ -237,6 +282,9 @@ export class TargetingBriefService {
       inputRefs: string[];
       output: unknown;
       confidence?: number | null;
+      droppedByGrounding?: number;
+      droppedByValidator?: number;
+      droppedOffRoster?: number;
       validationStatus: 'passed' | 'failed' | 'skipped';
       qaStatus: 'approved' | 'pending' | 'none';
       status: 'ok' | 'failed' | 'fallback';
@@ -252,6 +300,9 @@ export class TargetingBriefService {
             subjectType: 'bill',
             subjectKey: trigger.billKey,
             tenantId: trigger.tenantId,
+            // W3.1: targeting briefs are per-client — record it so the
+            // idempotency guard keys on (bill, client, tenant).
+            clientId: trigger.clientId,
             promptVersion: fields.promptVersion,
             model: credential.model,
             provider: 'anthropic',
@@ -260,6 +311,9 @@ export class TargetingBriefService {
             toolCalls: [],
             output: fields.output as never,
             confidence: fields.confidence ?? null,
+            droppedByGrounding: fields.droppedByGrounding ?? 0,
+            droppedByValidator: fields.droppedByValidator ?? 0,
+            droppedOffRoster: fields.droppedOffRoster ?? 0,
             validationStatus: fields.validationStatus,
             qaStatus: fields.qaStatus,
             status: fields.status,
@@ -306,7 +360,10 @@ function buildPrompt(
     `Roster (${roster.length} member(s) — select ONLY from these ids):`,
     ...roster.map((m) => `- ${m.id}: ${m.name}${m.role ? ` (${m.role})` : ''}`),
     '',
-    'Emit primary/secondary/blocking targets with a rationale citing evidence ids, and a recommended outreach sequence.',
+    'Emit primary/secondary/blocking targets with a rationale citing evidence ids. ' +
+      'For recommendedSequence, return an ORDERED list of member IDS (from the roster ' +
+      'above, and only ids you also listed as targets) giving the outreach order — ' +
+      'NOT free-text sentences.',
   ].join('\n');
 }
 
@@ -365,7 +422,11 @@ const TARGETING_BRIEF_JSON_SCHEMA = {
         required: ['memberId', 'priority', 'rationale', 'evidenceIds'],
       },
     },
-    recommendedSequence: { type: 'array', items: { type: 'string' } },
+    recommendedSequence: {
+      type: 'array',
+      items: { type: 'string', description: 'A roster member id, in outreach order.' },
+      description: 'Ordered member ids (from the roster / your targets) — not free text.',
+    },
   },
   required: ['targets', 'recommendedSequence'],
 } as const;

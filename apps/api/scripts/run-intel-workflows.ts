@@ -142,16 +142,16 @@ export const FIND_QUALIFYING_ALERTS_SQL = `SELECT a.id, a.tenant_id, a.client_id
          -- zero-target (brief.targets.length===0) brief never creates that
          -- row, so without this second guard it silently regenerates --
          -- burning BYOK spend and an ai_usage_events row -- on EVERY run until
-         -- a human clears QA or the inputs change. ai_run has no alert_id or
-         -- client_id column (see the model), so this keys on the coarser
-         -- (workflow, subjectKey=billKey, tenant) instead -- a bill shared by
-         -- two clients in the same tenant is a known, accepted narrowing of
-         -- this guard's granularity vs. the per-alert one above.
+         -- a human clears QA or the inputs change. W3.1 added ai_run.client_id,
+         -- so this now keys on (bill, client, tenant) -- a second client
+         -- tracking the same bill still gets its OWN brief (their footprints /
+         -- targets differ), while a repeat run for the SAME client dedups.
          AND NOT EXISTS (
            SELECT 1 FROM ai_run r
            WHERE r.workflow = 'intel_targeting'
              AND r.subject_key = a.source_ref
              AND r.tenant_id::text = a.tenant_id
+             AND r.client_id::text = a.client_id
              AND r.created_at > now() - ($1 * interval '1 hour')
          )
        ORDER BY a.created_at ASC
@@ -211,7 +211,7 @@ export const SURFACE_BRIEF_INSERT_SQL = `INSERT INTO intel_action_item (id, tena
 export async function surfaceBrief(
   prisma: any,
   alert: QualifyingAlert,
-  brief: { targets: unknown[]; recommendedSequence: string[] },
+  brief: { targets: unknown[]; recommendedSequence: unknown[] },
 ): Promise<void> {
   await prisma.withSystem(async (tx: any) => {
     await tx.$executeRawUnsafe(

@@ -116,6 +116,59 @@ describe('AlertMemoService.generate — metering (Phase 1 M5.0)', () => {
     });
   });
 
+  it('PINNED (W3.3, D-9 — federal prod behavior): a ZERO-citation paragraph is never emitted; a fully-uncited memo downgrades to the scaffold + lowConfidence', async () => {
+    const { service } = makeDeps({});
+    global.fetch = jest.fn(async () =>
+      anthropicTextResponse([
+        {
+          heading: 'Bottom line',
+          // No citation at all — pre-W3.3 this shipped into a client-facing
+          // FEDERAL memo (`[].every` vacuously true).
+          paragraphs: [{ text: 'This bill will certainly become law within weeks.', claimIds: [] }],
+        },
+      ]),
+    );
+
+    const result = await service.generate(
+      { tenantId: 't1', userId: 'u1' } as never,
+      'client-1',
+      FEDERAL_ALERT,
+      'Acme Corp',
+    );
+
+    // All paragraphs were uncited -> dropped -> scaffold downgrade.
+    expect(result.lowConfidence).toBe(true);
+    const allText = result.sections.flatMap((s) => s.paragraphs.map((p) => p.text)).join(' ');
+    expect(allText).not.toContain('certainly become law'); // ungrounded prose not filed
+  });
+
+  it('W3.3: keeps grounded paragraphs but drops only the zero-citation one from a mixed memo', async () => {
+    const { service } = makeDeps({});
+    global.fetch = jest.fn(async () =>
+      anthropicTextResponse([
+        {
+          heading: 'Bottom line',
+          paragraphs: [
+            { text: 'The rule was granted; floor action is imminent.', claimIds: ['c1'] },
+            { text: 'It is a lock to pass.', claimIds: [] },
+          ],
+        },
+      ]),
+    );
+
+    const result = await service.generate(
+      { tenantId: 't1', userId: 'u1' } as never,
+      'client-1',
+      FEDERAL_ALERT,
+      'Acme Corp',
+    );
+
+    expect(result.lowConfidence).toBe(false); // the grounded paragraph survived
+    const allText = result.sections.flatMap((s) => s.paragraphs.map((p) => p.text)).join(' ');
+    expect(allText).toContain('floor action is imminent');
+    expect(allText).not.toContain('It is a lock to pass');
+  });
+
   it('a failed Anthropic call falls back to the scaffold — STILL meters (zero usage), never fails the memo', async () => {
     const { service, aiUsageEvents } = makeDeps({});
     global.fetch = jest.fn(async () => jsonResponse({ error: 'boom' }, false));

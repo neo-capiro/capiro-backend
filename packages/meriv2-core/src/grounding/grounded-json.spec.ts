@@ -61,6 +61,38 @@ describe('checkGroundedCitations', () => {
     const { kept } = checkGroundedCitations(claims, EVIDENCE);
     expect(kept).toHaveLength(1);
   });
+
+  it('PINNED (W3.2): a FABRICATED quote written with SMART/CURLY quotes is dropped (fails HEAD — the old extractor only saw straight quotes)', () => {
+    // Before W3.2 the extractor regex matched only straight quotes, so a
+    // fabricated quotation rendered with U+201C/U+201D was never extracted and
+    // silently passed the gate. Normalizing curly→straight before extraction
+    // catches it.
+    const claims: GroundedClaim[] = [
+      { text: 'The committee “voted unanimously to reject it.”', evidenceIds: ['e1'] },
+    ];
+    const { kept, dropped } = checkGroundedCitations(claims, EVIDENCE);
+    expect(kept).toHaveLength(0);
+    expect(dropped[0]?.reason).toBe('quote_not_found_in_evidence');
+  });
+
+  it('PINNED (W3.2): a GENUINE quote survives a straight-vs-curly mismatch (model curly-quotes text the evidence stores with straight quotes)', () => {
+    const claims: GroundedClaim[] = [
+      { text: 'The committee “voted 12-8 to advance the bill.”', evidenceIds: ['e1'] },
+    ];
+    const { kept } = checkGroundedCitations(claims, EVIDENCE);
+    expect(kept).toHaveLength(1);
+  });
+
+  it('W3.2: a genuine quote survives when the EVIDENCE is the curly-quoted side', () => {
+    const curlyEvidence: GroundedEvidence[] = [
+      { id: 'c1', text: 'The chair said “we will advance this bill.”' },
+    ];
+    const claims: GroundedClaim[] = [
+      { text: 'The chair said "we will advance this bill."', evidenceIds: ['c1'] },
+    ];
+    const { kept } = checkGroundedCitations(claims, curlyEvidence);
+    expect(kept).toHaveLength(1);
+  });
 });
 
 const Schema = z.object({
@@ -84,6 +116,16 @@ function fakeLlm(responses: Array<{ input: unknown } | Error>): LlmClient {
 
 const FALLBACK: Brief = { headline: 'fallback', claims: [] };
 
+// W3.2 / D-10: extract + remove are now one sub-object (compile-time impossible
+// to supply one without the other). Shared across the tests that check claims.
+const claimsHooks = {
+  extract: (d: Brief) => d.claims,
+  remove: (d: Brief, dropped: GroundedClaim[]) => ({
+    ...d,
+    claims: d.claims.filter((c) => !dropped.some((x) => x.text === c.text)),
+  }),
+};
+
 describe('generateGroundedJson', () => {
   it('PINNED: a valid first attempt passes, no retry, citation check keeps a grounded claim', async () => {
     const llm = fakeLlm([
@@ -105,7 +147,7 @@ describe('generateGroundedJson', () => {
       inputSchema: {},
       schema: Schema,
       evidence: EVIDENCE,
-      extractClaims: (d) => d.claims,
+      claims: claimsHooks,
       fallback: FALLBACK,
     });
     expect(out.validationStatus).toBe('passed');
@@ -130,7 +172,7 @@ describe('generateGroundedJson', () => {
       inputSchema: {},
       schema: Schema,
       evidence: EVIDENCE,
-      extractClaims: (d) => d.claims,
+      claims: claimsHooks,
       fallback: FALLBACK,
     });
     expect(out.validationStatus).toBe('passed');
@@ -153,7 +195,7 @@ describe('generateGroundedJson', () => {
       inputSchema: {},
       schema: Schema,
       evidence: EVIDENCE,
-      extractClaims: (d) => d.claims,
+      claims: claimsHooks,
       fallback: FALLBACK,
     });
     expect(out.validationStatus).toBe('failed');
@@ -175,14 +217,14 @@ describe('generateGroundedJson', () => {
       inputSchema: {},
       schema: Schema,
       evidence: EVIDENCE,
-      extractClaims: (d) => d.claims,
+      claims: claimsHooks,
       fallback: fallbackFn,
     });
     expect(fallbackFn).toHaveBeenCalledTimes(1);
     expect(out.data.headline).toBe('produced');
   });
 
-  it('PINNED: a fabricated quote is stripped from the returned data via removeClaims, and reported in droppedClaims', async () => {
+  it('PINNED: a fabricated quote is stripped from the returned data via claims.remove, and reported in droppedClaims', async () => {
     const llm = fakeLlm([
       {
         input: {
@@ -203,11 +245,7 @@ describe('generateGroundedJson', () => {
       inputSchema: {},
       schema: Schema,
       evidence: EVIDENCE,
-      extractClaims: (d) => d.claims,
-      removeClaims: (data, dropped) => ({
-        ...data,
-        claims: data.claims.filter((c) => !dropped.some((d) => d.text === c.text)),
-      }),
+      claims: claimsHooks,
       fallback: FALLBACK,
     });
     expect(out.validationStatus).toBe('passed');
@@ -217,7 +255,7 @@ describe('generateGroundedJson', () => {
     expect(out.data.claims[0]?.text).toContain('voted 12-8');
   });
 
-  it('a schema with nothing claim-like (extractClaims returns []) skips the citation check entirely', async () => {
+  it('a schema with nothing claim-like (claims.extract returns []) skips the citation check entirely', async () => {
     const llm = fakeLlm([{ input: { headline: 'No claims here', claims: [] } }]);
     const out = await generateGroundedJson({
       llm,
@@ -228,7 +266,7 @@ describe('generateGroundedJson', () => {
       inputSchema: {},
       schema: Schema,
       evidence: [],
-      extractClaims: () => [],
+      claims: { extract: () => [], remove: (d) => d },
       fallback: FALLBACK,
     });
     expect(out.validationStatus).toBe('passed');

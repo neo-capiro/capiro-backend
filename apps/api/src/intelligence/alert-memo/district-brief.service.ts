@@ -448,12 +448,23 @@ function parseSections(text: string): GenSection[] {
   return out;
 }
 
-/** Drop any paragraph that cites a claim id not in the fact sheet (grounding gate). */
+/**
+ * Drop any paragraph that is not fully grounded (grounding gate). W3.3: a
+ * paragraph must cite at least one claim AND every cited id must be a real
+ * fact-sheet claim. The old `claimIds.every(...)` was VACUOUSLY TRUE for a
+ * zero-citation paragraph (`[].every` === true), so ungrounded model prose —
+ * asserting facts with no citation at all — sailed through into a
+ * client-facing brief. Requiring `length > 0` closes that hole; a generation
+ * that ends up fully uncited drops to zero sections and the caller downgrades
+ * to the deterministic scaffold with lowConfidence=true.
+ */
 function verifyGrounded(sections: GenSection[], claims: Claim[]): GenSection[] {
   const valid = new Set(claims.map((c) => c.id));
   const out: GenSection[] = [];
   for (const s of sections) {
-    const kept = s.paragraphs.filter((p) => p.claimIds.every((id) => valid.has(id)));
+    const kept = s.paragraphs.filter(
+      (p) => p.claimIds.length > 0 && p.claimIds.every((id) => valid.has(id)),
+    );
     if (kept.length) out.push({ heading: s.heading, paragraphs: kept });
   }
   return out;

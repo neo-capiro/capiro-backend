@@ -1545,6 +1545,12 @@ model AiRun {
   subjectKey       String    @map("subject_key")
   /// Null = tenant-agnostic (cached-generic L1 enrichment); set = a tenant-scoped Tier-2 run.
   tenantId         String?   @map("tenant_id") @db.Uuid
+  /// W3.1: the client a tenant-scoped Tier-2 run was FOR (targeting briefs are
+  /// per-client — chokepoint.forBill is client-scoped). Null for client-agnostic
+  /// runs (L1 enrichment, rules-comparison). Lets the run-intel-workflows
+  /// idempotency guard key on (bill, client, tenant), not just (bill, tenant),
+  /// so a second client tracking the same bill still gets its own brief.
+  clientId         String?   @map("client_id") @db.Uuid
   promptVersion    String    @map("prompt_version") @db.VarChar(32)
   model            String    @db.VarChar(80)
   /// 'openai' | 'anthropic'
@@ -1557,6 +1563,12 @@ model AiRun {
   /// The GroundedJson output (or null if the run failed before producing one).
   output           Json?
   confidence       Float?
+  /// Per-gate drop counts (W3.1) — how many model-asserted targets each
+  /// deterministic layer removed. confidence = kept / (kept + sum of these).
+  /// Makes "dropped and logged" (M5-B) inspectable from the row alone.
+  droppedByGrounding Int     @default(0) @map("dropped_by_grounding")
+  droppedByValidator Int     @default(0) @map("dropped_by_validator")
+  droppedOffRoster   Int     @default(0) @map("dropped_off_roster")
   /// 'passed' | 'failed' | 'skipped' — the M5.0 deterministic validator gate's outcome.
   validationStatus String    @map("validation_status") @db.VarChar(16)
   /// 'approved' | 'warning' | 'human_review' | 'rejected' | 'none' — the interim QA-gating state (§5.4 doc).
@@ -1573,6 +1585,11 @@ model AiRun {
   @@index([workflow, createdAt])
   @@index([subjectType, subjectKey])
   @@index([tenantId, createdAt])
+  /// W3.1: covers the run-intel-workflows idempotency guard's correlated
+  /// subquery (workflow + subject_key + tenant_id + client_id equality, then
+  /// created_at range) so it probes an index rather than rescanning recent
+  /// intel_targeting rows per candidate alert.
+  @@index([workflow, subjectKey, tenantId, clientId, createdAt], map: "ai_run_targeting_guard_idx")
   @@map("ai_run")
 }
 

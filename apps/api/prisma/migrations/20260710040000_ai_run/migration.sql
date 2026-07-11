@@ -22,6 +22,10 @@ CREATE TABLE "ai_run" (
     "subject_type" VARCHAR(32) NOT NULL,
     "subject_key" TEXT NOT NULL,
     "tenant_id" UUID,
+    -- W3.1: the client a tenant-scoped Tier-2 run was FOR (targeting briefs are
+    -- per-client). Null for client-agnostic runs. Lets the idempotency guard key
+    -- on (bill, client, tenant) so a second client on the same bill still gets a brief.
+    "client_id" UUID,
     "prompt_version" VARCHAR(32) NOT NULL,
     "model" VARCHAR(80) NOT NULL,
     "provider" VARCHAR(16) NOT NULL,
@@ -30,6 +34,11 @@ CREATE TABLE "ai_run" (
     "tool_calls" JSONB NOT NULL DEFAULT '[]',
     "output" JSONB,
     "confidence" DOUBLE PRECISION,
+    -- W3.1: per-gate drop counts (kept / (kept + sum) = confidence). Makes
+    -- "dropped and logged" (M5-B) inspectable from the row alone.
+    "dropped_by_grounding" INTEGER NOT NULL DEFAULT 0,
+    "dropped_by_validator" INTEGER NOT NULL DEFAULT 0,
+    "dropped_off_roster" INTEGER NOT NULL DEFAULT 0,
     "validation_status" VARCHAR(16) NOT NULL,
     "qa_status" VARCHAR(16) NOT NULL DEFAULT 'none',
     "human_reviewed_by" UUID,
@@ -45,6 +54,9 @@ CREATE TABLE "ai_run" (
 CREATE INDEX "ai_run_workflow_created_idx" ON "ai_run" ("workflow", "created_at");
 CREATE INDEX "ai_run_subject_idx" ON "ai_run" ("subject_type", "subject_key");
 CREATE INDEX "ai_run_tenant_created_idx" ON "ai_run" ("tenant_id", "created_at");
+-- W3.1: covers the run-intel-workflows idempotency guard's correlated subquery
+-- (workflow + subject_key + tenant_id + client_id equality, then created_at range).
+CREATE INDEX "ai_run_targeting_guard_idx" ON "ai_run" ("workflow", "subject_key", "tenant_id", "client_id", "created_at");
 
 ALTER TABLE "ai_run" ENABLE ROW LEVEL SECURITY;
 ALTER TABLE "ai_run" FORCE ROW LEVEL SECURITY;

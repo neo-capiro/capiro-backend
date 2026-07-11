@@ -283,6 +283,58 @@ describe('DistrictBriefService.generate', () => {
     expect(headings).not.toContain('The ask');
   });
 
+  it('PINNED (W3.3): drops a ZERO-citation paragraph (ungrounded prose) — never files uncited prose', async () => {
+    const { service } = makeDeps({ facility: FACILITY_ROW, representation: RESOLVED_REP });
+    global.fetch = jest.fn(async () =>
+      anthropicTextResponse([
+        { heading: 'Facility & footprint', paragraphs: [{ text: 'Real claim.', claimIds: ['c1'] }] },
+        // A paragraph asserting a fact with NO citation at all. Pre-W3.3 this
+        // passed (`[].every` is vacuously true) and shipped into a client brief.
+        {
+          heading: 'The ask',
+          paragraphs: [{ text: 'Please schedule a plant tour next month.', claimIds: [] }],
+        },
+      ]),
+    ) as never;
+
+    const result = await service.generate(
+      { tenantId: 't1', userId: 'u1' } as never,
+      'client-1',
+      'fac-1',
+      FEDERAL_ALERT,
+    );
+
+    const headings = result.sections.map((s) => s.heading);
+    expect(headings).toContain('Facility & footprint');
+    expect(headings).not.toContain('The ask'); // the uncited section was dropped
+    const allText = result.sections.flatMap((s) => s.paragraphs.map((p) => p.text)).join(' ');
+    expect(allText).not.toContain('Please schedule a plant tour');
+  });
+
+  it('PINNED (W3.3): a FULLY-uncited generation downgrades to the deterministic scaffold + lowConfidence (never files the ungrounded prose)', async () => {
+    const { service } = makeDeps({ facility: FACILITY_ROW, representation: RESOLVED_REP });
+    global.fetch = jest.fn(async () =>
+      anthropicTextResponse([
+        {
+          heading: 'District impact',
+          paragraphs: [{ text: 'Sweeping ungrounded narrative with zero citations.', claimIds: [] }],
+        },
+      ]),
+    ) as never;
+
+    const result = await service.generate(
+      { tenantId: 't1', userId: 'u1' } as never,
+      'client-1',
+      'fac-1',
+      FEDERAL_ALERT,
+    );
+
+    expect(result.lowConfidence).toBe(true); // downgraded to scaffold
+    expect(result.sections.length).toBeGreaterThan(0); // scaffold produced content
+    const allText = result.sections.flatMap((s) => s.paragraphs.map((p) => p.text)).join(' ');
+    expect(allText).not.toContain('Sweeping ungrounded narrative'); // the model prose was NOT filed
+  });
+
   it('falls back to a deterministic scaffold + lowConfidence when the model call fails', async () => {
     const { service } = makeDeps({ facility: FACILITY_ROW, representation: RESOLVED_REP });
     global.fetch = jest.fn(async () => {

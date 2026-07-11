@@ -47,13 +47,31 @@ export interface GroundedCitationCheckResult {
   dropped: GroundedDroppedClaim[];
 }
 
-/** Extract double- or single-quoted substrings from a claim's text (the model's own asserted quotes). */
+/**
+ * Normalize typographic (curly/smart) quotes to their ASCII equivalents
+ * (W3.2): “ ” → ", ‘ ’ → '. Applied to BOTH the claim text and the evidence
+ * before extraction and the `.includes` check, so a fabricated quotation the
+ * model wrote with smart quotes (which the extractor's straight-quote regex
+ * would otherwise never see, silently passing an ungrounded claim) is caught,
+ * and a legitimate quote survives a straight-vs-curly mismatch between the
+ * model's rendering and the source text.
+ */
+function normalizeQuotes(text: string): string {
+  return text.replace(/[“”]/g, '"').replace(/[‘’]/g, "'");
+}
+
+/**
+ * Extract double- or single-quoted substrings from a claim's text (the model's
+ * own asserted quotes). Input is expected already `normalizeQuotes`d, so only
+ * straight quotes are matched (the previous third regex alternative was a
+ * byte-identical duplicate of the first — dead — and has been removed).
+ */
 function extractQuotedSubstrings(text: string): string[] {
   const out: string[] = [];
-  const re = /"([^"]{3,})"|'([^']{3,})'|"([^"]{3,})"/g;
+  const re = /"([^"]{3,})"|'([^']{3,})'/g;
   let m: RegExpExecArray | null;
   while ((m = re.exec(text)) != null) {
-    const q = m[1] ?? m[2] ?? m[3];
+    const q = m[1] ?? m[2];
     if (q) out.push(q);
   }
   return out;
@@ -71,7 +89,9 @@ export function checkGroundedCitations(
   claims: readonly GroundedClaim[],
   evidence: readonly GroundedEvidence[],
 ): GroundedCitationCheckResult {
-  const byId = new Map(evidence.map((e) => [e.id, e.text]));
+  // Normalize smart quotes in the evidence up front (W3.2) so the `.includes`
+  // check compares like-for-like against the normalized claim quotes below.
+  const byId = new Map(evidence.map((e) => [e.id, normalizeQuotes(e.text)]));
   const kept: GroundedClaim[] = [];
   const dropped: GroundedDroppedClaim[] = [];
 
@@ -86,7 +106,7 @@ export function checkGroundedCitations(
       continue;
     }
     const citedTexts = claim.evidenceIds.map((id) => byId.get(id) ?? '');
-    const quotes = extractQuotedSubstrings(claim.text);
+    const quotes = extractQuotedSubstrings(normalizeQuotes(claim.text));
     const badQuote = quotes.find((q) => !citedTexts.some((t) => t.includes(q)));
     if (badQuote !== undefined) {
       dropped.push({ claim, reason: 'quote_not_found_in_evidence', quote: badQuote });
@@ -107,16 +127,21 @@ export interface GroundedJsonParams<T> {
   schema: z.ZodType<T>;
   /** Retrieved source text the model may cite, for the citation check. */
   evidence: GroundedEvidence[];
-  /** Pull the claims (each with evidenceIds) out of a validated object, for the citation check. Return [] when the shape has nothing claim-like to check. */
-  extractClaims: (data: T) => GroundedClaim[];
   /**
-   * Return a COPY of `data` with the dropped claims' content removed
-   * (mirrors the existing per-site `verifyGrounded` behavior — a dropped
-   * claim is stripped, not just reported). Required whenever `extractClaims`
-   * can return a non-empty array; omit only when the schema has no
-   * claim-shaped substructure (`extractClaims` always returns []).
+   * The citation-check hooks, as ONE optional sub-object (W3.2 / D-10): a
+   * dropped claim must be both DETECTED (`extract`) and STRIPPED from the
+   * returned data (`remove`) — reporting a drop while leaving the ungrounded
+   * content in `data` is the exact silent-leak this shape rules out at
+   * compile time. Supplying one without the other is now impossible. Omit the
+   * whole object only when the schema has no claim-shaped substructure to
+   * check (equivalent to the old `extractClaims` always returning []).
    */
-  removeClaims?: (data: T, dropped: GroundedClaim[]) => T;
+  claims?: {
+    /** Pull the claims (each with evidenceIds) out of a validated object, for the citation check. */
+    extract: (data: T) => GroundedClaim[];
+    /** Return a COPY of `data` with the dropped claims' content removed (a dropped claim is stripped, not just reported). */
+    remove: (data: T, dropped: GroundedClaim[]) => T;
+  };
   /** Deterministic value (or lazy producer) used when both attempts fail validation. */
   fallback: T | (() => T);
   maxTokens?: number;
@@ -194,13 +219,13 @@ export async function generateGroundedJson<T>(
     };
   }
 
-  const claims = params.extractClaims(parsed.data);
+  const claims = params.claims ? params.claims.extract(parsed.data) : [];
   const { dropped } = claims.length
     ? checkGroundedCitations(claims, params.evidence)
     : { dropped: [] as GroundedDroppedClaim[] };
   const data =
-    dropped.length && params.removeClaims
-      ? params.removeClaims(
+    dropped.length && params.claims
+      ? params.claims.remove(
           parsed.data,
           dropped.map((d) => d.claim),
         )
