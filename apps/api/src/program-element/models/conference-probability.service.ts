@@ -105,10 +105,14 @@ export function buildConferencePredictionFromHistory(
     };
   }
 
-  const features = historicalRows.map(toFeatures).filter((row): row is ModelFeatures => row !== null);
+  const features = historicalRows
+    .map(toFeatures)
+    .filter((row): row is ModelFeatures => row !== null);
   if (features.length === 0) return null;
 
-  const regressionData = features.map((row) => [row.gapPctOfRequest, row.closureRatio] as [number, number]);
+  const regressionData = features.map(
+    (row) => [row.gapPctOfRequest, row.closureRatio] as [number, number],
+  );
 
   let slope = 0;
   let intercept = average(features.map((row) => row.closureRatio));
@@ -121,7 +125,9 @@ export function buildConferencePredictionFromHistory(
 
   const overallMean = average(features.map((row) => row.closureRatio));
   const targetSascHigher = gap > 0;
-  const sameDirection = features.filter((row) => row.sascHigher === targetSascHigher).map((row) => row.closureRatio);
+  const sameDirection = features
+    .filter((row) => row.sascHigher === targetSascHigher)
+    .map((row) => row.closureRatio);
   const directionMean = sameDirection.length > 0 ? average(sameDirection) : overallMean;
   const directionBias = directionMean - overallMean;
 
@@ -131,7 +137,11 @@ export function buildConferencePredictionFromHistory(
   const residuals = features.map((row) => {
     const rowDirectionMean = row.sascHigher === targetSascHigher ? directionMean : overallMean;
     const rowDirectionBias = rowDirectionMean - overallMean;
-    const predictedRow = clamp(intercept + slope * row.gapPctOfRequest + rowDirectionBias, -0.5, 1.5);
+    const predictedRow = clamp(
+      intercept + slope * row.gapPctOfRequest + rowDirectionBias,
+      -0.5,
+      1.5,
+    );
     return row.closureRatio - predictedRow;
   });
 
@@ -171,7 +181,9 @@ export class ConferenceProbabilityService {
         y.request AS "request",
         y.hasc_mark AS "hascMark",
         y.sasc_mark AS "sascMark",
-        y.conference AS "conference"
+        -- This model predicts where the NDAA (authorization) conference lands between
+        -- the HASC/SASC marks, so it reads ndaa_conference (aliased "conference").
+        y.ndaa_conference AS "conference"
       FROM program_element_year y
       INNER JOIN program_element p ON p.pe_code = y.pe_code
       WHERE y.pe_code = ${peCode}
@@ -238,7 +250,7 @@ export class ConferenceProbabilityService {
         y.request AS "request",
         y.hasc_mark AS "hascMark",
         y.sasc_mark AS "sascMark",
-        y.conference AS "conference"
+        y.ndaa_conference AS "conference"
       FROM program_element_year y
       INNER JOIN program_element p ON p.pe_code = y.pe_code
       WHERE p.service = ${service}
@@ -246,7 +258,7 @@ export class ConferenceProbabilityService {
         AND y.request IS NOT NULL
         AND y.hasc_mark IS NOT NULL
         AND y.sasc_mark IS NOT NULL
-        AND y.conference IS NOT NULL
+        AND y.ndaa_conference IS NOT NULL
     `);
 
     const modelRows: ModelTrainingRow[] = historyRows
@@ -255,7 +267,8 @@ export class ConferenceProbabilityService {
         const rowHasc = toNumber(row.hascMark);
         const rowSasc = toNumber(row.sascMark);
         const rowConference = toNumber(row.conference);
-        if (rowRequest == null || rowHasc == null || rowSasc == null || rowConference == null) return null;
+        if (rowRequest == null || rowHasc == null || rowSasc == null || rowConference == null)
+          return null;
         return {
           request: rowRequest,
           hascMark: rowHasc,
@@ -280,7 +293,11 @@ export class ConferenceProbabilityService {
     return prediction;
   }
 
-  private async upsertPrediction(peCode: string, fy: number, prediction: ConferencePrediction): Promise<void> {
+  private async upsertPrediction(
+    peCode: string,
+    fy: number,
+    prediction: ConferencePrediction,
+  ): Promise<void> {
     await this.prisma.$executeRaw(Prisma.sql`
       INSERT INTO conference_probability (
         pe_code,

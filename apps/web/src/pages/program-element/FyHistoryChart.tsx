@@ -36,12 +36,14 @@ interface ChartPoint {
   hacDMark: number | null;
   sacDMark: number | null;
   conference: number | null;
+  ndaaConference: number | null;
   enactedSource: string;
   hascSource: string;
   sascSource: string;
   hacDSource: string;
   sacDSource: string;
   conferenceSource: string;
+  ndaaConferenceSource: string;
   rawEnacted: number | null;
 }
 
@@ -93,12 +95,14 @@ export function toChartPoint(row: ProgramElementHistoryRow): ChartPoint {
     hacDMark: row.hacDMark,
     sacDMark: row.sacDMark,
     conference: row.conference,
+    ndaaConference: row.ndaaConference ?? null,
     enactedSource: sourceFor(row, 'enacted'),
     hascSource: sourceFor(row, 'hascMark'),
     sascSource: sourceFor(row, 'sascMark'),
     hacDSource: sourceFor(row, 'hacDMark'),
     sacDSource: sourceFor(row, 'sacDMark'),
     conferenceSource: sourceFor(row, 'conference'),
+    ndaaConferenceSource: sourceFor(row, 'ndaaConference'),
     rawEnacted: row.enacted,
   };
 }
@@ -125,7 +129,16 @@ export function TooltipContent({
         <TooltipRow label="SASC" value={d.sascMark} source={d.sascSource} />
         <TooltipRow label="HAC-D" value={d.hacDMark} source={d.hacDSource} />
         <TooltipRow label="SAC-D" value={d.sacDMark} source={d.sacDSource} />
-        <TooltipRow label="Conference" value={d.conference} source={d.conferenceSource} />
+        <TooltipRow
+          label="NDAA Conf. (auth.)"
+          value={d.ndaaConference}
+          source={d.ndaaConferenceSource}
+        />
+        <TooltipRow
+          label="Conference (approps.)"
+          value={d.conference}
+          source={d.conferenceSource}
+        />
         <TooltipRow
           label={d.projected ? 'Enacted (Projected)' : 'Enacted'}
           value={d.rawEnacted ?? d.request}

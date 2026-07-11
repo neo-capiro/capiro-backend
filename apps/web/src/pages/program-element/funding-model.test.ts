@@ -67,6 +67,19 @@ describe('funding-model — grounded in real prod PEs (Step 0 regression lock)',
     expect(p.deltaVsRequest).toBeCloseTo(1200, 2);
   });
 
+  it('0604256A FY2026 (post NDAA-conference split): current is SASC, NOT the NDAA figure', () => {
+    // Before the split the NDAA conference ($84.77M) lived in `conference` and wrongly
+    // won as the appropriations "current". After the split it moved to the out-of-ladder
+    // ndaaConference field, so `conference` is null and current is the furthest-along
+    // APPROPRIATIONS-ladder value actually present: SASC $74.77M (not the higher HASC,
+    // since SASC outranks HASC; and not the $84.77M NDAA figure at all).
+    const p = one([
+      yr(2026, { request: 74.77, hascMark: 84.77, sascMark: 74.77, conference: null }),
+    ]);
+    expect(p.current).toEqual({ value: 74.77, stage: 'sasc' });
+    expect(p.conference).toBeNull();
+  });
+
   it('E-7 0604007F FY2027: HAC-D mark drives current (fixes the $0-bar bug)', () => {
     // Real stored row: request 0, sasc 1500, hacd 1549.1 — no conference/enacted.
     const p = one([yr(2027, { request: 0, sascMark: 1500, hacDMark: 1549.1 })]);

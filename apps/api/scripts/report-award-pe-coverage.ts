@@ -68,7 +68,12 @@ async function main(): Promise<void> {
     // panel is empty for a real (data-age) reason, not a linkage bug. Mirrors the
     // getContractors query: match by direct pe_code OR linked acq program code.
     const perPe = await prisma.$queryRaw<
-      Array<{ peCode: string; contractors24mo: number; contractorsAllTime: number; latestAward: Date | null }>
+      Array<{
+        peCode: string;
+        contractors24mo: number;
+        contractorsAllTime: number;
+        latestAward: Date | null;
+      }>
     >(Prisma.sql`
       WITH mapped AS (
         SELECT DISTINCT pe_code, acq_program_code FROM program_element_acquisition_program
@@ -93,12 +98,16 @@ async function main(): Promise<void> {
     `);
 
     const working = perPe.filter((p) => p.contractors24mo > 0);
-    const emptyButHasOlder = perPe.filter((p) => p.contractors24mo === 0 && p.contractorsAllTime > 0);
+    const emptyButHasOlder = perPe.filter(
+      (p) => p.contractors24mo === 0 && p.contractorsAllTime > 0,
+    );
 
     // FY-history depth: how many program_element_year rows each PE has. Tells us
     // whether the "timeline shows only 1 year" is a data-ingestion reality (only
     // one FY row exists) vs a render bug (read path always returns all years).
-    const yearDepth = await prisma.$queryRaw<Array<{ yearsPerPe: number; peCount: number }>>(Prisma.sql`
+    const yearDepth = await prisma.$queryRaw<
+      Array<{ yearsPerPe: number; peCount: number }>
+    >(Prisma.sql`
       SELECT yc AS "yearsPerPe", COUNT(*)::int AS "peCount"
       FROM (
         SELECT pe_code, COUNT(*)::int AS yc
@@ -130,12 +139,18 @@ async function main(): Promise<void> {
     // year carries dollars) vs genuinely populated. Answers the "graph only shows
     // one year" question with the actual numbers the chart receives.
     const sampleYearValues = await prisma.$queryRaw<
-      Array<{ peCode: string; fy: number; request: number | null; enacted: number | null; conference: number | null }>
+      Array<{
+        peCode: string;
+        fy: number;
+        request: number | null;
+        enacted: number | null;
+        conference: number | null;
+      }>
     >(Prisma.sql`
       SELECT pe_code AS "peCode", fy,
              request::float8 AS request,
              enacted::float8 AS enacted,
-             conference::float8 AS conference
+             ndaa_conference::float8 AS conference
       FROM program_element_year
       WHERE pe_code IN ('0204202N','0401132F','0207138F','0101224N')
       ORDER BY pe_code, fy

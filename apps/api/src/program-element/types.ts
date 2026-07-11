@@ -27,6 +27,7 @@ export interface PeYearInput {
   hacDMark?: string | number | null;
   sacDMark?: string | number | null;
   conference?: string | number | null;
+  ndaaConference?: string | number | null;
   enacted?: string | number | null;
   reprogrammed?: string | number | null;
   executed?: string | number | null;

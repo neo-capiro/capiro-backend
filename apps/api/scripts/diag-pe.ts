@@ -44,9 +44,11 @@ async function main(): Promise<void> {
          FROM program_element WHERE upper(pe_code) = ${P}`,
       ),
       // The funding chart reads these; flat "+0.0M delta" means enacted≈request or one side null.
+      // ndaa_conf = NDAA (authorization) conference; `conf` is the reserved appropriations
+      // rung (currently unpopulated) — the NDAA value lives in ndaa_conference post-split.
       years: await q(
         `SELECT fy, request, enacted, hasc_mark AS hasc, sasc_mark AS sasc, hac_d_mark AS hacd,
-                sac_d_mark AS sacd, conference AS conf
+                sac_d_mark AS sacd, ndaa_conference AS ndaa_conf, conference AS conf
          FROM program_element_year WHERE upper(pe_code) = ${P} ORDER BY fy`,
       ),
       budgetActions: await q(

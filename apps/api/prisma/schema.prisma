@@ -2698,7 +2698,14 @@ model ProgramElementYear {
   sascMark     Decimal? @map("sasc_mark") @db.Decimal(14, 2)
   hacDMark     Decimal? @map("hac_d_mark") @db.Decimal(14, 2)
   sacDMark     Decimal? @map("sac_d_mark") @db.Decimal(14, 2)
+  // Appropriations-track conference (Defense Appropriations conference / JES). RESERVED:
+  // no loader populates it yet — it is the ladder's "conference" rung (see @capiro/shared
+  // FUNDING_CURRENT_PRECEDENCE). Kept NULL until a real appropriations-conference source lands.
   conference   Decimal? @db.Decimal(14, 2)
+  // NDAA (authorization-track) conference-report value. Written by the NDAA conference
+  // loader. Deliberately OUTSIDE the appropriations funding ladder so it never becomes the
+  // "current" appropriations number — it reconciles the authorization marks (HASC/SASC).
+  ndaaConference Decimal? @map("ndaa_conference") @db.Decimal(14, 2)
   enacted      Decimal? @db.Decimal(14, 2)
   reprogrammed Decimal? @db.Decimal(14, 2)
   executed     Decimal? @db.Decimal(14, 2)

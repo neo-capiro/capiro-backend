@@ -92,9 +92,19 @@ export class DeltaEngineService {
     // PEs with any signal we can derive from: a year row, a position, or a procurement line.
     const yearWhere = fy !== undefined ? { fy } : {};
     const [yearPes, posPes, procPes] = await Promise.all([
-      this.prisma.programElementYear.findMany({ where: yearWhere, select: { peCode: true }, distinct: ['peCode'] }),
-      this.prisma.programElementBudgetPosition.findMany({ select: { peCode: true }, distinct: ['peCode'] }),
-      this.prisma.programElementProcurementLine.findMany({ select: { peCode: true }, distinct: ['peCode'] }),
+      this.prisma.programElementYear.findMany({
+        where: yearWhere,
+        select: { peCode: true },
+        distinct: ['peCode'],
+      }),
+      this.prisma.programElementBudgetPosition.findMany({
+        select: { peCode: true },
+        distinct: ['peCode'],
+      }),
+      this.prisma.programElementProcurementLine.findMany({
+        select: { peCode: true },
+        distinct: ['peCode'],
+      }),
     ]);
     const peCodes = [...new Set([...yearPes, ...posPes, ...procPes].map((r) => r.peCode))].sort();
 
@@ -125,6 +135,7 @@ export class DeltaEngineService {
           hacDMark: true,
           sacDMark: true,
           conference: true,
+          ndaaConference: true,
           enacted: true,
         },
       }),
@@ -134,7 +145,13 @@ export class DeltaEngineService {
       }),
       this.prisma.programElementProcurementLine.findMany({
         where: { peCode },
-        select: { lineDescription: true, fy: true, quantity: true, unitCost: true, sourceUrl: true },
+        select: {
+          lineDescription: true,
+          fy: true,
+          quantity: true,
+          unitCost: true,
+          sourceUrl: true,
+        },
       }),
     ]);
 
@@ -146,6 +163,7 @@ export class DeltaEngineService {
       hacDMark: dec(y.hacDMark),
       sacDMark: dec(y.sacDMark),
       conference: dec(y.conference),
+      ndaaConference: dec(y.ndaaConference),
       enacted: dec(y.enacted),
     }));
     const positionLikes: BudgetPositionLike[] = positions.map((p) => ({
@@ -178,7 +196,11 @@ export class DeltaEngineService {
   }
 
   /** Recompute + persist (idempotent) + emit for one PE. */
-  async computeForPe(peCode: string, fy?: number, opts: ComputeOptions = {}): Promise<PeDeltaResult> {
+  async computeForPe(
+    peCode: string,
+    fy?: number,
+    opts: ComputeOptions = {},
+  ): Promise<PeDeltaResult> {
     const weights = opts.weights ?? DEFAULT_MATERIALITY_WEIGHTS;
     const commit = opts.commit ?? false;
     const emit = opts.emit ?? commit;
@@ -197,7 +219,9 @@ export class DeltaEngineService {
     const live = await this.prisma.programElementDelta.findMany({
       where: { peCode, supersededAt: null, ...(fy !== undefined ? { assertedFy: fy } : {}) },
     });
-    const liveByKey = new Map(live.map((d) => [naturalKey(d.peCode, d.assertedFy, d.deltaType, d.fromRef, d.toRef), d]));
+    const liveByKey = new Map(
+      live.map((d) => [naturalKey(d.peCode, d.assertedFy, d.deltaType, d.fromRef, d.toRef), d]),
+    );
 
     for (const d of derived) {
       const scored = scoreMateriality(
@@ -309,7 +333,13 @@ export class DeltaEngineService {
         if (sim < TRANSFER_TRIGRAM_THRESHOLD) continue;
 
         // Store the candidate against the NEW-start PE (where the money landed).
-        const key = naturalKey(start.peCode, start.assertedFy, 'transfer_candidate', term.peCode, start.peCode);
+        const key = naturalKey(
+          start.peCode,
+          start.assertedFy,
+          'transfer_candidate',
+          term.peCode,
+          start.peCode,
+        );
         const exists = await this.prisma.programElementDelta.findFirst({
           where: {
             peCode: start.peCode,
@@ -354,7 +384,10 @@ export class DeltaEngineService {
     }
   }
 
-  private magnitudeChanged(existing: { amountTo: Prisma.Decimal | null; deltaAbs: Prisma.Decimal | null }, d: DerivedDelta): boolean {
+  private magnitudeChanged(
+    existing: { amountTo: Prisma.Decimal | null; deltaAbs: Prisma.Decimal | null },
+    d: DerivedDelta,
+  ): boolean {
     const exTo = existing.amountTo === null ? null : existing.amountTo.toNumber();
     const exAbs = existing.deltaAbs === null ? null : existing.deltaAbs.toNumber();
     return !numEq(exTo, d.amountTo) || !numEq(exAbs, d.deltaAbs);
@@ -441,11 +474,16 @@ export class DeltaEngineService {
 
   private buildTitle(peCode: string, d: DerivedDelta, score: number): string {
     const m = (v: number | null) => (v === null ? '—' : `$${v.toFixed(0)}M`);
-    const pctStr = d.deltaPct !== null ? ` (${d.deltaPct >= 0 ? '+' : ''}${(d.deltaPct * 100).toFixed(0)}%)` : '';
+    const pctStr =
+      d.deltaPct !== null
+        ? ` (${d.deltaPct >= 0 ? '+' : ''}${(d.deltaPct * 100).toFixed(0)}%)`
+        : '';
     return `${labelForType(d.deltaType)}: PE ${peCode} FY${d.assertedFy} ${m(d.amountFrom)}→${m(d.amountTo)}${pctStr}`;
   }
 
-  private async getAffectedTenants(peCode: string): Promise<Array<{ tenantId: string; relatedClientIds: string[] }>> {
+  private async getAffectedTenants(
+    peCode: string,
+  ): Promise<Array<{ tenantId: string; relatedClientIds: string[] }>> {
     // Step 2.3 — affected tenants are the union of THREE signals:
     //   (1) a user in the tenant WATCHES this PE,
     //   (2) a client capability explicitly names this PE (legacy peNumber == peCode),
@@ -492,13 +530,22 @@ export class DeltaEngineService {
       set.add(r.clientId);
       byTenant.set(r.tenantId, set);
     }
-    return [...byTenant.entries()].map(([tenantId, ids]) => ({ tenantId, relatedClientIds: [...ids] }));
+    return [...byTenant.entries()].map(([tenantId, ids]) => ({
+      tenantId,
+      relatedClientIds: [...ids],
+    }));
   }
 }
 
 // ── pure helpers (no this) ────────────────────────────────────────────────────
 
-function naturalKey(peCode: string, fy: number, deltaType: string, fromRef: string | null, toRef: string | null): string {
+function naturalKey(
+  peCode: string,
+  fy: number,
+  deltaType: string,
+  fromRef: string | null,
+  toRef: string | null,
+): string {
   return `${peCode}::${fy}::${deltaType}::${fromRef ?? ''}::${toRef ?? ''}`;
 }
 
@@ -552,7 +599,10 @@ export function trigramSimilarity(a: string, b: string): number {
 }
 
 function trigrams(s: string): Set<string> {
-  const norm = `  ${s.toLowerCase().replace(/[^a-z0-9]+/g, ' ').trim()} `;
+  const norm = `  ${s
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, ' ')
+    .trim()} `;
   const out = new Set<string>();
   for (let i = 0; i < norm.length - 2; i += 1) out.add(norm.slice(i, i + 3));
   return out;

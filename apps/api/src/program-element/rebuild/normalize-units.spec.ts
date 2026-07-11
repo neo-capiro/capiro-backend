@@ -1,5 +1,10 @@
 import { describe, expect, test } from '@jest/globals';
-import { needsScaling, toMillions, DOLLARS_THRESHOLD, PE_VALUE_COLUMNS } from './normalize-units.js';
+import {
+  needsScaling,
+  toMillions,
+  DOLLARS_THRESHOLD,
+  PE_VALUE_COLUMNS,
+} from './normalize-units.js';
 
 describe('needsScaling', () => {
   test('dollar-scale values (above threshold) need scaling', () => {
@@ -32,10 +37,11 @@ describe('toMillions', () => {
 });
 
 describe('PE_VALUE_COLUMNS', () => {
-  test('covers all nine numeric mark columns', () => {
-    expect(PE_VALUE_COLUMNS).toHaveLength(9);
+  test('covers all ten numeric mark columns', () => {
+    expect(PE_VALUE_COLUMNS).toHaveLength(10);
     expect(PE_VALUE_COLUMNS).toContain('enacted');
     expect(PE_VALUE_COLUMNS).toContain('conference');
+    expect(PE_VALUE_COLUMNS).toContain('ndaa_conference');
     expect(PE_VALUE_COLUMNS).toContain('request');
   });
 });

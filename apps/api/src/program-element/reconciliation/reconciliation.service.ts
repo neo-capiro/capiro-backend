@@ -19,11 +19,20 @@ import { MANUAL_OVERRIDE_SOURCE, SOURCE_PRIORITY } from '../types.js';
  */
 
 export const RECONCILE_FIELDS = [
-  'request', 'hascMark', 'sascMark', 'hacDMark', 'sacDMark', 'conference', 'enacted', 'reprogrammed', 'executed',
+  'request',
+  'hascMark',
+  'sascMark',
+  'hacDMark',
+  'sacDMark',
+  'conference',
+  'ndaaConference',
+  'enacted',
+  'reprogrammed',
+  'executed',
 ] as const;
 export type ReconcileField = (typeof RECONCILE_FIELDS)[number];
 
-const DELTA_THRESHOLD = 0.10; // 10% for non-enacted fields
+const DELTA_THRESHOLD = 0.1; // 10% for non-enacted fields
 
 export interface ReconcileInput {
   peCode: string;
@@ -171,7 +180,9 @@ export class ReconciliationService {
     if (v === null || v === undefined) return null;
     if (typeof v === 'number') return Number.isFinite(v) ? v : null;
     // Prisma Decimal → string/object with toString
-    const n = Number(typeof v === 'object' && v !== null ? (v as { toString(): string }).toString() : v);
+    const n = Number(
+      typeof v === 'object' && v !== null ? (v as { toString(): string }).toString() : v,
+    );
     return Number.isFinite(n) ? n : null;
   }
 }

@@ -22,7 +22,9 @@ export const RECON_FIELDS = [
   'sascMark',
   'hacDMark',
   'sacDMark',
-  'conference',
+  // The published 'conference' control totals are the NDAA conference, which now lives
+  // in ndaaConference — so reconcile that field against the 'conference' cycle.
+  'ndaaConference',
   'enacted',
 ] as const;
 export type ReconField = (typeof RECON_FIELDS)[number];
@@ -34,7 +36,7 @@ export const FIELD_TO_CYCLE: Record<ReconField, string> = {
   sascMark: 'sasc',
   hacDMark: 'hac_d',
   sacDMark: 'sac_d',
-  conference: 'conference',
+  ndaaConference: 'conference',
   enacted: 'enacted',
 };
 
@@ -122,7 +124,10 @@ function relativeDelta(extracted: number, control: number): number {
 }
 
 /** Compare one extracted group to its control total (or null when absent). Pure. */
-export function computeGroupResult(group: ExtractedGroup, controlMillions: number | null): GroupResult {
+export function computeGroupResult(
+  group: ExtractedGroup,
+  controlMillions: number | null,
+): GroupResult {
   const budgetCycle = FIELD_TO_CYCLE[group.field];
   const base = {
     fiscalYear: group.fiscalYear,
@@ -132,7 +137,14 @@ export function computeGroupResult(group: ExtractedGroup, controlMillions: numbe
     extractedMillions: round2(group.sumMillions),
   };
   if (controlMillions === null) {
-    return { ...base, controlMillions: null, deltaMillions: null, deltaPct: null, status: 'SKIP', reason: 'no control total for group' };
+    return {
+      ...base,
+      controlMillions: null,
+      deltaMillions: null,
+      deltaPct: null,
+      status: 'SKIP',
+      reason: 'no control total for group',
+    };
   }
   const deltaPct = relativeDelta(group.sumMillions, controlMillions);
   return {
@@ -197,7 +209,9 @@ export function budgetCycleFromPositionCycle(positionCycle: string): string {
   return positionCycle.replace(/_fy\d{4}$/i, '');
 }
 
-export function summarizePositionTotals(rows: Array<Record<string, unknown>>): PositionExtractedGroup[] {
+export function summarizePositionTotals(
+  rows: Array<Record<string, unknown>>,
+): PositionExtractedGroup[] {
   const acc = new Map<string, PositionExtractedGroup>();
   for (const row of rows) {
     if (String(row.valueKind ?? 'total') !== 'total') continue;
@@ -209,7 +223,13 @@ export function summarizePositionTotals(rows: Array<Record<string, unknown>>): P
     const component = componentForPeCode(peCode);
     const budgetCycle = budgetCycleFromPositionCycle(cycle);
     const key = `${fy}|${budgetCycle}|${component}`;
-    const cur = acc.get(key) ?? { fiscalYear: fy, budgetCycle, component, sumMillions: 0, count: 0 };
+    const cur = acc.get(key) ?? {
+      fiscalYear: fy,
+      budgetCycle,
+      component,
+      sumMillions: 0,
+      count: 0,
+    };
     cur.sumMillions += amount;
     cur.count += 1;
     acc.set(key, cur);
@@ -239,7 +259,14 @@ export function computePositionGroupResult(
     extractedMillions: round2(group.sumMillions),
   };
   if (controlMillions === null) {
-    return { ...base, controlMillions: null, deltaMillions: null, deltaPct: null, status: 'SKIP', reason: 'no control total for position cycle' };
+    return {
+      ...base,
+      controlMillions: null,
+      deltaMillions: null,
+      deltaPct: null,
+      status: 'SKIP',
+      reason: 'no control total for position cycle',
+    };
   }
   const deltaPct = relativeDelta(group.sumMillions, controlMillions);
   return {
@@ -260,13 +287,26 @@ export async function checkPositionReconciliation(
   prisma: BudgetReconPrisma,
   control: ControlTotals,
 ): Promise<ReconResult> {
-  const empty: ReconResult = { ok: true, checked: 0, passed: 0, failed: 0, skipped: 0, results: [] };
+  const empty: ReconResult = {
+    ok: true,
+    checked: 0,
+    passed: 0,
+    failed: 0,
+    skipped: 0,
+    results: [],
+  };
   if (!prisma.programElementBudgetPosition) return empty;
 
   let rows: Array<Record<string, unknown>>;
   try {
     rows = await prisma.programElementBudgetPosition.findMany({
-      select: { peCode: true, positionCycle: true, assertedFy: true, amount: true, valueKind: true },
+      select: {
+        peCode: true,
+        positionCycle: true,
+        assertedFy: true,
+        amount: true,
+        valueKind: true,
+      },
     });
   } catch {
     // Table not present yet (migration not applied) — no-op rather than fail.
@@ -279,13 +319,21 @@ export async function checkPositionReconciliation(
     .map((g) =>
       computePositionGroupResult(
         g,
-        idx.get(controlKey(g.fiscalYear, g.budgetCycle, g.component, CYCLE_TO_FIELD[g.budgetCycle] ?? g.budgetCycle)) ?? null,
+        idx.get(
+          controlKey(
+            g.fiscalYear,
+            g.budgetCycle,
+            g.component,
+            CYCLE_TO_FIELD[g.budgetCycle] ?? g.budgetCycle,
+          ),
+        ) ?? null,
       ),
     )
-    .sort((a, b) =>
-      a.fiscalYear - b.fiscalYear ||
-      a.component.localeCompare(b.component) ||
-      a.budgetCycle.localeCompare(b.budgetCycle),
+    .sort(
+      (a, b) =>
+        a.fiscalYear - b.fiscalYear ||
+        a.component.localeCompare(b.component) ||
+        a.budgetCycle.localeCompare(b.budgetCycle),
     );
 
   const failed = results.filter((r) => r.status === 'FAIL').length;
@@ -311,7 +359,7 @@ export async function checkBudgetReconciliation(
       sascMark: true,
       hacDMark: true,
       sacDMark: true,
-      conference: true,
+      ndaaConference: true,
       enacted: true,
     },
   });
@@ -319,11 +367,17 @@ export async function checkBudgetReconciliation(
   const idx = indexControl(control);
   const extracted = summarizeExtractedTotals(rows);
   const results = extracted
-    .map((g) => computeGroupResult(g, idx.get(controlKey(g.fiscalYear, FIELD_TO_CYCLE[g.field], g.component, g.field)) ?? null))
-    .sort((a, b) =>
-      a.fiscalYear - b.fiscalYear ||
-      a.component.localeCompare(b.component) ||
-      a.budgetCycle.localeCompare(b.budgetCycle),
+    .map((g) =>
+      computeGroupResult(
+        g,
+        idx.get(controlKey(g.fiscalYear, FIELD_TO_CYCLE[g.field], g.component, g.field)) ?? null,
+      ),
+    )
+    .sort(
+      (a, b) =>
+        a.fiscalYear - b.fiscalYear ||
+        a.component.localeCompare(b.component) ||
+        a.budgetCycle.localeCompare(b.budgetCycle),
     );
 
   const failed = results.filter((r) => r.status === 'FAIL').length;

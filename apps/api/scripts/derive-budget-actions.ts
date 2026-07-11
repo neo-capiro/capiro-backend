@@ -88,6 +88,7 @@ async function main(): Promise<void> {
         hacDMark: true,
         sacDMark: true,
         conference: true,
+        ndaaConference: true,
         enacted: true,
       },
     });
@@ -131,9 +132,16 @@ async function main(): Promise<void> {
     for (const [peCode, peYears] of byPe) {
       peYears.sort((a, b) => a.fy - b.fy);
       const hasValue = (y: (typeof peYears)[number]) =>
-        [y.request, y.hascMark, y.sascMark, y.hacDMark, y.sacDMark, y.conference, y.enacted].some(
-          (v) => v !== null && Number(v) !== 0,
-        );
+        [
+          y.request,
+          y.hascMark,
+          y.sascMark,
+          y.hacDMark,
+          y.sacDMark,
+          y.ndaaConference,
+          y.conference,
+          y.enacted,
+        ].some((v) => v !== null && Number(v) !== 0);
       const valuedYears = peYears.filter(hasValue);
       if (valuedYears.length === 0) continue;
 
@@ -147,7 +155,9 @@ async function main(): Promise<void> {
             ['SASC', 'SASC', n(y.sascMark)],
             ['HAC_D', 'HAC-D', n(y.hacDMark)],
             ['SAC_D', 'SAC-D', n(y.sacDMark)],
-            ['CONF', 'Conference', n(y.conference)],
+            // The conference budget action is the NDAA (authorization) conference — the
+            // only conference value populated today; it now lives in ndaaConference.
+            ['CONF', 'Conference', n(y.ndaaConference)],
             ['ENACTED', 'Enacted', n(y.enacted)],
           ]),
         );
@@ -173,7 +183,10 @@ async function main(): Promise<void> {
       const lastValued = valuedYears[valuedYears.length - 1]!;
       if (lastValued.fy < currentCycleFy) {
         const lastAmount =
-          n(lastValued.enacted) ?? n(lastValued.conference) ?? n(lastValued.request);
+          n(lastValued.enacted) ??
+          n(lastValued.ndaaConference) ??
+          n(lastValued.conference) ??
+          n(lastValued.request);
         rows.push({
           peCode,
           fy: currentCycleFy,
@@ -200,7 +213,9 @@ async function main(): Promise<void> {
           linesExamined: byPe.size,
           actions: rows.length,
           byAction,
-          samples: rows.slice(0, 5).map((r) => `${r.peCode} FY${r.fy} ${r.stage} ${r.action}: ${r.note}`),
+          samples: rows
+            .slice(0, 5)
+            .map((r) => `${r.peCode} FY${r.fy} ${r.stage} ${r.action}: ${r.note}`),
         },
         null,
         2,
@@ -212,28 +227,31 @@ async function main(): Promise<void> {
       return;
     }
 
-    await prisma.$transaction(async (tx) => {
-      await tx.budgetAction.deleteMany({ where: { derivedBy: DERIVED_BY } });
-      // createMany in chunks (Prisma param limits).
-      for (let i = 0; i < rows.length; i += 1000) {
-        await tx.budgetAction.createMany({
-          data: rows.slice(i, i + 1000).map((r) => ({
-            peCode: r.peCode,
-            fy: r.fy,
-            stage: r.stage,
-            action: r.action,
-            amount: r.amount,
-            baseline: r.baseline,
-            note: r.note,
-            evidenceJson: r.evidenceJson as Prisma.InputJsonValue,
-            derivedBy: DERIVED_BY,
-          })),
-          skipDuplicates: true,
-        });
-      }
-      // Prisma's default interactive-transaction timeout is 5s — far too short
-      // for tens of createMany batches against Aurora. Explicit ceiling.
-    }, { timeout: 300_000, maxWait: 30_000 });
+    await prisma.$transaction(
+      async (tx) => {
+        await tx.budgetAction.deleteMany({ where: { derivedBy: DERIVED_BY } });
+        // createMany in chunks (Prisma param limits).
+        for (let i = 0; i < rows.length; i += 1000) {
+          await tx.budgetAction.createMany({
+            data: rows.slice(i, i + 1000).map((r) => ({
+              peCode: r.peCode,
+              fy: r.fy,
+              stage: r.stage,
+              action: r.action,
+              amount: r.amount,
+              baseline: r.baseline,
+              note: r.note,
+              evidenceJson: r.evidenceJson as Prisma.InputJsonValue,
+              derivedBy: DERIVED_BY,
+            })),
+            skipDuplicates: true,
+          });
+        }
+        // Prisma's default interactive-transaction timeout is 5s — far too short
+        // for tens of createMany batches against Aurora. Explicit ceiling.
+      },
+      { timeout: 300_000, maxWait: 30_000 },
+    );
     console.log(JSON.stringify({ written: rows.length }));
   } finally {
     await prisma.$disconnect();

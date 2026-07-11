@@ -22,7 +22,7 @@ async function main(): Promise<void> {
       FROM program_element_year y
       WHERE y.hasc_mark IS NOT NULL
         AND y.sasc_mark IS NOT NULL
-        AND y.conference IS NULL
+        AND y.ndaa_conference IS NULL
     `);
 
     let computed = 0;

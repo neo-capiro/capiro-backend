@@ -69,7 +69,9 @@ export class WorkspaceTableService {
   private async peTimeline(peCode?: string): Promise<PlatformTable> {
     if (!peCode) throw new BadRequestException('peCode is required for pe-timeline');
     const { years } = await this.pe.getTimeline(peCode);
-    const headers = ['FY', 'PB Request', 'HASC', 'SASC', 'HAC-D', 'SAC-D', 'Conference', 'Enacted'];
+    // "NDAA Conf." is the authorization-track conference (the only conference value
+    // populated today; it lives in ndaaConference, outside the appropriations ladder).
+    const headers = ['FY', 'PB Request', 'HASC', 'SASC', 'HAC-D', 'SAC-D', 'NDAA Conf.', 'Enacted'];
     const rows = years.map((y) => [
       text(y.fy),
       money(y.request),
@@ -77,7 +79,7 @@ export class WorkspaceTableService {
       money(y.sascMark),
       money(y.hacDMark),
       money(y.sacDMark),
-      money(y.conference),
+      money(y.ndaaConference),
       money(y.enacted),
     ]);
     return { title: `${peCode} — Budget timeline ($M)`, headers, rows };

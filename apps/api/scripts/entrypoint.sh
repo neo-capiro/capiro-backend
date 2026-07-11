@@ -470,6 +470,11 @@ case "${1:-serve}" in
   # had no per-field source-value log for rebuild-pe-years to use. DRY RUN by
   # default; pass --commit. Idempotent.
   normalize-pe-units) shift; exec ./node_modules/.bin/tsx scripts/normalize-pe-units.ts "$@" ;;
+  # One-time data move for the NDAA-conference split: relocate every existing
+  # program_element_year.conference value into the new ndaa_conference column (outside
+  # the appropriations funding ladder) and null conference. DRY RUN by default; pass
+  # --commit. Idempotent + non-destructive. Run once, right after deploying this change.
+  move-ndaa-conference) shift; exec ./node_modules/.bin/tsx scripts/move-ndaa-conference.ts "$@" ;;
   # One-time ordered backfill + pre-flight key check (Production Ingestion plan,
   # Phase 3). preflight exits non-zero if a REQUIRED key is missing.
   preflight-ingestion) shift; exec ./node_modules/.bin/tsx scripts/preflight-ingestion.ts "$@" ;;

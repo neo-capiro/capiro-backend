@@ -38,6 +38,12 @@ export const congressionalPosition = sharedCongressionalPosition;
 export interface FundingPoint extends FundingStageValues {
   fy: number;
   /**
+   * NDAA (authorization-track) conference value — deliberately NOT part of
+   * FundingStageValues / the appropriations ladder (so it never drives `current`),
+   * carried here only so views can show it as a distinct labeled figure.
+   */
+  ndaaConference: number | null;
+  /**
    * Furthest-along value INCLUDING the request fallback — what the trajectory
    * line and the bar chart plot. `stage` names where it came from. `value` is
    * null (stage 'none') only when the year carries no stage at all.
@@ -84,7 +90,14 @@ export function buildFundingSeries(years: ProgramElementYearPoint[]): FundingPoi
         congressional.value != null && values.request != null
           ? congressional.value - values.request
           : null;
-      return { fy: year.fy, ...values, current, congressional, deltaVsRequest };
+      return {
+        fy: year.fy,
+        ...values,
+        ndaaConference: toNum(year.ndaaConference),
+        current,
+        congressional,
+        deltaVsRequest,
+      };
     })
     .sort((a, b) => a.fy - b.fy);
 }

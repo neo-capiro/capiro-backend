@@ -369,7 +369,7 @@ export class BudgetLinesReadService {
              ELSE 'authorization' END AS basis
       FROM program_element_year y
       WHERE y.fy = ${openFy}
-        AND y.conference IS NULL AND y.enacted IS NULL
+        AND y.ndaa_conference IS NULL AND y.enacted IS NULL
         AND COALESCE(y.hac_d_mark, y.hasc_mark) IS NOT NULL
         AND COALESCE(y.sac_d_mark, y.sasc_mark) IS NOT NULL
         AND COALESCE(y.hac_d_mark, y.hasc_mark) <> COALESCE(y.sac_d_mark, y.sasc_mark)

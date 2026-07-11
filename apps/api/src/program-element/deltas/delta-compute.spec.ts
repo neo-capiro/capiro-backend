@@ -17,6 +17,7 @@ const year = (over: Partial<YearLike> = {}): YearLike => ({
   hacDMark: null,
   sacDMark: null,
   conference: null,
+  ndaaConference: null,
   enacted: null,
   ...over,
 });
@@ -57,11 +58,15 @@ describe('deltasFromYear — stage-ladder deltas (REAL data today)', () => {
     expect(mm[0]!.toRef).toBe('sascMark');
   });
 
-  test('conference_vs_marks + enacted_vs_request', () => {
-    const d = deltasFromYear(year({ request: 100, hascMark: 120, conference: 110, enacted: 110 }));
-    expect(
-      d.find((x) => x.deltaType === 'conference_vs_marks' && x.toRef === 'conference'),
-    ).toBeTruthy();
+  test('conference_vs_marks (NDAA value, stable conference ref) + enacted_vs_request', () => {
+    const d = deltasFromYear(
+      year({ request: 100, hascMark: 120, ndaaConference: 110, enacted: 110 }),
+    );
+    // The VALUE is the NDAA conference (110); the ref stays 'conference' (stage
+    // identity) so the delta natural key is unchanged across the split.
+    const cvm = d.find((x) => x.deltaType === 'conference_vs_marks' && x.toRef === 'conference');
+    expect(cvm).toBeTruthy();
+    expect(cvm!.amountTo).toBe(110);
     const enacted = d.find((x) => x.deltaType === 'enacted_vs_request')!;
     expect(enacted.amountTo).toBe(110);
     expect(enacted.stage).toBe('enacted');
@@ -85,18 +90,19 @@ describe('deltasFromYear — stage-ladder deltas (REAL data today)', () => {
   });
 
   test('conference reconciles authorization marks only (it is NDAA-sourced)', () => {
-    // conference = NDAA authorization conference; it must be compared to the
+    // ndaaConference = NDAA authorization conference; it must be compared to the
     // authorization marks (HASC/SASC) and NOT to the appropriations marks.
     const d = deltasFromYear(
-      year({ hascMark: 100, sascMark: 110, hacDMark: 200, sacDMark: 210, conference: 105 }),
+      year({ hascMark: 100, sascMark: 110, hacDMark: 200, sacDMark: 210, ndaaConference: 105 }),
     );
     const cvm = d.filter((x) => x.deltaType === 'conference_vs_marks');
     expect(cvm.map((x) => x.fromRef).sort()).toEqual(['hascMark', 'sascMark']);
+    expect(cvm.every((x) => x.toRef === 'conference')).toBe(true);
     expect(cvm.some((x) => x.fromRef === 'hacDMark' || x.fromRef === 'sacDMark')).toBe(false);
   });
 
-  test('zeroed when conference cuts a positive request to 0', () => {
-    const d = deltasFromYear(year({ request: 80, conference: 0 }));
+  test('zeroed when the NDAA conference cuts a positive request to 0', () => {
+    const d = deltasFromYear(year({ request: 80, ndaaConference: 0 }));
     const z = d.find((x) => x.deltaType === 'zeroed')!;
     expect(z).toBeTruthy();
     expect(z.amountFrom).toBe(80);

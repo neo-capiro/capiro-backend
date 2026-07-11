@@ -10,6 +10,7 @@ type MarkField =
   | 'sascMark'
   | 'hacDMark'
   | 'sacDMark'
+  | 'ndaaConference'
   | 'conference'
   | 'enacted';
 
@@ -47,7 +48,10 @@ const MARK_FIELDS: Array<{ key: MarkField; label: string }> = [
   { key: 'sascMark', label: 'SASC' },
   { key: 'hacDMark', label: 'HAC-D' },
   { key: 'sacDMark', label: 'SAC-D' },
-  { key: 'conference', label: 'Conference' },
+  // NDAA (authorization-track) conference — distinct from the appropriations
+  // 'conference' rung so the authorization figure is labeled, not lost.
+  { key: 'ndaaConference', label: 'NDAA Conference (auth.)' },
+  { key: 'conference', label: 'Conference (approps.)' },
   { key: 'enacted', label: 'Enacted' },
 ];
 

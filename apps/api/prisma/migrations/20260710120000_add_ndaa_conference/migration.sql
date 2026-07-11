@@ -1,0 +1,11 @@
+-- Split the NDAA (authorization-track) conference value out of the appropriations
+-- `conference` column. The existing `conference` column stays as the (currently
+-- unpopulated) appropriations-conference rung of the funding ladder; the new
+-- `ndaa_conference` column holds the NDAA conference-report value, deliberately
+-- OUTSIDE the ladder so it never masquerades as the "current" appropriations number.
+--
+-- Additive + nullable: safe on the live table, no backfill in the migration itself.
+-- The one-time data move (existing conference values -> ndaa_conference) is performed
+-- by the idempotent `move-ndaa-conference` verb after deploy, so it can be dry-run and
+-- verified first.
+ALTER TABLE "program_element_year" ADD COLUMN "ndaa_conference" DECIMAL(14,2);

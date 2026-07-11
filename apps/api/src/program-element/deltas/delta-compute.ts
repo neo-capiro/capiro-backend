@@ -41,7 +41,10 @@ export interface YearLike {
   sascMark: number | string | null;
   hacDMark: number | string | null;
   sacDMark: number | string | null;
+  /** Appropriations-track conference (reserved — unpopulated today). */
   conference: number | string | null;
+  /** NDAA (authorization-track) conference report — reconciles the HASC/SASC marks. */
+  ndaaConference: number | string | null;
   enacted: number | string | null;
 }
 
@@ -98,6 +101,7 @@ const FIELD_STAGE: Record<string, DeltaStage> = {
   hacDMark: 'marks',
   sacDMark: 'marks',
   conference: 'conference',
+  ndaaConference: 'conference',
   enacted: 'enacted',
 };
 
@@ -152,7 +156,10 @@ export function deltasFromYear(year: YearLike): DerivedDelta[] {
   const out: DerivedDelta[] = [];
   const fy = year.fy;
   const request = n(year.request);
-  const conference = n(year.conference);
+  // The NDAA (authorization-track) conference is the only conference value populated
+  // today; it reconciles the HASC/SASC authorization marks. The appropriations
+  // `conference` column is reserved/unpopulated, so it produces no deltas yet.
+  const ndaaConference = n(year.ndaaConference);
   const enacted = n(year.enacted);
 
   const authMarks = presentMarks(year, AUTH_MARK_FIELDS);
@@ -184,10 +191,13 @@ export function deltasFromYear(year: YearLike): DerivedDelta[] {
   emitMarkPairs(out, fy, authMarks);
   emitMarkPairs(out, fy, appropMarks);
 
-  // conference_vs_marks — the `conference` field holds the NDAA (authorization-
-  // track) conference report, so it reconciles the AUTHORIZATION marks
-  // (HASC / SASC) only, never the appropriations subcommittee marks.
-  if (conference !== null) {
+  // conference_vs_marks — the NDAA conference reconciles the AUTHORIZATION marks
+  // (HASC / SASC) only, never the appropriations subcommittee marks. The VALUE now
+  // comes from ndaaConference, but the delta's from/to refs stay 'conference' (the
+  // stage identity) so the natural key (peCode,fy,type,fromRef,toRef) is unchanged
+  // across the split — the post-deploy recompute is then a clean no-op for these
+  // deltas (same key, same dollars) instead of superseding + re-emitting every alert.
+  if (ndaaConference !== null) {
     for (const m of authMarks) {
       out.push(
         buildDelta(
@@ -196,7 +206,7 @@ export function deltasFromYear(year: YearLike): DerivedDelta[] {
           m.field,
           'conference',
           m.value,
-          conference,
+          ndaaConference,
           'conference',
           {
             fields: [m.field, 'conference'],
@@ -205,7 +215,7 @@ export function deltasFromYear(year: YearLike): DerivedDelta[] {
       );
     }
     // zeroed: the request was non-zero and the NDAA conference brought it to 0.
-    if (conference === 0 && request !== null && request > 0) {
+    if (ndaaConference === 0 && request !== null && request > 0) {
       out.push(
         buildDelta('zeroed', fy, 'request', 'conference', request, 0, 'conference', {
           fields: ['request', 'conference'],
@@ -426,7 +436,11 @@ export function newStartFromYears(years: YearLike[], hasPriorPb: boolean): Deriv
   const sorted = [...years].sort((a, b) => a.fy - b.fy);
   const first = sorted[0]!;
   const firstValue =
-    n(first.request) ?? n(first.hascMark) ?? n(first.conference) ?? n(first.enacted);
+    n(first.request) ??
+    n(first.hascMark) ??
+    n(first.ndaaConference) ??
+    n(first.conference) ??
+    n(first.enacted);
   if (firstValue === null) return [];
   // Only treat as a new_start when there is exactly one FY (a genuinely new line); a PE
   // with multiple FYs is an ongoing program, not a new start.

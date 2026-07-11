@@ -50,7 +50,14 @@ async function main(): Promise<void> {
     // 1. Pull the per-field source-value log (skip the legacy `__row__` audit rows).
     const log = await prisma.programElementYearSourceValue.findMany({
       where: { fieldName: { not: '__row__' }, valueDecimal: { not: null } },
-      select: { peCode: true, fy: true, fieldName: true, source: true, valueDecimal: true, recordedAt: true },
+      select: {
+        peCode: true,
+        fy: true,
+        fieldName: true,
+        source: true,
+        valueDecimal: true,
+        recordedAt: true,
+      },
     });
 
     const entries: SourceLogEntry[] = log.map((r) => ({
@@ -76,6 +83,7 @@ async function main(): Promise<void> {
         hacDMark: true,
         sacDMark: true,
         conference: true,
+        ndaaConference: true,
         enacted: true,
         reprogrammed: true,
         executed: true,
@@ -96,7 +104,8 @@ async function main(): Promise<void> {
         continue;
       }
 
-      const changedFields: Array<{ field: RebuildValueField; from: number | null; to: number }> = [];
+      const changedFields: Array<{ field: RebuildValueField; from: number | null; to: number }> =
+        [];
       for (const field of REBUILD_VALUE_FIELDS) {
         const to = year.values[field];
         if (to === undefined) continue;
@@ -126,7 +135,10 @@ async function main(): Promise<void> {
         const mergedRaw = {
           ...existingRaw,
           fieldSources: { ...(existingRaw.fieldSources as object), ...year.fieldSources },
-          sourceAttribution: { ...(existingRaw.sourceAttribution as object), ...year.sourceAttribution },
+          sourceAttribution: {
+            ...(existingRaw.sourceAttribution as object),
+            ...year.sourceAttribution,
+          },
           datesAdded: { ...(existingRaw.datesAdded as object), ...year.datesAdded },
         };
         const data: Prisma.ProgramElementYearUncheckedUpdateInput = {
@@ -158,11 +170,15 @@ async function main(): Promise<void> {
       ),
     );
     if (samples.length > 0) {
-      console.log(`\nSample of ${samples.length} changed row(s)${commit ? ' (applied)' : ' (not applied — dry run)'}:`);
+      console.log(
+        `\nSample of ${samples.length} changed row(s)${commit ? ' (applied)' : ' (not applied — dry run)'}:`,
+      );
       console.log(samples.join('\n'));
     }
     if (!commit && changedRows > 0) {
-      console.log('\nRe-run with --commit to apply. Verify the from→to magnitudes look right first.');
+      console.log(
+        '\nRe-run with --commit to apply. Verify the from→to magnitudes look right first.',
+      );
     }
   } finally {
     await prisma.$disconnect();

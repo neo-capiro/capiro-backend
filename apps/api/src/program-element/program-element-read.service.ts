@@ -573,6 +573,7 @@ export class ProgramElementReadService {
             hacDMark: true,
             sacDMark: true,
             conference: true,
+            ndaaConference: true,
             enacted: true,
           },
         },
@@ -587,7 +588,11 @@ export class ProgramElementReadService {
       sascMark: dec(y.sascMark),
       hacDMark: dec(y.hacDMark),
       sacDMark: dec(y.sacDMark),
-      conference: dec(y.conference),
+      // The intelligence layer's "conference" signal (posture + prior-year trajectory)
+      // is the NDAA conference — the only conference value ever populated — so feed it
+      // ndaaConference here. The appropriations `conference` rung stays out of this
+      // (it drives currentFunding via @capiro/shared, not the intelligence posture).
+      conference: dec(y.ndaaConference),
       enacted: dec(y.enacted),
     }));
     // Stated FYDP outyears (PB budget positions) extend the runway series.

@@ -25,6 +25,7 @@ export const REBUILD_VALUE_FIELDS = [
   'hacDMark',
   'sacDMark',
   'conference',
+  'ndaaConference',
   'enacted',
   'reprogrammed',
   'executed',
@@ -117,7 +118,10 @@ export function assembleYearsFromSourceLog(entries: SourceLogEntry[]): RebuiltYe
     const datesAdded: Record<string, string> = {};
 
     for (const [field, win] of byField) {
-      values[field as RebuildValueField] = normalizeLoggedValue(win.valueDecimal as number, win.source);
+      values[field as RebuildValueField] = normalizeLoggedValue(
+        win.valueDecimal as number,
+        win.source,
+      );
       fieldSources[field] = win.source;
       sourceAttribution[field] = sourceLabel(win.source);
       datesAdded[field] = win.recordedAt.slice(0, 10);
