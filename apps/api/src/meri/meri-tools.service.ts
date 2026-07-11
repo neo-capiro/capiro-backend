@@ -22,6 +22,7 @@ import {
   RULE_LIFECYCLE_STAGES,
   resolveCommittee,
   normalizeCommitteeName,
+  matchesRole,
   type CommitteeCandidate,
 } from '@capiro/shared';
 import type { AppConfig } from '../config/config.schema.js';
@@ -75,12 +76,11 @@ import { embedText, vectorLiteral, normalize } from '../embeddings/embedder.js';
 
 const PRODUCT_NAME = 'Meri';
 
-// get_committee_roster (M4.1) title-matching — duplicated from
-// chokepoint.service.ts's (unexported) FEDERAL_*_TITLES rather than shared,
-// matching this codebase's established per-site convention.
-const FEDERAL_ROSTER_CHAIR_TITLES = new Set(['Chair', 'Chairman']);
-const FEDERAL_ROSTER_VICE_CHAIR_TITLES = new Set(['Vice Chair', 'Vice Chairman']);
-const FEDERAL_ROSTER_RANKING_TITLES = new Set(['Ranking Member']);
+// get_committee_roster (M4.1) title-matching now uses the SHARED matchesRole
+// (@capiro/shared, W4.1) — one definition consumed by both this tool and
+// chokepoint.service.ts, so both recognize the same Chair/Chairman/Chairwoman/
+// Co-Chair/Vice-*/Ranking variants (the old per-site sets missed Chairwoman /
+// Co-Chair and could report chair:null when a chair existed).
 
 // Exported for the tool-registration regression spec (meri-tools.registration.spec.ts).
 export const TOOL_DEFINITIONS = [
@@ -3544,9 +3544,9 @@ export class MeriToolsService {
       .filter((m): m is NonNullable<typeof m> => !!m)
       .sort((a, b) => (a.rank ?? 999) - (b.rank ?? 999));
 
-    const chairEntry = roster.find((m) => FEDERAL_ROSTER_CHAIR_TITLES.has(m.title ?? ''));
-    const viceChairEntry = roster.find((m) => FEDERAL_ROSTER_VICE_CHAIR_TITLES.has(m.title ?? ''));
-    const rankingEntry = roster.find((m) => FEDERAL_ROSTER_RANKING_TITLES.has(m.title ?? ''));
+    const chairEntry = roster.find((m) => matchesRole(m.title, 'chair'));
+    const viceChairEntry = roster.find((m) => matchesRole(m.title, 'viceChair'));
+    const rankingEntry = roster.find((m) => matchesRole(m.title, 'rankingMember'));
 
     return {
       tool: 'get_committee_roster',
@@ -3619,8 +3619,8 @@ export class MeriToolsService {
       district: r.legislator.district,
       role: r.role,
     }));
-    const chairEntry = members.find((m) => /^chair$/i.test((m.role ?? '').trim()));
-    const viceChairEntry = members.find((m) => /^vice[\s-]?chair$/i.test((m.role ?? '').trim()));
+    const chairEntry = members.find((m) => matchesRole(m.role, 'chair'));
+    const viceChairEntry = members.find((m) => matchesRole(m.role, 'viceChair'));
 
     return {
       tool: 'get_committee_roster',

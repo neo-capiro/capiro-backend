@@ -1106,6 +1106,53 @@ export function billStatusLabel(status: string | null | undefined): string {
   return status ?? 'Unknown';
 }
 
+/**
+ * Rank (0-9) for a persisted congress_bill.status value — 0 for unknown/null.
+ * The federal twin of `stateBillStatusRank` (W4.1): the single source of
+ * "how far has this bill advanced" so consumers compare against a named
+ * threshold (e.g. `>= billStatusRank('reported')`) instead of re-listing a
+ * hardcoded status-string set that silently rots when the status vocabulary
+ * changes.
+ */
+export function billStatusRank(status: string | null | undefined): number {
+  return status && status in BILL_STATUS_META ? BILL_STATUS_META[status as BillStatus].rank : 0;
+}
+
+/**
+ * Canonical committee leadership roles (W4.1). One shared matcher so the
+ * chokepoint chain and `get_committee_roster` (both rails) recognize the SAME
+ * title/role variants instead of re-copying strict, divergent sets that miss
+ * real values (Chairwoman, Co-Chair, hyphen/spacing variants) — the class of
+ * bug that made a state committee with a "Chairman" chair report `chair: null`.
+ */
+export type CommitteeRole = 'chair' | 'viceChair' | 'rankingMember';
+
+/**
+ * Normalize a raw committee title/role (federal
+ * `congress_committee_membership.title` or state OpenStates role string) to a
+ * canonical `CommitteeRole`, or null when it is not a leadership role. Covers
+ * Chair/Chairman/Chairwoman/Chairperson, Co-Chair, Vice-Chair (+ -man/-woman),
+ * and Ranking Member, tolerant of case, surrounding whitespace, and hyphen vs.
+ * space vs. Unicode-dash. Anchored (never a fuzzy/substring match), so a title
+ * like "Vice Chair" resolves to viceChair, never chair.
+ */
+export function normalizeRoleTitle(raw: string | null | undefined): CommitteeRole | null {
+  if (!raw) return null;
+  const t = raw
+    .trim()
+    .toLowerCase()
+    .replace(/[‐-―]/g, '-'); // unify Unicode hyphens/dashes to ASCII '-'
+  if (/^ranking(\s+member)?$/.test(t)) return 'rankingMember';
+  if (/^vice[\s-]*chair(man|woman|person)?$/.test(t)) return 'viceChair';
+  if (/^(co[\s-]*)?chair(man|woman|person)?$/.test(t)) return 'chair';
+  return null;
+}
+
+/** True when a raw title/role matches the given canonical committee role (W4.1). */
+export function matchesRole(raw: string | null | undefined, role: CommitteeRole): boolean {
+  return normalizeRoleTitle(raw) === role;
+}
+
 export function deriveBillStatus(input: {
   latestActionText?: string | null;
   /** Outcome of the bill's most recent GOVERNING rule (from bill_rule_link + the rule's vote/status). */

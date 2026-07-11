@@ -4,10 +4,13 @@ import {
   computeStateDeadlineRisk,
   resolveCommittee,
   normalizeCommitteeName,
+  matchesRole,
+  billStatusRank,
   type CommitteeCandidate,
 } from '@capiro/shared';
 import { PrismaService } from '../../prisma/prisma.service.js';
 import { RepresentationResolverService } from '../../clients/representation-resolver.service.js';
+import { normalizeLegiscanChamber } from '../../ingestion/legiscan-normalize.js';
 import { computeSurvivalHeuristic } from './survival-heuristic.js';
 import type {
   ChokepointResult,
@@ -15,10 +18,6 @@ import type {
   ChokepointCommittee,
   RuleGateOutcome,
 } from './chokepoint.types.js';
-
-const FEDERAL_CHAIR_TITLES = new Set(['Chair', 'Chairman']);
-const FEDERAL_VICE_CHAIR_TITLES = new Set(['Vice Chair', 'Vice Chairman']);
-const FEDERAL_RANKING_TITLES = new Set(['Ranking Member']);
 
 function chamberFromCongressBillId(billId: string): 'house' | 'senate' | null {
   const type = billId.split('-')[1] ?? '';
@@ -113,17 +112,16 @@ export class ChokepointService {
 
     const referredMemberships = memberships.filter((m) => m.systemCode === referred?.systemCode);
     const chairBioguide = referredMemberships.find((m) =>
-      FEDERAL_CHAIR_TITLES.has(m.title ?? ''),
+      matchesRole(m.title, 'chair'),
     )?.bioguideId;
     const viceChairBioguide = referredMemberships.find((m) =>
-      FEDERAL_VICE_CHAIR_TITLES.has(m.title ?? ''),
+      matchesRole(m.title, 'viceChair'),
     )?.bioguideId;
     const rankingBioguide = referredMemberships.find((m) =>
-      FEDERAL_RANKING_TITLES.has(m.title ?? ''),
+      matchesRole(m.title, 'rankingMember'),
     )?.bioguideId;
     const leadershipBioguide = memberships.find(
-      (m) =>
-        m.systemCode === leadershipCommittee?.systemCode && FEDERAL_CHAIR_TITLES.has(m.title ?? ''),
+      (m) => m.systemCode === leadershipCommittee?.systemCode && matchesRole(m.title, 'chair'),
     )?.bioguideId;
 
     const neededBioguides = [
@@ -182,11 +180,15 @@ export class ChokepointService {
       for (const m of chamberMembers)
         counts.set(m.party ?? 'unknown', (counts.get(m.party ?? 'unknown') ?? 0) + 1);
       const majorityParty = [...counts.entries()].sort((a, b) => b[1] - a[1])[0]?.[0] ?? null;
-      const holdsChairAnywhere = await this.prisma.congressCommitteeMembership.findFirst({
-        where: { bioguideId: sponsor.id, title: { in: [...FEDERAL_CHAIR_TITLES] } },
-        select: { id: true },
+      // Fetch the sponsor's committee titles and apply the SHARED role matcher
+      // (W4.1) rather than a Prisma `title IN (...)` against a hardcoded set —
+      // so "Chairwoman"/"Co-Chair" count as chairs here too.
+      const sponsorMemberships = await this.prisma.congressCommitteeMembership.findMany({
+        where: { bioguideId: sponsor.id },
+        select: { title: true },
       });
-      sponsorInMajorityOrLeadership = sponsor.party === majorityParty || !!holdsChairAnywhere;
+      const holdsChairAnywhere = sponsorMemberships.some((m) => matchesRole(m.title, 'chair'));
+      sponsorInMajorityOrLeadership = sponsor.party === majorityParty || holdsChairAnywhere;
     }
 
     const chairIsSponsorOrCosponsor = chair
@@ -291,8 +293,8 @@ export class ChokepointService {
           },
         },
       });
-      const chairRow = roster.find((r) => /^chair$/i.test((r.role ?? '').trim()));
-      const viceChairRow = roster.find((r) => /^vice[\s-]?chair$/i.test((r.role ?? '').trim()));
+      const chairRow = roster.find((r) => matchesRole(r.role, 'chair'));
+      const viceChairRow = roster.find((r) => matchesRole(r.role, 'viceChair'));
       chair = chairRow ? toStateChokepointMember(chairRow.legislator, bill.state, 'Chair') : null;
       viceChair = viceChairRow
         ? toStateChokepointMember(viceChairRow.legislator, bill.state, 'Vice Chair')
@@ -319,23 +321,28 @@ export class ChokepointService {
 
     let chamberLeadership: ChokepointMember | null = null;
     {
-      // Deliberately NOT filtered by bill.chamber: StateBill.chamber is
-      // LegiScan's raw current_body/body string (format/case not normalized
-      // to 'upper'/'lower' the way StateCommittee.chamber is) — a naive
-      // equality filter risks silently excluding the correct row rather than
-      // matching it. The `length === 1` uniqueness check below is the actual
-      // safety net (>=2 same-named committees across chambers -> null, never
-      // a wrong guess).
-      const leadershipCommittees = await this.prisma.stateCommittee.findMany({
-        where: {
-          state: bill.state,
-          OR: [
-            { name: { contains: 'Rules', mode: 'insensitive' } },
-            { name: { contains: 'Calendar', mode: 'insensitive' } },
-          ],
-        },
-        select: { id: true },
-      });
+      // W4.1: the bill's Rules/Calendar committee must be in the bill's OWN
+      // chamber. StateBill.chamber is LegiScan's raw current_body/body string,
+      // so normalize it to StateCommittee.chamber's 'upper'/'lower' vocabulary
+      // with the SAME normalizeLegiscanChamber the ingestion uses. When it
+      // can't be normalized (unicameral 'L', unknown code) we return null and
+      // skip chamberLeadership rather than guess a chamber (PD2). Within the
+      // chamber-filtered set the `length === 1` uniqueness check still guards
+      // against >=2 same-named committees.
+      const billChamberNorm = normalizeLegiscanChamber(bill.chamber);
+      const leadershipCommittees = billChamberNorm
+        ? await this.prisma.stateCommittee.findMany({
+            where: {
+              state: bill.state,
+              chamber: billChamberNorm,
+              OR: [
+                { name: { contains: 'Rules', mode: 'insensitive' } },
+                { name: { contains: 'Calendar', mode: 'insensitive' } },
+              ],
+            },
+            select: { id: true },
+          })
+        : [];
       if (leadershipCommittees.length === 1) {
         const roster = await this.prisma.stateCommitteeMembership.findMany({
           where: {
@@ -534,7 +541,12 @@ function stateStatusAtLeastPassedChamber(status: string | null): boolean {
   ].includes(status ?? '');
 }
 
-/** Federal committee-advancement proxy (rank >= 'reported', mirroring the state threshold — deriveBillStatus's own rank table). */
+/**
+ * Federal committee-advancement proxy: has the bill reached 'reported' or later?
+ * W4.1: compares against the SHARED `billStatusRank` table (deriveBillStatus's
+ * own rank knowledge) instead of a hardcoded status-string set that silently
+ * rots when a new pre-'reported' status is added to the vocabulary.
+ */
 function federalCommitteeAdvancement(status: string): boolean {
-  return !['introduced', 'committee'].includes(status);
+  return billStatusRank(status) >= billStatusRank('reported');
 }
