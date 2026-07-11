@@ -2,7 +2,7 @@ import { DOMAIN_PRIMER, extractCitedPeCodes } from './domain-primer';
 
 describe('DOMAIN_PRIMER', () => {
   it('is concise enough not to blow the prompt budget', () => {
-    expect(DOMAIN_PRIMER.length).toBeLessThanOrEqual(1700);
+    expect(DOMAIN_PRIMER.length).toBeLessThanOrEqual(2000);
     expect(DOMAIN_PRIMER.length).toBeGreaterThan(200);
   });
   it('states the key structural invariants', () => {

@@ -139,4 +139,10 @@ export const FULL_CHAT_READ_TOOLS: readonly DelegatedToolSpec[] = [
       "List outreach campaigns and their status (draft, sent, responses) for the firm or a client, or fetch a single outreach record's full detail by outreachId.",
     readOnly: true,
   },
+  {
+    name: 'get_pe_report_language',
+    description:
+      "Get the VERBATIM congressional committee report language linked to a budget line (by code): committee, fiscal year, heading, provision text, action type, source URL. The ONLY source that explains WHY a mark was added/cut. If it returns no provisions, the justification is NOT in Capiro's data — say so; never infer a reason for a mark from the PE's title or dollar delta.",
+    readOnly: true,
+  },
 ] as const;

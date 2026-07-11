@@ -61,6 +61,7 @@ const EXPECTED_TOOLS = [
   'get_pe_budget_timeline',
   'get_pe_contractors',
   'get_pe_bills',
+  'get_pe_report_language',
   'search_acquisition_personnel',
   'get_acquisition_person',
   // Document generation
@@ -104,6 +105,7 @@ const REQUIRED_INPUTS: Record<string, string[]> = {
   get_pe_budget_timeline: ['peCode'],
   get_pe_contractors: ['peCode'],
   get_pe_bills: ['peCode'],
+  get_pe_report_language: ['peCode'],
   get_acquisition_person: ['id'],
   find_path_to: ['to'],
   search_memory: ['query'],

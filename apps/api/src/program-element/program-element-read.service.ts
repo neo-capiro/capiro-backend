@@ -2,7 +2,13 @@ import { BadRequestException, Injectable, NotFoundException } from '@nestjs/comm
 import { Prisma } from '@prisma/client';
 import LRUCache = require('lru-cache');
 import type { TenantContext } from '@capiro/shared';
-import { fundingCurrentCoalesceSql, fundingCurrentStageSql } from '@capiro/shared';
+import {
+  fundingCurrentCoalesceSql,
+  fundingCurrentStageSql,
+  currentFunding,
+  FUNDING_STAGE_LABEL,
+  type FundingStageValues,
+} from '@capiro/shared';
 import { PrismaService } from '../prisma/prisma.service.js';
 import { ClientPeRelevanceService } from '../intelligence/client-pe-relevance.service.js';
 import { EMBEDDING_MODEL } from '../embeddings/embedder.js';
@@ -727,7 +733,14 @@ export class ProgramElementReadService {
   async getTimeline(peCode: string) {
     const programElement = await this.prisma.programElement.findUnique({
       where: { peCode },
-      select: { peCode: true },
+      select: {
+        peCode: true,
+        title: true,
+        service: true,
+        appropriationType: true,
+        budgetActivity: true,
+        lineNumber: true,
+      },
     });
     if (!programElement) throw new NotFoundException(`Program element ${peCode} not found`);
 
@@ -742,11 +755,57 @@ export class ProgramElementReadService {
       }),
     ]);
 
+    // The current budget CYCLE = the latest FY that carries a congressional mark
+    // (HASC/SASC/HAC-D/SAC-D/conference). Congress only marks the year currently in
+    // the appropriations process; later FYs in the book are FYDP OUTYEAR
+    // PROJECTIONS (request-only), and earlier FYs are historical/enacted. Without
+    // this label a consumer (human or LLM) can't tell a FY2031 projection from the
+    // live FY2027 request — the exact swap the Boresight analysis made. Falls back
+    // to the latest request-bearing FY when no mark exists yet.
+    const num = (d: unknown): number | null => (d == null ? null : Number(d));
+    const hasMark = (y: (typeof years)[number]): boolean =>
+      y.hascMark != null ||
+      y.sascMark != null ||
+      y.hacDMark != null ||
+      y.sacDMark != null ||
+      y.conference != null;
+    const markFys = years.filter(hasMark).map((y) => y.fy);
+    const requestFys = years.filter((y) => y.request != null).map((y) => y.fy);
+    const currentCycleFy = markFys.length
+      ? Math.max(...markFys)
+      : requestFys.length
+        ? Math.max(...requestFys)
+        : null;
+
     const yearsWithConferenceProbability = await Promise.all(
       years.map(async (year) => {
         const prediction = await this.conferenceProbabilityService.predict(peCode, year.fy);
+        const values: FundingStageValues = {
+          request: num(year.request),
+          hascMark: num(year.hascMark),
+          sascMark: num(year.sascMark),
+          hacDMark: num(year.hacDMark),
+          sacDMark: num(year.sacDMark),
+          conference: num(year.conference),
+          enacted: num(year.enacted),
+        };
+        const pick = currentFunding(values);
+        // 'current' = the live request/markup cycle; 'outyear' = an FYDP projection
+        // (never quote as "the request"); 'historical' = a prior, settled year.
+        const cycle: 'historical' | 'current' | 'outyear' | 'unknown' =
+          currentCycleFy == null
+            ? 'unknown'
+            : year.fy < currentCycleFy
+              ? 'historical'
+              : year.fy === currentCycleFy
+                ? 'current'
+                : 'outyear';
         return {
           ...year,
+          cycle,
+          current: pick.value,
+          currentStage: pick.stage,
+          currentStageLabel: FUNDING_STAGE_LABEL[pick.stage],
           conferenceProbability: prediction?.predicted ?? null,
           conferenceProbabilityCiLow: prediction?.ciLow ?? null,
           conferenceProbabilityCiHigh: prediction?.ciHigh ?? null,
@@ -757,6 +816,12 @@ export class ProgramElementReadService {
 
     return {
       peCode,
+      title: programElement.title,
+      service: programElement.service,
+      appropriationType: programElement.appropriationType,
+      budgetActivity: programElement.budgetActivity,
+      lineNumber: programElement.lineNumber,
+      currentCycleFy,
       years: yearsWithConferenceProbability,
       milestones,
     };

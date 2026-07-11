@@ -62,6 +62,7 @@ import { PrismaService } from '../prisma/prisma.service.js';
 import { ClientKbService } from '../embeddings/client-kb.service.js';
 import { MeriFeatureFlagsService } from './meri-feature-flags.service.js';
 import { buildSavedMemoryRecord } from './meri-memory.helpers.js';
+import { budgetExhibitType } from './meri-pe-structural.helpers.js';
 import { buildWebSearchRequest, normalizeWebResults } from './meri-websearch.helpers.js';
 import { looksLikePdf } from './meri-scrape.helpers.js';
 import { buildKnowledgeGraph, walkFrom, type FkRelation } from '../memory/memory-graph.helpers.js';
@@ -251,17 +252,17 @@ export const TOOL_DEFINITIONS = [
   {
     name: 'search_program_elements',
     description:
-      'Search DoD Program Elements (PEs) — the RDT&E/procurement budget lines from the Pentagon J-books. Filter by military service, budget activity, or title keyword. Returns PE code, title, service, budget activity, appropriation type, status, and whether the PE has budget/award/bill data. Use get_program_element / get_pe_budget_timeline for detail.',
+      'Search DoD budget lines from the Pentagon J-books. NOTE: this table holds BOTH R-1 RDT&E Program Elements AND P-1 procurement line items — each row\'s `budgetExhibitType` / `appropriationType` tells you which; a procurement line is NOT a "Program Element", so state its exhibit type accordingly. Filter by military service, budget activity, or title keyword. Returns code, title, service, budget activity, appropriation type, exhibit type, and whether it has budget/award/bill data. For near-identical sibling titles (e.g. multiple "Target Systems Development" lines) prefer scoped filters (service + budget activity) over a single keyword sweep, and raise the limit — the default may truncate. Use get_program_element / get_pe_budget_timeline for detail.',
   },
   {
     name: 'get_program_element',
     description:
-      "Get a single DoD Program Element's full detail by PE code: title, description, service, appropriation type, status, ACAT level, program of record, source-document URLs, and complete fiscal-year budget history.",
+      "Get a single DoD budget line's full detail by code: title, description, service, appropriation type, `budgetExhibitType` (P-1 procurement line item vs R-1 RDT&E Program Element), status, ACAT level, program of record, source-document URLs, and complete fiscal-year budget history.",
   },
   {
     name: 'get_pe_budget_timeline',
     description:
-      "Get a Program Element's fiscal-year budget timeline by PE code: per-FY president's request, House/Senate authorization and appropriations marks (HASC/SASC/HAC-D/SAC-D), conference, and enacted amounts, plus milestones and conference-probability predictions.",
+      "Get a budget line's fiscal-year timeline by code. Returns `budgetExhibitType`, `currentCycleFy` (the live budget-cycle FY), and per-FY: president's request, HASC/SASC/HAC-D/SAC-D marks, conference, enacted, PLUS a `cycle` label ('current' = the live request/markup year; 'outyear' = an FYDP projection you must NOT quote as 'the request'; 'historical' = a prior year) and `current`/`currentStageLabel` (the authoritative value for that FY and which stage it came from). Always cite the 'current'-cycle FY as the request; never present an 'outyear' figure as the current ask.",
   },
   {
     name: 'get_pe_contractors',
@@ -272,6 +273,11 @@ export const TOOL_DEFINITIONS = [
     name: 'get_pe_bills',
     description:
       'Get congressional bills that reference a Program Element (by PE code), with sponsor, lead committee, and latest action.',
+  },
+  {
+    name: 'get_pe_report_language',
+    description:
+      "Get the VERBATIM congressional committee report language linked to a budget line (by code): the committee, fiscal year, heading, provision text, action type, and source URL. This is the ONLY source that explains WHY a mark was added/cut. If it returns no provisions, the justification is NOT in Capiro's data — say so; do NOT infer or invent a reason for a mark change from the PE's title or the dollar delta alone.",
   },
   {
     name: 'search_acquisition_personnel',
@@ -774,6 +780,9 @@ export class MeriToolsService {
       get_pe_budget_timeline: obj({ peCode: str('Program Element code') }, ['peCode']),
       get_pe_contractors: obj({ peCode: str('Program Element code') }, ['peCode']),
       get_pe_bills: obj({ peCode: str('Program Element code') }, ['peCode']),
+      get_pe_report_language: obj({ peCode: str('Program Element or budget-line code') }, [
+        'peCode',
+      ]),
       search_acquisition_personnel: obj({
         query: str('Name search (fuzzy)'),
         service: str('Military service filter, e.g. Army, Navy, Air Force, Space Force'),
@@ -1357,6 +1366,8 @@ export class MeriToolsService {
         return this.getPeContractors(input);
       case 'get_pe_bills':
         return this.getPeBills(input);
+      case 'get_pe_report_language':
+        return this.getPeReportLanguage(input);
       case 'search_acquisition_personnel':
         return this.searchAcquisitionPersonnel(ctx, input);
       case 'get_acquisition_person':
@@ -2856,10 +2867,20 @@ export class MeriToolsService {
 
   private async getProgramElementDetail(ctx: TenantContext, input: Record<string, unknown>) {
     const peCode = requiredString(input, 'peCode', 32);
-    const programElement = await this.programElement.getProgramElement(peCode, ctx);
+    const programElement = (await this.programElement.getProgramElement(peCode, ctx)) as Record<
+      string,
+      unknown
+    >;
     return {
       tool: 'get_program_element',
       generatedAt: new Date().toISOString(),
+      // Tell the model the noun to use (P-1 procurement line item vs R-1 PE) so it
+      // never calls a procurement line a "Program Element".
+      budgetExhibitType: budgetExhibitType({
+        peCode,
+        appropriationType: (programElement.appropriationType as string | null) ?? null,
+        budgetActivity: (programElement.budgetActivity as string | null) ?? null,
+      }),
       programElement,
     };
   }
@@ -2870,7 +2891,28 @@ export class MeriToolsService {
     return {
       tool: 'get_pe_budget_timeline',
       generatedAt: new Date().toISOString(),
+      budgetExhibitType: budgetExhibitType({
+        peCode,
+        appropriationType: timeline.appropriationType,
+        budgetActivity: timeline.budgetActivity,
+      }),
       ...timeline,
+    };
+  }
+
+  private async getPeReportLanguage(input: Record<string, unknown>) {
+    const peCode = requiredString(input, 'peCode', 32);
+    const provisions = await this.programElement.getProvisionsForPe(peCode);
+    return {
+      tool: 'get_pe_report_language',
+      generatedAt: new Date().toISOString(),
+      peCode,
+      provisions,
+      // Make the "no grounded reason" case explicit so the model states it rather
+      // than inventing a justification for a mark from the title / dollar delta.
+      note: provisions.length
+        ? undefined
+        : "No committee report language is linked to this budget line in Capiro's data. Do NOT infer why a mark changed — state that the justification is not available.",
     };
   }
 

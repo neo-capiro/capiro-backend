@@ -61,6 +61,19 @@ export function isProcurementPe(pe: PeRecordForValidation): boolean {
 }
 
 /**
+ * Human budget-EXHIBIT label — the distinction Meri kept collapsing (calling a
+ * P-1 procurement line item a "Program Element"). Procurement lines come from
+ * the P-1/P-40 exhibits and are line items, NOT Program Elements (which are the
+ * R-1/R-2 RDT&E construct). Surfaced verbatim in every PE tool's output so the
+ * model states the right noun instead of inferring it from the code shape.
+ */
+export function budgetExhibitType(pe: PeRecordForValidation): string {
+  if (isProcurementPe(pe)) return 'P-1 procurement line item (NOT a Program Element)';
+  if (isRdtePe(pe)) return 'R-1 RDT&E Program Element';
+  return 'budget line (exhibit type not classified)';
+}
+
+/**
  * Phrases that indicate the deliverable is proposing END-ITEM PROCUREMENT
  * (buying units), as opposed to evaluation / demonstration / experimentation.
  */
@@ -144,7 +157,10 @@ export function validatePrimaryVehicleClaim(
   const base = citedPe.latestAmount;
   if (base == null || base <= 0) return null;
   const bigger = siblings
-    .filter((s) => s.peCode !== citedPe.peCode && s.latestAmount != null && s.latestAmount > base * factor)
+    .filter(
+      (s) =>
+        s.peCode !== citedPe.peCode && s.latestAmount != null && s.latestAmount > base * factor,
+    )
     .sort((a, b) => (b.latestAmount ?? 0) - (a.latestAmount ?? 0));
   if (!bigger.length) return null;
   const top = bigger[0];
