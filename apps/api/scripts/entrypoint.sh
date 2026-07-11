@@ -228,6 +228,11 @@ case "${1:-serve}" in
   # Step 3.1: SAM.gov DoD contract opportunities feed (sam_opportunity). Always
   # commits when run as a scheduled task (dry-run is for local dev only).
   sync-sam-opportunities) shift; exec ./node_modules/.bin/tsx scripts/sync-sam-opportunities.ts --commit "$@" ;;
+  # Re-run the opportunity->PE/program matcher over ALL existing sam_opportunity rows
+  # WITHOUT re-fetching from SAM.gov — realizes a matcher change (e.g. procurement-BLIN
+  # recognition) across the already-ingested backlog the daily sync would never re-match.
+  # Idempotent. Add --commit to persist (dry-run reports the would-be counts).
+  rematch-sam-opportunities) shift; exec ./node_modules/.bin/tsx scripts/sync-sam-opportunities.ts --match-only "$@" ;;
   # Step 34A: DoD witnesses at defense-committee hearings (committee_hearing).
   extract-hearing-witnesses) shift; exec ./node_modules/.bin/tsx scripts/extract-hearing-witnesses.ts "$@" ;;
   # Step 34B: DoD personnel named in recent GAO reports (LLM NER over metadata).
@@ -253,6 +258,11 @@ case "${1:-serve}" in
   # PE->contractor linkage: read the DoD acquisition (MDAP) program code off each
   # award detail, persist it, and resolve a PE via the curated acq-program map.
   enrich-award-pe) shift; exec ./node_modules/.bin/tsx scripts/enrich-award-pe.ts "$@" ;;
+  # Pure re-resolution: re-map EVERY award that already has a stored dodAcqProgramCode
+  # to a PE via the CURRENT curated acq-program map — NO USAspending API call. Realizes
+  # the full existing-map coverage across the backlog instantly, and re-applies a grown
+  # map. Dry-run by default; add --commit to persist. Idempotent.
+  resolve-awards-from-acq-map) shift; exec ./node_modules/.bin/tsx scripts/enrich-award-pe.ts --resolve-only "$@" ;;
   # Seed/refresh the curated DoD-acquisition-program -> PE map (idempotent upserts).
   seed-acq-program-map) shift; exec ./node_modules/.bin/tsx scripts/seed-acq-program-map.ts "$@" ;;
   # Materialize the Program graph from the curated MDAP map: one Program per MDAP
@@ -459,6 +469,9 @@ case "${1:-serve}" in
   diag-graph-coverage) shift; exec ./node_modules/.bin/tsx scripts/diag-graph-coverage.ts "$@" ;;
   # Read-only per-PE data-presence report ("why is PE X thin?"). --pe=CODE.
   diag-pe) shift; exec ./node_modules/.bin/tsx scripts/diag-pe.ts "$@" ;;
+  # Read-only network-link coverage matrix by appropriation type (RDT&E/PROC/OM) —
+  # the before/after yield measurement for the procurement-BLIN matching remediation.
+  diag-blin-coverage) shift; exec ./node_modules/.bin/tsx scripts/diag-blin-coverage.ts "$@" ;;
   backfill-appropriation-type) shift; exec ./node_modules/.bin/tsx scripts/backfill-appropriation-type.ts "$@" ;;
   # Personnel + derived jobs that were missing dispatch cases (Production
   # Ingestion plan, Phase 2). Scheduled via EventBridge in infra/cdk.
@@ -479,6 +492,11 @@ case "${1:-serve}" in
   # had no per-field source-value log for rebuild-pe-years to use. DRY RUN by
   # default; pass --commit. Idempotent.
   normalize-pe-units) shift; exec ./node_modules/.bin/tsx scripts/normalize-pe-units.ts "$@" ;;
+  # One-time data move for the NDAA-conference split: relocate every existing
+  # program_element_year.conference value into the new ndaa_conference column (outside
+  # the appropriations funding ladder) and null conference. DRY RUN by default; pass
+  # --commit. Idempotent + non-destructive. Run once, right after deploying this change.
+  move-ndaa-conference) shift; exec ./node_modules/.bin/tsx scripts/move-ndaa-conference.ts "$@" ;;
   # One-time ordered backfill + pre-flight key check (Production Ingestion plan,
   # Phase 3). preflight exits non-zero if a REQUIRED key is missing.
   preflight-ingestion) shift; exec ./node_modules/.bin/tsx scripts/preflight-ingestion.ts "$@" ;;

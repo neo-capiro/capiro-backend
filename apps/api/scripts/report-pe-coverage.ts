@@ -37,20 +37,26 @@ interface YearRow {
   sasc_mark: number | null;
   hac_d_mark: number | null;
   sac_d_mark: number | null;
-  conference: number | null;
+  ndaa_conference: number | null;
   enacted: number | null;
   appropriation_type: string | null;
   status: string | null;
   retired_at: Date | null;
 }
 
-const CHAMBER_MARKS: CoverageMark[] = ['hascMark', 'sascMark', 'hacDMark', 'sacDMark', 'conference', 'enacted'];
+const CHAMBER_MARKS: CoverageMark[] = [
+  'hascMark',
+  'sascMark',
+  'hacDMark',
+  'sacDMark',
+  'ndaaConference',
+  'enacted',
+];
 
 function buildDatabaseUrl(): void {
   if (process.env.DATABASE_URL) return;
   const enc = encodeURIComponent(process.env.DB_PASSWORD ?? '');
-  process.env.DATABASE_URL =
-    `postgresql://${process.env.DB_USER}:${enc}@${process.env.DB_HOST}:${process.env.DB_PORT}/${process.env.DB_NAME}?schema=public&sslmode=require`;
+  process.env.DATABASE_URL = `postgresql://${process.env.DB_USER}:${enc}@${process.env.DB_HOST}:${process.env.DB_PORT}/${process.env.DB_NAME}?schema=public&sslmode=require`;
 }
 
 async function main(): Promise<void> {
@@ -63,7 +69,7 @@ async function main(): Promise<void> {
     const where = fyFilter ? `WHERE y.fy = ${Number(fyFilter)}` : '';
     const rows = (await prisma.$queryRawUnsafe(
       `SELECT y.pe_code, y.fy,
-              y.request, y.hasc_mark, y.sasc_mark, y.hac_d_mark, y.sac_d_mark, y.conference, y.enacted,
+              y.request, y.hasc_mark, y.sasc_mark, y.hac_d_mark, y.sac_d_mark, y.ndaa_conference, y.enacted,
               p.appropriation_type, p.status, p.retired_at
        FROM program_element_year y
        JOIN program_element p ON p.pe_code = y.pe_code
@@ -90,19 +96,20 @@ async function main(): Promise<void> {
           sascMark: numOrNull(r.sasc_mark),
           hacDMark: numOrNull(r.hac_d_mark),
           sacDMark: numOrNull(r.sac_d_mark),
-          conference: numOrNull(r.conference),
+          ndaaConference: numOrNull(r.ndaa_conference),
           enacted: numOrNull(r.enacted),
         },
       };
       if (!byFy.has(r.fy)) byFy.set(r.fy, new Map());
       const fyMap = byFy.get(r.fy)!;
       for (const mark of CHAMBER_MARKS) {
-        if (!fyMap.has(mark)) fyMap.set(mark, { mark_present: 0, expected_blank: 0, candidate_gap: 0 });
+        if (!fyMap.has(mark))
+          fyMap.set(mark, { mark_present: 0, expected_blank: 0, candidate_gap: 0 });
         const c = classifyMissingMark(facts, mark);
         fyMap.get(mark)![c.verdict] += 1;
         if (c.verdict === 'candidate_gap') {
           const key = `FY${r.fy}/${mark}`;
-          (gapSamples[key] ??= []);
+          gapSamples[key] ??= [];
           if (gapSamples[key]!.length < 15) gapSamples[key]!.push(r.pe_code);
         }
       }
@@ -120,7 +127,11 @@ async function main(): Promise<void> {
     for (const fy of fys) {
       const fyObj: Record<string, Bucket> = {};
       for (const mark of CHAMBER_MARKS) {
-        fyObj[mark] = byFy.get(fy)!.get(mark) ?? { mark_present: 0, expected_blank: 0, candidate_gap: 0 };
+        fyObj[mark] = byFy.get(fy)!.get(mark) ?? {
+          mark_present: 0,
+          expected_blank: 0,
+          candidate_gap: 0,
+        };
       }
       (report.byFiscalYear as Record<string, unknown>)[fy] = fyObj;
     }
@@ -128,7 +139,9 @@ async function main(): Promise<void> {
     if (asJson) {
       console.log(JSON.stringify(report, null, 2));
     } else {
-      console.log(`PE MARK COVERAGE REPORT  (${rows.length} PE/FY rows${fyFilter ? `, FY${fyFilter}` : ''})`);
+      console.log(
+        `PE MARK COVERAGE REPORT  (${rows.length} PE/FY rows${fyFilter ? `, FY${fyFilter}` : ''})`,
+      );
       console.log('verdicts: present / expected_blank / CANDIDATE_GAP\n');
       for (const fy of fys) {
         console.log(`FY${fy}`);
@@ -144,11 +157,13 @@ async function main(): Promise<void> {
         console.log('');
       }
       const totalGap = fys.reduce(
-        (s, fy) => s + CHAMBER_MARKS.reduce((t, m) => t + (byFy.get(fy)!.get(m)!.candidate_gap), 0),
+        (s, fy) => s + CHAMBER_MARKS.reduce((t, m) => t + byFy.get(fy)!.get(m)!.candidate_gap, 0),
         0,
       );
       console.log(`TOTAL candidate_gap across all FYs/marks: ${totalGap}`);
-      console.log('(candidate_gap = in-request, unclassified RDT&E, in-jurisdiction PE lacking this mark)');
+      console.log(
+        '(candidate_gap = in-request, unclassified RDT&E, in-jurisdiction PE lacking this mark)',
+      );
     }
   } finally {
     await prisma.$disconnect();

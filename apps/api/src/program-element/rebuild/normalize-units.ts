@@ -25,6 +25,7 @@ export const PE_VALUE_COLUMNS = [
   'hac_d_mark',
   'sac_d_mark',
   'conference',
+  'ndaa_conference',
   'enacted',
   'reprogrammed',
   'executed',
@@ -40,7 +41,12 @@ export const DOLLARS_THRESHOLD = 100_000;
 
 /** True when a stored value is in dollar-scale and must be scaled to millions. */
 export function needsScaling(value: number | null | undefined): boolean {
-  return value !== null && value !== undefined && Number.isFinite(value) && Math.abs(value) > DOLLARS_THRESHOLD;
+  return (
+    value !== null &&
+    value !== undefined &&
+    Number.isFinite(value) &&
+    Math.abs(value) > DOLLARS_THRESHOLD
+  );
 }
 
 /** Dollars -> millions. */

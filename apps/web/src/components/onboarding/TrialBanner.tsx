@@ -50,7 +50,7 @@ export function TrialBanner() {
         <span style={{ fontFamily: 'var(--font-mono)', letterSpacing: 0 }}>
           {state.usedSlots}/{state.slots}
         </span>{' '}
-        profiles used
+        client profiles used
       </span>
       <span style={{ flex: 1 }}></span>
       {billingAdmin ? (

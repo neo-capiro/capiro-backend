@@ -218,8 +218,14 @@ export function projectDraftsForSend(
 ): SendDraft[] {
   const out: SendDraft[] = [];
   const seen = new Set<string>();
-  const push = (r: OutreachRecipient, draft?: { subject: string; body: string }) => {
+  const push = (r: OutreachRecipient, draft?: { subject: string; body: string; status: string }) => {
     if (!draft) return;
+    // A draft that FAILED to generate carries a placeholder body ("…generation
+    // failed…") and status 'error'. It must never be sent as-is — it only
+    // becomes sendable once the user edits it (→ 'edited') or a regenerate
+    // succeeds (→ 'ready'). Excluding it here is the hard gate behind the
+    // Generate/Send UI's softer warnings.
+    if (draft.status === 'error') return;
     if (!draft.subject?.trim() && !draft.body?.trim()) return;
     const id = recipientKey(r);
     if (seen.has(id)) return;
@@ -240,7 +246,7 @@ export function projectDraftsForSend(
       // sends as a single email to all members.
       const aid = audienceIdOf(t);
       const shared = generated[`group:${aid}`];
-      if (shared && (shared.subject?.trim() || shared.body?.trim())) {
+      if (shared && shared.status !== 'error' && (shared.subject?.trim() || shared.body?.trim())) {
         const id = `group:${t.key}`;
         if (!seen.has(id)) {
           seen.add(id);
@@ -256,4 +262,41 @@ export function projectDraftsForSend(
   for (const t of targets) if (t.type === 'list') handle(t);
   for (const t of targets) if (t.type === 'individual') handle(t);
   return out;
+}
+
+// ── Draft version history (W2.6 "Improve"/Revert) ────────────────────────────
+
+export interface DraftVersion {
+  subject: string;
+  body: string;
+}
+
+interface DraftWithHistory {
+  subject: string;
+  body: string;
+  history?: DraftVersion[];
+}
+
+/**
+ * Snapshot the current draft onto its history before an "Improve" overwrites it,
+ * keeping only the newest 2 versions so a user can back out a bad rewrite without
+ * unbounded growth. Returns the new history array (undefined if there is nothing
+ * to snapshot).
+ */
+export function appendDraftHistory(prior: DraftWithHistory | undefined): DraftVersion[] | undefined {
+  if (!prior) return undefined;
+  return [...(prior.history ?? []), { subject: prior.subject, body: prior.body }].slice(-2);
+}
+
+/**
+ * Pop the newest history entry back into the draft (Revert). Returns the restored
+ * subject/body + the remaining history, or null when there is nothing to revert.
+ */
+export function revertDraftHistory(
+  draft: DraftWithHistory,
+): { subject: string; body: string; history: DraftVersion[] } | null {
+  if (!draft.history?.length) return null;
+  const history = [...draft.history];
+  const restored = history.pop()!;
+  return { subject: restored.subject, body: restored.body, history };
 }

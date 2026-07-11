@@ -1,7 +1,7 @@
 import { describe, expect, test } from '@jest/globals';
 import { AwardPeExtractorService, type AwardLike } from './award-pe-extractor.service.js';
 
-const known = new Set(['0603270A', '0603250F', '0604201A']);
+const known = new Set(['0603270A', '0603250F', '0604201A', '1242C93000']);
 const svc = new AwardPeExtractorService();
 
 describe('AwardPeExtractorService.extractPeCode', () => {
@@ -11,12 +11,16 @@ describe('AwardPeExtractorService.extractPeCode', () => {
   });
 
   test('award with PE in description → extracted', () => {
-    const award: AwardLike = { description: 'R&D services supporting PE 0603250F electronic warfare' };
+    const award: AwardLike = {
+      description: 'R&D services supporting PE 0603250F electronic warfare',
+    };
     expect(svc.extractPeCode(award, known)).toBe('0603250F');
   });
 
   test('award with no PE anywhere → null (NOT quarantined)', () => {
-    const award: AwardLike = { description: 'Base operations support services, no program element' };
+    const award: AwardLike = {
+      description: 'Base operations support services, no program element',
+    };
     expect(svc.extractPeCode(award, known)).toBeNull();
   });
 
@@ -41,6 +45,18 @@ describe('AwardPeExtractorService.extractPeCode', () => {
     const b = svc.extractPeCode(award, known);
     expect(a).toBe(b);
     expect(a).toBe('0603270A'); // first valid known match wins
+  });
+
+  test('award with explicit, known procurement BLIN field → extracted', () => {
+    const award: AwardLike = { programElement: '1242c93000', description: 'whatever' };
+    expect(svc.extractPeCode(award, known)).toBe('1242C93000');
+  });
+
+  test('award with a known BLIN in the description → extracted', () => {
+    const award: AwardLike = {
+      description: 'Delivery order under line 1242C93000, air defense targets',
+    };
+    expect(svc.extractPeCode(award, known)).toBe('1242C93000');
   });
 });
 
@@ -113,5 +129,19 @@ describe('AwardPeExtractorService.resolvePe (tiered, with provenance)', () => {
     const m = new Map<string, Set<string>>([['198', new Set(['0609999Z'])]]);
     const r = svc.resolvePe({ dodAcqProgramCode: '198' }, known, m);
     expect(r).toBeNull();
+  });
+
+  test('explicit known BLIN → resolved with source=explicit', () => {
+    const r = svc.resolvePe({ programElement: '1242c93000' }, known, acqMap);
+    expect(r).toEqual({ peCode: '1242C93000', source: 'explicit' });
+  });
+
+  test('known BLIN in description, no acq-map hit → resolved via description regex', () => {
+    const r = svc.resolvePe(
+      { description: 'line 1242C93000', dodAcqProgramCode: '999' },
+      known,
+      acqMap,
+    );
+    expect(r).toEqual({ peCode: '1242C93000', source: 'description_regex' });
   });
 });

@@ -90,6 +90,27 @@ enum MeetingPrepStatus {
   @@map("meeting_prep_status")
 }
 
+// Meetings v2 (2026-07): a meeting artifact record is private to its author
+// until explicitly shared to the associated client. Applies to the whole
+// meeting record (approved Prep / Notes / Debrief). See the Meetings & Meri
+// redesign plan (docs/plans/2026-07-10-meetings-meri-v2-redesign-plan.md §5-6).
+enum MeetingVisibility {
+  private
+  shared
+
+  @@map("meeting_visibility")
+}
+
+// Meetings v2 (2026-07): debrief lifecycle, mirroring MeetingPrepStatus. Only
+// an `approved` debrief is eligible for the Meeting Library and for sharing.
+enum MeetingDebriefStatus {
+  generated
+  edited
+  approved
+
+  @@map("meeting_debrief_status")
+}
+
 enum EngagementTaskStatus {
   todo
   in_progress
@@ -194,6 +215,8 @@ model Tenant {
   outreachAudienceMembers      OutreachAudienceMember[]
   MeetingDebrief               MeetingDebrief[]
   meetingBotSessions           MeetingBotSession[]
+  outreachJobs                 OutreachJob[]
+  outreachJobItems             OutreachJobItem[]
   clioConversations            ClioConversation[]
   clioMessages                 ClioMessage[]
   clioArtifacts                ClioArtifact[]
@@ -536,30 +559,48 @@ model EngagementContact {
 }
 
 model Meeting {
-  id                 String           @id @default(uuid()) @db.Uuid
-  tenantId           String           @map("tenant_id") @db.Uuid
-  clientId           String?          @map("client_id") @db.Uuid
-  isInternal         Boolean          @default(false) @map("is_internal")
-  connectionId       String?          @map("connection_id") @db.Uuid
-  source             EngagementSource @default(manual)
-  externalId         String?          @map("external_id")
+  id                 String            @id @default(uuid()) @db.Uuid
+  tenantId           String            @map("tenant_id") @db.Uuid
+  clientId           String?           @map("client_id") @db.Uuid
+  isInternal         Boolean           @default(false) @map("is_internal")
+  connectionId       String?           @map("connection_id") @db.Uuid
+  source             EngagementSource  @default(manual)
+  externalId         String?           @map("external_id")
+  // Meetings v2 Phase 2 groundwork (2026-07-11): Microsoft Graph's cross-mailbox-
+  // stable event id. externalId is the per-MAILBOX event id, so two attendees'
+  // syncs of the same real meeting produce two rows with the SAME iCalUId — the
+  // key the (deferred) cross-user collision model groups/dedupes on. Captured
+  // now, DORMANT: nothing reads it until Phase 2's identity switch ships.
+  iCalUId            String?           @map("ical_uid")
   subject            String
   description        String?
   location           String?
-  startsAt           DateTime         @map("starts_at") @db.Timestamptz(6)
-  endsAt             DateTime         @map("ends_at") @db.Timestamptz(6)
-  organizerEmail     String?          @map("organizer_email") @db.Citext
-  organizerName      String?          @map("organizer_name")
-  status             String           @default("scheduled")
-  transcriptS3Key    String?          @map("transcript_s3_key")
-  metadata           Json             @default("{}") @map("metadata_jsonb")
-  raw                Json?            @map("raw_jsonb")
-  associationScore   Float?           @map("association_score")
-  associationReason  String?          @map("association_reason")
-  associationSignals Json             @default("{}") @map("association_signals_jsonb")
-  createdByUserId    String?          @map("created_by_user_id") @db.Uuid
-  createdAt          DateTime         @default(now()) @map("created_at") @db.Timestamptz(6)
-  updatedAt          DateTime         @updatedAt @map("updated_at") @db.Timestamptz(6)
+  startsAt           DateTime          @map("starts_at") @db.Timestamptz(6)
+  endsAt             DateTime          @map("ends_at") @db.Timestamptz(6)
+  organizerEmail     String?           @map("organizer_email") @db.Citext
+  organizerName      String?           @map("organizer_name")
+  status             String            @default("scheduled")
+  // Meetings v2 (2026-07): virtual-meeting classification derived once at
+  // sync/create time (see @capiro/shared deriveMeetingVirtuality) instead of
+  // regex-scanning free text on every render. eligibleForMeri = isVirtual && joinLink.
+  isVirtual          Boolean           @default(false) @map("is_virtual")
+  joinLink           String?           @map("join_link")
+  provider           String?
+  // Private-until-shared visibility. The record is private to createdByUserId
+  // until shared to the associated client (requires clientId). Un-share clears
+  // sharedAt/sharedByUserId. See redesign plan §5-6.
+  visibility         MeetingVisibility @default(private)
+  sharedAt           DateTime?         @map("shared_at") @db.Timestamptz(6)
+  sharedByUserId     String?           @map("shared_by_user_id") @db.Uuid
+  transcriptS3Key    String?           @map("transcript_s3_key")
+  metadata           Json              @default("{}") @map("metadata_jsonb")
+  raw                Json?             @map("raw_jsonb")
+  associationScore   Float?            @map("association_score")
+  associationReason  String?           @map("association_reason")
+  associationSignals Json              @default("{}") @map("association_signals_jsonb")
+  createdByUserId    String?           @map("created_by_user_id") @db.Uuid
+  createdAt          DateTime          @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt          DateTime          @updatedAt @map("updated_at") @db.Timestamptz(6)
 
   tenant          Tenant                 @relation(fields: [tenantId], references: [id], onDelete: Cascade)
   client          Client?                @relation(fields: [clientId], references: [id], onDelete: SetNull)
@@ -577,6 +618,8 @@ model Meeting {
   @@unique([tenantId, source, externalId], map: "meetings_tenant_source_external_key")
   @@index([tenantId, startsAt], map: "meetings_tenant_starts_idx")
   @@index([tenantId, clientId, startsAt], map: "meetings_tenant_client_starts_idx")
+  // Phase 2 cross-mailbox grouping/matching lookups (WHERE tenant_id=? AND ical_uid=?).
+  @@index([tenantId, iCalUId], map: "meetings_tenant_ical_idx")
   @@map("meetings")
 }
 
@@ -667,20 +710,25 @@ model MailMessage {
 }
 
 model EngagementAttachment {
-  id               String   @id @default(uuid()) @db.Uuid
-  tenantId         String   @map("tenant_id") @db.Uuid
-  clientId         String?  @map("client_id") @db.Uuid
-  meetingId        String?  @map("meeting_id") @db.Uuid
-  mailMessageId    String?  @map("mail_message_id") @db.Uuid
-  fileName         String   @map("file_name")
-  contentType      String   @map("content_type")
-  byteSize         Int?     @map("byte_size")
+  id               String    @id @default(uuid()) @db.Uuid
+  tenantId         String    @map("tenant_id") @db.Uuid
+  clientId         String?   @map("client_id") @db.Uuid
+  meetingId        String?   @map("meeting_id") @db.Uuid
+  mailMessageId    String?   @map("mail_message_id") @db.Uuid
+  fileName         String    @map("file_name")
+  contentType      String    @map("content_type")
+  byteSize         Int?      @map("byte_size")
   bucket           String
-  s3Key            String   @map("s3_key")
-  checksumSha256   String?  @map("checksum_sha256")
-  source           String   @default("manual")
-  uploadedByUserId String?  @map("uploaded_by_user_id") @db.Uuid
-  createdAt        DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  s3Key            String    @map("s3_key")
+  checksumSha256   String?   @map("checksum_sha256")
+  source           String    @default("manual")
+  uploadedByUserId String?   @map("uploaded_by_user_id") @db.Uuid
+  // Meetings v2 (2026-07): stamped by ClientKbService.indexAttachment when the
+  // client-KB indexing of this document completes, so the Documents tab can show
+  // a per-file "Indexed" badge (null = not yet / not indexable). Non-clientId
+  // attachments are never indexed and stay null.
+  indexedAt        DateTime? @map("indexed_at") @db.Timestamptz(6)
+  createdAt        DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
 
   tenant      Tenant       @relation(fields: [tenantId], references: [id], onDelete: Cascade)
   client      Client?      @relation(fields: [clientId], references: [id], onDelete: SetNull)
@@ -746,19 +794,23 @@ model MeetingPrep {
 }
 
 model MeetingDebrief {
-  id             String   @id @default(uuid()) @db.Uuid
-  tenantId       String   @map("tenant_id") @db.Uuid
-  meetingId      String   @map("meeting_id") @db.Uuid
-  clientId       String?  @map("client_id") @db.Uuid
-  authorUserId   String?  @map("author_user_id") @db.Uuid
-  bodyCiphertext String   @map("body_ciphertext")
+  id             String               @id @default(uuid()) @db.Uuid
+  tenantId       String               @map("tenant_id") @db.Uuid
+  meetingId      String               @map("meeting_id") @db.Uuid
+  clientId       String?              @map("client_id") @db.Uuid
+  authorUserId   String?              @map("author_user_id") @db.Uuid
+  bodyCiphertext String               @map("body_ciphertext")
   iv             String
-  authTag        String   @map("auth_tag")
-  keyVersion     String?  @map("key_version")
-  confidential   Boolean  @default(true)
-  accessLevel    String   @default("tenant_members") @map("access_level")
-  createdAt      DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
-  updatedAt      DateTime @updatedAt @map("updated_at") @db.Timestamptz(6)
+  authTag        String               @map("auth_tag")
+  keyVersion     String?              @map("key_version")
+  confidential   Boolean              @default(true)
+  accessLevel    String               @default("tenant_members") @map("access_level")
+  // Meetings v2 (2026-07): debrief lifecycle mirroring MeetingPrep.status. Only
+  // an `approved` debrief reaches the Library / is shareable. Existing rows
+  // backfill to `generated` (see migration) — behavior unchanged until a user approves.
+  status         MeetingDebriefStatus @default(generated)
+  createdAt      DateTime             @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt      DateTime             @updatedAt @map("updated_at") @db.Timestamptz(6)
 
   tenant  Tenant  @relation(fields: [tenantId], references: [id], onDelete: Cascade)
   meeting Meeting @relation(fields: [meetingId], references: [id], onDelete: Cascade)
@@ -1512,8 +1564,15 @@ model AiUsageEvent {
   model         String   @db.VarChar(80)
   inputTokens   Int      @map("input_tokens")
   outputTokens  Int      @map("output_tokens")
+  /// Prompt-cache token counters (W3.3): read = cache hit (discounted), creation
+  /// = cache write. Anthropic reports both; OpenAI reports cache reads only.
+  cacheReadTokens     Int @default(0) @map("cache_read_tokens")
+  cacheCreationTokens Int @default(0) @map("cache_creation_tokens")
   costUsd       Decimal  @map("cost_usd") @db.Decimal(12, 6)
   usedTenantKey Boolean  @default(false) @map("used_tenant_key")
+  /// Outreach prompt-assembly spec that produced this generation ('v1'|'v2'); null
+  /// for non-outreach workflows (A12 traceability).
+  promptSpecVersion String? @map("prompt_spec_version") @db.VarChar(8)
   createdAt     DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
 
   tenant Tenant? @relation(fields: [tenantId], references: [id], onDelete: Cascade)
@@ -1591,6 +1650,66 @@ model AiRun {
   /// intel_targeting rows per candidate alert.
   @@index([workflow, subjectKey, tenantId, clientId, createdAt], map: "ai_run_targeting_guard_idx")
   @@map("ai_run")
+}
+
+/// Async outreach job (plan W4 / §3.3). One row per generate-or-send request the
+/// wizard submits; the claim-sweep worker drives it to completion off the request
+/// path (past the ALB idle ceiling). requestKey is the client idempotency token —
+/// a duplicate POST with the same (tenant, requestKey) returns the existing job.
+model OutreachJob {
+  id               String    @id @default(uuid()) @db.Uuid
+  tenantId         String    @map("tenant_id") @db.Uuid
+  userId           String?   @map("user_id") @db.Uuid
+  /// 'generate' | 'send'
+  kind             String    @db.VarChar(16)
+  outreachRecordId String?   @map("outreach_record_id") @db.Uuid
+  /// promptSpecVersion, model, provider, templateId, tone, length, direction, contextItems, appendSignature, attachmentIds, testMode …
+  params           Json      @default("{}") @map("params_jsonb")
+  /// queued | running | partial | complete | failed | canceled
+  status           String    @default("queued") @db.VarChar(16)
+  /// { queued, succeeded, failed, skipped }
+  totals           Json      @default("{}") @map("totals_jsonb")
+  requestKey       String    @map("request_key") @db.VarChar(128)
+  error            String?
+  startedAt        DateTime? @map("started_at") @db.Timestamptz(6)
+  finishedAt       DateTime? @map("finished_at") @db.Timestamptz(6)
+  createdAt        DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt        DateTime  @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  tenant Tenant            @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  items  OutreachJobItem[]
+
+  @@unique([tenantId, requestKey], map: "outreach_jobs_tenant_request_key")
+  @@index([status, createdAt], map: "outreach_jobs_status_created_idx")
+  @@map("outreach_jobs")
+}
+
+/// One recipient's unit of work within an OutreachJob. Claimed atomically
+/// (pending → claimed) so exactly one worker processes it; the (jobId,
+/// recipientKey) unique index is the server-side dedup + the resume anchor.
+model OutreachJobItem {
+  id           String    @id @default(uuid()) @db.Uuid
+  jobId        String    @map("job_id") @db.Uuid
+  tenantId     String    @map("tenant_id") @db.Uuid
+  recipientKey String    @map("recipient_key") @db.VarChar(256)
+  /// recipient snapshot (generate) or the draft to send (send)
+  payload      Json      @default("{}") @map("payload_jsonb")
+  /// pending | claimed | generating | done | failed | sending | sent | skipped
+  status       String    @default("pending") @db.VarChar(16)
+  /// { subject, body, contextNote } or { messageId }
+  result       Json?     @map("result_jsonb")
+  attempt      Int       @default(0)
+  error        String?
+  claimedAt    DateTime? @map("claimed_at") @db.Timestamptz(6)
+  createdAt    DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt    DateTime  @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  job    OutreachJob @relation(fields: [jobId], references: [id], onDelete: Cascade)
+  tenant Tenant      @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  @@unique([jobId, recipientKey], map: "outreach_job_items_job_recipient")
+  @@index([jobId, status], map: "outreach_job_items_job_status_idx")
+  @@map("outreach_job_items")
 }
 
 /// Per-tenant AI provider key, AES-256-GCM encrypted at rest with
@@ -2739,7 +2858,14 @@ model ProgramElementYear {
   sascMark     Decimal? @map("sasc_mark") @db.Decimal(14, 2)
   hacDMark     Decimal? @map("hac_d_mark") @db.Decimal(14, 2)
   sacDMark     Decimal? @map("sac_d_mark") @db.Decimal(14, 2)
+  // Appropriations-track conference (Defense Appropriations conference / JES). RESERVED:
+  // no loader populates it yet — it is the ladder's "conference" rung (see @capiro/shared
+  // FUNDING_CURRENT_PRECEDENCE). Kept NULL until a real appropriations-conference source lands.
   conference   Decimal? @db.Decimal(14, 2)
+  // NDAA (authorization-track) conference-report value. Written by the NDAA conference
+  // loader. Deliberately OUTSIDE the appropriations funding ladder so it never becomes the
+  // "current" appropriations number — it reconciles the authorization marks (HASC/SASC).
+  ndaaConference Decimal? @map("ndaa_conference") @db.Decimal(14, 2)
   enacted      Decimal? @db.Decimal(14, 2)
   reprogrammed Decimal? @db.Decimal(14, 2)
   executed     Decimal? @db.Decimal(14, 2)

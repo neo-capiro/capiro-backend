@@ -52,7 +52,16 @@ export interface LoadResult {
 }
 
 /** Mark fields on ProgramElementYear that a committee report can populate. */
-export type MarkField = 'hascMark' | 'sascMark' | 'hacDMark' | 'sacDMark' | 'conference' | 'enacted';
+// 'conference' = appropriations-track conference (RESERVED — no loader writes it yet).
+// 'ndaaConference' = NDAA authorization conference report (written by the NDAA loader).
+export type MarkField =
+  | 'hascMark'
+  | 'sascMark'
+  | 'hacDMark'
+  | 'sacDMark'
+  | 'conference'
+  | 'ndaaConference'
+  | 'enacted';
 
 // PE code: 7 digits + service letter (+ optional suffix). Same canon as jbook.
 const PE_TOKEN = /\b([0-9]{7}[A-Z][A-Z0-9]*)\b/;
@@ -111,7 +120,10 @@ export function parseReportText(text: string, opts: ParseOptions): CommitteeRepo
 }
 
 /** Parse already-tabular rows (from the offline pdfplumber extractor JSON). */
-export function parseExtractedRows(rows: ExtractedReportRow[], opts: ParseOptions): CommitteeReportMarkRecord[] {
+export function parseExtractedRows(
+  rows: ExtractedReportRow[],
+  opts: ParseOptions,
+): CommitteeReportMarkRecord[] {
   const out: CommitteeReportMarkRecord[] = [];
   for (const r of rows) {
     const peCode = (r.peCode ?? '').toString().trim().toUpperCase();
@@ -198,7 +210,9 @@ export abstract class CommitteeReportParserBase {
       if (result.changed) changed += 1;
     }
 
-    this.logger.log(`${source}: ${upserted} upserted, ${changed} changed, ${quarantined} quarantined`);
+    this.logger.log(
+      `${source}: ${upserted} upserted, ${changed} changed, ${quarantined} quarantined`,
+    );
     return { source, rowsSeen: records.length, upserted, changed, quarantined };
   }
 }

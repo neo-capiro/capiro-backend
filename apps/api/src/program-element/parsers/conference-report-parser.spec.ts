@@ -25,8 +25,13 @@ describe('conferenceReportSource', () => {
 
 describe('parseExtractedRows — fixture matches golden', () => {
   test('HRPT-119-NDAA-CONFERENCE-sample rows parse to the golden records', () => {
-    const fixture = readJson('HRPT-119-NDAA-CONFERENCE-sample.rows.json') as { fy: number; rows: Record<string, unknown>[] };
-    const golden = readJson('HRPT-119-NDAA-CONFERENCE-sample.golden.json') as { records: ConferenceMarkRecord[] };
+    const fixture = readJson('HRPT-119-NDAA-CONFERENCE-sample.rows.json') as {
+      fy: number;
+      rows: Record<string, unknown>[];
+    };
+    const golden = readJson('HRPT-119-NDAA-CONFERENCE-sample.golden.json') as {
+      records: ConferenceMarkRecord[];
+    };
 
     const parsed = parseExtractedRows(fixture.rows as never, { fy: fixture.fy });
     expect(parsed).toEqual(golden.records);
@@ -50,7 +55,14 @@ describe('parseReportText — extracts conference table rows', () => {
 });
 
 interface CapturedYear {
-  record: { peCode: string; fy: number; conference?: unknown; enacted?: unknown; request?: unknown };
+  record: {
+    peCode: string;
+    fy: number;
+    conference?: unknown;
+    ndaaConference?: unknown;
+    enacted?: unknown;
+    request?: unknown;
+  };
   source: string;
 }
 
@@ -83,7 +95,7 @@ const goldenRecords = (
 ).records;
 
 describe('ConferenceReportParserService.load', () => {
-  test('conference stage → conference field + conference_report source, quarantines bad pe_code', async () => {
+  test('conference stage → ndaaConference field + conference_report source, quarantines bad pe_code', async () => {
     const { svc, upserts, quarantines } = makeService();
     const result = await svc.load(goldenRecords, 'conference', 2027);
 
@@ -93,11 +105,14 @@ describe('ConferenceReportParserService.load', () => {
 
     for (const u of upserts) {
       expect(u.source).toBe('conference_report_fy27');
-      expect(u.record.conference).toBeDefined();
+      // The NDAA conference report writes the authorization-track ndaaConference field,
+      // NOT the appropriations `conference` field (which stays reserved/unpopulated).
+      expect(u.record.ndaaConference).toBeDefined();
+      expect(u.record.conference).toBeUndefined();
       expect(u.record.enacted).toBeUndefined();
     }
     // Artifact value 145000 (full dollars) is normalized to 0.145 ($0.145M) at the boundary.
-    expect(upserts.find((u) => u.record.peCode === '0603270A')!.record.conference).toBe(0.145);
+    expect(upserts.find((u) => u.record.peCode === '0603270A')!.record.ndaaConference).toBe(0.145);
   });
 
   test('public_law stage → enacted field + public_law source', async () => {

@@ -34,22 +34,30 @@ async function count(model: string): Promise<number | string> {
 // column is when the underlying event happened (may legitimately lag); the
 // ingestion column (synced_at / last_synced_at) is when our sync last wrote
 // the row — that's the authoritative "is the pipeline running?" signal.
-// Table names + columns verified live 2026-06-16 against the schema @@map.
+// Table names + columns re-verified live 2026-07-11 against schema.prisma's
+// @@map/@map (the prior 2026-06-16 pass had 4 wrong column names below — they
+// silently returned ERR on this table's OWN lookup while row counts stayed
+// correct, masking real pipeline health behind a diagnostic-script bug):
+//   - federal_award / lda_filing / fec_contribution: sync col is
+//     `last_synced_at`, not `synced_at` (schema.prisma: lastSyncedAt @map).
+//   - crs_report: CONTENT col is `date`, not `published_at` (no such column
+//     on CrsReport — its sync col `synced_at` was already correct).
 const TABLES: Array<[string, string, string]> = [
   ['congress_bill', 'latest_action_date', 'last_synced_at'],
   ['federal_register_document', 'publication_date', 'synced_at'],
-  ['lda_filing', 'dt_posted', 'synced_at'],
-  ['federal_award', 'awarded_at', 'synced_at'],
+  ['lda_filing', 'dt_posted', 'last_synced_at'],
+  ['federal_award', 'awarded_at', 'last_synced_at'],
   ['committee_hearing', 'date', 'synced_at'],
-  ['fec_contribution', 'contribution_date', 'synced_at'],
+  ['fec_contribution', 'contribution_date', 'last_synced_at'],
   ['fara_registration', 'registration_date', 'synced_at'],
   ['sec_filing', 'filing_date', 'synced_at'],
   ['gao_report', 'publish_date', 'synced_at'],
-  ['crs_report', 'published_at', 'synced_at'],
+  ['crs_report', 'date', 'synced_at'],
   ['regulatory_docket', 'posted_date', 'synced_at'],
   ['intel_article', 'published_at', 'synced_at'],
   ['state_bill', 'latest_action_date', 'synced_at'],
   ['intelligence_change', 'detected_at', 'detected_at'],
+  ['sam_opportunity', 'posted_date', 'last_synced_at'],
 ];
 
 interface StateSlaRow {
@@ -109,6 +117,44 @@ async function stateIngestionSla(): Promise<StateSlaRow[]> {
   }
 }
 
+interface SamMatchCoverage {
+  totalOpportunities: number | string;
+  distinctOpportunitiesMatched: number | string;
+  distinctPeCodesMatched: number | string;
+  matchesByReviewStatus: unknown;
+  matchesByBasis: unknown;
+}
+
+/** SAM.gov opportunity -> PE/program match coverage (separate from the generic
+ * row-count table above since "how many opportunities have >=1 match" needs a
+ * DISTINCT count, not a raw row count on sam_opportunity_match). */
+async function samMatchCoverage(): Promise<SamMatchCoverage> {
+  const q = async (sql: string): Promise<unknown> => {
+    try {
+      const r = (await prisma.$queryRawUnsafe(sql)) as Array<Record<string, unknown>>;
+      const first = r[0];
+      return r.length === 1 && first && 'n' in first ? Number(first.n) : r;
+    } catch (e) {
+      return `ERR:${e instanceof Error ? e.message.slice(0, 80) : 'x'}`;
+    }
+  };
+  return {
+    totalOpportunities: await q(`SELECT COUNT(*)::bigint AS n FROM sam_opportunity`),
+    distinctOpportunitiesMatched: await q(
+      `SELECT COUNT(DISTINCT opportunity_id)::bigint AS n FROM sam_opportunity_match`,
+    ),
+    distinctPeCodesMatched: await q(
+      `SELECT COUNT(DISTINCT pe_code)::bigint AS n FROM sam_opportunity_match WHERE pe_code IS NOT NULL`,
+    ),
+    matchesByReviewStatus: await q(
+      `SELECT review_status, COUNT(*)::int AS n FROM sam_opportunity_match GROUP BY 1 ORDER BY 2 DESC`,
+    ),
+    matchesByBasis: await q(
+      `SELECT match_basis, COUNT(*)::int AS n FROM sam_opportunity_match GROUP BY 1 ORDER BY 2 DESC`,
+    ),
+  };
+}
+
 async function main(): Promise<void> {
   const out: Record<
     string,
@@ -122,10 +168,16 @@ async function main(): Promise<void> {
     };
   }
   const stateSla = await stateIngestionSla();
+  const samMatches = await samMatchCoverage();
   console.log(
     'INGEST_REPORT ' +
       JSON.stringify(
-        { generatedAt: new Date().toISOString(), tables: out, stateLegislationSla: stateSla },
+        {
+          generatedAt: new Date().toISOString(),
+          tables: out,
+          samOpportunityMatches: samMatches,
+          stateLegislationSla: stateSla,
+        },
         null,
         2,
       ),

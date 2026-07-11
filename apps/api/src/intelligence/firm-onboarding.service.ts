@@ -59,7 +59,21 @@ export class FirmOnboardingService {
     this.billingEnforced = config.get('BILLING_ENFORCED', { infer: true });
   }
 
-  /** Trigram search over LDA registrants so a firm can find itself. */
+  /**
+   * Find a firm among LDA registrants. Ranked so the DISTINCTIVE tokens
+   * matter, not a shared common word:
+   *   1. exact / prefix / substring match on the full query (a firm typing its
+   *      own name lands at the top),
+   *   2. word_similarity — how well the query matches a run of words in the
+   *      name (order/extra-token tolerant),
+   *   3. whole-string similarity, then filing volume as a tiebreak.
+   * The old query used only `similarity(name, term) > 0.2`, which for a
+   * multi-word query like "maven advocacy partners" flooded the list with
+   * unrelated "* ADVOCACY" firms (the common word dominated the trigram score)
+   * and buried/omitted the real match. The stricter gate below returns few or
+   * zero rows when the firm isn't in the LDA data — the correct cue to add
+   * clients manually instead.
+   */
   async searchRegistrants(q: string): Promise<RegistrantHit[]> {
     const term = q.trim();
     if (term.length < 2) return [];
@@ -68,8 +82,16 @@ export class FirmOnboardingService {
              total_clients AS "totalClients",
              total_filings AS "totalFilings"
       FROM lda_registrant
-      WHERE similarity(name, ${term}) > 0.2
-      ORDER BY similarity(name, ${term}) DESC, total_filings DESC
+      WHERE name ILIKE '%' || ${term} || '%'
+         OR word_similarity(${term}, name) >= 0.5
+         OR similarity(name, ${term}) >= 0.45
+      ORDER BY
+        (name ILIKE ${term}) DESC,
+        (name ILIKE ${term} || '%') DESC,
+        (name ILIKE '%' || ${term} || '%') DESC,
+        word_similarity(${term}, name) DESC,
+        similarity(name, ${term}) DESC,
+        total_filings DESC
       LIMIT 20
     `;
   }

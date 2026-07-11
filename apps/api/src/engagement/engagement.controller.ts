@@ -1,8 +1,10 @@
 import {
+  BadRequestException,
   Body,
   Controller,
   Delete,
   Get,
+  NotFoundException,
   Param,
   Patch,
   Post,
@@ -10,6 +12,7 @@ import {
   Query,
   UseGuards,
 } from '@nestjs/common';
+import { Throttle } from '@nestjs/throttler';
 import { Transform, Type } from 'class-transformer';
 import {
   ArrayMaxSize,
@@ -37,6 +40,7 @@ import { Roles } from '../auth/roles.decorator.js';
 import { RolesGuard } from '../auth/roles.guard.js';
 import { CurrentTenant } from '../tenant/current-tenant.decorator.js';
 import { EngagementService } from './engagement.service.js';
+import { OutreachJobService, outreachRecipientKey } from './outreach-job.service.js';
 import { NotetakerService } from './notetaker/notetaker.service.js';
 
 /**
@@ -264,6 +268,42 @@ class UpdateMeetingPrepDto {
   @ArrayMaxSize(80)
   @IsString({ each: true })
   emailEvidence?: string[];
+}
+
+// Meeting Library filters (Meetings v2 §6). page/limit follow the house
+// pagination convention (default 1 / 50, capped at 100 server-side).
+class MeetingLibraryQueryDto {
+  @IsOptional()
+  @IsUUID()
+  clientId?: string;
+
+  @IsOptional()
+  @IsIn(['prep', 'notes', 'debrief'])
+  artifactType?: 'prep' | 'notes' | 'debrief';
+
+  @IsOptional()
+  @IsIn(['shared', 'private'])
+  visibility?: 'shared' | 'private';
+
+  @IsOptional()
+  @IsDateString()
+  from?: string;
+
+  @IsOptional()
+  @IsDateString()
+  to?: string;
+
+  @IsOptional()
+  @Type(() => Number)
+  @IsInt()
+  @Min(1)
+  page?: number;
+
+  @IsOptional()
+  @Type(() => Number)
+  @IsInt()
+  @Min(1)
+  limit?: number;
 }
 
 class CreateTaskDto {
@@ -971,7 +1011,7 @@ class OutreachSelectedContextItemDto {
   note?: string;
 }
 
-class GenerateBatchEmailDto {
+export class GenerateBatchEmailDto {
   @IsOptional()
   @IsUUID()
   campaignId?: string;
@@ -985,6 +1025,13 @@ class GenerateBatchEmailDto {
   templateId!: string;
 
   @IsArray()
+  // Bound the synchronous AI fan-out (A8). Each recipient is one billable AI
+  // call; the sync path also runs under the ~180s ALB idle timeout, so >100 in a
+  // single request would time out regardless. Background generation (W4) lifts
+  // this. The message is surfaced to the wizard, so keep it actionable.
+  @ArrayMaxSize(100, {
+    message: 'Generate at most 100 recipients at a time — split the campaign into smaller batches.',
+  })
   @ValidateNested({ each: true })
   @Type(() => OutreachRecipientDto)
   recipients!: OutreachRecipientDto[];
@@ -1013,6 +1060,39 @@ class GenerateBatchEmailDto {
   @ValidateNested({ each: true })
   @Type(() => OutreachSelectedContextItemDto)
   contextItems?: OutreachSelectedContextItemDto[];
+
+  // 'group' → the single recipient represents a whole group getting ONE shared
+  // email (collective salutation, no per-member tailoring). Absent = individual.
+  @IsOptional()
+  @IsIn(['individual', 'group'])
+  audienceKind?: 'individual' | 'group';
+
+  // ---- Revision ("Improve") mode: single-recipient edit-in-place ----
+  @IsOptional()
+  @IsString()
+  @Length(0, 4000)
+  existingSubject?: string;
+
+  @IsOptional()
+  @IsString()
+  @Length(0, 40000)
+  existingBody?: string;
+
+  @IsOptional()
+  @IsString()
+  @Length(0, 2000)
+  reviseInstruction?: string;
+}
+
+/**
+ * Async generation-job submit (plan W4): the generate-batch payload + a
+ * client-generated idempotency key. A retried POST with the same requestKey
+ * returns the existing job (server dedup), so a flaky network never double-fans.
+ */
+export class OutreachGenerateJobDto extends GenerateBatchEmailDto {
+  @IsString()
+  @Length(8, 128)
+  requestKey!: string;
 }
 
 class SendBatchDraftDto {
@@ -1078,6 +1158,13 @@ class SendBatchEmailDto {
   @IsOptional()
   @IsBoolean()
   appendSignature?: boolean;
+}
+
+/** Async send-job submit (plan W4.3): the send-batch payload + idempotency key. */
+export class OutreachSendJobDto extends SendBatchEmailDto {
+  @IsString()
+  @Length(8, 128)
+  requestKey!: string;
 }
 
 class CreateOutreachRecordDto {
@@ -1242,6 +1329,7 @@ export class EngagementController {
   constructor(
     private readonly service: EngagementService,
     private readonly notetaker: NotetakerService,
+    private readonly outreachJobs: OutreachJobService,
   ) {}
 
   @Get('capabilities')
@@ -1291,6 +1379,14 @@ export class EngagementController {
     });
   }
 
+  // Declared as a static segment BEFORE the dynamic ':id' route below so
+  // 'library' is never captured as a meeting id (same ordering rule as
+  // 'contacts' above).
+  @Get('meetings/library')
+  meetingLibrary(@CurrentTenant() ctx: TenantContext, @Query() query: MeetingLibraryQueryDto) {
+    return this.service.listMeetingLibrary(ctx, query);
+  }
+
   @Get('meetings/:id')
   meeting(@CurrentTenant() ctx: TenantContext, @Param('id') id: string) {
     return this.service.getMeeting(ctx, id);
@@ -1308,6 +1404,19 @@ export class EngagementController {
     @Body() body: UpdateMeetingDto,
   ) {
     return this.service.updateMeeting(ctx, id, body);
+  }
+
+  // Private-until-shared (Meetings v2 §6). Share requires an associated client
+  // (enforced in the service); the confirmation "what/where/who" is populated by
+  // the client from the meeting payload before this is called.
+  @Post('meetings/:id/share')
+  shareMeeting(@CurrentTenant() ctx: TenantContext, @Param('id') id: string) {
+    return this.service.shareMeeting(ctx, id);
+  }
+
+  @Post('meetings/:id/unshare')
+  unshareMeeting(@CurrentTenant() ctx: TenantContext, @Param('id') id: string) {
+    return this.service.unshareMeeting(ctx, id);
   }
 
   @Post('meetings/:id/notes')
@@ -1356,6 +1465,17 @@ export class EngagementController {
     @Body() body: CreateDebriefDto,
   ) {
     return this.service.updateMeetingDebrief(ctx, meetingId, debriefId, body);
+  }
+
+  // Approve a debrief (Meetings v2 §6) — symmetric with meeting-preps/:id/approve.
+  // Only an approved debrief reaches the Library / is shareable.
+  @Post('meetings/:id/debriefs/:debriefId/approve')
+  approveDebrief(
+    @CurrentTenant() ctx: TenantContext,
+    @Param('id') meetingId: string,
+    @Param('debriefId') debriefId: string,
+  ) {
+    return this.service.approveMeetingDebrief(ctx, meetingId, debriefId);
   }
 
   @Post('meetings/:id/debrief-draft')
@@ -1444,6 +1564,15 @@ export class EngagementController {
     });
   }
 
+  // Shared meeting records for a client's Documents tab (Meetings v2 §8). Tenant-
+  // scoped (shared material is org-visible), NOT owner-scoped — mirrors the
+  // client-scoped debriefs feed above. Query-param client scoping matches the
+  // existing /engagement/attachments?clientId= and /engagement/debriefs?clientId= idiom.
+  @Get('shared-meetings')
+  sharedMeetings(@CurrentTenant() ctx: TenantContext, @Query('clientId') clientId: string) {
+    return this.service.listSharedMeetingsForClient(ctx, clientId);
+  }
+
   @Get('outreach')
   outreachRecords(
     @CurrentTenant() ctx: TenantContext,
@@ -1509,6 +1638,9 @@ export class EngagementController {
     return this.service.deleteAiTemplate(ctx, id);
   }
 
+  // Live, billable AI call. Cap well below the global 600/min per-IP limit
+  // (A7); the global 30/s `short` burst limit still applies unchanged.
+  @Throttle({ long: { ttl: 60_000, limit: 30 } })
   @Get('outreach/ai-templates/:id/preview')
   previewAiTemplate(@CurrentTenant() ctx: TenantContext, @Param('id') id: string) {
     return this.service.previewAiTemplate(ctx, id);
@@ -1519,6 +1651,8 @@ export class EngagementController {
     return this.service.getOutreachInsights(ctx, { clientId });
   }
 
+  // Billable AI call (A7). Cap below the global 600/min per-IP limit.
+  @Throttle({ long: { ttl: 60_000, limit: 40 } })
   @Post('outreach/insights/talking-points')
   generateTalkingPoints(
     @CurrentTenant() ctx: TenantContext,
@@ -1527,6 +1661,13 @@ export class EngagementController {
     return this.service.generateTalkingPoints(ctx, body);
   }
 
+  // The most expensive endpoint: fans out one AI call per recipient (up to 100).
+  // Cap at 120/min per IP (A7) — an order of magnitude below the global 600/min,
+  // but with headroom for a many-group campaign: one "Generate" click costs
+  // (1 flat chunk + N group) parallel POSTs, and a regenerate-all repeats them.
+  // Only the per-minute window is overridden — the 30/s `short` limit is left
+  // intact so those near-simultaneous POSTs are not falsely rejected.
+  @Throttle({ long: { ttl: 60_000, limit: 120 } })
   @Post('outreach/generate-batch')
   generateBatchEmails(@CurrentTenant() ctx: TenantContext, @Body() body: GenerateBatchEmailDto) {
     return this.service.generateBatchEmails(ctx, body);
@@ -1535,6 +1676,71 @@ export class EngagementController {
   @Post('outreach/send-batch')
   sendBatchEmails(@CurrentTenant() ctx: TenantContext, @Body() body: SendBatchEmailDto) {
     return this.service.sendBatchEmails(ctx, body);
+  }
+
+  // Async generation job (plan W4): returns 202 + jobId in ms; the claim-sweep
+  // worker drafts off the request path. Gated on OUTREACH_ASYNC_GEN so the sync
+  // generate-batch above stays the path until the async flag is flipped on.
+  @Throttle({ long: { ttl: 60_000, limit: 120 } })
+  @Post('outreach/jobs/generate')
+  async submitGenerateJob(
+    @CurrentTenant() ctx: TenantContext,
+    @Body() body: OutreachGenerateJobDto,
+  ) {
+    if (!this.outreachJobs.asyncEnabled('generate')) {
+      throw new BadRequestException('Async outreach generation is not enabled in this environment');
+    }
+    const { requestKey, recipients, ...params } = body;
+    return this.outreachJobs.submit(ctx, {
+      requestKey,
+      kind: 'generate',
+      params: params as Record<string, unknown>,
+      recipients: (recipients ?? []) as Array<Record<string, unknown>>,
+    });
+  }
+
+  // Async send job (plan W4.3): at-most-once, idempotent on requestKey. Each
+  // draft is merged into its recipient to form the per-item send payload. Gated
+  // on OUTREACH_ASYNC_SEND (sync send-batch stays the path until flipped).
+  @Post('outreach/jobs/send')
+  async submitSendJob(@CurrentTenant() ctx: TenantContext, @Body() body: OutreachSendJobDto) {
+    if (!this.outreachJobs.asyncEnabled('send')) {
+      throw new BadRequestException('Async outreach send is not enabled in this environment');
+    }
+    const { requestKey, recipients, drafts, ...params } = body;
+    const draftByKey = new Map(drafts.map((d) => [d.recipientId, d]));
+    // One item per recipient that has a matching draft; the draft's subject/body
+    // ride in the item payload alongside the recipient fields.
+    const items = (recipients ?? [])
+      .map((r, i): Record<string, unknown> | null => {
+        const key = outreachRecipientKey(r as unknown as Record<string, unknown>, i);
+        const draft = draftByKey.get(key);
+        if (!draft) return null;
+        return {
+          ...(r as unknown as Record<string, unknown>),
+          subject: draft.subject,
+          body: draft.body,
+        };
+      })
+      .filter((x): x is Record<string, unknown> => x !== null);
+    return this.outreachJobs.submit(ctx, {
+      requestKey,
+      kind: 'send',
+      params: params as Record<string, unknown>,
+      recipients: items,
+    });
+  }
+
+  @Get('outreach/jobs/:id')
+  async getOutreachJob(@CurrentTenant() ctx: TenantContext, @Param('id') id: string) {
+    const job = await this.outreachJobs.getJob(ctx, id);
+    if (!job) throw new NotFoundException('Outreach job not found');
+    return job;
+  }
+
+  @Post('outreach/jobs/:id/cancel')
+  cancelOutreachJob(@CurrentTenant() ctx: TenantContext, @Param('id') id: string) {
+    return this.outreachJobs.cancelJob(ctx, id);
   }
 
   // Tenant-wide context library for the Build Context step (docs/notes, debriefs,
@@ -1582,6 +1788,8 @@ export class EngagementController {
     return this.service.updateOutreachRecord(ctx, id, body);
   }
 
+  // Single-record AI regeneration (billable). Cap below the global per-IP limit (A7).
+  @Throttle({ long: { ttl: 60_000, limit: 40 } })
   @Post('outreach/:id/generate-draft')
   generateOutreachDraft(
     @CurrentTenant() ctx: TenantContext,

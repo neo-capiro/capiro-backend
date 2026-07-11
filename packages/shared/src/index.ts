@@ -1814,6 +1814,12 @@ export function computeAiCostUsd(model: string, inputTokens: number, outputToken
 export interface ProviderUsage {
   inputTokens: number;
   outputTokens: number;
+  /** Prompt-cache HIT tokens (billed at a discount). Anthropic
+   *  `cache_read_input_tokens`; OpenAI `input_tokens_details.cached_tokens`. */
+  cacheReadTokens?: number;
+  /** Prompt-cache WRITE tokens (Anthropic `cache_creation_input_tokens`; not
+   *  reported by OpenAI). Used by the W3.3 cache-hit-rate telemetry. */
+  cacheCreationTokens?: number;
 }
 
 /**
@@ -1831,11 +1837,28 @@ export function parseProviderUsage(raw: unknown): ProviderUsage {
   if (!usage || typeof usage !== 'object' || Array.isArray(usage)) {
     return { inputTokens: 0, outputTokens: 0 };
   }
-  const u = usage as { input_tokens?: unknown; output_tokens?: unknown };
+  const u = usage as {
+    input_tokens?: unknown;
+    output_tokens?: unknown;
+    cache_read_input_tokens?: unknown;
+    cache_creation_input_tokens?: unknown;
+    input_tokens_details?: unknown;
+  };
+  // OpenAI Responses nests the cache hit under input_tokens_details.cached_tokens;
+  // Anthropic reports cache_read_input_tokens at the top of usage.
+  const openaiCached = toRecordish(u.input_tokens_details)?.cached_tokens;
+  const cacheReadTokens = toTokenCount(u.cache_read_input_tokens) || toTokenCount(openaiCached) || 0;
+  const cacheCreationTokens = toTokenCount(u.cache_creation_input_tokens);
   return {
     inputTokens: toTokenCount(u.input_tokens),
     outputTokens: toTokenCount(u.output_tokens),
+    ...(cacheReadTokens ? { cacheReadTokens } : {}),
+    ...(cacheCreationTokens ? { cacheCreationTokens } : {}),
   };
+}
+
+function toRecordish(v: unknown): Record<string, unknown> | null {
+  return v && typeof v === 'object' && !Array.isArray(v) ? (v as Record<string, unknown>) : null;
 }
 
 function toTokenCount(value: unknown): number {
@@ -1881,6 +1904,8 @@ export interface AiGenerationUsageLike {
   usage?: ProviderUsage;
   /** Set by the credential resolver when the call ran on the tenant's own key. */
   usedTenantKey?: boolean;
+  /** Outreach prompt-assembly spec ('v1'|'v2'); undefined for non-outreach. */
+  promptSpecVersion?: string;
 }
 
 export async function recordAiUsageEvent<Tx = unknown>(
@@ -1900,8 +1925,11 @@ export async function recordAiUsageEvent<Tx = unknown>(
       model: generated.model,
       inputTokens: usage.inputTokens,
       outputTokens: usage.outputTokens,
+      cacheReadTokens: usage.cacheReadTokens ?? 0,
+      cacheCreationTokens: usage.cacheCreationTokens ?? 0,
       costUsd,
       usedTenantKey: generated.usedTenantKey ?? false,
+      promptSpecVersion: generated.promptSpecVersion ?? null,
     };
     if (ctx.tenantId == null) {
       await deps.prisma.withSystem((tx) =>
@@ -1977,11 +2005,12 @@ export const MERI_TOOL_MANIFEST: Readonly<Record<string, string>> = {
   "list_emails": "List recent email threads from the tenant's connected Microsoft 365 inbox, optionally filtered by client.",
   "reply_email": "Reply to an email thread via the tenant's connected Microsoft 365 account on behalf of Meri.",
   "save_memory": "Persist a durable fact or preference the user shares (a nickname, reporting style, ongoing priority, etc.) to Meri's long-term memory so it is recalled in future conversations. Use this whenever the user asks you to remember something.",
-  "search_program_elements": "Search DoD Program Elements (PEs) — the RDT&E/procurement budget lines from the Pentagon J-books. Filter by military service, budget activity, or title keyword. Returns PE code, title, service, budget activity, appropriation type, status, and whether the PE has budget/award/bill data. Use get_program_element / get_pe_budget_timeline for detail.",
-  "get_program_element": "Get a single DoD Program Element's full detail by PE code: title, description, service, appropriation type, status, ACAT level, program of record, source-document URLs, and complete fiscal-year budget history.",
-  "get_pe_budget_timeline": "Get a Program Element's fiscal-year budget timeline by PE code: per-FY president's request, House/Senate authorization and appropriations marks (HASC/SASC/HAC-D/SAC-D), conference, and enacted amounts, plus milestones and conference-probability predictions.",
+  "search_program_elements": "Search DoD budget lines from the Pentagon J-books. NOTE: this table holds BOTH R-1 RDT&E Program Elements AND P-1 procurement line items — each row's `budgetExhibitType` / `appropriationType` tells you which; a procurement line is NOT a \"Program Element\", so state its exhibit type accordingly. Filter by military service, budget activity, or title keyword. Returns code, title, service, budget activity, appropriation type, exhibit type, and whether it has budget/award/bill data. For near-identical sibling titles (e.g. multiple \"Target Systems Development\" lines) prefer scoped filters (service + budget activity) over a single keyword sweep, and raise the limit — the default may truncate. Use get_program_element / get_pe_budget_timeline for detail.",
+  "get_program_element": "Get a single DoD budget line's full detail by code: title, description, service, appropriation type, `budgetExhibitType` (P-1 procurement line item vs R-1 RDT&E Program Element), status, ACAT level, program of record, source-document URLs, and complete fiscal-year budget history.",
+  "get_pe_budget_timeline": "Get a budget line's fiscal-year timeline by code. Returns `budgetExhibitType`, `currentCycleFy` (the live budget-cycle FY), and per-FY: president's request, HASC/SASC/HAC-D/SAC-D marks, conference, enacted, PLUS a `cycle` label ('current' = the live request/markup year; 'outyear' = an FYDP projection you must NOT quote as 'the request'; 'historical' = a prior year) and `current`/`currentStageLabel` (the authoritative value for that FY and which stage it came from). Always cite the 'current'-cycle FY as the request; never present an 'outyear' figure as the current ask.",
   "get_pe_contractors": "Get the top contractors linked to a Program Element over the last ~24 months, by direct PE tag or DoD acquisition-program code. Note: PE-to-contractor linkage is sparse — many PEs return no contractors.",
   "get_pe_bills": "Get congressional bills that reference a Program Element (by PE code), with sponsor, lead committee, and latest action.",
+  "get_pe_report_language": "Get the VERBATIM congressional committee report language linked to a budget line (by code): the committee, fiscal year, heading, provision text, action type, and source URL. This is the ONLY source that explains WHY a mark was added/cut. If it returns no provisions, the justification is NOT in Capiro's data — say so; do NOT infer or invent a reason for a mark change from the PE's title or the dollar delta alone.",
   "search_acquisition_personnel": "Search DoD acquisition personnel — the program managers, contracting officers, PEOs, and program leads who run defense programs. Filter by name (query), military service, organization, role, or linked Program Element (peCode). Returns name, service, organization, title, role, linked PE(s), and source count.",
   "get_acquisition_person": "Get a single DoD acquisition person's full detail by id: name, service, organization, title, role, program of record, linked Program Elements, public profile, and the source citations behind each fact.",
   "create_word": "Generate a downloadable Microsoft Word (.docx) document from a structured spec (title, optional subtitle, and sections with paragraphs, bullets, and tables). Use when the user asks for a Word doc, memo, report, or briefing as a file.",
@@ -2005,3 +2034,192 @@ export const MERI_TOOL_MANIFEST: Readonly<Record<string, string>> = {
 
 /** The canonical tool-name set (sorted), derived from the manifest. */
 export const MERI_TOOL_NAMES: readonly string[] = Object.keys(MERI_TOOL_MANIFEST).sort();
+
+// ─────────────────────────────────────────────────────────────────────────
+// Meeting join-link detection & virtual-meeting classification (Meetings v2,
+// docs/plans/2026-07-10-meetings-meri-v2-redesign-plan.md §5,§7). THE single
+// source of truth for "is this a joinable online meeting, on what platform, at
+// what URL". Consolidates what used to be duplicated between apps/web
+// (meeting-actions.tsx: JOIN_URL_PATTERN / isSupportedJoinUrl /
+// extractMeetingJoinUrl) and apps/api (notetaker.service.ts detectPlatform),
+// which carried an explicit "MUST stay in lockstep" warning — those now
+// delegate here so detection cannot drift. Pure + DB-free (regex + WHATWG URL),
+// so it runs identically under the Vite browser bundle and the NestJS CJS
+// runtime. Inlined into this module (not a separate file) for the Rollup/CJS
+// reason documented at the top of this file. Provider labels are the coarse set
+// the notetaker vendor (Recall) supports.
+// ─────────────────────────────────────────────────────────────────────────
+
+export type MeetingProvider = 'zoom' | 'meet' | 'teams' | 'webex' | 'goto' | 'slack';
+
+/**
+ * Recognizes a join URL embedded in free text (a calendar `location` or invite
+ * body). Covers the full supported set incl. US-Gov Teams (*.teams.microsoft.us),
+ * ZoomGov, GoTo, and Slack huddles. Kept byte-identical to the historical
+ * web/api copies. Case-insensitive, NON-global (safe to `.exec()` repeatedly —
+ * no lastIndex state).
+ */
+export const MEETING_JOIN_URL_PATTERN =
+  /https:\/\/(?:[\w-]+\.)?(?:zoom\.us|zoomgov\.com)\/[jsw]\/[^\s<>"')\]]+|https:\/\/meet\.google\.com\/[a-z0-9-]+|https:\/\/(?:[\w-]+\.)?teams\.(?:microsoft\.(?:com|us)|live\.com)\/[^\s<>"')\]]+|https:\/\/(?:[\w-]+\.)?webex\.com\/[^\s<>"')\]]+|https:\/\/(?:[\w-]+\.)?(?:goto\.com|gotomeeting\.com)\/[^\s<>"')\]]+|https:\/\/gotomeet\.me\/[^\s<>"')\]]+|https:\/\/app\.slack\.com\/huddle\/[^\s<>"')\]]+/i;
+
+/** True iff `value` parses as a URL on one of the supported meeting hosts. */
+export function isSupportedMeetingJoinUrl(value: string): boolean {
+  let url: URL;
+  try {
+    url = new URL(value.trim());
+  } catch {
+    return false;
+  }
+  const host = url.hostname.toLowerCase();
+  return (
+    host === 'zoom.us' ||
+    host.endsWith('.zoom.us') ||
+    host === 'zoomgov.com' ||
+    host.endsWith('.zoomgov.com') ||
+    host === 'meet.google.com' ||
+    host === 'teams.microsoft.com' ||
+    host === 'teams.live.com' ||
+    host === 'teams.microsoft.us' ||
+    host.endsWith('.teams.microsoft.us') ||
+    host === 'webex.com' ||
+    host.endsWith('.webex.com') ||
+    host === 'goto.com' ||
+    host.endsWith('.goto.com') ||
+    host === 'gotomeeting.com' ||
+    host.endsWith('.gotomeeting.com') ||
+    host === 'gotomeet.me' ||
+    (host === 'app.slack.com' && url.pathname.includes('/huddle/'))
+  );
+}
+
+/**
+ * Coarse platform label from a join URL — also the notetaker dispatch gate
+ * (null ⇒ not a recognizable meeting URL, refuse before any vendor call).
+ * Deliberately lenient: the vendor (Recall) is the real authority on
+ * joinability; this only catches obvious non-meeting URLs (calendar webLinks,
+ * arbitrary pages) early. Formerly notetaker.service.ts's `detectPlatform`.
+ */
+export function detectMeetingProvider(meetingUrl: string): MeetingProvider | null {
+  let url: URL;
+  try {
+    url = new URL(meetingUrl);
+  } catch {
+    return null;
+  }
+  const host = url.hostname.toLowerCase();
+  if (
+    host === 'zoom.us' ||
+    host.endsWith('.zoom.us') ||
+    host === 'zoomgov.com' ||
+    host.endsWith('.zoomgov.com')
+  ) {
+    return 'zoom';
+  }
+  if (host === 'meet.google.com') return 'meet';
+  if (
+    host === 'teams.microsoft.com' ||
+    host === 'teams.live.com' ||
+    host === 'teams.microsoft.us' ||
+    host.endsWith('.teams.microsoft.us')
+  ) {
+    return 'teams';
+  }
+  if (host === 'webex.com' || host.endsWith('.webex.com')) return 'webex';
+  if (
+    host === 'goto.com' ||
+    host.endsWith('.goto.com') ||
+    host === 'gotomeeting.com' ||
+    host.endsWith('.gotomeeting.com') ||
+    host === 'gotomeet.me'
+  ) {
+    return 'goto';
+  }
+  // Slack Huddles only — app.slack.com also serves ordinary Slack, so require
+  // the /huddle/ path so a message permalink isn't mistaken for a meeting.
+  if (host === 'app.slack.com' && url.pathname.includes('/huddle/')) return 'slack';
+  return null;
+}
+
+/** Minimal meeting fields needed to find a join link from free text. */
+export interface MeetingJoinSource {
+  location?: string | null;
+  description?: string | null;
+  metadata?: Record<string, unknown> | null;
+}
+
+/**
+ * Find a real join link: `metadata.webLink` only if it IS a supported meeting
+ * URL (Outlook's webLink usually just opens the calendar item), then the
+ * `location`, then the invite body. Outlook HTML-escapes `&` in the body, so
+ * unescape `&amp;` on the match (Teams links carry query params). Formerly the
+ * web `extractMeetingJoinUrl`.
+ */
+export function extractMeetingJoinUrl(meeting: MeetingJoinSource): string | null {
+  const webLink = typeof meeting.metadata?.webLink === 'string' ? meeting.metadata.webLink : '';
+  if (webLink && isSupportedMeetingJoinUrl(webLink)) return webLink;
+  for (const text of [meeting.location ?? '', meeting.description ?? '']) {
+    const match = MEETING_JOIN_URL_PATTERN.exec(text);
+    if (match) return match[0].replace(/&amp;/g, '&');
+  }
+  return null;
+}
+
+/** Map a Microsoft Graph `onlineMeetingProvider` enum to our coarse label. */
+function graphOnlineProvider(raw: unknown): MeetingProvider | null {
+  const v = typeof raw === 'string' ? raw.toLowerCase() : '';
+  if (v === 'teamsforbusiness') return 'teams';
+  // skypeForBusiness / skypeForConsumer are online but not vendor-joinable — no label.
+  return null;
+}
+
+/** Structured + free-text signals available at calendar-sync time. */
+export interface MeetingVirtualitySource extends MeetingJoinSource {
+  /** Microsoft Graph `event.onlineMeeting.joinUrl`, when present. */
+  onlineMeetingUrl?: string | null;
+  /** Microsoft Graph `event.isOnlineMeeting` flag, when present. */
+  isOnlineMeeting?: boolean | null;
+  /** Microsoft Graph `event.onlineMeetingProvider` (e.g. 'teamsForBusiness'). */
+  onlineMeetingProvider?: string | null;
+}
+
+export interface MeetingVirtuality {
+  /** True when this is an online/virtual meeting (may still lack a parseable link). */
+  isVirtual: boolean;
+  /** The joinable URL, or null. Meri-eligibility requires isVirtual AND joinLink. */
+  joinLink: string | null;
+  /** Coarse provider label for display, or null. */
+  provider: MeetingProvider | null;
+}
+
+/**
+ * Resolve the canonical virtual-meeting classification for a calendar event
+ * ONCE at sync/create time (persisted on `Meeting.{isVirtual,joinLink,provider}`
+ * instead of re-derived from free text on every render). Prefers Microsoft
+ * Graph's structured `onlineMeeting.joinUrl` when it's a supported host;
+ * otherwise regex-scans webLink/location/description. A Graph event flagged
+ * `isOnlineMeeting` with no parseable link is still virtual (so the UI can show
+ * e.g. "Teams · link not detected") but is NOT Meri-eligible.
+ */
+export function deriveMeetingVirtuality(src: MeetingVirtualitySource): MeetingVirtuality {
+  const structured = typeof src.onlineMeetingUrl === 'string' ? src.onlineMeetingUrl.trim() : '';
+  if (structured && isSupportedMeetingJoinUrl(structured)) {
+    return { isVirtual: true, joinLink: structured, provider: detectMeetingProvider(structured) };
+  }
+  const joinLink = extractMeetingJoinUrl(src);
+  if (joinLink) {
+    return { isVirtual: true, joinLink, provider: detectMeetingProvider(joinLink) };
+  }
+  if (src.isOnlineMeeting === true) {
+    return {
+      isVirtual: true,
+      joinLink: null,
+      provider: graphOnlineProvider(src.onlineMeetingProvider),
+    };
+  }
+  return { isVirtual: false, joinLink: null, provider: null };
+}
+
+/** Eligibility for the Meri notetaker: a virtual meeting with a join link (spec §4.1). */
+export function eligibleForMeri(m: { isVirtual: boolean; joinLink: string | null }): boolean {
+  return m.isVirtual && Boolean(m.joinLink);
+}

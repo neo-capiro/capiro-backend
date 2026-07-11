@@ -3,11 +3,23 @@ import { Prisma, ProgramElementMilestone, ProgramElementYear } from '@prisma/cli
 import { PrismaService } from '../prisma/prisma.service.js';
 import { ProgramElementMetricsService } from './program-element-metrics.service.js';
 import { FieldDelta, PeMilestoneInput, PeRecordInput, PeYearInput } from './types.js';
-import { ReconciliationService, RECONCILE_FIELDS, type ReconcileField } from './reconciliation/reconciliation.service.js';
+import {
+  ReconciliationService,
+  RECONCILE_FIELDS,
+  type ReconcileField,
+} from './reconciliation/reconciliation.service.js';
 import { isValidProgramCode } from './jbook/jbook-extract.js';
 import { sourceLabel, sourceRank } from './source-priority.js';
 
-const MARK_FIELDS = new Set(['hascMark', 'sascMark', 'hacDMark', 'sacDMark', 'conference', 'enacted']);
+const MARK_FIELDS = new Set([
+  'hascMark',
+  'sascMark',
+  'hacDMark',
+  'sacDMark',
+  'conference',
+  'ndaaConference',
+  'enacted',
+]);
 const FIELD_LABEL: Record<string, string> = {
   request: "President's Request",
   hascMark: 'HASC',
@@ -15,6 +27,7 @@ const FIELD_LABEL: Record<string, string> = {
   hacDMark: 'HAC-D',
   sacDMark: 'SAC-D',
   conference: 'Conference',
+  ndaaConference: 'NDAA Conference',
   enacted: 'Enacted',
   reprogrammed: 'Reprogrammed',
   executed: 'Executed',
@@ -31,6 +44,7 @@ const VALUE_FIELDS = [
   'hacDMark',
   'sacDMark',
   'conference',
+  'ndaaConference',
   'enacted',
   'reprogrammed',
   'executed',
@@ -38,7 +52,12 @@ const VALUE_FIELDS = [
 type ValueField = (typeof VALUE_FIELDS)[number];
 
 interface EmissionPayload {
-  changeType: 'pe_mark_added' | 'pe_mark_changed' | 'pe_value_increased' | 'pe_value_decreased' | 'pe_milestone_slip';
+  changeType:
+    | 'pe_mark_added'
+    | 'pe_mark_changed'
+    | 'pe_value_increased'
+    | 'pe_value_decreased'
+    | 'pe_milestone_slip';
   severity: 'info' | 'notable' | 'critical';
   title: string;
   description: string;
@@ -56,25 +75,26 @@ type YearChangeResult = {
   delta?: FieldDelta[];
 };
 
-const NOOP_METRICS: Pick<
-  ProgramElementMetricsService,
-  'emitCount' | 'emitSeconds' | 'emitGauge'
-> = {
-  emitCount: async () => {
-    return;
-  },
-  emitSeconds: async () => {
-    return;
-  },
-  emitGauge: async () => {
-    return;
-  },
-};
+const NOOP_METRICS: Pick<ProgramElementMetricsService, 'emitCount' | 'emitSeconds' | 'emitGauge'> =
+  {
+    emitCount: async () => {
+      return;
+    },
+    emitSeconds: async () => {
+      return;
+    },
+    emitGauge: async () => {
+      return;
+    },
+  };
 
 @Injectable()
 export class ProgramElementWriterService {
   private readonly logger = new Logger(ProgramElementWriterService.name);
-  private readonly metrics: Pick<ProgramElementMetricsService, 'emitCount' | 'emitSeconds' | 'emitGauge'>;
+  private readonly metrics: Pick<
+    ProgramElementMetricsService,
+    'emitCount' | 'emitSeconds' | 'emitGauge'
+  >;
   private readonly reconciliation: ReconciliationService;
 
   constructor(
@@ -307,7 +327,11 @@ export class ProgramElementWriterService {
       // SECURITY DEFINER function (owned by master) which performs the refresh
       // with owner privileges. See migration 20260602160000_pe_detail_mv_refresh_fn.
       await this.prisma.$executeRawUnsafe('SELECT refresh_program_element_detail_mv()');
-      await this.metrics.emitSeconds('pe_sync.duration_seconds', (Date.now() - startedAt) / 1000, source);
+      await this.metrics.emitSeconds(
+        'pe_sync.duration_seconds',
+        (Date.now() - startedAt) / 1000,
+        source,
+      );
       await this.metrics.emitCount('pe_sync.error_count', 0, source);
     } catch (error: unknown) {
       await this.metrics.emitCount('pe_sync.error_count', 1, source);
@@ -315,11 +339,21 @@ export class ProgramElementWriterService {
     }
   }
 
-  async emitRunSummary(source: string, startedAt: Date, inserted: number, updated: number, quarantined: number): Promise<void> {
+  async emitRunSummary(
+    source: string,
+    startedAt: Date,
+    inserted: number,
+    updated: number,
+    quarantined: number,
+  ): Promise<void> {
     await this.metrics.emitCount('pe_sync.rows_inserted', inserted, source);
     await this.metrics.emitCount('pe_sync.rows_updated', updated, source);
     await this.metrics.emitCount('pe_sync.rows_quarantined', quarantined, source);
-    await this.metrics.emitSeconds('pe_sync.duration_seconds', (Date.now() - startedAt.getTime()) / 1000, source);
+    await this.metrics.emitSeconds(
+      'pe_sync.duration_seconds',
+      (Date.now() - startedAt.getTime()) / 1000,
+      source,
+    );
     await this.metrics.emitCount('pe_sync.error_count', 0, source);
   }
 
@@ -403,7 +437,12 @@ export class ProgramElementWriterService {
     try {
       // Use the base source key (strip _fy<NN>) for priority-aligned comparison.
       const baseSource = source.replace(/_fy\d+$/i, '');
-      await this.reconciliation.reconcile({ peCode: record.peCode, fy: record.fy, source: baseSource, values });
+      await this.reconciliation.reconcile({
+        peCode: record.peCode,
+        fy: record.fy,
+        source: baseSource,
+        values,
+      });
     } catch (err) {
       this.logger.warn(`Reconciliation failed for ${record.peCode} FY${record.fy}: ${String(err)}`);
     }
@@ -419,6 +458,7 @@ export class ProgramElementWriterService {
       hacDMark: this.toDecimal(record.hacDMark),
       sacDMark: this.toDecimal(record.sacDMark),
       conference: this.toDecimal(record.conference),
+      ndaaConference: this.toDecimal(record.ndaaConference),
       enacted: this.toDecimal(record.enacted),
       reprogrammed: this.toDecimal(record.reprogrammed),
       executed: this.toDecimal(record.executed),
@@ -440,7 +480,10 @@ export class ProgramElementWriterService {
    */
   private buildMergedYear(
     existing: ProgramElementYear | null,
-    incoming: Omit<Prisma.ProgramElementYearUncheckedCreateInput, 'id' | 'peCode' | 'fy' | 'lastSyncedAt'>,
+    incoming: Omit<
+      Prisma.ProgramElementYearUncheckedCreateInput,
+      'id' | 'peCode' | 'fy' | 'lastSyncedAt'
+    >,
     source: string,
   ): Omit<Prisma.ProgramElementYearUncheckedCreateInput, 'id' | 'peCode' | 'fy' | 'lastSyncedAt'> {
     const incomingRank = this.getSourceRank(source);
@@ -460,7 +503,8 @@ export class ProgramElementWriterService {
         continue;
       }
 
-      const curRank = field in fieldSources ? this.getSourceRank(fieldSources[field]!) : Number.MAX_SAFE_INTEGER;
+      const curRank =
+        field in fieldSources ? this.getSourceRank(fieldSources[field]!) : Number.MAX_SAFE_INTEGER;
       if (cur !== null && incomingRank > curRank) {
         values[field] = cur; // a lower-priority source never overwrites a higher one
         continue;
@@ -475,9 +519,12 @@ export class ProgramElementWriterService {
     }
 
     // Narrative columns: prefer a non-empty incoming value, else keep existing.
-    const incNotes = typeof incoming.notes === 'string' && incoming.notes.trim() ? incoming.notes : null;
+    const incNotes =
+      typeof incoming.notes === 'string' && incoming.notes.trim() ? incoming.notes : null;
     const incRDoc =
-      typeof incoming.rDocSection === 'string' && incoming.rDocSection.trim() ? incoming.rDocSection : null;
+      typeof incoming.rDocSection === 'string' && incoming.rDocSection.trim()
+        ? incoming.rDocSection
+        : null;
 
     return {
       request: values.request ?? null,
@@ -486,6 +533,7 @@ export class ProgramElementWriterService {
       hacDMark: values.hacDMark ?? null,
       sacDMark: values.sacDMark ?? null,
       conference: values.conference ?? null,
+      ndaaConference: values.ndaaConference ?? null,
       enacted: values.enacted ?? null,
       reprogrammed: values.reprogrammed ?? null,
       executed: values.executed ?? null,
@@ -519,15 +567,24 @@ export class ProgramElementWriterService {
 
   private computeYearDelta(
     existing: ProgramElementYear,
-    incoming: Omit<Prisma.ProgramElementYearUncheckedCreateInput, 'id' | 'peCode' | 'fy' | 'lastSyncedAt'>,
+    incoming: Omit<
+      Prisma.ProgramElementYearUncheckedCreateInput,
+      'id' | 'peCode' | 'fy' | 'lastSyncedAt'
+    >,
   ): FieldDelta[] {
-    const fields: Array<keyof Omit<Prisma.ProgramElementYearUncheckedCreateInput, 'id' | 'peCode' | 'fy' | 'lastSyncedAt'>> = [
+    const fields: Array<
+      keyof Omit<
+        Prisma.ProgramElementYearUncheckedCreateInput,
+        'id' | 'peCode' | 'fy' | 'lastSyncedAt'
+      >
+    > = [
       'request',
       'hascMark',
       'sascMark',
       'hacDMark',
       'sacDMark',
       'conference',
+      'ndaaConference',
       'enacted',
       'reprogrammed',
       'executed',
@@ -551,7 +608,11 @@ export class ProgramElementWriterService {
     return delta;
   }
 
-  private async logSourceValue(record: PeYearInput, source: string, isWinner: boolean): Promise<void> {
+  private async logSourceValue(
+    record: PeYearInput,
+    source: string,
+    isWinner: boolean,
+  ): Promise<void> {
     if (isWinner) {
       await this.prisma.programElementYearSourceValue.updateMany({
         where: {
@@ -576,7 +637,11 @@ export class ProgramElementWriterService {
     });
   }
 
-  private async emitYearDeltaChange(peCode: string, fy: number, delta: FieldDelta[]): Promise<void> {
+  private async emitYearDeltaChange(
+    peCode: string,
+    fy: number,
+    delta: FieldDelta[],
+  ): Promise<void> {
     const primaryDelta = this.pickPrimaryDelta(delta);
     if (!primaryDelta) return;
 
@@ -591,7 +656,13 @@ export class ProgramElementWriterService {
     const affected = await this.getAffectedTenants(peCode);
     if (affected.length === 0) return;
 
-    const emission = this.buildYearEmission(peCode, fy, primaryDelta.field, oldValueNum, newValueNum);
+    const emission = this.buildYearEmission(
+      peCode,
+      fy,
+      primaryDelta.field,
+      oldValueNum,
+      newValueNum,
+    );
     await this.emitForTenants(peCode, affected, emission);
   }
 
@@ -611,7 +682,9 @@ export class ProgramElementWriterService {
     const affected = await this.getAffectedTenants(peCode);
     if (affected.length === 0) return;
 
-    const deltaDays = Math.ceil((newActual.getTime() - plannedDate.getTime()) / (24 * 60 * 60 * 1000));
+    const deltaDays = Math.ceil(
+      (newActual.getTime() - plannedDate.getTime()) / (24 * 60 * 60 * 1000),
+    );
     const emission: EmissionPayload = {
       changeType: 'pe_milestone_slip',
       severity: 'notable',
@@ -748,25 +821,33 @@ export class ProgramElementWriterService {
     }));
   }
 
-  private async emitForTenants(peCode: string, affected: AffectedTenantContext[], payload: EmissionPayload): Promise<void> {
+  private async emitForTenants(
+    peCode: string,
+    affected: AffectedTenantContext[],
+    payload: EmissionPayload,
+  ): Promise<void> {
     await Promise.all(
       affected.map(({ tenantId, relatedClientIds }) =>
-        this.prisma.intelligenceChange.create({
-          data: {
-            source: 'program_element',
-            changeType: payload.changeType,
-            severity: payload.severity,
-            title: payload.title,
-            description: payload.description,
-            relatedClientIds,
-            relatedIssues: [],
-            relatedPeCodes: [peCode],
-            data: payload.data,
-          },
-        }).catch((err: unknown) => {
-          const message = err instanceof Error ? err.message : String(err);
-          this.logger.warn(`Failed to emit program-element change for tenant ${tenantId}: ${message}`);
-        }),
+        this.prisma.intelligenceChange
+          .create({
+            data: {
+              source: 'program_element',
+              changeType: payload.changeType,
+              severity: payload.severity,
+              title: payload.title,
+              description: payload.description,
+              relatedClientIds,
+              relatedIssues: [],
+              relatedPeCodes: [peCode],
+              data: payload.data,
+            },
+          })
+          .catch((err: unknown) => {
+            const message = err instanceof Error ? err.message : String(err);
+            this.logger.warn(
+              `Failed to emit program-element change for tenant ${tenantId}: ${message}`,
+            );
+          }),
       ),
     );
   }
@@ -826,7 +907,9 @@ export class ProgramElementWriterService {
     }
 
     if (typeof value === 'object') {
-      return Object.values(value as Record<string, unknown>).every((item) => this.isJsonValue(item));
+      return Object.values(value as Record<string, unknown>).every((item) =>
+        this.isJsonValue(item),
+      );
     }
 
     return false;

@@ -44,9 +44,11 @@ async function main(): Promise<void> {
          FROM program_element WHERE upper(pe_code) = ${P}`,
       ),
       // The funding chart reads these; flat "+0.0M delta" means enacted≈request or one side null.
+      // ndaa_conf = NDAA (authorization) conference; `conf` is the reserved appropriations
+      // rung (currently unpopulated) — the NDAA value lives in ndaa_conference post-split.
       years: await q(
         `SELECT fy, request, enacted, hasc_mark AS hasc, sasc_mark AS sasc, hac_d_mark AS hacd,
-                sac_d_mark AS sacd, conference AS conf
+                sac_d_mark AS sacd, ndaa_conference AS ndaa_conf, conference AS conf
          FROM program_element_year WHERE upper(pe_code) = ${P} ORDER BY fy`,
       ),
       budgetActions: await q(
@@ -86,8 +88,27 @@ async function main(): Promise<void> {
       samMatches: await q(
         `SELECT count(*)::int n FROM sam_opportunity_match WHERE upper(pe_code) = ${P}`,
       ),
-      sources: await q(
+      // program_element_source is the RDT&E J-book R-2/R-3 page-citation table — only
+      // written by the J-book sync scripts (sync-jbook-r2 / sync-jbook-performers /
+      // sync-comptroller-jbooks), so it is STRUCTURALLY empty for procurement (P-doc)
+      // and O&M lines even when they have full data. Kept (renamed honestly) so the
+      // number isn't misread as "this PE has no provenance".
+      rdteSourceCitations: await q(
         `SELECT count(*)::int n FROM program_element_source WHERE upper(pe_code) = ${P}`,
+      ),
+      // Appropriation-type-agnostic per-field provenance: which source set request /
+      // hasc_mark / ndaa_conference / enacted / … for each FY, written by
+      // reconciliation.reconcile() on EVERY write path. Excludes the coarse '__row__'
+      // whole-row snapshot the writer service also logs. This is the honest "does this
+      // PE's data have sources" signal for procurement + O&M lines, which the old
+      // program_element_source-only check missed entirely.
+      fieldProvenance: await q(
+        `SELECT count(*)::int n FROM program_element_year_source_value
+         WHERE upper(pe_code) = ${P} AND field_name <> '__row__'`,
+      ),
+      fieldProvenanceByField: await q(
+        `SELECT field_name, count(*)::int n FROM program_element_year_source_value
+         WHERE upper(pe_code) = ${P} AND field_name <> '__row__' GROUP BY 1 ORDER BY 1`,
       ),
       projects: await q(
         `SELECT count(*)::int n FROM program_element_project WHERE upper(pe_code) = ${P}`,

@@ -4,9 +4,11 @@
  * require an org-admin role (checked in the service). apps/web's SetupGate
  * reads GET /setup/state with any member's token.
  */
-import { Body, Controller, Get, Param, ParseUUIDPipe, Post, UseGuards } from '@nestjs/common';
+import { Body, Controller, Get, Param, ParseUUIDPipe, Post, Req, UseGuards } from '@nestjs/common';
 import { IsEmail, IsIn, IsString } from 'class-validator';
+import type { Request } from 'express';
 import { CurrentTenant, TenantGuard, type AuthTenantContext } from '@capiro/auth';
+import { CapiroAdminGuard } from '../auth/capiro-admin.guard.js';
 import { SetupService } from './setup.service.js';
 
 const TASK_KEYS = ['it_email', 'import', 'firm_ai', 'invites'] as const;
@@ -46,12 +48,7 @@ export class SetupController {
     if (!(TASK_KEYS as readonly string[]).includes(task)) {
       throw new Error(`Unknown task ${task}`);
     }
-    return this.setup.transitionTask(
-      ctx,
-      task as (typeof TASK_KEYS)[number],
-      body.from,
-      body.to,
-    );
+    return this.setup.transitionTask(ctx, task as (typeof TASK_KEYS)[number], body.from, body.to);
   }
 
   @Post('it-invites')
@@ -70,5 +67,30 @@ export class SetupController {
   @Post('complete')
   complete(@CurrentTenant() ctx: AuthTenantContext) {
     return this.setup.completeSetup(ctx);
+  }
+}
+
+/**
+ * Cross-tenant staff actions for Capiro-managed onboarding — capiro_admin only
+ * (the capiro-internal Clerk org). Lets a Capiro team member mark a managed
+ * tenant's client import complete from the admin panel, which unblocks that
+ * tenant's team-invite step on the external dashboard.
+ */
+@Controller('admin/setup')
+@UseGuards(CapiroAdminGuard)
+export class SetupAdminController {
+  constructor(private readonly setup: SetupService) {}
+
+  @Get('managed-imports')
+  managedImports() {
+    return this.setup.adminListManagedImports();
+  }
+
+  @Post('tenants/:tenantId/mark-import-complete')
+  markImportComplete(
+    @Param('tenantId', new ParseUUIDPipe()) tenantId: string,
+    @Req() req: Request & { capiroAdmin?: { clerkUserId: string } },
+  ) {
+    return this.setup.adminMarkImportComplete(tenantId, req.capiroAdmin?.clerkUserId);
   }
 }

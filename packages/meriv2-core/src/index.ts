@@ -22,3 +22,4 @@ export * from './verifier/confidence';
 export * from './verifier/verifier-claims';
 export * from './verifier/pe-structural';
 export * from './verifier/grounding-sources';
+export * from './security/tool-result-wrap';

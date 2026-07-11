@@ -11,6 +11,7 @@ import { AiCredentialResolverService } from './ai-credential-resolver.service.js
 import { ClientAssociationService } from './client-association.service.js';
 import { EngagementAiService } from './engagement-ai.service.js';
 import { EngagementService } from './engagement.service.js';
+import { OutreachJobService } from './outreach-job.service.js';
 import { NotetakerService } from './notetaker/notetaker.service.js';
 import { MeetingNotesCryptoService } from './meeting-notes-crypto.service.js';
 import { MicrosoftGraphSyncService } from './microsoft/microsoft-graph-sync.service.js';
@@ -30,6 +31,7 @@ import { TokenCryptoService } from './microsoft/token-crypto.service.js';
   controllers: [EngagementController, MicrosoftOAuthController, InternalAiCredentialsController],
   providers: [
     EngagementService,
+    OutreachJobService,
     NotetakerService,
     ClientAssociationService,
     EngagementAiService,

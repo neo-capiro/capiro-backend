@@ -33,6 +33,12 @@
  *
  * Requires SAM_GOV_API_KEY (Secrets Manager -> env). Dry-run by default; pass
  * `--commit` to write. Idempotent.
+ *
+ * MATCH-ONLY (no API key, no network):
+ *   tsx scripts/sync-sam-opportunities.ts --match-only --commit   # (verb: rematch-sam-opportunities)
+ * Re-runs the pure matcher over EVERY existing sam_opportunity row to realize a
+ * matcher change (e.g. procurement-BLIN recognition) across the ingested backlog —
+ * the daily sync only re-matches the notices it freshly fetches.
  */
 import { config as dotenvConfig } from 'dotenv';
 import { PrismaClient } from '@prisma/client';
@@ -200,8 +206,20 @@ async function fetchPage(
 
 /**
  * Build the in-memory alias index the matcher needs: each program alias with its
- * precomputed trigram set + optional office/PSC corroboration hints (from the
- * program's metadata, when present). Pure shaping — no network.
+ * precomputed trigram set + optional office/PSC corroboration hints. Pure shaping —
+ * no network.
+ *
+ * ⚠️ DORMANT TIER: the matcher's `program_alias` tier only emits a match when a
+ * trigram-hit alias ALSO has office/PSC agreement (matchOpportunity precision guard).
+ * No office/PSC hint source is wired today — the `ProgramAlias` model has NO
+ * officeHint/pscHints columns, and the caller's query below selects only
+ * {programId, aliasNormalized, aliasType}. So `officeHint`/`pscHints` are always
+ * undefined here and the `program_alias` tier NEVER fires in production; SAM matches
+ * come only from the description_pe_code (verbatim) and psc_naics_component
+ * (quarantined) tiers. To activate the alias tier, derive per-program office/PSC
+ * hints (e.g. the contracting offices + PSCs seen on that program's federal_award
+ * history) into new ProgramAlias columns and select them here — see the coverage
+ * remediation plan §4.2. The fields are kept optional so that enhancement is additive.
  */
 function buildAliasIndex(
   aliases: Array<{
@@ -223,9 +241,25 @@ function buildAliasIndex(
 }
 
 async function main(): Promise<void> {
+  const commit = flag('commit');
+
+  // MATCH-ONLY: re-run the PURE matcher over EXISTING sam_opportunity rows WITHOUT
+  // hitting the SAM.gov API. Realizes a matcher change (e.g. the procurement-BLIN
+  // shape) across the already-ingested backlog — the daily sync only re-matches the
+  // notices it freshly fetches. Needs no API key. Idempotent (persistMatches is a
+  // find-or-create + update on the natural key).
+  if (flag('match-only')) {
+    const prismaMatch = new PrismaClient();
+    try {
+      await rematchExisting(prismaMatch, commit);
+    } finally {
+      await prismaMatch.$disconnect();
+    }
+    return;
+  }
+
   const apiKey = process.env.SAM_GOV_API_KEY ?? '';
   if (!apiKey) throw new Error('SAM_GOV_API_KEY not configured');
-  const commit = flag('commit');
   const backfill = flag('backfill');
   const sinceArg = arg('since');
   // Explicit window end for a backfill (SAM caps a search's span at ~1yr); default now.
@@ -249,7 +283,9 @@ async function main(): Promise<void> {
         const postedTo = samDate(postedToDate);
         console.log(`[sam-opportunities] window postedFrom=${postedFrom} postedTo=${postedTo}`);
 
-        // Known PEs (for verbatim PE-code matching) + the program alias universe.
+        // Known PEs (for verbatim PE/BLIN-code matching) + the program alias universe.
+        // NOTE: no officeHint/pscHints are selected (ProgramAlias has no such columns),
+        // so the matcher's alias tier stays dormant — see buildAliasIndex's ⚠️ note.
         const pes = await prisma.programElement.findMany({ select: { peCode: true } });
         const knownPeCodes = new Set<string>(pes.map((p) => p.peCode.toUpperCase()));
         const aliasRows = await prisma.programAlias.findMany({
@@ -414,6 +450,76 @@ async function persistMatches(
     written += 1;
   }
   return written;
+}
+
+/**
+ * Re-run the pure matcher over EVERY existing sam_opportunity row (no network). Used
+ * by `--match-only` to realize a matcher change across the already-ingested backlog.
+ * Keyset-paginates by id so it streams the full table in bounded memory. Dry-run
+ * reports what WOULD be written; `--commit` persists via the idempotent persistMatches.
+ */
+async function rematchExisting(prisma: PrismaClient, commit: boolean): Promise<void> {
+  const t0 = Date.now();
+  console.log(
+    `[sam-opportunities] MATCH-ONLY re-match over existing opportunities (${commit ? 'COMMIT' : 'DRY-RUN'})`,
+  );
+
+  // Same universes the sync loop uses: known PE/BLIN codes + the program alias index.
+  const pes = await prisma.programElement.findMany({ select: { peCode: true } });
+  const knownPeCodes = new Set<string>(pes.map((p) => p.peCode.toUpperCase()));
+  const aliasRows = await prisma.programAlias.findMany({
+    select: { programId: true, aliasNormalized: true, aliasType: true },
+  });
+  const aliasIndex = buildAliasIndex(aliasRows);
+  console.log(
+    `[sam-opportunities] ${knownPeCodes.size} known PEs, ${aliasIndex.length} program aliases`,
+  );
+
+  const BATCH = 1000;
+  let scanned = 0;
+  let withProposed = 0;
+  let matchesWritten = 0;
+  let cursor: string | undefined;
+  for (;;) {
+    const rows = await prisma.samOpportunity.findMany({
+      select: {
+        id: true,
+        title: true,
+        description: true,
+        office: true,
+        pscCode: true,
+        naicsCode: true,
+      },
+      orderBy: { id: 'asc' },
+      take: BATCH,
+      ...(cursor ? { skip: 1, cursor: { id: cursor } } : {}),
+    });
+    if (rows.length === 0) break;
+    for (const row of rows) {
+      const forMatch: OpportunityForMatch = {
+        title: row.title,
+        description: row.description,
+        office: row.office,
+        pscCode: row.pscCode,
+        naicsCode: row.naicsCode,
+      };
+      const proposed = matchOpportunity(forMatch, knownPeCodes, aliasIndex);
+      if (proposed.length > 0) withProposed += 1;
+      if (commit && proposed.length > 0) {
+        matchesWritten += await persistMatches(prisma, row.id, proposed);
+      }
+      scanned += 1;
+    }
+    cursor = rows[rows.length - 1]!.id;
+    if (rows.length < BATCH) break;
+  }
+
+  const elapsed = ((Date.now() - t0) / 1000).toFixed(1);
+  console.log(
+    `[sam-opportunities] MATCH-ONLY done: scanned=${scanned} ` +
+      `opportunitiesWithProposedMatch=${withProposed} matchesWritten=${matchesWritten} ` +
+      `(${commit ? 'COMMITTED' : 'DRY-RUN, nothing written'}) in ${elapsed}s`,
+  );
 }
 
 // Guarded entrypoint: only runs when invoked directly (never on import — the matcher

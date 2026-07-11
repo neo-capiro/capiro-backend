@@ -94,6 +94,7 @@ function toHistoryRow(year: ProgramElementYearPoint): ProgramElementHistoryRow {
     hacDMark: numberOrNull(year.hacDMark),
     sacDMark: numberOrNull(year.sacDMark),
     conference: numberOrNull(year.conference),
+    ndaaConference: numberOrNull(year.ndaaConference),
     enacted: numberOrNull(year.enacted),
     projectedEnacted: year.enacted == null,
     sourceAttribution: sourceFromRaw(year.raw),
@@ -428,6 +429,7 @@ export function ProgramElementWatchPage() {
       y.sascMark,
       y.hacDMark,
       y.sacDMark,
+      y.ndaaConference,
       y.conference,
       y.enacted,
     ].some((v) => numberOrNull(v) != null);
@@ -506,9 +508,15 @@ export function ProgramElementWatchPage() {
   const markYear = [...funding]
     .reverse()
     .find((p) =>
-      [p.hascMark, p.sascMark, p.hacDMark, p.sacDMark, p.conference, p.enacted].some(
-        (v) => v != null,
-      ),
+      [
+        p.hascMark,
+        p.sascMark,
+        p.hacDMark,
+        p.sacDMark,
+        p.ndaaConference,
+        p.conference,
+        p.enacted,
+      ].some((v) => v != null),
     );
   const markBars = markYear
     ? (
@@ -518,7 +526,8 @@ export function ProgramElementWatchPage() {
           { label: 'SASC', value: markYear.sascMark, color: '#4E78D8' },
           { label: 'HAC-D', value: markYear.hacDMark, color: '#7A3FB5' },
           { label: 'SAC-D', value: markYear.sacDMark, color: '#A26913' },
-          { label: 'Conference', value: markYear.conference, color: 'var(--accent)' },
+          { label: 'NDAA Conf. (auth.)', value: markYear.ndaaConference, color: 'var(--accent)' },
+          { label: 'Conference (approps.)', value: markYear.conference, color: 'var(--accent)' },
           { label: 'Enacted', value: markYear.enacted, color: 'var(--success)' },
         ] as Array<{ label: string; value: number | null; color: string }>
       ).filter((b): b is { label: string; value: number; color: string } => b.value != null)
@@ -977,7 +986,11 @@ export function ProgramElementWatchPage() {
 
   const relCount = relationshipsQuery.data?.length ?? 0;
   // Line-type-aware tab set: money-graph tabs are common; Procurement detail shows
-  // only for procurement lines, and Incumbents (R-3 performers) only for RDT&E.
+  // only for procurement lines. Incumbents (award-evidenced + R-3 performers) shows
+  // for RDT&E and Procurement — award linkage is actually strongest on Procurement
+  // lines (acq-program map resolution), so gating it RDT&E-only hid real data.
+  // O&M lines have neither R-3 exhibits nor meaningful award-PE linkage yet, so they
+  // skip it.
   const tabItems = [
     { key: 'overview', label: 'Overview', children: overviewTab },
     { key: 'funding', label: 'Funding', children: fundingTab },
@@ -994,7 +1007,7 @@ export function ProgramElementWatchPage() {
       label: <TabLabel text="Relationships" count={relCount} />,
       children: relationshipsTab,
     },
-    ...(isRdte
+    ...(isRdte || isProc
       ? [
           {
             key: 'incumbents',

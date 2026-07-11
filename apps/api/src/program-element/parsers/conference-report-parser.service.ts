@@ -18,8 +18,10 @@ import {
  *
  * Two stages, same extraction pipeline as Steps 22/23 (shared
  * CommitteeReportParserBase):
- *   - 'conference'  → conference report (final negotiated authorization). Writes
- *                     the `conference` field, source 'conference_report_fy<NN>'.
+ *   - 'conference'  → NDAA conference report (final negotiated AUTHORIZATION). Writes
+ *                     the `ndaaConference` field (authorization track — deliberately
+ *                     OUTSIDE the appropriations funding ladder so it never becomes the
+ *                     "current" appropriations number), source 'conference_report_fy<NN>'.
  *   - 'public_law'  → enacted Defense Appropriations public law. Writes the
  *                     `enacted` field, source 'public_law_fy<NN>'.
  *
@@ -49,11 +51,11 @@ export class ConferenceReportParserService extends CommitteeReportParserBase {
 
   /**
    * Load parsed marks for a stage + fiscal year.
-   *   conference → conference field; public_law → enacted field.
+   *   conference → ndaaConference field (NDAA authorization); public_law → enacted field.
    */
   async load(records: ConferenceMarkRecord[], stage: ReportStage, fy: number): Promise<LoadResult> {
     const source = conferenceReportSource(stage, fy);
-    const markField: MarkField = stage === 'conference' ? 'conference' : 'enacted';
+    const markField: MarkField = stage === 'conference' ? 'ndaaConference' : 'enacted';
     return this.loadRecords(records, source, markField);
   }
 }

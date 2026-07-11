@@ -5,6 +5,7 @@
 
 import { describe, expect, it } from 'vitest';
 import { buildGenerationModel, listAidFromKey, projectDraftsForSend } from './generation.js';
+import { normalizeTone } from './types.js';
 import type { OutreachTarget } from './targets.js';
 import type { OutreachRecipient } from '../../OutreachView.js';
 
@@ -114,6 +115,57 @@ describe('projectDraftsForSend', () => {
     // … and the group is its own single shared draft (keyed to the group rep);
     // the person rides the group's To at send without losing their own email.
     expect(byId['group:G9']!.subject).toBe('GRP');
+  });
+});
+
+describe('projectDraftsForSend — failed drafts are unsendable (W0.2)', () => {
+  it('excludes an individual draft that failed to generate (status "error")', () => {
+    const drafts = projectDraftsForSend([individual('a@x.com')], {
+      'individual:a@x.com': {
+        subject: '[Placeholder] Outreach',
+        body: 'This is a placeholder draft because email generation failed.',
+        status: 'error',
+      },
+    });
+    expect(drafts).toHaveLength(0);
+  });
+
+  it('excludes a group draft that failed to generate', () => {
+    const drafts = projectDraftsForSend([group('G1', 'aud2', ['d@x.com', 'e@x.com'])], {
+      'group:aud2': { subject: '[Placeholder]', body: 'failed', status: 'error' },
+    });
+    expect(drafts).toHaveLength(0);
+  });
+
+  it('includes a once-failed draft after the user edits it (status "edited")', () => {
+    const drafts = projectDraftsForSend([individual('a@x.com')], {
+      'individual:a@x.com': { subject: 'Fixed subject', body: 'Real content', status: 'edited' },
+    });
+    expect(drafts).toHaveLength(1);
+    expect(drafts[0]!.subject).toBe('Fixed subject');
+  });
+
+  it('sends only the successful drafts in a partially-failed batch', () => {
+    const drafts = projectDraftsForSend([individual('a@x.com'), individual('b@x.com')], {
+      'individual:a@x.com': { subject: 'OK', body: 'Ready', status: 'ready' },
+      'individual:b@x.com': { subject: '[Placeholder]', body: 'failed', status: 'error' },
+    });
+    expect(drafts.map((d) => d.recipientId)).toEqual(['a@x.com']);
+  });
+});
+
+describe('normalizeTone (W0.5 legacy-resume migration)', () => {
+  it('lowercases a legacy capitalized tone from an old draft', () => {
+    expect(normalizeTone('Professional')).toBe('professional');
+    expect(normalizeTone('Formal')).toBe('formal');
+  });
+  it('passes a canonical lowercase tone through', () => {
+    expect(normalizeTone('concise')).toBe('concise');
+  });
+  it('falls back to the default for unknown/garbage/missing values', () => {
+    expect(normalizeTone('nonsense')).toBe('professional');
+    expect(normalizeTone(undefined)).toBe('professional');
+    expect(normalizeTone(42)).toBe('professional');
   });
 });
 

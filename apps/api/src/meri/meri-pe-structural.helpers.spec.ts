@@ -1,4 +1,5 @@
 import {
+  budgetExhibitType,
   collectPeStructuralWarnings,
   isProcurementPe,
   isRdtePe,
@@ -87,9 +88,9 @@ describe('validatePeAgainstDeliverable — capability/mission mismatch (Rule 2)'
 
   it('does NOT flag a missile strategy anchored to an actual missile PE', () => {
     const text = 'Perseus positions its micro-guided kinetic interceptor within FAMM.';
-    expect(
-      validatePeAgainstDeliverable(FAMM_RDTE, text).map((w) => w.code),
-    ).not.toContain('capability_mission_mismatch');
+    expect(validatePeAgainstDeliverable(FAMM_RDTE, text).map((w) => w.code)).not.toContain(
+      'capability_mission_mismatch',
+    );
   });
 });
 
@@ -97,11 +98,9 @@ describe('validatePrimaryVehicleClaim (Rule 3)', () => {
   it('flags "primary vehicle" when a materially larger sibling exists', () => {
     const text =
       'PE 0207179F is the primary funding vehicle for autonomous collaborative engagement technologies.';
-    const w = validatePrimaryVehicleClaim(
-      { peCode: '0207179F', latestAmount: 57_220_000 },
-      text,
-      [{ peCode: '0207147F', title: 'Collaborative Combat Aircraft', latestAmount: 1_373_740_000 }],
-    );
+    const w = validatePrimaryVehicleClaim({ peCode: '0207179F', latestAmount: 57_220_000 }, text, [
+      { peCode: '0207147F', title: 'Collaborative Combat Aircraft', latestAmount: 1_373_740_000 },
+    ]);
     expect(w?.code).toBe('primary_vehicle_overclaim');
     expect(w?.message).toContain('0207147F');
   });
@@ -139,5 +138,27 @@ describe('collectPeStructuralWarnings', () => {
     const text =
       'Use PE 0207179F for evaluation and demonstration; frame FAMM (PE 0604041F) as the funding lane for affordable mass missiles.';
     expect(collectPeStructuralWarnings([ACP_RDTE, FAMM_RDTE], text)).toHaveLength(0);
+  });
+});
+
+describe('budgetExhibitType', () => {
+  it('labels a procurement line a P-1 line item, NOT a Program Element (the Boresight error)', () => {
+    // 1242C93000 "Air Defense Targets" is appropriationType 'PROC'.
+    expect(budgetExhibitType({ peCode: '1242C93000', appropriationType: 'PROC' })).toMatch(
+      /P-1 procurement line item .*NOT a Program Element/,
+    );
+    expect(budgetExhibitType(TRUE_PROCUREMENT)).toMatch(/P-1 procurement line item/);
+  });
+  it('labels an RDT&E line an R-1 Program Element', () => {
+    expect(budgetExhibitType(ACP_RDTE)).toBe('R-1 RDT&E Program Element');
+    // BA-4 with no appropriation string still resolves via budget activity.
+    expect(budgetExhibitType({ peCode: '0604999A', budgetActivity: '04' })).toBe(
+      'R-1 RDT&E Program Element',
+    );
+  });
+  it('falls back (never guesses) when the type is unclassifiable', () => {
+    expect(budgetExhibitType({ peCode: 'X', appropriationType: null, budgetActivity: null })).toBe(
+      'budget line (exhibit type not classified)',
+    );
   });
 });

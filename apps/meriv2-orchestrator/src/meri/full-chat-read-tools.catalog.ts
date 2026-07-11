@@ -6,7 +6,7 @@ import type { DelegatedToolSpec } from '@capiro/meriv2-core';
  * #298) extra read set. Names + descriptions transcribed verbatim from
  * apps/api's TOOL_DEFINITIONS (meri-tools.service.ts); a drift test
  * (full-chat-read-tools.catalog.spec.ts) asserts, together with the other two
- * catalogs, exact name+description coverage of apps/api's full 63-tool surface
+ * catalogs, exact name+description coverage of apps/api's full 64-tool surface
  * against the canonical @capiro/shared MERI_TOOL_MANIFEST (W4.6/D-13). State
  * Legislation Platform (Phase 0 S6) added 2 tools HERE (search_state_floor_votes,
  * get_state_legislator); get_state_bill_status and the upgraded search_state_bills
@@ -17,7 +17,7 @@ import type { DelegatedToolSpec } from '@capiro/meriv2-core';
  * get_representation, get_state_rule_status) — all thin reads over
  * already-existing tables/resolvers, no new write surface.
  *
- * All 23 are absent from apps/api's SIDE_EFFECTING_TOOLS set, so all are
+ * All 24 are absent from apps/api's SIDE_EFFECTING_TOOLS set, so all are
  * readOnly:true here too (the C-workstream rule: this classification MUST
  * match apps/api's, since a delegated write registered readOnly would bypass
  * the B1 gate).
@@ -159,6 +159,12 @@ export const FULL_CHAT_READ_TOOLS: readonly DelegatedToolSpec[] = [
     name: 'query_outreach',
     description:
       "List outreach campaigns and their status (draft, sent, responses) for the firm or a client, or fetch a single outreach record's full detail by outreachId.",
+    readOnly: true,
+  },
+  {
+    name: 'get_pe_report_language',
+    description:
+      "Get the VERBATIM congressional committee report language linked to a budget line (by code): the committee, fiscal year, heading, provision text, action type, and source URL. This is the ONLY source that explains WHY a mark was added/cut. If it returns no provisions, the justification is NOT in Capiro's data — say so; do NOT infer or invent a reason for a mark change from the PE's title or the dollar delta alone.",
     readOnly: true,
   },
 ] as const;

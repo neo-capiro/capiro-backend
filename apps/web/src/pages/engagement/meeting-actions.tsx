@@ -3,73 +3,107 @@
 // Join the online meeting, Send Meri to take notes, and view saved notes. Kept
 // in one module so the notetaker CONSENT COPY (compliance-reviewed) and the
 // join-link detection live in exactly one place and can't drift between pages.
-import { type ReactNode } from 'react';
+import { type MouseEvent, type ReactNode } from 'react';
 import { Button, Checkbox, Form, Input, Tooltip, Typography } from 'antd';
 import { FileTextOutlined, RobotOutlined, VideoCameraOutlined } from '@ant-design/icons';
+import { ExternalLink } from 'lucide-react';
+import {
+  extractMeetingJoinUrl as extractMeetingJoinUrlShared,
+  isSupportedMeetingJoinUrl,
+  type MeetingJoinSource,
+} from '@capiro/shared';
+import { MeriGlyph } from './meetings/meetings-ui.js';
 
 // ── Join-link detection ─────────────────────────────────────────────────────
-// MUST stay in lockstep with the server gate detectPlatform()
-// (apps/api/src/engagement/notetaker/notetaker.service.ts) — covers Recall's
-// full supported set incl. US-Gov Teams (*.teams.microsoft.us), GoTo, Slack.
-export const JOIN_URL_PATTERN =
-  /https:\/\/(?:[\w-]+\.)?(?:zoom\.us|zoomgov\.com)\/[jsw]\/[^\s<>"')\]]+|https:\/\/meet\.google\.com\/[a-z0-9-]+|https:\/\/(?:[\w-]+\.)?teams\.(?:microsoft\.(?:com|us)|live\.com)\/[^\s<>"')\]]+|https:\/\/(?:[\w-]+\.)?webex\.com\/[^\s<>"')\]]+|https:\/\/(?:[\w-]+\.)?(?:goto\.com|gotomeeting\.com)\/[^\s<>"')\]]+|https:\/\/gotomeet\.me\/[^\s<>"')\]]+|https:\/\/app\.slack\.com\/huddle\/[^\s<>"')\]]+/i;
+// The detection logic now lives in @capiro/shared (the single source of truth,
+// shared with the API's sync/dispatch gate) — so the historical "must stay in
+// lockstep with the server" hazard is now structurally enforced. These
+// re-exports keep the original names so existing importers (EngagementPage,
+// HomePage) are unchanged.
+export const extractMeetingJoinUrl = extractMeetingJoinUrlShared;
+export const isSupportedJoinUrl = isSupportedMeetingJoinUrl;
+export type MeetingJoinInfo = MeetingJoinSource;
 
-export function isSupportedJoinUrl(value: string): boolean {
-  let url: URL;
-  try {
-    url = new URL(value.trim());
-  } catch {
-    return false;
-  }
-  const host = url.hostname.toLowerCase();
+/** Open a meeting's online join link in a new tab (no-op if none / unsupported). */
+export function openMeetingJoinLink(meeting: MeetingJoinSource): void {
+  const url = extractMeetingJoinUrl(meeting);
+  if (url) window.open(url, '_blank', 'noopener,noreferrer');
+}
+
+// ── Meetings v2 shared action primitives (prototype-matched) ─────────────────
+// Small presentational atoms composed by BOTH the redesigned Meetings module
+// and the dashboard Client Engagement widget, so the two surfaces can't drift.
+// Styling lives in theme.css (.meri-send-btn / .meri-attending-pill /
+// .meri-join-link) using the app's tokens, which map 1:1 to the prototype
+// (navy pill / accent-soft pill / accent link).
+
+/** Navy filled "Send Meri" pill button (spec §4.3, dashboard parity §8a). */
+export function SendMeriButton({
+  onClick,
+  label = 'Send Meri',
+  disabled,
+  title,
+}: {
+  onClick: (event: MouseEvent) => void;
+  label?: string;
+  disabled?: boolean;
+  title?: string;
+}) {
   return (
-    host === 'zoom.us' ||
-    host.endsWith('.zoom.us') ||
-    host === 'zoomgov.com' ||
-    host.endsWith('.zoomgov.com') ||
-    host === 'meet.google.com' ||
-    host === 'teams.microsoft.com' ||
-    host === 'teams.live.com' ||
-    host === 'teams.microsoft.us' ||
-    host.endsWith('.teams.microsoft.us') ||
-    host === 'webex.com' ||
-    host.endsWith('.webex.com') ||
-    host === 'goto.com' ||
-    host.endsWith('.goto.com') ||
-    host === 'gotomeeting.com' ||
-    host.endsWith('.gotomeeting.com') ||
-    host === 'gotomeet.me' ||
-    (host === 'app.slack.com' && url.pathname.includes('/huddle/'))
+    <button
+      type="button"
+      className="meri-send-btn"
+      disabled={disabled}
+      title={title}
+      onClick={(event) => {
+        event.stopPropagation();
+        event.preventDefault();
+        onClick(event);
+      }}
+    >
+      <MeriGlyph size={16} tone="navy" />
+      <span>{label}</span>
+    </button>
   );
 }
 
-/** Minimal meeting shape needed to derive a join link. */
-export interface MeetingJoinInfo {
-  location?: string | null;
-  description?: string | null;
-  metadata?: Record<string, unknown> | null;
+/** Light-blue "Meri Attending" status pill (shown once a bot is scheduled/attending). */
+export function MeriAttendingPill({ label = 'Meri Attending' }: { label?: string }) {
+  return (
+    <span className="meri-attending-pill">
+      <MeriGlyph size={16} tone="soft" />
+      <span>{label}</span>
+    </span>
+  );
 }
 
 /**
- * Find a real join link for the meeting: webLink only if it IS one (it usually
- * isn't — Outlook's webLink opens the calendar item), then location, then the
- * invite body. Outlook HTML-escapes URLs in the description, so unescape &amp;
- * on the match (Teams links carry query params).
+ * Accent-blue "Join" text link with an external-link glyph. Prefers the stored
+ * `joinUrl` (Meeting.joinLink), falling back to deriving one from the meeting's
+ * free text for pre-migration rows. Renders nothing when no supported join URL
+ * exists. Stops click propagation so it never triggers a surrounding row click.
  */
-export function extractMeetingJoinUrl(meeting: MeetingJoinInfo): string | null {
-  const webLink = typeof meeting.metadata?.webLink === 'string' ? meeting.metadata.webLink : '';
-  if (webLink && isSupportedJoinUrl(webLink)) return webLink;
-  for (const text of [meeting.location ?? '', meeting.description ?? '']) {
-    const match = JOIN_URL_PATTERN.exec(text);
-    if (match) return match[0].replace(/&amp;/g, '&');
-  }
-  return null;
-}
-
-/** Open a meeting's online join link in a new tab (no-op if none / unsupported). */
-export function openMeetingJoinLink(meeting: MeetingJoinInfo): void {
-  const url = extractMeetingJoinUrl(meeting);
-  if (url) window.open(url, '_blank', 'noopener,noreferrer');
+export function JoinLink({
+  joinUrl,
+  meeting,
+}: {
+  joinUrl?: string | null;
+  meeting?: MeetingJoinSource;
+}) {
+  const url = joinUrl ?? (meeting ? extractMeetingJoinUrl(meeting) : null);
+  if (!url) return null;
+  return (
+    <a
+      className="meri-join-link"
+      href={url}
+      target="_blank"
+      rel="noopener noreferrer"
+      onClick={(event) => event.stopPropagation()}
+    >
+      <ExternalLink size={13} />
+      <span>Join</span>
+    </a>
+  );
 }
 
 // ── Quick-action buttons ────────────────────────────────────────────────────

@@ -168,6 +168,11 @@ export interface ClientAttachment {
   source: string;
   createdAt: string;
   downloadUrl: string | null;
+  // Meetings v2: stamped when client-KB indexing completes (drives the per-file
+  // "Indexed" badge); uploader for attribution. All nullable / additive.
+  indexedAt: string | null;
+  uploadedByUserId: string | null;
+  uploadedByName: string | null;
 }
 
 export interface ClientFormValues {

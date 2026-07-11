@@ -102,7 +102,7 @@ export class MeriRegistryService {
     // etc.) — closes the catalog gap toward a future full-chat surface. Same
     // dormant registration as the write tools above: no live surface calls
     // these yet (C4's streaming loop is not built), but the registry now has
-    // apps/api's COMPLETE 63-tool surface available (see
+    // apps/api's COMPLETE 64-tool surface available (see
     // full-chat-read-tools.catalog.spec.ts's combined-coverage assertion).
     const fullChatReadNames = registerDelegatedTools(
       (def) => registry.register(def),

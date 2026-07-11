@@ -57,7 +57,10 @@ export function isTruncatedTitle(title: string | null | undefined): boolean {
  * when BOTH are present, non-zero, and same sign — a real plus-up/cut never
  * approaches three orders of magnitude.
  */
-export function isUnitsAnomaly(request: number | null | undefined, mark: number | null | undefined): boolean {
+export function isUnitsAnomaly(
+  request: number | null | undefined,
+  mark: number | null | undefined,
+): boolean {
   if (request == null || mark == null) return false;
   if (request === 0 || mark === 0) return false;
   if (Math.sign(request) !== Math.sign(mark)) return false;
@@ -111,8 +114,18 @@ export function auditRows(rows: GuardRow[]): GuardReport {
 
 // ─────────────────────── Coverage classification ───────────────────────
 
-/** Mark fields a PE/FY row can carry, in budget-lifecycle order. */
-export const MARK_FIELDS = ['request', 'hascMark', 'sascMark', 'hacDMark', 'sacDMark', 'conference', 'enacted'] as const;
+// Mark fields a PE/FY row can carry, in budget-lifecycle order. The conference-stage
+// value lives in `ndaaConference` (NDAA authorization); the appropriations `conference`
+// column is reserved + unpopulated, so coverage measures ndaaConference here.
+export const MARK_FIELDS = [
+  'request',
+  'hascMark',
+  'sascMark',
+  'hacDMark',
+  'sacDMark',
+  'ndaaConference',
+  'enacted',
+] as const;
 export type CoverageMark = (typeof MARK_FIELDS)[number];
 
 export interface PeYearFacts {
@@ -160,7 +173,10 @@ const ASC_JURISDICTION = new Set(['ARMY', 'NAVY', 'AF', 'USMC', 'SF', 'DARPA', '
  * legitimately blank, but they are NOT distinguishable from this data alone; they
  * surface as candidate_gap and are expected to be a small, explainable residual.
  */
-export function classifyMissingMark(facts: PeYearFacts, mark: CoverageMark): CoverageClassification {
+export function classifyMissingMark(
+  facts: PeYearFacts,
+  mark: CoverageMark,
+): CoverageClassification {
   if (facts.present[mark]) return { verdict: 'mark_present', reason: 'present' };
   if (mark === 'request') {
     // request isn't a "mark"; absence means PE not in this FY's budget book.
@@ -174,12 +190,18 @@ export function classifyMissingMark(facts: PeYearFacts, mark: CoverageMark): Cov
   }
   const appn = (facts.appropriationType ?? '').toUpperCase();
   const isRdte = appn === '' || appn.includes('RDT') || appn.includes('R&D') || appn === 'RDTE';
-  if ((mark === 'hascMark' || mark === 'sascMark' || mark === 'hacDMark' || mark === 'sacDMark') && !isRdte) {
+  if (
+    (mark === 'hascMark' || mark === 'sascMark' || mark === 'hacDMark' || mark === 'sacDMark') &&
+    !isRdte
+  ) {
     return { verdict: 'expected_blank', reason: `non_rdte_appropriation:${appn || 'unknown'}` };
   }
   const { service } = serviceFromPeCode(facts.peCode);
   if (!service || !ASC_JURISDICTION.has(service)) {
-    return { verdict: 'expected_blank', reason: `out_of_jurisdiction:${service ?? 'unknown_service'}` };
+    return {
+      verdict: 'expected_blank',
+      reason: `out_of_jurisdiction:${service ?? 'unknown_service'}`,
+    };
   }
   return { verdict: 'candidate_gap', reason: 'in_request_rdte_in_jurisdiction_unclassified' };
 }

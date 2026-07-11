@@ -7,7 +7,13 @@
     "rootDir": "src",
     "composite": true,
     "esModuleInterop": true,
-    "skipLibCheck": true
+    "skipLibCheck": true,
+    // DOM provides the WHATWG `URL` global used by the meeting join-link
+    // detection. This package builds in isolation in CI (only `typescript` in
+    // its devDeps — no @types/node), so `URL` must come from a lib, not @types.
+    // Type-only: the emitted code is unchanged and both Node (apps/api) and
+    // browser (apps/web) consumers already have `URL` globally.
+    "lib": ["ES2022", "DOM"]
   },
   "include": ["src/**/*"]
 }

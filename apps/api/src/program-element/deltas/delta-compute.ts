@@ -9,8 +9,10 @@
  *
  * DELTA DEFINITIONS (authoritative — mirrored in delta-engine.service.ts doc comment):
  *   - mark_vs_request:     a committee mark (hasc/sasc/hac_d/sac_d) vs the request, same FY.
- *   - mark_vs_mark:        one chamber/committee mark vs another, same FY (HASC vs SASC etc.).
- *   - conference_vs_marks: conference vs the marks it reconciles, same FY.
+ *   - mark_vs_mark:        two marks WITHIN a track, same FY (HASC vs SASC; HAC-D vs SAC-D).
+ *                          Never cross-track (authorization marks vs appropriations marks).
+ *   - conference_vs_marks: the NDAA `conference` value vs the AUTHORIZATION marks (HASC/SASC)
+ *                          it reconciles, same FY. Not compared to appropriations marks.
  *   - enacted_vs_request:  enacted public-law value vs the request, same FY.
  *   - new_start:           PE/FY present now but absent from the prior PB AND prior FY years.
  *   - termination:         present in a prior PB but absent / zero across BY+outyears now.
@@ -39,7 +41,10 @@ export interface YearLike {
   sascMark: number | string | null;
   hacDMark: number | string | null;
   sacDMark: number | string | null;
+  /** Appropriations-track conference (reserved — unpopulated today). */
   conference: number | string | null;
+  /** NDAA (authorization-track) conference report — reconciles the HASC/SASC marks. */
+  ndaaConference: number | string | null;
   enacted: number | string | null;
 }
 
@@ -96,32 +101,75 @@ const FIELD_STAGE: Record<string, DeltaStage> = {
   hacDMark: 'marks',
   sacDMark: 'marks',
   conference: 'conference',
+  ndaaConference: 'conference',
   enacted: 'enacted',
 };
 
-const MARK_FIELDS = ['hascMark', 'sascMark', 'hacDMark', 'sacDMark'] as const;
+// Committee marks split by TRACK. Authorization marks come from the NDAA
+// (HASC / SASC); appropriations marks come from the Defense Appropriations bill
+// (HAC-D / SAC-D). A cross-track pair (e.g. HASC vs HAC-D) is two different
+// committees acting on two different bills — diffing them is not a meaningful
+// "mark divergence", so mark-vs-mark deltas are only ever computed WITHIN a track.
+const AUTH_MARK_FIELDS = ['hascMark', 'sascMark'] as const;
+const APPROP_MARK_FIELDS = ['hacDMark', 'sacDMark'] as const;
+const MARK_FIELDS = [...AUTH_MARK_FIELDS, ...APPROP_MARK_FIELDS] as const;
+
+type MarkFieldName = (typeof MARK_FIELDS)[number];
+interface PresentMark {
+  field: MarkFieldName;
+  value: number;
+}
+
+/** Present (non-null) marks among `fields`, preserving the given order. */
+function presentMarks(year: YearLike, fields: readonly MarkFieldName[]): PresentMark[] {
+  const arr: PresentMark[] = [];
+  for (const field of fields) {
+    const v = n(year[field]);
+    if (v !== null) arr.push({ field, value: v });
+  }
+  return arr;
+}
+
+/** Emit a mark_vs_mark delta for every diverging pair WITHIN one track's marks. */
+function emitMarkPairs(out: DerivedDelta[], fy: number, group: PresentMark[]): void {
+  for (let i = 0; i < group.length; i += 1) {
+    for (let j = i + 1; j < group.length; j += 1) {
+      const a = group[i]!;
+      const b = group[j]!;
+      if (a.value === b.value) continue; // no divergence → no delta
+      out.push(
+        buildDelta('mark_vs_mark', fy, a.field, b.field, a.value, b.value, 'marks', {
+          fields: [a.field, b.field],
+        }),
+      );
+    }
+  }
+}
 
 /**
  * Stage-ladder deltas derived from a SINGLE ProgramElementYear row (one FY): the marks
- * vs the request, marks vs each other, conference vs the marks, and enacted vs request.
+ * vs the request, marks vs each other WITHIN a track, the NDAA conference vs the
+ * authorization marks it reconciles, and enacted vs request.
  * These have REAL data today (request + at least one mark for many PEs).
  */
 export function deltasFromYear(year: YearLike): DerivedDelta[] {
   const out: DerivedDelta[] = [];
   const fy = year.fy;
   const request = n(year.request);
-  const conference = n(year.conference);
+  // The NDAA (authorization-track) conference is the only conference value populated
+  // today; it reconciles the HASC/SASC authorization marks. The appropriations
+  // `conference` column is reserved/unpopulated, so it produces no deltas yet.
+  const ndaaConference = n(year.ndaaConference);
   const enacted = n(year.enacted);
 
-  const marks: Array<{ field: (typeof MARK_FIELDS)[number]; value: number }> = [];
-  for (const field of MARK_FIELDS) {
-    const v = n(year[field]);
-    if (v !== null) marks.push({ field, value: v });
-  }
+  const authMarks = presentMarks(year, AUTH_MARK_FIELDS);
+  const appropMarks = presentMarks(year, APPROP_MARK_FIELDS);
+  const allMarks = [...authMarks, ...appropMarks];
 
-  // mark_vs_request — each present mark against the request.
+  // mark_vs_request — each present mark against the request. The request is the
+  // shared PB baseline for both tracks, so every mark is comparable to it.
   if (request !== null) {
-    for (const m of marks) {
+    for (const m of allMarks) {
       out.push(
         buildDelta('mark_vs_request', fy, 'request', m.field, request, m.value, 'marks', {
           fields: ['request', m.field],
@@ -138,31 +186,36 @@ export function deltasFromYear(year: YearLike): DerivedDelta[] {
     }
   }
 
-  // mark_vs_mark — distinct pairs of present marks (HASC vs SASC, etc.), stable order.
-  for (let i = 0; i < marks.length; i += 1) {
-    for (let j = i + 1; j < marks.length; j += 1) {
-      const a = marks[i]!;
-      const b = marks[j]!;
-      if (a.value === b.value) continue; // no divergence → no delta
-      out.push(
-        buildDelta('mark_vs_mark', fy, a.field, b.field, a.value, b.value, 'marks', {
-          fields: [a.field, b.field],
-        }),
-      );
-    }
-  }
+  // mark_vs_mark — diverging pairs WITHIN a track only (HASC vs SASC; HAC-D vs
+  // SAC-D). Cross-track pairs are different committees on different bills.
+  emitMarkPairs(out, fy, authMarks);
+  emitMarkPairs(out, fy, appropMarks);
 
-  // conference_vs_marks — conference against each mark it reconciles.
-  if (conference !== null) {
-    for (const m of marks) {
+  // conference_vs_marks — the NDAA conference reconciles the AUTHORIZATION marks
+  // (HASC / SASC) only, never the appropriations subcommittee marks. The VALUE now
+  // comes from ndaaConference, but the delta's from/to refs stay 'conference' (the
+  // stage identity) so the natural key (peCode,fy,type,fromRef,toRef) is unchanged
+  // across the split — the post-deploy recompute is then a clean no-op for these
+  // deltas (same key, same dollars) instead of superseding + re-emitting every alert.
+  if (ndaaConference !== null) {
+    for (const m of authMarks) {
       out.push(
-        buildDelta('conference_vs_marks', fy, m.field, 'conference', m.value, conference, 'conference', {
-          fields: [m.field, 'conference'],
-        }),
+        buildDelta(
+          'conference_vs_marks',
+          fy,
+          m.field,
+          'conference',
+          m.value,
+          ndaaConference,
+          'conference',
+          {
+            fields: [m.field, 'conference'],
+          },
+        ),
       );
     }
-    // zeroed: a mark/request was non-zero and conference brought it to 0.
-    if (conference === 0 && request !== null && request > 0) {
+    // zeroed: the request was non-zero and the NDAA conference brought it to 0.
+    if (ndaaConference === 0 && request !== null && request > 0) {
       out.push(
         buildDelta('zeroed', fy, 'request', 'conference', request, 0, 'conference', {
           fields: ['request', 'conference'],
@@ -187,7 +240,18 @@ function buildDelta(
   const deltaAbs =
     amountFrom !== null && amountTo !== null ? round2(amountTo - amountFrom) : amountTo;
   const deltaPct = amountFrom !== null && amountTo !== null ? pct(amountFrom, amountTo) : null;
-  return { assertedFy, deltaType, fromRef, toRef, amountFrom, amountTo, deltaAbs, deltaPct, stage, evidence };
+  return {
+    assertedFy,
+    deltaType,
+    fromRef,
+    toRef,
+    amountFrom,
+    amountTo,
+    deltaAbs,
+    deltaPct,
+    stage,
+    evidence,
+  };
 }
 
 /**
@@ -314,7 +378,12 @@ export function deltasFromProcurement(lines: ProcurementLineLike[]): DerivedDelt
     for (let i = 1; i < sorted.length; i += 1) {
       const prev = sorted[i - 1]!;
       const cur = sorted[i]!;
-      const evBase = { source: 'procurement_line', lineDescription: desc, fromFy: prev.fy, toFy: cur.fy };
+      const evBase = {
+        source: 'procurement_line',
+        lineDescription: desc,
+        fromFy: prev.fy,
+        toFy: cur.fy,
+      };
 
       const qFrom = n(prev.quantity);
       const qTo = n(cur.quantity);
@@ -367,7 +436,11 @@ export function newStartFromYears(years: YearLike[], hasPriorPb: boolean): Deriv
   const sorted = [...years].sort((a, b) => a.fy - b.fy);
   const first = sorted[0]!;
   const firstValue =
-    n(first.request) ?? n(first.hascMark) ?? n(first.conference) ?? n(first.enacted);
+    n(first.request) ??
+    n(first.hascMark) ??
+    n(first.ndaaConference) ??
+    n(first.conference) ??
+    n(first.enacted);
   if (firstValue === null) return [];
   // Only treat as a new_start when there is exactly one FY (a genuinely new line); a PE
   // with multiple FYs is an ongoing program, not a new start.

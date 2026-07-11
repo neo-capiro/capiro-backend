@@ -62,7 +62,7 @@ async function main(): Promise<void> {
             sascMark: true,
             hacDMark: true,
             sacDMark: true,
-            conference: true,
+            ndaaConference: true,
             enacted: true,
           },
         },
@@ -70,35 +70,36 @@ async function main(): Promise<void> {
     });
 
     // Bulk-load graph signals (one query each, grouped in memory).
-    const [rels, capMatches, awards, performers, sources, activePeople, confirmedCandidates] = await Promise.all([
-      prisma.budgetLineRelationship.findMany({
-        where: { status: 'accepted' },
-        select: { fromPeCode: true, toPeCode: true, relType: true },
-      }),
-      prisma.capabilityBudgetLineMatch.groupBy({ by: ['peCode'], _count: { peCode: true } }),
-      prisma.federalAward.groupBy({
-        by: ['peCode'],
-        where: { peCode: { not: null } },
-        _count: { peCode: true },
-      }),
-      prisma.programElementPerformer.groupBy({
-        by: ['peCode'],
-        where: { isNamedCompany: true },
-        _count: { peCode: true },
-      }),
-      prisma.programElementSource.groupBy({ by: ['peCode'], _count: { peCode: true } }),
-      // People link two ways: direct pePrimary/peSecondary on the person row,
-      // and review-confirmed candidates. Both count toward office clarity.
-      prisma.acquisitionPersonnel.findMany({
-        where: { supersededAt: null, status: 'active' },
-        select: { pePrimary: true, peSecondary: true },
-      }),
-      prisma.programElementPersonCandidate.groupBy({
-        by: ['peCode'],
-        where: { status: 'confirmed' },
-        _count: { peCode: true },
-      }),
-    ]);
+    const [rels, capMatches, awards, performers, sources, activePeople, confirmedCandidates] =
+      await Promise.all([
+        prisma.budgetLineRelationship.findMany({
+          where: { status: 'accepted' },
+          select: { fromPeCode: true, toPeCode: true, relType: true },
+        }),
+        prisma.capabilityBudgetLineMatch.groupBy({ by: ['peCode'], _count: { peCode: true } }),
+        prisma.federalAward.groupBy({
+          by: ['peCode'],
+          where: { peCode: { not: null } },
+          _count: { peCode: true },
+        }),
+        prisma.programElementPerformer.groupBy({
+          by: ['peCode'],
+          where: { isNamedCompany: true },
+          _count: { peCode: true },
+        }),
+        prisma.programElementSource.groupBy({ by: ['peCode'], _count: { peCode: true } }),
+        // People link two ways: direct pePrimary/peSecondary on the person row,
+        // and review-confirmed candidates. Both count toward office clarity.
+        prisma.acquisitionPersonnel.findMany({
+          where: { supersededAt: null, status: 'active' },
+          select: { pePrimary: true, peSecondary: true },
+        }),
+        prisma.programElementPersonCandidate.groupBy({
+          by: ['peCode'],
+          where: { status: 'confirmed' },
+          _count: { peCode: true },
+        }),
+      ]);
     const latestActions = await prisma.budgetAction.findMany({
       orderBy: [{ fy: 'desc' }, { updatedAt: 'desc' }],
       select: { peCode: true, fy: true, action: true },
@@ -150,7 +151,8 @@ async function main(): Promise<void> {
         sascMark: num(y.sascMark),
         hacDMark: num(y.hacDMark),
         sacDMark: num(y.sacDMark),
-        conference: num(y.conference),
+        // Intelligence "conference" signal = the NDAA conference (see build-intelligence).
+        conference: num(y.ndaaConference),
         enacted: num(y.enacted),
       }));
       const intel = buildIntelligence({
@@ -226,14 +228,17 @@ async function main(): Promise<void> {
       console.log('DRY RUN — re-run with --commit to write.');
       return;
     }
-    await prisma.$transaction(async (tx) => {
-      await tx.programElementIntelligenceCache.deleteMany({});
-      for (let i = 0; i < rows.length; i += 500) {
-        await tx.programElementIntelligenceCache.createMany({ data: rows.slice(i, i + 500) });
-      }
-      // Fat JSONB rows over ~10k lines — Prisma's default 5s interactive-
-      // transaction timeout would abort mid-write. Explicit ceiling.
-    }, { timeout: 600_000, maxWait: 30_000 });
+    await prisma.$transaction(
+      async (tx) => {
+        await tx.programElementIntelligenceCache.deleteMany({});
+        for (let i = 0; i < rows.length; i += 500) {
+          await tx.programElementIntelligenceCache.createMany({ data: rows.slice(i, i + 500) });
+        }
+        // Fat JSONB rows over ~10k lines — Prisma's default 5s interactive-
+        // transaction timeout would abort mid-write. Explicit ceiling.
+      },
+      { timeout: 600_000, maxWait: 30_000 },
+    );
     console.log(JSON.stringify({ written: rows.length }));
   } finally {
     await prisma.$disconnect();

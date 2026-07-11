@@ -37,15 +37,18 @@ import {
   sanitizeTargets,
 } from './targets.js';
 import {
+  appendDraftHistory,
   buildGenerationModel,
   genInputSignature,
   projectDraftsForSend,
+  revertDraftHistory,
   type GenSlot,
 } from './generation.js';
 import { htmlToPlainText, markdownishToHtml, sanitizeHtml } from './richtext.js';
 import {
   INITIAL_V2_STATE,
   WIZARD_STEPS,
+  normalizeTone,
   recipientKey,
   type ContextKind,
   type ContextPoolItem,
@@ -143,6 +146,26 @@ function apiErrorMessage(err: unknown): string | null {
   if (typeof msg === 'string') return msg;
   if (Array.isArray(msg) && typeof msg[0] === 'string') return msg[0];
   return null;
+}
+
+// Server caps generate-batch at 100 recipients (GenerateBatchEmailDto
+// @ArrayMaxSize(100)). Chunk the flat fan-out to match so a large campaign
+// generates across several POSTs instead of tripping the cap and 400ing.
+const GEN_BATCH_MAX = 100;
+
+/** One generated draft keyed by its GenerationTargetKey. */
+interface GenDraft {
+  genKey: string;
+  subject: string;
+  body: string;
+}
+
+/** Result of a generate mutation: succeeded drafts committed as-is, failed slot
+ *  keys flagged 'error' (unsendable), plus the first failure message to surface. */
+interface GenerateResult {
+  succeeded: GenDraft[];
+  failed: string[];
+  errorMessage?: string;
 }
 
 export function NewOutreachWizard({
@@ -276,14 +299,9 @@ export function NewOutreachWizard({
     const direction: WizardV2State['direction'] =
       rawDirection === 'on-behalf' || rawDirection === 'to-clients' ? rawDirection : null;
 
-    const rawTone = metadata.tone;
-    const tone: WizardV2State['tone'] =
-      rawTone === 'Professional' ||
-      rawTone === 'Friendly' ||
-      rawTone === 'Formal' ||
-      rawTone === 'Concise'
-        ? rawTone
-        : INITIAL_V2_STATE.tone;
+    // Tone canonicalized to lowercase (see normalizeTone): lowercases a legacy
+    // capitalized value from an old draft, else falls back to the default.
+    const tone = normalizeTone(metadata.tone);
 
     // Rich v2 context items are round-tripped losslessly under
     // metadata.contextItems (the top-level contextPool the API also stores is
@@ -623,8 +641,17 @@ export function NewOutreachWizard({
   const generateMutation = useMutation({
     // markFresh + sig: when a FULL regeneration completes, stamp the
     // generation-input signature so the "context changed" banner clears.
-    mutationFn: async (vars: { slots: GenSlot[]; markFresh?: boolean; sig?: string }) => {
-      if (!vars.slots.length) return [];
+    mutationFn: async (vars: {
+      slots: GenSlot[];
+      markFresh?: boolean;
+      sig?: string;
+      /**
+       * "Improve" (revision) mode: edit the named draft in place per a freeform
+       * instruction instead of regenerating from scratch. Always a single slot.
+       */
+      revise?: { genKey: string; instruction: string };
+    }): Promise<GenerateResult> => {
+      if (!vars.slots.length) return { succeeded: [], failed: [] };
       // GenerateBatchEmailDto whitelists only id/kind/title/body/scope/note on
       // context items; with forbidNonWhitelisted on, pool-only fields (tag/sub/
       // matches) 400 the batch. Strip to the DTO shape. List/group scopes are
@@ -641,31 +668,62 @@ export function NewOutreachWizard({
           note: item.note,
         }),
       );
+      // Improve mode forwards the current (possibly hand-edited) draft + the
+      // freeform instruction so the server revises in place (PromptSpec v2
+      // revision mode). Only ever one slot, so top-level fields are unambiguous.
+      const reviseDraft = vars.revise ? state.generatedEmails[vars.revise.genKey] : undefined;
       const base = {
         clientId: state.clientId ?? undefined,
         templateId: state.templateId,
         tone: state.tone,
         direction: state.direction,
         contextItems,
+        ...(vars.revise && reviseDraft
+          ? {
+              existingSubject: reviseDraft.subject,
+              existingBody: reviseDraft.body,
+              reviseInstruction: vars.revise.instruction,
+            }
+          : {}),
       };
-      const post = (recipients: OutreachRecipient[], additionalContext?: string) =>
+      const post = (
+        recipients: OutreachRecipient[],
+        opts?: { additionalContext?: string; audienceKind?: 'group' },
+      ) =>
         // 175s headroom under the ~180s ALB idle timeout; the server fans out
-        // one AI call per recipient.
+        // one AI call per recipient. `audienceKind: 'group'` tells the server the
+        // single recipient stands in for a whole group (collective salutation, no
+        // per-member tailoring).
         api
           .post<{
             results: Array<{ recipientId: string; subject: string; body: string }>;
           }>(
             '/api/engagement/outreach/generate-batch',
-            { ...base, recipients, ...(additionalContext ? { additionalContext } : {}) },
+            {
+              ...base,
+              recipients,
+              ...(opts?.additionalContext ? { additionalContext: opts.additionalContext } : {}),
+              ...(opts?.audienceKind ? { audienceKind: opts.audienceKind } : {}),
+            },
             { timeout: 175_000 },
           )
           .then((r) => r.data.results);
 
-      const tasks: Array<Promise<Array<{ genKey: string; subject: string; body: string }>>> = [];
+      // Each task CATCHES its own error and returns a discriminated result, so a
+      // single failing POST (429, an AI outage, a validation reject) can never
+      // discard the drafts the OTHER POSTs already produced. The old code joined
+      // every POST with Promise.all — one failure rejected the whole mutation and
+      // marked every slot 'error', throwing away already-succeeded work.
+      type TaskOut =
+        | { ok: true; drafts: GenDraft[] }
+        | { ok: false; genKeys: string[]; message: string };
+      const tasks: Array<Promise<TaskOut>> = [];
 
-      // Non-group slots: one batch call. The same person can back two slots
-      // (e.g. a member of two lists shares a resultId), so POST each unique
-      // recipient ONCE and fan the single result to every slot that shares it.
+      // Non-group slots: POST each unique recipient ONCE (a person can back two
+      // slots, e.g. a member of two lists sharing a resultId) and fan the single
+      // result to every slot that shares it. Chunk into <=GEN_BATCH_MAX per POST
+      // so a large campaign generates across several POSTs instead of tripping
+      // the server's 100-recipient cap.
       const flatSlots = vars.slots.filter((s) => s.appliesTo !== 'group');
       if (flatSlots.length) {
         const uniqueRecipients = new Map<string, OutreachRecipient>();
@@ -673,58 +731,138 @@ export function NewOutreachWizard({
           const r = s.genRecipients[0];
           if (r && !uniqueRecipients.has(s.resultId)) uniqueRecipients.set(s.resultId, r);
         }
-        tasks.push(
-          post([...uniqueRecipients.values()]).then((results) => {
-            const byId = new Map(results.map((r) => [r.recipientId, r]));
-            return flatSlots.map((s) => {
-              const r = byId.get(s.resultId);
-              return { genKey: s.genKey, subject: r?.subject ?? '', body: r?.body ?? '' };
-            });
-          }),
-        );
+        const uniqueEntries = [...uniqueRecipients.entries()];
+        for (let i = 0; i < uniqueEntries.length; i += GEN_BATCH_MAX) {
+          const chunk = uniqueEntries.slice(i, i + GEN_BATCH_MAX);
+          const chunkIds = new Set(chunk.map(([id]) => id));
+          const chunkSlots = flatSlots.filter((s) => chunkIds.has(s.resultId));
+          tasks.push(
+            post(chunk.map(([, r]) => r))
+              .then(
+                (results): TaskOut => {
+                  const byId = new Map(results.map((r) => [r.recipientId, r]));
+                  return {
+                    ok: true,
+                    drafts: chunkSlots.map((s) => {
+                      const r = byId.get(s.resultId);
+                      return { genKey: s.genKey, subject: r?.subject ?? '', body: r?.body ?? '' };
+                    }),
+                  };
+                },
+              )
+              .catch(
+                (err): TaskOut => ({
+                  ok: false,
+                  genKeys: chunkSlots.map((s) => s.genKey),
+                  message: apiErrorMessage(err) || 'Generation failed.',
+                }),
+              ),
+          );
+        }
       }
-      // Group slots: one call each, carrying the member listing.
+      // Group slots: one call each, carrying the member listing + the group flag
+      // so the server drafts ONE collective email (no per-member tailoring).
       for (const slot of vars.slots.filter((s) => s.appliesTo === 'group')) {
         tasks.push(
-          post(slot.genRecipients, slot.additionalContext).then((results) => {
-            const r = results[0];
-            return [{ genKey: slot.genKey, subject: r?.subject ?? '', body: r?.body ?? '' }];
-          }),
+          post(slot.genRecipients, {
+            additionalContext: slot.additionalContext,
+            audienceKind: 'group',
+          })
+            .then(
+              (results): TaskOut => {
+                const r = results[0];
+                return {
+                  ok: true,
+                  drafts: [{ genKey: slot.genKey, subject: r?.subject ?? '', body: r?.body ?? '' }],
+                };
+              },
+            )
+            .catch(
+              (err): TaskOut => ({
+                ok: false,
+                genKeys: [slot.genKey],
+                message: apiErrorMessage(err) || 'Generation failed.',
+              }),
+            ),
         );
       }
 
-      return (await Promise.all(tasks)).flat();
+      // Promise.all never rejects here — every task resolves to a TaskOut.
+      const outs = await Promise.all(tasks);
+      const succeeded = outs.flatMap((o) => (o.ok ? o.drafts : []));
+      const failed = outs.flatMap((o) => (o.ok ? [] : o.genKeys));
+      const firstFailure = outs.find((o): o is Extract<TaskOut, { ok: false }> => !o.ok);
+      return { succeeded, failed, errorMessage: firstFailure?.message };
     },
-    onSuccess: (results, vars) => {
+    onSuccess: (res, vars) => {
       setState((prev) => {
         const generatedEmails = { ...prev.generatedEmails };
-        for (const r of results) {
+        for (const r of res.succeeded) {
           // The AI returns markdown; convert to HTML for the WYSIWYG + HTML
           // send, then SANITIZE at this trust boundary — model output is
           // attacker-influenceable (context items/recipient data) and must
           // never reach the DOM or the send pipeline unsanitized.
+          // On an "Improve", stash the pre-revision draft so the user can Revert
+          // (keep the last 2). A normal regenerate carries history forward as-is.
+          const prior = generatedEmails[r.genKey];
+          const isRevise = vars.revise?.genKey === r.genKey;
+          const history = isRevise ? appendDraftHistory(prior) : prior?.history;
           generatedEmails[r.genKey] = {
             subject: r.subject,
             body: sanitizeHtml(markdownishToHtml(r.body)),
             status: 'ready',
+            ...(history && history.length ? { history } : {}),
+          };
+        }
+        for (const genKey of res.failed) {
+          // A slot whose POST failed gets an editable placeholder marked 'error',
+          // NOT 'ready' — excluded from the send projection (projectDraftsForSend)
+          // so a failed draft can never be blasted out as "…generation failed…".
+          // It becomes sendable only once the user edits it (→ 'edited') or a
+          // regenerate succeeds (→ 'ready'). Succeeded slots above are untouched.
+          generatedEmails[genKey] = {
+            subject: `[Placeholder] ${state.campaignName || 'Outreach'}`,
+            body: sanitizeHtml(
+              markdownishToHtml(
+                `Hi there,\n\nThis is a placeholder draft because email generation failed. Edit this text directly, or try Regenerate — it will not be sent until you do.\n\nBest regards,\n${senderName}`,
+              ),
+            ),
+            status: 'error',
           };
         }
         return {
           ...prev,
           generatedEmails,
-          // A full regeneration reflects the current context → drafts fresh.
-          ...(vars.markFresh && vars.sig != null ? { generatedInputSig: vars.sig } : {}),
+          // Only a FULLY-successful full regeneration is "fresh" — leave the
+          // "context changed" banner up if any slot failed so the user retries.
+          ...(vars.markFresh && vars.sig != null && res.failed.length === 0
+            ? { generatedInputSig: vars.sig }
+            : {}),
         };
       });
       setGeneratingKey(null);
-      if (results.length === 0) return;
-      message.success(
-        results.length === 1 ? 'Regenerated this email' : `Generated ${results.length} drafts`,
-      );
+      if (res.failed.length && res.succeeded.length) {
+        message.warning(
+          `Generated ${res.succeeded.length}; ${res.failed.length} failed — ${
+            res.errorMessage ?? 'edit or regenerate the flagged drafts.'
+          }`,
+        );
+      } else if (res.failed.length) {
+        message.error(
+          res.errorMessage ?? 'Generation failed. Edit or regenerate the flagged drafts.',
+        );
+      } else if (res.succeeded.length) {
+        message.success(
+          res.succeeded.length === 1
+            ? 'Regenerated this email'
+            : `Generated ${res.succeeded.length} drafts`,
+        );
+      }
     },
-    onError: (_err, vars) => {
-      // Endpoint failure: editable placeholder per slot so the reviewer still
-      // sees the layout.
+    onError: (err, vars) => {
+      // Last-resort fallback. Each POST catches its own network error inside the
+      // mutationFn, so this only fires on an unexpected pre-flight throw. Mark
+      // the requested slots 'error' (unsendable) so nothing half-generated leaks.
       setState((prev) => {
         const generatedEmails = { ...prev.generatedEmails };
         for (const s of vars.slots) {
@@ -732,16 +870,18 @@ export function NewOutreachWizard({
             subject: `[Placeholder] ${state.campaignName || 'Outreach'}`,
             body: sanitizeHtml(
               markdownishToHtml(
-                `Hi there,\n\nThis is a placeholder draft because email generation failed. Edit this text directly, or try Regenerate.\n\nBest regards,\n${senderName}`,
+                `Hi there,\n\nThis is a placeholder draft because email generation failed. Edit this text directly, or try Regenerate — it will not be sent until you do.\n\nBest regards,\n${senderName}`,
               ),
             ),
-            status: 'ready',
+            status: 'error',
           };
         }
         return { ...prev, generatedEmails };
       });
       setGeneratingKey(null);
-      message.warning('Generation failed; showing an editable placeholder draft.');
+      message.error(
+        apiErrorMessage(err) || 'Generation failed. Edit or regenerate the flagged drafts.',
+      );
     },
   });
 
@@ -979,6 +1119,39 @@ export function NewOutreachWizard({
     generateMutation.mutate({ slots: genModel.slots, markFresh: true, sig: genSig });
   };
 
+  // "Improve": revise ONE draft in place per a freeform instruction (keeps the
+  // user's current text as the base; the prior version is stashed for Revert).
+  const improveOne = (genKey: string, instruction: string) => {
+    const trimmed = instruction.trim();
+    if (!trimmed) return;
+    const slot = genModel.slots.find((s) => s.genKey === genKey);
+    if (!slot) return;
+    setGeneratingKey(genKey);
+    generateMutation.mutate({ slots: [slot], revise: { genKey, instruction: trimmed } });
+  };
+
+  // Revert the last "Improve" — pop the newest history entry back into the draft.
+  const revertOne = (genKey: string) =>
+    setState((prev) => {
+      const draft = prev.generatedEmails[genKey];
+      if (!draft) return prev;
+      const reverted = revertDraftHistory(draft);
+      if (!reverted) return prev;
+      return {
+        ...prev,
+        generatedEmails: {
+          ...prev.generatedEmails,
+          [genKey]: {
+            ...draft,
+            subject: reverted.subject,
+            body: reverted.body,
+            status: 'edited',
+            history: reverted.history.length ? reverted.history : undefined,
+          },
+        },
+      };
+    });
+
   // Copy a list member's edited subject/body to every member of that list
   // (board 7.3 "Apply to all in list").
   const applyToList = (listAid: string, sourceKey: string) =>
@@ -1004,6 +1177,16 @@ export function NewOutreachWizard({
   // Distinguish the real send from a test send so only the clicked button spins.
   const realSending = sendMutation.isPending && !sendMutation.variables?.testMode;
   const testSending = sendMutation.isPending && !!sendMutation.variables?.testMode;
+  // Send-readiness guard: drafts that failed to generate (status 'error') are
+  // excluded from the send projection, so a batch with failures must surface the
+  // count and Send must hard-disable when nothing is actually sendable.
+  const sendableDraftCount = buildDrafts().length;
+  // Count failures against the CURRENT generation model only — a stale 'error'
+  // draft for a target the user has since removed must not warn about a slot
+  // that no longer appears in the rail.
+  const failedDraftCount = genModel.slots.filter(
+    (s) => state.generatedEmails[s.genKey]?.status === 'error',
+  ).length;
 
   // ---- Render ----
   return (
@@ -1089,6 +1272,8 @@ export function NewOutreachWizard({
               contextStale={contextStale}
               onRegenerateAll={regenerateAll}
               onRegenerateOne={regenerateOne}
+              onImprove={improveOne}
+              onRevert={revertOne}
               onEdit={updateDraft}
               onApplyToList={applyToList}
               regenerating={generateMutation.isPending}
@@ -1104,6 +1289,8 @@ export function NewOutreachWizard({
           {step.id === 'send' && (
             <StepSend
               recipients={state.recipients}
+              sendableCount={sendableDraftCount}
+              failedCount={failedDraftCount}
               sendFrom={sendFrom}
               emailConnected={emailConnected}
               hasSignature={hasSignature}
@@ -1152,7 +1339,7 @@ export function NewOutreachWizard({
                 icon={<SendOutlined />}
                 onClick={() => sendMutation.mutate(undefined)}
                 loading={realSending}
-                disabled={!emailConnected}
+                disabled={!emailConnected || sendableDraftCount === 0}
               >
                 Send all
               </Button>
@@ -1608,6 +1795,8 @@ function CreateTemplateModal({
 
 function StepSend({
   recipients,
+  sendableCount,
+  failedCount,
   sendFrom,
   emailConnected,
   hasSignature,
@@ -1621,6 +1810,8 @@ function StepSend({
   onDone,
 }: {
   recipients: OutreachRecipient[];
+  sendableCount: number;
+  failedCount: number;
   sendFrom: string | null;
   emailConnected: boolean;
   hasSignature: boolean;
@@ -1633,6 +1824,9 @@ function StepSend({
   sentResult: { sent: number; failed: number } | null;
   onDone: () => void;
 }) {
+  // Nothing sendable (every draft failed, or none generated) → block Send and
+  // say why, so the primary CTA is never a dead click into a backend 400.
+  const nothingToSend = sendableCount === 0;
   // Post-send confirmation screen.
   if (sentResult) {
     return (
@@ -1670,6 +1864,19 @@ function StepSend({
           No Microsoft connection found. Connect one in Settings → Integrations before sending.
         </Typography.Paragraph>
       )}
+      {failedCount > 0 && (
+        <Typography.Paragraph type="warning" style={{ marginTop: 12 }}>
+          {failedCount} {failedCount === 1 ? 'draft' : 'drafts'} could not be generated and will be
+          skipped. Go back to Generate &amp; Review to edit or regenerate{' '}
+          {failedCount === 1 ? 'it' : 'them'}.
+        </Typography.Paragraph>
+      )}
+      {nothingToSend && (
+        <Typography.Paragraph type="danger" style={{ marginTop: 12 }}>
+          No emails are ready to send yet. Generate drafts — and fix any that failed — in Generate
+          &amp; Review first.
+        </Typography.Paragraph>
+      )}
       {hasSignature && (
         <div
           style={{
@@ -1694,7 +1901,7 @@ function StepSend({
           icon={<EyeOutlined />}
           loading={testing && !sending}
           onClick={onTest}
-          disabled={!emailConnected}
+          disabled={!emailConnected || nothingToSend}
         >
           Send test email to myself
         </Button>
@@ -1703,7 +1910,7 @@ function StepSend({
           icon={<SendOutlined />}
           loading={sending}
           onClick={onSend}
-          disabled={!emailConnected}
+          disabled={!emailConnected || nothingToSend}
         >
           Confirm Send
         </Button>

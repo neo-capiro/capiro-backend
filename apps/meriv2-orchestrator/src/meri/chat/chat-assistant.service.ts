@@ -3,6 +3,7 @@ import { ConfigService } from '@nestjs/config';
 import {
   computeActionFingerprint,
   KeywordIntentRouter,
+  wrapToolResultForPrompt,
   type MeriContext,
   type ToolRegistry,
 } from '@capiro/meriv2-core';
@@ -191,7 +192,7 @@ export class ChatAssistantService {
           return {
             type: 'tool_result' as const,
             tool_use_id: tu.id,
-            content: JSON.stringify(result ?? {}).slice(0, TOOL_RESULT_CHARS),
+            content: wrapToolResultForPrompt(tu.name, result, TOOL_RESULT_CHARS),
           };
         }),
       );

@@ -57,6 +57,7 @@ import type { Capability } from './CapabilityDrawer.js';
 import { CapabilityDrawer } from './CapabilityDrawer.js';
 import type { Client, ClientAttachment, ClientFormSubmit } from './clientTypes.js';
 import { IntelligenceTab } from './IntelligenceTab.js';
+import { SharedMeetingsSection } from '../engagement/meetings/SharedMeetingsSection.js';
 import { TargetsTab } from './TargetsTab.js';
 import { TrackerTab } from './tracker/TrackerTab.js';
 import { trackerKeys, trackerPaths, type TrackerSummary } from './tracker/tracker-api.js';
@@ -682,273 +683,275 @@ function OverviewTab({
 
   return (
     <>
-    <div className="overview-grid">
-      <div>
-        {/* Company information */}
-        <section className="surface">
-          <header className="surface-head">
-            <h3>Company information</h3>
-          </header>
-          <div className="info-table">
-            <InfoRow
-              label="Legal name"
-              value={<span style={{ fontWeight: 600 }}>{client.name}</span>}
-            />
-            <InfoRow label="DBA / trade name" value={dba} />
-            <InfoRow
-              label="Website"
-              value={
-                client.website ? (
-                  <a
-                    href={externalUrl(client.website)}
-                    target="_blank"
-                    rel="noreferrer"
-                    style={{ color: 'var(--info)' }}
-                  >
-                    {client.website}
-                  </a>
-                ) : null
-              }
-            />
-            <InfoRow label="Description" value={client.description} />
-            <InfoRow label="Location" value={location} />
-            <InfoRow
-              label="Small Business Classification"
-              value={
-                sbClassLabels.length ? (
-                  <span style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
-                    {sbClassLabels.map((c) => (
-                      <span key={c} className="tag-chip">
-                        {c}
-                      </span>
-                    ))}
-                  </span>
-                ) : null
-              }
-            />
-            <InfoRow
-              label="Sector tags"
-              value={
-                sectorLabels.length ? (
-                  <span style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
-                    {sectorLabels.map((label, i) => (
-                      <span
-                        key={label}
-                        className="tag-chip"
-                        style={
-                          i === 0
-                            ? {
-                                background: 'var(--accent-soft)',
-                                color: 'var(--accent-ink)',
-                                borderColor: 'transparent',
-                                fontWeight: 600,
-                              }
-                            : undefined
-                        }
-                      >
-                        {label}
-                      </span>
-                    ))}
-                  </span>
-                ) : null
-              }
-            />
-            <InfoRow
-              label="Submission tracks"
-              value={
-                submissionTracks.length ? (
-                  <span style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
-                    {submissionTracks.map((t) => (
-                      <span key={t} className="tag-chip">
-                        {t}
-                      </span>
-                    ))}
-                  </span>
-                ) : null
-              }
-            />
-            <InfoRow
-              label="Engagement start"
-              value={engagementStart ? formatDate(engagementStart) : null}
-            />
-            <InfoRow
-              label="Status"
-              value={
-                <span>
-                  <span
-                    style={{ color: STATUS_COLOR[client.status] ?? '#8c8c8c', fontWeight: 600 }}
-                  >
-                    {titleCase(client.status)}
-                  </span>
-                  {' · since '}
-                  {formatDate(client.createdAt)}
-                </span>
-              }
-            />
-          </div>
-        </section>
-
-        {/* Contact, only show if any company-level contact field is populated */}
-        {client.primaryContactName || client.primaryContactEmail || client.primaryContactPhone ? (
-          <section className="surface" style={{ marginTop: 14 }}>
+      <div className="overview-grid">
+        <div>
+          {/* Company information */}
+          <section className="surface">
             <header className="surface-head">
-              <h3>Contact</h3>
+              <h3>Company information</h3>
             </header>
             <div className="info-table">
-              <InfoRow label="Primary POC" value={client.primaryContactName} />
               <InfoRow
-                label="Company email"
+                label="Legal name"
+                value={<span style={{ fontWeight: 600 }}>{client.name}</span>}
+              />
+              <InfoRow label="DBA / trade name" value={dba} />
+              <InfoRow
+                label="Website"
                 value={
-                  client.primaryContactEmail ? (
+                  client.website ? (
                     <a
-                      href={`mailto:${client.primaryContactEmail}`}
+                      href={externalUrl(client.website)}
+                      target="_blank"
+                      rel="noreferrer"
                       style={{ color: 'var(--info)' }}
                     >
-                      {client.primaryContactEmail}
+                      {client.website}
                     </a>
                   ) : null
                 }
               />
+              <InfoRow label="Description" value={client.description} />
+              <InfoRow label="Location" value={location} />
               <InfoRow
-                label="Company phone"
+                label="Small Business Classification"
                 value={
-                  client.primaryContactPhone ? (
-                    <a
-                      href={`tel:${client.primaryContactPhone.replace(/[^\d+]/g, '')}`}
-                      style={{ color: 'var(--info)' }}
-                    >
-                      {client.primaryContactPhone}
-                    </a>
+                  sbClassLabels.length ? (
+                    <span style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
+                      {sbClassLabels.map((c) => (
+                        <span key={c} className="tag-chip">
+                          {c}
+                        </span>
+                      ))}
+                    </span>
                   ) : null
+                }
+              />
+              <InfoRow
+                label="Sector tags"
+                value={
+                  sectorLabels.length ? (
+                    <span
+                      style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}
+                    >
+                      {sectorLabels.map((label, i) => (
+                        <span
+                          key={label}
+                          className="tag-chip"
+                          style={
+                            i === 0
+                              ? {
+                                  background: 'var(--accent-soft)',
+                                  color: 'var(--accent-ink)',
+                                  borderColor: 'transparent',
+                                  fontWeight: 600,
+                                }
+                              : undefined
+                          }
+                        >
+                          {label}
+                        </span>
+                      ))}
+                    </span>
+                  ) : null
+                }
+              />
+              <InfoRow
+                label="Submission tracks"
+                value={
+                  submissionTracks.length ? (
+                    <span style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
+                      {submissionTracks.map((t) => (
+                        <span key={t} className="tag-chip">
+                          {t}
+                        </span>
+                      ))}
+                    </span>
+                  ) : null
+                }
+              />
+              <InfoRow
+                label="Engagement start"
+                value={engagementStart ? formatDate(engagementStart) : null}
+              />
+              <InfoRow
+                label="Status"
+                value={
+                  <span>
+                    <span
+                      style={{ color: STATUS_COLOR[client.status] ?? '#8c8c8c', fontWeight: 600 }}
+                    >
+                      {titleCase(client.status)}
+                    </span>
+                    {' · since '}
+                    {formatDate(client.createdAt)}
+                  </span>
                 }
               />
             </div>
           </section>
-        ) : null}
 
-        {/* Defense budget exposure: explainable client ⇄ PE relevance (Step 2.3). */}
-        <DefenseBudgetExposureCard
-          relevance={exposure.data}
-          loading={exposure.isLoading}
-          error={exposure.isError}
-        />
-      </div>
-
-      <div>
-        {/* Capabilities preview */}
-        <section className="surface">
-          <header className="surface-head">
-            <button
-              type="button"
-              onClick={toggleCaps}
-              aria-label={capsCollapsed ? 'Expand capabilities' : 'Collapse capabilities'}
-              aria-expanded={!capsCollapsed}
-              title={capsCollapsed ? 'Expand' : 'Collapse'}
-              style={{
-                background: 'none',
-                border: 'none',
-                cursor: 'pointer',
-                padding: 0,
-                marginRight: 6,
-                color: 'var(--ink-3)',
-                display: 'inline-flex',
-                alignItems: 'center',
-              }}
-            >
-              {capsCollapsed ? (
-                <RightOutlined style={{ fontSize: 11 }} />
-              ) : (
-                <DownOutlined style={{ fontSize: 11 }} />
-              )}
-            </button>
-            <h3>Capabilities</h3>
-            <span className="sub">{capabilities.length} total</span>
-            <button className="surface-link" onClick={onViewAllCaps} type="button">
-              View all →
-            </button>
-          </header>
-          {!capsCollapsed && (
-            <>
-              <div style={{ padding: 4 }}>
-                {capsLoading ? (
-                  <Skeleton active paragraph={{ rows: 3 }} />
-                ) : capabilities.length === 0 ? (
-                  <div style={{ padding: '20px 14px', fontSize: 12, color: 'var(--ink-3)' }}>
-                    No capabilities yet.
-                  </div>
-                ) : (
-                  capabilities.slice(0, 4).map((cap) => (
-                    <button
-                      type="button"
-                      key={cap.id}
-                      onClick={() => onCapClick(cap)}
-                      className="overview-cap-row"
-                    >
-                      <span className="overview-cap-name">{cap.name}</span>
-                      <span className="overview-cap-meta">
-                        {cap.type ? (
-                          <span className={`cap-pill ${cap.type.toLowerCase()}`}>{cap.type}</span>
-                        ) : null}
-                        {cap.sector ? <span className="cap-sector">{cap.sector}</span> : null}
-                      </span>
-                      <span className="overview-cap-trl num">
-                        {cap.trl != null ? `TRL ${cap.trl}` : '-'}
-                        {cap.mrl != null ? ` · MRL ${cap.mrl}` : ''}
-                      </span>
-                    </button>
-                  ))
-                )}
+          {/* Contact, only show if any company-level contact field is populated */}
+          {client.primaryContactName || client.primaryContactEmail || client.primaryContactPhone ? (
+            <section className="surface" style={{ marginTop: 14 }}>
+              <header className="surface-head">
+                <h3>Contact</h3>
+              </header>
+              <div className="info-table">
+                <InfoRow label="Primary POC" value={client.primaryContactName} />
+                <InfoRow
+                  label="Company email"
+                  value={
+                    client.primaryContactEmail ? (
+                      <a
+                        href={`mailto:${client.primaryContactEmail}`}
+                        style={{ color: 'var(--info)' }}
+                      >
+                        {client.primaryContactEmail}
+                      </a>
+                    ) : null
+                  }
+                />
+                <InfoRow
+                  label="Company phone"
+                  value={
+                    client.primaryContactPhone ? (
+                      <a
+                        href={`tel:${client.primaryContactPhone.replace(/[^\d+]/g, '')}`}
+                        style={{ color: 'var(--info)' }}
+                      >
+                        {client.primaryContactPhone}
+                      </a>
+                    ) : null
+                  }
+                />
               </div>
-              <button
-                className="she-add-btn"
-                onClick={onAddCap}
-                style={{ margin: '4px 14px 14px' }}
-              >
-                <PlusOutlined /> Add capability
-              </button>
-            </>
-          )}
-        </section>
+            </section>
+          ) : null}
 
-        {/* Primary contacts preview */}
-        <section className="surface" style={{ marginTop: 14 }}>
-          <header className="surface-head">
-            <h3>Primary contacts</h3>
-            {people.length > 0 ? <span className="sub">{people.length} total</span> : null}
-            {people.length > 0 ? (
-              <button className="surface-link" onClick={onViewAllPeople} type="button">
+          {/* Defense budget exposure: explainable client ⇄ PE relevance (Step 2.3). */}
+          <DefenseBudgetExposureCard
+            relevance={exposure.data}
+            loading={exposure.isLoading}
+            error={exposure.isError}
+          />
+        </div>
+
+        <div>
+          {/* Capabilities preview */}
+          <section className="surface">
+            <header className="surface-head">
+              <button
+                type="button"
+                onClick={toggleCaps}
+                aria-label={capsCollapsed ? 'Expand capabilities' : 'Collapse capabilities'}
+                aria-expanded={!capsCollapsed}
+                title={capsCollapsed ? 'Expand' : 'Collapse'}
+                style={{
+                  background: 'none',
+                  border: 'none',
+                  cursor: 'pointer',
+                  padding: 0,
+                  marginRight: 6,
+                  color: 'var(--ink-3)',
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                }}
+              >
+                {capsCollapsed ? (
+                  <RightOutlined style={{ fontSize: 11 }} />
+                ) : (
+                  <DownOutlined style={{ fontSize: 11 }} />
+                )}
+              </button>
+              <h3>Capabilities</h3>
+              <span className="sub">{capabilities.length} total</span>
+              <button className="surface-link" onClick={onViewAllCaps} type="button">
                 View all →
               </button>
-            ) : null}
-          </header>
-          <div style={{ padding: '6px 14px 14px' }}>
-            {peopleLoading ? (
-              <Skeleton active paragraph={{ rows: 2 }} />
-            ) : people.length === 0 ? (
-              <div style={{ padding: '20px 0', fontSize: 12, color: 'var(--ink-3)' }}>
-                No people added yet.
-              </div>
-            ) : (
-              people.slice(0, 3).map((p) => (
-                <div key={p.id} className="overview-person-row">
-                  <span
-                    className="overview-person-avatar"
-                    style={{ background: avatarColor(p.id) }}
-                  >
-                    {personInitials(p.name)}
-                  </span>
-                  <span className="overview-person-text">
-                    <span className="overview-person-name">{p.name}</span>
-                    {p.title ? <span className="overview-person-title">{p.title}</span> : null}
-                  </span>
-                  {p.role ? <PersonRoleTag role={p.role} /> : null}
+            </header>
+            {!capsCollapsed && (
+              <>
+                <div style={{ padding: 4 }}>
+                  {capsLoading ? (
+                    <Skeleton active paragraph={{ rows: 3 }} />
+                  ) : capabilities.length === 0 ? (
+                    <div style={{ padding: '20px 14px', fontSize: 12, color: 'var(--ink-3)' }}>
+                      No capabilities yet.
+                    </div>
+                  ) : (
+                    capabilities.slice(0, 4).map((cap) => (
+                      <button
+                        type="button"
+                        key={cap.id}
+                        onClick={() => onCapClick(cap)}
+                        className="overview-cap-row"
+                      >
+                        <span className="overview-cap-name">{cap.name}</span>
+                        <span className="overview-cap-meta">
+                          {cap.type ? (
+                            <span className={`cap-pill ${cap.type.toLowerCase()}`}>{cap.type}</span>
+                          ) : null}
+                          {cap.sector ? <span className="cap-sector">{cap.sector}</span> : null}
+                        </span>
+                        <span className="overview-cap-trl num">
+                          {cap.trl != null ? `TRL ${cap.trl}` : '-'}
+                          {cap.mrl != null ? ` · MRL ${cap.mrl}` : ''}
+                        </span>
+                      </button>
+                    ))
+                  )}
                 </div>
-              ))
+                <button
+                  className="she-add-btn"
+                  onClick={onAddCap}
+                  style={{ margin: '4px 14px 14px' }}
+                >
+                  <PlusOutlined /> Add capability
+                </button>
+              </>
             )}
-          </div>
-        </section>
+          </section>
+
+          {/* Primary contacts preview */}
+          <section className="surface" style={{ marginTop: 14 }}>
+            <header className="surface-head">
+              <h3>Primary contacts</h3>
+              {people.length > 0 ? <span className="sub">{people.length} total</span> : null}
+              {people.length > 0 ? (
+                <button className="surface-link" onClick={onViewAllPeople} type="button">
+                  View all →
+                </button>
+              ) : null}
+            </header>
+            <div style={{ padding: '6px 14px 14px' }}>
+              {peopleLoading ? (
+                <Skeleton active paragraph={{ rows: 2 }} />
+              ) : people.length === 0 ? (
+                <div style={{ padding: '20px 0', fontSize: 12, color: 'var(--ink-3)' }}>
+                  No people added yet.
+                </div>
+              ) : (
+                people.slice(0, 3).map((p) => (
+                  <div key={p.id} className="overview-person-row">
+                    <span
+                      className="overview-person-avatar"
+                      style={{ background: avatarColor(p.id) }}
+                    >
+                      {personInitials(p.name)}
+                    </span>
+                    <span className="overview-person-text">
+                      <span className="overview-person-name">{p.name}</span>
+                      {p.title ? <span className="overview-person-title">{p.title}</span> : null}
+                    </span>
+                    {p.role ? <PersonRoleTag role={p.role} /> : null}
+                  </div>
+                ))
+              )}
+            </div>
+          </section>
+        </div>
       </div>
-    </div>
 
       {/* Client memory — configured here (per-client), not on the Settings page. */}
       <section className="surface" style={{ marginTop: 14 }}>
@@ -1375,6 +1378,17 @@ function DocumentsTab({
                   <div className="doc-meta">
                     {formatDate(doc.createdAt)}
                     {doc.byteSize != null ? ` · ${formatBytes(doc.byteSize)}` : ''}
+                    {doc.uploadedByName ? ` · ${doc.uploadedByName}` : ''}
+                    {doc.indexedAt ? (
+                      <Tag
+                        color="blue"
+                        icon={<DatabaseOutlined />}
+                        style={{ marginLeft: 6 }}
+                        title={`Indexed into Meri's knowledge base ${kbRelativeTime(doc.indexedAt)}`}
+                      >
+                        Indexed
+                      </Tag>
+                    ) : null}
                   </div>
                 </div>
                 <div className="doc-actions">
@@ -1415,6 +1429,8 @@ function DocumentsTab({
           No documents yet. Upload files above.
         </Typography.Text>
       )}
+
+      <SharedMeetingsSection clientId={client.id} />
 
       <div className="doc-notes-label">Client Notes</div>
       <Input.TextArea

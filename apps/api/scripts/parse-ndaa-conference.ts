@@ -5,8 +5,9 @@
  *   pnpm --filter @capiro/api parse:ndaa-conference -- --artifact scripts/__data__/ndaa_conference_fy2027.json --commit  # load
  *
  * Reads a committed rows artifact (offline pdfplumber extraction) and writes each
- * PE's conference mark to ProgramElementYear.conference via the program-element
- * writer under source 'conference_report_fy<NN>'. The writer validates pe_codes
+ * PE's conference mark to ProgramElementYear.ndaaConference (authorization track —
+ * kept OUT of the appropriations funding ladder) via the program-element writer
+ * under source 'conference_report_fy<NN>'. The writer validates pe_codes
  * (quarantining bad ones), applies source priority, and emits IntelligenceChange
  * on deltas. Idempotent. Same pattern as Steps 22/23.
  *
@@ -78,19 +79,23 @@ async function main(): Promise<void> {
       });
       const years = await prisma.programElementYear.findMany({
         where: { fy, peCode: { in: peCodes } },
-        select: { peCode: true, conference: true },
+        select: { peCode: true, ndaaConference: true },
       });
       const existing = new Map(
         years.map((y) => [
           y.peCode,
-          { currentMillions: y.conference === null ? null : Number(y.conference) },
+          { currentMillions: y.ndaaConference === null ? null : Number(y.ndaaConference) },
         ]),
       );
       const dlIdx = process.argv.indexOf('--diff-limit');
       const diffLimit = dlIdx >= 0 ? Number(process.argv[dlIdx + 1]) : 15;
       const diff = diffMarks(records, existing, new Set(pes.map((p) => p.peCode)), diffLimit);
       console.log(
-        JSON.stringify({ mode: 'DRY_RUN', stage: 'conference', fy, artifact: artifactPath, diff }, null, 2),
+        JSON.stringify(
+          { mode: 'DRY_RUN', stage: 'conference', fy, artifact: artifactPath, diff },
+          null,
+          2,
+        ),
       );
       console.log('DRY RUN — inspect the diff, then re-run with --commit to load.');
       return;

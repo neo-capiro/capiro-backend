@@ -87,3 +87,41 @@ export function notetakerEnvEnabled(env: NodeJS.ProcessEnv = process.env): boole
 export function notetakerEnabled(settings: unknown, env: NodeJS.ProcessEnv = process.env): boolean {
   return notetakerEnvEnabled(env) && tenantFeatureEnabled(settings, NOTETAKER_FLAG, false);
 }
+
+/**
+ * Meetings & Meri redesign (docs/plans/2026-07-10-meetings-meri-v2-redesign-plan.md).
+ * Gates the rebuilt Engagement → Meetings module (Day/Month/List, private-until-
+ * shared sharing, Meeting Library, Documents integration) so it can be flipped on
+ * per tenant after parity verification instead of a big-bang cutover.
+ *
+ * UNLIKE the notetaker / MeriV2 flags, this is a PURE presentation swap — it drives
+ * no external processor and carries no consent/compliance risk — so it deliberately
+ * has NO env kill-switch (adding one would mean a config-schema + task-def env change,
+ * which we avoid given the known CDK↔task-def drift). A per-tenant flag alone is the
+ * right lever: default OFF, flipped via the capiro-admin flag surface (the same
+ * settings_jsonb.clioFeatureFlags path used for every other rollout). Surfaced to
+ * the web via GET /me so the client can route to the new module.
+ */
+export const MEETINGS_V2_FLAG = 'meetingsV2.enabled' as const;
+
+/** Whether a tenant is on the redesigned Meetings module (per-tenant, default OFF). */
+export function meetingsV2Enabled(settings: unknown): boolean {
+  return tenantFeatureEnabled(settings, MEETINGS_V2_FLAG, false);
+}
+
+/**
+ * Meetings v2 Phase 2 — cross-user collision model (docs/plans/2026-07-11-…).
+ * When ON, the client "Shared from meetings" feed groups per-mailbox rows that
+ * share a Graph `iCalUId` into ONE record (canonical notes, one row per meeting,
+ * a contributor expander for colleagues with their own prep/debrief — spec §7)
+ * and merges multi-user notetakers (§4.4). Purely a response-layer grouping;
+ * default OFF, flipped per tenant AFTER the meetingsV2 UI is verified. Separate
+ * flag from meetingsV2 so it rolls out independently, and rollback = flip off
+ * (Option B is non-destructive — nothing to un-merge).
+ */
+export const MEETINGS_CROSS_USER_FLAG = 'meetingsCrossUser.enabled' as const;
+
+/** Whether a tenant is on the Phase 2 cross-user collision grouping (default OFF). */
+export function meetingsCrossUserEnabled(settings: unknown): boolean {
+  return tenantFeatureEnabled(settings, MEETINGS_CROSS_USER_FLAG, false);
+}

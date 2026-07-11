@@ -757,6 +757,12 @@ export function Modal({
           borderRadius: 10,
           width: '100%',
           maxWidth: width,
+          // Cap to the viewport and lay out as header + scrollable body so a
+          // long body (e.g. LDA search results) NEVER pushes the close X or
+          // footer buttons off-screen — the header stays pinned, body scrolls.
+          maxHeight: 'calc(100vh - 48px)',
+          display: 'flex',
+          flexDirection: 'column',
           boxShadow: '0 18px 50px rgba(12,26,56,0.28)',
           overflow: 'hidden',
         }}
@@ -767,11 +773,13 @@ export function Modal({
             alignItems: 'center',
             padding: '14px 20px',
             borderBottom: '1px solid var(--border-1)',
+            flexShrink: 0,
           }}
         >
           <b style={{ fontSize: 14.5, letterSpacing: '-0.005em' }}>{title}</b>
           <button
             onClick={onClose}
+            aria-label="Close"
             style={{
               marginLeft: 'auto',
               border: 'none',
@@ -786,7 +794,7 @@ export function Modal({
             <Icon name="X" size={16} />
           </button>
         </div>
-        <div style={{ padding: 20 }}>{children}</div>
+        <div style={{ padding: 20, overflowY: 'auto' }}>{children}</div>
       </div>
     </div>
   );

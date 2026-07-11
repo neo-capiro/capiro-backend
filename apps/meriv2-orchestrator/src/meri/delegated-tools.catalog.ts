@@ -114,19 +114,19 @@ export const IN_EDITOR_DELEGATED_TOOLS: readonly DelegatedToolSpec[] = [
   {
     name: 'search_program_elements',
     description:
-      'Search DoD Program Elements (PEs) — the RDT&E/procurement budget lines from the Pentagon J-books. Filter by military service, budget activity, or title keyword. Returns PE code, title, service, budget activity, appropriation type, status, and whether the PE has budget/award/bill data. Use get_program_element / get_pe_budget_timeline for detail.',
+      'Search DoD budget lines from the Pentagon J-books. NOTE: this table holds BOTH R-1 RDT&E Program Elements AND P-1 procurement line items — each row\'s `budgetExhibitType` / `appropriationType` tells you which; a procurement line is NOT a "Program Element", so state its exhibit type accordingly. Filter by military service, budget activity, or title keyword. Returns code, title, service, budget activity, appropriation type, exhibit type, and whether it has budget/award/bill data. For near-identical sibling titles (e.g. multiple "Target Systems Development" lines) prefer scoped filters (service + budget activity) over a single keyword sweep, and raise the limit — the default may truncate. Use get_program_element / get_pe_budget_timeline for detail.',
     readOnly: true,
   },
   {
     name: 'get_program_element',
     description:
-      "Get a single DoD Program Element's full detail by PE code: title, description, service, appropriation type, status, ACAT level, program of record, source-document URLs, and complete fiscal-year budget history.",
+      "Get a single DoD budget line's full detail by code: title, description, service, appropriation type, `budgetExhibitType` (P-1 procurement line item vs R-1 RDT&E Program Element), status, ACAT level, program of record, source-document URLs, and complete fiscal-year budget history.",
     readOnly: true,
   },
   {
     name: 'get_pe_budget_timeline',
     description:
-      "Get a Program Element's fiscal-year budget timeline by PE code: per-FY president's request, House/Senate authorization and appropriations marks (HASC/SASC/HAC-D/SAC-D), conference, and enacted amounts, plus milestones and conference-probability predictions.",
+      "Get a budget line's fiscal-year timeline by code. Returns `budgetExhibitType`, `currentCycleFy` (the live budget-cycle FY), and per-FY: president's request, HASC/SASC/HAC-D/SAC-D marks, conference, enacted, PLUS a `cycle` label ('current' = the live request/markup year; 'outyear' = an FYDP projection you must NOT quote as 'the request'; 'historical' = a prior year) and `current`/`currentStageLabel` (the authoritative value for that FY and which stage it came from). Always cite the 'current'-cycle FY as the request; never present an 'outyear' figure as the current ask.",
     readOnly: true,
   },
   {

@@ -6,7 +6,10 @@ export interface ProgramElementYearPoint {
   sascMark?: string | number | null;
   hacDMark?: string | number | null;
   sacDMark?: string | number | null;
+  /** Appropriations-track conference (reserved — unpopulated today). */
   conference: string | number | null;
+  /** NDAA (authorization-track) conference report — shown as its own labeled mark. */
+  ndaaConference?: string | number | null;
   enacted: string | number | null;
   notes?: string | null;
   raw?: unknown;
@@ -538,6 +541,7 @@ export type ProgramElementSourceField =
   | 'sascMark'
   | 'hacDMark'
   | 'sacDMark'
+  | 'ndaaConference'
   | 'conference'
   | 'enacted';
 
@@ -554,6 +558,7 @@ export interface ProgramElementHistoryRow {
   hacDMark: number | null;
   sacDMark: number | null;
   conference: number | null;
+  ndaaConference?: number | null;
   enacted: number | null;
   projectedEnacted: boolean;
   sourceAttribution: ProgramElementYearSourceAttribution;

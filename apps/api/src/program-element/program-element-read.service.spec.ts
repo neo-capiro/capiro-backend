@@ -241,10 +241,21 @@ describe('ProgramElementReadService', () => {
       const prisma = makePrisma({
         queryRawQueue: [],
         budgetPositions: [
-          { positionCycle: 'pb_fy2027', assertedFy: 2027, amount: '278.50', quantity: null, valueKind: 'total', sourceUrl: 'http://r1.pdf', pageNumber: 12 },
+          {
+            positionCycle: 'pb_fy2027',
+            assertedFy: 2027,
+            amount: '278.50',
+            quantity: null,
+            valueKind: 'total',
+            sourceUrl: 'http://r1.pdf',
+            pageNumber: 12,
+          },
         ],
       });
-      const service = new ProgramElementReadService(prisma as never, makeConferenceProbabilityService() as never);
+      const service = new ProgramElementReadService(
+        prisma as never,
+        makeConferenceProbabilityService() as never,
+      );
 
       const rows = await service.getBudgetPositions('0603270A');
       expect(rows).toHaveLength(1);
@@ -255,7 +266,10 @@ describe('ProgramElementReadService', () => {
 
     test('getBudgetPositions passes the fy filter through', async () => {
       const prisma = makePrisma({ queryRawQueue: [], budgetPositions: [] });
-      const service = new ProgramElementReadService(prisma as never, makeConferenceProbabilityService() as never);
+      const service = new ProgramElementReadService(
+        prisma as never,
+        makeConferenceProbabilityService() as never,
+      );
 
       await service.getBudgetPositions('0603270A', 2028);
       expect(prisma.programElementBudgetPosition.findMany).toHaveBeenCalledWith(
@@ -265,7 +279,10 @@ describe('ProgramElementReadService', () => {
 
     test('getBudgetPositions throws NotFound for unknown PE', async () => {
       const prisma = makePrisma({ missingPe: true, queryRawQueue: [] });
-      const service = new ProgramElementReadService(prisma as never, makeConferenceProbabilityService() as never);
+      const service = new ProgramElementReadService(
+        prisma as never,
+        makeConferenceProbabilityService() as never,
+      );
       await expect(service.getBudgetPositions('BAD')).rejects.toBeInstanceOf(NotFoundException);
     });
 
@@ -277,21 +294,37 @@ describe('ProgramElementReadService', () => {
           { positionCycle: 'pb_fy2027', assertedFy: 2027, amount: 250, valueKind: 'total' },
         ],
       });
-      const service = new ProgramElementReadService(prisma as never, makeConferenceProbabilityService() as never);
+      const service = new ProgramElementReadService(
+        prisma as never,
+        makeConferenceProbabilityService() as never,
+      );
 
       const result = await service.getPbComparison('0603270A');
       expect(result.peCode).toBe('0603270A');
       expect(result.comparison).toEqual([
-        { assertedFy: 2027, pbCurrent: 250, pbPrior: 200, deltaAbs: 50, deltaPct: 0.25, newInPb: false, droppedFromPb: false },
+        {
+          assertedFy: 2027,
+          pbCurrent: 250,
+          pbPrior: 200,
+          deltaAbs: 50,
+          deltaPct: 0.25,
+          newInPb: false,
+          droppedFromPb: false,
+        },
       ]);
     });
 
     test('getPbComparison returns empty comparison with only one PB book loaded (DATA-PENDING)', async () => {
       const prisma = makePrisma({
         queryRawQueue: [],
-        budgetPositions: [{ positionCycle: 'pb_fy2027', assertedFy: 2027, amount: 250, valueKind: 'total' }],
+        budgetPositions: [
+          { positionCycle: 'pb_fy2027', assertedFy: 2027, amount: 250, valueKind: 'total' },
+        ],
       });
-      const service = new ProgramElementReadService(prisma as never, makeConferenceProbabilityService() as never);
+      const service = new ProgramElementReadService(
+        prisma as never,
+        makeConferenceProbabilityService() as never,
+      );
 
       const result = await service.getPbComparison('0603270A');
       expect(result.comparison).toEqual([]);
@@ -353,10 +386,9 @@ describe('ProgramElementReadService', () => {
 
       const result = await service.getNeedsAttention(ctx);
       const byPe = new Map(
-        (result.data as Array<{ peCode: string; clientRelevant: boolean; effectiveScore: number }>).map((r) => [
-          r.peCode,
-          r,
-        ]),
+        (
+          result.data as Array<{ peCode: string; clientRelevant: boolean; effectiveScore: number }>
+        ).map((r) => [r.peCode, r]),
       );
 
       // PE_REL is flagged relevant and boosted (0.45 + 0.15 = 0.60); PE_PLAIN stays at 0.5.
@@ -367,7 +399,9 @@ describe('ProgramElementReadService', () => {
       // The boosted relevance PE floats to the top despite a lower raw materiality score.
       expect((result.data[0] as { peCode: string }).peCode).toBe('PE_REL');
       // Relevance probe used the documented 0.5 floor and only the un-matched candidate PEs.
-      expect(relevance.getRelevantClientsForPe).toHaveBeenCalledWith(ctx, 'PE_REL', { minScore: 0.5 });
+      expect(relevance.getRelevantClientsForPe).toHaveBeenCalledWith(ctx, 'PE_REL', {
+        minScore: 0.5,
+      });
     });
 
     test('a watch-relevant PE is still boosted without consulting the relevance service for it', async () => {
@@ -385,7 +419,9 @@ describe('ProgramElementReadService', () => {
       );
 
       const result = await service.getNeedsAttention(ctx);
-      const row = (result.data as Array<{ peCode: string; clientRelevant: boolean; effectiveScore: number }>)[0];
+      const row = (
+        result.data as Array<{ peCode: string; clientRelevant: boolean; effectiveScore: number }>
+      )[0];
 
       expect(row?.clientRelevant).toBe(true);
       expect(row?.effectiveScore).toBeCloseTo(0.6, 5);
@@ -412,6 +448,127 @@ describe('ProgramElementReadService', () => {
 
       expect(row?.clientRelevant).toBe(false);
       expect(row?.effectiveScore).toBeCloseTo(0.7, 5);
+    });
+  });
+
+  // Regression: the Boresight PE-analysis failure. get_pe_budget_timeline used to
+  // hand the model a flat array of near-identical FY rows with nothing marking the
+  // live request vs. an FYDP outyear projection, so it quoted the FY2031 figure as
+  // "the FY2027 request". getTimeline now labels each FY's cycle + current stage.
+  describe('getTimeline current-vs-outyear labeling', () => {
+    // The real Army 1242C93000 "Air Defense Targets" P-1 line, $M, from prod.
+    const airDefenseTargetsPrisma = {
+      programElement: {
+        findUnique: jest.fn(async () => ({
+          peCode: '1242C93000',
+          title: 'AIR DEFENSE TARGETS',
+          service: 'ARMY',
+          appropriationType: 'PROC',
+          budgetActivity: 'BA 05',
+          lineNumber: '1242C93000',
+        })),
+      },
+      programElementYear: {
+        findMany: jest.fn(async () => [
+          {
+            fy: 2025,
+            request: 7.03,
+            hascMark: null,
+            sascMark: null,
+            hacDMark: null,
+            sacDMark: null,
+            conference: null,
+            enacted: null,
+          },
+          {
+            fy: 2026,
+            request: 12.8,
+            hascMark: 12.8,
+            sascMark: 12.8,
+            hacDMark: null,
+            sacDMark: null,
+            conference: 12.8,
+            enacted: null,
+          },
+          {
+            fy: 2027,
+            request: 9.61,
+            hascMark: 9.61,
+            sascMark: 9.61,
+            hacDMark: 9.61,
+            sacDMark: null,
+            conference: null,
+            enacted: null,
+          },
+          {
+            fy: 2028,
+            request: 10.5,
+            hascMark: null,
+            sascMark: null,
+            hacDMark: null,
+            sacDMark: null,
+            conference: null,
+            enacted: null,
+          },
+          {
+            fy: 2029,
+            request: 10.56,
+            hascMark: null,
+            sascMark: null,
+            hacDMark: null,
+            sacDMark: null,
+            conference: null,
+            enacted: null,
+          },
+          {
+            fy: 2030,
+            request: 10.82,
+            hascMark: null,
+            sascMark: null,
+            hacDMark: null,
+            sacDMark: null,
+            conference: null,
+            enacted: null,
+          },
+          {
+            fy: 2031,
+            request: 11.53,
+            hascMark: null,
+            sascMark: null,
+            hacDMark: null,
+            sacDMark: null,
+            conference: null,
+            enacted: null,
+          },
+        ]),
+      },
+      programElementMilestone: { findMany: jest.fn(async () => []) },
+    };
+
+    test('labels the live request FY current and the FYDP years outyear (no FY27↔FY31 swap)', async () => {
+      const service = new ProgramElementReadService(
+        airDefenseTargetsPrisma as never,
+        makeConferenceProbabilityService() as never,
+      );
+      const t = (await service.getTimeline('1242C93000')) as {
+        currentCycleFy: number | null;
+        appropriationType: string | null;
+        years: Array<{ fy: number; cycle: string; current: number | null; currentStage: string }>;
+      };
+
+      // The current cycle is FY2027 — the latest FY carrying a congressional mark.
+      expect(t.currentCycleFy).toBe(2027);
+      expect(t.appropriationType).toBe('PROC');
+
+      const byFy = new Map(t.years.map((y) => [y.fy, y]));
+      // FY2027 = the live request ($9.61M via the HAC-D mark).
+      expect(byFy.get(2027)?.cycle).toBe('current');
+      expect(byFy.get(2027)?.current).toBe(9.61);
+      // FY2031 = an OUTYEAR projection ($11.53M) — must NOT read as "the request".
+      expect(byFy.get(2031)?.cycle).toBe('outyear');
+      expect(byFy.get(2031)?.current).toBe(11.53);
+      // FY2025 = historical.
+      expect(byFy.get(2025)?.cycle).toBe('historical');
     });
   });
 });

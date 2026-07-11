@@ -45,24 +45,29 @@ describe('FyDetailDrawer', () => {
             sascMark: '268.00',
             hacDMark: '267.00',
             sacDMark: '266.00',
-            conference: '267.00',
+            // Appropriations conference is the reserved (unpopulated) rung; the NDAA
+            // authorization conference carries the value post-split.
+            conference: null,
+            ndaaConference: '270.50',
             enacted: null,
             raw: {
               sourceAttribution: {
                 request: 'President Budget',
-                conference: 'Conference Report',
+                ndaaConference: 'NDAA Conference Report',
               },
               sourceLinks: {
                 request: 'https://example.gov/request',
-                conference: 'javascript:alert(1)',
+                ndaaConference: 'javascript:alert(1)',
               },
               datesAdded: {
                 request: '2026-02-01',
-                conference: '2026-09-20',
+                ndaaConference: '2026-09-20',
               },
               notes: 'Conference managers noted electronics sourcing constraints.',
               linkedBills: [{ id: 'HR-123', title: 'FY26 Defense Approps Act' }],
-              linkedRules: [{ id: 'FR-88-1023', title: 'Procurement Notice', topic: 'electronics' }],
+              linkedRules: [
+                { id: 'FR-88-1023', title: 'Procurement Notice', topic: 'electronics' },
+              ],
             },
           },
         ]}
@@ -78,14 +83,23 @@ describe('FyDetailDrawer', () => {
     expect(screen.getByText(/President's Request/i)).toBeInTheDocument();
     expect(screen.getAllByText(/\$266\.00m/i).length).toBeGreaterThan(0);
 
+    // The NDAA/appropriations conference split is reflected as two distinct labeled
+    // mark rows: the NDAA authorization conference carries the value ($270.50m); the
+    // appropriations conference rung is the reserved (blank) row.
+    expect(screen.getByText(/NDAA Conference \(auth\.\)/i)).toBeInTheDocument();
+    expect(screen.getByText(/Conference \(approps\.\)/i)).toBeInTheDocument();
+    expect(screen.getByText(/\$270\.50m/i)).toBeInTheDocument();
+
     const safeLink = screen.getByRole('link', { name: /President Budget/i });
     expect(safeLink).toHaveAttribute('href', 'https://example.gov/request');
     expect(safeLink).toHaveAttribute('target', '_blank');
 
-    // unsafe javascript URL should be sanitized away (no clickable conference source)
-    expect(screen.queryByRole('link', { name: /Conference Report/i })).toBeNull();
+    // unsafe javascript URL should be sanitized away (no clickable NDAA conference source)
+    expect(screen.queryByRole('link', { name: /NDAA Conference Report/i })).toBeNull();
 
-    expect(screen.getByText(/Conference managers noted electronics sourcing constraints\./i)).toBeInTheDocument();
+    expect(
+      screen.getByText(/Conference managers noted electronics sourcing constraints\./i),
+    ).toBeInTheDocument();
     expect(screen.getByText(/HR-123/i)).toBeInTheDocument();
     expect(screen.getByText(/FR-88-1023/i)).toBeInTheDocument();
 

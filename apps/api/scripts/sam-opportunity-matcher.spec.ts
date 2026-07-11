@@ -10,8 +10,9 @@ import {
   type SamReviewStatus,
 } from './sam-opportunity-matcher.js';
 
-// A small known-PE universe used across cases.
-const KNOWN_PES = new Set(['0603270A', '0604201F', '0204136N']);
+// A small known-PE universe used across cases. Includes a procurement BLIN
+// (1242C93000) alongside RDT&E PE codes — program_element carries both shapes.
+const KNOWN_PES = new Set(['0603270A', '0604201F', '0204136N', '1242C93000']);
 
 /** Build an alias index entry with precomputed trigrams + corroboration hints. */
 function alias(
@@ -44,7 +45,12 @@ describe('samMatchStatus — basis -> default review status (structural gating)'
   }
 
   test('ONLY description_pe_code is ever accepted', () => {
-    const allBases: SamMatchBasis[] = ['description_pe_code', 'program_alias', 'office', 'psc_naics_component'];
+    const allBases: SamMatchBasis[] = [
+      'description_pe_code',
+      'program_alias',
+      'office',
+      'psc_naics_component',
+    ];
     const accepted = allBases.filter((b) => samMatchStatus(b) === 'accepted');
     expect(accepted).toEqual(['description_pe_code']);
   });
@@ -52,7 +58,14 @@ describe('samMatchStatus — basis -> default review status (structural gating)'
 
 describe('extractKnownPeCodes — verbatim, filtered to existing PEs', () => {
   test('extracts a known PE code from text', () => {
-    expect(extractKnownPeCodes('funds PE 0603270A for the program', KNOWN_PES)).toEqual(['0603270A']);
+    expect(extractKnownPeCodes('funds PE 0603270A for the program', KNOWN_PES)).toEqual([
+      '0603270A',
+    ]);
+  });
+  test('extracts a known procurement BLIN from text (not just RDT&E PE codes)', () => {
+    expect(extractKnownPeCodes('solicitation for line item 1242C93000', KNOWN_PES)).toEqual([
+      '1242C93000',
+    ]);
   });
   test('ignores a well-formed but UNKNOWN PE code', () => {
     expect(extractKnownPeCodes('see 0699999Z', KNOWN_PES)).toEqual([]);
@@ -68,7 +81,10 @@ describe('extractKnownPeCodes — verbatim, filtered to existing PEs', () => {
 describe('matchOpportunity — table-driven gating across the matrix', () => {
   const aliasIndex: AliasForMatch[] = [
     // Program P1 alias, corroborated by office "PEO Aviation" OR PSC '1510'.
-    alias('prog-aviation', 'NEXT GENERATION ROTORCRAFT PROGRAM', { officeHint: 'PEO AVIATION', pscHints: ['1510'] }),
+    alias('prog-aviation', 'NEXT GENERATION ROTORCRAFT PROGRAM', {
+      officeHint: 'PEO AVIATION',
+      pscHints: ['1510'],
+    }),
     // Program P2 alias, corroborated by PSC '5865'.
     alias('prog-ew', 'ADVANCED ELECTRONIC WARFARE SUITE', { pscHints: ['5865'] }),
   ];
@@ -93,6 +109,18 @@ describe('matchOpportunity — table-driven gating across the matrix', () => {
         naicsCode: '541330',
       },
       expect: [['description_pe_code', 'accepted']],
+    },
+    {
+      name: 'description procurement-BLIN hit => description_pe_code / accepted',
+      opp: {
+        title: 'Air defense target production',
+        description: 'This delivery order is placed against BLIN 1242C93000.',
+        office: 'Some Office',
+        pscCode: '1398',
+        naicsCode: '336414',
+      },
+      expect: [['description_pe_code', 'accepted']],
+      absent: ['psc_naics_component'],
     },
     {
       name: 'alias trigram + OFFICE agreement => program_alias / candidate (never accepted)',
@@ -155,7 +183,13 @@ describe('matchOpportunity — table-driven gating across the matrix', () => {
     },
     {
       name: 'nothing at all (no PE, no alias, no PSC/NAICS) => no matches',
-      opp: { title: 'RFI', description: 'request for information', office: null, pscCode: null, naicsCode: null },
+      opp: {
+        title: 'RFI',
+        description: 'request for information',
+        office: null,
+        pscCode: null,
+        naicsCode: null,
+      },
       expect: [],
       absent: ['description_pe_code', 'program_alias', 'psc_naics_component'],
     },

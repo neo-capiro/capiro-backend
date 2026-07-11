@@ -11,6 +11,7 @@ import {
   detectPlatform,
   mapRecallStatus,
   formatDebriefBody,
+  notetakerBotName,
 } from './notetaker.service.js';
 
 /* eslint-disable @typescript-eslint/no-explicit-any */
@@ -29,6 +30,8 @@ function makeTx() {
     },
     user: {
       findUnique: asyncMock({ id: 'u1', clerkUserId: 'clerk_u1' }),
+      // dispatch() resolves the requester's first name for the per-sender bot name.
+      findFirst: asyncMock({ firstName: 'Neo' }),
     },
     tenantMembership: {
       findFirst: asyncMock({ role: 'standard_user' }),
@@ -152,9 +155,13 @@ describe('NotetakerService.dispatch (strict consent gate)', () => {
     const arg = bot.dispatchBot.mock.calls[0]?.[0] as {
       metadata: Record<string, string>;
       disclosureMessage?: string;
+      botName?: string;
     };
     expect(arg.metadata).toMatchObject({ tenantId: 't1', meetingBotSessionId: 's1' });
     expect(arg.disclosureMessage).toContain('Meri Notetaker');
+    // Per-sender bot name (§4.3): named after the requesting user, keeping the
+    // "(recording)" disclosure suffix (makeTx stubs the requester's firstName='Neo').
+    expect(arg.botName).toBe("Neo's Meri Notetaker (recording)");
     expect(tx.meetingBotSession.update).toHaveBeenCalledWith(
       expect.objectContaining({
         data: expect.objectContaining({ status: 'joining', externalBotId: 'bot_1' }),
@@ -646,6 +653,21 @@ describe('pure helpers', () => {
     // Never fooled by look-alike hosts.
     expect(detectPlatform('https://zoom.us.evil.com/j/1')).toBeNull();
     expect(detectPlatform('https://teams.microsoft.us.evil.com/l/x')).toBeNull();
+  });
+
+  test('notetakerBotName is per-sender, keeps the (recording) suffix, and falls back safely', () => {
+    expect(notetakerBotName({ firstName: 'Neo' })).toBe("Neo's Meri Notetaker (recording)");
+    expect(notetakerBotName({ firstName: '  Lia  ' })).toBe("Lia's Meri Notetaker (recording)");
+    // No first name → the shared default (still a clear notetaker, never a human).
+    expect(notetakerBotName({ firstName: null })).toBe('Meri Notetaker (recording)');
+    expect(notetakerBotName(null)).toBe('Meri Notetaker (recording)');
+    expect(notetakerBotName(undefined)).toBe('Meri Notetaker (recording)');
+    // Recall caps bot_name at 100 chars — an over-long first name falls back.
+    expect(notetakerBotName({ firstName: 'x'.repeat(120) })).toBe('Meri Notetaker (recording)');
+    // Every result retains the "(recording)" disclosure suffix.
+    for (const n of [{ firstName: 'Neo' }, { firstName: null }]) {
+      expect(notetakerBotName(n)).toContain('(recording)');
+    }
   });
 
   test('mapRecallStatus maps the documented codes and ignores unknown ones', () => {
