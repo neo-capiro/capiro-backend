@@ -50,6 +50,15 @@ const decorateStubs = {
   meetingBotSession: { findMany: async () => [] as Array<{ meetingId: string; status: string }> },
 };
 
+// tenant.findFirst stub for the meetingsCrossUser flag read (Phase 2 grouping).
+const tenantFlag = (crossUser: boolean) => ({
+  tenant: {
+    findFirst: async () => ({
+      settings: crossUser ? { clioFeatureFlags: { 'meetingsCrossUser.enabled': true } } : {},
+    }),
+  },
+});
+
 describe('shareMeeting', () => {
   test('refuses to share a meeting with no associated client', async () => {
     const service = serviceWith({
@@ -232,6 +241,7 @@ describe('listSharedMeetingsForClient', () => {
         },
       },
       ...decorateStubs,
+      ...tenantFlag(false),
     });
 
     const res = (await service.listSharedMeetingsForClient(ctx, 'c1')) as Array<
@@ -256,6 +266,7 @@ describe('decorateMeetings (via listSharedMeetingsForClient)', () => {
         ],
       },
       ...decorateStubs,
+      ...tenantFlag(false),
     });
 
     const [row] = (await service.listSharedMeetingsForClient(ctx, 'c1')) as Array<
@@ -268,5 +279,81 @@ describe('decorateMeetings (via listSharedMeetingsForClient)', () => {
     expect(row!.contributors).toEqual([
       { userId: 'user-1', name: 'Neo Martinez', artifacts: ['notes'] },
     ]);
+  });
+});
+
+describe('Phase 2 cross-user grouping (listSharedMeetingsForClient + meetingsCrossUser flag)', () => {
+  const twoContributorTx = () => ({
+    tenant: {
+      findFirst: async () => ({
+        settings: { clioFeatureFlags: { 'meetingsCrossUser.enabled': true } },
+      }),
+    },
+    meeting: {
+      findMany: async () => [
+        // Newest-shared first (as the real query orders). Same iCalUId = one meeting.
+        meetingRow({
+          id: 'mB',
+          createdByUserId: 'user-2',
+          sharedByUserId: 'user-2',
+          visibility: 'shared',
+          iCalUId: 'ICAL-1',
+          sharedAt: new Date('2026-07-03T00:00:00Z'),
+          startsAt: new Date('2026-07-02T15:00:00Z'),
+          preps: [{ status: 'approved' }],
+        }),
+        meetingRow({
+          id: 'mA',
+          createdByUserId: 'user-1',
+          sharedByUserId: 'user-1',
+          visibility: 'shared',
+          iCalUId: 'ICAL-1',
+          sharedAt: new Date('2026-07-01T00:00:00Z'),
+          startsAt: new Date('2026-07-02T15:00:00Z'),
+          notes: [{ id: 'n1' }],
+          debriefs: [{ status: 'approved' }],
+        }),
+      ],
+    },
+    user: {
+      findMany: async () => [
+        { id: 'user-1', firstName: 'Neo', lastName: 'Martinez', email: 'neo@capiro.ai' },
+        { id: 'user-2', firstName: 'Lia', lastName: 'Park', email: 'lia@capiro.ai' },
+      ],
+    },
+    meetingBotSession: {
+      findMany: async () => [
+        { meetingId: 'mA', status: 'done' },
+        { meetingId: 'mB', status: 'recording' },
+      ],
+    },
+  });
+
+  test('collapses same-iCalUId shared rows into one record; first-sharer primary; notes canonical', async () => {
+    const service = serviceWith(twoContributorTx());
+    const res = (await service.listSharedMeetingsForClient(ctx, 'c1')) as Array<
+      Record<string, unknown>
+    >;
+
+    expect(res).toHaveLength(1);
+    const rec = res[0]!;
+    // First sharer (earliest sharedAt = mA / user-1) is the primary contributor.
+    const contributors = rec.contributors as Array<{ userId: string; artifacts: string[] }>;
+    expect(contributors).toHaveLength(2);
+    expect(contributors[0]!.userId).toBe('user-1');
+    expect(contributors[0]!.artifacts.sort()).toEqual(['debrief', 'notes']);
+    expect(contributors[1]!.userId).toBe('user-2');
+    expect(contributors[1]!.artifacts).toEqual(['prep']);
+    // Notes canonical (any member) + both bots attributed (§4.4).
+    expect(rec.notesApproved).toBe(true);
+    expect((rec.notetakers as string[]).sort()).toEqual(['Lia Park', 'Neo Martinez']);
+    expect(rec.groupedMeetingIds).toEqual(['mA', 'mB']);
+  });
+
+  test('flag OFF → no grouping (two rows stay two records)', async () => {
+    // Override just the tenant stub to turn the flag off.
+    const service = serviceWith({ ...twoContributorTx(), ...tenantFlag(false) });
+    const res = (await service.listSharedMeetingsForClient(ctx, 'c1')) as unknown[];
+    expect(res).toHaveLength(2);
   });
 });

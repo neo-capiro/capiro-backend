@@ -108,3 +108,20 @@ export const MEETINGS_V2_FLAG = 'meetingsV2.enabled' as const;
 export function meetingsV2Enabled(settings: unknown): boolean {
   return tenantFeatureEnabled(settings, MEETINGS_V2_FLAG, false);
 }
+
+/**
+ * Meetings v2 Phase 2 — cross-user collision model (docs/plans/2026-07-11-…).
+ * When ON, the client "Shared from meetings" feed groups per-mailbox rows that
+ * share a Graph `iCalUId` into ONE record (canonical notes, one row per meeting,
+ * a contributor expander for colleagues with their own prep/debrief — spec §7)
+ * and merges multi-user notetakers (§4.4). Purely a response-layer grouping;
+ * default OFF, flipped per tenant AFTER the meetingsV2 UI is verified. Separate
+ * flag from meetingsV2 so it rolls out independently, and rollback = flip off
+ * (Option B is non-destructive — nothing to un-merge).
+ */
+export const MEETINGS_CROSS_USER_FLAG = 'meetingsCrossUser.enabled' as const;
+
+/** Whether a tenant is on the Phase 2 cross-user collision grouping (default OFF). */
+export function meetingsCrossUserEnabled(settings: unknown): boolean {
+  return tenantFeatureEnabled(settings, MEETINGS_CROSS_USER_FLAG, false);
+}

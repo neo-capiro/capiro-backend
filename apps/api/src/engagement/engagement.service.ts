@@ -30,6 +30,7 @@ import {
 import mammoth from 'mammoth';
 import sanitizeHtml from 'sanitize-html';
 import { sanitizeSignatureHtml } from '../common/sanitize-signature.js';
+import { meetingsCrossUserEnabled } from '../common/tenant-flags.js';
 import { extractXlsxText, isSpreadsheetAttachment } from './xlsx-extract.js';
 import { extractPptxText, isPowerPointAttachment } from './pptx-extract.js';
 import { createHash, randomUUID } from 'node:crypto';
@@ -1071,12 +1072,24 @@ export class EngagementService {
    */
   async listSharedMeetingsForClient(ctx: TenantContext, clientId: string) {
     return this.prisma.withTenant(ctx.tenantId, async (tx) => {
-      const rows = await tx.meeting.findMany({
-        where: { tenantId: ctx.tenantId, clientId, visibility: MeetingVisibility.shared },
-        include: meetingInclude(),
-        orderBy: [{ sharedAt: 'desc' }, { startsAt: 'desc' }],
-      });
-      return this.decorateMeetings(tx, ctx, rows);
+      const [tenant, rows] = await Promise.all([
+        tx.tenant.findFirst({ where: { id: ctx.tenantId }, select: { settings: true } }),
+        tx.meeting.findMany({
+          where: { tenantId: ctx.tenantId, clientId, visibility: MeetingVisibility.shared },
+          include: meetingInclude(),
+          orderBy: [{ sharedAt: 'desc' }, { startsAt: 'desc' }],
+        }),
+      ]);
+      const decorated = await this.decorateMeetings(tx, ctx, rows);
+      // Phase 2 collision model (spec §7, §4.4): when the tenant is on the
+      // cross-user flag, collapse per-mailbox rows that share a Graph iCalUId into
+      // ONE record — canonical notes, contributors merged (first-sharer primary,
+      // colleagues with their own prep/debrief surfaced via the expander), and
+      // multi-user notetakers attributed. Non-destructive; off = Phase 1 (one row
+      // per record). Rows with no iCalUId (manual meetings) stay standalone.
+      return meetingsCrossUserEnabled(tenant?.settings)
+        ? mergeSharedMeetingsByICalUid(decorated)
+        : decorated;
     });
   }
 
@@ -6134,6 +6147,88 @@ function canEditEncryptedEntry(ctx: TenantContext, note: { authorUserId: string 
 
 // ── Meetings v2 response helpers ────────────────────────────────────────────
 type MeriCoarseState = 'scheduled' | 'attending' | 'done';
+
+interface MeetingContributor {
+  userId: string;
+  name: string | null;
+  artifacts: Array<'prep' | 'notes' | 'debrief'>;
+}
+
+/** The decorated-meeting fields the cross-user grouping reads. */
+interface GroupableMeeting {
+  id: string;
+  iCalUId: string | null;
+  sharedAt: Date | null;
+  startsAt: Date;
+  contributors: MeetingContributor[];
+  notesApproved: boolean;
+  meri: MeriCoarseState | null;
+}
+
+/**
+ * Phase 2 collision model (spec §7, §4.4): collapse decorated meeting rows that
+ * share a Graph `iCalUId` into ONE record. Two attendees' mailbox syncs produce
+ * two per-mailbox rows with the SAME iCalUId; grouping presents them as one
+ * meeting. The FIRST sharer (earliest sharedAt) is the primary contributor;
+ * every group member's owner is merged into `contributors` (artifacts unioned,
+ * deduped by user); notes are canonical (shown once — `notesApproved` = any
+ * member); `notetakers` lists the per-sender names of members whose Meri
+ * attended. Rows with no iCalUId (manual meetings / not-yet-backfilled) stay
+ * standalone. Pure + non-destructive — the underlying rows are untouched.
+ */
+function mergeSharedMeetingsByICalUid<T extends GroupableMeeting>(
+  rows: T[],
+): Array<T & { notetakers: string[]; groupedMeetingIds: string[] }> {
+  const sharedKey = (m: GroupableMeeting): number => (m.sharedAt ?? m.startsAt).getTime();
+  const notetakersOf = (group: T[]): string[] => [
+    ...new Set(
+      group
+        .filter((g) => g.meri != null)
+        .map((g) => g.contributors[0]?.name)
+        .filter((n): n is string => Boolean(n)),
+    ),
+  ];
+  const mergeContributors = (ordered: T[]): MeetingContributor[] => {
+    const byUser = new Map<string, MeetingContributor>();
+    for (const r of ordered) {
+      for (const c of r.contributors) {
+        const existing = byUser.get(c.userId);
+        if (existing) {
+          existing.artifacts = [...new Set([...existing.artifacts, ...c.artifacts])];
+        } else {
+          byUser.set(c.userId, { ...c, artifacts: [...c.artifacts] });
+        }
+      }
+    }
+    return [...byUser.values()];
+  };
+
+  const out: Array<T & { notetakers: string[]; groupedMeetingIds: string[] }> = [];
+  const seen = new Set<string>();
+  for (const row of rows) {
+    if (!row.iCalUId) {
+      out.push({ ...row, notetakers: notetakersOf([row]), groupedMeetingIds: [row.id] });
+      continue;
+    }
+    if (seen.has(row.iCalUId)) continue;
+    seen.add(row.iCalUId);
+    const group = rows.filter((r) => r.iCalUId === row.iCalUId);
+    if (group.length === 1) {
+      out.push({ ...row, notetakers: notetakersOf(group), groupedMeetingIds: [row.id] });
+      continue;
+    }
+    const ordered = [...group].sort((a, b) => sharedKey(a) - sharedKey(b));
+    const primary = ordered[0]!;
+    out.push({
+      ...primary,
+      contributors: mergeContributors(ordered),
+      notesApproved: group.some((g) => g.notesApproved),
+      notetakers: notetakersOf(ordered),
+      groupedMeetingIds: ordered.map((g) => g.id),
+    });
+  }
+  return out;
+}
 
 /**
  * Collapse a raw MeetingBotSession.status into the coarse notetaker state the UI

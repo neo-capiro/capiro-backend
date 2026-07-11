@@ -121,6 +121,9 @@ export interface Meeting {
   meri: MeriState | null;
   contributors: MeetingContributor[];
   sharedBy: { userId: string; name: string | null } | null;
+  // Phase 2 cross-user grouping only: per-sender names of the notetakers that
+  // attended (§4.4). Present on grouped shared records; absent otherwise.
+  notetakers?: string[];
 }
 
 export type MeetingBotStatus =

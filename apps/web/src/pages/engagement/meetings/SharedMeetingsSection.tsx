@@ -1,15 +1,24 @@
 import { useState } from 'react';
 import { Link } from 'react-router-dom';
-import { CheckCircleFilled } from '@ant-design/icons';
+import { CheckCircleFilled, RobotOutlined } from '@ant-design/icons';
 import { useSharedMeetings } from './meetings-api.js';
 import { formatDateShort } from './meetings-format.js';
-import { artifactStatus, type ArtifactKind, type Meeting } from './meetings-types.js';
+import { type ArtifactKind, type Meeting } from './meetings-types.js';
 
 const ARTIFACT_LABELS: Record<ArtifactKind, string> = {
   prep: 'Prep',
   notes: 'Notes',
   debrief: 'Debrief',
 };
+
+/** Material pills for a (possibly grouped) shared record: the UNION of every
+ *  contributor's approved artifacts. For an ungrouped record this equals the
+ *  single contributor's artifacts (identical to Phase 1); for a Phase-2 group it
+ *  is the collective materials across all contributors. */
+function recordArtifacts(m: Meeting): Record<ArtifactKind, boolean> {
+  const kinds = new Set<ArtifactKind>(m.contributors.flatMap((c) => c.artifacts));
+  return { prep: kinds.has('prep'), notes: kinds.has('notes'), debrief: kinds.has('debrief') };
+}
 
 /** Contributors (beyond the primary) who have their OWN prep/debrief that
  *  diverges — the only ones surfaced (spec §7.2). Notes are canonical/dedup'd,
@@ -24,9 +33,10 @@ function divergentContributors(m: Meeting) {
 
 function SharedMeetingRow({ meeting }: { meeting: Meeting }) {
   const [expanded, setExpanded] = useState(false);
-  const status = artifactStatus(meeting);
+  const status = recordArtifacts(meeting);
   const primaryName = meeting.sharedBy?.name ?? meeting.contributors[0]?.name ?? 'A colleague';
   const others = divergentContributors(meeting);
+  const notetakers = meeting.notetakers ?? [];
 
   return (
     <div>
@@ -37,6 +47,12 @@ function SharedMeetingRow({ meeting }: { meeting: Meeting }) {
             {formatDateShort(meeting.startsAt)} · Shared by {primaryName}
             {others.length > 0 ? ` · +${others.length} with their own prep/debrief` : ''}
           </div>
+          {notetakers.length > 1 ? (
+            <div className="mtg-shared-sub">
+              <RobotOutlined /> Auto-captured by {notetakers.length} notetakers:{' '}
+              {notetakers.join(', ')}
+            </div>
+          ) : null}
         </div>
         <div className="mtg-artifacts">
           {(Object.keys(ARTIFACT_LABELS) as ArtifactKind[]).map((k) => (

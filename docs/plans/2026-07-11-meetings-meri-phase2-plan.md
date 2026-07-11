@@ -1,6 +1,6 @@
 # Meetings & Meri — Phase 2 Blueprint (cross-user collision model)
 
-**Status:** Design. Groundwork (iCalUId capture) implemented + shippable dormant; the identity/visibility switch is **held pending Ninja's decision in §3.**
+**Status:** ✅ IMPLEMENTED 2026-07-11 (dormant behind `meetingsCrossUser.enabled`, default OFF). Ninja's decisions (§6): **(1) Option B — group by iCalUId at query time; (2) do NOT widen `ownMeetingWhere` — deliver cross-user only via the tenant-scoped shared feed (no SOC 2 posture change); (3) allow multi-user notetakers (natural via per-user rows).** Built: the flag + `mergeSharedMeetingsByICalUid` grouping in `listSharedMeetingsForClient` + the frontend contributor/notetaker rendering. Follow-up (not blocking): backfill `iCalUId` on pre-groundwork rows (§5) — until then only meetings synced after the groundwork deploy group.
 **Predecessor:** Phase 1 (Waves 0–3) shipped 2026-07-11, dormant behind `meetingsV2.enabled` — see [the Phase 1 plan](2026-07-10-meetings-meri-v2-redesign-plan.md). Phase 1 built the full single-contributor experience + the collision-model _code_ (contributors/notes-dedup/expander) as a documented no-op. Phase 2 makes that code actually fire.
 
 ---
@@ -79,10 +79,11 @@ Replace `ownMeetingWhere` with: _a meeting is visible to a tenant user if they c
 
 ---
 
-## 6 · Open decisions for Ninja
+## 6 · Decisions (RESOLVED 2026-07-11)
 
-1. **§3 identity approach** — A (merge), B (group, recommended), or C (hybrid).
-2. **§3 visibility policy** — confirm attendee-based visibility (who exactly: any email-matched tenant user? internal-domain only?) — it's a SOC 2 posture change.
-3. Multi-notetaker per meeting — confirm we want to allow it (it means multiple recording bots in one call; consent copy already covers "a notice is posted").
+1. **Identity → Option B** (group by iCalUId at query time). ✅ Built.
+2. **Visibility → do NOT widen `ownMeetingWhere`.** Cross-user grouping happens only on the tenant-scoped *shared* feed (client Documents), which is already org-visible — so §7's collision model is delivered without letting colleagues open each other's un-shared personal meetings (no SOC 2 posture change). ✅ Built.
+3. **Multi-notetaker → allowed**, naturally via per-user rows; the grouped record merges the per-sender names into `notetakers[]`; the per-row single-active-session guard is unchanged. ✅ Built (no notetaker-service change needed).
 
-I'll implement §4 once (1)+(2) are chosen. The iCalUId groundwork is safe to ship regardless.
+**Delivered behind `meetingsCrossUser.enabled` (default OFF).** Enable per tenant (SQL): `jsonb_set(... '{clioFeatureFlags,meetingsCrossUser.enabled}','true'…)`.
+**Remaining follow-up (non-blocking):** backfill `iCalUId` on rows synced before the groundwork deploy so historical meetings also group (a one-off re-sync / raw_jsonb read).

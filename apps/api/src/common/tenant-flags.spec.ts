@@ -6,6 +6,8 @@ import {
   MERIV2_FLAGS,
   meetingsV2Enabled,
   MEETINGS_V2_FLAG,
+  meetingsCrossUserEnabled,
+  MEETINGS_CROSS_USER_FLAG,
 } from './tenant-flags.js';
 
 describe('tenantFeatureEnabled', () => {
@@ -69,5 +71,15 @@ describe('meetingsV2Enabled (per-tenant, default OFF, no env kill-switch)', () =
     expect(meetingsV2Enabled(null)).toBe(false);
     expect(meetingsV2Enabled({ clioFeatureFlags: { [MEETINGS_V2_FLAG]: true } })).toBe(true);
     expect(meetingsV2Enabled({ clioFeatureFlags: { [MEETINGS_V2_FLAG]: false } })).toBe(false);
+  });
+});
+
+describe('meetingsCrossUserEnabled (Phase 2 grouping, per-tenant, default OFF)', () => {
+  test('off by default and on only when the tenant flag is explicitly true', () => {
+    expect(meetingsCrossUserEnabled({})).toBe(false);
+    expect(meetingsCrossUserEnabled(null)).toBe(false);
+    expect(
+      meetingsCrossUserEnabled({ clioFeatureFlags: { [MEETINGS_CROSS_USER_FLAG]: true } }),
+    ).toBe(true);
   });
 });
