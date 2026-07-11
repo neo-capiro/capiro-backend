@@ -228,6 +228,11 @@ case "${1:-serve}" in
   # Step 3.1: SAM.gov DoD contract opportunities feed (sam_opportunity). Always
   # commits when run as a scheduled task (dry-run is for local dev only).
   sync-sam-opportunities) shift; exec ./node_modules/.bin/tsx scripts/sync-sam-opportunities.ts --commit "$@" ;;
+  # Re-run the opportunity->PE/program matcher over ALL existing sam_opportunity rows
+  # WITHOUT re-fetching from SAM.gov — realizes a matcher change (e.g. procurement-BLIN
+  # recognition) across the already-ingested backlog the daily sync would never re-match.
+  # Idempotent. Add --commit to persist (dry-run reports the would-be counts).
+  rematch-sam-opportunities) shift; exec ./node_modules/.bin/tsx scripts/sync-sam-opportunities.ts --match-only "$@" ;;
   # Step 34A: DoD witnesses at defense-committee hearings (committee_hearing).
   extract-hearing-witnesses) shift; exec ./node_modules/.bin/tsx scripts/extract-hearing-witnesses.ts "$@" ;;
   # Step 34B: DoD personnel named in recent GAO reports (LLM NER over metadata).
@@ -450,6 +455,9 @@ case "${1:-serve}" in
   diag-graph-coverage) shift; exec ./node_modules/.bin/tsx scripts/diag-graph-coverage.ts "$@" ;;
   # Read-only per-PE data-presence report ("why is PE X thin?"). --pe=CODE.
   diag-pe) shift; exec ./node_modules/.bin/tsx scripts/diag-pe.ts "$@" ;;
+  # Read-only network-link coverage matrix by appropriation type (RDT&E/PROC/OM) —
+  # the before/after yield measurement for the procurement-BLIN matching remediation.
+  diag-blin-coverage) shift; exec ./node_modules/.bin/tsx scripts/diag-blin-coverage.ts "$@" ;;
   backfill-appropriation-type) shift; exec ./node_modules/.bin/tsx scripts/backfill-appropriation-type.ts "$@" ;;
   # Personnel + derived jobs that were missing dispatch cases (Production
   # Ingestion plan, Phase 2). Scheduled via EventBridge in infra/cdk.

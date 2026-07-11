@@ -9,7 +9,8 @@
  * an opportunity is matched to a PE / program by one of four bases, each with a fixed
  * default review_status. A fuzzy or coarse path is NEVER auto-accepted.
  *
- *   description_pe_code   the description names a PE code that EXISTS in our PE set
+ *   description_pe_code   the description names a PE code OR procurement BLIN that
+ *                         EXISTS in our program_element set
  *                         -> review_status 'accepted'    (verbatim, exact)
  *   program_alias         a program alias trigram-matches the title/description AND the
  *                         office or PSC agrees
@@ -37,7 +38,9 @@ export type SamMatchBasis =
 const ACCEPTED_BASES: ReadonlySet<SamMatchBasis> = new Set<SamMatchBasis>(['description_pe_code']);
 
 /** Coarse-signal bases that are held back as 'quarantined' (never surfaced as-is). */
-const QUARANTINED_BASES: ReadonlySet<SamMatchBasis> = new Set<SamMatchBasis>(['psc_naics_component']);
+const QUARANTINED_BASES: ReadonlySet<SamMatchBasis> = new Set<SamMatchBasis>([
+  'psc_naics_component',
+]);
 
 /**
  * Default review status for a SAM match, derived STRUCTURALLY from its basis.
@@ -50,10 +53,14 @@ export function samMatchStatus(basis: SamMatchBasis): SamReviewStatus {
   return 'candidate';
 }
 
-// PE codes embedded in opportunity text: 7 digits + a service letter, then optional
-// trailing alphanumerics, word-bounded. Mirrors the canonical PE_CODE_REGEX
-// (jbook-extract) / PE_IN_TEXT (sam-personnel-extractor) so the forms agree.
-const PE_IN_TEXT = /\b([0-9]{7}[A-Z][A-Z0-9]*)\b/gi;
+// Program codes embedded in opportunity text — two shapes, alternated:
+//   - RDT&E PE code: 7 digits + a service letter (+ optional trailing alphanumerics)
+//   - procurement BLIN: <4-digit appropriation><1-2 letters><line item>, e.g. 1242C93000
+// Word-bounded. Mirrors isValidProgramCode (jbook-extract PE_CODE_REGEX |
+// PROCUREMENT_CODE_REGEX) and the bill/award extractors, so all text scans agree.
+// A shape match is NOT assumed valid — extractKnownPeCodes filters against the known
+// program_element set (which carries both code types), so a stray run is dropped.
+const PE_IN_TEXT = /\b(?:[0-9]{7}[A-Z][A-Z0-9]*|[0-9]{4}[A-Z]{1,2}[0-9A-Z]{2,14})\b/gi;
 
 /** The opportunity fields the matcher reads (a slice of SamOpportunity). */
 export interface OpportunityForMatch {
@@ -127,7 +134,10 @@ function simSet(a: Set<string>, b: Set<string>): number {
  * Verbatim, exact: only a code that is BOTH well-formed AND present in `knownPeCodes`
  * is returned (so a stray 7-digit run that happens to look like a PE is ignored).
  */
-export function extractKnownPeCodes(text: string | null, knownPeCodes: ReadonlySet<string>): string[] {
+export function extractKnownPeCodes(
+  text: string | null,
+  knownPeCodes: ReadonlySet<string>,
+): string[] {
   const found = new Set<string>();
   const matches = (text ?? '').toUpperCase().match(PE_IN_TEXT);
   if (matches) {
@@ -205,7 +215,10 @@ export function matchOpportunity(
     const sim = Math.max(simSet(titleTg, a.tg), simSet(descTg, a.tg));
     if (sim < trgmMin) continue;
 
-    const officeAgrees = !!a.officeHint && officeNorm.includes(normalizeText(a.officeHint)) && normalizeText(a.officeHint).length > 0;
+    const officeAgrees =
+      !!a.officeHint &&
+      officeNorm.includes(normalizeText(a.officeHint)) &&
+      normalizeText(a.officeHint).length > 0;
     const pscAgrees = !!psc && !!a.pscHints && a.pscHints.has(psc);
     if (!officeAgrees && !pscAgrees) continue; // precision guard: corroboration required
 
