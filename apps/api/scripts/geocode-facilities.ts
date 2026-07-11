@@ -44,19 +44,28 @@ async function main() {
     let errors = 0;
     let discrepancies = 0;
 
+    // W4.2: select by a deterministic address CHANGE-HASH, not the
+    // `updated_at > geocoded_at` race. A row is a candidate only when it has
+    // never been stamped (geocode_input_hash IS NULL) or its current normalized
+    // address hash differs from the stamped one — so an unrelated updated_at
+    // bump no longer forces a re-geocode, and never-tried rows are processed
+    // first. The identical md5 expression is SELECTed as "currentHash" and
+    // written back after EVERY attempt (below) so address-less / no-match rows
+    // can't perpetually re-select and starve the batch cap.
+    const ADDR_HASH_SQL =
+      "md5(lower(coalesce(address_line,'') || '|' || coalesce(city,'') || '|' || coalesce(state,'') || '|' || coalesce(zip,'')))";
     const rows = await bypassRls((tx) =>
       tx.$queryRawUnsafe<
-        Array<
-          FacilityGeocodeInput & { tenantId: string }
-        >
+        Array<FacilityGeocodeInput & { tenantId: string; currentHash: string }>
       >(
         `SELECT id, tenant_id AS "tenantId", address_line AS "addressLine", city, state, zip,
                 congressional_district AS "congressionalDistrict", district_source AS "districtSource",
                 state_house_district AS "stateHouseDistrict", state_senate_district AS "stateSenateDistrict",
-                latitude, longitude, geocode_status AS "geocodeStatus"
+                latitude, longitude, geocode_status AS "geocodeStatus",
+                ${ADDR_HASH_SQL} AS "currentHash"
            FROM client_facilities
-          WHERE geocoded_at IS NULL OR updated_at > geocoded_at
-          ORDER BY updated_at ASC
+          WHERE geocode_input_hash IS NULL OR geocode_input_hash IS DISTINCT FROM ${ADDR_HASH_SQL}
+          ORDER BY (geocode_input_hash IS NOT NULL), updated_at ASC
           LIMIT $1`,
         BATCH_CAP,
       ),
@@ -75,10 +84,22 @@ async function main() {
         }
         if (!outcome.update) {
           skipped++;
+          // Stamp the hash even when nothing else changed (unchanged, no-match,
+          // or address-less) so this row won't re-select until its address
+          // actually changes — the fix for the starvation the old watermark had.
+          await bypassRls((tx) =>
+            tx.clientFacility.update({
+              where: { id: row.id },
+              data: { geocodeInputHash: row.currentHash },
+            }),
+          );
         } else {
           const wasUngeocoded = row.geocodeStatus == null;
           await bypassRls((tx) =>
-            tx.clientFacility.update({ where: { id: row.id }, data: outcome.update! }),
+            tx.clientFacility.update({
+              where: { id: row.id },
+              data: { ...outcome.update!, geocodeInputHash: row.currentHash },
+            }),
           );
           if (wasUngeocoded && outcome.status === 'matched') inserted++;
           else updated++;

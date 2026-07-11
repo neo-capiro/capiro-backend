@@ -1772,6 +1772,11 @@ model ClientFacility {
   geocodedAt            DateTime? @map("geocoded_at") @db.Timestamptz(6)
   // 'matched' | 'no_match' | 'ambiguous' | 'error' — never silently absent when a geocode was attempted.
   geocodeStatus         String?   @map("geocode_status") @db.VarChar(16)
+  /// W4.2: change-hash of the normalized address at last geocode attempt — the
+  /// geocode-facilities scan re-geocodes only when the current address hash
+  /// differs (not on any unrelated updated_at bump), and stamps it on every
+  /// attempt so address-less/no-match rows don't starve the batch cap.
+  geocodeInputHash      String?   @map("geocode_input_hash")
   createdAt             DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
   updatedAt             DateTime  @updatedAt @map("updated_at") @db.Timestamptz(6)
 

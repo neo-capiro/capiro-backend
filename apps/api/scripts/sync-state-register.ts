@@ -52,7 +52,13 @@ const ADAPTERS: Record<string, StateAdapter> = {
         if (!listing.rows.length) return;
         let anyNewer = false;
         for (const row of listing.rows) {
-          if (watermark && row.publishDate && new Date(row.publishDate) <= watermark) continue;
+          // W4.2: strict `<` (not `<=`) — a notice published ON the watermark
+          // date is RE-FETCHED (and de-duplicated by the id-keyed upsert),
+          // matching the federal inclusive-refetch pattern. `<=` silently
+          // dropped every same-day notice filed after the watermark row.
+          // A strictly-older row still skips + leaves anyNewer false, so a page
+          // of only-older rows still stops pagination (termination holds).
+          if (watermark && row.publishDate && new Date(row.publishDate) < watermark) continue;
           anyNewer = true;
           await new Promise((r) => setTimeout(r, DELAY_MS));
           try {
