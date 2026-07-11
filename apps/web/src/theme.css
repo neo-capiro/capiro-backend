@@ -22176,6 +22176,33 @@ button.engagement-debrief-badge--action:hover {
   background: var(--bg-surface-2) !important;
 }
 
+/* Dashboard Client-Engagement action buttons — light-blue brand (accent-soft),
+   sized to match the Send Meri / Join pills so the strip reads as branded, not
+   plain white. Send Meri itself stays the filled accent CTA. */
+.dash-btn-soft {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 12px;
+  border-radius: 8px;
+  font-family: var(--font-sans);
+  font-size: 12.5px;
+  font-weight: 600;
+  letter-spacing: -0.005em;
+  white-space: nowrap;
+  border: 1px solid transparent;
+  background: var(--accent-soft);
+  color: var(--accent-ink);
+  cursor: pointer;
+}
+.dash-btn-soft:hover:not(:disabled) {
+  background: #cdd9f4;
+}
+.dash-btn-soft:disabled {
+  opacity: 0.55;
+  cursor: default;
+}
+
 /* ── Module shell + toolbar ───────────────────────────────────────────────── */
 .mtg-shell {
   background: var(--bg-surface);

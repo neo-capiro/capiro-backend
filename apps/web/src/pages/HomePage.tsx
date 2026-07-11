@@ -1,4 +1,4 @@
-import { useMemo, useState, type CSSProperties, type ReactNode } from 'react';
+import { useMemo, useState, type ReactNode } from 'react';
 import { useUser } from '@clerk/clerk-react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { App, Empty, Form, Modal, Skeleton, Tag } from 'antd';
@@ -562,16 +562,6 @@ function renderBrief(text: string): ReactNode[] {
 }
 
 /* ── Client engagement: week strip + per-day meetings (fixed height) ─────── */
-
-// Neutral dashboard button sized to match the Send Meri / Join pills (so the
-// row's buttons look identical to the ones in the Meetings tab).
-const DASH_BTN: CSSProperties = {
-  padding: '6px 12px',
-  fontSize: 12.5,
-  borderRadius: 8,
-  fontWeight: 600,
-};
-
 function ClientEngagement({ meetings, loading }: { meetings: DashMeeting[]; loading: boolean }) {
   const api = useApi();
   const qc = useQueryClient();
@@ -749,8 +739,7 @@ function ClientEngagement({ meetings, loading }: { meetings: DashMeeting[]; load
                     {prepped ? (
                       <button
                         type="button"
-                        className="btn"
-                        style={DASH_BTN}
+                        className="dash-btn-soft"
                         onClick={() => setPrepMeetingId(m.id)}
                       >
                         View Prep
@@ -758,8 +747,7 @@ function ClientEngagement({ meetings, loading }: { meetings: DashMeeting[]; load
                     ) : (
                       <button
                         type="button"
-                        className="btn"
-                        style={DASH_BTN}
+                        className="dash-btn-soft"
                         disabled={prepGenId === m.id}
                         onClick={() => runPrep(m.id)}
                       >
@@ -770,8 +758,7 @@ function ClientEngagement({ meetings, loading }: { meetings: DashMeeting[]; load
                     {hasDebrief ? (
                       <button
                         type="button"
-                        className="btn"
-                        style={DASH_BTN}
+                        className="dash-btn-soft"
                         onClick={() => setNotesMeetingId(m.id)}
                       >
                         Debrief
