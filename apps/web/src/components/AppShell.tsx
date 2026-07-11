@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import { Link, Outlet, useLocation, useNavigate } from 'react-router-dom';
 import { ChatDrawer } from './chat/ChatDrawer.js';
+import { MeriOverlay } from './chat/MeriOverlay.js';
 import { WorkspaceNotificationBell } from './WorkspaceNotificationBell.js';
 import { QuickLogButton } from './QuickLog.js';
 import {
@@ -640,7 +641,11 @@ export function AppShell() {
           </Content>
         </Layout>
       </Layout>
-      <ChatDrawer selectedClientName={selectedClient?.name ?? null} />
+      {me.data?.features.meriDockUndockUi ? (
+        <MeriOverlay selectedClientName={selectedClient?.name ?? null} />
+      ) : (
+        <ChatDrawer selectedClientName={selectedClient?.name ?? null} />
+      )}
     </>
   );
 }

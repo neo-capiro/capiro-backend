@@ -2410,6 +2410,10 @@
   padding: 9px 11px;
 }
 .chat-alert-item--unread { border-left: 3px solid var(--meri-navy); }
+.chat-alert-item--critical { border-left-color: var(--critical, #b5301b); background: var(--critical-soft, #f6ddd6); }
+.chat-alert-item--notable { border-left-color: var(--notable, #a26913); background: var(--notable-soft, #f4e5c3); }
+.chat-alert-item--info { border-left-color: var(--accent, #2a57ce); }
+.meri-inbox-banner .chat-alert-item-dismiss { width: auto; font-size: 11px; font-weight: 600; color: var(--accent-ink, #1a3f9f); }
 .chat-alert-item-head {
   display: flex;
   align-items: flex-start;

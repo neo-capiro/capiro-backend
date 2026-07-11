@@ -10,6 +10,8 @@ import {
   MEETINGS_CROSS_USER_FLAG,
   outreachAsyncFlagEnabled,
   OUTREACH_ASYNC_FLAG,
+  meriDockUndockUiEnabled,
+  MERI_DOCK_UNDOCK_UI_FLAG,
 } from './tenant-flags.js';
 
 describe('tenantFeatureEnabled', () => {
@@ -73,6 +75,19 @@ describe('meetingsV2Enabled (per-tenant, default OFF, no env kill-switch)', () =
     expect(meetingsV2Enabled(null)).toBe(false);
     expect(meetingsV2Enabled({ clioFeatureFlags: { [MEETINGS_V2_FLAG]: true } })).toBe(true);
     expect(meetingsV2Enabled({ clioFeatureFlags: { [MEETINGS_V2_FLAG]: false } })).toBe(false);
+  });
+});
+
+describe('meriDockUndockUiEnabled (presentation swap, per-tenant, default OFF)', () => {
+  test('off by default and on only when the tenant flag is explicitly true', () => {
+    expect(meriDockUndockUiEnabled({})).toBe(false);
+    expect(meriDockUndockUiEnabled(null)).toBe(false);
+    expect(
+      meriDockUndockUiEnabled({ clioFeatureFlags: { [MERI_DOCK_UNDOCK_UI_FLAG]: true } }),
+    ).toBe(true);
+    expect(
+      meriDockUndockUiEnabled({ clioFeatureFlags: { [MERI_DOCK_UNDOCK_UI_FLAG]: false } }),
+    ).toBe(false);
   });
 });
 

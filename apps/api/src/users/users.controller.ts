@@ -5,7 +5,11 @@ import type { TenantContext } from '@capiro/shared';
 import { CurrentTenant } from '../tenant/current-tenant.decorator.js';
 import { PrismaService } from '../prisma/prisma.service.js';
 import { MAX_SIGNATURE_HTML_LENGTH, sanitizeSignatureHtml } from '../common/sanitize-signature.js';
-import { meetingsV2Enabled, outreachAsyncFlagEnabled } from '../common/tenant-flags.js';
+import {
+  meetingsV2Enabled,
+  outreachAsyncFlagEnabled,
+  meriDockUndockUiEnabled,
+} from '../common/tenant-flags.js';
 import type { AppConfig } from '../config/config.schema.js';
 
 class UpdateMeDto {
@@ -136,6 +140,7 @@ export class UsersController {
         outreachAsyncSend:
           this.config.get('OUTREACH_ASYNC_SEND', { infer: true }) &&
           outreachAsyncFlagEnabled(profile.tenant?.settings),
+        meriDockUndockUi: meriDockUndockUiEnabled(profile.tenant?.settings),
       },
     };
   }
@@ -173,7 +178,7 @@ export class UsersController {
       });
       const tenant = await tx.tenant.findUnique({
         where: { id: ctx.tenantId },
-        select: { name: true },
+        select: { name: true, settings: true },
       });
       const membership = await tx.tenantMembership.findUnique({
         where: { tenantId_userId: { tenantId: ctx.tenantId, userId: ctx.userId } },
@@ -200,6 +205,16 @@ export class UsersController {
       },
       role: ctx.role,
       billingAdmin: ctx.role === 'capiro_admin' || (profile.membership?.billingAdmin ?? false),
+      features: {
+        meetingsV2: meetingsV2Enabled(profile.tenant?.settings),
+        outreachAsyncGen:
+          this.config.get('OUTREACH_ASYNC_GEN', { infer: true }) &&
+          outreachAsyncFlagEnabled(profile.tenant?.settings),
+        outreachAsyncSend:
+          this.config.get('OUTREACH_ASYNC_SEND', { infer: true }) &&
+          outreachAsyncFlagEnabled(profile.tenant?.settings),
+        meriDockUndockUi: meriDockUndockUiEnabled(profile.tenant?.settings),
+      },
     };
   }
 

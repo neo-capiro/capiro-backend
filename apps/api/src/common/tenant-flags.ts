@@ -109,6 +109,13 @@ export function meetingsV2Enabled(settings: unknown): boolean {
   return tenantFeatureEnabled(settings, MEETINGS_V2_FLAG, false);
 }
 
+export const MERI_DOCK_UNDOCK_UI_FLAG = 'meriDockUndockUi.enabled' as const;
+
+/** Whether a tenant receives the new global Meri dock/undock presentation (default OFF). */
+export function meriDockUndockUiEnabled(settings: unknown): boolean {
+  return tenantFeatureEnabled(settings, MERI_DOCK_UNDOCK_UI_FLAG, false);
+}
+
 /**
  * Meetings v2 Phase 2 — cross-user collision model (docs/plans/2026-07-11-…).
  * When ON, the client "Shared from meetings" feed groups per-mailbox rows that

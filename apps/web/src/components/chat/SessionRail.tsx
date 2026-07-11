@@ -57,8 +57,9 @@ interface HistorySearchResult {
 const SEARCH_DEBOUNCE_MS = 350;
 const SEARCH_MIN_CHARS = 2;
 
-export function SessionRail() {
+export function SessionRail({ forceOpen = false }: { forceOpen?: boolean } = {}) {
   const { conversations, activeConversationId, sessionRailOpen } = useChatStore();
+  const railOpen = forceOpen || sessionRailOpen;
   const { getToken } = useAuth();
   const api = useApi();
   const { actAsTenantSlug } = useImpersonation();
@@ -86,7 +87,7 @@ export function SessionRail() {
           params: { q: searchQuery, limit: 10 },
         })
       ).data,
-    enabled: sessionRailOpen && searchActive,
+    enabled: railOpen && searchActive,
     staleTime: 30_000,
   });
 
@@ -114,8 +115,8 @@ export function SessionRail() {
   }, [authHeaders]);
 
   useEffect(() => {
-    if (sessionRailOpen) void fetchConversations();
-  }, [sessionRailOpen, fetchConversations]);
+    if (railOpen) void fetchConversations();
+  }, [railOpen, fetchConversations]);
 
   const loadConversation = useCallback(async (conversationId: string) => {
     clearChatSession();
@@ -195,7 +196,7 @@ export function SessionRail() {
     }
   }, [authHeaders]);
 
-  if (!sessionRailOpen) return null;
+  if (!railOpen) return null;
 
   // Group conversations by client
   const groups: ClientGroup[] = [];

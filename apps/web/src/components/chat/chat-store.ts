@@ -1,4 +1,7 @@
 import { useEffect, useState } from 'react';
+import type { MeriRect } from './meri-geometry.js';
+
+export type MeriSurfaceMode = 'closed' | 'docked' | 'undocked';
 
 export interface MeriCitation {
   n: number;
@@ -91,6 +94,13 @@ export interface MeriSourceAttribution {
 
 interface ChatState {
   isOpen: boolean;
+  surfaceMode: MeriSurfaceMode;
+  maximized: boolean;
+  sideCollapsed: boolean;
+  undockedRect: MeriRect | null;
+  dragging: boolean;
+  resizing: boolean;
+  zOrder: number;
   messages: ChatMessage[];
   sessionId: string | null;
   isStreaming: boolean;
@@ -101,8 +111,15 @@ interface ChatState {
   alertsBadge: number;
 }
 
-let state: ChatState = {
+const initialState: ChatState = {
   isOpen: false,
+  surfaceMode: 'closed',
+  maximized: false,
+  sideCollapsed: false,
+  undockedRect: null,
+  dragging: false,
+  resizing: false,
+  zOrder: 1200,
   messages: [],
   sessionId: null,
   isStreaming: false,
@@ -113,6 +130,8 @@ let state: ChatState = {
   alertsBadge: 0,
 };
 
+let state: ChatState = { ...initialState };
+
 let activeDraft: ActiveDraftContext | null = null;
 let listeners: Array<() => void> = [];
 
@@ -121,12 +140,59 @@ function notify(): void {
 }
 
 export function setChatOpen(open: boolean): void {
-  state = { ...state, isOpen: open };
+  state = {
+    ...state,
+    isOpen: open,
+    surfaceMode: open ? 'docked' : 'closed',
+    ...(open ? {} : { maximized: false, dragging: false, resizing: false }),
+  };
   notify();
 }
 
 export function toggleChat(): void {
-  state = { ...state, isOpen: !state.isOpen };
+  const open = state.surfaceMode === 'closed';
+  state = {
+    ...state,
+    isOpen: open,
+    surfaceMode: open ? 'docked' : 'closed',
+    ...(open ? {} : { maximized: false, dragging: false, resizing: false }),
+  };
+  notify();
+}
+
+export function setMeriSurfaceMode(surfaceMode: MeriSurfaceMode): void {
+  state = {
+    ...state,
+    surfaceMode,
+    isOpen: surfaceMode !== 'closed',
+    ...(surfaceMode === 'docked' ? { maximized: false, dragging: false, resizing: false } : {}),
+    ...(surfaceMode === 'closed' ? { maximized: false, dragging: false, resizing: false } : {}),
+  };
+  notify();
+}
+
+export function setMeriMaximized(maximized: boolean): void {
+  state = { ...state, maximized, dragging: false, resizing: false };
+  notify();
+}
+
+export function setMeriSideCollapsed(sideCollapsed: boolean): void {
+  state = { ...state, sideCollapsed };
+  notify();
+}
+
+export function setMeriUndockedRect(undockedRect: MeriRect): void {
+  state = { ...state, undockedRect };
+  notify();
+}
+
+export function setMeriPointerState(pointer: { dragging?: boolean; resizing?: boolean }): void {
+  state = { ...state, ...pointer };
+  notify();
+}
+
+export function raiseMeriSurface(): void {
+  state = { ...state, zOrder: state.zOrder + 1 };
   notify();
 }
 
@@ -254,6 +320,22 @@ export function dismissAlert(id: string): void {
     alerts: remaining,
     alertsBadge: remaining.filter((a) => a.status === 'pending').length,
   };
+  notify();
+}
+
+export function getChatStateSnapshot(): Readonly<ChatState> {
+  return state;
+}
+
+/** Test-only reset kept explicit so production callers cannot accidentally reset a live turn. */
+export function resetChatStoreForTests(): void {
+  state = {
+    ...initialState,
+    messages: [],
+    conversations: [],
+    alerts: [],
+  };
+  activeDraft = null;
   notify();
 }
 

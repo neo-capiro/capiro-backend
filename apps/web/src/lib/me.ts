@@ -41,6 +41,8 @@ export interface MeResponse {
      */
     outreachAsyncGen?: boolean;
     outreachAsyncSend?: boolean;
+    /** New global Meri dock/undock presentation; false keeps the legacy drawer rollback. */
+    meriDockUndockUi: boolean;
   };
 }
 
