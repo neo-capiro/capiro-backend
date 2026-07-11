@@ -67,9 +67,16 @@ export interface GroundedCitationCheckResult {
  * substring gate.
  */
 function normalizeQuotes(text: string): string {
-  return text
-    .replace(/[“”„‟«»″＂]/g, '"')
-    .replace(/[‘’‚‛‹›′＇]/g, "'");
+  return (
+    text
+      // double-quote family: straight/curly/low-9/high-reversed-9, guillemets,
+      // prime, fullwidth, + CJK corner & prime-quotation & dingbat doubles
+      // (the last group is off-domain for English legislative text but folded
+      // defensively so the seal holds regardless of the source language).
+      .replace(/[“”„‟«»″＂「」『』〝〞〟❝❞]/g, '"')
+      // single-quote family + angle quotes + single CJK/dingbat/reversed-prime
+      .replace(/[‘’‚‛‹›′＇｢｣❛❜‵]/g, "'")
+  );
 }
 
 /**
