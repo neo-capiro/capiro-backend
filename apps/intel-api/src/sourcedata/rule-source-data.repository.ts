@@ -45,7 +45,7 @@ export class SourceRuleRepository {
         `SELECT document_number AS id, title, abstract, type, agency_names AS "agencyNames",
                 publication_date AS "publicationDate", comment_end_date AS "commentEndDate", html_url AS "htmlUrl"
            FROM federal_register_document
-          WHERE synced_at > now() - ($1 * interval '1 hour')
+          WHERE synced_at > now() - ($1::int * interval '1 hour')
             AND type IN ('RULE', 'PROPOSED_RULE')`,
         sinceHours,
       ),
@@ -65,7 +65,7 @@ export class SourceRuleRepository {
         `SELECT id, state, title, abstract, rule_type AS "ruleType", agency,
                 publication_date AS "publicationDate", comment_end_date AS "commentEndDate", source_url AS "sourceUrl"
            FROM state_rule
-          WHERE synced_at > now() - ($1 * interval '1 hour')`,
+          WHERE synced_at > now() - ($1::int * interval '1 hour')`,
         sinceHours,
       ),
     ]);

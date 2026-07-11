@@ -134,62 +134,85 @@ export async function runWithSyncRun(
   fn: (ctx: SyncRunContext) => Promise<RunCounts>,
   options: RunWithSyncRunOptions = {},
 ): Promise<RunCounts> {
-  // One instance per job: if another run is already in flight (and not a stale
-  // zombie), no-op and exit 0 so a slow run + the next cron tick don't double-
-  // ingest. Standardized here so every helper-based job inherits it (P0-T8).
-  if (options.skipIfRunning ?? true) {
-    const activeSince = await activeRunStartedAt(
-      prisma,
-      source,
-      options.staleRunTtlMs ?? DEFAULT_STALE_RUN_TTL_MS,
-    );
-    if (activeSince) {
-      console.log(
-        `INGESTION_SKIP ${JSON.stringify({
-          source,
-          reason: 'already_running',
-          running_since: activeSince.toISOString(),
-        })}`,
-      );
-      return emptyCounts();
-    }
-  }
-
-  const override = toDate(options.overrideSince);
-  const since = override ?? (await lastSuccessfulWatermark(prisma, source));
-  const ctx: SyncRunContext = { since, sinceDate: toDateString(since) };
-
-  const run = await prisma.syncRun.create({
-    data: { source, startedAt: new Date(), status: 'running' },
-    select: { id: true },
-  });
   const t0 = Date.now();
+  // W4.3 (M5-G): guarantee EXACTLY ONE `INGESTION_METRIC {error_count>=1}` line
+  // on ANY failure — including a pre-`fn` SETUP failure (the skipIfRunning
+  // query, the watermark read, or the SyncRun create) that previously threw
+  // out of this helper with no metric, so a DB hiccup at setup silently failed
+  // to page via the CloudWatch IngestionErrorMetricFilter. The flag keeps the
+  // success/skip/in-fn-error paths byte-identical (they emit their own line and
+  // set the flag; the outer catch only fires if nothing else emitted).
+  let metricEmitted = false;
+  const emitErrorMetricOnce = () => {
+    if (metricEmitted) return;
+    emitMetricLine(source, { inserted: 0, updated: 0, skipped: 0, errors: 1 }, (Date.now() - t0) / 1000);
+    metricEmitted = true;
+  };
 
   try {
-    const counts = await fn(ctx);
-    await prisma.syncRun.update({
-      where: { id: run.id },
-      data: {
-        finishedAt: new Date(),
-        rowsInserted: counts.inserted,
-        rowsUpdated: counts.updated,
-        errorCount: counts.errors,
-        status: statusFromCounts(counts),
-      },
+    // One instance per job: if another run is already in flight (and not a stale
+    // zombie), no-op and exit 0 so a slow run + the next cron tick don't double-
+    // ingest. Standardized here so every helper-based job inherits it (P0-T8).
+    if (options.skipIfRunning ?? true) {
+      const activeSince = await activeRunStartedAt(
+        prisma,
+        source,
+        options.staleRunTtlMs ?? DEFAULT_STALE_RUN_TTL_MS,
+      );
+      if (activeSince) {
+        console.log(
+          `INGESTION_SKIP ${JSON.stringify({
+            source,
+            reason: 'already_running',
+            running_since: activeSince.toISOString(),
+          })}`,
+        );
+        return emptyCounts();
+      }
+    }
+
+    const override = toDate(options.overrideSince);
+    const since = override ?? (await lastSuccessfulWatermark(prisma, source));
+    const ctx: SyncRunContext = { since, sinceDate: toDateString(since) };
+
+    const run = await prisma.syncRun.create({
+      data: { source, startedAt: new Date(), status: 'running' },
+      select: { id: true },
     });
-    await emitMetricLine(source, counts, (Date.now() - t0) / 1000);
-    return counts;
+
+    try {
+      const counts = await fn(ctx);
+      await prisma.syncRun.update({
+        where: { id: run.id },
+        data: {
+          finishedAt: new Date(),
+          rowsInserted: counts.inserted,
+          rowsUpdated: counts.updated,
+          errorCount: counts.errors,
+          status: statusFromCounts(counts),
+        },
+      });
+      emitMetricLine(source, counts, (Date.now() - t0) / 1000);
+      metricEmitted = true;
+      return counts;
+    } catch (e) {
+      await prisma.syncRun.update({
+        where: { id: run.id },
+        data: {
+          finishedAt: new Date(),
+          status: 'error',
+          errorCount: 1,
+          errorMessage: (e as Error).message.slice(0, 1000),
+        },
+      });
+      emitErrorMetricOnce();
+      throw e;
+    }
   } catch (e) {
-    await prisma.syncRun.update({
-      where: { id: run.id },
-      data: {
-        finishedAt: new Date(),
-        status: 'error',
-        errorCount: 1,
-        errorMessage: (e as Error).message.slice(0, 1000),
-      },
-    });
-    emitMetricLine(source, { inserted: 0, updated: 0, skipped: 0, errors: 1 }, (Date.now() - t0) / 1000);
+    // Setup-phase failure (or an in-fn failure whose error-row update itself
+    // threw before emitting) — ensure the single error metric is emitted, then
+    // rethrow so the process exits non-zero.
+    emitErrorMetricOnce();
     throw e;
   }
 }

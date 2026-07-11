@@ -250,16 +250,50 @@ export function classifyBriefOutcome(
   return posture === 'attach' ? 'surface' : 'shadow';
 }
 
+/** CloudWatch-parseable single-line ingestion error metric (same shape emitted
+ * by sync-run.helper's emitMetricLine) — used ONLY for the bootstrap path that
+ * runs before runWithSyncRun's own coverage (W4.3 / M5-G). */
+function emitBootstrapErrorMetric(t0: number): void {
+  // eslint-disable-next-line no-console
+  console.log(
+    `INGESTION_METRIC ${JSON.stringify({
+      source: 'run-intel-workflows',
+      rows_inserted: 0,
+      rows_updated: 0,
+      error_count: 1,
+      duration_seconds: Math.round((Date.now() - t0) / 1000),
+    })}`,
+  );
+}
+
 export async function main(): Promise<void> {
   const logger = new Logger('run-intel-workflows');
-  const { AppModule, PrismaService, AiCredentialResolverService, TargetingBriefService } =
-    await loadNest();
-  const app = await NestFactory.createApplicationContext(AppModule, { logger: ['warn', 'error'] });
+  const t0 = Date.now();
+  // W4.3 (M5-G): the bootstrap (loadNest / NestFactory / DI resolution) runs
+  // BEFORE runWithSyncRun, so a failure there would previously exit non-zero
+  // with NO INGESTION_METRIC line — invisible to the CloudWatch
+  // IngestionErrorMetricFilter, so a broken deploy never paged. Emit exactly one
+  // error metric here on a bootstrap failure, then rethrow. runWithSyncRun
+  // failures are NOT double-counted: they self-emit inside the helper and
+  // propagate through the second try below (which only closes the app).
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  let app: any;
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  let prisma: any, aiCreds: any, targetingBrief: any;
   try {
-    const prisma = app.get(PrismaService);
-    const aiCreds = app.get(AiCredentialResolverService);
-    const targetingBrief = app.get(TargetingBriefService);
+    const { AppModule, PrismaService, AiCredentialResolverService, TargetingBriefService } =
+      await loadNest();
+    app = await NestFactory.createApplicationContext(AppModule, { logger: ['warn', 'error'] });
+    prisma = app.get(PrismaService);
+    aiCreds = app.get(AiCredentialResolverService);
+    targetingBrief = app.get(TargetingBriefService);
+  } catch (err) {
+    emitBootstrapErrorMetric(t0);
+    await app?.close();
+    throw err;
+  }
 
+  try {
     await runWithSyncRun(
       prisma,
       'run-intel-workflows',

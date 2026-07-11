@@ -135,6 +135,97 @@ describe('runWithSyncRun (Phase 0 shared watermark)', () => {
   });
 });
 
+describe('runWithSyncRun observability (W4.3 / M5-G — pageable failures)', () => {
+  function captureMetrics() {
+    const lines: string[] = [];
+    const spy = jest.spyOn(console, 'log').mockImplementation((msg?: unknown) => {
+      if (typeof msg === 'string') lines.push(msg);
+    });
+    return {
+      restore: () => spy.mockRestore(),
+      metrics: () => lines.filter((l) => l.startsWith('INGESTION_METRIC ')).map((l) => JSON.parse(l.slice('INGESTION_METRIC '.length))),
+      skips: () => lines.filter((l) => l.startsWith('INGESTION_SKIP ')),
+    };
+  }
+
+  test('REGRESSION: a SETUP-phase failure (SyncRun.create throws) emits exactly ONE error metric and rethrows (previously emitted none → never paged)', async () => {
+    const cap = captureMetrics();
+    const prisma: SyncRunCapablePrisma = {
+      syncRun: {
+        async findFirst() {
+          return null;
+        },
+        async create() {
+          throw new Error('db down at create');
+        },
+        async update() {
+          return {};
+        },
+      },
+    };
+    try {
+      await expect(
+        runWithSyncRun(prisma, 'sync-x', async () => emptyCounts()),
+      ).rejects.toThrow('db down at create');
+      const m = cap.metrics();
+      expect(m).toHaveLength(1);
+      expect(m[0].error_count).toBeGreaterThanOrEqual(1);
+      expect(m[0].source).toBe('sync-x');
+    } finally {
+      cap.restore();
+    }
+  });
+
+  test('an in-fn failure still emits exactly ONE error metric (the nested try must not double-count)', async () => {
+    const cap = captureMetrics();
+    const { prisma } = makePrisma();
+    try {
+      await expect(
+        runWithSyncRun(prisma, 'sync-x', async () => {
+          throw new Error('upstream 503');
+        }),
+      ).rejects.toThrow('upstream 503');
+      const m = cap.metrics();
+      expect(m).toHaveLength(1);
+      expect(m[0].error_count).toBeGreaterThanOrEqual(1);
+    } finally {
+      cap.restore();
+    }
+  });
+
+  test('the success path is byte-identical: exactly ONE non-error metric, no skip line', async () => {
+    const cap = captureMetrics();
+    const { prisma } = makePrisma();
+    try {
+      await runWithSyncRun(prisma, 'sync-x', async () => ({
+        inserted: 4,
+        updated: 1,
+        skipped: 0,
+        errors: 0,
+      }));
+      const m = cap.metrics();
+      expect(m).toHaveLength(1);
+      expect(m[0].error_count).toBe(0);
+      expect(m[0].rows_inserted).toBe(4);
+      expect(cap.skips()).toHaveLength(0);
+    } finally {
+      cap.restore();
+    }
+  });
+
+  test('a skip emits INGESTION_SKIP and NO metric line (byte-identical skip path)', async () => {
+    const cap = captureMetrics();
+    const { prisma } = makePrisma({ activeRun: new Date() });
+    try {
+      await runWithSyncRun(prisma, 'sync-x', async () => emptyCounts());
+      expect(cap.metrics()).toHaveLength(0);
+      expect(cap.skips()).toHaveLength(1);
+    } finally {
+      cap.restore();
+    }
+  });
+});
+
 describe('runWithSyncRun concurrency guard (P0-T8)', () => {
   test('skips (no-op, no new run) when a recent run is already running', async () => {
     const { prisma, calls } = makePrisma({ activeRun: new Date() });
