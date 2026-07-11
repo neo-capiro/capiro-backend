@@ -7,6 +7,17 @@
 # Auto-discovers cluster / subnets / security group / task-def from the live
 # account, so you fill in NOTHING. Idempotent + phased.
 #
+# 2026-07-11 NOTE: verified against the live capiro-dev account that this
+# script's `schedules` phase (EventBridge *Scheduler*, `aws scheduler
+# create-schedule`) was never actually adopted — `aws scheduler list-schedules`
+# returns zero rows. Every one of Capiro's ~55 live ingestion jobs instead runs
+# on a dedicated per-job ECS task-def family invoked by a plain EventBridge
+# *Rule* (`aws events put-rule`/`put-targets`). For the state-legislation
+# platform's activation, use scripts/activate-state-ingestion.sh, which follows
+# that verified live pattern. This script's `preflight`/`register`/`smoke`/
+# `backfill` phases (plain `ecs run-task`, no scheduler) are still valid for
+# one-off ad hoc runs.
+#
 # USAGE (phases — run in order, or pick one):
 #   bash deploy-ingestion-out-of-band.sh preflight     # check API keys only
 #   bash deploy-ingestion-out-of-band.sh register      # register sync task def
