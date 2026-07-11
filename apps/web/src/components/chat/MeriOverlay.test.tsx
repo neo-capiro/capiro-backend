@@ -68,7 +68,7 @@ describe('MeriOverlay window state integration', () => {
 
   test('opens docked, undocks without replacing conversation state, redocks, and closes', () => {
     render(<MeriOverlay selectedClientName="C2 Strategies" />);
-    const launcher = screen.getByRole('button', { name: 'Open Meri' });
+    const launcher = screen.getByRole('button', { name: /^Open Meri/ });
     expect(screen.getByText('3')).toBeTruthy();
     fireEvent.click(launcher);
 
@@ -93,7 +93,7 @@ describe('MeriOverlay window state integration', () => {
 
     fireEvent.click(screen.getByRole('button', { name: 'Close Meri' }));
     expect(mocks.close).toHaveBeenCalledTimes(1);
-    expect(screen.getByRole('button', { name: 'Open Meri' })).toBeTruthy();
+    expect(screen.getByRole('button', { name: /^Open Meri/ })).toBeTruthy();
   });
 
   test('renders an already-open legacy caller as the docked surface', () => {

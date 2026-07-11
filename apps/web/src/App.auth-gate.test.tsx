@@ -11,6 +11,10 @@ vi.mock('./pages/HomePage.js', () => ({
   HomePage: () => <div data-testid="home-page">home</div>,
 }));
 
+vi.mock('./lib/billing.js', () => ({
+  useBillingState: () => ({ isLoading: false, data: { billingEnabled: false } }),
+}));
+
 const authState = {
   isLoaded: true,
   isSignedIn: true,

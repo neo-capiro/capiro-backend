@@ -56,7 +56,7 @@ function renderPanel() {
 }
 
 async function openNewHearingModal() {
-  const btn = await screen.findByRole('button', { name: /New Hearing/i });
+  const btn = await screen.findByRole('button', { name: /Add hearing manually/i });
   fireEvent.click(btn);
   await screen.findByText('Start a hearing session');
 }
@@ -145,9 +145,7 @@ describe('HearingWatchPage — New Hearing modal (P8)', () => {
     fireEvent.click(screen.getByRole('button', { name: /Resolve stream/i }));
 
     // The note renders in the assisted-paste fallback…
-    await waitFor(() =>
-      expect(screen.getByText(/No direct stream resolved/i)).toBeInTheDocument(),
-    );
+    await waitFor(() => expect(screen.getByText(/No direct stream resolved/i)).toBeInTheDocument());
     // …and the reference link is offered (C-SPAN ↗).
     expect(screen.getByRole('link', { name: /C-SPAN/i })).toBeInTheDocument();
   }, 15000);
@@ -175,9 +173,7 @@ describe('HearingWatchPage — New Hearing modal (P8)', () => {
     fireEvent.click(screen.getByRole('button', { name: /Resolve stream/i }));
 
     // No "Pick the matching video" (empty list) — instead the fallback note.
-    await waitFor(() =>
-      expect(screen.getByText(/No direct stream resolved/i)).toBeInTheDocument(),
-    );
+    await waitFor(() => expect(screen.getByText(/No direct stream resolved/i)).toBeInTheDocument());
     expect(screen.queryByText('Pick the matching video')).toBeNull();
   }, 15000);
 
