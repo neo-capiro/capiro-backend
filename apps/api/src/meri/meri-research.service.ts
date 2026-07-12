@@ -657,6 +657,18 @@ export class MeriResearchService {
               },
             }),
           );
+          // Degraded mode (v3 plan §3.6): research is fully-blocking. SHADOW only
+          // logs+persists (above); ANNOTATE/ENFORCE additionally prepend an
+          // Unverified banner naming the held findings to the PERSISTED report,
+          // so a flagged report can never present its findings as confirmed.
+          // Inert while mode is shadow (the default) — this branch is skipped.
+          if (auditorMode === 'annotate' || auditorMode === 'enforce') {
+            const checks = [...new Set(verdict.findings.map((f) => f.check))].join(', ');
+            reportBody =
+              `> ⚠️ **Unverified — ${verdict.findings.length} grounding finding(s) held for review ` +
+              `(${checks}).** Treat flagged claims as unconfirmed until a reviewer clears them.\n\n` +
+              reportBody;
+          }
         }
       } catch (err) {
         this.logger.warn(
