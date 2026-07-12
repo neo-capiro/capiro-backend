@@ -58,7 +58,7 @@ export const WRITE_DELEGATED_TOOLS: readonly DelegatedToolSpec[] = [
   {
     name: 'confirm_memory',
     description:
-      "Re-affirm that a remembered fact is still true and current, resetting its confirmation date. Use when the user verifies something Meri remembers (\"yes, that's still right\"). Pass the memoryItemId from search_memory. Does not change the content.",
+      'Re-affirm that a remembered fact is still true and current, resetting its confirmation date. Use when the user verifies something Meri remembers ("yes, that\'s still right"). Pass the memoryItemId from search_memory. Does not change the content.',
     readOnly: false,
   },
   {
