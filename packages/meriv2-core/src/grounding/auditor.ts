@@ -23,6 +23,16 @@
  *   D9  plus-up attribution     — a plus-up $ figure credited to a PE whose
  *                                 recorded mark-vs-request delta doesn't match it
  *                                 (names the sibling it fits — the S2-11 class).
+ *   D3  unit magnitude          — a dollar figure off from the PE's recorded
+ *                                 amount by ~1000x or ~1,000,000x (a thousands/
+ *                                 millions unit swap).
+ *   D8  primary-vehicle overclaim — a "primary" framing when a same-FY sibling
+ *                                 PE is materially (3x) larger (auditor-level
+ *                                 port of RC1's validatePrimaryVehicleClaim).
+ *   D5  sponsor existence       — a claimed bill sponsor that doesn't match
+ *                                 get_bill_status's recorded sponsor (S1-9).
+ *   D10 stale as-of date        — an explicit "as of DATE" citation staler than
+ *                                 the ledger's own status date for that bill.
  *
  * DESIGN: deterministic + pure. No LLM, no network. Precision over recall — a
  * check fires only on an unambiguous, ground-truth-backed contradiction, because
@@ -98,6 +108,19 @@ export interface AuditVerdict {
 function toSentences(text: string): string[] {
   return text
     .split(/(?<=[.!?])\s+|\n+/)
+    .map((s) => s.trim())
+    .filter((s) => s.length > 0);
+}
+
+/**
+ * Split text into LINES only (no period-based splitting). `toSentences`'s
+ * period-boundary split misreads an abbreviation period ("Rep." / "Sen.") as a
+ * sentence end, severing a sponsor claim from the name that follows it on the
+ * same line — checks that must see a title + name together use this instead.
+ */
+function toLines(text: string): string[] {
+  return text
+    .split(/\n+/)
     .map((s) => s.trim())
     .filter((s) => s.length > 0);
 }
@@ -550,6 +573,244 @@ export function checkPlusUpAttribution(output: string, ledger: ToolResultLedger)
   return out;
 }
 
+// ── shared: current-cycle authoritative amount per PE (D3 + D8) ──────────────
+
+/** peCode → {fy, amount} of the current-cycle authoritative mark, $M. */
+function authoritativeAmountByPe(
+  packets: EvidencePacket[],
+): Map<string, { fy: number; amount: number }> {
+  const best = new Map<string, { rank: number; fy: number; amount: number }>();
+  for (const p of packets) {
+    if (p.semantics.cycle !== 'current' || !p.semantics.amount) continue;
+    const rank = p.semantics.stage ? (STAGE_RANK_EV[p.semantics.stage] ?? -1) : -1;
+    const cur = best.get(p.entity.entityId);
+    if (!cur || rank > cur.rank) {
+      best.set(p.entity.entityId, {
+        rank,
+        fy: p.semantics.fiscalYear ?? 0,
+        amount: p.semantics.amount.value,
+      });
+    }
+  }
+  const out = new Map<string, { fy: number; amount: number }>();
+  for (const [pe, v] of best) out.set(pe, { fy: v.fy, amount: v.amount });
+  return out;
+}
+
+// ── D3: unit-magnitude mismatch ───────────────────────────────────────────────
+
+// A claimed figure off from the recorded amount by ~1000x (thousands<->millions)
+// or ~1,000,000x (ones<->millions) is the classic unit-swap bug, not a different
+// fact. 2% tolerance around the round magnitude keeps this from ever firing on a
+// merely-different (but correctly-scaled) number.
+const MAGNITUDES = [1000, 1_000_000];
+
+/**
+ * Flag a dollar figure whose magnitude relative to the PE's recorded current-
+ * cycle amount is off by ~1000x or ~1,000,000x — a thousands/millions or
+ * ones/millions unit-swap. Fires only on a funding-cue sentence naming EXACTLY
+ * one ledger-known PE and carrying EXACTLY one dollar figure; a genuinely
+ * different (correctly-scaled) number never sits this close to a round power of
+ * 1000, so this is high-precision by construction.
+ */
+export function checkUnitMagnitude(output: string, ledger: ToolResultLedger): AuditFinding[] {
+  const amtByPe = authoritativeAmountByPe(compilePacketsFromLedger(ledger));
+  if (amtByPe.size === 0) return [];
+  const out: AuditFinding[] = [];
+  for (const s of toSentences(output)) {
+    if (!FUNDING_CUE.test(s)) continue;
+    const codes = extractCitedPeCodes(s).filter((c) => amtByPe.has(c));
+    if (codes.length !== 1) continue;
+    const figures: number[] = [];
+    const re = new RegExp(MONEY_RE.source, 'gi');
+    let m: RegExpExecArray | null;
+    while ((m = re.exec(s)) != null) {
+      const v = moneyToMillions(m[1]!, m[2]);
+      if (Number.isFinite(v)) figures.push(v);
+    }
+    if (figures.length !== 1) continue;
+    const claimed = figures[0]!;
+    const pe = codes[0]!;
+    const actual = amtByPe.get(pe)!.amount;
+    if (actual <= 0 || claimed <= 0) continue;
+    const ratio = claimed / actual;
+    for (const mag of MAGNITUDES) {
+      const offByMag = Math.abs(ratio - mag) / mag <= 0.02;
+      const offByInverse = Math.abs(ratio - 1 / mag) / (1 / mag) <= 0.02;
+      if (offByMag || offByInverse) {
+        out.push({
+          check: 'D3',
+          severity: 'high',
+          span: s,
+          detail: `This figure parses to $${claimed}M, off from ${pe}'s recorded current-cycle amount ($${actual}M) by roughly a factor of ${mag} — check for a thousands/millions unit mismatch before restating it.`,
+        });
+        break;
+      }
+    }
+  }
+  return out;
+}
+
+// ── D8: primary-vehicle overclaim (auditor-level port of RC1's structural check) ─
+
+const PRIMARY_CLAIM_RE_A = /\bprimary\b[^.]*\b(vehicle|lane|line|account|program)\b/i;
+const PRIMARY_CLAIM_RE_B = /\b(vehicle|lane|line|account|program)\b[^.]*\bprimary\b/i;
+
+/**
+ * Flag a "primary funding vehicle" overclaim: the sentence calls a PE the
+ * "primary" lane, but the ledger's compiled EvidencePackets show a SAME-FISCAL-
+ * YEAR sibling PE that is materially larger (3x by default, matching RC1's
+ * `validatePrimaryVehicleClaim`). Fires only on a primary-framing sentence
+ * naming EXACTLY one ledger-known PE; names the larger sibling.
+ */
+export function checkPrimaryVehicleOverclaim(
+  output: string,
+  ledger: ToolResultLedger,
+  factor = 3,
+): AuditFinding[] {
+  const amtByPe = authoritativeAmountByPe(compilePacketsFromLedger(ledger));
+  if (amtByPe.size < 2) return [];
+  const out: AuditFinding[] = [];
+  for (const s of toSentences(output)) {
+    if (!(PRIMARY_CLAIM_RE_A.test(s) || PRIMARY_CLAIM_RE_B.test(s))) continue;
+    const codes = extractCitedPeCodes(s).filter((c) => amtByPe.has(c));
+    if (codes.length !== 1) continue;
+    const pe = codes[0]!;
+    const { fy, amount } = amtByPe.get(pe)!;
+    if (amount <= 0) continue;
+    const bigger = [...amtByPe.entries()]
+      .filter(([c, v]) => c !== pe && v.fy === fy && v.amount > amount * factor)
+      .sort((a, b) => b[1].amount - a[1].amount);
+    if (!bigger.length) continue;
+    const [siblingPe, siblingV] = bigger[0]!;
+    out.push({
+      check: 'D8',
+      severity: 'high',
+      span: s,
+      detail: `The sentence frames ${pe} as the "primary" vehicle, but ${siblingPe} is materially larger in the same fiscal year ($${siblingV.amount}M vs $${amount}M) per the tool data. Drop the "primary" framing or re-anchor to the larger line.`,
+    });
+  }
+  return out;
+}
+
+// ── D5: sponsor entity existence ──────────────────────────────────────────────
+
+const SPONSOR_CLAIM_RE =
+  /\bsponsor(?:ed)?\s*(?:is|:|,|by)?\s+((?:Rep\.|Sen\.|Representative|Senator)?\s*[A-Z][a-zA-Z'.-]+(?:\s+[A-Z][a-zA-Z'.-]+){0,3})/i;
+
+function normalizeSponsorName(x: string): string {
+  return x
+    .replace(/\b(rep|sen|representative|senator)\b\.?/gi, '')
+    .replace(/[(),.]/g, '')
+    .replace(/\s+/g, ' ')
+    .trim()
+    .toLowerCase();
+}
+
+/** billId → sponsor name, from any get_bill_status-shaped ledger entry. */
+function billSponsorFromLedger(ledger: ToolResultLedger): Map<string, string> {
+  const out = new Map<string, string>();
+  for (const e of ledger.entries) {
+    const r = e.result as Record<string, unknown> | undefined;
+    if (!r || typeof r !== 'object') continue;
+    const billId = typeof r.billId === 'string' ? r.billId : undefined;
+    if (!billId) continue;
+    const sponsorObj = r.sponsor as Record<string, unknown> | undefined;
+    const name =
+      sponsorObj && typeof sponsorObj === 'object' && typeof sponsorObj.name === 'string'
+        ? sponsorObj.name
+        : typeof r.sponsorName === 'string'
+          ? r.sponsorName
+          : undefined;
+    if (name && name.trim()) out.set(billId, name.trim());
+  }
+  return out;
+}
+
+/**
+ * Flag a claimed bill sponsor that doesn't match get_bill_status's recorded
+ * sponsor (S1-9). Fires only on a sentence carrying BOTH an explicit sponsor
+ * claim ("sponsor: NAME" / "sponsored by NAME") AND a ledger-known billId token
+ * verbatim; normalizes titles/punctuation and allows either-direction
+ * containment (a last-name-only claim still matches) before flagging.
+ */
+export function checkSponsorExistence(output: string, ledger: ToolResultLedger): AuditFinding[] {
+  const billSponsor = billSponsorFromLedger(ledger);
+  if (billSponsor.size === 0) return [];
+  const out: AuditFinding[] = [];
+  // Lines, not toSentences: "Rep." / "Sen." abbreviation periods would
+  // otherwise sever the claimed name from the sentence carrying it.
+  for (const s of toLines(output)) {
+    const m = SPONSOR_CLAIM_RE.exec(s);
+    if (!m) continue;
+    const lower = s.toLowerCase();
+    const billId = [...billSponsor.keys()].find((id) => lower.includes(id.toLowerCase()));
+    if (!billId) continue;
+    const claimed = normalizeSponsorName(m[1]!);
+    const actualRaw = billSponsor.get(billId)!;
+    const actual = normalizeSponsorName(actualRaw);
+    if (claimed.length < 3 || actual.length < 3) continue;
+    if (claimed.includes(actual) || actual.includes(claimed)) continue; // matches
+    out.push({
+      check: 'D5',
+      severity: 'high',
+      span: s,
+      detail: `Sponsor claimed as "${m[1]!.trim()}", but the tool data lists "${actualRaw}" as the sponsor of ${billId}.`,
+    });
+  }
+  return out;
+}
+
+// ── D10: stale as-of date ─────────────────────────────────────────────────────
+
+const AS_OF_DATE_RE = /\bas of\s+(\d{4}-\d{2}-\d{2})\b/i;
+
+/** billId → statusAt/asOf date string, from any get_bill_status-shaped ledger entry. */
+function billStatusAtFromLedger(ledger: ToolResultLedger): Map<string, string> {
+  const out = new Map<string, string>();
+  for (const e of ledger.entries) {
+    const r = e.result as Record<string, unknown> | undefined;
+    if (!r || typeof r !== 'object') continue;
+    const billId = typeof r.billId === 'string' ? r.billId : undefined;
+    const statusAt =
+      typeof r.statusAt === 'string' ? r.statusAt : typeof r.asOf === 'string' ? r.asOf : undefined;
+    if (billId && statusAt) out.set(billId, statusAt);
+  }
+  return out;
+}
+
+/**
+ * Flag an explicit "(as of YYYY-MM-DD)" citation that is STALER than the
+ * ledger's actual status date for the same bill — a freshness violation, never
+ * a mere style choice. Fires only when the sentence (a) states an explicit
+ * as-of date, (b) carries a ledger-known billId token verbatim, and (c) that
+ * date is strictly earlier than the ledger's own statusAt/asOf for that bill.
+ * Silent on sentences with no explicit as-of date (no recall claimed there).
+ */
+export function checkAsOfFreshness(output: string, ledger: ToolResultLedger): AuditFinding[] {
+  const billAsOf = billStatusAtFromLedger(ledger);
+  if (billAsOf.size === 0) return [];
+  const out: AuditFinding[] = [];
+  for (const s of toSentences(output)) {
+    const m = AS_OF_DATE_RE.exec(s);
+    if (!m) continue;
+    const stated = m[1]!;
+    const lower = s.toLowerCase();
+    const billId = [...billAsOf.keys()].find((id) => lower.includes(id.toLowerCase()));
+    if (!billId) continue;
+    const actual = billAsOf.get(billId)!.slice(0, 10);
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(actual)) continue; // can't compare reliably
+    if (stated >= actual) continue; // same or newer → fine
+    out.push({
+      check: 'D10',
+      severity: 'medium',
+      span: s,
+      detail: `This sentence cites ${billId} as of ${stated}, but the tool data has a newer status as of ${actual}. Re-query before stating an as-of date older than the latest retrieved status.`,
+    });
+  }
+  return out;
+}
+
 // ── orchestration + verdict gate ─────────────────────────────────────────────
 
 /** Per-surface fail policy (v3 plan §3.6) applied when mode === 'enforce'. */
@@ -595,6 +856,10 @@ export function runAuditor(input: AuditInput): AuditVerdict {
     ...checkIdentifierIdentity(output, ledger),
     ...checkMemberDistrict(output, ledger),
     ...checkPlusUpAttribution(output, ledger),
+    ...checkUnitMagnitude(output, ledger),
+    ...checkPrimaryVehicleOverclaim(output, ledger),
+    ...checkSponsorExistence(output, ledger),
+    ...checkAsOfFreshness(output, ledger),
   ];
   // Dedupe by (check, span): the text-D4 and evidence-D4 can both fire on one
   // sentence — the reader/ledger should see it once.

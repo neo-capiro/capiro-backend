@@ -8,10 +8,161 @@ import {
   checkIdentifierIdentity,
   checkMemberDistrict,
   checkPlusUpAttribution,
+  checkUnitMagnitude,
+  checkPrimaryVehicleOverclaim,
+  checkSponsorExistence,
+  checkAsOfFreshness,
   type ToolResultLedger,
 } from './auditor';
 
 const ledgerWith = (entries: ToolResultLedger['entries']): ToolResultLedger => ({ entries });
+
+describe('D3 — unit-magnitude mismatch', () => {
+  const ledger = ledgerWith([
+    {
+      tool: 'get_pe_budget_timeline',
+      serialized: '{"peCode":"0603851F"}',
+      result: {
+        peCode: '0603851F',
+        generatedAt: '2026-07-12T00:00:00Z',
+        currentCycleFy: 2027,
+        years: [{ fy: 2027, request: 50, hacDMark: 72.1 }],
+      },
+    },
+  ]);
+  it('flags a figure off by ~1000x (thousands read as millions)', () => {
+    const f = checkUnitMagnitude('PE 0603851F is funded at $72,100 this cycle.', ledger);
+    expect(f).toHaveLength(1);
+    expect(f[0]!.check).toBe('D3');
+  });
+  it('flags a figure off by ~1,000,000x (ones read as millions)', () => {
+    const f = checkUnitMagnitude('PE 0603851F is funded at $72,100,000 this cycle.', ledger);
+    expect(f).toHaveLength(1);
+  });
+  it('does NOT flag the correctly-scaled figure', () => {
+    expect(checkUnitMagnitude('PE 0603851F is funded at $72.1M this cycle.', ledger)).toEqual([]);
+  });
+  it('does NOT flag a genuinely different (non-magnitude-related) figure', () => {
+    expect(checkUnitMagnitude('PE 0603851F is funded at $50M this cycle.', ledger)).toEqual([]);
+  });
+});
+
+describe('D8 — primary-vehicle overclaim (auditor-level port)', () => {
+  const ledger = ledgerWith([
+    {
+      tool: 'get_pe_budget_timeline',
+      serialized: '{"peCode":"0603851F"}',
+      result: {
+        peCode: '0603851F',
+        generatedAt: '2026-07-12T00:00:00Z',
+        currentCycleFy: 2027,
+        years: [{ fy: 2027, request: 50, hacDMark: 50 }],
+      },
+    },
+    {
+      tool: 'get_pe_budget_timeline',
+      serialized: '{"peCode":"0604256AX"}',
+      result: {
+        peCode: '0604256AX',
+        generatedAt: '2026-07-12T00:00:00Z',
+        currentCycleFy: 2027,
+        years: [{ fy: 2027, request: 500, hacDMark: 500 }],
+      },
+    },
+  ]);
+  it('flags "primary" framing when a same-FY sibling is materially larger', () => {
+    const f = checkPrimaryVehicleOverclaim(
+      'PE 0603851F is the primary funding vehicle for this mission.',
+      ledger,
+    );
+    expect(f).toHaveLength(1);
+    expect(f[0]!.check).toBe('D8');
+    expect(f[0]!.detail).toContain('0604256AX');
+  });
+  it('does NOT flag without a "primary" claim', () => {
+    expect(checkPrimaryVehicleOverclaim('PE 0603851F funds prototyping.', ledger)).toEqual([]);
+  });
+  it('does NOT flag when no sibling clears the 3x factor', () => {
+    const close = ledgerWith([
+      {
+        tool: 'get_pe_budget_timeline',
+        serialized: '{}',
+        result: {
+          peCode: '0603851F',
+          generatedAt: '2026-07-12T00:00:00Z',
+          currentCycleFy: 2027,
+          years: [{ fy: 2027, request: 50, hacDMark: 50 }],
+        },
+      },
+      {
+        tool: 'get_pe_budget_timeline',
+        serialized: '{}',
+        result: {
+          peCode: '0604256AX',
+          generatedAt: '2026-07-12T00:00:00Z',
+          currentCycleFy: 2027,
+          years: [{ fy: 2027, request: 80, hacDMark: 80 }],
+        },
+      },
+    ]);
+    expect(checkPrimaryVehicleOverclaim('PE 0603851F is the primary vehicle here.', close)).toEqual(
+      [],
+    );
+  });
+});
+
+describe('D5 — sponsor entity existence', () => {
+  const ledger = ledgerWith([
+    {
+      tool: 'get_bill_status',
+      serialized: '{"billId":"hr-8800-119"}',
+      result: { billId: 'hr-8800-119', sponsor: { name: 'Mike Rogers', bioguideId: 'R000575' } },
+    },
+  ]);
+  it('flags a claimed sponsor that does not match the ledger', () => {
+    const f = checkSponsorExistence('Sponsor: Rep. Jane Smith, hr-8800-119.', ledger);
+    expect(f).toHaveLength(1);
+    expect(f[0]!.check).toBe('D5');
+  });
+  it('does NOT flag the correct sponsor (with or without a title)', () => {
+    expect(checkSponsorExistence('Sponsored by Rep. Mike Rogers, hr-8800-119.', ledger)).toEqual(
+      [],
+    );
+    expect(checkSponsorExistence('The sponsor is Mike Rogers (hr-8800-119).', ledger)).toEqual([]);
+  });
+  it('does NOT flag a last-name-only claim that matches', () => {
+    expect(checkSponsorExistence('Sponsor: Rogers, hr-8800-119.', ledger)).toEqual([]);
+  });
+  it('abstains without an explicit sponsor claim or without the billId present', () => {
+    expect(checkSponsorExistence('hr-8800-119 was reported favorably.', ledger)).toEqual([]);
+    expect(checkSponsorExistence('Sponsor: Rep. Jane Smith.', ledger)).toEqual([]); // no billId token
+  });
+});
+
+describe('D10 — stale as-of date', () => {
+  const ledger = ledgerWith([
+    {
+      tool: 'get_bill_status',
+      serialized: '{"billId":"hr-8800-119"}',
+      result: { billId: 'hr-8800-119', status: 'reported', statusAt: '2026-06-12' },
+    },
+  ]);
+  it('flags an explicit as-of date staler than the ledger status date', () => {
+    const f = checkAsOfFreshness(
+      'H.R. 8800 (hr-8800-119) was reported out of committee (as of 2026-05-01).',
+      ledger,
+    );
+    expect(f).toHaveLength(1);
+    expect(f[0]!.check).toBe('D10');
+  });
+  it('does NOT flag a current or newer as-of date', () => {
+    expect(checkAsOfFreshness('hr-8800-119 was reported (as of 2026-06-12).', ledger)).toEqual([]);
+    expect(checkAsOfFreshness('hr-8800-119 was reported (as of 2026-07-01).', ledger)).toEqual([]);
+  });
+  it('abstains on a sentence with no explicit as-of date', () => {
+    expect(checkAsOfFreshness('hr-8800-119 was reported out of committee.', ledger)).toEqual([]);
+  });
+});
 
 describe('D9 — plus-up attributed to the wrong PE', () => {
   // Two PEs: 0603851F delta = +12.9 (72.1→85), 0604256AX delta = +40.8 (72.1→112.9).
