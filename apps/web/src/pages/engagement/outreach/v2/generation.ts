@@ -278,7 +278,13 @@ export interface BatchDraftResult {
   recipientId: string;
   subject: string;
   body: string;
-  status: 'ready' | 'error';
+  /**
+   * 'ready' = sendable; 'error' = generation failed; 'held' = the post-hoc
+   * grounding auditor HELD this draft (only under MERI_AUDITOR_MODE=enforce).
+   * A held draft is NOT sendable — it is bucketed with failures below so it can
+   * never be auto-sent while a grounding finding is unresolved.
+   */
+  status: 'ready' | 'error' | 'held';
   error?: string;
 }
 
@@ -299,7 +305,10 @@ export function partitionGenerationResults(
   const failedGenKeys: string[] = [];
   for (const s of slots) {
     const r = byId.get(s.resultId);
-    if (r && r.status !== 'error')
+    // Only 'ready' proceeds as a sendable draft. 'error' (generation failure),
+    // 'held' (auditor hold under enforce), and a missing result all route to
+    // failedGenKeys so they are surfaced for attention and never auto-sent.
+    if (r && r.status === 'ready')
       drafts.push({ genKey: s.genKey, subject: r.subject, body: r.body });
     else failedGenKeys.push(s.genKey);
   }

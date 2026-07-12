@@ -61,4 +61,11 @@ export interface AlertMemoResult {
   lowConfidence: boolean;
   /** which client Memory files steered the voice (audit + "context used" UI) */
   memoryFilesUsed: string[];
+  /**
+   * true when the post-hoc auditor HELD the memo (enforce mode + a grounding
+   * finding): the markdown is returned for review but was NOT auto-filed to the
+   * client's Documents (document === null). Always false under shadow/annotate/
+   * off, so the default flow is unaffected. (Phase 2.5-1.)
+   */
+  held: boolean;
 }

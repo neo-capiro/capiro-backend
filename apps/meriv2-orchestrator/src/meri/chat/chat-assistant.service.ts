@@ -250,7 +250,14 @@ export class ChatAssistantService {
    * tuning. Findings ALSO persist to meri_audit_ledger (the orchestrator shares
    * apps/api's generated Prisma client + DB — see PrismaService's own doc
    * comment — so this is the SAME table the other 4 surfaces already write to).
-   * Fully guarded; never affects the response.
+   *
+   * CHAT IS DELIBERATELY OBSERVE-ONLY (Phase 2.5-1 decision, per ADR-2): even
+   * under MERI_AUDITOR_MODE=enforce this never withholds or repairs — it is a
+   * fire-and-forget call from finalize() that resolves AFTER the reply is already
+   * returned, so it structurally cannot alter output, and re-architecting to
+   * buffer-before-stream would add latency to the busiest surface for marginal
+   * benefit. Real enforcement (hold-as-draft) lives on the DELIVERABLE surfaces
+   * (outreach/alert-memo/research). Fully guarded; never affects the response.
    */
   private async auditReplyShadow(
     tenantId: string,

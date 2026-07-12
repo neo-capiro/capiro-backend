@@ -348,7 +348,14 @@ export interface OutreachBatchDraftResult {
   recipientId: string;
   subject: string;
   body: string;
-  status: 'ready' | 'error';
+  /**
+   * 'ready' = sendable; 'error' = generation failed (empty body); 'held' = the
+   * post-hoc auditor HELD this draft (enforce mode + a grounding finding) — it
+   * is shown for review with `contextNote` but the wizard must treat it as
+   * NON-sendable, same as 'error', until a reviewer clears it. 'held' only ever
+   * occurs under MERI_AUDITOR_MODE=enforce; shadow/annotate never produce it.
+   */
+  status: 'ready' | 'error' | 'held';
   /** Failure detail for telemetry/logs ONLY — never surface raw to end users. */
   error?: string;
   /**
@@ -2850,6 +2857,12 @@ export class EngagementService {
         // subject/body — degraded mode (annotate/enforce only) appends a line
         // to the INTERNAL contextNote the lobbyist sees, never the recipient.
         let auditorContextNote: string | undefined;
+        // held: set true only when the auditor returns decision==='hold' (enforce
+        // mode + a finding on this blocking surface). It flips the returned
+        // status to 'held', which the wizard treats as non-sendable — the draft
+        // is shown for review (with the internal contextNote) but excluded from
+        // the send. Inert under shadow/annotate (decision is never 'hold' there).
+        let recipientHeld = false;
         const auditorMode = (process.env.MERI_AUDITOR_MODE as AuditorMode | undefined) ?? 'off';
         if (auditorMode !== 'off' && generated.body.trim().length > 0) {
           try {
@@ -2924,6 +2937,9 @@ export class EngagementService {
                 const checks = [...new Set(verdict.findings.map((f) => f.check))].join(', ');
                 auditorContextNote = `⚠️ Unverified — ${verdict.findings.length} grounding finding(s) held for review (${checks}). Treat flagged claims as unconfirmed until a reviewer clears them.`;
               }
+              // Enforce = hold: mark this recipient's draft non-sendable. Inert
+              // under shadow/annotate (decision is 'hold' only in enforce mode).
+              recipientHeld = verdict.decision === 'hold';
             }
           } catch (auditErr) {
             this.logger.warn(
@@ -2937,7 +2953,7 @@ export class EngagementService {
             recipientId,
             subject: generated.subject,
             body: generated.body,
-            status: 'ready' as const,
+            status: (recipientHeld ? 'held' : 'ready') as 'ready' | 'held',
             ...(auditorContextNote ? { contextNote: auditorContextNote } : {}),
           },
           provider: generated.provider,

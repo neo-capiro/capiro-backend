@@ -7,12 +7,15 @@
  * and (b) the same-turn ToolResultLedger reflecting the TRUE data. The assertion
  * is that the deterministic auditor CATCHES the incident-specific error class.
  *
- * HONEST COVERAGE BOUNDARY: the Wave-2-Phase-A kernel ships D1/D4b/D6/D7. The
- * incident errors those cover are asserted below. The remaining incident errors
- * (reversed comparison → D4, wrong-PE plus-up → D9, member↔district → D11,
- * 0-result fabrication → skeptic) are marked `it.todo` — they are covered by the
- * shadow-gated / later-wave checks, and this file is where they get switched from
- * todo to assertion as those land. Coverage is a tracked metric, never implied.
+ * COVERAGE BOUNDARY (updated Phase 2.5-2, 2026-07-12): the full deterministic
+ * taxonomy D1, D3, D4 (text + evidence), D4b, D5, D6, D7, D8, D9, D10, D11 is
+ * shipped, registered in `runAuditor`, and asserted here — the three original
+ * client incidents (Samples 1-3) plus the cataloged classes D3/D5/D8 that were
+ * registered but had no golden regression until now (Sample 4). The ONLY
+ * remaining `it.todo` is the residual undecidable class (fabricated staffer/
+ * section specifics over 0-result evidence, S3-3/4/5) that routes to the LLM
+ * skeptic — deferred with the skeptic's live wiring (2.5-3.2/3.3). Coverage is a
+ * tracked metric, never implied.
  */
 import { runAuditor, type ToolResultLedger } from './auditor';
 
@@ -154,6 +157,110 @@ describe('GOLDEN — Sample 3: Deep-research memo (self-audited against nothing)
   // (fabricated staffer contact, invented section numbers) — needs the LLM
   // skeptic + 0-result telemetry, shadow-gated.
   it.todo('Skeptic + 0-result telemetry catch the fabricated staffer/section specifics (S3-3/4/5)');
+});
+
+describe('GOLDEN — Sample 4: cataloged classes D3/D5/D8 (registered checks, now regression-covered)', () => {
+  it('D3 catches a thousands/millions unit swap on a ledger-known PE amount', () => {
+    // The PE's authoritative current-cycle mark is $112.9M (HAC-D). Prose that
+    // states "$112.9 billion" is off by a factor of 1000 — the classic unit swap.
+    const l = ledger([
+      {
+        tool: 'get_pe_budget_timeline',
+        serialized: '{"peCode":"0603851F"}',
+        result: {
+          peCode: '0603851F',
+          generatedAt: '2026-07-12T00:00:00Z',
+          currentCycleFy: 2027,
+          years: [{ fy: 2027, request: 72.1, hacDMark: 112.9 }],
+        },
+      },
+    ]);
+    const shipped = 'PE 0603851F is funded at $112.9 billion in FY2027.';
+    const v = runAuditor({ output: shipped, ledger: l, surface: 'chat', mode: 'enforce' });
+    expect(v.findings.some((f) => f.check === 'D3')).toBe(true);
+  });
+
+  it('D5 catches a claimed bill sponsor that contradicts get_bill_status', () => {
+    const l = ledger([
+      {
+        tool: 'get_bill_status',
+        serialized: '{"billId":"hr-8800-119","sponsorName":"Rob Wittman"}',
+        result: { billId: 'hr-8800-119', sponsorName: 'Rob Wittman' },
+      },
+    ]);
+    const shipped = 'H.R. 8800 (hr-8800-119) is sponsored by Rep. Adam Smith.';
+    const v = runAuditor({ output: shipped, ledger: l, surface: 'chat', mode: 'enforce' });
+    expect(v.findings.some((f) => f.check === 'D5')).toBe(true);
+  });
+
+  it('D8 catches a "primary vehicle" overclaim when a same-FY sibling PE is materially larger', () => {
+    // 0603851F is $30M; its same-FY sibling 0604256AX is $120M (4x) — calling the
+    // smaller line the "primary" funding vehicle is the overclaim D8 flags.
+    const l = ledger([
+      {
+        tool: 'get_pe_budget_timeline',
+        serialized: '{"peCode":"0603851F"}',
+        result: {
+          peCode: '0603851F',
+          generatedAt: '2026-07-12T00:00:00Z',
+          currentCycleFy: 2027,
+          years: [{ fy: 2027, request: 30, hacDMark: 30 }],
+        },
+      },
+      {
+        tool: 'get_pe_budget_timeline',
+        serialized: '{"peCode":"0604256AX"}',
+        result: {
+          peCode: '0604256AX',
+          generatedAt: '2026-07-12T00:00:00Z',
+          currentCycleFy: 2027,
+          years: [{ fy: 2027, request: 120, hacDMark: 120 }],
+        },
+      },
+    ]);
+    const shipped = 'PE 0603851F is the primary funding vehicle for this capability.';
+    const v = runAuditor({ output: shipped, ledger: l, surface: 'chat', mode: 'enforce' });
+    expect(v.findings.some((f) => f.check === 'D8')).toBe(true);
+  });
+
+  it('no false positive: a correctly-scaled amount, correct sponsor, and non-primary framing are clean', () => {
+    const peL = ledger([
+      {
+        tool: 'get_pe_budget_timeline',
+        serialized: '{"peCode":"0603851F"}',
+        result: {
+          peCode: '0603851F',
+          generatedAt: '2026-07-12T00:00:00Z',
+          currentCycleFy: 2027,
+          years: [{ fy: 2027, request: 72.1, hacDMark: 112.9 }],
+        },
+      },
+    ]);
+    // Correctly-scaled figure ($112.9M matches the mark) — D3 must NOT fire.
+    const okAmount = runAuditor({
+      output: 'PE 0603851F is funded at $112.9M in FY2027.',
+      ledger: peL,
+      surface: 'chat',
+      mode: 'enforce',
+    });
+    expect(okAmount.findings.some((f) => f.check === 'D3')).toBe(false);
+
+    // Matching sponsor — D5 must NOT fire.
+    const sponsorL = ledger([
+      {
+        tool: 'get_bill_status',
+        serialized: '{"billId":"hr-8800-119","sponsorName":"Rob Wittman"}',
+        result: { billId: 'hr-8800-119', sponsorName: 'Rob Wittman' },
+      },
+    ]);
+    const okSponsor = runAuditor({
+      output: 'H.R. 8800 (hr-8800-119) is sponsored by Rep. Rob Wittman.',
+      ledger: sponsorL,
+      surface: 'chat',
+      mode: 'enforce',
+    });
+    expect(okSponsor.findings.some((f) => f.check === 'D5')).toBe(false);
+  });
 });
 
 describe('GOLDEN — no false positives on the CORRECT versions of each incident', () => {

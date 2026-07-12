@@ -237,6 +237,18 @@ describe('partitionGenerationResults (W0.2 same-batch failure routing)', () => {
     ];
     expect(partitionGenerationResults(slots, allError).drafts).toEqual([]);
   });
+
+  it('routes a status:held item (auditor hold under enforce) to failedGenKeys — never auto-sent (Phase 2.5-1)', () => {
+    const results: BatchDraftResult[] = [
+      { recipientId: 'a', subject: 'SA', body: 'BA', status: 'ready' },
+      // A held draft has real content but a grounding finding held it; it must
+      // NOT flow into `drafts` (which projectDraftsForSend would then send).
+      { recipientId: 'b', subject: 'SB', body: 'BB', status: 'held' },
+    ];
+    const { drafts, failedGenKeys } = partitionGenerationResults(slots, results);
+    expect(drafts).toEqual([{ genKey: 'individual:a', subject: 'SA', body: 'BA' }]);
+    expect(failedGenKeys).toEqual(['individual:b']);
+  });
 });
 
 describe('normalizeTone (W0.5 legacy-resume migration)', () => {

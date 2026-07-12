@@ -142,6 +142,13 @@ export class AlertMemoService {
     // PE/procurement data on this surface (the alert Feed is bill/hearing-only),
     // so PE-keyed checks remain inert here. Fully guarded; never breaks memo
     // generation.
+    // held: set true only when the auditor returns decision==='hold' — which
+    // decisionFor() produces ONLY under mode==='enforce' on this (blocking)
+    // surface with a finding. Under shadow/annotate it stays false, so the
+    // auto-file below is unchanged by default. When held, the memo is generated
+    // and returned for review but NOT auto-filed to the client's Documents
+    // (Phase 2.5-1, "hold as draft, block send/file").
+    let held = false;
     const auditorMode = (process.env.MERI_AUDITOR_MODE as AuditorMode | undefined) ?? 'off';
     if (auditorMode !== 'off' && markdown.trim().length > 0) {
       try {
@@ -201,6 +208,10 @@ export class AlertMemoService {
               `(${checks}).** Treat flagged claims as unconfirmed until a reviewer clears them.\n\n` +
               markdown;
           }
+          // Enforce = hold: block the auto-file below. decisionFor() returns
+          // 'hold' only in enforce mode (annotate → 'deliver_with_flags'), so
+          // this is inert under shadow/annotate and never changes today's flow.
+          held = verdict.decision === 'hold';
         }
       } catch (err) {
         this.logger.warn(
@@ -209,28 +220,40 @@ export class AlertMemoService {
       }
     }
 
-    // Render docx + auto-file in the client's Documents.
+    // Render docx + auto-file in the client's Documents — UNLESS the memo is
+    // held for review (enforce mode + grounding finding). A held memo is still
+    // returned to the composer (markdown carries the Unverified banner) but is
+    // deliberately NOT filed into the client's Documents until a reviewer clears
+    // it, so a flagged memo can never land in the client record as if approved.
     let document: AlertMemoResult['document'] = null;
-    try {
-      const buffer = await renderMemoDocx(toMemoDocInput(clientName, alert, sections, sources));
-      const fileName = `${title}.docx`.replace(/[\\/:*?"<>|]+/g, '-');
-      const saved = await this.engagement.createAttachmentFromBuffer(ctx, {
-        clientId,
-        fileName,
-        contentType: DOCX_MIME,
-        buffer,
-        source: 'intel_memo',
-      });
-      document = { attachmentId: saved.id, fileName: saved.fileName };
-      // Regenerate: replace the prior Document so the client's Documents don't accrue drafts.
-      if (replaceAttachmentId) {
-        await this.engagement
-          .deleteAttachment(ctx, replaceAttachmentId)
-          .catch((e) => this.logger.warn(`replace prior memo doc failed: ${(e as Error).message}`));
+    if (held) {
+      this.logger.warn(
+        `[meri-auditor:enforce] alert memo HELD for review — not auto-filed to client Documents`,
+      );
+    } else {
+      try {
+        const buffer = await renderMemoDocx(toMemoDocInput(clientName, alert, sections, sources));
+        const fileName = `${title}.docx`.replace(/[\\/:*?"<>|]+/g, '-');
+        const saved = await this.engagement.createAttachmentFromBuffer(ctx, {
+          clientId,
+          fileName,
+          contentType: DOCX_MIME,
+          buffer,
+          source: 'intel_memo',
+        });
+        document = { attachmentId: saved.id, fileName: saved.fileName };
+        // Regenerate: replace the prior Document so the client's Documents don't accrue drafts.
+        if (replaceAttachmentId) {
+          await this.engagement
+            .deleteAttachment(ctx, replaceAttachmentId)
+            .catch((e) =>
+              this.logger.warn(`replace prior memo doc failed: ${(e as Error).message}`),
+            );
+        }
+      } catch (err) {
+        // The memo is still returned for the composer; auto-file can be retried by the client.
+        this.logger.error(`alert-memo auto-file to Documents failed: ${(err as Error).message}`);
       }
-    } catch (err) {
-      // The memo is still returned for the composer; auto-file can be retried by the client.
-      this.logger.error(`alert-memo auto-file to Documents failed: ${(err as Error).message}`);
     }
 
     return {
@@ -243,6 +266,7 @@ export class AlertMemoService {
       model: cred.model,
       lowConfidence,
       memoryFilesUsed,
+      held,
     };
   }
 
@@ -386,7 +410,9 @@ function buildClaims(
   if (alert.billDisplayNum || alert.billTitle)
     push(`Bill: ${[alert.billDisplayNum, alert.billTitle].filter(Boolean).join(' — ')}`, alert.url);
   if (liveBillStatus?.status) {
-    const asOf = liveBillStatus.statusAt ? ` (as of ${String(liveBillStatus.statusAt).slice(0, 10)})` : '';
+    const asOf = liveBillStatus.statusAt
+      ? ` (as of ${String(liveBillStatus.statusAt).slice(0, 10)})`
+      : '';
     push(
       `CURRENT status as of memo generation, live-checked and superseding any earlier snapshot above${asOf}: ${billStatusLabel(liveBillStatus.status)}`,
     );

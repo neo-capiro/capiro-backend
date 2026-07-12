@@ -1,0 +1,61 @@
+# Nightly grounding gate (Phase 2.5-5, v3 zero-trust master plan G2/G3).
+#
+# The golden-fixture suite (G2) and the core grounding suite (G3) already run
+# blocking on every PR via ci-pr.yml's "Test meriv2-core" step. This adds the
+# SCHEDULED (nightly) run the v3 plan calls for, and — by splitting them into two
+# independently-named jobs — makes G2 and G3 separately visible/required so a
+# later pre-prod-roll gate can hang off the golden job by name.
+#
+# These are deterministic, token-free jest suites (no live model calls), so the
+# nightly run is cheap and always safe to keep green.
+
+name: grounding-nightly
+
+on:
+  schedule:
+    - cron: '41 6 * * *' # nightly, 06:41 UTC (offset from clio-evals 07:17)
+  workflow_dispatch: {}
+
+permissions:
+  contents: read
+
+jobs:
+  g2-golden:
+    name: G2 — golden fixtures (incident regressions)
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 9
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      # The golden suite asserts the deterministic auditor still catches each
+      # shipped hallucination incident + the cataloged D3/D5/D8 classes.
+      # (Forward-slash --testMatch glob is separator-agnostic; a bare positional
+      # path pattern mis-resolves on some jest/OS combos.)
+      - name: G2 golden-fixture suite
+        run: pnpm --filter @capiro/meriv2-core test -- --testMatch "**/auditor-golden.spec.ts"
+
+  g3-grounding:
+    name: G3 — core grounding suite
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 9
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      # Every grounding unit suite: auditor, evidence compiler, claim gate/map,
+      # grounded-json, skeptic. A regression in any is a nightly red.
+      - name: G3 grounding suites
+        run: pnpm --filter @capiro/meriv2-core test -- --testMatch "**/src/grounding/**/*.spec.ts"

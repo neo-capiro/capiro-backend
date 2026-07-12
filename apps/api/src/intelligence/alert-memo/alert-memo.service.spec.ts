@@ -239,7 +239,12 @@ describe('AlertMemoService.generate — live bill re-query (5.2C / RC3 fix)', ()
     );
     global.fetch = fetchMock as unknown as typeof fetch;
 
-    await service.generate({ tenantId: 't1', userId: 'u1' } as never, 'client-1', STALE_ALERT, 'Acme Corp');
+    await service.generate(
+      { tenantId: 't1', userId: 'u1' } as never,
+      'client-1',
+      STALE_ALERT,
+      'Acme Corp',
+    );
 
     const body = JSON.parse(fetchMock.mock.calls[0]![1].body);
     const prompt: string = body.messages[0].content;
@@ -288,6 +293,78 @@ describe('AlertMemoService.generate — live bill re-query (5.2C / RC3 fix)', ()
     expect(result.lowConfidence).toBe(false);
   });
 
+  it('under ENFORCE, a held memo is NOT auto-filed to the client Documents (held=true, document=null) — Phase 2.5-1', async () => {
+    process.env.MERI_AUDITOR_MODE = 'enforce';
+    const { service, engagement } = makeDeps({
+      billTruthBlock: async () => ({
+        text: 'authoritative block',
+        raw: { id: 'hr-8800-119', status: 'rule_failed', statusAt: '2026-07-10T00:00:00.000Z' },
+      }),
+    });
+    global.fetch = jest.fn(async () =>
+      anthropicTextResponse([
+        {
+          heading: 'Bottom line',
+          // Frames a failed-rule bill as operative → D6 critical finding → hold.
+          paragraphs: [
+            {
+              text: 'Debate on hr-8800-119 is limited and floor consideration is expected to pass.',
+              claimIds: ['c1'],
+            },
+          ],
+        },
+      ]),
+    );
+
+    const result = await service.generate(
+      { tenantId: 't1', userId: 'u1' } as never,
+      'client-1',
+      STALE_ALERT,
+      'Acme Corp',
+    );
+
+    expect(result.held).toBe(true);
+    expect(result.document).toBeNull();
+    // The memo content is still returned for review (with the Unverified banner)...
+    expect(result.markdown).toContain('Unverified');
+    // ...but nothing was filed into the client's Documents.
+    expect(engagement.createAttachmentFromBuffer).not.toHaveBeenCalled();
+  });
+
+  it('under SHADOW, the same flagged memo is NOT held — it files normally (enforce is the only mode that holds)', async () => {
+    process.env.MERI_AUDITOR_MODE = 'shadow';
+    const { service, engagement } = makeDeps({
+      billTruthBlock: async () => ({
+        text: 'authoritative block',
+        raw: { id: 'hr-8800-119', status: 'rule_failed', statusAt: '2026-07-10T00:00:00.000Z' },
+      }),
+    });
+    global.fetch = jest.fn(async () =>
+      anthropicTextResponse([
+        {
+          heading: 'Bottom line',
+          paragraphs: [
+            {
+              text: 'Debate on hr-8800-119 is limited and floor consideration is expected to pass.',
+              claimIds: ['c1'],
+            },
+          ],
+        },
+      ]),
+    );
+
+    const result = await service.generate(
+      { tenantId: 't1', userId: 'u1' } as never,
+      'client-1',
+      STALE_ALERT,
+      'Acme Corp',
+    );
+
+    expect(result.held).toBe(false);
+    expect(engagement.createAttachmentFromBuffer).toHaveBeenCalled();
+    expect(result.document).not.toBeNull();
+  });
+
   it('under a live auditor mode, the ledger carries a get_bill_status entry built from the live re-query, not the frozen claim sheet alone', async () => {
     process.env.MERI_AUDITOR_MODE = 'shadow';
     const { service, meriAuditLedgerRows } = makeDeps({
@@ -314,7 +391,12 @@ describe('AlertMemoService.generate — live bill re-query (5.2C / RC3 fix)', ()
       ]),
     );
 
-    await service.generate({ tenantId: 't1', userId: 'u1' } as never, 'client-1', STALE_ALERT, 'Acme Corp');
+    await service.generate(
+      { tenantId: 't1', userId: 'u1' } as never,
+      'client-1',
+      STALE_ALERT,
+      'Acme Corp',
+    );
 
     expect(meriAuditLedgerRows.length).toBe(1);
     const row = (meriAuditLedgerRows[0] as { data: Record<string, unknown> }).data;

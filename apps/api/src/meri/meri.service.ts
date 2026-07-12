@@ -1244,11 +1244,20 @@ export class MeriService {
 
     // Wave-2 post-hoc grounding auditor — SHADOW by default (MERI_AUDITOR_MODE
     // unset/off = no-op). In shadow it re-derives ground truth from this turn's
-    // tool-result ledger and LOGS any contradiction (reversed vehicle, operative
-    // framing of a failed rule, a procurement line called a "PE", an unresolved
-    // citation) WITHOUT altering the streamed reply. Enforcement is a per-surface
-    // flag flip after a shadow cycle. Fully guarded so an auditor bug can never
-    // break chat. `runAuditor` short-circuits when mode is 'off'.
+    // tool-result ledger and LOGS + PERSISTS any contradiction (reversed vehicle,
+    // operative framing of a failed rule, a procurement line called a "PE", an
+    // unresolved citation) WITHOUT altering the streamed reply.
+    //
+    // CHAT IS DELIBERATELY OBSERVE-ONLY (Phase 2.5-1 decision, per ADR-2): this
+    // surface never withholds/repairs, even under MERI_AUDITOR_MODE=enforce. The
+    // reply is already streamed to the client before this runs, and re-architecting
+    // to buffer-before-stream would add latency + regeneration on the highest-
+    // traffic surface for marginal benefit — chat stays post-hoc by design.
+    // ENFORCEMENT (hold-as-draft) lives on the DELIVERABLE surfaces (outreach,
+    // alert-memo, research), which consume verdict.decision==='hold'. So on chat,
+    // enforce behaves exactly like shadow (findings observed, reply unchanged).
+    // Fully guarded so an auditor bug can never break chat. `runAuditor`
+    // short-circuits when mode is 'off'.
     const auditorMode = (process.env.MERI_AUDITOR_MODE as AuditorMode | undefined) ?? 'off';
     if (auditorMode !== 'off' && assistantContent.trim().length > 0) {
       try {

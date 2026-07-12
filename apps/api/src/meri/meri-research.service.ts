@@ -628,6 +628,13 @@ export class MeriResearchService {
     // extending shadow coverage here is high-value: it re-derives ground truth
     // from the gather-loop ledger and logs/persists any contradiction in the
     // synthesized report WITHOUT altering it. Fully guarded; never breaks a run.
+    // held: true only when the auditor returns decision==='hold' (enforce mode +
+    // a finding on this blocking surface). Research has no external send/file to
+    // block, so "hold" = the persisted report artifact is marked heldForReview
+    // (and its body already carries the Unverified banner below), so a flagged
+    // report is never presented as a cleared deliverable. Inert under shadow/
+    // annotate (decision is never 'hold' there), so the default flow is unchanged.
+    let held = false;
     const auditorMode = (process.env.MERI_AUDITOR_MODE as AuditorMode | undefined) ?? 'off';
     if (auditorMode !== 'off' && reportBody.trim().length > 0) {
       try {
@@ -669,6 +676,10 @@ export class MeriResearchService {
               `(${checks}).** Treat flagged claims as unconfirmed until a reviewer clears them.\n\n` +
               reportBody;
           }
+          // Enforce = hold: mark the persisted artifact/session heldForReview
+          // below. decisionFor() returns 'hold' only in enforce mode, so this is
+          // inert under shadow/annotate.
+          held = verdict.decision === 'hold';
         }
       } catch (err) {
         this.logger.warn(
@@ -729,6 +740,9 @@ export class MeriResearchService {
             toolsUsed,
             sourceCount: sources.length,
             model,
+            // Phase 2.5-1: set only under enforce+finding; consumers/UI treat a
+            // held report as not-yet-cleared (its body carries the banner too).
+            ...(held ? { heldForReview: true } : {}),
           } as Prisma.InputJsonObject,
         },
         select: { id: true },
