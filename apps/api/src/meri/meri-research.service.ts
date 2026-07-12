@@ -2,6 +2,7 @@ import { BadRequestException, Injectable, Logger, NotFoundException } from '@nes
 import { ConfigService } from '@nestjs/config';
 import { Prisma } from '@prisma/client';
 import type { TenantContext } from '@capiro/shared';
+import { runAuditor, type LedgerEntry, type AuditorMode } from '@capiro/meriv2-core';
 import type { AppConfig } from '../config/config.schema.js';
 import { PrismaService } from '../prisma/prisma.service.js';
 import { MeriToolsService } from './meri-tools.service.js';
@@ -303,6 +304,10 @@ export class MeriResearchService {
     let reportBody = '';
     const sources: SourceAttribution[] = [];
     const toolsUsed: string[] = [];
+    // Wave-2 post-hoc auditor ledger for the research surface (the most dangerous
+    // one — the S3 fabrication cluster). Accumulates successful tool results
+    // across gather rounds; audited after synthesis.
+    const ledgerEntries: LedgerEntry[] = [];
     let synthesizing = false;
     // True only when the agentic loop ended because the model stopped calling
     // tools and wrote its report. If it ends any other way (tool-round budget
@@ -476,7 +481,9 @@ export class MeriResearchService {
               resultPayload = await this.tools.execute(ctx, t.name as never, parsedInput);
             } catch (err) {
               isError = true;
-              resultPayload = { error: err instanceof Error ? err.message : 'Tool execution failed' };
+              resultPayload = {
+                error: err instanceof Error ? err.message : 'Tool execution failed',
+              };
             }
           }
 
@@ -495,12 +502,21 @@ export class MeriResearchService {
           sources.push(source);
           sse.write(sseEvent({ type: 'source', source }));
 
+          const serialized = summarizeJsonForPrompt(resultPayload, 12_000);
           toolResultBlocks.push({
             type: 'tool_result',
             tool_use_id: t.id,
             is_error: isError,
-            content: summarizeJsonForPrompt(resultPayload, 12_000),
+            content: serialized,
           });
+          if (!isError) {
+            ledgerEntries.push({
+              tool: t.name,
+              serialized,
+              result: resultPayload,
+              rowCount: count ?? undefined,
+            });
+          }
         }
         messages.push({ role: 'user', content: toolResultBlocks });
       }
@@ -605,6 +621,48 @@ export class MeriResearchService {
       const msg = err instanceof Error ? err.message : 'Research failed';
       this.logger.warn(`Research run failed: ${msg}`);
       sse.write(sseEvent({ type: 'error', message: msg }));
+    }
+
+    // Wave-2 post-hoc auditor on the RESEARCH surface — SHADOW by default
+    // (MERI_AUDITOR_MODE off = no-op). Research is the most dangerous surface, so
+    // extending shadow coverage here is high-value: it re-derives ground truth
+    // from the gather-loop ledger and logs/persists any contradiction in the
+    // synthesized report WITHOUT altering it. Fully guarded; never breaks a run.
+    const auditorMode = (process.env.MERI_AUDITOR_MODE as AuditorMode | undefined) ?? 'off';
+    if (auditorMode !== 'off' && reportBody.trim().length > 0) {
+      try {
+        const verdict = runAuditor({
+          output: reportBody,
+          ledger: { entries: ledgerEntries },
+          surface: 'research',
+          mode: auditorMode,
+        });
+        if (verdict.findings.length > 0) {
+          this.logger.warn(
+            `[meri-auditor:${auditorMode}] research session ${session.id} — ${verdict.findings.length} finding(s), ` +
+              `top=${verdict.topSeverity}, decision=${verdict.decision}: ` +
+              verdict.findings.map((f) => `${f.check}/${f.severity}`).join(', '),
+          );
+          await this.prisma.withTenant(ctx.tenantId, (tx) =>
+            tx.meriAuditLedger.create({
+              data: {
+                tenantId: ctx.tenantId,
+                surface: 'research',
+                mode: auditorMode,
+                decision: verdict.decision,
+                topSeverity: verdict.topSeverity ?? null,
+                findingCount: verdict.findings.length,
+                findings: verdict.findings as unknown as Prisma.InputJsonValue,
+                outputChars: reportBody.length,
+              },
+            }),
+          );
+        }
+      } catch (err) {
+        this.logger.warn(
+          `[meri-auditor] research audit failed (run unaffected): ${(err as Error).message}`,
+        );
+      }
     }
 
     // Persist the report artifact + link it to the session.
