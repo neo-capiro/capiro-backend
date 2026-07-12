@@ -54,49 +54,69 @@ could make). Recorded here so the choices aren't implicit in code.
   `memoryItemId` and surfaces only `status='active'` rows.
 - **1E** — governance convergence (see D4); grep-verified the old branch is gone.
 
-## Clone rehearsal (the 1C proof) — PASSED 2026-07-12
+## RLS proof — PASSED 2026-07-12 (⚠️ ran against PROD, not the clone)
 
-Aurora copy-on-write clone of live prod (same playbook as the 2026-07-05
-`clio_memory` RLS rollout). All three migrations applied cleanly on **5,253**
-real memory rows. RLS verified **as `capiro_app`** (master bypasses RLS — tested
-under `SET ROLE` with a no-GUC control proving RLS was genuinely engaged):
+The intent was an Aurora copy-on-write clone (same playbook as the 2026-07-05
+`clio_memory` RLS rollout). A clone WAS created, but the `prisma db execute`
+migration + verify runs used a `DB_HOST` env override on the
+`capiro-dev-api-sql-exec` task def — and `DB_HOST` there is a task-def
+**secret**, which beats a `containerOverrides` env of the same name. So the
+override was ignored and everything ran against **prod**. The clone was never
+written to and was torn down. See
+`memory/infra_sqlexec_dbhost_secret_beats_override.md` for the trap.
 
-- 1A: all 5,253 rows got non-null `status='active'` + `exportable`/`excluded`/
-  not-held defaults — no null-constraint failures.
+Net effect on prod (all verified): the 3 migrations' DDL applied correctly,
+and the RLS proof passed on real data — as `capiro_app`, under `SET ROLE`
+with a no-GUC control proving RLS was engaged:
+
+- 1A: all **5,253** real memory rows got non-null `status='active'` +
+  `exportable`/`excluded`/not-held defaults — no null-constraint failures.
 - 1C: non-owner **blocked** from a private row (0), owner sees it (1),
-  tenant-shared visible to non-owner (1), wrong-tenant sees nothing (0),
-  no-GUC fail-closed (0).
+  tenant-shared visible (1), wrong-tenant sees nothing (0), no-GUC fail-closed (0).
 - context_embeddings backfill: 1,230 private-item embeddings got
   `owner_user_id`, column count == join count exactly.
+- Synthetic test rows were cleaned up (verified 0 remaining).
 
-Clone + all throwaway plumbing torn down after.
+Consequence + recovery: because the DDL landed via `prisma db execute` (which
+does not touch `_prisma_migrations`), the later `deploy-dev.sh migrate deploy`
+hit P3018 `column "status" already exists`. Recovered by deleting the failed 1A
+row and `prisma migrate resolve --applied` for all three (records them with
+correct checksums, runs no SQL) → migrate became a clean no-op. The 1C
+owner-aware policy was live on prod while the OLD api code (no
+`app.current_user`) still served, so private memories were briefly invisible to
+their owners (read-only, self-healing); closed by the api roll onto the
+`withTenantUser` code.
 
-## Exit gate (§10) status
+## Exit gate (§10) status — post-deploy 2026-07-12
 
-- **G1** private scope DB-enforced (clone-proven, not just asserted) — **MET**.
-- **G3** no memory write bypasses the candidate gate; old direct-write / admin-
-  reject branch deleted — **MET**.
-- **G4** `memory_items` carries Table-19 metadata and the write paths populate
-  it — **MET**.
-- **G5** personal-scope `save_memory` behavior/latency unchanged (inline
-  auto-commit) — **MET** (integration-diff pending in the live smoke).
-- **G6** D1 recorded in code + this doc — **MET**.
-- **G2** verbs demonstrably work on the chat surface (confirm/correct/forget/
-  export, observable in one session) — **PENDING the post-deploy live smoke**
-  (the verbs' raw SQL is unit-tested for control flow; end-to-end SQL
-  correctness is validated by the G2 live demo, since the clone was torn down
-  before the verbs existed).
-- **G7** 1C RLS canary green on prod for one full traffic cycle — **PENDING
-  deploy**.
+Shipped to prod: PR #432 (merge `409061c`), api task-def rev 41 + orchestrator
+rolled, all 4 migrations recorded applied, **0 exceptions / 0 RLS-permission
+errors** across the first post-roll window.
 
-## Honest remaining before Phase 1 is "done"
+- **G1** private scope DB-enforced — **MET** (proven on prod real data: owner
+  sees / non-owner blocked / tenant-shared unaffected / no-GUC fail-closed).
+- **G3** no memory write bypasses the candidate gate; old admin-reject branch
+  deleted — **MET**.
+- **G4** `memory_items` carries Table-19 metadata; write paths populate it —
+  **MET**.
+- **G5** personal-scope `save_memory` inline auto-commit (unchanged latency) —
+  **MET** by construction (formal integration-diff still worth a live check).
+- **G6** D1 recorded in code + docs — **MET**.
+- **G2** verbs demonstrably work in a live chat session (confirm/correct/forget/
+  export, observable) — **PENDING**. Needs a real user JWT / chat turn; can't be
+  driven headlessly. The verb SQL is unit-tested for control flow but has NOT
+  been exercised against a real DB (the "rehearsal" predated the verbs) — the
+  G2 live smoke is its first real-DB run; watch `correct`/`forget` closely.
+- **G7** 1C RLS canary green for one full traffic cycle — **IN PROGRESS**
+  (0 errors so far; needs the observation window to elapse).
 
-1. Merge the PR (CI green) → deploy: `migrate deploy` (3 additive migrations)
-   → roll api + orchestrator → the 1C canary.
-2. Live smoke on capiro-internal: save → search (see `memoryItemId`) →
-   confirm / correct / forget / export, each observed (G2); a private item
-   invisible cross-user in the running app (G1 in prod, not just clone); G7
-   canary window.
-3. Verb SQL (correct/forget) was control-flow-unit-tested but **not**
-   clone-rehearsed (clone predated the verbs) — the G2 live smoke is its first
-   real-DB exercise; watch it closely.
+## Honest remaining before Phase 1 is fully "done"
+
+1. **G2 live smoke** (needs a capiro-internal user session, so likely Ninja or a
+   test login): save a memory → `search_memory` (returns `memoryItemId`) →
+   `confirm_memory` / `correct_memory` / `forget_memory` / export, each observed;
+   confirm a private item is visible to its owner again (degradation closed) and
+   invisible cross-user in the running app.
+2. **G7**: let the RLS canary window elapse with continued 0 errors.
+3. The DB_HOST-override incident (rehearsal ran against prod) is written up in
+   `memory/infra_sqlexec_dbhost_secret_beats_override.md` so it isn't repeated.
