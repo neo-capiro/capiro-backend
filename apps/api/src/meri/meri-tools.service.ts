@@ -25,6 +25,7 @@ import {
   resolveCommittee,
   normalizeCommitteeName,
   matchesRole,
+  buildSearchRowFundingForModel,
   type CommitteeCandidate,
 } from '@capiro/shared';
 import type { AppConfig } from '../config/config.schema.js';
@@ -2920,10 +2921,57 @@ export class MeriToolsService {
       ctx,
     );
 
+    // RC1: the finder row is built for the web UI — it ships a bare, stage-less
+    // `spark` array and coalesced money fields whose request/current can be from
+    // different fiscal years. Never hand those to the model. Drop `spark` and the
+    // raw figures, and replace them with a single labeled `funding` object (FY +
+    // stage + authorization/appropriations vehicle + a same-FY-only direction),
+    // pointing the model to get_pe_budget_timeline for the mark-by-mark detail.
+    type FinderRowForModel = {
+      spark?: number[] | null;
+      latestCurrent: number | null;
+      latestCurrentFy: number | null;
+      latestCurrentStage: string | null;
+      latestRequest: number | null;
+      latestRequestFy: number | null;
+      latestEnacted: number | null;
+      latestEnactedFy: number | null;
+      deltaPct: number | null;
+      [key: string]: unknown;
+    };
+    const data = (result.data as FinderRowForModel[]).map((row) => {
+      const {
+        spark: _spark,
+        latestCurrent,
+        latestCurrentFy,
+        latestCurrentStage,
+        latestRequest,
+        latestRequestFy,
+        latestEnacted,
+        latestEnactedFy,
+        deltaPct,
+        ...rest
+      } = row;
+      return {
+        ...rest,
+        funding: buildSearchRowFundingForModel({
+          latestCurrent,
+          latestCurrentFy,
+          latestCurrentStage,
+          latestRequest,
+          latestRequestFy,
+          latestEnacted,
+          latestEnactedFy,
+          deltaPct,
+        }),
+      };
+    });
+
     return {
       tool: 'search_program_elements',
       generatedAt: new Date().toISOString(),
       ...result,
+      data,
     };
   }
 

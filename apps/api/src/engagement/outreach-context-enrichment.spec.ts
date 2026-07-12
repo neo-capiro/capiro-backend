@@ -92,47 +92,112 @@ describe('formatPeTruth — the reversed-direction + omitted-HASC-cut fix', () =
       title: 'ICBM Dem/Val',
       service: 'Air Force',
       budgetActivityName: null,
-      year: {
-        fy: 2027,
-        request: 72.112,
-        hascMark: 72.112,
-        sascMark: 72.112,
-        hacDMark: 112.912,
-        sacDMark: null,
-        conference: null,
-        enacted: null,
-      },
+      years: [
+        {
+          fy: 2027,
+          request: 72.112,
+          hascMark: 72.112,
+          sascMark: 72.112,
+          hacDMark: 112.912,
+          sacDMark: null,
+          conference: null,
+          enacted: null,
+        },
+      ],
     };
     const out = formatPeTruth(pe);
-    expect(out).toContain("President's request: $72.1M");
-    expect(out).toContain('HAC-D $112.9M');
-    expect(out).toContain('above the request'); // direction is explicit and correct
+    expect(out).toContain('request $72.1M');
+    expect(out).toContain('HAC-D mark $112.9M (appropriations; $40.8M above the request)');
     expect(out).not.toContain('below the request');
-    // current authoritative = the HAC-D mark, and it is NOT enacted
-    expect(out).toContain('Current authoritative figure: $112.9M (HAC-D)');
+    // current authoritative = the HAC-D mark, tagged appropriations, NOT enacted
+    expect(out).toContain('Current authoritative figure: $112.9M (HAC-D');
     expect(out).toContain('NOT enacted');
   });
 
-  it('CCA / Autonomous Collaborative Platforms: the HASC cut is visible, not "maintained"', () => {
+  it('CCA / Autonomous Collaborative Platforms: the HASC cut is visible, tagged authorization', () => {
     const pe: PeTruth = {
       peCode: '0207179F',
       title: 'Autonomous Collaborative Platforms',
       service: 'Air Force',
       budgetActivityName: null,
-      year: {
-        fy: 2027,
-        request: 57.217,
-        hascMark: 51.496,
-        sascMark: 57.217,
-        hacDMark: 57.217,
-        sacDMark: null,
-        conference: null,
-        enacted: null,
-      },
+      years: [
+        {
+          fy: 2027,
+          request: 57.217,
+          hascMark: 51.496,
+          sascMark: 57.217,
+          hacDMark: 57.217,
+          sacDMark: null,
+          conference: null,
+          enacted: null,
+        },
+      ],
     };
     const out = formatPeTruth(pe);
-    expect(out).toContain('HASC $51.5M');
-    expect(out).toContain('below the request'); // the HASC cut, stated as such
+    expect(out).toContain('HASC mark $51.5M (authorization; $5.7M below the request)');
+  });
+
+  it('NDAA conference report is a distinct AUTHORIZATION figure, never the appropriations trend', () => {
+    const pe: PeTruth = {
+      peCode: '1507N2280',
+      title: 'Aerial Targets',
+      service: 'Navy',
+      budgetActivityName: null,
+      years: [
+        {
+          fy: 2026,
+          request: 164.0,
+          hascMark: null,
+          sascMark: null,
+          hacDMark: null,
+          sacDMark: null,
+          conference: null,
+          ndaaConference: 164.504,
+          enacted: 182.704,
+        },
+      ],
+    };
+    const out = formatPeTruth(pe);
+    expect(out).toContain('NDAA conference report $164.5M (authorization');
+    expect(out).toContain('Enacted $182.7M (appropriations');
+    // the current authoritative appropriations figure is the enacted level, NOT the NDAA conf.
+    expect(out).toContain('Current authoritative figure: $182.7M (Enacted');
+  });
+
+  it('labels outyears as FYDP projections and the mark-bearing year as the current cycle', () => {
+    const pe: PeTruth = {
+      peCode: '0605602A',
+      title: 'Army Test Instrumentation',
+      service: 'Army',
+      budgetActivityName: null,
+      years: [
+        {
+          fy: 2027,
+          request: 100,
+          hascMark: 110,
+          sascMark: null,
+          hacDMark: null,
+          sacDMark: null,
+          conference: null,
+          enacted: null,
+        },
+        {
+          fy: 2031,
+          request: 120,
+          hascMark: null,
+          sascMark: null,
+          hacDMark: null,
+          sacDMark: null,
+          conference: null,
+          enacted: null,
+        },
+      ],
+    };
+    const out = formatPeTruth(pe);
+    expect(out).toContain('FY27 [current budget cycle]');
+    expect(out).toContain('FY31 [OUTYEAR');
+    // a request-only outyear does not restate itself as a "current authoritative figure"
+    expect(out).not.toContain('(Request — request');
   });
 
   it('emits an honest gap when the PE has no funding rows (no invented figure)', () => {
@@ -141,10 +206,10 @@ describe('formatPeTruth — the reversed-direction + omitted-HASC-cut fix', () =
       title: 'Unknown',
       service: null,
       budgetActivityName: null,
-      year: null,
+      years: [],
     };
     const out = formatPeTruth(pe);
-    expect(out).toContain('No structured funding rows on record');
+    expect(out).toContain('No structured funding rows are on record');
     expect(out).not.toMatch(/\$\d/); // no dollar figure anywhere
   });
 });
@@ -153,12 +218,21 @@ describe('renderClientRelationshipSnapshot — the v2 clientContext drop fix', (
   it('renders a compact, bounded, labeled snapshot from the aggregate', () => {
     const out = renderClientRelationshipSnapshot({
       keyStakeholders: [
-        { fullName: 'Jane Doe', title: 'Chief of Staff', organization: 'Rep. Reed', source: 'Contact + Meeting' },
+        {
+          fullName: 'Jane Doe',
+          title: 'Chief of Staff',
+          organization: 'Rep. Reed',
+          source: 'Contact + Meeting',
+        },
         { fullName: 'John Smith', title: 'LD', organization: null, source: 'Email' },
       ],
       recentActivity: [
         { type: 'meeting', title: 'FY27 markup prep', date: '2026-07-01T00:00:00.000Z' },
-        { type: 'mail_thread', title: 'Follow-up on directed energy', date: '2026-06-28T00:00:00.000Z' },
+        {
+          type: 'mail_thread',
+          title: 'Follow-up on directed energy',
+          date: '2026-06-28T00:00:00.000Z',
+        },
       ],
       openTasks: [{ title: 'Send one-pager', dueDate: null }],
     });
@@ -170,9 +244,15 @@ describe('renderClientRelationshipSnapshot — the v2 clientContext drop fix', (
   });
 
   it('caps contacts at 12 and activity at 6', () => {
-    const many = (n: number, f: (i: number) => unknown) => Array.from({ length: n }, (_, i) => f(i));
+    const many = (n: number, f: (i: number) => unknown) =>
+      Array.from({ length: n }, (_, i) => f(i));
     const out = renderClientRelationshipSnapshot({
-      keyStakeholders: many(30, (i) => ({ fullName: `Person ${i}`, title: 't', organization: 'o', source: 'Contact' })) as never,
+      keyStakeholders: many(30, (i) => ({
+        fullName: `Person ${i}`,
+        title: 't',
+        organization: 'o',
+        source: 'Contact',
+      })) as never,
       recentActivity: many(30, (i) => ({ type: 'meeting', title: `M${i}`, date: null })) as never,
       openTasks: [],
     })!;
@@ -184,10 +264,15 @@ describe('renderClientRelationshipSnapshot — the v2 clientContext drop fix', (
 
   it('returns null when there is nothing worth rendering', () => {
     expect(renderClientRelationshipSnapshot(null)).toBeNull();
-    expect(renderClientRelationshipSnapshot({ keyStakeholders: [], recentActivity: [], openTasks: [] })).toBeNull();
+    expect(
+      renderClientRelationshipSnapshot({ keyStakeholders: [], recentActivity: [], openTasks: [] }),
+    ).toBeNull();
     // entries with no name/org and no title are dropped → still null
     expect(
-      renderClientRelationshipSnapshot({ keyStakeholders: [{ title: 'x' }], recentActivity: [{ type: 'meeting' }] }),
+      renderClientRelationshipSnapshot({
+        keyStakeholders: [{ title: 'x' }],
+        recentActivity: [{ type: 'meeting' }],
+      }),
     ).toBeNull();
   });
 });
@@ -195,11 +280,19 @@ describe('renderClientRelationshipSnapshot — the v2 clientContext drop fix', (
 describe('renderClientPeopleRoster (OUTREACH_CLIENT_PROFILE)', () => {
   it('renders a bounded roster with warm-intro framing', () => {
     const out = renderClientPeopleRoster([
-      { name: 'Alex Rivera', title: 'VP Gov Affairs', role: 'Primary contact', notes: 'Met at AUSA', lastContact: '2026-06-15T00:00:00.000Z' },
+      {
+        name: 'Alex Rivera',
+        title: 'VP Gov Affairs',
+        role: 'Primary contact',
+        notes: 'Met at AUSA',
+        lastContact: '2026-06-15T00:00:00.000Z',
+      },
       { name: 'Sam Cole', title: null, role: null, notes: null, lastContact: null },
     ])!;
     expect(out).toContain('PEOPLE THIS CLIENT WORKS WITH');
-    expect(out).toContain('Alex Rivera (VP Gov Affairs, Primary contact) — last contact 2026-06-15; Met at AUSA');
+    expect(out).toContain(
+      'Alex Rivera (VP Gov Affairs, Primary contact) — last contact 2026-06-15; Met at AUSA',
+    );
     expect(out).toContain('- Sam Cole');
     expect(out).toContain('do NOT claim a relationship the recipient has not confirmed');
   });
@@ -216,11 +309,27 @@ describe('renderClientPeopleRoster (OUTREACH_CLIENT_PROFILE)', () => {
 describe('renderClientTargetOffices (OUTREACH_CLIENT_PROFILE)', () => {
   it('renders explicit team targets and suggestions with committee/billCount', () => {
     const out = renderClientTargetOffices([
-      { office: 'Rep. Dana Reed', party: 'D', state: 'CA-12', committee: 'Armed Services', billCount: 3, explicit: true },
-      { office: 'Sen. John Cornyn', party: 'R', state: 'TX', committee: 'Appropriations', billCount: 0, explicit: false },
+      {
+        office: 'Rep. Dana Reed',
+        party: 'D',
+        state: 'CA-12',
+        committee: 'Armed Services',
+        billCount: 3,
+        explicit: true,
+      },
+      {
+        office: 'Sen. John Cornyn',
+        party: 'R',
+        state: 'TX',
+        committee: 'Appropriations',
+        billCount: 0,
+        explicit: false,
+      },
     ])!;
     expect(out).toContain('CLIENT TARGET OFFICES');
-    expect(out).toContain('Rep. Dana Reed (D-CA-12) — Armed Services; 3 tracked bills; team target');
+    expect(out).toContain(
+      'Rep. Dana Reed (D-CA-12) — Armed Services; 3 tracked bills; team target',
+    );
     expect(out).toContain('Sen. John Cornyn (R-TX) — Appropriations; suggested');
   });
   it('caps at 12 and returns null when empty', () => {

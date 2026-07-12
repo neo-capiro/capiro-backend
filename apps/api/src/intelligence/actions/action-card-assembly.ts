@@ -9,14 +9,13 @@
  * this layer guarantees a correct, auditable baseline.)
  *
  * Money convention: delta amounts are $ MILLIONS (project-wide; see
- * program-element-writer). `formatMillions` renders them with an M suffix.
+ * program-element-writer) — EXCEPT quantity_change (unit counts) and
+ * unit_cost_change (as-printed P-1 exhibit values, units not normalized), which
+ * buildWhatChanged renders as counts / with an explicit as-published caveat so
+ * a downstream LLM never reads them as $ millions.
  */
 
-import type {
-  ActionType,
-  ArtifactType,
-  DeadlineSource,
-} from './action-recommendation.types.js';
+import type { ActionType, ArtifactType, DeadlineSource } from './action-recommendation.types.js';
 
 /** A relevance path + its evidence strings (shape mirrors §2.3 PathResult). */
 export interface RelevancePathFact {
@@ -24,16 +23,28 @@ export interface RelevancePathFact {
   evidence: string[];
 }
 
-/** The budget delta the card is built around. Amounts are $ MILLIONS. */
+/**
+ * The budget delta the card is built around. Amounts are $ MILLIONS for money
+ * deltas; unit COUNTS for quantity_change; as-printed exhibit values for
+ * unit_cost_change (see buildWhatChanged).
+ */
 export interface DeltaFact {
   deltaType: string;
   amountFrom: number;
   amountTo: number;
   deltaPct: number;
   assertedFy: number | string;
-  /** Budget-line position the mark moved FROM (e.g. 'requested'), if known. */
+  /**
+   * program_element_delta.fromRef — the position the value moved FROM (e.g.
+   * 'request', 'hascMark', 'pb_prior'; the terminated PE code on a
+   * transfer_candidate), if known.
+   */
   stageFrom?: string;
-  /** Budget-line position the mark moved TO (e.g. 'house_mark'), if known. */
+  /**
+   * program_element_delta.toRef — the position the value moved TO (e.g.
+   * 'hascMark', 'conference' = NDAA conference report, 'enacted', 'pb_current',
+   * 'fy2027:<line description>' on procurement deltas), if known.
+   */
   stageTo?: string;
 }
 
@@ -72,10 +83,57 @@ function formatSignedPct(pct: number): string {
   return `${sign}${rounded}%`;
 }
 
-/** Human label for a budget-line position; falls back to the raw value. */
-function stageLabel(stage?: string): string {
-  if (!stage) return 'current';
-  return stage.replace(/_/g, ' ');
+/**
+ * RC1: budget-line position refs → human label + legislative vehicle. The keys
+ * are the EXACT fromRef/toRef tokens delta-compute.ts / delta-engine.service.ts
+ * write to program_element_delta — keep in sync with those writers.
+ *
+ * ⚠ 'conference' here is the NDAA (authorization-track) conference report: the
+ * delta refs keep 'conference' as the stage identity while the VALUE comes from
+ * ndaaConference, and the appropriations conference column is reserved/
+ * unpopulated and produces no deltas (delta-compute.ts, conference_vs_marks).
+ * Do NOT reuse the appropriations-ladder stage→vehicle map for these refs.
+ */
+interface StageRefDescription {
+  label: string;
+  vehicle: 'authorization' | 'appropriations' | null;
+}
+const STAGE_REF_DESCRIPTION: Record<string, StageRefDescription> = {
+  request: { label: "President's request", vehicle: null },
+  hascMark: { label: 'HASC mark', vehicle: 'authorization' },
+  sascMark: { label: 'SASC mark', vehicle: 'authorization' },
+  hacDMark: { label: 'HAC-D mark', vehicle: 'appropriations' },
+  sacDMark: { label: 'SAC-D mark', vehicle: 'appropriations' },
+  conference: { label: 'NDAA conference report', vehicle: 'authorization' },
+  enacted: { label: 'enacted appropriation', vehicle: 'appropriations' },
+  pb_current: { label: "current President's Budget", vehicle: null },
+  pb_prior: { label: "prior President's Budget", vehicle: null },
+};
+
+/**
+ * Human phrase for the budget-line position a delta moved TO (falling back to
+ * the FROM side, then to 'current'). Known refs carry their authorization/
+ * appropriations vehicle so the model can never attach a mark to the wrong
+ * bill; unknown refs degrade to the cleaned raw token (never invented).
+ */
+function stagePhrase(stageTo?: string, stageFrom?: string): string {
+  const ref = stageTo ?? stageFrom;
+  if (!ref) return 'current';
+  const d = STAGE_REF_DESCRIPTION[ref];
+  if (!d) return ref.replace(/_/g, ' ');
+  return d.vehicle ? `${d.label} (${d.vehicle})` : d.label;
+}
+
+/** "150" / "1,250" — a unit COUNT (procurement quantities are not dollars). */
+function formatCount(n: number): string {
+  return new Intl.NumberFormat('en-US', { maximumFractionDigits: 1 }).format(n);
+}
+
+/** The `fy2027:Line Description` from/to refs on procurement deltas → the description. */
+function procurementLineFromRef(ref?: string): string | null {
+  if (!ref) return null;
+  const m = /^fy\d{4}:(.+)$/.exec(ref);
+  return m ? m[1]! : null;
 }
 
 /**
@@ -118,33 +176,83 @@ function deadlineClause(deadline?: string | null): string {
  */
 export function assembleCard(facts: AssembleCardFacts): AssembledCard {
   const { delta } = facts;
-  const direction = delta.amountTo >= delta.amountFrom ? 'increased' : 'decreased';
-  const from = formatMillions(delta.amountFrom);
-  const to = formatMillions(delta.amountTo);
-  const pct = formatSignedPct(delta.deltaPct);
   const fy = `FY${fyShort(delta.assertedFy)}`;
-  const stage = stageLabel(delta.stageTo);
+  const whatChanged = buildWhatChanged(facts, fy);
 
-  const whatChanged =
-    `${facts.peTitle} (PE ${facts.peCode}) ${direction} from ${from} to ${to} ` +
-    `(${pct}) in the ${stage} position for ${fy}.`;
-
-  const whyItMatters =
-    `This matters to ${facts.clientName} because ${describeRelevance(facts.relevancePaths)}.`;
+  const whyItMatters = `This matters to ${facts.clientName} because ${describeRelevance(facts.relevancePaths)}.`;
 
   const programLabel = facts.programName ?? facts.peTitle;
-  const { issueTitle, recommendedAction, suggestedArtifactType } = byActionType(
-    facts.actionType,
-    {
-      clientName: facts.clientName,
-      peCode: facts.peCode,
-      programLabel,
-      fy,
-      deadline: facts.deadline,
-    },
-  );
+  const { issueTitle, recommendedAction, suggestedArtifactType } = byActionType(facts.actionType, {
+    clientName: facts.clientName,
+    peCode: facts.peCode,
+    programLabel,
+    fy,
+    deadline: facts.deadline,
+  });
 
   return { issueTitle, whatChanged, whyItMatters, recommendedAction, suggestedArtifactType };
+}
+
+/**
+ * RC1: the objective what-changed sentence, by delta shape. Every figure states
+ * what it IS — a $ MILLIONS amount with its budget-stage + vehicle position, a
+ * unit COUNT, or an as-printed exhibit value — so a downstream LLM can never
+ * narrate a quantity as dollars, attach a mark to the wrong bill, or read two
+ * PB cycles as congressional action.
+ */
+function buildWhatChanged(facts: AssembleCardFacts, fy: string): string {
+  const { delta } = facts;
+  const head = `${facts.peTitle} (PE ${facts.peCode})`;
+  const direction = delta.amountTo >= delta.amountFrom ? 'increased' : 'decreased';
+  const pct = formatSignedPct(delta.deltaPct);
+
+  switch (delta.deltaType) {
+    case 'quantity_change': {
+      // Amounts are unit COUNTS from the P-1 exhibit, never dollars.
+      const desc = procurementLineFromRef(delta.stageTo) ?? procurementLineFromRef(delta.stageFrom);
+      const line = desc ? ` for "${desc}"` : '';
+      return (
+        `${head} procurement quantity${line} ${direction} from ` +
+        `${formatCount(delta.amountFrom)} to ${formatCount(delta.amountTo)} units (${pct}) for ${fy}.`
+      );
+    }
+    case 'unit_cost_change': {
+      // Unit costs are stored AS PRINTED in the P-1 exhibit (units vary by book
+      // and are NOT normalized to $ millions) — state the relative change and
+      // pass the raw figures through with that caveat, never a $M label.
+      const desc = procurementLineFromRef(delta.stageTo) ?? procurementLineFromRef(delta.stageFrom);
+      const line = desc ? ` for "${desc}"` : '';
+      return (
+        `${head} unit cost${line} ${direction} ${pct} for ${fy} ` +
+        `(from ${formatCount(delta.amountFrom)} to ${formatCount(delta.amountTo)} as printed in the ` +
+        `P-1 exhibit — units as published, not normalized to $ millions).`
+      );
+    }
+    case 'transfer_candidate': {
+      // Stored against the NEW-start PE; stageFrom carries the terminated PE code.
+      const fromPe = delta.stageFrom ? `PE ${delta.stageFrom}` : 'another line';
+      return (
+        `${head} is a new start at ${formatMillions(delta.amountTo)} for ${fy} while ${fromPe} ` +
+        `was terminated — a POSSIBLE transfer (title-similarity candidate only, not an asserted fact).`
+      );
+    }
+    case 'new_start':
+      return (
+        `${head} is a NEW START at ${formatMillions(delta.amountTo)} in the ` +
+        `${stagePhrase(delta.stageTo, delta.stageFrom)} position for ${fy}.`
+      );
+    case 'termination':
+      return (
+        `${head} was dropped for ${fy} — ${formatMillions(delta.amountFrom)} in the ` +
+        `${stagePhrase(delta.stageFrom, delta.stageTo)} position, now absent from the current President's Budget.`
+      );
+    default:
+      return (
+        `${head} ${direction} from ${formatMillions(delta.amountFrom)} to ` +
+        `${formatMillions(delta.amountTo)} (${pct}) in the ` +
+        `${stagePhrase(delta.stageTo, delta.stageFrom)} position for ${fy}.`
+      );
+  }
 }
 
 interface ActionTemplateCtx {

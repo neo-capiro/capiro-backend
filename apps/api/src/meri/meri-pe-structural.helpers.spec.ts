@@ -95,21 +95,42 @@ describe('validatePeAgainstDeliverable — capability/mission mismatch (Rule 2)'
 });
 
 describe('validatePrimaryVehicleClaim (Rule 3)', () => {
-  it('flags "primary vehicle" when a materially larger sibling exists', () => {
+  it('flags "primary vehicle" for a larger same-FY sibling, with FY + stage + vehicle labeled figures', () => {
     const text =
       'PE 0207179F is the primary funding vehicle for autonomous collaborative engagement technologies.';
-    const w = validatePrimaryVehicleClaim({ peCode: '0207179F', latestAmount: 57_220_000 }, text, [
-      { peCode: '0207147F', title: 'Collaborative Combat Aircraft', latestAmount: 1_373_740_000 },
-    ]);
+    const w = validatePrimaryVehicleClaim(
+      {
+        peCode: '0207179F',
+        amountM: 57.22,
+        fy: 2027,
+        stageLabel: 'HAC-D mark',
+        vehicleLabel: 'appropriations',
+      },
+      text,
+      [
+        {
+          peCode: '0207147F',
+          title: 'Collaborative Combat Aircraft',
+          amountM: 1373.74,
+          fy: 2027,
+          stageLabel: 'HAC-D mark',
+          vehicleLabel: 'appropriations',
+        },
+      ],
+    );
     expect(w?.code).toBe('primary_vehicle_overclaim');
     expect(w?.message).toContain('0207147F');
+    // RC1: both sides of the comparison are labeled — never bare dollars.
+    expect(w?.message).toContain('$1.37B (FY27 HAC-D mark — appropriations)');
+    expect(w?.message).toContain('$57.2M (FY27 HAC-D mark — appropriations)');
+    expect(w?.message).toContain('same fiscal year');
   });
 
   it('returns null when no "primary" claim is made', () => {
     const text = 'PE 0207179F is a secondary experimentation pathway.';
     expect(
-      validatePrimaryVehicleClaim({ peCode: '0207179F', latestAmount: 57_220_000 }, text, [
-        { peCode: '0207147F', latestAmount: 1_373_740_000 },
+      validatePrimaryVehicleClaim({ peCode: '0207179F', amountM: 57.22, fy: 2027 }, text, [
+        { peCode: '0207147F', amountM: 1373.74, fy: 2027 },
       ]),
     ).toBeNull();
   });
@@ -117,8 +138,27 @@ describe('validatePrimaryVehicleClaim (Rule 3)', () => {
   it('returns null when no sibling is materially larger', () => {
     const text = 'This is the primary line.';
     expect(
-      validatePrimaryVehicleClaim({ peCode: 'A', latestAmount: 100_000_000 }, text, [
-        { peCode: 'B', latestAmount: 120_000_000 },
+      validatePrimaryVehicleClaim({ peCode: 'A', amountM: 100, fy: 2027 }, text, [
+        { peCode: 'B', amountM: 120, fy: 2027 },
+      ]),
+    ).toBeNull();
+  });
+
+  it('never compares across fiscal years — a cross-vintage sibling is skipped, not compared', () => {
+    const text = 'This is the primary line.';
+    expect(
+      validatePrimaryVehicleClaim({ peCode: 'A', amountM: 100, fy: 2027 }, text, [
+        { peCode: 'B', amountM: 1000, fy: 2025 },
+        { peCode: 'C', amountM: 1000, fy: null },
+      ]),
+    ).toBeNull();
+  });
+
+  it('returns null when the cited PE has no fiscal year to anchor the comparison', () => {
+    const text = 'This is the primary line.';
+    expect(
+      validatePrimaryVehicleClaim({ peCode: 'A', amountM: 100, fy: null }, text, [
+        { peCode: 'B', amountM: 1000, fy: 2027 },
       ]),
     ).toBeNull();
   });

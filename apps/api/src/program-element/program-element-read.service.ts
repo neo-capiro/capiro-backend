@@ -6,8 +6,12 @@ import {
   fundingCurrentCoalesceSql,
   fundingCurrentStageSql,
   currentFunding,
+  currentCycleFyOf,
   FUNDING_STAGE_LABEL,
+  FUNDING_STAGE_VEHICLE,
+  renderPeFundingForModel,
   type FundingStageValues,
+  type ModelFundingYear,
 } from '@capiro/shared';
 import { PrismaService } from '../prisma/prisma.service.js';
 import { ClientPeRelevanceService } from '../intelligence/client-pe-relevance.service.js';
@@ -714,12 +718,40 @@ export class ProgramElementReadService {
       `),
     ]);
 
+    const numDec = (d: Prisma.Decimal | null): number | null => (d == null ? null : Number(d));
+    const fundingYears = programElement.years.map(
+      (y): ModelFundingYear => ({
+        fy: y.fy,
+        request: numDec(y.request),
+        hascMark: numDec(y.hascMark),
+        sascMark: numDec(y.sascMark),
+        hacDMark: numDec(y.hacDMark),
+        sacDMark: numDec(y.sacDMark),
+        conference: numDec(y.conference),
+        ndaaConference: numDec(y.ndaaConference),
+        enacted: numDec(y.enacted),
+      }),
+    );
+
     const detail: Record<string, unknown> = {
       ...programElement,
       billCount: mvRows[0]?.billCount ?? null,
       projectCount,
       sourceCount,
       currentCycleFy: cycleRows[0]?.fy ?? null,
+      // RC1: canonical labeled funding block for LLM callers (FY + stage +
+      // authorization/appropriations vehicle + signed vs-request + NDAA
+      // conference surfaced separately), from the SAME shared serializer the
+      // timeline tool and outreach truth block use. Web ignores this field.
+      // currentCycleFy above is the catalog-wide mode; the summary uses THIS
+      // PE's own mark-bearing cycle so its outyear tags are correct.
+      fundingSummary: renderPeFundingForModel({
+        peCode: programElement.peCode,
+        title: programElement.title,
+        service: programElement.service,
+        currentCycleFy: currentCycleFyOf(fundingYears),
+        years: fundingYears,
+      }),
     };
 
     this.detailCache.set(cacheKey, detail);
@@ -806,6 +838,14 @@ export class ProgramElementReadService {
           current: pick.value,
           currentStage: pick.stage,
           currentStageLabel: FUNDING_STAGE_LABEL[pick.stage],
+          // RC1: tag the current figure with its legislative vehicle and its
+          // signed direction vs the request so the model never mislabels an
+          // appropriations mark as authorization or invents a direction.
+          currentVehicle: FUNDING_STAGE_VEHICLE[pick.stage],
+          currentDeltaVsRequestM:
+            pick.value != null && values.request != null && pick.stage !== 'request'
+              ? pick.value - values.request
+              : null,
           conferenceProbability: prediction?.predicted ?? null,
           conferenceProbabilityCiLow: prediction?.ciLow ?? null,
           conferenceProbabilityCiHigh: prediction?.ciHigh ?? null,
@@ -813,6 +853,30 @@ export class ProgramElementReadService {
         };
       }),
     );
+
+    // RC1: a canonical, fully-labeled funding block (FY + stage + vehicle +
+    // signed vs-request + NDAA conference surfaced separately) for LLM callers,
+    // rendered from the SAME shared serializer the outreach truth block uses so
+    // no surface can drift. Web consumers ignore this extra field.
+    const fundingSummary = renderPeFundingForModel({
+      peCode,
+      title: programElement.title,
+      service: programElement.service,
+      currentCycleFy,
+      years: years.map(
+        (y): ModelFundingYear => ({
+          fy: y.fy,
+          request: num(y.request),
+          hascMark: num(y.hascMark),
+          sascMark: num(y.sascMark),
+          hacDMark: num(y.hacDMark),
+          sacDMark: num(y.sacDMark),
+          conference: num(y.conference),
+          ndaaConference: num(y.ndaaConference),
+          enacted: num(y.enacted),
+        }),
+      ),
+    });
 
     return {
       peCode,
@@ -822,6 +886,7 @@ export class ProgramElementReadService {
       budgetActivity: programElement.budgetActivity,
       lineNumber: programElement.lineNumber,
       currentCycleFy,
+      fundingSummary,
       years: yearsWithConferenceProbability,
       milestones,
     };

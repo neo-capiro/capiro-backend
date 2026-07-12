@@ -20,9 +20,10 @@
 
 import {
   billStatusLabel,
-  currentFunding,
-  FUNDING_STAGE_LABEL,
+  fmtFundingMillions,
+  renderPeFundingForModel,
   type FundingStageValues,
+  type ModelFundingYear,
 } from '@capiro/shared';
 
 /** Context-item id → the CongressBill id it references, or null. */
@@ -37,19 +38,11 @@ export function peCodeFromItemId(itemId: string): string | null {
   return m ? m[1]! : null;
 }
 
-/** Compact money in $ millions — mirrors the web fmtMoneyM (canonical PE unit). */
-export function fmtM(m: number | null | undefined, digits = 1): string {
-  if (m == null || !Number.isFinite(m)) return '—';
-  if (Math.abs(m) >= 1000) return `$${(m / 1000).toFixed(2)}B`;
-  return `$${m.toFixed(digits)}M`;
-}
-
-/** Signed delta in $M with an explicit direction word (never ambiguous). */
-function signedM(delta: number): string {
-  const dir = delta > 0 ? 'above' : delta < 0 ? 'below' : 'equal to';
-  if (delta === 0) return 'equal to the request';
-  return `${fmtM(Math.abs(delta))} ${dir} the request`;
-}
+/**
+ * Canonical $M formatter — re-exported from @capiro/shared (the one funding
+ * money formatter) so existing callers/tests keep importing it from here.
+ */
+export const fmtM = fmtFundingMillions;
 
 function ymd(d: Date | string | null | undefined): string {
   if (!d) return '';
@@ -112,7 +105,9 @@ export function formatBillTruth(bill: BillTruth): string {
   );
   if (bill.title) lines.push(`- Bill: ${bill.title}`);
   if (label) {
-    lines.push(`- Canonical status: ${label}${bill.statusAt ? ` (as of ${ymd(bill.statusAt)})` : ''}`);
+    lines.push(
+      `- Canonical status: ${label}${bill.statusAt ? ` (as of ${ymd(bill.statusAt)})` : ''}`,
+    );
   }
   if (bill.latestActionText) {
     lines.push(
@@ -157,6 +152,8 @@ export function formatBillTruth(bill: BillTruth): string {
 
 export interface PeYearFunding extends FundingStageValues {
   fy: number;
+  /** NDAA (authorization) conference report — outside the appropriations ladder. */
+  ndaaConference?: number | null;
 }
 
 export interface PeTruth {
@@ -164,88 +161,44 @@ export interface PeTruth {
   title: string | null;
   service: string | null;
   budgetActivityName: string | null;
-  /** The latest FY row that carries any funding signal, numbers coerced. */
-  year: PeYearFunding | null;
+  /** Human exhibit noun (R-1 PE vs P-1 procurement line), if the caller resolved it. */
+  budgetExhibitType?: string | null;
+  /** Latest mark-bearing FY; the shared renderer derives it when omitted. */
+  currentCycleFy?: number | null;
+  /** The FULL fiscal-year series (historical → current cycle → outyears), numbers coerced. */
+  years: PeYearFunding[];
 }
 
 /**
- * Build the AUTHORITATIVE PROGRAM ELEMENT FUNDING block. Shows the request and
- * EVERY congressional mark explicitly (so a chamber cut can't be silently
- * omitted), names the canonical "current" figure via the shared precedence, and
- * states the direction vs request in words (so "$112.9M current / $72.1M
- * request" can never be narrated as a reduction).
+ * Build the AUTHORITATIVE PROGRAM ELEMENT FUNDING block. Delegates to the shared
+ * renderPeFundingForModel so every LLM surface renders the identical, fully
+ * labeled series — FY + stage + authorization/appropriations vehicle + signed
+ * direction vs the request, the NDAA conference report as a distinct
+ * authorization figure, and the current authoritative figure per FY. The
+ * direction can never be inverted, a chamber cut can never be silently dropped,
+ * and an outyear projection can never be quoted as "the request".
  */
 export function formatPeTruth(pe: PeTruth): string {
-  const head = [
-    `PE ${pe.peCode}`,
-    pe.title ? `— ${pe.title}` : '',
-    pe.service ? `(${pe.service})` : '',
-  ]
-    .filter(Boolean)
-    .join(' ');
-
-  const lines: string[] = [
-    'AUTHORITATIVE PROGRAM ELEMENT FUNDING (Capiro database — $ in millions; cite exactly, do not infer direction):',
-    `- ${head}`,
-  ];
-
-  const y = pe.year;
-  if (!y) {
-    lines.push(
-      '- No structured funding rows on record for this PE. Do NOT state or estimate a dollar figure; say the funding detail is not available.',
-    );
-    return lines.join('\n');
-  }
-
-  lines.push(`- Fiscal year: FY${String(y.fy).slice(-2)}`);
-  if (y.request != null) lines.push(`- President's request: ${fmtM(y.request)}`);
-
-  const marks: Array<[keyof FundingStageValues, string]> = [
-    ['hascMark', 'HASC'],
-    ['sascMark', 'SASC'],
-    ['hacDMark', 'HAC-D'],
-    ['sacDMark', 'SAC-D'],
-    ['conference', 'Conference'],
-    ['enacted', 'Enacted'],
-  ];
-  const markParts = marks
-    .filter(([k]) => y[k] != null)
-    .map(([k, lbl]) => {
-      const v = y[k] as number;
-      const vsReq = y.request != null ? ` (${signedM(v - y.request)})` : '';
-      return `${lbl} ${fmtM(v)}${vsReq}`;
-    });
-  if (markParts.length) {
-    lines.push(`- Congressional marks: ${markParts.join(' · ')}`);
-  } else {
-    lines.push(
-      '- No congressional marks on record yet (request only) — do not describe any congressional action on this line.',
-    );
-  }
-
-  const cur = currentFunding({
-    request: y.request,
-    hascMark: y.hascMark,
-    sascMark: y.sascMark,
-    hacDMark: y.hacDMark,
-    sacDMark: y.sacDMark,
-    conference: y.conference,
-    enacted: y.enacted,
+  return renderPeFundingForModel({
+    peCode: pe.peCode,
+    title: pe.title,
+    service: pe.service,
+    budgetExhibitType: pe.budgetExhibitType ?? null,
+    currentCycleFy: pe.currentCycleFy ?? null,
+    years: pe.years.map(
+      (y): ModelFundingYear => ({
+        fy: y.fy,
+        request: y.request,
+        hascMark: y.hascMark,
+        sascMark: y.sascMark,
+        hacDMark: y.hacDMark,
+        sacDMark: y.sacDMark,
+        conference: y.conference,
+        ndaaConference: y.ndaaConference ?? null,
+        enacted: y.enacted,
+      }),
+    ),
   });
-  if (cur.value != null && cur.stage !== 'none') {
-    const stageLabel = FUNDING_STAGE_LABEL[cur.stage];
-    const enacted = y.enacted != null;
-    const vsReq =
-      y.request != null && cur.stage !== 'request'
-        ? ` — ${signedM(cur.value - y.request)}`
-        : '';
-    lines.push(
-      `- Current authoritative figure: ${fmtM(cur.value)} (${stageLabel})${vsReq}. ${
-        enacted ? 'This is the enacted level.' : 'NOT enacted; marks may differ by chamber.'
-      }`,
-    );
-  }
-  return lines.join('\n');
 }
 
 // ── Client relationship snapshot (v2 regression fix, 2026-07-11) ─────────────
