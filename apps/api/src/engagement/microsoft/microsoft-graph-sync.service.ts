@@ -1336,7 +1336,14 @@ function hasManualAssociationSignal(value: Prisma.JsonValue | null | undefined) 
  * could not do this because prod runs multiple API tasks behind the ALB.
  */
 async function lockTenantForGraphSync(tx: Prisma.TransactionClient, tenantId: string) {
-  const lockKey = `msgraph-sync:${tenantId}`;
+  // PROVIDER-NEUTRAL key (was `msgraph-sync:` before the Google integration):
+  // the Google sync (google-sync.service.ts lockTenantForEngagementSync) uses
+  // the SAME `engagement-sync:<tenant>` key, so an Outlook sync and a Gmail sync
+  // for the same tenant serialize against each other. Both providers upsert the
+  // same tenant-scoped rows (engagement_contacts on (tenant,email); meetings /
+  // mail_threads / mail_messages on (tenant,source,externalId)) — a per-provider
+  // key would reintroduce the cross-provider deadlock this lock exists to prevent.
+  const lockKey = `engagement-sync:${tenantId}`;
   await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext(${lockKey}))`;
 }
 

@@ -138,6 +138,17 @@ export class AppModule implements NestModule {
           path: 'api/engagement/integrations/microsoft/notifications',
           method: RequestMethod.ALL,
         },
+        // Google OAuth callback — top-level browser redirect from Google with
+        // ?code&state and no Clerk session; authenticates via the HMAC-signed
+        // `state`, same as the Microsoft callback above.
+        {
+          path: '/api/engagement/integrations/google/callback',
+          method: RequestMethod.GET,
+        },
+        {
+          path: 'api/engagement/integrations/google/callback',
+          method: RequestMethod.GET,
+        },
         {
           path: '/api/clio/runtime/(.*)',
           method: RequestMethod.ALL,

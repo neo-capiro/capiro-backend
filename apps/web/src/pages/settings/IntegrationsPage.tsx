@@ -135,15 +135,53 @@ export function IntegrationsPage() {
       message.error(err instanceof Error ? err.message : 'Subscription setup failed'),
   });
 
-  // Surface success / error from the Microsoft OAuth callback redirect.
+  const startGoogleOAuth = useMutation({
+    mutationFn: async (connectionId?: string) =>
+      (
+        await api.post<{ authUrl: string; connectionId: string }>(
+          '/api/engagement/integrations/google/start',
+          connectionId ? { connectionId } : {},
+        )
+      ).data,
+    onSuccess: ({ authUrl }) => {
+      window.location.href = authUrl;
+    },
+    onError: (err) => message.error(err instanceof Error ? err.message : 'OAuth start failed'),
+  });
+
+  const syncGoogle = useMutation({
+    mutationFn: async (connectionId: string) =>
+      // Same reasoning as syncMicrosoft: Gmail/Calendar sync pages + persists per
+      // item and a reset-sync can exceed the default 20s axios timeout (the API
+      // returns hasMore so it can be re-run). Give it headroom under the 180s ALB
+      // idle timeout.
+      (
+        await api.post(`/api/engagement/integrations/google/${connectionId}/sync`, undefined, {
+          timeout: 170_000,
+        })
+      ).data,
+    onSuccess: () => {
+      message.success('Google sync complete');
+      qc.invalidateQueries({ queryKey: ['engagement-integrations'] });
+      qc.invalidateQueries({ queryKey: ['engagement-meetings'] });
+      qc.invalidateQueries({ queryKey: ['engagement-mail-threads'] });
+      qc.invalidateQueries({ queryKey: ['client-meetings'] });
+      qc.invalidateQueries({ queryKey: ['client-mail-threads'] });
+    },
+    onError: (err) => message.error(err instanceof Error ? err.message : 'Sync failed'),
+  });
+
+  // Surface success / error from the OAuth callback redirect (both providers).
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
-    if (params.get('provider') !== 'microsoft_365') return;
+    const provider = params.get('provider');
+    if (provider !== 'microsoft_365' && provider !== 'google_workspace') return;
+    const label = provider === 'google_workspace' ? 'Google Workspace' : 'Microsoft 365';
     if (params.get('connected') === '1') {
-      message.success('Microsoft 365 connected');
+      message.success(`${label} connected`);
       qc.invalidateQueries({ queryKey: ['engagement-integrations'] });
     } else if (params.get('error')) {
-      message.error(`Microsoft OAuth failed: ${params.get('error')}`);
+      message.error(`${label} OAuth failed: ${params.get('error')}`);
     }
     const url = new URL(window.location.href);
     url.searchParams.delete('provider');
@@ -224,6 +262,16 @@ export function IntegrationsPage() {
                             </Button>
                           </>
                         ) : null}
+                        {provider.key === 'google_workspace' &&
+                        connection.status === 'connected' ? (
+                          <Button
+                            size="small"
+                            loading={syncGoogle.isPending}
+                            onClick={() => syncGoogle.mutate(connection.id)}
+                          >
+                            Sync now
+                          </Button>
+                        ) : null}
                       </Space>
                     </div>
                   ))
@@ -254,6 +302,17 @@ export function IntegrationsPage() {
                     }
                   >
                     Connect Microsoft 365
+                  </Button>
+                ) : provider.key === 'google_workspace' ? (
+                  <Button
+                    icon={<ApiOutlined />}
+                    type="primary"
+                    loading={startGoogleOAuth.isPending}
+                    onClick={() =>
+                      startGoogleOAuth.mutate(connections.find((c) => c.status !== 'connected')?.id)
+                    }
+                  >
+                    Connect Google Workspace
                   </Button>
                 ) : (
                   <Button icon={<ApiOutlined />} disabled>

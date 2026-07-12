@@ -355,6 +355,23 @@ export const configSchema = z.object({
     .url()
     .default('https://app.capiro.ai/api/engagement/integrations/microsoft/notifications'),
 
+  // Google Workspace OAuth (capiro-gmail-integration GCP project). Unlike the
+  // Microsoft app registration (which uses certificate auth because the
+  // capiro.ai Azure tenant blocks client secrets), Google's Web-application
+  // OAuth client uses a standard client secret — there is no cert-based
+  // confidential-client option for this delegated, multi-tenant flow. The
+  // secret lives in AWS Secrets Manager (capiro/dev/GOOGLE_CLIENT_SECRET),
+  // never in plaintext. All keys are optional so the feature stays inert
+  // (capabilities() reports configured:false, routes 503) until wired —
+  // matching the fail-closed posture of MICROSOFT_* and RECALL_*.
+  GOOGLE_CLIENT_ID: z.string().optional(),
+  GOOGLE_CLIENT_SECRET: z.string().optional(),
+  GOOGLE_REDIRECT_URI: z
+    .string()
+    .url()
+    .default('https://app.capiro.ai/api/engagement/integrations/google/callback'),
+  GOOGLE_OAUTH_SUCCESS_REDIRECT: z.string().default('/settings/integrations'),
+
   // Public landing page demo requests are stored in Postgres and emailed via
   // Amazon SES. The source address must be a verified SES identity.
   DEMO_REQUEST_EMAIL_FROM: z.string().email().default('sales@capiro.ai'),

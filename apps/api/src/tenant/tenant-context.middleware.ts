@@ -76,6 +76,12 @@ export class TenantContextMiddleware implements NestMiddleware {
       '/api/v1/demo-requests',
       '/api/engagement/integrations/microsoft/callback',
       '/api/engagement/integrations/microsoft/notifications',
+      // Google OAuth callback: same pattern as the Microsoft callback above — a
+      // top-level browser redirect from Google with ?code&state and no Clerk
+      // session; authenticates via the HMAC-signed `state`
+      // (GoogleOAuthService.verifyState). (Google push notifications endpoint is
+      // added here in Phase 3 when users.watch/Pub/Sub lands.)
+      '/api/engagement/integrations/google/callback',
       '/api/clio/runtime',
       '/api/clio/mcp-oauth/callback',
       '/api/insights',
