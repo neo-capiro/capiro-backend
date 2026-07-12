@@ -20,6 +20,9 @@
  *   D11 member↔district         — a district asserted as a representation mapping
  *                                 that get_representation/resolve_entity did not
  *                                 return this turn (the S3-1 fabrication class).
+ *   D9  plus-up attribution     — a plus-up $ figure credited to a PE whose
+ *                                 recorded mark-vs-request delta doesn't match it
+ *                                 (names the sibling it fits — the S2-11 class).
  *
  * DESIGN: deterministic + pure. No LLM, no network. Precision over recall — a
  * check fires only on an unambiguous, ground-truth-backed contradiction, because
@@ -482,6 +485,71 @@ export function checkFundingDirectionVsEvidence(
   return out;
 }
 
+// ── D9: plus-up attributed to the wrong PE ───────────────────────────────────
+
+const PLUSUP_RE =
+  /\b(plus-?up|plused|added|boost(?:ed)?|increase of|increased by|addition of|added to)\b/i;
+
+/** peCode → current-cycle authoritative SIGNED delta (mark − request), $M. */
+function authoritativeDeltaByPe(packets: EvidencePacket[]): Map<string, number> {
+  const best = new Map<string, { rank: number; delta: number }>();
+  for (const p of packets) {
+    if (p.semantics.cycle !== 'current' || !p.semantics.comparison) continue;
+    const rank = p.semantics.stage ? (STAGE_RANK_EV[p.semantics.stage] ?? -1) : -1;
+    const cur = best.get(p.entity.entityId);
+    if (!cur || rank > cur.rank) {
+      best.set(p.entity.entityId, { rank, delta: p.semantics.comparison.delta });
+    }
+  }
+  const out = new Map<string, number>();
+  for (const [pe, v] of best) out.set(pe, v.delta);
+  return out;
+}
+
+/**
+ * Flag a plus-up dollar figure attributed to a PE whose recorded mark-vs-request
+ * delta does NOT match it — the wrong-PE plus-up class (S2-11). Fires only on a
+ * plus-up sentence with EXACTLY one PE (with a ledger comparison) and EXACTLY one
+ * dollar figure whose magnitude is off the PE's actual |delta| beyond tolerance;
+ * if a SIBLING PE's delta matches the figure, it is named (the plus-up likely
+ * belongs there). Precision-first: abstains on any ambiguity.
+ */
+export function checkPlusUpAttribution(output: string, ledger: ToolResultLedger): AuditFinding[] {
+  const deltaByPe = authoritativeDeltaByPe(compilePacketsFromLedger(ledger));
+  if (deltaByPe.size === 0) return [];
+  const out: AuditFinding[] = [];
+  for (const s of toSentences(output)) {
+    if (!PLUSUP_RE.test(s)) continue;
+    const codes = extractCitedPeCodes(s).filter((c) => deltaByPe.has(c));
+    if (codes.length !== 1) continue;
+    const figures: number[] = [];
+    const re = new RegExp(MONEY_RE.source, 'gi');
+    let m: RegExpExecArray | null;
+    while ((m = re.exec(s)) != null) {
+      const v = moneyToMillions(m[1]!, m[2]);
+      if (Number.isFinite(v)) figures.push(v);
+    }
+    if (figures.length !== 1) continue;
+    const claimed = Math.abs(figures[0]!);
+    const pe = codes[0]!;
+    const actual = Math.abs(deltaByPe.get(pe)!);
+    const tol = Math.max(1, actual * 0.05);
+    if (Math.abs(claimed - actual) <= tol) continue; // matches → fine
+    const sibling = [...deltaByPe.entries()].find(
+      ([c, d]) => c !== pe && Math.abs(Math.abs(d) - claimed) <= Math.max(1, Math.abs(d) * 0.05),
+    );
+    out.push({
+      check: 'D9',
+      severity: 'high',
+      span: s,
+      detail: `A $${claimed}M plus-up is attributed to ${pe}, but ${pe}'s recorded mark-vs-request delta is $${actual}M${
+        sibling ? ` — $${claimed}M matches ${sibling[0]} instead` : ''
+      }. Verify the attribution before crediting this PE.`,
+    });
+  }
+  return out;
+}
+
 // ── orchestration + verdict gate ─────────────────────────────────────────────
 
 /** Per-surface fail policy (v3 plan §3.6) applied when mode === 'enforce'. */
@@ -526,6 +594,7 @@ export function runAuditor(input: AuditInput): AuditVerdict {
     ...checkFailedRuleFraming(output, ledger),
     ...checkIdentifierIdentity(output, ledger),
     ...checkMemberDistrict(output, ledger),
+    ...checkPlusUpAttribution(output, ledger),
   ];
   // Dedupe by (check, span): the text-D4 and evidence-D4 can both fire on one
   // sentence — the reader/ledger should see it once.

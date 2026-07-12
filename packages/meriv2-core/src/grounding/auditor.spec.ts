@@ -7,10 +7,57 @@ import {
   checkFailedRuleFraming,
   checkIdentifierIdentity,
   checkMemberDistrict,
+  checkPlusUpAttribution,
   type ToolResultLedger,
 } from './auditor';
 
 const ledgerWith = (entries: ToolResultLedger['entries']): ToolResultLedger => ({ entries });
+
+describe('D9 — plus-up attributed to the wrong PE', () => {
+  // Two PEs: 0603851F delta = +12.9 (72.1→85), 0604256AX delta = +40.8 (72.1→112.9).
+  const ledger = ledgerWith([
+    {
+      tool: 'get_pe_budget_timeline',
+      serialized: '{"peCode":"0603851F"}',
+      result: {
+        peCode: '0603851F',
+        generatedAt: '2026-07-12T00:00:00Z',
+        currentCycleFy: 2027,
+        years: [{ fy: 2027, request: 72.1, hacDMark: 85 }],
+      },
+    },
+    {
+      tool: 'get_pe_budget_timeline',
+      serialized: '{"peCode":"0604256AX"}',
+      result: {
+        peCode: '0604256AX',
+        generatedAt: '2026-07-12T00:00:00Z',
+        currentCycleFy: 2027,
+        years: [{ fy: 2027, request: 72.1, hacDMark: 112.9 }],
+      },
+    },
+  ]);
+  it('flags a plus-up whose amount does not match the claimed PE, naming the sibling it fits', () => {
+    const f = checkPlusUpAttribution(
+      'The committee added a $40.8M plus-up to PE 0603851F.',
+      ledger,
+    );
+    expect(f).toHaveLength(1);
+    expect(f[0]!.check).toBe('D9');
+    expect(f[0]!.detail).toContain('0604256AX'); // the sibling the amount actually matches
+  });
+  it('does NOT flag a plus-up that matches the claimed PE delta', () => {
+    expect(checkPlusUpAttribution('A $12.9M plus-up was added to PE 0603851F.', ledger)).toEqual(
+      [],
+    );
+  });
+  it('abstains without a plus-up word, or with != one PE / != one figure', () => {
+    expect(checkPlusUpAttribution('PE 0603851F got $40.8M.', ledger)).toEqual([]); // no plus-up word
+    expect(
+      checkPlusUpAttribution('A $40.8M plus-up spanned 0603851F and 0604256AX.', ledger),
+    ).toEqual([]); // two PEs
+  });
+});
 
 describe('D4 (evidence-backed) — direction vs compiled EvidencePackets', () => {
   // A get_pe_budget_timeline-shaped ledger entry: FY27 request 72.1, HAC-D 112.9
