@@ -803,9 +803,10 @@ Representative checkers (D4b stage→vehicle map; D6 operative-framing lexicon +
 - [ ] Content hashing + version resolution; the two dependency tables; invalidation events on status/stage/relationship changes; JIT dependency validation on send/publish/finalize; backfill active scheduled outreach + pending alerts.
 - [ ] Stand up the versioned predicate registry; migrate the Wave-2 auditor's inputs from ad-hoc extraction onto EvidencePackets surface by surface.
 
-**Wave 4 — Pre-synthesis ClaimPlan gate + post-render diff (deliverables) — ~2–3 weeks**
-- [ ] Code-generated ClaimPlans for alert/templated surfaces; strict-schema ClaimPlans for research/outreach.
-- [ ] Pre-synthesis approval (D1–D11 over planned claims); constrained renderer (approved claims + allowed spans); deterministic post-render extraction + semantic diff; JIT freshness in the release verdict.
+**Wave 4 — Pre-synthesis ClaimPlan gate + post-render diff (deliverables) — 🟡 gate core SHIPPED; ClaimPlan proposal + constrained render + diff remain**
+- [x] **Deterministic pre-synthesis gate core** — `packages/meriv2-core/src/grounding/claim-gate.ts`: `runClaimPlanGate(plan, packets)` judges each `PlannedClaim` against its cited `EvidencePacket`s via `PREDICATE_REGISTRY` — `approved`/`refuted`/`unsupported`/`needs_skeptic` per claim + a plan decision (`block` on a load-bearing refutation, `repair` on a non-load-bearing refutation or load-bearing unsupported, else `approve_all`; skeptic residuals don't block). Deterministic branches for funding_direction_vs_request (S1-3), funding_at_stage, bill_status, rule_operative (H.R.8800), identifier_kind (LI-as-PE), provision_directs_pe (program-level attribution); labeled inferences pass ungated; unmodeled predicates route to the skeptic. 10 tests. Pure — the enforcement-before-prose engine.
+- [ ] Code-generated ClaimPlans for alert/templated surfaces; strict-schema ClaimPlans for research/outreach (the model proposes the plan the gate consumes).
+- [ ] Constrained renderer (approved claims + allowed spans); deterministic post-render extraction + semantic diff; JIT freshness in the release verdict; wire per surface.
 - [ ] Chat remains post-hoc (ADR-2); revisit only if measurement shows a post-hoc escape it cannot catch.
 
 **Wave 5 — Continuous audit, observability, release gates — ~1 week, ∥ Wave 2+**

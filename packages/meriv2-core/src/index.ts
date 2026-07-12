@@ -14,6 +14,7 @@ export * from './grounding/claim-map';
 export * from './grounding/grounded-json';
 export * from './grounding/auditor';
 export * from './grounding/evidence';
+export * from './grounding/claim-gate';
 export * from './llm/llm-client';
 export * from './tools/client/get-client-context';
 export * from './tools/delegated/delegated-tool';
