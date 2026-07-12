@@ -169,6 +169,68 @@ export function checkVehicleConflation(output: string): AuditFinding[] {
   return out;
 }
 
+// ── D4: numeric direction self-consistency ──────────────────────────────────
+
+const MONEY_RE = /\$\s?([\d,]+(?:\.\d+)?)\s*(b|billion|m|million|k|thousand)?\b/gi;
+const DECREASE_WORDS =
+  /\b(cut|cuts|reduc\w+|slash\w+|below|decreas\w+|lower\w+|trimm\w+|dropp\w+|fell|falling|shrink\w+|down\b)\b/i;
+const INCREASE_WORDS =
+  /\b(increas\w+|above|rais\w+|boost\w+|plus-?up|added|grew|grow\w+|higher|restor\w+|rose|rising|up\b)\b/i;
+// A comparison context linking a subject figure to a baseline figure. Includes
+// below/above because those double as the directional comparison itself
+// ("$1.2B, below the $900M request") — no separate preposition is present there.
+const COMPARISON_LINK = /\b(from|than|versus|vs\.?|compared to|below|above)\b/i;
+
+/** Normalize a captured "$X <unit>" to USD millions (M is the funding default). */
+function moneyToMillions(numStr: string, unit: string | undefined): number {
+  const n = Number(numStr.replace(/,/g, ''));
+  if (!Number.isFinite(n)) return NaN;
+  const u = (unit ?? 'm').toLowerCase();
+  if (u === 'b' || u === 'billion') return n * 1000;
+  if (u === 'k' || u === 'thousand') return n / 1000;
+  return n; // m / million / bare → already millions
+}
+
+/**
+ * Flag a sentence whose DIRECTION WORD contradicts the numeric order of the two
+ * figures it compares — the reversed-comparison class (S1-3, the ICBM figure
+ * reversal that shipped to a client: "$112.9M … cut … from the $72.1M request",
+ * where 112.9 > 72.1 is a RAISE, not a cut). High-precision: fires only when the
+ * sentence has (a) a comparison link (from/than/vs/compared to), (b) EXACTLY one
+ * direction polarity (increase XOR decrease), and (c) two parseable figures whose
+ * order contradicts that polarity. Self-consistency only — no ledger needed.
+ */
+export function checkNumericDirection(output: string): AuditFinding[] {
+  const out: AuditFinding[] = [];
+  for (const s of toSentences(output)) {
+    if (!COMPARISON_LINK.test(s)) continue;
+    const dec = DECREASE_WORDS.test(s);
+    const inc = INCREASE_WORDS.test(s);
+    if (dec === inc) continue; // need exactly one polarity (0 or 2 = ambiguous)
+    const figures: number[] = [];
+    let m: RegExpExecArray | null;
+    const re = new RegExp(MONEY_RE.source, 'gi');
+    while ((m = re.exec(s)) != null) {
+      const v = moneyToMillions(m[1]!, m[2]);
+      if (Number.isFinite(v)) figures.push(v);
+    }
+    if (figures.length !== 2) continue; // exactly two figures keeps it unambiguous
+    const [subject, baseline] = figures as [number, number];
+    if (subject === baseline) continue;
+    const actualIncrease = subject > baseline;
+    const claimedIncrease = inc;
+    if (actualIncrease !== claimedIncrease) {
+      out.push({
+        check: 'D4',
+        severity: 'critical',
+        span: s,
+        detail: `Direction word contradicts the numbers: the sentence compares $${subject}M and $${baseline}M but calls it a ${claimedIncrease ? 'increase' : 'decrease'}. $${subject}M is ${actualIncrease ? 'ABOVE' : 'BELOW'} $${baseline}M — restate the direction from the figures, or from the source-stated signed delta.`,
+      });
+    }
+  }
+  return out;
+}
+
 // ── D6: failed / stale rule framing ──────────────────────────────────────────
 
 // Forward-looking / operative phrasing. Deliberately excludes bare "on the
@@ -311,6 +373,7 @@ export function runAuditor(input: AuditInput): AuditVerdict {
   }
   const findings: AuditFinding[] = [
     ...checkCitations(output, ledger),
+    ...checkNumericDirection(output),
     ...checkVehicleConflation(output),
     ...checkFailedRuleFraming(output, ledger),
     ...checkIdentifierIdentity(output, ledger),

@@ -1,6 +1,7 @@
 import {
   runAuditor,
   checkCitations,
+  checkNumericDirection,
   checkVehicleConflation,
   checkFailedRuleFraming,
   checkIdentifierIdentity,
@@ -8,6 +9,39 @@ import {
 } from './auditor';
 
 const ledgerWith = (entries: ToolResultLedger['entries']): ToolResultLedger => ({ entries });
+
+describe('D4 — numeric direction self-consistency', () => {
+  it('flags a raise narrated as a cut (S1-3 reversal) as CRITICAL', () => {
+    const f = checkNumericDirection('The line was cut to $112.9M from the $72.1M request.');
+    expect(f).toHaveLength(1);
+    expect(f[0]!.check).toBe('D4');
+    expect(f[0]!.severity).toBe('critical');
+  });
+  it('flags a cut narrated as an increase', () => {
+    expect(
+      checkNumericDirection('The mark increased to $60M from the $100M request.'),
+    ).toHaveLength(1);
+  });
+  it('does NOT flag a correctly-described raise', () => {
+    expect(checkNumericDirection('The mark rose to $112.9M from the $72.1M request.')).toEqual([]);
+  });
+  it('does NOT flag a correctly-described cut', () => {
+    expect(checkNumericDirection('The line was cut to $60M from the $100M request.')).toEqual([]);
+  });
+  it('stays silent when the sentence is ambiguous (both/no direction or ≠2 figures)', () => {
+    expect(checkNumericDirection('The request is $72.1M.')).toEqual([]); // one figure
+    expect(checkNumericDirection('$112.9M vs $72.1M vs $50M across the cycle.')).toEqual([]); // 3 figures, no dir
+    expect(
+      checkNumericDirection('It went up from $50M then down from $80M in a later year.'),
+    ).toEqual([]); // both polarities
+  });
+  it('normalizes units before comparing ($B vs $M)', () => {
+    // $1.2B (=1200M) described as "below" the $900M request is a contradiction.
+    expect(checkNumericDirection('Funding fell to $1.2B, below the $900M request.')).toHaveLength(
+      1,
+    );
+  });
+});
 
 describe('D1 — FORM-B citation existence', () => {
   const ledger = ledgerWith([

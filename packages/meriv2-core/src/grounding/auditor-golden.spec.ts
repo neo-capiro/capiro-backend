@@ -54,10 +54,21 @@ describe('GOLDEN — Sample 1: Outreach H.R. 8800 memo (client Jaia Robotics)', 
     expect(v.findings.some((f) => f.check === 'D4b')).toBe(true);
   });
 
-  // The headline S1-3 error: "$112.9M current vs $72.1M request" narrated as a
-  // REDUCTION (a raise called a cut). Needs D4 (direction re-derived from the
-  // ledger's signed delta) — shadow-gated Wave-2 remainder.
-  it.todo('D4 catches the reversed current-vs-request comparison (S1-3)');
+  it('D4 catches the reversed current-vs-request comparison (S1-3, the ICBM reversal)', () => {
+    // The headline error that shipped to a client: a mark ABOVE the request
+    // ($112.9M > $72.1M) narrated as a "cut". (Isolated to the reversal; a mixed
+    // "cut … push to restore" sentence is ambiguous by design and abstains here —
+    // the ledger-signed-delta D4 in the Wave-2 remainder resolves that case.)
+    const shipped = 'The FY27 mark was cut to $112.9M, down from the $72.1M request.';
+    const v = runAuditor({
+      output: shipped,
+      ledger: ledger([]),
+      surface: 'outreach',
+      mode: 'enforce',
+    });
+    expect(v.findings.some((f) => f.check === 'D4' && f.severity === 'critical')).toBe(true);
+    expect(v.decision).toBe('hold');
+  });
 });
 
 describe('GOLDEN — Sample 2: Meri chat PE matching (Boresight)', () => {
