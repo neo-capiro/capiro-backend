@@ -12,6 +12,9 @@ import {
   OUTREACH_ASYNC_FLAG,
   meriDockUndockUiEnabled,
   MERI_DOCK_UNDOCK_UI_FLAG,
+  meriAlertsImportantOnly,
+  MERI_ALERTS_IMPORTANT_ONLY_FLAG,
+  MERI_ALERT_IMPORTANT_PRIORITIES,
 } from './tenant-flags.js';
 
 describe('tenantFeatureEnabled', () => {
@@ -111,5 +114,28 @@ describe('outreachAsyncFlagEnabled (per-tenant canary, default OFF)', () => {
     expect(outreachAsyncFlagEnabled({ clioFeatureFlags: { [OUTREACH_ASYNC_FLAG]: false } })).toBe(
       false,
     );
+  });
+});
+
+describe('meriAlertsImportantOnly (Meri alert inbox floor, per-tenant, default ON)', () => {
+  test('ON by default (and when unset/malformed) — noise filtering is the safe default', () => {
+    expect(meriAlertsImportantOnly({})).toBe(true);
+    expect(meriAlertsImportantOnly(null)).toBe(true);
+    expect(meriAlertsImportantOnly({ clioFeatureFlags: 'oops' })).toBe(true);
+  });
+
+  test('explicit false restores the old verbose behavior', () => {
+    expect(
+      meriAlertsImportantOnly({ clioFeatureFlags: { [MERI_ALERTS_IMPORTANT_ONLY_FLAG]: false } }),
+    ).toBe(false);
+    expect(
+      meriAlertsImportantOnly({ clioFeatureFlags: { [MERI_ALERTS_IMPORTANT_ONLY_FLAG]: true } }),
+    ).toBe(true);
+  });
+
+  test('the important-priority set matches the inbox banner red "critical" band', () => {
+    // MeriInboxBanner.priorityClass maps high|critical|urgent -> the red band;
+    // the API floor must use the exact same set so styling and filtering agree.
+    expect([...MERI_ALERT_IMPORTANT_PRIORITIES].sort()).toEqual(['critical', 'high', 'urgent']);
   });
 });

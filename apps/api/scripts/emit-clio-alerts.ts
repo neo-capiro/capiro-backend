@@ -6,9 +6,11 @@
  *   1. Upcoming meetings (next 48h) that have no prep notes.
  *   2. Active clients with no meeting/engagement in 30+ days.
  *
- * and writes clio_proactive_alert rows (status=pending) that the dashboard
- * intel inbox + GET /api/clio/alerts surface. Dedupes per
- * (tenant, sourceType, sourceId, status=pending) so re-runs don't spam.
+ * and writes clio_proactive_alert rows (status=pending) that the Meri bell +
+ * "Scheduled briefings" banner surface via GET /api/clio/alerts. Dedupes per
+ * (tenant, sourceType, sourceId) against BOTH pending AND dismissed ('read')
+ * rows, so a dismissed alert stays dismissed instead of resurrecting on the
+ * next run while the underlying condition still holds.
  *
  *   pnpm --filter @capiro/api exec tsx scripts/emit-clio-alerts.ts
  *
@@ -39,13 +41,25 @@ async function generateForTenant(tenantId: string): Promise<number> {
       startsAt: { gte: now, lte: horizon },
       preps: { none: {} },
     },
-    select: { id: true, subject: true, startsAt: true, clientId: true, client: { select: { name: true } } },
+    select: {
+      id: true,
+      subject: true,
+      startsAt: true,
+      clientId: true,
+      client: { select: { name: true } },
+    },
     take: PER_TENANT_TAKE,
   });
 
   for (const meeting of upcomingMeetings) {
     const exists = await prisma.clioProactiveAlert.findFirst({
-      where: { tenantId, sourceType: 'meeting_prep', sourceId: meeting.id, status: 'pending' },
+      // pending OR read: a dismissed alert must not resurrect on the next run.
+      where: {
+        tenantId,
+        sourceType: 'meeting_prep',
+        sourceId: meeting.id,
+        status: { in: ['pending', 'read'] },
+      },
       select: { id: true },
     });
     if (exists) continue;
@@ -79,7 +93,13 @@ async function generateForTenant(tenantId: string): Promise<number> {
 
   for (const client of staleClients) {
     const exists = await prisma.clioProactiveAlert.findFirst({
-      where: { tenantId, sourceType: 'stale_client', sourceId: client.id, status: 'pending' },
+      // pending OR read: a dismissed alert must not resurrect on the next run.
+      where: {
+        tenantId,
+        sourceType: 'stale_client',
+        sourceId: client.id,
+        status: { in: ['pending', 'read'] },
+      },
       select: { id: true },
     });
     if (exists) continue;
@@ -121,7 +141,9 @@ async function main(): Promise<void> {
     }
   }
 
-  console.log(`[emit-clio-alerts] done. Created ${totalCreated} new alert(s) across ${tenants.length} tenant(s).`);
+  console.log(
+    `[emit-clio-alerts] done. Created ${totalCreated} new alert(s) across ${tenants.length} tenant(s).`,
+  );
 }
 
 main()

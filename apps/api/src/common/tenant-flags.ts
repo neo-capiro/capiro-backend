@@ -117,6 +117,34 @@ export function meriDockUndockUiEnabled(settings: unknown): boolean {
 }
 
 /**
+ * Meri proactive-alert importance floor (2026-07-12). The Meri chat bell + the
+ * "🔔 Scheduled briefings" banner are both fed by MeriService.listAlerts, which
+ * historically returned EVERY pending clio_proactive_alert with no importance
+ * floor — so routine "client quiet 30+ days" notices (priority 'normal') sat
+ * next to time-sensitive "meeting in <48h, no prep" items (priority 'high'),
+ * which read as noise. When this flag is ON (the DEFAULT), listAlerts surfaces
+ * only the high-importance priority band — the exact set MeriInboxBanner's
+ * priorityClass already renders as the red "critical" style, so nothing that
+ * showed red disappears and nothing that showed 'notable'/'info' survives.
+ * Reversible per tenant to `false` for the old verbose behavior. This is a pure
+ * READ filter: no env kill-switch, no emitter change — the alerts are still
+ * written, just not shown, so flipping the flag off restores them instantly.
+ */
+export const MERI_ALERTS_IMPORTANT_ONLY_FLAG = 'meriAlertsImportantOnly' as const;
+
+/**
+ * The priorities that count as "important" for the Meri alert inbox. Kept in
+ * one place and mirrors MeriInboxBanner.priorityClass's red "critical" band
+ * (high | critical | urgent) so the API floor and the UI styling never drift.
+ */
+export const MERI_ALERT_IMPORTANT_PRIORITIES = ['high', 'critical', 'urgent'] as const;
+
+/** Whether a tenant's Meri alert inbox is filtered to important priorities (default ON). */
+export function meriAlertsImportantOnly(settings: unknown): boolean {
+  return tenantFeatureEnabled(settings, MERI_ALERTS_IMPORTANT_ONLY_FLAG, true);
+}
+
+/**
  * Meetings v2 Phase 2 — cross-user collision model (docs/plans/2026-07-11-…).
  * When ON, the client "Shared from meetings" feed groups per-mailbox rows that
  * share a Graph `iCalUId` into ONE record (canonical notes, one row per meeting,

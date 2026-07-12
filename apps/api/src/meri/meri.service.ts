@@ -53,7 +53,11 @@ import { COMPLIANCE_GUARDRAILS, screenComplianceRisk } from './meri-compliance.h
 import { confidenceLevel } from './meri-confidence.helpers.js';
 import { classifyToolAction, isSideEffectingTool } from './meri-actions.helpers.js';
 import { MeriFeatureFlagsService } from './meri-feature-flags.service.js';
-import { MERIV2_FLAGS } from '../common/tenant-flags.js';
+import {
+  MERIV2_FLAGS,
+  MERI_ALERTS_IMPORTANT_ONLY_FLAG,
+  MERI_ALERT_IMPORTANT_PRIORITIES,
+} from '../common/tenant-flags.js';
 import { MeriV2ChatClient, type MeriV2ChatStreamEvent } from './meriv2-chat.client.js';
 import { MeriClaimWriterService } from './meri-claim-writer.js';
 import mammoth from 'mammoth';
@@ -3109,9 +3113,24 @@ export class MeriService {
   // ── Proactive Alerts ──────────────────────────────────────────────────
 
   async listAlerts(ctx: TenantContext) {
+    // Importance floor (2026-07-12): default ON, so the Meri bell + "Scheduled
+    // briefings" banner show only the high-importance priority band and not the
+    // routine 'normal' streams (stale-client notices, briefing/task echoes) that
+    // read as noise. Per-tenant reversible via the meriAlertsImportantOnly flag
+    // (set false → old verbose behavior). Alerts are still written by the
+    // emitters; this only filters the read, so a flip-off restores them at once.
+    const importantOnly = await this.meriFlags.isEnabled(
+      ctx.tenantId,
+      MERI_ALERTS_IMPORTANT_ONLY_FLAG,
+      true,
+    );
     return this.prisma.withTenant(ctx.tenantId, (tx) =>
       tx.clioProactiveAlert.findMany({
-        where: { tenantId: ctx.tenantId, status: 'pending' },
+        where: {
+          tenantId: ctx.tenantId,
+          status: 'pending',
+          ...(importantOnly ? { priority: { in: [...MERI_ALERT_IMPORTANT_PRIORITIES] } } : {}),
+        },
         orderBy: { createdAt: 'desc' },
         take: 20,
         select: {
@@ -3406,7 +3425,11 @@ export class MeriService {
               tenantId,
               sourceType: 'meeting_prep',
               sourceId: meeting.id,
-              status: 'pending',
+              // Dedup against BOTH pending and dismissed ('read') rows so a
+              // dismissed alert is not re-created on the next run while the
+              // condition still holds (dismissAlert sets status='read'). Without
+              // 'read' here, dismissals never stick — the alert resurrects hourly.
+              status: { in: ['pending', 'read'] },
             },
           }),
         );
@@ -3447,7 +3470,14 @@ export class MeriService {
       for (const client of staleClients) {
         const exists = await this.prisma.withSystem((tx) =>
           tx.clioProactiveAlert.findFirst({
-            where: { tenantId, sourceType: 'stale_client', sourceId: client.id, status: 'pending' },
+            // Dedup against pending + dismissed so a dismissed stale-client
+            // notice doesn't resurrect on the next run (see meeting_prep above).
+            where: {
+              tenantId,
+              sourceType: 'stale_client',
+              sourceId: client.id,
+              status: { in: ['pending', 'read'] },
+            },
           }),
         );
         if (!exists) {
