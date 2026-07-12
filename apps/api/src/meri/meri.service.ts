@@ -1260,6 +1260,26 @@ export class MeriService {
               `top=${verdict.topSeverity}, decision=${verdict.decision}: ` +
               verdict.findings.map((f) => `${f.check}/${f.severity}`).join(', '),
           );
+          // Wave-5: persist findings to meri_audit_ledger (tenant-scoped, RLS) so
+          // shadow-mode findings are queryable/aggregable for the lexicon tuning
+          // that precedes any enforce flip. Findings-only keeps volume low; the
+          // create runs inside the tenant RLS context (withTenant sets the GUC).
+          await this.prisma.withTenant(ctx.tenantId, (tx) =>
+            tx.meriAuditLedger.create({
+              data: {
+                tenantId: ctx.tenantId,
+                surface: 'chat',
+                mode: auditorMode,
+                conversationId,
+                model,
+                decision: verdict.decision,
+                topSeverity: verdict.topSeverity ?? null,
+                findingCount: verdict.findings.length,
+                findings: verdict.findings as unknown as Prisma.InputJsonValue,
+                outputChars: assistantContent.length,
+              },
+            }),
+          );
         }
       } catch (err) {
         this.logger.warn(

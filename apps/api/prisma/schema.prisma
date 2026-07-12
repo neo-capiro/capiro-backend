@@ -244,6 +244,7 @@ model Tenant {
   actionRecommendations        ActionRecommendation[]
   aiUsageEvents                AiUsageEvent[]
   aiRuns                       AiRun[]
+  meriAuditLedgerEntries       MeriAuditLedger[]
   aiCredentials                TenantAiCredential[]
   usageMeters                  TenantUsageMeter[]
   memoryItems                  MemoryItem[]
@@ -1650,6 +1651,38 @@ model AiRun {
   /// intel_targeting rows per candidate alert.
   @@index([workflow, subjectKey, tenantId, clientId, createdAt], map: "ai_run_targeting_guard_idx")
   @@map("ai_run")
+}
+
+/// Post-hoc grounding-auditor ledger (v3 hallucination plan Wave 5). One row per
+/// audited generation turn: the auditor's verdict + the exact findings, so the
+/// SHADOW-mode findings the auditor logs are also queryable/aggregable for the
+/// lexicon tuning that must precede any per-surface `enforce` flip. Tenant-scoped
+/// + RLS-isolated like ai_run (own-tenant-or-system), FORCE RLS. Findings live in
+/// `findings_jsonb` (array of { check, severity, span, detail }) so the check set
+/// can evolve without a migration; the scalar columns are what dashboards group by.
+model MeriAuditLedger {
+  id             String   @id @default(uuid()) @db.Uuid
+  tenantId       String   @map("tenant_id") @db.Uuid
+  /// 'chat' | 'research' | 'outreach' | 'memo' | 'alert'
+  surface        String   @db.VarChar(16)
+  /// 'shadow' | 'annotate' | 'enforce' — the AuditorMode this verdict ran under.
+  mode           String   @db.VarChar(16)
+  conversationId String?  @map("conversation_id") @db.Uuid
+  model          String?  @db.VarChar(80)
+  /// 'deliver' | 'deliver_with_flags' | 'repair' | 'hold'
+  decision       String   @db.VarChar(24)
+  /// 'critical' | 'high' | 'medium' | 'low' | null (clean).
+  topSeverity    String?  @map("top_severity") @db.VarChar(12)
+  findingCount   Int      @default(0) @map("finding_count")
+  findings       Json     @default("[]") @map("findings_jsonb")
+  outputChars    Int?     @map("output_chars")
+  createdAt      DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  @@index([tenantId, createdAt(sort: Desc)], map: "meri_audit_ledger_tenant_created_idx")
+  @@index([surface, topSeverity, createdAt(sort: Desc)], map: "meri_audit_ledger_surface_severity_idx")
+  @@map("meri_audit_ledger")
 }
 
 /// Async outreach job (plan W4 / §3.3). One row per generate-or-send request the
