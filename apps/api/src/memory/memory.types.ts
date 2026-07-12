@@ -72,6 +72,16 @@ export interface MemorySection {
   body: string;
 }
 
+/** Lifecycle state (Phase 1, blueprint Table 19 "time and state"). */
+export type MemoryItemStatus = 'active' | 'superseded' | 'revoked';
+
+/**
+ * Whether a tenant has agreed platform-wide model-improvement use of an item.
+ * Blueprint §5.3: "no silent platform training" — 'excluded' until a tenant
+ * explicitly agrees to a defined use; nothing in Phase 1 flips this.
+ */
+export type MemoryTrainingUse = 'excluded' | 'platform_improvement';
+
 /** The canonical memory store item (one row in `memory_items`). */
 export interface MemoryItem {
   id: string;
@@ -97,6 +107,30 @@ export interface MemoryItem {
   createdAt: string; // ISO-8601
   updatedAt: string; // ISO-8601
   schemaVersion: number;
+
+  // ── Phase 1 governance/temporal fields (blueprint Table 19) ───────────────
+  /** active | superseded | revoked. Every read path must exclude 'revoked'. */
+  status: MemoryItemStatus;
+  /** Last time a human explicitly re-affirmed this item is still true. */
+  lastConfirmedAt: string | null;
+  /** Suggested re-confirmation cadence in days; null = no scheduled review. */
+  reviewCadenceDays: number | null;
+  /** Set on the NEW row when `correct_memory` supersedes an older one. */
+  supersedesId: string | null;
+  /** Set when a reviewer flags this item as conflicting with another. */
+  contradictsId: string | null;
+  /** Freeform sensitivity tier (e.g. 'normal', 'privileged'), app-enforced. */
+  sensitivity: string;
+  /** Opaque retention policy payload; null = no explicit policy (Phase 1 does not enforce a schedule). */
+  retentionPolicy: unknown | null;
+  /** When true, `forget_memory` must refuse to purge derived projections. */
+  legalHold: boolean;
+  revokedAt: string | null;
+  /** userId of whoever called `forget_memory`. */
+  revokedBy: string | null;
+  /** Whether this item may appear in a GET /memory/export manifest. */
+  exportable: boolean;
+  trainingUse: MemoryTrainingUse;
 }
 
 /** A typed wikilink target, e.g. { type: 'bill', slug: 'hr-1234' }. */
@@ -118,3 +152,41 @@ export interface MemoryEdge {
 }
 
 export const MEMORY_SCHEMA_VERSION = 1;
+
+/**
+ * Default Phase 1 governance/temporal field values for a freshly-created
+ * item (mirrors the DB column defaults in the 1A migration). Spread this
+ * into every fresh `MemoryItem` object literal instead of repeating the 12
+ * fields by hand — every construction site was updated to use this by the
+ * 1A typecheck sweep (2026-07-12).
+ */
+export function defaultMemoryGovernanceFields(): Pick<
+  MemoryItem,
+  | 'status'
+  | 'lastConfirmedAt'
+  | 'reviewCadenceDays'
+  | 'supersedesId'
+  | 'contradictsId'
+  | 'sensitivity'
+  | 'retentionPolicy'
+  | 'legalHold'
+  | 'revokedAt'
+  | 'revokedBy'
+  | 'exportable'
+  | 'trainingUse'
+> {
+  return {
+    status: 'active',
+    lastConfirmedAt: null,
+    reviewCadenceDays: null,
+    supersedesId: null,
+    contradictsId: null,
+    sensitivity: 'normal',
+    retentionPolicy: null,
+    legalHold: false,
+    revokedAt: null,
+    revokedBy: null,
+    exportable: true,
+    trainingUse: 'excluded',
+  };
+}

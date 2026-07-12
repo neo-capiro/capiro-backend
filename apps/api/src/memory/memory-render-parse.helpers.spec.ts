@@ -10,7 +10,7 @@ import {
   extractWikiLinks,
 } from './memory-parse.helpers.js';
 import type { MemoryItem } from './memory.types.js';
-import { MEMORY_SCHEMA_VERSION } from './memory.types.js';
+import { MEMORY_SCHEMA_VERSION, defaultMemoryGovernanceFields } from './memory.types.js';
 
 function makeItem(overrides: Partial<MemoryItem> = {}): MemoryItem {
   return {
@@ -45,6 +45,7 @@ function makeItem(overrides: Partial<MemoryItem> = {}): MemoryItem {
     createdAt: '2026-06-25T00:00:00.000Z',
     updatedAt: '2026-06-25T00:00:00.000Z',
     schemaVersion: MEMORY_SCHEMA_VERSION,
+    ...defaultMemoryGovernanceFields(),
     ...overrides,
   };
 }

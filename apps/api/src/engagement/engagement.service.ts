@@ -1515,8 +1515,13 @@ export class EngagementService {
     clientId: string | null,
   ): Promise<string | null> {
     try {
-      const userRows = await this.prisma.withTenant(
+      // withTenantUser: a private (visibility='user') memory_items row is
+      // gated by RLS on current_user_id() (Phase 1, 1C) — this query already
+      // restricts to the caller's own owner_user_id, so behavior is
+      // unchanged, but the GUC must be set or RLS returns 0 rows regardless.
+      const userRows = await this.prisma.withTenantUser(
         ctx.tenantId,
+        ctx.userId,
         (tx) =>
           tx.$queryRaw<Array<{ type: string; sections: unknown }>>`
           SELECT type, sections_jsonb AS sections

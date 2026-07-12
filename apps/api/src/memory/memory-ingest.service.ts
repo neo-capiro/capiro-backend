@@ -5,7 +5,7 @@ import { MemoryStoreService } from './memory-store.service.js';
 import { clioMemoryToItem, clioMemorySlug, type ClioMemoryRow, type NameResolver } from './memory-clio-adapter.helpers.js';
 import { meetingToItem, emailThreadToItem, meriSessionToItem } from './memory-ingest.helpers.js';
 import type { MemoryItem } from './memory.types.js';
-import { MEMORY_SCHEMA_VERSION } from './memory.types.js';
+import { MEMORY_SCHEMA_VERSION, defaultMemoryGovernanceFields } from './memory.types.js';
 import { embedAndUpsert, normalize } from '../embeddings/embedder.js';
 import { MeetingNotesCryptoService } from '../engagement/meeting-notes-crypto.service.js';
 
@@ -246,8 +246,8 @@ export class MemoryIngestService {
     // aborts), so one bad row can't strand the rest. ----
     try {
       const items = await this.prisma.withSystem((tx) =>
-        tx.$queryRaw<Array<{ id: string; client_id: string | null; type: string; title: string; slug: string; sections: unknown }>>`
-          SELECT id, client_id, type, title, slug, sections_jsonb AS sections
+        tx.$queryRaw<Array<{ id: string; client_id: string | null; owner_user_id: string | null; type: string; title: string; slug: string; sections: unknown }>>`
+          SELECT id, client_id, owner_user_id, type, title, slug, sections_jsonb AS sections
           FROM memory_items WHERE tenant_id = ${ctx.tenantId}::uuid
         `,
       );
@@ -259,6 +259,7 @@ export class MemoryIngestService {
           const outcome = await embedAndUpsert(this.prisma as never, {
             tenantId: ctx.tenantId,
             clientId: it.client_id,
+            ownerUserId: it.owner_user_id,
             sourceType: 'memory_item',
             sourceId: it.id,
             text,
@@ -320,6 +321,7 @@ export class MemoryIngestService {
         await embedAndUpsert(this.prisma as never, {
           tenantId,
           clientId: item.clientId,
+          ownerUserId: item.ownerUserId,
           sourceType: 'memory_item',
           sourceId: itemId,
           text,
@@ -382,6 +384,7 @@ function clientToItem(tenantId: string, c: { id: string; name: string }): Memory
     source: 'ingest', sourceRef: c.id, provenance: `ingest@${MEMORY_SCHEMA_VERSION}`,
     sections: [{ key: 'overview', heading: 'Overview', owner: 'engine', body: `Client: ${c.name}.` }],
     createdAt: ts, updatedAt: ts, schemaVersion: MEMORY_SCHEMA_VERSION,
+    ...defaultMemoryGovernanceFields(),
   };
 }
 

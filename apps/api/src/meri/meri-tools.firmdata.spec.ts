@@ -108,6 +108,7 @@ function makeMocks() {
     { isEnabled: jest.fn().mockResolvedValue(false) } as never, // featureFlags
     clients as never,
     { projectClioMemory: jest.fn(), removeClioMemory: jest.fn() } as never, // memoryIngest
+    { proposeSaveMemory: jest.fn() } as never, // memoryCandidates
   );
 
   return {

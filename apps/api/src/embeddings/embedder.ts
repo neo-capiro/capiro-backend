@@ -93,6 +93,13 @@ export interface EmbedAndUpsertArgs {
   tenantId: string | null;
   /** Optional FK to clients.id. Set for capabilities; null for global. */
   clientId?: string | null;
+  /**
+   * Phase 1 (1C): owner of the source row when it's a private memory_item
+   * (visibility='user'). Null for every other source_type and for
+   * tenant-shared memory_items — the RLS predicate only restricts rows that
+   * have an owner set. Never set this for non-memory-item embeddings.
+   */
+  ownerUserId?: string | null;
   /** Stable kind: 'bill' | 'lda_filing' | 'capability' | etc. */
   sourceType: string;
   /** Source row id (string, may be UUID or composite like '119-hr-1234'). */
@@ -165,15 +172,17 @@ export async function embedAndUpsert(
     if (existing.length === 0) {
       await tx.$executeRawUnsafe(
         `INSERT INTO context_embeddings
-           (tenant_id, client_id, source_type, source_id, model, content_text, content_hash, embedding)
-         VALUES ($1::uuid, $2::uuid, $3, $4, $5, $6, $7, '${literal}'::vector)
+           (tenant_id, client_id, owner_user_id, source_type, source_id, model, content_text, content_hash, embedding)
+         VALUES ($1::uuid, $2::uuid, $3::uuid, $4, $5, $6, $7, $8, '${literal}'::vector)
          ON CONFLICT (tenant_id, source_type, source_id, model)
-           DO UPDATE SET content_text = EXCLUDED.content_text,
-                         content_hash = EXCLUDED.content_hash,
-                         embedding    = EXCLUDED.embedding,
-                         updated_at   = NOW()`,
+           DO UPDATE SET content_text  = EXCLUDED.content_text,
+                         content_hash  = EXCLUDED.content_hash,
+                         embedding     = EXCLUDED.embedding,
+                         owner_user_id = EXCLUDED.owner_user_id,
+                         updated_at    = NOW()`,
         args.tenantId,
         args.clientId ?? null,
+        args.ownerUserId ?? null,
         args.sourceType,
         args.sourceId,
         EMBEDDING_MODEL,
@@ -186,6 +195,7 @@ export async function embedAndUpsert(
       `UPDATE context_embeddings
          SET content_text = $1, content_hash = $2,
              embedding = '${literal}'::vector,
+             owner_user_id = $7::uuid,
              updated_at = NOW()
        WHERE source_type = $3 AND source_id = $4 AND model = $5
          AND (tenant_id = $6::uuid OR ($6 IS NULL AND tenant_id IS NULL))`,
@@ -195,6 +205,7 @@ export async function embedAndUpsert(
       args.sourceId,
       EMBEDDING_MODEL,
       args.tenantId,
+      args.ownerUserId ?? null,
     );
     return 'updated' as const;
   });

@@ -7,11 +7,12 @@ import { MemoryStoreService } from './memory-store.service.js';
 import { MemoryFkLoader } from './memory-fk-loader.service.js';
 import { MemoryIngestService } from './memory-ingest.service.js';
 import { MemoryInterviewService } from './memory-interview.service.js';
+import { MemoryCandidateService } from './memory-candidate.service.js';
 import type { MemoryItemType } from './memory.types.js';
 import { buildKnowledgeGraph, walkFrom } from './memory-graph.helpers.js';
 import { MEMORY_CATALOG, fileDefForType, editableSectionKeys, skeletonSections } from './memory-catalog.js';
 import { buildInterviewQuestions } from './memory-interview.helpers.js';
-import { toManifestRow, type ExportManifestRow } from './memory-governance.helpers.js';
+import { toManifestRow, selectForExport, type ExportManifestRow } from './memory-governance.helpers.js';
 
 /**
  * Memory retrieval + knowledge-graph surface.
@@ -24,6 +25,9 @@ import { toManifestRow, type ExportManifestRow } from './memory-governance.helpe
  *   GET  /memory/items                      list items the caller may see
  *   GET  /memory/items/:type/:slug/markdown Obsidian-format projection
  *   GET  /memory/export[?clientId=&type=]   provenance manifest (read-only)
+ *   GET  /memory/candidates?status=pending  (1B, admin) firm-scope save review queue
+ *   POST /memory/candidates/:id/approve     (1B, admin) commit a pending candidate
+ *   POST /memory/candidates/:id/reject      (1B, admin) reject a pending candidate
  *   GET  /memory/graph[?seed=&depth=]       full graph or a focused walk
  *   GET  /memory/graph/client/:clientId     per-client subgraph (view #1)
  *   GET  /memory/graph/path?to=office:<id>  shortest paths to a target (view #2)
@@ -44,6 +48,7 @@ export class MemoryController {
     private readonly fkLoader: MemoryFkLoader,
     private readonly ingest: MemoryIngestService,
     private readonly interview: MemoryInterviewService,
+    private readonly candidates: MemoryCandidateService,
   ) {}
 
   /** Section catalog (help text + examples + interview questions source). */
@@ -156,7 +161,32 @@ export class MemoryController {
     @Query('type') type?: MemoryItemType,
   ): Promise<{ rows: ExportManifestRow[] }> {
     const items = await this.store.listForCurrentTenant({ clientId, type });
-    return { rows: items.map(toManifestRow) };
+    return { rows: selectForExport(items).map(toManifestRow) };
+  }
+
+  /**
+   * Firm-scope save_memory review queue (Phase 1, 1B). A non-admin's
+   * firm-scope save no longer dead-ends in a rejection message — it lands
+   * here as a real pending candidate any admin can approve or reject.
+   */
+  @Get('candidates')
+  @Roles('user_admin')
+  async listCandidates(@CurrentTenant() ctx: TenantContext) {
+    return { candidates: await this.candidates.listPending(ctx.tenantId) };
+  }
+
+  @Post('candidates/:id/approve')
+  @Roles('user_admin')
+  async approveCandidate(@CurrentTenant() ctx: TenantContext, @Param('id') id: string) {
+    const { memoryId } = await this.candidates.approve(ctx.tenantId, id, ctx.userId);
+    return { ok: true, memoryId };
+  }
+
+  @Post('candidates/:id/reject')
+  @Roles('user_admin')
+  async rejectCandidate(@CurrentTenant() ctx: TenantContext, @Param('id') id: string) {
+    await this.candidates.reject(ctx.tenantId, id, ctx.userId);
+    return { ok: true };
   }
 
   /** Interview questions for a memory type (the Meri-guided fill flow). */

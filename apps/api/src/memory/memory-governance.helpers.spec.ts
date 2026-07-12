@@ -3,11 +3,12 @@ import {
   selectForClientPurge,
   selectForUserPurge,
   selectForLegalHold,
+  selectForExport,
   redactSections,
   toManifestRow,
 } from './memory-governance.helpers.js';
 import type { MemoryItem } from './memory.types.js';
-import { MEMORY_SCHEMA_VERSION } from './memory.types.js';
+import { MEMORY_SCHEMA_VERSION, defaultMemoryGovernanceFields } from './memory.types.js';
 
 const TENANT = '11111111-1111-1111-1111-111111111111';
 
@@ -22,7 +23,8 @@ function item(over: Partial<MemoryItem> = {}): MemoryItem {
       { key: 'analyst-notes', heading: 'Analyst notes', owner: 'human', body: 'keep' },
     ],
     createdAt: '2026-01-01T00:00:00.000Z', updatedAt: '2026-01-01T00:00:00.000Z',
-    schemaVersion: MEMORY_SCHEMA_VERSION, ...over,
+    schemaVersion: MEMORY_SCHEMA_VERSION,
+    ...defaultMemoryGovernanceFields(), ...over,
   };
 }
 
@@ -78,5 +80,33 @@ describe('memory governance (Phase 4)', () => {
     expect(row.id).toBe('x');
     expect(row.sourceRef).toBe('thr-9');
     expect(row.provenance).toContain('ingest@');
+  });
+
+  // ── Phase 1 (1A): legal hold always wins, across every purge selector ──────
+  describe('legal hold overrides every purge selector', () => {
+    it('selectForPurge never selects a held item, however old', () => {
+      const held = item({ id: 'held', legalHold: true, createdAt: '2020-01-01T00:00:00.000Z' });
+      const notHeld = item({ id: 'free', legalHold: false, createdAt: '2020-01-01T00:00:00.000Z' });
+      const out = selectForPurge([held, notHeld], { maxAgeDays: 30, types: [] }, now);
+      expect(out.map((i) => i.id)).toEqual(['free']);
+    });
+
+    it('selectForClientPurge never selects a held item for that client', () => {
+      const held = item({ id: 'held', clientId: 'acme', legalHold: true });
+      const notHeld = item({ id: 'free', clientId: 'acme', legalHold: false });
+      expect(selectForClientPurge([held, notHeld], 'acme').map((i) => i.id)).toEqual(['free']);
+    });
+
+    it('selectForUserPurge never selects a held private item for that user', () => {
+      const held = item({ id: 'held', visibility: 'user', ownerUserId: 'u1', clientId: null, legalHold: true });
+      const notHeld = item({ id: 'free', visibility: 'user', ownerUserId: 'u1', clientId: null, legalHold: false });
+      expect(selectForUserPurge([held, notHeld], 'u1').map((i) => i.id)).toEqual(['free']);
+    });
+  });
+
+  it('selectForExport excludes items explicitly marked non-exportable', () => {
+    const yes = item({ id: 'yes', exportable: true });
+    const no = item({ id: 'no', exportable: false });
+    expect(selectForExport([yes, no]).map((i) => i.id)).toEqual(['yes']);
   });
 });

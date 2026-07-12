@@ -39,6 +39,7 @@ import {
 } from '../clients/client-capabilities.service.js';
 import { ClientPeopleService, type CreatePersonInput } from '../clients/client-people.service.js';
 import { MemoryIngestService } from '../memory/memory-ingest.service.js';
+import { MemoryCandidateService } from '../memory/memory-candidate.service.js';
 import {
   ClientFacilitiesService,
   type CreateFacilityInput,
@@ -496,6 +497,7 @@ export class MeriToolsService {
     private readonly featureFlags: MeriFeatureFlagsService,
     private readonly clients: ClientsService,
     private readonly memoryIngest: MemoryIngestService,
+    private readonly memoryCandidates: MemoryCandidateService,
   ) {}
 
   manifest() {
@@ -1475,6 +1477,14 @@ export class MeriToolsService {
     }
   }
 
+  /**
+   * Phase 1 (1B): every save now goes through a memory_candidate row first
+   * (MemoryCandidateService.proposeSaveMemory). Personal-scope and an
+   * admin's own firm-scope save still commit in this same call — same
+   * latency/behavior as before 1B. A non-admin's firm-scope save no longer
+   * dead-ends in a rejection message; it becomes a real pending candidate
+   * any admin can approve via GET/POST /memory/candidates.
+   */
   private async saveMemory(ctx: TenantContext, input: Record<string, unknown>) {
     const content = requiredString(input, 'content', 4000);
     const key = optionalString(input, 'key', 120);
@@ -1482,97 +1492,24 @@ export class MeriToolsService {
     const record = buildSavedMemoryRecord({ content, key, scope, userId: ctx.userId });
     if (!record) throw new BadRequestException('save_memory requires non-empty content');
 
-    // Governance (Phase 4a): only admins may write firm-wide memory. A non-admin
-    // firm request is refused (not silently downgraded) so the user knows it did
-    // not become firm-wide truth; they can re-save it as personal instead.
     const isAdmin = ctx.role === 'user_admin' || ctx.role === 'capiro_admin';
-    if (record.scope === 'firm' && !isAdmin) {
+    const result = await this.memoryCandidates.proposeSaveMemory(ctx.tenantId, ctx.userId, record, isAdmin);
+
+    if (result.status === 'pending') {
+      this.logger.log(
+        `save_memory: firm-scope candidate ${result.candidateId} pending admin approval, tenant ${ctx.tenantId}`,
+      );
       return {
         saved: false,
         scope: 'firm' as const,
+        candidateId: result.candidateId,
         message:
-          'Firm-wide memory can only be saved by an admin. I can save this as your personal memory instead — just say so.',
+          "I've proposed this as firm-wide memory; an admin needs to approve it before it becomes shared truth. I can save it as your personal memory right now instead — just say so.",
       };
     }
 
-    const metadata = {
-      tool: 'save_memory',
-      createdBy: 'user-requested',
-      userId: ctx.userId,
-      visibility: record.scope,
-    };
-
-    // Concurrency-safe upsert. We can't use prisma.upsert() on the
-    // (tenant, scope, owner, key) compound unique because firm memory has
-    // owner_user_id = NULL (SQL NULLs aren't matchable through a compound-unique
-    // where), and firm-scope uniqueness is enforced by a partial index Prisma
-    // doesn't model (migration 20260705120000). So: find→update, else create,
-    // and if a concurrent save wins the insert race (P2002), re-find + update.
-    // Mirrors the ActionRecommendationService P2002 idiom.
-    const findExisting = () =>
-      this.prisma.withTenant(ctx.tenantId, (tx) =>
-        tx.clioMemory.findFirst({
-          where: {
-            tenantId: ctx.tenantId,
-            scope: record.scope,
-            ownerUserId: record.ownerUserId,
-            key: record.key,
-          },
-          select: { id: true },
-        }),
-      );
-    const updateExisting = (id: string) =>
-      this.prisma.withTenant(ctx.tenantId, (tx) =>
-        tx.clioMemory.update({
-          where: { id },
-          data: { value: record.value, source: record.source, metadata },
-        }),
-      );
-
-    let memoryId: string | undefined;
-    const existing = await findExisting();
-    if (existing) {
-      await updateExisting(existing.id);
-      memoryId = existing.id;
-    } else {
-      try {
-        const created = await this.prisma.withTenant(ctx.tenantId, (tx) =>
-          tx.clioMemory.create({
-            data: {
-              tenantId: ctx.tenantId,
-              scope: record.scope,
-              ownerUserId: record.ownerUserId,
-              key: record.key,
-              value: record.value,
-              source: record.source,
-              metadata,
-            },
-            select: { id: true },
-          }),
-        );
-        memoryId = created.id;
-      } catch (err) {
-        // A concurrent save created the same (tenant, scope, owner, key) first.
-        if (err instanceof Prisma.PrismaClientKnownRequestError && err.code === 'P2002') {
-          const raced = await findExisting();
-          if (!raced) throw err;
-          await updateExisting(raced.id);
-          memoryId = raced.id;
-        } else {
-          throw err;
-        }
-      }
-    }
-
-    // Embed for semantic recall (best-effort; never blocks the tool result).
-    void this.embedMemory(ctx.tenantId, record.key, record.value).catch(() => {});
-    // Write-through: project into the institutional-memory graph + index so the
-    // fact is retrievable via search_memory without waiting for the nightly
-    // refresh. Fire-and-forget + non-fatal (projectClioMemory never throws).
-    if (memoryId) void this.memoryIngest.projectClioMemory(ctx.tenantId, memoryId);
-
     this.logger.log(
-      `save_memory: stored ${record.scope} memory "${record.key}" for tenant ${ctx.tenantId}`,
+      `save_memory: stored ${record.scope} memory "${record.key}" for tenant ${ctx.tenantId} (candidate ${result.candidateId}, ${result.ruleId})`,
     );
     return {
       saved: true,
@@ -1581,37 +1518,6 @@ export class MeriToolsService {
       value: record.value,
       message: 'Saved to long-term memory; I will recall this in future conversations.',
     };
-  }
-
-  /**
-   * Embed a memory value (OpenAI text-embedding-3-small, 1536-dim) into pgvector
-   * so it is retrievable by semantic search. Best-effort; mirrors
-   * MeriService.embedAndStoreMemory. No-op without OPENAI_API_KEY. The UPDATE is
-   * tenant-scoped and the key is tenant-unique, so it targets exactly one row.
-   */
-  private async embedMemory(tenantId: string, key: string, value: string): Promise<void> {
-    const openaiKey = this.config.get('OPENAI_API_KEY', { infer: true });
-    if (!openaiKey) return;
-    const res = await fetch('https://api.openai.com/v1/embeddings', {
-      method: 'POST',
-      headers: { Authorization: `Bearer ${openaiKey}`, 'Content-Type': 'application/json' },
-      body: JSON.stringify({ model: 'text-embedding-3-small', input: `${key}: ${value}` }),
-    });
-    if (!res.ok) return;
-    const json = (await res.json()) as { data?: Array<{ embedding?: number[] }> };
-    const embedding = json.data?.[0]?.embedding;
-    if (!embedding || embedding.length !== 1536) return;
-    const vecStr = `[${embedding.join(',')}]`;
-    // withTenant: clio_memory is RLS-protected; a bare write matches 0 rows under
-    // FORCE ROW LEVEL SECURITY and silently drops the embedding.
-    await this.prisma.withTenant(tenantId, (tx) =>
-      tx.$executeRawUnsafe(
-        `UPDATE clio_memory SET embedding = $1::vector WHERE tenant_id = $2::uuid AND key = $3`,
-        vecStr,
-        tenantId,
-        key,
-      ),
-    );
   }
 
   private async getClientContext(ctx: TenantContext, input: Record<string, unknown>) {
@@ -1686,7 +1592,7 @@ export class MeriToolsService {
    * inputs under the passed ctx. Shared by query_knowledge_graph + find_path_to.
    */
   private async loadGraphForCtx(ctx: TenantContext) {
-    return this.prisma.withTenant(ctx.tenantId, async (tx) => {
+    return this.prisma.withTenantUser(ctx.tenantId, ctx.userId, async (tx) => {
       // item nodes the caller may see (RLS: tenant + own-private), plus their wikilink edges
       const items = await tx.$queryRaw<
         Array<{ id: string; type: string; slug: string; title: string; sections: unknown }>

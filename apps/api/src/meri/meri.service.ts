@@ -2842,8 +2842,13 @@ export class MeriService {
     ctx: TenantContext,
     clientId: string | null,
   ): Promise<string | null> {
-    const rows = await this.prisma.withTenant(
+    // withTenantUser: a private (visibility='user') memory_items row is
+    // gated by RLS on current_user_id() (1C) — this query already restricts
+    // to the caller's own owner_user_id, so behavior is unchanged, but the
+    // GUC must be set or RLS returns 0 rows regardless of this WHERE clause.
+    const rows = await this.prisma.withTenantUser(
       ctx.tenantId,
+      ctx.userId,
       (tx) =>
         tx.$queryRaw<Array<{ type: string; title: string; sections: unknown }>>`
         SELECT type, title, sections_jsonb AS sections
