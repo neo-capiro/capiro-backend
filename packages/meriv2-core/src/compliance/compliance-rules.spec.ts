@@ -130,6 +130,9 @@ describe('PROPOSED_CAPIRO_RULES — the tiered production proposal', () => {
     for (const tool of [
       'save_note',
       'save_memory',
+      'confirm_memory',
+      'correct_memory',
+      'forget_memory',
       'create_task',
       'update_task',
       'create_word',

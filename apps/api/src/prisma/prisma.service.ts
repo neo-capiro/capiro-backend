@@ -61,6 +61,34 @@ export class PrismaService extends PrismaClient implements OnModuleInit, OnModul
   }
 
   /**
+   * Like {@link withTenant}, but ALSO sets `app.current_user` in the same
+   * transaction (Phase 1, 1C). Required for any query against a table whose
+   * RLS policy references `current_user_id()` — today that's memory_items
+   * and the memory_item-sourced rows of context_embeddings. Every other
+   * table's RLS is unaffected by this GUC (their policies don't reference
+   * it), so this is purely additive: existing `withTenant` callers on other
+   * tables need no change. A caller that reads/writes memory_items via plain
+   * `withTenant` instead of this method will silently see zero private-item
+   * rows (visibility='tenant' rows are unaffected) — see the 1C migration's
+   * header comment for the caller-conversion sweep this depends on.
+   */
+  async withTenantUser<T>(
+    tenantId: string,
+    userId: string,
+    fn: (tx: Prisma.TransactionClient) => Promise<T>,
+    opts?: { timeoutMs?: number },
+  ): Promise<T> {
+    return this.$transaction(
+      async (tx) => {
+        await tx.$executeRaw`SELECT set_config('app.current_tenant', ${tenantId}, true)`;
+        await tx.$executeRaw`SELECT set_config('app.current_user', ${userId}, true)`;
+        return fn(tx);
+      },
+      opts?.timeoutMs ? { timeout: opts.timeoutMs } : undefined,
+    );
+  }
+
+  /**
    * Like {@link withTenant} but retries the whole transaction when Postgres
    * aborts it with a deadlock (SQLSTATE 40P01) or serialization failure
    * (40001) — both transient. Concurrent writers that touch the same rows are

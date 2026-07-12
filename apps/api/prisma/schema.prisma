@@ -249,6 +249,7 @@ model Tenant {
   usageMeters                  TenantUsageMeter[]
   memoryItems                  MemoryItem[]
   memoryEdges                  MemoryEdge[]
+  memoryCandidates             MemoryCandidate[]
 
   @@map("tenants")
 }
@@ -1074,6 +1075,9 @@ model ContextEmbedding {
   // share this table. The RLS policy lets every tenant read NULL rows.
   tenantId    String?               @map("tenant_id") @db.Uuid
   clientId    String?               @map("client_id") @db.Uuid
+  // Phase 1 (1C): set only for source_type='memory_item' rows behind a
+  // private (visibility='user') memory item; null for every other row.
+  ownerUserId String?               @map("owner_user_id") @db.Uuid
   sourceType  String                @map("source_type")
   sourceId    String                @map("source_id")
   // Model that produced the embedding, e.g. 'amazon.titan-embed-text-v2:0'.
@@ -5004,14 +5008,37 @@ model MemoryItem {
   createdAt     DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
   updatedAt     DateTime @updatedAt @map("updated_at") @db.Timestamptz(6)
 
+  // Phase 1 governance/temporal fields (blueprint Table 19), additive only.
+  // Populated by the candidate write path (1B) and confirm/correct/forget
+  // verbs (1D). Existing rows backfill to status='active', trainingUse=
+  // 'excluded', exportable=true (see migration for defaults).
+  status            String    @default("active") @db.VarChar(16)
+  lastConfirmedAt   DateTime? @map("last_confirmed_at") @db.Timestamptz(6)
+  reviewCadenceDays Int?      @map("review_cadence_days")
+  supersedesId      String?   @map("supersedes_id") @db.Uuid
+  contradictsId     String?   @map("contradicts_id") @db.Uuid
+  sensitivity       String    @default("normal") @db.VarChar(16)
+  retentionPolicy   Json?     @map("retention_policy_jsonb")
+  legalHold         Boolean   @default(false) @map("legal_hold")
+  revokedAt         DateTime? @map("revoked_at") @db.Timestamptz(6)
+  revokedBy         String?   @map("revoked_by") @db.Uuid
+  exportable        Boolean   @default(true)
+  trainingUse       String    @default("excluded") @map("training_use") @db.VarChar(16)
+
   tenant Tenant       @relation(fields: [tenantId], references: [id], onDelete: Cascade)
   edges  MemoryEdge[]
+
+  supersedes     MemoryItem?  @relation("MemoryItemSupersession", fields: [supersedesId], references: [id], onDelete: SetNull)
+  supersededBy   MemoryItem[] @relation("MemoryItemSupersession")
+  contradicts    MemoryItem?  @relation("MemoryItemContradiction", fields: [contradictsId], references: [id], onDelete: SetNull)
+  contradictedBy MemoryItem[] @relation("MemoryItemContradiction")
 
   @@unique([tenantId, type, slug], map: "memory_items_tenant_type_slug_unique")
   @@index([tenantId, clientId], map: "memory_items_tenant_client_idx")
   @@index([tenantId, visibility, ownerUserId], map: "memory_items_tenant_visibility_owner_idx")
   @@index([tenantId, type], map: "memory_items_tenant_type_idx")
   @@index([entityId], map: "memory_items_entity_idx")
+  @@index([tenantId, status], map: "memory_items_tenant_status_idx")
   @@map("memory_items")
 }
 
@@ -5033,6 +5060,41 @@ model MemoryEdge {
   @@unique([srcItemId, relation, dstType, dstSlug], map: "memory_edges_unique")
   @@index([tenantId, dstType, dstSlug], map: "memory_edges_tenant_dst_idx")
   @@map("memory_edges")
+}
+
+/// Phase 1 (1B) — candidate lifecycle for memory writes (blueprint §4.6.5).
+/// A write NEVER lands in clio_memory/memory_items directly anymore; it
+/// first becomes a candidate row here, which `evaluateMemoryCandidate`
+/// (memory-candidate-rules.ts) resolves to PASS (auto-commit, same
+/// transaction cycle) or WARN (stays 'pending' until an admin approves/
+/// rejects it via memory.controller.ts). `payload_jsonb` carries exactly
+/// what MeriToolsService.saveMemory needs to commit later: key/value/source/
+/// scope/ownerUserId. `committed_memory_id` points at the `clio_memory` row
+/// once committed (clio_memory stays the fast write/recall path per D1;
+/// memory_items remains the write-through governance projection).
+model MemoryCandidate {
+  id                String    @id @default(uuid()) @db.Uuid
+  tenantId          String    @map("tenant_id") @db.Uuid
+  proposedBy        String    @map("proposed_by") @db.Uuid
+  sourceKind        String    @map("source_kind") @db.VarChar(24) // explicit_user | workflow_event | artifact_approval | model_extraction
+  scope             String    @db.VarChar(16) // personal | firm
+  payload           Json      @map("payload_jsonb")
+  provenance        Json      @map("provenance_jsonb")
+  duplicateOfId     String?   @map("duplicate_of_id") @db.Uuid
+  contradictsId     String?   @map("contradicts_id") @db.Uuid
+  status            String    @default("pending") @db.VarChar(16) // pending | approved | rejected | auto_committed
+  decidedBy         String?   @map("decided_by") @db.Uuid
+  decidedAt         DateTime? @map("decided_at") @db.Timestamptz(6)
+  committedMemoryId String?   @map("committed_memory_id") @db.Uuid
+  createdAt         DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  tenant      Tenant            @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  duplicateOf MemoryCandidate?  @relation("MemoryCandidateDuplicate", fields: [duplicateOfId], references: [id], onDelete: SetNull)
+  duplicates  MemoryCandidate[] @relation("MemoryCandidateDuplicate")
+
+  @@index([tenantId, status], map: "memory_candidate_tenant_status_idx")
+  @@index([tenantId, proposedBy], map: "memory_candidate_tenant_proposed_by_idx")
+  @@map("memory_candidate")
 }
 
 // ─────────────────────────────────────────────────────────────────────────

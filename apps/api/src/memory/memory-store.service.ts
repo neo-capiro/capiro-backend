@@ -7,10 +7,21 @@ import type {
   MemoryItemType,
   MemorySection,
 } from './memory.types.js';
-import { MEMORY_SCHEMA_VERSION } from './memory.types.js';
+import { MEMORY_SCHEMA_VERSION, defaultMemoryGovernanceFields } from './memory.types.js';
 import { renderMemoryItem, vaultPathForItem } from './memory-render.helpers.js';
 import { extractWikiLinks } from './memory-parse.helpers.js';
 import { mergeEditedSections, fileDefForType } from './memory-catalog.js';
+import { embedAndUpsert } from '../embeddings/embedder.js';
+
+/** Result shape returned by the Phase 1 (1D) user-facing memory verbs. */
+export interface MemoryVerbResult {
+  found: boolean;
+  /** True when the item exists but is under legal hold, so forget/correct refused. */
+  blockedByLegalHold?: boolean;
+  title?: string;
+  /** correct_memory only: the id of the new (superseding) row. */
+  newItemId?: string;
+}
 
 /**
  * Canonical institutional-memory store (plan §0.5).
@@ -53,6 +64,18 @@ export class MemoryStoreService {
       createdAt: row.created_at.toISOString(),
       updatedAt: row.updated_at.toISOString(),
       schemaVersion: row.schema_version,
+      status: (row.status ?? 'active') as MemoryItem['status'],
+      lastConfirmedAt: row.last_confirmed_at ? row.last_confirmed_at.toISOString() : null,
+      reviewCadenceDays: row.review_cadence_days,
+      supersedesId: row.supersedes_id,
+      contradictsId: row.contradicts_id,
+      sensitivity: row.sensitivity ?? 'normal',
+      retentionPolicy: row.retention_policy_jsonb ?? null,
+      legalHold: row.legal_hold ?? false,
+      revokedAt: row.revoked_at ? row.revoked_at.toISOString() : null,
+      revokedBy: row.revoked_by,
+      exportable: row.exportable ?? true,
+      trainingUse: (row.training_use ?? 'excluded') as MemoryItem['trainingUse'],
     };
   }
 
@@ -62,14 +85,17 @@ export class MemoryStoreService {
     type?: MemoryItemType;
   }): Promise<MemoryItem[]> {
     const ctx = this.tenantCtx.require();
-    return this.prisma.withTenant(ctx.tenantId, async (tx) => {
+    return this.prisma.withTenantUser(ctx.tenantId, ctx.userId, async (tx) => {
       const rows = await tx.$queryRaw<MemoryItemRow[]>`
         SELECT * FROM memory_items
         WHERE tenant_id = ${ctx.tenantId}::uuid
           ${filter?.clientId ? Prisma.sql`AND client_id = ${filter.clientId}::uuid` : Prisma.empty}
           ${filter?.type ? Prisma.sql`AND type = ${filter.type}` : Prisma.empty}
-          -- private items are visible only to their owner
+          -- private items are visible only to their owner (app-level filter,
+          -- kept as defense-in-depth alongside the 1C DB-level RLS predicate)
           AND (visibility = 'tenant' OR owner_user_id = ${ctx.userId}::uuid)
+          -- a forgotten item stops recall immediately (1D)
+          AND status != 'revoked'
         ORDER BY type, slug
       `;
       return rows.map((r) => this.rowToItem(r));
@@ -84,11 +110,12 @@ export class MemoryStoreService {
   /** Fetch one item by type+slug for the current tenant (markdown retrieval). */
   async getByTypeSlug(type: MemoryItemType, slug: string): Promise<MemoryItem | null> {
     const ctx = this.tenantCtx.require();
-    return this.prisma.withTenant(ctx.tenantId, async (tx) => {
+    return this.prisma.withTenantUser(ctx.tenantId, ctx.userId, async (tx) => {
       const rows = await tx.$queryRaw<MemoryItemRow[]>`
         SELECT * FROM memory_items
         WHERE tenant_id = ${ctx.tenantId}::uuid AND type = ${type} AND slug = ${slug}
           AND (visibility = 'tenant' OR owner_user_id = ${ctx.userId}::uuid)
+          AND status != 'revoked'
         LIMIT 1
       `;
       const row = rows[0];
@@ -106,7 +133,7 @@ export class MemoryStoreService {
     itemNodes: Array<{ itemId: string; type: string; slug: string; label: string }>;
   }> {
     const ctx = this.tenantCtx.require();
-    return this.prisma.withTenant(ctx.tenantId, async (tx) => {
+    return this.prisma.withTenantUser(ctx.tenantId, ctx.userId, async (tx) => {
       const edges = await tx.$queryRaw<
         Array<{ tenant_id: string; src_item_id: string; relation: string; dst_type: string; dst_slug: string }>
       >`SELECT tenant_id, src_item_id, relation, dst_type, dst_slug FROM memory_edges WHERE tenant_id = ${ctx.tenantId}::uuid`;
@@ -114,6 +141,7 @@ export class MemoryStoreService {
         SELECT id, type, slug, title FROM memory_items
         WHERE tenant_id = ${ctx.tenantId}::uuid
           AND (visibility = 'tenant' OR owner_user_id = ${ctx.userId}::uuid)
+          AND status != 'revoked'
       `;
       return {
         wikiEdges: edges.map((e) => ({
@@ -139,7 +167,8 @@ export class MemoryStoreService {
         INSERT INTO memory_items (
           tenant_id, client_id, owner_user_id, type, visibility, entity_id,
           slug, title, aliases, tags, source, source_ref, provenance,
-          sections_jsonb, schema_version
+          sections_jsonb, schema_version,
+          status, sensitivity, legal_hold, exportable, training_use
         ) VALUES (
           ${item.tenantId}::uuid,
           ${item.clientId}::uuid,
@@ -155,8 +184,19 @@ export class MemoryStoreService {
           ${item.sourceRef},
           ${item.provenance},
           ${JSON.stringify(item.sections)}::jsonb,
-          ${item.schemaVersion ?? MEMORY_SCHEMA_VERSION}
+          ${item.schemaVersion ?? MEMORY_SCHEMA_VERSION},
+          ${item.status ?? 'active'},
+          ${item.sensitivity ?? 'normal'},
+          ${item.legalHold ?? false},
+          ${item.exportable ?? true},
+          ${item.trainingUse ?? 'excluded'}
         )
+        -- Governance/temporal columns (status, legal_hold, revoked_*, etc.)
+        -- are deliberately NOT in this UPDATE SET: upsertSystem is also the
+        -- routine content-resync path (ingestion, Settings-editor re-saves),
+        -- and it must never silently reset a revoked/confirmed item's
+        -- governance state back to defaults. Those fields only change via
+        -- the dedicated confirm/correct/forget methods (1D).
         ON CONFLICT (tenant_id, type, slug) DO UPDATE SET
           client_id = EXCLUDED.client_id,
           owner_user_id = EXCLUDED.owner_user_id,
@@ -212,7 +252,10 @@ export class MemoryStoreService {
 
     const updated: MemoryItem = { ...existing, sections: mergedSections };
 
-    await this.prisma.withTenant(ctx.tenantId, async (tx) => {
+    // withTenantUser (not plain withTenant): a user-scope item's RLS policy
+    // (1C) requires app.current_user to match owner_user_id, or this UPDATE
+    // silently affects 0 rows instead of erroring.
+    await this.prisma.withTenantUser(ctx.tenantId, ctx.userId, async (tx) => {
       await tx.$executeRaw`
         UPDATE memory_items
         SET sections_jsonb = ${JSON.stringify(mergedSections)}::jsonb, updated_at = now()
@@ -269,10 +312,210 @@ export class MemoryStoreService {
           sections: mergedSections,
           createdAt: new Date().toISOString(), updatedAt: new Date().toISOString(),
           schemaVersion: MEMORY_SCHEMA_VERSION,
+          ...defaultMemoryGovernanceFields(),
         };
 
     await this.upsertSystem(item);
     return { ...item, updatedAt: new Date().toISOString() };
+  }
+
+  // ── Phase 1 (1D) — user-facing memory verbs ──────────────────────────────
+  // All three run under withTenantUser so the 1C owner-aware RLS policy admits
+  // the caller's own private items. They operate on the canonical memory_items
+  // governance row; forget/correct also reconcile the clio_memory fast-path
+  // source so recall stops on BOTH surfaces (searchMemory tool over
+  // context_embeddings AND semanticMemorySearch over clio_memory) and the
+  // nightly refresh cannot resurrect a forgotten/corrected item.
+
+  /** confirm: re-affirm an item is still true (blueprint §3.5 "Confirm"). */
+  async confirmMemory(itemId: string): Promise<MemoryVerbResult> {
+    const ctx = this.tenantCtx.require();
+    return this.prisma.withTenantUser(ctx.tenantId, ctx.userId, async (tx) => {
+      const rows = await tx.$queryRaw<Array<{ title: string }>>`
+        SELECT title FROM memory_items
+        WHERE id = ${itemId}::uuid AND tenant_id = ${ctx.tenantId}::uuid
+          AND (visibility = 'tenant' OR owner_user_id = ${ctx.userId}::uuid)
+          AND status <> 'revoked'
+        LIMIT 1
+      `;
+      if (!rows[0]) return { found: false };
+      await tx.$executeRaw`
+        UPDATE memory_items SET last_confirmed_at = now(), updated_at = now()
+        WHERE id = ${itemId}::uuid
+      `;
+      return { found: true, title: rows[0].title };
+    });
+  }
+
+  /**
+   * forget: revoke an item and stop recall immediately (blueprint §5.4).
+   * status='revoked' (excluded by every read filter) + purge the semantic
+   * embedding + delete the clio_memory source (if any) so it can't be
+   * re-recalled or re-projected + an audit_logs tombstone. Refuses when the
+   * item is under legal hold. Soft delete — the canonical row is retained
+   * (revoked), so an accidental forget is administratively recoverable.
+   */
+  async forgetMemory(itemId: string, reason?: string): Promise<MemoryVerbResult> {
+    const ctx = this.tenantCtx.require();
+    return this.prisma.withTenantUser(ctx.tenantId, ctx.userId, async (tx) => {
+      const rows = await tx.$queryRaw<Array<{ title: string; slug: string; legal_hold: boolean }>>`
+        SELECT title, slug, legal_hold FROM memory_items
+        WHERE id = ${itemId}::uuid AND tenant_id = ${ctx.tenantId}::uuid
+          AND (visibility = 'tenant' OR owner_user_id = ${ctx.userId}::uuid)
+          AND status <> 'revoked'
+        LIMIT 1
+      `;
+      const row = rows[0];
+      if (!row) return { found: false };
+      if (row.legal_hold) return { found: true, blockedByLegalHold: true, title: row.title };
+
+      await tx.$executeRaw`
+        UPDATE memory_items
+        SET status = 'revoked', revoked_at = now(), revoked_by = ${ctx.userId}::uuid, updated_at = now()
+        WHERE id = ${itemId}::uuid
+      `;
+      // Purge the semantic projection (no FK cascade from memory_items).
+      await tx.$executeRaw`
+        DELETE FROM context_embeddings WHERE source_type = 'memory_item' AND source_id = ${itemId}
+      `;
+      // If this item was projected from a clio_memory KV row, delete that
+      // source too — otherwise semanticMemorySearch (which reads clio_memory
+      // directly) keeps returning it and the nightly refresh re-projects it.
+      const clioId = row.slug.startsWith('clio:') ? row.slug.slice('clio:'.length) : null;
+      if (clioId) {
+        await tx.$executeRaw`
+          DELETE FROM clio_memory WHERE id = ${clioId}::uuid AND tenant_id = ${ctx.tenantId}::uuid
+        `;
+      }
+      await tx.auditLog.create({
+        data: {
+          tenantId: ctx.tenantId,
+          actorUserId: ctx.userId,
+          actorRole: ctx.role,
+          action: 'memory.forget',
+          entityType: 'memory_item',
+          entityId: itemId,
+          before: { title: row.title, slug: row.slug, reason: reason ?? null },
+        },
+      });
+      return { found: true, title: row.title };
+    });
+  }
+
+  /**
+   * correct: supersede an item with new content, preserving history (blueprint
+   * §4.6.5 step 8). Creates a NEW active row whose supersedesId points at the
+   * old one; the old row becomes status='superseded' (retained for history,
+   * excluded from active recall). If the old item was clio-sourced, its stale
+   * source row + embedding are removed so recall reflects only the correction.
+   */
+  async correctMemory(itemId: string, newContent: string): Promise<MemoryVerbResult> {
+    const ctx = this.tenantCtx.require();
+    const body = (newContent ?? '').trim();
+    if (!body) return { found: false };
+
+    const outcome = await this.prisma.withTenantUser(ctx.tenantId, ctx.userId, async (tx) => {
+      const rows = await tx.$queryRaw<
+        Array<{
+          type: string; slug: string; title: string; client_id: string | null;
+          owner_user_id: string | null; visibility: string; entity_id: string | null;
+          tags: string[]; legal_hold: boolean;
+        }>
+      >`
+        SELECT type, slug, title, client_id, owner_user_id, visibility, entity_id, tags, legal_hold
+        FROM memory_items
+        WHERE id = ${itemId}::uuid AND tenant_id = ${ctx.tenantId}::uuid
+          AND (visibility = 'tenant' OR owner_user_id = ${ctx.userId}::uuid)
+          AND status <> 'revoked'
+        LIMIT 1
+      `;
+      const old = rows[0];
+      if (!old) return { found: false as const };
+      if (old.legal_hold) return { found: true as const, blockedByLegalHold: true, title: old.title };
+
+      // New slug dodges the (tenant,type,slug) unique constraint; a corrected
+      // item is a distinct row so both versions coexist.
+      const newSlug = `${old.slug}~c${Date.now().toString(36)}`.slice(0, 200);
+      const sections = JSON.stringify([
+        { key: 'memory', heading: 'Memory', owner: 'human', body },
+      ]);
+      const ins = await tx.$queryRaw<Array<{ id: string }>>`
+        INSERT INTO memory_items (
+          tenant_id, client_id, owner_user_id, type, visibility, entity_id,
+          slug, title, aliases, tags, source, source_ref, provenance,
+          sections_jsonb, schema_version, status, supersedes_id,
+          sensitivity, legal_hold, exportable, training_use
+        ) VALUES (
+          ${ctx.tenantId}::uuid, ${old.client_id}::uuid, ${old.owner_user_id}::uuid,
+          ${old.type}, ${old.visibility}, ${old.entity_id}::uuid,
+          ${newSlug}, ${old.title}, '{}', ${old.tags}, 'manual', NULL, 'human',
+          ${sections}::jsonb, ${MEMORY_SCHEMA_VERSION}, 'active', ${itemId}::uuid,
+          'normal', false, true, 'excluded'
+        )
+        RETURNING id
+      `;
+      const newId = ins[0]?.id;
+      if (!newId) throw new Error('correctMemory: insert returned no row');
+
+      await tx.$executeRaw`
+        UPDATE memory_items SET status = 'superseded', updated_at = now() WHERE id = ${itemId}::uuid
+      `;
+      // Drop the old item's stale embedding + clio source so recall reflects
+      // only the correction.
+      await tx.$executeRaw`
+        DELETE FROM context_embeddings WHERE source_type = 'memory_item' AND source_id = ${itemId}
+      `;
+      const clioId = old.slug.startsWith('clio:') ? old.slug.slice('clio:'.length) : null;
+      if (clioId) {
+        await tx.$executeRaw`
+          DELETE FROM clio_memory WHERE id = ${clioId}::uuid AND tenant_id = ${ctx.tenantId}::uuid
+        `;
+      }
+      await tx.auditLog.create({
+        data: {
+          tenantId: ctx.tenantId,
+          actorUserId: ctx.userId,
+          actorRole: ctx.role,
+          action: 'memory.correct',
+          entityType: 'memory_item',
+          entityId: itemId,
+          before: { slug: old.slug, title: old.title },
+          after: { newItemId: newId, newSlug },
+        },
+      });
+      return {
+        found: true as const,
+        newId,
+        title: old.title,
+        clientId: old.client_id,
+        ownerUserId: old.owner_user_id,
+      };
+    });
+
+    if (!outcome.found || outcome.blockedByLegalHold || !('newId' in outcome)) {
+      return {
+        found: outcome.found,
+        blockedByLegalHold: outcome.blockedByLegalHold,
+        title: outcome.title,
+      };
+    }
+    const newId = outcome.newId as string; // guaranteed by the `'newId' in outcome` guard above
+    // Embed the corrected row immediately (best-effort; nightly refresh is the
+    // backstop). Same bypass-write path the ingest embedder uses.
+    try {
+      await embedAndUpsert(this.prisma, {
+        tenantId: ctx.tenantId,
+        clientId: outcome.clientId,
+        ownerUserId: outcome.ownerUserId,
+        sourceType: 'memory_item',
+        sourceId: newId,
+        text: `${outcome.title}: ${body}`,
+        bypassRls: true,
+      });
+    } catch (err) {
+      this.logger.warn(`correctMemory embed failed (non-fatal): ${(err as Error).message}`);
+    }
+    return { found: true, title: outcome.title, newItemId: newId };
   }
 
   /** Re-derive wikilink edges for an item (criterion #5). Replace-all per item. */
@@ -313,4 +556,16 @@ interface MemoryItemRow {
   schema_version: number;
   created_at: Date;
   updated_at: Date;
+  status: string | null;
+  last_confirmed_at: Date | null;
+  review_cadence_days: number | null;
+  supersedes_id: string | null;
+  contradicts_id: string | null;
+  sensitivity: string | null;
+  retention_policy_jsonb: unknown;
+  legal_hold: boolean | null;
+  revoked_at: Date | null;
+  revoked_by: string | null;
+  exportable: boolean | null;
+  training_use: string | null;
 }

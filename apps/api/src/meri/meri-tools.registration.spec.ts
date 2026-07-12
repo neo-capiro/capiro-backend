@@ -59,6 +59,10 @@ const EXPECTED_TOOLS = [
   'list_emails',
   'reply_email',
   'save_memory',
+  // Memory governance verbs (Phase 1, 1D)
+  'confirm_memory',
+  'correct_memory',
+  'forget_memory',
   // DoD program elements + acquisition personnel
   'search_program_elements',
   'get_program_element',
@@ -105,6 +109,9 @@ const REQUIRED_INPUTS: Record<string, string[]> = {
   send_email: ['to', 'subject', 'body'],
   reply_email: ['threadId', 'body'],
   save_memory: ['content'],
+  confirm_memory: ['memoryItemId'],
+  correct_memory: ['memoryItemId', 'newContent'],
+  forget_memory: ['memoryItemId'],
   get_program_element: ['peCode'],
   get_pe_budget_timeline: ['peCode'],
   get_pe_contractors: ['peCode'],

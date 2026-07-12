@@ -5,6 +5,7 @@ import { MemoryStoreService } from './memory-store.service.js';
 import { MemoryFkLoader } from './memory-fk-loader.service.js';
 import { MemoryIngestService } from './memory-ingest.service.js';
 import { MemoryInterviewService } from './memory-interview.service.js';
+import { MemoryCandidateService } from './memory-candidate.service.js';
 import { MeetingNotesCryptoService } from '../engagement/meeting-notes-crypto.service.js';
 import { MemoryController } from './memory.controller.js';
 
@@ -24,7 +25,14 @@ import { MemoryController } from './memory.controller.js';
 @Module({
   imports: [PrismaModule, TenantModule],
   controllers: [MemoryController],
-  providers: [MemoryStoreService, MemoryFkLoader, MemoryIngestService, MemoryInterviewService, MeetingNotesCryptoService],
-  exports: [MemoryStoreService, MemoryIngestService],
+  providers: [
+    MemoryStoreService,
+    MemoryFkLoader,
+    MemoryIngestService,
+    MemoryInterviewService,
+    MemoryCandidateService,
+    MeetingNotesCryptoService,
+  ],
+  exports: [MemoryStoreService, MemoryIngestService, MemoryCandidateService],
 })
 export class MemoryModule {}

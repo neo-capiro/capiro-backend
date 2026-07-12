@@ -16,7 +16,7 @@
 // stays user-private (routed to the user vault by vaultPathForItem).
 
 import type { MemoryItem, MemorySource } from './memory.types.js';
-import { MEMORY_SCHEMA_VERSION } from './memory.types.js';
+import { MEMORY_SCHEMA_VERSION, defaultMemoryGovernanceFields } from './memory.types.js';
 
 function base(
   tenantId: string,
@@ -34,6 +34,18 @@ function base(
   | 'createdAt'
   | 'updatedAt'
   | 'schemaVersion'
+  | 'status'
+  | 'lastConfirmedAt'
+  | 'reviewCadenceDays'
+  | 'supersedesId'
+  | 'contradictsId'
+  | 'sensitivity'
+  | 'retentionPolicy'
+  | 'legalHold'
+  | 'revokedAt'
+  | 'revokedBy'
+  | 'exportable'
+  | 'trainingUse'
 > {
   return {
     id: '',
@@ -45,6 +57,7 @@ function base(
     createdAt: ts,
     updatedAt: ts,
     schemaVersion: MEMORY_SCHEMA_VERSION,
+    ...defaultMemoryGovernanceFields(),
   };
 }
 

@@ -7,7 +7,7 @@
 // practice prompts the analyst fills in.
 
 import type { MemoryItem, MemorySection } from './memory.types.js';
-import { MEMORY_SCHEMA_VERSION } from './memory.types.js';
+import { MEMORY_SCHEMA_VERSION, defaultMemoryGovernanceFields } from './memory.types.js';
 
 function nowIso(): string {
   return new Date().toISOString();
@@ -60,6 +60,7 @@ export function seedClientHub(ctx: SeedCtx): MemoryItem {
     createdAt: ts,
     updatedAt: ts,
     schemaVersion: MEMORY_SCHEMA_VERSION,
+    ...defaultMemoryGovernanceFields(),
   };
 }
 
@@ -93,6 +94,7 @@ export function seedClientSoul(ctx: SeedCtx): MemoryItem {
     createdAt: ts,
     updatedAt: ts,
     schemaVersion: MEMORY_SCHEMA_VERSION,
+    ...defaultMemoryGovernanceFields(),
   };
 }
 
@@ -124,6 +126,7 @@ export function seedClientCompass(ctx: SeedCtx): MemoryItem {
     createdAt: ts,
     updatedAt: ts,
     schemaVersion: MEMORY_SCHEMA_VERSION,
+    ...defaultMemoryGovernanceFields(),
   };
 }
 
@@ -154,6 +157,7 @@ export function seedClientPeople(ctx: SeedCtx): MemoryItem {
     createdAt: ts,
     updatedAt: ts,
     schemaVersion: MEMORY_SCHEMA_VERSION,
+    ...defaultMemoryGovernanceFields(),
   };
 }
 
@@ -183,6 +187,7 @@ export function seedFirmPack(tenantId: string, firmName: string): MemoryItem[] {
     createdAt: ts,
     updatedAt: ts,
     schemaVersion: MEMORY_SCHEMA_VERSION,
+    ...defaultMemoryGovernanceFields(),
   };
   return [
     {

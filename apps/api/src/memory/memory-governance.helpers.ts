@@ -18,7 +18,9 @@ export interface RetentionPolicy {
   types: string[];
 }
 
-/** Items eligible for purge under a policy, as of `now`. Pure. */
+/** Items eligible for purge under a policy, as of `now`. Pure.
+ *  A legal hold (Phase 1, blueprint §5.4) always wins: a held item is never
+ *  eligible for any purge selector, regardless of age or scope. */
 export function selectForPurge(
   items: MemoryItem[],
   policy: RetentionPolicy,
@@ -27,20 +29,23 @@ export function selectForPurge(
   if (policy.maxAgeDays === null) return [];
   const cutoff = now.getTime() - policy.maxAgeDays * 86_400_000;
   return items.filter((i) => {
+    if (i.legalHold) return false;
     if (policy.types.length > 0 && !policy.types.includes(i.type)) return false;
     return new Date(i.createdAt).getTime() < cutoff;
   });
 }
 
-/** Right-to-delete on client offboarding: every item scoped to the client. */
+/** Right-to-delete on client offboarding: every item scoped to the client,
+ *  excluding anything under legal hold. */
 export function selectForClientPurge(items: MemoryItem[], clientId: string): MemoryItem[] {
-  return items.filter((i) => i.clientId === clientId);
+  return items.filter((i) => i.clientId === clientId && !i.legalHold);
 }
 
-/** Right-to-delete on user offboarding: that user's PRIVATE items only.
- *  Firm-shared items they authored are NOT purged (they belong to the firm). */
+/** Right-to-delete on user offboarding: that user's PRIVATE items only,
+ *  excluding anything under legal hold. Firm-shared items they authored are
+ *  NOT purged (they belong to the firm). */
 export function selectForUserPurge(items: MemoryItem[], userId: string): MemoryItem[] {
-  return items.filter((i) => i.visibility === 'user' && i.ownerUserId === userId);
+  return items.filter((i) => i.visibility === 'user' && i.ownerUserId === userId && !i.legalHold);
 }
 
 /** e-discovery / legal hold: every item touching a client, for export. The
@@ -72,6 +77,7 @@ export interface ExportManifestRow {
   provenance: string;
   createdAt: string;
   updatedAt: string;
+  status: string;
 }
 
 export function toManifestRow(item: MemoryItem): ExportManifestRow {
@@ -86,5 +92,14 @@ export function toManifestRow(item: MemoryItem): ExportManifestRow {
     provenance: item.provenance,
     createdAt: item.createdAt,
     updatedAt: item.updatedAt,
+    status: item.status,
   };
+}
+
+/** Items eligible to appear in a GET /memory/export manifest — excludes
+ *  anything explicitly marked non-exportable (blueprint §5.4 "structured
+ *  export of a customer's own data"; not every item a tenant can see is
+ *  necessarily theirs to re-export, e.g. a future restricted-scope class). */
+export function selectForExport(items: MemoryItem[]): MemoryItem[] {
+  return items.filter((i) => i.exportable);
 }

@@ -11,7 +11,7 @@
 // idempotent upserts (re-running never duplicates).
 
 import type { MemoryItem } from './memory.types.js';
-import { MEMORY_SCHEMA_VERSION } from './memory.types.js';
+import { MEMORY_SCHEMA_VERSION, defaultMemoryGovernanceFields } from './memory.types.js';
 
 export interface ClioMemoryRow {
   id: string;
@@ -89,6 +89,7 @@ export function clioMemoryToItem(row: ClioMemoryRow, resolveName?: NameResolver)
     createdAt: row.createdAt,
     updatedAt: row.updatedAt,
     schemaVersion: MEMORY_SCHEMA_VERSION,
+    ...defaultMemoryGovernanceFields(),
   };
 }
 
