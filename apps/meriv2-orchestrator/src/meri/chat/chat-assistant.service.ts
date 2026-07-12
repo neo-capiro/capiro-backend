@@ -4,6 +4,9 @@ import {
   computeActionFingerprint,
   KeywordIntentRouter,
   wrapToolResultForPrompt,
+  runAuditor,
+  type LedgerEntry,
+  type AuditorMode,
   type MeriContext,
   type ToolRegistry,
 } from '@capiro/meriv2-core';
@@ -113,14 +116,21 @@ export class ChatAssistantService {
     const steps: ChatStep[] = [];
     const pendingApprovals: NonNullable<ChatResult['pendingApprovals']> = [];
     const artifacts: ChatArtifact[] = [];
+    // Wave-2 post-hoc auditor ledger for the GA chat surface (the DEFAULT chat
+    // path — most traffic). Accumulated across tool rounds; audited at finalize.
+    const ledgerEntries: LedgerEntry[] = [];
     // Every exit shares the same aggregates (steps + gate-held writes + produced
-    // deliverables), so build the result in one place.
-    const finalize = (reply: string): ChatResult => ({
-      reply,
-      steps,
-      ...(pendingApprovals.length ? { pendingApprovals } : {}),
-      ...(artifacts.length ? { artifacts } : {}),
-    });
+    // deliverables), so build the result in one place. finalize also fires the
+    // shadow auditor (fire-and-forget, like meterRound) so every exit is covered.
+    const finalize = (reply: string): ChatResult => {
+      void this.auditReplyShadow(reply, ledgerEntries);
+      return {
+        reply,
+        steps,
+        ...(pendingApprovals.length ? { pendingApprovals } : {}),
+        ...(artifacts.length ? { artifacts } : {}),
+      };
+    };
 
     for (let round = 0; round < MAX_ROUNDS; round += 1) {
       if (opts.signal?.aborted) {
@@ -189,10 +199,12 @@ export class ChatAssistantService {
             artifacts,
             emit,
           );
+          const serialized = wrapToolResultForPrompt(tu.name, result, TOOL_RESULT_CHARS);
+          ledgerEntries.push({ tool: tu.name, serialized, result });
           return {
             type: 'tool_result' as const,
             tool_use_id: tu.id,
-            content: wrapToolResultForPrompt(tu.name, result, TOOL_RESULT_CHARS),
+            content: serialized,
           };
         }),
       );
@@ -224,6 +236,40 @@ export class ChatAssistantService {
         usedTenantKey: resp.usedTenantKey,
       },
     );
+  }
+
+  /**
+   * Wave-2 post-hoc auditor on the GA chat surface — SHADOW by default
+   * (MERI_AUDITOR_MODE off = no-op). Fire-and-forget from finalize (like
+   * meterRound), so every loop exit is covered without blocking the reply. It
+   * re-derives ground truth from the turn's tool-result ledger and LOGS any
+   * contradiction (reversed direction, failed-rule-as-operative, LI-as-PE,
+   * unresolved citation) WITHOUT altering the reply. Log-only here — the GA chat
+   * is the default/highest-traffic surface, so its findings surface in
+   * CloudWatch for shadow tuning. Fully guarded; never affects the response.
+   */
+  private async auditReplyShadow(reply: string, ledgerEntries: LedgerEntry[]): Promise<void> {
+    const mode = (process.env.MERI_AUDITOR_MODE as AuditorMode | undefined) ?? 'off';
+    if (mode === 'off' || !reply || reply.trim().length === 0) return;
+    try {
+      const verdict = runAuditor({
+        output: reply,
+        ledger: { entries: ledgerEntries },
+        surface: 'chat',
+        mode,
+      });
+      if (verdict.findings.length > 0) {
+        this.logger.warn(
+          `[meri-auditor:${mode}] GA chat — ${verdict.findings.length} finding(s), ` +
+            `top=${verdict.topSeverity}, decision=${verdict.decision}: ` +
+            verdict.findings.map((f) => `${f.check}/${f.severity}`).join(', '),
+        );
+      }
+    } catch (err) {
+      this.logger.warn(
+        `[meri-auditor] GA chat audit failed (reply unaffected): ${(err as Error).message}`,
+      );
+    }
   }
 
   /**
