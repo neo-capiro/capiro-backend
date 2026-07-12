@@ -73,6 +73,7 @@ import { ClientKbService } from '../embeddings/client-kb.service.js';
 import { MeriFeatureFlagsService } from './meri-feature-flags.service.js';
 import { buildSavedMemoryRecord } from './meri-memory.helpers.js';
 import { budgetExhibitType } from './meri-pe-structural.helpers.js';
+import { isValidPeCode, isValidProcurementCode } from '../program-element/jbook/jbook-extract.js';
 import { buildWebSearchRequest, normalizeWebResults } from './meri-websearch.helpers.js';
 import { looksLikePdf } from './meri-scrape.helpers.js';
 import { buildKnowledgeGraph, walkFrom, type FkRelation } from '../memory/memory-graph.helpers.js';
@@ -2929,6 +2930,9 @@ export class MeriToolsService {
     // pointing the model to get_pe_budget_timeline for the mark-by-mark detail.
     type FinderRowForModel = {
       spark?: number[] | null;
+      peCode?: string | null;
+      appropriationType?: string | null;
+      budgetActivity?: string | null;
       latestCurrent: number | null;
       latestCurrentFy: number | null;
       latestCurrentStage: string | null;
@@ -2952,8 +2956,28 @@ export class MeriToolsService {
         deltaPct,
         ...rest
       } = row;
+      // RC2: the `peCode` field holds BOTH true R-1/R-2 Program Elements AND P-1
+      // procurement line items keyed <appropriationCode><lineItemNumber> (e.g.
+      // 1507N2280) — the code SHAPE is the authoritative discriminator (the two
+      // regexes never collide). Tell the model, per row, which noun applies so it
+      // never calls a procurement line a "Program Element" (the S2-1 error) — and
+      // so it needn't spend a get_program_element call just to learn the noun.
+      const code = typeof row.peCode === 'string' ? row.peCode : '';
+      const identifierKind: 'pe' | 'procurement_line_item' | 'other' =
+        isValidProcurementCode(code) && !isValidPeCode(code)
+          ? 'procurement_line_item'
+          : isValidPeCode(code)
+            ? 'pe'
+            : 'other';
       return {
         ...rest,
+        identifierKind,
+        budgetExhibitType: budgetExhibitType({
+          peCode: code,
+          appropriationType:
+            typeof row.appropriationType === 'string' ? row.appropriationType : null,
+          budgetActivity: typeof row.budgetActivity === 'string' ? row.budgetActivity : null,
+        }),
         funding: buildSearchRowFundingForModel({
           latestCurrent,
           latestCurrentFy,
@@ -3013,6 +3037,10 @@ export class MeriToolsService {
   private async getPeReportLanguage(input: Record<string, unknown>) {
     const peCode = requiredString(input, 'peCode', 32);
     const provisions = await this.programElement.getProvisionsForPe(peCode);
+    // RC7: program-level (program_alias) links may apply to sibling PEs — flag
+    // them so the model attributes program-wide language at the program level,
+    // not exclusively to this PE. Each such item also carries attributionCaveat.
+    const programLevel = provisions.filter((p) => p.matchScope === 'program_level').length;
     return {
       tool: 'get_pe_report_language',
       generatedAt: new Date().toISOString(),
@@ -3020,9 +3048,11 @@ export class MeriToolsService {
       provisions,
       // Make the "no grounded reason" case explicit so the model states it rather
       // than inventing a justification for a mark from the title / dollar delta.
-      note: provisions.length
-        ? undefined
-        : "No committee report language is linked to this budget line in Capiro's data. Do NOT infer why a mark changed — state that the justification is not available.",
+      note: !provisions.length
+        ? "No committee report language is linked to this budget line in Capiro's data. Do NOT infer why a mark changed — state that the justification is not available."
+        : programLevel
+          ? `${programLevel} of ${provisions.length} linked provision(s) are PROGRAM-LEVEL matches (matched via a program alias, because FY committee reports name programs, not PE codes). They may apply to sibling PEs in the same program — attribute such language at the program level, not exclusively to this PE. Each carries matchScope:"program_level" and an attributionCaveat.`
+          : undefined,
     };
   }
 
@@ -3673,8 +3703,13 @@ export class MeriToolsService {
       viceChair: viceChairEntry ?? null,
       rankingMember: rankingEntry ?? null,
       members: roster,
+      // RC7: this federal roster carries each member's STATE but NOT their
+      // congressional district (the S3-1 hazard: a memo inferred a member↔district
+      // edge from committee membership). Say so explicitly so the model never
+      // fabricates a district here — member↔district must come from
+      // get_representation (address→district→member) or resolve_entity.
       note: roster.length
-        ? null
+        ? "This roster carries each member's STATE only — it does NOT carry congressional districts. Do NOT infer or state a member's district from committee membership; use get_representation or resolve_entity for any member↔district claim."
         : 'Committee resolved but no roster rows are synced for it yet — say so explicitly, do not guess membership.',
     };
   }

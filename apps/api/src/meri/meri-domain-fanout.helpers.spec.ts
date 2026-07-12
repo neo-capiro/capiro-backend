@@ -6,7 +6,11 @@ import {
 
 describe('DOMAIN_PRIMER', () => {
   it('is concise enough not to blow the prompt budget', () => {
-    expect(DOMAIN_PRIMER.length).toBeLessThanOrEqual(1700);
+    // Bound aligned to the meriv2-core sibling primer (≤2000): this apps/api copy
+    // legitimately carries a few extra structural bullets (procurement-exhibit,
+    // outyear, no-reason-without-language) and had outgrown the stale 1700 bound.
+    // ~2k chars ≈ ~500 tokens — negligible against the prompt budget.
+    expect(DOMAIN_PRIMER.length).toBeLessThanOrEqual(2000);
     expect(DOMAIN_PRIMER.length).toBeGreaterThan(200);
   });
   it('states the key structural invariants', () => {
@@ -23,12 +27,22 @@ describe('DOMAIN_PRIMER', () => {
 
 describe('extractCitedPeCodes', () => {
   it('pulls PE codes in both formats', () => {
-    const text =
-      'Anchor to PE 0207179F and FAMM 0604041F; avoid program line 5726K99200 (XM32).';
+    const text = 'Anchor to PE 0207179F and FAMM 0604041F; avoid program line 5726K99200 (XM32).';
     const codes = extractCitedPeCodes(text);
     expect(codes).toContain('0207179F');
     expect(codes).toContain('0604041F');
     expect(codes).toContain('5726K99200');
+  });
+  it('pulls short-tail and alphanumeric-tail BLINs the old regex missed (RC2)', () => {
+    // 1507N2280 = 4 trailing digits; 3010F10TRGT = alphanumeric tail. The prior
+    // regex required exactly 5 trailing digits, so both were silently dropped —
+    // a cited procurement line never fanned out for a structural cross-check.
+    const codes = extractCitedPeCodes('Buy via line item 1507N2280 and BLIN 3010F10TRGT.');
+    expect(codes).toContain('1507N2280');
+    expect(codes).toContain('3010F10TRGT');
+  });
+  it('captures full PE codes with multi-char suffixes', () => {
+    expect(extractCitedPeCodes('PE 0604256AX and 0603851F')).toEqual(['0604256AX', '0603851F']);
   });
   it('dedupes and handles no matches', () => {
     expect(extractCitedPeCodes('PE 0207179F and 0207179F again')).toEqual(['0207179F']);
@@ -46,12 +60,18 @@ describe('planFanOutQueries', () => {
   });
 
   it('plans a better-fit-lane check when the deliverable is about a kinetic capability', () => {
-    const q = planFanOutQueries(pes, 'micro-guided kinetic interceptor for counter-UAS drone defeat');
+    const q = planFanOutQueries(
+      pes,
+      'micro-guided kinetic interceptor for counter-UAS drone defeat',
+    );
     expect(q.some((x) => x.kind === 'better_fit_lane')).toBe(true);
   });
 
   it('plans a sibling check when a "primary vehicle" claim is made', () => {
-    const q = planFanOutQueries(pes, 'PE 0207179F is the primary funding vehicle for this mission.');
+    const q = planFanOutQueries(
+      pes,
+      'PE 0207179F is the primary funding vehicle for this mission.',
+    );
     expect(q.some((x) => x.kind === 'primary_vehicle_siblings')).toBe(true);
   });
 

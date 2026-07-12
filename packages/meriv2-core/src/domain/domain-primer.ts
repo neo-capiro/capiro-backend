@@ -25,22 +25,9 @@ export const DOMAIN_PRIMER = [
   '• Markup status (HASC/SASC marks) changes weekly. If a mark is absent from the data, say so explicitly and date it — do not imply the committee has not acted.',
 ].join('\n');
 
-/**
- * Extract PE codes (e.g. "0604041F", "5726K99200") mentioned in free text, so
- * the structural verifier can flag a PE cited only in prose (not returned by a
- * detail tool) too. SYNC NOTE: identical copy at
- * `apps/api/src/meri/meri-domain-fanout.helpers.ts`.
- */
-export function extractCitedPeCodes(text: string): string[] {
-  if (typeof text !== 'string') return [];
-  const out: string[] = [];
-  const re = /\b(?:PE\s*)?(\d{7}[A-Z]|\d{4}[A-Z]\d{5})\b/g;
-  let m: RegExpExecArray | null;
-  while ((m = re.exec(text)) != null) {
-    const raw = m[1];
-    if (!raw) continue;
-    const code = raw.toUpperCase();
-    if (!out.includes(code)) out.push(code);
-  }
-  return out;
-}
+// Extract PE codes AND procurement line-item codes (BLINs) cited in free text,
+// so the structural verifier can flag one cited only in prose (not returned by
+// a detail tool). Consolidated into @capiro/shared (RC2) — one canonical code
+// shape across this orchestrator, apps/api and the workspace engine; re-exported
+// so existing importers (and the package index) are unchanged.
+export { extractCitedPeCodes } from '@capiro/shared';
