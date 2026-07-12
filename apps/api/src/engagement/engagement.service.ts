@@ -72,12 +72,19 @@ import {
   renderClientRelationshipSnapshot,
   renderClientPeopleRoster,
   renderClientTargetOffices,
+  type BillTruth,
+  type PeTruth,
   type BillVoteRow,
   type GoverningRuleRow,
   type PeYearFunding,
   type TargetOfficeLite,
 } from './outreach-context-enrichment.js';
 import { outreachClientProfileEnabled } from '../common/tenant-flags.js';
+// Wave-2 post-hoc grounding auditor (dark/shadow by default via MERI_AUDITOR_MODE):
+// extends the same deterministic post-generation check to the outreach batch
+// drafter, re-deriving ground truth from the same PE/bill truth blocks already
+// built for the prompt (see enrichOutreachContextItems below).
+import { runAuditor, type LedgerEntry, type AuditorMode } from '@capiro/meriv2-core';
 
 export interface CreateIntegrationInput {
   provider: EngagementProvider;
@@ -288,6 +295,17 @@ export interface OutreachSelectedContextItemInput {
   note?: string;
 }
 
+/**
+ * The RAW structured PeTruth/BillTruth behind an enriched context item's
+ * rendered text (see enrichOutreachContextItems), keyed by context-item id.
+ * Consumed only by the post-hoc grounding auditor to build ground-truth
+ * LedgerEntrys — never rendered into a prompt itself (formatBillTruth /
+ * formatPeTruth already own that).
+ */
+export type OutreachContextTruth =
+  | { kind: 'bill'; raw: BillTruth }
+  | { kind: 'programElement'; raw: PeTruth };
+
 export interface GenerateBatchEmailInput {
   campaignId?: string;
   clientId?: string;
@@ -333,6 +351,14 @@ export interface OutreachBatchDraftResult {
   status: 'ready' | 'error';
   /** Failure detail for telemetry/logs ONLY — never surface raw to end users. */
   error?: string;
+  /**
+   * Internal note for the lobbyist ONLY — never sent to the recipient, never
+   * appended to `body`/`subject`. Present only when the post-hoc grounding
+   * auditor (MERI_AUDITOR_MODE=annotate|enforce) held findings on this draft;
+   * absent in shadow/off mode (i.e. absent by default). See runAuditor wiring
+   * in generateBatchEmails.
+   */
+  contextNote?: string;
 }
 
 export interface GenerateTalkingPointsInput {
@@ -2497,7 +2523,8 @@ export class EngagementService {
     // congressional mark) BEFORE they become prompt text — the fix for reversed
     // funding direction, omitted chamber cuts, and "stalled bill read as
     // advancing". Best-effort per item; a lookup miss keeps the original body.
-    const enrichedContextItems = await this.enrichOutreachContextItems(contextItems ?? []);
+    const { items: enrichedContextItems, truthByItemId: outreachTruthByItemId } =
+      await this.enrichOutreachContextItems(contextItems ?? []);
 
     // Bucket the v2 wizard's scoped context items so we can hand the AI
     // shared-context-vs-recipient-context distinctly per draft below.
@@ -2808,12 +2835,105 @@ export class EngagementService {
         // worker so metering overlaps generation instead of serializing it.
         await this.recordAiUsage(ctx, 'outreach_campaign', generated);
 
+        // Wave-2 post-hoc grounding auditor on the OUTREACH surface — SHADOW by
+        // default (MERI_AUDITOR_MODE off = no-op). Re-derives ground truth from
+        // the SAME PE/bill truth blocks already fed into THIS recipient's prompt
+        // (via enrichOutreachContextItems/outreachTruthByItemId — only items
+        // actually in scope for this recipient: shared + their personal items)
+        // and flags any contradiction in the drafted body. Fully guarded: a bug
+        // here can NEVER turn a good draft into an error, and it never touches
+        // subject/body — degraded mode (annotate/enforce only) appends a line
+        // to the INTERNAL contextNote the lobbyist sees, never the recipient.
+        let auditorContextNote: string | undefined;
+        const auditorMode = (process.env.MERI_AUDITOR_MODE as AuditorMode | undefined) ?? 'off';
+        if (auditorMode !== 'off' && generated.body.trim().length > 0) {
+          try {
+            const usedItems = [...sharedItems, ...personalItems];
+            const ledgerEntries: LedgerEntry[] = [];
+            for (const item of usedItems) {
+              const truth = outreachTruthByItemId.get(item.id);
+              if (!truth) continue;
+              if (truth.kind === 'bill') {
+                const b = truth.raw;
+                ledgerEntries.push({
+                  tool: 'get_bill_status',
+                  serialized: item.body ?? '',
+                  result: {
+                    billId: b.id,
+                    status: b.status,
+                    statusAt: b.statusAt ? new Date(b.statusAt).toISOString() : null,
+                    ...(b.sponsorName ? { sponsor: { name: b.sponsorName } } : {}),
+                  },
+                });
+              } else {
+                const pe = truth.raw;
+                ledgerEntries.push({
+                  tool: 'get_pe_budget_timeline',
+                  serialized: item.body ?? '',
+                  result: {
+                    peCode: pe.peCode,
+                    years: pe.years,
+                    currentCycleFy: pe.currentCycleFy ?? null,
+                    identifierKind:
+                      pe.budgetExhibitType && /procurement line item/i.test(pe.budgetExhibitType)
+                        ? 'procurement_line_item'
+                        : 'pe',
+                    generatedAt: new Date().toISOString(),
+                  },
+                });
+              }
+            }
+
+            const verdict = runAuditor({
+              output: generated.body,
+              ledger: { entries: ledgerEntries },
+              surface: 'outreach',
+              mode: auditorMode,
+            });
+            if (verdict.findings.length > 0) {
+              this.logger.warn(
+                `[meri-auditor:${auditorMode}] outreach recipient ${recipientId} — ${verdict.findings.length} finding(s), ` +
+                  `top=${verdict.topSeverity}, decision=${verdict.decision}: ` +
+                  verdict.findings.map((f) => `${f.check}/${f.severity}`).join(', '),
+              );
+              await this.prisma.withTenant(ctx.tenantId, (tx) =>
+                tx.meriAuditLedger.create({
+                  data: {
+                    tenantId: ctx.tenantId,
+                    surface: 'outreach',
+                    mode: auditorMode,
+                    decision: verdict.decision,
+                    topSeverity: verdict.topSeverity ?? null,
+                    findingCount: verdict.findings.length,
+                    findings: verdict.findings as unknown as Prisma.InputJsonValue,
+                    outputChars: generated.body.length,
+                  },
+                }),
+              );
+              // Degraded mode (v3 plan §3.6): outreach bodies stay recipient-
+              // facing and citation-free — never a banner in body/subject.
+              // ANNOTATE/ENFORCE instead append to the INTERNAL contextNote;
+              // inert while mode is shadow (the default) — this branch never
+              // runs and auditorContextNote stays undefined.
+              if (auditorMode === 'annotate' || auditorMode === 'enforce') {
+                const checks = [...new Set(verdict.findings.map((f) => f.check))].join(', ');
+                auditorContextNote = `⚠️ Unverified — ${verdict.findings.length} grounding finding(s) held for review (${checks}). Treat flagged claims as unconfirmed until a reviewer clears them.`;
+              }
+            }
+          } catch (auditErr) {
+            this.logger.warn(
+              `[meri-auditor] outreach audit failed for recipient ${recipientId} (draft unaffected): ${(auditErr as Error).message}`,
+            );
+          }
+        }
+
         return {
           result: {
             recipientId,
             subject: generated.subject,
             body: generated.body,
             status: 'ready' as const,
+            ...(auditorContextNote ? { contextNote: auditorContextNote } : {}),
           },
           provider: generated.provider,
         };
@@ -5695,23 +5815,39 @@ export class EngagementService {
    * congressional mark instead of narrating from a single stale string. Runs once
    * per campaign, in parallel, best-effort: any lookup error/miss leaves the
    * original client-supplied body untouched (never blocks a draft).
+   *
+   * Also returns `truthByItemId` — the RAW structured PeTruth/BillTruth behind
+   * each rewritten item's rendered text, keyed by context-item id. This is
+   * additive (the rendered `text` is byte-identical to what used to be returned
+   * bare): the post-hoc grounding auditor (shadow by default) uses the raw truth
+   * to build ground-truth LedgerEntrys for whichever items a given recipient's
+   * draft actually used — see generateBatchEmails.
    */
-  private async enrichOutreachContextItems(
-    items: OutreachSelectedContextItemInput[],
-  ): Promise<OutreachSelectedContextItemInput[]> {
-    if (!items.length) return items;
-    return Promise.all(
+  private async enrichOutreachContextItems(items: OutreachSelectedContextItemInput[]): Promise<{
+    items: OutreachSelectedContextItemInput[];
+    truthByItemId: Map<string, OutreachContextTruth>;
+  }> {
+    const truthByItemId = new Map<string, OutreachContextTruth>();
+    if (!items.length) return { items, truthByItemId };
+    const enriched = await Promise.all(
       items.map(async (item) => {
         try {
           if (item.kind === 'bill') {
             const billId = billIdFromItemId(item.id);
             const block = billId ? await this.billTruthBlock(billId) : null;
-            return block ? { ...item, body: block } : item;
+            if (block) {
+              truthByItemId.set(item.id, { kind: 'bill', raw: block.raw });
+              return { ...item, body: block.text };
+            }
+            return item;
           }
           if (item.kind === 'programElement') {
             const peCode = peCodeFromItemId(item.id);
             const block = peCode ? await this.peTruthBlock(peCode) : null;
-            if (block) return { ...item, body: block };
+            if (block) {
+              truthByItemId.set(item.id, { kind: 'programElement', raw: block.raw });
+              return { ...item, body: block.text };
+            }
             // RC1: on a lookup miss do NOT keep the thin client-supplied
             // "Current: $X / Request: $Y" body — an unverified, direction-
             // ambiguous figure must never survive into the prompt as fact.
@@ -5730,11 +5866,12 @@ export class EngagementService {
         return item;
       }),
     );
+    return { items: enriched, truthByItemId };
   }
 
   /** Authoritative bill-truth block (see outreach-context-enrichment). Null if the
    *  bill isn't on record — the caller then keeps the thin client body. */
-  private async billTruthBlock(billId: string): Promise<string | null> {
+  private async billTruthBlock(billId: string): Promise<{ text: string; raw: BillTruth } | null> {
     const bill = await this.prisma.congressBill.findUnique({
       where: { id: billId },
       select: {
@@ -5817,7 +5954,7 @@ export class EngagementService {
           .filter((c): c is string => Boolean(c))
       : [];
 
-    return formatBillTruth({
+    const raw: BillTruth = {
       id: bill.id,
       title: bill.title,
       status: bill.status,
@@ -5831,12 +5968,13 @@ export class EngagementService {
       committees,
       votes: votes as BillVoteRow[],
       governingRules,
-    });
+    };
+    return { text: formatBillTruth(raw), raw };
   }
 
   /** Authoritative PE-funding block (see outreach-context-enrichment). Null if the
    *  PE isn't on record — the caller then keeps the thin client body. */
-  private async peTruthBlock(peCode: string): Promise<string | null> {
+  private async peTruthBlock(peCode: string): Promise<{ text: string; raw: PeTruth } | null> {
     const pe = await this.prisma.programElement.findUnique({
       where: { peCode },
       select: { peCode: true, title: true, service: true, budgetActivityName: true },
@@ -5874,14 +6012,15 @@ export class EngagementService {
       enacted: num(y.enacted),
     }));
 
-    return formatPeTruth({
+    const raw: PeTruth = {
       peCode: pe.peCode,
       title: pe.title,
       service: pe.service,
       budgetActivityName: pe.budgetActivityName,
       currentCycleFy: currentCycleFyOf(series),
       years: series,
-    });
+    };
+    return { text: formatPeTruth(raw), raw };
   }
 
   /**

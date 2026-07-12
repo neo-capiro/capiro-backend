@@ -1,5 +1,7 @@
 import { Injectable, Logger, NotFoundException, ServiceUnavailableException } from '@nestjs/common';
+import { Prisma } from '@prisma/client';
 import { recordAiUsageEvent, parseProviderUsage, type TenantContext } from '@capiro/shared';
+import { runAuditor, type LedgerEntry, type AuditorMode } from '@capiro/meriv2-core';
 import { AiCredentialResolverService } from '../../engagement/ai-credential-resolver.service.js';
 import { EngagementService } from '../../engagement/engagement.service.js';
 import { MemoryStoreService } from '../../memory/memory-store.service.js';
@@ -153,7 +155,100 @@ export class DistrictBriefService {
         0,
         200,
       );
-    const markdown = toMarkdown(title, sections, sources, clientName, facility);
+    let markdown = toMarkdown(title, sections, sources, clientName, facility);
+
+    // Wave-2 post-hoc auditor on the DISTRICT-BRIEF surface — SHADOW by default
+    // (MERI_AUDITOR_MODE off = no-op). This surface has its own PRE-EXISTING
+    // claim-citation grounding gate (verifyGrounded above); the auditor adds a
+    // second, independent pass. Unlike the plain alert-memo, this service
+    // already resolves a real representation lookup (`repResult`, from
+    // `RepresentationResolverService.representativesForFacility` — the SAME
+    // deterministic join M1.3/PD6 use) — that's a natural fit for a
+    // `get_representation`-shaped ledger entry, which lets the auditor's D11
+    // check verify that any "represents this district" claim in the assembled
+    // brief actually traces to a district this turn's representation lookup
+    // returned (never an inference). The `claims` fact sheet is included too so
+    // D1 citation checks have real substance. Fully guarded; never breaks brief
+    // generation.
+    const auditorMode = (process.env.MERI_AUDITOR_MODE as AuditorMode | undefined) ?? 'off';
+    if (auditorMode !== 'off' && markdown.trim().length > 0) {
+      try {
+        const ledgerEntries: LedgerEntry[] = [
+          // Always pushed (even when unresolved) — the lookup DID run this turn,
+          // which is what the D11 check's "was get_representation called"
+          // distinction cares about; an unresolved result serializes with no
+          // district tokens, so it grounds nothing (as it should — the prompt's
+          // own rule is "say nothing about that chamber" when unresolved).
+          //
+          // The auditor's D11 check confirms a claimed district by scanning this
+          // entry's SERIALIZED text for a literal "STATE-NN" token — but
+          // RepresentationResult stores state and district as separate JSON
+          // fields (e.g. {state:"AL",district:5}), never joined with a dash, so
+          // the raw JSON alone contains no such substring. Appending the SAME
+          // "STATE-NN" token this file already renders into the memo via
+          // formatFederalDistrict (below) is what lets a CORRECT claim ground
+          // instead of being false-flagged as unsupported. (At-large districts —
+          // formatFederalDistrict's "STATE-at-large" — don't fit D11's numeric
+          // token shape; that narrow case stays an honest gap, not a broken fix.)
+          {
+            tool: 'get_representation',
+            serialized: `${JSON.stringify(repResult)} ${
+              !repResult.unresolved && repResult.federal.house?.district != null
+                ? formatFederalDistrict(repResult.federal.house)
+                : ''
+            }`.trim(),
+            result: repResult,
+          },
+        ];
+        if (claims.length) {
+          ledgerEntries.push({
+            tool: 'district_brief_fact_sheet',
+            serialized: JSON.stringify(claims),
+            result: { claims },
+            rowCount: claims.length,
+          });
+        }
+        const verdict = runAuditor({
+          output: markdown,
+          ledger: { entries: ledgerEntries },
+          surface: 'alert',
+          mode: auditorMode,
+        });
+        if (verdict.findings.length > 0) {
+          this.logger.warn(
+            `[meri-auditor:${auditorMode}] district brief — ${verdict.findings.length} finding(s), ` +
+              `top=${verdict.topSeverity}, decision=${verdict.decision}: ` +
+              verdict.findings.map((f) => `${f.check}/${f.severity}`).join(', '),
+          );
+          await this.prisma.withTenant(ctx.tenantId, (tx) =>
+            tx.meriAuditLedger.create({
+              data: {
+                tenantId: ctx.tenantId,
+                surface: 'alert',
+                mode: auditorMode,
+                model: cred.model,
+                decision: verdict.decision,
+                topSeverity: verdict.topSeverity ?? null,
+                findingCount: verdict.findings.length,
+                findings: verdict.findings as unknown as Prisma.InputJsonValue,
+                outputChars: markdown.length,
+              },
+            }),
+          );
+          if (auditorMode === 'annotate' || auditorMode === 'enforce') {
+            const checks = [...new Set(verdict.findings.map((f) => f.check))].join(', ');
+            markdown =
+              `> ⚠️ **Unverified — ${verdict.findings.length} grounding finding(s) held for review ` +
+              `(${checks}).** Treat flagged claims as unconfirmed until a reviewer clears them.\n\n` +
+              markdown;
+          }
+        }
+      } catch (err) {
+        this.logger.warn(
+          `[meri-auditor] district brief audit failed (brief unaffected): ${(err as Error).message}`,
+        );
+      }
+    }
 
     let document: DistrictBriefResult['document'] = null;
     try {

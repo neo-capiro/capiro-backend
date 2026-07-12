@@ -414,6 +414,27 @@ describe('D11 — member↔district mapping', () => {
       ),
     ).toEqual([]);
   });
+  it('grounds correctly against the REAL RepresentationResult shape (state/district as separate JSON fields, no dash) — regression for the district-brief wiring', () => {
+    // RepresentationResult stores {state:"AL", district:5} — never a joined
+    // "AL-05" string. district-brief.service.ts appends the SAME "STATE-NN"
+    // token it already renders (via formatFederalDistrict) to the ledger
+    // entry's serialized text so this grounds; without that append, the raw
+    // JSON.stringify alone would false-flag every correct district claim.
+    const realShapeLedger = ledgerWith([
+      {
+        tool: 'get_representation',
+        serialized:
+          '{"unresolved":false,"federal":{"house":{"bioguideId":"S001208","fullName":"Dale Strong","party":"R","state":"AL","district":5,"chamber":"house"},"senate":[]},"state":{"lower":null,"upper":null}} AL-05',
+        result: {
+          unresolved: false,
+          federal: { house: { state: 'AL', district: 5 }, senate: [] },
+        },
+      },
+    ]);
+    expect(checkMemberDistrict('Rep. Dale Strong represents AL-05.', realShapeLedger)).toEqual([]);
+    // A DIFFERENT district on the same turn is still correctly flagged.
+    expect(checkMemberDistrict('Rep. X represents TX-23.', realShapeLedger)).toHaveLength(1);
+  });
   it('abstains when there is no representation claim in the sentence', () => {
     expect(checkMemberDistrict('The AL-05 figure is $50M.', ledgerWith([]))).toEqual([]);
   });

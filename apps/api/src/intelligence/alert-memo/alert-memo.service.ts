@@ -1,15 +1,14 @@
 import { Injectable, Logger, ServiceUnavailableException } from '@nestjs/common';
+import { Prisma } from '@prisma/client';
 import { recordAiUsageEvent, parseProviderUsage, type TenantContext } from '@capiro/shared';
+import { runAuditor, type LedgerEntry, type AuditorMode } from '@capiro/meriv2-core';
 import { AiCredentialResolverService } from '../../engagement/ai-credential-resolver.service.js';
 import { EngagementService } from '../../engagement/engagement.service.js';
 import { MemoryStoreService } from '../../memory/memory-store.service.js';
 import type { MemoryItemType } from '../../memory/memory.types.js';
 import { PrismaService } from '../../prisma/prisma.service.js';
 import { renderMemoDocx, type MemoDocInput } from './alert-memo-docx.js';
-import type {
-  AlertMemoAlertInput,
-  AlertMemoResult,
-} from './alert-memo.types.js';
+import type { AlertMemoAlertInput, AlertMemoResult } from './alert-memo.types.js';
 
 /**
  * Generates a client-voiced, source-grounded MEMO from an intel alert and
@@ -75,7 +74,8 @@ export class AlertMemoService {
     const { steering, memoryFilesUsed } = await this.loadSteering(clientId, clientName);
 
     const cred = await this.credentials.resolveProvider(ctx, 'anthropic');
-    if (!cred) throw new ServiceUnavailableException('No Anthropic credential available for this tenant');
+    if (!cred)
+      throw new ServiceUnavailableException('No Anthropic credential available for this tenant');
 
     let sections: GenSection[] = [];
     let lowConfidence = false;
@@ -108,8 +108,76 @@ export class AlertMemoService {
       },
     );
 
-    const title = `Client memo — ${alert.billDisplayNum ?? alert.hearingTitle ?? alert.title}`.slice(0, 200);
-    const markdown = toMarkdown(title, sections, claims, sources, clientName);
+    const title =
+      `Client memo — ${alert.billDisplayNum ?? alert.hearingTitle ?? alert.title}`.slice(0, 200);
+    let markdown = toMarkdown(title, sections, claims, sources, clientName);
+
+    // Wave-2 post-hoc auditor on the ALERT-MEMO surface — SHADOW by default
+    // (MERI_AUDITOR_MODE off = no-op). This surface has its own PRE-EXISTING
+    // claim-citation grounding gate (verifyGrounded above) which is the primary
+    // defense; the auditor adds a second, independent pass over the assembled
+    // markdown for classes that gate doesn't cover (vehicle conflation, reversed
+    // funding direction, stale/failed-rule framing, etc). The alert-memo fact
+    // sheet (`claims`) is the only structured, tool-shaped data this surface has
+    // — there's no live get_bill_status/get_pe_budget_timeline call here (the
+    // alert arrives pre-digested from intel-api's Feed) — so it's wired in as a
+    // best-effort ledger entry; the ledger-keyed checks that need a `status` or
+    // `peCode`/`years` shape simply won't fire, while the text-only checks
+    // (numeric direction, vehicle conflation) run regardless. Fully guarded;
+    // never breaks memo generation.
+    const auditorMode = (process.env.MERI_AUDITOR_MODE as AuditorMode | undefined) ?? 'off';
+    if (auditorMode !== 'off' && markdown.trim().length > 0) {
+      try {
+        const ledgerEntries: LedgerEntry[] = [];
+        if (claims.length) {
+          ledgerEntries.push({
+            tool: 'alert_fact_sheet',
+            serialized: JSON.stringify(claims),
+            result: { claims },
+            rowCount: claims.length,
+          });
+        }
+        const verdict = runAuditor({
+          output: markdown,
+          ledger: { entries: ledgerEntries },
+          surface: 'alert',
+          mode: auditorMode,
+        });
+        if (verdict.findings.length > 0) {
+          this.logger.warn(
+            `[meri-auditor:${auditorMode}] alert memo — ${verdict.findings.length} finding(s), ` +
+              `top=${verdict.topSeverity}, decision=${verdict.decision}: ` +
+              verdict.findings.map((f) => `${f.check}/${f.severity}`).join(', '),
+          );
+          await this.prisma.withTenant(ctx.tenantId, (tx) =>
+            tx.meriAuditLedger.create({
+              data: {
+                tenantId: ctx.tenantId,
+                surface: 'alert',
+                mode: auditorMode,
+                model: cred.model,
+                decision: verdict.decision,
+                topSeverity: verdict.topSeverity ?? null,
+                findingCount: verdict.findings.length,
+                findings: verdict.findings as unknown as Prisma.InputJsonValue,
+                outputChars: markdown.length,
+              },
+            }),
+          );
+          if (auditorMode === 'annotate' || auditorMode === 'enforce') {
+            const checks = [...new Set(verdict.findings.map((f) => f.check))].join(', ');
+            markdown =
+              `> ⚠️ **Unverified — ${verdict.findings.length} grounding finding(s) held for review ` +
+              `(${checks}).** Treat flagged claims as unconfirmed until a reviewer clears them.\n\n` +
+              markdown;
+          }
+        }
+      } catch (err) {
+        this.logger.warn(
+          `[meri-auditor] alert memo audit failed (memo unaffected): ${(err as Error).message}`,
+        );
+      }
+    }
 
     // Render docx + auto-file in the client's Documents.
     let document: AlertMemoResult['document'] = null;
@@ -152,7 +220,13 @@ export class AlertMemoService {
   async saveEdited(
     ctx: TenantContext,
     clientId: string,
-    input: { title: string; markdown: string; clientName: string; actionDate?: string; replaceAttachmentId?: string },
+    input: {
+      title: string;
+      markdown: string;
+      clientName: string;
+      actionDate?: string;
+      replaceAttachmentId?: string;
+    },
   ): Promise<{ document: { attachmentId: string; fileName: string } | null; title: string }> {
     const buffer = await renderMemoDocx(
       markdownToMemoDocInput(input.markdown, input.clientName, input.title, input.actionDate),
@@ -231,7 +305,9 @@ export class AlertMemoService {
       });
       const json = (await res.json()) as Record<string, unknown>;
       if (!res.ok) {
-        throw new ServiceUnavailableException(`Anthropic failed: ${JSON.stringify(json).slice(0, 200)}`);
+        throw new ServiceUnavailableException(
+          `Anthropic failed: ${JSON.stringify(json).slice(0, 200)}`,
+        );
       }
       const content = Array.isArray(json.content) ? json.content : [];
       const text = content
@@ -250,7 +326,10 @@ export class AlertMemoService {
 
 // ---- pure helpers ----------------------------------------------------------
 
-function buildClaims(alert: AlertMemoAlertInput): { claims: Claim[]; sources: AlertMemoResult['sources'] } {
+function buildClaims(alert: AlertMemoAlertInput): {
+  claims: Claim[];
+  sources: AlertMemoResult['sources'];
+} {
   const claims: Claim[] = [];
   const push = (text: string | null | undefined, url?: string | null) => {
     const t = (text ?? '').trim();
@@ -258,12 +337,18 @@ function buildClaims(alert: AlertMemoAlertInput): { claims: Claim[]; sources: Al
     claims.push({ id: `c${claims.length + 1}`, text: t, url: url ?? null });
   };
   push(`Alert: ${alert.title}`, alert.url);
-  if (alert.actionText) push(`Official action${alert.actionDate ? ` (${alert.actionDate})` : ''}: ${alert.actionText}`, alert.url);
-  if (alert.billDisplayNum || alert.billTitle) push(`Bill: ${[alert.billDisplayNum, alert.billTitle].filter(Boolean).join(' — ')}`, alert.url);
+  if (alert.actionText)
+    push(
+      `Official action${alert.actionDate ? ` (${alert.actionDate})` : ''}: ${alert.actionText}`,
+      alert.url,
+    );
+  if (alert.billDisplayNum || alert.billTitle)
+    push(`Bill: ${[alert.billDisplayNum, alert.billTitle].filter(Boolean).join(' — ')}`, alert.url);
   if (alert.committee) push(`Committee: ${alert.committee}`);
   if (alert.hearingTitle) push(`Hearing: ${alert.hearingTitle}`, alert.url);
   if (alert.whyItMatters) push(`Relevance to client: ${alert.whyItMatters}`);
-  if (alert.matchedTags?.length) push(`Matched the client's tracked interests: ${alert.matchedTags.join(', ')}`);
+  if (alert.matchedTags?.length)
+    push(`Matched the client's tracked interests: ${alert.matchedTags.join(', ')}`);
   for (const q of alert.quotes ?? []) {
     const who = q.speaker ? `${q.speaker}: ` : '';
     push(`Hearing statement — ${who}"${q.text}"`, alert.url);
@@ -319,7 +404,9 @@ function parseSections(text: string): GenSection[] {
       .map((p) => {
         const r = p && typeof p === 'object' ? (p as Record<string, unknown>) : {};
         const t = typeof r.text === 'string' ? r.text.trim() : '';
-        const ids = Array.isArray(r.claimIds) ? r.claimIds.filter((x): x is string => typeof x === 'string') : [];
+        const ids = Array.isArray(r.claimIds)
+          ? r.claimIds.filter((x): x is string => typeof x === 'string')
+          : [];
         return { text: t, claimIds: ids };
       })
       .filter((p) => p.text);
@@ -355,7 +442,10 @@ function verifyGrounded(sections: GenSection[], claims: Claim[]): GenSection[] {
 function scaffold(alert: AlertMemoAlertInput, claims: Claim[]): GenSection[] {
   const allIds = claims.map((c) => c.id);
   return [
-    { heading: 'Bottom line', paragraphs: [{ text: alert.title, claimIds: claims[0] ? [claims[0].id] : [] }] },
+    {
+      heading: 'Bottom line',
+      paragraphs: [{ text: alert.title, claimIds: claims[0] ? [claims[0].id] : [] }],
+    },
     {
       heading: 'What happened',
       paragraphs: [{ text: alert.actionText || alert.title, claimIds: allIds.slice(0, 3) }],
@@ -394,18 +484,26 @@ function toMemoDocInput(
 ): MemoDocInput {
   const reLine = alert.billDisplayNum
     ? `${alert.billDisplayNum}${alert.billTitle ? ` — ${alert.billTitle}` : ''}`
-    : alert.hearingTitle ?? alert.title;
+    : (alert.hearingTitle ?? alert.title);
   return {
     clientName,
     dateStr: formatMemoDate(alert.actionDate),
     reLine,
-    sections: sections.map((s) => ({ heading: s.heading, paragraphs: s.paragraphs.map((p) => p.text) })),
+    sections: sections.map((s) => ({
+      heading: s.heading,
+      paragraphs: s.paragraphs.map((p) => p.text),
+    })),
     sources: sources.map((s) => ({ label: s.label, url: s.url })),
   };
 }
 
 /** Split edited memo markdown into a MemoDocInput (## headings → sections; a "Sources" section → source lines). */
-function markdownToMemoDocInput(markdown: string, clientName: string, title: string, actionDate?: string): MemoDocInput {
+function markdownToMemoDocInput(
+  markdown: string,
+  clientName: string,
+  title: string,
+  actionDate?: string,
+): MemoDocInput {
   const sections: MemoDocInput['sections'] = [];
   const sources: MemoDocInput['sources'] = [];
   let cur: { heading: string; paragraphs: string[] } | null = null;
