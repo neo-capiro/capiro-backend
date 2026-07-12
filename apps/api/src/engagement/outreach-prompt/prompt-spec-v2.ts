@@ -35,7 +35,13 @@
  * the `OUTREACH_PROMPT_SPEC=v2` flag; flag-off keeps the byte-identical v1 path.
  */
 
-export const OUTREACH_PROMPT_SPEC_VERSION = 'v2';
+import { MERI_GROUNDING_OUTREACH_KERNEL, meriGroundingSurfaceBlock } from '@capiro/shared';
+
+// v2.1: inserted the zero-trust grounding kernel (closed-world, refusal, GR
+// domain semantics, numeric integrity, uncertainty ladder, advice gate) +
+// surface:outreach block into the system prompt (v3 plan Wave 1). Bumped so the
+// recorded promptSpecVersion distinguishes grounded drafts from pre-grounding v2.
+export const OUTREACH_PROMPT_SPEC_VERSION = 'v2.1';
 
 /**
  * Per-template output-token budget (finding P7/M4). Memo/brief/position-paper
@@ -367,6 +373,15 @@ export interface OutreachPromptV2 {
 export function buildOutreachSystemPromptV2(): string {
   const sections = [
     MERI_IDENTITY,
+    // Zero-trust grounding kernel (v3 plan Wave 1) — the accuracy blocks
+    // (closed-world, refusal, GR domain semantics, numeric integrity,
+    // uncertainty ladder, advice gate), composed from the SAME shared block
+    // constants apps/api chat / research / memo use, so they can't drift. The
+    // recipient-facing email body carries NO citation tokens (the surface block
+    // below sets the verbatim-traceability contract instead), so the inline
+    // citation + self-check blocks are deliberately excluded.
+    MERI_GROUNDING_OUTREACH_KERNEL,
+    meriGroundingSurfaceBlock('outreach'),
     HILL_ETIQUETTE,
     COMPLIANCE_GUARDRAILS,
     OUTPUT_CONTRACT,

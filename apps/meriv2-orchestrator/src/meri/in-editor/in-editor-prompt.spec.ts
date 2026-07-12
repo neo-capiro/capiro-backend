@@ -21,7 +21,10 @@ describe('buildSystemPrompt', () => {
     expect(p).toContain('Client id (use for client tools): client-1');
     expect(p).toContain('Executive Summary');
     expect(p).toContain('Fund it.'); // HTML stripped into the prompt
-    expect(p).toContain('DEFENSE BUDGET STRUCTURE'); // DOMAIN_PRIMER injected
+    // Grounding kernel (Wave 1) supersedes the former inline DOMAIN_PRIMER —
+    // the closed-world rule + government-relations domain semantics are present.
+    expect(p).toContain('CLOSED-WORLD RULE');
+    expect(p).toContain('AUTHORIZATION vs APPROPRIATION');
     expect(p).toContain('propose_document_edits');
   });
 

@@ -19,6 +19,21 @@
  * could otherwise leak tenant-specific content into a long-lived cache prefix.
  */
 
+// Zero-trust grounding kernel (v3 plan §2.3 designates this file as the home).
+// Canonical in @capiro/shared (so the meriv2-orchestrator shares byte-identical
+// text); re-exported here so apps/api callers and tests import from one place.
+export {
+  MERI_GROUNDING_INVARIANT,
+  MERI_GROUNDING_OUTREACH_KERNEL,
+  meriGroundingSurfaceBlock,
+  meriGroundingDateBlock,
+  FORM_B_CITATION_RE,
+  validateFormBCitations,
+  type MeriGroundingSurface,
+  type CitationAnchor,
+  type FormBCitationCheck,
+} from '@capiro/shared';
+
 export interface EphemeralCacheControl {
   type: 'ephemeral';
 }

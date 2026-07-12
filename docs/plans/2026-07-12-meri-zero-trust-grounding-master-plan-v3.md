@@ -780,10 +780,14 @@ Representative checkers (D4b stage→vehicle map; D6 operative-framing lexicon +
   - [x] Verified: shared + meriv2-core + auth builds; apps/api + apps/workspace + meriv2-core typecheck; prettier; meriv2-core 14 + apps/api 52 affected tests green.
 - [ ] **DEFERRED (own effort — Wave 3 missing-edge layer):** PE↔procurement-line **join** — a real DB link table + backfill, out of proportion to this serializer batch; carried into the Wave-3 missing-edge inventory (member↔district, PE↔procurement-line, plus-up↔purpose).
 
-**Wave 1 — Zero-tolerance prompt + citation transport — ~3–5 days**
-- [ ] `MERI_GROUNDING_INVARIANT` + surface blocks + date block on both prompt stacks; delete research anti-refusal + free-form citation instructions; unify the two `DOMAIN_PRIMER` copies.
-- [ ] FORM B validation; normalize FORM A/B into `CitationAnchor`; raise the source-row cap only where context-quality tests show benefit.
-- [ ] Pin model/config by surface; low-variance sampling only where supported + empirically helpful (never as a factuality control). *(Note: temperature-0.2 helps on Sonnet 4.6 but newer models reject sampling params — treat as model-specific.)*
+**Wave 1 — Zero-tolerance prompt + citation transport — ✅ SHIPPED (PR pending, this branch)**
+- [x] `MERI_GROUNDING_INVARIANT` (composed from named block constants) + `meriGroundingSurfaceBlock(surface)` + `meriGroundingDateBlock(nowIso)` canonical in `@capiro/shared`; consumed byte-identically on all 5 surfaces — legacy chat (`meri.service.ts`), GA orchestrator chat (`chat-prompt.ts`) + in-editor (`in-editor-prompt.ts`, memo surface), deep research (`meri-research.helpers.ts`), and outreach (`prompt-spec-v2.ts`, token-free `MERI_GROUNDING_OUTREACH_KERNEL` + surface:outreach). Re-exported from `apps/api` `meri-prompt.helpers.ts` (the plan's home) and `@capiro/meriv2-core` (next to `domain-primer`).
+- [x] Deleted the research anti-refusal ("write the report anyway… do not stall") and the free-form `[LDA]/[Congress.gov]` citation instruction; replaced with FORM-B + "Not found in retrieval" requirements.
+- [x] Removed the redundant inline `DOMAIN_PRIMER` from all three prompt surfaces (superseded by the `<domain_semantics>` block); the constant remains for the verify-time fan-out / structural checker.
+- [x] `validateFormBCitations` (pure §2.1 substring check) + `FORM_B_CITATION_RE` + `CitationAnchor` shipped as tested primitives; date block carries `{{CURRENT_DATE}}` only in the uncached tail (invariant stays cache-stable).
+- [x] Verified: shared + meriv2-core builds; apps/api + orchestrator typecheck; prettier; apps/api 88 + orchestrator 20 prompt tests green.
+- [ ] **DEFERRED to Wave 2 (per ADR-9 — enforce post-hoc first):** WIRING `validateFormBCitations` to STRIP invalid tokens from live output, and normalizing FORM A/B into `CitationAnchor` on the response path. The auditor's `ToolResultLedger` is the correct place to validate against (a partial tool-result map now would risk stripping legitimately-used tokens). Prompt already instructs correct FORM-B usage.
+- [ ] **DEFERRED:** source-row-cap tuning (needs context-quality measurement) and per-surface model/config pinning (outreach model flip is already live at task-def rev 41; broader pinning is a config change, not code).
 
 **Wave 2 — POST-HOC auditor: shadow → ENFORCE — ~1.5–2.5 weeks — THE ENFORCEMENT MILESTONE**
 - [ ] `packages/meriv2-core/src/grounding/auditor/`: `ToolResultLedger` capture on both loops + research + outreach + alert memos; typed claim extractor; D1–D11 over RC1-labeled payloads; skeptic on residuals; severity gate.
