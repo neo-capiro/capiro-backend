@@ -32,7 +32,7 @@ export const FULL_CHAT_READ_TOOLS: readonly DelegatedToolSpec[] = [
   {
     name: 'search_memory',
     description:
-      'Semantic search over the firm\'s institutional memory (memory items: client hubs, meetings, email threads, distilled Meri sessions, analyst notes). Finds relevant memory by MEANING, not just keywords — use for "what do we know about X", "have we discussed Y before", "find past context on Z". Returns the top matching memory items with a relevance score. Tenant + own-private scoped.',
+      'Semantic search over the firm\'s institutional memory (memory items: client hubs, meetings, email threads, distilled Meri sessions, analyst notes). Finds relevant memory by MEANING, not just keywords — use for "what do we know about X", "have we discussed Y before", "find past context on Z". Returns the top matching memory items, each with a relevance score and a `memoryItemId` you can pass to confirm_memory / correct_memory / forget_memory. Tenant + own-private scoped.',
     readOnly: true,
   },
   {

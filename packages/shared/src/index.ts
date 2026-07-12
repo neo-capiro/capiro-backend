@@ -2856,7 +2856,7 @@ export const MERI_TOOL_MANIFEST: Readonly<Record<string, string>> = {
   find_path_to:
     "Find the warm-introduction routes from your clients to a target office or person in the knowledge graph (\"who do we already know near the Senate Defense Approps subcommittee?\"). Pass a target node id (e.g. 'office:<id>' or 'person:<id>'); returns the shortest connection paths so you can see which client/person gets you there. Tenant + own-private scoped.",
   search_memory:
-    'Semantic search over the firm\'s institutional memory (memory items: client hubs, meetings, email threads, distilled Meri sessions, analyst notes). Finds relevant memory by MEANING, not just keywords — use for "what do we know about X", "have we discussed Y before", "find past context on Z". Returns the top matching memory items with a relevance score. Tenant + own-private scoped.',
+    'Semantic search over the firm\'s institutional memory (memory items: client hubs, meetings, email threads, distilled Meri sessions, analyst notes). Finds relevant memory by MEANING, not just keywords — use for "what do we know about X", "have we discussed Y before", "find past context on Z". Returns the top matching memory items, each with a relevance score and a `memoryItemId` you can pass to confirm_memory / correct_memory / forget_memory. Tenant + own-private scoped.',
   search_congress_bills:
     'Search congressional bills in the Capiro database (118th and 119th Congress). Filter by keyword, policy area, congress number, or recent activity date. Accepts a bill designation or id ("H.R. 8800", "119-hr-8800") as the query for a direct lookup. Returns bill title, sponsor, latest action, canonical STATUS (e.g. rule_failed, passed_chamber), policy area, and cosponsors count.',
   get_bill_status:
@@ -2917,6 +2917,12 @@ export const MERI_TOOL_MANIFEST: Readonly<Record<string, string>> = {
     "Reply to an email thread via the tenant's connected Microsoft 365 account on behalf of Meri.",
   save_memory:
     "Persist a durable fact or preference the user shares (a nickname, reporting style, ongoing priority, etc.) to Meri's long-term memory so it is recalled in future conversations. Use this whenever the user asks you to remember something.",
+  confirm_memory:
+    'Re-affirm that a remembered fact is still true and current, resetting its confirmation date. Use when the user verifies something Meri remembers ("yes, that\'s still right"). Pass the memoryItemId from search_memory. Does not change the content.',
+  correct_memory:
+    'Correct a remembered fact: supersede it with new content while preserving the prior version as history. The old memory is retired from recall and the new one takes its place. Use when the user says a remembered fact is wrong or outdated ("actually it\'s X now"). Pass the memoryItemId from search_memory plus the corrected content.',
+  forget_memory:
+    "Forget a remembered fact: stop recalling it immediately and remove it from Meri's memory (a recoverable soft-delete with an audit trail). Use when the user asks Meri to forget something. Pass the memoryItemId from search_memory. Refuses if the item is under a legal hold.",
   search_program_elements:
     'Search DoD budget lines from the Pentagon J-books. NOTE: this table holds BOTH R-1 RDT&E Program Elements AND P-1 procurement line items — each row\'s `budgetExhibitType` / `appropriationType` tells you which; a procurement line is NOT a "Program Element", so state its exhibit type accordingly. Filter by military service, budget activity, or title keyword. Returns code, title, service, budget activity, appropriation type, exhibit type, and whether it has budget/award/bill data. For near-identical sibling titles (e.g. multiple "Target Systems Development" lines) prefer scoped filters (service + budget activity) over a single keyword sweep, and raise the limit — the default may truncate. Use get_program_element / get_pe_budget_timeline for detail.',
   get_program_element:
