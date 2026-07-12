@@ -103,9 +103,35 @@ describe('GOLDEN — Sample 2: Meri chat PE matching (Boresight)', () => {
     expect(v.findings.some((f) => f.check === 'D7')).toBe(true);
   });
 
-  // S2-11 wrong-PE plus-up attribution needs D9 (|stage−request|≈X on the claimed
-  // PE then siblings) — a later-wave check.
-  it.todo('D9 catches the plus-up attributed to the wrong PE (S2-11)');
+  it('D9 catches the plus-up attributed to the wrong PE (S2-11)', () => {
+    // The $40.8M plus-up belongs to 0604256AX (delta +40.8), not the cited PE
+    // 0603851F (delta +12.9) — the misattribution that named the wrong line.
+    const l = ledger([
+      {
+        tool: 'get_pe_budget_timeline',
+        serialized: '{"peCode":"0603851F"}',
+        result: {
+          peCode: '0603851F',
+          generatedAt: '2026-07-12T00:00:00Z',
+          currentCycleFy: 2027,
+          years: [{ fy: 2027, request: 72.1, hacDMark: 85 }],
+        },
+      },
+      {
+        tool: 'get_pe_budget_timeline',
+        serialized: '{"peCode":"0604256AX"}',
+        result: {
+          peCode: '0604256AX',
+          generatedAt: '2026-07-12T00:00:00Z',
+          currentCycleFy: 2027,
+          years: [{ fy: 2027, request: 72.1, hacDMark: 112.9 }],
+        },
+      },
+    ]);
+    const shipped = 'Committee report language directs a $40.8M plus-up to PE 0603851F.';
+    const v = runAuditor({ output: shipped, ledger: l, surface: 'chat', mode: 'enforce' });
+    expect(v.findings.some((f) => f.check === 'D9')).toBe(true);
+  });
 });
 
 describe('GOLDEN — Sample 3: Deep-research memo (self-audited against nothing)', () => {
