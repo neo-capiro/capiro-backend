@@ -31,3 +31,18 @@ export const DOMAIN_PRIMER = [
 // shape across this orchestrator, apps/api and the workspace engine; re-exported
 // so existing importers (and the package index) are unchanged.
 export { extractCitedPeCodes } from '@capiro/shared';
+
+// Zero-trust GROUNDING KERNEL (v3 plan Wave 1) — canonical in @capiro/shared;
+// re-exported here (next to DOMAIN_PRIMER) so the orchestrator's chat + in-editor
+// prompts consume the SAME closed-world invariant, surface blocks, date block,
+// and FORM-B citation validator apps/api's legacy chat uses. One source, no drift.
+export {
+  MERI_GROUNDING_INVARIANT,
+  meriGroundingSurfaceBlock,
+  meriGroundingDateBlock,
+  FORM_B_CITATION_RE,
+  validateFormBCitations,
+  type MeriGroundingSurface,
+  type CitationAnchor,
+  type FormBCitationCheck,
+} from '@capiro/shared';

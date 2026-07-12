@@ -1,5 +1,7 @@
 import {
-  DOMAIN_PRIMER,
+  MERI_GROUNDING_INVARIANT,
+  meriGroundingSurfaceBlock,
+  meriGroundingDateBlock,
   planModeSteering,
   type IntentClassification,
   type MeriContext,
@@ -179,6 +181,15 @@ export function buildChatSystemPrompt(
     dto.memoryContext?.length
       ? `\n# What you remember (firm + this user)\nThese are stored memories relevant to this conversation — use them directly when they answer the question:\n${dto.memoryContext.map((m) => `- ${m}`).join('\n')}`
       : '',
+    '',
+    // Zero-trust grounding kernel (v3 plan Wave 1): closed-world rule, refusal
+    // protocol, citation grammar, GR domain semantics (supersedes the former
+    // inline DOMAIN_PRIMER), numeric integrity, uncertainty ladder, advice gate,
+    // and self-check — byte-identical with apps/api's legacy chat via
+    // @capiro/shared. The date block carries today's date for "as-of" reasoning.
+    MERI_GROUNDING_INVARIANT,
+    meriGroundingSurfaceBlock('chat'),
+    meriGroundingDateBlock(new Date().toISOString()),
     // Plan-mode steering (agent-map wiring): only when a mode classified with
     // signal — `research` is also the zero-hit fallback, so the common case
     // stays byte-identical to before.
@@ -205,8 +216,6 @@ ${planModeSteering(intent.mode)}`
     'Some tools change the outside world or the client record — sending or replying to email, updating a client profile, and scheduling or cancelling a recurring task. The system HOLDS these for the user to approve: they come back as "pending approval", NOT as completed. Never tell the user such an action is done when it is only pending — say you have proposed it and it awaits their approval.',
     'Document, note, and task tools run IMMEDIATELY (no approval hold): create_word, create_excel, create_powerpoint, create_meeting_brief, draft_policy_memo, save_note, save_memory, create_task, update_task. To produce a Word doc, spreadsheet, deck, brief, or memo as a file, you MUST call the matching tool — describing the content in prose does NOT create a file.',
     'When you call a document tool, REPORT ITS ACTUAL RESULT — never assume success. If the tool returns a "downloadUrl" (its note says the document is available for download), tell the user the file is ready and reference the download. If it returns "downloadUrl": null or a note that it was NOT persisted, tell the user the document could not be generated and to try again — do NOT claim a downloadable file exists when the tool did not return one.',
-    '',
-    `# Domain knowledge\n${DOMAIN_PRIMER}`,
     '',
     '# Primary sources outrank secondary coverage',
     'When a news summary and a primary source disagree (bill text, committee report, CBO score, roll call, floor transcript), the primary source wins — say so and cite it. News coverage of legislation is frequently wrong on mechanics: what a bill actually does, vote counts, and timing.',

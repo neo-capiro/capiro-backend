@@ -7,7 +7,96 @@ import {
   CLIO_CAPABILITY_LINES,
   emptyUsage,
   readUsageFromStreamEvent,
+  MERI_GROUNDING_INVARIANT,
+  MERI_GROUNDING_OUTREACH_KERNEL,
+  meriGroundingSurfaceBlock,
+  meriGroundingDateBlock,
+  validateFormBCitations,
 } from './meri-prompt.helpers.js';
+
+describe('MERI_GROUNDING_INVARIANT (Wave 1 zero-trust kernel)', () => {
+  it('opens the meri_grounding element and states every kernel block', () => {
+    expect(MERI_GROUNDING_INVARIANT.startsWith('<meri_grounding version="1.0">')).toBe(true);
+    expect(MERI_GROUNDING_INVARIANT).toContain('CLOSED-WORLD RULE');
+    expect(MERI_GROUNDING_INVARIANT).toContain('Data missing from legislative context');
+    expect(MERI_GROUNDING_INVARIANT).toContain('CITATION TOKENS');
+    expect(MERI_GROUNDING_INVARIANT).toContain('[S:tool_name:record_id]');
+    expect(MERI_GROUNDING_INVARIANT).toContain('AUTHORIZATION vs APPROPRIATION');
+    expect(MERI_GROUNDING_INVARIANT).toContain('PROGRAM ELEMENTS vs PROCUREMENT LINE ITEMS');
+    expect(MERI_GROUNDING_INVARIANT).toContain('NUMERIC INTEGRITY');
+    expect(MERI_GROUNDING_INVARIANT).toContain('UNCERTAINTY LADDER');
+    expect(MERI_GROUNDING_INVARIANT).toContain('ADVICE GATE');
+    expect(MERI_GROUNDING_INVARIANT).toContain('BEFORE SENDING');
+  });
+  it('carries no unresolved template variable (date lives only in the date block)', () => {
+    expect(MERI_GROUNDING_INVARIANT).not.toContain('{{CURRENT_DATE}}');
+  });
+});
+
+describe('MERI_GROUNDING_OUTREACH_KERNEL (token-free subset)', () => {
+  it('includes the accuracy blocks', () => {
+    expect(MERI_GROUNDING_OUTREACH_KERNEL).toContain('CLOSED-WORLD RULE');
+    expect(MERI_GROUNDING_OUTREACH_KERNEL).toContain('AUTHORIZATION vs APPROPRIATION');
+    expect(MERI_GROUNDING_OUTREACH_KERNEL).toContain('NUMERIC INTEGRITY');
+    expect(MERI_GROUNDING_OUTREACH_KERNEL).toContain('ADVICE GATE');
+  });
+  it('EXCLUDES the inline-citation and self-check blocks (an email body carries no tokens)', () => {
+    expect(MERI_GROUNDING_OUTREACH_KERNEL).not.toContain('CITATION TOKENS');
+    expect(MERI_GROUNDING_OUTREACH_KERNEL).not.toContain('BEFORE SENDING');
+    expect(MERI_GROUNDING_OUTREACH_KERNEL).not.toContain('<meri_grounding');
+  });
+});
+
+describe('meriGroundingSurfaceBlock + meriGroundingDateBlock', () => {
+  it('returns the matching surface block', () => {
+    expect(meriGroundingSurfaceBlock('chat')).toContain('CHAT SURFACE');
+    expect(meriGroundingSurfaceBlock('research')).toContain('DEEP RESEARCH SURFACE');
+    expect(meriGroundingSurfaceBlock('outreach')).toContain('OUTREACH SURFACE');
+    expect(meriGroundingSurfaceBlock('memo')).toContain('MEMO / BRIEFING / DELIVERABLE SURFACE');
+  });
+  it('renders the date and closes the meri_grounding element', () => {
+    const block = meriGroundingDateBlock('2026-07-12T10:00:00Z');
+    expect(block).toContain("Today's date is 2026-07-12.");
+    expect(block.trimEnd().endsWith('</meri_grounding>')).toBe(true);
+    // accepts a bare date too
+    expect(meriGroundingDateBlock('2026-01-05')).toContain("Today's date is 2026-01-05.");
+  });
+});
+
+describe('validateFormBCitations (§2.1 substring check, LLM-free)', () => {
+  const results = {
+    get_pe_budget_timeline: '{"peCode":"0603851F","request":72.1}',
+    get_bill_status: '{"billId":"hr-8800-119","status":"rule_failed"}',
+  };
+  it('keeps a token whose tool was called AND whose record_id is verbatim in the result', () => {
+    const text = 'FY27 request is $72.1M [S:get_pe_budget_timeline:0603851F].';
+    const r = validateFormBCitations(text, results);
+    expect(r.valid).toEqual(['[S:get_pe_budget_timeline:0603851F]']);
+    expect(r.invalid).toEqual([]);
+    expect(r.sanitizedText).toBe(text);
+  });
+  it('strips a token whose tool was NOT called this turn', () => {
+    const text = 'Per representation [S:get_representation:AL-05].';
+    const r = validateFormBCitations(text, results);
+    expect(r.invalid).toEqual(['[S:get_representation:AL-05]']);
+    expect(r.sanitizedText).toBe('Per representation .');
+  });
+  it('strips a token whose record_id is not a verbatim substring of the result', () => {
+    const text = 'Reported [S:get_bill_status:hr-9999-119].';
+    const r = validateFormBCitations(text, results);
+    expect(r.invalid).toEqual(['[S:get_bill_status:hr-9999-119]']);
+    expect(r.sanitizedText).not.toContain('[S:');
+  });
+  it('handles empty text and preserves valid while stripping invalid in mixed text', () => {
+    expect(validateFormBCitations('', results).tokens).toEqual([]);
+    const mixed = 'A [S:get_pe_budget_timeline:0603851F] and B [S:get_bill_status:hr-0000-000].';
+    const r = validateFormBCitations(mixed, results);
+    expect(r.valid).toEqual(['[S:get_pe_budget_timeline:0603851F]']);
+    expect(r.invalid).toEqual(['[S:get_bill_status:hr-0000-000]']);
+    expect(r.sanitizedText).toContain('[S:get_pe_budget_timeline:0603851F]');
+    expect(r.sanitizedText).not.toContain('hr-0000-000');
+  });
+});
 
 describe('meriCapabilityBlock (self-description correctness)', () => {
   it('states persistent memory, document generation, and table formatting', () => {

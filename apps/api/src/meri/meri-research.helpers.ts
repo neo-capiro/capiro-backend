@@ -14,6 +14,12 @@
  *   synthesize  -> long, cited report streamed as text + persisted artifact
  */
 
+import {
+  MERI_GROUNDING_INVARIANT,
+  meriGroundingSurfaceBlock,
+  meriGroundingDateBlock,
+} from '@capiro/shared';
+
 export type ResearchPhase = 'plan' | 'clarify' | 'gather' | 'synthesize' | 'done' | 'error';
 
 export interface PlanProposal {
@@ -58,7 +64,9 @@ export function buildPlanSystemPrompt(productName: string): string {
 export function buildPlanUserPrompt(topic: string, clientContext: string | null): string {
   const parts = [`Research topic from the lobbyist:\n${topic.trim()}`];
   if (clientContext && clientContext.trim()) {
-    parts.push(`\nThis research is associated with the following client context:\n${clientContext.trim()}`);
+    parts.push(
+      `\nThis research is associated with the following client context:\n${clientContext.trim()}`,
+    );
   }
   parts.push('\nProduce the plan JSON now.');
   return parts.join('\n');
@@ -97,14 +105,17 @@ export function parsePlanProposal(raw: string, topic: string): PlanProposal {
   if (!parsed || typeof parsed !== 'object') return fallback;
   const obj = parsed as Record<string, unknown>;
 
-  const title = typeof obj.title === 'string' && obj.title.trim() ? clampTitle(obj.title) : fallback.title;
+  const title =
+    typeof obj.title === 'string' && obj.title.trim() ? clampTitle(obj.title) : fallback.title;
   const plan = sanitizeStringList(obj.plan, MAX_PLAN_ITEMS);
   const clarifyingQuestions = sanitizeStringList(obj.clarifyingQuestions, MAX_CLARIFYING_QUESTIONS);
 
   return {
     title,
     plan: plan.length ? plan : fallback.plan,
-    clarifyingQuestions: clarifyingQuestions.length ? clarifyingQuestions : fallback.clarifyingQuestions,
+    clarifyingQuestions: clarifyingQuestions.length
+      ? clarifyingQuestions
+      : fallback.clarifyingQuestions,
   };
 }
 
@@ -116,11 +127,21 @@ export function parsePlanProposal(raw: string, topic: string): PlanProposal {
  */
 export function buildResearchSystemPrompt(productName: string): string {
   return [
+    // Zero-trust grounding kernel (v3 plan Wave 1) FIRST — deep research is the
+    // most dangerous surface (the report outlives the chat and was self-audited
+    // against nothing), so it gets the closed-world rule, refusal protocol,
+    // FORM-B citation grammar, GR domain semantics, numeric integrity,
+    // uncertainty ladder, advice gate, and self-check up top, then the strict
+    // research surface block.
+    MERI_GROUNDING_INVARIANT,
+    meriGroundingSurfaceBlock('research'),
+    meriGroundingDateBlock(new Date().toISOString()),
+    '',
     `You are ${productName}, a senior federal government-affairs research analyst.`,
     'You are producing a DEEP RESEARCH REPORT for a lobbyist. You have tools that query',
     "your firm's internal intelligence (lobbying disclosures, bills, hearings, rules, contracts,",
     'SEC/FARA filings, GAO/CRS reports, federal spending, grants, economic data, the client',
-    "context) and tools that search and read the public web.",
+    'context) and tools that search and read the public web.',
     '',
     'METHOD:',
     '1. Work through the research plan systematically. For each angle, call the most relevant',
@@ -130,15 +151,23 @@ export function buildResearchSystemPrompt(productName: string): string {
     '   indefinitely. Once you have enough to support the sections, STOP calling tools.',
     '3. Then WRITE the full report as your final message (plain assistant text, no tool call).',
     '   You MUST end the run by producing the written report — never finish on a tool call.',
-    '   If evidence is thin, write the report anyway and note the gaps; do not stall.',
+    '   When you must synthesize with no further tool calls, use ONLY facts already retrieved in',
+    '   this run, each with its FORM-B token; if the evidence is thin, say so, name the gaps in the',
+    '   "Not found in retrieval" section, and stop — a shorter grounded report beats a',
+    '   complete-looking ungrounded one. Do NOT write a section from background knowledge.',
     '',
     'REPORT REQUIREMENTS:',
-    '- Open with an Executive Summary (3-6 tight bullets a principal can act on).',
+    '- Open with an Executive Summary (3-6 tight bullets a principal can act on); every summary',
+    '  claim must also appear, with its token, in the body and may not upgrade certainty.',
     '- Use clear markdown section headers that follow the research plan.',
-    '- Cite EVERY material claim inline like [LDA], [Congress.gov], [GAO], [web: domain.com],',
-    '  naming the source so the lobbyist can verify it. Never fabricate data or citations.',
-    '- Distinguish facts (from tools) from your analysis. Flag uncertainty explicitly.',
-    '- Close with "Recommended Actions" (concrete next steps) and "Open Questions / Gaps".',
+    '- Cite EVERY material claim with a FORM-B token [S:tool_name:record_id] as defined above.',
+    '  Free-form labels like [LDA], [Congress.gov], [GAO] validate against nothing and are',
+    '  forbidden. Never fabricate data or citations.',
+    '- Distinguish facts (from tools) from your analysis; label inferences "Inference (not in data):".',
+    '- Include a "Not found in retrieval" section listing every search that returned zero or unusable',
+    '  results (tool, arguments, outcome) using the exact refusal phrase.',
+    '- Close with "Recommended Actions" (concrete next steps, each tracing to cited facts) and',
+    '  "Open Questions / Gaps" (every L3/L4 gap bearing on the strategy).',
     '- Be thorough. This is a long-form report, not a chat reply.',
   ].join('\n');
 }
@@ -180,10 +209,7 @@ export function buildResearchUserPrompt(input: {
 }
 
 /** Pair each clarifying question with its answer (skip unanswered ones). */
-export function formatClarifyingQa(
-  questions: string[],
-  answers: Record<string, string>,
-): string {
+export function formatClarifyingQa(questions: string[], answers: Record<string, string>): string {
   const out: string[] = [];
   questions.forEach((q, i) => {
     const a = answers[String(i)] ?? answers[i as unknown as string];
@@ -328,7 +354,10 @@ export function humanToolLabel(tool: string): string {
 }
 
 /** Count + human detail from a tool result, for the research source timeline. */
-export function summarizeToolResultForTrust(payload: unknown): { count: number | null; detail: string } {
+export function summarizeToolResultForTrust(payload: unknown): {
+  count: number | null;
+  detail: string;
+} {
   if (!payload || typeof payload !== 'object') return { count: null, detail: '' };
   const rec = payload as Record<string, unknown>;
   if (typeof rec.error === 'string') return { count: null, detail: rec.error };
@@ -347,13 +376,21 @@ export function summarizeToolResultForTrust(payload: unknown): { count: number |
         if (r && typeof r === 'object') {
           const o = r as Record<string, unknown>;
           const label =
-            o.title ?? o.name ?? o.subject ?? o.companyName ?? o.registrantName ?? o.identifier ?? o.billNumber;
-          if (typeof label === 'string') return label.length > 60 ? `${label.slice(0, 57)}…` : label;
+            o.title ??
+            o.name ??
+            o.subject ??
+            o.companyName ??
+            o.registrantName ??
+            o.identifier ??
+            o.billNumber;
+          if (typeof label === 'string')
+            return label.length > 60 ? `${label.slice(0, 57)}…` : label;
         }
         return null;
       })
       .filter((x): x is string => Boolean(x));
-    const head = total != null ? `${total} result${total === 1 ? '' : 's'}` : `${rows.length} result(s)`;
+    const head =
+      total != null ? `${total} result${total === 1 ? '' : 's'}` : `${rows.length} result(s)`;
     return { count: total, detail: sample.length ? `${head}: ${sample.join('; ')}` : head };
   }
 
@@ -581,29 +618,30 @@ function renderTable(lines: string[], start: number): { html: string; nextIndex:
     bodyRows.push(cells.slice(0, cols));
   }
   const thead =
-    '<thead><tr>' +
-    headers.map((h) => `<th>${inlineMd(h)}</th>`).join('') +
-    '</tr></thead>';
+    '<thead><tr>' + headers.map((h) => `<th>${inlineMd(h)}</th>`).join('') + '</tr></thead>';
   const tbody =
     '<tbody>' +
-    bodyRows
-      .map((r) => `<tr>${r.map((c) => `<td>${inlineMd(c)}</td>`).join('')}</tr>`)
-      .join('') +
+    bodyRows.map((r) => `<tr>${r.map((c) => `<td>${inlineMd(c)}</td>`).join('')}</tr>`).join('') +
     '</tbody>';
   return { html: `<table>${thead}${tbody}</table>`, nextIndex: i };
 }
 
 /** Inline markdown: bold, italic, code, links. Operates on already-escaped text. */
 function inlineMd(text: string): string {
-  return text
-    .replace(/`([^`]+)`/g, '<code>$1</code>')
-    .replace(/\*\*([^*]+)\*\*/g, '<strong>$1</strong>')
-    .replace(/(^|[^*])\*([^*]+)\*/g, '$1<em>$2</em>')
-    // [label](http...) — url already escaped; only allow http(s) to avoid javascript: injection
-    .replace(/\[([^\]]+)\]\((https?:&#x2F;&#x2F;[^)]+|https?:\/\/[^)]+)\)/g, (_m, label: string, url: string) => {
-      const cleanUrl = url.replace(/&#x2F;/g, '/');
-      return `<a href="${cleanUrl}" target="_blank" rel="noopener noreferrer">${label}</a>`;
-    });
+  return (
+    text
+      .replace(/`([^`]+)`/g, '<code>$1</code>')
+      .replace(/\*\*([^*]+)\*\*/g, '<strong>$1</strong>')
+      .replace(/(^|[^*])\*([^*]+)\*/g, '$1<em>$2</em>')
+      // [label](http...) — url already escaped; only allow http(s) to avoid javascript: injection
+      .replace(
+        /\[([^\]]+)\]\((https?:&#x2F;&#x2F;[^)]+|https?:\/\/[^)]+)\)/g,
+        (_m, label: string, url: string) => {
+          const cleanUrl = url.replace(/&#x2F;/g, '/');
+          return `<a href="${cleanUrl}" target="_blank" rel="noopener noreferrer">${label}</a>`;
+        },
+      )
+  );
 }
 
 export function escapeHtml(text: string): string {
@@ -615,7 +653,6 @@ export function escapeHtml(text: string): string {
     .replace(/'/g, '&#x27;')
     .replace(/\//g, '&#x2F;');
 }
-
 
 export function clampTitle(text: string): string {
   const clean = text.replace(/\s+/g, ' ').trim();

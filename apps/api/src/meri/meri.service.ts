@@ -1,7 +1,13 @@
 import { BadRequestException, Injectable, Logger, NotFoundException } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { Prisma } from '@prisma/client';
-import { recordAiUsageEvent, type TenantContext } from '@capiro/shared';
+import {
+  recordAiUsageEvent,
+  MERI_GROUNDING_INVARIANT,
+  meriGroundingSurfaceBlock,
+  meriGroundingDateBlock,
+  type TenantContext,
+} from '@capiro/shared';
 import type { AppConfig } from '../config/config.schema.js';
 import { PrismaService } from '../prisma/prisma.service.js';
 import { MeriToolsService } from './meri-tools.service.js';
@@ -28,11 +34,7 @@ import {
   buildVerifierSources,
   extractGroundingFromToolResult,
 } from './meri-verifier-sources.helpers.js';
-import {
-  DOMAIN_PRIMER,
-  extractCitedPeCodes,
-  planFanOutQueries,
-} from './meri-domain-fanout.helpers.js';
+import { extractCitedPeCodes, planFanOutQueries } from './meri-domain-fanout.helpers.js';
 import { collectPeStructuralWarnings } from './meri-pe-structural.helpers.js';
 import { CLIO_SKILLS, matchSkill } from './skills/skill-registry.js';
 import type { MeriSkill } from './skills/skill.types.js';
@@ -2498,19 +2500,18 @@ export class MeriService {
       '  3) likely opposition,',
       '  4) leverage points / recommended moves.',
       '',
-      'Data-source hierarchy (critical):',
-      '- Treat Capiro internal sources as primary truth for client/engagement/intelligence questions.',
-      '- Public-web results are supplemental only and may be incomplete or noisy.',
-      '- If public web conflicts with Capiro internal data, state the discrepancy and prioritize Capiro data unless user asks otherwise.',
-      '',
       'You have a set of tools to retrieve authoritative Capiro and federal data on demand: client context, workspace research, federal lobbying intelligence, congressional bills, LDA filings, SEC/FARA filings, federal grants, federal contract awards (USAspending, including Program Element/PE codes), DoD Program Elements (RDT&E/procurement budget lines with fiscal-year request/markup/enacted amounts, milestones, linked contractors, and bills), GAO/CRS reports, state bills, committee hearings, policy news, economic data, public-web search/scrape, and actions (create_meeting_brief, draft_policy_memo, save_note, send_email, list_emails, reply_email).',
-      'USE THESE TOOLS rather than guessing. When a question concerns specific bills, filings, spending, contract awards, defense budget/Program Elements, clients, meetings, or emails, call the relevant tool and ground your answer in the result. Prefer Capiro internal tools first; use public-web tools only to corroborate.',
-      'Any context pre-loaded below is a convenience snapshot, not a substitute for calling a tool when you need current or specific data.',
-      'Do not fabricate facts. If uncertain, state uncertainty and propose the fastest verification path.',
-      'Citations: when you state a fact drawn from a retrieved source, cite it inline with the bracketed number shown for that source in the tool results (e.g. [1], [2]). Only cite numbers that appear in the provided sources; never invent citation numbers.',
       '',
-      'Defense budget structure (apply rigorously when drafting or fact-checking PE/budget/legislative claims):',
-      DOMAIN_PRIMER,
+      // Zero-trust grounding kernel (v3 plan Wave 1): the closed-world rule,
+      // refusal protocol, citation grammar, government-relations domain
+      // semantics (supersedes the former inline DOMAIN_PRIMER + data-source
+      // hierarchy + citation instructions), numeric integrity, uncertainty
+      // ladder, advice gate, and self-check — byte-identical across every Meri
+      // surface via @capiro/shared. The per-turn date block is added to the
+      // dynamic tail below (never the cached base).
+      MERI_GROUNDING_INVARIANT,
+      meriGroundingSurfaceBlock('chat'),
+      '',
       'Memory: you have persistent, cross-conversation memory for this firm and user. Relevant remembered facts are injected into the context below when available. When the user shares a durable preference, name, or ongoing priority — or explicitly asks you to remember something — call the save_memory tool to persist it, then briefly confirm. Never claim you lack memory or cannot retain information across sessions.',
       'Conversation continuity (critical): the full prior turns of THIS conversation are provided to you as message history. Treat the conversation as one continuous thread — read the earlier turns and carry their context forward. When the user says "it", "that", "those", "the firm", "add them", "the same client", or otherwise refers back, resolve the reference from earlier in this conversation; do NOT re-ask for something already established or act as if the thread just started. If you genuinely cannot find the referent in the history, say so and ask — but check the prior turns first. The per-turn context snapshot below supplements the conversation; it never replaces what the user already told you.',
       COMPLIANCE_GUARDRAILS,
@@ -2540,7 +2541,10 @@ export class MeriService {
     const skill = firmSkill ?? (this.skillsEnabled() ? matchSkill(intent) : null);
     const guidance = skill?.systemAddendum ?? intentGuidance[intent];
 
-    const tail: string[] = [];
+    // Grounding date block FIRST in the dynamic (uncached) tail — it changes
+    // daily, so it must never sit in the cached base (would bust the prefix
+    // cache). Closes the <meri_grounding> element opened in the base.
+    const tail: string[] = [meriGroundingDateBlock(new Date().toISOString())];
     if (guidance) tail.push(guidance);
     if (template) {
       tail.push(`Output template: ${template.heading}`);
