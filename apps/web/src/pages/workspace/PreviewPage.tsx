@@ -33,6 +33,7 @@ import { Icon, Ava } from './kit.js';
 import { StepsRail } from './StepsRail.js';
 import {
   initials as initialsOf,
+  useContextUsed,
   useCreateVersion,
   useDraft,
   useDraftChecks,
@@ -60,6 +61,7 @@ export function PreviewPage() {
   const { data: draft, isLoading } = useDraft(draftId ?? null);
   const { data: me } = useMe();
   const { data: checks } = useDraftChecks(draftId ?? null);
+  const { data: contextUsed } = useContextUsed(draftId ?? null);
   const exportDocx = useExportDocx(draftId ?? '');
   const exportPdf = useExportPdf(draftId ?? '');
   const createVersion = useCreateVersion(draftId ?? '');
@@ -489,6 +491,59 @@ export function PreviewPage() {
                 ))
               )}
             </div>
+
+            {/* Context used in this draft (Phase 3.3): the provenance snapshot
+                from the last generation — what actually grounded the text. Only
+                shown once a draft has been generated (contextUsed != null). */}
+            {contextUsed && (
+              <div>
+                <div
+                  style={{
+                    fontSize: 10.5,
+                    textTransform: 'uppercase',
+                    letterSpacing: '0.07em',
+                    color: 'var(--ink-3)',
+                    fontWeight: 600,
+                    marginBottom: 9,
+                  }}
+                >
+                  Context used
+                </div>
+                {contextUsed.memoryFiles.length === 0 &&
+                contextUsed.contextItems.length === 0 &&
+                contextUsed.linkedPeCodes.length === 0 ? (
+                  <div style={{ fontSize: 11.5, color: 'var(--ink-3)' }}>
+                    No firm/client context grounded this draft.
+                  </div>
+                ) : (
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: 5 }}>
+                    {contextUsed.memoryFiles.map((m) => (
+                      <div key={`mem-${m.id}`} style={{ fontSize: 12, color: 'var(--ink-2)' }}>
+                        <span style={{ color: 'var(--ink-3)' }}>Memory · </span>
+                        {m.label}
+                      </div>
+                    ))}
+                    {contextUsed.contextItems.map((c) => (
+                      <div key={`ctx-${c.id}`} style={{ fontSize: 12, color: 'var(--ink-2)' }}>
+                        <span style={{ color: 'var(--ink-3)' }}>{c.kind} · </span>
+                        {c.label}
+                      </div>
+                    ))}
+                    {contextUsed.linkedPeCodes.map((pe) => (
+                      <div key={`pe-${pe}`} style={{ fontSize: 12, color: 'var(--ink-2)' }}>
+                        <span style={{ color: 'var(--ink-3)' }}>Program element · </span>
+                        {pe}
+                      </div>
+                    ))}
+                  </div>
+                )}
+                {contextUsed.generatedAt && (
+                  <div style={{ fontSize: 10.5, color: 'var(--ink-3)', marginTop: 7 }}>
+                    as of last generation ({contextUsed.generatedAt.slice(0, 10)})
+                  </div>
+                )}
+              </div>
+            )}
 
             {/* Export */}
             <div>

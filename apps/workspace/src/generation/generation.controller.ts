@@ -1,4 +1,4 @@
-import { Body, Controller, Param, Post, Req, UseGuards } from '@nestjs/common';
+import { Body, Controller, Get, Param, Post, Req, UseGuards } from '@nestjs/common';
 import type { Request } from 'express';
 import { IsArray, IsObject, IsOptional, IsString, MinLength } from 'class-validator';
 import { TenantGuard } from '../auth/tenant.guard.js';
@@ -98,6 +98,17 @@ export class GenerationController {
     @Param('draftId') draftId: string,
   ) {
     return this.generation.generateAllSectionsInProcess(ctx.tenantId, draftId);
+  }
+
+  /**
+   * GET /workspace-api/drafts/:draftId/context-used
+   * Phase 3.3 "Context used in this draft" panel: the provenance snapshot from
+   * the last generation (context items, memory files, linked PEs that actually
+   * grounded the text). Returns null when the draft has not been generated yet.
+   */
+  @Get('context-used')
+  contextUsed(@CurrentTenant() ctx: WorkspaceTenantContext, @Param('draftId') draftId: string) {
+    return this.generation.getContextUsed(ctx.tenantId, draftId);
   }
 }
 

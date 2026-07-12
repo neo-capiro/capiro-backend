@@ -3,6 +3,7 @@ import { useApi } from '../../lib/use-api.js';
 import type {
   WsAssignableRole,
   WsChecksResponse,
+  WsContextUsed,
   WsCollaborator,
   WsCollaboratorsResponse,
   WsComment,
@@ -754,6 +755,18 @@ export function useDraftChecks(draftId: string | null, enabled = true) {
     enabled: !!draftId && enabled,
     staleTime: 10_000,
     queryFn: async () => (await api.get<WsChecksResponse>(`${BASE}/drafts/${draftId}/checks`)).data,
+  });
+}
+
+/** "Context used in this draft" provenance (Phase 3.3). null = never generated. */
+export function useContextUsed(draftId: string | null, enabled = true) {
+  const api = useApi();
+  return useQuery({
+    queryKey: ['ws', 'context-used', draftId],
+    enabled: !!draftId && enabled,
+    staleTime: 10_000,
+    queryFn: async () =>
+      (await api.get<WsContextUsed | null>(`${BASE}/drafts/${draftId}/context-used`)).data,
   });
 }
 

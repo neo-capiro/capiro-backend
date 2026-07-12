@@ -255,6 +255,26 @@ export interface WsChecksResponse {
   score: { passed: number; total: number };
 }
 
+// ── "Context used in this draft" panel (Phase 3.3) ───────────────────────────
+export interface WsContextUsedItem {
+  id: string;
+  kind: string;
+  label: string;
+}
+export interface WsContextUsedMemoryFile {
+  id: string;
+  type: string;
+  slug: string;
+  label: string;
+}
+/** As-of-last-generation provenance; null when the draft was never generated. */
+export interface WsContextUsed {
+  generatedAt: string;
+  contextItems: WsContextUsedItem[];
+  memoryFiles: WsContextUsedMemoryFile[];
+  linkedPeCodes: string[];
+}
+
 // ── Version history (Phase 6b) ───────────────────────────────────────────────
 export type WsAuthorKind = 'meri' | 'person';
 

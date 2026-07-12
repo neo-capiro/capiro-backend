@@ -34,11 +34,18 @@ Companion to Ninja's Phase 3 plan. Unlike Phases 2/2.5 (mostly pre-built), Phase
   advisory checks + `score:{passed,total}` are untouched (verified: that's the
   only trust signal the surface has and export reads it). No component rendered
   `gates` (always `[]`), so removal is behavior-neutral.
-- **3.3 — "Context used in this draft" panel — NEXT.** Persist ws_context_item
-  ids + injected memory_items ids at generation time; `GET /drafts/:id/context-
-  used`; web panel. `loadSteeringMemories` must also select id/type/slug (drops
-  identity today) with the same renderHuman/empty filter, or the panel misstates
-  what actually grounded the text.
+- **3.3 — "Context used in this draft" panel — DONE.** `generateSection`/
+  `generateAllSectionsInProcess` now capture an as-of-last-generation
+  `ContextProvenance` (context items that contributed a non-empty body + the
+  memory files that actually reached the prompt + linked PE codes) and persist it
+  into `ws_draft.config.contextProvenance` (preserved, not wiped, by an
+  orchestrator-driven apply). `loadSteeringMemories` now also selects id/type/slug
+  and returns `memoryFiles` for the files whose rendered body was non-empty (same
+  filter as the prompt). New `GET /workspace-api/drafts/:id/context-used` (shape-
+  normalized, null before first generation) + a "Context used" panel on the
+  Preview page beside the advisory checks. Tests: getContextUsed read/null/404/
+  normalize + provenance-preservation on apply (8/8 workspace spec green);
+  web typecheck + workspace nest build clean.
 - **3.1 — claim-level citations — AFTER 3.3.** Tier-1 (no wiring): synthesize a
   ToolResultLedger over the fixed evidence (linked PEs by code + ws_context_items
   with id in the serialized body), emit record_ids in `buildSectionPrompt`, allow
@@ -70,5 +77,6 @@ cleanup PR has no migration and no new dependency, so it's a plain image rebuild
   so far** (gate deletion is behavior-neutral; checks + score untouched).
 - **G2** risk-tiered gate — **N/A by decision** (D1 = gate-less; the vestigial
   type is deleted instead).
-- **G1** (citations), **G3** (context panel), **G4** (memory write-back) — pending
-  (3.1 / 3.3 / 3.4).
+- **G3** "Context used in this draft" panel live (memory + context-item sources) —
+  **MET** (3.3).
+- **G1** (citations), **G4** (memory write-back) — pending (3.1 / 3.4).

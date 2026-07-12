@@ -18,6 +18,31 @@ const ANTHROPIC_URL = 'https://api.anthropic.com/v1/messages';
 const GENERATION_TIMEOUT_MS = 120_000;
 const MAX_TOKENS = 4096;
 
+/**
+ * "Context used in this draft" provenance (Phase 3.3). Records — at generation
+ * time — exactly which grounding sources actually fed the model, so a reviewer
+ * can see what a draft was built from. As-of-last-generation (not "currently
+ * attached"): it's a snapshot captured when the text was written, persisted into
+ * ws_draft.config.contextProvenance and replaced on every regeneration.
+ */
+export interface ContextUsedItem {
+  id: string;
+  kind: string;
+  label: string;
+}
+export interface ContextUsedMemoryFile {
+  id: string;
+  type: string;
+  slug: string;
+  label: string;
+}
+export interface ContextProvenance {
+  generatedAt: string;
+  contextItems: ContextUsedItem[];
+  memoryFiles: ContextUsedMemoryFile[];
+  linkedPeCodes: string[];
+}
+
 export interface GenerateSectionResult {
   section: string;
   content: string;
@@ -25,6 +50,9 @@ export interface GenerateSectionResult {
   usedTenantKey: boolean;
   anonymized: boolean;
   legend?: AnonymizeMap['legend'];
+  /** What actually grounded this section (Phase 3.3); identical across a
+   *  generate-all run since every section shares the same draft context. */
+  provenance: ContextProvenance;
 }
 
 /**
@@ -85,6 +113,25 @@ export class GenerationService {
         return String(p.text ?? p.label ?? '').slice(0, PER_ITEM_CAP);
       })
       .filter(Boolean);
+
+    // Phase 3.3 provenance: the context items that ACTUALLY contributed a
+    // non-empty body (same non-empty filter as itemText above), so the "context
+    // used" panel never lists an attached-but-empty item as having grounded text.
+    const usedContextItems: ContextUsedItem[] = (draft.context ?? [])
+      .filter((c) => {
+        const p = c.payload as Record<string, unknown>;
+        return String(p.text ?? p.label ?? '').trim().length > 0;
+      })
+      .map((c) => {
+        const p = c.payload as Record<string, unknown>;
+        const label =
+          String(p.label ?? '').trim() ||
+          String(p.text ?? '')
+            .trim()
+            .slice(0, 80) ||
+          c.kind;
+        return { id: c.id, kind: c.kind, label };
+      });
 
     // Linked program elements (Setup → Links & data). RETRIEVE-BEFORE-WRITE:
     // prefer the AUTHORITATIVE PE record re-resolved from the DB (real mission,
@@ -154,6 +201,15 @@ export class GenerationService {
       ? anonymizeText(raw, { client, offices })
       : { text: raw, map: { legend: {} } };
 
+    const provenance: ContextProvenance = {
+      generatedAt: new Date().toISOString(),
+      contextItems: usedContextItems,
+      memoryFiles: steering.memoryFiles,
+      linkedPeCodes: linkedPes
+        .map((pe) => (pe.peCode ?? '').toUpperCase())
+        .filter((c): c is string => c.length > 0),
+    };
+
     return {
       section: sectionName,
       content: result.text,
@@ -161,6 +217,32 @@ export class GenerationService {
       usedTenantKey: cred.usedTenantKey,
       anonymized: anonymize,
       legend: anonymize ? result.map.legend : undefined,
+      provenance,
+    };
+  }
+
+  /**
+   * "Context used in this draft" (Phase 3.3): the provenance snapshot captured
+   * at the last generation — which context items, memory files, and linked PEs
+   * actually grounded the draft. Returns null when the draft has never been
+   * generated (or predates provenance capture). Tenant-scoped.
+   */
+  async getContextUsed(tenantId: string, draftId: string): Promise<ContextProvenance | null> {
+    const draft = await this.prisma.wsDraft.findFirst({
+      where: { id: draftId, tenantId },
+      select: { config: true },
+    });
+    if (!draft) throw new ServiceUnavailableException('Draft not found');
+    const cfg = (draft.config as Record<string, unknown>) ?? {};
+    const p = cfg.contextProvenance;
+    if (!p || typeof p !== 'object' || Array.isArray(p)) return null;
+    const prov = p as Partial<ContextProvenance>;
+    // Defensive shape-normalize (old rows / partial writes never crash the panel).
+    return {
+      generatedAt: typeof prov.generatedAt === 'string' ? prov.generatedAt : '',
+      contextItems: Array.isArray(prov.contextItems) ? prov.contextItems : [],
+      memoryFiles: Array.isArray(prov.memoryFiles) ? prov.memoryFiles : [],
+      linkedPeCodes: Array.isArray(prov.linkedPeCodes) ? prov.linkedPeCodes : [],
     };
   }
 
@@ -321,12 +403,18 @@ export class GenerationService {
     const linkedPes = (cfg.linkedProgramElements as Array<{ peCode?: string }> | undefined) ?? [];
     const authPes = await this.peResolver.resolve(linkedPes.map((pe) => pe.peCode));
 
+    // Phase 3.3: capture the "context used" provenance from a generated section.
+    // Every section in one generate-all run shares the same draft context /
+    // steering memory / linked PEs, so any one section's provenance is the
+    // whole-draft provenance.
+    let provenance: ContextProvenance | undefined;
     await Promise.all(
       sections.map(async (section) => {
         try {
           const r = await this.generateSection(tenantId, draftId, section, authPes);
           sectionContent[section] = r.content;
           sectionMeta[section] = { status: 'review' };
+          provenance ??= r.provenance;
         } catch (e) {
           this.logger.warn(`generate-all: section "${section}" failed: ${(e as Error).message}`);
         }
@@ -344,6 +432,7 @@ export class GenerationService {
       sectionContent,
       sectionMeta,
       structuralWarnings,
+      contextProvenance: provenance,
     });
   }
 
@@ -363,11 +452,18 @@ export class GenerationService {
       sectionContent: Record<string, string>;
       sectionMeta: Record<string, { status: string }>;
       structuralWarnings: PeStructuralWarning[];
+      /** Phase 3.3 "context used" snapshot; undefined leaves any prior value. */
+      contextProvenance?: ContextProvenance;
     },
   ) {
+    // Only overwrite contextProvenance when this run computed one; otherwise
+    // preserve whatever a prior generation stored (e.g. an orchestrator-driven
+    // apply that carries no provenance shouldn't wipe the panel's data).
+    const { contextProvenance, ...rest } = sections;
+    const provenancePatch = contextProvenance !== undefined ? { contextProvenance } : {};
     await this.prisma.wsDraft.update({
       where: { id: draftId },
-      data: { config: { ...cfg, ...sections } as never },
+      data: { config: { ...cfg, ...rest, ...provenancePatch } as never },
     });
     return this.prisma.wsDraft.findFirst({
       where: { id: draftId, tenantId },
@@ -566,14 +662,23 @@ export class GenerationService {
   private async loadSteeringMemories(
     tenantId: string,
     ownerId?: string,
-  ): Promise<{ firmContext?: string; userVoiceContext?: string }> {
+  ): Promise<{
+    firmContext?: string;
+    userVoiceContext?: string;
+    /** The memory files that actually contributed a non-empty human body (for
+     *  the Phase 3.3 "context used" provenance). Only items whose rendered body
+     *  is non-empty are listed — matching what really reached the prompt. */
+    memoryFiles: ContextUsedMemoryFile[];
+  }> {
     try {
       const rows = await this.prisma.$transaction(async (tx) => {
         // Parameterized set_config (mirrors apps/api + meriv2-orchestrator's
         // PrismaService.withTenant) — never string-interpolate the GUC value.
         await tx.$executeRaw`SELECT set_config('app.current_tenant', ${tenantId}, true)`;
-        return tx.$queryRaw<Array<{ type: string; sections: unknown }>>`
-          SELECT type, sections_jsonb AS sections
+        // id + slug added (Phase 3.3): the panel needs each contributing memory
+        // file's identity, not just its rendered text.
+        return tx.$queryRaw<Array<{ id: string; type: string; slug: string; sections: unknown }>>`
+          SELECT id, type, slug, sections_jsonb AS sections
           FROM memory_items
           WHERE tenant_id = ${tenantId}::uuid
             AND (
@@ -593,8 +698,17 @@ export class GenerationService {
           .filter(Boolean)
           .join('\n');
       };
+      const memoryLabel = (type: string): string =>
+        type === 'firm-soul'
+          ? 'Firm Soul'
+          : type === 'firm-compass'
+            ? 'Firm Compass'
+            : type === 'user-voice'
+              ? 'My Writing Style'
+              : type;
       const firmBlocks: string[] = [];
       let userVoiceContext: string | undefined;
+      const memoryFiles: ContextUsedMemoryFile[] = [];
       for (const r of rows) {
         const body = renderHuman(r.sections);
         if (!body) continue;
@@ -602,14 +716,18 @@ export class GenerationService {
         else if (r.type === 'firm-compass')
           firmBlocks.push(`Firm direction (Firm Compass):\n${body}`);
         else if (r.type === 'user-voice') userVoiceContext = body;
+        // Only files that actually contributed a body (same filter as the prompt)
+        // appear in provenance, so the panel never claims a skipped/empty file.
+        memoryFiles.push({ id: r.id, type: r.type, slug: r.slug, label: memoryLabel(r.type) });
       }
       return {
         firmContext: firmBlocks.length ? firmBlocks.join('\n\n') : undefined,
         userVoiceContext,
+        memoryFiles,
       };
     } catch (e) {
       this.logger.warn(`Steering memory load failed (non-fatal): ${(e as Error).message}`);
-      return {};
+      return { memoryFiles: [] };
     }
   }
 

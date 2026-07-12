@@ -95,4 +95,75 @@ describe('GenerationService.applyGeneratedSections', () => {
       },
     });
   });
+
+  // An orchestrator-driven apply carries no provenance — it must NOT wipe the
+  // "context used" snapshot a prior in-process generate-all captured (Phase 3.3).
+  it('applyGeneratedSections preserves an existing contextProvenance (no provenance in body)', async () => {
+    const prov = {
+      generatedAt: '2026-07-12T00:00:00.000Z',
+      contextItems: [{ id: 'ci-1', kind: 'free-text', label: 'ROI over feasibility' }],
+      memoryFiles: [{ id: 'm-1', type: 'firm-soul', slug: 'firm', label: 'Firm Soul' }],
+      linkedPeCodes: ['0603851F'],
+    };
+    const draft = { id: 'draft-1', config: { product: 'memo', contextProvenance: prov } };
+    const { service, updateSpy } = makeService(draft);
+
+    await service.applyGeneratedSections('tenant-1', 'draft-1', {
+      sectionContent: { Summary: '<p>x</p>' },
+    });
+
+    const written = (updateSpy.mock.calls[0]![0] as { data: { config: Record<string, unknown> } })
+      .data.config;
+    expect(written.contextProvenance).toEqual(prov);
+  });
+});
+
+describe('GenerationService.getContextUsed (Phase 3.3 "context used" panel)', () => {
+  function makeService(draft: unknown) {
+    const findFirstSpy = jest.fn().mockResolvedValue(draft);
+    const prisma = {
+      wsDraft: { findFirst: findFirstSpy },
+    } as unknown as PrismaService;
+    const service = new GenerationService(
+      prisma,
+      {} as AiCredentialService,
+      {} as PeResolverService,
+      {} as MeriV2FlagsService,
+      {} as MeriV2OrchestratorClient,
+    );
+    return { service, findFirstSpy };
+  }
+
+  it('404s when the draft is not found', async () => {
+    const { service } = makeService(null);
+    await expect(service.getContextUsed('t1', 'd1')).rejects.toBeInstanceOf(
+      ServiceUnavailableException,
+    );
+  });
+
+  it('returns null when the draft has no provenance (never generated)', async () => {
+    const { service } = makeService({ config: { product: 'memo' } });
+    expect(await service.getContextUsed('t1', 'd1')).toBeNull();
+  });
+
+  it('returns the stored provenance snapshot', async () => {
+    const prov = {
+      generatedAt: '2026-07-12T00:00:00.000Z',
+      contextItems: [{ id: 'ci-1', kind: 'bill', label: 'H.R. 8800' }],
+      memoryFiles: [{ id: 'm-1', type: 'user-voice', slug: 'me', label: 'My Writing Style' }],
+      linkedPeCodes: ['0603851F'],
+    };
+    const { service } = makeService({ config: { contextProvenance: prov } });
+    expect(await service.getContextUsed('t1', 'd1')).toEqual(prov);
+  });
+
+  it('shape-normalizes a partial/legacy provenance (never crashes the panel)', async () => {
+    const { service } = makeService({ config: { contextProvenance: { contextItems: 'oops' } } });
+    expect(await service.getContextUsed('t1', 'd1')).toEqual({
+      generatedAt: '',
+      contextItems: [],
+      memoryFiles: [],
+      linkedPeCodes: [],
+    });
+  });
 });
