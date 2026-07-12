@@ -307,6 +307,56 @@ export function vehicleClassForStage(stage: EvidenceStage): EvidenceVehicleClass
   return map[stage];
 }
 
+// ── Second compiler adapter: bill / floor-rule status ────────────────────────
+
+/** A resolved bill-status record — the shape get_bill_status returns. */
+export interface BillStatusRecord {
+  /** Stable identifier the model cites, e.g. 'hr-8800-119'. */
+  billId: string;
+  /** The canonical resolved status (deriveBillStatus output), e.g. 'rule_failed'. */
+  status: string;
+  /** As-of date for the status (statusAt / generatedAt). */
+  asOf?: string;
+  /** Whether this row concerns the bill's governing floor rule (H.Res.) vs the bill itself. */
+  isFloorRule?: boolean;
+  capturedAt: string;
+  sourceVersion?: string;
+}
+
+/**
+ * Compile a bill / floor-rule status record into a single EvidencePacket. The
+ * gate's `bill_status` and `rule_operative` predicates read `semantics.status`
+ * from it — so a claim that a `rule_failed` bill is "operative/advancing" is
+ * REFUTED against this packet (the H.R. 8800 / D6 class), deterministically and
+ * before prose. `isFloorRule` selects the entity type so a bill's status and its
+ * rule's status are distinct evidence.
+ */
+export function compileBillStatusEvidence(record: BillStatusRecord): EvidencePacket[] {
+  return [
+    {
+      evidenceId: `${record.billId}:status`,
+      source: {
+        tool: 'get_bill_status',
+        recordId: record.billId,
+        sourceVersion: record.sourceVersion,
+        contentHash: hashEvidenceContent({
+          bill: record.billId,
+          status: record.status,
+          asOf: record.asOf ?? null,
+        }),
+        capturedAt: record.capturedAt,
+      },
+      entity: {
+        entityType: record.isFloorRule ? 'floor_rule' : 'bill',
+        entityId: record.billId,
+        identifierKind: 'bill',
+      },
+      semantics: { status: record.status, asOf: record.asOf },
+      provenance: { extractionMethod: 'structured_db', evidenceClass: 'authoritative' },
+    },
+  ];
+}
+
 // ── Versioned predicate taxonomy (v3 plan §3.3) ──────────────────────────────
 
 export interface PredicateSpec {

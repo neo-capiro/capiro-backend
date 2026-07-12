@@ -1,6 +1,7 @@
 import { runClaimPlanGate } from './claim-gate';
 import {
   compilePeFundingEvidence,
+  compileBillStatusEvidence,
   type ClaimPlan,
   type EvidencePacket,
   type PlannedClaim,
@@ -128,6 +129,30 @@ describe('runClaimPlanGate — bill_status / rule_operative', () => {
       allPackets,
     );
     expect(r.approved).toEqual(['c1']);
+  });
+});
+
+describe('runClaimPlanGate — end-to-end with compileBillStatusEvidence', () => {
+  it('compiler → gate: a rule_failed bill refutes a "rule operative" claim (D6 class)', () => {
+    const packets = compileBillStatusEvidence({
+      billId: 'hr-8800-119',
+      status: 'rule_failed',
+      asOf: '2026-06-12',
+      capturedAt: CAPTURED,
+    });
+    const r = runClaimPlanGate(
+      plan([
+        claim({
+          predicate: 'rule_operative',
+          subject: { entityType: 'bill', entityId: 'hr-8800-119' },
+          evidenceIds: ['hr-8800-119:status'],
+          object: { operative: true },
+        }),
+      ]),
+      packets,
+    );
+    expect(r.refuted).toEqual(['c1']);
+    expect(r.decision).toBe('block');
   });
 });
 
