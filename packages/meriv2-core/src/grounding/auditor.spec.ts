@@ -2,6 +2,7 @@ import {
   runAuditor,
   checkCitations,
   checkNumericDirection,
+  checkFundingDirectionVsEvidence,
   checkVehicleConflation,
   checkFailedRuleFraming,
   checkIdentifierIdentity,
@@ -9,6 +10,43 @@ import {
 } from './auditor';
 
 const ledgerWith = (entries: ToolResultLedger['entries']): ToolResultLedger => ({ entries });
+
+describe('D4 (evidence-backed) — direction vs compiled EvidencePackets', () => {
+  // A get_pe_budget_timeline-shaped ledger entry: FY27 request 72.1, HAC-D 112.9
+  // (a RAISE). The current authoritative figure is therefore an increase.
+  const timelineLedger = ledgerWith([
+    {
+      tool: 'get_pe_budget_timeline',
+      serialized: '{"peCode":"0603851F"}',
+      result: {
+        peCode: '0603851F',
+        identifierKind: 'pe',
+        generatedAt: '2026-07-12T00:00:00Z',
+        currentCycleFy: 2027,
+        years: [{ fy: 2027, request: 72.1, hacDMark: 112.9 }],
+      },
+    },
+  ]);
+
+  it('flags the IMPLICIT reversal ("PE X funding was cut") with no explicit numbers', () => {
+    const out = 'Unfortunately PE 0603851F saw its funding cut this cycle.';
+    const f = checkFundingDirectionVsEvidence(out, timelineLedger);
+    expect(f).toHaveLength(1);
+    expect(f[0]!.check).toBe('D4');
+    expect(f[0]!.severity).toBe('critical');
+  });
+  it('does NOT flag the correct direction ("PE X funding rose")', () => {
+    const out = 'PE 0603851F funding rose this cycle.';
+    expect(checkFundingDirectionVsEvidence(out, timelineLedger)).toEqual([]);
+  });
+  it('abstains without a funding cue, with mixed polarity, or with no PE in the ledger', () => {
+    expect(checkFundingDirectionVsEvidence('PE 0603851F was cut.', timelineLedger)).toEqual([]); // no funding cue word ("cut" alone, no fund/mark/$)...
+    expect(checkFundingDirectionVsEvidence('PE 9999999Z funding was cut.', timelineLedger)).toEqual(
+      [],
+    ); // PE not in ledger
+    expect(checkFundingDirectionVsEvidence('funding was cut', ledgerWith([]))).toEqual([]); // empty ledger
+  });
+});
 
 describe('D4 — numeric direction self-consistency', () => {
   it('flags a raise narrated as a cut (S1-3 reversal) as CRITICAL', () => {

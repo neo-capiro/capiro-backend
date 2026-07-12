@@ -38,6 +38,7 @@ import {
   validateFormBCitations,
   type FundingVehicle,
 } from '@capiro/shared';
+import { compilePeFundingEvidence, type EvidencePacket, type FundingYearRecord } from './evidence';
 
 export type AuditorMode = 'off' | 'shadow' | 'annotate' | 'enforce';
 export type AuditSeverity = 'critical' | 'high' | 'medium' | 'low';
@@ -335,6 +336,107 @@ function collectProcurementCodes(result: unknown, into: Set<string>): void {
   }
 }
 
+// ── D4 (evidence-backed): direction vs the compiled EvidencePackets ──────────
+
+// Furthest-along appropriations stage wins as "the current authoritative figure".
+const STAGE_RANK_EV: Record<string, number> = {
+  enacted: 6,
+  conference: 5,
+  'SAC-D': 4,
+  'HAC-D': 3,
+  SASC: 2,
+  HASC: 1,
+  request: 0,
+};
+const FUNDING_CUE = /\$|\b(fund\w*|mark|request|appropriat\w+|budget|million|billion)\b/i;
+
+/** Compile EvidencePackets from any get_pe_budget_timeline-shaped ledger entry. */
+function compilePacketsFromLedger(ledger: ToolResultLedger): EvidencePacket[] {
+  const out: EvidencePacket[] = [];
+  for (const e of ledger.entries) {
+    const r = e.result as Record<string, unknown> | undefined;
+    if (!r || typeof r !== 'object') continue;
+    const peCode = typeof r.peCode === 'string' ? r.peCode : undefined;
+    const years = Array.isArray(r.years) ? (r.years as FundingYearRecord[]) : undefined;
+    if (!peCode || !years) continue;
+    try {
+      out.push(
+        ...compilePeFundingEvidence({
+          peCode,
+          identifierKind:
+            r.identifierKind === 'procurement_line_item'
+              ? 'procurement_line_item'
+              : r.identifierKind === 'pe'
+                ? 'pe'
+                : undefined,
+          capturedAt: typeof r.generatedAt === 'string' ? r.generatedAt : '',
+          currentCycleFy: typeof r.currentCycleFy === 'number' ? r.currentCycleFy : undefined,
+          years,
+        }),
+      );
+    } catch {
+      // A malformed timeline payload is skipped, never fatal.
+    }
+  }
+  return out;
+}
+
+/** peCode → the current-cycle AUTHORITATIVE mark's source-derived direction. */
+function authoritativeDirectionByPe(
+  packets: EvidencePacket[],
+): Map<string, 'increase' | 'decrease' | 'flat'> {
+  const best = new Map<string, { rank: number; dir: 'increase' | 'decrease' | 'flat' }>();
+  for (const p of packets) {
+    if (p.semantics.cycle !== 'current' || !p.semantics.comparison) continue;
+    const rank = p.semantics.stage ? (STAGE_RANK_EV[p.semantics.stage] ?? -1) : -1;
+    const cur = best.get(p.entity.entityId);
+    if (!cur || rank > cur.rank) {
+      best.set(p.entity.entityId, { rank, dir: p.semantics.comparison.direction });
+    }
+  }
+  const out = new Map<string, 'increase' | 'decrease' | 'flat'>();
+  for (const [pe, v] of best) out.set(pe, v.dir);
+  return out;
+}
+
+/**
+ * Evidence-backed D4: for a sentence that names exactly one PE (with a known
+ * current-cycle authoritative comparison in the ledger), carries a funding cue,
+ * and uses exactly one direction polarity, flag when that polarity contradicts
+ * the PE's SOURCE-DERIVED direction. Catches the IMPLICIT reversal ("PE X's
+ * funding was cut") that the text-only D4 can't — it re-derives truth from the
+ * compiled EvidencePackets rather than from two numbers in the sentence.
+ */
+export function checkFundingDirectionVsEvidence(
+  output: string,
+  ledger: ToolResultLedger,
+): AuditFinding[] {
+  const dirByPe = authoritativeDirectionByPe(compilePacketsFromLedger(ledger));
+  if (dirByPe.size === 0) return [];
+  const out: AuditFinding[] = [];
+  for (const s of toSentences(output)) {
+    if (!FUNDING_CUE.test(s)) continue;
+    const dec = DECREASE_WORDS.test(s);
+    const inc = INCREASE_WORDS.test(s);
+    if (dec === inc) continue; // need exactly one polarity
+    const codes = extractCitedPeCodes(s).filter((c) => dirByPe.has(c));
+    if (codes.length !== 1) continue; // exactly one PE with known evidence → unambiguous
+    const pe = codes[0]!;
+    const evidenceDir = dirByPe.get(pe)!;
+    if (evidenceDir === 'flat') continue;
+    const claimedIncrease = inc;
+    if ((evidenceDir === 'increase') !== claimedIncrease) {
+      out.push({
+        check: 'D4',
+        severity: 'critical',
+        span: s,
+        detail: `${pe}'s current authoritative figure is ${evidenceDir} vs the request per the tool data, but this sentence calls it a ${claimedIncrease ? 'increase' : 'decrease'}. Restate the direction from the source.`,
+      });
+    }
+  }
+  return out;
+}
+
 // ── orchestration + verdict gate ─────────────────────────────────────────────
 
 /** Per-surface fail policy (v3 plan §3.6) applied when mode === 'enforce'. */
@@ -371,13 +473,23 @@ export function runAuditor(input: AuditInput): AuditVerdict {
   if (mode === 'off' || typeof output !== 'string' || output.length === 0) {
     return { mode, surface, findings: [], topSeverity: null, decision: 'deliver' };
   }
-  const findings: AuditFinding[] = [
+  const raw: AuditFinding[] = [
     ...checkCitations(output, ledger),
     ...checkNumericDirection(output),
+    ...checkFundingDirectionVsEvidence(output, ledger),
     ...checkVehicleConflation(output),
     ...checkFailedRuleFraming(output, ledger),
     ...checkIdentifierIdentity(output, ledger),
   ];
+  // Dedupe by (check, span): the text-D4 and evidence-D4 can both fire on one
+  // sentence — the reader/ledger should see it once.
+  const seen = new Set<string>();
+  const findings = raw.filter((f) => {
+    const key = `${f.check}::${f.span}`;
+    if (seen.has(key)) return false;
+    seen.add(key);
+    return true;
+  });
   findings.sort((a, b) => SEVERITY_RANK[b.severity] - SEVERITY_RANK[a.severity]);
   const topSeverity = findings.length ? findings[0]!.severity : null;
   return {
