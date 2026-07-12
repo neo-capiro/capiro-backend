@@ -598,9 +598,9 @@ export const INGESTION_JOBS: ScheduledIngestionJob[] = [
   {
     id: 'GenerateMeetingBriefings',
     command: ['generate-meeting-briefings'],
-    cron: { minute: '20', hour: '*' },
-    tier: 'agent',
+    cron: { minute: '0', hour: '12' },
+    tier: 'daily',
     description:
-      'P2-8: daily-digest of newly-upcoming meetings into the in-app inbox, hourly drain',
+      'P2-8: once-daily digest of newly-upcoming meetings (7d lookahead) into the in-app inbox (~8am ET, ahead of FlushTrackerDigestsDaily at 12:30)',
   },
 ];
