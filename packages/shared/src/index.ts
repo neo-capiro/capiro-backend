@@ -2112,6 +2112,38 @@ export function buildSearchRowFundingForModel(row: SearchRowFundingInput): Model
   };
 }
 
+/**
+ * Extract distinct DoD budget-line codes cited in free text — BOTH R-1/R-2
+ * Program Elements (7 digits + a service letter + optional suffix, e.g.
+ * `0207179F`, `0604256AXYZ`) and P-1/procurement line-item codes / BLINs
+ * (4 digits + 1–2 letters + 2–14 alphanumerics, e.g. `5726K99200`,
+ * `1507N2280`, `3010F10TRGT`). The two shapes are disjoint (7- vs 4-digit
+ * lead) and mirror jbook-extract's `PE_CODE_REGEX` / `PROCUREMENT_CODE_REGEX`
+ * (the ingestion source of truth) in unanchored, scanning form.
+ *
+ * THE one copy: `apps/api` (meri-domain-fanout.helpers), `apps/workspace`
+ * (domain-grounding.helpers) and the orchestrator (via `@capiro/meriv2-core`
+ * domain-primer) all re-export this, so the accepted shape can't silently
+ * drift between the three agentic surfaces the way three hand-synced regexes
+ * did (the BLIN gap: `1507N2280` was cited in prose but never fanned out for a
+ * structural cross-check). A spurious candidate is harmless — every caller
+ * resolves each code against the catalog and a non-existent code yields no
+ * record — so the scanner errs toward matching.
+ */
+export function extractCitedPeCodes(text: string): string[] {
+  if (typeof text !== 'string') return [];
+  const out: string[] = [];
+  const re = /\b(?:PE\s*|line\s*item\s*)?(\d{7}[A-Z][A-Z0-9]*|\d{4}[A-Z]{1,2}[0-9A-Z]{2,14})\b/g;
+  let m: RegExpExecArray | null;
+  while ((m = re.exec(text)) != null) {
+    const raw = m[1];
+    if (!raw) continue;
+    const code = raw.toUpperCase();
+    if (!out.includes(code)) out.push(code);
+  }
+  return out;
+}
+
 // ─────────────────────────────────────────────────────────────────────────
 // AI usage metering (Phase 1 M5.0, H-1 hardening) — lifted from apps/api's
 // engagement/{ai-pricing,ai-usage-parse,ai-usage-record}.ts into

@@ -66,6 +66,20 @@ export interface ProvisionItem {
   matchBasis: string;
   reviewStatus: string;
   confidence: number;
+  /**
+   * RC7: match scope, derived from matchBasis. `pe_specific` when the link cites
+   * this PE's own code or a project of it; `program_level` when matched via a
+   * program alias (FY committee reports name PROGRAMS, not PE codes), so the same
+   * provision may legitimately apply to SIBLING PEs in the program. Lets a caller
+   * avoid attributing a program-wide provision solely to this PE.
+   */
+  matchScope: 'pe_specific' | 'program_level';
+  /**
+   * RC7: human-facing attribution caveat, non-null ONLY for `program_level`
+   * links, so a memo never states a program-wide provision as exclusive to this
+   * PE. Null for `pe_specific`.
+   */
+  attributionCaveat: string | null;
 }
 
 /**
@@ -734,17 +748,15 @@ export class ProgramElementReadService {
     );
 
     const detail: Record<string, unknown> = {
-      ...programElement,
-      billCount: mvRows[0]?.billCount ?? null,
-      projectCount,
-      sourceCount,
-      currentCycleFy: cycleRows[0]?.fy ?? null,
       // RC1: canonical labeled funding block for LLM callers (FY + stage +
       // authorization/appropriations vehicle + signed vs-request + NDAA
       // conference surfaced separately), from the SAME shared serializer the
       // timeline tool and outreach truth block use. Web ignores this field.
-      // currentCycleFy above is the catalog-wide mode; the summary uses THIS
+      // The catalog-wide mode currentCycleFy is set below; the summary uses THIS
       // PE's own mark-bearing cycle so its outyear tags are correct.
+      // RC9: kept BEFORE the `...programElement` spread (whose `years` array is
+      // the bulk of the payload) so a record-safe truncation of an oversized
+      // detail keeps the funding summary intact rather than cutting it off the tail.
       fundingSummary: renderPeFundingForModel({
         peCode: programElement.peCode,
         title: programElement.title,
@@ -752,6 +764,11 @@ export class ProgramElementReadService {
         currentCycleFy: currentCycleFyOf(fundingYears),
         years: fundingYears,
       }),
+      ...programElement,
+      billCount: mvRows[0]?.billCount ?? null,
+      projectCount,
+      sourceCount,
+      currentCycleFy: cycleRows[0]?.fy ?? null,
     };
 
     this.detailCache.set(cacheKey, detail);
@@ -1903,9 +1920,16 @@ export class ProgramElementReadService {
     // directly and via program keeps its direct, higher-status row).
     const byProvision = new Map<string, ProvisionItem>();
     const rank = (m: string) => (m === 'pe_code' ? 0 : m === 'project_title' ? 1 : 2);
+    // RC7: pe_code / project_title cite THIS PE (or a project of it); anything
+    // else (program_alias) is a program-level candidate that may apply to sibling
+    // PEs — carry that distinction to the model so a program-wide provision is
+    // never attributed as exclusive to this PE.
+    const scopeOf = (m: string): 'pe_specific' | 'program_level' =>
+      m === 'pe_code' || m === 'project_title' ? 'pe_specific' : 'program_level';
     for (const l of [...directLinks, ...programLinks]) {
       const existing = byProvision.get(l.provision.id);
       if (existing && rank(existing.matchBasis) <= rank(l.matchBasis)) continue;
+      const matchScope = scopeOf(l.matchBasis);
       byProvision.set(l.provision.id, {
         id: l.provision.id,
         committee: l.provision.committee,
@@ -1919,6 +1943,11 @@ export class ProgramElementReadService {
         matchBasis: l.matchBasis,
         reviewStatus: l.reviewStatus,
         confidence: l.confidence,
+        matchScope,
+        attributionCaveat:
+          matchScope === 'program_level'
+            ? 'Program-level match: this provision names a program that maps to this PE, not this PE code directly. It may apply to sibling PEs in the same program — attribute it at the program level, not exclusively to this PE.'
+            : null,
       });
     }
 

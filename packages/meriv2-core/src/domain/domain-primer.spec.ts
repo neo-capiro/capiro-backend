@@ -23,6 +23,11 @@ describe('extractCitedPeCodes', () => {
     expect(codes).toContain('0604041F');
     expect(codes).toContain('5726K99200');
   });
+  it('pulls short-tail and alphanumeric-tail BLINs the old regex missed (RC2)', () => {
+    const codes = extractCitedPeCodes('Buy via line item 1507N2280 and BLIN 3010F10TRGT.');
+    expect(codes).toContain('1507N2280');
+    expect(codes).toContain('3010F10TRGT');
+  });
   it('dedupes and handles no matches', () => {
     expect(extractCitedPeCodes('PE 0207179F and 0207179F again')).toEqual(['0207179F']);
     expect(extractCitedPeCodes('no codes here')).toEqual([]);

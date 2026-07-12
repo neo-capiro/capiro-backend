@@ -108,20 +108,11 @@ export function validatePeAgainstDeliverable(
   return out;
 }
 
-/** Extract distinct PE codes referenced in text (e.g. "PE 0207179F", "0604041F"). */
-export function extractCitedPeCodes(text: string): string[] {
-  if (typeof text !== 'string') return [];
-  const out: string[] = [];
-  const re = /\b(?:PE\s*)?(\d{7}[A-Z]|\d{4}[A-Z]\d{5})\b/g;
-  let m: RegExpExecArray | null;
-  while ((m = re.exec(text)) != null) {
-    const raw = m[1];
-    if (!raw) continue;
-    const code = raw.toUpperCase();
-    if (!out.includes(code)) out.push(code);
-  }
-  return out;
-}
+// Extract distinct PE codes AND procurement line-item codes (BLINs) cited in
+// text. Consolidated into @capiro/shared (RC2) so the accepted code shape can't
+// drift between this generation engine, apps/api and the orchestrator;
+// re-exported here so existing importers are unchanged.
+export { extractCitedPeCodes } from '@capiro/shared';
 
 /** Aggregate PE structural warnings for a generated deliverable. */
 export function collectPeStructuralWarnings(

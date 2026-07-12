@@ -66,4 +66,37 @@ describe('wrapToolResultForPrompt', () => {
     expect(() => wrapToolResultForPrompt('query_tasks', null, 8000)).not.toThrow();
     expect(wrapToolResultForPrompt('query_tasks', null, 8000)).toContain('null');
   });
+
+  it('keeps a within-budget object COMPACT (no token bloat from pretty-printing) — RC9', () => {
+    const wrapped = wrapToolResultForPrompt(
+      'get_pe_budget_timeline',
+      { peCode: '0603851F', fy: 2027 },
+      8000,
+    );
+    expect(wrapped).toContain('{"peCode":"0603851F","fy":2027}'); // compact, not pretty
+    expect(wrapped).not.toContain('\n  "'); // no pretty indentation
+    expect(wrapped).not.toContain('[truncated tool result]');
+  });
+
+  it('truncates a too-large result at a RECORD boundary, never mid-token, with an INCOMPLETE marker — RC9', () => {
+    // A big array of records: compact overflows → pretty + line-safe cut between records.
+    const rows = Array.from({ length: 400 }, (_, i) => ({
+      peCode: `060${String(i).padStart(4, '0')}F`,
+      title: `Program Element number ${i} with a reasonably long descriptive title`,
+      request: 100 + i,
+    }));
+    const wrapped = wrapToolResultForPrompt(
+      'search_program_elements',
+      { tool: 'search', data: rows },
+      4000,
+    );
+    expect(wrapped.length).toBeLessThanOrEqual(4000 + 200); // header + body within budget+header
+    expect(wrapped).toContain('[truncated tool result]');
+    expect(wrapped).toContain('INCOMPLETE');
+    // The body up to the marker must be a structurally-intact prefix: every quote is
+    // balanced (no value chopped mid-string) — i.e. an even number of unescaped quotes.
+    const body = wrapped.slice(0, wrapped.indexOf('…[truncated'));
+    const quotes = (body.match(/"/g) ?? []).length;
+    expect(quotes % 2).toBe(0);
+  });
 });
