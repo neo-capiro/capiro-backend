@@ -10,9 +10,24 @@
  *   pnpm --filter @capiro/api sync:openstates
  * Source: v3.openstates.org/
  * Auth: Free API key. Key in env: OPENSTATES_API_KEY
+ *
+ * Committee sourcing (fixed 2026-07-11): `/people`'s `Person` schema has no
+ * `current_memberships` field — verified against OpenStates' own live
+ * `openapi.json`, whose `/people` `include` enum is only `other_names`,
+ * `other_identifiers`, `links`, `sources`, `offices`. The prior code read
+ * `p.current_memberships` anyway, so `StateLegislator.committees` was always
+ * `[]` and normalize-state-committees.ts (M2.2) had nothing to normalize —
+ * `state_committee_membership` stayed empty for every state. Committee
+ * membership only exists behind the separate `/committees` endpoint
+ * (`include=memberships`, confirmed live against the same openapi.json),
+ * whose `CommitteeMembership` rows carry an optional `person` (CompactPerson)
+ * ref — optional because OpenStates doesn't always resolve a membership back
+ * to a canonical person. A membership with no `person.id` is dropped rather
+ * than matched by name (PD2 — never guess an identity match), and counted so
+ * the gap is visible in logs, not silent.
  */
 import { config as dotenvConfig } from 'dotenv';
-import { PrismaClient } from '@prisma/client';
+import { PrismaClient, Prisma } from '@prisma/client';
 import { runWithSyncRun } from '../src/ingestion/sync-run.helper.js';
 import { ALL_US_STATE_CODES } from '../src/external/legiscan/us-states.js';
 dotenvConfig();
@@ -56,13 +71,28 @@ async function fetchOS<T>(path: string, params: Record<string, string> = {}): Pr
   return null;
 }
 
+export interface PagedFetchResult<T> {
+  rows: T[];
+  /** False when a page failed (fetchOS exhausted retries and returned null) —
+   *  the walk stopped early with INCOMPLETE data, not a genuine end-of-results.
+   *  Callers that overwrite a DB column from this result must treat `false` as
+   *  "unknown", never as "confirmed empty" (PD2 — a fetch failure is not a
+   *  fact about the state's real committee roster). */
+  complete: boolean;
+}
+
 /**
  * Page through an OpenStates v3 list endpoint at the API's max page size.
  * OpenStates rejects per_page>20 with HTTP 400, so we request PER_PAGE rows and
- * walk pages up to MAX_PAGES (or the reported max_page). A null page (error or
- * rate-limit after retries) ends the walk. Returns the flattened results.
+ * walk pages up to MAX_PAGES (or the reported max_page). A failed page (fetchOS
+ * exhausted retries) ends the walk with `complete: false` and whatever rows were
+ * collected so far — distinct from a legitimate empty/final page, which ends the
+ * walk with `complete: true`.
  */
-async function fetchAllPages<T>(path: string, params: Record<string, string> = {}): Promise<T[]> {
+export async function fetchAllPages<T>(
+  path: string,
+  params: Record<string, string> = {},
+): Promise<PagedFetchResult<T>> {
   const all: T[] = [];
   for (let page = 1; page <= MAX_PAGES; page++) {
     await new Promise((r) => setTimeout(r, DELAY_MS));
@@ -71,13 +101,77 @@ async function fetchAllPages<T>(path: string, params: Record<string, string> = {
       per_page: String(PER_PAGE),
       page: String(page),
     });
-    const rows = resp?.results ?? [];
+    if (resp === null) return { rows: all, complete: false };
+    const rows = resp.results ?? [];
     if (!rows.length) break;
     all.push(...rows);
-    const maxPage = resp?.pagination?.max_page ?? page;
+    const maxPage = resp.pagination?.max_page ?? page;
     if (page >= maxPage) break;
   }
-  return all;
+  return { rows: all, complete: true };
+}
+
+// ── Committee membership (OpenStates `/committees?include=memberships`) ────
+// The `Committee` object itself carries no chamber field (only `classification`
+// and `parent_id`, per the live openapi.json) — chamber attribution for the
+// roster stays in normalize-state-committees.ts, taken from the LEGISLATOR's
+// own `chamber` (state_legislator.chamber), same as before this fix. This file
+// only owns the person -> [{name, role}] inversion.
+
+export interface OpenstatesCompactPerson {
+  id: string;
+  name?: string;
+}
+
+export interface OpenstatesCommitteeMembership {
+  person_name: string;
+  role?: string | null;
+  person?: OpenstatesCompactPerson | null;
+}
+
+export interface OpenstatesCommittee {
+  id: string;
+  name: string;
+  classification?: string;
+  memberships?: OpenstatesCommitteeMembership[] | null;
+}
+
+export interface OpenstatesCommitteeEntry {
+  name: string;
+  role: string | null;
+}
+
+export interface InvertCommitteesResult {
+  /** OpenStates person id -> that person's committee assignments. */
+  committeesByPerson: Map<string, OpenstatesCommitteeEntry[]>;
+  /** Memberships with no resolvable `person.id` — real assignments OpenStates
+   *  only carries as free text, dropped rather than name-matched (PD2). */
+  unlinkedCount: number;
+}
+
+/**
+ * Invert a `/committees?include=memberships` page set into a per-person
+ * committee list, matching the `StateLegislator.committees` Json shape
+ * (`[{name, role}]`) that normalize-state-committees.ts already consumes.
+ */
+export function invertOpenstatesCommittees(
+  committees: OpenstatesCommittee[],
+): InvertCommitteesResult {
+  const committeesByPerson = new Map<string, OpenstatesCommitteeEntry[]>();
+  let unlinkedCount = 0;
+  for (const committee of committees) {
+    for (const membership of committee.memberships ?? []) {
+      const personId = membership.person?.id;
+      if (!personId) {
+        unlinkedCount++;
+        continue;
+      }
+      const entries = committeesByPerson.get(personId) ?? [];
+      entries.push({ name: committee.name, role: membership.role ?? null });
+      committeesByPerson.set(personId, entries);
+    }
+  }
+  return { committeesByPerson, unlinkedCount };
 }
 
 async function main() {
@@ -95,11 +189,41 @@ async function main() {
 
       for (const state of PRIORITY_STATES) {
         // Fetch current legislators, paged at the API max (per_page=200 -> 400).
-        const peopleList = await fetchAllPages<any>('/people', { jurisdiction: state });
+        const { rows: peopleList } = await fetchAllPages<any>('/people', { jurisdiction: state });
 
         if (peopleList.length) {
+          // Fetch committee rosters for the same state and invert to person -> committees,
+          // so each legislator upsert below can attach their real assignments.
+          const { rows: committeesList, complete: committeesComplete } =
+            await fetchAllPages<OpenstatesCommittee>('/committees', {
+              jurisdiction: state,
+              include: 'memberships',
+            });
+          const { committeesByPerson, unlinkedCount } = invertOpenstatesCommittees(committeesList);
+          if (committeesList.length) {
+            const linkedCount = [...committeesByPerson.values()].reduce((n, l) => n + l.length, 0);
+            console.log(
+              `[openstates-sync] ${state.toUpperCase()} committees: ${committeesList.length} ` +
+                `(${linkedCount} memberships linked, ${unlinkedCount} unlinked — no resolvable person)`,
+            );
+          }
+          if (!committeesComplete) {
+            // The /committees walk failed part-way through (fetchOS exhausted retries).
+            // committeesByPerson is not a trustworthy picture of "this state has no/fewer
+            // committees" — writing it would overwrite already-correct existing
+            // state_legislator.committees with a false negative. Leave existing rows'
+            // committees untouched this run; only a brand-new legislator (create path,
+            // nothing to overwrite) gets whatever partial data we did collect.
+            console.warn(
+              `[openstates-sync] ${state.toUpperCase()} committees fetch incomplete after ` +
+                `retries — leaving existing state_legislator.committees untouched this run`,
+            );
+          }
+
           for (const p of peopleList) {
             const currentRole = p.current_role;
+            const committees = (committeesByPerson.get(p.id) ??
+              []) as unknown as Prisma.InputJsonValue;
             await prisma.stateLegislator.upsert({
               where: { id: p.id },
               update: {
@@ -111,9 +235,7 @@ async function main() {
                 email: p.email || null,
                 image: p.image || null,
                 url: p.openstates_url || null,
-                committees: (p.current_memberships || [])
-                  .filter((m: any) => m.organization?.classification === 'committee')
-                  .map((m: any) => ({ name: m.organization?.name, role: m.role })),
+                ...(committeesComplete ? { committees } : {}),
                 active: true,
                 syncedAt: new Date(),
               },
@@ -127,9 +249,7 @@ async function main() {
                 email: p.email || null,
                 image: p.image || null,
                 url: p.openstates_url || null,
-                committees: (p.current_memberships || [])
-                  .filter((m: any) => m.organization?.classification === 'committee')
-                  .map((m: any) => ({ name: m.organization?.name, role: m.role })),
+                committees,
               },
             });
             await prisma.entityCrosswalk.upsert({
@@ -158,7 +278,9 @@ async function main() {
   }
 }
 
-main().catch((err) => {
-  console.error('[openstates-sync] FAILED', err);
-  process.exit(1);
-});
+if (require.main === module) {
+  main().catch((err) => {
+    console.error('[openstates-sync] FAILED', err);
+    process.exit(1);
+  });
+}
