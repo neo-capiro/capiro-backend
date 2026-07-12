@@ -1081,9 +1081,102 @@ export class ExplorerService {
         district: l.district,
         party: l.party,
         email: l.email,
+        image: l.image,
         url: l.url,
       })),
       total,
+    };
+  }
+
+  /**
+   * Full profile for one state legislator (State Legislators directory tab).
+   * Committees come from the relational state_committee_membership table
+   * (normalize-state-committees.ts), not the denormalized JSON snapshot on
+   * StateLegislator itself, since the relational rows carry a real committee
+   * id/name to link against.
+   *
+   * Sponsored bills join StateBillSponsor by legiscanPeopleId — the ONLY
+   * reliable key today (legislatorId on state_bill_sponsor is a schema-level
+   * soft ref that ingestion never actually populates). A legislator without a
+   * legiscanPeopleId (never crosswalked — e.g. a state whose bills haven't
+   * been backfilled yet) gets `sponsoredBills: null`, distinct from an empty
+   * array, so the UI can say "not yet linked" instead of implying zero bills.
+   */
+  async stateLegislatorDetail(id: string) {
+    const legislator = await this.prisma.stateLegislator.findUnique({
+      where: { id },
+      include: {
+        committeeMemberships: {
+          include: { committee: true },
+          orderBy: [{ committee: { name: 'asc' } }],
+        },
+      },
+    });
+    if (!legislator) return null;
+    const committeeRows = legislator.committeeMemberships;
+
+    let sponsoredBills: Array<{
+      billId: string;
+      identifier: string;
+      title: string;
+      chamber: string | null;
+      status: string | null;
+      statusAt: string | null;
+      sponsorType: string;
+    }> | null = null;
+    let sponsoredBillsTotal = 0;
+
+    if (legislator.legiscanPeopleId != null) {
+      const [sponsorRows, count] = await Promise.all([
+        this.prisma.stateBillSponsor.findMany({
+          where: { legiscanPeopleId: legislator.legiscanPeopleId },
+          include: {
+            bill: {
+              select: { id: true, identifier: true, title: true, chamber: true, status: true, statusAt: true },
+            },
+          },
+          // nulls: 'last' — bills without a derived status yet (pre-backfill)
+          // must not crowd out actually-dated bills ahead of the take cap.
+          orderBy: [{ bill: { statusAt: { sort: 'desc', nulls: 'last' } } }],
+          take: 25,
+        }),
+        this.prisma.stateBillSponsor.count({
+          where: { legiscanPeopleId: legislator.legiscanPeopleId },
+        }),
+      ]);
+      sponsoredBills = sponsorRows.map((s) => ({
+        billId: s.bill.id,
+        identifier: s.bill.identifier,
+        title: s.bill.title,
+        chamber: s.bill.chamber,
+        status: s.bill.status,
+        statusAt: s.bill.statusAt?.toISOString() ?? null,
+        sponsorType: s.sponsorType,
+      }));
+      sponsoredBillsTotal = count;
+    }
+
+    return {
+      id: legislator.id,
+      name: legislator.name,
+      state: legislator.state,
+      chamber: legislator.chamber,
+      district: legislator.district,
+      party: legislator.party,
+      email: legislator.email,
+      image: legislator.image,
+      url: legislator.url,
+      active: legislator.active,
+      legiscanPeopleId: legislator.legiscanPeopleId,
+      syncedAt: legislator.syncedAt.toISOString(),
+      committees: committeeRows.map((c) => ({
+        id: c.committee.id,
+        name: c.committee.name,
+        chamber: c.committee.chamber,
+        role: c.role,
+      })),
+      sponsoredBills,
+      sponsoredBillsTotal,
     };
   }
 

@@ -446,6 +446,11 @@ export class ExplorerController {
     return this.service.stateLegislatorFacets();
   }
 
+  @Get('state-legislators/:id')
+  stateLegislatorDetail(@Param('id') id: string) {
+    return this.service.stateLegislatorDetail(id);
+  }
+
   /* ── Intel articles (news) ───────────────────────────────────────────── */
 
   @Get('intel-articles')

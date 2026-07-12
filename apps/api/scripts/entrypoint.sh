@@ -122,6 +122,11 @@ case "${1:-serve}" in
     echo "Running diag-tenant-config (read-only: dump a tenant/client configured profile) $*"
     exec ./node_modules/.bin/tsx scripts/diag-tenant-config.ts "$@"
     ;;
+  diag-state-legislator-detail)
+    shift
+    echo "Running diag-state-legislator-detail (read-only: dump a state legislator's full profile) $*"
+    exec ./node_modules/.bin/tsx scripts/diag-state-legislator-detail.ts "$@"
+    ;;
   set-tenant-flag)
     shift
     echo "Running set-tenant-flag (flip a per-tenant clioFeatureFlags rollout flag) $*"

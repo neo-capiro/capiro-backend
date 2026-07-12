@@ -43,6 +43,13 @@ import { getAcquisitionPersonnel, getAcquisitionPersonnelDetail } from '../progr
 import type { AcquisitionPersonnelDetail } from '../program-element/types.js';
 import { DowDirectoryResults, DowPersonDrawer } from './DowDirectoryResults.js';
 import {
+  StateLegislatorResults,
+  StateLegislatorDrawer,
+  type StateLegislatorRow,
+  type StateLegislatorFacets,
+  type StateLegislatorDetail,
+} from './StateLegislatorDirectory.js';
+import {
   type DirectoryApiResponse,
   type DirectoryCommittee,
   type DirectoryCommitteesResponse,
@@ -176,7 +183,9 @@ export function DirectoryPage() {
   const [searchParams, setSearchParams] = useSearchParams();
 
   const [searchText, setSearchText] = useState('');
-  const [mode, setMode] = useState<'members' | 'staffers' | 'committees' | 'dow'>('members');
+  const [mode, setMode] = useState<
+    'members' | 'staffers' | 'committees' | 'dow' | 'state-legislators'
+  >('members');
   const [stafferPage, setStafferPage] = useState(1);
   const [committeePage, setCommitteePage] = useState(1);
   const [committeeChamber, setCommitteeChamber] = useState<
@@ -204,6 +213,7 @@ export function DirectoryPage() {
       setStafferPage(1);
       setCommitteePage(1);
       setDowPage(1);
+      setStateLegPage(1);
     }, SEARCH_DEBOUNCE_MS);
 
     return () => window.clearTimeout(handle);
@@ -348,6 +358,57 @@ export function DirectoryPage() {
     enabled: selectedDowPersonId !== null,
   });
 
+  // ── State Legislators browse mode ────────────────────────────────────────
+  const [stateLegPage, setStateLegPage] = useState(1);
+  const [selectedStateLegId, setSelectedStateLegId] = useState<string | null>(null);
+  const [stateLegStates, setStateLegStates] = useState<string[]>([]);
+  const [stateLegChambers, setStateLegChambers] = useState<string[]>([]);
+  const [stateLegParties, setStateLegParties] = useState<string[]>([]);
+
+  const stateLegFacetsQuery = useQuery({
+    queryKey: ['state-legislator-facets'],
+    queryFn: async () =>
+      (await api.get<StateLegislatorFacets>('/api/explorer/state-legislator-facets')).data,
+    enabled: mode === 'state-legislators',
+    staleTime: 10 * 60_000,
+  });
+
+  const stateLegQuery = useQuery({
+    queryKey: ['state-legislators', query, stateLegStates, stateLegChambers, stateLegParties, stateLegPage],
+    queryFn: async () =>
+      (
+        await api.get<{ rows: StateLegislatorRow[]; total: number }>('/api/explorer/state-legislators', {
+          params: {
+            q: query || undefined,
+            states: stateLegStates.length ? stateLegStates.join(',') : undefined,
+            chambers: stateLegChambers.length ? stateLegChambers.join(',') : undefined,
+            parties: stateLegParties.length ? stateLegParties.join(',') : undefined,
+            page: stateLegPage,
+            pageSize: PAGE_SIZE,
+          },
+        })
+      ).data,
+    enabled: mode === 'state-legislators',
+    staleTime: 5 * 60_000,
+    placeholderData: (previous) => previous,
+    retry: 1,
+  });
+  const stateLegislators = stateLegQuery.data?.rows ?? [];
+  const stateLegTotal = stateLegQuery.data?.total ?? 0;
+  const stateLegPageCurrent = stateLegPage;
+  const stateLegLoading = stateLegQuery.isLoading && !stateLegQuery.data;
+
+  const stateLegDetailQuery = useQuery({
+    queryKey: ['state-legislator-detail', selectedStateLegId],
+    queryFn: async () =>
+      (
+        await api.get<StateLegislatorDetail>(
+          `/api/explorer/state-legislators/${encodeURIComponent(selectedStateLegId as string)}`,
+        )
+      ).data,
+    enabled: selectedStateLegId !== null,
+  });
+
   const entries = directoryQuery.data?.contacts ?? [];
   const totalFiltered = directoryQuery.data?.total ?? 0;
   const currentPage = directoryQuery.data?.page ?? page;
@@ -443,6 +504,7 @@ export function DirectoryPage() {
       <DirectoryStatsRow
         totals={totals}
         dowTotal={dowTotal}
+        stateLegTotal={stateLegTotal}
         loading={initialLoading || directoryUnavailable}
       />
 
@@ -615,7 +677,9 @@ export function DirectoryPage() {
         <Segmented
           value={mode}
           disabled={initialLoading}
-          onChange={(value) => setMode(value as 'members' | 'staffers' | 'committees' | 'dow')}
+          onChange={(value) =>
+            setMode(value as 'members' | 'staffers' | 'committees' | 'dow' | 'state-legislators')
+          }
           options={[
             {
               label: `Members${totals.all ? ` · ${totals.all.toLocaleString()}` : ''}`,
@@ -632,6 +696,10 @@ export function DirectoryPage() {
             {
               label: `DoW Directory${dowTotal ? ` · ${dowTotal.toLocaleString()}` : ''}`,
               value: 'dow',
+            },
+            {
+              label: `State Legislators${stateLegTotal ? ` · ${stateLegTotal.toLocaleString()}` : ''}`,
+              value: 'state-legislators',
             },
           ]}
         />
@@ -653,6 +721,7 @@ export function DirectoryPage() {
             setStafferPage(1);
             setCommitteePage(1);
             setDowPage(1);
+            setStateLegPage(1);
           }}
           placeholder={
             mode === 'staffers'
@@ -661,7 +730,9 @@ export function DirectoryPage() {
                 ? 'Search committees by name or code'
                 : mode === 'dow'
                   ? 'Search DoW directory by name'
-                  : 'Search by name, office, committee, staff, phone, or email'
+                  : mode === 'state-legislators'
+                    ? 'Search state legislators by name or district'
+                    : 'Search by name, office, committee, staff, phone, or email'
           }
         />
         <Typography.Text className="directory-result-count" type="secondary">
@@ -671,7 +742,9 @@ export function DirectoryPage() {
               ? resultCountText(committeeTotal, committeePageCurrent)
               : mode === 'dow'
                 ? resultCountText(dowTotal, dowPageCurrent)
-                : resultCountText(totalFiltered, currentPage)}
+                : mode === 'state-legislators'
+                  ? resultCountText(stateLegTotal, stateLegPageCurrent)
+                  : resultCountText(totalFiltered, currentPage)}
         </Typography.Text>
       </div>
 
@@ -784,6 +857,69 @@ export function DirectoryPage() {
         </div>
       ) : null}
 
+      {mode === 'state-legislators' ? (
+        <div
+          className="dow-filter-bar"
+          style={{ display: 'flex', gap: 10, flexWrap: 'wrap', marginBottom: 12 }}
+        >
+          <Select
+            allowClear
+            mode="multiple"
+            placeholder="State"
+            style={{ minWidth: 180 }}
+            value={stateLegStates}
+            onChange={(value) => {
+              setStateLegStates(value as string[]);
+              setStateLegPage(1);
+            }}
+            options={(stateLegFacetsQuery.data?.states ?? []).map((s) => ({ value: s, label: s }))}
+            maxTagCount="responsive"
+          />
+          <Select
+            allowClear
+            mode="multiple"
+            placeholder="Chamber"
+            style={{ minWidth: 160 }}
+            value={stateLegChambers}
+            onChange={(value) => {
+              setStateLegChambers(value as string[]);
+              setStateLegPage(1);
+            }}
+            options={(stateLegFacetsQuery.data?.chambers ?? []).map((c) => ({
+              value: c,
+              label: c === 'upper' ? 'Senate' : c === 'lower' ? 'House' : c,
+            }))}
+            maxTagCount="responsive"
+          />
+          <Select
+            allowClear
+            mode="multiple"
+            placeholder="Party"
+            style={{ minWidth: 160 }}
+            value={stateLegParties}
+            onChange={(value) => {
+              setStateLegParties(value as string[]);
+              setStateLegPage(1);
+            }}
+            options={(stateLegFacetsQuery.data?.parties ?? []).map((p) => ({ value: p, label: p }))}
+            maxTagCount="responsive"
+          />
+          {stateLegStates.length || stateLegChambers.length || stateLegParties.length ? (
+            <Button
+              type="text"
+              onClick={() => {
+                setStateLegStates([]);
+                setStateLegChambers([]);
+                setStateLegParties([]);
+                setStateLegPage(1);
+              }}
+            >
+              Clear filters
+            </Button>
+          ) : null}
+        </div>
+      ) : null}
+
       {mode === 'committees' ? (
         <div
           className="dow-filter-bar"
@@ -829,6 +965,18 @@ export function DirectoryPage() {
           onPage={setDowPage}
           onSelectPerson={setSelectedDowPersonId}
           onRetry={() => dowQuery.refetch()}
+        />
+      ) : mode === 'state-legislators' ? (
+        <StateLegislatorResults
+          legislators={stateLegislators}
+          loading={stateLegLoading}
+          total={stateLegTotal}
+          page={stateLegPageCurrent}
+          pageSize={PAGE_SIZE}
+          isError={stateLegQuery.isError}
+          onPage={setStateLegPage}
+          onSelect={setSelectedStateLegId}
+          onRetry={() => stateLegQuery.refetch()}
         />
       ) : mode === 'staffers' ? (
         <StafferResults
@@ -1288,6 +1436,13 @@ export function DirectoryPage() {
         onClose={() => setSelectedDowPersonId(null)}
       />
 
+      <StateLegislatorDrawer
+        open={selectedStateLegId !== null}
+        legislator={stateLegDetailQuery.data ?? null}
+        loading={stateLegDetailQuery.isLoading}
+        onClose={() => setSelectedStateLegId(null)}
+      />
+
       <CommitteeStaffDrawer
         open={selectedCommitteeId !== null}
         committee={committeeStaffQuery.data?.committee ?? null}
@@ -1304,10 +1459,12 @@ export function DirectoryPage() {
 function DirectoryStatsRow({
   totals,
   dowTotal,
+  stateLegTotal,
   loading,
 }: {
   totals: DirectoryApiResponse['totals'];
   dowTotal: number;
+  stateLegTotal: number;
   loading: boolean;
 }) {
   const stats: Array<{
@@ -1321,6 +1478,7 @@ function DirectoryStatsRow({
     { label: 'Senate', value: totals.senate, tone: 'notable', icon: <BankOutlined /> },
     { label: 'Staffers', value: totals.staff, tone: 'muted', icon: <TeamOutlined /> },
     { label: 'DoW Directory', value: dowTotal, tone: 'info', icon: <BankOutlined /> },
+    { label: 'State Legislators', value: stateLegTotal, tone: 'notable', icon: <TeamOutlined /> },
   ];
 
   return (
