@@ -16,9 +16,15 @@
  *      interceptor strategy to a fire-control-computer PE (the XM32 / LHMBC
  *      "Computer Ballistics" line is a mortar ballistic computer, not a missile).
  *
- * Pure + dependency-free so it unit-tests under the repo's `src/**.spec.ts`
- * matcher; the orchestrating service supplies the cited PEs + deliverable text.
+ * Pure (no I/O; the only import is the @capiro/shared money formatter) so it
+ * unit-tests under the repo's `src/**.spec.ts` matcher; the orchestrating
+ * service supplies the cited PEs + deliverable text.
+ *
+ * SYNC NOTE: packages/meriv2-core keeps an identical copy in
+ * `packages/meriv2-core/src/verifier/pe-structural.ts` — edit one, edit the other.
  */
+
+import { fmtFundingMillions } from '@capiro/shared';
 
 /** A PE record as returned by the `get_program_element` / search tools. */
 export interface PeRecordForValidation {
@@ -138,14 +144,46 @@ export function validatePeAgainstDeliverable(
 }
 
 /**
+ * A PE dollar figure for size comparisons — $ MILLIONS (the project-wide money
+ * convention), tagged with the fiscal year and stage it came from so the
+ * warning message never presents an unlabeled or cross-vintage comparison
+ * (RC1: every model-visible figure carries its {fy, stage, vehicle}).
+ */
+export interface PeAmountForComparison {
+  peCode: string;
+  title?: string | null;
+  /** $ MILLIONS. */
+  amountM: number | null;
+  /** Fiscal year of the amount (e.g. 2027). Required — comparisons are same-FY only. */
+  fy: number | null;
+  /** Stage the amount came from (e.g. 'HAC-D mark', 'Enacted', 'Request'). */
+  stageLabel?: string | null;
+  /** Legislative vehicle: 'authorization' | 'appropriations' | 'request'. */
+  vehicleLabel?: string | null;
+}
+
+/** "$57.2M (FY27 HAC-D mark — appropriations)" — the labeled figure for messages. */
+function describeComparisonAmount(p: PeAmountForComparison): string {
+  const parts = [
+    p.fy != null ? `FY${String(p.fy).slice(-2)}` : null,
+    p.stageLabel ?? null,
+    p.vehicleLabel ? `— ${p.vehicleLabel}` : null,
+  ].filter(Boolean);
+  return `${fmtFundingMillions(p.amountM)}${parts.length ? ` (${parts.join(' ')})` : ''}`;
+}
+
+/**
  * Flag a "primary funding vehicle" overclaim: the deliverable calls a PE the
  * "primary" lane, but a materially larger sibling PE exists in the same
- * portfolio. `siblings` are (peCode, latestAmount) the caller already retrieved.
+ * portfolio. Comparisons are SAME-FISCAL-YEAR only — a sibling whose figure is
+ * from a different (or unknown) FY is skipped rather than compared — and the
+ * warning renders both sides with their FY + stage + vehicle labels so the
+ * sizes being compared are never ambiguous. Amounts are $ MILLIONS.
  */
 export function validatePrimaryVehicleClaim(
-  citedPe: { peCode: string; latestAmount: number | null },
+  citedPe: PeAmountForComparison,
   deliverableText: string,
-  siblings: Array<{ peCode: string; title?: string | null; latestAmount: number | null }>,
+  siblings: PeAmountForComparison[],
   // A sibling this many times larger makes "primary" indefensible.
   factor = 3,
 ): PeStructuralWarning | null {
@@ -154,14 +192,18 @@ export function validatePrimaryVehicleClaim(
     /\bprimary\b[^.]*\b(vehicle|lane|line|account|program)\b/i.test(text) ||
     /\b(vehicle|lane|line|account|program)\b[^.]*\bprimary\b/i.test(text);
   if (!claimsPrimary) return null;
-  const base = citedPe.latestAmount;
-  if (base == null || base <= 0) return null;
+  const base = citedPe.amountM;
+  // No amount, or no FY to anchor a same-vintage comparison → nothing to assert.
+  if (base == null || base <= 0 || citedPe.fy == null) return null;
   const bigger = siblings
     .filter(
       (s) =>
-        s.peCode !== citedPe.peCode && s.latestAmount != null && s.latestAmount > base * factor,
+        s.peCode !== citedPe.peCode &&
+        s.amountM != null &&
+        s.fy === citedPe.fy && // same-FY comparisons only — never cross-vintage
+        s.amountM > base * factor,
     )
-    .sort((a, b) => (b.latestAmount ?? 0) - (a.latestAmount ?? 0));
+    .sort((a, b) => (b.amountM ?? 0) - (a.amountM ?? 0));
   if (!bigger.length) return null;
   const top = bigger[0];
   if (!top) return null;
@@ -170,15 +212,10 @@ export function validatePrimaryVehicleClaim(
     peCode: citedPe.peCode,
     message:
       `The deliverable frames PE ${citedPe.peCode} as the "primary" vehicle, but PE ${top.peCode}` +
-      `${top.title ? ` (${top.title})` : ''} is materially larger ` +
-      `(${fmtUsdM(top.latestAmount)} vs ${fmtUsdM(base)}). Drop the "primary" framing or ` +
-      `re-anchor to the larger line.`,
+      `${top.title ? ` (${top.title})` : ''} is materially larger in the same fiscal year ` +
+      `(${describeComparisonAmount(top)} vs ${describeComparisonAmount(citedPe)}). Drop the ` +
+      `"primary" framing or re-anchor to the larger line.`,
   };
-}
-
-function fmtUsdM(n: number | null): string {
-  if (n == null) return 'n/a';
-  return `$${(n / 1_000_000).toFixed(2)}M`;
 }
 
 /** Aggregate all PE structural warnings for a deliverable. */

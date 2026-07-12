@@ -3,6 +3,9 @@ import { ConfigService } from '@nestjs/config';
 import { Prisma } from '@prisma/client';
 import {
   SUBMISSION_TRACK_LABELS,
+  currentCycleFyOf,
+  renderPeFundingForModel,
+  type ModelFundingYear,
   type SubmissionTrack,
 } from '@capiro/shared';
 import type { AppConfig } from '../config/config.schema.js';
@@ -91,7 +94,17 @@ const INSIGHTS_SCHEMA = {
         additionalProperties: false,
         required: ['category', 'title', 'body', 'severity', 'suggestedAction', 'dataPoints'],
         properties: {
-          category: { type: 'string', enum: ['market_shift', 'competitive_move', 'regulatory_alert', 'legislative_signal', 'client_opportunity', 'risk_flag'] },
+          category: {
+            type: 'string',
+            enum: [
+              'market_shift',
+              'competitive_move',
+              'regulatory_alert',
+              'legislative_signal',
+              'client_opportunity',
+              'risk_flag',
+            ],
+          },
           title: { type: 'string' },
           body: { type: 'string' },
           severity: { type: 'string', enum: ['info', 'notable', 'critical'] },
@@ -196,6 +209,13 @@ interface PeNarrativeContext {
   hacDMark: string | null;
   sacDMark: string | null;
   conferenceProbability: string | null;
+  /**
+   * RC1: the fully-labeled authoritative funding block (FY + stage +
+   * authorization/appropriations vehicle + signed vs-request + NDAA conference),
+   * rendered from the shared serializer so the briefing prompt never carries a
+   * unit-less, vehicle-less, direction-less dollar figure.
+   */
+  fundingBlock: string;
   changes: Array<{
     id: string;
     severity: string;
@@ -244,7 +264,10 @@ function collectPeCodesFromIntakeData(intakeData: unknown): string[] {
   return [];
 }
 
-function isDefenseProfile(client: { profileType: string | null; sectorTag: string | null }): boolean {
+function isDefenseProfile(client: {
+  profileType: string | null;
+  sectorTag: string | null;
+}): boolean {
   const profileType = (client.profileType ?? '').toLowerCase();
   const sectorTag = (client.sectorTag ?? '').toLowerCase();
   return profileType.includes('defense') || sectorTag.includes('defense');
@@ -260,7 +283,9 @@ function toPeTopSeverity(changes: Array<{ severity: string }>): 'critical' | 'no
 }
 
 function sortBySeverityDesc<T extends { topSeverity: string }>(items: T[]): T[] {
-  return [...items].sort((a, b) => (SEVERITY_WEIGHT[b.topSeverity] ?? 0) - (SEVERITY_WEIGHT[a.topSeverity] ?? 0));
+  return [...items].sort(
+    (a, b) => (SEVERITY_WEIGHT[b.topSeverity] ?? 0) - (SEVERITY_WEIGHT[a.topSeverity] ?? 0),
+  );
 }
 
 function toSafeStringArray(value: unknown): string[] {
@@ -286,9 +311,19 @@ function toIsoOrNull(value: Date | null): string | null {
 function pickStructuredPeStatus(
   parsed: Record<string, unknown>,
   peContextsByCode: Map<string, PeNarrativeContext>,
-): Array<{ peCode: string; title: string; severity: 'critical' | 'notable' | 'info'; narrative: string }> {
+): Array<{
+  peCode: string;
+  title: string;
+  severity: 'critical' | 'notable' | 'info';
+  narrative: string;
+}> {
   const rows = Array.isArray(parsed.programElementStatus) ? parsed.programElementStatus : [];
-  const out: Array<{ peCode: string; title: string; severity: 'critical' | 'notable' | 'info'; narrative: string }> = [];
+  const out: Array<{
+    peCode: string;
+    title: string;
+    severity: 'critical' | 'notable' | 'info';
+    narrative: string;
+  }> = [];
 
   for (const item of rows) {
     const record = toRecord(item);
@@ -316,7 +351,9 @@ function pickStructuredPeStatus(
     });
   }
 
-  return out.sort((a, b) => (SEVERITY_WEIGHT[b.severity] ?? 0) - (SEVERITY_WEIGHT[a.severity] ?? 0));
+  return out.sort(
+    (a, b) => (SEVERITY_WEIGHT[b.severity] ?? 0) - (SEVERITY_WEIGHT[a.severity] ?? 0),
+  );
 }
 
 function getStringFromData(data: Prisma.JsonValue, keys: string[]): string | null {
@@ -351,13 +388,19 @@ function buildPeSuggestedActions(context: {
   if (context.topSeverity === 'critical') {
     actions.push(`Escalate ${context.title} funding delta with same-day principal outreach.`);
   } else if (context.topSeverity === 'notable') {
-    actions.push(`Prepare a 48-hour engagement brief for ${context.title} focused on current committee signals.`);
+    actions.push(
+      `Prepare a 48-hour engagement brief for ${context.title} focused on current committee signals.`,
+    );
   } else {
-    actions.push(`Track ${context.title} change signals daily and refresh talking points before next touchpoint.`);
+    actions.push(
+      `Track ${context.title} change signals daily and refresh talking points before next touchpoint.`,
+    );
   }
 
   if (context.billsInMarkupCount > 0) {
-    actions.push('Prioritize markup-cycle offices tied to active bills and align asks to current bill text.');
+    actions.push(
+      'Prioritize markup-cycle offices tied to active bills and align asks to current bill text.',
+    );
   }
 
   return actions;
@@ -396,16 +439,28 @@ export class InsightGeneratorService {
     if (lobbyCtx) {
       const surge = lobbyCtx.surgingIssues
         .slice(0, 10)
-        .map((s) => `${s.code} (${s.name}): ${s.surgePct != null ? `+${Math.round(s.surgePct)}% QoQ` : 'surging'}`)
+        .map(
+          (s) =>
+            `${s.code} (${s.name}): ${s.surgePct != null ? `+${Math.round(s.surgePct)}% QoQ` : 'surging'}`,
+        )
         .join('\n');
-      const trending = lobbyCtx.trendingTopics.slice(0, 15).map((t) => t.word).join(', ');
-      if (surge) contextParts.push(`SURGING LDA ISSUES (latest quarter: ${lobbyCtx.latestQuarter ?? 'unknown'}):\n${surge}`);
+      const trending = lobbyCtx.trendingTopics
+        .slice(0, 15)
+        .map((t) => t.word)
+        .join(', ');
+      if (surge)
+        contextParts.push(
+          `SURGING LDA ISSUES (latest quarter: ${lobbyCtx.latestQuarter ?? 'unknown'}):\n${surge}`,
+        );
       if (trending) contextParts.push(`TRENDING TERMS IN FILINGS: ${trending}`);
     }
     if (spendCtx?.topAgencyTotals?.length) {
       const agencies = spendCtx.topAgencyTotals
         .slice(0, 8)
-        .map((a) => `${a.name}: ${a.budget ? `$${(a.budget / 1e12).toFixed(1)}T budget` : 'budget unknown'}`)
+        .map(
+          (a) =>
+            `${a.name}: ${a.budget ? `$${(a.budget / 1e12).toFixed(1)}T budget` : 'budget unknown'}`,
+        )
         .join('\n');
       contextParts.push(`TOP FEDERAL AGENCIES BY BUDGET:\n${agencies}`);
     }
@@ -431,7 +486,9 @@ export class InsightGeneratorService {
           title: typeof record.title === 'string' ? record.title : 'Untitled',
           body: typeof record.body === 'string' ? record.body : '',
           severity: typeof record.severity === 'string' ? record.severity : 'info',
-          dataPoints: record.dataPoints ? (record.dataPoints as Prisma.InputJsonValue) : Prisma.JsonNull,
+          dataPoints: record.dataPoints
+            ? (record.dataPoints as Prisma.InputJsonValue)
+            : Prisma.JsonNull,
           expiresAt,
         },
       });
@@ -484,14 +541,35 @@ export class InsightGeneratorService {
     // sector-mapped events now reach this OR branch even without explicit client linkage.
     const changeOrConditions: Record<string, unknown>[] = [{ relatedClientIds: { has: clientId } }];
     if (issueCodes.length) changeOrConditions.push({ relatedIssues: { hasSome: issueCodes } });
-    const changeWhere: Record<string, unknown> = { detectedAt: { gte: yesterday }, OR: changeOrConditions };
+    const changeWhere: Record<string, unknown> = {
+      detectedAt: { gte: yesterday },
+      OR: changeOrConditions,
+    };
 
     // Gather all context in parallel
     const peCodes = Array.from(clientPeCodes);
-    const [lobbyCtx, spendCtx, ldaMatch, recentChanges, upcomingHearings, commentDeadlines, peDetails, peRecentChanges, peMarkupBills] = await Promise.all([
+    const [
+      lobbyCtx,
+      spendCtx,
+      ldaMatch,
+      recentChanges,
+      upcomingHearings,
+      commentDeadlines,
+      peDetails,
+      peRecentChanges,
+      peMarkupBills,
+    ] = await Promise.all([
       this.lobbyIntel.getAiContext().catch(() => null),
       this.federalSpending.getAiContext(client.name).catch(() => null),
-      this.prisma.$queryRaw<Array<{ name: string; total_filings: number; total_spending: number | null; issue_codes: string[]; similarity: number }>>`
+      this.prisma.$queryRaw<
+        Array<{
+          name: string;
+          total_filings: number;
+          total_spending: number | null;
+          issue_codes: string[];
+          similarity: number;
+        }>
+      >`
         SELECT name, total_filings, total_spending, COALESCE(issue_codes, '{}') as issue_codes,
                similarity(name, ${client.name}) as similarity
         FROM lda_client WHERE similarity(name, ${client.name}) > 0.3
@@ -533,6 +611,9 @@ export class InsightGeneratorService {
                   sascMark: true,
                   hacDMark: true,
                   sacDMark: true,
+                  conference: true,
+                  ndaaConference: true,
+                  enacted: true,
                 },
               },
               conferenceProbabilities: {
@@ -596,20 +677,31 @@ export class InsightGeneratorService {
     if (ldaMatch.length) {
       const m = ldaMatch[0]!;
       contextParts.push(`LDA MATCH: ${m.name} (${Math.round(m.similarity * 100)}% confidence)`);
-      contextParts.push(`  Total filings: ${m.total_filings}, Spending: ${m.total_spending ? `$${(m.total_spending / 1e6).toFixed(1)}M` : 'unknown'}`);
-      if (m.issue_codes.length) contextParts.push(`  Active issue areas: ${m.issue_codes.join(', ')}`);
+      contextParts.push(
+        `  Total filings: ${m.total_filings}, Spending: ${m.total_spending ? `$${(m.total_spending / 1e6).toFixed(1)}M` : 'unknown'}`,
+      );
+      if (m.issue_codes.length)
+        contextParts.push(`  Active issue areas: ${m.issue_codes.join(', ')}`);
     }
 
     if (spendCtx?.matchedContractor) {
       const mc = spendCtx.matchedContractor;
-      contextParts.push(`CONTRACTOR: ${mc.name}, Contracts: ${mc.totalContracts ? `$${(mc.totalContracts / 1e9).toFixed(1)}B` : 'unknown'}, Rank: #${mc.rankByContracts ?? 'unknown'}`);
+      contextParts.push(
+        `CONTRACTOR: ${mc.name}, Contracts: ${mc.totalContracts ? `$${(mc.totalContracts / 1e9).toFixed(1)}B` : 'unknown'}, Rank: #${mc.rankByContracts ?? 'unknown'}`,
+      );
       if (mc.topAgencies?.length) {
-        contextParts.push(`  Top agencies: ${mc.topAgencies.slice(0, 5).map((a: { name: string }) => a.name).join(', ')}`);
+        contextParts.push(
+          `  Top agencies: ${mc.topAgencies
+            .slice(0, 5)
+            .map((a: { name: string }) => a.name)
+            .join(', ')}`,
+        );
       }
     }
 
     if (lobbyCtx?.surgingIssues.length) {
-      const surges = lobbyCtx.surgingIssues.slice(0, 5)
+      const surges = lobbyCtx.surgingIssues
+        .slice(0, 5)
         .map((s) => `${s.code} (${s.name}): +${Math.round(s.surgePct ?? 0)}%`)
         .join('; ');
       contextParts.push(`MARKET SURGES: ${surges}`);
@@ -627,25 +719,36 @@ export class InsightGeneratorService {
 
     // Section: What's Coming (14 days)
     if (upcomingHearings.length) {
-      const hearingList = upcomingHearings.map((h) => {
-        const daysOut = Math.ceil((new Date(h.date).getTime() - now.getTime()) / (1000 * 60 * 60 * 24));
-        return `${h.committeeName}, "${h.title.slice(0, 80)}" (in ${daysOut}d, ${h.chamber})`;
-      }).join('\n  ');
+      const hearingList = upcomingHearings
+        .map((h) => {
+          const daysOut = Math.ceil(
+            (new Date(h.date).getTime() - now.getTime()) / (1000 * 60 * 60 * 24),
+          );
+          return `${h.committeeName}, "${h.title.slice(0, 80)}" (in ${daysOut}d, ${h.chamber})`;
+        })
+        .join('\n  ');
       contextParts.push(`UPCOMING HEARINGS (14d):\n  ${hearingList}`);
     }
 
     if (commentDeadlines.length) {
-      const deadlineList = commentDeadlines.map((r) => {
-        const daysLeft = Math.ceil((r.commentEndDate!.getTime() - now.getTime()) / (1000 * 60 * 60 * 24));
-        return `"${r.title.slice(0, 70)}" (${r.type}, ${daysLeft}d left, ${(r.agencyNames as string[]).join('/')})`;
-      }).join('\n  ');
+      const deadlineList = commentDeadlines
+        .map((r) => {
+          const daysLeft = Math.ceil(
+            (r.commentEndDate!.getTime() - now.getTime()) / (1000 * 60 * 60 * 24),
+          );
+          return `"${r.title.slice(0, 70)}" (${r.type}, ${daysLeft}d left, ${(r.agencyNames as string[]).join('/')})`;
+        })
+        .join('\n  ');
       contextParts.push(`COMMENT DEADLINES (14d):\n  ${deadlineList}`);
     }
 
     const peContextByCode = new Map<string, PeNarrativeContext>();
 
-    if (isDefenseProfile({ profileType: client.profileType, sectorTag: client.sectorTag }) && peCodes.length) {
-      const peChangeByCode = new Map<string, Array<typeof peRecentChanges[number]>>();
+    if (
+      isDefenseProfile({ profileType: client.profileType, sectorTag: client.sectorTag }) &&
+      peCodes.length
+    ) {
+      const peChangeByCode = new Map<string, Array<(typeof peRecentChanges)[number]>>();
       for (const change of peRecentChanges) {
         for (const code of change.relatedPeCodes) {
           if (!clientPeCodes.has(code)) continue;
@@ -658,7 +761,7 @@ export class InsightGeneratorService {
         }
       }
 
-      const billByCode = new Map<string, Array<typeof peMarkupBills[number]>>();
+      const billByCode = new Map<string, Array<(typeof peMarkupBills)[number]>>();
       for (const bill of peMarkupBills) {
         for (const code of bill.peCodes) {
           if (!clientPeCodes.has(code)) continue;
@@ -694,6 +797,23 @@ export class InsightGeneratorService {
 
         const latestYear = pe.years[0] ?? null;
         const latestProbability = pe.conferenceProbabilities[0] ?? null;
+        const decOrNull = (v: Prisma.Decimal | null | undefined): number | null =>
+          v == null ? null : Number(v);
+        const fundingYears: ModelFundingYear[] = latestYear
+          ? [
+              {
+                fy: latestYear.fy,
+                request: decOrNull(latestYear.request),
+                hascMark: decOrNull(latestYear.hascMark),
+                sascMark: decOrNull(latestYear.sascMark),
+                hacDMark: decOrNull(latestYear.hacDMark),
+                sacDMark: decOrNull(latestYear.sacDMark),
+                conference: decOrNull(latestYear.conference),
+                ndaaConference: decOrNull(latestYear.ndaaConference),
+                enacted: decOrNull(latestYear.enacted),
+              },
+            ]
+          : [];
         peContextByCode.set(pe.peCode, {
           peCode: pe.peCode,
           title: pe.title,
@@ -705,6 +825,13 @@ export class InsightGeneratorService {
           hacDMark: formatDecimalValue(latestYear?.hacDMark),
           sacDMark: formatDecimalValue(latestYear?.sacDMark),
           conferenceProbability: formatDecimalValue(latestProbability?.predicted),
+          fundingBlock: renderPeFundingForModel({
+            peCode: pe.peCode,
+            title: pe.title,
+            service: pe.service ?? null,
+            currentCycleFy: currentCycleFyOf(fundingYears),
+            years: fundingYears,
+          }),
           changes: peChanges,
           billsInMarkup: bills,
           suggestedActions: buildPeSuggestedActions({
@@ -721,19 +848,25 @@ export class InsightGeneratorService {
         const peBlocks = peContexts.map((pe) => {
           const changeLines = pe.changes
             .slice(0, 8)
-            .map((change) =>
-              `- [${change.severity.toUpperCase()}] ${change.source}/${change.changeType}: ${change.title} ${change.citation}`,
+            .map(
+              (change) =>
+                `- [${change.severity.toUpperCase()}] ${change.source}/${change.changeType}: ${change.title} ${change.citation}`,
             )
             .join('\n');
           const billLines = pe.billsInMarkup.length
             ? pe.billsInMarkup
-                .map((bill) => `- ${bill.billId}: ${bill.title} (${bill.latestActionText ?? 'markup activity'}) ${bill.citation}`)
+                .map(
+                  (bill) =>
+                    `- ${bill.billId}: ${bill.title} (${bill.latestActionText ?? 'markup activity'}) ${bill.citation}`,
+                )
                 .join('\n')
             : '- none';
           const actionLines = pe.suggestedActions.map((action) => `- ${action}`).join('\n');
-          return `PE ${pe.peCode}, ${pe.title}\nservice=${pe.service ?? 'unknown'} fy=${pe.fy ?? 'unknown'} request=${pe.request ?? 'n/a'} hasc=${pe.hascMark ?? 'n/a'} sasc=${pe.sascMark ?? 'n/a'} hac-d=${pe.hacDMark ?? 'n/a'} sac-d=${pe.sacDMark ?? 'n/a'} conference_probability=${pe.conferenceProbability ?? 'n/a'}\n24H_CHANGES:\n${changeLines}\nBILLS_IN_MARKUP:\n${billLines}\nSUGGESTED_ACTIONS:\n${actionLines}`;
+          return `PE ${pe.peCode}, ${pe.title}\nservice=${pe.service ?? 'unknown'} fy=${pe.fy ?? 'unknown'} conference_probability=${pe.conferenceProbability ?? 'n/a'}\n${pe.fundingBlock}\n24H_CHANGES:\n${changeLines}\nBILLS_IN_MARKUP:\n${billLines}\nSUGGESTED_ACTIONS:\n${actionLines}`;
         });
-        contextParts.push(`PROGRAM ELEMENT STATUS (include only these PEs):\n${peBlocks.join('\n\n')}`);
+        contextParts.push(
+          `PROGRAM ELEMENT STATUS (include only these PEs):\n${peBlocks.join('\n\n')}`,
+        );
       }
     }
 
@@ -755,16 +888,25 @@ If PROGRAM ELEMENT STATUS block is absent, return programElementStatus as [] onl
 
     const preferredProvider = this.resolveProvider();
     const peContexts = sortBySeverityDesc(Array.from(peContextByCode.values()));
-    const aiProvider: 'openai' | 'anthropic' = preferredProvider === 'anthropic' ? 'anthropic' : 'openai';
+    const aiProvider: 'openai' | 'anthropic' =
+      preferredProvider === 'anthropic' ? 'anthropic' : 'openai';
     const aiModel = toCheapModel(
       aiProvider === 'openai' ? this.openaiModel : this.anthropicModel,
       aiProvider,
     );
 
-    const result = await this.callAi(prompt, DAILY_BRIEFING_SCHEMA, 'daily_briefing', aiProvider, aiModel);
+    const result = await this.callAi(
+      prompt,
+      DAILY_BRIEFING_SCHEMA,
+      'daily_briefing',
+      aiProvider,
+      aiModel,
+    );
     const parsed = parseJsonObject(result.text);
 
-    const programElementStatus = peContexts.length ? pickStructuredPeStatus(parsed, peContextByCode) : [];
+    const programElementStatus = peContexts.length
+      ? pickStructuredPeStatus(parsed, peContextByCode)
+      : [];
 
     const base = {
       heroSummary: typeof parsed.heroSummary === 'string' ? parsed.heroSummary : '',
@@ -874,52 +1016,74 @@ If PROGRAM ELEMENT STATUS block is absent, return programElementStatus as [] onl
     ]);
 
     const tenantChanges = changes.filter(
-      (c) => c.relatedClientIds.length === 0 || c.relatedClientIds.some((id) => tenantClientIds.has(id)),
+      (c) =>
+        c.relatedClientIds.length === 0 || c.relatedClientIds.some((id) => tenantClientIds.has(id)),
     );
 
-    const todayLabel = now.toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' });
-    const tenantClientList = clients.slice(0, 30).map((c) => c.name).join(', ');
+    const todayLabel = now.toLocaleDateString('en-US', {
+      weekday: 'long',
+      month: 'long',
+      day: 'numeric',
+    });
+    const tenantClientList = clients
+      .slice(0, 30)
+      .map((c) => c.name)
+      .join(', ');
 
-    const hearingsBlock = hearings
-      .slice(0, 8)
-      .map((h) => {
-        const dayLabel = h.date.toDateString() === now.toDateString() ? 'TODAY' : h.date.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' });
-        return `- ${dayLabel} ${h.time ?? ''} ${h.chamber} ${h.committeeName}: ${h.title}`;
-      })
-      .join('\n') || '(none on schedule)';
+    const hearingsBlock =
+      hearings
+        .slice(0, 8)
+        .map((h) => {
+          const dayLabel =
+            h.date.toDateString() === now.toDateString()
+              ? 'TODAY'
+              : h.date.toLocaleDateString('en-US', {
+                  weekday: 'short',
+                  month: 'short',
+                  day: 'numeric',
+                });
+          return `- ${dayLabel} ${h.time ?? ''} ${h.chamber} ${h.committeeName}: ${h.title}`;
+        })
+        .join('\n') || '(none on schedule)';
 
-    const meetingsBlock = meetings
-      .slice(0, 8)
-      .map((m) => {
-        let timeLabel = '';
-        try {
-          timeLabel = m.startsAt.toLocaleTimeString('en-US', {
-            hour: 'numeric',
-            minute: '2-digit',
-            timeZone: 'America/New_York',
-          });
-        } catch {
-          timeLabel = '';
-        }
-        const clientHint = m.clientId && clientNameById.has(m.clientId)
-          ? ` [client: ${clientNameById.get(m.clientId)}]`
-          : '';
-        const where = m.location ? ` @ ${m.location}` : '';
-        const who = m.organizerName ? ` (${m.organizerName})` : '';
-        return `- ${timeLabel} ${m.subject}${who}${where}${clientHint}`;
-      })
-      .join('\n') || '(no meetings on the calendar today)';
+    const meetingsBlock =
+      meetings
+        .slice(0, 8)
+        .map((m) => {
+          let timeLabel = '';
+          try {
+            timeLabel = m.startsAt.toLocaleTimeString('en-US', {
+              hour: 'numeric',
+              minute: '2-digit',
+              timeZone: 'America/New_York',
+            });
+          } catch {
+            timeLabel = '';
+          }
+          const clientHint =
+            m.clientId && clientNameById.has(m.clientId)
+              ? ` [client: ${clientNameById.get(m.clientId)}]`
+              : '';
+          const where = m.location ? ` @ ${m.location}` : '';
+          const who = m.organizerName ? ` (${m.organizerName})` : '';
+          return `- ${timeLabel} ${m.subject}${who}${where}${clientHint}`;
+        })
+        .join('\n') || '(no meetings on the calendar today)';
 
-    const changesBlock = tenantChanges
-      .slice(0, 10)
-      .map((c) => {
-        const tenantTouched = c.relatedClientIds.filter((id) => tenantClientIds.has(id));
-        const clientHint = tenantTouched.length
-          ? ` [touches: ${tenantTouched.map((id) => clientNameById.get(id) ?? id).slice(0, 3).join(', ')}]`
-          : '';
-        return `- [${c.severity.toUpperCase()}] ${c.source}: ${c.title}${clientHint}`;
-      })
-      .join('\n') || '(no high-severity changes detected in last 48h)';
+    const changesBlock =
+      tenantChanges
+        .slice(0, 10)
+        .map((c) => {
+          const tenantTouched = c.relatedClientIds.filter((id) => tenantClientIds.has(id));
+          const clientHint = tenantTouched.length
+            ? ` [touches: ${tenantTouched
+                .map((id) => clientNameById.get(id) ?? id)
+                .slice(0, 3)
+                .join(', ')}]`
+            : '';
+          return `- [${c.severity.toUpperCase()}] ${c.source}: ${c.title}${clientHint}`;
+        })
+        .join('\n') || '(no high-severity changes detected in last 48h)';
 
     if (!hearings.length && !meetings.length && !tenantChanges.length) {
       return {
@@ -970,12 +1134,15 @@ Write the brief now. Start with "Today's leverage is" or similar. Do not include
   }
 
   /** Generate insights from change events */
-  async generateFromChanges(changes: Array<{ source: string; changeType: string; title: string; description: string }>) {
+  async generateFromChanges(
+    changes: Array<{ source: string; changeType: string; title: string; description: string }>,
+  ) {
     if (!changes.length) return { insights: [], message: 'No changes to analyze' };
 
-    const changeList = changes.slice(0, 20).map((c) =>
-      `[${c.source}/${c.changeType}] ${c.title}: ${c.description}`
-    ).join('\n');
+    const changeList = changes
+      .slice(0, 20)
+      .map((c) => `[${c.source}/${c.changeType}] ${c.title}: ${c.description}`)
+      .join('\n');
 
     const prompt = `The following changes were detected in federal government data sources. Identify the 2-4 most actionable intelligence insights for government affairs professionals.\n\nCHANGES:\n${changeList}`;
 
@@ -993,7 +1160,9 @@ Write the brief now. Start with "Today's leverage is" or similar. Do not include
           title: typeof record.title === 'string' ? record.title : 'Untitled',
           body: typeof record.body === 'string' ? record.body : '',
           severity: typeof record.severity === 'string' ? record.severity : 'info',
-          dataPoints: record.dataPoints ? (record.dataPoints as Prisma.InputJsonValue) : Prisma.JsonNull,
+          dataPoints: record.dataPoints
+            ? (record.dataPoints as Prisma.InputJsonValue)
+            : Prisma.JsonNull,
           expiresAt,
         },
       });
@@ -1037,15 +1206,21 @@ Write the brief now. Start with "Today's leverage is" or similar. Do not include
       body: JSON.stringify({ model: this.openaiModel, instructions: SYSTEM_PROMPT, input: prompt }),
     });
     const json = (await res.json()) as Record<string, unknown>;
-    if (!res.ok) throw new ServiceUnavailableException(`OpenAI failed: ${JSON.stringify(json).slice(0, 200)}`);
+    if (!res.ok)
+      throw new ServiceUnavailableException(`OpenAI failed: ${JSON.stringify(json).slice(0, 200)}`);
     return { text: extractOpenAiText(json), provider: 'openai' as const, model: this.openaiModel };
   }
 
   private async callAnthropicFreeText(prompt: string) {
-    if (!this.anthropicKey) throw new ServiceUnavailableException('ANTHROPIC_API_KEY not configured');
+    if (!this.anthropicKey)
+      throw new ServiceUnavailableException('ANTHROPIC_API_KEY not configured');
     const res = await fetchWithTimeout('https://api.anthropic.com/v1/messages', {
       method: 'POST',
-      headers: { 'x-api-key': this.anthropicKey, 'anthropic-version': '2023-06-01', 'Content-Type': 'application/json' },
+      headers: {
+        'x-api-key': this.anthropicKey,
+        'anthropic-version': '2023-06-01',
+        'Content-Type': 'application/json',
+      },
       body: JSON.stringify({
         model: this.anthropicModel,
         max_tokens: 2000,
@@ -1054,8 +1229,15 @@ Write the brief now. Start with "Today's leverage is" or similar. Do not include
       }),
     });
     const json = (await res.json()) as Record<string, unknown>;
-    if (!res.ok) throw new ServiceUnavailableException(`Anthropic failed: ${JSON.stringify(json).slice(0, 200)}`);
-    return { text: extractAnthropicText(json), provider: 'anthropic' as const, model: this.anthropicModel };
+    if (!res.ok)
+      throw new ServiceUnavailableException(
+        `Anthropic failed: ${JSON.stringify(json).slice(0, 200)}`,
+      );
+    return {
+      text: extractAnthropicText(json),
+      provider: 'anthropic' as const,
+      model: this.anthropicModel,
+    };
   }
 
   // ── AI provider abstraction ────────────────────────────────────────────
@@ -1083,7 +1265,12 @@ Write the brief now. Start with "Today's leverage is" or similar. Do not include
     });
   }
 
-  private async callOpenAi(prompt: string, schema: Record<string, unknown>, schemaName: string, modelOverride?: string) {
+  private async callOpenAi(
+    prompt: string,
+    schema: Record<string, unknown>,
+    schemaName: string,
+    modelOverride?: string,
+  ) {
     if (!this.openaiKey) throw new ServiceUnavailableException('OPENAI_API_KEY not configured');
     const res = await fetchWithTimeout('https://api.openai.com/v1/responses', {
       method: 'POST',
@@ -1099,12 +1286,22 @@ Write the brief now. Start with "Today's leverage is" or similar. Do not include
       }),
     });
     const json = (await res.json()) as Record<string, unknown>;
-    if (!res.ok) throw new ServiceUnavailableException(`OpenAI failed: ${JSON.stringify(json).slice(0, 200)}`);
-    return { text: extractOpenAiText(json), provider: 'openai' as const, model: modelOverride ?? this.openaiModel };
+    if (!res.ok)
+      throw new ServiceUnavailableException(`OpenAI failed: ${JSON.stringify(json).slice(0, 200)}`);
+    return {
+      text: extractOpenAiText(json),
+      provider: 'openai' as const,
+      model: modelOverride ?? this.openaiModel,
+    };
   }
 
-  private async callAnthropic(prompt: string, schema: Record<string, unknown>, modelOverride?: string) {
-    if (!this.anthropicKey) throw new ServiceUnavailableException('ANTHROPIC_API_KEY not configured');
+  private async callAnthropic(
+    prompt: string,
+    schema: Record<string, unknown>,
+    modelOverride?: string,
+  ) {
+    if (!this.anthropicKey)
+      throw new ServiceUnavailableException('ANTHROPIC_API_KEY not configured');
     const res = await fetchWithTimeout('https://api.anthropic.com/v1/messages', {
       method: 'POST',
       headers: {
@@ -1117,12 +1314,18 @@ Write the brief now. Start with "Today's leverage is" or similar. Do not include
         max_tokens: 2000,
         system: SYSTEM_PROMPT,
         messages: [
-          { role: 'user', content: `${prompt}\n\nReturn JSON matching this schema:\n${JSON.stringify(schema)}` },
+          {
+            role: 'user',
+            content: `${prompt}\n\nReturn JSON matching this schema:\n${JSON.stringify(schema)}`,
+          },
         ],
       }),
     });
     const json = (await res.json()) as Record<string, unknown>;
-    if (!res.ok) throw new ServiceUnavailableException(`Anthropic failed: ${JSON.stringify(json).slice(0, 200)}`);
+    if (!res.ok)
+      throw new ServiceUnavailableException(
+        `Anthropic failed: ${JSON.stringify(json).slice(0, 200)}`,
+      );
     return {
       text: extractAnthropicText(json),
       provider: 'anthropic' as const,
@@ -1141,7 +1344,8 @@ Write the brief now. Start with "Today's leverage is" or similar. Do not include
   private providerOrder(): Array<'openai' | 'anthropic'> {
     const providers: Array<'openai' | 'anthropic'> = [];
     const add = (p: 'openai' | 'anthropic') => {
-      if ((p === 'openai' ? this.openaiKey : this.anthropicKey) && !providers.includes(p)) providers.push(p);
+      if ((p === 'openai' ? this.openaiKey : this.anthropicKey) && !providers.includes(p))
+        providers.push(p);
     };
     if (this.preferredProvider) add(this.preferredProvider);
     add('openai');

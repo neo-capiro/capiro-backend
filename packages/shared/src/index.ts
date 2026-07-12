@@ -1810,6 +1810,309 @@ export function fundingCurrentStageSql(prefix = ''): string {
 }
 
 // ─────────────────────────────────────────────────────────────────────────
+// PE funding → LLM serialization (RC1). Any payload a model reads MUST tag
+// every dollar figure with its fiscal year, budget stage, the legislative
+// VEHICLE it belongs to (authorization vs appropriations vs the President's
+// request), and its direction vs the request — and must never ship a bare
+// coalesced/stage-less number (the `spark` array, a naked "current") that the
+// model can misread as a chronological trend. These pure renderers are THE one
+// serializer every LLM surface (Meri tools, outreach, memos, the finder→model
+// bridge) routes through, so no surface can invent a divergent, unlabeled
+// framing. Kept in-module (not a separate file) for the Rollup/CJS reason at
+// the top of the funding section; all values are $ MILLIONS.
+// ─────────────────────────────────────────────────────────────────────────
+
+/**
+ * The legislative vehicle a funding figure belongs to. Authorization (NDAA;
+ * HASC/SASC + the NDAA conference report) sets policy and ceilings;
+ * appropriations (HAC-D/SAC-D, the appropriations conference, enacted) provide
+ * money; the request is the President's Budget and is neither.
+ */
+export type FundingVehicle = 'authorization' | 'appropriation' | 'request' | 'none';
+
+/**
+ * Stage → vehicle. The appropriations `conference` rung is the Defense
+ * Appropriations conference/JES (money); the AUTHORIZATION conference (NDAA
+ * conference report) is a SEPARATE value (see NDAA_CONFERENCE_SHORT_LABEL),
+ * deliberately kept OUT of FUNDING_CURRENT_PRECEDENCE and therefore not a
+ * FundingStage — it never becomes the "current" appropriations number.
+ */
+export const FUNDING_STAGE_VEHICLE: Record<FundingStage, FundingVehicle> = {
+  enacted: 'appropriation',
+  conference: 'appropriation',
+  sacd: 'appropriation',
+  hacd: 'appropriation',
+  sasc: 'authorization',
+  hasc: 'authorization',
+  request: 'request',
+  none: 'none',
+};
+
+/** Adjective placed inline next to a figure, e.g. "$51.5M (authorization)". */
+export const FUNDING_VEHICLE_ADJECTIVE: Record<FundingVehicle, string> = {
+  authorization: 'authorization',
+  appropriation: 'appropriations',
+  request: 'request',
+  none: '',
+};
+
+/**
+ * NDAA (authorization-track) conference-report figure — a real number that
+ * lives OUTSIDE the appropriations current-funding ladder. Surfaced under its
+ * own label so it is never narrated as an appropriations "conference" figure or
+ * blended into an appropriations trend (the sample-2 error).
+ */
+export const NDAA_CONFERENCE_SHORT_LABEL = 'NDAA conference report';
+
+/** Compact $ MILLIONS ("$12.5M", "$1.20B", "—" for null). The one funding money formatter. */
+export function fmtFundingMillions(m: number | null | undefined, digits = 1): string {
+  if (m == null || !Number.isFinite(m)) return '—';
+  if (Math.abs(m) >= 1000) return `$${(m / 1000).toFixed(2)}B`;
+  return `$${m.toFixed(digits)}M`;
+}
+
+/** Signed direction vs the request, always with an explicit word (never ambiguous). */
+export function describeDeltaVsRequest(deltaM: number): string {
+  if (deltaM === 0) return 'equal to the request';
+  const dir = deltaM > 0 ? 'above' : 'below';
+  return `${fmtFundingMillions(Math.abs(deltaM))} ${dir} the request`;
+}
+
+/** Minimal per-FY marks needed to decide the current budget cycle. */
+export interface FundingYearMarks {
+  fy: number;
+  request?: number | null;
+  hascMark?: number | null;
+  sascMark?: number | null;
+  hacDMark?: number | null;
+  sacDMark?: number | null;
+  conference?: number | null;
+}
+
+/**
+ * The current budget CYCLE FY = the latest FY carrying any congressional
+ * appropriations/authorization mark; else the latest request-bearing FY; else
+ * null. Congress only marks the year in process, so later FYs are FYDP OUTYEAR
+ * projections and earlier FYs are historical. THE shared rule so the timeline
+ * tool and the outreach/memo truth block label cycles identically. (NDAA
+ * conference is excluded here on purpose — the cycle tracks where the money
+ * process is, and this matches the finder/timeline behavior.)
+ */
+export function currentCycleFyOf(years: readonly FundingYearMarks[]): number | null {
+  const hasMark = (y: FundingYearMarks): boolean =>
+    y.hascMark != null ||
+    y.sascMark != null ||
+    y.hacDMark != null ||
+    y.sacDMark != null ||
+    y.conference != null;
+  const markFys = years.filter(hasMark).map((y) => y.fy);
+  if (markFys.length) return Math.max(...markFys);
+  const reqFys = years.filter((y) => y.request != null).map((y) => y.fy);
+  return reqFys.length ? Math.max(...reqFys) : null;
+}
+
+/** One FY of stage values for the model-facing renderer (ndaaConference optional). */
+export interface ModelFundingYear extends FundingStageValues {
+  fy: number;
+  ndaaConference?: number | null;
+}
+
+export interface ModelFundingInput {
+  peCode: string;
+  title?: string | null;
+  service?: string | null;
+  /** From budgetExhibitType(): "R-1 RDT&E Program Element" / "P-1 procurement line item…". */
+  budgetExhibitType?: string | null;
+  /** Latest mark-bearing FY; computed via currentCycleFyOf when omitted. */
+  currentCycleFy?: number | null;
+  years: ModelFundingYear[];
+}
+
+/**
+ * THE canonical authoritative-funding block every LLM surface renders. Shows
+ * the full FY series (historical → current cycle → outyears), and for each FY
+ * the request plus every mark with its vehicle tag and signed direction vs the
+ * request, the NDAA conference report as a distinct authorization figure, and
+ * the current authoritative appropriations-ladder figure. Grounds any trend or
+ * direction claim so "$112.9M current / $72.1M request" can never be narrated
+ * as a reduction, an appropriations mark can never be attached to the NDAA, and
+ * an outyear projection can never be quoted as "the request".
+ */
+export function renderPeFundingForModel(input: ModelFundingInput): string {
+  const head = [
+    input.peCode,
+    input.title ? `— ${input.title}` : '',
+    input.service ? `(${input.service})` : '',
+    input.budgetExhibitType ? `[${input.budgetExhibitType}]` : '',
+  ]
+    .filter(Boolean)
+    .join(' ');
+
+  const lines: string[] = [
+    'AUTHORITATIVE BUDGET FUNDING (Capiro database — all figures in USD MILLIONS. Every figure is tagged with its fiscal year, budget stage, and legislative vehicle (AUTHORIZATION vs APPROPRIATIONS vs the President’s request). Cite exactly; never infer a direction of change that is not stated here.):',
+    `- ${head}`,
+  ];
+
+  const hasSignal = (y: ModelFundingYear): boolean =>
+    [
+      y.request,
+      y.hascMark,
+      y.sascMark,
+      y.hacDMark,
+      y.sacDMark,
+      y.conference,
+      y.ndaaConference ?? null,
+      y.enacted,
+    ].some((v) => v != null);
+
+  const years = input.years
+    .filter(hasSignal)
+    .slice()
+    .sort((a, b) => a.fy - b.fy);
+  if (!years.length) {
+    lines.push(
+      '- No structured funding rows are on record for this budget line. Do NOT state or estimate any dollar figure; say the funding detail is not available.',
+    );
+    return lines.join('\n');
+  }
+
+  const cycleFy = input.currentCycleFy ?? currentCycleFyOf(years);
+  const cycleTag = (fy: number): string => {
+    if (cycleFy == null) return '';
+    if (fy === cycleFy) return ' [current budget cycle]';
+    if (fy > cycleFy) return ' [OUTYEAR — FYDP projection, NOT the current request]';
+    return ' [historical]';
+  };
+
+  for (const y of years) {
+    const req = y.request;
+    const parts: string[] = [];
+    if (req != null) parts.push(`request ${fmtFundingMillions(req)}`);
+
+    const mark = (v: number | null, short: string, vehicle: FundingVehicle): void => {
+      if (v == null) return;
+      const vs = req != null ? `; ${describeDeltaVsRequest(v - req)}` : '';
+      parts.push(`${short} ${fmtFundingMillions(v)} (${FUNDING_VEHICLE_ADJECTIVE[vehicle]}${vs})`);
+    };
+    mark(y.hascMark, 'HASC mark', 'authorization');
+    mark(y.sascMark, 'SASC mark', 'authorization');
+    if (y.ndaaConference != null) {
+      const vs = req != null ? `; ${describeDeltaVsRequest(y.ndaaConference - req)}` : '';
+      parts.push(
+        `${NDAA_CONFERENCE_SHORT_LABEL} ${fmtFundingMillions(y.ndaaConference)} (authorization${vs})`,
+      );
+    }
+    mark(y.hacDMark, 'HAC-D mark', 'appropriation');
+    mark(y.sacDMark, 'SAC-D mark', 'appropriation');
+    mark(y.conference, 'Appropriations conference', 'appropriation');
+    mark(y.enacted, 'Enacted', 'appropriation');
+
+    // Current authoritative APPROPRIATIONS-ladder figure (NDAA conference is
+    // excluded on purpose — it is authorization, not the current money number).
+    const pick = currentFunding({
+      request: y.request,
+      hascMark: y.hascMark,
+      sascMark: y.sascMark,
+      hacDMark: y.hacDMark,
+      sacDMark: y.sacDMark,
+      conference: y.conference,
+      enacted: y.enacted,
+    });
+    // Only name a distinct "current authoritative figure" once Congress has
+    // acted — a request-only year already shows the request above, and
+    // "(Request — request)" is noise.
+    let cur = '';
+    if (pick.value != null && pick.stage !== 'none' && pick.stage !== 'request') {
+      const vAdj = FUNDING_VEHICLE_ADJECTIVE[FUNDING_STAGE_VEHICLE[pick.stage]];
+      cur = ` Current authoritative figure: ${fmtFundingMillions(pick.value)} (${FUNDING_STAGE_LABEL[pick.stage]}${
+        vAdj ? ` — ${vAdj}` : ''
+      }; ${pick.stage === 'enacted' ? 'enacted' : 'NOT enacted — chambers may differ'}).`;
+    }
+
+    // Every year here passed hasSignal, so `parts` always has ≥1 entry.
+    lines.push(`- FY${String(y.fy).slice(-2)}${cycleTag(y.fy)}: ${parts.join('; ')}.${cur}`);
+  }
+
+  lines.push(
+    '- Rules: authorization figures (HASC/SASC/NDAA conference) set policy and ceilings; appropriations figures (HAC-D/SAC-D/appropriations conference/enacted) provide the money — never present them as one series, and never attach one vehicle’s figure to the other’s bill. An OUTYEAR figure is an FYDP projection, never “the request”. The absence of a mark is not agreement with the request.',
+  );
+  return lines.join('\n');
+}
+
+/** The finder-list row fields needed to build a model-safe funding summary. */
+export interface SearchRowFundingInput {
+  latestCurrent: number | null;
+  latestCurrentFy: number | null;
+  latestCurrentStage: string | null;
+  latestRequest: number | null;
+  latestRequestFy: number | null;
+  latestEnacted: number | null;
+  latestEnactedFy: number | null;
+  /** enacted-vs-request %, already same-FY in the finder query. */
+  deltaPct: number | null;
+}
+
+export interface ModelSearchRowFunding {
+  unit: 'USD millions';
+  current: {
+    value: number;
+    fy: number | null;
+    stage: FundingStage;
+    stageLabel: string;
+    vehicle: FundingVehicle;
+  } | null;
+  request: { value: number; fy: number | null } | null;
+  enacted: { value: number; fy: number | null } | null;
+  enactedVsRequestPct: number | null;
+  /** Signed direction, ONLY when current and request share a fiscal year; else null. */
+  currentVsRequest: string | null;
+  note: string;
+}
+
+/**
+ * Build the model-safe funding summary for ONE finder row (search results). The
+ * finder gives only a single coalesced "current" + request/enacted (not the
+ * per-chamber marks) and its request/current can be from DIFFERENT FYs, so this
+ * labels every figure, computes a current-vs-request direction ONLY when the
+ * fiscal years match, and directs the model to get_pe_budget_timeline for the
+ * full mark-by-mark breakdown. Replaces the bare `spark`/`latestCurrent` the
+ * search tool used to hand the model verbatim.
+ */
+export function buildSearchRowFundingForModel(row: SearchRowFundingInput): ModelSearchRowFunding {
+  const rawStage = (row.latestCurrentStage ?? 'none') as FundingStage;
+  const stage: FundingStage = rawStage in FUNDING_STAGE_VEHICLE ? rawStage : 'none';
+  const current =
+    row.latestCurrent != null
+      ? {
+          value: row.latestCurrent,
+          fy: row.latestCurrentFy,
+          stage,
+          stageLabel: FUNDING_STAGE_LABEL[stage],
+          vehicle: FUNDING_STAGE_VEHICLE[stage],
+        }
+      : null;
+  const request =
+    row.latestRequest != null ? { value: row.latestRequest, fy: row.latestRequestFy } : null;
+  const enacted =
+    row.latestEnacted != null ? { value: row.latestEnacted, fy: row.latestEnactedFy } : null;
+  const sameFy =
+    current != null &&
+    request != null &&
+    current.fy != null &&
+    current.fy === request.fy &&
+    stage !== 'request';
+  return {
+    unit: 'USD millions',
+    current,
+    request,
+    enacted,
+    enactedVsRequestPct: row.deltaPct,
+    currentVsRequest: sameFy ? describeDeltaVsRequest(current!.value - request!.value) : null,
+    note: 'Per-chamber marks are NOT included in search results. Before stating or comparing figures, call get_pe_budget_timeline for the full request / HASC / SASC / HAC-D / SAC-D / conference / enacted breakdown with authorization-vs-appropriations labels. "current" is the furthest-along stage on record (not necessarily enacted); when its fiscal year differs from the request year, do not compute a change between them.',
+  };
+}
+
+// ─────────────────────────────────────────────────────────────────────────
 // AI usage metering (Phase 1 M5.0, H-1 hardening) — lifted from apps/api's
 // engagement/{ai-pricing,ai-usage-parse,ai-usage-record}.ts into
 // `@capiro/shared` so `apps/meriv2-orchestrator` (a SEPARATE app whose chat/
