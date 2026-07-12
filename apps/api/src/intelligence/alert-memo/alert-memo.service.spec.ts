@@ -26,14 +26,22 @@ const FEDERAL_ALERT: AlertMemoAlertInput = {
 function makeDeps(opts: {
   cred?: { apiKey: string; model: string; usedTenantKey: boolean } | null;
   memoryItem?: unknown;
+  billTruthBlock?: () => Promise<unknown>;
 }) {
   const aiUsageEvents: unknown[] = [];
+  const meriAuditLedgerRows: unknown[] = [];
   const prisma = {
     withTenant: jest.fn(async (_tenantId: string, fn: (tx: unknown) => unknown) =>
       fn({
         aiUsageEvent: {
           create: jest.fn(async (args: unknown) => {
             aiUsageEvents.push(args);
+            return args;
+          }),
+        },
+        meriAuditLedger: {
+          create: jest.fn(async (args: unknown) => {
+            meriAuditLedgerRows.push(args);
             return args;
           }),
         },
@@ -53,6 +61,7 @@ function makeDeps(opts: {
   const engagement = {
     createAttachmentFromBuffer: jest.fn(async () => ({ id: 'att-1', fileName: 'memo.docx' })),
     deleteAttachment: jest.fn(async () => undefined),
+    billTruthBlock: jest.fn(opts.billTruthBlock ?? (async () => null)),
   };
   const service = new AlertMemoService(
     credentials as never,
@@ -60,7 +69,7 @@ function makeDeps(opts: {
     engagement as never,
     prisma as never,
   );
-  return { service, prisma, credentials, memory, engagement, aiUsageEvents };
+  return { service, prisma, credentials, memory, engagement, aiUsageEvents, meriAuditLedgerRows };
 }
 
 function jsonResponse(body: unknown, ok = true) {
@@ -198,5 +207,118 @@ describe('AlertMemoService.generate — metering (Phase 1 M5.0)', () => {
       ),
     ).rejects.toThrow(ServiceUnavailableException);
     expect(aiUsageEvents).toHaveLength(0);
+  });
+});
+
+describe('AlertMemoService.generate — live bill re-query (5.2C / RC3 fix)', () => {
+  const originalFetch = global.fetch;
+  const originalAuditorMode = process.env.MERI_AUDITOR_MODE;
+  afterEach(() => {
+    global.fetch = originalFetch;
+    if (originalAuditorMode === undefined) delete process.env.MERI_AUDITOR_MODE;
+    else process.env.MERI_AUDITOR_MODE = originalAuditorMode;
+    jest.restoreAllMocks();
+  });
+
+  const STALE_ALERT: AlertMemoAlertInput = { ...FEDERAL_ALERT, sourceRef: 'hr-8800-119' };
+
+  it('feeds the CURRENT live bill status into the prompt, superseding the frozen alert snapshot', async () => {
+    const { service } = makeDeps({
+      billTruthBlock: async () => ({
+        text: 'authoritative block (unused by the assertion)',
+        raw: { id: 'hr-8800-119', status: 'rule_failed', statusAt: '2026-07-10T00:00:00.000Z' },
+      }),
+    });
+    const fetchMock = jest.fn(async (_url: string, init: { body: string }) =>
+      anthropicTextResponse([
+        {
+          heading: 'Bottom line',
+          paragraphs: [{ text: 'The rule has since failed on the floor.', claimIds: ['c1'] }],
+        },
+      ]),
+    );
+    global.fetch = fetchMock as unknown as typeof fetch;
+
+    await service.generate({ tenantId: 't1', userId: 'u1' } as never, 'client-1', STALE_ALERT, 'Acme Corp');
+
+    const body = JSON.parse(fetchMock.mock.calls[0]![1].body);
+    const prompt: string = body.messages[0].content;
+    // The alert's OWN snapshot ("Rule granted") is still present as history...
+    expect(prompt).toContain('Rule granted');
+    // ...but the live re-query's current status is present and marked authoritative.
+    expect(prompt).toContain('CURRENT status as of memo generation');
+    expect(prompt).toContain('as of 2026-07-10');
+    expect(prompt.toLowerCase()).toContain('failed');
+  });
+
+  it('never calls the live re-query for a hearing-only alert (no bill id to look up)', async () => {
+    const billTruthBlock = jest.fn(async () => null);
+    const { service } = makeDeps({ billTruthBlock });
+    global.fetch = jest.fn(async () => anthropicTextResponse([]));
+
+    await service.generate(
+      { tenantId: 't1', userId: 'u1' } as never,
+      'client-1',
+      { ...FEDERAL_ALERT, sourceType: 'hearing', sourceRef: 'hearing-session-1' },
+      'Acme Corp',
+    );
+
+    expect(billTruthBlock).not.toHaveBeenCalled();
+  });
+
+  it('a live re-query failure never blocks memo generation (best-effort)', async () => {
+    const { service } = makeDeps({
+      billTruthBlock: async () => {
+        throw new Error('congressBill lookup failed');
+      },
+    });
+    global.fetch = jest.fn(async () =>
+      anthropicTextResponse([
+        { heading: 'Bottom line', paragraphs: [{ text: 'Grounded text.', claimIds: ['c1'] }] },
+      ]),
+    );
+
+    const result = await service.generate(
+      { tenantId: 't1', userId: 'u1' } as never,
+      'client-1',
+      STALE_ALERT,
+      'Acme Corp',
+    );
+
+    expect(result.lowConfidence).toBe(false);
+  });
+
+  it('under a live auditor mode, the ledger carries a get_bill_status entry built from the live re-query, not the frozen claim sheet alone', async () => {
+    process.env.MERI_AUDITOR_MODE = 'shadow';
+    const { service, meriAuditLedgerRows } = makeDeps({
+      billTruthBlock: async () => ({
+        text: 'authoritative block',
+        raw: { id: 'hr-8800-119', status: 'rule_failed', statusAt: '2026-07-10T00:00:00.000Z' },
+      }),
+    });
+    global.fetch = jest.fn(async () =>
+      anthropicTextResponse([
+        {
+          heading: 'Bottom line',
+          // Still frames the rule as operative — the auditor's D6 check should
+          // catch this against the LIVE status, which shadow-only logs (never
+          // alters the memo). Includes the ledger's billId token verbatim, same
+          // as the D6 golden fixture, so the check's concernsFailed match fires.
+          paragraphs: [
+            {
+              text: 'Debate on hr-8800-119 is limited and floor consideration is expected to pass.',
+              claimIds: ['c1'],
+            },
+          ],
+        },
+      ]),
+    );
+
+    await service.generate({ tenantId: 't1', userId: 'u1' } as never, 'client-1', STALE_ALERT, 'Acme Corp');
+
+    expect(meriAuditLedgerRows.length).toBe(1);
+    const row = (meriAuditLedgerRows[0] as { data: Record<string, unknown> }).data;
+    expect(row.surface).toBe('alert');
+    expect(row.findingCount).toBeGreaterThan(0);
   });
 });

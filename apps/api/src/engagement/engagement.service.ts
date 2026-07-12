@@ -5758,10 +5758,14 @@ export class EngagementService {
           .catch(() => []),
       ]);
 
+    // Rendered to a compact STRING, not the raw object: PromptSpec v2 only
+    // renders string context values (nonEmptyStr), so an object silently drops.
+    // Same fix as the batch path (generateBatchEmails) — see
+    // renderClientRelationshipSnapshot's other call site.
     return pruneForAi({
       notes: notes.filter((note) => !note.restricted),
       debriefs: debriefs.filter((debrief) => !debrief.restricted),
-      clientContext,
+      clientContext: renderClientRelationshipSnapshot(clientContext),
       recentClientMeetings,
       directoryMatches,
       metadata: mergeJsonObjects(record.metadata, extraMetadata ?? {}),
@@ -5876,7 +5880,14 @@ export class EngagementService {
 
   /** Authoritative bill-truth block (see outreach-context-enrichment). Null if the
    *  bill isn't on record — the caller then keeps the thin client body. */
-  private async billTruthBlock(billId: string): Promise<{ text: string; raw: BillTruth } | null> {
+  /**
+   * Not private: AlertMemoService reuses this for its own live bill-status
+   * re-query (5.2C / RC3 fix — the alert memo's fact sheet arrives pre-digested
+   * from intel-api's Feed and can go stale before the memo is drafted). Same
+   * global, non-RLS tables either way — this stays the single source of truth
+   * rather than a second bill-status query getting built for that surface.
+   */
+  async billTruthBlock(billId: string): Promise<{ text: string; raw: BillTruth } | null> {
     const bill = await this.prisma.congressBill.findUnique({
       where: { id: billId },
       select: {

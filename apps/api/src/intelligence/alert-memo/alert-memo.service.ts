@@ -1,6 +1,11 @@
 import { Injectable, Logger, ServiceUnavailableException } from '@nestjs/common';
 import { Prisma } from '@prisma/client';
-import { recordAiUsageEvent, parseProviderUsage, type TenantContext } from '@capiro/shared';
+import {
+  recordAiUsageEvent,
+  parseProviderUsage,
+  billStatusLabel,
+  type TenantContext,
+} from '@capiro/shared';
 import { runAuditor, type LedgerEntry, type AuditorMode } from '@capiro/meriv2-core';
 import { AiCredentialResolverService } from '../../engagement/ai-credential-resolver.service.js';
 import { EngagementService } from '../../engagement/engagement.service.js';
@@ -70,7 +75,19 @@ export class AlertMemoService {
     clientName: string,
     replaceAttachmentId?: string,
   ): Promise<AlertMemoResult> {
-    const { claims, sources } = buildClaims(alert);
+    // Live bill-status re-query (5.2C / RC3 fix): the alert arrives pre-digested
+    // from intel-api's Feed, which can go stale between alert time and
+    // drafting time. Best-effort — `billTruthBlock` already returns null for a
+    // hearing session id (no matching CongressBill row) or any lookup error is
+    // swallowed, so a failure here never blocks memo generation.
+    const liveBill =
+      alert.sourceType !== 'hearing' && alert.sourceRef
+        ? await this.engagement.billTruthBlock(alert.sourceRef).catch(() => null)
+        : null;
+    const { claims, sources } = buildClaims(
+      alert,
+      liveBill ? { status: liveBill.raw.status, statusAt: liveBill.raw.statusAt } : null,
+    );
     const { steering, memoryFilesUsed } = await this.loadSteering(clientId, clientName);
 
     const cred = await this.credentials.resolveProvider(ctx, 'anthropic');
@@ -117,14 +134,14 @@ export class AlertMemoService {
     // claim-citation grounding gate (verifyGrounded above) which is the primary
     // defense; the auditor adds a second, independent pass over the assembled
     // markdown for classes that gate doesn't cover (vehicle conflation, reversed
-    // funding direction, stale/failed-rule framing, etc). The alert-memo fact
-    // sheet (`claims`) is the only structured, tool-shaped data this surface has
-    // — there's no live get_bill_status/get_pe_budget_timeline call here (the
-    // alert arrives pre-digested from intel-api's Feed) — so it's wired in as a
-    // best-effort ledger entry; the ledger-keyed checks that need a `status` or
-    // `peCode`/`years` shape simply won't fire, while the text-only checks
-    // (numeric direction, vehicle conflation) run regardless. Fully guarded;
-    // never breaks memo generation.
+    // funding direction, stale/failed-rule framing, etc). Since 5.2C (2026-07-12)
+    // a live `get_bill_status`-shaped ledger entry rides alongside the fact
+    // sheet whenever the alert resolves to a real bill (see `liveBill` above),
+    // so `checkFailedRuleFraming`/`checkSponsorExistence`/`checkAsOfFreshness`
+    // are no longer circular against the frozen Feed snapshot; there is still no
+    // PE/procurement data on this surface (the alert Feed is bill/hearing-only),
+    // so PE-keyed checks remain inert here. Fully guarded; never breaks memo
+    // generation.
     const auditorMode = (process.env.MERI_AUDITOR_MODE as AuditorMode | undefined) ?? 'off';
     if (auditorMode !== 'off' && markdown.trim().length > 0) {
       try {
@@ -135,6 +152,19 @@ export class AlertMemoService {
             serialized: JSON.stringify(claims),
             result: { claims },
             rowCount: claims.length,
+          });
+        }
+        if (liveBill) {
+          const b = liveBill.raw;
+          ledgerEntries.push({
+            tool: 'get_bill_status',
+            serialized: liveBill.text,
+            result: {
+              billId: b.id,
+              status: b.status,
+              statusAt: b.statusAt ? new Date(b.statusAt).toISOString() : null,
+              ...(b.sponsorName ? { sponsor: { name: b.sponsorName } } : {}),
+            },
           });
         }
         const verdict = runAuditor({
@@ -326,7 +356,18 @@ export class AlertMemoService {
 
 // ---- pure helpers ----------------------------------------------------------
 
-function buildClaims(alert: AlertMemoAlertInput): {
+function buildClaims(
+  alert: AlertMemoAlertInput,
+  /**
+   * Live bill status re-query (5.2C / RC3 fix), or null when unavailable/not
+   * applicable. When present, added as the LAST (most-recent) status claim so
+   * the model states the CURRENT status rather than narrating only from the
+   * Feed's frozen alert snapshot, which can go stale between alert time and
+   * memo-drafting time (e.g. a rule granted at alert time can fail before the
+   * memo is written).
+   */
+  liveBillStatus?: { status: string | null; statusAt: Date | string | null } | null,
+): {
   claims: Claim[];
   sources: AlertMemoResult['sources'];
 } {
@@ -344,6 +385,12 @@ function buildClaims(alert: AlertMemoAlertInput): {
     );
   if (alert.billDisplayNum || alert.billTitle)
     push(`Bill: ${[alert.billDisplayNum, alert.billTitle].filter(Boolean).join(' — ')}`, alert.url);
+  if (liveBillStatus?.status) {
+    const asOf = liveBillStatus.statusAt ? ` (as of ${String(liveBillStatus.statusAt).slice(0, 10)})` : '';
+    push(
+      `CURRENT status as of memo generation, live-checked and superseding any earlier snapshot above${asOf}: ${billStatusLabel(liveBillStatus.status)}`,
+    );
+  }
   if (alert.committee) push(`Committee: ${alert.committee}`);
   if (alert.hearingTitle) push(`Hearing: ${alert.hearingTitle}`, alert.url);
   if (alert.whyItMatters) push(`Relevance to client: ${alert.whyItMatters}`);

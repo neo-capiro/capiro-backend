@@ -74,11 +74,19 @@ export class MeriContextResolver {
   /**
    * The caller's "My Writing Style" file (memory_items type='user-voice',
    * owner_user_id=userId). Best-effort, same failure contract as loadFirmMemory.
+   *
+   * MUST use withTenantUser, not withTenant: this row is `visibility='user'`
+   * (private), and the Phase 1 owner-aware RLS policy hides it unless
+   * `app.current_user` is set to the caller's own id (see PrismaService's doc
+   * comment). Using plain withTenant here silently returned zero rows for
+   * every GA-chat turn from the moment the 1C policy went live — fixed
+   * 2026-07-12 (Phase 2 audit).
    */
   private async loadUserVoice(tenantId: string, userId: string): Promise<string | undefined> {
     try {
-      const rows = await this.prisma.withTenant(
+      const rows = await this.prisma.withTenantUser(
         tenantId,
+        userId,
         (tx) =>
           tx.$queryRaw<Array<{ sections: unknown }>>`
           SELECT sections_jsonb AS sections

@@ -51,4 +51,31 @@ export class PrismaService extends PrismaClient implements OnModuleDestroy {
       return fn(tx);
     });
   }
+
+  /**
+   * Like {@link withTenant}, but ALSO sets `app.current_user` — mirrors
+   * apps/api/src/prisma/prisma.service.ts's `withTenantUser` EXACTLY (Phase 1,
+   * 1C). Added retroactively (Phase 2 audit, 2026-07-12): this class was never
+   * given the Phase 1 method, so `MeriContextResolver.loadUserVoice` — the ONLY
+   * place in this app reading a private (`visibility='user'`) memory_items row —
+   * had been silently returning zero rows for every GA-chat turn since the 1C
+   * RLS policy went live, because plain `withTenant` never sets
+   * `app.current_user` and the owner-aware policy requires it. See apps/api's
+   * doc comment on its own `withTenantUser` for the general hazard.
+   */
+  async withTenantUser<T>(
+    tenantId: string,
+    userId: string,
+    fn: (tx: Prisma.TransactionClient) => Promise<T>,
+    opts?: { timeoutMs?: number },
+  ): Promise<T> {
+    return this.$transaction(
+      async (tx) => {
+        await tx.$executeRaw`SELECT set_config('app.current_tenant', ${tenantId}, true)`;
+        await tx.$executeRaw`SELECT set_config('app.current_user', ${userId}, true)`;
+        return fn(tx);
+      },
+      opts?.timeoutMs ? { timeout: opts.timeoutMs } : undefined,
+    );
+  }
 }

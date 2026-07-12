@@ -35,4 +35,33 @@ describe('MeriContextResolver', () => {
     const r = new MeriContextResolver(prismaWithUser(null));
     await expect(r.resolve(tc)).rejects.toBeInstanceOf(UnauthorizedException);
   });
+
+  // Regression (Phase 2 audit, 2026-07-12): loadUserVoice used plain withTenant,
+  // which never sets `app.current_user` — the Phase 1 owner-aware RLS policy on
+  // memory_items then hides every `visibility='user'` row, silently zeroing out
+  // the user-voice block on every GA-chat turn. Must go through withTenantUser.
+  it("loads the caller's private user-voice file via withTenantUser (not withTenant)", async () => {
+    const calls: Array<{ tenantId: string; userId: string }> = [];
+    // withTenant is exercised too (firm-soul/compass, in parallel via
+    // Promise.all) — resolves empty rather than throwing.
+    const prisma = {
+      user: { findUnique: async () => ({ id: 'user-9' }) },
+      withTenant: async (_tenantId: string, fn: (tx: unknown) => unknown) =>
+        fn({ $queryRaw: async () => [] }),
+      withTenantUser: async (tenantId: string, userId: string, fn: (tx: unknown) => unknown) => {
+        calls.push({ tenantId, userId });
+        return fn({
+          $queryRaw: async () => [
+            { sections: [{ owner: 'human', heading: 'Tone', body: 'Direct and concise.' }] },
+          ],
+        });
+      },
+    } as unknown as PrismaService;
+
+    const r = new MeriContextResolver(prisma);
+    const ctx = await r.resolve(tc);
+
+    expect(calls).toEqual([{ tenantId: 't1', userId: 'user-9' }]);
+    expect(ctx.userVoice).toContain('Direct and concise.');
+  });
 });
