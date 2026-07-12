@@ -62,12 +62,14 @@ Phases can overlap; sequencing reflects dependencies, not calendar exclusivity. 
 
 Every item here is already built; the task is scheduling, wiring, or a config flip.
 
-| Action | What it unlocks |
-|---|---|
-| Wire the persisted alert-relevance score into `TrackerFeedPanel` (replace hardcoded `order: FeedOrder = 'date'`) | Immediate, real "rank by client impact/deadline/confidence" — blueprint §1.2, no backend work needed |
-| Schedule `emit-clio-alerts` (quiet-client + meeting-prep detection) and `generate-meeting-briefings` via EventBridge | Two of the blueprint's named proactive behaviors (§3.2) go from dead code to live with no build |
-| Decide the PE alert email canary (`PE_ALERT_EMAIL_TENANTS`) and flip it for capiro-internal | Mark-impact-engine alerts start reaching users |
-| Route the existing memory-governance helper functions (`selectForPurge`, `redactSections`, `toManifestRow`) to real API endpoints | First real "forget"/"export" user actions, even before the canonical-ledger consolidation lands |
+**Status as of 2026-07-12 (PR [#426](https://github.com/neo-capiro/capirov2/pull/426)):**
+
+| Action | What it unlocks | Status |
+|---|---|---|
+| Wire the persisted alert-relevance score into `TrackerFeedPanel` (replace hardcoded `order: FeedOrder = 'date'`) | Immediate, real "rank by client impact/deadline/confidence" — blueprint §1.2 | **Deferred, not done.** The hardcoded order is a deliberate LegiWatch v2 "calm design" choice (on-page copy says newest-first; no priority-sort control by design per the code's own comment). Flipping the default would reverse a shipped, reviewed UX decision — flagged as decision #6 below rather than changed silently. |
+| Schedule `emit-clio-alerts` (quiet-client + meeting-prep detection) and `generate-meeting-briefings` via EventBridge | Two of the blueprint's named proactive behaviors (§3.2) go from dead code to live with no build | **Done.** `emit-clio-alerts` registered in `entrypoint.sh` (it existed but was never wired into the container's command dispatch — the true root cause, not just a missing rule). Both `capiro-dev-emit-clio-alerts` (hourly) and `capiro-dev-generate-meeting-briefings` (daily 12:00 UTC) EventBridge rules created and verified live. First manual run of `emit-clio-alerts` surfaced 29 real proactive alerts across all 5 tenants that had been invisible since this logic was built. |
+| Decide the PE alert email canary (`PE_ALERT_EMAIL_TENANTS`) and flip it for capiro-internal | Mark-impact-engine alerts start reaching users | **Done.** Flipped via an out-of-band `capiro-dev-api-migrate` task-def revision (18→19, additive env var only, diffed clean). Verified via dry-run that the canary is now recognized. Real sends ride the existing nightly `run-pe-derive-chain` cron — no forced out-of-cycle send. |
+| Route the existing memory-governance helper functions (`selectForPurge`, `redactSections`, `toManifestRow`) to real API endpoints | First real "forget"/"export" user actions, even before the canonical-ledger consolidation lands | **Partially done.** Added `GET /memory/export` (read-only provenance manifest via `toManifestRow`). Purge/redaction *execution* (`selectForPurge` et al.) deliberately left unwired — the helper file's own comment states retention enforcement was intentionally deferred pending a concrete regulatory trigger ("no regulation yet"); building a live delete path wasn't this plan's call to reverse. Flagged as decision #7 below. |
 
 ### Phase 1 — One memory, one ledger (weeks 1–6)
 
@@ -119,6 +121,8 @@ Workspace is the most visible "core loop" surface and currently the least aligne
 3. **Auditor enforce-first surface.** Confirm outreach + alert-memo as the first surfaces to flip from shadow to enforce, ahead of legacy/GA chat.
 4. **Compliance-assistance timing.** Confirm it stays sequenced in Phase 5 (post core-loop trust work) rather than pulled forward.
 5. **MeriV2 full-chat rollout.** Confirm timeline for moving the remaining tenants off the legacy `meri.service.ts` agent.
+6. **LegiWatch feed sort order.** The blueprint wants alerts ranked by client impact/deadline/confidence; a real weighted score is already computed and stored (`intel_alert.score`) but the feed UI hardcodes newest-first as a deliberate "calm design" choice from the LegiWatch v2 redesign. Worth a real product decision — e.g. an opt-in "Sort: Priority" toggle that doesn't touch the calm default — rather than either silently overriding the shipped design or leaving the computed score permanently unused.
+7. **Memory purge/forget execution.** `memory-governance.helpers.ts`'s own comment says retention enforcement was deliberately deferred ("no regulation yet"). Confirm whether that's still the right call, or whether a scoped version (e.g., a user deleting their own private memory items) should ship now ahead of a broader retention policy.
 
 ---
 
