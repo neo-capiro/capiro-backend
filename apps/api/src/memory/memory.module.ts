@@ -8,6 +8,7 @@ import { MemoryInterviewService } from './memory-interview.service.js';
 import { MemoryCandidateService } from './memory-candidate.service.js';
 import { MeetingNotesCryptoService } from '../engagement/meeting-notes-crypto.service.js';
 import { MemoryController } from './memory.controller.js';
+import { InternalMemoryController } from './internal-memory.controller.js';
 
 /**
  * Institutional Memory module.
@@ -24,7 +25,7 @@ import { MemoryController } from './memory.controller.js';
  */
 @Module({
   imports: [PrismaModule, TenantModule],
-  controllers: [MemoryController],
+  controllers: [MemoryController, InternalMemoryController],
   providers: [
     MemoryStoreService,
     MemoryFkLoader,

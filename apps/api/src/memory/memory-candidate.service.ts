@@ -66,6 +66,11 @@ export class MemoryCandidateService {
     proposedByUserId: string,
     record: MemorySaveRequest,
     isAdmin: boolean,
+    // Additive (Phase 3.4): distinguishes where the candidate originated so the
+    // admin review queue can tell a chat save ('explicit_user') from a Workspace
+    // artifact promotion ('workspace_artifact'). Defaults preserve every existing
+    // caller's behavior exactly.
+    sourceKind: string = 'explicit_user',
   ): Promise<ProposeSaveMemoryResult> {
     const scope: 'personal' | 'firm' = record.scope === 'user_private' ? 'personal' : 'firm';
 
@@ -73,8 +78,10 @@ export class MemoryCandidateService {
     // clio_memory row this save would target? If so, this is a re-save of an
     // existing key, not a fresh fact — record that lineage rather than
     // silently double-writing with no trail.
-    const priorCommitted = await this.prisma.withTenant(tenantId, (tx) =>
-      tx.$queryRaw<Array<{ id: string; committed_memory_id: string | null }>>`
+    const priorCommitted = await this.prisma.withTenant(
+      tenantId,
+      (tx) =>
+        tx.$queryRaw<Array<{ id: string; committed_memory_id: string | null }>>`
         SELECT mc.id, mc.committed_memory_id
         FROM memory_candidate mc
         JOIN clio_memory cm ON cm.id = mc.committed_memory_id
@@ -104,7 +111,7 @@ export class MemoryCandidateService {
           tenant_id, proposed_by, source_kind, scope, payload_jsonb,
           provenance_jsonb, duplicate_of_id, status
         ) VALUES (
-          ${tenantId}::uuid, ${proposedByUserId}::uuid, 'explicit_user', ${scope},
+          ${tenantId}::uuid, ${proposedByUserId}::uuid, ${sourceKind}, ${scope},
           ${JSON.stringify(payload)}::jsonb, ${JSON.stringify(provenance)}::jsonb,
           ${duplicateOfId}::uuid, 'pending'
         )
@@ -202,13 +209,21 @@ export class MemoryCandidateService {
     const findExisting = () =>
       this.prisma.withTenant(tenantId, (tx) =>
         tx.clioMemory.findFirst({
-          where: { tenantId, scope: record.scope, ownerUserId: record.ownerUserId, key: record.key },
+          where: {
+            tenantId,
+            scope: record.scope,
+            ownerUserId: record.ownerUserId,
+            key: record.key,
+          },
           select: { id: true },
         }),
       );
     const updateExisting = (id: string) =>
       this.prisma.withTenant(tenantId, (tx) =>
-        tx.clioMemory.update({ where: { id }, data: { value: record.value, source: record.source, metadata } }),
+        tx.clioMemory.update({
+          where: { id },
+          data: { value: record.value, source: record.source, metadata },
+        }),
       );
 
     let memoryId: string;
@@ -277,7 +292,12 @@ export class MemoryCandidateService {
 
 function payloadToSaveRequest(payload: unknown): MemorySaveRequest {
   const p = payload as Partial<MemorySaveRequest> | null;
-  if (!p || typeof p.key !== 'string' || typeof p.value !== 'string' || typeof p.source !== 'string') {
+  if (
+    !p ||
+    typeof p.key !== 'string' ||
+    typeof p.value !== 'string' ||
+    typeof p.source !== 'string'
+  ) {
     throw new BadRequestException('Malformed memory candidate payload.');
   }
   const scope = p.scope === 'firm' ? 'firm' : 'user_private';

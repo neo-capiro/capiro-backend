@@ -65,12 +65,26 @@ Companion to Ninja's Phase 3 plan. Unlike Phases 2/2.5 (mostly pre-built), Phase
   claim + no-false-positive + empty (3 new; 11/11 workspace spec green).
   Typecheck + nest build clean. (Pre-existing, unrelated: cascade.spec 10-vs-11
   product count + pe-resolver.spec fail on main too — not touched here.)
-- **3.4 — memory write-back — LAST.** New InternalServiceGuard `POST
-  /api/internal/memory/candidates` on apps/api → existing
-  `MemoryCandidateService` (do not touch the candidate engine); clone
-  intel-api's `x-internal-service-secret` client on the workspace side; reuse the
-  MemorySaveRequest shape. Prereq: `INTERNAL_SERVICE_SECRET` on the workspace ECS
-  task def, applied OUT-OF-BAND (CDK↔task-def drift); route fail-closed when unset.
+- **3.4 — memory write-back — DONE (code).** apps/api: new
+  `InternalServiceGuard`-gated `POST /api/internal/memory/candidates`
+  (`InternalMemoryController`) that resolves the Clerk id → Capiro user (fail-
+  closed if none) and calls the EXISTING `MemoryCandidateService.proposeSaveMemory`
+  as a firm-scope, non-admin, `workspace_artifact`-tagged proposal — so it lands
+  'pending' in the existing admin review queue (never auto-committed, never a raw
+  insert). `proposeSaveMemory` got one additive optional `sourceKind` param
+  (default 'explicit_user' — every existing caller unchanged). apps/workspace: a
+  fail-closed `MemoryPromotionClient` (x-internal-service-secret, cloned from
+  intel-api's pattern; throws if the secret is unset — never a silent no-op) +
+  `MemoryPromotionService` + an EXPLICIT user-triggered `POST
+  /workspace-api/drafts/:id/promote-memory` (note-first, draft-context fallback,
+  stable key `workspace-artifact:<draftId>`). Artifact approval and memory
+  promotion stay separate decisions (§6.4). Tests: api controller (fail-closed +
+  firm-scope + workspace_artifact delegation) + workspace client fail-closed +
+  service key/value (10 new; green). Typecheck + nest build clean both apps.
+  ⚠️ DEPLOY PREREQ: `INTERNAL_SERVICE_SECRET` must be set on the
+  `capiro-dev-workspace` task def OUT-OF-BAND (the same secret api/intel-api
+  already share; CDK↔task-def drift discipline). Until then the client is
+  fail-closed → promotion returns 503, nothing else affected.
 
 ## Rollout note
 
@@ -90,4 +104,12 @@ cleanup PR has no migration and no new dependency, so it's a plain image rebuild
   **MET** (3.3).
 - **G1** claim-level grounding reusing Phase 2/2.5's auditor (not a duplicate) —
   **MET** (3.1).
-- **G4** (memory write-back) — pending (3.4).
+- **G4** approved-artifact → memory candidate via Phase 1's real lifecycle (not a
+  bypass insert), promotion separable from artifact approval — **MET (code)** (3.4);
+  live once `INTERNAL_SERVICE_SECRET` is on the workspace task def.
+
+## Phase 3 — COMPLETE (all workstreams landed)
+
+3.5, 3.2, 3.3, 3.1 shipped + deployed; 3.4 code merged (its write-back activates
+when the workspace task-def secret is applied out-of-band). D1 resolved
+gate-less. Exit gates G1/G3/G4/G5/G6 met; G2 N/A by decision.

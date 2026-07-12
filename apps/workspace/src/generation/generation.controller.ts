@@ -1,10 +1,11 @@
 import { Body, Controller, Get, Param, Post, Req, UseGuards } from '@nestjs/common';
 import type { Request } from 'express';
-import { IsArray, IsObject, IsOptional, IsString, MinLength } from 'class-validator';
+import { IsArray, IsObject, IsOptional, IsString, Length, MinLength } from 'class-validator';
 import { TenantGuard } from '../auth/tenant.guard.js';
 import { CurrentTenant } from '../auth/current-tenant.decorator.js';
 import type { WorkspaceTenantContext } from '../auth/tenant-context.js';
 import { GenerationService } from './generation.service.js';
+import { MemoryPromotionService } from './memory-promotion.service.js';
 import type { PeStructuralWarning } from './domain-grounding.helpers.js';
 
 export class GenerateSectionDto {
@@ -22,11 +23,20 @@ export class MeriIntakeDto {
   @IsOptional() @IsString() client?: string;
 }
 
+export class PromoteMemoryDto {
+  /** The firm-memory fact/position to remember. Optional — omitted falls back to
+   *  a lightweight draft-context line (see MemoryPromotionService). */
+  @IsOptional() @IsString() @Length(1, 4000) note?: string;
+}
+
 /** Meri generation endpoints (Phase 6). Tenant-scoped (Sonnet runtime). */
 @Controller('drafts/:draftId')
 @UseGuards(TenantGuard)
 export class GenerationController {
-  constructor(private readonly generation: GenerationService) {}
+  constructor(
+    private readonly generation: GenerationService,
+    private readonly memoryPromotion: MemoryPromotionService,
+  ) {}
 
   /**
    * POST /workspace-api/drafts/:draftId/generate-section
@@ -109,6 +119,23 @@ export class GenerationController {
   @Get('context-used')
   contextUsed(@CurrentTenant() ctx: WorkspaceTenantContext, @Param('draftId') draftId: string) {
     return this.generation.getContextUsed(ctx.tenantId, draftId);
+  }
+
+  /**
+   * POST /workspace-api/drafts/:draftId/promote-memory
+   * Phase 3.4 memory write-back: explicitly promote this artifact's key fact
+   * into FIRM institutional memory (a separate decision from export/approve).
+   * Creates a firm-scope memory_candidate via apps/api's internal endpoint —
+   * it lands 'pending' in the admin review queue (Phase 1 lifecycle), never
+   * auto-committed. Tenant-scoped like every other draft action.
+   */
+  @Post('promote-memory')
+  promoteMemory(
+    @CurrentTenant() ctx: WorkspaceTenantContext,
+    @Param('draftId') draftId: string,
+    @Body() dto: PromoteMemoryDto,
+  ) {
+    return this.memoryPromotion.promoteDraft(ctx.tenantId, ctx.clerkUserId, draftId, dto.note);
   }
 }
 
