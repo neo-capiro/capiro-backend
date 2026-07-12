@@ -809,8 +809,9 @@ Representative checkers (D4b stage→vehicle map; D6 operative-framing lexicon +
 - [ ] Constrained renderer (approved claims + allowed spans); deterministic post-render extraction + semantic diff; JIT freshness in the release verdict; wire per surface.
 - [ ] Chat remains post-hoc (ADR-2); revisit only if measurement shows a post-hoc escape it cannot catch.
 
-**Wave 5 — Continuous audit, observability, release gates — ~1 week, ∥ Wave 2+**
-- [ ] `meri_audit_ledger` stores packets, planned/approved/rendered claims, dependencies, anchors, findings, repair diffs, model/config, latency, cost.
+**Wave 5 — Continuous audit, observability, release gates — 🟡 audit ledger SHIPPED (findings persistence); packets/claims/metrics remain**
+- [x] **`meri_audit_ledger` table + RLS + writer** — Prisma model `MeriAuditLedger` + migration `20260712000000_meri_audit_ledger` (tenant-scoped, FORCE RLS, per-command policies mirroring ai_run; findings in `findings_jsonb`). The legacy-chat shadow auditor now PERSISTS each finding-bearing turn (surface, mode, decision, top severity, finding count, findings, output size) via `withTenant` — so shadow findings are queryable/aggregable for the lexicon tuning that gates the enforce flip. (Extend later to also store packets, planned/approved/rendered claims, dependencies, repair diffs, model/config, latency, cost.)
+- [ ] Full ledger columns (packets/claims/dependencies/anchors/repair diffs/latency/cost); clean-turn sampling for a finding-rate denominator.
 - [ ] Golden fixtures `golden-s1-hr8800-outreach`, `golden-s2-boresight-pe-chat`, `golden-s3-boresight-research` + counterfactual and stale-version variants; adjudication queue distilling every escape/false-positive into a fixture; CloudWatch `Meri/Grounding` metrics + paging; reviewer UI (claim → evidence → source version → recommendation lineage).
 
 **Wave 6 — Generation-path convergence — ~1–2 weeks after kernel stability (ADR-8)**
