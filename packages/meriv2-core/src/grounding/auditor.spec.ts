@@ -6,6 +6,7 @@ import {
   checkVehicleConflation,
   checkFailedRuleFraming,
   checkIdentifierIdentity,
+  checkMemberDistrict,
   type ToolResultLedger,
 } from './auditor';
 
@@ -183,6 +184,40 @@ describe('D7 — procurement line item called a Program Element', () => {
     ]);
     const f = checkIdentifierIdentity('Anchor the memo to PE 3010F10TRGT.', ledger);
     expect(f).toHaveLength(1);
+  });
+});
+
+describe('D11 — member↔district mapping', () => {
+  const repLedger = ledgerWith([
+    {
+      tool: 'get_representation',
+      serialized: '{"facilities":[{"district":"AL-05","member":"Dale Strong"}]}',
+      result: { facilities: [{ district: 'AL-05' }] },
+    },
+  ]);
+  it('flags a district asserted WITHOUT any representation lookup (the S3-1 class)', () => {
+    const f = checkMemberDistrict(
+      'Rep. Rogers represents AL-03, the district containing the plant.',
+      ledgerWith([]),
+    );
+    expect(f).toHaveLength(1);
+    expect(f[0]!.check).toBe('D11');
+    expect(f[0]!.severity).toBe('critical');
+  });
+  it('flags a district the representation lookup did NOT return', () => {
+    const f = checkMemberDistrict('The client is represented by the member for TX-23.', repLedger);
+    expect(f).toHaveLength(1);
+  });
+  it('does NOT flag a district that get_representation returned', () => {
+    expect(
+      checkMemberDistrict(
+        'Rep. Dale Strong represents AL-05 [S:get_representation:AL-05].',
+        repLedger,
+      ),
+    ).toEqual([]);
+  });
+  it('abstains when there is no representation claim in the sentence', () => {
+    expect(checkMemberDistrict('The AL-05 figure is $50M.', ledgerWith([]))).toEqual([]);
   });
 });
 
