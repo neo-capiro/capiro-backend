@@ -40,6 +40,7 @@ import {
 import { ClientPeopleService, type CreatePersonInput } from '../clients/client-people.service.js';
 import { MemoryIngestService } from '../memory/memory-ingest.service.js';
 import { MemoryCandidateService } from '../memory/memory-candidate.service.js';
+import { MemoryStoreService } from '../memory/memory-store.service.js';
 import {
   ClientFacilitiesService,
   type CreateFacilityInput,
@@ -127,7 +128,22 @@ export const TOOL_DEFINITIONS = [
   {
     name: 'search_memory',
     description:
-      'Semantic search over the firm\'s institutional memory (memory items: client hubs, meetings, email threads, distilled Meri sessions, analyst notes). Finds relevant memory by MEANING, not just keywords — use for "what do we know about X", "have we discussed Y before", "find past context on Z". Returns the top matching memory items with a relevance score. Tenant + own-private scoped.',
+      'Semantic search over the firm\'s institutional memory (memory items: client hubs, meetings, email threads, distilled Meri sessions, analyst notes). Finds relevant memory by MEANING, not just keywords — use for "what do we know about X", "have we discussed Y before", "find past context on Z". Returns the top matching memory items, each with a relevance score and a `memoryItemId` you can pass to confirm_memory / correct_memory / forget_memory. Tenant + own-private scoped.',
+  },
+  {
+    name: 'confirm_memory',
+    description:
+      "Re-affirm that a remembered fact is still true and current, resetting its confirmation date. Use when the user verifies something Meri remembers (\"yes, that's still right\"). Pass the memoryItemId from search_memory. Does not change the content.",
+  },
+  {
+    name: 'correct_memory',
+    description:
+      'Correct a remembered fact: supersede it with new content while preserving the prior version as history. The old memory is retired from recall and the new one takes its place. Use when the user says a remembered fact is wrong or outdated ("actually it\'s X now"). Pass the memoryItemId from search_memory plus the corrected content.',
+  },
+  {
+    name: 'forget_memory',
+    description:
+      'Forget a remembered fact: stop recalling it immediately and remove it from Meri\'s memory (a recoverable soft-delete with an audit trail). Use when the user asks Meri to forget something. Pass the memoryItemId from search_memory. Refuses if the item is under a legal hold.',
   },
   {
     name: 'search_congress_bills',
@@ -434,6 +450,9 @@ const SIDE_EFFECTING_TOOLS: ReadonlySet<string> = new Set<string>([
   'send_email',
   'reply_email',
   'save_memory',
+  'confirm_memory',
+  'correct_memory',
+  'forget_memory',
   'create_word',
   'create_excel',
   'create_powerpoint',
@@ -498,6 +517,7 @@ export class MeriToolsService {
     private readonly clients: ClientsService,
     private readonly memoryIngest: MemoryIngestService,
     private readonly memoryCandidates: MemoryCandidateService,
+    private readonly memoryStore: MemoryStoreService,
   ) {}
 
   manifest() {
@@ -599,6 +619,26 @@ export class MeriToolsService {
           k: int('Max results (1-15, default 8)'),
         },
         ['query'],
+      ),
+      confirm_memory: obj(
+        {
+          memoryItemId: str('The memoryItemId returned by search_memory'),
+        },
+        ['memoryItemId'],
+      ),
+      correct_memory: obj(
+        {
+          memoryItemId: str('The memoryItemId returned by search_memory'),
+          newContent: str('The corrected content that should replace the old memory'),
+        },
+        ['memoryItemId', 'newContent'],
+      ),
+      forget_memory: obj(
+        {
+          memoryItemId: str('The memoryItemId returned by search_memory'),
+          reason: str('Optional short reason for the audit trail'),
+        },
+        ['memoryItemId'],
       ),
       search_congress_bills: obj({
         query: str('Keyword search, or a bill designation/id ("H.R. 8800", "119-hr-8800")'),
@@ -1422,6 +1462,12 @@ export class MeriToolsService {
         return this.replyEmail(ctx, input);
       case 'save_memory':
         return this.saveMemory(ctx, input);
+      case 'confirm_memory':
+        return this.confirmMemoryTool(input);
+      case 'correct_memory':
+        return this.correctMemoryTool(input);
+      case 'forget_memory':
+        return this.forgetMemoryTool(input);
       case 'search_program_elements':
         return this.searchProgramElements(ctx, input);
       case 'get_program_element':
@@ -1518,6 +1564,35 @@ export class MeriToolsService {
       value: record.value,
       message: 'Saved to long-term memory; I will recall this in future conversations.',
     };
+  }
+
+  // ── Phase 1 (1D) memory verbs — thin wrappers over MemoryStoreService.
+  // Scoping/RLS/legal-hold/audit all live in the store; these only parse
+  // input + shape the model-facing result. Available on both chat surfaces
+  // (legacy dispatch + MeriV2 delegated write tool).
+  private async confirmMemoryTool(input: Record<string, unknown>) {
+    const memoryItemId = requiredString(input, 'memoryItemId', 80);
+    const r = await this.memoryStore.confirmMemory(memoryItemId);
+    if (!r.found) return { confirmed: false, message: 'No such memory (it may have been forgotten or you may not have access).' };
+    return { confirmed: true, title: r.title, message: `Confirmed "${r.title}" is still current.` };
+  }
+
+  private async correctMemoryTool(input: Record<string, unknown>) {
+    const memoryItemId = requiredString(input, 'memoryItemId', 80);
+    const newContent = requiredString(input, 'newContent', 4000);
+    const r = await this.memoryStore.correctMemory(memoryItemId, newContent);
+    if (!r.found) return { corrected: false, message: 'No such memory to correct.' };
+    if (r.blockedByLegalHold) return { corrected: false, legalHold: true, message: `"${r.title}" is under a legal hold and cannot be changed.` };
+    return { corrected: true, title: r.title, newMemoryItemId: r.newItemId, message: `Corrected "${r.title}"; the prior version is preserved as history.` };
+  }
+
+  private async forgetMemoryTool(input: Record<string, unknown>) {
+    const memoryItemId = requiredString(input, 'memoryItemId', 80);
+    const reason = optionalString(input, 'reason', 400);
+    const r = await this.memoryStore.forgetMemory(memoryItemId, reason ?? undefined);
+    if (!r.found) return { forgotten: false, message: 'No such memory (it may already be forgotten or you may not have access).' };
+    if (r.blockedByLegalHold) return { forgotten: false, legalHold: true, message: `"${r.title}" is under a legal hold and cannot be forgotten; it is preserved for compliance.` };
+    return { forgotten: true, title: r.title, message: `Forgotten "${r.title}". I will no longer recall it.` };
   }
 
   private async getClientContext(ctx: TenantContext, input: Record<string, unknown>) {
@@ -1729,9 +1804,10 @@ export class MeriToolsService {
         results: [],
       };
     }
-    const rows = await this.prisma.withTenant(ctx.tenantId, (tx) =>
+    const rows = await this.prisma.withTenantUser(ctx.tenantId, ctx.userId, (tx) =>
       tx.$queryRawUnsafe<
         Array<{
+          id: string;
           type: string;
           slug: string;
           title: string;
@@ -1739,13 +1815,17 @@ export class MeriToolsService {
           score: number;
         }>
       >(
-        `SELECT mi.type, mi.slug, mi.title, mi.client_id,
+        // Recall surfaces only ACTIVE memory (excludes superseded corrections
+        // and revoked/forgotten items — Phase 1, 1C/1D). owner filter stays as
+        // defense-in-depth alongside the 1C RLS predicate.
+        `SELECT mi.id, mi.type, mi.slug, mi.title, mi.client_id,
                 1 - (ce.embedding <=> '${literal}'::vector) AS score
            FROM context_embeddings ce
            JOIN memory_items mi ON mi.id::text = ce.source_id
           WHERE ce.source_type = 'memory_item'
             AND ce.tenant_id = $1::uuid
             AND (mi.owner_user_id IS NULL OR mi.owner_user_id = $2::uuid)
+            AND mi.status = 'active'
           ORDER BY ce.embedding <=> '${literal}'::vector
           LIMIT ${k}`,
         ctx.tenantId,
@@ -1763,6 +1843,7 @@ export class MeriToolsService {
       summary: `${rows.length} memory item(s) most relevant to "${query}":`,
       results: rows.map((r) => ({
         id: `${r.type}:${r.slug}`,
+        memoryItemId: r.id,
         type: r.type,
         title: r.title,
         clientId: r.client_id,

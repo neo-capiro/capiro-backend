@@ -56,6 +56,24 @@ export const WRITE_DELEGATED_TOOLS: readonly DelegatedToolSpec[] = [
     readOnly: false,
   },
   {
+    name: 'confirm_memory',
+    description:
+      "Re-affirm that a remembered fact is still true and current, resetting its confirmation date. Use when the user verifies something Meri remembers (\"yes, that's still right\"). Pass the memoryItemId from search_memory. Does not change the content.",
+    readOnly: false,
+  },
+  {
+    name: 'correct_memory',
+    description:
+      'Correct a remembered fact: supersede it with new content while preserving the prior version as history. The old memory is retired from recall and the new one takes its place. Use when the user says a remembered fact is wrong or outdated ("actually it\'s X now"). Pass the memoryItemId from search_memory plus the corrected content.',
+    readOnly: false,
+  },
+  {
+    name: 'forget_memory',
+    description:
+      "Forget a remembered fact: stop recalling it immediately and remove it from Meri's memory (a recoverable soft-delete with an audit trail). Use when the user asks Meri to forget something. Pass the memoryItemId from search_memory. Refuses if the item is under a legal hold.",
+    readOnly: false,
+  },
+  {
     name: 'create_word',
     description:
       'Generate a downloadable Microsoft Word (.docx) document from a structured spec (title, optional subtitle, and sections with paragraphs, bullets, and tables). Use when the user asks for a Word doc, memo, report, or briefing as a file.',

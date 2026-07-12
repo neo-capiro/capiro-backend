@@ -125,6 +125,12 @@ export const PROPOSED_CAPIRO_RULES: readonly ComplianceRule[] = [
       [
         'save_note',
         'save_memory',
+        // Memory verbs (Phase 1, 1D) — internal, reversible (forget is a soft
+        // delete; correct preserves history via supersession), user-initiated.
+        // Parity with legacy chat, where they execute with no gate.
+        'confirm_memory',
+        'correct_memory',
+        'forget_memory',
         'create_task',
         'update_task',
         'create_word',

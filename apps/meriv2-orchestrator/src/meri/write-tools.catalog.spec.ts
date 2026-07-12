@@ -12,6 +12,9 @@ const EXPECTED_WRITE_TOOLS = [
   'send_email',
   'reply_email',
   'save_memory',
+  'confirm_memory',
+  'correct_memory',
+  'forget_memory',
   'create_word',
   'create_excel',
   'create_powerpoint',
@@ -23,10 +26,10 @@ const EXPECTED_WRITE_TOOLS = [
 ].sort();
 
 describe('WRITE_DELEGATED_TOOLS catalog', () => {
-  it('matches apps/api SIDE_EFFECTING_TOOLS exactly (14 tools)', () => {
+  it('matches apps/api SIDE_EFFECTING_TOOLS exactly (17 tools)', () => {
     const names = WRITE_DELEGATED_TOOLS.map((t) => t.name).sort();
     expect(names).toEqual(EXPECTED_WRITE_TOOLS);
-    expect(WRITE_DELEGATED_TOOLS).toHaveLength(14);
+    expect(WRITE_DELEGATED_TOOLS).toHaveLength(17);
   });
 
   it('is ALL write (readOnly:false) — the gate must fire for every one', () => {
