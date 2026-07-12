@@ -1,5 +1,6 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
+import { Prisma } from '@prisma/client';
 import {
   computeActionFingerprint,
   KeywordIntentRouter,
@@ -123,7 +124,7 @@ export class ChatAssistantService {
     // deliverables), so build the result in one place. finalize also fires the
     // shadow auditor (fire-and-forget, like meterRound) so every exit is covered.
     const finalize = (reply: string): ChatResult => {
-      void this.auditReplyShadow(reply, ledgerEntries);
+      void this.auditReplyShadow(ctx.tenantId, reply, ledgerEntries);
       return {
         reply,
         steps,
@@ -244,11 +245,18 @@ export class ChatAssistantService {
    * meterRound), so every loop exit is covered without blocking the reply. It
    * re-derives ground truth from the turn's tool-result ledger and LOGS any
    * contradiction (reversed direction, failed-rule-as-operative, LI-as-PE,
-   * unresolved citation) WITHOUT altering the reply. Log-only here — the GA chat
-   * is the default/highest-traffic surface, so its findings surface in
-   * CloudWatch for shadow tuning. Fully guarded; never affects the response.
+   * unresolved citation) WITHOUT altering the reply — the GA chat is the
+   * default/highest-traffic surface, so its findings matter most for shadow
+   * tuning. Findings ALSO persist to meri_audit_ledger (the orchestrator shares
+   * apps/api's generated Prisma client + DB — see PrismaService's own doc
+   * comment — so this is the SAME table the other 4 surfaces already write to).
+   * Fully guarded; never affects the response.
    */
-  private async auditReplyShadow(reply: string, ledgerEntries: LedgerEntry[]): Promise<void> {
+  private async auditReplyShadow(
+    tenantId: string,
+    reply: string,
+    ledgerEntries: LedgerEntry[],
+  ): Promise<void> {
     const mode = (process.env.MERI_AUDITOR_MODE as AuditorMode | undefined) ?? 'off';
     if (mode === 'off' || !reply || reply.trim().length === 0) return;
     try {
@@ -263,6 +271,20 @@ export class ChatAssistantService {
           `[meri-auditor:${mode}] GA chat — ${verdict.findings.length} finding(s), ` +
             `top=${verdict.topSeverity}, decision=${verdict.decision}: ` +
             verdict.findings.map((f) => `${f.check}/${f.severity}`).join(', '),
+        );
+        await this.prisma.withTenant(tenantId, (tx) =>
+          tx.meriAuditLedger.create({
+            data: {
+              tenantId,
+              surface: 'chat',
+              mode,
+              decision: verdict.decision,
+              topSeverity: verdict.topSeverity ?? null,
+              findingCount: verdict.findings.length,
+              findings: verdict.findings as unknown as Prisma.InputJsonValue,
+              outputChars: reply.length,
+            },
+          }),
         );
       }
     } catch (err) {
