@@ -8,6 +8,7 @@ import {
   meriGroundingDateBlock,
   type TenantContext,
 } from '@capiro/shared';
+import { runAuditor, type LedgerEntry, type AuditorMode } from '@capiro/meriv2-core';
 import type { AppConfig } from '../config/config.schema.js';
 import { PrismaService } from '../prisma/prisma.service.js';
 import { MeriToolsService } from './meri-tools.service.js';
@@ -732,6 +733,10 @@ export class MeriService {
     // markup status) the model saw — not the thin title+snippet stub that caused
     // the "18 of 18 claims unbacked" false-negative.
     const groundingByN = new Map<number, string>();
+    // Wave-2 post-hoc auditor ledger: every tool result this turn (name +
+    // serialized text + parsed payload + row count), accumulated across rounds so
+    // the auditor can re-derive ground truth after the reply is finalized.
+    const ledgerEntries: LedgerEntry[] = [];
     let finalCitations: MeriCitation[] = [];
     let pageWritePayload: { subject?: string; body?: string } | null = null;
     let aborted = false;
@@ -1150,6 +1155,18 @@ export class MeriService {
             is_error: isError,
             content: toolContent,
           });
+          // Wave-2 ledger: capture successful results for the post-hoc auditor
+          // (errors carry no ground truth). `toolContent` is the exact serialized
+          // text the model saw; `resultPayload` is the parsed object for
+          // structured checks (D6 status, D7 identifierKind).
+          if (!isError) {
+            ledgerEntries.push({
+              tool: t.name,
+              serialized: toolContent,
+              result: resultPayload,
+              rowCount: count ?? undefined,
+            });
+          }
         }
         messages.push({ role: 'user', content: toolResultBlocks });
         traceRounds.push({
@@ -1218,6 +1235,36 @@ export class MeriService {
       }
       if (used.length) {
         sse.write(`data: ${JSON.stringify({ type: 'citations', citations: used })}\n\n`);
+      }
+    }
+
+    // Wave-2 post-hoc grounding auditor — SHADOW by default (MERI_AUDITOR_MODE
+    // unset/off = no-op). In shadow it re-derives ground truth from this turn's
+    // tool-result ledger and LOGS any contradiction (reversed vehicle, operative
+    // framing of a failed rule, a procurement line called a "PE", an unresolved
+    // citation) WITHOUT altering the streamed reply. Enforcement is a per-surface
+    // flag flip after a shadow cycle. Fully guarded so an auditor bug can never
+    // break chat. `runAuditor` short-circuits when mode is 'off'.
+    const auditorMode = (process.env.MERI_AUDITOR_MODE as AuditorMode | undefined) ?? 'off';
+    if (auditorMode !== 'off' && assistantContent.trim().length > 0) {
+      try {
+        const verdict = runAuditor({
+          output: assistantContent,
+          ledger: { entries: ledgerEntries },
+          surface: 'chat',
+          mode: auditorMode,
+        });
+        if (verdict.findings.length > 0) {
+          this.logger.warn(
+            `[meri-auditor:${auditorMode}] chat turn — ${verdict.findings.length} finding(s), ` +
+              `top=${verdict.topSeverity}, decision=${verdict.decision}: ` +
+              verdict.findings.map((f) => `${f.check}/${f.severity}`).join(', '),
+          );
+        }
+      } catch (err) {
+        this.logger.warn(
+          `[meri-auditor] audit failed (chat unaffected): ${(err as Error).message}`,
+        );
       }
     }
 
