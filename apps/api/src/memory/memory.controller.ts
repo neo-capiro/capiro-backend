@@ -11,6 +11,7 @@ import type { MemoryItemType } from './memory.types.js';
 import { buildKnowledgeGraph, walkFrom } from './memory-graph.helpers.js';
 import { MEMORY_CATALOG, fileDefForType, editableSectionKeys, skeletonSections } from './memory-catalog.js';
 import { buildInterviewQuestions } from './memory-interview.helpers.js';
+import { toManifestRow, type ExportManifestRow } from './memory-governance.helpers.js';
 
 /**
  * Memory retrieval + knowledge-graph surface.
@@ -22,10 +23,17 @@ import { buildInterviewQuestions } from './memory-interview.helpers.js';
  * Routes:
  *   GET  /memory/items                      list items the caller may see
  *   GET  /memory/items/:type/:slug/markdown Obsidian-format projection
+ *   GET  /memory/export[?clientId=&type=]   provenance manifest (read-only)
  *   GET  /memory/graph[?seed=&depth=]       full graph or a focused walk
  *   GET  /memory/graph/client/:clientId     per-client subgraph (view #1)
  *   GET  /memory/graph/path?to=office:<id>  shortest paths to a target (view #2)
  *   POST /memory/backfill                    (admin) populate from DB sources
+ *
+ * NOTE: purge/redaction EXECUTION (memory-governance.helpers.ts selectForPurge /
+ * selectForClientPurge / selectForUserPurge / redactSections) is deliberately
+ * NOT wired to a route yet — per that file's own comment, retention is not
+ * enforced in v1 pending a concrete regulatory/contractual trigger. Only the
+ * non-destructive export/manifest half of governance is exposed here.
  */
 @Controller('memory')
 @UseGuards(RolesGuard)
@@ -133,6 +141,22 @@ export class MemoryController {
       type, effectiveSlug, scope, clientId, body?.sections ?? [], editableSectionKeys(type),
     );
     return { ok: true, updatedAt: updated.updatedAt };
+  }
+
+  /**
+   * Export manifest — Phase 4 governance (plan §11.2), read-only. Returns a
+   * provenance row per item the caller may see (RLS-scoped: tenant-shared
+   * items plus the caller's own private items), same shape an e-discovery or
+   * "export my context" download would use. Optionally narrow to one client
+   * or memory type. Does not delete or modify anything.
+   */
+  @Get('export')
+  async exportManifest(
+    @Query('clientId') clientId?: string,
+    @Query('type') type?: MemoryItemType,
+  ): Promise<{ rows: ExportManifestRow[] }> {
+    const items = await this.store.listForCurrentTenant({ clientId, type });
+    return { rows: items.map(toManifestRow) };
   }
 
   /** Interview questions for a memory type (the Meri-guided fill flow). */

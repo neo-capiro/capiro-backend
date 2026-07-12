@@ -579,4 +579,28 @@ export const INGESTION_JOBS: ScheduledIngestionJob[] = [
     tier: 'daily',
     description: 'Rebuild institutional memory graph + embeddings (all tenants, off-peak)',
   },
+
+  // ── TIER 9 — PROACTIVE ALERTS (Chief-of-Staff behaviors) ──────────────────
+  // Both verbs existed and were registered in entrypoint.sh with no rule ever
+  // created (2026-07-12 blueprint-gap audit finding: "built but not
+  // scheduled"). Write-only to in-app surfaces (clio_proactive_alert /
+  // meeting-brief inbox) — no external email/SMS, so this is a low-risk flip.
+  // Live rules created out-of-band the same way as RefreshMemoryGraph/
+  // RunClioScheduledTasks above (this matrix isn't consumed by CDK yet).
+  {
+    id: 'EmitClioAlerts',
+    command: ['emit-clio-alerts'],
+    cron: { minute: '0', hour: '*' },
+    tier: 'agent',
+    description:
+      'Quiet-client (30d) + meeting-prep-missing (48h) proactive alerts, all active tenants, hourly (replaces the removed in-chat generateProactiveAlerts trigger)',
+  },
+  {
+    id: 'GenerateMeetingBriefings',
+    command: ['generate-meeting-briefings'],
+    cron: { minute: '0', hour: '12' },
+    tier: 'daily',
+    description:
+      'P2-8: once-daily digest of newly-upcoming meetings (7d lookahead) into the in-app inbox (~8am ET, ahead of FlushTrackerDigestsDaily at 12:30)',
+  },
 ];
