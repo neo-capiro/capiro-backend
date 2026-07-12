@@ -1,5 +1,6 @@
 import {
   compilePeFundingEvidence,
+  compileBillStatusEvidence,
   hashEvidenceContent,
   vehicleClassForStage,
   predicateCoverage,
@@ -113,6 +114,32 @@ describe('compilePeFundingEvidence', () => {
       'historical',
     );
     expect(packets.find((p) => p.semantics.fiscalYear === 2028)!.semantics.cycle).toBe('outyear');
+  });
+});
+
+describe('compileBillStatusEvidence', () => {
+  it('produces a status packet the gate can read (bill entity)', () => {
+    const [p] = compileBillStatusEvidence({
+      billId: 'hr-8800-119',
+      status: 'rule_failed',
+      asOf: '2026-06-12',
+      capturedAt: CAPTURED,
+    });
+    expect(p!.evidenceId).toBe('hr-8800-119:status');
+    expect(p!.entity.entityType).toBe('bill');
+    expect(p!.semantics.status).toBe('rule_failed');
+    expect(p!.semantics.asOf).toBe('2026-06-12');
+    expect(p!.source.tool).toBe('get_bill_status');
+    expect(p!.provenance.evidenceClass).toBe('authoritative');
+  });
+  it('marks a floor-rule record with the floor_rule entity type', () => {
+    const [p] = compileBillStatusEvidence({
+      billId: 'hres-1234-119',
+      status: 'failed',
+      isFloorRule: true,
+      capturedAt: CAPTURED,
+    });
+    expect(p!.entity.entityType).toBe('floor_rule');
   });
 });
 
