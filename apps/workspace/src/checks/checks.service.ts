@@ -20,6 +20,25 @@ export interface WsChecksResponse {
 }
 
 /**
+ * Read the Phase 3.1 grounding findings the GenerationService persisted onto
+ * `config.groundingFindings`. Defensive parse (no cross-service type import) so
+ * an old draft or a partial write never crashes the checks endpoint.
+ */
+function readGroundingFindings(
+  cfg: Record<string, unknown>,
+): Array<{ check: string; severity: string; detail: string }> {
+  const raw = (cfg as { groundingFindings?: unknown }).groundingFindings;
+  if (!Array.isArray(raw)) return [];
+  return raw
+    .filter((g): g is Record<string, unknown> => !!g && typeof g === 'object')
+    .map((g) => ({
+      check: typeof g.check === 'string' ? g.check : 'unknown',
+      severity: typeof g.severity === 'string' ? g.severity : 'medium',
+      detail: typeof g.detail === 'string' ? g.detail : '',
+    }));
+}
+
+/**
  * Pre-submission checks (Phase 6b — the renamed "lint"). RULE-BASED: no new
  * table. Evaluates the draft's config + documents against ~10 deterministic
  * rules and returns per-check status + a passed/total score.
@@ -233,6 +252,24 @@ export class ChecksService {
           : { status: 'notable', detail: `${placeholders} found` },
       ),
     );
+
+    // Phase 3.1: fold the claim-level grounding findings the GenerationService
+    // captured at generate time (config.groundingFindings, from the shared Phase 2
+    // auditor) into the SAME advisory checks list — one entry per finding, so the
+    // reviewer sees grounding issues (reversed funding direction, vehicle
+    // conflation, LI-as-PE, …) beside the rule-based checks, not in a separate UI.
+    // Advisory only (Ninja D1: gate-less) — they lower the score but never block.
+    for (const g of readGroundingFindings(cfg)) {
+      const status: WsCheckStatus =
+        g.severity === 'critical' || g.severity === 'high' ? 'critical' : 'notable';
+      checks.push({
+        id: `grounding:${g.check}:${checks.length}`,
+        label: `Grounding — ${g.check}`,
+        status,
+        detail: g.detail.slice(0, 200),
+        fixable: false,
+      });
+    }
 
     const passed = checks.filter((c) => c.status === 'success').length;
 

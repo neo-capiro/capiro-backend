@@ -37,19 +37,26 @@ COPY pnpm-workspace.yaml package.json pnpm-lock.yaml* tsconfig.base.json ./
 COPY apps/workspace/package.json apps/workspace/package.json
 COPY packages/auth/package.json packages/auth/package.json
 COPY packages/shared/package.json packages/shared/package.json
+# @capiro/meriv2-core (Phase 3.1): the workspace generation path reuses its
+# post-hoc grounding auditor. Mirrors the apps/api Dockerfile's meriv2-core
+# handling exactly — see the runtime-stage node_modules copy note below.
+COPY packages/meriv2-core/package.json packages/meriv2-core/package.json
 RUN --mount=type=cache,id=pnpm,target=/pnpm/store \
-    pnpm install --frozen-lockfile --filter=@capiro/workspace... --filter=@capiro/auth... --filter=@capiro/shared...
+    pnpm install --frozen-lockfile --filter=@capiro/workspace... --filter=@capiro/auth... --filter=@capiro/shared... --filter=@capiro/meriv2-core...
 
 COPY packages/shared/src packages/shared/src
 COPY packages/shared/tsconfig.json packages/shared/tsconfig.json
 COPY packages/auth/src packages/auth/src
 COPY packages/auth/tsconfig.json packages/auth/tsconfig.json
+COPY packages/meriv2-core/src packages/meriv2-core/src
+COPY packages/meriv2-core/tsconfig.json packages/meriv2-core/tsconfig.json
 COPY apps/workspace/src apps/workspace/src
 COPY apps/workspace/prisma apps/workspace/prisma
 COPY apps/workspace/tsconfig.json apps/workspace/tsconfig.build.json apps/workspace/nest-cli.json apps/workspace/
 
 RUN pnpm --filter @capiro/shared build
 RUN pnpm --filter @capiro/auth build
+RUN pnpm --filter @capiro/meriv2-core build
 # Generate the Prisma client (outputs to apps/workspace/generated/prisma-client)
 # BEFORE the Nest build, since src imports the generated client.
 RUN cd apps/workspace && pnpm exec prisma generate
@@ -58,7 +65,7 @@ RUN pnpm --filter @capiro/workspace build
 # Prune dev dependencies in place (matches the apps/api pattern; keeps the
 # .pnpm store intact for Phase 2's generated Prisma client).
 RUN --mount=type=cache,id=pnpm,target=/pnpm/store \
-    pnpm install --frozen-lockfile --prod --filter=@capiro/workspace... --filter=@capiro/auth... --filter=@capiro/shared...
+    pnpm install --frozen-lockfile --prod --filter=@capiro/workspace... --filter=@capiro/auth... --filter=@capiro/shared... --filter=@capiro/meriv2-core...
 
 # -------- runtime -------------------------------------------------------------
 FROM node:${NODE_VERSION}-bookworm-slim AS runtime
@@ -88,6 +95,15 @@ COPY --chown=capiro:capiro --from=build /workspace/packages/shared/package.json 
 COPY --chown=capiro:capiro --from=build /workspace/packages/auth/dist /app/packages/auth/dist
 COPY --chown=capiro:capiro --from=build /workspace/packages/auth/package.json /app/packages/auth/package.json
 COPY --chown=capiro:capiro --from=build /workspace/packages/auth/node_modules /app/packages/auth/node_modules
+# @capiro/meriv2-core (Phase 3.1): dist + manifest + its OWN node_modules.
+# meriv2-core (unlike leaf @capiro/shared) has workspace deps of its own —
+# its dist require()s @capiro/shared + zod, which pnpm links under
+# packages/meriv2-core/node_modules (relative symlinks), NOT hoisted to root.
+# Copy it or the workspace crashloops at boot with MODULE_NOT_FOUND
+# '@capiro/shared' (identical to the apps/api Dockerfile note).
+COPY --chown=capiro:capiro --from=build /workspace/packages/meriv2-core/dist /app/packages/meriv2-core/dist
+COPY --chown=capiro:capiro --from=build /workspace/packages/meriv2-core/package.json /app/packages/meriv2-core/package.json
+COPY --chown=capiro:capiro --from=build /workspace/packages/meriv2-core/node_modules /app/packages/meriv2-core/node_modules
 COPY --chown=capiro:capiro --from=build /workspace/apps/workspace/dist /app/apps/workspace/dist
 COPY --chown=capiro:capiro --from=build /workspace/apps/workspace/node_modules /app/apps/workspace/node_modules
 COPY --chown=capiro:capiro --from=build /workspace/apps/workspace/package.json /app/apps/workspace/package.json

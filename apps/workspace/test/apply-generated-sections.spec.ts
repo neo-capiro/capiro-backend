@@ -167,3 +167,61 @@ describe('GenerationService.getContextUsed (Phase 3.3 "context used" panel)', ()
     });
   });
 });
+
+describe('GenerationService.runGroundingAuditor (Phase 3.1 — reuses the shared Phase 2 auditor)', () => {
+  function makeService() {
+    const prisma = { wsDraft: {} } as unknown as PrismaService;
+    return new GenerationService(
+      prisma,
+      {} as AiCredentialService,
+      {} as PeResolverService,
+      {} as MeriV2FlagsService,
+      {} as MeriV2OrchestratorClient,
+    );
+  }
+  // Authoritative PE: FY27 enacted ($112.9M) is ABOVE the request ($72.1M) — an
+  // INCREASE. A section calling it a "cut" is the reversed-direction class (D4)
+  // that shipped as a client incident elsewhere; the shared auditor must catch it.
+  const authPes = [
+    {
+      peCode: '0603851F',
+      title: 'Test PE',
+      description: null,
+      service: null,
+      appropriationType: null,
+      budgetActivity: null,
+      budgetActivityName: null,
+      status: null,
+      years: [{ fy: 2027, request: 72.1, enacted: 112.9, hascMark: null, sascMark: null }],
+      people: [],
+      contractors: [],
+      bills: [],
+    },
+  ];
+
+  it('flags a reversed funding-direction claim (D4) against the linked-PE evidence', () => {
+    const svc = makeService();
+    const sectionContent = {
+      Summary: '<p>PE 0603851F funding was cut this cycle, well below the request.</p>',
+    };
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const findings = (svc as any).runGroundingAuditor(sectionContent, authPes as any);
+    expect(findings.some((f: { check: string }) => f.check === 'D4')).toBe(true);
+  });
+
+  it('does NOT flag a correctly-stated increase (no false positive)', () => {
+    const svc = makeService();
+    const sectionContent = {
+      Summary: '<p>PE 0603851F funding rose this cycle, above the request.</p>',
+    };
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const findings = (svc as any).runGroundingAuditor(sectionContent, authPes as any);
+    expect(findings.some((f: { check: string }) => f.check === 'D4')).toBe(false);
+  });
+
+  it('returns [] when there is no generated text (best-effort, never throws)', () => {
+    const svc = makeService();
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    expect((svc as any).runGroundingAuditor({}, [])).toEqual([]);
+  });
+});

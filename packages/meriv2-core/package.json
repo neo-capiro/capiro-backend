@@ -10,6 +10,18 @@
       "require": "./dist/index.js",
       "import": "./dist/index.js",
       "default": "./dist/index.js"
+    },
+    "./grounding/auditor": {
+      "types": "./dist/grounding/auditor.d.ts",
+      "require": "./dist/grounding/auditor.js",
+      "import": "./dist/grounding/auditor.js",
+      "default": "./dist/grounding/auditor.js"
+    },
+    "./grounding/evidence": {
+      "types": "./dist/grounding/evidence.d.ts",
+      "require": "./dist/grounding/evidence.js",
+      "import": "./dist/grounding/evidence.js",
+      "default": "./dist/grounding/evidence.js"
     }
   },
   "scripts": {

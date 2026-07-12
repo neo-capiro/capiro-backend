@@ -13,6 +13,17 @@ import {
   type PeRecordForValidation,
   type PeStructuralWarning,
 } from './domain-grounding.helpers.js';
+// Import the deterministic auditor + evidence types from their SUBPATHS (not the
+// package barrel): the barrel re-exports the skeptic module, which pulls in zod —
+// and zod's internal structure trips the workspace jest resolver. auditor.ts and
+// evidence.ts depend only on @capiro/shared, so these subpaths keep zod entirely
+// out of the workspace's test-time AND runtime module graph.
+import {
+  runAuditor,
+  type ToolResultLedger,
+  type LedgerEntry,
+} from '@capiro/meriv2-core/grounding/auditor';
+import type { FundingYearRecord } from '@capiro/meriv2-core/grounding/evidence';
 
 const ANTHROPIC_URL = 'https://api.anthropic.com/v1/messages';
 const GENERATION_TIMEOUT_MS = 120_000;
@@ -53,6 +64,34 @@ export interface GenerateSectionResult {
   /** What actually grounded this section (Phase 3.3); identical across a
    *  generate-all run since every section shares the same draft context. */
   provenance: ContextProvenance;
+}
+
+/**
+ * A claim-level grounding finding (Phase 3.1) from the SHARED Phase 2 auditor
+ * (`runAuditor` in @capiro/meriv2-core) run post-hoc over generated document
+ * sections — the SAME deterministic checks that guard chat/outreach/alert-memo
+ * (reversed funding direction, authorization↔appropriation conflation, a
+ * procurement line called a "PE", etc.), not a Workspace-specific reimpl. Purely
+ * ADVISORY (Ninja D1: Workspace is gate-less) — persisted on the draft config
+ * and surfaced by ChecksService as ordinary entries in the existing checks list.
+ */
+export interface GroundingFinding {
+  check: string;
+  severity: 'critical' | 'high' | 'medium' | 'low';
+  span: string;
+  detail: string;
+}
+
+/** Strip HTML tags to plain text for the grounding auditor's sentence scan. */
+function stripHtmlToText(html: string): string {
+  return String(html ?? '')
+    .replace(/<[^>]*>/g, ' ')
+    .replace(/&nbsp;/g, ' ')
+    .replace(/&amp;/g, '&')
+    .replace(/&lt;/g, '<')
+    .replace(/&gt;/g, '>')
+    .replace(/\s+/g, ' ')
+    .trim();
 }
 
 /**
@@ -247,6 +286,75 @@ export class GenerationService {
   }
 
   /**
+   * Claim-level grounding audit (Phase 3.1): run the SHARED Phase 2 deterministic
+   * auditor over the freshly generated document text, grounded in a ToolResultLedger
+   * synthesized from the draft's AUTHORITATIVE linked-PE records (the same records
+   * that fed generation). Reuses `runAuditor` from @capiro/meriv2-core rather than
+   * building a third citation/grounding system — so the funding-direction /
+   * vehicle-conflation / LI-as-PE classes that shipped as client incidents on
+   * outreach + alert-memo are caught in Workspace's budget-justification / NDAA
+   * products too. Pure + best-effort: ADVISORY only (never blocks — Ninja D1), and
+   * any error yields zero findings rather than failing generation. `surface:'memo'`
+   * — Workspace deliverables are the same "memo/briefing" shape the grounding
+   * prompt already models.
+   */
+  private runGroundingAuditor(
+    sectionContent: Record<string, string>,
+    authPes: AuthoritativePeRecord[],
+  ): GroundingFinding[] {
+    try {
+      const text = Object.values(sectionContent)
+        .map((html) => stripHtmlToText(html))
+        .filter(Boolean)
+        .join('\n\n');
+      if (!text.trim()) return [];
+
+      // One get_pe_budget_timeline-shaped ledger entry per linked PE, built from
+      // the authoritative record (request + HASC/SASC + enacted marks; the
+      // appropriations marks aren't in Workspace's PE view, so they stay null and
+      // the stage-aware checks simply use the furthest-along mark present).
+      const entries: LedgerEntry[] = authPes.map((pe) => {
+        const years: FundingYearRecord[] = pe.years.map((y) => ({
+          fy: y.fy,
+          request: y.request,
+          hascMark: y.hascMark,
+          sascMark: y.sascMark,
+          enacted: y.enacted,
+        }));
+        const result = {
+          peCode: pe.peCode,
+          years,
+          identifierKind: 'pe' as const,
+          generatedAt: new Date().toISOString(),
+        };
+        return {
+          tool: 'get_pe_budget_timeline',
+          serialized: JSON.stringify(result),
+          result,
+        };
+      });
+
+      const verdict = runAuditor({
+        output: text,
+        ledger: { entries } as ToolResultLedger,
+        surface: 'memo',
+        // shadow: compute findings, never alter/act — Workspace is gate-less, the
+        // findings ride the advisory checks list.
+        mode: 'shadow',
+      });
+      return verdict.findings.map((f) => ({
+        check: f.check,
+        severity: f.severity,
+        span: f.span.slice(0, 240),
+        detail: f.detail,
+      }));
+    } catch (e) {
+      this.logger.warn(`grounding audit failed (non-fatal): ${(e as Error).message}`);
+      return [];
+    }
+  }
+
+  /**
    * "Start with Meri" intake (handoff Q-LIB-3). Resolves a free-text prompt to a
    * work product + cascade, creates the draft, and auto-drafts every section.
    * The product is chosen from the canonical catalog only; pathways/committees
@@ -427,12 +535,17 @@ export class GenerationService {
     // type / budget activity), and persist them so the editor can surface
     // warnings at creation time — not just on edit.
     const structuralWarnings = this.computeStructuralWarnings(cfg, sectionContent, authPes);
+    // Phase 3.1: claim-level grounding audit (shared Phase 2 auditor) over the
+    // generated sections — advisory findings persisted for ChecksService to
+    // surface in the existing checks list.
+    const groundingFindings = this.runGroundingAuditor(sectionContent, authPes);
 
     return this.persistGeneratedSections(tenantId, draftId, cfg, {
       sectionContent,
       sectionMeta,
       structuralWarnings,
       contextProvenance: provenance,
+      groundingFindings,
     });
   }
 
@@ -454,16 +567,19 @@ export class GenerationService {
       structuralWarnings: PeStructuralWarning[];
       /** Phase 3.3 "context used" snapshot; undefined leaves any prior value. */
       contextProvenance?: ContextProvenance;
+      /** Phase 3.1 grounding findings; undefined leaves any prior value. */
+      groundingFindings?: GroundingFinding[];
     },
   ) {
-    // Only overwrite contextProvenance when this run computed one; otherwise
-    // preserve whatever a prior generation stored (e.g. an orchestrator-driven
-    // apply that carries no provenance shouldn't wipe the panel's data).
-    const { contextProvenance, ...rest } = sections;
+    // Only overwrite contextProvenance / groundingFindings when this run computed
+    // them; otherwise preserve whatever a prior generation stored (e.g. an
+    // orchestrator-driven apply that carries neither must not wipe them).
+    const { contextProvenance, groundingFindings, ...rest } = sections;
     const provenancePatch = contextProvenance !== undefined ? { contextProvenance } : {};
+    const groundingPatch = groundingFindings !== undefined ? { groundingFindings } : {};
     await this.prisma.wsDraft.update({
       where: { id: draftId },
-      data: { config: { ...cfg, ...rest, ...provenancePatch } as never },
+      data: { config: { ...cfg, ...rest, ...provenancePatch, ...groundingPatch } as never },
     });
     return this.prisma.wsDraft.findFirst({
       where: { id: draftId, tenantId },

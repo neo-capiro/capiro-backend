@@ -635,6 +635,9 @@ importers:
       '@capiro/auth':
         specifier: workspace:*
         version: link:../../packages/auth
+      '@capiro/meriv2-core':
+        specifier: workspace:*
+        version: link:../../packages/meriv2-core
       '@capiro/shared':
         specifier: workspace:*
         version: link:../../packages/shared

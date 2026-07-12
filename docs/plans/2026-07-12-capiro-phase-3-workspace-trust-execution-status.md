@@ -46,16 +46,25 @@ Companion to Ninja's Phase 3 plan. Unlike Phases 2/2.5 (mostly pre-built), Phase
   Preview page beside the advisory checks. Tests: getContextUsed read/null/404/
   normalize + provenance-preservation on apply (8/8 workspace spec green);
   web typecheck + workspace nest build clean.
-- **3.1 — claim-level citations — AFTER 3.3.** Tier-1 (no wiring): synthesize a
-  ToolResultLedger over the fixed evidence (linked PEs by code + ws_context_items
-  with id in the serialized body), emit record_ids in `buildSectionPrompt`, allow
-  `[S:...]` tokens in the output-format instruction, add a post-LLM
-  `validateFormBCitations` pass (from `@capiro/shared`, already a dep), persist
-  findings via `computeStructuralWarnings`/`persistGeneratedSections`. Then an
-  isolated PR wires `@capiro/meriv2-core` into apps/workspace (Dockerfile mirror
-  of apps/api — copy meriv2-core's OWN node_modules or MODULE_NOT_FOUND crashloop;
-  gate on `nest build` + a container smoke-boot). Then Tier-2 = `checkCitations`/
-  `runAuditor` + import `serializeRecordForGrounding` (no 4th copy).
+- **3.1 — claim-level grounding — DONE.** Wired `@capiro/meriv2-core` into
+  apps/workspace (package.json + lockfile + Dockerfile mirror of apps/api,
+  incl. the meriv2-core-own-node_modules copy that avoids the MODULE_NOT_FOUND
+  crashloop). `generateAllSectionsInProcess` now runs the SHARED Phase 2
+  `runAuditor` (`surface:'memo'`, shadow) post-hoc over the generated sections
+  against a `get_pe_budget_timeline` ledger synthesized from the draft's
+  AUTHORITATIVE linked-PE records — the same deterministic checks (reversed
+  funding direction D4, vehicle conflation D4b, LI-as-PE D7, …) that guard
+  chat/outreach/alert-memo, not a Workspace reimpl. Findings persist to
+  `config.groundingFindings` and `ChecksService` folds them into the EXISTING
+  advisory checks list (`Grounding — <check>`; advisory only per D1 gate-less),
+  so documents stay token-free. Import is via meriv2-core SUBPATH exports
+  (`./grounding/auditor` + `./grounding/evidence`) — added to meriv2-core's
+  package.json — so only auditor+evidence (no zod) enter the workspace graph;
+  jest maps the subpaths to source (node/nest honor the exports map at
+  runtime/build). Tests: `runGroundingAuditor` catches a reversed-direction
+  claim + no-false-positive + empty (3 new; 11/11 workspace spec green).
+  Typecheck + nest build clean. (Pre-existing, unrelated: cascade.spec 10-vs-11
+  product count + pe-resolver.spec fail on main too — not touched here.)
 - **3.4 — memory write-back — LAST.** New InternalServiceGuard `POST
   /api/internal/memory/candidates` on apps/api → existing
   `MemoryCandidateService` (do not touch the candidate engine); clone
@@ -79,4 +88,6 @@ cleanup PR has no migration and no new dependency, so it's a plain image rebuild
   type is deleted instead).
 - **G3** "Context used in this draft" panel live (memory + context-item sources) —
   **MET** (3.3).
-- **G1** (citations), **G4** (memory write-back) — pending (3.1 / 3.4).
+- **G1** claim-level grounding reusing Phase 2/2.5's auditor (not a duplicate) —
+  **MET** (3.1).
+- **G4** (memory write-back) — pending (3.4).
