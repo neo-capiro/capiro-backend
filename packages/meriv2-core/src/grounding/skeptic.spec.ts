@@ -1,4 +1,11 @@
-import { buildSkepticPrompt, runSkeptic, runSkepticPanel, type SkepticJudge } from './skeptic';
+import type { LlmClient } from '../llm/llm-client';
+import {
+  buildSkepticPrompt,
+  createLlmSkepticJudge,
+  runSkeptic,
+  runSkepticPanel,
+  type SkepticJudge,
+} from './skeptic';
 
 const fixedJudge =
   (out: { refuted?: unknown; confidence?: unknown; reason?: unknown }): SkepticJudge =>
@@ -89,5 +96,60 @@ describe('runSkepticPanel — adversarial majority vote', () => {
     expect(r.votes).toHaveLength(7);
     expect(r.refuted).toBe(true);
     expect(r.refuteVotes).toBe(7);
+  });
+});
+
+describe('createLlmSkepticJudge', () => {
+  const fakeLlm = (input: unknown): LlmClient => ({
+    completeJson: async () => ({}),
+    completeWithSchema: async (params) => {
+      expect(params.toolName).toBe('skeptic_verdict');
+      expect(params.inputSchema).toMatchObject({ required: ['refuted', 'confidence', 'reason'] });
+      return { input, usage: { inputTokens: 10, outputTokens: 5 } };
+    },
+  });
+
+  it('adapts a schema-forced LlmClient into a working SkepticJudge (refuted)', async () => {
+    const llm = fakeLlm({ refuted: true, confidence: 'high', reason: 'not stated in evidence' });
+    const judge = createLlmSkepticJudge(llm);
+    const v = await runSkeptic({ claim: 'x', evidence: 'y' }, judge);
+    expect(v).toEqual({ refuted: true, confidence: 'high', reason: 'not stated in evidence' });
+  });
+
+  it('adapts a schema-forced LlmClient into a working SkepticJudge (supported)', async () => {
+    const llm = fakeLlm({ refuted: false, confidence: 'medium', reason: 'evidence states it' });
+    const judge = createLlmSkepticJudge(llm);
+    const v = await runSkeptic({ claim: 'x', evidence: 'y' }, judge);
+    expect(v.refuted).toBe(false);
+  });
+
+  it('fails closed via runSkeptic when the underlying LlmClient throws', async () => {
+    const throwingLlm: LlmClient = {
+      completeJson: async () => ({}),
+      completeWithSchema: async () => {
+        throw new Error('Anthropic request failed (500): overloaded');
+      },
+    };
+    const judge = createLlmSkepticJudge(throwingLlm);
+    const v = await runSkeptic({ claim: 'x', evidence: 'y' }, judge);
+    expect(v.refuted).toBe(true);
+    expect(v.reason).toMatch(/failed/i);
+  });
+
+  it('passes maxTokens through when supplied', async () => {
+    let seenMaxTokens: number | undefined;
+    const llm: LlmClient = {
+      completeJson: async () => ({}),
+      completeWithSchema: async (params) => {
+        seenMaxTokens = params.maxTokens;
+        return {
+          input: { refuted: false, confidence: 'low', reason: 'ok' },
+          usage: { inputTokens: 1, outputTokens: 1 },
+        };
+      },
+    };
+    const judge = createLlmSkepticJudge(llm, { maxTokens: 128 });
+    await judge('some prompt');
+    expect(seenMaxTokens).toBe(128);
   });
 });

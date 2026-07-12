@@ -15,6 +15,8 @@
  * skeptic never launders an unsupported assertion into an approval.
  */
 
+import type { LlmClient } from '../llm/llm-client.js';
+
 export type SkepticConfidence = 'high' | 'medium' | 'low';
 
 export interface SkepticInput {
@@ -134,4 +136,50 @@ export async function runSkepticPanel(
   const votes = await Promise.all(Array.from({ length: count }, () => runSkeptic(input, judge)));
   const refuteVotes = votes.filter((v) => v.refuted).length;
   return { refuted: refuteVotes >= majority, votes, refuteVotes, threshold: majority };
+}
+
+const SKEPTIC_TOOL_NAME = 'skeptic_verdict';
+const SKEPTIC_TOOL_DESCRIPTION =
+  'Record your adversarial verdict on whether the claim is supported by the supplied evidence.';
+const SKEPTIC_INPUT_SCHEMA = {
+  type: 'object',
+  properties: {
+    refuted: {
+      type: 'boolean',
+      description:
+        'true if the claim is NOT supported by the evidence (kill it); false only if the evidence literally states the claim.',
+    },
+    confidence: { type: 'string', enum: ['high', 'medium', 'low'] },
+    reason: {
+      type: 'string',
+      description: 'One sentence citing the specific evidence, or naming what is missing.',
+    },
+  },
+  required: ['refuted', 'confidence', 'reason'],
+} as const;
+
+/**
+ * Build a real, schema-forced `SkepticJudge` from any `LlmClient` (the
+ * orchestrator's `RequestScopedLlmClient`, already BYOK-resolved, or a plain
+ * `AnthropicLlmClient`) — completes the DI seam `runSkeptic`/`runSkepticPanel`
+ * were built against. No new HTTP-calling code: reuses `completeWithSchema`'s
+ * existing tool-forcing contract, the same one `GroundedJson` already runs
+ * live on (`targeting-brief.service.ts`, `llm-completion.service.ts`).
+ * Validation/normalization of the returned shape stays in `runSkeptic` (fail-
+ * closed on a thrown error or malformed verdict) — this factory just adapts
+ * the transport.
+ */
+export function createLlmSkepticJudge(llm: LlmClient, opts?: { maxTokens?: number }): SkepticJudge {
+  return async (prompt: string) => {
+    const res = await llm.completeWithSchema({
+      system:
+        'You are a hostile fact-checker adjudicating a single claim against a fixed evidence set. Follow the instructions in the prompt exactly and call the tool with your verdict.',
+      prompt,
+      toolName: SKEPTIC_TOOL_NAME,
+      toolDescription: SKEPTIC_TOOL_DESCRIPTION,
+      inputSchema: SKEPTIC_INPUT_SCHEMA,
+      maxTokens: opts?.maxTokens ?? 512,
+    });
+    return res.input as { refuted?: unknown; confidence?: unknown; reason?: unknown };
+  };
 }
