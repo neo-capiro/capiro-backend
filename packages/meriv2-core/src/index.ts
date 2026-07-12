@@ -12,6 +12,7 @@ export * from './scoping/scoping-wrapper';
 export * from './intent/intent-router';
 export * from './grounding/claim-map';
 export * from './grounding/grounded-json';
+export * from './grounding/auditor';
 export * from './llm/llm-client';
 export * from './tools/client/get-client-context';
 export * from './tools/delegated/delegated-tool';
