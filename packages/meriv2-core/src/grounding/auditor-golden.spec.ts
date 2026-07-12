@@ -109,9 +109,21 @@ describe('GOLDEN — Sample 2: Meri chat PE matching (Boresight)', () => {
 });
 
 describe('GOLDEN — Sample 3: Deep-research memo (self-audited against nothing)', () => {
-  // The critical S3-1 error: a member↔district mapping (Rogers / AL-05) inferred,
-  // not retrieved. Needs D11 (get_representation/resolve_entity) — later wave.
-  it.todo('D11 catches the fabricated member↔district mapping (S3-1)');
+  it('D11 catches the fabricated member↔district mapping (S3-1)', () => {
+    // The critical S3-1 error: a member↔district mapping asserted with no
+    // get_representation/resolve_entity lookup this turn (inferred from a roster,
+    // which carries no district). Research is fully-blocking → hold.
+    const shipped =
+      "Rep. Mike Rogers represents AL-05, the district home to the client's facility.";
+    const v = runAuditor({
+      output: shipped,
+      ledger: ledger([]),
+      surface: 'research',
+      mode: 'enforce',
+    });
+    expect(v.findings.some((f) => f.check === 'D11' && f.severity === 'critical')).toBe(true);
+    expect(v.decision).toBe('hold');
+  });
   // S3-3/4/5/12: specific claims asserted over 0-result / unretrieved evidence
   // (fabricated staffer contact, invented section numbers) — needs the LLM
   // skeptic + 0-result telemetry, shadow-gated.

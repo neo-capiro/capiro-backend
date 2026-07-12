@@ -17,6 +17,9 @@
  *   D7  LI-as-PE                — prose calling a procurement line item (BLIN
  *                                 shape, or ledger identifierKind) a "Program
  *                                 Element / PE".
+ *   D11 member↔district         — a district asserted as a representation mapping
+ *                                 that get_representation/resolve_entity did not
+ *                                 return this turn (the S3-1 fabrication class).
  *
  * DESIGN: deterministic + pure. No LLM, no network. Precision over recall — a
  * check fires only on an unambiguous, ground-truth-backed contradiction, because
@@ -336,6 +339,48 @@ function collectProcurementCodes(result: unknown, into: Set<string>): void {
   }
 }
 
+// ── D11: member ↔ district mapping ───────────────────────────────────────────
+
+// A congressional district token: 2-letter state + dash + number, or -AL (at-large).
+const DISTRICT_RE = /\b([A-Z]{2})-(\d{1,2}|AL)\b/g;
+const REPRESENTS_RE = /\b(represent(?:s|ing|ed)?|constituent|district|represents the)\b/i;
+
+/**
+ * Flag a member↔district mapping asserted in prose whose district was NOT
+ * affirmatively returned by get_representation / resolve_entity this turn — the
+ * S3-1 hazard (a district inferred from a roster, which carries no district, or
+ * fabricated outright). Fires only when a district token co-occurs with a
+ * representation verb AND that district is absent from the turn's representation
+ * results; if no representation tool was called at all, any asserted district is
+ * ungrounded. Deterministic joins only — never an inference.
+ */
+export function checkMemberDistrict(output: string, ledger: ToolResultLedger): AuditFinding[] {
+  const grounded = new Set<string>();
+  let representationCalled = false;
+  for (const e of ledger.entries) {
+    if (e.tool !== 'get_representation' && e.tool !== 'resolve_entity') continue;
+    representationCalled = true;
+    for (const m of e.serialized.matchAll(DISTRICT_RE)) grounded.add(m[0].toUpperCase());
+  }
+  const out: AuditFinding[] = [];
+  for (const s of toSentences(output)) {
+    if (!REPRESENTS_RE.test(s)) continue;
+    const districts = [...new Set([...s.matchAll(DISTRICT_RE)].map((m) => m[0].toUpperCase()))];
+    for (const d of districts) {
+      if (grounded.has(d)) continue;
+      out.push({
+        check: 'D11',
+        severity: 'critical',
+        span: s,
+        detail: representationCalled
+          ? `District ${d} is asserted as a representation mapping, but get_representation/resolve_entity did not return ${d} this turn.`
+          : `District ${d} is asserted as a representation mapping, but no get_representation/resolve_entity lookup was made this turn — member↔district must come from that deterministic join (a roster carries no district), never an inference.`,
+      });
+    }
+  }
+  return out;
+}
+
 // ── D4 (evidence-backed): direction vs the compiled EvidencePackets ──────────
 
 // Furthest-along appropriations stage wins as "the current authoritative figure".
@@ -480,6 +525,7 @@ export function runAuditor(input: AuditInput): AuditVerdict {
     ...checkVehicleConflation(output),
     ...checkFailedRuleFraming(output, ledger),
     ...checkIdentifierIdentity(output, ledger),
+    ...checkMemberDistrict(output, ledger),
   ];
   // Dedupe by (check, span): the text-D4 and evidence-D4 can both fire on one
   // sentence — the reader/ledger should see it once.
