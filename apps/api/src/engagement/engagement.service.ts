@@ -39,6 +39,7 @@ import {
   recordAiUsageEvent,
   deriveMeetingVirtuality,
   billStatusLabel,
+  currentCycleFyOf,
   type AiGenerationUsageLike,
   type TenantContext,
 } from '@capiro/shared';
@@ -73,6 +74,7 @@ import {
   renderClientTargetOffices,
   type BillVoteRow,
   type GoverningRuleRow,
+  type PeYearFunding,
   type TargetOfficeLite,
 } from './outreach-context-enrichment.js';
 import { outreachClientProfileEnabled } from '../common/tenant-flags.js';
@@ -5709,7 +5711,16 @@ export class EngagementService {
           if (item.kind === 'programElement') {
             const peCode = peCodeFromItemId(item.id);
             const block = peCode ? await this.peTruthBlock(peCode) : null;
-            return block ? { ...item, body: block } : item;
+            if (block) return { ...item, body: block };
+            // RC1: on a lookup miss do NOT keep the thin client-supplied
+            // "Current: $X / Request: $Y" body — an unverified, direction-
+            // ambiguous figure must never survive into the prompt as fact.
+            return {
+              ...item,
+              body: `No budget-funding record is available in Capiro's data for program element ${
+                peCode ?? item.id
+              }. Do NOT state or estimate any dollar figure for it.`,
+            };
           }
         } catch (err) {
           this.logger.warn(
@@ -5843,41 +5854,33 @@ export class EngagementService {
         hacDMark: true,
         sacDMark: true,
         conference: true,
+        ndaaConference: true,
         enacted: true,
       },
     });
     const num = (d: Prisma.Decimal | null): number | null => (d == null ? null : Number(d));
-    // Latest FY that carries any funding signal (matches the finder's "current").
-    const latest =
-      years
-        .map((y) => ({
-          fy: y.fy,
-          request: num(y.request),
-          hascMark: num(y.hascMark),
-          sascMark: num(y.sascMark),
-          hacDMark: num(y.hacDMark),
-          sacDMark: num(y.sacDMark),
-          conference: num(y.conference),
-          enacted: num(y.enacted),
-        }))
-        .find((y) =>
-          [
-            y.request,
-            y.hascMark,
-            y.sascMark,
-            y.hacDMark,
-            y.sacDMark,
-            y.conference,
-            y.enacted,
-          ].some((v) => v != null),
-        ) ?? null;
+    // The FULL fiscal-year series — the authoritative block renders historical,
+    // current-cycle, and outyear rows so trend/direction claims are grounded and
+    // an outyear projection is never quoted as the current request.
+    const series: PeYearFunding[] = years.map((y) => ({
+      fy: y.fy,
+      request: num(y.request),
+      hascMark: num(y.hascMark),
+      sascMark: num(y.sascMark),
+      hacDMark: num(y.hacDMark),
+      sacDMark: num(y.sacDMark),
+      conference: num(y.conference),
+      ndaaConference: num(y.ndaaConference),
+      enacted: num(y.enacted),
+    }));
 
     return formatPeTruth({
       peCode: pe.peCode,
       title: pe.title,
       service: pe.service,
       budgetActivityName: pe.budgetActivityName,
-      year: latest,
+      currentCycleFy: currentCycleFyOf(series),
+      years: series,
     });
   }
 
