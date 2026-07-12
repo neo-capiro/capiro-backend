@@ -248,15 +248,10 @@ export interface WsCheckResult {
   fixable: boolean;
 }
 
-export interface WsGateResult {
-  id: string;
-  label: string;
-  status: WsCheckStatus;
-}
-
+// Workspace is gate-less (Ninja D1, 2026-07-12): checks are advisory only, no
+// export hard-block. The old empty `gates`/`WsGateResult` vestige was removed.
 export interface WsChecksResponse {
   checks: WsCheckResult[];
-  gates: WsGateResult[];
   score: { passed: number; total: number };
 }
 

@@ -1,45 +1,9 @@
-import {
-  Body,
-  Controller,
-  Delete,
-  Get,
-  Param,
-  Post,
-  Query,
-  UseGuards,
-} from '@nestjs/common';
+import { Body, Controller, Delete, Get, Param, Post, UseGuards } from '@nestjs/common';
 import { TenantGuard } from '../auth/tenant.guard.js';
 import { CurrentTenant } from '../auth/current-tenant.decorator.js';
 import type { WorkspaceTenantContext } from '../auth/tenant-context.js';
 import { ContextService } from './context.service.js';
 import { AddContextItemDto } from './dto/context.dto.js';
-
-/** Build Context endpoints (Phase 3, AC-3.6). Client/office-scoped. */
-@Controller('context')
-@UseGuards(TenantGuard)
-export class ContextController {
-  constructor(private readonly context: ContextService) {}
-
-  /** GET /workspace-api/context/sources?client=&offices=a,b */
-  @Get('sources')
-  sources(
-    @CurrentTenant() _ctx: WorkspaceTenantContext,
-    @Query('client') client?: string,
-    @Query('offices') offices?: string,
-  ) {
-    return this.context.sources(client, splitCsv(offices));
-  }
-
-  /** GET /workspace-api/context/news?client=&offices=a,b */
-  @Get('news')
-  news(
-    @CurrentTenant() _ctx: WorkspaceTenantContext,
-    @Query('client') client?: string,
-    @Query('offices') offices?: string,
-  ) {
-    return this.context.news(client, splitCsv(offices));
-  }
-}
 
 /** Draft-scoped context plan (the items the user added). */
 @Controller('drafts/:draftId/context')
@@ -69,8 +33,4 @@ export class DraftContextController {
   ) {
     return this.context.removeItem(ctx.tenantId, draftId, itemId);
   }
-}
-
-function splitCsv(v?: string): string[] {
-  return (v ?? '').split(',').map((s) => s.trim()).filter(Boolean);
 }

@@ -131,7 +131,7 @@ d('Workspace engine API integration', () => {
     expect(resolved.resolved).toBe(true);
   });
 
-  test('AC-3.6 context items add + list + remove, client-scoped sources', async () => {
+  test('AC-3.6 context items add + list + remove', async () => {
     const draft = await drafts.create(TENANT_A, OWNER, {
       product: 'White paper',
       client: 'Aerovance Systems',
@@ -143,13 +143,8 @@ d('Workspace engine API integration', () => {
     const items = await context.listItems(TENANT_A, draft.id);
     expect(items).toHaveLength(1);
     expect(items[0]!.id).toBe(item.id);
-    const sources = context.sources('Aerovance Systems', []);
-    expect(sources.client).toBe('Aerovance Systems');
-    expect(sources.groups.find((g) => g.type === 'client-profile')?.items.length).toBeGreaterThan(
-      0,
-    );
-    // 6 tabs from the prototype: Client profile · Intel · Prior docs · Bills · Meeting preps · Docs & notes
-    expect(sources.groups).toHaveLength(6);
+    // (The client/office-scoped mock `sources()`/`news()` catalog was removed in
+    // the Phase 3 cleanup — never wired to real data, no consumer.)
     await context.removeItem(TENANT_A, draft.id, item.id);
     expect(await context.listItems(TENANT_A, draft.id)).toHaveLength(0);
   });

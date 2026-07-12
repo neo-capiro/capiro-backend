@@ -14,29 +14,22 @@ export interface WsCheckResult {
   fixable: boolean;
 }
 
-export interface WsGateResult {
-  id: string;
-  label: string;
-  // Human sign-off gates WARN but never block (LOCKED Q-PV-2): until a human
-  // signs off they sit at 'notable' (pending), never 'critical'.
-  status: WsCheckStatus;
-}
-
 export interface WsChecksResponse {
   checks: WsCheckResult[];
-  gates: WsGateResult[];
   score: { passed: number; total: number };
 }
 
 /**
  * Pre-submission checks (Phase 6b — the renamed "lint"). RULE-BASED: no new
  * table. Evaluates the draft's config + documents against ~10 deterministic
- * rules and returns per-check status + the 3 human sign-off gates.
+ * rules and returns per-check status + a passed/total score.
  *
- * Gates WARN, never block (LOCKED Q-PV-2): they surface as `gates` with a
- * pending/cleared status the Preview screen can show, but no check here returns
- * a blocking result. Non-success checks carry `fixable: true` so the popover
- * can render a "Fix" jump.
+ * Advisory only — no check here blocks export (Ninja D1, 2026-07-12: Workspace
+ * stays gate-less; the old always-on, never-clearable human sign-off `gates`
+ * were removed, and this pass removes the vestigial empty `gates` field/type
+ * they left behind). Non-success checks carry `fixable: true` so the popover
+ * can render a "Fix" jump; Phase 3 claim-level citations surface as additional
+ * advisory checks in this same array.
  *
  * Tenant-scoped: the draft is loaded with a mandatory tenantId filter.
  */
@@ -245,11 +238,6 @@ export class ChecksService {
 
     return {
       checks,
-      // Human sign-off gates removed: they were hardcoded 'notable' (never
-      // clearable) and only added friction (an always-on "gates not met" export
-      // confirm). The live rule-based `checks` above are the real signal. The
-      // `gates` field stays on the response for type stability, always empty.
-      gates: [],
       score: { passed, total: checks.length },
     };
   }
