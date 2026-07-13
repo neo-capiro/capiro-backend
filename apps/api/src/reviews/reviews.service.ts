@@ -6,8 +6,8 @@ import { EngagementService } from '../engagement/engagement.service.js';
 import {
   DOCX_MIME,
   markdownToMemoDocInput,
-} from '../intelligence/alert-memo/alert-memo.service.js';
-import { renderMemoDocx } from '../intelligence/alert-memo/alert-memo-docx.js';
+  renderMemoDocx,
+} from '../intelligence/alert-memo/alert-memo-docx.js';
 
 export type ReviewSurface = 'alert-memo' | 'district-brief' | 'research';
 
@@ -150,10 +150,7 @@ export class ReviewsService {
 
   // ── internals ──────────────────────────────────────────────────────────────
 
-  private assertMayDecide(
-    ctx: TenantContext,
-    row: { assignedTo: string | null },
-  ): void {
+  private assertMayDecide(ctx: TenantContext, row: { assignedTo: string | null }): void {
     // user_admin OR the NAMED reviewer. Deliberately excludes the requester —
     // the entire point of §3.3 is that held high-risk work gets a second set
     // of eyes, not a self-release.
@@ -192,8 +189,10 @@ export class ReviewsService {
       // Clear heldForReview on the persisted report artifact.
       const artifactId = String(payload.artifactId ?? '');
       if (!artifactId) throw new NotFoundException('Held research payload is missing artifactId.');
-      await this.prisma.withTenant(ctx.tenantId, (tx) =>
-        tx.$executeRaw`
+      await this.prisma.withTenant(
+        ctx.tenantId,
+        (tx) =>
+          tx.$executeRaw`
           UPDATE clio_artifacts
           SET metadata_jsonb = (metadata_jsonb - 'heldForReview')
               || jsonb_build_object('reviewClearedBy', ${ctx.userId}::text,
