@@ -170,6 +170,103 @@ describe('RecallProvider.dispatchBot — branded camera tile (automatic_video_ou
     const body = calls[0]?.body as { automatic_video_output?: unknown };
     expect(body.automatic_video_output).toBeUndefined();
   });
+
+  test('configures automatic_leave so the bot does not linger on Recall defaults', async () => {
+    const calls = captureBody();
+    await makeProvider().dispatchBot({ ...base, platform: 'zoom' });
+    const body = calls[0]?.body as {
+      automatic_leave?: {
+        silence_detection?: { timeout?: number; activate_after?: number };
+        in_call_not_recording_timeout?: number;
+      };
+    };
+    const al = body.automatic_leave;
+    // Well under Recall's 3600s defaults so a ghost/idle call is abandoned in minutes.
+    expect(al?.silence_detection?.timeout).toBeLessThanOrEqual(600);
+    expect(al?.silence_detection?.timeout).toBeGreaterThan(0);
+    expect(typeof al?.silence_detection?.activate_after).toBe('number');
+    expect(al?.in_call_not_recording_timeout).toBeLessThanOrEqual(600);
+    expect(al?.in_call_not_recording_timeout).toBeGreaterThan(0);
+  });
+});
+
+describe('RecallProvider.getTranscriptStatus', () => {
+  const realFetch = global.fetch;
+  afterEach(() => {
+    global.fetch = realFetch;
+  });
+  const respond = (body: unknown) => {
+    global.fetch = jest.fn(async () => ({
+      ok: true,
+      status: 200,
+      text: async () => JSON.stringify(body),
+    })) as unknown as typeof fetch;
+  };
+
+  test('maps Recall status.code to our lifecycle', async () => {
+    const p = makeProvider();
+    respond({ status: { code: 'done' } });
+    expect(await p.getTranscriptStatus('tr1')).toBe('done');
+    respond({ status: { code: 'processing' } });
+    expect(await p.getTranscriptStatus('tr1')).toBe('processing');
+    respond({ status: { code: 'failed' } });
+    expect(await p.getTranscriptStatus('tr1')).toBe('failed');
+    respond({ status: { code: 'error' } });
+    expect(await p.getTranscriptStatus('tr1')).toBe('failed');
+  });
+
+  test('a download_url without a status code counts as done; a truly unknown state is not failed', async () => {
+    const p = makeProvider();
+    respond({ data: { download_url: 'https://x/y' } });
+    expect(await p.getTranscriptStatus('tr1')).toBe('done');
+    respond({ status: { code: 'some_new_recall_state' } });
+    expect(await p.getTranscriptStatus('tr1')).toBe('unknown');
+  });
+});
+
+describe('RecallProvider.getBotCompletion', () => {
+  const realFetch = global.fetch;
+  afterEach(() => {
+    global.fetch = realFetch;
+  });
+  const respond = (body: unknown) => {
+    global.fetch = jest.fn(async () => ({
+      ok: true,
+      status: 200,
+      text: async () => JSON.stringify(body),
+    })) as unknown as typeof fetch;
+  };
+
+  test('a done bot returns done + its recording id', async () => {
+    respond({
+      status_changes: [{ code: 'in_call_recording' }, { code: 'done' }],
+      recordings: [{ id: 'r1' }],
+    });
+    expect(await makeProvider().getBotCompletion('bot_1')).toEqual({
+      state: 'done',
+      recordingId: 'r1',
+    });
+  });
+
+  test('call_ended is terminal; fatal is fatal; an in-call bot is live', async () => {
+    respond({ status_changes: [{ code: 'call_ended' }], recordings: [] });
+    expect(await makeProvider().getBotCompletion('bot_1')).toEqual({
+      state: 'done',
+      recordingId: null,
+    });
+    respond({ status_changes: [{ code: 'fatal' }] });
+    expect((await makeProvider().getBotCompletion('bot_1')).state).toBe('fatal');
+    respond({ status_changes: [{ code: 'in_call_recording' }], recordings: [{ id: 'r9' }] });
+    expect(await makeProvider().getBotCompletion('bot_1')).toEqual({
+      state: 'live',
+      recordingId: 'r9',
+    });
+  });
+
+  test('no status changes → unknown', async () => {
+    respond({ status_changes: [] });
+    expect((await makeProvider().getBotCompletion('bot_1')).state).toBe('unknown');
+  });
 });
 
 describe('normalizeEvent classification', () => {

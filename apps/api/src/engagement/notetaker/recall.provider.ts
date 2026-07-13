@@ -20,10 +20,27 @@ import {
   type TranscriptUtterance,
   type NormalizedBotEvent,
   type BotWebhookEventKind,
+  type TranscriptLifecycle,
+  type BotCompletion,
+  TranscriptNotReadyError,
 } from './meeting-bot.provider.js';
 
 /** Outbound request timeout to the Recall REST API. */
 const RECALL_TIMEOUT_MS = 30_000;
+
+/**
+ * automatic_leave overrides (seconds). Recall's defaults let a bot linger up to
+ * 60 min after a meeting effectively ends — if the humans don't cleanly all leave
+ * (a lingering client, a dial-in, or the meeting never formally "ends"), the bot
+ * waits out silence_detection / in_call_not_recording (both 3600s by default)
+ * before it leaves, and Recall only fires `call_ended` when the bot leaves — so
+ * that default IS the "takes a long time to recognize the meeting ended" delay.
+ * We keep everyone_left at Recall's fast 2s default (the clean-exit path) and
+ * shorten the fallbacks so a ghost/idle call is abandoned in minutes, not an hour.
+ */
+const SILENCE_LEAVE_TIMEOUT_S = 600; // 10 min of continuous silence → leave
+const SILENCE_LEAVE_ACTIVATE_AFTER_S = 60; // don't evaluate silence in the first minute
+const IN_CALL_NOT_RECORDING_TIMEOUT_S = 300; // 5 min in-call but not recording → leave
 
 /**
  * Non-2xx from the Recall API, carrying the status + (truncated) response body so
@@ -85,6 +102,17 @@ export class RecallProvider implements MeetingBotProvider {
         // Short timed retention so the async BYO-Deepgram transcript can be created
         // and downloaded; we delete_media once the transcript is pulled.
         retention: { type: 'timed', hours: RECALL_MEDIA_RETENTION_HOURS },
+      },
+      // Leave promptly once the meeting is effectively over so `call_ended` (and
+      // thus our transcription + debrief) fires without an up-to-60-min wait. See
+      // the SILENCE_/IN_CALL_ constants above for the rationale; everyone_left is
+      // left at Recall's fast 2s default (the normal clean-exit path).
+      automatic_leave: {
+        silence_detection: {
+          timeout: SILENCE_LEAVE_TIMEOUT_S,
+          activate_after: SILENCE_LEAVE_ACTIVATE_AFTER_S,
+        },
+        in_call_not_recording_timeout: IN_CALL_NOT_RECORDING_TIMEOUT_S,
       },
     };
     if (input.metadata) body.metadata = input.metadata;
@@ -170,7 +198,10 @@ export class RecallProvider implements MeetingBotProvider {
     );
     const downloadUrl = resource?.data?.download_url;
     if (!downloadUrl) {
-      throw new ServiceUnavailableException('Recall transcript has no download_url yet');
+      // No download URL yet = still transcribing (common for long meetings). Signal
+      // "not ready" DISTINCTLY so the caller keeps waiting instead of failing the
+      // session — a 90-min meeting can transcribe for minutes past job creation.
+      throw new TranscriptNotReadyError('Recall transcript has no download_url yet');
     }
     // download_url is a pre-signed URL — fetch WITHOUT the Recall auth header.
     const segments = await this.fetchJson<RecallTranscriptSegment[]>(downloadUrl, {
@@ -182,6 +213,50 @@ export class RecallProvider implements MeetingBotProvider {
       .filter((line) => line.trim().length > 0)
       .join('\n');
     return { transcriptId, utterances, plainText };
+  }
+
+  async getTranscriptStatus(transcriptId: string): Promise<TranscriptLifecycle> {
+    // Recall's transcript resource carries status.code (verified in prod:
+    // GET /api/v1/transcript/:id → status.code "done"). Read it WITHOUT downloading
+    // so the sweep can cheaply tell an in-flight job from a failed one.
+    const resource = await this.request<{
+      status?: { code?: string } | null;
+      data?: { download_url?: string } | null;
+    }>('GET', `/api/v1/transcript/${encodeURIComponent(transcriptId)}/`);
+    const code = resource?.status?.code ?? null;
+    if (code === 'done') return 'done';
+    if (code === 'failed' || code === 'error') return 'failed';
+    if (
+      code === 'processing' ||
+      code === 'in_progress' ||
+      code === 'created' ||
+      code === 'transcribing'
+    ) {
+      return 'processing';
+    }
+    // No status.code but a download_url is already present → treat as done (older
+    // shape / race). Otherwise we don't recognize the code — keep waiting, never
+    // fail on an unknown state.
+    if (!code && resource?.data?.download_url) return 'done';
+    return 'unknown';
+  }
+
+  async getBotCompletion(externalBotId: string): Promise<BotCompletion> {
+    const bot = await this.request<{
+      status_changes?: Array<{ code?: string }>;
+      recordings?: Array<{ id?: string }>;
+    }>('GET', `/api/v1/bot/${encodeURIComponent(externalBotId)}/`);
+    const changes = Array.isArray(bot?.status_changes) ? bot.status_changes : [];
+    const latest = changes.length ? (changes[changes.length - 1]?.code ?? null) : null;
+    const recId = bot?.recordings?.[0]?.id;
+    const recordingId = typeof recId === 'string' && recId.length > 0 ? recId : null;
+
+    let state: BotCompletion['state'];
+    if (latest === 'done' || latest === 'call_ended') state = 'done';
+    else if (latest === 'fatal' || latest === 'error') state = 'fatal';
+    else if (latest) state = 'live';
+    else state = 'unknown';
+    return { state, recordingId };
   }
 
   async getRecordingId(externalBotId: string): Promise<string | null> {

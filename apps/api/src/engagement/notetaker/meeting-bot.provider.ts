@@ -98,6 +98,38 @@ export interface NormalizedTranscript {
   plainText: string;
 }
 
+/**
+ * Lifecycle of an async transcription job, as reported by the provider's transcript
+ * resource (independent of whether the `transcript.done` webhook was delivered).
+ * `unknown` = a state we don't recognize — treated as "keep waiting", never failed.
+ */
+export type TranscriptLifecycle = 'processing' | 'done' | 'failed' | 'unknown';
+
+/** Terminal-ness of a bot as reported by Retrieve Bot (drives the recording-leg self-heal). */
+export interface BotCompletion {
+  /**
+   * `live` = still in/entering the call; `done` = the call ended (recordingId set if
+   * anything was captured); `fatal` = the bot errored out; `unknown` = no status yet.
+   */
+  state: 'live' | 'done' | 'fatal' | 'unknown';
+  /** The finished recording id, if the bot produced one. */
+  recordingId: string | null;
+}
+
+/**
+ * Thrown by {@link MeetingBotProvider.getTranscript} when the transcript exists but
+ * its media/download URL is not ready yet (async transcription still running). This
+ * is NOT a failure — the caller must keep waiting rather than fail the session. A
+ * long meeting can be transcribing for minutes after the job was created, well past
+ * any "stale webhook" reconciliation window.
+ */
+export class TranscriptNotReadyError extends Error {
+  constructor(message = 'Transcript is not ready yet') {
+    super(message);
+    this.name = 'TranscriptNotReadyError';
+  }
+}
+
 /** Coarse classification of an inbound provider webhook, normalized across vendors. */
 export type BotWebhookEventKind =
   | 'status_change'
@@ -137,8 +169,26 @@ export interface MeetingBotProvider {
     opts?: CreateTranscriptOptions,
   ): Promise<CreateTranscriptResult>;
 
-  /** Fetch + normalize a completed transcript (follows the provider's download URL). */
+  /**
+   * Fetch + normalize a completed transcript (follows the provider's download URL).
+   * Throws {@link TranscriptNotReadyError} if the transcript exists but is still
+   * transcribing — the caller must keep waiting, not fail.
+   */
   getTranscript(transcriptId: string): Promise<NormalizedTranscript>;
+
+  /**
+   * Read the transcript job's lifecycle WITHOUT downloading it — lets the
+   * reconciliation sweep tell "still transcribing a long meeting" apart from
+   * "genuinely failed", so it never prematurely fails an in-flight transcript.
+   */
+  getTranscriptStatus(transcriptId: string): Promise<TranscriptLifecycle>;
+
+  /**
+   * Read a bot's terminal state directly (Retrieve Bot). Powers the recording-leg
+   * self-heal: a session stuck at `recording` because a `call_ended`/`recording.done`
+   * webhook was dropped can be advanced (or failed) by polling the bot itself.
+   */
+  getBotCompletion(externalBotId: string): Promise<BotCompletion>;
 
   /**
    * Look up the finished recording id for a bot directly (Retrieve Bot). Fallback

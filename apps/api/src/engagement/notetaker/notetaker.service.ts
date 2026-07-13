@@ -17,6 +17,7 @@ import { notetakerEnabled } from '../../common/tenant-flags.js';
 import { EngagementService, ownMeetingWhere } from '../engagement.service.js';
 import {
   MEETING_BOT_PROVIDER,
+  TranscriptNotReadyError,
   type MeetingBotProvider,
   type NormalizedBotEvent,
   type RecordingPolicy,
@@ -82,19 +83,44 @@ const STATUS_RANK: Record<string, number> = {
 const REMOVABLE_STATUSES = ['requested', 'joining', 'in_call', 'recording'];
 
 /**
- * How long to wait after async transcription is kicked off before treating a
- * missing `transcript.done` webhook as dropped rather than "still transcribing".
- * Confirmed in prod (2026-07-08): a `bot.status_change` webhook for a bot
- * delivered fine, but the SAME bot's `transcript.done` a few seconds later never
- * arrived — Recall can drop an individual delivery even when the endpoint and
- * signature verification are healthy. Recall's real turnaround is ~10s for short
- * meetings, so 90s gives genuine jobs headroom before the reconciliation sweep
- * (below) steps in and finishes the pipeline itself via the SAME Retrieve
- * Transcript API call a real webhook would have triggered.
+ * Pre-transcript statuses — the bot is (or should be) in the call and we have not
+ * yet started transcription. The recording-leg sweep watches these for a
+ * `call_ended`/`recording.done` webhook that never arrived.
+ */
+const PRE_TRANSCRIPT_STATUSES = ['requested', 'joining', 'in_call', 'recording'];
+
+/**
+ * How long to wait after async transcription is kicked off before the sweep starts
+ * actively polling Recall for the transcript (rather than passively waiting on the
+ * `transcript.done` webhook). Confirmed in prod (2026-07-08): a `bot.status_change`
+ * webhook delivered fine, but the SAME bot's `transcript.done` never arrived —
+ * Recall can drop an individual delivery even when the endpoint + signature are
+ * healthy. Short meetings turn around in ~10s, so 90s is comfortable headroom
+ * before we poll. Polling reads the transcript's STATUS (not a blind download), so
+ * a still-transcribing long meeting is left to keep cooking — see
+ * TRANSCRIPT_MAX_PENDING_MS for the absolute give-up bound.
  */
 const STALE_TRANSCRIPT_MS = 90_000;
 
-/** How often the in-process sweep checks for a `transcript.done` the webhook missed. */
+/**
+ * Absolute ceiling on how long a transcript may stay in flight before we give up and
+ * fail the session. Sized for a long meeting (a multi-hour recording can take several
+ * minutes to transcribe) PLUS generous slack; only a genuinely wedged Recall/Deepgram
+ * job should ever hit it. Below this, a not-yet-ready transcript is NEVER failed — the
+ * bug this replaces failed good long-meeting transcripts at the 90s mark.
+ */
+const TRANSCRIPT_MAX_PENDING_MS = 45 * 60_000;
+
+/**
+ * How long a session may sit in a pre-transcript status (still "in the call") before
+ * the recording-leg sweep polls the bot directly. Must be comfortably longer than the
+ * bot's own automatic-leave fallbacks (silence 10 min / not-recording 5 min) so we
+ * only poll bots that plausibly SHOULD have ended — an ordinary long meeting still in
+ * progress just gets a cheap `live` poll and is left alone.
+ */
+const STUCK_RECORDING_MS = 20 * 60_000;
+
+/** How often the in-process sweep runs (covers both the transcript and recording legs). */
 const RECONCILE_SWEEP_INTERVAL_MS = 60_000;
 
 /** Cap a single sweep so a large backlog can't make one tick run unboundedly long. */
@@ -133,10 +159,14 @@ export interface DispatchNotetakerInput {
  * MEETING_BOT_PROVIDER token.
  *
  * Also runs a periodic reconciliation sweep (onModuleInit/onModuleDestroy) that
- * self-heals sessions stuck waiting on a `transcript.done` webhook that Recall
- * never delivered — see STALE_TRANSCRIPT_MS. Every ECS replica runs its own
- * timer; that's fine because finishTranscript's atomic claim means only one
- * replica's attempt ever does real work for a given session.
+ * self-heals sessions stranded by a dropped Recall webhook on EITHER leg: the
+ * recording leg (a `call_ended`/`recording.done` that never arrived — see
+ * reconcileStuckRecordings) and the transcript leg (a `transcript.done` that never
+ * arrived — see reconcileStaleTranscripts). Both poll Recall for the real state
+ * rather than assuming, so a long meeting still in progress / still transcribing is
+ * left alone rather than prematurely failed. Every ECS replica runs its own timer;
+ * that's fine because each pipeline step's atomic claim means only one replica's
+ * attempt ever does real work for a given session.
  */
 @Injectable()
 export class NotetakerService implements OnModuleInit, OnModuleDestroy {
@@ -157,9 +187,9 @@ export class NotetakerService implements OnModuleInit, OnModuleDestroy {
       // generation can take real time) is still running.
       if (this.reconciling) return;
       this.reconciling = true;
-      this.reconcileStaleTranscripts()
+      this.runReconcileSweep()
         .catch((err) =>
-          this.logger.error(`transcript reconciliation sweep failed: ${(err as Error).message}`),
+          this.logger.error(`notetaker reconciliation sweep failed: ${(err as Error).message}`),
         )
         .finally(() => {
           this.reconciling = false;
@@ -169,19 +199,36 @@ export class NotetakerService implements OnModuleInit, OnModuleDestroy {
     this.reconcileTimer.unref?.();
   }
 
+  /**
+   * One sweep tick: self-heal BOTH legs a dropped Recall webhook can strand —
+   * the recording leg (a `call_ended`/`recording.done` that never arrived, leaving
+   * a session stuck "in the call") and the transcript leg (a `transcript.done` that
+   * never arrived). Recording first so a session that only just ended can advance to
+   * transcription within the same tick.
+   */
+  async runReconcileSweep(): Promise<void> {
+    await this.reconcileStuckRecordings();
+    await this.reconcileStaleTranscripts();
+  }
+
   onModuleDestroy(): void {
     if (this.reconcileTimer) clearInterval(this.reconcileTimer);
   }
 
   /**
-   * Find sessions whose async transcription finished on Recall's side (we have a
-   * transcriptId) but never got a `transcript.done` webhook, and drive them to
-   * completion ourselves via the same finishTranscript() a real webhook uses.
-   * Cross-tenant by design — this is an operational maintenance sweep, not a
-   * per-tenant request. Returns the number of sessions attempted.
+   * Transcript leg. Find sessions whose async transcription was started (we have a
+   * transcriptId) but never got a `transcript.done` webhook. For each, ASK Recall
+   * the transcript's status rather than blindly trying to download it: only `done`
+   * transcripts are finished; a still-`processing` one is left to keep cooking (the
+   * fix for long meetings, which used to be failed at the 90s mark before Deepgram
+   * had finished); a Recall-side `failed` fails the session; and a transcript still
+   * not done past TRANSCRIPT_MAX_PENDING_MS is given up on. Cross-tenant by design —
+   * an operational maintenance sweep, not a per-tenant request. Returns the count
+   * of sessions examined.
    */
   async reconcileStaleTranscripts(): Promise<number> {
-    const cutoff = new Date(Date.now() - STALE_TRANSCRIPT_MS);
+    const now = Date.now();
+    const cutoff = new Date(now - STALE_TRANSCRIPT_MS);
     const stale = await this.prisma.withSystem((tx) =>
       tx.meetingBotSession.findMany({
         where: {
@@ -199,40 +246,107 @@ export class NotetakerService implements OnModuleInit, OnModuleDestroy {
           externalBotId: true,
           recordingPolicy: true,
           transcriptId: true,
+          updatedAt: true,
         },
         take: RECONCILE_SWEEP_BATCH_SIZE,
       }),
     );
 
     for (const row of stale) {
-      this.logger.warn(
-        `reconciling session ${row.id} — transcript ${row.transcriptId} has had no ` +
-          `transcript.done webhook for over ${STALE_TRANSCRIPT_MS / 1000}s; finishing it directly`,
-      );
+      const transcriptId = row.transcriptId!;
       try {
-        // finishTranscript re-derives freshness via its own atomic claim, so a
-        // webhook that lands in the gap between this query and this call just
-        // wins the race harmlessly (this attempt no-ops).
-        await this.finishTranscript(
-          row.tenantId,
-          {
-            id: row.id,
-            meetingId: row.meetingId,
-            clientId: row.clientId,
-            requestedByUserId: row.requestedByUserId,
-            externalBotId: row.externalBotId,
-            recordingPolicy: row.recordingPolicy,
-          },
-          row.transcriptId!,
-        );
+        const status = await this.bot.getTranscriptStatus(transcriptId);
+        if (status === 'done') {
+          this.logger.warn(
+            `reconciling session ${row.id} — transcript ${transcriptId} is done but no ` +
+              `transcript.done webhook arrived; finishing it directly`,
+          );
+          // finishTranscript re-derives freshness via its own atomic claim, so a
+          // webhook that lands in the gap between this query and this call just
+          // wins the race harmlessly (this attempt no-ops).
+          await this.finishTranscript(
+            row.tenantId,
+            {
+              id: row.id,
+              meetingId: row.meetingId,
+              clientId: row.clientId,
+              requestedByUserId: row.requestedByUserId,
+              externalBotId: row.externalBotId,
+              recordingPolicy: row.recordingPolicy,
+            },
+            transcriptId,
+          );
+        } else if (status === 'failed') {
+          await this.failSession(row.tenantId, row.id, 'Recall reported the transcription failed');
+        } else if (now - row.updatedAt.getTime() > TRANSCRIPT_MAX_PENDING_MS) {
+          // Still not done long past any realistic turnaround → a wedged job.
+          await this.failSession(
+            row.tenantId,
+            row.id,
+            `Transcription did not complete within ${Math.round(TRANSCRIPT_MAX_PENDING_MS / 60_000)} min`,
+          );
+        }
+        // else: still processing within budget → leave it (do NOT touch the row, so
+        // updatedAt keeps marking when transcription started for the ceiling above).
       } catch (err) {
-        // finishTranscript already routes its own failures through failSession
-        // without throwing; this is a backstop so one bad row (e.g. a DB blip on
-        // the claim write) can't take down the rest of the sweep.
+        // Backstop so one bad row (a DB blip, a transient Recall 5xx) can't take
+        // down the rest of the sweep; it'll be retried next tick.
         this.logger.error(`reconciliation failed for session ${row.id}: ${(err as Error).message}`);
       }
     }
     return stale.length;
+  }
+
+  /**
+   * Recording leg. Find sessions stuck "in the call" (a pre-transcript status) well
+   * past when the bot should have left — the symptom of a dropped/late
+   * `call_ended`/`recording.done` webhook. Poll the bot directly (Retrieve Bot):
+   * if it ended with a recording, start transcription (advancing the pipeline the
+   * missing webhook would have); if it ended with no recording or fatally, fail the
+   * session; if it's genuinely still live (a long meeting in progress), leave it.
+   * Returns the count of sessions examined.
+   */
+  async reconcileStuckRecordings(): Promise<number> {
+    const cutoff = new Date(Date.now() - STUCK_RECORDING_MS);
+    const stuck = await this.prisma.withSystem((tx) =>
+      tx.meetingBotSession.findMany({
+        where: {
+          status: { in: PRE_TRANSCRIPT_STATUSES },
+          transcriptId: null,
+          debriefId: null,
+          externalBotId: { not: null },
+          updatedAt: { lt: cutoff },
+        },
+        select: { id: true, tenantId: true, externalBotId: true },
+        take: RECONCILE_SWEEP_BATCH_SIZE,
+      }),
+    );
+
+    for (const row of stuck) {
+      try {
+        const completion = await this.bot.getBotCompletion(row.externalBotId!);
+        if (completion.state === 'live' || completion.state === 'unknown') continue; // still going
+        if (completion.state === 'fatal') {
+          await this.failSession(row.tenantId, row.id, 'Bot reported a fatal error');
+          continue;
+        }
+        // state === 'done'
+        if (completion.recordingId) {
+          this.logger.warn(
+            `reconciling session ${row.id} — bot ${row.externalBotId} ended but no ` +
+              `call_ended/recording webhook arrived; starting transcription directly`,
+          );
+          await this.startTranscription(row.tenantId, row.id, completion.recordingId);
+        } else {
+          await this.failSession(row.tenantId, row.id, 'Bot finished without a recording');
+        }
+      } catch (err) {
+        this.logger.error(
+          `recording-leg reconciliation failed for session ${row.id}: ${(err as Error).message}`,
+        );
+      }
+    }
+    return stuck.length;
   }
 
   /** Send a meeting bot to a meeting the caller owns. Strict-consent gated. */
@@ -687,6 +801,22 @@ export class NotetakerService implements OnModuleInit, OnModuleDestroy {
       const transcript = await this.bot.getTranscript(transcriptId);
       plainText = transcript.plainText.trim();
     } catch (err) {
+      if (err instanceof TranscriptNotReadyError) {
+        // Rare race: we claimed on a `done` signal but the download URL isn't
+        // available this instant. NOT a failure — release the claim back to
+        // `processing` so the next sweep (or a real webhook) retries. Failing here
+        // is exactly the long-meeting bug this change removes.
+        this.logger.warn(
+          `transcript ${transcriptId} not ready at finish (session ${session.id}) — releasing claim`,
+        );
+        await this.prisma.withTenant(tenantId, (tx) =>
+          tx.meetingBotSession.updateMany({
+            where: { id: session.id, tenantId, status: 'drafting', debriefId: null },
+            data: { status: 'processing' },
+          }),
+        );
+        return;
+      }
       this.logger.warn(`getTranscript failed (session ${session.id}): ${(err as Error).message}`);
       await this.failSession(tenantId, session.id, (err as Error).message);
       return;

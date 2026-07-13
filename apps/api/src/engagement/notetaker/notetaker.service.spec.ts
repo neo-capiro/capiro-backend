@@ -4,6 +4,7 @@ import type { ConfigService } from '@nestjs/config';
 import type { PrismaService } from '../../prisma/prisma.service.js';
 import type { EngagementService } from '../engagement.service.js';
 import type { AppConfig } from '../../config/config.schema.js';
+import { TranscriptNotReadyError } from './meeting-bot.provider.js';
 import type { MeetingBotProvider, NormalizedBotEvent } from './meeting-bot.provider.js';
 import {
   NotetakerService,
@@ -65,6 +66,8 @@ function makeService(tx: Tx) {
       utterances: [],
       plainText: 'Speaker 0: hello there',
     }),
+    getTranscriptStatus: asyncMock('done'),
+    getBotCompletion: asyncMock({ state: 'live', recordingId: null }),
     getRecordingId: asyncMock('r1'),
     leaveCall: asyncMock(undefined),
     deleteMedia: asyncMock(undefined),
@@ -507,16 +510,21 @@ describe('NotetakerService.reconcileStaleTranscripts (self-heal a dropped transc
     externalBotId: 'bot_1',
     recordingPolicy: 'transcript_only',
     transcriptId: 'tr1',
+    // Recent: within TRANSCRIPT_MAX_PENDING_MS, so a still-processing transcript is
+    // NEVER failed for being slow (the long-meeting fix).
+    updatedAt: new Date(),
   };
 
-  test('finishes a stale session exactly as the webhook path would', async () => {
+  test('finishes a stale session (transcript done) exactly as the webhook path would', async () => {
     const tx = makeTx();
     tx.meetingBotSession.findMany.mockResolvedValue([staleRow]);
-    const { service, engagement } = makeService(tx);
+    const { service, engagement, bot } = makeService(tx);
 
     const count = await service.reconcileStaleTranscripts();
 
     expect(count).toBe(1);
+    // It ASKS Recall the transcript status before doing anything (no blind download).
+    expect(bot.getTranscriptStatus).toHaveBeenCalledWith('tr1');
     // The query itself must target the confirmed failure shape.
     expect(tx.meetingBotSession.findMany).toHaveBeenCalledWith(
       expect.objectContaining({
@@ -537,6 +545,71 @@ describe('NotetakerService.reconcileStaleTranscripts (self-heal a dropped transc
         data: expect.objectContaining({ status: 'drafting', transcriptId: 'tr1' }),
       }),
     );
+  });
+
+  test('LONG MEETING: a still-processing transcript within budget is LEFT ALONE (not failed)', async () => {
+    const tx = makeTx();
+    tx.meetingBotSession.findMany.mockResolvedValue([staleRow]);
+    const { service, engagement, bot } = makeService(tx);
+    bot.getTranscriptStatus.mockResolvedValue('processing');
+
+    const count = await service.reconcileStaleTranscripts();
+
+    expect(count).toBe(1);
+    // No debrief, no claim, and crucially NO failSession — the row is untouched so
+    // its updatedAt keeps marking when transcription started.
+    expect(engagement.generateMeetingDebriefDraft).not.toHaveBeenCalled();
+    expect(tx.meetingBotSession.updateMany).not.toHaveBeenCalled();
+  });
+
+  test('a transcript still not done past the max-pending ceiling IS failed', async () => {
+    const tx = makeTx();
+    // updatedAt an hour ago → past TRANSCRIPT_MAX_PENDING_MS (45 min).
+    tx.meetingBotSession.findMany.mockResolvedValue([
+      { ...staleRow, updatedAt: new Date(Date.now() - 60 * 60_000) },
+    ]);
+    const { service, bot, engagement } = makeService(tx);
+    bot.getTranscriptStatus.mockResolvedValue('processing');
+
+    await service.reconcileStaleTranscripts();
+
+    expect(engagement.generateMeetingDebriefDraft).not.toHaveBeenCalled();
+    expect(tx.meetingBotSession.updateMany).toHaveBeenCalledWith(
+      expect.objectContaining({ data: expect.objectContaining({ status: 'failed' }) }),
+    );
+  });
+
+  test('a Recall-reported failed transcription fails the session', async () => {
+    const tx = makeTx();
+    tx.meetingBotSession.findMany.mockResolvedValue([staleRow]);
+    const { service, bot, engagement } = makeService(tx);
+    bot.getTranscriptStatus.mockResolvedValue('failed');
+
+    await service.reconcileStaleTranscripts();
+
+    expect(engagement.generateMeetingDebriefDraft).not.toHaveBeenCalled();
+    expect(tx.meetingBotSession.updateMany).toHaveBeenCalledWith(
+      expect.objectContaining({ data: expect.objectContaining({ status: 'failed' }) }),
+    );
+  });
+
+  test('a not-ready transcript at finish RELEASES the claim to processing (never fails it)', async () => {
+    const tx = makeTx();
+    tx.meetingBotSession.findMany.mockResolvedValue([staleRow]);
+    const { service, bot, engagement } = makeService(tx);
+    // Status says done, but the download URL races to unavailable at finish time.
+    bot.getTranscriptStatus.mockResolvedValue('done');
+    bot.getTranscript.mockRejectedValue(new TranscriptNotReadyError());
+
+    await service.reconcileStaleTranscripts();
+
+    expect(engagement.generateMeetingDebriefDraft).not.toHaveBeenCalled();
+    // Claim was set to drafting, then RELEASED back to processing — never failed.
+    const statuses = tx.meetingBotSession.updateMany.mock.calls.map(
+      (c) => (c[0] as { data?: { status?: string } }).data?.status,
+    );
+    expect(statuses).toContain('processing');
+    expect(statuses).not.toContain('failed');
   });
 
   test('does nothing when no sessions are stale', async () => {
@@ -560,6 +633,82 @@ describe('NotetakerService.reconcileStaleTranscripts (self-heal a dropped transc
   });
 });
 
+describe('NotetakerService.reconcileStuckRecordings (self-heal a dropped call_ended webhook)', () => {
+  const stuckRow = { id: 's-rec', tenantId: 't1', externalBotId: 'bot_1' };
+
+  test('a bot that ended with a recording starts transcription directly', async () => {
+    const tx = makeTx();
+    tx.meetingBotSession.findMany.mockResolvedValue([stuckRow]);
+    const { service, bot } = makeService(tx);
+    bot.getBotCompletion.mockResolvedValue({ state: 'done', recordingId: 'r-late' });
+
+    const count = await service.reconcileStuckRecordings();
+
+    expect(count).toBe(1);
+    expect(bot.getBotCompletion).toHaveBeenCalledWith('bot_1');
+    // startTranscription creates the async transcript on the recovered recording id.
+    expect(bot.createAsyncTranscript).toHaveBeenCalledWith('r-late');
+    // Query targets pre-transcript, no-transcript sessions with a bot id.
+    expect(tx.meetingBotSession.findMany).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: expect.objectContaining({
+          transcriptId: null,
+          debriefId: null,
+          externalBotId: { not: null },
+        }),
+      }),
+    );
+  });
+
+  test('a bot still live is left alone', async () => {
+    const tx = makeTx();
+    tx.meetingBotSession.findMany.mockResolvedValue([stuckRow]);
+    const { service, bot } = makeService(tx);
+    bot.getBotCompletion.mockResolvedValue({ state: 'live', recordingId: null });
+
+    await service.reconcileStuckRecordings();
+
+    expect(bot.createAsyncTranscript).not.toHaveBeenCalled();
+    expect(tx.meetingBotSession.updateMany).not.toHaveBeenCalled();
+  });
+
+  test('a bot that ended with NO recording fails the session', async () => {
+    const tx = makeTx();
+    tx.meetingBotSession.findMany.mockResolvedValue([stuckRow]);
+    const { service, bot } = makeService(tx);
+    bot.getBotCompletion.mockResolvedValue({ state: 'done', recordingId: null });
+
+    await service.reconcileStuckRecordings();
+
+    expect(bot.createAsyncTranscript).not.toHaveBeenCalled();
+    expect(tx.meetingBotSession.updateMany).toHaveBeenCalledWith(
+      expect.objectContaining({ data: expect.objectContaining({ status: 'failed' }) }),
+    );
+  });
+
+  test('a fatal bot fails the session', async () => {
+    const tx = makeTx();
+    tx.meetingBotSession.findMany.mockResolvedValue([stuckRow]);
+    const { service, bot } = makeService(tx);
+    bot.getBotCompletion.mockResolvedValue({ state: 'fatal', recordingId: null });
+
+    await service.reconcileStuckRecordings();
+
+    expect(tx.meetingBotSession.updateMany).toHaveBeenCalledWith(
+      expect.objectContaining({ data: expect.objectContaining({ status: 'failed' }) }),
+    );
+  });
+
+  test('a per-row error does not stop the sweep', async () => {
+    const tx = makeTx();
+    tx.meetingBotSession.findMany.mockResolvedValue([stuckRow]);
+    const { service, bot } = makeService(tx);
+    bot.getBotCompletion.mockRejectedValue(new Error('recall 502'));
+
+    await expect(service.reconcileStuckRecordings()).resolves.toBe(1);
+  });
+});
+
 describe('NotetakerService lifecycle (periodic reconciliation timer)', () => {
   beforeEach(() => {
     jest.useFakeTimers();
@@ -579,7 +728,9 @@ describe('NotetakerService lifecycle (periodic reconciliation timer)', () => {
 
   test('onModuleInit schedules the sweep, and onModuleDestroy stops it', async () => {
     const { service } = makeService(makeTx());
-    const spy = jest.spyOn(service, 'reconcileStaleTranscripts').mockResolvedValue(0);
+    // Spy on runReconcileSweep — the exact method the timer invokes (it fans out to
+    // both the recording and transcript legs internally).
+    const spy = jest.spyOn(service, 'runReconcileSweep').mockResolvedValue(undefined);
 
     service.onModuleInit();
     expect(spy).not.toHaveBeenCalled();
@@ -596,10 +747,8 @@ describe('NotetakerService lifecycle (periodic reconciliation timer)', () => {
     const { service } = makeService(makeTx());
     let resolveSweep!: () => void;
     const spy = jest
-      .spyOn(service, 'reconcileStaleTranscripts')
-      .mockImplementation(
-        () => new Promise<number>((resolve) => (resolveSweep = () => resolve(0))),
-      );
+      .spyOn(service, 'runReconcileSweep')
+      .mockImplementation(() => new Promise<void>((resolve) => (resolveSweep = () => resolve())));
 
     service.onModuleInit();
     await tick(60_000);
