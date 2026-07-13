@@ -91,7 +91,7 @@ export class WorkspaceContextCompilerService {
       // record them as exclusions (same lock as the other two adapters).
       return tx.$queryRaw<SteeringRow[]>`
         SELECT id, type, slug, title, client_id AS "clientId", status,
-               sections_jsonb AS sections
+               expires_at AS "expiresAt", sections_jsonb AS sections
         FROM memory_items
         WHERE (
           (${wantsFirm} AND type = ANY(${firmTypes}) AND slug = 'firm')

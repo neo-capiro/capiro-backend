@@ -2,11 +2,7 @@ import { Injectable, Logger } from '@nestjs/common';
 import { Prisma } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service.js';
 import { TenantContextStore } from '../tenant/tenant-context.store.js';
-import type {
-  MemoryItem,
-  MemoryItemType,
-  MemorySection,
-} from './memory.types.js';
+import type { MemoryItem, MemoryItemType, MemorySection } from './memory.types.js';
 import { MEMORY_SCHEMA_VERSION, defaultMemoryGovernanceFields } from './memory.types.js';
 import { renderMemoryItem, vaultPathForItem } from './memory-render.helpers.js';
 import { extractWikiLinks } from './memory-parse.helpers.js';
@@ -96,6 +92,8 @@ export class MemoryStoreService {
           AND (visibility = 'tenant' OR owner_user_id = ${ctx.userId}::uuid)
           -- a forgotten item stops recall immediately (1D)
           AND status != 'revoked'
+          -- G2 ephemeral: expired working memory never reaches recall
+          AND (expires_at IS NULL OR expires_at > now())
         ORDER BY type, slug
       `;
       return rows.map((r) => this.rowToItem(r));
@@ -116,6 +114,7 @@ export class MemoryStoreService {
         WHERE tenant_id = ${ctx.tenantId}::uuid AND type = ${type} AND slug = ${slug}
           AND (visibility = 'tenant' OR owner_user_id = ${ctx.userId}::uuid)
           AND status != 'revoked'
+          AND (expires_at IS NULL OR expires_at > now())
         LIMIT 1
       `;
       const row = rows[0];
@@ -129,19 +128,34 @@ export class MemoryStoreService {
    * Returns edges scoped by RLS and a map of srcItemId -> node identity.
    */
   async loadGraphInputs(): Promise<{
-    wikiEdges: Array<{ tenantId: string; srcItemId: string; relation: string; dstType: string; dstSlug: string }>;
+    wikiEdges: Array<{
+      tenantId: string;
+      srcItemId: string;
+      relation: string;
+      dstType: string;
+      dstSlug: string;
+    }>;
     itemNodes: Array<{ itemId: string; type: string; slug: string; label: string }>;
   }> {
     const ctx = this.tenantCtx.require();
     return this.prisma.withTenantUser(ctx.tenantId, ctx.userId, async (tx) => {
       const edges = await tx.$queryRaw<
-        Array<{ tenant_id: string; src_item_id: string; relation: string; dst_type: string; dst_slug: string }>
+        Array<{
+          tenant_id: string;
+          src_item_id: string;
+          relation: string;
+          dst_type: string;
+          dst_slug: string;
+        }>
       >`SELECT tenant_id, src_item_id, relation, dst_type, dst_slug FROM memory_edges WHERE tenant_id = ${ctx.tenantId}::uuid`;
-      const items = await tx.$queryRaw<Array<{ id: string; type: string; slug: string; title: string }>>`
+      const items = await tx.$queryRaw<
+        Array<{ id: string; type: string; slug: string; title: string }>
+      >`
         SELECT id, type, slug, title FROM memory_items
         WHERE tenant_id = ${ctx.tenantId}::uuid
           AND (visibility = 'tenant' OR owner_user_id = ${ctx.userId}::uuid)
           AND status != 'revoked'
+          AND (expires_at IS NULL OR expires_at > now())
       `;
       return {
         wikiEdges: edges.map((e) => ({
@@ -168,7 +182,7 @@ export class MemoryStoreService {
           tenant_id, client_id, owner_user_id, type, visibility, entity_id,
           slug, title, aliases, tags, source, source_ref, provenance,
           sections_jsonb, schema_version,
-          status, sensitivity, legal_hold, exportable, training_use
+          status, sensitivity, legal_hold, exportable, training_use, expires_at
         ) VALUES (
           ${item.tenantId}::uuid,
           ${item.clientId}::uuid,
@@ -189,7 +203,8 @@ export class MemoryStoreService {
           ${item.sensitivity ?? 'normal'},
           ${item.legalHold ?? false},
           ${item.exportable ?? true},
-          ${item.trainingUse ?? 'excluded'}
+          ${item.trainingUse ?? 'excluded'},
+          ${item.expiresAt ? new Date(item.expiresAt) : null}
         )
         -- Governance/temporal columns (status, legal_hold, revoked_*, etc.)
         -- are deliberately NOT in this UPDATE SET: upsertSystem is also the
@@ -209,6 +224,10 @@ export class MemoryStoreService {
           source_ref = EXCLUDED.source_ref,
           provenance = EXCLUDED.provenance,
           sections_jsonb = EXCLUDED.sections_jsonb,
+          -- expires_at IS content-resync (it mirrors the SOURCE row's expiry,
+          -- e.g. an ephemeral clio_memory), not governance state — a
+          -- re-projection must keep the projection's expiry in sync.
+          expires_at = EXCLUDED.expires_at,
           updated_at = now()
         RETURNING id
       `;
@@ -301,16 +320,23 @@ export class MemoryStoreService {
     const item: MemoryItem = existing
       ? { ...existing, sections: mergedSections }
       : {
-          id: '', tenantId: ctx.tenantId,
+          id: '',
+          tenantId: ctx.tenantId,
           clientId: scope === 'client' ? clientId : null,
           ownerUserId: scope === 'user' ? ctx.userId : null,
           type,
           visibility: scope === 'user' ? 'user' : 'tenant',
           entityId: null,
-          slug, title: label, aliases: [], tags: ['memory-file', scope],
-          source: 'manual', sourceRef: null, provenance: 'human',
+          slug,
+          title: label,
+          aliases: [],
+          tags: ['memory-file', scope],
+          source: 'manual',
+          sourceRef: null,
+          provenance: 'human',
           sections: mergedSections,
-          createdAt: new Date().toISOString(), updatedAt: new Date().toISOString(),
+          createdAt: new Date().toISOString(),
+          updatedAt: new Date().toISOString(),
           schemaVersion: MEMORY_SCHEMA_VERSION,
           ...defaultMemoryGovernanceFields(),
         };
@@ -417,9 +443,15 @@ export class MemoryStoreService {
     const outcome = await this.prisma.withTenantUser(ctx.tenantId, ctx.userId, async (tx) => {
       const rows = await tx.$queryRaw<
         Array<{
-          type: string; slug: string; title: string; client_id: string | null;
-          owner_user_id: string | null; visibility: string; entity_id: string | null;
-          tags: string[]; legal_hold: boolean;
+          type: string;
+          slug: string;
+          title: string;
+          client_id: string | null;
+          owner_user_id: string | null;
+          visibility: string;
+          entity_id: string | null;
+          tags: string[];
+          legal_hold: boolean;
         }>
       >`
         SELECT type, slug, title, client_id, owner_user_id, visibility, entity_id, tags, legal_hold
@@ -431,14 +463,13 @@ export class MemoryStoreService {
       `;
       const old = rows[0];
       if (!old) return { found: false as const };
-      if (old.legal_hold) return { found: true as const, blockedByLegalHold: true, title: old.title };
+      if (old.legal_hold)
+        return { found: true as const, blockedByLegalHold: true, title: old.title };
 
       // New slug dodges the (tenant,type,slug) unique constraint; a corrected
       // item is a distinct row so both versions coexist.
       const newSlug = `${old.slug}~c${Date.now().toString(36)}`.slice(0, 200);
-      const sections = JSON.stringify([
-        { key: 'memory', heading: 'Memory', owner: 'human', body },
-      ]);
+      const sections = JSON.stringify([{ key: 'memory', heading: 'Memory', owner: 'human', body }]);
       const ins = await tx.$queryRaw<Array<{ id: string }>>`
         INSERT INTO memory_items (
           tenant_id, client_id, owner_user_id, type, visibility, entity_id,

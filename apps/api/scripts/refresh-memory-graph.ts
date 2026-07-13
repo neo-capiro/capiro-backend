@@ -48,8 +48,11 @@ async function main(): Promise<void> {
   const store = new MemoryStoreService(prisma, tenantCtx);
   const ingest = new MemoryIngestService(prisma, store, tenantCtx);
 
-  const tenants = await prisma.withSystem((tx) =>
-    tx.$queryRaw<Array<{ id: string; slug: string }>>`SELECT id, slug FROM tenants ORDER BY created_at ASC`,
+  const tenants = await prisma.withSystem(
+    (tx) =>
+      tx.$queryRaw<
+        Array<{ id: string; slug: string }>
+      >`SELECT id, slug FROM tenants ORDER BY created_at ASC`,
   );
 
   const targets = ALL_TENANTS
@@ -57,10 +60,45 @@ async function main(): Promise<void> {
     : tenants.filter((t) => t.id === TENANT_ARG || t.slug === TENANT_ARG);
 
   if (!targets.length) {
-    console.error(ALL_TENANTS ? 'No tenants found.' : `No tenant matched "${TENANT_ARG}". Pass --tenant=<slug|uuid> or --all-tenants.`);
+    console.error(
+      ALL_TENANTS
+        ? 'No tenants found.'
+        : `No tenant matched "${TENANT_ARG}". Pass --tenant=<slug|uuid> or --all-tenants.`,
+    );
     process.exitCode = 1;
     await prisma.$disconnect();
     return;
+  }
+
+  // ── G2 ephemeral purge (runs FIRST, before re-projection, so an expired
+  // clio_memory row can't be re-projected in the same sweep). Expired working
+  // memory is erased outright — no tombstone: unlike forget_memory (a
+  // governance action on durable history), expiry is the designed end of
+  // task-scoped context, and the RLS expiry predicate already made these rows
+  // unreadable to every non-bypass caller. Order: embeddings first (they
+  // reference items by source_id), then the projections, then the source rows.
+  try {
+    const purged = await prisma.withSystem(async (tx) => {
+      const embeddings = await tx.$executeRaw`
+        DELETE FROM context_embeddings ce
+        USING memory_items mi
+        WHERE ce.source_type = 'memory_item'
+          AND ce.source_id = mi.id::text
+          AND mi.expires_at IS NOT NULL AND mi.expires_at <= now()
+      `;
+      const items = await tx.$executeRaw`
+        DELETE FROM memory_items
+        WHERE expires_at IS NOT NULL AND expires_at <= now()
+      `;
+      const clio = await tx.$executeRaw`
+        DELETE FROM clio_memory
+        WHERE expires_at IS NOT NULL AND expires_at <= now()
+      `;
+      return { embeddings, items, clio };
+    });
+    console.log(`[purge] expired ephemeral memory: ${JSON.stringify(purged)}`);
+  } catch (err) {
+    console.error(`[purge] FAILED (non-fatal): ${(err as Error).message}`);
   }
 
   for (const t of targets) {

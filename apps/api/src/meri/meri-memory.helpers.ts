@@ -10,15 +10,20 @@
  * (which matches on tenant_id + key only) targets exactly one row.
  */
 
-export type MeriMemoryScope = 'firm' | 'user_private';
+export type MeriMemoryScope = 'firm' | 'user_private' | 'client';
 
 export interface MeriMemoryRecord {
   scope: MeriMemoryScope;
   ownerUserId: string | null;
-  /** Tenant-unique storage key (user-scoped keys are namespaced by userId). */
+  /** G2: set iff scope='client'. */
+  clientId?: string | null;
+  /** Tenant-unique storage key (user-scoped keys are namespaced by userId;
+   *  client-scoped keys by clientId). */
   key: string;
   value: string;
   source: string;
+  /** G2 ephemeral: when set, the memory expires and is later purged. */
+  expiresAt?: Date | null;
 }
 
 /** Mirror of MeriService.userScopedMemoryKey — keep the format identical. */
@@ -37,34 +42,63 @@ export function memoryKeySlug(raw: string): string {
   return slug || 'note';
 }
 
+/** Client-scoped storage key — namespaced by clientId, mirroring the user scheme. */
+export function clientScopedMemoryKey(clientId: string, key: string): string {
+  return `client:${clientId}:${key}`;
+}
+
 /**
  * Build a normalized ClioMemory record from a `save_memory` request. Returns
  * null when there is no usable content. `scope` of "firm" stores firm-wide;
- * anything else (default) stores as this user's private memory.
+ * "client" stores against opts.clientId (falls back to user-private when no
+ * client is in scope — never silently firm-wide); anything else (default)
+ * stores as this user's private memory. G2: `ttlDays` makes the memory
+ * EPHEMERAL — it expires (hidden from recall, later purged) instead of
+ * becoming durable operating memory ("use once / working memory",
+ * blueprint §3.5).
  */
 export function buildSavedMemoryRecord(opts: {
   content: string;
   key?: string | null;
   scope?: string | null;
   userId: string;
+  clientId?: string | null;
+  ttlDays?: number | null;
 }): MeriMemoryRecord | null {
   const value = (opts.content ?? '').trim();
   if (!value) return null;
 
+  const requested = (opts.scope ?? '').trim().toLowerCase();
   const scope: MeriMemoryScope =
-    (opts.scope ?? '').trim().toLowerCase() === 'firm' ? 'firm' : 'user_private';
+    requested === 'firm'
+      ? 'firm'
+      : requested === 'client' && opts.clientId
+        ? 'client'
+        : 'user_private';
 
   // Explicit key wins; otherwise derive a slug from the first words of content.
   const rawKey = opts.key && opts.key.trim() ? opts.key : value.split(/\s+/).slice(0, 8).join(' ');
   const baseKey = memoryKeySlug(rawKey);
-  const key = scope === 'user_private' ? userScopedMemoryKey(opts.userId, baseKey) : baseKey;
+  const key =
+    scope === 'user_private'
+      ? userScopedMemoryKey(opts.userId, baseKey)
+      : scope === 'client'
+        ? clientScopedMemoryKey(opts.clientId as string, baseKey)
+        : baseKey;
+
+  const ttlDays =
+    typeof opts.ttlDays === 'number' && Number.isFinite(opts.ttlDays) && opts.ttlDays > 0
+      ? Math.min(opts.ttlDays, 365)
+      : null;
 
   return {
     scope,
     ownerUserId: scope === 'user_private' ? opts.userId : null,
+    clientId: scope === 'client' ? (opts.clientId as string) : null,
     key,
     value: value.slice(0, 4000),
     source: 'user_requested',
+    expiresAt: ttlDays ? new Date(Date.now() + ttlDays * 86_400_000) : null,
   };
 }
 

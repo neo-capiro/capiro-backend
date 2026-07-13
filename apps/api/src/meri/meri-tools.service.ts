@@ -133,7 +133,7 @@ export const TOOL_DEFINITIONS = [
   {
     name: 'confirm_memory',
     description:
-      "Re-affirm that a remembered fact is still true and current, resetting its confirmation date. Use when the user verifies something Meri remembers (\"yes, that's still right\"). Pass the memoryItemId from search_memory. Does not change the content.",
+      'Re-affirm that a remembered fact is still true and current, resetting its confirmation date. Use when the user verifies something Meri remembers ("yes, that\'s still right"). Pass the memoryItemId from search_memory. Does not change the content.',
   },
   {
     name: 'correct_memory',
@@ -143,7 +143,7 @@ export const TOOL_DEFINITIONS = [
   {
     name: 'forget_memory',
     description:
-      'Forget a remembered fact: stop recalling it immediately and remove it from Meri\'s memory (a recoverable soft-delete with an audit trail). Use when the user asks Meri to forget something. Pass the memoryItemId from search_memory. Refuses if the item is under a legal hold.',
+      "Forget a remembered fact: stop recalling it immediately and remove it from Meri's memory (a recoverable soft-delete with an audit trail). Use when the user asks Meri to forget something. Pass the memoryItemId from search_memory. Refuses if the item is under a legal hold.",
   },
   {
     name: 'search_congress_bills',
@@ -861,7 +861,12 @@ export class MeriToolsService {
             'The fact to remember, as a concise self-contained statement (e.g., "The user prefers to be called Ninja").',
           ),
           key: str('Optional short topic/key, e.g. "nickname" or "reporting-style".'),
-          scope: str('"personal" (default — this user only) or "firm" (shared across the firm).'),
+          scope: str(
+            '"personal" (default — this user only), "firm" (shared across the firm), or "client" (shared for the current client — only valid in a client conversation).',
+          ),
+          ttlDays: int(
+            'Optional: make this EPHEMERAL working memory that expires after N days (1-365) instead of durable memory. Use for task-scoped context ("use once / this week only").',
+          ),
         },
         ['content'],
       ),
@@ -1535,34 +1540,62 @@ export class MeriToolsService {
     const content = requiredString(input, 'content', 4000);
     const key = optionalString(input, 'key', 120);
     const scope = optionalString(input, 'scope', 20);
-    const record = buildSavedMemoryRecord({ content, key, scope, userId: ctx.userId });
+    // G2: client scope binds to the CONVERSATION's client (threaded by both
+    // chat loops as input.clientId) — never a model-invented id.
+    const clientId = optionalString(input, 'clientId', 64);
+    const ttlRaw = input.ttlDays;
+    const ttlDays = typeof ttlRaw === 'number' && Number.isFinite(ttlRaw) ? ttlRaw : null;
+    const record = buildSavedMemoryRecord({
+      content,
+      key,
+      scope,
+      userId: ctx.userId,
+      clientId: clientId ?? null,
+      ttlDays,
+    });
     if (!record) throw new BadRequestException('save_memory requires non-empty content');
+    if ((scope ?? '').trim().toLowerCase() === 'client' && record.scope !== 'client') {
+      // Requested client scope without a client in context: the helper fell
+      // back to user-private. Surface that honestly instead of silently
+      // narrowing what the user asked for.
+      this.logger.log('save_memory: client scope requested with no client in context');
+    }
 
     const isAdmin = ctx.role === 'user_admin' || ctx.role === 'capiro_admin';
-    const result = await this.memoryCandidates.proposeSaveMemory(ctx.tenantId, ctx.userId, record, isAdmin);
+    const result = await this.memoryCandidates.proposeSaveMemory(
+      ctx.tenantId,
+      ctx.userId,
+      record,
+      isAdmin,
+    );
 
     if (result.status === 'pending') {
       this.logger.log(
-        `save_memory: firm-scope candidate ${result.candidateId} pending admin approval, tenant ${ctx.tenantId}`,
+        `save_memory: ${record.scope}-scope candidate ${result.candidateId} pending admin approval, tenant ${ctx.tenantId}`,
       );
+      const pendingLabel = record.scope === 'client' ? 'client' : 'firm';
       return {
         saved: false,
-        scope: 'firm' as const,
+        scope: pendingLabel,
         candidateId: result.candidateId,
-        message:
-          "I've proposed this as firm-wide memory; an admin needs to approve it before it becomes shared truth. I can save it as your personal memory right now instead — just say so.",
+        message: `I've proposed this as ${pendingLabel === 'client' ? 'client-scope' : 'firm-wide'} memory; an admin needs to approve it before it becomes shared truth. I can save it as your personal memory right now instead — just say so.`,
       };
     }
 
     this.logger.log(
       `save_memory: stored ${record.scope} memory "${record.key}" for tenant ${ctx.tenantId} (candidate ${result.candidateId}, ${result.ruleId})`,
     );
+    const scopeLabel =
+      record.scope === 'user_private' ? 'personal' : record.scope === 'client' ? 'client' : 'firm';
     return {
       saved: true,
-      scope: record.scope === 'user_private' ? 'personal' : 'firm',
+      scope: scopeLabel,
       key: record.key,
       value: record.value,
-      message: 'Saved to long-term memory; I will recall this in future conversations.',
+      ...(record.expiresAt ? { expiresAt: record.expiresAt.toISOString() } : {}),
+      message: record.expiresAt
+        ? `Saved as ephemeral working memory (expires ${record.expiresAt.toISOString().slice(0, 10)}); it will not become durable operating memory.`
+        : 'Saved to long-term memory; I will recall this in future conversations.',
     };
   }
 
@@ -1573,7 +1606,11 @@ export class MeriToolsService {
   private async confirmMemoryTool(input: Record<string, unknown>) {
     const memoryItemId = requiredString(input, 'memoryItemId', 80);
     const r = await this.memoryStore.confirmMemory(memoryItemId);
-    if (!r.found) return { confirmed: false, message: 'No such memory (it may have been forgotten or you may not have access).' };
+    if (!r.found)
+      return {
+        confirmed: false,
+        message: 'No such memory (it may have been forgotten or you may not have access).',
+      };
     return { confirmed: true, title: r.title, message: `Confirmed "${r.title}" is still current.` };
   }
 
@@ -1582,17 +1619,40 @@ export class MeriToolsService {
     const newContent = requiredString(input, 'newContent', 4000);
     const r = await this.memoryStore.correctMemory(memoryItemId, newContent);
     if (!r.found) return { corrected: false, message: 'No such memory to correct.' };
-    if (r.blockedByLegalHold) return { corrected: false, legalHold: true, message: `"${r.title}" is under a legal hold and cannot be changed.` };
-    return { corrected: true, title: r.title, newMemoryItemId: r.newItemId, message: `Corrected "${r.title}"; the prior version is preserved as history.` };
+    if (r.blockedByLegalHold)
+      return {
+        corrected: false,
+        legalHold: true,
+        message: `"${r.title}" is under a legal hold and cannot be changed.`,
+      };
+    return {
+      corrected: true,
+      title: r.title,
+      newMemoryItemId: r.newItemId,
+      message: `Corrected "${r.title}"; the prior version is preserved as history.`,
+    };
   }
 
   private async forgetMemoryTool(input: Record<string, unknown>) {
     const memoryItemId = requiredString(input, 'memoryItemId', 80);
     const reason = optionalString(input, 'reason', 400);
     const r = await this.memoryStore.forgetMemory(memoryItemId, reason ?? undefined);
-    if (!r.found) return { forgotten: false, message: 'No such memory (it may already be forgotten or you may not have access).' };
-    if (r.blockedByLegalHold) return { forgotten: false, legalHold: true, message: `"${r.title}" is under a legal hold and cannot be forgotten; it is preserved for compliance.` };
-    return { forgotten: true, title: r.title, message: `Forgotten "${r.title}". I will no longer recall it.` };
+    if (!r.found)
+      return {
+        forgotten: false,
+        message: 'No such memory (it may already be forgotten or you may not have access).',
+      };
+    if (r.blockedByLegalHold)
+      return {
+        forgotten: false,
+        legalHold: true,
+        message: `"${r.title}" is under a legal hold and cannot be forgotten; it is preserved for compliance.`,
+      };
+    return {
+      forgotten: true,
+      title: r.title,
+      message: `Forgotten "${r.title}". I will no longer recall it.`,
+    };
   }
 
   private async getClientContext(ctx: TenantContext, input: Record<string, unknown>) {
@@ -1816,8 +1876,9 @@ export class MeriToolsService {
         }>
       >(
         // Recall surfaces only ACTIVE memory (excludes superseded corrections
-        // and revoked/forgotten items — Phase 1, 1C/1D). owner filter stays as
-        // defense-in-depth alongside the 1C RLS predicate.
+        // and revoked/forgotten items — Phase 1, 1C/1D) and only UNEXPIRED
+        // memory (G2 ephemeral class). owner + expiry filters stay as
+        // defense-in-depth alongside the RLS predicates.
         `SELECT mi.id, mi.type, mi.slug, mi.title, mi.client_id,
                 1 - (ce.embedding <=> '${literal}'::vector) AS score
            FROM context_embeddings ce
@@ -1826,6 +1887,7 @@ export class MeriToolsService {
             AND ce.tenant_id = $1::uuid
             AND (mi.owner_user_id IS NULL OR mi.owner_user_id = $2::uuid)
             AND mi.status = 'active'
+            AND (mi.expires_at IS NULL OR mi.expires_at > now())
           ORDER BY ce.embedding <=> '${literal}'::vector
           LIMIT ${k}`,
         ctx.tenantId,

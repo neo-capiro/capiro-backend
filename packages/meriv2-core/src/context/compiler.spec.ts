@@ -70,11 +70,14 @@ describe('ContextCompiler.compile', () => {
     expect(packet.items.every((i) => i.rationale.length > 0)).toBe(true);
   });
 
-  it('records superseded/revoked/empty rows as exclusions, never renders them', async () => {
+  it('records superseded/revoked/expired/empty rows as exclusions, never renders them', async () => {
     const { compiler } = makeCompiler([
       row({ id: 'ok', type: 'firm-soul' }),
       row({ id: 'gone', type: 'firm-compass', status: 'revoked' }),
       row({ id: 'old', type: 'firm-compass', status: 'superseded' }),
+      // G2 ephemeral: a past expires_at is withheld with reason 'expired'
+      // (defense in depth — RLS normally hides these before the adapter).
+      row({ id: 'stale', type: 'firm-compass', expiresAt: '2020-01-01T00:00:00.000Z' }),
       row({ id: 'blank', type: 'user-voice', sections: [meri('Derived', 'x')] }),
     ]);
     const packet = await compiler.compile(req({}));
@@ -83,8 +86,15 @@ describe('ContextCompiler.compile', () => {
     expect(packet.exclusions).toEqual([
       expect.objectContaining({ id: 'gone', reason: 'revoked' }),
       expect.objectContaining({ id: 'old', reason: 'superseded' }),
+      expect.objectContaining({ id: 'stale', reason: 'expired' }),
       expect.objectContaining({ id: 'blank', reason: 'empty' }),
     ]);
+
+    // an UNexpired ephemeral row still renders
+    const future = new Date(Date.now() + 86_400_000).toISOString();
+    const { compiler: c2 } = makeCompiler([row({ id: 'live', expiresAt: future })]);
+    const p2 = await c2.compile(req({ layers: ['firm-identity'] }));
+    expect(p2.rendered.map((r) => r.id)).toEqual(['live']);
   });
 
   it('drops items past the char budget with an over-budget exclusion (never truncates)', async () => {

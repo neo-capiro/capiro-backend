@@ -8,11 +8,16 @@ import type { AppConfig } from '../config/config.schema.js';
 
 /** The shape MeriToolsService.saveMemory already builds via buildSavedMemoryRecord. */
 export interface MemorySaveRequest {
-  scope: 'firm' | 'user_private';
+  scope: 'firm' | 'user_private' | 'client';
   ownerUserId: string | null;
+  /** G2: required iff scope='client' (CHECK-enforced at the DB). */
+  clientId?: string | null;
   key: string;
   value: string;
   source: string;
+  /** G2 ephemeral/working memory: when set, the row expires (hidden from
+   *  recall, purged by the daily sweep). Any scope may be ephemeral. */
+  expiresAt?: Date | null;
 }
 
 export interface MemoryCandidateRow {
@@ -72,7 +77,11 @@ export class MemoryCandidateService {
     // caller's behavior exactly.
     sourceKind: string = 'explicit_user',
   ): Promise<ProposeSaveMemoryResult> {
-    const scope: 'personal' | 'firm' = record.scope === 'user_private' ? 'personal' : 'firm';
+    const scope: 'personal' | 'firm' | 'client' =
+      record.scope === 'user_private' ? 'personal' : record.scope === 'client' ? 'client' : 'firm';
+    if (record.scope === 'client' && !record.clientId) {
+      throw new BadRequestException('Client-scope memory requires a clientId.');
+    }
 
     // Duplicate detection (D3, minimal): does a candidate already own the
     // clio_memory row this save would target? If so, this is a re-save of an
@@ -90,6 +99,7 @@ export class MemoryCandidateService {
           AND cm.scope = ${record.scope}
           AND cm.key = ${record.key}
           AND (cm.owner_user_id IS NOT DISTINCT FROM ${record.ownerUserId}::uuid)
+          AND (cm.client_id IS NOT DISTINCT FROM ${record.clientId ?? null}::uuid)
         ORDER BY mc.created_at DESC
         LIMIT 1
       `,
@@ -102,16 +112,19 @@ export class MemoryCandidateService {
       source: record.source,
       scope: record.scope,
       ownerUserId: record.ownerUserId,
+      clientId: record.clientId ?? null,
+      expiresAt: record.expiresAt ? record.expiresAt.toISOString() : null,
     };
     const provenance = { tool: 'save_memory', tenantId, userId: proposedByUserId };
 
     const candidateId = await this.prisma.withTenant(tenantId, async (tx) => {
       const rows = await tx.$queryRaw<Array<{ id: string }>>`
         INSERT INTO memory_candidate (
-          tenant_id, proposed_by, source_kind, scope, payload_jsonb,
+          tenant_id, proposed_by, source_kind, scope, client_id, payload_jsonb,
           provenance_jsonb, duplicate_of_id, status
         ) VALUES (
           ${tenantId}::uuid, ${proposedByUserId}::uuid, ${sourceKind}, ${scope},
+          ${record.clientId ?? null}::uuid,
           ${JSON.stringify(payload)}::jsonb, ${JSON.stringify(provenance)}::jsonb,
           ${duplicateOfId}::uuid, 'pending'
         )
@@ -213,6 +226,7 @@ export class MemoryCandidateService {
             tenantId,
             scope: record.scope,
             ownerUserId: record.ownerUserId,
+            clientId: record.clientId ?? null,
             key: record.key,
           },
           select: { id: true },
@@ -222,7 +236,12 @@ export class MemoryCandidateService {
       this.prisma.withTenant(tenantId, (tx) =>
         tx.clioMemory.update({
           where: { id },
-          data: { value: record.value, source: record.source, metadata },
+          data: {
+            value: record.value,
+            source: record.source,
+            metadata,
+            expiresAt: record.expiresAt ?? null,
+          },
         }),
       );
 
@@ -239,10 +258,12 @@ export class MemoryCandidateService {
               tenantId,
               scope: record.scope,
               ownerUserId: record.ownerUserId,
+              clientId: record.clientId ?? null,
               key: record.key,
               value: record.value,
               source: record.source,
               metadata,
+              expiresAt: record.expiresAt ?? null,
             },
             select: { id: true },
           }),
@@ -300,12 +321,15 @@ function payloadToSaveRequest(payload: unknown): MemorySaveRequest {
   ) {
     throw new BadRequestException('Malformed memory candidate payload.');
   }
-  const scope = p.scope === 'firm' ? 'firm' : 'user_private';
+  const scope = p.scope === 'firm' ? 'firm' : p.scope === 'client' ? 'client' : 'user_private';
+  const raw = payload as { clientId?: unknown; expiresAt?: unknown };
   return {
     scope,
     ownerUserId: typeof p.ownerUserId === 'string' ? p.ownerUserId : null,
+    clientId: typeof raw.clientId === 'string' ? raw.clientId : null,
     key: p.key,
     value: p.value,
     source: p.source,
+    expiresAt: typeof raw.expiresAt === 'string' ? new Date(raw.expiresAt) : null,
   };
 }

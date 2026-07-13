@@ -2,7 +2,12 @@ import { Injectable, Logger } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service.js';
 import { TenantContextStore } from '../tenant/tenant-context.store.js';
 import { MemoryStoreService } from './memory-store.service.js';
-import { clioMemoryToItem, clioMemorySlug, type ClioMemoryRow, type NameResolver } from './memory-clio-adapter.helpers.js';
+import {
+  clioMemoryToItem,
+  clioMemorySlug,
+  type ClioMemoryRow,
+  type NameResolver,
+} from './memory-clio-adapter.helpers.js';
 import { meetingToItem, emailThreadToItem, meriSessionToItem } from './memory-ingest.helpers.js';
 import type { MemoryItem } from './memory.types.js';
 import { MEMORY_SCHEMA_VERSION, defaultMemoryGovernanceFields } from './memory.types.js';
@@ -22,7 +27,10 @@ export function embeddableText(item: MemoryItem): string {
 /** Distill a transcript to a short summary without an LLM (first/last user turns + counts).
  *  Deliberately conservative: we never store the raw transcript in the graph. */
 function distillSession(turns: Array<{ role: string; content: string }>): string {
-  const userTurns = turns.filter((t) => t.role === 'user').map((t) => t.content.trim()).filter(Boolean);
+  const userTurns = turns
+    .filter((t) => t.role === 'user')
+    .map((t) => t.content.trim())
+    .filter(Boolean);
   if (userTurns.length === 0) return 'Meri session (no user prompts captured).';
   const first = userTurns[0]!.slice(0, 240);
   const topics = userTurns.slice(0, 5).map((t) => t.split(/[.?!\n]/)[0]!.slice(0, 80));
@@ -30,7 +38,9 @@ function distillSession(turns: Array<{ role: string; content: string }>): string
     `Opening ask: ${first}`,
     topics.length > 1 ? `\nTopics touched: ${topics.join('; ')}` : '',
     `\n_${turns.length} turns._`,
-  ].join('').trim();
+  ]
+    .join('')
+    .trim();
 }
 
 /**
@@ -57,20 +67,31 @@ export class MemoryIngestService {
 
   /** Run the full backfill for the current tenant. Returns per-phase counts. */
   async backfillCurrentTenant(): Promise<{
-    clients: number; clioMemories: number; meetings: number; emails: number;
-    meriSessions: number; embedded: number; failed: number;
+    clients: number;
+    clioMemories: number;
+    meetings: number;
+    emails: number;
+    meriSessions: number;
+    embedded: number;
+    failed: number;
     failures: Array<{ slug: string; error: string }>;
   }> {
     const ctx = this.tenantCtx.require();
     const counts = {
-      clients: 0, clioMemories: 0, meetings: 0, emails: 0, meriSessions: 0,
-      embedded: 0, failed: 0,
+      clients: 0,
+      clioMemories: 0,
+      meetings: 0,
+      emails: 0,
+      meriSessions: 0,
+      embedded: 0,
+      failed: 0,
       failures: [] as Array<{ slug: string; error: string }>,
     };
 
     // ---- Phase A: client entity nodes ----
-    const clients = await this.prisma.withSystem((tx) =>
-      tx.$queryRaw<Array<{ id: string; name: string }>>`
+    const clients = await this.prisma.withSystem(
+      (tx) =>
+        tx.$queryRaw<Array<{ id: string; name: string }>>`
         SELECT id, name FROM clients WHERE tenant_id = ${ctx.tenantId}::uuid AND status = 'active'
       `,
     );
@@ -81,8 +102,9 @@ export class MemoryIngestService {
     }
 
     // ---- Phase B: ClioMemory unification ----
-    const memories = await this.prisma.withSystem((tx) =>
-      tx.$queryRaw<ClioMemoryRow[]>`
+    const memories = await this.prisma.withSystem(
+      (tx) =>
+        tx.$queryRaw<ClioMemoryRow[]>`
         SELECT id, tenant_id AS "tenantId", scope, owner_user_id AS "ownerUserId",
                key, value, source, metadata_jsonb AS metadata,
                created_at AS "createdAt", updated_at AS "updatedAt"
@@ -100,8 +122,9 @@ export class MemoryIngestService {
     }
 
     // ---- Phase C: meetings (non-internal, client-linked) ----
-    const meetings = await this.prisma.withSystem((tx) =>
-      tx.$queryRaw<Array<{ id: string; client_id: string; subject: string; starts_at: Date }>>`
+    const meetings = await this.prisma.withSystem(
+      (tx) =>
+        tx.$queryRaw<Array<{ id: string; client_id: string; subject: string; starts_at: Date }>>`
         SELECT id, client_id, subject, starts_at
         FROM meetings
         WHERE tenant_id = ${ctx.tenantId}::uuid AND client_id IS NOT NULL AND is_internal = false
@@ -112,8 +135,11 @@ export class MemoryIngestService {
     // shared graph never exposes content the whole firm can't already read.
     // Decrypted content is attached as an ENGINE section (never embedded).
     const debriefRows = this.notesCrypto
-      ? await this.prisma.withSystem((tx) =>
-          tx.$queryRaw<Array<{ meeting_id: string; body_ciphertext: string; iv: string; auth_tag: string }>>`
+      ? await this.prisma.withSystem(
+          (tx) =>
+            tx.$queryRaw<
+              Array<{ meeting_id: string; body_ciphertext: string; iv: string; auth_tag: string }>
+            >`
             SELECT meeting_id, body_ciphertext, iv, auth_tag
             FROM meeting_debriefs
             WHERE tenant_id = ${ctx.tenantId}::uuid
@@ -124,11 +150,17 @@ export class MemoryIngestService {
     const debriefByMeeting = new Map<string, string>();
     for (const d of debriefRows) {
       try {
-        const text = this.notesCrypto!.decrypt({ bodyCiphertext: d.body_ciphertext, iv: d.iv, authTag: d.auth_tag });
+        const text = this.notesCrypto!.decrypt({
+          bodyCiphertext: d.body_ciphertext,
+          iv: d.iv,
+          authTag: d.auth_tag,
+        });
         // Keep the most recent/last one per meeting (rows are unordered; fine for a snapshot).
         if (text?.trim()) debriefByMeeting.set(d.meeting_id, text.trim());
       } catch (err) {
-        this.logger.warn(`debrief decrypt skipped for meeting ${d.meeting_id}: ${(err as Error).message}`);
+        this.logger.warn(
+          `debrief decrypt skipped for meeting ${d.meeting_id}: ${(err as Error).message}`,
+        );
       }
     }
     for (const mt of meetings) {
@@ -152,12 +184,20 @@ export class MemoryIngestService {
     // client scoping via MailThread.clientId — null => user-private, no domain
     // bleed). We summarize from snippet + participants; we do NOT read message
     // bodies here. ----
-    const threads = await this.prisma.withSystem((tx) =>
-      tx.$queryRaw<Array<{
-        id: string; client_id: string | null; subject: string; snippet: string | null;
-        participants: unknown; last_message_at: Date | null; msg_count: bigint;
-        owner_user_id: string | null;
-      }>>`
+    const threads = await this.prisma.withSystem(
+      (tx) =>
+        tx.$queryRaw<
+          Array<{
+            id: string;
+            client_id: string | null;
+            subject: string;
+            snippet: string | null;
+            participants: unknown;
+            last_message_at: Date | null;
+            msg_count: bigint;
+            owner_user_id: string | null;
+          }>
+        >`
         SELECT t.id, t.client_id, t.subject, t.snippet, t.participants_jsonb AS participants,
                t.last_message_at,
                (SELECT count(*) FROM mail_messages m WHERE m.thread_id = t.id) AS msg_count,
@@ -193,10 +233,17 @@ export class MemoryIngestService {
     // clio_conversation; its turns live in clio_messages — the LIVE Meri backing
     // store. (The old legacy chat table this used to read was dropped by
     // migration 20260627130000; only substantive user/assistant turns count.) ----
-    const sessions = await this.prisma.withSystem((tx) =>
-      tx.$queryRaw<Array<{
-        session_id: string; user_id: string; client_id: string | null; ended_at: Date; turns: bigint;
-      }>>`
+    const sessions = await this.prisma.withSystem(
+      (tx) =>
+        tx.$queryRaw<
+          Array<{
+            session_id: string;
+            user_id: string;
+            client_id: string | null;
+            ended_at: Date;
+            turns: bigint;
+          }>
+        >`
         SELECT c.id AS session_id, c.user_id, c.client_id,
                max(m.created_at) AS ended_at, count(*) AS turns
         FROM clio_conversations c
@@ -208,8 +255,9 @@ export class MemoryIngestService {
       `,
     );
     for (const s of sessions) {
-      const turns = await this.prisma.withSystem((tx) =>
-        tx.$queryRaw<Array<{ role: string; content: string }>>`
+      const turns = await this.prisma.withSystem(
+        (tx) =>
+          tx.$queryRaw<Array<{ role: string; content: string }>>`
           SELECT role, body AS content FROM clio_messages
           WHERE tenant_id = ${ctx.tenantId}::uuid
             AND conversation_id = ${s.session_id}::uuid
@@ -218,7 +266,8 @@ export class MemoryIngestService {
         `,
       );
       const summary = distillSession(turns);
-      const firstUser = turns.find((t) => t.role === 'user')?.content?.slice(0, 60) ?? 'Meri session';
+      const firstUser =
+        turns.find((t) => t.role === 'user')?.content?.slice(0, 60) ?? 'Meri session';
       await this.store.upsertSystem(
         meriSessionToItem({
           tenantId: ctx.tenantId,
@@ -245,8 +294,19 @@ export class MemoryIngestService {
     // failure is recorded in counts.failures and the pass continues (never
     // aborts), so one bad row can't strand the rest. ----
     try {
-      const items = await this.prisma.withSystem((tx) =>
-        tx.$queryRaw<Array<{ id: string; client_id: string | null; owner_user_id: string | null; type: string; title: string; slug: string; sections: unknown }>>`
+      const items = await this.prisma.withSystem(
+        (tx) =>
+          tx.$queryRaw<
+            Array<{
+              id: string;
+              client_id: string | null;
+              owner_user_id: string | null;
+              type: string;
+              title: string;
+              slug: string;
+              sections: unknown;
+            }>
+          >`
           SELECT id, client_id, owner_user_id, type, title, slug, sections_jsonb AS sections
           FROM memory_items WHERE tenant_id = ${ctx.tenantId}::uuid
         `,
@@ -298,9 +358,11 @@ export class MemoryIngestService {
    */
   async projectClioMemory(tenantId: string, clioMemoryId: string): Promise<void> {
     try {
-      const rows = await this.prisma.withSystem((tx) =>
-        tx.$queryRaw<ClioMemoryRow[]>`
+      const rows = await this.prisma.withSystem(
+        (tx) =>
+          tx.$queryRaw<ClioMemoryRow[]>`
           SELECT id, tenant_id AS "tenantId", scope, owner_user_id AS "ownerUserId",
+                 client_id AS "clientId", expires_at AS "expiresAt",
                  key, value, source, metadata_jsonb AS metadata,
                  created_at AS "createdAt", updated_at AS "updatedAt"
           FROM clio_memory
@@ -329,7 +391,9 @@ export class MemoryIngestService {
         });
       }
     } catch (err) {
-      this.logger.warn(`projectClioMemory ${clioMemoryId} failed (non-fatal): ${(err as Error).message}`);
+      this.logger.warn(
+        `projectClioMemory ${clioMemoryId} failed (non-fatal): ${(err as Error).message}`,
+      );
     }
   }
 
@@ -358,7 +422,9 @@ export class MemoryIngestService {
         await tx.$executeRaw`DELETE FROM memory_items WHERE id = ${itemId}::uuid`;
       });
     } catch (err) {
-      this.logger.warn(`removeClioMemory ${clioMemoryId} failed (non-fatal): ${(err as Error).message}`);
+      this.logger.warn(
+        `removeClioMemory ${clioMemoryId} failed (non-fatal): ${(err as Error).message}`,
+      );
     }
   }
 }
@@ -368,7 +434,12 @@ function extractDomains(participants: unknown): string[] {
   if (!Array.isArray(participants)) return [];
   const out = new Set<string>();
   for (const p of participants) {
-    const email = typeof p === 'string' ? p : (p && typeof p === 'object' && 'email' in p ? String((p as { email: unknown }).email) : '');
+    const email =
+      typeof p === 'string'
+        ? p
+        : p && typeof p === 'object' && 'email' in p
+          ? String((p as { email: unknown }).email)
+          : '';
     const at = email.indexOf('@');
     if (at > -1) out.add(email.slice(at + 1).toLowerCase());
   }
@@ -378,12 +449,26 @@ function extractDomains(participants: unknown): string[] {
 function clientToItem(tenantId: string, c: { id: string; name: string }): MemoryItem {
   const ts = new Date().toISOString();
   return {
-    id: '', tenantId, clientId: c.id, ownerUserId: null,
-    type: 'client-hub', visibility: 'tenant', entityId: c.id,
-    slug: c.id, title: c.name, aliases: [], tags: ['client'],
-    source: 'ingest', sourceRef: c.id, provenance: `ingest@${MEMORY_SCHEMA_VERSION}`,
-    sections: [{ key: 'overview', heading: 'Overview', owner: 'engine', body: `Client: ${c.name}.` }],
-    createdAt: ts, updatedAt: ts, schemaVersion: MEMORY_SCHEMA_VERSION,
+    id: '',
+    tenantId,
+    clientId: c.id,
+    ownerUserId: null,
+    type: 'client-hub',
+    visibility: 'tenant',
+    entityId: c.id,
+    slug: c.id,
+    title: c.name,
+    aliases: [],
+    tags: ['client'],
+    source: 'ingest',
+    sourceRef: c.id,
+    provenance: `ingest@${MEMORY_SCHEMA_VERSION}`,
+    sections: [
+      { key: 'overview', heading: 'Overview', owner: 'engine', body: `Client: ${c.name}.` },
+    ],
+    createdAt: ts,
+    updatedAt: ts,
+    schemaVersion: MEMORY_SCHEMA_VERSION,
     ...defaultMemoryGovernanceFields(),
   };
 }

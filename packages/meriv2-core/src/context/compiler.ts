@@ -98,6 +98,14 @@ export class ContextCompiler {
           exclusions.push({ ...base, reason: row.status });
           continue;
         }
+        // G2 ephemeral: the RLS expiry predicate normally hides expired rows
+        // before they reach the adapter — this in-code check is defense in
+        // depth (and the only guard for rows read under rls_bypass), and it
+        // makes the withholding visible in the trace when it does fire.
+        if (row.expiresAt && new Date(row.expiresAt).getTime() <= Date.now()) {
+          exclusions.push({ ...base, reason: 'expired' });
+          continue;
+        }
         const body =
           req.render === 'all'
             ? renderAllSections(row.sections)

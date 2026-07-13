@@ -21,7 +21,7 @@ export interface MemoryCandidateDecision {
 }
 
 export interface MemoryCandidateRuleInput {
-  scope: 'personal' | 'firm';
+  scope: 'personal' | 'firm' | 'client';
   isAdmin: boolean;
 }
 
@@ -59,6 +59,22 @@ const MEMORY_CANDIDATE_RULES: readonly MemoryCandidateRule[] = [
     outcome: 'WARN',
     reason: 'Firm-wide memory requires an authorized reviewer before it becomes shared truth.',
     matches: (i) => i.scope === 'firm',
+  },
+  // G2 client scope: client strategic memory (approved positions, red lines)
+  // is shared truth for everyone serving that client — same trust posture as
+  // firm scope (blueprint §4.6.2: "client lead or authorized team;
+  // reviewable"), so admins self-commit and everyone else lands pending.
+  {
+    id: 'memory.client.admin_auto_commit',
+    outcome: 'PASS',
+    reason: 'An admin proposing client-scope memory is trusted to commit it directly.',
+    matches: (i) => i.scope === 'client' && i.isAdmin,
+  },
+  {
+    id: 'memory.client.requires_approval',
+    outcome: 'WARN',
+    reason: 'Client-scope memory requires an authorized reviewer before it steers client work.',
+    matches: (i) => i.scope === 'client',
   },
 ];
 

@@ -26,3 +26,18 @@ describe('evaluateMemoryCandidate (Phase 1, 1B)', () => {
     });
   });
 });
+
+// ── G2: client scope ─────────────────────────────────────────────────────────
+describe('evaluateMemoryCandidate — client scope (G2)', () => {
+  it('client + admin auto-commits (same trust posture as firm)', () => {
+    const d = evaluateMemoryCandidate({ scope: 'client', isAdmin: true });
+    expect(d.outcome).toBe('PASS');
+    expect(d.ruleId).toBe('memory.client.admin_auto_commit');
+  });
+
+  it('client + non-admin lands pending for review', () => {
+    const d = evaluateMemoryCandidate({ scope: 'client', isAdmin: false });
+    expect(d.outcome).toBe('WARN');
+    expect(d.ruleId).toBe('memory.client.requires_approval');
+  });
+});

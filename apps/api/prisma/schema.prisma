@@ -1325,17 +1325,25 @@ model ClioNote {
 model ClioMemory {
   id          String                 @id @default(uuid()) @db.Uuid
   tenantId    String                 @map("tenant_id") @db.Uuid
-  // Stored as TEXT in the DB with a CHECK constraint (scope IN ('firm','user_private'))
-  // per the 20260525103000_clio_memory_scope_hardening migration. Modeled as String
-  // (not a Prisma enum) so the generated client never casts to a "ClioMemoryScope"
-  // Postgres type — that type was never created, and the enum decl caused
-  // `type "public.ClioMemoryScope" does not exist` (42704) 500s on Clio memory reads.
-  // App-level union typing lives in clio/clio-memory.helpers.ts (ClioMemoryScope = 'firm' | 'user_private').
+  // Stored as TEXT in the DB with a CHECK constraint (scope IN
+  // ('firm','user_private','client') since G2's 20260713020000). Modeled as
+  // String (not a Prisma enum) so the generated client never casts to a
+  // "ClioMemoryScope" Postgres type — that type was never created, and the
+  // enum decl caused `type "public.ClioMemoryScope" does not exist` (42704)
+  // 500s on Clio memory reads. App-level union typing lives in
+  // clio/clio-memory.helpers.ts.
   scope       String                 @default("firm")
   ownerUserId String?                @map("owner_user_id") @db.Uuid
+  /// G2 client scope: set iff scope='client' (CHECK-enforced). A RELEVANCE
+  /// boundary (recalled only in this client's conversations), not per-user
+  /// access control — no per-user client ACL exists.
+  clientId    String?                @map("client_id") @db.Uuid
   key         String                 @db.VarChar(200)
   value       String                 @db.Text
   source      String                 @default("conversation")
+  /// G2 ephemeral/working memory: NULL = durable. Expired rows are excluded
+  /// by readers + purged by the daily refresh-memory-graph sweep.
+  expiresAt   DateTime?              @map("expires_at") @db.Timestamptz(6)
   embedding   Unsupported("vector")?
   metadata    Json                   @default("{}") @map("metadata_jsonb")
   createdAt   DateTime               @default(now()) @map("created_at") @db.Timestamptz(6)
@@ -5114,7 +5122,9 @@ model MemoryCandidate {
   tenantId          String    @map("tenant_id") @db.Uuid
   proposedBy        String    @map("proposed_by") @db.Uuid
   sourceKind        String    @map("source_kind") @db.VarChar(24) // explicit_user | workflow_event | artifact_approval | model_extraction
-  scope             String    @db.VarChar(16) // personal | firm
+  scope             String    @db.VarChar(16) // personal | firm | client (G2)
+  /// G2: set iff scope='client' — the client the proposed memory belongs to.
+  clientId          String?   @map("client_id") @db.Uuid
   payload           Json      @map("payload_jsonb")
   provenance        Json      @map("provenance_jsonb")
   duplicateOfId     String?   @map("duplicate_of_id") @db.Uuid

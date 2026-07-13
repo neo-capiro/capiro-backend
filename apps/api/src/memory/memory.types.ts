@@ -44,12 +44,7 @@ export type MemoryVisibility = 'tenant' | 'user';
 export type MemoryProvenance = 'human' | `ingest@${string}`;
 
 /** Source system an ingested item was generated from. */
-export type MemorySource =
-  | 'graph-email'
-  | 'meri'
-  | 'manual'
-  | 'meeting-service'
-  | 'ingest';
+export type MemorySource = 'graph-email' | 'meri' | 'manual' | 'meeting-service' | 'ingest';
 
 /**
  * A typed, named section of a memory item.
@@ -131,6 +126,9 @@ export interface MemoryItem {
   /** Whether this item may appear in a GET /memory/export manifest. */
   exportable: boolean;
   trainingUse: MemoryTrainingUse;
+  /** G2 ephemeral class: expiry instant (ISO-8601 or Date). Optional so every
+   *  existing construction site stays valid — absent/null = durable. */
+  expiresAt?: string | Date | null;
 }
 
 /** A typed wikilink target, e.g. { type: 'bill', slug: 'hr-1234' }. */

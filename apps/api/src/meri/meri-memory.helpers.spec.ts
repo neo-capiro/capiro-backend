@@ -68,9 +68,11 @@ describe('buildSavedMemoryRecord', () => {
     expect(rec).toEqual({
       scope: 'user_private',
       ownerUserId: 'u-1',
+      clientId: null, // G2
       key: 'user:u-1:nickname',
       value: 'The user prefers to be called Ninja',
       source: 'user_requested',
+      expiresAt: null, // G2: durable by default
     });
   });
 
@@ -106,5 +108,66 @@ describe('buildSavedMemoryRecord', () => {
   it('treats unknown scope strings as personal', () => {
     const rec = buildSavedMemoryRecord({ content: 'note', scope: 'galaxy', userId: 'u-2' });
     expect(rec!.scope).toBe('user_private');
+  });
+});
+
+// ── G2: client scope + ephemeral TTL ─────────────────────────────────────────
+import { clientScopedMemoryKey } from './meri-memory.helpers.js';
+
+describe('buildSavedMemoryRecord — client scope + ttlDays (G2)', () => {
+  it('client scope binds to the supplied clientId with a client-namespaced key', () => {
+    const r = buildSavedMemoryRecord({
+      content: 'Acme red line: never support Section 852 offsets.',
+      key: 'red-line',
+      scope: 'client',
+      userId: 'u1',
+      clientId: 'c-123',
+    });
+    expect(r).toMatchObject({
+      scope: 'client',
+      clientId: 'c-123',
+      ownerUserId: null,
+      key: clientScopedMemoryKey('c-123', 'red-line'),
+    });
+    expect(r?.expiresAt ?? null).toBeNull();
+  });
+
+  it('client scope WITHOUT a client in context falls back to user-private (never silently firm-wide)', () => {
+    const r = buildSavedMemoryRecord({
+      content: 'A fact.',
+      scope: 'client',
+      userId: 'u1',
+      clientId: null,
+    });
+    expect(r?.scope).toBe('user_private');
+    expect(r?.ownerUserId).toBe('u1');
+    expect(r?.clientId ?? null).toBeNull();
+  });
+
+  it('ttlDays makes the record ephemeral (bounded to 365 days)', () => {
+    const before = Date.now();
+    const r = buildSavedMemoryRecord({
+      content: 'This week: prioritize the SAC-D markup.',
+      scope: 'personal',
+      userId: 'u1',
+      ttlDays: 7,
+    });
+    const expires = r?.expiresAt?.getTime() ?? 0;
+    expect(expires).toBeGreaterThan(before + 6.9 * 86_400_000);
+    expect(expires).toBeLessThan(before + 7.1 * 86_400_000);
+
+    const capped = buildSavedMemoryRecord({
+      content: 'x',
+      userId: 'u1',
+      ttlDays: 10_000,
+    });
+    expect(capped?.expiresAt?.getTime() ?? 0).toBeLessThanOrEqual(before + 366 * 86_400_000);
+  });
+
+  it('non-positive/absent ttlDays stays durable', () => {
+    expect(
+      buildSavedMemoryRecord({ content: 'x', userId: 'u1', ttlDays: 0 })?.expiresAt ?? null,
+    ).toBeNull();
+    expect(buildSavedMemoryRecord({ content: 'x', userId: 'u1' })?.expiresAt ?? null).toBeNull();
   });
 });

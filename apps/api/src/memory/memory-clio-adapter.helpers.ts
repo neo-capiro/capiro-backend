@@ -16,12 +16,16 @@ import { MEMORY_SCHEMA_VERSION, defaultMemoryGovernanceFields } from './memory.t
 export interface ClioMemoryRow {
   id: string;
   tenantId: string;
-  scope: string; // 'firm' | 'user_private'
+  scope: string; // 'firm' | 'user_private' | 'client' (G2)
   ownerUserId: string | null;
+  /** G2: set iff scope='client'. */
+  clientId?: string | null;
   key: string;
   value: string;
   source: string;
   metadata: Record<string, unknown> | null;
+  /** G2 ephemeral: carried onto the memory_items projection unchanged. */
+  expiresAt?: string | Date | null;
   createdAt: string;
   updatedAt: string;
 }
@@ -48,7 +52,6 @@ export function clioMemorySlug(id: string): string {
  * "Related" line of typed wikilinks so the store derives graph edges on upsert.
  */
 export function clioMemoryToItem(row: ClioMemoryRow, resolveName?: NameResolver): MemoryItem {
-  const isFirm = row.scope === 'firm';
   const links: string[] = [];
   if (resolveName) {
     const seen = new Set<string>();
@@ -71,10 +74,13 @@ export function clioMemoryToItem(row: ClioMemoryRow, resolveName?: NameResolver)
   return {
     id: '',
     tenantId: row.tenantId,
-    clientId: null, // clio memories are not hard-scoped to a client row
-    ownerUserId: isFirm ? null : row.ownerUserId,
+    // G2: client-scoped memories carry their client; firm/user rows stay null.
+    clientId: row.scope === 'client' ? (row.clientId ?? null) : null,
+    ownerUserId: row.scope === 'user_private' ? row.ownerUserId : null,
     type: 'note',
-    visibility: isFirm ? 'tenant' : 'user',
+    // client scope projects as tenant-visible + client-keyed (a RELEVANCE
+    // boundary — see the G2 plan; no per-user client ACL exists).
+    visibility: row.scope === 'user_private' ? 'user' : 'tenant',
     entityId: null,
     slug: clioMemorySlug(row.id),
     title: row.key,
@@ -83,13 +89,13 @@ export function clioMemoryToItem(row: ClioMemoryRow, resolveName?: NameResolver)
     source: 'manual',
     sourceRef: row.id,
     provenance: 'human',
-    sections: [
-      { key: 'memory', heading: 'Memory', owner: 'human', body },
-    ],
+    sections: [{ key: 'memory', heading: 'Memory', owner: 'human', body }],
     createdAt: row.createdAt,
     updatedAt: row.updatedAt,
     schemaVersion: MEMORY_SCHEMA_VERSION,
     ...defaultMemoryGovernanceFields(),
+    // G2 ephemeral: the projection expires exactly when its source does.
+    ...(row.expiresAt ? { expiresAt: new Date(row.expiresAt) } : {}),
   };
 }
 

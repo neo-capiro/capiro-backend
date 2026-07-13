@@ -1532,9 +1532,12 @@ export class MeriService {
     // send them along. Without this, "what is my nickname"-class questions fail
     // — the model has no reason to know a memory exists (canary regression,
     // 2026-07-06). Fail-open: recall trouble must never block the turn.
-    const recalled = await this.loadRelevantMemories(ctx.tenantId, ctx.userId, args.content).catch(
-      () => [] as Array<{ key: string; value: string }>,
-    );
+    const recalled = await this.loadRelevantMemories(
+      ctx.tenantId,
+      ctx.userId,
+      args.content,
+      args.conversation.clientId,
+    ).catch(() => [] as Array<{ key: string; value: string }>);
     const memoryContext = recalled.map((m) => `${m.key}: ${m.value}`);
 
     emit({ type: 'start', intent: 'general', tier: 'fast' });
@@ -2150,7 +2153,7 @@ export class MeriService {
     }
 
     try {
-      const memories = await this.loadRelevantMemories(ctx.tenantId, ctx.userId, query);
+      const memories = await this.loadRelevantMemories(ctx.tenantId, ctx.userId, query, clientId);
       if (memories.length) {
         contextParts.push('\nRelevant firm knowledge (from Meri memory):');
         for (const mem of memories) contextParts.push(`- ${mem.value}`);
@@ -2893,9 +2896,12 @@ export class MeriService {
     tenantId: string,
     userId: string,
     query: string,
+    // G2: recall client-scope memories only inside that client's conversation
+    // (a RELEVANCE boundary — client rows never leak into unrelated chats).
+    clientId: string | null = null,
   ): Promise<Array<{ key: string; value: string }>> {
     try {
-      const semantic = await this.semanticMemorySearch(tenantId, userId, query, 8);
+      const semantic = await this.semanticMemorySearch(tenantId, userId, query, 8, clientId);
       if (semantic.length > 0) {
         return semantic.map(({ key, value }) => ({ key, value }));
       }
@@ -2908,7 +2914,13 @@ export class MeriService {
         tx.clioMemory.findMany({
           where: {
             tenantId,
-            OR: [{ scope: 'firm' }, { scope: 'user_private', ownerUserId: userId }],
+            // G2 ephemeral: expired working memory never reaches recall.
+            AND: [{ OR: [{ expiresAt: null }, { expiresAt: { gt: new Date() } }] }],
+            OR: [
+              { scope: 'firm' },
+              { scope: 'user_private', ownerUserId: userId },
+              ...(clientId ? [{ scope: 'client', clientId }] : []),
+            ],
           },
           orderBy: { updatedAt: 'desc' },
           take: 20,
@@ -3510,6 +3522,7 @@ export class MeriService {
     userId: string,
     query: string,
     limit = 5,
+    clientId: string | null = null,
   ): Promise<Array<{ key: string; value: string; score: number }>> {
     const openaiKey = this.config.get('OPENAI_API_KEY', { infer: true });
     if (!openaiKey) return [];
@@ -3535,9 +3548,11 @@ export class MeriService {
          FROM clio_memory
          WHERE tenant_id = $2::uuid
            AND embedding IS NOT NULL
+           AND (expires_at IS NULL OR expires_at > now())
            AND (
              scope = 'firm'
              OR (scope = 'user_private' AND owner_user_id = $3::uuid)
+             OR (scope = 'client' AND client_id = $5::uuid)
            )
          ORDER BY embedding <=> $1::vector
          LIMIT $4`,
@@ -3545,6 +3560,7 @@ export class MeriService {
           tenantId,
           userId,
           limit,
+          clientId,
         ),
       );
       return results.filter((r) => r.score > 0.3);

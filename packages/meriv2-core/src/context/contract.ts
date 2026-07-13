@@ -107,6 +107,8 @@ export interface SteeringRow {
   clientId: string | null;
   /** memory_items.status — 'active' | 'superseded' | 'revoked'. */
   status: string;
+  /** memory_items.expires_at (G2 ephemeral class) — null/absent = durable. */
+  expiresAt?: string | Date | null;
   /** sections_jsonb, unparsed. */
   sections: unknown;
 }
@@ -126,9 +128,10 @@ export interface ContextPacketItem {
 export type ExclusionReason =
   | 'revoked'
   | 'superseded'
+  | 'expired' // G2 ephemeral class: past its expires_at
   | 'empty' // no human-owned section bodies rendered
   | 'over-budget'
-  | 'unauthorized'; // reserved for G2 in-code scope checks
+  | 'unauthorized'; // reserved for future in-code scope checks
 
 /** A row the compiler saw and deliberately withheld — the §6.2 exclusions view. */
 export interface ContextExclusion {
