@@ -224,9 +224,7 @@ export async function linkProgramElementPersonToCrm(
 /** PE Watch email-alert preference (PE Watch plan Phase 2; config lives on this surface). */
 export type PeAlertEmailMode = 'off' | 'daily' | 'daily_plus_critical';
 
-export async function getPeAlertEmailPref(
-  api: AxiosInstance,
-): Promise<{ mode: PeAlertEmailMode }> {
+export async function getPeAlertEmailPref(api: AxiosInstance): Promise<{ mode: PeAlertEmailMode }> {
   return (await api.get<{ mode: PeAlertEmailMode }>('/api/program-elements/alerts/email-pref'))
     .data;
 }

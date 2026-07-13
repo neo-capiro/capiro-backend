@@ -1,4 +1,7 @@
-import { assembleFundingNarrative, type NarrativeYearValues } from './pe-funding-narrative.helpers.js';
+import {
+  assembleFundingNarrative,
+  type NarrativeYearValues,
+} from './pe-funding-narrative.helpers.js';
 
 const base: NarrativeYearValues = {
   request: null,
@@ -42,7 +45,11 @@ describe('assembleFundingNarrative (Phase 4.1 PE narrative)', () => {
 
   it('the request step carries no delta-vs-request; a request-less year has null prior/request deltas', () => {
     const [reqStep] = assembleFundingNarrative({ ...base, request: 50 });
-    expect(reqStep).toMatchObject({ stage: 'request', deltaVsRequestM: null, deltaVsPriorStageM: null });
+    expect(reqStep).toMatchObject({
+      stage: 'request',
+      deltaVsRequestM: null,
+      deltaVsPriorStageM: null,
+    });
     const [mark] = assembleFundingNarrative({ ...base, hacd: 60 });
     expect(mark).toMatchObject({ stage: 'hacd', deltaVsRequestM: null, deltaVsPriorStageM: null });
   });

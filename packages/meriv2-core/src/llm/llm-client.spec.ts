@@ -43,7 +43,10 @@ describe('OpenAiLlmClient (Phase 4 LLM-gateway convergence)', () => {
 
     expect(out.input).toEqual({ headline: 'Grounded' });
     expect(out.usage).toEqual({ inputTokens: 80, outputTokens: 30 });
-    expect(capturedBody.tool_choice).toEqual({ type: 'function', function: { name: 'emit_brief' } });
+    expect(capturedBody.tool_choice).toEqual({
+      type: 'function',
+      function: { name: 'emit_brief' },
+    });
   });
 
   it('completeJson requests JSON mode and parses the object', async () => {
@@ -63,8 +66,13 @@ describe('OpenAiLlmClient (Phase 4 LLM-gateway convergence)', () => {
 
   it('throws on a non-2xx response', async () => {
     const fetchImpl = (async () =>
-      ({ ok: false, json: async () => ({ error: { message: 'bad key' } }) }) as Response) as typeof fetch;
-    await expect(client(fetchImpl).completeJson({ system: 's', prompt: 'p' })).rejects.toThrow('bad key');
+      ({
+        ok: false,
+        json: async () => ({ error: { message: 'bad key' } }),
+      }) as Response) as typeof fetch;
+    await expect(client(fetchImpl).completeJson({ system: 's', prompt: 'p' })).rejects.toThrow(
+      'bad key',
+    );
   });
 });
 

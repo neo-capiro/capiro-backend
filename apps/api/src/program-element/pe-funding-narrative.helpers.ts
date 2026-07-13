@@ -39,7 +39,10 @@ export interface FundingNarrativeStep {
 
 // Procedural order: request → authorization marks → appropriations marks →
 // conference → enacted. Only stages that actually acted (non-null) appear.
-const NARRATIVE_STAGE_ORDER: ReadonlyArray<{ stage: FundingStage; key: keyof NarrativeYearValues }> = [
+const NARRATIVE_STAGE_ORDER: ReadonlyArray<{
+  stage: FundingStage;
+  key: keyof NarrativeYearValues;
+}> = [
   { stage: 'request', key: 'request' },
   { stage: 'hasc', key: 'hasc' },
   { stage: 'sasc', key: 'sasc' },

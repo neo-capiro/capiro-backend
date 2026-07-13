@@ -82,7 +82,11 @@ export class RequestScopedLlmClient implements LlmClient {
   /** Build the schema-capable client for the resolved provider (reasoning-tool
    *  paths only — completeJson / completeWithSchema). */
   private buildClient(apiKey: string, model: string, provider: 'anthropic' | 'openai'): LlmClient {
-    const opts = { apiKey, model, ...(this.timeoutMs !== undefined ? { timeoutMs: this.timeoutMs } : {}) };
+    const opts = {
+      apiKey,
+      model,
+      ...(this.timeoutMs !== undefined ? { timeoutMs: this.timeoutMs } : {}),
+    };
     return provider === 'openai' ? new OpenAiLlmClient(opts) : new AnthropicLlmClient(opts);
   }
 
@@ -92,7 +96,9 @@ export class RequestScopedLlmClient implements LlmClient {
     maxTokens?: number;
   }): Promise<Record<string, unknown>> {
     const { apiKey, model, usedTenantKey, provider } = this.resolve();
-    this.logger.debug(`LLM completion (provider=${provider}, model=${model}, usedTenantKey=${usedTenantKey})`);
+    this.logger.debug(
+      `LLM completion (provider=${provider}, model=${model}, usedTenantKey=${usedTenantKey})`,
+    );
     return this.buildClient(apiKey, model, provider).completeJson(params);
   }
 
@@ -111,7 +117,9 @@ export class RequestScopedLlmClient implements LlmClient {
     maxTokens?: number;
   }): Promise<{ input: unknown; usage: { inputTokens: number; outputTokens: number } }> {
     const { apiKey, model, usedTenantKey, provider } = this.resolve();
-    this.logger.debug(`LLM schema completion (provider=${provider}, model=${model}, usedTenantKey=${usedTenantKey})`);
+    this.logger.debug(
+      `LLM schema completion (provider=${provider}, model=${model}, usedTenantKey=${usedTenantKey})`,
+    );
     return this.buildClient(apiKey, model, provider).completeWithSchema(params);
   }
 

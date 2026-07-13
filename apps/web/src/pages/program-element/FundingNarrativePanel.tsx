@@ -46,7 +46,11 @@ export function FundingNarrativePanel({ peCode }: { peCode: string }) {
                 {data.materiality.map((m, i) => (
                   <Tooltip
                     key={i}
-                    title={m.materialityScore != null ? `Materiality ${m.materialityScore.toFixed(2)}` : undefined}
+                    title={
+                      m.materialityScore != null
+                        ? `Materiality ${m.materialityScore.toFixed(2)}`
+                        : undefined
+                    }
                   >
                     <Tag color="geekblue">{m.deltaType ?? 'change'}</Tag>
                   </Tooltip>
@@ -69,7 +73,10 @@ const VEHICLE_COLOR: Record<string, string> = {
 function NarrativeStepRow({ step, first }: { step: FundingNarrativeStep; first: boolean }) {
   return (
     <div style={{ display: 'flex', alignItems: 'baseline', gap: 8 }}>
-      <Tag color={VEHICLE_COLOR[step.vehicle] ?? 'default'} style={{ minWidth: 78, textAlign: 'center' }}>
+      <Tag
+        color={VEHICLE_COLOR[step.vehicle] ?? 'default'}
+        style={{ minWidth: 78, textAlign: 'center' }}
+      >
         {step.label}
       </Tag>
       <Text strong>{fmtM(step.valueM)}</Text>
