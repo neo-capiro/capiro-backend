@@ -42,7 +42,7 @@ describe('InternalMemoryController.createCandidate', () => {
     expect(proposeSaveMemory).not.toHaveBeenCalled();
   });
 
-  it('delegates to proposeSaveMemory as a firm-scope, non-admin, workspace_artifact proposal', async () => {
+  it('delegates to proposeSaveMemory as a firm-scope, non-admin, artifact_approval proposal', async () => {
     const { controller, proposeSaveMemory } = makeController({ id: 'user-9' });
     const res = await controller.createCandidate(BODY as never);
 
@@ -51,7 +51,10 @@ describe('InternalMemoryController.createCandidate', () => {
       'user-9',
       { scope: 'firm', ownerUserId: null, key: BODY.key, value: BODY.value, source: 'workspace' },
       false, // never admin → firm-scope candidate is ALWAYS reviewable, never auto-committed
-      'workspace_artifact',
+      // 'artifact_approval' — MUST be one of the memory_candidate_source_kind_chk
+      // allow-list values; 'workspace_artifact' was not, and violated the CHECK
+      // constraint on every insert (caught by the G2 kickoff audit).
+      'artifact_approval',
     );
     expect(res).toEqual({ candidateId: 'cand-1', status: 'pending' });
   });

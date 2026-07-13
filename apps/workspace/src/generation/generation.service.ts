@@ -768,12 +768,17 @@ export class GenerationService {
   /**
    * Firm Soul + Firm Compass (unconditional) + the draft owner's "My Writing
    * Style" (if ownerId is known), rendered for prompt injection. `memory_items`
-   * is apps/api-owned and RLS-protected (FORCE ROW LEVEL SECURITY, tenant-only
-   * policy) — this workspace service has no withTenant() helper of its own
-   * (its own ws_* tables use app-level tenant filtering, not RLS), so the raw
-   * query below sets the `app.current_tenant` GUC itself inside a transaction.
-   * Without that, the query would silently return zero rows. Best-effort: any
-   * failure returns empty context rather than blocking generation.
+   * is apps/api-owned and RLS-protected (FORCE ROW LEVEL SECURITY, owner-aware
+   * policy since Phase 1C) — this workspace service has no withTenant() helper
+   * of its own (its own ws_* tables use app-level tenant filtering, not RLS),
+   * so the transaction below sets BOTH GUCs itself: `app.current_tenant`
+   * always, and `app.current_user` after resolving the Clerk `ownerId` to the
+   * Capiro users.id UUID (private user-voice rows are invisible without it).
+   * Best-effort: any failure returns empty context rather than blocking
+   * generation.
+   *
+   * @param ownerId the draft owner's CLERK subject id (ws_* stores Clerk
+   *   identities) — resolved to a Capiro user UUID internally.
    */
   private async loadSteeringMemories(
     tenantId: string,
@@ -791,6 +796,27 @@ export class GenerationService {
         // Parameterized set_config (mirrors apps/api + meriv2-orchestrator's
         // PrismaService.withTenant) — never string-interpolate the GUC value.
         await tx.$executeRaw`SELECT set_config('app.current_tenant', ${tenantId}, true)`;
+        // `ownerId` is the draft owner's CLERK subject id (ws_* stores Clerk
+        // identities; the engine does not own the Capiro users table) — resolve
+        // it to the Capiro users.id UUID here. The previous code cast the Clerk
+        // id to ::uuid directly, which threw 22P02 on EVERY call and the
+        // best-effort catch swallowed it — so no steering memory (firm identity
+        // OR user voice) ever reached a prod prompt. Resolution mirrors
+        // apps/meriv2-orchestrator's MeriContextResolver.
+        let capiroUserId: string | null = null;
+        if (ownerId) {
+          const users = await tx.$queryRaw<Array<{ id: string }>>`
+            SELECT id FROM users WHERE clerk_user_id = ${ownerId} LIMIT 1
+          `;
+          capiroUserId = users[0]?.id ?? null;
+        }
+        // user-voice rows are visibility='user' + owner-scoped: the 1C RLS
+        // policy (memory_items_isolation) only exposes them when
+        // current_user_id() matches, so app.current_user MUST be set — the
+        // tenant GUC alone silently filters private rows to nothing.
+        if (capiroUserId) {
+          await tx.$executeRaw`SELECT set_config('app.current_user', ${capiroUserId}, true)`;
+        }
         // id + slug added (Phase 3.3): the panel needs each contributing memory
         // file's identity, not just its rendered text.
         return tx.$queryRaw<Array<{ id: string; type: string; slug: string; sections: unknown }>>`
@@ -799,7 +825,7 @@ export class GenerationService {
           WHERE tenant_id = ${tenantId}::uuid
             AND (
               (type IN ('firm-soul', 'firm-compass') AND slug = 'firm')
-              OR (${ownerId ?? null}::uuid IS NOT NULL AND type = 'user-voice' AND owner_user_id = ${ownerId ?? null}::uuid)
+              OR (${capiroUserId}::uuid IS NOT NULL AND type = 'user-voice' AND owner_user_id = ${capiroUserId}::uuid)
             )
         `;
       });

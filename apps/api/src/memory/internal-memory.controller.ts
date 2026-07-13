@@ -48,8 +48,10 @@ export class InternalMemoryController {
     // Workspace promotions are FIRM-scope institutional memory. isAdmin=false so
     // the candidate is ALWAYS 'pending' (never auto-committed) — it lands in the
     // existing admin review queue (GET /memory/candidates), tagged
-    // 'workspace_artifact' so a reviewer sees where it came from. Artifact
-    // approval and memory promotion stay separate decisions (blueprint §6.4).
+    // 'artifact_approval' (the 1B CHECK constraint's canonical source class for
+    // artifact-driven proposals; the record's `source` field carries the finer
+    // 'workspace' origin). Artifact approval and memory promotion stay separate
+    // decisions (blueprint §6.4).
     const result = await this.candidates.proposeSaveMemory(
       body.tenantId,
       user.id,
@@ -61,7 +63,7 @@ export class InternalMemoryController {
         source: body.source ?? 'workspace',
       },
       false,
-      'workspace_artifact',
+      'artifact_approval',
     );
     return { candidateId: result.candidateId, status: result.status };
   }
