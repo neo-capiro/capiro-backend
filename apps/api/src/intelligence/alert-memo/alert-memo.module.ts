@@ -1,6 +1,7 @@
 import { Module } from '@nestjs/common';
 import { EngagementModule } from '../../engagement/engagement.module.js';
 import { ContextModule } from '../../context/context.module.js';
+import { ReviewsModule } from '../../reviews/reviews.module.js';
 import { PrismaModule } from '../../prisma/prisma.module.js';
 import { AlertMemoController } from './alert-memo.controller.js';
 import { AlertMemoService } from './alert-memo.service.js';
@@ -15,7 +16,7 @@ import { AlertMemoService } from './alert-memo.service.js';
  * template), so no doc-gen service dependency is needed.
  */
 @Module({
-  imports: [EngagementModule, ContextModule, PrismaModule],
+  imports: [EngagementModule, ContextModule, PrismaModule, ReviewsModule],
   controllers: [AlertMemoController],
   providers: [AlertMemoService],
 })

@@ -1,4 +1,9 @@
-import { Injectable, Logger, ServiceUnavailableException } from '@nestjs/common';
+import {
+  ForbiddenException,
+  Injectable,
+  Logger,
+  ServiceUnavailableException,
+} from '@nestjs/common';
 import { Prisma } from '@prisma/client';
 import {
   recordAiUsageEvent,
@@ -10,6 +15,8 @@ import { runAuditor, type LedgerEntry, type AuditorMode } from '@capiro/meriv2-c
 import { AiCredentialResolverService } from '../../engagement/ai-credential-resolver.service.js';
 import { EngagementService } from '../../engagement/engagement.service.js';
 import { ContextCompilerService } from '../../context/context-compiler.service.js';
+import { ReviewsService } from '../../reviews/reviews.service.js';
+import { DELIVERABLE_RISK_TIERS, isTenantAdmin } from '@capiro/shared';
 import { PrismaService } from '../../prisma/prisma.service.js';
 import { renderMemoDocx, type MemoDocInput } from './alert-memo-docx.js';
 import type { AlertMemoAlertInput, AlertMemoResult } from './alert-memo.types.js';
@@ -26,7 +33,7 @@ import type { AlertMemoAlertInput, AlertMemoResult } from './alert-memo.types.js
  * That split is what makes the memo bespoke without hallucinating.
  */
 const MEMO_TIMEOUT_MS = 60_000;
-const DOCX_MIME = 'application/vnd.openxmlformats-officedocument.wordprocessingml.document';
+export const DOCX_MIME = 'application/vnd.openxmlformats-officedocument.wordprocessingml.document';
 
 const SECTION_ORDER = [
   'Bottom line',
@@ -65,6 +72,7 @@ export class AlertMemoService {
     private readonly contextCompiler: ContextCompilerService,
     private readonly engagement: EngagementService,
     private readonly prisma: PrismaService,
+    private readonly reviews: ReviewsService,
   ) {}
 
   async generate(
@@ -148,6 +156,7 @@ export class AlertMemoService {
     // and returned for review but NOT auto-filed to the client's Documents
     // (Phase 2.5-1, "hold as draft, block send/file").
     let held = false;
+    let heldReason = '';
     const auditorMode = (process.env.MERI_AUDITOR_MODE as AuditorMode | undefined) ?? 'off';
     if (auditorMode !== 'off' && markdown.trim().length > 0) {
       try {
@@ -211,6 +220,11 @@ export class AlertMemoService {
           // 'hold' only in enforce mode (annotate → 'deliver_with_flags'), so
           // this is inert under shadow/annotate and never changes today's flow.
           held = verdict.decision === 'hold';
+          if (held) {
+            heldReason = `Grounding auditor: ${verdict.findings
+              .map((f) => `${f.check} (${f.severity}): ${f.detail}`)
+              .join('; ')}`.slice(0, 2000);
+          }
         }
       } catch (err) {
         this.logger.warn(
@@ -229,6 +243,21 @@ export class AlertMemoService {
       this.logger.warn(
         `[meri-auditor:enforce] alert memo HELD for review — not auto-filed to client Documents`,
       );
+      // G4: a hold is no longer a dead end — it becomes a pending
+      // review_request carrying everything approve needs to file the memo
+      // (markdown + title + client). Fail-open: emitting the review can never
+      // break memo generation.
+      await this.reviews.createSystem(ctx.tenantId, {
+        riskTier: DELIVERABLE_RISK_TIERS.alert_memo ?? 'high',
+        surface: 'alert-memo',
+        subjectType: 'alert',
+        subjectId: alert.alertId,
+        clientId,
+        title,
+        reason: heldReason || 'Grounding auditor held this memo for review.',
+        payload: { markdown, title, clientName, clientId, alertId: alert.alertId },
+        requestedBy: ctx.userId,
+      });
     } else {
       try {
         const buffer = await renderMemoDocx(toMemoDocInput(clientName, alert, sections, sources));
@@ -279,8 +308,22 @@ export class AlertMemoService {
       clientName: string;
       actionDate?: string;
       replaceAttachmentId?: string;
+      /** The alert this memo came from — required for the G4 held-review guard. */
+      alertId?: string;
     },
   ): Promise<{ document: { attachmentId: string; fileName: string } | null; title: string }> {
+    // G4: a memo with an OPEN review may not be filed around the review by its
+    // requester — only through /reviews approve (or by an admin editing, which
+    // the reviews service also authorizes). Without this check, the edit-then-
+    // save path silently re-filed held memos (audit finding, 2026-07-12).
+    if (input.alertId) {
+      const open = await this.reviews.hasOpenForSubject(ctx.tenantId, 'alert', input.alertId);
+      if (open && !isTenantAdmin(ctx.role)) {
+        throw new ForbiddenException(
+          'This memo is held for review. An admin or the assigned reviewer must approve it (Reviews queue) before it can be filed.',
+        );
+      }
+    }
     const buffer = await renderMemoDocx(
       markdownToMemoDocInput(input.markdown, input.clientName, input.title, input.actionDate),
     );
@@ -586,7 +629,7 @@ function toMemoDocInput(
 }
 
 /** Split edited memo markdown into a MemoDocInput (## headings → sections; a "Sources" section → source lines). */
-function markdownToMemoDocInput(
+export function markdownToMemoDocInput(
   markdown: string,
   clientName: string,
   title: string,

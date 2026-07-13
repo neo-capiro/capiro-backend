@@ -153,3 +153,24 @@ describe('PROPOSED_CAPIRO_RULES — the tiered production proposal', () => {
     expect(d.ruleId).toBeUndefined(); // fallback, not a rule
   });
 });
+
+// ── G4: risk-tier annotations propagate onto the decision ────────────────────
+describe('PROPOSED_CAPIRO_RULES — G4 tier propagation', () => {
+  const policy = ruleBasedCompliancePolicy([...PROPOSED_CAPIRO_RULES]);
+
+  it('external send carries tier=restricted', () => {
+    expect(decide(policy, 'send_email', { to: 'x@y.com' }).tier).toBe('restricted');
+    expect(decide(policy, 'reply_email', {}).tier).toBe('restricted');
+  });
+  it('CRM mutation + standing automation carry tier=high', () => {
+    expect(decide(policy, 'update_client_profile', {}).tier).toBe('high');
+    expect(decide(policy, 'schedule_task', {}).tier).toBe('high');
+  });
+  it('internal reversible artifacts carry tier=low', () => {
+    expect(decide(policy, 'save_note', {}).tier).toBe('low');
+    expect(decide(policy, 'create_word', {}).tier).toBe('low');
+  });
+  it('an unmatched tool has no tier (fallback WARN, tier undefined)', () => {
+    expect(decide(policy, 'some_future_write_tool', {}).tier).toBeUndefined();
+  });
+});

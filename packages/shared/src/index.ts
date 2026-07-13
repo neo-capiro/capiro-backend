@@ -17,6 +17,40 @@ export const TENANT_ROLES = [
 
 export type TenantRole = (typeof TENANT_ROLES)[number];
 
+// ── G4: shared 4-tier risk taxonomy (blueprint §3.3 approval gates) ─────────
+// Lives HERE (not @capiro/meriv2-core) for the same reason as the canonical
+// Alert type: @capiro/shared is the lowest common dependency of every surface
+// (web + intel-api depend on shared but not meriv2-core); meriv2-core
+// re-exports it for its compliance engine.
+export const RISK_TIERS = ['low', 'moderate', 'high', 'restricted'] as const;
+export type RiskTier = (typeof RISK_TIERS)[number];
+
+/** Default compliance outcome per tier (maps onto meriv2-core's
+ *  ComplianceOutcome): low auto-passes, moderate/high require a reviewer
+ *  (WARN → approval gate), restricted blocks outright until an explicit
+ *  authorized approver exists for that action class. */
+export const RISK_TIER_DEFAULT_OUTCOME: Record<RiskTier, 'PASS' | 'WARN' | 'BLOCK'> = {
+  low: 'PASS',
+  moderate: 'WARN',
+  high: 'WARN',
+  restricted: 'BLOCK',
+};
+
+/** Canonical deliverable → tier mapping (blueprint §3.3 table). Surfaces use
+ *  this instead of hardcoding tiers so the taxonomy can't drift per-app. */
+export const DELIVERABLE_RISK_TIERS: Record<string, RiskTier> = {
+  research_report: 'moderate',
+  meeting_prep: 'moderate',
+  status_report: 'moderate',
+  alert_memo: 'high',
+  district_brief: 'high',
+  white_paper: 'high',
+  testimony: 'high',
+  legislative_language: 'high',
+  external_send: 'restricted',
+  filing: 'restricted',
+};
+
 export const ROLE_RANK: Record<TenantRole, number> = {
   client_portal_user: 0,
   standard_user: 1,

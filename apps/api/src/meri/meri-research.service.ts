@@ -7,6 +7,8 @@ import type { AppConfig } from '../config/config.schema.js';
 import { PrismaService } from '../prisma/prisma.service.js';
 import { MeriToolsService } from './meri-tools.service.js';
 import { AiCredentialResolverService } from '../engagement/ai-credential-resolver.service.js';
+import { ReviewsService } from '../reviews/reviews.service.js';
+import { DELIVERABLE_RISK_TIERS } from '@capiro/shared';
 import {
   assembleReportArtifact,
   buildPlanSystemPrompt,
@@ -65,6 +67,7 @@ export class MeriResearchService {
     private readonly config: ConfigService<AppConfig, true>,
     private readonly tools: MeriToolsService,
     private readonly aiCredentials: AiCredentialResolverService,
+    private readonly reviews: ReviewsService,
   ) {}
 
   // ── Session CRUD ─────────────────────────────────────────────────────────
@@ -635,6 +638,7 @@ export class MeriResearchService {
     // report is never presented as a cleared deliverable. Inert under shadow/
     // annotate (decision is never 'hold' there), so the default flow is unchanged.
     let held = false;
+    let heldReason = '';
     const auditorMode = (process.env.MERI_AUDITOR_MODE as AuditorMode | undefined) ?? 'off';
     if (auditorMode !== 'off' && reportBody.trim().length > 0) {
       try {
@@ -680,6 +684,11 @@ export class MeriResearchService {
           // below. decisionFor() returns 'hold' only in enforce mode, so this is
           // inert under shadow/annotate.
           held = verdict.decision === 'hold';
+          if (held) {
+            heldReason = `Grounding auditor: ${verdict.findings
+              .map((f) => `${f.check} (${f.severity}): ${f.detail}`)
+              .join('; ')}`.slice(0, 2000);
+          }
         }
       } catch (err) {
         this.logger.warn(
@@ -759,6 +768,22 @@ export class MeriResearchService {
       });
       return artifact.id;
     });
+
+    // G4: a held report becomes a pending review_request so a reviewer can
+    // clear heldForReview through the Reviews queue (fail-open by contract).
+    if (held) {
+      await this.reviews.createSystem(ctx.tenantId, {
+        riskTier: DELIVERABLE_RISK_TIERS.research_report ?? 'moderate',
+        surface: 'research',
+        subjectType: 'research_artifact',
+        subjectId: artifactId,
+        clientId: session.clientId ?? null,
+        title: session.title,
+        reason: heldReason || 'Grounding auditor held this research report for review.',
+        payload: { artifactId },
+        requestedBy: ctx.userId,
+      });
+    }
 
     sse.write(sseEvent({ type: 'phase', phase: 'done' }));
     sse.write(sseEvent({ type: 'report', artifactId, body: artifactBody }));

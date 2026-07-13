@@ -1,3 +1,4 @@
+import type { RiskTier } from '@capiro/shared';
 import type { MeriContext } from '../registry/types';
 import type { CompliancePolicy, ComplianceDecision, ComplianceOutcome } from './approval-gate';
 
@@ -33,6 +34,8 @@ export interface ComplianceRule {
   readonly id: string;
   readonly description: string;
   readonly outcome: ComplianceOutcome;
+  /** G4: named risk tier this rule represents (blueprint §3.3). */
+  readonly tier?: RiskTier;
   /** Applies this rule when it returns true. Evaluated in list order; first match wins. */
   readonly matches: (toolName: string, input: unknown, ctx: MeriContext) => boolean;
   /** Optional machine code carried onto the decision (e.g. 'gift_rule'). */
@@ -98,6 +101,7 @@ export const PROPOSED_CAPIRO_RULES: readonly ComplianceRule[] = [
     id: 'send.requires_approval',
     description: 'Outbound email leaves the firm — requires explicit human approval.',
     outcome: 'WARN',
+    tier: 'restricted',
     code: 'external_send',
     matches: (toolName) => toolName === 'send_email' || toolName === 'reply_email',
   },
@@ -105,6 +109,7 @@ export const PROPOSED_CAPIRO_RULES: readonly ComplianceRule[] = [
     id: 'client_profile.requires_approval',
     description: 'Client-profile mutations change the CRM record — requires human approval.',
     outcome: 'WARN',
+    tier: 'high',
     code: 'crm_mutation',
     matches: (toolName) => toolName === 'update_client_profile',
   },
@@ -113,6 +118,7 @@ export const PROPOSED_CAPIRO_RULES: readonly ComplianceRule[] = [
     description:
       'Standing automation (scheduled tasks) acts later without a human — requires approval.',
     outcome: 'WARN',
+    tier: 'high',
     code: 'standing_automation',
     matches: (toolName) => toolName === 'schedule_task' || toolName === 'cancel_scheduled_task',
   },
@@ -121,6 +127,7 @@ export const PROPOSED_CAPIRO_RULES: readonly ComplianceRule[] = [
     description:
       'Internal, reversible artifacts and task bookkeeping are pre-approved (audited, parity with the legacy surface).',
     outcome: 'PASS',
+    tier: 'low',
     matches: (toolName) =>
       [
         'save_note',
@@ -206,6 +213,7 @@ export function ruleBasedCompliancePolicy(
           outcome: rule.outcome,
           reasons: [reason],
           ...(rule.code ? { code: rule.code } : {}),
+          ...(rule.tier ? { tier: rule.tier } : {}),
           // Non-typed extra for audit: which rule fired. Consumers that persist
           // the ComplianceCheck read `ruleId` off the decision when present.
           ruleId: rule.id,

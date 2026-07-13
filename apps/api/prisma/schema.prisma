@@ -247,6 +247,7 @@ model Tenant {
   meriAuditLedgerEntries       MeriAuditLedger[]
   contextPackets               ContextPacket[]
   outcomeEvents                OutcomeEvent[]
+  reviewRequests               ReviewRequest[]
   aiCredentials                TenantAiCredential[]
   usageMeters                  TenantUsageMeter[]
   memoryItems                  MemoryItem[]
@@ -1697,6 +1698,42 @@ model MeriAuditLedger {
   @@index([tenantId, createdAt(sort: Desc)], map: "meri_audit_ledger_tenant_created_idx")
   @@index([surface, topSeverity, createdAt(sort: Desc)], map: "meri_audit_ledger_surface_severity_idx")
   @@map("meri_audit_ledger")
+}
+
+/// G4 — named-reviewer routing for held deliverables (blueprint §3.3). The
+/// memory_candidate lifecycle generalized: pending → approved/rejected with
+/// decided stamps, plus a NAMED reviewer (assignedTo). payload carries what
+/// approve needs to RELEASE the deliverable (held memo markdown/title/client,
+/// held research artifact id). RLS per the meri_audit_ledger template.
+model ReviewRequest {
+  id          String    @id @default(uuid()) @db.Uuid
+  tenantId    String    @map("tenant_id") @db.Uuid
+  /// low | moderate | high | restricted (shared RiskTier)
+  riskTier    String    @map("risk_tier") @db.VarChar(16)
+  /// 'alert-memo' | 'district-brief' | 'research'
+  surface     String    @db.VarChar(24)
+  subjectType String    @map("subject_type") @db.VarChar(32)
+  subjectId   String?   @map("subject_id")
+  clientId    String?   @map("client_id") @db.Uuid
+  title       String    @db.VarChar(300)
+  /// Why it was held: the auditor finding summary shown to the reviewer.
+  reason      String
+  payload     Json      @default("{}") @map("payload_jsonb")
+  /// pending | approved | rejected
+  status      String    @default("pending") @db.VarChar(16)
+  requestedBy String?   @map("requested_by") @db.Uuid
+  /// The NAMED reviewer (users.id); NULL until a user_admin assigns.
+  assignedTo  String?   @map("assigned_to") @db.Uuid
+  decidedBy   String?   @map("decided_by") @db.Uuid
+  decidedAt   DateTime? @map("decided_at") @db.Timestamptz(6)
+  createdAt   DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  @@index([tenantId, status, createdAt(sort: Desc)], map: "review_request_tenant_status_idx")
+  @@index([tenantId, assignedTo, status], map: "review_request_assigned_idx")
+  @@index([tenantId, subjectType, subjectId], map: "review_request_subject_idx")
+  @@map("review_request")
 }
 
 /// G3 — structured advocacy outcomes (blueprint §3.1 stage 5 + §5.2 flywheel).

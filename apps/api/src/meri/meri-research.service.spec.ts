@@ -211,6 +211,11 @@ function makeTools() {
 
 // ── Test ─────────────────────────────────────────────────────────────────────
 
+function makeReviews() {
+  // G4: held reports emit a review_request; fail-open stub for these specs.
+  return { createSystem: jest.fn(async () => 'rr-1') } as never;
+}
+
 describe('MeriResearchService — forced synthesis', () => {
   const realFetch = global.fetch;
   let fetchMock: jest.Mock;
@@ -252,7 +257,13 @@ describe('MeriResearchService — forced synthesis', () => {
     }) as unknown as jest.Mock;
     global.fetch = fetchMock as unknown as typeof fetch;
 
-    const svc = new MeriResearchService(makePrisma(), makeConfig(), makeTools(), makeAiCredentials());
+    const svc = new MeriResearchService(
+      makePrisma(),
+      makeConfig(),
+      makeTools(),
+      makeAiCredentials(),
+      makeReviews(),
+    );
 
     const events: Array<Record<string, unknown>> = [];
     const sse = {
@@ -326,7 +337,13 @@ describe('MeriResearchService — forced synthesis', () => {
     }) as unknown as jest.Mock;
     global.fetch = fetchMock as unknown as typeof fetch;
 
-    const svc = new MeriResearchService(makePrisma(), makeConfig(), makeTools(), makeAiCredentials());
+    const svc = new MeriResearchService(
+      makePrisma(),
+      makeConfig(),
+      makeTools(),
+      makeAiCredentials(),
+      makeReviews(),
+    );
     const events: Array<Record<string, unknown>> = [];
     const sse = {
       write: (data: string) => {
@@ -366,7 +383,13 @@ describe('MeriResearchService — forced synthesis', () => {
     }) as unknown as jest.Mock;
     global.fetch = fetchMock as unknown as typeof fetch;
 
-    const svc = new MeriResearchService(makePrisma(), makeConfig(), makeTools(), makeAiCredentials());
+    const svc = new MeriResearchService(
+      makePrisma(),
+      makeConfig(),
+      makeTools(),
+      makeAiCredentials(),
+      makeReviews(),
+    );
     const events: Array<Record<string, unknown>> = [];
     const sse = {
       write: (data: string) => {
@@ -419,7 +442,13 @@ describe('MeriResearchService — forced synthesis', () => {
     }) as unknown as jest.Mock;
     global.fetch = fetchMock as unknown as typeof fetch;
 
-    const svc = new MeriResearchService(makePrisma(), makeConfig(), tools, makeAiCredentials());
+    const svc = new MeriResearchService(
+      makePrisma(),
+      makeConfig(),
+      tools,
+      makeAiCredentials(),
+      makeReviews(),
+    );
     const events: Array<Record<string, unknown>> = [];
     const sse = {
       write: (data: string) => {

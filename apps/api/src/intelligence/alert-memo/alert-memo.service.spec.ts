@@ -83,11 +83,17 @@ function makeDeps(opts: {
     deleteAttachment: jest.fn(async () => undefined),
     billTruthBlock: jest.fn(opts.billTruthBlock ?? (async () => null)),
   };
+  // G4: held memos emit a review_request (fail-open) — captured for assertions.
+  const reviews = {
+    createSystem: jest.fn(async () => 'rr-1'),
+    hasOpenForSubject: jest.fn(async () => false),
+  };
   const service = new AlertMemoService(
     credentials as never,
     contextCompiler as never,
     engagement as never,
     prisma as never,
+    reviews as never,
   );
   return {
     service,
@@ -95,6 +101,7 @@ function makeDeps(opts: {
     credentials,
     contextCompiler,
     engagement,
+    reviews,
     aiUsageEvents,
     meriAuditLedgerRows,
   };
@@ -344,7 +351,33 @@ describe('AlertMemoService.generate — live bill re-query (5.2C / RC3 fix)', ()
       ]),
     );
 
-    const result = await service.generate(
+    const {
+      service: svc2,
+      engagement: eng2,
+      reviews,
+    } = makeDeps({
+      billTruthBlock: async () => ({
+        text: 'authoritative block',
+        raw: { id: 'hr-8800-119', status: 'rule_failed', statusAt: '2026-07-10T00:00:00.000Z' },
+      }),
+    });
+    void service;
+    void engagement;
+    global.fetch = jest.fn(async () =>
+      anthropicTextResponse([
+        {
+          heading: 'Bottom line',
+          paragraphs: [
+            {
+              text: 'Debate on hr-8800-119 is limited and floor consideration is expected to pass.',
+              claimIds: ['c1'],
+            },
+          ],
+        },
+      ]),
+    );
+
+    const result = await svc2.generate(
       { tenantId: 't1', userId: 'u1' } as never,
       'client-1',
       STALE_ALERT,
@@ -356,7 +389,19 @@ describe('AlertMemoService.generate — live bill re-query (5.2C / RC3 fix)', ()
     // The memo content is still returned for review (with the Unverified banner)...
     expect(result.markdown).toContain('Unverified');
     // ...but nothing was filed into the client's Documents.
-    expect(engagement.createAttachmentFromBuffer).not.toHaveBeenCalled();
+    expect(eng2.createAttachmentFromBuffer).not.toHaveBeenCalled();
+    // G4: a hold is no longer a dead end — it emitted a pending review_request
+    // carrying the markdown+title+client the reviewer needs to release it.
+    expect(reviews.createSystem).toHaveBeenCalledTimes(1);
+    const emitted = (reviews.createSystem as jest.Mock).mock.calls[0]![1] as {
+      surface: string;
+      riskTier: string;
+      subjectId: string;
+      payload: { markdown: string };
+    };
+    expect(emitted.surface).toBe('alert-memo');
+    expect(emitted.riskTier).toBe('high');
+    expect(emitted.payload.markdown).toContain('Unverified');
   });
 
   it('under SHADOW, the same flagged memo is NOT held — it files normally (enforce is the only mode that holds)', async () => {

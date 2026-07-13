@@ -16,7 +16,13 @@ import type { ApprovalGate, MeriContext } from '../registry/types';
  * meriv2-core only owns the mechanism.
  */
 
+import type { RiskTier } from '@capiro/shared';
+
 export type ComplianceOutcome = 'PASS' | 'WARN' | 'BLOCK';
+// Re-export the shared taxonomy for compliance-engine importers (the Alert
+// pattern: the type lives in @capiro/shared, core re-exports).
+export type { RiskTier } from '@capiro/shared';
+export { RISK_TIERS, RISK_TIER_DEFAULT_OUTCOME, DELIVERABLE_RISK_TIERS } from '@capiro/shared';
 
 export interface ComplianceDecision {
   readonly outcome: ComplianceOutcome;
@@ -28,6 +34,8 @@ export interface ComplianceDecision {
   readonly reasons: string[];
   /** Optional stable machine code for the dominant reason (e.g. `gift_rule`). */
   readonly code?: string;
+  /** G4: the named risk tier behind this outcome, when the rule declares one. */
+  readonly tier?: RiskTier;
 }
 
 /**
