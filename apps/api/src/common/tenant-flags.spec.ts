@@ -15,6 +15,8 @@ import {
   meriAlertsImportantOnly,
   MERI_ALERTS_IMPORTANT_ONLY_FLAG,
   MERI_ALERT_IMPORTANT_PRIORITIES,
+  notetakerEnabled,
+  notetakerEnvEnabled,
 } from './tenant-flags.js';
 
 describe('tenantFeatureEnabled', () => {
@@ -69,6 +71,35 @@ describe('meriV2FlagEnabled (GA: env kill-switch AND tenant flag default ON)', (
 
   test('explicit false opts a tenant OUT (overrides the GA default)', () => {
     expect(meriV2FlagEnabled(tenantOptedOut, MERIV2_FLAGS.inEditorAssistant, envOn)).toBe(false);
+  });
+});
+
+describe('notetakerEnabled (GA 2026-07-13: tenant default ON, env kill-switch still required)', () => {
+  const envOn = { NOTETAKER_ENABLED: 'true' } as NodeJS.ProcessEnv;
+  const envOff = {} as NodeJS.ProcessEnv;
+
+  test('env switch only the literal "true" enables', () => {
+    expect(notetakerEnvEnabled(envOn)).toBe(true);
+    expect(notetakerEnvEnabled({ NOTETAKER_ENABLED: 'false' } as NodeJS.ProcessEnv)).toBe(false);
+    expect(notetakerEnvEnabled(envOff)).toBe(false);
+  });
+
+  test('GA default ON when the tenant flag is absent (every tenant + future tenants)', () => {
+    expect(notetakerEnabled({}, envOn)).toBe(true);
+    expect(notetakerEnabled(null, envOn)).toBe(true);
+  });
+
+  test('explicit false opts a tenant OUT (overrides the GA default)', () => {
+    expect(notetakerEnabled({ clioFeatureFlags: { 'notetaker.enabled': false } }, envOn)).toBe(
+      false,
+    );
+  });
+
+  test('dormant regardless of the tenant flag when the env kill-switch is off', () => {
+    expect(notetakerEnabled({ clioFeatureFlags: { 'notetaker.enabled': true } }, envOff)).toBe(
+      false,
+    );
+    expect(notetakerEnabled({}, envOff)).toBe(false);
   });
 });
 

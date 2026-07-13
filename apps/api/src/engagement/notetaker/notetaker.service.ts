@@ -251,7 +251,8 @@ export class NotetakerService implements OnModuleInit, OnModuleDestroy {
         }),
       ]),
     );
-    // Env kill-switch AND per-tenant flag (default OFF) — belt-and-suspenders.
+    // Env kill-switch AND per-tenant flag (GA default ON; a tenant can still be
+    // carved out via an explicit settings_jsonb `false`).
     if (!notetakerEnabled(tenant?.settings)) {
       throw new ForbiddenException('Meeting notetaker is not enabled for this tenant');
     }
