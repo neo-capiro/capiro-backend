@@ -7,6 +7,7 @@ import { MeriV2FlagsService } from '../meriv2/meriv2-flags.service.js';
 import { MeriV2OrchestratorClient } from '../meriv2/meriv2-orchestrator.client.js';
 import { MemoryPromotionClient } from './memory-promotion.client.js';
 import { MemoryPromotionService } from './memory-promotion.service.js';
+import { WorkspaceContextCompilerService } from './context-compiler.service.js';
 
 @Module({
   controllers: [GenerationController, MeriIntakeController],
@@ -18,6 +19,7 @@ import { MemoryPromotionService } from './memory-promotion.service.js';
     MeriV2OrchestratorClient,
     MemoryPromotionClient,
     MemoryPromotionService,
+    WorkspaceContextCompilerService,
   ],
   exports: [GenerationService, AiCredentialService],
 })

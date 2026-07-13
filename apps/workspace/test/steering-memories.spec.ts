@@ -1,3 +1,4 @@
+import { WorkspaceContextCompilerService } from '../src/generation/context-compiler.service';
 import { GenerationService } from '../src/generation/generation.service';
 import type { PrismaService } from '../src/prisma/prisma.service';
 import type { AiCredentialService } from '../src/generation/ai-credential.service';
@@ -6,146 +7,221 @@ import type { MeriV2FlagsService } from '../src/meriv2/meriv2-flags.service';
 import type { MeriV2OrchestratorClient } from '../src/meriv2/meriv2-orchestrator.client';
 
 /**
- * Regression tests for loadSteeringMemories' identity handling (G1 pre-fix).
- *
- * ws_draft.ownerId is a CLERK subject id (e.g. "user_2abc"), but
- * memory_items.owner_user_id is the Capiro users.id UUID. The original loader
- * cast the Clerk id straight to ::uuid — 22P02 on every call, swallowed by the
- * best-effort catch — so NO steering memory (not even the tenant-visible Firm
- * Soul/Compass) ever reached a prod prompt. It also never set
- * app.current_user, so even a correct UUID would have been filtered by the 1C
- * owner-aware RLS policy. These tests pin the fixed contract:
- *   1. resolve clerk id -> users.id inside the transaction,
- *   2. set app.current_user to the RESOLVED uuid,
- *   3. query memory_items with the resolved uuid (never the raw Clerk id),
- *   4. no owner => firm-only query, no user GUC, no crash.
+ * Steering-memory regression locks (G1-c — history: the pre-#442 loader cast
+ * the Clerk owner id straight to ::uuid, 22P02'd on every call, and never set
+ * app.current_user, so NO steering memory ever reached a prod prompt; both
+ * failure modes now live behind the shared Context Compiler's workspace
+ * adapter). Pins:
+ *   1. compileForClerkOwner resolves clerk id -> users.id BEFORE compiling,
+ *      and an unknown owner compiles with userId null (firm-only, no crash);
+ *   2. the adapter transaction sets BOTH GUCs (tenant always, user when
+ *      resolved) and binds the RESOLVED uuid — never the raw Clerk id;
+ *   3. the steering query carries no status filter (governance is
+ *      compiler-side and traced as exclusions);
+ *   4. GenerationService.loadSteeringMemories recomposes the packet into the
+ *      exact legacy block labels + Phase 3.3 provenance shape, fail-open.
  */
-describe('GenerationService.loadSteeringMemories (Clerk->Capiro identity + RLS GUCs)', () => {
-  const CLERK_ID = 'user_2NpQrsTuvWxYz';
-  const CAPIRO_UUID = '3f7c2a44-9d1e-4b6f-8a5c-0e9d8c7b6a51';
-  const FIRM_ROW = {
-    id: 'mi-1',
-    type: 'firm-soul',
-    slug: 'firm',
-    sections: [{ owner: 'human', heading: 'Who we are', body: 'A defense-focused firm.' }],
-  };
-  const VOICE_ROW = {
-    id: 'mi-2',
-    type: 'user-voice',
-    slug: 'voice',
-    sections: [{ owner: 'human', heading: 'Style', body: 'Plain, direct sentences.' }],
-  };
+const CLERK_ID = 'user_2NpQrsTuvWxYz';
+const CAPIRO_UUID = '3f7c2a44-9d1e-4b6f-8a5c-0e9d8c7b6a51';
+const human = (heading: string, body: string) => ({ owner: 'human', heading, body });
 
-  function makeService(opts: { userRows: Array<{ id: string }>; memoryRows: unknown[] }) {
-    const executeRaw = jest.fn().mockResolvedValue(undefined);
-    // First $queryRaw call = users resolution (only when ownerId given);
-    // last call = the memory_items query. Distinguished by inspecting SQL text.
-    const queryRaw = jest.fn().mockImplementation((strings: TemplateStringsArray) => {
-      const sql = strings.join('?');
-      if (sql.includes('FROM users')) return Promise.resolve(opts.userRows);
-      return Promise.resolve(opts.memoryRows);
+const FIRM_ROW = {
+  id: 'mi-1',
+  type: 'firm-soul',
+  slug: 'firm',
+  title: 'Firm Soul',
+  clientId: null,
+  status: 'active',
+  sections: [human('Who we are', 'A defense-focused firm.')],
+};
+const VOICE_ROW = {
+  id: 'mi-2',
+  type: 'user-voice',
+  slug: 'voice',
+  title: 'My Writing Style',
+  clientId: null,
+  status: 'active',
+  sections: [human('Style', 'Plain, direct sentences.')],
+};
+
+function makeAdapter(opts: { userRows: Array<{ id: string }>; memoryRows: unknown[] }) {
+  const executeRaw = jest.fn().mockResolvedValue(undefined);
+  const queryRaw = jest.fn().mockImplementation((strings: TemplateStringsArray) => {
+    const sql = strings.join('?');
+    if (sql.includes('FROM users')) return Promise.resolve(opts.userRows);
+    if (sql.includes('FROM memory_items')) return Promise.resolve(opts.memoryRows);
+    return Promise.resolve([]);
+  });
+  const tx = { $executeRaw: executeRaw, $queryRaw: queryRaw };
+  const prisma = {
+    // The clerk->user resolution runs OUTSIDE the transaction (top-level
+    // $queryRaw); the steering query + trace INSERT run inside $transaction.
+    $queryRaw: queryRaw,
+    $executeRaw: executeRaw,
+    $transaction: jest.fn((fn: (t: unknown) => Promise<unknown>) => fn(tx)),
+  } as unknown as PrismaService;
+  const service = new WorkspaceContextCompilerService(prisma);
+  return { service, executeRaw, queryRaw };
+}
+
+const sqlOf = (mock: jest.Mock, n: number): string =>
+  (mock.mock.calls[n]![0] as TemplateStringsArray).join('|');
+const paramsOf = (mock: jest.Mock, n: number): unknown[] => mock.mock.calls[n]!.slice(1);
+
+describe('WorkspaceContextCompilerService (adapter contract)', () => {
+  it('resolves the Clerk owner, sets BOTH GUCs, binds the resolved uuid', async () => {
+    const { service, executeRaw, queryRaw } = makeAdapter({
+      userRows: [{ id: CAPIRO_UUID }],
+      memoryRows: [FIRM_ROW, VOICE_ROW],
     });
-    const tx = { $executeRaw: executeRaw, $queryRaw: queryRaw };
-    const prisma = {
-      $transaction: jest.fn((fn: (t: unknown) => Promise<unknown>) => fn(tx)),
-    } as unknown as PrismaService;
+    const packet = await service.compileForClerkOwner(
+      { tenantId: 't1', surface: 'workspace-gen', layers: ['firm-identity', 'user-voice'] },
+      CLERK_ID,
+    );
+
+    // users resolution ran with the CLERK id…
+    expect(sqlOf(queryRaw, 0)).toContain('FROM users');
+    expect(paramsOf(queryRaw, 0)).toContain(CLERK_ID);
+    // …both GUCs set, user GUC with the RESOLVED uuid…
+    expect(sqlOf(executeRaw, 0)).toContain('app.current_tenant');
+    expect(sqlOf(executeRaw, 1)).toContain('app.current_user');
+    expect(paramsOf(executeRaw, 1)).toContain(CAPIRO_UUID);
+    // …and the memory query binds the uuid, never the Clerk id.
+    const memCall = queryRaw.mock.calls.findIndex((c) =>
+      (c[0] as TemplateStringsArray).join('').includes('FROM memory_items'),
+    );
+    expect(paramsOf(queryRaw, memCall)).toContain(CAPIRO_UUID);
+    expect(paramsOf(queryRaw, memCall)).not.toContain(CLERK_ID);
+
+    expect(packet.rendered.map((r) => r.type)).toEqual(['firm-soul', 'user-voice']);
+  });
+
+  it('unknown Clerk owner: compiles firm-only with userId null, sets no user GUC', async () => {
+    const { service, executeRaw } = makeAdapter({
+      userRows: [],
+      memoryRows: [FIRM_ROW],
+    });
+    const packet = await service.compileForClerkOwner(
+      { tenantId: 't1', surface: 'workspace-gen', layers: ['firm-identity', 'user-voice'] },
+      CLERK_ID,
+    );
+    const gucCalls = executeRaw.mock.calls.map((c) => (c[0] as TemplateStringsArray).join(''));
+    expect(gucCalls.some((s) => s.includes('app.current_user'))).toBe(false);
+    expect(packet.rendered.map((r) => r.type)).toEqual(['firm-soul']);
+  });
+
+  it('the steering query carries no status filter; superseded rows become exclusions', async () => {
+    const { service, queryRaw } = makeAdapter({
+      userRows: [{ id: CAPIRO_UUID }],
+      memoryRows: [FIRM_ROW, { ...VOICE_ROW, id: 'mi-old', status: 'superseded' }],
+    });
+    const packet = await service.compileForClerkOwner(
+      { tenantId: 't1', surface: 'workspace-gen', layers: ['firm-identity', 'user-voice'] },
+      CLERK_ID,
+    );
+    const memCall = queryRaw.mock.calls.findIndex((c) =>
+      (c[0] as TemplateStringsArray).join('').includes('FROM memory_items'),
+    );
+    expect(sqlOf(queryRaw, memCall)).not.toMatch(/status\s*=/i);
+    expect(packet.exclusions).toEqual([
+      expect.objectContaining({ id: 'mi-old', reason: 'superseded' }),
+    ]);
+  });
+});
+
+describe('GenerationService.loadSteeringMemories (packet recomposition)', () => {
+  function makeService(rendered: unknown[]) {
+    const compiler = {
+      compileForClerkOwner: jest.fn(async () => ({
+        packetId: 'pkt-1',
+        rendered,
+        items: [],
+        exclusions: [],
+      })),
+    } as unknown as WorkspaceContextCompilerService;
     const service = new GenerationService(
-      prisma,
+      {} as PrismaService,
       {} as AiCredentialService,
       {} as PeResolverService,
       {} as MeriV2FlagsService,
       {} as MeriV2OrchestratorClient,
+      compiler,
     );
-    return { service, executeRaw, queryRaw };
+    return { service, compiler };
   }
-
-  /** SQL text of the nth template-tag call. */
-  const sqlOf = (mock: jest.Mock, n: number): string =>
-    (mock.mock.calls[n]![0] as TemplateStringsArray).join('¶');
-  /** Bound parameter values of the nth template-tag call. */
-  const paramsOf = (mock: jest.Mock, n: number): unknown[] => mock.mock.calls[n]!.slice(1);
-
-  it('resolves the Clerk owner to users.id, sets app.current_user, and queries with the UUID', async () => {
-    const { service, executeRaw, queryRaw } = makeService({
-      userRows: [{ id: CAPIRO_UUID }],
-      memoryRows: [FIRM_ROW, VOICE_ROW],
-    });
-
-    const result = await (
+  const call = (service: GenerationService, ownerId?: string) =>
+    (
       service as unknown as {
         loadSteeringMemories: (
           t: string,
           o?: string,
-        ) => Promise<{ firmContext?: string; userVoiceContext?: string; memoryFiles: unknown[] }>;
+        ) => Promise<{
+          firmContext?: string;
+          userVoiceContext?: string;
+          memoryFiles: Array<{ id: string; type: string; slug: string; label: string }>;
+        }>;
       }
-    ).loadSteeringMemories('tenant-1', CLERK_ID);
+    ).loadSteeringMemories('t1', ownerId);
 
-    // (1) users resolution ran with the CLERK id.
-    expect(sqlOf(queryRaw, 0)).toContain('FROM users');
-    expect(paramsOf(queryRaw, 0)).toContain(CLERK_ID);
+  it('recomposes the legacy block labels + Phase 3.3 provenance from the packet', async () => {
+    const { service, compiler } = makeService([
+      {
+        layer: 'firm-identity',
+        id: 'mi-1',
+        type: 'firm-soul',
+        slug: 'firm',
+        title: 'Firm Soul',
+        body: 'Who we are: A defense-focused firm.',
+      },
+      {
+        layer: 'firm-identity',
+        id: 'mi-3',
+        type: 'firm-compass',
+        slug: 'firm',
+        title: 'Firm Compass',
+        body: 'Direction: Win FY27.',
+      },
+      {
+        layer: 'user-voice',
+        id: 'mi-2',
+        type: 'user-voice',
+        slug: 'voice',
+        title: 'My Writing Style',
+        body: 'Style: Plain, direct sentences.',
+      },
+    ]);
+    const out = await call(service, CLERK_ID);
 
-    // (2) BOTH GUCs set: tenant first, then the RESOLVED Capiro uuid.
-    expect(sqlOf(executeRaw, 0)).toContain('app.current_tenant');
-    expect(paramsOf(executeRaw, 0)).toContain('tenant-1');
-    expect(sqlOf(executeRaw, 1)).toContain('app.current_user');
-    expect(paramsOf(executeRaw, 1)).toContain(CAPIRO_UUID);
-
-    // (3) the memory query binds the resolved UUID — never the raw Clerk id
-    // (the old code's `clerkId::uuid` cast 22P02'd the whole query).
-    const memParams = paramsOf(queryRaw, 1);
-    expect(memParams).toContain(CAPIRO_UUID);
-    expect(memParams).not.toContain(CLERK_ID);
-
-    // (4) both families render.
-    expect(result.firmContext).toContain('A defense-focused firm.');
-    expect(result.userVoiceContext).toBe('Style: Plain, direct sentences.');
-    expect(result.memoryFiles).toHaveLength(2);
+    expect(
+      (compiler as unknown as { compileForClerkOwner: jest.Mock }).compileForClerkOwner,
+    ).toHaveBeenCalledWith(
+      { tenantId: 't1', surface: 'workspace-gen', layers: ['firm-identity', 'user-voice'] },
+      CLERK_ID,
+    );
+    expect(out.firmContext).toBe(
+      'Firm identity (Firm Soul):\nWho we are: A defense-focused firm.\n\nFirm direction (Firm Compass):\nDirection: Win FY27.',
+    );
+    expect(out.userVoiceContext).toBe('Style: Plain, direct sentences.');
+    expect(out.memoryFiles).toEqual([
+      { id: 'mi-1', type: 'firm-soul', slug: 'firm', label: 'Firm Soul' },
+      { id: 'mi-3', type: 'firm-compass', slug: 'firm', label: 'Firm Compass' },
+      { id: 'mi-2', type: 'user-voice', slug: 'voice', label: 'My Writing Style' },
+    ]);
   });
 
-  it('unknown Clerk id: no user GUC, memory query binds null owner, firm rows still load', async () => {
-    const { service, executeRaw, queryRaw } = makeService({
-      userRows: [], // no matching Capiro user
-      memoryRows: [FIRM_ROW],
-    });
-
-    const result = await (
-      service as unknown as {
-        loadSteeringMemories: (
-          t: string,
-          o?: string,
-        ) => Promise<{ firmContext?: string; userVoiceContext?: string; memoryFiles: unknown[] }>;
-      }
-    ).loadSteeringMemories('tenant-1', CLERK_ID);
-
-    // Only the tenant GUC — app.current_user must NOT be set to a junk value.
-    expect(executeRaw).toHaveBeenCalledTimes(1);
-    expect(sqlOf(executeRaw, 0)).toContain('app.current_tenant');
-    expect(paramsOf(queryRaw, 1)).not.toContain(CLERK_ID);
-
-    expect(result.firmContext).toContain('A defense-focused firm.');
-    expect(result.userVoiceContext).toBeUndefined();
-    expect(result.memoryFiles).toHaveLength(1);
-  });
-
-  it('no ownerId at all: skips users resolution entirely, loads firm rows', async () => {
-    const { service, executeRaw, queryRaw } = makeService({
-      userRows: [],
-      memoryRows: [FIRM_ROW],
-    });
-
-    const result = await (
-      service as unknown as {
-        loadSteeringMemories: (
-          t: string,
-          o?: string,
-        ) => Promise<{ firmContext?: string; memoryFiles: unknown[] }>;
-      }
-    ).loadSteeringMemories('tenant-1');
-
-    // Single query: memory_items only — no users lookup without an owner.
-    expect(queryRaw).toHaveBeenCalledTimes(1);
-    expect(sqlOf(queryRaw, 0)).toContain('FROM memory_items');
-    expect(executeRaw).toHaveBeenCalledTimes(1); // tenant GUC only
-    expect(result.firmContext).toContain('A defense-focused firm.');
+  it('a compile failure is non-fatal: empty context, no throw', async () => {
+    const compiler = {
+      compileForClerkOwner: jest.fn().mockRejectedValue(new Error('db down')),
+    } as unknown as WorkspaceContextCompilerService;
+    const service = new GenerationService(
+      {} as PrismaService,
+      {} as AiCredentialService,
+      {} as PeResolverService,
+      {} as MeriV2FlagsService,
+      {} as MeriV2OrchestratorClient,
+      compiler,
+    );
+    const out = await call(service);
+    expect(out).toEqual({ memoryFiles: [] });
   });
 });

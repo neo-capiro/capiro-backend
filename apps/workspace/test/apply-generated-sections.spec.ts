@@ -5,6 +5,7 @@ import type { AiCredentialService } from '../src/generation/ai-credential.servic
 import type { PeResolverService } from '../src/generation/pe-resolver.service';
 import type { MeriV2FlagsService } from '../src/meriv2/meriv2-flags.service';
 import type { MeriV2OrchestratorClient } from '../src/meriv2/meriv2-orchestrator.client';
+import type { WorkspaceContextCompilerService } from '../src/generation/context-compiler.service';
 
 /**
  * The write-back half of the orchestrator-generation contract: apps/workspace
@@ -24,6 +25,7 @@ describe('GenerationService.applyGeneratedSections', () => {
       {} as PeResolverService,
       {} as MeriV2FlagsService,
       {} as MeriV2OrchestratorClient,
+      {} as WorkspaceContextCompilerService,
     );
     return { service, updateSpy, findFirstSpy };
   }
@@ -130,6 +132,7 @@ describe('GenerationService.getContextUsed (Phase 3.3 "context used" panel)', ()
       {} as PeResolverService,
       {} as MeriV2FlagsService,
       {} as MeriV2OrchestratorClient,
+      {} as WorkspaceContextCompilerService,
     );
     return { service, findFirstSpy };
   }
@@ -177,6 +180,7 @@ describe('GenerationService.runGroundingAuditor (Phase 3.1 — reuses the shared
       {} as PeResolverService,
       {} as MeriV2FlagsService,
       {} as MeriV2OrchestratorClient,
+      {} as WorkspaceContextCompilerService,
     );
   }
   // Authoritative PE: FY27 enacted ($112.9M) is ABOVE the request ($72.1M) — an

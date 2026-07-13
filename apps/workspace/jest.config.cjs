@@ -28,5 +28,10 @@ module.exports = {
       '<rootDir>/../../packages/meriv2-core/src/grounding/auditor.ts',
     '^@capiro/meriv2-core/grounding/evidence$':
       '<rootDir>/../../packages/meriv2-core/src/grounding/evidence.ts',
+    // G1-c: the Context Compiler subpaths (same zod-free rationale).
+    '^@capiro/meriv2-core/context/contract$':
+      '<rootDir>/../../packages/meriv2-core/src/context/contract.ts',
+    '^@capiro/meriv2-core/context/compiler$':
+      '<rootDir>/../../packages/meriv2-core/src/context/compiler.ts',
   },
 };

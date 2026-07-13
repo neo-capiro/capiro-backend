@@ -2,6 +2,7 @@ import { Injectable, Logger, ServiceUnavailableException } from '@nestjs/common'
 import { PrismaService } from '../prisma/prisma.service.js';
 import { MeriV2FlagsService } from '../meriv2/meriv2-flags.service.js';
 import { MeriV2OrchestratorClient } from '../meriv2/meriv2-orchestrator.client.js';
+import { WorkspaceContextCompilerService } from './context-compiler.service.js';
 import { AiCredentialService } from './ai-credential.service.js';
 import { PeResolverService, type AuthoritativePeRecord } from './pe-resolver.service.js';
 import { anonymizeText, type AnonymizeMap } from './anonymize.js';
@@ -110,6 +111,7 @@ export class GenerationService {
     private readonly peResolver: PeResolverService,
     private readonly meriV2Flags: MeriV2FlagsService,
     private readonly meriV2: MeriV2OrchestratorClient,
+    private readonly contextCompiler: WorkspaceContextCompilerService,
   ) {}
 
   async generateSection(
@@ -767,18 +769,18 @@ export class GenerationService {
 
   /**
    * Firm Soul + Firm Compass (unconditional) + the draft owner's "My Writing
-   * Style" (if ownerId is known), rendered for prompt injection. `memory_items`
-   * is apps/api-owned and RLS-protected (FORCE ROW LEVEL SECURITY, owner-aware
-   * policy since Phase 1C) — this workspace service has no withTenant() helper
-   * of its own (its own ws_* tables use app-level tenant filtering, not RLS),
-   * so the transaction below sets BOTH GUCs itself: `app.current_tenant`
-   * always, and `app.current_user` after resolving the Clerk `ownerId` to the
-   * Capiro users.id UUID (private user-voice rows are invisible without it).
-   * Best-effort: any failure returns empty context rather than blocking
-   * generation.
+   * Style" (if ownerId is known), rendered for prompt injection.
+   *
+   * Context Compiler v1 (G1-c): loading, the dual-GUC tenancy discipline, the
+   * Clerk→Capiro identity resolution (both bit this app before PR #442) and
+   * governance filtering live in WorkspaceContextCompilerService now; this
+   * method only composes the prompt blocks and the Phase 3.3 provenance shape
+   * from the compiled packet. Best-effort: any failure returns empty context
+   * rather than blocking generation. Every generation now also writes a
+   * context_packet trace row (surface 'workspace-gen').
    *
    * @param ownerId the draft owner's CLERK subject id (ws_* stores Clerk
-   *   identities) — resolved to a Capiro user UUID internally.
+   *   identities) — resolved to a Capiro user UUID by the compiler service.
    */
   private async loadSteeringMemories(
     tenantId: string,
@@ -792,54 +794,14 @@ export class GenerationService {
     memoryFiles: ContextUsedMemoryFile[];
   }> {
     try {
-      const rows = await this.prisma.$transaction(async (tx) => {
-        // Parameterized set_config (mirrors apps/api + meriv2-orchestrator's
-        // PrismaService.withTenant) — never string-interpolate the GUC value.
-        await tx.$executeRaw`SELECT set_config('app.current_tenant', ${tenantId}, true)`;
-        // `ownerId` is the draft owner's CLERK subject id (ws_* stores Clerk
-        // identities; the engine does not own the Capiro users table) — resolve
-        // it to the Capiro users.id UUID here. The previous code cast the Clerk
-        // id to ::uuid directly, which threw 22P02 on EVERY call and the
-        // best-effort catch swallowed it — so no steering memory (firm identity
-        // OR user voice) ever reached a prod prompt. Resolution mirrors
-        // apps/meriv2-orchestrator's MeriContextResolver.
-        let capiroUserId: string | null = null;
-        if (ownerId) {
-          const users = await tx.$queryRaw<Array<{ id: string }>>`
-            SELECT id FROM users WHERE clerk_user_id = ${ownerId} LIMIT 1
-          `;
-          capiroUserId = users[0]?.id ?? null;
-        }
-        // user-voice rows are visibility='user' + owner-scoped: the 1C RLS
-        // policy (memory_items_isolation) only exposes them when
-        // current_user_id() matches, so app.current_user MUST be set — the
-        // tenant GUC alone silently filters private rows to nothing.
-        if (capiroUserId) {
-          await tx.$executeRaw`SELECT set_config('app.current_user', ${capiroUserId}, true)`;
-        }
-        // id + slug added (Phase 3.3): the panel needs each contributing memory
-        // file's identity, not just its rendered text.
-        return tx.$queryRaw<Array<{ id: string; type: string; slug: string; sections: unknown }>>`
-          SELECT id, type, slug, sections_jsonb AS sections
-          FROM memory_items
-          WHERE tenant_id = ${tenantId}::uuid
-            AND (
-              (type IN ('firm-soul', 'firm-compass') AND slug = 'firm')
-              OR (${capiroUserId}::uuid IS NOT NULL AND type = 'user-voice' AND owner_user_id = ${capiroUserId}::uuid)
-            )
-        `;
-      });
-      const renderHuman = (sections: unknown): string => {
-        if (!Array.isArray(sections)) return '';
-        return sections
-          .filter((s) => s && typeof s === 'object' && (s as { owner?: string }).owner === 'human')
-          .map((s) => {
-            const sec = s as { heading?: string; body?: string };
-            return sec.body?.trim() ? `${sec.heading}: ${sec.body.trim()}` : '';
-          })
-          .filter(Boolean)
-          .join('\n');
-      };
+      const packet = await this.contextCompiler.compileForClerkOwner(
+        {
+          tenantId,
+          surface: 'workspace-gen',
+          layers: ['firm-identity', 'user-voice'],
+        },
+        ownerId,
+      );
       const memoryLabel = (type: string): string =>
         type === 'firm-soul'
           ? 'Firm Soul'
@@ -851,15 +813,14 @@ export class GenerationService {
       const firmBlocks: string[] = [];
       let userVoiceContext: string | undefined;
       const memoryFiles: ContextUsedMemoryFile[] = [];
-      for (const r of rows) {
-        const body = renderHuman(r.sections);
-        if (!body) continue;
-        if (r.type === 'firm-soul') firmBlocks.push(`Firm identity (Firm Soul):\n${body}`);
+      for (const r of packet.rendered) {
+        if (r.type === 'firm-soul') firmBlocks.push(`Firm identity (Firm Soul):\n${r.body}`);
         else if (r.type === 'firm-compass')
-          firmBlocks.push(`Firm direction (Firm Compass):\n${body}`);
-        else if (r.type === 'user-voice') userVoiceContext = body;
-        // Only files that actually contributed a body (same filter as the prompt)
-        // appear in provenance, so the panel never claims a skipped/empty file.
+          firmBlocks.push(`Firm direction (Firm Compass):\n${r.body}`);
+        else if (r.type === 'user-voice') userVoiceContext = r.body;
+        // packet.rendered already carries only items that contributed a
+        // non-empty human body (empties are traced as exclusions), so the
+        // panel never claims a skipped/empty file.
         memoryFiles.push({ id: r.id, type: r.type, slug: r.slug, label: memoryLabel(r.type) });
       }
       return {
