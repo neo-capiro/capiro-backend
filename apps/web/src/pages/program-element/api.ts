@@ -41,6 +41,39 @@ export async function getProgramElementDetail(
   ).data;
 }
 
+export interface FundingNarrativeStep {
+  stage: string;
+  label: string;
+  vehicle: string;
+  valueM: number;
+  deltaVsRequestM: number | null;
+  deltaVsPriorStageM: number | null;
+}
+export interface ProgramElementNarrative {
+  peCode: string;
+  title: string | null;
+  service: string | null;
+  currentCycleFy: number | null;
+  conferenceProbability: number | null;
+  steps: FundingNarrativeStep[];
+  materiality: Array<{
+    deltaType: string | null;
+    materialityScore: number | null;
+    materialityFactors: unknown;
+  }>;
+}
+
+export async function getProgramElementNarrative(
+  api: AxiosInstance,
+  peCode: string,
+): Promise<ProgramElementNarrative> {
+  return (
+    await api.get<ProgramElementNarrative>(
+      `/api/program-elements/${encodeURIComponent(peCode)}/narrative`,
+    )
+  ).data;
+}
+
 export async function getProgramElementIntelligence(
   api: AxiosInstance,
   peCode: string,

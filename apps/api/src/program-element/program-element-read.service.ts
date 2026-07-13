@@ -20,6 +20,7 @@ import { ConferenceProbabilityService } from './models/conference-probability.se
 import { compareProofPackSources } from './proof-pack.js';
 import { confidenceBand } from './matching/program-match-thresholds.js';
 import { computePbComparison, type BudgetPositionLike } from './budget-position.js';
+import { assembleFundingNarrative } from './pe-funding-narrative.helpers.js';
 import { normalizeServiceFilter } from './service-filter.js';
 import { buildIntelligence } from './intelligence/build-intelligence.js';
 import { normalizeBillStage } from './intelligence/bill-stage.js';
@@ -906,6 +907,48 @@ export class ProgramElementReadService {
       fundingSummary,
       years: yearsWithConferenceProbability,
       milestones,
+    };
+  }
+
+  /**
+   * Phase 4 (4.1) — the assembled "request → marks → enactment" narrative for
+   * the current budget cycle: one ordered, stage-labeled story per PE, with the
+   * FY's materiality-scored deltas surfaced alongside (4.1.2). Pure assembly over
+   * getTimeline + getDeltas — no new data modeling.
+   */
+  async getNarrative(peCode: string) {
+    const nn = (v: unknown): number | null => (v == null ? null : Number(v));
+    const timeline = await this.getTimeline(peCode);
+    const fy = timeline.currentCycleFy;
+    const currentYear = fy != null ? timeline.years.find((y) => y.fy === fy) : undefined;
+    const steps = currentYear
+      ? assembleFundingNarrative({
+          request: nn(currentYear.request),
+          hasc: nn(currentYear.hascMark),
+          sasc: nn(currentYear.sascMark),
+          hacd: nn(currentYear.hacDMark),
+          sacd: nn(currentYear.sacDMark),
+          conference: nn(currentYear.conference),
+          enacted: nn(currentYear.enacted),
+        })
+      : [];
+    // The FY's material moves, most-material first (4.1.2 — surface, don't fuzzily join per-step).
+    const deltas = fy != null ? await this.getDeltas(peCode, { fy, limit: 5 }) : { data: [] };
+    return {
+      peCode,
+      title: timeline.title,
+      service: timeline.service,
+      currentCycleFy: fy,
+      conferenceProbability:
+        currentYear && 'conferenceProbability' in currentYear
+          ? (currentYear as { conferenceProbability: number | null }).conferenceProbability
+          : null,
+      steps,
+      materiality: deltas.data.map((d) => ({
+        deltaType: (d as { deltaType?: string }).deltaType ?? null,
+        materialityScore: (d as { materialityScore?: number | null }).materialityScore ?? null,
+        materialityFactors: (d as { materialityFactors?: unknown }).materialityFactors ?? null,
+      })),
     };
   }
 

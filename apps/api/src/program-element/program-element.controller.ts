@@ -133,6 +133,13 @@ export class ProgramElementController {
     return this.service.getTimeline(peCode);
   }
 
+  // Phase 4 (4.1): the assembled request→marks→enactment narrative for the
+  // current cycle (stage-labeled steps + the FY's material moves).
+  @Get(':peCode/narrative')
+  narrative(@Param('peCode') peCode: string) {
+    return this.service.getNarrative(peCode);
+  }
+
   @Get(':peCode/bills')
   bills(@Param('peCode') peCode: string) {
     return this.service.getBills(peCode);
