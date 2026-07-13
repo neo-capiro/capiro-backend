@@ -40,8 +40,29 @@ describe('MemoryIngestService — Phase E (Meri sessions from clio_*)', () => {
             { role: 'assistant', content: 'Here is a draft outline.' },
           ]);
         }
-        // Every other phase (clients, clio_memory, meetings, mail_threads,
-        // memory_items) returns no rows so those loops are inert.
+        // Phase B (clio_memory unification): one client-scoped + one ephemeral
+        // row so we can prove the batch projection carries client_id/expires_at
+        // (the nightly sweep silently nulled them before this fix).
+        if (sql.includes('FROM clio_memory')) {
+          return Promise.resolve([
+            {
+              id: '66666666-6666-6666-6666-666666666666',
+              tenantId: '11111111-1111-1111-1111-111111111111',
+              scope: 'client',
+              ownerUserId: null,
+              clientId: '77777777-7777-7777-7777-777777777777',
+              expiresAt: null,
+              key: 'acme-red-line',
+              value: 'Never support Section 852 offsets.',
+              source: 'user_requested',
+              metadata: {},
+              createdAt: new Date('2026-07-01T00:00:00.000Z'),
+              updatedAt: new Date('2026-07-01T00:00:00.000Z'),
+            },
+          ]);
+        }
+        // Every other phase (clients, meetings, mail_threads, memory_items)
+        // returns no rows so those loops are inert.
         return Promise.resolve([]);
       },
     };
@@ -83,6 +104,26 @@ describe('MemoryIngestService — Phase E (Meri sessions from clio_*)', () => {
     expect(joined).toContain('GROUP BY c.id');
     // The dropped legacy table must never be referenced again.
     expect(joined).not.toContain('chat_message');
+  });
+
+  // Regression: the nightly batch projection MUST carry client_id + expires_at
+  // (G2). Before this fix, Phase B omitted them, so upsertSystem's ON CONFLICT
+  // set them from EXCLUDED → NULL, silently reverting client-scope/ephemeral on
+  // every projected memory_items row each night.
+  it('projects clio_memory client_id + expires_at (does not null G2 fields on the batch sweep)', async () => {
+    const { svc, capturedSql, upserted } = makeService();
+    await svc.backfillCurrentTenant();
+
+    const clioSelect = capturedSql.find((s) => s.includes('FROM clio_memory'));
+    expect(clioSelect).toBeDefined();
+    expect(clioSelect).toContain('client_id');
+    expect(clioSelect).toContain('expires_at');
+
+    // …and the projected item carries the client through (not nulled).
+    const clioItem = upserted.find((i) => i.slug?.startsWith('clio:'));
+    expect(clioItem).toBeDefined();
+    expect(clioItem!.clientId).toBe('77777777-7777-7777-7777-777777777777');
+    expect(clioItem!.visibility).toBe('tenant');
   });
 
   it('emits a user-private meri-session item with clientId=null even when the conversation is client-linked', async () => {

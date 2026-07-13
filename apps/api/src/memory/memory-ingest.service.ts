@@ -106,6 +106,7 @@ export class MemoryIngestService {
       (tx) =>
         tx.$queryRaw<ClioMemoryRow[]>`
         SELECT id, tenant_id AS "tenantId", scope, owner_user_id AS "ownerUserId",
+               client_id AS "clientId", expires_at AS "expiresAt",
                key, value, source, metadata_jsonb AS metadata,
                created_at AS "createdAt", updated_at AS "updatedAt"
         FROM clio_memory WHERE tenant_id = ${ctx.tenantId}::uuid
