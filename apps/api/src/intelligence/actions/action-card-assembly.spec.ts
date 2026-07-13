@@ -239,3 +239,49 @@ describe('action-card-assembly (§10 deterministic narrative)', () => {
     expect(card.whyItMatters).toContain('tracked interest');
   });
 });
+
+// ── G5: mark-impact next-actions — report-language surfacing ─────────────────
+describe('action-card-assembly — G5 report language (§8.2)', () => {
+  test('an on-record provision is quoted in the recommended action (heading + committee/FY, bounded)', () => {
+    const card = assembleCard(
+      baseFacts({
+        actionType: 'add_report_language',
+        provisions: [
+          {
+            id: 'prov-1',
+            committee: 'HAC-D',
+            fy: 2026,
+            heading: 'Electronic Warfare Modernization',
+            text: 'The Committee directs the Secretary to submit a report on...',
+            actionType: 'directs_report',
+          },
+        ],
+      }),
+    );
+    expect(card.recommendedAction).toContain('Report language on record');
+    expect(card.recommendedAction).toContain('HAC-D FY26');
+    expect(card.recommendedAction).toContain('Electronic Warfare Modernization');
+    expect(card.recommendedAction).toContain('directs report');
+    // Bounded: the verbatim body is NOT dumped into the narrative.
+    expect(card.recommendedAction).not.toContain('submit a report on');
+  });
+
+  test('multiple provisions show a "+N more" count', () => {
+    const card = assembleCard(
+      baseFacts({
+        provisions: [
+          { id: 'p1', committee: 'HAC-D', fy: 2026, heading: 'A', text: 'x', actionType: 'cuts' },
+          { id: 'p2', committee: 'SAC-D', fy: 2026, heading: 'B', text: 'y', actionType: 'adds' },
+        ],
+      }),
+    );
+    expect(card.recommendedAction).toContain('+1 more on record');
+  });
+
+  test('no provisions → no report-language clause (unchanged narrative)', () => {
+    const withNone = assembleCard(baseFacts({ provisions: [] }));
+    const withUndef = assembleCard(baseFacts());
+    expect(withNone.recommendedAction).not.toContain('Report language on record');
+    expect(withUndef.recommendedAction).not.toContain('Report language on record');
+  });
+});

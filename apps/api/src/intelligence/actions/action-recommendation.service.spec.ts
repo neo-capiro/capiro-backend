@@ -36,7 +36,11 @@ function materialDelta(overrides: Record<string, unknown> = {}) {
 
 interface MakePrismaOpts {
   deltas?: Array<Record<string, unknown>>;
-  matches?: Array<{ status: string; programId: string; program?: { id: string; canonicalName: string } }>;
+  matches?: Array<{
+    status: string;
+    programId: string;
+    program?: { id: string; canonicalName: string };
+  }>;
   personRoles?: Array<{
     id: string;
     contactUse: string;
@@ -45,6 +49,17 @@ interface MakePrismaOpts {
     person?: { fullName: string };
   }>;
   officeLinks?: Array<{ officeId: string }>;
+  /** G5: committee report provisions linked to the PE (loadDeltaGraph shape). */
+  provisionLinks?: Array<{
+    provision: {
+      id: string;
+      committee: string;
+      fy: number;
+      heading: string;
+      text: string;
+      actionType: string | null;
+    };
+  }>;
   peTitle?: string;
   /** Shared store so two generate() runs see each other's writes (idempotency). */
   store?: Map<string, ActionRow>;
@@ -84,15 +99,17 @@ function makePrisma(opts: MakePrismaOpts = {}) {
         });
         return store.get(key) ?? null;
       }),
-      update: jest.fn(async ({ where, data }: { where: { id: string }; data: Record<string, unknown> }) => {
-        for (const row of store.values()) {
-          if (row.id === where.id) {
-            Object.assign(row, data); // generated fields only; status untouched
-            return row;
+      update: jest.fn(
+        async ({ where, data }: { where: { id: string }; data: Record<string, unknown> }) => {
+          for (const row of store.values()) {
+            if (row.id === where.id) {
+              Object.assign(row, data); // generated fields only; status untouched
+              return row;
+            }
           }
-        }
-        throw new Error(`update: no row ${where.id}`);
-      }),
+          throw new Error(`update: no row ${where.id}`);
+        },
+      ),
       create: jest.fn(async ({ data }: { data: ActionRow }) => {
         seq += 1;
         const row: ActionRow = { ...data, id: `card-${seq}` };
@@ -110,14 +127,24 @@ function makePrisma(opts: MakePrismaOpts = {}) {
       findUnique: jest.fn(async () => ({ title: opts.peTitle ?? 'Next-Gen Sensor' })),
     },
     peProgramMatch: {
-      findMany: jest.fn(async () =>
-        opts.matches ?? [
-          { status: 'accepted', programId: 'prog-1', program: { id: 'prog-1', canonicalName: 'NGS Program' } },
-        ],
+      findMany: jest.fn(
+        async () =>
+          opts.matches ?? [
+            {
+              status: 'accepted',
+              programId: 'prog-1',
+              program: { id: 'prog-1', canonicalName: 'NGS Program' },
+            },
+          ],
       ),
     },
     programElementSource: {
       findMany: jest.fn(async () => [{ sourceDocumentId: 'src-doc-1', pageNumber: 42 }]),
+    },
+    // G5: committee report provisions linked to the PE (default none). A test
+    // can supply opts.provisionLinks to exercise report-language surfacing.
+    provisionPeLink: {
+      findMany: jest.fn(async () => opts.provisionLinks ?? []),
     },
     programOfficeProgramLink: {
       findMany: jest.fn(async () => opts.officeLinks ?? [{ officeId: 'office-1' }]),
@@ -125,20 +152,37 @@ function makePrisma(opts: MakePrismaOpts = {}) {
     personRole: {
       findMany: jest.fn(async () => opts.personRoles ?? []),
     },
-    withTenant: jest.fn(async (_tenantId: string, fn: (tx: unknown) => Promise<unknown>) => fn(tenantTx)),
+    withTenant: jest.fn(async (_tenantId: string, fn: (tx: unknown) => Promise<unknown>) =>
+      fn(tenantTx),
+    ),
   };
 
   return { prisma, store, tenantTx };
 }
 
-function makeRelevance(opts: {
-  tenantClients?: Array<{ tenantId: string; clientId: string; score: number }>;
-  paths?: Array<{ clientId: string; paths: Array<{ path: string; score: number; evidence: string[] }> }>;
-} = {}) {
+function makeRelevance(
+  opts: {
+    tenantClients?: Array<{ tenantId: string; clientId: string; score: number }>;
+    paths?: Array<{
+      clientId: string;
+      paths: Array<{ path: string; score: number; evidence: string[] }>;
+    }>;
+  } = {},
+) {
   const toRows = () =>
-    (opts.paths ?? [
-      { clientId: CLIENT, paths: [{ path: 'prior_award', score: 0.6, evidence: ['Holds a $40M award on this PE'] }] },
-    ]).map((p) => ({ clientId: p.clientId, clientName: 'Acme Defense', score: 0.78, paths: p.paths }));
+    (
+      opts.paths ?? [
+        {
+          clientId: CLIENT,
+          paths: [{ path: 'prior_award', score: 0.6, evidence: ['Holds a $40M award on this PE'] }],
+        },
+      ]
+    ).map((p) => ({
+      clientId: p.clientId,
+      clientName: 'Acme Defense',
+      score: 0.78,
+      paths: p.paths,
+    }));
 
   return {
     getRelevantTenantClientsForPe: jest.fn(
@@ -193,10 +237,21 @@ describe('ActionRecommendationService.generate (Step 3.2 generator)', () => {
     expect(confidence.clientRelevance).toBe('high'); // 0.78 relevance
 
     // Evidence: a delta ref + at least one source ref + the program match.
-    const evidence = card.evidence as Array<{ kind: string; deltaId?: string; sourceDocumentId?: string }>;
+    // G5: the relied-upon PE↔program match is now its own 'program_match' kind
+    // (it previously borrowed 'provision', which collided with real
+    // committee-report provision refs — none of which exist in this fixture).
+    const evidence = card.evidence as Array<{
+      kind: string;
+      deltaId?: string;
+      sourceDocumentId?: string;
+    }>;
     expect(evidence.some((e) => e.kind === 'delta' && e.deltaId === 'delta-1')).toBe(true);
-    expect(evidence.some((e) => e.kind === 'source' && e.sourceDocumentId === 'src-doc-1')).toBe(true);
-    expect(evidence.some((e) => e.kind === 'provision')).toBe(true);
+    expect(evidence.some((e) => e.kind === 'source' && e.sourceDocumentId === 'src-doc-1')).toBe(
+      true,
+    );
+    expect(evidence.some((e) => e.kind === 'program_match')).toBe(true);
+    // No committee report provisions linked in this fixture → no 'provision' refs.
+    expect(evidence.some((e) => e.kind === 'provision')).toBe(false);
   });
 
   test('GATING — sub-threshold MATERIALITY produces NO card', async () => {
@@ -213,7 +268,9 @@ describe('ActionRecommendationService.generate (Step 3.2 generator)', () => {
 
   test('GATING — sub-threshold RELEVANCE produces NO card', async () => {
     const p = makePrisma();
-    const r = makeRelevance({ tenantClients: [{ tenantId: TENANT, clientId: CLIENT, score: 0.49 }] });
+    const r = makeRelevance({
+      tenantClients: [{ tenantId: TENANT, clientId: CLIENT, score: 0.49 }],
+    });
     const service = newService(p, r);
 
     const { generated } = await service.generate();
@@ -248,7 +305,9 @@ describe('ActionRecommendationService.generate (Step 3.2 generator)', () => {
     const audience = card.targetAudience as Array<{ id: string; contactUse?: string }>;
 
     expect(audience.find((a) => a.id === 'role-co')).toBeUndefined();
-    expect(audience.every((a) => !a.contactUse || !isExcludedFromRecommendations(a.contactUse as never))).toBe(true);
+    expect(
+      audience.every((a) => !a.contactUse || !isExcludedFromRecommendations(a.contactUse as never)),
+    ).toBe(true);
     // The clean lobbying contact is allowed.
     expect(audience.find((a) => a.id === 'role-pm')).toBeDefined();
   });
@@ -256,7 +315,11 @@ describe('ActionRecommendationService.generate (Step 3.2 generator)', () => {
   test('GUARDRAIL — a CANDIDATE program match forces escalate_uncertainty + sets uncertainty', async () => {
     const p = makePrisma({
       matches: [
-        { status: 'candidate', programId: 'prog-1', program: { id: 'prog-1', canonicalName: 'NGS Program' } },
+        {
+          status: 'candidate',
+          programId: 'prog-1',
+          program: { id: 'prog-1', canonicalName: 'NGS Program' },
+        },
       ],
     });
     const r = makeRelevance();
@@ -322,7 +385,11 @@ describe('ActionRecommendationService.generate (Step 3.2 generator)', () => {
     const p1 = makePrisma({
       store,
       matches: [
-        { status: 'accepted', programId: 'prog-1', program: { id: 'prog-1', canonicalName: 'NGS Program' } },
+        {
+          status: 'accepted',
+          programId: 'prog-1',
+          program: { id: 'prog-1', canonicalName: 'NGS Program' },
+        },
       ],
     });
     await newService(p1, makeRelevance()).generate();
@@ -335,7 +402,11 @@ describe('ActionRecommendationService.generate (Step 3.2 generator)', () => {
     const p2 = makePrisma({
       store,
       matches: [
-        { status: 'candidate', programId: 'prog-1', program: { id: 'prog-1', canonicalName: 'NGS Program' } },
+        {
+          status: 'candidate',
+          programId: 'prog-1',
+          program: { id: 'prog-1', canonicalName: 'NGS Program' },
+        },
       ],
     });
     const { generated } = await newService(p2, makeRelevance()).generate();
@@ -392,8 +463,16 @@ describe('ActionRecommendationService.generate (Step 3.2 generator)', () => {
   test('G3 — accepted + candidate match: card is NOT over-escalated (stays restore_cut)', async () => {
     const p = makePrisma({
       matches: [
-        { status: 'accepted', programId: 'prog-1', program: { id: 'prog-1', canonicalName: 'NGS Program' } },
-        { status: 'candidate', programId: 'prog-2', program: { id: 'prog-2', canonicalName: 'Other Program' } },
+        {
+          status: 'accepted',
+          programId: 'prog-1',
+          program: { id: 'prog-1', canonicalName: 'NGS Program' },
+        },
+        {
+          status: 'candidate',
+          programId: 'prog-2',
+          program: { id: 'prog-2', canonicalName: 'Other Program' },
+        },
       ],
     });
     const r = makeRelevance();
@@ -410,7 +489,11 @@ describe('ActionRecommendationService.generate (Step 3.2 generator)', () => {
   test('G3 — ONLY a candidate match (no accepted): the card DOES escalate_uncertainty', async () => {
     const p = makePrisma({
       matches: [
-        { status: 'candidate', programId: 'prog-1', program: { id: 'prog-1', canonicalName: 'NGS Program' } },
+        {
+          status: 'candidate',
+          programId: 'prog-1',
+          program: { id: 'prog-1', canonicalName: 'NGS Program' },
+        },
       ],
     });
     const r = makeRelevance();

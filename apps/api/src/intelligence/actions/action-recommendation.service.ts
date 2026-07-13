@@ -3,17 +3,17 @@ import { Prisma } from '@prisma/client';
 import { PrismaService } from '../../prisma/prisma.service.js';
 import { ClientPeRelevanceService } from '../client-pe-relevance.service.js';
 import type { PathResult } from '../client-pe-relevance.scoring.js';
-import {
-  GATE_MATERIALITY_MIN,
-  GATE_RELEVANCE_MIN,
-  shouldGenerate,
-} from './action-gating.js';
+import { GATE_MATERIALITY_MIN, GATE_RELEVANCE_MIN, shouldGenerate } from './action-gating.js';
 import {
   selectAudience,
   type AudienceCommittee,
   type AudiencePersonRole,
 } from './action-audience.js';
-import { assembleCard, type RelevancePathFact } from './action-card-assembly.js';
+import {
+  assembleCard,
+  type ProvisionFact,
+  type RelevancePathFact,
+} from './action-card-assembly.js';
 import type {
   ActionType,
   AudienceMember,
@@ -233,8 +233,7 @@ export class ActionRecommendationService {
     //    selectAudience escalates to escalate_uncertainty.
     const committees = committeesForDelta(delta);
     const acceptedStatuses = graph.matchStatuses.filter((s) => s === 'accepted');
-    const reliedOnStatuses =
-      acceptedStatuses.length > 0 ? acceptedStatuses : graph.matchStatuses;
+    const reliedOnStatuses = acceptedStatuses.length > 0 ? acceptedStatuses : graph.matchStatuses;
     const { audience, forcedActionType, uncertaintyNotes } = selectAudience({
       personRoles: graph.personRoles,
       committees,
@@ -267,6 +266,7 @@ export class ActionRecommendationService {
         stageTo: delta.toRef ?? undefined,
       },
       relevancePaths,
+      provisions: graph.provisions,
     });
 
     // 5) Confidence bands + evidence.
@@ -385,8 +385,9 @@ export class ActionRecommendationService {
     matchStatuses: string[];
     personRoles: AudiencePersonRole[];
     sources: Array<{ sourceDocumentId: string | null; page: number | null }>;
+    provisions: ProvisionFact[];
   }> {
-    const [pe, matches, sourceRows] = await Promise.all([
+    const [pe, matches, sourceRows, provisionLinks] = await Promise.all([
       this.prisma.programElement.findUnique({
         where: { peCode },
         select: { title: true },
@@ -404,6 +405,26 @@ export class ActionRecommendationService {
         select: { sourceDocumentId: true, pageNumber: true },
         take: 20,
       }),
+      // G5 (§8.2 "show report language"): committee report provisions linked
+      // to THIS PE by an ACCEPTED link (verbatim pe_code matches — never the
+      // review-pending fuzzy ones), newest fiscal year first, bounded.
+      this.prisma.provisionPeLink.findMany({
+        where: { peCode, reviewStatus: 'accepted' },
+        select: {
+          provision: {
+            select: {
+              id: true,
+              committee: true,
+              fy: true,
+              heading: true,
+              text: true,
+              actionType: true,
+            },
+          },
+        },
+        orderBy: { provision: { fy: 'desc' } },
+        take: 5,
+      }),
     ]);
 
     const matchStatuses = matches.map((m) => m.status);
@@ -417,9 +438,19 @@ export class ActionRecommendationService {
     // Person-roles only when there is a confirmed program to hang them off.
     const acceptedProgramIds = [...new Set(accepted.map((m) => m.programId))];
     const personRoles =
-      acceptedProgramIds.length > 0
-        ? await this.loadEligiblePersonRoles(acceptedProgramIds)
-        : [];
+      acceptedProgramIds.length > 0 ? await this.loadEligiblePersonRoles(acceptedProgramIds) : [];
+
+    const provisions: ProvisionFact[] = provisionLinks
+      .map((l) => l.provision)
+      .filter((p): p is NonNullable<typeof p> => !!p)
+      .map((p) => ({
+        id: p.id,
+        committee: p.committee,
+        fy: p.fy,
+        heading: p.heading,
+        text: p.text,
+        actionType: p.actionType,
+      }));
 
     return {
       peTitle: pe?.title ?? null,
@@ -427,7 +458,11 @@ export class ActionRecommendationService {
       programName,
       matchStatuses,
       personRoles,
-      sources: sourceRows.map((s) => ({ sourceDocumentId: s.sourceDocumentId, page: s.pageNumber })),
+      sources: sourceRows.map((s) => ({
+        sourceDocumentId: s.sourceDocumentId,
+        page: s.pageNumber,
+      })),
+      provisions,
     };
   }
 
@@ -437,9 +472,7 @@ export class ActionRecommendationService {
    * programs. The role label is the person's full name. The pure selector still applies the
    * contact-use guardrail, so this layer only needs to gather candidate rows.
    */
-  private async loadEligiblePersonRoles(
-    programIds: string[],
-  ): Promise<AudiencePersonRole[]> {
+  private async loadEligiblePersonRoles(programIds: string[]): Promise<AudiencePersonRole[]> {
     const links = await this.prisma.programOfficeProgramLink.findMany({
       where: { programId: { in: programIds }, reviewStatus: 'accepted' },
       select: { officeId: true },
@@ -490,11 +523,9 @@ export class ActionRecommendationService {
   ): Promise<Map<string, RelevancePathFact[]>> {
     const byClient = new Map<string, RelevancePathFact[]>();
     try {
-      const rows = await this.relevanceService.getRelevantClientsForPeByTenantId(
-        tenantId,
-        peCode,
-        { minScore: 0 },
-      );
+      const rows = await this.relevanceService.getRelevantClientsForPeByTenantId(tenantId, peCode, {
+        minScore: 0,
+      });
       for (const row of rows) {
         byClient.set(row.clientId, pathsToFacts(row.paths ?? []));
       }
@@ -520,10 +551,25 @@ export class ActionRecommendationService {
  * NOTE: an unconfirmed (candidate/quarantined) program match later OVERRIDES this to
  * escalate_uncertainty via selectAudience.forcedActionType.
  */
+/**
+ * G5 (mark-impact §8.2 "propose next actions"): a cut at an APPROPRIATIONS stage
+ * (HAC-D / SAC-D / enacted) is strategically distinct from a cut at an
+ * authorization mark. The next action for money lost in appropriations is to
+ * pursue restoration/directive language in the report or the next cycle —
+ * `add_report_language` — not the generic `restore_cut`. Authorization-stage
+ * cuts (HASC/SASC marks) keep `restore_cut` (the fight there is the bill text,
+ * not report language). Positive moves stay `protect_funding` at every stage.
+ * `toRef` identifies the appropriations stages unambiguously; the appropriations
+ * `conference` column is reserved/unpopulated today (its deltas would arrive
+ * once a loader lands — a follow-up), so it is deliberately absent here.
+ */
+const APPROPRIATIONS_STAGE_REFS = new Set(['hacDMark', 'sacDMark', 'enacted']);
+
 export function mapDeltaToActionType(delta: {
   deltaType: string;
   amountFrom: number | null;
   amountTo: number | null;
+  toRef?: string | null;
 }): ActionType {
   switch (delta.deltaType) {
     case 'new_start':
@@ -539,7 +585,11 @@ export function mapDeltaToActionType(delta: {
     case 'outyear_shift': {
       const from = delta.amountFrom ?? 0;
       const to = delta.amountTo ?? 0;
-      return to > from ? 'protect_funding' : 'restore_cut';
+      if (to > from) return 'protect_funding';
+      // A cut: route appropriations-stage losses to report-language advocacy.
+      return delta.toRef && APPROPRIATIONS_STAGE_REFS.has(delta.toRef)
+        ? 'add_report_language'
+        : 'restore_cut';
     }
     default:
       return 'client_alert';
@@ -601,10 +651,15 @@ function deriveConfidence(input: {
   };
 }
 
-/** Evidence refs: the delta, the PE source pages, and the relied-upon program match. */
+/** Evidence refs: the delta, the PE source pages, the program match, and (G5)
+ *  any committee report provisions on record for this PE. */
 function buildEvidence(
   delta: DeltaFacts,
-  graph: { programId: string | null; sources: Array<{ sourceDocumentId: string | null; page: number | null }> },
+  graph: {
+    programId: string | null;
+    sources: Array<{ sourceDocumentId: string | null; page: number | null }>;
+    provisions: ProvisionFact[];
+  },
 ): EvidenceRef[] {
   const refs: EvidenceRef[] = [{ kind: 'delta', deltaId: delta.id }];
   for (const s of graph.sources) {
@@ -615,7 +670,16 @@ function buildEvidence(
     });
   }
   if (graph.programId) {
-    refs.push({ kind: 'provision', provisionId: graph.programId, note: 'program match' });
+    refs.push({ kind: 'program_match', programId: graph.programId, note: 'program match' });
+  }
+  // G5: a real provision ref per linked committee report provision — the
+  // reviewer can pull the verbatim language behind the mark.
+  for (const p of graph.provisions) {
+    refs.push({
+      kind: 'provision',
+      provisionId: p.id,
+      note: `${p.committee} FY${p.fy}: ${p.heading}`,
+    });
   }
   return refs;
 }

@@ -33,8 +33,7 @@ export interface FactSheetCard {
  * Captures the whole token (incl. leading $, trailing %/unit word) so the verifier
  * can compare like-for-like. Order-preserving, de-duplicated downstream.
  */
-const FIGURE_RE =
-  /\$?\d[\d,]*(?:\.\d+)?(?:\s?(?:billion|million|thousand|B|M|K)\b|%)?/gi;
+const FIGURE_RE = /\$?\d[\d,]*(?:\.\d+)?(?:\s?(?:billion|million|thousand|B|M|K)\b|%)?/gi;
 
 /** Human label for an evidence ref, used as the claim's source note + appendix line. */
 function describeEvidence(ref: EvidenceRef): string {
@@ -49,16 +48,20 @@ function describeEvidence(ref: EvidenceRef): string {
     case 'provision':
       return ref.provisionId ? `report provision ${ref.provisionId}` : 'report provision';
     case 'opportunity':
-      return ref.opportunityId ? `procurement opportunity ${ref.opportunityId}` : 'procurement opportunity';
+      return ref.opportunityId
+        ? `procurement opportunity ${ref.opportunityId}`
+        : 'procurement opportunity';
     default:
       return 'evidence';
   }
 }
 
-/** Project an EvidenceRef into the claim's ClaimSourceRef (same vocabulary). */
+/** Project an EvidenceRef into the claim's ClaimSourceRef (same vocabulary).
+ *  G5: the derived 'program_match' kind (a PE↔program inference, not a primary
+ *  source) has no ClaimSourceRef equivalent, so it maps to 'narrative'. */
 function toSourceRef(ref: EvidenceRef): ClaimSourceRef {
   return {
-    kind: ref.kind,
+    kind: ref.kind === 'program_match' ? 'narrative' : ref.kind,
     sourceDocumentId: ref.sourceDocumentId,
     page: ref.page,
     deltaId: ref.deltaId,

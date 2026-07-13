@@ -75,11 +75,16 @@ export interface AudienceMember {
  * `sourceDocumentId` + optional `page`).
  */
 export interface EvidenceRef {
-  kind: 'source' | 'delta' | 'provision' | 'opportunity';
+  // G5: 'program_match' distinguishes the relied-upon PE↔program match from a
+  // real committee-report 'provision' (previously the program match was
+  // emitted under 'provision', which collided with actual report-language
+  // provision refs).
+  kind: 'source' | 'delta' | 'provision' | 'opportunity' | 'program_match';
   sourceDocumentId?: string;
   page?: number;
   deltaId?: string;
   provisionId?: string;
+  programId?: string;
   opportunityId?: string;
   note?: string;
 }

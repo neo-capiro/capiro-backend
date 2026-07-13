@@ -47,6 +47,14 @@ const STEPS: readonly Step[] = [
     args: ['--artifact', 'scripts/__data__/corrected_json/capabilities_seed.json'],
   },
   { script: 'derive-intelligence-cache' },
+  // G5 (mark-impact, §8.2 "propose next actions"): regenerate the client-facing
+  // ActionRecommendation cards from the freshly-computed deltas. Runs AFTER
+  // compute-budget-deltas (its input) and BEFORE send-pe-alert-emails so alert
+  // digests reference current cards. Previously cards only regenerated on the
+  // manual `load:defense-budget` composite or the API endpoint — so a nightly
+  // budget change recomputed deltas but never refreshed the next-action cards.
+  // All-tenants, idempotent, human workflow state preserved.
+  { script: 'generate-actions' },
   // Phase 2: alerts fire only after fresh derivations. Email delivery inside is
   // canary-gated by PE_ALERT_EMAIL_TENANTS (unset = dark); watchlist stamping
   // always runs on --commit.

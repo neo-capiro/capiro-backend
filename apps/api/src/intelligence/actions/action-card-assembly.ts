@@ -48,6 +48,22 @@ export interface DeltaFact {
   stageTo?: string;
 }
 
+/**
+ * A committee report provision linked to this PE (§8.2 "show report language").
+ * Verbatim `text` + the deterministic classifier's `actionType`
+ * (directs_briefing | cuts | adds | restricts | …). Surfaced on the card so a
+ * reviewer sees the actual report language behind a mark, and the recommended
+ * next action can reference it — never invented.
+ */
+export interface ProvisionFact {
+  id: string;
+  committee: string;
+  fy: number;
+  heading: string;
+  text: string;
+  actionType: string | null;
+}
+
 export interface AssembleCardFacts {
   actionType: ActionType;
   clientName: string;
@@ -58,6 +74,8 @@ export interface AssembleCardFacts {
   relevancePaths: RelevancePathFact[];
   deadline?: string | null;
   deadlineSource?: DeadlineSource | null;
+  /** G5: committee report provisions on record for this PE (may be empty). */
+  provisions?: ProvisionFact[];
 }
 
 export interface AssembledCard {
@@ -182,7 +200,11 @@ export function assembleCard(facts: AssembleCardFacts): AssembledCard {
   const whyItMatters = `This matters to ${facts.clientName} because ${describeRelevance(facts.relevancePaths)}.`;
 
   const programLabel = facts.programName ?? facts.peTitle;
-  const { issueTitle, recommendedAction, suggestedArtifactType } = byActionType(facts.actionType, {
+  const {
+    issueTitle,
+    recommendedAction: baseAction,
+    suggestedArtifactType,
+  } = byActionType(facts.actionType, {
     clientName: facts.clientName,
     peCode: facts.peCode,
     programLabel,
@@ -190,7 +212,26 @@ export function assembleCard(facts: AssembleCardFacts): AssembledCard {
     deadline: facts.deadline,
   });
 
+  // G5 (§8.2 "show report language"): when committee report language is on
+  // record for this PE, quote it (heading + committee/FY, bounded) so the
+  // recommended next action is grounded in the actual directive, not invented.
+  const recommendedAction = baseAction + reportLanguageClause(facts.provisions);
+
   return { issueTitle, whatChanged, whyItMatters, recommendedAction, suggestedArtifactType };
+}
+
+/** Trailing clause citing on-record report language (verbatim heading, bounded). */
+function reportLanguageClause(provisions?: ProvisionFact[]): string {
+  if (!provisions || provisions.length === 0) return '';
+  const p = provisions[0]!;
+  // Quote the heading (short, as-printed) and name the committee/FY; the full
+  // verbatim text lives in the evidence ref, not the narrative.
+  const more = provisions.length > 1 ? ` (+${provisions.length - 1} more on record)` : '';
+  const verb = p.actionType ? p.actionType.replace(/_/g, ' ') : 'addresses';
+  return (
+    ` Report language on record — ${p.committee} FY${fyShort(p.fy)} "${p.heading.trim()}" ` +
+    `(${verb})${more}; build on or counter it rather than starting from scratch.`
+  );
 }
 
 /**
