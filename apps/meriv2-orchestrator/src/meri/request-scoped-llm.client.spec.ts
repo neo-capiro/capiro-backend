@@ -93,7 +93,7 @@ describe('RequestScopedLlmClient (BYOK2 resolution order)', () => {
     mockFetch();
     const client = new RequestScopedLlmClient(undefined, 'claude-default');
     await expect(client.completeJson({ system: 's', prompt: 'p' })).rejects.toThrow(
-      /No Anthropic credential available/,
+      /No LLM credential available/,
     );
     expect(global.fetch).not.toHaveBeenCalled();
   });
@@ -171,7 +171,7 @@ describe('RequestScopedLlmClient.completeWithTools (tool-use round)', () => {
     const client = new RequestScopedLlmClient(undefined, 'claude-default');
     await expect(
       client.completeWithTools({ system: 's', messages: [], tools, maxTokens: 10 }),
-    ).rejects.toThrow(/No Anthropic credential available/);
+    ).rejects.toThrow(/No LLM credential available/);
     expect(global.fetch).not.toHaveBeenCalled();
   });
 });
