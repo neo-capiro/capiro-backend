@@ -14,6 +14,8 @@ import { ArtifactGeneratorService } from './artifacts/artifact-generator.service
 import { ArtifactController } from './artifacts/artifact.controller.js';
 import { ProductMetricsService } from './metrics/product-metrics.service.js';
 import { ProductMetricsController } from './metrics/product-metrics.controller.js';
+import { TrustMetricsService } from './metrics/trust-metrics.service.js';
+import { TrustMetricsController } from './metrics/trust-metrics.controller.js';
 import { CoverageGapService } from './coverage/coverage-gap.service.js';
 import { CoverageController } from './coverage/coverage.controller.js';
 import { FirmOnboardingService } from './firm-onboarding.service.js';
@@ -40,6 +42,7 @@ import { DirectoryModule } from '../directory/directory.module.js';
     ActionRecommendationController,
     ArtifactController,
     ProductMetricsController,
+    TrustMetricsController,
     CoverageController,
     FirmOnboardingController,
   ],
@@ -57,6 +60,7 @@ import { DirectoryModule } from '../directory/directory.module.js';
     ActionRecommendationReadService,
     ArtifactGeneratorService,
     ProductMetricsService,
+    TrustMetricsService,
     CoverageGapService,
   ],
   // ClientPeRelevanceService is EXPORTED so the program-element delta writer (Agent B)
