@@ -52,6 +52,8 @@ async function main(): Promise<void> {
     process.exitCode = 1;
     return;
   }
+  // NB: $queryRawUnsafe binds positional params as text, and Postgres will not
+  // implicitly coerce uuid = text — every tenant_id/id comparison casts ::uuid.
   const tenantId = tenantRows[0].id;
   emit('TENANT', { slug, tenantId, name: tenantRows[0].name });
 
@@ -60,7 +62,7 @@ async function main(): Promise<void> {
     tenantScoped: await q(
       `SELECT source_type, count(*)::int AS n, max(created_at) AS newest
          FROM clio_proactive_alerts
-        WHERE tenant_id = $1 AND source_type IN ('meeting_prep','stale_client')
+        WHERE tenant_id = $1::uuid AND source_type IN ('meeting_prep','stale_client')
         GROUP BY source_type ORDER BY source_type`,
       tenantId,
     ),
@@ -77,7 +79,7 @@ async function main(): Promise<void> {
     tenantScoped: await q(
       `SELECT count(*)::int AS n, max(created_at) AS newest
          FROM clio_proactive_alerts
-        WHERE tenant_id = $1 AND source_type = 'meeting_briefing'`,
+        WHERE tenant_id = $1::uuid AND source_type = 'meeting_briefing'`,
       tenantId,
     ),
     allTenantsLast8d: await q(
@@ -210,13 +212,13 @@ async function main(): Promise<void> {
               count(*) FILTER (WHERE visibility = 'user')::int AS "userPrivate",
               count(*) FILTER (WHERE review_cadence_days IS NOT NULL AND review_cadence_days > 0)::int AS "withCadence",
               count(*) FILTER (WHERE status = 'active')::int AS "active"
-         FROM memory_items WHERE tenant_id = $1`,
+         FROM memory_items WHERE tenant_id = $1::uuid`,
       tenantId,
     ),
     // Faithful mirror of MemoryStoreService.listReviewDue predicate.
     reviewDue: await q(
       `SELECT count(*)::int AS n FROM memory_items
-        WHERE tenant_id = $1
+        WHERE tenant_id = $1::uuid
           AND review_cadence_days IS NOT NULL AND review_cadence_days > 0
           AND COALESCE(last_confirmed_at, created_at) + (review_cadence_days * interval '1 day') < now()
           AND status = 'active'
@@ -227,7 +229,7 @@ async function main(): Promise<void> {
       `SELECT scope, count(*)::int AS n,
               count(*) FILTER (WHERE client_id IS NOT NULL)::int AS "withClient",
               count(*) FILTER (WHERE expires_at IS NOT NULL)::int AS "ephemeral"
-         FROM clio_memory WHERE tenant_id = $1 GROUP BY scope ORDER BY scope`,
+         FROM clio_memory WHERE tenant_id = $1::uuid GROUP BY scope ORDER BY scope`,
       tenantId,
     ),
     // G2-3: ROW-LEVEL regression detector. The #453 bug nulled client_id /
@@ -238,20 +240,20 @@ async function main(): Promise<void> {
     g2_3_regression: await q(
       `SELECT
          (SELECT count(*)::int FROM clio_memory
-            WHERE tenant_id = $1 AND scope = 'client' AND client_id IS NOT NULL) AS "clientExercised",
+            WHERE tenant_id = $1::uuid AND scope = 'client' AND client_id IS NOT NULL) AS "clientExercised",
          (SELECT count(*)::int FROM clio_memory cm
             JOIN memory_items mi
               ON mi.tenant_id = cm.tenant_id AND mi.type = 'note'
              AND mi.slug = 'clio:' || cm.id::text
-           WHERE cm.tenant_id = $1 AND cm.scope = 'client' AND cm.client_id IS NOT NULL
+           WHERE cm.tenant_id = $1::uuid AND cm.scope = 'client' AND cm.client_id IS NOT NULL
              AND mi.client_id IS NULL) AS "clientDropped",
          (SELECT count(*)::int FROM clio_memory
-            WHERE tenant_id = $1 AND expires_at IS NOT NULL) AS "ephemeralExercised",
+            WHERE tenant_id = $1::uuid AND expires_at IS NOT NULL) AS "ephemeralExercised",
          (SELECT count(*)::int FROM clio_memory cm
             JOIN memory_items mi
               ON mi.tenant_id = cm.tenant_id AND mi.type = 'note'
              AND mi.slug = 'clio:' || cm.id::text
-           WHERE cm.tenant_id = $1 AND cm.expires_at IS NOT NULL
+           WHERE cm.tenant_id = $1::uuid AND cm.expires_at IS NOT NULL
              AND mi.expires_at IS NULL) AS "ephemeralDropped"`,
       tenantId,
     ),
@@ -275,16 +277,16 @@ async function main(): Promise<void> {
     all: number; priv: number; expired: number; probeId: string | null; probeOwner: string | null;
   }>(
     `SELECT
-       (SELECT count(*)::int FROM memory_items WHERE tenant_id = $1) AS all,
-       (SELECT count(*)::int FROM memory_items WHERE tenant_id = $1 AND visibility = 'user') AS priv,
+       (SELECT count(*)::int FROM memory_items WHERE tenant_id = $1::uuid) AS all,
+       (SELECT count(*)::int FROM memory_items WHERE tenant_id = $1::uuid AND visibility = 'user') AS priv,
        (SELECT count(*)::int FROM memory_items
-          WHERE tenant_id = $1 AND expires_at IS NOT NULL AND expires_at <= now()) AS expired,
+          WHERE tenant_id = $1::uuid AND expires_at IS NOT NULL AND expires_at <= now()) AS expired,
        (SELECT id::text FROM memory_items
-          WHERE tenant_id = $1 AND visibility = 'user' AND owner_user_id IS NOT NULL
+          WHERE tenant_id = $1::uuid AND visibility = 'user' AND owner_user_id IS NOT NULL
             AND (expires_at IS NULL OR expires_at > now())
           ORDER BY created_at LIMIT 1) AS "probeId",
        (SELECT owner_user_id::text FROM memory_items
-          WHERE tenant_id = $1 AND visibility = 'user' AND owner_user_id IS NOT NULL
+          WHERE tenant_id = $1::uuid AND visibility = 'user' AND owner_user_id IS NOT NULL
             AND (expires_at IS NULL OR expires_at > now())
           ORDER BY created_at LIMIT 1) AS "probeOwner"`,
     tenantId,
@@ -311,7 +313,7 @@ async function main(): Promise<void> {
       `SELECT row_security_active('memory_items') AS active`,
     );
     const scoped = await tx.$queryRawUnsafe<{ n: number }[]>(
-      `SELECT count(*)::int AS n FROM memory_items WHERE tenant_id = $1`,
+      `SELECT count(*)::int AS n FROM memory_items WHERE tenant_id = $1::uuid`,
       tenantId,
     );
     const noPredicate = await tx.$queryRawUnsafe<{ n: number }[]>(
@@ -325,7 +327,7 @@ async function main(): Promise<void> {
       : [{ n: -1 }];
     // RLS-active for all seven policy-bearing tables (not just memory_items).
     const rlsActiveAll = await tx.$queryRawUnsafe<{ tbl: string; active: boolean }[]>(
-      `SELECT tbl, row_security_active(tbl) AS active FROM (VALUES
+      `SELECT tbl, row_security_active(tbl::regclass) AS active FROM (VALUES
          ('memory_items'),('clio_memory'),('context_packet'),('review_request'),
          ('outcome_event'),('meri_audit_ledger'),('memory_candidate')) v(tbl)`,
     );
