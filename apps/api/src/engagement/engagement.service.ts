@@ -64,6 +64,7 @@ import {
 import { MeetingNotesCryptoService } from './meeting-notes-crypto.service.js';
 import { MicrosoftGraphSyncService } from './microsoft/microsoft-graph-sync.service.js';
 import { ClientKbService } from '../embeddings/client-kb.service.js';
+import { ContextCompilerService } from '../context/context-compiler.service.js';
 import {
   billIdFromItemId,
   peCodeFromItemId,
@@ -756,6 +757,7 @@ export class EngagementService {
     private readonly federalSpending: FederalSpendingService,
     private readonly microsoftGraph: MicrosoftGraphSyncService,
     private readonly clientKb: ClientKbService,
+    private readonly contextCompiler: ContextCompilerService,
     config: ConfigService<AppConfig, true>,
   ) {
     this.bucket = config.get('ASSETS_BUCKET', { infer: true });
@@ -1522,83 +1524,42 @@ export class EngagementService {
     clientId: string | null,
   ): Promise<string | null> {
     try {
-      // withTenantUser: a private (visibility='user') memory_items row is
-      // gated by RLS on current_user_id() (Phase 1, 1C) — this query already
-      // restricts to the caller's own owner_user_id, so behavior is
-      // unchanged, but the GUC must be set or RLS returns 0 rows regardless.
-      const userRows = await this.prisma.withTenantUser(
-        ctx.tenantId,
-        ctx.userId,
-        (tx) =>
-          tx.$queryRaw<Array<{ type: string; sections: unknown }>>`
-          SELECT type, sections_jsonb AS sections
-          FROM memory_items
-          WHERE type IN ('user-voice', 'user-profile') AND owner_user_id = ${ctx.userId}::uuid
-        `,
-      );
-      const clientRows = clientId
-        ? await this.prisma.withTenant(
-            ctx.tenantId,
-            (tx) =>
-              tx.$queryRaw<Array<{ type: string; sections: unknown }>>`
-              SELECT type, sections_jsonb AS sections
-              FROM memory_items
-              WHERE type IN ('client-soul', 'client-compass', 'client-people')
-                AND client_id = ${clientId}::uuid
-            `,
-          )
-        : [];
-      // Firm Soul + Firm Compass (tenant-wide identity, slug='firm') — always
-      // included so every draft speaks for THIS firm, not a generic one.
-      const firmRows = await this.prisma.withTenant(
-        ctx.tenantId,
-        (tx) =>
-          tx.$queryRaw<Array<{ type: string; sections: unknown }>>`
-          SELECT type, sections_jsonb AS sections
-          FROM memory_items
-          WHERE tenant_id = ${ctx.tenantId}::uuid
-            AND type IN ('firm-soul', 'firm-compass') AND slug = 'firm'
-        `,
-      );
-      const renderHuman = (sections: unknown): string => {
-        if (!Array.isArray(sections)) return '';
-        return sections
-          .filter((s) => s && typeof s === 'object' && (s as { owner?: string }).owner === 'human')
-          .map((s) => {
-            const sec = s as { heading?: string; body?: string };
-            return sec.body?.trim() ? `${sec.heading}: ${sec.body.trim()}` : '';
-          })
-          .filter(Boolean)
-          .join('\n');
-      };
+      // Context Compiler v1 (G1): loading, the withTenantUser/1C tenancy
+      // discipline, governance filtering and the packet trace live in
+      // ContextCompilerService; this method only composes the outreach block
+      // labels from the compiled packet. Block text is unchanged.
+      const packet = await this.contextCompiler.compile({
+        tenantId: ctx.tenantId,
+        userId: ctx.userId,
+        clientId,
+        surface: 'outreach',
+        layers: ['user-voice', 'firm-identity', 'client-steering', 'client-people'],
+      });
+
       const parts: string[] = [];
-      for (const r of userRows) {
-        const body = renderHuman(r.sections);
-        if (!body) continue;
-        parts.push(
-          r.type === 'user-voice'
-            ? `WRITE IN THIS AUTHOR'S VOICE (mirror the style and any sample writings below closely; do not invent facts):\n${body}`
-            : `About the author:\n${body}`,
-        );
-      }
-      for (const r of firmRows) {
-        const body = renderHuman(r.sections);
-        if (body) {
-          parts.push(
-            `Firm ${r.type === 'firm-soul' ? 'identity (Firm Soul)' : 'direction (Firm Compass)'}:\n${body}`,
-          );
+      for (const r of packet.rendered) {
+        switch (r.layer) {
+          case 'user-voice':
+            parts.push(
+              r.type === 'user-voice'
+                ? `WRITE IN THIS AUTHOR'S VOICE (mirror the style and any sample writings below closely; do not invent facts):\n${r.body}`
+                : `About the author:\n${r.body}`,
+            );
+            break;
+          case 'firm-identity':
+            parts.push(
+              `Firm ${r.type === 'firm-soul' ? 'identity (Firm Soul)' : 'direction (Firm Compass)'}:\n${r.body}`,
+            );
+            break;
+          // client-people = the human-authored relationship file (their team,
+          // Hill offices, commitments made, key conversations) — labeled
+          // distinctly from strategic memory.
+          case 'client-people':
+            parts.push(`Client relationships & commitments (from memory):\n${r.body}`);
+            break;
+          default:
+            parts.push(`Client strategic memory (${r.type}):\n${r.body}`);
         }
-      }
-      for (const r of clientRows) {
-        const body = renderHuman(r.sections);
-        if (!body) continue;
-        // client-people = the human-authored relationship file (their team, Hill
-        // offices, commitments made, key conversations) — label it distinctly.
-        const label =
-          r.type === 'client-people'
-            ? 'Client relationships & commitments (from memory)'
-            : `Client strategic memory (${r.type})`;
-        parts.push(`${label}:\n${body}`);
       }
       return parts.length ? parts.join('\n\n') : null;
     } catch {

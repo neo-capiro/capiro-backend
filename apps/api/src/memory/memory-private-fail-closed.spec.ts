@@ -38,7 +38,8 @@ function walkTsFiles(dir: string): string[] {
   for (const name of readdirSync(dir)) {
     const p = join(dir, name);
     if (statSync(p).isDirectory()) out.push(...walkTsFiles(p));
-    else if (name.endsWith('.ts') && !name.endsWith('.spec.ts') && !name.endsWith('.d.ts')) out.push(p);
+    else if (name.endsWith('.ts') && !name.endsWith('.spec.ts') && !name.endsWith('.d.ts'))
+      out.push(p);
   }
   return out;
 }
@@ -69,11 +70,25 @@ describe('Phase 3 (3a) — memory private rows are fail-closed', () => {
     // listForCurrentTenant, getByTypeSlug, loadGraphInputs.
     expect(guards.length).toBeGreaterThanOrEqual(3);
 
+    // G1: the per-surface voice loaders (meri.service loadUserVoiceContext,
+    // engagement loadUserVoiceBlock, alert-memo/district-brief loadSteering)
+    // were replaced by the ONE ContextCompilerService — the owner-aware SQL
+    // now lives there, and the surfaces must route through compile() instead
+    // of hand-rolling memory_items queries.
+    const compiler = readFileSync(join(SRC_ROOT, 'context', 'context-compiler.service.ts'), 'utf8');
+    expect(compiler).toMatch(/owner_user_id = \$\{req\.userId \?\? null\}::uuid/);
+
     const meri = readFileSync(join(SRC_ROOT, 'meri', 'meri.service.ts'), 'utf8');
-    // loadUserVoiceContext: user-voice/profile files are scoped to their owner.
-    expect(meri).toMatch(/owner_user_id = \$\{ctx\.userId\}::uuid/);
+    // loadUserVoiceContext routes through the compiler…
+    expect(meri).toMatch(/loadUserVoiceContext[\s\S]{0,700}contextCompiler\.compile\(/);
+    // …and hand-rolled user-voice SQL must NOT reappear in this file.
+    expect(meri).not.toMatch(/FROM memory_items[\s\S]{0,200}'user-voice'/);
     // semanticMemorySearch: user_private clio_memory rows are scoped to the owner.
     expect(meri).toMatch(/scope = 'user_private' AND owner_user_id = \$3::uuid/);
+
+    const engagement = readFileSync(join(SRC_ROOT, 'engagement', 'engagement.service.ts'), 'utf8');
+    expect(engagement).toMatch(/loadUserVoiceBlock[\s\S]{0,900}contextCompiler\.compile\(/);
+    expect(engagement).not.toMatch(/FROM memory_items[\s\S]{0,200}'user-voice'/);
   });
 
   // ── Phase 1 (1C): every memory_items call site sets the RLS GUC ───────────
@@ -85,11 +100,11 @@ describe('Phase 3 (3a) — memory private rows are fail-closed', () => {
     const meriTools = readFileSync(join(SRC_ROOT, 'meri', 'meri-tools.service.ts'), 'utf8');
     expect(meriTools).toMatch(/loadGraphForCtx[\s\S]{0,80}withTenantUser\(/);
 
-    const meri = readFileSync(join(SRC_ROOT, 'meri', 'meri.service.ts'), 'utf8');
-    expect(meri).toMatch(/withTenantUser\(\s*\n?\s*ctx\.tenantId,\s*\n?\s*ctx\.userId,/);
-
-    const engagement = readFileSync(join(SRC_ROOT, 'engagement', 'engagement.service.ts'), 'utf8');
-    expect(engagement).toMatch(/withTenantUser\(\s*\n?\s*ctx\.tenantId,\s*\n?\s*ctx\.userId,/);
+    // G1: the compiler is now THE memory_items steering read path — it must
+    // ride withTenantUser whenever a user is known (both GUCs; the 1C policy
+    // hides private rows otherwise).
+    const compiler = readFileSync(join(SRC_ROOT, 'context', 'context-compiler.service.ts'), 'utf8');
+    expect(compiler).toMatch(/withTenantUser\(req\.tenantId, req\.userId,/);
   });
 
   it('the 1C migration carries the owner-aware memory_items RLS policy verbatim', () => {

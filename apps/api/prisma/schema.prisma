@@ -245,6 +245,7 @@ model Tenant {
   aiUsageEvents                AiUsageEvent[]
   aiRuns                       AiRun[]
   meriAuditLedgerEntries       MeriAuditLedger[]
+  contextPackets               ContextPacket[]
   aiCredentials                TenantAiCredential[]
   usageMeters                  TenantUsageMeter[]
   memoryItems                  MemoryItem[]
@@ -1687,6 +1688,42 @@ model MeriAuditLedger {
   @@index([tenantId, createdAt(sort: Desc)], map: "meri_audit_ledger_tenant_created_idx")
   @@index([surface, topSeverity, createdAt(sort: Desc)], map: "meri_audit_ledger_surface_severity_idx")
   @@map("meri_audit_ledger")
+}
+
+/// Context Compiler v1 packet trace (G1, blueprint §4.6.4). One row per compiled
+/// steering-context packet: which memory files reached a generation prompt
+/// (`items_jsonb`) and which were deliberately withheld and why
+/// (`exclusions_jsonb`: revoked | superseded | empty | over-budget |
+/// unauthorized). Written FIRE-AND-FORGET by the compiler adapters in apps/api,
+/// the orchestrator (shared Prisma client), and apps/workspace (raw INSERT) —
+/// a trace failure never blocks generation. The `id` is the compiler-minted
+/// packetId (NOT db-defaulted) so the trace row and any downstream reference
+/// (audit ledger, provenance panel) share one identifier. RLS like
+/// meri_audit_ledger (per-command policies, FORCE, no null-tenant path).
+model ContextPacket {
+  id             String   @id @db.Uuid
+  tenantId       String   @map("tenant_id") @db.Uuid
+  /// ContextSurface: 'chat' | 'ga-chat' | 'outreach' | 'memo' |
+  /// 'district-brief' | 'research' | 'workspace-gen'
+  surface        String   @db.VarChar(24)
+  userId         String?  @map("user_id") @db.Uuid
+  clientId       String?  @map("client_id") @db.Uuid
+  /// Surface-local anchor: { conversationId? | draftId? | outreachId? | alertId? }
+  ref            Json     @default("{}") @map("ref_jsonb")
+  /// ContextPacketItem[]: { layer, id, type, slug, chars, rationale }
+  items          Json     @default("[]") @map("items_jsonb")
+  /// ContextExclusion[]: { layer, id, type, slug, reason }
+  exclusions     Json     @default("[]") @map("exclusions_jsonb")
+  itemCount      Int      @default(0) @map("item_count")
+  exclusionCount Int      @default(0) @map("exclusion_count")
+  blockChars     Int      @default(0) @map("block_chars")
+  createdAt      DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  @@index([tenantId, createdAt(sort: Desc)], map: "context_packet_tenant_created_idx")
+  @@index([tenantId, surface, createdAt(sort: Desc)], map: "context_packet_tenant_surface_idx")
+  @@map("context_packet")
 }
 
 /// Async outreach job (plan W4 / §3.3). One row per generate-or-send request the

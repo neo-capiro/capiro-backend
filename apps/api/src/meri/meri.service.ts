@@ -60,6 +60,7 @@ import {
 } from '../common/tenant-flags.js';
 import { MeriV2ChatClient, type MeriV2ChatStreamEvent } from './meriv2-chat.client.js';
 import { MeriClaimWriterService } from './meri-claim-writer.js';
+import { ContextCompilerService } from '../context/context-compiler.service.js';
 import mammoth from 'mammoth';
 import { extractPdfText } from './meri-attachment-extract.js';
 import {
@@ -193,6 +194,7 @@ export class MeriService {
     private readonly meriFlags: MeriFeatureFlagsService,
     private readonly meriV2Chat: MeriV2ChatClient,
     private readonly claimWriter: MeriClaimWriterService,
+    private readonly contextCompiler: ContextCompilerService,
   ) {}
 
   async status(ctx: TenantContext) {
@@ -2855,79 +2857,33 @@ export class MeriService {
     ctx: TenantContext,
     clientId: string | null,
   ): Promise<string | null> {
-    // withTenantUser: a private (visibility='user') memory_items row is
-    // gated by RLS on current_user_id() (1C) — this query already restricts
-    // to the caller's own owner_user_id, so behavior is unchanged, but the
-    // GUC must be set or RLS returns 0 rows regardless of this WHERE clause.
-    const rows = await this.prisma.withTenantUser(
-      ctx.tenantId,
-      ctx.userId,
-      (tx) =>
-        tx.$queryRaw<Array<{ type: string; title: string; sections: unknown }>>`
-        SELECT type, title, sections_jsonb AS sections
-        FROM memory_items
-        WHERE type IN ('user-voice', 'user-profile')
-          AND owner_user_id = ${ctx.userId}::uuid
-      `,
-    );
-    // Firm Soul/Compass: unconditional (every conversation, not just
-    // client-linked) — this IS the firm the user works for.
-    const firmRows = await this.prisma.withTenant(
-      ctx.tenantId,
-      (tx) =>
-        tx.$queryRaw<Array<{ type: string; title: string; sections: unknown }>>`
-        SELECT type, title, sections_jsonb AS sections
-        FROM memory_items
-        WHERE tenant_id = ${ctx.tenantId}::uuid
-          AND type IN ('firm-soul', 'firm-compass')
-          AND slug = 'firm'
-      `,
-    );
-    // Client soul/compass (tenant-visible) when this is a client conversation.
-    const clientRows = clientId
-      ? await this.prisma.withTenant(
-          ctx.tenantId,
-          (tx) =>
-            tx.$queryRaw<Array<{ type: string; title: string; sections: unknown }>>`
-            SELECT type, title, sections_jsonb AS sections
-            FROM memory_items
-            WHERE type IN ('client-soul', 'client-compass')
-              AND client_id = ${clientId}::uuid
-          `,
-        )
-      : [];
+    // Context Compiler v1 (G1): loading, tenancy discipline (withTenantUser —
+    // the 1C owner-aware RLS gate), governance filtering and the packet trace
+    // all live in ContextCompilerService now; this method only composes the
+    // legacy block format from the compiled packet. Block text is unchanged.
+    const packet = await this.contextCompiler.compile({
+      tenantId: ctx.tenantId,
+      userId: ctx.userId,
+      clientId,
+      surface: 'chat',
+      layers: ['user-voice', 'firm-identity', 'client-steering'],
+    });
 
     const blocks: string[] = [];
-    const render = (title: string, sections: unknown): string | null => {
-      if (!Array.isArray(sections)) return null;
-      const body = sections
-        .filter((s) => s && typeof s === 'object' && (s as { owner?: string }).owner === 'human')
-        .map((s) => {
-          const sec = s as { heading?: string; body?: string };
-          return sec.body?.trim() ? `${sec.heading}: ${sec.body.trim()}` : '';
-        })
-        .filter(Boolean)
-        .join('\n');
-      return body ? `${title}\n${body}` : null;
-    };
-
-    for (const r of rows) {
-      const label =
-        r.type === 'user-voice'
-          ? "The user's writing style — draft in THIS voice; mirror the sample writings closely without inventing content"
-          : 'About the user (their role and focus)';
-      const block = render(label, r.sections);
-      if (block) blocks.push(block);
-    }
-    for (const r of firmRows) {
-      const label =
-        r.type === 'firm-soul' ? 'Firm identity (Firm Soul)' : 'Firm direction (Firm Compass)';
-      const block = render(label, r.sections);
-      if (block) blocks.push(block);
-    }
-    for (const r of clientRows) {
-      const block = render(`Client memory (${r.title})`, r.sections);
-      if (block) blocks.push(block);
+    for (const r of packet.rendered) {
+      if (r.layer === 'user-voice') {
+        const label =
+          r.type === 'user-voice'
+            ? "The user's writing style — draft in THIS voice; mirror the sample writings closely without inventing content"
+            : 'About the user (their role and focus)';
+        blocks.push(`${label}\n${r.body}`);
+      } else if (r.layer === 'firm-identity') {
+        const label =
+          r.type === 'firm-soul' ? 'Firm identity (Firm Soul)' : 'Firm direction (Firm Compass)';
+        blocks.push(`${label}\n${r.body}`);
+      } else {
+        blocks.push(`Client memory (${r.title})\n${r.body}`);
+      }
     }
     if (!blocks.length) return null;
     return `Firm, user & client memory files (authoritative for voice and strategy):\n\n${blocks.join('\n\n')}`;

@@ -137,8 +137,27 @@ function makeDeps(opts: {
         : { apiKey: 'key', model: 'claude-sonnet-5', usedTenantKey: false },
     ),
   };
-  const memory = {
-    getByTypeSlug: jest.fn(async () => opts.memoryItem ?? null),
+  // Context Compiler v1 (G1): steering arrives as a compiled packet now.
+  const contextCompiler = {
+    compile: jest.fn(async () =>
+      opts.memoryItem
+        ? {
+            packetId: 'pkt-1',
+            rendered: [
+              {
+                layer: 'client-steering',
+                id: 'mi-1',
+                type: 'client-soul',
+                slug: 'client-1',
+                title: (opts.memoryItem as { title?: string }).title ?? 'Client Soul',
+                body: 'steering body',
+              },
+            ],
+            items: [],
+            exclusions: [],
+          }
+        : { packetId: 'pkt-1', rendered: [], items: [], exclusions: [] },
+    ),
   };
   const engagement = {
     createAttachmentFromBuffer: jest.fn(async () => {
@@ -152,7 +171,7 @@ function makeDeps(opts: {
     prisma as never,
     representation as never,
     credentials as never,
-    memory as never,
+    contextCompiler as never,
     engagement as never,
   );
   return {
@@ -160,7 +179,7 @@ function makeDeps(opts: {
     prisma,
     representation,
     credentials,
-    memory,
+    contextCompiler,
     engagement,
     created,
     aiUsageEvents,
@@ -287,7 +306,10 @@ describe('DistrictBriefService.generate', () => {
     const { service } = makeDeps({ facility: FACILITY_ROW, representation: RESOLVED_REP });
     global.fetch = jest.fn(async () =>
       anthropicTextResponse([
-        { heading: 'Facility & footprint', paragraphs: [{ text: 'Real claim.', claimIds: ['c1'] }] },
+        {
+          heading: 'Facility & footprint',
+          paragraphs: [{ text: 'Real claim.', claimIds: ['c1'] }],
+        },
         // A paragraph asserting a fact with NO citation at all. Pre-W3.3 this
         // passed (`[].every` is vacuously true) and shipped into a client brief.
         {
@@ -317,7 +339,9 @@ describe('DistrictBriefService.generate', () => {
       anthropicTextResponse([
         {
           heading: 'District impact',
-          paragraphs: [{ text: 'Sweeping ungrounded narrative with zero citations.', claimIds: [] }],
+          paragraphs: [
+            { text: 'Sweeping ungrounded narrative with zero citations.', claimIds: [] },
+          ],
         },
       ]),
     ) as never;

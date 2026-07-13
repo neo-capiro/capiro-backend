@@ -55,8 +55,28 @@ function makeDeps(opts: {
         : { apiKey: 'key', model: 'claude-sonnet-5', usedTenantKey: false },
     ),
   };
-  const memory = {
-    getByTypeSlug: jest.fn(async () => opts.memoryItem ?? null),
+  // Context Compiler v1 (G1): steering now arrives as a compiled packet. An
+  // opts.memoryItem seeds one rendered client-soul item (render:'all' shape).
+  const contextCompiler = {
+    compile: jest.fn(async () =>
+      opts.memoryItem
+        ? {
+            packetId: 'pkt-1',
+            rendered: [
+              {
+                layer: 'client-steering',
+                id: 'mi-1',
+                type: 'client-soul',
+                slug: 'client-1',
+                title: (opts.memoryItem as { title?: string }).title ?? 'Client Soul',
+                body: 'steering body',
+              },
+            ],
+            items: [],
+            exclusions: [],
+          }
+        : { packetId: 'pkt-1', rendered: [], items: [], exclusions: [] },
+    ),
   };
   const engagement = {
     createAttachmentFromBuffer: jest.fn(async () => ({ id: 'att-1', fileName: 'memo.docx' })),
@@ -65,11 +85,19 @@ function makeDeps(opts: {
   };
   const service = new AlertMemoService(
     credentials as never,
-    memory as never,
+    contextCompiler as never,
     engagement as never,
     prisma as never,
   );
-  return { service, prisma, credentials, memory, engagement, aiUsageEvents, meriAuditLedgerRows };
+  return {
+    service,
+    prisma,
+    credentials,
+    contextCompiler,
+    engagement,
+    aiUsageEvents,
+    meriAuditLedgerRows,
+  };
 }
 
 function jsonResponse(body: unknown, ok = true) {

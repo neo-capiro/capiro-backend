@@ -18,6 +18,7 @@ import { MicrosoftGraphSyncService } from './microsoft/microsoft-graph-sync.serv
 import { MicrosoftOAuthController } from './microsoft/microsoft-oauth.controller.js';
 import { MicrosoftOAuthService } from './microsoft/microsoft-oauth.service.js';
 import { TokenCryptoService } from './microsoft/token-crypto.service.js';
+import { ContextModule } from '../context/context.module.js';
 import { GoogleOAuthController } from './google/google-oauth.controller.js';
 import { GoogleOAuthService } from './google/google-oauth.service.js';
 import { GoogleSyncService } from './google/google-sync.service.js';
@@ -30,6 +31,7 @@ import { GoogleSyncService } from './google/google-sync.service.js';
     FederalSpendingModule,
     EmbeddingsModule,
     NotetakerModule,
+    ContextModule,
   ],
   controllers: [
     EngagementController,

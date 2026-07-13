@@ -11,6 +11,7 @@ import { RepresentationModule } from '../clients/representation.module.js';
 import { RegulatoryDocketModule } from '../regulatory-docket/regulatory-docket.module.js';
 import { EmbeddingsModule } from '../embeddings/embeddings.module.js';
 import { MemoryModule } from '../memory/memory.module.js';
+import { ContextModule } from '../context/context.module.js';
 import { MeriController } from './meri.controller.js';
 import { MeriService } from './meri.service.js';
 import { MeriToolsService } from './meri-tools.service.js';
@@ -40,6 +41,7 @@ import { MeriV2ChatClient } from './meriv2-chat.client.js';
     RegulatoryDocketModule,
     EmbeddingsModule,
     MemoryModule,
+    ContextModule,
   ],
   controllers: [MeriController, MeriMcpOAuthController],
   providers: [

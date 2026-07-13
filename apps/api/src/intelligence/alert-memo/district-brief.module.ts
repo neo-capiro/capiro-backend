@@ -1,6 +1,6 @@
 import { Module } from '@nestjs/common';
 import { EngagementModule } from '../../engagement/engagement.module.js';
-import { MemoryModule } from '../../memory/memory.module.js';
+import { ContextModule } from '../../context/context.module.js';
 import { PrismaModule } from '../../prisma/prisma.module.js';
 import { RepresentationModule } from '../../clients/representation.module.js';
 import { DistrictBriefController } from './district-brief.controller.js';
@@ -12,10 +12,10 @@ import { DistrictBriefService } from './district-brief.service.js';
  *   - PrismaModule → the facility lookup + global CongressCommittee(Membership) tables
  *   - RepresentationModule → RepresentationResolverService (M1.3's deterministic join)
  *   - EngagementModule → EngagementService (Documents auto-file) + AiCredentialResolverService
- *   - MemoryModule → MemoryStoreService (client Memory files as steering)
+ *   - ContextModule -> ContextCompilerService (client Memory files as steering, G1)
  */
 @Module({
-  imports: [PrismaModule, RepresentationModule, EngagementModule, MemoryModule],
+  imports: [PrismaModule, RepresentationModule, EngagementModule, ContextModule],
   controllers: [DistrictBriefController],
   providers: [DistrictBriefService],
 })

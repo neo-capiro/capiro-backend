@@ -9,8 +9,7 @@ import {
 import { runAuditor, type LedgerEntry, type AuditorMode } from '@capiro/meriv2-core';
 import { AiCredentialResolverService } from '../../engagement/ai-credential-resolver.service.js';
 import { EngagementService } from '../../engagement/engagement.service.js';
-import { MemoryStoreService } from '../../memory/memory-store.service.js';
-import type { MemoryItemType } from '../../memory/memory.types.js';
+import { ContextCompilerService } from '../../context/context-compiler.service.js';
 import { PrismaService } from '../../prisma/prisma.service.js';
 import { renderMemoDocx, type MemoDocInput } from './alert-memo-docx.js';
 import type { AlertMemoAlertInput, AlertMemoResult } from './alert-memo.types.js';
@@ -63,7 +62,7 @@ export class AlertMemoService {
 
   constructor(
     private readonly credentials: AiCredentialResolverService,
-    private readonly memory: MemoryStoreService,
+    private readonly contextCompiler: ContextCompilerService,
     private readonly engagement: EngagementService,
     private readonly prisma: PrismaService,
   ) {}
@@ -88,7 +87,7 @@ export class AlertMemoService {
       alert,
       liveBill ? { status: liveBill.raw.status, statusAt: liveBill.raw.statusAt } : null,
     );
-    const { steering, memoryFilesUsed } = await this.loadSteering(clientId, clientName);
+    const { steering, memoryFilesUsed } = await this.loadSteering(ctx, clientId, clientName);
 
     const cred = await this.credentials.resolveProvider(ctx, 'anthropic');
     if (!cred)
@@ -301,31 +300,47 @@ export class AlertMemoService {
 
   /** Pull the client's Memory files (voice/priorities/red-lines) + firm playbook as steering text. */
   private async loadSteering(
+    ctx: TenantContext,
     clientId: string,
     clientName: string,
   ): Promise<{ steering: string; memoryFilesUsed: string[] }> {
-    const wanted: Array<{ type: MemoryItemType; slug: string; label: string }> = [
-      { type: 'client-soul' as MemoryItemType, slug: clientId, label: 'client-soul' },
-      { type: 'client-compass' as MemoryItemType, slug: clientId, label: 'client-compass' },
-      { type: 'client-people' as MemoryItemType, slug: clientId, label: 'client-people' },
-      { type: 'playbook' as MemoryItemType, slug: 'firm', label: 'firm-playbook' },
-    ];
+    // Context Compiler v1 (G1): loading + governance filtering + the packet
+    // trace live in ContextCompilerService. render:'all' keeps this surface's
+    // historical full-file steering (every section body, no owner filter);
+    // charBudget:8000 replaces the old joined-string slice(0,8000) with
+    // whole-item drops RECORDED as 'over-budget' exclusions — no more silent
+    // mid-file truncation. Behavior delta, deliberate: superseded files no
+    // longer steer memos (the old getByTypeSlug path still returned them);
+    // they are now traced as 'superseded' exclusions instead.
+    const LABEL_BY_TYPE: Record<string, string> = {
+      'client-soul': 'client-soul',
+      'client-compass': 'client-compass',
+      'client-people': 'client-people',
+      playbook: 'firm-playbook',
+    };
     const blocks: string[] = [];
     const used: string[] = [];
-    for (const w of wanted) {
-      try {
-        const item = await this.memory.getByTypeSlug(w.type, w.slug);
-        if (!item) continue;
-        const body = item.sections
-          .map((s) => (s.body ?? '').trim())
-          .filter(Boolean)
-          .join('\n');
-        if (!body.trim()) continue;
-        blocks.push(`## ${item.title}\n${body}`);
-        used.push(w.label);
-      } catch (err) {
-        this.logger.debug(`memory read ${w.type}/${w.slug} skipped: ${(err as Error).message}`);
+    try {
+      const packet = await this.contextCompiler.compile({
+        tenantId: ctx.tenantId,
+        userId: ctx.userId,
+        clientId,
+        surface: 'memo',
+        layers: ['client-steering', 'client-people', 'firm-playbook'],
+        render: 'all',
+        charBudget: 8000,
+        ref: { clientId },
+      });
+      // Deterministic composition in the historical order (soul, compass,
+      // people, playbook) regardless of DB row order.
+      for (const type of ['client-soul', 'client-compass', 'client-people', 'playbook']) {
+        const r = packet.rendered.find((x) => x.type === type);
+        if (!r) continue;
+        blocks.push(`## ${r.title ?? type}\n${r.body}`);
+        used.push(LABEL_BY_TYPE[type] ?? type);
       }
+    } catch (err) {
+      this.logger.debug(`steering compile skipped: ${(err as Error).message}`);
     }
     const steering = blocks.length
       ? blocks.join('\n\n')

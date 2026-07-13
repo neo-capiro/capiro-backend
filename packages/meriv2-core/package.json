@@ -22,6 +22,18 @@
       "require": "./dist/grounding/evidence.js",
       "import": "./dist/grounding/evidence.js",
       "default": "./dist/grounding/evidence.js"
+    },
+    "./context/contract": {
+      "types": "./dist/context/contract.d.ts",
+      "require": "./dist/context/contract.js",
+      "import": "./dist/context/contract.js",
+      "default": "./dist/context/contract.js"
+    },
+    "./context/compiler": {
+      "types": "./dist/context/compiler.d.ts",
+      "require": "./dist/context/compiler.js",
+      "import": "./dist/context/compiler.js",
+      "default": "./dist/context/compiler.js"
     }
   },
   "scripts": {
