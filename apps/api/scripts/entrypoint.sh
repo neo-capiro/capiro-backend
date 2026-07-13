@@ -109,6 +109,11 @@ case "${1:-serve}" in
     echo "Running diag-alert-coverage (read-only alert-precondition coverage report)"
     exec ./node_modules/.bin/tsx scripts/diag-alert-coverage.ts
     ;;
+  diag-blueprint-qa)
+    shift
+    echo "Running diag-blueprint-qa (read-only: Blueprint v2 backend verification) $*"
+    exec ./node_modules/.bin/tsx scripts/diag-blueprint-qa.ts "$@"
+    ;;
   diag-ingestion-health)
     echo "Running diag-ingestion-health (read-only ingestion counts + freshness report)"
     exec ./node_modules/.bin/tsx scripts/diag-ingestion-health.ts
