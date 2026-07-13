@@ -78,6 +78,7 @@ type AppSection =
   | 'intelligence'
   | 'knowledge-graph'
   | 'actions'
+  | 'reviews'
   | 'pe-group'
   | 'program-elements'
   | 'radar'
@@ -151,6 +152,15 @@ const NAV: NavItem[] = [
     path: '/directory',
     icon: <IdcardOutlined />,
     tourId: 'Directory',
+  },
+  {
+    // §3.3 reviewer queue: held deliverables awaiting approval. Surfaced for all
+    // real users (each sees their own scoped queue; user_admins see the whole
+    // tenant queue + the Assign control).
+    key: 'reviews',
+    label: 'Reviews',
+    path: '/reviews',
+    icon: <CheckOutlined />,
   },
   // Intelligence group (kept LAST in the nav): Radar (the unified Tracker +
   // Hearing Watch surface) first, then the Intelligence Center (live Explorer)
@@ -1083,6 +1093,7 @@ function pageKeyFor(pathname: string): AppSection {
   if (pathname.startsWith('/engagement')) return 'engagement';
   if (pathname.startsWith('/workspace')) return 'workspace';
   if (pathname.startsWith('/actions')) return 'actions';
+  if (pathname.startsWith('/reviews')) return 'reviews';
   // LegiWatch (canonical /legiwatch; /radar kept as a redirect for live deep-links).
   if (pathname.startsWith('/legiwatch') || pathname.startsWith('/radar')) return 'radar';
   // Knowledge Graph has its own nav entry — match its specific route BEFORE the
@@ -1115,6 +1126,7 @@ function pageConfigFor(pathname: string): PageConfig {
     intelligence: 'Intelligence Center',
     'knowledge-graph': 'Knowledge Graph',
     actions: 'Action Board',
+    reviews: 'Review Queue',
     'pe-group': 'Program Elements',
     'program-elements': 'Program Elements',
     radar: 'LegiWatch',

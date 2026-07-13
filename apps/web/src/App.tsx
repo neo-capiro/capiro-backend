@@ -35,6 +35,7 @@ import { SkillsPage } from './pages/settings/SkillsPage.js';
 import { IssueLeaderboardPage } from './pages/intelligence/IssueLeaderboardPage.js';
 import { DataExplorerPage } from './pages/explorer/DataExplorerPage.js';
 import { ActionBoardPage } from './pages/actions/ActionBoardPage.js';
+import { ReviewQueuePage } from './pages/reviews/ReviewQueuePage.js';
 
 const ProgramElementWatchPage = lazy(async () =>
   import('./pages/program-element/ProgramElementWatchPage.js').then((m) => ({
@@ -131,6 +132,7 @@ export function App() {
         <Route path="/legiwatch" element={<RadarPage />} />
         <Route path="/radar" element={<LegacyRadarRedirect />} />
         <Route path="/actions" element={<ActionBoardPage />} />
+        <Route path="/reviews" element={<ReviewQueuePage />} />
         <Route
           path="/program-elements"
           element={
