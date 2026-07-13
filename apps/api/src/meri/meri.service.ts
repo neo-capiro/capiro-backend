@@ -23,7 +23,7 @@ import {
   emptyUsage,
   type SystemTextBlock,
 } from './meri-prompt.helpers.js';
-import { rankMemoriesByKeyword } from './meri-memory.helpers.js';
+import { rankMemoriesByKeyword, memorySectionValue } from './meri-memory.helpers.js';
 import { runToolsConcurrently } from './meri-tool-exec.helpers.js';
 import {
   extractCitationsFromToolResult,
@@ -2900,6 +2900,52 @@ export class MeriService {
     // (a RELEVANCE boundary — client rows never leak into unrelated chats).
     clientId: string | null = null,
   ): Promise<Array<{ key: string; value: string }>> {
+    // Phase 1 SSOT cutover (MEMORY_RECALL_SOURCE): choose the recall backing.
+    // 'clio' is byte-identical to the pre-cutover behavior and is the default.
+    // 'union'/'projection' are gated flips validated by diag-memory-recall-parity;
+    // both are fail-safe — a projection failure degrades to clio, so recall can
+    // never drop below the 'clio' baseline.
+    const mode = this.config.get('MEMORY_RECALL_SOURCE', { infer: true });
+
+    if (mode === 'projection') {
+      // Prefer the memory_items projection; on an INFRA error (not merely an
+      // empty result) fall back to clio so a bad Titan/DB call never blanks
+      // recall. An empty projection result legitimately returns [].
+      const proj = await this.projectionRecall(tenantId, userId, query, clientId).catch(() => null);
+      return proj ?? this.clioRecall(tenantId, userId, query, clientId);
+    }
+
+    if (mode === 'union') {
+      const [clio, proj] = await Promise.all([
+        this.clioRecall(tenantId, userId, query, clientId),
+        // Superset guarantee: projection failures resolve to [] (never throw),
+        // so `union` always ⊇ `clio` and can only ADD items, never remove.
+        this.projectionRecall(tenantId, userId, query, clientId).catch(
+          () => [] as Array<{ key: string; value: string }>,
+        ),
+      ]);
+      const seen = new Set<string>();
+      const merged: Array<{ key: string; value: string }> = [];
+      // clio first so the baseline ordering is preserved; projection only fills gaps.
+      for (const m of [...clio, ...proj]) {
+        if (seen.has(m.key)) continue;
+        seen.add(m.key);
+        merged.push(m);
+      }
+      return merged.slice(0, 8);
+    }
+
+    return this.clioRecall(tenantId, userId, query, clientId);
+  }
+
+  /** Pre-cutover recall path — clio_memory semantic (OpenAI) then keyword
+   *  fallback. Extracted verbatim so MEMORY_RECALL_SOURCE='clio' is unchanged. */
+  private async clioRecall(
+    tenantId: string,
+    userId: string,
+    query: string,
+    clientId: string | null = null,
+  ): Promise<Array<{ key: string; value: string }>> {
     try {
       const semantic = await this.semanticMemorySearch(tenantId, userId, query, 8, clientId);
       if (semantic.length > 0) {
@@ -2933,6 +2979,45 @@ export class MeriService {
     } catch {
       return [];
     }
+  }
+
+  /**
+   * Projection recall — Meri's learned facts read from the canonical
+   * memory_items → context_embeddings projection (Bedrock Titan), reconstructing
+   * {key,value} from a clio-projected note (title=key, 'memory' section=value).
+   * Mirrors the search_memory tool's proven, RLS-scoped query (withTenantUser +
+   * status='active' + expiry), scoped to clio-projected notes only. Throws on an
+   * infra error so the caller can distinguish "no matches" ([]) from "failed".
+   */
+  private async projectionRecall(
+    tenantId: string,
+    userId: string,
+    query: string,
+    clientId: string | null,
+    limit = 8,
+  ): Promise<Array<{ key: string; value: string }>> {
+    const literal = vectorLiteral(await embedText(normalizeForEmbedding(query)));
+    const rows = await this.prisma.withTenantUser(tenantId, userId, (tx) =>
+      tx.$queryRawUnsafe<Array<{ title: string; sections: unknown }>>(
+        `SELECT mi.title, mi.sections_jsonb AS sections
+           FROM context_embeddings ce
+           JOIN memory_items mi ON mi.id::text = ce.source_id
+          WHERE ce.source_type = 'memory_item'
+            AND ce.tenant_id = $1::uuid
+            AND mi.type = 'note'
+            AND mi.slug LIKE 'clio:%'
+            AND (mi.owner_user_id IS NULL OR mi.owner_user_id = $2::uuid)
+            AND mi.status = 'active'
+            AND (mi.expires_at IS NULL OR mi.expires_at > now())
+            AND (mi.client_id IS NULL OR ($3::uuid IS NOT NULL AND mi.client_id = $3::uuid))
+          ORDER BY ce.embedding <=> '${literal}'::vector
+          LIMIT ${Math.min(15, Math.max(1, limit))}`,
+        tenantId,
+        userId,
+        clientId,
+      ),
+    );
+    return rows.map((r) => ({ key: r.title, value: memorySectionValue(r.sections) }));
   }
 
   private async maybeLearnFromConversation(
