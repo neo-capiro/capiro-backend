@@ -50,6 +50,7 @@
 import {
   FUNDING_STAGE_VEHICLE,
   billStatusLabel,
+  billStatusRank,
   extractCitedPeCodes,
   validateFormBCitations,
   type FundingVehicle,
@@ -811,6 +812,162 @@ export function checkAsOfFreshness(output: string, ledger: ToolResultLedger): Au
   return out;
 }
 
+// ── D12: enactment-proof ─────────────────────────────────────────────────────
+
+/** billId → canonical status, from any get_bill_status-shaped ledger entry. */
+function billStatusFromLedger(ledger: ToolResultLedger): Map<string, string> {
+  const out = new Map<string, string>();
+  for (const e of ledger.entries) {
+    const r = e.result as Record<string, unknown> | undefined;
+    if (!r || typeof r !== 'object') continue;
+    const billId = typeof r.billId === 'string' ? r.billId : undefined;
+    const status = typeof r.status === 'string' ? r.status : undefined;
+    if (billId && status) out.set(billId, status);
+  }
+  return out;
+}
+
+const ENACTMENT_CLAIM_RE =
+  /\b(enacted(?:\s+into\s+law)?|became\s+(?:public\s+)?law|signed\s+into\s+law|public\s+law|signed\s+by\s+(?:the\s+)?president)\b/i;
+// Hedged / negated enactment talk is honest description, not a claim of enactment.
+const ENACTMENT_HEDGE_RE =
+  /\b(not\s+(?:yet\s+)?enacted|if\s+enacted|once\s+enacted|would\s+be(?:come)?|pending|awaiting|has\s+not|hasn't|not\s+yet|prior\s+to\s+enactment|before\s+(?:it\s+)?(?:is|becomes))\b/i;
+
+/**
+ * D12 (enactment-proof, safe form): flag a sentence asserting a bill is enacted /
+ * became law when get_bill_status recorded that SAME bill at a non-enacted
+ * status. Enactment is the terminal, signed-into-law rung; claiming it without
+ * that status is the highest-stakes status overclaim (a client acting on "it's
+ * law" is materially misled). Precision-first: fires ONLY when a ledger-known
+ * billId token appears verbatim AND its recorded status !== 'enacted', and never
+ * on hedged/negated enactment talk.
+ *
+ * NOTE: the blueprint's stricter form ("require a structured public-law id + date
+ * field before the 'enacted' label") needs a get_bill_status contract carrying
+ * publicLawId/enactedAt — those fields don't exist yet, so that presence-check is
+ * deferred to a ledger-contract extension. This status-contradiction form is the
+ * deterministic slice buildable today.
+ */
+export function checkEnactmentProof(output: string, ledger: ToolResultLedger): AuditFinding[] {
+  const billStatus = billStatusFromLedger(ledger);
+  if (billStatus.size === 0) return [];
+  const out: AuditFinding[] = [];
+  for (const s of toSentences(output)) {
+    if (!ENACTMENT_CLAIM_RE.test(s)) continue;
+    if (ENACTMENT_HEDGE_RE.test(s)) continue;
+    const lower = s.toLowerCase();
+    for (const [billId, status] of billStatus) {
+      if (status === 'enacted') continue;
+      if (!lower.includes(billId.toLowerCase())) continue;
+      out.push({
+        check: 'D12',
+        severity: 'critical',
+        span: s,
+        detail: `This sentence asserts ${billId} is enacted / became law, but the tool data records it at ${billStatusLabel(status)}. Enactment is the terminal signed-into-law stage — do not state it without an 'enacted' status.`,
+      });
+    }
+  }
+  return out;
+}
+
+// ── D13: legislative-stage ordering ──────────────────────────────────────────
+
+// Prose milestones → the canonical BillStatus they claim. Past-tense phrasing
+// keeps hypotheticals ("if it passes the House") from matching. Enactment is
+// left to D12 (it owns the terminal rung); D13 covers mid-ladder over-advancement.
+const STAGE_PHRASE_RANK: Array<[RegExp, string]> = [
+  [
+    /\bpassed\s+(?:the\s+)?(?:house|senate|chamber)\b|\bcleared\s+the\s+(?:house|senate)\b/i,
+    'passed_chamber',
+  ],
+  [
+    /\bin\s+conference\b|\bconference\s+(?:committee|report)\b|\bresolving\s+differences\b/i,
+    'resolving',
+  ],
+  [
+    /\bsent\s+to\s+the\s+president\b|\bheaded\s+to\s+the\s+president\b|\bto\s+the\s+president'?s?\s+desk\b|\bawaiting\s+the\s+president'?s?\s+signature\b/i,
+    'to_president',
+  ],
+];
+
+/**
+ * D13 (stage-ordering): flag a sentence placing a bill FURTHER along the
+ * legislative ladder than get_bill_status recorded. Deterministic rank compare
+ * (mirrors D10's date compare): fires ONLY when a ledger-known billId token
+ * appears verbatim AND the max stage claimed in that sentence strictly outranks
+ * the bill's recorded status. Enactment overclaims route to D12, not here.
+ */
+export function checkStageOrdering(output: string, ledger: ToolResultLedger): AuditFinding[] {
+  const billStatus = billStatusFromLedger(ledger);
+  if (billStatus.size === 0) return [];
+  const out: AuditFinding[] = [];
+  for (const s of toSentences(output)) {
+    let claimedRank = -1;
+    let claimedStatus = '';
+    for (const [re, status] of STAGE_PHRASE_RANK) {
+      if (re.test(s)) {
+        const r = billStatusRank(status);
+        if (r > claimedRank) {
+          claimedRank = r;
+          claimedStatus = status;
+        }
+      }
+    }
+    if (claimedRank < 0) continue;
+    const lower = s.toLowerCase();
+    for (const [billId, status] of billStatus) {
+      if (!lower.includes(billId.toLowerCase())) continue;
+      const ledgerRank = billStatusRank(status);
+      if (claimedRank > ledgerRank) {
+        out.push({
+          check: 'D13',
+          severity: 'high',
+          span: s,
+          detail: `This sentence places ${billId} at ${billStatusLabel(claimedStatus)} (stage ${claimedRank}), but the tool data records it only at ${billStatusLabel(status)} (stage ${ledgerRank}). Do not describe a bill as further along than its retrieved status.`,
+        });
+      }
+    }
+  }
+  return out;
+}
+
+// ── D14: negative-assertion (narrow ledger-contradiction slice) ──────────────
+
+const NO_SPONSOR_RE = /\b(no\s+sponsor|unsponsored|has\s+no\s+sponsor|without\s+a\s+sponsor)\b/i;
+
+/**
+ * D14 (negative-assertion, NARROW slice only): flag a negative/absence claim
+ * that the ledger's PRESENT data directly contradicts — here, "no sponsor" for a
+ * bill get_bill_status actually gives a sponsor for. Precision-first and
+ * abstention-first: it fires ONLY on contradiction-of-present-rows, NEVER on
+ * absence of evidence.
+ *
+ * The GENERAL negative-assertion / coverage-completeness form ("is retrieval
+ * complete enough to assert a negative?") is deliberately NOT implemented: a
+ * "there are no X" claim is unprovable from partial retrieval, and the v3 plan
+ * routes that class (S3-3/4/5) to the LLM skeptic. A deterministic attempt would
+ * mis-fire or give false confidence.
+ */
+export function checkNegativeAssertion(output: string, ledger: ToolResultLedger): AuditFinding[] {
+  const billSponsor = billSponsorFromLedger(ledger);
+  if (billSponsor.size === 0) return [];
+  const out: AuditFinding[] = [];
+  for (const s of toLines(output)) {
+    if (!NO_SPONSOR_RE.test(s)) continue;
+    const lower = s.toLowerCase();
+    for (const [billId, sponsor] of billSponsor) {
+      if (!lower.includes(billId.toLowerCase())) continue;
+      out.push({
+        check: 'D14',
+        severity: 'high',
+        span: s,
+        detail: `This sentence asserts ${billId} has no sponsor, but the tool data lists "${sponsor}" as its sponsor.`,
+      });
+    }
+  }
+  return out;
+}
+
 // ── orchestration + verdict gate ─────────────────────────────────────────────
 
 /** Per-surface fail policy (v3 plan §3.6) applied when mode === 'enforce'. */
@@ -860,6 +1017,9 @@ export function runAuditor(input: AuditInput): AuditVerdict {
     ...checkPrimaryVehicleOverclaim(output, ledger),
     ...checkSponsorExistence(output, ledger),
     ...checkAsOfFreshness(output, ledger),
+    ...checkEnactmentProof(output, ledger),
+    ...checkStageOrdering(output, ledger),
+    ...checkNegativeAssertion(output, ledger),
   ];
   // Dedupe by (check, span): the text-D4 and evidence-D4 can both fire on one
   // sentence — the reader/ledger should see it once.

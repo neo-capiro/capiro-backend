@@ -116,6 +116,9 @@ function makeDeps(opts: {
             return args;
           }),
         },
+        meriAuditLedger: {
+          create: jest.fn(async (args: unknown) => args),
+        },
       }),
     ),
     congressCommittee: {
@@ -167,12 +170,17 @@ function makeDeps(opts: {
     }),
     deleteAttachment: jest.fn(async () => undefined),
   };
+  const reviews = {
+    createSystem: jest.fn(async () => 'rr-1'),
+    hasOpenForSubject: jest.fn(async () => false),
+  };
   const service = new DistrictBriefService(
     prisma as never,
     representation as never,
     credentials as never,
     contextCompiler as never,
     engagement as never,
+    reviews as never,
   );
   return {
     service,
@@ -181,6 +189,7 @@ function makeDeps(opts: {
     credentials,
     contextCompiler,
     engagement,
+    reviews,
     created,
     aiUsageEvents,
   };
@@ -276,6 +285,58 @@ describe('DistrictBriefService.generate', () => {
     expect(result.title).toContain('FL HB 123');
     const allText = result.sections.flatMap((s) => s.paragraphs.map((p) => p.text)).join(' ');
     expect(allText).toContain('State Rep X');
+  });
+
+  it('under ENFORCE, a grounding finding HOLDS the brief — not auto-filed, emits a district-brief review_request (G4)', async () => {
+    process.env.MERI_AUDITOR_MODE = 'enforce';
+    try {
+      const { service, engagement, reviews } = makeDeps({
+        facility: FACILITY_ROW,
+        representation: RESOLVED_REP, // grounds FL-02 only
+      });
+      global.fetch = jest.fn(async () =>
+        anthropicTextResponse([
+          {
+            heading: 'Who represents it',
+            // Asserts a district (FL-07) the representation lookup never returned
+            // (it resolved FL-02) → D11 member↔district finding → hold under enforce.
+            paragraphs: [{ text: 'Rep. Jane Doe represents the FL-07 district.', claimIds: ['c3'] }],
+          },
+        ]),
+      ) as never;
+
+      const result = await service.generate(
+        { tenantId: 't1', userId: 'u1' } as never,
+        'client-1',
+        'fac-1',
+        FEDERAL_ALERT,
+      );
+
+      expect(result.held).toBe(true);
+      expect(result.document).toBeNull();
+      expect(result.markdown).toContain('Unverified');
+      // Nothing filed into the client's Documents while held.
+      expect(engagement.createAttachmentFromBuffer).not.toHaveBeenCalled();
+      // The hold became a pending review_request carrying the brief for release.
+      expect(reviews.createSystem).toHaveBeenCalledTimes(1);
+      const emitted = (reviews.createSystem as jest.Mock).mock.calls[0]![1] as {
+        surface: string;
+        subjectType: string;
+        subjectId: string;
+        riskTier: string;
+        payload: { markdown: string; facilityId: string };
+      };
+      expect(emitted.surface).toBe('district-brief');
+      expect(emitted.subjectType).toBe('district-brief');
+      // Composite subject (facility+alert) so it never collides with an
+      // alert-memo review (subjectType 'alert') for the same alert.
+      expect(emitted.subjectId).toContain('fac-1:');
+      expect(emitted.riskTier).toBe('high');
+      expect(emitted.payload.markdown).toContain('Unverified');
+      expect(emitted.payload.facilityId).toBe('fac-1');
+    } finally {
+      delete process.env.MERI_AUDITOR_MODE;
+    }
   });
 
   it('drops a paragraph citing an unknown claim id (grounding gate)', async () => {

@@ -1,6 +1,7 @@
 import { Module } from '@nestjs/common';
 import { EngagementModule } from '../../engagement/engagement.module.js';
 import { ContextModule } from '../../context/context.module.js';
+import { ReviewsModule } from '../../reviews/reviews.module.js';
 import { PrismaModule } from '../../prisma/prisma.module.js';
 import { RepresentationModule } from '../../clients/representation.module.js';
 import { DistrictBriefController } from './district-brief.controller.js';
@@ -15,7 +16,7 @@ import { DistrictBriefService } from './district-brief.service.js';
  *   - ContextModule -> ContextCompilerService (client Memory files as steering, G1)
  */
 @Module({
-  imports: [PrismaModule, RepresentationModule, EngagementModule, ContextModule],
+  imports: [PrismaModule, RepresentationModule, EngagementModule, ContextModule, ReviewsModule],
   controllers: [DistrictBriefController],
   providers: [DistrictBriefService],
 })

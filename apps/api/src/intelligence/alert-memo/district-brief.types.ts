@@ -19,6 +19,12 @@ export interface DistrictBriefResult {
   /** true when grounding dropped everything and we fell back to a scaffold */
   lowConfidence: boolean;
   memoryFilesUsed: string[];
+  /**
+   * true when the grounding auditor HELD the brief (enforce mode + finding):
+   * generated + returned for review but NOT auto-filed; a pending review_request
+   * carries it until an admin/assigned reviewer approves (`document` is null).
+   */
+  held: boolean;
   /** which facility this brief covers, for the composer header */
   facility: { id: string; name: string; city: string | null; state: string | null };
 }

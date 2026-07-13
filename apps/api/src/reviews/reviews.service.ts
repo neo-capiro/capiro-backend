@@ -181,7 +181,9 @@ export class ReviewsService {
         fileName,
         contentType: DOCX_MIME,
         buffer,
-        source: 'intel_memo',
+        // Preserve each surface's own Documents provenance on release so an
+        // approved brief is tagged the same as an auto-filed one would have been.
+        source: row.surface === 'district-brief' ? 'district_brief' : 'intel_memo',
       });
       return { attachmentId: saved.id, fileName: saved.fileName };
     }

@@ -1,10 +1,16 @@
 import { Injectable, Logger, NotFoundException, ServiceUnavailableException } from '@nestjs/common';
 import { Prisma } from '@prisma/client';
-import { recordAiUsageEvent, parseProviderUsage, type TenantContext } from '@capiro/shared';
+import {
+  recordAiUsageEvent,
+  parseProviderUsage,
+  DELIVERABLE_RISK_TIERS,
+  type TenantContext,
+} from '@capiro/shared';
 import { runAuditor, type LedgerEntry, type AuditorMode } from '@capiro/meriv2-core';
 import { AiCredentialResolverService } from '../../engagement/ai-credential-resolver.service.js';
 import { EngagementService } from '../../engagement/engagement.service.js';
 import { ContextCompilerService } from '../../context/context-compiler.service.js';
+import { ReviewsService } from '../../reviews/reviews.service.js';
 import { PrismaService } from '../../prisma/prisma.service.js';
 import {
   RepresentationResolverService,
@@ -78,6 +84,7 @@ export class DistrictBriefService {
     private readonly credentials: AiCredentialResolverService,
     private readonly contextCompiler: ContextCompilerService,
     private readonly engagement: EngagementService,
+    private readonly reviews: ReviewsService,
   ) {}
 
   async generate(
@@ -169,6 +176,14 @@ export class DistrictBriefService {
     // returned (never an inference). The `claims` fact sheet is included too so
     // D1 citation checks have real substance. Fully guarded; never breaks brief
     // generation.
+    // held: set true only when the auditor returns decision==='hold' — which
+    // decisionFor() produces ONLY under mode==='enforce' on this (blocking,
+    // surface:'alert') surface with a finding. Under shadow/annotate it stays
+    // false, so the auto-file below is unchanged by default. Mirrors
+    // AlertMemoService: a held brief is generated and returned for review but
+    // NOT auto-filed, and becomes a pending review_request (G4).
+    let held = false;
+    let heldReason = '';
     const auditorMode = (process.env.MERI_AUDITOR_MODE as AuditorMode | undefined) ?? 'off';
     if (auditorMode !== 'off' && markdown.trim().length > 0) {
       try {
@@ -241,6 +256,14 @@ export class DistrictBriefService {
               `(${checks}).** Treat flagged claims as unconfirmed until a reviewer clears them.\n\n` +
               markdown;
           }
+          // Enforce = hold: block the auto-file below. decisionFor() returns
+          // 'hold' only in enforce mode, so this is inert under shadow/annotate.
+          held = verdict.decision === 'hold';
+          if (held) {
+            heldReason = `Grounding auditor: ${verdict.findings
+              .map((f) => `${f.check} (${f.severity}): ${f.detail}`)
+              .join('; ')}`.slice(0, 2000);
+          }
         }
       } catch (err) {
         this.logger.warn(
@@ -249,29 +272,55 @@ export class DistrictBriefService {
       }
     }
 
+    // Render docx + auto-file — UNLESS held for review (enforce + finding). A
+    // held brief is returned to the composer (markdown carries the Unverified
+    // banner) but NOT filed to the client's Documents until a reviewer clears
+    // it. G4: the hold becomes a pending review_request carrying everything
+    // approve() needs to file the brief (markdown + title + client). The review
+    // uses a district-brief-specific subject (facility+alert) so it never
+    // collides with — or blocks — an alert-memo review for the same alert.
     let document: DistrictBriefResult['document'] = null;
-    try {
-      const buffer = await renderMemoDocx(
-        toMemoDocInput(clientName, facility, alert, sections, sources),
+    if (held) {
+      this.logger.warn(
+        `[meri-auditor:enforce] district brief HELD for review — not auto-filed to client Documents`,
       );
-      const fileName = `${title}.docx`.replace(/[\\/:*?"<>|]+/g, '-');
-      const saved = await this.engagement.createAttachmentFromBuffer(ctx, {
+      await this.reviews.createSystem(ctx.tenantId, {
+        riskTier: DELIVERABLE_RISK_TIERS.district_brief ?? 'high',
+        surface: 'district-brief',
+        subjectType: 'district-brief',
+        subjectId: `${facilityId}:${alert.alertId}`,
         clientId,
-        fileName,
-        contentType: DOCX_MIME,
-        buffer,
-        source: 'district_brief',
+        title,
+        reason: heldReason || 'Grounding auditor held this district brief for review.',
+        payload: { markdown, title, clientName, clientId, alertId: alert.alertId, facilityId },
+        requestedBy: ctx.userId,
       });
-      document = { attachmentId: saved.id, fileName: saved.fileName };
-      if (replaceAttachmentId) {
-        await this.engagement
-          .deleteAttachment(ctx, replaceAttachmentId)
-          .catch((e) =>
-            this.logger.warn(`replace prior district brief doc failed: ${(e as Error).message}`),
-          );
+    } else {
+      try {
+        const buffer = await renderMemoDocx(
+          toMemoDocInput(clientName, facility, alert, sections, sources),
+        );
+        const fileName = `${title}.docx`.replace(/[\\/:*?"<>|]+/g, '-');
+        const saved = await this.engagement.createAttachmentFromBuffer(ctx, {
+          clientId,
+          fileName,
+          contentType: DOCX_MIME,
+          buffer,
+          source: 'district_brief',
+        });
+        document = { attachmentId: saved.id, fileName: saved.fileName };
+        if (replaceAttachmentId) {
+          await this.engagement
+            .deleteAttachment(ctx, replaceAttachmentId)
+            .catch((e) =>
+              this.logger.warn(`replace prior district brief doc failed: ${(e as Error).message}`),
+            );
+        }
+      } catch (err) {
+        this.logger.error(
+          `district-brief auto-file to Documents failed: ${(err as Error).message}`,
+        );
       }
-    } catch (err) {
-      this.logger.error(`district-brief auto-file to Documents failed: ${(err as Error).message}`);
     }
 
     return {
@@ -284,6 +333,7 @@ export class DistrictBriefService {
       model: cred.model,
       lowConfidence,
       memoryFilesUsed,
+      held,
       facility: {
         id: facility.id,
         name: facility.name,

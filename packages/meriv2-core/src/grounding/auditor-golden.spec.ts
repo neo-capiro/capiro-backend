@@ -7,14 +7,19 @@
  * and (b) the same-turn ToolResultLedger reflecting the TRUE data. The assertion
  * is that the deterministic auditor CATCHES the incident-specific error class.
  *
- * COVERAGE BOUNDARY (updated Phase 2.5-2, 2026-07-12): the full deterministic
- * taxonomy D1, D3, D4 (text + evidence), D4b, D5, D6, D7, D8, D9, D10, D11 is
- * shipped, registered in `runAuditor`, and asserted here — the three original
- * client incidents (Samples 1-3) plus the cataloged classes D3/D5/D8 that were
- * registered but had no golden regression until now (Sample 4). The ONLY
- * remaining `it.todo` is the residual undecidable class (fabricated staffer/
- * section specifics over 0-result evidence, S3-3/4/5) that routes to the LLM
- * skeptic — deferred with the skeptic's live wiring (2.5-3.2/3.3). Coverage is a
+ * COVERAGE BOUNDARY (updated 2026-07-13): the full deterministic taxonomy D1,
+ * D3, D4 (text + evidence), D4b, D5, D6, D7, D8, D9, D10, D11, and now D12
+ * (enactment-proof, safe status-contradiction form), D13 (legislative-stage
+ * ordering), D14 (negative-assertion, narrow contradiction-of-present-rows
+ * slice) is shipped, registered in `runAuditor`, and asserted here — the three
+ * original client incidents (Samples 1-3), the cataloged classes D3/D5/D8
+ * (Sample 4), and D12/D13/D14 (Sample 5). Two forms remain deliberately
+ * skeptic-deferred: (a) the residual undecidable class (fabricated staffer/
+ * section specifics over 0-result evidence, S3-3/4/5), and (b) D14's GENERAL
+ * negative-assertion/coverage form ("is retrieval complete enough to assert a
+ * negative?") — both unprovable deterministically and routed to the LLM skeptic.
+ * D12's stricter "structured public-law id + date field must be present" form is
+ * deferred pending a get_bill_status ledger-contract extension. Coverage is a
  * tracked metric, never implied.
  */
 import { runAuditor, type ToolResultLedger } from './auditor';
@@ -261,6 +266,89 @@ describe('GOLDEN — Sample 4: cataloged classes D3/D5/D8 (registered checks, no
     });
     expect(okSponsor.findings.some((f) => f.check === 'D5')).toBe(false);
   });
+});
+
+describe('GOLDEN — Sample 5: enactment-proof + stage-ordering + negative-assertion (D12/D13/D14)', () => {
+  const statusL = (billId: string, status: string, extra: Record<string, unknown> = {}) =>
+    ledger([
+      {
+        tool: 'get_bill_status',
+        serialized: JSON.stringify({ billId, status, ...extra }),
+        result: { billId, status, ...extra },
+      },
+    ]);
+
+  it('D12 catches an enactment claim over a non-enacted status (critical → hold on a blocking surface)', () => {
+    const v = runAuditor({
+      output: 'Good news — H.R. 8800 (hr-8800-119) was signed into law this week.',
+      ledger: statusL('hr-8800-119', 'rule_failed'),
+      surface: 'outreach',
+      mode: 'enforce',
+    });
+    expect(v.findings.some((f) => f.check === 'D12' && f.severity === 'critical')).toBe(true);
+    expect(v.decision).toBe('hold');
+  });
+
+  it('D12 does NOT fire when the bill really is enacted, nor on hedged enactment talk', () => {
+    const enacted = runAuditor({
+      output: 'H.R. 8800 (hr-8800-119) was enacted and is now Public Law 119-75.',
+      ledger: statusL('hr-8800-119', 'enacted'),
+      surface: 'outreach',
+      mode: 'enforce',
+    });
+    expect(enacted.findings.some((f) => f.check === 'D12')).toBe(false);
+
+    const hedged = runAuditor({
+      output: 'H.R. 8800 (hr-8800-119) has not yet been enacted; it awaits floor action.',
+      ledger: statusL('hr-8800-119', 'reported'),
+      surface: 'outreach',
+      mode: 'enforce',
+    });
+    expect(hedged.findings.some((f) => f.check === 'D12')).toBe(false);
+  });
+
+  it('D13 catches a bill described as further along than its retrieved status (high)', () => {
+    const v = runAuditor({
+      output: 'H.R. 8800 (hr-8800-119) passed the House and is headed to the President.',
+      ledger: statusL('hr-8800-119', 'reported'), // rank 2, far below to_president (7)
+      surface: 'memo',
+      mode: 'enforce',
+    });
+    expect(v.findings.some((f) => f.check === 'D13' && f.severity === 'high')).toBe(true);
+  });
+
+  it('D13 does NOT fire when the claimed stage matches the status, nor on hypotheticals', () => {
+    const exact = runAuditor({
+      output: 'H.R. 8800 (hr-8800-119) was sent to the President this week.',
+      ledger: statusL('hr-8800-119', 'to_president'), // rank 7 == claimed
+      surface: 'memo',
+      mode: 'enforce',
+    });
+    expect(exact.findings.some((f) => f.check === 'D13')).toBe(false);
+
+    const hypothetical = runAuditor({
+      output: 'If H.R. 8800 (hr-8800-119) passes the House, it would move to the Senate.',
+      ledger: statusL('hr-8800-119', 'reported'),
+      surface: 'memo',
+      mode: 'enforce',
+    });
+    expect(hypothetical.findings.some((f) => f.check === 'D13')).toBe(false);
+  });
+
+  it('D14 catches a "no sponsor" claim contradicted by a sponsor in the tool data (high)', () => {
+    const v = runAuditor({
+      output: 'Note: hr-8800-119 currently has no sponsor.',
+      ledger: statusL('hr-8800-119', 'reported', { sponsorName: 'Rep. Rob Wittman' }),
+      surface: 'chat',
+      mode: 'enforce',
+    });
+    expect(v.findings.some((f) => f.check === 'D14' && f.severity === 'high')).toBe(true);
+  });
+
+  // D14's GENERAL form (coverage-completeness / prove-a-negative over partial
+  // retrieval, S3-3/4/5) is deliberately NOT deterministic — it routes to the
+  // LLM skeptic. Only the narrow contradiction-of-present-rows slice ships here.
+  it.todo('D14 general negative-assertion/coverage — routes to the LLM skeptic (deferred)');
 });
 
 describe('GOLDEN — no false positives on the CORRECT versions of each incident', () => {
