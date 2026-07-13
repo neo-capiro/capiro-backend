@@ -29,6 +29,18 @@ export const configSchema = z.object({
   ANTHROPIC_API_KEY: z.string().optional(),
   ANTHROPIC_MODEL: z.string().default('claude-haiku-4-5-20251001'),
 
+  // Phase 1 SSOT-consolidation recall source (docs/plans/…phase-1-ssot-cutover-plan.md).
+  // Governs where Meri's learned-fact recall (loadRelevantMemories) reads from:
+  //   'clio'       — clio_memory.embedding (OpenAI), today's behavior. DEFAULT.
+  //   'union'      — clio-recall ∪ projection-recall (memory_items→context_embeddings,
+  //                  Titan), deduped. A SUPERSET: projection failures are caught and
+  //                  degrade to clio-only, so recall can never drop below 'clio'.
+  //   'projection' — projection only (the collapse). Flip ONLY after 'union' is
+  //                  observed stable and diag-memory-recall-parity reads
+  //                  wouldDropOnCollapse=0 for every tenant.
+  // Out-of-band flag flip, never on by a code deploy alone. Landed inert at 'clio'.
+  MEMORY_RECALL_SOURCE: z.enum(['clio', 'union', 'projection']).default('clio'),
+
   // Outreach prompt-assembly version (plan W2). 'v1' = the legacy single-string
   // prompt + JSON context dump; 'v2' = PromptSpec v2 (real system prompt, context
   // precedence ladder, spotlighted untrusted content, no raw JSON dump). Defaults

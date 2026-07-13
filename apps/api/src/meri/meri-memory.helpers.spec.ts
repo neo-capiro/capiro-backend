@@ -2,9 +2,29 @@ import {
   buildSavedMemoryRecord,
   extractMemoryKeywords,
   memoryKeySlug,
+  memorySectionValue,
   rankMemoriesByKeyword,
   userScopedMemoryKey,
 } from './meri-memory.helpers.js';
+
+describe('memorySectionValue (Phase 1 SSOT projection recall)', () => {
+  const section = (body: string) => [{ key: 'memory', heading: 'Memory', owner: 'human', body }];
+  it('returns the memory section body verbatim when there is no graph suffix', () => {
+    expect(memorySectionValue(section('Invoices monthly on the first'))).toBe(
+      'Invoices monthly on the first',
+    );
+  });
+  it('strips a trailing "Related:" wikilink line the projection appended', () => {
+    expect(
+      memorySectionValue(section('Client prefers email over calls\n\nRelated: [[person:jane]] [[client:acme]]')),
+    ).toBe('Client prefers email over calls');
+  });
+  it('returns "" for a missing/odd sections shape rather than throwing', () => {
+    expect(memorySectionValue(null)).toBe('');
+    expect(memorySectionValue([{ key: 'other', body: 'x' }])).toBe('');
+    expect(memorySectionValue('nope' as unknown)).toBe('');
+  });
+});
 
 describe('rankMemoriesByKeyword (W2 memory fallback)', () => {
   const mems = [

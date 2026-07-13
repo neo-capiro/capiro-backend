@@ -157,3 +157,22 @@ export function rankMemoriesByKeyword<T extends RankableMemory>(
   // Nothing matched — never go fully blind; return the most recent memories.
   return memories.slice(0, limit);
 }
+
+/**
+ * Reconstruct a clio memory's `value` from its memory_items projection sections
+ * (Phase 1 SSOT projection recall). clioMemoryToItem stores the value in the
+ * 'memory' section body, optionally suffixed with a "\n\nRelated: [[..]] .."
+ * wikilink line (memory-clio-adapter.helpers.ts) — strip that graph suffix so
+ * the recalled value matches the original clio_memory.value. Tolerant of a
+ * missing/oddly-shaped sections array (returns '' rather than throwing).
+ */
+export function memorySectionValue(sections: unknown): string {
+  if (!Array.isArray(sections)) return '';
+  const mem = sections.find(
+    (s): s is { key?: unknown; body?: unknown } =>
+      !!s && typeof s === 'object' && (s as { key?: unknown }).key === 'memory',
+  );
+  const body = mem && typeof mem.body === 'string' ? mem.body : '';
+  // Drop a trailing "\n\nRelated: …" line appended by the projection.
+  return body.replace(/\n\nRelated:[^\n]*$/, '').trim();
+}
