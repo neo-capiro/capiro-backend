@@ -39,6 +39,7 @@ import {
   getProgramElementProcurementLines,
 } from './api.js';
 import { FyHistoryChart } from './FyHistoryChart.js';
+import { FundingNarrativePanel } from './FundingNarrativePanel.js';
 import { buildFundingSeries, STAGE_LABEL } from './funding-model.js';
 import { BillsTouchingPePanel } from './BillsTouchingPePanel.js';
 import { ContractorsPanel } from './ContractorsPanel.js';
@@ -801,6 +802,11 @@ export function ProgramElementWatchPage() {
             <Empty description="No budget-year data has been synced for this Program Element yet." />
           </Card>
         )}
+      </div>
+
+      {/* Phase 4 (4.1): assembled request→marks→enactment narrative for the current cycle. */}
+      <div className="pe-surface pe-plain-surface span-2">
+        <FundingNarrativePanel peCode={normalizedPeCode} />
       </div>
     </div>
   );

@@ -6,7 +6,10 @@ import { RolesGuard } from '../auth/roles.guard.js';
 import { CurrentTenant } from '../tenant/current-tenant.decorator.js';
 import { QueryProgramElementsDto } from './dto/query-program-elements.dto.js';
 import { WatchProgramElementDto } from './dto/watch-program-element.dto.js';
-import { ProgramElementReadService, type ReconciliationDecision } from './program-element-read.service.js';
+import {
+  ProgramElementReadService,
+  type ReconciliationDecision,
+} from './program-element-read.service.js';
 import { ProgramElementWriterService } from './program-element-writer.service.js';
 import { MANUAL_OVERRIDE_SOURCE, type PeYearInput } from './types.js';
 
@@ -131,6 +134,13 @@ export class ProgramElementController {
   @Get(':peCode/timeline')
   timeline(@Param('peCode') peCode: string) {
     return this.service.getTimeline(peCode);
+  }
+
+  // Phase 4 (4.1): the assembled request→marks→enactment narrative for the
+  // current cycle (stage-labeled steps + the FY's material moves).
+  @Get(':peCode/narrative')
+  narrative(@Param('peCode') peCode: string) {
+    return this.service.getNarrative(peCode);
   }
 
   @Get(':peCode/bills')

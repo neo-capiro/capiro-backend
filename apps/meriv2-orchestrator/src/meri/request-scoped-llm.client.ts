@@ -1,5 +1,5 @@
 import { Logger } from '@nestjs/common';
-import { AnthropicLlmClient, type LlmClient } from '@capiro/meriv2-core';
+import { AnthropicLlmClient, OpenAiLlmClient, type LlmClient } from '@capiro/meriv2-core';
 import { parseProviderUsage, type ProviderUsage } from '@capiro/shared';
 import { RequestCredentialsStore } from '../request/request-credentials.store.js';
 
@@ -57,17 +57,37 @@ export class RequestScopedLlmClient implements LlmClient {
    * (BYOK option c), else the constructor-injected global key. Model: the
    * tenant's explicit override wins, else the orchestrator default.
    */
-  private resolve(): { apiKey: string; model: string; usedTenantKey: boolean } {
+  private resolve(): {
+    apiKey: string;
+    model: string;
+    usedTenantKey: boolean;
+    provider: 'anthropic' | 'openai';
+  } {
     const cred = RequestCredentialsStore.get()?.aiProvider;
     const apiKey = cred?.apiKey ?? this.globalApiKey;
     if (!apiKey) {
       throw new Error(
-        'No Anthropic credential available: no tenant credential on the request and no global key configured',
+        'No LLM credential available: no tenant credential on the request and no global key configured',
       );
     }
     const model = cred?.modelOverridden ? cred.model : this.defaultModel;
     const usedTenantKey = Boolean(cred?.usedTenantKey && cred.apiKey);
-    return { apiKey, model, usedTenantKey };
+    // Phase 4 LLM-gateway convergence: honor the provider the credential
+    // resolver already forwarded. The global fallback key is Anthropic, so a
+    // missing/absent cred defaults to 'anthropic' (today's behavior unchanged).
+    const provider = cred?.provider ?? 'anthropic';
+    return { apiKey, model, usedTenantKey, provider };
+  }
+
+  /** Build the schema-capable client for the resolved provider (reasoning-tool
+   *  paths only — completeJson / completeWithSchema). */
+  private buildClient(apiKey: string, model: string, provider: 'anthropic' | 'openai'): LlmClient {
+    const opts = {
+      apiKey,
+      model,
+      ...(this.timeoutMs !== undefined ? { timeoutMs: this.timeoutMs } : {}),
+    };
+    return provider === 'openai' ? new OpenAiLlmClient(opts) : new AnthropicLlmClient(opts);
   }
 
   async completeJson(params: {
@@ -75,14 +95,11 @@ export class RequestScopedLlmClient implements LlmClient {
     prompt: string;
     maxTokens?: number;
   }): Promise<Record<string, unknown>> {
-    const { apiKey, model, usedTenantKey } = this.resolve();
-    this.logger.debug(`LLM completion (model=${model}, usedTenantKey=${usedTenantKey})`);
-    const client = new AnthropicLlmClient({
-      apiKey,
-      model,
-      ...(this.timeoutMs !== undefined ? { timeoutMs: this.timeoutMs } : {}),
-    });
-    return client.completeJson(params);
+    const { apiKey, model, usedTenantKey, provider } = this.resolve();
+    this.logger.debug(
+      `LLM completion (provider=${provider}, model=${model}, usedTenantKey=${usedTenantKey})`,
+    );
+    return this.buildClient(apiKey, model, provider).completeJson(params);
   }
 
   /**
@@ -99,14 +116,11 @@ export class RequestScopedLlmClient implements LlmClient {
     inputSchema: Record<string, unknown>;
     maxTokens?: number;
   }): Promise<{ input: unknown; usage: { inputTokens: number; outputTokens: number } }> {
-    const { apiKey, model, usedTenantKey } = this.resolve();
-    this.logger.debug(`LLM schema completion (model=${model}, usedTenantKey=${usedTenantKey})`);
-    const client = new AnthropicLlmClient({
-      apiKey,
-      model,
-      ...(this.timeoutMs !== undefined ? { timeoutMs: this.timeoutMs } : {}),
-    });
-    return client.completeWithSchema(params);
+    const { apiKey, model, usedTenantKey, provider } = this.resolve();
+    this.logger.debug(
+      `LLM schema completion (provider=${provider}, model=${model}, usedTenantKey=${usedTenantKey})`,
+    );
+    return this.buildClient(apiKey, model, provider).completeWithSchema(params);
   }
 
   /**
@@ -133,7 +147,19 @@ export class RequestScopedLlmClient implements LlmClient {
     /** Optional external cancellation (streaming client disconnect) — composed with the timeout. */
     signal?: AbortSignal;
   }): Promise<ToolLoopResponse> {
-    const { apiKey, model, usedTenantKey } = this.resolve();
+    const { apiKey, model, usedTenantKey, provider } = this.resolve();
+    // Phase 4 LLM-gateway convergence: the reasoning-tool paths (completeJson/
+    // completeWithSchema) are provider-agnostic, but the agentic chat tool-LOOP
+    // below is still Anthropic-wire-shaped (content blocks, tool_use/tool_result,
+    // stop_reason). Fail LOUD for an OpenAI credential rather than send an
+    // OpenAI key to the Anthropic endpoint. The OpenAI tool-loop adapter
+    // (message-history + tool-call translation) is the remaining larger piece.
+    if (provider === 'openai') {
+      throw new Error(
+        'MeriV2 chat tool-loop does not yet support the OpenAI provider; the reasoning-tool paths do. ' +
+          'Configure this tenant for Anthropic chat, or complete the OpenAI chat tool-loop adapter.',
+      );
+    }
     this.logger.debug(`LLM tool round (model=${model}, usedTenantKey=${usedTenantKey})`);
     const controller = new AbortController();
     const timeout = params.timeoutMs ?? this.timeoutMs ?? 120_000;
