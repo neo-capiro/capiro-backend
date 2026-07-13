@@ -100,6 +100,34 @@ export class MemoryStoreService {
     });
   }
 
+  /**
+   * P2 — active, visible memories whose review cadence has elapsed since they
+   * were last confirmed (or created, if never confirmed). Surfacing only:
+   * review-due ≠ wrong, so these are NOT excluded from recall — they flag items
+   * a reviewer should reconfirm (§3.2 / §12.6 stale-memory signal). The cadence
+   * predicate runs in SQL (COALESCE(last_confirmed_at, created_at) +
+   * review_cadence_days) so it scales; isReviewDue() mirrors it for tests.
+   * Ordered most-overdue first.
+   */
+  async listReviewDue(): Promise<MemoryItem[]> {
+    const ctx = this.tenantCtx.require();
+    return this.prisma.withTenantUser(ctx.tenantId, ctx.userId, async (tx) => {
+      const rows = await tx.$queryRaw<MemoryItemRow[]>`
+        SELECT * FROM memory_items
+        WHERE tenant_id = ${ctx.tenantId}::uuid
+          AND (visibility = 'tenant' OR owner_user_id = ${ctx.userId}::uuid)
+          AND status = 'active'
+          AND (expires_at IS NULL OR expires_at > now())
+          AND review_cadence_days IS NOT NULL
+          AND review_cadence_days > 0
+          AND COALESCE(last_confirmed_at, created_at)
+              + (review_cadence_days * INTERVAL '1 day') < now()
+        ORDER BY COALESCE(last_confirmed_at, created_at) ASC
+      `;
+      return rows.map((r) => this.rowToItem(r));
+    });
+  }
+
   /** Project an item to its Obsidian-format markdown + canonical vault path. */
   project(item: MemoryItem): { path: string; markdown: string } {
     return { path: vaultPathForItem(item), markdown: renderMemoryItem(item) };

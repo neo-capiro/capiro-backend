@@ -1,18 +1,39 @@
-import { Body, Controller, ForbiddenException, Get, NotFoundException, Param, Post, Put, Query, UseGuards } from '@nestjs/common';
+import {
+  Body,
+  Controller,
+  ForbiddenException,
+  Get,
+  NotFoundException,
+  Param,
+  Post,
+  Put,
+  Query,
+  UseGuards,
+} from '@nestjs/common';
 import { RolesGuard } from '../auth/roles.guard.js';
 import { Roles } from '../auth/roles.decorator.js';
 import { CurrentTenant } from '../tenant/current-tenant.decorator.js';
 import type { TenantContext } from '@capiro/shared';
 import { MemoryStoreService } from './memory-store.service.js';
+import { daysOverdue } from './memory-staleness.helpers.js';
 import { MemoryFkLoader } from './memory-fk-loader.service.js';
 import { MemoryIngestService } from './memory-ingest.service.js';
 import { MemoryInterviewService } from './memory-interview.service.js';
 import { MemoryCandidateService } from './memory-candidate.service.js';
 import type { MemoryItemType } from './memory.types.js';
 import { buildKnowledgeGraph, walkFrom } from './memory-graph.helpers.js';
-import { MEMORY_CATALOG, fileDefForType, editableSectionKeys, skeletonSections } from './memory-catalog.js';
+import {
+  MEMORY_CATALOG,
+  fileDefForType,
+  editableSectionKeys,
+  skeletonSections,
+} from './memory-catalog.js';
 import { buildInterviewQuestions } from './memory-interview.helpers.js';
-import { toManifestRow, selectForExport, type ExportManifestRow } from './memory-governance.helpers.js';
+import {
+  toManifestRow,
+  selectForExport,
+  type ExportManifestRow,
+} from './memory-governance.helpers.js';
 
 /**
  * Memory retrieval + knowledge-graph surface.
@@ -58,14 +79,46 @@ export class MemoryController {
   }
 
   @Get('items')
-  async listItems(
-    @Query('clientId') clientId?: string,
-    @Query('type') type?: MemoryItemType,
-  ) {
+  async listItems(@Query('clientId') clientId?: string, @Query('type') type?: MemoryItemType) {
     const items = await this.store.listForCurrentTenant({ clientId, type });
     return items.map((i) => ({
-      id: i.id, type: i.type, slug: i.slug, title: i.title,
-      clientId: i.clientId, visibility: i.visibility, entityId: i.entityId, updatedAt: i.updatedAt,
+      id: i.id,
+      type: i.type,
+      slug: i.slug,
+      title: i.title,
+      clientId: i.clientId,
+      visibility: i.visibility,
+      entityId: i.entityId,
+      updatedAt: i.updatedAt,
+    }));
+  }
+
+  /**
+   * P2 — memories past their review cadence (§3.2/§12.6). Surfacing only:
+   * these are still recalled; the list flags what a reviewer should reconfirm.
+   * `daysOverdue` sorts the worst first. standard_user (own + tenant-visible).
+   */
+  @Get('review-due')
+  async listReviewDue() {
+    const items = await this.store.listReviewDue();
+    const now = new Date();
+    return items.map((i) => ({
+      id: i.id,
+      type: i.type,
+      slug: i.slug,
+      title: i.title,
+      clientId: i.clientId,
+      visibility: i.visibility,
+      reviewCadenceDays: i.reviewCadenceDays,
+      lastConfirmedAt: i.lastConfirmedAt,
+      daysOverdue: daysOverdue(
+        {
+          reviewCadenceDays: i.reviewCadenceDays,
+          lastConfirmedAt: i.lastConfirmedAt,
+          createdAt: i.createdAt,
+        },
+        now,
+      ),
     }));
   }
 
@@ -143,7 +196,12 @@ export class MemoryController {
     const effectiveSlug = scope === 'user' ? ctx.userId : slug;
     const clientId = scope === 'client' ? slug : null;
     const updated = await this.store.upsertSectionsForCurrentTenant(
-      type, effectiveSlug, scope, clientId, body?.sections ?? [], editableSectionKeys(type),
+      type,
+      effectiveSlug,
+      scope,
+      clientId,
+      body?.sections ?? [],
+      editableSectionKeys(type),
     );
     return { ok: true, updatedAt: updated.updatedAt };
   }
@@ -299,7 +357,10 @@ function shortestPath(
         if (nb === to) {
           const path = [nb];
           let cur = nb;
-          while (prev.has(cur)) { cur = prev.get(cur)!; path.unshift(cur); }
+          while (prev.has(cur)) {
+            cur = prev.get(cur)!;
+            path.unshift(cur);
+          }
           return path;
         }
         next.push(nb);
