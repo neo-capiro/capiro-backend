@@ -22,6 +22,8 @@ import { ContextModule } from '../context/context.module.js';
 import { GoogleOAuthController } from './google/google-oauth.controller.js';
 import { GoogleOAuthService } from './google/google-oauth.service.js';
 import { GoogleSyncService } from './google/google-sync.service.js';
+import { OutcomeService } from './outcome/outcome.service.js';
+import { OutcomeController } from './outcome/outcome.controller.js';
 
 @Module({
   imports: [
@@ -38,10 +40,12 @@ import { GoogleSyncService } from './google/google-sync.service.js';
     MicrosoftOAuthController,
     GoogleOAuthController,
     InternalAiCredentialsController,
+    OutcomeController,
   ],
   providers: [
     EngagementService,
     OutreachJobService,
+    OutcomeService,
     NotetakerService,
     ClientAssociationService,
     EngagementAiService,
@@ -54,6 +58,7 @@ import { GoogleSyncService } from './google/google-sync.service.js';
     TokenCryptoService,
   ],
   exports: [
+    OutcomeService,
     EngagementService,
     NotetakerService,
     MicrosoftGraphSyncService,

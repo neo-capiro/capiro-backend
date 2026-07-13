@@ -12,6 +12,7 @@ import { ClientTargetsService } from './client-targets.service.js';
 import { ClientTargetRecommendationsController } from './client-target-recommendations.controller.js';
 import { ClientTargetRecommendationsService } from './client-target-recommendations.service.js';
 import { RepresentationModule } from './representation.module.js';
+import { EngagementModule } from '../engagement/engagement.module.js';
 import { EmbeddingsModule } from '../embeddings/embeddings.module.js';
 import { IntelligenceModule } from '../intelligence/intelligence.module.js';
 import { DirectoryModule } from '../directory/directory.module.js';
@@ -20,7 +21,14 @@ import { DirectoryModule } from '../directory/directory.module.js';
   // RepresentationModule (not folded in here) so DirectoryModule can ALSO
   // depend on it without a cycle — ClientsModule already imports
   // DirectoryModule for the Facilities tab's directory cross-links.
-  imports: [EmbeddingsModule, IntelligenceModule, DirectoryModule, RepresentationModule],
+  imports: [
+    EmbeddingsModule,
+    IntelligenceModule,
+    DirectoryModule,
+    RepresentationModule,
+    // G3: OutcomeService for the submission-outcome mirror.
+    EngagementModule,
+  ],
   controllers: [
     ClientsController,
     ClientCapabilitiesController,

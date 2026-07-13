@@ -583,10 +583,44 @@ export class GenerationService {
       where: { id: draftId },
       data: { config: { ...cfg, ...rest, ...provenancePatch, ...groundingPatch } as never },
     });
-    return this.prisma.wsDraft.findFirst({
+    const refreshed = await this.prisma.wsDraft.findFirst({
       where: { id: draftId, tenantId },
       include: { documents: { orderBy: { ordinal: 'asc' } } },
     });
+
+    // G3 edit-distance instrumentation: snapshot the AS-GENERATED state as a
+    // meri-authored version. Human autosaves overwrite config.sectionContent
+    // in place, so without this immutable snapshot the "how much did a human
+    // rework the draft" metric (blueprint §12.6 draft-usefulness) is
+    // uncomputable — WsAuthorKind.meri existed since Phase 6 but nothing ever
+    // wrote it. Fire-and-forget: a snapshot failure never fails generation.
+    if (refreshed) {
+      void this.prisma.wsDocVersion
+        .create({
+          data: {
+            tenantId,
+            draftId,
+            label: 'As generated',
+            authorId: 'meri',
+            authorKind: 'meri',
+            snapshot: {
+              docTitle: refreshed.docTitle,
+              config: refreshed.config,
+              ask: refreshed.ask,
+              documents: refreshed.documents.map((d) => ({
+                id: d.id,
+                name: d.name,
+                ordinal: d.ordinal,
+                body: d.body,
+              })),
+            } as never,
+          },
+        })
+        .catch((e: unknown) =>
+          this.logger.warn(`as-generated snapshot failed (non-fatal): ${(e as Error).message}`),
+        );
+    }
+    return refreshed;
   }
 
   /**

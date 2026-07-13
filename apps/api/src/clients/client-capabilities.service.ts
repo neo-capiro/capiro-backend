@@ -2,6 +2,7 @@ import { Injectable, NotFoundException } from '@nestjs/common';
 import type { TenantContext } from '@capiro/shared';
 import { PrismaService } from '../prisma/prisma.service.js';
 import { EmbeddingsService } from '../embeddings/embeddings.service.js';
+import { OutcomeService } from '../engagement/outcome/outcome.service.js';
 
 export interface CreateCapabilityInput {
   name: string;
@@ -88,6 +89,9 @@ export class ClientCapabilitiesService {
     // RAG sees the new capability without a wait for the next backfill.
     // Fire-and-forget, embed failures must never bubble up to the user.
     private readonly embeddings: EmbeddingsService,
+    // G3: decisive submission outcomes mirror into the structured
+    // outcome_event stream (fail-open — never breaks the source write).
+    private readonly outcomes: OutcomeService,
   ) {}
 
   private async assertClient(tenantId: string, clientId: string, tx: typeof this.prisma) {
@@ -181,9 +185,7 @@ export class ClientCapabilitiesService {
             ? { targetSubcommittee: input.targetSubcommittee ?? null }
             : {}),
           ...('fundingAsk' in input ? { fundingAsk: input.fundingAsk ?? null } : {}),
-          ...('fundingAskLabel' in input
-            ? { fundingAskLabel: input.fundingAskLabel ?? null }
-            : {}),
+          ...('fundingAskLabel' in input ? { fundingAskLabel: input.fundingAskLabel ?? null } : {}),
           ...('justification' in input ? { justification: input.justification ?? null } : {}),
           ...('districtNexus' in input ? { districtNexus: input.districtNexus ?? null } : {}),
           ...('existingContracts' in input
@@ -260,7 +262,7 @@ export class ClientCapabilitiesService {
         select: { id: true },
       });
       if (!cap) throw new NotFoundException('Capability not found');
-      return tx.clientSubmissionHistory.create({
+      const created = await tx.clientSubmissionHistory.create({
         data: {
           tenantId: ctx.tenantId,
           clientId,
@@ -273,17 +275,54 @@ export class ClientCapabilitiesService {
           notes: input.notes ?? null,
         },
       });
+      this.mirrorOutcome(ctx.tenantId, clientId, created.id, input.outcomeType, input.outcome);
+      return created;
     });
   }
 
-  async updateHistory(ctx: TenantContext, clientId: string, id: string, input: UpdateSubmissionHistoryInput) {
+  /**
+   * G3: a DECISIVE submission outcome (won/success/partial/lost/failed) is a
+   * real-world advocacy result — mirror it into the structured outcome_event
+   * stream so artifacts/outreach/results connect. in_progress is not a result
+   * and is never mirrored. Fire-and-forget by contract.
+   */
+  private mirrorOutcome(
+    tenantId: string,
+    clientId: string,
+    submissionId: string,
+    outcomeType: string | null | undefined,
+    outcomeText: string | null | undefined,
+  ): void {
+    const t = (outcomeType ?? '').toLowerCase();
+    const kind =
+      t === 'won' || t === 'success' || t === 'partial'
+        ? ('funding_changed' as const)
+        : t === 'lost' || t === 'failed'
+          ? ('no_action' as const)
+          : null;
+    if (!kind) return;
+    void this.outcomes.recordSystem(tenantId, {
+      kind,
+      sourceType: 'submission',
+      sourceId: submissionId,
+      clientId,
+      evidence: { outcomeType: t, ...(outcomeText ? { outcome: outcomeText } : {}) },
+    });
+  }
+
+  async updateHistory(
+    ctx: TenantContext,
+    clientId: string,
+    id: string,
+    input: UpdateSubmissionHistoryInput,
+  ) {
     return this.prisma.withTenant(ctx.tenantId, async (tx) => {
       const existing = await tx.clientSubmissionHistory.findFirst({
         where: { id, tenantId: ctx.tenantId, clientId },
         select: { id: true },
       });
       if (!existing) throw new NotFoundException('Submission history entry not found');
-      return tx.clientSubmissionHistory.update({
+      const updated = await tx.clientSubmissionHistory.update({
         where: { id },
         data: {
           ...('fiscalYear' in input ? { fiscalYear: input.fiscalYear } : {}),
@@ -294,6 +333,10 @@ export class ClientCapabilitiesService {
           ...('notes' in input ? { notes: input.notes ?? null } : {}),
         },
       });
+      if ('outcomeType' in input) {
+        this.mirrorOutcome(ctx.tenantId, clientId, id, input.outcomeType, input.outcome ?? null);
+      }
+      return updated;
     });
   }
 

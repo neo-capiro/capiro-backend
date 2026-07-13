@@ -24,8 +24,14 @@ describe('ClientCapabilitiesService — issueCodes persistence', () => {
       ),
     };
     const embeddings = { embedCapabilityFireAndForget: jest.fn() };
-    const service = new ClientCapabilitiesService(prisma as never, embeddings as never);
-    return { service, tenantTx };
+    // G3: submission-outcome mirror (fire-and-forget; asserted in its own tests)
+    const outcomes = { recordSystem: jest.fn(async () => undefined) };
+    const service = new ClientCapabilitiesService(
+      prisma as never,
+      embeddings as never,
+      outcomes as never,
+    );
+    return { service, tenantTx, outcomes };
   };
 
   test('createCapability persists normalized issueCodes (uppercase, deduped)', async () => {

@@ -246,6 +246,7 @@ model Tenant {
   aiRuns                       AiRun[]
   meriAuditLedgerEntries       MeriAuditLedger[]
   contextPackets               ContextPacket[]
+  outcomeEvents                OutcomeEvent[]
   aiCredentials                TenantAiCredential[]
   usageMeters                  TenantUsageMeter[]
   memoryItems                  MemoryItem[]
@@ -1696,6 +1697,38 @@ model MeriAuditLedger {
   @@index([tenantId, createdAt(sort: Desc)], map: "meri_audit_ledger_tenant_created_idx")
   @@index([surface, topSeverity, createdAt(sort: Desc)], map: "meri_audit_ledger_surface_severity_idx")
   @@map("meri_audit_ledger")
+}
+
+/// G3 — structured advocacy outcomes (blueprint §3.1 stage 5 + §5.2 flywheel).
+/// One row per observed result of the firm's work, loosely linked to its
+/// source (outreach/meeting/artifact/campaign/submission) via source_type +
+/// source_id (the EngagementTask precedent). Funding outcomes SNAPSHOT their
+/// evidence into `evidence` (PE rows are global + superseded — never FK
+/// them). RLS per the meri_audit_ledger template.
+model OutcomeEvent {
+  id         String   @id @default(uuid()) @db.Uuid
+  tenantId   String   @map("tenant_id") @db.Uuid
+  clientId   String?  @map("client_id") @db.Uuid
+  /// response_received | meeting_scheduled | meeting_held | language_included
+  /// | funding_changed | filing_completed | commitment_secured | no_action
+  kind       String   @db.VarChar(32)
+  /// outreach | meeting | artifact | campaign | submission | manual
+  sourceType String   @map("source_type") @db.VarChar(24)
+  sourceId   String?  @map("source_id")
+  /// Snapshotted proof: { peCode?, fiscalYear?, stage?, amountFrom?, amountTo?, billNumber?, ... }
+  evidence   Json     @default("{}") @map("evidence_jsonb")
+  notes      String?
+  /// users.id of whoever recorded it; NULL for system-emitted mirrors.
+  recordedBy String?  @map("recorded_by") @db.Uuid
+  observedAt DateTime @default(now()) @map("observed_at") @db.Timestamptz(6)
+  createdAt  DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  @@index([tenantId, observedAt(sort: Desc)], map: "outcome_event_tenant_observed_idx")
+  @@index([tenantId, clientId, observedAt(sort: Desc)], map: "outcome_event_tenant_client_idx")
+  @@index([tenantId, sourceType, sourceId], map: "outcome_event_source_idx")
+  @@map("outcome_event")
 }
 
 /// Context Compiler v1 packet trace (G1, blueprint §4.6.4). One row per compiled

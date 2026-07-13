@@ -65,6 +65,7 @@ import { MeetingNotesCryptoService } from './meeting-notes-crypto.service.js';
 import { MicrosoftGraphSyncService } from './microsoft/microsoft-graph-sync.service.js';
 import { ClientKbService } from '../embeddings/client-kb.service.js';
 import { ContextCompilerService } from '../context/context-compiler.service.js';
+import { editRatio } from '../common/text-distance.js';
 import {
   billIdFromItemId,
   peCodeFromItemId,
@@ -1643,6 +1644,23 @@ export class EngagementService {
     );
     await this.recordAiUsage(ctx, 'outreach_draft', generated);
 
+    const draftSubject =
+      record.type === 'campaign'
+        ? resolveGeneratedCampaignDraft(
+            generated.subject,
+            recipients,
+            mergeJsonObjects(record.metadata, requestMetadata ?? {}),
+          )
+        : generated.subject;
+    const draftBody =
+      record.type === 'campaign'
+        ? resolveGeneratedCampaignDraft(
+            generated.body,
+            recipients,
+            mergeJsonObjects(record.metadata, requestMetadata ?? {}),
+          )
+        : generated.body;
+
     const nextMetadata = mergeJsonObjects(
       mergeJsonObjects(record.metadata, {
         ...(requestMetadata ?? {}),
@@ -1654,18 +1672,16 @@ export class EngagementService {
           model: generated.model,
           generatedAt: generatedAt.toISOString(),
           promptSpecVersion: generated.promptSpecVersion ?? 'v1',
+          // G3 edit-distance instrumentation: the AS-GENERATED text, preserved
+          // immutably here because human edits overwrite subject/body in place.
+          // Send-time computes editRatio(generatedBody, sent body) — the
+          // blueprint's "draft usefulness" flywheel signal.
+          generatedSubject: draftSubject ?? null,
+          generatedBody: draftBody ?? null,
         },
       }),
       { direction, contextPool },
     );
-    const draftSubject =
-      record.type === 'campaign'
-        ? resolveGeneratedCampaignDraft(generated.subject, recipients, nextMetadata)
-        : generated.subject;
-    const draftBody =
-      record.type === 'campaign'
-        ? resolveGeneratedCampaignDraft(generated.body, recipients, nextMetadata)
-        : generated.body;
 
     return this.updateOutreachRecord(ctx, id, {
       direction,
@@ -1785,6 +1801,23 @@ export class EngagementService {
     }
 
     const now = new Date();
+    // G3 edit-distance: how much a human reworked the AI draft before sending
+    // (0 = verbatim, 1 = full rewrite). Only computable when the as-generated
+    // shadow exists (drafts generated after G3 shipped).
+    const aiMeta = ((record.metadata as Record<string, unknown> | null)?.ai ?? null) as {
+      generatedBody?: string | null;
+      generatedSubject?: string | null;
+    } | null;
+    const editDistance =
+      aiMeta?.generatedBody && record.body
+        ? {
+            bodyEditRatio: editRatio(aiMeta.generatedBody, record.body),
+            subjectEditRatio:
+              aiMeta.generatedSubject && record.subject
+                ? editRatio(aiMeta.generatedSubject, record.subject)
+                : null,
+          }
+        : null;
     const stats = {
       provider: 'microsoft_graph',
       connectionId: connection.id,
@@ -1795,6 +1828,7 @@ export class EngagementService {
       // Opens are NOT tracked (no tracking pixels — D8). Only real signals are
       // persisted; reply detection updates replyCount when it lands.
       replyCount: 0,
+      ...(editDistance ? { editDistance } : {}),
       sent,
       ...(errors.length ? { errors } : {}),
     };
