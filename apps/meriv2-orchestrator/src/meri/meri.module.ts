@@ -3,6 +3,7 @@ import { PrismaService } from '../prisma/prisma.service.js';
 import { MeriController } from './meri.controller.js';
 import { MeriRegistryService } from './meri-registry.service.js';
 import { MeriContextResolver } from './meri-context.resolver.js';
+import { OrchestratorContextCompilerService } from './context-compiler.service.js';
 import { ApiClientContextRepo } from './api-client-context.repo.js';
 import { ApiToolExecutorRepo } from './api-tool-executor.repo.js';
 import { ApiApprovalRepo } from './api-approval.repo.js';
@@ -27,6 +28,7 @@ import { WorkspaceGenClient } from './workspace-gen/workspace-gen.client.js';
   providers: [
     PrismaService,
     MeriContextResolver,
+    OrchestratorContextCompilerService,
     ApiClientContextRepo,
     ApiToolExecutorRepo,
     ApiApprovalRepo,

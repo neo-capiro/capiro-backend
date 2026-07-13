@@ -1,7 +1,8 @@
-import { Injectable, UnauthorizedException } from '@nestjs/common';
+import { Injectable, Logger, UnauthorizedException } from '@nestjs/common';
 import type { TenantRole } from '@capiro/shared';
-import type { MeriContext } from '@capiro/meriv2-core';
+import { renderedBody, type MeriContext } from '@capiro/meriv2-core';
 import { PrismaService } from '../prisma/prisma.service.js';
+import { OrchestratorContextCompilerService } from './context-compiler.service.js';
 import type { OrchestratorTenantContext } from '../auth/tenant-context.js';
 
 /**
@@ -12,10 +13,22 @@ import type { OrchestratorTenantContext } from '../auth/tenant-context.js';
  * apps/api on the delegated call, so this lookup is identity resolution, not an
  * authorization decision). Throws 401 if the verified Clerk user has no Capiro
  * User row — fail closed, never synthesize an id.
+ *
+ * Firm identity + user voice load through the shared Context Compiler (G1-b)
+ * — the same contract, owner-aware tenancy discipline (withTenantUser; the 1C
+ * RLS policy hides private user-voice rows otherwise — the exact per-surface
+ * drift that silently broke GA-chat voice on 2026-07-12) and packet trace as
+ * every other Meri surface. Best-effort: a compile failure must never block a
+ * chat turn, so the context simply arrives without firm/voice blocks.
  */
 @Injectable()
 export class MeriContextResolver {
-  constructor(private readonly prisma: PrismaService) {}
+  private readonly logger = new Logger(MeriContextResolver.name);
+
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly contextCompiler: OrchestratorContextCompilerService,
+  ) {}
 
   async resolve(tc: OrchestratorTenantContext): Promise<MeriContext> {
     const user = await this.prisma.user.findUnique({
@@ -25,10 +38,27 @@ export class MeriContextResolver {
     if (!user) {
       throw new UnauthorizedException('No Capiro user for the authenticated identity');
     }
-    const [firmMemory, userVoice] = await Promise.all([
-      this.loadFirmMemory(tc.tenantId),
-      this.loadUserVoice(tc.tenantId, user.id),
-    ]);
+
+    let firmMemory: MeriContext['firmMemory'] | undefined;
+    let userVoice: string | undefined;
+    try {
+      const packet = await this.contextCompiler.compile({
+        tenantId: tc.tenantId,
+        userId: user.id,
+        surface: 'ga-chat',
+        layers: ['firm-identity', 'user-voice'],
+      });
+      const soul = renderedBody(packet, 'firm-soul');
+      const compass = renderedBody(packet, 'firm-compass');
+      firmMemory =
+        soul || compass
+          ? { ...(soul ? { soul } : {}), ...(compass ? { compass } : {}) }
+          : undefined;
+      userVoice = renderedBody(packet, 'user-voice') || undefined;
+    } catch (e) {
+      this.logger.warn(`context compile failed (non-fatal): ${(e as Error).message}`);
+    }
+
     return {
       tenantId: tc.tenantId,
       userId: user.id,
@@ -38,85 +68,6 @@ export class MeriContextResolver {
       ...(userVoice ? { userVoice } : {}),
     };
   }
-
-  /**
-   * Firm Soul + Firm Compass (memory_items type='firm-soul'/'firm-compass',
-   * slug='firm', visibility='tenant') — unconditional, every tool call carries
-   * firm identity. Mirrors apps/api meri.service.ts's loadUserVoiceContext.
-   * Best-effort: a query failure must never block a tool invocation.
-   */
-  private async loadFirmMemory(tenantId: string): Promise<MeriContext['firmMemory'] | undefined> {
-    try {
-      const rows = await this.prisma.withTenant(
-        tenantId,
-        (tx) =>
-          tx.$queryRaw<Array<{ type: string; sections: unknown }>>`
-          SELECT type, sections_jsonb AS sections
-          FROM memory_items
-          WHERE tenant_id = ${tenantId}::uuid
-            AND type IN ('firm-soul', 'firm-compass')
-            AND slug = 'firm'
-        `,
-      );
-      const bodyFor = (t: string): string | undefined => {
-        const row = rows.find((r) => r.type === t);
-        return row ? renderHumanSections(row.sections) : undefined;
-      };
-      const soul = bodyFor('firm-soul');
-      const compass = bodyFor('firm-compass');
-      if (!soul && !compass) return undefined;
-      return { ...(soul ? { soul } : {}), ...(compass ? { compass } : {}) };
-    } catch {
-      return undefined;
-    }
-  }
-
-  /**
-   * The caller's "My Writing Style" file (memory_items type='user-voice',
-   * owner_user_id=userId). Best-effort, same failure contract as loadFirmMemory.
-   *
-   * MUST use withTenantUser, not withTenant: this row is `visibility='user'`
-   * (private), and the Phase 1 owner-aware RLS policy hides it unless
-   * `app.current_user` is set to the caller's own id (see PrismaService's doc
-   * comment). Using plain withTenant here silently returned zero rows for
-   * every GA-chat turn from the moment the 1C policy went live — fixed
-   * 2026-07-12 (Phase 2 audit).
-   */
-  private async loadUserVoice(tenantId: string, userId: string): Promise<string | undefined> {
-    try {
-      const rows = await this.prisma.withTenantUser(
-        tenantId,
-        userId,
-        (tx) =>
-          tx.$queryRaw<Array<{ sections: unknown }>>`
-          SELECT sections_jsonb AS sections
-          FROM memory_items
-          WHERE tenant_id = ${tenantId}::uuid
-            AND type = 'user-voice'
-            AND owner_user_id = ${userId}::uuid
-          LIMIT 1
-        `,
-      );
-      const body = rows[0] ? renderHumanSections(rows[0].sections) : undefined;
-      return body || undefined;
-    } catch {
-      return undefined;
-    }
-  }
-}
-
-/** Render only human-authored sections as "Heading: body" lines. Pure. */
-function renderHumanSections(sections: unknown): string | undefined {
-  if (!Array.isArray(sections)) return undefined;
-  const body = sections
-    .filter((s) => s && typeof s === 'object' && (s as { owner?: string }).owner === 'human')
-    .map((s) => {
-      const sec = s as { heading?: string; body?: string };
-      return sec.body?.trim() ? `${sec.heading}: ${sec.body.trim()}` : '';
-    })
-    .filter(Boolean)
-    .join('\n');
-  return body || undefined;
 }
 
 /**
