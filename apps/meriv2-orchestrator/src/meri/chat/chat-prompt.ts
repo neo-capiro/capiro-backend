@@ -73,6 +73,17 @@ export interface ChatArtifact {
 
 export interface ChatResult {
   reply: string;
+  /** Classified plan-mode for this turn (KeywordIntentRouter) — surfaced so the
+   *  apps/api proxy can persist a real intent instead of a hardcoded 'general'. */
+  intent?: string;
+  /** Aggregate token usage across all tool-loop rounds this turn (1A.2) — the
+   *  proxy emits a `usage` frame + persists it instead of a hardcoded {}. */
+  usage?: {
+    inputTokens: number;
+    outputTokens: number;
+    cacheReadTokens?: number;
+    cacheCreationTokens?: number;
+  };
   steps?: ChatStep[];
   /**
    * Write actions the model attempted that the compliance gate held for human

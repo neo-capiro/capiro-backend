@@ -42,6 +42,13 @@ export type MeriV2ChatStreamEvent =
   | {
       type: 'done';
       reply: string;
+      intent?: string;
+      usage?: {
+        inputTokens: number;
+        outputTokens: number;
+        cacheReadTokens?: number;
+        cacheCreationTokens?: number;
+      };
       steps: Array<{
         tool: string;
         label: string;

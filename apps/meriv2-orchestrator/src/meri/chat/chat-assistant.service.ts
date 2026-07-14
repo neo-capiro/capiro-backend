@@ -123,10 +123,21 @@ export class ChatAssistantService {
     // Every exit shares the same aggregates (steps + gate-held writes + produced
     // deliverables), so build the result in one place. finalize also fires the
     // shadow auditor (fire-and-forget, like meterRound) so every exit is covered.
+    // Aggregate token usage across every tool-loop round (1A.2) — one row per
+    // round is metered separately (meterRound); this is the turn total the
+    // proxy surfaces as a `usage` frame + persists.
+    const usageAcc = {
+      inputTokens: 0,
+      outputTokens: 0,
+      cacheReadTokens: 0,
+      cacheCreationTokens: 0,
+    };
     const finalize = (reply: string): ChatResult => {
       void this.auditReplyShadow(ctx.tenantId, reply, ledgerEntries);
       return {
         reply,
+        intent: intent.mode,
+        usage: { ...usageAcc },
         steps,
         ...(pendingApprovals.length ? { pendingApprovals } : {}),
         ...(artifacts.length ? { artifacts } : {}),
@@ -150,6 +161,10 @@ export class ChatAssistantService {
           ...(opts.signal ? { signal: opts.signal } : {}),
         });
         void this.meterRound(ctx, resp);
+        usageAcc.inputTokens += resp.usage.inputTokens;
+        usageAcc.outputTokens += resp.usage.outputTokens;
+        usageAcc.cacheReadTokens += resp.usage.cacheReadTokens ?? 0;
+        usageAcc.cacheCreationTokens += resp.usage.cacheCreationTokens ?? 0;
         content = resp.content as ContentBlock[];
         stopReason = resp.stopReason;
       } catch (e) {

@@ -87,6 +87,8 @@ export class ChatController {
           type: 'done',
           reply: result.reply,
           steps: result.steps ?? [],
+          ...(result.intent ? { intent: result.intent } : {}),
+          ...(result.usage ? { usage: result.usage } : {}),
           ...(result.pendingApprovals?.length ? { pendingApprovals: result.pendingApprovals } : {}),
           aborted: abort.signal.aborted,
         });

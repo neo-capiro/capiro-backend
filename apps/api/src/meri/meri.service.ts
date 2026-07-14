@@ -1690,6 +1690,10 @@ export class MeriService {
     const frame = doneFrame as Extract<MeriV2ChatStreamEvent, { type: 'done' }> | null;
     const steps = frame?.steps ?? collectedSteps;
     const assistantContent = (accumulated.trim() || frame?.reply || '').trim();
+    // 1A.2/1A.4: real classified intent (plan-mode) + aggregate token usage from
+    // the orchestrator done frame, instead of the hardcoded 'general' / {}.
+    const resolvedIntent = frame?.intent ?? 'general';
+    const resolvedUsage = frame?.usage ?? {};
 
     // Some loop outcomes return a reply WITHOUT emitting any text event (the
     // empty-history short-circuit, the "Done." fallback, the model-error
@@ -1698,6 +1702,12 @@ export class MeriService {
     // replay match.
     if (!accumulated.trim() && assistantContent && !aborted && !errorMessage) {
       emit({ type: 'text', text: assistantContent });
+    }
+
+    // 1A.2: real token-usage frame from the orchestrator done frame (this path
+    // never emitted one; the drawer's usage readout stayed blank).
+    if (frame?.usage && !aborted) {
+      emit({ type: 'usage', usage: frame.usage });
     }
 
     // 1A: exec trace from the collected tool steps — restores a real
@@ -1754,13 +1764,13 @@ export class MeriService {
               assistantContent ||
               'Sorry — something went wrong serving this turn. Please try again.',
             metadata: {
-              intent: 'general',
+              intent: resolvedIntent,
               model: 'meriv2-orchestrator',
               tier: 'fast',
               servedBy: 'meriv2',
               preWarmSources,
               toolsUsed: steps.map((s) => s.tool),
-              usage: {},
+              usage: resolvedUsage,
               citations: [] as unknown as Prisma.InputJsonValue,
               finishReason: aborted ? 'aborted' : errorMessage ? 'error' : 'stop',
               trace: turnTrace as unknown as Prisma.InputJsonValue,
