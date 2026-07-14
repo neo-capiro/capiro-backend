@@ -1,6 +1,8 @@
--- HOLD MIGRATION — DO NOT MERGE without a clone-tested cutover window
--- (same discipline as clio_memory's RLS rollout, PR #246, and the hearing-only
--- HOLD migration 20260706000000_hearing_rls_hold).
+-- APPLIED / LIVE (cutover complete). Companion to the hearing-only
+-- 20260706000000_hearing_rls_hold; the caller-conversion sweep it depended on is
+-- complete, so these policies are active in prod. (Historical note: authored as a
+-- HOLD migration under the clio_memory RLS discipline, PR #246; folder name
+-- retained — it is the migration's identity in _prisma_migrations, do NOT rename.)
 --
 -- Completes G3: Row-Level Security for the REMAINING 14 intel_* tables, now that
 -- every one of their CRUD callers has been converted to route through

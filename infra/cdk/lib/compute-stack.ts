@@ -899,16 +899,33 @@ export class ComputeStack extends cdk.Stack {
       DB_PORT: ecs.Secret.fromSecretsManager(dbSecretImported, 'port'),
       DB_USER: ecs.Secret.fromSecretsManager(appDbSecretImported, 'username'),
       DB_PASSWORD: ecs.Secret.fromSecretsManager(appDbSecretImported, 'password'),
+      // BYOK global fallback for the orchestrator's chat/hearing LLM calls
+      // (RequestScopedLlmClient prefers the per-request tenant key and only falls
+      // back to this). Previously wired ONLY on the hand-authored
+      // meriv2-orchestrator-taskdef.with-anthropic.json — a `cdk deploy` would
+      // otherwise ship the orchestrator keyless and 500 every LLM tool. (H2.)
+      ANTHROPIC_API_KEY: ecs.Secret.fromSecretsManager(anthropicApiKeySecret),
     };
     const meriv2OrchestratorSharedEnv: Record<string, string> = {
       NODE_ENV: cfg.envName === 'dev' ? 'development' : 'production',
+      // main.ts reads MERIV2_LOG_LEVEL (LOG_LEVEL is inert here); 'log' = no debug
+      // spam in prod, matching the live out-of-band task def.
       LOG_LEVEL: 'info',
+      MERIV2_LOG_LEVEL: 'log',
       MERIV2_PORT: '4300',
       DB_NAME: databaseName,
       ...(cfg.clerkJwtIssuer ? { CLERK_JWT_ISSUER: cfg.clerkJwtIssuer } : {}),
       WEB_ORIGIN: `https://${cfg.appHost}`,
       // Phase-0 client-context delegation target (api /api/engagement/context/:id).
       MERIV2_API_BASE_URL: `https://${cfg.appHost}`,
+      ANTHROPIC_MODEL: 'claude-sonnet-4-5',
+      // Post-hoc grounding auditor. Matches the LIVE prod posture (both api and
+      // orchestrator run 'enforce' as of 2026-07-14) so a cdk deploy does not
+      // regress it — the code default is 'off', so OMITTING this here would
+      // silently downgrade prod on the next deploy. Chat stays observe-only even
+      // under enforce (auditDecisionFor returns deliver/repair for the chat
+      // surface); enforce only gates the deliverable surfaces.
+      MERI_AUDITOR_MODE: 'enforce',
     };
 
     const meriv2OrchestratorTaskDef = new ecs.FargateTaskDefinition(
@@ -927,7 +944,12 @@ export class ComputeStack extends cdk.Stack {
     );
     grantSecretsAndKmsToExecutionRole(
       meriv2OrchestratorTaskDef,
-      [dbSecretImported.secretArn, appDbSecretImported.secretArn, clerkSecretKeyImported.secretArn],
+      [
+        dbSecretImported.secretArn,
+        appDbSecretImported.secretArn,
+        clerkSecretKeyImported.secretArn,
+        anthropicApiKeySecret.secretArn,
+      ],
       [dataKey.keyArn, secretsStack.secretsKey.keyArn],
     );
     meriv2OrchestratorTaskDef.addContainer('meriv2-orchestrator', {
@@ -1447,14 +1469,14 @@ export class ComputeStack extends cdk.Stack {
       conditions: [elb.ListenerCondition.pathPatterns(['/workspace-api/*'])],
       action: elb.ListenerAction.forward([this.workspaceTargetGroup]),
     });
-    // MeriV2 orchestrator: /meri-api/* → orchestrator service. Priority 15 sits
-    // between WorkspaceApi (10) and WebDefault (20); path is distinct from
-    // /api/*, /workspace-api/*, and /*. Same PROD ROUTING DRIFT caveat as the
-    // WorkspaceApi rule above: this attaches to the CDK-managed `Alb`, which is
-    // NOT the live prod ALB. The EFFECTIVE prod wiring must be added out-of-band
-    // to the MANUAL `capiro-prod-alb` HTTPS:443 listener (e.g. `aws elbv2
-    // create-rule --priority 15 --conditions path-pattern /meri-api/* --actions
-    // forward capiro-prod-meriv2-orchestrator-tg`).
+    // MeriV2 orchestrator: /meri-api/* → orchestrator service. Same PROD ROUTING
+    // DRIFT caveat as the WorkspaceApi rule above: this attaches to the
+    // CDK-managed `Alb`, which is NOT the live prod ALB. The EFFECTIVE prod rule
+    // is added out-of-band to the MANUAL `capiro-prod-alb` HTTPS:443 listener —
+    // codified in scripts/meri-alb-rules.sh + docs/runbooks/meri-alb-rule.md.
+    // NOTE: on the LIVE prod ALB that rule is priority 13 → capiro-prod-meriv2-orch-tg
+    // (verified 2026-07-14); /webhooks/* owns priority 15 there. The priority 15
+    // used HERE is only valid on this (phantom) CDK ALB's ordering.
     httpsListener.addAction('MeriApi', {
       priority: 15,
       conditions: [elb.ListenerCondition.pathPatterns(['/meri-api/*'])],

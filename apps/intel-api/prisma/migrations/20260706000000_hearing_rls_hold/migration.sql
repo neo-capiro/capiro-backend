@@ -1,5 +1,9 @@
--- HOLD MIGRATION — DO NOT MERGE without a clone-tested cutover window
--- (same discipline as clio_memory's RLS rollout, PR #246).
+-- APPLIED / LIVE (cutover complete). The gating condition — routing every
+-- intel_* CRUD path through withTenant/withSystem so a GUC is always set — is
+-- done, so these RLS policies are active in prod. (Historical note: authored as
+-- a HOLD migration under the clio_memory RLS discipline, PR #246; the folder
+-- name is retained because the migration name is its identity in
+-- _prisma_migrations — do NOT rename it.)
 --
 -- Row-Level Security for the 6 Live Hearing tables ONLY (G3, partial). intel-api
 -- shares apps/api's Aurora `capiro` DB and its current_tenant_id()/rls_bypass()

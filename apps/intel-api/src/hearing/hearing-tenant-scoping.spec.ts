@@ -8,12 +8,13 @@ import type { HearingCryptoService } from './hearing-crypto.service';
 import type { OrchestratorClient } from './orchestrator.client';
 
 /**
- * G3 caller-conversion sweep proof: every hearing-module Prisma call now goes
+ * G3 caller-conversion sweep proof: every hearing-module Prisma call goes
  * through `prisma.withTenant(tenantId, ...)` (which sets the `app.current_tenant`
- * GUC an RLS policy will check), not a bare `this.prisma.<model>` call. This is
- * currently a behavioral no-op (no RLS policy exists yet to read the GUC) — the
- * point of these tests is to prove the WIRING is correct now, before a future
- * RLS-apply migration would make it load-bearing.
+ * GUC the RLS policy checks), not a bare `this.prisma.<model>` call. This wiring
+ * is now LOAD-BEARING: the RLS policies are applied (migrations
+ * 20260706000000_hearing_rls_hold + 20260706010000_intel_full_rls_hold), so under
+ * FORCE ROW LEVEL SECURITY a bare `this.prisma.<model>` call would return zero
+ * rows without the GUC. These tests prove every call sets it.
  */
 interface FakeModel {
   findFirst: jest.Mock;

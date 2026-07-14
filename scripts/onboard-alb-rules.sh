@@ -11,8 +11,9 @@
 # `/onboard-api/*` does NOT collide with the existing priority-3 rule
 # (`/api/*`, `/webhooks/*`, `/health`): ALB path patterns anchor at the path
 # start, and `/onboard-api/...` does not match `/api/*`. Verified priorities
-# free as of 2026-07-06: 3 (api), 5 (marketing), 15 (meri), 20 (web default),
-# plus the workspace rule — ALWAYS re-check with --list before --create.
+# (live capiro-prod-alb, verified 2026-07-14: 10 api, 12 workspace, 13 meri,
+# 14 intel, 15 webhooks, 20 web default, plus onboard 8/9 added here) —
+# ALWAYS re-check with --list before --create.
 #
 # Usage:
 #   scripts/onboard-alb-rules.sh --list
