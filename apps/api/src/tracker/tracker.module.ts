@@ -2,6 +2,7 @@ import { Module } from '@nestjs/common';
 import { IntelligenceModule } from '../intelligence/intelligence.module.js';
 import { EngagementModule } from '../engagement/engagement.module.js';
 import { TrackerController } from './tracker.controller.js';
+import { InternalTrackerController } from './internal-tracker.controller.js';
 import { TrackerService } from './tracker.service.js';
 import { TrackerChangeDetectorService } from './tracker-change-detector.service.js';
 import { TrackerAlertService } from './notifications/tracker-alert.service.js';
@@ -20,7 +21,7 @@ import { SmsVerificationService } from './sms/sms-verification.service.js';
  */
 @Module({
   imports: [IntelligenceModule, EngagementModule],
-  controllers: [TrackerController],
+  controllers: [TrackerController, InternalTrackerController],
   providers: [
     TrackerService,
     TrackerChangeDetectorService,

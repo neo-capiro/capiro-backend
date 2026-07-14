@@ -83,7 +83,7 @@ describe('IntelAlertService.dedupeStateActionAlerts', () => {
       }),
     ];
     const { prisma, store } = makeHarness(rows);
-    const svc = new IntelAlertService(prisma, {} as never, {} as never);
+    const svc = new IntelAlertService(prisma, {} as never, {} as never, {} as never, {} as never);
     const log = jest.fn();
 
     const r = await svc.dedupeStateActionAlerts({ apply: false }, log);
@@ -108,7 +108,7 @@ describe('IntelAlertService.dedupeStateActionAlerts', () => {
       }),
     ];
     const { prisma, store } = makeHarness(rows);
-    const svc = new IntelAlertService(prisma, {} as never, {} as never);
+    const svc = new IntelAlertService(prisma, {} as never, {} as never, {} as never, {} as never);
 
     const r = await svc.dedupeStateActionAlerts({ apply: true }, jest.fn());
 
@@ -131,7 +131,7 @@ describe('IntelAlertService.dedupeStateActionAlerts', () => {
       }),
     ];
     const { prisma } = makeHarness(rows);
-    const svc = new IntelAlertService(prisma, {} as never, {} as never);
+    const svc = new IntelAlertService(prisma, {} as never, {} as never, {} as never, {} as never);
 
     const r = await svc.dedupeStateActionAlerts({ apply: false }, jest.fn());
     expect(r.candidates).toHaveLength(0);
@@ -148,7 +148,7 @@ describe('IntelAlertService.dedupeStateActionAlerts', () => {
       }),
     ];
     const { prisma, store } = makeHarness(rows);
-    const svc = new IntelAlertService(prisma, {} as never, {} as never);
+    const svc = new IntelAlertService(prisma, {} as never, {} as never, {} as never, {} as never);
 
     const r = await svc.dedupeStateActionAlerts({ apply: true }, jest.fn());
     // still reported as a candidate (visible in the dry-run/report output)...
@@ -169,7 +169,7 @@ describe('IntelAlertService.dedupeStateActionAlerts', () => {
       }),
     ];
     const { prisma } = makeHarness(rows);
-    const svc = new IntelAlertService(prisma, {} as never, {} as never);
+    const svc = new IntelAlertService(prisma, {} as never, {} as never, {} as never, {} as never);
 
     const r = await svc.dedupeStateActionAlerts({ apply: false }, jest.fn());
     expect(r.candidates).toHaveLength(0);
@@ -186,7 +186,7 @@ describe('IntelAlertService.dedupeStateActionAlerts', () => {
       }),
     ];
     const { prisma } = makeHarness(rows);
-    const svc = new IntelAlertService(prisma, {} as never, {} as never);
+    const svc = new IntelAlertService(prisma, {} as never, {} as never, {} as never, {} as never);
 
     const r = await svc.dedupeStateActionAlerts({ apply: false }, jest.fn());
     expect(r.candidates).toHaveLength(0);
@@ -194,7 +194,7 @@ describe('IntelAlertService.dedupeStateActionAlerts', () => {
 
   it('no candidates, no rows scanned -> clean empty result', async () => {
     const { prisma } = makeHarness([]);
-    const svc = new IntelAlertService(prisma, {} as never, {} as never);
+    const svc = new IntelAlertService(prisma, {} as never, {} as never, {} as never, {} as never);
     const r = await svc.dedupeStateActionAlerts({ apply: true }, jest.fn());
     expect(r.candidates).toHaveLength(0);
     expect(r.suppressed).toBe(0);
