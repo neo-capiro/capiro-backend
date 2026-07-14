@@ -653,6 +653,7 @@ export class MeriService {
         sse,
         bearerToken,
         complianceScreen,
+        traceEnabled: streamControl.traceEnabled,
         ...(clientSignal ? { clientSignal } : {}),
       });
       return;
@@ -1525,6 +1526,7 @@ export class MeriService {
     clientSignal?: AbortSignal;
     bearerToken: string;
     complianceScreen: { flagged: boolean; category?: string | null };
+    traceEnabled: boolean;
   }): Promise<void> {
     const { ctx, sse } = args;
     const emit = (event: Record<string, unknown>) =>
@@ -1678,6 +1680,44 @@ export class MeriService {
       emit({ type: 'text', text: assistantContent });
     }
 
+    // 1A: exec trace from the collected tool steps — restores a real
+    // metadata.trace and the #trace view (the legacy loop's exec_trace frame).
+    // #trace turns route to MeriV2 (not in the routing gate), so without this
+    // they silently lost the frame. Persisted always; emitted only on opt-in.
+    const turnTrace = collectedSteps.map((s) => ({
+      tool: s.tool,
+      label: s.label,
+      status: s.status,
+      ...(s.detail ? { detail: s.detail } : {}),
+    }));
+    if (args.traceEnabled && turnTrace.length && !aborted) {
+      emit({ type: 'exec_trace', trace: turnTrace });
+    }
+
+    // 1A: pre-warm sources — the memory recall is the only proactively-injected
+    // context on the MeriV2 path (loadRelevantMemories above), so reflect it in
+    // the persisted metadata instead of a hardcoded [].
+    const preWarmSources = recalled.length ? ['clio_memory'] : [];
+
+    // 1A: suggested next-action chips (parity with the legacy loop). Cheap pass
+    // over the final reply; skipped on abort/error/trivial answers; fail-open.
+    let suggestions: string[] = [];
+    if (
+      this.suggestionsEnabled() &&
+      !aborted &&
+      !errorMessage &&
+      assistantContent.trim().length > 40
+    ) {
+      suggestions = await this.generateSuggestions(
+        ctx.tenantId,
+        args.content,
+        assistantContent,
+      ).catch(() => []);
+      if (suggestions.length) {
+        emit({ type: 'suggestions', suggestions });
+      }
+    }
+
     // Persist the assistant turn with the legacy metadata keys so history
     // replay (GET conversations/:id/messages) keeps every affordance. Skip only
     // when nothing at all happened (e.g. connect failure before any frame).
@@ -1698,13 +1738,13 @@ export class MeriService {
               model: 'meriv2-orchestrator',
               tier: 'fast',
               servedBy: 'meriv2',
-              preWarmSources: [],
+              preWarmSources,
               toolsUsed: steps.map((s) => s.tool),
               usage: {},
               citations: [] as unknown as Prisma.InputJsonValue,
               finishReason: aborted ? 'aborted' : errorMessage ? 'error' : 'stop',
-              trace: [] as unknown as Prisma.InputJsonValue,
-              suggestions: [],
+              trace: turnTrace as unknown as Prisma.InputJsonValue,
+              suggestions,
               actions: steps
                 .filter((s) => s.status === 'done' && isSideEffectingTool(s.tool))
                 .map((s) => ({ tool: s.tool, kind: classifyToolAction(s.tool), ok: true })),
