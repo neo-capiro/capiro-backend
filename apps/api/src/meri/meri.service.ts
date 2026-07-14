@@ -1586,6 +1586,9 @@ export class MeriService {
     // the conversationId the orchestrator threads). They are linked to the
     // assistant message once it is created, so history replay attaches them.
     const producedArtifactIds: string[] = [];
+    // Deliverable bodies (draft_policy_memo/create_meeting_brief) captured for
+    // the 1A.5 verification/confidence pass.
+    const producedArtifacts: Array<{ id: string; title: string; bodyText: string }> = [];
     let doneFrame: Extract<MeriV2ChatStreamEvent, { type: 'done' }> | null = null;
     let errorMessage: string | null = null;
 
@@ -1639,6 +1642,11 @@ export class MeriService {
           // canvas renders the download card. The row already exists (the
           // delegated tool persisted it); we only link it to the message below.
           producedArtifactIds.push(event.artifact.id);
+          producedArtifacts.push({
+            id: event.artifact.id,
+            title: event.artifact.title,
+            bodyText: event.artifact.bodyText ?? '',
+          });
           emit({
             type: 'artifact',
             artifact: {
@@ -1718,6 +1726,37 @@ export class MeriService {
       emit({ type: 'citations', citations: resolvedCitations });
     }
 
+    // 1A.5: verification / confidence on a produced deliverable (briefing/memo),
+    // reusing apps/api's verifier over the orchestrator's citations. Gated to
+    // deliverables (never raw chat) and to CLIO_VERIFIER_ENABLED; fail-open.
+    let verification: VerificationResult | null = null;
+    const deliverable = producedArtifacts.find((a) => a.bodyText && a.bodyText.trim().length > 0);
+    if (deliverable?.bodyText && !aborted) {
+      try {
+        const groundingByN = new Map<number, string>(
+          resolvedCitations.map((c) => [c.n, c.snippet ?? '']),
+        );
+        verification = await this.verifyDeliverable(
+          ctx.tenantId,
+          deliverable.bodyText,
+          buildVerifierSources(resolvedCitations, groundingByN),
+        );
+        const structural = await this.enrichDeliverableStructural(ctx, deliverable.bodyText);
+        if (verification || structural.warnings.length || structural.fanOut.length) {
+          emit({
+            type: 'verification',
+            title: deliverable.title,
+            verification,
+            confidence: verification ? confidenceLevel(verification.unsupportedRatio) : undefined,
+            structuralWarnings: structural.warnings,
+            fanOut: structural.fanOut,
+          });
+        }
+      } catch {
+        /* fail-open: verification never blocks a turn */
+      }
+    }
+
     // 1A: exec trace from the collected tool steps — restores a real
     // metadata.trace and the #trace view (the legacy loop's exec_trace frame).
     // #trace turns route to MeriV2 (not in the routing gate), so without this
@@ -1780,6 +1819,7 @@ export class MeriService {
               toolsUsed: steps.map((s) => s.tool),
               usage: resolvedUsage,
               citations: resolvedCitations as unknown as Prisma.InputJsonValue,
+              verification: verification as unknown as Prisma.InputJsonValue,
               finishReason: aborted ? 'aborted' : errorMessage ? 'error' : 'stop',
               trace: turnTrace as unknown as Prisma.InputJsonValue,
               suggestions,
