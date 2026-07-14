@@ -177,6 +177,95 @@ describe('DirectoryService.buildCommitteeIndex', () => {
     expect(committees.find((c) => c.officeId === 300).chair).toBeNull();
     expect(committees.find((c) => c.officeId === 300).phone).toBe('');
   });
+
+  // Regression: the LIVE combined office file is an ARRAY of `{ office, ... }` rows,
+  // not the legacy `{ office: [...] }` object. The old code assumed the object shape
+  // and returned an empty committee catalog against real data.
+  const OFFICES_ARRAY = [
+    {
+      office: {
+        office_id: 100,
+        name: 'House Armed Services Committee',
+        office_type: 'House Committee',
+        congress_committee_code: 'HSAS',
+      },
+      office_member_addresses: [
+        {
+          is_main: true,
+          office: { office_id: 100 },
+          phone: '202-225-4151',
+          address1: '2216 RHOB',
+          city: 'Washington',
+          state_id: 'DC',
+          zip: '20515',
+        },
+      ],
+      contacts: [{ contact_type: 'Website', contact_string: 'https://armedservices.house.gov' }],
+    },
+    {
+      office: {
+        office_id: 101,
+        name: 'House Armed Services Committee Tactical Air Subcommittee',
+        office_type: 'House Subcommittee',
+        parent_office: { office_id: 100 },
+      },
+      office_member_addresses: [],
+    },
+    {
+      office: {
+        office_id: 200,
+        name: 'Senate Appropriations Committee',
+        office_type: 'Senate Committee',
+        congress_committee_code: 'SSAP',
+      },
+      office_member_addresses: [],
+    },
+    { office: { office_id: 300, name: 'Joint Committee on Taxation', office_type: 'Joint Committee' } },
+    { office: { office_id: 900, name: 'Alaska House Finance Committee', office_type: 'State House Committee' } },
+    { office: { office_id: 950, name: 'Rep. Example Office', office_type: 'House Member' } },
+  ];
+
+  test('builds committees from the live office-list ARRAY shape', () => {
+    const service = makeService();
+    const { committees } = (service as any).buildCommitteeIndex(
+      OFFICES_ARRAY,
+      STAFF,
+      MEMBERS,
+    ) as { committees: any[]; committeeStaff: Map<string, any[]> };
+
+    // Non-empty: the array shape now yields the same 4 federal committees.
+    expect(committees.map((c) => c.officeId).sort((a, b) => a - b)).toEqual([100, 101, 200, 300]);
+    const hasc = committees.find((c) => c.officeId === 100);
+    expect(hasc.phone).toBe('202-225-4151');
+    expect(hasc.chair).toEqual({ id: 'member-500', name: 'Mike Rogers' });
+    expect(hasc.committeeCode).toBe('HSAS');
+    const sub = committees.find((c) => c.officeId === 101);
+    expect(sub.kind).toBe('subcommittee');
+    expect(sub.parentOfficeId).toBe(100);
+  });
+});
+
+describe('DirectoryService.primaryPhoto', () => {
+  test('prefers public directory, then public primary, then any public, else empty', () => {
+    const service = makeService();
+    const pick = (photos: unknown) => (service as any).primaryPhoto(photos) as string;
+
+    expect(
+      pick([
+        { url: 'primary.jpg', status: 'public', is_primary: true },
+        { url: 'directory.jpg', status: 'public', is_directory: true },
+      ]),
+    ).toBe('directory.jpg');
+    expect(
+      pick([
+        { url: 'other.jpg', status: 'public', is_primary: false },
+        { url: 'primary.jpg', status: 'public', is_primary: true },
+      ]),
+    ).toBe('primary.jpg');
+    expect(pick([{ url: 'any-public.jpg', status: 'public' }])).toBe('any-public.jpg');
+    expect(pick([{ url: 'hidden.jpg', status: 'private', is_directory: true }])).toBe('');
+    expect(pick(null)).toBe('');
+  });
 });
 
 describe('DirectoryService staffer-coverage merge', () => {
