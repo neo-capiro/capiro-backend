@@ -1,0 +1,82 @@
+# MeriV2 live both-paths parity (SC0.3). Runs the parity harness with
+# MERIV2_PARITY_LIVE=1 against a REACHABLE stack (prod app.capiro.ai — MeriV2
+# fullChat is GA default-ON fleet-wide, so parity is verified against real prod,
+# per plan decision D7). This is the gate to run BEFORE removing any legacy
+# routing-gate condition during the MeriV2 cutover.
+#
+# Manual trigger only: a Clerk session JWT is short-lived, so an operator mints
+# one for the pilot/verification tenant seconds before triggering and pastes it.
+# The nightly cron stays commented until a Clerk-backend token-minting step
+# exists (otherwise it fails on an expired JWT).
+#
+# The in-editor live case is NON-mutating (returns proposed edits/reply, no
+# persist). The workspace-gen case regenerates a real draft (mutates ws_draft),
+# so it is OPT-IN via run_workspace_gen — off by default.
+name: meriv2-parity
+
+on:
+  workflow_dispatch:
+    inputs:
+      bearer_token:
+        description: 'Fresh Clerk session JWT for the verification tenant (mint immediately before running — short-lived)'
+        required: true
+      client_id:
+        description: 'Real client id substituted into the in-editor fixtures'
+        required: true
+      run_workspace_gen:
+        description: 'Also run the MUTATING workspace-gen case (needs PARITY_DRAFT_ID secret)'
+        required: false
+        default: 'false'
+  # Enable only once a Clerk-backend token-minting step exists (a paste-in JWT expires):
+  # schedule:
+  #   - cron: '53 6 * * *'
+
+permissions:
+  contents: read
+
+jobs:
+  live-parity:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    env:
+      MERIV2_PARITY_LIVE: '1'
+      # Base URLs come from repo Actions VARIABLES (Settings → Secrets and
+      # variables → Actions → Variables). For prod:
+      #   PARITY_API_BASE_URL  = https://app.capiro.ai/api
+      #   PARITY_ORCH_BASE_URL = https://app.capiro.ai
+      #   PARITY_WS_BASE_URL   = https://app.capiro.ai/workspace-api
+      PARITY_API_BASE_URL: ${{ vars.PARITY_API_BASE_URL }}
+      PARITY_ORCH_BASE_URL: ${{ vars.PARITY_ORCH_BASE_URL }}
+      PARITY_WS_BASE_URL: ${{ vars.PARITY_WS_BASE_URL }}
+      PARITY_BEARER_TOKEN: ${{ github.event.inputs.bearer_token || secrets.PARITY_BEARER_TOKEN }}
+      PARITY_CLIENT_ID: ${{ github.event.inputs.client_id || secrets.PARITY_CLIENT_ID }}
+      PARITY_DRAFT_ID: ${{ secrets.PARITY_DRAFT_ID }}
+    steps:
+      - uses: actions/checkout@v4
+      # No `version:` — pnpm/action-setup reads it from package.json
+      # packageManager (matches ci-pr.yml / meriv2-evals.yml; pinning both errors
+      # "Multiple versions of pnpm specified").
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm --filter @capiro/shared build
+      - run: pnpm --filter @capiro/meriv2-core build
+
+      - name: Guard — required config present (fail loud, never silently green)
+        run: |
+          : "${PARITY_API_BASE_URL:?set repo variable PARITY_API_BASE_URL (e.g. https://app.capiro.ai/api)}"
+          : "${PARITY_ORCH_BASE_URL:?set repo variable PARITY_ORCH_BASE_URL (e.g. https://app.capiro.ai)}"
+          : "${PARITY_BEARER_TOKEN:?provide the bearer_token input or the PARITY_BEARER_TOKEN secret}"
+          : "${PARITY_CLIENT_ID:?provide the client_id input or the PARITY_CLIENT_ID secret}"
+
+      - name: Drop workspace-gen vars unless explicitly requested (avoid mutating a draft)
+        if: github.event.inputs.run_workspace_gen != 'true'
+        run: |
+          echo "PARITY_WS_BASE_URL=" >> "$GITHUB_ENV"
+          echo "PARITY_DRAFT_ID=" >> "$GITHUB_ENV"
+
+      - name: Live both-paths parity (SC0.3)
+        run: pnpm --filter @capiro/meriv2-core parity
