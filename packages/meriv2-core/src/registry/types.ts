@@ -27,6 +27,14 @@ export interface MeriContext {
    * user hasn't written one.
    */
   userVoice?: string;
+  /**
+   * The tenant's AUTHORITATIVE client roster (from the `client` table, RLS-
+   * scoped), loaded by the orchestrator's context resolver. This — not memory —
+   * is the system of record for "who are my clients"; the chat prompt renders it
+   * and instructs the model to answer roster questions from it, never from
+   * clio_memory (which can hold stale/demo-seeded names). Absent on a load error.
+   */
+  clientRoster?: Array<{ name: string; status: string }>;
 }
 
 /** Adapt a `@capiro/shared` `TenantContext` into a `MeriContext`. */

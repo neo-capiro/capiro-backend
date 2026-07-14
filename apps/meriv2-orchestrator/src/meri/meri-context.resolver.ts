@@ -59,6 +59,26 @@ export class MeriContextResolver {
       this.logger.warn(`context compile failed (non-fatal): ${(e as Error).message}`);
     }
 
+    // AUTHORITATIVE client roster (1B.1): the system of record for "who are my
+    // clients" is the `client` table, NOT clio_memory. Load it tenant-scoped
+    // (RLS via withTenant) so the chat prompt can answer roster questions from
+    // real data and refuse to enumerate clients from memory. Best-effort: a
+    // load failure must never block a turn (the block is simply omitted).
+    let clientRoster: MeriContext['clientRoster'] | undefined;
+    try {
+      const rows = await this.prisma.withTenant(tc.tenantId, (tx) =>
+        tx.client.findMany({
+          where: { tenantId: tc.tenantId },
+          select: { name: true, status: true },
+          orderBy: { name: 'asc' },
+          take: 500,
+        }),
+      );
+      if (rows.length) clientRoster = rows.map((r) => ({ name: r.name, status: r.status }));
+    } catch (e) {
+      this.logger.warn(`client roster load failed (non-fatal): ${(e as Error).message}`);
+    }
+
     return {
       tenantId: tc.tenantId,
       userId: user.id,
@@ -66,6 +86,7 @@ export class MeriContextResolver {
       role: mapRole(tc.role),
       ...(firmMemory ? { firmMemory } : {}),
       ...(userVoice ? { userVoice } : {}),
+      ...(clientRoster ? { clientRoster } : {}),
     };
   }
 }

@@ -181,6 +181,17 @@ export function buildChatSystemPrompt(
     dto.memoryContext?.length
       ? `\n# What you remember (firm + this user)\nThese are stored memories relevant to this conversation — use them directly when they answer the question:\n${dto.memoryContext.map((m) => `- ${m}`).join('\n')}`
       : '',
+    ctx.clientRoster?.length
+      ? `\n# Your firm's client roster (AUTHORITATIVE — the Capiro client table)\n` +
+        `This is the definitive list of the organizations this firm represents. When asked who your clients are, how many there are, or whether a given organization is a client, answer ONLY from this list — never enumerate or infer the client list from memory, prior conversations, or examples. Total: ${ctx.clientRoster.length} (${ctx.clientRoster.filter((c) => c.status === 'active').length} active).\n` +
+        ctx.clientRoster
+          .slice(0, 200)
+          .map((c) => `- ${c.name}${c.status && c.status !== 'active' ? ` [${c.status}]` : ''}`)
+          .join('\n') +
+        (ctx.clientRoster.length > 200
+          ? `\n(+${ctx.clientRoster.length - 200} more not shown)`
+          : '')
+      : '',
     '',
     // Zero-trust grounding kernel (v3 plan Wave 1): closed-world rule, refusal
     // protocol, citation grammar, GR domain semantics (supersedes the former

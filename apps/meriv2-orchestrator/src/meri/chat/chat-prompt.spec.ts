@@ -30,6 +30,31 @@ describe('buildChatSystemPrompt', () => {
     expect(prompt).not.toContain('# What you remember');
   });
 
+  it('renders the AUTHORITATIVE client roster and forbids answering the client list from memory (1B.1)', () => {
+    const prompt = buildChatSystemPrompt(
+      {},
+      {
+        ...ctx,
+        clientRoster: [
+          { name: 'Acme Defense', status: 'active' },
+          { name: 'Beta Systems', status: 'inactive' },
+        ],
+      },
+    );
+    expect(prompt).toContain("# Your firm's client roster (AUTHORITATIVE");
+    expect(prompt).toContain('Total: 2 (1 active).');
+    expect(prompt).toContain('- Acme Defense');
+    expect(prompt).toContain('- Beta Systems [inactive]');
+    expect(prompt).toContain('answer ONLY from this list — never');
+  });
+
+  it('omits the roster block when the tenant has no clients', () => {
+    expect(buildChatSystemPrompt({}, ctx)).not.toContain("# Your firm's client roster");
+    expect(buildChatSystemPrompt({}, { ...ctx, clientRoster: [] })).not.toContain(
+      "# Your firm's client roster",
+    );
+  });
+
   it('always routes firm-data questions to the right tools (canary regression: meetings → query_debriefs, memory-first)', () => {
     const prompt = buildChatSystemPrompt({}, ctx);
     expect(prompt).toContain('call search_memory FIRST');
