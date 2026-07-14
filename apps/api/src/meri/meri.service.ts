@@ -2089,6 +2089,53 @@ export class MeriService {
       // best-effort; never block a turn on memory-file context
     }
 
+    // Authoritative client roster (deterministic, straight from the `client`
+    // table — the system of record for who this firm represents). Injected on
+    // EVERY turn so "who are my clients / how many do I have" is answered from
+    // real data, never inferred from clio_memory (which can hold stale or
+    // demo-seeded names). Compact (name + non-active status), tenant-scoped.
+    try {
+      const roster = await this.loadClientRoster(ctx.tenantId);
+      if (roster.length) {
+        const activeCount = roster.filter((c) => c.status === 'active').length;
+        const MAX_ROSTER = 200;
+        const shown = roster.slice(0, MAX_ROSTER);
+        const lines = shown
+          .map((c) => `- ${c.name}${c.status && c.status !== 'active' ? ` [${c.status}]` : ''}`)
+          .join('\n');
+        const overflow =
+          roster.length > MAX_ROSTER ? `\n(+${roster.length - MAX_ROSTER} more not shown)` : '';
+        contextParts.push(
+          `\nYour firm's client roster (AUTHORITATIVE — from the Capiro client table; the definitive list of who this firm represents). ` +
+            `When asked who the clients are, how many there are, or whether an organization is a client, answer ONLY from this list — never from memory:\n` +
+            `Total: ${roster.length} (${activeCount} active).\n${lines}${overflow}`,
+        );
+        sources.push({
+          tool: 'client_roster',
+          count: roster.length,
+          summary: `Loaded ${roster.length} clients from the authoritative roster`,
+          confidence: 'high',
+        });
+        trace.push({
+          tool: 'client_roster',
+          action: 'selected',
+          reason: `Injected authoritative roster of ${roster.length} clients (${activeCount} active).`,
+        });
+      } else {
+        trace.push({
+          tool: 'client_roster',
+          action: 'skipped',
+          reason: 'No clients found in the roster for this tenant.',
+        });
+      }
+    } catch {
+      trace.push({
+        tool: 'client_roster',
+        action: 'skipped',
+        reason: 'Client roster load failed.',
+      });
+    }
+
     if (clientId) {
       trace.push({
         tool: 'client_profile',
@@ -2605,6 +2652,7 @@ export class MeriService {
       meriGroundingSurfaceBlock('chat'),
       '',
       'Memory: you have persistent, cross-conversation memory for this firm and user. Relevant remembered facts are injected into the context below when available. When the user shares a durable preference, name, or ongoing priority — or explicitly asks you to remember something — call the save_memory tool to persist it, then briefly confirm. Never claim you lack memory or cannot retain information across sessions.',
+      "Client roster is authoritative: the definitive list of the organizations this firm represents comes from the Capiro client table and is injected into the context below as \"Your firm's client roster\" when available. When the user asks who their clients are, how many clients they have, or whether a given organization is a client, answer ONLY from that authoritative roster — never enumerate or infer the client list from memory, prior conversations, or examples. Memory holds preferences and facts, but it is NOT the system of record for which organizations are clients; if the roster and a memory disagree on who is a client, the roster wins.",
       'Conversation continuity (critical): the full prior turns of THIS conversation are provided to you as message history. Treat the conversation as one continuous thread — read the earlier turns and carry their context forward. When the user says "it", "that", "those", "the firm", "add them", "the same client", or otherwise refers back, resolve the reference from earlier in this conversation; do NOT re-ask for something already established or act as if the thread just started. If you genuinely cannot find the referent in the history, say so and ask — but check the prior turns first. The per-turn context snapshot below supplements the conversation; it never replaces what the user already told you.',
       COMPLIANCE_GUARDRAILS,
     ].join('\n');
@@ -2897,6 +2945,24 @@ export class MeriService {
     }
     if (!blocks.length) return null;
     return `Firm, user & client memory files (authoritative for voice and strategy):\n\n${blocks.join('\n\n')}`;
+  }
+
+  /**
+   * The firm's authoritative client roster, straight from the `client` table
+   * (tenant-scoped via RLS). This — not clio_memory — is the source of truth for
+   * "who are my clients". Ordered by name; returns [] on any error so a roster
+   * hiccup never blocks a turn (the context builder degrades to no-roster).
+   */
+  private async loadClientRoster(
+    tenantId: string,
+  ): Promise<Array<{ name: string; status: string; sectorTag: string | null }>> {
+    return this.prisma.withTenant(tenantId, (tx) =>
+      tx.client.findMany({
+        where: { tenantId },
+        select: { name: true, status: true, sectorTag: true },
+        orderBy: { name: 'asc' },
+      }),
+    );
   }
 
   private async loadRelevantMemories(
@@ -3198,6 +3264,9 @@ export class MeriService {
         where: {
           tenantId: ctx.tenantId,
           status: 'pending',
+          // Meeting-prep alerts are retired (2026-07-14): never surface them,
+          // including any rows persisted before generation was removed.
+          alertType: { not: 'meeting_prep_needed' },
           ...(importantOnly ? { priority: { in: [...MERI_ALERT_IMPORTANT_PRIORITIES] } } : {}),
         },
         orderBy: { createdAt: 'desc' },
@@ -3467,60 +3536,10 @@ export class MeriService {
   async generateProactiveAlerts(tenantId: string): Promise<number> {
     let created = 0;
     try {
-      // 1. Upcoming meetings without prep (next 48 hours)
-      const tomorrow = new Date(Date.now() + 48 * 60 * 60 * 1000);
-      const upcomingMeetings = await this.prisma.withSystem((tx) =>
-        tx.meeting.findMany({
-          where: {
-            tenantId,
-            startsAt: { gte: new Date(), lte: tomorrow },
-            preps: { none: {} },
-          },
-          select: {
-            id: true,
-            subject: true,
-            startsAt: true,
-            clientId: true,
-            client: { select: { name: true } },
-          },
-          take: 5,
-        }),
-      );
-
-      for (const meeting of upcomingMeetings) {
-        const exists = await this.prisma.withSystem((tx) =>
-          tx.clioProactiveAlert.findFirst({
-            where: {
-              tenantId,
-              sourceType: 'meeting_prep',
-              sourceId: meeting.id,
-              // Dedup against BOTH pending and dismissed ('read') rows so a
-              // dismissed alert is not re-created on the next run while the
-              // condition still holds (dismissAlert sets status='read'). Without
-              // 'read' here, dismissals never stick — the alert resurrects hourly.
-              status: { in: ['pending', 'read'] },
-            },
-          }),
-        );
-        if (!exists) {
-          await this.prisma.withSystem((tx) =>
-            tx.clioProactiveAlert.create({
-              data: {
-                tenantId,
-                clientId: meeting.clientId,
-                alertType: 'meeting_prep_needed',
-                title: `Meeting prep needed: ${meeting.subject}`,
-                body: `Your meeting "${meeting.subject}"${meeting.client?.name ? ` with ${meeting.client.name}` : ''} is in less than 48 hours and has no prep notes. Ask Meri to create a meeting brief.`,
-                priority: 'high',
-                sourceType: 'meeting_prep',
-                sourceId: meeting.id,
-                metadata: { meetingId: meeting.id, startsAt: meeting.startsAt.toISOString() },
-              },
-            }),
-          );
-          created++;
-        }
-      }
+      // 1. Upcoming-meeting "prep needed" alerts — REMOVED (2026-07-14): meeting
+      // prep alerts are no longer surfaced in Meri per product decision. The
+      // matching block in scripts/emit-clio-alerts.ts (the scheduled producer)
+      // was removed too, and listAlerts filters out any historical rows.
 
       // 2. Clients with no recent engagement (30+ days)
       const thirtyDaysAgo = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);

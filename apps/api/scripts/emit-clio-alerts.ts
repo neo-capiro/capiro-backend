@@ -32,7 +32,6 @@ dotenvConfig();
 
 const prisma = new PrismaClient();
 
-const MEETING_PREP_WINDOW_MS = 48 * 60 * 60 * 1000;
 const STALE_CLIENT_WINDOW_MS = 30 * 24 * 60 * 60 * 1000;
 const PER_TENANT_TAKE = 5;
 // Client "position" memory (blueprint §3.2 stale-position detection). Judgment/
@@ -46,52 +45,10 @@ const CAMPAIGN_MIN_CLIENTS = 2;
 async function generateForTenant(tenantId: string): Promise<number> {
   let created = 0;
 
-  // 1. Upcoming meetings without prep (next 48 hours).
+  // 1. Upcoming-meeting "prep needed" alerts — REMOVED (2026-07-14): meeting
+  // prep alerts are no longer surfaced in Meri per product decision. `now` is
+  // still needed by the stale-client + campaign scans below.
   const now = new Date();
-  const horizon = new Date(now.getTime() + MEETING_PREP_WINDOW_MS);
-  const upcomingMeetings = await prisma.meeting.findMany({
-    where: {
-      tenantId,
-      startsAt: { gte: now, lte: horizon },
-      preps: { none: {} },
-    },
-    select: {
-      id: true,
-      subject: true,
-      startsAt: true,
-      clientId: true,
-      client: { select: { name: true } },
-    },
-    take: PER_TENANT_TAKE,
-  });
-
-  for (const meeting of upcomingMeetings) {
-    const exists = await prisma.clioProactiveAlert.findFirst({
-      // pending OR read: a dismissed alert must not resurrect on the next run.
-      where: {
-        tenantId,
-        sourceType: 'meeting_prep',
-        sourceId: meeting.id,
-        status: { in: ['pending', 'read'] },
-      },
-      select: { id: true },
-    });
-    if (exists) continue;
-    await prisma.clioProactiveAlert.create({
-      data: {
-        tenantId,
-        clientId: meeting.clientId,
-        alertType: 'meeting_prep_needed',
-        title: `Meeting prep needed: ${meeting.subject}`,
-        body: `Your meeting "${meeting.subject}"${meeting.client?.name ? ` with ${meeting.client.name}` : ''} is in less than 48 hours and has no prep notes. Ask Meri to create a meeting brief.`,
-        priority: 'high',
-        sourceType: 'meeting_prep',
-        sourceId: meeting.id,
-        metadata: { meetingId: meeting.id, startsAt: meeting.startsAt.toISOString() },
-      },
-    });
-    created++;
-  }
 
   // 2. Active clients with no recent engagement (30+ days).
   const staleSince = new Date(now.getTime() - STALE_CLIENT_WINDOW_MS);
