@@ -1,6 +1,7 @@
 import {
   runAuditor,
   checkCitations,
+  checkQuoteSpans,
   checkNumericDirection,
   checkFundingDirectionVsEvidence,
   checkVehicleConflation,
@@ -324,6 +325,49 @@ describe('D1 — FORM-B citation existence', () => {
   it('flags a token whose record_id is not verbatim in the result', () => {
     const out = 'The request is $99M [S:get_pe_budget_timeline:9999999Z].';
     expect(checkCitations(out, ledger)).toHaveLength(1);
+  });
+});
+
+describe('D2 — quote/source-span gate', () => {
+  const REAL_SPAN =
+    'The Committee directs the Secretary of the Air Force to submit a report on hypersonics';
+  const ledger = ledgerWith([
+    { tool: 'get_committee_report', serialized: `{"provision":"${REAL_SPAN} within 90 days."}` },
+  ]);
+
+  it('passes an attributed quote that appears verbatim in a tool result', () => {
+    const out = `The report states "${REAL_SPAN}" in the classified annex.`;
+    expect(checkQuoteSpans(out, ledger)).toEqual([]);
+  });
+  it('passes despite whitespace/smart-quote/case differences (normalized match)', () => {
+    const out = `The report states “the committee DIRECTS the  Secretary of the Air Force to submit a report on hypersonics” today.`;
+    expect(checkQuoteSpans(out, ledger)).toEqual([]);
+  });
+  it('flags a long attributed quote that appears in NO tool result (fabricated span)', () => {
+    const out = `The committee report states "the Secretary shall terminate the program no later than fiscal year 2027 absent certification".`;
+    const f = checkQuoteSpans(out, ledger);
+    expect(f).toHaveLength(1);
+    expect(f[0]!.check).toBe('D2');
+    expect(f[0]!.severity).toBe('high');
+  });
+  it('does NOT flag short scare quotes or coined terms (precision guard)', () => {
+    expect(checkQuoteSpans('The bill text calls this a "skinny budget" approach.', ledger)).toEqual(
+      [],
+    );
+  });
+  it('does NOT flag a long quote on a line with no attribution cue', () => {
+    const out = `Some call it "a generational shift in how the department buys software and fields it".`;
+    expect(checkQuoteSpans(out, ledger)).toEqual([]);
+  });
+  it('stays silent when the ledger is empty (fabrication unprovable)', () => {
+    const out = `The report states "the Secretary shall terminate the program no later than fiscal year 2027".`;
+    expect(checkQuoteSpans(out, ledgerWith([]))).toEqual([]);
+  });
+  it('is wired into runAuditor (fires end-to-end under shadow)', () => {
+    const out = `The committee report states "the Secretary shall terminate the program no later than fiscal year 2027 absent certification".`;
+    const verdict = runAuditor({ output: out, ledger, surface: 'alert', mode: 'shadow' });
+    expect(verdict.findings.some((f) => f.check === 'D2')).toBe(true);
+    expect(verdict.decision).toBe('deliver'); // shadow never blocks
   });
 });
 

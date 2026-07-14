@@ -12,6 +12,7 @@ import {
   type TenantContext,
 } from '@capiro/shared';
 import { runAuditor, type LedgerEntry } from '@capiro/meriv2-core';
+import { applySkepticEscalation } from './skeptic-escalation.js';
 import { resolveTenantAuditorMode } from '../../common/auditor-mode.js';
 import { AiCredentialResolverService } from '../../engagement/ai-credential-resolver.service.js';
 import { EngagementService } from '../../engagement/engagement.service.js';
@@ -188,11 +189,22 @@ export class AlertMemoService {
             },
           });
         }
-        const verdict = runAuditor({
+        let verdict = runAuditor({
           output: markdown,
           ledger: { entries: ledgerEntries },
           surface: 'alert',
           mode: auditorMode,
+        });
+        // Wave-4 skeptic escalation (MERI_SKEPTIC_MODE, default off): residual
+        // claims the deterministic checks couldn't decide are adversarially
+        // adjudicated by an LLM skeptic; confident refutations merge into the
+        // verdict under enforce (shadow observes only). Fail-open by contract.
+        verdict = await applySkepticEscalation({
+          verdict,
+          output: markdown,
+          ledger: { entries: ledgerEntries },
+          cred: { apiKey: cred.apiKey, model: cred.model },
+          logger: this.logger,
         });
         if (verdict.findings.length > 0) {
           this.logger.warn(
