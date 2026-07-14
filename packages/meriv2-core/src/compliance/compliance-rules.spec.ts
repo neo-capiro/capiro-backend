@@ -119,6 +119,15 @@ describe('PROPOSED_CAPIRO_RULES — the tiered production proposal', () => {
     expect(d.code).toBe('crm_mutation');
   });
 
+  it('holds engagement task writes for approval (WARN, crm_mutation, crm_task.requires_approval)', () => {
+    for (const tool of ['create_task', 'update_task']) {
+      const d = decide(policy, tool, { title: 't' });
+      expect(d.outcome).toBe('WARN');
+      expect(d.code).toBe('crm_mutation');
+      expect(d.ruleId).toBe('crm_task.requires_approval');
+    }
+  });
+
   it('holds standing automation for approval (WARN, standing_automation)', () => {
     for (const tool of ['schedule_task', 'cancel_scheduled_task']) {
       expect(decide(policy, tool).outcome).toBe('WARN');
@@ -133,8 +142,6 @@ describe('PROPOSED_CAPIRO_RULES — the tiered production proposal', () => {
       'confirm_memory',
       'correct_memory',
       'forget_memory',
-      'create_task',
-      'update_task',
       'create_word',
       'create_excel',
       'create_powerpoint',
@@ -164,6 +171,8 @@ describe('PROPOSED_CAPIRO_RULES — G4 tier propagation', () => {
   });
   it('CRM mutation + standing automation carry tier=high', () => {
     expect(decide(policy, 'update_client_profile', {}).tier).toBe('high');
+    expect(decide(policy, 'create_task', { title: 't' }).tier).toBe('high');
+    expect(decide(policy, 'update_task', { taskId: 't' }).tier).toBe('high');
     expect(decide(policy, 'schedule_task', {}).tier).toBe('high');
   });
   it('internal reversible artifacts carry tier=low', () => {

@@ -77,6 +77,9 @@ export const DEFAULT_COMPLIANCE_RULES: readonly ComplianceRule[] = [
  *     chat, which sends after a conversational OK; here every send needs an
  *     explicit approval click.
  *   - update_client_profile: CRM record mutation — client data is the product.
+ *   - create_task / update_task: engagement (CRM) task writes — a real record
+ *     mutation, and both tools' own catalog descriptions promise "Requires user
+ *     approval", so they gate like update_client_profile (their sibling write).
  *   - schedule_task / cancel_scheduled_task: standing automation that will act
  *     again later without a human in the loop.
  *
@@ -85,7 +88,6 @@ export const DEFAULT_COMPLIANCE_RULES: readonly ComplianceRule[] = [
  * production since 2026-06-10 (prompt-level propose-then-ask + per-action
  * audit), so PASS here is no more permissive than current observable behavior:
  *   - save_note, save_memory (internal knowledge, user-visible/undoable)
- *   - create_task, update_task (engagement bookkeeping)
  *   - create_word, create_excel, create_powerpoint, create_meeting_brief,
  *     draft_policy_memo (document drafts — inert until a human sends them)
  *
@@ -114,6 +116,14 @@ export const PROPOSED_CAPIRO_RULES: readonly ComplianceRule[] = [
     matches: (toolName) => toolName === 'update_client_profile',
   },
   {
+    id: 'crm_task.requires_approval',
+    description: 'Engagement task writes mutate the CRM record — require human approval.',
+    outcome: 'WARN',
+    tier: 'high',
+    code: 'crm_mutation',
+    matches: (toolName) => toolName === 'create_task' || toolName === 'update_task',
+  },
+  {
     id: 'automation.requires_approval',
     description:
       'Standing automation (scheduled tasks) acts later without a human — requires approval.',
@@ -138,8 +148,6 @@ export const PROPOSED_CAPIRO_RULES: readonly ComplianceRule[] = [
         'confirm_memory',
         'correct_memory',
         'forget_memory',
-        'create_task',
-        'update_task',
         'create_word',
         'create_excel',
         'create_powerpoint',

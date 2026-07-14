@@ -50,10 +50,10 @@ export class MeriRegistryService {
   ) {
     // Write tools fail closed: the registry requires an ApprovalGate for any
     // `readOnly:false` tool. The gate runs the B2 rules engine on the TIERED
-    // production ruleset (PROPOSED_CAPIRO_RULES — external sends / CRM
-    // mutations / standing automation => WARN; internal artifacts + task
-    // bookkeeping => PASS, matching what the legacy surface already executes
-    // freely; anything unnamed falls back to WARN) and, on WARN, consults the
+    // production ruleset (PROPOSED_CAPIRO_RULES — external sends / CRM record
+    // mutations, incl. create_task/update_task / standing automation => WARN;
+    // internal reversible artifacts + memory verbs => PASS; anything unnamed
+    // falls back to WARN) and, on WARN, consults the
     // ApprovalStore (B3/B4): the RepoBackedApprovalStore fingerprints the
     // proposed action and asks apps/api (ApiApprovalRepo) whether a human
     // approved THIS exact action. Unapproved → ApprovalPendingError (write
@@ -80,14 +80,15 @@ export class MeriRegistryService {
     );
     this.logger.log(`Registered ${readNames.length} delegated read-only tools`);
 
-    // Workstream C (write-tool porting): the 14 side-effecting Meri tools,
-    // delegated the same way, but `readOnly:false` — every invoke now runs the
-    // PolicyApprovalGate above BEFORE the delegated call. With no ApprovalStore
-    // wired yet (B3/B4) and the WARN fallback, invoking one of these ALWAYS
-    // throws `ApprovalPendingError` and never reaches apps/api — registering
-    // them here proves the gate mechanism end-to-end without executing a real
-    // side effect or inventing an approval UX. No live surface calls these
-    // tools yet (in-editor stays read-only; full chat is not built on MeriV2).
+    // Workstream C (write-tool porting): the side-effecting Meri tools,
+    // delegated the same way, but `readOnly:false` — every invoke runs the
+    // PolicyApprovalGate above BEFORE the delegated call. The ApprovalStore IS
+    // wired (RepoBackedApprovalStore above): a WARN tool (send/reply email, CRM
+    // record + task writes, standing automation) throws ApprovalPendingError
+    // and never reaches apps/api until a human approves THIS exact action via
+    // /api/clio/approvals/approve; a PASS tool (internal artifacts + memory
+    // verbs) executes immediately. This is LIVE: the GA full-chat surface
+    // (chat-assistant.service.ts) invokes these tools through this registry.
     const writeNames = registerDelegatedTools(
       (def) => registry.register(def),
       WRITE_DELEGATED_TOOLS,
