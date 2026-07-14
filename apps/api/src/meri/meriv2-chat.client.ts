@@ -110,6 +110,8 @@ export class MeriV2ChatClient {
       skillAddendum?: string;
       /** Rolling-compaction summary of earlier turns (1A.6), from the proxy. */
       conversationSummary?: string;
+      /** Always-on client KB snapshot (1B.4), built + forwarded by the proxy. */
+      clientKbSnapshot?: string;
     };
     aiProvider?: ResolvedAiForChatHeader;
     signal?: AbortSignal;

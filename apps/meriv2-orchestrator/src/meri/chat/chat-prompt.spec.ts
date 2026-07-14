@@ -92,6 +92,15 @@ describe('buildChatSystemPrompt', () => {
     expect(buildChatSystemPrompt({}, ctx)).not.toContain('# Firm playbook for this request');
   });
 
+  it('injects the focused client KB snapshot when the proxy provides one (1B.4)', () => {
+    const prompt = buildChatSystemPrompt(
+      { clientId: 'c1', clientKbSnapshot: 'Aperture Defense — 3 facilities, 5 key people.' },
+      ctx,
+    );
+    expect(prompt).toContain('# Focused client knowledge base');
+    expect(prompt).toContain('Aperture Defense — 3 facilities, 5 key people.');
+  });
+
   it('injects the earlier-turns conversation summary when the thread was compacted (1A.6)', () => {
     const prompt = buildChatSystemPrompt(
       { conversationSummary: 'Earlier: the user asked about the NDAA markup and SAC-D marks.' },

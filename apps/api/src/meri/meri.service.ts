@@ -1551,6 +1551,17 @@ export class MeriService {
     ).catch(() => [] as Array<{ key: string; value: string }>);
     const memoryContext = recalled.map((m) => `${m.key}: ${m.value}`);
 
+    // Client KB snapshot (1B.4): the proxy owns clientKb, so build the same
+    // always-on snapshot the legacy path injects (profile/people/facilities/
+    // recent docs) and forward it like memoryContext. Best-effort.
+    let clientKbSnapshot: string | undefined;
+    if (args.conversation.clientId) {
+      clientKbSnapshot =
+        (await this.clientKb
+          .buildSnapshot(ctx.tenantId, args.conversation.clientId)
+          .catch(() => null)) ?? undefined;
+    }
+
     // Firm-skill steering (1B.3): resolve a matched firm skill's addendum the
     // same way the legacy path does and forward it (the orchestrator has no
     // skill registry). Trigger/content match only — the proxy does not classify
@@ -1680,6 +1691,7 @@ export class MeriService {
           ...(memoryContext.length ? { memoryContext } : {}),
           ...(skillAddendum ? { skillAddendum } : {}),
           ...(args.conversationSummary ? { conversationSummary: args.conversationSummary } : {}),
+          ...(clientKbSnapshot ? { clientKbSnapshot } : {}),
         },
         ...(aiProvider ? { aiProvider } : {}),
         ...(args.clientSignal ? { signal: args.clientSignal } : {}),

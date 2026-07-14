@@ -45,6 +45,14 @@ export interface ChatInput {
    * context is lost on long threads. Absent for short/un-compacted threads.
    */
   conversationSummary?: string;
+  /**
+   * Always-on client knowledge-base snapshot (profile digest, key people,
+   * facility footprint, recent documents) for the focused client (1B.4),
+   * built + forwarded by the apps/api proxy (which owns the client KB). The
+   * legacy chat injects this every turn; here it rides the proxy like
+   * memoryContext. Absent when no client is focused or the KB is unavailable.
+   */
+  clientKbSnapshot?: string;
 }
 
 export interface ChatStep {
@@ -204,6 +212,9 @@ export function buildChatSystemPrompt(
     'You help lobbyists research legislation, program elements & budgets, the congressional directory, federal intelligence, and their own clients — and you can draft and take actions on their behalf.',
     dto.clientId
       ? `\nThe conversation is focused on client id: ${dto.clientId} (use it for client tools).`
+      : '',
+    dto.clientKbSnapshot
+      ? `\n# Focused client knowledge base (profile, key people, facilities, recent docs)\n${dto.clientKbSnapshot}`
       : '',
     ctx.clientSteering
       ? `\n# Focused client steering (approved framing for THIS client — use it and cite it)\n` +
