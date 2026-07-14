@@ -100,6 +100,55 @@ export class DirectoryController {
     return this.service.getCommitteeStaff(committeeId, { q, page, pageSize });
   }
 
+  // ---- Additive detail + dictionary endpoints (Task 12); existing routes unchanged ----
+
+  @Get('people')
+  people(
+    @Query('q') q?: string,
+    @Query('committeeId') committeeId?: string,
+    @Query('personType') personType?: string,
+    @Query('current') current?: string,
+    @Query('page') page?: string,
+    @Query('pageSize') pageSize?: string,
+  ) {
+    return this.service.getPeople({ q, committeeId, personType, current, page, pageSize });
+  }
+
+  @Get('members/:memberId')
+  memberDetail(@Param('memberId') memberId: string) {
+    return this.service.getMemberDetail(memberId);
+  }
+
+  @Get('staffers/:staffId')
+  staffDetail(@Param('staffId') staffId: string) {
+    return this.service.getStaffDetail(staffId);
+  }
+
+  @Get('committees/:committeeId')
+  committeeDetail(@Param('committeeId') committeeId: string) {
+    return this.service.getCommitteeDetail(committeeId);
+  }
+
+  @Get('committees/:committeeId/contacts')
+  committeeContacts(
+    @Param('committeeId') committeeId: string,
+    @Query('personType') personType?: string,
+    @Query('current') current?: string,
+    @Query('q') q?: string,
+    @Query('role') role?: string,
+    @Query('page') page?: string,
+    @Query('pageSize') pageSize?: string,
+  ) {
+    return this.service.getCommitteeContacts(committeeId, {
+      personType,
+      current,
+      q,
+      role,
+      page,
+      pageSize,
+    });
+  }
+
   @Get('contacts/:contactId/notes')
   contactNotes(@CurrentTenant() ctx: TenantContext, @Param('contactId') contactId: string) {
     return this.service.listContactNotes(ctx, contactId);

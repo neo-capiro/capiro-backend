@@ -1,0 +1,295 @@
+/**
+ * Complete person + committee indexes built at snapshot-cache construction time.
+ *
+ * The cached directory payload only retains the transformed contacts/staffers/
+ * committees; it drops the raw LegiStorm rows and keeps only committee LEADERSHIP.
+ * These indexes preserve the full source rows (by stable ID) and every ordinary
+ * committee membership, plus reverse person->committee and normalized-name lookups,
+ * so the detail/dictionary endpoints (Task 12) can resolve any member/staff/committee
+ * by ID and invert a person name to their committees.
+ *
+ * Identity joins are EXACT (by office_id / member.member_id / staff.id) — never by
+ * name similarity. Names are normalized only for user query matching.
+ */
+import type { DirectoryCommittee } from './directory.service.js';
+
+export type DirectoryPersonType = 'member' | 'staff';
+
+export interface DirectoryPersonRef {
+  personType: DirectoryPersonType;
+  id: string; // member-{member_id} | staff-{staff.id}
+  sourceId: number;
+  fullName: string;
+  title: string;
+  photoUrl: string | null;
+  photoSource: 'legistorm' | 'capiro_overlay' | null;
+  party: string | null;
+  state: string | null;
+  district: string | null;
+  isCurrent: boolean;
+}
+
+export interface DirectoryCommitteeMembership {
+  committeeId: string; // committee-{office_id}
+  person: DirectoryPersonRef;
+  membershipType: DirectoryPersonType;
+  position: string | null; // Chair, Ranking Member, Member, Staff Director…
+  party: string | null;
+  rank: number | null;
+  status: string | null;
+  startedAt: string | null;
+  endedAt: string | null;
+  sourceUpdatedAt: string | null;
+}
+
+/** A raw vendor row kept verbatim for the detail endpoints. */
+export type SourceRow = Record<string, unknown>;
+
+export interface DirectoryIndexes {
+  membersById: Map<number, SourceRow>;
+  membersByBioguideId: Map<string, SourceRow>;
+  staffById: Map<number, SourceRow>;
+  /** committee id -> every membership (members AND staff), not just leadership. */
+  membershipsByCommitteeId: Map<string, DirectoryCommitteeMembership[]>;
+  /** person id -> committee ids they are associated with (current or former). */
+  committeesByPersonId: Map<string, string[]>;
+  /** normalized person name -> person ids (member + staff). */
+  normalizedPersonNameIndex: Map<string, string[]>;
+  /** normalized committee name / code -> office_id (query matching only). */
+  committeeAliases: Map<string, number>;
+}
+
+export interface BuildDirectoryIndexesInput {
+  members: unknown[];
+  staff: unknown[];
+  /** Already-identified federal committees (identity + code/name/parent). */
+  committees: DirectoryCommittee[];
+}
+
+/** Lowercase, strip punctuation + common suffixes, collapse whitespace. */
+export function normalizePersonName(raw: unknown): string {
+  return String(raw ?? '')
+    .toLowerCase()
+    .replace(/[.,'"()]/g, ' ')
+    .replace(/\b(jr|sr|ii|iii|iv|v)\b/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim();
+}
+
+function normalizeAlias(raw: unknown): string {
+  return String(raw ?? '')
+    .toLowerCase()
+    .replace(/\s+/g, ' ')
+    .trim();
+}
+
+function memberFullName(profile: SourceRow | undefined): string {
+  return [
+    profile?.preferred_first_name ?? profile?.first_name,
+    profile?.preferred_last_name ?? profile?.last_name,
+  ]
+    .filter(Boolean)
+    .join(' ')
+    .trim();
+}
+
+function staffFullName(staff: SourceRow | undefined): string {
+  return [
+    staff?.preferred_first_name ?? staff?.first_name,
+    staff?.preferred_last_name ?? staff?.last_name,
+  ]
+    .filter(Boolean)
+    .join(' ')
+    .trim();
+}
+
+function isRecord(value: unknown): value is SourceRow {
+  return typeof value === 'object' && value !== null && !Array.isArray(value);
+}
+
+function memberPhotoUrl(photos: unknown): string | null {
+  if (!Array.isArray(photos)) return null;
+  const pick =
+    photos.find((p: SourceRow) => p?.status === 'public' && p?.is_directory)?.url ??
+    photos.find((p: SourceRow) => p?.status === 'public' && p?.is_primary)?.url ??
+    photos.find((p: SourceRow) => p?.status === 'public')?.url ??
+    null;
+  return typeof pick === 'string' && pick.trim() ? pick : null;
+}
+
+export function buildDirectoryIndexes(input: BuildDirectoryIndexesInput): DirectoryIndexes {
+  const membersById = new Map<number, SourceRow>();
+  const membersByBioguideId = new Map<string, SourceRow>();
+  const staffById = new Map<number, SourceRow>();
+  const membershipsByCommitteeId = new Map<string, DirectoryCommitteeMembership[]>();
+  const committeesByPersonId = new Map<string, string[]>();
+  const normalizedPersonNameIndex = new Map<string, string[]>();
+  const committeeAliases = new Map<string, number>();
+
+  // Valid federal committees only (identity + display from the built list).
+  const committeeByOfficeId = new Map<number, DirectoryCommittee>();
+  for (const committee of input.committees) {
+    committeeByOfficeId.set(committee.officeId, committee);
+    const nameAlias = normalizeAlias(committee.name);
+    if (nameAlias) committeeAliases.set(nameAlias, committee.officeId);
+    if (committee.committeeCode) {
+      committeeAliases.set(normalizeAlias(committee.committeeCode), committee.officeId);
+    }
+    membershipsByCommitteeId.set(committee.id, []);
+  }
+
+  const addNameIndex = (name: string, personId: string): void => {
+    const key = normalizePersonName(name);
+    if (!key) return;
+    const ids = normalizedPersonNameIndex.get(key) ?? [];
+    if (!ids.includes(personId)) ids.push(personId);
+    normalizedPersonNameIndex.set(key, ids);
+  };
+
+  const addPersonCommittee = (personId: string, committeeId: string): void => {
+    const ids = committeesByPersonId.get(personId) ?? [];
+    if (!ids.includes(committeeId)) ids.push(committeeId);
+    committeesByPersonId.set(personId, ids);
+  };
+
+  // Dedupe memberships by (committeeId, personId, source membership id) — never name.
+  const seenMembership = new Set<string>();
+  const addMembership = (membership: DirectoryCommitteeMembership, sourceMembershipId: unknown): void => {
+    const dedupeKey = `${membership.committeeId}|${membership.person.id}|${String(sourceMembershipId ?? '')}`;
+    if (seenMembership.has(dedupeKey)) return;
+    seenMembership.add(dedupeKey);
+    membershipsByCommitteeId.get(membership.committeeId)!.push(membership);
+    addPersonCommittee(membership.person.id, membership.committeeId);
+  };
+
+  // ---- Members: index rows + member committee memberships ----
+  for (const row of input.members) {
+    if (!isRecord(row)) continue;
+    const member = isRecord(row.member) ? row.member : undefined;
+    const memberId = Number(member?.member_id);
+    if (!Number.isFinite(memberId)) continue;
+    membersById.set(memberId, row);
+    const bioguideId = typeof member?.bioguide_id === 'string' ? member.bioguide_id : '';
+    if (bioguideId) membersByBioguideId.set(bioguideId, row);
+
+    const profile = isRecord(member?.profile) ? member!.profile : undefined;
+    const fullName = memberFullName(profile);
+    const personId = `member-${memberId}`;
+    if (fullName) addNameIndex(fullName, personId);
+
+    const office = Array.isArray(row.member_offices)
+      ? (row.member_offices.find((o: SourceRow) => isRecord(o)) as SourceRow | undefined)
+      : undefined;
+    const ref: DirectoryPersonRef = {
+      personType: 'member',
+      id: personId,
+      sourceId: memberId,
+      fullName,
+      title: '',
+      photoUrl: memberPhotoUrl(row.photos),
+      photoSource: memberPhotoUrl(row.photos) ? 'legistorm' : null,
+      party: typeof office?.party === 'string' ? office.party : null,
+      state: typeof office?.state_id === 'string' ? office.state_id : null,
+      district:
+        office?.district_no === undefined || office?.district_no === null
+          ? null
+          : String(office.district_no),
+      isCurrent: true,
+    };
+
+    const committees = Array.isArray(row.committees) ? row.committees : [];
+    for (const committee of committees) {
+      if (!isRecord(committee)) continue;
+      const officeId = Number((committee.committee_office as SourceRow)?.office_id);
+      if (!committeeByOfficeId.has(officeId)) continue;
+      const detail = committeeByOfficeId.get(officeId)!;
+      addMembership(
+        {
+          committeeId: detail.id,
+          person: { ...ref, title: String(committee.position ?? 'Member') },
+          membershipType: 'member',
+          position: committee.position ? String(committee.position) : 'Member',
+          party: typeof committee.party_id === 'string' ? committee.party_id : ref.party,
+          rank: Number.isFinite(Number(committee.rank)) ? Number(committee.rank) : null,
+          status: committee.status === undefined ? null : (committee.status as string | null),
+          startedAt: typeof committee.start_date === 'string' ? committee.start_date : null,
+          endedAt: typeof committee.end_date === 'string' ? committee.end_date : null,
+          sourceUpdatedAt: typeof committee.updated_at === 'string' ? committee.updated_at : null,
+        },
+        committee.id,
+      );
+    }
+  }
+
+  // ---- Staff: index rows + staff committee positions ----
+  for (const row of input.staff) {
+    if (!isRecord(row)) continue;
+    const staff = isRecord(row.staff) ? row.staff : undefined;
+    const staffId = Number(staff?.id);
+    if (!Number.isFinite(staffId)) continue;
+    staffById.set(staffId, row);
+
+    const fullName = staffFullName(staff);
+    const personId = `staff-${staffId}`;
+    if (fullName) addNameIndex(fullName, personId);
+
+    const positions = Array.isArray(row.positions) ? row.positions : [];
+    for (const position of positions) {
+      if (!isRecord(position)) continue;
+      const officeId = Number((position.office as SourceRow)?.office_id);
+      if (!committeeByOfficeId.has(officeId)) continue; // committee positions only
+      const detail = committeeByOfficeId.get(officeId)!;
+      const isCurrent = position.is_current === true;
+      const title = String(position.position_title ?? position.position_type ?? 'Staff');
+      addMembership(
+        {
+          committeeId: detail.id,
+          person: {
+            personType: 'staff',
+            id: personId,
+            sourceId: staffId,
+            fullName,
+            title,
+            photoUrl: null, // staff photos are nullable; never member-substituted
+            photoSource: null,
+            party: null,
+            state: null,
+            district: null,
+            isCurrent,
+          },
+          membershipType: 'staff',
+          position: title,
+          party: null,
+          rank: null,
+          status: isCurrent ? 'current' : 'former',
+          startedAt: typeof position.start_date === 'string' ? position.start_date : null,
+          endedAt: typeof position.end_date === 'string' ? position.end_date : null,
+          sourceUpdatedAt: typeof position.updated_at === 'string' ? position.updated_at : null,
+        },
+        position.id,
+      );
+    }
+  }
+
+  // Deterministic membership ordering: current first, then by rank, then name.
+  for (const roster of membershipsByCommitteeId.values()) {
+    roster.sort((a, b) => {
+      if (a.person.isCurrent !== b.person.isCurrent) return a.person.isCurrent ? -1 : 1;
+      if (a.membershipType !== b.membershipType) return a.membershipType === 'member' ? -1 : 1;
+      const rankA = a.rank ?? Number.MAX_SAFE_INTEGER;
+      const rankB = b.rank ?? Number.MAX_SAFE_INTEGER;
+      if (rankA !== rankB) return rankA - rankB;
+      return a.person.fullName.localeCompare(b.person.fullName);
+    });
+  }
+
+  return {
+    membersById,
+    membersByBioguideId,
+    staffById,
+    membershipsByCommitteeId,
+    committeesByPersonId,
+    normalizedPersonNameIndex,
+    committeeAliases,
+  };
+}

@@ -299,6 +299,26 @@ describe('validateDirectorySnapshot', () => {
     expect(report.errors).toContain('invalid directory validation approval provenance');
   });
 
+  test('reports completeness metrics (Task 16) and no drift warning by default', () => {
+    const report = validateDirectorySnapshot(input());
+    expect(report.metrics.next).toMatchObject({
+      uniqueBioguideIds: 10,
+      membersWithCurrentOffice: 10,
+      staffWithPhoto: 0, // honest zero — the entitlement returns no staff photo today
+    });
+    expect(report.warnings).toEqual([]);
+  });
+
+  test('warns (non-blocking) when the source starts returning a staff photo', () => {
+    const candidate = input();
+    (candidate.next.staff[0] as { photos?: unknown[] }).photos = [{ url: 'https://x.invalid/s.jpg' }];
+
+    const report = validateDirectorySnapshot(candidate);
+    expect(report.valid).toBe(true); // advisory only — does not block promotion
+    expect(report.warnings.join(' ')).toMatch(/staff photo/i);
+    expect(report.metrics.next.staffWithPhoto).toBe(1);
+  });
+
   test('accepts exact boundary values without approval', () => {
     const candidate = input({ members: 20, staff: 20, offices: 20 });
     candidate.next.members = members(18, { photos: 18, committees: 18 });

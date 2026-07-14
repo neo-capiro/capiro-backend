@@ -58,6 +58,46 @@ describe('DirectoryController — committees', () => {
     });
   });
 
+  test('detail + dictionary routes delegate to their service methods', () => {
+    const service = {
+      getPeople: jest.fn(),
+      getMemberDetail: jest.fn(),
+      getStaffDetail: jest.fn(),
+      getCommitteeDetail: jest.fn(),
+      getCommitteeContacts: jest.fn(),
+    } as unknown as DirectoryService & Record<string, jest.Mock>;
+    const controller = new DirectoryController(service);
+
+    controller.people('grace', 'committee-100', 'staff', 'true', '1', '25');
+    expect((service as any).getPeople).toHaveBeenCalledWith({
+      q: 'grace',
+      committeeId: 'committee-100',
+      personType: 'staff',
+      current: 'true',
+      page: '1',
+      pageSize: '25',
+    });
+
+    controller.memberDetail('member-500');
+    expect((service as any).getMemberDetail).toHaveBeenCalledWith('member-500');
+
+    controller.staffDetail('staff-800');
+    expect((service as any).getStaffDetail).toHaveBeenCalledWith('staff-800');
+
+    controller.committeeDetail('committee-100');
+    expect((service as any).getCommitteeDetail).toHaveBeenCalledWith('committee-100');
+
+    controller.committeeContacts('committee-100', 'member', 'true', 'smith', 'chair', '1', '50');
+    expect((service as any).getCommitteeContacts).toHaveBeenCalledWith('committee-100', {
+      personType: 'member',
+      current: 'true',
+      q: 'smith',
+      role: 'chair',
+      page: '1',
+      pageSize: '50',
+    });
+  });
+
   test('committeeStaff() delegates to service.getCommitteeStaff with id + query', () => {
     const service = { getCommitteeStaff: jest.fn() } as unknown as DirectoryService & {
       getCommitteeStaff: jest.Mock;

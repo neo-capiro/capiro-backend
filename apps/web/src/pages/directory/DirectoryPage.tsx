@@ -36,7 +36,7 @@ import {
   TeamOutlined,
 } from '@ant-design/icons';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { useSearchParams } from 'react-router-dom';
+import { Link, useSearchParams } from 'react-router-dom';
 import { useApi } from '../../lib/use-api.js';
 import { decodeHtmlEntities } from '../../lib/html-entities.js';
 import { getAcquisitionPersonnel, getAcquisitionPersonnelDetail } from '../program-element/api.js';
@@ -1062,6 +1062,11 @@ export function DirectoryPage() {
       >
         {selectedEntry ? (
           <>
+            <div style={{ marginBottom: 8 }}>
+              <Link to={`/directory/members/${encodeURIComponent(selectedEntry.id)}`}>
+                Open full profile ↗
+              </Link>
+            </div>
             <section className="directory-profile-hero">
               <Avatar
                 src={selectedEntry.photoUrl || undefined}
@@ -1839,7 +1844,9 @@ function StafferCard({
           <span>{initials(staffer.fullName)}</span>
         </div>
         <div className="dir-card-title">
-          <div className="dir-card-name">{staffer.fullName}</div>
+          <div className="dir-card-name">
+            <Link to={`/directory/staff/${encodeURIComponent(staffer.id)}`}>{staffer.fullName}</Link>
+          </div>
           <div className="dir-card-role">{staffer.title || 'Staff'}</div>
         </div>
       </div>
@@ -2068,6 +2075,12 @@ function CommitteeStaffDrawer({
               {currentCount.toLocaleString()} current · {total.toLocaleString()} on record
             </Typography.Text>
           </Space>
+
+          <div style={{ marginBottom: 16 }}>
+            <Link to={`/directory/committees/${encodeURIComponent(committee.id)}`}>
+              View full committee (all members + staff) ↗
+            </Link>
+          </div>
 
           {committee.chair || committee.rankingMember || committee.phone ? (
             <div className="directory-contact-panel" style={{ marginBottom: 16 }}>
