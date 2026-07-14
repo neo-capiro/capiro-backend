@@ -111,6 +111,27 @@ describe('LegiStormClient', () => {
     expect(sleeps).toEqual([400]);
   });
 
+  test('clamps the page size to the LegiStorm maximum of 100', async () => {
+    const { fetchImpl, calls } = queuedFetch([jsonResponse(memberPage)]);
+    const client = new LegiStormClient({ apiKey: API_KEY, pageSize: 1000, fetchImpl });
+
+    await client.fetchMembers(RANGE);
+
+    expect(new URL(calls[0]!.url).searchParams.get('limit')).toBe('100');
+  });
+
+  test('skips non-record elements in a mixed list response (preserving them in rawPages)', async () => {
+    // Real /office/list appends a trailing { office_member_addresses } element with no office.
+    const mixed = [officePage[0]!, { office_member_addresses: [] }];
+    const { fetchImpl } = queuedFetch([jsonResponse(mixed)]);
+    const client = new LegiStormClient({ apiKey: API_KEY, fetchImpl });
+
+    const result = await client.fetchOffices(RANGE);
+
+    expect(result.records).toEqual([officePage[0]]); // the non-office element is skipped
+    expect(result.rawPages[0]!.body).toEqual(mixed); // but preserved verbatim in raw
+  });
+
   test('fetches only the allowed office and staff list endpoints', async () => {
     for (const testCase of [
       { kind: 'office', pathname: '/v2.019.10/congress/office/list', body: officePage },
