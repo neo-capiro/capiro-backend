@@ -6,6 +6,11 @@ import {
   type DirectoryValidationApproval,
   type DirectorySnapshotValidationReport,
 } from './directory-snapshot-validation.js';
+import {
+  hasRequiredMemberIdentity,
+  hasRequiredOfficeIdentity,
+  hasRequiredStaffIdentity,
+} from './legistorm-types.js';
 
 const DEFAULT_ROOT_PREFIX = 'UPDATED DIRECTORY';
 const SNAPSHOT_ID = /^active-current-\d{8}T\d{6}Z$/;
@@ -130,10 +135,21 @@ export class DirectorySnapshotPublisher {
       throw new Error('current directory combined object must contain a JSON array');
     }
     if (!latest.etag) throw new Error('LATEST.json ETag is required for conditional publication');
+    // The live list combined files are MIXED arrays (e.g. office rows + a trailing
+    // { office_member_addresses } element with no `office`). Filter the baseline to
+    // valid records only — the same way the client filters incoming pages — so the
+    // merge/validation don't throw-all on a non-record element. Non-degrading: office
+    // rows keep their own per-row office_member_addresses; the trailing element is
+    // redundant and the reader already ignores it. Checksum verification above is on
+    // the raw bytes, so it is unaffected by this parsed-array filtering.
     return {
       pointer,
       latestEtag: latest.etag,
-      active: { members, staff, offices },
+      active: {
+        members: members.filter(hasRequiredMemberIdentity),
+        staff: staff.filter(hasRequiredStaffIdentity),
+        offices: offices.filter(hasRequiredOfficeIdentity),
+      },
       sourceObjects: {
         members: memberSource.fingerprint,
         staff: staffSource.fingerprint,
