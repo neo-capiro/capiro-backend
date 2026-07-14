@@ -1,4 +1,10 @@
-import { BadRequestException, Injectable, Logger, NotFoundException } from '@nestjs/common';
+import {
+  BadRequestException,
+  ForbiddenException,
+  Injectable,
+  Logger,
+  NotFoundException,
+} from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { Prisma } from '@prisma/client';
 import {
@@ -14,6 +20,7 @@ import { PrismaService } from '../prisma/prisma.service.js';
 import { MeriToolsService } from './meri-tools.service.js';
 import { AiCredentialResolverService } from '../engagement/ai-credential-resolver.service.js';
 import { MemoryIngestService } from '../memory/memory-ingest.service.js';
+import { clioMemorySlug } from '../memory/memory-clio-adapter.helpers.js';
 import {
   addUsage,
   applyRoundUsageEvent,
@@ -3695,21 +3702,55 @@ export class MeriService {
   /**
    * Undo a learned memory. Deletes the row in a scope the user is allowed to
    * touch (own private memory, or firm memory within the tenant). Idempotent.
+   *
+   * Governance parity with the chat-tool `forget_memory` verb
+   * (memory-store.service.ts): refuses when the projected memory_items row is
+   * under legal hold, and writes the same audit_logs tombstone. clio_memory
+   * itself has no legal_hold column — the flag lives on the projection (slug
+   * `clio:<id>`), which is async/best-effort, so an ABSENT projection is not
+   * itself a block; only an EXISTING held row is.
    */
   async forgetMemory(ctx: TenantContext, memoryId: string) {
     const row = await this.prisma.withTenant(ctx.tenantId, (tx) =>
       tx.clioMemory.findFirst({
         where: { id: memoryId, tenantId: ctx.tenantId },
-        select: { id: true, scope: true, ownerUserId: true },
+        select: { id: true, scope: true, ownerUserId: true, key: true, value: true },
       }),
     );
     if (!row) throw new NotFoundException('Memory not found');
     if (row.scope === 'user_private' && row.ownerUserId !== ctx.userId) {
       throw new NotFoundException('Memory not found');
     }
-    await this.prisma.withTenant(ctx.tenantId, (tx) =>
-      tx.clioMemory.deleteMany({ where: { id: memoryId, tenantId: ctx.tenantId } }),
+
+    const slug = clioMemorySlug(memoryId);
+    const held = await this.prisma.withTenantUser(
+      ctx.tenantId,
+      ctx.userId,
+      (tx) =>
+        tx.$queryRaw<Array<{ legal_hold: boolean }>>`
+        SELECT legal_hold FROM memory_items
+        WHERE tenant_id = ${ctx.tenantId}::uuid AND type = 'note' AND slug = ${slug}
+        LIMIT 1
+      `,
     );
+    if (held[0]?.legal_hold) {
+      throw new ForbiddenException('This memory is under legal hold and cannot be deleted.');
+    }
+
+    await this.prisma.withTenant(ctx.tenantId, async (tx) => {
+      await tx.clioMemory.deleteMany({ where: { id: memoryId, tenantId: ctx.tenantId } });
+      await tx.auditLog.create({
+        data: {
+          tenantId: ctx.tenantId,
+          actorUserId: ctx.userId,
+          actorRole: ctx.role,
+          action: 'memory.forget',
+          entityType: 'clio_memory',
+          entityId: memoryId,
+          before: { key: row.key, value: row.value, scope: row.scope },
+        },
+      });
+    });
     // Write-through: drop the projected memory_item + its embedding/edges.
     void this.memoryIngest.removeClioMemory(ctx.tenantId, memoryId);
     return { ok: true, id: memoryId };
@@ -3747,6 +3788,10 @@ export class MeriService {
   /**
    * Edit a memory's value (P2-6). Same scope access control as forgetMemory: a
    * user_private memory is only editable by its owner. Marks it user-edited.
+   * Same legal-hold gate as forgetMemory — an edit is a content change on the
+   * same entity a hold protects, so it must refuse under the identical
+   * condition (never a way to route around a hold by editing instead of
+   * deleting), and writes the same audit_logs entry shape.
    */
   async updateMemory(ctx: TenantContext, memoryId: string, value: unknown) {
     const next = (typeof value === 'string' ? value.trim() : '').slice(0, 4000);
@@ -3754,19 +3799,42 @@ export class MeriService {
     const row = await this.prisma.withTenant(ctx.tenantId, (tx) =>
       tx.clioMemory.findFirst({
         where: { id: memoryId, tenantId: ctx.tenantId },
-        select: { id: true, scope: true, ownerUserId: true, metadata: true },
+        select: {
+          id: true,
+          scope: true,
+          ownerUserId: true,
+          key: true,
+          value: true,
+          metadata: true,
+        },
       }),
     );
     if (!row) throw new NotFoundException('Memory not found');
     if (row.scope === 'user_private' && row.ownerUserId !== ctx.userId) {
       throw new NotFoundException('Memory not found');
     }
+
+    const slug = clioMemorySlug(memoryId);
+    const held = await this.prisma.withTenantUser(
+      ctx.tenantId,
+      ctx.userId,
+      (tx) =>
+        tx.$queryRaw<Array<{ legal_hold: boolean }>>`
+        SELECT legal_hold FROM memory_items
+        WHERE tenant_id = ${ctx.tenantId}::uuid AND type = 'note' AND slug = ${slug}
+        LIMIT 1
+      `,
+    );
+    if (held[0]?.legal_hold) {
+      throw new ForbiddenException('This memory is under legal hold and cannot be edited.');
+    }
+
     const meta =
       row.metadata && typeof row.metadata === 'object' && !Array.isArray(row.metadata)
         ? (row.metadata as Record<string, unknown>)
         : {};
-    await this.prisma.withTenant(ctx.tenantId, (tx) =>
-      tx.clioMemory.updateMany({
+    await this.prisma.withTenant(ctx.tenantId, async (tx) => {
+      await tx.clioMemory.updateMany({
         where: { id: memoryId, tenantId: ctx.tenantId },
         data: {
           value: next,
@@ -3776,8 +3844,20 @@ export class MeriService {
             editedByUserId: ctx.userId,
           } as unknown as Prisma.InputJsonValue,
         },
-      }),
-    );
+      });
+      await tx.auditLog.create({
+        data: {
+          tenantId: ctx.tenantId,
+          actorUserId: ctx.userId,
+          actorRole: ctx.role,
+          action: 'memory.edit',
+          entityType: 'clio_memory',
+          entityId: memoryId,
+          before: { key: row.key, value: row.value },
+          after: { key: row.key, value: next },
+        },
+      });
+    });
     // Write-through: refresh the projected memory_item + embedding.
     void this.memoryIngest.projectClioMemory(ctx.tenantId, memoryId);
     return { ok: true, id: memoryId, value: next };

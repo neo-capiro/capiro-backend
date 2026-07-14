@@ -120,4 +120,36 @@ describe('Phase 3 (3a) — memory private rows are fail-closed', () => {
     expect(sql).toMatch(/DROP POLICY "memory_items_isolation"/);
     expect(sql).toContain('ALTER TABLE "context_embeddings" ADD COLUMN "owner_user_id"');
   });
+
+  // ── clio_memory app-level isolation (A5.5, audited 2026-07-14) ────────────
+  //
+  // Unlike memory_items, clio_memory has NO owner/client-level RLS — only
+  // tenant-level (clio_memory_isolation). The scope='user_private'/'client'
+  // predicates below are the ONLY thing standing between one user/client and
+  // another's private clio_memory rows within the same tenant. Every known
+  // read site was individually audited and found correctly scoped; these
+  // static guards fail CI if a future refactor silently drops one.
+  it('every clio_memory Prisma-filter read scopes user_private rows by ownerUserId', () => {
+    const meri = readFileSync(join(SRC_ROOT, 'meri', 'meri.service.ts'), 'utf8');
+    // clioRecall, listRecentLearnedMemories, listMemories.
+    const filterGuards = meri.match(/\{\s*scope:\s*'user_private',\s*ownerUserId:/g) ?? [];
+    expect(filterGuards.length).toBeGreaterThanOrEqual(3);
+    // forgetMemory, updateMemory: post-fetch app-level owner check (they load
+    // by id first, so the guard is an equality check, not a query filter).
+    const postFetchGuards =
+      meri.match(/row\.scope === 'user_private' && row\.ownerUserId !== ctx\.userId/g) ?? [];
+    expect(postFetchGuards.length).toBeGreaterThanOrEqual(2);
+
+    const candidate = readFileSync(join(SRC_ROOT, 'memory', 'memory-candidate.service.ts'), 'utf8');
+    // commitToClioMemory's find-or-create dedupe/write is keyed to the
+    // record's OWN scope/owner/client — never a bare tenant-wide lookup.
+    const ownWriteGuards = candidate.match(/ownerUserId:\s*record\.ownerUserId/g) ?? [];
+    expect(ownWriteGuards.length).toBeGreaterThanOrEqual(3);
+  });
+
+  it('the raw-SQL semantic search scopes BOTH user_private and client rows explicitly', () => {
+    const meri = readFileSync(join(SRC_ROOT, 'meri', 'meri.service.ts'), 'utf8');
+    expect(meri).toMatch(/scope = 'user_private' AND owner_user_id = \$3::uuid/);
+    expect(meri).toMatch(/scope = 'client' AND client_id = \$5::uuid/);
+  });
 });
