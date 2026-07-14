@@ -177,20 +177,44 @@ export function PreviewPage() {
     bulk ? ` · all ${offices.length} offices (.zip)` : ''
   }`;
 
+  // The draft's genuine packet add-on documents (cover letter, appendix, …) —
+  // EXCLUDES the vestigial primary WsDocument (lowest ordinal) that every
+  // draft has but the editor never surfaces as its own tab; main content
+  // lives in cfg.sections/sectionContent instead. Mirrors the server's own
+  // ExportService.packetDocs() and EditorPage's sortedDocs filter.
+  const packetDocs = useMemo(() => (draft?.documents ?? []).slice(1), [draft]);
+
+  // What "Separate files" vs "Combined packet" actually produces: previously
+  // this toggle had no effect at all (every export silently combined
+  // everything, and packet documents like a cover letter were dropped
+  // entirely). Combined = one file with every packet doc then the main
+  // content (server default, part omitted). Separate = one file per packet
+  // document plus one for the main content alone.
+  const exportParts = (): Array<{ part?: string; suffix: string }> => {
+    if (!hasCover || bundle === 'packet' || packetDocs.length === 0) {
+      return [{ suffix: '' }];
+    }
+    return [
+      ...packetDocs.map((d) => ({ part: d.id, suffix: `-${d.name}` })),
+      { part: 'main', suffix: '-white-paper' },
+    ];
+  };
+
   const doExportPdf = async () => {
     // PDF = a SERVER-RENDERED .pdf (deterministic; no browser print pipeline).
     setExporting(true);
     try {
-      if (bulk) {
-        for (const o of offices) {
+      const parts = exportParts();
+      const targets = bulk ? offices : [null];
+      for (const o of targets) {
+        for (const p of parts) {
+          const hint = `${docTitle}${o ? `-${o}` : ''}${p.suffix}`;
           // eslint-disable-next-line no-await-in-loop
-          await exportPdf.mutateAsync(`${docTitle}-${o}`);
+          await exportPdf.mutateAsync({ filenameHint: hint, part: p.part });
         }
-        message.success(`Exported ${offices.length} office PDFs`);
-      } else {
-        await exportPdf.mutateAsync(docTitle);
-        message.success('PDF downloaded');
       }
+      const total = targets.length * parts.length;
+      message.success(total > 1 ? `Exported ${total} PDF files` : 'PDF downloaded');
     } catch {
       message.error('Export failed');
     } finally {
@@ -201,19 +225,20 @@ export function PreviewPage() {
   const doExportWord = async () => {
     setExporting(true);
     try {
-      if (bulk) {
-        // Per-office Word: sequential downloads, one .docx per office. A real
-        // single .zip bundle needs a new dependency (jszip) — deferred.
-        // TODO(phase): bundle the per-office .docx files as a single .zip.
-        for (const o of offices) {
+      const parts = exportParts();
+      // Per-office/per-part Word: sequential downloads. A real single .zip
+      // bundle needs a new dependency (jszip) — deferred.
+      // TODO(phase): bundle multi-file exports as a single .zip.
+      const targets = bulk ? offices : [null];
+      for (const o of targets) {
+        for (const p of parts) {
+          const hint = `${docTitle}${o ? `-${o}` : ''}${p.suffix}`;
           // eslint-disable-next-line no-await-in-loop
-          await exportDocx.mutateAsync(`${docTitle}-${o}`);
+          await exportDocx.mutateAsync({ filenameHint: hint, part: p.part });
         }
-        message.success(`Exported ${offices.length} office documents`);
-      } else {
-        await exportDocx.mutateAsync(docTitle);
-        message.success('Word document downloaded');
       }
+      const total = targets.length * parts.length;
+      message.success(total > 1 ? `Exported ${total} Word documents` : 'Word document downloaded');
     } catch {
       message.error('Export failed');
     } finally {
