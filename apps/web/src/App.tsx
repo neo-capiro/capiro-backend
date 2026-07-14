@@ -20,6 +20,9 @@ import { LockoutScreen } from './components/onboarding/LockoutScreen.js';
 import { CapiroAdminPage } from './pages/capiro-admin/CapiroAdminPage.js';
 import { ClientWorkspacePage } from './pages/clients/ClientWorkspacePage.js';
 import { DirectoryPage } from './pages/directory/DirectoryPage.js';
+import MemberDirectoryProfilePage from './pages/directory/MemberDirectoryProfilePage.js';
+import StaffDirectoryProfilePage from './pages/directory/StaffDirectoryProfilePage.js';
+import CommitteeDirectoryPage from './pages/directory/CommitteeDirectoryPage.js';
 import { HelpPage } from './pages/help/HelpPage.js';
 import { HomePage } from './pages/HomePage.js';
 import { EngagementPage } from './pages/engagement/EngagementPage.js';
@@ -245,6 +248,10 @@ export function App() {
         <Route path="/intelligence/*" element={<Navigate to="/explorer" replace />} />
         <Route path="/intelligence-center" element={<ComingSoonIntelligence />} />
         <Route path="/directory" element={<DirectoryPage />} />
+        {/* Deep-linkable directory profiles + committee dictionary (static segments precede :params). */}
+        <Route path="/directory/members/:memberId" element={<MemberDirectoryProfilePage />} />
+        <Route path="/directory/staff/:staffId" element={<StaffDirectoryProfilePage />} />
+        <Route path="/directory/committees/:committeeId" element={<CommitteeDirectoryPage />} />
         <Route path="/help" element={<HelpPage />} />
         <Route path="/portal/*" element={<Navigate to="/clients" replace />} />
 
