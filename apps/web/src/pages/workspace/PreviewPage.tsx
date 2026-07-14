@@ -39,6 +39,7 @@ import {
   useDraftChecks,
   useExportDocx,
   useExportPdf,
+  usePromoteMemory,
 } from './api.js';
 import { useMe } from '../../lib/me.js';
 import { sectionViews } from './editor/section-model.js';
@@ -65,6 +66,7 @@ export function PreviewPage() {
   const exportDocx = useExportDocx(draftId ?? '');
   const exportPdf = useExportPdf(draftId ?? '');
   const createVersion = useCreateVersion(draftId ?? '');
+  const promoteMemory = usePromoteMemory(draftId ?? null);
 
   const [view, setView] = useState<ViewKey>('packet');
   const [fmt, setFmt] = useState<Fmt>('pdf');
@@ -72,6 +74,9 @@ export function PreviewPage() {
   const [officeIdx, setOfficeIdx] = useState(0);
   const [officeMenu, setOfficeMenu] = useState(false);
   const [exporting, setExporting] = useState(false);
+  // Phase 3.4 memory write-back: the optional key-fact note + proposed state.
+  const [promoteNote, setPromoteNote] = useState('');
+  const [promoted, setPromoted] = useState(false);
   // Measured number of letter-size pages the white paper paginates into.
   const [paperPageCount, setPaperPageCount] = useState(1);
 
@@ -544,6 +549,68 @@ export function PreviewPage() {
                 )}
               </div>
             )}
+
+            {/* Phase 3.4 memory write-back (blueprint §6.4): promote this
+                artifact's key fact into FIRM institutional memory — a decision
+                deliberately separate from export/approve. Lands as a PENDING
+                memory_candidate in the admin review queue, never auto-committed. */}
+            <div>
+              <div
+                style={{
+                  fontSize: 10.5,
+                  textTransform: 'uppercase',
+                  letterSpacing: '0.07em',
+                  color: 'var(--ink-3)',
+                  fontWeight: 600,
+                  marginBottom: 9,
+                }}
+              >
+                Firm memory
+              </div>
+              {promoted ? (
+                <div style={{ fontSize: 11.5, color: 'var(--ink-2)' }}>
+                  Proposed — pending review in the firm-memory candidate queue.
+                </div>
+              ) : (
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 7 }}>
+                  <textarea
+                    value={promoteNote}
+                    onChange={(e) => setPromoteNote(e.target.value)}
+                    maxLength={4000}
+                    rows={2}
+                    placeholder="Key fact or position to remember (optional — defaults to a summary of this draft)"
+                    style={{
+                      resize: 'vertical',
+                      fontSize: 12,
+                      fontFamily: 'var(--font-sans)',
+                      color: 'var(--ink-1)',
+                      background: 'var(--bg-surface)',
+                      border: '1px solid var(--border-1)',
+                      borderRadius: 8,
+                      padding: '7px 9px',
+                    }}
+                  />
+                  <button
+                    className="btn"
+                    style={{ justifyContent: 'center' }}
+                    disabled={promoteMemory.isPending}
+                    onClick={async () => {
+                      try {
+                        await promoteMemory.mutateAsync(
+                          promoteNote.trim() ? { note: promoteNote.trim() } : {},
+                        );
+                        setPromoted(true);
+                        message.success('Proposed for firm memory — pending review.');
+                      } catch {
+                        message.error('Could not propose this for firm memory. Try again.');
+                      }
+                    }}
+                  >
+                    {promoteMemory.isPending ? 'Proposing…' : 'Propose for firm memory'}
+                  </button>
+                </div>
+              )}
+            </div>
 
             {/* Export */}
             <div>

@@ -770,6 +770,20 @@ export function useContextUsed(draftId: string | null, enabled = true) {
   });
 }
 
+/**
+ * Phase 3.4 memory write-back: propose this draft's key fact for FIRM
+ * institutional memory. Deliberately separate from export/approve (blueprint
+ * §6.4) — it lands as a PENDING memory_candidate in the admin review queue,
+ * never auto-committed.
+ */
+export function usePromoteMemory(draftId: string | null) {
+  const api = useApi();
+  return useMutation({
+    mutationFn: async (body: { note?: string }) =>
+      (await api.post(`${BASE}/drafts/${draftId}/promote-memory`, body)).data,
+  });
+}
+
 // ── Version history (Phase 6b) ───────────────────────────────────────────────
 export function useVersions(draftId: string | null) {
   const api = useApi();
