@@ -59,6 +59,7 @@ describe('IntelAlertService.fanOut (shadow)', () => {
             userId: 'u1',
             triggers,
             materiality: 'medium',
+            jurisdictions: [], // String[] @default([]) in the schema — never undefined
             emailEnabled: true,
             emailAddress: 'u1@x.com',
           },
@@ -84,7 +85,13 @@ describe('IntelAlertService.fanOut (shadow)', () => {
         return { sent: true, messageId: 'm1' };
       },
     };
-    const svc = new IntelAlertService(prisma as never, flags as never, email as never);
+    const svc = new IntelAlertService(
+      prisma as never,
+      flags as never,
+      email as never,
+      {} as never,
+      { configured: false } as never,
+    );
     return { svc, claims, sendCalls };
   }
 
@@ -162,6 +169,8 @@ describe('IntelAlertService.emitNewBillAlerts (idempotency)', () => {
       prisma as never,
       { isEnabled: async () => false } as never,
       { send: async () => ({ sent: true }) } as never,
+      { getClientNames: async () => new Map() } as never,
+      { configured: false } as never,
     );
     return { svc, store, updates };
   }
@@ -190,7 +199,13 @@ describe('IntelAlertService.backfillDefaultTriggers', () => {
       },
     };
     const prisma = { withSystem: async <T>(cb: (tx: typeof inner) => Promise<T>) => cb(inner) };
-    const svc = new IntelAlertService(prisma as never, {} as never, {} as never);
+    const svc = new IntelAlertService(
+      prisma as never,
+      {} as never,
+      {} as never,
+      {} as never,
+      {} as never,
+    );
     const r = await svc.backfillDefaultTriggers();
     expect(r.updated).toBe(9); // 3 rows × 3 keys
     expect(calls.map((c) => c.key)).toEqual(['fiscalNote', 'sponsorMomentum', 'deadline']);
@@ -213,7 +228,13 @@ describe('IntelAlertService.backfillDefaultTriggers', () => {
       },
     };
     const prisma = { withSystem: async <T>(cb: (tx: typeof inner) => Promise<T>) => cb(inner) };
-    const svc = new IntelAlertService(prisma as never, {} as never, {} as never);
+    const svc = new IntelAlertService(
+      prisma as never,
+      {} as never,
+      {} as never,
+      {} as never,
+      {} as never,
+    );
     await svc.backfillDefaultTriggers();
     expect(calls.map((c) => c.key)).not.toContain('companion');
   });
@@ -260,6 +281,7 @@ describe('IntelAlertService real-send delivery (finding #1/#6)', () => {
             userId: 'u1',
             triggers: ['fiscalNote'],
             materiality: 'low',
+            jurisdictions: [], // String[] @default([]) in the schema — never undefined
             emailEnabled: true,
             emailAddress: 'u1@x.com',
           },
@@ -283,6 +305,10 @@ describe('IntelAlertService real-send delivery (finding #1/#6)', () => {
       prisma as never,
       { isEnabled: async () => true } as never, // owned
       { send: async () => sendResult } as never,
+      { getClientNames: async () => new Map() } as never,
+      // configured:false → skip summary delegation; these tests assert delivery
+      // idempotency, not summary generation (that has its own coverage).
+      { configured: false } as never,
     );
     return { svc, store, claimedAlertIds };
   }
@@ -311,5 +337,160 @@ describe('IntelAlertService real-send delivery (finding #1/#6)', () => {
     expect(store[0].deliveredAt).toBeInstanceOf(Date);
     const again = await svc.emitNewBillAlerts();
     expect(again.alerts).toBe(0); // not reprocessed
+  });
+});
+
+/**
+ * "What happened" LLM summary (delegated to apps/api): generated ONLY on real
+ * sends (canSend), rendered into the email body, deduped across clients of the
+ * same (tenant,bill,changeType) within one sweep, and never fatal to delivery.
+ */
+describe('IntelAlertService "what happened" summary delegation', () => {
+  afterEach(() => {
+    delete process.env.TRACKER_ALERTS_ENABLED;
+  });
+
+  function alertRow(id: string, clientId: string) {
+    return {
+      id,
+      tenantId: 't1',
+      clientId,
+      sourceType: 'bill',
+      sourceRef: '119-hr-1',
+      status: 'new',
+      deliveredAt: null as Date | null,
+      changeType: 'bill_passed_chamber',
+      kind: 'bill_passed_chamber',
+      severity: 'notable',
+      score: 0.6,
+      title: 'H.R. 1',
+      whyItMatters: 'Matches your watchlist term "defense".',
+      evidence: {
+        triggerKey: 'floorVote',
+        displayNum: 'H.R. 1',
+        stage: 'Passed a chamber',
+        actionText: 'On passage Passed by recorded vote: 219 - 210.',
+        billTitle: 'A bill to do things',
+        tone: 'success',
+      },
+    };
+  }
+
+  function makeService(rows: ReturnType<typeof alertRow>[], summaryClient: unknown) {
+    const store = [...rows];
+    const sent: Array<{ to: string; html: string; text: string }> = [];
+    const inner = {
+      intelAlert: {
+        findMany: async () => store.filter((r) => r.status === 'new' && r.deliveredAt == null),
+        update: async ({ where, data }: { where: { id: string }; data: { deliveredAt: Date } }) => {
+          const row = store.find((r) => r.id === where.id)!;
+          row.deliveredAt = data.deliveredAt;
+          return row;
+        },
+      },
+      intelAlertPreference: {
+        findMany: async () => [
+          {
+            userId: 'u1',
+            triggers: ['floorVote'],
+            materiality: 'low',
+            jurisdictions: [],
+            emailEnabled: true,
+            emailAddress: 'u1@x.com',
+          },
+        ],
+      },
+      intelNotificationLog: {
+        create: async () => ({ id: 'log-1' }),
+        update: async () => ({}),
+        findFirst: async () => null,
+      },
+    };
+    const prisma = {
+      ...inner,
+      withTenant: async <T>(_t: string, cb: (tx: typeof inner) => Promise<T>) => cb(inner),
+      withSystem: async <T>(cb: (tx: typeof inner) => Promise<T>) => cb(inner),
+    };
+    const email = {
+      send: async (to: string, _subject: string, html: string, text: string) => {
+        sent.push({ to, html, text });
+        return { sent: true, messageId: 'm1' };
+      },
+    };
+    const svc = new IntelAlertService(
+      prisma as never,
+      { isEnabled: async () => true } as never, // owned
+      email as never,
+      { getClientNames: async () => new Map() } as never,
+      summaryClient as never,
+    );
+    return { svc, sent };
+  }
+
+  it('generates the summary on a real send and renders it into the email body', async () => {
+    process.env.TRACKER_ALERTS_ENABLED = 'true';
+    let calls = 0;
+    const summaryClient = {
+      configured: true,
+      summarize: async () => {
+        calls += 1;
+        return 'The House passed this bill 219-210; it now heads to the Senate.';
+      },
+    };
+    const { svc, sent } = makeService([alertRow('a1', 'c1')], summaryClient);
+    const r = await svc.emitNewBillAlerts();
+    expect(r.sent).toBe(1);
+    expect(calls).toBe(1);
+    expect(sent).toHaveLength(1);
+    expect(sent[0].html).toContain('What happened');
+    expect(sent[0].html).toContain('now heads to the Senate');
+    expect(sent[0].text).toContain('What happened: The House passed this bill 219-210');
+  });
+
+  it('deduping: two clients tracking the same bill share ONE summary generation', async () => {
+    process.env.TRACKER_ALERTS_ENABLED = 'true';
+    let calls = 0;
+    const summaryClient = {
+      configured: true,
+      summarize: async () => {
+        calls += 1;
+        return 'Shared summary.';
+      },
+    };
+    // Same (tenant,bill,changeType), two different clients → two alert rows.
+    const { svc, sent } = makeService([alertRow('a1', 'c1'), alertRow('a2', 'c2')], summaryClient);
+    const r = await svc.emitNewBillAlerts();
+    expect(r.sent).toBe(2); // both delivered
+    expect(calls).toBe(1); // but the summary was generated only once (cache hit on the 2nd)
+    expect(sent.every((s) => s.html.includes('Shared summary.'))).toBe(true);
+  });
+
+  it('does NOT generate a summary when the client is not configured (no shared secret)', async () => {
+    process.env.TRACKER_ALERTS_ENABLED = 'true';
+    let calls = 0;
+    const summaryClient = {
+      configured: false,
+      summarize: async () => {
+        calls += 1;
+        return 'unused';
+      },
+    };
+    const { svc, sent } = makeService([alertRow('a1', 'c1')], summaryClient);
+    const r = await svc.emitNewBillAlerts();
+    expect(r.sent).toBe(1); // still delivers
+    expect(calls).toBe(0); // never called
+    expect(sent[0].html).not.toContain('What happened');
+  });
+
+  it('a summary failure (null) never blocks delivery', async () => {
+    process.env.TRACKER_ALERTS_ENABLED = 'true';
+    const summaryClient = {
+      configured: true,
+      summarize: async () => null, // provider error / timeout, fail-soft
+    };
+    const { svc, sent } = makeService([alertRow('a1', 'c1')], summaryClient);
+    const r = await svc.emitNewBillAlerts();
+    expect(r.sent).toBe(1);
+    expect(sent[0].html).not.toContain('What happened');
   });
 });

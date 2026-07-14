@@ -29,6 +29,7 @@ import { NewMatchDetectorService } from '../tracker/new-match-detector.service.j
 import { FeatureFlagService } from '../feature-flags/feature-flag.service.js';
 import { IntelAlertService } from '../intel-alert/intel-alert.service.js';
 import { IntelEmailService } from '../intel-alert/intel-email.service.js';
+import { AlertSummaryClient } from '../intel-alert/alert-summary.client.js';
 import { TrackerWatchlistService } from '../tracker/tracker-watchlist.service.js';
 import { TrackerBoardService } from '../tracker/tracker-board.service.js';
 import { ParityService } from '../tracker/parity.service.js';
@@ -52,6 +53,8 @@ function buildAlertService(prisma: PrismaService): IntelAlertService {
     prisma,
     new FeatureFlagService(prisma, new ConfigService()),
     new IntelEmailService(),
+    new SourceDataRepository(prisma),
+    new AlertSummaryClient(),
   );
 }
 

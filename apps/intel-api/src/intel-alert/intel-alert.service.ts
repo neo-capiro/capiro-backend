@@ -11,6 +11,9 @@ import {
   type AlertSeverity,
   type IntelAlertEvent,
 } from './intel-alert.types.js';
+import { SourceDataRepository } from '../sourcedata/source-data.repository.js';
+import { renderAlertEmail } from '../tracker/tracker-email.templates.js';
+import { AlertSummaryClient } from './alert-summary.client.js';
 
 type Channel = 'email' | 'sms' | 'in_app';
 
@@ -87,6 +90,8 @@ export class IntelAlertService {
     private readonly prisma: PrismaService,
     private readonly flags: FeatureFlagService,
     private readonly email: IntelEmailService,
+    private readonly sourceData: SourceDataRepository,
+    private readonly summaryClient: AlertSummaryClient,
   ) {}
 
   static alertId(clientId: string, billId: string, changeType: string): string {
@@ -140,7 +145,10 @@ export class IntelAlertService {
    * Fan one alert out to every eligible pref for the client. In shadow: log +
    * claim `suppressed_shadow`, send nothing. Returns per-run counters.
    */
-  async fanOut(event: IntelAlertEvent): Promise<{
+  async fanOut(
+    event: IntelAlertEvent,
+    summaryCache?: Map<string, string | null>,
+  ): Promise<{
     suppressed: number;
     sent: number;
     failed: number;
@@ -162,6 +170,7 @@ export class IntelAlertService {
     }
     const owned = await this.flags.isEnabled(TRACKER_OWNER_FEATURE, event.tenantId);
     const canSend = owned && !this.killSwitchOff(); // shadow: false (kill-switch off)
+
     // Claim key = the specific intel_alert ROW id (unique per occurrence), NOT the
     // deterministic (client,bill,changeType). The composite would permanently
     // block any changeType that legitimately recurs after the 14-day dedup window
@@ -175,24 +184,57 @@ export class IntelAlertService {
       }),
     );
 
+    // A pref that clears every delivery filter. DD5: empty jurisdictions = ALL
+    // jurisdictions the client's watchlist produces (today's behavior); non-empty
+    // = only those states (+ 'US' is just another entry, no federal carve-out).
+    const eligible = (pref: (typeof prefs)[number]): boolean =>
+      pref.triggers.includes(event.triggerKey) &&
+      clearsMateriality(event.severity, pref.materiality) &&
+      (pref.jurisdictions.length === 0 ||
+        pref.jurisdictions.includes(event.jurisdiction ?? 'US')) &&
+      Boolean(pref.emailEnabled && pref.emailAddress);
+
+    // "What happened" summary — generated ONLY when this event will actually be
+    // delivered: canSend (owned + kill-switch on, so shadow tenants never burn
+    // tokens) AND at least one recipient clears every filter. Delegated to
+    // apps/api (intel-api has no in-process LLM); fail-soft (null → the email
+    // just omits the line). apps/api owns the TRACKER_ALERT_SUMMARY flag + BYOK
+    // key, so there's no flag here. The per-sweep cache dedupes IDENTICAL actions
+    // (same summarize inputs) across clients tracking the same move; its key is
+    // the FULL input signature — NOT (tenant,bill,changeType) — so two DISTINCT
+    // actions that happen to share a changeType never reuse each other's text.
+    if (canSend && this.summaryClient.configured && !event.summary && prefs.some(eligible)) {
+      const summaryInput = {
+        tenantId: event.tenantId,
+        displayNum: event.displayNum,
+        billTitle: event.billTitle,
+        label: event.label,
+        actionText: event.detail,
+      };
+      const key = [
+        summaryInput.tenantId,
+        summaryInput.displayNum,
+        summaryInput.billTitle,
+        summaryInput.label,
+        summaryInput.actionText,
+      ].join('\u0000'); // NUL delimiter -> collision-free even if a field value contains it
+      if (summaryCache?.has(key)) {
+        event.summary = summaryCache.get(key) ?? null;
+      } else {
+        const summary = await this.summaryClient.summarize(summaryInput);
+        event.summary = summary;
+        summaryCache?.set(key, summary);
+      }
+    }
+
     let suppressed = 0;
     let sent = 0;
     let failed = 0;
+    // Rendered once per event (not per-pref — content doesn't vary by recipient).
+    const rendered = renderAlertEmail(event);
     for (const pref of prefs) {
-      if (!pref.triggers.includes(event.triggerKey)) continue;
-      if (!clearsMateriality(event.severity, pref.materiality)) continue;
-      // DD5: empty jurisdictions = ALL jurisdictions the client's watchlist
-      // produces (today's behavior, unchanged); non-empty = only those states
-      // (+ always 'US' is just another entry, no implicit federal carve-out).
-      if (
-        pref.jurisdictions.length > 0 &&
-        !pref.jurisdictions.includes(event.jurisdiction ?? 'US')
-      ) {
-        continue;
-      }
-      if (!(pref.emailEnabled && pref.emailAddress)) continue;
+      if (!eligible(pref)) continue;
 
-      const subject = `[Capiro] ${event.displayNum}: ${event.label}`;
       if (!canSend) {
         // SHADOW: compute + log the would-send, claim a suppressed row, send NOTHING.
         this.logger.log(
@@ -203,7 +245,7 @@ export class IntelAlertService {
             alertId,
             channel: 'email',
             to: pref.emailAddress,
-            subject,
+            subject: rendered.subject,
             score: event.score ?? null,
             band: event.band ?? null,
             wouldSendAt: new Date().toISOString(),
@@ -231,7 +273,14 @@ export class IntelAlertService {
         'sending',
       );
       if (logId) {
-        const res = await this.email.send(pref.emailAddress, subject, `<p>${subject}</p>`, subject);
+        // eligible() already guaranteed emailAddress is a non-empty string; the
+        // assertion just restores the narrowing the extracted predicate hid.
+        const res = await this.email.send(
+          pref.emailAddress!,
+          rendered.subject,
+          rendered.html,
+          rendered.text,
+        );
         await this.prisma.withTenant(event.tenantId, (tx) =>
           tx.intelNotificationLog.update({
             where: { id: logId },
@@ -293,6 +342,30 @@ export class IntelAlertService {
         take: 5000,
       }),
     );
+    // Batch-resolve client display names per tenant (one query per tenant, not
+    // per alert) — mirrors feed.service.ts's existing getClientNames pattern.
+    // A name that can't be resolved just omits the "· {client}" parts of the
+    // rendered email; it never blocks delivery.
+    const clientIdsByTenant = new Map<string, Set<string>>();
+    for (const r of rows) {
+      const set = clientIdsByTenant.get(r.tenantId) ?? new Set<string>();
+      set.add(r.clientId);
+      clientIdsByTenant.set(r.tenantId, set);
+    }
+    const clientNamesByTenant = new Map<string, Map<string, string>>();
+    for (const [tenantId, clientIds] of clientIdsByTenant) {
+      clientNamesByTenant.set(
+        tenantId,
+        await this.sourceData
+          .getClientNames(tenantId, Array.from(clientIds))
+          .catch(() => new Map<string, string>()),
+      );
+    }
+
+    // One "what happened" summary per (tenant,bill,changeType) per sweep, shared
+    // by every client tracking the same bill — don't re-spend the tenant's key.
+    const summaryCache = new Map<string, string | null>();
+
     let suppressed = 0;
     let sent = 0;
     let failed = 0;
@@ -301,6 +374,7 @@ export class IntelAlertService {
       const event: IntelAlertEvent = {
         tenantId: a.tenantId,
         clientId: a.clientId,
+        clientName: clientNamesByTenant.get(a.tenantId)?.get(a.clientId) ?? null,
         alertRowId: a.id, // per-occurrence claim key (recurrences deliver; same row can't double-send)
         billId: a.sourceRef,
         displayNum: (ev.displayNum as string) ?? a.sourceRef,
@@ -308,6 +382,7 @@ export class IntelAlertService {
         changeType: a.changeType ?? a.kind,
         triggerKey: (ev.triggerKey as string) ?? a.kind,
         label: (ev.stage as string) ?? a.title,
+        tone: (ev.tone as string) ?? undefined,
         severity: a.severity as AlertSeverity,
         detail: (ev.actionText as string) ?? a.title,
         actionDate: (ev.actionDate as string) ?? null,
@@ -319,7 +394,7 @@ export class IntelAlertService {
         jurisdiction: (ev.jurisdiction as string) ?? 'US',
       };
       try {
-        const r = await this.fanOut(event);
+        const r = await this.fanOut(event, summaryCache);
         suppressed += r.suppressed;
         sent += r.sent;
         failed += r.failed;

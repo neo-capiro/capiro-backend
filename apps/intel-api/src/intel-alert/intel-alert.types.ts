@@ -22,6 +22,8 @@ export function clearsMateriality(severity: AlertSeverity, materiality: string):
 export interface IntelAlertEvent {
   tenantId: string;
   clientId: string;
+  /** Client display name, resolved from `clients` for the email subject + "why this matters" header (optional — omitted rather than blocking on lookup failure). */
+  clientName?: string | null;
   /**
    * The intel_alert ROW id, when this event came from a persisted row. Used as
    * the notification-log claim key so each occurrence dedups independently (a
@@ -35,6 +37,8 @@ export interface IntelAlertEvent {
   changeType: string;
   triggerKey: string;
   label: string;
+  /** Display tone for the email pill/accent color (`ev.cls.tone` from the detector). Optional — unknown tone just falls back to the brand color. */
+  tone?: string;
   severity: AlertSeverity;
   detail: string;
   actionDate: string | null;
@@ -45,6 +49,11 @@ export interface IntelAlertEvent {
   band?: string;
   /** 'US' | <state code> (State Legislation Platform, DD5). Defaults to 'US' when absent — every pre-Phase-0 event stays federal-only. */
   jurisdiction?: string;
+  /** LLM "what happened" paraphrase. Populated at emit time by `fanOut` (for
+   *  deliverable events only) via `AlertSummaryClient`, which delegates to
+   *  apps/api's TrackerSummaryService. Null/absent when disabled, unresolved, or
+   *  on any failure — the email simply omits the "What happened" line. */
+  summary?: string | null;
 }
 
 /** Parse "HH:MM" to minutes-since-midnight, or null. */
