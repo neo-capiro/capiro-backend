@@ -92,6 +92,8 @@ export class MeriV2ChatClient {
       memoryContext?: string[];
       /** Matched firm-skill system addendum (1B.3), resolved by the proxy. */
       skillAddendum?: string;
+      /** Rolling-compaction summary of earlier turns (1A.6), from the proxy. */
+      conversationSummary?: string;
     };
     aiProvider?: ResolvedAiForChatHeader;
     signal?: AbortSignal;

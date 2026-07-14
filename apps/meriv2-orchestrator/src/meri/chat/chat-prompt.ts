@@ -37,6 +37,13 @@ export interface ChatInput {
    * legacy chat does. Absent when skills are disabled or none matched.
    */
   skillAddendum?: string;
+  /**
+   * Rolling-compaction summary of the EARLIER turns of this conversation (1A.6),
+   * forwarded by the proxy when the thread has been compacted. `messages` only
+   * carries the turns after the summary boundary, so without this the older
+   * context is lost on long threads. Absent for short/un-compacted threads.
+   */
+  conversationSummary?: string;
 }
 
 export interface ChatStep {
@@ -196,6 +203,9 @@ export function buildChatSystemPrompt(
     firm?.soul ? `\n# Firm identity\n${firm.soul}` : '',
     firm?.compass ? `\n# Firm compass\n${firm.compass}` : '',
     voice ? `\n# The user's writing voice (mirror it when you draft)\n${voice}` : '',
+    dto.conversationSummary
+      ? `\n# Conversation so far (summary of EARLIER turns — the message history below carries only the most recent turns)\n${dto.conversationSummary}`
+      : '',
     dto.memoryContext?.length
       ? `\n# What you remember (firm + this user)\nThese are stored memories relevant to this conversation — use them directly when they answer the question:\n${dto.memoryContext.map((m) => `- ${m}`).join('\n')}`
       : '',

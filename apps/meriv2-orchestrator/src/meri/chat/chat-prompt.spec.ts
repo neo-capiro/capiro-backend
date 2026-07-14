@@ -92,6 +92,15 @@ describe('buildChatSystemPrompt', () => {
     expect(buildChatSystemPrompt({}, ctx)).not.toContain('# Firm playbook for this request');
   });
 
+  it('injects the earlier-turns conversation summary when the thread was compacted (1A.6)', () => {
+    const prompt = buildChatSystemPrompt(
+      { conversationSummary: 'Earlier: the user asked about the NDAA markup and SAC-D marks.' },
+      ctx,
+    );
+    expect(prompt).toContain('# Conversation so far');
+    expect(prompt).toContain('Earlier: the user asked about the NDAA markup and SAC-D marks.');
+  });
+
   it('always routes firm-data questions to the right tools (canary regression: meetings → query_debriefs, memory-first)', () => {
     const prompt = buildChatSystemPrompt({}, ctx);
     expect(prompt).toContain('call search_memory FIRST');

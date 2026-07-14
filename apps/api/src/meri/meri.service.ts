@@ -654,6 +654,7 @@ export class MeriService {
         bearerToken,
         complianceScreen,
         traceEnabled: streamControl.traceEnabled,
+        conversationSummary,
         ...(clientSignal ? { clientSignal } : {}),
       });
       return;
@@ -1527,6 +1528,7 @@ export class MeriService {
     bearerToken: string;
     complianceScreen: { flagged: boolean; category?: string | null };
     traceEnabled: boolean;
+    conversationSummary: string | null;
   }): Promise<void> {
     const { ctx, sse } = args;
     const emit = (event: Record<string, unknown>) =>
@@ -1669,6 +1671,7 @@ export class MeriService {
           conversationId: args.conversationId,
           ...(memoryContext.length ? { memoryContext } : {}),
           ...(skillAddendum ? { skillAddendum } : {}),
+          ...(args.conversationSummary ? { conversationSummary: args.conversationSummary } : {}),
         },
         ...(aiProvider ? { aiProvider } : {}),
         ...(args.clientSignal ? { signal: args.clientSignal } : {}),
