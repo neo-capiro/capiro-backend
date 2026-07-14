@@ -6,7 +6,127 @@ import {
   extractOpenAiToolArgs,
   extractOpenAiUsage,
   extractToolUseInput,
+  fromOpenAiToolLoopResponse,
+  toOpenAiToolLoopBody,
 } from './llm-client';
+
+describe('tool-loop translation (4.5.1 — Anthropic wire ⇄ Chat Completions)', () => {
+  const tools = [{ name: 'search_bills', description: 'd', input_schema: { type: 'object' } }];
+
+  it('translates a full loop history: system, text, tool_use → tool_calls, tool_result → role:tool', () => {
+    const body = toOpenAiToolLoopBody({
+      model: 'gpt-test',
+      system: 'sys',
+      maxTokens: 256,
+      tools,
+      messages: [
+        { role: 'user', content: 'find bills' },
+        {
+          role: 'assistant',
+          content: [
+            { type: 'text', text: 'on it' },
+            { type: 'tool_use', id: 'call_1', name: 'search_bills', input: { q: 'ndaa' } },
+          ],
+        },
+        {
+          role: 'user',
+          content: [{ type: 'tool_result', tool_use_id: 'call_1', content: '{"rows":[]}' }],
+        },
+      ],
+    });
+    expect(body.messages).toEqual([
+      { role: 'system', content: 'sys' },
+      { role: 'user', content: 'find bills' },
+      {
+        role: 'assistant',
+        content: 'on it',
+        tool_calls: [
+          {
+            id: 'call_1',
+            type: 'function',
+            function: { name: 'search_bills', arguments: '{"q":"ndaa"}' },
+          },
+        ],
+      },
+      { role: 'tool', tool_call_id: 'call_1', content: '{"rows":[]}' },
+    ]);
+    expect((body.tools as Array<{ function: { name: string } }>)[0]!.function.name).toBe(
+      'search_bills',
+    );
+    expect(body.tool_choice).toBeUndefined(); // default = auto
+  });
+
+  it("toolChoice 'none' forces a text-only synthesis turn; tool-less assistant keeps null content rule", () => {
+    const body = toOpenAiToolLoopBody({
+      model: 'gpt-test',
+      system: 's',
+      maxTokens: 10,
+      tools,
+      toolChoice: 'none',
+      messages: [
+        {
+          role: 'assistant',
+          content: [{ type: 'tool_use', id: 'c1', name: 'search_bills', input: {} }],
+        },
+      ],
+    });
+    expect(body.tool_choice).toBe('none');
+    // Assistant message with tool_calls and no text carries content: null.
+    expect((body.messages as Array<Record<string, unknown>>)[1]).toMatchObject({
+      role: 'assistant',
+      content: null,
+    });
+  });
+
+  it('translates the response back: tool_calls → tool_use blocks, finish_reason mapped', () => {
+    const r = fromOpenAiToolLoopResponse({
+      choices: [
+        {
+          message: {
+            content: 'checking',
+            tool_calls: [
+              {
+                id: 'call_9',
+                type: 'function',
+                function: { name: 'search_bills', arguments: '{"q":"ndaa"}' },
+              },
+            ],
+          },
+          finish_reason: 'tool_calls',
+        },
+      ],
+    });
+    expect(r.stopReason).toBe('tool_use');
+    expect(r.content).toEqual([
+      { type: 'text', text: 'checking' },
+      { type: 'tool_use', id: 'call_9', name: 'search_bills', input: { q: 'ndaa' } },
+    ]);
+  });
+
+  it("maps 'stop'→'end_turn', 'length'→'max_tokens'; malformed tool args degrade to {}", () => {
+    expect(
+      fromOpenAiToolLoopResponse({
+        choices: [{ message: { content: 'done' }, finish_reason: 'stop' }],
+      }).stopReason,
+    ).toBe('end_turn');
+    expect(
+      fromOpenAiToolLoopResponse({
+        choices: [{ message: { content: 'x' }, finish_reason: 'length' }],
+      }).stopReason,
+    ).toBe('max_tokens');
+    const r = fromOpenAiToolLoopResponse({
+      choices: [
+        {
+          message: {
+            tool_calls: [{ id: 'c', function: { name: 'search_bills', arguments: '{oops' } }],
+          },
+          finish_reason: 'tool_calls',
+        },
+      ],
+    });
+    expect(r.content).toEqual([{ type: 'tool_use', id: 'c', name: 'search_bills', input: {} }]);
+  });
+});
 
 describe('OpenAiLlmClient (Phase 4 LLM-gateway convergence)', () => {
   const client = (fetchImpl: typeof fetch) =>

@@ -148,17 +148,35 @@ export class RequestScopedLlmClient implements LlmClient {
     signal?: AbortSignal;
   }): Promise<ToolLoopResponse> {
     const { apiKey, model, usedTenantKey, provider } = this.resolve();
-    // Phase 4 LLM-gateway convergence: the reasoning-tool paths (completeJson/
-    // completeWithSchema) are provider-agnostic, but the agentic chat tool-LOOP
-    // below is still Anthropic-wire-shaped (content blocks, tool_use/tool_result,
-    // stop_reason). Fail LOUD for an OpenAI credential rather than send an
-    // OpenAI key to the Anthropic endpoint. The OpenAI tool-loop adapter
-    // (message-history + tool-call translation) is the remaining larger piece.
+    // Phase 4 LLM-gateway convergence (4.5.1): the loop's wire shape stays
+    // Anthropic (content blocks, tool_use/tool_result, stop_reason); for an
+    // OpenAI credential the OpenAiLlmClient adapter translates both directions,
+    // so the loop drivers (chat, in-editor) run unchanged on either provider.
     if (provider === 'openai') {
-      throw new Error(
-        'MeriV2 chat tool-loop does not yet support the OpenAI provider; the reasoning-tool paths do. ' +
-          'Configure this tenant for Anthropic chat, or complete the OpenAI chat tool-loop adapter.',
+      this.logger.debug(
+        `LLM tool round (provider=openai, model=${model}, usedTenantKey=${usedTenantKey})`,
       );
+      const client = new OpenAiLlmClient({
+        apiKey,
+        model,
+        ...(this.timeoutMs !== undefined ? { timeoutMs: this.timeoutMs } : {}),
+      });
+      const r = await client.completeWithTools({
+        system: params.system,
+        messages: params.messages,
+        tools: params.tools,
+        maxTokens: params.maxTokens,
+        ...(params.timeoutMs !== undefined ? { timeoutMs: params.timeoutMs } : {}),
+        ...(params.toolChoice !== undefined ? { toolChoice: params.toolChoice } : {}),
+        ...(params.signal !== undefined ? { signal: params.signal } : {}),
+      });
+      return {
+        content: r.content as AnthropicContentBlock[],
+        stopReason: r.stopReason,
+        usage: r.usage,
+        model,
+        usedTenantKey,
+      };
     }
     this.logger.debug(`LLM tool round (model=${model}, usedTenantKey=${usedTenantKey})`);
     const controller = new AbortController();
