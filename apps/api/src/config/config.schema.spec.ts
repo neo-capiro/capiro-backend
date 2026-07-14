@@ -35,7 +35,7 @@ describe('configSchema — LegiStorm directory refresh', () => {
     expect(configSchema.shape.LEGISTORM_BASE_URL.parse(undefined)).toBe(
       'https://api.legistorm.com/v2.019.10/congress',
     );
-    expect(configSchema.shape.LEGISTORM_PAGE_SIZE.parse(undefined)).toBe(1000);
+    expect(configSchema.shape.LEGISTORM_PAGE_SIZE.parse(undefined)).toBe(100);
     expect(configSchema.shape.LEGISTORM_MAX_PAGES.parse(undefined)).toBe(10_000);
     expect(configSchema.shape.LEGISTORM_REQUEST_DELAY_MS.parse(undefined)).toBe(400);
     expect(configSchema.shape.LEGISTORM_REQUEST_TIMEOUT_MS.parse(undefined)).toBe(30_000);

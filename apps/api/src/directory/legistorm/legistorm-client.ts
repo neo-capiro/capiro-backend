@@ -9,7 +9,10 @@ import {
 } from './legistorm-types.js';
 
 const DEFAULT_BASE_URL = 'https://api.legistorm.com/v2.019.10/congress';
-const DEFAULT_PAGE_SIZE = 1000;
+// LegiStorm caps `limit` at 100 per request (over-100 → HTTP 422 VALIDATION_ERROR),
+// so the default AND any configured value are clamped to this ceiling.
+const LEGISTORM_MAX_PAGE_SIZE = 100;
+const DEFAULT_PAGE_SIZE = 100;
 const DEFAULT_MAX_PAGES = 10_000;
 const DEFAULT_REQUEST_DELAY_MS = 400;
 const DEFAULT_REQUEST_TIMEOUT_MS = 30_000;
@@ -77,7 +80,10 @@ export class LegiStormClient {
 
     this.apiKey = apiKey;
     this.baseUrl = baseUrl.toString().replace(/\/+$/, '');
-    this.pageSize = positiveInteger(options.pageSize, DEFAULT_PAGE_SIZE, 'pageSize');
+    this.pageSize = Math.min(
+      positiveInteger(options.pageSize, DEFAULT_PAGE_SIZE, 'pageSize'),
+      LEGISTORM_MAX_PAGE_SIZE,
+    );
     this.maxPages = positiveInteger(options.maxPages, DEFAULT_MAX_PAGES, 'maxPages');
     this.requestDelayMs = nonnegativeInteger(
       options.requestDelayMs,
@@ -153,13 +159,14 @@ export class LegiStormClient {
         seenFullPages.add(fingerprint);
       }
 
+      // The live list responses are mixed arrays — e.g. /office/list appends a
+      // trailing `{ office_member_addresses: [...] }` element with no `office`.
+      // Skip elements that aren't the expected record (they're preserved verbatim
+      // in rawPages); a throw-all on one non-record element would kill the pull.
       const pageRecords: T[] = [];
       for (let index = 0; index < body.length; index += 1) {
         const record = body[index];
-        if (!guard(record)) {
-          throw new Error(`LegiStorm ${path} returned an invalid record at index ${index}`);
-        }
-        pageRecords.push(record);
+        if (guard(record)) pageRecords.push(record);
       }
 
       rawPages.push({ page, body });

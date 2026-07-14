@@ -28,7 +28,8 @@ export const configSchema = z.object({
     .url()
     .refine((value) => new URL(value).protocol === 'https:', 'LEGISTORM_BASE_URL must use HTTPS')
     .default('https://api.legistorm.com/v2.019.10/congress'),
-  LEGISTORM_PAGE_SIZE: z.coerce.number().int().positive().default(1000),
+  // LegiStorm caps `limit` at 100 per request; larger values return HTTP 422.
+  LEGISTORM_PAGE_SIZE: z.coerce.number().int().positive().max(100).default(100),
   LEGISTORM_MAX_PAGES: z.coerce.number().int().positive().default(10_000),
   LEGISTORM_REQUEST_DELAY_MS: z.coerce.number().int().nonnegative().default(400),
   LEGISTORM_REQUEST_TIMEOUT_MS: z.coerce.number().int().positive().default(30_000),
