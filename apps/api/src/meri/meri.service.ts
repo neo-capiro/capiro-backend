@@ -1549,6 +1549,22 @@ export class MeriService {
     ).catch(() => [] as Array<{ key: string; value: string }>);
     const memoryContext = recalled.map((m) => `${m.key}: ${m.value}`);
 
+    // Firm-skill steering (1B.3): resolve a matched firm skill's addendum the
+    // same way the legacy path does and forward it (the orchestrator has no
+    // skill registry). Trigger/content match only — the proxy does not classify
+    // intent — so intent-triggered skills won't match here, but phrase-triggered
+    // ones do; fail-open (a skills hiccup never blocks the turn).
+    let skillAddendum: string | undefined;
+    try {
+      if (this.skillsEnabled()) {
+        const tenantSkills = await this.firmSkills.skillsForTenant(ctx.tenantId).catch(() => []);
+        const matched = matchFirmSkillForTurn('', args.content, tenantSkills, CLIO_SKILLS);
+        if (matched?.systemAddendum) skillAddendum = matched.systemAddendum;
+      }
+    } catch {
+      /* fail-open: skill steering is best-effort */
+    }
+
     emit({ type: 'start', intent: 'general', tier: 'fast' });
 
     let accumulated = '';
@@ -1652,6 +1668,7 @@ export class MeriService {
           ...(args.conversation.clientId ? { clientId: args.conversation.clientId } : {}),
           conversationId: args.conversationId,
           ...(memoryContext.length ? { memoryContext } : {}),
+          ...(skillAddendum ? { skillAddendum } : {}),
         },
         ...(aiProvider ? { aiProvider } : {}),
         ...(args.clientSignal ? { signal: args.clientSignal } : {}),

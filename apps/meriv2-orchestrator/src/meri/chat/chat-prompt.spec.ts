@@ -79,6 +79,19 @@ describe('buildChatSystemPrompt', () => {
     expect(prompt).toContain('You assist with LAWFUL government-affairs work only');
   });
 
+  it('appends a matched firm-skill addendum when the proxy provides one (1B.3)', () => {
+    const prompt = buildChatSystemPrompt(
+      { skillAddendum: 'Always open with the appropriations angle.' },
+      ctx,
+    );
+    expect(prompt).toContain('# Firm playbook for this request');
+    expect(prompt).toContain('Always open with the appropriations angle.');
+  });
+
+  it('omits the firm-playbook block when no skill matched', () => {
+    expect(buildChatSystemPrompt({}, ctx)).not.toContain('# Firm playbook for this request');
+  });
+
   it('always routes firm-data questions to the right tools (canary regression: meetings → query_debriefs, memory-first)', () => {
     const prompt = buildChatSystemPrompt({}, ctx);
     expect(prompt).toContain('call search_memory FIRST');

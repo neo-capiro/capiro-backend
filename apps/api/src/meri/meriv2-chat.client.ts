@@ -90,6 +90,8 @@ export class MeriV2ChatClient {
       conversationId?: string;
       /** Pre-warmed memory recall lines (loadRelevantMemories) — legacy parity. */
       memoryContext?: string[];
+      /** Matched firm-skill system addendum (1B.3), resolved by the proxy. */
+      skillAddendum?: string;
     };
     aiProvider?: ResolvedAiForChatHeader;
     signal?: AbortSignal;

@@ -30,6 +30,13 @@ export interface ChatInput {
    * (canary regression, 2026-07-06). One line per memory, already formatted.
    */
   memoryContext?: string[];
+  /**
+   * A matched firm-authored skill's system addendum (1B.3), resolved by the
+   * apps/api proxy (which owns MeriFirmSkillsService + the skill registry) and
+   * forwarded so the orchestrator prompt can steer the turn the same way the
+   * legacy chat does. Absent when skills are disabled or none matched.
+   */
+  skillAddendum?: string;
 }
 
 export interface ChatStep {
@@ -215,6 +222,8 @@ export function buildChatSystemPrompt(
     // Compliance & ethics guardrails — the SAME canonical text the legacy chat
     // base appends (via @capiro/shared), so the two surfaces never drift (1B.6).
     `\n${MERI_COMPLIANCE_GUARDRAILS}`,
+    // Matched firm-authored skill guidance (1B.3), resolved by the apps/api proxy.
+    dto.skillAddendum ? `\n# Firm playbook for this request\n${dto.skillAddendum}` : '',
     // Plan-mode steering (agent-map wiring): only when a mode classified with
     // signal — `research` is also the zero-hit fallback, so the common case
     // stays byte-identical to before.
