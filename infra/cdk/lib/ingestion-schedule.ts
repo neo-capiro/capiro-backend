@@ -70,6 +70,29 @@ export const INGESTION_JOBS: ScheduledIngestionJob[] = [
     tier: 'weekly',
     description: 'Committee registry + membership rosters (Mon+Thu, CC0 dataset)',
   },
+  // ── LegiStorm directory safe refresh (Phase 3 — ships DISABLED) ─────────────
+  // Both rules run the SAME script and their crons CANNOT fire on the same day
+  // (MON-SAT vs SUN), so Monday's incremental watermark follows Sunday's full
+  // reconciliation. Created disabled for canary: enable MON-SAT first, then SUN,
+  // and ONLY after the compromised LegiStorm key is rotated + the commit canary
+  // passes (Phase 3 is blocked until then). Runs at 04:30 UTC, before
+  // SyncCongressMembers (05:20), SyncCommittees (05:40), and SyncMemberPress (06:00).
+  {
+    id: 'SyncLegistormDirectory',
+    command: ['sync-legistorm-directory', '--commit'],
+    cron: { minute: '30', hour: '4', weekDay: 'MON-SAT' },
+    tier: 'daily',
+    description: 'LegiStorm directory incremental refresh (Mon-Sat 04:30 UTC, 48h overlap)',
+    enabled: false,
+  },
+  {
+    id: 'ReconcileLegistormDirectoryFull',
+    command: ['sync-legistorm-directory', '--commit', '--full'],
+    cron: { minute: '30', hour: '4', weekDay: 'SUN' },
+    tier: 'weekly',
+    description: 'LegiStorm directory full reconciliation (Sun 04:30 UTC)',
+    enabled: false,
+  },
   {
     id: 'SyncHouseVotes',
     command: ['sync-house-votes'],
