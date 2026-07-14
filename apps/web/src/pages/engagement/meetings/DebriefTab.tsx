@@ -243,7 +243,10 @@ export function DebriefTab({ meeting }: { meeting: Meeting }) {
   const { message } = App.useApp();
   const debriefs = useMeetingDebriefs(meeting.id);
   const current = debriefs.data?.[0] ?? null;
-  const notes = useMeetingNotes(meeting.id);
+  // Poll while Meri is summarizing (mirrors NotesTab) so a note that lands
+  // while the user is sitting on the Debrief tab self-enables "Use Meri's
+  // Meeting Notes" without a manual refresh.
+  const notes = useMeetingNotes(meeting.id, meeting.meri === 'attended');
   // Meri's summary note (most recent readable one) — the seed for "Use Meri's
   // Meeting Notes".
   const meriNotes = notes.data?.find((n) => n.body && !n.restricted)?.body ?? '';

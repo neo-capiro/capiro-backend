@@ -26,7 +26,19 @@ export interface MeetingsRangeParams {
   clientId?: string;
 }
 
-/** GET /api/engagement/meetings — the decorated list for the calendar body. */
+/** Meri states that can still change on their own — i.e. a notetaker is either
+ *  in the call or has just left it and is summarizing. 'scheduled' (not yet
+ *  sent) and 'done' (fully settled) never self-transition, so they don't need
+ *  polling. */
+function hasLiveNotetaker(meetings: Meeting[] | undefined): boolean {
+  return (meetings ?? []).some((m) => m.meri === 'attending' || m.meri === 'attended');
+}
+
+/** GET /api/engagement/meetings — the decorated list for the calendar body.
+ *  Polls while any meeting in view has a notetaker in flight, so a detail panel
+ *  left open sees "Meri Attending" -> "Meri Attended" -> notes-summarized
+ *  transitions live instead of only on the next remount/staleTime refetch
+ *  (mirrors EngagementPage's legacy notetakerSession dynamic-poll pattern). */
 export function useMeetings(params: MeetingsRangeParams, enabled = true) {
   const api = useApi();
   return useQuery<Meeting[]>({
@@ -43,6 +55,7 @@ export function useMeetings(params: MeetingsRangeParams, enabled = true) {
       ).data,
     enabled,
     staleTime: 30_000,
+    refetchInterval: (query) => (hasLiveNotetaker(query.state.data) ? 10_000 : false),
   });
 }
 

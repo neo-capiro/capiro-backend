@@ -64,7 +64,7 @@ interface DashMeeting {
   // join link + the coarse notetaker state driving the Meri/Join primitives (§8a).
   isVirtual?: boolean;
   joinLink?: string | null;
-  meri?: 'scheduled' | 'attending' | 'done' | null;
+  meri?: 'scheduled' | 'attending' | 'attended' | 'done' | null;
 }
 
 /** Minimal saved-debrief shape for the home notes modal. */
@@ -791,6 +791,11 @@ function ClientEngagement({ meetings, loading }: { meetings: DashMeeting[]; load
         confirmLoading={dispatchNotetaker.isPending}
         okButtonProps={{ disabled: !(notetakerAuthorized && notetakerNotified) }}
         width={560}
+        // antd portals a Modal's DOM to document.body by default, escaping this
+        // page's <section className="command-page redesign"> subtree — without
+        // rootClassName, NotetakerConsentFields renders in the app's global
+        // antd default look (Public Sans + navy) instead of the redesign.
+        rootClassName="redesign"
       >
         <Form
           form={notetakerForm}

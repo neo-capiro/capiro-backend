@@ -50,8 +50,13 @@ export function ShareConfirmation({
   };
 
   return createPortal(
+    // className="redesign" is required here: this is a raw createPortal to
+    // document.body, so it sits OUTSIDE the page's <section className="...
+    // redesign"> DOM subtree and doesn't inherit that scope's font/antd
+    // overrides (same fix as SendMeriModal).
     <div
       onClick={onClose}
+      className="redesign"
       style={{
         position: 'fixed',
         inset: 0,
@@ -62,7 +67,9 @@ export function ShareConfirmation({
         justifyContent: 'center',
         padding: 24,
         backdropFilter: 'blur(1.5px)',
-        fontFamily: 'var(--font-sans)',
+        // var(--font-sans) is not a global token (it's only defined inside a
+        // handful of OTHER unrelated component scopes) — use the real one.
+        fontFamily: 'var(--font-sans-rd)',
       }}
     >
       <div

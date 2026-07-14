@@ -140,6 +140,12 @@ export function MeetingsV2({
         ref={contentRef}
         style={{
           position: 'relative',
+          // Clips MeetingDetailPanel when closed: it's translateX(100%)'d by its
+          // OWN width, so its closed position starts exactly at this container's
+          // right edge and extends further right — without this, that "closed"
+          // panel still paints in any gutter beyond this box (visible as a thin
+          // sliver of its content past the calendar card).
+          overflow: 'hidden',
           flex: 1,
           display: 'flex',
           flexDirection: 'column',
@@ -161,6 +167,12 @@ export function MeetingsV2({
       ref={contentRef}
       style={{
         position: 'relative',
+        // Clips MeetingDetailPanel when closed: it's translateX(100%)'d by its
+        // OWN width, so its closed position starts exactly at this container's
+        // right edge and extends further right — without this, that "closed"
+        // panel still paints in any gutter beyond this box (visible as a thin
+        // sliver of its content past the calendar card).
+        overflow: 'hidden',
         flex: 1,
         minWidth: 0,
         display: 'flex',

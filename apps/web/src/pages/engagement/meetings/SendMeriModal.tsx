@@ -60,8 +60,15 @@ export function SendMeriModal({
   };
 
   return createPortal(
+    // className="redesign" is required here: this is a raw createPortal to
+    // document.body, so it sits OUTSIDE the page's <section className="...
+    // redesign"> DOM subtree and doesn't inherit that scope's font/antd
+    // overrides. Without it, NotetakerConsentFields' antd Typography/Form/
+    // Checkbox render in the app's global default look (Public Sans + navy)
+    // instead of this module's Hanken Grotesk + accent-blue design.
     <div
       onClick={onClose}
+      className="redesign"
       style={{
         position: 'fixed',
         inset: 0,
@@ -72,7 +79,9 @@ export function SendMeriModal({
         justifyContent: 'center',
         padding: 24,
         backdropFilter: 'blur(1.5px)',
-        fontFamily: 'var(--font-sans)',
+        // var(--font-sans) is not a global token (it's only defined inside a
+        // handful of OTHER unrelated component scopes) — use the real one.
+        fontFamily: 'var(--font-sans-rd)',
       }}
     >
       <div

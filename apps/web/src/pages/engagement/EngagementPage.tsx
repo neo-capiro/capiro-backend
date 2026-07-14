@@ -1610,6 +1610,11 @@ export function EngagementPage() {
         confirmLoading={dispatchNotetaker.isPending}
         okButtonProps={{ disabled: !(notetakerAuthorized && notetakerNotified) }}
         width={560}
+        // antd portals a Modal's DOM to document.body by default, escaping this
+        // page's <section className="engagement-page redesign"> subtree —
+        // without rootClassName, NotetakerConsentFields renders in the app's
+        // global antd default look (Public Sans + navy) instead of the redesign.
+        rootClassName="redesign"
       >
         <Form
           form={notetakerForm}
@@ -3839,7 +3844,11 @@ function meetingStatus(meeting: Meeting): {
   const now = Date.now();
   const hasEnded = end < now;
   const isActive = start <= now && end >= now;
-  const prep = meeting.preps[0];
+  // Exclude a failed generation — a failed prep should read as "no prep yet",
+  // not green/"Prepped" (mirrors meetings-types.ts's completedPrep for the V2
+  // surface).
+  const latestPrep = meeting.preps[0];
+  const prep = latestPrep && latestPrep.status !== 'failed' ? latestPrep : undefined;
   if (hasEnded && !hasDebrief) {
     return {
       kind: 'missing',
