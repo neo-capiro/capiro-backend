@@ -41,8 +41,12 @@ export interface CampaignCluster {
   notablePlusCount: number;
   peCodes: string[];
   billId?: string | null;
-  /** Traceable evidence for the alert body (SC 5.3.1): title + first line. */
-  evidence: Array<{ changeId: string; title: string; snippet: string }>;
+  /**
+   * Traceable evidence for the alert body (SC 5.3.1): title + first line, plus
+   * the change's own relatedClientIds so the surfaced evidence can be scoped to
+   * the recipient tenant (never quote another firm's change).
+   */
+  evidence: Array<{ changeId: string; title: string; snippet: string; relatedClientIds: string[] }>;
 }
 
 export interface PerTenantCluster {
@@ -51,11 +55,25 @@ export interface PerTenantCluster {
   /** The subset of the cluster's clients that belong to THIS tenant (active). */
   clientIds: string[];
   clientNames: string[];
+  /**
+   * TENANT-SCOPED change ids + evidence: only the changes whose relatedClientIds
+   * intersect THIS tenant's clients. The global cluster.changeIds/evidence are a
+   * cross-tenant union, so alerts must use these scoped fields — never the
+   * cluster's — to avoid persisting or quoting another firm's change records.
+   */
+  changeIds: string[];
+  evidence: CampaignCluster['evidence'];
 }
 
 const SEVERITY_RANK: Record<IntelSeverity, number> = { info: 0, notable: 1, critical: 2 };
+// Normalizes the two severity vocabularies in intelligence_change: federal
+// writers use critical/notable/info; the state writer uses high/medium/info.
 const asSeverity = (s: string): IntelSeverity =>
-  s === 'critical' ? 'critical' : s === 'notable' ? 'notable' : 'info';
+  s === 'critical' || s === 'high'
+    ? 'critical'
+    : s === 'notable' || s === 'medium'
+      ? 'notable'
+      : 'info';
 
 /** The cluster keys a change belongs to: its bill, plus each PE, plus each issue. */
 export function clusterKeysForRow(
@@ -98,6 +116,7 @@ export function buildCampaignClusters(rows: IntelChangeRow[]): CampaignCluster[]
           changeId: row.id,
           title: row.title,
           snippet: (row.description ?? '').split('\n')[0]?.slice(0, 200) ?? '',
+          relatedClientIds: row.relatedClientIds ?? [],
         });
       }
       if (SEVERITY_RANK[sev] > SEVERITY_RANK[c.maxSeverity]) c.maxSeverity = sev;
@@ -147,7 +166,21 @@ export function splitClustersByTenant(
     }
     for (const [tenantId, b] of byTenant) {
       if (b.ids.length < minClients) continue;
-      out.push({ tenantId, cluster, clientIds: b.ids, clientNames: b.names });
+      // Scope changeIds/evidence to THIS tenant: only changes that touch one of
+      // its clients. cluster.changeIds/evidence are a cross-tenant union, so
+      // surfacing them verbatim would persist/quote another firm's records.
+      const ownSet = new Set(b.ids);
+      const evidence = cluster.evidence.filter((e) =>
+        e.relatedClientIds.some((cid) => ownSet.has(cid)),
+      );
+      out.push({
+        tenantId,
+        cluster,
+        clientIds: b.ids,
+        clientNames: b.names,
+        changeIds: evidence.map((e) => e.changeId),
+        evidence,
+      });
     }
   }
   return out;
