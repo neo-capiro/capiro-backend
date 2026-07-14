@@ -350,6 +350,62 @@ export const PLAN_TIERS = ['FOUNDATION', 'GROWTH', 'ENTERPRISE'] as const;
 export type PlanTier = (typeof PLAN_TIERS)[number];
 
 // ---------------------------------------------------------------------------
+// Entitlement / tiering architecture (Phase 5, §5.1). Wires the previously-dead
+// planTier column into a real, CONFIG-DRIVEN feature-gate map — WITHOUT changing
+// any tenant's access today. Every tier currently grants every feature, so
+// resolution is a pure no-op until the pricing decision (D1) narrows a tier.
+// Enforcement at feature boundaries is deliberately NOT wired here (that would
+// risk denying access); this phase only makes gating *possible* in config.
+// ---------------------------------------------------------------------------
+export const ENTITLEMENT_FEATURES = [
+  'memoryGovernance',
+  'peWatch',
+  'defenseBudgetIntel',
+  'complianceModule',
+  'dataExport',
+  'customConnectors',
+] as const;
+export type EntitlementFeature = (typeof ENTITLEMENT_FEATURES)[number];
+
+/**
+ * Core memory governance (inspect/correct/revoke/export — Phase 1) is entitled
+ * to EVERY tier and is never gated (blueprint §11.1, hard rule / SC 5.1.4).
+ */
+export const ALWAYS_ENTITLED: readonly EntitlementFeature[] = ['memoryGovernance'];
+
+/**
+ * Tier → granted features. CONFIG, not law (SC 5.1.5): the day D1 sets dollar
+ * tiers, narrowing GROWTH/FOUNDATION is a change to this map, not to code.
+ * TODAY every tier grants ALL features → resolution changes nothing.
+ */
+export const PLAN_ENTITLEMENTS: Record<PlanTier, readonly EntitlementFeature[]> = {
+  FOUNDATION: [...ENTITLEMENT_FEATURES],
+  GROWTH: [...ENTITLEMENT_FEATURES],
+  ENTERPRISE: [...ENTITLEMENT_FEATURES],
+};
+
+/**
+ * Features a tier grants. Fails OPEN: an unknown/typo'd/null tier resolves to
+ * FOUNDATION (all features) so the no-op phase never denies access. Always
+ * includes ALWAYS_ENTITLED.
+ */
+export function resolveEntitlements(planTier: string | null | undefined): Set<EntitlementFeature> {
+  const key: PlanTier =
+    planTier && (PLAN_TIERS as readonly string[]).includes(planTier)
+      ? (planTier as PlanTier)
+      : 'FOUNDATION';
+  return new Set<EntitlementFeature>([...PLAN_ENTITLEMENTS[key], ...ALWAYS_ENTITLED]);
+}
+
+/** True when the given plan tier grants the feature (fail-open per resolveEntitlements). */
+export function isFeatureEntitled(
+  planTier: string | null | undefined,
+  feature: EntitlementFeature,
+): boolean {
+  return resolveEntitlements(planTier).has(feature);
+}
+
+// ---------------------------------------------------------------------------
 // Submission-history outcome types
 // Canonical set: drawer is the writer, render must follow.
 // ---------------------------------------------------------------------------
