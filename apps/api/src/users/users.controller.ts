@@ -9,6 +9,7 @@ import {
   meetingsV2Enabled,
   outreachAsyncFlagEnabled,
   meriDockUndockUiEnabled,
+  entitlementsForTenant,
 } from '../common/tenant-flags.js';
 import type { AppConfig } from '../config/config.schema.js';
 
@@ -91,7 +92,7 @@ export class UsersController {
           where: { id: ctx.tenantId },
           // settings_jsonb is read to resolve per-tenant feature flags surfaced
           // to the web (see `features` below) — it is NOT returned wholesale.
-          select: { name: true, settings: true },
+          select: { name: true, settings: true, planTier: true },
         }),
         // billing_admin permission bit (onboarding v1) — drives billing-tab
         // visibility + purchase CTAs in the web app. Deliberately read here
@@ -129,6 +130,11 @@ export class UsersController {
       // (Meetings & Meri redesign) gates the rebuilt Engagement → Meetings module;
       // there was no prior flag-surfacing pipe (flags were server-side only), so
       // this `features` block is the single place the web reads them.
+      // Phase 5 §5.1: effective feature entitlements (tier map + per-tenant
+      // overrides). Additive; today every tier grants everything (no-op). No
+      // web consumer yet — this is the "planTier is read by a real resolver"
+      // proof and the future gate source.
+      entitlements: entitlementsForTenant(profile.tenant?.settings, profile.tenant?.planTier),
       features: {
         meetingsV2: meetingsV2Enabled(profile.tenant?.settings),
         // Async outreach (plan W4.4): the job-mode wizard UI is on for a tenant only
@@ -178,7 +184,7 @@ export class UsersController {
       });
       const tenant = await tx.tenant.findUnique({
         where: { id: ctx.tenantId },
-        select: { name: true, settings: true },
+        select: { name: true, settings: true, planTier: true },
       });
       const membership = await tx.tenantMembership.findUnique({
         where: { tenantId_userId: { tenantId: ctx.tenantId, userId: ctx.userId } },
@@ -205,6 +211,11 @@ export class UsersController {
       },
       role: ctx.role,
       billingAdmin: ctx.role === 'capiro_admin' || (profile.membership?.billingAdmin ?? false),
+      // Phase 5 §5.1: effective feature entitlements (tier map + per-tenant
+      // overrides). Additive; today every tier grants everything (no-op). No
+      // web consumer yet — this is the "planTier is read by a real resolver"
+      // proof and the future gate source.
+      entitlements: entitlementsForTenant(profile.tenant?.settings, profile.tenant?.planTier),
       features: {
         meetingsV2: meetingsV2Enabled(profile.tenant?.settings),
         outreachAsyncGen:

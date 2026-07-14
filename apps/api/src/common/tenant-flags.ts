@@ -9,6 +9,8 @@
  * Pure so it unit-tests under `src/**.spec.ts`.
  */
 
+import { resolveEntitlements, ENTITLEMENT_FEATURES, type EntitlementFeature } from '@capiro/shared';
+
 export function tenantFeatureEnabled(
   settings: unknown,
   flag: string,
@@ -197,4 +199,24 @@ export const OUTREACH_CLIENT_PROFILE_FLAG = 'outreachClientProfile.enabled' as c
 /** Whether a tenant gets the rich client-profile context blocks (default OFF). */
 export function outreachClientProfileEnabled(settings: unknown): boolean {
   return tenantFeatureEnabled(settings, OUTREACH_CLIENT_PROFILE_FLAG, false);
+}
+
+/**
+ * Effective feature entitlements for a tenant (Phase 5, §5.1). The tier map
+ * (resolveEntitlements) sets the baseline; a per-tenant boolean override at
+ * settings_jsonb.clioFeatureFlags['entitlement.<feature>'] can flip a single
+ * feature on/off — reusing the SAME boolean reader as every rollout flag
+ * (SC 5.1.3, no parallel mechanism). Default per feature = the tier grant, so
+ * with today's all-granting tiers this returns every feature true (no-op).
+ */
+export function entitlementsForTenant(
+  settings: unknown,
+  planTier: string | null | undefined,
+): Record<EntitlementFeature, boolean> {
+  const base = resolveEntitlements(planTier);
+  const out = {} as Record<EntitlementFeature, boolean>;
+  for (const f of ENTITLEMENT_FEATURES) {
+    out[f] = tenantFeatureEnabled(settings, `entitlement.${f}`, base.has(f));
+  }
+  return out;
 }
