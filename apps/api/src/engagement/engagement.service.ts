@@ -86,7 +86,8 @@ import { outreachClientProfileEnabled } from '../common/tenant-flags.js';
 // extends the same deterministic post-generation check to the outreach batch
 // drafter, re-deriving ground truth from the same PE/bill truth blocks already
 // built for the prompt (see enrichOutreachContextItems below).
-import { runAuditor, type LedgerEntry, type AuditorMode } from '@capiro/meriv2-core';
+import { runAuditor, type LedgerEntry } from '@capiro/meriv2-core';
+import { resolveTenantAuditorMode } from '../common/auditor-mode.js';
 
 export interface CreateIntegrationInput {
   provider: EngagementProvider;
@@ -2696,6 +2697,10 @@ export class EngagementService {
     // an entry, because the worker catches its own errors and yields a blank
     // draft — identical to the old per-iteration try/catch behavior.
     const OUTREACH_GEN_CONCURRENCY = 4;
+    // Resolve the auditor mode ONCE per campaign (all recipients share the
+    // tenant) — the per-recipient worker below reads this via closure so a
+    // batch never fans out N tenant.settings reads (Phase 2 per-tenant flag).
+    const campaignAuditorMode = await resolveTenantAuditorMode(this.prisma, ctx.tenantId);
     const generateForRecipient = async (
       recipient: (typeof recipients)[number],
       index: number,
@@ -2858,7 +2863,7 @@ export class EngagementService {
         // is shown for review (with the internal contextNote) but excluded from
         // the send. Inert under shadow/annotate (decision is never 'hold' there).
         let recipientHeld = false;
-        const auditorMode = (process.env.MERI_AUDITOR_MODE as AuditorMode | undefined) ?? 'off';
+        const auditorMode = campaignAuditorMode;
         if (auditorMode !== 'off' && generated.body.trim().length > 0) {
           try {
             const usedItems = [...sharedItems, ...personalItems];

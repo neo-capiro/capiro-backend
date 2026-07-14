@@ -2,7 +2,8 @@ import { BadRequestException, Injectable, Logger, NotFoundException } from '@nes
 import { ConfigService } from '@nestjs/config';
 import { Prisma } from '@prisma/client';
 import type { TenantContext } from '@capiro/shared';
-import { runAuditor, type LedgerEntry, type AuditorMode } from '@capiro/meriv2-core';
+import { runAuditor, type LedgerEntry } from '@capiro/meriv2-core';
+import { resolveTenantAuditorMode } from '../common/auditor-mode.js';
 import type { AppConfig } from '../config/config.schema.js';
 import { PrismaService } from '../prisma/prisma.service.js';
 import { MeriToolsService } from './meri-tools.service.js';
@@ -639,7 +640,7 @@ export class MeriResearchService {
     // annotate (decision is never 'hold' there), so the default flow is unchanged.
     let held = false;
     let heldReason = '';
-    const auditorMode = (process.env.MERI_AUDITOR_MODE as AuditorMode | undefined) ?? 'off';
+    const auditorMode = await resolveTenantAuditorMode(this.prisma, ctx.tenantId);
     if (auditorMode !== 'off' && reportBody.trim().length > 0) {
       try {
         const verdict = runAuditor({

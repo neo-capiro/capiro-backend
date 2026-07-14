@@ -61,6 +61,35 @@ export type AuditorMode = 'off' | 'shadow' | 'annotate' | 'enforce';
 export type AuditSeverity = 'critical' | 'high' | 'medium' | 'low';
 export type AuditSurface = 'chat' | 'research' | 'outreach' | 'memo' | 'alert';
 
+/** Per-tenant override key under tenants.settings_jsonb.clioFeatureFlags. */
+export const MERI_AUDITOR_MODE_FLAG = 'meriAuditorMode' as const;
+const AUDITOR_MODES: readonly AuditorMode[] = ['off', 'shadow', 'annotate', 'enforce'];
+
+/**
+ * Effective auditor mode for a tenant. A per-tenant override in
+ * settings_jsonb.clioFeatureFlags.meriAuditorMode (one of the AuditorMode
+ * values) WINS over the global env mode; anything else falls back to envMode.
+ * Pure — the caller supplies the tenant's settings object (no I/O here).
+ *
+ * Override-wins works BOTH directions: hold a noisy tenant on 'shadow' while
+ * the global env is 'enforce', or canary a single tenant to 'enforce'/'annotate'
+ * while the global stays 'shadow'. Lives in @capiro/meriv2-core (AuditorMode's
+ * home) so both apps/api and the orchestrator can import it — NOT in apps/api's
+ * tenant-flags.ts, which the orchestrator cannot import.
+ */
+export function resolveAuditorMode(envMode: AuditorMode, settings: unknown): AuditorMode {
+  if (settings && typeof settings === 'object' && !Array.isArray(settings)) {
+    const flags = (settings as Record<string, unknown>).clioFeatureFlags;
+    if (flags && typeof flags === 'object' && !Array.isArray(flags)) {
+      const v = (flags as Record<string, unknown>)[MERI_AUDITOR_MODE_FLAG];
+      if (typeof v === 'string' && (AUDITOR_MODES as readonly string[]).includes(v)) {
+        return v as AuditorMode;
+      }
+    }
+  }
+  return envMode;
+}
+
 /** One raw tool result captured during a generation turn (for the ledger). */
 export interface LedgerEntry {
   /** The tool name exactly as called (e.g. 'get_pe_budget_timeline'). */
