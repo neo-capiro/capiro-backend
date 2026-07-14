@@ -139,6 +139,15 @@ export class ComputeStack extends cdk.Stack {
       'ImportedGovInfoApiKey',
       `capiro/${cfg.envName}/govinfo_api_key`,
     );
+    // LegiStorm directory-refresh key. Provisioned out-of-band (Phase 0) and
+    // consumed ONLY by the scheduled sync task (apiSyncSecrets below); never by
+    // the serve or migrate task defs. Imported by name like the GovInfo key so
+    // ecs.Secret auto-grants the sync execution role at container-add time.
+    const legistormApiKeyImported = secretsmanager.Secret.fromSecretNameV2(
+      this,
+      'ImportedLegistormApiKey',
+      `capiro/${cfg.envName}/legistorm-api-key`,
+    );
 
     // Microsoft 365 Graph OAuth + token-at-rest crypto. These secrets are
     // provisioned out-of-band and imported by complete ARN when available. ECS
@@ -415,6 +424,13 @@ export class ComputeStack extends cdk.Stack {
       // Step 33 SAM.gov personnel sync (sync-sam-personnel) also runs here.
       SAM_GOV_API_KEY: ecs.Secret.fromSecretsManager(samGovApiKeySecret),
     };
+    // Scheduled sync task secrets = migrate bundle + the LegiStorm key. Kept
+    // separate from apiServeSecrets so the long-lived API/web tasks never receive
+    // LEGISTORM_API_KEY (only the ephemeral sync task does).
+    const apiSyncSecrets = {
+      ...apiMigrateSecrets,
+      LEGISTORM_API_KEY: ecs.Secret.fromSecretsManager(legistormApiKeyImported),
+    };
 
     const apiSharedEnv: Record<string, string> = {
       NODE_ENV: cfg.envName === 'dev' ? 'development' : 'production',
@@ -451,6 +467,23 @@ export class ComputeStack extends cdk.Stack {
       new iam.PolicyStatement({
         actions: ['s3:ListBucket'],
         resources: ['arn:aws:s3:::updated-directory-967807252336-us-east-1'],
+      }),
+    );
+    // Directory safe-refresh WRITE (Phase 3): the sync task publishes new immutable
+    // snapshots + pointers. Scoped to snapshots/, pointers/, and LATEST.json ONLY —
+    // NEVER overlays/ (Capiro-authored bios/press) — and PutObject ONLY, NEVER
+    // DeleteObject, enforcing the plan's preservation contract in IAM. On the shared
+    // apiTaskRole (mirrors the govinfo-cache write below); the serve task's code
+    // never exercises this, and the critical no-overlay-write / no-delete guarantees
+    // hold regardless of which task assumes the role.
+    apiTaskRole.addToPolicy(
+      new iam.PolicyStatement({
+        actions: ['s3:PutObject'],
+        resources: [
+          'arn:aws:s3:::updated-directory-967807252336-us-east-1/UPDATED DIRECTORY/snapshots/*',
+          'arn:aws:s3:::updated-directory-967807252336-us-east-1/UPDATED DIRECTORY/pointers/*',
+          'arn:aws:s3:::updated-directory-967807252336-us-east-1/UPDATED DIRECTORY/LATEST.json',
+        ],
       }),
     );
 
@@ -1142,7 +1175,9 @@ export class ComputeStack extends cdk.Stack {
       // with its own job command (e.g. ['sync-congress']).
       command: ['serve'],
       environment: apiSharedEnv,
-      secrets: apiMigrateSecrets,
+      // apiSyncSecrets adds LEGISTORM_API_KEY for sync-legistorm-directory; every
+      // other injected secret matches the migrate bundle.
+      secrets: apiSyncSecrets,
       readonlyRootFilesystem: false,
     });
 

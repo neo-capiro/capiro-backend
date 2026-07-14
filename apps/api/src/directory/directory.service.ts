@@ -533,6 +533,28 @@ interface MemberBioOverlay {
   wikipedia?: string;
 }
 
+/** Minimal read-side view of LATEST.json (the publisher writes the full 2.0.0 schema). */
+interface DirectorySnapshotPointer {
+  snapshot_prefix?: unknown;
+  previous_snapshot_prefix?: unknown;
+}
+
+/** A single office normalized from either the live-array or legacy-object shape. */
+interface NormalizedOfficeRow {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  office: any;
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  office_member_addresses: any[];
+}
+
+/**
+ * Fallback pointer key + snapshot prefix used until the refresh pipeline publishes
+ * a LATEST.json. Keeps the live directory working during the Phase 2 rollout.
+ */
+const DEFAULT_DIRECTORY_LATEST_KEY = 'UPDATED DIRECTORY/LATEST.json';
+const DEFAULT_DIRECTORY_PREFIX =
+  'UPDATED DIRECTORY/snapshots/active-current-20260501T024354Z';
+
 @Injectable()
 export class DirectoryService implements OnModuleInit {
   private static readonly DEFAULT_PAGE_SIZE = 24;
@@ -540,7 +562,9 @@ export class DirectoryService implements OnModuleInit {
   private readonly logger = new Logger(DirectoryService.name);
   private readonly s3: S3Client;
   private readonly bucket: string;
-  private readonly prefix: string;
+  /** Emergency pin (DIRECTORY_S3_PREFIX); when null the prefix is resolved from LATEST.json. */
+  private readonly explicitPrefix: string | null;
+  private readonly latestKey: string;
   private readonly bioOverlayKey: string;
   private readonly pressOverlayKey: string;
   private cache: CachedContacts | null = null;
@@ -553,9 +577,11 @@ export class DirectoryService implements OnModuleInit {
     const region = config.get('AWS_REGION_DEFAULT', { infer: true });
     this.s3 = new S3Client({ region });
     this.bucket = process.env.DIRECTORY_S3_BUCKET ?? 'updated-directory-967807252336-us-east-1';
-    this.prefix =
-      process.env.DIRECTORY_S3_PREFIX ??
-      'UPDATED DIRECTORY/snapshots/active-current-20260501T024354Z';
+    // Pointer-driven snapshot resolution (Phase 2): an explicit DIRECTORY_S3_PREFIX is
+    // an emergency PIN; otherwise the prefix is resolved from LATEST.json on each cache
+    // rebuild so the reader follows validated snapshot rotation with a rollback path.
+    this.explicitPrefix = process.env.DIRECTORY_S3_PREFIX?.trim() || null;
+    this.latestKey = process.env.DIRECTORY_S3_LATEST_KEY ?? DEFAULT_DIRECTORY_LATEST_KEY;
     this.bioOverlayKey =
       process.env.DIRECTORY_BIO_OVERLAY_KEY ?? 'UPDATED DIRECTORY/overlays/member-bios-v1.json';
     this.pressOverlayKey =
@@ -724,15 +750,20 @@ export class DirectoryService implements OnModuleInit {
   // multiple committees; within one committee we keep a single entry per person,
   // preferring their current position and a titled role.
   private buildCommitteeIndex(officeRaw: unknown, staffRaw: unknown[], membersRaw: unknown[]) {
-    const offices = Array.isArray((officeRaw as any)?.office) ? (officeRaw as any).office : [];
+    // Normalize BOTH the live array shape ([{ office, office_member_addresses, ... }])
+    // and the legacy object shape ({ office: [...], office_member_addresses: [...] }).
+    // The live combined file is an array; the old code assumed the object shape and
+    // silently produced an empty committee catalog against real data.
+    const rows = this.normalizeOfficeRows(officeRaw);
+    const offices = rows.map((row) => row.office);
     const committeesByOfficeId = new Map<number, DirectoryCommittee>();
 
     // Committee leadership (Chair / Ranking Member / Vice Chair) lives on the
     // MEMBER side as committees[].position; invert it into an officeId -> roles map.
     const leadershipByOffice = this.buildCommitteeLeadershipMap(membersRaw);
 
-    // Committee office phone/address comes from office-list `office_member_addresses`.
-    const contactByOffice = this.buildOfficeContactMap(officeRaw);
+    // Committee office phone/address comes from each office's office_member_addresses.
+    const contactByOffice = this.buildOfficeContactMap(rows);
 
     for (const office of offices as any[]) {
       const meta = FED_COMMITTEE_OFFICE_TYPES[String(office?.office_type ?? '')];
@@ -885,20 +916,57 @@ export class DirectoryService implements OnModuleInit {
     return map;
   }
 
-  // officeId -> { phone, officeLocation } from office-list `office_member_addresses`.
+  /**
+   * Normalize the office combined file into `{ office, office_member_addresses }`
+   * rows, tolerating BOTH shapes:
+   *   - LIVE array: [{ office: {...}, office_member_addresses: [...], ... }, ...]
+   *   - LEGACY object: { office: [...offices], office_member_addresses: [...flat] }
+   * For the legacy shape the flat addresses are grouped back onto their office by
+   * office_id so downstream code can treat every row uniformly. Pure/defensive:
+   * any other shape yields an empty list.
+   */
+  private normalizeOfficeRows(officeRaw: unknown): NormalizedOfficeRow[] {
+    if (Array.isArray(officeRaw)) {
+      return (officeRaw as any[]).map((row) => ({
+        office: row?.office ?? null,
+        office_member_addresses: Array.isArray(row?.office_member_addresses)
+          ? row.office_member_addresses
+          : [],
+      }));
+    }
+    const legacy = officeRaw as any;
+    if (legacy && Array.isArray(legacy.office)) {
+      const flat = Array.isArray(legacy.office_member_addresses)
+        ? legacy.office_member_addresses
+        : [];
+      const addressesByOfficeId = new Map<number, any[]>();
+      for (const entry of flat as any[]) {
+        const officeId = Number(entry?.office?.office_id);
+        if (!Number.isFinite(officeId)) continue;
+        const list = addressesByOfficeId.get(officeId) ?? [];
+        list.push(entry);
+        addressesByOfficeId.set(officeId, list);
+      }
+      return (legacy.office as any[]).map((office) => ({
+        office,
+        office_member_addresses: addressesByOfficeId.get(Number(office?.office_id)) ?? [],
+      }));
+    }
+    return [];
+  }
+
+  // officeId -> { phone, officeLocation } from each office's office_member_addresses.
   private buildOfficeContactMap(
-    officeRaw: unknown,
+    rows: NormalizedOfficeRow[],
   ): Map<number, { phone: string; officeLocation: string }> {
     const map = new Map<number, { phone: string; officeLocation: string }>();
-    const addresses = Array.isArray((officeRaw as any)?.office_member_addresses)
-      ? (officeRaw as any).office_member_addresses
-      : [];
-    for (const entry of addresses as any[]) {
-      const officeId = Number(entry?.office?.office_id);
+    for (const row of rows) {
+      const officeId = Number(row.office?.office_id);
       if (!Number.isFinite(officeId)) continue;
-      const existing = map.get(officeId);
+      const addresses = row.office_member_addresses ?? [];
+      if (addresses.length === 0) continue;
       // Prefer the main office address.
-      if (existing && !entry?.is_main) continue;
+      const entry = addresses.find((address: any) => address?.is_main) ?? addresses[0];
       map.set(officeId, {
         phone: String(entry?.phone ?? ''),
         officeLocation: [entry?.address1, entry?.city, entry?.state_id, entry?.zip]
@@ -1005,57 +1073,103 @@ export class DirectoryService implements OnModuleInit {
       return this.cache.data;
     }
 
-    try {
-      const [members, staff, offices] = await Promise.all([
-        this.fetchGzipJson<unknown[]>(`${this.prefix}/combined/member-list-current.json.gz`),
-        this.fetchGzipJson<unknown[]>(`${this.prefix}/combined/staff-list-current.json.gz`),
-        this.fetchGzipJson<unknown>(`${this.prefix}/combined/office-list-current.json.gz`),
-      ]);
+    const { prefix, previousPrefix } = await this.resolveSnapshotPrefixes();
+    // Try the resolved snapshot, then the previous validated snapshot as a rollback
+    // path, so a broken/partial current snapshot never blanks the directory.
+    const candidates =
+      previousPrefix && previousPrefix !== prefix ? [prefix, previousPrefix] : [prefix];
 
-      const [bioOverlay, pressOverlay] = await Promise.all([
-        this.loadBioOverlay(),
-        this.loadPressOverlay(),
-      ]);
-      const contacts = this.buildContacts(members, staff, bioOverlay, pressOverlay);
-      const staffers = this.buildStafferIndex(contacts);
-      const { committees, committeeStaff } = this.buildCommitteeIndex(offices, staff, members);
-      const availableStates = uniqueSorted(contacts.map((contact) => contact.state));
-      const availableFilters = this.buildAvailableFilters(contacts);
-      const totals: DirectoryTotals = {
-        all: contacts.length,
-        house: contacts.filter((contact) => contact.chamber === 'House').length,
-        senate: contacts.filter((contact) => contact.chamber === 'Senate').length,
-        governors: contacts.filter((contact) => contact.chamber === 'Governor').length,
-        staff: new Set(staffers.map((staffer) => staffer.id)).size,
-      };
-      const sourceId = `${this.bucket}/${this.prefix}`;
-      const payload = {
-        sourceId,
-        contacts,
-        staffers,
-        committees,
-        committeeStaff,
-        totals,
-        availableStates,
-        availableFilters,
-      };
-
-      this.cache = {
-        data: payload,
-        // 30 min TTL (was 5): the cold build (3 gzip S3 pulls + full index build)
-        // is expensive, and the directory snapshot changes slowly. Combined with
-        // the onModuleInit pre-warm, typeahead search stays fast.
-        expiresAt: now + 30 * 60_000,
-      };
-
-      return payload;
-    } catch (error) {
-      this.logger.error(
-        `Failed to load directory contacts from S3 bucket=${this.bucket} prefix=${this.prefix}`,
-        error instanceof Error ? error.stack : undefined,
-      );
-      throw new ServiceUnavailableException('Directory data is temporarily unavailable');
+    for (const candidate of candidates) {
+      try {
+        const payload = await this.loadSnapshot(candidate);
+        // 30 min TTL: the cold build (3 gzip S3 pulls + full index build) is
+        // expensive and the snapshot changes slowly. With onModuleInit pre-warm,
+        // typeahead search stays fast.
+        this.cache = { data: payload, expiresAt: now + 30 * 60_000 };
+        return payload;
+      } catch (error) {
+        this.logger.error(
+          `Failed to load directory snapshot from s3://${this.bucket}/${candidate}`,
+          error instanceof Error ? error.stack : undefined,
+        );
+      }
     }
+
+    // Every candidate failed. Prefer a STALE cache over an empty directory so a
+    // transient S3/snapshot problem degrades gracefully instead of blanking the UI.
+    if (this.cache) {
+      this.logger.warn(
+        `Serving STALE directory cache after snapshot load failure (candidates: ${candidates.join(
+          ', ',
+        )})`,
+      );
+      return this.cache.data;
+    }
+    throw new ServiceUnavailableException('Directory data is temporarily unavailable');
+  }
+
+  /**
+   * Resolve which snapshot prefix to read on this cache rebuild.
+   *   - DIRECTORY_S3_PREFIX set  -> emergency PIN (no LATEST.json read, no fallback).
+   *   - else                     -> LATEST.json's snapshot_prefix (+ previous for rollback).
+   *   - LATEST.json absent/bad   -> the documented default prefix, so the live
+   *                                 directory keeps working until the pipeline publishes.
+   * Resolved per rebuild (NOT once in the constructor) so rotation is picked up
+   * within one cache cycle.
+   */
+  private async resolveSnapshotPrefixes(): Promise<{
+    prefix: string;
+    previousPrefix: string | null;
+  }> {
+    if (this.explicitPrefix) {
+      return { prefix: this.explicitPrefix, previousPrefix: null };
+    }
+    const pointer = await this.fetchJsonSafe<DirectorySnapshotPointer>(this.latestKey);
+    const prefix = typeof pointer?.snapshot_prefix === 'string' ? pointer.snapshot_prefix : null;
+    if (!prefix) {
+      return { prefix: DEFAULT_DIRECTORY_PREFIX, previousPrefix: null };
+    }
+    const previousPrefix =
+      typeof pointer?.previous_snapshot_prefix === 'string' ? pointer.previous_snapshot_prefix : null;
+    return { prefix, previousPrefix };
+  }
+
+  /** Load + build the full directory payload for one snapshot prefix. */
+  private async loadSnapshot(prefix: string): Promise<CachedContacts['data']> {
+    const [members, staff, offices] = await Promise.all([
+      this.fetchGzipJson<unknown[]>(`${prefix}/combined/member-list-current.json.gz`),
+      this.fetchGzipJson<unknown[]>(`${prefix}/combined/staff-list-current.json.gz`),
+      this.fetchGzipJson<unknown>(`${prefix}/combined/office-list-current.json.gz`),
+    ]);
+
+    const [bioOverlay, pressOverlay] = await Promise.all([
+      this.loadBioOverlay(),
+      this.loadPressOverlay(),
+    ]);
+    const contacts = this.buildContacts(members, staff, bioOverlay, pressOverlay);
+    const staffers = this.buildStafferIndex(contacts);
+    const { committees, committeeStaff } = this.buildCommitteeIndex(offices, staff, members);
+    const availableStates = uniqueSorted(contacts.map((contact) => contact.state));
+    const availableFilters = this.buildAvailableFilters(contacts);
+    const totals: DirectoryTotals = {
+      all: contacts.length,
+      house: contacts.filter((contact) => contact.chamber === 'House').length,
+      senate: contacts.filter((contact) => contact.chamber === 'Senate').length,
+      governors: contacts.filter((contact) => contact.chamber === 'Governor').length,
+      staff: new Set(staffers.map((staffer) => staffer.id)).size,
+    };
+    // Resolved snapshot prefix is carried in sourceId for provenance/debugging.
+    const sourceId = `${this.bucket}/${prefix}`;
+    return {
+      sourceId,
+      contacts,
+      staffers,
+      committees,
+      committeeStaff,
+      totals,
+      availableStates,
+      availableFilters,
+    };
   }
 
   private toDirectoryMemberContext(contact: DirectoryContact): DirectoryEmailMatch['member'] {
@@ -1386,7 +1500,7 @@ export class DirectoryService implements OnModuleInit {
       return JSON.parse(text) as T;
     } catch (error) {
       this.logger.warn(
-        `Member-bios overlay unavailable at s3://${this.bucket}/${key}: ${
+        `Optional directory JSON unavailable at s3://${this.bucket}/${key}: ${
           error instanceof Error ? error.message : String(error)
         }`,
       );

@@ -341,6 +341,9 @@ case "${1:-serve}" in
   # Member press/RSS items for the directory News tab (every 3 days). A dispatched
   # task passes --commit; bare invocation is a dry run for local review.
   sync-member-press)      shift; exec ./node_modules/.bin/tsx scripts/sync-member-press.ts "$@" ;;
+  # LegiStorm directory safe refresh. Dispatched tasks pass --commit (and --full on
+  # the weekly reconciliation); a bare invocation is a dry run that writes nothing.
+  sync-legistorm-directory) shift; exec ./node_modules/.bin/tsx scripts/sync-legistorm-directory.ts "$@" ;;
   sync-openstates)        exec ./node_modules/.bin/tsx scripts/sync-openstates.ts ;;
   # State Legislation Platform (Phase 0 S1) — LegiScan is the bill spine.
   # backfill = one-time dataset seed + quota-exhaustion fallback (accepts

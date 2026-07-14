@@ -29,3 +29,39 @@ describe('configSchema — MICROSOFT_AUTHORITY', () => {
     expect(() => field.parse('organizations')).toThrow();
   });
 });
+
+describe('configSchema — LegiStorm directory refresh', () => {
+  test('provides conservative client and pointer defaults', () => {
+    expect(configSchema.shape.LEGISTORM_BASE_URL.parse(undefined)).toBe(
+      'https://api.legistorm.com/v2.019.10/congress',
+    );
+    expect(configSchema.shape.LEGISTORM_PAGE_SIZE.parse(undefined)).toBe(1000);
+    expect(configSchema.shape.LEGISTORM_MAX_PAGES.parse(undefined)).toBe(10_000);
+    expect(configSchema.shape.LEGISTORM_REQUEST_DELAY_MS.parse(undefined)).toBe(400);
+    expect(configSchema.shape.LEGISTORM_REQUEST_TIMEOUT_MS.parse(undefined)).toBe(30_000);
+    expect(configSchema.shape.LEGISTORM_MAX_RETRY_DELAY_MS.parse(undefined)).toBe(30_000);
+    expect(configSchema.shape.LEGISTORM_OVERLAP_DAYS.parse(undefined)).toBe(2);
+    expect(configSchema.shape.DIRECTORY_S3_LATEST_KEY.parse(undefined)).toBe(
+      'UPDATED DIRECTORY/LATEST.json',
+    );
+  });
+
+  test('keeps the API key optional at app boot while the sync script fails closed', () => {
+    expect(configSchema.shape.LEGISTORM_API_KEY.parse(undefined)).toBeUndefined();
+    expect(configSchema.shape.LEGISTORM_API_KEY.parse('test-key')).toBe('test-key');
+  });
+
+  test('rejects insecure URLs and invalid bounds', () => {
+    expect(() => configSchema.shape.LEGISTORM_BASE_URL.parse('not-a-url')).toThrow();
+    expect(() =>
+      configSchema.shape.LEGISTORM_BASE_URL.parse('http://api.example.invalid'),
+    ).toThrow();
+    expect(() => configSchema.shape.LEGISTORM_PAGE_SIZE.parse('0')).toThrow();
+    expect(() => configSchema.shape.LEGISTORM_PAGE_SIZE.parse('1.5')).toThrow();
+    expect(() => configSchema.shape.LEGISTORM_MAX_PAGES.parse('0')).toThrow();
+    expect(() => configSchema.shape.LEGISTORM_REQUEST_DELAY_MS.parse('-1')).toThrow();
+    expect(() => configSchema.shape.LEGISTORM_REQUEST_TIMEOUT_MS.parse('0')).toThrow();
+    expect(() => configSchema.shape.LEGISTORM_MAX_RETRY_DELAY_MS.parse('0')).toThrow();
+    expect(() => configSchema.shape.LEGISTORM_OVERLAP_DAYS.parse('-1')).toThrow();
+  });
+});

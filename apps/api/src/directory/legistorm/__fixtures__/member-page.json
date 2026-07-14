@@ -1,0 +1,84 @@
+[
+  {
+    "member": {
+      "member_id": 900001,
+      "bioguide_id": "X000001",
+      "icpsr_id": null,
+      "lis_member_id": null,
+      "profile": {
+        "id": 910001,
+        "first_name": "Alex",
+        "last_name": "Example",
+        "preferred_first_name": "Alex",
+        "preferred_last_name": "Example",
+        "suffix": null,
+        "gender": "X",
+        "bio_details": {
+          "dob": "1970-01-01",
+          "party_name": "Independent",
+          "hometown": "Example City",
+          "pob": "Example State"
+        }
+      }
+    },
+    "photos": [
+      {
+        "id": 920001,
+        "url": "https://example.invalid/member-photo.jpg",
+        "status": "public",
+        "is_primary": true,
+        "is_directory": true,
+        "updated_at": "2026-07-01T00:00:00Z"
+      }
+    ],
+    "social_media": [
+      {
+        "id": 930001,
+        "contact_type": "Website, official",
+        "contact_string": "https://example.invalid/member",
+        "updated_at": "2026-07-01T00:00:00Z"
+      }
+    ],
+    "member_offices": [
+      {
+        "id": 940001,
+        "office_type_id": "HM",
+        "office": { "office_id": 950001, "name": "Example Member Office" },
+        "state_id": "EX",
+        "district_no": 1,
+        "party": "Independent",
+        "status": "In office",
+        "start_date": "2025-01-03",
+        "end_date": "2100-01-01",
+        "updated_at": "2026-07-01T00:00:00Z"
+      }
+    ],
+    "office_member_addresses": [],
+    "committees": [
+      {
+        "id": 960001,
+        "committee_office": { "office_id": 970001, "name": "Example Committee" },
+        "party_id": "I",
+        "position": "Member",
+        "rank": 3,
+        "status": null,
+        "updated_at": "2026-07-01T00:00:00Z"
+      }
+    ],
+    "leaderships": [
+      {
+        "id": 980001,
+        "position": "Caucus Liaison",
+        "start_date": "2025-01-03",
+        "end_date": null,
+        "updated_at": "2026-07-01T00:00:00Z"
+      }
+    ],
+    "staffer_roles": [],
+    "staffer_issues": [],
+    "future_vendor_extension": {
+      "nested": true,
+      "money_like_string": "100.00"
+    }
+  }
+]
