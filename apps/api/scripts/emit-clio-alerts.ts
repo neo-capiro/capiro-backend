@@ -21,6 +21,13 @@
  */
 import { config as dotenvConfig } from 'dotenv';
 import { PrismaClient } from '@prisma/client';
+import { isReviewDue } from '../src/memory/memory-staleness.helpers.js';
+import {
+  buildCampaignClusters,
+  splitClustersByTenant,
+  isClusterMaterial,
+  type IntelChangeRow,
+} from '../src/intelligence/campaign-reco/campaign-cluster.js';
 dotenvConfig();
 
 const prisma = new PrismaClient();
@@ -28,6 +35,13 @@ const prisma = new PrismaClient();
 const MEETING_PREP_WINDOW_MS = 48 * 60 * 60 * 1000;
 const STALE_CLIENT_WINDOW_MS = 30 * 24 * 60 * 60 * 1000;
 const PER_TENANT_TAKE = 5;
+// Client "position" memory (blueprint §3.2 stale-position detection). Judgment/
+// strategy files — client-people is a directory, not a position.
+const POSITION_TYPES = ['client-soul', 'client-compass'];
+// Campaign-rec: how far back to scan legislative/budget changes, and the min
+// distinct clients a single item must touch to be worth proposing a campaign.
+const CAMPAIGN_LOOKBACK_MS = 7 * 24 * 60 * 60 * 1000;
+const CAMPAIGN_MIN_CLIENTS = 2;
 
 async function generateForTenant(tenantId: string): Promise<number> {
   let created = 0;
@@ -119,6 +133,184 @@ async function generateForTenant(tenantId: string): Promise<number> {
     created++;
   }
 
+  // 3. Stale / contradictory client POSITIONS (blueprint §3.2). Reads REAL
+  // Phase-1 governance fields (reviewCadenceDays/lastConfirmedAt → review-due;
+  // reviewer-set contradictsId → flagged conflict) — never a heuristic. Scoped
+  // to ACTIVE clients first so the alert's clientId FK is always valid, and the
+  // standalone script has no RLS context so the tenantId/clientId filters ARE
+  // the isolation guarantee. High priority so it clears the importance floor.
+  const activeClients = await prisma.client.findMany({
+    where: { tenantId, status: 'active' },
+    select: { id: true, name: true },
+  });
+  if (activeClients.length > 0) {
+    const clientName = new Map(activeClients.map((c) => [c.id, c.name] as const));
+    const positions = await prisma.memoryItem.findMany({
+      where: {
+        tenantId,
+        clientId: { in: activeClients.map((c) => c.id) },
+        type: { in: POSITION_TYPES },
+        status: 'active',
+      },
+      select: {
+        id: true,
+        clientId: true,
+        title: true,
+        createdAt: true,
+        lastConfirmedAt: true,
+        reviewCadenceDays: true,
+        contradictsId: true,
+      },
+      take: PER_TENANT_TAKE * 4, // over-fetch; we filter to flagged, then cap
+    });
+    let positionAlerts = 0;
+    for (const p of positions) {
+      if (positionAlerts >= PER_TENANT_TAKE) break;
+      const contradicted = p.contradictsId != null;
+      const reviewDue = isReviewDue({
+        reviewCadenceDays: p.reviewCadenceDays,
+        lastConfirmedAt: p.lastConfirmedAt,
+        createdAt: p.createdAt,
+      });
+      if (!contradicted && !reviewDue) continue;
+      if (!p.clientId) continue;
+      const exists = await prisma.clioProactiveAlert.findFirst({
+        where: {
+          tenantId,
+          sourceType: 'stale_position',
+          sourceId: p.id,
+          status: { in: ['pending', 'read'] },
+        },
+        select: { id: true },
+      });
+      if (exists) continue;
+      const name = clientName.get(p.clientId) ?? 'this client';
+      const reason = contradicted
+        ? `A saved position for ${name} ("${p.title}") is flagged as contradicting another memory.`
+        : `A saved position for ${name} ("${p.title}") is past its review cadence and hasn't been reconfirmed.`;
+      await prisma.clioProactiveAlert.create({
+        data: {
+          tenantId,
+          clientId: p.clientId,
+          alertType: 'stale_position',
+          title: `Review client position: ${name}`,
+          body: `${reason} Ask Meri to confirm, correct, or forget it before your next draft relies on it.`,
+          priority: 'high',
+          sourceType: 'stale_position',
+          sourceId: p.id,
+          metadata: {
+            memoryItemId: p.id,
+            reason: contradicted ? 'contradicts' : 'review_due',
+          },
+        },
+      });
+      created++;
+      positionAlerts++;
+    }
+  }
+
+  return created;
+}
+
+/**
+ * Outreach-campaign recommendation (blueprint §3.2). Cross-tenant by nature:
+ * intelligence_change is a GLOBAL table, so we scan once, cluster by shared
+ * bill/PE/issue, then SPLIT strictly per tenant (splitClustersByTenant) before
+ * writing — one firm's alert can never name another firm's clients. Dark by
+ * default (CAMPAIGN_RECO_ENABLED), high-priority (clears the importance floor),
+ * capped per tenant. Returns alerts created.
+ */
+async function generateCampaignRecommendations(): Promise<number> {
+  if (process.env.CAMPAIGN_RECO_ENABLED !== 'true') return 0;
+  const since = new Date(Date.now() - CAMPAIGN_LOOKBACK_MS);
+  const changes = await prisma.intelligenceChange.findMany({
+    where: { detectedAt: { gte: since }, relatedClientIds: { isEmpty: false } },
+    select: {
+      id: true,
+      source: true,
+      changeType: true,
+      severity: true,
+      title: true,
+      description: true,
+      relatedClientIds: true,
+      relatedPeCodes: true,
+      relatedIssues: true,
+      data: true,
+    },
+    take: 2000,
+  });
+  if (changes.length === 0) return 0;
+
+  const rows: IntelChangeRow[] = changes.map((c) => {
+    const data = (c.data ?? {}) as Record<string, unknown>;
+    const billId = typeof data.bill_id === 'string' ? data.bill_id : null;
+    return {
+      id: c.id,
+      source: c.source,
+      changeType: c.changeType,
+      severity: c.severity,
+      title: c.title,
+      description: c.description,
+      relatedClientIds: c.relatedClientIds,
+      relatedPeCodes: c.relatedPeCodes,
+      relatedIssues: c.relatedIssues,
+      billId,
+    };
+  });
+
+  const clusters = buildCampaignClusters(rows);
+  // Resolve every touched client to its OWN tenant (the isolation guard input).
+  const allClientIds = [...new Set(clusters.flatMap((c) => c.clientIds))];
+  if (allClientIds.length === 0) return 0;
+  const clients = await prisma.client.findMany({
+    where: { id: { in: allClientIds } },
+    select: { id: true, name: true, tenantId: true, status: true },
+  });
+  const clientTenant = new Map(
+    clients.map(
+      (c) => [c.id, { tenantId: c.tenantId, name: c.name, active: c.status === 'active' }] as const,
+    ),
+  );
+  const perTenant = splitClustersByTenant(clusters, clientTenant, CAMPAIGN_MIN_CLIENTS);
+
+  let created = 0;
+  const perTenantCount = new Map<string, number>();
+  for (const entry of perTenant) {
+    if ((perTenantCount.get(entry.tenantId) ?? 0) >= PER_TENANT_TAKE) continue;
+    const exists = await prisma.clioProactiveAlert.findFirst({
+      where: {
+        tenantId: entry.tenantId,
+        sourceType: 'campaign_reco',
+        sourceId: entry.cluster.key,
+        status: { in: ['pending', 'read'] },
+      },
+      select: { id: true },
+    });
+    if (exists) continue;
+    const names = entry.clientNames.join(', ');
+    const ev = entry.cluster.evidence[0]?.title ?? entry.cluster.label;
+    await prisma.clioProactiveAlert.create({
+      data: {
+        tenantId: entry.tenantId,
+        clientId: null, // multi-client campaign — no single client
+        alertType: 'campaign_recommendation',
+        title: `Campaign opportunity: ${entry.cluster.label} affects ${entry.clientIds.length} clients`,
+        body: `"${ev}" touches ${entry.clientIds.length} of your clients (${names}). Consider a coordinated outreach campaign. Ask Meri to draft it.`,
+        priority: 'high',
+        sourceType: 'campaign_reco',
+        sourceId: entry.cluster.key,
+        metadata: {
+          clusterKey: entry.cluster.key,
+          kind: entry.cluster.kind,
+          clientIds: entry.clientIds,
+          changeIds: entry.cluster.changeIds,
+          maxSeverity: entry.cluster.maxSeverity,
+        },
+      },
+    });
+    perTenantCount.set(entry.tenantId, (perTenantCount.get(entry.tenantId) ?? 0) + 1);
+    created++;
+  }
   return created;
 }
 
@@ -139,6 +331,16 @@ async function main(): Promise<void> {
       // One tenant's failure must not abort the rest of the run.
       console.error(`[emit-clio-alerts] ${tenant.slug}: FAILED: ${(err as Error).message}`);
     }
+  }
+
+  // Cross-tenant campaign-recommendation pass (dark unless CAMPAIGN_RECO_ENABLED).
+  try {
+    const campaignN = await generateCampaignRecommendations();
+    totalCreated += campaignN;
+    if (campaignN > 0)
+      console.log(`[emit-clio-alerts] campaign recommendations: created ${campaignN}`);
+  } catch (err) {
+    console.error(`[emit-clio-alerts] campaign-reco pass FAILED: ${(err as Error).message}`);
   }
 
   console.log(
