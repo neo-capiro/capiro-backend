@@ -140,6 +140,20 @@ aws events describe-rule --name capiro-dev-reconcile-legistorm-directory-full   
 - `SYNC_LEGISTORM_SUMMARY {…}` stdout line carries the aggregate run report (windows, counts,
   gates, proposed prefix, overlay fingerprints) — no PII.
 
+## Completeness metrics + drift warnings (Task 16)
+
+The validation report's `metrics` block reports both count metrics (members, staff, offices,
+committee memberships, member photo coverage) and completeness metrics that guard profile /
+dictionary richness from silent regression: `uniqueBioguideIds`, `membersWithCurrentOffice`,
+and `staffWithPhoto` (a **nullable** metric — `0` is honest today; the entitlement returns no
+staff photo). Regression gates fail closed on member 90–110%, staff/office 5%, committee
+membership 10%, and photo coverage 5pp unless an audited approval covers the gate.
+
+`report.warnings` is a **non-blocking** advisory channel. Today it fires when the source begins
+returning a staff-photo field (`… staff photo for N staffer(s); review + map before exposing`) —
+a signal to review + wire the new field rather than let it drop silently. Warnings never block
+pointer promotion.
+
 ## Adding a newly entitled LegiStorm endpoint
 
 Do **not** fold new datasets (caucuses, town halls, hearings, trips) into this member-directory

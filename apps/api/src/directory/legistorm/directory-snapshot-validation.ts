@@ -45,6 +45,8 @@ export interface DirectoryValidationGate {
 export interface DirectorySnapshotValidationReport {
   valid: boolean;
   errors: string[];
+  /** Non-blocking advisories (e.g. a newly-appearing staff-photo field to review). */
+  warnings: string[];
   gates: DirectoryValidationGate[];
   approval: DirectoryValidationApproval | null;
   metrics: {
@@ -59,6 +61,11 @@ export interface DirectoryAggregateMetrics {
   staff: number;
   offices: number;
   committeeMemberships: number;
+  /** Completeness metrics (Task 16) — guard profile/dictionary richness from silent regression. */
+  uniqueBioguideIds: number;
+  membersWithCurrentOffice: number;
+  /** Nullable metric: 0 is honest today (the entitlement returns no staff photo). */
+  staffWithPhoto: number;
 }
 
 export function validateDirectorySnapshot(
@@ -141,6 +148,7 @@ export function validateDirectorySnapshot(
   return {
     valid: errors.length === 0,
     errors,
+    warnings: detectSchemaDriftWarnings(input.next),
     gates,
     approval,
     metrics: {
@@ -149,6 +157,33 @@ export function validateDirectorySnapshot(
       memberPhotoCoverage: { previous: previousPhotoCoverage, next: nextPhotoCoverage },
     },
   };
+}
+
+/**
+ * Non-blocking advisories for source-schema drift that needs a reviewed mapping —
+ * notably a staff-photo field newly appearing (the current entitlement returns none,
+ * so if one shows up it should be reviewed + wired, not silently dropped).
+ */
+function detectSchemaDriftWarnings(next: DirectoryValidationCollections): string[] {
+  const warnings: string[] = [];
+  const staffWithPhoto = countStaffWithPhoto(next.staff);
+  if (staffWithPhoto > 0) {
+    warnings.push(
+      `source now returns a staff photo for ${staffWithPhoto} staffer(s); review + map before exposing`,
+    );
+  }
+  return warnings;
+}
+
+function countStaffWithPhoto(staff: unknown[]): number {
+  return staff.filter((record) => {
+    if (!isVendorRecord(record)) return false;
+    const inner = isVendorRecord(record.staff) ? record.staff : undefined;
+    const directUrl = typeof record.photo_url === 'string' && record.photo_url.trim().length > 0;
+    const innerUrl = typeof inner?.photo_url === 'string' && inner.photo_url.trim().length > 0;
+    const hasPhotos = Array.isArray(record.photos) && record.photos.length > 0;
+    return directUrl || innerUrl || hasPhotos;
+  }).length;
 }
 
 function validatedApproval(
@@ -302,6 +337,14 @@ function hasCurrentOffice(member: LegiStormMemberRecord): boolean {
 }
 
 function aggregateMetrics(collections: DirectoryValidationCollections): DirectoryAggregateMetrics {
+  const bioguideIds = new Set<string>();
+  let membersWithCurrentOffice = 0;
+  for (const member of collections.members) {
+    if (!hasRequiredMemberIdentity(member)) continue;
+    const bioguide = member.member.bioguide_id;
+    if (typeof bioguide === 'string' && bioguide.trim()) bioguideIds.add(bioguide);
+    if (hasCurrentOffice(member)) membersWithCurrentOffice += 1;
+  }
   return {
     members: collections.members.length,
     staff: collections.staff.length,
@@ -315,6 +358,9 @@ function aggregateMetrics(collections: DirectoryValidationCollections): Director
           : [];
       return total + memberships.length;
     }, 0),
+    uniqueBioguideIds: bioguideIds.size,
+    membersWithCurrentOffice,
+    staffWithPhoto: countStaffWithPhoto(collections.staff),
   };
 }
 
