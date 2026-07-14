@@ -153,15 +153,9 @@ const NAV: NavItem[] = [
     icon: <IdcardOutlined />,
     tourId: 'Directory',
   },
-  {
-    // §3.3 reviewer queue: held deliverables awaiting approval. Surfaced for all
-    // real users (each sees their own scoped queue; user_admins see the whole
-    // tenant queue + the Assign control).
-    key: 'reviews',
-    label: 'Reviews',
-    path: '/reviews',
-    icon: <CheckOutlined />,
-  },
+  // §3.3 reviewer queue (/reviews) is deliberately NOT surfaced in the nav —
+  // deep-link only, per Ninja 2026-07-13 (matches the Actions-board convention).
+  // The route stays registered in App.tsx.
   // Intelligence group (kept LAST in the nav): Radar (the unified Tracker +
   // Hearing Watch surface) first, then the Intelligence Center (live Explorer)
   // plus Program Elements nested beneath it. The former PE sub-items (Action
