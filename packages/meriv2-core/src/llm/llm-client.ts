@@ -161,8 +161,13 @@ export interface OpenAiLlmOptions {
  *     `tool_choice:{type:'function',function:{name}}` — the schema-forcing
  *     equivalent of Anthropic's `tool_choice:{type:'tool'}` (server-side arg
  *     validation before the response returns), per the plan's 4.5.3 note.
- * The agentic chat tool-LOOP (`RequestScopedLlmClient.completeWithTools`) is a
- * separate, larger protocol adapter and is NOT covered here.
+ * The agentic chat tool-LOOP (`RequestScopedLlmClient.completeWithTools`) is
+ * covered by `completeWithTools` below (4.5.1): the loop's wire shape stays
+ * Anthropic (content blocks, tool_use/tool_result, stop_reason) and this class
+ * translates both directions — messages/tools → Chat Completions on the way
+ * out (`toOpenAiToolLoopBody`), tool_calls/finish_reason → content blocks +
+ * stop_reason on the way back (`fromOpenAiToolLoopResponse`) — so the loop
+ * drivers (chat, in-editor) run unchanged on an OpenAI-only tenant.
  */
 export class OpenAiLlmClient implements LlmClient {
   private readonly apiKey: string;
@@ -264,6 +269,207 @@ export class OpenAiLlmClient implements LlmClient {
       clearTimeout(timer);
     }
   }
+
+  /**
+   * One round of the agentic tool-use loop on OpenAI (4.5.1). Anthropic-shaped
+   * in/out (the loop drivers stay unchanged): messages carrying tool_use /
+   * tool_result blocks are translated to Chat Completions tool_calls / role:tool
+   * messages, and the response's tool_calls + finish_reason come back as
+   * Anthropic content blocks + stop_reason. Throws on non-2xx/timeout — the
+   * same contract as the Anthropic round.
+   */
+  async completeWithTools(params: {
+    system: string;
+    messages: Array<{ role: 'user' | 'assistant'; content: unknown }>;
+    tools: Array<{ name: string; description: string; input_schema: Record<string, unknown> }>;
+    maxTokens: number;
+    timeoutMs?: number;
+    toolChoice?: 'auto' | 'none';
+    signal?: AbortSignal;
+  }): Promise<{
+    content: Array<Record<string, unknown>>;
+    stopReason: string | null;
+    usage: { inputTokens: number; outputTokens: number };
+  }> {
+    const controller = new AbortController();
+    const timeout = params.timeoutMs ?? this.timeoutMs;
+    const timer = setTimeout(() => controller.abort(), timeout);
+    const onExternalAbort = () => controller.abort();
+    if (params.signal) {
+      if (params.signal.aborted) controller.abort();
+      else params.signal.addEventListener('abort', onExternalAbort, { once: true });
+    }
+    try {
+      const res = await this.fetchImpl('https://api.openai.com/v1/chat/completions', {
+        method: 'POST',
+        headers: {
+          Authorization: `Bearer ${this.apiKey}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(
+          toOpenAiToolLoopBody({
+            model: this.model,
+            system: params.system,
+            messages: params.messages,
+            tools: params.tools,
+            maxTokens: params.maxTokens,
+            toolChoice: params.toolChoice,
+          }),
+        ),
+        signal: controller.signal,
+      });
+      const raw = (await res.json()) as Record<string, unknown>;
+      if (!res.ok) {
+        throw new Error(`OpenAI request failed (${res.status}): ${readError(raw)}`);
+      }
+      const { content, stopReason } = fromOpenAiToolLoopResponse(raw);
+      return { content, stopReason, usage: extractOpenAiUsage(raw) };
+    } finally {
+      clearTimeout(timer);
+      params.signal?.removeEventListener('abort', onExternalAbort);
+    }
+  }
+}
+
+// ── OpenAI ⇄ Anthropic tool-loop translation (4.5.1, pure + unit-tested) ─────
+
+/**
+ * Translate an Anthropic-shaped tool round into a Chat Completions body.
+ * Ordering rules OpenAI enforces are honored:
+ *   - an assistant turn's tool_use blocks become ONE assistant message with
+ *     `tool_calls` (its text blocks ride the same message's `content`);
+ *   - a user turn's tool_result blocks become role:'tool' messages placed
+ *     IMMEDIATELY after that assistant message (before any user text).
+ */
+export function toOpenAiToolLoopBody(params: {
+  model: string;
+  system: string;
+  messages: Array<{ role: 'user' | 'assistant'; content: unknown }>;
+  tools: Array<{ name: string; description: string; input_schema: Record<string, unknown> }>;
+  maxTokens: number;
+  toolChoice?: 'auto' | 'none';
+}): Record<string, unknown> {
+  const out: Array<Record<string, unknown>> = [{ role: 'system', content: params.system }];
+  for (const m of params.messages) {
+    if (typeof m.content === 'string') {
+      out.push({ role: m.role, content: m.content });
+      continue;
+    }
+    if (!Array.isArray(m.content)) {
+      out.push({ role: m.role, content: String(m.content ?? '') });
+      continue;
+    }
+    const blocks = m.content as Array<Record<string, unknown>>;
+    if (m.role === 'assistant') {
+      const text = blocks
+        .filter((b) => b?.type === 'text' && typeof b.text === 'string')
+        .map((b) => b.text as string)
+        .join('');
+      const toolCalls = blocks
+        .filter((b) => b?.type === 'tool_use')
+        .map((b) => ({
+          id: String(b.id ?? ''),
+          type: 'function',
+          function: {
+            name: String(b.name ?? ''),
+            arguments: JSON.stringify(b.input ?? {}),
+          },
+        }));
+      out.push({
+        role: 'assistant',
+        // OpenAI requires content present (string or null) alongside tool_calls.
+        content: text.length > 0 ? text : null,
+        ...(toolCalls.length > 0 ? { tool_calls: toolCalls } : {}),
+      });
+    } else {
+      // User turn: tool_result blocks first (must directly follow the assistant
+      // tool_calls message), then any text as a regular user message.
+      for (const b of blocks) {
+        if (b?.type !== 'tool_result') continue;
+        out.push({
+          role: 'tool',
+          tool_call_id: String(b.tool_use_id ?? ''),
+          content: typeof b.content === 'string' ? b.content : JSON.stringify(b.content ?? ''),
+        });
+      }
+      const text = blocks
+        .filter((b) => b?.type === 'text' && typeof b.text === 'string')
+        .map((b) => b.text as string)
+        .join('\n');
+      if (text.length > 0) out.push({ role: 'user', content: text });
+    }
+  }
+  return {
+    model: params.model,
+    max_tokens: params.maxTokens,
+    messages: out,
+    ...(params.tools.length > 0
+      ? {
+          tools: params.tools.map((t) => ({
+            type: 'function',
+            function: { name: t.name, description: t.description, parameters: t.input_schema },
+          })),
+        }
+      : {}),
+    // Omitted = OpenAI 'auto' (mirrors the Anthropic round's default).
+    ...(params.toolChoice === 'none' ? { tool_choice: 'none' } : {}),
+  };
+}
+
+/**
+ * Translate a Chat Completions response back into Anthropic-shaped content
+ * blocks + stop_reason: tool_calls → tool_use blocks (arguments JSON-parsed,
+ * malformed args degrade to {} rather than crashing the loop), finish_reason
+ * 'tool_calls'→'tool_use', 'stop'→'end_turn', 'length'→'max_tokens'.
+ */
+export function fromOpenAiToolLoopResponse(raw: Record<string, unknown>): {
+  content: Array<Record<string, unknown>>;
+  stopReason: string | null;
+} {
+  const content: Array<Record<string, unknown>> = [];
+  const choices = raw.choices;
+  const choice =
+    Array.isArray(choices) && choices[0] && typeof choices[0] === 'object'
+      ? (choices[0] as Record<string, unknown>)
+      : undefined;
+  const msg =
+    choice?.message && typeof choice.message === 'object'
+      ? (choice.message as Record<string, unknown>)
+      : undefined;
+  if (typeof msg?.content === 'string' && msg.content.length > 0) {
+    content.push({ type: 'text', text: msg.content });
+  }
+  if (Array.isArray(msg?.tool_calls)) {
+    for (const call of msg.tool_calls as Array<Record<string, unknown>>) {
+      const fn =
+        call?.function && typeof call.function === 'object'
+          ? (call.function as Record<string, unknown>)
+          : undefined;
+      if (!fn || typeof fn.name !== 'string') continue;
+      let input: Record<string, unknown> = {};
+      if (typeof fn.arguments === 'string' && fn.arguments.trim()) {
+        try {
+          const parsed = JSON.parse(fn.arguments) as unknown;
+          if (parsed && typeof parsed === 'object' && !Array.isArray(parsed)) {
+            input = parsed as Record<string, unknown>;
+          }
+        } catch {
+          /* malformed arguments degrade to {} — the tool surfaces its own validation error */
+        }
+      }
+      content.push({ type: 'tool_use', id: String(call.id ?? ''), name: fn.name, input });
+    }
+  }
+  const finish = typeof choice?.finish_reason === 'string' ? choice.finish_reason : null;
+  const stopReason =
+    finish === 'tool_calls'
+      ? 'tool_use'
+      : finish === 'stop'
+        ? 'end_turn'
+        : finish === 'length'
+          ? 'max_tokens'
+          : finish;
+  return { content, stopReason };
 }
 
 /** Pull the assistant text content out of an OpenAI Chat Completions response. */

@@ -6,6 +6,14 @@ import { WorkspaceContextCompilerService } from './context-compiler.service.js';
 import { AiCredentialService } from './ai-credential.service.js';
 import { PeResolverService, type AuthoritativePeRecord } from './pe-resolver.service.js';
 import { anonymizeText, type AnonymizeMap } from './anonymize.js';
+import {
+  applyCitations,
+  buildCitationCorpus,
+  ctxCitationToken,
+  peCitationToken,
+  type CitableContextItem,
+  type SectionCitation,
+} from './citations.js';
 import { WSC } from '../cascade/cascade.config.js';
 import {
   DOMAIN_PRIMER,
@@ -21,6 +29,7 @@ import {
 // out of the workspace's test-time AND runtime module graph.
 import {
   runAuditor,
+  type AuditorMode,
   type ToolResultLedger,
   type LedgerEntry,
 } from '@capiro/meriv2-core/grounding/auditor';
@@ -65,6 +74,10 @@ export interface GenerateSectionResult {
   /** What actually grounded this section (Phase 3.3); identical across a
    *  generate-all run since every section shares the same draft context. */
   provenance: ContextProvenance;
+  /** Phase 3.1: validated claim-level citations rendered into the content. */
+  citations: SectionCitation[];
+  /** Tokens the model emitted that failed validation (stripped from content). */
+  invalidCitations: string[];
 }
 
 /**
@@ -144,16 +157,27 @@ export class GenerationService {
     const PER_ITEM_CAP = 8000;
     const TOTAL_CONTEXT_CAP = 24000;
 
-    const itemText = (draft.context ?? [])
+    // Phase 3.1: every grounding fact carries its own FORM-B citation token so
+    // the model can cite claim-by-claim; post-LLM the tokens are validated
+    // against this same corpus and rendered as numbered footnote markers.
+    const citableItems: CitableContextItem[] = (draft.context ?? [])
       .map((c) => {
         const p = c.payload as Record<string, unknown>;
         // Prefer the rich grounding body (payload.text — set by the Context
         // Builder for client data, documents, bills, preps, news); fall back to
         // the short label for older/source items. Without this, added news +
         // documents contribute nothing to generation (they carry no `label`).
-        return String(p.text ?? p.label ?? '').slice(0, PER_ITEM_CAP);
+        const body = String(p.text ?? p.label ?? '').slice(0, PER_ITEM_CAP);
+        const label =
+          String(p.label ?? '').trim() ||
+          String(p.text ?? '')
+            .trim()
+            .slice(0, 80) ||
+          c.kind;
+        return { id: c.id, label, body };
       })
-      .filter(Boolean);
+      .filter((c) => c.body.length > 0);
+    const itemText = citableItems.map((c) => `(cite as ${ctxCitationToken(c.id)}) ${c.body}`);
 
     // Phase 3.3 provenance: the context items that ACTUALLY contributed a
     // non-empty body (same non-empty filter as itemText above), so the "context
@@ -194,8 +218,13 @@ export class GenerationService {
         const code = (pe.peCode ?? '').toUpperCase();
         const auth = code ? authByCode.get(code) : undefined;
         // Authoritative DB record wins; fall back to the attached context only
-        // when the PE couldn't be resolved (e.g. not yet ingested).
-        if (auth) return this.peResolver.groundingText(auth).slice(0, PER_ITEM_CAP);
+        // when the PE couldn't be resolved (e.g. not yet ingested). Only the
+        // authoritative record earns a citation token — an unresolved PE has no
+        // evidence to validate against.
+        if (auth)
+          return `(cite as ${peCitationToken(auth.peCode)}) ${this.peResolver
+            .groundingText(auth)
+            .slice(0, PER_ITEM_CAP)}`;
         const head = [pe.peCode, pe.title].filter(Boolean).join(' — ');
         return [head, pe.context].filter(Boolean).join('\n').slice(0, PER_ITEM_CAP);
       })
@@ -242,6 +271,37 @@ export class GenerationService {
       ? anonymizeText(raw, { client, offices })
       : { text: raw, map: { legend: {} } };
 
+    // Phase 3.1: validate the model's citation tokens against the SAME evidence
+    // that grounded the prompt (shared FORM-B validator — the auditor's D1
+    // contract). Invalid tokens are stripped (a broken citation never renders);
+    // valid tokens become numbered <sup>[n]</sup> footnote markers with a
+    // citation map persisted alongside the section.
+    const cited = applyCitations(
+      result.text,
+      buildCitationCorpus(
+        authPes.map((p) => ({
+          peCode: p.peCode,
+          title: p.title,
+          groundingText: this.peResolver.groundingText(p),
+        })),
+        citableItems,
+      ),
+      {
+        pe: new Map(
+          authPes.map((p) => [
+            p.peCode.toUpperCase(),
+            p.title ? `${p.peCode} — ${p.title}` : p.peCode,
+          ]),
+        ),
+        ctx: new Map(citableItems.map((c) => [c.id, c.label])),
+      },
+    );
+    if (cited.invalidTokens.length > 0) {
+      this.logger.warn(
+        `section "${sectionName}": stripped ${cited.invalidTokens.length} unresolvable citation token(s): ${cited.invalidTokens.join(', ')}`,
+      );
+    }
+
     const provenance: ContextProvenance = {
       generatedAt: new Date().toISOString(),
       contextItems: usedContextItems,
@@ -253,12 +313,14 @@ export class GenerationService {
 
     return {
       section: sectionName,
-      content: result.text,
+      content: cited.html,
       model: cred.model,
       usedTenantKey: cred.usedTenantKey,
       anonymized: anonymize,
       legend: anonymize ? result.map.legend : undefined,
       provenance,
+      citations: cited.citations,
+      invalidCitations: cited.invalidTokens,
     };
   }
 
@@ -336,13 +398,21 @@ export class GenerationService {
         };
       });
 
+      // Mode reflects the REAL global env (was a hardcoded 'shadow' that made
+      // MERI_AUDITOR_MODE=enforce a silent lie on this surface). Workspace stays
+      // gate-less per Ninja D1 either way: only `findings` are consumed below —
+      // the decision is deliberately ignored, so enforce never blocks here; it
+      // just records the verdict under the mode that actually produced it.
+      const envMode = process.env.MERI_AUDITOR_MODE;
+      const mode: AuditorMode =
+        envMode === 'off' || envMode === 'shadow' || envMode === 'annotate' || envMode === 'enforce'
+          ? envMode
+          : 'shadow';
       const verdict = runAuditor({
         output: text,
         ledger: { entries } as ToolResultLedger,
         surface: 'memo',
-        // shadow: compute findings, never alter/act — Workspace is gate-less, the
-        // findings ride the advisory checks list.
-        mode: 'shadow',
+        mode: mode === 'off' ? 'shadow' : mode, // advisory checks always compute
       });
       return verdict.findings.map((f) => ({
         check: f.check,
@@ -518,6 +588,9 @@ export class GenerationService {
     // steering memory / linked PEs, so any one section's provenance is the
     // whole-draft provenance.
     let provenance: ContextProvenance | undefined;
+    // Phase 3.1: per-section validated citation maps + stripped-token findings.
+    const sectionCitations: Record<string, SectionCitation[]> = {};
+    const citationFindings: GroundingFinding[] = [];
     await Promise.all(
       sections.map(async (section) => {
         try {
@@ -525,6 +598,15 @@ export class GenerationService {
           sectionContent[section] = r.content;
           sectionMeta[section] = { status: 'review' };
           provenance ??= r.provenance;
+          if (r.citations.length > 0) sectionCitations[section] = r.citations;
+          for (const token of r.invalidCitations) {
+            citationFindings.push({
+              check: 'C1',
+              severity: 'medium',
+              span: token,
+              detail: `Section "${section}": the model cited ${token}, which does not resolve to any grounding fact — the token was stripped. The sentence it trailed is uncited; verify it against the draft's linked sources.`,
+            });
+          }
         } catch (e) {
           this.logger.warn(`generate-all: section "${section}" failed: ${(e as Error).message}`);
         }
@@ -539,8 +621,12 @@ export class GenerationService {
     const structuralWarnings = this.computeStructuralWarnings(cfg, sectionContent, authPes);
     // Phase 3.1: claim-level grounding audit (shared Phase 2 auditor) over the
     // generated sections — advisory findings persisted for ChecksService to
-    // surface in the existing checks list.
-    const groundingFindings = this.runGroundingAuditor(sectionContent, authPes);
+    // surface in the existing checks list. Stripped-citation findings (C1)
+    // ride the same list so an invented citation is visible, not silent.
+    const groundingFindings = [
+      ...citationFindings,
+      ...this.runGroundingAuditor(sectionContent, authPes),
+    ];
 
     return this.persistGeneratedSections(tenantId, draftId, cfg, {
       sectionContent,
@@ -548,6 +634,7 @@ export class GenerationService {
       structuralWarnings,
       contextProvenance: provenance,
       groundingFindings,
+      sectionCitations,
     });
   }
 
@@ -571,17 +658,29 @@ export class GenerationService {
       contextProvenance?: ContextProvenance;
       /** Phase 3.1 grounding findings; undefined leaves any prior value. */
       groundingFindings?: GroundingFinding[];
+      /** Phase 3.1 per-section citation maps; undefined leaves any prior value. */
+      sectionCitations?: Record<string, SectionCitation[]>;
     },
   ) {
-    // Only overwrite contextProvenance / groundingFindings when this run computed
-    // them; otherwise preserve whatever a prior generation stored (e.g. an
-    // orchestrator-driven apply that carries neither must not wipe them).
-    const { contextProvenance, groundingFindings, ...rest } = sections;
+    // Only overwrite contextProvenance / groundingFindings / sectionCitations
+    // when this run computed them; otherwise preserve whatever a prior
+    // generation stored (e.g. an orchestrator-driven apply that carries neither
+    // must not wipe them).
+    const { contextProvenance, groundingFindings, sectionCitations, ...rest } = sections;
     const provenancePatch = contextProvenance !== undefined ? { contextProvenance } : {};
     const groundingPatch = groundingFindings !== undefined ? { groundingFindings } : {};
+    const citationsPatch = sectionCitations !== undefined ? { sectionCitations } : {};
     await this.prisma.wsDraft.update({
       where: { id: draftId },
-      data: { config: { ...cfg, ...rest, ...provenancePatch, ...groundingPatch } as never },
+      data: {
+        config: {
+          ...cfg,
+          ...rest,
+          ...provenancePatch,
+          ...groundingPatch,
+          ...citationsPatch,
+        } as never,
+      },
     });
     const refreshed = await this.prisma.wsDraft.findFirst({
       where: { id: draftId, tenantId },
@@ -963,7 +1062,12 @@ export class GenerationService {
       args.toneContext ? `Strategic emphasis: ${args.toneContext}.` : '',
       `This section sits within the standard structure: ${sectionGuide.join(' → ')}.`,
       `The full document targets about ${args.targetPages} page${args.targetPages === 1 ? '' : 's'} — size this section proportionally so the whole document lands near that length.`,
-      args.context ? `Ground the content in these facts:\n- ${args.context}` : '',
+      args.context
+        ? `Ground the content in these facts (each fact's "(cite as [S:…])" prefix is its citation token):\n- ${args.context}`
+        : '',
+      args.context
+        ? `CITATIONS: after each sentence that states a specific fact drawn from the grounding facts (a figure, date, status, provision, or quote), append that fact's citation token EXACTLY as given, e.g. "…request is $72.1M. [S:pe:0603851F]". Never invent, alter, or abbreviate a token; general narrative sentences take no token.`
+        : '',
       args.firmContext ? `\n${args.firmContext}` : '',
       args.userVoiceContext ? `\nDraft in this author's voice:\n${args.userVoiceContext}` : '',
       '',
@@ -972,7 +1076,7 @@ export class GenerationService {
       `Goal of this section: ${spec.goal}`,
       `Target length: roughly ${loWords}–${hiWords} words — respect it.`,
       formatLine,
-      `Output clean HTML using ONLY these tags: <p>, <ul>/<ol>/<li>, <table>/<thead>/<tbody>/<tr>/<th>/<td>, <strong>, <em>. No markdown, no section header/title, no preamble or meta-commentary. Be specific and factual; government-affairs register.`,
+      `Output clean HTML using ONLY these tags: <p>, <ul>/<ol>/<li>, <table>/<thead>/<tbody>/<tr>/<th>/<td>, <strong>, <em>. The only other content allowed is the citation tokens exactly as given in the grounding facts. No markdown, no section header/title, no preamble or meta-commentary. Be specific and factual; government-affairs register.`,
     ]
       .filter(Boolean)
       .join('\n');

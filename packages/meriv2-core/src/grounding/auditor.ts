@@ -10,6 +10,10 @@
  *   D1  citation existence      — a FORM-B [S:tool:record_id] token whose tool
  *                                 wasn't called this turn or whose record_id
  *                                 isn't verbatim in that tool's result.
+ *   D2  quote/source-span gate  — a ≥40-char DIRECT QUOTE the line attributes
+ *                                 to source material ("the report states …")
+ *                                 that appears in NO tool result this turn —
+ *                                 the fabricated-verbatim-quote class.
  *   D4b vehicle conflation      — an appropriations stage word attached to the
  *                                 word "authorization"/"NDAA" (or vice versa).
  *   D6  failed-rule framing     — operative/advancing language about a bill the
@@ -135,7 +139,7 @@ export interface AuditVerdict {
 // ── helpers ────────────────────────────────────────────────────────────────
 
 /** Split text into rough sentences/lines for span-level analysis. */
-function toSentences(text: string): string[] {
+export function toSentences(text: string): string[] {
   return text
     .split(/(?<=[.!?])\s+|\n+/)
     .map((s) => s.trim())
@@ -148,14 +152,14 @@ function toSentences(text: string): string[] {
  * sentence end, severing a sponsor claim from the name that follows it on the
  * same line — checks that must see a title + name together use this instead.
  */
-function toLines(text: string): string[] {
+export function toLines(text: string): string[] {
   return text
     .split(/\n+/)
     .map((s) => s.trim())
     .filter((s) => s.length > 0);
 }
 
-const SEVERITY_RANK: Record<AuditSeverity, number> = {
+export const SEVERITY_RANK: Record<AuditSeverity, number> = {
   critical: 3,
   high: 2,
   medium: 1,
@@ -186,6 +190,56 @@ export function checkCitations(output: string, ledger: ToolResultLedger): AuditF
     span: token,
     detail: `Citation ${token} does not resolve: its tool was not called this turn, or its record_id is not verbatim in that tool's result. The sentence it trails is ungrounded.`,
   }));
+}
+
+// ── D2: quote/source-span gate ────────────────────────────────────────────────
+
+// The line must ATTRIBUTE the quote to source material — an attribution verb or
+// a document noun — so rhetorical/scare quotes and coined terms never fire.
+// Precision-first: this list is deliberately narrow.
+const QUOTE_ATTRIBUTION_CUE =
+  /\b(?:according to|state[sd]?|read[s]?|note[sd]?|write[s]?|say[s]?|said|quot(?:e[sd]?|ing)|provides? that|directs? that|report language|bill text|committee report|the (?:report|bill|statute|provision|transcript|testimony|language|text|memo|amendment))\b/i;
+
+/** Straighten smart quotes/apostrophes + collapse whitespace for span matching. */
+function normalizeQuoteSpan(s: string): string {
+  return s.replace(/[‘’]/g, "'").replace(/[“”]/g, '"').replace(/\s+/g, ' ').trim().toLowerCase();
+}
+
+// A double-quoted span long enough to be a real source quote, not an idiom.
+// 40–600 chars: below 40 is coined-term territory; above 600 is a block quote
+// the model would have paraphrased anyway.
+const QUOTED_SPAN_RE = /[“"]([^“”"]{40,600})[”"]/g;
+
+/**
+ * Flag a long direct quote the line attributes to source material when the
+ * quoted span appears (whitespace/case-normalized) in NO tool result captured
+ * this turn — the fabricated-verbatim-quote class the v3 plan's registry calls
+ * the "quote/source-span gate". Skips entirely when the ledger is empty
+ * (nothing to verify against ⇒ fabrication is unprovable, stay silent).
+ */
+export function checkQuoteSpans(output: string, ledger: ToolResultLedger): AuditFinding[] {
+  if (ledger.entries.length === 0) return [];
+  const corpus = normalizeQuoteSpan(ledger.entries.map((e) => e.serialized).join('\n'));
+  if (corpus.length === 0) return [];
+  const findings: AuditFinding[] = [];
+  for (const line of toLines(output)) {
+    if (!QUOTE_ATTRIBUTION_CUE.test(line)) continue;
+    for (const m of line.matchAll(QUOTED_SPAN_RE)) {
+      const span = m[1]!.trim();
+      // A span carrying a FORM-B token is D1's jurisdiction, not a quote.
+      if (!span || span.includes('[S:')) continue;
+      if (!corpus.includes(normalizeQuoteSpan(span))) {
+        findings.push({
+          check: 'D2',
+          severity: 'high',
+          span: m[0]!.slice(0, 200),
+          detail:
+            'Quoted span attributed to source material does not appear in any tool result this turn — the quote cannot be verified and may be fabricated. Paraphrase with a citation, or quote the retrieved text verbatim.',
+        });
+      }
+    }
+  }
+  return findings;
 }
 
 // ── D4b: authorization vs appropriation conflation ───────────────────────────
@@ -999,8 +1053,12 @@ export function checkNegativeAssertion(output: string, ledger: ToolResultLedger)
 
 // ── orchestration + verdict gate ─────────────────────────────────────────────
 
-/** Per-surface fail policy (v3 plan §3.6) applied when mode === 'enforce'. */
-function decisionFor(
+/**
+ * Per-surface fail policy (v3 plan §3.6) applied when mode === 'enforce'.
+ * Exported so the skeptic-audit merge (skeptic-audit.ts) re-derives the SAME
+ * decision after appending SK findings — one policy, never two.
+ */
+export function auditDecisionFor(
   surface: AuditSurface,
   top: AuditSeverity | null,
   mode: AuditorMode,
@@ -1035,6 +1093,7 @@ export function runAuditor(input: AuditInput): AuditVerdict {
   }
   const raw: AuditFinding[] = [
     ...checkCitations(output, ledger),
+    ...checkQuoteSpans(output, ledger),
     ...checkNumericDirection(output),
     ...checkFundingDirectionVsEvidence(output, ledger),
     ...checkVehicleConflation(output),
@@ -1066,7 +1125,7 @@ export function runAuditor(input: AuditInput): AuditVerdict {
     surface,
     findings,
     topSeverity,
-    decision: decisionFor(surface, topSeverity, mode),
+    decision: auditDecisionFor(surface, topSeverity, mode),
   };
 }
 

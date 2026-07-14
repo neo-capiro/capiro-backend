@@ -9,7 +9,7 @@ import {
   renderMemoDocx,
 } from '../intelligence/alert-memo/alert-memo-docx.js';
 
-export type ReviewSurface = 'alert-memo' | 'district-brief' | 'research';
+export type ReviewSurface = 'alert-memo' | 'district-brief' | 'research' | 'outreach';
 
 export interface CreateReviewInput {
   riskTier: RiskTier;
@@ -203,6 +203,14 @@ export class ReviewsService {
         `,
       );
       return { artifactId, heldForReview: false };
+    }
+    if (row.surface === 'outreach') {
+      // Nothing to file: approve flips status → 'approved', which is exactly
+      // what sendBatchEmails' content-keyed hold gate checks — the identical
+      // held draft becomes sendable. Pending/rejected stay blocked. (The hold
+      // row is created by EngagementService directly, NOT via createSystem,
+      // to avoid a Reviews↔Engagement DI cycle — see persistOutreachHold.)
+      return { sendUnblocked: true };
     }
     return null;
   }

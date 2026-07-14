@@ -39,6 +39,8 @@ const ALLOWED_TAGS = new Set([
   'TR',
   'TD',
   'TH',
+  // Claim-level citation footnote markers (Phase 3.1): Meri emits <sup>[n]</sup>.
+  'SUP',
 ]);
 
 // Inline/formatting style properties we let through (everything else dropped).

@@ -174,6 +174,96 @@ describe('RequestScopedLlmClient.completeWithTools (tool-use round)', () => {
     ).rejects.toThrow(/No LLM credential available/);
     expect(global.fetch).not.toHaveBeenCalled();
   });
+
+  // 4.5.1: an OpenAI credential routes the round through the Chat Completions
+  // adapter — Anthropic-shaped in/out, so the loop drivers never change.
+  it('runs the round on OpenAI for an openai credential (translated both ways)', async () => {
+    const calls: Array<{ url: string; headers: Record<string, string>; body: any }> = [];
+    (global as unknown as { fetch: unknown }).fetch = jest.fn(
+      async (url: string, init: { headers: Record<string, string>; body: string }) => {
+        calls.push({ url, headers: init.headers, body: JSON.parse(init.body) });
+        return {
+          ok: true,
+          status: 200,
+          json: async () => ({
+            choices: [
+              {
+                message: {
+                  content: 'checking',
+                  tool_calls: [
+                    {
+                      id: 'call_9',
+                      type: 'function',
+                      function: { name: 'search_congress_bills', arguments: '{"q":"ndaa"}' },
+                    },
+                  ],
+                },
+                finish_reason: 'tool_calls',
+              },
+            ],
+            usage: { prompt_tokens: 11, completion_tokens: 7 },
+          }),
+        };
+      },
+    );
+    const client = new RequestScopedLlmClient('sk-global', 'claude-default');
+    const out = await RequestCredentialsStore.run(
+      {
+        bearerToken: 't',
+        aiProvider: {
+          ...tenantCred,
+          provider: 'openai' as const,
+          model: 'gpt-x',
+          modelOverridden: true,
+        },
+      },
+      () =>
+        client.completeWithTools({
+          system: 'sys',
+          messages: [
+            { role: 'user', content: 'find bills' },
+            {
+              role: 'assistant',
+              content: [
+                { type: 'text', text: 'on it' },
+                {
+                  type: 'tool_use',
+                  id: 'call_1',
+                  name: 'search_congress_bills',
+                  input: { q: 'x' },
+                },
+              ],
+            },
+            {
+              role: 'user',
+              content: [{ type: 'tool_result', tool_use_id: 'call_1', content: '{"rows":[]}' }],
+            },
+          ],
+          tools,
+          maxTokens: 512,
+        }),
+    );
+    // Request went to OpenAI on the tenant key, Anthropic wire translated out.
+    expect(calls[0]!.url).toContain('api.openai.com');
+    expect(calls[0]!.headers.Authorization).toBe('Bearer sk-tenant-abc');
+    const msgs = calls[0]!.body.messages as Array<Record<string, unknown>>;
+    expect(msgs[0]).toEqual({ role: 'system', content: 'sys' });
+    expect(msgs[2]).toMatchObject({
+      role: 'assistant',
+      content: 'on it',
+      tool_calls: [{ id: 'call_1', function: { name: 'search_congress_bills' } }],
+    });
+    expect(msgs[3]).toEqual({ role: 'tool', tool_call_id: 'call_1', content: '{"rows":[]}' });
+    expect(calls[0]!.body.tools[0].function.name).toBe('search_congress_bills');
+    // Response translated back into Anthropic shape.
+    expect(out.stopReason).toBe('tool_use');
+    expect(out.content).toEqual([
+      { type: 'text', text: 'checking' },
+      { type: 'tool_use', id: 'call_9', name: 'search_congress_bills', input: { q: 'ndaa' } },
+    ]);
+    expect(out.usage).toEqual({ inputTokens: 11, outputTokens: 7 });
+    expect(out.usedTenantKey).toBe(true);
+  });
 });
 
 describe('parseAiProviderHeader', () => {
