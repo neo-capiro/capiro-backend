@@ -312,6 +312,15 @@ export class MeriResearchService {
     // one — the S3 fabrication cluster). Accumulates successful tool results
     // across gather rounds; audited after synthesis.
     const ledgerEntries: LedgerEntry[] = [];
+    // Resolved ONCE up front because ENFORCE changes the streaming shape below:
+    // the post-hoc audit can only protect the READER if the report text hasn't
+    // already been streamed to them token-by-token. Under enforce we buffer the
+    // report deltas (thinking/steps/sources still stream live so the trust
+    // timeline works), audit, then deliver — the full body when cleared, a hold
+    // notice instead of the body when held. Shadow/annotate keep today's
+    // stream-as-generated behavior (the audit there never withholds anything).
+    const auditorMode = await resolveTenantAuditorMode(this.prisma, ctx.tenantId);
+    const bufferReport = auditorMode === 'enforce';
     let synthesizing = false;
     // True only when the agentic loop ended because the model stopped calling
     // tools and wrote its report. If it ends any other way (tool-round budget
@@ -393,7 +402,9 @@ export class MeriResearchService {
                       sse.write(sseEvent({ type: 'phase', phase: 'synthesize' }));
                     }
                     reportBody += delta.text;
-                    sse.write(sseEvent({ type: 'text', text: delta.text }));
+                    // Enforce buffers report text until the post-hoc audit
+                    // clears it (see bufferReport above).
+                    if (!bufferReport) sse.write(sseEvent({ type: 'text', text: delta.text }));
                   } else if (
                     delta.type === 'input_json_delta' &&
                     typeof delta.partial_json === 'string'
@@ -602,7 +613,9 @@ export class MeriResearchService {
                   typeof evt.delta.text === 'string'
                 ) {
                   reportBody += evt.delta.text;
-                  sse.write(sseEvent({ type: 'text', text: evt.delta.text }));
+                  // Enforce buffers report text until the post-hoc audit
+                  // clears it (see bufferReport above).
+                  if (!bufferReport) sse.write(sseEvent({ type: 'text', text: evt.delta.text }));
                 }
               } catch {
                 /* incomplete chunk */
@@ -640,7 +653,6 @@ export class MeriResearchService {
     // annotate (decision is never 'hold' there), so the default flow is unchanged.
     let held = false;
     let heldReason = '';
-    const auditorMode = await resolveTenantAuditorMode(this.prisma, ctx.tenantId);
     if (auditorMode !== 'off' && reportBody.trim().length > 0) {
       try {
         const verdict = runAuditor({
@@ -696,6 +708,20 @@ export class MeriResearchService {
           `[meri-auditor] research audit failed (run unaffected): ${(err as Error).message}`,
         );
       }
+    }
+
+    // Reader-protection flush (enforce only): report deltas were withheld above,
+    // so deliver now — the full (banner-prefixed) body when the audit cleared
+    // it, or a hold notice INSTEAD of the body when held. The persisted artifact
+    // keeps the full text either way; approve in Reviews releases it.
+    const heldNotice =
+      `> ⏸️ **Report held for review.** The grounding auditor flagged this report under ` +
+      `enforce mode and it was not delivered. A reviewer must approve it in Reviews before ` +
+      `the content is released; the saved report is marked *held for review*.` +
+      (heldReason ? `\n>\n> ${heldReason.slice(0, 500)}` : '');
+    if (bufferReport) {
+      const deliverable = held ? heldNotice : reportBody;
+      if (deliverable.trim().length > 0) sse.write(sseEvent({ type: 'text', text: deliverable }));
     }
 
     // Persist the report artifact + link it to the session.
@@ -787,7 +813,10 @@ export class MeriResearchService {
     }
 
     sse.write(sseEvent({ type: 'phase', phase: 'done' }));
-    sse.write(sseEvent({ type: 'report', artifactId, body: artifactBody }));
+    // The report event REPLACES the whole chat message client-side — when held
+    // (enforce only) it must carry the hold notice, never the report body, or
+    // the buffering above would be undone at the finish line.
+    sse.write(sseEvent({ type: 'report', artifactId, body: held ? heldNotice : artifactBody }));
     sse.write(sseEvent({ type: 'done' }));
   }
 

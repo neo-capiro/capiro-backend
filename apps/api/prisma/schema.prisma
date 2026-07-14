@@ -1710,7 +1710,7 @@ model ReviewRequest {
   tenantId    String    @map("tenant_id") @db.Uuid
   /// low | moderate | high | restricted (shared RiskTier)
   riskTier    String    @map("risk_tier") @db.VarChar(16)
-  /// 'alert-memo' | 'district-brief' | 'research'
+  /// 'alert-memo' | 'district-brief' | 'research' | 'outreach'
   surface     String    @db.VarChar(24)
   subjectType String    @map("subject_type") @db.VarChar(32)
   subjectId   String?   @map("subject_id")

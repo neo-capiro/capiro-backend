@@ -40,9 +40,15 @@ import {
   deriveMeetingVirtuality,
   billStatusLabel,
   currentCycleFyOf,
+  DELIVERABLE_RISK_TIERS,
   type AiGenerationUsageLike,
   type TenantContext,
 } from '@capiro/shared';
+import {
+  outreachDraftHoldKey,
+  OUTREACH_HOLD_BLOCKING_STATUSES,
+  OUTREACH_HOLD_SUBJECT_TYPE,
+} from './outreach-hold.js';
 import type { AppConfig } from '../config/config.schema.js';
 import { PrismaService } from '../prisma/prisma.service.js';
 import { DirectoryService, type DirectoryEmailMatch } from '../directory/directory.service.js';
@@ -2946,6 +2952,16 @@ export class EngagementService {
               // Enforce = hold: mark this recipient's draft non-sendable. Inert
               // under shadow/annotate (decision is 'hold' only in enforce mode).
               recipientHeld = verdict.decision === 'hold';
+              if (recipientHeld) {
+                await this.persistOutreachHold(ctx, {
+                  recipientId,
+                  recipientName: (recipient as Record<string, unknown>).name?.toString() ?? null,
+                  clientId: clientId ?? null,
+                  subject: generated.subject,
+                  body: generated.body,
+                  findings: verdict.findings,
+                });
+              }
             }
           } catch (auditErr) {
             this.logger.warn(
@@ -3034,6 +3050,76 @@ export class EngagementService {
    * `testMode` a single [TEST] copy is sent to the logged-in user so they
    * can preview formatting before the real send.
    */
+  /**
+   * §3.3 server-side outreach hold (defense-in-depth): a HELD draft becomes a
+   * durable review_request keyed by CONTENT (recipient + exact subject/body),
+   * and sendBatchEmails refuses any draft whose content key has a non-approved
+   * review. The wizard's client-side 'held' handling stays the first line;
+   * this closes the direct-API / wizard-bug bypass. Fail-open on persistence
+   * errors (loud log): generation must never lose a draft because the hold row
+   * failed — the client-side gate still applies to that draft.
+   */
+  private async persistOutreachHold(
+    ctx: TenantContext,
+    held: {
+      recipientId: string;
+      recipientName: string | null;
+      clientId: string | null;
+      subject: string;
+      body: string;
+      findings: unknown[];
+    },
+  ): Promise<void> {
+    try {
+      const subjectId = outreachDraftHoldKey(held.recipientId, held.subject, held.body);
+      const findingSummary = (held.findings as Array<Record<string, unknown>>)
+        .map((f) => `${String(f.check ?? '?')} (${String(f.severity ?? '?')})`)
+        .join(', ');
+      await this.prisma.withTenant(ctx.tenantId, async (tx) => {
+        // Idempotent per content key: a regenerate that reproduces the same
+        // held text must not stack duplicate pending reviews.
+        const existing = await tx.reviewRequest.findFirst({
+          where: {
+            tenantId: ctx.tenantId,
+            subjectType: OUTREACH_HOLD_SUBJECT_TYPE,
+            subjectId,
+            status: 'pending',
+          },
+          select: { id: true },
+        });
+        if (existing) return;
+        await tx.reviewRequest.create({
+          data: {
+            tenantId: ctx.tenantId,
+            // Outreach is an external send — the blueprint's restricted tier.
+            riskTier: DELIVERABLE_RISK_TIERS.external_send ?? 'restricted',
+            surface: 'outreach',
+            subjectType: OUTREACH_HOLD_SUBJECT_TYPE,
+            subjectId,
+            clientId: held.clientId,
+            title: `Held outreach draft — ${held.recipientName || held.recipientId}`.slice(0, 300),
+            reason:
+              `Grounding auditor held this draft under enforce mode` +
+              (findingSummary ? ` (${findingSummary})` : '') +
+              `. Approving releases the EXACT held text for sending; any edit produces new content that regenerates its own verdict.`,
+            payload: {
+              recipientId: held.recipientId,
+              subject: held.subject,
+              body: held.body,
+              findings: held.findings,
+            } as Prisma.InputJsonValue,
+            requestedBy: ctx.userId ?? null,
+          },
+        });
+      });
+    } catch (e) {
+      this.logger.error(
+        `outreach hold persistence FAILED — the server-side send gate will not cover this draft ` +
+          `(the wizard's client-side held status still applies): ${(e as Error).message}`,
+      );
+    }
+  }
+
   async sendBatchEmails(ctx: TenantContext, input: SendBatchEmailInput) {
     const { recipients, drafts, testMode } = input;
     if (!drafts.length) {
@@ -3145,8 +3231,30 @@ export class EngagementService {
       return undefined;
     };
 
+    // §3.3 server-side hold gate: refuse to send any draft whose EXACT content
+    // was held by the grounding auditor and not yet approved in Reviews. The
+    // content key matches persistOutreachHold's, so an unedited held draft is
+    // blocked here no matter what the caller claims — the wizard's client-side
+    // 'held' status is UX, this is the enforcement boundary. One batch lookup.
+    const holdKeys = [
+      ...new Set(drafts.map((d) => outreachDraftHoldKey(d.recipientId, d.subject, d.body))),
+    ];
+    const openHolds = await this.prisma.withTenant(ctx.tenantId, (tx) =>
+      tx.reviewRequest.findMany({
+        where: {
+          tenantId: ctx.tenantId,
+          subjectType: OUTREACH_HOLD_SUBJECT_TYPE,
+          subjectId: { in: holdKeys },
+          status: { in: [...OUTREACH_HOLD_BLOCKING_STATUSES] },
+        },
+        select: { subjectId: true },
+      }),
+    );
+    const blockedKeys = new Set(openHolds.map((h) => h.subjectId));
+
     const sent: Array<{ email: string; name: string | null; sentAt: string }> = [];
     const errors: Array<{ email: string; message: string }> = [];
+    let heldCount = 0;
 
     for (const recipient of recipients) {
       // A group representative carries every member in groupMembers → ONE shared
@@ -3171,6 +3279,15 @@ export class EngagementService {
         errors.push({
           email: recipient.email || recipient.name || '(group)',
           message: 'No generated draft for this recipient',
+        });
+        continue;
+      }
+      if (blockedKeys.has(outreachDraftHoldKey(draft.recipientId, draft.subject, draft.body))) {
+        heldCount++;
+        errors.push({
+          email: recipient.email || recipient.name || '(group)',
+          message:
+            'Draft is held by the grounding auditor — a reviewer must approve it in Reviews before it can be sent.',
         });
         continue;
       }
@@ -3225,6 +3342,8 @@ export class EngagementService {
       test: false,
       sent: sent.length,
       failed: errors.length,
+      /** Of `failed`, how many were refused by the server-side auditor hold gate. */
+      held: heldCount,
       errors,
       sentRecipients: sent,
       skippedAttachments,
