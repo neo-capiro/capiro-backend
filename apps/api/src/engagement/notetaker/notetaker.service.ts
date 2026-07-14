@@ -146,13 +146,14 @@ export interface DispatchNotetakerInput {
  * `dispatch()`/`remove()` are user-initiated (controller routes). `handleBotEvent()`
  * is the async half, driven by the /webhooks/recall receiver — it starts async
  * transcription when the recording is ready, then pulls the transcript, files it as
- * a meeting attachment (the erasure-wired store), and saves a debrief through the
- * EXISTING createMeetingDebrief path so the result is byte-identical to a
- * hand-written debrief (E2E-encrypted, authored by the requesting user).
+ * a meeting attachment (the erasure-wired store), and writes Meri's summary to
+ * MEETING NOTES through the EXISTING createMeetingNote path (E2E-encrypted,
+ * authored by the requesting user). Notes-first: no debrief is auto-created — the
+ * user reviews the notes and optionally turns them into a polished debrief.
  *
  * Webhooks are at-least-once: every pipeline step claims its work with an atomic
  * conditional update (updateMany) so duplicate deliveries can't double-transcribe
- * or double-create debriefs.
+ * or double-create the notes summary.
  *
  * Registered in EngagementModule (not NotetakerModule) so it can inject
  * EngagementService; NotetakerModule (imported by EngagementModule) supplies the
@@ -781,8 +782,8 @@ export class NotetakerService implements OnModuleInit, OnModuleDestroy {
     transcriptId: string,
   ): Promise<void> {
     // Atomic idempotency claim: webhooks are at-least-once, and a duplicate
-    // transcript.done must not double-create debriefs. `drafting` marks the
-    // pipeline in flight; failures release the claim by setting `failed`.
+    // transcript.done must not double-create the notes summary. `drafting` marks
+    // the pipeline in flight; failures release the claim by setting `failed`.
     const claimed = await this.prisma.withTenant(tenantId, (tx) =>
       tx.meetingBotSession.updateMany({
         where: {
@@ -859,11 +860,16 @@ export class NotetakerService implements OnModuleInit, OnModuleDestroy {
     }
 
     try {
+      // Notes-first: Meri writes its summary to MEETING NOTES, not a debrief. The
+      // user reviews it on the Notes tab and can optionally turn it into a polished
+      // Debrief from there (the debrief may differ from the raw notes). We reuse
+      // the debrief-draft generator (recap / action items / notes) purely as the
+      // summary body and store it as a note; NO debrief is auto-created.
       const draft = await this.engagement.generateMeetingDebriefDraft(ctx, session.meetingId, {
         method: 'upload',
         sourceText: plainText,
       });
-      const debrief = await this.engagement.createMeetingDebrief(ctx, session.meetingId, {
+      await this.engagement.createMeetingNote(ctx, session.meetingId, {
         body: formatDebriefBody(draft),
       });
       await this.prisma.withTenant(tenantId, async (tx) => {
@@ -872,7 +878,6 @@ export class NotetakerService implements OnModuleInit, OnModuleDestroy {
           data: {
             transcriptId,
             transcriptS3Key,
-            debriefId: debrief.id,
             status: 'done',
             endedAt: new Date(),
           },
@@ -885,7 +890,7 @@ export class NotetakerService implements OnModuleInit, OnModuleDestroy {
         }
       });
     } catch (err) {
-      this.logger.warn(`debrief save failed (session ${session.id}): ${(err as Error).message}`);
+      this.logger.warn(`notes save failed (session ${session.id}): ${(err as Error).message}`);
       await this.failSession(tenantId, session.id, (err as Error).message);
       return;
     }

@@ -55,4 +55,23 @@ describe('isAllowedAttachmentContentType — engagement attachment allowlist', (
     expect(isAllowedAttachmentContentType('image/svg+xml')).toBe(false);
     expect(isAllowedAttachmentContentType(' Image/SVG+XML ')).toBe(false);
   });
+
+  test('rejects image/svg+xml when disguised with a parameter (the exact-match bypass)', () => {
+    // Regression: an exact-match block-list check missed these because the
+    // parameter changed the string, but the image/ prefix allow still matched —
+    // the object was then stored + replayed from S3 as image/svg+xml and executed
+    // its embedded <script> when opened inline. Selection is now on the essence.
+    expect(isAllowedAttachmentContentType('image/svg+xml; charset=utf-8')).toBe(false);
+    expect(isAllowedAttachmentContentType('IMAGE/SVG+XML;charset=utf-8')).toBe(false);
+    expect(isAllowedAttachmentContentType('image/svg+xml;')).toBe(false);
+    expect(isAllowedAttachmentContentType('image/svg+xml ; charset=utf-8')).toBe(false);
+    // text/html with a param must stay rejected too (not in the allow-list).
+    expect(isAllowedAttachmentContentType('text/html; charset=utf-8')).toBe(false);
+  });
+
+  test('accepts legitimate types that carry a charset/parameter (browsers add these)', () => {
+    expect(isAllowedAttachmentContentType('text/csv; charset=utf-8')).toBe(true);
+    expect(isAllowedAttachmentContentType('text/plain;charset=UTF-8')).toBe(true);
+    expect(isAllowedAttachmentContentType('image/png; charset=binary')).toBe(true);
+  });
 });

@@ -35,7 +35,6 @@ import { useMe } from '../../lib/me.js';
 import { useApi } from '../../lib/use-api.js';
 import { useClientFilter } from '../../state/client-filter.js';
 import type { Client } from '../clients/clientTypes.js';
-import { OverviewTab } from './OverviewTab.js';
 import { MeetingsV2 } from './meetings/MeetingsV2.js';
 import { OutreachView } from './OutreachView.js';
 import {
@@ -384,7 +383,7 @@ export function EngagementPage() {
   const [meetingDetailTab, setMeetingDetailTab] = useState('prep');
   const [activeEngagementTab, setActiveEngagementTab] = useState<
     'overview' | 'meetings' | 'outreach' | 'reports'
-  >('overview');
+  >('meetings');
   const [meetingViewMode, setMeetingViewMode] = useState<'list' | 'calendar' | 'day'>('day');
   const [historyBatch, setHistoryBatch] = useState(0);
   // Day picked from the week-nav date picker, so the Day view can highlight it.
@@ -431,10 +430,13 @@ export function EngagementPage() {
     lastProcessedUrlRef.current = urlKey;
 
     const segments = location.pathname.split('/').filter(Boolean);
-    const section = segments[0] === 'engagement' ? (segments[1] ?? 'overview') : null;
+    const rawSection = segments[0] === 'engagement' ? (segments[1] ?? 'meetings') : null;
+    // Overview is hidden for now — redirect any /engagement/overview (old default
+    // or existing bookmarks) to Meetings so we never select a non-existent tab.
+    const section = rawSection === 'overview' ? 'meetings' : rawSection;
     const nextTab =
-      section && ['overview', 'meetings', 'outreach', 'reports'].includes(section)
-        ? (section as 'overview' | 'meetings' | 'outreach' | 'reports')
+      section && ['meetings', 'outreach', 'reports'].includes(section)
+        ? (section as 'meetings' | 'outreach' | 'reports')
         : null;
     const nextMeetingId =
       nextTab === 'meetings' && segments[2] ? decodeURIComponent(segments[2]) : null;
@@ -494,7 +496,8 @@ export function EngagementPage() {
     }
 
     const nextParams = new URLSearchParams();
-    let nextPath = '/engagement/overview';
+    // Overview hidden — Meetings is the default landing tab.
+    let nextPath = '/engagement/meetings';
 
     if (activeEngagementTab === 'meetings') {
       nextPath = selectedMeetingId
@@ -1155,22 +1158,10 @@ export function EngagementPage() {
               }
             : undefined
         }
+        // Overview tab is hidden for now — only Meetings, Outreach, and Reports
+        // are shown. To restore it, re-add the { key: 'overview', … } entry here
+        // (and the OverviewTab import); the tab implementation is left intact.
         items={[
-          {
-            key: 'overview',
-            label: 'Overview',
-            children: (
-              <OverviewTab
-                onNavigate={(tab) => setActiveEngagementTab(tab)}
-                stats={{
-                  meetingsThisWeek: meetings.data?.length ?? 0,
-                  debriefsPending: (meetings.data ?? []).filter((m) => m.debriefs.length === 0)
-                    .length,
-                  draftsOpen: 0,
-                }}
-              />
-            ),
-          },
           {
             key: 'meetings',
             label: 'Meetings',

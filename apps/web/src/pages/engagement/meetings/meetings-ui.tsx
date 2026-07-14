@@ -13,8 +13,8 @@ import type { CSSProperties, ReactNode } from 'react';
 import { Video, MapPin, Link2Off, Check, Circle, Lock, Users, ExternalLink } from 'lucide-react';
 import { providerLabel } from './meetings-format.js';
 import {
-  approvedDebrief,
-  approvedPrep,
+  completedDebrief,
+  completedPrep,
   eligibleForMeri,
   type Meeting,
   type ArtifactKind,
@@ -22,19 +22,22 @@ import {
 } from './meetings-types.js';
 
 // ── Status model (spec §2.2 / §5): uniform gray = not complete, green =
-//    complete (approved / saved). No red. Mirrors the prototype MaterialBadges. ──
+//    COMPLETED. Green now means the artifact has been produced (prep/debrief
+//    generated, notes captured) — it does NOT require approval. No red.
+//    Mirrors the prototype MaterialBadges. ──
 export interface MeetingStatus {
   prep: boolean;
   notes: boolean;
   debrief: boolean;
 }
 
-/** The completed (approved/saved) artifacts for the P/N/D badges. */
+/** The completed artifacts for the P/N/D badges (green once generated/captured,
+ *  even if not yet approved). */
 export function meetingStatus(m: Meeting): MeetingStatus {
   return {
-    prep: Boolean(approvedPrep(m)),
-    notes: Boolean(m.notesApproved || m.meri === 'done'),
-    debrief: Boolean(approvedDebrief(m)),
+    prep: Boolean(completedPrep(m)),
+    notes: Boolean(m.notesApproved || m.meri === 'done' || m.notes.length > 0),
+    debrief: Boolean(completedDebrief(m)),
   };
 }
 
@@ -230,8 +233,9 @@ export interface MeriActionTarget {
   joinLink?: string | null;
 }
 
-// ── Send Meri button — light-blue brand button → "Meri Attending" (scheduled)
-//    → gone (done). Same component used on Meetings + the dashboard strip. ──
+// ── Send Meri button — light-blue brand button → "Meri Attending" (in call) →
+//    "Meri Attended" greyed (call ended, summarizing) → gone (done, summary on
+//    the Notes tab). Same component used on Meetings + the dashboard strip. ──
 export function SendMeriButton({
   m,
   onClick,
@@ -246,6 +250,9 @@ export function SendMeriButton({
   if (m.meri === 'done') return null;
   const canDetect = m.isVirtual && m.joinLink;
   const scheduled = m.meri === 'scheduled' || m.meri === 'attending';
+  // The call has ended (all participants left, or the scheduled end passed) and
+  // Meri is turning the transcript into Meeting Notes — show a disabled chip.
+  const attended = m.meri === 'attended';
   const pad = size === 'sm' ? '6px 12px' : '8px 14px';
   const base: CSSProperties = {
     display: block ? 'flex' : 'inline-flex',
@@ -261,6 +268,22 @@ export function SendMeriButton({
     letterSpacing: '-0.005em',
     whiteSpace: 'nowrap',
   };
+  if (attended) {
+    return (
+      <span
+        style={{
+          ...base,
+          background: 'var(--bg-sunken)',
+          color: 'var(--ink-3)',
+          border: '1px solid var(--border-1)',
+          cursor: 'default',
+        }}
+      >
+        <MeriGlyph size={size === 'sm' ? 16 : 18} tone="soft" />
+        Meri Attended
+      </span>
+    );
+  }
   if (scheduled) {
     return (
       <span

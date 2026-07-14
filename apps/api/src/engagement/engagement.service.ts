@@ -482,10 +482,16 @@ export const ALLOWED_ATTACHMENT_TYPES_LABEL =
 
 export function isAllowedAttachmentContentType(contentType: string): boolean {
   const normalized = contentType.trim().toLowerCase();
-  if (BLOCKED_ATTACHMENT_MIME.has(normalized)) return false;
+  // Compare the MIME *essence* (type/subtype without ;charset= or other params).
+  // Browsers routinely append parameters (e.g. "image/svg+xml; charset=utf-8"),
+  // and an exact-match block-list check would miss those — letting a scriptable
+  // SVG through on the image/ prefix. Strip params before BOTH the block and the
+  // allow checks so the decision can't be evaded with a trailing parameter.
+  const essence = normalized.split(';')[0]!.trim();
+  if (BLOCKED_ATTACHMENT_MIME.has(essence)) return false;
   return (
-    ALLOWED_ATTACHMENT_MIME.has(normalized) ||
-    ALLOWED_ATTACHMENT_MIME_PREFIXES.some((prefix) => normalized.startsWith(prefix))
+    ALLOWED_ATTACHMENT_MIME.has(essence) ||
+    ALLOWED_ATTACHMENT_MIME_PREFIXES.some((prefix) => essence.startsWith(prefix))
   );
 }
 const REPORT_STATUSES: ReportStatus[] = ['auto', 'not_started', 'in_progress', 'complete'];
@@ -5370,9 +5376,21 @@ export class EngagementService {
 
   private async createAttachmentDownloadUrl(s3Key: string): Promise<string | null> {
     if (!this.bucket) return null;
-    return getSignedUrl(this.s3, new GetObjectCommand({ Bucket: this.bucket, Key: s3Key }), {
-      expiresIn: 300,
-    });
+    return getSignedUrl(
+      this.s3,
+      new GetObjectCommand({
+        Bucket: this.bucket,
+        Key: s3Key,
+        // Defense-in-depth against stored-XSS / content-type confusion: force the
+        // browser to DOWNLOAD the object rather than render it as a top-level
+        // document, so a scriptable type that ever slipped past upload validation
+        // (e.g. an SVG) cannot execute its embedded script when opened. This does
+        // not affect <img> previews (they ignore Content-Disposition); the
+        // download filename falls back to the key's trailing safe file name.
+        ResponseContentDisposition: 'attachment',
+      }),
+      { expiresIn: 300 },
+    );
   }
 
   /**
@@ -7207,7 +7225,9 @@ function canEditEncryptedEntry(ctx: TenantContext, note: { authorUserId: string 
 }
 
 // ── Meetings v2 response helpers ────────────────────────────────────────────
-type MeriCoarseState = 'scheduled' | 'attending' | 'done';
+// scheduled → attending (in the call) → attended (call ended, Meri summarizing)
+// → done (summary written to Meeting Notes).
+type MeriCoarseState = 'scheduled' | 'attending' | 'attended' | 'done';
 
 interface MeetingContributor {
   userId: string;
@@ -7304,9 +7324,12 @@ function coarseMeriState(status: string | null): MeriCoarseState | null {
     case 'joining':
     case 'in_call':
     case 'recording':
+      return 'attending';
+    // Call ended (Recall call_ended fires when everyone leaves, possibly before
+    // the scheduled end); Meri is turning the transcript into Meeting Notes.
     case 'processing':
     case 'drafting':
-      return 'attending';
+      return 'attended';
     case 'done':
       return 'done';
     default:

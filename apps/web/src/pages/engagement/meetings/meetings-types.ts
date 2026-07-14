@@ -3,7 +3,9 @@
 // and the share/library/shared-meetings endpoints) — see the Wave-1 backend.
 
 export type MeetingProvider = 'zoom' | 'meet' | 'teams' | 'webex' | 'goto' | 'slack';
-export type MeriState = 'scheduled' | 'attending' | 'done';
+// scheduled → attending (in the call) → attended (call ended, Meri summarizing to
+// Meeting Notes) → done (summary written).
+export type MeriState = 'scheduled' | 'attending' | 'attended' | 'done';
 export type MeetingVisibility = 'private' | 'shared';
 export type PrepStatus = 'generated' | 'edited' | 'approved' | 'stale' | 'failed';
 export type DebriefStatus = 'generated' | 'edited' | 'approved';
@@ -59,6 +61,14 @@ export interface MeetingDebriefSummary {
 
 /** Full debrief with decrypted body — GET /meetings/:id/debriefs. */
 export interface MeetingDebrief extends MeetingDebriefSummary {
+  body: string | null;
+  restricted: boolean;
+  updatedAt: string;
+}
+
+/** Full note with decrypted body — GET /meetings/:id/notes (Meri's summary lands
+ *  here in the notes-first flow). */
+export interface MeetingNote extends MeetingNoteSummary {
   body: string | null;
   restricted: boolean;
   updatedAt: string;
@@ -189,4 +199,19 @@ export function approvedPrep(m: Meeting): MeetingPrep | null {
 /** Approved debrief for a meeting, if any. */
 export function approvedDebrief(m: Meeting): MeetingDebriefSummary | null {
   return m.debriefs.find((d) => d.status === 'approved') ?? null;
+}
+
+/**
+ * The current prep once it counts as COMPLETED — i.e. it has been generated,
+ * even if not yet approved (a `failed` generation does not count). Drives the
+ * green P/N/D status: green = the artifact exists, not merely = approved.
+ */
+export function completedPrep(m: Meeting): MeetingPrep | null {
+  const prep = m.preps[0];
+  return prep && prep.status !== 'failed' ? prep : null;
+}
+
+/** A debrief once it counts as COMPLETED — any generated/edited/approved debrief. */
+export function completedDebrief(m: Meeting): MeetingDebriefSummary | null {
+  return m.debriefs[0] ?? null;
 }

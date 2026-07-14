@@ -6,6 +6,7 @@ import {
   useApproveDebrief,
   useGenerateDebriefDraft,
   useMeetingDebriefs,
+  useMeetingNotes,
   useSaveDebrief,
   useUploadAndExtract,
 } from './meetings-api.js';
@@ -33,11 +34,13 @@ type Source = 'meri' | 'upload' | 'voice' | 'manual';
 function SourcePicker({
   hasNotes,
   busy,
+  onUseNotes,
   onManual,
   onFile,
 }: {
   hasNotes: boolean;
   busy: boolean;
+  onUseNotes: () => void;
   onManual: (text: string) => void;
   onFile: (file: File | undefined) => void;
 }) {
@@ -55,10 +58,10 @@ function SourcePicker({
       k: 'meri',
       title: "Use Meri's Meeting Notes",
       sub: hasNotes
-        ? 'A debrief drafts automatically once Meri summarizes this call.'
+        ? 'Draft a debrief from the notes Meri captured — polish or edit it before sending.'
         : 'Available after Meri attends and summarizes this call.',
       icon: <MeriGlyph size={18} tone={sel === 'meri' ? 'white' : 'navy'} />,
-      disabled: true,
+      disabled: !hasNotes,
     },
     {
       k: 'upload',
@@ -222,9 +225,10 @@ function SourcePicker({
         type="button"
         className="btn btn-accent"
         style={{ width: '100%', justifyContent: 'center', gap: 7 }}
-        disabled={busy || sel === 'meri'}
+        disabled={busy || (sel === 'meri' && !hasNotes)}
         onClick={() => {
-          if (sel === 'manual') onManual(manual);
+          if (sel === 'meri') onUseNotes();
+          else if (sel === 'manual') onManual(manual);
           else if (sel === 'upload' || sel === 'voice') fileRef.current?.click();
         }}
       >
@@ -239,6 +243,10 @@ export function DebriefTab({ meeting }: { meeting: Meeting }) {
   const { message } = App.useApp();
   const debriefs = useMeetingDebriefs(meeting.id);
   const current = debriefs.data?.[0] ?? null;
+  const notes = useMeetingNotes(meeting.id);
+  // Meri's summary note (most recent readable one) — the seed for "Use Meri's
+  // Meeting Notes".
+  const meriNotes = notes.data?.find((n) => n.body && !n.restricted)?.body ?? '';
   const generate = useGenerateDebriefDraft();
   const save = useSaveDebrief();
   const approve = useApproveDebrief();
@@ -253,7 +261,12 @@ export function DebriefTab({ meeting }: { meeting: Meeting }) {
   // Belt-and-suspenders: the Debrief tab button is disabled while the meeting
   // is still in progress (MeetingDetailPanel), but this guards direct access
   // (e.g. a ?detail=debrief deep link) from ever reaching the source picker.
-  const locked = new Date(meeting.endsAt).getTime() > Date.now();
+  // Unlocked once the scheduled end passed OR Meri detected the call ended early
+  // (all participants left) — meri is then 'attended' (summarizing) or 'done'.
+  const locked =
+    new Date(meeting.endsAt).getTime() > Date.now() &&
+    meeting.meri !== 'attended' &&
+    meeting.meri !== 'done';
 
   const draftAndSave = async (method: 'manual' | 'upload' | 'voice', sourceText: string) => {
     if (!sourceText.trim()) {
@@ -304,11 +317,12 @@ export function DebriefTab({ meeting }: { meeting: Meeting }) {
 
   // No debrief (or re-drafting) → source picker
   if (!current || redraft) {
-    const hasNotes = (meeting.notes && meeting.notes.length > 0) || meeting.meri === 'done';
+    const hasNotes = Boolean(meriNotes);
     return (
       <SourcePicker
         hasNotes={hasNotes}
         busy={busy}
+        onUseNotes={() => void draftAndSave('manual', meriNotes)}
         onManual={(t) => void draftAndSave('manual', t)}
         onFile={(f) => void onFile(f)}
       />

@@ -114,14 +114,23 @@ export function MeetingDetailPanel({
     setAttOpen(false);
     if (!m) return;
     if (status.debrief) setTab('debrief');
-    else if (m.notesApproved || m.meri === 'done' || (m.notes && m.notes.length > 0))
+    else if (
+      m.notesApproved ||
+      m.meri === 'done' ||
+      m.meri === 'attended' ||
+      (m.notes && m.notes.length > 0)
+    )
       setTab('notes');
     else setTab('prep');
   }, [m?.id]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Debrief is locked until the meeting itself is over — debriefing something
-  // that hasn't happened yet doesn't make sense, Meri notetaker or not.
-  const debriefLocked = m ? new Date(m.endsAt).getTime() > Date.now() : false;
+  // that hasn't happened yet doesn't make sense, Meri notetaker or not. "Over"
+  // means the scheduled end passed OR Meri detected the call ended early (all
+  // participants left) — meri is then 'attended' (summarizing) or 'done'.
+  const debriefLocked = m
+    ? new Date(m.endsAt).getTime() > Date.now() && m.meri !== 'attended' && m.meri !== 'done'
+    : false;
 
   // Direct URL navigation (?detail=debrief) could otherwise land on a locked
   // tab without ever going through the tab button's disabled state.

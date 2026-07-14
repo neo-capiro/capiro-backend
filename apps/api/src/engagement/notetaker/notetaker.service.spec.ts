@@ -86,6 +86,7 @@ function makeService(tx: Tx) {
       notes: 'Notes.',
     }),
     createMeetingDebrief: asyncMock({ id: 'd1' }),
+    createMeetingNote: asyncMock({ id: 'n1' }),
   } as unknown as EngagementService;
 
   const config = {
@@ -371,7 +372,7 @@ describe('NotetakerService.handleBotEvent (at-least-once webhook semantics)', ()
     );
   });
 
-  test('no_storage policy skips the transcript attachment but still drafts the debrief', async () => {
+  test('no_storage policy skips the transcript attachment but still writes the notes summary', async () => {
     const tx = makeTx();
     tx.meetingBotSession.findFirst.mockResolvedValue({
       ...baseSession,
@@ -381,7 +382,9 @@ describe('NotetakerService.handleBotEvent (at-least-once webhook semantics)', ()
 
     await service.handleBotEvent(makeEvent({ kind: 'transcript_done', transcriptId: 'tr1' }));
     expect(engagement.createAttachmentFromBuffer).not.toHaveBeenCalled();
-    expect(engagement.createMeetingDebrief).toHaveBeenCalledTimes(1);
+    // Notes-first: the summary is written to Meeting Notes, not a debrief.
+    expect(engagement.createMeetingNote).toHaveBeenCalledTimes(1);
+    expect(engagement.createMeetingDebrief).not.toHaveBeenCalled();
   });
 
   test('bot.done with NO recording marks the session failed (never joined)', async () => {
@@ -399,14 +402,15 @@ describe('NotetakerService.handleBotEvent (at-least-once webhook semantics)', ()
     );
   });
 
-  test('transcript.done runs the debrief pipeline once and deletes provider media', async () => {
+  test('transcript.done runs the notes pipeline once and deletes provider media', async () => {
     const tx = makeTx();
     tx.meetingBotSession.findFirst.mockResolvedValue(baseSession);
     const { service, bot, engagement } = makeService(tx);
 
     await service.handleBotEvent(makeEvent({ kind: 'transcript_done', transcriptId: 'tr1' }));
     expect(engagement.generateMeetingDebriefDraft).toHaveBeenCalledTimes(1);
-    expect(engagement.createMeetingDebrief).toHaveBeenCalledTimes(1);
+    expect(engagement.createMeetingNote).toHaveBeenCalledTimes(1);
+    expect(engagement.createMeetingDebrief).not.toHaveBeenCalled();
     expect(engagement.createAttachmentFromBuffer).toHaveBeenCalledWith(
       expect.anything(),
       expect.objectContaining({ meetingId: 'm1', contentType: 'text/plain', source: 'notetaker' }),
@@ -419,13 +423,13 @@ describe('NotetakerService.handleBotEvent (at-least-once webhook semantics)', ()
       }),
     );
 
-    // Duplicate transcript.done: drafting/done claim matches 0 rows → no second debrief.
+    // Duplicate transcript.done: drafting/done claim matches 0 rows → no second note.
     tx.meetingBotSession.updateMany.mockResolvedValue({ count: 0 });
     await service.handleBotEvent(makeEvent({ kind: 'transcript_done', transcriptId: 'tr1' }));
-    expect(engagement.createMeetingDebrief).toHaveBeenCalledTimes(1);
+    expect(engagement.createMeetingNote).toHaveBeenCalledTimes(1);
   });
 
-  test('an empty transcript fails the session instead of drafting an empty debrief', async () => {
+  test('an empty transcript fails the session instead of writing empty notes', async () => {
     const tx = makeTx();
     tx.meetingBotSession.findFirst.mockResolvedValue(baseSession);
     const { service, bot, engagement } = makeService(tx);
@@ -537,7 +541,7 @@ describe('NotetakerService.reconcileStaleTranscripts (self-heal a dropped transc
       }),
     );
     expect(engagement.generateMeetingDebriefDraft).toHaveBeenCalledTimes(1);
-    expect(engagement.createMeetingDebrief).toHaveBeenCalledTimes(1);
+    expect(engagement.createMeetingNote).toHaveBeenCalledTimes(1);
     // The atomic claim (shared with the webhook path) must still fire — this is
     // what makes a same-moment real webhook delivery race harmlessly.
     expect(tx.meetingBotSession.updateMany).toHaveBeenCalledWith(

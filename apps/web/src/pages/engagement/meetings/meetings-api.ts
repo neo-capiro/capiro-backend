@@ -11,6 +11,7 @@ import type {
   MeetingDebrief,
   MeetingDebriefDraft,
   MeetingLibraryResponse,
+  MeetingNote,
 } from './meetings-types.js';
 
 const BASE = '/api/engagement';
@@ -100,6 +101,22 @@ export function useMeetingDebriefs(meetingId: string | null) {
       (await api.get<MeetingDebrief[]>(`${BASE}/meetings/${meetingId}/debriefs`)).data,
     enabled: Boolean(meetingId),
     staleTime: 15_000,
+  });
+}
+
+/** GET /api/engagement/meetings/:id/notes — full (decrypted) note bodies. In the
+ *  notes-first flow Meri's summary lands here; poll while Meri is summarizing so
+ *  it appears as soon as it's written. */
+export function useMeetingNotes(meetingId: string | null, active = false) {
+  const api = useApi();
+  return useQuery<MeetingNote[]>({
+    queryKey: ['meetings-v2-notes', meetingId],
+    queryFn: async () => (await api.get<MeetingNote[]>(`${BASE}/meetings/${meetingId}/notes`)).data,
+    enabled: Boolean(meetingId),
+    staleTime: 15_000,
+    // While the meeting is over and Meri is still summarizing, poll so the
+    // summary shows up without a manual refresh.
+    refetchInterval: active ? 15_000 : false,
   });
 }
 

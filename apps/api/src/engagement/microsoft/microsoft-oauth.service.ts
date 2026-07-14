@@ -59,6 +59,29 @@ interface StatePayload {
   e: number; // expires at (unix seconds)
 }
 
+/**
+ * Select the refresh token bound to `homeAccountId` from a serialized MSAL token
+ * cache. Matching on home_account_id is authoritative — it guarantees we never
+ * return another account's token even if the cache holds more than one entry
+ * (which can happen when a client instance is reused across OAuth exchanges). The
+ * fallback to the sole/last entry only applies when there is no account id to
+ * match against. Pure and exported so this account-binding is unit-testable
+ * without a live MSAL cache.
+ */
+export function selectRefreshTokenForAccount(
+  serializedCache: string,
+  homeAccountId: string | null,
+): string | undefined {
+  const cache = JSON.parse(serializedCache) as {
+    RefreshToken?: Record<string, { secret?: string; home_account_id?: string }>;
+  };
+  const entries = Object.values(cache.RefreshToken ?? {});
+  const matched = homeAccountId
+    ? entries.find((entry) => entry.home_account_id === homeAccountId)
+    : undefined;
+  return (matched ?? entries[entries.length - 1])?.secret;
+}
+
 @Injectable()
 export class MicrosoftOAuthService {
   private readonly logger = new Logger(MicrosoftOAuthService.name);
@@ -190,7 +213,14 @@ export class MicrosoftOAuthService {
     this.assertConfigured();
 
     const decoded = this.verifyState(params.state);
-    const result = await this.getMsal().acquireTokenByCode({
+    // Fresh per-callback client: its token cache holds ONLY the account exchanged
+    // in this request. A shared client would let two tenants' concurrent callbacks
+    // populate one cache, and selecting the "last" cache entry could then bind the
+    // WRONG tenant's mailbox. No PKCE/code-verifier continuity with the /start
+    // client is required — we authenticate with the client certificate and carry
+    // our own signed `state`.
+    const msal = this.buildMsalClient();
+    const result = await msal.acquireTokenByCode({
       code: params.code,
       scopes: MICROSOFT_SCOPES,
       redirectUri: this.redirectUri,
@@ -200,7 +230,7 @@ export class MicrosoftOAuthService {
       throw new BadRequestException('Microsoft did not return an access token');
     }
 
-    const refreshToken = this.extractRefreshToken();
+    const refreshToken = this.extractRefreshToken(msal, result.account?.homeAccountId ?? null);
     const expiresAt = result.expiresOn ?? new Date(Date.now() + 60 * 60 * 1000);
 
     await this.persistToken(decoded.t, decoded.c, result, refreshToken, expiresAt);
@@ -274,29 +304,28 @@ export class MicrosoftOAuthService {
     });
   }
 
-  private extractRefreshToken(): string | undefined {
-    if (!this.msal) return undefined;
+  /**
+   * Pull the refresh token issued for THIS account out of the per-callback MSAL
+   * cache. Selection is bound to home_account_id so we can never return another
+   * account's token even if the cache holds more than one entry; see
+   * selectRefreshTokenForAccount for the fallback rules.
+   */
+  private extractRefreshToken(
+    msal: ConfidentialClientApplication,
+    homeAccountId: string | null,
+  ): string | undefined {
     try {
-      const json = this.msal.getTokenCache().serialize();
-      const cache = JSON.parse(json) as {
-        RefreshToken?: Record<string, { secret?: string }>;
-      };
-      const entries = Object.values(cache.RefreshToken ?? {});
-      const last = entries[entries.length - 1];
-      return last?.secret;
+      return selectRefreshTokenForAccount(msal.getTokenCache().serialize(), homeAccountId);
     } catch (err) {
       this.logger.warn(
         `Failed to extract refresh token from MSAL cache: ${(err as Error).message}`,
       );
       return undefined;
-    } finally {
-      // Discard the cache so the next OAuth flow starts clean.
-      this.msal = undefined;
     }
   }
 
-  private getMsal(): ConfidentialClientApplication {
-    if (this.msal) return this.msal;
+  /** Build a NEW confidential-client instance with its own isolated token cache. */
+  private buildMsalClient(): ConfidentialClientApplication {
     const config: Configuration = {
       auth: {
         clientId: this.clientId!,
@@ -309,7 +338,19 @@ export class MicrosoftOAuthService {
         },
       },
     };
-    this.msal = new ConfidentialClientApplication(config);
+    return new ConfidentialClientApplication(config);
+  }
+
+  /**
+   * Shared client used ONLY to build auth-code URLs (the /start step). It never
+   * performs a token exchange, so its cache stays empty and is safe to reuse
+   * across tenants. The callback token exchange uses a fresh per-request client
+   * (see handleCallback), so one tenant's refresh token can never land in — or be
+   * read from — another tenant's cache.
+   */
+  private getMsal(): ConfidentialClientApplication {
+    if (this.msal) return this.msal;
+    this.msal = this.buildMsalClient();
     return this.msal;
   }
 
