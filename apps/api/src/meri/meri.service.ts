@@ -3711,33 +3711,30 @@ export class MeriService {
    * itself a block; only an EXISTING held row is.
    */
   async forgetMemory(ctx: TenantContext, memoryId: string) {
-    const row = await this.prisma.withTenant(ctx.tenantId, (tx) =>
-      tx.clioMemory.findFirst({
+    const slug = clioMemorySlug(memoryId);
+    // Single withTenantUser transaction (both GUCs set): the hold-check read,
+    // the delete, and the audit write are ATOMIC — no TOCTOU window where a
+    // legal hold could be applied between the check and the delete. Matches the
+    // chat-tool forget_memory verb's single-transaction pattern. withTenantUser
+    // (not withTenant) is required so the memory_items projection row is visible
+    // even when it's a user_private (visibility='user') projection.
+    await this.prisma.withTenantUser(ctx.tenantId, ctx.userId, async (tx) => {
+      const row = await tx.clioMemory.findFirst({
         where: { id: memoryId, tenantId: ctx.tenantId },
         select: { id: true, scope: true, ownerUserId: true, key: true, value: true },
-      }),
-    );
-    if (!row) throw new NotFoundException('Memory not found');
-    if (row.scope === 'user_private' && row.ownerUserId !== ctx.userId) {
-      throw new NotFoundException('Memory not found');
-    }
-
-    const slug = clioMemorySlug(memoryId);
-    const held = await this.prisma.withTenantUser(
-      ctx.tenantId,
-      ctx.userId,
-      (tx) =>
-        tx.$queryRaw<Array<{ legal_hold: boolean }>>`
+      });
+      if (!row) throw new NotFoundException('Memory not found');
+      if (row.scope === 'user_private' && row.ownerUserId !== ctx.userId) {
+        throw new NotFoundException('Memory not found');
+      }
+      const held = await tx.$queryRaw<Array<{ legal_hold: boolean }>>`
         SELECT legal_hold FROM memory_items
         WHERE tenant_id = ${ctx.tenantId}::uuid AND type = 'note' AND slug = ${slug}
         LIMIT 1
-      `,
-    );
-    if (held[0]?.legal_hold) {
-      throw new ForbiddenException('This memory is under legal hold and cannot be deleted.');
-    }
-
-    await this.prisma.withTenant(ctx.tenantId, async (tx) => {
+      `;
+      if (held[0]?.legal_hold) {
+        throw new ForbiddenException('This memory is under legal hold and cannot be deleted.');
+      }
       await tx.clioMemory.deleteMany({ where: { id: memoryId, tenantId: ctx.tenantId } });
       await tx.auditLog.create({
         data: {
@@ -3796,8 +3793,11 @@ export class MeriService {
   async updateMemory(ctx: TenantContext, memoryId: string, value: unknown) {
     const next = (typeof value === 'string' ? value.trim() : '').slice(0, 4000);
     if (!next) throw new BadRequestException('Memory value must be a non-empty string');
-    const row = await this.prisma.withTenant(ctx.tenantId, (tx) =>
-      tx.clioMemory.findFirst({
+    const slug = clioMemorySlug(memoryId);
+    // Single atomic withTenantUser transaction — same rationale as forgetMemory
+    // (no TOCTOU window; the projection row is visible under both GUCs).
+    await this.prisma.withTenantUser(ctx.tenantId, ctx.userId, async (tx) => {
+      const row = await tx.clioMemory.findFirst({
         where: { id: memoryId, tenantId: ctx.tenantId },
         select: {
           id: true,
@@ -3807,33 +3807,23 @@ export class MeriService {
           value: true,
           metadata: true,
         },
-      }),
-    );
-    if (!row) throw new NotFoundException('Memory not found');
-    if (row.scope === 'user_private' && row.ownerUserId !== ctx.userId) {
-      throw new NotFoundException('Memory not found');
-    }
-
-    const slug = clioMemorySlug(memoryId);
-    const held = await this.prisma.withTenantUser(
-      ctx.tenantId,
-      ctx.userId,
-      (tx) =>
-        tx.$queryRaw<Array<{ legal_hold: boolean }>>`
+      });
+      if (!row) throw new NotFoundException('Memory not found');
+      if (row.scope === 'user_private' && row.ownerUserId !== ctx.userId) {
+        throw new NotFoundException('Memory not found');
+      }
+      const held = await tx.$queryRaw<Array<{ legal_hold: boolean }>>`
         SELECT legal_hold FROM memory_items
         WHERE tenant_id = ${ctx.tenantId}::uuid AND type = 'note' AND slug = ${slug}
         LIMIT 1
-      `,
-    );
-    if (held[0]?.legal_hold) {
-      throw new ForbiddenException('This memory is under legal hold and cannot be edited.');
-    }
-
-    const meta =
-      row.metadata && typeof row.metadata === 'object' && !Array.isArray(row.metadata)
-        ? (row.metadata as Record<string, unknown>)
-        : {};
-    await this.prisma.withTenant(ctx.tenantId, async (tx) => {
+      `;
+      if (held[0]?.legal_hold) {
+        throw new ForbiddenException('This memory is under legal hold and cannot be edited.');
+      }
+      const meta =
+        row.metadata && typeof row.metadata === 'object' && !Array.isArray(row.metadata)
+          ? (row.metadata as Record<string, unknown>)
+          : {};
       await tx.clioMemory.updateMany({
         where: { id: memoryId, tenantId: ctx.tenantId },
         data: {

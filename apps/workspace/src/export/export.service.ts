@@ -15,17 +15,19 @@ import PDFDocument from 'pdfkit';
 import { PrismaService } from '../prisma/prisma.service.js';
 import { anonymizeText, applyRedactions } from '../generation/anonymize.js';
 
-/** Decode the handful of HTML entities our sanitized section HTML can contain. */
+/** Decode the handful of HTML entities our sanitized section HTML can contain.
+ *  `&amp;` is decoded LAST so an escaped entity like `&amp;lt;` (the literal
+ *  text "&lt;") resolves to "&lt;", not double-decoded to "<". */
 export function decodeEntities(s: string): string {
   return s
     .replace(/&nbsp;/g, ' ')
-    .replace(/&amp;/g, '&')
     .replace(/&lt;/g, '<')
     .replace(/&gt;/g, '>')
     .replace(/&quot;/g, '"')
     .replace(/&#39;|&apos;/g, "'")
     .replace(/&mdash;/g, '—')
-    .replace(/&ndash;/g, '–');
+    .replace(/&ndash;/g, '–')
+    .replace(/&amp;/g, '&');
 }
 
 /**

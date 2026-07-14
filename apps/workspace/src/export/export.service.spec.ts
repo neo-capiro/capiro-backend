@@ -4,9 +4,23 @@ import {
   htmlToDocxNodes,
   splitOutTables,
   parsePlainTableRows,
+  decodeEntities,
   ExportService,
 } from './export.service.js';
 import { NotFoundException } from '@nestjs/common';
+
+describe('decodeEntities (&amp; decoded last — no double-decode)', () => {
+  it('decodes each entity exactly once', () => {
+    expect(decodeEntities('Rock &amp; Roll')).toBe('Rock & Roll');
+    expect(decodeEntities('&lt;tag&gt;')).toBe('<tag>');
+  });
+  it('does NOT double-decode an escaped entity (&amp;lt; → &lt;, not <)', () => {
+    // The sanitized store holds "&amp;lt;" when the user typed the literal
+    // text "&lt;". It must render as "&lt;", never collapse to "<".
+    expect(decodeEntities('&amp;lt;')).toBe('&lt;');
+    expect(decodeEntities('a &amp;amp; b')).toBe('a &amp; b');
+  });
+});
 
 describe('parseInlineRuns (DOCX inline formatting — fixes B3.7/B9.4 raw-tag leak)', () => {
   it('splits plain + bold + italic + superscript into separately-styled runs', () => {
