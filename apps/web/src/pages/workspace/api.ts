@@ -601,13 +601,27 @@ export function useAnonymizeDetect(draftId: string) {
   });
 }
 
+export interface ExportRequest {
+  filenameHint?: string;
+  /**
+   * 'all' (default, omit) combines every packet document (e.g. a cover
+   * letter) with the draft's own sections into one file; 'main' exports only
+   * the draft's own sections; any other value is a packet document id,
+   * exporting just that document standalone.
+   */
+  part?: string;
+}
+
 /** Download the draft as a .docx (engine renders via the docx lib). */
 export function useExportDocx(draftId: string) {
   const api = useApi();
   return useMutation({
-    mutationFn: async (filenameHint?: string) => {
+    mutationFn: async (req: ExportRequest | string | undefined) => {
+      const { filenameHint, part } =
+        typeof req === 'string' || req === undefined ? { filenameHint: req } : req;
       const res = await api.get<Blob>(`${BASE}/drafts/${draftId}/export/docx`, {
         responseType: 'blob',
+        params: part ? { part } : undefined,
       });
       const blob = new Blob([res.data], {
         type: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
@@ -631,9 +645,12 @@ export function useExportDocx(draftId: string) {
 export function useExportPdf(draftId: string) {
   const api = useApi();
   return useMutation({
-    mutationFn: async (filenameHint?: string) => {
+    mutationFn: async (req: ExportRequest | string | undefined) => {
+      const { filenameHint, part } =
+        typeof req === 'string' || req === undefined ? { filenameHint: req } : req;
       const res = await api.get<Blob>(`${BASE}/drafts/${draftId}/export/pdf`, {
         responseType: 'blob',
+        params: part ? { part } : undefined,
       });
       const blob = new Blob([res.data], { type: 'application/pdf' });
       const url = URL.createObjectURL(blob);

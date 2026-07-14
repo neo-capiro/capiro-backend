@@ -1,4 +1,4 @@
-import { Controller, Get, Param, Res, UseGuards } from '@nestjs/common';
+import { Controller, Get, Param, Query, Res, UseGuards } from '@nestjs/common';
 import type { Response } from 'express';
 import { TenantGuard } from '../auth/tenant.guard.js';
 import { CurrentTenant } from '../auth/current-tenant.decorator.js';
@@ -13,16 +13,22 @@ export class ExportController {
   constructor(private readonly exportService: ExportService) {}
 
   /**
-   * GET /workspace-api/drafts/:draftId/export/docx
+   * GET /workspace-api/drafts/:draftId/export/docx?part=<all|main|documentId>
    * Streams a .docx of the draft (anonymized when the draft flag is set).
+   * `part` (optional, default 'all'): 'all' combines every packet document
+   * (e.g. a cover letter) with the draft's own sections into one file; 'main'
+   * exports only the draft's own sections; any other value must be a packet
+   * document id, exporting that document standalone (404 if it doesn't
+   * belong to this draft).
    */
   @Get('docx')
   async docx(
     @CurrentTenant() ctx: WorkspaceTenantContext,
     @Param('draftId') draftId: string,
+    @Query('part') part: string | undefined,
     @Res() res: Response,
   ): Promise<void> {
-    const { filename, buffer } = await this.exportService.buildDocx(ctx.tenantId, draftId);
+    const { filename, buffer } = await this.exportService.buildDocx(ctx.tenantId, draftId, part);
     res.setHeader(
       'Content-Type',
       'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
@@ -32,16 +38,18 @@ export class ExportController {
   }
 
   /**
-   * GET /workspace-api/drafts/:draftId/export/pdf
-   * Streams a server-rendered .pdf of the draft (anonymized when the flag is set).
+   * GET /workspace-api/drafts/:draftId/export/pdf?part=<all|main|documentId>
+   * Streams a server-rendered .pdf of the draft (anonymized when the flag is
+   * set). Same `part` semantics as the .docx route above.
    */
   @Get('pdf')
   async pdf(
     @CurrentTenant() ctx: WorkspaceTenantContext,
     @Param('draftId') draftId: string,
+    @Query('part') part: string | undefined,
     @Res() res: Response,
   ): Promise<void> {
-    const { filename, buffer } = await this.exportService.buildPdf(ctx.tenantId, draftId);
+    const { filename, buffer } = await this.exportService.buildPdf(ctx.tenantId, draftId, part);
     res.setHeader('Content-Type', 'application/pdf');
     res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
     res.send(buffer);
