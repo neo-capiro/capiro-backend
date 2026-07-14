@@ -6,7 +6,8 @@ import {
   DELIVERABLE_RISK_TIERS,
   type TenantContext,
 } from '@capiro/shared';
-import { runAuditor, type LedgerEntry, type AuditorMode } from '@capiro/meriv2-core';
+import { runAuditor, type LedgerEntry } from '@capiro/meriv2-core';
+import { resolveTenantAuditorMode } from '../../common/auditor-mode.js';
 import { AiCredentialResolverService } from '../../engagement/ai-credential-resolver.service.js';
 import { EngagementService } from '../../engagement/engagement.service.js';
 import { ContextCompilerService } from '../../context/context-compiler.service.js';
@@ -184,7 +185,7 @@ export class DistrictBriefService {
     // NOT auto-filed, and becomes a pending review_request (G4).
     let held = false;
     let heldReason = '';
-    const auditorMode = (process.env.MERI_AUDITOR_MODE as AuditorMode | undefined) ?? 'off';
+    const auditorMode = await resolveTenantAuditorMode(this.prisma, ctx.tenantId);
     if (auditorMode !== 'off' && markdown.trim().length > 0) {
       try {
         const ledgerEntries: LedgerEntry[] = [

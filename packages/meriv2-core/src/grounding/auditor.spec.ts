@@ -12,10 +12,37 @@ import {
   checkPrimaryVehicleOverclaim,
   checkSponsorExistence,
   checkAsOfFreshness,
+  resolveAuditorMode,
   type ToolResultLedger,
 } from './auditor';
 
 const ledgerWith = (entries: ToolResultLedger['entries']): ToolResultLedger => ({ entries });
+
+describe('resolveAuditorMode — per-tenant override (Phase 2 close-out)', () => {
+  it('falls back to the env mode when no override is present', () => {
+    expect(resolveAuditorMode('enforce', undefined)).toBe('enforce');
+    expect(resolveAuditorMode('enforce', {})).toBe('enforce');
+    expect(resolveAuditorMode('enforce', { clioFeatureFlags: {} })).toBe('enforce');
+  });
+  it('a valid per-tenant override WINS over the env (both directions)', () => {
+    // hold a tenant on shadow while global is enforce
+    expect(resolveAuditorMode('enforce', { clioFeatureFlags: { meriAuditorMode: 'shadow' } })).toBe(
+      'shadow',
+    );
+    // canary a tenant to enforce while global is shadow
+    expect(resolveAuditorMode('shadow', { clioFeatureFlags: { meriAuditorMode: 'enforce' } })).toBe(
+      'enforce',
+    );
+  });
+  it('ignores an invalid override value and keeps the env mode', () => {
+    expect(resolveAuditorMode('shadow', { clioFeatureFlags: { meriAuditorMode: 'bogus' } })).toBe(
+      'shadow',
+    );
+    expect(resolveAuditorMode('shadow', { clioFeatureFlags: { meriAuditorMode: 42 } })).toBe(
+      'shadow',
+    );
+  });
+});
 
 describe('D3 — unit-magnitude mismatch', () => {
   const ledger = ledgerWith([
