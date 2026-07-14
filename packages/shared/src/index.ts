@@ -1737,7 +1737,53 @@ export function resolveCommittee(
       (!referral.chamber || c.chamber === referral.chamber),
   );
   if (nameMatches.length === 1) return { ...nameMatches[0]!, matchedBy: 'name' };
-  return null;
+  // The plain path was empty or ambiguous. If the referral is parent-qualified
+  // ("Appropriations Subcommittee on Defense"), try a subcommittee match —
+  // subcommittee rows are stored under their BARE short name ("Defense"), which
+  // the plain normalized-equality path can never reach from a parent-qualified
+  // string. Additive: only fires when the string contains "subcommittee", so
+  // full-committee resolution and the ambiguous→null anti-guessing rule are
+  // unchanged.
+  return matchSubcommittee(referral, candidates);
+}
+
+/**
+ * Parent-qualified subcommittee resolution for referrals like "Appropriations
+ * Subcommittee on Defense" or "Senate Appropriations Subcommittee on Defense".
+ * Splits "<parent> subcommittee on <sub>", matches <sub> against subcommittees
+ * (parentSystemCode != null) whose bare name equals it and whose PARENT
+ * committee name contains the <parent> hint, scoped by chamber (from the
+ * referral or a leading "house"/"senate" in the string). Returns null on zero
+ * or more-than-one match — the same anti-guessing contract as the plain path
+ * (e.g. "Appropriations Subcommittee on Defense" with no chamber still matches
+ * both HAC-D and SAC-D → null, forcing a chamber qualifier).
+ */
+function matchSubcommittee(
+  referral: CommitteeReferral,
+  candidates: CommitteeCandidate[],
+): ResolvedCommittee | null {
+  const raw = referral.committeeName.toLowerCase();
+  const split = raw.match(/^(.*?)\bsub-?committee\b(?:\s+on)?\s+(.+)$/);
+  if (!split) return null;
+  const subPart = normalizeCommitteeName(split[2]!);
+  if (!subPart) return null;
+  const parentPart = normalizeCommitteeName(split[1]!);
+  const chamberInString = raw.match(/\b(house|senate)\b/)?.[1] ?? null;
+  const chamber = referral.chamber ?? chamberInString;
+
+  const byCode = new Map(candidates.map((c) => [c.systemCode, c]));
+  const matches = candidates.filter((c) => {
+    if (c.parentSystemCode == null) return false; // must be a subcommittee
+    if (normalizeCommitteeName(c.name) !== subPart) return false;
+    if (chamber && c.chamber !== chamber) return false;
+    if (parentPart) {
+      const parent = byCode.get(c.parentSystemCode);
+      const parentName = parent ? normalizeCommitteeName(parent.name) : '';
+      if (!parentName.includes(parentPart) && !parentPart.includes(parentName)) return false;
+    }
+    return true;
+  });
+  return matches.length === 1 ? { ...matches[0]!, matchedBy: 'name' } : null;
 }
 
 // ─────────────────────────────────────────────────────────────────────────

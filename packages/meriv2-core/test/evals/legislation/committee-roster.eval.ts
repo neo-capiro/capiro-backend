@@ -83,6 +83,89 @@ export const committeeRosterCase: EvalCase = {
       );
     }
 
+    // Parent-qualified SUBCOMMITTEE resolution. Subcommittee rows are stored
+    // under a BARE short name ("Defense") with a parentSystemCode, so a
+    // parent-qualified referral ("Appropriations Subcommittee on Defense") must
+    // resolve via parent + chamber — and stay null when the chamber is missing
+    // (HAC-D vs SAC-D is genuinely ambiguous), same anti-guessing rule.
+    const HAP: CommitteeCandidate = {
+      systemCode: 'hsap00',
+      name: 'Committee on Appropriations',
+      chamber: 'house',
+      parentSystemCode: null,
+    };
+    const SAP: CommitteeCandidate = {
+      systemCode: 'ssap00',
+      name: 'Committee on Appropriations',
+      chamber: 'senate',
+      parentSystemCode: null,
+    };
+    const HACD: CommitteeCandidate = {
+      systemCode: 'hsap02',
+      name: 'Defense',
+      chamber: 'house',
+      parentSystemCode: 'hsap00',
+    };
+    const SACD: CommitteeCandidate = {
+      systemCode: 'ssap02',
+      name: 'Defense',
+      chamber: 'senate',
+      parentSystemCode: 'ssap00',
+    };
+    const subPool = [HAP, SAP, HACD, SACD];
+
+    const sacdQualified = resolveCommittee(
+      {
+        committeeName: 'Appropriations Subcommittee on Defense',
+        committeeCode: null,
+        chamber: 'senate',
+      },
+      subPool,
+    );
+    if (sacdQualified?.systemCode !== 'ssap02') {
+      problems.push(
+        `parent-qualified "Appropriations Subcommittee on Defense" + senate did not resolve to ssap02 (got ${sacdQualified?.systemCode})`,
+      );
+    }
+
+    const sacdFromString = resolveCommittee(
+      {
+        committeeName: 'Senate Appropriations Subcommittee on Defense',
+        committeeCode: null,
+        chamber: null,
+      },
+      subPool,
+    );
+    if (sacdFromString?.systemCode !== 'ssap02') {
+      problems.push(
+        `"Senate Appropriations Subcommittee on Defense" (chamber in the string) did not resolve to ssap02 (got ${sacdFromString?.systemCode})`,
+      );
+    }
+
+    const ambiguousSub = resolveCommittee(
+      {
+        committeeName: 'Appropriations Subcommittee on Defense',
+        committeeCode: null,
+        chamber: null,
+      },
+      subPool,
+    );
+    if (ambiguousSub !== null) {
+      problems.push(
+        `ambiguous subcommittee (house + senate Defense, no chamber hint) resolved to ${ambiguousSub.systemCode} instead of null`,
+      );
+    }
+
+    const bareDefense = resolveCommittee(
+      { committeeName: 'Defense', committeeCode: null, chamber: 'house' },
+      subPool,
+    );
+    if (bareDefense?.systemCode !== 'hsap02') {
+      problems.push(
+        `bare "Defense" + house chamber did not resolve to the House Defense subcommittee hsap02 (got ${bareDefense?.systemCode})`,
+      );
+    }
+
     return {
       pass: problems.length === 0,
       detail:
