@@ -51,9 +51,65 @@ function makeService(executor: ApiToolExecutorRepo, approvals?: ApiApprovalRepo)
   return new ChatAssistantService(registryService, config, auditRepo, fakePrisma);
 }
 
+// The chat loop now STREAMS (2.4): completeWithTools reads `.body` as an SSE
+// event stream when onTextDelta is passed (every real tool round), and falls
+// back to `.json()` only for the non-streaming synthesizeFinalAnswer pass
+// (tool_choice:none). So a mock response must serve BOTH: encode the same
+// content blocks + stop_reason as an Anthropic SSE stream (reconstructed 1:1 by
+// parseAnthropicToolStream) AND expose the legacy JSON body.
+interface MockBlock {
+  type: string;
+  text?: string;
+  id?: string;
+  name?: string;
+  input?: Record<string, unknown>;
+}
+const sseFromContent = (content: unknown[], stop_reason: string): string => {
+  const ev = (o: Record<string, unknown>) =>
+    `event: ${String(o.type)}\ndata: ${JSON.stringify(o)}\n\n`;
+  let out = ev({ type: 'message_start', message: { usage: { input_tokens: 1 } } });
+  (content as MockBlock[]).forEach((b, index) => {
+    if (b.type === 'tool_use') {
+      out += ev({
+        type: 'content_block_start',
+        index,
+        content_block: { type: 'tool_use', id: b.id, name: b.name },
+      });
+      out += ev({
+        type: 'content_block_delta',
+        index,
+        delta: { type: 'input_json_delta', partial_json: JSON.stringify(b.input ?? {}) },
+      });
+    } else {
+      out += ev({ type: 'content_block_start', index, content_block: { type: 'text', text: '' } });
+      out += ev({
+        type: 'content_block_delta',
+        index,
+        delta: { type: 'text_delta', text: b.text ?? '' },
+      });
+    }
+    out += ev({ type: 'content_block_stop', index });
+  });
+  out += ev({ type: 'message_delta', delta: { stop_reason }, usage: { output_tokens: 5 } });
+  out += ev({ type: 'message_stop' });
+  return out;
+};
+// One-shot fake web-stream body (jest's node sandbox has no ReadableStream).
+const streamBody = (sse: string) => {
+  const value = new TextEncoder().encode(sse);
+  let done = false;
+  return {
+    getReader: () => ({
+      read: async () =>
+        done ? { done: true, value: undefined } : ((done = true), { done: false, value }),
+    }),
+  };
+};
+
 const anthropic = (content: unknown[], stop_reason: string) => ({
   ok: true,
   status: 200,
+  body: streamBody(sseFromContent(content, stop_reason)),
   json: async () => ({ content, stop_reason }),
 });
 
@@ -364,17 +420,21 @@ describe('ChatAssistantService.run', () => {
 
     // Contract: reply stays the FINAL round's text (streaming must not change it).
     expect(out.reply).toBe('Final answer.');
-    // Progressive order: intermediate text → tool_call → tool_done → final text.
+    // Under token streaming (2.4) the model's text arrives as live deltas: the
+    // intermediate round streams its prose ("Let me look that up.") then the loop
+    // adds a "\n\n" round separator (the text already went out, so it is NOT
+    // re-emitted whole); the final round streams "Final answer." as a delta.
     const types = events.map((e) => e.type);
-    expect(types).toEqual(['text', 'tool_call', 'tool_done', 'text']);
-    expect(events[0]).toMatchObject({ type: 'text', text: 'Let me look that up.\n\n' });
-    expect(events[1]).toMatchObject({ type: 'tool_call', tool: 'search_congress_bills' });
-    expect(events[2]).toMatchObject({
+    expect(types).toEqual(['text', 'text', 'tool_call', 'tool_done', 'text']);
+    expect(events[0]).toMatchObject({ type: 'text', text: 'Let me look that up.' });
+    expect(events[1]).toMatchObject({ type: 'text', text: '\n\n' });
+    expect(events[2]).toMatchObject({ type: 'tool_call', tool: 'search_congress_bills' });
+    expect(events[3]).toMatchObject({
       type: 'tool_done',
       tool: 'search_congress_bills',
       status: 'done',
     });
-    expect(events[3]).toMatchObject({ type: 'text', text: 'Final answer.' });
+    expect(events[4]).toMatchObject({ type: 'text', text: 'Final answer.' });
   });
 
   it('streams pending_approval (with the gate fingerprint) for a held write', async () => {

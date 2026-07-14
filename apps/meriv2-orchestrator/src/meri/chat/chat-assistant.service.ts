@@ -166,6 +166,10 @@ export class ChatAssistantService {
       }
       let content: ContentBlock[];
       let stopReason: string | null;
+      // Token-level streaming (2.4): stream text deltas straight to the client so
+      // chat types token-by-token instead of in per-round bursts. `streamed`
+      // tells us the text already went out — don't re-emit it below.
+      let streamed = false;
       try {
         const resp = await this.llm.completeWithTools({
           system,
@@ -173,6 +177,7 @@ export class ChatAssistantService {
           tools: toolSchemas as AnthropicToolSchema[],
           maxTokens: MAX_TOKENS,
           timeoutMs: this.callTimeoutMs,
+          onTextDelta: (delta) => emit({ type: 'text', text: delta }),
           ...(opts.signal ? { signal: opts.signal } : {}),
         });
         void this.meterRound(ctx, resp);
@@ -182,6 +187,7 @@ export class ChatAssistantService {
         usageAcc.cacheCreationTokens += resp.usage.cacheCreationTokens ?? 0;
         content = resp.content as ContentBlock[];
         stopReason = resp.stopReason;
+        streamed = resp.streamed ?? false;
       } catch (e) {
         if (opts.signal?.aborted) {
           return finalize('');
@@ -202,7 +208,8 @@ export class ChatAssistantService {
 
       if (!toolUses.length || stopReason !== 'tool_use') {
         if (textOut) {
-          emit({ type: 'text', text: textOut });
+          // When streamed, the deltas already went out this round — don't double-emit.
+          if (!streamed) emit({ type: 'text', text: textOut });
           return finalize(textOut);
         }
         // The model ended its turn with no prose (a stray stop / whitespace-only
@@ -215,8 +222,11 @@ export class ChatAssistantService {
 
       // Intermediate round text ("Let me look that up…") streams to the client
       // but stays OUT of ChatResult.reply — reply remains the final round's text
-      // (the non-streaming contract existing callers/tests pin).
-      if (textOut) emit({ type: 'text', text: `${textOut}\n\n` });
+      // (the non-streaming contract existing callers/tests pin). When streamed,
+      // the deltas already went out; just add the round separator.
+      if (textOut) {
+        emit({ type: 'text', text: streamed ? '\n\n' : `${textOut}\n\n` });
+      }
 
       messages.push({ role: 'assistant', content });
       // Invoke tools in PARALLEL, then number/serialize SEQUENTIALLY — citation

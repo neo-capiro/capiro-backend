@@ -1,5 +1,5 @@
 import type { Request } from 'express';
-import { RequestScopedLlmClient } from './request-scoped-llm.client';
+import { RequestScopedLlmClient, parseAnthropicToolStream } from './request-scoped-llm.client';
 import { parseAiProviderHeader } from './meri.controller';
 import {
   RequestCredentialsStore,
@@ -300,5 +300,78 @@ describe('parseAiProviderHeader', () => {
       usedTenantKey: false,
       modelOverridden: false,
     });
+  });
+});
+
+describe('parseAnthropicToolStream (2.4 token streaming)', () => {
+  // Jest's node sandbox has no global ReadableStream, so hand-roll the minimal
+  // web-stream surface parseAnthropicToolStream consumes: `body.getReader()`
+  // returning a reader whose `read()` yields Uint8Array chunks then `done`.
+  function streamOf(chunks: string[]): Response {
+    const enc = new TextEncoder();
+    const queue = chunks.map((c) => enc.encode(c));
+    let i = 0;
+    const body = {
+      getReader: () => ({
+        read: async () =>
+          i < queue.length
+            ? { done: false as const, value: queue[i++] }
+            : { done: true as const, value: undefined },
+      }),
+    };
+    return { body } as unknown as Response;
+  }
+
+  it('fires text deltas live and reconstructs text + tool_use blocks, stopReason, and usage', async () => {
+    // Split across two network chunks, with an SSE event boundary mid-chunk, to
+    // exercise the buffering (an event must not be dropped when split).
+    const events = [
+      'event: message_start\ndata: {"type":"message_start","message":{"usage":{"input_tokens":10,"cache_read_input_tokens":2,"cache_creation_input_tokens":3}}}\n\n',
+      'data: {"type":"content_block_start","index":0,"content_block":{"type":"text","text":""}}\n\n',
+      'data: {"type":"content_block_delta","index":0,"delta":{"type":"text_delta","text":"Hello "}}\n\n',
+      'data: {"type":"content_block_delta","index":0,"delta":{"type":"text_delta","text":"world [1]"}}\n\n',
+      'data: {"type":"content_block_stop","index":0}\n\n',
+      'data: {"type":"content_block_start","index":1,"content_block":{"type":"tool_use","id":"tu_1","name":"search_congress_bills","input":{}}}\n\n',
+      'data: {"type":"content_block_delta","index":1,"delta":{"type":"input_json_delta","partial_json":"{\\"q\\":"}}\n\n',
+      'data: {"type":"content_block_delta","index":1,"delta":{"type":"input_json_delta","partial_json":"\\"ndaa\\"}"}}\n\n',
+      'data: {"type":"content_block_stop","index":1}\n\n',
+      'data: {"type":"message_delta","delta":{"stop_reason":"tool_use"},"usage":{"output_tokens":42}}\n\n',
+      'data: {"type":"message_stop"}\n\n',
+    ];
+    const whole = events.join('');
+    const mid = Math.floor(whole.length / 2);
+    const deltas: string[] = [];
+    const res = await parseAnthropicToolStream(
+      streamOf([whole.slice(0, mid), whole.slice(mid)]),
+      (d) => deltas.push(d),
+    );
+
+    expect(deltas).toEqual(['Hello ', 'world [1]']); // live, in order
+    expect(res.content).toEqual([
+      { type: 'text', text: 'Hello world [1]' },
+      { type: 'tool_use', id: 'tu_1', name: 'search_congress_bills', input: { q: 'ndaa' } },
+    ]);
+    expect(res.stopReason).toBe('tool_use');
+    expect(res.usage).toEqual({
+      inputTokens: 10,
+      outputTokens: 42,
+      cacheReadTokens: 2,
+      cacheCreationTokens: 3,
+    });
+  });
+
+  it('handles a text-only turn (no tool_use) and end_turn stop reason', async () => {
+    const chunks = [
+      'data: {"type":"message_start","message":{"usage":{"input_tokens":5}}}\n\n',
+      'data: {"type":"content_block_start","index":0,"content_block":{"type":"text","text":""}}\n\n',
+      'data: {"type":"content_block_delta","index":0,"delta":{"type":"text_delta","text":"Done."}}\n\n',
+      'data: {"type":"message_delta","delta":{"stop_reason":"end_turn"},"usage":{"output_tokens":3}}\n\n',
+    ];
+    const deltas: string[] = [];
+    const res = await parseAnthropicToolStream(streamOf(chunks), (d) => deltas.push(d));
+    expect(deltas).toEqual(['Done.']);
+    expect(res.content).toEqual([{ type: 'text', text: 'Done.' }]);
+    expect(res.stopReason).toBe('end_turn');
+    expect(res.usage.outputTokens).toBe(3);
   });
 });

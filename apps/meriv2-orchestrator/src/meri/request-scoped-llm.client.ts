@@ -39,6 +39,10 @@ export interface ToolLoopResponse {
   usage: ProviderUsage;
   model: string;
   usedTenantKey: boolean;
+  /** True when the text was already streamed to `onTextDelta` (Anthropic stream
+   *  path) — the caller must NOT re-emit the round's text. False/undefined for
+   *  the non-streaming (JSON) and OpenAI paths (caller emits the whole text). */
+  streamed?: boolean;
 }
 
 const ANTHROPIC_URL = 'https://api.anthropic.com/v1/messages';
@@ -146,6 +150,14 @@ export class RequestScopedLlmClient implements LlmClient {
     toolChoice?: 'auto' | 'none';
     /** Optional external cancellation (streaming client disconnect) — composed with the timeout. */
     signal?: AbortSignal;
+    /**
+     * When provided (Anthropic provider only), stream the response and invoke
+     * this for each text delta as it arrives — the chat surface types
+     * token-by-token instead of in per-round bursts (2.4). The full content
+     * blocks + usage + stopReason are still returned at the end. Ignored for the
+     * OpenAI adapter (non-streaming), so `streamed` is false there.
+     */
+    onTextDelta?: (delta: string) => void;
   }): Promise<ToolLoopResponse> {
     const { apiKey, model, usedTenantKey, provider } = this.resolve();
     // Phase 4 LLM-gateway convergence (4.5.1): the loop's wire shape stays
@@ -203,6 +215,7 @@ export class RequestScopedLlmClient implements LlmClient {
           // Default (undefined) = Anthropic `auto`. `'none'` forces a text-only
           // synthesis turn (the loop's forced-completion mechanism).
           ...(params.toolChoice === 'none' ? { tool_choice: { type: 'none' } } : {}),
+          ...(params.onTextDelta ? { stream: true } : {}),
           messages: params.messages,
         }),
         signal: controller.signal,
@@ -210,6 +223,10 @@ export class RequestScopedLlmClient implements LlmClient {
       if (!res.ok) {
         const body = await res.text().catch(() => '');
         throw new Error(`Anthropic HTTP ${res.status}${body ? `: ${body.slice(0, 200)}` : ''}`);
+      }
+      if (params.onTextDelta) {
+        const streamed = await parseAnthropicToolStream(res, params.onTextDelta);
+        return { ...streamed, model, usedTenantKey, streamed: true };
       }
       const data = (await res.json()) as {
         content?: AnthropicContentBlock[];
@@ -222,10 +239,135 @@ export class RequestScopedLlmClient implements LlmClient {
         usage: parseProviderUsage(data),
         model,
         usedTenantKey,
+        streamed: false,
       };
     } finally {
       clearTimeout(timer);
       params.signal?.removeEventListener('abort', onExternalAbort);
     }
   }
+}
+
+function sseNumber(v: unknown): number {
+  return typeof v === 'number' && Number.isFinite(v) ? v : 0;
+}
+
+/**
+ * Parse an Anthropic tool-use STREAMING (SSE) response: fire `onTextDelta` for
+ * each text delta as it arrives, and reconstruct the full content blocks
+ * (text + tool_use with its input JSON assembled from input_json_delta chunks),
+ * stop reason, and token usage — the SAME shape the non-streaming JSON path
+ * returns, so the tool loop is agnostic to which path ran (2.4).
+ */
+export async function parseAnthropicToolStream(
+  res: Response,
+  onTextDelta: (delta: string) => void,
+): Promise<{ content: AnthropicContentBlock[]; stopReason: string | null; usage: ProviderUsage }> {
+  const body = res.body;
+  if (!body) throw new Error('Anthropic stream response had no body');
+  const blocks = new Map<
+    number,
+    { type: string; text: string; id?: string; name?: string; json: string }
+  >();
+  let stopReason: string | null = null;
+  const usage: ProviderUsage = {
+    inputTokens: 0,
+    outputTokens: 0,
+    cacheReadTokens: 0,
+    cacheCreationTokens: 0,
+  };
+
+  const handleEvent = (rawEvent: string): void => {
+    const json = rawEvent
+      .split('\n')
+      .filter((l) => l.startsWith('data:'))
+      .map((l) => l.slice(5).trim())
+      .join('');
+    if (!json || json === '[DONE]') return;
+    let evt: Record<string, unknown>;
+    try {
+      evt = JSON.parse(json) as Record<string, unknown>;
+    } catch {
+      return; // ignore a malformed/partial event line
+    }
+    switch (evt.type) {
+      case 'message_start': {
+        const u = ((evt.message as Record<string, unknown>)?.usage ?? {}) as Record<
+          string,
+          unknown
+        >;
+        usage.inputTokens = sseNumber(u.input_tokens);
+        usage.cacheReadTokens = sseNumber(u.cache_read_input_tokens);
+        usage.cacheCreationTokens = sseNumber(u.cache_creation_input_tokens);
+        usage.outputTokens = sseNumber(u.output_tokens);
+        break;
+      }
+      case 'content_block_start': {
+        const cb = (evt.content_block ?? {}) as Record<string, unknown>;
+        blocks.set(sseNumber(evt.index), {
+          type: typeof cb.type === 'string' ? cb.type : 'text',
+          text: typeof cb.text === 'string' ? cb.text : '',
+          ...(typeof cb.id === 'string' ? { id: cb.id } : {}),
+          ...(typeof cb.name === 'string' ? { name: cb.name } : {}),
+          json: '',
+        });
+        break;
+      }
+      case 'content_block_delta': {
+        const b = blocks.get(sseNumber(evt.index));
+        if (!b) break;
+        const d = (evt.delta ?? {}) as Record<string, unknown>;
+        if (d.type === 'text_delta' && typeof d.text === 'string') {
+          b.text += d.text;
+          onTextDelta(d.text);
+        } else if (d.type === 'input_json_delta' && typeof d.partial_json === 'string') {
+          b.json += d.partial_json;
+        }
+        break;
+      }
+      case 'message_delta': {
+        const d = (evt.delta ?? {}) as Record<string, unknown>;
+        if (typeof d.stop_reason === 'string') stopReason = d.stop_reason;
+        const u = (evt.usage ?? {}) as Record<string, unknown>;
+        if (u.output_tokens !== undefined) usage.outputTokens = sseNumber(u.output_tokens);
+        break;
+      }
+      default:
+        break; // content_block_stop / message_stop / ping — nothing to accumulate
+    }
+  };
+
+  const reader = (body as ReadableStream<Uint8Array>).getReader();
+  const decoder = new TextDecoder();
+  let buf = '';
+  for (;;) {
+    const { done, value } = await reader.read();
+    if (done) break;
+    buf += decoder.decode(value, { stream: true });
+    let sep: number;
+    while ((sep = buf.indexOf('\n\n')) !== -1) {
+      handleEvent(buf.slice(0, sep));
+      buf = buf.slice(sep + 2);
+    }
+  }
+  if (buf.trim()) handleEvent(buf);
+
+  const content: AnthropicContentBlock[] = [...blocks.entries()]
+    .sort((a, b) => a[0] - b[0])
+    .map(([, b]) => {
+      if (b.type === 'tool_use') {
+        let input: Record<string, unknown> = {};
+        if (b.json.trim()) {
+          try {
+            input = JSON.parse(b.json) as Record<string, unknown>;
+          } catch {
+            input = {};
+          }
+        }
+        return { type: 'tool_use', id: b.id ?? '', name: b.name ?? '', input };
+      }
+      return { type: 'text', text: b.text };
+    });
+
+  return { content, stopReason, usage };
 }
