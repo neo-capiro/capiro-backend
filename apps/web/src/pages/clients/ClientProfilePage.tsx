@@ -1313,17 +1313,20 @@ function DocumentsTab({
       <header className="cp-tab-header">
         <div>
           <h3 className="cp-tab-h3">Documents</h3>
-          <p className="cp-tab-dek">
-            Capiro auto-parses every upload and routes findings into the Intelligence tab.
-          </p>
         </div>
-        <span style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-          {kbStatus.data ? <KbStatusChip status={kbStatus.data} /> : null}
-          <span style={{ fontSize: 12, color: 'var(--ink-3)' }}>
-            {docs.data?.length ?? 0} file{(docs.data?.length ?? 0) === 1 ? '' : 's'}
-          </span>
-        </span>
+        {kbStatus.data ? <KbStatusChip status={kbStatus.data} /> : null}
       </header>
+
+      <SharedMeetingsSection clientId={client.id} clientName={client.name} />
+
+      <div style={{ margin: '20px 0 12px' }}>
+        <div style={{ fontSize: 13.5, fontWeight: 700, color: 'var(--ink-1)' }}>
+          Context documents
+        </div>
+        <p className="cp-tab-dek" style={{ margin: '2px 0 0' }}>
+          Uploaded files that ground Meri's knowledge for {client.name}
+        </p>
+      </div>
 
       <div
         className={`doc-drop-zone${dragging ? ' dragging' : ''}`}
@@ -1429,8 +1432,6 @@ function DocumentsTab({
           No documents yet. Upload files above.
         </Typography.Text>
       )}
-
-      <SharedMeetingsSection clientId={client.id} />
 
       <div className="doc-notes-label">Client Notes</div>
       <Input.TextArea
