@@ -1,0 +1,43 @@
+[
+  {
+    "office": {
+      "office_id": 970001,
+      "name": "Example Committee",
+      "office_type": "House Committee",
+      "congress_committee_code": "HEXC",
+      "parent_office": null
+    },
+    "office_member_addresses": [],
+    "contacts": [
+      {
+        "id": 710001,
+        "contact_type": "Website",
+        "contact_string": "https://example.invalid/committee",
+        "updated_at": "2026-07-01T00:00:00Z"
+      }
+    ],
+    "leadership_offices": [
+      {
+        "id": 720001,
+        "member": { "member_id": 900001 },
+        "position": "Chair",
+        "start_date": "2025-01-03",
+        "end_date": null,
+        "updated_at": "2026-07-01T00:00:00Z"
+      }
+    ],
+    "roster_snapshot": [
+      {
+        "id": 730001,
+        "start_date": "2025-01-03",
+        "end_date": null,
+        "is_incompleted": false,
+        "updated_at": "2026-07-01T00:00:00Z",
+        "roster": []
+      }
+    ],
+    "future_office_extension": {
+      "schema_revision": "next"
+    }
+  }
+]

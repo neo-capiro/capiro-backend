@@ -1,0 +1,44 @@
+[
+  {
+    "staff": {
+      "id": 800001,
+      "first_name": "Taylor",
+      "last_name": "Fixture",
+      "preferred_first_name": null,
+      "preferred_last_name": null,
+      "suffix": null,
+      "gender": null,
+      "bio_details": {
+        "dob": null,
+        "party_name": null,
+        "occupation": null
+      }
+    },
+    "staff_emails": [
+      {
+        "id": 810001,
+        "contact_type": "Email, official",
+        "contact_string": "taylor.fixture@example.invalid",
+        "updated_at": "2026-07-01T00:00:00Z"
+      }
+    ],
+    "positions": [
+      {
+        "id": 820001,
+        "position_title": "Policy Director",
+        "position_type": "ch",
+        "start_date": "2025-01-03",
+        "end_date": null,
+        "is_current": true,
+        "is_on_leave": false,
+        "member": { "member_id": 900001 },
+        "office": { "office_id": 950001, "name": "Example Member Office" },
+        "updated_at": "2026-07-01T00:00:00Z"
+      }
+    ],
+    "office_member_addresses": [],
+    "future_staff_extension": {
+      "source_score": "0.875"
+    }
+  }
+]

@@ -19,6 +19,21 @@ export const configSchema = z.object({
   ASSETS_BUCKET: z.string().optional(),
   DIRECTORY_S3_BUCKET: z.string().optional(),
   DIRECTORY_S3_PREFIX: z.string().optional(),
+  DIRECTORY_S3_LATEST_KEY: z.string().default('UPDATED DIRECTORY/LATEST.json'),
+  // LegiStorm is used only by the scheduled directory-refresh CLI. Keep the key
+  // optional at API-server boot; the CLI itself fails closed when it is absent.
+  LEGISTORM_API_KEY: z.string().min(1).optional(),
+  LEGISTORM_BASE_URL: z
+    .string()
+    .url()
+    .refine((value) => new URL(value).protocol === 'https:', 'LEGISTORM_BASE_URL must use HTTPS')
+    .default('https://api.legistorm.com/v2.019.10/congress'),
+  LEGISTORM_PAGE_SIZE: z.coerce.number().int().positive().default(1000),
+  LEGISTORM_MAX_PAGES: z.coerce.number().int().positive().default(10_000),
+  LEGISTORM_REQUEST_DELAY_MS: z.coerce.number().int().nonnegative().default(400),
+  LEGISTORM_REQUEST_TIMEOUT_MS: z.coerce.number().int().positive().default(30_000),
+  LEGISTORM_MAX_RETRY_DELAY_MS: z.coerce.number().int().positive().default(30_000),
+  LEGISTORM_OVERLAP_DAYS: z.coerce.number().int().nonnegative().default(2),
   AWS_REGION_DEFAULT: z.string().default('us-east-1'),
 
   // Optional AI providers. Meeting prep endpoints fail closed with 503 until
