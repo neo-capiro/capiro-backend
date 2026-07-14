@@ -14,6 +14,26 @@ import type { AppConfig } from '../config/config.schema.js';
 import { PrismaService } from '../prisma/prisma.service.js';
 import { FEC_DISCLAIMER } from '../intelligence/fec-disclaimer.js';
 import { RepresentationResolverService } from '../clients/representation-resolver.service.js';
+import {
+  buildDirectoryIndexes,
+  normalizePersonName,
+  type DirectoryCommitteeMembership,
+  type DirectoryIndexes,
+} from './directory-indexes.js';
+import {
+  memberPhotoRecords,
+  parsePhotoOverlay,
+  resolveMemberPhoto,
+  resolveStaffPhoto,
+  type DirectoryPhotoOverlay,
+} from './directory-photo.js';
+import type {
+  DirectoryCommitteeDetail,
+  DirectoryMemberDetail,
+  DirectoryPeoplePayload,
+  DirectoryPersonResult,
+  DirectoryStaffDetail,
+} from './directory-detail.types.js';
 
 type Chamber = 'House' | 'Senate' | 'Governor';
 type Party = 'D' | 'R' | 'I';
@@ -375,6 +395,8 @@ interface CachedContacts {
     staffers: DirectoryStaffer[];
     committees: DirectoryCommittee[];
     committeeStaff: Map<string, DirectoryCommitteeStaffer[]>; // committee id -> roster
+    indexes: DirectoryIndexes; // raw rows + full memberships + reverse/name indexes
+    photoOverlay: DirectoryPhotoOverlay; // read-only additive contact photos
     totals: DirectoryTotals;
     availableStates: string[];
     availableFilters: DirectoryAvailableFilters;
@@ -567,6 +589,7 @@ export class DirectoryService implements OnModuleInit {
   private readonly latestKey: string;
   private readonly bioOverlayKey: string;
   private readonly pressOverlayKey: string;
+  private readonly photoOverlayKey: string;
   private cache: CachedContacts | null = null;
 
   constructor(
@@ -586,6 +609,8 @@ export class DirectoryService implements OnModuleInit {
       process.env.DIRECTORY_BIO_OVERLAY_KEY ?? 'UPDATED DIRECTORY/overlays/member-bios-v1.json';
     this.pressOverlayKey =
       process.env.DIRECTORY_PRESS_OVERLAY_KEY ?? 'UPDATED DIRECTORY/overlays/member-press-v1.json';
+    this.photoOverlayKey =
+      process.env.DIRECTORY_PHOTO_OVERLAY_KEY ?? 'UPDATED DIRECTORY/overlays/contact-photos-v1.json';
   }
 
   /**
@@ -743,6 +768,356 @@ export class DirectoryService implements OnModuleInit {
       page: safePage,
       pageSize,
     };
+  }
+
+  // ---------------------------------------------------------------- Detail + dictionary APIs (Task 12)
+
+  /** Unified people search: name-inverts to members AND staff, optional committee filter. */
+  async getPeople(query: {
+    q?: string;
+    committeeId?: string;
+    personType?: string;
+    current?: string;
+    page?: string;
+    pageSize?: string;
+  }): Promise<DirectoryPeoplePayload> {
+    const base = await this.getDirectoryData();
+    const idx = base.indexes;
+    const q = String(query.q ?? '').trim();
+    const normalizedQ = normalizePersonName(q);
+    const personType = this.normalizePersonTypeFilter(query.personType);
+    const currentOnly = query.current === 'true';
+    const page = this.toPositiveInt(query.page, 1);
+    const pageSize = this.toPositiveInt(query.pageSize, DirectoryService.DEFAULT_PAGE_SIZE, 200);
+
+    // Candidate person ids: committee roster (if committeeId) intersected with name match.
+    let candidateIds: string[];
+    if (query.committeeId) {
+      candidateIds = (idx.membershipsByCommitteeId.get(query.committeeId) ?? []).map((m) => m.person.id);
+    } else {
+      candidateIds = [...idx.membersById.keys()]
+        .map((id) => `member-${id}`)
+        .concat([...idx.staffById.keys()].map((id) => `staff-${id}`));
+    }
+
+    const seen = new Set<string>();
+    const results = candidateIds
+      .filter((id) => (seen.has(id) ? false : (seen.add(id), true)))
+      .map((id) => this.personResult(base, id))
+      .filter((r): r is DirectoryPersonResult => r !== null)
+      .filter((r) => personType === 'all' || r.personType === personType)
+      .filter((r) => !currentOnly || r.isCurrent)
+      .filter((r) => !normalizedQ || normalizePersonName(r.fullName).includes(normalizedQ));
+
+    results.sort((a, b) => a.fullName.localeCompare(b.fullName));
+    const total = results.length;
+    const start = (Math.min(page, Math.max(1, Math.ceil(total / pageSize))) - 1) * pageSize;
+    return { people: results.slice(start, start + pageSize), total, page, pageSize };
+  }
+
+  async getMemberDetail(memberId: string): Promise<DirectoryMemberDetail> {
+    const base = await this.getDirectoryData();
+    const numericId = Number(String(memberId).replace(/^member-/, ''));
+    const row = base.indexes.membersById.get(numericId);
+    if (!row) throw new NotFoundException('Directory member not found');
+    const member = (row.member ?? {}) as Record<string, any>;
+    const profile = (member.profile ?? {}) as Record<string, any>;
+    const bio = (profile.bio_details ?? {}) as Record<string, any>;
+    const personId = `member-${numericId}`;
+    const overlay = base.photoOverlay.people[personId] ?? null;
+    const selected = resolveMemberPhoto(row.photos, overlay);
+    const contact = base.contacts.find((c) => c.id === personId);
+    return {
+      kind: 'member',
+      id: personId,
+      source: {
+        snapshotId: base.sourceId,
+        memberId: numericId,
+        lastUpdatedAt: this.latestUpdatedAt([row.member_offices, row.committees, row.leaderships]),
+      },
+      identity: {
+        memberId: numericId,
+        bioguideId: String(member.bioguide_id ?? ''),
+        icpsrId: Number.isFinite(Number(member.icpsr_id)) ? Number(member.icpsr_id) : null,
+        lisMemberId: member.lis_member_id == null ? null : String(member.lis_member_id),
+        firstName: String(profile.first_name ?? ''),
+        lastName: String(profile.last_name ?? ''),
+        preferredFirstName: profile.preferred_first_name ?? null,
+        preferredLastName: profile.preferred_last_name ?? null,
+        suffix: profile.suffix ?? null,
+        gender: profile.gender ?? null,
+      },
+      bioDetails: {
+        dob: bio.dob ?? null,
+        placeOfBirth: bio.pob ?? null,
+        hometown: bio.hometown ?? null,
+        partyName: bio.party_name ?? null,
+        occupation: bio.occupation ?? null,
+        pronunciation: bio.pronunciation ?? null,
+        raceName: bio.race_name ?? null,
+        religionName: bio.religion_name ?? null,
+      },
+      photos: memberPhotoRecords(row.photos),
+      selectedPhotoUrl: selected.url,
+      photoSource: selected.source,
+      offices: this.mapMemberOffices(row.member_offices),
+      committees: this.membershipsForPerson(base.indexes, personId),
+      leaderships: this.mapLeaderships(row.leaderships),
+      socialContacts: this.mapContactMethods(row.social_media),
+      staffRoles: this.mapStaffRoles(row.staffer_roles),
+      staffIssues: this.mapStaffIssues(row.staffer_issues),
+      enrichments: {
+        bioOverlay: Boolean(contact?.bio?.narrative),
+        pressOverlay: Boolean(contact?.rssFeedUrl || contact?.newsPressUrl),
+      },
+    };
+  }
+
+  async getStaffDetail(staffId: string): Promise<DirectoryStaffDetail> {
+    const base = await this.getDirectoryData();
+    const numericId = Number(String(staffId).replace(/^staff-/, ''));
+    const row = base.indexes.staffById.get(numericId);
+    if (!row) throw new NotFoundException('Directory staffer not found');
+    const staff = (row.staff ?? {}) as Record<string, any>;
+    const bio = (staff.bio_details ?? {}) as Record<string, any>;
+    const personId = `staff-${numericId}`;
+    const overlay = base.photoOverlay.people[personId] ?? null;
+    const photo = resolveStaffPhoto(null, overlay); // entitlement returns no staff photo today
+    const positions = Array.isArray(row.positions) ? row.positions : [];
+    const memberAssociations = [
+      ...new Map(
+        positions
+          .map((p: any) => Number(p?.member?.member_id))
+          .filter((id: number) => Number.isFinite(id))
+          .map((id: number) => {
+            const m = base.indexes.membersById.get(id)?.member as Record<string, any> | undefined;
+            const p = (m?.profile ?? {}) as Record<string, any>;
+            const fullName = [p.preferred_first_name ?? p.first_name, p.preferred_last_name ?? p.last_name]
+              .filter(Boolean)
+              .join(' ')
+              .trim();
+            return [id, { id: `member-${id}`, memberId: id, fullName }];
+          }),
+      ).values(),
+    ];
+    return {
+      kind: 'staff',
+      id: personId,
+      source: {
+        snapshotId: base.sourceId,
+        staffId: numericId,
+        lastUpdatedAt: this.latestUpdatedAt([row.positions]),
+      },
+      identity: {
+        staffId: numericId,
+        firstName: String(staff.first_name ?? ''),
+        lastName: String(staff.last_name ?? ''),
+        preferredFirstName: staff.preferred_first_name ?? null,
+        preferredLastName: staff.preferred_last_name ?? null,
+        suffix: staff.suffix ?? null,
+        gender: staff.gender ?? null,
+      },
+      bioDetails: {
+        dob: bio.dob ?? null,
+        partyName: bio.party_name ?? null,
+        occupation: bio.occupation ?? null,
+      },
+      photoUrl: photo.url,
+      photoSource: photo.source,
+      emails: this.mapContactMethods(row.staff_emails),
+      socialContacts: this.mapContactMethods(row.social_media),
+      positions: this.mapStaffPositions(row.positions),
+      memberAssociations,
+      committeeAssociations: this.membershipsForPerson(base.indexes, personId),
+      availability: {
+        photo: photo.url ? 'available' : 'not_provided',
+        socialContacts: this.mapContactMethods(row.social_media).length ? 'available' : 'not_provided',
+      },
+    };
+  }
+
+  async getCommitteeDetail(committeeId: string): Promise<DirectoryCommitteeDetail> {
+    const base = await this.getDirectoryData();
+    const committee = base.committees.find((c) => c.id === committeeId);
+    if (!committee) throw new NotFoundException('Committee not found');
+    const parent = committee.parentOfficeId
+      ? base.committees.find((c) => c.officeId === committee.parentOfficeId)
+      : undefined;
+    const subcommittees = base.committees.filter((c) => c.parentOfficeId === committee.officeId);
+    const contacts = base.indexes.membershipsByCommitteeId.get(committeeId) ?? [];
+    return {
+      ...committee,
+      parentCommittee: parent
+        ? { id: parent.id, officeId: parent.officeId, name: parent.name, kind: parent.kind }
+        : null,
+      subcommittees: subcommittees.map((c) => ({
+        id: c.id,
+        officeId: c.officeId,
+        name: c.name,
+        kind: c.kind,
+      })),
+      contacts,
+      memberCount: contacts.filter((m) => m.membershipType === 'member').length,
+      currentStaffCount: contacts.filter((m) => m.membershipType === 'staff' && m.person.isCurrent).length,
+    };
+  }
+
+  async getCommitteeContacts(
+    committeeId: string,
+    query: { personType?: string; current?: string; q?: string; role?: string; page?: string; pageSize?: string },
+  ): Promise<{ committee: DirectoryCommittee | null; contacts: DirectoryCommitteeMembership[]; total: number; page: number; pageSize: number }> {
+    const base = await this.getDirectoryData();
+    const committee = base.committees.find((c) => c.id === committeeId) ?? null;
+    const roster = base.indexes.membershipsByCommitteeId.get(committeeId) ?? [];
+    const personType = this.normalizePersonTypeFilter(query.personType);
+    const currentOnly = query.current === 'true';
+    const q = normalizePersonName(query.q);
+    const role = String(query.role ?? '').trim().toLowerCase();
+    const filtered = roster
+      .filter((m) => personType === 'all' || m.membershipType === personType)
+      .filter((m) => !currentOnly || m.person.isCurrent)
+      .filter((m) => !role || (m.position ?? '').toLowerCase().includes(role))
+      .filter((m) => !q || normalizePersonName(m.person.fullName).includes(q));
+    const page = this.toPositiveInt(query.page, 1);
+    const pageSize = this.toPositiveInt(query.pageSize, DirectoryService.DEFAULT_PAGE_SIZE, 500);
+    const total = filtered.length;
+    const start = (Math.min(page, Math.max(1, Math.ceil(total / pageSize))) - 1) * pageSize;
+    return { committee, contacts: filtered.slice(start, start + pageSize), total, page, pageSize };
+  }
+
+  private normalizePersonTypeFilter(raw: unknown): 'all' | 'member' | 'staff' {
+    return raw === 'member' || raw === 'staff' ? raw : 'all';
+  }
+
+  private membershipsForPerson(idx: DirectoryIndexes, personId: string): DirectoryCommitteeMembership[] {
+    const committeeIds = idx.committeesByPersonId.get(personId) ?? [];
+    return committeeIds.flatMap((cid) =>
+      (idx.membershipsByCommitteeId.get(cid) ?? []).filter((m) => m.person.id === personId),
+    );
+  }
+
+  private personResult(base: CachedContacts['data'], personId: string): DirectoryPersonResult | null {
+    if (personId.startsWith('member-')) {
+      const id = Number(personId.replace(/^member-/, ''));
+      const row = base.indexes.membersById.get(id);
+      if (!row) return null;
+      const member = (row.member ?? {}) as Record<string, any>;
+      const profile = (member.profile ?? {}) as Record<string, any>;
+      const office = Array.isArray(row.member_offices)
+        ? (row.member_offices.find((o: any) => o && typeof o === 'object') as Record<string, any> | undefined)
+        : undefined;
+      const overlay = base.photoOverlay.people[personId] ?? null;
+      return {
+        personType: 'member',
+        id: personId,
+        fullName: [profile.preferred_first_name ?? profile.first_name, profile.preferred_last_name ?? profile.last_name]
+          .filter(Boolean)
+          .join(' ')
+          .trim(),
+        title: office?.office?.name ? String(office.office.name) : '',
+        photoUrl: resolveMemberPhoto(row.photos, overlay).url,
+        party: typeof office?.party === 'string' ? office.party : null,
+        state: typeof office?.state_id === 'string' ? office.state_id : null,
+        district: office?.district_no == null ? null : String(office.district_no),
+        isCurrent: true,
+      };
+    }
+    const id = Number(personId.replace(/^staff-/, ''));
+    const row = base.indexes.staffById.get(id);
+    if (!row) return null;
+    const staff = (row.staff ?? {}) as Record<string, any>;
+    const positions = Array.isArray(row.positions) ? row.positions : [];
+    const current = positions.find((p: any) => p?.is_current) ?? positions[0];
+    const overlay = base.photoOverlay.people[personId] ?? null;
+    return {
+      personType: 'staff',
+      id: personId,
+      fullName: [staff.preferred_first_name ?? staff.first_name, staff.preferred_last_name ?? staff.last_name]
+        .filter(Boolean)
+        .join(' ')
+        .trim(),
+      title: current ? String(current.position_title ?? current.position_type ?? 'Staff') : '',
+      photoUrl: resolveStaffPhoto(null, overlay).url,
+      party: null,
+      state: null,
+      district: null,
+      isCurrent: positions.some((p: any) => p?.is_current === true),
+    };
+  }
+
+  private mapMemberOffices(raw: unknown): DirectoryMemberDetail['offices'] {
+    return (Array.isArray(raw) ? raw : []).filter((o) => o && typeof o === 'object').map((o: any) => ({
+      officeId: Number.isFinite(Number(o.office?.office_id)) ? Number(o.office.office_id) : null,
+      name: o.office?.name ?? null,
+      officeTypeId: o.office_type_id ?? null,
+      state: o.state_id ?? null,
+      district: o.district_no == null ? null : String(o.district_no),
+      party: o.party ?? null,
+      status: o.status ?? null,
+      startDate: o.start_date ?? null,
+      endDate: o.end_date ?? null,
+      updatedAt: o.updated_at ?? null,
+    }));
+  }
+
+  private mapLeaderships(raw: unknown): DirectoryMemberDetail['leaderships'] {
+    return (Array.isArray(raw) ? raw : []).filter((l) => l && typeof l === 'object').map((l: any) => ({
+      position: l.position ?? null,
+      startDate: l.start_date ?? null,
+      endDate: l.end_date ?? null,
+      updatedAt: l.updated_at ?? null,
+    }));
+  }
+
+  private mapContactMethods(raw: unknown): DirectoryMemberDetail['socialContacts'] {
+    return (Array.isArray(raw) ? raw : [])
+      .filter((c) => c && typeof c === 'object' && typeof (c as any).contact_string === 'string')
+      .map((c: any) => ({
+        type: c.contact_type ?? null,
+        value: String(c.contact_string),
+        updatedAt: c.updated_at ?? null,
+      }));
+  }
+
+  private mapStaffRoles(raw: unknown): DirectoryMemberDetail['staffRoles'] {
+    return (Array.isArray(raw) ? raw : []).filter((r) => r && typeof r === 'object').map((r: any) => ({
+      memberId: Number.isFinite(Number(r.staffer?.member_id ?? r.member_id)) ? Number(r.staffer?.member_id ?? r.member_id) : null,
+      roleName: r.role_name ?? null,
+      updatedAt: r.updated_at ?? null,
+    }));
+  }
+
+  private mapStaffIssues(raw: unknown): DirectoryMemberDetail['staffIssues'] {
+    return (Array.isArray(raw) ? raw : []).filter((r) => r && typeof r === 'object').map((r: any) => ({
+      memberId: Number.isFinite(Number(r.member_id)) ? Number(r.member_id) : null,
+      issueName: r.issue_name ?? null,
+      updatedAt: r.updated_at ?? null,
+    }));
+  }
+
+  private mapStaffPositions(raw: unknown): DirectoryStaffDetail['positions'] {
+    return (Array.isArray(raw) ? raw : []).filter((p) => p && typeof p === 'object').map((p: any) => ({
+      officeId: Number.isFinite(Number(p.office?.office_id)) ? Number(p.office.office_id) : null,
+      officeName: p.office?.name ?? null,
+      memberId: Number.isFinite(Number(p.member?.member_id)) ? Number(p.member.member_id) : null,
+      title: p.position_title ?? null,
+      positionType: p.position_type ?? null,
+      isCurrent: p.is_current === true,
+      startDate: p.start_date ?? null,
+      endDate: p.end_date ?? null,
+      updatedAt: p.updated_at ?? null,
+    }));
+  }
+
+  private latestUpdatedAt(sources: unknown[]): string | null {
+    let latest: string | null = null;
+    for (const source of sources) {
+      for (const entry of Array.isArray(source) ? source : []) {
+        const updatedAt = (entry as any)?.updated_at;
+        if (typeof updatedAt === 'string' && (latest === null || updatedAt > latest)) latest = updatedAt;
+      }
+    }
+    return latest;
   }
 
   // Builds the committee catalog (from office-list) and the per-committee staff
@@ -1146,9 +1521,13 @@ export class DirectoryService implements OnModuleInit {
       this.loadBioOverlay(),
       this.loadPressOverlay(),
     ]);
+    const photoOverlay = parsePhotoOverlay(await this.fetchJsonSafe<unknown>(this.photoOverlayKey));
     const contacts = this.buildContacts(members, staff, bioOverlay, pressOverlay);
     const staffers = this.buildStafferIndex(contacts);
     const { committees, committeeStaff } = this.buildCommitteeIndex(offices, staff, members);
+    // Full person/committee indexes (raw rows + every membership + reverse lookups)
+    // layered on the identified committees — powers the detail/dictionary endpoints.
+    const indexes = buildDirectoryIndexes({ members, staff, committees });
     const availableStates = uniqueSorted(contacts.map((contact) => contact.state));
     const availableFilters = this.buildAvailableFilters(contacts);
     const totals: DirectoryTotals = {
@@ -1166,6 +1545,8 @@ export class DirectoryService implements OnModuleInit {
       staffers,
       committees,
       committeeStaff,
+      indexes,
+      photoOverlay,
       totals,
       availableStates,
       availableFilters,
