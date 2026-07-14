@@ -35,6 +35,14 @@ export interface MeriContext {
    * clio_memory (which can hold stale/demo-seeded names). Absent on a load error.
    */
   clientRoster?: Array<{ name: string; status: string }>;
+  /**
+   * The FOCUSED client's approved steering memory (client soul/compass) and
+   * people roster, loaded by the context resolver only when the turn is scoped
+   * to a client. The legacy chat path injects this proactively; here it rides
+   * the same Context Compiler layers (client-steering / client-people). Absent
+   * when no client is focused or the client has no steering files.
+   */
+  clientSteering?: { soul?: string; compass?: string; people?: string };
 }
 
 /** Adapt a `@capiro/shared` `TenantContext` into a `MeriContext`. */

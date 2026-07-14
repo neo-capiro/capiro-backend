@@ -38,7 +38,7 @@ export class ChatController {
     @CurrentTenant() tc: OrchestratorTenantContext,
     @Req() req: Request,
   ): Promise<ChatResult> {
-    const meriCtx = await this.resolver.resolve(tc);
+    const meriCtx = await this.resolver.resolve(tc, dto?.clientId ?? null);
     const token = extractBearerToken(req);
     const aiProvider = parseAiProviderHeader(req);
     const exec = () => this.chat.run(meriCtx, dto ?? {});
@@ -57,7 +57,7 @@ export class ChatController {
     @Req() req: Request,
     @Res() res: Response,
   ): Promise<void> {
-    const meriCtx = await this.resolver.resolve(tc);
+    const meriCtx = await this.resolver.resolve(tc, dto?.clientId ?? null);
     const token = extractBearerToken(req);
     const aiProvider = parseAiProviderHeader(req);
 

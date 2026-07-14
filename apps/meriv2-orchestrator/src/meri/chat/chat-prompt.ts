@@ -175,6 +175,16 @@ export function buildChatSystemPrompt(
     dto.clientId
       ? `\nThe conversation is focused on client id: ${dto.clientId} (use it for client tools).`
       : '',
+    ctx.clientSteering
+      ? `\n# Focused client steering (approved framing for THIS client — use it and cite it)\n` +
+        [
+          ctx.clientSteering.soul ? `Client soul:\n${ctx.clientSteering.soul}` : '',
+          ctx.clientSteering.compass ? `Client compass:\n${ctx.clientSteering.compass}` : '',
+          ctx.clientSteering.people ? `Client people:\n${ctx.clientSteering.people}` : '',
+        ]
+          .filter(Boolean)
+          .join('\n\n')
+      : '',
     firm?.soul ? `\n# Firm identity\n${firm.soul}` : '',
     firm?.compass ? `\n# Firm compass\n${firm.compass}` : '',
     voice ? `\n# The user's writing voice (mirror it when you draft)\n${voice}` : '',

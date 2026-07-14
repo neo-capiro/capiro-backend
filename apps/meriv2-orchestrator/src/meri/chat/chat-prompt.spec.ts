@@ -55,6 +55,23 @@ describe('buildChatSystemPrompt', () => {
     );
   });
 
+  it('renders focused client steering (soul/compass/people) when present (1B.2)', () => {
+    const prompt = buildChatSystemPrompt(
+      { clientId: 'c1' },
+      { ...ctx, clientSteering: { soul: 'Client is risk-averse', people: 'GC: Jane Doe' } },
+    );
+    expect(prompt).toContain('# Focused client steering');
+    expect(prompt).toContain('Client soul:\nClient is risk-averse');
+    expect(prompt).toContain('Client people:\nGC: Jane Doe');
+    expect(prompt).not.toContain('Client compass:');
+  });
+
+  it('omits client steering when absent', () => {
+    expect(buildChatSystemPrompt({ clientId: 'c1' }, ctx)).not.toContain(
+      '# Focused client steering',
+    );
+  });
+
   it('always routes firm-data questions to the right tools (canary regression: meetings → query_debriefs, memory-first)', () => {
     const prompt = buildChatSystemPrompt({}, ctx);
     expect(prompt).toContain('call search_memory FIRST');

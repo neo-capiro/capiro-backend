@@ -30,7 +30,7 @@ export class MeriContextResolver {
     private readonly contextCompiler: OrchestratorContextCompilerService,
   ) {}
 
-  async resolve(tc: OrchestratorTenantContext): Promise<MeriContext> {
+  async resolve(tc: OrchestratorTenantContext, clientId?: string | null): Promise<MeriContext> {
     const user = await this.prisma.user.findUnique({
       where: { clerkUserId: tc.clerkUserId },
       select: { id: true },
@@ -41,12 +41,19 @@ export class MeriContextResolver {
 
     let firmMemory: MeriContext['firmMemory'] | undefined;
     let userVoice: string | undefined;
+    let clientSteering: MeriContext['clientSteering'] | undefined;
     try {
+      // Client-steering/people layers ride the SAME compiler, requested only when
+      // the turn is scoped to a client (the adapter gates them on clientId).
+      const layers = clientId
+        ? (['firm-identity', 'user-voice', 'client-steering', 'client-people'] as const)
+        : (['firm-identity', 'user-voice'] as const);
       const packet = await this.contextCompiler.compile({
         tenantId: tc.tenantId,
         userId: user.id,
         surface: 'ga-chat',
-        layers: ['firm-identity', 'user-voice'],
+        layers: [...layers],
+        ...(clientId ? { clientId } : {}),
       });
       const soul = renderedBody(packet, 'firm-soul');
       const compass = renderedBody(packet, 'firm-compass');
@@ -55,6 +62,19 @@ export class MeriContextResolver {
           ? { ...(soul ? { soul } : {}), ...(compass ? { compass } : {}) }
           : undefined;
       userVoice = renderedBody(packet, 'user-voice') || undefined;
+      if (clientId) {
+        const cSoul = renderedBody(packet, 'client-soul');
+        const cCompass = renderedBody(packet, 'client-compass');
+        const cPeople = renderedBody(packet, 'client-people');
+        clientSteering =
+          cSoul || cCompass || cPeople
+            ? {
+                ...(cSoul ? { soul: cSoul } : {}),
+                ...(cCompass ? { compass: cCompass } : {}),
+                ...(cPeople ? { people: cPeople } : {}),
+              }
+            : undefined;
+      }
     } catch (e) {
       this.logger.warn(`context compile failed (non-fatal): ${(e as Error).message}`);
     }
@@ -87,6 +107,7 @@ export class MeriContextResolver {
       ...(firmMemory ? { firmMemory } : {}),
       ...(userVoice ? { userVoice } : {}),
       ...(clientRoster ? { clientRoster } : {}),
+      ...(clientSteering ? { clientSteering } : {}),
     };
   }
 }
