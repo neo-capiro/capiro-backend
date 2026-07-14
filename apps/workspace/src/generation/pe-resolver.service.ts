@@ -1,6 +1,12 @@
 import { Injectable, Logger } from '@nestjs/common';
+import {
+  currentCycleFyOf,
+  currentFunding,
+  FUNDING_STAGE_LABEL,
+  FUNDING_STAGE_VEHICLE,
+} from '@capiro/shared';
 import { PrismaService } from '../prisma/prisma.service.js';
-import type { PeRecordForValidation } from './domain-grounding.helpers.js';
+import type { PeRecordForValidation, PeAmountForComparison } from './domain-grounding.helpers.js';
 
 /**
  * Retrieve-before-write PE resolution for the Workspace generation engine.
@@ -341,6 +347,42 @@ export class PeResolverService {
       appropriationType: rec.appropriationType,
       budgetActivity: rec.budgetActivity,
       budgetActivityName: rec.budgetActivityName,
+    };
+  }
+
+  /**
+   * Derive a same-portfolio funding figure for the primary-vehicle-overclaim
+   * check (domain-grounding.helpers.ts's Rule 3): pick the PE's current cycle
+   * FY (shared canonical rule) and that year's furthest-along authoritative
+   * number (shared canonical precedence — enacted > … > request), so the
+   * comparison uses the exact same "which number counts" logic as every other
+   * funding surface in the product. Returns null when there's no year with a
+   * usable figure (nothing to compare, not a warning-worthy state).
+   */
+  toAmountForComparison(rec: AuthoritativePeRecord): PeAmountForComparison | null {
+    const fy = currentCycleFyOf(rec.years);
+    if (fy == null) return null;
+    const year = rec.years.find((y) => y.fy === fy);
+    if (!year) return null;
+    const pick = currentFunding({
+      request: year.request,
+      hascMark: year.hascMark,
+      sascMark: year.sascMark,
+      // This engine's PE view doesn't carry the appropriations-track marks
+      // (see runGroundingAuditor's own comment) — absent, not a false zero.
+      hacDMark: null,
+      sacDMark: null,
+      conference: null,
+      enacted: year.enacted,
+    });
+    if (pick.value == null) return null;
+    return {
+      peCode: rec.peCode,
+      title: rec.title,
+      amountM: pick.value,
+      fy,
+      stageLabel: FUNDING_STAGE_LABEL[pick.stage],
+      vehicleLabel: FUNDING_STAGE_VEHICLE[pick.stage],
     };
   }
 }

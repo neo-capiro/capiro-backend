@@ -826,8 +826,14 @@ export class GenerationService {
         pes.push(auth ? this.peResolver.toValidationRecord(auth) : { peCode: code });
       }
     }
+    // Rule 3 (primary-vehicle overclaim) needs same-portfolio $ figures — only
+    // available for PEs resolved to an authoritative record (a bare cited/
+    // attached code has no years to compare).
+    const amounts = authPes
+      .map((rec) => this.peResolver.toAmountForComparison(rec))
+      .filter((a): a is NonNullable<typeof a> => a != null);
     try {
-      return collectPeStructuralWarnings(pes, fullText);
+      return collectPeStructuralWarnings(pes, fullText, amounts);
     } catch (e) {
       this.logger.warn(`generate-all: structural check failed: ${(e as Error).message}`);
       return [];
