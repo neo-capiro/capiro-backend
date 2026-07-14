@@ -72,6 +72,13 @@ describe('buildChatSystemPrompt', () => {
     );
   });
 
+  it('appends the shared compliance & ethics guardrails (1B.6)', () => {
+    const prompt = buildChatSystemPrompt({}, ctx);
+    expect(prompt).toContain('Compliance & ethics guardrails');
+    expect(prompt).toContain('Never help arrange a quid pro quo');
+    expect(prompt).toContain('You assist with LAWFUL government-affairs work only');
+  });
+
   it('always routes firm-data questions to the right tools (canary regression: meetings → query_debriefs, memory-first)', () => {
     const prompt = buildChatSystemPrompt({}, ctx);
     expect(prompt).toContain('call search_memory FIRST');

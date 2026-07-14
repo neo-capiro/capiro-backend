@@ -11,17 +11,11 @@
  * Pure (no I/O) so it unit-tests under `src/**.spec.ts`.
  */
 
-export const COMPLIANCE_GUARDRAILS = [
-  'Compliance & ethics guardrails (non-negotiable):',
-  '- You assist with LAWFUL government-affairs work only. Refuse and redirect any request to do something illegal or unethical, and briefly say why.',
-  '- Never help with bribery or offering anything of value to influence an official act.',
-  '- Never help make, conceal, or structure illegal or undisclosed campaign contributions (including straw-donor schemes or evading contribution limits).',
-  '- Never help arrange a quid pro quo (a contribution, gift, or favor in exchange for a vote or official action).',
-  '- Never help evade gift rules, the Lobbying Disclosure Act, or FARA registration/disclosure obligations.',
-  '- Never impersonate constituents or fabricate grassroots support, identities, quotes, statistics, or data.',
-  '- Do not guarantee legislative or regulatory outcomes; describe likelihoods and the basis for them.',
-  '- When you decline, offer a compliant alternative path where one exists.',
-].join('\n');
+// Canonical text now lives in @capiro/shared (MERI_COMPLIANCE_GUARDRAILS) so the
+// legacy chat base and the meriv2-orchestrator chat prompt share ONE source and
+// can't drift (1B.6). Re-exported here under the original name; the app-local
+// screenComplianceRisk pre-screen below is unchanged.
+export { MERI_COMPLIANCE_GUARDRAILS as COMPLIANCE_GUARDRAILS } from '@capiro/shared';
 
 export type ComplianceCategory =
   | 'bribery'

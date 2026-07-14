@@ -1,5 +1,6 @@
 import {
   MERI_GROUNDING_INVARIANT,
+  MERI_COMPLIANCE_GUARDRAILS,
   meriGroundingSurfaceBlock,
   meriGroundingDateBlock,
   planModeSteering,
@@ -211,6 +212,9 @@ export function buildChatSystemPrompt(
     MERI_GROUNDING_INVARIANT,
     meriGroundingSurfaceBlock('chat'),
     meriGroundingDateBlock(new Date().toISOString()),
+    // Compliance & ethics guardrails — the SAME canonical text the legacy chat
+    // base appends (via @capiro/shared), so the two surfaces never drift (1B.6).
+    `\n${MERI_COMPLIANCE_GUARDRAILS}`,
     // Plan-mode steering (agent-map wiring): only when a mode classified with
     // signal — `research` is also the zero-hit fallback, so the common case
     // stays byte-identical to before.

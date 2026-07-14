@@ -38,6 +38,7 @@ export { extractCitedPeCodes } from '@capiro/shared';
 // and FORM-B citation validator apps/api's legacy chat uses. One source, no drift.
 export {
   MERI_GROUNDING_INVARIANT,
+  MERI_COMPLIANCE_GUARDRAILS,
   meriGroundingSurfaceBlock,
   meriGroundingDateBlock,
   FORM_B_CITATION_RE,
