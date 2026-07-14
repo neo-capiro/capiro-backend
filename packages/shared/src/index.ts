@@ -2640,6 +2640,206 @@ export const MERI_COMPLIANCE_GUARDRAILS = [
   '- When you decline, offer a compliant alternative path where one exists.',
 ].join('\n');
 
+// ─────────────────────────────────────────────────────────────────────────
+// Inline citation pipeline (P0-3) — canonical home so BOTH the apps/api legacy
+// chat loop AND the meriv2-orchestrator chat loop number/inject/validate the
+// SAME way (1B.5). As tools return, extract candidates + assign a stable 1-based
+// marker, inject the numbered sources into the tool_result the model sees, then
+// after the turn keep only [N] markers that map to a real source (strip the
+// hallucinated ones). Pure + dependency-free.
+// ─────────────────────────────────────────────────────────────────────────
+
+export interface MeriCitation {
+  /** 1-based marker number the model cites as `[n]`. */
+  n: number;
+  /** Source category, e.g. 'bill', 'lda_filing', 'web', derived from the tool. */
+  type: string;
+  /** Stable record identifier (best-effort) or '' when none is available. */
+  id: string;
+  /** Human-readable title. */
+  title: string;
+  /** Source URL when the record exposes one, else null. */
+  url: string | null;
+  /** Short grounding snippet, truncated, or null. */
+  snippet: string | null;
+  /** Originating tool name. */
+  tool: string;
+}
+
+/** Map a Meri tool name to a citation `type` label. */
+const TOOL_CITATION_TYPE: Readonly<Record<string, string>> = {
+  search_congress_bills: 'bill',
+  search_state_bills: 'state_bill',
+  search_lda_filings: 'lda_filing',
+  search_sec_filings: 'sec_filing',
+  search_fara_registrations: 'fara_registration',
+  search_federal_grants: 'grant',
+  search_gao_reports: 'gao_report',
+  search_crs_reports: 'crs_report',
+  search_committee_hearings: 'hearing',
+  search_intel_articles: 'news',
+  query_economic_data: 'economic_data',
+  query_intelligence: 'intelligence',
+  search_public_web: 'web',
+  scrape_web_page: 'web',
+  search_research_sources: 'internal',
+  get_client_context: 'client',
+  search_client_knowledge: 'client_kb',
+};
+
+const CITATION_TITLE_FIELDS = [
+  'title',
+  'name',
+  'subject',
+  'companyName',
+  'registrantName',
+  'identifier',
+  'billNumber',
+  'headline',
+] as const;
+const CITATION_URL_FIELDS = [
+  'url',
+  'link',
+  'htmlUrl',
+  'sourceUrl',
+  'pdfLink',
+  'xmlLink',
+  'billUrl',
+  'documentUrl',
+  'webUrl',
+] as const;
+const CITATION_ID_FIELDS = [
+  'id',
+  'billId',
+  'accessionNo',
+  'accessionNumber',
+  'identifier',
+  'billNumber',
+  'registrationNumber',
+  'docId',
+] as const;
+const CITATION_SNIPPET_FIELDS = [
+  'summary',
+  'description',
+  'abstract',
+  'snippet',
+  'text',
+  'latestAction',
+  'excerpt',
+] as const;
+
+function firstCitationString(
+  rec: Record<string, unknown>,
+  fields: readonly string[],
+): string | null {
+  for (const f of fields) {
+    const v = rec[f];
+    if (typeof v === 'string' && v.trim()) return v.trim();
+    if (v && typeof v === 'object') {
+      const inner = (v as Record<string, unknown>).text;
+      if (typeof inner === 'string' && inner.trim()) return inner.trim();
+    }
+  }
+  return null;
+}
+
+function truncateCitation(text: string, max: number): string {
+  return text.length > max ? `${text.slice(0, max - 1)}…` : text;
+}
+
+function citationRowsOf(payload: Record<string, unknown>): unknown[] | null {
+  if (Array.isArray(payload.data)) return payload.data as unknown[];
+  if (Array.isArray(payload.results)) return payload.results as unknown[];
+  return null;
+}
+
+/**
+ * Extract up to `maxPerTool` citation candidates from one tool result, numbering
+ * them from `startN`. Returns [] for errors, empty results, or non-record rows.
+ */
+export function extractCitationsFromToolResult(
+  toolName: string,
+  payload: unknown,
+  startN: number,
+  maxPerTool = 5,
+): MeriCitation[] {
+  if (!payload || typeof payload !== 'object') return [];
+  const rec = payload as Record<string, unknown>;
+  if (typeof rec.error === 'string') return [];
+  const rows = citationRowsOf(rec);
+  if (!rows || rows.length === 0) return [];
+
+  const type = TOOL_CITATION_TYPE[toolName] ?? 'source';
+  const out: MeriCitation[] = [];
+  let n = startN;
+  for (const row of rows) {
+    if (out.length >= maxPerTool) break;
+    if (!row || typeof row !== 'object') continue;
+    const r = row as Record<string, unknown>;
+    const title = firstCitationString(r, CITATION_TITLE_FIELDS);
+    if (!title) continue;
+    const url = firstCitationString(r, CITATION_URL_FIELDS);
+    const id = firstCitationString(r, CITATION_ID_FIELDS) ?? '';
+    const snippetRaw = firstCitationString(r, CITATION_SNIPPET_FIELDS);
+    out.push({
+      n,
+      type,
+      id,
+      title: truncateCitation(title, 200),
+      url: url && /^https?:\/\//i.test(url) ? url : null,
+      snippet: snippetRaw ? truncateCitation(snippetRaw, 240) : null,
+      tool: toolName,
+    });
+    n += 1;
+  }
+  return out;
+}
+
+/**
+ * Render a compact, model-facing list of citable sources to prepend to a
+ * tool_result so the model cites them with the exact `[N]` we assigned.
+ */
+export function formatCitationsForPrompt(citations: MeriCitation[]): string {
+  if (citations.length === 0) return '';
+  const lines = citations.map((c) => {
+    const bits = [c.title];
+    if (c.snippet) bits.push(c.snippet);
+    if (c.url) bits.push(c.url);
+    return `[${c.n}] ${bits.join(' — ')}`;
+  });
+  return `Citable sources (cite these in prose as [N] when you use them):\n${lines.join('\n')}`;
+}
+
+const CITATION_MARKER_RE = /\[(\d{1,3})\]/g;
+
+/**
+ * Partition `[N]` markers in `text` into those that map to a real citation and
+ * those that do not. Strips unmatched markers from the prose and returns the
+ * cleaned text plus the citations actually used, in first-appearance order.
+ */
+export function validateCitationMarkers(
+  text: string,
+  citations: MeriCitation[],
+): { used: MeriCitation[]; dropped: number[]; cleanedText: string } {
+  const byN = new Map<number, MeriCitation>();
+  for (const c of citations) byN.set(c.n, c);
+
+  const usedNs: number[] = [];
+  const dropped: number[] = [];
+  const cleanedText = text.replace(CITATION_MARKER_RE, (whole, digits: string) => {
+    const num = Number(digits);
+    if (byN.has(num)) {
+      if (!usedNs.includes(num)) usedNs.push(num);
+      return whole;
+    }
+    dropped.push(num);
+    return '';
+  });
+
+  const used = usedNs.map((num) => byN.get(num)!);
+  return { used, dropped, cleanedText };
+}
+
 /** Per-surface grounding blocks (v3 plan §2.2). Append exactly one to the base. */
 const MERI_GROUNDING_SURFACE_BLOCKS: Record<MeriGroundingSurface, string> = {
   chat: `<surface_chat scope="surface:chat">

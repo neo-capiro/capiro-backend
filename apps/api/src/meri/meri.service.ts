@@ -1694,6 +1694,9 @@ export class MeriService {
     // the orchestrator done frame, instead of the hardcoded 'general' / {}.
     const resolvedIntent = frame?.intent ?? 'general';
     const resolvedUsage = frame?.usage ?? {};
+    // 1B.5: real inline citations from the orchestrator (numbered, validated
+    // against the reply) — the path persisted [] and emitted no citations frame.
+    const resolvedCitations = frame?.citations ?? [];
 
     // Some loop outcomes return a reply WITHOUT emitting any text event (the
     // empty-history short-circuit, the "Done." fallback, the model-error
@@ -1708,6 +1711,11 @@ export class MeriService {
     // never emitted one; the drawer's usage readout stayed blank).
     if (frame?.usage && !aborted) {
       emit({ type: 'usage', usage: frame.usage });
+    }
+
+    // 1B.5: citations frame (the drawer renders source cards). Legacy shape.
+    if (resolvedCitations.length && !aborted) {
+      emit({ type: 'citations', citations: resolvedCitations });
     }
 
     // 1A: exec trace from the collected tool steps — restores a real
@@ -1771,7 +1779,7 @@ export class MeriService {
               preWarmSources,
               toolsUsed: steps.map((s) => s.tool),
               usage: resolvedUsage,
-              citations: [] as unknown as Prisma.InputJsonValue,
+              citations: resolvedCitations as unknown as Prisma.InputJsonValue,
               finishReason: aborted ? 'aborted' : errorMessage ? 'error' : 'stop',
               trace: turnTrace as unknown as Prisma.InputJsonValue,
               suggestions,

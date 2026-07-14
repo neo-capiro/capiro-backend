@@ -7,6 +7,7 @@ import {
   type IntentClassification,
   type MeriContext,
 } from '@capiro/meriv2-core';
+import type { MeriCitation } from '@capiro/shared';
 
 /**
  * Full Meri chat (Workstream C4) — pure prompt/label logic, kept dependency-light
@@ -84,6 +85,9 @@ export interface ChatResult {
     cacheReadTokens?: number;
     cacheCreationTokens?: number;
   };
+  /** Inline citations the reply actually referenced (1B.5) — numbered sources
+   *  the proxy emits as a `citations` frame + persists. */
+  citations?: MeriCitation[];
   steps?: ChatStep[];
   /**
    * Write actions the model attempted that the compliance gate held for human

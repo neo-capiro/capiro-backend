@@ -49,6 +49,15 @@ export type MeriV2ChatStreamEvent =
         cacheReadTokens?: number;
         cacheCreationTokens?: number;
       };
+      citations?: Array<{
+        n: number;
+        type: string;
+        id: string;
+        title: string;
+        url: string | null;
+        snippet: string | null;
+        tool: string;
+      }>;
       steps: Array<{
         tool: string;
         label: string;

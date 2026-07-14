@@ -11,7 +11,13 @@ import {
   type MeriContext,
   type ToolRegistry,
 } from '@capiro/meriv2-core';
-import { recordAiUsageEvent } from '@capiro/shared';
+import {
+  recordAiUsageEvent,
+  extractCitationsFromToolResult,
+  formatCitationsForPrompt,
+  validateCitationMarkers,
+  type MeriCitation,
+} from '@capiro/shared';
 import { MeriRegistryService } from '../meri-registry.service.js';
 import {
   RequestScopedLlmClient,
@@ -120,6 +126,10 @@ export class ChatAssistantService {
     // Wave-2 post-hoc auditor ledger for the GA chat surface (the DEFAULT chat
     // path — most traffic). Accumulated across tool rounds; audited at finalize.
     const ledgerEntries: LedgerEntry[] = [];
+    // Inline citations (1B.5): numbered sources accumulated across tool rounds;
+    // injected into each tool_result the model reads, then validated against the
+    // final reply so only real [N] markers survive.
+    const citations: MeriCitation[] = [];
     // Every exit shares the same aggregates (steps + gate-held writes + produced
     // deliverables), so build the result in one place. finalize also fires the
     // shadow auditor (fire-and-forget, like meterRound) so every exit is covered.
@@ -133,12 +143,17 @@ export class ChatAssistantService {
       cacheCreationTokens: 0,
     };
     const finalize = (reply: string): ChatResult => {
-      void this.auditReplyShadow(ctx.tenantId, reply, ledgerEntries);
+      // Validate [N] markers against the sources we injected: keep only real
+      // ones, strip hallucinated ones from the prose, and report the citations
+      // actually used (1B.5). Audit the CLEANED reply.
+      const { used, cleanedText } = validateCitationMarkers(reply, citations);
+      void this.auditReplyShadow(ctx.tenantId, cleanedText, ledgerEntries);
       return {
-        reply,
+        reply: cleanedText,
         intent: intent.mode,
         usage: { ...usageAcc },
         steps,
+        ...(used.length ? { citations: used } : {}),
         ...(pendingApprovals.length ? { pendingApprovals } : {}),
         ...(artifacts.length ? { artifacts } : {}),
       };
@@ -204,9 +219,15 @@ export class ChatAssistantService {
       if (textOut) emit({ type: 'text', text: `${textOut}\n\n` });
 
       messages.push({ role: 'assistant', content });
-      const results = await Promise.all(
-        toolUses.map(async (tu) => {
-          const result = await this.invokeTool(
+      // Invoke tools in PARALLEL, then number/serialize SEQUENTIALLY — citation
+      // marker numbers must be deterministic (a shared counter inside the
+      // parallel map would race). Citations extracted per tool result get a
+      // stable 1-based [N]; the numbered sources are injected into the
+      // tool_result the model reads so it cites the exact [N] we assigned (1B.5).
+      const invoked = await Promise.all(
+        toolUses.map(async (tu) => ({
+          tu,
+          result: await this.invokeTool(
             ctx,
             tu.name,
             this.augmentToolInput(dto, tu.input ?? {}),
@@ -214,16 +235,17 @@ export class ChatAssistantService {
             pendingApprovals,
             artifacts,
             emit,
-          );
-          const serialized = wrapToolResultForPrompt(tu.name, result, TOOL_RESULT_CHARS);
-          ledgerEntries.push({ tool: tu.name, serialized, result });
-          return {
-            type: 'tool_result' as const,
-            tool_use_id: tu.id,
-            content: serialized,
-          };
-        }),
+          ),
+        })),
       );
+      const results = invoked.map(({ tu, result }) => {
+        const cites = extractCitationsFromToolResult(tu.name, result, citations.length + 1);
+        citations.push(...cites);
+        const body = wrapToolResultForPrompt(tu.name, result, TOOL_RESULT_CHARS);
+        const serialized = cites.length ? `${formatCitationsForPrompt(cites)}\n\n${body}` : body;
+        ledgerEntries.push({ tool: tu.name, serialized, result });
+        return { type: 'tool_result' as const, tool_use_id: tu.id, content: serialized };
+      });
       messages.push({ role: 'user', content: results });
     }
 
