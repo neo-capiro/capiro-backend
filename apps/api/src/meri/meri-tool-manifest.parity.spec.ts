@@ -20,8 +20,8 @@ describe('TOOL_DEFINITIONS ↔ MERI_TOOL_MANIFEST parity (W4.6 / D-13)', () => {
     expect(actual).toEqual({ ...MERI_TOOL_MANIFEST });
   });
 
-  it('the tool count is stable at 67 (manifest and TOOL_DEFINITIONS agree)', () => {
-    expect(Object.keys(actual)).toHaveLength(67);
-    expect(Object.keys(MERI_TOOL_MANIFEST)).toHaveLength(67);
+  it('the tool count is stable at 68 (manifest and TOOL_DEFINITIONS agree)', () => {
+    expect(Object.keys(actual)).toHaveLength(68);
+    expect(Object.keys(MERI_TOOL_MANIFEST)).toHaveLength(68);
   });
 });

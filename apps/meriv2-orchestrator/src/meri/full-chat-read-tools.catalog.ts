@@ -17,7 +17,7 @@ import type { DelegatedToolSpec } from '@capiro/meriv2-core';
  * get_representation, get_state_rule_status) — all thin reads over
  * already-existing tables/resolvers, no new write surface.
  *
- * All 24 are absent from apps/api's SIDE_EFFECTING_TOOLS set, so all are
+ * All 25 are absent from apps/api's SIDE_EFFECTING_TOOLS set, so all are
  * readOnly:true here too (the C-workstream rule: this classification MUST
  * match apps/api's, since a delegated write registered readOnly would bypass
  * the B1 gate).
@@ -75,6 +75,12 @@ export const FULL_CHAT_READ_TOOLS: readonly DelegatedToolSpec[] = [
     name: 'get_representation',
     description:
       "Who represents a client's facility footprint — the federal House member + both senators and the state upper/lower legislators for each of the client's geocoded facilities (optionally filtered to one state). Deterministic join over the geocoded district (District Impact Engine) — never a language-model guess at which district contains an address. Explicitly reports an ungeocoded facility rather than guessing its representative.",
+    readOnly: true,
+  },
+  {
+    name: 'list_members',
+    description:
+      'List CURRENT members of Congress by state and/or chamber — the direct roster lookup for questions like "who are the senators from Virginia?" or "which representatives are from Florida?". `state` accepts a full name ("Virginia") or 2-letter code ("VA"); `chamber` is "house" or "senate"; at least one of the two is required. Returns each member: name, party, state, district (House only), and chamber. This is the authoritative federal member roster — use it instead of resolve_entity (a name resolver) for by-state or by-chamber listings. Explicitly reports when NO members match; never fabricate a member.',
     readOnly: true,
   },
   {

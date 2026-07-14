@@ -231,6 +231,11 @@ export const TOOL_DEFINITIONS = [
       "Who represents a client's facility footprint — the federal House member + both senators and the state upper/lower legislators for each of the client's geocoded facilities (optionally filtered to one state). Deterministic join over the geocoded district (District Impact Engine) — never a language-model guess at which district contains an address. Explicitly reports an ungeocoded facility rather than guessing its representative.",
   },
   {
+    name: 'list_members',
+    description:
+      'List CURRENT members of Congress by state and/or chamber — the direct roster lookup for questions like "who are the senators from Virginia?" or "which representatives are from Florida?". `state` accepts a full name ("Virginia") or 2-letter code ("VA"); `chamber` is "house" or "senate"; at least one of the two is required. Returns each member: name, party, state, district (House only), and chamber. This is the authoritative federal member roster — use it instead of resolve_entity (a name resolver) for by-state or by-chamber listings. Explicitly reports when NO members match; never fabricate a member.',
+  },
+  {
     name: 'get_state_rule_status',
     description:
       'Look up ONE rule/notice\'s status and lifecycle stage — state agency register or Federal Register, whichever matches. Accepts an exact id ("FL-31100933", or a Federal Register document number like "2026-01234") or a title keyword; `state` scopes a keyword search to that state\'s register (omit to also search federal + other states). Stage (notice/nprm/comment_closed/final/effective) is derived deterministically from the rule\'s type and comment/effective dates — never guessed. Explicitly reports ambiguous keyword matches (asks which one) and NO-match cases — never fabricates a rule\'s status.',
@@ -764,6 +769,11 @@ export class MeriToolsService {
         },
         ['clientId'],
       ),
+      list_members: obj({
+        state: str('State full name ("Virginia") or 2-letter code ("VA")'),
+        chamber: str('"house" or "senate"'),
+        limit: int('Max members to return (1-100, default 100)'),
+      }),
       get_state_rule_status: obj(
         {
           query: str(
@@ -1439,6 +1449,8 @@ export class MeriToolsService {
         return this.getCommitteeRoster(input);
       case 'get_representation':
         return this.getRepresentation(ctx, input);
+      case 'list_members':
+        return this.listMembers(input);
       case 'get_state_rule_status':
         return this.getStateRuleStatus(input);
       case 'search_intel_articles':
@@ -3529,6 +3541,80 @@ export class MeriToolsService {
             note: 'No state roll-call vote on record matches that. Say so explicitly — do not infer a vote outcome or tally. Member-level filtering is not available for state votes yet.',
           }
         : {}),
+    };
+  }
+
+  /**
+   * List CURRENT federal members of Congress by state and/or chamber. The direct
+   * roster lookup resolve_entity (a name matcher) could not express — reads
+   * CongressMember {isCurrent, chamber, state}. The `state` column stores the
+   * FULL state name ("Virginia"), so a 2-letter code is translated first. At
+   * least one filter is required so we never dump the whole 535-member roster.
+   */
+  private async listMembers(input: Record<string, unknown>) {
+    const rawState = optionalString(input, 'state', 40);
+    const chamberRaw = optionalString(input, 'chamber', 10)?.toLowerCase();
+    const chamber = chamberRaw === 'house' || chamberRaw === 'senate' ? chamberRaw : undefined;
+    const limit = clampInt(input.limit, 1, 100, 100);
+    const stateName = rawState ? resolveStateName(rawState) : undefined;
+
+    // Check a supplied-but-unrecognized state BEFORE the no-filter case so a
+    // typo'd state (with or without a chamber) gets the specific message rather
+    // than the generic "provide a filter" one.
+    if (rawState && !stateName) {
+      return {
+        tool: 'list_members',
+        generatedAt: new Date().toISOString(),
+        matchesFound: 0,
+        members: [],
+        note: `"${rawState}" is not a recognized US state or territory — say so explicitly, do not guess a roster.`,
+      };
+    }
+    if (!stateName && !chamber) {
+      return {
+        tool: 'list_members',
+        generatedAt: new Date().toISOString(),
+        matchesFound: 0,
+        members: [],
+        note: 'Provide a state (full name or 2-letter code) and/or a chamber ("house"|"senate") — at least one filter is required.',
+      };
+    }
+
+    const rows = await this.prisma.congressMember.findMany({
+      where: {
+        isCurrent: true,
+        ...(chamber ? { chamber } : {}),
+        ...(stateName ? { state: { equals: stateName, mode: 'insensitive' } } : {}),
+      },
+      select: {
+        bioguideId: true,
+        fullName: true,
+        party: true,
+        state: true,
+        district: true,
+        chamber: true,
+      },
+      orderBy: [{ state: 'asc' }, { chamber: 'asc' }, { lastName: 'asc' }],
+      take: limit,
+    });
+
+    const label = stateName ? (chamber ? `${stateName}-${chamber}` : stateName) : (chamber ?? '');
+    return {
+      tool: 'list_members',
+      generatedAt: new Date().toISOString(),
+      filter: { state: stateName ?? null, chamber: chamber ?? null },
+      matchesFound: rows.length,
+      members: rows.map((m) => ({
+        id: m.bioguideId,
+        name: m.fullName,
+        party: m.party,
+        state: m.state,
+        district: m.chamber === 'house' ? m.district : null,
+        chamber: m.chamber,
+      })),
+      note: rows.length
+        ? `Current members from the Capiro congressional roster (congress_member, is_current). Cite as [S:list_members:${label}]. Note every state has exactly 2 senators; if a senate query returns fewer than 2, the roster is incomplete for that state — say so rather than inventing a name.`
+        : `No current members found for "${label}" in the Capiro roster — say so explicitly; do not guess names.`,
     };
   }
 
@@ -5897,6 +5983,37 @@ function objectInput(value: unknown): Record<string, unknown> {
   if (value && typeof value === 'object' && !Array.isArray(value))
     return value as Record<string, unknown>;
   return {};
+}
+
+// CongressMember.state stores the FULL state name (e.g. "Virginia"), so a caller
+// who passes a 2-letter code must be translated before querying. Covers the 50
+// states, DC, and the five territories that seat a (non-voting) member.
+const US_STATE_BY_ABBR: Readonly<Record<string, string>> = {
+  AL: 'Alabama', AK: 'Alaska', AZ: 'Arizona', AR: 'Arkansas', CA: 'California',
+  CO: 'Colorado', CT: 'Connecticut', DE: 'Delaware', FL: 'Florida', GA: 'Georgia',
+  HI: 'Hawaii', ID: 'Idaho', IL: 'Illinois', IN: 'Indiana', IA: 'Iowa',
+  KS: 'Kansas', KY: 'Kentucky', LA: 'Louisiana', ME: 'Maine', MD: 'Maryland',
+  MA: 'Massachusetts', MI: 'Michigan', MN: 'Minnesota', MS: 'Mississippi', MO: 'Missouri',
+  MT: 'Montana', NE: 'Nebraska', NV: 'Nevada', NH: 'New Hampshire', NJ: 'New Jersey',
+  NM: 'New Mexico', NY: 'New York', NC: 'North Carolina', ND: 'North Dakota', OH: 'Ohio',
+  OK: 'Oklahoma', OR: 'Oregon', PA: 'Pennsylvania', RI: 'Rhode Island', SC: 'South Carolina',
+  SD: 'South Dakota', TN: 'Tennessee', TX: 'Texas', UT: 'Utah', VT: 'Vermont',
+  VA: 'Virginia', WA: 'Washington', WV: 'West Virginia', WI: 'Wisconsin', WY: 'Wyoming',
+  DC: 'District of Columbia', PR: 'Puerto Rico', GU: 'Guam', VI: 'Virgin Islands',
+  AS: 'American Samoa', MP: 'Northern Mariana Islands',
+};
+
+/**
+ * Normalize a caller-supplied state (a 2-letter code OR a full name, any case)
+ * to the canonical full-name casing stored on CongressMember.state. Returns
+ * undefined for an unrecognized value so the tool can fail closed rather than
+ * run an unfiltered roster query.
+ */
+function resolveStateName(input: string): string | undefined {
+  const trimmed = input.trim();
+  if (trimmed.length === 2) return US_STATE_BY_ABBR[trimmed.toUpperCase()];
+  const lower = trimmed.toLowerCase();
+  return Object.values(US_STATE_BY_ABBR).find((name) => name.toLowerCase() === lower);
 }
 
 function requiredString(input: Record<string, unknown>, key: string, max: number): string {

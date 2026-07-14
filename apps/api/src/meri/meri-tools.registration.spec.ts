@@ -43,6 +43,7 @@ const EXPECTED_TOOLS = [
   // 50-state analyst (Phase 1 M4.1/M4.2) — committee rosters + representation
   'get_committee_roster',
   'get_representation',
+  'list_members',
   'get_state_rule_status',
   'search_intel_articles',
   'search_committee_hearings',
