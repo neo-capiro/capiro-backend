@@ -38,4 +38,18 @@ describe('entitlements (Phase 5 §5.1 — no-op tier architecture)', () => {
     expect(out.memoryGovernance).toBe(true);
     expect(out.defenseBudgetIntel).toBe(true);
   });
+
+  it('5.1.4: a per-tenant override CANNOT revoke an ALWAYS_ENTITLED feature', () => {
+    // Even an explicit false override must not gate core memory governance.
+    const out = entitlementsForTenant(
+      { clioFeatureFlags: { 'entitlement.memoryGovernance': false } },
+      'FOUNDATION',
+    );
+    expect(out.memoryGovernance).toBe(true);
+    // ...and the floor holds regardless of tier (including unknown/null).
+    expect(
+      entitlementsForTenant({ clioFeatureFlags: { 'entitlement.memoryGovernance': false } }, null)
+        .memoryGovernance,
+    ).toBe(true);
+  });
 });

@@ -89,3 +89,57 @@ describe('splitClustersByTenant — TENANT ISOLATION GUARD', () => {
     expect(per[0]!.clientIds.sort()).toEqual(['t1a', 't1b']);
   });
 });
+
+describe('asSeverity vocab normalization (§5.3 — state + federal writers)', () => {
+  it('state high => critical (material); a single medium => notable (not); two medium => material', () => {
+    const high = buildCampaignClusters([
+      row({ billId: 'b', severity: 'high', relatedClientIds: ['x'] }),
+    ])[0]!;
+    expect(isClusterMaterial(high)).toBe(true);
+    const oneMed = buildCampaignClusters([row({ id: 'a', billId: 'b', severity: 'medium' })])[0]!;
+    expect(isClusterMaterial(oneMed)).toBe(false);
+    const twoMed = buildCampaignClusters([
+      row({ id: 'a', billId: 'b', severity: 'medium' }),
+      row({ id: 'c', billId: 'b', severity: 'medium' }),
+    ])[0]!;
+    expect(isClusterMaterial(twoMed)).toBe(true);
+  });
+});
+
+describe('splitClustersByTenant — evidence/changeIds are TENANT-SCOPED', () => {
+  const clusters = buildCampaignClusters([
+    row({
+      id: 'ca',
+      billId: 'hr-1',
+      severity: 'critical',
+      title: 'T1BILL',
+      relatedClientIds: ['t1a', 't1b'],
+    }),
+    row({
+      id: 'cb',
+      billId: 'hr-1',
+      severity: 'critical',
+      title: 'T2BILL',
+      relatedClientIds: ['t2a', 't2b'],
+    }),
+  ]);
+  const clientTenant = new Map([
+    ['t1a', { tenantId: 'T1', name: 'Alpha', active: true }],
+    ['t1b', { tenantId: 'T1', name: 'Beta', active: true }],
+    ['t2a', { tenantId: 'T2', name: 'Gamma', active: true }],
+    ['t2b', { tenantId: 'T2', name: 'Delta', active: true }],
+  ]);
+
+  it("a tenant entry never carries another tenant's changeIds or evidence", () => {
+    const per = splitClustersByTenant(clusters, clientTenant, 2);
+    const t1 = per.find((e) => e.tenantId === 'T1')!;
+    const t2 = per.find((e) => e.tenantId === 'T2')!;
+    // Global cluster.changeIds is the cross-tenant union [ca, cb]...
+    expect(t1.cluster.changeIds.sort()).toEqual(['ca', 'cb']);
+    // ...but each tenant's SCOPED changeIds/evidence carry only its own change.
+    expect(t1.changeIds).toEqual(['ca']);
+    expect(t1.evidence.map((e) => e.title)).toEqual(['T1BILL']);
+    expect(t2.changeIds).toEqual(['cb']);
+    expect(t2.evidence.map((e) => e.title)).toEqual(['T2BILL']);
+  });
+});

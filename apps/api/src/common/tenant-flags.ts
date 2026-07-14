@@ -9,7 +9,12 @@
  * Pure so it unit-tests under `src/**.spec.ts`.
  */
 
-import { resolveEntitlements, ENTITLEMENT_FEATURES, type EntitlementFeature } from '@capiro/shared';
+import {
+  resolveEntitlements,
+  ENTITLEMENT_FEATURES,
+  ALWAYS_ENTITLED,
+  type EntitlementFeature,
+} from '@capiro/shared';
 
 export function tenantFeatureEnabled(
   settings: unknown,
@@ -216,7 +221,12 @@ export function entitlementsForTenant(
   const base = resolveEntitlements(planTier);
   const out = {} as Record<EntitlementFeature, boolean>;
   for (const f of ENTITLEMENT_FEATURES) {
-    out[f] = tenantFeatureEnabled(settings, `entitlement.${f}`, base.has(f));
+    // ALWAYS_ENTITLED features (core memory governance, SC 5.1.4) are never
+    // gated — a per-tenant override cannot revoke them, mirroring how
+    // resolveEntitlements re-unions them after the tier lookup.
+    out[f] = ALWAYS_ENTITLED.includes(f)
+      ? true
+      : tenantFeatureEnabled(settings, `entitlement.${f}`, base.has(f));
   }
   return out;
 }

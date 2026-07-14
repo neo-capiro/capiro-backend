@@ -161,19 +161,32 @@ async function generateForTenant(tenantId: string): Promise<number> {
         reviewCadenceDays: true,
         contradictsId: true,
       },
-      take: PER_TENANT_TAKE * 4, // over-fetch; we filter to flagged, then cap
+      orderBy: { createdAt: 'asc' },
+      // Safety bound far above any firm's position count. review-due is computed
+      // in-memory (per-row cadence math), so we must consider ALL active
+      // positions — an arbitrary window would permanently starve flagged ones
+      // in the tail.
+      take: 1000,
     });
+    // Flag in-memory, then surface the most urgent first: contradictions before
+    // mere review-due, so a small per-tenant cap never buries a real conflict.
+    const flagged = positions
+      .filter((p) => p.clientId != null)
+      .map((p) => ({
+        p,
+        contradicted: p.contradictsId != null,
+        reviewDue: isReviewDue({
+          reviewCadenceDays: p.reviewCadenceDays,
+          lastConfirmedAt: p.lastConfirmedAt,
+          createdAt: p.createdAt,
+        }),
+      }))
+      .filter((f) => f.contradicted || f.reviewDue)
+      .sort((a, b) => Number(b.contradicted) - Number(a.contradicted));
     let positionAlerts = 0;
-    for (const p of positions) {
+    for (const { p, contradicted } of flagged) {
       if (positionAlerts >= PER_TENANT_TAKE) break;
-      const contradicted = p.contradictsId != null;
-      const reviewDue = isReviewDue({
-        reviewCadenceDays: p.reviewCadenceDays,
-        lastConfirmedAt: p.lastConfirmedAt,
-        createdAt: p.createdAt,
-      });
-      if (!contradicted && !reviewDue) continue;
-      if (!p.clientId) continue;
+      const clientId = p.clientId!;
       const exists = await prisma.clioProactiveAlert.findFirst({
         where: {
           tenantId,
@@ -184,14 +197,14 @@ async function generateForTenant(tenantId: string): Promise<number> {
         select: { id: true },
       });
       if (exists) continue;
-      const name = clientName.get(p.clientId) ?? 'this client';
+      const name = clientName.get(clientId) ?? 'this client';
       const reason = contradicted
         ? `A saved position for ${name} ("${p.title}") is flagged as contradicting another memory.`
         : `A saved position for ${name} ("${p.title}") is past its review cadence and hasn't been reconfirmed.`;
       await prisma.clioProactiveAlert.create({
         data: {
           tenantId,
-          clientId: p.clientId,
+          clientId,
           alertType: 'stale_position',
           title: `Review client position: ${name}`,
           body: `${reason} Ask Meri to confirm, correct, or forget it before your next draft relies on it.`,
@@ -243,7 +256,14 @@ async function generateCampaignRecommendations(): Promise<number> {
 
   const rows: IntelChangeRow[] = changes.map((c) => {
     const data = (c.data ?? {}) as Record<string, unknown>;
-    const billId = typeof data.bill_id === 'string' ? data.bill_id : null;
+    // Federal writers store data.bill_id (snake); the state writer stores
+    // data.billId (camel) — accept both so state bills cluster too.
+    const billId =
+      typeof data.bill_id === 'string'
+        ? data.bill_id
+        : typeof data.billId === 'string'
+          ? data.billId
+          : null;
     return {
       id: c.id,
       source: c.source,
@@ -288,7 +308,8 @@ async function generateCampaignRecommendations(): Promise<number> {
     });
     if (exists) continue;
     const names = entry.clientNames.join(', ');
-    const ev = entry.cluster.evidence[0]?.title ?? entry.cluster.label;
+    // Quote evidence scoped to THIS tenant's own changes (never another firm's).
+    const ev = entry.evidence[0]?.title ?? entry.cluster.label;
     await prisma.clioProactiveAlert.create({
       data: {
         tenantId: entry.tenantId,
@@ -303,7 +324,7 @@ async function generateCampaignRecommendations(): Promise<number> {
           clusterKey: entry.cluster.key,
           kind: entry.cluster.kind,
           clientIds: entry.clientIds,
-          changeIds: entry.cluster.changeIds,
+          changeIds: entry.changeIds, // tenant-scoped, not the global union
           maxSeverity: entry.cluster.maxSeverity,
         },
       },
