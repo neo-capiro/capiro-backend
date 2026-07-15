@@ -87,6 +87,8 @@ export function MeriLegacyDrawer({
     researchAwaitingAnswers,
     researchQuestions,
     researchReports,
+    researchOffers,
+    handleRunResearchOffer,
     lastUserMessageId,
     editingMessageId,
     setEditingMessageId,
@@ -559,6 +561,18 @@ export function MeriLegacyDrawer({
                       onClick={() => void fetchResearchExport(researchReports[msg.id]!, 'word')}
                     >
                       Download Word
+                    </button>
+                  </div>
+                )}
+                {researchOffers[msg.id] && (
+                  <div className="chat-research-actions">
+                    <button
+                      type="button"
+                      className="chat-research-action chat-research-action--primary"
+                      disabled={isStreaming}
+                      onClick={() => handleRunResearchOffer(msg.id, researchOffers[msg.id]!.topic)}
+                    >
+                      Run as Deep Research
                     </button>
                   </div>
                 )}

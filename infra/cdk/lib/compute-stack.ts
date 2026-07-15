@@ -449,6 +449,21 @@ export class ComputeStack extends cdk.Stack {
       APP_SIGN_IN_URL: `https://${cfg.appHost}/sign-in`,
       MICROSOFT_REDIRECT_URI: `https://${cfg.appHost}/api/engagement/integrations/microsoft/callback`,
       MICROSOFT_GRAPH_NOTIFICATION_URL: `https://${cfg.appHost}/api/engagement/integrations/microsoft/notifications`,
+      // MeriV2 grounding subsystem — codified to match the LIVE prod task def
+      // (these three are currently applied OUT-OF-BAND, so a cdk deploy would
+      // silently DROP them and regress prod: MeriV2 would turn OFF and the Deep
+      // Research auditor would fall back to its code-default 'off', un-enforcing
+      // deliverable grounding). Code defaults: MERIV2_ENABLED off, MERI_AUDITOR_MODE
+      // 'off'. Chat stays observe-only even under enforce (ADR-2); enforce only
+      // gates the deliverable surfaces (research/outreach/alert-memo).
+      // NOTE: the api task def carries OTHER out-of-band env too (billing/Stripe,
+      // CLIO_SANDBOX_URL, outreach, notetaker, MCP OAuth redirect) that is NOT yet
+      // codified here — see infra/cdk/DRIFT-FINDINGS.md. The Compute stack is in
+      // UPDATE_ROLLBACK_FAILED and `cdk deploy` is frozen, so this block is
+      // defensive for the eventual maintenance window, not a live-effective change.
+      MERIV2_ENABLED: 'true',
+      MERIV2_ORCHESTRATOR_URL: `https://${cfg.appHost}`,
+      MERI_AUDITOR_MODE: 'enforce',
     };
 
     // Identity-policy-only grant on the API task role for the assets bucket.
