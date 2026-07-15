@@ -73,6 +73,36 @@ built-in "Payments are not configured" note and disable submit (public-config
 returns `stripePublishableKey: null`). No error, no data loss — just those two
 tender types wait on this value.
 
+### IT-admin Google option (ships dark — two activation inputs)
+
+The IT-admin page (`/it/:token`) offers **Connect with Google** next to Microsoft.
+Google has no Entra-style tenant-wide admin-consent URL, so the flow is:
+the Workspace admin marks the Capiro OAuth client **Trusted** in the Google Admin
+console (Security → API controls → App access control — this also exempts the app
+from Google's unverified-app block for that domain), then proves it worked with a
+**test-connect**: an OAuth sign-in requesting the same scopes team members will
+request. On success onboard-api records the grant (+ `hd` Workspace domain) and
+flips `it_email` — the exchanged tokens are read for scopes/identity and discarded
+(never persisted, never revoked: revoking would kill the admin's user↔client grant
+including any real mailbox connection).
+
+Fail-closed dark until BOTH are done:
+1. **Env on the onboard-api serve taskdef** (out-of-band, same as apps/api rev 43):
+   `GOOGLE_CLIENT_ID` + `GOOGLE_CLIENT_SECRET` (Secrets Manager
+   `capiro/dev/GOOGLE_CLIENT_ID` / `capiro/dev/GOOGLE_CLIENT_SECRET`). Until set,
+   the button renders disabled "Coming soon" and the consent-url route 400s.
+2. **Redirect URI on the Google OAuth client** (GCP console, project
+   `capiro-gmail-integration`): add
+   `https://app.capiro.ai/onboard-api/it/google/callback`
+   alongside the engagement callbacks — without it Google errors
+   `redirect_uri_mismatch` at sign-in.
+
+While the OAuth app is in **Testing** publishing status, only `neo@capiro.ai` +
+manually-added test users can complete the test-connect — real customers need
+Phase 0b verification (see docs/runbooks/gmail-phase-0-google-verification.md)
+**or** their admin trusting the app in their own Workspace, which lifts Google's
+unverified-app block for that domain.
+
 ## Scheduled tasks (EventBridge → RunTask on the onboard-api image)
 
 | Rule | Command | Cadence |

@@ -10,7 +10,8 @@ import { useQuery } from '@tanstack/react-query';
 // ── Contract types ──────────────────────────────────────────────────────────
 
 export type SetupTaskKey = 'it_email' | 'import' | 'firm_ai' | 'invites';
-export type SetupTaskStatus = 'none' | 'waiting' | 'verifying' | 'done';
+/** 'skipped' is it_email-only: the invited Google admin deferred verification. */
+export type SetupTaskStatus = 'none' | 'waiting' | 'verifying' | 'done' | 'skipped';
 
 export interface SetupItInvite {
   id: string;
@@ -41,6 +42,10 @@ export interface ItInviteView {
   email: string;
   status: string;
   provider: string | null;
+  /** Fail-closed availability: unconfigured providers render disabled. */
+  providers: { microsoft: boolean; google: boolean };
+  /** Public OAuth client id for the Workspace trusted-app instructions. */
+  googleClientId: string | null;
 }
 
 // ── Fetch wrapper ───────────────────────────────────────────────────────────
@@ -155,7 +160,7 @@ export async function fetchItInvite(token: string): Promise<ItInviteView> {
 
 export async function fetchItConsentUrl(
   token: string,
-  provider: 'microsoft',
+  provider: 'microsoft' | 'google',
 ): Promise<{ url: string }> {
   const res = await fetch(`/onboard-api/it/invite/${encodeURIComponent(token)}/consent-url`, {
     method: 'POST',
@@ -164,4 +169,14 @@ export async function fetchItConsentUrl(
   });
   if (!res.ok) throw await toApiError(res);
   return (await res.json()) as { url: string };
+}
+
+/** Defer Google verification — the invite stays live so the same link can
+ *  resume the normal flow later. Google-only (no Microsoft equivalent). */
+export async function skipItGoogleVerification(token: string): Promise<{ ok: true }> {
+  const res = await fetch(`/onboard-api/it/invite/${encodeURIComponent(token)}/skip-google`, {
+    method: 'POST',
+  });
+  if (!res.ok) throw await toApiError(res);
+  return (await res.json()) as { ok: true };
 }

@@ -1,4 +1,5 @@
 import { describe, expect, it } from '@jest/globals';
+import { GOOGLE_WORKSPACE_SCOPES } from '@capiro/shared';
 import { parseAddressList, parseCalendarDateTime } from './google-sync.service.js';
 import { GOOGLE_SCOPES } from './google-oauth.service.js';
 
@@ -70,5 +71,14 @@ describe('GOOGLE_SCOPES', () => {
   it('requests identity scopes for account resolution', () => {
     expect(GOOGLE_SCOPES).toContain('openid');
     expect(GOOGLE_SCOPES).toContain('email');
+  });
+
+  it('exactly matches the shared source of truth (onboarding IT-admin verify requests the same set)', () => {
+    // The onboarding test-connect (apps/onboard-api it-admin.service) verifies a
+    // customer Workspace by requesting GOOGLE_WORKSPACE_SCOPES. If this
+    // engagement list ever diverges from that shared constant, the verification
+    // would pass while real mailbox connects request a different set and fail —
+    // so pin them equal here (onboard-api imports the shared constant directly).
+    expect(GOOGLE_SCOPES).toEqual([...GOOGLE_WORKSPACE_SCOPES]);
   });
 });

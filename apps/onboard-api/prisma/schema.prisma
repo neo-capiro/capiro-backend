@@ -83,6 +83,10 @@ enum OnboardTaskStatus {
   waiting
   verifying
   done
+  /// it_email only: the invited admin deferred Google Workspace verification
+  /// (Google Testing-mode can't yet serve every customer — see decision log).
+  /// Counts as resolved for the completeSetup gate, same as done.
+  skipped
 
   @@map("onboard_task_status")
 }
@@ -93,6 +97,9 @@ enum OnboardItInviteStatus {
   verified
   failed
   revoked
+  /// Google only: the admin chose "connect later" instead of completing the
+  /// test-connect. The token stays live — reopening the same link resumes.
+  skipped
 
   @@map("onboard_it_invite_status")
 }
@@ -231,12 +238,14 @@ model OnboardItInvite {
   tenantId      String                @map("tenant_id") @db.Uuid
   email         String
   tokenHash     String                @unique @map("token_hash")
-  /// 'microsoft' — set when the grant lands. (Google deferred: buttons render
-  /// disabled "Coming soon"; no google grant path in v1.)
+  /// 'microsoft' | 'google' — set when the grant lands.
   provider      String?
   status        OnboardItInviteStatus @default(sent)
   /// Customer Entra tenant id captured from the admin-consent callback.
   entraTenantId String?               @map("entra_tenant_id")
+  /// Customer Google Workspace primary domain (id_token `hd` claim) captured
+  /// from the Google verification callback. Null for consumer-Gmail grants.
+  googleWorkspaceDomain String?       @map("google_workspace_domain")
   expiresAt     DateTime              @map("expires_at") @db.Timestamptz(6)
   grantedAt     DateTime?             @map("granted_at") @db.Timestamptz(6)
   verifiedAt    DateTime?             @map("verified_at") @db.Timestamptz(6)

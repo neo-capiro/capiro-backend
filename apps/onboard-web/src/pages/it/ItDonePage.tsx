@@ -50,3 +50,43 @@ export function ItDonePage() {
     </ExtShell>
   );
 }
+
+/** Shown after the admin defers Google verification (skip-google). Distinct
+ *  from the verified card — nothing is actually connected yet, and the same
+ *  link stays open to finish later. */
+export function ItConnectionSkippedCard() {
+  return (
+    <div style={{ maxWidth: 480, margin: '40px auto 0' }}>
+      <Card style={{ textAlign: 'center', padding: '40px 36px' }}>
+        <div
+          style={{
+            width: 52,
+            height: 52,
+            borderRadius: '50%',
+            background: 'var(--notable-soft)',
+            display: 'grid',
+            placeItems: 'center',
+            margin: '0 auto 18px',
+          }}
+        >
+          <Icon name="Clock" size={23} style={{ color: 'var(--notable)' }} />
+        </div>
+        <h1
+          style={{
+            margin: 0,
+            fontFamily: 'var(--font-serif)',
+            fontWeight: 500,
+            fontSize: 25,
+            letterSpacing: '-0.015em',
+          }}
+        >
+          Verification deferred
+        </h1>
+        <p style={{ margin: '10px 0 0', fontSize: 13.5, color: 'var(--ink-2)', lineHeight: 1.6 }}>
+          No problem — your firm's setup can continue without this. Reopen this same link anytime to
+          verify Google Workspace access when you're ready.
+        </p>
+      </Card>
+    </div>
+  );
+}

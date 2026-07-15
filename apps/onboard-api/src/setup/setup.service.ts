@@ -286,6 +286,12 @@ export class SetupService {
       tenantId,
       ...rendered,
     });
+    // A resend after a skip means it's actively pending again — reflect that
+    // on the dashboard instead of leaving the stale "deferred" label showing.
+    await this.prisma.onboardSetupTask.updateMany({
+      where: { tenantId, task: 'it_email', status: 'skipped' },
+      data: { status: 'waiting' },
+    });
     return { ok: true };
   }
 
@@ -301,7 +307,15 @@ export class SetupService {
     await this.requireV1Tenant(tenantId);
     const tasks = await this.prisma.onboardSetupTask.findMany({ where: { tenantId } });
     const byKey = new Map(tasks.map((t) => [t.task, t.status]));
-    const blockers = (['it_email', 'import'] as const).filter((k) => byKey.get(k) !== 'done');
+    const blockableKeys = ['it_email', 'import'] as const;
+    // it_email also resolves via 'skipped' (the invited Google admin deferred
+    // verification — see it-admin.service.skipGoogleVerification); import has
+    // no skip path and must be 'done'.
+    const resolved = (k: (typeof blockableKeys)[number]): boolean =>
+      k === 'it_email'
+        ? byKey.get(k) === 'done' || byKey.get(k) === 'skipped'
+        : byKey.get(k) === 'done';
+    const blockers = blockableKeys.filter((k) => !resolved(k));
     if (blockers.length > 0) {
       throw new BadRequestException(
         `Setup steps still pending: ${blockers.join(', ')} — the team invites step unlocks once they're complete`,

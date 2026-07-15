@@ -27,6 +27,13 @@ export class ItAdminController {
     return this.service.buildConsentUrl(token, body.provider);
   }
 
+  /** The invited admin defers Google verification instead of completing it
+   *  now. Google-only — Microsoft admin consent has no equivalent skip. */
+  @Post('invite/:token/skip-google')
+  skipGoogle(@Param('token') token: string) {
+    return this.service.skipGoogleVerification(token);
+  }
+
   /** Entra admin-consent redirect target (registered on the Capiro app). */
   @Get('microsoft/callback')
   @Redirect()
@@ -41,6 +48,23 @@ export class ItAdminController {
     },
   ) {
     const url = await this.service.handleMicrosoftCallback(query);
+    return { url, statusCode: 302 };
+  }
+
+  /** Google test-connect redirect target (registered on the Capiro OAuth
+   *  client alongside the engagement callback). */
+  @Get('google/callback')
+  @Redirect()
+  async googleCallback(
+    @Query()
+    query: {
+      state?: string;
+      code?: string;
+      error?: string;
+      error_description?: string;
+    },
+  ) {
+    const url = await this.service.handleGoogleCallback(query);
     return { url, statusCode: 302 };
   }
 }

@@ -74,7 +74,14 @@ export function ExtShell({
   );
 }
 
-export type TaskCardStatus = 'none' | 'waiting' | 'verifying' | 'progress' | 'done' | 'locked';
+export type TaskCardStatus =
+  | 'none'
+  | 'waiting'
+  | 'verifying'
+  | 'progress'
+  | 'done'
+  | 'skipped'
+  | 'locked';
 
 export function TaskStatus({ s }: { s: TaskCardStatus }) {
   if (s === 'done')
@@ -93,6 +100,7 @@ export function TaskStatus({ s }: { s: TaskCardStatus }) {
       </Tag>
     );
   if (s === 'waiting') return <Tag tone="notable">Waiting on IT Admin</Tag>;
+  if (s === 'skipped') return <Tag tone="notable">Skipped</Tag>;
   if (s === 'locked')
     return (
       <Tag tone="neutral">

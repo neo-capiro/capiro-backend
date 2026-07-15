@@ -58,6 +58,33 @@ export const ROLE_RANK: Record<TenantRole, number> = {
   capiro_admin: 3,
 };
 
+// ---------------------------------------------------------------------------
+// Google Workspace OAuth scopes (single source of truth)
+// ---------------------------------------------------------------------------
+// The exact scope set a user requests when connecting their own Gmail/Calendar
+// mailbox (apps/api engagement integration) AND the set the onboarding
+// IT-admin "test-connect" verification requests (apps/onboard-api). These MUST
+// be identical: the verification is only truthful if the admin's grant covers
+// precisely what team members will later be asked for. Kept here — the lowest
+// common dependency of both apps — so the two services can't drift.
+// gmail.readonly is RESTRICTED (drives Google's CASA assessment); gmail.send
+// and calendar.readonly are SENSITIVE; openid/email/profile identify the user.
+export const GOOGLE_WORKSPACE_SCOPES = [
+  'openid',
+  'email',
+  'profile',
+  'https://www.googleapis.com/auth/gmail.readonly',
+  'https://www.googleapis.com/auth/gmail.send',
+  'https://www.googleapis.com/auth/calendar.readonly',
+] as const;
+
+/** The non-identity (Gmail/Calendar) scopes — the ones a Workspace policy can
+ *  actually block, so the onboarding verification requires all of them to be
+ *  granted before it marks the org authorized. */
+export const GOOGLE_WORKSPACE_REQUIRED_GRANTS = GOOGLE_WORKSPACE_SCOPES.filter((s) =>
+  s.startsWith('https://'),
+);
+
 export function hasAtLeast(role: TenantRole, minimum: TenantRole): boolean {
   return ROLE_RANK[role] >= ROLE_RANK[minimum];
 }

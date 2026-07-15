@@ -164,14 +164,20 @@ export function SetupDashboardPage() {
   const refetch = () => state.refetch();
 
   const emailDone = tasks.it_email === 'done';
+  const emailSkipped = tasks.it_email === 'skipped';
+  // 'skipped' = the invited Google admin deferred verification (Google
+  // Testing-mode can't yet serve every customer) — resolves the step the same
+  // as 'done' for unlocking, mirrors the server-side gate in
+  // setup.service.completeSetup, just rendered distinctly (amber, not green).
+  const emailResolved = emailDone || emailSkipped;
   const importDone = tasks.import === 'done';
   const aiDone = tasks.firm_ai === 'done';
-  const doneCount = [emailDone, importDone, aiDone, tasks.invites === 'done'].filter(
+  const doneCount = [emailResolved, importDone, aiDone, tasks.invites === 'done'].filter(
     Boolean,
   ).length;
   // Firm AI settings are OPTIONAL — only email + import gate the team invites
   // (mirrors the server-side blockers in setup.service.completeSetup).
-  const invitesUnlocked = emailDone && importDone;
+  const invitesUnlocked = emailResolved && importDone;
 
   const cap = S.cap;
   const atCap = S.imported >= cap;
@@ -322,7 +328,8 @@ export function SetupDashboardPage() {
           status={tasks.it_email}
           desc="Your IT administrator must authenticate to grant org-wide access."
           action={
-            tasks.it_email === 'done' ? null : tasks.it_email === 'waiting' ? (
+            tasks.it_email === 'done' ? null : tasks.it_email === 'waiting' ||
+              tasks.it_email === 'skipped' ? (
               <Btn
                 size="sm"
                 disabled={resending}
@@ -347,6 +354,25 @@ export function SetupDashboardPage() {
             >
               <Icon name="CircleCheck" size={15} />
               Email access granted — all users can now connect individually.
+            </div>
+          ) : tasks.it_email === 'skipped' ? (
+            <div
+              style={{
+                fontSize: 12.5,
+                color: 'var(--ink-2)',
+                display: 'flex',
+                flexDirection: 'column',
+                gap: 4,
+              }}
+            >
+              <span style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+                <Icon name="Clock" size={15} style={{ color: 'var(--notable)' }} />
+                Google Workspace verification deferred — not blocking the rest of setup.
+              </span>
+              <span style={{ fontSize: 11.5, color: 'var(--ink-3)' }}>
+                Individual Gmail connects may not work for your team until this finishes. Resend the
+                invite anytime to complete it.
+              </span>
             </div>
           ) : tasks.it_email === 'verifying' ? (
             <div

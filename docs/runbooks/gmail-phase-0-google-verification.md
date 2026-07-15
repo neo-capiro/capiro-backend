@@ -129,6 +129,9 @@ production DNS write.
   `https://app.capiro.ai/api/engagement/integrations/google/callback` (prod),
   `https://app.staging.capiro.ai/api/engagement/integrations/google/callback` (staging),
   `http://localhost:4000/api/engagement/integrations/google/callback` (dev).
+- Also register the **onboarding IT-admin test-connect** callback (added 2026-07-14;
+  see docs/runbooks/onboarding-operations.md "IT-admin Google option"):
+  `https://app.capiro.ai/onboard-api/it/google/callback` (prod).
 - Unlike Microsoft (certificate-only, since the capiro.ai Azure AD tenant blocks client secrets),
   **Google's Web-application OAuth client uses a standard client secret** — there is no certificate
   option for this flow. Store it in AWS Secrets Manager as `capiro/dev/GOOGLE_CLIENT_SECRET` (no

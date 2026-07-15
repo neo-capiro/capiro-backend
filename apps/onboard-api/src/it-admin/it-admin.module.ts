@@ -4,7 +4,8 @@ import { ItAdminService } from './it-admin.service.js';
 
 /**
  * IT-admin org-wide email-grant path (Microsoft admin-consent; Google
- * deferred per decision Q5). Tokened single-task surface — no Clerk account.
+ * trusted-app allowlist + test-connect verification). Tokened single-task
+ * surface — no Clerk account.
  */
 @Module({
   controllers: [ItAdminController],

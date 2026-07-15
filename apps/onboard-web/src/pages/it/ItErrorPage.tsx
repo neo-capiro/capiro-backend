@@ -1,5 +1,5 @@
-// IT Admin terminal page: the Microsoft consent callback 302s to
-// /it/error?reason=state|missing|declined when the grant did not land.
+// IT Admin terminal page: the Microsoft/Google consent callbacks 302 to
+// /it/error?reason=… when the grant did not land.
 import { useSearchParams } from 'react-router-dom';
 import { Card, Icon } from '../../ui/primitives';
 import { ExtShell } from '../setup/ExtShell';
@@ -7,7 +7,16 @@ import { ExtShell } from '../setup/ExtShell';
 const REASON_TEXT: Record<string, string> = {
   state: 'The secure link was invalid or had expired.',
   missing: "We couldn't find your invite — it may have been replaced.",
+  expired: 'This invite has expired. Ask your administrator to resend it.',
   declined: 'The authorization was declined before it completed.',
+  // Google-only reasons (the test-connect verification path):
+  policy:
+    'Your Google Workspace is blocking Capiro. In the Google Admin console, open Security → API controls → App access control, mark Capiro as Trusted, then retry from the link in your email.',
+  scopes:
+    'Not every permission was granted. Retry from the link in your email and leave all requested permissions checked.',
+  account:
+    "That Google account isn't on your firm's domain. Sign in with your organization's Google Workspace admin account — the one that matches the email your invite was sent to.",
+  exchange: 'Google sign-in could not be completed. Retry from the link in your email.',
 };
 
 export function ItErrorPage() {
