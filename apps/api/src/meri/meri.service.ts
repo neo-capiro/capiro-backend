@@ -639,12 +639,13 @@ export class MeriService {
     // Branch point is deliberate: the user turn is already persisted, the
     // regenerate/resend rerun is already planned, and replayHistory already
     // inlines document-attachment text — so those all work on the MeriV2 path.
-    // Cases the orchestrator can't serve yet stay legacy IN THE SAME TURN
-    // (page-write mode, vision/images, missing bearer): the tenant flag routes
-    // the surface, these conditions route the turn.
+    // Wave 2 gate-flip (2026-07-15, after a green parity run): page-write, vision
+    // (images), and impersonated turns now ALSO route here — the orchestrator
+    // emits page_write output, carries native vision blocks, and propagates the
+    // impersonation header (apps/api re-validates the impersonation authz on
+    // every delegated call). A MISSING bearer still routes legacy: the
+    // orchestrator's delegated tools + approval check re-authenticate with it.
     if (
-      !streamControl.pageWriteEnabled &&
-      currentTurnImages.length === 0 &&
       bearerToken &&
       this.meriV2Chat.configured &&
       (await this.meriFlags.isMeriV2SurfaceEnabled(ctx.tenantId, MERIV2_FLAGS.fullChat))
@@ -659,14 +660,14 @@ export class MeriService {
         bearerToken,
         complianceScreen,
         traceEnabled: streamControl.traceEnabled,
-        // Forwarded for when the page-write gate above is lifted (post-parity);
-        // today the gate excludes page-write turns, so this is always false here.
+        // Page-write mode → the orchestrator emits a page_write event we translate
+        // to the legacy ChatDrawer frame (2.1).
         pageWriteEnabled: streamControl.pageWriteEnabled,
-        // Same story for vision: the gate above still excludes image turns, so
-        // this is always empty here — threaded so lifting that gate is a one-liner.
+        // Current-turn images → attached as native Anthropic vision blocks on the
+        // orchestrator's last user message (2.2).
         currentTurnImages,
-        // Impersonation (2.5): dormant — the controller withholds the bearer on
-        // impersonated turns, so this branch is not reached for them yet.
+        // Impersonation → forwarded so the orchestrator re-sends it on delegated
+        // apps/api calls; apps/api re-validates the impersonation authz (2.5).
         ...(impersonateTenantId ? { impersonateTenantId } : {}),
         conversationSummary,
         ...(clientSignal ? { clientSignal } : {}),

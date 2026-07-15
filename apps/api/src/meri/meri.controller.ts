@@ -265,22 +265,20 @@ export class MeriController {
     // (delegated tools + the approval check re-authenticate with it); the
     // legacy in-process path ignores it.
     //
-    // IMPERSONATED turns (x-capiro-impersonate-tenant) must NOT route to
-    // MeriV2: impersonation is app-level (middleware swaps ctx.tenantId), but
-    // the orchestrator resolves tenant purely from the admin's JWT claims — the
-    // forwarded bearer would execute every delegated tool against the admin's
-    // HOME tenant while the reply persists (and the BYOK key bills) under the
-    // impersonated tenant. Withholding the bearer makes the service branch fall
-    // through to the legacy in-process path, which runs entirely under the one
-    // swapped ctx and handles impersonation correctly.
+    // IMPERSONATED turns (x-capiro-impersonate-tenant) now route to MeriV2 too
+    // (Wave 2.5 gate-flip): the impersonated tenant is forwarded to the proxy →
+    // orchestrator, which re-sends the header on every delegated apps/api call so
+    // apps/api (the impersonation-authz owner) re-validates capiro_admin + an
+    // active session and scopes the tool execution to the impersonated tenant.
+    // The reply persists + the BYOK key bills under the impersonated tenant via
+    // the middleware-swapped ctx, so the earlier split-tenant hazard is closed.
     const impersonateHeader = req.headers['x-capiro-impersonate-tenant'];
     const impersonateTenantId =
       typeof impersonateHeader === 'string' && impersonateHeader.trim().length > 0
         ? impersonateHeader.trim()
         : undefined;
-    const impersonated = Boolean(impersonateTenantId);
     const bearerMatch = (req.headers.authorization ?? '').match(/^Bearer\s+(.+)$/i);
-    const bearerToken = impersonated ? undefined : bearerMatch?.[1]?.trim() || undefined;
+    const bearerToken = bearerMatch?.[1]?.trim() || undefined;
     await this.service.streamMessage(
       ctx,
       id,
@@ -290,9 +288,6 @@ export class MeriController {
       body.mode ?? 'new',
       body.attachmentIds ?? [],
       bearerToken,
-      // 2.5: forwarded so the MeriV2 proxy branch CAN scope to the impersonated
-      // tenant once the bearer is no longer withheld above (the post-parity flip);
-      // until then bearerToken stays undefined for impersonated turns → legacy.
       impersonateTenantId,
     );
     res.end();
