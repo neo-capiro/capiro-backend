@@ -28,6 +28,7 @@ import {
 } from '../request-scoped-llm.client.js';
 import { RequestCredentialsStore } from '../../request/request-credentials.store.js';
 import { ApiComplianceAuditRepo } from '../api-compliance-audit.repo.js';
+import { ApiPendingActionRepo } from '../api-pending-action.repo.js';
 import { PrismaService } from '../../prisma/prisma.service.js';
 import {
   buildChatSystemPrompt,
@@ -100,6 +101,7 @@ export class ChatAssistantService {
     config: ConfigService,
     private readonly audit: ApiComplianceAuditRepo,
     private readonly prisma: PrismaService,
+    private readonly pendingActions: ApiPendingActionRepo,
   ) {
     this.registry = registryService.registry;
     this.llm = registryService.llm; // single global-key-read site lives in the registry (BYOK4-clean)
@@ -545,6 +547,13 @@ export class ChatAssistantService {
         emit({ type: 'tool_done', tool: name, label, status: 'pending_approval' });
         emit({ type: 'pending_approval', tool: name, label, fingerprint, reason: err.message });
         this.audit.record({ trigger: name, decision: 'WARN', reason: err.message });
+        // B4.1: cache the EXACT input behind this fingerprint so approving it
+        // replays THIS action directly — never re-asks the model, which would
+        // re-research/reword and hash to a fingerprint that was never approved
+        // (the confirmed root cause of "approve does nothing," proven live:
+        // update_client_profile was approved 8 times over a week and executed
+        // zero times).
+        this.pendingActions.record({ fingerprint, tool: name, input });
         return {
           pendingApproval: true,
           fingerprint,

@@ -319,15 +319,28 @@ export class MeriController {
     return this.tools.executeFromAuthenticatedUser(ctx, name, body);
   }
 
-  // ── MeriV2 write-tool approvals (Workstream B4) ──
+  // ── MeriV2 write-tool approvals (Workstream B4 + B4.1) ──
   // Backs the orchestrator's ApprovalStore: check whether a proposed write
   // (identified by its meriv2-core fingerprint) is approved, and record an
-  // approval. Tenant+user scoped by CurrentTenant + the meri_action_approval
-  // RLS policy. `check` is called by the orchestrator (forwarding the caller
-  // bearer); `approve`/`list` are the human/surface actions.
+  // approval. Tenant+user scoped by CurrentTenant + the meri_action_approval /
+  // meri_pending_action RLS policies. `check` is called by the orchestrator
+  // (forwarding the caller bearer); `pending-actions`/`approve`/`list` are the
+  // human/surface actions.
   @Post('approvals/check')
   checkApproval(@CurrentTenant() ctx: TenantContext, @Body() body: { fingerprint: string }) {
     return this.approvals.check(ctx, body?.fingerprint);
+  }
+
+  // B4.1: cache the EXACT proposed action the moment the orchestrator's gate
+  // WARNs, so `approve` below can replay it directly instead of re-asking the
+  // model. Called by the orchestrator (forwarding the caller bearer), fired at
+  // the same moment as the `pending_approval` SSE frame.
+  @Post('pending-actions')
+  recordPendingAction(
+    @CurrentTenant() ctx: TenantContext,
+    @Body() body: { fingerprint: string; tool: string; input: unknown },
+  ) {
+    return this.approvals.recordPending(ctx, body);
   }
 
   @Post('approvals/approve')

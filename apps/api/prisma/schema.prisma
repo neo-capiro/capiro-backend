@@ -235,6 +235,7 @@ model Tenant {
   clioProactiveAlerts          ClioProactiveAlert[]
   clioScheduledTasks           ClioScheduledTask[]
   meriActionApprovals          MeriActionApproval[]
+  meriPendingActions           MeriPendingAction[]
   clioAttachments              ClioAttachment[]
   clioMcpServers               ClioMcpServer[]
   clioMcpOAuthCredentials      ClioMcpOAuthCredential[]
@@ -1397,6 +1398,52 @@ model MeriActionApproval {
   @@map("meri_action_approval")
 }
 
+/// The exact proposed action behind a WARN decision (fix for the "approving
+/// never runs the write" bug): the compliance gate's `ApprovalPendingError` is
+/// caught at the SAME moment the fingerprint above is computed, and the tool
+/// name + exact input are captured here, keyed by that same fingerprint.
+///
+/// Without this, "approve" only recorded a `MeriActionApproval` row, then the
+/// UI re-ran the turn by resending the user's ORIGINAL prompt for the model to
+/// re-answer from scratch (`mode: 'regenerate'`) — the model re-derives a
+/// fresh, byte-different payload every time (re-researches, rewords), so its
+/// new proposal hashes to a DIFFERENT fingerprint that was never approved, and
+/// the write WARNs again. Forever. (Confirmed live: `update_client_profile` was
+/// approved 8 times over a week and never executed once.)
+///
+/// The fix: on approval, look up the row by fingerprint and execute the tool
+/// DIRECTLY with the cached input — no model round-trip, so nothing can drift.
+/// `consumedAt` makes execution idempotent (approve-once-execute-once) even if
+/// the same fingerprint reappears (a repeat identical proposal) or approve is
+/// double-clicked. Rows are NOT deleted on consumption — kept for audit; a
+/// future TTL sweep is a follow-up, not a correctness requirement (an unclaimed
+/// row is inert, never auto-executes). Tenant-cascade.
+model MeriPendingAction {
+  id          String    @id @default(uuid()) @db.Uuid
+  tenantId    String    @map("tenant_id") @db.Uuid
+  /// Clerk subject of the user this proposal is scoped to (matches MeriContext.userId).
+  userId      String    @map("user_id")
+  /// sha256 hex from meriv2-core computeActionFingerprint — the SAME value the
+  /// paired MeriActionApproval row is keyed by; this table is the lookup that
+  /// turns "fingerprint approved" into "exact action to run".
+  fingerprint String    @db.VarChar(64)
+  /// The write tool this input is for (dispatched via MeriToolsService.execute).
+  tool        String    @db.VarChar(120)
+  /// The exact tool-call input the model proposed when it first WARNed —
+  /// replayed VERBATIM on approval, never re-derived.
+  input       Json      @map("input_jsonb")
+  createdAt   DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
+  /// Set the moment approval successfully claims + executes this row. NULL =
+  /// still pending (or never approved). Never re-executed once set.
+  consumedAt  DateTime? @map("consumed_at") @db.Timestamptz(6)
+
+  tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  @@unique([tenantId, userId, fingerprint], map: "meri_pending_action_tenant_user_fp_uniq")
+  @@index([tenantId, userId, createdAt(sort: Desc)], map: "meri_pending_action_user_created_idx")
+  @@map("meri_pending_action")
+}
+
 /// Clio self-scheduled recurring task (W3). A user asks Clio to run something on
 /// a cadence (e.g. a weekly research brief). The runner (scripts/run-clio-scheduled-tasks.ts)
 /// executes due rows through the Clio tool engine with the task's tool allow-list.
@@ -1568,28 +1615,28 @@ model ClioFirmSkill {
 /// rather than Capiro's shared key. Metering writes are best-effort — a
 /// failed insert never fails the user's generation.
 model AiUsageEvent {
-  id            String   @id @default(uuid()) @db.Uuid
+  id                  String   @id @default(uuid()) @db.Uuid
   /// Null = a tenant-agnostic (cached-L1) run, metered but excluded from
   /// per-tenant usage/billing reports (M5.0 agentic prerequisite).
-  tenantId      String?  @map("tenant_id") @db.Uuid
-  userId        String?  @map("user_id") @db.Uuid
+  tenantId            String?  @map("tenant_id") @db.Uuid
+  userId              String?  @map("user_id") @db.Uuid
   /// 'outreach_campaign' | 'meeting_prep' | 'meeting_debrief' | 'campaign_email' | 'talking_points' | ...
-  workflow      String   @db.VarChar(48)
+  workflow            String   @db.VarChar(48)
   /// 'openai' | 'anthropic'
-  provider      String   @db.VarChar(16)
-  model         String   @db.VarChar(80)
-  inputTokens   Int      @map("input_tokens")
-  outputTokens  Int      @map("output_tokens")
+  provider            String   @db.VarChar(16)
+  model               String   @db.VarChar(80)
+  inputTokens         Int      @map("input_tokens")
+  outputTokens        Int      @map("output_tokens")
   /// Prompt-cache token counters (W3.3): read = cache hit (discounted), creation
   /// = cache write. Anthropic reports both; OpenAI reports cache reads only.
-  cacheReadTokens     Int @default(0) @map("cache_read_tokens")
-  cacheCreationTokens Int @default(0) @map("cache_creation_tokens")
-  costUsd       Decimal  @map("cost_usd") @db.Decimal(12, 6)
-  usedTenantKey Boolean  @default(false) @map("used_tenant_key")
+  cacheReadTokens     Int      @default(0) @map("cache_read_tokens")
+  cacheCreationTokens Int      @default(0) @map("cache_creation_tokens")
+  costUsd             Decimal  @map("cost_usd") @db.Decimal(12, 6)
+  usedTenantKey       Boolean  @default(false) @map("used_tenant_key")
   /// Outreach prompt-assembly spec that produced this generation ('v1'|'v2'); null
   /// for non-outreach workflows (A12 traceability).
-  promptSpecVersion String? @map("prompt_spec_version") @db.VarChar(8)
-  createdAt     DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  promptSpecVersion   String?  @map("prompt_spec_version") @db.VarChar(8)
+  createdAt           DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
 
   tenant Tenant? @relation(fields: [tenantId], references: [id], onDelete: Cascade)
 
@@ -1610,50 +1657,50 @@ model AiUsageEvent {
 /// row, not RLS-isolated to one tenant); tenant-scoped rows are RLS'd like
 /// `ai_usage_events`.
 model AiRun {
-  id               String    @id @default(uuid()) @db.Uuid
+  id                 String    @id @default(uuid()) @db.Uuid
   /// Matches `ai_usage_events.workflow`'s vocabulary, e.g. 'legiwatch_alert_enrichment' | 'intel_targeting' | 'intel_rules_comparison' | 'intel_qa_review'.
-  workflow         String    @db.VarChar(48)
+  workflow           String    @db.VarChar(48)
   /// 'federal' | 'state'
-  rail             String    @db.VarChar(16)
+  rail               String    @db.VarChar(16)
   /// The envelope's subject — e.g. subjectType='bill', subjectKey='119-hr-8800' or 'fl-2026-hb1234'.
-  subjectType      String    @map("subject_type") @db.VarChar(32)
-  subjectKey       String    @map("subject_key")
+  subjectType        String    @map("subject_type") @db.VarChar(32)
+  subjectKey         String    @map("subject_key")
   /// Null = tenant-agnostic (cached-generic L1 enrichment); set = a tenant-scoped Tier-2 run.
-  tenantId         String?   @map("tenant_id") @db.Uuid
+  tenantId           String?   @map("tenant_id") @db.Uuid
   /// W3.1: the client a tenant-scoped Tier-2 run was FOR (targeting briefs are
   /// per-client — chokepoint.forBill is client-scoped). Null for client-agnostic
   /// runs (L1 enrichment, rules-comparison). Lets the run-intel-workflows
   /// idempotency guard key on (bill, client, tenant), not just (bill, tenant),
   /// so a second client tracking the same bill still gets its own brief.
-  clientId         String?   @map("client_id") @db.Uuid
-  promptVersion    String    @map("prompt_version") @db.VarChar(32)
-  model            String    @db.VarChar(80)
+  clientId           String?   @map("client_id") @db.Uuid
+  promptVersion      String    @map("prompt_version") @db.VarChar(32)
+  model              String    @db.VarChar(80)
   /// 'openai' | 'anthropic'
-  provider         String    @db.VarChar(16)
-  usedTenantKey    Boolean   @default(false) @map("used_tenant_key")
+  provider           String    @db.VarChar(16)
+  usedTenantKey      Boolean   @default(false) @map("used_tenant_key")
   /// Source record ids the run read (bill keys, rule ids, member ids, ...).
-  inputRefs        Json      @default("[]") @map("input_refs")
+  inputRefs          Json      @default("[]") @map("input_refs")
   /// The tool-call trace (name + args + result summary) for audit/replay.
-  toolCalls        Json      @default("[]") @map("tool_calls")
+  toolCalls          Json      @default("[]") @map("tool_calls")
   /// The GroundedJson output (or null if the run failed before producing one).
-  output           Json?
-  confidence       Float?
+  output             Json?
+  confidence         Float?
   /// Per-gate drop counts (W3.1) — how many model-asserted targets each
   /// deterministic layer removed. confidence = kept / (kept + sum of these).
   /// Makes "dropped and logged" (M5-B) inspectable from the row alone.
-  droppedByGrounding Int     @default(0) @map("dropped_by_grounding")
-  droppedByValidator Int     @default(0) @map("dropped_by_validator")
-  droppedOffRoster   Int     @default(0) @map("dropped_off_roster")
+  droppedByGrounding Int       @default(0) @map("dropped_by_grounding")
+  droppedByValidator Int       @default(0) @map("dropped_by_validator")
+  droppedOffRoster   Int       @default(0) @map("dropped_off_roster")
   /// 'passed' | 'failed' | 'skipped' — the M5.0 deterministic validator gate's outcome.
-  validationStatus String    @map("validation_status") @db.VarChar(16)
+  validationStatus   String    @map("validation_status") @db.VarChar(16)
   /// 'approved' | 'pending' | 'warning' | 'human_review' | 'rejected' | 'none' — the interim QA-gating state (§5.4 doc). 'pending' = held for human QA (W3.1: written on any drop or high materiality); 'warning'/'human_review'/'rejected' are the reserved human-review vocabulary.
-  qaStatus         String    @default("none") @map("qa_status") @db.VarChar(16)
-  humanReviewedBy  String?   @map("human_reviewed_by") @db.Uuid
-  humanReviewedAt  DateTime? @map("human_reviewed_at") @db.Timestamptz(6)
+  qaStatus           String    @default("none") @map("qa_status") @db.VarChar(16)
+  humanReviewedBy    String?   @map("human_reviewed_by") @db.Uuid
+  humanReviewedAt    DateTime? @map("human_reviewed_at") @db.Timestamptz(6)
   /// 'ok' | 'failed' | 'timeout' | 'fallback'
-  status           String    @db.VarChar(16)
-  durationMs       Int       @map("duration_ms")
-  createdAt        DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
+  status             String    @db.VarChar(16)
+  durationMs         Int       @map("duration_ms")
+  createdAt          DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
 
   tenant Tenant? @relation(fields: [tenantId], references: [id], onDelete: Cascade)
 
@@ -3002,29 +3049,29 @@ model ProgramElementProject {
 }
 
 model ProgramElementYear {
-  id           String   @id @default(uuid()) @db.Uuid
-  peCode       String   @map("pe_code") @db.VarChar(16)
-  fy           Int
-  request      Decimal? @db.Decimal(14, 2)
-  hascMark     Decimal? @map("hasc_mark") @db.Decimal(14, 2)
-  sascMark     Decimal? @map("sasc_mark") @db.Decimal(14, 2)
-  hacDMark     Decimal? @map("hac_d_mark") @db.Decimal(14, 2)
-  sacDMark     Decimal? @map("sac_d_mark") @db.Decimal(14, 2)
+  id             String   @id @default(uuid()) @db.Uuid
+  peCode         String   @map("pe_code") @db.VarChar(16)
+  fy             Int
+  request        Decimal? @db.Decimal(14, 2)
+  hascMark       Decimal? @map("hasc_mark") @db.Decimal(14, 2)
+  sascMark       Decimal? @map("sasc_mark") @db.Decimal(14, 2)
+  hacDMark       Decimal? @map("hac_d_mark") @db.Decimal(14, 2)
+  sacDMark       Decimal? @map("sac_d_mark") @db.Decimal(14, 2)
   // Appropriations-track conference (Defense Appropriations conference / JES). RESERVED:
   // no loader populates it yet — it is the ladder's "conference" rung (see @capiro/shared
   // FUNDING_CURRENT_PRECEDENCE). Kept NULL until a real appropriations-conference source lands.
-  conference   Decimal? @db.Decimal(14, 2)
+  conference     Decimal? @db.Decimal(14, 2)
   // NDAA (authorization-track) conference-report value. Written by the NDAA conference
   // loader. Deliberately OUTSIDE the appropriations funding ladder so it never becomes the
   // "current" appropriations number — it reconciles the authorization marks (HASC/SASC).
   ndaaConference Decimal? @map("ndaa_conference") @db.Decimal(14, 2)
-  enacted      Decimal? @db.Decimal(14, 2)
-  reprogrammed Decimal? @db.Decimal(14, 2)
-  executed     Decimal? @db.Decimal(14, 2)
-  notes        String?  @db.Text
-  rDocSection  String?  @map("r_doc_section")
-  raw          Json     @default("{}") @map("raw_jsonb")
-  lastSyncedAt DateTime @default(now()) @map("last_synced_at") @db.Timestamptz(6)
+  enacted        Decimal? @db.Decimal(14, 2)
+  reprogrammed   Decimal? @db.Decimal(14, 2)
+  executed       Decimal? @db.Decimal(14, 2)
+  notes          String?  @db.Text
+  rDocSection    String?  @map("r_doc_section")
+  raw            Json     @default("{}") @map("raw_jsonb")
+  lastSyncedAt   DateTime @default(now()) @map("last_synced_at") @db.Timestamptz(6)
 
   programElement ProgramElement @relation(fields: [peCode], references: [peCode], onDelete: Cascade)
 

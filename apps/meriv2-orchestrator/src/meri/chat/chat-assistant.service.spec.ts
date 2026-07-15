@@ -5,6 +5,7 @@ import type { ApiClientContextRepo } from '../api-client-context.repo';
 import type { ApiToolExecutorRepo } from '../api-tool-executor.repo';
 import type { ApiApprovalRepo } from '../api-approval.repo';
 import type { ApiComplianceAuditRepo } from '../api-compliance-audit.repo';
+import type { ApiPendingActionRepo } from '../api-pending-action.repo';
 import { RequestCredentialsStore } from '../../request/request-credentials.store';
 import { computeActionFingerprint, type MeriContext } from '@capiro/meriv2-core';
 
@@ -35,6 +36,7 @@ const clientRepo = {
 } as unknown as ApiClientContextRepo;
 
 const auditRepo = { record: jest.fn() } as unknown as ApiComplianceAuditRepo;
+const pendingActionsRepo = { record: jest.fn() } as unknown as ApiPendingActionRepo;
 
 // Phase 1 M5.0 (H-1): the chat loop meters every round via recordAiUsageEvent,
 // which needs prisma.withTenant/withSystem. A no-op fake is enough here — the
@@ -48,7 +50,13 @@ function makeService(executor: ApiToolExecutorRepo, approvals?: ApiApprovalRepo)
   const approvalRepo =
     approvals ?? ({ isApproved: async () => false } as unknown as ApiApprovalRepo);
   const registryService = new MeriRegistryService(clientRepo, executor, approvalRepo, config);
-  return new ChatAssistantService(registryService, config, auditRepo, fakePrisma);
+  return new ChatAssistantService(
+    registryService,
+    config,
+    auditRepo,
+    fakePrisma,
+    pendingActionsRepo,
+  );
 }
 
 // The chat loop now STREAMS (2.4): completeWithTools reads `.body` as an SSE
@@ -577,6 +585,7 @@ describe('ChatAssistantService.run', () => {
   });
 
   it('streams pending_approval (with the gate fingerprint) for a held write', async () => {
+    (pendingActionsRepo.record as jest.Mock).mockClear();
     const executor = { execute: jest.fn() } as unknown as ApiToolExecutorRepo;
     const emailInput = { to: 'a@b.com', subject: 's', body: 'b' };
 
@@ -609,6 +618,15 @@ describe('ChatAssistantService.run', () => {
     // The trust-step resolution frame marks the write as held, never done.
     expect(events.find((e) => e.type === 'tool_done' && e.tool === 'send_email')).toMatchObject({
       status: 'pending_approval',
+    });
+    // B4.1: the exact proposed input is cached under the SAME fingerprint the
+    // pending_approval frame carries, so approving it can replay THIS action
+    // directly instead of re-asking the model for a fresh (differently-hashed)
+    // proposal — the confirmed root cause of "approve does nothing."
+    expect(pendingActionsRepo.record).toHaveBeenCalledWith({
+      fingerprint: computeActionFingerprint('send_email', emailInput, ctx),
+      tool: 'send_email',
+      input: emailInput,
     });
   });
 

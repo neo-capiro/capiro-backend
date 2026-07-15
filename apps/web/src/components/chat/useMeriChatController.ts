@@ -1102,13 +1102,44 @@ export function useMeriChatController({ selectedClientName }: ChatDrawerProps) {
   }, [isStreaming, messages, sendMessage]);
 
   // Approve a MeriV2 gate-held write (meriv2.fullChat): record the approval
-  // against its fingerprint, then re-run the turn — on the retry the compliance
-  // gate finds the approval and the write executes. When several actions are
-  // held, the re-run waits until the LAST card is resolved (a re-run before
-  // that would just hold the others again); dismissing the last card still
-  // re-runs when something was approved this round, so an approved action never
-  // sits unexecuted.
+  // against its fingerprint. B4.1 fix (2026-07-15): the write is now executed
+  // DIRECTLY by the approve endpoint (it replays the exact cached input from
+  // when the gate first WARNed) — no second model call, so nothing can drift
+  // between "approved" and "what actually runs". Confirmed live bug this
+  // closes: update_client_profile was approved 8 times over a week via the
+  // OLD regenerate-and-hope flow and executed zero times, because the model
+  // re-derived a fresh (differently-hashed) proposal every retry.
+  //
+  // `executed:false` in the response means this fingerprint predates the fix
+  // (no cached input) or a genuine execution error occurred — for THOSE cases
+  // only, fall back to the pre-fix regenerate behavior once the round's last
+  // card resolves. When everything this round executed directly, skip
+  // regenerate entirely and just tell the user what ran.
   const approvedThisRoundRef = useRef(false);
+  const needsRegenerateThisRoundRef = useRef(false);
+  const executedThisRoundRef = useRef<Array<{ tool: string; label?: string }>>([]);
+
+  const finishApprovalRound = useCallback(() => {
+    const needsRegenerate = needsRegenerateThisRoundRef.current;
+    const executed = executedThisRoundRef.current;
+    approvedThisRoundRef.current = false;
+    needsRegenerateThisRoundRef.current = false;
+    executedThisRoundRef.current = [];
+    if (needsRegenerate) {
+      handleRegenerate();
+      return;
+    }
+    if (executed.length > 0) {
+      const names = executed.map((e) => e.label ?? e.tool).join(', ');
+      appendChatMessage({
+        id: generateId(),
+        role: 'assistant',
+        content: `Approved and completed: ${names}.`,
+        createdAt: new Date(),
+      });
+    }
+  }, [handleRegenerate]);
+
   const handleApprovePending = useCallback(
     async (fingerprint: string, tool: string) => {
       if (isStreaming || approvingFingerprint) return;
@@ -1120,16 +1151,37 @@ export function useMeriChatController({ selectedClientName }: ChatDrawerProps) {
           body: JSON.stringify({ fingerprint, tool }),
         });
         if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        const body = (await res.json().catch(() => ({}))) as {
+          executed?: boolean;
+          executionError?: string;
+        };
         approvedThisRoundRef.current = true;
         // Compute the remainder from the CURRENT state, not inside the updater —
         // React batches updater execution, so a variable assigned in the updater
         // isn't reliably readable on the next line.
+        const approvedCard = pendingApprovals.find((p) => p.fingerprint === fingerprint);
+        if (body.executionError) {
+          // A genuine failure (e.g. a stale/bad clientId 404) — surface it
+          // plainly rather than silently falling through to a regenerate that
+          // would just paper over it.
+          setOrchestratorConflict({
+            title: 'Action approved but failed to run',
+            detail: body.executionError,
+          });
+          needsRegenerateThisRoundRef.current = true;
+        } else if (body.executed) {
+          executedThisRoundRef.current = [
+            ...executedThisRoundRef.current,
+            { tool, label: approvedCard?.label },
+          ];
+        } else {
+          // No cached input for this fingerprint (predates the fix) — fall
+          // back to the old regenerate-and-hope behavior, no worse than before.
+          needsRegenerateThisRoundRef.current = true;
+        }
         const next = pendingApprovals.filter((p) => p.fingerprint !== fingerprint);
         setPendingApprovals(next);
-        if (next.length === 0) {
-          approvedThisRoundRef.current = false;
-          handleRegenerate();
-        }
+        if (next.length === 0) finishApprovalRound();
       } catch {
         setOrchestratorConflict({
           title: 'Approval failed',
@@ -1139,20 +1191,20 @@ export function useMeriChatController({ selectedClientName }: ChatDrawerProps) {
         setApprovingFingerprint(null);
       }
     },
-    [isStreaming, approvingFingerprint, pendingApprovals, authHeaders, handleRegenerate],
+    [isStreaming, approvingFingerprint, pendingApprovals, authHeaders, finishApprovalRound],
   );
 
   const handleDismissPending = useCallback(
     (fingerprint: string) => {
       const next = pendingApprovals.filter((p) => p.fingerprint !== fingerprint);
       setPendingApprovals(next);
-      // Dismissing the last card after approving others: run the approved ones.
+      // Dismissing the last card after approving others: finish the round
+      // (regenerate only if something approved this round still needs it).
       if (next.length === 0 && approvedThisRoundRef.current && !isStreaming) {
-        approvedThisRoundRef.current = false;
-        handleRegenerate();
+        finishApprovalRound();
       }
     },
-    [pendingApprovals, isStreaming, handleRegenerate],
+    [pendingApprovals, isStreaming, finishApprovalRound],
   );
 
   // Held-approval cards belong to ONE conversation — switching sessions must
@@ -1160,6 +1212,8 @@ export function useMeriChatController({ selectedClientName }: ChatDrawerProps) {
   useEffect(() => {
     setPendingApprovals([]);
     approvedThisRoundRef.current = false;
+    needsRegenerateThisRoundRef.current = false;
+    executedThisRoundRef.current = [];
   }, [sessionId]);
 
   const handleEditResend = useCallback(() => {

@@ -8,6 +8,7 @@ import { ApiClientContextRepo } from './api-client-context.repo.js';
 import { ApiToolExecutorRepo } from './api-tool-executor.repo.js';
 import { ApiApprovalRepo } from './api-approval.repo.js';
 import { ApiComplianceAuditRepo } from './api-compliance-audit.repo.js';
+import { ApiPendingActionRepo } from './api-pending-action.repo.js';
 import { InEditorController } from './in-editor/in-editor.controller.js';
 import { InEditorAssistantService } from './in-editor/in-editor-assistant.service.js';
 import { ChatController } from './chat/chat.controller.js';
@@ -33,6 +34,7 @@ import { WorkspaceGenClient } from './workspace-gen/workspace-gen.client.js';
     ApiToolExecutorRepo,
     ApiApprovalRepo,
     ApiComplianceAuditRepo,
+    ApiPendingActionRepo,
     MeriRegistryService,
     InEditorAssistantService,
     ChatAssistantService,
