@@ -56,6 +56,11 @@ const MAX_ROUNDS = 14;
 const MAX_TOKENS = 8192;
 const TOOL_RESULT_CHARS = 12_000;
 
+// Page-write mode (2.1): the draft tools whose body is applied to the open page.
+// Mirrors the legacy loop (apps/api meri.service.ts), which captures the
+// page-write payload only from these two draft producers.
+const PAGE_WRITE_DRAFT_TOOLS = new Set(['draft_policy_memo', 'create_meeting_brief']);
+
 interface ContentBlock {
   type: string;
   text?: string;
@@ -115,9 +120,28 @@ export class ChatAssistantService {
     }
 
     // Plan-mode routing (deterministic keyword router): classify the last user
-    // turn and steer the prompt when a non-default mode matches.
+    // turn and steer the prompt when a non-default mode matches. Capture the text
+    // BEFORE any vision rewrite below turns the content into a block array.
     const lastUserText = String(messages[messages.length - 1]?.content ?? '');
     const intent = new KeywordIntentRouter().classify(lastUserText);
+
+    // Vision (2.2): attach current-turn images as native Anthropic vision blocks
+    // on the last user message — images first, then the text (legacy parity, the
+    // apps/api loop does the same). completeWithTools carries the content array
+    // verbatim to Anthropic; the OpenAI adapter fails loud on image content.
+    const turnImages = dto.currentTurnImages ?? [];
+    if (turnImages.length) {
+      const last = messages[messages.length - 1];
+      if (last && last.role === 'user' && typeof last.content === 'string') {
+        last.content = [
+          ...turnImages.map((img) => ({
+            type: 'image',
+            source: { type: 'base64', media_type: img.mediaType, data: img.dataBase64 },
+          })),
+          { type: 'text', text: last.content },
+        ];
+      }
+    }
     const system = buildChatSystemPrompt(dto, ctx, intent);
     const toolSchemas = await this.fetchToolSchemas();
     const steps: ChatStep[] = [];
@@ -142,12 +166,26 @@ export class ChatAssistantService {
       cacheReadTokens: 0,
       cacheCreationTokens: 0,
     };
+    // Page-write mode (2.1): the last draft body produced this turn, applied to
+    // the open page. Mirrors legacy (last draft wins); emitted once at finalize.
+    let pageWritePayload: { subject: string; body: string } | null = null;
     const finalize = (reply: string): ChatResult => {
       // Validate [N] markers against the sources we injected: keep only real
       // ones, strip hallucinated ones from the prose, and report the citations
       // actually used (1B.5). Audit the CLEANED reply.
       const { used, cleanedText } = validateCitationMarkers(reply, citations);
       void this.auditReplyShadow(ctx.tenantId, cleanedText, ledgerEntries);
+      // Page-write mode: apply the produced draft to the open page (one frame,
+      // last draft wins — legacy parity). Only when the caller opted in and a
+      // draft actually produced a body.
+      if (dto.pageWrite && pageWritePayload) {
+        emit({
+          type: 'page_write',
+          target: 'outreach_draft',
+          subject: pageWritePayload.subject,
+          body: pageWritePayload.body,
+        });
+      }
       return {
         reply: cleanedText,
         intent: intent.mode,
@@ -248,6 +286,16 @@ export class ChatAssistantService {
           ),
         })),
       );
+      // Page-write mode: capture the body of any draft a draft tool produced this
+      // round so finalize can apply it to the open page (last draft wins, legacy
+      // parity). The `artifact` event already surfaced the same deliverable.
+      if (dto.pageWrite) {
+        for (const { tu, result } of invoked) {
+          if (!PAGE_WRITE_DRAFT_TOOLS.has(tu.name)) continue;
+          const draft = extractChatArtifacts(result).find((a) => a.bodyText);
+          if (draft?.bodyText) pageWritePayload = { subject: draft.title, body: draft.bodyText };
+        }
+      }
       const results = invoked.map(({ tu, result }) => {
         const cites = extractCitationsFromToolResult(tu.name, result, citations.length + 1);
         citations.push(...cites);

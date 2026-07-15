@@ -48,6 +48,12 @@ export class ApiToolExecutorRepo implements ToolExecutor {
           authorization: `Bearer ${creds.bearerToken}`,
           'content-type': 'application/json',
           accept: 'application/json',
+          // Impersonation passthrough (2.5): re-send the effective-tenant header
+          // so apps/api scopes THIS delegated tool call to the impersonated
+          // tenant (it re-validates the caller's impersonation rights).
+          ...(creds.impersonateTenantId
+            ? { 'x-capiro-impersonate-tenant': creds.impersonateTenantId }
+            : {}),
         },
         body: JSON.stringify(input),
         signal: controller.signal,

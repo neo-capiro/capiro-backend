@@ -41,10 +41,15 @@ export class ChatController {
     const meriCtx = await this.resolver.resolve(tc, dto?.clientId ?? null);
     const token = extractBearerToken(req);
     const aiProvider = parseAiProviderHeader(req);
+    const impersonateTenantId = extractImpersonateTenant(req);
     const exec = () => this.chat.run(meriCtx, dto ?? {});
-    return token || aiProvider
+    return token || aiProvider || impersonateTenantId
       ? RequestCredentialsStore.run(
-          { bearerToken: token ?? '', ...(aiProvider ? { aiProvider } : {}) },
+          {
+            bearerToken: token ?? '',
+            ...(aiProvider ? { aiProvider } : {}),
+            ...(impersonateTenantId ? { impersonateTenantId } : {}),
+          },
           exec,
         )
       : exec();
@@ -60,6 +65,7 @@ export class ChatController {
     const meriCtx = await this.resolver.resolve(tc, dto?.clientId ?? null);
     const token = extractBearerToken(req);
     const aiProvider = parseAiProviderHeader(req);
+    const impersonateTenantId = extractImpersonateTenant(req);
 
     res.setHeader('Content-Type', 'text/event-stream');
     res.setHeader('Cache-Control', 'no-cache');
@@ -99,9 +105,13 @@ export class ChatController {
       res.end();
     };
 
-    await (token || aiProvider
+    await (token || aiProvider || impersonateTenantId
       ? RequestCredentialsStore.run(
-          { bearerToken: token ?? '', ...(aiProvider ? { aiProvider } : {}) },
+          {
+            bearerToken: token ?? '',
+            ...(aiProvider ? { aiProvider } : {}),
+            ...(impersonateTenantId ? { impersonateTenantId } : {}),
+          },
           exec,
         )
       : exec());
@@ -114,4 +124,16 @@ function extractBearerToken(req: Request): string | null {
   const match = header.match(/^Bearer\s+(.+)$/i);
   const token = match?.[1]?.trim();
   return token && token.length > 0 ? token : null;
+}
+
+/**
+ * The effective tenant an apps/api staff caller is impersonating (2.5). The
+ * orchestrator does NOT authorize impersonation — it only carries the value so
+ * the delegated apps/api calls re-send it and apps/api (the authz owner)
+ * re-validates + scopes to it. A single string header value; absent otherwise.
+ */
+function extractImpersonateTenant(req: Request): string | null {
+  const raw = req.headers['x-capiro-impersonate-tenant'];
+  const value = Array.isArray(raw) ? raw[0] : raw;
+  return typeof value === 'string' && value.trim().length > 0 ? value.trim() : null;
 }

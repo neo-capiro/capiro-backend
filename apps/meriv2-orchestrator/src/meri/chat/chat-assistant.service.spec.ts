@@ -376,6 +376,145 @@ describe('ChatAssistantService.run', () => {
     expect(events.find((e) => e.type === 'artifact')).toBeUndefined();
   });
 
+  it('emits a page_write event carrying the draft body when pageWrite is set (2.1)', async () => {
+    // draft_policy_memo is PASS-classified (internal_artifacts) → runs without a hold.
+    const executeSpy = jest.fn(async () => ({
+      tool: 'draft_policy_memo',
+      artifact: {
+        id: 'draft-1',
+        title: 'Outreach to Rep. Smith',
+        kind: 'policy_memo',
+        bodyText: 'Dear Representative Smith, regarding the FY27 NDAA…',
+      },
+    }));
+    const executor = { execute: executeSpy } as unknown as ApiToolExecutorRepo;
+
+    let call = 0;
+    (global as unknown as { fetch: unknown }).fetch = jest.fn(async (url: string) => {
+      if (url.includes('/api/clio/tool-schemas')) return schemasResponse(['draft_policy_memo']);
+      call += 1;
+      if (call === 1)
+        return anthropic(
+          [{ type: 'tool_use', id: 't1', name: 'draft_policy_memo', input: { topic: 'x' } }],
+          'tool_use',
+        );
+      return anthropic([{ type: 'text', text: 'Your draft is on the page.' }], 'end_turn');
+    });
+
+    const events: Array<{ type: string; [k: string]: unknown }> = [];
+    await RequestCredentialsStore.run({ bearerToken: 'jwt' }, () =>
+      makeService(executor).run(
+        ctx,
+        {
+          messages: [{ role: 'user', text: 'outreach to Rep Smith' }],
+          conversationId: 'conv-1',
+          pageWrite: true,
+        },
+        { onEvent: (e) => events.push(e as never) },
+      ),
+    );
+
+    // The produced draft is applied to the open page as a page_write frame.
+    expect(events.find((e) => e.type === 'page_write')).toMatchObject({
+      type: 'page_write',
+      target: 'outreach_draft',
+      subject: 'Outreach to Rep. Smith',
+      body: 'Dear Representative Smith, regarding the FY27 NDAA…',
+    });
+  });
+
+  it('does NOT emit page_write when pageWrite is unset — dormant by default (2.1)', async () => {
+    const executeSpy = jest.fn(async () => ({
+      tool: 'draft_policy_memo',
+      artifact: { id: 'draft-2', title: 'Memo', kind: 'policy_memo', bodyText: 'Body' },
+    }));
+    const executor = { execute: executeSpy } as unknown as ApiToolExecutorRepo;
+
+    let call = 0;
+    (global as unknown as { fetch: unknown }).fetch = jest.fn(async (url: string) => {
+      if (url.includes('/api/clio/tool-schemas')) return schemasResponse(['draft_policy_memo']);
+      call += 1;
+      if (call === 1)
+        return anthropic(
+          [{ type: 'tool_use', id: 't1', name: 'draft_policy_memo', input: {} }],
+          'tool_use',
+        );
+      return anthropic([{ type: 'text', text: 'Done.' }], 'end_turn');
+    });
+
+    const events: Array<{ type: string; [k: string]: unknown }> = [];
+    await RequestCredentialsStore.run({ bearerToken: 'jwt' }, () =>
+      makeService(executor).run(
+        ctx,
+        { messages: [{ role: 'user', text: 'draft a memo' }], conversationId: 'conv-2' },
+        { onEvent: (e) => events.push(e as never) },
+      ),
+    );
+
+    // No page mutation when the caller did not opt in…
+    expect(events.find((e) => e.type === 'page_write')).toBeUndefined();
+    // …but the deliverable still surfaces as a normal artifact card.
+    expect(events.find((e) => e.type === 'artifact')).toBeDefined();
+  });
+
+  it('attaches current-turn images as vision blocks on the last user message (2.2)', async () => {
+    const executor = { execute: jest.fn() } as unknown as ApiToolExecutorRepo;
+    let sentBody: { messages?: Array<{ role: string; content: unknown }> } | null = null;
+    (global as unknown as { fetch: unknown }).fetch = jest.fn(
+      async (url: string, init?: { body?: string }) => {
+        if (url.includes('/api/clio/tool-schemas')) return schemasResponse([]);
+        sentBody = init?.body ? JSON.parse(init.body) : null;
+        return anthropic([{ type: 'text', text: 'The chart shows FY27 PE cuts.' }], 'end_turn');
+      },
+    );
+
+    await RequestCredentialsStore.run({ bearerToken: 'jwt' }, () =>
+      makeService(executor).run(ctx, {
+        messages: [{ role: 'user', text: 'what does this chart show?' }],
+        currentTurnImages: [{ mediaType: 'image/png', dataBase64: 'AAAA' }],
+      }),
+    );
+
+    // Re-widen: TS narrows sentBody to its init (null) since it's assigned only
+    // inside the fetch closure it can't track.
+    const msgs =
+      (sentBody as { messages?: Array<{ role: string; content: unknown }> } | null)?.messages ?? [];
+    const lastUser = msgs[msgs.length - 1];
+    expect(Array.isArray(lastUser?.content)).toBe(true);
+    const blocks = lastUser?.content as Array<Record<string, unknown>>;
+    // Legacy parity: image block(s) first, then the text.
+    expect(blocks[0]).toMatchObject({
+      type: 'image',
+      source: { type: 'base64', media_type: 'image/png', data: 'AAAA' },
+    });
+    expect(blocks[blocks.length - 1]).toMatchObject({
+      type: 'text',
+      text: 'what does this chart show?',
+    });
+  });
+
+  it('sends a plain string message (no vision block) when there are no images (2.2)', async () => {
+    const executor = { execute: jest.fn() } as unknown as ApiToolExecutorRepo;
+    let sentBody: { messages?: Array<{ role: string; content: unknown }> } | null = null;
+    (global as unknown as { fetch: unknown }).fetch = jest.fn(
+      async (url: string, init?: { body?: string }) => {
+        if (url.includes('/api/clio/tool-schemas')) return schemasResponse([]);
+        sentBody = init?.body ? JSON.parse(init.body) : null;
+        return anthropic([{ type: 'text', text: 'Hello.' }], 'end_turn');
+      },
+    );
+
+    await RequestCredentialsStore.run({ bearerToken: 'jwt' }, () =>
+      makeService(executor).run(ctx, { messages: [{ role: 'user', text: 'hi' }] }),
+    );
+
+    // Re-widen: TS narrows sentBody to its init (null) since it's assigned only
+    // inside the fetch closure it can't track.
+    const msgs =
+      (sentBody as { messages?: Array<{ role: string; content: unknown }> } | null)?.messages ?? [];
+    expect(typeof msgs[msgs.length - 1]?.content).toBe('string');
+  });
+
   it('prompts for input when the last message is not from the user (no model call)', async () => {
     const fetchSpy = jest.fn();
     (global as unknown as { fetch: unknown }).fetch = fetchSpy;

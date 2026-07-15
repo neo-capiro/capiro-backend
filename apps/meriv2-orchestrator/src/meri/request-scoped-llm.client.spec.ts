@@ -264,6 +264,39 @@ describe('RequestScopedLlmClient.completeWithTools (tool-use round)', () => {
     expect(out.usage).toEqual({ inputTokens: 11, outputTokens: 7 });
     expect(out.usedTenantKey).toBe(true);
   });
+
+  // 2.2: the OpenAI tool-loop translation carries only text + tool_result blocks,
+  // so an image block would be silently dropped. Fail loud instead of answering
+  // as if no image was sent.
+  it('fails loud on image content for an OpenAI credential (vision unsupported)', async () => {
+    const fetchSpy = jest.fn();
+    (global as unknown as { fetch: unknown }).fetch = fetchSpy;
+    const client = new RequestScopedLlmClient('sk-global', 'claude-default');
+    await expect(
+      RequestCredentialsStore.run(
+        { bearerToken: 't', aiProvider: { ...tenantCred, provider: 'openai' as const } },
+        () =>
+          client.completeWithTools({
+            system: 'sys',
+            messages: [
+              {
+                role: 'user',
+                content: [
+                  {
+                    type: 'image',
+                    source: { type: 'base64', media_type: 'image/png', data: 'AAAA' },
+                  },
+                  { type: 'text', text: 'what does this show?' },
+                ],
+              },
+            ],
+            tools,
+            maxTokens: 128,
+          }),
+      ),
+    ).rejects.toThrow(/vision.*not supported/i);
+    expect(fetchSpy).not.toHaveBeenCalled(); // never reached the OpenAI API
+  });
 });
 
 describe('parseAiProviderHeader', () => {

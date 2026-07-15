@@ -39,6 +39,7 @@ export type MeriV2ChatStreamEvent =
       };
     }
   | { type: 'text'; text: string }
+  | { type: 'page_write'; target: string; subject?: string; body: string }
   | {
       type: 'done';
       reply: string;
@@ -112,8 +113,20 @@ export class MeriV2ChatClient {
       conversationSummary?: string;
       /** Always-on client KB snapshot (1B.4), built + forwarded by the proxy. */
       clientKbSnapshot?: string;
+      /** Page-write mode (2.1): apply a produced draft to the open page. */
+      pageWrite?: boolean;
+      /** Current-turn images (2.2 vision): attached to the last user message. */
+      currentTurnImages?: Array<{ mediaType: string; dataBase64: string }>;
     };
     aiProvider?: ResolvedAiForChatHeader;
+    /**
+     * Impersonation (2.5): the effective tenant a staff caller is acting AS.
+     * Forwarded as `x-capiro-impersonate-tenant` so the orchestrator re-sends it
+     * on its delegated apps/api calls and apps/api (the authz owner) scopes the
+     * turn to the impersonated tenant. apps/api resolves this only after it has
+     * verified the caller's impersonation rights.
+     */
+    impersonateTenantId?: string;
     signal?: AbortSignal;
     onEvent: (event: MeriV2ChatStreamEvent) => void;
   }): Promise<void> {
@@ -130,6 +143,9 @@ export class MeriV2ChatClient {
         'content-type': 'application/json',
         accept: 'text/event-stream',
         ...(params.aiProvider ? { 'x-capiro-ai-provider': JSON.stringify(params.aiProvider) } : {}),
+        ...(params.impersonateTenantId
+          ? { 'x-capiro-impersonate-tenant': params.impersonateTenantId }
+          : {}),
       },
       body: JSON.stringify(params.input),
       ...(params.signal ? { signal: params.signal } : {}),

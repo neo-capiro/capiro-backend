@@ -433,6 +433,11 @@ export class MeriService {
     // proxy branch (delegated tools + the approval check re-authenticate with
     // it downstream). The legacy in-process path never touches it.
     bearerToken?: string,
+    // Impersonation (2.5): the effective tenant a staff caller is acting AS,
+    // forwarded to the MeriV2 proxy branch so its delegated apps/api calls scope
+    // to it. Today the controller withholds the bearer on impersonated turns, so
+    // they route legacy and this stays unused — threaded for the eventual flip.
+    impersonateTenantId?: string,
   ) {
     const conversation = await this.ensureConversation(ctx, conversationId);
     const streamControl = this.extractStreamControl(body);
@@ -654,6 +659,15 @@ export class MeriService {
         bearerToken,
         complianceScreen,
         traceEnabled: streamControl.traceEnabled,
+        // Forwarded for when the page-write gate above is lifted (post-parity);
+        // today the gate excludes page-write turns, so this is always false here.
+        pageWriteEnabled: streamControl.pageWriteEnabled,
+        // Same story for vision: the gate above still excludes image turns, so
+        // this is always empty here — threaded so lifting that gate is a one-liner.
+        currentTurnImages,
+        // Impersonation (2.5): dormant — the controller withholds the bearer on
+        // impersonated turns, so this branch is not reached for them yet.
+        ...(impersonateTenantId ? { impersonateTenantId } : {}),
         conversationSummary,
         ...(clientSignal ? { clientSignal } : {}),
       });
@@ -1528,6 +1542,9 @@ export class MeriService {
     bearerToken: string;
     complianceScreen: { flagged: boolean; category?: string | null };
     traceEnabled: boolean;
+    pageWriteEnabled: boolean;
+    currentTurnImages: Array<{ filename: string; mediaType: string; dataBase64: string }>;
+    impersonateTenantId?: string;
     conversationSummary: string | null;
   }): Promise<void> {
     const { ctx, sse } = args;
@@ -1579,6 +1596,16 @@ export class MeriService {
     }
 
     emit({ type: 'start', intent: 'general', tier: 'fast' });
+    // Page-write mode (2.1): the same up-front "enabled" note the legacy path
+    // emits (meri.service.ts main loop) so the drawer shows write mode is on; the
+    // real content frame follows from the orchestrator's page_write event below.
+    if (args.pageWriteEnabled) {
+      emit({
+        type: 'page_write',
+        target: 'outreach_draft',
+        note: 'Write mode enabled: updates will be applied to this page when supported.',
+      });
+    }
 
     let accumulated = '';
     const collectedSteps: Array<{
@@ -1672,6 +1699,16 @@ export class MeriService {
           accumulated += event.text;
           emit({ type: 'text', text: event.text });
           return;
+        case 'page_write':
+          // Page-write output (2.1): the orchestrator produced a draft to apply
+          // to the open page — forward the same frame shape the legacy loop emits.
+          emit({
+            type: 'page_write',
+            target: event.target,
+            ...(event.subject !== undefined ? { subject: event.subject } : {}),
+            body: event.body,
+          });
+          return;
         case 'done':
           doneFrame = event;
           return;
@@ -1692,8 +1729,18 @@ export class MeriService {
           ...(skillAddendum ? { skillAddendum } : {}),
           ...(args.conversationSummary ? { conversationSummary: args.conversationSummary } : {}),
           ...(clientKbSnapshot ? { clientKbSnapshot } : {}),
+          ...(args.pageWriteEnabled ? { pageWrite: true } : {}),
+          ...(args.currentTurnImages.length
+            ? {
+                currentTurnImages: args.currentTurnImages.map((i) => ({
+                  mediaType: i.mediaType,
+                  dataBase64: i.dataBase64,
+                })),
+              }
+            : {}),
         },
         ...(aiProvider ? { aiProvider } : {}),
+        ...(args.impersonateTenantId ? { impersonateTenantId: args.impersonateTenantId } : {}),
         ...(args.clientSignal ? { signal: args.clientSignal } : {}),
         onEvent: translate,
       });
@@ -2782,7 +2829,7 @@ export class MeriService {
       meriGroundingSurfaceBlock('chat'),
       '',
       'Memory: you have persistent, cross-conversation memory for this firm and user. Relevant remembered facts are injected into the context below when available. When the user shares a durable preference, name, or ongoing priority — or explicitly asks you to remember something — call the save_memory tool to persist it, then briefly confirm. Never claim you lack memory or cannot retain information across sessions.',
-      "Client roster is authoritative: the definitive list of the organizations this firm represents comes from the Capiro client table and is injected into the context below as \"Your firm's client roster\" when available. When the user asks who their clients are, how many clients they have, or whether a given organization is a client, answer ONLY from that authoritative roster — never enumerate or infer the client list from memory, prior conversations, or examples. Memory holds preferences and facts, but it is NOT the system of record for which organizations are clients; if the roster and a memory disagree on who is a client, the roster wins.",
+      'Client roster is authoritative: the definitive list of the organizations this firm represents comes from the Capiro client table and is injected into the context below as "Your firm\'s client roster" when available. When the user asks who their clients are, how many clients they have, or whether a given organization is a client, answer ONLY from that authoritative roster — never enumerate or infer the client list from memory, prior conversations, or examples. Memory holds preferences and facts, but it is NOT the system of record for which organizations are clients; if the roster and a memory disagree on who is a client, the roster wins.',
       'Conversation continuity (critical): the full prior turns of THIS conversation are provided to you as message history. Treat the conversation as one continuous thread — read the earlier turns and carry their context forward. When the user says "it", "that", "those", "the firm", "add them", "the same client", or otherwise refers back, resolve the reference from earlier in this conversation; do NOT re-ask for something already established or act as if the thread just started. If you genuinely cannot find the referent in the history, say so and ask — but check the prior turns first. The per-turn context snapshot below supplements the conversation; it never replaces what the user already told you.',
       COMPLIANCE_GUARDRAILS,
     ].join('\n');

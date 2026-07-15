@@ -43,6 +43,11 @@ export class ApiApprovalRepo implements ApprovalRepo {
           authorization: `Bearer ${creds.bearerToken}`,
           'content-type': 'application/json',
           accept: 'application/json',
+          // Impersonation passthrough (2.5): scope the approval lookup to the
+          // impersonated tenant, matching the delegated tool execution.
+          ...(creds.impersonateTenantId
+            ? { 'x-capiro-impersonate-tenant': creds.impersonateTenantId }
+            : {}),
         },
         body: JSON.stringify({ fingerprint }),
         signal: controller.signal,

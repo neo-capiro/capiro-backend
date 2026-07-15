@@ -273,7 +273,12 @@ export class MeriController {
     // impersonated tenant. Withholding the bearer makes the service branch fall
     // through to the legacy in-process path, which runs entirely under the one
     // swapped ctx and handles impersonation correctly.
-    const impersonated = Boolean(req.headers['x-capiro-impersonate-tenant']);
+    const impersonateHeader = req.headers['x-capiro-impersonate-tenant'];
+    const impersonateTenantId =
+      typeof impersonateHeader === 'string' && impersonateHeader.trim().length > 0
+        ? impersonateHeader.trim()
+        : undefined;
+    const impersonated = Boolean(impersonateTenantId);
     const bearerMatch = (req.headers.authorization ?? '').match(/^Bearer\s+(.+)$/i);
     const bearerToken = impersonated ? undefined : bearerMatch?.[1]?.trim() || undefined;
     await this.service.streamMessage(
@@ -285,6 +290,10 @@ export class MeriController {
       body.mode ?? 'new',
       body.attachmentIds ?? [],
       bearerToken,
+      // 2.5: forwarded so the MeriV2 proxy branch CAN scope to the impersonated
+      // tenant once the bearer is no longer withheld above (the post-parity flip);
+      // until then bearerToken stays undefined for impersonated turns → legacy.
+      impersonateTenantId,
     );
     res.end();
   }

@@ -53,6 +53,23 @@ export interface ChatInput {
    * memoryContext. Absent when no client is focused or the KB is unavailable.
    */
   clientKbSnapshot?: string;
+  /**
+   * Page-write mode (2.1): the user asked Meri to write directly onto the page
+   * they have open (e.g. an outreach draft — legacy "write on this page:"). When
+   * set, a draft the turn produces (draft_policy_memo / create_meeting_brief) is
+   * surfaced as a `page_write` event the apps/api proxy maps to the legacy
+   * ChatDrawer `page_write` frame so the surface applies it to the open page.
+   * Forwarded by the proxy; absent (falsy) = normal chat, no page mutation.
+   */
+  pageWrite?: boolean;
+  /**
+   * Current-turn image attachments (2.2 vision), forwarded by the proxy. Attached
+   * as native Anthropic vision blocks to the last user message (images first,
+   * then text — legacy parity). Anthropic only: the OpenAI adapter fails loud
+   * rather than silently dropping the image and answering as if it never existed.
+   * Each is a base64 payload + its media type (e.g. image/png).
+   */
+  currentTurnImages?: Array<{ mediaType: string; dataBase64: string }>;
 }
 
 export interface ChatStep {
@@ -127,7 +144,14 @@ export type ChatStreamEvent =
     }
   | { type: 'pending_approval'; tool: string; label: string; fingerprint: string; reason: string }
   | { type: 'artifact'; artifact: ChatArtifact }
-  | { type: 'text'; text: string };
+  | { type: 'text'; text: string }
+  /**
+   * Page-write output (2.1): a draft the turn produced that the surface should
+   * apply to the page the user has open (page-write mode). The proxy maps this
+   * to the legacy ChatDrawer `page_write` frame. Only emitted when the caller
+   * set ChatInput.pageWrite and a draft tool produced a body.
+   */
+  | { type: 'page_write'; target: string; subject?: string; body: string };
 
 /** Friendly label for a tool name, for the chat's thought-process trace. */
 export function toolLabel(tool: string): string {

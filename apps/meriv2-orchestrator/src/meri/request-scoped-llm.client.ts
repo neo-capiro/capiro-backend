@@ -165,6 +165,15 @@ export class RequestScopedLlmClient implements LlmClient {
     // OpenAI credential the OpenAiLlmClient adapter translates both directions,
     // so the loop drivers (chat, in-editor) run unchanged on either provider.
     if (provider === 'openai') {
+      // Vision (2.2): the OpenAI tool-loop translation only carries text +
+      // tool_result blocks (toOpenAiToolLoopBody), so an image block would be
+      // SILENTLY dropped and the model would answer as if no image was sent.
+      // Fail loud instead — the tenant must use an Anthropic model for image turns.
+      if (messagesContainImage(params.messages)) {
+        throw new Error(
+          'Vision (image inputs) is not supported on the OpenAI adapter — the tenant must use an Anthropic model for turns that include images.',
+        );
+      }
       this.logger.debug(
         `LLM tool round (provider=openai, model=${model}, usedTenantKey=${usedTenantKey})`,
       );
@@ -250,6 +259,15 @@ export class RequestScopedLlmClient implements LlmClient {
 
 function sseNumber(v: unknown): number {
   return typeof v === 'number' && Number.isFinite(v) ? v : 0;
+}
+
+/** True if any message carries a vision (image) content block (2.2). */
+function messagesContainImage(messages: Array<{ content: unknown }>): boolean {
+  return messages.some(
+    (m) =>
+      Array.isArray(m.content) &&
+      (m.content as Array<Record<string, unknown>>).some((b) => b?.type === 'image'),
+  );
 }
 
 /**
