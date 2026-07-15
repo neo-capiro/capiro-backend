@@ -28,11 +28,15 @@ export interface RequestCredentials {
   /**
    * Impersonation passthrough (2.5): the effective tenant an apps/api staff
    * caller is acting AS (the `x-capiro-impersonate-tenant` value). When present,
-   * the delegated apps/api calls (tool executor + approval check) re-send this
-   * header so apps/api — which OWNS impersonation authorization and re-validates
-   * it on every call — scopes the tool execution to the impersonated tenant
-   * instead of the caller's home tenant (the split-tenant hazard). The
-   * orchestrator itself does NOT authorize impersonation; it only propagates.
+   * the delegated apps/api calls (tool executor, approval check, AND the B4.1
+   * pending-action cache write) re-send this header so apps/api — which OWNS
+   * impersonation authorization and re-validates it on every call — scopes the
+   * write to the impersonated tenant instead of the caller's home tenant (the
+   * split-tenant hazard). The pending-action cache MUST be in this set: the
+   * approval row and the cached tool input are keyed by the same fingerprint but
+   * live in separate RLS-isolated tables, so if they land under different tenants
+   * the approved write can never be replayed. The orchestrator itself does NOT
+   * authorize impersonation; it only propagates.
    */
   impersonateTenantId?: string;
 }
