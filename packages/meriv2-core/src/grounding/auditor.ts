@@ -174,15 +174,28 @@ const PE_SHAPE = /^\d{7}[A-Z][A-Z0-9]*$/;
 // ── D1: FORM-B citation existence ────────────────────────────────────────────
 
 /**
+ * Build the tool→serialized-results map `validateFormBCitations` needs, from a
+ * turn's ledger. Exported so live (pre-delivery) citation stripping on the chat
+ * surfaces (apps/api's meri.service.ts, the orchestrator's chat-assistant.service.ts)
+ * can call `validateFormBCitations(text, ledgerToToolResultMap(ledgerEntries))`
+ * with the exact same tool→text grouping the post-hoc D1 auditor check uses —
+ * one choke point instead of two independently-maintained reductions.
+ */
+export function ledgerToToolResultMap(entries: readonly LedgerEntry[]): Record<string, string> {
+  const byTool: Record<string, string> = {};
+  for (const e of entries) {
+    byTool[e.tool] = (byTool[e.tool] ?? '') + '\n' + e.serialized;
+  }
+  return byTool;
+}
+
+/**
  * Flag FORM-B tokens whose tool wasn't called this turn or whose record_id is
  * not a verbatim substring of that tool's serialized result. Reuses the shared
  * validator over a tool→serialized map built from the ledger.
  */
 export function checkCitations(output: string, ledger: ToolResultLedger): AuditFinding[] {
-  const byTool: Record<string, string> = {};
-  for (const e of ledger.entries) {
-    byTool[e.tool] = (byTool[e.tool] ?? '') + '\n' + e.serialized;
-  }
+  const byTool = ledgerToToolResultMap(ledger.entries);
   const { invalid } = validateFormBCitations(output, byTool);
   return invalid.map((token) => ({
     check: 'D1',
