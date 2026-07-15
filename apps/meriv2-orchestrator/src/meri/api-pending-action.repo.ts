@@ -74,9 +74,7 @@ export class ApiPendingActionRepo {
           // impersonated tenant — RLS then hides the cached input from approve(),
           // so the approved write can never be replayed ("Approve & run does
           // nothing", impersonation-only). See meri_pending_action / meri_action_approval.
-          ...(impersonateTenantId
-            ? { 'x-capiro-impersonate-tenant': impersonateTenantId }
-            : {}),
+          ...(impersonateTenantId ? { 'x-capiro-impersonate-tenant': impersonateTenantId } : {}),
         },
         body: JSON.stringify(payload),
         signal: controller.signal,

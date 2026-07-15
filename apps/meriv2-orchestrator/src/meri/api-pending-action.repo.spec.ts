@@ -64,7 +64,11 @@ describe('ApiPendingActionRepo', () => {
     await RequestCredentialsStore.run(
       { bearerToken: 'TOK', impersonateTenantId: 'prospering-solutions' },
       () => {
-        repo.record({ fingerprint: 'fp1', tool: 'update_client_profile', input: { clientId: 'c1' } });
+        repo.record({
+          fingerprint: 'fp1',
+          tool: 'update_client_profile',
+          input: { clientId: 'c1' },
+        });
         return Promise.resolve();
       },
     );
