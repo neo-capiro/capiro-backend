@@ -44,6 +44,35 @@ describe('ApiPendingActionRepo', () => {
       tool: 'update_client_profile',
       input: { clientId: 'c1' },
     });
+    // Not impersonating → no passthrough header.
+    expect(calls[0]?.headers['x-capiro-impersonate-tenant']).toBeUndefined();
+  });
+
+  it('forwards x-capiro-impersonate-tenant so the cached row lands under the impersonated tenant (matches the approval row)', async () => {
+    // Regression: without this header the pending row was written under the staff
+    // caller's HOME tenant while the approval landed under the impersonated tenant,
+    // so RLS hid the cached input from approve() and the approved write never ran.
+    const calls: Array<{ headers: Record<string, string> }> = [];
+    (global as unknown as { fetch: unknown }).fetch = jest.fn(
+      async (_url: string, init: { headers: Record<string, string>; body: string }) => {
+        calls.push({ headers: init.headers });
+        return { ok: true, status: 200 };
+      },
+    );
+    const repo = new ApiPendingActionRepo(config);
+
+    await RequestCredentialsStore.run(
+      { bearerToken: 'TOK', impersonateTenantId: 'prospering-solutions' },
+      () => {
+        repo.record({ fingerprint: 'fp1', tool: 'update_client_profile', input: { clientId: 'c1' } });
+        return Promise.resolve();
+      },
+    );
+    await new Promise((r) => setImmediate(r));
+
+    expect(calls).toHaveLength(1);
+    expect(calls[0]?.headers.authorization).toBe('Bearer TOK');
+    expect(calls[0]?.headers['x-capiro-impersonate-tenant']).toBe('prospering-solutions');
   });
 
   it('skips silently with no bearer in scope (never throws into the turn)', async () => {

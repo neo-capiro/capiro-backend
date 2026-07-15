@@ -45,14 +45,19 @@ export class ApiPendingActionRepo {
 
   /** Fire-and-forget: schedule the cache write, never await it into the turn. */
   record(payload: PendingActionPayload): void {
-    const bearer = RequestCredentialsStore.get()?.bearerToken;
+    const creds = RequestCredentialsStore.get();
+    const bearer = creds?.bearerToken;
     if (!bearer) return; // no caller identity to scope the row — skip silently
-    void this.post(bearer, payload).catch((e) =>
+    void this.post(bearer, creds?.impersonateTenantId, payload).catch((e) =>
       this.logger.warn(`pending-action cache write skipped (${(e as Error).message})`),
     );
   }
 
-  private async post(bearer: string, payload: PendingActionPayload): Promise<void> {
+  private async post(
+    bearer: string,
+    impersonateTenantId: string | undefined,
+    payload: PendingActionPayload,
+  ): Promise<void> {
     const controller = new AbortController();
     const timer = setTimeout(() => controller.abort(), this.timeoutMs);
     try {
@@ -62,6 +67,16 @@ export class ApiPendingActionRepo {
           authorization: `Bearer ${bearer}`,
           'content-type': 'application/json',
           accept: 'application/json',
+          // Impersonation passthrough (2.5): the cached pending row MUST land under
+          // the same tenant the approval row does (ApiApprovalRepo forwards this
+          // header too). Without it, an impersonated turn caches the row under the
+          // staff caller's HOME tenant while the approval is recorded under the
+          // impersonated tenant — RLS then hides the cached input from approve(),
+          // so the approved write can never be replayed ("Approve & run does
+          // nothing", impersonation-only). See meri_pending_action / meri_action_approval.
+          ...(impersonateTenantId
+            ? { 'x-capiro-impersonate-tenant': impersonateTenantId }
+            : {}),
         },
         body: JSON.stringify(payload),
         signal: controller.signal,
