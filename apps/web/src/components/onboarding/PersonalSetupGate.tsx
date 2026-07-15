@@ -7,10 +7,11 @@
  * overlay. The overlay z-index is raised from the prototype's 50 so it sits
  * above the app chrome (chat FAB is z-index 998).
  *
- * Phases: gate → connecting (redirecting to the Microsoft OAuth consent
- * screen) → connected (after the OAuth return finds a connected integration)
- * → optional prefs step. Google is rendered exactly like the prototype but
- * disabled with a "Coming soon" tag (Google connect is deferred — decision Q5).
+ * Phases: gate → connecting (redirecting to the Microsoft or Google OAuth
+ * consent screen) → connected (after the OAuth return finds a connected
+ * integration) → optional prefs step. Both providers use the same engagement
+ * integration Settings → Integrations already exposes (POST
+ * .../integrations/{microsoft,google}/start).
  */
 import { useState } from 'react';
 import { ArrowRight, Check, MailPlus } from 'lucide-react';
@@ -21,7 +22,6 @@ import {
   ObField,
   ObSelectInput,
   ObSpinner,
-  ObTag,
   obInputStyle,
 } from './primitives.js';
 
@@ -31,6 +31,7 @@ export function PersonalSetupGateModal({
   email,
   tenantName,
   onConnectMicrosoft,
+  onConnectGoogle,
   onContinue,
 }: {
   /** The current user has at least one connected email integration. */
@@ -42,6 +43,7 @@ export function PersonalSetupGateModal({
   /** Tenant display name (prefs step subtitle). */
   tenantName: string;
   onConnectMicrosoft: () => void;
+  onConnectGoogle: () => void;
   /** Close the modal (Continue / Save preferences / Skip for now). */
   onContinue: () => void;
 }) {
@@ -142,14 +144,14 @@ export function PersonalSetupGateModal({
                 >
                   <MsGlyph /> Connect with Microsoft
                 </ObBtn>
-                {/* Google connect is deferred (decision Q5): rendered exactly like
-                    the prototype but disabled, with a "Coming soon" tag. */}
-                <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-                  <ObBtn variant="secondary" size="lg" disabled style={{ flex: 1 }}>
-                    <GGlyph /> Connect with Google
-                  </ObBtn>
-                  <ObTag>Coming soon</ObTag>
-                </div>
+                <ObBtn
+                  variant="secondary"
+                  size="lg"
+                  onClick={onConnectGoogle}
+                  style={{ width: '100%' }}
+                >
+                  <GGlyph /> Connect with Google
+                </ObBtn>
               </div>
             )}
             <div style={{ marginTop: 16, fontSize: 11.5, color: 'var(--ink-4)' }}>

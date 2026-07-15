@@ -161,6 +161,27 @@ export function OnboardingGates({ children }: { children: ReactNode }) {
     },
   });
 
+  // Same pattern for Google — the engagement integration has been live since
+  // Phase 1 (Settings → Integrations already exposes this exact call); this
+  // hard gate previously hardcoded Google as "Coming soon", which went stale
+  // once that shipped.
+  const startGoogle = useMutation({
+    mutationFn: async () => {
+      const reusableId = (connections.data ?? []).find(
+        (c) => c.provider === 'google_workspace' && c.status !== 'connected',
+      )?.id;
+      return (
+        await api.post<{ authUrl: string; connectionId: string }>(
+          '/api/engagement/integrations/google/start',
+          reusableId ? { connectionId: reusableId } : {},
+        )
+      ).data;
+    },
+    onSuccess: ({ authUrl }) => {
+      window.location.href = authUrl;
+    },
+  });
+
   const closeEmailGate = () => {
     sessionStorage.removeItem(GATE_SHOWN_KEY);
     setGateWasShown(false);
@@ -186,10 +207,16 @@ export function OnboardingGates({ children }: { children: ReactNode }) {
           <DimmedApp>{children}</DimmedApp>
           <PersonalSetupGateModal
             connected={showConnectedModal}
-            connecting={startMicrosoft.isPending || startMicrosoft.isSuccess}
+            connecting={
+              startMicrosoft.isPending ||
+              startMicrosoft.isSuccess ||
+              startGoogle.isPending ||
+              startGoogle.isSuccess
+            }
             email={me.data?.user.email ?? null}
             tenantName={me.data?.tenant.name ?? 'your firm'}
             onConnectMicrosoft={() => startMicrosoft.mutate()}
+            onConnectGoogle={() => startGoogle.mutate()}
             onContinue={closeEmailGate}
           />
         </>
