@@ -52,6 +52,15 @@ export interface UpsertSourceDocumentInput {
   extractionMethod: string;
   extractionToolVersion?: string | null;
   metadata?: Record<string, unknown>;
+  // Immutable raw-archive provenance (PE Watch LlamaParse ingestion). Populated only
+  // after original bytes are written to the Object-Lock raw bucket. A SourceDocument
+  // row without these is NOT proof of archival.
+  archiveBucket?: string | null;
+  archiveS3Key?: string | null;
+  archiveVersionId?: string | null;
+  archiveKmsKeyArn?: string | null;
+  retainUntil?: Date | null;
+  archivedAt?: Date | null;
 }
 
 export interface UpsertSourceDocumentResult {
@@ -99,6 +108,12 @@ function buildData(input: UpsertSourceDocumentInput): Record<string, unknown> {
     extractionMethod: input.extractionMethod,
     extractionToolVersion: input.extractionToolVersion ?? null,
     metadata: input.metadata ?? {},
+    archiveBucket: input.archiveBucket ?? null,
+    archiveS3Key: input.archiveS3Key ?? null,
+    archiveVersionId: input.archiveVersionId ?? null,
+    archiveKmsKeyArn: input.archiveKmsKeyArn ?? null,
+    retainUntil: input.retainUntil ?? null,
+    archivedAt: input.archivedAt ?? null,
   };
 }
 

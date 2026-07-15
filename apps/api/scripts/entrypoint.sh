@@ -530,6 +530,11 @@ case "${1:-serve}" in
   # One-time ordered backfill + pre-flight key check (Production Ingestion plan,
   # Phase 3). preflight exits non-zero if a REQUIRED key is missing.
   preflight-ingestion) shift; exec ./node_modules/.bin/tsx scripts/preflight-ingestion.ts "$@" ;;
+
+  # PE Watch defense-budget ingestion (LlamaParse PDF + immutable S3 archive).
+  # Archives each PDF to the Object-Lock raw bucket BEFORE parsing, records the
+  # SourceDocument + DocumentParseJob, and loads independent page-cited assertions.
+  ingest-defense-budget) shift; exec ./node_modules/.bin/tsx scripts/ingest-defense-budget-pdf.ts "$@" ;;
   # ONE fully-populated demo client (default tenant: capiro) for product demos:
   # profile + capabilities + people + facilities + strategy + workflow + campaign
   # + engagement activity + intel links + PE 0603270A fixture data + PE watch.

@@ -63,6 +63,7 @@
     "repair:person-pe-links": "tsx scripts/repair-person-pe-links.ts",
     "sync:congress": "tsx scripts/sync-congress.ts",
     "extract:bill-pe-codes": "tsx scripts/extract-bill-pe-codes.ts",
+    "ingest:defense-budget": "tsx scripts/ingest-defense-budget-pdf.ts",
     "parse:hasc-report": "tsx scripts/parse-hasc-sasc-reports.ts --chamber HASC",
     "parse:sasc-report": "tsx scripts/parse-hasc-sasc-reports.ts --chamber SASC",
     "parse:hac-d-report": "tsx scripts/parse-defense-approps-reports.ts --chamber HAC-D",

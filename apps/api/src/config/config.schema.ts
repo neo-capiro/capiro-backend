@@ -37,6 +37,23 @@ export const configSchema = z.object({
   LEGISTORM_OVERLAP_DAYS: z.coerce.number().int().nonnegative().default(2),
   AWS_REGION_DEFAULT: z.string().default('us-east-1'),
 
+  // PE Watch defense-budget ingestion (Step: LlamaParse + immutable S3 archive).
+  // LLAMA_CLOUD_API_KEY is optional at API-server boot; only the ingestion CLI
+  // (ingest-defense-budget-pdf) hard-requires it and fails closed when absent.
+  LLAMA_CLOUD_API_KEY: z.string().min(1).optional(),
+  LLAMA_CLOUD_BASE_URL: z
+    .string()
+    .url()
+    .refine((v) => new URL(v).protocol === 'https:', 'LLAMA_CLOUD_BASE_URL must use HTTPS')
+    .default('https://api.cloud.llamaindex.ai'),
+  // Immutable raw-archive bucket (Object Lock GOVERNANCE, dedicated KMS CMK).
+  // A SourceDocument row is NOT proof of archival; the ingestion pipeline writes
+  // original bytes here BEFORE parsing and records the returned VersionId.
+  DEFENSE_BUDGET_RAW_BUCKET: z.string().optional(),
+  DEFENSE_BUDGET_AUDIT_BUCKET: z.string().optional(),
+  DEFENSE_BUDGET_RAW_KMS_KEY_ARN: z.string().optional(),
+  DEFENSE_BUDGET_RETENTION_YEARS: z.coerce.number().int().positive().default(7),
+
   // Optional AI providers. Meeting prep endpoints fail closed with 503 until
   // one provider key is configured; they never return canned prep.
   AI_PROVIDER: z.enum(['openai', 'anthropic']).optional(),

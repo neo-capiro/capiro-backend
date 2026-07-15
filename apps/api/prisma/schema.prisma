@@ -3301,13 +3301,25 @@ model SourceDocument {
   downloadedAt           DateTime? @map("downloaded_at") @db.Timestamptz(6)
   // Path under apps/api/scripts/__data__/ for the committed extraction artifact.
   artifactPath           String?   @map("artifact_path")
-  // structured_import | deterministic_pdf | manual
+  // structured_import | deterministic_pdf | llamaparse | manual
   extractionMethod       String    @map("extraction_method")
   extractionToolVersion  String?   @map("extraction_tool_version")
   ingestedAt             DateTime  @default(now()) @map("ingested_at") @db.Timestamptz(6)
   // Version chain: set on the OLD head when a newer version of the same sourceKey is ingested.
   supersededByDocumentId String?   @map("superseded_by_document_id") @db.Uuid
   metadata               Json      @default("{}") @map("metadata_jsonb")
+
+  // ── Immutable raw-archive provenance (PE Watch LlamaParse ingestion) ──
+  // A SourceDocument row is NOT proof of archival. These columns are populated
+  // only after original bytes are written to the Object-Lock raw bucket and the
+  // returned VersionId is captured. Nullable for backward-compat with rows
+  // ingested from committed __data__ artifacts (which predate S3 archival).
+  archiveBucket    String?   @map("archive_bucket")
+  archiveS3Key     String?   @map("archive_s3_key")
+  archiveVersionId String?   @map("archive_version_id")
+  archiveKmsKeyArn String?   @map("archive_kms_key_arn")
+  retainUntil      DateTime? @map("retain_until") @db.Timestamptz(6)
+  archivedAt       DateTime? @map("archived_at") @db.Timestamptz(6)
 
   supersededBy SourceDocument?  @relation("SourceDocumentVersion", fields: [supersededByDocumentId], references: [id], onDelete: SetNull, onUpdate: Cascade)
   supersedes   SourceDocument[] @relation("SourceDocumentVersion")
@@ -3318,11 +3330,47 @@ model SourceDocument {
   yearSourceValues         ProgramElementYearSourceValue[]
   budgetPositions          ProgramElementBudgetPosition[]
   provisions               CommitteeReportProvision[]
+  parseJobs                DocumentParseJob[]
 
   @@unique([sourceKey, sha256], map: "source_document_source_key_sha256_key")
   @@index([documentType, fiscalYear, budgetCycle, component], map: "source_document_type_fy_cycle_component_idx")
   @@index([sourceKey], map: "source_document_source_key_idx")
+  @@index([archiveVersionId], map: "source_document_archive_version_idx")
   @@map("source_document")
+}
+
+/// One row per parse attempt over a SourceDocument page range. Immutable audit
+/// record of the parse job requested by PE Watch ingestion — satisfies the
+/// "record of the pdf AND the parse job" requirement. Global table (no RLS):
+/// J-book/committee data is public-domain. Provider is 'llamaparse' for the
+/// agentic PDF path or 'deterministic_pdfplumber' for the text-layer fast path.
+model DocumentParseJob {
+  id                  String    @id @default(uuid()) @db.Uuid
+  sourceDocumentId    String    @map("source_document_id") @db.Uuid
+  provider            String    // 'llamaparse' | 'deterministic_pdfplumber'
+  providerJobId       String?   @map("provider_job_id") // LlamaParse job id
+  // 'pdf_fast' | 'pdf_premium' | 'pdf_ocr' — always a PDF input for budget books.
+  mode                String
+  resultType          String    @map("result_type") // 'markdown' | 'json' | 'both'
+  pageStart           Int?      @map("page_start")
+  pageEnd             Int?      @map("page_end")
+  inputSha256         String    @map("input_sha256") @db.Char(64)
+  outputMarkdownS3Key String?   @map("output_markdown_s3_key")
+  outputJsonS3Key     String?   @map("output_json_s3_key")
+  status              String    @default("pending") // pending | running | succeeded | failed
+  error               String?   @db.Text
+  creditsUsed         Int?      @map("credits_used")
+  startedAt           DateTime  @default(now()) @map("started_at") @db.Timestamptz(6)
+  completedAt         DateTime? @map("completed_at") @db.Timestamptz(6)
+  metadata            Json      @default("{}") @map("metadata_jsonb")
+
+  sourceDocument SourceDocument @relation(fields: [sourceDocumentId], references: [id], onDelete: Cascade)
+
+  @@unique([sourceDocumentId, inputSha256, provider, pageStart, pageEnd], map: "document_parse_job_dedup_key")
+  @@index([sourceDocumentId], map: "document_parse_job_source_document_idx")
+  @@index([status], map: "document_parse_job_status_idx")
+  @@index([providerJobId], map: "document_parse_job_provider_job_idx")
+  @@map("document_parse_job")
 }
 
 /// Cross-source reconciliation review queue (Step 29 §4.1). An entry is queued when
