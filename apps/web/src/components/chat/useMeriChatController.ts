@@ -96,7 +96,11 @@ type SseEvent =
       subject?: string;
       body?: string;
       note?: string;
-    };
+    }
+  // Server detected a report-shaped ask and short-circuited the chat loop with a
+  // one-click offer to run it through the enforced Deep Research pipeline instead.
+  // Legacy clients ignore unknown event types, so this is backward-compatible.
+  | { type: 'research_offer'; topic: string; reason?: string };
 
 // Deep Research SSE events (from /api/clio/research/:id/plan|stream).
 type ResearchSseEvent =
@@ -248,6 +252,12 @@ export function useMeriChatController({ selectedClientName }: ChatDrawerProps) {
   // Map of assistant message id -> completed research session id, so a finished
   // report can show Download Word / Open as page actions.
   const [researchReports, setResearchReports] = useState<Record<string, string>>({});
+  // Map of assistant message id -> a server-emitted "run this as Deep Research"
+  // offer (the chat loop was short-circuited because the ask was report-shaped).
+  // Rendered as a one-click "Run as Deep Research" button on that message.
+  const [researchOffers, setResearchOffers] = useState<
+    Record<string, { topic: string; reason?: string }>
+  >({});
   const [learnedMemories, setLearnedMemories] = useState<
     Array<{ id: string; key: string; value: string; scope: string }>
   >([]);
@@ -698,6 +708,23 @@ export function useMeriChatController({ selectedClientName }: ChatDrawerProps) {
     [authHeaders, consumeResearchStream, selectedClientId], // eslint-disable-line react-hooks/exhaustive-deps
   );
 
+  // Accept a server-emitted "Run as Deep Research" offer: clear the offer card,
+  // start a fresh research session (null the ref so runResearch enters Phase 1),
+  // and run the exact same Deep Research flow the toggle uses.
+  const handleRunResearchOffer = useCallback(
+    (messageId: string, topic: string) => {
+      if (isStreaming) return;
+      setResearchOffers((prev) => {
+        const next = { ...prev };
+        delete next[messageId];
+        return next;
+      });
+      researchSessionRef.current = null;
+      void runResearch(topic);
+    },
+    [isStreaming, runResearch],
+  );
+
   // Streams the gather+synthesize phase into the given (or a new) assistant
   // message, threading tool steps into the trust timeline and the report text
   // into the message body. Records the finished session id for export actions.
@@ -996,6 +1023,13 @@ export function useMeriChatController({ selectedClientName }: ChatDrawerProps) {
               } else if (event.artifact?.bodyText) {
                 setActiveArtifact(event.artifact);
               }
+            } else if (event.type === 'research_offer') {
+              // Server short-circuited a report-shaped ask; attach a one-click
+              // "Run as Deep Research" offer to this assistant message.
+              setResearchOffers((prev) => ({
+                ...prev,
+                [assistantId]: { topic: event.topic, reason: event.reason },
+              }));
             } else if (event.type === 'done') {
               break outer;
             } else if (event.type === 'error') {
@@ -1211,6 +1245,7 @@ export function useMeriChatController({ selectedClientName }: ChatDrawerProps) {
   // not carry them over (approving would re-run the WRONG conversation's turn).
   useEffect(() => {
     setPendingApprovals([]);
+    setResearchOffers({});
     approvedThisRoundRef.current = false;
     needsRegenerateThisRoundRef.current = false;
     executedThisRoundRef.current = [];
@@ -1445,6 +1480,8 @@ export function useMeriChatController({ selectedClientName }: ChatDrawerProps) {
     researchAwaitingAnswers,
     researchQuestions,
     researchReports,
+    researchOffers,
+    handleRunResearchOffer,
     lastUserMessageId,
     editingMessageId,
     setEditingMessageId,

@@ -65,6 +65,7 @@ import { normalizeFeedback, type NormalizedFeedback } from './meri-feedback.help
 import { COMPLIANCE_GUARDRAILS, screenComplianceRisk } from './meri-compliance.helpers.js';
 import { confidenceLevel } from './meri-confidence.helpers.js';
 import { classifyToolAction, isSideEffectingTool } from './meri-actions.helpers.js';
+import { detectDeliverableReportRequest } from './meri-research-promote.helpers.js';
 import { MeriFeatureFlagsService } from './meri-feature-flags.service.js';
 import {
   MERIV2_FLAGS,
@@ -639,6 +640,80 @@ export class MeriService {
       }
       return { role: m.role as 'user' | 'assistant', body: parts.join('\n\n') };
     });
+
+    // Deep-Research promote gate (2026-07-15): a "build me a full report/brief"
+    // ask is a DELIVERABLE, not a chat turn. Ordinary chat — on BOTH the legacy
+    // loop and the MeriV2 proxy below — loads only the weaker `chat`-surface
+    // grounding block and its post-hoc auditor is observe-only (ADR-2), so a
+    // report-shaped ask runs loosely grounded with no enforcement. That is how
+    // the Immobileyes report fabricated PE titles/budgets, bill identities, and
+    // officials. The strict, enforcement-capable pipeline is Deep Research
+    // (`MeriResearchService`), but the user has to know to flip a UI toggle to
+    // reach it — and in that incident they didn't. So we detect the shape here,
+    // BEFORE the MeriV2 branch (classifyIntent runs later, and the branch would
+    // otherwise short-circuit us out for fullChat tenants), and short-circuit
+    // with a one-click "Run as Deep Research" offer instead of generating a
+    // fabricated inline report. Deterministic + conservative (precision over
+    // recall — a false positive is just a dismissible suggestion). New turns
+    // only (never regenerate/resend). Env kill-switch: MERI_RESEARCH_PROMOTE=
+    // 'false'. Per-tenant instant opt-out: clioFeatureFlags.deepResearchPromote
+    // = false (default ON, 60s cache).
+    const reportRequest =
+      mode === 'new' && process.env.MERI_RESEARCH_PROMOTE !== 'false'
+        ? detectDeliverableReportRequest(content)
+        : null;
+    if (
+      reportRequest &&
+      (await this.meriFlags.isEnabled(ctx.tenantId, 'deepResearchPromote', true))
+    ) {
+      const offerBody =
+        'This looks like a request to build a full, sourced deliverable. I can run it ' +
+        'through **Deep Research** instead of answering inline — a multi-step pipeline ' +
+        'that retrieves and verifies every figure, bill number, program element, and name ' +
+        'against primary sources, and holds the report back if a claim cannot be grounded. ' +
+        'That produces a materially more accurate, citable report than a quick chat reply. ' +
+        'Use **Run as Deep Research** below to start, or rephrase if you just wanted a quick answer.';
+      this.logger.log(
+        `[meri-research-promote] short-circuiting report-shaped chat turn → Deep Research offer ` +
+          `[conv ${conversationId}]`,
+      );
+      sse.write(
+        `data: ${JSON.stringify({ type: 'start', intent: 'deep_research_offer', tier: 'fast' })}\n\n`,
+      );
+      sse.write(`data: ${JSON.stringify({ type: 'text', text: offerBody })}\n\n`);
+      sse.write(
+        `data: ${JSON.stringify({ type: 'research_offer', topic: reportRequest.topic, reason: reportRequest.reason })}\n\n`,
+      );
+      // Persist a coherent assistant turn so history/replay stays intact. Guarded
+      // so a DB hiccup can never leave the SSE stream unclosed.
+      try {
+        await this.prisma.withTenant(ctx.tenantId, (tx) =>
+          tx.clioMessage.create({
+            data: {
+              tenantId: ctx.tenantId,
+              userId: ctx.userId,
+              clientId: conversation.clientId ?? null,
+              conversationId,
+              role: 'assistant',
+              body: offerBody,
+              metadata: {
+                servedBy: 'research-promote',
+                finishReason: 'stop',
+                researchOffer: { topic: reportRequest.topic },
+              },
+            },
+          }),
+        );
+      } catch (err) {
+        this.logger.warn(
+          `[meri-research-promote] failed to persist offer message (stream unaffected): ${
+            (err as Error).message
+          }`,
+        );
+      }
+      sse.write(`data: ${JSON.stringify({ type: 'done' })}\n\n`);
+      return;
+    }
 
     // MeriV2 full-chat proxy (Workstream C4, flag `meriv2.fullChat`): serve the
     // turn from the orchestrator's agentic loop instead of the in-process one.
@@ -1284,7 +1359,10 @@ export class MeriService {
     // the live turn per ADR-2 below) but it keeps the PERSISTED conversation
     // history — which future turns and exports read back — from carrying a claim
     // that looks independently verified when it never was.
-    const formBResult = validateFormBCitations(assistantContent, ledgerToToolResultMap(ledgerEntries));
+    const formBResult = validateFormBCitations(
+      assistantContent,
+      ledgerToToolResultMap(ledgerEntries),
+    );
     if (formBResult.invalid.length) {
       this.logger.warn(
         `Meri dropped ${formBResult.invalid.length} unresolved FORM B citation(s) from persisted history: ${formBResult.invalid.join(', ')}`,
@@ -1308,6 +1386,11 @@ export class MeriService {
     // enforce behaves exactly like shadow (findings observed, reply unchanged).
     // Fully guarded so an auditor bug can never break chat. `runAuditor`
     // short-circuits when mode is 'off'.
+    // Hoisted out of the try below so the auto-learn step (further down) can skip
+    // learning from a turn the auditor flagged — a fabricated assistant claim must
+    // not get laundered into clio_memory and later resurface as uncited "firm
+    // knowledge". Fail-open: stays false on any auditor error (catch below).
+    let auditorFoundIssues = false;
     const auditorMode = (process.env.MERI_AUDITOR_MODE as AuditorMode | undefined) ?? 'off';
     if (auditorMode !== 'off' && assistantContent.trim().length > 0) {
       try {
@@ -1318,6 +1401,7 @@ export class MeriService {
           mode: auditorMode,
         });
         if (verdict.findings.length > 0) {
+          auditorFoundIssues = true;
           this.logger.warn(
             `[meri-auditor:${auditorMode}] chat turn — ${verdict.findings.length} finding(s), ` +
               `top=${verdict.topSeverity}, decision=${verdict.decision}: ` +
@@ -1516,8 +1600,11 @@ export class MeriService {
         .catch(() => {});
     }
 
-    // Auto-summarize for memory (if substantial)
-    if (assistantContent.length > 200) {
+    // Auto-summarize for memory (if substantial). Skip when the auditor flagged
+    // this turn — never learn a fact from a reply we already suspect is ungrounded
+    // (closes the memory-laundering path where a fabricated claim is persisted and
+    // later recalled as uncited firm knowledge).
+    if (assistantContent.length > 200 && !auditorFoundIssues) {
       void this.maybeLearnFromConversation(
         ctx.tenantId,
         ctx.userId,
