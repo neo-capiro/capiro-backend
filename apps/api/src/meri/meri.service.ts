@@ -14,7 +14,12 @@ import {
   meriGroundingDateBlock,
   type TenantContext,
 } from '@capiro/shared';
-import { runAuditor, type LedgerEntry, type AuditorMode } from '@capiro/meriv2-core';
+import {
+  runAuditor,
+  ledgerToToolResultMap,
+  type LedgerEntry,
+  type AuditorMode,
+} from '@capiro/meriv2-core';
 import type { AppConfig } from '../config/config.schema.js';
 import { PrismaService } from '../prisma/prisma.service.js';
 import { MeriToolsService } from './meri-tools.service.js';
@@ -28,6 +33,7 @@ import {
   buildMeriSystemBlocks,
   meriCapabilityBlock,
   emptyUsage,
+  validateFormBCitations,
   type SystemTextBlock,
 } from './meri-prompt.helpers.js';
 import { rankMemoriesByKeyword, memorySectionValue } from './meri-memory.helpers.js';
@@ -1266,6 +1272,24 @@ export class MeriService {
       if (used.length) {
         sse.write(`data: ${JSON.stringify({ type: 'citations', citations: used })}\n\n`);
       }
+    }
+
+    // Strip unresolved FORM B [S:tool_name:record_id] tokens the same way FORM A
+    // [N] markers are stripped above — a token whose tool wasn't called this turn
+    // (or whose record_id isn't verbatim in that tool's result) lends false
+    // authority to whatever it trails, and the model is instructed to attach one
+    // to every PE/bill/budget claim (see GB_CITATIONS in @capiro/shared), so an
+    // unresolved token is a strong signal the sentence itself is fabricated. This
+    // does not un-stream text already sent over SSE (chat stays observe-only for
+    // the live turn per ADR-2 below) but it keeps the PERSISTED conversation
+    // history — which future turns and exports read back — from carrying a claim
+    // that looks independently verified when it never was.
+    const formBResult = validateFormBCitations(assistantContent, ledgerToToolResultMap(ledgerEntries));
+    if (formBResult.invalid.length) {
+      this.logger.warn(
+        `Meri dropped ${formBResult.invalid.length} unresolved FORM B citation(s) from persisted history: ${formBResult.invalid.join(', ')}`,
+      );
+      assistantContent = formBResult.sanitizedText;
     }
 
     // Wave-2 post-hoc grounding auditor — SHADOW by default (MERI_AUDITOR_MODE

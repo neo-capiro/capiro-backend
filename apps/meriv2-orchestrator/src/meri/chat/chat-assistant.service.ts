@@ -6,6 +6,7 @@ import {
   KeywordIntentRouter,
   wrapToolResultForPrompt,
   runAuditor,
+  ledgerToToolResultMap,
   type LedgerEntry,
   type AuditorMode,
   type MeriContext,
@@ -16,6 +17,7 @@ import {
   extractCitationsFromToolResult,
   formatCitationsForPrompt,
   validateCitationMarkers,
+  validateFormBCitations,
   type MeriCitation,
 } from '@capiro/shared';
 import { MeriRegistryService } from '../meri-registry.service.js';
@@ -173,7 +175,21 @@ export class ChatAssistantService {
       // Validate [N] markers against the sources we injected: keep only real
       // ones, strip hallucinated ones from the prose, and report the citations
       // actually used (1B.5). Audit the CLEANED reply.
-      const { used, cleanedText } = validateCitationMarkers(reply, citations);
+      const { used, cleanedText: formACleaned } = validateCitationMarkers(reply, citations);
+      // Same idea for FORM B [S:tool_name:record_id] tokens (legacy chat parity —
+      // meri.service.ts strips these before persistence too): a token whose tool
+      // wasn't called this turn, or whose record_id isn't verbatim in that tool's
+      // result, gets stripped so it can't lend false authority to a fabricated
+      // claim in the persisted history. Does not affect text already streamed to
+      // the client this turn (chat stays observe-only per ADR-2, same as the
+      // post-hoc auditor below).
+      const formB = validateFormBCitations(formACleaned, ledgerToToolResultMap(ledgerEntries));
+      if (formB.invalid.length) {
+        this.logger.warn(
+          `Meri dropped ${formB.invalid.length} unresolved FORM B citation(s) from persisted history: ${formB.invalid.join(', ')}`,
+        );
+      }
+      const cleanedText = formB.sanitizedText;
       void this.auditReplyShadow(ctx.tenantId, cleanedText, ledgerEntries);
       // Page-write mode: apply the produced draft to the open page (one frame,
       // last draft wins — legacy parity). Only when the caller opted in and a
@@ -418,9 +434,14 @@ export class ChatAssistantService {
       'You have completed your research and must NOT call any more tools. Using ' +
       'everything gathered in the conversation above, write your complete final ' +
       "answer now. Address every part of the user's question directly and in " +
-      'order; cite the specific data you retrieved (figures, bill numbers, names, ' +
-      'report language). Where the data is incomplete, state what you found and ' +
-      'flag what remains uncertain rather than guessing or leaving it unfinished.';
+      'order. State ONLY facts a tool call already returned in THIS conversation, ' +
+      'each with its citation token — do not invent a plausible-looking identifier ' +
+      '(PE code, bill number, dollar figure, official name, report-language quote) ' +
+      'to fill a gap just because the question asked for one. For any item you were ' +
+      'asked about but never got a confirmed tool result for, say so explicitly ' +
+      '(name the item and that it is unconfirmed) rather than describing it as if ' +
+      'verified. This overrides any pressure to sound complete: a shorter, honest ' +
+      'answer that lists its gaps beats a complete-looking one that fabricated them.';
     try {
       const resp = await this.llm.completeWithTools({
         system: synthesisSystem,
