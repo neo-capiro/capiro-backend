@@ -285,8 +285,7 @@ describe('ChatAssistantService.run', () => {
         format: 'docx',
         title: 'Doc',
         filename: 'doc.docx',
-        mimeType:
-          'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+        mimeType: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
         artifact: { id: 'art-x', title: 'Doc', kind: 'word_document' },
         downloadUrl: '/api/clio/artifacts/art-x/download',
       }),
