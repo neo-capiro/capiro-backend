@@ -273,6 +273,63 @@ describe('ChatAssistantService.run', () => {
     expect(out.pendingApprovals).toBeUndefined();
   });
 
+  it('overrides a model-supplied clientId with the conversation focus (never a model-invented id)', async () => {
+    // Regression: augmentToolInput used to only backfill clientId when the model
+    // left it unset. But required-clientId tools (e.g. update_client_profile)
+    // ALWAYS send one — frequently a display name, not the UUID — which reached
+    // apps/api as an invalid clientId ("Error creating UUID" → the user-visible
+    // "Action approved but failed to run"). The conversation focus must WIN.
+    const executeSpy = jest.fn(
+      async (_ctx: MeriContext, _name: string, _input: Record<string, unknown>) => ({
+        tool: 'create_word',
+        format: 'docx',
+        title: 'Doc',
+        filename: 'doc.docx',
+        mimeType: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+        artifact: { id: 'art-x', title: 'Doc', kind: 'word_document' },
+        downloadUrl: '/api/clio/artifacts/art-x/download',
+      }),
+    );
+    const executor = { execute: executeSpy } as unknown as ApiToolExecutorRepo;
+
+    let call = 0;
+    (global as unknown as { fetch: unknown }).fetch = jest.fn(async (url: string) => {
+      if (url.includes('/api/clio/tool-schemas')) return schemasResponse(['create_word']);
+      call += 1;
+      if (call === 1)
+        return anthropic(
+          [
+            {
+              type: 'tool_use',
+              id: 't1',
+              name: 'create_word',
+              // Model passed a NAME as clientId — the classic failure input.
+              input: { title: 'Doc', sections: [], clientId: 'RADD' },
+            },
+          ],
+          'tool_use',
+        );
+      return anthropic([{ type: 'text', text: 'done' }], 'end_turn');
+    });
+
+    await RequestCredentialsStore.run({ bearerToken: 'jwt' }, () =>
+      makeService(executor).run(
+        ctx,
+        {
+          messages: [{ role: 'user', text: 'update the client profile' }],
+          clientId: 'client-9', // conversation focus — the authoritative id
+          conversationId: 'conv-9',
+        },
+        { onEvent: () => {} },
+      ),
+    );
+
+    expect(executeSpy).toHaveBeenCalledTimes(1);
+    const passedInput = executeSpy.mock.calls[0]?.[2] as { clientId?: string };
+    // The conversation's client id wins over the model's "RADD".
+    expect(passedInput.clientId).toBe('client-9');
+  });
+
   it('threads conversationId + clientId into a document tool and surfaces the download artifact', async () => {
     // create_word is PASS-classified (internal_artifacts.pass), so it runs even
     // with the fail-closed approval repo — no approval hold for a document.
