@@ -1942,25 +1942,32 @@ model TenantAiCredential {
 }
 
 model ClioProactiveAlert {
-  id         String    @id @default(uuid()) @db.Uuid
-  tenantId   String    @map("tenant_id") @db.Uuid
-  clientId   String?   @map("client_id") @db.Uuid
-  alertType  String    @map("alert_type")
-  title      String
-  body       String    @db.Text
-  priority   String    @default("normal")
-  status     String    @default("pending")
-  sourceType String?   @map("source_type")
-  sourceId   String?   @map("source_id")
-  metadata   Json      @default("{}") @map("metadata_jsonb")
-  createdAt  DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
-  readAt     DateTime? @map("read_at") @db.Timestamptz(6)
+  id          String    @id @default(uuid()) @db.Uuid
+  tenantId    String    @map("tenant_id") @db.Uuid
+  clientId    String?   @map("client_id") @db.Uuid
+  // GAI-13: the user this alert belongs to. NULL = tenant-broadcast (visible to
+  // every user in the tenant, e.g. client_activity / stale_position / campaign
+  // recommendations). Non-NULL = a personal alert (scheduled-task digests,
+  // per-user meeting briefings) visible only to that user. Enforced by the
+  // owner-aware FORCE RLS policy (current_user_id()).
+  ownerUserId String?   @map("owner_user_id") @db.Uuid
+  alertType   String    @map("alert_type")
+  title       String
+  body        String    @db.Text
+  priority    String    @default("normal")
+  status      String    @default("pending")
+  sourceType  String?   @map("source_type")
+  sourceId    String?   @map("source_id")
+  metadata    Json      @default("{}") @map("metadata_jsonb")
+  createdAt   DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
+  readAt      DateTime? @map("read_at") @db.Timestamptz(6)
 
   tenant Tenant  @relation(fields: [tenantId], references: [id], onDelete: Cascade)
   client Client? @relation(fields: [clientId], references: [id], onDelete: SetNull)
 
   @@index([tenantId, status, createdAt(sort: Desc)])
   @@index([tenantId, clientId, createdAt(sort: Desc)])
+  @@index([tenantId, ownerUserId, status, createdAt(sort: Desc)])
   @@map("clio_proactive_alerts")
 }
 
@@ -3542,13 +3549,20 @@ model FederalRegisterDocument {
 }
 
 // ─────────────────────────────────────────────────────────────────────────
-// AI-generated intelligence insights
-// GLOBAL table, no tenant_id, no RLS.
+// AI-generated intelligence insights (GAI-01).
+// tenantId scopes a row to a tenant; NULL = a reviewed PUBLIC global insight
+// derived only from public-source data. FORCE RLS (ai_run-style): a tenant
+// reads its own rows + public (NULL-tenant) rows; a tenant session can only
+// INSERT its own tenant's rows; NULL-tenant public rows require withSystem
+// (rls_bypass). This closes the cross-tenant read + standard-user global-
+// publish exposure that existed while the table was global.
 // ─────────────────────────────────────────────────────────────────────────
 
 model IntelligenceInsight {
   id          String    @id @default(uuid())
-  category    String // lda, spending, congress, regulatory, anomaly
+  tenantId    String?   @map("tenant_id") @db.Uuid
+  clientId    String?   @map("client_id") @db.Uuid
+  category    String // lda, spending, congress, regulatory, anomaly, briefing, health_score
   title       String
   body        String    @db.Text
   severity    String    @default("info") // info, notable, critical
@@ -3557,6 +3571,7 @@ model IntelligenceInsight {
   expiresAt   DateTime? @map("expires_at")
 
   @@index([category, generatedAt])
+  @@index([tenantId, category, generatedAt])
   @@map("intelligence_insight")
 }
 

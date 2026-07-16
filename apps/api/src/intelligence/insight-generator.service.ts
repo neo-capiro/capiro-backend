@@ -12,7 +12,7 @@ import type { AppConfig } from '../config/config.schema.js';
 import { PrismaService } from '../prisma/prisma.service.js';
 import { LobbyIntelService } from '../lobby-intel/lobby-intel.service.js';
 import { FederalSpendingService } from '../federal-spending/federal-spending.service.js';
-import { addDateInZone, dateBoundsInZone, dayBoundsInZone } from './time-bounds.js';
+import { addDateInZone, dateBoundsInZone, dayBoundsInZone, ymdInZone } from './time-bounds.js';
 
 const AI_TIMEOUT_MS = 90_000;
 
@@ -430,7 +430,7 @@ export class InsightGeneratorService {
   }
 
   /** Generate market-wide intelligence insights from lobby intel + spending data */
-  async generateMarketInsights() {
+  async generateMarketInsights(tenantId: string) {
     const [lobbyCtx, spendCtx] = await Promise.all([
       this.lobbyIntel.getAiContext().catch(() => null),
       this.federalSpending.getAiContext(null).catch(() => null),
@@ -481,18 +481,24 @@ export class InsightGeneratorService {
     const expiresAt = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000); // 7 days
     for (const ins of insights.slice(0, 10)) {
       const record = toRecord(ins);
-      const row = await this.prisma.intelligenceInsight.create({
-        data: {
-          category: typeof record.category === 'string' ? record.category : 'market_shift',
-          title: typeof record.title === 'string' ? record.title : 'Untitled',
-          body: typeof record.body === 'string' ? record.body : '',
-          severity: typeof record.severity === 'string' ? record.severity : 'info',
-          dataPoints: record.dataPoints
-            ? (record.dataPoints as Prisma.InputJsonValue)
-            : Prisma.JsonNull,
-          expiresAt,
-        },
-      });
+      // GAI-01: withTenant so the row is stamped + the FORCE RLS WITH CHECK
+      // (tenant_id = current_tenant_id()) passes; the row is scoped to this
+      // tenant, not the former global feed.
+      const row = await this.prisma.withTenant(tenantId, (tx) =>
+        tx.intelligenceInsight.create({
+          data: {
+            tenantId,
+            category: typeof record.category === 'string' ? record.category : 'market_shift',
+            title: typeof record.title === 'string' ? record.title : 'Untitled',
+            body: typeof record.body === 'string' ? record.body : '',
+            severity: typeof record.severity === 'string' ? record.severity : 'info',
+            dataPoints: record.dataPoints
+              ? (record.dataPoints as Prisma.InputJsonValue)
+              : Prisma.JsonNull,
+            expiresAt,
+          },
+        }),
+      );
       saved.push(row);
     }
 
@@ -1021,11 +1027,18 @@ If PROGRAM ELEMENT STATUS block is absent, return programElementStatus as [] onl
         c.relatedClientIds.length === 0 || c.relatedClientIds.some((id) => tenantClientIds.has(id)),
     );
 
+    // GAI-09: render "today" in the SAME zone the hearing/meeting filters use
+    // (America/New_York). A bare toLocaleDateString on a UTC Fargate host labels
+    // the brief a day ahead after ~20:00 ET while the ET-anchored filters
+    // (startOfDay/todayStartEt above) still select the correct ET day.
     const todayLabel = now.toLocaleDateString('en-US', {
       weekday: 'long',
       month: 'long',
       day: 'numeric',
+      timeZone: 'America/New_York',
     });
+    // ET calendar date of "now" for the hearing TODAY comparison below.
+    const todayYmdEt = ymdInZone(now, 'America/New_York');
     const tenantClientList = clients
       .slice(0, 30)
       .map((c) => c.name)
@@ -1035,13 +1048,18 @@ If PROGRAM ELEMENT STATUS block is absent, return programElementStatus as [] onl
       hearings
         .slice(0, 8)
         .map((h) => {
+          // h.date is a @db.Date (UTC midnight): read its calendar date back in
+          // UTC (NOT ET, which would shift it a day earlier), and compare to the
+          // ET "today" so the TODAY label agrees with the ET-anchored filters.
+          const hearingYmd = ymdInZone(h.date, 'UTC');
           const dayLabel =
-            h.date.toDateString() === now.toDateString()
+            hearingYmd === todayYmdEt
               ? 'TODAY'
               : h.date.toLocaleDateString('en-US', {
                   weekday: 'short',
                   month: 'short',
                   day: 'numeric',
+                  timeZone: 'UTC',
                 });
           return `- ${dayLabel} ${h.time ?? ''} ${h.chamber} ${h.committeeName}: ${h.title}`;
         })
@@ -1096,7 +1114,7 @@ If PROGRAM ELEMENT STATUS block is absent, return programElementStatus as [] onl
       };
     }
 
-    const prompt = `You are writing today's personal leverage brief for a federal lobbyist at a lobbying firm. Write 3-5 sentences in a punchy, voice-of-Capiro-Meri tone, concrete, specific, name names, and point to the single highest-leverage action for today. The meetings listed are THIS USER's own meetings, not the whole firm's — frame the day around what they personally have on. Do not list everything; pick the 1-2 things that actually matter. Reference active clients by name when the data supports it. Tie the user's meetings to the intel where it makes sense (e.g. a client whose program just moved is on their calendar). Avoid hedging.
+    const prompt = `You are writing today's personal leverage brief for a federal lobbyist at a lobbying firm. Write 3-5 sentences in a punchy, voice-of-Capiro-Meri tone, concrete, specific, name names, and point to the single highest-leverage action for today. The meetings listed are THIS USER's own meetings, not the whole firm's — frame the day around what they personally have on. Do not list everything; pick the 1-2 things that actually matter. Reference active clients by name when the data supports it. Tie the user's meetings to the intel where it makes sense (e.g. a client whose program just moved is on their calendar). State only what the provided data supports; if a claim is uncertain, say so briefly rather than overstating — do not manufacture confidence.
 
 TODAY: ${todayLabel}
 ACTIVE CLIENTS: ${tenantClientList || '(no active clients)'}
@@ -1137,6 +1155,7 @@ Write the brief now. Start with "Today's leverage is" or similar. Do not include
   /** Generate insights from change events */
   async generateFromChanges(
     changes: Array<{ source: string; changeType: string; title: string; description: string }>,
+    tenantId: string,
   ) {
     if (!changes.length) return { insights: [], message: 'No changes to analyze' };
 
@@ -1155,35 +1174,43 @@ Write the brief now. Start with "Today's leverage is" or similar. Do not include
     const expiresAt = new Date(Date.now() + 3 * 24 * 60 * 60 * 1000); // 3 days
     for (const ins of insights.slice(0, 5)) {
       const record = toRecord(ins);
-      const row = await this.prisma.intelligenceInsight.create({
-        data: {
-          category: typeof record.category === 'string' ? record.category : 'market_shift',
-          title: typeof record.title === 'string' ? record.title : 'Untitled',
-          body: typeof record.body === 'string' ? record.body : '',
-          severity: typeof record.severity === 'string' ? record.severity : 'info',
-          dataPoints: record.dataPoints
-            ? (record.dataPoints as Prisma.InputJsonValue)
-            : Prisma.JsonNull,
-          expiresAt,
-        },
-      });
+      // GAI-01: tenant-scoped write (see generateMarketInsights).
+      const row = await this.prisma.withTenant(tenantId, (tx) =>
+        tx.intelligenceInsight.create({
+          data: {
+            tenantId,
+            category: typeof record.category === 'string' ? record.category : 'market_shift',
+            title: typeof record.title === 'string' ? record.title : 'Untitled',
+            body: typeof record.body === 'string' ? record.body : '',
+            severity: typeof record.severity === 'string' ? record.severity : 'info',
+            dataPoints: record.dataPoints
+              ? (record.dataPoints as Prisma.InputJsonValue)
+              : Prisma.JsonNull,
+            expiresAt,
+          },
+        }),
+      );
       saved.push(row);
     }
 
     return { insights: saved, provider: result.provider, model: result.model };
   }
 
-  /** Fetch existing insights from the DB */
-  async getInsights(category?: string, severity?: string, limit = 20) {
+  /** Fetch existing insights from the DB (GAI-01: tenant-scoped). */
+  async getInsights(tenantId: string, category?: string, severity?: string, limit = 20) {
     const where: Record<string, unknown> = {};
     if (category) where.category = category;
     if (severity) where.severity = severity;
 
-    return this.prisma.intelligenceInsight.findMany({
-      where: { ...where, OR: [{ expiresAt: null }, { expiresAt: { gt: new Date() } }] },
-      orderBy: { generatedAt: 'desc' },
-      take: Math.min(limit, 50),
-    });
+    // withTenant so RLS returns this tenant's rows + reviewed public (NULL-
+    // tenant) rows only — never another tenant's insights.
+    return this.prisma.withTenant(tenantId, (tx) =>
+      tx.intelligenceInsight.findMany({
+        where: { ...where, OR: [{ expiresAt: null }, { expiresAt: { gt: new Date() } }] },
+        orderBy: { generatedAt: 'desc' },
+        take: Math.min(limit, 50),
+      }),
+    );
   }
 
   // ── Public free-text generation (no JSON schema) ──────────────────────

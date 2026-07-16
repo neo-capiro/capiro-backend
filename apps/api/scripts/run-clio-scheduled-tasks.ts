@@ -105,8 +105,11 @@ async function runResearch(
   // never attach a tool that isn't read-only-safe (defense in depth on top of
   // isAllowListSafe, which we also check before calling this).
   const allowSet = new Set(allowList);
-  const allSchemas: Array<{ name: string; description: string; input_schema: Record<string, unknown> }> =
-    toolsService.anthropicToolSchemas();
+  const allSchemas: Array<{
+    name: string;
+    description: string;
+    input_schema: Record<string, unknown>;
+  }> = toolsService.anthropicToolSchemas();
   const toolSchemas = allSchemas.filter(
     (s) => allowSet.has(s.name) && toolsService.isConcurrencySafe(s.name),
   );
@@ -136,7 +139,9 @@ async function runResearch(
         }),
       });
       if (!res.ok) {
-        logger.warn(`[task ${task.id}] anthropic ${res.status}: ${(await res.text()).slice(0, 200)}`);
+        logger.warn(
+          `[task ${task.id}] anthropic ${res.status}: ${(await res.text()).slice(0, 200)}`,
+        );
         return lastText ? { text: lastText, toolsUsed } : null;
       }
       json = await res.json();
@@ -156,7 +161,11 @@ async function runResearch(
 
     const content: Array<any> = Array.isArray(json.content) ? json.content : [];
     const textBlocks = content.filter((b) => b.type === 'text' && typeof b.text === 'string');
-    if (textBlocks.length) lastText = textBlocks.map((b) => b.text).join('\n').trim();
+    if (textBlocks.length)
+      lastText = textBlocks
+        .map((b) => b.text)
+        .join('\n')
+        .trim();
 
     const toolUses = content.filter((b) => b.type === 'tool_use');
     // No tools requested → the turn is the final answer.
@@ -171,11 +180,12 @@ async function runResearch(
     const toolResults: Array<Record<string, unknown>> = [];
     for (const tu of toolUses) {
       const name = String(tu.name);
-      const input = (tu.input && typeof tu.input === 'object') ? tu.input : {};
+      const input = tu.input && typeof tu.input === 'object' ? tu.input : {};
       // Default clientId from the task metadata if the model omitted it.
-      const meta = (task.metadata_jsonb && typeof task.metadata_jsonb === 'object')
-        ? (task.metadata_jsonb as Record<string, unknown>)
-        : {};
+      const meta =
+        task.metadata_jsonb && typeof task.metadata_jsonb === 'object'
+          ? (task.metadata_jsonb as Record<string, unknown>)
+          : {};
       if (meta.clientId && (input as Record<string, unknown>).clientId === undefined) {
         (input as Record<string, unknown>).clientId = meta.clientId;
       }
@@ -212,7 +222,8 @@ async function runResearch(
 
 async function main(): Promise<void> {
   const logger = new Logger('run-meri-scheduled-tasks');
-  const { AppModule, PrismaService, MeriToolsService, AiCredentialResolverService } = await loadNest();
+  const { AppModule, PrismaService, MeriToolsService, AiCredentialResolverService } =
+    await loadNest();
   const app = await NestFactory.createApplicationContext(AppModule, { logger: ['warn', 'error'] });
   const t0 = Date.now();
   try {
@@ -235,7 +246,10 @@ async function main(): Promise<void> {
       // eslint-disable-next-line no-console
       console.log(
         'CLIO_SCHEDULED_DRYRUN ' +
-          JSON.stringify({ dueCount: due.length, tasks: due.map((t) => ({ id: t.id, name: t.name })) }),
+          JSON.stringify({
+            dueCount: due.length,
+            tasks: due.map((t) => ({ id: t.id, name: t.name })),
+          }),
       );
       return;
     }
@@ -244,9 +258,10 @@ async function main(): Promise<void> {
     let failed = 0;
     for (const task of due) {
       const now = new Date();
-      const allowList = Array.isArray(task.tool_allow_list) && task.tool_allow_list.length
-        ? (task.tool_allow_list as string[])
-        : [...DEFAULT_SCHEDULED_TOOL_ALLOWLIST];
+      const allowList =
+        Array.isArray(task.tool_allow_list) && task.tool_allow_list.length
+          ? (task.tool_allow_list as string[])
+          : [...DEFAULT_SCHEDULED_TOOL_ALLOWLIST];
       if (!isAllowListSafe(allowList)) {
         await advance(prisma, task, now, 'skipped_unsafe');
         failed += 1;
@@ -275,7 +290,9 @@ async function main(): Promise<void> {
           clerkUserId = info[0].clerk ?? '';
           tenantSlug = info[0].slug ?? '';
         }
-      } catch { /* fall back to defaults */ }
+      } catch {
+        /* fall back to defaults */
+      }
 
       const ctx: TenantContext = {
         tenantId: task.tenant_id,
@@ -318,10 +335,16 @@ async function main(): Promise<void> {
       }
 
       try {
-        await prisma.withTenant(task.tenant_id, (tx: any) =>
+        // GAI-13: a scheduled-task digest is the task owner's PERSONAL alert.
+        // Stamp owner_user_id and write under withTenantUser so the owner-aware
+        // FORCE RLS WITH CHECK passes even when this runs under a role where RLS
+        // is active (withTenant alone would set current_user_id() NULL and the
+        // non-null owner row would be rejected).
+        await prisma.withTenantUser(task.tenant_id, task.owner_user_id, (tx: any) =>
           tx.clioProactiveAlert.create({
             data: {
               tenantId: task.tenant_id,
+              ownerUserId: task.owner_user_id,
               alertType: 'scheduled_task',
               title: `Scheduled: ${task.name}`,
               body: result!.text.slice(0, 8000),
@@ -345,9 +368,10 @@ async function main(): Promise<void> {
         // The recipient was authorized at creation time; the model never chose
         // it and never had a send tool. Email failure is non-fatal — the inbox
         // delivery already succeeded.
-        const meta = (task.metadata_jsonb && typeof task.metadata_jsonb === 'object')
-          ? (task.metadata_jsonb as Record<string, unknown>)
-          : {};
+        const meta =
+          task.metadata_jsonb && typeof task.metadata_jsonb === 'object'
+            ? (task.metadata_jsonb as Record<string, unknown>)
+            : {};
         const emailTo = typeof meta.emailTo === 'string' ? meta.emailTo : null;
         if (emailTo) {
           const sent = await toolsService.sendScheduledBriefingEmail(
@@ -381,9 +405,10 @@ async function main(): Promise<void> {
 
 /** Advance next_run_at (clock-anchored when metadata.runAtMinutesUtc is set). */
 async function advance(prisma: any, task: DueTask, now: Date, status: string): Promise<void> {
-  const meta = (task.metadata_jsonb && typeof task.metadata_jsonb === 'object')
-    ? (task.metadata_jsonb as Record<string, unknown>)
-    : {};
+  const meta =
+    task.metadata_jsonb && typeof task.metadata_jsonb === 'object'
+      ? (task.metadata_jsonb as Record<string, unknown>)
+      : {};
   const runAtMin = typeof meta.runAtMinutesUtc === 'number' ? meta.runAtMinutesUtc : null;
   const next = computeNextRunAtAnchored(now, task.interval_minutes, runAtMin);
   await prisma.withSystem((tx: any) =>

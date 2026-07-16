@@ -74,6 +74,12 @@ async function generateForTenant(tenantId: string, now: Date): Promise<number> {
       data: {
         tenantId,
         clientId: plan.meetings[0]?.clientId ?? null,
+        // GAI-13: a meeting briefing is that user's PERSONAL digest — set the
+        // owner column so the owner-aware RLS policy shows it only to them (not
+        // to every user in the tenant). This script runs as capiro_master
+        // (bypasses FORCE RLS on write); the column is what the serve-path read
+        // filters on.
+        ownerUserId: plan.userId,
         alertType: 'meeting_briefing',
         title: `Prep: ${count} upcoming meeting${count === 1 ? '' : 's'}`,
         body: formatBriefingDigest(plan),
@@ -101,9 +107,12 @@ async function main(): Promise<void> {
     try {
       const n = await generateForTenant(tenant.id, now);
       total += n;
-      if (n > 0) console.log(`[generate-meeting-briefings] ${tenant.slug}: created ${n} briefing(s)`);
+      if (n > 0)
+        console.log(`[generate-meeting-briefings] ${tenant.slug}: created ${n} briefing(s)`);
     } catch (err) {
-      console.error(`[generate-meeting-briefings] ${tenant.slug}: FAILED: ${(err as Error).message}`);
+      console.error(
+        `[generate-meeting-briefings] ${tenant.slug}: FAILED: ${(err as Error).message}`,
+      );
     }
   }
   console.log(`[generate-meeting-briefings] done. Created ${total} briefing(s).`);
