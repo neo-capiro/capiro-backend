@@ -5969,6 +5969,19 @@ export class MeriToolsService {
   }
 
   private async ensureClientVisible(ctx: TenantContext, clientId: string) {
+    // Guard the UUID cast BEFORE it reaches Postgres. A model-supplied clientId
+    // that isn't a real UUID — commonly a display name like "RADD" when no
+    // client is scoped to the conversation — otherwise makes Prisma throw a raw
+    // "Error creating UUID" (P2023) that surfaces to the user as "Action
+    // approved but failed to run". Fail with a clear, actionable message instead.
+    // When the Meri conversation is scoped to a client, its UUID is threaded
+    // automatically; otherwise the caller must pass the exact client id.
+    const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+    if (!UUID_RE.test(clientId)) {
+      throw new NotFoundException(
+        'No client is scoped to this conversation. Select the client in Meri (or pass its exact id) and try again.',
+      );
+    }
     const client = await this.prisma.withTenant(ctx.tenantId, (tx) =>
       tx.client.findFirst({
         where: { id: clientId, tenantId: ctx.tenantId, status: { not: 'archived' } },

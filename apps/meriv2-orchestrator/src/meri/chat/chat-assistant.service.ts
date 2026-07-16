@@ -479,15 +479,24 @@ export class ChatAssistantService {
    * create_powerpoint, create_meeting_brief, draft_policy_memo) REQUIRE
    * conversationId to persist their ClioArtifact row — without it apps/api returns
    * { persisted: false }, the generated Office document is dropped, and no
-   * download URL comes back. Only fills a field the model left unset; apps/api
-   * re-validates and ignores fields a tool does not use.
+   * download URL comes back.
+   *
+   * clientId is AUTHORITATIVE from the conversation focus: it OVERRIDES any
+   * model-supplied value. The system prompt tells the model the focused client's
+   * UUID, but it frequently sends a display name instead (e.g. "RADD"), which
+   * reaches apps/api as an invalid clientId (a raw "Error creating UUID" that the
+   * user sees as "Action approved but failed to run"). When the conversation is
+   * focused on a client, that id always wins; an UNfocused conversation leaves
+   * the model's value in place (apps/api validates it and fails cleanly).
+   * conversationId is only filled when unset. apps/api re-validates and ignores
+   * fields a tool does not use.
    */
   private augmentToolInput(
     dto: ChatInput,
     input: Record<string, unknown>,
   ): Record<string, unknown> {
     const out = { ...input };
-    if (dto.clientId && out.clientId === undefined) out.clientId = dto.clientId;
+    if (dto.clientId) out.clientId = dto.clientId;
     if (dto.conversationId && out.conversationId === undefined) {
       out.conversationId = dto.conversationId;
     }
