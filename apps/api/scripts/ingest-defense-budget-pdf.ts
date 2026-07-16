@@ -142,7 +142,12 @@ async function main(): Promise<void> {
       // FY2027 PB. Apply it as a fallback so FY-column mapping (and value extraction) works.
       if (cls.fiscalYear == null && fyArg != null) cls.fiscalYear = fyArg;
       if (only.length > 0 && !only.includes(cls.family)) continue;
-      if (cls.family === 'unknown' || cls.family === 'overview' || cls.family === 'milpers') {
+      if (
+        cls.family === 'unknown' ||
+        cls.family === 'overview' ||
+        cls.family === 'milpers' ||
+        cls.family === 'bill'
+      ) {
         summary.push({ file: path.basename(pdfPath), skipped: `family=${cls.family}` });
         continue;
       }

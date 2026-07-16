@@ -45,4 +45,36 @@ describe('classifyDocument (real corpus filenames)', () => {
   it('produces a stable slug sourceKey', () => {
     expect(classifyDocument('RDTE - Vol 1 - Budget Activity 1.pdf').sourceKey).toBe('rdte_vol_1_budget_activity_1');
   });
+
+  it('does not misroute a CPE leadership page to procurement (the "capability"->apa false match)', () => {
+    const c = classifyDocument(
+      'Leadership - Capability Program Executive - Intelligence and Spectrum Warfare - CPE ISW.pdf',
+    );
+    expect(c.family).not.toBe('procurement');
+    expect(['overview', 'unknown']).toContain(c.family);
+  });
+
+  it('still routes a genuine Aircraft Procurement Army (APA) book to procurement', () => {
+    expect(classifyDocument('APA_Book.pdf').family).toBe('procurement');
+    expect(classifyDocument('Aircraft Procurement Army.pdf').family).toBe('procurement');
+  });
+
+  it('classifies a GovInfo BILLS package as a bill, not a committee report', () => {
+    const c = classifyDocument('BILLS-119s2296rs.pdf');
+    expect(c.family).toBe('bill');
+    expect(c.family).not.toBe('committee');
+  });
+
+  it('does not misroute a committee report whose title contains the word "Bill"', () => {
+    const c = classifyDocument('CRPT-119srpt52 Department of Defense Appropriations Bill 2026.pdf');
+    expect(c.family).toBe('committee');
+    expect(c.authority).toBe('sasc');
+  });
+
+  it('still ingests a real procurement book whose title contains "portfolio"/"management"', () => {
+    const c = classifyDocument(
+      'Other Procurement - BA 3, 4 & 6 - Other Support Equipment, Initial Spares and Agile Portfolio Management.pdf',
+    );
+    expect(c.family).toBe('procurement');
+  });
 });
