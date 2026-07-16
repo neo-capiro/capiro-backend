@@ -2057,7 +2057,7 @@ function ResearchTab({ clientId }: { clientId: string }) {
 }
 
 interface ReportCardActivity {
-  meetings: number; uniqueOffices: string[]; outreachSent: number;
+  meetings: number; uniqueRoles: string[]; outreachSent: number;
   outreachOpenRate: number; tasksCompleted: number; debriefsFiled: number; mailThreads: number;
 }
 interface ReportCardIntelligence {
@@ -2086,7 +2086,7 @@ export function ReportCardView({ data }: { data: Record<string, unknown> }) {
 
   const metricRows: Array<{ metric: string; value: string }> = [
     { metric: 'Meetings', value: String(a.meetings) },
-    { metric: 'Unique Offices Met', value: String(a.uniqueOffices.length) },
+    { metric: 'Unique Roles Engaged', value: String(a.uniqueRoles.length) },
     { metric: 'Outreach Sent', value: String(a.outreachSent) },
     { metric: 'Outreach Open Rate', value: pctFmt(a.outreachOpenRate) },
     { metric: 'Tasks Completed', value: String(a.tasksCompleted) },

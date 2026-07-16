@@ -331,8 +331,8 @@ describe('ProgramElementReadService', () => {
     });
   });
 
-  describe('getTimeline conferenceProbability wiring', () => {
-    test('attaches conferenceProbability prediction object to each year', async () => {
+  describe('getTimeline predictedConferenceAmount wiring (GAI-28)', () => {
+    test('attaches the predicted conference $ amount + CI/confidence to each year', async () => {
       const prisma = makePrisma({
         queryRawQueue: [[]],
       });
@@ -351,10 +351,12 @@ describe('ProgramElementReadService', () => {
 
       expect(result.peCode).toBe('0603270A');
       expect(Array.isArray(result.years)).toBe(true);
-      expect(result.years[0]?.conferenceProbability).toBe(251.2);
-      expect(result.years[0]?.conferenceProbabilityCiLow).toBe(247.0);
-      expect(result.years[0]?.conferenceProbabilityCiHigh).toBe(255.3);
-      expect(result.years[0]?.conferenceProbabilityConfidence).toBe(0.66);
+      // GAI-28: 251.2 is a DOLLAR amount ($M), surfaced under a name that says so
+      // — never as a "probability" (which would read as 251.2%).
+      expect(result.years[0]?.predictedConferenceAmount).toBe(251.2);
+      expect(result.years[0]?.predictedConferenceAmountCiLow).toBe(247.0);
+      expect(result.years[0]?.predictedConferenceAmountCiHigh).toBe(255.3);
+      expect(result.years[0]?.predictedConferenceConfidence).toBe(0.66);
     });
   });
 

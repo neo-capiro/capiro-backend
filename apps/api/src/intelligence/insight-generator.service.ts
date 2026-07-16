@@ -208,7 +208,8 @@ interface PeNarrativeContext {
   sascMark: string | null;
   hacDMark: string | null;
   sacDMark: string | null;
-  conferenceProbability: string | null;
+  /** GAI-28: predicted conference DOLLAR amount ($M), not a probability. */
+  predictedConferenceAmount: string | null;
   /**
    * RC1: the fully-labeled authoritative funding block (FY + stage +
    * authorization/appropriations vehicle + signed vs-request + NDAA conference),
@@ -824,7 +825,7 @@ export class InsightGeneratorService {
           sascMark: formatDecimalValue(latestYear?.sascMark),
           hacDMark: formatDecimalValue(latestYear?.hacDMark),
           sacDMark: formatDecimalValue(latestYear?.sacDMark),
-          conferenceProbability: formatDecimalValue(latestProbability?.predicted),
+          predictedConferenceAmount: formatDecimalValue(latestProbability?.predicted),
           fundingBlock: renderPeFundingForModel({
             peCode: pe.peCode,
             title: pe.title,
@@ -862,7 +863,7 @@ export class InsightGeneratorService {
                 .join('\n')
             : '- none';
           const actionLines = pe.suggestedActions.map((action) => `- ${action}`).join('\n');
-          return `PE ${pe.peCode}, ${pe.title}\nservice=${pe.service ?? 'unknown'} fy=${pe.fy ?? 'unknown'} conference_probability=${pe.conferenceProbability ?? 'n/a'}\n${pe.fundingBlock}\n24H_CHANGES:\n${changeLines}\nBILLS_IN_MARKUP:\n${billLines}\nSUGGESTED_ACTIONS:\n${actionLines}`;
+          return `PE ${pe.peCode}, ${pe.title}\nservice=${pe.service ?? 'unknown'} fy=${pe.fy ?? 'unknown'} predicted_conference_amount_usd_millions=${pe.predictedConferenceAmount ?? 'n/a'}\n${pe.fundingBlock}\n24H_CHANGES:\n${changeLines}\nBILLS_IN_MARKUP:\n${billLines}\nSUGGESTED_ACTIONS:\n${actionLines}`;
         });
         contextParts.push(
           `PROGRAM ELEMENT STATUS (include only these PEs):\n${peBlocks.join('\n\n')}`,

@@ -49,7 +49,7 @@ export class GenerationController {
     @Param('draftId') draftId: string,
     @Body() dto: GenerateSectionDto,
   ) {
-    return this.generation.generateSection(ctx.tenantId, draftId, dto.section);
+    return this.generation.generateSection(ctx.tenantId, draftId, dto.section, ctx.clerkUserId);
   }
 
   /**
@@ -69,7 +69,7 @@ export class GenerationController {
     // by default) can authenticate to the orchestrator; flipping
     // meriv2.workspaceGen ON without this fails every generate-all with
     // "requires the caller bearer token". No-op for the legacy path.
-    return this.generation.generateAllSections(ctx.tenantId, draftId, {
+    return this.generation.generateAllSections(ctx.tenantId, draftId, ctx.clerkUserId, {
       bearerToken: extractGenBearer(req),
     });
   }
@@ -89,7 +89,7 @@ export class GenerationController {
     @Param('draftId') draftId: string,
     @Body() dto: ApplyGeneratedSectionsDto,
   ) {
-    return this.generation.applyGeneratedSections(ctx.tenantId, draftId, dto);
+    return this.generation.applyGeneratedSections(ctx.tenantId, draftId, dto, ctx.clerkUserId);
   }
 
   /**
@@ -107,7 +107,7 @@ export class GenerationController {
     @CurrentTenant() ctx: WorkspaceTenantContext,
     @Param('draftId') draftId: string,
   ) {
-    return this.generation.generateAllSectionsInProcess(ctx.tenantId, draftId);
+    return this.generation.generateAllSectionsInProcess(ctx.tenantId, draftId, ctx.clerkUserId);
   }
 
   /**
@@ -118,7 +118,7 @@ export class GenerationController {
    */
   @Get('context-used')
   contextUsed(@CurrentTenant() ctx: WorkspaceTenantContext, @Param('draftId') draftId: string) {
-    return this.generation.getContextUsed(ctx.tenantId, draftId);
+    return this.generation.getContextUsed(ctx.tenantId, draftId, ctx.clerkUserId);
   }
 
   /**

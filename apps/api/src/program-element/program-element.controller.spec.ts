@@ -145,18 +145,18 @@ describe('ProgramElementController', () => {
     expect(result.currentUserIsWatching).toBe(true);
   });
 
-  test('GET /api/program-elements/:peCode/timeline includes conferenceProbability field placeholder', async () => {
+  test('GET /api/program-elements/:peCode/timeline includes predictedConferenceAmount field placeholder', async () => {
     const { controller, service } = makeController();
     service.getTimeline.mockResolvedValue({
       peCode: '0603270A',
-      years: [{ fy: 2027, request: '278.50', conferenceProbability: null }],
+      years: [{ fy: 2027, request: '278.50', predictedConferenceAmount: null }],
       milestones: [],
     });
 
     const result = await controller.timeline('0603270A');
 
     expect(service.getTimeline).toHaveBeenCalledWith('0603270A');
-    expect(result.years[0]?.conferenceProbability).toBeNull();
+    expect(result.years[0]?.predictedConferenceAmount).toBeNull();
   });
 
   test('GET /api/program-elements/:peCode/bills returns related bills by pe_code', async () => {

@@ -13,7 +13,7 @@ export class DraftContextController {
 
   @Get()
   list(@CurrentTenant() ctx: WorkspaceTenantContext, @Param('draftId') draftId: string) {
-    return this.context.listItems(ctx.tenantId, draftId);
+    return this.context.listItems(ctx.tenantId, draftId, ctx.clerkUserId);
   }
 
   @Post()
@@ -22,7 +22,7 @@ export class DraftContextController {
     @Param('draftId') draftId: string,
     @Body() dto: AddContextItemDto,
   ) {
-    return this.context.addItem(ctx.tenantId, draftId, dto);
+    return this.context.addItem(ctx.tenantId, draftId, dto, ctx.clerkUserId);
   }
 
   @Delete(':itemId')
@@ -31,6 +31,6 @@ export class DraftContextController {
     @Param('draftId') draftId: string,
     @Param('itemId') itemId: string,
   ) {
-    return this.context.removeItem(ctx.tenantId, draftId, itemId);
+    return this.context.removeItem(ctx.tenantId, draftId, itemId, ctx.clerkUserId);
   }
 }

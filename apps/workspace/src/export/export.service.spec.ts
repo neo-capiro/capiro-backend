@@ -125,7 +125,7 @@ describe('splitOutTables + parsePlainTableRows (fixes B9.3: PDF must render an i
 });
 
 describe('ExportService.packetDocs / resolvePart (fixes B9.1/B9.2: cover letter must not be dropped)', () => {
-  const svc = new ExportService({} as never);
+  const svc = new ExportService({} as never, {} as never);
   const primary = { id: 'primary-id', name: 'White paper', body: { blocks: [] } };
   const cover = { id: 'cover-id', name: 'Cover letter', body: { blocks: [{ type: 'section' }] } };
 

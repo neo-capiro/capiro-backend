@@ -864,10 +864,15 @@ export class ProgramElementReadService {
             pick.value != null && values.request != null && pick.stage !== 'request'
               ? pick.value - values.request
               : null,
-          conferenceProbability: prediction?.predicted ?? null,
-          conferenceProbabilityCiLow: prediction?.ciLow ?? null,
-          conferenceProbabilityCiHigh: prediction?.ciHigh ?? null,
-          conferenceProbabilityConfidence: prediction?.confidence ?? null,
+          // GAI-28: `predicted` is a forecast conference DOLLAR amount (in $M),
+          // NOT a probability. Exposed under an honest name so no downstream
+          // surface (LLM prompt, web, client brief) can read a funding level as a
+          // percentage. CI bounds are also $M; confidence is the model's 0–1
+          // confidence in the forecast.
+          predictedConferenceAmount: prediction?.predicted ?? null,
+          predictedConferenceAmountCiLow: prediction?.ciLow ?? null,
+          predictedConferenceAmountCiHigh: prediction?.ciHigh ?? null,
+          predictedConferenceConfidence: prediction?.confidence ?? null,
         };
       }),
     );
@@ -939,9 +944,9 @@ export class ProgramElementReadService {
       title: timeline.title,
       service: timeline.service,
       currentCycleFy: fy,
-      conferenceProbability:
-        currentYear && 'conferenceProbability' in currentYear
-          ? (currentYear as { conferenceProbability: number | null }).conferenceProbability
+      predictedConferenceAmount:
+        currentYear && 'predictedConferenceAmount' in currentYear
+          ? (currentYear as { predictedConferenceAmount: number | null }).predictedConferenceAmount
           : null,
       steps,
       materiality: deltas.data.map((d) => ({

@@ -13,6 +13,8 @@ import {
 } from 'docx';
 import PDFDocument from 'pdfkit';
 import { PrismaService } from '../prisma/prisma.service.js';
+import { CollaboratorsService } from '../collaborators/collaborators.service.js';
+import { canRead } from '../collaborators/role-policy.js';
 import { anonymizeText, applyRedactions } from '../generation/anonymize.js';
 
 /** Decode the handful of HTML entities our sanitized section HTML can contain.
@@ -375,14 +377,29 @@ type Redactor = (s: string) => string;
 
 @Injectable()
 export class ExportService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly collaborators: CollaboratorsService,
+  ) {}
 
-  private async loadDraft(tenantId: string, draftId: string) {
+  private async loadDraft(tenantId: string, draftId: string, actorId?: string) {
     const draft = await this.prisma.wsDraft.findFirst({
       where: { id: draftId, tenantId },
       include: { documents: { orderBy: { ordinal: 'asc' } } },
     });
     if (!draft) throw new NotFoundException('Draft not found');
+    // GAI-31: export streams a private draft's full content — require read
+    // access (owner or active collaborator) when the controller supplies
+    // actorId. Tenant scope alone is not object authorization.
+    if (actorId) {
+      await this.collaborators.assertCan(
+        tenantId,
+        draftId,
+        actorId,
+        canRead,
+        'You do not have access to this document',
+      );
+    }
     return draft;
   }
 
@@ -422,8 +439,9 @@ export class ExportService {
     tenantId: string,
     draftId: string,
     part?: string,
+    actorId?: string,
   ): Promise<{ filename: string; buffer: Buffer }> {
-    const draft = await this.loadDraft(tenantId, draftId);
+    const draft = await this.loadDraft(tenantId, draftId, actorId);
     const resolved = this.resolvePart(draft, part);
 
     const cfg = draft.config as Record<string, unknown>;
@@ -635,8 +653,9 @@ export class ExportService {
     tenantId: string,
     draftId: string,
     part?: string,
+    actorId?: string,
   ): Promise<{ filename: string; buffer: Buffer }> {
-    const draft = await this.loadDraft(tenantId, draftId);
+    const draft = await this.loadDraft(tenantId, draftId, actorId);
     const resolved = this.resolvePart(draft, part);
 
     const cfg = draft.config as Record<string, unknown>;
