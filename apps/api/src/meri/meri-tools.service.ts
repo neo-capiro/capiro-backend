@@ -294,6 +294,11 @@ export const TOOL_DEFINITIONS = [
       "List recent email threads from the tenant's connected Microsoft 365 inbox, optionally filtered by client.",
   },
   {
+    name: 'list_upcoming_meetings',
+    description:
+      "List the user's upcoming meetings from the connected calendar (synced Microsoft 365/Google events), soonest first — the source of truth for which meetings exist and when. Returns each meeting's id (pass to create_meeting_brief), subject, start/end, attendees, and client. Optionally filter by client or a lookahead window.",
+  },
+  {
     name: 'reply_email',
     description:
       "Reply to an email thread via the tenant's connected Microsoft 365 account on behalf of Meri.",
@@ -856,6 +861,11 @@ export class MeriToolsService {
       list_emails: obj({
         clientId: str('Optional client UUID filter'),
         limit: int('Max threads (default 15, max 50)'),
+      }),
+      list_upcoming_meetings: obj({
+        clientId: str('Optional client UUID filter'),
+        limit: int('Max meetings (default 10, max 25)'),
+        withinDays: int('Only meetings starting within the next N days (default 30, max 365)'),
       }),
       reply_email: obj(
         {
@@ -1475,6 +1485,8 @@ export class MeriToolsService {
         return this.sendEmail(ctx, input);
       case 'list_emails':
         return this.listEmails(ctx, input);
+      case 'list_upcoming_meetings':
+        return this.listUpcomingMeetings(ctx, input);
       case 'reply_email':
         return this.replyEmail(ctx, input);
       case 'save_memory':
@@ -5003,6 +5015,79 @@ export class MeriToolsService {
     );
 
     return { threads, count: threads.length };
+  }
+
+  /**
+   * Upcoming meetings from the SYNCED CALENDAR (the `meeting` table, populated by
+   * the Microsoft 365 / Google calendar integration) — the authoritative source
+   * of which meetings exist and when. Meeting prep must start here (then pull
+   * email context via list_emails and a brief via create_meeting_brief); memory
+   * is background only and must NEVER be treated as the calendar. An empty result
+   * means the user genuinely has nothing upcoming (or no calendar connected) — the
+   * model reports that rather than surfacing stale "meetings" from memory.
+   */
+  private async listUpcomingMeetings(ctx: TenantContext, input: Record<string, unknown>) {
+    const clientId = optionalString(input, 'clientId', 36);
+    const limit = clampInt(input.limit, 1, 25, 10);
+    const withinDays = clampInt(input.withinDays, 1, 365, 30);
+
+    const now = new Date();
+    const until = new Date(now.getTime() + withinDays * 24 * 60 * 60 * 1000);
+
+    const where: Prisma.MeetingWhereInput = {
+      tenantId: ctx.tenantId,
+      ...ownMeetingWhere(ctx.userId),
+      startsAt: { gte: now, lt: until },
+      status: { not: 'cancelled' },
+    };
+    if (clientId) where.clientId = clientId;
+
+    const rows = await this.prisma.withTenant(ctx.tenantId, (tx) =>
+      tx.meeting.findMany({
+        where,
+        orderBy: { startsAt: 'asc' },
+        take: limit,
+        select: {
+          id: true,
+          subject: true,
+          startsAt: true,
+          endsAt: true,
+          location: true,
+          isVirtual: true,
+          joinLink: true,
+          status: true,
+          isInternal: true,
+          organizerName: true,
+          organizerEmail: true,
+          client: { select: { id: true, name: true } },
+          attendees: {
+            orderBy: { createdAt: 'asc' },
+            select: { name: true, email: true, role: true, responseStatus: true },
+          },
+        },
+      }),
+    );
+
+    const meetings = rows.map((m) => ({
+      id: m.id,
+      subject: m.subject,
+      startsAt: m.startsAt,
+      endsAt: m.endsAt,
+      location: m.location,
+      isVirtual: m.isVirtual,
+      joinLink: m.joinLink,
+      status: m.status,
+      isInternal: m.isInternal,
+      organizer: m.organizerName || m.organizerEmail || null,
+      client: m.client,
+      attendees: m.attendees,
+    }));
+
+    return {
+      meetings,
+      count: meetings.length,
+      window: { from: now.toISOString(), to: until.toISOString(), withinDays },
+    };
   }
 
   private async replyEmail(ctx: TenantContext, input: Record<string, unknown>) {

@@ -58,6 +58,7 @@ const EXPECTED_TOOLS = [
   'save_note',
   'send_email',
   'list_emails',
+  'list_upcoming_meetings',
   'reply_email',
   'save_memory',
   // Memory governance verbs (Phase 1, 1D)
