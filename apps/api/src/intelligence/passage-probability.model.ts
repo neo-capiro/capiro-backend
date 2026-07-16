@@ -1,3 +1,5 @@
+import { billStage, type BillStage } from '@capiro/shared';
+
 export interface BillPassageModelInput {
   identifier?: string | null;
   congress?: number | null;
@@ -52,15 +54,9 @@ function parseIdentifier(identifier: string | null | undefined): ParsedIdentifie
   };
 }
 
-type BillStage = 'introduced' | 'committee' | 'passed' | 'enacted';
-
-function billStage(latestActionText: string | null | undefined): BillStage {
-  const txt = (latestActionText ?? '').toLowerCase();
-  if (/signed|enacted|public law|pl\s+\d/.test(txt)) return 'enacted';
-  if (/passed|agreed to/.test(txt)) return 'passed';
-  if (/committee|referred|reported|markup/.test(txt)) return 'committee';
-  return 'introduced';
-}
+// GAI-07: billStage comes from @capiro/shared (this file previously carried a
+// verbatim inline clone that kept the bare /passed|agreed to/ passage test
+// after the shared classifier was chamber-qualified).
 
 /**
  * Logistic-style inference model for bill passage probability.
@@ -106,7 +102,9 @@ export function predictBillPassageProbability(input: BillPassageModelInput): Bil
   const cosponsorSignal = Math.log1p(cosponsors);
 
   const bipartisanSignal = /bipartisan|co[- ]sponsor/i.test(actionText) ? 1 : 0;
-  const appropriationSignal = /appropriation|authorization|ndaa|national defense/i.test(actionText) ? 1 : 0;
+  const appropriationSignal = /appropriation|authorization|ndaa|national defense/i.test(actionText)
+    ? 1
+    : 0;
 
   // We treat this as a fixed inferred model with baked coefficients.
   const z =

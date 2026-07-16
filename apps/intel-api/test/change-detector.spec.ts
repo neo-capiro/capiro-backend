@@ -19,7 +19,11 @@ describe('classifyChange', () => {
   const cases: Array<[string, string, string, string]> = [
     ['Became Public Law No. 118-1', 'bill_enacted', 'critical', 'enactedFailed'],
     ['Presented to President.', 'bill_to_president', 'critical', 'enactedFailed'],
-    ['Motion to table agreed to', 'bill_failed', 'critical', 'enactedFailed'],
+    // GAI-07: bill_failed now requires MEASURE-level failure context (a bare
+    // "Motion to table agreed to" — tabling of WHAT? — no longer fires a
+    // critical alert; see the dedicated adversarial block below).
+    ['Failed of passage in Senate', 'bill_failed', 'critical', 'enactedFailed'],
+    ['Motion to table the bill agreed to', 'bill_failed', 'critical', 'enactedFailed'],
     ['Passed/agreed to in House', 'bill_passed_chamber', 'notable', 'floorVote'],
     [
       'Rules Committee Resolution H. Res. 5 provides for consideration',
@@ -49,6 +53,19 @@ describe('classifyChange', () => {
     expect(classifyChange('Referred to the Committee on Armed Services.')).toBeNull();
     expect(classifyChange(null)).toBeNull();
     expect(classifyChange('')).toBeNull();
+  });
+
+  it('GAI-07: procedural failures / veto threats are NOT bill failure (parity with legacy)', () => {
+    expect(classifyChange('Motion to recommit failed by voice vote.')?.changeType).not.toBe(
+      'bill_failed',
+    );
+    expect(
+      classifyChange('Cloture motion rejected by Yea-Nay Vote. 55 - 45.')?.changeType,
+    ).not.toBe('bill_failed');
+    expect(
+      classifyChange('Passed House 220-210; the White House has issued a veto threat.')?.changeType,
+    ).toBe('bill_passed_chamber');
+    expect(classifyChange('Motion to table agreed to.')).toBeNull();
   });
 });
 
