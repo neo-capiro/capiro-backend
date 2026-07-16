@@ -132,6 +132,12 @@ export const FULL_CHAT_READ_TOOLS: readonly DelegatedToolSpec[] = [
     readOnly: true,
   },
   {
+    name: 'list_upcoming_meetings',
+    description:
+      "List the user's upcoming meetings from the connected calendar (synced Microsoft 365/Google events), soonest first — the source of truth for which meetings exist and when. Returns each meeting's id (pass to create_meeting_brief), subject, start/end, attendees, and client. Optionally filter by client or a lookahead window.",
+    readOnly: true,
+  },
+  {
     name: 'list_scheduled_tasks',
     description:
       "List the caller's recurring scheduled Meri tasks (name, cadence, next run, enabled state).",

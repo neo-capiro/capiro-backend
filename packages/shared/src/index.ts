@@ -3308,6 +3308,8 @@ export const MERI_TOOL_MANIFEST: Readonly<Record<string, string>> = {
   send_email: "Send an email via the tenant's connected Microsoft 365 account on behalf of Meri.",
   list_emails:
     "List recent email threads from the tenant's connected Microsoft 365 inbox, optionally filtered by client.",
+  list_upcoming_meetings:
+    "List the user's upcoming meetings from the connected calendar (synced Microsoft 365/Google events), soonest first — the source of truth for which meetings exist and when. Returns each meeting's id (pass to create_meeting_brief), subject, start/end, attendees, and client. Optionally filter by client or a lookahead window.",
   reply_email:
     "Reply to an email thread via the tenant's connected Microsoft 365 account on behalf of Meri.",
   save_memory:
