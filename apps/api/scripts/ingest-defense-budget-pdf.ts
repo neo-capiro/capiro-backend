@@ -11,7 +11,7 @@
  *   7. stamp per-field source values with the SourceDocument id + write a ProgramElementIngestRun
  *
  * Usage:
- *   tsx scripts/ingest-defense-budget-pdf.ts --path "<pdf|dir>" [--dry-run] [--mode pdf_fast|pdf_premium|pdf_ocr]
+ *   tsx scripts/ingest-defense-budget-pdf.ts --path "<pdf|dir|s3://bucket/prefix>" [--dry-run] [--mode pdf_fast|pdf_premium|pdf_ocr]
  *       [--fy 2027] [--only rdte,procurement,om,committee,public_law] [--limit N]
  *
  * Secrets/config come from the environment (LLAMA_CLOUD_API_KEY, DEFENSE_BUDGET_RAW_BUCKET,
@@ -30,7 +30,8 @@ import {
 } from '../src/program-element/source-document/source-document-registry.js';
 import { recordIngestRun, type IngestRunClient } from '../src/program-element/coverage/record-ingest-run.js';
 import { RawArchiveService, type ArchiveDescriptor } from '../src/defense-budget/raw-archive.service.js';
-import { makeS3, awsS3Commands } from '../src/defense-budget/s3-aws-commands.js';
+import { makeS3, awsS3Commands, makeCorpusS3 } from '../src/defense-budget/s3-aws-commands.js';
+import { parseS3Uri, materializeS3Corpus } from '../src/defense-budget/corpus-source.js';
 import { LlamaParseClient } from '../src/defense-budget/llamaparse.client.js';
 import { ParseRunner, type ParseJobClient } from '../src/defense-budget/parse-runner.js';
 import { classifyDocument, type DocClassification } from '../src/defense-budget/document-classifier.js';
@@ -114,6 +115,20 @@ async function main(): Promise<void> {
   const fyArg = arg('fy') ? Number(arg('fy')) : null;
   const cfg = loadConfig();
 
+  // Resolve the corpus source. Local path/dir works as before; an s3://bucket/prefix
+  // target is materialized into a local scratch dir so the batch can run on a
+  // private-subnet Fargate task with no access to the operator's workstation.
+  let corpusDir = target;
+  const s3Loc = parseS3Uri(target);
+  if (s3Loc) {
+    const corpusS3 = makeCorpusS3(cfg.region);
+    const mat = await materializeS3Corpus(s3Loc, corpusS3);
+    corpusDir = mat.dir;
+    console.log(
+      `Materialized s3://${s3Loc.bucket}/${s3Loc.prefix} -> ${mat.dir} (${mat.files.length} pdf, ${mat.skipped} non-pdf skipped)`,
+    );
+  }
+
   const s3 = makeS3(cfg.region);
   const archiveSvc = new RawArchiveService(s3, awsS3Commands, {
     bucket: cfg.bucket,
@@ -135,7 +150,7 @@ async function main(): Promise<void> {
     const writer = prisma ? new ProgramElementWriterService(prisma) : null;
 
     let processed = 0;
-    for (const pdfPath of listPdfs(target)) {
+    for (const pdfPath of listPdfs(corpusDir)) {
       if (processed >= limit) break;
       const cls = classifyDocument(pdfPath);
       // --fy is the scope default: J-book filenames often omit the FY, but this pass is
