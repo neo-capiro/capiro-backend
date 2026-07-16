@@ -9,8 +9,12 @@ export interface ReportCardData {
   period: { start: Date; end: Date; label: string };
   activity: {
     meetings: number;
-    uniqueOffices: string[];
+    /** Distinct attendee ROLES engaged across meetings (GAI-29: this is derived
+     *  from `attendee.role`, not congressional offices — named honestly). */
+    uniqueRoles: string[];
     outreachSent: number;
+    /** Share of sent outreach with ≥1 open, in [0,1] (GAI-29: unique-open
+     *  denominator; can never exceed 1). */
     outreachOpenRate: number;
     tasksCompleted: number;
     debriefsFiled: number;
@@ -99,22 +103,27 @@ export class ReportCardService {
         ),
       ]);
 
-    // Unique offices from attendee roles
-    const uniqueOffices = new Set<string>();
+    // GAI-29: distinct attendee ROLES engaged (the data is `attendee.role`, a
+    // staffer title/role — NOT a congressional office). Named honestly so the
+    // report and the AI forward-look never claim "offices met."
+    const uniqueRoles = new Set<string>();
     for (const meeting of meetings) {
       for (const attendee of meeting.attendees) {
-        if (attendee.role) uniqueOffices.add(attendee.role);
+        if (attendee.role) uniqueRoles.add(attendee.role);
       }
     }
 
-    // Outreach open rate from stats JSON
+    // GAI-29: open rate = share of SENT outreach with at least one open, so it
+    // is a true rate in [0,1]. (The prior code summed per-record opens and
+    // divided by record count, which could exceed 100% when a record had
+    // multiple opens.)
     const outreachSent = outreachRecords.length;
-    let totalOpens = 0;
+    let openedRecords = 0;
     for (const rec of outreachRecords) {
       const stats = rec.stats as Record<string, unknown>;
-      if (typeof stats?.opens === 'number') totalOpens += stats.opens;
+      if (typeof stats?.opens === 'number' && stats.opens > 0) openedRecords += 1;
     }
-    const outreachOpenRate = outreachSent > 0 ? totalOpens / outreachSent : 0;
+    const outreachOpenRate = outreachSent > 0 ? Math.min(1, openedRecords / outreachSent) : 0;
 
     // Intelligence metrics via confirmed mappings
     const [roi, trackedBillsCount, competitorCount] = await Promise.all([
@@ -139,15 +148,23 @@ export class ReportCardService {
             tx.meeting.count({ where: { clientId, startsAt: { gte: w.start, lt: w.end } } }),
           ),
           this.prisma.withTenant(tenantId, (tx) =>
-            tx.mailThread.count({ where: { clientId, lastMessageAt: { gte: w.start, lt: w.end } } }),
-          ),
-          this.prisma.withTenant(tenantId, (tx) =>
-            tx.engagementTask.count({
-              where: { clientId, status: EngagementTaskStatus.done, updatedAt: { gte: w.start, lt: w.end } },
+            tx.mailThread.count({
+              where: { clientId, lastMessageAt: { gte: w.start, lt: w.end } },
             }),
           ),
           this.prisma.withTenant(tenantId, (tx) =>
-            tx.meetingDebrief.count({ where: { clientId, createdAt: { gte: w.start, lt: w.end } } }),
+            tx.engagementTask.count({
+              where: {
+                clientId,
+                status: EngagementTaskStatus.done,
+                updatedAt: { gte: w.start, lt: w.end },
+              },
+            }),
+          ),
+          this.prisma.withTenant(tenantId, (tx) =>
+            tx.meetingDebrief.count({
+              where: { clientId, createdAt: { gte: w.start, lt: w.end } },
+            }),
           ),
           this.prisma.withTenant(tenantId, (tx) =>
             tx.outreachRecord.count({ where: { clientId, sentAt: { gte: w.start, lt: w.end } } }),
@@ -155,7 +172,9 @@ export class ReportCardService {
         ]);
         const score = Math.min(
           100,
-          Math.round((wMeet * 15 + wMail * 2 + wTask * 10 + wDebrief * 20 + wOutreach * 5) / 100 * 100),
+          Math.round(
+            ((wMeet * 15 + wMail * 2 + wTask * 10 + wDebrief * 20 + wOutreach * 5) / 100) * 100,
+          ),
         );
         return { week: w.end.toISOString().split('T')[0]!, score };
       }),
@@ -164,8 +183,8 @@ export class ReportCardService {
     // AI forward-look
     const contextLines = [
       `CLIENT: ${client.name}`,
-      `PERIOD: ${start.toLocaleDateString()} – ${now.toLocaleDateString()} (${period === 'quarter' ? 'Q90d' : 'Annual'})`,
-      `MEETINGS: ${meetings.length} (${uniqueOffices.size} unique offices met)`,
+      `PERIOD: trailing ${period === 'quarter' ? '90 days' : '12 months'} (${start.toLocaleDateString()} – ${now.toLocaleDateString()}); NOT a federal fiscal-year period`,
+      `MEETINGS: ${meetings.length} (${uniqueRoles.size} distinct attendee roles engaged)`,
       `OUTREACH: ${outreachSent} sent, ${(outreachOpenRate * 100).toFixed(0)}% open rate`,
       `TASKS COMPLETED: ${tasksCompleted}`,
       `DEBRIEFS FILED: ${debriefs}`,
@@ -182,10 +201,17 @@ export class ReportCardService {
 
     const aiForwardLook = await this.insightGen.generateFreeText(aiPrompt).catch(() => '');
 
-    // Period label
-    const quarterNum = Math.ceil((now.getMonth() + 1) / 3);
+    // GAI-29: label the ACTUAL rolling window (start–end). The prior label
+    // (`Q{calendar-quarter} FY{calendar-year}`) was wrong twice over — the window
+    // is a trailing 90/365 days, not a calendar quarter, and the federal fiscal
+    // year is offset from the calendar year — so it must not be presented as an
+    // FY period to clients.
+    const rangeFmt = (d: Date): string =>
+      d.toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' });
     const periodLabel =
-      period === 'quarter' ? `Q${quarterNum} FY${now.getFullYear()}` : `FY${now.getFullYear()}`;
+      period === 'quarter'
+        ? `Trailing 90 days (${rangeFmt(start)} – ${rangeFmt(now)})`
+        : `Trailing 12 months (${rangeFmt(start)} – ${rangeFmt(now)})`;
 
     return {
       client: { id: client.id, name: client.name, sectorTag: client.sectorTag ?? null },
@@ -193,7 +219,7 @@ export class ReportCardService {
       period: { start, end: now, label: periodLabel },
       activity: {
         meetings: meetings.length,
-        uniqueOffices: Array.from(uniqueOffices).slice(0, 20),
+        uniqueRoles: Array.from(uniqueRoles).slice(0, 20),
         outreachSent,
         outreachOpenRate,
         tasksCompleted,
@@ -226,7 +252,9 @@ export class ReportCardService {
         tx.clientIntelMapping.findFirst({ where: { clientId, source: 'lda', confirmed: true } }),
       ),
       this.prisma.withTenant(tenantId, (tx) =>
-        tx.clientIntelMapping.findFirst({ where: { clientId, source: 'contracting', confirmed: true } }),
+        tx.clientIntelMapping.findFirst({
+          where: { clientId, source: 'contracting', confirmed: true },
+        }),
       ),
     ]);
 

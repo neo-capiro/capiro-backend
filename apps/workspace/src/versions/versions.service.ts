@@ -1,5 +1,7 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service.js';
+import { CollaboratorsService } from '../collaborators/collaborators.service.js';
+import { canEdit, canRead, type ResolvedRole } from '../collaborators/role-policy.js';
 import type { CreateVersionDto } from './dto/version.dto.js';
 
 /**
@@ -14,19 +16,43 @@ import type { CreateVersionDto } from './dto/version.dto.js';
  */
 @Injectable()
 export class VersionsService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly collaborators: CollaboratorsService,
+  ) {}
 
-  private async loadDraft(tenantId: string, draftId: string) {
+  /**
+   * Load the draft (tenant-scoped) and — when actorId is supplied — enforce the
+   * private-draft ACL (GAI-31): version history exposes full document snapshots,
+   * and restore destructively overwrites the live draft, so tenant scope alone
+   * is not authorization. `predicate` is canRead for listing, canEdit for
+   * create/restore. Internal callers omit actorId.
+   */
+  private async loadDraft(
+    tenantId: string,
+    draftId: string,
+    actorId?: string,
+    predicate: (role: ResolvedRole) => boolean = canRead,
+  ) {
     const draft = await this.prisma.wsDraft.findFirst({
       where: { id: draftId, tenantId },
       include: { documents: { orderBy: { ordinal: 'asc' } } },
     });
     if (!draft) throw new NotFoundException('Draft not found');
+    if (actorId) {
+      await this.collaborators.assertCan(
+        tenantId,
+        draftId,
+        actorId,
+        predicate,
+        'You do not have permission to access this document',
+      );
+    }
     return draft;
   }
 
-  async list(tenantId: string, draftId: string) {
-    await this.loadDraft(tenantId, draftId);
+  async list(tenantId: string, draftId: string, actorId?: string) {
+    await this.loadDraft(tenantId, draftId, actorId, canRead);
     return this.prisma.wsDocVersion.findMany({
       where: { tenantId, draftId },
       orderBy: { createdAt: 'desc' },
@@ -39,7 +65,9 @@ export class VersionsService {
    * config + each document's body so a restore is lossless.
    */
   async create(tenantId: string, draftId: string, authorId: string, dto: CreateVersionDto) {
-    const draft = await this.loadDraft(tenantId, draftId);
+    // Snapshotting is a "Save draft" editor action — owner/editor only. authorId
+    // is the acting user (the controller passes ctx.clerkUserId).
+    const draft = await this.loadDraft(tenantId, draftId, authorId, canEdit);
     const snapshot = {
       docTitle: draft.docTitle,
       config: draft.config,
@@ -70,8 +98,9 @@ export class VersionsService {
    * left untouched. A restore does NOT itself create a new version (the caller
    * may snapshot again afterward).
    */
-  async restore(tenantId: string, draftId: string, versionId: string) {
-    const draft = await this.loadDraft(tenantId, draftId);
+  async restore(tenantId: string, draftId: string, versionId: string, actorId?: string) {
+    // Restore destructively overwrites the live draft → owner/editor only.
+    const draft = await this.loadDraft(tenantId, draftId, actorId, canEdit);
     const version = await this.prisma.wsDocVersion.findFirst({
       where: { id: versionId, tenantId, draftId },
     });

@@ -2,6 +2,8 @@ import { Injectable, Logger, ServiceUnavailableException } from '@nestjs/common'
 import { PrismaService } from '../prisma/prisma.service.js';
 import { MeriV2FlagsService } from '../meriv2/meriv2-flags.service.js';
 import { MeriV2OrchestratorClient } from '../meriv2/meriv2-orchestrator.client.js';
+import { CollaboratorsService } from '../collaborators/collaborators.service.js';
+import { canEdit, canRead } from '../collaborators/role-policy.js';
 import { WorkspaceContextCompilerService } from './context-compiler.service.js';
 import { AiCredentialService } from './ai-credential.service.js';
 import { PeResolverService, type AuthoritativePeRecord } from './pe-resolver.service.js';
@@ -125,14 +127,30 @@ export class GenerationService {
     private readonly meriV2Flags: MeriV2FlagsService,
     private readonly meriV2: MeriV2OrchestratorClient,
     private readonly contextCompiler: WorkspaceContextCompilerService,
+    private readonly collaborators: CollaboratorsService,
   ) {}
 
   async generateSection(
     tenantId: string,
     draftId: string,
     sectionName: string,
+    actorId?: string,
     authoritativePes?: AuthoritativePeRecord[],
   ): Promise<GenerateSectionResult> {
+    // GAI-31: generating a section OVERWRITES draft content → an edit. When the
+    // controller supplies actorId, the actor must be an owner/editor of this
+    // (private) draft — tenant scope alone is not authorization. Internal callers
+    // (generateAllSectionsInProcess) omit actorId: the enclosing method already
+    // asserted canEdit once for the whole run.
+    if (actorId) {
+      await this.collaborators.assertCan(
+        tenantId,
+        draftId,
+        actorId,
+        canEdit,
+        'Only owners and editors can generate content in this document',
+      );
+    }
     const draft = await this.prisma.wsDraft.findFirst({
       where: { id: draftId, tenantId },
       include: { context: true },
@@ -330,12 +348,28 @@ export class GenerationService {
    * actually grounded the draft. Returns null when the draft has never been
    * generated (or predates provenance capture). Tenant-scoped.
    */
-  async getContextUsed(tenantId: string, draftId: string): Promise<ContextProvenance | null> {
+  async getContextUsed(
+    tenantId: string,
+    draftId: string,
+    actorId?: string,
+  ): Promise<ContextProvenance | null> {
     const draft = await this.prisma.wsDraft.findFirst({
       where: { id: draftId, tenantId },
       select: { config: true },
     });
     if (!draft) throw new ServiceUnavailableException('Draft not found');
+    // GAI-31: the provenance panel exposes what a (private) draft was built from
+    // — require read access (owner or active collaborator) when the controller
+    // supplies actorId. Unit tests omit it → skip.
+    if (actorId) {
+      await this.collaborators.assertCan(
+        tenantId,
+        draftId,
+        actorId,
+        canRead,
+        'You do not have access to this document',
+      );
+    }
     const cfg = (draft.config as Record<string, unknown>) ?? {};
     const p = cfg.contextProvenance;
     if (!p || typeof p !== 'object' || Array.isArray(p)) return null;
@@ -535,7 +569,22 @@ export class GenerationService {
    * the Context Builder ("Open editor") and by the editor's "Regenerate All".
    * Overwrites existing section content (callers gate when that is appropriate).
    */
-  async generateAllSections(tenantId: string, draftId: string, opts?: { bearerToken?: string }) {
+  async generateAllSections(
+    tenantId: string,
+    draftId: string,
+    actorId: string,
+    opts?: { bearerToken?: string },
+  ) {
+    // GAI-31: whole-document generation overwrites every section → owner/editor
+    // only. Asserted BEFORE the flag branch so the MeriV2 proxy path is gated
+    // too (the orchestrator re-enters via generate-all-direct, which re-asserts).
+    await this.collaborators.assertCan(
+      tenantId,
+      draftId,
+      actorId,
+      canEdit,
+      'Only owners and editors can generate content in this document',
+    );
     // P0-T4 dormant proxy: when meriv2.workspaceGen is ON (AND the MERIV2_ENABLED
     // env kill-switch is set) proxy full-document generation to the MeriV2
     // orchestrator instead of running in-process below. Both flags default OFF,
@@ -563,7 +612,20 @@ export class GenerationService {
    * /meri-api/workspace-generation is the routing seam; deeper reasoning-
    * consolidation into meriv2-core awaits the ws_* ownership decision (Neo).
    */
-  async generateAllSectionsInProcess(tenantId: string, draftId: string) {
+  async generateAllSectionsInProcess(tenantId: string, draftId: string, actorId?: string) {
+    // GAI-31: generate-all-direct (the orchestrator-routed entry) reaches here
+    // directly and supplies actorId → assert owner/editor. The flag-off
+    // generateAllSections path already asserted and calls without actorId to
+    // avoid a redundant check.
+    if (actorId) {
+      await this.collaborators.assertCan(
+        tenantId,
+        draftId,
+        actorId,
+        canEdit,
+        'Only owners and editors can generate content in this document',
+      );
+    }
     const draft = await this.prisma.wsDraft.findFirst({ where: { id: draftId, tenantId } });
     if (!draft) throw new ServiceUnavailableException('Draft not found');
     const cfg = draft.config as Record<string, unknown>;
@@ -594,7 +656,8 @@ export class GenerationService {
     await Promise.all(
       sections.map(async (section) => {
         try {
-          const r = await this.generateSection(tenantId, draftId, section, authPes);
+          // actorId omitted: this run already asserted canEdit above.
+          const r = await this.generateSection(tenantId, draftId, section, undefined, authPes);
           sectionContent[section] = r.content;
           sectionMeta[section] = { status: 'review' };
           provenance ??= r.provenance;
@@ -742,7 +805,19 @@ export class GenerationService {
       sectionMeta?: Record<string, { status: string }>;
       structuralWarnings?: PeStructuralWarning[];
     },
+    actorId?: string,
   ) {
+    // GAI-31: writes generated section content into the draft → owner/editor only
+    // when the controller supplies actorId. Unit tests omit it → skip.
+    if (actorId) {
+      await this.collaborators.assertCan(
+        tenantId,
+        draftId,
+        actorId,
+        canEdit,
+        'Only owners and editors can apply generated content to this document',
+      );
+    }
     const draft = await this.prisma.wsDraft.findFirst({ where: { id: draftId, tenantId } });
     if (!draft) throw new ServiceUnavailableException('Draft not found');
     const cfg = draft.config as Record<string, unknown>;

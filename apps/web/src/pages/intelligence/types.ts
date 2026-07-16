@@ -599,7 +599,8 @@ export interface ReportCardData {
   period: { start: string; end: string; label: string };
   activity: {
     meetings: number;
-    uniqueOffices: string[];
+    /** GAI-29: distinct attendee roles engaged (derived from attendee.role), not offices. */
+    uniqueRoles: string[];
     outreachSent: number;
     outreachOpenRate: number;
     tasksCompleted: number;

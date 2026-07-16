@@ -28,7 +28,12 @@ export class ExportController {
     @Query('part') part: string | undefined,
     @Res() res: Response,
   ): Promise<void> {
-    const { filename, buffer } = await this.exportService.buildDocx(ctx.tenantId, draftId, part);
+    const { filename, buffer } = await this.exportService.buildDocx(
+      ctx.tenantId,
+      draftId,
+      part,
+      ctx.clerkUserId,
+    );
     res.setHeader(
       'Content-Type',
       'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
@@ -49,7 +54,12 @@ export class ExportController {
     @Query('part') part: string | undefined,
     @Res() res: Response,
   ): Promise<void> {
-    const { filename, buffer } = await this.exportService.buildPdf(ctx.tenantId, draftId, part);
+    const { filename, buffer } = await this.exportService.buildPdf(
+      ctx.tenantId,
+      draftId,
+      part,
+      ctx.clerkUserId,
+    );
     res.setHeader('Content-Type', 'application/pdf');
     res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
     res.send(buffer);

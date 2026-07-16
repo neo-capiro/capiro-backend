@@ -8,8 +8,10 @@ import { MeriV2OrchestratorClient } from '../meriv2/meriv2-orchestrator.client.j
 import { MemoryPromotionClient } from './memory-promotion.client.js';
 import { MemoryPromotionService } from './memory-promotion.service.js';
 import { WorkspaceContextCompilerService } from './context-compiler.service.js';
+import { CollaboratorsModule } from '../collaborators/collaborators.module.js';
 
 @Module({
+  imports: [CollaboratorsModule],
   controllers: [GenerationController, MeriIntakeController],
   providers: [
     GenerationService,

@@ -54,7 +54,8 @@ export interface ProgramElementNarrative {
   title: string | null;
   service: string | null;
   currentCycleFy: number | null;
-  conferenceProbability: number | null;
+  /** GAI-28: predicted conference DOLLAR amount ($M), not a probability. */
+  predictedConferenceAmount: number | null;
   steps: FundingNarrativeStep[];
   materiality: Array<{
     deltaType: string | null;

@@ -1,5 +1,7 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service.js';
+import { CollaboratorsService } from '../collaborators/collaborators.service.js';
+import { canEdit, canRead, type ResolvedRole } from '../collaborators/role-policy.js';
 import type { AddContextItemDto } from './dto/context.dto.js';
 
 /**
@@ -14,24 +16,48 @@ import type { AddContextItemDto } from './dto/context.dto.js';
  */
 @Injectable()
 export class ContextService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly collaborators: CollaboratorsService,
+  ) {}
 
-  private async assertDraft(tenantId: string, draftId: string) {
+  /**
+   * Tenant-scope the draft, then — when the controller supplies actorId —
+   * enforce the private-draft ACL (GAI-31): tenant scope alone is NOT object
+   * authorization. `predicate` is canRead for listing, canEdit for mutations
+   * (adding context poisons the model prompt; removing it alters generation
+   * input). Internal callers omit actorId.
+   */
+  private async assertDraft(
+    tenantId: string,
+    draftId: string,
+    actorId?: string,
+    predicate: (role: ResolvedRole) => boolean = canRead,
+  ) {
     const draft = await this.prisma.wsDraft.findFirst({ where: { id: draftId, tenantId } });
     if (!draft) throw new NotFoundException('Draft not found');
+    if (actorId) {
+      await this.collaborators.assertCan(
+        tenantId,
+        draftId,
+        actorId,
+        predicate,
+        'You do not have permission to access this document',
+      );
+    }
     return draft;
   }
 
-  async listItems(tenantId: string, draftId: string) {
-    await this.assertDraft(tenantId, draftId);
+  async listItems(tenantId: string, draftId: string, actorId?: string) {
+    await this.assertDraft(tenantId, draftId, actorId, canRead);
     return this.prisma.wsContextItem.findMany({
       where: { tenantId, draftId },
       orderBy: { createdAt: 'asc' },
     });
   }
 
-  async addItem(tenantId: string, draftId: string, dto: AddContextItemDto) {
-    await this.assertDraft(tenantId, draftId);
+  async addItem(tenantId: string, draftId: string, dto: AddContextItemDto, actorId?: string) {
+    await this.assertDraft(tenantId, draftId, actorId, canEdit);
     return this.prisma.wsContextItem.create({
       data: { tenantId, draftId, kind: dto.kind, payload: dto.payload as never },
     });
@@ -41,8 +67,9 @@ export class ContextService {
     tenantId: string,
     draftId: string,
     itemId: string,
+    actorId?: string,
   ): Promise<{ deleted: boolean }> {
-    await this.assertDraft(tenantId, draftId);
+    await this.assertDraft(tenantId, draftId, actorId, canEdit);
     const existing = await this.prisma.wsContextItem.findFirst({
       where: { id: itemId, tenantId, draftId },
     });

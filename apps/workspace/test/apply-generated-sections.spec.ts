@@ -6,6 +6,7 @@ import type { PeResolverService } from '../src/generation/pe-resolver.service';
 import type { MeriV2FlagsService } from '../src/meriv2/meriv2-flags.service';
 import type { MeriV2OrchestratorClient } from '../src/meriv2/meriv2-orchestrator.client';
 import type { WorkspaceContextCompilerService } from '../src/generation/context-compiler.service';
+import type { CollaboratorsService } from '../src/collaborators/collaborators.service';
 
 /**
  * The write-back half of the orchestrator-generation contract: apps/workspace
@@ -15,9 +16,19 @@ import type { WorkspaceContextCompilerService } from '../src/generation/context-
 describe('GenerationService.applyGeneratedSections', () => {
   function makeService(draft: unknown) {
     const updateSpy = jest.fn().mockResolvedValue(undefined);
-    const findFirstSpy = jest.fn().mockResolvedValue(draft);
+    // The post-write refresh reads `.documents` for the "As generated" version
+    // snapshot (persistGeneratedSections), so a non-null draft must carry a
+    // documents array; the 404 test passes null and never reaches that path.
+    const refreshed =
+      draft && typeof draft === 'object'
+        ? { documents: [], ...(draft as Record<string, unknown>) }
+        : draft;
+    const findFirstSpy = jest.fn().mockResolvedValue(refreshed);
     const prisma = {
       wsDraft: { findFirst: findFirstSpy, update: updateSpy },
+      // Fire-and-forget "As generated" snapshot target (added to
+      // persistGeneratedSections after this test was first written).
+      wsDocVersion: { create: jest.fn().mockResolvedValue({}) },
     } as unknown as PrismaService;
     const service = new GenerationService(
       prisma,
@@ -26,6 +37,7 @@ describe('GenerationService.applyGeneratedSections', () => {
       {} as MeriV2FlagsService,
       {} as MeriV2OrchestratorClient,
       {} as WorkspaceContextCompilerService,
+      {} as CollaboratorsService,
     );
     return { service, updateSpy, findFirstSpy };
   }
@@ -133,6 +145,7 @@ describe('GenerationService.getContextUsed (Phase 3.3 "context used" panel)', ()
       {} as MeriV2FlagsService,
       {} as MeriV2OrchestratorClient,
       {} as WorkspaceContextCompilerService,
+      {} as CollaboratorsService,
     );
     return { service, findFirstSpy };
   }
@@ -181,6 +194,7 @@ describe('GenerationService.runGroundingAuditor (Phase 3.1 — reuses the shared
       {} as MeriV2FlagsService,
       {} as MeriV2OrchestratorClient,
       {} as WorkspaceContextCompilerService,
+      {} as CollaboratorsService,
     );
   }
   // Authoritative PE: FY27 enacted ($112.9M) is ABOVE the request ($72.1M) — an
