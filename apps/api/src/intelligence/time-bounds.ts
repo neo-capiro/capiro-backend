@@ -50,6 +50,19 @@ export function addDateInZone(base: Date, days: number, timeZone: string): Date 
   return new Date(start.getTime() + days * 24 * 60 * 60 * 1000);
 }
 
+/**
+ * The `YYYY-MM-DD` calendar date of `now` as it appears in the given IANA
+ * timezone (GAI-09). Exported so daily-brief labels/comparisons stay on the
+ * SAME zone as the ET-anchored filters — a server-local `toDateString()` on a
+ * UTC Fargate host disagrees with the ET filters after ~20:00 ET.
+ *
+ * For a `@db.Date` value (UTC midnight), pass timeZone:'UTC' to read back the
+ * intended calendar date without shifting it a day earlier.
+ */
+export function ymdInZone(now: Date, timeZone: string): string {
+  return formatYMD(now, timeZone);
+}
+
 function formatYMD(now: Date, timeZone: string): string {
   return new Intl.DateTimeFormat('en-CA', {
     timeZone,

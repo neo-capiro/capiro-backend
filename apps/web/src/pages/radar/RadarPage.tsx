@@ -183,7 +183,9 @@ export function RadarPage() {
   // the SAME watchlist query + cache key as the tracker surfaces, so once the
   // user configures on the Watchlist tab, Feed/Bills unlock without a refetch.
   const coldStartQuery = useQuery<WatchlistPayload>({
-    queryKey: selectedClient ? trackerKeys.watchlist(selectedClient.id) : ['radar-coldstart', 'none'],
+    queryKey: selectedClient
+      ? trackerKeys.watchlist(selectedClient.id)
+      : ['radar-coldstart', 'none'],
     queryFn: async () =>
       trackerV2
         ? adaptWatchlist(
@@ -443,7 +445,8 @@ function RadarFeedTab({ clientId, clientName }: { clientId: string; clientName: 
   const trackMutation = useMutation({
     mutationFn: async (billId: string) =>
       trackerV2
-        ? (await api.post(intelTrackerPaths.track(clientId), { billId, source: 'manual_search' })).data
+        ? (await api.post(intelTrackerPaths.track(clientId), { billId, source: 'manual_search' }))
+            .data
         : (await api.post(trackerPaths.track(clientId), { billId, source: 'manual_search' })).data,
     onSuccess: () => {
       void qc.invalidateQueries({ queryKey: trackerKeys.board(clientId) });
@@ -540,9 +543,11 @@ function RadarGlobalFeedTab({
         open={drawer !== null}
         billId={drawer?.billId ?? null}
         clientId={drawerClientId ?? ''}
-        clientName={drawerClientId ? clientNameById.get(drawerClientId) ?? 'Client' : ''}
+        clientName={drawerClientId ? (clientNameById.get(drawerClientId) ?? 'Client') : ''}
         isTracked={drawer ? boardNums.has(drawer.billId) : false}
-        onTrack={(billId) => drawerClientId && trackMutation.mutate({ billId, cId: drawerClientId })}
+        onTrack={(billId) =>
+          drawerClientId && trackMutation.mutate({ billId, cId: drawerClientId })
+        }
         onClose={() => setDrawer(null)}
       />
     </>
@@ -574,7 +579,11 @@ type TenantBoard = { columns: Array<{ id: string; label: string; cards: TenantBo
  */
 function RadarGlobalBillsTab({ onScopeClient }: { onScopeClient: (clientId: string) => void }) {
   const api = useApi();
-  const [drawer, setDrawer] = useState<{ billId: string; clientId: string; clientName: string } | null>(null);
+  const [drawer, setDrawer] = useState<{
+    billId: string;
+    clientId: string;
+    clientName: string;
+  } | null>(null);
   const [filter, setFilter] = useState<'all' | 'hifit' | 'hiprob'>('all');
   const board = useQuery<TenantBoard>({
     queryKey: ['radar-tenant-board'],
@@ -600,12 +609,22 @@ function RadarGlobalBillsTab({ onScopeClient }: { onScopeClient: (clientId: stri
           <FileTextOutlined />
         </div>
         <h4>Your board is empty across all clients</h4>
-        <p>The board fills in as you track bills. Pick a client to see its recommendations and start tracking.</p>
+        <p>
+          The board fills in as you track bills. Pick a client to see its recommendations and start
+          tracking.
+        </p>
       </div>
     );
   }
+  // GAI-07 adjacent: the API sends passageProbability on the shared 0..1 scale,
+  // so a bare `>= 70` never matched (dead filter — masked by a 0-100-scale test
+  // mock). Normalize like PassageBar does before comparing.
   const pass = (c: TenantBoardCard) =>
-    filter === 'hifit' ? c.matchedTags.length > 0 : filter === 'hiprob' ? c.passageProbability >= 70 : true;
+    filter === 'hifit'
+      ? c.matchedTags.length > 0
+      : filter === 'hiprob'
+        ? (c.passageProbability > 1 ? c.passageProbability : c.passageProbability * 100) >= 70
+        : true;
 
   return (
     <div className="stack" style={{ gap: 14 }}>
@@ -642,7 +661,11 @@ function RadarGlobalBillsTab({ onScopeClient }: { onScopeClient: (clientId: stri
                     key={c.clientId + c.billId}
                     className="bcard"
                     onClick={() =>
-                      setDrawer({ billId: c.billId, clientId: c.clientId, clientName: c.clientName ?? 'Client' })
+                      setDrawer({
+                        billId: c.billId,
+                        clientId: c.clientId,
+                        clientName: c.clientName ?? 'Client',
+                      })
                     }
                   >
                     <div className="b-top">
@@ -650,7 +673,11 @@ function RadarGlobalBillsTab({ onScopeClient }: { onScopeClient: (clientId: stri
                       {c.unread && <span className="b-unread" title="Unseen change" />}
                       <span className="grow" />
                       {c.changeChip && (
-                        <span className="dot notable" style={{ width: 7, height: 7 }} title={c.changeChip.label} />
+                        <span
+                          className="dot notable"
+                          style={{ width: 7, height: 7 }}
+                          title={c.changeChip.label}
+                        />
                       )}
                     </div>
                     <div className="b-title">{c.title ?? c.displayNum}</div>

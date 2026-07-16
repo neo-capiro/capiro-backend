@@ -7,6 +7,8 @@ import {
   type SectorTag,
   deriveRuleLifecycleStage,
   RULE_LIFECYCLE_STAGES,
+  billStage,
+  passageProbability,
 } from '@capiro/shared';
 import { PrismaService } from '../prisma/prisma.service.js';
 import { EMBEDDING_MODEL, embedText, normalize, vectorLiteral } from '../embeddings/embedder.js';
@@ -904,51 +906,10 @@ export class IntelligenceService {
       ctaHref: changesInboxHref,
     };
 
-    const billStage = (
-      latestActionText: string | null | undefined,
-    ): 'introduced' | 'committee' | 'passed' | 'enacted' => {
-      const txt = (latestActionText ?? '').toLowerCase();
-      if (/signed|enacted|public law|pl\s+\d/.test(txt)) return 'enacted';
-      if (/passed|agreed to/.test(txt)) return 'passed';
-      if (/committee|referred|reported|markup/.test(txt)) return 'committee';
-      return 'introduced';
-    };
-    // Estimated passage likelihood. NOT a trained model, but a calibrated heuristic
-    // over real per-bill signals so it varies bill-to-bill instead of one flat number
-    // per stage: stage base rate (rough real-world odds of becoming law), a boost for
-    // must-pass vehicles (NDAA / appropriations), and momentum (recent action vs stalled).
-    const passageProbability = (bill: {
-      latestActionText: string | null;
-      title?: string | null;
-      latestActionDate?: Date | null;
-    }): number => {
-      const stage = billStage(bill.latestActionText);
-      if (stage === 'enacted') return 0.99;
-      const mustPass =
-        /national defense authorization|consolidated appropriations|making appropriations|defense appropriation|continuing appropriations|further (consolidated |additional )?appropriations/i.test(
-          bill.title ?? '',
-        );
-      let p =
-        stage === 'passed'
-          ? mustPass
-            ? 0.85
-            : 0.4
-          : stage === 'committee'
-            ? mustPass
-              ? 0.55
-              : 0.12
-            : mustPass
-              ? 0.3
-              : 0.04;
-      const actionMs = bill.latestActionDate ? bill.latestActionDate.getTime() : null;
-      if (actionMs != null) {
-        const days = (Date.now() - actionMs) / 86_400_000;
-        if (days > 270)
-          p *= 0.6; // stalled ~9+ months
-        else if (days < 45) p = Math.min(0.95, p * 1.15); // fresh momentum
-      }
-      return Math.max(0.02, Math.min(0.97, p));
-    };
+    // GAI-07: use the CANONICAL classifiers from @capiro/shared — this method
+    // previously carried verbatim inline clones that silently drifted from the
+    // shared implementation (they kept the bare /passed|agreed to/ passage test
+    // after the shared copy was chamber-qualified).
 
     const kanbanColumns: Array<{
       id: 'introduced' | 'committee' | 'passed' | 'enacted';

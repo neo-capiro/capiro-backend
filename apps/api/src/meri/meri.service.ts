@@ -62,7 +62,12 @@ import { ToolCircuitBreaker, CircuitOpenError } from './meri-circuit-breaker.js'
 import { loopBudgetExceeded, type LoopStopReason } from './meri-budget.helpers.js';
 import { parseSuggestions } from './meri-suggestions.helpers.js';
 import { normalizeFeedback, type NormalizedFeedback } from './meri-feedback.helpers.js';
-import { COMPLIANCE_GUARDRAILS, screenComplianceRisk } from './meri-compliance.helpers.js';
+import {
+  COMPLIANCE_GUARDRAILS,
+  screenComplianceRisk,
+  screenComplianceBlock,
+  complianceRefusalBody,
+} from './meri-compliance.helpers.js';
 import { confidenceLevel } from './meri-confidence.helpers.js';
 import { classifyToolAction, isSideEffectingTool } from './meri-actions.helpers.js';
 import { detectDeliverableReportRequest } from './meri-research-promote.helpers.js';
@@ -547,6 +552,61 @@ export class MeriService {
           });
         }
       });
+    }
+
+    // Deterministic compliance block (GAI-24). screenComplianceRisk above stays
+    // a log-only audit flag (its recall-tuned patterns misfire on legitimate
+    // work); THIS gate uses the much tighter screenComplianceBlock solicitation
+    // patterns and refuses BEFORE any model call. Placed after the user-message
+    // persist so the flagged ask stays in the conversation/audit trail, and on
+    // `content` (not cleanContent) so regenerate/resend reruns are re-screened.
+    // Sits before the Deep-Research promote gate and the MeriV2 proxy branch,
+    // so one block covers both chat stacks. Kill switches: env
+    // MERI_COMPLIANCE_BLOCK=false (global) / tenant flag complianceBlock.
+    if (
+      process.env.MERI_COMPLIANCE_BLOCK !== 'false' &&
+      (await this.meriFlags.isEnabled(ctx.tenantId, 'complianceBlock', true))
+    ) {
+      const block = screenComplianceBlock(content);
+      if (block.flagged) {
+        this.logger.warn(
+          `Meri compliance BLOCK [${block.category}] tenant=${ctx.tenantId} user=${ctx.userId} conversation=${conversationId}`,
+        );
+        const refusalBody = complianceRefusalBody(block.category);
+        sse.write(
+          `data: ${JSON.stringify({ type: 'start', intent: 'compliance_refusal', tier: 'fast' })}\n\n`,
+        );
+        sse.write(`data: ${JSON.stringify({ type: 'text', text: refusalBody })}\n\n`);
+        // Persist a coherent assistant turn so history/replay stays intact.
+        // Guarded so a DB hiccup can never leave the SSE stream unclosed.
+        try {
+          await this.prisma.withTenant(ctx.tenantId, (tx) =>
+            tx.clioMessage.create({
+              data: {
+                tenantId: ctx.tenantId,
+                userId: ctx.userId,
+                clientId: conversation.clientId ?? null,
+                conversationId,
+                role: 'assistant',
+                body: refusalBody,
+                metadata: {
+                  servedBy: 'compliance-block',
+                  finishReason: 'stop',
+                  compliance: { flagged: true, category: block.category, blocked: true },
+                },
+              },
+            }),
+          );
+        } catch (err) {
+          this.logger.warn(
+            `[meri-compliance-block] failed to persist refusal message (stream unaffected): ${
+              (err as Error).message
+            }`,
+          );
+        }
+        sse.write(`data: ${JSON.stringify({ type: 'done' })}\n\n`);
+        return;
+      }
     }
 
     // Load recent history (F2): with a compaction summary, replay only the
@@ -3548,7 +3608,12 @@ export class MeriService {
       MERI_ALERTS_IMPORTANT_ONLY_FLAG,
       true,
     );
-    return this.prisma.withTenant(ctx.tenantId, (tx) =>
+    // GAI-13: read under withTenantUser so the owner-aware FORCE RLS policy
+    // applies — a user sees tenant-broadcast alerts (owner NULL) + their own
+    // personal alerts (scheduled-task digests, per-user meeting briefings), but
+    // not other users' personal alerts. withTenant alone (tenant GUC only)
+    // would set current_user_id() NULL and hide the caller's OWN personal rows.
+    return this.prisma.withTenantUser(ctx.tenantId, ctx.userId, (tx) =>
       tx.clioProactiveAlert.findMany({
         where: {
           tenantId: ctx.tenantId,
@@ -3575,7 +3640,10 @@ export class MeriService {
   }
 
   async dismissAlert(ctx: TenantContext, alertId: string) {
-    return this.prisma.withTenant(ctx.tenantId, (tx) =>
+    // GAI-13: dismiss under withTenantUser — RLS makes a user's updateMany reach
+    // only broadcast alerts + their own, so one user can no longer dismiss
+    // another user's personal scheduled-brief.
+    return this.prisma.withTenantUser(ctx.tenantId, ctx.userId, (tx) =>
       tx.clioProactiveAlert.updateMany({
         where: { id: alertId, tenantId: ctx.tenantId },
         data: { status: 'read', readAt: new Date() },

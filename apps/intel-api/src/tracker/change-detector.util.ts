@@ -43,7 +43,18 @@ export function classifyChange(nextText: string | null): ChangeClass | null {
       tone: 'success',
       severity: 'critical',
     };
-  if (/failed|rejected|motion to table agreed|veto|tabled/.test(t))
+  // GAI-07: bill_failed requires MEASURE-level failure context. The old bare
+  // /failed|rejected|veto|tabled/ classified a failed procedural MOTION
+  // ("Motion to recommit failed", "Cloture motion rejected"), a failed
+  // amendment, or passage text that merely mentions a veto THREAT as a
+  // critical "Failed / rejected" alert for a bill that did not fail — and
+  // this alert fans out to email/SMS. Now: failure of passage itself, a
+  // rejected conference report, tabling of the MEASURE, or an actual veto.
+  if (
+    /failed of passage|failed passage|on passage[^.]*(failed|rejected)|conference report[^.]*rejected|motion to table (the )?(bill|resolution|measure|h\.? ?r|s\.)[^.]*agreed|vetoed by (the )?president|veto message received|pocket veto/.test(
+      t,
+    )
+  )
     return {
       changeType: 'bill_failed',
       triggerKey: 'enactedFailed',

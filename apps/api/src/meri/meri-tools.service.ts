@@ -80,6 +80,7 @@ import { buildWebSearchRequest, normalizeWebResults } from './meri-websearch.hel
 import { looksLikePdf } from './meri-scrape.helpers.js';
 import { buildKnowledgeGraph, walkFrom, type FkRelation } from '../memory/memory-graph.helpers.js';
 import { embedText, vectorLiteral, normalize } from '../embeddings/embedder.js';
+import { ymdInZone } from '../intelligence/time-bounds.js';
 
 const PRODUCT_NAME = 'Meri';
 
@@ -3218,9 +3219,28 @@ export class MeriToolsService {
       this.prisma.withSystem((tx) => tx.federalGrant.count({ where })),
     ]);
 
+    // GAI-09: derive open/closed from closeDate against a fixed clock instead of
+    // trusting the sync-time `status` string (which stays 'posted' after a grant
+    // closes). closeDate is a @db.Date (UTC midnight); a grant is treated as open
+    // through the END of its ET close day (Grants.gov deadlines are end-of-day
+    // ET), so we compare the ET calendar date of "now" to the grant's UTC-read
+    // date. The model gets a deterministic deadlineStatus + the as-of anchor
+    // (generatedAt) rather than doing its own date math with no clock.
+    const nowIso = new Date().toISOString();
+    const todayYmdEt = ymdInZone(new Date(), 'America/New_York');
+    const deadlineStatus = (closeDate: Date | null): 'open' | 'closed' | 'unknown' => {
+      if (!closeDate) return 'unknown';
+      const closeYmd = ymdInZone(closeDate, 'UTC');
+      return closeYmd >= todayYmdEt ? 'open' : 'closed';
+    };
+
     return {
       tool: 'search_federal_grants',
-      generatedAt: new Date().toISOString(),
+      generatedAt: nowIso,
+      // The stored `status` is sync-time and can be stale; `deadlineStatus` is
+      // derived from closeDate vs generatedAt. Prefer deadlineStatus for open/
+      // closed decisions; a null closeDate is 'unknown', never assume "no deadline".
+      asOf: nowIso,
       total,
       data: data.map((g) => ({
         id: g.id,
@@ -3234,7 +3254,8 @@ export class MeriToolsService {
         estimatedFunding: g.estimatedFunding,
         openDate: g.openDate,
         closeDate: g.closeDate,
-        status: g.status,
+        deadlineStatus: deadlineStatus(g.closeDate),
+        syncedStatus: g.status,
         eligibility: g.eligibility,
         url: g.url,
       })),
@@ -6087,18 +6108,62 @@ function objectInput(value: unknown): Record<string, unknown> {
 // who passes a 2-letter code must be translated before querying. Covers the 50
 // states, DC, and the five territories that seat a (non-voting) member.
 const US_STATE_BY_ABBR: Readonly<Record<string, string>> = {
-  AL: 'Alabama', AK: 'Alaska', AZ: 'Arizona', AR: 'Arkansas', CA: 'California',
-  CO: 'Colorado', CT: 'Connecticut', DE: 'Delaware', FL: 'Florida', GA: 'Georgia',
-  HI: 'Hawaii', ID: 'Idaho', IL: 'Illinois', IN: 'Indiana', IA: 'Iowa',
-  KS: 'Kansas', KY: 'Kentucky', LA: 'Louisiana', ME: 'Maine', MD: 'Maryland',
-  MA: 'Massachusetts', MI: 'Michigan', MN: 'Minnesota', MS: 'Mississippi', MO: 'Missouri',
-  MT: 'Montana', NE: 'Nebraska', NV: 'Nevada', NH: 'New Hampshire', NJ: 'New Jersey',
-  NM: 'New Mexico', NY: 'New York', NC: 'North Carolina', ND: 'North Dakota', OH: 'Ohio',
-  OK: 'Oklahoma', OR: 'Oregon', PA: 'Pennsylvania', RI: 'Rhode Island', SC: 'South Carolina',
-  SD: 'South Dakota', TN: 'Tennessee', TX: 'Texas', UT: 'Utah', VT: 'Vermont',
-  VA: 'Virginia', WA: 'Washington', WV: 'West Virginia', WI: 'Wisconsin', WY: 'Wyoming',
-  DC: 'District of Columbia', PR: 'Puerto Rico', GU: 'Guam', VI: 'Virgin Islands',
-  AS: 'American Samoa', MP: 'Northern Mariana Islands',
+  AL: 'Alabama',
+  AK: 'Alaska',
+  AZ: 'Arizona',
+  AR: 'Arkansas',
+  CA: 'California',
+  CO: 'Colorado',
+  CT: 'Connecticut',
+  DE: 'Delaware',
+  FL: 'Florida',
+  GA: 'Georgia',
+  HI: 'Hawaii',
+  ID: 'Idaho',
+  IL: 'Illinois',
+  IN: 'Indiana',
+  IA: 'Iowa',
+  KS: 'Kansas',
+  KY: 'Kentucky',
+  LA: 'Louisiana',
+  ME: 'Maine',
+  MD: 'Maryland',
+  MA: 'Massachusetts',
+  MI: 'Michigan',
+  MN: 'Minnesota',
+  MS: 'Mississippi',
+  MO: 'Missouri',
+  MT: 'Montana',
+  NE: 'Nebraska',
+  NV: 'Nevada',
+  NH: 'New Hampshire',
+  NJ: 'New Jersey',
+  NM: 'New Mexico',
+  NY: 'New York',
+  NC: 'North Carolina',
+  ND: 'North Dakota',
+  OH: 'Ohio',
+  OK: 'Oklahoma',
+  OR: 'Oregon',
+  PA: 'Pennsylvania',
+  RI: 'Rhode Island',
+  SC: 'South Carolina',
+  SD: 'South Dakota',
+  TN: 'Tennessee',
+  TX: 'Texas',
+  UT: 'Utah',
+  VT: 'Vermont',
+  VA: 'Virginia',
+  WA: 'Washington',
+  WV: 'West Virginia',
+  WI: 'Wisconsin',
+  WY: 'Wyoming',
+  DC: 'District of Columbia',
+  PR: 'Puerto Rico',
+  GU: 'Guam',
+  VI: 'Virgin Islands',
+  AS: 'American Samoa',
+  MP: 'Northern Mariana Islands',
 };
 
 /**

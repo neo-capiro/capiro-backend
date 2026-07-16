@@ -1003,11 +1003,26 @@ export const BILL_STAGES: ReadonlyArray<{ id: BillStage; label: string }> = [
   { id: 'enacted', label: 'Enacted' },
 ];
 
+/**
+ * Chamber-passage patterns for billStage's 'passed' column (GAI-07).
+ *
+ * The old test was a bare `/passed|agreed to/`, which classified PROCEDURAL
+ * motions as chamber passage — "Motion to reconsider laid on the table:
+ * Agreed to.", "Amendment ... agreed to", "Cloture motion agreed to" all
+ * landed a bill in the Passed column (and inflated passageProbability from
+ * 0.12 to 0.4). 'passed' now requires MEASURE-passage context: an explicit
+ * chamber, Congress.gov's "On passage … Passed" phrasing, a suspension-of-
+ * the-rules passage, or "Passed/agreed to in …" rollup text — mirroring the
+ * chamber-qualified branch the tracker's classifyChange already uses.
+ */
+const CHAMBER_PASSAGE_RE =
+  /passed\/agreed to in (the )?(house|senate)|passed (the )?(house|senate)|on passage[^.]*passed|agreed to in (the )?(house|senate)|(house|senate) agreed to|motion to suspend the rules and pass[^.]*agreed to/;
+
 /** Classify a bill's latest action text into a board stage (status-driven). */
 export function billStage(latestActionText: string | null | undefined): BillStage {
   const txt = (latestActionText ?? '').toLowerCase();
   if (/signed|enacted|public law|pl\s+\d/.test(txt)) return 'enacted';
-  if (/passed|agreed to/.test(txt)) return 'passed';
+  if (CHAMBER_PASSAGE_RE.test(txt)) return 'passed';
   if (/committee|referred|reported|markup/.test(txt)) return 'committee';
   return 'introduced';
 }

@@ -15,6 +15,20 @@ describe('billStage', () => {
   it('classifies passed chamber', () => {
     expect(billStage('Passed House 284-139')).toBe('passed');
     expect(billStage('Agreed to in Senate')).toBe('passed');
+    expect(billStage('Passed Senate without amendment by Unanimous Consent')).toBe('passed');
+    expect(billStage('On passage Passed by recorded vote: 217 - 199')).toBe('passed');
+    expect(
+      billStage('On motion to suspend the rules and pass the bill Agreed to by voice vote'),
+    ).toBe('passed');
+  });
+  it('GAI-07: procedural "agreed to" motions are NOT chamber passage', () => {
+    // The old bare /passed|agreed to/ classified all of these as 'passed',
+    // inflating the board column and passageProbability (0.4 vs 0.12 base).
+    expect(billStage('Motion to reconsider laid on the table: Agreed to.')).toBe('introduced');
+    expect(billStage('Cloture motion agreed to by Yea-Nay Vote. 60 - 40')).toBe('introduced');
+    expect(billStage('Amendment SA 2871 agreed to in part by Voice Vote')).toBe('introduced');
+    // Committee-context motions stay in committee (the committee branch still fires).
+    expect(billStage('Committee amendment agreed to during markup')).toBe('committee');
   });
   it('classifies committee', () => {
     expect(billStage('Referred to the Committee on Energy and Natural Resources')).toBe(

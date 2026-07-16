@@ -13,6 +13,27 @@ describe('classifyChange', () => {
     expect(classifyChange('Became Public Law No: 119-42.')?.severity).toBe('critical');
     expect(classifyChange('Presented to President.')?.changeType).toBe('bill_to_president');
     expect(classifyChange('Failed of passage in Senate.')?.changeType).toBe('bill_failed');
+    expect(classifyChange('Vetoed by President.')?.changeType).toBe('bill_failed');
+    expect(classifyChange('Motion to table the bill agreed to.')?.changeType).toBe('bill_failed');
+  });
+  it('GAI-07: procedural failures / veto threats are NOT bill failure', () => {
+    // The old bare /failed|rejected|veto|tabled/ classified all of these as a
+    // CRITICAL "Failed / rejected" alert (which fans out to email/SMS).
+    expect(classifyChange('Motion to recommit failed by voice vote.')?.changeType).not.toBe(
+      'bill_failed',
+    );
+    expect(
+      classifyChange('Cloture motion rejected by Yea-Nay Vote. 55 - 45.')?.changeType,
+    ).not.toBe('bill_failed');
+    expect(classifyChange('Amendment SA 2871 failed of adoption.')?.changeType).not.toBe(
+      'bill_failed',
+    );
+    // Passage text mentioning a veto THREAT must classify as passage, not failure.
+    expect(
+      classifyChange('Passed House 220-210; the White House has issued a veto threat.')?.changeType,
+    ).toBe('bill_passed_chamber');
+    // Ambiguous tabling (of what?) produces NO critical alert.
+    expect(classifyChange('Motion to table agreed to.')).toBeNull();
   });
   it('classifies floor / committee / amendment as notable', () => {
     expect(classifyChange('Passed/agreed to in House')?.triggerKey).toBe('floorVote');
