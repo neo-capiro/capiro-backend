@@ -1,5 +1,11 @@
 import { BadRequestException, Injectable, Logger, NotFoundException } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
+import {
+  S3Client,
+  ListObjectVersionsCommand,
+  DeleteObjectsCommand,
+  type ObjectIdentifier,
+} from '@aws-sdk/client-s3';
 import type { Prisma } from '@prisma/client';
 import type { TenantContext } from '@capiro/shared';
 import { ClerkProvisioningService } from '../auth/clerk-provisioning.service.js';
@@ -67,6 +73,8 @@ interface CreateTenantInput {
 @Injectable()
 export class CapiroAdminService {
   private readonly logger = new Logger(CapiroAdminService.name);
+  private readonly s3: S3Client;
+  private readonly bucket?: string;
 
   constructor(
     private readonly prisma: PrismaService,
@@ -78,7 +86,10 @@ export class CapiroAdminService {
     private readonly aiUsage: AiUsageService,
     private readonly aiCredentials: AiCredentialStoreService,
     private readonly meriFlags: MeriFeatureFlagsService,
-  ) {}
+  ) {
+    this.bucket = this.config.get('ASSETS_BUCKET', { infer: true });
+    this.s3 = new S3Client({ region: this.config.get('AWS_REGION_DEFAULT', { infer: true }) });
+  }
 
   /**
    * A6 — the deployed admin flip path for MeriV2 rollout flags. Merges the flag
@@ -244,7 +255,15 @@ export class CapiroAdminService {
     );
     if (!tenant) throw new NotFoundException('Tenant not found');
 
-    // Step 1: delete the Clerk organization (revokes memberships + pending
+    // Step 1: purge the tenant's S3 objects (branding logos, client logos,
+    // uploaded documents, etc. under tenants/<id>/). FATAL and done FIRST: the
+    // DPA/GDPR data-destruction guarantee requires the tenant's data to actually
+    // be gone, so we must not report a tenant "deleted" while its documents
+    // linger in S3. Running before the irreversible Clerk/Postgres deletes means
+    // an S3 outage aborts cleanly and the whole delete is retryable.
+    await this.deleteTenantData(tenantId);
+
+    // Step 2: delete the Clerk organization (revokes memberships + pending
     // invitations on Clerk's side). Best-effort — if Clerk is already missing
     // the org, proceed with the local delete so we don't strand the DB row.
     if (tenant.clerkOrgId) {
@@ -257,13 +276,70 @@ export class CapiroAdminService {
         });
     }
 
-    // Step 2: cascade-delete the tenant and all tenant-scoped rows.
+    // Step 3: cascade-delete the tenant and all tenant-scoped rows.
     await this.prisma.withSystem(async (tx) => {
       await tx.tenant.delete({ where: { id: tenantId } });
     });
 
     this.logger.log(`Deleted tenant ${tenantId} (${tenant.slug})`);
     return { ok: true, deletedTenantId: tenantId, slug: tenant.slug };
+  }
+
+  /**
+   * Hard-delete every S3 object (all versions + delete markers) under a tenant's
+   * prefix `tenants/<id>/` — the DPA/GDPR data-destruction step that tenant
+   * teardown must run. Version-aware so it fully purges on a versioned bucket
+   * (ListObjectVersions returns VersionId='null' on an unversioned bucket, so the
+   * same path works there too). Any future automated retention/hard-delete cron
+   * MUST call this too, not just the manual delete path.
+   *
+   * Throws on failure (callers treat S3 purge as required, not best-effort). A
+   * no-op when ASSETS_BUCKET is unset (local/dev).
+   */
+  private async deleteTenantData(tenantId: string): Promise<void> {
+    if (!this.bucket) {
+      this.logger.warn(`ASSETS_BUCKET unset — skipping S3 purge for tenant ${tenantId}`);
+      return;
+    }
+    const prefix = `tenants/${tenantId}/`;
+    let keyMarker: string | undefined;
+    let versionIdMarker: string | undefined;
+    let purged = 0;
+    do {
+      const listed = await this.s3.send(
+        new ListObjectVersionsCommand({
+          Bucket: this.bucket,
+          Prefix: prefix,
+          KeyMarker: keyMarker,
+          VersionIdMarker: versionIdMarker,
+        }),
+      );
+      const objects: ObjectIdentifier[] = [
+        ...(listed.Versions ?? []),
+        ...(listed.DeleteMarkers ?? []),
+      ]
+        .filter((o): o is { Key: string; VersionId?: string } => Boolean(o.Key))
+        .map((o) => ({ Key: o.Key, VersionId: o.VersionId }));
+      if (objects.length) {
+        // ListObjectVersions returns ≤1000 entries/page and DeleteObjects accepts
+        // ≤1000/call, so one delete per page is safe.
+        const res = await this.s3.send(
+          new DeleteObjectsCommand({
+            Bucket: this.bucket,
+            Delete: { Objects: objects, Quiet: true },
+          }),
+        );
+        if (res.Errors?.length) {
+          throw new Error(
+            `S3 purge incomplete for ${prefix}: ${res.Errors.length} object(s) failed (first: ${res.Errors[0]?.Key} ${res.Errors[0]?.Message})`,
+          );
+        }
+        purged += objects.length;
+      }
+      keyMarker = listed.IsTruncated ? listed.NextKeyMarker : undefined;
+      versionIdMarker = listed.IsTruncated ? listed.NextVersionIdMarker : undefined;
+    } while (keyMarker || versionIdMarker);
+    this.logger.log(`Purged ${purged} S3 object version(s) under ${prefix}`);
   }
 
   private async revokeStalePendingInvitation(
