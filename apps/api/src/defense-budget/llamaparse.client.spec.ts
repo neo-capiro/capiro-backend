@@ -158,4 +158,29 @@ describe('LlamaParseClient', () => {
     );
     await expect(client.parse(submitOpts())).rejects.toThrow(/timed out/);
   });
+
+  it('default poll sleep keeps the event loop alive (batch CLI must not exit mid-parse)', async () => {
+    // Regression: the default sleep timer must NOT be .unref()'d. In a one-off batch
+    // process, an unref'd poll timer lets Node exit 0 while a parse is still polling,
+    // leaving the DocumentParseJob stuck in 'running'. Verified against real ECS run.
+    const client = new LlamaParseClient({ apiKey: 'k', baseUrl: 'https://x' }, (async () => {
+      throw new Error('unused');
+    }) as never);
+    const sleep = (client as unknown as { sleep: (ms: number) => Promise<void> }).sleep;
+    let handleRef: { hasRef?: () => boolean } | undefined;
+    const realSetTimeout = global.setTimeout;
+    // Intercept the next setTimeout to inspect its ref state, then let it fire.
+    (global as unknown as { setTimeout: typeof setTimeout }).setTimeout = ((fn: () => void, ms?: number) => {
+      const h = realSetTimeout(fn, ms);
+      handleRef = h as unknown as { hasRef?: () => boolean };
+      return h;
+    }) as typeof setTimeout;
+    try {
+      await sleep(1);
+    } finally {
+      (global as unknown as { setTimeout: typeof setTimeout }).setTimeout = realSetTimeout;
+    }
+    // A ref'd timer reports hasRef() === true; an unref'd one would be false.
+    expect(handleRef?.hasRef?.()).toBe(true);
+  });
 });

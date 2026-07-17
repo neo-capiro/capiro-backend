@@ -91,11 +91,7 @@ export class LlamaParseClient {
     private readonly fetchImpl: FetchLike,
     private readonly makeForm: () => MultipartForm = () => new NodeMultipartForm(),
     private readonly sleep: (ms: number) => Promise<void> = (ms) =>
-      new Promise((r) => {
-        const t = setTimeout(r, ms);
-        // Don't let a pending poll delay hold the process/event loop open.
-        (t as { unref?: () => void }).unref?.();
-      }),
+      new Promise((r) => setTimeout(r, ms)),
   ) {
     if (!config.apiKey) throw new Error('LlamaParseClient: apiKey is required');
     this.apiKey = config.apiKey;
