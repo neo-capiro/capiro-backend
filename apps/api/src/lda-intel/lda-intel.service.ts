@@ -678,11 +678,19 @@ export class LdaIntelService {
   async getInsights(tenantId: string, category?: string, limit = 20): Promise<object[]> {
     const where: Record<string, unknown> = {};
     if (category) where.category = category;
-    // GAI-01: tenant-scoped read — RLS returns this tenant's rows + reviewed
-    // public (NULL-tenant) rows only, never the former cross-tenant global feed.
+    // GAI-01: tenant isolation is enforced IN-QUERY, not by RLS — the app role
+    // (capiro_app) bypasses row-level security (member of the owner role), so the
+    // FORCE RLS policy is defense-in-depth only. This filter returns this tenant's
+    // rows + reviewed public (NULL-tenant) rows, never the former global feed.
     const rows = await this.prisma.withTenant(tenantId, (tx) =>
       tx.intelligenceInsight.findMany({
-        where: { ...where, OR: [{ expiresAt: null }, { expiresAt: { gt: new Date() } }] },
+        where: {
+          ...where,
+          AND: [
+            { OR: [{ tenantId }, { tenantId: null }] },
+            { OR: [{ expiresAt: null }, { expiresAt: { gt: new Date() } }] },
+          ],
+        },
         orderBy: { generatedAt: 'desc' },
         take: Math.min(50, limit),
       }),

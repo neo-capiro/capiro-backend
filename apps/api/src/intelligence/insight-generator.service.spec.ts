@@ -323,3 +323,48 @@ describe('InsightGeneratorService.generateDailyBrief', () => {
     expect(freeText).not.toHaveBeenCalled();
   });
 });
+
+describe('InsightGeneratorService.getInsights tenant isolation (GAI-01)', () => {
+  // The runtime API role (capiro_app) bypasses row-level security, so tenant
+  // isolation for the intelligence feed MUST be enforced by the query WHERE, not
+  // the RLS policy. This locks in that filter so a refactor can't silently drop
+  // it and reintroduce the cross-tenant global feed.
+  const tenantId = '00000000-0000-0000-0000-0000000000aa';
+
+  function makeService() {
+    let capturedWhere: any = null;
+    const prisma: any = {
+      withTenant: jest.fn(async (_t: string, run: (tx: any) => Promise<any>) =>
+        run({
+          intelligenceInsight: {
+            findMany: jest.fn(async (args: any) => {
+              capturedWhere = args?.where;
+              return [];
+            }),
+          },
+        }),
+      ),
+    };
+    const config: any = { get: jest.fn(() => undefined) };
+    const service = new InsightGeneratorService(config, prisma, {} as any, {} as any);
+    return { service, prisma, getWhere: () => capturedWhere };
+  }
+
+  test('scopes the read to this tenant + reviewed public (NULL-tenant) rows only', async () => {
+    const { service, prisma, getWhere } = makeService();
+    await service.getInsights(tenantId);
+
+    expect(prisma.withTenant).toHaveBeenCalledWith(tenantId, expect.any(Function));
+    const where = getWhere();
+    // The tenant clause must be present and must be an OR of own-tenant + public.
+    const tenantClause = (where.AND as any[]).find((c) =>
+      Array.isArray(c.OR) && c.OR.some((o: any) => 'tenantId' in o),
+    );
+    expect(tenantClause).toBeDefined();
+    expect(tenantClause.OR).toEqual(
+      expect.arrayContaining([{ tenantId }, { tenantId: null }]),
+    );
+    // A different tenant's id must NOT appear anywhere in the filter.
+    expect(JSON.stringify(where)).not.toContain('00000000-0000-0000-0000-0000000000bb');
+  });
+});
