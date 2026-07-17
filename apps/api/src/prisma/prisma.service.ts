@@ -2,6 +2,60 @@ import { Injectable, Logger, OnModuleDestroy, OnModuleInit } from '@nestjs/commo
 import { Prisma, PrismaClient } from '@prisma/client';
 
 /**
+ * The tenant scope baked into a per-call query-extended client so its query
+ * hook can inject the tenant predicate. `bypass` marks a `withSystem`
+ * (cross-tenant) scope. (A closure — not AsyncLocalStorage — because Prisma
+ * executes the extension hook off the caller's async context, so an ALS store
+ * set around the call is not visible inside the hook.)
+ */
+type TenantScope = { tenantId: string; bypass?: false } | { bypass: true };
+
+/**
+ * Model operations that accept a `where` we can constrain to the current
+ * tenant. create / createMany are intentionally excluded — their rows are
+ * written with an explicit tenantId by the caller, and they carry no `where`.
+ */
+const WHERE_BEARING_OPS = new Set<string>([
+  'findMany',
+  'findFirst',
+  'findFirstOrThrow',
+  'findUnique',
+  'findUniqueOrThrow',
+  'count',
+  'aggregate',
+  'groupBy',
+  'update',
+  'updateMany',
+  'delete',
+  'deleteMany',
+  'upsert',
+]);
+
+/**
+ * Pure decision function for the tenant-scope query hook (exported for tests).
+ * Returns the args to run: unchanged for bypass scopes, non-tenant-scoped
+ * models, or non-where operations; otherwise a shallow clone with
+ * `where.tenantId` forced to the scope's tenant. A sibling `tenantId` ANDs with
+ * any existing where and, on unique-where ops, applies as an extended-where
+ * filter (GA since Prisma 5).
+ */
+export function applyTenantScope(
+  scope: TenantScope,
+  model: string,
+  operation: string,
+  args: unknown,
+  scopedModels: ReadonlySet<string>,
+): unknown {
+  if (scope.bypass === true || !scopedModels.has(model) || !WHERE_BEARING_OPS.has(operation)) {
+    return args;
+  }
+  const next = { ...((args as Record<string, unknown> | undefined) ?? {}) };
+  const where = (next.where as Record<string, unknown> | undefined) ?? {};
+  next.where = { ...where, tenantId: scope.tenantId };
+  return next;
+}
+
+/**
  * RLS-aware Prisma client.
  *
  * Direct use of `this.prisma.user.findMany()` (without a tenant scope) is the
@@ -21,9 +75,56 @@ import { Prisma, PrismaClient } from '@prisma/client';
 export class PrismaService extends PrismaClient implements OnModuleInit, OnModuleDestroy {
   private readonly logger = new Logger(PrismaService.name);
 
+  // Every model that has a `tenantId` field, derived from the schema at
+  // construction — the set the tenant-scope hook constrains. Auto-maintained:
+  // a new tenant-scoped model is covered the moment it lands in the schema.
+  private readonly tenantScopedModels: ReadonlySet<string> = new Set(
+    Prisma.dmmf.datamodel.models
+      .filter((m) => m.fields.some((f) => f.name === 'tenantId'))
+      .map((m) => m.name),
+  );
+
   async onModuleInit(): Promise<void> {
     await this.$connect();
-    this.logger.log('Prisma connected');
+    this.logger.log(
+      `Prisma connected (tenant-scope enforcement active on ${this.tenantScopedModels.size} models)`,
+    );
+  }
+
+  /**
+   * A query-extended client with the given tenant scope baked in. IMPORTANT:
+   * the runtime DB role (capiro_app) is a member of the table-owner role and
+   * BYPASSES Postgres row-level security, so the RLS policies never fire for
+   * the app connection. Tenant isolation is therefore enforced HERE, in-query:
+   * for any where-bearing operation on a tenant-scoped model, we force
+   * `where.tenantId = <scope tenant>`. A `bypass` scope (withSystem) injects
+   * nothing, preserving intentional cross-tenant reach. Built per call — a
+   * Prisma client extension is a lightweight proxy over the same connection
+   * pool (no new connection), and baking the scope in a closure sidesteps the
+   * ALS-context-loss that makes an AsyncLocalStorage approach silently no-op.
+   */
+  private scopedClient(scope: TenantScope) {
+    const scopedModels = this.tenantScopedModels;
+    return this.$extends(
+      Prisma.defineExtension({
+        name: 'tenant-scope',
+        query: {
+          $allModels: {
+            async $allOperations({ model, operation, args, query }) {
+              // Force the tenant predicate for where-bearing ops on tenant-
+              // scoped models (bypass/global/non-where pass through). On the
+              // unique-where ops (findUnique/update/delete/upsert) the injected
+              // tenantId applies as an extended-where filter (GA since Prisma 5)
+              // so a cross-tenant id resolves to "not found" rather than
+              // leaking or being mutated.
+              return query(
+                applyTenantScope(scope, model, operation, args, scopedModels) as typeof args,
+              );
+            },
+          },
+        },
+      }),
+    );
   }
 
   async onModuleDestroy(): Promise<void> {
@@ -40,13 +141,15 @@ export class PrismaService extends PrismaClient implements OnModuleInit, OnModul
     fn: (tx: Prisma.TransactionClient) => Promise<T>,
     opts?: { timeoutMs?: number },
   ): Promise<T> {
-    return this.$transaction(
+    return this.scopedClient({ tenantId }).$transaction(
       async (tx) => {
         // SET LOCAL is bound to the transaction. set_config(..., true) returns
         // the value, which we discard. Parameter binding via $executeRaw is
-        // safe against injection.
+        // safe against injection. (The GUC is now belt-and-suspenders: the
+        // real isolation is the tenant-scope query hook, since capiro_app
+        // bypasses the RLS that reads this GUC.)
         await tx.$executeRaw`SELECT set_config('app.current_tenant', ${tenantId}, true)`;
-        return fn(tx);
+        return fn(tx as unknown as Prisma.TransactionClient);
       },
       // Prisma's interactive-transaction default is 5000 ms. Most tenant
       // queries finish in <100 ms, but a few SQL graph helpers (e.g.
@@ -78,11 +181,11 @@ export class PrismaService extends PrismaClient implements OnModuleInit, OnModul
     fn: (tx: Prisma.TransactionClient) => Promise<T>,
     opts?: { timeoutMs?: number },
   ): Promise<T> {
-    return this.$transaction(
+    return this.scopedClient({ tenantId }).$transaction(
       async (tx) => {
         await tx.$executeRaw`SELECT set_config('app.current_tenant', ${tenantId}, true)`;
         await tx.$executeRaw`SELECT set_config('app.current_user', ${userId}, true)`;
-        return fn(tx);
+        return fn(tx as unknown as Prisma.TransactionClient);
       },
       opts?.timeoutMs ? { timeout: opts.timeoutMs } : undefined,
     );
@@ -126,9 +229,11 @@ export class PrismaService extends PrismaClient implements OnModuleInit, OnModul
    * paths (cross-tenant admin tooling, webhook ingestion, migrations).
    */
   async withSystem<T>(fn: (tx: Prisma.TransactionClient) => Promise<T>): Promise<T> {
-    return this.$transaction(async (tx) => {
+    // bypass:true → the tenant-scope hook does NOT inject a tenant predicate,
+    // preserving the intentional cross-tenant reach of system paths.
+    return this.scopedClient({ bypass: true }).$transaction(async (tx) => {
       await tx.$executeRaw`SELECT set_config('app.bypass_rls', 'on', true)`;
-      return fn(tx);
+      return fn(tx as unknown as Prisma.TransactionClient);
     });
   }
 }

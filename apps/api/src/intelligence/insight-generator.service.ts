@@ -1202,11 +1202,21 @@ Write the brief now. Start with "Today's leverage is" or similar. Do not include
     if (category) where.category = category;
     if (severity) where.severity = severity;
 
-    // withTenant so RLS returns this tenant's rows + reviewed public (NULL-
-    // tenant) rows only — never another tenant's insights.
+    // GAI-01: tenant isolation is enforced IN-QUERY, not by RLS. The runtime API
+    // role (capiro_app) is a member of the table owner (capiro_master) and so
+    // bypasses row-level security on every table — the FORCE RLS policy is
+    // defense-in-depth only and does nothing for the app connection. This
+    // explicit filter mirrors the SELECT policy: this tenant's rows + reviewed
+    // public (NULL-tenant) rows, never another tenant's insights.
     return this.prisma.withTenant(tenantId, (tx) =>
       tx.intelligenceInsight.findMany({
-        where: { ...where, OR: [{ expiresAt: null }, { expiresAt: { gt: new Date() } }] },
+        where: {
+          ...where,
+          AND: [
+            { OR: [{ tenantId }, { tenantId: null }] },
+            { OR: [{ expiresAt: null }, { expiresAt: { gt: new Date() } }] },
+          ],
+        },
         orderBy: { generatedAt: 'desc' },
         take: Math.min(limit, 50),
       }),

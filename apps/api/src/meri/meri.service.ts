@@ -3608,11 +3608,14 @@ export class MeriService {
       MERI_ALERTS_IMPORTANT_ONLY_FLAG,
       true,
     );
-    // GAI-13: read under withTenantUser so the owner-aware FORCE RLS policy
-    // applies — a user sees tenant-broadcast alerts (owner NULL) + their own
+    // GAI-13: per-user isolation is enforced IN-QUERY, not by RLS. The app role
+    // (capiro_app) bypasses row-level security (it is a member of the table-owner
+    // role), so the owner-aware FORCE RLS policy does nothing for the app
+    // connection — the explicit ownerUserId filter below is what actually scopes
+    // the read. A user sees tenant-broadcast alerts (owner NULL) + their own
     // personal alerts (scheduled-task digests, per-user meeting briefings), but
-    // not other users' personal alerts. withTenant alone (tenant GUC only)
-    // would set current_user_id() NULL and hide the caller's OWN personal rows.
+    // not other users' personal alerts. withTenantUser still sets the GUCs so the
+    // policy hardens the same query if the role model is ever tightened.
     return this.prisma.withTenantUser(ctx.tenantId, ctx.userId, (tx) =>
       tx.clioProactiveAlert.findMany({
         where: {
@@ -3621,6 +3624,7 @@ export class MeriService {
           // Meeting-prep alerts are retired (2026-07-14): never surface them,
           // including any rows persisted before generation was removed.
           alertType: { not: 'meeting_prep_needed' },
+          OR: [{ ownerUserId: null }, { ownerUserId: ctx.userId }],
           ...(importantOnly ? { priority: { in: [...MERI_ALERT_IMPORTANT_PRIORITIES] } } : {}),
         },
         orderBy: { createdAt: 'desc' },
@@ -3640,12 +3644,17 @@ export class MeriService {
   }
 
   async dismissAlert(ctx: TenantContext, alertId: string) {
-    // GAI-13: dismiss under withTenantUser — RLS makes a user's updateMany reach
-    // only broadcast alerts + their own, so one user can no longer dismiss
-    // another user's personal scheduled-brief.
+    // GAI-13: the ownerUserId filter (not RLS) scopes the dismiss — capiro_app
+    // bypasses row-level security, so the updateMany's WHERE is the only guard.
+    // A user can dismiss a broadcast alert (owner NULL) or their own personal
+    // alert, but not another user's personal scheduled-brief.
     return this.prisma.withTenantUser(ctx.tenantId, ctx.userId, (tx) =>
       tx.clioProactiveAlert.updateMany({
-        where: { id: alertId, tenantId: ctx.tenantId },
+        where: {
+          id: alertId,
+          tenantId: ctx.tenantId,
+          OR: [{ ownerUserId: null }, { ownerUserId: ctx.userId }],
+        },
         data: { status: 'read', readAt: new Date() },
       }),
     );

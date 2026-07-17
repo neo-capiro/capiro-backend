@@ -89,7 +89,12 @@ export class ClientsService {
   }
 
   async list(ctx: TenantContext, filter: ListClientsFilter = {}) {
-    const where: Record<string, unknown> = {};
+    // Tenant isolation is enforced IN-QUERY, not by RLS. The runtime API role
+    // (capiro_app) is a member of the table-owner role (capiro_master) and so
+    // bypasses row-level security on every table — withTenant sets the GUC but
+    // the FORCE RLS policy never runs for this connection. Without this explicit
+    // tenantId filter, findMany returns EVERY tenant's clients (confirmed leak).
+    const where: Record<string, unknown> = { tenantId: ctx.tenantId };
     if (filter.profileStatus) where.profileStatus = filter.profileStatus;
     if (filter.sectorTag) where.sectorTag = filter.sectorTag;
     // Soft-archived ("deleted") clients are hidden by default everywhere; only
@@ -103,8 +108,11 @@ export class ClientsService {
   }
 
   async get(ctx: TenantContext, id: string) {
+    // findFirst with an explicit tenantId (not findUnique by id alone): the app
+    // role bypasses RLS, so a bare id lookup would let any tenant fetch any
+    // other tenant's client by guessing/enumerating ids.
     const client = await this.prisma.withTenant(ctx.tenantId, (tx) =>
-      tx.client.findUnique({ where: { id } }),
+      tx.client.findFirst({ where: { id, tenantId: ctx.tenantId } }),
     );
     if (!client) throw new NotFoundException('Client not found');
     return this.withLogoUrl(client);
