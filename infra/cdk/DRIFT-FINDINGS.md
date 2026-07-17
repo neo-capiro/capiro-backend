@@ -3,6 +3,22 @@
 > Status as of 2026-06-01. Investigation by Hermes (read-only). **No remediation
 > has been applied.** This document is the playbook for a future planned
 > maintenance window.
+>
+> **UPDATE 2026-07-17 (re-verified):** Still `UPDATE_ROLLBACK_FAILED`; data plane
+> still healthy (app.capiro.ai 200s, all ECS services running=desired). Two changes
+> since 06-01:
+> - A **2026-06-27** `cdk deploy` (adding the **Workspace** service) re-attempted and
+>   failed on the same phantom ALB, so the stuck set evolved (now 17 resources — the
+>   **`Alb16C2F182` LB resource itself** is `UPDATE_FAILED` "LoadBalancer … not found",
+>   plus `Workspace*` create-cancelled; see the refreshed list below). The 05-27 Clio
+>   resources are no longer the live wedge.
+> - **Step C is now essentially DONE in code:** the `dev` block already uses
+>   app.capiro.ai / capiro.ai, and on 2026-07-17 `auroraMaxAcu` (2→4) and
+>   `auroraBackupRetentionDays` (7→35) were corrected to match live (verified:
+>   MinACU 0.5 / MaxACU 4 / 35-day). A future diff should no longer shrink Aurora.
+> - **Still NOT done (the supervised window):** Step A (unstick), **Step B (ALB
+>   reconcile — `compute-stack.ts:~1313` still does `new ApplicationLoadBalancer`)**,
+>   Step D (one careful deploy after `cdk diff` is clean). Keep shipping out-of-band.
 
 ## TL;DR
 
@@ -75,26 +91,31 @@ config would try to swap the cert/domain (**breaking `app.capiro.ai`**) and shri
 
 ---
 
-## The 14 stuck resources
+## The stuck resources — CURRENT (17, refreshed 2026-07-17)
 From `aws cloudformation list-stack-resources --stack-name Capiro-dev-Compute`
-(status != *_COMPLETE):
+(status != *_COMPLETE). This SUPERSEDES the 2026-05-27 list (the Clio resources are
+gone; the 2026-06-27 Workspace attempt is the live wedge, and the ALB resource itself
+now shows UPDATE_FAILED "LoadBalancer … not found"):
 
 | Logical ID | Type | Status |
 |---|---|---|
-| AlbHttpsApiPathsRule6E83568D | ELBv2::ListenerRule | UPDATE_FAILED |
-| AlbHttpsWebDefaultRule11F4E7A3 | ELBv2::ListenerRule | UPDATE_FAILED |
-| ApiTaskDefExecutionRoleDefaultPolicy358EAD94 | IAM::Policy | UPDATE_FAILED |
-| ApiTaskRoleDefaultPolicyBEF5D530 | IAM::Policy | UPDATE_FAILED |
+| Alb16C2F182 | ELBv2::LoadBalancer | UPDATE_FAILED (LB not found) |
+| ApiTaskRoleDefaultPolicyBEF5D530 | IAM::Policy | UPDATE_FAILED (cancelled) |
+| ApiTaskDefExecutionRoleDefaultPolicy358EAD94 | IAM::Policy | UPDATE_FAILED (cancelled) |
+| ApiMigrateTaskDefExecutionRoleDefaultPolicy2744B7FC | IAM::Policy | UPDATE_FAILED (cancelled) |
 | ApiEmbedBackfillLogsF4C5E74F | Logs::LogGroup | CREATE_FAILED |
+| ApiEmbedBackfillTaskDefEventsRole46E64944 | IAM::Role | CREATE_FAILED |
 | ApiEmbedBackfillTaskDefExecutionRoleAFB54A52 | IAM::Role | CREATE_FAILED |
-| ApiToClioSg49C620F9 | EC2::SecurityGroup | CREATE_FAILED |
-| ClioEfsSgAD30305E | EC2::SecurityGroup | CREATE_FAILED |
-| ClioFileSystemB056AD1B | EFS::FileSystem | CREATE_FAILED |
-| ClioRuntimeLogsC2BA0C8C | Logs::LogGroup | CREATE_FAILED |
-| ClioRuntimeSg41FFBA34 | EC2::SecurityGroup | CREATE_FAILED |
-| ClioRuntimeTaskDefExecutionRole870A22B3 | IAM::Role | CREATE_FAILED |
-| ClioRuntimeTaskRole3F7C90F0 | IAM::Role | CREATE_FAILED |
+| ApiSyncJobsLogs4714C6F9 | Logs::LogGroup | CREATE_FAILED |
+| ApiSyncJobsTaskDefEventsRoleECDC9F5F | IAM::Role | CREATE_FAILED |
+| ApiSyncJobsTaskDefExecutionRole495B990D | IAM::Role | CREATE_FAILED |
 | ClusterDefaultServiceDiscoveryNamespaceC336F9B4 | ServiceDiscovery::PrivateDnsNamespace | CREATE_FAILED |
+| WorkspaceLogs96AE2C30 | Logs::LogGroup | CREATE_FAILED |
+| WorkspaceMigrateLogs7E1F2880 | Logs::LogGroup | CREATE_FAILED |
+| WorkspaceMigrateTaskDefExecutionRoleFE94B01B | IAM::Role | CREATE_FAILED |
+| WorkspaceTargetGroup394BF056 | ELBv2::TargetGroup | CREATE_FAILED |
+| WorkspaceTaskDefExecutionRole1AB2D268 | IAM::Role | CREATE_FAILED |
+| WorkspaceTaskRole489F0628 | IAM::Role | CREATE_FAILED |
 
 ---
 
@@ -110,24 +131,31 @@ The CREATE_FAILED Clio/embed resources never finished creating, so skipping them
 drops the phantom create. The UPDATE_FAILED ALB rules / IAM policies stay as-is in
 the template (we reconcile in B/C).
 
+> ⚠️ Skip-list refreshed 2026-07-17 to the CURRENT 17 stuck resources. Skipping
+> `Alb16C2F182` leaves the phantom LB record in the stack — that is fine for
+> unsticking, but it MUST be reconciled in Step B before any deploy. Re-run
+> `list-stack-resources` right before the window in case the set drifted again.
 ```bash
 MSYS_NO_PATHCONV=1 aws cloudformation continue-update-rollback \
   --stack-name Capiro-dev-Compute \
   --resources-to-skip \
-    AlbHttpsApiPathsRule6E83568D \
-    AlbHttpsWebDefaultRule11F4E7A3 \
-    ApiTaskDefExecutionRoleDefaultPolicy358EAD94 \
+    Alb16C2F182 \
     ApiTaskRoleDefaultPolicyBEF5D530 \
+    ApiTaskDefExecutionRoleDefaultPolicy358EAD94 \
+    ApiMigrateTaskDefExecutionRoleDefaultPolicy2744B7FC \
     ApiEmbedBackfillLogsF4C5E74F \
+    ApiEmbedBackfillTaskDefEventsRole46E64944 \
     ApiEmbedBackfillTaskDefExecutionRoleAFB54A52 \
-    ApiToClioSg49C620F9 \
-    ClioEfsSgAD30305E \
-    ClioFileSystemB056AD1B \
-    ClioRuntimeLogsC2BA0C8C \
-    ClioRuntimeSg41FFBA34 \
-    ClioRuntimeTaskDefExecutionRole870A22B3 \
-    ClioRuntimeTaskRole3F7C90F0 \
-    ClusterDefaultServiceDiscoveryNamespaceC336F9B4
+    ApiSyncJobsLogs4714C6F9 \
+    ApiSyncJobsTaskDefEventsRoleECDC9F5F \
+    ApiSyncJobsTaskDefExecutionRole495B990D \
+    ClusterDefaultServiceDiscoveryNamespaceC336F9B4 \
+    WorkspaceLogs96AE2C30 \
+    WorkspaceMigrateLogs7E1F2880 \
+    WorkspaceMigrateTaskDefExecutionRoleFE94B01B \
+    WorkspaceTargetGroup394BF056 \
+    WorkspaceTaskDefExecutionRole1AB2D268 \
+    WorkspaceTaskRole489F0628
 # then poll until UPDATE_ROLLBACK_COMPLETE:
 MSYS_NO_PATHCONV=1 aws cloudformation describe-stacks \
   --stack-name Capiro-dev-Compute --query 'Stacks[0].StackStatus' --output text
@@ -135,16 +163,19 @@ MSYS_NO_PATHCONV=1 aws cloudformation describe-stacks \
 **Stop here if all you need is an updatable stack.** Do NOT deploy yet — B and C
 must be done first or the next deploy is destructive.
 
-### Step C — Fix the repo `dev` config to match reality (do BEFORE any deploy)
-Edit `infra/cdk/lib/config.ts` dev override block so a future diff is a no-op on these:
-- `appHost: 'app.capiro.ai'`
-- `wildcardHost: '*.app.capiro.ai'`
-- `rootDomain: 'capiro.ai'` (verify against what AppAlias/cert actually use)
-- `auroraBackupRetentionDays: 35`
-- `auroraMaxAcu: 4`
-Also confirm the **account** the dev env deploys to is `967807252336`, not
-the wrong/legacy account from the 9f9cfc6 commit. Pass `--context account=967807252336` or fix
-the account resolution.
+### Step C — Fix the repo `dev` config to match reality — ✅ DONE IN CODE (2026-07-17)
+`infra/cdk/lib/config.ts` dev override block now matches live reality:
+- `appHost: 'app.capiro.ai'` ✅ (fixed earlier)
+- `wildcardHost: '*.app.capiro.ai'` ✅
+- `rootDomain: 'capiro.ai'` ✅
+- `auroraMaxAcu: 4` ✅ (2026-07-17: was 2 → 4; live verified MaxACU 4)
+- `auroraBackupRetentionDays: 35` ✅ (2026-07-17: was 7 → 35; live verified 35-day)
+- `auroraMinAcu: 0.5` ✅ (already correct; live 0.5)
+
+⚠️ Still confirm at window time: deploy targets account **`967807252336`** (pass
+`--context account=967807252336`), and run `cdk diff` to confirm these are now no-ops
+before deploying. This change is committed but **NOT deployed** — it only takes effect
+in Step D.
 
 ### Step B — Reconcile the ALB (the hard part)
 The stack wants to own an ALB (`Capiro-Alb16-…`) that no longer exists; the live ALB

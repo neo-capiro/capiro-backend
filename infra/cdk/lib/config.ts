@@ -175,9 +175,12 @@ export function loadConfig(app: cdk.App): EnvConfig {
             workspaceMaxCount: 2,
             meriv2OrchestratorDesiredCount: 1,
             meriv2OrchestratorMaxCount: 2,
+            // Aligned to LIVE reality (verified 2026-07-17: MinACU 0.5 / MaxACU 4 /
+            // 35-day backup) so a post-unstick `cdk diff` does NOT shrink Aurora or
+            // cut backup retention (a SOC2 concern). See DRIFT-FINDINGS.md Step C.
             auroraMinAcu: 0.5,
-            auroraMaxAcu: 2,
-            auroraBackupRetentionDays: 7,
+            auroraMaxAcu: 4,
+            auroraBackupRetentionDays: 35,
             // NOTE: the env=dev stacks (cluster `capiro-dev`) ARE the live
             // production deployment serving app.capiro.ai. The running API and
             // the web's pk_live publishable key both use the PROD Clerk instance
