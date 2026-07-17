@@ -493,6 +493,7 @@ export class DeltaEngineService {
     // (3) is ADDITIVE: it pulls in clients with NO watch and NO peNumber capability, so a
     // keyword/award/facility-relevant client still appears in relatedClientIds.
     const [watches, capabilities, relevant] = await Promise.all([
+      // tenant-scope-exempt: cross-tenant fan-out — finds which tenants watch this PE to route per-tenant alerts.
       this.prisma.programElementWatch.findMany({ where: { peCode }, select: { tenantId: true } }),
       // Match BOTH the legacy scalar peNumber and the multi-PE peNumbers[] array directly, so
       // a peNumbers[]-only capability is caught here (not only via the relevance leg, which
