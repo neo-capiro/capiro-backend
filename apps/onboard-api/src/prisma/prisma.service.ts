@@ -1,6 +1,47 @@
 import { Injectable, Logger, OnModuleDestroy, OnModuleInit } from '@nestjs/common';
 import { Prisma, PrismaClient } from '../../generated/prisma-client/index.js';
 
+/** Scope baked into a per-call query-extended client (see applyTenantScope). */
+type TenantScope = { tenantId: string; bypass?: false } | { bypass: true };
+
+const WHERE_BEARING_OPS = new Set<string>([
+  'findMany',
+  'findFirst',
+  'findFirstOrThrow',
+  'findUnique',
+  'findUniqueOrThrow',
+  'count',
+  'aggregate',
+  'groupBy',
+  'update',
+  'updateMany',
+  'delete',
+  'deleteMany',
+  'upsert',
+]);
+
+/**
+ * Pure decision fn for the tenant-scope query hook (exported for tests). The
+ * runtime DB role (capiro_app) is a member of the table-owner role and BYPASSES
+ * RLS, so tenant isolation must be enforced in-query. See
+ * apps/api/src/prisma/prisma.service.ts for full rationale.
+ */
+export function applyTenantScope(
+  scope: TenantScope,
+  model: string,
+  operation: string,
+  args: unknown,
+  scopedModels: ReadonlySet<string>,
+): unknown {
+  if (scope.bypass === true || !scopedModels.has(model) || !WHERE_BEARING_OPS.has(operation)) {
+    return args;
+  }
+  const next = { ...((args as Record<string, unknown> | undefined) ?? {}) };
+  const where = (next.where as Record<string, unknown> | undefined) ?? {};
+  next.where = { ...where, tenantId: scope.tenantId };
+  return next;
+}
+
 /**
  * Onboard API Prisma client.
  *
@@ -21,13 +62,46 @@ import { Prisma, PrismaClient } from '../../generated/prisma-client/index.js';
 export class PrismaService extends PrismaClient implements OnModuleInit, OnModuleDestroy {
   private readonly logger = new Logger(PrismaService.name);
 
+  // Models with a tenantId field (auto-derived from the schema) — the set the
+  // tenant-scope hook constrains.
+  private readonly tenantScopedModels: ReadonlySet<string> = new Set(
+    Prisma.dmmf.datamodel.models
+      .filter((m) => m.fields.some((f) => f.name === 'tenantId'))
+      .map((m) => m.name),
+  );
+
   async onModuleInit(): Promise<void> {
     await this.$connect();
-    this.logger.log('Onboard API Prisma connected');
+    this.logger.log(
+      `Onboard API Prisma connected (tenant-scope enforcement active on ${this.tenantScopedModels.size} models)`,
+    );
   }
 
   async onModuleDestroy(): Promise<void> {
     await this.$disconnect();
+  }
+
+  /**
+   * A query-extended client with the given tenant scope baked in — enforces
+   * tenant isolation in-query because capiro_app bypasses RLS. See
+   * apps/api/src/prisma/prisma.service.ts for full rationale.
+   */
+  private scopedClient(scope: TenantScope) {
+    const scopedModels = this.tenantScopedModels;
+    return this.$extends(
+      Prisma.defineExtension({
+        name: 'tenant-scope',
+        query: {
+          $allModels: {
+            async $allOperations({ model, operation, args, query }) {
+              return query(
+                applyTenantScope(scope, model, operation, args, scopedModels) as typeof args,
+              );
+            },
+          },
+        },
+      }),
+    );
   }
 
   /**
@@ -40,10 +114,10 @@ export class PrismaService extends PrismaClient implements OnModuleInit, OnModul
     fn: (tx: Prisma.TransactionClient) => Promise<T>,
     opts?: { timeoutMs?: number },
   ): Promise<T> {
-    return this.$transaction(
+    return this.scopedClient({ tenantId }).$transaction(
       async (tx) => {
         await tx.$executeRaw`SELECT set_config('app.current_tenant', ${tenantId}, true)`;
-        return fn(tx);
+        return fn(tx as unknown as Prisma.TransactionClient);
       },
       opts?.timeoutMs ? { timeout: opts.timeoutMs } : undefined,
     );
@@ -82,10 +156,10 @@ export class PrismaService extends PrismaClient implements OnModuleInit, OnModul
     fn: (tx: Prisma.TransactionClient) => Promise<T>,
     opts?: { timeoutMs?: number },
   ): Promise<T> {
-    return this.$transaction(
+    return this.scopedClient({ bypass: true }).$transaction(
       async (tx) => {
         await tx.$executeRaw`SELECT set_config('app.bypass_rls', 'on', true)`;
-        return fn(tx);
+        return fn(tx as unknown as Prisma.TransactionClient);
       },
       opts?.timeoutMs ? { timeout: opts.timeoutMs } : undefined,
     );
