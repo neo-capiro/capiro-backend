@@ -58,9 +58,15 @@ export function applyTenantScope(
 /**
  * RLS-aware Prisma client.
  *
- * Direct use of `this.prisma.user.findMany()` (without a tenant scope) is the
- * "system" path: it runs with `app.current_tenant` unset, so RLS-protected
- * tables return zero rows. That fail-closed default is intentional.
+ * ⚠️ Direct use of `this.prisma.<tenantModel>.findMany()` (without a tenant
+ * scope) is NOT fail-closed and MUST be avoided. The runtime DB role
+ * (capiro_app) is a member of the table-owner role and BYPASSES Postgres RLS,
+ * so a bare query on a tenant-scoped model returns EVERY tenant's rows
+ * (cross-tenant leak — the 2026-07-16 incident). Tenant isolation is enforced
+ * ONLY by routing through the scoped helpers below, which inject
+ * `where.tenantId` in-query. The `tenant-scope-guard.spec.ts` test fails the
+ * build on any new bare tenant-scoped access. Bare access to GLOBAL (no
+ * tenantId) reference tables is fine.
  *
  * Per-request tenant-scoped queries go through `withTenant(tenantId, fn)`.
  * That opens a transaction, sets the GUC with `SET LOCAL`, and hands the

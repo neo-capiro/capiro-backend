@@ -331,6 +331,7 @@ export class BillPeExtractorService {
     if (addedPeCodes.length === 0) return false;
 
     const watches = await this.prisma.programElementWatch.findMany({
+      // tenant-scope-exempt: cross-tenant fan-out — finds which tenants watch these PEs to route per-tenant alerts.
       where: { peCode: { in: addedPeCodes } },
       select: { tenantId: true, peCode: true },
     });

@@ -236,6 +236,8 @@ export class AcquisitionPersonnelWriterService {
     // table is global and the departure is a global signal — each affected client id
     // is still tenant-scoped downstream when the change feed is read).
     const linkedContacts = await this.prisma.engagementContact.findMany({
+      // tenant-scope-exempt: global personnel departure is a cross-tenant signal; each
+      // affected clientId is re-scoped to its tenant downstream in the change feed.
       where: { acquisitionPersonnelId: personId, clientId: { not: null } },
       select: { clientId: true },
     });

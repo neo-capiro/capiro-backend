@@ -788,6 +788,7 @@ export class ProgramElementWriterService {
   private async getAffectedTenants(peCode: string): Promise<AffectedTenantContext[]> {
     const [watches, capabilities] = await Promise.all([
       this.prisma.programElementWatch.findMany({
+        // tenant-scope-exempt: cross-tenant fan-out — getAffectedTenants finds which tenants watch this PE to route alerts.
         where: { peCode },
         select: { tenantId: true },
       }),
