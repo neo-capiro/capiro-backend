@@ -1213,6 +1213,18 @@ export class MeriToolsService {
   }
 
   /**
+   * Whether a native tool performs a write / external side effect (send_email,
+   * update_client_profile, create_*, save_*, schedule_task, …). The legacy
+   * in-process chat uses this to stay READ-ONLY: it must not offer or execute a
+   * model-selected write, because — unlike the MeriV2 orchestrator — it has no
+   * B1–B4 compliance/approval gate. Writes go through the gated orchestrator or
+   * an explicit human action instead.
+   */
+  isSideEffecting(name: string): boolean {
+    return SIDE_EFFECTING_TOOLS.has(name);
+  }
+
+  /**
    * Semantic retrieval over one client's knowledge base (F5). Tenant + client
    * scoped; rows come back typed (client_profile / client_person /
    * client_facility / client_doc_chunk) and citable as `client_kb` chips.

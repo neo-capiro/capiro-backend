@@ -165,6 +165,43 @@ describe('Meri tool registration', () => {
     );
   });
 
+  it('legacy read-only chat excludes every side-effecting (write) tool from the model surface', () => {
+    const svc = Object.create(MeriToolsService.prototype) as MeriToolsService;
+    const writeTools = [
+      'send_email',
+      'reply_email',
+      'update_client_profile',
+      'save_note',
+      'save_memory',
+      'confirm_memory',
+      'correct_memory',
+      'forget_memory',
+      'create_word',
+      'create_excel',
+      'create_powerpoint',
+      'schedule_task',
+      'cancel_scheduled_task',
+      'create_task',
+      'update_task',
+      'create_meeting_brief',
+      'draft_policy_memo',
+    ];
+    // isSideEffecting flags exactly the write tools — and not read/compute tools.
+    for (const t of writeTools) expect(svc.isSideEffecting(t)).toBe(true);
+    for (const t of ['get_client_context', 'search_congress_bills', 'run_analysis', 'query_intelligence']) {
+      expect(svc.isSideEffecting(t)).toBe(false);
+    }
+    // The legacy in-process chat's read-only filter (mirrors meri.service.ts)
+    // drops ALL side-effecting tools so the model can never select an ungated
+    // write, while read/compute tools survive.
+    const readOnlySurface = schemas()
+      .filter((s) => !svc.isSideEffecting(s.name))
+      .map((s) => s.name);
+    for (const t of writeTools) expect(readOnlySurface).not.toContain(t);
+    expect(readOnlySurface).toContain('get_client_context');
+    expect(readOnlySurface).toContain('search_congress_bills');
+  });
+
   it('every schema is a typed object schema with a non-empty description', () => {
     for (const schema of schemas()) {
       expect(schema.description.length).toBeGreaterThan(10);

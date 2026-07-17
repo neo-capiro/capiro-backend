@@ -964,7 +964,14 @@ export class MeriService {
       const analysisEnabled = await this.tools.analysisSandboxEnabled(ctx.tenantId);
       const nativeSchemas = this.tools
         .anthropicToolSchemas()
-        .filter((schema) => analysisEnabled || schema.name !== 'run_analysis');
+        .filter((schema) => analysisEnabled || schema.name !== 'run_analysis')
+        // The legacy in-process chat is READ-ONLY: it has no B1–B4 compliance/
+        // approval gate (that lives only in the MeriV2 orchestrator), so it must
+        // never let the model select a write tool. MeriV2 is default-ON fleet-
+        // wide, so this path is a fallback only; writes go through the gated
+        // orchestrator or explicit human actions. (The execute closure below
+        // also refuses side-effecting tools, defense-in-depth.)
+        .filter((schema) => !this.tools.isSideEffecting(schema.name));
       const mcpSchemas = await this.mcp.bridgedSchemasFor(ctx);
       const toolSchemas = applyToolCacheControl(
         [...nativeSchemas, ...mcpSchemas],
@@ -1228,6 +1235,17 @@ export class MeriService {
             // wraps results as untrusted data and audits write calls.
             if (parseBridgedToolName(item.tool.name)) {
               return this.mcp.executeBridged(ctx, item.tool.name, item.parsedInput);
+            }
+            // Defense-in-depth: the legacy chat is read-only (no compliance gate
+            // here). Side-effecting native tools are already filtered out of the
+            // model's schema above, so a request for one is anomalous — refuse it
+            // rather than execute an ungated write.
+            if (this.tools.isSideEffecting(item.tool.name)) {
+              return Promise.resolve({
+                ok: false,
+                error:
+                  'This assistant is read-only and cannot perform writes. Use the reviewed Meri chat (which gates writes for approval) to send emails, update records, or create documents.',
+              });
             }
             return this.tools.execute(ctx, item.tool.name as never, item.parsedInput);
           },
