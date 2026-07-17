@@ -43,7 +43,7 @@ describe('CapiroAdminService — analyst console (Step 3.5)', () => {
       mock as never,
       {} as never,
       {} as never,
-      {} as never,
+      { get: () => undefined } as never,
       peWriter as never,
       personnelWriter as never,
       {} as never,
@@ -409,7 +409,7 @@ describe('CapiroAdminService — AI keys & usage console', () => {
       mock as never,
       {} as never,
       {} as never,
-      {} as never,
+      { get: () => undefined } as never,
       {} as never,
       {} as never,
       aiUsage as never,
@@ -471,6 +471,114 @@ describe('CapiroAdminService — AI keys & usage console', () => {
     const { CapiroAdminController } = await import('./capiro-admin.controller.js');
     const { ROLES_KEY } = await import('../auth/roles.decorator.js');
     expect(Reflect.getMetadata(ROLES_KEY, CapiroAdminController)).toEqual(['capiro_admin']);
+  });
+});
+
+describe('CapiroAdminService — deleteTenant S3 purge (DPA/GDPR)', () => {
+  const TENANT = '00000000-0000-0000-0000-0000000000c1';
+  let mock: ReturnType<typeof createPrismaMock>;
+  let s3send: ReturnType<typeof jest.fn>;
+  let service: CapiroAdminService;
+
+  beforeEach(() => {
+    mock = createPrismaMock();
+    mock.store.tenant.push({ id: TENANT, slug: 'acme', clerkOrgId: null });
+    service = new CapiroAdminService(
+      mock as never,
+      {} as never,
+      {} as never,
+      { get: (k: string) => (k === 'ASSETS_BUCKET' ? 'test-bucket' : undefined) } as never,
+      {} as never,
+      {} as never,
+      {} as never,
+      {} as never,
+      { invalidate: jest.fn() } as never,
+    );
+    s3send = jest.fn();
+    // Replace the real S3Client built in the constructor with a send() spy.
+    (service as unknown as { s3: { send: typeof s3send } }).s3 = { send: s3send };
+  });
+
+  test('purges all object versions + delete markers under tenants/<id>/ then deletes the row', async () => {
+    s3send
+      .mockResolvedValueOnce({
+        Versions: [{ Key: `tenants/${TENANT}/branding/logo.png`, VersionId: 'v1' }],
+        DeleteMarkers: [{ Key: `tenants/${TENANT}/clients/x/logo.png`, VersionId: 'dm1' }],
+        IsTruncated: false,
+      })
+      .mockResolvedValueOnce({}); // DeleteObjects — no Errors
+
+    const result = await service.deleteTenant(TENANT);
+
+    const listInput = (s3send.mock.calls[0]![0] as { input: Record<string, unknown> }).input;
+    expect(listInput.Bucket).toBe('test-bucket');
+    expect(listInput.Prefix).toBe(`tenants/${TENANT}/`);
+    const delInput = (s3send.mock.calls[1]![0] as { input: { Delete: { Objects: unknown[] } } }).input;
+    expect(delInput.Delete.Objects).toEqual([
+      { Key: `tenants/${TENANT}/branding/logo.png`, VersionId: 'v1' },
+      { Key: `tenants/${TENANT}/clients/x/logo.png`, VersionId: 'dm1' },
+    ]);
+    expect(mock.store.tenant).toHaveLength(0); // row deleted AFTER purge
+    expect(result).toMatchObject({ ok: true, deletedTenantId: TENANT });
+  });
+
+  test('paginates truncated version listings', async () => {
+    s3send
+      .mockResolvedValueOnce({
+        Versions: [{ Key: `tenants/${TENANT}/a`, VersionId: 'v1' }],
+        IsTruncated: true,
+        NextKeyMarker: 'a',
+        NextVersionIdMarker: 'v1',
+      })
+      .mockResolvedValueOnce({}) // delete page 1
+      .mockResolvedValueOnce({
+        Versions: [{ Key: `tenants/${TENANT}/b`, VersionId: 'v2' }],
+        IsTruncated: false,
+      })
+      .mockResolvedValueOnce({}); // delete page 2
+
+    await service.deleteTenant(TENANT);
+    // 2 list + 2 delete calls
+    expect(s3send).toHaveBeenCalledTimes(4);
+    const secondList = (s3send.mock.calls[2]![0] as { input: Record<string, unknown> }).input;
+    expect(secondList.KeyMarker).toBe('a');
+    expect(secondList.VersionIdMarker).toBe('v1');
+  });
+
+  test('aborts (throws) and does NOT delete the row when S3 listing fails — retryable', async () => {
+    s3send.mockRejectedValueOnce(new Error('S3 down'));
+    await expect(service.deleteTenant(TENANT)).rejects.toThrow(/S3 down/);
+    expect(mock.store.tenant).toHaveLength(1);
+  });
+
+  test('DeleteObjects partial failure throws (never silently under-deletes)', async () => {
+    s3send
+      .mockResolvedValueOnce({
+        Versions: [{ Key: `tenants/${TENANT}/a`, VersionId: 'v1' }],
+        IsTruncated: false,
+      })
+      .mockResolvedValueOnce({ Errors: [{ Key: `tenants/${TENANT}/a`, Message: 'AccessDenied' }] });
+    await expect(service.deleteTenant(TENANT)).rejects.toThrow(/S3 purge incomplete/);
+    expect(mock.store.tenant).toHaveLength(1);
+  });
+
+  test('no-op purge when ASSETS_BUCKET is unset (dev) — still deletes the row', async () => {
+    const svc = new CapiroAdminService(
+      mock as never,
+      {} as never,
+      {} as never,
+      { get: () => undefined } as never,
+      {} as never,
+      {} as never,
+      {} as never,
+      {} as never,
+      { invalidate: jest.fn() } as never,
+    );
+    const send = jest.fn();
+    (svc as unknown as { s3: { send: typeof send } }).s3 = { send };
+    const result = await svc.deleteTenant(TENANT);
+    expect(send).not.toHaveBeenCalled();
+    expect(result).toMatchObject({ ok: true, deletedTenantId: TENANT });
   });
 });
 
