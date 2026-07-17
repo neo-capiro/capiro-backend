@@ -9,10 +9,22 @@ export interface LdaDashboard {
   totalRegistrants: number;
   totalLobbyists: number;
   totalIssueCodes: number;
-  topIssueCodes: { code: string; name: string; totalFilings5y: number; totalSpending5y: number | null }[];
+  topIssueCodes: {
+    code: string;
+    name: string;
+    totalFilings5y: number;
+    totalSpending5y: number | null;
+  }[];
   topClients: { id: number; name: string; totalFilings: number; totalSpending: number | null }[];
   topRegistrants: { id: number; name: string; totalFilings: number; totalClients: number }[];
-  recentFilings: { filingUuid: string; filingYear: number; clientName: string; registrantName: string; income: number | null; issueCodes: string[] }[];
+  recentFilings: {
+    filingUuid: string;
+    filingYear: number;
+    clientName: string;
+    registrantName: string;
+    income: number | null;
+    issueCodes: string[];
+  }[];
 }
 
 export interface FilingFilters {
@@ -145,8 +157,10 @@ export class LdaIntelService {
     const where: Record<string, unknown> = {};
     if (filters.year) where.filingYear = filters.year;
     if (filters.issueCode) where.issueCodes = { has: filters.issueCode };
-    if (filters.clientName) where.clientName = { contains: filters.clientName, mode: 'insensitive' };
-    if (filters.registrantName) where.registrantName = { contains: filters.registrantName, mode: 'insensitive' };
+    if (filters.clientName)
+      where.clientName = { contains: filters.clientName, mode: 'insensitive' };
+    if (filters.registrantName)
+      where.registrantName = { contains: filters.registrantName, mode: 'insensitive' };
 
     const [data, total] = await Promise.all([
       this.prisma.ldaFiling.findMany({
@@ -260,11 +274,7 @@ export class LdaIntelService {
     };
   }
 
-  async getClientFilings(
-    clientId: number,
-    page = 1,
-    limit = 25,
-  ): Promise<PagedResult<object>> {
+  async getClientFilings(clientId: number, page = 1, limit = 25): Promise<PagedResult<object>> {
     const pg = Math.max(1, page);
     const lim = Math.min(100, Math.max(1, limit));
     const skip = (pg - 1) * lim;
@@ -280,7 +290,11 @@ export class LdaIntelService {
     ]);
 
     return {
-      data: data.map((f) => ({ ...f, income: this.toNum(f.income), expenses: this.toNum(f.expenses) })),
+      data: data.map((f) => ({
+        ...f,
+        income: this.toNum(f.income),
+        expenses: this.toNum(f.expenses),
+      })),
       total,
       page: pg,
       limit: lim,
@@ -411,8 +425,10 @@ export class LdaIntelService {
 
     const where: Record<string, unknown> = {};
     if (filters.year) where.filingYear = filters.year;
-    if (filters.registrantName) where.registrantName = { contains: filters.registrantName, mode: 'insensitive' };
-    if (filters.lobbyistName) where.lobbyistName = { contains: filters.lobbyistName, mode: 'insensitive' };
+    if (filters.registrantName)
+      where.registrantName = { contains: filters.registrantName, mode: 'insensitive' };
+    if (filters.lobbyistName)
+      where.lobbyistName = { contains: filters.lobbyistName, mode: 'insensitive' };
 
     const [data, total] = await Promise.all([
       this.prisma.ldaContribution.findMany({
@@ -432,7 +448,13 @@ export class LdaIntelService {
   async getTrends(): Promise<object[]> {
     // Quarterly spending aggregation across all filings.
     const rows = await this.prisma.$queryRaw<
-      { year: number; period: string; total_income: string | null; total_expenses: string | null; filing_count: bigint }[]
+      {
+        year: number;
+        period: string;
+        total_income: string | null;
+        total_expenses: string | null;
+        filing_count: bigint;
+      }[]
     >`
       SELECT
         filing_year                        AS year,
@@ -545,7 +567,13 @@ export class LdaIntelService {
     const [filings, relatedByIssue] = await Promise.all([
       this.prisma.ldaFiling.findMany({
         where: { clientId: id },
-        select: { registrantId: true, registrantName: true, issueCodes: true, governmentEntities: true, lobbyists: true },
+        select: {
+          registrantId: true,
+          registrantName: true,
+          issueCodes: true,
+          governmentEntities: true,
+          lobbyists: true,
+        },
         orderBy: { dtPosted: 'desc' },
         take: 200,
       }),
@@ -558,7 +586,14 @@ export class LdaIntelService {
             },
             orderBy: { totalFilings: 'desc' },
             take: 10,
-            select: { id: true, name: true, state: true, totalFilings: true, totalSpending: true, issueCodes: true },
+            select: {
+              id: true,
+              name: true,
+              state: true,
+              totalFilings: true,
+              totalSpending: true,
+              issueCodes: true,
+            },
           })
         : Promise.resolve([]),
     ]);
@@ -574,36 +609,55 @@ export class LdaIntelService {
         if (existing) {
           existing.filingCount++;
         } else {
-          firmMap.set(f.registrantId, { id: f.registrantId, name: f.registrantName, filingCount: 1 });
+          firmMap.set(f.registrantId, {
+            id: f.registrantId,
+            name: f.registrantName,
+            filingCount: 1,
+          });
         }
       }
       for (const code of f.issueCodes ?? []) issueSet.add(code);
-      const entities = Array.isArray(f.governmentEntities) ? f.governmentEntities as { name?: string }[] : [];
+      const entities = Array.isArray(f.governmentEntities)
+        ? (f.governmentEntities as { name?: string }[])
+        : [];
       for (const e of entities) if (e.name) govTargetSet.add(e.name);
     }
 
     // Unique lobbyist IDs from filings.
     const lobbyistIds = new Set<number>();
     for (const f of filings) {
-      const lobs = Array.isArray(f.lobbyists) ? f.lobbyists as { id?: number }[] : [];
+      const lobs = Array.isArray(f.lobbyists) ? (f.lobbyists as { id?: number }[]) : [];
       for (const l of lobs) if (l.id) lobbyistIds.add(l.id);
     }
 
-    const lobbyists = lobbyistIds.size > 0
-      ? await this.prisma.ldaLobbyist.findMany({
-          where: { id: { in: [...lobbyistIds].slice(0, 50) } },
-          select: { id: true, firstName: true, lastName: true, coveredPositions: true, activeYears: true },
-        })
-      : [];
+    const lobbyists =
+      lobbyistIds.size > 0
+        ? await this.prisma.ldaLobbyist.findMany({
+            where: { id: { in: [...lobbyistIds].slice(0, 50) } },
+            select: {
+              id: true,
+              firstName: true,
+              lastName: true,
+              coveredPositions: true,
+              activeYears: true,
+            },
+          })
+        : [];
 
     return {
-      client: { id: client.id, name: client.name, state: client.state, issueCodes: client.issueCodes },
+      client: {
+        id: client.id,
+        name: client.name,
+        state: client.state,
+        issueCodes: client.issueCodes,
+      },
       firms: [...firmMap.values()].sort((a, b) => b.filingCount - a.filingCount),
       lobbyists: lobbyists.map((l) => ({
         id: l.id,
         firstName: l.firstName,
         lastName: l.lastName,
-        hasGovernmentExperience: Array.isArray(l.coveredPositions) && (l.coveredPositions as unknown[]).length > 0,
+        hasGovernmentExperience:
+          Array.isArray(l.coveredPositions) && (l.coveredPositions as unknown[]).length > 0,
         activeYears: l.activeYears,
       })),
       issues: [...issueSet],
@@ -621,19 +675,23 @@ export class LdaIntelService {
 
   // ── Intelligence insights ─────────────────────────────────────────────────
 
-  async getInsights(category?: string, limit = 20): Promise<object[]> {
+  async getInsights(tenantId: string, category?: string, limit = 20): Promise<object[]> {
     const where: Record<string, unknown> = {};
     if (category) where.category = category;
-    // Exclude expired insights.
-    const rows = await this.prisma.intelligenceInsight.findMany({
-      where: { ...where, OR: [{ expiresAt: null }, { expiresAt: { gt: new Date() } }] },
-      orderBy: { generatedAt: 'desc' },
-      take: Math.min(50, limit),
-    });
+    // GAI-01: tenant-scoped read — RLS returns this tenant's rows + reviewed
+    // public (NULL-tenant) rows only, never the former cross-tenant global feed.
+    const rows = await this.prisma.withTenant(tenantId, (tx) =>
+      tx.intelligenceInsight.findMany({
+        where: { ...where, OR: [{ expiresAt: null }, { expiresAt: { gt: new Date() } }] },
+        orderBy: { generatedAt: 'desc' },
+        take: Math.min(50, limit),
+      }),
+    );
     return rows;
   }
 
   async createInsight(data: {
+    tenantId: string;
     category: string;
     title: string;
     body: string;
@@ -641,16 +699,20 @@ export class LdaIntelService {
     dataPoints?: object;
     expiresAt?: Date;
   }): Promise<object> {
-    return this.prisma.intelligenceInsight.create({
-      data: {
-        category: data.category,
-        title: data.title,
-        body: data.body,
-        severity: data.severity ?? 'info',
-        dataPoints: data.dataPoints ?? undefined,
-        expiresAt: data.expiresAt ?? undefined,
-      },
-    });
+    // GAI-01: tenant-scoped write (withTenant satisfies the FORCE RLS WITH CHECK).
+    return this.prisma.withTenant(data.tenantId, (tx) =>
+      tx.intelligenceInsight.create({
+        data: {
+          tenantId: data.tenantId,
+          category: data.category,
+          title: data.title,
+          body: data.body,
+          severity: data.severity ?? 'info',
+          dataPoints: data.dataPoints ?? undefined,
+          expiresAt: data.expiresAt ?? undefined,
+        },
+      }),
+    );
   }
 
   // ── Congress bill detail (with actions/committees/subjects) ───────────────
@@ -682,7 +744,15 @@ export class LdaIntelService {
 
     // Trigram similarity fallback (requires pg_trgm, already enabled).
     const rows = await this.prisma.$queryRaw<
-      Array<{ id: number; name: string; state: string | null; total_filings: number; total_spending: string | null; issue_codes: string[]; sim: number }>
+      Array<{
+        id: number;
+        name: string;
+        state: string | null;
+        total_filings: number;
+        total_spending: string | null;
+        issue_codes: string[];
+        sim: number;
+      }>
     >`
       SELECT id, name, state, total_filings, total_spending, issue_codes,
              similarity(name, ${name}) AS sim

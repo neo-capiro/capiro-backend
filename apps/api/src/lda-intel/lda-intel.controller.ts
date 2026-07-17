@@ -1,16 +1,10 @@
-import {
-  Controller,
-  Get,
-  Param,
-  ParseIntPipe,
-  Post,
-  Query,
-  UseGuards,
-} from '@nestjs/common';
+import { Controller, Get, Param, ParseIntPipe, Post, Query, UseGuards } from '@nestjs/common';
 import { IsIn, IsInt, IsOptional, IsString, Max, MaxLength, Min } from 'class-validator';
 import { Type } from 'class-transformer';
 import { Roles } from '../auth/roles.decorator.js';
 import { RolesGuard } from '../auth/roles.guard.js';
+import { CurrentTenant } from '../tenant/current-tenant.decorator.js';
+import type { TenantContext } from '@capiro/shared';
 import { LdaIntelService } from './lda-intel.service.js';
 
 class FilingsQueryDto {
@@ -225,10 +219,7 @@ export class LdaIntelController {
   }
 
   @Get('clients/:id/filings')
-  clientFilings(
-    @Param('id', ParseIntPipe) id: number,
-    @Query() q: SearchQueryDto,
-  ) {
+  clientFilings(@Param('id', ParseIntPipe) id: number, @Query() q: SearchQueryDto) {
     return this.service.getClientFilings(id, q.page, q.limit);
   }
 
@@ -290,7 +281,14 @@ export class LdaIntelController {
 
   @Get('congress/bills')
   congressBills(@Query() q: CongressBillsQueryDto) {
-    return this.service.getCongressBills(q.q, q.policyArea, q.congress, q.page, q.limit, q.activeSince);
+    return this.service.getCongressBills(
+      q.q,
+      q.policyArea,
+      q.congress,
+      q.page,
+      q.limit,
+      q.activeSince,
+    );
   }
 
   @Get('fec/committees')
@@ -309,8 +307,9 @@ export class LdaIntelController {
   }
 
   @Get('insights')
-  getInsights(@Query() q: InsightsQueryDto) {
-    return this.service.getInsights(q.category, q.limit);
+  getInsights(@CurrentTenant() ctx: TenantContext, @Query() q: InsightsQueryDto) {
+    // GAI-01: scope to the caller's tenant (RLS returns own-tenant + public).
+    return this.service.getInsights(ctx.tenantId, q.category, q.limit);
   }
 
   @Post('insights/generate')

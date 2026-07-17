@@ -38,9 +38,7 @@ class ChangesQueryDto {
   // to a real boolean; absent => undefined => no filter (dashboard behaviour).
   @IsOptional()
   @IsBoolean()
-  @Transform(({ value }) =>
-    value === undefined ? undefined : value === 'true' || value === true,
-  )
+  @Transform(({ value }) => (value === undefined ? undefined : value === 'true' || value === true))
   consumed?: boolean;
 
   // Scope the feed to changes touching a set of Program Element codes (the PE
@@ -175,18 +173,12 @@ export class IntelligenceController {
   ) {}
 
   @Get('client-profile/:clientId')
-  getClientProfile(
-    @CurrentTenant() ctx: TenantContext,
-    @Param('clientId') clientId: string,
-  ) {
+  getClientProfile(@CurrentTenant() ctx: TenantContext, @Param('clientId') clientId: string) {
     return this.service.getClientProfile(clientId, ctx.tenantId);
   }
 
   @Get('clients/:clientId/profile-v1')
-  getClientProfileV1(
-    @CurrentTenant() ctx: TenantContext,
-    @Param('clientId') clientId: string,
-  ) {
+  getClientProfileV1(@CurrentTenant() ctx: TenantContext, @Param('clientId') clientId: string) {
     return this.service.getClientProfileV1(clientId, ctx.tenantId, ctx.userId);
   }
 
@@ -202,87 +194,64 @@ export class IntelligenceController {
   }
 
   @Patch('changes/:id')
-  markChangeConsumed(
-    @Param('id') id: string,
-    @Body() body: { consumed: boolean },
-  ) {
+  markChangeConsumed(@Param('id') id: string, @Body() body: { consumed: boolean }) {
     return this.service.markChangeConsumed(id, body.consumed);
   }
 
   @Get('changes')
   getChanges(@CurrentTenant() ctx: TenantContext, @Query() q: ChangesQueryDto) {
-    return this.service.getChanges(ctx.tenantId, q.since, q.clientId, q.source, q.consumed, q.peCodes);
+    return this.service.getChanges(
+      ctx.tenantId,
+      q.since,
+      q.clientId,
+      q.source,
+      q.consumed,
+      q.peCodes,
+    );
   }
 
   @Get('clients/:clientId/lobbying-roi')
-  getLobbyingRoi(
-    @CurrentTenant() ctx: TenantContext,
-    @Param('clientId') clientId: string,
-  ) {
+  getLobbyingRoi(@CurrentTenant() ctx: TenantContext, @Param('clientId') clientId: string) {
     return this.service.getLobbyingRoi(clientId, ctx.tenantId);
   }
 
   @Get('clients/:clientId/lda-filings')
-  getClientLdaFilings(
-    @CurrentTenant() ctx: TenantContext,
-    @Param('clientId') clientId: string,
-  ) {
+  getClientLdaFilings(@CurrentTenant() ctx: TenantContext, @Param('clientId') clientId: string) {
     return this.service.getClientLdaFilings(clientId, ctx.tenantId);
   }
 
   @Get('clients/:clientId/fec-money-flow')
-  getFecMoneyFlow(
-    @CurrentTenant() ctx: TenantContext,
-    @Param('clientId') clientId: string,
-  ) {
+  getFecMoneyFlow(@CurrentTenant() ctx: TenantContext, @Param('clientId') clientId: string) {
     return this.service.getFecMoneyFlow(clientId, ctx.tenantId);
   }
 
   @Get('clients/:clientId/competitor-board')
-  getCompetitorBoard(
-    @CurrentTenant() ctx: TenantContext,
-    @Param('clientId') clientId: string,
-  ) {
+  getCompetitorBoard(@CurrentTenant() ctx: TenantContext, @Param('clientId') clientId: string) {
     return this.service.getCompetitorBoard(clientId, ctx.tenantId);
   }
 
   @Get('clients/:clientId/ex-staffers')
-  getExStaffers(
-    @CurrentTenant() ctx: TenantContext,
-    @Param('clientId') clientId: string,
-  ) {
+  getExStaffers(@CurrentTenant() ctx: TenantContext, @Param('clientId') clientId: string) {
     return this.service.getExStaffers(clientId, ctx.tenantId);
   }
 
   @Get('clients/:clientId/bills')
-  getClientBills(
-    @CurrentTenant() ctx: TenantContext,
-    @Param('clientId') clientId: string,
-  ) {
+  getClientBills(@CurrentTenant() ctx: TenantContext, @Param('clientId') clientId: string) {
     return this.service.getClientBills(clientId, ctx.tenantId);
   }
 
   @Get('clients/:clientId/tracked-bills')
-  getTrackedBills(
-    @CurrentTenant() ctx: TenantContext,
-    @Param('clientId') clientId: string,
-  ) {
+  getTrackedBills(@CurrentTenant() ctx: TenantContext, @Param('clientId') clientId: string) {
     return this.service.getTrackedBills(clientId, ctx.tenantId);
   }
 
   @Get('clients/:clientId/health-score')
-  getHealthScore(
-    @CurrentTenant() ctx: TenantContext,
-    @Param('clientId') clientId: string,
-  ) {
+  getHealthScore(@CurrentTenant() ctx: TenantContext, @Param('clientId') clientId: string) {
     return this.service.computeEngagementHealth(clientId, ctx.tenantId);
   }
 
   @Get('clients/:clientId/setup-completeness')
-  getSetupCompleteness(
-    @CurrentTenant() ctx: TenantContext,
-    @Param('clientId') clientId: string,
-  ) {
+  getSetupCompleteness(@CurrentTenant() ctx: TenantContext, @Param('clientId') clientId: string) {
     return this.service.getSetupCompleteness(clientId, ctx.tenantId);
   }
 
@@ -312,10 +281,7 @@ export class IntelligenceController {
   }
 
   @Get('portfolio-alerts')
-  getPortfolioAlerts(
-    @CurrentTenant() ctx: TenantContext,
-    @Query('limit') limit?: string,
-  ) {
+  getPortfolioAlerts(@CurrentTenant() ctx: TenantContext, @Query('limit') limit?: string) {
     const parsed = limit != null ? Number.parseInt(limit, 10) : undefined;
     return this.service.getPortfolioAlerts(ctx.tenantId, ctx.userId, {
       limit: Number.isFinite(parsed) ? parsed : undefined,
@@ -343,10 +309,7 @@ export class IntelligenceController {
   }
 
   @Post('mappings/:clientId/resolve')
-  resolveMapping(
-    @CurrentTenant() ctx: TenantContext,
-    @Param('clientId') clientId: string,
-  ) {
+  resolveMapping(@CurrentTenant() ctx: TenantContext, @Param('clientId') clientId: string) {
     return this.service.resolveMapping(clientId, ctx.tenantId);
   }
 
@@ -385,10 +348,7 @@ export class IntelligenceController {
   // Read-only "what's driving this client's matching" signal: the union'd issue
   // codes (+ names), how many LDA registrants back them, and capability richness.
   @Get('clients/:clientId/issue-code-signal')
-  getIssueCodeSignal(
-    @CurrentTenant() ctx: TenantContext,
-    @Param('clientId') clientId: string,
-  ) {
+  getIssueCodeSignal(@CurrentTenant() ctx: TenantContext, @Param('clientId') clientId: string) {
     return this.service.getIssueCodeSignal(clientId, ctx.tenantId);
   }
 
@@ -431,10 +391,7 @@ export class IntelligenceController {
   // ── Feature 4.2: Knowledge Graph ───────────────────────────────────────
 
   @Get('clients/:clientId/knowledge-graph')
-  getKnowledgeGraph(
-    @CurrentTenant() ctx: TenantContext,
-    @Param('clientId') clientId: string,
-  ) {
+  getKnowledgeGraph(@CurrentTenant() ctx: TenantContext, @Param('clientId') clientId: string) {
     return this.service.getKnowledgeGraph(clientId, ctx.tenantId);
   }
 
@@ -452,56 +409,46 @@ export class IntelligenceController {
   // ── AI Insight Pipeline (Phase 4) ──────────────────────────────────────
 
   @Post('insights/generate')
-  generateInsights(
-    @CurrentTenant() ctx: TenantContext,
-    @Body() body: GenerateInsightsDto,
-  ) {
+  generateInsights(@CurrentTenant() ctx: TenantContext, @Body() body: GenerateInsightsDto) {
     switch (body.scope) {
       case 'market':
-        return this.insights.generateMarketInsights();
+        // GAI-01: insights are now tenant-scoped — stamp the caller's tenant so
+        // a standard user's generation lands in their own tenant, never a global
+        // feed readable by every tenant.
+        return this.insights.generateMarketInsights(ctx.tenantId);
       case 'client':
         return this.insights.generateClientBriefing(body.clientId!, ctx.tenantId);
       case 'changes':
-        return this.insights.generateFromChanges(body.changes ?? []);
+        return this.insights.generateFromChanges(body.changes ?? [], ctx.tenantId);
     }
   }
 
   @Get('insights')
-  getInsights(@Query() q: InsightsQueryDto) {
-    return this.insights.getInsights(q.category, q.severity, q.limit);
+  getInsights(@CurrentTenant() ctx: TenantContext, @Query() q: InsightsQueryDto) {
+    // GAI-01: scope the read to the caller's tenant (RLS returns own-tenant +
+    // reviewed public rows only), replacing the former cross-tenant global read.
+    return this.insights.getInsights(ctx.tenantId, q.category, q.severity, q.limit);
   }
 
   @Get('briefing/:clientId')
-  getBriefing(
-    @CurrentTenant() ctx: TenantContext,
-    @Param('clientId') clientId: string,
-  ) {
+  getBriefing(@CurrentTenant() ctx: TenantContext, @Param('clientId') clientId: string) {
     return this.insights.generateClientBriefing(clientId, ctx.tenantId);
   }
 
   // ─── Phase 2 cross-references ─────────────────────────────────────────
 
   @Get('clients/:clientId/district-nexus')
-  getDistrictNexus(
-    @CurrentTenant() ctx: TenantContext,
-    @Param('clientId') clientId: string,
-  ) {
+  getDistrictNexus(@CurrentTenant() ctx: TenantContext, @Param('clientId') clientId: string) {
     return this.service.getDistrictNexus(clientId, ctx.tenantId);
   }
 
   @Get('clients/:clientId/district-nexus-spend')
-  getDistrictNexusSpend(
-    @CurrentTenant() ctx: TenantContext,
-    @Param('clientId') clientId: string,
-  ) {
+  getDistrictNexusSpend(@CurrentTenant() ctx: TenantContext, @Param('clientId') clientId: string) {
     return this.service.getDistrictNexusSpend(clientId, ctx.tenantId);
   }
 
   @Get('clients/:clientId/bill-regulation-links')
-  getBillRegulationLinks(
-    @CurrentTenant() ctx: TenantContext,
-    @Param('clientId') clientId: string,
-  ) {
+  getBillRegulationLinks(@CurrentTenant() ctx: TenantContext, @Param('clientId') clientId: string) {
     return this.service.getBillRegulationLinks(clientId, ctx.tenantId);
   }
 
@@ -516,10 +463,7 @@ export class IntelligenceController {
   // ─── Manual bill tracking (user-pinned legislation per client) ─────────
 
   @Get('clients/:clientId/tracked-bills/manual')
-  listManualTrackedBills(
-    @CurrentTenant() ctx: TenantContext,
-    @Param('clientId') clientId: string,
-  ) {
+  listManualTrackedBills(@CurrentTenant() ctx: TenantContext, @Param('clientId') clientId: string) {
     return this.service.listTrackedBills(clientId, ctx.tenantId);
   }
 
@@ -575,10 +519,7 @@ export class IntelligenceController {
   // ─── Client briefs (saved notes; surface in the Outreach wizard context) ───
 
   @Get('clients/:clientId/briefs')
-  listClientBriefs(
-    @CurrentTenant() ctx: TenantContext,
-    @Param('clientId') clientId: string,
-  ) {
+  listClientBriefs(@CurrentTenant() ctx: TenantContext, @Param('clientId') clientId: string) {
     return this.service.listClientBriefs(ctx.tenantId, clientId);
   }
 

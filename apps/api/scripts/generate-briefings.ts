@@ -73,15 +73,24 @@ async function callOpenAi(prompt: string): Promise<string> {
       model: MODEL,
       instructions: SYSTEM_PROMPT,
       input: prompt,
-      text: { format: { type: 'json_schema', name: 'daily_briefing', strict: true, schema: DAILY_BRIEFING_SCHEMA } },
+      text: {
+        format: {
+          type: 'json_schema',
+          name: 'daily_briefing',
+          strict: true,
+          schema: DAILY_BRIEFING_SCHEMA,
+        },
+      },
     }),
   });
-  const json = await res.json() as Record<string, unknown>;
+  const json = (await res.json()) as Record<string, unknown>;
   if (!res.ok) throw new Error(`OpenAI error: ${JSON.stringify(json).slice(0, 200)}`);
 
   const output = Array.isArray(json.output) ? json.output : [];
   for (const item of output) {
-    const content = Array.isArray((item as Record<string, unknown>).content) ? (item as Record<string, unknown>).content as unknown[] : [];
+    const content = Array.isArray((item as Record<string, unknown>).content)
+      ? ((item as Record<string, unknown>).content as unknown[])
+      : [];
     for (const part of content) {
       const text = (part as Record<string, unknown>).text;
       if (typeof text === 'string') return text;
@@ -117,68 +126,100 @@ async function generateBriefingForClient(
   }
 
   // Gather context in parallel
-  const [ldaMatch, recentChanges, upcomingHearings, commentDeadlines, capabilities] = await Promise.all([
-    prisma.$queryRaw<Array<{ name: string; total_filings: number; total_spending: number | null; issue_codes: string[]; similarity: number }>>`
+  const [ldaMatch, recentChanges, upcomingHearings, commentDeadlines, capabilities] =
+    await Promise.all([
+      prisma.$queryRaw<
+        Array<{
+          name: string;
+          total_filings: number;
+          total_spending: number | null;
+          issue_codes: string[];
+          similarity: number;
+        }>
+      >`
       SELECT name, total_filings, total_spending::float, COALESCE(issue_codes, '{}') as issue_codes,
              similarity(name, ${clientName}) as similarity
       FROM lda_client WHERE similarity(name, ${clientName}) > 0.3
       ORDER BY similarity DESC LIMIT 1
     `.catch(() => []),
-    prisma.$queryRawUnsafe<Array<{ title: string; source: string; change_type: string; description: string }>>(
-      `SELECT title, source, change_type, description FROM intelligence_change
+      prisma
+        .$queryRawUnsafe<
+          Array<{ title: string; source: string; change_type: string; description: string }>
+        >(
+          `SELECT title, source, change_type, description FROM intelligence_change
        WHERE detected_at >= $1
          AND (related_client_ids @> ARRAY[$2]::uuid[]
               ${issueCodes.length ? `OR related_issues && ARRAY[${issueCodes.map((_, i) => `$${i + 3}`).join(',')}]::text[]` : ''})
        ORDER BY detected_at DESC LIMIT 20`,
-      yesterday,
-      clientId,
-      ...issueCodes,
-    ).catch(() => []),
-    prisma.$queryRaw<Array<{ committee_name: string; title: string; date: Date; chamber: string }>>`
+          yesterday,
+          clientId,
+          ...issueCodes,
+        )
+        .catch(() => []),
+      prisma.$queryRaw<
+        Array<{ committee_name: string; title: string; date: Date; chamber: string }>
+      >`
       SELECT committee_name, title, date, chamber FROM committee_hearing
       WHERE date >= ${now} AND date <= ${fourteenDaysOut}
       ORDER BY date ASC LIMIT 10
     `.catch(() => []),
-    prisma.$queryRaw<Array<{ title: string; type: string; comment_end_date: Date; agency_names: string[] }>>`
+      prisma.$queryRaw<
+        Array<{ title: string; type: string; comment_end_date: Date; agency_names: string[] }>
+      >`
       SELECT title, type, comment_end_date, agency_names FROM federal_register_document
       WHERE type IN ('PROPOSED_RULE', 'RULE')
         AND comment_end_date > ${now} AND comment_end_date <= ${fourteenDaysOut}
       ORDER BY comment_end_date ASC LIMIT 10
     `.catch(() => []),
-    prisma.$queryRaw<Array<{ name: string; sector: string | null }>>`
+      prisma.$queryRaw<Array<{ name: string; sector: string | null }>>`
       SELECT name, sector FROM client_capabilities
       WHERE client_id = ${clientId}::uuid AND tenant_id = ${tenantId}::uuid
     `.catch(() => []),
-  ]);
+    ]);
 
   const contextParts: string[] = [];
   contextParts.push(`CLIENT: ${clientName}`);
-  if (capabilities.length) contextParts.push(`CAPABILITIES: ${capabilities.map((c) => c.name).join(', ')}`);
+  if (capabilities.length)
+    contextParts.push(`CAPABILITIES: ${capabilities.map((c) => c.name).join(', ')}`);
 
   if (ldaMatch.length) {
     const m = ldaMatch[0]!;
-    contextParts.push(`LDA MATCH: ${m.name} (${Math.round(m.similarity * 100)}% confidence), filings: ${m.total_filings}, spending: ${m.total_spending ? `$${(m.total_spending / 1e6).toFixed(1)}M` : 'unknown'}`);
+    contextParts.push(
+      `LDA MATCH: ${m.name} (${Math.round(m.similarity * 100)}% confidence), filings: ${m.total_filings}, spending: ${m.total_spending ? `$${(m.total_spending / 1e6).toFixed(1)}M` : 'unknown'}`,
+    );
     if (m.issue_codes.length) contextParts.push(`  Issue areas: ${m.issue_codes.join(', ')}`);
   }
 
   if (recentChanges.length) {
-    contextParts.push(`WHAT'S NEW (24h):\n  ${recentChanges.map((c) => `[${c.source}/${c.change_type}] ${c.title}`).join('\n  ')}`);
+    contextParts.push(
+      `WHAT'S NEW (24h):\n  ${recentChanges.map((c) => `[${c.source}/${c.change_type}] ${c.title}`).join('\n  ')}`,
+    );
   } else {
     contextParts.push(`WHAT'S NEW (24h): No significant changes detected`);
   }
 
   if (upcomingHearings.length) {
-    contextParts.push(`UPCOMING HEARINGS (14d):\n  ${upcomingHearings.map((h) => {
-      const daysOut = Math.ceil((new Date(h.date).getTime() - now.getTime()) / 86400000);
-      return `${h.committee_name}, "${String(h.title).slice(0, 70)}" (${daysOut}d, ${h.chamber})`;
-    }).join('\n  ')}`);
+    contextParts.push(
+      `UPCOMING HEARINGS (14d):\n  ${upcomingHearings
+        .map((h) => {
+          const daysOut = Math.ceil((new Date(h.date).getTime() - now.getTime()) / 86400000);
+          return `${h.committee_name}, "${String(h.title).slice(0, 70)}" (${daysOut}d, ${h.chamber})`;
+        })
+        .join('\n  ')}`,
+    );
   }
 
   if (commentDeadlines.length) {
-    contextParts.push(`COMMENT DEADLINES (14d):\n  ${commentDeadlines.map((r) => {
-      const daysLeft = Math.ceil((new Date(r.comment_end_date).getTime() - now.getTime()) / 86400000);
-      return `"${String(r.title).slice(0, 70)}" (${r.type}, ${daysLeft}d left, ${(r.agency_names as string[]).slice(0, 2).join('/')})`;
-    }).join('\n  ')}`);
+    contextParts.push(
+      `COMMENT DEADLINES (14d):\n  ${commentDeadlines
+        .map((r) => {
+          const daysLeft = Math.ceil(
+            (new Date(r.comment_end_date).getTime() - now.getTime()) / 86400000,
+          );
+          return `"${String(r.title).slice(0, 70)}" (${r.type}, ${daysLeft}d left, ${(r.agency_names as string[]).slice(0, 2).join('/')})`;
+        })
+        .join('\n  ')}`,
+    );
   }
 
   const prompt = `Generate a structured daily intelligence briefing for the client below.
@@ -224,20 +265,32 @@ async function main() {
       const t0 = Date.now();
       try {
         const text = await generateBriefingForClient(client.id, client.name, tenant.id);
-        if (!text) { errors++; continue; }
+        if (!text) {
+          errors++;
+          continue;
+        }
 
         let parsed: Record<string, unknown>;
         try {
           parsed = JSON.parse(text) as Record<string, unknown>;
         } catch {
           const match = text.match(/\{[\s\S]*\}/);
-          if (!match) { errors++; continue; }
+          if (!match) {
+            errors++;
+            continue;
+          }
           parsed = JSON.parse(match[0]) as Record<string, unknown>;
         }
 
         const expiresAt = new Date(Date.now() + 24 * 60 * 60 * 1000); // 24h
         await prisma.intelligenceInsight.create({
           data: {
+            // GAI-01: a per-client briefing is tenant-derived — scope it to the
+            // tenant/client so it is never served cross-tenant. (Previously this
+            // row carried NO tenant marker at all, which is why the migration
+            // soft-expires historical 'briefing' rows rather than backfilling.)
+            tenantId: tenant.id,
+            clientId: client.id,
             category: 'briefing',
             title: `Daily briefing: ${client.name}`,
             body: typeof parsed.heroSummary === 'string' ? parsed.heroSummary : '',
@@ -256,9 +309,14 @@ async function main() {
     }
   }
 
-  console.log(`[generate-briefings] done. Generated ${generated} briefings, ${errors} errors. Elapsed: ${Date.now() - startedAt.getTime()}ms`);
+  console.log(
+    `[generate-briefings] done. Generated ${generated} briefings, ${errors} errors. Elapsed: ${Date.now() - startedAt.getTime()}ms`,
+  );
 }
 
 main()
-  .catch((e) => { console.error(e); process.exit(1); })
+  .catch((e) => {
+    console.error(e);
+    process.exit(1);
+  })
   .finally(() => prisma.$disconnect());
