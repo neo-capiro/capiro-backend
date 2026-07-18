@@ -21,12 +21,19 @@ export class ApiToolExecutorRepo implements ToolExecutor {
   private readonly logger = new Logger(ApiToolExecutorRepo.name);
   private readonly apiBaseUrl: string;
   private readonly timeoutMs: number;
+  // Shared backend secret (same one apps/api's /internal/* routes use). Sent as
+  // x-internal-service-secret so apps/api's ToolServiceSecretGuard can prove THIS
+  // tool call came from the orchestrator (post compliance-gate), not a rogue user
+  // bearer hitting /api/clio/tools/:name directly. Inert until wired on the
+  // orchestrator task def; harmless to send when apps/api isn't yet enforcing.
+  private readonly serviceSecret?: string;
 
   constructor(config: ConfigService) {
     this.apiBaseUrl = (
       config.get<string>('MERIV2_API_BASE_URL') ?? 'http://localhost:3000'
     ).replace(/\/+$/, '');
     this.timeoutMs = Number.parseInt(config.get<string>('MERIV2_TOOL_TIMEOUT_MS') ?? '60000', 10);
+    this.serviceSecret = config.get<string>('INTERNAL_SERVICE_SECRET') || undefined;
   }
 
   async execute(
@@ -48,6 +55,10 @@ export class ApiToolExecutorRepo implements ToolExecutor {
           authorization: `Bearer ${creds.bearerToken}`,
           'content-type': 'application/json',
           accept: 'application/json',
+          // Service identity: proves this call came from the orchestrator (after
+          // its compliance gate), so apps/api can reject a rogue user hitting the
+          // raw tool endpoint directly. See ToolServiceSecretGuard.
+          ...(this.serviceSecret ? { 'x-internal-service-secret': this.serviceSecret } : {}),
           // Impersonation passthrough (2.5): re-send the effective-tenant header
           // so apps/api scopes THIS delegated tool call to the impersonated
           // tenant (it re-validates the caller's impersonation rights).
