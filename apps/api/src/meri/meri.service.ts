@@ -2634,7 +2634,14 @@ export class MeriService {
           : [];
         if (results.length) {
           contextParts.push('\nCapiro research context:');
-          contextParts.push(summarizeJsonForPrompt(results, policy.researchChars));
+          // Research sources can include externally-sourced uploaded documents —
+          // neutralize injection markers before they enter the context block.
+          contextParts.push(
+            sanitizeToolResultText(
+              summarizeJsonForPrompt(results, policy.researchChars),
+              policy.researchChars,
+            ),
+          );
           sources.push({
             tool: 'search_research_sources',
             count: results.length,
@@ -2737,7 +2744,12 @@ export class MeriService {
           : [];
         if (webRows.length) {
           contextParts.push('\nPublic web signals (supplemental to Capiro data):');
-          contextParts.push(summarizeJsonForPrompt(webRows, policy.tier === 'deep' ? 2800 : 1400));
+          // Arbitrary external web content — neutralize injection markers before it
+          // enters the context block (a hostile page must not carry instructions).
+          const webBudget = policy.tier === 'deep' ? 2800 : 1400;
+          contextParts.push(
+            sanitizeToolResultText(summarizeJsonForPrompt(webRows, webBudget), webBudget),
+          );
           sources.push({
             tool: 'search_public_web',
             count: webRows.length,
