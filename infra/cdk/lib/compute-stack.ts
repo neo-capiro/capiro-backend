@@ -464,6 +464,14 @@ export class ComputeStack extends cdk.Stack {
       MERIV2_ENABLED: 'true',
       MERIV2_ORCHESTRATOR_URL: `https://${cfg.appHost}`,
       MERI_AUDITOR_MODE: 'enforce',
+      // Learned-memory recall backing (Phase 1 SSOT cutover). Applied OUT-OF-BAND
+      // on the live api task def and verified 2026-07-18; the code default is
+      // 'clio' (config.schema.ts), so a cdk deploy WITHOUT this would silently
+      // revert union→clio and re-expose the OpenAI-embeddings recall SPOF. 'union'
+      // = clio ∪ the Titan-embedded memory_items projection (a provable superset;
+      // projection failures fail-open to clio) — non-degrading and resilient to an
+      // OpenAI outage. Per-tenant opt-out: clioFeatureFlags.meriMemoryRecallSource.
+      MEMORY_RECALL_SOURCE: 'union',
     };
 
     // Identity-policy-only grant on the API task role for the assets bucket.
