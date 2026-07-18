@@ -179,4 +179,23 @@ describe('LlmCompletionService — request shaping', () => {
     expect(body.instructions).toBe('SYS');
     expect(body.max_output_tokens).toBe(1600);
   });
+
+  // Zero-trust Wave 1 (RC8): temperature reaches the Anthropic wire; omitted
+  // when unset; NEVER sent to OpenAI (reasoning models 400 on it).
+  test('temperature passes through on Anthropic, omitted when unset, never sent to OpenAI', async () => {
+    const a = makeService([okAnthropic]);
+    await a.svc.complete({ ...anthReq, temperature: 0.2 });
+    expect(a.calls[0]!.body.temperature).toBe(0.2);
+
+    const b = makeService([okAnthropic]);
+    await b.svc.complete(anthReq);
+    expect(b.calls[0]!.body.temperature).toBeUndefined();
+
+    const c = makeService([
+      () =>
+        Promise.resolve(res(200, { output_text: '{"subject":"s","body":"b","contextNote":""}' })),
+    ]);
+    await c.svc.complete({ ...anthReq, provider: 'openai', temperature: 0.2 });
+    expect(c.calls[0]!.body.temperature).toBeUndefined();
+  });
 });

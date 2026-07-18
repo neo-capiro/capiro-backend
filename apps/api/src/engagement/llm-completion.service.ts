@@ -53,6 +53,16 @@ export interface LlmCompletionRequest {
   timeoutMs?: number;
   /** Transient-retry attempts after the first try (429/5xx/network). Default 2. */
   maxRetries?: number;
+  /**
+   * Sampling temperature (zero-trust Wave 1, RC8): figure-heavy synthesis passes
+   * 0.2 to cut sampling variance on exactly the numeric paths that produced the
+   * scramble errors. Applied on the ANTHROPIC branch only — OpenAI reasoning
+   * models (o-series) reject a non-default temperature with a 400, and a BYOK
+   * tenant's model id is not knowable here; Anthropic accepts 0–1 whenever no
+   * thinking block is sent (this client never sends one). Undefined ⇒ provider
+   * default (unchanged behavior).
+   */
+  temperature?: number;
 }
 
 export interface LlmCompletionResult {
@@ -225,6 +235,8 @@ export class LlmCompletionService {
       body: {
         model: req.model,
         max_tokens: req.maxTokens ?? 2400,
+        // See LlmCompletionRequest.temperature — Anthropic-only by design.
+        ...(req.temperature !== undefined ? { temperature: req.temperature } : {}),
         system,
         messages: [{ role: 'user', content }],
       },

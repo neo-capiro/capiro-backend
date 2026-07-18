@@ -451,6 +451,9 @@ export class DistrictBriefService {
         body: JSON.stringify({
           model,
           max_tokens: 2000,
+          // Zero-trust Wave 1 (RC8): district briefs restate districts/figures —
+          // low temperature cuts the numeric-scramble sampling variance.
+          temperature: 0.2,
           system: SYSTEM_PROMPT,
           messages: [{ role: 'user', content: prompt }],
         }),
