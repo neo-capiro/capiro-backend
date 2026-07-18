@@ -1,14 +1,19 @@
-import { Body, Controller, Delete, Get, Param, Post, Put, UseGuards } from '@nestjs/common';
+import { Body, Controller, Delete, Get, Param, Post, Put, Query, UseGuards } from '@nestjs/common';
 import {
   IsBoolean,
   IsEmail,
   IsIn,
+  IsISO8601,
+  IsInt,
   IsOptional,
   IsString,
   IsUrl,
   Length,
+  Max,
+  Min,
   MinLength,
 } from 'class-validator';
+import { Type } from 'class-transformer';
 import type { ContactInfoInput } from './tenant-admin.service.js';
 import type { TenantContext } from '@capiro/shared';
 import { Roles } from '../auth/roles.decorator.js';
@@ -111,6 +116,42 @@ class UpdateBrandingDto {
   logoContentType?: string;
 }
 
+/** Customer audit-trail query (#3d). No actorUserId filter — a Capiro-internal
+ *  staff UUID is not a meaningful/safe customer filter. Query params arrive as
+ *  strings, so page/limit are coerced with @Type. */
+class AuditLogQueryDto {
+  @IsOptional()
+  @IsString()
+  @Length(1, 200)
+  action?: string;
+
+  @IsOptional()
+  @IsString()
+  @Length(1, 200)
+  entityType?: string;
+
+  @IsOptional()
+  @IsISO8601()
+  from?: string;
+
+  @IsOptional()
+  @IsISO8601()
+  to?: string;
+
+  @IsOptional()
+  @Type(() => Number)
+  @IsInt()
+  @Min(1)
+  page?: number;
+
+  @IsOptional()
+  @Type(() => Number)
+  @IsInt()
+  @Min(1)
+  @Max(100)
+  limit?: number;
+}
+
 /**
  * Per-tenant admin endpoints. Caller must be `user_admin` (own tenant) or
  * `capiro_admin` (any tenant). The TenantContext is set by middleware; all
@@ -125,6 +166,13 @@ export class TenantAdminController {
   @Get('team')
   team(@CurrentTenant() ctx: TenantContext) {
     return this.service.listTeam(ctx);
+  }
+
+  /** #3d — a tenant's own admins read its audit trail (incl. privileged Capiro
+   *  actions now routed to this tenant). user_admin only; redacted projection. */
+  @Get('audit-logs')
+  auditLogs(@CurrentTenant() ctx: TenantContext, @Query() query: AuditLogQueryDto) {
+    return this.service.listAuditLogs(ctx, query);
   }
 
   @Get('team/invitations')

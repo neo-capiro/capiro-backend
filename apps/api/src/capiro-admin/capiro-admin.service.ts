@@ -249,7 +249,7 @@ export class CapiroAdminService {
    * This is a destructive, capiro_admin-only operation intended for cleaning up
    * test/abandoned tenants. There is no soft-delete recovery.
    */
-  async deleteTenant(tenantId: string) {
+  async deleteTenant(ctx: TenantContext, tenantId: string) {
     const tenant = await this.prisma.withSystem(async (tx) =>
       tx.tenant.findUnique({ where: { id: tenantId } }),
     );
@@ -287,6 +287,22 @@ export class CapiroAdminService {
     // history. See migration 20260718000000_audit_append_only.
     await this.prisma.withSystem(async (tx) => {
       await tx.$executeRaw`SELECT set_config('app.allow_audit_purge', 'on', true)`;
+      // Audit the deletion under CAPIRO's OWN tenant (ctx.tenantId), NOT the
+      // affected tenant: audit_logs.tenant_id FK ON DELETE CASCADE would purge a
+      // row routed to the tenant being deleted. Recording the affected tenant in
+      // the entity fields keeps a durable "Capiro deleted tenant X" trail.
+      // Written inside this transaction so the row lands iff the delete commits.
+      await tx.auditLog.create({
+        data: {
+          tenantId: ctx.tenantId,
+          actorUserId: ctx.userId,
+          actorRole: 'capiro_admin',
+          action: 'tenant.delete',
+          entityType: 'tenant',
+          entityId: tenantId,
+          before: { slug: tenant.slug, name: tenant.name, clerkOrgId: tenant.clerkOrgId },
+        },
+      });
       await tx.complianceCheck.deleteMany({ where: { tenantId } });
       await tx.tenant.delete({ where: { id: tenantId } });
     });
@@ -432,7 +448,7 @@ export class CapiroAdminService {
     return { invitationId: inv.id };
   }
 
-  async removeUserFromTenant(tenantId: string, userId: string) {
+  async removeUserFromTenant(actorUserId: string, tenantId: string, userId: string) {
     return this.prisma.withSystem(async (tx) => {
       const membership = await tx.tenantMembership.findUnique({
         where: { tenantId_userId: { tenantId, userId } },
@@ -443,6 +459,20 @@ export class CapiroAdminService {
       await tx.tenantMembership.update({
         where: { id: membership.id },
         data: { status: 'removed' },
+      });
+      // Audit routed to the AFFECTED tenant (tenantId) so its own admins can see
+      // that Capiro removed one of their users (SOC2 transparency). before =
+      // the pre-removal membership snapshot.
+      await tx.auditLog.create({
+        data: {
+          tenantId,
+          actorUserId,
+          actorRole: 'capiro_admin',
+          action: 'tenant.user.remove',
+          entityType: 'tenant_membership',
+          entityId: membership.id,
+          before: { userId, email: membership.user.email, status: membership.status },
+        },
       });
       if (membership.tenant.clerkOrgId) {
         await this.clerk.backend.organizations
@@ -502,11 +532,33 @@ export class CapiroAdminService {
 
   async endImpersonation(actorUserId: string) {
     return this.prisma.withSystem(async (tx) => {
-      const updated = await tx.impersonationSession.updateMany({
+      // Capture the sessions being closed BEFORE ending them so each can be
+      // audited to its own affected tenant (updateMany doesn't return the rows).
+      const sessions = await tx.impersonationSession.findMany({
         where: { actorUserId, endedAt: null },
-        data: { endedAt: new Date(), endedReason: 'manual' },
+        select: { id: true, tenantId: true },
       });
-      return { ended: updated.count };
+      const endedAt = new Date();
+      await tx.impersonationSession.updateMany({
+        where: { actorUserId, endedAt: null },
+        data: { endedAt, endedReason: 'manual' },
+      });
+      // One audit row per ended session, routed to that session's affected tenant
+      // (mirrors the impersonation.start row startImpersonation already writes).
+      for (const s of sessions) {
+        await tx.auditLog.create({
+          data: {
+            tenantId: s.tenantId,
+            actorUserId,
+            actorRole: 'capiro_admin',
+            action: 'impersonation.end',
+            entityType: 'impersonation_session',
+            entityId: s.id,
+            after: { endedReason: 'manual', endedAt: endedAt.toISOString() },
+          },
+        });
+      }
+      return { ended: sessions.length };
     });
   }
 

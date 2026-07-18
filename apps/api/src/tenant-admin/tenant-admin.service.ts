@@ -44,6 +44,27 @@ export interface ContactInfoInput {
   permanentStateZip?: string;
 }
 
+export interface TenantAuditLogQuery {
+  action?: string;
+  entityType?: string;
+  from?: string;
+  to?: string;
+  page?: number;
+  limit?: number;
+}
+
+/** Customer-safe audit fields — excludes internal detail (actorUserId is a
+ *  Capiro-internal staff UUID; ip/userAgent/requestId are request metadata;
+ *  before/after JSON can carry internal snapshots). */
+const TENANT_AUDIT_SELECT = {
+  id: true,
+  action: true,
+  actorRole: true,
+  entityType: true,
+  entityId: true,
+  occurredAt: true,
+} as const;
+
 /**
  * Per-tenant admin operations. Caller must be `user_admin` (own tenant) or
  * `capiro_admin` (any tenant). Methods receive the TenantContext so RLS
@@ -59,6 +80,50 @@ export class TenantAdminService {
     private readonly provisioning: ClerkProvisioningService,
     private readonly config: ConfigService<AppConfig, true>,
   ) {}
+
+  /**
+   * Customer-facing audit trail — blocker #3(d). A tenant's own user_admin reads
+   * its audit_logs, INCLUDING the privileged Capiro-staff actions now routed to
+   * this tenant (impersonation start/end, user removal — see CapiroAdminService).
+   * RLS-scoped via withTenant AND an explicit where.tenantId (defense-in-depth,
+   * matches listTeam), and returns a redacted projection — never the raw row
+   * (which carries the Capiro-internal actorUserId, request metadata, and
+   * before/after JSON). Read-only; the append-only trigger only gates writes.
+   */
+  async listAuditLogs(ctx: TenantContext, query: TenantAuditLogQuery) {
+    const { page, limit } = this.normalizePage(query.page, query.limit);
+    const where: Prisma.AuditLogWhereInput = { tenantId: ctx.tenantId };
+    if (query.action) where.action = query.action;
+    if (query.entityType) where.entityType = query.entityType;
+    const occurredAt = this.dateRange(query.from, query.to);
+    if (occurredAt) where.occurredAt = occurredAt;
+    return this.prisma.withTenant(ctx.tenantId, async (tx) => {
+      const [data, total] = await Promise.all([
+        tx.auditLog.findMany({
+          where,
+          select: TENANT_AUDIT_SELECT,
+          orderBy: { occurredAt: 'desc' },
+          skip: (page - 1) * limit,
+          take: limit,
+        }),
+        tx.auditLog.count({ where }),
+      ]);
+      return { data, total, page, limit };
+    });
+  }
+
+  private normalizePage(page?: number, limit?: number): { page: number; limit: number } {
+    const safePage = Number.isFinite(page) && (page ?? 0) >= 1 ? Math.floor(page!) : 1;
+    const requested = Number.isFinite(limit) && (limit ?? 0) >= 1 ? Math.floor(limit!) : 50;
+    return { page: safePage, limit: Math.min(requested, 100) };
+  }
+
+  private dateRange(from?: string, to?: string): Prisma.DateTimeFilter | undefined {
+    const filter: Prisma.DateTimeFilter = {};
+    if (from) filter.gte = new Date(from);
+    if (to) filter.lte = new Date(to);
+    return Object.keys(filter).length ? filter : undefined;
+  }
 
   async listTeam(ctx: TenantContext) {
     return this.prisma.withTenant(ctx.tenantId, async (tx) => {
