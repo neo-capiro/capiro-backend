@@ -1,4 +1,9 @@
-import { invertOpenstatesCommittees, fetchAllPages, type OpenstatesCommittee } from './sync-openstates';
+import {
+  invertOpenstatesCommittees,
+  fetchAllPages,
+  resolveSyncStates,
+  type OpenstatesCommittee,
+} from './sync-openstates';
 
 // Fixtures mirror the live OpenStates v3 `/committees?include=memberships`
 // shape (verified 2026-07-11 against openapi.json: Committee has no `chamber`
@@ -182,4 +187,23 @@ describe('fetchAllPages', () => {
     const result = await fetchAllPages<{ id: string }>('/committees', { jurisdiction: 'va' });
     expect(result).toEqual({ rows: [], complete: true });
   }, 15000);
+});
+
+describe('resolveSyncStates', () => {
+  const ALL = ['al', 'ak', 'az', 'ar', 'ca', 'co', 'ct', 'de', 'dc', 'fl', 'ga', 'hi'];
+
+  it('uses the OPENSTATES_STATES override verbatim (lowercased) when set', () => {
+    expect(resolveSyncStates('FL,CA, TX ', ALL, 18, 10)).toEqual(['fl', 'ca', 'tx']);
+  });
+
+  it('ignores empty entries in the override', () => {
+    expect(resolveSyncStates('FL,,CA,', ALL, 1, 10)).toEqual(['fl', 'ca']);
+  });
+
+  it('falls back to the day-of-month batch when the override is unset/empty', () => {
+    // day 18 -> 18 % ceil(12/10)=2 -> batch 0 -> first 10.
+    expect(resolveSyncStates(undefined, ALL, 18, 10)).toEqual(ALL.slice(0, 10));
+    // day 1 -> 1 % 2 -> batch 1 -> remainder.
+    expect(resolveSyncStates('', ALL, 1, 10)).toEqual(ALL.slice(10, 20));
+  });
 });

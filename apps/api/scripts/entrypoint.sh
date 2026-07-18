@@ -140,6 +140,11 @@ case "${1:-serve}" in
     echo "Running diag-state-legislator-detail (read-only: dump a state legislator's full profile) $*"
     exec ./node_modules/.bin/tsx scripts/diag-state-legislator-detail.ts "$@"
     ;;
+  diag-state-crosswalk-coverage)
+    shift
+    echo "Running diag-state-crosswalk-coverage (read-only: per-state legislator roster vs legiscan-linked counts) $*"
+    exec ./node_modules/.bin/tsx scripts/diag-state-crosswalk-coverage.ts "$@"
+    ;;
   set-tenant-flag)
     shift
     echo "Running set-tenant-flag (flip a per-tenant clioFeatureFlags rollout flag) $*"
