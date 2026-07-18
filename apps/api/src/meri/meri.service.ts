@@ -23,6 +23,7 @@ import {
 } from '@capiro/meriv2-core';
 import type { AppConfig } from '../config/config.schema.js';
 import { PrismaService } from '../prisma/prisma.service.js';
+import { pickMemoryRecallSource, type MemoryRecallSource } from './memory-recall-source.helpers.js';
 import { MeriToolsService } from './meri-tools.service.js';
 import { AiCredentialResolverService } from '../engagement/ai-credential-resolver.service.js';
 import { MemoryIngestService } from '../memory/memory-ingest.service.js';
@@ -3396,8 +3397,10 @@ export class MeriService {
     // 'clio' is byte-identical to the pre-cutover behavior and is the default.
     // 'union'/'projection' are gated flips validated by diag-memory-recall-parity;
     // both are fail-safe — a projection failure degrades to clio, so recall can
-    // never drop below the 'clio' baseline.
-    const mode = this.config.get('MEMORY_RECALL_SOURCE', { infer: true });
+    // never drop below the 'clio' baseline. Resolved per-tenant (a settings_jsonb
+    // override wins over the global env) so 'union' can be canaried on one tenant
+    // before a fleet-wide flip.
+    const mode = await this.resolveMemoryRecallSource(tenantId);
 
     if (mode === 'projection') {
       // Prefer the memory_items projection; on an INFRA error (not merely an
@@ -3428,6 +3431,28 @@ export class MeriService {
     }
 
     return this.clioRecall(tenantId, userId, query, clientId);
+  }
+
+  /**
+   * Effective memory-recall source for a tenant: the global MEMORY_RECALL_SOURCE
+   * env, with a per-tenant `settings_jsonb.clioFeatureFlags.meriMemoryRecallSource`
+   * override winning when present (mirrors resolveTenantAuditorMode). Lets 'union'
+   * (the OpenAI-recall-SPOF-resilient superset path) be canaried on one tenant —
+   * e.g. capiro-internal — before a fleet-wide MEMORY_RECALL_SOURCE flip. One
+   * tenant.settings read per recall; fail-safe: any read error falls back to env.
+   */
+  private async resolveMemoryRecallSource(tenantId: string): Promise<MemoryRecallSource> {
+    const envMode = (this.config.get('MEMORY_RECALL_SOURCE', { infer: true }) ??
+      'clio') as MemoryRecallSource;
+    try {
+      const tenant = await this.prisma.withTenant(tenantId, (tx) =>
+        tx.tenant.findFirst({ where: { id: tenantId }, select: { settings: true } }),
+      );
+      return pickMemoryRecallSource(envMode, tenant?.settings ?? null);
+    } catch {
+      // fail-safe: a settings-read error must never break recall — use env.
+      return envMode;
+    }
   }
 
   /** Pre-cutover recall path — clio_memory semantic (OpenAI) then keyword
