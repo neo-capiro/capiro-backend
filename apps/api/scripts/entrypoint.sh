@@ -109,6 +109,10 @@ case "${1:-serve}" in
     echo "Running diag-alert-coverage (read-only alert-precondition coverage report)"
     exec ./node_modules/.bin/tsx scripts/diag-alert-coverage.ts
     ;;
+  diag-audit-append-only)
+    echo "Running diag-audit-append-only (SAFE: pg_temp rehearsal of the audit append-only trigger; touches no real data)"
+    exec ./node_modules/.bin/tsx scripts/diag-audit-append-only.ts
+    ;;
   diag-blueprint-qa)
     shift
     echo "Running diag-blueprint-qa (read-only: Blueprint v2 backend verification) $*"

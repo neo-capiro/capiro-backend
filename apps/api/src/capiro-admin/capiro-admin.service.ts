@@ -267,17 +267,22 @@ export class CapiroAdminService {
     // invitations on Clerk's side). Best-effort — if Clerk is already missing
     // the org, proceed with the local delete so we don't strand the DB row.
     if (tenant.clerkOrgId) {
-      await this.clerk.backend.organizations
-        .deleteOrganization(tenant.clerkOrgId)
-        .catch((err) => {
-          this.logger.warn(
-            `Clerk deleteOrganization(${tenant.clerkOrgId}) failed: ${(err as Error).message}`,
-          );
-        });
+      await this.clerk.backend.organizations.deleteOrganization(tenant.clerkOrgId).catch((err) => {
+        this.logger.warn(
+          `Clerk deleteOrganization(${tenant.clerkOrgId}) failed: ${(err as Error).message}`,
+        );
+      });
     }
 
-    // Step 3: cascade-delete the tenant and all tenant-scoped rows.
+    // Step 3: cascade-delete the tenant and all tenant-scoped rows. The audit
+    // tables (audit_logs, compliance_check) are append-only via a BEFORE trigger
+    // that blocks all DELETEs EXCEPT under app.allow_audit_purge — so we set it
+    // transaction-locally here (is_local=true) to let the tenant_id FK ON DELETE
+    // CASCADE actually purge this tenant's audit rows. Nothing outside this
+    // GDPR-destruction path sets that flag, so ordinary sessions still cannot
+    // erase history. See migration 20260718000000_audit_append_only.
     await this.prisma.withSystem(async (tx) => {
+      await tx.$executeRaw`SELECT set_config('app.allow_audit_purge', 'on', true)`;
       await tx.tenant.delete({ where: { id: tenantId } });
     });
 
@@ -361,7 +366,9 @@ export class CapiroAdminService {
         requestingUserId,
       })
       .catch((err) => {
-        this.logger.warn(`Unable to revoke stale invitation ${stale.id}: ${(err as Error).message}`);
+        this.logger.warn(
+          `Unable to revoke stale invitation ${stale.id}: ${(err as Error).message}`,
+        );
       });
   }
 
@@ -413,8 +420,9 @@ export class CapiroAdminService {
       // bounce. Override with an explicit `redirectUrl` arg when needed.
       redirectUrl:
         redirectUrl ??
-        (this.config.get('APP_SIGN_IN_URL', { infer: true }) ?? 'https://app.capiro.ai/sign-in')
-          .replace(/\/sign-in\/?$/, '/sign-up'),
+        (
+          this.config.get('APP_SIGN_IN_URL', { infer: true }) ?? 'https://app.capiro.ai/sign-in'
+        ).replace(/\/sign-in\/?$/, '/sign-up'),
     });
     return { invitationId: inv.id };
   }
@@ -582,7 +590,10 @@ export class CapiroAdminService {
         openCount: personCandOpen,
         oldestOpenAt: this.toIso(personCandOldest._min.createdAt),
       },
-      personnelMerge: { openCount: mergeOpen, oldestOpenAt: this.toIso(mergeOldest._min.createdAt) },
+      personnelMerge: {
+        openCount: mergeOpen,
+        oldestOpenAt: this.toIso(mergeOldest._min.createdAt),
+      },
       provisionPeLink: {
         candidateCount: provisionCand,
         oldestOpenAt: this.toIso(provisionOldest._min.createdAt),
@@ -632,14 +643,26 @@ export class CapiroAdminService {
 
     if (query.type === 'program_element') {
       const [data, total] = await Promise.all([
-        this.prisma.programElementQuarantine.findMany({ where, select, orderBy, skip, take: limit }),
+        this.prisma.programElementQuarantine.findMany({
+          where,
+          select,
+          orderBy,
+          skip,
+          take: limit,
+        }),
         this.prisma.programElementQuarantine.count({ where }),
       ]);
       return { data, total, page, limit };
     }
 
     const [data, total] = await Promise.all([
-      this.prisma.acquisitionPersonnelQuarantine.findMany({ where, select, orderBy, skip, take: limit }),
+      this.prisma.acquisitionPersonnelQuarantine.findMany({
+        where,
+        select,
+        orderBy,
+        skip,
+        take: limit,
+      }),
       this.prisma.acquisitionPersonnelQuarantine.count({ where }),
     ]);
     return { data, total, page, limit };
