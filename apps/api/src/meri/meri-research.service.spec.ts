@@ -316,6 +316,65 @@ describe('MeriResearchService — forced synthesis', () => {
     expect(events.some((e) => e.type === 'phase' && e.phase === 'synthesize')).toBe(true);
   });
 
+  it('strips unresolved FORM B citation tokens from the delivered report, keeping valid ones', async () => {
+    // FORM B tool names are lowercase snake_case (grammar [a-z][a-z0-9_]*), so use
+    // a lowercase-named tool here. search_bills IS called this turn and its result
+    // serializes "hr1234", so [S:search_bills:hr1234] resolves → kept. The other
+    // two don't resolve (record_id absent / tool never called) → stripped.
+    const toolsLc = {
+      anthropicToolSchemas: () => [
+        {
+          name: 'search_bills',
+          description: 'x',
+          input_schema: { type: 'object', properties: {} },
+        },
+      ],
+      isConcurrencySafe: () => true,
+      execute: async () => ({ items: [{ id: 'hr1234' }], count: 1 }),
+    } as unknown as ConstructorParameters<typeof MeriResearchService>[2];
+    const REPORT =
+      '# Findings\n\nShipbuilding accounts diverge this cycle [S:search_bills:hr1234]. ' +
+      'A fabricated markup figure [S:search_bills:nonesuch] and a ghost-tool cite ' +
+      '[S:ghost_tool:42] must not survive.';
+    fetchMock = jest.fn(async (_url: string, init?: RequestInit) => {
+      captureBody(init);
+      const body = JSON.parse(String(init?.body ?? '{}'));
+      if (body.tools) return okResponse(sseBody(toolOnlyRound('search_bills')));
+      return okResponse(sseBody(proseRound(REPORT)));
+    }) as unknown as jest.Mock;
+    global.fetch = fetchMock as unknown as typeof fetch;
+
+    const svc = new MeriResearchService(
+      makePrisma(),
+      makeConfig(),
+      toolsLc,
+      makeAiCredentials(),
+      makeReviews(),
+    );
+    const events: Array<Record<string, unknown>> = [];
+    const sse = {
+      write: (data: string) => {
+        const line = data.split('\n').find((l) => l.startsWith('data: '));
+        if (line) {
+          try {
+            events.push(JSON.parse(line.slice(6)));
+          } catch {
+            /* ignore */
+          }
+        }
+      },
+    };
+
+    await svc.streamResearch(CTX, 'sess-1', sse);
+
+    const reportEvt = events.find((e) => e.type === 'report') ?? {};
+    const body = String(reportEvt.body ?? '');
+    expect(body).toContain('Findings'); // report was produced
+    expect(body).toContain('[S:search_bills:hr1234]'); // resolves → preserved verbatim
+    expect(body).not.toContain('nonesuch'); // record_id absent from the tool result → stripped
+    expect(body).not.toContain('ghost_tool'); // tool never called this turn → stripped
+  });
+
   it('forces synthesis (never sources-only) when a gather round times out', async () => {
     // Regression guard for the production "only the research sources" bug: a
     // gather round exceeded CLIO_RESEARCH_TIMEOUT_MS, the AbortController fired,

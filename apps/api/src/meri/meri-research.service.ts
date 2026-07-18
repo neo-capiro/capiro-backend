@@ -2,7 +2,8 @@ import { BadRequestException, Injectable, Logger, NotFoundException } from '@nes
 import { ConfigService } from '@nestjs/config';
 import { Prisma } from '@prisma/client';
 import type { TenantContext } from '@capiro/shared';
-import { runAuditor, type LedgerEntry } from '@capiro/meriv2-core';
+import { validateFormBCitations } from '@capiro/shared';
+import { runAuditor, ledgerToToolResultMap, type LedgerEntry } from '@capiro/meriv2-core';
 import { resolveTenantAuditorMode } from '../common/auditor-mode.js';
 import type { AppConfig } from '../config/config.schema.js';
 import { PrismaService } from '../prisma/prisma.service.js';
@@ -644,6 +645,27 @@ export class MeriResearchService {
       const msg = err instanceof Error ? err.message : 'Research failed';
       this.logger.warn(`Research run failed: ${msg}`);
       sse.write(sseEvent({ type: 'error', message: msg }));
+    }
+
+    // Strip unresolved FORM B [S:tool:record_id] tokens from the report BEFORE
+    // the auditor + persist. The research prompt instructs a FORM-B token on
+    // every material claim, so a token whose tool wasn't called this turn (or
+    // whose record_id isn't verbatim in that tool's result) lends false
+    // authority to a likely-fabricated sentence. Mirrors the chat loops (which
+    // strip persisted history) and workspace doc-gen (which strips delivered
+    // HTML) — research was the one delivered surface still carrying them. Runs
+    // before runAuditor below so a stray unresolved token no longer counts
+    // toward a D1 hold; the underlying claim, if fabricated, is still caught by
+    // the content checks (D2/D4/D7/D11).
+    if (reportBody.trim().length > 0) {
+      const formB = validateFormBCitations(reportBody, ledgerToToolResultMap(ledgerEntries));
+      if (formB.invalid.length) {
+        this.logger.warn(
+          `[meri-research] stripped ${formB.invalid.length} unresolved FORM B citation(s) ` +
+            `from the report: ${formB.invalid.join(', ')}`,
+        );
+        reportBody = formB.sanitizedText;
+      }
     }
 
     // Wave-2 post-hoc auditor on the RESEARCH surface — SHADOW by default
