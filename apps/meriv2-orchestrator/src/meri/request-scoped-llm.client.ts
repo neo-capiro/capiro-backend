@@ -47,6 +47,73 @@ export interface ToolLoopResponse {
 
 const ANTHROPIC_URL = 'https://api.anthropic.com/v1/messages';
 
+/** Shared params for one tool-use round (completeWithTools + its per-attempt helper). */
+export interface CompleteWithToolsParams {
+  system: string;
+  messages: Array<{ role: 'user' | 'assistant'; content: unknown }>;
+  tools: AnthropicToolSchema[];
+  maxTokens: number;
+  timeoutMs?: number;
+  toolChoice?: 'auto' | 'none';
+  signal?: AbortSignal;
+  onTextDelta?: (delta: string) => void;
+}
+
+/** A resolved provider credential for one attempt. */
+interface ResolvedCred {
+  apiKey: string;
+  model: string;
+  usedTenantKey: boolean;
+  provider: 'anthropic' | 'openai';
+}
+
+/** Optional global other-provider fallback (activated only when configured). */
+export interface GlobalLlmFallback {
+  apiKey: string;
+  model: string;
+  provider: 'anthropic' | 'openai';
+}
+
+const MAX_LLM_RETRIES = 2; // same-provider retries on transient failures (keep small — chat latency)
+
+const delay = (ms: number) => new Promise<void>((resolve) => setTimeout(resolve, ms));
+const retryBackoffMs = (attempt: number) =>
+  Math.min(2000, 250 * 2 ** attempt) + Math.floor(Math.random() * 100);
+
+/**
+ * Classify an LLM call failure for resilience (pure — unit-tested).
+ * - retryable: transient, safe to retry the SAME provider/key (overload / 5xx / network).
+ * - failover: worth trying the OTHER provider (transient errors AND hard
+ *   credit/quota exhaustion — the 2026-07-15 fleet-wide outage: a 400 "credit
+ *   balance too low" is NOT retryable on the same key but IS the trigger to fail
+ *   over to the fallback provider).
+ * A bare AbortError is deliberately NOT classified (our timeout vs. a user
+ * client-disconnect are indistinguishable here; never retry a user disconnect).
+ */
+export function classifyLlmError(err: unknown): { retryable: boolean; failover: boolean } {
+  const msg = err instanceof Error ? err.message : String(err);
+  const statusMatch = msg.match(/HTTP (\d{3})/);
+  const status = statusMatch ? Number(statusMatch[1]) : undefined;
+  if (
+    /credit balance|insufficient[_ ]?(quota|funds|credit)|billing|exceeded your current quota|payment required/i.test(
+      msg,
+    ) ||
+    status === 402
+  ) {
+    return { retryable: false, failover: true };
+  }
+  if (status === 429 || status === 529) return { retryable: true, failover: true };
+  if (status !== undefined && status >= 500) return { retryable: true, failover: true };
+  if (
+    /ETIMEDOUT|ECONNRESET|ECONNREFUSED|EAI_AGAIN|socket hang up|network|fetch failed|terminated|timed out/i.test(
+      msg,
+    )
+  ) {
+    return { retryable: true, failover: true };
+  }
+  return { retryable: false, failover: false };
+}
+
 export class RequestScopedLlmClient implements LlmClient {
   private readonly logger = new Logger(RequestScopedLlmClient.name);
 
@@ -54,6 +121,11 @@ export class RequestScopedLlmClient implements LlmClient {
     private readonly globalApiKey: string | undefined,
     private readonly defaultModel: string,
     private readonly timeoutMs?: number,
+    // Global other-provider fallback: used ONLY when the primary attempt ran on
+    // the GLOBAL key (never a tenant BYOK key) and failed with a failover-worthy
+    // error. Inert when undefined (today's behavior), so this is dark until a
+    // global OpenAI key is wired to the orchestrator.
+    private readonly globalFallback?: GlobalLlmFallback,
   ) {}
 
   /**
@@ -128,38 +200,82 @@ export class RequestScopedLlmClient implements LlmClient {
   }
 
   /**
-   * One round of a tool-use loop: send system + messages + tool schemas and
-   * return the model's content blocks + stop_reason (the caller drives the loop,
-   * executing tool_use blocks through the registry and feeding tool_result back).
-   * Uses the same request-scoped credential resolution as completeJson, so the
-   * whole in-editor loop runs on the tenant's key. Throws on a non-2xx/timeout;
-   * the caller degrades gracefully.
+   * One round of a tool-use loop, with same-provider retry + BYOK-safe provider
+   * failover. Resolves the primary credential and attempts it; on a transient
+   * failure (overload / 5xx / network) it retries the same provider with backoff,
+   * and on a failover-worthy failure (incl. credit/quota exhaustion — the
+   * 2026-07-15 fleet-wide outage) it fails over to the global other-provider
+   * fallback — but ONLY when the primary ran on the GLOBAL key (a tenant BYOK key
+   * is never crossed to Capiro's global account) and a fallback is configured
+   * (inert otherwise, so today's single-provider behavior is unchanged).
+   *
+   * Streaming-safe: once a text delta has been emitted, no retry/failover can
+   * fire (it would double-emit); all retryable/failover errors surface at the
+   * HTTP-status stage before streaming. Throws when all attempts fail; the caller
+   * degrades gracefully.
    */
-  async completeWithTools(params: {
-    system: string;
-    messages: Array<{ role: 'user' | 'assistant'; content: unknown }>;
-    tools: AnthropicToolSchema[];
-    maxTokens: number;
-    timeoutMs?: number;
-    /**
-     * Force the model's use of tools this call. Omit (default) = Anthropic
-     * `auto`. `'none'` sends `tool_choice: {type:'none'}` so the model MUST
-     * answer in text — the mechanism the loop uses to force a final synthesis
-     * turn when the tool-round budget is spent (never end on a bare tool call).
-     */
-    toolChoice?: 'auto' | 'none';
-    /** Optional external cancellation (streaming client disconnect) — composed with the timeout. */
-    signal?: AbortSignal;
-    /**
-     * When provided (Anthropic provider only), stream the response and invoke
-     * this for each text delta as it arrives — the chat surface types
-     * token-by-token instead of in per-round bursts (2.4). The full content
-     * blocks + usage + stopReason are still returned at the end. Ignored for the
-     * OpenAI adapter (non-streaming), so `streamed` is false there.
-     */
-    onTextDelta?: (delta: string) => void;
-  }): Promise<ToolLoopResponse> {
-    const { apiKey, model, usedTenantKey, provider } = this.resolve();
+  async completeWithTools(params: CompleteWithToolsParams): Promise<ToolLoopResponse> {
+    const primary = this.resolve();
+    const attempts: ResolvedCred[] = [primary];
+    if (
+      !primary.usedTenantKey &&
+      this.globalFallback &&
+      this.globalFallback.provider !== primary.provider
+    ) {
+      attempts.push({
+        apiKey: this.globalFallback.apiKey,
+        model: this.globalFallback.model,
+        usedTenantKey: false,
+        provider: this.globalFallback.provider,
+      });
+    }
+
+    let emitted = false;
+    const attemptParams: CompleteWithToolsParams = params.onTextDelta
+      ? {
+          ...params,
+          onTextDelta: (delta: string) => {
+            emitted = true;
+            params.onTextDelta!(delta);
+          },
+        }
+      : params;
+
+    let lastErr: unknown;
+    for (let i = 0; i < attempts.length; i += 1) {
+      const cred = attempts[i]!;
+      const hasFallback = i < attempts.length - 1;
+      for (let retry = 0; ; retry += 1) {
+        try {
+          return await this.attempt(cred, attemptParams);
+        } catch (err) {
+          lastErr = err;
+          if (emitted) throw err; // mid-stream — recovery would double-emit
+          const { retryable, failover } = classifyLlmError(err);
+          if (retryable && retry < MAX_LLM_RETRIES) {
+            await delay(retryBackoffMs(retry));
+            continue;
+          }
+          if (hasFallback && failover) {
+            this.logger.warn(
+              `LLM ${cred.provider} failed (${(err as Error)?.message?.slice(0, 120)}); ` +
+                `failing over to global ${attempts[i + 1]!.provider}`,
+            );
+            break; // stop retrying this provider; the outer loop tries the fallback
+          }
+          throw err;
+        }
+      }
+    }
+    throw lastErr;
+  }
+
+  /** One provider attempt (no retry/failover) — the resolved-provider wire logic. */
+  private async attempt(
+    cred: ResolvedCred,
+    params: CompleteWithToolsParams,
+  ): Promise<ToolLoopResponse> {
+    const { apiKey, model, usedTenantKey, provider } = cred;
     // Phase 4 LLM-gateway convergence (4.5.1): the loop's wire shape stays
     // Anthropic (content blocks, tool_use/tool_result, stop_reason); for an
     // OpenAI credential the OpenAiLlmClient adapter translates both directions,

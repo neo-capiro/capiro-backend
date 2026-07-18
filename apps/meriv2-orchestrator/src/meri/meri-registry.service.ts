@@ -127,11 +127,22 @@ export class MeriRegistryService {
     // `claude-sonnet-4-5`; bumped to the current sonnet the rest of the app uses
     // (CLIO_MODEL) so an unset ANTHROPIC_MODEL no longer resolves a retired id.
     const model = config.get<string>('ANTHROPIC_MODEL') ?? 'claude-sonnet-4-6';
-    const llm = new RequestScopedLlmClient(apiKey, model);
+    // LLM resilience: when a GLOBAL OpenAI key is wired, it is the BYOK-safe
+    // failover for global-key traffic if Anthropic is credit-exhausted/overloaded
+    // (the 2026-07-15 fleet-wide Meri outage). Inert until OPENAI_API_KEY is set
+    // on the orchestrator — so this is dark on merge and activates on the key
+    // wire. A tenant's own BYOK key is never failed over to this global account.
+    const openaiKey = config.get<string>('OPENAI_API_KEY');
+    const openaiModel = config.get<string>('OPENAI_MODEL') ?? 'gpt-4.1';
+    const globalFallback = openaiKey
+      ? { apiKey: openaiKey, model: openaiModel, provider: 'openai' as const }
+      : undefined;
+    const llm = new RequestScopedLlmClient(apiKey, model, undefined, globalFallback);
     registry.register(createTagLivePolicyMentionsTool(llm));
     registry.register(createGeneratePostHearingSummaryTool(llm));
     this.logger.log(
-      `Hearing reasoning tools registered (defaultModel=${model}, globalKeyFallback=${Boolean(apiKey)})`,
+      `Hearing reasoning tools registered (defaultModel=${model}, globalKeyFallback=${Boolean(apiKey)}, ` +
+        `providerFailover=${globalFallback ? `global→${globalFallback.provider}` : 'off (no OPENAI_API_KEY)'})`,
     );
 
     this.registry = registry;
