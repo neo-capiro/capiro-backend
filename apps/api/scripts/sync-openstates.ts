@@ -49,9 +49,37 @@ const PEOPLE_MAX_PAGES = 25;
 const BATCH_SIZE = 10; // process 10 states per run to avoid rate limits
 // All states + DC
 const ALL_STATES = ALL_US_STATE_CODES.map((s) => s.toLowerCase());
-// Pick batch based on day of month to cycle through all states
-const batchIndex = new Date().getDate() % Math.ceil(ALL_STATES.length / BATCH_SIZE);
-const PRIORITY_STATES = ALL_STATES.slice(batchIndex * BATCH_SIZE, (batchIndex + 1) * BATCH_SIZE);
+
+/**
+ * Which states this run processes. Default: a day-of-month-rotated batch of
+ * BATCH_SIZE states, so the weekly cron cycles all 51 over ~6 weeks. Override
+ * with the `OPENSTATES_STATES` env (CSV, e.g. "FL,CA,TX,NY,IL,MA,GA,VA") to
+ * process EXACTLY those states in one run — the only way to fully (re)populate a
+ * specific set of rosters on demand instead of waiting for their batch day.
+ * Mirrors sync-legiscan-masterlist's LEGISCAN_STATES convention. Pure +
+ * exported for unit testing.
+ */
+export function resolveSyncStates(
+  overrideCsv: string | undefined,
+  allStates: string[],
+  dayOfMonth: number,
+  batchSize: number,
+): string[] {
+  const override = (overrideCsv ?? '')
+    .split(',')
+    .map((s) => s.trim().toLowerCase())
+    .filter(Boolean);
+  if (override.length) return override;
+  const batchIndex = dayOfMonth % Math.ceil(allStates.length / batchSize);
+  return allStates.slice(batchIndex * batchSize, (batchIndex + 1) * batchSize);
+}
+
+const PRIORITY_STATES = resolveSyncStates(
+  process.env.OPENSTATES_STATES,
+  ALL_STATES,
+  new Date().getDate(),
+  BATCH_SIZE,
+);
 
 async function fetchOS<T>(path: string, params: Record<string, string> = {}): Promise<T | null> {
   const url = new URL(`${OS_BASE}${path}`);
@@ -188,7 +216,7 @@ async function main() {
   const t0 = Date.now();
   console.log('[openstates-sync] starting');
   console.log(
-    `[openstates-sync] batch ${batchIndex}: ${PRIORITY_STATES.map((s) => s.toUpperCase()).join(', ')}`,
+    `[openstates-sync] states (${process.env.OPENSTATES_STATES ? 'OPENSTATES_STATES override' : 'day-of-month batch'}): ${PRIORITY_STATES.map((s) => s.toUpperCase()).join(', ')}`,
   );
   if (!OS_KEY) throw new Error('OPENSTATES_API_KEY env var is required');
 
