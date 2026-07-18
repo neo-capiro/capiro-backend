@@ -275,14 +275,19 @@ export class CapiroAdminService {
     }
 
     // Step 3: cascade-delete the tenant and all tenant-scoped rows. The audit
-    // tables (audit_logs, compliance_check) are append-only via a BEFORE trigger
-    // that blocks all DELETEs EXCEPT under app.allow_audit_purge — so we set it
-    // transaction-locally here (is_local=true) to let the tenant_id FK ON DELETE
-    // CASCADE actually purge this tenant's audit rows. Nothing outside this
-    // GDPR-destruction path sets that flag, so ordinary sessions still cannot
-    // erase history. See migration 20260718000000_audit_append_only.
+    // tables are append-only via a BEFORE trigger that blocks all DELETEs EXCEPT
+    // under app.allow_audit_purge — so we set it transaction-locally here
+    // (is_local=true). audit_logs then purges via its tenant_id FK ON DELETE
+    // CASCADE when the tenant row goes; compliance_check has NO FK to tenants
+    // (tenant_id column only — see 20260630120000_meriv2_claim_evidence_compliance),
+    // so the cascade never reaches it. We delete it EXPLICITLY in the same
+    // GUC-scoped transaction (else the tenant's compliance-gate history is left
+    // orphaned after deletion — a DPA/GDPR data-destruction gap). Nothing outside
+    // this destruction path sets the flag, so ordinary sessions still cannot erase
+    // history. See migration 20260718000000_audit_append_only.
     await this.prisma.withSystem(async (tx) => {
       await tx.$executeRaw`SELECT set_config('app.allow_audit_purge', 'on', true)`;
+      await tx.complianceCheck.deleteMany({ where: { tenantId } });
       await tx.tenant.delete({ where: { id: tenantId } });
     });
 
