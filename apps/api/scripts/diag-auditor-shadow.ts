@@ -71,7 +71,35 @@ async function main(): Promise<void> {
        LIMIT 20`,
     );
 
-    return { bySurfaceMode, heldChecks, sampleHolds };
+    // 4. Per-tenant concentration: is enforce+holds fleet-wide or one tenant?
+    const perTenant = await tx.$queryRawUnsafe(
+      `SELECT tenant_id, mode,
+              COUNT(*)::int                                AS total,
+              COUNT(*) FILTER (WHERE decision='hold')::int AS holds
+       FROM meri_audit_ledger
+       GROUP BY tenant_id, mode
+       ORDER BY holds DESC, total DESC`,
+    );
+
+    // 5. WHY the held turns were held — the auditor's reasoning (detail) + a SHORT
+    //    span, so we can tell a real hold (identity/number error) from a
+    //    false-positive lexicon fire. NOTE: `span` is a snippet of the HELD (never
+    //    delivered) output — kept short; admin-only diagnostic.
+    const holdFindings = await tx.$queryRawUnsafe(
+      `SELECT l.surface, l.created_at,
+              f->>'check'          AS check,
+              f->>'severity'       AS severity,
+              left(f->>'span', 80) AS span,
+              left(f->>'detail', 240) AS detail
+       FROM meri_audit_ledger l,
+            LATERAL jsonb_array_elements(l.findings_jsonb) f
+       WHERE l.decision = 'hold'
+         AND l.surface IN ('outreach','research','memo','alert')
+       ORDER BY l.created_at DESC
+       LIMIT 25`,
+    );
+
+    return { bySurfaceMode, heldChecks, sampleHolds, perTenant, holdFindings };
   });
 
   console.log('AUDITOR_SHADOW ' + JSON.stringify(data, jsonSafe));
@@ -101,7 +129,32 @@ async function main(): Promise<void> {
     `\nEnforce-candidate surfaces (outreach/research/memo) worst hold-rate: ${worst}% ` +
       `— low (<~5%) + high-severity holds => enforce is likely safe; high => tune the lexicon first.`,
   );
-  if (rows.length === 0) console.log('NOTE: meri_audit_ledger is EMPTY — no shadow verdicts persisted yet.');
+  if (rows.length === 0) console.log('NOTE: meri_audit_ledger is EMPTY — no verdicts persisted yet.');
+
+  console.log('\n=== per-tenant (mode × holds) — is enforce/holds concentrated? ===');
+  for (const t of data.perTenant as Array<{
+    tenant_id: string;
+    mode: string;
+    total: number;
+    holds: number;
+  }>) {
+    console.log(`  ${t.tenant_id}  ${t.mode.padEnd(8)}  n=${String(t.total).padStart(5)}  holds=${t.holds}`);
+  }
+
+  console.log('\n=== WHY held (outreach/research/memo/alert): check/severity — detail ===');
+  for (const h of data.holdFindings as Array<{
+    surface: string;
+    check: string;
+    severity: string;
+    detail: string | null;
+    span: string | null;
+    created_at: string;
+  }>) {
+    console.log(
+      `  [${h.surface}] ${h.check}/${h.severity}: ${h.detail ?? ''}` +
+        (h.span ? `  | span="${h.span}"` : ''),
+    );
+  }
 }
 
 main()
