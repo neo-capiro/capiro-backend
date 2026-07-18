@@ -33,6 +33,7 @@ import type { TenantContext } from '@capiro/shared';
 import { Roles } from '../auth/roles.decorator.js';
 import { RolesGuard } from '../auth/roles.guard.js';
 import { CurrentTenant } from '../tenant/current-tenant.decorator.js';
+import { ToolServiceSecretGuard } from './tool-service-secret.guard.js';
 import { MeriService } from './meri.service.js';
 import { MeriToolsService } from './meri-tools.service.js';
 import { MeriResearchService } from './meri-research.service.js';
@@ -310,7 +311,13 @@ export class MeriController {
     return { schemas: this.tools.anthropicToolSchemas() };
   }
 
+  // ToolServiceSecretGuard: this endpoint runs write tools with no compliance
+  // gate (that gate is in the orchestrator), so it must only be reachable by the
+  // orchestrator (post-gate), never a rogue user bearer. Requires the internal
+  // service secret in addition to the user JWT. Observe-by-default; enforced when
+  // MERI_TOOLS_REQUIRE_SERVICE_SECRET=true. @CurrentTenant (user JWT) unchanged.
   @Post('tools/:name')
+  @UseGuards(ToolServiceSecretGuard)
   executeTool(
     @CurrentTenant() ctx: TenantContext,
     @Param('name') name: string,

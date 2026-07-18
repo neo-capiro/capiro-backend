@@ -340,6 +340,18 @@ export const configSchema = z.object({
   // (fail-closed), not fail-open.
   INTERNAL_SERVICE_SECRET: z.string().optional(),
 
+  // Gate-bypass hardening for POST /api/clio/tools/:name: when 'true', that
+  // endpoint (which executes WRITE tools with no compliance gate — the gate
+  // lives in the MeriV2 orchestrator) requires the INTERNAL_SERVICE_SECRET
+  // header IN ADDITION to the user JWT, so only the orchestrator (post-gate),
+  // never a rogue user bearer, can reach it. Default false = OBSERVE (log a
+  // secret-less call, allow it) so the orchestrator can be confirmed sending the
+  // secret before enforcement. See ToolServiceSecretGuard.
+  MERI_TOOLS_REQUIRE_SERVICE_SECRET: z
+    .string()
+    .default('false')
+    .transform((v) => ['true', '1', 'yes', 'on'].includes(v.trim().toLowerCase())),
+
   // Recall.ai meeting-notetaker bot (docs/plans/meeting-notetaker-bot-plan.md).
   // RECALL_API_KEY authenticates outbound bot dispatch/poll calls (sent as the
   // `Authorization: Token <key>` scheme, NOT Bearer). RECALL_WEBHOOK_SECRET
