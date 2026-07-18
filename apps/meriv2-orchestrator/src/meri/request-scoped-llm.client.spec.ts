@@ -1,5 +1,9 @@
 import type { Request } from 'express';
-import { RequestScopedLlmClient, parseAnthropicToolStream } from './request-scoped-llm.client';
+import {
+  RequestScopedLlmClient,
+  parseAnthropicToolStream,
+  classifyLlmError,
+} from './request-scoped-llm.client';
 import { parseAiProviderHeader } from './meri.controller';
 import {
   RequestCredentialsStore,
@@ -296,6 +300,131 @@ describe('RequestScopedLlmClient.completeWithTools (tool-use round)', () => {
       ),
     ).rejects.toThrow(/vision.*not supported/i);
     expect(fetchSpy).not.toHaveBeenCalled(); // never reached the OpenAI API
+  });
+});
+
+describe('classifyLlmError (resilience classification)', () => {
+  it('credit/quota exhaustion → failover, NOT retry (the 2026-07-15 outage class)', () => {
+    expect(
+      classifyLlmError(
+        new Error('Anthropic HTTP 400: {"error":{"message":"credit balance too low"}}'),
+      ),
+    ).toEqual({ retryable: false, failover: true });
+    expect(classifyLlmError(new Error('insufficient_quota'))).toEqual({
+      retryable: false,
+      failover: true,
+    });
+    expect(classifyLlmError(new Error('OpenAI HTTP 402: payment required'))).toEqual({
+      retryable: false,
+      failover: true,
+    });
+  });
+  it('overload / 5xx → retryable + failover', () => {
+    expect(classifyLlmError(new Error('Anthropic HTTP 529: overloaded'))).toEqual({
+      retryable: true,
+      failover: true,
+    });
+    expect(classifyLlmError(new Error('Anthropic HTTP 503'))).toEqual({
+      retryable: true,
+      failover: true,
+    });
+    expect(classifyLlmError(new Error('OpenAI HTTP 429'))).toEqual({
+      retryable: true,
+      failover: true,
+    });
+  });
+  it('network errors → retryable + failover', () => {
+    expect(classifyLlmError(new Error('fetch failed')).failover).toBe(true);
+    expect(classifyLlmError(new Error('read ECONNRESET')).retryable).toBe(true);
+  });
+  it('non-credit 4xx / unknown → neither (do not retry or failover)', () => {
+    expect(classifyLlmError(new Error('Anthropic HTTP 400: invalid request'))).toEqual({
+      retryable: false,
+      failover: false,
+    });
+    expect(classifyLlmError(new Error('boom'))).toEqual({ retryable: false, failover: false });
+  });
+});
+
+describe('RequestScopedLlmClient resilience (retry + BYOK-safe failover)', () => {
+  const tools = [
+    { name: 'search_congress_bills', description: 'x', input_schema: { type: 'object' } },
+  ];
+
+  it('retries the SAME provider on a transient overload and then succeeds', async () => {
+    let n = 0;
+    (global as unknown as { fetch: unknown }).fetch = jest.fn(async () => {
+      n += 1;
+      if (n === 1) return { ok: false, status: 529, text: async () => 'overloaded' };
+      return {
+        ok: true,
+        status: 200,
+        json: async () => ({ content: [{ type: 'text', text: 'ok' }], stop_reason: 'end_turn' }),
+      };
+    });
+    const client = new RequestScopedLlmClient('sk-global', 'claude-default');
+    const out = await client.completeWithTools({ system: 's', messages: [], tools, maxTokens: 10 });
+    expect(out.stopReason).toBe('end_turn');
+    expect(n).toBe(2); // one retry
+  });
+
+  it('fails a GLOBAL-key Anthropic credit error over to the global OpenAI fallback', async () => {
+    const urls: string[] = [];
+    (global as unknown as { fetch: unknown }).fetch = jest.fn(async (url: string) => {
+      urls.push(url);
+      if (url.includes('anthropic')) {
+        return { ok: false, status: 400, text: async () => 'credit balance too low' };
+      }
+      return {
+        ok: true,
+        status: 200,
+        json: async () => ({
+          choices: [{ message: { content: 'hi from openai' }, finish_reason: 'stop' }],
+          usage: { prompt_tokens: 1, completion_tokens: 1 },
+        }),
+      };
+    });
+    const client = new RequestScopedLlmClient('sk-global-anthropic', 'claude-default', undefined, {
+      apiKey: 'sk-global-openai',
+      model: 'gpt-x',
+      provider: 'openai',
+    });
+    const out = await client.completeWithTools({ system: 's', messages: [], tools, maxTokens: 10 });
+    expect(urls.some((u) => u.includes('anthropic'))).toBe(true);
+    expect(urls.some((u) => u.includes('openai'))).toBe(true);
+    expect(out.content).toEqual([{ type: 'text', text: 'hi from openai' }]);
+  });
+
+  it('does NOT fail a tenant BYOK key over to the global account (throws, never touches OpenAI)', async () => {
+    const urls: string[] = [];
+    (global as unknown as { fetch: unknown }).fetch = jest.fn(async (url: string) => {
+      urls.push(url);
+      return { ok: false, status: 400, text: async () => 'credit balance too low' };
+    });
+    const client = new RequestScopedLlmClient('sk-global-anthropic', 'claude-default', undefined, {
+      apiKey: 'sk-global-openai',
+      model: 'gpt-x',
+      provider: 'openai',
+    });
+    await expect(
+      RequestCredentialsStore.run({ bearerToken: 't', aiProvider: tenantCred }, () =>
+        client.completeWithTools({ system: 's', messages: [], tools, maxTokens: 10 }),
+      ),
+    ).rejects.toThrow(/credit balance/);
+    expect(urls.every((u) => u.includes('anthropic'))).toBe(true); // never crossed to OpenAI
+  });
+
+  it('is inert without a configured fallback (single-provider behavior unchanged)', async () => {
+    (global as unknown as { fetch: unknown }).fetch = jest.fn(async () => ({
+      ok: false,
+      status: 400,
+      text: async () => 'credit balance too low',
+    }));
+    const client = new RequestScopedLlmClient('sk-global', 'claude-default'); // no fallback
+    await expect(
+      client.completeWithTools({ system: 's', messages: [], tools, maxTokens: 10 }),
+    ).rejects.toThrow(/credit balance/);
+    expect((global.fetch as jest.Mock).mock.calls).toHaveLength(1); // credit err not retried, no fallback
   });
 });
 
