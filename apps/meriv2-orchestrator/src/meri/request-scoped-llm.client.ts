@@ -92,7 +92,11 @@ const retryBackoffMs = (attempt: number) =>
  */
 export function classifyLlmError(err: unknown): { retryable: boolean; failover: boolean } {
   const msg = err instanceof Error ? err.message : String(err);
-  const statusMatch = msg.match(/HTTP (\d{3})/);
+  // Two wire-error shapes reach here: the completeWithTools raw-fetch loop's
+  // "Anthropic HTTP 529: ..." and the meriv2-core clients' (completeJson /
+  // completeWithSchema, via runWithFailover) "Anthropic/OpenAI request failed
+  // (529): ..." — match the status in either.
+  const statusMatch = msg.match(/HTTP (\d{3})/) ?? msg.match(/request failed \((\d{3})\)/);
   const status = statusMatch ? Number(statusMatch[1]) : undefined;
   if (
     /credit balance|insufficient[_ ]?(quota|funds|credit)|billing|exceeded your current quota|payment required/i.test(
@@ -166,16 +170,72 @@ export class RequestScopedLlmClient implements LlmClient {
     return provider === 'openai' ? new OpenAiLlmClient(opts) : new AnthropicLlmClient(opts);
   }
 
+  /**
+   * Run a single NON-streaming LLM op (completeJson / completeWithSchema) with
+   * the same same-provider retry + BYOK-safe provider failover as
+   * completeWithTools — so the reasoning-tool paths (tag_live_policy_mentions,
+   * generate_post_hearing_summary) survive a transient blip or a global-key
+   * provider outage instead of throwing straight to intel-api's deterministic
+   * fallback. No streaming here, so no mid-emit guard is needed. Failover fires
+   * only when the primary ran on the GLOBAL key (a tenant BYOK key is never
+   * crossed to Capiro's global account) and a fallback is configured — inert
+   * otherwise, exactly like completeWithTools.
+   */
+  private async runWithFailover<T>(
+    label: string,
+    op: (client: LlmClient) => Promise<T>,
+  ): Promise<T> {
+    const primary = this.resolve();
+    const attempts: ResolvedCred[] = [primary];
+    if (
+      !primary.usedTenantKey &&
+      this.globalFallback &&
+      this.globalFallback.provider !== primary.provider
+    ) {
+      attempts.push({
+        apiKey: this.globalFallback.apiKey,
+        model: this.globalFallback.model,
+        usedTenantKey: false,
+        provider: this.globalFallback.provider,
+      });
+    }
+    let lastErr: unknown;
+    for (let i = 0; i < attempts.length; i += 1) {
+      const cred = attempts[i]!;
+      const hasFallback = i < attempts.length - 1;
+      for (let retry = 0; ; retry += 1) {
+        try {
+          this.logger.debug(
+            `${label} (provider=${cred.provider}, model=${cred.model}, usedTenantKey=${cred.usedTenantKey})`,
+          );
+          return await op(this.buildClient(cred.apiKey, cred.model, cred.provider));
+        } catch (err) {
+          lastErr = err;
+          const { retryable, failover } = classifyLlmError(err);
+          if (retryable && retry < MAX_LLM_RETRIES) {
+            await delay(retryBackoffMs(retry));
+            continue;
+          }
+          if (hasFallback && failover) {
+            this.logger.warn(
+              `LLM ${cred.provider} ${label} failed (${(err as Error)?.message?.slice(0, 120)}); ` +
+                `failing over to global ${attempts[i + 1]!.provider}`,
+            );
+            break; // stop retrying this provider; the outer loop tries the fallback
+          }
+          throw err;
+        }
+      }
+    }
+    throw lastErr;
+  }
+
   async completeJson(params: {
     system: string;
     prompt: string;
     maxTokens?: number;
   }): Promise<Record<string, unknown>> {
-    const { apiKey, model, usedTenantKey, provider } = this.resolve();
-    this.logger.debug(
-      `LLM completion (provider=${provider}, model=${model}, usedTenantKey=${usedTenantKey})`,
-    );
-    return this.buildClient(apiKey, model, provider).completeJson(params);
+    return this.runWithFailover('LLM completion', (client) => client.completeJson(params));
   }
 
   /**
@@ -192,11 +252,9 @@ export class RequestScopedLlmClient implements LlmClient {
     inputSchema: Record<string, unknown>;
     maxTokens?: number;
   }): Promise<{ input: unknown; usage: { inputTokens: number; outputTokens: number } }> {
-    const { apiKey, model, usedTenantKey, provider } = this.resolve();
-    this.logger.debug(
-      `LLM schema completion (provider=${provider}, model=${model}, usedTenantKey=${usedTenantKey})`,
+    return this.runWithFailover('LLM schema completion', (client) =>
+      client.completeWithSchema(params),
     );
-    return this.buildClient(apiKey, model, provider).completeWithSchema(params);
   }
 
   /**
