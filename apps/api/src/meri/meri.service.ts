@@ -1514,6 +1514,28 @@ export class MeriService {
               },
             }),
           );
+          // Chat enforce-gate (non-blocking): chat can't withhold the already-
+          // streamed reply (ADR-2), so under enforce/annotate surface a VISIBLE
+          // caveat for HIGH/CRITICAL grounding findings instead of holding. The
+          // SSE stream is still open (the verification frame below uses it too).
+          if (auditorMode === 'enforce' || auditorMode === 'annotate') {
+            const severe = verdict.findings.filter(
+              (f) => f.severity === 'high' || f.severity === 'critical',
+            );
+            if (severe.length > 0) {
+              sse.write(
+                `data: ${JSON.stringify({
+                  type: 'grounding_caveat',
+                  topSeverity: verdict.topSeverity ?? null,
+                  findings: severe.map((f) => ({
+                    check: f.check,
+                    severity: f.severity,
+                    detail: f.detail,
+                  })),
+                })}\n\n`,
+              );
+            }
+          }
         }
       } catch (err) {
         this.logger.warn(
@@ -1906,6 +1928,15 @@ export class MeriService {
             target: event.target,
             ...(event.subject !== undefined ? { subject: event.subject } : {}),
             body: event.body,
+          });
+          return;
+        case 'grounding_caveat':
+          // Chat enforce-gate (non-blocking): forward the orchestrator's caveat
+          // for high/critical grounding findings — same frame the legacy loop emits.
+          emit({
+            type: 'grounding_caveat',
+            topSeverity: event.topSeverity,
+            findings: event.findings,
           });
           return;
         case 'done':

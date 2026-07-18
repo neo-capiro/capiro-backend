@@ -1,7 +1,7 @@
 import { render, screen, fireEvent } from '@testing-library/react';
 import { describe, expect, test, vi } from 'vitest';
 import { ChatMessage } from './ChatMessage.js';
-import type { MeriCitation, MeriVerification } from './chat-store.js';
+import type { GroundingCaveat, MeriCitation, MeriVerification } from './chat-store.js';
 
 const citations: MeriCitation[] = [
   {
@@ -95,6 +95,46 @@ const lowConfidenceVerification: MeriVerification = {
   unsupportedRatio: 2 / 3,
   lowConfidence: true,
 };
+
+describe('ChatMessage grounding caveat (chat enforce-gate)', () => {
+  const caveat: GroundingCaveat = {
+    topSeverity: 'high',
+    findings: [
+      {
+        check: 'D7',
+        severity: 'high',
+        detail: 'Code 0219AD0500 is a procurement line item, not a PE.',
+      },
+    ],
+  };
+
+  test('renders a visible caveat banner with the humanized finding for an assistant reply', () => {
+    render(
+      <ChatMessage
+        role="assistant"
+        content="The C-sUAS program (PE 0219AD0500)…"
+        groundingCaveat={caveat}
+      />,
+    );
+    expect(screen.getByText(/Meri flagged a possible grounding issue/i)).toBeTruthy();
+    expect(screen.getByText(/procurement line labeled a program element/i)).toBeTruthy();
+  });
+
+  test('does not render for a user message or when there are no findings', () => {
+    const { rerender, container } = render(
+      <ChatMessage role="user" content="hi" groundingCaveat={caveat} />,
+    );
+    expect(screen.queryByText(/Meri flagged/i)).toBeNull();
+    rerender(
+      <ChatMessage
+        role="assistant"
+        content="ok"
+        groundingCaveat={{ topSeverity: null, findings: [] }}
+      />,
+    );
+    expect(container.querySelector('.chat-msg-grounding-caveat')).toBeNull();
+  });
+});
 
 describe('ChatMessage verification gate', () => {
   test('shows a low-confidence banner and lists the unsupported claims', () => {

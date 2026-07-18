@@ -192,7 +192,31 @@ export class ChatAssistantService {
         );
       }
       const cleanedText = formB.sanitizedText;
-      void this.auditReplyShadow(ctx.tenantId, cleanedText, ledgerEntries);
+      // Post-hoc auditor. runAuditor is synchronous/deterministic, so we run it
+      // INLINE (negligible latency) to surface a non-blocking caveat under
+      // enforce/annotate — chat can't hold an already-streamed reply (ADR-2), so
+      // HIGH/CRITICAL grounding findings become a visible caveat frame instead.
+      // The DB persist stays fire-and-forget (no added latency).
+      const audit = this.auditChatReply(cleanedText, ledgerEntries);
+      if (audit && audit.verdict.findings.length > 0) {
+        if (audit.mode === 'enforce' || audit.mode === 'annotate') {
+          const severe = audit.verdict.findings.filter(
+            (f) => f.severity === 'high' || f.severity === 'critical',
+          );
+          if (severe.length > 0) {
+            emit({
+              type: 'grounding_caveat',
+              topSeverity: audit.verdict.topSeverity ?? null,
+              findings: severe.map((f) => ({
+                check: f.check,
+                severity: f.severity,
+                detail: f.detail,
+              })),
+            });
+          }
+        }
+        void this.persistChatAudit(ctx.tenantId, audit.mode, audit.verdict, cleanedText);
+      }
       // Page-write mode: apply the produced draft to the open page (one frame,
       // last draft wins — legacy parity). Only when the caller opted in and a
       // draft actually produced a body.
@@ -353,32 +377,21 @@ export class ChatAssistantService {
   }
 
   /**
-   * Wave-2 post-hoc auditor on the GA chat surface — SHADOW by default
-   * (MERI_AUDITOR_MODE off = no-op). Fire-and-forget from finalize (like
-   * meterRound), so every loop exit is covered without blocking the reply. It
-   * re-derives ground truth from the turn's tool-result ledger and LOGS any
-   * contradiction (reversed direction, failed-rule-as-operative, LI-as-PE,
-   * unresolved citation) WITHOUT altering the reply — the GA chat is the
-   * default/highest-traffic surface, so its findings matter most for shadow
-   * tuning. Findings ALSO persist to meri_audit_ledger (the orchestrator shares
-   * apps/api's generated Prisma client + DB — see PrismaService's own doc
-   * comment — so this is the SAME table the other 4 surfaces already write to).
-   *
-   * CHAT IS DELIBERATELY OBSERVE-ONLY (Phase 2.5-1 decision, per ADR-2): even
-   * under MERI_AUDITOR_MODE=enforce this never withholds or repairs — it is a
-   * fire-and-forget call from finalize() that resolves AFTER the reply is already
-   * returned, so it structurally cannot alter output, and re-architecting to
-   * buffer-before-stream would add latency to the busiest surface for marginal
-   * benefit. Real enforcement (hold-as-draft) lives on the DELIVERABLE surfaces
-   * (outreach/alert-memo/research). Fully guarded; never affects the response.
+   * Wave-2 post-hoc auditor on the GA chat surface (default/highest-traffic).
+   * SYNCHRONOUS + deterministic (MERI_AUDITOR_MODE off = no-op): re-derives ground
+   * truth from the turn's tool-result ledger and returns any contradiction
+   * (reversed direction, failed-rule-as-operative, LI-as-PE, unresolved citation).
+   * Run inline so the caller can surface a non-blocking caveat under enforce/
+   * annotate — chat can't withhold an already-streamed reply (ADR-2), so real
+   * enforcement (hold-as-draft) stays on the DELIVERABLE surfaces (outreach/
+   * alert-memo/research). Fully guarded — an auditor error never affects the reply.
    */
-  private async auditReplyShadow(
-    tenantId: string,
+  private auditChatReply(
     reply: string,
     ledgerEntries: LedgerEntry[],
-  ): Promise<void> {
+  ): { mode: AuditorMode; verdict: ReturnType<typeof runAuditor> } | null {
     const mode = (process.env.MERI_AUDITOR_MODE as AuditorMode | undefined) ?? 'off';
-    if (mode === 'off' || !reply || reply.trim().length === 0) return;
+    if (mode === 'off' || !reply || reply.trim().length === 0) return null;
     try {
       const verdict = runAuditor({
         output: reply,
@@ -386,30 +399,50 @@ export class ChatAssistantService {
         surface: 'chat',
         mode,
       });
-      if (verdict.findings.length > 0) {
-        this.logger.warn(
-          `[meri-auditor:${mode}] GA chat — ${verdict.findings.length} finding(s), ` +
-            `top=${verdict.topSeverity}, decision=${verdict.decision}: ` +
-            verdict.findings.map((f) => `${f.check}/${f.severity}`).join(', '),
-        );
-        await this.prisma.withTenant(tenantId, (tx) =>
-          tx.meriAuditLedger.create({
-            data: {
-              tenantId,
-              surface: 'chat',
-              mode,
-              decision: verdict.decision,
-              topSeverity: verdict.topSeverity ?? null,
-              findingCount: verdict.findings.length,
-              findings: verdict.findings as unknown as Prisma.InputJsonValue,
-              outputChars: reply.length,
-            },
-          }),
-        );
-      }
+      return { mode, verdict };
     } catch (err) {
       this.logger.warn(
         `[meri-auditor] GA chat audit failed (reply unaffected): ${(err as Error).message}`,
+      );
+      return null;
+    }
+  }
+
+  /**
+   * Persist a chat auditor verdict to meri_audit_ledger — fire-and-forget from the
+   * caller (like meterRound), so the DB write never adds latency to the reply. The
+   * orchestrator shares apps/api's generated Prisma client + DB, so this is the
+   * SAME table the other 4 surfaces write to.
+   */
+  private async persistChatAudit(
+    tenantId: string,
+    mode: AuditorMode,
+    verdict: ReturnType<typeof runAuditor>,
+    reply: string,
+  ): Promise<void> {
+    try {
+      this.logger.warn(
+        `[meri-auditor:${mode}] GA chat — ${verdict.findings.length} finding(s), ` +
+          `top=${verdict.topSeverity}, decision=${verdict.decision}: ` +
+          verdict.findings.map((f) => `${f.check}/${f.severity}`).join(', '),
+      );
+      await this.prisma.withTenant(tenantId, (tx) =>
+        tx.meriAuditLedger.create({
+          data: {
+            tenantId,
+            surface: 'chat',
+            mode,
+            decision: verdict.decision,
+            topSeverity: verdict.topSeverity ?? null,
+            findingCount: verdict.findings.length,
+            findings: verdict.findings as unknown as Prisma.InputJsonValue,
+            outputChars: reply.length,
+          },
+        }),
+      );
+    } catch (err) {
+      this.logger.warn(
+        `[meri-auditor] GA chat ledger persist failed (reply unaffected): ${(err as Error).message}`,
       );
     }
   }

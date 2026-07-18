@@ -29,6 +29,7 @@ import {
   setChatSession,
   setChatMessageCitations,
   setChatMessageVerification,
+  setChatMessageGroundingCaveat,
   setChatMessageSuggestions,
   setChatMessageFeedback,
   setStreaming,
@@ -64,6 +65,13 @@ type SseEvent =
       title?: string;
       verification?: MeriVerification;
       confidence?: { level: 'high' | 'medium' | 'low' | 'unknown'; label: string };
+    }
+  // Chat enforce-gate (non-blocking): the grounding auditor flagged HIGH/CRITICAL
+  // issues in an already-streamed reply. Older clients ignore this unknown type.
+  | {
+      type: 'grounding_caveat';
+      topSeverity: string | null;
+      findings: Array<{ check: string; severity: string; detail: string }>;
     }
   | { type: 'text'; text: string }
   | { type: 'thinking'; text: string }
@@ -1003,6 +1011,12 @@ export function useMeriChatController({ selectedClientName }: ChatDrawerProps) {
                 setChatMessageVerification(assistantId, {
                   ...event.verification,
                   confidence: event.confidence,
+                });
+            } else if (event.type === 'grounding_caveat') {
+              if (Array.isArray(event.findings) && event.findings.length > 0)
+                setChatMessageGroundingCaveat(assistantId, {
+                  topSeverity: event.topSeverity ?? null,
+                  findings: event.findings,
                 });
             } else if (event.type === 'suggestions') {
               setChatMessageSuggestions(
