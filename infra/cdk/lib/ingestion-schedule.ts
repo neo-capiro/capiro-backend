@@ -307,6 +307,14 @@ export const INGESTION_JOBS: ScheduledIngestionJob[] = [
     description:
       'intelligence_change rows for material state_bill status transitions (dashboard/changes-inbox rail, DD4) — after derive-state-bill-status',
   },
+  {
+    id: 'CrosswalkStatePeople',
+    command: ['crosswalk-state-people'],
+    cron: { minute: '20', hour: '5' },
+    tier: 'daily',
+    description:
+      'Ongoing OpenStates↔LegiScan people crosswalk (S2) — stamps state_legislator.legiscan_people_id via getSessionPeople so newly-ingested/renamed legislators link to their sponsored bills. The one-time backfill left coverage frozen (sync-legiscan-bills never re-crosswalks); without this a legislator reads "no sponsored bills". Quota-cheap (~1 query/active session). Needs LEGISCAN_API_KEY.',
+  },
   // Phase 1 M5.1 — Tier-2 agentic worker (targeting-brief mode). Staggered a
   // full hour after the 0/6 derive-chain cycle (derive-bill-status :40,
   // derive-state-bill-status :50, emit-state-changes :55) so chokepoint/

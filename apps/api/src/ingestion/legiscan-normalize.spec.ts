@@ -5,6 +5,7 @@ import {
   normalizeLegiscanBill,
   normalizeLegiscanChamber,
   resolveCurrentCommittee,
+  crosswalkLegiscanPerson,
 } from './legiscan-normalize.js';
 import type { LegiscanBill } from '../external/legiscan/legiscan.client.js';
 import type { PrismaClient } from '@prisma/client';
@@ -24,6 +25,10 @@ describe('normalizeBillNumber', () => {
     expect(normalizeBillNumber('H.B. 1234')).toBe('hb1234');
     expect(normalizeBillNumber('HJR12A')).toBe('hjr12a');
   });
+  it("collapses DC-style hyphenated numbers ('B26-0001' -> 'b260001')", () => {
+    expect(normalizeBillNumber('B26-0001')).toBe('b260001');
+    expect(normalizeBillNumber('PR 26-0001')).toBe('pr260001');
+  });
 });
 
 describe('buildStateBillKey', () => {
@@ -35,6 +40,11 @@ describe('buildStateBillKey', () => {
   });
   it('rejects a malformed state code', () => {
     expect(buildStateBillKey('texas', '2025', 'HB1234')).toBeNull();
+  });
+  it('collapses a DC-style hyphenated bill number into a single valid key segment', () => {
+    // Regression: the un-collapsed "dc-2025-b26-0001" failed the stateBillKey
+    // validator (extra hyphen segment), so DC seeded 0 bills.
+    expect(buildStateBillKey('DC', '2025', 'B26-0001')).toBe('dc-2025-b260001');
   });
 });
 
@@ -272,5 +282,174 @@ describe('resolveCurrentCommittee (Phase 1 M2.2)', () => {
     });
     expect(id).toBeNull();
     expect(upserts).toHaveLength(0);
+  });
+});
+
+describe('crosswalkLegiscanPerson (S2 people crosswalk DB wrapper)', () => {
+  interface Leg {
+    id: string;
+    name: string;
+    district: string | null;
+    party: string | null;
+    chamber: string | null;
+    legiscanPeopleId: number | null;
+  }
+  function fakePrisma(candidates: Leg[]) {
+    const updates: Array<{ where: unknown; data: unknown }> = [];
+    const crosswalks: unknown[] = [];
+    const client = {
+      stateLegislator: {
+        findMany: jest.fn(async () =>
+          candidates.map(({ id, name, district, party, chamber, legiscanPeopleId }) => ({
+            id,
+            name,
+            district,
+            party,
+            chamber,
+            legiscanPeopleId,
+          })),
+        ),
+        findUnique: jest.fn(async (args: { where: { legiscanPeopleId: number } }) => {
+          return candidates.find((c) => c.legiscanPeopleId === args.where.legiscanPeopleId) ?? null;
+        }),
+        update: jest.fn(async (args: { where: unknown; data: unknown }) => {
+          updates.push(args);
+          return {};
+        }),
+      },
+      entityCrosswalk: {
+        upsert: jest.fn(async (args: unknown) => {
+          crosswalks.push(args);
+          return {};
+        }),
+      },
+    } as unknown as PrismaClient;
+    return { client, updates, crosswalks };
+  }
+
+  it('stamps legiscan_people_id + an entity_crosswalk row on a confident match', async () => {
+    const { client, updates, crosswalks } = fakePrisma([
+      {
+        id: 'os-1',
+        name: 'John Smith',
+        district: '12',
+        party: 'D',
+        chamber: 'lower',
+        legiscanPeopleId: null,
+      },
+    ]);
+    const ok = await crosswalkLegiscanPerson(client, 'TX', {
+      people_id: 555,
+      name: 'John Smith',
+      district: '12',
+      party: 'D',
+      role_id: 1,
+    });
+    expect(ok).toBe(true);
+    expect(updates).toEqual([{ where: { id: 'os-1' }, data: { legiscanPeopleId: 555 } }]);
+    expect(crosswalks).toHaveLength(1);
+  });
+
+  it('returns false (no write) when the matcher cannot resolve a unique person (PD2)', async () => {
+    const { client, updates, crosswalks } = fakePrisma([
+      {
+        id: 'os-a',
+        name: 'John Smith',
+        district: null,
+        party: null,
+        chamber: null,
+        legiscanPeopleId: null,
+      },
+      {
+        id: 'os-b',
+        name: 'John Smith',
+        district: null,
+        party: null,
+        chamber: null,
+        legiscanPeopleId: null,
+      },
+    ]);
+    const ok = await crosswalkLegiscanPerson(client, 'TX', { people_id: 5, name: 'John Smith' });
+    expect(ok).toBe(false);
+    expect(updates).toHaveLength(0);
+    expect(crosswalks).toHaveLength(0);
+  });
+
+  it('does not steal a people_id already stamped on a different legislator (unique-key guard)', async () => {
+    const { client, updates } = fakePrisma([
+      // Matcher would pick os-new, but people_id 999 already belongs to os-old.
+      {
+        id: 'os-new',
+        name: 'Jane Doe',
+        district: '3',
+        party: 'R',
+        chamber: 'upper',
+        legiscanPeopleId: null,
+      },
+      {
+        id: 'os-old',
+        name: 'Jane Doe (old)',
+        district: '9',
+        party: 'R',
+        chamber: 'upper',
+        legiscanPeopleId: 999,
+      },
+    ]);
+    const ok = await crosswalkLegiscanPerson(client, 'TX', {
+      people_id: 999,
+      name: 'Jane Doe',
+      district: '3',
+      party: 'R',
+      role_id: 2,
+    });
+    expect(ok).toBe(false);
+    expect(updates).toHaveLength(0);
+  });
+
+  it('is idempotent: re-confirming the SAME legislator that already holds the id still succeeds', async () => {
+    const { client, updates } = fakePrisma([
+      {
+        id: 'os-1',
+        name: 'John Smith',
+        district: '12',
+        party: 'D',
+        chamber: 'lower',
+        legiscanPeopleId: 555,
+      },
+    ]);
+    const ok = await crosswalkLegiscanPerson(client, 'TX', {
+      people_id: 555,
+      name: 'John Smith',
+      district: '12',
+      party: 'D',
+      role_id: 1,
+    });
+    expect(ok).toBe(true);
+    expect(updates).toEqual([{ where: { id: 'os-1' }, data: { legiscanPeopleId: 555 } }]);
+  });
+
+  it('does not overwrite a legislator already crosswalked to a DIFFERENT people_id', async () => {
+    // os-1 already holds 100; a second person (200) that also matches by name
+    // must not churn the stable stamp.
+    const { client, updates, crosswalks } = fakePrisma([
+      {
+        id: 'os-1',
+        name: 'John Smith',
+        district: '12',
+        party: 'D',
+        chamber: 'lower',
+        legiscanPeopleId: 100,
+      },
+    ]);
+    const ok = await crosswalkLegiscanPerson(client, 'TX', {
+      people_id: 200,
+      name: 'John Smith',
+      district: '12',
+      party: 'D',
+      role_id: 1,
+    });
+    expect(ok).toBe(false);
+    expect(updates).toHaveLength(0);
+    expect(crosswalks).toHaveLength(0);
   });
 });

@@ -19,6 +19,7 @@
  */
 import type { PrismaClient } from '@prisma/client';
 import { isValidCanonicalId } from '@capiro/shared';
+import { pickLegislatorMatch } from './legislator-match.util.js';
 import type {
   LegiscanBill,
   LegiscanPerson,
@@ -35,9 +36,18 @@ export function computeSessionKey(
     : `${session.year_start}`;
 }
 
-/** Normalize a LegiScan bill number ("HB 1234", "H.B. 1234") to the DD1 key segment ("hb1234"). */
+/**
+ * Normalize a LegiScan bill number to the DD1 key segment: lowercase, strip
+ * spaces, periods AND hyphens ("HB 1234" → "hb1234", "H.B. 1234" → "hb1234",
+ * DC's "B26-0001" → "b260001"). The hyphen strip is what lets hyphen-format
+ * states (DC + a few territories) ingest at all — the canonical key is
+ * "<state>-<session>-<billnumber>", so an UN-stripped internal hyphen both
+ * fails the stateBillKey validator (extra segment) and would make every
+ * `key.split('-')` consumer read the wrong parts. The human-readable form is
+ * preserved separately on `identifier`; only this search/key segment collapses.
+ */
 export function normalizeBillNumber(number: string): string {
-  return (number ?? '').toLowerCase().replace(/\./g, '').replace(/\s+/g, '');
+  return (number ?? '').toLowerCase().replace(/\./g, '').replace(/-/g, '').replace(/\s+/g, '');
 }
 
 /**
@@ -51,9 +61,7 @@ export function normalizeBillNumber(number: string): string {
  * required). Prefer bill_number, fall back to number for any masterlist-shaped
  * caller. Verified against a live getBill + getDataset for DC B26-0001.
  */
-export function billDisplayNumber(
-  raw: Pick<LegiscanBill, 'number' | 'bill_number'>,
-): string {
+export function billDisplayNumber(raw: Pick<LegiscanBill, 'number' | 'bill_number'>): string {
   return (raw.bill_number ?? raw.number ?? '').trim();
 }
 
@@ -546,35 +554,71 @@ export async function upsertStateRollCallVote(
 
 /**
  * Match a LegiScan person to an existing OpenStates-keyed state_legislator row
- * by (state, district, party-insensitive name) and stamp `legiscanPeopleId` +
- * an entity_crosswalk row. Best-effort — logs unresolved matches rather than
- * failing (people crosswalk hardening is explicitly scoped to continue past
- * Phase 0, S2 §S2 success criteria S2-C targets >99%, not 100%).
+ * and stamp `legiscanPeopleId` + an entity_crosswalk row. This crosswalk is the
+ * ONLY thing that populates `state_legislator.legiscan_people_id`, which every
+ * legislator→bill/vote read joins on (explorer `stateLegislatorDetail`), so its
+ * coverage directly determines whether a legislator shows any sponsored bills.
+ *
+ * Matching is delegated to the pure, unit-tested `pickLegislatorMatch` (name
+ * normalization + district/chamber/party disambiguation, unique-or-null per
+ * PD2). Best-effort — returns false rather than throwing on no match (people
+ * crosswalk hardening is explicitly scoped to continue past Phase 0; S2-C
+ * targets >99%, not 100%). `source` records which job resolved the row
+ * (sync-openstates backfill vs. the ongoing crosswalk-state-people verb).
  */
 export async function crosswalkLegiscanPerson(
   prisma: PrismaClient,
   state: string,
   person: LegiscanPerson,
+  source = 'sync-openstates',
 ): Promise<boolean> {
-  const normalizedName = person.name.trim().toLowerCase();
   const candidates = await prisma.stateLegislator.findMany({
     where: { state: state.toUpperCase(), active: true },
-    select: { id: true, name: true, district: true },
+    select: {
+      id: true,
+      name: true,
+      district: true,
+      party: true,
+      chamber: true,
+      legiscanPeopleId: true,
+    },
   });
-  const match = candidates.find(
-    (c) =>
-      c.name.trim().toLowerCase() === normalizedName ||
-      (person.district &&
-        c.district === person.district &&
-        c.name
-          .trim()
-          .toLowerCase()
-          .includes(normalizedName.split(' ').pop() ?? '')),
+  const matchId = pickLegislatorMatch(
+    {
+      name: person.name,
+      firstName: person.first_name,
+      lastName: person.last_name,
+      district: person.district,
+      party: person.party,
+      roleId: person.role_id,
+      role: person.role,
+    },
+    candidates,
   );
-  if (!match) return false;
+  if (!matchId) return false;
+
+  // Already crosswalked to a DIFFERENT people_id — don't overwrite in an
+  // automated pass. A people_id is stable, so an existing stamp is the
+  // authority; changing it here would only churn on ambiguous re-matches (a
+  // genuine correction is a deliberate manual op). Re-confirming the SAME id is
+  // a harmless no-op and still allowed.
+  const matched = candidates.find((c) => c.id === matchId);
+  if (matched?.legiscanPeopleId != null && matched.legiscanPeopleId !== person.people_id) {
+    return false;
+  }
+
+  // legiscan_people_id is @unique: if this people_id is already stamped on a
+  // DIFFERENT legislator, leave it there rather than fighting the constraint —
+  // the prior stamp is the authority; re-stamping elsewhere would only mean the
+  // matcher changed its mind on ambiguous data.
+  const holder = await prisma.stateLegislator.findUnique({
+    where: { legiscanPeopleId: person.people_id },
+    select: { id: true },
+  });
+  if (holder && holder.id !== matchId) return false;
 
   await prisma.stateLegislator.update({
-    where: { id: match.id },
+    where: { id: matchId },
     data: { legiscanPeopleId: person.people_id },
   });
   await prisma.entityCrosswalk.upsert({
@@ -583,10 +627,10 @@ export async function crosswalkLegiscanPerson(
       idType: 'legiscan_people',
       idValue: String(person.people_id),
       entityType: 'state_legislator',
-      entityKey: match.id,
-      source: 'sync-openstates',
+      entityKey: matchId,
+      source,
     },
-    update: { entityKey: match.id, source: 'sync-openstates' },
+    update: { entityKey: matchId, source },
   });
   return true;
 }

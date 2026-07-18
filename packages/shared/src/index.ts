@@ -904,11 +904,14 @@ export function parseStateBillDesignation(
   const billNumberFrom = (body: string): string | null => {
     // Strip periods before matching ("H.B. 1234" -> "HB 1234") — punctuation
     // carries no meaning in a bill designation, same tolerance as the federal
-    // parseBillDesignation's per-letter optional dots.
+    // parseBillDesignation's per-letter optional dots. The number group also
+    // accepts DC-style hyphenated numbers ("B26-0001"); the hyphen is collapsed
+    // on build so this matches ingestion's normalizeBillNumber ("b260001") — a
+    // human lookup and the ingested key must resolve to the same DD1 id.
     const stripped = body.trim().replace(/\./g, '');
-    const m = stripped.match(/^([A-Za-z]+)\s*([0-9]+)([A-Za-z]?)$/);
+    const m = stripped.match(/^([A-Za-z]+)\s*([0-9]+(?:-[0-9]+)*)([A-Za-z]?)$/);
     if (!m || !m[1] || !m[2]) return null;
-    return `${m[1].toLowerCase()}${m[2]}${(m[3] ?? '').toLowerCase()}`;
+    return `${m[1].toLowerCase()}${m[2].replace(/-/g, '')}${(m[3] ?? '').toLowerCase()}`;
   };
   const build = (resolvedState: string, billNumber: string): ParsedStateBillDesignation => ({
     state: resolvedState,
