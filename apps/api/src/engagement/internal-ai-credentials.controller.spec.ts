@@ -9,7 +9,12 @@ describe('InternalAiCredentialsController', () => {
     } as unknown as AiCredentialResolverService;
     const controller = new InternalAiCredentialsController(aiCredentials);
     await expect(controller.resolve({ tenantId: '' })).rejects.toBeInstanceOf(BadRequestException);
-    await expect(controller.resolve({})).rejects.toBeInstanceOf(BadRequestException);
+    // Missing tenantId: the global ValidationPipe now rejects this pre-handler
+    // (the DTO is decorated), but the handler still defends — cast past the
+    // now-required field to exercise that defensive throw directly.
+    await expect(controller.resolve({} as { tenantId: string })).rejects.toBeInstanceOf(
+      BadRequestException,
+    );
   });
 
   it('resolves anthropic by default and returns the resolved shape', async () => {

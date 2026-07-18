@@ -1,10 +1,20 @@
 import { BadRequestException, Body, Controller, HttpCode, Post, UseGuards } from '@nestjs/common';
+import { IsIn, IsOptional, IsString } from 'class-validator';
 import { InternalServiceGuard } from '../auth/internal-service.guard.js';
 import { AiCredentialResolverService, type AiProvider } from './ai-credential-resolver.service.js';
 
+// The global ValidationPipe runs whitelist:true + forbidNonWhitelisted:true, so
+// an UNdecorated DTO has every property stripped/rejected -> the body arrives
+// empty -> "tenantId is required" 400 -> intel-api's hearing BYOK3 resolve
+// silently falls back to the global key, never the tenant's. These decorators
+// whitelist the two fields so the tenant credential actually resolves.
 class ResolveAiCredentialDto {
-  tenantId?: unknown;
-  provider?: unknown;
+  @IsString()
+  tenantId!: string;
+
+  @IsOptional()
+  @IsIn(['openai', 'anthropic'])
+  provider?: 'openai' | 'anthropic';
 }
 
 /**
