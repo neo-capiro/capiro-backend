@@ -348,6 +348,7 @@ export function humanToolLabel(tool: string): string {
     save_note: 'Saved a note',
     send_email: 'Sent an email',
     list_emails: 'Listed email threads',
+    search_emails: 'Searched emails',
     reply_email: 'Replied to an email thread',
   };
   return labels[tool] ?? tool.replace(/_/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase());

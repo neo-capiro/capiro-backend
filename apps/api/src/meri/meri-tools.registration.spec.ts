@@ -58,6 +58,7 @@ const EXPECTED_TOOLS = [
   'save_note',
   'send_email',
   'list_emails',
+  'search_emails',
   'list_upcoming_meetings',
   'reply_email',
   'save_memory',
@@ -188,7 +189,12 @@ describe('Meri tool registration', () => {
     ];
     // isSideEffecting flags exactly the write tools — and not read/compute tools.
     for (const t of writeTools) expect(svc.isSideEffecting(t)).toBe(true);
-    for (const t of ['get_client_context', 'search_congress_bills', 'run_analysis', 'query_intelligence']) {
+    for (const t of [
+      'get_client_context',
+      'search_congress_bills',
+      'run_analysis',
+      'query_intelligence',
+    ]) {
       expect(svc.isSideEffecting(t)).toBe(false);
     }
     // The legacy in-process chat's read-only filter (mirrors meri.service.ts)

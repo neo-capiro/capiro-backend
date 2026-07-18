@@ -128,7 +128,13 @@ export const FULL_CHAT_READ_TOOLS: readonly DelegatedToolSpec[] = [
   {
     name: 'list_emails',
     description:
-      "List recent email threads from the tenant's connected Microsoft 365 inbox, optionally filtered by client.",
+      "List the user's MOST RECENT synced email threads (Microsoft 365/Google), newest first, optionally filtered by client. Reaches at most the newest 50 threads — older mail is invisible to this tool; to find a specific message, sender, or topic anywhere in synced mail use search_emails.",
+    readOnly: true,
+  },
+  {
+    name: 'search_emails',
+    description:
+      "Search the user's synced email (Microsoft 365/Google, inbox + sent folders) by content or people — reaches mail of ANY age, unlike list_emails. Provide at least one of: `query` (matched against subject, sender, recipients, and the stored message preview), `from` (sender email or name fragment), `participant` (email or name fragment matched against sender AND to/cc/bcc recipients). Optional: `clientId`, `withinDays` (only messages from the last N days), `limit` (default 20, max 50). Returns matching messages newest-first (subject, from, to/cc, date, folder, preview, threadId — pass threadId to reply_email), the total match count, and a coverage report of every searched mailbox (sync status + date range; a connected-but-never-synced mailbox is called out). IMPORTANT: only inbox and sent folders sync and bodies are stored as short previews, so report a miss as 'not found in synced mail' — never as proof the email does not exist.",
     readOnly: true,
   },
   {
