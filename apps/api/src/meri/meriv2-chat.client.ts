@@ -41,6 +41,14 @@ export type MeriV2ChatStreamEvent =
   | { type: 'text'; text: string }
   | { type: 'page_write'; target: string; subject?: string; body: string }
   | {
+      // Chat enforce-gate (non-blocking): under enforce/annotate the orchestrator's
+      // post-hoc auditor emits a VISIBLE caveat for HIGH/CRITICAL grounding findings
+      // instead of holding the already-streamed reply (ADR-2). Proxied through.
+      type: 'grounding_caveat';
+      topSeverity: string | null;
+      findings: Array<{ check: string; severity: string; detail: string }>;
+    }
+  | {
       type: 'done';
       reply: string;
       intent?: string;

@@ -151,7 +151,18 @@ export type ChatStreamEvent =
    * to the legacy ChatDrawer `page_write` frame. Only emitted when the caller
    * set ChatInput.pageWrite and a draft tool produced a body.
    */
-  | { type: 'page_write'; target: string; subject?: string; body: string };
+  | { type: 'page_write'; target: string; subject?: string; body: string }
+  /**
+   * Chat enforce-gate (non-blocking): chat can't withhold an already-streamed
+   * reply (ADR-2), so under enforce/annotate the post-hoc auditor emits a VISIBLE
+   * caveat for HIGH/CRITICAL grounding findings instead of holding. The reply
+   * still ships; the user is told it may contain a caught grounding error.
+   */
+  | {
+      type: 'grounding_caveat';
+      topSeverity: string | null;
+      findings: Array<{ check: string; severity: string; detail: string }>;
+    };
 
 /** Friendly label for a tool name, for the chat's thought-process trace. */
 export function toolLabel(tool: string): string {

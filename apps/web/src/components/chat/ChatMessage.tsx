@@ -5,7 +5,12 @@ import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import rehypeSanitize from 'rehype-sanitize';
 import type { Components } from 'react-markdown';
-import type { ChatMessageAttachment, MeriCitation, MeriVerification } from './chat-store.js';
+import type {
+  ChatMessageAttachment,
+  GroundingCaveat,
+  MeriCitation,
+  MeriVerification,
+} from './chat-store.js';
 import { attachmentKindIcon, truncateFilenameMiddle } from './ChatInput.js';
 import meriBubbleImage from '../../assets/chat/meri-bubble.png';
 
@@ -15,8 +20,19 @@ interface ChatMessageProps {
   isStreaming?: boolean;
   citations?: MeriCitation[];
   verification?: MeriVerification;
+  groundingCaveat?: GroundingCaveat;
   attachments?: ChatMessageAttachment[];
 }
+
+/** Human label for an auditor check id (D1..D14) — kept terse for the caveat. */
+const CAVEAT_CHECK_LABEL: Record<string, string> = {
+  D2: 'an unverified quote',
+  D4: 'a reversed budget direction',
+  D4b: 'a blended authorization/appropriation',
+  D6: 'a reversed vote/outcome',
+  D7: 'a procurement line labeled a program element',
+  D11: 'an unconfirmed representation/district mapping',
+};
 
 export function ChatMessage({
   role,
@@ -24,6 +40,7 @@ export function ChatMessage({
   isStreaming,
   citations,
   verification,
+  groundingCaveat,
   attachments,
 }: ChatMessageProps) {
   const isUser = role === 'user';
@@ -89,7 +106,12 @@ export function ChatMessage({
           </div>
         )}
         {!isUser && content !== '' && !isStreaming && (
-          <button type="button" className="chat-msg-copy" aria-label="Copy message" onClick={handleCopy}>
+          <button
+            type="button"
+            className="chat-msg-copy"
+            aria-label="Copy message"
+            onClick={handleCopy}
+          >
             {copied ? '✓ Copied' : 'Copy'}
           </button>
         )}
@@ -150,6 +172,31 @@ export function ChatMessage({
                   ))}
               </ul>
             )}
+          </div>
+        )}
+        {!isUser && groundingCaveat && groundingCaveat.findings.length > 0 && (
+          <div className="chat-msg-grounding-caveat" style={{ marginTop: 8 }}>
+            <Alert
+              type={groundingCaveat.topSeverity === 'critical' ? 'error' : 'warning'}
+              showIcon
+              message="Meri flagged a possible grounding issue in this reply"
+              description={
+                <ul style={{ margin: '4px 0 0', paddingLeft: 18 }}>
+                  {groundingCaveat.findings.map((f, i) => (
+                    <li key={`${f.check}-${i}`} style={{ fontSize: 12, marginBottom: 2 }}>
+                      <Tooltip title={f.detail}>
+                        <span>
+                          {CAVEAT_CHECK_LABEL[f.check] ?? `a grounding issue (${f.check})`} —{' '}
+                          <span style={{ color: 'var(--ant-color-text-secondary, #888)' }}>
+                            verify before relying on it
+                          </span>
+                        </span>
+                      </Tooltip>
+                    </li>
+                  ))}
+                </ul>
+              }
+            />
           </div>
         )}
         {isStreaming && <span className="chat-msg-cursor" aria-hidden="true" />}
@@ -260,12 +307,24 @@ function buildMarkdownComponents(
   return {
     p: ({ children }) => <p className="chat-md-p">{kids(children, citationMap, onOpen)}</p>,
     li: ({ children }) => <li>{kids(children, citationMap, onOpen)}</li>,
-    h1: ({ children }) => <div className="chat-md-h chat-md-h1">{kids(children, citationMap, onOpen)}</div>,
-    h2: ({ children }) => <div className="chat-md-h chat-md-h2">{kids(children, citationMap, onOpen)}</div>,
-    h3: ({ children }) => <div className="chat-md-h chat-md-h3">{kids(children, citationMap, onOpen)}</div>,
-    h4: ({ children }) => <div className="chat-md-h chat-md-h4">{kids(children, citationMap, onOpen)}</div>,
-    h5: ({ children }) => <div className="chat-md-h chat-md-h4">{kids(children, citationMap, onOpen)}</div>,
-    h6: ({ children }) => <div className="chat-md-h chat-md-h4">{kids(children, citationMap, onOpen)}</div>,
+    h1: ({ children }) => (
+      <div className="chat-md-h chat-md-h1">{kids(children, citationMap, onOpen)}</div>
+    ),
+    h2: ({ children }) => (
+      <div className="chat-md-h chat-md-h2">{kids(children, citationMap, onOpen)}</div>
+    ),
+    h3: ({ children }) => (
+      <div className="chat-md-h chat-md-h3">{kids(children, citationMap, onOpen)}</div>
+    ),
+    h4: ({ children }) => (
+      <div className="chat-md-h chat-md-h4">{kids(children, citationMap, onOpen)}</div>
+    ),
+    h5: ({ children }) => (
+      <div className="chat-md-h chat-md-h4">{kids(children, citationMap, onOpen)}</div>
+    ),
+    h6: ({ children }) => (
+      <div className="chat-md-h chat-md-h4">{kids(children, citationMap, onOpen)}</div>
+    ),
     ul: ({ children }) => <ul className="chat-md-list">{children}</ul>,
     ol: ({ children }) => <ol className="chat-md-list">{children}</ol>,
     hr: () => <hr className="chat-md-hr" />,

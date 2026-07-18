@@ -400,6 +400,7 @@ export function MeriLegacyDrawer({
                   content={msg.content}
                   citations={msg.citations}
                   verification={msg.verification}
+                  groundingCaveat={msg.groundingCaveat}
                   attachments={msg.attachments}
                   isStreaming={
                     isStreaming &&

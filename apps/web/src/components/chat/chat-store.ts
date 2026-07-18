@@ -28,6 +28,16 @@ export interface MeriVerification {
   confidence?: { level: 'high' | 'medium' | 'low' | 'unknown'; label: string };
 }
 
+/**
+ * Chat enforce-gate (non-blocking): the post-hoc grounding auditor flagged
+ * HIGH/CRITICAL issues in a reply that was already streamed (chat can't withhold
+ * per ADR-2), so the user sees this caveat instead of the reply being held.
+ */
+export interface GroundingCaveat {
+  topSeverity: string | null;
+  findings: Array<{ check: string; severity: string; detail: string }>;
+}
+
 /** File chip attached to a (user) message — mirrors message metadata.attachments. */
 export interface ChatMessageAttachment {
   id: string;
@@ -52,6 +62,7 @@ export interface ChatMessage {
   createdAt: Date;
   citations?: MeriCitation[];
   verification?: MeriVerification;
+  groundingCaveat?: GroundingCaveat;
   suggestions?: string[];
   feedback?: 'up' | 'down' | null;
   attachments?: ChatMessageAttachment[];
@@ -220,6 +231,12 @@ export function setChatMessageCitations(id: string, citations: MeriCitation[]): 
 
 export function setChatMessageVerification(id: string, verification: MeriVerification): void {
   const messages = state.messages.map((m) => (m.id === id ? { ...m, verification } : m));
+  state = { ...state, messages };
+  notify();
+}
+
+export function setChatMessageGroundingCaveat(id: string, groundingCaveat: GroundingCaveat): void {
+  const messages = state.messages.map((m) => (m.id === id ? { ...m, groundingCaveat } : m));
   state = { ...state, messages };
   notify();
 }
