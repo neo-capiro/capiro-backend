@@ -10,6 +10,29 @@ jest.mock('@clerk/backend', () => ({
   verifyToken: async () => ({}),
 }));
 
+// The AWS SDK v3 S3Client constructor throws in this jest env (smithy protocol
+// init). CapiroAdminService builds one in its constructor; the specs replace the
+// instance with a send() spy after construction, so a no-op class is enough. The
+// command classes must expose `.input` (the specs assert on it).
+jest.mock('@aws-sdk/client-s3', () => ({
+  __esModule: true,
+  S3Client: class {
+    send() {}
+  },
+  ListObjectVersionsCommand: class {
+    input: unknown;
+    constructor(input: unknown) {
+      this.input = input;
+    }
+  },
+  DeleteObjectsCommand: class {
+    input: unknown;
+    constructor(input: unknown) {
+      this.input = input;
+    }
+  },
+}));
+
 import { CapiroAdminService } from './capiro-admin.service.js';
 
 /**
@@ -68,9 +91,11 @@ describe('CapiroAdminService — analyst console (Step 3.5)', () => {
         { id: 'm4', status: 'quarantined', createdAt: D('2026-02-02T00:00:00Z') },
         { id: 'm5', status: 'accepted', createdAt: D('2026-01-01T00:00:00Z') },
       );
-      mock.store.programElementPersonCandidate.push(
-        { id: 'pc1', status: 'open', createdAt: D('2026-04-01T00:00:00Z') },
-      );
+      mock.store.programElementPersonCandidate.push({
+        id: 'pc1',
+        status: 'open',
+        createdAt: D('2026-04-01T00:00:00Z'),
+      });
       mock.store.acquisitionPersonnelMergeCandidate.push(
         { id: 'mc1', status: 'open', createdAt: D('2026-04-02T00:00:00Z') },
         { id: 'mc2', status: 'merged', createdAt: D('2026-01-02T00:00:00Z') },
@@ -255,9 +280,9 @@ describe('CapiroAdminService — analyst console (Step 3.5)', () => {
     });
 
     test('404s when the row does not exist', async () => {
-      await expect(service.discardQuarantine(CTX, 'program_element', 'nope')).rejects.toBeInstanceOf(
-        NotFoundException,
-      );
+      await expect(
+        service.discardQuarantine(CTX, 'program_element', 'nope'),
+      ).rejects.toBeInstanceOf(NotFoundException);
     });
   });
 
@@ -391,7 +416,14 @@ describe('CapiroAdminService — AI keys & usage console', () => {
     mock.store.tenant.push({ id: TENANT_B, name: 'Bravo Strategies' });
     aiUsage = {
       adminAllTenantsSummary: jest.fn(async () => [
-        { tenantId: TENANT_B, tenantName: 'Bravo Strategies', totalCostUsd: 1.5, totalTokens: 100, eventCount: 2, tenantKeyEventCount: 0 },
+        {
+          tenantId: TENANT_B,
+          tenantName: 'Bravo Strategies',
+          totalCostUsd: 1.5,
+          totalTokens: 100,
+          eventCount: 2,
+          tenantKeyEventCount: 0,
+        },
       ]),
       tenantSummaryByTenantId: jest.fn(async () => ({ totalCostUsd: 1.5, byWorkflow: [] })),
     };
@@ -508,18 +540,28 @@ describe('CapiroAdminService — deleteTenant S3 purge (DPA/GDPR)', () => {
       })
       .mockResolvedValueOnce({}); // DeleteObjects — no Errors
 
-    const result = await service.deleteTenant(TENANT);
+    const result = await service.deleteTenant(CTX, TENANT);
 
     const listInput = (s3send.mock.calls[0]![0] as { input: Record<string, unknown> }).input;
     expect(listInput.Bucket).toBe('test-bucket');
     expect(listInput.Prefix).toBe(`tenants/${TENANT}/`);
-    const delInput = (s3send.mock.calls[1]![0] as { input: { Delete: { Objects: unknown[] } } }).input;
+    const delInput = (s3send.mock.calls[1]![0] as { input: { Delete: { Objects: unknown[] } } })
+      .input;
     expect(delInput.Delete.Objects).toEqual([
       { Key: `tenants/${TENANT}/branding/logo.png`, VersionId: 'v1' },
       { Key: `tenants/${TENANT}/clients/x/logo.png`, VersionId: 'dm1' },
     ]);
     expect(mock.store.tenant).toHaveLength(0); // row deleted AFTER purge
     expect(result).toMatchObject({ ok: true, deletedTenantId: TENANT });
+    // #3b/#3a: a 'tenant.delete' audit row is written, routed to CAPIRO's own
+    // tenant (ctx.tenantId) so the affected-tenant FK ON DELETE CASCADE can't
+    // purge it — with the affected tenant in the entity fields.
+    const del = mock.store.auditLog.find((r) => r.action === 'tenant.delete');
+    expect(del).toBeDefined();
+    expect(del?.tenantId).toBe(CTX.tenantId);
+    expect(del?.tenantId).not.toBe(TENANT);
+    expect(del?.entityId).toBe(TENANT);
+    expect(del?.actorUserId).toBe(CTX.userId);
   });
 
   test('paginates truncated version listings', async () => {
@@ -537,7 +579,7 @@ describe('CapiroAdminService — deleteTenant S3 purge (DPA/GDPR)', () => {
       })
       .mockResolvedValueOnce({}); // delete page 2
 
-    await service.deleteTenant(TENANT);
+    await service.deleteTenant(CTX, TENANT);
     // 2 list + 2 delete calls
     expect(s3send).toHaveBeenCalledTimes(4);
     const secondList = (s3send.mock.calls[2]![0] as { input: Record<string, unknown> }).input;
@@ -547,7 +589,7 @@ describe('CapiroAdminService — deleteTenant S3 purge (DPA/GDPR)', () => {
 
   test('aborts (throws) and does NOT delete the row when S3 listing fails — retryable', async () => {
     s3send.mockRejectedValueOnce(new Error('S3 down'));
-    await expect(service.deleteTenant(TENANT)).rejects.toThrow(/S3 down/);
+    await expect(service.deleteTenant(CTX, TENANT)).rejects.toThrow(/S3 down/);
     expect(mock.store.tenant).toHaveLength(1);
   });
 
@@ -558,7 +600,7 @@ describe('CapiroAdminService — deleteTenant S3 purge (DPA/GDPR)', () => {
         IsTruncated: false,
       })
       .mockResolvedValueOnce({ Errors: [{ Key: `tenants/${TENANT}/a`, Message: 'AccessDenied' }] });
-    await expect(service.deleteTenant(TENANT)).rejects.toThrow(/S3 purge incomplete/);
+    await expect(service.deleteTenant(CTX, TENANT)).rejects.toThrow(/S3 purge incomplete/);
     expect(mock.store.tenant).toHaveLength(1);
   });
 
@@ -576,9 +618,118 @@ describe('CapiroAdminService — deleteTenant S3 purge (DPA/GDPR)', () => {
     );
     const send = jest.fn();
     (svc as unknown as { s3: { send: typeof send } }).s3 = { send };
-    const result = await svc.deleteTenant(TENANT);
+    const result = await svc.deleteTenant(CTX, TENANT);
     expect(send).not.toHaveBeenCalled();
     expect(result).toMatchObject({ ok: true, deletedTenantId: TENANT });
+  });
+});
+
+// Blocker #3(b)+(a): the two remaining destructive ops must write an audit row
+// routed to the AFFECTED tenant (customer-visible under its own RLS). Bespoke
+// minimal mocks (the shared createPrismaMock has no membership/session tables).
+function makeService(withSystemTx: Record<string, unknown>): CapiroAdminService {
+  const prisma = {
+    withSystem: async <T>(fn: (tx: unknown) => Promise<T>) => fn(withSystemTx),
+  };
+  return new CapiroAdminService(
+    prisma as never,
+    {} as never,
+    {} as never,
+    { get: () => undefined } as never,
+    {} as never,
+    {} as never,
+    {} as never,
+    {} as never,
+    { invalidate: jest.fn() } as never,
+  );
+}
+
+describe('CapiroAdminService — removeUserFromTenant audit (#3a/#3b)', () => {
+  test('writes an audit row routed to the AFFECTED tenant', async () => {
+    const audit: Array<Record<string, unknown>> = [];
+    const membership = {
+      id: 'mem-1',
+      status: 'active',
+      user: { email: 'u@acme.com', clerkUserId: 'ck_1' },
+      tenant: { clerkOrgId: null },
+    };
+    const svc = makeService({
+      tenantMembership: {
+        findUnique: async () => membership,
+        update: async () => ({}),
+      },
+      auditLog: {
+        create: async ({ data }: { data: Record<string, unknown> }) => {
+          audit.push(data);
+          return data;
+        },
+      },
+    });
+    const res = await svc.removeUserFromTenant('actor-1', 'affected-tenant', 'user-9');
+    expect(res).toEqual({ ok: true });
+    expect(audit).toHaveLength(1);
+    expect(audit[0]).toMatchObject({
+      tenantId: 'affected-tenant', // customer-visible, NOT Capiro's tenant
+      actorUserId: 'actor-1',
+      actorRole: 'capiro_admin',
+      action: 'tenant.user.remove',
+      entityType: 'tenant_membership',
+      entityId: 'mem-1',
+    });
+  });
+});
+
+describe('CapiroAdminService — endImpersonation audit (#3a/#3b)', () => {
+  test('writes one impersonation.end row per active session, each to its tenant', async () => {
+    const audit: Array<Record<string, unknown>> = [];
+    const sessions = [
+      { id: 's1', tenantId: 't1' },
+      { id: 's2', tenantId: 't2' },
+    ];
+    let updated = false;
+    const svc = makeService({
+      impersonationSession: {
+        findMany: async () => sessions,
+        updateMany: async () => {
+          updated = true;
+          return { count: sessions.length };
+        },
+      },
+      auditLog: {
+        create: async ({ data }: { data: Record<string, unknown> }) => {
+          audit.push(data);
+          return data;
+        },
+      },
+    });
+    const res = await svc.endImpersonation('actor-1');
+    expect(res).toEqual({ ended: 2 });
+    expect(updated).toBe(true);
+    expect(
+      audit.map((a) => ({ tenantId: a.tenantId, entityId: a.entityId, action: a.action })),
+    ).toEqual([
+      { tenantId: 't1', entityId: 's1', action: 'impersonation.end' },
+      { tenantId: 't2', entityId: 's2', action: 'impersonation.end' },
+    ]);
+  });
+
+  test('no rows written when there are no active sessions', async () => {
+    const audit: Array<Record<string, unknown>> = [];
+    const svc = makeService({
+      impersonationSession: {
+        findMany: async () => [],
+        updateMany: async () => ({ count: 0 }),
+      },
+      auditLog: {
+        create: async ({ data }: { data: Record<string, unknown> }) => {
+          audit.push(data);
+          return data;
+        },
+      },
+    });
+    const res = await svc.endImpersonation('actor-1');
+    expect(res).toEqual({ ended: 0 });
+    expect(audit).toHaveLength(0);
   });
 });
 
@@ -600,6 +751,7 @@ function createPrismaMock() {
     acquisitionPersonnelQuarantine: [] as Array<Record<string, unknown>>,
     auditLog: [] as Array<Record<string, unknown>>,
     tenant: [] as Array<Record<string, unknown>>,
+    complianceCheck: [] as Array<Record<string, unknown>>,
   };
 
   const matchesWhere = (row: Record<string, unknown>, where?: Record<string, unknown>): boolean => {
@@ -621,8 +773,8 @@ function createPrismaMock() {
     rows.filter((r) => matchesWhere(r, where));
 
   const tableApi = (rows: Array<Record<string, unknown>>) => ({
-    count: jest.fn(async ({ where }: { where?: Record<string, unknown> } = {}) =>
-      filtered(rows, where).length,
+    count: jest.fn(
+      async ({ where }: { where?: Record<string, unknown> } = {}) => filtered(rows, where).length,
     ),
     aggregate: jest.fn(
       async ({ where, _min }: { where?: Record<string, unknown>; _min?: Record<string, true> }) => {
@@ -632,9 +784,7 @@ function createPrismaMock() {
           const dates = matched
             .map((r) => r[field] as Date | undefined)
             .filter((d): d is Date => d instanceof Date);
-          min[field] = dates.length
-            ? dates.reduce((a, b) => (a < b ? a : b))
-            : null;
+          min[field] = dates.length ? dates.reduce((a, b) => (a < b ? a : b)) : null;
         }
         return { _min: min };
       },
@@ -675,6 +825,14 @@ function createPrismaMock() {
       if (idx >= 0) rows.splice(idx, 1);
       return {};
     }),
+    deleteMany: jest.fn(async ({ where }: { where?: Record<string, unknown> } = {}) => {
+      const toDelete = filtered(rows, where);
+      for (const r of toDelete) {
+        const i = rows.indexOf(r);
+        if (i >= 0) rows.splice(i, 1);
+      }
+      return { count: toDelete.length };
+    }),
     create: jest.fn(async ({ data }: { data: Record<string, unknown> }) => {
       rows.push({ ...data });
       return { ...data };
@@ -685,14 +843,14 @@ function createPrismaMock() {
     async <T>(_tenantId: string, fn: (tx: unknown) => Promise<T>): Promise<T> => fn(client),
   );
 
-  const withSystem = jest.fn(
-    async <T>(fn: (tx: unknown) => Promise<T>): Promise<T> => fn(client),
-  );
+  const withSystem = jest.fn(async <T>(fn: (tx: unknown) => Promise<T>): Promise<T> => fn(client));
 
   const client = {
     store,
     withTenant,
     withSystem,
+    $executeRaw: jest.fn(async () => 0),
+    complianceCheck: tableApi(store.complianceCheck),
     tenant: tableApi(store.tenant),
     reconciliationReviewQueue: tableApi(store.reconciliationReviewQueue),
     peProgramMatch: tableApi(store.peProgramMatch),

@@ -212,8 +212,8 @@ export class CapiroAdminController {
   }
 
   @Delete('tenants/:tenantId')
-  deleteTenant(@Param('tenantId') tenantId: string) {
-    return this.service.deleteTenant(tenantId);
+  deleteTenant(@CurrentTenant() ctx: TenantContext, @Param('tenantId') tenantId: string) {
+    return this.service.deleteTenant(ctx, tenantId);
   }
 
   /** A6: flip a MeriV2 rollout flag for one tenant (+ instant cache bust). */
@@ -228,8 +228,12 @@ export class CapiroAdminController {
   }
 
   @Delete('tenants/:tenantId/users/:userId')
-  removeUser(@Param('tenantId') tenantId: string, @Param('userId') userId: string) {
-    return this.service.removeUserFromTenant(tenantId, userId);
+  removeUser(
+    @CurrentTenant() ctx: TenantContext,
+    @Param('tenantId') tenantId: string,
+    @Param('userId') userId: string,
+  ) {
+    return this.service.removeUserFromTenant(ctx.userId, tenantId, userId);
   }
 
   @Post('users/:clerkUserId/password-reset')
