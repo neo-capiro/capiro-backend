@@ -848,6 +848,10 @@ export class EngagementAiService {
         // Prompt caching (W3.3) on the byte-stable v2 prefix (Anthropic).
         cacheSystem: isV2,
         cacheUserStatic: isV2,
+        // Zero-trust Wave 1 (RC8): outreach drafts carry budget figures/bill
+        // numbers — low temperature cuts the numeric-scramble sampling variance.
+        // Anthropic-only inside the client (see LlmCompletionRequest.temperature).
+        temperature: 0.2,
         timeoutMs: AI_TIMEOUT_MS,
       });
       if (!result.truncated || attempt === truncationRetries) break;

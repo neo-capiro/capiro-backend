@@ -428,6 +428,9 @@ export class AlertMemoService {
         body: JSON.stringify({
           model,
           max_tokens: 2000,
+          // Zero-trust Wave 1 (RC8): memos restate bill numbers/vote counts —
+          // low temperature cuts the numeric-scramble sampling variance.
+          temperature: 0.2,
           system: SYSTEM_PROMPT,
           messages: [{ role: 'user', content: prompt }],
         }),

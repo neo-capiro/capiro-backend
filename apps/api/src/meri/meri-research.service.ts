@@ -347,7 +347,10 @@ export class MeriResearchService {
             body: JSON.stringify({
               model,
               max_tokens: thinking.maxTokens,
-              ...(thinking.thinking ? { thinking: thinking.thinking } : {}),
+              // Zero-trust Wave 1 (RC8): temperature 0.2 on the figure-heavy
+              // research rounds — but ONLY when extended thinking is off
+              // (Anthropic rejects temperature != 1 alongside a thinking block).
+              ...(thinking.thinking ? { thinking: thinking.thinking } : { temperature: 0.2 }),
               stream: true,
               system,
               tools: toolSchemas,
@@ -568,7 +571,10 @@ export class MeriResearchService {
             body: JSON.stringify({
               model,
               max_tokens: thinking.maxTokens,
-              ...(thinking.thinking ? { thinking: thinking.thinking } : {}),
+              // Zero-trust Wave 1 (RC8): temperature 0.2 on the figure-heavy
+              // research rounds — but ONLY when extended thinking is off
+              // (Anthropic rejects temperature != 1 alongside a thinking block).
+              ...(thinking.thinking ? { thinking: thinking.thinking } : { temperature: 0.2 }),
               stream: true,
               system,
               // No `tools` key → the model cannot call tools and must answer.
