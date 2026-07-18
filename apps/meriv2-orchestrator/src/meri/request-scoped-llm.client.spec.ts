@@ -344,6 +344,147 @@ describe('classifyLlmError (resilience classification)', () => {
     });
     expect(classifyLlmError(new Error('boom'))).toEqual({ retryable: false, failover: false });
   });
+  it('recognizes the meriv2-core "request failed (NNN)" shape (completeJson/completeWithSchema path)', () => {
+    // AnthropicLlmClient/OpenAiLlmClient throw "<Provider> request failed (NNN): ..."
+    // (no "HTTP" prefix) — the status must still classify or reasoning-tool
+    // failover would silently only catch credit-balance text.
+    expect(classifyLlmError(new Error('Anthropic request failed (529): overloaded'))).toEqual({
+      retryable: true,
+      failover: true,
+    });
+    expect(classifyLlmError(new Error('OpenAI request failed (503): upstream'))).toEqual({
+      retryable: true,
+      failover: true,
+    });
+    expect(classifyLlmError(new Error('Anthropic request failed (400): bad'))).toEqual({
+      retryable: false,
+      failover: false,
+    });
+  });
+});
+
+describe('RequestScopedLlmClient reasoning-tool resilience (completeJson / completeWithSchema)', () => {
+  it('retries the SAME provider on a transient overload and then succeeds (completeJson)', async () => {
+    let n = 0;
+    (global as unknown as { fetch: unknown }).fetch = jest.fn(async () => {
+      n += 1;
+      if (n === 1) return { ok: false, status: 529, json: async () => ({}) };
+      return {
+        ok: true,
+        status: 200,
+        json: async () => ({ content: [{ type: 'text', text: '{"ok":true}' }] }),
+      };
+    });
+    const client = new RequestScopedLlmClient('sk-global', 'claude-default');
+    const out = await client.completeJson({ system: 's', prompt: 'p' });
+    expect(out).toEqual({ ok: true });
+    expect(n).toBe(2); // one retry, same provider
+  });
+
+  it('fails a GLOBAL-key credit error over to the global OpenAI fallback (completeJson)', async () => {
+    const urls: string[] = [];
+    (global as unknown as { fetch: unknown }).fetch = jest.fn(async (url: string) => {
+      urls.push(url);
+      if (url.includes('anthropic')) {
+        return {
+          ok: false,
+          status: 400,
+          json: async () => ({ error: { message: 'credit balance too low' } }),
+        };
+      }
+      return {
+        ok: true,
+        status: 200,
+        json: async () => ({ choices: [{ message: { content: '{"ok":true}' } }] }),
+      };
+    });
+    const client = new RequestScopedLlmClient('sk-global-anthropic', 'claude-default', undefined, {
+      apiKey: 'sk-global-openai',
+      model: 'gpt-x',
+      provider: 'openai',
+    });
+    const out = await client.completeJson({ system: 's', prompt: 'p' });
+    expect(out).toEqual({ ok: true });
+    expect(urls.some((u) => u.includes('anthropic'))).toBe(true);
+    expect(urls.some((u) => u.includes('openai'))).toBe(true);
+  });
+
+  it('does NOT fail a tenant BYOK key over to the global account (completeJson)', async () => {
+    const urls: string[] = [];
+    (global as unknown as { fetch: unknown }).fetch = jest.fn(async (url: string) => {
+      urls.push(url);
+      return {
+        ok: false,
+        status: 400,
+        json: async () => ({ error: { message: 'credit balance too low' } }),
+      };
+    });
+    const client = new RequestScopedLlmClient('sk-global-anthropic', 'claude-default', undefined, {
+      apiKey: 'sk-global-openai',
+      model: 'gpt-x',
+      provider: 'openai',
+    });
+    await expect(
+      RequestCredentialsStore.run({ bearerToken: 't', aiProvider: tenantCred }, () =>
+        client.completeJson({ system: 's', prompt: 'p' }),
+      ),
+    ).rejects.toThrow(/credit balance/);
+    expect(urls.every((u) => u.includes('anthropic'))).toBe(true); // never crossed to OpenAI
+  });
+
+  it('fails a GLOBAL-key quota error over to the fallback (completeWithSchema)', async () => {
+    const urls: string[] = [];
+    (global as unknown as { fetch: unknown }).fetch = jest.fn(async (url: string) => {
+      urls.push(url);
+      if (url.includes('anthropic')) {
+        return {
+          ok: false,
+          status: 400,
+          json: async () => ({ error: { message: 'insufficient_quota' } }),
+        };
+      }
+      return {
+        ok: true,
+        status: 200,
+        json: async () => ({
+          choices: [
+            {
+              message: { tool_calls: [{ function: { name: 'extract', arguments: '{"v":1}' } }] },
+              finish_reason: 'tool_calls',
+            },
+          ],
+          usage: { prompt_tokens: 1, completion_tokens: 1 },
+        }),
+      };
+    });
+    const client = new RequestScopedLlmClient('sk-global-anthropic', 'claude-default', undefined, {
+      apiKey: 'sk-global-openai',
+      model: 'gpt-x',
+      provider: 'openai',
+    });
+    const out = await client.completeWithSchema({
+      system: 's',
+      prompt: 'p',
+      toolName: 'extract',
+      toolDescription: 'd',
+      inputSchema: { type: 'object' },
+    });
+    expect(out.input).toEqual({ v: 1 });
+    expect(urls.some((u) => u.includes('openai'))).toBe(true);
+  });
+
+  it('is inert without a configured fallback (completeJson unchanged)', async () => {
+    (global as unknown as { fetch: unknown }).fetch = jest.fn(async () => ({
+      ok: false,
+      status: 400,
+      json: async () => ({ error: { message: 'credit balance too low' } }),
+    }));
+    const client = new RequestScopedLlmClient('sk-global', 'claude-default'); // no fallback
+    await expect(client.completeJson({ system: 's', prompt: 'p' })).rejects.toThrow(
+      /credit balance/,
+    );
+    expect((global.fetch as jest.Mock).mock.calls).toHaveLength(1); // credit err not retried, no fallback
+  });
 });
 
 describe('RequestScopedLlmClient resilience (retry + BYOK-safe failover)', () => {
