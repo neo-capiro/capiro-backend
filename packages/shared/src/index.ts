@@ -3325,7 +3325,9 @@ export const MERI_TOOL_MANIFEST: Readonly<Record<string, string>> = {
   save_note: 'Save a user-scoped Meri note and optionally an encrypted Capiro meeting note.',
   send_email: "Send an email via the tenant's connected Microsoft 365 account on behalf of Meri.",
   list_emails:
-    "List recent email threads from the tenant's connected Microsoft 365 inbox, optionally filtered by client.",
+    "List the user's MOST RECENT synced email threads (Microsoft 365/Google), newest first, optionally filtered by client. Reaches at most the newest 50 threads — older mail is invisible to this tool; to find a specific message, sender, or topic anywhere in synced mail use search_emails.",
+  search_emails:
+    "Search the user's synced email (Microsoft 365/Google, inbox + sent folders) by content or people — reaches mail of ANY age, unlike list_emails. Provide at least one of: `query` (matched against subject, sender, recipients, and the stored message preview), `from` (sender email or name fragment), `participant` (email or name fragment matched against sender AND to/cc/bcc recipients). Optional: `clientId`, `withinDays` (only messages from the last N days), `limit` (default 20, max 50). Returns matching messages newest-first (subject, from, to/cc, date, folder, preview, threadId — pass threadId to reply_email), the total match count, and a coverage report of every searched mailbox (sync status + date range; a connected-but-never-synced mailbox is called out). IMPORTANT: only inbox and sent folders sync and bodies are stored as short previews, so report a miss as 'not found in synced mail' — never as proof the email does not exist.",
   list_upcoming_meetings:
     "List the user's upcoming meetings from the connected calendar (synced Microsoft 365/Google events), soonest first — the source of truth for which meetings exist and when. Returns each meeting's id (pass to create_meeting_brief), subject, start/end, attendees, and client. Optionally filter by client or a lookahead window.",
   reply_email:

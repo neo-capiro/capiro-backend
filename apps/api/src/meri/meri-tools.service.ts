@@ -292,7 +292,12 @@ export const TOOL_DEFINITIONS = [
   {
     name: 'list_emails',
     description:
-      "List recent email threads from the tenant's connected Microsoft 365 inbox, optionally filtered by client.",
+      "List the user's MOST RECENT synced email threads (Microsoft 365/Google), newest first, optionally filtered by client. Reaches at most the newest 50 threads — older mail is invisible to this tool; to find a specific message, sender, or topic anywhere in synced mail use search_emails.",
+  },
+  {
+    name: 'search_emails',
+    description:
+      "Search the user's synced email (Microsoft 365/Google, inbox + sent folders) by content or people — reaches mail of ANY age, unlike list_emails. Provide at least one of: `query` (matched against subject, sender, recipients, and the stored message preview), `from` (sender email or name fragment), `participant` (email or name fragment matched against sender AND to/cc/bcc recipients). Optional: `clientId`, `withinDays` (only messages from the last N days), `limit` (default 20, max 50). Returns matching messages newest-first (subject, from, to/cc, date, folder, preview, threadId — pass threadId to reply_email), the total match count, and a coverage report of every searched mailbox (sync status + date range; a connected-but-never-synced mailbox is called out). IMPORTANT: only inbox and sent folders sync and bodies are stored as short previews, so report a miss as 'not found in synced mail' — never as proof the email does not exist.",
   },
   {
     name: 'list_upcoming_meetings',
@@ -862,6 +867,16 @@ export class MeriToolsService {
       list_emails: obj({
         clientId: str('Optional client UUID filter'),
         limit: int('Max threads (default 15, max 50)'),
+      }),
+      search_emails: obj({
+        query: str(
+          'Free-text match over subject, sender, recipients, and the stored message preview',
+        ),
+        from: str('Sender email or name fragment'),
+        participant: str('Email or name fragment matched against sender and to/cc/bcc recipients'),
+        clientId: str('Optional client UUID filter'),
+        withinDays: int('Only messages from the last N days (default: no limit)'),
+        limit: int('Max messages (default 20, max 50)'),
       }),
       list_upcoming_meetings: obj({
         clientId: str('Optional client UUID filter'),
@@ -1498,6 +1513,8 @@ export class MeriToolsService {
         return this.sendEmail(ctx, input);
       case 'list_emails':
         return this.listEmails(ctx, input);
+      case 'search_emails':
+        return this.searchEmails(ctx, input);
       case 'list_upcoming_meetings':
         return this.listUpcomingMeetings(ctx, input);
       case 'reply_email':
@@ -5048,6 +5065,224 @@ export class MeriToolsService {
     );
 
     return { threads, count: threads.length };
+  }
+
+  /**
+   * Search synced mail by content/people — the lookup counterpart to
+   * listEmails (which only pages the newest threads and can never reach older
+   * mail). Message-level ILIKE over subject / sender / recipients / stored
+   * preview, scoped like every mail tool: tenant + the caller's own
+   * connections. Raw SQL (parameterized) because recipients live in jsonb
+   * arrays the Prisma builder can't fragment-match; LIKE wildcards in user
+   * input are escaped so they match literally. Always returns a per-mailbox
+   * coverage report so the model can distinguish "not in synced mail" from
+   * "mailbox never synced" instead of asserting the email doesn't exist.
+   */
+  private async searchEmails(ctx: TenantContext, input: Record<string, unknown>) {
+    const query = optionalString(input, 'query', 200);
+    const from = optionalString(input, 'from', 200);
+    const participant = optionalString(input, 'participant', 200);
+    const clientId = optionalString(input, 'clientId', 36);
+    const withinDays =
+      input.withinDays === undefined || input.withinDays === null
+        ? null
+        : clampInt(input.withinDays, 1, 3650, 365);
+    const limit = clampInt(input.limit, 1, 50, 20);
+
+    if (!query && !from && !participant) {
+      return {
+        error:
+          "Provide at least one of 'query', 'from', or 'participant'. To simply see the newest threads use list_emails instead.",
+      };
+    }
+    const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+    if (clientId && !UUID_RE.test(clientId)) {
+      return { error: 'clientId must be a client UUID — pass the exact id, or omit it.' };
+    }
+
+    // Escape LIKE wildcards so model-supplied terms match literally
+    // (Postgres treats backslash as the LIKE escape character by default).
+    const pattern = (term: string) => `%${term.replace(/[\\%_]/g, (ch) => `\\${ch}`)}%`;
+
+    const conds: Prisma.Sql[] = [
+      Prisma.sql`m.tenant_id = ${ctx.tenantId}::uuid`,
+      Prisma.sql`c.created_by_user_id = ${ctx.userId}::uuid`,
+    ];
+    if (query) {
+      const p = pattern(query);
+      conds.push(
+        Prisma.sql`(m.subject ILIKE ${p} OR m.body_text ILIKE ${p} OR m.from_email::text ILIKE ${p} OR m.from_name ILIKE ${p} OR m.to_recipients_jsonb::text ILIKE ${p} OR m.cc_recipients_jsonb::text ILIKE ${p})`,
+      );
+    }
+    if (from) {
+      const p = pattern(from);
+      conds.push(Prisma.sql`(m.from_email::text ILIKE ${p} OR m.from_name ILIKE ${p})`);
+    }
+    if (participant) {
+      const p = pattern(participant);
+      conds.push(
+        Prisma.sql`(m.from_email::text ILIKE ${p} OR m.from_name ILIKE ${p} OR m.to_recipients_jsonb::text ILIKE ${p} OR m.cc_recipients_jsonb::text ILIKE ${p} OR m.bcc_recipients_jsonb::text ILIKE ${p})`,
+      );
+    }
+    if (clientId) conds.push(Prisma.sql`t.client_id = ${clientId}::uuid`);
+    if (withinDays !== null) {
+      conds.push(
+        // ::int — Prisma binds JS numbers as int8 and make_interval only takes int4.
+        Prisma.sql`COALESCE(m.received_at, m.sent_at) >= now() - make_interval(days => ${withinDays}::int)`,
+      );
+    }
+    const where = Prisma.join(conds, ' AND ');
+
+    // The same message can be synced once per folder (inbox + sent copies of a
+    // reply), so fetch headroom, count distinct, and dedupe on the RFC message
+    // id before trimming to `limit`.
+    const fetchLimit = Math.min(limit * 2, 100);
+
+    const { total, rows, coverage } = await this.prisma.withTenant(ctx.tenantId, async (tx) => {
+      const counted = await tx.$queryRaw<Array<{ n: number }>>(Prisma.sql`
+        SELECT count(DISTINCT COALESCE(m.metadata_jsonb->>'internetMessageId', m.id::text))::int AS n
+        FROM mail_messages m
+        JOIN engagement_connections c ON c.id = m.connection_id
+        JOIN mail_threads t ON t.id = m.thread_id
+        WHERE ${where}
+      `);
+      const rows = await tx.$queryRaw<
+        Array<{
+          id: string;
+          thread_id: string;
+          subject: string | null;
+          from_email: string | null;
+          from_name: string | null;
+          to_recipients: unknown;
+          cc_recipients: unknown;
+          sent_at: Date | null;
+          received_at: Date | null;
+          preview: string | null;
+          has_attachments: boolean;
+          folder: string | null;
+          internet_message_id: string | null;
+          client_id: string | null;
+          client_name: string | null;
+          account_email: string | null;
+        }>
+      >(Prisma.sql`
+        SELECT m.id::text AS id, m.thread_id::text AS thread_id, m.subject,
+               m.from_email::text AS from_email, m.from_name,
+               m.to_recipients_jsonb AS to_recipients, m.cc_recipients_jsonb AS cc_recipients,
+               m.sent_at, m.received_at, left(m.body_text, 400) AS preview,
+               m.has_attachments,
+               m.metadata_jsonb->>'folder' AS folder,
+               m.metadata_jsonb->>'internetMessageId' AS internet_message_id,
+               t.client_id::text AS client_id, cl.name AS client_name,
+               c.account_email::text AS account_email
+        FROM mail_messages m
+        JOIN engagement_connections c ON c.id = m.connection_id
+        JOIN mail_threads t ON t.id = m.thread_id
+        LEFT JOIN clients cl ON cl.id = t.client_id
+        WHERE ${where}
+        ORDER BY COALESCE(m.received_at, m.sent_at) DESC NULLS LAST
+        LIMIT ${fetchLimit}
+      `);
+      const coverage = await tx.$queryRaw<
+        Array<{
+          account_email: string | null;
+          provider: string;
+          status: string;
+          last_sync_at: Date | null;
+          synced_messages: number;
+          oldest_synced: Date | null;
+          newest_synced: Date | null;
+        }>
+      >(Prisma.sql`
+        SELECT c.account_email::text AS account_email, c.provider::text AS provider,
+               c.status::text AS status, c.last_sync_at,
+               count(m.id)::int AS synced_messages,
+               min(COALESCE(m.received_at, m.sent_at)) AS oldest_synced,
+               max(COALESCE(m.received_at, m.sent_at)) AS newest_synced
+        FROM engagement_connections c
+        LEFT JOIN mail_messages m ON m.connection_id = c.id AND m.tenant_id = c.tenant_id
+        WHERE c.tenant_id = ${ctx.tenantId}::uuid AND c.created_by_user_id = ${ctx.userId}::uuid
+        GROUP BY c.id, c.created_at
+        ORDER BY c.created_at
+      `);
+      return { total: counted[0]?.n ?? 0, rows, coverage };
+    });
+
+    const searchedMailboxes = coverage.map((c) => ({
+      accountEmail: c.account_email,
+      provider: c.provider,
+      status: c.status,
+      lastSyncAt: c.last_sync_at,
+      syncedMessages: c.synced_messages,
+      syncedRange:
+        c.synced_messages > 0 ? { oldest: c.oldest_synced, newest: c.newest_synced } : null,
+    }));
+
+    if (searchedMailboxes.length === 0) {
+      return {
+        totalMatches: 0,
+        returned: 0,
+        hasMore: false,
+        messages: [],
+        searchedMailboxes,
+        notes: [
+          'No connected mailbox exists for this user — nothing was searched. They can connect Microsoft 365 or Google under Settings → Integrations.',
+        ],
+      };
+    }
+
+    const capRecipients = (value: unknown) => {
+      const list = Array.isArray(value)
+        ? (value as Array<{ email?: unknown; name?: unknown }>)
+        : [];
+      return list.slice(0, 8).map((r) => ({
+        email: typeof r.email === 'string' ? r.email : null,
+        name: typeof r.name === 'string' ? r.name : null,
+      }));
+    };
+
+    const seen = new Set<string>();
+    const messages: Array<Record<string, unknown>> = [];
+    for (const row of rows) {
+      const key = row.internet_message_id ?? row.id;
+      if (seen.has(key)) continue;
+      seen.add(key);
+      messages.push({
+        threadId: row.thread_id,
+        subject: row.subject,
+        from: { email: row.from_email, name: row.from_name },
+        to: capRecipients(row.to_recipients),
+        cc: capRecipients(row.cc_recipients),
+        sentAt: row.sent_at,
+        receivedAt: row.received_at,
+        folder: row.folder,
+        preview: row.preview,
+        hasAttachments: row.has_attachments,
+        mailbox: row.account_email,
+        client: row.client_id ? { id: row.client_id, name: row.client_name } : null,
+      });
+      if (messages.length >= limit) break;
+    }
+
+    const notes: string[] = [
+      'Only inbox and sent folders are synced, and bodies are stored as short previews — a miss means "not found in synced mail", not proof the email does not exist.',
+    ];
+    for (const box of searchedMailboxes) {
+      if (box.syncedMessages === 0) {
+        notes.push(
+          `Mailbox ${box.accountEmail ?? '(no address on record)'} (${box.provider}, status: ${box.status}) has NO synced mail — it was not effectively searched.`,
+        );
+      }
+    }
+
+    return {
+      totalMatches: total,
+      returned: messages.length,
+      hasMore: total > messages.length,
+      messages,
+      searchedMailboxes,
+      notes,
+    };
   }
 
   /**

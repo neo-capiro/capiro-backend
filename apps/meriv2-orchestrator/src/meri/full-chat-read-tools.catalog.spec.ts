@@ -13,7 +13,7 @@ import { WRITE_DELEGATED_TOOLS } from './write-tools.catalog';
 const ALL_APPS_API_TOOLS = [...MERI_TOOL_NAMES];
 
 describe('FULL_CHAT_READ_TOOLS catalog', () => {
-  it('matches the expected 26-tool set, all read-only', () => {
+  it('matches the expected 27-tool set, all read-only', () => {
     const expected = [
       'run_analysis',
       'search_memory',
@@ -32,6 +32,7 @@ describe('FULL_CHAT_READ_TOOLS catalog', () => {
       'search_public_web',
       'scrape_web_page',
       'list_emails',
+      'search_emails',
       'list_upcoming_meetings',
       'list_scheduled_tasks',
       'query_tasks',
@@ -43,7 +44,7 @@ describe('FULL_CHAT_READ_TOOLS catalog', () => {
       'list_members',
     ].sort();
     expect(FULL_CHAT_READ_TOOLS.map((t) => t.name).sort()).toEqual(expected);
-    expect(FULL_CHAT_READ_TOOLS).toHaveLength(26);
+    expect(FULL_CHAT_READ_TOOLS).toHaveLength(27);
     expect(FULL_CHAT_READ_TOOLS.every((t) => t.readOnly === true)).toBe(true);
   });
 
@@ -63,7 +64,7 @@ describe('Combined delegated-tool coverage (in-editor + write + full-chat-read)'
     ].sort();
     expect(combined).toEqual(ALL_APPS_API_TOOLS);
     expect(new Set(combined).size).toBe(combined.length); // no tool double-registered
-    expect(combined).toHaveLength(69); // +list_upcoming_meetings (calendar-backed meeting prep)
+    expect(combined).toHaveLength(70); // +search_emails (mail lookup beyond list_emails' recency cap)
   });
 
   it('W4.6 / D-13: the three catalogs match the canonical MERI_TOOL_MANIFEST VERBATIM (name AND description) — catches description drift the name-only check missed', () => {
