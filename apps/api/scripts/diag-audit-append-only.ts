@@ -40,9 +40,13 @@ BEGIN
     actor_user_id text references _ao_user(id) on delete set null,
     action text
   ) ON COMMIT DROP;
+  -- NOTE: unlike audit_logs, prod compliance_check has a tenant_id COLUMN but NO
+  -- FK to tenants, so a tenant delete does NOT cascade it — CapiroAdminService.
+  -- deleteTenant purges it with an explicit deleteMany. The mock mirrors that (no
+  -- FK), and P9 deletes it explicitly rather than via cascade.
   CREATE TEMP TABLE _ao_compliance(
     id bigint primary key,
-    tenant_id text references _ao_tenant(id) on delete cascade,
+    tenant_id text,
     actor_user_id text,
     status text
   ) ON COMMIT DROP;
@@ -158,21 +162,25 @@ BEGIN
     INSERT INTO _ao_results VALUES ('P8_cascade_blocked_no_guc','PASS',SQLERRM);
   END;
 
-  -- P9: a tenant hard-delete UNDER the GUC succeeds and cascades child audit +
-  -- compliance rows away (the GDPR path CapiroAdminService.deleteTenant uses).
+  -- P9: the GDPR path (CapiroAdminService.deleteTenant) under the GUC — audit_logs
+  -- purges via its FK ON DELETE CASCADE when the tenant row goes; compliance_check
+  -- has no FK, so it is deleted EXPLICITLY (deleteMany) in the same GUC transaction.
+  -- Both DELETEs are permitted only because the purge GUC is set. Verifies nothing
+  -- is left orphaned.
   BEGIN
     PERFORM set_config('app.allow_audit_purge','on',true);
-    DELETE FROM _ao_tenant WHERE id='t1';
+    DELETE FROM _ao_compliance WHERE tenant_id='t1'; -- explicit (no FK cascade)
+    DELETE FROM _ao_tenant WHERE id='t1';            -- cascades _ao_audit via FK
     PERFORM set_config('app.allow_audit_purge','off',true);
     SELECT (SELECT count(*) FROM _ao_audit) + (SELECT count(*) FROM _ao_compliance) INTO v_count;
     IF v_count=0 THEN
-      INSERT INTO _ao_results VALUES ('P9_cascade_under_guc','PASS','tenant + children purged');
+      INSERT INTO _ao_results VALUES ('P9_purge_under_guc','PASS','tenant audit + compliance purged');
     ELSE
-      INSERT INTO _ao_results VALUES ('P9_cascade_under_guc','FAIL','residual children='||v_count);
+      INSERT INTO _ao_results VALUES ('P9_purge_under_guc','FAIL','residual rows='||v_count);
     END IF;
   EXCEPTION WHEN OTHERS THEN
     PERFORM set_config('app.allow_audit_purge','off',true);
-    INSERT INTO _ao_results VALUES ('P9_cascade_under_guc','FAIL','raised: '||SQLERRM);
+    INSERT INTO _ao_results VALUES ('P9_purge_under_guc','FAIL','raised: '||SQLERRM);
   END;
 END
 $rehearse$;
