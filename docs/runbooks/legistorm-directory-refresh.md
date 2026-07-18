@@ -119,7 +119,8 @@ The API resolves the snapshot per cache rebuild (≤ 30 min):
 4. **Canary (commit) once**, verify overlay SHA-256/VersionIds + tenant note/favorite/press counts
    are byte-identical, then confirm no `DeleteObject` CloudTrail events by the sync role.
 5. **Enable** `capiro-dev-sync-legistorm-directory` (Mon–Sat). After two clean daily runs, enable
-   `capiro-dev-reconcile-legistorm-directory-full` (Sun).
+   `capiro-dev-reconcile-legistorm-directory-full` (Sun) — **but see "Known gap: `--full` office
+   reconciliation" below; the Sun rule must stay DISABLED until that is fixed.**
 
 ```bash
 # Manual one-off ECS run (dry run shown; add --commit to publish):
@@ -132,6 +133,45 @@ aws events enable-rule  --name capiro-dev-sync-legistorm-directory
 aws events disable-rule --name capiro-dev-sync-legistorm-directory
 aws events describe-rule --name capiro-dev-reconcile-legistorm-directory-full   # expect State
 ```
+
+## Known gap: `--full` office reconciliation (Sun rule stays DISABLED)
+
+**Do NOT complete the second half of Activation step 5** (enabling
+`capiro-dev-reconcile-legistorm-directory-full`) until this is fixed.
+
+**Symptom.** A `--full` run fetches only ~468 of the ~2609 current offices, so it
+fails the `officeCountDrop` (and retirement) gates and correctly refuses to
+publish a degraded snapshot. `--full` therefore cannot self-approve.
+
+**Root cause.** `/office/list` is filtered purely by `updated_from`/`updated_to`
+(`legistorm-client.ts` `fetchOffices` → `fetchPaged('/office/list', range, …)`),
+so even a floor window (`2000-01-01..today`) returns only offices *modified*
+inside the window — most of the ~2609 offices are unchanged and never come back.
+Members do NOT hit this because `fetchMembers` passes `{ status: 'c' }`, a
+"current" selector that returns the full current roster regardless of the update
+date. `fetchOffices` has no analogous selector, and `--full` offices use the same
+`floor..today` window as members (`computeWindows`), expecting parity it doesn't get.
+
+**Why it isn't urgent.** Mon–Sat incremental + `office-retired-ids` tombstones
+keep offices current; `--full` is a belt-and-suspenders reconciliation, not the
+currency path.
+
+**Fix path (requires LIVE LegiStorm API verification — headless dev cannot probe
+it, and `fetchOffices` is SHARED with the live daily incremental pull, so do NOT
+change it blindly):**
+1. Determine whether `/office/list` accepts a "current/all" selector analogous to
+   the member `status: 'c'` (or whether a separate "all active offices" endpoint
+   exists). If so, pass it ONLY on the full-mode office fetch (thread the mode
+   into `fetchOffices`, don't flip the default and change incremental behavior).
+2. If no such selector exists, `--full` offices cannot be rebuilt from
+   `/office/list` windowing. Options: (a) seed the office set from the current
+   baseline snapshot and apply only window deltas + retired-id tombstones on top
+   (treat full-mode offices as reconcile-onto-baseline, not from-scratch), or
+   (b) re-verify against the live API whether a very-old `updated_from` paged to
+   `maxPages` genuinely returns all offices — an earlier floor attempt suggested
+   it does not, so confirm before relying on it.
+3. Re-run `--full` dry until the office-count and retirement gates pass, then
+   enable the Sun rule.
 
 ## Observability
 

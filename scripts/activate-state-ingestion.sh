@@ -274,6 +274,7 @@ cmd_schedules() {
     "sync-state-register|capiro-${ENV}-api-sync-state-register|api-sync-state-register|sync-state-register|cron(45 6 * * ? *)|"
     "derive-state-bill-status|capiro-${ENV}-api-sync-legiscan-bills|api-sync-legiscan-bills|derive-state-bill-status|cron(50 0/6 * * ? *)|"
     "emit-state-changes|capiro-${ENV}-api-sync-legiscan-bills|api-sync-legiscan-bills|emit-state-changes|cron(55 0/6 * * ? *)|"
+    "crosswalk-state-people|capiro-${ENV}-api-sync-legiscan-bills|api-sync-legiscan-bills|crosswalk-state-people|cron(20 5 * * ? *)|LEGISCAN_STATES=${PRIORITY_STATES}"
     "normalize-state-committees|capiro-${ENV}-api-sync-state-register|api-sync-state-register|normalize-state-committees|cron(30 8 ? * MON *)|"
     "geocode-facilities|capiro-${ENV}-api-sync-state-register|api-sync-state-register|geocode-facilities|cron(15 4 * * ? *)|"
   )

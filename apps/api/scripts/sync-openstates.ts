@@ -37,7 +37,15 @@ const OS_KEY = process.env.OPENSTATES_API_KEY ?? '';
 const DELAY_MS = 2000;
 const MAX_RETRIES = 3;
 const PER_PAGE = 20; // OpenStates v3 hard max; per_page>20 -> HTTP 400 (old per_page=100/200 fetched 0 rows)
-const MAX_PAGES = 5; // up to PER_PAGE*MAX_PAGES rows/state/resource per run; full coverage builds over the weekly cycle
+const MAX_PAGES = 5; // default page ceiling for small resources (committees) — the walk stops early anyway once pagination.max_page is reached
+// People must be fully paged, not capped: every priority state legislature has
+// MORE than PER_PAGE*MAX_PAGES=100 members (GA 236, NY 213, MA 200, TX 181, IL
+// 177, FL 160, VA 140, CA 120), so the old shared 5-page cap silently dropped
+// each state's tail — those legislators never got a state_legislator row, so
+// they could never be crosswalked and always read "no sponsored bills". 25
+// pages covers the largest single chamber (NH House, 400); the walk still
+// breaks early at pagination.max_page for smaller states.
+const PEOPLE_MAX_PAGES = 25;
 const BATCH_SIZE = 10; // process 10 states per run to avoid rate limits
 // All states + DC
 const ALL_STATES = ALL_US_STATE_CODES.map((s) => s.toLowerCase());
@@ -92,9 +100,10 @@ export interface PagedFetchResult<T> {
 export async function fetchAllPages<T>(
   path: string,
   params: Record<string, string> = {},
+  maxPages: number = MAX_PAGES,
 ): Promise<PagedFetchResult<T>> {
   const all: T[] = [];
-  for (let page = 1; page <= MAX_PAGES; page++) {
+  for (let page = 1; page <= maxPages; page++) {
     await new Promise((r) => setTimeout(r, DELAY_MS));
     const resp = await fetchOS<{ results: T[]; pagination?: { max_page?: number } }>(path, {
       ...params,
@@ -188,8 +197,14 @@ async function main() {
       let totalPeople = 0;
 
       for (const state of PRIORITY_STATES) {
-        // Fetch current legislators, paged at the API max (per_page=200 -> 400).
-        const { rows: peopleList } = await fetchAllPages<any>('/people', { jurisdiction: state });
+        // Fetch current legislators — fully paged (PEOPLE_MAX_PAGES), since every
+        // priority state has >100 members and a truncated roster means missing
+        // legislators that can never be crosswalked to their bills.
+        const { rows: peopleList } = await fetchAllPages<any>(
+          '/people',
+          { jurisdiction: state },
+          PEOPLE_MAX_PAGES,
+        );
 
         if (peopleList.length) {
           // Fetch committee rosters for the same state and invert to person -> committees,

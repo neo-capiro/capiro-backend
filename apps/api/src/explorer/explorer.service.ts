@@ -278,7 +278,10 @@ export class ExplorerService {
 
   async ldaFacets() {
     const [issueCodes, years, states, periods] = await Promise.all([
-      this.prisma.ldaIssueCode.findMany({ select: { code: true, name: true }, orderBy: { code: 'asc' } }),
+      this.prisma.ldaIssueCode.findMany({
+        select: { code: true, name: true },
+        orderBy: { code: 'asc' },
+      }),
       this.prisma.$queryRaw<Array<{ year: number }>>`
         SELECT DISTINCT filing_year AS year FROM lda_filing
         WHERE filing_year IS NOT NULL ORDER BY filing_year DESC
@@ -404,12 +407,9 @@ export class ExplorerService {
 
     // Sort: for an upcoming view, soonest-first is the natural default;
     // for past/all, most-recent-first. Explicit sort always wins.
-    const sortKey =
-      opts.sort ?? (effectiveFilter === 'upcoming' ? 'soonest' : 'recent');
+    const sortKey = opts.sort ?? (effectiveFilter === 'upcoming' ? 'soonest' : 'recent');
     const orderBy: Prisma.CommitteeHearingOrderByWithRelationInput =
-      sortKey === 'soonest' || sortKey === 'future'
-        ? { date: 'asc' }
-        : { date: 'desc' };
+      sortKey === 'soonest' || sortKey === 'future' ? { date: 'asc' } : { date: 'desc' };
 
     const [rows, total] = await Promise.all([
       this.prisma.committeeHearing.findMany({ where, orderBy, take: limit, skip: offset }),
@@ -1097,10 +1097,17 @@ export class ExplorerService {
    *
    * Sponsored bills join StateBillSponsor by legiscanPeopleId — the ONLY
    * reliable key today (legislatorId on state_bill_sponsor is a schema-level
-   * soft ref that ingestion never actually populates). A legislator without a
-   * legiscanPeopleId (never crosswalked — e.g. a state whose bills haven't
-   * been backfilled yet) gets `sponsoredBills: null`, distinct from an empty
-   * array, so the UI can say "not yet linked" instead of implying zero bills.
+   * soft ref that ingestion never actually populates). That id is stamped only
+   * by the OpenStates↔LegiScan crosswalk (crosswalkLegiscanPerson /
+   * crosswalk-state-people), so a legislator the crosswalk hasn't linked yet
+   * would otherwise show `sponsoredBills: null` even when its sponsor rows are
+   * sitting in the table. To avoid that, when the stored id is null we fall
+   * back to an UNAMBIGUOUS same-state name match: if the sponsor rows in this
+   * legislator's state that carry their (case-insensitive) name all resolve to
+   * exactly one legiscan_people_id, we use it. Zero or multiple distinct ids
+   * leave `sponsoredBills: null` (honest "not yet linked", never a guessed
+   * identity — PD2). The durable fix is crosswalk coverage; this is the
+   * read-time safety net so deployed data isn't blank in the meantime.
    */
   async stateLegislatorDetail(id: string) {
     const legislator = await this.prisma.stateLegislator.findUnique({
@@ -1115,6 +1122,24 @@ export class ExplorerService {
     if (!legislator) return null;
     const committeeRows = legislator.committeeMemberships;
 
+    // Resolve the join key: the stored crosswalk id, or an unambiguous
+    // same-state name fallback when it hasn't been stamped yet.
+    let resolvedPeopleId: number | null = legislator.legiscanPeopleId;
+    if (resolvedPeopleId == null) {
+      const nameMatches = await this.prisma.stateBillSponsor.findMany({
+        where: {
+          name: { equals: legislator.name, mode: 'insensitive' },
+          bill: { state: legislator.state },
+        },
+        select: { legiscanPeopleId: true },
+        distinct: ['legiscanPeopleId'],
+      });
+      const distinctIds = nameMatches
+        .map((m) => m.legiscanPeopleId)
+        .filter((x): x is number => x != null);
+      if (distinctIds.length === 1) resolvedPeopleId = distinctIds[0]!;
+    }
+
     let sponsoredBills: Array<{
       billId: string;
       identifier: string;
@@ -1126,13 +1151,20 @@ export class ExplorerService {
     }> | null = null;
     let sponsoredBillsTotal = 0;
 
-    if (legislator.legiscanPeopleId != null) {
+    if (resolvedPeopleId != null) {
       const [sponsorRows, count] = await Promise.all([
         this.prisma.stateBillSponsor.findMany({
-          where: { legiscanPeopleId: legislator.legiscanPeopleId },
+          where: { legiscanPeopleId: resolvedPeopleId },
           include: {
             bill: {
-              select: { id: true, identifier: true, title: true, chamber: true, status: true, statusAt: true },
+              select: {
+                id: true,
+                identifier: true,
+                title: true,
+                chamber: true,
+                status: true,
+                statusAt: true,
+              },
             },
           },
           // nulls: 'last' — bills without a derived status yet (pre-backfill)
@@ -1141,7 +1173,7 @@ export class ExplorerService {
           take: 25,
         }),
         this.prisma.stateBillSponsor.count({
-          where: { legiscanPeopleId: legislator.legiscanPeopleId },
+          where: { legiscanPeopleId: resolvedPeopleId },
         }),
       ]);
       sponsoredBills = sponsorRows.map((s) => ({

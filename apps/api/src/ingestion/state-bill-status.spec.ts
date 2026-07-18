@@ -158,7 +158,7 @@ describe('deriveStateBillStatus — precedence traps', () => {
 });
 
 describe('deriveStateBillStatus — carryover self-heal (dead_by_deadline reversal)', () => {
-  it('a bill previously classified dead_by_deadline re-derives to its live underlying status once the session sine-die is null (LegiScan reopened/moved the bill) — pins the Phase-0 landmine note\'s claimed self-heal', () => {
+  it("a bill previously classified dead_by_deadline re-derives to its live underlying status once the session sine-die is null (LegiScan reopened/moved the bill) — pins the Phase-0 landmine note's claimed self-heal", () => {
     const dead = deriveStateBillStatus({
       legiscanStatus: 2, // Engrossed
       sessionSineDie: '2025-05-30',
@@ -281,5 +281,17 @@ describe('parseStateBillDesignation', () => {
   it('handles an alpha-suffixed resolution number ("HJR12A")', () => {
     const r = parseStateBillDesignation('HJR12A', 'TX');
     expect(r?.billNumber).toBe('hjr12a');
+  });
+
+  it('collapses a DC-style hyphenated number so it matches the ingested key', () => {
+    const r = parseStateBillDesignation('B26-0001', 'DC', '2025');
+    expect(r?.billNumber).toBe('b260001');
+    expect(r?.key).toBe('dc-2025-b260001');
+  });
+
+  it('handles a DC hyphenated number with a leading state code', () => {
+    const r = parseStateBillDesignation('DC PR 26-0001', null);
+    expect(r?.state).toBe('DC');
+    expect(r?.billNumber).toBe('pr260001');
   });
 });
