@@ -172,7 +172,17 @@ export function buildConferencePredictionFromHistory(
 export class ConferenceProbabilityService {
   constructor(private readonly prisma: PrismaService) {}
 
-  async predict(peCode: string, fy: number): Promise<ConferencePrediction | null> {
+  /**
+   * Predict where the NDAA conference lands between the HASC/SASC marks.
+   *
+   * `persist` (GAI-25): when true (the default, used by the batch recompute
+   * script) a freshly-computed prediction is cached via upsert. The Meri read
+   * tool path (`get_pe_budget_timeline` -> ProgramElementReadService.getTimeline)
+   * MUST pass `false` so a *read* never writes to `conference_probability` — it
+   * still computes + returns a prediction in-memory, it just doesn't persist it.
+   * The already-cached row is always served regardless of `persist`.
+   */
+  async predict(peCode: string, fy: number, persist = true): Promise<ConferencePrediction | null> {
     const targetRows = await this.prisma.$queryRaw<PredictionRow[]>(Prisma.sql`
       SELECT
         y.pe_code AS "peCode",
@@ -235,7 +245,7 @@ export class ConferenceProbabilityService {
         ciHigh: hascMark,
         confidence: MIN_CONFIDENCE,
       };
-      await this.upsertPrediction(peCode, fy, flatPrediction);
+      if (persist) await this.upsertPrediction(peCode, fy, flatPrediction);
       return flatPrediction;
     }
 
@@ -289,7 +299,7 @@ export class ConferenceProbabilityService {
 
     if (!prediction) return null;
 
-    await this.upsertPrediction(peCode, fy, prediction);
+    if (persist) await this.upsertPrediction(peCode, fy, prediction);
     return prediction;
   }
 
