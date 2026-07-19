@@ -357,6 +357,13 @@ describe('ProgramElementReadService', () => {
       expect(result.years[0]?.predictedConferenceAmountCiLow).toBe(247.0);
       expect(result.years[0]?.predictedConferenceAmountCiHigh).toBe(255.3);
       expect(result.years[0]?.predictedConferenceConfidence).toBe(0.66);
+      // GAI-25: the read path must call predict with persist=false so it never
+      // writes to conference_probability while serving a timeline.
+      expect(conferenceProbabilityService.predict).toHaveBeenCalledWith(
+        '0603270A',
+        expect.any(Number),
+        false,
+      );
     });
   });
 

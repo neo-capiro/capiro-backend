@@ -829,7 +829,8 @@ export class ProgramElementReadService {
 
     const yearsWithConferenceProbability = await Promise.all(
       years.map(async (year) => {
-        const prediction = await this.conferenceProbabilityService.predict(peCode, year.fy);
+        // GAI-25: read path must not write — compute + return, never persist.
+        const prediction = await this.conferenceProbabilityService.predict(peCode, year.fy, false);
         const values: FundingStageValues = {
           request: num(year.request),
           hascMark: num(year.hascMark),
