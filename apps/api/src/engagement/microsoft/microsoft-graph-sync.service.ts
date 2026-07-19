@@ -523,6 +523,24 @@ export class MicrosoftGraphSyncService {
 
       return result;
     } catch (err) {
+      // A signed-in account with NO Exchange Online mailbox (e.g. a bare
+      // .onmicrosoft.com admin) fails this way forever — that needs a human
+      // with a licensed mailbox, not a 15-minute retry loop.
+      if (err instanceof Error && err.message.includes('MailboxNotEnabledForRESTAPI')) {
+        await this.prisma.withTenant(tenantId, (tx) =>
+          tx.integrationConnection
+            .update({
+              where: { id: connectionId },
+              data: {
+                status: EngagementConnectionStatus.needs_configuration,
+                lastError:
+                  'This Microsoft account has no Exchange Online mailbox — reconnect with a licensed mailbox account.',
+              },
+            })
+            .catch(() => undefined),
+        );
+        throw err;
+      }
       await this.markSyncError(tenantId, connectionId, err);
       throw err;
     }
@@ -538,17 +556,37 @@ export class MicrosoftGraphSyncService {
     const stats = emptyStats();
     const current = state.calendar ?? {};
     const window = calendarWindow(input.from, input.to);
-    let nextUrl =
-      !input.reset && (current.nextLink || current.cursor || current.deltaLink)
-        ? (current.nextLink || current.cursor || current.deltaLink)!
-        : calendarDeltaUrl(window.from, window.to);
+    let usedStoredCursor =
+      !input.reset && Boolean(current.nextLink || current.cursor || current.deltaLink);
+    let nextUrl = usedStoredCursor
+      ? (current.nextLink || current.cursor || current.deltaLink)!
+      : calendarDeltaUrl(window.from, window.to);
     let deltaLink: string | null = null;
 
     for (let page = 0; page < MAX_CALENDAR_PAGES_PER_RUN && nextUrl; page += 1) {
       stats.pages += 1;
-      const response = await this.graphGet<GraphDeltaResponse<GraphEvent>>(nextUrl, accessToken, {
-        Prefer: 'outlook.timezone="UTC", odata.maxpagesize=50',
-      });
+      let response: GraphDeltaResponse<GraphEvent>;
+      try {
+        response = await this.graphGet<GraphDeltaResponse<GraphEvent>>(nextUrl, accessToken, {
+          Prefer: 'outlook.timezone="UTC", odata.maxpagesize=50',
+        });
+      } catch (err) {
+        // Graph delta state expires (410 SyncStateNotFound) on streams that
+        // sat idle for weeks — restart from a fresh delta URL instead of
+        // failing this connection's sync forever (Gmail's historyId-too-old
+        // reset is the same pattern). One reset per run: a fresh URL 410ing
+        // again is a real error.
+        if (usedStoredCursor && isGraphSyncStateGone(err)) {
+          this.logger.warn(
+            `calendar delta state expired for connection ${connection.id}; restarting from a fresh delta window`,
+          );
+          usedStoredCursor = false;
+          nextUrl = calendarDeltaUrl(window.from, window.to);
+          deltaLink = null;
+          continue;
+        }
+        throw err;
+      }
       for (const event of response.value ?? []) {
         stats.scanned += 1;
         const outcome = await this.persistGraphEvent(
@@ -603,21 +641,34 @@ export class MicrosoftGraphSyncService {
     for (const folder of folders) {
       const current = folderStates[folder.key] ?? {};
       const stats = emptyStats();
-      let nextUrl =
-        !input.reset && (current.nextLink || current.cursor || current.deltaLink)
-          ? (current.nextLink || current.cursor || current.deltaLink)!
-          : mailDeltaUrl(folder.pathSegment, addDays(new Date(), -MAIL_BACKFILL_DAYS));
+      let usedStoredCursor =
+        !input.reset && Boolean(current.nextLink || current.cursor || current.deltaLink);
+      let nextUrl = usedStoredCursor
+        ? (current.nextLink || current.cursor || current.deltaLink)!
+        : mailDeltaUrl(folder.pathSegment, addDays(new Date(), -MAIL_BACKFILL_DAYS));
       let deltaLink: string | null = null;
 
       for (let page = 0; page < MAX_MAIL_PAGES_PER_FOLDER_PER_RUN && nextUrl; page += 1) {
         stats.pages += 1;
-        const response = await this.graphGet<GraphDeltaResponse<GraphMessage>>(
-          nextUrl,
-          accessToken,
-          {
+        let response: GraphDeltaResponse<GraphMessage>;
+        try {
+          response = await this.graphGet<GraphDeltaResponse<GraphMessage>>(nextUrl, accessToken, {
             Prefer: 'odata.maxpagesize=50',
-          },
-        );
+          });
+        } catch (err) {
+          // Expired delta state (410 SyncStateNotFound) — restart this
+          // folder's stream from a fresh backfill window (see syncCalendar).
+          if (usedStoredCursor && isGraphSyncStateGone(err)) {
+            this.logger.warn(
+              `mail delta state expired for connection ${connection.id} folder ${folder.displayPath}; restarting from a fresh delta window`,
+            );
+            usedStoredCursor = false;
+            nextUrl = mailDeltaUrl(folder.pathSegment, addDays(new Date(), -MAIL_BACKFILL_DAYS));
+            deltaLink = null;
+            continue;
+          }
+          throw err;
+        }
         for (const message of response.value ?? []) {
           stats.scanned += 1;
           const outcome = await this.persistGraphMessage(
@@ -1603,6 +1654,17 @@ function calendarViewUrl(from: string, to: string): string {
     $top: '50',
   });
   return `/me/calendarView?${params.toString()}`;
+}
+
+/**
+ * Graph delta cursors expire when a stream sits idle past the service's
+ * sync-state retention — Graph then answers 410 SyncStateNotFound (observed
+ * live on calendars untouched for 2+ weeks). graphFetch folds the status and
+ * body into the thrown message.
+ */
+function isGraphSyncStateGone(err: unknown): boolean {
+  const message = err instanceof Error ? err.message : String(err);
+  return message.includes('SyncStateNotFound') || message.includes('failed (410)');
 }
 
 function mailDeltaUrl(folder: string, since: Date): string {
