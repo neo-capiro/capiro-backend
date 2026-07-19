@@ -16,8 +16,12 @@ describe('ClientsService.list — archived filtering', () => {
     // No ASSETS_BUCKET configured → logo signing is skipped (clients list is empty).
     const config = { get: jest.fn(() => undefined) };
     // resolve-on-create dependencies; unused by the list() paths under test.
-    const entityResolution = { resolveClient: jest.fn(async () => ({ created: 0, autoConfirmed: 0, needsReview: 0 })) };
-    const prepopulation = { prepopulate: jest.fn(async () => ({ ldaClientIds: [], issueCodesAdded: 0 })) };
+    const entityResolution = {
+      resolveClient: jest.fn(async () => ({ created: 0, autoConfirmed: 0, needsReview: 0 })),
+    };
+    const prepopulation = {
+      prepopulate: jest.fn(async () => ({ ldaClientIds: [], issueCodesAdded: 0 })),
+    };
     const samEntity = { enrichGovIds: jest.fn(async () => ({ filled: [], matched: false })) };
     const clientKb = { indexClientProfileFireAndForget: jest.fn() };
     const service = new ClientsService(
@@ -37,7 +41,7 @@ describe('ClientsService.list — archived filtering', () => {
     await service.list(ctx);
 
     expect(tenantTx.client.findMany).toHaveBeenCalledWith(
-      expect.objectContaining({ where: { status: { not: 'archived' } } }),
+      expect.objectContaining({ where: { tenantId: 'tenant-1', status: { not: 'archived' } } }),
     );
   });
 
@@ -46,8 +50,11 @@ describe('ClientsService.list — archived filtering', () => {
 
     await service.list(ctx, { includeArchived: true });
 
-    // No status filter is added → the where clause stays empty.
-    expect(tenantTx.client.findMany).toHaveBeenCalledWith(expect.objectContaining({ where: {} }));
+    // No status filter is added → only the always-on tenant scope remains (the
+    // app role bypasses RLS, so list() puts tenantId in every where clause).
+    expect(tenantTx.client.findMany).toHaveBeenCalledWith(
+      expect.objectContaining({ where: { tenantId: 'tenant-1' } }),
+    );
   });
 
   test('keeps profileStatus/sectorTag filters alongside the archived exclusion', async () => {
@@ -57,7 +64,12 @@ describe('ClientsService.list — archived filtering', () => {
 
     expect(tenantTx.client.findMany).toHaveBeenCalledWith(
       expect.objectContaining({
-        where: { profileStatus: 'ACTIVE', sectorTag: 'defense', status: { not: 'archived' } },
+        where: {
+          tenantId: 'tenant-1',
+          profileStatus: 'ACTIVE',
+          sectorTag: 'defense',
+          status: { not: 'archived' },
+        },
       }),
     );
   });
