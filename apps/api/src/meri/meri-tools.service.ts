@@ -297,7 +297,7 @@ export const TOOL_DEFINITIONS = [
   {
     name: 'search_emails',
     description:
-      "Search the user's synced email (Microsoft 365/Google) by content or people — reaches mail of ANY age, unlike list_emails. Provide at least one of: `query` (matched against subject, sender, recipients, and the stored message preview), `from` (sender email or name fragment), `participant` (email or name fragment matched against sender AND to/cc/bcc recipients). Optional: `clientId`, `withinDays` (only messages from the last N days), `limit` (default 20, max 50). Returns matching messages newest-first (subject, from, to/cc, date, folder, preview, threadId — pass threadId to reply_email), the total match count, and a coverage report of every searched mailbox (sync status + date range; a connected-but-never-synced mailbox is called out). IMPORTANT: bodies are stored as short previews and some folders never sync (junk/deleted/drafts on Microsoft 365; Google currently syncs only inbox and sent labels), so report a miss as 'not found in synced mail' — never as proof the email does not exist.",
+      "Search the user's synced email (Microsoft 365/Google) by content or people — reaches mail of ANY age, unlike list_emails. Provide at least one of: `query` (matched against subject, sender, recipients, and the stored message preview), `from` (sender email or name fragment), `participant` (email or name fragment matched against sender AND to/cc/bcc recipients). Optional: `clientId`, `withinDays` (only messages from the last N days), `limit` (default 20, max 50). Returns matching messages newest-first (subject, from, to/cc, date, folder, preview, threadId — pass threadId to reply_email), the total match count, and a coverage report of every searched mailbox (sync status + date range; a connected-but-never-synced mailbox is called out). IMPORTANT: bodies are stored as short previews and junk/spam, deleted/trash, and drafts folders never sync, so report a miss as 'not found in synced mail' — never as proof the email does not exist.",
   },
   {
     name: 'list_upcoming_meetings',
@@ -5306,7 +5306,7 @@ export class MeriToolsService {
     }
 
     const notes: string[] = [
-      'Bodies are stored as short previews, and some folders never sync (junk/deleted/drafts on Microsoft 365; Google currently syncs only the inbox and sent labels) — a miss means "not found in synced mail", not proof the email does not exist.',
+      'Bodies are stored as short previews, and junk/spam, deleted/trash, and drafts folders never sync — a miss means "not found in synced mail", not proof the email does not exist.',
     ];
     for (const box of searchedMailboxes) {
       if (box.syncedMessages === 0) {

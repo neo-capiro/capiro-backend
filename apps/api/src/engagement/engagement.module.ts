@@ -22,6 +22,7 @@ import { ContextModule } from '../context/context.module.js';
 import { GoogleOAuthController } from './google/google-oauth.controller.js';
 import { GoogleOAuthService } from './google/google-oauth.service.js';
 import { GoogleSyncService } from './google/google-sync.service.js';
+import { EngagementSyncSchedulerService } from './engagement-sync-scheduler.service.js';
 import { OutcomeService } from './outcome/outcome.service.js';
 import { OutcomeController } from './outcome/outcome.controller.js';
 
@@ -55,6 +56,7 @@ import { OutcomeController } from './outcome/outcome.controller.js';
     MicrosoftOAuthService,
     GoogleOAuthService,
     GoogleSyncService,
+    EngagementSyncSchedulerService,
     TokenCryptoService,
   ],
   exports: [

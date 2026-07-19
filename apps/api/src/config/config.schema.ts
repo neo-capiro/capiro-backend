@@ -119,6 +119,21 @@ export const configSchema = z.object({
   OUTREACH_JOB_SWEEP_MS: z.coerce.number().int().positive().default(5_000),
   OUTREACH_JOB_STALE_MS: z.coerce.number().int().positive().default(120_000),
 
+  // Engagement auto-sync scheduler: periodic reconciliation syncs for connected
+  // M365/Google mailboxes. Webhooks are a latency optimization, NOT a
+  // reliability mechanism — Graph subscriptions expire after 6 days and were
+  // only renewed during syncs, so webhook-only connections went permanently
+  // silent (observed: mailboxes stale for weeks while showing "connected").
+  // The scheduler guarantees eventual freshness, renews subscriptions, and
+  // pulls quiet mailboxes through backfills. Kill-switch: set false/0/no/off.
+  ENGAGEMENT_AUTO_SYNC: z
+    .string()
+    .default('true')
+    .transform((v) => ['true', '1', 'yes', 'on'].includes(v.trim().toLowerCase())),
+  // Per-connection sync cadence. Delta syncs are cheap (changes-only); 20 min
+  // keeps Gmail historyId cursors alive and folder coverage fresh.
+  ENGAGEMENT_SYNC_INTERVAL_MINUTES: z.coerce.number().int().min(5).max(1440).default(20),
+
   // SAM.gov Contract Opportunities API key (api.data.gov). Stored in Secrets
   // Manager and injected as an env var; optional so non-prod boots without it.
   SAM_GOV_API_KEY: z.string().optional(),

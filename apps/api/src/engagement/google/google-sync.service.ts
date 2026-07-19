@@ -53,8 +53,30 @@ const CALENDAR_PAGE_SIZE = 250;
 const GOOGLE_SYNC_TX_TIMEOUT_MS = 20_000;
 // Gmail labels we mirror into the store — the direct analog of the Outlook
 // 'inbox' / 'sentitems' mail folders.
-const MAIL_LABELS = ['INBOX', 'SENT'] as const;
-type MailLabel = (typeof MAIL_LABELS)[number];
+// Backfill scope: ALL mail minus junk — spam/trash/drafts excluded, archived
+// and custom-label mail included (parity with the M365 folder-tree sync #536;
+// Gmail "archive" is just the absence of the INBOX label, so a label-scoped
+// sync can never see it).
+const MAIL_BACKFILL_SCOPE = 'ALL';
+const MAIL_EXCLUDE_QUERY = '-in:spam -in:trash -in:draft';
+const EXCLUDED_LABEL_IDS: ReadonlySet<string> = new Set(['SPAM', 'TRASH', 'DRAFT']);
+
+/**
+ * Derive the stored folder label + sent-ness from a message's own labelIds
+ * (the per-stream label is gone now that one query covers the whole mailbox).
+ * Exported for unit tests.
+ */
+export function gmailFolderFromLabelIds(labelIds: readonly string[] | undefined): {
+  folder: 'sent' | 'inbox' | 'archive';
+  isSent: boolean;
+} {
+  const labels = labelIds ?? [];
+  const isSent = labels.includes('SENT');
+  return {
+    folder: isSent ? 'sent' : labels.includes('INBOX') ? 'inbox' : 'archive',
+    isSent,
+  };
+}
 
 interface GoogleSyncState {
   calendar?: {
@@ -199,7 +221,14 @@ export class GoogleSyncService {
     return this.syncConnectionByTenant(ctx.tenantId, connectionId, input);
   }
 
-  private async syncConnectionByTenant(
+  /**
+   * Tenant-scoped sync without a user context — used by the auto-sync
+   * scheduler (EngagementSyncSchedulerService). Success stamps
+   * connected/lastSyncAt/lastError:null; invalid_grant flips the connection to
+   * needs_configuration with a reconnect message (Testing-mode 7-day token
+   * death lands here); other failures go through markSyncError.
+   */
+  async syncConnectionByTenant(
     tenantId: string,
     connectionId: string,
     input: { calendar?: boolean; mail?: boolean; reset?: boolean } = {},
@@ -465,24 +494,24 @@ export class GoogleSyncService {
       }
     }
 
-    // Backfill path: page each label independently, capped per run, resuming
-    // from the stored pageToken. Once every label is exhausted, capture the
-    // current profile historyId as the baseline for future incremental syncs.
+    // Backfill path: ONE query over the whole mailbox (minus spam/trash/
+    // drafts — archive and custom labels included), capped per run, resuming
+    // from the stored pageToken. Once exhausted, capture the current profile
+    // historyId as the baseline for future incremental syncs. Pre-widening
+    // INBOX/SENT label states are simply ignored; the 'ALL' scope starts its
+    // own backfill (upserts are idempotent).
     const labelStates = input.reset ? {} : (mailState.labels ?? {});
-    for (const label of MAIL_LABELS) {
-      const current = labelStates[label] ?? {};
-      if (current.backfillDone && !input.reset) {
-        results[label] = emptyStats();
-        continue;
-      }
+    const current = labelStates[MAIL_BACKFILL_SCOPE] ?? {};
+    if (current.backfillDone && !input.reset) {
+      results[MAIL_BACKFILL_SCOPE] = emptyStats();
+    } else {
       const stats = emptyStats();
       let pageToken: string | null = input.reset ? null : (current.backfillPageToken ?? null);
-      const query = `after:${Math.floor(addDays(new Date(), -MAIL_BACKFILL_DAYS).getTime() / 1000)}`;
+      const query = `after:${Math.floor(addDays(new Date(), -MAIL_BACKFILL_DAYS).getTime() / 1000)} ${MAIL_EXCLUDE_QUERY}`;
 
       for (let page = 0; page < MAX_MAIL_PAGES_PER_LABEL_PER_RUN; page += 1) {
         stats.pages += 1;
         const list = await this.gmailList(accessToken, {
-          labelId: label,
           query,
           pageToken: pageToken ?? undefined,
         });
@@ -490,7 +519,7 @@ export class GoogleSyncService {
           if (!ref.id) continue;
           stats.scanned += 1;
           const message = await this.gmailGet(accessToken, ref.id);
-          const outcome = await this.persistGmailMessage(tenantId, connection.id, label, message);
+          const outcome = await this.persistGmailMessage(tenantId, connection.id, message);
           stats.matched += outcome === 'matched' ? 1 : 0;
           stats.skipped += outcome === 'skipped' ? 1 : 0;
         }
@@ -499,15 +528,15 @@ export class GoogleSyncService {
       }
 
       stats.hasMore = Boolean(pageToken);
-      labelStates[label] = {
+      labelStates[MAIL_BACKFILL_SCOPE] = {
         backfillPageToken: pageToken,
         backfillDone: !pageToken,
         updatedAt: new Date().toISOString(),
       };
-      results[label] = stats;
+      results[MAIL_BACKFILL_SCOPE] = stats;
     }
 
-    const allDone = MAIL_LABELS.every((label) => labelStates[label]?.backfillDone);
+    const allDone = Boolean(labelStates[MAIL_BACKFILL_SCOPE]?.backfillDone);
     let historyId = mailState.historyId ?? null;
     if (allDone) {
       const profile = await this.gmailProfile(accessToken);
@@ -546,17 +575,14 @@ export class GoogleSyncService {
         for (const added of entry.messagesAdded ?? []) {
           const msg = added.message;
           if (!msg?.id || seen.has(msg.id)) continue;
+          // Junk stays out; everything else (inbox, sent, archive, custom
+          // labels) mirrors — matching the widened backfill scope.
           const labels = msg.labelIds ?? [];
-          const label = labels.includes('SENT')
-            ? 'SENT'
-            : labels.includes('INBOX')
-              ? 'INBOX'
-              : null;
-          if (!label) continue; // only mirror inbox/sent, matching backfill scope
+          if (labels.some((label) => EXCLUDED_LABEL_IDS.has(label))) continue;
           seen.add(msg.id);
           stats.scanned += 1;
           const message = await this.gmailGet(accessToken, msg.id);
-          const outcome = await this.persistGmailMessage(tenantId, connection.id, label, message);
+          const outcome = await this.persistGmailMessage(tenantId, connection.id, message);
           stats.matched += outcome === 'matched' ? 1 : 0;
           stats.skipped += outcome === 'skipped' ? 1 : 0;
         }
@@ -573,10 +599,12 @@ export class GoogleSyncService {
   private async persistGmailMessage(
     tenantId: string,
     connectionId: string,
-    label: MailLabel,
     message: GmailMessage,
   ): Promise<'matched' | 'skipped'> {
     if (!message.id) return 'skipped';
+    // Folder + sent-ness come from the message's own labels now that a single
+    // query covers the whole mailbox (there is no per-stream label anymore).
+    const { folder, isSent } = gmailFolderFromLabelIds(message.labelIds);
     const headers = message.payload?.headers ?? [];
     const fromParsed = parseAddressList(getHeader(headers, 'From'))[0] ?? null;
     const fromEmail = fromParsed?.email ?? null;
@@ -667,7 +695,7 @@ export class GoogleSyncService {
                 participants: participantJson as Prisma.InputJsonValue,
                 lastMessageAt,
                 raw: message as unknown as Prisma.InputJsonValue,
-                metadata: { labels: unique([label]) } as Prisma.InputJsonValue,
+                metadata: { labels: unique([folder]) } as Prisma.InputJsonValue,
                 associationScore: association.score,
                 associationReason: association.reason,
                 associationSignals: association.signals as Prisma.InputJsonValue,
@@ -686,7 +714,7 @@ export class GoogleSyncService {
                 participants: participantJson as Prisma.InputJsonValue,
                 lastMessageAt,
                 raw: message as unknown as Prisma.InputJsonValue,
-                metadata: { labels: [label] } as Prisma.InputJsonValue,
+                metadata: { labels: [folder] } as Prisma.InputJsonValue,
                 associationScore: association.score,
                 associationReason: association.reason,
                 associationSignals: association.signals as Prisma.InputJsonValue,
@@ -694,7 +722,6 @@ export class GoogleSyncService {
               select: { id: true },
             });
 
-        const isSent = label === 'SENT';
         await tx.mailMessage.upsert({
           where: {
             tenantId_source_externalId: {
@@ -718,7 +745,8 @@ export class GoogleSyncService {
             hasAttachments,
             raw: message as unknown as Prisma.InputJsonValue,
             metadata: {
-              label,
+              label: folder,
+              folder,
               internetMessageId,
               labelIds: message.labelIds ?? [],
             } as Prisma.InputJsonValue,
@@ -741,7 +769,8 @@ export class GoogleSyncService {
             hasAttachments,
             raw: message as unknown as Prisma.InputJsonValue,
             metadata: {
-              label,
+              label: folder,
+              folder,
               internetMessageId,
               labelIds: message.labelIds ?? [],
             } as Prisma.InputJsonValue,
@@ -779,13 +808,13 @@ export class GoogleSyncService {
 
   private async gmailList(
     accessToken: string,
-    input: { labelId: string; query: string; pageToken?: string },
+    input: { labelId?: string; query: string; pageToken?: string },
   ): Promise<GmailListResponse> {
     const params = new URLSearchParams({
-      labelIds: input.labelId,
       q: input.query,
       maxResults: String(GMAIL_PAGE_SIZE),
     });
+    if (input.labelId) params.set('labelIds', input.labelId);
     if (input.pageToken) params.set('pageToken', input.pageToken);
     return this.googleGet<GmailListResponse>(
       `${GMAIL_BASE_URL}/users/me/messages?${params.toString()}`,
