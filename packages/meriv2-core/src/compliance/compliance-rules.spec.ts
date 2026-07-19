@@ -113,10 +113,16 @@ describe('PROPOSED_CAPIRO_RULES — the tiered production proposal', () => {
     }
   });
 
-  it('holds client-profile mutations for approval (WARN, crm_mutation)', () => {
-    const d = decide(policy, 'update_client_profile', { clientId: 'c1' });
-    expect(d.outcome).toBe('WARN');
-    expect(d.code).toBe('crm_mutation');
+  it('holds client-record mutations for approval (WARN, crm_mutation)', () => {
+    for (const [tool, input] of [
+      ['update_client_profile', { clientId: 'c1' }],
+      ['create_client', { name: 'Olivet University' }],
+    ] as const) {
+      const d = decide(policy, tool, input);
+      expect(d.outcome).toBe('WARN');
+      expect(d.code).toBe('crm_mutation');
+      expect(d.ruleId).toBe('client_profile.requires_approval');
+    }
   });
 
   it('holds engagement task writes for approval (WARN, crm_mutation, crm_task.requires_approval)', () => {

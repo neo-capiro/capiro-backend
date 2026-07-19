@@ -424,6 +424,16 @@ export const TOOL_DEFINITIONS = [
       'List the documents uploaded in a client\'s Documents tab, and (when documentId is given) extract and return the text content of one document so you can read, summarize, or quote it. Supports .txt, .csv, .docx, .pdf, .xlsx, .pptx, and audio/video transcription. Use when the user references "the document/file I uploaded", a contract, a brief, a deck, or asks you to read/summarize an attached file for a client.',
   },
   {
+    name: 'lookup_client_registry',
+    description:
+      "Pre-create check for a prospective client name — ALWAYS call this BEFORE proposing create_client. Reports (1) whether a client with that name already exists in the firm's book of business, (2) the LDA lobbying-disclosure registry's exact match if any (create_client will link it automatically), and (3) close LDA candidates otherwise — relay those to the user and ask which registered entity applies (pass the chosen id as create_client's `ldaClientId`) or none (`skipLdaCheck: true`). Read-only; creates nothing.",
+  },
+  {
+    name: 'create_client',
+    description:
+      "Create a NEW client record in the firm's book of business. Requires user approval. Call lookup_client_registry FIRST and resolve its findings with the user, then propose this with the resolved inputs: `ldaClientId` for a confirmed LDA registry entity, `skipLdaCheck: true` if the user said none apply, or neither when the name matched exactly / wasn't in the registry. The same checks are re-enforced here as backstops — the action FAILS VISIBLY (creating nothing) on a duplicate client, an unresolved close-match LDA ambiguity, an unknown `ldaClientId`, or the plan's client-slot limit. Required: `name`. Optional: `website`, `description`, `sectorTag`, `primaryContactName`/`primaryContactEmail`/`primaryContactPhone`. When you propose it, ask IN THE SAME MESSAGE whether — once approved — the user also wants the full profile filled via web research and internal data (their website via scrape_web_page, LDA filings, federal awards → update_client_profile).",
+  },
+  {
     name: 'create_task',
     description:
       'Create an engagement task/follow-up (title, optional client, due date, description). Requires user approval.',
@@ -476,6 +486,7 @@ const SIDE_EFFECTING_TOOLS: ReadonlySet<string> = new Set<string>([
   'cancel_scheduled_task',
   'create_task',
   'update_task',
+  'create_client',
   'update_client_profile',
 ]);
 
@@ -1083,6 +1094,32 @@ export class MeriToolsService {
         status: str('Optional status filter, e.g. draft | sent'),
         limit: int('Max results (1-50)'),
       }),
+      lookup_client_registry: obj(
+        {
+          name: str('Prospective client organization name to check'),
+        },
+        ['name'],
+      ),
+      create_client: obj(
+        {
+          name: str('Client organization name'),
+          website: str('Client website URL'),
+          description: str('What the organization does'),
+          sectorTag: str('Sector/industry tag'),
+          primaryContactName: str('Primary contact name'),
+          primaryContactEmail: str('Primary contact email'),
+          primaryContactPhone: str('Primary contact phone'),
+          ldaClientId: int(
+            'LDA client id the user confirmed from lookup_client_registry candidates',
+          ),
+          skipLdaCheck: {
+            type: 'boolean',
+            description:
+              'User confirmed none of the LDA candidates apply — create from the provided fields as-is',
+          },
+        },
+        ['name'],
+      ),
       create_task: obj(
         {
           title: str('Task title'),
@@ -1571,6 +1608,10 @@ export class MeriToolsService {
         return this.readClientDocuments(ctx, input);
       case 'query_outreach':
         return this.queryOutreach(ctx, input);
+      case 'lookup_client_registry':
+        return this.lookupClientRegistry(ctx, input);
+      case 'create_client':
+        return this.createClient(ctx, input);
       case 'create_task':
         return this.createEngagementTask(ctx, input);
       case 'update_task':
@@ -6011,6 +6052,251 @@ export class MeriToolsService {
   }
 
   /**
+   * Read-only pre-create check for a prospective client name: the tenant's
+   * existing book of business + the LDA lobbying-disclosure registry (exact
+   * match and close candidates). This runs BEFORE create_client is proposed —
+   * a deliberate split, because the approval gate holds create_client at
+   * PROPOSE time and the approve replay's result is not shown to the model or
+   * user (useMeriChatController reads only executed/executionError). Identity
+   * resolution therefore has to happen here, in conversation, where the model
+   * can actually relay candidates and ask the user.
+   */
+  private async lookupClientRegistry(ctx: TenantContext, input: Record<string, unknown>) {
+    const name = requiredString(input, 'name', 300);
+    const existing = await this.prisma.withTenant(ctx.tenantId, (tx) =>
+      tx.client.findFirst({
+        where: {
+          tenantId: ctx.tenantId,
+          name: { equals: name, mode: 'insensitive' },
+          status: { not: 'archived' },
+        },
+        select: { id: true, name: true, website: true },
+      }),
+    );
+    const exact = await this.prisma.withSystem((tx) =>
+      tx.ldaClient.findFirst({
+        where: { name: { equals: name.trim(), mode: 'insensitive' } },
+        orderBy: { totalFilings: 'desc' },
+        select: LDA_PICK_SELECT,
+      }),
+    );
+    const near = await this.prisma.withSystem((tx) =>
+      tx.ldaClient.findMany({
+        where: { name: { contains: name.trim(), mode: 'insensitive' } },
+        orderBy: { totalFilings: 'desc' },
+        take: 5,
+        select: LDA_PICK_SELECT,
+      }),
+    );
+    const shape = (c: LdaPick) => ({
+      ldaClientId: c.id,
+      name: c.name,
+      state: c.state,
+      description: c.generalDescription ? summarizeText(c.generalDescription, 200) : null,
+      totalFilings: c.totalFilings,
+      latestFilingYear: c.latestFilingYear,
+    });
+    const candidates = near.filter((c) => c.id !== exact?.id).map(shape);
+    const guidance = existing
+      ? `A client named "${existing.name}" already exists (id ${existing.id}) — do NOT propose create_client; use get_client_context or update_client_profile.`
+      : exact
+        ? `Exact LDA registry match — propose create_client with this name; it will link "${exact.name}" automatically.`
+        : candidates.length > 0
+          ? 'No exact LDA match, but close registered entities exist. Ask the user whether the client is one of these (then propose create_client with that ldaClientId) or none (skipLdaCheck: true).'
+          : 'Not found in the LDA registry — propose create_client with the provided details (manual create).';
+    return {
+      existingClient: existing ?? null,
+      ldaExactMatch: exact ? shape(exact) : null,
+      ldaCandidates: candidates,
+      guidance,
+    };
+  }
+
+  /**
+   * Create a new client record — the approval-gated write behind "Meri, add
+   * <X> as a client" (previously a hard dead end for users). Contract shaped
+   * by the approve-replay pipeline: the WARN gate holds this at PROPOSE time,
+   * and on approve the replay's result is DISCARDED by the web controller
+   * (only executed/executionError surface). So every "nothing was created"
+   * outcome must THROW — a throw becomes the visible action-failure banner +
+   * regenerate, while a structured return would render as a false "Approved
+   * and completed". Identity resolution belongs to lookup_client_registry
+   * pre-proposal; the checks here (duplicate, LDA ambiguity, unknown id) are
+   * enforcement backstops. Creation goes through ClientsService.create so the
+   * billing slot gate (402 propagates for the same reason), resolve-on-create
+   * LDA linking, prepopulation cascade, and SAM gov-id enrichment all run
+   * exactly as they do for the UI's Add Client path.
+   */
+  private async createClient(ctx: TenantContext, input: Record<string, unknown>) {
+    const name = requiredString(input, 'name', 300);
+    const website = optionalString(input, 'website', 500);
+    const description = optionalString(input, 'description', 4000);
+    const sectorTag = optionalString(input, 'sectorTag', 120);
+    const primaryContactName = optionalString(input, 'primaryContactName', 200);
+    const primaryContactEmail = optionalString(input, 'primaryContactEmail', 200);
+    const primaryContactPhone = optionalString(input, 'primaryContactPhone', 60);
+    const skipLdaCheck = input.skipLdaCheck === true;
+
+    // Bound to INT4 (lda_client.id) — an out-of-range hallucinated id would
+    // otherwise throw a raw Prisma conversion error instead of this message.
+    const ldaClientIdRaw = input.ldaClientId;
+    let ldaClientId: number | null = null;
+    if (ldaClientIdRaw !== undefined && ldaClientIdRaw !== null) {
+      const parsed =
+        typeof ldaClientIdRaw === 'number'
+          ? ldaClientIdRaw
+          : typeof ldaClientIdRaw === 'string' && /^\d+$/.test(ldaClientIdRaw.trim())
+            ? Number(ldaClientIdRaw.trim())
+            : NaN;
+      if (!Number.isInteger(parsed) || parsed <= 0 || parsed > 2147483647) {
+        throw new BadRequestException(
+          `Nothing was created: ldaClientId must be a positive id from lookup_client_registry (got ${JSON.stringify(ldaClientIdRaw)}). Re-run lookup_client_registry and use a listed id, or pass skipLdaCheck: true.`,
+        );
+      }
+      ldaClientId = parsed;
+    }
+
+    // Duplicate guard #1: the literal requested name.
+    const existing = await this.prisma.withTenant(ctx.tenantId, (tx) =>
+      tx.client.findFirst({
+        where: {
+          tenantId: ctx.tenantId,
+          name: { equals: name, mode: 'insensitive' },
+          status: { not: 'archived' },
+        },
+        select: { id: true, name: true },
+      }),
+    );
+    if (existing) {
+      throw new BadRequestException(
+        `Nothing was created: a client named "${existing.name}" already exists (id ${existing.id}). Use get_client_context to review it or update_client_profile to change it.`,
+      );
+    }
+
+    // LDA identity (global reference data, no tenant scope). ldaClientId means
+    // the user already confirmed an entity via lookup_client_registry;
+    // skipLdaCheck means they said "none of these".
+    let ldaMatch: LdaPick | null = null;
+    if (ldaClientId !== null) {
+      const picked = await this.prisma.withSystem((tx) =>
+        tx.ldaClient.findUnique({ where: { id: ldaClientId }, select: LDA_PICK_SELECT }),
+      );
+      if (!picked) {
+        throw new BadRequestException(
+          `Nothing was created: no LDA client with id ${ldaClientId} exists. Re-run lookup_client_registry and use a listed id, or pass skipLdaCheck: true.`,
+        );
+      }
+      ldaMatch = picked;
+    } else if (!skipLdaCheck) {
+      // Exactness probed with a direct equals query — NOT filtered from a
+      // capped contains window, where a generic name's exact row can rank
+      // below 5 high-volume substring matches and vanish.
+      ldaMatch = await this.prisma.withSystem((tx) =>
+        tx.ldaClient.findFirst({
+          where: { name: { equals: name.trim(), mode: 'insensitive' } },
+          orderBy: { totalFilings: 'desc' },
+          select: LDA_PICK_SELECT,
+        }),
+      );
+      if (!ldaMatch) {
+        const candidates = await this.prisma.withSystem((tx) =>
+          tx.ldaClient.findMany({
+            where: { name: { contains: name.trim(), mode: 'insensitive' } },
+            orderBy: { totalFilings: 'desc' },
+            take: 5,
+            select: LDA_PICK_SELECT,
+          }),
+        );
+        if (candidates.length > 0) {
+          const list = candidates
+            .map(
+              (c) =>
+                `"${c.name}" (ldaClientId ${c.id}${c.state ? `, ${c.state}` : ''}, ${c.totalFilings} filings)`,
+            )
+            .join('; ');
+          throw new BadRequestException(
+            `Nothing was created: close (not exact) LDA registry matches exist for "${name}": ${list}. Confirm with the user which registered entity applies and re-propose with that ldaClientId — or skipLdaCheck: true if none apply.`,
+          );
+        }
+        // Zero candidates: fall through to a manual create.
+      }
+    }
+
+    // Duplicate guard #2: the RESOLVED entity. "Olivet Univ" confirmed as LDA
+    // "OLIVET UNIVERSITY" must not slip past guard #1 when a client already
+    // carries the LDA name or a confirmed lda_client_ids link.
+    if (ldaMatch) {
+      const resolved = ldaMatch;
+      const dupByEntity = await this.prisma.withTenant(ctx.tenantId, (tx) =>
+        tx.client.findFirst({
+          where: {
+            tenantId: ctx.tenantId,
+            status: { not: 'archived' },
+            OR: [
+              { name: { equals: resolved.name, mode: 'insensitive' } },
+              { ldaClientIds: { has: resolved.id } },
+            ],
+          },
+          select: { id: true, name: true },
+        }),
+      );
+      if (dupByEntity) {
+        throw new BadRequestException(
+          `Nothing was created: "${name}" resolves to LDA entity "${resolved.name}", which is already the existing client "${dupByEntity.name}" (id ${dupByEntity.id}).`,
+        );
+      }
+    }
+
+    // Failures from here (billing slot-limit 402, validation) propagate as
+    // HttpExceptions — the approve replay surfaces e.message as the action
+    // failure, which is the only channel the user actually sees.
+    const client = await this.clients.create(ctx, {
+      name,
+      website: website ?? undefined,
+      description:
+        description ??
+        (ldaMatch?.generalDescription
+          ? summarizeText(ldaMatch.generalDescription, 1000)
+          : undefined),
+      sectorTag: sectorTag ?? undefined,
+      primaryContactName: primaryContactName ?? undefined,
+      primaryContactEmail: primaryContactEmail ?? undefined,
+      primaryContactPhone: primaryContactPhone ?? undefined,
+      // Seed the confirmed LDA identity directly — the async name-based
+      // resolution cascade is weakest exactly when the user typed a variant
+      // name and confirmed the entity by id, and it must not be the only
+      // carrier of that confirmation (LDA-filing reads and the duplicate
+      // guard's `has` arm consume lda_client_ids).
+      ldaClientIds: ldaMatch ? [ldaMatch.id] : undefined,
+      intakeData: {
+        __meriCreate: {
+          createdVia: 'meri.create_client',
+          at: new Date().toISOString(),
+          ldaClientId: ldaMatch?.id ?? null,
+          ldaName: ldaMatch?.name ?? null,
+        },
+      },
+    });
+    return {
+      created: true,
+      client: { id: client.id, name: client.name, website: client.website },
+      ldaMatch: ldaMatch
+        ? {
+            ldaClientId: ldaMatch.id,
+            name: ldaMatch.name,
+            totalFilings: ldaMatch.totalFilings,
+            latestFilingYear: ldaMatch.latestFilingYear,
+          }
+        : null,
+      note: ldaMatch
+        ? `Matched LDA-registered lobbying client "${ldaMatch.name}" (${ldaMatch.totalFilings} filings, latest ${ldaMatch.latestFilingYear ?? 'n/a'}). Background LDA linking and SAM gov-id enrichment are running.`
+        : 'No match in the LDA lobbying-disclosure registry — created from the provided details. Background LDA linking and SAM gov-id enrichment are running.',
+      followUp:
+        "If the user already agreed to a full profile fill, proceed now: scrape_web_page their website, pull search_lda_filings / search_federal_awards background, and propose update_client_profile with sourced values. Otherwise ask whether they'd like that.",
+    };
+  }
+
+  /**
    * Write approved values into a client profile (the "Meri writes to the web
    * app" path). Only whitelisted scalar/array fields are accepted; anything
    * else is ignored. Per-field provenance (source URL + confidence) is merged
@@ -6022,7 +6308,22 @@ export class MeriToolsService {
    */
   private async updateClientProfile(ctx: TenantContext, input: Record<string, unknown>) {
     const clientId = requiredString(input, 'clientId', 80);
-    await this.ensureClientVisible(ctx, clientId);
+    // Keep THROWING on a missing/invalid clientId — this runs on the
+    // approve-replay path where only executed/executionError surface, so a
+    // structured return would render as a false "Approved and completed"
+    // (meri-approval.service.spec pins the executionError contract). Rethrow
+    // with recovery guidance appended: the banner is what the user sees, and
+    // the regenerate that follows is what puts the model back in the loop.
+    try {
+      await this.ensureClientVisible(ctx, clientId);
+    } catch (e) {
+      if (e instanceof NotFoundException) {
+        throw new NotFoundException(
+          `${e.message} If the client does not exist in Capiro yet, use lookup_client_registry + create_client — update_client_profile only edits existing clients.`,
+        );
+      }
+      throw e;
+    }
 
     const update: Record<string, unknown> = {};
     const setStr = (key: string, max: number) => {
@@ -6689,6 +6990,25 @@ function jsonStringArray(value: Prisma.JsonValue): string[] {
     ? value.filter((item): item is string => typeof item === 'string')
     : [];
 }
+
+/** lda_client projection shared by lookup_client_registry and create_client. */
+type LdaPick = {
+  id: number;
+  name: string;
+  state: string | null;
+  generalDescription: string | null;
+  totalFilings: number;
+  latestFilingYear: number | null;
+};
+
+const LDA_PICK_SELECT = {
+  id: true,
+  name: true,
+  state: true,
+  generalDescription: true,
+  totalFilings: true,
+  latestFilingYear: true,
+} as const;
 
 function summarizeText(value: unknown, max = 500): string {
   if (typeof value !== 'string') return '';

@@ -92,7 +92,10 @@ const EXPECTED_TOOLS = [
   'query_debriefs',
   'read_client_documents',
   'query_outreach',
+  // Client creation (LDA-first): read-only pre-check + approval-gated write
+  'lookup_client_registry',
   // Approval-gated writes (tool-coverage expansion)
+  'create_client',
   'create_task',
   'update_task',
   'update_client_profile',
@@ -138,6 +141,8 @@ const REQUIRED_INPUTS: Record<string, string[]> = {
   search_tracked_bills: ['clientId'],
   query_debriefs: ['clientId'],
   read_client_documents: ['clientId'],
+  lookup_client_registry: ['name'],
+  create_client: ['name'],
   create_task: ['title'],
   update_task: ['taskId'],
   update_client_profile: ['clientId'],
@@ -182,6 +187,7 @@ describe('Meri tool registration', () => {
       'create_powerpoint',
       'schedule_task',
       'cancel_scheduled_task',
+      'create_client',
       'create_task',
       'update_task',
       'create_meeting_brief',

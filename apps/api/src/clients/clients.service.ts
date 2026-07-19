@@ -39,6 +39,12 @@ export interface CreateClientInput {
   cageCode?: string;
   naicsCodes?: string[];
   pscCodes?: string[];
+  // Pre-confirmed LDA client ids (e.g. Meri's create_client after the user
+  // confirmed the registry entity). Seeded directly so LDA-filing reads and
+  // duplicate guards work immediately — the async resolve/prepopulate cascade
+  // still runs and merges additional ids, but must not be the only carrier of
+  // an identity the user explicitly confirmed.
+  ldaClientIds?: number[];
 }
 
 export type UpdateClientInput = Partial<CreateClientInput> & {
@@ -167,6 +173,7 @@ export class ClientsService {
           cageCode: input.cageCode ?? null,
           naicsCodes: input.naicsCodes ?? [],
           pscCodes: input.pscCodes ?? [],
+          ldaClientIds: input.ldaClientIds ?? [],
           createdByUserId: ctx.userId,
         },
       });

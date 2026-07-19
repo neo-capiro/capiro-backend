@@ -109,11 +109,12 @@ export const PROPOSED_CAPIRO_RULES: readonly ComplianceRule[] = [
   },
   {
     id: 'client_profile.requires_approval',
-    description: 'Client-profile mutations change the CRM record — requires human approval.',
+    description:
+      'Client-record mutations (create or update) change the CRM — require human approval.',
     outcome: 'WARN',
     tier: 'high',
     code: 'crm_mutation',
-    matches: (toolName) => toolName === 'update_client_profile',
+    matches: (toolName) => toolName === 'update_client_profile' || toolName === 'create_client',
   },
   {
     id: 'crm_task.requires_approval',
