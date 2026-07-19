@@ -363,6 +363,11 @@ export class GoogleSyncService {
       tenantId,
       async (tx) => {
         await lockTenantForEngagementSync(tx, tenantId);
+        // Dedupe by normalized email — meeting_attendees has a UNIQUE
+        // (meeting_id, email), and a duplicated invitee P2002s the whole sync
+        // tx (same bug hit live on the Microsoft path when auto-sync retried
+        // stale calendars).
+        const attendeeEmails = new Set<string>();
         const attendees = (event.attendees ?? [])
           .map((attendee) => ({
             email: normalizeEmail(attendee.email),
@@ -370,7 +375,13 @@ export class GoogleSyncService {
             role: attendee.organizer ? 'organizer' : 'attendee',
             responseStatus: clean(attendee.responseStatus),
           }))
-          .filter((attendee) => attendee.email || attendee.name);
+          .filter((attendee) => attendee.email || attendee.name)
+          .filter((attendee) => {
+            if (!attendee.email) return true;
+            if (attendeeEmails.has(attendee.email)) return false;
+            attendeeEmails.add(attendee.email);
+            return true;
+          });
         const organizerEmail = normalizeEmail(event.organizer?.email);
         const existing = await tx.meeting.findUnique({
           where: {
