@@ -23,7 +23,11 @@ import {
 } from '@capiro/meriv2-core';
 import type { AppConfig } from '../config/config.schema.js';
 import { PrismaService } from '../prisma/prisma.service.js';
-import { pickMemoryRecallSource, type MemoryRecallSource } from './memory-recall-source.helpers.js';
+import {
+  applyRecallScoreFloor,
+  pickMemoryRecallSource,
+  type MemoryRecallSource,
+} from './memory-recall-source.helpers.js';
 import { MeriToolsService } from './meri-tools.service.js';
 import { AiCredentialResolverService } from '../engagement/ai-credential-resolver.service.js';
 import { MemoryIngestService } from '../memory/memory-ingest.service.js';
@@ -3515,8 +3519,9 @@ export class MeriService {
   ): Promise<Array<{ key: string; value: string }>> {
     const literal = vectorLiteral(await embedText(normalizeForEmbedding(query)));
     const rows = await this.prisma.withTenantUser(tenantId, userId, (tx) =>
-      tx.$queryRawUnsafe<Array<{ title: string; sections: unknown }>>(
-        `SELECT mi.title, mi.sections_jsonb AS sections
+      tx.$queryRawUnsafe<Array<{ title: string; sections: unknown; score: number }>>(
+        `SELECT mi.title, mi.sections_jsonb AS sections,
+                1 - (ce.embedding <=> '${literal}'::vector) AS score
            FROM context_embeddings ce
            JOIN memory_items mi ON mi.id::text = ce.source_id
           WHERE ce.source_type = 'memory_item'
@@ -3534,7 +3539,16 @@ export class MeriService {
         clientId,
       ),
     );
-    return rows.map((r) => ({ key: r.title, value: memorySectionValue(r.sections) }));
+    // Titan-space floor (MEMORY_PROJECTION_MIN_SCORE, measured default 0.4 —
+    // see config.schema.ts). The clio path's 0.3 floor is OpenAI-space and
+    // does not transfer.
+    const minScore =
+      (this.config.get('MEMORY_PROJECTION_MIN_SCORE', { infer: true }) as number | undefined) ??
+      0.4;
+    return applyRecallScoreFloor(rows, minScore).map((r) => ({
+      key: r.title,
+      value: memorySectionValue(r.sections),
+    }));
   }
 
   private async maybeLearnFromConversation(

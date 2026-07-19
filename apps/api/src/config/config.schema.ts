@@ -74,6 +74,18 @@ export const configSchema = z.object({
   // Out-of-band flag flip, never on by a code deploy alone. Landed inert at 'clio'.
   MEMORY_RECALL_SOURCE: z.enum(['clio', 'union', 'projection']).default('clio'),
 
+  // Relevance floor for the PROJECTION recall path (memory_items →
+  // context_embeddings, Titan v2 cosine similarity). The clio path has always
+  // floored at score > 0.3 (OpenAI space — semanticMemorySearch); the
+  // projection path shipped with none, so when nothing relevant exists the
+  // LIMIT still fills with weak tail matches. Titan and OpenAI similarity
+  // scales are NOT comparable; measured on dev memory-item embeddings
+  // (2026-07-19, n=7503): random-pair (unrelated) p50 0.091 / p99 0.383;
+  // nearest-neighbor (related) p10 0.509 / p50 0.869. Default 0.4 sits between
+  // the noise p99 and the related p10. Re-tune against real query traffic
+  // during the 'union' canary; 0 disables the floor.
+  MEMORY_PROJECTION_MIN_SCORE: z.coerce.number().min(0).max(1).default(0.4),
+
   // Outreach prompt-assembly version (plan W2). 'v1' = the legacy single-string
   // prompt + JSON context dump; 'v2' = PromptSpec v2 (real system prompt, context
   // precedence ladder, spotlighted untrusted content, no raw JSON dump). Defaults
