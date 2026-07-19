@@ -28,6 +28,12 @@ import type { AppConfig } from '../../config/config.schema.js';
 import { PrismaService } from '../../prisma/prisma.service.js';
 import { ClientAssociationService } from '../client-association.service.js';
 import { MICROSOFT_SCOPES, normalizePem } from './microsoft-oauth.service.js';
+import {
+  MAX_SYNCED_MAIL_FOLDERS,
+  selectSyncableFolders,
+  type GraphMailFolder,
+  type SyncableMailFolder,
+} from './microsoft-mail-folders.util.js';
 import { TokenCryptoService } from './token-crypto.service.js';
 
 const GRAPH_BASE_URL = 'https://graph.microsoft.com/v1.0';
@@ -75,6 +81,8 @@ interface MailFolderSyncState {
   nextLink?: string | null;
   deltaLink?: string | null;
   updatedAt?: string | null;
+  /** Human-readable folder path for id-keyed dynamic folders (debuggability). */
+  displayName?: string | null;
   lastStats?: SyncStats;
 }
 
@@ -555,18 +563,28 @@ export class MicrosoftGraphSyncService {
     accessToken: string,
     input: { reset?: boolean },
   ): Promise<Record<string, SyncStats>> {
-    const folders = ['inbox', 'sentitems'];
+    // Legacy pair first (well-known-name keys so pre-existing delta links
+    // survive), then the enumerated folder tree: custom/client subfolders and
+    // Archive included, junk/deleted/drafts/outbox excluded. Enumeration
+    // failure falls back to the legacy pair — mail sync must never break on a
+    // folder-listing hiccup.
+    const legacyFolders: SyncableMailFolder[] = [
+      { key: 'inbox', pathSegment: 'inbox', displayPath: 'inbox' },
+      { key: 'sentitems', pathSegment: 'sentitems', displayPath: 'sentitems' },
+    ];
+    const enumeration = await this.listSyncableMailFolders(connection.id, accessToken);
+    const folders = [...legacyFolders, ...enumeration.folders];
     const results: Record<string, SyncStats> = {};
     const mailState = state.mail ?? {};
     const folderStates = mailState.folders ?? {};
 
     for (const folder of folders) {
-      const current = folderStates[folder] ?? {};
+      const current = folderStates[folder.key] ?? {};
       const stats = emptyStats();
       let nextUrl =
         !input.reset && (current.nextLink || current.cursor || current.deltaLink)
           ? (current.nextLink || current.cursor || current.deltaLink)!
-          : mailDeltaUrl(folder, addDays(new Date(), -MAIL_BACKFILL_DAYS));
+          : mailDeltaUrl(folder.pathSegment, addDays(new Date(), -MAIL_BACKFILL_DAYS));
       let deltaLink: string | null = null;
 
       for (let page = 0; page < MAX_MAIL_PAGES_PER_FOLDER_PER_RUN && nextUrl; page += 1) {
@@ -580,7 +598,12 @@ export class MicrosoftGraphSyncService {
         );
         for (const message of response.value ?? []) {
           stats.scanned += 1;
-          const outcome = await this.persistGraphMessage(tenantId, connection.id, folder, message);
+          const outcome = await this.persistGraphMessage(
+            tenantId,
+            connection.id,
+            folder.displayPath,
+            message,
+          );
           stats.matched += outcome === 'matched' ? 1 : 0;
           stats.skipped += outcome === 'skipped' ? 1 : 0;
           stats.removed += outcome === 'removed' ? 1 : 0;
@@ -591,14 +614,25 @@ export class MicrosoftGraphSyncService {
       }
 
       stats.hasMore = Boolean(nextUrl);
-      folderStates[folder] = {
+      folderStates[folder.key] = {
         cursor: nextUrl || deltaLink || current.deltaLink || null,
         nextLink: nextUrl || null,
         deltaLink: deltaLink ?? current.deltaLink ?? null,
         updatedAt: new Date().toISOString(),
+        displayName: folder.displayPath,
         lastStats: stats,
       };
-      results[folder] = stats;
+      results[folder.key] = stats;
+    }
+
+    // Prune state for folders that no longer exist (deleted/renamed/emptied) —
+    // only when enumeration succeeded, so a transient listing failure can't
+    // wipe delta links. The legacy keys always survive.
+    if (enumeration.enumerated) {
+      const live = new Set(folders.map((folder) => folder.key));
+      for (const key of Object.keys(folderStates)) {
+        if (!live.has(key)) delete folderStates[key];
+      }
     }
 
     state.mail = {
@@ -609,6 +643,90 @@ export class MicrosoftGraphSyncService {
       lastStats: combineStats(Object.values(results)),
     };
     return results;
+  }
+
+  /**
+   * Enumerate the mailbox's folder tree (paginated, recursing into child
+   * folders) and select the dynamic set to sync — everything except the noise
+   * well-known folders and their descendants; inbox/sentitems stay on their
+   * legacy state keys. Returns enumerated:false on any Graph failure so
+   * syncMail falls back to the legacy pair instead of breaking mail sync.
+   */
+  private async listSyncableMailFolders(
+    connectionId: string,
+    accessToken: string,
+  ): Promise<{ folders: SyncableMailFolder[]; enumerated: boolean }> {
+    const FOLDER_SELECT =
+      '$select=id,displayName,parentFolderId,childFolderCount,totalItemCount&$top=100';
+    try {
+      const wellKnownId = async (name: string): Promise<string | null> => {
+        try {
+          const folder = await this.graphGet<GraphMailFolder>(
+            `/me/mailFolders/${name}?$select=id`,
+            accessToken,
+          );
+          return folder.id ?? null;
+        } catch {
+          // Some well-known folders 404 on some mailbox types — treat as absent.
+          return null;
+        }
+      };
+      const [inboxId, sentItemsId, ...noiseRootIds] = await Promise.all([
+        wellKnownId('inbox'),
+        wellKnownId('sentitems'),
+        wellKnownId('junkemail'),
+        wellKnownId('deleteditems'),
+        wellKnownId('drafts'),
+        wellKnownId('outbox'),
+        wellKnownId('conversationhistory'),
+      ]);
+
+      const all: GraphMailFolder[] = [];
+      const childQueue: string[] = [];
+      const collectPages = async (firstUrl: string) => {
+        let url: string | null = firstUrl;
+        while (url && all.length < 2000) {
+          const page: { value?: GraphMailFolder[]; '@odata.nextLink'?: string } =
+            await this.graphGet(url, accessToken);
+          for (const folder of page.value ?? []) {
+            all.push(folder);
+            if ((folder.childFolderCount ?? 0) > 0 && folder.id) childQueue.push(folder.id);
+          }
+          url = page['@odata.nextLink'] ?? null;
+        }
+      };
+      await collectPages(`/me/mailFolders?${FOLDER_SELECT}`);
+      while (childQueue.length > 0 && all.length < 2000) {
+        const parentId = childQueue.shift()!;
+        await collectPages(
+          `/me/mailFolders/${encodeURIComponent(parentId)}/childFolders?${FOLDER_SELECT}`,
+        );
+      }
+
+      const { folders, dropped } = selectSyncableFolders({
+        all,
+        noiseRootIds,
+        inboxId,
+        sentItemsId,
+        cap: MAX_SYNCED_MAIL_FOLDERS,
+      });
+      if (dropped > 0) {
+        this.logger.warn(
+          `mail folder cap for connection ${connectionId}: syncing ${folders.length} dynamic folders, dropped ${dropped} smaller ones`,
+        );
+      }
+      this.logger.log(
+        `mail folder enumeration for connection ${connectionId}: ${folders.length} dynamic folders (+inbox/sentitems)`,
+      );
+      return { folders, enumerated: true };
+    } catch (error) {
+      this.logger.warn(
+        `mail folder enumeration failed for connection ${connectionId} — syncing inbox+sentitems only: ${
+          error instanceof Error ? error.message : String(error)
+        }`,
+      );
+      return { folders: [], enumerated: false };
+    }
   }
 
   private async persistGraphEvent(
