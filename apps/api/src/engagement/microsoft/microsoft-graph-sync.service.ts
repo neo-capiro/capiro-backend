@@ -781,6 +781,12 @@ export class MicrosoftGraphSyncService {
         // Serialize this tenant's Graph-sync write transactions cluster-wide so
         // concurrent syncs of the same mailbox cannot deadlock on shared upserts.
         await lockTenantForGraphSync(tx, tenantId);
+        // Dedupe by normalized email: Graph invites can list the same address
+        // twice (required+optional, DL expansion), and meeting_attendees has a
+        // UNIQUE (meeting_id, email) — the second create() P2002'd the WHOLE
+        // sync tx, freezing the mailbox (calendar syncs before mail). Hit live
+        // by 3 mailboxes when auto-sync retried weeks-stale calendars.
+        const attendeeEmails = new Set<string>();
         const attendees = (event.attendees ?? [])
           .map((attendee) => ({
             email: normalizeEmail(attendee.emailAddress?.address),
@@ -788,7 +794,13 @@ export class MicrosoftGraphSyncService {
             role: clean(attendee.type),
             responseStatus: clean(attendee.status?.response),
           }))
-          .filter((attendee) => attendee.email || attendee.name);
+          .filter((attendee) => attendee.email || attendee.name)
+          .filter((attendee) => {
+            if (!attendee.email) return true;
+            if (attendeeEmails.has(attendee.email)) return false;
+            attendeeEmails.add(attendee.email);
+            return true;
+          });
         const organizerEmail = normalizeEmail(event.organizer?.emailAddress?.address);
         const existing = await tx.meeting.findUnique({
           where: {
