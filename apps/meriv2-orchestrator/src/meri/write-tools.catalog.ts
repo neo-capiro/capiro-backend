@@ -103,6 +103,12 @@ export const WRITE_DELEGATED_TOOLS: readonly DelegatedToolSpec[] = [
     readOnly: false,
   },
   {
+    name: 'create_client',
+    description:
+      "Create a NEW client record in the firm's book of business. Requires user approval. Call lookup_client_registry FIRST and resolve its findings with the user, then propose this with the resolved inputs: `ldaClientId` for a confirmed LDA registry entity, `skipLdaCheck: true` if the user said none apply, or neither when the name matched exactly / wasn't in the registry. The same checks are re-enforced here as backstops — the action FAILS VISIBLY (creating nothing) on a duplicate client, an unresolved close-match LDA ambiguity, an unknown `ldaClientId`, or the plan's client-slot limit. Required: `name`. Optional: `website`, `description`, `sectorTag`, `primaryContactName`/`primaryContactEmail`/`primaryContactPhone`. When you propose it, ask IN THE SAME MESSAGE whether — once approved — the user also wants the full profile filled via web research and internal data (their website via scrape_web_page, LDA filings, federal awards → update_client_profile).",
+    readOnly: false,
+  },
+  {
     name: 'create_task',
     description:
       'Create an engagement task/follow-up (title, optional client, due date, description). Requires user approval.',

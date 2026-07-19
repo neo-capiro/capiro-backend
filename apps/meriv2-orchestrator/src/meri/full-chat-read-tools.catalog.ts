@@ -132,6 +132,12 @@ export const FULL_CHAT_READ_TOOLS: readonly DelegatedToolSpec[] = [
     readOnly: true,
   },
   {
+    name: 'lookup_client_registry',
+    description:
+      "Pre-create check for a prospective client name — ALWAYS call this BEFORE proposing create_client. Reports (1) whether a client with that name already exists in the firm's book of business, (2) the LDA lobbying-disclosure registry's exact match if any (create_client will link it automatically), and (3) close LDA candidates otherwise — relay those to the user and ask which registered entity applies (pass the chosen id as create_client's `ldaClientId`) or none (`skipLdaCheck: true`). Read-only; creates nothing.",
+    readOnly: true,
+  },
+  {
     name: 'search_emails',
     description:
       "Search the user's synced email (Microsoft 365/Google, inbox + sent folders) by content or people — reaches mail of ANY age, unlike list_emails. Provide at least one of: `query` (matched against subject, sender, recipients, and the stored message preview), `from` (sender email or name fragment), `participant` (email or name fragment matched against sender AND to/cc/bcc recipients). Optional: `clientId`, `withinDays` (only messages from the last N days), `limit` (default 20, max 50). Returns matching messages newest-first (subject, from, to/cc, date, folder, preview, threadId — pass threadId to reply_email), the total match count, and a coverage report of every searched mailbox (sync status + date range; a connected-but-never-synced mailbox is called out). IMPORTANT: only inbox and sent folders sync and bodies are stored as short previews, so report a miss as 'not found in synced mail' — never as proof the email does not exist.",

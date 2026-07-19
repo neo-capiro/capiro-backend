@@ -4443,6 +4443,8 @@ function humanToolLabel(tool: string): string {
     send_email: 'Sent an email',
     list_emails: 'Listed email threads',
     search_emails: 'Searched emails',
+    lookup_client_registry: 'Checked the client registry',
+    create_client: 'Created a client',
     reply_email: 'Replied to an email thread',
   };
   return labels[tool] ?? tool.replace(/_/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase());
