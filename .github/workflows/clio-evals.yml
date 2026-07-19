@@ -23,7 +23,7 @@ on:
       suites:
         description: 'Comma list: core,attachments,compaction,thinking,kb,mcp-injection,analysis (default all)'
         required: false
-        default: 'core,attachments,compaction,thinking,kb,mcp-injection,analysis'
+        default: 'core,attachments,compaction,thinking,kb,mcp-injection,tool-selection,analysis'
 
 permissions:
   contents: read
@@ -42,6 +42,10 @@ jobs:
           node-version: 20
           cache: pnpm
       - run: pnpm install --frozen-lockfile
+      # tool-selection-fixtures.spec.ts imports @capiro/shared (MERI_TOOL_NAMES)
+      # from its built dist — build it so the manifest the fixtures validate
+      # against is current, not a stale checkout artifact.
+      - run: pnpm --filter @capiro/shared build
       - run: pnpm --filter @capiro/api exec prisma generate
       - run: pnpm --filter @capiro/api typecheck
       - name: Eval fixture + grader + helper specs (no tokens)
@@ -50,6 +54,7 @@ jobs:
           fixtures.spec.ts eval-grader.spec.ts
           attachment-fixtures.spec.ts compaction-fixtures.spec.ts
           kb-fixtures.spec.ts analysis-fixtures.spec.ts
+          tool-selection-fixtures.spec.ts
           clio-attachment.helpers.spec.ts clio-thinking.helpers.spec.ts
           clio-compaction.helpers.spec.ts clio-history-search.helpers.spec.ts
           client-kb.helpers.spec.ts clio-mcp.helpers.spec.ts
@@ -65,7 +70,7 @@ jobs:
       ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
       CLIO_MODEL: claude-sonnet-4-6
       CLIO_INTENT_MODEL: claude-haiku-4-5-20251001
-      SUITES: ${{ github.event.inputs.suites || 'core,attachments,compaction,thinking,kb,mcp-injection,analysis' }}
+      SUITES: ${{ github.event.inputs.suites || 'core,attachments,compaction,thinking,kb,mcp-injection,tool-selection,analysis' }}
     steps:
       - uses: actions/checkout@v4
       - uses: pnpm/action-setup@v4
@@ -107,6 +112,9 @@ jobs:
       - name: MCP injection eval (F6a)
         if: env.SKIP_LIVE != '1' && contains(env.SUITES, 'mcp-injection')
         run: pnpm --filter @capiro/api eval:clio:mcp-injection
+      - name: Tool-selection eval
+        if: env.SKIP_LIVE != '1' && contains(env.SUITES, 'tool-selection')
+        run: pnpm --filter @capiro/api eval:clio:tool-selection
       - name: Analysis sandbox eval (F4)
         if: env.SKIP_LIVE != '1' && contains(env.SUITES, 'analysis')
         run: pnpm --filter @capiro/api eval:clio:analysis

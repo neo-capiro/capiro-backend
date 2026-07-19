@@ -15,6 +15,7 @@
     "eval:clio:thinking": "tsx scripts/eval-clio-thinking.ts",
     "eval:clio:kb": "tsx scripts/eval-clio-kb.ts",
     "eval:clio:mcp-injection": "tsx scripts/eval-clio-mcp-injection.ts",
+    "eval:clio:tool-selection": "tsx scripts/eval-clio-tool-selection.ts",
     "eval:clio:analysis": "tsx scripts/eval-clio-analysis.ts",
     "eval:outreach": "tsx scripts/eval-outreach.ts",
     "eval:outreach:calibrate": "tsx scripts/eval-outreach-calibrate.ts",
