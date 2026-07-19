@@ -195,7 +195,7 @@ describe('search_emails tool', () => {
     expect(out.searchedMailboxes).toHaveLength(2);
     expect(out.notes!.join('\n')).toMatch(/jeff\.j\.burton@gmail\.com.*NO synced mail/);
     // the standing caveat is always present
-    expect(out.notes!.join('\n')).toMatch(/inbox and sent folders/i);
+    expect(out.notes!.join('\n')).toMatch(/some folders never sync/i);
   });
 
   it('short-circuits with a clear note when the user has no mail connection at all', async () => {
