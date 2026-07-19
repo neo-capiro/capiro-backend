@@ -295,14 +295,30 @@ export class MicrosoftGraphSyncService {
   }
 
   async configureSubscriptions(ctx: TenantContext, connectionId: string) {
+    await this.assertConnectionAccess(ctx, connectionId);
+    return this.configureSubscriptionsByTenant(ctx.tenantId, connectionId);
+  }
+
+  /** Whether webhook subscriptions can be managed at all in this deployment. */
+  get subscriptionsConfigurable(): boolean {
+    return Boolean(this.notificationUrl);
+  }
+
+  /**
+   * Tenant-scoped subscription ensure/renew — reuses subscriptions with >24h
+   * left and (re)creates the rest. Called at connect time (via the ctx
+   * wrapper) and by the auto-sync scheduler each cycle: renewal used to happen
+   * ONLY at connect, so 6-day Graph subscriptions expired and webhook-driven
+   * connections went permanently silent (no webhook → no sync → no renewal).
+   */
+  async configureSubscriptionsByTenant(tenantId: string, connectionId: string) {
     if (!this.notificationUrl) {
       throw new ServiceUnavailableException('MICROSOFT_GRAPH_NOTIFICATION_URL is not configured');
     }
     this.assertTokenRefreshConfigured();
-    await this.assertConnectionAccess(ctx, connectionId);
 
-    const { connection, token } = await this.loadConnection(ctx.tenantId, connectionId);
-    const accessToken = await this.getValidAccessToken(ctx.tenantId, connectionId, token);
+    const { connection, token } = await this.loadConnection(tenantId, connectionId);
+    const accessToken = await this.getValidAccessToken(tenantId, connectionId, token);
     const state = readSyncState(connection.syncState);
     const existing = state.webhooks?.subscriptions ?? [];
     const now = Date.now();
@@ -320,7 +336,7 @@ export class MicrosoftGraphSyncService {
         continue;
       }
 
-      const clientState = this.signClientState(ctx.tenantId, connectionId, resource);
+      const clientState = this.signClientState(tenantId, connectionId, resource);
       const expirationDateTime = new Date(Date.now() + OUTLOOK_SUBSCRIPTION_MS).toISOString();
       const created = await this.graphPost<GraphSubscriptionResponse>(
         '/subscriptions',
@@ -351,7 +367,7 @@ export class MicrosoftGraphSyncService {
       lastLifecycleEvent: state.webhooks?.lastLifecycleEvent ?? null,
     };
 
-    await this.prisma.withTenant(ctx.tenantId, (tx) =>
+    await this.prisma.withTenant(tenantId, (tx) =>
       tx.integrationConnection.update({
         where: { id: connectionId },
         data: { syncState: state as Prisma.InputJsonValue, lastError: null },
@@ -469,7 +485,13 @@ export class MicrosoftGraphSyncService {
     return { accepted, scheduledSyncs: pendingSyncs.size };
   }
 
-  private async syncConnectionByTenant(
+  /**
+   * Tenant-scoped sync without a user context — the entry point for the
+   * webhook path and the auto-sync scheduler (EngagementSyncSchedulerService).
+   * Success stamps connected/lastSyncAt/lastError:null; failure goes through
+   * markSyncError (status=error + a 15-minute nextSyncAt retry hint).
+   */
+  async syncConnectionByTenant(
     tenantId: string,
     connectionId: string,
     input: { calendar?: boolean; mail?: boolean; reset?: boolean; from?: string; to?: string } = {},
