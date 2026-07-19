@@ -27,6 +27,14 @@ jobs:
           cache: pnpm
       - run: pnpm install --frozen-lockfile
 
+      # Supply-chain (blocker #4): advisory dependency audit. `|| true` keeps it
+      # NON-blocking for now — it surfaces known high/critical CVEs in the PR log
+      # without failing the gate on pre-existing transitive advisories. Once the
+      # baseline is triaged, drop `|| true` (and/or add `--prod`) to make it a
+      # hard gate. Runs after install so the full resolved lockfile is audited.
+      - name: Dependency audit (advisory)
+        run: pnpm audit --audit-level=high || true
+
       # The api + workspace typecheck/tests import their generated Prisma
       # clients; generate them before turbo runs (the image builds do this
       # inside Docker, but this direct CI job must do it explicitly). `generate`

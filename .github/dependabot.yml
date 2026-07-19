@@ -1,0 +1,30 @@
+# Supply-chain (MeriV2 enterprise-readiness blocker #4): automated dependency
+# and GitHub Actions update surveillance. Purely additive — Dependabot only
+# opens PRs, it cannot break CI. Minor/patch npm updates are grouped into a
+# single weekly PR to keep review noise low; majors come as their own PRs so
+# breaking changes are reviewed in isolation.
+version: 2
+updates:
+  # pnpm workspace at the repo root. The `npm` ecosystem understands
+  # pnpm-lock.yaml and updates across the workspace.
+  - package-ecosystem: "npm"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+    open-pull-requests-limit: 8
+    groups:
+      minor-and-patch:
+        update-types:
+          - "minor"
+          - "patch"
+
+  # Pins the mutable action major tags (@v4/@v6) that the image + CI workflows
+  # use — Dependabot proposes exact version bumps, closing the "actions float on
+  # a mutable tag" gap called out in the blocker.
+  - package-ecosystem: "github-actions"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+    open-pull-requests-limit: 5
