@@ -1,6 +1,10 @@
 import { describe, expect, it } from '@jest/globals';
 import { GOOGLE_WORKSPACE_SCOPES } from '@capiro/shared';
-import { parseAddressList, parseCalendarDateTime } from './google-sync.service.js';
+import {
+  googleEventVirtuality,
+  parseAddressList,
+  parseCalendarDateTime,
+} from './google-sync.service.js';
 import { GOOGLE_SCOPES } from './google-oauth.service.js';
 
 describe('parseAddressList', () => {
@@ -80,5 +84,58 @@ describe('GOOGLE_SCOPES', () => {
     // would pass while real mailbox connects request a different set and fail —
     // so pin them equal here (onboard-api imports the shared constant directly).
     expect(GOOGLE_SCOPES).toEqual([...GOOGLE_WORKSPACE_SCOPES]);
+  });
+});
+
+describe('googleEventVirtuality', () => {
+  // Guards the fix for the bug where Google sync stored every meeting
+  // non-virtual, so the Send Meri button (gated on isVirtual && joinLink) could
+  // never appear for a Google Workspace tenant.
+  it('classifies a Meet hangoutLink as virtual with the join link', () => {
+    const v = googleEventVirtuality({ hangoutLink: 'https://meet.google.com/abc-defg-hij' });
+    expect(v.isVirtual).toBe(true);
+    expect(v.joinLink).toBe('https://meet.google.com/abc-defg-hij');
+    expect(v.provider).toBeTruthy();
+  });
+
+  it('classifies a conferenceData video entry point as virtual', () => {
+    const v = googleEventVirtuality({
+      conferenceData: {
+        entryPoints: [
+          { entryPointType: 'more', uri: 'https://meet.google.com/moreinfo' },
+          { entryPointType: 'video', uri: 'https://meet.google.com/xyz-123' },
+        ],
+      },
+    });
+    expect(v.isVirtual).toBe(true);
+    expect(v.joinLink).toBe('https://meet.google.com/xyz-123');
+  });
+
+  it('prefers the structured hangoutLink over the conferenceData entry point', () => {
+    const v = googleEventVirtuality({
+      hangoutLink: 'https://meet.google.com/primary',
+      conferenceData: {
+        entryPoints: [{ entryPointType: 'video', uri: 'https://meet.google.com/secondary' }],
+      },
+    });
+    expect(v.joinLink).toBe('https://meet.google.com/primary');
+  });
+
+  it('falls back to a free-text join link in the location', () => {
+    const v = googleEventVirtuality({
+      location: 'Join Zoom Meeting https://us02web.zoom.us/j/123456789',
+    });
+    expect(v.isVirtual).toBe(true);
+    expect(v.joinLink).toContain('zoom.us');
+  });
+
+  it('classifies a plain in-person event as non-virtual', () => {
+    const v = googleEventVirtuality({
+      location: 'Room 4B, 100 Main St',
+      description: 'Quarterly review',
+    });
+    expect(v.isVirtual).toBe(false);
+    expect(v.joinLink).toBeNull();
+    expect(v.provider).toBeNull();
   });
 });

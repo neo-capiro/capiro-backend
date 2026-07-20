@@ -49,7 +49,7 @@ import {
 import { ClientsService } from '../clients/clients.service.js';
 import { RepresentationResolverService } from '../clients/representation-resolver.service.js';
 import { RegulatoryDocketService } from '../regulatory-docket/regulatory-docket.service.js';
-import { MicrosoftGraphSyncService } from '../engagement/microsoft/microsoft-graph-sync.service.js';
+import { EngagementMailSender } from '../engagement/mail-sender.service.js';
 import { LdaIntelService } from '../lda-intel/lda-intel.service.js';
 import { LobbyIntelService } from '../lobby-intel/lobby-intel.service.js';
 import { FederalSpendingService } from '../federal-spending/federal-spending.service.js';
@@ -526,7 +526,7 @@ export class MeriToolsService {
     private readonly prisma: PrismaService,
     private readonly config: ConfigService<AppConfig, true>,
     private readonly engagement: EngagementService,
-    private readonly microsoftGraph: MicrosoftGraphSyncService,
+    private readonly mailSender: EngagementMailSender,
     private readonly ldaIntel: LdaIntelService,
     private readonly lobbyIntel: LobbyIntelService,
     private readonly federalSpending: FederalSpendingService,
@@ -5001,17 +5001,25 @@ export class MeriToolsService {
   // ── Email tools ──────────────────────────────────────────────────────
 
   private async findUserEmailConnection(ctx: TenantContext) {
+    // Any connected inbox the user owns can send — Outlook or Gmail. `provider`
+    // is selected so EngagementMailSender can route to the right adapter.
+    // Order by provider (the enum lists microsoft_365 first) THEN recency: this
+    // keeps the sending identity DETERMINISTIC for a user with both inboxes —
+    // background token refreshes / syncs bump updatedAt on each connection at
+    // independent times, so ordering by updatedAt alone would flip the "from"
+    // mailbox unpredictably. Microsoft-preferred also preserves the pre-Gmail
+    // behavior of these Meri send tools; a Gmail-only user still gets Gmail.
     return this.prisma.withTenant(ctx.tenantId, (tx) =>
       tx.integrationConnection.findFirst({
         where: {
           tenantId: ctx.tenantId,
           createdByUserId: ctx.userId,
-          provider: 'microsoft_365',
+          provider: { in: ['microsoft_365', 'google_workspace'] },
           status: 'connected',
           token: { isNot: null },
         },
-        orderBy: { updatedAt: 'desc' },
-        select: { id: true, accountEmail: true, displayName: true },
+        orderBy: [{ provider: 'asc' }, { updatedAt: 'desc' }],
+        select: { id: true, provider: true, accountEmail: true, displayName: true },
       }),
     );
   }
@@ -5033,9 +5041,9 @@ export class MeriToolsService {
     const recipient = normalizeDeliveryEmail(to);
     if (!recipient) return { ok: false, error: 'invalid recipient' };
     const connection = await this.findUserEmailConnection(ctx);
-    if (!connection) return { ok: false, error: 'no connected Microsoft 365 account' };
+    if (!connection) return { ok: false, error: 'no connected email account' };
     try {
-      await this.microsoftGraph.sendMail(ctx, connection.id, {
+      await this.mailSender.sendMail(ctx, connection, {
         subject,
         body,
         toRecipients: [{ email: recipient }],
@@ -5057,11 +5065,11 @@ export class MeriToolsService {
     if (!connection) {
       return {
         error:
-          'No connected Microsoft 365 account found. Please connect one in Settings → Integrations.',
+          'No connected email account found. Please connect Outlook or Gmail in Settings → Integrations.',
       };
     }
 
-    await this.microsoftGraph.sendMail(ctx, connection.id, {
+    await this.mailSender.sendMail(ctx, connection, {
       subject,
       body,
       toRecipients: [{ email: to }],
@@ -5441,14 +5449,14 @@ export class MeriToolsService {
 
     const connection = await this.findUserEmailConnection(ctx);
     if (!connection) {
-      return { error: 'No connected Microsoft 365 account found.' };
+      return { error: 'No connected email account found.' };
     }
 
     const replySubject = thread.subject?.startsWith('Re: ')
       ? thread.subject
       : `Re: ${thread.subject ?? ''}`;
 
-    await this.microsoftGraph.sendMail(ctx, connection.id, {
+    await this.mailSender.sendMail(ctx, connection, {
       subject: replySubject,
       body,
       toRecipients: [{ email: lastMsg.fromEmail }],

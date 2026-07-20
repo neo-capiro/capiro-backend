@@ -90,7 +90,7 @@ function makeMocks() {
     prisma as never,
     { get: jest.fn() } as never,
     engagement as never,
-    {} as never, // microsoftGraph
+    {} as never, // mailSender
     {} as never, // ldaIntel
     {} as never, // lobbyIntel
     {} as never, // federalSpending

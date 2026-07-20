@@ -68,7 +68,7 @@ import {
   type RenderedOutreachBody,
 } from './outreach-email-renderer.js';
 import { MeetingNotesCryptoService } from './meeting-notes-crypto.service.js';
-import { MicrosoftGraphSyncService } from './microsoft/microsoft-graph-sync.service.js';
+import { EngagementMailSender } from './mail-sender.service.js';
 import { ClientKbService } from '../embeddings/client-kb.service.js';
 import { ContextCompilerService } from '../context/context-compiler.service.js';
 import { editRatio } from '../common/text-distance.js';
@@ -413,6 +413,12 @@ export interface SendBatchEmailInput {
    * (User.emailSignatureEnabled).
    */
   appendSignature?: boolean;
+  /**
+   * Which connected inbox to send from (IntegrationConnection id). Chosen by
+   * the user in the wizard's sender-mailbox picker. When omitted, the most
+   * recently connected inbox (Outlook or Gmail) is used.
+   */
+  senderConnectionId?: string;
 }
 
 export interface CreateOutreachRecordInput {
@@ -769,7 +775,7 @@ export class EngagementService {
     private readonly directory: DirectoryService,
     private readonly lobbyIntel: LobbyIntelService,
     private readonly federalSpending: FederalSpendingService,
-    private readonly microsoftGraph: MicrosoftGraphSyncService,
+    private readonly mailSender: EngagementMailSender,
     private readonly clientKb: ClientKbService,
     private readonly contextCompiler: ContextCompilerService,
     config: ConfigService<AppConfig, true>,
@@ -1793,7 +1799,7 @@ export class EngagementService {
       const recipientId = recipient.directoryContactId || recipient.email || '';
       const perEmail = emailMap.get(recipientId);
       try {
-        await this.microsoftGraph.sendMail(ctx, connection.id, {
+        await this.mailSender.sendMail(ctx, connection, {
           subject:
             perEmail?.subject || assembleCampaignBody(record.subject, recipient, record.metadata),
           body: perEmail?.body || assembleCampaignBody(record.body, recipient, record.metadata),
@@ -3130,7 +3136,7 @@ export class EngagementService {
     // OutreachEmailRenderer (W6.1) so every send path produces identical output.
     const renderBody = renderOutreachBody;
 
-    const connection = await this.findCampaignSendConnection(ctx);
+    const connection = await this.findCampaignSendConnection(ctx, input.senderConnectionId);
 
     // Load the sender once: their inbox email (for test mode) and their saved,
     // already-server-sanitized email signature. We append the signature when the
@@ -3204,7 +3210,7 @@ export class EngagementService {
       if (!sender?.email) throw new BadRequestException('Your user has no email on file');
       const sample = drafts.find((d) => d.subject?.trim() || d.body?.trim()) ?? drafts[0]!;
       const rendered = withSignature(renderBody(sample.body || '(empty draft)'));
-      await this.microsoftGraph.sendMail(ctx, connection.id, {
+      await this.mailSender.sendMail(ctx, connection, {
         subject: `[TEST] ${sample.subject || 'Outreach preview'}`,
         body: rendered.content,
         bodyContentType: rendered.contentType,
@@ -3293,7 +3299,7 @@ export class EngagementService {
       }
       try {
         const rendered = withSignature(renderBody(draft.body));
-        await this.microsoftGraph.sendMail(ctx, connection.id, {
+        await this.mailSender.sendMail(ctx, connection, {
           subject: draft.subject,
           body: rendered.content,
           bodyContentType: rendered.contentType,
@@ -5852,18 +5858,52 @@ export class EngagementService {
     return count > 0;
   }
 
-  private async findCampaignSendConnection(ctx: TenantContext) {
+  private async findCampaignSendConnection(
+    ctx: TenantContext,
+    preferredConnectionId?: string | null,
+  ) {
+    // Any connected inbox the user owns can send — Outlook (Graph) or Gmail.
+    // The dispatcher routes on `provider`, so it must be selected.
+    const baseWhere = {
+      tenantId: ctx.tenantId,
+      provider: {
+        in: [EngagementProvider.microsoft_365, EngagementProvider.google_workspace],
+      },
+      status: EngagementConnectionStatus.connected,
+      createdByUserId: ctx.userId,
+      token: { isNot: null },
+    };
+    const selectFields = {
+      id: true,
+      provider: true,
+      accountEmail: true,
+      displayName: true,
+    } as const;
+
+    // When the caller pins a specific mailbox (wizard picker), honor exactly
+    // that one — never silently fall back to another inbox, which would send
+    // from the wrong identity. If it isn't a connected inbox the user owns,
+    // fail loudly.
+    if (preferredConnectionId) {
+      const chosen = await this.prisma.withTenant(ctx.tenantId, (tx) =>
+        tx.integrationConnection.findFirst({
+          where: { ...baseWhere, id: preferredConnectionId },
+          select: selectFields,
+        }),
+      );
+      if (!chosen) {
+        throw new BadRequestException(
+          'The selected sending mailbox is not connected. Choose a connected inbox and try again.',
+        );
+      }
+      return chosen;
+    }
+
     const connection = await this.prisma.withTenant(ctx.tenantId, (tx) =>
       tx.integrationConnection.findFirst({
-        where: {
-          tenantId: ctx.tenantId,
-          provider: EngagementProvider.microsoft_365,
-          status: EngagementConnectionStatus.connected,
-          createdByUserId: ctx.userId,
-          token: { isNot: null },
-        },
+        where: baseWhere,
         orderBy: { updatedAt: 'desc' },
-        select: { id: true, accountEmail: true, displayName: true },
+        select: selectFields,
       }),
     );
     if (!connection) {
@@ -7098,7 +7138,7 @@ export class EngagementService {
         campaign.metadata,
       );
       try {
-        await this.microsoftGraph.sendMail(ctx, connection.id, {
+        await this.mailSender.sendMail(ctx, connection, {
           subject,
           body,
           toRecipients: [{ email: recipient.email, name: recipient.name ?? null }],
@@ -7160,7 +7200,7 @@ export class EngagementService {
     );
     if (!user) throw new BadRequestException('User not found');
 
-    await this.microsoftGraph.sendMail(ctx, connection.id, {
+    await this.mailSender.sendMail(ctx, connection, {
       subject: `[TEST] ${campaign.subject}`,
       body: campaign.body,
       toRecipients: [{ email: user.email, name: user.firstName ?? null }],

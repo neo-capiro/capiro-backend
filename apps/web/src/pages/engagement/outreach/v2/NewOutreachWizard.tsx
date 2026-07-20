@@ -83,12 +83,22 @@ import {
 } from './types.js';
 import './outreach.css';
 
+/** A connected inbox the user can send outreach from (Outlook or Gmail). */
+export interface OutreachSenderInbox {
+  id: string;
+  provider: string;
+  accountEmail: string | null;
+  displayName: string | null;
+}
+
 interface Props {
   clients: Client[];
   selectedClientId: string | null;
   aiConfigured: boolean;
   emailConnected: boolean;
   sendFrom: string | null;
+  /** Connected inboxes the user can send from, for the Send-step mailbox picker. */
+  sendableInboxes: OutreachSenderInbox[];
   onCancel: () => void;
   onComplete: () => void;
   /**
@@ -200,6 +210,7 @@ export function NewOutreachWizard({
   aiConfigured,
   emailConnected,
   sendFrom,
+  sendableInboxes,
   onCancel,
   onComplete,
   initialRecord,
@@ -1026,6 +1037,21 @@ export function NewOutreachWizard({
   // contract — a group's shared draft fans to every member (see generation.ts).
   const buildDrafts = () => projectDraftsForSend(state.targets, state.generatedEmails);
 
+  // Which connected inbox this send goes out from. Defaults to the first inbox
+  // in the list, which the API orders provider-first (Outlook before Gmail, per
+  // the EngagementProvider enum) then newest — so an existing Outlook user keeps
+  // their prior sending mailbox. The user overrides it in the Send step's picker
+  // when more than one inbox is connected.
+  const [senderConnectionId, setSenderConnectionId] = useState<string | undefined>(undefined);
+  const selectedInboxId = senderConnectionId ?? sendableInboxes[0]?.id;
+  const selectedInbox = sendableInboxes.find((inbox) => inbox.id === selectedInboxId) ?? null;
+  // Display must reflect the SELECTED inbox — never fall back to another inbox's
+  // address (that would tell the user their mail went from a mailbox it didn't).
+  // Only when no inbox is selected at all do we use the parent's sendFrom hint.
+  const selectedSendFrom = selectedInbox
+    ? (selectedInbox.accountEmail ?? selectedInbox.displayName ?? null)
+    : sendFrom;
+
   const sendMutation = useMutation({
     mutationFn: async (vars?: { testMode?: boolean }) => {
       const res = await api.post<{
@@ -1048,6 +1074,7 @@ export function NewOutreachWizard({
         testMode: vars?.testMode ?? false,
         attachmentIds: state.attachmentIds,
         appendSignature,
+        senderConnectionId: selectedInboxId,
       });
       return res.data;
     },
@@ -1460,7 +1487,10 @@ export function NewOutreachWizard({
               recipients={state.recipients}
               sendableCount={sendableDraftCount}
               failedCount={failedDraftCount}
-              sendFrom={sendFrom}
+              sendFrom={selectedSendFrom}
+              sendableInboxes={sendableInboxes}
+              selectedInboxId={selectedInboxId}
+              onSelectInbox={setSenderConnectionId}
               emailConnected={emailConnected}
               hasSignature={hasSignature}
               appendSignature={appendSignature}
@@ -1967,6 +1997,9 @@ function StepSend({
   sendableCount,
   failedCount,
   sendFrom,
+  sendableInboxes,
+  selectedInboxId,
+  onSelectInbox,
   emailConnected,
   hasSignature,
   appendSignature,
@@ -1982,6 +2015,9 @@ function StepSend({
   sendableCount: number;
   failedCount: number;
   sendFrom: string | null;
+  sendableInboxes: OutreachSenderInbox[];
+  selectedInboxId: string | undefined;
+  onSelectInbox: (id: string) => void;
   emailConnected: boolean;
   hasSignature: boolean;
   appendSignature: boolean;
@@ -2028,9 +2064,26 @@ function StepSend({
         {recipients.length === 1 ? 'email is' : 'emails are'} queued. Capiro will send from{' '}
         <b>{sendFrom || 'your connected inbox'}</b>.
       </div>
+      {sendableInboxes.length > 1 && (
+        <div style={{ marginTop: 16 }}>
+          <div style={{ fontSize: 12.5, color: 'var(--ov2-ink-2)', marginBottom: 6 }}>Send from</div>
+          <Select
+            value={selectedInboxId}
+            onChange={onSelectInbox}
+            style={{ minWidth: 280, maxWidth: 440, textAlign: 'left' }}
+            options={sendableInboxes.map((inbox) => ({
+              value: inbox.id,
+              label: `${inbox.accountEmail || inbox.displayName || 'Connected inbox'} · ${
+                inbox.provider === 'google_workspace' ? 'Gmail' : 'Outlook'
+              }`,
+            }))}
+          />
+        </div>
+      )}
       {!emailConnected && (
         <Typography.Paragraph type="warning" style={{ marginTop: 12 }}>
-          No Microsoft connection found. Connect one in Settings → Integrations before sending.
+          No email account connected. Connect Outlook or Gmail in Settings → Integrations before
+          sending.
         </Typography.Paragraph>
       )}
       {failedCount > 0 && (
