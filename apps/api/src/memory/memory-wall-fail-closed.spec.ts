@@ -88,11 +88,18 @@ describe('Ethical walls — every memory read surface applies the wall', () => {
 
   it('memory.controller.ts: PUT sections on a walled client 403s (no skeleton-clobber write)', () => {
     const text = read(join(SRC_ROOT, 'memory', 'memory.controller.ts'));
-    // The client-scope write path must gate on the wall before upsertSections —
+    // The client-scope write path must gate on the wall BEFORE upsertSections —
     // otherwise the wall-hidden read makes the write rebuild from skeleton and
-    // clobber the real row. Assert the gate sits in the updateSections handler.
-    const put = text.slice(text.indexOf('updateSections'));
-    expect(put).toContain('clientMemoryAllowedForCurrentUser(clientId)');
+    // clobber the real row. Bound the slice to the updateSections body UP TO the
+    // write call, so the assertion (a) is pinned to this handler (not the later
+    // graph/client route that shares the string) and (b) proves the gate precedes
+    // the write, not merely that it exists somewhere.
+    const start = text.indexOf('async updateSections');
+    const writeCall = text.indexOf('upsertSectionsForCurrentTenant', start);
+    expect(start).toBeGreaterThan(-1);
+    expect(writeCall).toBeGreaterThan(start);
+    const guarded = text.slice(start, writeCall);
+    expect(guarded).toContain('clientMemoryAllowedForCurrentUser(clientId)');
   });
 
   it('context-compiler.service.ts: client steering load is wall-gated (app-layer, not RLS-only)', () => {
