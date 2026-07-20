@@ -33,6 +33,11 @@ import {
 } from './memory-recall-source.helpers.js';
 import { passesWriteConfidenceGate } from './memory-confidence.helpers.js';
 import { rerankByFusion, type RecalledRow } from './memory-scoring.helpers.js';
+import {
+  recallOutcomeMetric,
+  recallOutcomeSummary,
+  type RecallOutcome,
+} from './meri-context-metrics.helpers.js';
 import { clientMemoryAllowed } from '../memory/memory-wall.helpers.js';
 import { MeriToolsService } from './meri-tools.service.js';
 import { AiCredentialResolverService } from '../engagement/ai-credential-resolver.service.js';
@@ -2640,15 +2645,22 @@ export class MeriService {
           action: 'selected',
           reason: `Loaded ${memories.length} relevant memories.`,
         });
+        this.emitRecallMetric('hit', memories.length);
       } else {
         trace.push({
           tool: 'clio_memory',
           action: 'skipped',
           reason: 'No high-signal memories matched query.',
         });
+        this.emitRecallMetric('empty', 0);
       }
-    } catch {
+    } catch (err) {
+      // Phase 7A (gap #8): a recall FAILURE was previously swallowed silently —
+      // Meri answered with no memory and no signal. Now it emits an alarmable
+      // memory.recall outcome=error metric (behavior otherwise unchanged: the
+      // turn still proceeds fail-open, but the degradation is observable).
       trace.push({ tool: 'clio_memory', action: 'skipped', reason: 'Memory retrieval failed.' });
+      this.emitRecallMetric('error', 0, err);
     }
 
     const shouldLoadResearch = [
@@ -3645,6 +3657,27 @@ export class MeriService {
       ageDays: r.observed_at ? (now - new Date(r.observed_at).getTime()) / 86_400_000 : null,
       confidence: r.confidence,
     }));
+  }
+
+  /**
+   * Phase 7A: emit a recall-outcome metric (EMF) + summary log. Side-effect-only
+   * and fully swallowed — observability must NEVER affect recall. Kill-switch:
+   * MERI_CONTEXT_METRICS='off'.
+   */
+  private emitRecallMetric(outcome: RecallOutcome, count: number, err?: unknown): void {
+    try {
+      if ((this.config.get('MERI_CONTEXT_METRICS', { infer: true }) as string) === 'off') return;
+      const source =
+        (this.config.get('MEMORY_RECALL_SOURCE', { infer: true }) as string | undefined) ?? 'clio';
+      this.logger.log(JSON.stringify(recallOutcomeMetric(outcome, source, count, new Date().toISOString())));
+      if (outcome === 'error') {
+        this.logger.warn(
+          `${recallOutcomeSummary(outcome, source, count)} err=${err instanceof Error ? err.message : String(err)}`,
+        );
+      }
+    } catch {
+      // metrics must never break a turn
+    }
   }
 
   /** Phase 5: fusion weights/half-life/neutral-confidence from config. */

@@ -139,6 +139,11 @@ export const configSchema = z.object({
   // no-op (mirrors the existing gated ephemeral sweep).
   MEMORY_RETENTION_SWEEP: z.coerce.boolean().default(false),
 
+  // Phase 7A — recall-miss observability. Emit CloudWatch EMF metrics at the
+  // memory-recall boundary (hit / empty / error). Default 'on' (side-effect-only,
+  // never changes recall behavior); flip to 'off' as a kill-switch if noisy.
+  MERI_CONTEXT_METRICS: z.enum(['on', 'off']).default('on'),
+
   // Outreach prompt-assembly version (plan W2). 'v1' = the legacy single-string
   // prompt + JSON context dump; 'v2' = PromptSpec v2 (real system prompt, context
   // precedence ladder, spotlighted untrusted content, no raw JSON dump). Defaults
