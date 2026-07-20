@@ -30,6 +30,22 @@ export function pickMemoryRecallSource(
 }
 
 /**
+ * Phase 5 — per-tenant resolution of the unified recall reranker (recency +
+ * confidence fusion). Mirrors pickMemoryRecallSource: a
+ * settings_jsonb.clioFeatureFlags.meriRecallRerank of 'on'/'off' wins over the
+ * global MERI_RECALL_RERANK env, so rerank can be canaried on one tenant
+ * (capiro-internal) before a fleet flip. Pure; unit-tested with pickMemoryRecallSource.
+ */
+export function pickRecallRerank(envOn: boolean, settings: unknown): boolean {
+  const flags = (settings as { clioFeatureFlags?: Record<string, unknown> } | null | undefined)
+    ?.clioFeatureFlags;
+  const override = flags?.meriRecallRerank;
+  if (override === 'on' || override === true) return true;
+  if (override === 'off' || override === false) return false;
+  return envOn;
+}
+
+/**
  * Post-filter a scored recall result set to rows at/above the relevance floor
  * (MEMORY_PROJECTION_MIN_SCORE for the projection path). Runs AFTER the vector
  * `ORDER BY … LIMIT`, so it can only suppress weak tail matches — it never

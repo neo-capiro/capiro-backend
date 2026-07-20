@@ -86,21 +86,43 @@ export const configSchema = z.object({
   // during the 'union' canary; 0 disables the floor.
   MEMORY_PROJECTION_MIN_SCORE: z.coerce.number().min(0).max(1).default(0.4),
 
-  // Phase 4 — confidence-weighted recall fusion strength (memory-confidence.
-  // helpers.ts). 0 = DARK: rerankByConfidence is strict identity and
-  // projectionRecall is byte-identical to pre-Phase-4. A small positive value
-  // (e.g. 0.2-0.3) blends similarity × (1-w+w·confidence) so an uncertain-but-
-  // similar memory demotes below a confident one; fused score never exceeds raw
-  // similarity (never a fabricated boost). Landed inert; flip out-of-band per
-  // tenant ONLY after that tenant is on MEMORY_RECALL_SOURCE=union/projection
-  // and the projection floor is re-tuned against fused scores.
-  MEMORY_CONFIDENCE_WEIGHT: z.coerce.number().min(0).max(1).default(0),
+  // (Phase 4's MEMORY_CONFIDENCE_WEIGHT was superseded by the unified Phase 5
+  // reranker — confidence is now one weight in MEMORY_RECALL_W_CONFIDENCE under
+  // the MERI_RECALL_RERANK switch below.)
 
   // Phase 4 — write-path confidence floor for MODEL-extracted memories
   // (auto-learn). Default 0.7 reproduces the previously-hardcoded gate exactly
   // (meri.service.ts maybeLearnFromConversation). A model extraction below this
   // is not auto-committed; explicit human saves are unscored and unaffected.
   MEMORY_MIN_WRITE_CONFIDENCE: z.coerce.number().min(0).max(1).default(0.7),
+
+  // ── Phase 5 — retrieval quality (memory-scoring.helpers.ts) ────────────────
+  // Master switch for unified similarity+recency+confidence recall fusion.
+  // 'off' (default) = pure-cosine order, byte-identical to pre-Phase-5. Flip
+  // to 'on' out-of-band, canaried per tenant via
+  // settings_jsonb.clioFeatureFlags.meriRecallRerank, after the union canary.
+  MERI_RECALL_RERANK: z.enum(['off', 'on']).default('off'),
+  // Recency half-life (days): a memory that hasn't been confirmed/updated in
+  // this many days contributes half its recency factor. Long by default so a
+  // durable fact ("HQ is DC") is barely penalized; tune during canary.
+  MEMORY_RECALL_HALFLIFE_DAYS: z.coerce.number().min(1).default(180),
+  // Fusion weights (normalized to sum 1 at use). Defaults keep similarity
+  // dominant so rerank only reorders near-ties by recency/confidence.
+  MEMORY_RECALL_W_SIM: z.coerce.number().min(0).default(0.6),
+  MEMORY_RECALL_W_RECENCY: z.coerce.number().min(0).default(0.25),
+  MEMORY_RECALL_W_CONFIDENCE: z.coerce.number().min(0).default(0.15),
+  // Over-fetch multiplier when rerank is on: fetch K×N (capped 30) candidates so
+  // a fresh/confident row the raw top-K would have dropped can be promoted.
+  MEMORY_RECALL_OVERFETCH: z.coerce.number().int().min(1).max(10).default(3),
+  // Neutral confidence prior for rows with no confidence (unscored/human/legacy).
+  MEMORY_RECALL_NEUTRAL_CONFIDENCE: z.coerce.number().min(0).max(1).default(0.75),
+  // Clio (OpenAI-space) recall floor — was hardcoded 0.3 in semanticMemorySearch;
+  // now configurable, default 0.3 = exact parity.
+  MEMORY_CLIO_MIN_SCORE: z.coerce.number().min(0).max(1).default(0.3),
+  // Context assembly budget unit. 'chars' (default) = today's behavior exactly;
+  // 'tokens' switches truncation to the shared token estimator (provably ~inert
+  // at the calibrated ratio). Flip out-of-band once token parity is confirmed.
+  MERI_CONTEXT_BUDGET_UNIT: z.enum(['chars', 'tokens']).default('chars'),
 
   // Outreach prompt-assembly version (plan W2). 'v1' = the legacy single-string
   // prompt + JSON context dump; 'v2' = PromptSpec v2 (real system prompt, context

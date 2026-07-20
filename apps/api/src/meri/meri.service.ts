@@ -18,6 +18,8 @@ import {
   runAuditor,
   ledgerToToolResultMap,
   sanitizeToolResultText,
+  charsToTokens,
+  truncateToTokens,
   type LedgerEntry,
   type AuditorMode,
 } from '@capiro/meriv2-core';
@@ -26,12 +28,11 @@ import { PrismaService } from '../prisma/prisma.service.js';
 import {
   applyRecallScoreFloor,
   pickMemoryRecallSource,
+  pickRecallRerank,
   type MemoryRecallSource,
 } from './memory-recall-source.helpers.js';
-import {
-  passesWriteConfidenceGate,
-  rerankByConfidence,
-} from './memory-confidence.helpers.js';
+import { passesWriteConfidenceGate } from './memory-confidence.helpers.js';
+import { rerankByFusion, type RecalledRow } from './memory-scoring.helpers.js';
 import { clientMemoryAllowed } from '../memory/memory-wall.helpers.js';
 import { MeriToolsService } from './meri-tools.service.js';
 import { AiCredentialResolverService } from '../engagement/ai-credential-resolver.service.js';
@@ -2870,8 +2871,20 @@ export class MeriService {
     // conflicts, so it was removed. Field kept null for forward compatibility.
     const conflict = null;
 
+    // Phase 5: unit-aware final truncation. 'chars' (default) = today's behavior
+    // exactly; 'tokens' caps at the token-equivalent of the same char budget
+    // (provably ~inert at the calibrated ratio) via the shared estimator.
+    const budgetUnit =
+      (this.config.get('MERI_CONTEXT_BUDGET_UNIT', { infer: true }) as string | undefined) ??
+      'chars';
+    const joinedContext = contextParts.join('\n');
+    const boundedContext =
+      budgetUnit === 'tokens'
+        ? truncateToTokens(joinedContext, charsToTokens(policy.contextCharBudget))
+        : truncateText(joinedContext, policy.contextCharBudget);
+
     return {
-      context: truncateText(contextParts.join('\n'), policy.contextCharBudget),
+      context: boundedContext,
       sources,
       policy,
       trace,
@@ -3409,13 +3422,15 @@ export class MeriService {
     // never drop below the 'clio' baseline. Resolved per-tenant (a settings_jsonb
     // override wins over the global env) so 'union' can be canaried on one tenant
     // before a fleet-wide flip.
-    const mode = await this.resolveMemoryRecallSource(tenantId);
+    const { mode, rerankOn } = await this.resolveRecallConfig(tenantId);
 
     if (mode === 'projection') {
       // Prefer the memory_items projection; on an INFRA error (not merely an
       // empty result) fall back to clio so a bad Titan/DB call never blanks
       // recall. An empty projection result legitimately returns [].
-      const proj = await this.projectionRecall(tenantId, userId, query, clientId).catch(() => null);
+      const proj = await this.projectionRecall(tenantId, userId, query, clientId, 8, rerankOn).catch(
+        () => null,
+      );
       return proj ?? this.clioRecall(tenantId, userId, query, clientId);
     }
 
@@ -3424,7 +3439,10 @@ export class MeriService {
         this.clioRecall(tenantId, userId, query, clientId),
         // Superset guarantee: projection failures resolve to [] (never throw),
         // so `union` always ⊇ `clio` and can only ADD items, never remove.
-        this.projectionRecall(tenantId, userId, query, clientId).catch(
+        // Phase 5: projection is fusion-reranked internally when rerankOn; the
+        // clio-first union dedupe below is unchanged (RRF over enriched lists is
+        // a documented follow-up — the union superset property is preserved).
+        this.projectionRecall(tenantId, userId, query, clientId, 8, rerankOn).catch(
           () => [] as Array<{ key: string; value: string }>,
         ),
       ]);
@@ -3451,16 +3469,34 @@ export class MeriService {
    * tenant.settings read per recall; fail-safe: any read error falls back to env.
    */
   private async resolveMemoryRecallSource(tenantId: string): Promise<MemoryRecallSource> {
+    return (await this.resolveRecallConfig(tenantId)).mode;
+  }
+
+  /**
+   * Phase 5: resolve BOTH the recall backing (mode) AND the unified-reranker
+   * switch (rerankOn) from a SINGLE tenant.settings read — env defaults with a
+   * per-tenant settings_jsonb.clioFeatureFlags override for each. Fail-safe: a
+   * read error falls back to the env defaults (never breaks recall).
+   */
+  private async resolveRecallConfig(
+    tenantId: string,
+  ): Promise<{ mode: MemoryRecallSource; rerankOn: boolean }> {
     const envMode = (this.config.get('MEMORY_RECALL_SOURCE', { infer: true }) ??
       'clio') as MemoryRecallSource;
+    const envRerank =
+      ((this.config.get('MERI_RECALL_RERANK', { infer: true }) as string | undefined) ?? 'off') ===
+      'on';
     try {
       const tenant = await this.prisma.withTenant(tenantId, (tx) =>
         tx.tenant.findFirst({ where: { id: tenantId }, select: { settings: true } }),
       );
-      return pickMemoryRecallSource(envMode, tenant?.settings ?? null);
+      const settings = tenant?.settings ?? null;
+      return {
+        mode: pickMemoryRecallSource(envMode, settings),
+        rerankOn: pickRecallRerank(envRerank, settings),
+      };
     } catch {
-      // fail-safe: a settings-read error must never break recall — use env.
-      return envMode;
+      return { mode: envMode, rerankOn: envRerank };
     }
   }
 
@@ -3527,16 +3563,17 @@ export class MeriService {
     query: string,
     clientId: string | null,
     limit = 8,
+    rerankOn = false,
   ): Promise<Array<{ key: string; value: string }>> {
     const literal = vectorLiteral(await embedText(normalizeForEmbedding(query)));
-    // Phase 4: confidence-weighted fusion. weight=0 (default) ⇒ the whole path
-    // below is a byte-identical no-op (identity rerank, fetchN=limit). When
-    // active, over-fetch a candidate pool so a slightly-lower-similarity but
-    // higher-confidence row can legitimately enter the top-K after a demotion.
-    const confidenceWeight =
-      (this.config.get('MEMORY_CONFIDENCE_WEIGHT', { infer: true }) as number | undefined) ?? 0;
     const cappedLimit = Math.min(15, Math.max(1, limit));
-    const fetchN = confidenceWeight > 0 ? 15 : cappedLimit;
+    // Phase 5: when rerank is ON, over-fetch a candidate pool (K×OVERFETCH, cap
+    // 30) so a fresh/confident row the raw vector top-K would have dropped can be
+    // promoted after fusion. When OFF, fetchN = cappedLimit ⇒ byte-identical to
+    // the pre-Phase-5 path (same LIMIT, no rerank).
+    const overfetch =
+      (this.config.get('MEMORY_RECALL_OVERFETCH', { infer: true }) as number | undefined) ?? 3;
+    const fetchN = rerankOn ? Math.min(30, cappedLimit * Math.max(1, overfetch)) : cappedLimit;
     const rows = await this.prisma.withTenantUser(tenantId, userId, async (tx) => {
       // Ethical wall: a walled client's notes are recallable only by granted
       // users — otherwise the client arm degrades to absent (fail-closed).
@@ -3545,9 +3582,19 @@ export class MeriService {
           ? clientId
           : null;
       return tx.$queryRawUnsafe<
-        Array<{ title: string; sections: unknown; score: number; confidence: number | null }>
+        Array<{
+          title: string;
+          sections: unknown;
+          score: number;
+          confidence: number | null;
+          observed_at: Date | null;
+        }>
       >(
+        // Phase 5: also select the freshness timestamp (last_confirmed_at wins,
+        // else updated_at, else created_at) and the Phase-4 confidence, both
+        // consulted ONLY when rerankOn. The wall/owner/expiry gate is unchanged.
         `SELECT mi.title, mi.sections_jsonb AS sections, mi.confidence AS confidence,
+                COALESCE(mi.last_confirmed_at, mi.updated_at, mi.created_at) AS observed_at,
                 1 - (ce.embedding <=> '${literal}'::vector) AS score
            FROM context_embeddings ce
            JOIN memory_items mi ON mi.id::text = ce.source_id
@@ -3566,20 +3613,57 @@ export class MeriService {
         clientArm,
       );
     });
-    // Phase 4: fuse similarity × confidence (identity when weight=0), then trim
-    // to the requested limit. The floor is applied AFTER fusion so it keys off
-    // the fused score (accuracy-first: a demoted low-confidence tail drops out).
-    const reranked = rerankByConfidence(rows, confidenceWeight).slice(0, cappedLimit);
-    // Titan-space floor (MEMORY_PROJECTION_MIN_SCORE, measured default 0.4 —
-    // see config.schema.ts). The clio path's 0.3 floor is OpenAI-space and
-    // does not transfer.
+    // Titan-space floor (MEMORY_PROJECTION_MIN_SCORE, default 0.4) on RAW
+    // similarity — thresholds unchanged, so the set of floor-passing rows is
+    // identical to pre-Phase-5. Rerank only REORDERS survivors + (via over-fetch)
+    // can promote a fresh one; it never resurrects a below-floor row.
     const minScore =
       (this.config.get('MEMORY_PROJECTION_MIN_SCORE', { infer: true }) as number | undefined) ??
       0.4;
-    return applyRecallScoreFloor(reranked, minScore).map((r) => ({
+    const floored = applyRecallScoreFloor(rows, minScore);
+    const ordered = rerankOn ? rerankByFusion(this.toRecalledRows(floored), this.fusionOpts()) : floored;
+    return (ordered as Array<{ title?: string; sections?: unknown; key?: string; value?: string }>)
+      .slice(0, cappedLimit)
+      .map((r) =>
+        'key' in r && r.key !== undefined
+          ? { key: r.key, value: r.value ?? '' }
+          : { key: r.title ?? '', value: memorySectionValue(r.sections) },
+      );
+  }
+
+  /** Phase 5: map a floored projection row to the fusion scorer's RecalledRow,
+   *  carrying the reconstructed {key,value}, raw similarity, age in days, and
+   *  Phase-4 confidence. */
+  private toRecalledRows(
+    rows: Array<{ title: string; sections: unknown; score: number; confidence: number | null; observed_at: Date | null }>,
+  ): RecalledRow[] {
+    const now = Date.now();
+    return rows.map((r) => ({
       key: r.title,
       value: memorySectionValue(r.sections),
+      similarity: r.score,
+      ageDays: r.observed_at ? (now - new Date(r.observed_at).getTime()) / 86_400_000 : null,
+      confidence: r.confidence,
     }));
+  }
+
+  /** Phase 5: fusion weights/half-life/neutral-confidence from config. */
+  private fusionOpts() {
+    return {
+      weights: {
+        sim: (this.config.get('MEMORY_RECALL_W_SIM', { infer: true }) as number | undefined) ?? 0.6,
+        rec:
+          (this.config.get('MEMORY_RECALL_W_RECENCY', { infer: true }) as number | undefined) ?? 0.25,
+        conf:
+          (this.config.get('MEMORY_RECALL_W_CONFIDENCE', { infer: true }) as number | undefined) ??
+          0.15,
+      },
+      halfLifeDays:
+        (this.config.get('MEMORY_RECALL_HALFLIFE_DAYS', { infer: true }) as number | undefined) ?? 180,
+      neutralConfidence:
+        (this.config.get('MEMORY_RECALL_NEUTRAL_CONFIDENCE', { infer: true }) as number | undefined) ??
+        0.75,
+    };
   }
 
   private async maybeLearnFromConversation(
@@ -4189,7 +4273,11 @@ export class MeriService {
           clientArm,
         );
       });
-      return results.filter((r) => r.score > 0.3);
+      // Phase 5: clio (OpenAI-space) floor is now configurable; default 0.3 is
+      // exact parity with the previously-hardcoded threshold.
+      const clioMinScore =
+        (this.config.get('MEMORY_CLIO_MIN_SCORE', { infer: true }) as number | undefined) ?? 0.3;
+      return results.filter((r) => r.score > clioMinScore);
     } catch (err) {
       this.logger.debug(`Semantic search failed: ${(err as Error).message}`);
       return [];

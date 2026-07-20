@@ -92,6 +92,17 @@ export interface ContextRequest {
    * exclusions — never silently truncated.
    */
   charBudget?: number;
+  /**
+   * Phase 5 — optional token budget (used only when budgetUnit==='tokens').
+   * Costs are measured with the shared token estimator (token-budget.ts).
+   */
+  tokenBudget?: number;
+  /**
+   * Phase 5 — budget unit. Undefined/'chars' (default) = today's char budgeting
+   * exactly; 'tokens' switches the budget loop to the token estimator. Additive
+   * and inert until a caller opts in.
+   */
+  budgetUnit?: 'chars' | 'tokens';
   /** Surface-local reference for the trace (conversationId, draftId, …). */
   ref?: Record<string, string | null | undefined>;
 }

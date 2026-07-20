@@ -9,6 +9,7 @@
  * why this subpath must stay dependency-free.
  */
 import { randomUUID } from 'node:crypto';
+import { estimateTokens } from './token-budget';
 import {
   LAYER_BY_TYPE,
   type CompiledContextPacket,
@@ -86,7 +87,13 @@ export class ContextCompiler {
       byLayer.set(layer, bucket);
     }
 
-    let budgetLeft = req.charBudget ?? Number.POSITIVE_INFINITY;
+    // Phase 5: unit-aware budgeting. Default ('chars' / undefined) is byte-
+    // identical to before (cost = body.length, budget = charBudget). 'tokens'
+    // routes both the budget and the per-row cost through the shared estimator.
+    const useTokens = req.budgetUnit === 'tokens';
+    const cost = (body: string): number => (useTokens ? estimateTokens(body) : body.length);
+    let budgetLeft =
+      (useTokens ? req.tokenBudget : req.charBudget) ?? Number.POSITIVE_INFINITY;
     for (const layer of req.layers) {
       for (const row of byLayer.get(layer) ?? []) {
         const base = { layer, id: row.id, type: row.type, slug: row.slug };
@@ -114,12 +121,15 @@ export class ContextCompiler {
           exclusions.push({ ...base, reason: 'empty' });
           continue;
         }
-        if (body.length > budgetLeft) {
+        const bodyCost = cost(body);
+        if (bodyCost > budgetLeft) {
           exclusions.push({ ...base, reason: 'over-budget' });
           continue;
         }
-        budgetLeft -= body.length;
-        items.push({ ...base, chars: body.length, rationale: RATIONALE[layer] });
+        budgetLeft -= bodyCost;
+        // `chars` remains the field name (contract-stable); it carries the cost
+        // in the active unit (chars by default, estimated tokens when on).
+        items.push({ ...base, chars: bodyCost, rationale: RATIONALE[layer] });
         rendered.push({ ...withTitle, body });
       }
     }

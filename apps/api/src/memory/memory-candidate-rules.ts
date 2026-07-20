@@ -12,6 +12,15 @@
 // forwards to `POST /api/clio/tools/save_memory`, which dispatches to the
 // exact same method — so this function is already invoked identically from
 // both surfaces by construction, not by a duplicated implementation.
+//
+// Phase 4 write-confidence gate lives in memory-confidence.helpers (single
+// source of truth); re-exported below for the rule + its existing spec importers.
+import {
+  DEFAULT_MIN_WRITE_CONFIDENCE,
+  passesWriteConfidenceGate,
+} from '../meri/memory-confidence.helpers.js';
+export { DEFAULT_MIN_WRITE_CONFIDENCE, passesWriteConfidenceGate };
+
 export type MemoryCandidateOutcome = 'PASS' | 'WARN';
 
 export interface MemoryCandidateDecision {
@@ -30,23 +39,6 @@ export interface MemoryCandidateRuleInput {
   confidence?: number | null;
   /** Phase 4: floor for the model_extraction low-confidence rule (default 0.7). */
   minConfidence?: number;
-}
-
-/** Phase 4 default write-confidence floor (mirrors auto-learn's historical gate). */
-export const DEFAULT_MIN_WRITE_CONFIDENCE = 0.7;
-
-/**
- * Whether a model-extracted confidence clears the write floor. A non-finite/
- * absent confidence FAILS (an unscored machine guess is not trusted). Tolerance
- * avoids float round-trip false-negatives at the boundary.
- */
-export function passesWriteConfidenceGate(
-  confidence: number | null | undefined,
-  minConfidence: number = DEFAULT_MIN_WRITE_CONFIDENCE,
-): boolean {
-  if (confidence === null || confidence === undefined || !Number.isFinite(confidence)) return false;
-  const floor = Number.isFinite(minConfidence) ? minConfidence : DEFAULT_MIN_WRITE_CONFIDENCE;
-  return confidence >= floor - 1e-9;
 }
 
 interface MemoryCandidateRule {

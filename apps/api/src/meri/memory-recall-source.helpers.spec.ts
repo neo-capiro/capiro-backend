@@ -2,7 +2,26 @@ import { describe, expect, it } from '@jest/globals';
 import {
   applyRecallScoreFloor,
   pickMemoryRecallSource,
+  pickRecallRerank,
 } from './memory-recall-source.helpers.js';
+
+describe('pickRecallRerank (Phase 5)', () => {
+  it('falls back to the env value when there is no override', () => {
+    expect(pickRecallRerank(false, null)).toBe(false);
+    expect(pickRecallRerank(true, undefined)).toBe(true);
+    expect(pickRecallRerank(false, { clioFeatureFlags: {} })).toBe(false);
+  });
+  it('a per-tenant on/off override wins over env', () => {
+    expect(pickRecallRerank(false, { clioFeatureFlags: { meriRecallRerank: 'on' } })).toBe(true);
+    expect(pickRecallRerank(true, { clioFeatureFlags: { meriRecallRerank: 'off' } })).toBe(false);
+    expect(pickRecallRerank(false, { clioFeatureFlags: { meriRecallRerank: true } })).toBe(true);
+    expect(pickRecallRerank(true, { clioFeatureFlags: { meriRecallRerank: false } })).toBe(false);
+  });
+  it('an unrecognized override is ignored (env wins)', () => {
+    expect(pickRecallRerank(true, { clioFeatureFlags: { meriRecallRerank: 'maybe' } })).toBe(true);
+    expect(pickRecallRerank(false, { clioFeatureFlags: { meriRecallRerank: 1 } })).toBe(false);
+  });
+});
 
 describe('pickMemoryRecallSource', () => {
   it('falls back to the env mode when there is no override', () => {
