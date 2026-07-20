@@ -44,7 +44,7 @@ import {
   fetchDeniedClientIds,
   toUuidArrayLiteral,
 } from '../memory/memory-wall.helpers.js';
-import { resolveCacheNodeLabels } from '../memory/kg-cache-enrich.helpers.js';
+import { resolveCacheNodeLabels, keepCacheEdge, aggSuffix } from '../memory/kg-cache-enrich.helpers.js';
 import { MeriToolsService } from './meri-tools.service.js';
 import { AiCredentialResolverService } from '../engagement/ai-credential-resolver.service.js';
 import { MemoryIngestService } from '../memory/memory-ingest.service.js';
@@ -1827,7 +1827,12 @@ export class MeriService {
       args.content,
       args.conversation.clientId,
     ).catch(() => [] as Array<{ key: string; value: string }>);
-    const memoryContext = recalled.map((m) => `${m.key}: ${m.value}`);
+    // GraphRAG-fused items carry an opaque `graph:<ids>` dedup key (raw UUIDs /
+    // FEC / LDA ids) — emit their human-readable value only, never the key, so
+    // no raw id reaches the model (base memory keys are human labels, kept).
+    const memoryContext = recalled.map((m) =>
+      m.key.startsWith('graph:') ? m.value : `${m.key}: ${m.value}`,
+    );
 
     // Client KB snapshot (1B.4): the proxy owns clientKb, so build the same
     // always-on snapshot the legacy path injects (profile/people/facilities/
@@ -3578,32 +3583,41 @@ export class MeriService {
           ${Prisma.raw(toUuidArrayLiteral(denied))},
           'client', ${clientId}, 2, NULL::text[], 12, 60, 'both')
       `;
-      // Unconfirmed auto-matches are candidate-pool noise, not resolved facts —
-      // mirror the intel graph's filter so Meri never asserts an unconfirmed link.
-      const kept = walked.filter((r) => r.source !== 'auto_matched').slice(0, GRAPH_FUSION_MAX * 3);
+      // Same filter as the shared enrichment path: drop unconfirmed auto-matches
+      // AND the noise edge types (meeting_with_client / mail_thread_with_client)
+      // that duplicate System-A facts or de-anonymize as raw UUIDs.
+      const kept = walked.filter(keepCacheEdge).slice(0, GRAPH_FUSION_MAX * 3);
       // Resolve ids → human names in the same tx: an accuracy-first product must
       // never feed raw UUIDs / numeric LDA/FEC ids to the model as "firm
       // knowledge" (the intel path + panel enrichment both resolve for this).
       const resolved = await resolveCacheNodeLabels(tx, tenantId, kept);
-      const seed = await tx.$queryRaw<Array<{ name: string }>>`
-        SELECT name FROM clients WHERE id = ${clientId}::uuid LIMIT 1`;
-      if (seed[0]?.name) resolved.set(`client:${clientId}`, seed[0].name);
+      // Resolve EVERY client node the walk touched (not just the seed): at
+      // depth 2 another visible client can appear via a shared entity, and it
+      // must render as a name, not a raw UUID.
+      const clientIds = new Set<string>([clientId]);
+      for (const r of kept) {
+        if (r.src_kind === 'client') clientIds.add(r.src_id);
+        if (r.dst_kind === 'client') clientIds.add(r.dst_id);
+      }
+      const clientNames = await tx.$queryRaw<Array<{ id: string; name: string }>>`
+        SELECT id::text AS id, name FROM clients
+        WHERE tenant_id = ${tenantId}::uuid AND id = ANY(${Prisma.raw(
+          toUuidArrayLiteral(Array.from(clientIds)),
+        )})`;
+      for (const c of clientNames) resolved.set(`client:${c.id}`, c.name);
       return { rows: kept, labels: resolved };
     });
     const label = (kind: string, id: string) => labels.get(`${kind}:${id}`) ?? id;
-    return rows.map((r) => {
-      const rel = r.edge_type.replace(/_/g, ' ');
-      const amount =
-        r.agg_weight != null
-          ? ` ($${Math.round(Number(r.agg_weight)).toLocaleString()}${r.agg_count ? ` over ${r.agg_count}` : ''})`
-          : r.agg_count && r.agg_count > 1
-            ? ` (${r.agg_count} filings)`
-            : '';
-      return {
-        key: `graph:${r.src_kind}:${r.src_id}:${r.edge_type}:${r.dst_kind}:${r.dst_id}`,
-        value: `Relationship — ${label(r.src_kind, r.src_id)} ${rel} ${label(r.dst_kind, r.dst_id)}${amount}`,
-      };
-    });
+    return rows.map((r) => ({
+      // aggSuffix guards weight > 0 (FEC amounts can be negative refunds / net
+      // zero) and falls through to "(N filings)" — matching the panel/enrichment
+      // path so the same edge never renders "$0"/"$-5,000" here but "(N filings)" there.
+      key: `graph:${r.src_kind}:${r.src_id}:${r.edge_type}:${r.dst_kind}:${r.dst_id}`,
+      value: `Relationship — ${label(r.src_kind, r.src_id)} ${r.edge_type.replace(/_/g, ' ')} ${label(
+        r.dst_kind,
+        r.dst_id,
+      )}${aggSuffix(r.agg_weight, r.agg_count)}`,
+    }));
   }
 
   /**

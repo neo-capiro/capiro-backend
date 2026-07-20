@@ -91,6 +91,11 @@ const STYLESHEET: StylesheetStyle[] = [
   { selector: 'edge.highlight', style: { opacity: 0.95, width: 2.4 } },
 ];
 
+// cose layout, shared by the mount prop + the data-change re-run effect. Kept
+// module-level so the object is stable (react-cytoscapejs only auto-re-runs the
+// layout when the `layout` prop VALUE-changes; ours never does — see the effect).
+const LAYOUT = { name: 'cose', animate: false, nodeRepulsion: 8000, idealEdgeLength: 90, padding: 30 };
+
 export function KnowledgeGraphPanel() {
   const api = useApi();
   const qc = useQueryClient();
@@ -207,6 +212,18 @@ export function KnowledgeGraphPanel() {
     hood.addClass('highlight');
   }, [focusId, elements]);
 
+  // Re-run the layout whenever the underlying graph DATA changes. react-cytoscapejs
+  // only re-runs its layout when the `layout` prop value-changes (it never does),
+  // so an in-place elements swap — switching views back to a cached graph, or
+  // re-populating over an existing one — adds new nodes with NO position and
+  // cytoscape drops them at (0,0), collapsing the graph into a blob. Keyed on the
+  // fetched data only (NOT focusId/originFilter, which must not re-scatter nodes).
+  useEffect(() => {
+    const cy = cyRef.current;
+    if (!cy || cy.nodes().length === 0) return;
+    cy.layout(LAYOUT).run();
+  }, [graphQuery.data]);
+
   const nodeCount = graphQuery.data?.nodes.length ?? 0;
   const edgeCount = useMemo(
     () => elements.filter((el) => el.data && 'source' in el.data).length,
@@ -292,7 +309,7 @@ export function KnowledgeGraphPanel() {
           elements={elements}
           stylesheet={STYLESHEET}
           style={{ width: '100%', height: '100%' }}
-          layout={{ name: 'cose', animate: false, nodeRepulsion: 8000, idealEdgeLength: 90, padding: 30 }}
+          layout={LAYOUT}
           minZoom={0.1}
           maxZoom={3}
           cy={(cy: Core) => {

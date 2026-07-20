@@ -67,8 +67,10 @@ export function cacheEdgeKey(r: KgWalkEdgeRow): string {
   return `${r.src_kind}${r.src_id}${r.edge_type}${r.dst_kind}${r.dst_id}`;
 }
 
-/** True for rows enrichment keeps (drops noise types + unconfirmed auto-matches). */
-export function keepCacheEdge(r: KgWalkEdgeRow): boolean {
+/** True for rows enrichment keeps (drops noise types + unconfirmed auto-matches).
+ *  Typed to the minimal shape so both KgWalkEdgeRow and the leaner GraphRAG
+ *  row (meri.service) can share this single filter. */
+export function keepCacheEdge(r: { edge_type: string; source: string | null }): boolean {
   if (NOISE_EDGE_TYPES.has(r.edge_type)) return false;
   if (r.source === 'auto_matched') return false;
   return true;
