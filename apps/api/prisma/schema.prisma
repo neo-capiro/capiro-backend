@@ -254,6 +254,7 @@ model Tenant {
   memoryItems                  MemoryItem[]
   memoryEdges                  MemoryEdge[]
   memoryCandidates             MemoryCandidate[]
+  clientMemoryAccessGrants     ClientMemoryAccess[]
 
   @@map("tenants")
 }
@@ -302,6 +303,7 @@ model User {
   createdCampaigns          EngagementCampaign[]           @relation("CampaignCreator")
   programElementWatches     ProgramElementWatch[]
   peAlertEmailPrefs         PeAlertEmailPref[]
+  clientMemoryAccessGrants  ClientMemoryAccess[]           @relation("ClientMemoryAccessUser")
 
   @@map("users")
 }
@@ -413,6 +415,14 @@ model Client {
   // confirmed source='lda' ClientIntelMapping rows; reads join
   // lda_filing.client_id = ANY(ldaClientIds) instead of fuzzy-matching the name.
   ldaClientIds        Int[]     @default([]) @map("lda_client_ids")
+  /// Ethical wall (master plan Phase 1): when true, this client's memory
+  /// (clio_memory scope='client', client-linked memory_items, and their
+  /// embeddings) is recallable ONLY by users granted a ClientMemoryAccess row.
+  /// false (default) = the pre-wall relevance-only behavior, so enabling the
+  /// column changes nothing until a wall is explicitly erected per client.
+  /// Admins are NOT exempt — a real ethical screen binds seniors too; a
+  /// user_admin manages grants (and any self-grant is audit-logged).
+  memoryWall          Boolean   @default(false) @map("memory_wall")
   createdByUserId     String?   @map("created_by_user_id") @db.Uuid
   createdAt           DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
   updatedAt           DateTime  @updatedAt @map("updated_at") @db.Timestamptz(6)
@@ -444,10 +454,36 @@ model Client {
   engagementCampaigns     EngagementCampaign[]
   clioProactiveAlerts     ClioProactiveAlert[]
   actionRecommendations   ActionRecommendation[]
+  memoryAccessGrants      ClientMemoryAccess[]
 
   @@index([tenantId], map: "clients_tenant_idx")
   @@index([tenantId, name], map: "clients_tenant_name_idx")
   @@map("clients")
+}
+
+/// Ethical-wall grant (master plan Phase 1): membership row allowing one user
+/// to recall one walled client's memory. Meaningful only while
+/// Client.memoryWall = true; rows may be staged before a wall is erected.
+/// Fail-closed by construction: a walled client with zero grants is invisible
+/// to everyone (including admins) until a user_admin grants access via
+/// PUT /clients/:id/memory-access (audit-logged).
+model ClientMemoryAccess {
+  id        String   @id @default(uuid()) @db.Uuid
+  tenantId  String   @map("tenant_id") @db.Uuid
+  clientId  String   @map("client_id") @db.Uuid
+  userId    String   @map("user_id") @db.Uuid
+  /// user_admin who granted the access (plain uuid, no FK — mirrors
+  /// Client.createdByUserId; survives the granter's departure).
+  grantedBy String?  @map("granted_by") @db.Uuid
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  client Client @relation(fields: [clientId], references: [id], onDelete: Cascade)
+  user   User   @relation("ClientMemoryAccessUser", fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([tenantId, clientId, userId], map: "client_memory_access_uniq")
+  @@index([tenantId, userId], map: "client_memory_access_user_idx")
+  @@map("client_memory_access")
 }
 
 model DirectoryContactNote {

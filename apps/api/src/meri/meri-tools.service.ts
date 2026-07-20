@@ -41,6 +41,7 @@ import { ClientPeopleService, type CreatePersonInput } from '../clients/client-p
 import { MemoryIngestService } from '../memory/memory-ingest.service.js';
 import { MemoryCandidateService } from '../memory/memory-candidate.service.js';
 import { MemoryStoreService } from '../memory/memory-store.service.js';
+import { fetchDeniedClientIds, wallExclusionSql } from '../memory/memory-wall.helpers.js';
 import {
   ClientFacilitiesService,
   type CreateFacilityInput,
@@ -1823,13 +1824,18 @@ export class MeriToolsService {
    */
   private async loadGraphForCtx(ctx: TenantContext) {
     return this.prisma.withTenantUser(ctx.tenantId, ctx.userId, async (tx) => {
+      // Ethical wall: memory items + graph edges of walled clients this user is
+      // not granted are excluded (fail-closed; empty denied set adds no SQL).
+      const denied = await fetchDeniedClientIds(tx, ctx.tenantId, ctx.userId);
+      const deniedSet = new Set(denied);
       // item nodes the caller may see (RLS: tenant + own-private), plus their wikilink edges
       const items = await tx.$queryRaw<
         Array<{ id: string; type: string; slug: string; title: string; sections: unknown }>
       >`
         SELECT id, type, slug, title, sections_jsonb AS sections
         FROM memory_items
-        WHERE owner_user_id IS NULL OR owner_user_id = ${ctx.userId}::uuid
+        WHERE (owner_user_id IS NULL OR owner_user_id = ${ctx.userId}::uuid)
+          ${Prisma.raw(wallExclusionSql(denied, 'client_id'))}
       `;
       const itemNodeById = new Map(
         items.map((i) => [i.id, { type: i.type, slug: i.slug, label: i.title }]),
@@ -1840,7 +1846,8 @@ export class MeriToolsService {
         SELECT e.src_item_id, e.relation, e.dst_type, e.dst_slug
         FROM memory_edges e
         JOIN memory_items i ON i.id = e.src_item_id
-        WHERE i.owner_user_id IS NULL OR i.owner_user_id = ${ctx.userId}::uuid
+        WHERE (i.owner_user_id IS NULL OR i.owner_user_id = ${ctx.userId}::uuid)
+          ${Prisma.raw(wallExclusionSql(denied, 'i.client_id'))}
       `;
       // FK relations (structural backbone): client->bill/issue/person, meeting->client
       const fk: FkRelation[] = [];
@@ -1879,7 +1886,12 @@ export class MeriToolsService {
         dstType: e.dst_type,
         dstSlug: e.dst_slug,
       }));
-      return buildKnowledgeGraph(fk, wiki, itemNodeById);
+      // Ethical wall: drop FK relations rooted at denied clients so a walled
+      // client's bills/people/meetings never appear in this user's graph.
+      const fkVisible = deniedSet.size
+        ? fk.filter((r) => !(r.srcType === 'client' && deniedSet.has(r.srcSlug)))
+        : fk;
+      return buildKnowledgeGraph(fkVisible, wiki, itemNodeById);
     });
   }
 
@@ -1959,8 +1971,11 @@ export class MeriToolsService {
         results: [],
       };
     }
-    const rows = await this.prisma.withTenantUser(ctx.tenantId, ctx.userId, (tx) =>
-      tx.$queryRawUnsafe<
+    const rows = await this.prisma.withTenantUser(ctx.tenantId, ctx.userId, async (tx) => {
+      // Ethical wall: results for walled clients this user is not granted are
+      // excluded (fail-closed; an empty denied set appends no SQL).
+      const denied = await fetchDeniedClientIds(tx, ctx.tenantId, ctx.userId);
+      return tx.$queryRawUnsafe<
         Array<{
           id: string;
           type: string;
@@ -1982,13 +1997,13 @@ export class MeriToolsService {
             AND ce.tenant_id = $1::uuid
             AND (mi.owner_user_id IS NULL OR mi.owner_user_id = $2::uuid)
             AND mi.status = 'active'
-            AND (mi.expires_at IS NULL OR mi.expires_at > now())
+            AND (mi.expires_at IS NULL OR mi.expires_at > now())${wallExclusionSql(denied, 'mi.client_id')}
           ORDER BY ce.embedding <=> '${literal}'::vector
           LIMIT ${k}`,
         ctx.tenantId,
         ctx.userId,
-      ),
-    );
+      );
+    });
     if (!rows.length) {
       return {
         summary:

@@ -3,6 +3,7 @@ import {
   ArrayMaxSize,
   ArrayMinSize,
   IsArray,
+  IsBoolean,
   IsEmail,
   IsIn,
   IsInt,
@@ -10,6 +11,7 @@ import {
   IsOptional,
   IsString,
   IsUrl,
+  IsUUID,
   Length,
   Max,
   Min,
@@ -246,6 +248,19 @@ class UpdateProfileNotesDto {
   notes!: string;
 }
 
+class UpdateMemoryAccessDto {
+  @IsBoolean()
+  memoryWall!: boolean;
+
+  // The COMPLETE grant roster (replace-set semantics): users allowed to recall
+  // this client's memory while the wall is up. Empty array + memoryWall=true =
+  // nobody can (a deliberate lockout is expressible; the audit log shows who).
+  @IsArray()
+  @ArrayMaxSize(500)
+  @IsUUID('all', { each: true })
+  userIds!: string[];
+}
+
 /**
  * Clients API, the lobbying firm's customer records.
  *
@@ -315,6 +330,28 @@ export class ClientsController {
     @Body() body: UpdateProfileNotesDto,
   ) {
     return this.service.updateProfileNotes(ctx, id, body.notes);
+  }
+
+  // Ethical wall (master plan Phase 1): wall state + grant roster for one
+  // client. GET reads it; PUT atomically sets the flag AND replaces the grant
+  // set (one lever, so a wall can never be erected with a half-written
+  // roster). user_admin only; every change is audit-logged. Admins are NOT
+  // exempt from the wall itself — an admin who needs the memory must appear
+  // in userIds, and that self-grant is visible in the audit trail.
+  @Get(':id/memory-access')
+  @Roles('user_admin')
+  getMemoryAccess(@CurrentTenant() ctx: TenantContext, @Param('id') id: string) {
+    return this.service.getMemoryAccess(ctx, id);
+  }
+
+  @Put(':id/memory-access')
+  @Roles('user_admin')
+  setMemoryAccess(
+    @CurrentTenant() ctx: TenantContext,
+    @Param('id') id: string,
+    @Body() body: UpdateMemoryAccessDto,
+  ) {
+    return this.service.setMemoryAccess(ctx, id, body);
   }
 
   // Quick Log: append a timestamped personal note to the client's profile

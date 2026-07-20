@@ -230,7 +230,7 @@ export class MemoryController {
   @Get('candidates')
   @Roles('user_admin')
   async listCandidates(@CurrentTenant() ctx: TenantContext) {
-    return { candidates: await this.candidates.listPending(ctx.tenantId) };
+    return { candidates: await this.candidates.listPending(ctx.tenantId, ctx.userId) };
   }
 
   @Post('candidates/:id/approve')
@@ -285,6 +285,12 @@ export class MemoryController {
   /** View #1: per-client subgraph — everything within `depth` hops of a client. */
   @Get('graph/client/:clientId')
   async clientGraph(@Param('clientId') clientId: string, @Query('depth') depth?: string) {
+    // Ethical wall: an explicit request for a walled client's subgraph fails
+    // loudly (403) rather than returning a silently-empty graph, so the UI can
+    // explain the wall instead of looking broken.
+    if (!(await this.store.clientMemoryAllowedForCurrentUser(clientId))) {
+      throw new ForbiddenException('This client is behind an ethical wall you are not granted.');
+    }
     const full = await this.buildFullGraph();
     return walkFrom(full, `client:${clientId}`, depth ? Math.max(1, parseInt(depth, 10) || 1) : 2);
   }

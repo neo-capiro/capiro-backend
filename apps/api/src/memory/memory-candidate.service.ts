@@ -4,6 +4,7 @@ import { Prisma } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service.js';
 import { MemoryIngestService } from './memory-ingest.service.js';
 import { evaluateMemoryCandidate } from './memory-candidate-rules.js';
+import { fetchDeniedClientIds } from './memory-wall.helpers.js';
 import type { AppConfig } from '../config/config.schema.js';
 
 /** The shape MeriToolsService.saveMemory already builds via buildSavedMemoryRecord. */
@@ -167,14 +168,22 @@ export class MemoryCandidateService {
     await this.markDecided(tenantId, candidateId, 'rejected', reviewerUserId, null);
   }
 
-  /** Admin review queue. */
-  async listPending(tenantId: string): Promise<MemoryCandidateRow[]> {
-    return this.prisma.withTenant(tenantId, (tx) =>
-      tx.memoryCandidate.findMany({
+  /**
+   * Admin review queue. When a viewer is identified, candidates proposing
+   * memory for a walled client the viewer is not granted are withheld — the
+   * proposed payload is itself confidential content (fail-closed; the wall
+   * manager grants a reviewer access when one is needed).
+   */
+  async listPending(tenantId: string, viewerUserId?: string): Promise<MemoryCandidateRow[]> {
+    return this.prisma.withTenant(tenantId, async (tx) => {
+      const rows = await tx.memoryCandidate.findMany({
         where: { tenantId, status: 'pending' },
         orderBy: { createdAt: 'asc' },
-      }),
-    );
+      });
+      if (!viewerUserId) return rows;
+      const denied = new Set(await fetchDeniedClientIds(tx, tenantId, viewerUserId));
+      return denied.size ? rows.filter((r) => !r.clientId || !denied.has(r.clientId)) : rows;
+    });
   }
 
   private async getPendingOrThrow(

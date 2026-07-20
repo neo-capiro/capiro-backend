@@ -437,6 +437,101 @@ export class ClientsService {
     return this.withLogoUrl(client);
   }
 
+  /** Ethical wall state + grant roster for one client (user_admin surface). */
+  async getMemoryAccess(ctx: TenantContext, clientId: string) {
+    return this.prisma.withTenant(ctx.tenantId, async (tx) => {
+      const client = await tx.client.findFirst({
+        where: { id: clientId, tenantId: ctx.tenantId },
+        select: { id: true, name: true, memoryWall: true },
+      });
+      if (!client) throw new NotFoundException('Client not found');
+      const grants = await tx.clientMemoryAccess.findMany({
+        where: { tenantId: ctx.tenantId, clientId },
+        select: { userId: true, grantedBy: true, createdAt: true },
+        orderBy: { createdAt: 'asc' },
+      });
+      return { clientId, name: client.name, memoryWall: client.memoryWall, grants };
+    });
+  }
+
+  /**
+   * Atomically set the ethical-wall flag and replace the grant roster
+   * (master plan Phase 1). Replace-set semantics: the request's userIds
+   * becomes the complete roster — one lever, so a wall can never be erected
+   * with a half-written roster. Every userId must be a member of this tenant
+   * (a foreign uuid is a bug or an attack — reject the whole request).
+   * Audit-logged with the full before/after so self-grants are visible.
+   */
+  async setMemoryAccess(
+    ctx: TenantContext,
+    clientId: string,
+    input: { memoryWall: boolean; userIds: string[] },
+  ) {
+    return this.prisma.withTenant(ctx.tenantId, async (tx) => {
+      const client = await tx.client.findFirst({
+        where: { id: clientId, tenantId: ctx.tenantId },
+        select: { id: true, memoryWall: true },
+      });
+      if (!client) throw new NotFoundException('Client not found');
+
+      const requested = [...new Set(input.userIds)];
+      const members = await tx.tenantMembership.findMany({
+        where: { tenantId: ctx.tenantId, userId: { in: requested } },
+        select: { userId: true },
+      });
+      const memberSet = new Set(members.map((m) => m.userId));
+      const invalid = requested.filter((u) => !memberSet.has(u));
+      if (invalid.length) {
+        throw new BadRequestException(
+          `Cannot grant memory access to non-members of this tenant: ${invalid.join(', ')}`,
+        );
+      }
+
+      const existing = await tx.clientMemoryAccess.findMany({
+        where: { tenantId: ctx.tenantId, clientId },
+        select: { userId: true },
+      });
+      const existingIds = existing.map((g) => g.userId);
+      const existingSet = new Set(existingIds);
+      const toAdd = requested.filter((u) => !existingSet.has(u));
+      const toRemove = existingIds.filter((u) => !requested.includes(u));
+
+      if (toAdd.length) {
+        await tx.clientMemoryAccess.createMany({
+          data: toAdd.map((userId) => ({
+            tenantId: ctx.tenantId,
+            clientId,
+            userId,
+            grantedBy: ctx.userId,
+          })),
+        });
+      }
+      if (toRemove.length) {
+        await tx.clientMemoryAccess.deleteMany({
+          where: { tenantId: ctx.tenantId, clientId, userId: { in: toRemove } },
+        });
+      }
+      if (client.memoryWall !== input.memoryWall) {
+        await tx.client.update({ where: { id: clientId }, data: { memoryWall: input.memoryWall } });
+      }
+
+      await tx.auditLog.create({
+        data: {
+          tenantId: ctx.tenantId,
+          actorUserId: ctx.userId,
+          actorRole: ctx.role,
+          action: 'client.memory_wall.update',
+          entityType: 'client',
+          entityId: clientId,
+          before: { memoryWall: client.memoryWall, grantedUserIds: [...existingIds].sort() },
+          after: { memoryWall: input.memoryWall, grantedUserIds: [...requested].sort() },
+        },
+      });
+
+      return { clientId, memoryWall: input.memoryWall, grantedUserIds: requested };
+    });
+  }
+
   async createLogoUploadUrl(
     ctx: TenantContext,
     clientId: string,

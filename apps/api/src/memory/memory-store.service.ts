@@ -8,6 +8,11 @@ import { renderMemoryItem, vaultPathForItem } from './memory-render.helpers.js';
 import { extractWikiLinks } from './memory-parse.helpers.js';
 import { mergeEditedSections, fileDefForType } from './memory-catalog.js';
 import { embedAndUpsert } from '../embeddings/embedder.js';
+import {
+  clientMemoryAllowed,
+  fetchDeniedClientIds,
+  wallExclusionSql,
+} from './memory-wall.helpers.js';
 
 /** Result shape returned by the Phase 1 (1D) user-facing memory verbs. */
 export interface MemoryVerbResult {
@@ -82,6 +87,9 @@ export class MemoryStoreService {
   }): Promise<MemoryItem[]> {
     const ctx = this.tenantCtx.require();
     return this.prisma.withTenantUser(ctx.tenantId, ctx.userId, async (tx) => {
+      // Ethical wall: items of walled clients this user is not granted are
+      // excluded (fail-closed; empty denied set appends no SQL).
+      const denied = await fetchDeniedClientIds(tx, ctx.tenantId, ctx.userId);
       const rows = await tx.$queryRaw<MemoryItemRow[]>`
         SELECT * FROM memory_items
         WHERE tenant_id = ${ctx.tenantId}::uuid
@@ -94,6 +102,7 @@ export class MemoryStoreService {
           AND status != 'revoked'
           -- G2 ephemeral: expired working memory never reaches recall
           AND (expires_at IS NULL OR expires_at > now())
+          ${Prisma.raw(wallExclusionSql(denied, 'client_id'))}
         ORDER BY type, slug
       `;
       return rows.map((r) => this.rowToItem(r));
@@ -112,6 +121,8 @@ export class MemoryStoreService {
   async listReviewDue(): Promise<MemoryItem[]> {
     const ctx = this.tenantCtx.require();
     return this.prisma.withTenantUser(ctx.tenantId, ctx.userId, async (tx) => {
+      // Ethical wall (fail-closed) — same exclusion as listForCurrentTenant.
+      const denied = await fetchDeniedClientIds(tx, ctx.tenantId, ctx.userId);
       const rows = await tx.$queryRaw<MemoryItemRow[]>`
         SELECT * FROM memory_items
         WHERE tenant_id = ${ctx.tenantId}::uuid
@@ -122,6 +133,7 @@ export class MemoryStoreService {
           AND review_cadence_days > 0
           AND COALESCE(last_confirmed_at, created_at)
               + (review_cadence_days * INTERVAL '1 day') < now()
+          ${Prisma.raw(wallExclusionSql(denied, 'client_id'))}
         ORDER BY COALESCE(last_confirmed_at, created_at) ASC
       `;
       return rows.map((r) => this.rowToItem(r));
@@ -133,16 +145,32 @@ export class MemoryStoreService {
     return { path: vaultPathForItem(item), markdown: renderMemoryItem(item) };
   }
 
+  /**
+   * May the current user recall this client's memory? False when the client is
+   * walled without a grant — or does not resolve in this tenant (fail-closed).
+   * Route-level guard for explicit per-client surfaces (e.g. the client
+   * subgraph), complementing the row-level exclusions above.
+   */
+  async clientMemoryAllowedForCurrentUser(clientId: string): Promise<boolean> {
+    const ctx = this.tenantCtx.require();
+    return this.prisma.withTenantUser(ctx.tenantId, ctx.userId, (tx) =>
+      clientMemoryAllowed(tx, ctx.tenantId, ctx.userId, clientId),
+    );
+  }
+
   /** Fetch one item by type+slug for the current tenant (markdown retrieval). */
   async getByTypeSlug(type: MemoryItemType, slug: string): Promise<MemoryItem | null> {
     const ctx = this.tenantCtx.require();
     return this.prisma.withTenantUser(ctx.tenantId, ctx.userId, async (tx) => {
+      // Ethical wall (fail-closed): a walled client's item reads as absent.
+      const denied = await fetchDeniedClientIds(tx, ctx.tenantId, ctx.userId);
       const rows = await tx.$queryRaw<MemoryItemRow[]>`
         SELECT * FROM memory_items
         WHERE tenant_id = ${ctx.tenantId}::uuid AND type = ${type} AND slug = ${slug}
           AND (visibility = 'tenant' OR owner_user_id = ${ctx.userId}::uuid)
           AND status != 'revoked'
           AND (expires_at IS NULL OR expires_at > now())
+          ${Prisma.raw(wallExclusionSql(denied, 'client_id'))}
         LIMIT 1
       `;
       const row = rows[0];
@@ -167,6 +195,9 @@ export class MemoryStoreService {
   }> {
     const ctx = this.tenantCtx.require();
     return this.prisma.withTenantUser(ctx.tenantId, ctx.userId, async (tx) => {
+      // Ethical wall: a walled client's items — and every wikilink edge rooted
+      // at them — are excluded from this user's graph inputs (fail-closed).
+      const denied = await fetchDeniedClientIds(tx, ctx.tenantId, ctx.userId);
       const edges = await tx.$queryRaw<
         Array<{
           tenant_id: string;
@@ -184,15 +215,22 @@ export class MemoryStoreService {
           AND (visibility = 'tenant' OR owner_user_id = ${ctx.userId}::uuid)
           AND status != 'revoked'
           AND (expires_at IS NULL OR expires_at > now())
+          ${Prisma.raw(wallExclusionSql(denied, 'client_id'))}
       `;
+      // Keep only edges whose source item survived the visibility + wall
+      // filters — a dangling edge would otherwise leak a walled relationship
+      // (e.g. "…mentions client X") through its dst slug.
+      const visibleItemIds = new Set(items.map((i) => i.id));
       return {
-        wikiEdges: edges.map((e) => ({
-          tenantId: e.tenant_id,
-          srcItemId: e.src_item_id,
-          relation: e.relation,
-          dstType: e.dst_type,
-          dstSlug: e.dst_slug,
-        })),
+        wikiEdges: edges
+          .filter((e) => visibleItemIds.has(e.src_item_id))
+          .map((e) => ({
+            tenantId: e.tenant_id,
+            srcItemId: e.src_item_id,
+            relation: e.relation,
+            dstType: e.dst_type,
+            dstSlug: e.dst_slug,
+          })),
         itemNodes: items.map((i) => ({ itemId: i.id, type: i.type, slug: i.slug, label: i.title })),
       };
     });

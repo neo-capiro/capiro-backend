@@ -2,6 +2,7 @@ import { Injectable } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service.js';
 import { TenantContextStore } from '../tenant/tenant-context.store.js';
 import type { FkRelation } from './memory-graph.helpers.js';
+import { fetchDeniedClientIds } from './memory-wall.helpers.js';
 
 /**
  * Loads authoritative DB foreign-key relations for the current tenant and
@@ -25,6 +26,12 @@ export class MemoryFkLoader {
   async loadForCurrentTenant(): Promise<FkRelation[]> {
     const ctx = this.tenantCtx.require();
     return this.prisma.withTenant(ctx.tenantId, async (tx) => {
+      // Ethical wall: every relation rooted at a walled client this user is
+      // not granted is dropped before it reaches the graph (fail-closed) —
+      // including that client's meetings' attendee edges, which would
+      // otherwise dangle and leak the meeting subject.
+      const deniedSet = new Set(await fetchDeniedClientIds(tx, ctx.tenantId, ctx.userId));
+      const deniedMeetingIds = new Set<string>();
       const out: FkRelation[] = [];
 
       // client -> bill (tracked_bill), enriched with bill title/status/policy area
@@ -100,6 +107,10 @@ export class MemoryFkLoader {
           AND m.is_internal = false
       `;
       for (const mt of meetings) {
+        if (deniedSet.has(mt.client_id)) {
+          deniedMeetingIds.add(mt.meeting_id);
+          continue;
+        }
         out.push({
           srcType: 'client', srcSlug: mt.client_id, srcLabel: mt.client_name,
           dstType: 'meeting', dstSlug: mt.meeting_id, dstLabel: mt.subject || 'Meeting',
@@ -118,6 +129,7 @@ export class MemoryFkLoader {
           AND ma.contact_id IS NOT NULL
       `;
       for (const a of attendees) {
+        if (deniedMeetingIds.has(a.meeting_id)) continue;
         out.push({
           srcType: 'meeting', srcSlug: a.meeting_id, srcLabel: a.subject || 'Meeting',
           dstType: 'person', dstSlug: a.contact_id, dstLabel: a.name ?? a.contact_id,
@@ -160,7 +172,9 @@ export class MemoryFkLoader {
         });
       }
 
-      return out;
+      return deniedSet.size
+        ? out.filter((r) => !(r.srcType === 'client' && deniedSet.has(r.srcSlug)))
+        : out;
     });
   }
 }

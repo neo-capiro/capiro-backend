@@ -28,6 +28,7 @@ import {
   pickMemoryRecallSource,
   type MemoryRecallSource,
 } from './memory-recall-source.helpers.js';
+import { clientMemoryAllowed } from '../memory/memory-wall.helpers.js';
 import { MeriToolsService } from './meri-tools.service.js';
 import { AiCredentialResolverService } from '../engagement/ai-credential-resolver.service.js';
 import { MemoryIngestService } from '../memory/memory-ingest.service.js';
@@ -3477,8 +3478,14 @@ export class MeriService {
     }
 
     try {
-      const memories = await this.prisma.withTenant(tenantId, (tx) =>
-        tx.clioMemory.findMany({
+      // withTenantUser (not withTenant): identifies the user to the ethical-wall
+      // check here and to the wall-aware RLS policy once role hardening lands.
+      const memories = await this.prisma.withTenantUser(tenantId, userId, async (tx) => {
+        // Ethical wall: offer the client arm only when this user may recall
+        // this client's memory (fail-closed; firm/private arms unaffected).
+        const clientArm =
+          clientId !== null && (await clientMemoryAllowed(tx, tenantId, userId, clientId));
+        return tx.clioMemory.findMany({
           where: {
             tenantId,
             // G2 ephemeral: expired working memory never reaches recall.
@@ -3486,14 +3493,14 @@ export class MeriService {
             OR: [
               { scope: 'firm' },
               { scope: 'user_private', ownerUserId: userId },
-              ...(clientId ? [{ scope: 'client', clientId }] : []),
+              ...(clientId && clientArm ? [{ scope: 'client', clientId }] : []),
             ],
           },
           orderBy: { updatedAt: 'desc' },
           take: 20,
           select: { key: true, value: true },
-        }),
-      );
+        });
+      });
       // Keyword-rank with a recency fallback so a stored memory is never
       // silently invisible when embeddings are unavailable (W2 M1).
       return rankMemoriesByKeyword(memories, query, 8).map(({ key, value }) => ({ key, value }));
@@ -3518,8 +3525,14 @@ export class MeriService {
     limit = 8,
   ): Promise<Array<{ key: string; value: string }>> {
     const literal = vectorLiteral(await embedText(normalizeForEmbedding(query)));
-    const rows = await this.prisma.withTenantUser(tenantId, userId, (tx) =>
-      tx.$queryRawUnsafe<Array<{ title: string; sections: unknown; score: number }>>(
+    const rows = await this.prisma.withTenantUser(tenantId, userId, async (tx) => {
+      // Ethical wall: a walled client's notes are recallable only by granted
+      // users — otherwise the client arm degrades to absent (fail-closed).
+      const clientArm =
+        clientId !== null && (await clientMemoryAllowed(tx, tenantId, userId, clientId))
+          ? clientId
+          : null;
+      return tx.$queryRawUnsafe<Array<{ title: string; sections: unknown; score: number }>>(
         `SELECT mi.title, mi.sections_jsonb AS sections,
                 1 - (ce.embedding <=> '${literal}'::vector) AS score
            FROM context_embeddings ce
@@ -3536,9 +3549,9 @@ export class MeriService {
           LIMIT ${Math.min(15, Math.max(1, limit))}`,
         tenantId,
         userId,
-        clientId,
-      ),
-    );
+        clientArm,
+      );
+    });
     // Titan-space floor (MEMORY_PROJECTION_MIN_SCORE, measured default 0.4 —
     // see config.schema.ts). The clio path's 0.3 floor is OpenAI-space and
     // does not transfer.
@@ -4125,11 +4138,16 @@ export class MeriService {
       if (!embedding || embedding.length !== 1536) return [];
 
       const vecStr = `[${embedding.join(',')}]`;
-      // withTenant: clio_memory is RLS-protected; a bare read would return 0 rows
-      // under FORCE ROW LEVEL SECURITY (no tenant GUC set). The manual tenant_id +
-      // scope/owner predicates stay as defense-in-depth (RLS only isolates tenant).
-      const results = await this.prisma.withTenant(tenantId, (tx) =>
-        tx.$queryRawUnsafe<Array<{ key: string; value: string; score: number }>>(
+      // withTenantUser: identifies the user for the ethical-wall check (and for
+      // the wall-aware RLS policy once role hardening lands). The manual
+      // tenant_id + scope/owner predicates stay as defense-in-depth.
+      const results = await this.prisma.withTenantUser(tenantId, userId, async (tx) => {
+        // Ethical wall: offer the client arm only to granted users (fail-closed).
+        const clientArm =
+          clientId !== null && (await clientMemoryAllowed(tx, tenantId, userId, clientId))
+            ? clientId
+            : null;
+        return tx.$queryRawUnsafe<Array<{ key: string; value: string; score: number }>>(
           `SELECT key, value, 1 - (embedding <=> $1::vector) as score
          FROM clio_memory
          WHERE tenant_id = $2::uuid
@@ -4146,9 +4164,9 @@ export class MeriService {
           tenantId,
           userId,
           limit,
-          clientId,
-        ),
-      );
+          clientArm,
+        );
+      });
       return results.filter((r) => r.score > 0.3);
     } catch (err) {
       this.logger.debug(`Semantic search failed: ${(err as Error).message}`);

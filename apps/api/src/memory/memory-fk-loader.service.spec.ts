@@ -17,6 +17,12 @@ describe('MemoryFkLoader — office edges (Phase 5)', () => {
         captured.push(sql);
         return Promise.resolve(queryImpl(sql));
       },
+      // Ethical-wall pre-query (fetchDeniedClientIds). [] = no walled clients,
+      // so the wall is a no-op and the FK behavior under test is unchanged.
+      $queryRawUnsafe: (sql: string, ..._v: unknown[]) => {
+        captured.push(sql);
+        return Promise.resolve([]);
+      },
     };
     const prisma = {
       withTenant: (_id: string, fn: (t: typeof tx) => unknown) => fn(tx),
