@@ -68,10 +68,20 @@ $$;
 -- migration gates embedding rows by client_id; a memory-item embedding row
 -- whose client identity was never stamped would silently escape the wall.
 -- Idempotent: fills only NULLs from the canonical memory_items row.
+--
+-- ORPHAN GUARD (fix, 2026-07-20): memory_items.client_id may dangle — dev has
+-- 83 memory_items pointing at hard-deleted clients. context_embeddings.client_id
+-- carries a STRICT FK to clients (context_embeddings_client_fkey), so copying an
+-- orphaned id would abort the whole migration (P3018 / 23503, seen on first dev
+-- apply). Skip orphans: a client row that no longer exists cannot be walled
+-- (the wall policy keys on an EXISTS(clients … memory_wall) that is false for a
+-- missing client), so leaving those embedding rows client_id=NULL is the
+-- correct, wall-safe outcome.
 UPDATE "context_embeddings" ce
 SET "client_id" = mi."client_id"
 FROM "memory_items" mi
 WHERE ce."source_type" = 'memory_item'
   AND ce."source_id" = mi."id"::text
   AND ce."client_id" IS NULL
-  AND mi."client_id" IS NOT NULL;
+  AND mi."client_id" IS NOT NULL
+  AND EXISTS (SELECT 1 FROM "clients" c WHERE c."id" = mi."client_id");
