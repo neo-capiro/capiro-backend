@@ -162,6 +162,24 @@ export const configSchema = z.object({
   // never changes recall behavior); flip to 'off' as a kill-switch if noisy.
   MERI_CONTEXT_METRICS: z.enum(['on', 'off']).default('on'),
 
+  // ── Track B — knowledge-graph revival (all dark by default) ────────────────
+  // Master traversal source. 'legacy' = today's per-request System A build;
+  // 'cache' = the materialized kg_edge_cache + bounded scoped traversal (needs
+  // migrations 20260722010000/020000 clone-rehearsed first). Landed inert.
+  KG_TRAVERSAL_SOURCE: z.enum(['legacy', 'cache']).default('legacy'),
+  // The intel per-client KG endpoint (getKnowledgeGraph → unscoped kg_walk).
+  // 'off' (default) ⇒ 404/503: closes the orphaned, RLS-exempt, unscoped live
+  // surface until the scoped bounded traversal replaces it. 'scoped' re-enables
+  // it on the wall/tenant-scoped path only.
+  KG_INTEL_GRAPH: z.enum(['off', 'scoped']).default('off'),
+  // GraphRAG fusion into Meri recall. Default off; per-tenant canary via
+  // settings_jsonb.clioFeatureFlags.meriRecallGraph. Fail-safe (graph failure
+  // never blanks recall). Inert until the cache substrate + fusion land.
+  MERI_RECALL_GRAPH: z
+    .string()
+    .default('false')
+    .transform((v) => ['true', '1', 'yes', 'on'].includes(v.trim().toLowerCase())),
+
   // Outreach prompt-assembly version (plan W2). 'v1' = the legacy single-string
   // prompt + JSON context dump; 'v2' = PromptSpec v2 (real system prompt, context
   // precedence ladder, spotlighted untrusted content, no raw JSON dump). Defaults

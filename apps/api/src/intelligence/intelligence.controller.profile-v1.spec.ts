@@ -17,7 +17,8 @@ describe('IntelligenceController profile-v1 integration', () => {
       getClientProfileV1: jest.fn(),
     } as any;
 
-    const controller = new IntelligenceController(service, {} as any, {} as any, {} as any);
+    const config = { get: () => 'off' } as any; // KG_INTEL_GRAPH etc; unused by profile-v1
+    const controller = new IntelligenceController(service, {} as any, {} as any, {} as any, config);
     return { controller, service };
   };
 

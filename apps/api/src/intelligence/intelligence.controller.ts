@@ -7,8 +7,11 @@ import {
   Delete,
   Query,
   Body,
+  ServiceUnavailableException,
   UseGuards,
 } from '@nestjs/common';
+import { ConfigService } from '@nestjs/config';
+import type { AppConfig } from '../config/config.schema.js';
 import { IsArray, IsBoolean, IsIn, IsInt, IsOptional, IsString, Max, Min } from 'class-validator';
 import { Type, Transform } from 'class-transformer';
 import { Roles } from '../auth/roles.decorator.js';
@@ -170,6 +173,7 @@ export class IntelligenceController {
     private readonly insights: InsightGeneratorService,
     private readonly entityResolution: EntityResolutionService,
     private readonly reportCard: ReportCardService,
+    private readonly config: ConfigService<AppConfig, true>,
   ) {}
 
   @Get('client-profile/:clientId')
@@ -392,6 +396,16 @@ export class IntelligenceController {
 
   @Get('clients/:clientId/knowledge-graph')
   getKnowledgeGraph(@CurrentTenant() ctx: TenantContext, @Param('clientId') clientId: string) {
+    // Track B P1: this route calls kg_walk over the RLS-EXEMPT master-owned
+    // kg_* views (no tenant/wall scoping) and has zero web consumers. Gate it
+    // OFF by default (503) until the scoped bounded traversal replaces it, so
+    // the unscoped surface is not reachable. Flip KG_INTEL_GRAPH='scoped' only
+    // once the wall/tenant-scoped path lands.
+    if (this.config.get('KG_INTEL_GRAPH', { infer: true }) === 'off') {
+      throw new ServiceUnavailableException(
+        'Knowledge-graph endpoint is disabled (KG_INTEL_GRAPH=off) pending the scoped traversal.',
+      );
+    }
     return this.service.getKnowledgeGraph(clientId, ctx.tenantId);
   }
 
