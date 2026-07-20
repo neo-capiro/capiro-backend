@@ -92,8 +92,7 @@ export class ContextCompiler {
     // routes both the budget and the per-row cost through the shared estimator.
     const useTokens = req.budgetUnit === 'tokens';
     const cost = (body: string): number => (useTokens ? estimateTokens(body) : body.length);
-    let budgetLeft =
-      (useTokens ? req.tokenBudget : req.charBudget) ?? Number.POSITIVE_INFINITY;
+    let budgetLeft = (useTokens ? req.tokenBudget : req.charBudget) ?? Number.POSITIVE_INFINITY;
     for (const layer of req.layers) {
       for (const row of byLayer.get(layer) ?? []) {
         const base = { layer, id: row.id, type: row.type, slug: row.slug };
