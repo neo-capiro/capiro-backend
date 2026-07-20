@@ -248,7 +248,8 @@ export class MemoryStoreService {
           tenant_id, client_id, owner_user_id, type, visibility, entity_id,
           slug, title, aliases, tags, source, source_ref, provenance,
           sections_jsonb, schema_version,
-          status, sensitivity, legal_hold, exportable, training_use, expires_at
+          status, sensitivity, legal_hold, exportable, training_use, expires_at,
+          confidence
         ) VALUES (
           ${item.tenantId}::uuid,
           ${item.clientId}::uuid,
@@ -270,7 +271,8 @@ export class MemoryStoreService {
           ${item.legalHold ?? false},
           ${item.exportable ?? true},
           ${item.trainingUse ?? 'excluded'},
-          ${item.expiresAt ? new Date(item.expiresAt) : null}
+          ${item.expiresAt ? new Date(item.expiresAt) : null},
+          ${item.confidence ?? null}
         )
         -- Governance/temporal columns (status, legal_hold, revoked_*, etc.)
         -- are deliberately NOT in this UPDATE SET: upsertSystem is also the
@@ -294,6 +296,12 @@ export class MemoryStoreService {
           -- e.g. an ephemeral clio_memory), not governance state — a
           -- re-projection must keep the projection's expiry in sync.
           expires_at = EXCLUDED.expires_at,
+          -- confidence (Phase 4) is content-resync too: it mirrors the SOURCE
+          -- row's extraction confidence (clio_memory.metadata.confidence). NOT
+          -- governance state. CAVEAT: if a future confirm/correct verb boosts
+          -- confidence independently of the clio source, move it OUT of this SET
+          -- (a nightly re-projection would otherwise clobber the boost).
+          confidence = EXCLUDED.confidence,
           updated_at = now()
         RETURNING id
       `;

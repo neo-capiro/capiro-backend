@@ -96,6 +96,13 @@ export function clioMemoryToItem(row: ClioMemoryRow, resolveName?: NameResolver)
     ...defaultMemoryGovernanceFields(),
     // G2 ephemeral: the projection expires exactly when its source does.
     ...(row.expiresAt ? { expiresAt: new Date(row.expiresAt) } : {}),
+    // Phase 4: carry auto-learn's extraction confidence (stored in
+    // clio_memory.metadata_jsonb.confidence) onto the projected item so the
+    // memory_items column mirrors the source. Absent/non-numeric ⇒ stays null
+    // (neutral). This is the single link from metadata to the first-class column.
+    ...(typeof row.metadata?.confidence === 'number' && Number.isFinite(row.metadata.confidence)
+      ? { confidence: Math.min(1, Math.max(0, row.metadata.confidence as number)) }
+      : {}),
   };
 }
 

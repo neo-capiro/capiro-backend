@@ -28,6 +28,10 @@ import {
   pickMemoryRecallSource,
   type MemoryRecallSource,
 } from './memory-recall-source.helpers.js';
+import {
+  passesWriteConfidenceGate,
+  rerankByConfidence,
+} from './memory-confidence.helpers.js';
 import { clientMemoryAllowed } from '../memory/memory-wall.helpers.js';
 import { MeriToolsService } from './meri-tools.service.js';
 import { AiCredentialResolverService } from '../engagement/ai-credential-resolver.service.js';
@@ -3525,6 +3529,14 @@ export class MeriService {
     limit = 8,
   ): Promise<Array<{ key: string; value: string }>> {
     const literal = vectorLiteral(await embedText(normalizeForEmbedding(query)));
+    // Phase 4: confidence-weighted fusion. weight=0 (default) ⇒ the whole path
+    // below is a byte-identical no-op (identity rerank, fetchN=limit). When
+    // active, over-fetch a candidate pool so a slightly-lower-similarity but
+    // higher-confidence row can legitimately enter the top-K after a demotion.
+    const confidenceWeight =
+      (this.config.get('MEMORY_CONFIDENCE_WEIGHT', { infer: true }) as number | undefined) ?? 0;
+    const cappedLimit = Math.min(15, Math.max(1, limit));
+    const fetchN = confidenceWeight > 0 ? 15 : cappedLimit;
     const rows = await this.prisma.withTenantUser(tenantId, userId, async (tx) => {
       // Ethical wall: a walled client's notes are recallable only by granted
       // users — otherwise the client arm degrades to absent (fail-closed).
@@ -3532,8 +3544,10 @@ export class MeriService {
         clientId !== null && (await clientMemoryAllowed(tx, tenantId, userId, clientId))
           ? clientId
           : null;
-      return tx.$queryRawUnsafe<Array<{ title: string; sections: unknown; score: number }>>(
-        `SELECT mi.title, mi.sections_jsonb AS sections,
+      return tx.$queryRawUnsafe<
+        Array<{ title: string; sections: unknown; score: number; confidence: number | null }>
+      >(
+        `SELECT mi.title, mi.sections_jsonb AS sections, mi.confidence AS confidence,
                 1 - (ce.embedding <=> '${literal}'::vector) AS score
            FROM context_embeddings ce
            JOIN memory_items mi ON mi.id::text = ce.source_id
@@ -3546,19 +3560,23 @@ export class MeriService {
             AND (mi.expires_at IS NULL OR mi.expires_at > now())
             AND (mi.client_id IS NULL OR ($3::uuid IS NOT NULL AND mi.client_id = $3::uuid))
           ORDER BY ce.embedding <=> '${literal}'::vector
-          LIMIT ${Math.min(15, Math.max(1, limit))}`,
+          LIMIT ${fetchN}`,
         tenantId,
         userId,
         clientArm,
       );
     });
+    // Phase 4: fuse similarity × confidence (identity when weight=0), then trim
+    // to the requested limit. The floor is applied AFTER fusion so it keys off
+    // the fused score (accuracy-first: a demoted low-confidence tail drops out).
+    const reranked = rerankByConfidence(rows, confidenceWeight).slice(0, cappedLimit);
     // Titan-space floor (MEMORY_PROJECTION_MIN_SCORE, measured default 0.4 —
     // see config.schema.ts). The clio path's 0.3 floor is OpenAI-space and
     // does not transfer.
     const minScore =
       (this.config.get('MEMORY_PROJECTION_MIN_SCORE', { infer: true }) as number | undefined) ??
       0.4;
-    return applyRecallScoreFloor(rows, minScore).map((r) => ({
+    return applyRecallScoreFloor(reranked, minScore).map((r) => ({
       key: r.title,
       value: memorySectionValue(r.sections),
     }));
@@ -3613,7 +3631,11 @@ export class MeriService {
       if (!Array.isArray(parsed.memories)) return;
 
       // Confidence threshold below which we never persist a learned fact.
-      const MIN_CONFIDENCE = 0.7;
+      // Phase 4: config-driven (MEMORY_MIN_WRITE_CONFIDENCE, default 0.7 —
+      // preserves the previous hardcoded gate exactly) via passesWriteConfidenceGate.
+      const minWriteConfidence =
+        (this.config.get('MEMORY_MIN_WRITE_CONFIDENCE', { infer: true }) as number | undefined) ??
+        0.7;
       // Cosine similarity above which a candidate is treated as a duplicate of
       // an existing memory (update in place instead of inserting a near-clone).
       const DEDUPE_SIMILARITY = 0.92;
@@ -3625,7 +3647,7 @@ export class MeriService {
 
         // (1) Confidence gate — drop low-confidence extractions entirely.
         const confidence = typeof mem.confidence === 'number' ? mem.confidence : 0;
-        if (confidence < MIN_CONFIDENCE) continue;
+        if (!passesWriteConfidenceGate(confidence, minWriteConfidence)) continue;
 
         // (2) Default to user-private. Promote to firm scope ONLY when the
         // extractor explicitly says "firm", confidence is high, and the heuristic

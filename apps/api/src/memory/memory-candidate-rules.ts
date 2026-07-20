@@ -23,6 +23,30 @@ export interface MemoryCandidateDecision {
 export interface MemoryCandidateRuleInput {
   scope: 'personal' | 'firm' | 'client';
   isAdmin: boolean;
+  /** Phase 4: how the write originated. Only 'model_extraction' is gated on
+   *  confidence; explicit human saves are unaffected. Absent = human/explicit. */
+  sourceKind?: string;
+  /** Phase 4: extraction confidence [0,1] when the source scored it. */
+  confidence?: number | null;
+  /** Phase 4: floor for the model_extraction low-confidence rule (default 0.7). */
+  minConfidence?: number;
+}
+
+/** Phase 4 default write-confidence floor (mirrors auto-learn's historical gate). */
+export const DEFAULT_MIN_WRITE_CONFIDENCE = 0.7;
+
+/**
+ * Whether a model-extracted confidence clears the write floor. A non-finite/
+ * absent confidence FAILS (an unscored machine guess is not trusted). Tolerance
+ * avoids float round-trip false-negatives at the boundary.
+ */
+export function passesWriteConfidenceGate(
+  confidence: number | null | undefined,
+  minConfidence: number = DEFAULT_MIN_WRITE_CONFIDENCE,
+): boolean {
+  if (confidence === null || confidence === undefined || !Number.isFinite(confidence)) return false;
+  const floor = Number.isFinite(minConfidence) ? minConfidence : DEFAULT_MIN_WRITE_CONFIDENCE;
+  return confidence >= floor - 1e-9;
 }
 
 interface MemoryCandidateRule {
@@ -42,6 +66,23 @@ interface MemoryCandidateRule {
  * message; it now creates a real, reviewable pending candidate.
  */
 const MEMORY_CANDIDATE_RULES: readonly MemoryCandidateRule[] = [
+  // Phase 4 (FIRST — first-match-wins): a MODEL-extracted memory below the
+  // confidence floor never auto-commits, it lands in the review queue. Gated
+  // strictly to sourceKind='model_extraction' with a numeric confidence, so
+  // every existing caller (explicit human saves, which pass no sourceKind/
+  // confidence) is unaffected — this rule is inert until governed ingestion
+  // (Phase 6) routes machine extractions through the candidate flow.
+  {
+    id: 'memory.model_extraction.low_confidence_requires_approval',
+    outcome: 'WARN',
+    reason:
+      'Low-confidence machine-extracted memory requires an authorized reviewer before it is stored.',
+    matches: (i) =>
+      i.sourceKind === 'model_extraction' &&
+      typeof i.confidence === 'number' &&
+      Number.isFinite(i.confidence) &&
+      !passesWriteConfidenceGate(i.confidence, i.minConfidence ?? DEFAULT_MIN_WRITE_CONFIDENCE),
+  },
   {
     id: 'memory.personal.auto_commit',
     outcome: 'PASS',

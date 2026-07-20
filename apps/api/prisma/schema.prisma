@@ -5285,6 +5285,10 @@ model MemoryItem {
   revokedBy         String?   @map("revoked_by") @db.Uuid
   exportable        Boolean   @default(true)
   trainingUse       String    @default("excluded") @map("training_use") @db.VarChar(16)
+  /// Phase 4 — extraction confidence [0,1]; NULL = unscored (human/legacy),
+  /// read as the NEUTRAL prior at recall (never demoted). Backfilled from
+  /// clio_memory.metadata_jsonb.confidence over the clio: projection linkage.
+  confidence        Float?
 
   tenant Tenant       @relation(fields: [tenantId], references: [id], onDelete: Cascade)
   edges  MemoryEdge[]
@@ -5346,6 +5350,10 @@ model MemoryCandidate {
   duplicateOfId     String?   @map("duplicate_of_id") @db.Uuid
   contradictsId     String?   @map("contradicts_id") @db.Uuid
   status            String    @default("pending") @db.VarChar(16) // pending | approved | rejected | auto_committed
+  /// Phase 4 — extraction confidence [0,1] for the proposed memory; NULL =
+  /// unscored (explicit human save). Drives the model_extraction low-confidence
+  /// review rule (memory-candidate-rules.ts).
+  confidence        Float?
   decidedBy         String?   @map("decided_by") @db.Uuid
   decidedAt         DateTime? @map("decided_at") @db.Timestamptz(6)
   committedMemoryId String?   @map("committed_memory_id") @db.Uuid

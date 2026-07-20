@@ -108,6 +108,23 @@ describe('ClioMemory -> MemoryItem adapter (Phase B unification)', () => {
     const links = body.match(/\[\[[^\]]+\]\]/g) ?? [];
     expect(links).toEqual(['[[client:acme-id]]']);
   });
+
+  // ── Phase 4: confidence carry ──────────────────────────────────────────────
+  it('carries a numeric metadata.confidence onto item.confidence', () => {
+    const item = clioMemoryToItem(row({ metadata: { confidence: 0.82 } }));
+    expect(item.confidence).toBeCloseTo(0.82, 10);
+  });
+
+  it('clamps an out-of-range metadata.confidence to [0,1]', () => {
+    expect(clioMemoryToItem(row({ metadata: { confidence: 1.5 } })).confidence).toBe(1);
+    expect(clioMemoryToItem(row({ metadata: { confidence: -0.2 } })).confidence).toBe(0);
+  });
+
+  it('leaves confidence null when metadata has no numeric confidence', () => {
+    expect(clioMemoryToItem(row({ metadata: {} })).confidence).toBeNull();
+    expect(clioMemoryToItem(row({ metadata: { confidence: 'high' } })).confidence).toBeNull();
+    expect(clioMemoryToItem(row({ metadata: null })).confidence).toBeNull();
+  });
 });
 
 // ── G2: client scope + expiry projection ─────────────────────────────────────

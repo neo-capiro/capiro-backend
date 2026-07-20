@@ -86,6 +86,22 @@ export const configSchema = z.object({
   // during the 'union' canary; 0 disables the floor.
   MEMORY_PROJECTION_MIN_SCORE: z.coerce.number().min(0).max(1).default(0.4),
 
+  // Phase 4 — confidence-weighted recall fusion strength (memory-confidence.
+  // helpers.ts). 0 = DARK: rerankByConfidence is strict identity and
+  // projectionRecall is byte-identical to pre-Phase-4. A small positive value
+  // (e.g. 0.2-0.3) blends similarity × (1-w+w·confidence) so an uncertain-but-
+  // similar memory demotes below a confident one; fused score never exceeds raw
+  // similarity (never a fabricated boost). Landed inert; flip out-of-band per
+  // tenant ONLY after that tenant is on MEMORY_RECALL_SOURCE=union/projection
+  // and the projection floor is re-tuned against fused scores.
+  MEMORY_CONFIDENCE_WEIGHT: z.coerce.number().min(0).max(1).default(0),
+
+  // Phase 4 — write-path confidence floor for MODEL-extracted memories
+  // (auto-learn). Default 0.7 reproduces the previously-hardcoded gate exactly
+  // (meri.service.ts maybeLearnFromConversation). A model extraction below this
+  // is not auto-committed; explicit human saves are unscored and unaffected.
+  MEMORY_MIN_WRITE_CONFIDENCE: z.coerce.number().min(0).max(1).default(0.7),
+
   // Outreach prompt-assembly version (plan W2). 'v1' = the legacy single-string
   // prompt + JSON context dump; 'v2' = PromptSpec v2 (real system prompt, context
   // precedence ladder, spotlighted untrusted content, no raw JSON dump). Defaults

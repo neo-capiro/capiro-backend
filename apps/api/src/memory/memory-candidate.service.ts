@@ -19,6 +19,10 @@ export interface MemorySaveRequest {
   /** G2 ephemeral/working memory: when set, the row expires (hidden from
    *  recall, purged by the daily sweep). Any scope may be ephemeral. */
   expiresAt?: Date | null;
+  /** Phase 4: extraction confidence [0,1] for a model-sourced save; null/absent
+   *  for explicit human saves (unscored → neutral at recall). Flows to the
+   *  candidate row, the payload, and (on commit) clio_memory.metadata.confidence. */
+  confidence?: number | null;
 }
 
 export interface MemoryCandidateRow {
@@ -107,6 +111,12 @@ export class MemoryCandidateService {
     );
     const duplicateOfId = priorCommitted[0]?.id ?? null;
 
+    // Phase 4: clamp a finite confidence to [0,1]; anything else = unscored (null).
+    const candidateConfidence =
+      typeof record.confidence === 'number' && Number.isFinite(record.confidence)
+        ? Math.min(1, Math.max(0, record.confidence))
+        : null;
+
     const payload = {
       key: record.key,
       value: record.value,
@@ -115,6 +125,7 @@ export class MemoryCandidateService {
       ownerUserId: record.ownerUserId,
       clientId: record.clientId ?? null,
       expiresAt: record.expiresAt ? record.expiresAt.toISOString() : null,
+      confidence: candidateConfidence,
     };
     const provenance = { tool: 'save_memory', tenantId, userId: proposedByUserId };
 
@@ -122,12 +133,12 @@ export class MemoryCandidateService {
       const rows = await tx.$queryRaw<Array<{ id: string }>>`
         INSERT INTO memory_candidate (
           tenant_id, proposed_by, source_kind, scope, client_id, payload_jsonb,
-          provenance_jsonb, duplicate_of_id, status
+          provenance_jsonb, duplicate_of_id, status, confidence
         ) VALUES (
           ${tenantId}::uuid, ${proposedByUserId}::uuid, ${sourceKind}, ${scope},
           ${record.clientId ?? null}::uuid,
           ${JSON.stringify(payload)}::jsonb, ${JSON.stringify(provenance)}::jsonb,
-          ${duplicateOfId}::uuid, 'pending'
+          ${duplicateOfId}::uuid, 'pending', ${candidateConfidence}
         )
         RETURNING id
       `;
@@ -136,7 +147,14 @@ export class MemoryCandidateService {
       return row.id;
     });
 
-    const decision = evaluateMemoryCandidate({ scope, isAdmin });
+    // Phase 4: the model_extraction low-confidence rule can route a machine
+    // write to review; inert for explicit human saves (no model sourceKind).
+    const decision = evaluateMemoryCandidate({
+      scope,
+      isAdmin,
+      sourceKind,
+      confidence: candidateConfidence,
+    });
     if (decision.outcome === 'WARN') {
       this.logger.log(
         `memory_candidate ${candidateId} pending (${decision.ruleId}), tenant ${tenantId}`,
@@ -227,6 +245,12 @@ export class MemoryCandidateService {
       tool: 'save_memory',
       createdBy: 'user-requested',
       visibility: record.scope,
+      // Phase 4: carry a scored confidence so projectClioMemory → the clio
+      // adapter stamps memory_items.confidence. Omitted when unscored (human
+      // saves) so the projection confidence stays NULL/neutral.
+      ...(typeof record.confidence === 'number' && Number.isFinite(record.confidence)
+        ? { confidence: Math.min(1, Math.max(0, record.confidence)) }
+        : {}),
     };
     const findExisting = () =>
       this.prisma.withTenant(tenantId, (tx) =>
@@ -331,7 +355,7 @@ function payloadToSaveRequest(payload: unknown): MemorySaveRequest {
     throw new BadRequestException('Malformed memory candidate payload.');
   }
   const scope = p.scope === 'firm' ? 'firm' : p.scope === 'client' ? 'client' : 'user_private';
-  const raw = payload as { clientId?: unknown; expiresAt?: unknown };
+  const raw = payload as { clientId?: unknown; expiresAt?: unknown; confidence?: unknown };
   return {
     scope,
     ownerUserId: typeof p.ownerUserId === 'string' ? p.ownerUserId : null,
@@ -340,5 +364,11 @@ function payloadToSaveRequest(payload: unknown): MemorySaveRequest {
     value: p.value,
     source: p.source,
     expiresAt: typeof raw.expiresAt === 'string' ? new Date(raw.expiresAt) : null,
+    // Phase 4: round-trip confidence so an APPROVED candidate commits with the
+    // extraction confidence it was reviewed at (else it would lose it on commit).
+    confidence:
+      typeof raw.confidence === 'number' && Number.isFinite(raw.confidence)
+        ? raw.confidence
+        : null,
   };
 }

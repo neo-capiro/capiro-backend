@@ -129,6 +129,10 @@ export interface MemoryItem {
   /** G2 ephemeral class: expiry instant (ISO-8601 or Date). Optional so every
    *  existing construction site stays valid — absent/null = durable. */
   expiresAt?: string | Date | null;
+  /** Phase 4 — extraction confidence in [0,1]; null/absent = unscored
+   *  (human/legacy), treated as the NEUTRAL prior at recall (never demoted).
+   *  Optional so every existing construction site stays valid. */
+  confidence?: number | null;
 }
 
 /** A typed wikilink target, e.g. { type: 'bill', slug: 'hr-1234' }. */
@@ -172,6 +176,7 @@ export function defaultMemoryGovernanceFields(): Pick<
   | 'revokedBy'
   | 'exportable'
   | 'trainingUse'
+  | 'confidence'
 > {
   return {
     status: 'active',
@@ -186,5 +191,8 @@ export function defaultMemoryGovernanceFields(): Pick<
     revokedBy: null,
     exportable: true,
     trainingUse: 'excluded',
+    // Phase 4 — unscored by default; the clio adapter overrides when the
+    // source metadata carries a numeric confidence.
+    confidence: null,
   };
 }
