@@ -29,6 +29,7 @@ import {
   applyRecallScoreFloor,
   pickMemoryRecallSource,
   pickRecallRerank,
+  pickRecallGraph,
   type MemoryRecallSource,
 } from './memory-recall-source.helpers.js';
 import { passesWriteConfidenceGate } from './memory-confidence.helpers.js';
@@ -38,7 +39,12 @@ import {
   recallOutcomeSummary,
   type RecallOutcome,
 } from './meri-context-metrics.helpers.js';
-import { clientMemoryAllowed } from '../memory/memory-wall.helpers.js';
+import {
+  clientMemoryAllowed,
+  fetchDeniedClientIds,
+  toUuidArrayLiteral,
+} from '../memory/memory-wall.helpers.js';
+import { resolveCacheNodeLabels } from '../memory/kg-cache-enrich.helpers.js';
 import { MeriToolsService } from './meri-tools.service.js';
 import { AiCredentialResolverService } from '../engagement/ai-credential-resolver.service.js';
 import { MemoryIngestService } from '../memory/memory-ingest.service.js';
@@ -209,6 +215,24 @@ interface StreamControl {
 
 const RUNTIME_NAME = 'Hermes';
 const PRODUCT_NAME = 'Meri';
+
+/** One edge row from kg_walk_bounded, projected for GraphRAG recall fusion. */
+type GraphNeighborRow = {
+  depth: number;
+  src_kind: string;
+  src_id: string;
+  dst_kind: string;
+  dst_id: string;
+  edge_type: string;
+  source: string | null;
+  agg_weight: number | null;
+  agg_count: number | null;
+};
+
+/** GraphRAG fusion adds at most this many relationship items per turn — a
+ *  context seasoning layer appended AFTER the vector-recall base (which is
+ *  never reordered, displaced, or truncated by fusion). */
+const GRAPH_FUSION_MAX = 4;
 
 @Injectable()
 export class MeriService {
@@ -2631,6 +2655,12 @@ export class MeriService {
 
     try {
       const memories = await this.loadRelevantMemories(ctx.tenantId, ctx.userId, query, clientId);
+      // The memory.recall metric tracks BASE recall health; GraphRAG-fused rows
+      // (graph:* keys) have their own recallSource='graph' metric emitted in
+      // loadRelevantMemories. Counting the fused total here would mask a base
+      // 'empty' as 'hit' exactly during the graph canary — hiding the recall
+      // regression the Phase-7A alarm exists to catch.
+      const baseCount = memories.filter((m) => !m.key.startsWith('graph:')).length;
       if (memories.length) {
         contextParts.push('\nRelevant firm knowledge (from Meri memory):');
         for (const mem of memories) contextParts.push(`- ${mem.value}`);
@@ -2645,7 +2675,7 @@ export class MeriService {
           action: 'selected',
           reason: `Loaded ${memories.length} relevant memories.`,
         });
-        this.emitRecallMetric('hit', memories.length);
+        this.emitRecallMetric(baseCount ? 'hit' : 'empty', baseCount);
       } else {
         trace.push({
           tool: 'clio_memory',
@@ -3434,8 +3464,50 @@ export class MeriService {
     // never drop below the 'clio' baseline. Resolved per-tenant (a settings_jsonb
     // override wins over the global env) so 'union' can be canaried on one tenant
     // before a fleet-wide flip.
-    const { mode, rerankOn } = await this.resolveRecallConfig(tenantId);
+    const { mode, rerankOn, graphOn } = await this.resolveRecallConfig(tenantId);
 
+    const base = await this.recallBase(tenantId, userId, query, clientId, mode, rerankOn);
+
+    // Track B GraphRAG fusion (MERI_RECALL_GRAPH / per-tenant meriRecallGraph).
+    // APPEND-ONLY and fail-safe: graph context is added AFTER the base recall
+    // resolves (sequential — its connection is released first) and any
+    // graph/DB error is swallowed, so fusion can only ADD up to
+    // GRAPH_FUSION_MAX items — it never reorders, displaces, or truncates the
+    // base, and can never blank recall. Only runs in a client conversation
+    // (the graph is seeded at that client).
+    if (graphOn && clientId) {
+      try {
+        const graphItems = await this.graphNeighborRecall(tenantId, userId, clientId);
+        const seen = new Set(base.map((m) => m.key));
+        const adds: Array<{ key: string; value: string }> = [];
+        for (const g of graphItems) {
+          if (adds.length >= GRAPH_FUSION_MAX) break;
+          if (seen.has(g.key)) continue;
+          seen.add(g.key);
+          adds.push(g);
+        }
+        this.emitGraphRecallMetric(adds.length ? 'hit' : 'empty', adds.length);
+        if (adds.length) return [...base, ...adds];
+      } catch (err) {
+        // fail-safe: graph fusion never degrades base recall — but the failure
+        // is observable (memory.recall outcome=error, recallSource=graph).
+        this.emitGraphRecallMetric('error', 0, err);
+      }
+    }
+
+    return base;
+  }
+
+  /** The base recall (clio / union / projection), extracted so GraphRAG fusion
+   *  can layer on top without touching the proven per-mode logic. */
+  private async recallBase(
+    tenantId: string,
+    userId: string,
+    query: string,
+    clientId: string | null,
+    mode: MemoryRecallSource,
+    rerankOn: boolean,
+  ): Promise<Array<{ key: string; value: string }>> {
     if (mode === 'projection') {
       // Prefer the memory_items projection; on an INFRA error (not merely an
       // empty result) fall back to clio so a bad Titan/DB call never blanks
@@ -3473,6 +3545,68 @@ export class MeriService {
   }
 
   /**
+   * GraphRAG neighbor context: a bounded, tenant + ethical-wall SCOPED walk over
+   * the materialized kg_edge_cache seeded at the conversation's client, projected
+   * into compact {key,value} recall items ("relationship: X --edge--> Y"). The
+   * isolation guarantee is the same as the intel graph: kg_walk_bounded takes the
+   * mandatory (tenant_id, denied[]) and filters every hop, so a walled client's
+   * relationships never surface. Depth 1, tight fanout/budget — this is a context
+   * seasoning layer, not a full traversal. Throws are the caller's problem (it
+   * treats any failure as no fusion).
+   */
+  private async graphNeighborRecall(
+    tenantId: string,
+    userId: string,
+    clientId: string,
+  ): Promise<Array<{ key: string; value: string }>> {
+    // Fail-closed on the seed itself: if this viewer can't see the client's
+    // memory, don't seed a graph walk from it.
+    const { rows, labels } = await this.prisma.withTenantUser(tenantId, userId, async (tx) => {
+      const allowed = await clientMemoryAllowed(tx, tenantId, userId, clientId);
+      if (!allowed) return { rows: [] as GraphNeighborRow[], labels: new Map<string, string>() };
+      // Real server-side bound (kg_walk_bounded's fn-scoped statement_timeout is
+      // inert), so a dense hub can never hold this pooled connection long.
+      await tx.$executeRawUnsafe(`SET LOCAL statement_timeout = '5s'`);
+      const denied = await fetchDeniedClientIds(tx, tenantId, userId);
+      // depth=2/budget=60 per plan B.3 — depth 1 only reaches the client's own
+      // overlay edges; the aggregated money-flow (employer→committee) and
+      // lobbying relationships that are Track B's payload sit 2 hops out.
+      const walked = await tx.$queryRaw<Array<GraphNeighborRow>>`
+        SELECT depth, src_kind, src_id, dst_kind, dst_id, edge_type, source, agg_weight, agg_count
+        FROM kg_walk_bounded(
+          ${tenantId}::uuid,
+          ${Prisma.raw(toUuidArrayLiteral(denied))},
+          'client', ${clientId}, 2, NULL::text[], 12, 60, 'both')
+      `;
+      // Unconfirmed auto-matches are candidate-pool noise, not resolved facts —
+      // mirror the intel graph's filter so Meri never asserts an unconfirmed link.
+      const kept = walked.filter((r) => r.source !== 'auto_matched').slice(0, GRAPH_FUSION_MAX * 3);
+      // Resolve ids → human names in the same tx: an accuracy-first product must
+      // never feed raw UUIDs / numeric LDA/FEC ids to the model as "firm
+      // knowledge" (the intel path + panel enrichment both resolve for this).
+      const resolved = await resolveCacheNodeLabels(tx, tenantId, kept);
+      const seed = await tx.$queryRaw<Array<{ name: string }>>`
+        SELECT name FROM clients WHERE id = ${clientId}::uuid LIMIT 1`;
+      if (seed[0]?.name) resolved.set(`client:${clientId}`, seed[0].name);
+      return { rows: kept, labels: resolved };
+    });
+    const label = (kind: string, id: string) => labels.get(`${kind}:${id}`) ?? id;
+    return rows.map((r) => {
+      const rel = r.edge_type.replace(/_/g, ' ');
+      const amount =
+        r.agg_weight != null
+          ? ` ($${Math.round(Number(r.agg_weight)).toLocaleString()}${r.agg_count ? ` over ${r.agg_count}` : ''})`
+          : r.agg_count && r.agg_count > 1
+            ? ` (${r.agg_count} filings)`
+            : '';
+      return {
+        key: `graph:${r.src_kind}:${r.src_id}:${r.edge_type}:${r.dst_kind}:${r.dst_id}`,
+        value: `Relationship — ${label(r.src_kind, r.src_id)} ${rel} ${label(r.dst_kind, r.dst_id)}${amount}`,
+      };
+    });
+  }
+
+  /**
    * Effective memory-recall source for a tenant: the global MEMORY_RECALL_SOURCE
    * env, with a per-tenant `settings_jsonb.clioFeatureFlags.meriMemoryRecallSource`
    * override winning when present (mirrors resolveTenantAuditorMode). Lets 'union'
@@ -3492,12 +3626,14 @@ export class MeriService {
    */
   private async resolveRecallConfig(
     tenantId: string,
-  ): Promise<{ mode: MemoryRecallSource; rerankOn: boolean }> {
+  ): Promise<{ mode: MemoryRecallSource; rerankOn: boolean; graphOn: boolean }> {
     const envMode = (this.config.get('MEMORY_RECALL_SOURCE', { infer: true }) ??
       'clio') as MemoryRecallSource;
     const envRerank =
       ((this.config.get('MERI_RECALL_RERANK', { infer: true }) as string | undefined) ?? 'off') ===
       'on';
+    // MERI_RECALL_GRAPH is a house string→bool in the config schema.
+    const envGraph = this.config.get('MERI_RECALL_GRAPH', { infer: true }) === true;
     try {
       const tenant = await this.prisma.withTenant(tenantId, (tx) =>
         tx.tenant.findFirst({ where: { id: tenantId }, select: { settings: true } }),
@@ -3506,9 +3642,17 @@ export class MeriService {
       return {
         mode: pickMemoryRecallSource(envMode, settings),
         rerankOn: pickRecallRerank(envRerank, settings),
+        graphOn: pickRecallGraph(envGraph, settings),
       };
-    } catch {
-      return { mode: envMode, rerankOn: envRerank };
+    } catch (err) {
+      // Fail-safe: a read error falls back to env defaults, but log it so a
+      // per-tenant override silently flapping to env is diagnosable.
+      this.logger.warn(
+        `recall-config settings read failed for tenant ${tenantId}; using env defaults: ${
+          err instanceof Error ? err.message : String(err)
+        }`,
+      );
+      return { mode: envMode, rerankOn: envRerank, graphOn: envGraph };
     }
   }
 
@@ -3683,6 +3827,27 @@ export class MeriService {
       if (outcome === 'error') {
         this.logger.warn(
           `${recallOutcomeSummary(outcome, source, count)} err=${err instanceof Error ? err.message : String(err)}`,
+        );
+      }
+    } catch {
+      // metrics must never break a turn
+    }
+  }
+
+  /**
+   * Track B: GraphRAG-fusion outcome, on the same memory.recall metric with
+   * recallSource='graph' so hit/empty/error rates are alarmable per-dimension
+   * without a new metric name. Side-effect-only; same kill switch.
+   */
+  private emitGraphRecallMetric(outcome: RecallOutcome, count: number, err?: unknown): void {
+    try {
+      if ((this.config.get('MERI_CONTEXT_METRICS', { infer: true }) as string) === 'off') return;
+      this.logger.log(
+        JSON.stringify(recallOutcomeMetric(outcome, 'graph', count, new Date().toISOString())),
+      );
+      if (outcome === 'error') {
+        this.logger.warn(
+          `${recallOutcomeSummary(outcome, 'graph', count)} err=${err instanceof Error ? err.message : String(err)}`,
         );
       }
     } catch {

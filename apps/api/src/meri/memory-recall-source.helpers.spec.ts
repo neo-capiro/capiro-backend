@@ -3,6 +3,9 @@ import {
   applyRecallScoreFloor,
   pickMemoryRecallSource,
   pickRecallRerank,
+  pickRecallGraph,
+  pickKgTraversalSource,
+  pickKgIntelGraph,
 } from './memory-recall-source.helpers.js';
 
 describe('pickRecallRerank (Phase 5)', () => {
@@ -20,6 +23,58 @@ describe('pickRecallRerank (Phase 5)', () => {
   it('an unrecognized override is ignored (env wins)', () => {
     expect(pickRecallRerank(true, { clioFeatureFlags: { meriRecallRerank: 'maybe' } })).toBe(true);
     expect(pickRecallRerank(false, { clioFeatureFlags: { meriRecallRerank: 1 } })).toBe(false);
+  });
+});
+
+describe('pickRecallGraph (Track B GraphRAG fusion)', () => {
+  it('falls back to the env value when there is no override', () => {
+    expect(pickRecallGraph(false, null)).toBe(false);
+    expect(pickRecallGraph(true, undefined)).toBe(true);
+    expect(pickRecallGraph(false, { clioFeatureFlags: {} })).toBe(false);
+  });
+  it('a per-tenant on/off override wins over env (the canary lever)', () => {
+    expect(pickRecallGraph(false, { clioFeatureFlags: { meriRecallGraph: 'on' } })).toBe(true);
+    expect(pickRecallGraph(true, { clioFeatureFlags: { meriRecallGraph: 'off' } })).toBe(false);
+    expect(pickRecallGraph(false, { clioFeatureFlags: { meriRecallGraph: true } })).toBe(true);
+    expect(pickRecallGraph(true, { clioFeatureFlags: { meriRecallGraph: false } })).toBe(false);
+  });
+  it('an unrecognized override is ignored (env wins)', () => {
+    expect(pickRecallGraph(true, { clioFeatureFlags: { meriRecallGraph: 'maybe' } })).toBe(true);
+    expect(pickRecallGraph(false, { clioFeatureFlags: { meriRecallGraph: 1 } })).toBe(false);
+  });
+});
+
+describe('pickKgTraversalSource (Track B cutover)', () => {
+  it('falls back to the env source when there is no override', () => {
+    expect(pickKgTraversalSource('legacy', null)).toBe('legacy');
+    expect(pickKgTraversalSource('cache', undefined)).toBe('cache');
+    expect(pickKgTraversalSource('legacy', { clioFeatureFlags: {} })).toBe('legacy');
+  });
+  it('a per-tenant kgTraversalSource override wins over env (the canary lever)', () => {
+    expect(pickKgTraversalSource('legacy', { clioFeatureFlags: { kgTraversalSource: 'cache' } })).toBe('cache');
+    expect(pickKgTraversalSource('cache', { clioFeatureFlags: { kgTraversalSource: 'legacy' } })).toBe('legacy');
+  });
+  it('an invalid string override is ignored (env wins) — never resolves to a third mode', () => {
+    expect(pickKgTraversalSource('legacy', { clioFeatureFlags: { kgTraversalSource: 'turbo' } })).toBe('legacy');
+    expect(pickKgTraversalSource('cache', { clioFeatureFlags: { kgTraversalSource: 42 } })).toBe('cache');
+  });
+  it('accepts the boolean form (true→cache, false→legacy) so the shipped flag tooling can drive it', () => {
+    expect(pickKgTraversalSource('legacy', { clioFeatureFlags: { kgTraversalSource: true } })).toBe('cache');
+    expect(pickKgTraversalSource('cache', { clioFeatureFlags: { kgTraversalSource: false } })).toBe('legacy');
+  });
+});
+
+describe('pickKgIntelGraph (Track B scoped intel endpoint gate)', () => {
+  it('falls back to the env value when there is no override', () => {
+    expect(pickKgIntelGraph(false, null)).toBe(false);
+    expect(pickKgIntelGraph(true, undefined)).toBe(true);
+  });
+  it('a per-tenant kgIntelGraph override wins over env', () => {
+    expect(pickKgIntelGraph(false, { clioFeatureFlags: { kgIntelGraph: 'scoped' } })).toBe(true);
+    expect(pickKgIntelGraph(true, { clioFeatureFlags: { kgIntelGraph: 'off' } })).toBe(false);
+  });
+  it('an unrecognized override is ignored (env wins)', () => {
+    expect(pickKgIntelGraph(false, { clioFeatureFlags: { kgIntelGraph: 'yes' } })).toBe(false);
   });
 });
 

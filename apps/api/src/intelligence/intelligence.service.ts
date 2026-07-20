@@ -1,5 +1,16 @@
-import { Injectable, Logger, NotFoundException, BadRequestException } from '@nestjs/common';
-import { EngagementTaskStatus } from '@prisma/client';
+import {
+  Injectable,
+  Logger,
+  NotFoundException,
+  BadRequestException,
+  ServiceUnavailableException,
+} from '@nestjs/common';
+import { EngagementTaskStatus, Prisma } from '@prisma/client';
+import { fetchDeniedClientIds, toUuidArrayLiteral } from '../memory/memory-wall.helpers.js';
+import {
+  pickKgIntelGraph,
+  pickKgTraversalSource,
+} from '../meri/memory-recall-source.helpers.js';
 import {
   AGENCY_SECTOR_MAP,
   ldaCodesForSectors,
@@ -4778,12 +4789,99 @@ export class IntelligenceService {
     return { ok: true };
   }
 
-  /** Knowledge graph nodes + edges for hub-and-spoke visualization (powered by kg_walk view/function layer) */
-  async getKnowledgeGraph(clientId: string, tenantId: string) {
+  /**
+   * Bounded, tenant + ethical-wall SCOPED walk over the materialized
+   * kg_edge_cache (Track B M2) — the ONLY walk this service performs; the
+   * legacy unscoped kg_walk is retired from tenant paths. Isolation is
+   * enforced inside kg_walk_bounded by the mandatory (tenant_id, denied[])
+   * params — fetched here from the caller's own transaction so the wall
+   * applies per-hop. Returns the legacy row shape so all downstream
+   * label/dedup logic is source-agnostic.
+   */
+  private async walkClientGraph(tenantId: string, clientId: string, viewerUserId: string | null) {
+    type WalkRow = {
+      depth: number;
+      src_kind: string;
+      src_id: string;
+      dst_kind: string;
+      dst_id: string;
+      edge_type: string;
+      confidence: number | null;
+      source: string | null;
+      observed_at: Date | null;
+      tenant_id: string | null;
+    };
+    return this.prisma.withTenant(
+      tenantId,
+      async (tx) => {
+        // Real server-side bound on the walk. kg_walk_bounded's own fn-scoped
+        // statement_timeout is inert (a fn-level SET cannot re-arm the invoking
+        // statement's timer), so SET LOCAL here is what actually caps the walk
+        // well under the 30s tx ceiling — closing the RC3 pooled-hold class.
+        await tx.$executeRawUnsafe(`SET LOCAL statement_timeout = '10s'`);
+        // Ethical wall: clients this viewer may not see. Fail-closed for an
+        // unidentified viewer (null userId → every walled client denied).
+        const denied = await fetchDeniedClientIds(tx, tenantId, viewerUserId);
+        return tx.$queryRaw<Array<WalkRow>>`
+            SELECT depth, src_kind, src_id, dst_kind, dst_id, edge_type, confidence, source, observed_at, tenant_id
+            FROM kg_walk_bounded(
+              ${tenantId}::uuid,
+              ${Prisma.raw(toUuidArrayLiteral(denied))},
+              'client', ${clientId}, 2, NULL::text[], 25, 500, 'both')
+          `;
+      },
+      { timeoutMs: 30_000 },
+    );
+  }
+
+  /**
+   * Knowledge graph nodes + edges for hub-and-spoke visualization, served ONLY
+   * on the scoped bounded-traversal path. Gates resolve per-tenant (a
+   * settings_jsonb.clioFeatureFlags override wins over the env value passed in
+   * by the controller): kgIntelGraph must be 'scoped' AND kgTraversalSource
+   * must be 'cache' — any other combination 503s rather than expose the
+   * legacy unscoped, RLS-exempt kg_walk surface. Fail-safe by default.
+   */
+  async getKnowledgeGraph(
+    clientId: string,
+    tenantId: string,
+    opts?: {
+      viewerUserId?: string | null;
+      envIntelGraphOn?: boolean;
+      envTraversalSource?: 'legacy' | 'cache';
+    },
+  ) {
+    const viewerUserId = opts?.viewerUserId ?? null;
+    const settings = await this.prisma
+      .withTenant(tenantId, (tx) =>
+        tx.tenant.findFirst({ where: { id: tenantId }, select: { settings: true } }),
+      )
+      .then((t) => t?.settings ?? null)
+      .catch((err) => {
+        // Fail toward the env gates (documented house pattern) but make the
+        // degradation observable — a silent flap of a per-tenant off-override
+        // back to an enabled env is otherwise undiagnosable.
+        this.logger.warn(
+          `kg intel-graph settings read failed for tenant ${tenantId}; resolving gates from env: ${
+            err instanceof Error ? err.message : String(err)
+          }`,
+        );
+        return null;
+      });
+    const endpointOn = pickKgIntelGraph(opts?.envIntelGraphOn ?? false, settings);
+    const source = pickKgTraversalSource(opts?.envTraversalSource ?? 'legacy', settings);
+    if (!endpointOn || source !== 'cache') {
+      throw new ServiceUnavailableException(
+        'Knowledge-graph endpoint is disabled pending the scoped traversal ' +
+          '(requires KG_INTEL_GRAPH/kgIntelGraph=scoped and kgTraversalSource=cache).',
+      );
+    }
     const [client, mappings, walkRows] = await Promise.all([
       this.prisma.withTenant(tenantId, (tx) =>
         tx.client.findFirst({
-          where: { id: clientId },
+          // Explicit tenant pin on top of the scoped-client hook: a foreign
+          // clientId must not even resolve this client's NAME (IDOR guard).
+          where: { id: clientId, tenantId },
           select: { id: true, name: true, sectorTag: true },
         }),
       ),
@@ -4793,35 +4891,19 @@ export class IntelligenceService {
           orderBy: { confidence: 'desc' },
         }),
       ),
-      // kg_walk is a server-side graph-traversal function that fans out to
-      // depth=2 with LIMIT 500. On warm Aurora it usually finishes in 1-2s
-      // but cold-cache or large graphs push it to 5-8s, which used to blow
-      // past the 5s default $transaction timeout and 500 the entire
-      // /api/intelligence/client-profile-v1/:clientId endpoint. Give this
-      // specific tenant transaction a 30s ceiling.
-      this.prisma.withTenant(
-        tenantId,
-        (tx) =>
-          tx.$queryRaw<
-            Array<{
-              depth: number;
-              src_kind: string;
-              src_id: string;
-              dst_kind: string;
-              dst_id: string;
-              edge_type: string;
-              confidence: number | null;
-              source: string | null;
-              observed_at: Date | null;
-              tenant_id: string | null;
-            }>
-          >`
-          SELECT depth, src_kind, src_id, dst_kind, dst_id, edge_type, confidence, source, observed_at, tenant_id
-          FROM kg_walk('client', ${clientId}, 2, NULL)
-          LIMIT 500
-        `,
-        { timeoutMs: 30_000 },
-      ),
+      // Bounded, tenant + wall-scoped kg_walk_bounded over the materialized
+      // kg_edge_cache. Capped by SET LOCAL statement_timeout (10s) inside the
+      // walk tx and a 30s tx ceiling. Fail-safe: a walk error degrades to an
+      // empty edge set so the client + mappings still render (the endpoint does
+      // not 500 the moment KG_INTEL_GRAPH is flipped to scoped).
+      this.walkClientGraph(tenantId, clientId, viewerUserId).catch((err) => {
+        this.logger.warn(
+          `kg_walk_bounded failed for client ${clientId}; rendering client+mappings only: ${
+            err instanceof Error ? err.message : String(err)
+          }`,
+        );
+        return [] as Awaited<ReturnType<typeof this.walkClientGraph>>;
+      }),
     ]);
 
     const clientLabel = client?.name ?? clientId;

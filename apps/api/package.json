@@ -35,6 +35,7 @@
     "sync:openlobby": "tsx scripts/sync-openlobby.ts",
     "sync:lobby-trending": "tsx scripts/sync-lobby-trending.ts",
     "refresh:lobby-intel": "tsx scripts/refresh-lobby-intel-mv.ts",
+    "refresh:kg-edge-cache": "tsx scripts/refresh-kg-edge-cache.ts",
     "sync:openspending": "tsx scripts/sync-openspending.ts",
     "sync:lda": "tsx scripts/sync-lda.ts",
     "sync:lda:incremental": "tsx scripts/sync-lda.ts --incremental",

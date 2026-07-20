@@ -98,7 +98,11 @@ describe('Phase 3 (3a) — memory private rows are fail-closed', () => {
     expect((store.match(/withTenantUser\(/g) ?? []).length).toBeGreaterThanOrEqual(4);
 
     const meriTools = readFileSync(join(SRC_ROOT, 'meri', 'meri-tools.service.ts'), 'utf8');
-    expect(meriTools).toMatch(/loadGraphForCtx[\s\S]{0,80}withTenantUser\(/);
+    // loadGraphForCtx must open its graph tx via withTenantUser (both GUCs), not
+    // plain withTenant. Window widened for the Track B kgSource resolution line
+    // that now sits between the method head and the withTenantUser( call; the
+    // guard still fails if the tx opener regresses to withTenant(.
+    expect(meriTools).toMatch(/loadGraphForCtx[\s\S]{0,260}withTenantUser\(/);
 
     // G1: the compiler is now THE memory_items steering read path — it must
     // ride withTenantUser whenever a user is known (both GUCs; the 1C policy

@@ -42,6 +42,11 @@ import { MemoryIngestService } from '../memory/memory-ingest.service.js';
 import { MemoryCandidateService } from '../memory/memory-candidate.service.js';
 import { MemoryStoreService } from '../memory/memory-store.service.js';
 import { fetchDeniedClientIds, wallExclusionSql } from '../memory/memory-wall.helpers.js';
+import { enrichFromKgCache } from '../memory/kg-cache-enrich.helpers.js';
+import {
+  pickKgTraversalSource,
+  type KgTraversalSource,
+} from './memory-recall-source.helpers.js';
 import {
   ClientFacilitiesService,
   type CreateFacilityInput,
@@ -1822,8 +1827,33 @@ export class MeriToolsService {
    * builders (buildKnowledgeGraph/walkFrom) do the merge; this just gathers
    * inputs under the passed ctx. Shared by query_knowledge_graph + find_path_to.
    */
+  /** Track B: per-tenant traversal source (env + settings override), resolved
+   *  before the graph tx so the cache branch gets a larger timeout up front. */
+  private async resolveKgTraversalSource(tenantId: string): Promise<KgTraversalSource> {
+    const env = (this.config.get('KG_TRAVERSAL_SOURCE', { infer: true }) ??
+      'legacy') as KgTraversalSource;
+    try {
+      const tenant = await this.prisma.withTenant(tenantId, (tx) =>
+        tx.tenant.findFirst({ where: { id: tenantId }, select: { settings: true } }),
+      );
+      return pickKgTraversalSource(env, tenant?.settings ?? null);
+    } catch (err) {
+      // Fail toward env (house pattern) but make it observable.
+      this.logger.warn(
+        `kgTraversalSource settings read failed for tenant ${tenantId}; using env='${env}': ${
+          err instanceof Error ? err.message : String(err)
+        }`,
+      );
+      return env;
+    }
+  }
+
   private async loadGraphForCtx(ctx: TenantContext) {
-    return this.prisma.withTenantUser(ctx.tenantId, ctx.userId, async (tx) => {
+    const kgSource = await this.resolveKgTraversalSource(ctx.tenantId);
+    return this.prisma.withTenantUser(
+      ctx.tenantId,
+      ctx.userId,
+      async (tx) => {
       // Ethical wall: memory items + graph edges of walled clients this user is
       // not granted are excluded (fail-closed; empty denied set adds no SQL).
       const denied = await fetchDeniedClientIds(tx, ctx.tenantId, ctx.userId);
@@ -1891,8 +1921,39 @@ export class MeriToolsService {
       const fkVisible = deniedSet.size
         ? fk.filter((r) => !(r.srcType === 'client' && deniedSet.has(r.srcSlug)))
         : fk;
-      return buildKnowledgeGraph(fkVisible, wiki, itemNodeById);
-    });
+
+      // Track B enrichment: when this tenant is on the cache traversal source,
+      // layer the world-class canonical relationships (aggregated FEC money
+      // flow, LDA lobbying, intel mappings) around the visible clients via
+      // seed-based bounded walks. Fail-safe: enrichment errors degrade to the
+      // plain System-A graph — the tools never lose their baseline.
+      let fkAll = fkVisible;
+      if (kgSource === 'cache') {
+        try {
+          // Bound the enrichment phase server-side — kg_walk_bounded's fn-scoped
+          // statement_timeout is inert, so SET LOCAL is the real RC3 guard.
+          await tx.$executeRawUnsafe(`SET LOCAL statement_timeout = '8s'`);
+          const clients = await tx.$queryRaw<Array<{ id: string; name: string }>>`
+            SELECT id, name FROM clients
+            WHERE tenant_id = ${ctx.tenantId}::uuid AND status <> 'archived'
+            ORDER BY updated_at DESC
+          `;
+          const enriched = await enrichFromKgCache(tx, {
+            tenantId: ctx.tenantId,
+            deniedClientIds: denied,
+            clients: clients.filter((c) => !deniedSet.has(c.id)),
+          });
+          fkAll = [...fkVisible, ...enriched.relations];
+        } catch {
+          // graph tools keep their System-A baseline on any enrichment failure
+        }
+      }
+      return buildKnowledgeGraph(fkAll, wiki, itemNodeById);
+      },
+      // The cache branch runs bounded walks sequentially; match the intel graph
+      // path's 30s ceiling instead of the 5s interactive-tx default.
+      kgSource === 'cache' ? { timeoutMs: 30_000 } : undefined,
+    );
   }
 
   private async queryKnowledgeGraph(ctx: TenantContext, input: Record<string, unknown>) {

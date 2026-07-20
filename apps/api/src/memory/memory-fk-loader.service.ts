@@ -1,8 +1,15 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, Logger } from '@nestjs/common';
+import { ConfigService } from '@nestjs/config';
+import type { AppConfig } from '../config/config.schema.js';
 import { PrismaService } from '../prisma/prisma.service.js';
 import { TenantContextStore } from '../tenant/tenant-context.store.js';
 import type { FkRelation } from './memory-graph.helpers.js';
 import { fetchDeniedClientIds } from './memory-wall.helpers.js';
+import { enrichFromKgCache } from './kg-cache-enrich.helpers.js';
+import {
+  pickKgTraversalSource,
+  type KgTraversalSource,
+} from '../meri/memory-recall-source.helpers.js';
 
 /**
  * Loads authoritative DB foreign-key relations for the current tenant and
@@ -18,19 +25,52 @@ import { fetchDeniedClientIds } from './memory-wall.helpers.js';
  */
 @Injectable()
 export class MemoryFkLoader {
+  private readonly logger = new Logger(MemoryFkLoader.name);
+
   constructor(
     private readonly prisma: PrismaService,
     private readonly tenantCtx: TenantContextStore,
+    private readonly config: ConfigService<AppConfig>,
   ) {}
+
+  /**
+   * Track B: effective traversal source for this tenant — the KG_TRAVERSAL_SOURCE
+   * env with a per-tenant settings_jsonb.clioFeatureFlags.kgTraversalSource
+   * override (the canary lever). Resolved OUTSIDE the main graph transaction so
+   * the cache branch can be given a larger interactive-tx timeout up front.
+   */
+  private async resolveKgTraversalSource(tenantId: string): Promise<KgTraversalSource> {
+    const env = (this.config.get('KG_TRAVERSAL_SOURCE', { infer: true }) ??
+      'legacy') as KgTraversalSource;
+    try {
+      const tenant = await this.prisma.withTenant(tenantId, (tx) =>
+        tx.tenant.findFirst({ where: { id: tenantId }, select: { settings: true } }),
+      );
+      return pickKgTraversalSource(env, tenant?.settings ?? null);
+    } catch (err) {
+      // Fail toward env (house pattern) but make it observable — a per-tenant
+      // off-override silently flapping back to an enabled env is undiagnosable.
+      this.logger.warn(
+        `kgTraversalSource settings read failed for tenant ${tenantId}; using env='${env}': ${
+          err instanceof Error ? err.message : String(err)
+        }`,
+      );
+      return env;
+    }
+  }
 
   async loadForCurrentTenant(): Promise<FkRelation[]> {
     const ctx = this.tenantCtx.require();
-    return this.prisma.withTenant(ctx.tenantId, async (tx) => {
+    const kgSource = await this.resolveKgTraversalSource(ctx.tenantId);
+    return this.prisma.withTenant(
+      ctx.tenantId,
+      async (tx) => {
       // Ethical wall: every relation rooted at a walled client this user is
       // not granted is dropped before it reaches the graph (fail-closed) —
       // including that client's meetings' attendee edges, which would
       // otherwise dangle and leak the meeting subject.
-      const deniedSet = new Set(await fetchDeniedClientIds(tx, ctx.tenantId, ctx.userId));
+      const denied = await fetchDeniedClientIds(tx, ctx.tenantId, ctx.userId);
+      const deniedSet = new Set(denied);
       const deniedMeetingIds = new Set<string>();
       const out: FkRelation[] = [];
 
@@ -172,9 +212,49 @@ export class MemoryFkLoader {
         });
       }
 
-      return deniedSet.size
+      const backbone = deniedSet.size
         ? out.filter((r) => !(r.srcType === 'client' && deniedSet.has(r.srcSlug)))
         : out;
-    });
+
+      if (kgSource !== 'cache') return backbone;
+
+      // Track B enrichment: seed-based bounded walks over the materialized
+      // kg_edge_cache around this tenant's visible clients (money flow,
+      // lobbying, intel mappings). Fail-safe: an enrichment error degrades to
+      // the plain backbone, never breaks the graph panel.
+      try {
+        // Bound EVERY statement in the enrichment phase server-side.
+        // kg_walk_bounded's fn-scoped statement_timeout is inert (a fn-level SET
+        // cannot re-arm the invoking statement's timer), so SET LOCAL here is
+        // the real guard against an RC3-class pooled-connection hold on a dense
+        // hub or a slow label lookup. Auto-resets on tx commit.
+        await tx.$executeRawUnsafe(`SET LOCAL statement_timeout = '8s'`);
+        const clients = await tx.$queryRaw<Array<{ id: string; name: string }>>`
+          SELECT id, name FROM clients
+          WHERE tenant_id = ${ctx.tenantId}::uuid AND status <> 'archived'
+          ORDER BY updated_at DESC
+        `;
+        const enriched = await enrichFromKgCache(tx, {
+          tenantId: ctx.tenantId,
+          deniedClientIds: denied,
+          clients: clients.filter((c) => !deniedSet.has(c.id)),
+        });
+        if (enriched.truncated) {
+          this.logger.debug(
+            `kg cache enrichment truncated: ${enriched.clientsWalked}/${enriched.clientsTotal} clients, ${enriched.relations.length} edges`,
+          );
+        }
+        return [...backbone, ...enriched.relations];
+      } catch (err) {
+        this.logger.warn(
+          `kg cache enrichment failed; serving plain backbone: ${err instanceof Error ? err.message : String(err)}`,
+        );
+        return backbone;
+      }
+      },
+      // The cache branch runs bounded walks sequentially; give it the same
+      // 30s ceiling the intel graph path uses instead of the 5s default.
+      kgSource === 'cache' ? { timeoutMs: 30_000 } : undefined,
+    );
   }
 }

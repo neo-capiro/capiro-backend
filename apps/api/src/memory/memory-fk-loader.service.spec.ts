@@ -30,7 +30,12 @@ describe('MemoryFkLoader — office edges (Phase 5)', () => {
     const tenantCtx = {
       require: () => ({ tenantId: 't1', userId: 'u1' }),
     } as unknown as ConstructorParameters<typeof MemoryFkLoader>[1];
-    return { loader: new MemoryFkLoader(prisma, tenantCtx), captured };
+    // KG_TRAVERSAL_SOURCE unset → 'legacy' → the Track B cache enrichment stays
+    // out of these FK-behavior tests (they exercise the System-A backbone only).
+    const config = {
+      get: () => undefined,
+    } as unknown as ConstructorParameters<typeof MemoryFkLoader>[2];
+    return { loader: new MemoryFkLoader(prisma, tenantCtx, config), captured };
   }
 
   it('emits a tenant-scoped client->office edge from engagement_report_target_offices', async () => {

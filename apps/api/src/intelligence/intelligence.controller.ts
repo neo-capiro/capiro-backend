@@ -7,7 +7,6 @@ import {
   Delete,
   Query,
   Body,
-  ServiceUnavailableException,
   UseGuards,
 } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
@@ -396,17 +395,18 @@ export class IntelligenceController {
 
   @Get('clients/:clientId/knowledge-graph')
   getKnowledgeGraph(@CurrentTenant() ctx: TenantContext, @Param('clientId') clientId: string) {
-    // Track B P1: this route calls kg_walk over the RLS-EXEMPT master-owned
-    // kg_* views (no tenant/wall scoping) and has zero web consumers. Gate it
-    // OFF by default (503) until the scoped bounded traversal replaces it, so
-    // the unscoped surface is not reachable. Flip KG_INTEL_GRAPH='scoped' only
-    // once the wall/tenant-scoped path lands.
-    if (this.config.get('KG_INTEL_GRAPH', { infer: true }) === 'off') {
-      throw new ServiceUnavailableException(
-        'Knowledge-graph endpoint is disabled (KG_INTEL_GRAPH=off) pending the scoped traversal.',
-      );
-    }
-    return this.service.getKnowledgeGraph(clientId, ctx.tenantId);
+    // Track B cutover: served ONLY on the tenant + ethical-wall scoped path.
+    // The gates resolve PER-TENANT inside the service (settings_jsonb
+    // clioFeatureFlags.kgIntelGraph / kgTraversalSource override the env
+    // values passed here) — both must land on scoped+cache or the request
+    // 503s. The legacy UNSCOPED kg_walk is never served from this route.
+    return this.service.getKnowledgeGraph(clientId, ctx.tenantId, {
+      viewerUserId: ctx.userId,
+      envIntelGraphOn: this.config.get('KG_INTEL_GRAPH', { infer: true }) === 'scoped',
+      envTraversalSource: this.config.get('KG_TRAVERSAL_SOURCE', { infer: true }) as
+        | 'legacy'
+        | 'cache',
+    });
   }
 
   // ── Feature 4.3: Outreach Context ──────────────────────────────────────
