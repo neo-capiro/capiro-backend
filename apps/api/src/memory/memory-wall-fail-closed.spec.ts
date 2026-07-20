@@ -86,6 +86,22 @@ describe('Ethical walls — every memory read surface applies the wall', () => {
     expect(text).toContain('ForbiddenException');
   });
 
+  it('memory.controller.ts: PUT sections on a walled client 403s (no skeleton-clobber write)', () => {
+    const text = read(join(SRC_ROOT, 'memory', 'memory.controller.ts'));
+    // The client-scope write path must gate on the wall before upsertSections —
+    // otherwise the wall-hidden read makes the write rebuild from skeleton and
+    // clobber the real row. Assert the gate sits in the updateSections handler.
+    const put = text.slice(text.indexOf('updateSections'));
+    expect(put).toContain('clientMemoryAllowedForCurrentUser(clientId)');
+  });
+
+  it('context-compiler.service.ts: client steering load is wall-gated (app-layer, not RLS-only)', () => {
+    const text = read(join(SRC_ROOT, 'context', 'context-compiler.service.ts'));
+    // Client steering must load only when the caller may see the client — the
+    // sole enforcement in an env whose capiro_app RLS is not yet hardened.
+    expect(text).toContain('clientMemoryAllowed(tx, req.tenantId, req.userId ?? null');
+  });
+
   it('memory-candidate.service.ts: the review queue withholds walled clients from non-granted reviewers', () => {
     const text = read(join(SRC_ROOT, 'memory', 'memory-candidate.service.ts'));
     expect(text).toContain('fetchDeniedClientIds(tx, tenantId, viewerUserId)');

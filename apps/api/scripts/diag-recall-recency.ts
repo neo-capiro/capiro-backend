@@ -84,7 +84,9 @@ async function main(): Promise<void> {
       return tx.$queryRawUnsafe<SampleRow[]>(
         `SELECT mi.tenant_id,
                 mi.id,
-                EXTRACT(EPOCH FROM (now() - COALESCE(mi.last_confirmed_at, mi.updated_at, mi.created_at))) / 86400 AS age_days,
+                -- Match projectionRecall: recency from last_confirmed_at else
+                -- created_at (NOT updated_at, which re-projection bumps).
+                EXTRACT(EPOCH FROM (now() - COALESCE(mi.last_confirmed_at, mi.created_at))) / 86400 AS age_days,
                 mi.confidence,
                 ce.embedding::text AS embedding
            FROM memory_items mi

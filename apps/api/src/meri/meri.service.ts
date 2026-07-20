@@ -3602,11 +3602,14 @@ export class MeriService {
           observed_at: Date | null;
         }>
       >(
-        // Phase 5: also select the freshness timestamp (last_confirmed_at wins,
-        // else updated_at, else created_at) and the Phase-4 confidence, both
-        // consulted ONLY when rerankOn. The wall/owner/expiry gate is unchanged.
+        // Phase 5: freshness timestamp for recency decay. Deliberately does NOT
+        // use updated_at — the nightly backfill re-upserts every projected row,
+        // bumping updated_at to now() and flattening recency to ~1 for all rows.
+        // last_confirmed_at (human re-affirmation) wins; else created_at (first
+        // projection ≈ when first learned), which ON CONFLICT never rewrites.
+        // Confidence + this are consulted ONLY when rerankOn.
         `SELECT mi.title, mi.sections_jsonb AS sections, mi.confidence AS confidence,
-                COALESCE(mi.last_confirmed_at, mi.updated_at, mi.created_at) AS observed_at,
+                COALESCE(mi.last_confirmed_at, mi.created_at) AS observed_at,
                 1 - (ce.embedding <=> '${literal}'::vector) AS score
            FROM context_embeddings ce
            JOIN memory_items mi ON mi.id::text = ce.source_id
@@ -3625,10 +3628,17 @@ export class MeriService {
         clientArm,
       );
     });
-    // Titan-space floor (MEMORY_PROJECTION_MIN_SCORE, default 0.4) on RAW
-    // similarity — thresholds unchanged, so the set of floor-passing rows is
-    // identical to pre-Phase-5. Rerank only REORDERS survivors + (via over-fetch)
-    // can promote a fresh one; it never resurrects a below-floor row.
+    // Titan-space floor (MEMORY_PROJECTION_MIN_SCORE, default 0.4) applied on RAW
+    // similarity, BEFORE rerank — so rerank only REORDERS floor-passing survivors
+    // (+ via over-fetch can promote a fresh one) and never resurrects a below-
+    // floor row. NOTE: this floor is a Phase-2 feature that is ACTIVE by default
+    // (not gated) — it was added because the projection path previously had none;
+    // it is safe under 'union' (clio arm is unfloored, so union ⊇ clio holds).
+    // CAVEAT for a future 'projection'-MODE flip: an empty floored result does
+    // NOT fall back to clio, and Titan (0.4) vs OpenAI (0.3) scales are
+    // incomparable — so projection mode can drop a query the clio path would
+    // answer. The wouldDropOnCollapse parity gate is membership-based and will
+    // NOT catch that score-based drop; re-tune/validate before any projection flip.
     const minScore =
       (this.config.get('MEMORY_PROJECTION_MIN_SCORE', { infer: true }) as number | undefined) ??
       0.4;

@@ -202,6 +202,14 @@ export class MemoryController {
     // User files key on the caller's own id — ignore any slug spoof.
     const effectiveSlug = scope === 'user' ? ctx.userId : slug;
     const clientId = scope === 'client' ? slug : null;
+    // Ethical wall (fail-closed, binds admins too): a non-granted user must not
+    // WRITE a walled client's file. Without this, the wall hides the existing
+    // row from the read path, so upsertSections would rebuild it from the
+    // catalog skeleton and clobber the real content via the RLS-bypassing
+    // upsertSystem. 403 loudly rather than silently corrupt.
+    if (clientId && !(await this.store.clientMemoryAllowedForCurrentUser(clientId))) {
+      throw new ForbiddenException('This client is behind an ethical wall you are not granted.');
+    }
     const updated = await this.store.upsertSectionsForCurrentTenant(
       type,
       effectiveSlug,

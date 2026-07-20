@@ -324,14 +324,18 @@ export class MemoryStoreService {
           -- confidence independently of the clio source, move it OUT of this SET
           -- (a nightly re-projection would otherwise clobber the boost).
           confidence = EXCLUDED.confidence,
-          -- Phase 6 provenance: refresh the ingest lineage on every re-projection
-          -- (which pass last touched it), but NEVER downgrade a human-'confirmed'
-          -- row back to a machine review_state — a re-projection is not a review.
-          ingest_run_id = EXCLUDED.ingest_run_id,
-          ingested_at = EXCLUDED.ingested_at,
+          -- Phase 6 provenance: only advance lineage when THIS write is part of
+          -- an ingest run (EXCLUDED.ingest_run_id non-null). A ctx-less write-
+          -- through (projectClioMemory) passes NULL and must PRESERVE the row's
+          -- existing lineage + review_state — otherwise every user save would
+          -- null the run id and downgrade 'unreviewed' back to 'auto'. And a
+          -- human-'confirmed' row is never downgraded by any re-projection.
+          ingest_run_id = COALESCE(EXCLUDED.ingest_run_id, memory_items.ingest_run_id),
+          ingested_at = COALESCE(EXCLUDED.ingested_at, memory_items.ingested_at),
           review_state = CASE
             WHEN memory_items.review_state = 'confirmed' THEN 'confirmed'
-            ELSE EXCLUDED.review_state
+            WHEN EXCLUDED.ingest_run_id IS NOT NULL THEN EXCLUDED.review_state
+            ELSE memory_items.review_state
           END,
           updated_at = now()
         RETURNING id

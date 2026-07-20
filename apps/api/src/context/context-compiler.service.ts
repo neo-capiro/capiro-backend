@@ -10,6 +10,7 @@ import {
   typesForLayers,
 } from '@capiro/meriv2-core';
 import { PrismaService } from '../prisma/prisma.service.js';
+import { clientMemoryAllowed } from '../memory/memory-wall.helpers.js';
 
 /**
  * apps/api's Context Compiler v1 (G1, blueprint §4.6.4): the ONE steering-
@@ -46,7 +47,7 @@ export class ContextCompilerService {
 
   private async loadSteeringRows(req: ContextRequest): Promise<SteeringRow[]> {
     const wantsUser = hasLayer(req.layers, 'user-voice') && !!req.userId;
-    const wantsClient =
+    const wantsClientReq =
       (hasLayer(req.layers, 'client-steering') || hasLayer(req.layers, 'client-people')) &&
       !!req.clientId;
     const wantsFirm =
@@ -60,29 +61,35 @@ export class ContextCompilerService {
       req.layers.filter((l) => l === 'client-steering' || l === 'client-people'),
     );
 
-    // One combined query. Branch predicates are ANDed with the layer selection
-    // so unrequested families are never loaded. Status is NOT filtered here —
-    // see the class doc.
-    const sql = Prisma.sql`
-      SELECT id, type, slug, title, client_id AS "clientId", status,
-             expires_at AS "expiresAt", sections_jsonb AS sections
-      FROM memory_items
-      WHERE (
-        (${wantsFirm} AND type = ANY(${firmTypes}) AND slug = 'firm')
-        OR (${wantsUser} AND type = ANY(${userTypes})
-            AND owner_user_id = ${req.userId ?? null}::uuid)
-        OR (${wantsClient} AND type = ANY(${clientTypes})
-            AND client_id = ${req.clientId ?? null}::uuid)
-      )
-    `;
+    // The wall check + query run in ONE transaction so the ethical-wall gate is
+    // applied app-side here too (defense in depth alongside the wall-aware RLS
+    // policy; and the sole enforcement in an env whose capiro_app RLS is not yet
+    // hardened, e.g. prod pre-remediation). Client steering loads only when this
+    // user may see the client; fail-closed for a walled client / unknown user.
+    const run = async (tx: Prisma.TransactionClient): Promise<SteeringRow[]> => {
+      const wantsClient =
+        wantsClientReq &&
+        (await clientMemoryAllowed(tx, req.tenantId, req.userId ?? null, req.clientId as string));
+      const sql = Prisma.sql`
+        SELECT id, type, slug, title, client_id AS "clientId", status,
+               expires_at AS "expiresAt", sections_jsonb AS sections
+        FROM memory_items
+        WHERE (
+          (${wantsFirm} AND type = ANY(${firmTypes}) AND slug = 'firm')
+          OR (${wantsUser} AND type = ANY(${userTypes})
+              AND owner_user_id = ${req.userId ?? null}::uuid)
+          OR (${wantsClient} AND type = ANY(${clientTypes})
+              AND client_id = ${req.clientId ?? null}::uuid)
+        )
+      `;
+      return tx.$queryRaw<SteeringRow[]>(sql);
+    };
 
     // withTenantUser whenever a user is known (harmless for tenant-visible
     // rows, required for private ones); withTenant otherwise.
     return req.userId
-      ? this.prisma.withTenantUser(req.tenantId, req.userId, (tx) =>
-          tx.$queryRaw<SteeringRow[]>(sql),
-        )
-      : this.prisma.withTenant(req.tenantId, (tx) => tx.$queryRaw<SteeringRow[]>(sql));
+      ? this.prisma.withTenantUser(req.tenantId, req.userId, run)
+      : this.prisma.withTenant(req.tenantId, run);
   }
 
   private async persistPacket(packet: CompiledContextPacket): Promise<void> {

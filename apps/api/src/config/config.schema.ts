@@ -125,19 +125,37 @@ export const configSchema = z.object({
   MERI_CONTEXT_BUDGET_UNIT: z.enum(['chars', 'tokens']).default('chars'),
 
   // ── Phase 6 — governed ingestion + retention (all default OFF/inert) ───────
-  // Route auto-learn through the memory_candidate governance flow instead of a
-  // direct clio_memory write. Default false = today's direct write (byte-
-  // identical). Flip on once the candidate audit trail is desired fleet-wide.
-  MEMORY_AUTOLEARN_GOVERNED: z.coerce.boolean().default(false),
-  // Expose GET /memory/learned (the "recently learned / unreviewed" surface).
-  // Default false ⇒ endpoint 404s and the web panel feature-detects it off.
-  MEMORY_LEARNED_SURFACE_ENABLED: z.coerce.boolean().default(false),
-  // Master switch for the retention purge routes + script execute path. Default
-  // false ⇒ POST /memory/purge/* returns 503 and the script refuses --execute.
-  MEMORY_PURGE_ENABLED: z.coerce.boolean().default(false),
-  // Nightly retention-policy purge pass in refresh-memory-graph. Default false ⇒
-  // no-op (mirrors the existing gated ephemeral sweep).
-  MEMORY_RETENTION_SWEEP: z.coerce.boolean().default(false),
+  // IMPORTANT: these use the house string-allowlist transform, NOT
+  // z.coerce.boolean() — the latter coerces via Boolean(str), so ANY non-empty
+  // value (incl. 'false'/'0'/'off') would evaluate TRUE and ARM a destructive
+  // route. Here ONLY 'true'/'1'/'yes'/'on' enable; anything else (incl. unset,
+  // 'false') stays off. Never rely on writing '=false' to disable — leave unset.
+  //
+  // MEMORY_PURGE_ENABLED — master switch for the retention purge routes + script
+  // execute path. Off ⇒ POST /memory/purge/* returns 503 and the script refuses
+  // --execute. (The other three are RESERVED — see note below.)
+  MEMORY_PURGE_ENABLED: z
+    .string()
+    .default('false')
+    .transform((v) => ['true', '1', 'yes', 'on'].includes(v.trim().toLowerCase())),
+  // RESERVED (consumer NOT yet built — flipping is currently a NO-OP; do not rely
+  // on it). MEMORY_AUTOLEARN_GOVERNED will route auto-learn through the candidate
+  // flow; today auto-learn still writes clio_memory directly regardless of this.
+  MEMORY_AUTOLEARN_GOVERNED: z
+    .string()
+    .default('false')
+    .transform((v) => ['true', '1', 'yes', 'on'].includes(v.trim().toLowerCase())),
+  // RESERVED (NO-OP today): GET /memory/learned surface is not yet implemented.
+  MEMORY_LEARNED_SURFACE_ENABLED: z
+    .string()
+    .default('false')
+    .transform((v) => ['true', '1', 'yes', 'on'].includes(v.trim().toLowerCase())),
+  // RESERVED (NO-OP today): the nightly retention-policy purge pass is not yet
+  // implemented in refresh-memory-graph.
+  MEMORY_RETENTION_SWEEP: z
+    .string()
+    .default('false')
+    .transform((v) => ['true', '1', 'yes', 'on'].includes(v.trim().toLowerCase())),
 
   // Phase 7A — recall-miss observability. Emit CloudWatch EMF metrics at the
   // memory-recall boundary (hit / empty / error). Default 'on' (side-effect-only,
