@@ -133,6 +133,25 @@ export interface MemoryItem {
    *  (human/legacy), treated as the NEUTRAL prior at recall (never demoted).
    *  Optional so every existing construction site stays valid. */
   confidence?: number | null;
+  /** Phase 6 — governed-ingestion provenance. The ingest-run pass that wrote
+   *  this row (null for pre-Phase-6 / non-ingest writes). Optional. */
+  ingestRunId?: string | null;
+  /** Phase 6 — when this row was (re)projected by an ingest pass. Optional. */
+  ingestedAt?: string | Date | null;
+  /** Phase 6 — 'auto' (structural/derived), 'unreviewed' (content projection
+   *  awaiting human confirm), or 'confirmed'. Default 'auto'. Optional. */
+  reviewState?: 'auto' | 'unreviewed' | 'confirmed';
+}
+
+/**
+ * Phase 6 — provenance context threaded from an ingest pass into upsertSystem so
+ * every projected row is stamped with its run id + review state. Absent ⇒ the
+ * write is unstamped (pre-Phase-6 behavior, byte-identical).
+ */
+export interface IngestContext {
+  runId: string;
+  trigger: 'cron' | 'manual_backfill' | 'write_through' | 'correction';
+  reviewState: 'auto' | 'unreviewed' | 'confirmed';
 }
 
 /** A typed wikilink target, e.g. { type: 'bill', slug: 'hr-1234' }. */
@@ -177,6 +196,9 @@ export function defaultMemoryGovernanceFields(): Pick<
   | 'exportable'
   | 'trainingUse'
   | 'confidence'
+  | 'ingestRunId'
+  | 'ingestedAt'
+  | 'reviewState'
 > {
   return {
     status: 'active',
@@ -194,5 +216,9 @@ export function defaultMemoryGovernanceFields(): Pick<
     // Phase 4 — unscored by default; the clio adapter overrides when the
     // source metadata carries a numeric confidence.
     confidence: null,
+    // Phase 6 — unstamped by default; upsertSystem stamps from IngestContext.
+    ingestRunId: null,
+    ingestedAt: null,
+    reviewState: 'auto',
   };
 }

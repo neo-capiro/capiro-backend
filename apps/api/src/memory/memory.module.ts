@@ -6,6 +6,7 @@ import { MemoryFkLoader } from './memory-fk-loader.service.js';
 import { MemoryIngestService } from './memory-ingest.service.js';
 import { MemoryInterviewService } from './memory-interview.service.js';
 import { MemoryCandidateService } from './memory-candidate.service.js';
+import { MemoryPurgeService } from './memory-purge.service.js';
 import { MeetingNotesCryptoService } from '../engagement/meeting-notes-crypto.service.js';
 import { MemoryController } from './memory.controller.js';
 import { InternalMemoryController } from './internal-memory.controller.js';
@@ -32,8 +33,9 @@ import { InternalMemoryController } from './internal-memory.controller.js';
     MemoryIngestService,
     MemoryInterviewService,
     MemoryCandidateService,
+    MemoryPurgeService,
     MeetingNotesCryptoService,
   ],
-  exports: [MemoryStoreService, MemoryIngestService, MemoryCandidateService],
+  exports: [MemoryStoreService, MemoryIngestService, MemoryCandidateService, MemoryPurgeService],
 })
 export class MemoryModule {}

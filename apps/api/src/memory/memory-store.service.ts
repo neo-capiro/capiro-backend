@@ -2,7 +2,7 @@ import { Injectable, Logger } from '@nestjs/common';
 import { Prisma } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service.js';
 import { TenantContextStore } from '../tenant/tenant-context.store.js';
-import type { MemoryItem, MemoryItemType, MemorySection } from './memory.types.js';
+import type { IngestContext, MemoryItem, MemoryItemType, MemorySection } from './memory.types.js';
 import { MEMORY_SCHEMA_VERSION, defaultMemoryGovernanceFields } from './memory.types.js';
 import { renderMemoryItem, vaultPathForItem } from './memory-render.helpers.js';
 import { extractWikiLinks } from './memory-parse.helpers.js';
@@ -158,6 +158,19 @@ export class MemoryStoreService {
     );
   }
 
+  /** Phase 6 — tenant-scoped client name lookup for the purge confirm guard. */
+  async getClientNameForCurrentTenant(clientId: string): Promise<{ name: string } | null> {
+    const ctx = this.tenantCtx.require();
+    return this.prisma.withTenant(ctx.tenantId, async (tx) => {
+      const rows = await tx.$queryRaw<Array<{ name: string }>>`
+        SELECT name FROM clients
+        WHERE id = ${clientId}::uuid AND tenant_id = ${ctx.tenantId}::uuid
+        LIMIT 1
+      `;
+      return rows[0] ?? null;
+    });
+  }
+
   /** Fetch one item by type+slug for the current tenant (markdown retrieval). */
   async getByTypeSlug(type: MemoryItemType, slug: string): Promise<MemoryItem | null> {
     const ctx = this.tenantCtx.require();
@@ -241,7 +254,13 @@ export class MemoryStoreService {
    * its wikilink edges. Used by ingestion workers and seeding (not per-request
    * user writes, which go through withTenant).
    */
-  async upsertSystem(item: MemoryItem): Promise<string> {
+  async upsertSystem(item: MemoryItem, ctx?: IngestContext): Promise<string> {
+    // Phase 6: governed-ingestion provenance. When an ingest pass supplies a
+    // context, stamp the run id + timestamp + review_state; absent ⇒ NULL/'auto'
+    // (byte-identical to pre-Phase-6). review_state advances auto→unreviewed for
+    // content items but the ON CONFLICT SET below never resets a 'confirmed' row.
+    const ingestRunId = ctx?.runId ?? item.ingestRunId ?? null;
+    const reviewState = ctx?.reviewState ?? item.reviewState ?? 'auto';
     return this.prisma.withSystem(async (tx) => {
       const rows = await tx.$queryRaw<Array<{ id: string }>>`
         INSERT INTO memory_items (
@@ -249,7 +268,7 @@ export class MemoryStoreService {
           slug, title, aliases, tags, source, source_ref, provenance,
           sections_jsonb, schema_version,
           status, sensitivity, legal_hold, exportable, training_use, expires_at,
-          confidence
+          confidence, ingest_run_id, ingested_at, review_state
         ) VALUES (
           ${item.tenantId}::uuid,
           ${item.clientId}::uuid,
@@ -272,7 +291,10 @@ export class MemoryStoreService {
           ${item.exportable ?? true},
           ${item.trainingUse ?? 'excluded'},
           ${item.expiresAt ? new Date(item.expiresAt) : null},
-          ${item.confidence ?? null}
+          ${item.confidence ?? null},
+          ${ingestRunId}::uuid,
+          ${ctx ? new Date() : null},
+          ${reviewState}
         )
         -- Governance/temporal columns (status, legal_hold, revoked_*, etc.)
         -- are deliberately NOT in this UPDATE SET: upsertSystem is also the
@@ -302,6 +324,15 @@ export class MemoryStoreService {
           -- confidence independently of the clio source, move it OUT of this SET
           -- (a nightly re-projection would otherwise clobber the boost).
           confidence = EXCLUDED.confidence,
+          -- Phase 6 provenance: refresh the ingest lineage on every re-projection
+          -- (which pass last touched it), but NEVER downgrade a human-'confirmed'
+          -- row back to a machine review_state — a re-projection is not a review.
+          ingest_run_id = EXCLUDED.ingest_run_id,
+          ingested_at = EXCLUDED.ingested_at,
+          review_state = CASE
+            WHEN memory_items.review_state = 'confirmed' THEN 'confirmed'
+            ELSE EXCLUDED.review_state
+          END,
           updated_at = now()
         RETURNING id
       `;

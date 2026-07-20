@@ -113,7 +113,8 @@ async function main(): Promise<void> {
       role: 'capiro_admin',
     };
     try {
-      const counts = await tenantCtx.run(ctx, () => ingest.backfillCurrentTenant());
+      // Phase 6: the nightly pass opens an auditable memory_ingest_run tagged 'cron'.
+      const counts = await tenantCtx.run(ctx, () => ingest.backfillCurrentTenant('cron'));
       console.log(`[${t.slug}] ${JSON.stringify(counts)}`);
     } catch (err) {
       console.error(`[${t.slug}] FAILED: ${(err as Error).message}`);

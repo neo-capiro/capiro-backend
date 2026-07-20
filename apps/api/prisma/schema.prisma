@@ -254,6 +254,7 @@ model Tenant {
   memoryItems                  MemoryItem[]
   memoryEdges                  MemoryEdge[]
   memoryCandidates             MemoryCandidate[]
+  memoryIngestRuns             MemoryIngestRun[]
   clientMemoryAccessGrants     ClientMemoryAccess[]
 
   @@map("tenants")
@@ -5289,9 +5290,18 @@ model MemoryItem {
   /// read as the NEUTRAL prior at recall (never demoted). Backfilled from
   /// clio_memory.metadata_jsonb.confidence over the clio: projection linkage.
   confidence        Float?
+  /// Phase 6 — governed-ingestion provenance. ingestRunId links to the
+  /// memory_ingest_run pass that wrote/refreshed this row; reviewState is
+  /// 'auto' (structural/derived, no review needed), 'unreviewed' (a content
+  /// projection awaiting a human confirm in the learned-surface UI), or
+  /// 'confirmed'. Default 'auto' ⇒ existing rows + recall unchanged.
+  ingestRunId       String?   @map("ingest_run_id") @db.Uuid
+  ingestedAt        DateTime? @map("ingested_at") @db.Timestamptz(6)
+  reviewState       String    @default("auto") @map("review_state") @db.VarChar(16)
 
-  tenant Tenant       @relation(fields: [tenantId], references: [id], onDelete: Cascade)
-  edges  MemoryEdge[]
+  tenant    Tenant           @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  edges     MemoryEdge[]
+  ingestRun MemoryIngestRun? @relation(fields: [ingestRunId], references: [id], onDelete: SetNull)
 
   supersedes     MemoryItem?  @relation("MemoryItemSupersession", fields: [supersedesId], references: [id], onDelete: SetNull)
   supersededBy   MemoryItem[] @relation("MemoryItemSupersession")
@@ -5366,6 +5376,29 @@ model MemoryCandidate {
   @@index([tenantId, status], map: "memory_candidate_tenant_status_idx")
   @@index([tenantId, proposedBy], map: "memory_candidate_tenant_proposed_by_idx")
   @@map("memory_candidate")
+}
+
+/// Phase 6 — governed-ingestion provenance ledger. One row per backfill / cron /
+/// write-through / correction pass into the memory store, capturing actor +
+/// trigger + counts, so every projected memory_items row can be traced to an
+/// auditable pass (memory_items.ingest_run_id). RLS-FORCED on tenant_id.
+model MemoryIngestRun {
+  id           String    @id @default(uuid()) @db.Uuid
+  tenantId     String    @map("tenant_id") @db.Uuid
+  /// cron | manual_backfill | write_through | correction (CHECK-enforced).
+  trigger      String    @db.VarChar(24)
+  actorUserId  String?   @map("actor_user_id") @db.Uuid
+  startedAt    DateTime  @default(now()) @map("started_at") @db.Timestamptz(6)
+  finishedAt   DateTime? @map("finished_at") @db.Timestamptz(6)
+  /// running | completed | failed (CHECK-enforced).
+  status       String    @default("running") @db.VarChar(16)
+  counts       Json      @default("{}") @map("counts_jsonb")
+
+  tenant Tenant       @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  items  MemoryItem[]
+
+  @@index([tenantId, startedAt(sort: Desc)], map: "memory_ingest_run_tenant_started_idx")
+  @@map("memory_ingest_run")
 }
 
 // ─────────────────────────────────────────────────────────────────────────

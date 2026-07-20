@@ -17,6 +17,9 @@ describe('MemoryIngestService — Phase E (Meri sessions from clio_*)', () => {
     const upserted: MemoryItem[] = [];
 
     const tx = {
+      // Phase 6: provenance ledger writes (open/close memory_ingest_run) go
+      // through $executeRaw — the ingest run is inert audit plumbing here.
+      $executeRaw: (_strings: TemplateStringsArray, ..._vals: unknown[]) => Promise.resolve(1),
       $queryRaw: (strings: TemplateStringsArray, ..._vals: unknown[]) => {
         const sql = strings.join(' ? ');
         capturedSql.push(sql);

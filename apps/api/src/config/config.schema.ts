@@ -124,6 +124,21 @@ export const configSchema = z.object({
   // at the calibrated ratio). Flip out-of-band once token parity is confirmed.
   MERI_CONTEXT_BUDGET_UNIT: z.enum(['chars', 'tokens']).default('chars'),
 
+  // ── Phase 6 — governed ingestion + retention (all default OFF/inert) ───────
+  // Route auto-learn through the memory_candidate governance flow instead of a
+  // direct clio_memory write. Default false = today's direct write (byte-
+  // identical). Flip on once the candidate audit trail is desired fleet-wide.
+  MEMORY_AUTOLEARN_GOVERNED: z.coerce.boolean().default(false),
+  // Expose GET /memory/learned (the "recently learned / unreviewed" surface).
+  // Default false ⇒ endpoint 404s and the web panel feature-detects it off.
+  MEMORY_LEARNED_SURFACE_ENABLED: z.coerce.boolean().default(false),
+  // Master switch for the retention purge routes + script execute path. Default
+  // false ⇒ POST /memory/purge/* returns 503 and the script refuses --execute.
+  MEMORY_PURGE_ENABLED: z.coerce.boolean().default(false),
+  // Nightly retention-policy purge pass in refresh-memory-graph. Default false ⇒
+  // no-op (mirrors the existing gated ephemeral sweep).
+  MEMORY_RETENTION_SWEEP: z.coerce.boolean().default(false),
+
   // Outreach prompt-assembly version (plan W2). 'v1' = the legacy single-string
   // prompt + JSON context dump; 'v2' = PromptSpec v2 (real system prompt, context
   // precedence ladder, spotlighted untrusted content, no raw JSON dump). Defaults

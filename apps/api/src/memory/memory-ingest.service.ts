@@ -1,3 +1,4 @@
+import { randomUUID } from 'node:crypto';
 import { Injectable, Logger } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service.js';
 import { TenantContextStore } from '../tenant/tenant-context.store.js';
@@ -9,7 +10,7 @@ import {
   type NameResolver,
 } from './memory-clio-adapter.helpers.js';
 import { meetingToItem, emailThreadToItem, meriSessionToItem } from './memory-ingest.helpers.js';
-import type { MemoryItem } from './memory.types.js';
+import type { IngestContext, MemoryItem } from './memory.types.js';
 import { MEMORY_SCHEMA_VERSION, defaultMemoryGovernanceFields } from './memory.types.js';
 import { embedAndUpsert, normalize } from '../embeddings/embedder.js';
 import { MeetingNotesCryptoService } from '../engagement/meeting-notes-crypto.service.js';
@@ -65,8 +66,13 @@ export class MemoryIngestService {
     private readonly notesCrypto?: MeetingNotesCryptoService,
   ) {}
 
-  /** Run the full backfill for the current tenant. Returns per-phase counts. */
-  async backfillCurrentTenant(): Promise<{
+  /** Run the full backfill for the current tenant. Returns per-phase counts.
+   *  Phase 6: opens an auditable memory_ingest_run and stamps every projected
+   *  row with the run id + review_state (structural='auto', content projections
+   *  ='unreviewed'). `trigger` distinguishes a manual backfill from the cron. */
+  async backfillCurrentTenant(
+    trigger: IngestContext['trigger'] = 'manual_backfill',
+  ): Promise<{
     clients: number;
     clioMemories: number;
     meetings: number;
@@ -88,6 +94,15 @@ export class MemoryIngestService {
       failures: [] as Array<{ slug: string; error: string }>,
     };
 
+    // Phase 6: open the provenance run. Structural rows (clients) are 'auto';
+    // content projections (clio mirror, meetings, emails, sessions) are
+    // 'unreviewed' so they surface in the learned-review UI.
+    const runId = await this.openIngestRun(ctx.tenantId, trigger, ctx.userId ?? null);
+    const autoCtx: IngestContext = { runId, trigger, reviewState: 'auto' };
+    const contentCtx: IngestContext = { runId, trigger, reviewState: 'unreviewed' };
+    let runStatus: 'completed' | 'failed' = 'completed';
+    try {
+
     // ---- Phase A: client entity nodes ----
     const clients = await this.prisma.withSystem(
       (tx) =>
@@ -97,7 +112,7 @@ export class MemoryIngestService {
     );
     const nameResolver: NameResolver = buildClientNameResolver(clients);
     for (const c of clients) {
-      await this.store.upsertSystem(clientToItem(ctx.tenantId, c));
+      await this.store.upsertSystem(clientToItem(ctx.tenantId, c), autoCtx);
       counts.clients++;
     }
 
@@ -118,7 +133,7 @@ export class MemoryIngestService {
         createdAt: new Date(m.createdAt as unknown as string).toISOString(),
         updatedAt: new Date(m.updatedAt as unknown as string).toISOString(),
       };
-      await this.store.upsertSystem(clioMemoryToItem(row, nameResolver));
+      await this.store.upsertSystem(clioMemoryToItem(row, nameResolver), contentCtx);
       counts.clioMemories++;
     }
 
@@ -177,6 +192,7 @@ export class MemoryIngestService {
           wikilinks: [`[[client:${mt.client_id}]]`],
           debriefBody: debriefByMeeting.get(mt.id),
         }),
+        contentCtx,
       );
       counts.meetings++;
     }
@@ -225,6 +241,7 @@ export class MemoryIngestService {
           summary: th.snippet?.trim() || '(no preview available)',
           wikilinks: th.client_id ? [`[[client:${th.client_id}]]`] : [],
         }),
+        contentCtx,
       );
       counts.emails++;
     }
@@ -285,6 +302,7 @@ export class MemoryIngestService {
           transcriptSummary: summary,
           wikilinks: [],
         }),
+        contentCtx,
       );
       counts.meriSessions++;
     }
@@ -338,11 +356,54 @@ export class MemoryIngestService {
       counts.failures.push({ slug: '(embedding-pass)', error: (err as Error).message });
     }
     counts.failed = counts.failures.length;
+    } catch (err) {
+      // An unexpected throw (outside the self-handling phases) marks the run
+      // failed for the audit trail, then rethrows.
+      runStatus = 'failed';
+      await this.closeIngestRun(runId, runStatus, counts);
+      throw err;
+    }
+    await this.closeIngestRun(runId, runStatus, counts);
 
     this.logger.log(
       `backfill tenant=${ctx.tenantId} ${JSON.stringify({ ...counts, failures: counts.failures.length })}`,
     );
     return counts;
+  }
+
+  /** Phase 6: open a memory_ingest_run row (status 'running'); returns its id.
+   *  The id is generated client-side so the caller never depends on a RETURNING
+   *  read (keeps the write a plain $executeRaw). */
+  private async openIngestRun(
+    tenantId: string,
+    trigger: IngestContext['trigger'],
+    actorUserId: string | null,
+  ): Promise<string> {
+    const id = randomUUID();
+    await this.prisma.withSystem(
+      (tx) =>
+        tx.$executeRaw`
+        INSERT INTO memory_ingest_run (id, tenant_id, trigger, actor_user_id, status)
+        VALUES (${id}::uuid, ${tenantId}::uuid, ${trigger}, ${actorUserId}::uuid, 'running')
+      `,
+    );
+    return id;
+  }
+
+  /** Phase 6: finalize a memory_ingest_run with status + counts. */
+  private async closeIngestRun(
+    runId: string,
+    status: 'completed' | 'failed',
+    counts: Record<string, unknown>,
+  ): Promise<void> {
+    await this.prisma.withSystem((tx) =>
+      tx.$executeRaw`
+        UPDATE memory_ingest_run
+        SET status = ${status}, finished_at = now(),
+            counts_jsonb = ${JSON.stringify({ ...counts, failures: undefined })}::jsonb
+        WHERE id = ${runId}::uuid
+      `,
+    );
   }
 
   /**

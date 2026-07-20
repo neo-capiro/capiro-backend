@@ -1,4 +1,5 @@
 import {
+  BadRequestException,
   Body,
   Controller,
   ForbiddenException,
@@ -8,13 +9,17 @@ import {
   Post,
   Put,
   Query,
+  ServiceUnavailableException,
   UseGuards,
 } from '@nestjs/common';
+import { ConfigService } from '@nestjs/config';
+import type { AppConfig } from '../config/config.schema.js';
 import { RolesGuard } from '../auth/roles.guard.js';
 import { Roles } from '../auth/roles.decorator.js';
 import { CurrentTenant } from '../tenant/current-tenant.decorator.js';
 import type { TenantContext } from '@capiro/shared';
 import { MemoryStoreService } from './memory-store.service.js';
+import { MemoryPurgeService } from './memory-purge.service.js';
 import { daysOverdue } from './memory-staleness.helpers.js';
 import { MemoryFkLoader } from './memory-fk-loader.service.js';
 import { MemoryIngestService } from './memory-ingest.service.js';
@@ -54,11 +59,11 @@ import {
  *   GET  /memory/graph/path?to=office:<id>  shortest paths to a target (view #2)
  *   POST /memory/backfill                    (admin) populate from DB sources
  *
- * NOTE: purge/redaction EXECUTION (memory-governance.helpers.ts selectForPurge /
- * selectForClientPurge / selectForUserPurge / redactSections) is deliberately
- * NOT wired to a route yet — per that file's own comment, retention is not
- * enforced in v1 pending a concrete regulatory/contractual trigger. Only the
- * non-destructive export/manifest half of governance is exposed here.
+ *   POST /memory/purge/client/:clientId     (Phase 6, admin) offboarding purge
+ *
+ * Phase 6 wires retention EXECUTION: client-offboarding purge removes a client's
+ * memory across every store (legal-held rows excluded), dry-run by default and
+ * gated behind MEMORY_PURGE_ENABLED (503 while off). See MemoryPurgeService.
  */
 @Controller('memory')
 @UseGuards(RolesGuard)
@@ -70,6 +75,8 @@ export class MemoryController {
     private readonly ingest: MemoryIngestService,
     private readonly interview: MemoryInterviewService,
     private readonly candidates: MemoryCandidateService,
+    private readonly purge: MemoryPurgeService,
+    private readonly config: ConfigService<AppConfig, true>,
   ) {}
 
   /** Section catalog (help text + examples + interview questions source). */
@@ -324,6 +331,45 @@ export class MemoryController {
   async backfill() {
     const counts = await this.ingest.backfillCurrentTenant();
     return { ok: true, counts };
+  }
+
+  /**
+   * Phase 6 — client-offboarding retention purge. Admin-only, gated behind
+   * MEMORY_PURGE_ENABLED (503 while off). Dry-run by default (counts only);
+   * an actual delete requires body.dryRun===false AND body.confirm to equal the
+   * client's exact name (fat-finger guard). Legal-held rows are never deleted.
+   */
+  @Post('purge/client/:clientId')
+  @Roles('user_admin')
+  async purgeClient(
+    @CurrentTenant() ctx: TenantContext,
+    @Param('clientId') clientId: string,
+    @Body() body: { dryRun?: boolean; reason?: string; confirm?: string },
+  ) {
+    if (!this.config.get('MEMORY_PURGE_ENABLED', { infer: true })) {
+      throw new ServiceUnavailableException('Memory purge is disabled (MEMORY_PURGE_ENABLED=false).');
+    }
+    if (!body?.reason || typeof body.reason !== 'string') {
+      throw new BadRequestException('A reason is required for a client memory purge.');
+    }
+    const dryRun = body.dryRun !== false;
+    if (!dryRun) {
+      // Destructive path: require the caller to retype the client's exact name.
+      const client = await this.store.getClientNameForCurrentTenant(clientId);
+      if (!client) throw new NotFoundException('Client not found in this tenant.');
+      if (body.confirm !== client.name) {
+        throw new BadRequestException(
+          'To execute a purge, `confirm` must equal the client name exactly.',
+        );
+      }
+    }
+    const result = await this.purge.purgeClient(
+      ctx.tenantId,
+      clientId,
+      { userId: ctx.userId, role: ctx.role },
+      { dryRun, reason: body.reason },
+    );
+    return { ok: true, ...result };
   }
 
   private async buildFullGraph() {
