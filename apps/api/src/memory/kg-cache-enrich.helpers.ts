@@ -158,8 +158,12 @@ export async function enrichFromKgCache(
       FROM kg_walk_bounded(
         ${opts.tenantId}::uuid,
         ${deniedLiteral},
-        'client', ${seed.id}, ${depth}, NULL::text[], ${fanout}, ${budget}, 'both')
+        'client', ${seed.id}, ${depth}::int, NULL::text[], ${fanout}::int, ${budget}::int, 'both')
     `;
+    // NOTE: the ::int casts are mandatory — Prisma binds JS numbers as int8
+    // (bigint), and kg_walk_bounded's params are int4; without the cast Postgres
+    // overload resolution fails with 42883 (function does not exist) and the
+    // whole enrichment silently falls back to the plain backbone.
     clientsWalked += 1;
     for (const r of rows) {
       if (!keepCacheEdge(r)) continue;
