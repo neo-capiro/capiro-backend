@@ -1044,6 +1044,18 @@ export class ExplorerService {
     states?: string[];
     chambers?: string[];
     parties?: string[];
+    /**
+     * Single committee NAME (exact, case-insensitive) — keep legislators who
+     * sit on a committee with this name. Singular (not the CSV `arrayOrSplit`
+     * multi-filter the other params use) on purpose: state committee names
+     * routinely contain commas (e.g. "Health, Welfare & Institutions"), which a
+     * CSV split would shred into bogus tokens. Match is on the relational
+     * state_committee_membership → state_committee join, so it reflects current
+     * roster membership, not the denormalized JSON snapshot.
+     */
+    committee?: string;
+    /** Include each legislator's current committees in the returned rows. */
+    includeCommittees?: boolean;
     activeOnly?: boolean;
     sort?: string;
     page?: number;
@@ -1061,14 +1073,29 @@ export class ExplorerService {
     if (opts.states?.length) where.state = { in: opts.states };
     if (opts.chambers?.length) where.chamber = { in: opts.chambers };
     if (opts.parties?.length) where.party = { in: opts.parties };
+    if (opts.committee) {
+      where.committeeMemberships = {
+        some: { committee: { name: { equals: opts.committee, mode: 'insensitive' } } },
+      };
+    }
     if (opts.activeOnly !== false) where.active = true;
 
+    // The committee include is unconditional so `rows` stays a single Prisma
+    // type (a runtime-conditional include would union the row type and defeat
+    // the projection below). The `committees` key is only ATTACHED to the
+    // response when asked for, so existing callers get the exact same shape.
     const [rows, total] = await Promise.all([
       this.prisma.stateLegislator.findMany({
         where,
         orderBy: [{ state: 'asc' }, { name: 'asc' }],
         take: limit,
         skip: offset,
+        include: {
+          committeeMemberships: {
+            include: { committee: { select: { id: true, name: true, chamber: true } } },
+            orderBy: [{ committee: { name: 'asc' } }],
+          },
+        },
       }),
       this.prisma.stateLegislator.count({ where }),
     ]);
@@ -1083,6 +1110,16 @@ export class ExplorerService {
         email: l.email,
         image: l.image,
         url: l.url,
+        ...(opts.includeCommittees
+          ? {
+              committees: l.committeeMemberships.map((m) => ({
+                id: m.committee.id,
+                name: m.committee.name,
+                chamber: m.committee.chamber,
+                role: m.role,
+              })),
+            }
+          : {}),
       })),
       total,
     };
@@ -1212,7 +1249,7 @@ export class ExplorerService {
     };
   }
 
-  async stateLegislatorFacets() {
+  async stateLegislatorFacets(opts?: { states?: string[] }) {
     const [states, chambers, parties] = await Promise.all([
       this.prisma.$queryRaw<Array<{ s: string }>>`
         SELECT DISTINCT state AS s FROM state_legislator
@@ -1228,10 +1265,24 @@ export class ExplorerService {
         GROUP BY party ORDER BY n DESC LIMIT 15
       `,
     ]);
+    // Committee names are scoped to the requested state(s): there are thousands
+    // of state committees nationwide and their names are state-specific, so an
+    // unscoped list is neither usable in a picker nor meaningful to filter on.
+    // No state(s) → empty list (the caller gates the committee filter on a
+    // chosen state). states/chambers/parties stay global and unaffected.
+    const committeeRows = opts?.states?.length
+      ? await this.prisma.stateCommittee.findMany({
+          where: { state: { in: opts.states } },
+          select: { name: true },
+          distinct: ['name'],
+          orderBy: { name: 'asc' },
+        })
+      : [];
     return {
       states: states.map((r) => r.s),
       chambers: chambers.map((r) => r.c),
       parties: parties.map((r) => r.p),
+      committees: committeeRows.map((c) => c.name),
     };
   }
 

@@ -86,7 +86,7 @@ interface Props {
   clientId?: string | null;
 }
 
-type SourceTab = 'congress' | 'clients' | 'manual';
+type SourceTab = 'congress' | 'statelegislators' | 'clients' | 'manual';
 
 interface FavoriteRow {
   directoryContactId: string;
@@ -135,6 +135,93 @@ function stafferRecipient(
     directoryContactName: `${staffer.fullName} (${entry.memberName})`,
     committee: entry.committees[0] || undefined,
     relevanceReason: `Staffer to ${entry.fullName}${staffer.title ? `, ${staffer.title}` : ''}`,
+  };
+}
+
+// ---- State Legislators source (GET /api/explorer/state-legislators) --------
+// Mirrors the explorer.service.ts response shape; `committees` is present only
+// when the tab requests includeCommittees=true.
+
+interface StateLegislatorCommitteeRef {
+  id: string;
+  name: string;
+  chamber: string | null;
+  role: string | null;
+}
+
+interface StateLegislatorRow {
+  id: string;
+  name: string;
+  state: string;
+  chamber: string | null;
+  district: string | null;
+  party: string | null;
+  email: string | null;
+  image: string | null;
+  url: string | null;
+  committees?: StateLegislatorCommitteeRef[];
+}
+
+interface StateLegislatorListResponse {
+  rows: StateLegislatorRow[];
+  total: number;
+}
+
+interface StateLegislatorFacetsResponse {
+  states: string[];
+  chambers: string[];
+  parties: string[];
+  // Scoped to the queried state(s); empty when no state is requested.
+  committees: string[];
+}
+
+// OpenStates stores chamber as 'upper' | 'lower'. Map to the familiar names for
+// display; fall back to whatever raw value came through (a few bodies aren't
+// upper/lower) and never invent one.
+function humanizeStateChamber(chamber: string | null | undefined): string {
+  if (chamber === 'upper') return 'Senate';
+  if (chamber === 'lower') return 'House';
+  return chamber || '';
+}
+
+function stateLegislatorRole(chamber: string | null | undefined): string {
+  const c = humanizeStateChamber(chamber);
+  if (c === 'Senate') return 'State Senator';
+  if (c === 'House') return 'State Representative';
+  return c ? `State ${c}` : 'State Legislator';
+}
+
+/** "State Senator · District 5" sub-line for a legislator row. */
+function stateLegislatorSubline(row: StateLegislatorRow): string {
+  const dist = row.district ? `District ${row.district}` : null;
+  return [stateLegislatorRole(row.chamber), dist].filter(Boolean).join(' · ');
+}
+
+function fromStateLegislator(row: StateLegislatorRow): OutreachRecipient {
+  const chamberLabel = humanizeStateChamber(row.chamber);
+  const first = row.committees?.[0];
+  return {
+    // Namespaced id → recipientKey resolves to this (id wins the fallback
+    // chain), so a legislator can never collide with a congressional-directory
+    // contact id and get silently deduped away.
+    id: `statelegislator:${row.id}`,
+    name: row.name,
+    email: row.email || undefined,
+    title: stateLegislatorRole(row.chamber),
+    office: chamberLabel ? `${row.state} ${chamberLabel}` : row.state || undefined,
+    chamber: chamberLabel || undefined,
+    state: row.state || undefined,
+    district: row.district || undefined,
+    party: row.party || undefined,
+    committee: first?.name || undefined,
+    directoryContactName: row.name,
+    sourceLabel: 'State Legislature',
+    relevanceReason: [
+      first && (first.role ? `${first.name} (${first.role})` : first.name),
+      row.party || undefined,
+    ]
+      .filter(Boolean)
+      .join(' | '),
   };
 }
 
@@ -479,6 +566,13 @@ export function StepRecipientsSelect({ clients, targets, onChange, clientId }: P
         </button>
         <button
           type="button"
+          className={'ov2-rs-tab' + (tab === 'statelegislators' ? ' active' : '')}
+          onClick={() => setTab('statelegislators')}
+        >
+          State Legislators
+        </button>
+        <button
+          type="button"
           className={'ov2-rs-tab' + (tab === 'clients' ? ' active' : '')}
           onClick={() => setTab('clients')}
         >
@@ -495,6 +589,24 @@ export function StepRecipientsSelect({ clients, targets, onChange, clientId }: P
 
       {tab === 'congress' && (
         <CongressTab
+          targets={targets}
+          builderKind={builder?.kind ?? null}
+          builderHas={builderHas}
+          onBuilderToggle={builderToggle}
+          onAdd={addIndividual}
+          onRemoveIndividual={removeIndividualByKey}
+          listsPopover={listsPopover}
+          listsOpen={listsOpen}
+          onListsOpenChange={setListsOpen}
+          groupsPopover={groupsPopover}
+          groupsOpen={groupsOpen}
+          onGroupsOpenChange={setGroupsOpen}
+          builderBanner={builderBanner}
+          appliedChips={appliedChips}
+        />
+      )}
+      {tab === 'statelegislators' && (
+        <StateLegislatorsTab
           targets={targets}
           builderKind={builder?.kind ?? null}
           builderHas={builderHas}
@@ -2199,6 +2311,275 @@ function MemberRows({
           })
         ))}
     </>
+  );
+}
+
+// =====================================================================
+// Tab — State Legislators (OpenStates directory, filterable by state +
+// committee). Structurally mirrors CongressTab: a single directory query,
+// server-side filters, the shared Lists/Groups build machinery, and the
+// shared AddControl. State legislators have no synced staffers, so rows are
+// flat (no member→staffer expansion) and there is no favorites store (the
+// favorites API is scoped to the federal congressional directory).
+// =====================================================================
+
+function StateLegislatorsTab({
+  targets,
+  builderKind,
+  builderHas,
+  onBuilderToggle,
+  onAdd,
+  onRemoveIndividual,
+  listsPopover,
+  listsOpen,
+  onListsOpenChange,
+  groupsPopover,
+  groupsOpen,
+  onGroupsOpenChange,
+  builderBanner,
+  appliedChips,
+}: {
+  targets: OutreachTarget[];
+  builderKind: 'list' | 'group' | null;
+  builderHas: (key: string) => boolean;
+  onBuilderToggle: (r: OutreachRecipient) => void;
+  onAdd: (r: OutreachRecipient) => void;
+  onRemoveIndividual: (key: string) => void;
+  listsPopover: ReactNode;
+  listsOpen: boolean;
+  onListsOpenChange: (open: boolean) => void;
+  groupsPopover: ReactNode;
+  groupsOpen: boolean;
+  onGroupsOpenChange: (open: boolean) => void;
+  builderBanner: ReactNode;
+  appliedChips: ReactNode;
+}) {
+  const api = useApi();
+  const [search, setSearch] = useState('');
+  const [q, setQ] = useState('');
+  const [stateFilter, setStateFilter] = useState<string | undefined>();
+  const [committeeFilter, setCommitteeFilter] = useState<string | undefined>();
+
+  useEffect(() => {
+    const timer = setTimeout(() => setQ(search), 250);
+    return () => clearTimeout(timer);
+  }, [search]);
+
+  // Facets: states are global; committees are scoped to the selected state
+  // (there are thousands nationwide with state-specific names). Refetched when
+  // the state changes so the committee picker only offers that state's bodies.
+  const facets = useQuery<StateLegislatorFacetsResponse>({
+    queryKey: ['ov2-rs-statelegis-facets', stateFilter ?? ''],
+    queryFn: async () =>
+      (
+        await api.get<StateLegislatorFacetsResponse>('/api/explorer/state-legislator-facets', {
+          params: { states: stateFilter },
+        })
+      ).data,
+    staleTime: 10 * 60_000,
+  });
+
+  const dir = useQuery<StateLegislatorListResponse>({
+    queryKey: ['ov2-rs-statelegis', q, stateFilter ?? '', committeeFilter ?? ''],
+    queryFn: async () =>
+      (
+        await api.get<StateLegislatorListResponse>('/api/explorer/state-legislators', {
+          params: {
+            q: q || undefined,
+            states: stateFilter,
+            committee: committeeFilter,
+            includeCommittees: true,
+            // A single state fits comfortably; without one this is a partial
+            // A–Z browse and the filters are how you narrow.
+            pageSize: 200,
+          },
+        })
+      ).data,
+  });
+
+  const rows = dir.data?.rows ?? [];
+  const states = facets.data?.states ?? [];
+  const committees = facets.data?.committees ?? [];
+
+  return (
+    <div>
+      <div className="ov2-rs-toolbar">
+        <Input
+          className="search"
+          allowClear
+          prefix={<SearchOutlined />}
+          placeholder="Search state legislators…"
+          value={search}
+          onChange={(e) => setSearch(e.target.value)}
+        />
+        <Select
+          allowClear
+          showSearch
+          placeholder="State"
+          style={{ width: 100 }}
+          value={stateFilter}
+          // Committee names are state-specific, so a lingering committee filter
+          // would be meaningless (and yield nothing) under a new state — clear
+          // it whenever the state changes.
+          onChange={(v) => {
+            setStateFilter(v);
+            setCommitteeFilter(undefined);
+          }}
+          options={states.map((s) => ({ value: s, label: s }))}
+        />
+        <Select
+          allowClear
+          showSearch
+          placeholder={stateFilter ? 'Committee' : 'Pick a state first'}
+          style={{ width: 240 }}
+          disabled={!stateFilter}
+          value={committeeFilter}
+          onChange={(v) => setCommitteeFilter(v)}
+          options={committees.map((c) => ({ value: c, label: c }))}
+          notFoundContent={
+            facets.isFetching ? 'Loading committees…' : 'No committees for this state'
+          }
+        />
+        <Dropdown
+          dropdownRender={() => <>{listsPopover}</>}
+          trigger={['click']}
+          open={listsOpen}
+          onOpenChange={onListsOpenChange}
+        >
+          <button type="button" className="ov2-rs-toolbar-btn lists">
+            <UnorderedListOutlined /> Lists <DownOutlined style={{ fontSize: 10 }} />
+          </button>
+        </Dropdown>
+        <Dropdown
+          dropdownRender={() => <>{groupsPopover}</>}
+          trigger={['click']}
+          open={groupsOpen}
+          onOpenChange={onGroupsOpenChange}
+        >
+          <button type="button" className="ov2-rs-toolbar-btn groups">
+            <TeamOutlined /> Groups <DownOutlined style={{ fontSize: 10 }} />
+          </button>
+        </Dropdown>
+      </div>
+      {builderBanner}
+      {appliedChips}
+      <div className="ov2-rs-hint">
+        {builderKind === 'group'
+          ? 'Check legislators to include in the group. All checked recipients will receive one email together.'
+          : builderKind === 'list'
+            ? 'Check legislators to include in the list. Each checked recipient gets their own email.'
+            : 'State house & senate members. Filter by state, then narrow by committee. Click + to add someone to To.'}
+      </div>
+
+      <div className="ov2-rs-table">
+        <div className="ov2-rs-thead statelegislators">
+          <span />
+          <span>Name</span>
+          <span>Committee</span>
+          <span>Chamber</span>
+          <span>State</span>
+          <span>Party</span>
+          <span />
+        </div>
+        <div className="ov2-rs-rows">
+          {dir.isLoading ? (
+            <div className="ov2-rs-empty">Loading state legislators…</div>
+          ) : rows.length === 0 ? (
+            <div className="ov2-rs-empty">
+              No state legislators match. Try a different search or filter.
+            </div>
+          ) : (
+            rows.map((row) => (
+              <StateLegislatorTableRow
+                key={row.id}
+                row={row}
+                targets={targets}
+                builderKind={builderKind}
+                builderHas={builderHas}
+                onBuilderToggle={onBuilderToggle}
+                onAdd={onAdd}
+                onRemoveIndividual={onRemoveIndividual}
+              />
+            ))
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function StateLegislatorTableRow({
+  row,
+  targets,
+  builderKind,
+  builderHas,
+  onBuilderToggle,
+  onAdd,
+  onRemoveIndividual,
+}: {
+  row: StateLegislatorRow;
+  targets: OutreachTarget[];
+  builderKind: 'list' | 'group' | null;
+  builderHas: (key: string) => boolean;
+  onBuilderToggle: (r: OutreachRecipient) => void;
+  onAdd: (r: OutreachRecipient) => void;
+  onRemoveIndividual: (key: string) => void;
+}) {
+  const recipient = fromStateLegislator(row);
+  const membership = membershipOf(targets, recipientKey(recipient));
+  const tag = membership ? MEMBERSHIP_TAG[membership] : null;
+  const groupChecked = builderKind === 'group' && builderHas(recipientKey(recipient));
+
+  const committees = row.committees ?? [];
+  const firstCommittee = committees[0];
+  const chamber = humanizeStateChamber(row.chamber);
+
+  return (
+    <div
+      className={
+        'ov2-rs-row statelegislators' +
+        (membership ? ' added' : '') +
+        (groupChecked ? ' group-checked' : '')
+      }
+    >
+      <span className="controls">
+        <AddControl
+          recipient={recipient}
+          targets={targets}
+          builderKind={builderKind}
+          builderHas={builderHas}
+          onBuilderToggle={onBuilderToggle}
+          onAdd={onAdd}
+          onRemoveIndividual={onRemoveIndividual}
+        />
+      </span>
+      <span className="who">
+        <div className="nm">{row.name}</div>
+        <div className="sub">{stateLegislatorSubline(row)}</div>
+      </span>
+      <span
+        className="ov2-rs-cell"
+        title={committees.map((c) => c.name).join(', ') || undefined}
+      >
+        {firstCommittee
+          ? committees.length > 1
+            ? `${firstCommittee.name} +${committees.length - 1}`
+            : firstCommittee.name
+          : '—'}
+      </span>
+      <span className="ov2-rs-cell">{chamber || '—'}</span>
+      <span className="ov2-rs-cell">{row.state}</span>
+      <span>
+        {row.party ? (
+          <span className={'ov2-rs-pill' + (/^r/i.test(row.party) ? ' republican' : '')}>
+            {row.party}
+          </span>
+        ) : (
+          <span className="ov2-rs-cell">—</span>
+        )}
+      </span>
+      {tag ? <span className={`ov2-rs-intag ${tag.cls}`}>{tag.text}</span> : <span />}
+    </div>
   );
 }
 

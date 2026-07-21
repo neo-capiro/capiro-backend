@@ -434,6 +434,9 @@ export class ExplorerController {
       states: arrayOrSplit(q.states),
       chambers: arrayOrSplit(q.chambers),
       parties: arrayOrSplit(q.parties),
+      // Singular, NOT arrayOrSplit — committee names contain commas.
+      committee: typeof q.committee === 'string' ? q.committee : undefined,
+      includeCommittees: q.includeCommittees === 'true' || q.includeCommittees === true,
       activeOnly: q.activeOnly === 'false' || q.activeOnly === false ? false : true,
       sort: q.sort,
       page: q.page,
@@ -442,8 +445,8 @@ export class ExplorerController {
   }
 
   @Get('state-legislator-facets')
-  stateLegislatorFacets() {
-    return this.service.stateLegislatorFacets();
+  stateLegislatorFacets(@Query() q: Record<string, unknown>) {
+    return this.service.stateLegislatorFacets({ states: arrayOrSplit(q.states) });
   }
 
   @Get('state-legislators/:id')

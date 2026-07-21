@@ -500,6 +500,15 @@
 .ov2-rs-row.clients {
   grid-template-columns: 84px minmax(180px, 1.4fr) minmax(110px, 0.9fr) minmax(150px, 1fr) 70px;
 }
+/* State Legislators: controls (+/checkbox only — no caret or star) / Name /
+   Committee / Chamber / State / Party / in-tag. Seven cells, matching the
+   thead and every row's <span> count. */
+.ov2-rs-thead.statelegislators,
+.ov2-rs-row.statelegislators {
+  grid-template-columns:
+    64px minmax(160px, 1.4fr) minmax(140px, 1.2fr) 76px
+    44px 90px 62px;
+}
 .ov2-rs-rows {
   max-height: 420px;
   overflow-y: auto;
