@@ -1,28 +1,11 @@
 import { useState } from 'react';
-import {
-  Avatar,
-  Button,
-  Card,
-  Descriptions,
-  Divider,
-  Drawer,
-  Empty,
-  Flex,
-  List,
-  Pagination,
-  Space,
-  Spin,
-  Tag,
-  Typography,
-} from 'antd';
-import { BankOutlined, LinkOutlined, MailOutlined } from '@ant-design/icons';
+import { Drawer, Pagination, Spin } from 'antd';
+import { BankOutlined, CloseOutlined, LinkOutlined, MailOutlined } from '@ant-design/icons';
 import { stateBillStatusLabel } from '@capiro/shared';
 import { StateBillDetailBody } from '../explorer/state-bill-detail.js';
 
-const { Text, Link } = Typography;
-
 // ── Types (self-contained — mirrors the api/explorer.service.ts response shapes) ──
-export interface StateLegislatorRow {
+export interface StateLegislatorBase {
   id: string;
   name: string;
   state: string;
@@ -32,6 +15,16 @@ export interface StateLegislatorRow {
   email: string | null;
   image: string | null;
   url: string | null;
+}
+
+// List-row shape (/api/explorer/state-legislators). The three counts drive the
+// card stat strip. billCount/enactedCount are `null` — NOT 0 — for a legislator
+// never crosswalked to LegiScan bill data (legiscanPeopleId is null): "unknown",
+// not "sponsors nothing". The card renders "—" for that, never a fabricated 0.
+export interface StateLegislatorRow extends StateLegislatorBase {
+  committeeCount: number;
+  billCount: number | null;
+  enactedCount: number | null;
 }
 
 export interface StateLegislatorFacets {
@@ -57,7 +50,7 @@ export interface StateLegislatorSponsoredBill {
   sponsorType: string;
 }
 
-export interface StateLegislatorDetail extends StateLegislatorRow {
+export interface StateLegislatorDetail extends StateLegislatorBase {
   active: boolean;
   legiscanPeopleId: number | null;
   syncedAt: string;
@@ -70,7 +63,7 @@ export interface StateLegislatorDetail extends StateLegislatorRow {
   sponsoredBillsTotal: number;
 }
 
-// ── Shared helpers (self-contained; mirror DowDirectoryResults conventions) ──
+// ── Shared helpers ────────────────────────────────────────────────────────
 function initials(name: string): string {
   const parts = name.trim().split(/\s+/).filter(Boolean);
   if (parts.length === 0) return '?';
@@ -87,28 +80,136 @@ function chamberLabel(chamber: string | null): string {
   return chamber ?? '—';
 }
 
-function partyPillClass(party: string | null): string {
+// Party → newsroom tone class. Democrat → info (blue), Republican → critical
+// (red), everything else (Independent, Nonpartisan, …) → notable (amber), so a
+// non-D/R legislator is never mis-coloured as red.
+type Tone = 'info' | 'critical' | 'notable';
+function partyTone(party: string | null): Tone {
   const p = (party ?? '').trim().toLowerCase();
-  if (p.startsWith('d')) return 'party-pill d';
-  if (p.startsWith('r')) return 'party-pill r';
-  return 'party-pill i';
+  if (p.startsWith('d')) return 'info';
+  if (p.startsWith('r')) return 'critical';
+  return 'notable';
 }
 
-// Label text comes from @capiro/shared's stateBillStatusLabel — the SAME
-// canonical mapping StateBillDetailBody (rendered a click away, in the nested
-// bill drawer below) uses, so a bill's status reads identically in both.
-function statusColor(status: string | null): string {
-  if (!status) return 'default';
-  if (['enacted'].includes(status)) return 'green';
-  if (['vetoed', 'failed', 'dead_by_deadline'].includes(status)) return 'red';
-  if (['passed_chamber', 'to_governor', 'veto_overridden'].includes(status)) return 'blue';
-  return 'default';
+function partyCode(party: string | null): string | null {
+  const p = (party ?? '').trim();
+  if (!p) return null;
+  return (p[0] ?? '').toUpperCase() || null;
+}
+
+function partyLabelText(party: string | null): string {
+  const p = (party ?? '').trim();
+  if (!p) return '';
+  if (p.length === 1) {
+    const u = p.toUpperCase();
+    return u === 'D' ? 'Democrat' : u === 'R' ? 'Republican' : u === 'I' ? 'Independent' : u;
+  }
+  return p;
+}
+
+// Bill status → the same four-tone palette the mockup uses. Label text still
+// comes from @capiro/shared's stateBillStatusLabel, the canonical mapping the
+// nested StateBillDetailBody drawer uses, so a bill reads identically in both.
+function statusTone(status: string | null): 'success' | 'info' | 'critical' | 'notable' | 'muted' {
+  if (!status) return 'muted';
+  if (['enacted', 'veto_overridden'].includes(status)) return 'success';
+  if (['vetoed', 'failed', 'dead_by_deadline'].includes(status)) return 'critical';
+  if (['passed_chamber', 'resolving', 'to_governor'].includes(status)) return 'info';
+  return 'notable'; // introduced / committee / reported / floor
 }
 
 function formatDate(value: string): string {
   const d = new Date(value);
   if (Number.isNaN(d.getTime())) return value;
   return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+}
+
+function fmtCount(n: number | null): string {
+  return n == null ? '—' : n.toLocaleString();
+}
+
+// ── Avatar (party-gradient circle w/ initials, or photo when present) ───────
+function LegAvatar({
+  name,
+  image,
+  tone,
+  size,
+}: {
+  name: string;
+  image: string | null;
+  tone: Tone;
+  size: number;
+}) {
+  return (
+    <div
+      className={`leg-avatar ${tone}`}
+      style={{ width: size, height: size, fontSize: size * 0.34 }}
+    >
+      {image ? <img src={image} alt="" /> : <span>{initials(name)}</span>}
+    </div>
+  );
+}
+
+function StatusPill({ status }: { status: string | null }) {
+  return (
+    <span className={`leg-status ${statusTone(status)}`}>
+      <span className="d" />
+      {stateBillStatusLabel(status)}
+    </span>
+  );
+}
+
+// ── Card ────────────────────────────────────────────────────────────────
+function LegCard({ leg, onSelect }: { leg: StateLegislatorRow; onSelect: (id: string) => void }) {
+  const tone = partyTone(leg.party);
+  const code = partyCode(leg.party);
+  const partyText = partyLabelText(leg.party);
+  return (
+    <button className={`leg-card ${tone}`} type="button" onClick={() => onSelect(leg.id)}>
+      <span className="leg-accent" />
+      <div className="leg-card-head">
+        <LegAvatar name={leg.name} image={leg.image} tone={tone} size={46} />
+        <div className="leg-id">
+          <div className="leg-name">{leg.name}</div>
+          <div className="leg-chamber">
+            <BankOutlined />
+            {chamberLabel(leg.chamber)}
+            {leg.district ? ` · District ${leg.district}` : ''}
+          </div>
+        </div>
+        {code ? <span className={`leg-party ${tone}`}>{code}</span> : null}
+      </div>
+
+      <div className="leg-stats">
+        <div className="leg-stat">
+          <div className="v num">{fmtCount(leg.billCount)}</div>
+          <div className="l">Bills</div>
+        </div>
+        <div className="leg-stat">
+          <div className="v num" style={leg.enactedCount ? { color: 'var(--success)' } : undefined}>
+            {fmtCount(leg.enactedCount)}
+          </div>
+          <div className="l">Enacted</div>
+        </div>
+        <div className="leg-stat">
+          <div className="v num">{leg.committeeCount.toLocaleString()}</div>
+          <div className="l">Committees</div>
+        </div>
+      </div>
+
+      <div className="leg-foot">
+        <span className="leg-state num">{leg.state}</span>
+        {partyText ? <span className="leg-partylabel">{partyText}</span> : null}
+        <span className="leg-spacer" />
+        {leg.email ? (
+          <span className="leg-email">
+            <MailOutlined />
+            Email on file
+          </span>
+        ) : null}
+      </div>
+    </button>
+  );
 }
 
 // ── List card grid ───────────────────────────────────────────────────────
@@ -144,57 +245,36 @@ export function StateLegislatorResults({
   }
   if (isError) {
     return (
-      <Empty description="We couldn't load state legislators. Please try again.">
-        {onRetry ? <Link onClick={onRetry}>Retry</Link> : null}
-      </Empty>
+      <div className="leg-empty">
+        We couldn't load state legislators.{' '}
+        {onRetry ? (
+          <button type="button" onClick={onRetry}>
+            Retry
+          </button>
+        ) : null}
+      </div>
     );
   }
   if (legislators.length === 0) {
-    return <Empty description="No state legislators found" />;
+    return <div className="leg-empty">No state legislators match these filters.</div>;
   }
 
   return (
     <>
-      <div className="directory-card-grid">
+      <div className="leg-grid">
         {legislators.map((legislator) => (
-          <Card
-            key={legislator.id}
-            hoverable
-            size="small"
-            onClick={() => onSelect(legislator.id)}
-            style={{ cursor: 'pointer' }}
-          >
-            <Flex gap={12} align="flex-start">
-              <Avatar size={48} src={legislator.image ?? undefined} style={{ flexShrink: 0, backgroundColor: '#1f3a5f' }}>
-                {initials(legislator.name)}
-              </Avatar>
-              <Space direction="vertical" size={2} style={{ flex: 1, minWidth: 0 }}>
-                <Flex align="center" gap={6} wrap>
-                  <Text strong ellipsis style={{ maxWidth: '100%' }}>
-                    {legislator.name}
-                  </Text>
-                  {legislator.party ? <span className={partyPillClass(legislator.party)}>{legislator.party}</span> : null}
-                </Flex>
-                <Text type="secondary" ellipsis>
-                  {chamberLabel(legislator.chamber)}
-                  {legislator.district ? ` · District ${legislator.district}` : ''}
-                </Text>
-                <Flex align="center" gap={6} wrap style={{ marginTop: 4 }}>
-                  <span className="state-pill num">{legislator.state}</span>
-                  {legislator.email ? (
-                    <Tag bordered={false} icon={<MailOutlined />}>
-                      Email on file
-                    </Tag>
-                  ) : null}
-                </Flex>
-              </Space>
-            </Flex>
-          </Card>
+          <LegCard key={legislator.id} leg={legislator} onSelect={onSelect} />
         ))}
       </div>
       {total > pageSize ? (
         <div className="directory-pagination">
-          <Pagination current={page} pageSize={pageSize} total={total} onChange={onPage} showSizeChanger={false} />
+          <Pagination
+            current={page}
+            pageSize={pageSize}
+            total={total}
+            onChange={onPage}
+            showSizeChanger={false}
+          />
         </div>
       ) : null}
     </>
@@ -209,157 +289,175 @@ export interface StateLegislatorDrawerProps {
   onClose: () => void;
 }
 
-export function StateLegislatorDrawer({ open, legislator, loading = false, onClose }: StateLegislatorDrawerProps) {
+export function StateLegislatorDrawer({
+  open,
+  legislator,
+  loading = false,
+  onClose,
+}: StateLegislatorDrawerProps) {
   const [selectedBillId, setSelectedBillId] = useState<string | null>(null);
+  const [copied, setCopied] = useState(false);
 
   async function copyEmail(email: string) {
     try {
       await navigator.clipboard.writeText(email);
+      setCopied(true);
+      window.setTimeout(() => setCopied(false), 1400);
     } catch {
       // Clipboard may be unavailable in this browser context — non-fatal.
     }
   }
+
+  const tone: Tone = legislator ? partyTone(legislator.party) : 'info';
+  const ready = !loading && legislator;
 
   return (
     <>
       <Drawer
         open={open}
         onClose={onClose}
-        width={560}
-        title={legislator ? legislator.name : 'State legislator'}
+        width={468}
+        closable={false}
         destroyOnClose
+        rootClassName="leg-drawer-portal"
+        styles={{ body: { padding: 0, overflow: 'hidden' } }}
       >
-        {loading || !legislator ? (
-          <Spin />
+        <button
+          className={`leg-close${ready ? ' on-dark' : ''}`}
+          type="button"
+          aria-label="Close"
+          onClick={onClose}
+        >
+          <CloseOutlined />
+        </button>
+
+        {!ready ? (
+          <div className="leg-drawer-loading">
+            <Spin />
+          </div>
         ) : (
-          <Space direction="vertical" size={16} style={{ width: '100%' }}>
-            {/* Header: photo + identity */}
-            <Flex gap={16} align="flex-start">
-              <Avatar
-                size={72}
-                src={legislator.image ?? undefined}
-                style={{ flexShrink: 0, backgroundColor: '#1f3a5f', fontSize: 24 }}
-              >
-                {initials(legislator.name)}
-              </Avatar>
-              <Space direction="vertical" size={2} style={{ flex: 1, minWidth: 0 }}>
-                <Text type="secondary">
-                  <BankOutlined /> {chamberLabel(legislator.chamber)}
+          <div className={`leg-drawer-content ${tone}`}>
+            <div className="leg-drawer-hero">
+              <LegAvatar name={legislator.name} image={legislator.image} tone={tone} size={72} />
+              <div className="leg-hero-id">
+                <div className="leg-hero-name">{legislator.name}</div>
+                <div className="leg-hero-chamber">
+                  <BankOutlined />
+                  {chamberLabel(legislator.chamber)}
                   {legislator.district ? ` · District ${legislator.district}` : ''}
-                </Text>
-                <Flex gap={6} wrap style={{ marginTop: 6 }}>
-                  <span className="state-pill num">{legislator.state}</span>
-                  {legislator.party ? <span className={partyPillClass(legislator.party)}>{legislator.party}</span> : null}
-                  {!legislator.active ? <Tag color="orange">Inactive</Tag> : null}
-                </Flex>
+                </div>
+                <div className="leg-hero-tags">
+                  <span className="leg-hero-state num">{legislator.state}</span>
+                  {partyLabelText(legislator.party) ? (
+                    <span className={`leg-hero-party ${tone}`}>
+                      {partyLabelText(legislator.party)}
+                    </span>
+                  ) : null}
+                  {!legislator.active ? <span className="leg-hero-inactive">Inactive</span> : null}
+                </div>
                 {legislator.url ? (
-                  <Button
-                    type="link"
-                    size="small"
-                    icon={<LinkOutlined />}
+                  <a
+                    className="leg-openstates"
                     href={legislator.url}
                     target="_blank"
                     rel="noreferrer"
-                    style={{ paddingLeft: 0, marginTop: 4 }}
                   >
+                    <LinkOutlined />
                     View OpenStates profile
-                  </Button>
+                  </a>
                 ) : null}
-              </Space>
-            </Flex>
+              </div>
+            </div>
 
-            {/* Contact */}
-            <div>
-              <Text strong>
-                <MailOutlined /> Contact
-              </Text>
-              <div style={{ marginTop: 8 }}>
+            <div className="leg-drawer-body">
+              {/* Contact */}
+              <section className="leg-section">
+                <div className="leg-section-h">Contact</div>
                 {legislator.email ? (
-                  <Flex align="center" gap={8}>
-                    <a href={`mailto:${legislator.email}`}>{legislator.email}</a>
-                    <Button type="text" size="small" onClick={() => copyEmail(legislator.email as string)}>
-                      Copy
-                    </Button>
-                  </Flex>
+                  <div className="leg-contact">
+                    <span className="num">{legislator.email}</span>
+                    <button
+                      className={`leg-copy${copied ? ' done' : ''}`}
+                      type="button"
+                      onClick={() => copyEmail(legislator.email as string)}
+                    >
+                      {copied ? 'Copied' : 'Copy'}
+                    </button>
+                  </div>
                 ) : (
-                  <Text type="secondary">No email on file.</Text>
+                  <div className="leg-muted">No email on file.</div>
                 )}
-              </div>
-            </div>
+              </section>
 
-            {/* Committees */}
-            <div>
-              <Text strong>Committees ({legislator.committees.length})</Text>
-              <div style={{ marginTop: 8 }}>
+              {/* Committees */}
+              <section className="leg-section">
+                <div className="leg-section-h">
+                  Committees <span className="cnt">{legislator.committees.length}</span>
+                </div>
                 {legislator.committees.length ? (
-                  <Flex gap={6} wrap>
-                    {legislator.committees.map((c) => (
-                      <Tag key={c.id}>
-                        {c.name}
-                        {c.role ? ` · ${c.role}` : ''}
-                      </Tag>
-                    ))}
-                  </Flex>
+                  <div className="leg-committees">
+                    {legislator.committees.map((c) => {
+                      const isChair = (c.role ?? '').toLowerCase().includes('chair');
+                      return (
+                        <span key={c.id} className={`leg-committee${isChair ? ' chair' : ''}`}>
+                          {c.name}
+                          {c.role ? <span className="role">{c.role}</span> : null}
+                        </span>
+                      );
+                    })}
+                  </div>
                 ) : (
-                  <Text type="secondary">No committee assignments on record yet.</Text>
+                  <div className="leg-muted">No committee assignments on record yet.</div>
                 )}
-              </div>
-            </div>
+              </section>
 
-            <Divider style={{ margin: '4px 0' }} />
-
-            {/* Sponsored bills */}
-            <div>
-              <Text strong>
-                Sponsored bills
-                {legislator.sponsoredBills ? ` (${legislator.sponsoredBillsTotal})` : ''}
-              </Text>
-              <div style={{ marginTop: 8 }}>
+              {/* Sponsored bills */}
+              <section className="leg-section">
+                <div className="leg-section-h">
+                  Sponsored bills
+                  {legislator.sponsoredBills ? (
+                    <span className="cnt">{legislator.sponsoredBillsTotal}</span>
+                  ) : null}
+                </div>
                 {legislator.sponsoredBills === null ? (
-                  <Text type="secondary">
-                    Not yet linked to bill-sponsorship data for this legislator's state — bill ingestion for that
-                    state hasn't run yet.
-                  </Text>
+                  <div className="leg-muted">
+                    Not yet linked to bill-sponsorship data for this legislator's state — bill
+                    ingestion for that state hasn't run yet.
+                  </div>
                 ) : legislator.sponsoredBills.length === 0 ? (
-                  <Text type="secondary">No sponsored bills found on record.</Text>
+                  <div className="leg-muted">No sponsored bills found on record.</div>
                 ) : (
-                  <List
-                    size="small"
-                    dataSource={legislator.sponsoredBills}
-                    rowKey={(b) => b.billId}
-                    renderItem={(b) => (
-                      <List.Item onClick={() => setSelectedBillId(b.billId)} style={{ cursor: 'pointer' }}>
-                        <Space direction="vertical" size={2} style={{ width: '100%' }}>
-                          <Flex align="center" gap={8} wrap>
-                            <Text strong>{b.identifier}</Text>
-                            <Tag color={statusColor(b.status)} bordered={false}>
-                              {stateBillStatusLabel(b.status)}
-                            </Tag>
-                            {b.sponsorType === 'primary' ? <Tag bordered={false}>Primary sponsor</Tag> : null}
-                          </Flex>
-                          <Text type="secondary" ellipsis>
-                            {b.title}
-                          </Text>
-                        </Space>
-                      </List.Item>
-                    )}
-                  />
+                  <div className="leg-bills">
+                    {legislator.sponsoredBills.map((b) => (
+                      <button
+                        key={b.billId}
+                        className="leg-bill"
+                        type="button"
+                        onClick={() => setSelectedBillId(b.billId)}
+                      >
+                        <div className="leg-bill-top">
+                          <span className="leg-bill-num num">{b.identifier}</span>
+                          <StatusPill status={b.status} />
+                          {b.sponsorType === 'primary' ? (
+                            <span className="leg-bill-primary">Primary sponsor</span>
+                          ) : null}
+                        </div>
+                        <div className="leg-bill-title">{b.title}</div>
+                      </button>
+                    ))}
+                  </div>
                 )}
+              </section>
+
+              {/* Provenance */}
+              <div className="leg-drawer-prov">
+                Last synced {formatDate(legislator.syncedAt)} ·{' '}
+                {legislator.legiscanPeopleId != null
+                  ? 'Linked to LegiScan'
+                  : 'Not yet linked to LegiScan'}
               </div>
             </div>
-
-            <Divider style={{ margin: '4px 0' }} />
-
-            {/* Provenance */}
-            <div>
-              <Descriptions size="small" column={1} colon={false}>
-                <Descriptions.Item label="Last synced">{formatDate(legislator.syncedAt)}</Descriptions.Item>
-                <Descriptions.Item label="Bill data">
-                  {legislator.legiscanPeopleId != null ? 'Linked to LegiScan' : 'Not yet linked'}
-                </Descriptions.Item>
-              </Descriptions>
-            </div>
-          </Space>
+          </div>
         )}
       </Drawer>
 

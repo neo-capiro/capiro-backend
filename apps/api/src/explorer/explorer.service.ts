@@ -1069,9 +1069,44 @@ export class ExplorerService {
         orderBy: [{ state: 'asc' }, { name: 'asc' }],
         take: limit,
         skip: offset,
+        // committeeCount comes straight off the relational membership rows —
+        // always a real number (0 is an honest zero).
+        include: { _count: { select: { committeeMemberships: true } } },
       }),
       this.prisma.stateLegislator.count({ where }),
     ]);
+
+    // Sponsored-bill counts for the cards. Bills join StateBillSponsor by
+    // legiscanPeopleId (the only reliable key — see stateLegislatorDetail),
+    // so a legislator that was never crosswalked (legiscanPeopleId == null)
+    // gets billCount/enactedCount === null, NOT 0: distinct from "linked but
+    // sponsors nothing", exactly as the detail endpoint keeps sponsoredBills
+    // null vs []. Rendering 0 there would fabricate a "sponsors nothing"
+    // claim for a state whose bills simply haven't been ingested yet.
+    const peopleIds = rows.map((l) => l.legiscanPeopleId).filter((id): id is number => id != null);
+    const billByPerson = new Map<number, number>();
+    const enactedByPerson = new Map<number, number>();
+    if (peopleIds.length) {
+      const [billGroups, enactedGroups] = await Promise.all([
+        this.prisma.stateBillSponsor.groupBy({
+          by: ['legiscanPeopleId'],
+          where: { legiscanPeopleId: { in: peopleIds } },
+          _count: { _all: true },
+        }),
+        this.prisma.stateBillSponsor.groupBy({
+          by: ['legiscanPeopleId'],
+          where: { legiscanPeopleId: { in: peopleIds }, bill: { status: 'enacted' } },
+          _count: { _all: true },
+        }),
+      ]);
+      for (const g of billGroups) {
+        if (g.legiscanPeopleId != null) billByPerson.set(g.legiscanPeopleId, g._count._all);
+      }
+      for (const g of enactedGroups) {
+        if (g.legiscanPeopleId != null) enactedByPerson.set(g.legiscanPeopleId, g._count._all);
+      }
+    }
+
     return {
       rows: rows.map((l) => ({
         id: l.id,
@@ -1083,6 +1118,10 @@ export class ExplorerService {
         email: l.email,
         image: l.image,
         url: l.url,
+        committeeCount: l._count.committeeMemberships,
+        billCount: l.legiscanPeopleId == null ? null : (billByPerson.get(l.legiscanPeopleId) ?? 0),
+        enactedCount:
+          l.legiscanPeopleId == null ? null : (enactedByPerson.get(l.legiscanPeopleId) ?? 0),
       })),
       total,
     };
