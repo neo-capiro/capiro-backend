@@ -19,7 +19,6 @@ import {
   NotFoundException,
   ServiceUnavailableException,
 } from '@nestjs/common';
-import { ConfigService } from '@nestjs/config';
 import {
   AssociationEntityType,
   EngagementConnectionStatus,
@@ -27,19 +26,14 @@ import {
   EngagementSource,
   Prisma,
   type IntegrationConnection,
-  type IntegrationConnectionToken,
 } from '@prisma/client';
-import type { TenantContext } from '@capiro/shared';
-import type { AppConfig } from '../../config/config.schema.js';
+import { deriveMeetingVirtuality, type TenantContext } from '@capiro/shared';
 import { PrismaService } from '../../prisma/prisma.service.js';
 import { ClientAssociationService } from '../client-association.service.js';
-import { GOOGLE_SCOPES } from './google-oauth.service.js';
-import { TokenCryptoService } from '../microsoft/token-crypto.service.js';
+import { GoogleTokenService } from './google-token.service.js';
 
 const GMAIL_BASE_URL = 'https://gmail.googleapis.com/gmail/v1';
 const CALENDAR_BASE_URL = 'https://www.googleapis.com/calendar/v3';
-const GOOGLE_TOKEN_URL = 'https://oauth2.googleapis.com/token';
-const TOKEN_REFRESH_SKEW_MS = 5 * 60 * 1000;
 const CALENDAR_PAST_DAYS = 365;
 const CALENDAR_FUTURE_DAYS = 365;
 const MAIL_BACKFILL_DAYS = 365;
@@ -172,6 +166,13 @@ interface CalendarEvent {
   description?: string | null;
   location?: string | null;
   htmlLink?: string | null;
+  // Google Meet auto-link (legacy field) + the modern conferenceData block.
+  // Present in the API response and stored to raw_jsonb; declared here so the
+  // virtuality classifier can read structured join links.
+  hangoutLink?: string | null;
+  conferenceData?: {
+    entryPoints?: Array<{ entryPointType?: string | null; uri?: string | null }> | null;
+  } | null;
   start?: CalendarDateTime | null;
   end?: CalendarDateTime | null;
   organizer?: { email?: string | null; displayName?: string | null } | null;
@@ -189,28 +190,15 @@ interface CalendarListResponse {
   nextSyncToken?: string;
 }
 
-interface GoogleRefreshResponse {
-  access_token?: string;
-  expires_in?: number;
-  scope?: string;
-  token_type?: string;
-}
-
 @Injectable()
 export class GoogleSyncService {
   private readonly logger = new Logger(GoogleSyncService.name);
-  private readonly clientId?: string;
-  private readonly clientSecret?: string;
 
   constructor(
     private readonly prisma: PrismaService,
-    private readonly tokenCrypto: TokenCryptoService,
     private readonly association: ClientAssociationService,
-    config: ConfigService<AppConfig, true>,
-  ) {
-    this.clientId = config.get('GOOGLE_CLIENT_ID', { infer: true });
-    this.clientSecret = config.get('GOOGLE_CLIENT_SECRET', { infer: true });
-  }
+    private readonly googleToken: GoogleTokenService,
+  ) {}
 
   async syncConnection(
     ctx: TenantContext,
@@ -234,8 +222,12 @@ export class GoogleSyncService {
     input: { calendar?: boolean; mail?: boolean; reset?: boolean } = {},
   ): Promise<SyncResult> {
     try {
-      const { connection, token } = await this.loadConnection(tenantId, connectionId);
-      const accessToken = await this.getValidAccessToken(tenantId, connectionId, token);
+      const { connection, token } = await this.googleToken.loadConnection(tenantId, connectionId);
+      const accessToken = await this.googleToken.getValidAccessToken(
+        tenantId,
+        connectionId,
+        token,
+      );
       const state = readSyncState(connection.syncState);
       const result: SyncResult = { connectionId };
 
@@ -417,6 +409,11 @@ export class GoogleSyncService {
             : association.clientId;
 
         const contactsByEmail = await upsertContacts(tx, tenantId, attendees);
+        // Classify virtuality from Google's structured conference fields (Meet
+        // hangoutLink / conferenceData video entry point) with a free-text
+        // fallback, exactly like the Microsoft sync — without this the meeting
+        // is stored non-virtual and the Send Meri button can never appear.
+        const virtuality = googleEventVirtuality(event);
         const baseData = {
           clientId,
           connectionId,
@@ -430,6 +427,9 @@ export class GoogleSyncService {
           organizerEmail,
           organizerName: clean(event.organizer?.displayName),
           status: 'scheduled',
+          isVirtual: virtuality.isVirtual,
+          joinLink: virtuality.joinLink,
+          provider: virtuality.provider,
           raw: event as unknown as Prisma.InputJsonValue,
           metadata: {
             webLink: event.htmlLink ?? null,
@@ -887,124 +887,7 @@ export class GoogleSyncService {
     return (await response.json()) as T;
   }
 
-  // ---- Token / connection --------------------------------------------------
-
-  private async getValidAccessToken(
-    tenantId: string,
-    connectionId: string,
-    token: IntegrationConnectionToken,
-  ): Promise<string> {
-    if (token.expiresAt.getTime() > Date.now() + TOKEN_REFRESH_SKEW_MS) {
-      return this.tokenCrypto.decrypt({
-        ciphertext: token.accessTokenCiphertext,
-        iv: token.accessTokenIv,
-        authTag: token.accessTokenAuthTag,
-      });
-    }
-
-    this.assertConfigured();
-    if (!token.refreshTokenCiphertext || !token.refreshTokenIv || !token.refreshTokenAuthTag) {
-      throw new ServiceUnavailableException(
-        'Google refresh token is missing; reconnect Google Workspace',
-      );
-    }
-    const refreshToken = this.tokenCrypto.decrypt({
-      ciphertext: token.refreshTokenCiphertext,
-      iv: token.refreshTokenIv,
-      authTag: token.refreshTokenAuthTag,
-    });
-
-    const body = new URLSearchParams({
-      client_id: this.clientId!,
-      client_secret: this.clientSecret!,
-      refresh_token: refreshToken,
-      grant_type: 'refresh_token',
-    });
-    const response = await fetch(GOOGLE_TOKEN_URL, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-      body: body.toString(),
-    });
-    if (!response.ok) {
-      const text = await response.text().catch(() => '');
-      // invalid_grant => the user revoked access or the refresh token expired
-      // (e.g. app still in Testing publishing status, 7-day expiry). Mark the
-      // connection for reconnect rather than looping.
-      if (response.status === 400 && /invalid_grant/i.test(text)) {
-        await this.markConnectionNeedsReconnect(tenantId, connectionId, text);
-        throw new BadRequestException('Reconnect Google Workspace in Settings to continue syncing');
-      }
-      throw new ServiceUnavailableException(
-        `Google token refresh failed (${response.status}): ${text.slice(0, 300)}`,
-      );
-    }
-    const refreshed = (await response.json()) as GoogleRefreshResponse;
-    if (!refreshed.access_token) {
-      throw new ServiceUnavailableException('Google token refresh returned no access token');
-    }
-    const expiresAt = new Date(Date.now() + (refreshed.expires_in ?? 3600) * 1000);
-    // Google does NOT rotate refresh tokens on redemption (unlike Azure), so we
-    // only persist the new access token and leave the stored refresh token as-is.
-    const encrypted = this.tokenCrypto.encrypt(refreshed.access_token);
-    await this.prisma.withTenant(tenantId, async (tx) => {
-      await tx.integrationConnectionToken.update({
-        where: { connectionId },
-        data: {
-          accessTokenCiphertext: encrypted.ciphertext,
-          accessTokenIv: encrypted.iv,
-          accessTokenAuthTag: encrypted.authTag,
-          keyVersion: this.tokenCrypto.getKeyVersion(),
-          scopes: GOOGLE_SCOPES,
-          expiresAt,
-        },
-      });
-      await tx.integrationConnection.update({
-        where: { id: connectionId },
-        data: {
-          status: EngagementConnectionStatus.connected,
-          scopes: GOOGLE_SCOPES,
-          lastError: null,
-        },
-      });
-    });
-    return refreshed.access_token;
-  }
-
-  private async markConnectionNeedsReconnect(
-    tenantId: string,
-    connectionId: string,
-    detail: string,
-  ) {
-    await this.prisma.withTenant(tenantId, async (tx) => {
-      await tx.integrationConnection
-        .update({
-          where: { id: connectionId },
-          data: {
-            status: EngagementConnectionStatus.needs_configuration,
-            lastError: `Reconnect Google Workspace to continue. ${detail.slice(0, 850)}`,
-          },
-        })
-        .catch(() => undefined);
-    });
-  }
-
-  private async loadConnection(tenantId: string, connectionId: string) {
-    const loaded = await this.prisma.withTenant(tenantId, async (tx) => {
-      const connection = await tx.integrationConnection.findUnique({
-        where: { id: connectionId },
-        include: { token: true },
-      });
-      if (!connection) throw new NotFoundException('Google connection not found');
-      if (connection.provider !== EngagementProvider.google_workspace) {
-        throw new BadRequestException('Connection is not a Google Workspace integration');
-      }
-      if (!connection.token) {
-        throw new BadRequestException('Google connection has no stored OAuth token');
-      }
-      return { connection, token: connection.token };
-    });
-    return loaded;
-  }
+  // ---- Connection access ----------------------------------------------------
 
   private async assertConnectionAccess(ctx: TenantContext, connectionId: string): Promise<void> {
     const connection = await this.prisma.withTenant(ctx.tenantId, (tx) =>
@@ -1036,14 +919,6 @@ export class GoogleSyncService {
         })
         .catch(() => undefined),
     );
-  }
-
-  private assertConfigured() {
-    if (!this.clientId || !this.clientSecret || !this.tokenCrypto.isConfigured()) {
-      throw new ServiceUnavailableException(
-        'Google sync is not fully configured. Required: GOOGLE_CLIENT_ID, GOOGLE_CLIENT_SECRET, OAUTH_TOKEN_ENCRYPTION_KEY.',
-      );
-    }
   }
 }
 
@@ -1218,6 +1093,26 @@ export function parseCalendarDateTime(value?: CalendarDateTime | null): Date | n
   const normalized = /[tT]/.test(text) ? text : `${text}T00:00:00Z`;
   const date = new Date(normalized);
   return Number.isNaN(date.getTime()) ? null : date;
+}
+
+/**
+ * Classify a Google calendar event's virtuality (isVirtual / joinLink /
+ * provider) via the shared classifier. Prefers Google's structured join link —
+ * the legacy `hangoutLink` or the `video` conferenceData entry point — then
+ * falls back to a free-text scan of location/description/webLink. Exported so
+ * both the live sync and the one-off backfill derive identically (and it stays
+ * unit-testable without a DB). Mirrors the Microsoft sync's virtuality step.
+ */
+export function googleEventVirtuality(event: CalendarEvent) {
+  const videoEntry = event.conferenceData?.entryPoints?.find(
+    (entry) => entry?.entryPointType === 'video',
+  );
+  return deriveMeetingVirtuality({
+    onlineMeetingUrl: event.hangoutLink ?? videoEntry?.uri ?? null,
+    location: clean(event.location),
+    description: clean(event.description),
+    metadata: { webLink: event.htmlLink ?? null },
+  });
 }
 
 function parseEpochMs(value?: string | null): Date | null {

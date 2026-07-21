@@ -23,6 +23,9 @@ import { GoogleOAuthController } from './google/google-oauth.controller.js';
 import { GoogleOAuthService } from './google/google-oauth.service.js';
 import { GoogleSyncService } from './google/google-sync.service.js';
 import { EngagementSyncSchedulerService } from './engagement-sync-scheduler.service.js';
+import { GoogleTokenService } from './google/google-token.service.js';
+import { GmailSendService } from './google/gmail-send.service.js';
+import { EngagementMailSender } from './mail-sender.service.js';
 import { OutcomeService } from './outcome/outcome.service.js';
 import { OutcomeController } from './outcome/outcome.controller.js';
 
@@ -57,6 +60,9 @@ import { OutcomeController } from './outcome/outcome.controller.js';
     GoogleOAuthService,
     GoogleSyncService,
     EngagementSyncSchedulerService,
+    GoogleTokenService,
+    GmailSendService,
+    EngagementMailSender,
     TokenCryptoService,
   ],
   exports: [
@@ -64,6 +70,7 @@ import { OutcomeController } from './outcome/outcome.controller.js';
     EngagementService,
     NotetakerService,
     MicrosoftGraphSyncService,
+    EngagementMailSender,
     AiCredentialResolverService,
   ],
 })

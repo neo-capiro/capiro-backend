@@ -608,6 +608,20 @@ export function OutreachView({
       connection.status === 'connected' &&
       (connection.provider === 'microsoft_365' || connection.provider === 'google_workspace'),
   );
+  // Every connected inbox the user can send outreach from (Outlook + Gmail),
+  // for the wizard's sender-mailbox picker.
+  const sendableInboxes = (integrations.data ?? [])
+    .filter(
+      (connection) =>
+        connection.status === 'connected' &&
+        (connection.provider === 'microsoft_365' || connection.provider === 'google_workspace'),
+    )
+    .map((connection) => ({
+      id: connection.id,
+      provider: connection.provider,
+      accountEmail: connection.accountEmail ?? null,
+      displayName: connection.displayName ?? null,
+    }));
 
   const pastMeetings = useQuery<OutreachMeeting[]>({
     queryKey: ['engagement-outreach-past-meetings', selectedClientId],
@@ -918,6 +932,7 @@ export function OutreachView({
               connection.accountEmail,
           )?.accountEmail ?? null
         }
+        sendableInboxes={sendableInboxes}
         onCancel={cancelWorkflow}
         onComplete={() => {
           qc.invalidateQueries({ queryKey: ['engagement-outreach'] });

@@ -1193,6 +1193,12 @@ class SendBatchEmailDto {
   @IsOptional()
   @IsBoolean()
   appendSignature?: boolean;
+
+  // Which connected inbox to send from (IntegrationConnection id), chosen in
+  // the wizard's sender-mailbox picker. Omitted → most recently connected inbox.
+  @IsOptional()
+  @IsUUID()
+  senderConnectionId?: string;
 }
 
 /** Async send-job submit (plan W4.3): the send-batch payload + idempotency key. */

@@ -155,3 +155,53 @@ describe('Ethical walls — forward-ready RLS policy text is present (migration 
     expect(additive).toContain('client_memory_access');
   });
 });
+
+describe('Track B — kg cache traversal is scoped fail-closed', () => {
+  it('no source file reads kg_edge_cache directly (SECURITY DEFINER fns are the only readers)', () => {
+    // The MV deliberately has no SELECT grant; a direct read in app code would
+    // either 42501 at runtime or, worse, get "fixed" by someone adding the
+    // grant — reopening an un-walled, un-tenanted surface.
+    const offenders = walkTsFiles(SRC_ROOT).filter((f) => /FROM\s+kg_edge_cache/i.test(read(f)));
+    expect(offenders).toEqual([]);
+    // The refresh job reports size via the definer-rights scalar, not a read.
+    const refresh = read(join(SRC_ROOT, '..', 'scripts', 'refresh-kg-edge-cache.ts'));
+    expect(refresh).toContain('kg_edge_cache_count()');
+    expect(refresh).not.toMatch(/FROM\s+kg_edge_cache/i);
+  });
+
+  it('every kg_walk_bounded call site derives the mandatory deny-list in the same file', () => {
+    const callers = walkTsFiles(SRC_ROOT).filter((f) => read(f).includes('kg_walk_bounded('));
+    // intel service + meri GraphRAG + the shared enrichment helper.
+    expect(callers.length).toBeGreaterThanOrEqual(3);
+    for (const f of callers) {
+      const text = read(f);
+      expect(text).toContain('toUuidArrayLiteral');
+      expect(/fetchDeniedClientIds|deniedClientIds/.test(text)).toBe(true);
+    }
+  });
+
+  it('the legacy unscoped kg_walk( is retired from every tenant path', () => {
+    const offenders = walkTsFiles(SRC_ROOT).filter((f) => /FROM\s+kg_walk\(/.test(read(f)));
+    expect(offenders).toEqual([]);
+  });
+
+  it('the intel endpoint 503s unless scoped+cache resolve for the tenant, and pins tenant on the client lookup', () => {
+    const svc = read(join(SRC_ROOT, 'intelligence', 'intelligence.service.ts'));
+    expect(svc).toContain("!endpointOn || source !== 'cache'");
+    expect(svc).toContain('ServiceUnavailableException');
+    expect(svc).toContain('pickKgIntelGraph');
+    // IDOR pin: a foreign clientId must not resolve even the client's name.
+    expect(svc).toContain('where: { id: clientId, tenantId }');
+  });
+
+  it('cache enrichment never seeds a walk from a denied client (helper + both call sites)', () => {
+    const helper = read(join(SRC_ROOT, 'memory', 'kg-cache-enrich.helpers.ts'));
+    expect(helper).toContain('opts.clients.filter((c) => !deniedSet.has(c.id))');
+    expect(read(join(SRC_ROOT, 'memory', 'memory-fk-loader.service.ts'))).toContain(
+      'clients.filter((c) => !deniedSet.has(c.id))',
+    );
+    expect(read(join(SRC_ROOT, 'meri', 'meri-tools.service.ts'))).toContain(
+      'clients.filter((c) => !deniedSet.has(c.id))',
+    );
+  });
+});

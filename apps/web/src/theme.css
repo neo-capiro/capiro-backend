@@ -13152,6 +13152,625 @@ button.engagement-debrief-badge--action:hover {
 }
 
 /* ============================================================
+   State Legislators directory tab — party-coded cards +
+   dark-hero slide-in profile drawer. Ported from the Capiro
+   design mockup (src/directory/legislators.css); tone class
+   info=Democrat, critical=Republican, notable=Independent.
+   ============================================================ */
+
+/* ── Card grid ── */
+.directory-page .leg-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 14px;
+}
+@media (max-width: 1120px) {
+  .directory-page .leg-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+@media (max-width: 720px) {
+  .directory-page .leg-grid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
+.directory-page .leg-card {
+  position: relative;
+  overflow: hidden;
+  text-align: left;
+  font-family: var(--font-sans-rd);
+  background: var(--bg-surface);
+  border: 1px solid var(--border-1);
+  border-radius: var(--r-lg);
+  padding: 16px 18px 14px 20px;
+  cursor: pointer;
+  display: flex;
+  flex-direction: column;
+  gap: 13px;
+  transition:
+    box-shadow 0.13s,
+    transform 0.13s,
+    border-color 0.13s;
+}
+.directory-page .leg-card:hover {
+  box-shadow: var(--shadow-2);
+  transform: translateY(-2px);
+  border-color: var(--border-strong);
+}
+.directory-page .leg-card:active {
+  transform: translateY(0);
+}
+.directory-page .leg-card:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+.directory-page .leg-card .leg-accent {
+  position: absolute;
+  left: 0;
+  top: 0;
+  bottom: 0;
+  width: 4px;
+}
+.directory-page .leg-card.info .leg-accent {
+  background: var(--info);
+}
+.directory-page .leg-card.critical .leg-accent {
+  background: var(--critical);
+}
+.directory-page .leg-card.notable .leg-accent {
+  background: var(--notable);
+}
+
+.directory-page .leg-card-head {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+/* ── Avatar (shared by card + drawer hero) ── */
+.leg-avatar {
+  border-radius: 50%;
+  flex-shrink: 0;
+  display: grid;
+  place-items: center;
+  font-weight: 700;
+  color: #fff;
+  letter-spacing: 0.01em;
+  overflow: hidden;
+  box-shadow: inset 0 0 0 2px rgba(255, 255, 255, 0.65);
+}
+.leg-avatar img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+.leg-avatar.info {
+  background: linear-gradient(150deg, #4b77e0, #2547a8);
+}
+.leg-avatar.critical {
+  background: linear-gradient(150deg, #c64b37, #8e2415);
+}
+.leg-avatar.notable {
+  background: linear-gradient(150deg, #c9922f, #7e5210);
+}
+
+.directory-page .leg-id {
+  flex: 1;
+  min-width: 0;
+}
+.directory-page .leg-name {
+  font-size: 15.5px;
+  font-weight: 600;
+  letter-spacing: -0.012em;
+  color: var(--ink-1);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.directory-page .leg-chamber {
+  font-size: 12px;
+  color: var(--ink-3);
+  margin-top: 2px;
+  display: flex;
+  align-items: center;
+  gap: 5px;
+}
+.directory-page .leg-chamber .anticon {
+  color: var(--ink-4);
+}
+.directory-page .leg-party {
+  flex-shrink: 0;
+  width: 24px;
+  height: 24px;
+  border-radius: 6px;
+  display: grid;
+  place-items: center;
+  font-family: var(--font-mono-rd);
+  font-size: 12px;
+  font-weight: 700;
+}
+.directory-page .leg-party.info {
+  background: var(--info-soft);
+  color: var(--info);
+}
+.directory-page .leg-party.critical {
+  background: var(--critical-soft);
+  color: var(--critical);
+}
+.directory-page .leg-party.notable {
+  background: var(--notable-soft);
+  color: var(--notable);
+}
+
+/* ── Stat strip ── */
+.directory-page .leg-stats {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  background: var(--bg-surface-2);
+  border: 1px solid var(--border-1);
+  border-radius: var(--r-md);
+  overflow: hidden;
+}
+.directory-page .leg-stat {
+  padding: 9px 12px;
+  text-align: center;
+}
+.directory-page .leg-stat + .leg-stat {
+  border-left: 1px solid var(--border-1);
+}
+.directory-page .leg-stat .v {
+  font-size: 18px;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  color: var(--ink-1);
+  line-height: 1.1;
+}
+.directory-page .leg-stat .l {
+  font-size: 10px;
+  color: var(--ink-3);
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  font-weight: 600;
+  margin-top: 2px;
+}
+
+/* ── Card footer ── */
+.directory-page .leg-foot {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.directory-page .leg-state {
+  font-size: 11px;
+  font-family: var(--font-mono-rd);
+  font-weight: 600;
+  padding: 2px 7px;
+  border-radius: 4px;
+  background: var(--bg-sunken);
+  color: var(--ink-2);
+  border: 1px solid var(--border-1);
+}
+.directory-page .leg-partylabel {
+  font-size: 12px;
+  color: var(--ink-2);
+}
+.directory-page .leg-foot .leg-spacer {
+  flex: 1;
+}
+.directory-page .leg-email {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 11.5px;
+  color: var(--ink-3);
+}
+
+.directory-page .leg-empty {
+  grid-column: 1 / -1;
+  text-align: center;
+  color: var(--ink-3);
+  font-size: 13.5px;
+  padding: 40px 0;
+}
+.directory-page .leg-empty button {
+  border: none;
+  background: none;
+  color: var(--accent-ink);
+  font-weight: 600;
+  cursor: pointer;
+  text-decoration: underline;
+  font-size: 13.5px;
+  font-family: inherit;
+}
+
+/* ===================== Profile drawer ===================== */
+/* Scoped to the antd Drawer rootClassName so it survives the body portal. */
+.leg-drawer-portal .ant-drawer-body {
+  position: relative;
+}
+.leg-drawer-loading {
+  height: 100%;
+  display: grid;
+  place-items: center;
+}
+.leg-close {
+  position: absolute;
+  top: 14px;
+  right: 14px;
+  z-index: 3;
+  width: 34px;
+  height: 34px;
+  border-radius: 999px;
+  background: var(--bg-sunken);
+  border: 1px solid var(--border-1);
+  color: var(--ink-2);
+  display: grid;
+  place-items: center;
+  cursor: pointer;
+  transition: background 0.12s;
+}
+.leg-close:hover {
+  background: var(--bg-surface-2);
+}
+.leg-close.on-dark {
+  background: rgba(255, 255, 255, 0.12);
+  border-color: rgba(255, 255, 255, 0.2);
+  color: #fff;
+}
+.leg-close.on-dark:hover {
+  background: rgba(255, 255, 255, 0.22);
+}
+
+.leg-drawer-content {
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  font-family: var(--font-sans-rd);
+  color: var(--ink-1);
+}
+
+.leg-drawer-hero {
+  flex-shrink: 0;
+  background: var(--bg-dark);
+  color: var(--ink-on-dark);
+  padding: 30px 28px 26px;
+  display: flex;
+  gap: 18px;
+  align-items: flex-start;
+  position: relative;
+}
+.leg-drawer-hero::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: 0;
+  height: 3px;
+}
+.leg-drawer-content.info .leg-drawer-hero::before {
+  background: linear-gradient(90deg, #4b77e0, transparent);
+}
+.leg-drawer-content.critical .leg-drawer-hero::before {
+  background: linear-gradient(90deg, #c64b37, transparent);
+}
+.leg-drawer-content.notable .leg-drawer-hero::before {
+  background: linear-gradient(90deg, #c9922f, transparent);
+}
+.leg-drawer-hero .leg-avatar {
+  box-shadow:
+    inset 0 0 0 2px rgba(255, 255, 255, 0.35),
+    0 6px 18px rgba(0, 0, 0, 0.3);
+}
+.leg-hero-id {
+  flex: 1;
+  min-width: 0;
+  padding-right: 30px;
+}
+.leg-hero-name {
+  font-size: 23px;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  line-height: 1.08;
+}
+.leg-hero-chamber {
+  font-size: 13px;
+  color: var(--ink-on-dark-2);
+  margin-top: 8px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.leg-hero-tags {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 12px;
+  flex-wrap: wrap;
+}
+.leg-hero-state {
+  font-size: 11px;
+  font-family: var(--font-mono-rd);
+  font-weight: 700;
+  padding: 3px 9px;
+  border-radius: 4px;
+  background: rgba(255, 255, 255, 0.12);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  color: #fff;
+  letter-spacing: 0.02em;
+}
+.leg-hero-party {
+  font-size: 11.5px;
+  font-weight: 600;
+  padding: 3px 10px;
+  border-radius: 999px;
+}
+.leg-hero-party.info {
+  background: rgba(75, 119, 224, 0.28);
+  color: #cddaf7;
+  border: 1px solid rgba(75, 119, 224, 0.5);
+}
+.leg-hero-party.critical {
+  background: rgba(198, 75, 55, 0.28);
+  color: #f2c7be;
+  border: 1px solid rgba(198, 75, 55, 0.5);
+}
+.leg-hero-party.notable {
+  background: rgba(180, 130, 40, 0.3);
+  color: #f0dca8;
+  border: 1px solid rgba(180, 130, 40, 0.55);
+}
+.leg-hero-inactive {
+  font-size: 11.5px;
+  font-weight: 600;
+  padding: 3px 10px;
+  border-radius: 999px;
+  background: rgba(180, 130, 40, 0.28);
+  color: #f0dca8;
+  border: 1px solid rgba(180, 130, 40, 0.5);
+}
+.leg-openstates {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  margin-top: 14px;
+  font-size: 12.5px;
+  font-weight: 500;
+  color: #a9c0f2 !important;
+  text-decoration: none;
+}
+.leg-openstates:hover {
+  color: #cfdcf7 !important;
+  text-decoration: underline;
+}
+
+.leg-drawer-body {
+  flex: 1;
+  overflow-y: auto;
+  padding: 22px 28px 32px;
+}
+.leg-section {
+  margin-bottom: 24px;
+}
+.leg-section-h {
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  font-weight: 700;
+  color: var(--ink-3);
+  margin-bottom: 11px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.leg-section-h .cnt {
+  font-family: var(--font-mono-rd);
+  font-size: 10.5px;
+  font-weight: 600;
+  color: var(--ink-2);
+  background: var(--bg-sunken);
+  padding: 1px 7px;
+  border-radius: 999px;
+  letter-spacing: 0;
+}
+.leg-muted {
+  font-size: 13px;
+  color: var(--ink-3);
+  line-height: 1.5;
+}
+
+.leg-contact {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  background: var(--bg-surface-2);
+  border: 1px solid var(--border-1);
+  border-radius: var(--r-md);
+  padding: 12px 14px;
+}
+.leg-contact .num {
+  flex: 1;
+  font-size: 13px;
+  color: var(--ink-1);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-family: var(--font-mono-rd);
+}
+.leg-copy {
+  border: 1px solid var(--border-1);
+  background: var(--bg-surface);
+  color: var(--ink-1);
+  font-size: 12px;
+  font-weight: 600;
+  font-family: var(--font-sans-rd);
+  padding: 5px 12px;
+  border-radius: var(--r-sm);
+  cursor: pointer;
+  flex-shrink: 0;
+  transition:
+    background 0.12s,
+    color 0.12s,
+    border-color 0.12s;
+}
+.leg-copy:hover {
+  background: var(--accent-soft);
+  color: var(--accent-ink);
+  border-color: var(--accent);
+}
+.leg-copy.done {
+  background: var(--success-soft);
+  color: var(--success);
+  border-color: var(--success);
+}
+
+.leg-committees {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+.leg-committee {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 12.5px;
+  color: var(--ink-1);
+  font-weight: 500;
+  background: var(--bg-surface);
+  border: 1px solid var(--border-1);
+  border-radius: 999px;
+  padding: 5px 5px 5px 13px;
+}
+.leg-committee .role {
+  font-size: 9.5px;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  font-weight: 700;
+  padding: 2px 8px;
+  border-radius: 999px;
+  background: var(--bg-sunken);
+  color: var(--ink-3);
+}
+.leg-committee.chair {
+  border-color: var(--accent);
+  background: var(--accent-soft);
+}
+.leg-committee.chair .role {
+  background: var(--accent);
+  color: #fff;
+}
+
+.leg-bills {
+  display: flex;
+  flex-direction: column;
+}
+.leg-bill {
+  display: block;
+  width: 100%;
+  text-align: left;
+  background: none;
+  border: none;
+  border-bottom: 1px solid var(--border-1);
+  padding: 12px 4px;
+  margin: 0 -4px;
+  cursor: pointer;
+  font-family: inherit;
+  border-radius: var(--r-sm);
+  transition: background 0.1s;
+}
+.leg-bill:hover {
+  background: var(--bg-surface-2);
+}
+.leg-bill:first-child {
+  padding-top: 2px;
+}
+.leg-bill:last-child {
+  border-bottom: none;
+}
+.leg-bill-top {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+.leg-bill-num {
+  font-family: var(--font-mono-rd);
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--ink-1);
+}
+.leg-bill-title {
+  font-size: 13px;
+  color: var(--ink-2);
+  margin-top: 5px;
+  line-height: 1.35;
+}
+.leg-bill-primary {
+  font-size: 10.5px;
+  font-weight: 600;
+  color: var(--ink-2);
+  background: var(--bg-sunken);
+  padding: 2px 8px;
+  border-radius: 4px;
+}
+.leg-status {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 11px;
+  font-weight: 600;
+  padding: 3px 9px;
+  border-radius: 999px;
+}
+.leg-status .d {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+}
+.leg-status.success {
+  background: var(--success-soft);
+  color: var(--success);
+}
+.leg-status.success .d {
+  background: var(--success);
+}
+.leg-status.info {
+  background: var(--info-soft);
+  color: var(--info);
+}
+.leg-status.info .d {
+  background: var(--info);
+}
+.leg-status.critical {
+  background: var(--critical-soft);
+  color: var(--critical);
+}
+.leg-status.critical .d {
+  background: var(--critical);
+}
+.leg-status.notable {
+  background: var(--notable-soft);
+  color: var(--notable);
+}
+.leg-status.notable .d {
+  background: var(--notable);
+}
+.leg-status.muted {
+  background: #e9e5dc;
+  color: var(--ink-2);
+}
+.leg-status.muted .d {
+  background: var(--ink-3);
+}
+
+.leg-drawer-prov {
+  font-size: 11.5px;
+  color: var(--ink-4);
+  border-top: 1px solid var(--border-1);
+  padding-top: 14px;
+}
+
+/* ============================================================
    Client Profile, Capiro redesign overrides
    Wrap profile root in <div class="redesign">…</div> to opt in.
    ============================================================ */

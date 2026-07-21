@@ -494,6 +494,24 @@ export const INGESTION_JOBS: ScheduledIngestionJob[] = [
     tier: 'derived',
     description: 'Lobby intel MV refresh (after LDA/openlobby)',
   },
+  // ── Track B — knowledge-graph edge cache (daily, after the money/lobby syncs) ─
+  // Rebuilds the materialized kg_edge_cache (aggregated FEC money-flow + LDA
+  // lobbying + tenant overlays) so the scoped graph traversal reads fresh
+  // relationships without anyone running the manual refresh. Runs at 09:45 UTC —
+  // AFTER the daily FEC/award/SAM syncs (07:00–08:00) and the lobby MV refresh
+  // (09:30), so a day's new contributions/filings are present before we
+  // re-aggregate. refresh_kg_edge_cache() is advisory-locked + idempotent; the
+  // SyncRun wrapper adds the run-ledger row + the INGESTION_METRIC line the
+  // failure alarm already watches. DARK-safe: nothing reads the cache until
+  // KG_TRAVERSAL_SOURCE=cache, but keeping it fresh from day one means the flip
+  // is instant when it comes.
+  {
+    id: 'RefreshKgEdgeCache',
+    command: ['refresh-kg-edge-cache'],
+    cron: { minute: '45', hour: '9' },
+    tier: 'derived',
+    description: 'Knowledge-graph edge cache refresh (after FEC/LDA/lobby syncs)',
+  },
   {
     id: 'EmitChanges',
     command: ['emit-changes'],
