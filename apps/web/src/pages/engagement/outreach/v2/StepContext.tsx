@@ -22,6 +22,7 @@
 import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import {
+  BankOutlined,
   BulbOutlined,
   CloseOutlined,
   DollarOutlined,
@@ -60,6 +61,20 @@ interface BillSearchRow {
   policyArea: string | null;
 }
 
+interface StateBillSearchRow {
+  id: string;
+  state: string;
+  identifier: string;
+  title: string;
+  chamber: string | null;
+  subjects: string[];
+  sponsorName: string | null;
+  sponsorParty: string | null;
+  latestActionText: string | null;
+  latestActionDate: string | null;
+  status: string | null;
+}
+
 interface Props {
   recipients: OutreachRecipient[];
   /** Structured targets — drives the grouped "Applies to" scopes + sections. */
@@ -87,6 +102,7 @@ interface ScopeOptions {
 // meetings was replaced by Meeting preps; Intel tab was removed earlier.)
 const TABS: Array<{ id: ContextKind; label: string; Icon: typeof FileTextOutlined }> = [
   { id: 'bill', label: 'Bills', Icon: FileTextOutlined },
+  { id: 'stateBill', label: 'State Bills', Icon: BankOutlined },
   { id: 'programElement', label: 'Program Elements', Icon: DollarOutlined },
   { id: 'email', label: 'Past emails', Icon: MailOutlined },
   { id: 'prep', label: 'Meeting preps', Icon: BulbOutlined },
@@ -101,6 +117,7 @@ const CLIENT_GROUPED_KINDS: ContextKind[] = ['document', 'debrief', 'prep'];
 
 const KIND_LABEL: Record<ContextKind, string> = {
   bill: 'Bill',
+  stateBill: 'State bill',
   intel: 'Intel',
   email: 'Past email',
   // `meeting` kept for back-compat with saved drafts (Past meetings retired).
@@ -152,6 +169,32 @@ export function StepContext({ recipients, targets, selected, onChange, pool, loa
     },
   });
 
+  // State bills (OpenStates/LegiScan): searching hits the ENTIRE state-bill
+  // corpus server-side, mirroring the federal Bills tab. Keyword match on
+  // title / sponsor / identifier / latest action.
+  const stateBillSearchActive = tab === 'stateBill' && debouncedSearch.length >= 2;
+  const stateBillSearch = useQuery({
+    enabled: stateBillSearchActive,
+    queryKey: ['ctx-statebill-search', debouncedSearch],
+    queryFn: async () => {
+      const res = await api.get<{ rows: StateBillSearchRow[] }>('/api/explorer/state-bills', {
+        params: { q: debouncedSearch, pageSize: 30 },
+      });
+      return res.data.rows.map<ContextPoolItem>((b) => ({
+        // Distinct prefix from federal `bill-${id}` so the two bill corpora
+        // never collide in selection/dedupe.
+        id: `state-bill-${b.id}`,
+        kind: 'stateBill',
+        // `identifier` already encodes type+number (e.g. "HB 1234"); prefix the
+        // state so a mixed context plan reads unambiguously.
+        title: `${b.state ? `${b.state} ` : ''}${b.identifier}${b.identifier && b.title ? ', ' : ''}${b.title}`,
+        body: b.latestActionText ?? undefined,
+        tag: b.status ?? b.subjects[0] ?? undefined,
+        sub: b.latestActionDate ? new Date(b.latestActionDate).toLocaleDateString() : undefined,
+      }));
+    },
+  });
+
   // Program Elements: live search over the global PE catalog (reuses the finder's
   // GET /program-elements list endpoint; canonical-current funding per row).
   const peSearchActive = tab === 'programElement' && debouncedSearch.length >= 2;
@@ -167,8 +210,10 @@ export function StepContext({ recipients, targets, selected, onChange, pool, loa
   });
 
   const visible = useMemo(() => {
-    // Full-corpus bill / PE search results take over their list while searching.
+    // Full-corpus bill / state-bill / PE search results take over their list
+    // while searching.
     if (billSearchActive) return billSearch.data ?? [];
+    if (stateBillSearchActive) return stateBillSearch.data ?? [];
     if (peSearchActive) return peSearch.data ?? [];
     const items = pool[tab] || [];
     if (!search) return items;
@@ -176,7 +221,17 @@ export function StepContext({ recipients, targets, selected, onChange, pool, loa
     return items.filter(
       (it) => it.title.toLowerCase().includes(q) || (it.body && it.body.toLowerCase().includes(q)),
     );
-  }, [pool, tab, search, billSearchActive, billSearch.data, peSearchActive, peSearch.data]);
+  }, [
+    pool,
+    tab,
+    search,
+    billSearchActive,
+    billSearch.data,
+    stateBillSearchActive,
+    stateBillSearch.data,
+    peSearchActive,
+    peSearch.data,
+  ]);
 
   // ---- Client sub-tabs (Docs & Notes / Debriefs / Preps) ----
   // These tabs group their pool by client and show a sub-tab per client; the
@@ -219,7 +274,10 @@ export function StepContext({ recipients, targets, selected, onChange, pool, loa
   }, [isClientGrouped, visible, clientTab, clientGroups]);
 
   const listLoading =
-    loading || (billSearchActive && billSearch.isLoading) || (peSearchActive && peSearch.isLoading);
+    loading ||
+    (billSearchActive && billSearch.isLoading) ||
+    (stateBillSearchActive && stateBillSearch.isLoading) ||
+    (peSearchActive && peSearch.isLoading);
 
   const isOn = (id: string) => selected.some((c) => c.id === id);
 
@@ -444,9 +502,11 @@ export function StepContext({ recipients, targets, selected, onChange, pool, loa
                   placeholder={
                     tab === 'bill'
                       ? 'Search all bills by title or sponsor…'
-                      : tab === 'programElement'
-                        ? 'Search Program Elements by title or PE code…'
-                        : `Search ${tab}…`
+                      : tab === 'stateBill'
+                        ? 'Search all state bills by title, sponsor, or number…'
+                        : tab === 'programElement'
+                          ? 'Search Program Elements by title or PE code…'
+                          : `Search ${tab}…`
                   }
                 />
               </div>
@@ -455,6 +515,13 @@ export function StepContext({ recipients, targets, selected, onChange, pool, loa
                   {billSearchActive
                     ? 'Searching every tracked bill in Congress.'
                     : 'Showing this client’s bills. Type to search the full bill database.'}
+                </div>
+              )}
+              {tab === 'stateBill' && (
+                <div style={{ padding: '4px 12px 6px', fontSize: 11, color: 'var(--ov2-ink-3)' }}>
+                  {stateBillSearchActive
+                    ? 'Searching every state bill across all states.'
+                    : 'Type at least 2 characters to search state legislation by title, sponsor, or bill number.'}
                 </div>
               )}
               {tab === 'programElement' && (
@@ -510,9 +577,11 @@ export function StepContext({ recipients, targets, selected, onChange, pool, loa
                   >
                     {billSearchActive
                       ? 'No bills match your search.'
-                      : isClientGrouped && clientTab !== 'all'
-                        ? 'No items for this client.'
-                        : 'No matches.'}
+                      : stateBillSearchActive
+                        ? 'No state bills match your search.'
+                        : isClientGrouped && clientTab !== 'all'
+                          ? 'No items for this client.'
+                          : 'No matches.'}
                   </div>
                 )}
                 {groupedVisible.map((it) => {

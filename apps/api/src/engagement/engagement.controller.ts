@@ -995,6 +995,7 @@ class OutreachSelectedContextItemDto {
   // the wizard silently falls back to placeholder drafts.
   @IsIn([
     'bill',
+    'stateBill',
     'intel',
     'email',
     'meeting',
@@ -1006,6 +1007,7 @@ class OutreachSelectedContextItemDto {
   ])
   kind!:
     | 'bill'
+    | 'stateBill'
     | 'intel'
     | 'email'
     | 'meeting'

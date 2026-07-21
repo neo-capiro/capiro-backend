@@ -289,6 +289,7 @@ export interface OutreachSelectedContextItemInput {
   id: string;
   kind:
     | 'bill'
+    | 'stateBill'
     | 'intel'
     | 'email'
     | 'meeting'

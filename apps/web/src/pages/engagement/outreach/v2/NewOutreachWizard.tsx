@@ -516,6 +516,9 @@ export function NewOutreachWizard({
   const pool: Record<ContextKind, ContextPoolItem[]> = useMemo(() => {
     const out: Record<ContextKind, ContextPoolItem[]> = {
       bill: [],
+      // State bills are search-only (no default watchlist seed), like the
+      // federal bill tab's full-corpus search.
+      stateBill: [],
       intel: [],
       email: [],
       // `meeting` retained for back-compat with saved drafts (the Past Meetings

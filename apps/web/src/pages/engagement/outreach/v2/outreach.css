@@ -380,6 +380,7 @@
   padding: 2px 7px; border-radius: 3px;
 }
 .ov2-ctx-card-kind[data-kind="bill"]    { background: var(--ov2-notable-soft); color: var(--ov2-notable); }
+.ov2-ctx-card-kind[data-kind="stateBill"] { background: #DCEFEA;               color: #0F766E; }
 .ov2-ctx-card-kind[data-kind="intel"]   { background: var(--ov2-info-soft);    color: var(--ov2-info); }
 .ov2-ctx-card-kind[data-kind="email"]   { background: var(--ov2-accent-soft);  color: var(--ov2-accent-ink); }
 .ov2-ctx-card-kind[data-kind="meeting"] { background: var(--ov2-success-soft); color: var(--ov2-success); }

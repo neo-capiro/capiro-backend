@@ -13,6 +13,7 @@ export type WizardDirection = 'on-behalf' | 'to-clients';
 
 export type ContextKind =
   | 'bill'
+  | 'stateBill'
   | 'intel'
   | 'email'
   | 'meeting'
