@@ -124,7 +124,7 @@ function formatDate(value: string): string {
   return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
 }
 
-function fmtCount(n: number | null): string {
+function fmtCount(n: number | null | undefined): string {
   return n == null ? '—' : n.toLocaleString();
 }
 
@@ -192,7 +192,7 @@ function LegCard({ leg, onSelect }: { leg: StateLegislatorRow; onSelect: (id: st
           <div className="l">Enacted</div>
         </div>
         <div className="leg-stat">
-          <div className="v num">{leg.committeeCount.toLocaleString()}</div>
+          <div className="v num">{fmtCount(leg.committeeCount)}</div>
           <div className="l">Committees</div>
         </div>
       </div>
