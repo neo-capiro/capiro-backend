@@ -321,8 +321,11 @@ export class MemoryController {
     const full = await this.buildFullGraph();
     const sub = walkFrom(full, to, depth ? Math.max(1, parseInt(depth, 10) || 1) : 3);
     const clients = sub.nodes.filter((n) => n.type === 'client').map((n) => n.id);
+    // Build the undirected adjacency ONCE and reuse it for every client seed —
+    // shortestPath used to rebuild it on every call, making this O(clients × edges).
+    const adj = buildAdjacency(full.edges);
     const paths = clients
-      .map((c) => shortestPath(full, c, to))
+      .map((c) => shortestPath(adj, c, to))
       .filter((p): p is string[] => p !== null);
     return { ...sub, paths };
   }
@@ -392,18 +395,24 @@ export class MemoryController {
   }
 }
 
-/** BFS shortest path between two node ids over the undirected graph. */
-function shortestPath(
-  graph: { nodes: Array<{ id: string }>; edges: Array<{ src: string; dst: string }> },
-  from: string,
-  to: string,
-): string[] | null {
-  if (from === to) return [from];
+/** Undirected adjacency map over the graph edges — built once, reused per source. */
+function buildAdjacency(edges: Array<{ src: string; dst: string }>): Map<string, string[]> {
   const adj = new Map<string, string[]>();
-  for (const e of graph.edges) {
-    (adj.get(e.src) ?? adj.set(e.src, []).get(e.src)!).push(e.dst);
-    (adj.get(e.dst) ?? adj.set(e.dst, []).get(e.dst)!).push(e.src);
+  const push = (a: string, b: string) => {
+    const list = adj.get(a);
+    if (list) list.push(b);
+    else adj.set(a, [b]);
+  };
+  for (const e of edges) {
+    push(e.src, e.dst);
+    push(e.dst, e.src);
   }
+  return adj;
+}
+
+/** BFS shortest path between two node ids over a prebuilt undirected adjacency map. */
+function shortestPath(adj: Map<string, string[]>, from: string, to: string): string[] | null {
+  if (from === to) return [from];
   const prev = new Map<string, string>();
   const visited = new Set<string>([from]);
   let frontier = [from];
