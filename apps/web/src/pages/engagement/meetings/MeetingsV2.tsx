@@ -15,6 +15,7 @@ import {
   formatDayHeader,
   formatDayTitle,
   formatMonthTitle,
+  formatWeekRange,
   formatWeekdayShort,
   isSameDay,
   isToday,
@@ -24,8 +25,6 @@ import {
   startOfWeek,
 } from './meetings-format.js';
 import type { Meeting, MeetingViewMode } from './meetings-types.js';
-
-const WEEK_RANGE = new Intl.DateTimeFormat(undefined, { month: 'short', day: 'numeric' });
 
 /**
  * Redesigned Engagement → Meetings surface (Meetings & Meri v2) — a faithful
@@ -100,7 +99,7 @@ export function MeetingsV2({
     if (viewMode === 'month') return formatMonthTitle(cursor);
     if (viewMode === 'day') return formatDayTitle(cursor);
     const ws = startOfWeek(cursor);
-    return `${WEEK_RANGE.format(ws)} – ${addDays(ws, 6).getDate()}`;
+    return formatWeekRange(ws, addDays(ws, 6));
   })();
 
   const meetingsOn = (d: Date) =>
