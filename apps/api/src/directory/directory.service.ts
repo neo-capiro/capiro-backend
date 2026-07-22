@@ -878,7 +878,10 @@ export class DirectoryService implements OnModuleInit {
     const base = await this.getDirectoryData();
     const numericId = Number(String(staffId).replace(/^staff-/, ''));
     const row = base.indexes.staffById.get(numericId);
-    if (!row) throw new NotFoundException('Directory staffer not found');
+    // A staffer can appear in the directory via a member's roster
+    // (staffer_roles/staffer_issues) without having a /staff/list row. Rather than
+    // 404 that profile, render a minimal one from the member-side data we do have.
+    if (!row) return this.buildRosterOnlyStaffDetail(base, numericId);
     const staff = (row.staff ?? {}) as Record<string, any>;
     const bio = (staff.bio_details ?? {}) as Record<string, any>;
     const personId = `staff-${numericId}`;
@@ -963,6 +966,98 @@ export class DirectoryService implements OnModuleInit {
       availability: {
         photo: photo.url ? 'available' : 'not_provided',
         socialContacts: this.mapContactMethods(row.social_media).length ? 'available' : 'not_provided',
+      },
+    };
+  }
+
+  /**
+   * Minimal staff detail for a staffer who appears via a member's roster but has no
+   * /staff/list row (name + issues + roles + member associations; everything else
+   * "not provided"). Prevents a 404 when such a staffer's profile is opened.
+   */
+  private buildRosterOnlyStaffDetail(
+    base: CachedContacts['data'],
+    numericId: number,
+  ): DirectoryStaffDetail {
+    const name = base.indexes.staffNamesByStaffId.get(numericId);
+    if (!name) throw new NotFoundException('Directory staffer not found');
+    const personId = `staff-${numericId}`;
+    const parts = name.split(' ').filter(Boolean);
+    const firstName = parts.length > 1 ? parts.slice(0, -1).join(' ') : name;
+    const lastName = parts.length > 1 ? parts[parts.length - 1]! : '';
+    const overlay = base.photoOverlay.people[personId] ?? null;
+    const photo = resolveStaffPhoto(null, overlay);
+    const memberName = (memberId: number | null): string | null =>
+      memberId != null ? this.resolveMemberRef(base.indexes, memberId).fullName || null : null;
+    const issues = (base.indexes.staffIssuesByStaffId.get(numericId) ?? []).map((link) => ({
+      issueName: link.issueName,
+      memberId: link.memberId,
+      memberName: memberName(link.memberId),
+      updatedAt: link.updatedAt,
+    }));
+    const roles = (base.indexes.staffRolesByStaffId.get(numericId) ?? []).map((link) => ({
+      roleName: link.roleName,
+      memberId: link.memberId,
+      memberName: memberName(link.memberId),
+      updatedAt: link.updatedAt,
+    }));
+    const memberIds = [
+      ...new Set(
+        [...issues, ...roles]
+          .map((x) => x.memberId)
+          .filter((id): id is number => id != null),
+      ),
+    ];
+    const memberAssociations = memberIds.map((id) => {
+      const ref = this.resolveMemberRef(base.indexes, id);
+      return {
+        id: `member-${id}`,
+        memberId: id,
+        fullName: ref.fullName,
+        party: ref.party,
+        state: ref.state,
+        district: ref.district,
+      };
+    });
+    return {
+      kind: 'staff',
+      id: personId,
+      source: { snapshotId: base.sourceId, staffId: numericId, lastUpdatedAt: null },
+      identity: {
+        staffId: numericId,
+        firstName,
+        lastName,
+        preferredFirstName: null,
+        preferredLastName: null,
+        suffix: null,
+        gender: null,
+      },
+      bioDetails: {
+        dob: null,
+        dateOfDeath: null,
+        hometown: null,
+        placeOfBirth: null,
+        nativeOf: null,
+        majMin: null,
+        partyName: null,
+        occupation: null,
+        pronunciation: null,
+        raceName: null,
+        religionName: null,
+      },
+      photoUrl: photo.url,
+      photoSource: photo.source,
+      emails: [],
+      socialContacts: [],
+      officeAddresses: [],
+      positions: [],
+      memberAssociations,
+      committeeAssociations: this.membershipsForPerson(base.indexes, personId),
+      issues,
+      roles,
+      availability: {
+        photo: photo.url ? 'available' : 'not_provided',
+        socialContacts: 'not_provided',
       },
     };
   }

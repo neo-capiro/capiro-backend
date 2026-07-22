@@ -64,7 +64,12 @@ const MEMBERS = [
     ],
     committees: [{ id: 1, committee_office: { office_id: 100 }, position: 'Chair', rank: 1, party_id: 'R', updated_at: '2026-07-01T00:00:00Z' }],
     leaderships: [{ position: 'Chairman', start_date: '2025-01-03', end_date: null, updated_at: '2026-07-01T00:00:00Z' }],
-    staffer_roles: [{ role_name: 'Legislative Director', staffer: { id: 800 }, updated_at: '2026-07-01T00:00:00Z' }],
+    staffer_roles: [
+      { role_name: 'Legislative Director', staffer: { id: 800 }, updated_at: '2026-07-01T00:00:00Z' },
+      // Roster-only staffer: referenced by the member but absent from the STAFF
+      // (staff-list) fixture — must resolve to a minimal profile, not 404.
+      { role_name: 'Scheduler', staffer: { id: 801, first_name: 'Roster', last_name: 'Only' }, updated_at: '2026-07-01T00:00:00Z' },
+    ],
     staffer_issues: [{ issue_name: 'Armed forces and national security', staffer: { id: 800 }, updated_at: '2026-07-01T00:00:00Z' }],
   },
 ];
@@ -240,6 +245,20 @@ describe('DirectoryService staff detail', () => {
 
   test('404s an unknown staffer', async () => {
     await expect(makeService().getStaffDetail('staff-999')).rejects.toThrow(/not found/i);
+  });
+
+  test('renders a minimal profile for a roster-only staffer (no staff-list row) instead of 404', async () => {
+    const detail = await makeService().getStaffDetail('staff-801');
+    expect(detail.kind).toBe('staff');
+    expect(detail.identity).toMatchObject({ staffId: 801, firstName: 'Roster', lastName: 'Only' });
+    expect(detail.roles.map((r) => r.roleName)).toContain('Scheduler');
+    expect(detail.roles[0]).toMatchObject({ memberId: 500, memberName: 'Mike Rogers' });
+    // Everything sourced from the (absent) staff-list row is empty, not fabricated.
+    expect(detail.positions).toEqual([]);
+    expect(detail.officeAddresses).toEqual([]);
+    expect(detail.emails).toEqual([]);
+    expect(detail.bioDetails.partyName).toBeNull();
+    expect(detail.memberAssociations.map((m) => m.memberId)).toContain(500);
   });
 });
 

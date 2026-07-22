@@ -17,7 +17,22 @@ function memberContext(m: {
 }
 
 /** Prop-driven staff profile — deep-linkable; never shows a member's photo. */
-export function StaffProfileView({ staff }: { staff: StaffDetail }) {
+export function StaffProfileView({ staff: rawStaff }: { staff: StaffDetail }) {
+  // Defensive normalization: never assume the arrays/objects are present, so a
+  // shape drift can't blank the whole profile with a client-side crash. The rest
+  // of the component reads `staff` and so transparently gets the guarded values.
+  const staff: StaffDetail = {
+    ...rawStaff,
+    bioDetails: rawStaff.bioDetails ?? ({} as StaffDetail['bioDetails']),
+    emails: rawStaff.emails ?? [],
+    socialContacts: rawStaff.socialContacts ?? [],
+    officeAddresses: rawStaff.officeAddresses ?? [],
+    positions: rawStaff.positions ?? [],
+    memberAssociations: rawStaff.memberAssociations ?? [],
+    committeeAssociations: rawStaff.committeeAssociations ?? [],
+    issues: rawStaff.issues ?? [],
+    roles: rawStaff.roles ?? [],
+  };
   const displayName = [staff.identity.preferredFirstName ?? staff.identity.firstName, staff.identity.lastName]
     .filter(Boolean)
     .join(' ')

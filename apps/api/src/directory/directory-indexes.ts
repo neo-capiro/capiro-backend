@@ -75,6 +75,12 @@ export interface DirectoryIndexes {
   staffIssuesByStaffId: Map<number, DirectoryStaffIssueLink[]>;
   /** staff.id -> functional roles, aggregated from every member's staffer_roles. */
   staffRolesByStaffId: Map<number, DirectoryStaffRoleLink[]>;
+  /**
+   * staff.id -> display name, captured from the member-side staffer objects. Lets
+   * the staff detail render a minimal profile for a staffer who appears via a
+   * member's roster but has no /staff/list row (would otherwise 404).
+   */
+  staffNamesByStaffId: Map<number, string>;
 }
 
 export interface BuildDirectoryIndexesInput {
@@ -163,6 +169,18 @@ export function buildDirectoryIndexes(input: BuildDirectoryIndexesInput): Direct
   const committeeAliases = new Map<string, number>();
   const staffIssuesByStaffId = new Map<number, DirectoryStaffIssueLink[]>();
   const staffRolesByStaffId = new Map<number, DirectoryStaffRoleLink[]>();
+  const staffNamesByStaffId = new Map<number, string>();
+  const captureStaffName = (staffId: number, staffer: SourceRow | undefined): void => {
+    if (staffNamesByStaffId.has(staffId) || !isRecord(staffer)) return;
+    const nm = [
+      staffer.preferred_first_name ?? staffer.first_name,
+      staffer.preferred_last_name ?? staffer.last_name,
+    ]
+      .filter(Boolean)
+      .join(' ')
+      .trim();
+    if (nm) staffNamesByStaffId.set(staffId, nm);
+  };
 
   // Valid federal committees only (identity + display from the built list).
   const committeeByOfficeId = new Map<number, DirectoryCommittee>();
@@ -217,6 +235,7 @@ export function buildDirectoryIndexes(input: BuildDirectoryIndexesInput): Direct
       if (!isRecord(entry)) continue;
       const staffId = Number((entry.staffer as SourceRow)?.id);
       if (!Number.isFinite(staffId)) continue;
+      captureStaffName(staffId, entry.staffer as SourceRow);
       // Skip name-less rows (mirrors buildMemberStaff) so blank issues never
       // enter the index and inflate the staffer's Issue-areas count.
       const issueName = typeof entry.issue_name === 'string' ? entry.issue_name.trim() : '';
@@ -233,6 +252,7 @@ export function buildDirectoryIndexes(input: BuildDirectoryIndexesInput): Direct
       if (!isRecord(entry)) continue;
       const staffId = Number((entry.staffer as SourceRow)?.id);
       if (!Number.isFinite(staffId)) continue;
+      captureStaffName(staffId, entry.staffer as SourceRow);
       const roleName = typeof entry.role_name === 'string' ? entry.role_name.trim() : '';
       if (!roleName) continue;
       const list = staffRolesByStaffId.get(staffId) ?? [];
@@ -363,5 +383,6 @@ export function buildDirectoryIndexes(input: BuildDirectoryIndexesInput): Direct
     committeeAliases,
     staffIssuesByStaffId,
     staffRolesByStaffId,
+    staffNamesByStaffId,
   };
 }
