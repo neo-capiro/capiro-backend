@@ -28,6 +28,11 @@ import { classifyTrajectory } from './trajectory-classifier.model.js';
 import { addDateInZone, dateBoundsInZone, dayBoundsInZone } from './time-bounds.js';
 import { FEC_DISCLAIMER } from './fec-disclaimer.js';
 import { expandTerms, isKnownAcronym, MIN_KEYWORD_TOKEN_LENGTH } from './term-expansion.js';
+import {
+  buildKeywordMatchTerms,
+  columnKeywordMatchSql,
+  matchingBillIdsSql,
+} from './bill-keyword-match.helpers.js';
 import { commentDeadlineDedupeKey } from './comment-deadline.util.js';
 import { ClientPrepopulationService } from './client-prepopulation.service.js';
 import { OfficeRecommenderService } from './office-recommender.service.js';
@@ -2012,19 +2017,14 @@ export class IntelligenceService {
   private async findRelevantBillsByKeyword(allTerms: string[]) {
     // Whole-word keyword fallback (legacy source). Keeps behavior stable when
     // embeddings are unavailable or backfill has not populated bill vectors.
-    const lowerTerms = allTerms.map((n) => n.toLowerCase());
-    const wordPatterns = lowerTerms.map((n) => `\\m${n.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\M`);
+    // Matching is index-backed via matchingBillIdsSql (UNION of per-table trigram
+    // branches); see bill-keyword-match.helpers.ts for the why + parity proof.
+    const { lowerTerms, wordPatterns } = buildKeywordMatchTerms(allTerms);
+    const matchingIds = matchingBillIdsSql(lowerTerms, wordPatterns);
 
-    const countRows = await this.prisma.$queryRaw<Array<{ total: bigint }>>`
-      SELECT COUNT(DISTINCT cb.id)::bigint AS total
-      FROM congress_bill cb
-      LEFT JOIN congress_bill_subject cbs ON cbs.bill_id = cb.id
-      WHERE LOWER(cbs.name) = ANY(${lowerTerms}::text[])
-         OR LOWER(cbs.name) ~ ANY(${wordPatterns}::text[])
-         OR LOWER(cb.policy_area) = ANY(${lowerTerms}::text[])
-         OR LOWER(cb.policy_area) ~ ANY(${wordPatterns}::text[])
-         OR LOWER(cb.title) ~ ANY(${wordPatterns}::text[])
-    `;
+    const countRows = await this.prisma.$queryRaw<Array<{ total: bigint }>>(Prisma.sql`
+      SELECT COUNT(*)::bigint AS total FROM ${matchingIds} AS m
+    `);
 
     const rows = await this.prisma.$queryRaw<
       Array<{
@@ -2042,24 +2042,15 @@ export class IntelligenceService {
         policy_area: string | null;
         subjects: string[];
       }>
-    >`
-      SELECT * FROM (
-        SELECT DISTINCT ON (cb.id)
-          cb.id, cb.congress, cb.bill_type, cb.bill_number, cb.title,
-          cb.introduced_date, cb.sponsor_name, cb.sponsor_party, cb.sponsor_state,
-          cb.latest_action_text, cb.latest_action_date, cb.policy_area, cb.subjects
-        FROM congress_bill cb
-        LEFT JOIN congress_bill_subject cbs ON cbs.bill_id = cb.id
-        WHERE LOWER(cbs.name) = ANY(${lowerTerms}::text[])
-           OR LOWER(cbs.name) ~ ANY(${wordPatterns}::text[])
-           OR LOWER(cb.policy_area) = ANY(${lowerTerms}::text[])
-           OR LOWER(cb.policy_area) ~ ANY(${wordPatterns}::text[])
-           OR LOWER(cb.title) ~ ANY(${wordPatterns}::text[])
-        ORDER BY cb.id
-      ) q
-      ORDER BY q.latest_action_date DESC NULLS LAST
+    >(Prisma.sql`
+      SELECT cb.id, cb.congress, cb.bill_type, cb.bill_number, cb.title,
+             cb.introduced_date, cb.sponsor_name, cb.sponsor_party, cb.sponsor_state,
+             cb.latest_action_text, cb.latest_action_date, cb.policy_area, cb.subjects
+      FROM congress_bill cb
+      WHERE cb.id IN (SELECT id FROM ${matchingIds} AS m)
+      ORDER BY cb.latest_action_date DESC NULLS LAST, cb.id
       LIMIT 25
-    `;
+    `);
 
     const bills = rows.map((r) => ({
       id: r.id,
@@ -3866,19 +3857,15 @@ export class IntelligenceService {
       subjectNames: string[];
     }>;
   }> {
-    const lowerTerms = allTerms.map((n) => n.toLowerCase());
-    const wordPatterns = lowerTerms.map((n) => `\\m${n.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\M`);
+    // Index-backed via matchingBillIdsSql (UNION of per-table trigram branches);
+    // see bill-keyword-match.helpers.ts. Identical result set to the prior
+    // cross-table-OR query, ~350x faster.
+    const { lowerTerms, wordPatterns } = buildKeywordMatchTerms(allTerms);
+    const matchingIds = matchingBillIdsSql(lowerTerms, wordPatterns);
 
-    const countRows = await this.prisma.$queryRaw<Array<{ total: bigint }>>`
-      SELECT COUNT(DISTINCT cb.id)::bigint AS total
-      FROM congress_bill cb
-      LEFT JOIN congress_bill_subject cbs ON cbs.bill_id = cb.id
-      WHERE LOWER(cbs.name) = ANY(${lowerTerms}::text[])
-         OR LOWER(cbs.name) ~ ANY(${wordPatterns}::text[])
-         OR LOWER(cb.policy_area) = ANY(${lowerTerms}::text[])
-         OR LOWER(cb.policy_area) ~ ANY(${wordPatterns}::text[])
-         OR LOWER(cb.title) ~ ANY(${wordPatterns}::text[])
-    `;
+    const countRows = await this.prisma.$queryRaw<Array<{ total: bigint }>>(Prisma.sql`
+      SELECT COUNT(*)::bigint AS total FROM ${matchingIds} AS m
+    `);
 
     const bills = await this.prisma.$queryRaw<
       Array<{
@@ -3890,22 +3877,14 @@ export class IntelligenceService {
         sponsor_party: string | null;
         subjects: string[];
       }>
-    >`
-      SELECT * FROM (
-        SELECT DISTINCT ON (cb.id) cb.id, cb.title, cb.latest_action_date, cb.latest_action_text,
-               cb.sponsor_name, cb.sponsor_party, cb.subjects
-        FROM congress_bill cb
-        LEFT JOIN congress_bill_subject cbs ON cbs.bill_id = cb.id
-        WHERE LOWER(cbs.name) = ANY(${lowerTerms}::text[])
-           OR LOWER(cbs.name) ~ ANY(${wordPatterns}::text[])
-           OR LOWER(cb.policy_area) = ANY(${lowerTerms}::text[])
-           OR LOWER(cb.policy_area) ~ ANY(${wordPatterns}::text[])
-           OR LOWER(cb.title) ~ ANY(${wordPatterns}::text[])
-        ORDER BY cb.id
-      ) q
-      ORDER BY q.latest_action_date DESC NULLS LAST
+    >(Prisma.sql`
+      SELECT cb.id, cb.title, cb.latest_action_date, cb.latest_action_text,
+             cb.sponsor_name, cb.sponsor_party, cb.subjects
+      FROM congress_bill cb
+      WHERE cb.id IN (SELECT id FROM ${matchingIds} AS m)
+      ORDER BY cb.latest_action_date DESC NULLS LAST, cb.id
       LIMIT 50
-    `;
+    `);
 
     return {
       total: Number(countRows[0]?.total ?? 0),
@@ -6191,9 +6170,15 @@ export class IntelligenceService {
             JOIN congress_bill_subject s ON s.bill_id = b.id
             WHERE lower(b.latest_action_text) NOT LIKE '%became public law%'
               AND lower(b.latest_action_text) NOT LIKE '%vetoed%'
-              AND s.name ILIKE ANY(
+              -- LDA issue-code names contain no ILIKE wildcards (controlled
+              -- vocabulary; verified 0 of 79 names have _ or %), so the original
+              -- s.name ILIKE ANY(names) is exactly case-insensitive set
+              -- membership. Expressing it as lower(s.name) = ANY(lower(names))
+              -- lets it use congress_bill_subject_name_lower_trgm_idx instead of a
+              -- full congress_bill x congress_bill_subject join + seq-scan filter.
+              AND lower(s.name) = ANY(
                 ARRAY(
-                  SELECT DISTINCT name FROM lda_issue_code
+                  SELECT DISTINCT lower(name) FROM lda_issue_code
                   WHERE code = ANY(
                     SELECT DISTINCT unnest(issue_codes)
                     FROM lda_client

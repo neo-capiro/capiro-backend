@@ -1,6 +1,7 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
-import { EngagementTaskStatus } from '@prisma/client';
+import { EngagementTaskStatus, Prisma } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service.js';
+import { columnKeywordMatchSql } from './bill-keyword-match.helpers.js';
 import { InsightGeneratorService } from './insight-generator.service.js';
 
 export interface ReportCardData {
@@ -301,12 +302,17 @@ export class ReportCardService {
     if (!nameRows.length) return 0;
 
     const patterns = nameRows.map((r) => `%${r.name.toLowerCase()}%`);
-    const countRows = await this.prisma.$queryRaw<Array<{ count: string }>>`
+    // Per-pattern ILIKE (not ILIKE ANY) so the LOWER(name) trigram index is used;
+    // identical result set. See bill-keyword-match.helpers.ts.
+    const nameMatch = columnKeywordMatchSql(Prisma.sql`LOWER(cbs.name)`, {
+      ilikePatterns: patterns,
+    });
+    const countRows = await this.prisma.$queryRaw<Array<{ count: string }>>(Prisma.sql`
       SELECT COUNT(DISTINCT cb.id)::text AS count
       FROM congress_bill cb
       JOIN congress_bill_subject cbs ON cbs.bill_id = cb.id
-      WHERE LOWER(cbs.name) ILIKE ANY(${patterns}::text[])
-    `;
+      WHERE ${nameMatch}
+    `);
     return parseInt(countRows[0]?.count ?? '0', 10);
   }
 

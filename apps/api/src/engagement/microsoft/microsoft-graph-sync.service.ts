@@ -45,11 +45,13 @@ const MAX_CALENDAR_PAGES_PER_RUN = 12;
 const MAX_MAIL_PAGES_PER_FOLDER_PER_RUN = 12;
 const OUTLOOK_SUBSCRIPTION_MS = 6 * 24 * 60 * 60 * 1000;
 const SUBSCRIPTION_RENEWAL_SKEW_MS = 24 * 60 * 60 * 1000;
-// Each persist transaction first waits on the per-tenant sync advisory lock
+// Budget for BOTH phases of a persist: the unlocked phase-1 association read
+// and the phase-2 write txn that waits on the per-tenant sync advisory lock
 // (lockTenantForGraphSync) and then upserts. 20s gives headroom over the prior
 // 5s interactive-transaction default, which was tripping "Transaction already
 // closed" while transactions blocked on the deadlock storm. The advisory lock
-// auto-releases on commit/rollback, so it is held only for the short write txn.
+// auto-releases on commit/rollback, so it is held only for the short write txn
+// (association was moved out of it — see persistGraphEvent/persistGraphMessage).
 const GRAPH_SYNC_TX_TIMEOUT_MS = 20_000;
 
 interface MicrosoftSyncState {
@@ -826,33 +828,60 @@ export class MicrosoftGraphSyncService {
     const endsAt = parseGraphDateTime(event.end?.dateTime);
     if (!startsAt || !endsAt) return 'skipped';
 
+    // Dedupe by normalized email: Graph invites can list the same address twice
+    // (required+optional, DL expansion), and meeting_attendees has a UNIQUE
+    // (meeting_id, email) — the second create() P2002'd the WHOLE sync tx,
+    // freezing the mailbox (calendar syncs before mail). Hit live by 3 mailboxes
+    // when auto-sync retried weeks-stale calendars.
+    const attendeeEmails = new Set<string>();
+    const attendees = (event.attendees ?? [])
+      .map((attendee) => ({
+        email: normalizeEmail(attendee.emailAddress?.address),
+        name: clean(attendee.emailAddress?.name),
+        role: clean(attendee.type),
+        responseStatus: clean(attendee.status?.response),
+      }))
+      .filter((attendee) => attendee.email || attendee.name)
+      .filter((attendee) => {
+        if (!attendee.email) return true;
+        if (attendeeEmails.has(attendee.email)) return false;
+        attendeeEmails.add(attendee.email);
+        return true;
+      });
+    const organizerEmail = normalizeEmail(event.organizer?.emailAddress?.address);
+    const ownEmail = accountEmail?.trim().toLowerCase();
+
+    // Phase 1 — client association, computed OUTSIDE the advisory lock. This is
+    // the expensive read (a full active-client scan + attendee-history join +
+    // in-JS scoring); running it inside lockTenantForGraphSync serialized it per
+    // tenant and left ~5 sessions permanently blocked on pg_advisory_xact_lock,
+    // each pinning a Prisma pool connection — starving the pool so unrelated
+    // endpoints 500'd with P2028. Association is best-effort (advisory client
+    // link), so it need not be atomic with the write below.
+    const association = await this.prisma.withTenant(
+      tenantId,
+      (tx) =>
+        this.association.associate(tx, tenantId, {
+          subject: event.subject,
+          body: event.bodyPreview,
+          attendeeEmails: [
+            organizerEmail ?? '',
+            ...attendees.map((attendee) => attendee.email ?? ''),
+          ].filter((e) => e && e !== ownEmail),
+        }),
+      { timeoutMs: GRAPH_SYNC_TX_TIMEOUT_MS },
+    );
+
+    // Phase 2 — the advisory lock is now held ONLY across the writes. It still
+    // serializes this tenant's Graph-sync writes on the shared (tenant,email)
+    // contacts and (tenant,source,externalId) rows, so the deadlock guard the
+    // lock exists for is intact; it is just no longer held across association.
+    // `existing` is re-read here (under the lock) so the create/update decision
+    // stays serialized and race-free.
     return this.prisma.withTenantRetry(
       tenantId,
       async (tx) => {
-        // Serialize this tenant's Graph-sync write transactions cluster-wide so
-        // concurrent syncs of the same mailbox cannot deadlock on shared upserts.
         await lockTenantForGraphSync(tx, tenantId);
-        // Dedupe by normalized email: Graph invites can list the same address
-        // twice (required+optional, DL expansion), and meeting_attendees has a
-        // UNIQUE (meeting_id, email) — the second create() P2002'd the WHOLE
-        // sync tx, freezing the mailbox (calendar syncs before mail). Hit live
-        // by 3 mailboxes when auto-sync retried weeks-stale calendars.
-        const attendeeEmails = new Set<string>();
-        const attendees = (event.attendees ?? [])
-          .map((attendee) => ({
-            email: normalizeEmail(attendee.emailAddress?.address),
-            name: clean(attendee.emailAddress?.name),
-            role: clean(attendee.type),
-            responseStatus: clean(attendee.status?.response),
-          }))
-          .filter((attendee) => attendee.email || attendee.name)
-          .filter((attendee) => {
-            if (!attendee.email) return true;
-            if (attendeeEmails.has(attendee.email)) return false;
-            attendeeEmails.add(attendee.email);
-            return true;
-          });
-        const organizerEmail = normalizeEmail(event.organizer?.emailAddress?.address);
         const existing = await tx.meeting.findUnique({
           where: {
             tenantId_source_externalId: {
@@ -862,15 +891,6 @@ export class MicrosoftGraphSyncService {
             },
           },
           select: { id: true, clientId: true, isInternal: true, associationSignals: true },
-        });
-        const ownEmail = accountEmail?.trim().toLowerCase();
-        const association = await this.association.associate(tx, tenantId, {
-          subject: event.subject,
-          body: event.bodyPreview,
-          attendeeEmails: [
-            organizerEmail ?? '',
-            ...attendees.map((attendee) => attendee.email ?? ''),
-          ].filter((e) => e && e !== ownEmail),
         });
         const hasManualOverride = existing
           ? await hasManualAssociationOverride(
@@ -997,11 +1017,26 @@ export class MicrosoftGraphSyncService {
     const messageDate = parseGraphDateTime(message.receivedDateTime ?? message.sentDateTime);
     const threadExternalId = message.conversationId || message.internetMessageId || message.id;
 
+    // Phase 1 — client association, computed OUTSIDE the advisory lock (same
+    // fix as persistGraphEvent): the expensive active-client scan + scoring must
+    // not run while holding lockTenantForGraphSync, which pinned pool
+    // connections on pg_advisory_xact_lock and 500'd unrelated endpoints (P2028).
+    const association = await this.prisma.withTenant(
+      tenantId,
+      (tx) =>
+        this.association.associate(tx, tenantId, {
+          subject: message.subject,
+          body: message.bodyPreview,
+          participantEmails,
+        }),
+      { timeoutMs: GRAPH_SYNC_TX_TIMEOUT_MS },
+    );
+
+    // Phase 2 — advisory lock held ONLY across the writes (deadlock guard on the
+    // shared (tenant,email) / (tenant,source,externalId) rows stays intact).
     return this.prisma.withTenantRetry(
       tenantId,
       async (tx) => {
-        // Serialize this tenant's Graph-sync write transactions cluster-wide so
-        // concurrent syncs of the same mailbox cannot deadlock on shared upserts.
         await lockTenantForGraphSync(tx, tenantId);
         const existingMessage = await tx.mailMessage.findUnique({
           where: {
@@ -1029,11 +1064,6 @@ export class MicrosoftGraphSyncService {
               },
               select: { id: true, clientId: true, lastMessageAt: true, associationSignals: true },
             });
-        const association = await this.association.associate(tx, tenantId, {
-          subject: message.subject,
-          body: message.bodyPreview,
-          participantEmails,
-        });
         const hasManualOverride = existingThread
           ? await hasManualAssociationOverride(
               tx,
