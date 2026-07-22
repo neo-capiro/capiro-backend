@@ -2,11 +2,13 @@ import { describe, expect, test } from 'vitest';
 import {
   chamberCategory,
   normalizeCongress,
+  normalizeStaff,
   normalizeState,
   partyShort,
   profileHref,
 } from './targets-normalize.js';
 import type { DirectoryEntry } from '../directory/directoryData.js';
+import type { DirectoryPersonRef } from '../directory/directory-api.js';
 import type { StateLegislatorRow } from '../directory/StateLegislatorDirectory.js';
 
 describe('TargetsTab cross-directory normalization', () => {
@@ -33,9 +35,36 @@ describe('TargetsTab cross-directory normalization', () => {
 
   test('profileHref routes to the correct directory profile (state id slash-encoded)', () => {
     expect(profileHref('congress', 'R000575')).toBe('/directory/members/R000575');
+    expect(profileHref('staff', 'staff-800')).toBe('/directory/staff/staff-800');
     expect(profileHref('state', 'ocd-person/abc-123')).toBe(
       '/directory/state-legislators/ocd-person%2Fabc-123',
     );
+  });
+
+  test('normalizeStaff maps a DirectoryPersonRef (staff, no party/chamber)', () => {
+    const ref = {
+      personType: 'staff',
+      id: 'staff-800',
+      sourceId: 800,
+      fullName: 'Grace Hopper',
+      title: 'Staff Director',
+      photoUrl: null,
+      photoSource: null,
+      party: null,
+      state: null,
+      district: null,
+      isCurrent: true,
+    } as unknown as DirectoryPersonRef;
+    const n = normalizeStaff(ref);
+    expect(n).toMatchObject({
+      id: 'staff-800',
+      sourceDirectory: 'staff',
+      name: 'Grace Hopper',
+      partyShort: null,
+      chamberLabel: null,
+      committee: 'Staff Director',
+      staffMatch: null,
+    });
   });
 
   test('normalizeCongress maps a DirectoryEntry (House district-qualified state)', () => {

@@ -2176,6 +2176,9 @@ model ClientTarget {
   state         String?
   chamber       String?  @db.VarChar(24)
   committee     String?
+  // Engagement priority tier (1 = highest .. 3), null = untiered. Drives the
+  // tiered visual grouping in the Targets tab.
+  tier          Int?     @db.SmallInt
   source        String   @default("manual") @db.VarChar(8)
   addedByUserId String?  @map("added_by_user_id") @db.Uuid
   addedAt       DateTime @default(now()) @map("added_at") @db.Timestamptz(6)

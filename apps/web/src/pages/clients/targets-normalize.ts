@@ -6,6 +6,7 @@
  * "make the two-directory search robust so it doesn't crash".
  */
 import type { DirectoryEntry } from '../directory/directoryData.js';
+import type { DirectoryPersonRef } from '../directory/directory-api.js';
 import type { StateLegislatorRow } from '../directory/StateLegislatorDirectory.js';
 import type { TargetDirectory } from './targets-api.js';
 
@@ -48,9 +49,9 @@ export function chamberCategory(chamber: string | null | undefined): 'House' | '
 
 /** Profile route for a target/result by its originating directory. */
 export function profileHref(sourceDirectory: TargetDirectory, id: string): string {
-  return sourceDirectory === 'state'
-    ? `/directory/state-legislators/${encodeURIComponent(id)}`
-    : `/directory/members/${encodeURIComponent(id)}`;
+  if (sourceDirectory === 'state') return `/directory/state-legislators/${encodeURIComponent(id)}`;
+  if (sourceDirectory === 'staff') return `/directory/staff/${encodeURIComponent(id)}`;
+  return `/directory/members/${encodeURIComponent(id)}`;
 }
 
 /** Last name from "Sen. Cornyn, John" / "Cornyn, John". */
@@ -74,6 +75,22 @@ export function normalizeCongress(e: DirectoryEntry): NormalizedPerson {
     chamberLabel: chamberCategory(e.chamber),
     committee: e.committees?.[0] ?? null,
     staffMatch: staff ? { fullName: staff.fullName, title: staff.title ?? null } : null,
+  };
+}
+
+export function normalizeStaff(ref: DirectoryPersonRef): NormalizedPerson {
+  const stateCode = ref.state ?? null;
+  return {
+    id: ref.id, // "staff-{id}" — accepted by /directory/staff/:id
+    sourceDirectory: 'staff',
+    name: ref.fullName ?? ref.id,
+    party: ref.party ?? null,
+    partyShort: partyShort(ref.party),
+    stateCode,
+    stateLabel: stateCode ? (ref.district ? `${stateCode}-${ref.district}` : stateCode) : null,
+    chamberLabel: null, // staffers aren't chamber-scoped
+    committee: ref.title || null, // the office/committee role is the useful "where"
+    staffMatch: null,
   };
 }
 

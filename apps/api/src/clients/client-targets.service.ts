@@ -68,14 +68,22 @@ export class ClientTargetsService {
     const memberId = (input.memberId ?? '').trim();
     if (!memberId) throw new BadRequestException('memberId is required');
     const source = input.source === 'meri' ? 'meri' : 'manual';
-    const sourceDirectory = input.sourceDirectory === 'state' ? 'state' : 'congress';
+    const sourceDirectory =
+      input.sourceDirectory === 'state'
+        ? 'state'
+        : input.sourceDirectory === 'staff'
+          ? 'staff'
+          : 'congress';
 
     // Denormalize a compact snapshot from the ORIGINATING directory (best-effort):
-    // the congressional S3 snapshot, or the OpenStates state_legislator table.
+    // congressional member (S3 snapshot), congressional staffer (S3 snapshot), or
+    // state legislator (OpenStates table).
     const snapshot =
       sourceDirectory === 'state'
         ? await this.resolveStateSnapshot(memberId)
-        : await this.resolveCongressSnapshot(memberId);
+        : sourceDirectory === 'staff'
+          ? await this.resolveStaffSnapshot(memberId)
+          : await this.resolveCongressSnapshot(memberId);
 
     return this.prisma.withTenant(ctx.tenantId, async (tx) => {
       await this.assertClient(tx, ctx, clientId);
@@ -156,6 +164,55 @@ export class ClientTargetsService {
     } catch {
       return { ...EMPTY_SNAPSHOT };
     }
+  }
+
+  /** Congressional staffer snapshot from the in-memory S3 directory (best-effort). */
+  private async resolveStaffSnapshot(staffId: string): Promise<TargetSnapshot> {
+    try {
+      const staff = await this.directory.getStaffDetail(staffId);
+      const name = [
+        staff.identity.preferredFirstName ?? staff.identity.firstName,
+        staff.identity.preferredLastName ?? staff.identity.lastName,
+      ]
+        .filter(Boolean)
+        .join(' ')
+        .trim();
+      const current = staff.positions.find((p) => p.isCurrent) ?? staff.positions[0];
+      return {
+        memberName: name || null,
+        party: staff.bioDetails.partyName ?? null,
+        state: null,
+        chamber: null,
+        // The office/committee the staffer works in is the useful "where" for a target.
+        committee: current?.officeName ?? current?.title ?? null,
+      };
+    } catch {
+      // Not found / directory unavailable — store id-only.
+      return { ...EMPTY_SNAPSHOT };
+    }
+  }
+
+  /** Assign (or clear, tier=null) a target's engagement tier. */
+  async setTargetTier(
+    ctx: TenantContext,
+    clientId: string,
+    memberId: string,
+    tier: number | null,
+  ) {
+    const mid = (memberId ?? '').trim();
+    if (!mid) throw new BadRequestException('memberId is required');
+    if (tier !== null && ![1, 2, 3].includes(tier)) {
+      throw new BadRequestException('tier must be 1, 2, 3, or null');
+    }
+    return this.prisma.withTenant(ctx.tenantId, async (tx) => {
+      await this.assertClient(tx, ctx, clientId);
+      const existing = await tx.clientTarget.findFirst({
+        where: { clientId, memberId: mid },
+        select: { id: true },
+      });
+      if (!existing) throw new NotFoundException('Target not found');
+      return tx.clientTarget.update({ where: { id: existing.id }, data: { tier } });
+    });
   }
 
   async removeTarget(ctx: TenantContext, clientId: string, memberId: string) {
