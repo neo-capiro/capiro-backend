@@ -1200,9 +1200,11 @@ export class DirectoryService implements OnModuleInit {
       .filter(Boolean)
       .join(' ')
       .trim();
-    const office = Array.isArray(row?.member_offices)
-      ? row.member_offices.find((o: any) => o && typeof o === 'object')
-      : undefined;
+    // Use the authoritative current-office selector (in-office > open end_date >
+    // last term), NOT the first array element: member_offices is stored
+    // oldest-first, so .find(first) would surface a stale/former term's
+    // party/state/district for any multi-term member.
+    const office = this.currentMemberOffice(row?.member_offices);
     return {
       fullName,
       party: typeof office?.party === 'string' ? office.party : null,

@@ -126,7 +126,7 @@ export function StaffProfileView({ staff }: { staff: StaffDetail }) {
           <Text type="secondary">{NOT_PROVIDED}</Text>
         ) : (
           staff.officeAddresses.map((a, i) => (
-            <div key={a.addressId ?? i} style={{ marginBottom: 8 }}>
+            <div key={i} style={{ marginBottom: 8 }}>
               <div>
                 <Text strong>{orNotProvided(a.label ?? a.officeName)}</Text>{' '}
                 {a.isMain ? <Tag color="blue">Main</Tag> : null}

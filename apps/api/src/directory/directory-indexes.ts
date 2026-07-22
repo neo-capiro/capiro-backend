@@ -199,9 +199,13 @@ export function buildDirectoryIndexes(input: BuildDirectoryIndexesInput): Direct
       if (!isRecord(entry)) continue;
       const staffId = Number((entry.staffer as SourceRow)?.id);
       if (!Number.isFinite(staffId)) continue;
+      // Skip name-less rows (mirrors buildMemberStaff) so blank issues never
+      // enter the index and inflate the staffer's Issue-areas count.
+      const issueName = typeof entry.issue_name === 'string' ? entry.issue_name.trim() : '';
+      if (!issueName) continue;
       const list = staffIssuesByStaffId.get(staffId) ?? [];
       list.push({
-        issueName: typeof entry.issue_name === 'string' ? entry.issue_name : null,
+        issueName,
         memberId,
         updatedAt: typeof entry.updated_at === 'string' ? entry.updated_at : null,
       });
@@ -211,9 +215,11 @@ export function buildDirectoryIndexes(input: BuildDirectoryIndexesInput): Direct
       if (!isRecord(entry)) continue;
       const staffId = Number((entry.staffer as SourceRow)?.id);
       if (!Number.isFinite(staffId)) continue;
+      const roleName = typeof entry.role_name === 'string' ? entry.role_name.trim() : '';
+      if (!roleName) continue;
       const list = staffRolesByStaffId.get(staffId) ?? [];
       list.push({
-        roleName: typeof entry.role_name === 'string' ? entry.role_name : null,
+        roleName,
         memberId,
         updatedAt: typeof entry.updated_at === 'string' ? entry.updated_at : null,
       });
