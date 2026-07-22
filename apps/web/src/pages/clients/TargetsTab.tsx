@@ -1,29 +1,45 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { App as AntApp } from 'antd';
+import { useNavigate } from 'react-router-dom';
 import { useApi } from '../../lib/use-api.js';
-import type { DirectoryApiResponse, DirectoryEntry } from '../directory/directoryData.js';
+import type { DirectoryApiResponse } from '../directory/directoryData.js';
+import type { StateLegislatorRow } from '../directory/StateLegislatorDirectory.js';
+import { searchPeople, type PeopleResponse } from '../directory/directory-api.js';
 import {
   addClientTarget,
   getClientTargets,
   getOfficeRecommendations,
   refreshOfficeRecommendations,
   removeClientTarget,
+  setClientTargetTier,
   type ClientTarget,
   type OfficeRecommendationsResult,
+  type TargetDirectory,
+  type TargetTier,
 } from './targets-api.js';
+import {
+  chamberCategory,
+  normalizeCongress,
+  normalizeStaff,
+  normalizeState,
+  partyShort,
+  profileHref,
+  type NormalizedPerson,
+} from './targets-normalize.js';
 
 /**
- * Client Targets tab. Search the congressional directory to add target offices
- * for a client; a "Suggested by Meri" sidebar ranks offices via the Office
- * Recommender (committee jurisdiction + issue overlap + facility geography).
+ * Client Targets tab. Search people from TWO directories — the congressional
+ * directory (LegiStorm S3 snapshot) and state legislators (OpenStates) — add them
+ * as target offices, and click through to each person's full profile. A "Suggested
+ * by Meri" sidebar ranks congressional offices via the Office Recommender.
  *
- * Targets are firm-wide per client. Add/remove are optimistic with rollback.
- *
- * The Meri recommendations are EXPENSIVE to compute, so the server persists them
- * (computed lazily on the first view) and serves the cache thereafter — this tab
- * reads the dedicated /target-recommendations endpoint rather than waiting on the
- * full profile-v1 aggregate, and offers a manual "Refresh" to recompute.
+ * Robustness: the two directories return DIFFERENT row shapes (fullName vs name,
+ * single-char party vs full word, House/Senate vs upper/lower, no matchedStaff on
+ * state). Both are normalized to one NormalizedPerson shape BEFORE render, so no
+ * mixed-shape access ever reaches the JSX. Each source query fails independently
+ * (one directory being down never blanks the other). Filters + scope are applied
+ * client-side on the normalized list so they behave identically across both.
  */
 
 interface MeriSuggestion {
@@ -45,20 +61,28 @@ interface Props {
   onViewIntelligence?: () => void;
 }
 
+type Scope = 'all' | 'congress' | 'staff' | 'state';
+
 const partyColor = (p: string | null | undefined): string =>
   p === 'R' ? '#b91c1c' : p === 'D' ? '#1d4ed8' : '#374151';
 const partyBg = (p: string | null | undefined): string =>
   p === 'R' ? '#fee2e2' : p === 'D' ? '#dbeafe' : '#f3f4f6';
 
-/** "Sen." for Senate, "Rep." otherwise. */
-const titleFor = (chamber: string | null | undefined): string =>
-  chamber === 'Senate' ? 'Sen.' : 'Rep.';
+/** Source-directory chip styling (Member / Staff / State). */
+const DIR_BADGE: Record<TargetDirectory, { label: string; bg: string; color: string }> = {
+  congress: { label: 'Member', bg: '#eef2ff', color: '#4338ca' },
+  staff: { label: 'Staff', bg: '#f5f3ff', color: '#6d28d9' },
+  state: { label: 'State', bg: '#ecfeff', color: '#0e7490' },
+};
+const toDir = (sd: string | null | undefined): TargetDirectory =>
+  sd === 'state' ? 'state' : sd === 'staff' ? 'staff' : 'congress';
 
-/** Last name from "Sen. Cornyn, John" / "Cornyn, John". */
-export function lastNameOf(name: string): string {
-  const head = name.includes(', ') ? name.split(', ')[0]! : name;
-  return head.split(' ').pop() ?? head;
-}
+/** Tier chip color. */
+const TIER_META: Record<1 | 2 | 3, { label: string; bg: string; color: string; border: string }> = {
+  1: { label: 'Tier 1', bg: '#fef2f2', color: '#b91c1c', border: '#fecaca' },
+  2: { label: 'Tier 2', bg: '#fffbeb', color: '#b45309', border: '#fde68a' },
+  3: { label: 'Tier 3', bg: '#eff6ff', color: '#1d4ed8', border: '#bfdbfe' },
+};
 
 /** Compact "updated X ago" label for the recommendations timestamp. */
 function relativeTime(iso: string | null): string {
@@ -78,10 +102,15 @@ function relativeTime(iso: string | null): string {
 export function TargetsTab({ clientId, canManage, onViewIntelligence }: Props) {
   const api = useApi();
   const qc = useQueryClient();
+  const navigate = useNavigate();
   const { message } = AntApp.useApp();
   const [query, setQuery] = useState('');
   const [searchOpen, setSearchOpen] = useState(false);
-  // Debounced search term — the directory search fires off this, not the raw
+  const [scope, setScope] = useState<Scope>('all');
+  const [fParty, setFParty] = useState<'all' | 'R' | 'D' | 'I'>('all');
+  const [fChamber, setFChamber] = useState<'all' | 'House' | 'Senate'>('all');
+  const [fState, setFState] = useState('');
+  // Debounced search term — the directory searches fire off this, not the raw
   // input, so typing a name doesn't kick off a request on every keystroke.
   const [debouncedQuery, setDebouncedQuery] = useState('');
   useEffect(() => {
@@ -95,9 +124,6 @@ export function TargetsTab({ clientId, canManage, onViewIntelligence }: Props) {
   });
   const targets = targetsQuery.data ?? [];
 
-  // Persisted Meri recommendations. The GET computes-and-stores on the first
-  // view (a few seconds) and is instant thereafter; staleTime keeps re-entry to
-  // the tab from re-fetching needlessly.
   const recsQuery = useQuery<OfficeRecommendationsResult>({
     queryKey: ['client-target-recommendations', clientId],
     queryFn: async () => getOfficeRecommendations(api, clientId),
@@ -109,8 +135,6 @@ export function TargetsTab({ clientId, canManage, onViewIntelligence }: Props) {
   const refreshMutation = useMutation({
     mutationFn: async () => refreshOfficeRecommendations(api, clientId),
     onMutate: async () => {
-      // Cancel any in-flight background GET refetch so its (older) response can't
-      // land after — and clobber — the freshly recomputed result.
       await qc.cancelQueries({ queryKey: ['client-target-recommendations', clientId] });
     },
     onSuccess: (data) => {
@@ -122,7 +146,6 @@ export function TargetsTab({ clientId, canManage, onViewIntelligence }: Props) {
   const meriSuggestions = useMemo<MeriSuggestion[]>(
     () =>
       (recsQuery.data?.recommendations ?? [])
-        // Only member-identified rows can be added as targets.
         .filter((r) => typeof r?.memberId === 'string' && r.memberId.length > 0)
         .slice(0, 6)
         .map((r) => ({
@@ -141,39 +164,131 @@ export function TargetsTab({ clientId, canManage, onViewIntelligence }: Props) {
   const addedIds = useMemo(() => new Set(targets.map((t) => t.memberId)), [targets]);
   const meriIds = useMemo(() => new Set(meriSuggestions.map((m) => m.memberId)), [meriSuggestions]);
 
-  const search = useQuery<DirectoryApiResponse>({
-    queryKey: ['targets-directory-search', debouncedQuery],
-    enabled: debouncedQuery.length > 0,
+  // ── Independent searches across THREE directories, normalized to one shape ──
+  const wantCongress = scope === 'all' || scope === 'congress';
+  const wantStaff = scope === 'all' || scope === 'staff';
+  const wantState = scope === 'all' || scope === 'state';
+
+  const congressSearch = useQuery<DirectoryApiResponse>({
+    queryKey: ['targets-congress-search', debouncedQuery],
+    enabled: debouncedQuery.length > 0 && wantCongress,
     queryFn: async () =>
       (
         await api.get<DirectoryApiResponse>('/api/directory/contacts', {
           params: { q: debouncedQuery, pageSize: 25, sort: 'name-asc' },
         })
       ).data,
+    retry: 1,
   });
+
+  const staffSearch = useQuery<PeopleResponse>({
+    queryKey: ['targets-staff-search', debouncedQuery],
+    enabled: debouncedQuery.length > 0 && wantStaff,
+    queryFn: async () => searchPeople(api, { q: debouncedQuery, personType: 'staff', pageSize: 25 }),
+    retry: 1,
+  });
+
+  const stateSearch = useQuery<{ rows: StateLegislatorRow[]; total: number }>({
+    queryKey: ['targets-state-search', debouncedQuery],
+    enabled: debouncedQuery.length > 0 && wantState,
+    queryFn: async () =>
+      (
+        await api.get<{ rows: StateLegislatorRow[]; total: number }>(
+          '/api/explorer/state-legislators',
+          { params: { q: debouncedQuery, pageSize: 25 } },
+        )
+      ).data,
+    retry: 1,
+  });
+
+  const trimmed = query.trim();
+  const debouncePending = trimmed !== debouncedQuery;
+  // Per-source readiness. A source is "still pending" ONLY while it's enabled,
+  // fetching, and has no data yet. A source that already returned data (or errored)
+  // is done — so its results (and the siblings') render immediately and one slow or
+  // down directory can never blank the others. (react-query gives fresh data per
+  // debouncedQuery key, so `.data` here is never a stale previous query's rows.)
+  const congressPending = wantCongress && congressSearch.isFetching && !congressSearch.data;
+  const staffPending = wantStaff && staffSearch.isFetching && !staffSearch.data;
+  const statePending = wantState && stateSearch.isFetching && !stateSearch.data;
+
+  // Normalize whatever each source has returned, then apply client-side filters
+  // uniformly. Wrapped so a single malformed row can never throw during render. Gated
+  // only on the debounce (never on in-flight fetch), so available rows show at once.
+  const hits = useMemo<NormalizedPerson[]>(() => {
+    if (!trimmed || !searchOpen || debouncePending) return [];
+    const out: NormalizedPerson[] = [];
+    try {
+      if (wantCongress) {
+        for (const e of congressSearch.data?.contacts ?? []) {
+          if (e && typeof e.id === 'string') out.push(normalizeCongress(e));
+        }
+      }
+      if (wantStaff) {
+        for (const p of staffSearch.data?.people ?? []) {
+          if (p && typeof p.id === 'string' && p.personType === 'staff') out.push(normalizeStaff(p));
+        }
+      }
+      if (wantState) {
+        for (const r of stateSearch.data?.rows ?? []) {
+          if (r && typeof r.id === 'string') out.push(normalizeState(r));
+        }
+      }
+    } catch {
+      return [];
+    }
+    const stateNeedle = fState.trim().toUpperCase();
+    return out.filter(
+      (p) =>
+        (fParty === 'all' || p.partyShort === fParty) &&
+        (fChamber === 'all' || p.chamberLabel === fChamber) &&
+        (!stateNeedle || (p.stateCode ?? '').toUpperCase().includes(stateNeedle)),
+    );
+  }, [
+    trimmed,
+    searchOpen,
+    debouncePending,
+    wantCongress,
+    wantStaff,
+    wantState,
+    fParty,
+    fChamber,
+    fState,
+    congressSearch.data,
+    staffSearch.data,
+    stateSearch.data,
+  ]);
+
+  // Show "Searching…" only while nothing is displayable yet AND a source is still
+  // pending (or the debounce hasn't settled) — never withhold rows already in hand.
+  const showSearching =
+    debouncePending || ((congressPending || staffPending || statePending) && hits.length === 0);
 
   const invalidate = () => {
     qc.invalidateQueries({ queryKey: ['client-targets', clientId] });
-    // Portfolio card pills read the same targets list.
     qc.invalidateQueries({ queryKey: ['clients'] });
   };
 
   const addMutation = useMutation({
-    mutationFn: async (v: { memberId: string; source: 'manual' | 'meri' }) =>
-      addClientTarget(api, clientId, v.memberId, v.source),
+    mutationFn: async (v: {
+      memberId: string;
+      source: 'manual' | 'meri';
+      sourceDirectory: TargetDirectory;
+    }) => addClientTarget(api, clientId, v.memberId, v.source, v.sourceDirectory),
     onMutate: async (v) => {
       await qc.cancelQueries({ queryKey: ['client-targets', clientId] });
       const prev = qc.getQueryData<ClientTarget[]>(['client-targets', clientId]);
-      // Optimistic insert with a synthetic row; reconciled on settle.
       const optimistic: ClientTarget = {
         id: `optimistic-${v.memberId}`,
         clientId,
         memberId: v.memberId,
         memberName: null,
+        sourceDirectory: v.sourceDirectory,
         party: null,
         state: null,
         chamber: null,
         committee: null,
+        tier: null,
         source: v.source,
         addedByUserId: null,
         addedAt: new Date().toISOString(),
@@ -206,33 +321,54 @@ export function TargetsTab({ clientId, canManage, onViewIntelligence }: Props) {
     onSettled: invalidate,
   });
 
-  const add = (memberId: string, source: 'manual' | 'meri') => {
+  const tierMutation = useMutation({
+    mutationFn: async (v: { memberId: string; tier: TargetTier }) =>
+      setClientTargetTier(api, clientId, v.memberId, v.tier),
+    onMutate: async (v) => {
+      await qc.cancelQueries({ queryKey: ['client-targets', clientId] });
+      const prev = qc.getQueryData<ClientTarget[]>(['client-targets', clientId]);
+      qc.setQueryData<ClientTarget[]>(
+        ['client-targets', clientId],
+        (prev ?? []).map((t) => (t.memberId === v.memberId ? { ...t, tier: v.tier } : t)),
+      );
+      return { prev };
+    },
+    onError: (_e, _v, ctx) => {
+      if (ctx?.prev) qc.setQueryData(['client-targets', clientId], ctx.prev);
+      message.error('Could not update tier. Please try again.');
+    },
+    onSettled: invalidate,
+  });
+
+  const add = (memberId: string, source: 'manual' | 'meri', sourceDirectory: TargetDirectory) => {
     if (!canManage || addedIds.has(memberId)) return;
-    addMutation.mutate({ memberId, source });
+    addMutation.mutate({ memberId, source, sourceDirectory });
+  };
+  const setTier = (memberId: string, tier: TargetTier) => {
+    if (!canManage) return;
+    tierMutation.mutate({ memberId, tier });
   };
   const remove = (memberId: string) => {
     if (!canManage) return;
     removeMutation.mutate(memberId);
   };
-
-  const trimmed = query.trim();
-  // True while the input is ahead of the last completed search (debounce pending
-  // or request in flight) — drives the "Searching…" label.
-  const searching = search.isFetching || trimmed !== debouncedQuery;
-  // Don't render rows while a new search is pending: search.data still holds the
-  // PREVIOUS query's results during the debounce window, which would otherwise
-  // show stale offices under the "Searching…" header.
-  const hits: DirectoryEntry[] =
-    trimmed && searchOpen && !searching ? (search.data?.contacts ?? []) : [];
+  const openProfile = (sourceDirectory: TargetDirectory, id: string) =>
+    navigate(profileHref(sourceDirectory, id));
 
   const recsLoading = recsQuery.isLoading;
   const recsError = recsQuery.isError;
   const refreshing = refreshMutation.isPending;
   const computedAt = recsQuery.data?.computedAt ?? null;
 
+  const selStyle: React.CSSProperties = {
+    fontSize: 12,
+    padding: '3px 6px',
+    borderRadius: 6,
+    border: '1px solid #d1d5db',
+    background: '#fff',
+  };
+
   return (
-    // Clicking anywhere outside the search wrap dismisses the results dropdown
-    // (the wrap itself stops propagation, so inside-clicks are preserved).
     <div className="tg-layout" onClick={() => setSearchOpen(false)}>
       {/* Main column */}
       <div className="tg-main">
@@ -241,14 +377,66 @@ export function TargetsTab({ clientId, canManage, onViewIntelligence }: Props) {
             ⓘ
           </span>
           <span className="help-txt">
-            Search the congressional directory to add target offices for this client. Targets appear
-            on the portfolio card and help your team track outreach priorities at a glance.
+            Search congressional members and state legislators to add target offices for this
+            client. Click any result or target to open their full profile.
           </span>
         </div>
 
         {canManage ? (
           <div className="srch-wrap" onClick={(e) => e.stopPropagation()}>
-            <div className="srch-lbl">Search Congressional Directory</div>
+            <div className="srch-lbl">Search People</div>
+            {/* Scope toggle + filters */}
+            <div
+              style={{ display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'center', marginBottom: 8 }}
+            >
+              <div style={{ display: 'inline-flex', border: '1px solid #d1d5db', borderRadius: 6, overflow: 'hidden' }}>
+                {(['all', 'congress', 'staff', 'state'] as const).map((s) => (
+                  <button
+                    key={s}
+                    onClick={() => setScope(s)}
+                    style={{
+                      fontSize: 12,
+                      padding: '4px 10px',
+                      border: 'none',
+                      cursor: 'pointer',
+                      background: scope === s ? '#1d4ed8' : '#fff',
+                      color: scope === s ? '#fff' : '#374151',
+                    }}
+                  >
+                    {s === 'all' ? 'All' : s === 'congress' ? 'Members' : s === 'staff' ? 'Staff' : 'State'}
+                  </button>
+                ))}
+              </div>
+              <select
+                aria-label="Filter by party"
+                style={selStyle}
+                value={fParty}
+                onChange={(e) => setFParty(e.target.value as typeof fParty)}
+              >
+                <option value="all">All parties</option>
+                <option value="R">Republican</option>
+                <option value="D">Democrat</option>
+                <option value="I">Independent/Other</option>
+              </select>
+              <select
+                aria-label="Filter by chamber"
+                style={selStyle}
+                value={fChamber}
+                onChange={(e) => setFChamber(e.target.value as typeof fChamber)}
+              >
+                <option value="all">Both chambers</option>
+                <option value="House">House / Lower</option>
+                <option value="Senate">Senate / Upper</option>
+              </select>
+              <input
+                aria-label="Filter by state"
+                style={{ ...selStyle, width: 90 }}
+                placeholder="State (TX)"
+                value={fState}
+                maxLength={2}
+                onChange={(e) => setFState(e.target.value)}
+              />
+            </div>
             <div className="srch-row">
               <span className="srch-ico" aria-hidden="true">
                 🔍
@@ -256,7 +444,7 @@ export function TargetsTab({ clientId, canManage, onViewIntelligence }: Props) {
               <input
                 type="text"
                 className="srch-inp"
-                placeholder="Search by member, staffer, state, committee, or party…"
+                placeholder="Search by name, state, committee, or party…"
                 value={query}
                 onChange={(e) => {
                   setQuery(e.target.value);
@@ -284,7 +472,7 @@ export function TargetsTab({ clientId, canManage, onViewIntelligence }: Props) {
             {trimmed && searchOpen ? (
               <div className="results-drop">
                 <div className="res-count">
-                  {searching
+                  {showSearching
                     ? 'Searching…'
                     : hits.length === 0
                       ? `No results for "${trimmed}"`
@@ -293,48 +481,69 @@ export function TargetsTab({ clientId, canManage, onViewIntelligence }: Props) {
                 {hits.map((m) => {
                   const added = addedIds.has(m.id);
                   const isMeri = meriIds.has(m.id);
-                  const stateLabel = m.chamber === 'House' && m.district ? m.district : m.state;
-                  const staffMatch = m.matchedStaff?.[0];
+                  const ps = m.partyShort;
                   return (
-                    <div className="res-row" key={m.id}>
+                    <div className="res-row" key={`${m.sourceDirectory}:${m.id}`}>
                       <div
-                        className={`party-dot ${m.party}`}
-                        style={{ background: partyBg(m.party), color: partyColor(m.party) }}
+                        className={`party-dot ${ps ?? ''}`}
+                        style={{ background: partyBg(ps), color: partyColor(ps) }}
                       >
-                        {m.party}
+                        {ps ?? '·'}
                       </div>
                       <div className="res-info">
-                        <div className="res-name">{m.fullName}</div>
-                        <div className="res-sub">
-                          <span
-                            className={`res-pty ${m.party}`}
-                            style={{ color: partyColor(m.party) }}
+                        <div className="res-name">
+                          <a
+                            onClick={(e) => {
+                              e.preventDefault();
+                              openProfile(m.sourceDirectory, m.id);
+                            }}
+                            href={profileHref(m.sourceDirectory, m.id)}
+                            style={{ color: 'inherit', textDecoration: 'none' }}
                           >
-                            [{m.party}-{stateLabel}]
+                            {m.name}
+                          </a>
+                        </div>
+                        <div className="res-sub">
+                          <span className={`res-pty ${ps ?? ''}`} style={{ color: partyColor(ps) }}>
+                            [{ps ?? '·'}-{m.stateLabel ?? '—'}]
                           </span>
-                          {m.committees?.[0] ? <span>· {m.committees[0]}</span> : null}
+                          <span
+                            style={{
+                              marginLeft: 6,
+                              fontSize: 10,
+                              padding: '1px 5px',
+                              borderRadius: 4,
+                              background: DIR_BADGE[m.sourceDirectory].bg,
+                              color: DIR_BADGE[m.sourceDirectory].color,
+                            }}
+                          >
+                            {DIR_BADGE[m.sourceDirectory].label}
+                          </span>
+                          {m.committee ? <span>· {m.committee}</span> : null}
                           {isMeri ? <span className="meri-chip">⊙ Meri pick</span> : null}
                         </div>
-                        {staffMatch ? (
+                        {m.staffMatch ? (
                           <div className="res-staff-match">
-                            ↳ matched staffer: {staffMatch.fullName}
-                            {staffMatch.title ? ` · ${staffMatch.title}` : ''}
-                            {m.matchedStaff && m.matchedStaff.length > 1
-                              ? ` +${m.matchedStaff.length - 1} more`
-                              : ''}
+                            ↳ matched staffer: {m.staffMatch.fullName}
+                            {m.staffMatch.title ? ` · ${m.staffMatch.title}` : ''}
                           </div>
                         ) : null}
                       </div>
-                      <div>
+                      <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
+                        <button
+                          className="btn-mini"
+                          style={{ background: '#f3f4f6', color: '#374151' }}
+                          onClick={() => openProfile(m.sourceDirectory, m.id)}
+                        >
+                          View ↗
+                        </button>
                         {added ? (
                           <button className="btn-mini added">✓ Added</button>
                         ) : (
                           <button
                             className="btn-mini add"
                             onClick={() => {
-                              add(m.id, 'manual');
-                              // Close the dropdown so it stops floating over the
-                              // target list once a selection is made.
+                              add(m.id, 'manual', m.sourceDirectory);
                               setSearchOpen(false);
                             }}
                           >
@@ -365,45 +574,149 @@ export function TargetsTab({ clientId, canManage, onViewIntelligence }: Props) {
               </div>
               <div className="te-title">No targets added yet</div>
               <div className="te-desc">
-                Search the congressional directory above to add target offices for this client.
+                Search members, staff, or state legislators above to add targets for this client,
+                then assign each a tier.
               </div>
             </div>
           ) : (
-            <div className="tgt-list">
-              {targets.map((t) => {
-                const isMeri = meriIds.has(t.memberId);
-                const name = t.memberName ?? t.memberId;
+            <div className="tgt-tiers">
+              {/* Visually organized by engagement tier; empty tiers are hidden. */}
+              {([1, 2, 3, null] as const).map((tierVal) => {
+                const group = targets.filter((t) => (t.tier ?? null) === tierVal);
+                if (group.length === 0) return null;
+                const meta = tierVal ? TIER_META[tierVal] : null;
                 return (
-                  <div className="tgt-row" key={t.memberId}>
+                  <div key={String(tierVal)} className="tgt-tier-group" style={{ marginBottom: 14 }}>
                     <div
-                      className={`tgt-badge ${t.party}`}
-                      style={{ background: partyBg(t.party), color: partyColor(t.party) }}
+                      style={{
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: 8,
+                        margin: '8px 0 6px',
+                        fontSize: 12,
+                        fontWeight: 600,
+                      }}
                     >
-                      {t.party ?? '·'}
+                      <span
+                        style={{
+                          padding: '2px 10px',
+                          borderRadius: 999,
+                          background: meta?.bg ?? '#f3f4f6',
+                          color: meta?.color ?? '#6b7280',
+                          border: `1px solid ${meta?.border ?? '#e5e7eb'}`,
+                        }}
+                      >
+                        {meta ? meta.label : 'Untiered'}
+                      </span>
+                      <span style={{ color: '#9ca3af', fontWeight: 400 }}>{group.length}</span>
                     </div>
-                    <div className="tgt-info">
-                      <div className="tgt-name">
-                        {name}{' '}
-                        {t.party || t.state ? (
-                          <span
-                            style={{ fontSize: 12, fontWeight: 400, color: partyColor(t.party) }}
-                          >
-                            [{t.party}-{t.state}]
-                          </span>
-                        ) : null}
-                      </div>
-                      <div className="tgt-meta">
-                        <span className="tgt-cmte">
-                          {[t.chamber, t.committee].filter(Boolean).join(' · ') || '—'}
-                        </span>
-                        {isMeri ? <span className="tgt-meri">⊙ Meri pick</span> : null}
-                      </div>
+                    <div className="tgt-list">
+                      {group.map((t) => {
+                        const isMeri = meriIds.has(t.memberId);
+                        const name = t.memberName ?? t.memberId;
+                        const ps = partyShort(t.party);
+                        const dir = toDir(t.sourceDirectory);
+                        // Optimistic add rows aren't persisted yet — tiering them would
+                        // 404 (no row to update); disable until the add settles.
+                        const pendingAdd = t.id.startsWith('optimistic-');
+                        return (
+                          <div className="tgt-row" key={`${dir}:${t.memberId}`}>
+                            <div
+                              className={`tgt-badge ${ps ?? ''}`}
+                              style={{ background: partyBg(ps), color: partyColor(ps) }}
+                            >
+                              {ps ?? '·'}
+                            </div>
+                            <div className="tgt-info">
+                              <div className="tgt-name">
+                                <a
+                                  onClick={(e) => {
+                                    e.preventDefault();
+                                    openProfile(dir, t.memberId);
+                                  }}
+                                  href={profileHref(dir, t.memberId)}
+                                  style={{ color: 'inherit', textDecoration: 'none', cursor: 'pointer' }}
+                                >
+                                  {name}
+                                </a>{' '}
+                                {t.party || t.state ? (
+                                  <span
+                                    style={{ fontSize: 12, fontWeight: 400, color: partyColor(ps) }}
+                                  >
+                                    [{ps ?? '·'}-{t.state ?? '—'}]
+                                  </span>
+                                ) : null}
+                                <span
+                                  style={{
+                                    marginLeft: 6,
+                                    fontSize: 10,
+                                    padding: '1px 5px',
+                                    borderRadius: 4,
+                                    background: DIR_BADGE[dir].bg,
+                                    color: DIR_BADGE[dir].color,
+                                  }}
+                                >
+                                  {DIR_BADGE[dir].label}
+                                </span>
+                              </div>
+                              <div className="tgt-meta">
+                                <span className="tgt-cmte">
+                                  {[t.chamber, t.committee].filter(Boolean).join(' · ') || '—'}
+                                </span>
+                                {isMeri ? <span className="tgt-meri">⊙ Meri pick</span> : null}
+                              </div>
+                            </div>
+                            {canManage ? (
+                              <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
+                                <div
+                                  style={{
+                                    display: 'inline-flex',
+                                    border: '1px solid #e5e7eb',
+                                    borderRadius: 6,
+                                    overflow: 'hidden',
+                                  }}
+                                >
+                                  {([1, 2, 3] as const).map((tv) => {
+                                    const active = t.tier === tv;
+                                    return (
+                                      <button
+                                        key={tv}
+                                        disabled={pendingAdd}
+                                        title={
+                                          pendingAdd
+                                            ? 'Saving…'
+                                            : active
+                                              ? `Clear Tier ${tv}`
+                                              : `Assign Tier ${tv}`
+                                        }
+                                        onClick={() => {
+                                          if (pendingAdd) return;
+                                          setTier(t.memberId, active ? null : tv);
+                                        }}
+                                        style={{
+                                          fontSize: 11,
+                                          padding: '2px 7px',
+                                          border: 'none',
+                                          cursor: pendingAdd ? 'default' : 'pointer',
+                                          opacity: pendingAdd ? 0.5 : 1,
+                                          background: active ? TIER_META[tv].color : '#fff',
+                                          color: active ? '#fff' : '#6b7280',
+                                        }}
+                                      >
+                                        T{tv}
+                                      </button>
+                                    );
+                                  })}
+                                </div>
+                                <button className="tgt-rm" onClick={() => remove(t.memberId)}>
+                                  Remove
+                                </button>
+                              </div>
+                            ) : null}
+                          </div>
+                        );
+                      })}
                     </div>
-                    {canManage ? (
-                      <button className="tgt-rm" onClick={() => remove(t.memberId)}>
-                        Remove
-                      </button>
-                    ) : null}
                   </div>
                 );
               })}
@@ -465,7 +778,18 @@ export function TargetsTab({ clientId, canManage, onViewIntelligence }: Props) {
                 <div className="mp-row" key={m.memberId}>
                   <div className="mp-rank">{idx + 1}</div>
                   <div className="mp-info">
-                    <div className="mp-name">{m.office}</div>
+                    <div className="mp-name">
+                      <a
+                        onClick={(e) => {
+                          e.preventDefault();
+                          openProfile('congress', m.memberId);
+                        }}
+                        href={profileHref('congress', m.memberId)}
+                        style={{ color: 'inherit', textDecoration: 'none' }}
+                      >
+                        {m.office}
+                      </a>
+                    </div>
                     <div className="mp-pty">
                       <span style={{ color: partyColor(m.party), fontWeight: 600 }}>
                         [{m.party}-{m.state}]
@@ -478,17 +802,14 @@ export function TargetsTab({ clientId, canManage, onViewIntelligence }: Props) {
                   <div className="mp-right">
                     <span className="mp-score">{m.score.toFixed(2)}</span>
                     {added ? (
-                      <button
-                        className="btn-mini added"
-                        style={{ fontSize: 11, padding: '3px 7px' }}
-                      >
+                      <button className="btn-mini added" style={{ fontSize: 11, padding: '3px 7px' }}>
                         ✓ Added
                       </button>
                     ) : canManage ? (
                       <button
                         className="btn-mini add"
                         style={{ fontSize: 11, padding: '3px 7px' }}
-                        onClick={() => add(m.memberId, 'meri')}
+                        onClick={() => add(m.memberId, 'meri', 'congress')}
                       >
                         + Add
                       </button>

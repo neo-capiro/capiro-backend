@@ -14,16 +14,28 @@ import type { AxiosInstance } from 'axios';
 
 export type TargetSource = 'manual' | 'meri';
 
+/** 'congress' (member) | 'staff' (congressional staffer) | 'state' (OpenStates legislator). */
+export type TargetDirectory = 'congress' | 'state' | 'staff';
+
+/** Engagement priority tier (1 = highest .. 3); null = untiered. */
+export type TargetTier = 1 | 2 | 3 | null;
+
 export interface ClientTarget {
   id: string;
   clientId: string;
   memberId: string;
   memberName: string | null;
-  party: 'R' | 'D' | 'I' | null;
-  /** Senate: "TX"; House: "TX-12". */
+  /** Which directory the target came from — drives profile click-through. */
+  sourceDirectory: TargetDirectory;
+  /** Single char ('R'/'D'/'I') for congress; full word ("Democrat") for state. */
+  party: string | null;
+  /** Senate: "TX"; House: "TX-12"; state: "CA" or "CA-12". */
   state: string | null;
-  chamber: 'House' | 'Senate' | null;
+  /** "House"/"Senate" (congress) or "upper"/"lower" (state). */
+  chamber: string | null;
   committee: string | null;
+  /** Engagement priority tier (1..3) or null (untiered). */
+  tier: TargetTier;
   source: TargetSource;
   addedByUserId: string | null;
   addedAt: string;
@@ -94,15 +106,19 @@ export async function addClientTarget(
   clientId: string,
   memberId: string,
   source: TargetSource,
+  sourceDirectory: TargetDirectory = 'congress',
 ): Promise<ClientTarget> {
   return (
     await api.post<ClientTarget>(`/api/clients/${encodeURIComponent(clientId)}/targets`, {
       memberId,
       source,
+      sourceDirectory,
     })
   ).data;
 }
 
+// memberId is sent as a QUERY param, not a path segment: OpenStates ids contain a
+// slash ("ocd-person/…") which proxies can normalize and mis-route in a path.
 export async function removeClientTarget(
   api: AxiosInstance,
   clientId: string,
@@ -110,7 +126,23 @@ export async function removeClientTarget(
 ): Promise<{ deleted: true }> {
   return (
     await api.delete<{ deleted: true }>(
-      `/api/clients/${encodeURIComponent(clientId)}/targets/${encodeURIComponent(memberId)}`,
+      `/api/clients/${encodeURIComponent(clientId)}/targets`,
+      { params: { memberId } },
     )
+  ).data;
+}
+
+/** Assign (tier 1..3) or clear (tier null) a target's engagement tier. */
+export async function setClientTargetTier(
+  api: AxiosInstance,
+  clientId: string,
+  memberId: string,
+  tier: TargetTier,
+): Promise<ClientTarget> {
+  return (
+    await api.patch<ClientTarget>(`/api/clients/${encodeURIComponent(clientId)}/targets/tier`, {
+      memberId,
+      tier,
+    })
   ).data;
 }

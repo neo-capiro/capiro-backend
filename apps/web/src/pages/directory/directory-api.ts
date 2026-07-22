@@ -4,6 +4,7 @@
  * program-element/api.ts convention. Types mirror the API's directory-detail contracts.
  */
 import type { AxiosInstance } from 'axios';
+import type { StateLegislatorDetail } from './StateLegislatorDirectory.js';
 import type { CommitteeChamber, CommitteeKind } from './directoryData.js';
 
 export type DirectoryPersonType = 'member' | 'staff';
@@ -112,11 +113,40 @@ export interface StaffDetail {
     suffix: string | null;
     gender: string | null;
   };
-  bioDetails: { dob: string | null; partyName: string | null; occupation: string | null };
+  bioDetails: {
+    dob: string | null;
+    dateOfDeath: string | null;
+    hometown: string | null;
+    placeOfBirth: string | null;
+    nativeOf: string | null;
+    majMin: string | null;
+    partyName: string | null;
+    occupation: string | null;
+    pronunciation: string | null;
+    raceName: string | null;
+    religionName: string | null;
+  };
   photoUrl: string | null;
   photoSource: 'legistorm' | 'capiro_overlay' | null;
   emails: DirectoryContactMethod[];
   socialContacts: DirectoryContactMethod[];
+  officeAddresses: Array<{
+    addressId: number | null;
+    officeId: number | null;
+    officeName: string | null;
+    label: string | null;
+    address1: string | null;
+    address2: string | null;
+    city: string | null;
+    state: string | null;
+    zip: string | null;
+    zipExt: string | null;
+    phone: string | null;
+    fax: string | null;
+    isMain: boolean;
+    publicNotes: string | null;
+    updatedAt: string | null;
+  }>;
   positions: Array<{
     officeId: number | null;
     officeName: string | null;
@@ -124,12 +154,40 @@ export interface StaffDetail {
     title: string | null;
     positionType: string | null;
     isCurrent: boolean;
+    isOnLeave: boolean;
     startDate: string | null;
     endDate: string | null;
     updatedAt: string | null;
+    member: {
+      memberId: number | null;
+      fullName: string | null;
+      party: string | null;
+      state: string | null;
+      district: string | null;
+      officeTypeId: string | null;
+    } | null;
   }>;
-  memberAssociations: Array<{ id: string; memberId: number; fullName: string }>;
+  memberAssociations: Array<{
+    id: string;
+    memberId: number;
+    fullName: string;
+    party: string | null;
+    state: string | null;
+    district: string | null;
+  }>;
   committeeAssociations: DirectoryCommitteeMembership[];
+  issues: Array<{
+    issueName: string | null;
+    memberId: number | null;
+    memberName: string | null;
+    updatedAt: string | null;
+  }>;
+  roles: Array<{
+    roleName: string | null;
+    memberId: number | null;
+    memberName: string | null;
+    updatedAt: string | null;
+  }>;
   availability: { photo: 'available' | 'not_provided'; socialContacts: 'available' | 'not_provided' };
 }
 
@@ -207,5 +265,18 @@ export async function searchPeople(
   params: { q?: string; committeeId?: string; personType?: string; current?: string; page?: number; pageSize?: number } = {},
 ): Promise<PeopleResponse> {
   const { data } = await api.get<PeopleResponse>('/api/directory/people', { params });
+  return data;
+}
+
+// State-legislator detail (OpenStates), backing /directory/state-legislators/:id.
+// id contains a slash ("ocd-person/<uuid>") — encodeURIComponent keeps it one path
+// segment (same pattern the directory Drawer detail already uses successfully).
+export async function getStateLegislatorDetail(
+  api: AxiosInstance,
+  id: string,
+): Promise<StateLegislatorDetail> {
+  const { data } = await api.get<StateLegislatorDetail>(
+    `/api/explorer/state-legislators/${encodeURIComponent(id)}`,
+  );
   return data;
 }

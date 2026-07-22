@@ -2,7 +2,9 @@ import {
   addDays,
   dayKey,
   formatTime,
+  isAllDayMeeting,
   isToday,
+  meetingDayKey,
   startOfMonth,
   startOfWeek,
 } from './meetings-format.js';
@@ -35,7 +37,7 @@ export function MonthView({
 
   const byDay = new Map<string, Meeting[]>();
   for (const m of meetings) {
-    const k = dayKey(new Date(m.startsAt));
+    const k = meetingDayKey(m.startsAt, m.endsAt);
     const arr = byDay.get(k) ?? [];
     arr.push(m);
     byDay.set(k, arr);
@@ -150,7 +152,10 @@ export function MonthView({
                           borderLeft: `2.5px solid ${done ? 'var(--success)' : 'var(--accent)'}`,
                         }}
                       >
-                        {formatTime(m.startsAt).replace(':00', '')} {m.subject}
+                        {isAllDayMeeting(m.startsAt, m.endsAt)
+                          ? 'All day'
+                          : formatTime(m.startsAt).replace(':00', '')}{' '}
+                        {m.subject}
                       </button>
                     );
                   })}

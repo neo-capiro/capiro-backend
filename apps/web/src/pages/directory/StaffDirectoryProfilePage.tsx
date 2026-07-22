@@ -1,15 +1,17 @@
 import { useQuery } from '@tanstack/react-query';
-import { Link, useParams } from 'react-router-dom';
+import { useNavigate, useParams } from 'react-router-dom';
 import { Alert, Spin, Typography } from 'antd';
 import { useApi } from '../../lib/use-api.js';
 import { getStaffDetail } from './directory-api.js';
 import { StaffProfileView } from './StaffProfileView.js';
+import { ProfileBackLink } from './ProfileBackLink.js';
 
 const { Paragraph } = Typography;
 
 export default function StaffDirectoryProfilePage() {
   const { staffId } = useParams<{ staffId: string }>();
   const api = useApi();
+  const navigate = useNavigate();
   const query = useQuery({
     queryKey: ['directory-staff-detail', staffId],
     queryFn: () => getStaffDetail(api, staffId!),
@@ -21,7 +23,7 @@ export default function StaffDirectoryProfilePage() {
   return (
     <div style={{ padding: 24, maxWidth: 960, margin: '0 auto' }}>
       <Paragraph>
-        <Link to="/directory">← Back to directory</Link>
+        <ProfileBackLink navigate={navigate} />
       </Paragraph>
       {query.isLoading ? (
         <Spin />

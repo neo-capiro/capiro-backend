@@ -45,6 +45,20 @@ export interface DirectoryCommitteeMembership {
 /** A raw vendor row kept verbatim for the detail endpoints. */
 export type SourceRow = Record<string, unknown>;
 
+/** A staffer's issue area, reverse-indexed from the owning member's staffer_issues. */
+export interface DirectoryStaffIssueLink {
+  issueName: string | null;
+  memberId: number | null;
+  updatedAt: string | null;
+}
+
+/** A staffer's functional role, reverse-indexed from the owning member's staffer_roles. */
+export interface DirectoryStaffRoleLink {
+  roleName: string | null;
+  memberId: number | null;
+  updatedAt: string | null;
+}
+
 export interface DirectoryIndexes {
   membersById: Map<number, SourceRow>;
   membersByBioguideId: Map<string, SourceRow>;
@@ -57,6 +71,16 @@ export interface DirectoryIndexes {
   normalizedPersonNameIndex: Map<string, string[]>;
   /** normalized committee name / code -> office_id (query matching only). */
   committeeAliases: Map<string, number>;
+  /** staff.id -> issue areas, aggregated from every member's staffer_issues. */
+  staffIssuesByStaffId: Map<number, DirectoryStaffIssueLink[]>;
+  /** staff.id -> functional roles, aggregated from every member's staffer_roles. */
+  staffRolesByStaffId: Map<number, DirectoryStaffRoleLink[]>;
+  /**
+   * staff.id -> display name, captured from the member-side staffer objects. Lets
+   * the staff detail render a minimal profile for a staffer who appears via a
+   * member's roster but has no /staff/list row (would otherwise 404).
+   */
+  staffNamesByStaffId: Map<number, string>;
 }
 
 export interface BuildDirectoryIndexesInput {
@@ -107,6 +131,24 @@ function isRecord(value: unknown): value is SourceRow {
   return typeof value === 'object' && value !== null && !Array.isArray(value);
 }
 
+/**
+ * Select a member's CURRENT office from member_offices (stored oldest-first):
+ * an in-office term, else the newest non-expired term, else the last (newest)
+ * entry. Never the first array element — that is the OLDEST/former term, whose
+ * party/state/district can differ from the member's current values after
+ * redistricting, a chamber switch, or a party switch. Single source of truth for
+ * every member-office selection (indexes, search results, contact builder).
+ */
+export function selectCurrentMemberOffice(rawOffices: unknown): SourceRow | null {
+  const offices = (Array.isArray(rawOffices) ? rawOffices : []).filter(isRecord);
+  return (
+    offices.find((o) => String(o.status ?? '').toLowerCase() === 'in office') ??
+    offices.find((o) => !o.end_date || String(o.end_date) >= '2026-01-01') ??
+    offices[offices.length - 1] ??
+    null
+  );
+}
+
 function memberPhotoUrl(photos: unknown): string | null {
   if (!Array.isArray(photos)) return null;
   const pick =
@@ -125,6 +167,20 @@ export function buildDirectoryIndexes(input: BuildDirectoryIndexesInput): Direct
   const committeesByPersonId = new Map<string, string[]>();
   const normalizedPersonNameIndex = new Map<string, string[]>();
   const committeeAliases = new Map<string, number>();
+  const staffIssuesByStaffId = new Map<number, DirectoryStaffIssueLink[]>();
+  const staffRolesByStaffId = new Map<number, DirectoryStaffRoleLink[]>();
+  const staffNamesByStaffId = new Map<number, string>();
+  const captureStaffName = (staffId: number, staffer: SourceRow | undefined): void => {
+    if (staffNamesByStaffId.has(staffId) || !isRecord(staffer)) return;
+    const nm = [
+      staffer.preferred_first_name ?? staffer.first_name,
+      staffer.preferred_last_name ?? staffer.last_name,
+    ]
+      .filter(Boolean)
+      .join(' ')
+      .trim();
+    if (nm) staffNamesByStaffId.set(staffId, nm);
+  };
 
   // Valid federal committees only (identity + display from the built list).
   const committeeByOfficeId = new Map<number, DirectoryCommittee>();
@@ -172,14 +228,48 @@ export function buildDirectoryIndexes(input: BuildDirectoryIndexesInput): Direct
     const bioguideId = typeof member?.bioguide_id === 'string' ? member.bioguide_id : '';
     if (bioguideId) membersByBioguideId.set(bioguideId, row);
 
+    // Reverse-index this member's staffer issue/role links by staff.id, so the
+    // staff detail can aggregate a staffer's issues/roles across EVERY member they
+    // serve (LegiStorm attaches these on the member, not the staffer, record).
+    for (const entry of Array.isArray(row.staffer_issues) ? row.staffer_issues : []) {
+      if (!isRecord(entry)) continue;
+      const staffId = Number((entry.staffer as SourceRow)?.id);
+      if (!Number.isFinite(staffId)) continue;
+      captureStaffName(staffId, entry.staffer as SourceRow);
+      // Skip name-less rows (mirrors buildMemberStaff) so blank issues never
+      // enter the index and inflate the staffer's Issue-areas count.
+      const issueName = typeof entry.issue_name === 'string' ? entry.issue_name.trim() : '';
+      if (!issueName) continue;
+      const list = staffIssuesByStaffId.get(staffId) ?? [];
+      list.push({
+        issueName,
+        memberId,
+        updatedAt: typeof entry.updated_at === 'string' ? entry.updated_at : null,
+      });
+      staffIssuesByStaffId.set(staffId, list);
+    }
+    for (const entry of Array.isArray(row.staffer_roles) ? row.staffer_roles : []) {
+      if (!isRecord(entry)) continue;
+      const staffId = Number((entry.staffer as SourceRow)?.id);
+      if (!Number.isFinite(staffId)) continue;
+      captureStaffName(staffId, entry.staffer as SourceRow);
+      const roleName = typeof entry.role_name === 'string' ? entry.role_name.trim() : '';
+      if (!roleName) continue;
+      const list = staffRolesByStaffId.get(staffId) ?? [];
+      list.push({
+        roleName,
+        memberId,
+        updatedAt: typeof entry.updated_at === 'string' ? entry.updated_at : null,
+      });
+      staffRolesByStaffId.set(staffId, list);
+    }
+
     const profile = isRecord(member?.profile) ? member!.profile : undefined;
     const fullName = memberFullName(profile);
     const personId = `member-${memberId}`;
     if (fullName) addNameIndex(fullName, personId);
 
-    const office = Array.isArray(row.member_offices)
-      ? (row.member_offices.find((o: SourceRow) => isRecord(o)) as SourceRow | undefined)
-      : undefined;
+    const office = selectCurrentMemberOffice(row.member_offices);
     const ref: DirectoryPersonRef = {
       personType: 'member',
       id: personId,
@@ -291,5 +381,8 @@ export function buildDirectoryIndexes(input: BuildDirectoryIndexesInput): Direct
     committeesByPersonId,
     normalizedPersonNameIndex,
     committeeAliases,
+    staffIssuesByStaffId,
+    staffRolesByStaffId,
+    staffNamesByStaffId,
   };
 }

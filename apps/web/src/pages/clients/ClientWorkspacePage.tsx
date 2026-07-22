@@ -35,6 +35,7 @@ import { FirmOnboardingWizard } from './FirmOnboardingWizard.js';
 import { ClientFormModal } from './ClientFormModal.js';
 import { ClientProfilePage } from './ClientProfilePage.js';
 import { getClientTargets, type ClientTarget } from './targets-api.js';
+import { chamberCategory, partyShort } from './targets-normalize.js';
 import type { Client, ClientFormSubmit } from './clientTypes.js';
 import type { PortfolioSummary } from '../intelligence/types.js';
 
@@ -690,7 +691,9 @@ function TargetsDetailRow({ clientId }: { clientId: string }) {
 
   const shown = targets.slice(0, 3);
   const extra = targets.length - shown.length;
-  const titleFor = (chamber: string | null): string => (chamber === 'Senate' ? 'Sen.' : 'Rep.');
+  // Normalize across directories: 'Senate'/'upper' -> "Sen.", else "Rep.".
+  const titleFor = (chamber: string | null): string =>
+    chamberCategory(chamber) === 'Senate' ? 'Sen.' : 'Rep.';
   const lastName = (name: string | null, memberId: string): string => {
     const n = name ?? memberId;
     const head = n.includes(', ') ? n.split(', ')[0]! : n;
@@ -701,13 +704,21 @@ function TargetsDetailRow({ clientId }: { clientId: string }) {
     <div className="client-detail-pair">
       <Typography.Text type="secondary">Targets</Typography.Text>
       <div className="tgt-pills">
-        {shown.map((t) => (
-          <span key={t.memberId} className={`tgt-pill ${t.party ?? 'I'}`}>
-            <span className="tgt-pill-dot" aria-hidden="true" />
-            {titleFor(t.chamber)} {lastName(t.memberName, t.memberId)}
-            {t.party && t.state ? ` · ${t.party}-${t.state}` : ''}
-          </span>
-        ))}
+        {shown.map((t) => {
+          // Collapse single-char AND full-word parties to R/D/I so the .tgt-pill.R/.D/.I
+          // CSS matches for state targets ("Democratic") the same as congressional ones.
+          const ps = partyShort(t.party);
+          // Staffers aren't elected — no Rep./Sen. honorific (would mislabel them).
+          const honorific = t.sourceDirectory === 'staff' ? '' : titleFor(t.chamber);
+          return (
+            <span key={t.memberId} className={`tgt-pill ${ps ?? 'I'}`}>
+              <span className="tgt-pill-dot" aria-hidden="true" />
+              {honorific ? `${honorific} ` : ''}
+              {lastName(t.memberName, t.memberId)}
+              {ps && t.state ? ` · ${ps}-${t.state}` : ''}
+            </span>
+          );
+        })}
         {extra > 0 ? <span className="tgt-pill more">+{extra} more</span> : null}
       </div>
     </div>

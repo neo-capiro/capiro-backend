@@ -23,6 +23,7 @@ import { DirectoryPage } from './pages/directory/DirectoryPage.js';
 import MemberDirectoryProfilePage from './pages/directory/MemberDirectoryProfilePage.js';
 import StaffDirectoryProfilePage from './pages/directory/StaffDirectoryProfilePage.js';
 import CommitteeDirectoryPage from './pages/directory/CommitteeDirectoryPage.js';
+import StateLegislatorProfilePage from './pages/directory/StateLegislatorProfilePage.js';
 import { HelpPage } from './pages/help/HelpPage.js';
 import { HomePage } from './pages/HomePage.js';
 import { EngagementPage } from './pages/engagement/EngagementPage.js';
@@ -252,6 +253,7 @@ export function App() {
         <Route path="/directory/members/:memberId" element={<MemberDirectoryProfilePage />} />
         <Route path="/directory/staff/:staffId" element={<StaffDirectoryProfilePage />} />
         <Route path="/directory/committees/:committeeId" element={<CommitteeDirectoryPage />} />
+        <Route path="/directory/state-legislators/:id" element={<StateLegislatorProfilePage />} />
         <Route path="/help" element={<HelpPage />} />
         <Route path="/portal/*" element={<Navigate to="/clients" replace />} />
 

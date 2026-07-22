@@ -101,6 +101,9 @@ interface SyncStats {
   matched: number;
   skipped: number;
   removed: number;
+  // Messages that threw while being persisted and were skipped rather than
+  // aborting the whole run (per-message resilience).
+  failed: number;
   pages: number;
   hasMore: boolean;
 }
@@ -504,11 +507,30 @@ export class MicrosoftGraphSyncService {
       const state = readSyncState(connection.syncState);
       const result: SyncResult = { connectionId };
 
+      let calendarSynced = false;
       if (input.calendar !== false) {
         result.calendar = await this.syncCalendar(tenantId, connection, state, accessToken, input);
+        calendarSynced = true;
       }
       if (input.mail !== false) {
-        result.mail = await this.syncMail(tenantId, connection, state, accessToken, input);
+        try {
+          result.mail = await this.syncMail(tenantId, connection, state, accessToken, input);
+        } catch (err) {
+          // If the calendar leg already succeeded, don't flag the whole
+          // connection failed for a TRANSIENT mail-leg error (429/5xx/DB blip):
+          // calendar meetings are committed, the mail cursor was NOT advanced
+          // (syncMail throws before persisting state), and the scheduler retries
+          // next cycle — killing the misleading "failed to sync" banner. A
+          // PERMANENT failure (revoked scope / forbidden / mailbox-not-enabled,
+          // which the outer catch routes to needs_configuration) or a mail-only
+          // run still surfaces via re-throw.
+          if (!calendarSynced || isPermanentMailFailure(err)) throw err;
+          this.logger.warn(
+            `Microsoft mail sync hit a transient failure for connection ${connectionId}; calendar synced OK, keeping connection connected (will retry next cycle): ${
+              err instanceof Error ? err.message : err
+            }`,
+          );
+        }
       }
 
       await this.prisma.withTenant(tenantId, (tx) =>
@@ -673,15 +695,30 @@ export class MicrosoftGraphSyncService {
         }
         for (const message of response.value ?? []) {
           stats.scanned += 1;
-          const outcome = await this.persistGraphMessage(
-            tenantId,
-            connection.id,
-            folder.displayPath,
-            message,
-          );
-          stats.matched += outcome === 'matched' ? 1 : 0;
-          stats.skipped += outcome === 'skipped' ? 1 : 0;
-          stats.removed += outcome === 'removed' ? 1 : 0;
+          try {
+            const outcome = await this.persistGraphMessage(
+              tenantId,
+              connection.id,
+              folder.displayPath,
+              message,
+            );
+            stats.matched += outcome === 'matched' ? 1 : 0;
+            stats.skipped += outcome === 'skipped' ? 1 : 0;
+            stats.removed += outcome === 'removed' ? 1 : 0;
+          } catch (err) {
+            // ONLY skip a genuinely gone message (404/410). Transient/infra
+            // errors (DB pool/timeout, 429, 5xx) MUST propagate so the delta
+            // cursor is NOT advanced past never-persisted messages (Graph delta
+            // won't re-emit them → silent drop). Aborting lets the scheduler
+            // retry from the un-advanced deltaLink.
+            if (!isMessageGoneError(err)) throw err;
+            stats.failed += 1;
+            this.logger.warn(
+              `Graph message ${message?.id ?? '(no id)'} is gone for connection ${connection.id}; skipping: ${
+                err instanceof Error ? err.message : err
+              }`,
+            );
+          }
         }
         nextUrl = response['@odata.nextLink'] ?? '';
         deltaLink = response['@odata.deltaLink'] ?? null;
@@ -1645,7 +1682,7 @@ function readSyncState(value: Prisma.JsonValue): MicrosoftSyncState {
 }
 
 function emptyStats(): SyncStats {
-  return { scanned: 0, matched: 0, skipped: 0, removed: 0, pages: 0, hasMore: false };
+  return { scanned: 0, matched: 0, skipped: 0, removed: 0, failed: 0, pages: 0, hasMore: false };
 }
 
 function combineStats(stats: SyncStats[]): SyncStats {
@@ -1655,6 +1692,7 @@ function combineStats(stats: SyncStats[]): SyncStats {
       matched: total.matched + stat.matched,
       skipped: total.skipped + stat.skipped,
       removed: total.removed + stat.removed,
+      failed: total.failed + stat.failed,
       pages: total.pages + stat.pages,
       hasMore: total.hasMore || stat.hasMore,
     }),
@@ -1695,6 +1733,32 @@ function calendarViewUrl(from: string, to: string): string {
 function isGraphSyncStateGone(err: unknown): boolean {
   const message = err instanceof Error ? err.message : String(err);
   return message.includes('SyncStateNotFound') || message.includes('failed (410)');
+}
+
+/** HTTP status parsed from our "Microsoft Graph GET ... failed (503): ..."
+ *  ServiceUnavailableException messages. */
+function mailErrorStatus(err: unknown): number | null {
+  const msg = err instanceof Error ? err.message : '';
+  const m = /failed \((\d{3})\)/.exec(msg);
+  return m ? Number(m[1]) : null;
+}
+
+/** A message that no longer exists (404/410) — safe to skip. Every other error
+ *  must abort the run so the delta cursor is NOT advanced past never-persisted
+ *  messages (which the delta would never re-emit → silent drop). */
+function isMessageGoneError(err: unknown): boolean {
+  const status = mailErrorStatus(err);
+  return status === 404 || status === 410;
+}
+
+/** A permanent mail-integration failure the user must act on (revoked scope /
+ *  forbidden / no Exchange mailbox). Surfaced rather than silently retried;
+ *  transient errors (429/5xx/DB blips) keep the connection connected when the
+ *  calendar leg already succeeded. */
+function isPermanentMailFailure(err: unknown): boolean {
+  const status = mailErrorStatus(err);
+  if (status === 401 || status === 403) return true;
+  return err instanceof Error && err.message.includes('MailboxNotEnabledForRESTAPI');
 }
 
 function mailDeltaUrl(folder: string, since: Date): string {

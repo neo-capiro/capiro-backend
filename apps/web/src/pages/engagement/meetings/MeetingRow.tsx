@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { ChevronRight } from 'lucide-react';
-import { formatTime } from './meetings-format.js';
+import { formatTime, isAllDayMeeting } from './meetings-format.js';
 import {
   JoinButton,
   MaterialBadges,
@@ -65,7 +65,7 @@ export function MeetingRow({
           fontVariantNumeric: 'tabular-nums',
         }}
       >
-        {formatTime(m.startsAt)}
+        {isAllDayMeeting(m.startsAt, m.endsAt) ? 'All day' : formatTime(m.startsAt)}
       </div>
       {/* Identity + Meri / Join action */}
       <div style={{ flex: 1, minWidth: 0 }}>
