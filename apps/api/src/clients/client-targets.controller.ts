@@ -1,4 +1,5 @@
-import { Body, Controller, Delete, Get, Param, Post, UseGuards } from '@nestjs/common';
+import { Body, Controller, Delete, Get, Param, Post, Query, UseGuards } from '@nestjs/common';
+import { BadRequestException } from '@nestjs/common';
 import { IsIn, IsOptional, IsString, MaxLength, MinLength } from 'class-validator';
 import type { TenantContext } from '@capiro/shared';
 import { Roles } from '../auth/roles.decorator.js';
@@ -7,15 +8,22 @@ import { CurrentTenant } from '../tenant/current-tenant.decorator.js';
 import { ClientTargetsService } from './client-targets.service.js';
 
 class AddTargetDto {
+  // Widened to 128: OpenStates state-legislator ids ("ocd-person/<uuid>") are
+  // longer than congressional bioguide ids.
   @IsString()
   @MinLength(1)
-  @MaxLength(64)
+  @MaxLength(128)
   memberId!: string;
 
   // "manual" (added from search results) | "meri" (added from the Meri sidebar).
   @IsOptional()
   @IsIn(['manual', 'meri'])
   source?: string;
+
+  // Which directory the member came from. Defaults to congress server-side.
+  @IsOptional()
+  @IsIn(['congress', 'state'])
+  sourceDirectory?: string;
 }
 
 @Controller('clients/:clientId/targets')
@@ -39,12 +47,15 @@ export class ClientTargetsController {
   }
 
   // Remove by member id (not row id) — the UI only knows the member it added.
-  @Delete(':memberId')
+  // memberId comes as a QUERY param, not a path segment: OpenStates ids contain a
+  // slash ("ocd-person/…") that path routing / proxies mangle.
+  @Delete()
   removeTarget(
     @CurrentTenant() ctx: TenantContext,
     @Param('clientId') clientId: string,
-    @Param('memberId') memberId: string,
+    @Query('memberId') memberId?: string,
   ) {
-    return this.service.removeTarget(ctx, clientId, memberId);
+    if (!memberId || !memberId.trim()) throw new BadRequestException('memberId is required');
+    return this.service.removeTarget(ctx, clientId, memberId.trim());
   }
 }

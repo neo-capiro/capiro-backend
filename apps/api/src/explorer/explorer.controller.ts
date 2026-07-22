@@ -1,4 +1,4 @@
-import { Controller, Get, Param, Query, UseGuards } from '@nestjs/common';
+import { Controller, Get, NotFoundException, Param, Query, UseGuards } from '@nestjs/common';
 import { Type } from 'class-transformer';
 import {
   IsArray,
@@ -450,8 +450,10 @@ export class ExplorerController {
   }
 
   @Get('state-legislators/:id')
-  stateLegislatorDetail(@Param('id') id: string) {
-    return this.service.stateLegislatorDetail(id);
+  async stateLegislatorDetail(@Param('id') id: string) {
+    const detail = await this.service.stateLegislatorDetail(id);
+    if (!detail) throw new NotFoundException('State legislator not found');
+    return detail;
   }
 
   /* ── Intel articles (news) ───────────────────────────────────────────── */

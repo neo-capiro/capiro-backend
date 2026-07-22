@@ -4,6 +4,7 @@
  * program-element/api.ts convention. Types mirror the API's directory-detail contracts.
  */
 import type { AxiosInstance } from 'axios';
+import type { StateLegislatorDetail } from './StateLegislatorDirectory.js';
 import type { CommitteeChamber, CommitteeKind } from './directoryData.js';
 
 export type DirectoryPersonType = 'member' | 'staff';
@@ -264,5 +265,18 @@ export async function searchPeople(
   params: { q?: string; committeeId?: string; personType?: string; current?: string; page?: number; pageSize?: number } = {},
 ): Promise<PeopleResponse> {
   const { data } = await api.get<PeopleResponse>('/api/directory/people', { params });
+  return data;
+}
+
+// State-legislator detail (OpenStates), backing /directory/state-legislators/:id.
+// id contains a slash ("ocd-person/<uuid>") — encodeURIComponent keeps it one path
+// segment (same pattern the directory Drawer detail already uses successfully).
+export async function getStateLegislatorDetail(
+  api: AxiosInstance,
+  id: string,
+): Promise<StateLegislatorDetail> {
+  const { data } = await api.get<StateLegislatorDetail>(
+    `/api/explorer/state-legislators/${encodeURIComponent(id)}`,
+  );
   return data;
 }

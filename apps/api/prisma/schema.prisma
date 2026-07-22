@@ -2165,9 +2165,14 @@ model ClientTarget {
   clientId      String   @map("client_id") @db.Uuid
   memberId      String   @map("member_id")
   memberName    String?  @map("member_name")
-  party         String?  @db.VarChar(1)
-  state         String?  @db.VarChar(8)
-  chamber       String?  @db.VarChar(16)
+  // Which directory this target came from: 'congress' (LegiStorm snapshot) or
+  // 'state' (OpenStates state_legislator table). Drives snapshot resolution on
+  // add and profile click-through on the client. Widened party/state/chamber
+  // below because state values are full words ("Democrat", "upper").
+  sourceDirectory String @default("congress") @map("source_directory") @db.VarChar(16)
+  party         String?  @db.VarChar(32)
+  state         String?  @db.VarChar(24)
+  chamber       String?  @db.VarChar(24)
   committee     String?
   source        String   @default("manual") @db.VarChar(8)
   addedByUserId String?  @map("added_by_user_id") @db.Uuid

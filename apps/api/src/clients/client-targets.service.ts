@@ -6,7 +6,25 @@ import { DirectoryService } from '../directory/directory.service.js';
 export interface AddTargetInput {
   memberId: string;
   source?: string;
+  /** 'congress' (LegiStorm snapshot) | 'state' (OpenStates state_legislator). */
+  sourceDirectory?: string;
 }
+
+type TargetSnapshot = {
+  memberName: string | null;
+  party: string | null;
+  state: string | null;
+  chamber: string | null;
+  committee: string | null;
+};
+
+const EMPTY_SNAPSHOT: TargetSnapshot = {
+  memberName: null,
+  party: null,
+  state: null,
+  chamber: null,
+  committee: null,
+};
 
 /**
  * Client Targets CRUD. A target is a congressional office (directory member) a
@@ -50,37 +68,14 @@ export class ClientTargetsService {
     const memberId = (input.memberId ?? '').trim();
     if (!memberId) throw new BadRequestException('memberId is required');
     const source = input.source === 'meri' ? 'meri' : 'manual';
+    const sourceDirectory = input.sourceDirectory === 'state' ? 'state' : 'congress';
 
-    // Denormalize a member snapshot from the cached directory (best-effort).
-    let snapshot: {
-      memberName: string | null;
-      party: string | null;
-      state: string | null;
-      chamber: string | null;
-      committee: string | null;
-    } = { memberName: null, party: null, state: null, chamber: null, committee: null };
-    try {
-      const contacts = await this.directory.getAllContacts();
-      const m = contacts.find((c) => c.id === memberId);
-      if (m) {
-        snapshot = {
-          memberName: m.fullName ?? null,
-          party: m.party ?? null,
-          // House includes district (e.g. "TX-12"); Senate is the bare state.
-          state:
-            m.chamber === 'House' && m.district
-              ? m.district.includes('-')
-                ? m.district
-                : `${m.state}-${m.district}`
-              : m.state ?? null,
-          chamber: m.chamber ?? null,
-          committee: m.committees?.[0] ?? null,
-        };
-      }
-    } catch {
-      // Directory unavailable — store the id-only target; the UI can still
-      // resolve display fields from its own member cache.
-    }
+    // Denormalize a compact snapshot from the ORIGINATING directory (best-effort):
+    // the congressional S3 snapshot, or the OpenStates state_legislator table.
+    const snapshot =
+      sourceDirectory === 'state'
+        ? await this.resolveStateSnapshot(memberId)
+        : await this.resolveCongressSnapshot(memberId);
 
     return this.prisma.withTenant(ctx.tenantId, async (tx) => {
       await this.assertClient(tx, ctx, clientId);
@@ -97,6 +92,7 @@ export class ClientTargetsService {
           tenantId: ctx.tenantId,
           clientId,
           memberId,
+          sourceDirectory,
           memberName: snapshot.memberName,
           party: snapshot.party,
           state: snapshot.state,
@@ -107,6 +103,59 @@ export class ClientTargetsService {
         },
       });
     });
+  }
+
+  /** Congressional snapshot from the in-memory S3 directory (best-effort). */
+  private async resolveCongressSnapshot(memberId: string): Promise<TargetSnapshot> {
+    try {
+      const contacts = await this.directory.getAllContacts();
+      const m = contacts.find((c) => c.id === memberId);
+      if (!m) return { ...EMPTY_SNAPSHOT };
+      return {
+        memberName: m.fullName ?? null,
+        party: m.party ?? null,
+        // House includes district (e.g. "TX-12"); Senate is the bare state.
+        state:
+          m.chamber === 'House' && m.district
+            ? m.district.includes('-')
+              ? m.district
+              : `${m.state}-${m.district}`
+            : m.state ?? null,
+        chamber: m.chamber ?? null,
+        committee: m.committees?.[0] ?? null,
+      };
+    } catch {
+      // Directory unavailable — store the id-only target; the UI can still
+      // resolve display fields from its own member cache.
+      return { ...EMPTY_SNAPSHOT };
+    }
+  }
+
+  /** State-legislator snapshot from the OpenStates state_legislator table. */
+  private async resolveStateSnapshot(memberId: string): Promise<TargetSnapshot> {
+    try {
+      const leg = await this.prisma.stateLegislator.findUnique({
+        where: { id: memberId },
+        select: { name: true, party: true, state: true, chamber: true, district: true, committees: true },
+      });
+      if (!leg) return { ...EMPTY_SNAPSHOT };
+      const committees = Array.isArray(leg.committees) ? leg.committees : [];
+      const firstCommittee =
+        committees.length && committees[0] && typeof committees[0] === 'object'
+          ? (String((committees[0] as { name?: unknown }).name ?? '').trim() || null)
+          : null;
+      const stateCode = (leg.state ?? '').toUpperCase();
+      return {
+        memberName: leg.name ?? null,
+        party: leg.party ?? null,
+        // Mirror the congressional convention of district-qualifying the state.
+        state: stateCode ? (leg.district ? `${stateCode}-${leg.district}` : stateCode) : null,
+        chamber: leg.chamber ?? null,
+        committee: firstCommittee,
+      };
+    } catch {
+      return { ...EMPTY_SNAPSHOT };
+    }
   }
 
   async removeTarget(ctx: TenantContext, clientId: string, memberId: string) {
