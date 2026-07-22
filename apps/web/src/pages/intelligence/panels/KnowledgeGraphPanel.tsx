@@ -3,8 +3,15 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { App, Button, Card, Empty, Popconfirm, Segmented, Select, Space, Spin, Tag, Typography } from 'antd';
 import { ReloadOutlined, AimOutlined } from '@ant-design/icons';
 import CytoscapeComponent from 'react-cytoscapejs';
+import cytoscape from 'cytoscape';
+import fcose from 'cytoscape-fcose';
 import type { Core, ElementDefinition, NodeSingular, StylesheetStyle } from 'cytoscape';
 import { useApi } from '../../../lib/use-api.js';
+
+// Register fCoSE (fast force-directed layout) on the shared cytoscape singleton
+// react-cytoscapejs uses. Replaces the built-in `cose` — an O(n²) physics sim that
+// ran to convergence on the main thread and froze the UI while a large graph loaded.
+cytoscape.use(fcose);
 
 const { Text } = Typography;
 
@@ -91,16 +98,23 @@ const STYLESHEET: StylesheetStyle[] = [
   { selector: 'edge.highlight', style: { opacity: 0.95, width: 2.4 } },
 ];
 
-// cose layout, shared by the mount prop + the data-change re-run effect. Kept
-// module-level so the object is stable (react-cytoscapejs only auto-re-runs the
-// layout when the `layout` prop VALUE-changes; ours never does — see the effect).
-const LAYOUT = { name: 'cose', animate: false, nodeRepulsion: 8000, idealEdgeLength: 90, padding: 30 };
+// Layout: fCoSE (fast, non-animated — computes silently then paints once). The
+// mount prop uses a no-op `preset` so react-cytoscapejs does NOT run an expensive
+// layout on mount (that used to double-layout on load); the data-change effect is
+// the single layout driver. INITIAL (randomize) positions the first dataset;
+// RELAYOUT (randomize:false) warm-starts from existing positions on a view switch /
+// re-populate, so existing nodes stay put and only new ones are placed.
+const FCOSE_BASE = { name: 'fcose', animate: false, quality: 'default', nodeRepulsion: 8000, idealEdgeLength: 90, padding: 30 } as const;
+const PRESET_LAYOUT = { name: 'preset' } as const;
+const INITIAL_LAYOUT = { ...FCOSE_BASE, randomize: true };
+const RELAYOUT = { ...FCOSE_BASE, randomize: false };
 
 export function KnowledgeGraphPanel() {
   const api = useApi();
   const qc = useQueryClient();
   const { message } = App.useApp();
   const cyRef = useRef<Core | null>(null);
+  const firstLayoutDone = useRef(false);
   const [originFilter, setOriginFilter] = useState<'all' | 'fk' | 'mention'>('all');
   const [view, setView] = useState<ViewMode>('full');
   const [clientId, setClientId] = useState<string | undefined>();
@@ -212,16 +226,21 @@ export function KnowledgeGraphPanel() {
     hood.addClass('highlight');
   }, [focusId, elements]);
 
-  // Re-run the layout whenever the underlying graph DATA changes. react-cytoscapejs
-  // only re-runs its layout when the `layout` prop value-changes (it never does),
-  // so an in-place elements swap — switching views back to a cached graph, or
-  // re-populating over an existing one — adds new nodes with NO position and
-  // cytoscape drops them at (0,0), collapsing the graph into a blob. Keyed on the
-  // fetched data only (NOT focusId/originFilter, which must not re-scatter nodes).
+  // Lay out whenever the graph DATA changes. The mount `layout` prop is a no-op
+  // preset (see above), so this effect is the SINGLE layout driver — one fCoSE run
+  // per dataset, no double-layout on load. The first real run (cy attached, nodes
+  // present) positions from scratch (randomize); later runs — switching views back
+  // to a cached graph, or re-populating over an existing one — warm-start from
+  // current positions so existing nodes stay put and only the new ones are placed,
+  // which also preserves the old fix for the (0,0)-collapse-on-in-place-swap bug.
+  // Keyed on the fetched data only (NOT focusId/originFilter, which must not
+  // re-scatter nodes).
   useEffect(() => {
     const cy = cyRef.current;
     if (!cy || cy.nodes().length === 0) return;
-    cy.layout(LAYOUT).run();
+    const layout = firstLayoutDone.current ? RELAYOUT : INITIAL_LAYOUT;
+    firstLayoutDone.current = true;
+    cy.layout(layout).run();
   }, [graphQuery.data]);
 
   const nodeCount = graphQuery.data?.nodes.length ?? 0;
@@ -309,7 +328,7 @@ export function KnowledgeGraphPanel() {
           elements={elements}
           stylesheet={STYLESHEET}
           style={{ width: '100%', height: '100%' }}
-          layout={LAYOUT}
+          layout={PRESET_LAYOUT}
           minZoom={0.1}
           maxZoom={3}
           cy={(cy: Core) => {
