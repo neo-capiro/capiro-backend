@@ -20,6 +20,8 @@ export interface DirectoryMemberOffice {
   state: string | null;
   district: string | null;
   party: string | null;
+  senateClass: string | null;
+  outgoingStatus: string | null;
   status: string | null;
   startDate: string | null;
   endDate: string | null;
@@ -131,8 +133,11 @@ export interface DirectoryMemberDetail {
   };
   bioDetails: {
     dob: string | null;
+    dateOfDeath: string | null;
     placeOfBirth: string | null;
     hometown: string | null;
+    nativeOf: string | null;
+    majMin: string | null;
     partyName: string | null;
     occupation: string | null;
     pronunciation: string | null;
@@ -143,6 +148,7 @@ export interface DirectoryMemberDetail {
   selectedPhotoUrl: string | null;
   photoSource: DirectoryPhotoSource;
   offices: DirectoryMemberOffice[];
+  officeAddresses: DirectoryStaffOfficeAddress[];
   committees: DirectoryCommitteeMembership[];
   leaderships: DirectoryLeadershipEntry[];
   socialContacts: DirectoryContactMethod[];

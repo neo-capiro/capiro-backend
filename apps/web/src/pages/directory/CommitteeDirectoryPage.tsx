@@ -70,6 +70,14 @@ export default function CommitteeDirectoryPage() {
             ) : null}
           </Space>
 
+          {committee?.officeLocation?.trim() || committee?.phone?.trim() ? (
+            <Paragraph type="secondary" style={{ marginBottom: 8 }}>
+              {[committee?.officeLocation?.trim(), committee?.phone?.trim() ? `Phone: ${committee.phone.trim()}` : null]
+                .filter(Boolean)
+                .join(' · ')}
+            </Paragraph>
+          ) : null}
+
           {committee?.parentCommittee ? (
             <Paragraph>
               Parent committee:{' '}

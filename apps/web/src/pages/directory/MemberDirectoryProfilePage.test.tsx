@@ -43,8 +43,11 @@ const MEMBER: MemberDetail = {
   },
   bioDetails: {
     dob: null,
+    dateOfDeath: null,
     placeOfBirth: null,
     hometown: 'Saks, AL',
+    nativeOf: null,
+    majMin: null,
     partyName: 'Republican',
     occupation: null,
     pronunciation: null,
@@ -54,7 +57,8 @@ const MEMBER: MemberDetail = {
   photos: [{ id: 9, url: 'https://x.invalid/r.jpg', status: 'public', isPrimary: false, isDirectory: true, updatedAt: null }],
   selectedPhotoUrl: 'https://x.invalid/r.jpg',
   photoSource: 'legistorm',
-  offices: [{ officeId: 950, name: 'Rep. Rogers Office', officeTypeId: 'HM', state: 'AL', district: '3', party: 'R', status: 'In office', startDate: null, endDate: null, updatedAt: null }],
+  offices: [{ officeId: 950, name: 'Rep. Rogers Office', officeTypeId: 'HM', state: 'AL', district: '3', party: 'R', senateClass: null, outgoingStatus: null, status: 'In office', startDate: null, endDate: null, updatedAt: null }],
+  officeAddresses: [],
   committees: [
     {
       committeeId: 'committee-100',
@@ -79,7 +83,7 @@ const MEMBER: MemberDetail = {
 describe('MemberProfileView', () => {
   beforeAll(setupAntdBrowserMocks);
 
-  test('renders identity, committee link, leadership, and null-as-Not-provided', () => {
+  test('renders present fields, committee link, leadership; hides empty fields', () => {
     render(
       <MemoryRouter>
         <MemberProfileView member={MEMBER} />
@@ -89,8 +93,11 @@ describe('MemberProfileView', () => {
     const committeeLink = screen.getByRole('link', { name: 'committee-100' });
     expect(committeeLink).toHaveAttribute('href', '/directory/committees/committee-100');
     expect(screen.getByText('Chairman')).toBeInTheDocument();
-    // dob/occupation/etc. are null -> the contract says "Not provided by source".
-    expect(screen.getAllByText('Not provided by source').length).toBeGreaterThan(0);
+    // Present bio field renders...
+    expect(screen.getByText('Saks, AL')).toBeInTheDocument();
+    // ...while null fields (dob/occupation/etc.) are hidden entirely, not labeled.
+    expect(screen.queryByText('Not provided by source')).toBeNull();
+    expect(screen.queryByText('Date of birth')).toBeNull();
     // social link present
     expect(screen.getByRole('link', { name: 'https://rogers.house.gov' })).toBeInTheDocument();
   });

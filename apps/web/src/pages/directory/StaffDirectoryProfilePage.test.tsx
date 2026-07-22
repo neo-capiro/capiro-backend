@@ -114,7 +114,22 @@ describe('StaffProfileView', () => {
     // committee association links to the committee dictionary route
     const committeeLink = screen.getByRole('link', { name: 'committee-100' });
     expect(committeeLink).toHaveAttribute('href', '/directory/committees/committee-100');
-    // no photo/social from the entitlement -> honest "Not provided by source"
-    expect(screen.getAllByText(/Not provided by source/).length).toBeGreaterThan(0);
+    // Present bio fields render...
+    expect(screen.getByText('Counsel')).toBeInTheDocument();
+    expect(screen.getByText('Majority')).toBeInTheDocument();
+    // ...empty fields/sections are hidden, never "Not provided by source".
+    expect(screen.queryByText(/Not provided by source/)).toBeNull();
+    // No social contacts -> no "Social available" tag and no social section.
+    expect(screen.queryByText('Social available')).toBeNull();
+  });
+
+  test('hides the Issue areas section entirely when a staffer has no issues', () => {
+    render(
+      <MemoryRouter>
+        <StaffProfileView staff={{ ...STAFF, issues: [] }} />
+      </MemoryRouter>,
+    );
+    // Committee-only staff carry no LegiStorm issue data; the section must not appear.
+    expect(screen.queryByText(/Issue areas/)).toBeNull();
   });
 });

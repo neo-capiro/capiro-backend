@@ -69,8 +69,11 @@ export interface MemberDetail {
   };
   bioDetails: {
     dob: string | null;
+    dateOfDeath: string | null;
     placeOfBirth: string | null;
     hometown: string | null;
+    nativeOf: string | null;
+    majMin: string | null;
     partyName: string | null;
     occupation: string | null;
     pronunciation: string | null;
@@ -87,9 +90,28 @@ export interface MemberDetail {
     state: string | null;
     district: string | null;
     party: string | null;
+    senateClass: string | null;
+    outgoingStatus: string | null;
     status: string | null;
     startDate: string | null;
     endDate: string | null;
+    updatedAt: string | null;
+  }>;
+  officeAddresses: Array<{
+    addressId: number | null;
+    officeId: number | null;
+    officeName: string | null;
+    label: string | null;
+    address1: string | null;
+    address2: string | null;
+    city: string | null;
+    state: string | null;
+    zip: string | null;
+    zipExt: string | null;
+    phone: string | null;
+    fax: string | null;
+    isMain: boolean;
+    publicNotes: string | null;
     updatedAt: string | null;
   }>;
   committees: DirectoryCommitteeMembership[];
