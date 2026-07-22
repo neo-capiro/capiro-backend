@@ -98,23 +98,22 @@ const STYLESHEET: StylesheetStyle[] = [
   { selector: 'edge.highlight', style: { opacity: 0.95, width: 2.4 } },
 ];
 
-// Layout: fCoSE (fast, non-animated — computes silently then paints once). The
-// mount prop uses a no-op `preset` so react-cytoscapejs does NOT run an expensive
-// layout on mount (that used to double-layout on load); the data-change effect is
-// the single layout driver. INITIAL (randomize) positions the first dataset;
-// RELAYOUT (randomize:false) warm-starts from existing positions on a view switch /
-// re-populate, so existing nodes stay put and only new ones are placed.
-const FCOSE_BASE = { name: 'fcose', animate: false, quality: 'default', nodeRepulsion: 8000, idealEdgeLength: 90, padding: 30 } as const;
+// Layout: fCoSE (fast force-directed, non-animated — computes silently, paints once),
+// replacing the O(n²) `cose` physics sim. The mount prop uses a no-op `preset` so
+// react-cytoscapejs never runs an expensive layout on mount (which used to
+// double-layout on load); the data-change effect is the single layout driver. We
+// always `randomize` (fresh spectral init) rather than warm-starting from prior
+// positions: a view switch (full → client → path) swaps in a DISJOINT node set with
+// no meaningful positions, where a warm-start (randomize:false) collapses it to
+// (0,0). fCoSE is fast enough that a full re-layout per data change is imperceptible.
+const LAYOUT = { name: 'fcose', animate: false, quality: 'default', randomize: true, nodeRepulsion: 8000, idealEdgeLength: 90, padding: 30 } as const;
 const PRESET_LAYOUT = { name: 'preset' } as const;
-const INITIAL_LAYOUT = { ...FCOSE_BASE, randomize: true };
-const RELAYOUT = { ...FCOSE_BASE, randomize: false };
 
 export function KnowledgeGraphPanel() {
   const api = useApi();
   const qc = useQueryClient();
   const { message } = App.useApp();
   const cyRef = useRef<Core | null>(null);
-  const firstLayoutDone = useRef(false);
   const [originFilter, setOriginFilter] = useState<'all' | 'fk' | 'mention'>('all');
   const [view, setView] = useState<ViewMode>('full');
   const [clientId, setClientId] = useState<string | undefined>();
@@ -227,20 +226,15 @@ export function KnowledgeGraphPanel() {
   }, [focusId, elements]);
 
   // Lay out whenever the graph DATA changes. The mount `layout` prop is a no-op
-  // preset (see above), so this effect is the SINGLE layout driver — one fCoSE run
-  // per dataset, no double-layout on load. The first real run (cy attached, nodes
-  // present) positions from scratch (randomize); later runs — switching views back
-  // to a cached graph, or re-populating over an existing one — warm-start from
-  // current positions so existing nodes stay put and only the new ones are placed,
-  // which also preserves the old fix for the (0,0)-collapse-on-in-place-swap bug.
-  // Keyed on the fetched data only (NOT focusId/originFilter, which must not
-  // re-scatter nodes).
+  // preset (above), so this effect is the SINGLE layout driver — one fCoSE run per
+  // dataset, no double-layout on load, and it re-lays-out correctly on any in-place
+  // elements swap (view switch or re-populate), which also preserves the old fix for
+  // the (0,0)-collapse-on-in-place-swap bug. Keyed on the fetched data only (NOT
+  // focusId/originFilter, which must not re-scatter nodes).
   useEffect(() => {
     const cy = cyRef.current;
     if (!cy || cy.nodes().length === 0) return;
-    const layout = firstLayoutDone.current ? RELAYOUT : INITIAL_LAYOUT;
-    firstLayoutDone.current = true;
-    cy.layout(layout).run();
+    cy.layout(LAYOUT).run();
   }, [graphQuery.data]);
 
   const nodeCount = graphQuery.data?.nodes.length ?? 0;
