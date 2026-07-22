@@ -163,8 +163,27 @@ export function createFunnelApi(getToken: GetToken) {
     verifyCheck: () => post('/funnel/verify-check') as Promise<{ verified: boolean }>,
     setPlan: (plan: PlanChoice) => post('/funnel/plan', { plan }),
     getLegal: () => get('/funnel/legal') as Promise<LegalDoc[]>,
-    acceptLegal: (body: { tosVersion: string; saVersion: string }) =>
-      post('/funnel/legal-accept', body),
+    acceptLegal: (body: {
+      tosVersion: string;
+      saVersion: string;
+      signerName: string;
+      signerTitle: string;
+      signatureName: string;
+      emailCopy: boolean;
+    }) => post('/funnel/legal-accept', body),
+    /** Fetch the signer's countersigned PDF (auth header required, so this
+     * cannot be a plain <a href>). Returns the blob + server-suggested name. */
+    downloadSigned: async (docType: 'tos' | 'sa'): Promise<{ blob: Blob; filename: string }> => {
+      const token = await getToken();
+      const res = await fetch(`/onboard-api/funnel/legal/signed/${docType}`, {
+        headers: token ? { Authorization: `Bearer ${token}` } : {},
+      });
+      if (!res.ok) throw new OnboardApiError(res.status, `Download failed (${res.status})`);
+      const cd = res.headers.get('Content-Disposition') ?? '';
+      const match = cd.match(/filename="?([^"]+)"?/);
+      const filename = match?.[1] ?? `Capiro-${docType}-signed.pdf`;
+      return { blob: await res.blob(), filename };
+    },
     createSetupIntent: (method: 'card' | 'ach') =>
       post('/funnel/payment/setup-intent', { method }) as Promise<{ clientSecret: string }>,
     trialComplete: (body: { method: PayMethod; billingContact?: string; setupIntentId?: string }) =>

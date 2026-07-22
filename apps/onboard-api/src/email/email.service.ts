@@ -1,8 +1,16 @@
+import { randomUUID } from 'node:crypto';
 import { Injectable, Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { SESv2Client, SendEmailCommand } from '@aws-sdk/client-sesv2';
 import { Prisma } from '../../generated/prisma-client/index.js';
 import { PrismaService } from '../prisma/prisma.service.js';
+
+export interface EmailAttachment {
+  filename: string;
+  content: Buffer;
+  /** MIME type, e.g. 'application/pdf'. */
+  contentType: string;
+}
 
 export interface SendEmailOptions {
   to: string;
@@ -15,6 +23,9 @@ export interface SendEmailOptions {
   text: string;
   tenantId?: string;
   purchaserId?: string;
+  /** When present, the message is sent as raw MIME (multipart/mixed) so files
+   * ride along as attachments — SES Simple content cannot carry attachments. */
+  attachments?: EmailAttachment[];
 }
 
 export interface SendEmailResult {
@@ -66,21 +77,27 @@ export class EmailService {
     let sesMessageId = 'disabled';
     if (this.enabled) {
       try {
-        const res = await this.ses.send(
-          new SendEmailCommand({
-            FromEmailAddress: this.from,
-            Destination: { ToAddresses: [opts.to] },
-            Content: {
-              Simple: {
-                Subject: { Data: opts.subject, Charset: 'UTF-8' },
-                Body: {
-                  Html: { Data: opts.html, Charset: 'UTF-8' },
-                  Text: { Data: opts.text, Charset: 'UTF-8' },
+        const hasAttachments = (opts.attachments?.length ?? 0) > 0;
+        const command = hasAttachments
+          ? new SendEmailCommand({
+              FromEmailAddress: this.from,
+              Destination: { ToAddresses: [opts.to] },
+              Content: { Raw: { Data: this.buildRawMime(opts) } },
+            })
+          : new SendEmailCommand({
+              FromEmailAddress: this.from,
+              Destination: { ToAddresses: [opts.to] },
+              Content: {
+                Simple: {
+                  Subject: { Data: opts.subject, Charset: 'UTF-8' },
+                  Body: {
+                    Html: { Data: opts.html, Charset: 'UTF-8' },
+                    Text: { Data: opts.text, Charset: 'UTF-8' },
+                  },
                 },
               },
-            },
-          }),
-        );
+            });
+        const res = await this.ses.send(command);
         sesMessageId = res.MessageId ?? 'unknown';
       } catch (err) {
         this.logger.error(`SES send failed (${opts.kind} → ${opts.to}): ${(err as Error).message}`);
@@ -114,4 +131,60 @@ export class EmailService {
 
     return { sent: this.enabled, skipped: false, sesMessageId };
   }
+
+  /**
+   * Assemble a raw multipart/mixed MIME message: a multipart/alternative
+   * text+html body followed by base64 attachments. Everything is base64-encoded
+   * so UTF-8 bodies and binary PDFs are transmitted safely.
+   */
+  private buildRawMime(opts: SendEmailOptions): Buffer {
+    const CRLF = '\r\n';
+    const mixed = `mixed_${randomUUID()}`;
+    const alt = `alt_${randomUUID()}`;
+    const wrap76 = (b64: string) => b64.replace(/(.{76})/g, `$1${CRLF}`);
+    const encodeText = (s: string) => wrap76(Buffer.from(s, 'utf8').toString('base64'));
+
+    const lines: string[] = [
+      `From: ${this.from}`,
+      `To: ${opts.to}`,
+      `Subject: ${encodeHeaderValue(opts.subject)}`,
+      'MIME-Version: 1.0',
+      `Content-Type: multipart/mixed; boundary="${mixed}"`,
+      '',
+      `--${mixed}`,
+      `Content-Type: multipart/alternative; boundary="${alt}"`,
+      '',
+      `--${alt}`,
+      'Content-Type: text/plain; charset=UTF-8',
+      'Content-Transfer-Encoding: base64',
+      '',
+      encodeText(opts.text),
+      `--${alt}`,
+      'Content-Type: text/html; charset=UTF-8',
+      'Content-Transfer-Encoding: base64',
+      '',
+      encodeText(opts.html),
+      `--${alt}--`,
+    ];
+    for (const att of opts.attachments ?? []) {
+      const safeName = att.filename.replace(/["\r\n]/g, '');
+      lines.push(
+        `--${mixed}`,
+        `Content-Type: ${att.contentType}; name="${safeName}"`,
+        'Content-Transfer-Encoding: base64',
+        `Content-Disposition: attachment; filename="${safeName}"`,
+        '',
+        wrap76(att.content.toString('base64')),
+      );
+    }
+    lines.push(`--${mixed}--`, '');
+    return Buffer.from(lines.join(CRLF), 'utf8');
+  }
+}
+
+/** RFC 2047 encoded-word for a header value that contains non-ASCII bytes. */
+function encodeHeaderValue(value: string): string {
+  // eslint-disable-next-line no-control-regex
+  if (!/[^\x00-\x7F]/.test(value)) return value;
+  return `=?UTF-8?B?${Buffer.from(value, 'utf8').toString('base64')}?=`;
 }

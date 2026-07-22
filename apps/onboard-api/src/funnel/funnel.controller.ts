@@ -4,10 +4,21 @@
  * No tenant context exists yet; all data hangs off onboard_purchaser /
  * onboard_session until the provisioning bridge creates the tenant.
  */
-import { Body, Controller, Get, HttpCode, Post, Req, UseGuards } from '@nestjs/common';
+import {
+  Body,
+  Controller,
+  Get,
+  HttpCode,
+  Param,
+  Post,
+  Req,
+  StreamableFile,
+  UseGuards,
+} from '@nestjs/common';
 import { Type } from 'class-transformer';
 import {
   IsArray,
+  IsBoolean,
   IsEmail,
   IsIn,
   IsInt,
@@ -52,6 +63,26 @@ class LegalAcceptDto {
   @IsString()
   @Length(1, 64)
   saVersion!: string;
+
+  /** Signer's typed full legal name. */
+  @IsString()
+  @Length(1, 120)
+  signerName!: string;
+
+  /** Signer's typed title / role. */
+  @IsString()
+  @Length(1, 120)
+  signerTitle!: string;
+
+  /** The exact string typed into the signature field. */
+  @IsString()
+  @Length(1, 120)
+  signatureName!: string;
+
+  /** Email the signer a copy of the signed PDFs (defaults on in the UI). */
+  @IsOptional()
+  @IsBoolean()
+  emailCopy?: boolean;
 }
 
 class SetupIntentDto {
@@ -245,6 +276,20 @@ export class FunnelController {
     return this.funnel.acceptLegal(auth, body, {
       ip: clientIp(req),
       userAgent: (req.headers['user-agent'] as string | undefined) ?? null,
+    });
+  }
+
+  /** Stream the signer's countersigned PDF (formal doc + Certificate of
+   * Completion), regenerated on demand from the recorded consent. */
+  @Get('legal/signed/:docType')
+  async signedLegal(
+    @CurrentPurchaser() auth: PurchaserAuth,
+    @Param('docType') docType: string,
+  ): Promise<StreamableFile> {
+    const { filename, bytes } = await this.funnel.getSignedPdf(auth, docType);
+    return new StreamableFile(bytes, {
+      type: 'application/pdf',
+      disposition: `attachment; filename="${filename}"`,
     });
   }
 

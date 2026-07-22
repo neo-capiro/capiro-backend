@@ -58,6 +58,10 @@ const baseConsentInput = {
   clerkUserId: 'user_abc',
   ip: '203.0.113.7',
   userAgent: 'jest',
+  signer: { name: 'Jane Doe', title: 'Managing Partner', signatureName: 'Jane Doe', method: 'typed' },
+  envelopeId: '00000000-0000-0000-0000-000000000001',
+  emailCopyRequested: true,
+  docSha256ByType: { tos: 'sha-tos', sa: 'sha-sa' },
 } as const;
 
 describe('LegalService', () => {
@@ -121,8 +125,17 @@ describe('LegalService', () => {
           clerkUserId: 'user_abc',
           ip: '203.0.113.7',
           userAgent: 'jest',
+          signerName: 'Jane Doe',
+          signerTitle: 'Managing Partner',
+          signatureName: 'Jane Doe',
+          signatureMethod: 'typed',
+          envelopeId: '00000000-0000-0000-0000-000000000001',
+          emailCopyRequested: true,
         });
       }
+      // Each row binds to its own template hash.
+      expect(rows.find((r) => r.docType === 'tos')!.docSha256).toBe('sha-tos');
+      expect(rows.find((r) => r.docType === 'sa')!.docSha256).toBe('sha-sa');
     });
 
     it('rejects a stale ToS version', async () => {

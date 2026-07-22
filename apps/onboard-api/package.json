@@ -25,6 +25,7 @@
     "@nestjs/throttler": "^6.2.1",
     "@prisma/client": "^5.20.0",
     "class-transformer": "^0.5.1",
+    "pdf-lib": "^1.17.1",
     "class-validator": "^0.14.2",
     "express": "^4.21.0",
     "reflect-metadata": "^0.2.2",

@@ -102,10 +102,10 @@ const VERBS: Record<string, Verb> = {
 
   /**
    * Seed/refresh the ACTIVE legal documents (Phase 3): ToS (variant 'all') +
-   * SA trial/paid variants, version 2026.07-draft1. The content is the
-   * COUNSEL-PENDING prototype draft (decision Q7) — see
-   * src/legal/legal-doc-seed.ts. Idempotent: upserts by
-   * (docType, planVariant, version) and de-activates older versions.
+   * SA trial/paid variants at LEGAL_SEED_VERSION. Content is the
+   * counsel-provided text in src/legal/legal-doc-content.ts (generated from
+   * src/legal/assets/*.txt). Idempotent: upserts by (docType, planVariant,
+   * version) and de-activates older versions. Run after every version bump.
    */
   'seed-legal-docs': async (_args, app) => {
     const legal = app.get(LegalService);

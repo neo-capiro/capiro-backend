@@ -188,6 +188,26 @@ model OnboardConsent {
   acceptedAt  DateTime            @default(now()) @map("accepted_at") @db.Timestamptz(6)
   ip          String?
   userAgent   String?             @map("user_agent")
+  // ── E-signature ceremony (Flow 1.5) ─────────────────────────────────────
+  // Captured when the purchaser types their name/title and signs. Nullable:
+  // consent rows written before the e-sign step predate these columns, and
+  // versions are immutable SOC-2 evidence so old rows are never backfilled.
+  /// Signer's typed full legal name (the person who accepted).
+  signerName     String? @map("signer_name")
+  /// Signer's typed job title / role.
+  signerTitle    String? @map("signer_title")
+  /// The exact signature string the signer typed (their "wet-ink" equivalent).
+  signatureName  String? @map("signature_name")
+  /// How the signature was captured — 'typed' today (drawn/uploaded later).
+  signatureMethod String? @map("signature_method")
+  /// Shared across the two consent rows (tos + sa) of one signing event, so a
+  /// signature can be traced to a single "envelope" like a DocuSign packet.
+  envelopeId     String? @map("envelope_id") @db.Uuid
+  /// SHA-256 (hex) of the exact formal-PDF template the signature attests to —
+  /// binds the signature to a specific document artifact for integrity.
+  docSha256      String? @map("doc_sha256")
+  /// Whether the signer asked for a copy of the signed PDF to be emailed.
+  emailCopyRequested Boolean @default(false) @map("email_copy_requested")
 
   @@index([sessionId])
   @@index([clerkUserId])

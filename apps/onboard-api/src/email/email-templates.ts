@@ -397,6 +397,62 @@ export function renderTrialReminderEmail(
 }
 
 // ---------------------------------------------------------------------------
+// Signed terms copy (e-signature ceremony — Flow 1.5)
+// ---------------------------------------------------------------------------
+
+export interface SignedTermsEmailInput {
+  firstName?: string | null;
+  orgName: string;
+  signerName: string;
+  signedAt: Date;
+  /** Human titles of the attached signed PDFs, e.g. ["Terms of Service", …]. */
+  docTitles: string[];
+}
+
+export function renderSignedTermsEmail(input: SignedTermsEmailInput): RenderedEmail {
+  const greeting = input.firstName ? `Hi ${escapeHtml(input.firstName)},` : 'Hello,';
+  const org = escapeHtml(input.orgName);
+  const when = formatDate(input.signedAt);
+  const titlesHtml = input.docTitles.map((t) => `<b>${escapeHtml(t)}</b>`).join(' and ');
+  const titlesText = input.docTitles.join(' and ');
+
+  const html = layout(
+    heading('Your signed agreements') +
+      para(greeting) +
+      para(
+        `Attached are your countersigned copies of the ${titlesHtml} for <b>${org}</b>, ` +
+          `accepted electronically on ${escapeHtml(when)}. Each PDF includes a Certificate of ` +
+          `Completion with the signature and audit record — please keep them for your files.`,
+      ) +
+      infoBox(
+        `<b>Signed by</b> ${escapeHtml(input.signerName)}<br/>` +
+          `<b>Date</b> ${escapeHtml(when)}<br/>` +
+          `<span style="color:${MUTED};">This electronic signature is legally binding under the ` +
+          `U.S. ESIGN Act and applicable UETA.</span>`,
+      ) +
+      para(
+        `<span style="color:${MUTED};font-size:12px;">Questions about these documents? Contact ` +
+          `<a href="mailto:legal@capiro.ai" style="color:${ACCENT};">legal@capiro.ai</a>.</span>`,
+      ),
+  );
+
+  const text = [
+    greeting.replace(/&#39;/g, "'"),
+    '',
+    `Attached are your countersigned copies of the ${titlesText} for ${input.orgName}, accepted electronically on ${when}.`,
+    'Each PDF includes a Certificate of Completion with the signature and audit record — please keep them for your files.',
+    '',
+    `Signed by: ${input.signerName}`,
+    `Date: ${when}`,
+    'This electronic signature is legally binding under the U.S. ESIGN Act and applicable UETA.',
+    '',
+    'Questions about these documents? Contact legal@capiro.ai.',
+  ].join('\n');
+
+  return { subject: `Your signed Capiro agreements — ${input.orgName}`, html, text };
+}
+
+// ---------------------------------------------------------------------------
 // Internal ops/CS notifications (managed import, provisioning failure)
 // ---------------------------------------------------------------------------
 

@@ -1,3 +1,4 @@
+import { randomUUID } from 'node:crypto';
 import {
   BadRequestException,
   ConflictException,
@@ -10,15 +11,21 @@ import type Stripe from 'stripe';
 import { ClerkService } from '@capiro/auth';
 import { MIN_CLIENT_SLOTS } from '@capiro/shared';
 import type {
+  OnboardConsent,
   OnboardPurchaser,
   OnboardSession,
   Prisma,
 } from '../../generated/prisma-client/index.js';
 import { PrismaService } from '../prisma/prisma.service.js';
 import { StripeClient } from '../billing/stripe.client.js';
-import { EmailService } from '../email/email.service.js';
-import { renderOpsNotificationEmail } from '../email/email-templates.js';
+import { EmailService, type EmailAttachment } from '../email/email.service.js';
+import { renderOpsNotificationEmail, renderSignedTermsEmail } from '../email/email-templates.js';
 import { LegalService } from '../legal/legal.service.js';
+import {
+  SignedPdfService,
+  type LegalDocType,
+  type SignatureRecord,
+} from '../legal/signed-pdf.service.js';
 import type { PurchaserAuth } from '../auth/clerk-user.guard.js';
 import { isAtLeast, isLocked, nextState, type OrderedFunnelState } from './funnel-state.js';
 
@@ -76,6 +83,7 @@ export class FunnelService {
     private readonly config: ConfigService,
     private readonly email: EmailService,
     private readonly legal: LegalService,
+    private readonly signedPdf: SignedPdfService,
   ) {}
 
   // ---------------------------------------------------------------------------
@@ -209,11 +217,25 @@ export class FunnelService {
 
   async acceptLegal(
     auth: PurchaserAuth,
-    dto: { tosVersion: string; saVersion: string },
+    dto: {
+      tosVersion: string;
+      saVersion: string;
+      signerName: string;
+      signerTitle: string;
+      signatureName: string;
+      emailCopy?: boolean;
+    },
     meta: { ip: string | null; userAgent: string | null },
   ): Promise<{ ok: true }> {
     const { purchaser, session } = await this.requireStep(auth.clerkUserId, 'plan_selected');
     if (!session.plan) throw new BadRequestException('Select a plan first.');
+    const emailCopyRequested = dto.emailCopy ?? false;
+    // Hash both templates so each consent row binds its signature to the exact
+    // formal-PDF artifact the signer attested to.
+    const [tosSha, saSha] = await Promise.all([
+      this.signedPdf.templateSha256('tos'),
+      this.signedPdf.templateSha256('sa'),
+    ]);
     await this.legal.recordConsents({
       sessionId: session.id,
       purchaserId: purchaser.id,
@@ -225,9 +247,121 @@ export class FunnelService {
       ],
       ip: meta.ip,
       userAgent: meta.userAgent,
+      signer: {
+        name: dto.signerName.trim(),
+        title: dto.signerTitle.trim(),
+        signatureName: dto.signatureName.trim(),
+        method: 'typed',
+      },
+      envelopeId: randomUUID(),
+      emailCopyRequested,
+      docSha256ByType: { tos: tosSha, sa: saSha },
     });
     await this.advance(session, 'legal_accepted');
+
+    if (emailCopyRequested) {
+      // Best-effort: a mail hiccup must not block onboarding — the signer can
+      // still download the signed copies. Idempotent via the dedupe key.
+      try {
+        const consents = await this.legal.findConsents(session.id);
+        await this.emailSignedCopies(purchaser, session, consents);
+      } catch (err) {
+        this.logger.error(`Signed-terms email failed: ${(err as Error).message}`);
+      }
+    }
     return { ok: true };
+  }
+
+  /**
+   * Regenerate the signer's countersigned PDF for one document on demand. The
+   * signed copy is never stored — it is a deterministic function of the
+   * recorded consent row + the formal-PDF template.
+   */
+  async getSignedPdf(
+    auth: PurchaserAuth,
+    docTypeRaw: string,
+  ): Promise<{ filename: string; bytes: Buffer }> {
+    if (docTypeRaw !== 'tos' && docTypeRaw !== 'sa') {
+      throw new BadRequestException('Unknown document type.');
+    }
+    const docType = docTypeRaw as LegalDocType;
+    const { purchaser, session } = await this.loadPurchaserAndSession(auth.clerkUserId);
+    const consents = await this.legal.findConsents(session.id);
+    const row = consents.filter((c) => c.docType === docType).at(-1);
+    if (!row || !row.signerName) {
+      throw new NotFoundException(`No signed ${this.signedPdf.docTitle(docType)} on file.`);
+    }
+    const sha = await this.signedPdf.templateSha256(docType);
+    const bytes = await this.signedPdf.generateSigned(this.toSignatureRecord(row, purchaser, sha));
+    return { filename: this.signedPdf.downloadName(docType), bytes };
+  }
+
+  /** Build a Certificate-of-Completion record from a persisted consent row. */
+  private toSignatureRecord(
+    row: OnboardConsent,
+    purchaser: OnboardPurchaser,
+    templateSha: string,
+  ): SignatureRecord {
+    return {
+      docType: row.docType as LegalDocType,
+      docVersion: row.docVersion,
+      signerName: row.signerName ?? '',
+      signerTitle: row.signerTitle ?? '',
+      signatureName: row.signatureName ?? row.signerName ?? '',
+      signatureMethod: row.signatureMethod ?? 'typed',
+      signerEmail: purchaser.email,
+      orgName: purchaser.orgName ?? '',
+      acceptedAt: row.acceptedAt,
+      ip: row.ip,
+      userAgent: row.userAgent,
+      envelopeId: row.envelopeId ?? '',
+      consentId: row.id,
+      docSha256: row.docSha256 ?? templateSha,
+    };
+  }
+
+  /** Generate both signed PDFs and email them to the signer as attachments. */
+  private async emailSignedCopies(
+    purchaser: OnboardPurchaser,
+    session: OnboardSession,
+    consents: OnboardConsent[],
+  ): Promise<void> {
+    const attachments: EmailAttachment[] = [];
+    const docTitles: string[] = [];
+    let signedAt = new Date();
+    let signerName = '';
+    for (const docType of ['tos', 'sa'] as const) {
+      const row = consents.filter((c) => c.docType === docType).at(-1);
+      if (!row || !row.signerName) continue;
+      const sha = await this.signedPdf.templateSha256(docType);
+      const bytes = await this.signedPdf.generateSigned(
+        this.toSignatureRecord(row, purchaser, sha),
+      );
+      attachments.push({
+        filename: this.signedPdf.downloadName(docType),
+        content: bytes,
+        contentType: 'application/pdf',
+      });
+      docTitles.push(this.signedPdf.docTitle(docType));
+      signedAt = row.acceptedAt;
+      signerName = row.signerName;
+    }
+    if (attachments.length === 0) return;
+    const rendered = renderSignedTermsEmail({
+      firstName: purchaser.firstName,
+      orgName: purchaser.orgName ?? '',
+      signerName,
+      signedAt,
+      docTitles,
+    });
+    await this.email.send({
+      to: purchaser.email,
+      kind: 'signed_terms',
+      dedupeKey: `signed_terms:${session.id}`,
+      purchaserId: purchaser.id,
+      attachments,
+      ...rendered,
+    });
   }
 
   // ---------------------------------------------------------------------------

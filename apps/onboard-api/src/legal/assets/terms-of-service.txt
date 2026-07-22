@@ -1,0 +1,61 @@
+CAPIRO, INC. TERMS OF SERVICE
+
+1. ACCEPTANCE OF TERMS
+
+By creating an account, accessing, or using the Capiro platform (the "Service"), you agree to be bound by these Terms of Service ("Terms"). By using the Service, you consent to conduct this relationship electronically and to receive notices and disclosures electronically rather than in paper form. If you are accessing the Service on behalf of a business or other entity ("Client"), you represent that you have authority to bind that entity, and "you" refers to both you individually and Client. If you are accessing the Service as an individual Client has authorized, for example as a team member Client has invited onto the platform, you agree to be bound by these Terms as a condition of that access, whether or not you personally accepted the Subscription Agreement, and Client remains responsible for your compliance as set forth in the SA.
+
+2. RELATIONSHIP TO THE SUBSCRIPTION AGREEMENT
+
+Client's paid subscription to the Service is governed by the Subscription Agreement accepted between Capiro and Client (the "SA"). These Terms govern individual use of the Service by any authorized user, including account conduct and acceptable use. If these Terms conflict with the SA on commercial matters, including fees, term, or liability, the SA controls.
+
+3. ACCOUNTS AND ACCESS
+
+You represent that you are at least 18 years old and have the legal capacity to enter into these Terms. You are responsible for maintaining the confidentiality of your login credentials and for all activity occurring under your account. Notify Capiro promptly of any unauthorized use or suspected compromise. Only individuals authorized by Client may be issued credentials, and credentials may not be shared with anyone outside those authorized individuals.
+
+4. ACCEPTABLE USE
+
+You agree not to:
+
+- reverse engineer, decompile, or attempt to derive the source code, algorithms, prompts, or underlying architecture of the Service
+- use the Service to submit false, fabricated, misleading, or unlawful information to any government office, official, or third party
+- circumvent, disable, or interfere with any security feature, approval gate, usage limit, or access control within the Service
+- frame, mirror, scrape, or harvest data from the Service except through documented export features
+- interfere with or disrupt the integrity, performance, or security of the Service
+- use the Service in violation of applicable law, professional ethics rules, or in a manner that infringes the rights of any third party
+- attempt to access data, accounts, or systems not intended for you
+
+5. CLIENT CONTENT
+
+Content you upload, input, or generate through the Service is owned by Client, as further described in the SA. You are solely responsible for the accuracy, legality, and appropriateness of content submitted, and for independently verifying any AI-generated output before use or reliance.
+
+6. INTELLECTUAL PROPERTY
+
+The Service, including its software, design, workflows, AI models, and underlying technology, is owned by Capiro and protected by applicable intellectual property laws. Nothing in these Terms transfers ownership of the Service to you or to Client.
+
+7. THIRD-PARTY SERVICES
+
+The Service may link to, integrate with, or rely on third-party services, including payment processors, cloud infrastructure, and government data sources. Capiro is not responsible for the content, accuracy, availability, or practices of third-party services.
+
+8. DISCLAIMER OF WARRANTIES
+
+Except as expressly stated in the SA, the Service is provided "as is" and "as available" without warranties of any kind, express or implied, to the maximum extent permitted by law, including any warranty of merchantability, fitness for a particular purpose, or non-infringement.
+
+9. LIMITATION OF LIABILITY
+
+To the maximum extent permitted by law, Capiro's liability arising from your use of the Service is governed by and limited as set forth in the SA. In no event will Capiro be liable for indirect, incidental, consequential, or punitive damages arising from these Terms, except as the SA otherwise provides.
+
+10. SUSPENSION AND TERMINATION
+
+Capiro may suspend or terminate your individual access to the Service for violation of these Terms. Suspension or termination of Client's subscription itself is governed exclusively by the SA.
+
+11. CHANGES TO THESE TERMS
+
+Capiro may update these Terms from time to time. Material changes will be communicated through the Service or by email at least fifteen (15) days before taking effect. Continued use of the Service after changes take effect constitutes acceptance of the updated Terms.
+
+12. GOVERNING LAW AND DISPUTE RESOLUTION
+
+These Terms are governed by the laws of the State of Delaware, without regard to conflict-of-law principles. Before initiating a formal dispute, you and Capiro agree to attempt good-faith informal resolution for thirty (30) days following written notice of the dispute, except where emergency injunctive relief is sought. Any dispute not resolved informally shall be resolved by binding arbitration administered by JAMS in Wilmington, Delaware, before a single arbitrator, under the Federal Arbitration Act. For a claim brought by an individual Authorized User, Capiro will pay all JAMS filing, administrative, and arbitrator fees, unless the arbitrator determines the claim is frivolous, in which case fees shall be allocated as provided by JAMS rules. Nothing in this Section prevents either party from bringing an individual claim in small claims court. Either party may seek injunctive relief in court to protect confidential information, intellectual property, or system integrity pending arbitration. You and Capiro each waive any right to bring or participate in a class, collective, or representative action.
+
+13. CONTACT
+
+Questions about these Terms may be directed to legal@capiro.ai.

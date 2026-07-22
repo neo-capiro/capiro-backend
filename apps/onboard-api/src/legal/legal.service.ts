@@ -4,7 +4,7 @@ import {
   Logger,
   ServiceUnavailableException,
 } from '@nestjs/common';
-import type { OnboardLegalDoc } from '../../generated/prisma-client/index.js';
+import type { OnboardConsent, OnboardLegalDoc } from '../../generated/prisma-client/index.js';
 import { PrismaService } from '../prisma/prisma.service.js';
 import { LEGAL_DOC_SEEDS } from './legal-doc-seed.js';
 
@@ -18,6 +18,16 @@ export interface ConsentAccept {
   version: string;
 }
 
+/** The typed e-signature the purchaser provided (see LegalPage.tsx). */
+export interface SignerInput {
+  name: string;
+  title: string;
+  /** The exact string typed into the signature field. */
+  signatureName: string;
+  /** 'typed' today; drawn/uploaded methods may be added later. */
+  method: string;
+}
+
 export interface RecordConsentsInput {
   sessionId: string;
   purchaserId: string;
@@ -27,6 +37,12 @@ export interface RecordConsentsInput {
   accepts: ConsentAccept[];
   ip: string | null;
   userAgent: string | null;
+  signer: SignerInput;
+  /** Shared across the tos + sa rows of this one signing event. */
+  envelopeId: string;
+  emailCopyRequested: boolean;
+  /** SHA-256 (hex) of the formal-PDF template, per docType. */
+  docSha256ByType: Record<'tos' | 'sa', string>;
 }
 
 /**
@@ -107,11 +123,30 @@ export class LegalService {
         docVersion: docType === 'tos' ? active.tos.version : active.sa.version,
         ip: input.ip,
         userAgent: input.userAgent,
+        signerName: input.signer.name,
+        signerTitle: input.signer.title,
+        signatureName: input.signer.signatureName,
+        signatureMethod: input.signer.method,
+        envelopeId: input.envelopeId,
+        docSha256: input.docSha256ByType[docType],
+        emailCopyRequested: input.emailCopyRequested,
       }))
       .filter((r) => !already.has(`${r.docType}:${r.docVersion}`));
     if (rows.length > 0) {
       await this.prisma.onboardConsent.createMany({ data: rows });
     }
+  }
+
+  /**
+   * The consent rows for a session (tos + sa), oldest first. Used to
+   * regenerate the signed Certificate-of-Completion PDF on demand — the signed
+   * copy is not stored, it is a deterministic function of the recorded consent.
+   */
+  async findConsents(sessionId: string): Promise<OnboardConsent[]> {
+    return this.prisma.onboardConsent.findMany({
+      where: { sessionId },
+      orderBy: { acceptedAt: 'asc' },
+    });
   }
 
   /**
