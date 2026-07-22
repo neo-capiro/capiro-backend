@@ -127,6 +127,17 @@ export function formatDayTitle(d: Date): string {
   return DAY_TITLE.format(d);
 }
 
+const WEEK_RANGE = new Intl.DateTimeFormat(undefined, { month: 'short', day: 'numeric' });
+
+/**
+ * Week/range label with the month on BOTH ends: "Jul 10 – Jul 16", and across a
+ * month boundary "Jul 25 – Aug 1". (The end previously rendered as a bare
+ * day-of-month, so a same-month range read "Jul 10 – 16" — month on one side.)
+ */
+export function formatWeekRange(start: Date, end: Date): string {
+  return `${WEEK_RANGE.format(start)} – ${WEEK_RANGE.format(end)}`;
+}
+
 const PROVIDER_LABELS: Record<string, string> = {
   teams: 'Teams',
   zoom: 'Zoom',
