@@ -1274,7 +1274,11 @@ export function DirectoryPage() {
                             {selectedEntry.staff.map((staffer) => (
                               <div key={staffer.id} className="directory-staff-row">
                                 <div className="directory-staff-person">
-                                  <Typography.Text strong>{staffer.fullName}</Typography.Text>
+                                  <Typography.Text strong>
+                                    <Link to={`/directory/staff/${encodeURIComponent(staffer.id)}`}>
+                                      {staffer.fullName}
+                                    </Link>
+                                  </Typography.Text>
                                   <Typography.Text type="secondary">
                                     {staffer.title}
                                   </Typography.Text>
@@ -2127,7 +2131,11 @@ function CommitteeStaffDrawer({
               {staff.map((member) => (
                 <div key={member.id} className="directory-staff-row">
                   <div className="directory-staff-person">
-                    <Typography.Text strong>{member.fullName}</Typography.Text>
+                    <Typography.Text strong>
+                      <Link to={`/directory/staff/${encodeURIComponent(member.id)}`}>
+                        {member.fullName}
+                      </Link>
+                    </Typography.Text>
                     <Typography.Text type="secondary">{member.title}</Typography.Text>
                   </div>
                   <Space className="directory-staff-tags" size={[6, 6]} wrap>
