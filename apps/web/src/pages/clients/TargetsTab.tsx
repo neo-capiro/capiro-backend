@@ -616,6 +616,9 @@ export function TargetsTab({ clientId, canManage, onViewIntelligence }: Props) {
                         const name = t.memberName ?? t.memberId;
                         const ps = partyShort(t.party);
                         const dir = toDir(t.sourceDirectory);
+                        // Optimistic add rows aren't persisted yet — tiering them would
+                        // 404 (no row to update); disable until the add settles.
+                        const pendingAdd = t.id.startsWith('optimistic-');
                         return (
                           <div className="tgt-row" key={`${dir}:${t.memberId}`}>
                             <div
@@ -678,13 +681,24 @@ export function TargetsTab({ clientId, canManage, onViewIntelligence }: Props) {
                                     return (
                                       <button
                                         key={tv}
-                                        title={active ? `Clear Tier ${tv}` : `Assign Tier ${tv}`}
-                                        onClick={() => setTier(t.memberId, active ? null : tv)}
+                                        disabled={pendingAdd}
+                                        title={
+                                          pendingAdd
+                                            ? 'Saving…'
+                                            : active
+                                              ? `Clear Tier ${tv}`
+                                              : `Assign Tier ${tv}`
+                                        }
+                                        onClick={() => {
+                                          if (pendingAdd) return;
+                                          setTier(t.memberId, active ? null : tv);
+                                        }}
                                         style={{
                                           fontSize: 11,
                                           padding: '2px 7px',
                                           border: 'none',
-                                          cursor: 'pointer',
+                                          cursor: pendingAdd ? 'default' : 'pointer',
+                                          opacity: pendingAdd ? 0.5 : 1,
                                           background: active ? TIER_META[tv].color : '#fff',
                                           color: active ? '#fff' : '#6b7280',
                                         }}

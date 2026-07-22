@@ -708,10 +708,13 @@ function TargetsDetailRow({ clientId }: { clientId: string }) {
           // Collapse single-char AND full-word parties to R/D/I so the .tgt-pill.R/.D/.I
           // CSS matches for state targets ("Democratic") the same as congressional ones.
           const ps = partyShort(t.party);
+          // Staffers aren't elected — no Rep./Sen. honorific (would mislabel them).
+          const honorific = t.sourceDirectory === 'staff' ? '' : titleFor(t.chamber);
           return (
             <span key={t.memberId} className={`tgt-pill ${ps ?? 'I'}`}>
               <span className="tgt-pill-dot" aria-hidden="true" />
-              {titleFor(t.chamber)} {lastName(t.memberName, t.memberId)}
+              {honorific ? `${honorific} ` : ''}
+              {lastName(t.memberName, t.memberId)}
               {ps && t.state ? ` · ${ps}-${t.state}` : ''}
             </span>
           );
