@@ -310,6 +310,12 @@ export function AppShell() {
       qc.invalidateQueries({ queryKey: ['engagement-integrations'] });
       qc.invalidateQueries({ queryKey: ['engagement-meetings'] });
       qc.invalidateQueries({ queryKey: ['engagement-calendar-meetings'] });
+      // Meetings & Meri v2 query keys (see meetings-api.ts) — without these a
+      // long-open v2 Meetings tab wouldn't show newly-synced meetings until a
+      // reload/remount.
+      qc.invalidateQueries({ queryKey: ['meetings-v2'] });
+      qc.invalidateQueries({ queryKey: ['meetings-v2-shared'] });
+      qc.invalidateQueries({ queryKey: ['meetings-v2-library'] });
       qc.invalidateQueries({ queryKey: ['engagement-mail-threads'] });
       qc.invalidateQueries({ queryKey: ['engagement-client-context'] });
       qc.invalidateQueries({ queryKey: ['engagement-report'] });

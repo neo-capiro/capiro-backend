@@ -14,6 +14,43 @@ export function localDateFromKey(key: string): Date {
   return new Date(y ?? 1970, (m ?? 1) - 1, d ?? 1);
 }
 
+/** True when an ISO instant is exactly UTC midnight (all UTC time parts zero). */
+function isUtcMidnight(iso: string): boolean {
+  const d = new Date(iso);
+  return (
+    d.getUTCHours() === 0 &&
+    d.getUTCMinutes() === 0 &&
+    d.getUTCSeconds() === 0 &&
+    d.getUTCMilliseconds() === 0
+  );
+}
+
+/**
+ * All-day events (Google date-only / Outlook isAllDay) are stored at UTC
+ * midnight on BOTH ends. There is no isAllDay flag on the wire, so we detect
+ * them by that signature — a timed meeting effectively never both starts AND
+ * ends at exact UTC midnight.
+ */
+export function isAllDayMeeting(startsAt: string, endsAt: string): boolean {
+  if (!isUtcMidnight(startsAt) || !isUtcMidnight(endsAt)) return false;
+  // Also require the span to be a whole number of days (>0), so a rare timed
+  // block that merely starts/ends at exact UTC midnight isn't misread as all-day.
+  const span = new Date(endsAt).getTime() - new Date(startsAt).getTime();
+  return span > 0 && span % 86_400_000 === 0;
+}
+
+/**
+ * Day-bucket key for a meeting. Timed events bucket by the viewer's LOCAL day.
+ * All-day events are date-only stored at UTC midnight; bucketing them locally
+ * shifts them to the PREVIOUS day for west-of-UTC (US) users (and can drop them
+ * off the leading edge of a window), so bucket them by their UTC calendar date —
+ * the YYYY-MM-DD they nominally fall on.
+ */
+export function meetingDayKey(startsAt: string, endsAt: string): string {
+  if (isAllDayMeeting(startsAt, endsAt)) return startsAt.slice(0, 10);
+  return dayKey(new Date(startsAt));
+}
+
 export function addDays(d: Date, n: number): Date {
   const next = new Date(d);
   next.setDate(next.getDate() + n);

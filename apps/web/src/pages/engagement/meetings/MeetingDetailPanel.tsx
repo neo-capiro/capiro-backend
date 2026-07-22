@@ -6,7 +6,7 @@ import { PrepTab } from './PrepTab.js';
 import { NotesTab } from './NotesTab.js';
 import { DebriefTab } from './DebriefTab.js';
 import { useAssignMeetingClient, useClientOptions, useUnshareMeeting } from './meetings-api.js';
-import { formatDayTitle, formatTimeRange } from './meetings-format.js';
+import { formatDayTitle, formatTimeRange, isAllDayMeeting } from './meetings-format.js';
 import {
   Ava,
   JoinButton,
@@ -220,7 +220,10 @@ export function MeetingDetailPanel({
                 }}
               >
                 <span>
-                  {formatDayTitle(new Date(m.startsAt))} · {formatTimeRange(m.startsAt, m.endsAt)}
+                  {formatDayTitle(new Date(m.startsAt))} ·{' '}
+                  {isAllDayMeeting(m.startsAt, m.endsAt)
+                    ? 'All day'
+                    : formatTimeRange(m.startsAt, m.endsAt)}
                 </span>
                 <span
                   style={{

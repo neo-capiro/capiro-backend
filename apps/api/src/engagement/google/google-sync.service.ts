@@ -103,6 +103,9 @@ interface SyncStats {
   matched: number;
   skipped: number;
   removed: number;
+  // Messages that threw while being fetched/persisted and were skipped rather
+  // than aborting the whole run (per-message resilience).
+  failed: number;
   pages: number;
   hasMore: boolean;
 }
@@ -231,11 +234,30 @@ export class GoogleSyncService {
       const state = readSyncState(connection.syncState);
       const result: SyncResult = { connectionId };
 
+      let calendarSynced = false;
       if (input.calendar !== false) {
         result.calendar = await this.syncCalendar(tenantId, connection, state, accessToken, input);
+        calendarSynced = true;
       }
       if (input.mail !== false) {
-        result.mail = await this.syncMail(tenantId, connection, state, accessToken, input);
+        try {
+          result.mail = await this.syncMail(tenantId, connection, state, accessToken, input);
+        } catch (err) {
+          // If the calendar leg already succeeded, don't flag the whole
+          // connection failed for a TRANSIENT mail-leg error (429/5xx/DB blip):
+          // the calendar meetings are already committed, the mail cursor was NOT
+          // advanced (syncMail throws before it persists state), and the
+          // scheduler retries next cycle — this kills the misleading "failed to
+          // sync" banner (and the hidden Sync-now button) that is the reported
+          // bug. A PERMANENT failure (revoked scope / forbidden) or a mail-only
+          // run still surfaces via markSyncError so the user can act.
+          if (!calendarSynced || isPermanentMailFailure(err)) throw err;
+          this.logger.warn(
+            `Google mail sync hit a transient failure for connection ${connectionId}; calendar synced OK, keeping connection connected (will retry next cycle): ${
+              err instanceof Error ? err.message : err
+            }`,
+          );
+        }
       }
 
       await this.prisma.withTenant(tenantId, (tx) =>
@@ -529,10 +551,26 @@ export class GoogleSyncService {
         for (const ref of list.messages ?? []) {
           if (!ref.id) continue;
           stats.scanned += 1;
-          const message = await this.gmailGet(accessToken, ref.id);
-          const outcome = await this.persistGmailMessage(tenantId, connection.id, message);
-          stats.matched += outcome === 'matched' ? 1 : 0;
-          stats.skipped += outcome === 'skipped' ? 1 : 0;
+          try {
+            const message = await this.gmailGet(accessToken, ref.id);
+            const outcome = await this.persistGmailMessage(tenantId, connection.id, message);
+            stats.matched += outcome === 'matched' ? 1 : 0;
+            stats.skipped += outcome === 'skipped' ? 1 : 0;
+          } catch (err) {
+            // ONLY skip a genuinely gone message (deleted between list and
+            // fetch). Transient/infra errors (429, 5xx, DB pool/timeout) MUST
+            // propagate: aborting here leaves the backfill pageToken un-advanced
+            // so the scheduler re-fetches this page next cycle. Swallowing them
+            // would advance the cursor past never-persisted messages and
+            // silently drop them.
+            if (!isMessageGoneError(err)) throw err;
+            stats.failed += 1;
+            this.logger.warn(
+              `Gmail message ${ref.id} is gone for connection ${connection.id}; skipping: ${
+                err instanceof Error ? err.message : err
+              }`,
+            );
+          }
         }
         pageToken = list.nextPageToken ?? null;
         if (!pageToken) break;
@@ -592,10 +630,23 @@ export class GoogleSyncService {
           if (labels.some((label) => EXCLUDED_LABEL_IDS.has(label))) continue;
           seen.add(msg.id);
           stats.scanned += 1;
-          const message = await this.gmailGet(accessToken, msg.id);
-          const outcome = await this.persistGmailMessage(tenantId, connection.id, message);
-          stats.matched += outcome === 'matched' ? 1 : 0;
-          stats.skipped += outcome === 'skipped' ? 1 : 0;
+          try {
+            const message = await this.gmailGet(accessToken, msg.id);
+            const outcome = await this.persistGmailMessage(tenantId, connection.id, message);
+            stats.matched += outcome === 'matched' ? 1 : 0;
+            stats.skipped += outcome === 'skipped' ? 1 : 0;
+          } catch (err) {
+            // Same rule as the backfill loop: skip only a gone message; let
+            // transient/infra errors propagate so historyId is NOT advanced past
+            // unpersisted messages (gmailHistory would never re-emit them).
+            if (!isMessageGoneError(err)) throw err;
+            stats.failed += 1;
+            this.logger.warn(
+              `Gmail message ${msg.id} is gone for connection ${connection.id}; skipping: ${
+                err instanceof Error ? err.message : err
+              }`,
+            );
+          }
         }
       }
       pageToken = response.nextPageToken ?? null;
@@ -942,6 +993,43 @@ function isNotFoundError(err: unknown): boolean {
   return err instanceof GoogleApiError && err.status === 404;
 }
 
+/** HTTP status behind a sync error (typed GoogleApiError, or parsed from our
+ *  "... failed (503): ..." ServiceUnavailableException messages). */
+function mailErrorStatus(err: unknown): number | null {
+  if (err instanceof GoogleApiError) return err.status;
+  const msg = err instanceof Error ? err.message : '';
+  const m = /failed \((\d{3})\)/.exec(msg);
+  return m ? Number(m[1]) : null;
+}
+
+/** A message that no longer exists (deleted between list and fetch → 404/410) —
+ *  safe to skip. EVERY other error must abort the run so the pageToken/historyId
+ *  is NOT advanced past messages that were never persisted (which would silently
+ *  drop them). */
+function isMessageGoneError(err: unknown): boolean {
+  const status = mailErrorStatus(err);
+  return status === 404 || status === 410;
+}
+
+/** A permanent mail-integration failure the user must act on (revoked scope /
+ *  forbidden). Surfaced rather than silently retried. Transient errors
+ *  (429/5xx/DB blips) are NOT permanent and should keep the connection connected
+ *  when the calendar leg already succeeded. */
+function isPermanentMailFailure(err: unknown): boolean {
+  const status = mailErrorStatus(err);
+  if (status === 401) return true;
+  if (status === 403) {
+    // Gmail returns 403 for BOTH permanent auth (insufficientPermissions /
+    // accessNotConfigured) AND transient quota/rate-limit conditions
+    // (rateLimitExceeded / userRateLimitExceeded / dailyLimitExceeded). googleGet
+    // doesn't retry 403, so only the permanent variety should surface as error;
+    // a rate-limit 403 must stay transient or it resurfaces the false banner.
+    const body = err instanceof Error ? err.message.toLowerCase() : '';
+    return !/(ratelimitexceeded|userratelimitexceeded|dailylimitexceeded|quotaexceeded)/.test(body);
+  }
+  return false;
+}
+
 async function hasManualAssociationOverride(
   tx: Prisma.TransactionClient,
   tenantId: string,
@@ -1010,7 +1098,7 @@ function readSyncState(value: Prisma.JsonValue): GoogleSyncState {
 }
 
 function emptyStats(): SyncStats {
-  return { scanned: 0, matched: 0, skipped: 0, removed: 0, pages: 0, hasMore: false };
+  return { scanned: 0, matched: 0, skipped: 0, removed: 0, failed: 0, pages: 0, hasMore: false };
 }
 
 function combineStats(stats: SyncStats[]): SyncStats {
@@ -1020,6 +1108,7 @@ function combineStats(stats: SyncStats[]): SyncStats {
       matched: total.matched + stat.matched,
       skipped: total.skipped + stat.skipped,
       removed: total.removed + stat.removed,
+      failed: total.failed + stat.failed,
       pages: total.pages + stat.pages,
       hasMore: total.hasMore || stat.hasMore,
     }),

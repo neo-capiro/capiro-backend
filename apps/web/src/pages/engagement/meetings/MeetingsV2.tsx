@@ -19,6 +19,7 @@ import {
   isSameDay,
   isToday,
   localDateFromKey,
+  meetingDayKey,
   startOfMonth,
   startOfWeek,
 } from './meetings-format.js';
@@ -60,10 +61,15 @@ export function MeetingsV2({
     return { start: ws, end: addDays(ws, 6) };
   }, [viewMode, cursor]);
 
+  // Lower bound = the EARLIER of the first day's local midnight and its UTC
+  // midnight. Using the min ensures an all-day event stored at UTC midnight on
+  // the leading day (which is < local midnight for west-of-UTC users) is still
+  // fetched, without excluding early-morning timed events for east-of-UTC users.
   const from = new Date(
-    range.start.getFullYear(),
-    range.start.getMonth(),
-    range.start.getDate(),
+    Math.min(
+      new Date(range.start.getFullYear(), range.start.getMonth(), range.start.getDate()).getTime(),
+      Date.UTC(range.start.getFullYear(), range.start.getMonth(), range.start.getDate()),
+    ),
   ).toISOString();
   const to = new Date(
     range.end.getFullYear(),
@@ -99,7 +105,7 @@ export function MeetingsV2({
 
   const meetingsOn = (d: Date) =>
     list
-      .filter((m) => dayKey(new Date(m.startsAt)) === dayKey(d))
+      .filter((m) => meetingDayKey(m.startsAt, m.endsAt) === dayKey(d))
       .sort((a, b) => a.startsAt.localeCompare(b.startsAt));
 
   const weekDays = Array.from({ length: 7 }, (_, i) => addDays(startOfWeek(cursor), i));
@@ -109,7 +115,7 @@ export function MeetingsV2({
   const bodyKeys =
     viewMode === 'day'
       ? [dayKey(cursor)]
-      : weekDays.map(dayKey).filter((k) => list.some((m) => dayKey(new Date(m.startsAt)) === k));
+      : weekDays.map(dayKey).filter((k) => list.some((m) => meetingDayKey(m.startsAt, m.endsAt) === k));
 
   const panel = (
     <>
