@@ -60,18 +60,59 @@ const MEMBERS = [
     ],
     committees: [{ id: 1, committee_office: { office_id: 100 }, position: 'Chair', rank: 1, party_id: 'R', updated_at: '2026-07-01T00:00:00Z' }],
     leaderships: [{ position: 'Chairman', start_date: '2025-01-03', end_date: null, updated_at: '2026-07-01T00:00:00Z' }],
-    staffer_roles: [{ role_name: 'Legislative Director', staffer: { id: 800, member_id: 500 } }],
-    staffer_issues: [{ issue_name: 'Armed forces and national security', member_id: 500 }],
+    staffer_roles: [{ role_name: 'Legislative Director', staffer: { id: 800 }, updated_at: '2026-07-01T00:00:00Z' }],
+    staffer_issues: [{ issue_name: 'Armed forces and national security', staffer: { id: 800 }, updated_at: '2026-07-01T00:00:00Z' }],
   },
 ];
 
 const STAFF = [
   {
-    staff: { id: 800, first_name: 'Grace', last_name: 'Hopper', gender: 'F', bio_details: { occupation: 'Counsel' } },
+    staff: {
+      id: 800,
+      first_name: 'Grace',
+      last_name: 'Hopper',
+      gender: 'F',
+      bio_details: {
+        dob: '1906-12-09',
+        date_of_death: '1992-01-01',
+        party_name: 'Republican',
+        occupation: 'Counsel',
+        hometown: 'New York, NY',
+        pob: 'New York, NY',
+        native_of: 'New York',
+        maj_min: 'Majority',
+        pronunciation: 'HOP-er',
+        race_name: 'White',
+        religion_name: 'Presbyterian',
+      },
+    },
     staff_emails: [{ contact_type: 'Email, official', contact_string: 'grace.hopper@hasc.house.gov', updated_at: '2026-07-01T00:00:00Z' }],
+    office_member_addresses: [
+      {
+        id: 77,
+        office: { office_id: 950, name: 'Rep. Rogers Office' },
+        title: 'Washington DC Office',
+        address1: '2469 Rayburn HOB',
+        city: 'Washington',
+        state_id: 'DC',
+        zip: '20515',
+        phone: '202-225-3261',
+        fax: '202-226-8485',
+        is_main: true,
+        updated_at: '2026-07-01T00:00:00Z',
+      },
+    ],
     positions: [
       { id: 20, office: { office_id: 100, name: 'House Armed Services Committee' }, position_title: 'Staff Director', position_type: 'ch', is_current: true, updated_at: '2026-07-01T00:00:00Z' },
-      { id: 21, office: { office_id: 950, name: 'Rep. Rogers Office' }, member: { member_id: 500 }, position_title: 'Counsel', is_current: true },
+      {
+        id: 21,
+        office: { office_id: 950, name: 'Rep. Rogers Office' },
+        member: { member_id: 500, party: 'R', state_id: 'AL', district_no: 3, office_type_id: 'HM' },
+        position_title: 'Counsel',
+        position_type: 'st',
+        is_current: true,
+        is_on_leave: true,
+      },
     ],
   },
 ];
@@ -132,13 +173,64 @@ describe('DirectoryService staff detail', () => {
     expect(detail.identity).toMatchObject({ staffId: 800, firstName: 'Grace' });
     expect(detail.emails.map((e) => e.value)).toContain('grace.hopper@hasc.house.gov');
     expect(detail.positions).toHaveLength(2);
-    expect(detail.memberAssociations).toEqual([{ id: 'member-500', memberId: 500, fullName: 'Mike Rogers' }]);
+    expect(detail.memberAssociations).toEqual([
+      { id: 'member-500', memberId: 500, fullName: 'Mike Rogers', party: 'R', state: 'AL', district: '3' },
+    ]);
     expect(detail.committeeAssociations.map((c) => c.committeeId)).toEqual(['committee-100']);
     // Overlay photo present -> available, sourced from the preserved overlay (never a member photo).
     expect(detail.photoUrl).toBe('https://x.invalid/grace.jpg');
     expect(detail.photoSource).toBe('capiro_overlay');
     expect(detail.availability.photo).toBe('available');
     expect(detail.availability.socialContacts).toBe('not_provided');
+  });
+
+  test('enriches staff detail with full bio, issues, roles, office addresses, and position context', async () => {
+    const detail = await makeService().getStaffDetail('staff-800');
+    // Full bio parity (every LegiStorm staff.bio_details field is surfaced).
+    expect(detail.bioDetails).toEqual({
+      dob: '1906-12-09',
+      dateOfDeath: '1992-01-01',
+      hometown: 'New York, NY',
+      placeOfBirth: 'New York, NY',
+      nativeOf: 'New York',
+      majMin: 'Majority',
+      partyName: 'Republican',
+      occupation: 'Counsel',
+      pronunciation: 'HOP-er',
+      raceName: 'White',
+      religionName: 'Presbyterian',
+    });
+    // Issues + roles are aggregated from the owning member's staffer_issues/staffer_roles.
+    expect(detail.issues).toEqual([
+      {
+        issueName: 'Armed forces and national security',
+        memberId: 500,
+        memberName: 'Mike Rogers',
+        updatedAt: '2026-07-01T00:00:00Z',
+      },
+    ]);
+    expect(detail.roles).toEqual([
+      { roleName: 'Legislative Director', memberId: 500, memberName: 'Mike Rogers', updatedAt: '2026-07-01T00:00:00Z' },
+    ]);
+    // Office address block (phone/fax/address).
+    expect(detail.officeAddresses).toHaveLength(1);
+    expect(detail.officeAddresses[0]).toMatchObject({
+      label: 'Washington DC Office',
+      address1: '2469 Rayburn HOB',
+      city: 'Washington',
+      state: 'DC',
+      zip: '20515',
+      phone: '202-225-3261',
+      fax: '202-226-8485',
+      isMain: true,
+    });
+    // Position on-leave status + member context.
+    const memberPosition = detail.positions.find((p) => p.officeId === 950)!;
+    expect(memberPosition.isOnLeave).toBe(true);
+    expect(memberPosition.member).toMatchObject({ memberId: 500, party: 'R', state: 'AL', district: '3', officeTypeId: 'HM' });
+    const committeePosition = detail.positions.find((p) => p.officeId === 100)!;
+    expect(committeePosition.isOnLeave).toBe(false);
+    expect(committeePosition.member).toBeNull();
   });
 
   test('404s an unknown staffer', async () => {

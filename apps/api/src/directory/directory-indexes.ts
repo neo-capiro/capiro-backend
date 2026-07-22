@@ -45,6 +45,20 @@ export interface DirectoryCommitteeMembership {
 /** A raw vendor row kept verbatim for the detail endpoints. */
 export type SourceRow = Record<string, unknown>;
 
+/** A staffer's issue area, reverse-indexed from the owning member's staffer_issues. */
+export interface DirectoryStaffIssueLink {
+  issueName: string | null;
+  memberId: number | null;
+  updatedAt: string | null;
+}
+
+/** A staffer's functional role, reverse-indexed from the owning member's staffer_roles. */
+export interface DirectoryStaffRoleLink {
+  roleName: string | null;
+  memberId: number | null;
+  updatedAt: string | null;
+}
+
 export interface DirectoryIndexes {
   membersById: Map<number, SourceRow>;
   membersByBioguideId: Map<string, SourceRow>;
@@ -57,6 +71,10 @@ export interface DirectoryIndexes {
   normalizedPersonNameIndex: Map<string, string[]>;
   /** normalized committee name / code -> office_id (query matching only). */
   committeeAliases: Map<string, number>;
+  /** staff.id -> issue areas, aggregated from every member's staffer_issues. */
+  staffIssuesByStaffId: Map<number, DirectoryStaffIssueLink[]>;
+  /** staff.id -> functional roles, aggregated from every member's staffer_roles. */
+  staffRolesByStaffId: Map<number, DirectoryStaffRoleLink[]>;
 }
 
 export interface BuildDirectoryIndexesInput {
@@ -125,6 +143,8 @@ export function buildDirectoryIndexes(input: BuildDirectoryIndexesInput): Direct
   const committeesByPersonId = new Map<string, string[]>();
   const normalizedPersonNameIndex = new Map<string, string[]>();
   const committeeAliases = new Map<string, number>();
+  const staffIssuesByStaffId = new Map<number, DirectoryStaffIssueLink[]>();
+  const staffRolesByStaffId = new Map<number, DirectoryStaffRoleLink[]>();
 
   // Valid federal committees only (identity + display from the built list).
   const committeeByOfficeId = new Map<number, DirectoryCommittee>();
@@ -171,6 +191,34 @@ export function buildDirectoryIndexes(input: BuildDirectoryIndexesInput): Direct
     membersById.set(memberId, row);
     const bioguideId = typeof member?.bioguide_id === 'string' ? member.bioguide_id : '';
     if (bioguideId) membersByBioguideId.set(bioguideId, row);
+
+    // Reverse-index this member's staffer issue/role links by staff.id, so the
+    // staff detail can aggregate a staffer's issues/roles across EVERY member they
+    // serve (LegiStorm attaches these on the member, not the staffer, record).
+    for (const entry of Array.isArray(row.staffer_issues) ? row.staffer_issues : []) {
+      if (!isRecord(entry)) continue;
+      const staffId = Number((entry.staffer as SourceRow)?.id);
+      if (!Number.isFinite(staffId)) continue;
+      const list = staffIssuesByStaffId.get(staffId) ?? [];
+      list.push({
+        issueName: typeof entry.issue_name === 'string' ? entry.issue_name : null,
+        memberId,
+        updatedAt: typeof entry.updated_at === 'string' ? entry.updated_at : null,
+      });
+      staffIssuesByStaffId.set(staffId, list);
+    }
+    for (const entry of Array.isArray(row.staffer_roles) ? row.staffer_roles : []) {
+      if (!isRecord(entry)) continue;
+      const staffId = Number((entry.staffer as SourceRow)?.id);
+      if (!Number.isFinite(staffId)) continue;
+      const list = staffRolesByStaffId.get(staffId) ?? [];
+      list.push({
+        roleName: typeof entry.role_name === 'string' ? entry.role_name : null,
+        memberId,
+        updatedAt: typeof entry.updated_at === 'string' ? entry.updated_at : null,
+      });
+      staffRolesByStaffId.set(staffId, list);
+    }
 
     const profile = isRecord(member?.profile) ? member!.profile : undefined;
     const fullName = memberFullName(profile);
@@ -291,5 +339,7 @@ export function buildDirectoryIndexes(input: BuildDirectoryIndexesInput): Direct
     committeesByPersonId,
     normalizedPersonNameIndex,
     committeeAliases,
+    staffIssuesByStaffId,
+    staffRolesByStaffId,
   };
 }

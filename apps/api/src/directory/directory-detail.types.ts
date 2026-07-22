@@ -45,6 +45,15 @@ export interface DirectoryStaffIssueEntry {
   updatedAt: string | null;
 }
 
+export interface DirectoryStaffPositionMember {
+  memberId: number | null;
+  fullName: string | null;
+  party: string | null;
+  state: string | null;
+  district: string | null;
+  officeTypeId: string | null;
+}
+
 export interface DirectoryStaffPosition {
   officeId: number | null;
   officeName: string | null;
@@ -52,9 +61,56 @@ export interface DirectoryStaffPosition {
   title: string | null;
   positionType: string | null;
   isCurrent: boolean;
+  isOnLeave: boolean;
   startDate: string | null;
   endDate: string | null;
   updatedAt: string | null;
+  /** The member this position serves (null for committee/non-member offices). */
+  member: DirectoryStaffPositionMember | null;
+}
+
+/** A physical office address block attached to a staffer (office_member_addresses). */
+export interface DirectoryStaffOfficeAddress {
+  addressId: number | null;
+  officeId: number | null;
+  officeName: string | null;
+  label: string | null;
+  address1: string | null;
+  address2: string | null;
+  city: string | null;
+  state: string | null;
+  zip: string | null;
+  zipExt: string | null;
+  phone: string | null;
+  fax: string | null;
+  isMain: boolean;
+  publicNotes: string | null;
+  updatedAt: string | null;
+}
+
+/** A policy issue area a staffer covers (sourced from the member's staffer_issues). */
+export interface DirectoryStaffIssueRef {
+  issueName: string | null;
+  memberId: number | null;
+  memberName: string | null;
+  updatedAt: string | null;
+}
+
+/** A functional role a staffer holds (sourced from the member's staffer_roles). */
+export interface DirectoryStaffRoleRef {
+  roleName: string | null;
+  memberId: number | null;
+  memberName: string | null;
+  updatedAt: string | null;
+}
+
+export interface DirectoryStaffMemberAssociation {
+  id: string;
+  memberId: number;
+  fullName: string;
+  party: string | null;
+  state: string | null;
+  district: string | null;
 }
 
 export interface DirectoryMemberDetail {
@@ -113,16 +169,29 @@ export interface DirectoryStaffDetail {
   };
   bioDetails: {
     dob: string | null;
+    dateOfDeath: string | null;
+    hometown: string | null;
+    placeOfBirth: string | null;
+    nativeOf: string | null;
+    majMin: string | null;
     partyName: string | null;
     occupation: string | null;
+    pronunciation: string | null;
+    raceName: string | null;
+    religionName: string | null;
   };
   photoUrl: string | null;
   photoSource: DirectoryPhotoSource;
   emails: DirectoryContactMethod[];
   socialContacts: DirectoryContactMethod[];
+  officeAddresses: DirectoryStaffOfficeAddress[];
   positions: DirectoryStaffPosition[];
-  memberAssociations: Array<{ id: string; memberId: number; fullName: string }>;
+  memberAssociations: DirectoryStaffMemberAssociation[];
   committeeAssociations: DirectoryCommitteeMembership[];
+  /** Issue areas this staffer covers, aggregated from every member they serve. */
+  issues: DirectoryStaffIssueRef[];
+  /** Functional roles this staffer holds, aggregated from every member they serve. */
+  roles: DirectoryStaffRoleRef[];
   availability: {
     photo: 'available' | 'not_provided';
     socialContacts: 'available' | 'not_provided';
