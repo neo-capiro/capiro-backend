@@ -183,6 +183,14 @@ case "${1:-serve}" in
     echo "Running diag-outlook-sync (READ-ONLY Outlook/Graph connection + sync health) $*"
     exec ./node_modules/.bin/tsx scripts/diag-outlook-sync.ts "$@"
     ;;
+  reclaim-google-mail)
+    # Retroactive Gmail re-association: reset+resume re-fetch of a tenant's Google
+    # connection(s) so previously-skipped mail re-runs association against the
+    # current client set. DRY RUN by default; pass --tenant=<slug|uuid> [--connection=<uuid>] [--commit].
+    shift
+    echo "Running reclaim-google-mail $*"
+    exec ./node_modules/.bin/tsx scripts/reclaim-google-mail.ts "$@"
+    ;;
   delete-tenant)
     shift
     echo "Running delete-tenant $*"
