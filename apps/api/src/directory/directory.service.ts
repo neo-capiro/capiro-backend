@@ -16,6 +16,7 @@ import { FEC_DISCLAIMER } from '../intelligence/fec-disclaimer.js';
 import { RepresentationResolverService } from '../clients/representation-resolver.service.js';
 import {
   buildDirectoryIndexes,
+  selectCurrentMemberOffice,
   normalizePersonName,
   type DirectoryCommitteeMembership,
   type DirectoryIndexes,
@@ -1033,9 +1034,7 @@ export class DirectoryService implements OnModuleInit {
       if (!row) return null;
       const member = (row.member ?? {}) as Record<string, any>;
       const profile = (member.profile ?? {}) as Record<string, any>;
-      const office = Array.isArray(row.member_offices)
-        ? (row.member_offices.find((o: any) => o && typeof o === 'object') as Record<string, any> | undefined)
-        : undefined;
+      const office = selectCurrentMemberOffice(row.member_offices) as Record<string, any> | null;
       const overlay = base.photoOverlay.people[personId] ?? null;
       return {
         personType: 'member',
@@ -2668,13 +2667,9 @@ export class DirectoryService implements OnModuleInit {
   }
 
   private currentMemberOffice(rawOffices: unknown): any | null {
-    const offices = Array.isArray(rawOffices) ? rawOffices : [];
-    return (
-      offices.find((office: any) => String(office?.status ?? '').toLowerCase() === 'in office') ??
-      offices.find((office: any) => !office?.end_date || String(office.end_date) >= '2026-01-01') ??
-      offices[offices.length - 1] ??
-      null
-    );
+    // Single source of truth (see selectCurrentMemberOffice): in-office > newest
+    // non-expired > last term. Never the first (oldest) array element.
+    return selectCurrentMemberOffice(rawOffices);
   }
 
   private buildAddresses(rawAddresses: unknown): DirectoryAddress[] {

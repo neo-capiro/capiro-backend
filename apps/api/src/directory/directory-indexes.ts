@@ -125,6 +125,24 @@ function isRecord(value: unknown): value is SourceRow {
   return typeof value === 'object' && value !== null && !Array.isArray(value);
 }
 
+/**
+ * Select a member's CURRENT office from member_offices (stored oldest-first):
+ * an in-office term, else the newest non-expired term, else the last (newest)
+ * entry. Never the first array element — that is the OLDEST/former term, whose
+ * party/state/district can differ from the member's current values after
+ * redistricting, a chamber switch, or a party switch. Single source of truth for
+ * every member-office selection (indexes, search results, contact builder).
+ */
+export function selectCurrentMemberOffice(rawOffices: unknown): SourceRow | null {
+  const offices = (Array.isArray(rawOffices) ? rawOffices : []).filter(isRecord);
+  return (
+    offices.find((o) => String(o.status ?? '').toLowerCase() === 'in office') ??
+    offices.find((o) => !o.end_date || String(o.end_date) >= '2026-01-01') ??
+    offices[offices.length - 1] ??
+    null
+  );
+}
+
 function memberPhotoUrl(photos: unknown): string | null {
   if (!Array.isArray(photos)) return null;
   const pick =
@@ -231,9 +249,7 @@ export function buildDirectoryIndexes(input: BuildDirectoryIndexesInput): Direct
     const personId = `member-${memberId}`;
     if (fullName) addNameIndex(fullName, personId);
 
-    const office = Array.isArray(row.member_offices)
-      ? (row.member_offices.find((o: SourceRow) => isRecord(o)) as SourceRow | undefined)
-      : undefined;
+    const office = selectCurrentMemberOffice(row.member_offices);
     const ref: DirectoryPersonRef = {
       personType: 'member',
       id: personId,

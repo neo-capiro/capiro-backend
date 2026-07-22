@@ -56,6 +56,10 @@ const MEMBERS = [
     photos: [{ id: 9, url: 'https://x.invalid/rogers.jpg', status: 'public', is_directory: true, updated_at: '2026-07-01T00:00:00Z' }],
     social_media: [{ contact_type: 'Website, official', contact_string: 'https://rogers.house.gov', updated_at: '2026-07-01T00:00:00Z' }],
     member_offices: [
+      // Oldest-first ordering. The former term (district 1) must NEVER be the one
+      // surfaced as current — guards the current-office selection fix across the
+      // index ref, personResult/search, and resolveMemberRef.
+      { office: { office_id: 949, name: 'Rep. Rogers Former Office' }, office_type_id: 'HM', state_id: 'AL', district_no: 1, party: 'R', status: 'Left office', start_date: '2001-01-03', end_date: '2003-01-02', updated_at: '2020-01-01T00:00:00Z' },
       { office: { office_id: 950, name: 'Rep. Rogers Office' }, office_type_id: 'HM', state_id: 'AL', district_no: 3, party: 'R', status: 'In office', start_date: '2003-01-03', end_date: '2100-01-01', updated_at: '2026-07-01T00:00:00Z' },
     ],
     committees: [{ id: 1, committee_office: { office_id: 100 }, position: 'Chair', rank: 1, party_id: 'R', updated_at: '2026-07-01T00:00:00Z' }],
@@ -151,7 +155,8 @@ describe('DirectoryService member detail', () => {
     expect(detail.photos).toHaveLength(1);
     expect(detail.selectedPhotoUrl).toBe('https://x.invalid/rogers.jpg');
     expect(detail.photoSource).toBe('legistorm');
-    expect(detail.offices[0]).toMatchObject({ officeId: 950, state: 'AL', district: '3' });
+    expect(detail.offices).toHaveLength(2);
+    expect(detail.offices.find((o) => o.officeId === 950)).toMatchObject({ state: 'AL', district: '3' });
     expect(detail.committees.map((c) => c.committeeId)).toContain('committee-100');
     expect(detail.committees.find((c) => c.committeeId === 'committee-100')!.position).toBe('Chair');
     expect(detail.leaderships.map((l) => l.position)).toContain('Chairman');
