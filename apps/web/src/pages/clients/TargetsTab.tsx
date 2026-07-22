@@ -171,15 +171,20 @@ export function TargetsTab({ clientId, canManage, onViewIntelligence }: Props) {
   });
 
   const trimmed = query.trim();
-  const searching =
-    (scope !== 'state' && congressSearch.isFetching) ||
-    (scope !== 'congress' && stateSearch.isFetching) ||
-    trimmed !== debouncedQuery;
+  const debouncePending = trimmed !== debouncedQuery;
+  // Per-source readiness. A source is "still pending" ONLY while it's enabled,
+  // fetching, and has no data yet. A source that already returned data (or errored)
+  // is done — so its results (and the sibling's) render immediately and one slow or
+  // down directory can never blank the other. (react-query gives fresh data per
+  // debouncedQuery key, so `.data` here is never a stale previous query's rows.)
+  const congressPending = scope !== 'state' && congressSearch.isFetching && !congressSearch.data;
+  const statePending = scope !== 'congress' && stateSearch.isFetching && !stateSearch.data;
 
-  // Normalize BOTH sources, then apply client-side filters uniformly. Wrapped so a
-  // single malformed row can never throw during render.
+  // Normalize whatever each source has returned, then apply client-side filters
+  // uniformly. Wrapped so a single malformed row can never throw during render. Gated
+  // only on the debounce (never on in-flight fetch), so available rows show at once.
   const hits = useMemo<NormalizedPerson[]>(() => {
-    if (!trimmed || !searchOpen || searching) return [];
+    if (!trimmed || !searchOpen || debouncePending) return [];
     const out: NormalizedPerson[] = [];
     try {
       if (scope !== 'state') {
@@ -205,7 +210,7 @@ export function TargetsTab({ clientId, canManage, onViewIntelligence }: Props) {
   }, [
     trimmed,
     searchOpen,
-    searching,
+    debouncePending,
     scope,
     fParty,
     fChamber,
@@ -213,6 +218,10 @@ export function TargetsTab({ clientId, canManage, onViewIntelligence }: Props) {
     congressSearch.data,
     stateSearch.data,
   ]);
+
+  // Show "Searching…" only while nothing is displayable yet AND a source is still
+  // pending (or the debounce hasn't settled) — never withhold rows already in hand.
+  const showSearching = debouncePending || ((congressPending || statePending) && hits.length === 0);
 
   const invalidate = () => {
     qc.invalidateQueries({ queryKey: ['client-targets', clientId] });
@@ -398,7 +407,7 @@ export function TargetsTab({ clientId, canManage, onViewIntelligence }: Props) {
             {trimmed && searchOpen ? (
               <div className="results-drop">
                 <div className="res-count">
-                  {searching
+                  {showSearching
                     ? 'Searching…'
                     : hits.length === 0
                       ? `No results for "${trimmed}"`

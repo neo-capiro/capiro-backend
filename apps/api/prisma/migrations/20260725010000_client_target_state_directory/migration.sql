@@ -8,5 +8,7 @@ ALTER TABLE "client_targets"
   ADD COLUMN IF NOT EXISTS "source_directory" VARCHAR(16) NOT NULL DEFAULT 'congress';
 
 ALTER TABLE "client_targets" ALTER COLUMN "party" TYPE VARCHAR(32);
-ALTER TABLE "client_targets" ALTER COLUMN "state" TYPE VARCHAR(24);
+-- TEXT, not VARCHAR: some state legislators have NAMED districts (e.g. Massachusetts
+-- "Norfolk, Bristol and Plymouth"), so the district-qualified state value is unbounded.
+ALTER TABLE "client_targets" ALTER COLUMN "state" TYPE TEXT;
 ALTER TABLE "client_targets" ALTER COLUMN "chamber" TYPE VARCHAR(24);

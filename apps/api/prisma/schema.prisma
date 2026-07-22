@@ -2171,7 +2171,9 @@ model ClientTarget {
   // below because state values are full words ("Democrat", "upper").
   sourceDirectory String @default("congress") @map("source_directory") @db.VarChar(16)
   party         String?  @db.VarChar(32)
-  state         String?  @db.VarChar(24)
+  // TEXT (not VarChar): some state legislators have NAMED districts (e.g. MA
+  // "Norfolk, Bristol and Plymouth"), so the district-qualified value is unbounded.
+  state         String?
   chamber       String?  @db.VarChar(24)
   committee     String?
   source        String   @default("manual") @db.VarChar(8)
