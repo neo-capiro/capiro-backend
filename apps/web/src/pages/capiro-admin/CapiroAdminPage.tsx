@@ -68,8 +68,13 @@ function TenantsTab() {
   const { start: startImpersonation } = useImpersonation();
   const [open, setOpen] = useState(false);
   const [impOpen, setImpOpen] = useState<TenantRow | null>(null);
+  // Second-step delete confirmation: the Popconfirm arms this, the modal below
+  // requires typing DELETE before the destructive mutation actually fires.
+  const [deleteTarget, setDeleteTarget] = useState<TenantRow | null>(null);
   const [form] = Form.useForm<CreateTenantInput>();
   const [reasonForm] = Form.useForm<{ reason: string }>();
+  const [deleteForm] = Form.useForm<{ confirm: string }>();
+  const deleteConfirm = Form.useWatch('confirm', deleteForm);
 
   const tenants = useQuery<TenantRow[]>({
     queryKey: ['capiro-admin', 'tenants'],
@@ -94,6 +99,8 @@ function TenantsTab() {
     onSuccess: (_data, tenantId) => {
       const t = tenants.data?.find((x) => x.id === tenantId);
       message.success(`Tenant ${t?.slug ?? ''} deleted`);
+      setDeleteTarget(null);
+      deleteForm.resetFields();
       qc.invalidateQueries({ queryKey: ['capiro-admin', 'tenants'] });
     },
     onError: (err) => message.error((err as Error).message),
@@ -171,9 +178,12 @@ function TenantsTab() {
                 <Popconfirm
                   title={`Delete tenant "${r.slug}"?`}
                   description="Permanently deletes the tenant, its Clerk org, all members, clients, meetings and data. This cannot be undone."
-                  okText="Delete"
-                  okButtonProps={{ danger: true, loading: deleteTenant.isPending }}
-                  onConfirm={() => deleteTenant.mutate(r.id)}
+                  okText="Continue"
+                  okButtonProps={{ danger: true }}
+                  onConfirm={() => {
+                    deleteForm.resetFields();
+                    setDeleteTarget(r);
+                  }}
                 >
                   <Button size="small" danger>
                     Delete
@@ -254,6 +264,68 @@ function TenantsTab() {
         >
           <Form.Item name="reason" label="Reason" rules={[{ required: true, min: 10, max: 500 }]}>
             <Input.TextArea rows={3} placeholder="Investigating ticket #1234, invitation flow" />
+          </Form.Item>
+        </Form>
+      </Modal>
+
+      {/* Second-step delete confirmation — type DELETE to arm the real deletion */}
+      <Modal
+        title="Permanently delete tenant"
+        open={!!deleteTarget}
+        onCancel={() => {
+          setDeleteTarget(null);
+          deleteForm.resetFields();
+        }}
+        onOk={() => deleteForm.submit()}
+        okText="Delete tenant"
+        okButtonProps={{
+          danger: true,
+          loading: deleteTenant.isPending,
+          disabled: deleteConfirm !== 'DELETE',
+        }}
+        cancelButtonProps={{ disabled: deleteTenant.isPending }}
+        maskClosable={false}
+        keyboard={!deleteTenant.isPending}
+      >
+        <Typography.Paragraph style={{ marginBottom: 4 }}>
+          You are about to permanently delete:
+        </Typography.Paragraph>
+        <Typography.Paragraph style={{ textAlign: 'center', margin: '12px 0 16px' }}>
+          <Typography.Text strong style={{ fontSize: 26, lineHeight: 1.25 }}>
+            {deleteTarget?.name}
+          </Typography.Text>
+          <br />
+          <Typography.Text type="secondary" style={{ fontSize: 13 }}>
+            {deleteTarget?.slug}
+          </Typography.Text>
+        </Typography.Paragraph>
+        <Typography.Paragraph type="danger" style={{ marginBottom: 16 }}>
+          This erases its Clerk org, all members, clients, meetings and data. This cannot be undone.
+        </Typography.Paragraph>
+        <Form
+          form={deleteForm}
+          layout="vertical"
+          onFinish={() => {
+            if (deleteTarget) deleteTenant.mutate(deleteTarget.id);
+          }}
+        >
+          <Form.Item
+            name="confirm"
+            label={
+              <span>
+                Type <Typography.Text strong>DELETE</Typography.Text> to confirm
+              </span>
+            }
+            rules={[
+              {
+                validator: (_rule, value) =>
+                  value === 'DELETE'
+                    ? Promise.resolve()
+                    : Promise.reject(new Error('Type DELETE (all caps) to confirm')),
+              },
+            ]}
+          >
+            <Input autoFocus autoComplete="off" placeholder="DELETE" />
           </Form.Item>
         </Form>
       </Modal>
