@@ -87,8 +87,8 @@ describe('G3: hearing module Prisma calls are tenant-scoped via withTenant', () 
   });
 
   describe('SegmentCommitService', () => {
-    it('commitFinal() scopes the segment upsert to the caller tenantId', async () => {
-      const { prisma, withTenant } = makeFakePrisma();
+    it('commitFinal() persists the segment via create (never the tenant-scope-unsafe upsert), scoped to the caller tenantId', async () => {
+      const { prisma, withTenant, model } = makeFakePrisma();
       const crypto = { configured: false } as unknown as HearingCryptoService;
       const service = new SegmentCommitService(prisma, crypto);
 
@@ -100,8 +100,15 @@ describe('G3: hearing module Prisma calls are tenant-scoped via withTenant', () 
         extraction: { entityMentions: [], issueTags: [] } as never,
       });
 
-      // At least one withTenant call is the segment upsert; every call must be
-      // scoped to tenant-1 (no bare this.prisma.<model> call bypassing it).
+      // Regression guard (LegiWatch "hearings don't transcribe"): commitFinal MUST
+      // write via create, NOT upsert. scopedClient injects where.tenantId into
+      // every where-bearing op incl. upsert; on this table upsert's where is the
+      // COMPOUND unique (sessionId,startMs,endMs), and the injected sibling
+      // tenantId silently dropped every segment (0 rows, no error). create is not
+      // a where-bearing op, so it is passed through unrewritten.
+      expect(model('transcriptSegment').create).toHaveBeenCalled();
+      expect(model('transcriptSegment').upsert).not.toHaveBeenCalled();
+      // Every Prisma call still tenant-scoped (no bare this.prisma.<model> call).
       expect(withTenant.mock.calls.every((c) => c[0] === 'tenant-1')).toBe(true);
       expect(withTenant).toHaveBeenCalled();
     });

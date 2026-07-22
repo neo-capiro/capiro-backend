@@ -1,4 +1,5 @@
 import { Injectable, Logger } from '@nestjs/common';
+import { Prisma } from '../../generated/prisma-client/index.js';
 import { PrismaService } from '../prisma/prisma.service.js';
 import { HearingCryptoService } from './hearing-crypto.service.js';
 import type { FinalSegment, ExtractionResult } from './hearing.types.js';
@@ -60,18 +61,21 @@ export class SegmentCommitService {
     // SC5.4: client-relevant text encrypted; public text may be plaintext. Never both.
     const textFields = this.buildTextFields(segment.text, clientRelevant);
 
+    // NOTE: we deliberately use create + P2002-catch here rather than upsert.
+    // PrismaService.scopedClient injects `where.tenantId` into every
+    // where-bearing op (findUnique/update/delete/UPSERT) to enforce tenant
+    // isolation in-query (capiro_app bypasses RLS). On this table the upsert's
+    // where is the COMPOUND unique (sessionId,startMs,endMs); the injected
+    // sibling tenantId turned it into an extended-where-unique upsert that
+    // silently failed to persist any segment (0 rows, no error) — the LegiWatch
+    // "hearings don't transcribe" regression. `create` is NOT a where-bearing
+    // op, so it is passed through unrewritten. Isolation is preserved: the row
+    // carries tenantId, the insert runs under withTenant's app.current_tenant
+    // RLS context (WITH CHECK), and sessionId is itself tenant-scoped.
     try {
       const created = await this.prisma.withTenant(tenantId, (tx) =>
-        tx.transcriptSegment.upsert({
-          where: {
-            sessionId_startMs_endMs: {
-              sessionId,
-              startMs: segment.startMs,
-              endMs: segment.endMs,
-            },
-          },
-          update: {}, // idempotent: a replayed final after reconnect is a no-op
-          create: {
+        tx.transcriptSegment.create({
+          data: {
             sessionId,
             tenantId,
             startMs: segment.startMs,
@@ -99,6 +103,19 @@ export class SegmentCommitService {
       );
       return created.id;
     } catch (err) {
+      // Idempotent replay (SC5.9): a Deepgram reconnect can re-deliver the same
+      // final. The unique (sessionId,startMs,endMs) makes the second insert a
+      // P2002 — treat it as a no-op and return the already-persisted id, without
+      // re-running persistDerived (the first final already wrote the derivations).
+      if (err instanceof Prisma.PrismaClientKnownRequestError && err.code === 'P2002') {
+        const existing = await this.prisma.withTenant(tenantId, (tx) =>
+          tx.transcriptSegment.findFirst({
+            where: { sessionId, startMs: segment.startMs, endMs: segment.endMs },
+            select: { id: true },
+          }),
+        );
+        return existing?.id ?? null;
+      }
       this.logger.error(`commitFinal failed for session ${sessionId}: ${(err as Error).message}`);
       throw err;
     }
