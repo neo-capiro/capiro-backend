@@ -357,7 +357,9 @@ export function DebriefNotesView({ body }: { body: string }) {
   return (
     <div className="engagement-debrief-output">
       <NotesBlock title="Recap">
-        <Typography.Paragraph>{draft.recap || 'No recap saved.'}</Typography.Paragraph>
+        <Typography.Paragraph style={{ whiteSpace: 'pre-wrap' }}>
+          {draft.recap || 'No recap saved.'}
+        </Typography.Paragraph>
       </NotesBlock>
       <NotesBlock title="Action Items">
         {draft.actionItems.length ? (

@@ -48,11 +48,14 @@ function makeTx() {
       update: asyncMock({ id: 's1' }),
       updateMany: asyncMock({ count: 1 }),
     },
+    engagementAttachment: {
+      findMany: asyncMock([]),
+    },
   };
 }
 type Tx = ReturnType<typeof makeTx>;
 
-function makeService(tx: Tx) {
+function makeService(tx: Tx, configOverrides: Record<string, unknown> = {}) {
   const prisma = {
     withTenant: (_tenantId: string, fn: (t: Tx) => unknown) => fn(tx),
     withSystem: (fn: (t: Tx) => unknown) => fn(tx),
@@ -87,11 +90,16 @@ function makeService(tx: Tx) {
     }),
     createMeetingDebrief: asyncMock({ id: 'd1' }),
     createMeetingNote: asyncMock({ id: 'n1' }),
+    deleteAttachment: asyncMock({ ok: true }),
   } as unknown as EngagementService;
 
   const config = {
-    get: (key: string) =>
-      key === 'RECALL_API_BASE_URL' ? 'https://us-west-2.recall.ai' : undefined,
+    get: (key: string) => {
+      if (key in configOverrides) return configOverrides[key];
+      if (key === 'RECALL_API_BASE_URL') return 'https://us-west-2.recall.ai';
+      if (key === 'NOTETAKER_TRANSCRIPT_RETENTION_DAYS') return 30;
+      return undefined;
+    },
   } as unknown as ConfigService<AppConfig, true>;
 
   const service = new NotetakerService(
@@ -710,6 +718,115 @@ describe('NotetakerService.reconcileStuckRecordings (self-heal a dropped call_en
     bot.getBotCompletion.mockRejectedValue(new Error('recall 502'));
 
     await expect(service.reconcileStuckRecordings()).resolves.toBe(1);
+  });
+});
+
+describe('NotetakerService.reconcileExpiredTranscripts (30-day transcript retention)', () => {
+  const expiredRow = {
+    id: 'a1',
+    tenantId: 't1',
+    meetingId: 'm1',
+    s3Key: 'tenants/t1/engagement/x/transcript.txt',
+    uploadedByUserId: 'u1',
+  };
+
+  test('erases an over-age transcript via deleteAttachment and nulls the dangling pointers', async () => {
+    const tx = makeTx();
+    tx.engagementAttachment.findMany.mockResolvedValue([expiredRow]);
+    const { service, engagement } = makeService(tx);
+
+    const count = await service.reconcileExpiredTranscripts();
+
+    expect(count).toBe(1);
+    // Reuses the single erasure path — never a note/debrief delete (there is no such
+    // call; notes + debriefs are independent tables kept forever).
+    expect(engagement.deleteAttachment).toHaveBeenCalledWith(
+      expect.objectContaining({ tenantId: 't1', userId: 'u1' }),
+      'a1',
+    );
+    expect(tx.meeting.updateMany).toHaveBeenCalledWith(
+      expect.objectContaining({ data: { transcriptS3Key: null } }),
+    );
+    expect(tx.meetingBotSession.updateMany).toHaveBeenCalledWith(
+      expect.objectContaining({ data: { transcriptS3Key: null } }),
+    );
+  });
+
+  test('only targets source=notetaker attachments past the cutoff', async () => {
+    const tx = makeTx();
+    tx.engagementAttachment.findMany.mockResolvedValue([expiredRow]);
+    const { service } = makeService(tx);
+
+    await service.reconcileExpiredTranscripts();
+
+    expect(tx.engagementAttachment.findMany).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: expect.objectContaining({
+          source: 'notetaker',
+          createdAt: expect.objectContaining({ lt: expect.any(Date) }),
+        }),
+      }),
+    );
+  });
+
+  test('disabled (kill-switch) when retention <= 0 — touches nothing', async () => {
+    const tx = makeTx();
+    const { service, engagement } = makeService(tx, { NOTETAKER_TRANSCRIPT_RETENTION_DAYS: 0 });
+
+    expect(await service.reconcileExpiredTranscripts()).toBe(0);
+    expect(tx.engagementAttachment.findMany).not.toHaveBeenCalled();
+    expect(engagement.deleteAttachment).not.toHaveBeenCalled();
+  });
+
+  test('skips (does not erase) a transcript whose uploader has left the tenant', async () => {
+    const tx = makeTx();
+    tx.engagementAttachment.findMany.mockResolvedValue([expiredRow]);
+    tx.user.findUnique.mockResolvedValue(null); // hydrateContext -> null
+    const { service, engagement } = makeService(tx);
+
+    expect(await service.reconcileExpiredTranscripts()).toBe(0);
+    expect(engagement.deleteAttachment).not.toHaveBeenCalled();
+  });
+
+  test('does nothing when no transcripts are past the window', async () => {
+    const tx = makeTx();
+    const { service, engagement } = makeService(tx);
+
+    expect(await service.reconcileExpiredTranscripts()).toBe(0);
+    expect(engagement.deleteAttachment).not.toHaveBeenCalled();
+  });
+
+  test('a per-row erase failure does not stop the sweep', async () => {
+    const tx = makeTx();
+    tx.engagementAttachment.findMany.mockResolvedValue([expiredRow]);
+    const { service, engagement } = makeService(tx);
+    (engagement.deleteAttachment as jest.Mock).mockRejectedValue(new Error('s3 down') as never);
+
+    await expect(service.reconcileExpiredTranscripts()).resolves.toBe(0);
+  });
+});
+
+describe('NotetakerService.reconcileStrandedDrafting (recover a crash mid-generation)', () => {
+  test('resets a stranded drafting session back to processing for re-drive', async () => {
+    const tx = makeTx();
+    tx.meetingBotSession.updateMany.mockResolvedValue({ count: 1 });
+    const { service } = makeService(tx);
+
+    expect(await service.reconcileStrandedDrafting()).toBe(1);
+    expect(tx.meetingBotSession.updateMany).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: expect.objectContaining({ status: 'drafting', debriefId: null }),
+        data: { status: 'processing' },
+      }),
+    );
+  });
+
+  test('does nothing when no session is stranded', async () => {
+    const tx = makeTx();
+    tx.meetingBotSession.updateMany.mockResolvedValue({ count: 0 });
+    const { service } = makeService(tx);
+
+    expect(await service.reconcileStrandedDrafting()).toBe(0);
   });
 });
 

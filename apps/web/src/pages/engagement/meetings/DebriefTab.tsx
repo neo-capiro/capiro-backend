@@ -276,10 +276,17 @@ export function DebriefTab({ meeting }: { meeting: Meeting }) {
       message.warning('Add some notes or a transcript first.');
       return;
     }
-    const draft = await generate.mutateAsync({ meetingId: meeting.id, method, sourceText });
-    await save.mutateAsync({ meetingId: meeting.id, body: formatDebriefBody(draft) });
-    message.success('Debrief drafted.');
-    setRedraft(false);
+    try {
+      const draft = await generate.mutateAsync({ meetingId: meeting.id, method, sourceText });
+      await save.mutateAsync({ meetingId: meeting.id, body: formatDebriefBody(draft) });
+      message.success('Debrief drafted.');
+      setRedraft(false);
+    } catch (err) {
+      // Without this catch, the onUseNotes / onManual `void draftAndSave(...)` callers
+      // swallow a generation or save failure silently — no toast, and the debrief is
+      // never persisted. (onFile already has its own try/catch for the upload step.)
+      message.error(err instanceof Error ? err.message : 'Could not draft the debrief.');
+    }
   };
 
   const onFile = async (file: File | undefined) => {
@@ -353,7 +360,17 @@ export function DebriefTab({ meeting }: { meeting: Meeting }) {
     <div>
       <div style={{ marginBottom: 20 }}>
         <SectionLabel style={{ marginBottom: 7 }}>Recap</SectionLabel>
-        <p style={{ fontSize: 13, lineHeight: 1.65, color: 'var(--ink-1)', margin: 0 }}>
+        <p
+          style={{
+            fontSize: 13,
+            lineHeight: 1.65,
+            color: 'var(--ink-1)',
+            margin: 0,
+            // Preserve the recap's structure (narrative headings + the Key specifics
+            // bullet list) instead of collapsing every newline into one paragraph.
+            whiteSpace: 'pre-wrap',
+          }}
+        >
           {parsed.recap || 'No recap saved.'}
         </p>
       </div>

@@ -126,6 +126,21 @@ const RECONCILE_SWEEP_INTERVAL_MS = 60_000;
 /** Cap a single sweep so a large backlog can't make one tick run unboundedly long. */
 const RECONCILE_SWEEP_BATCH_SIZE = 25;
 
+/**
+ * How long a session may sit in `drafting` (transcript in hand; debrief LLM call +
+ * note write in progress) before we treat it as stranded. Debrief generation is
+ * bounded by the AI client timeout (seconds), so a `drafting` row older than this can
+ * only mean the replica died mid-generation — e.g. an ECS deploy rolled the task
+ * between the atomic `drafting` claim and the terminal `done` update. finishTranscript's
+ * claim excludes `drafting` and neither other sweep leg queries it, so without this
+ * recovery the session strands with no note and no error. Generous so an in-flight
+ * generation is never re-driven.
+ */
+const DRAFTING_STUCK_MS = 15 * 60_000;
+
+// Transcript retention is configured (days) via NOTETAKER_TRANSCRIPT_RETENTION_DAYS
+// and read at sweep time — see reconcileExpiredTranscripts.
+
 export interface DispatchNotetakerInput {
   /** The meeting join URL (Zoom/Meet/Teams) the bot should join. */
   meetingUrl: string;
@@ -210,6 +225,11 @@ export class NotetakerService implements OnModuleInit, OnModuleDestroy {
   async runReconcileSweep(): Promise<void> {
     await this.reconcileStuckRecordings();
     await this.reconcileStaleTranscripts();
+    // Recover sessions a mid-generation crash stranded in `drafting`, then expire
+    // transcripts past the retention window. Both are best-effort and independently
+    // guarded so one failing can't abort the rest of the tick.
+    await this.reconcileStrandedDrafting();
+    await this.reconcileExpiredTranscripts();
   }
 
   onModuleDestroy(): void {
@@ -296,6 +316,114 @@ export class NotetakerService implements OnModuleInit, OnModuleDestroy {
       }
     }
     return stale.length;
+  }
+
+  /**
+   * Recovery leg for sessions stranded in `drafting`. A replica can die between the
+   * atomic `drafting` claim and the terminal `done` update (mid-debrief-LLM-call
+   * during an ECS deploy/OOM). finishTranscript's claim excludes `drafting` and no
+   * other leg queries it, so these would otherwise never produce a note and never
+   * surface an error. Reset them to `processing` (they still hold a transcriptId) so
+   * the transcript leg re-drives finishTranscript on a later tick — it re-downloads
+   * the transcript and regenerates the note.
+   *
+   * Trade-off: if the crash landed AFTER createMeetingNote but BEFORE the status
+   * update, the re-drive writes a SECOND note — a rare, visible duplicate, which is
+   * strictly preferable to a silently lost note. The generous DRAFTING_STUCK_MS
+   * cutoff ensures we never touch a genuinely in-flight generation. Cross-tenant
+   * maintenance sweep. Returns the count reset.
+   */
+  async reconcileStrandedDrafting(): Promise<number> {
+    const cutoff = new Date(Date.now() - DRAFTING_STUCK_MS);
+    const reset = await this.prisma.withSystem((tx) =>
+      tx.meetingBotSession.updateMany({
+        where: {
+          status: 'drafting',
+          debriefId: null,
+          transcriptId: { not: null },
+          updatedAt: { lt: cutoff },
+        },
+        data: { status: 'processing' },
+      }),
+    );
+    if (reset.count > 0) {
+      this.logger.warn(
+        `reconcile: reset ${reset.count} stranded 'drafting' notetaker session(s) to 'processing' for re-drive`,
+      );
+    }
+    return reset.count;
+  }
+
+  /**
+   * Retention leg: erase notetaker call TRANSCRIPTS older than the configured window
+   * (NOTETAKER_TRANSCRIPT_RETENTION_DAYS, default 30; <= 0 disables). The derived
+   * meeting NOTE and DEBRIEF are separate tables with NO foreign key from the
+   * attachment (only Meeting/Tenant cascade into them), so erasing the transcript can
+   * never cascade to them — they are retained indefinitely. Reuses the single erasure
+   * path, EngagementService.deleteAttachment (S3 object + row + client-KB chunks), and
+   * then nulls the now-dangling transcriptS3Key pointers on the meeting + session.
+   * Cross-tenant maintenance sweep. Returns the count erased.
+   */
+  async reconcileExpiredTranscripts(): Promise<number> {
+    const retentionDays = this.config.get('NOTETAKER_TRANSCRIPT_RETENTION_DAYS', { infer: true });
+    if (!retentionDays || retentionDays <= 0) return 0; // kill-switch / disabled / unset
+    const cutoff = new Date(Date.now() - retentionDays * 24 * 60 * 60_000);
+    const expired = await this.prisma.withSystem((tx) =>
+      tx.engagementAttachment.findMany({
+        where: { source: 'notetaker', createdAt: { lt: cutoff } },
+        select: {
+          id: true,
+          tenantId: true,
+          meetingId: true,
+          s3Key: true,
+          uploadedByUserId: true,
+        },
+        take: RECONCILE_SWEEP_BATCH_SIZE,
+      }),
+    );
+
+    let erased = 0;
+    for (const row of expired) {
+      try {
+        // deleteAttachment is tenant-scoped and needs a user context. For notetaker
+        // transcripts uploadedByUserId is the (then-active) requester; if that user
+        // has since left the tenant, hydrateContext returns null and we skip the row
+        // (retried next tick). A rare orphaned-user transcript may linger — logged,
+        // never silently dropped from the retention guarantee.
+        const ctx = await this.hydrateContext(row.tenantId, row.uploadedByUserId);
+        if (!ctx) {
+          this.logger.warn(
+            `retention: cannot erase transcript attachment ${row.id} — uploader unavailable; skipping`,
+          );
+          continue;
+        }
+        await this.engagement.deleteAttachment(ctx, row.id);
+        // Null the dangling pointers so nothing tries to fetch the deleted object.
+        await this.prisma.withSystem(async (tx) => {
+          if (row.meetingId) {
+            await tx.meeting.updateMany({
+              where: { id: row.meetingId, tenantId: row.tenantId, transcriptS3Key: row.s3Key },
+              data: { transcriptS3Key: null },
+            });
+          }
+          await tx.meetingBotSession.updateMany({
+            where: { tenantId: row.tenantId, transcriptS3Key: row.s3Key },
+            data: { transcriptS3Key: null },
+          });
+        });
+        erased += 1;
+      } catch (err) {
+        this.logger.error(
+          `retention: failed to erase transcript attachment ${row.id}: ${(err as Error).message}`,
+        );
+      }
+    }
+    if (erased > 0) {
+      this.logger.warn(
+        `retention: erased ${erased} notetaker transcript(s) older than ${retentionDays}d`,
+      );
+    }
+    return erased;
   }
 
   /**

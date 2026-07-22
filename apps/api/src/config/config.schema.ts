@@ -62,6 +62,18 @@ export const configSchema = z.object({
   ANTHROPIC_API_KEY: z.string().optional(),
   ANTHROPIC_MODEL: z.string().default('claude-haiku-4-5-20251001'),
 
+  // Meeting-debrief model overrides (scoped to generateMeetingDebrief ONLY — the
+  // notetaker summary + the manual "Generate Debrief" flow — so bumping the debrief
+  // model never changes prep / talking-points / outreach / campaign, which keep
+  // reading OPENAI_MODEL / ANTHROPIC_MODEL). Unlike OUTREACH_DRAFT_MODEL these
+  // default to a concrete better-than-mini/haiku model rather than '' because the
+  // upgrade is the intended behavior: debriefs must not run on gpt-4.1-mini or
+  // claude-haiku. Both ids are already in AI_PRICING so COGS stays correct. A
+  // tenant's explicit BYOK modelOverride still wins over these (see
+  // generateMeetingDebrief). Set to '' to fall back to the global model.
+  DEBRIEF_OPENAI_MODEL: z.string().default('gpt-4.1'),
+  DEBRIEF_ANTHROPIC_MODEL: z.string().default('claude-sonnet-4-6'),
+
   // Phase 1 SSOT-consolidation recall source (docs/plans/…phase-1-ssot-cutover-plan.md).
   // Governs where Meri's learned-fact recall (loadRelevantMemories) reads from:
   //   'clio'       — clio_memory.embedding (OpenAI), today's behavior. DEFAULT.
@@ -490,6 +502,13 @@ export const configSchema = z.object({
   // and visibility. Only the literal 'true' enables; ANDed with the per-tenant
   // `notetaker.enabled` flag so the feature stays dormant until BOTH are on.
   NOTETAKER_ENABLED: z.string().optional(),
+
+  // Retention window (days) for notetaker call TRANSCRIPTS. The notetaker reconcile
+  // sweep deletes source='notetaker' EngagementAttachments (S3 object + row + KB
+  // chunks) older than this — the derived meeting NOTES and DEBRIEFS are separate
+  // tables with no cascade and are kept forever. 0 (or negative) disables the sweep
+  // leg entirely (kill-switch / tuning lever without a redeploy). Default 30 days.
+  NOTETAKER_TRANSCRIPT_RETENTION_DAYS: z.coerce.number().int().default(30),
 
   // 32+ byte secret used to HMAC-sign the `state` parameter in OAuth flows so
   // a callback can be tied back to the connection that started it.

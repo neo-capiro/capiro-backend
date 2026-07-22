@@ -279,6 +279,9 @@ export class EngagementAiService {
   private readonly outreachPromptSpec: 'v1' | 'v2';
   private readonly outreachProvider?: 'openai' | 'anthropic';
   private readonly outreachDraftModel: string;
+  /** Debrief-only model overrides (see config.schema DEBRIEF_*_MODEL). */
+  private readonly debriefOpenaiModel: string;
+  private readonly debriefAnthropicModel: string;
   /** D1 hardened completion client (retries, typed errors, caching, usage). */
   private readonly llm = new LlmCompletionService();
 
@@ -300,6 +303,8 @@ export class EngagementAiService {
     this.outreachPromptSpec = config.get('OUTREACH_PROMPT_SPEC', { infer: true });
     this.outreachProvider = config.get('OUTREACH_PROVIDER', { infer: true });
     this.outreachDraftModel = config.get('OUTREACH_DRAFT_MODEL', { infer: true });
+    this.debriefOpenaiModel = config.get('DEBRIEF_OPENAI_MODEL', { infer: true });
+    this.debriefAnthropicModel = config.get('DEBRIEF_ANTHROPIC_MODEL', { infer: true });
   }
 
   /**
@@ -500,11 +505,21 @@ export class EngagementAiService {
     input: MeetingDebriefDraftInput,
     ctx?: TenantContext | null,
   ): Promise<MeetingDebriefDraftResult> {
-    return this.withCredentialFallback('AI debrief generation', ctx, (cred) =>
-      cred.provider === 'openai'
-        ? this.generateDebriefWithOpenAi(input, cred)
-        : this.generateDebriefWithAnthropic(input, cred),
-    );
+    return this.withCredentialFallback('AI debrief generation', ctx, (cred) => {
+      // Debrief-scoped model (mirrors the OUTREACH_DRAFT_MODEL pattern): a tenant's
+      // explicit BYOK modelOverride always wins; otherwise the configured
+      // DEBRIEF_*_MODEL applies (and only if non-empty, so setting it to '' restores
+      // the resolved cred model). This upgrades debriefs off gpt-4.1-mini / haiku
+      // without touching prep / talking-points / outreach, which keep cred.model.
+      const model = cred.modelOverridden
+        ? cred.model
+        : cred.provider === 'openai'
+          ? this.debriefOpenaiModel || cred.model
+          : this.debriefAnthropicModel || cred.model;
+      return cred.provider === 'openai'
+        ? this.generateDebriefWithOpenAi(input, cred, model)
+        : this.generateDebriefWithAnthropic(input, cred, model);
+    });
   }
 
   async generateTalkingPoints(
@@ -879,6 +894,7 @@ export class EngagementAiService {
   private async generateDebriefWithOpenAi(
     input: MeetingDebriefDraftInput,
     cred: ResolvedAiCredential,
+    model: string,
   ): Promise<MeetingDebriefDraftResult> {
     const response = await fetchWithTimeout('https://api.openai.com/v1/responses', {
       method: 'POST',
@@ -887,7 +903,7 @@ export class EngagementAiService {
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({
-        model: cred.model,
+        model,
         input: this.buildDebriefPrompt(input),
         text: {
           format: {
@@ -913,7 +929,7 @@ export class EngagementAiService {
       actionItems: toStringList(parsed.actionItems),
       notes: typeof parsed.notes === 'string' ? parsed.notes.trim() : '',
       provider: 'openai',
-      model: cred.model,
+      model,
       usage: parseProviderUsage(json),
       usedTenantKey: cred.usedTenantKey,
       raw: json,
@@ -923,6 +939,7 @@ export class EngagementAiService {
   private async generateDebriefWithAnthropic(
     input: MeetingDebriefDraftInput,
     cred: ResolvedAiCredential,
+    model: string,
   ): Promise<MeetingDebriefDraftResult> {
     const response = await fetchWithTimeout('https://api.anthropic.com/v1/messages', {
       method: 'POST',
@@ -932,8 +949,13 @@ export class EngagementAiService {
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({
-        model: cred.model,
-        max_tokens: 1800,
+        // NOTE: no `thinking` field is sent, so on adaptive-capable Claude models
+        // (Sonnet 4.6 etc.) thinking stays OFF and the full max_tokens budget goes
+        // to the JSON output. No sampling params either (removed on newer models).
+        model,
+        // Headroom for the richer recap (narrative + Key specifics block); the
+        // OpenAI path (/v1/responses) sets no output cap so only this path needs it.
+        max_tokens: 2400,
         system:
           'You generate accurate lobbying meeting debriefs from supplied tenant CRM context. Return only valid JSON that matches the requested schema.',
         messages: [
@@ -960,7 +982,7 @@ export class EngagementAiService {
       actionItems: toStringList(parsed.actionItems),
       notes: typeof parsed.notes === 'string' ? parsed.notes.trim() : '',
       provider: 'anthropic',
-      model: cred.model,
+      model,
       usage: parseProviderUsage(json),
       usedTenantKey: cred.usedTenantKey,
       raw: json,
@@ -1310,10 +1332,11 @@ export class EngagementAiService {
         : 'INSUFFICIENT CONTEXT: source.text is empty and there are no usable notes. Do NOT fabricate a debrief. Set recap to a short honest statement that there are no meeting notes to summarize yet (e.g., "No meeting notes were provided, so there is nothing to debrief yet. Add notes above to generate a debrief."), and return EMPTY arrays/empty notes. Do not invent what happened.',
       '',
       'Output structure (JSON fields):',
-      'recap: short structured narrative with only these headings:',
+      'recap: a short structured narrative FOLLOWED BY a concrete specifics section, using only these headings. Keep the three narrative headings summarized and high-level; put the detail in Key specifics. Separate each heading with a blank line.',
       '  - What happened: who attended (if known), core discussion, decisions/commitments explicitly supported by source text.',
       '  - What matters: implications for committee/member/staffer engagement, only when evidenced.',
       '  - Recommended next move: one practical next engagement step grounded in the meeting outcome.',
+      '  - Key specifics: a bulleted list (one item per line, each prefixed with "- ") capturing the concrete details of the meeting — near-verbatim notable quotes with the speaker when known, exact figures / dollar amounts / dates, bill or section numbers, named programs/agencies/people, and explicit commitments, asks, or decisions. Include ONLY specifics present in the source text; never infer, round, or fabricate a number, quote, name, or date, and omit any item you are unsure of. If the source contains no such specifics, write a single line "- None recorded.".',
       '',
       'actionItems: array of concrete, ownable follow-ups. Format: "[Owner], [Action] by [Timing if known]". If owner/timing is not in source, leave it generic instead of guessing.',
       '',
