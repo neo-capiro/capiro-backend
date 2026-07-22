@@ -1,5 +1,10 @@
 import { BadRequestException, Injectable, Logger, NotFoundException } from '@nestjs/common';
+import { Prisma } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service.js';
+import {
+  matchingBillIdsSql,
+  toWordBoundaryPattern,
+} from '../intelligence/bill-keyword-match.helpers.js';
 import { IntelligenceService } from '../intelligence/intelligence.service.js';
 import { issueAreaForSector, normalizeIssueArea } from '@capiro/shared';
 import { EMBEDDING_MODEL, embedText, normalize, vectorLiteral } from '../embeddings/embedder.js';
@@ -807,20 +812,24 @@ export class TrackerService {
   private async keywordCandidateIds(terms: string[], congress: number): Promise<string[]> {
     const lower = terms.map((t) => t.toLowerCase()).filter((t) => t.length >= MIN_TERM_LEN);
     if (!lower.length) return [];
-    const patterns = lower.map((n) => `\\m${n.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\M`);
-    const rows = await this.prisma.$queryRaw<Array<{ id: string }>>`
-      SELECT DISTINCT cb.id
-      FROM congress_bill cb
-      LEFT JOIN congress_bill_subject cbs ON cbs.bill_id = cb.id
-      WHERE cb.congress = ${congress}
-        AND (
-             LOWER(cbs.name) = ANY(${lower}::text[])
-          OR LOWER(cbs.name) ~ ANY(${patterns}::text[])
-          OR LOWER(cb.policy_area) = ANY(${lower}::text[])
-          OR LOWER(cb.title) ~ ANY(${patterns}::text[])
-        )
+    const patterns = lower.map(toWordBoundaryPattern);
+    // Index-backed UNION rewrite (see bill-keyword-match.helpers.ts). includePolicyRegex
+    // is false to preserve this query's original clause set (it never matched a
+    // policy_area regex, only policy_area equality).
+    const matchingIds = matchingBillIdsSql(lower, patterns, {
+      congress,
+      includePolicyRegex: false,
+    });
+    // Deterministic, recency-first candidate pool: when the match set exceeds 300
+    // the truncation is now reproducible (and biased toward recent activity)
+    // instead of physical-scan-order arbitrary. The pool is re-ranked downstream.
+    const rows = await this.prisma.$queryRaw<Array<{ id: string }>>(Prisma.sql`
+      SELECT m.id
+      FROM ${matchingIds} AS m
+      JOIN congress_bill cb ON cb.id = m.id
+      ORDER BY cb.latest_action_date DESC NULLS LAST, m.id
       LIMIT 300
-    `;
+    `);
     return rows.map((r) => r.id);
   }
 
