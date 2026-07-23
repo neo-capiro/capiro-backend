@@ -33,6 +33,7 @@ import { ComingSoonIntelligence } from './pages/intelligence/ComingSoonIntellige
 import { ChangesInboxPage } from './pages/intelligence/ChangesInboxPage.js';
 import { KnowledgeGraphPage } from './pages/intelligence/KnowledgeGraphPage.js';
 import { LiveHearingRoomPage } from './pages/intelligence/LiveHearingRoomPage.js';
+import { SenateHearingDetailPage } from './pages/intelligence/SenateHearingDetailPage.js';
 import { RadarPage } from './pages/radar/RadarPage.js';
 import { IntelligenceMappingsPage } from './pages/settings/IntelligenceMappingsPage.js';
 import { SkillsPage } from './pages/settings/SkillsPage.js';
@@ -258,6 +259,10 @@ export function App() {
           element={<Navigate to="/legiwatch?tab=hearings" replace />}
         />
         <Route path="/intelligence/hearing-watch/:id" element={<LiveHearingRoomPage />} />
+        {/* Senate auto-capture detail — deep-link only, reached from the
+            Hearings tab's "Senate Auto-Capture" sub-view, same pattern as the
+            manual live-hearing room above. */}
+        <Route path="/intelligence/senate-hearings/:id" element={<SenateHearingDetailPage />} />
         <Route path="/intelligence/issues/:code" element={<IssueLeaderboardPage />} />
         <Route path="/intelligence/bills/:bill" element={<BillDetailRedirectRoute />} />
         <Route path="/intelligence/client/:clientId" element={<Navigate to="/clients" replace />} />

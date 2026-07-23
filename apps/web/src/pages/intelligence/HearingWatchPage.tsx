@@ -13,6 +13,12 @@ import {
   type ResolveStreamResult,
   type UpcomingHearing,
 } from '../../lib/hearing-watch-api.js';
+import {
+  isSenateHearingOnAir,
+  useSenateHearings,
+  type SenateCaptureSummary,
+  type SenateHearingStatus,
+} from '../../lib/senate-hearings-api.js';
 
 const { Text } = Typography;
 
@@ -100,7 +106,58 @@ function buildPresetTitle(r: UpcomingHearing): string {
  *  hearing/markup do not. Kept in sync with intel-api's requiresConsent(). */
 const PRIVATE_SOURCE_TYPES = new Set(['meeting', 'webinar', 'agency_session']);
 
-type HearingSub = 'schedule' | 'sessions';
+type HearingSub = 'schedule' | 'sessions' | 'senate';
+
+/** Chip styling for the 6-state Senate auto-capture lifecycle (discovered →
+ *  pending → live → capturing → ended | failed | skipped). Mirrors the muted
+ *  and LIVE chip patterns already used for the manual-session status chip. */
+function senateStatusChip(status: SenateHearingStatus) {
+  if (isSenateHearingOnAir(status)) {
+    return (
+      <span
+        className="chip"
+        style={{ background: 'var(--critical)', color: '#fff', border: 'none', fontSize: 10.5 }}
+      >
+        <span className="dot pulse" style={{ background: '#fff' }} />
+        {status === 'live' ? 'LIVE' : 'CAPTURING'}
+      </span>
+    );
+  }
+  if (status === 'failed') {
+    return (
+      <span
+        className="chip"
+        style={{
+          fontSize: 10.5,
+          border: 'none',
+          background: 'var(--critical-soft)',
+          color: 'var(--critical)',
+          fontWeight: 600,
+        }}
+      >
+        Failed
+      </span>
+    );
+  }
+  // Status is a plain Prisma string column, not a DB enum (schema.prisma) — an
+  // unrecognized future value falls through to the raw string rather than
+  // silently mislabeling it as one of the known ones.
+  const label =
+    status === 'discovered'
+      ? 'Discovered'
+      : status === 'ended'
+        ? 'Ended'
+        : status === 'pending'
+          ? 'Pending'
+          : status === 'skipped'
+            ? 'Skipped'
+            : status;
+  return (
+    <span className="chip muted" style={{ fontSize: 10.5 }}>
+      {label}
+    </span>
+  );
+}
 
 /**
  * Hearing Watch body — the calm LegiWatch schedule + watch history. Two views:
@@ -139,6 +196,9 @@ export function HearingWatchPanel() {
           <button className={sub === 'sessions' ? 'active' : ''} onClick={() => setSub('sessions')}>
             My Sessions
           </button>
+          <button className={sub === 'senate' ? 'active' : ''} onClick={() => setSub('senate')}>
+            Senate Auto-Capture
+          </button>
         </div>
         <span className="grow" />
         <button className="link-btn" onClick={() => setManual({})}>
@@ -146,7 +206,13 @@ export function HearingWatchPanel() {
         </button>
       </div>
 
-      {sub === 'schedule' ? <ScheduleView onWatch={onWatch} /> : <SessionsView />}
+      {sub === 'schedule' ? (
+        <ScheduleView onWatch={onWatch} />
+      ) : sub === 'sessions' ? (
+        <SessionsView />
+      ) : (
+        <SenateAutoCaptureView />
+      )}
 
       <NewHearingModal
         open={manual !== null}
@@ -395,6 +461,116 @@ function SessionsView() {
           </div>
         );
       })}
+    </div>
+  );
+}
+
+/** ISO datetime → "Jul 23, 4:38 PM" in the viewer's local time. Distinct from
+ *  formatHearingDate above, which is for the schedule's date-only strings —
+ *  Senate auto-capture timestamps carry time-of-day, which matters for a
+ *  live/capturing row. */
+function formatSenateTimestamp(v: string | null): string {
+  if (!v) return '—';
+  const d = new Date(v);
+  if (Number.isNaN(d.getTime())) return v;
+  return d.toLocaleString(undefined, { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' });
+}
+
+/**
+ * The tenant-wide, auto-captured Senate corpus (Increment C) — a poller
+ * discovers every streamable Senate committee proceeding from senate.gov's
+ * schedule and, once SENATE_AUTO_CAPTURE is on, captures + transcribes it
+ * automatically. This is a distinct, RLS-free/global dataset from "My
+ * Sessions" (the manually-started, per-session watch history above) — no
+ * client selection, nothing to configure, just what's on the record.
+ */
+function SenateAutoCaptureView() {
+  const navigate = useNavigate();
+  const hearings = useSenateHearings();
+
+  if (hearings.isLoading) {
+    return (
+      <div style={{ padding: '48px 0', textAlign: 'center' }}>
+        <Spin />
+      </div>
+    );
+  }
+  // Gate on missing data, not isError alone — react-query never clears `data`
+  // on a failed fetch, so a transient blip during the 30s background poll
+  // would otherwise blank an already-populated (possibly on-air) table.
+  if (hearings.isError && !hearings.data) {
+    return (
+      <div className="guide plain">
+        <h4>Couldn&apos;t load Senate hearings</h4>
+        <p>Try refreshing the page.</p>
+      </div>
+    );
+  }
+
+  const rows = hearings.data ?? [];
+  const onAirCount = rows.filter((r) => isSenateHearingOnAir(r.status)).length;
+
+  return (
+    <div className="stack" style={{ gap: 12 }}>
+      <span className="hint">
+        <span className="hico">
+          <Ic n="layers" size={13} />
+        </span>
+        Every streamable Senate hearing, markup, and business meeting — discovered automatically from
+        the committee schedule{onAirCount > 0 ? `, ${onAirCount} on the air now` : ''}.
+      </span>
+      <div className="card" style={{ overflow: 'hidden' }}>
+        <table className="htable">
+          <thead>
+            <tr>
+              <th style={{ width: 150 }}>Date</th>
+              <th style={{ width: 210 }}>Committee</th>
+              <th style={{ width: 90 }}>Type</th>
+              <th>Title</th>
+              <th style={{ width: 110 }}>Status</th>
+              <th style={{ width: 90 }} />
+            </tr>
+          </thead>
+          <tbody>
+            {rows.length === 0 ? (
+              <tr>
+                <td colSpan={6} style={{ textAlign: 'center', padding: 28 }}>
+                  <span className="muted mini">
+                    No Senate proceedings discovered yet — the poller checks the committee schedule
+                    every few minutes during business hours.
+                  </span>
+                </td>
+              </tr>
+            ) : (
+              rows.map((r) => (
+                <tr
+                  key={r.id}
+                  style={{ cursor: 'pointer' }}
+                  onClick={() => navigate(`/intelligence/senate-hearings/${r.id}`)}
+                >
+                  <td className="num" style={{ whiteSpace: 'nowrap' }}>
+                    {formatSenateTimestamp(r.startedAt ?? r.scheduledAt)}
+                  </td>
+                  <td>{r.committeeName ?? '—'}</td>
+                  <td>
+                    {r.hearingType ? (
+                      <span className="chip muted" style={{ fontSize: 10.5 }}>
+                        {prettyType(r.hearingType)}
+                      </span>
+                    ) : null}
+                  </td>
+                  <td style={{ fontWeight: 500 }}>{r.title ?? r.hearingKey}</td>
+                  <td>{senateStatusChip(r.status)}</td>
+                  <td style={{ textAlign: 'right' }} className="mini muted">
+                    {r.segmentCount > 0 ? `${r.segmentCount} segs ` : ''}
+                    <Ic n="chevR" size={12} />
+                  </td>
+                </tr>
+              ))
+            )}
+          </tbody>
+        </table>
+      </div>
     </div>
   );
 }
