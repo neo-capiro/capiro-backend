@@ -5,8 +5,11 @@ import { VersioningService } from '../strategy/versioning.service.js';
 import { parseDbDate } from '../strategy/dates.js';
 import { loadStrategyDetail } from '../strategy/detail.js';
 import { isoDate } from '../strategy/versioning.js';
+import { fyOf } from '../fiscal/fiscal.js';
 import { NODE_KINDS, NODE_SUBJECTS, NODE_STATUSES } from '../strategy/dto/node.dto.js';
 import type { StrategyTypeValue } from '../strategy/dto/create-strategy.dto.js';
+import { FirmPhasesService } from '../firm-phases/firm-phases.service.js';
+import { ReferenceService, type ReferenceRow } from '../reference/reference.service.js';
 import { StrategyAiCredentialResolver } from './strategy-ai-credential.resolver.js';
 import { StrategyOrchestratorClient } from './strategy-orchestrator.client.js';
 import type { DraftNode, PlanEdit } from './meri.types.js';
@@ -46,7 +49,47 @@ export class MeriService {
     private readonly versioning: VersioningService,
     private readonly resolver: StrategyAiCredentialResolver,
     private readonly orchestrator: StrategyOrchestratorClient,
+    private readonly firmPhases: FirmPhasesService,
+    private readonly reference: ReferenceService,
   ) {}
+
+  /**
+   * Grounding the orchestrator can't fetch itself (it lives in api-strategy's
+   * sp_* tables): the live 3-FY window, the firm phases, and the merged
+   * reference calendars. Forwarded in the draft/assistant request body.
+   */
+  private async grounding(tenantId: string) {
+    const now = new Date();
+    const curFy = fyOf(now);
+    const fys = [curFy, curFy + 1, curFy + 2];
+    const fyLabels = fys.map((y) => `FY${String(y).slice(2)}`);
+    const [phases, ref] = await Promise.all([
+      this.firmPhases.list(tenantId),
+      this.reference.getCalendars(tenantId),
+    ]);
+    const lite = (rows: ReferenceRow[]) =>
+      rows.map((r) => ({
+        label: r.label,
+        fy: r.fy ?? null,
+        startsOn: isoDate(r.startsOn),
+        endsOn: isoDate(r.endsOn),
+      }));
+    return {
+      fiscal: { today: isoDate(now), fys, fyLabels, focalFy: fyLabels[1] },
+      firmPhases: phases.map((p) => ({
+        label: p.label,
+        startFy: p.startFy,
+        startQ: p.startQ,
+        endFy: p.endFy,
+        endQ: p.endQ,
+      })),
+      reference: {
+        congress: lite(ref.congress),
+        ppbeLanes: lite(ref.ppbeLanes),
+        ppbeCurrentPhases: lite(ref.ppbeCurrentPhases),
+      },
+    };
+  }
 
   async draft(tenantId: string, clerkUserId: string, bearer: string | undefined, dto: DraftStrategyDto) {
     const clientRows = await this.prisma.$queryRaw<Array<{ ok: number }>>`
@@ -55,7 +98,10 @@ export class MeriService {
       throw new BadRequestException('Unknown client for this tenant');
     }
 
-    const aiProvider = await this.resolver.resolve(tenantId);
+    const [aiProvider, ground] = await Promise.all([
+      this.resolver.resolve(tenantId),
+      this.grounding(tenantId),
+    ]);
     const resp = await this.orchestrator.draft(
       {
         clientId: dto.clientId,
@@ -64,6 +110,7 @@ export class MeriService {
         meriContext: dto.meriContext ?? null,
         targetDate: dto.targetDate ?? null,
         attachmentIds: dto.attachmentIds ?? [],
+        ...ground,
       },
       bearer,
       aiProvider,
@@ -136,7 +183,10 @@ export class MeriService {
       throw new BadRequestException('nodeId is required for node-scope assist');
     }
 
-    const aiProvider = await this.resolver.resolve(tenantId);
+    const [aiProvider, ground] = await Promise.all([
+      this.resolver.resolve(tenantId),
+      this.grounding(tenantId),
+    ]);
     const resp = await this.orchestrator.assistant(
       {
         scope: dto.scope,
@@ -145,6 +195,7 @@ export class MeriService {
         attachmentIds: dto.attachmentIds ?? [],
         clientId: strategy.clientId,
         strategy: serializeStrategy(strategy),
+        ...ground,
       },
       bearer,
       aiProvider,

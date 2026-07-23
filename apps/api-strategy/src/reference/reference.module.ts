@@ -5,5 +5,6 @@ import { ReferenceService } from './reference.service.js';
 @Module({
   controllers: [ReferenceController],
   providers: [ReferenceService],
+  exports: [ReferenceService],
 })
 export class ReferenceModule {}

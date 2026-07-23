@@ -5,5 +5,6 @@ import { FirmPhasesService } from './firm-phases.service.js';
 @Module({
   controllers: [FirmPhasesController],
   providers: [FirmPhasesService],
+  exports: [FirmPhasesService],
 })
 export class FirmPhasesModule {}

@@ -15,6 +15,9 @@ import { ChatController } from './chat/chat.controller.js';
 import { ChatAssistantService } from './chat/chat-assistant.service.js';
 import { WorkspaceGenController } from './workspace-gen/workspace-gen.controller.js';
 import { WorkspaceGenClient } from './workspace-gen/workspace-gen.client.js';
+import { StrategyController } from './strategy/strategy.controller.js';
+import { StrategyAssistantService } from './strategy/strategy-assistant.service.js';
+import { StrategyContextPackService } from './strategy/strategy-context-pack.service.js';
 
 /**
  * Hosts the MeriV2 tool registry over HTTP at `/meri-api/tools/*` plus the
@@ -25,7 +28,13 @@ import { WorkspaceGenClient } from './workspace-gen/workspace-gen.client.js';
  * in-editor + chat loops, and the tenant-scoped invocation path.
  */
 @Module({
-  controllers: [MeriController, InEditorController, ChatController, WorkspaceGenController],
+  controllers: [
+    MeriController,
+    InEditorController,
+    ChatController,
+    WorkspaceGenController,
+    StrategyController,
+  ],
   providers: [
     PrismaService,
     MeriContextResolver,
@@ -39,6 +48,8 @@ import { WorkspaceGenClient } from './workspace-gen/workspace-gen.client.js';
     InEditorAssistantService,
     ChatAssistantService,
     WorkspaceGenClient,
+    StrategyAssistantService,
+    StrategyContextPackService,
   ],
 })
 export class MeriModule {}
