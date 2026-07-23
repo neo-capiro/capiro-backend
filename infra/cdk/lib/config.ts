@@ -41,6 +41,12 @@ export interface EnvConfig {
   meriv2OrchestratorMemoryMib: number;
   meriv2OrchestratorDesiredCount: number;
   meriv2OrchestratorMaxCount: number;
+  // Strategy Planner API (separate service; /strategy-api/*). Ships dark
+  // behind per-tenant flags; owns the sp_* tables in the shared Aurora.
+  apiStrategyCpu: number;
+  apiStrategyMemoryMib: number;
+  apiStrategyDesiredCount: number;
+  apiStrategyMaxCount: number;
   // Hardening
   protectFromDestroy: boolean; // true for prod, false for dev to allow iteration
   logRetentionDays: number;
@@ -95,6 +101,10 @@ const BASE: Omit<EnvConfig, 'envName' | 'account' | 'region'> = {
   meriv2OrchestratorMemoryMib: 512,
   meriv2OrchestratorDesiredCount: 2,
   meriv2OrchestratorMaxCount: 4,
+  apiStrategyCpu: 256,
+  apiStrategyMemoryMib: 512,
+  apiStrategyDesiredCount: 2,
+  apiStrategyMaxCount: 4,
   protectFromDestroy: false,
   logRetentionDays: 90,
 };
@@ -175,6 +185,8 @@ export function loadConfig(app: cdk.App): EnvConfig {
             workspaceMaxCount: 2,
             meriv2OrchestratorDesiredCount: 1,
             meriv2OrchestratorMaxCount: 2,
+            apiStrategyDesiredCount: 1,
+            apiStrategyMaxCount: 2,
             // Aligned to LIVE reality (verified 2026-07-17: MinACU 0.5 / MaxACU 4 /
             // 35-day backup) so a post-unstick `cdk diff` does NOT shrink Aurora or
             // cut backup retention (a SOC2 concern). See DRIFT-FINDINGS.md Step C.

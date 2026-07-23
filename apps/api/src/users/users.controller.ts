@@ -9,6 +9,8 @@ import {
   meetingsV2Enabled,
   outreachAsyncFlagEnabled,
   meriDockUndockUiEnabled,
+  strategyPlannerEnabled,
+  strategyMeriActive,
   entitlementsForTenant,
 } from '../common/tenant-flags.js';
 import type { AppConfig } from '../config/config.schema.js';
@@ -147,6 +149,8 @@ export class UsersController {
           this.config.get('OUTREACH_ASYNC_SEND', { infer: true }) &&
           outreachAsyncFlagEnabled(profile.tenant?.settings),
         meriDockUndockUi: meriDockUndockUiEnabled(profile.tenant?.settings),
+        strategyPlanner: strategyPlannerEnabled(profile.tenant?.settings),
+        strategyPlannerMeri: strategyMeriActive(profile.tenant?.settings),
       },
     };
   }
@@ -225,6 +229,8 @@ export class UsersController {
           this.config.get('OUTREACH_ASYNC_SEND', { infer: true }) &&
           outreachAsyncFlagEnabled(profile.tenant?.settings),
         meriDockUndockUi: meriDockUndockUiEnabled(profile.tenant?.settings),
+        strategyPlanner: strategyPlannerEnabled(profile.tenant?.settings),
+        strategyPlannerMeri: strategyMeriActive(profile.tenant?.settings),
       },
     };
   }
