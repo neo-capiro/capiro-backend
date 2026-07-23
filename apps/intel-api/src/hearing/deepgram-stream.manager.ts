@@ -28,6 +28,8 @@ export class DeepgramStreamManager {
   private connection?: ListenLiveClient;
   private reconnectAttempts = 0;
   private closedByUs = false;
+  private firstAudioLogged = false;
+  private firstTranscriptLogged = false;
   private readonly model: string;
   private readonly endpointingMs: number;
   private readonly encoding: string;
@@ -38,7 +40,13 @@ export class DeepgramStreamManager {
     private readonly callbacks: DeepgramStreamCallbacks,
     opts?: { model?: string; endpointingMs?: number; encoding?: string; sampleRate?: number },
   ) {
-    this.model = opts?.model ?? process.env.DEEPGRAM_MODEL ?? 'nova-2';
+    // nova-3 for live streaming. The DEEPGRAM_MODEL=nova-2 env is stale: this
+    // project's Deepgram key does not serve streaming nova-2 (the socket opens
+    // then closes with no transcript — the LegiWatch "nothing transcribes"
+    // symptom), while nova-3 works on the same account (the notetaker/Recall
+    // path uses it). Env read intentionally dropped; re-add once DEEPGRAM_MODEL
+    // is reconciled to nova-3 in infra.
+    this.model = opts?.model ?? 'nova-3';
     this.endpointingMs = opts?.endpointingMs ?? Number.parseInt(process.env.DEEPGRAM_ENDPOINTING_MS ?? '300', 10);
     // Browser mic frames are opus (MediaRecorder default). Server-side ffmpeg
     // ingestion sends raw linear16 PCM at a known sample rate.
@@ -54,6 +62,10 @@ export class DeepgramStreamManager {
   /** Forward a raw audio frame to Deepgram. No-op if the socket isn't open. */
   sendAudio(chunk: Buffer): void {
     try {
+      if (!this.firstAudioLogged) {
+        this.firstAudioLogged = true;
+        this.logger.log(`deepgram first audio chunk sent (${chunk.byteLength}B)`);
+      }
       // Deepgram's send() expects an ArrayBuffer-like; pass a tightly-scoped
       // ArrayBuffer copy of the Node Buffer (avoids SharedArrayBuffer typing).
       const ab = chunk.buffer.slice(chunk.byteOffset, chunk.byteOffset + chunk.byteLength) as ArrayBuffer;
@@ -89,10 +101,24 @@ export class DeepgramStreamManager {
 
     connection.on(LiveTranscriptionEvents.Open, () => {
       this.reconnectAttempts = 0;
+      this.logger.log(
+        `deepgram open model=${this.model} encoding=${this.encoding} sampleRate=${this.sampleRate ?? 'n/a'}`,
+      );
       this.callbacks.onOpen();
     });
 
+    connection.on(LiveTranscriptionEvents.Metadata, (meta: unknown) => {
+      const m = meta as { request_id?: string } | undefined;
+      this.logger.log(`deepgram metadata request_id=${m?.request_id ?? '?'}`);
+    });
+
     connection.on(LiveTranscriptionEvents.Transcript, (data: DeepgramTranscript) => {
+      if (!this.firstTranscriptLogged) {
+        this.firstTranscriptLogged = true;
+        this.logger.log(
+          `deepgram first transcript is_final=${data.is_final ?? false} textLen=${data.channel?.alternatives?.[0]?.transcript?.length ?? 0}`,
+        );
+      }
       const alt = data.channel?.alternatives?.[0];
       if (!alt || !alt.transcript) return;
       const startMs = Math.round((data.start ?? 0) * 1000);
@@ -116,7 +142,11 @@ export class DeepgramStreamManager {
       this.callbacks.onError(err instanceof Error ? err : new Error(String(err)));
     });
 
-    connection.on(LiveTranscriptionEvents.Close, () => {
+    connection.on(LiveTranscriptionEvents.Close, (event: unknown) => {
+      const e = event as { code?: number; reason?: string } | undefined;
+      this.logger.warn(
+        `deepgram close code=${e?.code ?? '?'} reason=${e?.reason || '(none)'} closedByUs=${this.closedByUs} attempts=${this.reconnectAttempts}`,
+      );
       if (this.closedByUs) return;
       this.scheduleReconnect();
     });
