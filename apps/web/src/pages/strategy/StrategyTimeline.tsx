@@ -14,20 +14,14 @@ import {
   monthRangeLabel,
   nodeRangeLabel,
   parseDbDate,
+  shiftNodeMonths,
   type FiscalCalendar,
 } from './fiscal.js';
-import type { FirmPhase, ReferenceRow, StrategyNode, NodeKind } from './types.js';
+import type { FirmPhase, ReferenceRow, StrategyNode } from './types.js';
+import { NODE_KIND_META as NODE_KIND } from './constants.js';
 
 const COLW = 100;
 const LABELW = 176;
-
-const NODE_KIND: Record<NodeKind, { letter: string; label: string; color: string; ink: string }> = {
-  action: { letter: 'A', label: 'Action', color: 'var(--accent)', ink: 'var(--accent-ink)' },
-  decision: { letter: 'D', label: 'Decision', color: 'var(--notable)', ink: 'var(--notable)' },
-  gate: { letter: 'G', label: 'Gate', color: '#5B6472', ink: '#434B57' },
-  milestone: { letter: 'M', label: 'Milestone', color: 'var(--success)', ink: 'var(--success)' },
-  risk: { letter: 'R', label: 'Risk', color: 'var(--critical)', ink: 'var(--critical)' },
-};
 
 const tint = (hex: string, a: number) => {
   const n = parseInt(hex.slice(1), 16);
@@ -78,6 +72,8 @@ export interface TimelineProps {
   layers: { ppbe: boolean; congress: boolean };
   selectedId: string | null;
   onSelectNode: (id: string) => void;
+  /** Persist a drag-retimed node (TLN-12). Omit for read-only surfaces. */
+  onRetime?: (nodeId: string, startsOn: string, endsOn: string | null, title: string) => void;
 }
 
 export function StrategyTimeline({
@@ -90,6 +86,7 @@ export function StrategyTimeline({
   layers,
   selectedId,
   onSelectNode,
+  onRetime,
 }: TimelineProps) {
   const months = calendar.months;
   const NM = months.length;
@@ -106,6 +103,12 @@ export function StrategyTimeline({
   const togglePin = (a: number, b: number) =>
     setPin((p) => (p && p[0] === a && p[1] === b ? null : [a, b]));
 
+  // ---- drag-to-retime (TLN-12) — only when onRetime is provided ----
+  const [drag, setDrag] = useState<{ nodeId: string; dx: number } | null>(null);
+  const dragRef = useRef<{ nodeId: string; startX: number; moved: boolean } | null>(null);
+  const suppressClick = useRef(false);
+  const dragActive = drag !== null;
+
   useEffect(() => {
     const el = scrollRef.current;
     if (!el) return;
@@ -113,6 +116,45 @@ export function StrategyTimeline({
     target.scrollLeft = Math.max(0, mLeft(TODAY_M) - COLW * 1.5);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  useEffect(() => {
+    if (!dragActive) return;
+    const onMove = (e: MouseEvent) => {
+      const st = dragRef.current;
+      if (!st) return;
+      const dx = e.clientX - st.startX;
+      if (Math.abs(dx) > 4) st.moved = true;
+      setDrag((prev) => (prev ? { nodeId: prev.nodeId, dx } : prev));
+    };
+    const onUp = (e: MouseEvent) => {
+      const st = dragRef.current;
+      dragRef.current = null;
+      setDrag(null);
+      if (!st) return;
+      if (!st.moved) return; // a click, not a drag — onClick selects
+      // Suppress the synthetic click that follows this drag-release, but clear
+      // the flag on the next tick so a release that lands off-card never eats a
+      // later legitimate card click.
+      suppressClick.current = true;
+      window.setTimeout(() => {
+        suppressClick.current = false;
+      }, 0);
+      const deltaMonths = Math.round((e.clientX - st.startX) / COLW);
+      if (deltaMonths === 0 || !onRetime) return;
+      const node = nodes.find((nn) => nn.id === st.nodeId);
+      if (!node) return;
+      const shifted = shiftNodeMonths(node.startsOn, node.endsOn, deltaMonths, calendar);
+      if (shifted.applied !== 0) {
+        onRetime(st.nodeId, shifted.startsOn, shifted.endsOn, node.title);
+      }
+    };
+    window.addEventListener('mousemove', onMove);
+    window.addEventListener('mouseup', onUp);
+    return () => {
+      window.removeEventListener('mousemove', onMove);
+      window.removeEventListener('mouseup', onUp);
+    };
+  }, [dragActive, nodes, calendar, onRetime]);
 
   // ---- q helpers for real (date-backed) rows ----
   // @db.Date values arrive as UTC-midnight ISO; parseDbDate preserves the
@@ -896,11 +938,27 @@ export function StrategyTimeline({
                     k.label.toUpperCase() +
                     ' · ' +
                     nodeRangeLabel(nodeQ(n), nodeQ(n) + nodeDur(n), calendar);
+                  const isDragging = drag?.nodeId === n.id;
+                  const dragDx = isDragging && drag ? Math.round(drag.dx / COLW) * COLW : 0;
                   return (
                     <div
                       key={n.id}
+                      onMouseDown={
+                        onRetime
+                          ? (ev) => {
+                              if (ev.button !== 0) return;
+                              ev.preventDefault();
+                              dragRef.current = { nodeId: n.id, startX: ev.clientX, moved: false };
+                              setDrag({ nodeId: n.id, dx: 0 });
+                            }
+                          : undefined
+                      }
                       onClick={(ev) => {
                         ev.stopPropagation();
+                        if (suppressClick.current) {
+                          suppressClick.current = false;
+                          return;
+                        }
                         onSelectNode(n.id);
                       }}
                       onMouseEnter={() => setHover([tS, tE])}
@@ -913,7 +971,10 @@ export function StrategyTimeline({
                         border: `${sel ? 1.5 : 1}px ${dashed ? 'dashed' : 'solid'} ${sel ? k.color : risk ? tint('#B5301B', 0.4) : 'var(--border-2)'}`,
                         borderRadius: 9,
                         padding: '10px 13px',
-                        cursor: 'pointer',
+                        cursor: onRetime ? (isDragging ? 'grabbing' : 'grab') : 'pointer',
+                        transform: dragDx ? `translateX(${dragDx}px)` : undefined,
+                        transition: isDragging ? 'none' : 'transform 0.12s',
+                        zIndex: isDragging ? 5 : undefined,
                         boxShadow: sel
                           ? '0 6px 18px rgba(12,26,56,0.16)'
                           : '0 1px 2px rgba(12,26,56,0.05)',

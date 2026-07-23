@@ -166,6 +166,11 @@ model SpVersion {
   authorUserId          String?      @map("author_user_id")
   note                  String
   restoredFromVersionId String?      @map("restored_from_version_id") @db.Uuid
+  // True only for coalescible field-edit batches — the versioning policy folds a
+  // consecutive same-author field edit into the latest coalescible version;
+  // structural events (add/delete/create/restore) and Meri versions are false so
+  // they always stand alone in history.
+  coalescible           Boolean      @default(false)
   createdAt             DateTime     @default(now()) @map("created_at")
 
   strategy SpStrategy @relation(fields: [strategyId], references: [id], onDelete: Cascade, onUpdate: Cascade)

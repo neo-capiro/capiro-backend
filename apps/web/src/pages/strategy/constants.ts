@@ -1,4 +1,4 @@
-import type { StrategyType } from './types.js';
+import type { NodeKind, NodeStatus, NodeSubject, StrategyType } from './types.js';
 
 /** Objective types (verbatim from the prototype OBJECTIVE_TYPES). */
 export const OBJECTIVE_TYPES: Array<{ id: StrategyType; label: string; desc: string }> = [
@@ -41,6 +41,56 @@ export const STRATEGY_TYPE_LABEL: Record<StrategyType, string> = OBJECTIVE_TYPES
   },
   {} as Record<StrategyType, string>,
 );
+
+/**
+ * Node-kind display metadata (letter chip, label, accent colors). Shared by the
+ * timeline cards and the node rail so they never drift. Verbatim from the
+ * prototype NODE_KIND.
+ */
+export const NODE_KIND_META: Record<
+  NodeKind,
+  { letter: string; label: string; color: string; ink: string }
+> = {
+  action: { letter: 'A', label: 'Action', color: 'var(--accent)', ink: 'var(--accent-ink)' },
+  decision: { letter: 'D', label: 'Decision', color: 'var(--notable)', ink: 'var(--notable)' },
+  gate: { letter: 'G', label: 'Gate', color: '#5B6472', ink: '#434B57' },
+  milestone: { letter: 'M', label: 'Milestone', color: 'var(--success)', ink: 'var(--success)' },
+  risk: { letter: 'R', label: 'Risk', color: 'var(--critical)', ink: 'var(--critical)' },
+};
+
+/** The 8 node subjects (schema order). */
+export const NODE_SUBJECTS: NodeSubject[] = [
+  'deliverable',
+  'submission',
+  'member',
+  'committee',
+  'ask',
+  'agency',
+  'outcome',
+  'optics',
+];
+
+/** Human-cased subject labels (summary line + Subject select), so subject reads
+ *  consistently with the Type/Status labels rather than a raw lowercase enum. */
+export const NODE_SUBJECT_LABEL: Record<NodeSubject, string> = {
+  deliverable: 'Deliverable',
+  submission: 'Submission',
+  member: 'Member',
+  committee: 'Committee',
+  ask: 'Ask',
+  agency: 'Agency',
+  outcome: 'Outcome',
+  optics: 'Optics',
+};
+
+/** Node status options with human labels (NOD-7 status select). */
+export const NODE_STATUS_OPTIONS: Array<{ id: NodeStatus; label: string }> = [
+  { id: 'draft', label: 'Draft' },
+  { id: 'in_progress', label: 'In Progress' },
+  { id: 'internal_review', label: 'Internal Review' },
+  { id: 'active', label: 'Active' },
+  { id: 'suggested', label: 'Suggested' },
+];
 
 /** "2 hours ago" / "Yesterday" / "Jan 24" — compact relative time for list rows. */
 export function relativeTime(iso: string | null): string {

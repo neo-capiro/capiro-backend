@@ -24,6 +24,10 @@ type TenantScope = { tenantId: string; bypass?: false } | { bypass: true };
 
 // Operations that carry a `where` we can constrain. create/createMany are
 // intentionally excluded (no where; the caller writes an explicit tenantId).
+// NOTE: `upsert` is included, but the hook only scopes its `where` — its
+// `create` branch is NOT injected, so any future upsert caller on a
+// tenant-scoped sp_* model MUST set tenantId explicitly in the create payload
+// (same rule as create/createMany).
 const WHERE_BEARING_OPS = new Set<string>([
   'findMany',
   'findFirst',

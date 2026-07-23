@@ -95,3 +95,21 @@
     opacity: 0.85;
   }
 }
+
+/* Editor rail slide-in (SHL-4: "344px slide, 0.28s"). */
+@keyframes sp-rail-in {
+  from {
+    transform: translateX(344px);
+  }
+  to {
+    transform: translateX(0);
+  }
+}
+.sp-root .sp-rail-in {
+  animation: sp-rail-in 0.28s cubic-bezier(0.4, 0, 0.2, 1);
+}
+@media (prefers-reduced-motion: reduce) {
+  .sp-root .sp-rail-in {
+    animation: none;
+  }
+}

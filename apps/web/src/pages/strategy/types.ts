@@ -120,3 +120,54 @@ export interface CreateStrategyInput {
   targetDate?: string;
   meriContext?: string;
 }
+
+export interface StrategyVersion {
+  id: string;
+  authorKind: 'person' | 'meri';
+  authorUserId: string | null;
+  note: string;
+  restoredFromVersionId: string | null;
+  createdAt: string;
+}
+
+export interface VersionsPage {
+  items: StrategyVersion[];
+  nextCursor: string | null;
+}
+
+/** Manual node create (SHL-7). meriAuthored is server-set (never client). */
+export interface CreateNodeInput {
+  kind: NodeKind;
+  subject: NodeSubject;
+  title: string;
+  note?: string | null;
+  ownerUserId?: string | null;
+  status?: NodeStatus;
+  startsOn: string; // YYYY-MM-DD
+  endsOn?: string | null;
+  openEnded?: boolean;
+}
+
+/** Partial node update (NOD-5/7, TLN-12). changeNote = version/flash label. */
+export interface UpdateNodeInput {
+  kind?: NodeKind;
+  subject?: NodeSubject;
+  title?: string;
+  note?: string | null;
+  ownerUserId?: string | null;
+  status?: NodeStatus;
+  startsOn?: string;
+  endsOn?: string | null;
+  openEnded?: boolean;
+  changeNote?: string;
+}
+
+export interface PatchStrategyInput {
+  title?: string;
+  type?: StrategyType;
+  goal?: string | null;
+  meriContext?: string | null;
+  targetDate?: string | null;
+  ownerUserId?: string;
+  changeNote?: string;
+}

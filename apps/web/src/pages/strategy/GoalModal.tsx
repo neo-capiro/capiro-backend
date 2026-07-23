@@ -1,18 +1,19 @@
 /*
  * Create-a-strategy modal (CRT) — ported from the prototype sp-landing.jsx
- * GoalModal. G2 = MANUAL create only: the "Start from a document" uploader and
- * the "Draft with Meri" progress takeover are deferred to G5 (AI). The type
- * picker is rendered per plan D5 (the prototype defined OBJECTIVE_TYPES but
- * never showed a picker). Owner defaults to the current user (the api-strategy
- * create defaults ownerUserId to the creator); a full org-member owner picker
- * is a later refinement.
+ * GoalModal. MANUAL create: the "Start from a document" uploader and the
+ * "Draft with Meri" progress takeover are deferred to G5 (AI). The type picker
+ * is rendered per plan D5 (the prototype defined OBJECTIVE_TYPES but never
+ * showed a picker). The CRT-6 owner picker is a searchable org-member dropdown
+ * (OwnerPicker) defaulting to the current user.
  */
 import { useState } from 'react';
 import { App as AntApp } from 'antd';
 import { useUser } from '@clerk/clerk-react';
-import { Overlay, Icon, Ava, btnPrimary, btnGhost, iconBtn, lbl } from './strategy-ui.js';
+import { Overlay, Icon, btnPrimary, btnGhost, iconBtn, lbl } from './strategy-ui.js';
+import { OwnerPicker } from './OwnerPicker.js';
 import { OBJECTIVE_TYPES } from './constants.js';
 import { useCreateStrategy } from './api.js';
+import { useTenantMembers } from './members.js';
 import type { ClientLite } from './clients-lite.js';
 import type { StrategyType } from './types.js';
 
@@ -28,20 +29,15 @@ export function GoalModal({
   const { user } = useUser();
   const { message } = AntApp.useApp();
   const create = useCreateStrategy();
+  const members = useTenantMembers();
 
   const [type, setType] = useState<StrategyType>('appropriations');
   const [client, setClient] = useState('');
   const [goal, setGoal] = useState('');
   const [deadline, setDeadline] = useState('');
   const [context, setContext] = useState('');
-
-  const ownerInitials =
-    (user?.fullName ?? '')
-      .split(/\s+/)
-      .map((p) => p[0])
-      .slice(0, 2)
-      .join('')
-      .toUpperCase() || '··';
+  const [owner, setOwner] = useState<string | null>(null);
+  const effectiveOwner = owner ?? user?.id ?? null;
 
   const submit = async () => {
     if (!client) return;
@@ -50,6 +46,7 @@ export function GoalModal({
         clientId: client,
         type,
         goal: goal.trim() || undefined,
+        ownerUserId: effectiveOwner ?? undefined,
         targetDate: deadline || undefined,
         meriContext: context.trim() || undefined,
       });
@@ -175,29 +172,7 @@ export function GoalModal({
           <div style={{ display: 'flex', gap: 14, marginTop: 18 }}>
             <div style={{ flex: 1 }}>
               <label style={lbl}>Owner</label>
-              <div
-                style={{
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: 8,
-                  border: '1px solid var(--border-2)',
-                  borderRadius: 9,
-                  padding: '7px 11px',
-                  background: 'var(--bg-surface-2)',
-                }}
-              >
-                <Ava id={ownerInitials} size={22} />
-                <span
-                  style={{
-                    flex: 1,
-                    fontSize: 'var(--text-base)',
-                    color: 'var(--ink-1)',
-                    fontWeight: 600,
-                  }}
-                >
-                  {user?.fullName ?? 'You'}
-                </span>
-              </div>
+              <OwnerPicker members={members.data ?? []} value={effectiveOwner} onChange={setOwner} />
             </div>
             <div style={{ flex: 1 }}>
               <label style={lbl}>

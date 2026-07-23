@@ -1,5 +1,15 @@
 import { describe, expect, it } from 'vitest';
-import { buildCalendar, fyOf, qOfDate, fyQuarterToQ, qToDate } from './fiscal.js';
+import {
+  buildCalendar,
+  fyOf,
+  qOfDate,
+  fyQuarterToQ,
+  qToDate,
+  addMonths,
+  formatDbDate,
+  parseDbDate,
+  shiftNodeMonths,
+} from './fiscal.js';
 
 describe('strategy fiscal calendar', () => {
   const now = new Date(2027, 0, 15); // Jan 15 2027 → FY2027
@@ -45,5 +55,34 @@ describe('strategy fiscal calendar', () => {
     const q = qOfDate(new Date(2027, 1, 6), cal);
     expect(q).toBeGreaterThan(1);
     expect(q).toBeLessThan(2);
+  });
+
+  it('formatDbDate round-trips through parseDbDate', () => {
+    expect(formatDbDate(parseDbDate('2027-02-06'))).toBe('2027-02-06');
+  });
+
+  it('addMonths clamps the day to the target month length', () => {
+    expect(formatDbDate(addMonths(new Date(2027, 0, 31), 1))).toBe('2027-02-28'); // Jan 31 → Feb
+  });
+
+  it('shiftNodeMonths shifts start+end by the same delta (duration preserved)', () => {
+    const r = shiftNodeMonths('2027-02-06', '2027-04-06', 3, cal);
+    expect(r.applied).toBe(3);
+    expect(r.startsOn).toBe('2027-05-06');
+    expect(r.endsOn).toBe('2027-07-06');
+  });
+
+  it('shiftNodeMonths clamps at the window end (no shift past the last month)', () => {
+    // Sep 2029 is the last shown month; +3 clamps to a no-op.
+    const r = shiftNodeMonths('2029-09-15', null, 3, cal);
+    expect(r.applied).toBe(0);
+    expect(r.startsOn).toBe('2029-09-15');
+  });
+
+  it('shiftNodeMonths handles a null end (point event)', () => {
+    const r = shiftNodeMonths('2027-02-06', null, -1, cal);
+    expect(r.applied).toBe(-1);
+    expect(r.startsOn).toBe('2027-01-06');
+    expect(r.endsOn).toBeNull();
   });
 });

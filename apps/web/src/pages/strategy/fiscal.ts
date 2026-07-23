@@ -170,3 +170,47 @@ export function parseDbDate(iso: string): Date {
   const [y, m, d] = iso.slice(0, 10).split('-').map(Number);
   return new Date(y!, (m ?? 1) - 1, d ?? 1);
 }
+
+/** Format a local Date back to YYYY-MM-DD (round-trips with parseDbDate). */
+export function formatDbDate(d: Date): string {
+  const y = d.getFullYear();
+  const m = String(d.getMonth() + 1).padStart(2, '0');
+  const day = String(d.getDate()).padStart(2, '0');
+  return `${y}-${m}-${day}`;
+}
+
+/** Add n calendar months, clamping the day to the target month's length. */
+export function addMonths(d: Date, n: number): Date {
+  const base = new Date(d.getFullYear(), d.getMonth() + n, 1);
+  const dim = new Date(base.getFullYear(), base.getMonth() + 1, 0).getDate();
+  return new Date(base.getFullYear(), base.getMonth(), Math.min(d.getDate(), dim));
+}
+
+/** Whole-month index of a date from the axis origin (0 = first shown month). */
+export function monthIndexOf(d: Date, cal: FiscalCalendar): number {
+  return Math.floor(dateToMonthUnits(d, cal.axisStart));
+}
+
+/**
+ * Shift a node's start (and, to preserve duration, its end) by `deltaMonths`,
+ * clamped so the START stays within the visible axis window. Returns the new
+ * YYYY-MM-DD strings and the delta actually applied (0 when fully clamped).
+ */
+export function shiftNodeMonths(
+  startIso: string,
+  endIso: string | null,
+  deltaMonths: number,
+  cal: FiscalCalendar,
+): { startsOn: string; endsOn: string | null; applied: number } {
+  const start = parseDbDate(startIso);
+  const idx = monthIndexOf(start, cal);
+  const lastIdx = cal.months.length - 1;
+  const clampedIdx = Math.max(0, Math.min(lastIdx, idx + deltaMonths));
+  const applied = clampedIdx - idx;
+  if (applied === 0) return { startsOn: startIso, endsOn: endIso, applied: 0 };
+  return {
+    startsOn: formatDbDate(addMonths(start, applied)),
+    endsOn: endIso ? formatDbDate(addMonths(parseDbDate(endIso), applied)) : null,
+    applied,
+  };
+}

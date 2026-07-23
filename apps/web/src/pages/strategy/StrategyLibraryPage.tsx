@@ -6,10 +6,10 @@
  */
 import { useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { useUser } from '@clerk/clerk-react';
 import { Icon, Ava, Chip, btnPrimary } from './strategy-ui.js';
 import { useStrategies, useFirmPhases } from './api.js';
 import { useClientsLite, clientColor } from './clients-lite.js';
+import { useTenantMembers, memberName, initialsOf } from './members.js';
 import { STRATEGY_TYPE_LABEL, relativeTime } from './constants.js';
 import { GoalModal } from './GoalModal.js';
 import type { StrategyListItem } from './types.js';
@@ -27,34 +27,18 @@ const selS: React.CSSProperties = {
 
 export function StrategyLibraryPage() {
   const navigate = useNavigate();
-  const { user } = useUser();
   const strategies = useStrategies();
   const firmPhases = useFirmPhases();
   const clients = useClientsLite();
+  const members = useTenantMembers();
 
   const [goalOpen, setGoalOpen] = useState(false);
   const [fc, setFc] = useState('all'); // client filter
   const [fo, setFo] = useState('all'); // owner filter
 
   const clientName = (id: string) => clients.data?.find((c) => c.id === id)?.name ?? 'Client';
-  const ownerLabel = (ownerUserId: string) =>
-    user?.id === ownerUserId ? (user?.fullName ?? 'You') : 'Team member';
-  const ownerInitials = (ownerUserId: string) => {
-    if (user?.id === ownerUserId && user?.fullName) {
-      return user.fullName
-        .split(/\s+/)
-        .map((p) => p[0])
-        .slice(0, 2)
-        .join('')
-        .toUpperCase();
-    }
-    return (
-      ownerUserId
-        .replace(/[^a-zA-Z]/g, '')
-        .slice(0, 2)
-        .toUpperCase() || '··'
-    );
-  };
+  const ownerLabel = (ownerUserId: string) => memberName(members.data, ownerUserId);
+  const ownerInitials = (ownerUserId: string) => initialsOf(memberName(members.data, ownerUserId));
 
   const list = useMemo(() => {
     const rows = strategies.data ?? [];

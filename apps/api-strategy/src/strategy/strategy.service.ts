@@ -1,15 +1,24 @@
 import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
+import { Prisma } from '../../generated/prisma-client/index.js';
 import { PrismaService } from '../prisma/prisma.service.js';
+import { VersioningService } from './versioning.service.js';
+import { parseDbDate } from './dates.js';
+import { loadStrategyDetail } from './detail.js';
 import type { CreateStrategyDto, StrategyTypeValue } from './dto/create-strategy.dto.js';
+import type { PatchStrategyDto } from './dto/patch-strategy.dto.js';
 
 /**
- * Strategy read + manual-create (G2). All access goes through withTenant /
- * withTenantUser (the query hook injects where.tenantId). Node CRUD, versions,
- * and the Meri assistant arrive in G3/G5.
+ * Strategy read + manual-create + meta-patch. All access goes through
+ * withTenant / withTenantUser (the query hook injects where.tenantId). Node
+ * CRUD lives in NodeService; history/restore in VersionService; the Meri
+ * assistant arrives in G5.
  */
 @Injectable()
 export class StrategyService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly versioning: VersioningService,
+  ) {}
 
   /** Library list projection: active (non-archived) strategies, newest-edited first. */
   async list(tenantId: string) {
@@ -63,11 +72,22 @@ export class StrategyService {
     return strategy;
   }
 
-  /** Manual create: empty strategy + an attributed activity-log row, in one tx. */
+  /** Manual create: empty strategy + version 1 + an attributed activity-log row, in one tx. */
   async create(tenantId: string, clerkUserId: string, dto: CreateStrategyDto) {
     const owner = dto.ownerUserId?.trim() || clerkUserId;
     const title = deriveTitle(dto);
-    const targetDate = parseTargetDate(dto.targetDate);
+    const targetDate = dto.targetDate ? parseDbDate(dto.targetDate, 'targetDate') : null;
+
+    // clientId is a cross-schema reference (no FK); validate it belongs to the
+    // caller's tenant so a strategy can't be created against a foreign client
+    // id. Raw read against apps/api's clients table (capiro_app bypasses RLS,
+    // so the explicit tenant_id predicate is the guard) — mirrors the flags
+    // service's cross-schema tenants read.
+    const clientRows = await this.prisma.$queryRaw<Array<{ ok: number }>>`
+      SELECT 1 AS ok FROM clients WHERE id = ${dto.clientId}::uuid AND tenant_id = ${tenantId}::uuid LIMIT 1`;
+    if (clientRows.length === 0) {
+      throw new BadRequestException('Unknown client for this tenant');
+    }
 
     return this.prisma.withTenantUser(tenantId, clerkUserId, async (tx) => {
       const strategy = await tx.spStrategy.create({
@@ -97,24 +117,80 @@ export class StrategyService {
           after: { title: strategy.title, type: strategy.type, clientId: strategy.clientId },
         },
       });
+      // Version 1 — the empty (or, in G5, Meri-drafted) baseline the history
+      // and restore paths anchor on.
+      await this.versioning.cutVersion(tx, {
+        tenantId,
+        strategyId: strategy.id,
+        authorKind: 'person',
+        authorUserId: clerkUserId,
+        note: 'Created strategy',
+        coalesce: false,
+      });
       return strategy;
     });
   }
-}
 
-/**
- * Parse the optional YYYY-MM-DD deadline into a Date for the @db.Date column.
- * The DTO regex guarantees the shape, but calendar-impossible values that still
- * match the pattern (e.g. 2027-02-30) parse to an Invalid Date — reject those
- * rather than letting a NaN Date reach Prisma.
- */
-function parseTargetDate(value: string | undefined): Date | null {
-  if (!value) return null;
-  const d = new Date(value);
-  if (Number.isNaN(d.getTime())) {
-    throw new BadRequestException('targetDate is not a valid calendar date');
+  /** Strategy meta edit (title/type/owner/targetDate/goal/meriContext). */
+  async patchMeta(
+    tenantId: string,
+    clerkUserId: string,
+    strategyId: string,
+    dto: PatchStrategyDto,
+  ) {
+    return this.prisma.withTenantUser(tenantId, clerkUserId, async (tx) => {
+      const strat = await tx.spStrategy.findFirst({ where: { id: strategyId } });
+      if (!strat) throw new NotFoundException('Strategy not found');
+
+      const data: Record<string, unknown> = {};
+      const before: Record<string, unknown> = {};
+      const set = (key: string, value: unknown, prev: unknown) => {
+        data[key] = value;
+        before[key] = prev;
+      };
+      if (dto.title !== undefined) set('title', dto.title, strat.title);
+      if (dto.type !== undefined) set('type', dto.type, strat.type);
+      if (dto.goal !== undefined) set('goal', dto.goal, strat.goal);
+      if (dto.meriContext !== undefined) set('meriContext', dto.meriContext, strat.meriContext);
+      if (dto.targetDate !== undefined) {
+        set(
+          'targetDate',
+          dto.targetDate === null ? null : parseDbDate(dto.targetDate, 'targetDate'),
+          strat.targetDate,
+        );
+      }
+      if (dto.ownerUserId !== undefined) set('ownerUserId', dto.ownerUserId, strat.ownerUserId);
+
+      if (Object.keys(data).length === 0) {
+        return loadStrategyDetail(tx, strategyId);
+      }
+      data.lastEditedByUserId = clerkUserId;
+      data.lastEditedAt = new Date();
+      await tx.spStrategy.update({
+        where: { id: strategyId },
+        data: data as Prisma.SpStrategyUpdateInput,
+      });
+      await this.versioning.cutVersion(tx, {
+        tenantId,
+        strategyId,
+        authorKind: 'person',
+        authorUserId: clerkUserId,
+        note: dto.changeNote?.trim() || 'Updated strategy details',
+        coalesce: true,
+      });
+      await this.versioning.logActivity(tx, {
+        tenantId,
+        actorUserId: clerkUserId,
+        authorKind: 'person',
+        action: 'strategy.updated',
+        entityType: 'strategy',
+        entityId: strategyId,
+        before,
+        after: data,
+      });
+      return loadStrategyDetail(tx, strategyId);
+    });
   }
-  return d;
 }
 
 /** Manual create has no title field; derive one from the goal, else a default. */

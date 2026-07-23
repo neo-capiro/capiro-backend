@@ -1,33 +1,58 @@
 /*
- * Strategy editor shell (SHL read paths) — ported from the prototype
- * sp-app.jsx `StrategyView` frame: back button, {CLIENT}·{type} eyebrow +
- * title, Layers chips (PPBE + Congress; Meetings deferred per plan D18),
- * Export + History affordances (present; Export ships in G6, History in G3),
- * and the read-only timeline. The Meri rail, "Add step", drag-retime, and node
- * editing arrive in G3/G5.
+ * Strategy editor shell — prototype sp-app StrategyView frame + the G3 editing
+ * surface: node rail (select → edit fields / quick actions / delete), Add step,
+ * drag-to-retime, version history + restore, applied-confirmation flashes. The
+ * Meri "Ask Meri" CTA + rail assistant land in G5 (behind strategyPlannerMeri);
+ * with it off the rail opens via an "Edit panel" ghost button (SHL-4).
  */
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
+import { useUser } from '@clerk/clerk-react';
+import { App } from 'antd';
 import { Icon, btnGhost, iconBtn } from './strategy-ui.js';
 import { StrategyTimeline } from './StrategyTimeline.js';
-import { useStrategy, useReferenceCalendars, useFirmPhases } from './api.js';
+import { EditorRail } from './NodeRail.js';
+import { HistoryModal } from './HistoryModal.js';
+import { useStrategy, useReferenceCalendars, useFirmPhases, useAddNode, useUpdateNode } from './api.js';
 import { useClientsLite } from './clients-lite.js';
+import { useTenantMembers } from './members.js';
+import { useMe } from '../../lib/me.js';
 import { STRATEGY_TYPE_LABEL } from './constants.js';
-import { buildCalendar } from './fiscal.js';
+import { buildCalendar, formatDbDate } from './fiscal.js';
 
 type LayerKey = 'ppbe' | 'congress';
 
 export function StrategyEditorPage() {
   const { id = null } = useParams();
   const navigate = useNavigate();
+  const { user } = useUser();
+  const { message } = App.useApp();
   const strategy = useStrategy(id);
   const reference = useReferenceCalendars();
   const firmPhases = useFirmPhases();
   const clients = useClientsLite();
+  const members = useTenantMembers();
+  const me = useMe();
 
   const calendar = useMemo(() => buildCalendar(new Date()), []);
   const [layers, setLayers] = useState<Record<LayerKey, boolean>>({ ppbe: true, congress: true });
   const [selectedId, setSelectedId] = useState<string | null>(null);
+  const [railOpen, setRailOpen] = useState(false);
+  const [historyOpen, setHistoryOpen] = useState(false);
+  const [applied, setApplied] = useState<string | null>(null);
+  const flashTimer = useRef<number>();
+
+  const addNode = useAddNode(id ?? '');
+  const updateNode = useUpdateNode(id ?? '');
+
+  const flash = (msg: string) => {
+    setApplied(msg);
+    window.clearTimeout(flashTimer.current);
+    flashTimer.current = window.setTimeout(() => setApplied(null), 4000);
+  };
+  useEffect(() => () => window.clearTimeout(flashTimer.current), []);
+
+  const meriEnabled = Boolean(me.data?.features?.strategyPlannerMeri);
 
   if (strategy.isLoading) {
     return <div style={{ padding: 40, color: 'var(--ink-3)' }}>Loading strategy…</div>;
@@ -44,22 +69,46 @@ export function StrategyEditorPage() {
   }
 
   const s = strategy.data;
+  const sid = s.id;
   const clientName = clients.data?.find((c) => c.id === s.clientId)?.name ?? 'Client';
+  const selectedNode = s.nodes.find((n) => n.id === selectedId) ?? null;
 
   const layerDefs: Array<[LayerKey, string, string]> = [
     ['ppbe', 'PPBE', 'var(--info)'],
     ['congress', 'Congress', 'var(--accent)'],
   ];
 
+  const selectNode = (nid: string) => {
+    setSelectedId(nid);
+    setRailOpen(true);
+  };
+
+  const onAddStep = () => {
+    const existing = new Set(s.nodes.map((n) => n.id));
+    const startsOn = formatDbDate(new Date(Date.now() + 30 * 86_400_000));
+    addNode.mutate(
+      { kind: 'action', subject: 'deliverable', title: 'New step', status: 'draft', startsOn },
+      {
+        onSuccess: (detail) => {
+          const created = detail.nodes.find((n) => !existing.has(n.id));
+          if (created) selectNode(created.id);
+          flash('Step added.');
+        },
+        onError: () => message.error('Could not add a step.'),
+      },
+    );
+  };
+
+  const onRetime = (nodeId: string, startsOn: string, endsOn: string | null, title: string) => {
+    updateNode.mutate(
+      { nodeId, input: { startsOn, endsOn, changeNote: `Re-timed ${title}` } },
+      { onSuccess: () => flash(`Re-timed ${title}`), onError: () => message.error('Could not re-time the step.') },
+    );
+  };
+
   return (
     <div
-      style={{
-        flex: 1,
-        display: 'flex',
-        flexDirection: 'column',
-        overflow: 'hidden',
-        height: '100%',
-      }}
+      style={{ flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden', height: '100%' }}
     >
       <div
         style={{
@@ -146,19 +195,26 @@ export function StrategyEditorPage() {
                   fontWeight: 600,
                 }}
               >
-                <span
-                  style={{
-                    width: 8,
-                    height: 8,
-                    borderRadius: 2,
-                    background: on ? c : 'var(--ink-4)',
-                  }}
-                />
+                <span style={{ width: 8, height: 8, borderRadius: 2, background: on ? c : 'var(--ink-4)' }} />
                 {label}
               </button>
             );
           })}
           <span style={{ flex: 1 }} />
+
+          <button
+            onClick={onAddStep}
+            disabled={addNode.isPending}
+            style={{ ...btnGhost, padding: '8px 12px', fontSize: 'var(--text-sm)' }}
+          >
+            <Icon name="plus" size={14} color="var(--ink-2)" /> Add step
+          </button>
+          <button
+            onClick={() => setHistoryOpen(true)}
+            style={{ ...btnGhost, padding: '8px 12px', fontSize: 'var(--text-sm)' }}
+          >
+            <Icon name="clock" size={14} color="var(--ink-2)" /> History
+          </button>
           <button
             style={{
               ...btnGhost,
@@ -172,47 +228,96 @@ export function StrategyEditorPage() {
           >
             <Icon name="upload" size={14} color="var(--ink-2)" /> Export
           </button>
-          <button
-            style={{
-              ...btnGhost,
-              padding: '8px 12px',
-              fontSize: 'var(--text-sm)',
-              opacity: 0.5,
-              cursor: 'not-allowed',
-            }}
-            title="Version history ships in a later phase"
-            disabled
-          >
-            <Icon name="clock" size={14} color="var(--ink-2)" /> History
-          </button>
+          {!railOpen &&
+            (meriEnabled ? (
+              // AI on (G5): accent "Ask Meri" CTA.
+              <button
+                onClick={() => setRailOpen(true)}
+                style={{
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: 8,
+                  whiteSpace: 'nowrap',
+                  padding: '8px 16px',
+                  borderRadius: 9,
+                  border: 'none',
+                  background: 'var(--accent)',
+                  color: '#fff',
+                  fontSize: 'var(--text-sm)',
+                  fontWeight: 700,
+                  fontFamily: 'var(--font-sans)',
+                  cursor: 'pointer',
+                }}
+              >
+                <Icon name="spark" size={14} color="#fff" /> Ask Meri
+              </button>
+            ) : (
+              // AI off (SHL-4): ghost "Edit panel" button opens the manual rail.
+              <button
+                onClick={() => setRailOpen(true)}
+                style={{ ...btnGhost, padding: '8px 12px', fontSize: 'var(--text-sm)' }}
+              >
+                <Icon name="panel" size={14} color="var(--ink-2)" /> Edit panel
+              </button>
+            ))}
         </div>
       </div>
 
-      <div
-        data-sp-scroll="true"
-        onClick={() => setSelectedId(null)}
-        style={{
-          flex: 1,
-          minHeight: 0,
-          overflow: 'auto',
-          padding: '16px 26px 24px',
-          background: 'var(--bg-canvas)',
-        }}
-      >
-        <div style={{ zoom: 0.82 as unknown as number }}>
-          <StrategyTimeline
-            calendar={calendar}
-            nodes={s.nodes}
-            congress={reference.data?.congress ?? []}
-            ppbeLanes={reference.data?.ppbeLanes ?? []}
-            ppbeCurrentPhases={reference.data?.ppbeCurrentPhases ?? []}
-            firmPhases={firmPhases.data ?? []}
-            layers={layers}
-            selectedId={selectedId}
-            onSelectNode={(nid) => setSelectedId(nid)}
-          />
+      <div style={{ flex: 1, minHeight: 0, display: 'flex' }}>
+        <div
+          data-sp-scroll="true"
+          onClick={() => setSelectedId(null)}
+          style={{
+            flex: 1,
+            minHeight: 0,
+            overflow: 'auto',
+            padding: '16px 26px 24px',
+            background: 'var(--bg-canvas)',
+          }}
+        >
+          <div style={{ zoom: 0.82 as unknown as number }}>
+            <StrategyTimeline
+              calendar={calendar}
+              nodes={s.nodes}
+              congress={reference.data?.congress ?? []}
+              ppbeLanes={reference.data?.ppbeLanes ?? []}
+              ppbeCurrentPhases={reference.data?.ppbeCurrentPhases ?? []}
+              firmPhases={firmPhases.data ?? []}
+              layers={layers}
+              selectedId={selectedId}
+              onSelectNode={selectNode}
+              onRetime={onRetime}
+            />
+          </div>
         </div>
+
+        {railOpen && (
+          <EditorRail
+            strategyId={sid}
+            node={selectedNode}
+            calendar={calendar}
+            members={members.data ?? []}
+            meriEnabled={meriEnabled}
+            currentUserId={user?.id}
+            applied={applied}
+            onFlash={flash}
+            onClose={() => {
+              setRailOpen(false);
+              setSelectedId(null);
+            }}
+            onDeselect={() => setSelectedId(null)}
+          />
+        )}
       </div>
+
+      {historyOpen && (
+        <HistoryModal
+          strategyId={sid}
+          members={members.data ?? []}
+          onClose={() => setHistoryOpen(false)}
+          onRestored={(m) => flash(m)}
+        />
+      )}
     </div>
   );
 }
