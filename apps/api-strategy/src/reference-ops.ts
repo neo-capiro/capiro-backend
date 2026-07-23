@@ -17,7 +17,11 @@
  */
 import { readFileSync } from 'node:fs';
 import { PrismaClient } from '../generated/prisma-client/index.js';
-import { buildBaselineEntries, parseReferencePayload, type ReferenceRow } from './reference/baseline.js';
+import {
+  buildBaselineEntries,
+  parseReferencePayload,
+  type ReferenceRow,
+} from './reference/baseline.js';
 
 function loadRows(): { rows: ReferenceRow[]; source: string } {
   const file = process.env.STRATEGY_REFERENCE_FILE?.trim();

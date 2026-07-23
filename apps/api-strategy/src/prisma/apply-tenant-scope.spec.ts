@@ -106,7 +106,9 @@ describe('applyTenantScope (the runtime tenant guard)', () => {
 describe('isRetryableTransactionError', () => {
   it('is true for deadlock / serialization signatures', () => {
     expect(isRetryableTransactionError(new Error('deadlock detected'))).toBe(true);
-    expect(isRetryableTransactionError(new Error('could not serialize access due to ...'))).toBe(true);
+    expect(isRetryableTransactionError(new Error('could not serialize access due to ...'))).toBe(
+      true,
+    );
     expect(isRetryableTransactionError(new Error('SQLSTATE 40P01'))).toBe(true);
     expect(isRetryableTransactionError(new Error('40001'))).toBe(true);
   });

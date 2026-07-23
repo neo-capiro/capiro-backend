@@ -89,6 +89,12 @@ const WorkspaceRoutes = lazy(async () =>
   })),
 );
 
+const StrategyRoutes = lazy(async () =>
+  import('./pages/strategy/StrategyRoutes.js').then((m) => ({
+    default: m.StrategyRoutes,
+  })),
+);
+
 export function App() {
   const { isLoaded, isSignedIn } = useAuth();
 
@@ -125,6 +131,19 @@ export function App() {
               fallback={<PlaceholderPage title="Loading Workspace" description="Please wait..." />}
             >
               <WorkspaceRoutes />
+            </Suspense>
+          }
+        />
+        {/* Strategy Planner (PPBE) — own ECR/Fargate service at /strategy-api/*;
+            gated per-tenant by /me features.strategyPlanner (StrategyRoutes
+            redirects home when off, so deep-links respect the flag). */}
+        <Route
+          path="/strategies/*"
+          element={
+            <Suspense
+              fallback={<PlaceholderPage title="Loading Strategies" description="Please wait..." />}
+            >
+              <StrategyRoutes />
             </Suspense>
           }
         />

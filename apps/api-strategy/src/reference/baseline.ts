@@ -51,7 +51,10 @@ const CONGRESS: Array<{ label: string; from: number; to: number; tone: string }>
 
 // PPBE lanes: one set of bars per in-flight FY (index into the 3-FY window).
 // Verbatim from the prototype's PPBE_LANES.
-const PPBE_LANES: Array<{ fyIndex: 0 | 1 | 2; bars: Array<{ label: string; from: number; to: number; tone: string }> }> = [
+const PPBE_LANES: Array<{
+  fyIndex: 0 | 1 | 2;
+  bars: Array<{ label: string; from: number; to: number; tone: string }>;
+}> = [
   { fyIndex: 0, bars: [{ label: 'Execution', from: 0, to: 4.45, tone: 'success' }] },
   {
     fyIndex: 1,

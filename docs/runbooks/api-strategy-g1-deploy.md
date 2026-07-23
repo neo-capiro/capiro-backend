@@ -28,8 +28,17 @@ All commands: `--profile capiro-dev`, region `us-east-1`, account `967807252336`
    ```
    aws ecr create-repository --repository-name capiro/dev/api-strategy --profile capiro-dev
    ```
-2. **Extend the GHA OIDC push policy** (`capiro-gha-*`'s `ecr-push` policy) to cover
-   `capiro/dev/api-strategy` — otherwise `api-strategy-image.yml` fails to push.
+2. **Extend the GHA OIDC push policy** (`capiro-gha-api`'s inline `ecr-push-capiro`) to cover
+   `capiro/dev/api-strategy` (+ `capiro/staging/api-strategy`) — otherwise `api-strategy-image.yml`
+   fails to push (403). The policy is a per-repo allowlist, NOT a wildcard.
+2b. **Extend the ECS EXECUTION role** (`Capiro-dev-Compute-ApiTaskDefExecutionRole…`) — its ECR-pull
+   and logs perms are ALSO per-service scoped (inline policies `workspace-ecr-pull`, `intel-api-ecr-secrets`,
+   …). Add two inline policies or the tasks fail to start:
+   - `api-strategy-ecr-pull`: `ecr:BatchCheckLayerAvailability|BatchGetImage|GetDownloadUrlForLayer`
+     on `repository/capiro/dev/api-strategy` (else `CannotPullContainerError` 403).
+   - `api-strategy-logs`: `logs:CreateLogStream|PutLogEvents` on `log-group:/capiro/dev/api-strategy:*`
+     (else `ResourceInitializationError` — the SERVE task-def logs to its own dedicated group; the
+     one-off migrate/reference task-defs sidestep this by logging to the shared `/capiro/dev/api`).
 3. **Log group** for the serve task:
    ```
    aws logs create-log-group --log-group-name /capiro/dev/api-strategy --profile capiro-dev

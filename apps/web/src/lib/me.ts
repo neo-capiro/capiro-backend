@@ -43,6 +43,14 @@ export interface MeResponse {
     outreachAsyncSend?: boolean;
     /** New global Meri dock/undock presentation; false keeps the legacy drawer rollback. */
     meriDockUndockUi: boolean;
+    /**
+     * Strategy Planner (PPBE) module — the Strategies section (library, timeline,
+     * editor) served by the api-strategy service. Optional so an older cached /me
+     * shape degrades (hidden) rather than crashing. Default false per tenant.
+     */
+    strategyPlanner?: boolean;
+    /** Meri assistant inside the Strategy Planner (draft-from-goal + rail edits); default false. */
+    strategyPlannerMeri?: boolean;
   };
 }
 

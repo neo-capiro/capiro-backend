@@ -21,6 +21,7 @@ import {
   DeploymentUnitOutlined,
   SearchOutlined,
   SettingOutlined,
+  StarOutlined,
   SyncOutlined,
   UserOutlined,
 } from '@ant-design/icons';
@@ -39,7 +40,7 @@ import {
   Typography,
   type MenuProps,
 } from 'antd';
-import { useMe } from '../lib/me.js';
+import { useMe, type MeResponse } from '../lib/me.js';
 import { useApi } from '../lib/use-api.js';
 import { useIntelFeatureFlags } from '../lib/intel-feature-flags.js';
 import { OnboardingGates, START_TOUR_EVENT } from './onboarding/OnboardingGates.js';
@@ -62,6 +63,10 @@ interface NavItem {
   minRole?: TenantRole;
   /** When set, the item is only shown when this feature flag is enabled for the tenant. */
   featureFlag?: string;
+  /** When set, the item is only shown when this /me `features` boolean is true
+   * (per-tenant clioFeatureFlags surfaced via GET /me — distinct from the
+   * intel-api `featureFlag` map). */
+  meFeature?: keyof MeResponse['features'];
   /** Product-tour anchor: rendered as `data-tour` on the nav label so the
    * onboarding DashboardTour (prototype OB_TOUR nav keys) can spotlight it. */
   tourId?: string;
@@ -75,6 +80,7 @@ type AppSection =
   | 'engagement'
   | 'workspace'
   | 'planner'
+  | 'strategies'
   | 'intelligence'
   | 'knowledge-graph'
   | 'actions'
@@ -145,6 +151,16 @@ const NAV: NavItem[] = [
     path: '/workspace',
     icon: <FolderOpenOutlined />,
     tourId: 'Workspace',
+  },
+  {
+    key: 'strategies',
+    label: 'Strategies',
+    path: '/strategies',
+    icon: <StarOutlined />,
+    // Gated per-tenant via GET /me features.strategyPlanner (clioFeatureFlags),
+    // NOT the intel-api flag map. Hidden until flipped on for the tenant.
+    meFeature: 'strategyPlanner',
+    tourId: 'Strategies',
   },
   {
     key: 'directory',
@@ -365,7 +381,8 @@ export function AppShell() {
     // affordance only; the API's RolesGuard is the security boundary.
     const isVisible = (n: NavItem) =>
       (!n.minRole || (role != null && ROLE_RANK[role] >= ROLE_RANK[n.minRole])) &&
-      (!n.featureFlag || Boolean(intelFlags.data?.[n.featureFlag]));
+      (!n.featureFlag || Boolean(intelFlags.data?.[n.featureFlag])) &&
+      (!n.meFeature || Boolean(me.data?.features?.[n.meFeature]));
 
     const buildLeaf = (n: NavItem) => {
       const count = navCounts[n.key];
@@ -432,7 +449,7 @@ export function AppShell() {
       }
     }
     return result;
-  }, [message, navCounts, role, workflowLocked, intelFlags.data]);
+  }, [message, navCounts, role, workflowLocked, intelFlags.data, me.data]);
 
   const selectedKey = page.key === 'not-found' ? 'home' : page.key;
 
@@ -1092,6 +1109,7 @@ function pageKeyFor(pathname: string): AppSection {
   if (pathname.startsWith('/clients')) return 'clients';
   if (pathname.startsWith('/engagement')) return 'engagement';
   if (pathname.startsWith('/workspace')) return 'workspace';
+  if (pathname.startsWith('/strategies')) return 'strategies';
   if (pathname.startsWith('/actions')) return 'actions';
   if (pathname.startsWith('/reviews')) return 'reviews';
   // LegiWatch (canonical /legiwatch; /radar kept as a redirect for live deep-links).
@@ -1123,6 +1141,7 @@ function pageConfigFor(pathname: string): PageConfig {
     engagement: 'Engagement',
     workspace: 'Workspace',
     planner: 'Planner',
+    strategies: 'Strategies',
     intelligence: 'Intelligence Center',
     'knowledge-graph': 'Knowledge Graph',
     actions: 'Action Board',

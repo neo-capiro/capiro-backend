@@ -126,6 +126,28 @@ export function meriDockUndockUiEnabled(settings: unknown): boolean {
 }
 
 /**
+ * Strategy Planner (PPBE) module (docs Strategy Planner Phase 1 plan). Gates the
+ * new Strategies section (library, timeline, editor) served by the standalone
+ * api-strategy service at /strategy-api/*. Like meetingsV2, this is a PURE
+ * presentation/feature flag with NO env kill-switch — default OFF, flipped per
+ * tenant via the settings_jsonb.clioFeatureFlags path, surfaced to the web via
+ * GET /me. The api-strategy service enforces the same flag server-side.
+ */
+export const STRATEGY_PLANNER_FLAG = 'strategyPlanner.enabled' as const;
+
+/** Whether a tenant is on the Strategy Planner module (per-tenant, default OFF). */
+export function strategyPlannerEnabled(settings: unknown): boolean {
+  return tenantFeatureEnabled(settings, STRATEGY_PLANNER_FLAG, false);
+}
+
+/** Gates Meri inside the Strategy Planner (draft-from-goal + rail edits); default OFF. */
+export const STRATEGY_PLANNER_MERI_FLAG = 'strategyPlannerMeri.enabled' as const;
+
+export function strategyPlannerMeriEnabled(settings: unknown): boolean {
+  return tenantFeatureEnabled(settings, STRATEGY_PLANNER_MERI_FLAG, false);
+}
+
+/**
  * Meri proactive-alert importance floor (2026-07-12). The Meri chat bell + the
  * "🔔 Scheduled briefings" banner are both fed by MeriService.listAlerts, which
  * historically returned EVERY pending clio_proactive_alert with no importance

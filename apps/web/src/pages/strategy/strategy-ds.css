@@ -1,0 +1,97 @@
+/*
+ * Strategy Planner (PPBE) design-system scope — ported VERBATIM from the locked
+ * prototype (Capiro - Strategy Planner (PPBE) standalone). Everything is scoped
+ * under `.sp-root` so the prototype's own CSS-variable names (--accent, --ink-1,
+ * --text-sm, --font-sans, …) can be used VERBATIM in the ported inline styles
+ * without leaking into (or colliding with) the app's AntD theme.
+ *
+ * The color/surface/border/ink/semantic tokens mirror apps/web/src/theme.css
+ * (identical values); the `--text-*` type scale and the un-suffixed
+ * `--font-*` aliases are NOT in the global :root, so they are defined here
+ * (this is the one hard prerequisite for porting the prototype markup as-is).
+ */
+
+.sp-root {
+  /* Surfaces */
+  --bg-canvas: #f4f2ec;
+  --bg-surface: #ffffff;
+  --bg-surface-2: #fbf9f4;
+  --bg-sunken: #efece4;
+  --bg-dark: #0c1a38;
+  --bg-dark-2: #15264a;
+
+  /* Borders */
+  --border-1: #e6e1d6;
+  --border-2: #d8d2c4;
+  --border-strong: #c8c1b0;
+  --border-dark: rgba(255, 255, 255, 0.08);
+
+  /* Ink */
+  --ink-1: #15161a;
+  --ink-2: #4f525a;
+  --ink-3: #8a8780;
+  --ink-4: #b5b0a4;
+  --ink-on-dark: #f5f2eb;
+  --ink-on-dark-2: rgba(245, 242, 235, 0.66);
+  --ink-on-dark-3: rgba(245, 242, 235, 0.42);
+
+  /* Accent */
+  --accent: #2a57ce;
+  --accent-ink: #1a3f9f;
+  --accent-soft: #dee6f8;
+  --accent-glow: rgba(42, 87, 206, 0.18);
+
+  /* Semantic */
+  --critical: #b5301b;
+  --critical-soft: #f6ddd6;
+  --notable: #a26913;
+  --notable-soft: #f4e5c3;
+  --info: #2c5bd4;
+  --info-soft: #dce4f8;
+  --success: #2e6b43;
+  --success-soft: #ddebde;
+  --positive: #3a7a4d;
+
+  /* Fonts — alias the global -rd families to the un-suffixed names the
+     prototype references. Fonts are already loaded in index.html. */
+  --font-sans: var(--font-sans-rd, 'Hanken Grotesk', ui-sans-serif, system-ui, sans-serif);
+  --font-mono: var(--font-mono-rd, 'JetBrains Mono', ui-monospace, 'SF Mono', Menlo, monospace);
+  --font-serif: var(--font-serif-rd, 'Newsreader', 'Iowan Old Style', Georgia, serif);
+
+  /* Type scale (prototype :root — absent from the global theme, required here) */
+  --text-2xs: 10px;
+  --text-xs: 11.5px;
+  --text-sm: 12.5px;
+  --text-base: 13.5px;
+  --text-md: 15px;
+  --text-lg: 18px;
+  --text-xl: 22px;
+  --text-2xl: 28px;
+
+  font-family: var(--font-sans);
+  color: var(--ink-1);
+  background: var(--bg-canvas);
+  height: 100%;
+}
+
+/* Prototype global focus ring, scoped. */
+.sp-root input:focus,
+.sp-root textarea:focus,
+.sp-root select:focus {
+  border-color: var(--accent) !important;
+  box-shadow: 0 0 0 3px var(--accent-glow);
+  outline: none;
+}
+
+/* The prototype pulses the "drafting" indicator. */
+@keyframes sppulse {
+  0%,
+  100% {
+    transform: scale(1);
+    opacity: 1;
+  }
+  50% {
+    transform: scale(1.08);
+    opacity: 0.85;
+  }
+}

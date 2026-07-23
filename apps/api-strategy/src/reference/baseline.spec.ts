@@ -31,7 +31,14 @@ describe('reference baseline', () => {
   it('parseReferencePayload accepts a valid array and normalizes dates', () => {
     const rows = parseReferencePayload(
       JSON.stringify([
-        { kind: 'congress_milestone', label: 'Markup', startsOn: '2027-05-01', endsOn: '2027-06-01', tone: 'notable', position: 0 },
+        {
+          kind: 'congress_milestone',
+          label: 'Markup',
+          startsOn: '2027-05-01',
+          endsOn: '2027-06-01',
+          tone: 'notable',
+          position: 0,
+        },
         { kind: 'ppbe_current_phase', label: 'Execution', fy: 2027, position: 0, active: true },
       ]),
     );
@@ -48,10 +55,12 @@ describe('reference baseline', () => {
       /invalid kind/,
     );
     expect(() =>
-      parseReferencePayload('[{"kind":"congress_milestone","label":"x","position":0,"startsOn":"nope"}]'),
+      parseReferencePayload(
+        '[{"kind":"congress_milestone","label":"x","position":0,"startsOn":"nope"}]',
+      ),
     ).toThrow(/not a valid date/);
-    expect(() =>
-      parseReferencePayload('[{"kind":"congress_milestone","position":0}]'),
-    ).toThrow(/label is required/);
+    expect(() => parseReferencePayload('[{"kind":"congress_milestone","position":0}]')).toThrow(
+      /label is required/,
+    );
   });
 });
