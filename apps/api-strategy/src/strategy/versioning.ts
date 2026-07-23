@@ -45,6 +45,7 @@ export interface StrategySnapshot {
     type: string;
     goal: string | null;
     meriContext: string | null;
+    meriSummary: string | null;
     targetDate: string | null; // YYYY-MM-DD | null
     ownerUserId: string;
     createdByUserId: string;
@@ -61,6 +62,7 @@ export interface SnapshotStrategyRow {
   type: string;
   goal: string | null;
   meriContext: string | null;
+  meriSummary: string | null;
   targetDate: Date | string | null;
   ownerUserId: string;
   createdByUserId: string;
@@ -95,6 +97,7 @@ export function buildSnapshot(
       type: strategy.type,
       goal: strategy.goal ?? null,
       meriContext: strategy.meriContext ?? null,
+      meriSummary: strategy.meriSummary ?? null,
       targetDate: isoDate(strategy.targetDate),
       ownerUserId: strategy.ownerUserId,
       createdByUserId: strategy.createdByUserId,

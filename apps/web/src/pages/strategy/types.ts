@@ -71,6 +71,7 @@ export interface StrategyDetail {
   type: StrategyType;
   goal: string | null;
   meriContext: string | null;
+  meriSummary: string | null;
   targetDate: string | null;
   ownerUserId: string;
   createdByUserId: string;

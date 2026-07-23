@@ -14,6 +14,7 @@ const strategy: SnapshotStrategyRow = {
   type: 'appropriations',
   goal: 'Secure the plus-up',
   meriContext: null,
+  meriSummary: null,
   targetDate: new Date('2027-09-30T00:00:00.000Z'),
   ownerUserId: 'user_a',
   createdByUserId: 'user_a',

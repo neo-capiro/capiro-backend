@@ -7,6 +7,7 @@ import { FlagsModule } from './flags/flags.module.js';
 import { StrategyModule } from './strategy/strategy.module.js';
 import { FirmPhasesModule } from './firm-phases/firm-phases.module.js';
 import { ReferenceModule } from './reference/reference.module.js';
+import { MeriModule } from './meri/meri.module.js';
 
 /**
  * Root module for the api-strategy service.
@@ -26,6 +27,7 @@ import { ReferenceModule } from './reference/reference.module.js';
     StrategyModule,
     FirmPhasesModule,
     ReferenceModule,
+    MeriModule,
   ],
 })
 export class AppModule {}

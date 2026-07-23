@@ -69,6 +69,7 @@ export class VersionService {
           type: snap.meta.type as SpStrategyType,
           goal: snap.meta.goal,
           meriContext: snap.meta.meriContext,
+          meriSummary: snap.meta.meriSummary ?? null,
           targetDate: snap.meta.targetDate ? parseDbDate(snap.meta.targetDate) : null,
           ownerUserId: snap.meta.ownerUserId,
           lastEditedByUserId: clerkUserId,

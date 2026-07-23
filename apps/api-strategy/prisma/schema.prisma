@@ -110,6 +110,9 @@ model SpStrategy {
   type               SpStrategyType
   goal               String?        @db.Text
   meriContext        String?        @map("meri_context") @db.Text
+  // 1-2 sentence Meri plan summary (MRI-2) — set on draft, refreshed after Meri
+  // edit-sets; surfaced in the strategy-level rail. Null for manual strategies.
+  meriSummary        String?        @map("meri_summary") @db.Text
   targetDate         DateTime?      @map("target_date") @db.Date
   ownerUserId        String         @map("owner_user_id") // Clerk user id
   createdByUserId    String         @map("created_by_user_id")
