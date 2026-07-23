@@ -67,9 +67,9 @@ describe('GOOGLE_SCOPES', () => {
     expect(GOOGLE_SCOPES).toContain('https://www.googleapis.com/auth/gmail.readonly');
   });
 
-  it('requests gmail.send and calendar.readonly', () => {
+  it('requests gmail.send and calendar.events.readonly', () => {
     expect(GOOGLE_SCOPES).toContain('https://www.googleapis.com/auth/gmail.send');
-    expect(GOOGLE_SCOPES).toContain('https://www.googleapis.com/auth/calendar.readonly');
+    expect(GOOGLE_SCOPES).toContain('https://www.googleapis.com/auth/calendar.events.readonly');
   });
 
   it('requests identity scopes for account resolution', () => {

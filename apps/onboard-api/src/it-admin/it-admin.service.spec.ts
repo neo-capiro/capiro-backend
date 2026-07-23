@@ -101,7 +101,7 @@ describe('scope parity', () => {
       'profile',
       'https://www.googleapis.com/auth/gmail.readonly',
       'https://www.googleapis.com/auth/gmail.send',
-      'https://www.googleapis.com/auth/calendar.readonly',
+      'https://www.googleapis.com/auth/calendar.events.readonly',
     ]);
   });
 });
@@ -247,7 +247,7 @@ describe('handleGoogleCallback', () => {
       access_token: 'at',
       // gmail.readonly unchecked on the consent screen
       scope:
-        'openid email profile https://www.googleapis.com/auth/gmail.send https://www.googleapis.com/auth/calendar.readonly',
+        'openid email profile https://www.googleapis.com/auth/gmail.send https://www.googleapis.com/auth/calendar.events.readonly',
       id_token: idToken({ email: 'admin@keeldefense.co', hd: 'keeldefense.co' }),
     });
     const url = await service.handleGoogleCallback({ state, code: 'auth-code' });

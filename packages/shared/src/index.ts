@@ -68,14 +68,18 @@ export const ROLE_RANK: Record<TenantRole, number> = {
 // precisely what team members will later be asked for. Kept here — the lowest
 // common dependency of both apps — so the two services can't drift.
 // gmail.readonly is RESTRICTED (drives Google's CASA assessment); gmail.send
-// and calendar.readonly are SENSITIVE; openid/email/profile identify the user.
+// and calendar.events.readonly are SENSITIVE; openid/email/profile identify
+// the user. calendar.events.readonly (not the broader calendar.readonly) is
+// intentional -- Capiro only ever reads event data, never calendar list/
+// settings metadata, and Google's verification review flags any scope
+// broader than what the app's code actually requests.
 export const GOOGLE_WORKSPACE_SCOPES = [
   'openid',
   'email',
   'profile',
   'https://www.googleapis.com/auth/gmail.readonly',
   'https://www.googleapis.com/auth/gmail.send',
-  'https://www.googleapis.com/auth/calendar.readonly',
+  'https://www.googleapis.com/auth/calendar.events.readonly',
 ] as const;
 
 /** The non-identity (Gmail/Calendar) scopes — the ones a Workspace policy can

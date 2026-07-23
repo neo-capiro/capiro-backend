@@ -27,24 +27,17 @@ import {
 import { ConfigService } from '@nestjs/config';
 import { EngagementConnectionStatus, EngagementProvider, Prisma } from '@prisma/client';
 import { createHmac, randomBytes, timingSafeEqual } from 'node:crypto';
+import { GOOGLE_WORKSPACE_SCOPES } from '@capiro/shared';
 import type { TenantContext } from '@capiro/shared';
 import type { AppConfig } from '../../config/config.schema.js';
 import { PrismaService } from '../../prisma/prisma.service.js';
 import { TokenCryptoService } from '../microsoft/token-crypto.service.js';
 
-// gmail.readonly is a RESTRICTED scope (drives the CASA security assessment at
-// Phase 0b); gmail.send and calendar.readonly are SENSITIVE. openid/email/profile
-// identify the connecting user. Keep this list in sync with the scope
-// justifications registered on the OAuth consent screen — Google rejects tokens
-// whose granted scopes don't match what the verification review approved.
-export const GOOGLE_SCOPES = [
-  'openid',
-  'email',
-  'profile',
-  'https://www.googleapis.com/auth/gmail.readonly',
-  'https://www.googleapis.com/auth/gmail.send',
-  'https://www.googleapis.com/auth/calendar.readonly',
-];
+// Sourced from @capiro/shared (not redeclared here) so this can never drift
+// from the onboarding IT-admin verification's scope set or from what's
+// registered on the OAuth consent screen — a prior drift here is exactly what
+// triggered a Google verification rejection.
+export const GOOGLE_SCOPES: string[] = [...GOOGLE_WORKSPACE_SCOPES];
 
 const GOOGLE_AUTH_URL = 'https://accounts.google.com/o/oauth2/v2/auth';
 const GOOGLE_TOKEN_URL = 'https://oauth2.googleapis.com/token';
