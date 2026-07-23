@@ -140,11 +140,33 @@ export function strategyPlannerEnabled(settings: unknown): boolean {
   return tenantFeatureEnabled(settings, STRATEGY_PLANNER_FLAG, false);
 }
 
-/** Gates Meri inside the Strategy Planner (draft-from-goal + rail edits); default OFF. */
+/**
+ * Gates Meri inside the Strategy Planner (draft-from-goal + rail assistant +
+ * reference-editor assist; G5). UNLIKE the surface flag, this is ANDed with a
+ * global env kill-switch STRATEGY_MERI_ENABLED (mirrors MERIV2_ENABLED /
+ * meriV2Enabled) so LLM creation stays dormant until BOTH the env switch is on
+ * AND the per-tenant flag resolves true — the <5s rollback is flipping either
+ * back off. Per-tenant flag default OFF (pilot).
+ */
 export const STRATEGY_PLANNER_MERI_FLAG = 'strategyPlannerMeri.enabled' as const;
 
+/** The per-tenant Meri flag alone (no env AND) — used where only the tenant opt-in matters. */
 export function strategyPlannerMeriEnabled(settings: unknown): boolean {
   return tenantFeatureEnabled(settings, STRATEGY_PLANNER_MERI_FLAG, false);
+}
+
+/** Global env kill-switch for Strategy-Planner Meri. Default OFF — only the literal 'true' enables. */
+export function strategyMeriEnvEnabled(env: NodeJS.ProcessEnv = process.env): boolean {
+  return env.STRATEGY_MERI_ENABLED === 'true';
+}
+
+/**
+ * Strategy-Planner Meri is active for a tenant only when the env kill-switch is
+ * on AND the per-tenant flag resolves true (both default OFF). This is the
+ * value surfaced to the web (GET /me) and mirrored server-side by api-strategy.
+ */
+export function strategyMeriActive(settings: unknown, env: NodeJS.ProcessEnv = process.env): boolean {
+  return strategyMeriEnvEnabled(env) && strategyPlannerMeriEnabled(settings);
 }
 
 /**
