@@ -5,6 +5,7 @@ import { VersioningService } from './versioning.service.js';
 import { parseDbDate } from './dates.js';
 import { loadStrategyDetail } from './detail.js';
 import type { CreateNodeDto, UpdateNodeDto } from './dto/node.dto.js';
+import type { CreateArtifactDto } from './dto/artifact.dto.js';
 
 /**
  * Node CRUD (G3). Each mutation runs in ONE withTenantUser tx so the node
@@ -170,6 +171,61 @@ export class NodeService {
         entityType: 'node',
         entityId: nodeId,
         before: { title: node.title, kind: node.kind },
+      });
+      return loadStrategyDetail(tx, strategyId);
+    });
+  }
+
+  /**
+   * RTE-3: record a node -> Capiro artifact back-link (Workspace draft / Outreach
+   * record). Idempotent on the unique [nodeId, artifactType, artifactRef] triple
+   * so re-routing to the same artifact never duplicates. Artifacts are NOT part of
+   * the version snapshot (restore deliberately drops them), so this cuts NO version
+   * and does NOT bump lastEdited — a routing side effect must not churn the library
+   * ordering or the audit-restore surface.
+   */
+  async linkArtifact(
+    tenantId: string,
+    clerkUserId: string,
+    strategyId: string,
+    nodeId: string,
+    dto: CreateArtifactDto,
+  ) {
+    return this.prisma.withTenantUser(tenantId, clerkUserId, async (tx) => {
+      const node = await tx.spNode.findFirst({
+        where: { id: nodeId, strategyId },
+        select: { id: true },
+      });
+      if (!node) throw new NotFoundException('Node not found');
+
+      await tx.spNodeArtifact.upsert({
+        where: {
+          nodeId_artifactType_artifactRef: {
+            nodeId,
+            artifactType: dto.artifactType,
+            artifactRef: dto.artifactRef,
+          },
+        },
+        // The query hook scopes upsert.where but NOT the create branch, so every
+        // scalar (esp. tenantId) MUST be set explicitly here (prisma.service RLS note).
+        create: {
+          tenantId,
+          strategyId,
+          nodeId,
+          artifactType: dto.artifactType,
+          artifactRef: dto.artifactRef,
+          createdByUserId: clerkUserId,
+        },
+        update: {},
+      });
+      await this.versioning.logActivity(tx, {
+        tenantId,
+        actorUserId: clerkUserId,
+        authorKind: 'person',
+        action: 'artifact.linked',
+        entityType: 'node',
+        entityId: nodeId,
+        after: { artifactType: dto.artifactType, artifactRef: dto.artifactRef },
       });
       return loadStrategyDetail(tx, strategyId);
     });

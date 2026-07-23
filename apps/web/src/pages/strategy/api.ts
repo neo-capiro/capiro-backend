@@ -17,6 +17,7 @@ import type {
   FirmPhase,
   FirmPhaseInput,
   PatchStrategyInput,
+  RecordArtifactInput,
   ReferenceCalendars,
   ReferenceForkRow,
   StrategyDetail,
@@ -114,6 +115,22 @@ export function useDeleteNode(strategyId: string) {
   return useMutation({
     mutationFn: async (nodeId: string) =>
       (await api.delete<StrategyDetail>(`${BASE}/strategies/${strategyId}/nodes/${nodeId}`)).data,
+    onSuccess: onOk,
+  });
+}
+
+/** POST /strategies/:id/nodes/:nodeId/artifacts — record a node→Capiro back-link (RTE-3). */
+export function useRecordArtifact(strategyId: string) {
+  const api = useApi();
+  const onOk = useDetailWriteHandlers(strategyId);
+  return useMutation({
+    mutationFn: async (vars: { nodeId: string; input: RecordArtifactInput }) =>
+      (
+        await api.post<StrategyDetail>(
+          `${BASE}/strategies/${strategyId}/nodes/${vars.nodeId}/artifacts`,
+          vars.input,
+        )
+      ).data,
     onSuccess: onOk,
   });
 }

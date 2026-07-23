@@ -166,6 +166,12 @@ export interface UpdateNodeInput {
   changeNote?: string;
 }
 
+/** POST /strategies/:id/nodes/:nodeId/artifacts — node→Capiro back-link (RTE-3). */
+export interface RecordArtifactInput {
+  artifactType: ArtifactType;
+  artifactRef: string;
+}
+
 /** PUT /firm-phases row (PHS-4). endFy/endQ are the EXCLUSIVE end boundary. */
 export interface FirmPhaseInput {
   label: string;

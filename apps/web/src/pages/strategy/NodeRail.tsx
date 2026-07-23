@@ -22,7 +22,7 @@ import { qOfDate, parseDbDate, nodeRangeLabel, monthLabel, shiftNodeMonths } fro
 import type { FiscalCalendar } from './fiscal.js';
 import { useUpdateNode, useDeleteNode } from './api.js';
 import { memberName, type TenantMember } from './members.js';
-import type { StrategyNode, UpdateNodeInput } from './types.js';
+import type { StrategyNode, StrategyNodeArtifact, UpdateNodeInput } from './types.js';
 
 export function EditorRail({
   strategyId,
@@ -33,9 +33,13 @@ export function EditorRail({
   meriSummary,
   currentUserId,
   existingNodeIds,
+  nodeArtifacts,
+  routing,
   applied,
   onFlash,
   onSelectNode,
+  onRoute,
+  onOpenArtifact,
   onClose,
   onDeselect,
 }: {
@@ -47,9 +51,13 @@ export function EditorRail({
   meriSummary?: string | null;
   currentUserId: string | undefined;
   existingNodeIds: string[];
+  nodeArtifacts: StrategyNodeArtifact[];
+  routing: 'workspace' | 'outreach' | null;
   applied: string | null;
   onFlash: (msg: string) => void;
   onSelectNode: (id: string) => void;
+  onRoute: (action: 'workspace' | 'outreach') => void;
+  onOpenArtifact: (a: StrategyNodeArtifact) => void;
   onClose: () => void;
   onDeselect: () => void;
 }) {
@@ -241,6 +249,12 @@ export function EditorRail({
                   }),
               });
             }}
+            />
+            <NodeActions
+              artifacts={nodeArtifacts}
+              routing={routing}
+              onRoute={onRoute}
+              onOpenArtifact={onOpenArtifact}
             />
           </>
         ) : meriEnabled ? (
@@ -580,6 +594,171 @@ function NodeEditor({
 function trimFlash(s: string | undefined): string {
   const t = (s ?? '').trim();
   return t.length > 120 ? `${t.slice(0, 117)}…` : t;
+}
+
+/** NOD-6 actions (verbatim labels/desc from the prototype NODE_ACTIONS). */
+const NODE_ACTIONS: Array<{
+  id: 'workspace' | 'outreach';
+  label: string;
+  desc: string;
+  icon: string;
+}> = [
+  {
+    id: 'workspace',
+    label: 'Draft in Workspace',
+    desc: "Start a document with this step's context carried in.",
+    icon: 'folder',
+  },
+  {
+    id: 'outreach',
+    label: 'Send Outreach',
+    desc: 'Open the Create Outreach flow for this step.',
+    icon: 'users',
+  },
+];
+
+/**
+ * NOD-6 "Available actions in Capiro" — route the selected node into Workspace
+ * (Draft) or Outreach (Send), and list the artifact back-links (sp_node_artifact)
+ * already created for it. Routing itself lives in StrategyEditorPage (needs the
+ * shared api + navigate); this block only surfaces the buttons + chips.
+ */
+function NodeActions({
+  artifacts,
+  routing,
+  onRoute,
+  onOpenArtifact,
+}: {
+  artifacts: StrategyNodeArtifact[];
+  routing: 'workspace' | 'outreach' | null;
+  onRoute: (action: 'workspace' | 'outreach') => void;
+  onOpenArtifact: (a: StrategyNodeArtifact) => void;
+}) {
+  const [open, setOpen] = useState(true);
+  return (
+    <div style={{ borderTop: '1px solid var(--border-1)', paddingTop: 12 }}>
+      <button
+        onClick={() => setOpen((v) => !v)}
+        style={{
+          display: 'flex',
+          alignItems: 'center',
+          gap: 7,
+          width: '100%',
+          background: 'transparent',
+          border: 'none',
+          padding: 0,
+          cursor: 'pointer',
+          fontSize: 'var(--text-xs)',
+          fontWeight: 700,
+          color: 'var(--ink-2)',
+          textTransform: 'uppercase',
+          letterSpacing: '0.05em',
+        }}
+      >
+        <span style={{ transform: open ? 'rotate(90deg)' : 'none', display: 'grid' }}>
+          <Icon name="chevron" size={13} color="var(--ink-3)" />
+        </span>
+        Available actions in Capiro
+      </button>
+      {open && (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 8, marginTop: 12 }}>
+          {NODE_ACTIONS.map((a) => {
+            const busy = routing === a.id;
+            return (
+              <button
+                key={a.id}
+                onClick={() => onRoute(a.id)}
+                disabled={routing !== null}
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: 11,
+                  textAlign: 'left',
+                  background: 'var(--bg-surface)',
+                  border: '1px solid var(--border-2)',
+                  borderRadius: 10,
+                  padding: '11px 13px',
+                  cursor: routing !== null ? 'default' : 'pointer',
+                  opacity: routing !== null && !busy ? 0.55 : 1,
+                }}
+              >
+                <span
+                  style={{
+                    width: 30,
+                    height: 30,
+                    borderRadius: 8,
+                    background: 'var(--accent-soft)',
+                    display: 'grid',
+                    placeItems: 'center',
+                    flexShrink: 0,
+                  }}
+                >
+                  <Icon name={busy ? 'clock' : a.icon} size={15} color="var(--accent-ink)" />
+                </span>
+                <span style={{ flex: 1, minWidth: 0 }}>
+                  <span
+                    style={{
+                      display: 'block',
+                      fontSize: 'var(--text-sm)',
+                      fontWeight: 700,
+                      color: 'var(--ink-1)',
+                    }}
+                  >
+                    {busy ? 'Opening…' : a.label}
+                  </span>
+                  <span
+                    style={{
+                      display: 'block',
+                      fontSize: 'var(--text-2xs)',
+                      color: 'var(--ink-3)',
+                      lineHeight: 1.4,
+                    }}
+                  >
+                    {a.desc}
+                  </span>
+                </span>
+                <Icon name="arrow" size={15} color="var(--ink-4)" />
+              </button>
+            );
+          })}
+          {artifacts.length > 0 && (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 6, marginTop: 4 }}>
+              <div style={fieldLbl}>Linked in Capiro</div>
+              {artifacts.map((a) => (
+                <button
+                  key={a.id}
+                  onClick={() => onOpenArtifact(a)}
+                  style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: 8,
+                    textAlign: 'left',
+                    background: 'var(--bg-surface-2)',
+                    border: '1px solid var(--border-1)',
+                    borderRadius: 8,
+                    padding: '7px 10px',
+                    cursor: 'pointer',
+                  }}
+                >
+                  <Icon
+                    name={a.artifactType === 'workspace_draft' ? 'doc' : 'users'}
+                    size={13}
+                    color="var(--ink-3)"
+                  />
+                  <span
+                    style={{ flex: 1, fontSize: 'var(--text-xs)', color: 'var(--ink-2)', fontWeight: 600 }}
+                  >
+                    {a.artifactType === 'workspace_draft' ? 'Workspace draft' : 'Outreach campaign'}
+                  </span>
+                  <Icon name="external" size={13} color="var(--ink-4)" />
+                </button>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
+    </div>
+  );
 }
 
 /** Preset strategy-level Meri prompts (MRI-4, static templates — plan D10). */

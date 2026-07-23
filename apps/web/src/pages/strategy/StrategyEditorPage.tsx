@@ -6,7 +6,7 @@
  * with it off the rail opens via an "Edit panel" ghost button (SHL-4).
  */
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { useNavigate, useParams } from 'react-router-dom';
+import { useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import { useUser } from '@clerk/clerk-react';
 import { App } from 'antd';
 import { Icon, btnGhost, iconBtn } from './strategy-ui.js';
@@ -15,12 +15,22 @@ import { EditorRail } from './NodeRail.js';
 import { HistoryModal } from './HistoryModal.js';
 import { FirmConfig } from './FirmConfig.js';
 import { RefCalendarConfig } from './RefCalendarConfig.js';
-import { useStrategy, useReferenceCalendars, useFirmPhases, useAddNode, useUpdateNode } from './api.js';
+import { ExportView } from './ExportView.js';
+import {
+  useStrategy,
+  useReferenceCalendars,
+  useFirmPhases,
+  useAddNode,
+  useUpdateNode,
+  useRecordArtifact,
+} from './api.js';
 import { useClientsLite } from './clients-lite.js';
 import { useTenantMembers } from './members.js';
+import { useApi } from '../../lib/use-api.js';
 import { useMe } from '../../lib/me.js';
 import { STRATEGY_TYPE_LABEL } from './constants.js';
-import { buildCalendar, formatDbDate } from './fiscal.js';
+import { buildCalendar, formatDbDate, parseDbDate } from './fiscal.js';
+import type { StrategyNode, StrategyNodeArtifact } from './types.js';
 
 type LayerKey = 'ppbe' | 'congress';
 
@@ -43,12 +53,17 @@ export function StrategyEditorPage() {
   const [historyOpen, setHistoryOpen] = useState(false);
   const [firmOpen, setFirmOpen] = useState(false);
   const [refEdit, setRefEdit] = useState<'congress' | 'ppbe' | null>(null);
+  const [exportOpen, setExportOpen] = useState(false);
+  const [routing, setRouting] = useState<'workspace' | 'outreach' | null>(null);
   const [applied, setApplied] = useState<string | null>(null);
   const [draftBannerClosed, setDraftBannerClosed] = useState(false);
   const flashTimer = useRef<number>();
+  const [searchParams] = useSearchParams();
 
   const addNode = useAddNode(id ?? '');
   const updateNode = useUpdateNode(id ?? '');
+  const recordArtifact = useRecordArtifact(id ?? '');
+  const api = useApi();
 
   const flash = (msg: string) => {
     setApplied(msg);
@@ -56,6 +71,20 @@ export function StrategyEditorPage() {
     flashTimer.current = window.setTimeout(() => setApplied(null), 4000);
   };
   useEffect(() => () => window.clearTimeout(flashTimer.current), []);
+
+  // RTE-4 / URL-1: a ?node=<id> deep-link reselects + opens the rail once the
+  // strategy has loaded (used on return from a Workspace/Outreach route-out).
+  // Keyed on the loaded strategy id + the param so it fires once per load and
+  // does not fight a later manual deselect.
+  const loadedId = strategy.data?.id;
+  useEffect(() => {
+    const nodeParam = searchParams.get('node');
+    if (!nodeParam || !loadedId) return;
+    if (!strategy.data?.nodes.some((n) => n.id === nodeParam)) return;
+    setSelectedId(nodeParam);
+    setRailOpen(true);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [loadedId, searchParams]);
 
   const meriEnabled = Boolean(me.data?.features?.strategyPlannerMeri);
 
@@ -77,6 +106,8 @@ export function StrategyEditorPage() {
   const sid = s.id;
   const clientName = clients.data?.find((c) => c.id === s.clientId)?.name ?? 'Client';
   const selectedNode = s.nodes.find((n) => n.id === selectedId) ?? null;
+  // NOD-6 chips: artifacts arrive as a FLAT array on the strategy — filter by node.
+  const nodeArtifacts = selectedNode ? s.artifacts.filter((a) => a.nodeId === selectedNode.id) : [];
 
   // SHL-5: one-time banner after a Meri draft. Keyed off draftedByMeri (set only
   // by the draft path) — NOT meriSummary, which a rail assist also writes and
@@ -132,6 +163,101 @@ export function StrategyEditorPage() {
       { nodeId, input: { startsOn, endsOn, changeNote: `Re-timed ${title}` } },
       { onSuccess: () => flash(`Re-timed ${title}`), onError: () => message.error('Could not re-time the step.') },
     );
+  };
+
+  // RTE-4 return affordance appended to every route-out (?from + ?node).
+  const routeReturn = `?from=${encodeURIComponent(`/strategies/${sid}`)}&node=`;
+
+  // Node context block (title, dates, note, strategy goal) → HTML for the
+  // Workspace draft's first section (RTE-1). Escaped — values are user text.
+  const nodeContextHtml = (n: StrategyNode): string => {
+    const esc = (t: string) => t.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+    const dates =
+      formatDbDate(parseDbDate(n.startsOn)) +
+      (n.endsOn ? ` – ${formatDbDate(parseDbDate(n.endsOn))}` : '');
+    return [
+      `<p><strong>${esc(n.title)}</strong></p>`,
+      `<p>${esc(dates)}</p>`,
+      n.note ? `<p>${esc(n.note)}</p>` : '',
+      s.goal ? `<p><em>Strategy goal:</em> ${esc(s.goal)}</p>` : '',
+    ]
+      .filter(Boolean)
+      .join('\n');
+  };
+
+  // RTE-1/RTE-2: create the real WsDraft / OutreachRecord prefilled from the
+  // node, record the node→artifact back-link (RTE-3, best-effort), then navigate
+  // into the target with the return affordance. No workspace/outreach changes.
+  const onRoute = (action: 'workspace' | 'outreach') => {
+    const node = selectedNode;
+    if (!node || routing) return;
+    if (!clients.data) {
+      message.error('Client is still loading — try again in a moment.');
+      return;
+    }
+    setRouting(action);
+    void (async () => {
+      try {
+        let ref: string;
+        let target: string;
+        if (action === 'workspace') {
+          const product = node.kind === 'decision' ? 'Strategy memo' : 'White paper';
+          const created = (
+            await api.post<{ id: string; config?: { sections?: string[] } }>('/workspace-api/drafts', {
+              docTitle: node.title,
+              client: clientName,
+              product,
+            })
+          ).data;
+          ref = created.id;
+          const section = created.config?.sections?.[0] ?? 'Background';
+          await api.patch(`/workspace-api/drafts/${encodeURIComponent(ref)}`, {
+            config: { sectionContent: { [section]: nodeContextHtml(node) } },
+          });
+          target = `/workspace/setup/${encodeURIComponent(ref)}`;
+        } else {
+          const rec = (
+            await api.post<{ id: string }>('/api/engagement/outreach', {
+              type: 'campaign',
+              // Outreach title is capped at 240 server-side; node titles allow 300.
+              title: node.title.slice(0, 240),
+              subject: node.title,
+              clientId: s.clientId,
+              metadata: { strategyNodeId: node.id, strategyId: sid, objective: s.goal ?? node.title },
+            })
+          ).data;
+          ref = rec.id;
+          target = `/engagement/outreach/draft/${encodeURIComponent(ref)}`;
+        }
+        // Back-link is best-effort: a link failure must not strand the user away
+        // from the artifact we just created.
+        try {
+          await recordArtifact.mutateAsync({
+            nodeId: node.id,
+            input: { artifactType: action === 'workspace' ? 'workspace_draft' : 'outreach_record', artifactRef: ref },
+          });
+        } catch {
+          /* chip will be missing until re-linked; the artifact still exists */
+        }
+        navigate(`${target}${routeReturn}${node.id}`);
+      } catch {
+        message.error(
+          action === 'workspace'
+            ? 'Could not start the Workspace draft — please try again.'
+            : 'Could not start the outreach — please try again.',
+        );
+        setRouting(null);
+      }
+    })();
+  };
+
+  const onOpenArtifact = (a: StrategyNodeArtifact) => {
+    const suffix = selectedNode ? `${routeReturn}${selectedNode.id}` : '';
+    const target =
+      a.artifactType === 'workspace_draft'
+        ? `/workspace/setup/${encodeURIComponent(a.artifactRef)}`
+        : `/engagement/outreach/draft/${encodeURIComponent(a.artifactRef)}`;
+    navigate(`${target}${suffix}`);
   };
 
   return (
@@ -244,15 +370,8 @@ export function StrategyEditorPage() {
             <Icon name="clock" size={14} color="var(--ink-2)" /> History
           </button>
           <button
-            style={{
-              ...btnGhost,
-              padding: '8px 12px',
-              fontSize: 'var(--text-sm)',
-              opacity: 0.5,
-              cursor: 'not-allowed',
-            }}
-            title="Export ships in a later phase"
-            disabled
+            onClick={() => setExportOpen(true)}
+            style={{ ...btnGhost, padding: '8px 12px', fontSize: 'var(--text-sm)' }}
           >
             <Icon name="upload" size={14} color="var(--ink-2)" /> Export
           </button>
@@ -362,9 +481,13 @@ export function StrategyEditorPage() {
             meriSummary={s.meriSummary}
             currentUserId={user?.id}
             existingNodeIds={s.nodes.map((n) => n.id)}
+            nodeArtifacts={nodeArtifacts}
+            routing={routing}
             applied={applied}
             onFlash={flash}
             onSelectNode={selectNode}
+            onRoute={onRoute}
+            onOpenArtifact={onOpenArtifact}
             onClose={() => {
               setRailOpen(false);
               setSelectedId(null);
@@ -401,6 +524,20 @@ export function StrategyEditorPage() {
           meriEnabled={meriEnabled}
           onClose={() => setRefEdit(null)}
           onSaved={(m) => flash(m)}
+        />
+      )}
+
+      {exportOpen && (
+        <ExportView
+          strategy={s}
+          clientName={clientName}
+          calendar={calendar}
+          layers={layers}
+          congress={reference.data?.congress ?? []}
+          ppbeLanes={reference.data?.ppbeLanes ?? []}
+          ppbeCurrentPhases={reference.data?.ppbeCurrentPhases ?? []}
+          firmPhases={firmPhases.data ?? []}
+          onClose={() => setExportOpen(false)}
         />
       )}
     </div>

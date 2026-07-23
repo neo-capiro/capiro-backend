@@ -19,6 +19,7 @@ import { VersionService } from './version.service.js';
 import { CreateStrategyDto } from './dto/create-strategy.dto.js';
 import { PatchStrategyDto } from './dto/patch-strategy.dto.js';
 import { CreateNodeDto, UpdateNodeDto } from './dto/node.dto.js';
+import { CreateArtifactDto } from './dto/artifact.dto.js';
 
 /**
  * /strategy-api/strategies — library read + manual create (G2), node CRUD +
@@ -85,6 +86,17 @@ export class StrategyController {
     @Param('nodeId') nodeId: string,
   ) {
     return this.nodes.remove(ctx.tenantId, ctx.clerkUserId, id, nodeId);
+  }
+
+  /** RTE-3: record a node -> Capiro artifact back-link (Workspace draft / Outreach record). */
+  @Post(':id/nodes/:nodeId/artifacts')
+  addArtifact(
+    @CurrentTenant() ctx: AuthTenantContext,
+    @Param('id') id: string,
+    @Param('nodeId') nodeId: string,
+    @Body() dto: CreateArtifactDto,
+  ) {
+    return this.nodes.linkArtifact(ctx.tenantId, ctx.clerkUserId, id, nodeId, dto);
   }
 
   // ---- version history ----

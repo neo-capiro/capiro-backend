@@ -78,6 +78,12 @@ export interface TimelineProps {
   onEditCongress?: () => void;
   onEditPpbe?: () => void;
   onConfigureFirm?: () => void;
+  /** Export crop (EXP-5): render only months [fromM, toM). Omit = full window.
+   *  fromM/toM are quarter-aligned month indices (fromQ*3 .. (toQ+1)*3). */
+  crop?: { fromM: number; toM: number } | null;
+  /** Export (EXP-5): render the frozen reference header static (not sticky) so
+   *  html2canvas captures it in place. Omit = sticky (the live scrolling view). */
+  staticHeader?: boolean;
 }
 
 export function StrategyTimeline({
@@ -94,13 +100,26 @@ export function StrategyTimeline({
   onEditCongress,
   onEditPpbe,
   onConfigureFirm,
+  crop,
+  staticHeader,
 }: TimelineProps) {
   const months = calendar.months;
   const NM = months.length;
-  const W = NM * COLW;
-  const mLeft = (m: number) => m * COLW;
+  // Crop window (EXP-5): OFF = first visible month, NMv = visible month count.
+  // Absent crop → OFF=0, NMv=NM → every derived value below is identical to the
+  // live (uncropped) timeline, so the on-screen surface is unaffected.
+  const OFF = crop ? crop.fromM : 0;
+  const NMv = crop ? crop.toM - crop.fromM : NM;
+  const W = NMv * COLW;
+  const mLeft = (m: number) => (m - OFF) * COLW;
   const qToMonth = (q: number) => q * 3;
-  const inRange = (m: number) => m > -0.5 && m < NM + 0.5;
+  const inRange = (m: number) => m > OFF - 0.5 && m < OFF + NMv + 0.5;
+  // A band's absolute children outside the crop window are clipped (export only).
+  const clip = crop ? ('hidden' as const) : undefined;
+  // In the static export there is no scroll ancestor, so in-bar labels must not
+  // be sticky (a sticky child inside an overflow:hidden band would mis-place).
+  const labelPos = crop ? ('static' as const) : ('sticky' as const);
+  const inWin = (s: number, e: number) => e > OFF && s < OFF + NMv;
   const TODAY_M = calendar.todayQ * 3;
   const TODAY_MI = Math.floor(TODAY_M);
 
@@ -215,7 +234,7 @@ export function StrategyTimeline({
     <div
       style={{
         position: 'absolute',
-        left: 0,
+        left: mLeft(0),
         top: 0,
         bottom: 0,
         width: Math.max(0, TODAY_M) * COLW,
@@ -409,7 +428,7 @@ export function StrategyTimeline({
               the node track scrolls. StrategyView passes expand (overflow
               visible) with staticHeader undefined, so position resolves to
               sticky and the header sticks to the outer [data-sp-scroll]. */}
-          <div style={{ position: 'sticky', top: 0, zIndex: 8 }}>
+          <div style={{ position: staticHeader ? 'static' : 'sticky', top: 0, zIndex: 8 }}>
           {/* Legislative */}
           {layers.congress && (
             <div style={{ display: 'flex', borderBottom: '3px solid var(--bg-dark)' }}>
@@ -458,6 +477,7 @@ export function StrategyTimeline({
                   width: W,
                   height: legH,
                   background: 'var(--bg-sunken)',
+                  overflow: clip,
                 }}
               >
                 {pastShade}
@@ -494,7 +514,7 @@ export function StrategyTimeline({
                     >
                       <span
                         style={{
-                          position: 'sticky',
+                          position: labelPos,
                           left: LABELW + 10,
                           padding: '0 13px',
                           whiteSpace: 'nowrap',
@@ -568,9 +588,12 @@ export function StrategyTimeline({
               </span>,
               { bg: 'var(--bg-sunken)' },
             )}
-            <div style={{ position: 'relative', width: W, background: 'var(--bg-sunken)' }}>
+            <div style={{ position: 'relative', width: W, background: 'var(--bg-sunken)', overflow: clip }}>
               <div style={{ display: 'flex', borderBottom: '1px solid var(--border-2)' }}>
-                {calendar.quarters.map((q, qi) => {
+                {calendar.quarters
+                  .map((q, qi) => ({ q, qi }))
+                  .filter(({ qi }) => !crop || (qi * 3 >= OFF && qi * 3 < OFF + NMv))
+                  .map(({ q, qi }) => {
                   const s = qi * 3;
                   const cur = TODAY_M >= s && TODAY_M < s + 3;
                   const pinned = !!pin && pin[0] === s && pin[1] === s + 3;
@@ -635,7 +658,10 @@ export function StrategyTimeline({
                 })}
               </div>
               <div style={{ display: 'flex' }}>
-                {months.map((mo, i) => {
+                {months
+                  .map((mo, i) => ({ mo, i }))
+                  .filter(({ i }) => !crop || (i >= OFF && i < OFF + NMv))
+                  .map(({ mo, i }) => {
                   const past = i < TODAY_MI;
                   const pinned = !!pin && i >= pin[0] && i < pin[1];
                   return (
@@ -731,6 +757,7 @@ export function StrategyTimeline({
                   alignItems: 'center',
                   gap: 8,
                   padding: '8px 12px',
+                  overflow: clip,
                 }}
               >
                 {pastShade}
@@ -808,6 +835,7 @@ export function StrategyTimeline({
                       width: W,
                       height: its.rows * 32 + 8,
                       background: PPBE_BG,
+                      overflow: clip,
                     }}
                   >
                     {pastShade}
@@ -838,7 +866,7 @@ export function StrategyTimeline({
                       >
                         <span
                           style={{
-                            position: 'sticky',
+                            position: labelPos,
                             left: LABELW + 8,
                             padding: '0 9px',
                             whiteSpace: 'nowrap',
@@ -877,6 +905,7 @@ export function StrategyTimeline({
                 width: W,
                 height: 58,
                 background: 'var(--bg-surface)',
+                overflow: clip,
               }}
             >
               {pastShade}
@@ -930,7 +959,7 @@ export function StrategyTimeline({
               {firmItems.length === 0 && (
                 <span
                   style={{
-                    position: 'sticky',
+                    position: labelPos,
                     left: LABELW + 12,
                     top: 20,
                     fontSize: 'var(--text-xs)',
@@ -956,6 +985,7 @@ export function StrategyTimeline({
                 width: W,
                 flex: 1,
                 minHeight: `max(${packedNodes.rows * NODE_H + 40}px, 72vh)`,
+                overflow: clip,
               }}
             >
               {pastShade}
@@ -969,14 +999,16 @@ export function StrategyTimeline({
                   position: 'relative',
                   zIndex: 2,
                   display: 'grid',
-                  gridTemplateColumns: `repeat(${NM}, ${COLW}px)`,
+                  gridTemplateColumns: `repeat(${NMv}, ${COLW}px)`,
                   gridAutoRows: 'min-content',
                   rowGap: 10,
                   padding: '12px 0',
                   alignContent: 'start',
                 }}
               >
-                {packedNodes.items.map(({ node: n, s, e, _row }) => {
+                {packedNodes.items
+                  .filter(({ s, e }) => inWin(s, e))
+                  .map(({ node: n, s, e, _row }) => {
                   const k = NODE_KIND[n.kind];
                   const sel = selectedId === n.id;
                   const risk = n.kind === 'risk';
@@ -990,6 +1022,10 @@ export function StrategyTimeline({
                     nodeRangeLabel(nodeQ(n), nodeQ(n) + nodeDur(n), calendar);
                   const isDragging = drag?.nodeId === n.id;
                   const dragDx = isDragging && drag ? Math.round(drag.dx / COLW) * COLW : 0;
+                  // Crop-relative grid columns, clamped so a node straddling the
+                  // crop start never yields a non-positive column (OFF=0 ⇒ s+1/e+1).
+                  const cS = Math.max(1, s - OFF + 1);
+                  const cE = Math.max(cS + 1, e - OFF + 1);
                   return (
                     <div
                       key={n.id}
@@ -1014,7 +1050,7 @@ export function StrategyTimeline({
                       onMouseEnter={() => setHover([tS, tE])}
                       onMouseLeave={() => setHover(null)}
                       style={{
-                        gridColumn: `${s + 1} / ${e + 1}`,
+                        gridColumn: `${cS} / ${cE}`,
                         gridRow: _row + 1,
                         margin: '0 6px',
                         background: risk ? 'var(--critical-soft)' : 'var(--bg-surface)',
