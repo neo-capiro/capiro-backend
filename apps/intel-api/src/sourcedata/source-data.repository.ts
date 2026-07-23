@@ -518,6 +518,34 @@ export class SourceDataRepository {
     return rows[0] ?? null;
   }
 
+  /**
+   * Senate committee-hearing rows for a single calendar day (GLOBAL
+   * `committee_hearing`, RLS-free, READ-ONLY). Used by the auto-capture poller to
+   * ENRICH a hearing discovered from senate.gov's schedule feed with the daily
+   * congress.gov snapshot (title, committeeCode, and the `committee_hearing.id`
+   * crosswalk) and to cross-check the `[Postponed]/[Cancelled]` title prefix.
+   * Existing methods offer only `date >= CURRENT_DATE` (no chamber/day bound), so
+   * this adds the exact-day + Senate-chamber filter the poller needs. Bound param;
+   * `date` is @db.Date so a 'YYYY-MM-DD' string compares correctly.
+   */
+  async getSenateHearingsForDate(dateYmd: string): Promise<UpcomingCommitteeHearing[]> {
+    return this.prisma.$queryRawUnsafe<UpcomingCommitteeHearing[]>(
+      `SELECT id,
+              title,
+              committee_name AS "committeeName",
+              chamber,
+              date,
+              time,
+              location,
+              type,
+              url
+         FROM committee_hearing
+        WHERE chamber = 'Senate' AND date = $1::date
+        ORDER BY committee_name ASC`,
+      dateYmd,
+    );
+  }
+
   /** Keyword/subject candidate bill ids, scoped to a Congress (§6.2 recommendations). */
   async keywordCandidateIds(terms: string[], congress: number): Promise<string[]> {
     const lower = terms.map((t) => t.toLowerCase()).filter((t) => t.length >= 3);

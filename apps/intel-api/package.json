@@ -16,6 +16,7 @@
   },
   "dependencies": {
     "@aws-sdk/client-bedrock-runtime": "^3.665.0",
+    "@aws-sdk/client-ecs": "3.665.0",
     "@aws-sdk/client-sesv2": "^3.665.0",
     "@capiro/shared": "workspace:*",
     "@clerk/backend": "^1.13.5",

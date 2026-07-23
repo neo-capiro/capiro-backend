@@ -10,6 +10,8 @@ import { PostHearingService } from './post-hearing.service.js';
 import { HearingBriefService } from './hearing-brief.service.js';
 import { HearingGateway } from './hearing.gateway.js';
 import { StreamResolverService } from './stream-resolver.service.js';
+import { SenateHearingController } from './senate-hearing.controller.js';
+import { SenateTranscriptReadService } from './senate-transcript-read.service.js';
 import { WatchlistModule } from '../watchlist/watchlist.module.js';
 import { LinkingModule } from '../linking/linking.module.js';
 import { SourceDataModule } from '../sourcedata/source-data.module.js';
@@ -22,9 +24,10 @@ import { SourceDataModule } from '../sourcedata/source-data.module.js';
  */
 @Module({
   imports: [WatchlistModule, LinkingModule, SourceDataModule],
-  controllers: [HearingController],
+  controllers: [HearingController, SenateHearingController],
   providers: [
     HearingSessionService,
+    SenateTranscriptReadService,
     SegmentCommitService,
     HearingCryptoService,
     OrchestratorClient,

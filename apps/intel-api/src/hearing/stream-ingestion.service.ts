@@ -71,7 +71,7 @@ export class StreamIngestionService {
     await assertUrlAllowed(audioUrl);
   }
 
-  start(audioUrl: string, cb: IngestionCallbacks): IngestionHandle {
+  start(audioUrl: string, cb: IngestionCallbacks, opts?: { liveEdge?: boolean }): IngestionHandle {
     // Validate scheme early — only http(s). Prevents file:// / pipe: abuse.
     let parsed: URL;
     try {
@@ -116,6 +116,14 @@ export class StreamIngestionService {
       '1',
       '-reconnect_delay_max',
       '5',
+      // Live-edge start (auto-capture): for a LIVE HLS playlist begin at the most
+      // recent segment instead of the playlist head, so we don't replay archived
+      // pre-roll from segment 0 in real time (the "silent pre-gavel" trap on
+      // event/DVR manifests). `-live_start_index -1` is an HLS-demuxer option (must
+      // precede `-i`) that only affects live playlists — a no-op for pure VOD — so
+      // it is safe to pass whenever we KNOW we want the live edge. The manual /
+      // uploaded paths omit it (default head-start, correct for recordings).
+      ...(opts?.liveEdge ? ['-live_start_index', '-1'] : []),
       // SSRF hardening (P8): restrict the protocols a fetched manifest may pull
       // in. `file` is DELIBERATELY OMITTED so a malicious HLS manifest can't make
       // ffmpeg read local files; crypto+data stay for AES-128 HLS keys + inline
