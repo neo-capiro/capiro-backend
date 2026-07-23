@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import { useAuth } from '@clerk/clerk-react';
 import { useQuery } from '@tanstack/react-query';
+import Hls from 'hls.js';
 import {
   App as AntApp,
   Alert,
@@ -16,6 +17,7 @@ import {
   Space,
   Spin,
   Tag,
+  Tooltip,
   Typography,
 } from 'antd';
 import { ArrowLeftOutlined, AudioOutlined, SaveOutlined } from '@ant-design/icons';
@@ -46,6 +48,102 @@ interface Card_ {
   title: string;
   body?: string;
   startMs?: number;
+}
+
+/** youtube.com/watch?v=, youtube.com/live/, youtube.com/embed/, or youtu.be/
+ *  short links — anything else returns null (not embeddable via this path).
+ *  Parses the URL properly rather than pattern-matching the raw string: a
+ *  watch URL shared from a playlist commonly has `list=` before `v=`
+ *  (`?list=PL...&v=ID`), which a "watch?v=" prefix match would miss. */
+const YOUTUBE_ID_RE = /^[a-zA-Z0-9_-]{6,}$/;
+
+function extractYouTubeVideoId(url: string): string | null {
+  let u: URL;
+  try {
+    u = new URL(url);
+  } catch {
+    return null;
+  }
+  const host = u.hostname.replace(/^www\./i, '').toLowerCase();
+  if (host === 'youtu.be') {
+    const id = u.pathname.slice(1);
+    return YOUTUBE_ID_RE.test(id) ? id : null;
+  }
+  if (host !== 'youtube.com' && host !== 'm.youtube.com') return null;
+  if (u.pathname === '/watch') {
+    const id = u.searchParams.get('v');
+    return id && YOUTUBE_ID_RE.test(id) ? id : null;
+  }
+  const m = /^\/(?:live|embed)\/([a-zA-Z0-9_-]{6,})/.exec(u.pathname);
+  return m?.[1] ?? null;
+}
+
+/** Plays an HLS (.m3u8) stream in a plain <video> — native on Safari, hls.js
+ *  everywhere else (same library-free-until-needed approach as the rest of
+ *  this app; no player was previously wired up because the session was
+ *  audio-only transcription with no visual component until now). Muted:
+ *  this is a "watch along" convenience for a stream ffmpeg is ALREADY
+ *  ingesting server-side for transcription — nothing here needs to be heard
+ *  by the browser tab, and muting sidesteps autoplay-with-sound restrictions.
+ *
+ *  ffmpeg pulling this same URL server-side is never CORS-gated, but a
+ *  browser's own fetch of it is — government/committee CDNs commonly lack
+ *  permissive CORS for playback even though a raw server pull works fine.
+ *  Surface that as a clear message rather than a silently-black video box. */
+function HlsVideoPlayer({ src }: { src: string }) {
+  const videoRef = useRef<HTMLVideoElement | null>(null);
+  const [unavailable, setUnavailable] = useState(false);
+
+  useEffect(() => {
+    setUnavailable(false);
+    const video = videoRef.current;
+    if (!video) return;
+    let hls: Hls | null = null;
+    if (video.canPlayType('application/vnd.apple.mpegurl')) {
+      video.src = src;
+    } else if (Hls.isSupported()) {
+      hls = new Hls();
+      hls.on(Hls.Events.ERROR, (_event, data) => {
+        if (data.fatal) setUnavailable(true);
+      });
+      hls.loadSource(src);
+      hls.attachMedia(video);
+    } else {
+      setUnavailable(true);
+    }
+    return () => {
+      hls?.destroy();
+    };
+  }, [src]);
+
+  if (unavailable) {
+    return (
+      <div
+        style={{
+          padding: '32px 16px',
+          textAlign: 'center',
+          background: '#000',
+          borderRadius: 8,
+          color: 'rgba(255,255,255,0.65)',
+          fontSize: 12,
+        }}
+      >
+        Video preview unavailable for this stream — transcription is unaffected.
+      </div>
+    );
+  }
+
+  return (
+    <video
+      ref={videoRef}
+      controls
+      muted
+      autoPlay
+      playsInline
+      onError={() => setUnavailable(true)}
+      style={{ width: '100%', maxHeight: 320, background: '#000', borderRadius: 8, display: 'block' }}
+    />
+  );
 }
 
 function wsUrl(sessionId: string, token: string): string {
@@ -121,6 +219,14 @@ export function LiveHearingRoomPage() {
     session.data?.sourceUrl && !isMediaUrl(session.data.sourceUrl)
       ? session.data.sourceUrl
       : undefined;
+  // A real media URL means ffmpeg is (or will be, on connect) ingesting this
+  // directly server-side — no browser capture needed, and there's something
+  // to actually watch alongside the transcript now that HlsVideoPlayer exists.
+  const mediaSourceUrl =
+    session.data?.sourceUrl && isMediaUrl(session.data.sourceUrl)
+      ? session.data.sourceUrl
+      : undefined;
+  const youtubeVideoId = referenceUrl ? extractYouTubeVideoId(referenceUrl) : null;
 
   const connect = useCallback(async () => {
     const token = await getToken({ template: 'capiro' });
@@ -414,25 +520,59 @@ export function LiveHearingRoomPage() {
         </Space>
       )}
 
-      {referenceUrl && (
-        <Alert
-          type="info"
-          showIcon
-          style={{ marginBottom: 12, maxWidth: 720 }}
-          message="No direct stream for this hearing — capture it from a tab instead"
-          description={
-            <Space direction="vertical" size={6}>
-              <Button type="primary" size="small" href={referenceUrl} target="_blank" rel="noreferrer">
-                1. Open hearing source ↗
+      {(mediaSourceUrl || referenceUrl) && (
+        <Card size="small" title="Hearing video" style={{ marginBottom: 12, maxWidth: 720 }}>
+          {mediaSourceUrl ? (
+            <>
+              <HlsVideoPlayer src={mediaSourceUrl} />
+              <Text type="secondary" style={{ fontSize: 12, display: 'block', marginTop: 8 }}>
+                Direct stream found — transcribing automatically once you connect. Muted here to
+                avoid duplicate audio; unmute with the player&apos;s own controls to watch along. No
+                manual capture needed for this one.
+              </Text>
+            </>
+          ) : youtubeVideoId ? (
+            <>
+              <div style={{ position: 'relative', paddingBottom: '56.25%', height: 0 }}>
+                <iframe
+                  src={`https://www.youtube.com/embed/${youtubeVideoId}`}
+                  title="Hearing video"
+                  allow="autoplay; encrypted-media; picture-in-picture"
+                  allowFullScreen
+                  style={{
+                    position: 'absolute',
+                    top: 0,
+                    left: 0,
+                    width: '100%',
+                    height: '100%',
+                    border: 0,
+                    borderRadius: 8,
+                  }}
+                />
+              </div>
+              <Text type="secondary" style={{ fontSize: 12, display: 'block', marginTop: 8 }}>
+                No direct stream for this hearing — press play above, connect (if you haven&apos;t
+                already), then use <Text strong>&quot;Capture this browser&apos;s audio&quot;</Text>{' '}
+                below and choose <Text strong>&quot;This tab&quot;</Text> when sharing — the video is
+                right here, no need to switch tabs.
+              </Text>
+            </>
+          ) : (
+            <>
+              <Text type="secondary">
+                No direct stream, and this source can&apos;t be embedded here.
+              </Text>{' '}
+              <Button type="link" href={referenceUrl} target="_blank" rel="noreferrer" style={{ padding: 0 }}>
+                Open hearing source in a new tab ↗
               </Button>
-              <span>
-                2. Come back here, connect (if you haven&apos;t already), then use{' '}
+              <Text type="secondary" style={{ fontSize: 12, display: 'block', marginTop: 4 }}>
+                Then come back, connect (if you haven&apos;t already), and use{' '}
                 <Text strong>&quot;Capture this browser&apos;s audio&quot;</Text> below — pick that
                 tab and check &quot;Share tab audio&quot;.
-              </span>
-            </Space>
-          }
-        />
+              </Text>
+            </>
+          )}
+        </Card>
       )}
 
       <Space.Compact style={{ display: 'flex', marginBottom: 12, maxWidth: 720 }}>
@@ -442,22 +582,46 @@ export function LiveHearingRoomPage() {
           onChange={(e) => setAudioUrl(e.target.value)}
           onPressEnter={startIngest}
         />
-        <Button type="primary" onClick={startIngest} disabled={!connected || capturing}>
-          Start ingestion
-        </Button>
+        <Tooltip
+          title={
+            !connected
+              ? 'Connect first.'
+              : capturing
+                ? 'Stop browser capture first — only one capture mode can run at a time.'
+                : undefined
+          }
+        >
+          <span>
+            <Button type="primary" onClick={startIngest} disabled={!connected || capturing}>
+              Start ingestion
+            </Button>
+          </span>
+        </Tooltip>
       </Space.Compact>
 
       <Space direction="vertical" size={2} style={{ marginBottom: 12 }}>
         <Space>
-          {!referenceUrl && (
+          {!referenceUrl && !mediaSourceUrl && (
             <Text type="secondary">
               or, if there&apos;s no direct stream URL (e.g. a House committee&apos;s YouTube):
             </Text>
           )}
           {!capturing ? (
-            <Button onClick={startBrowserCapture} disabled={!connected || ingestActive}>
-              Capture this browser&apos;s audio
-            </Button>
+            <Tooltip
+              title={
+                !connected
+                  ? 'Connect first.'
+                  : ingestActive
+                    ? 'A direct stream was found and is already transcribing automatically — no capture needed.'
+                    : undefined
+              }
+            >
+              <span>
+                <Button onClick={startBrowserCapture} disabled={!connected || ingestActive}>
+                  Capture this browser&apos;s audio
+                </Button>
+              </span>
+            </Tooltip>
           ) : (
             <Button danger onClick={stopBrowserCapture}>
               Stop browser capture
