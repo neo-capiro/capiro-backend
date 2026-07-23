@@ -58,7 +58,7 @@ const providers: Array<{
 export function IntegrationsPage() {
   const api = useApi();
   const qc = useQueryClient();
-  const { message } = App.useApp();
+  const { message, modal } = App.useApp();
   const [selectedProvider, setSelectedProvider] = useState<Provider | null>(null);
   const [form] = Form.useForm<IntegrationFormValues>();
 
@@ -171,6 +171,23 @@ export function IntegrationsPage() {
     onError: (err) => message.error(err instanceof Error ? err.message : 'Sync failed'),
   });
 
+  const disconnectGoogle = useMutation({
+    mutationFn: async (connectionId: string) =>
+      (await api.delete(`/api/engagement/integrations/google/${connectionId}`)).data,
+    onSuccess: () => {
+      message.success('Google Workspace disconnected');
+      // The connection is gone and previously synced meetings/mail have had their
+      // connectionId cleared, so refresh the integrations list and the engagement
+      // views that surface synced items.
+      qc.invalidateQueries({ queryKey: ['engagement-integrations'] });
+      qc.invalidateQueries({ queryKey: ['engagement-meetings'] });
+      qc.invalidateQueries({ queryKey: ['engagement-mail-threads'] });
+      qc.invalidateQueries({ queryKey: ['client-meetings'] });
+      qc.invalidateQueries({ queryKey: ['client-mail-threads'] });
+    },
+    onError: (err) => message.error(err instanceof Error ? err.message : 'Disconnect failed'),
+  });
+
   // Surface success / error from the OAuth callback redirect (both providers).
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
@@ -270,6 +287,29 @@ export function IntegrationsPage() {
                             onClick={() => syncGoogle.mutate(connection.id)}
                           >
                             Sync now
+                          </Button>
+                        ) : null}
+                        {/* Disconnect is offered for ANY status: a connected
+                            account can be removed, and an errored/stale one
+                            (revoked token) can be cleared out too. */}
+                        {provider.key === 'google_workspace' ? (
+                          <Button
+                            size="small"
+                            danger
+                            loading={disconnectGoogle.isPending}
+                            onClick={() =>
+                              modal.confirm({
+                                title: 'Disconnect Google Workspace?',
+                                content:
+                                  'This revokes Capiro’s access to this Google account and removes the connection. Previously synced meetings and mail are kept; future syncing stops until you reconnect.',
+                                okText: 'Disconnect',
+                                okButtonProps: { danger: true },
+                                cancelText: 'Cancel',
+                                onOk: () => disconnectGoogle.mutateAsync(connection.id),
+                              })
+                            }
+                          >
+                            Disconnect
                           </Button>
                         ) : null}
                       </Space>

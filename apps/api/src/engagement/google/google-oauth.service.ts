@@ -48,6 +48,7 @@ export const GOOGLE_SCOPES = [
 
 const GOOGLE_AUTH_URL = 'https://accounts.google.com/o/oauth2/v2/auth';
 const GOOGLE_TOKEN_URL = 'https://oauth2.googleapis.com/token';
+const GOOGLE_REVOKE_URL = 'https://oauth2.googleapis.com/revoke';
 const STATE_TTL_SECONDS = 600;
 
 export interface GoogleAuthStartInput {
@@ -211,6 +212,88 @@ export class GoogleOAuthService {
     await this.persistToken(decoded.t, decoded.c, token, expiresAt, claims);
 
     return { tenantId: decoded.t, connectionId: decoded.c };
+  }
+
+  /**
+   * Disconnect a Google Workspace connection: best-effort revoke the OAuth grant
+   * at Google, then delete the connection record. The stored token row is removed
+   * by the FK cascade; ingested meetings/mail keep their data (their connectionId
+   * is SetNull, not cascaded), so disconnecting halts future syncing without
+   * destroying history. Ownership is enforced — a user may only disconnect a
+   * connection they created, matching the per-user scoping of start() and
+   * listIntegrations(). Works for any status (connected / error /
+   * needs_configuration), so a stale or errored connection can also be cleared.
+   */
+  async disconnect(
+    ctx: TenantContext,
+    connectionId: string,
+  ): Promise<{ disconnected: true; connectionId: string }> {
+    const { id, revokeToken } = await this.prisma.withTenant(ctx.tenantId, async (tx) => {
+      const existing = await tx.integrationConnection.findUnique({
+        where: { id: connectionId },
+        include: { token: true },
+      });
+      if (!existing) throw new NotFoundException('Integration connection not found');
+      if (existing.provider !== EngagementProvider.google_workspace) {
+        throw new BadRequestException('Connection is not a Google Workspace integration');
+      }
+      if (existing.createdByUserId !== ctx.userId) {
+        throw new ForbiddenException('You can only disconnect your own Google account');
+      }
+
+      // Decrypt while we hold the row under tenant scope; the network revoke call
+      // itself runs outside the transaction. Prefer the refresh token — revoking
+      // it invalidates every derived access token — and fall back to the access
+      // token if no refresh token was ever stored.
+      const token = existing.token;
+      let revoke: string | undefined;
+      if (token?.refreshTokenCiphertext && token.refreshTokenIv && token.refreshTokenAuthTag) {
+        revoke = this.tokenCrypto.decrypt({
+          ciphertext: token.refreshTokenCiphertext,
+          iv: token.refreshTokenIv,
+          authTag: token.refreshTokenAuthTag,
+        });
+      } else if (token) {
+        revoke = this.tokenCrypto.decrypt({
+          ciphertext: token.accessTokenCiphertext,
+          iv: token.accessTokenIv,
+          authTag: token.accessTokenAuthTag,
+        });
+      }
+      return { id: existing.id, revokeToken: revoke };
+    });
+
+    // Best-effort: if the grant was already revoked (invalid_grant) or Google is
+    // unreachable, we still delete the local record — the user's intent is to
+    // remove the connection, and a failed revoke must not strand it.
+    await this.revokeGoogleGrant(revokeToken);
+
+    await this.prisma.withTenant(ctx.tenantId, async (tx) => {
+      // FK cascade removes the IntegrationConnectionToken row; meetings/mail rows
+      // reference the connection with onDelete: SetNull, so ingested history stays.
+      await tx.integrationConnection.delete({ where: { id } });
+    });
+
+    return { disconnected: true, connectionId: id };
+  }
+
+  private async revokeGoogleGrant(token: string | undefined): Promise<void> {
+    if (!token) return;
+    try {
+      const response = await fetch(GOOGLE_REVOKE_URL, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+        body: new URLSearchParams({ token }).toString(),
+      });
+      if (!response.ok) {
+        const text = await response.text().catch(() => '');
+        this.logger.warn(
+          `Google token revocation returned ${response.status}: ${text.slice(0, 200)}`,
+        );
+      }
+    } catch (err) {
+      this.logger.warn(`Google token revocation failed: ${(err as Error).message}`);
+    }
   }
 
   private async exchangeCode(code: string): Promise<GoogleTokenResponse> {

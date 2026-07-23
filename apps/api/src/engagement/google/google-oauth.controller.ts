@@ -2,6 +2,7 @@ import {
   BadRequestException,
   Body,
   Controller,
+  Delete,
   Get,
   Param,
   Post,
@@ -65,6 +66,19 @@ export class GoogleOAuthController {
       calendar: calendar === undefined ? undefined : calendar !== '0' && calendar !== 'false',
       mail: mail === undefined ? undefined : mail !== '0' && mail !== 'false',
     });
+  }
+
+  // Best-effort revoke the Google grant, then delete the connection record.
+  // Called from the integrations UI's "Disconnect" button. Ownership (own
+  // connections only) is enforced in the service.
+  @Delete(':connectionId')
+  @UseGuards(RolesGuard)
+  @Roles('standard_user')
+  disconnect(
+    @CurrentTenant() ctx: TenantContext,
+    @Param('connectionId') connectionId: string,
+  ): Promise<unknown> {
+    return this.oauth.disconnect(ctx, connectionId);
   }
 
   // Returns an authorization URL the browser should navigate to. Called from
