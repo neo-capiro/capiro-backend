@@ -1,0 +1,274 @@
+// Capiro Strategy API (api-strategy) — Prisma schema.
+//
+// This service owns the `sp_*` tables in the shared Aurora cluster and is the
+// ONLY writer of them. It references apps/api entities (tenants, clients,
+// users) by id ONLY — there are no cross-schema foreign keys (mirrors
+// apps/workspace's `ws_*` engine). Owner/actor identity is the raw Clerk
+// subject string (the service does not own the users table).
+//
+// Tenant isolation is enforced in application code via PrismaService.withTenant
+// (the DMMF-derived query hook injects `where.tenantId`); the RLS policies in
+// the migration are defense-in-depth (the runtime `capiro_app` role currently
+// bypasses RLS — see the migration header).
+
+generator client {
+  provider = "prisma-client-js"
+  // Custom output isolates this engine's client from apps/api's @prisma/client
+  // in the shared pnpm monorepo. Import via `../generated/prisma-client`.
+  // Prisma.dmmf read by the tenant-scope hook MUST come from this client, not
+  // from @prisma/client, or the tenant-scoped model set reflects the wrong schema.
+  output          = "../generated/prisma-client"
+  previewFeatures = ["postgresqlExtensions"]
+  // Bookworm slim runtime is OpenSSL 3.x on linux-arm64. `native` covers the
+  // build host; the explicit target covers cross-arch buildx builds.
+  binaryTargets   = ["native", "linux-arm64-openssl-3.0.x"]
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ---- Enums --------------------------------------------------------------------
+
+enum SpStrategyType {
+  appropriations
+  authorization
+  regulatory
+  coalition
+  procurement
+  earmark
+
+  @@map("sp_strategy_type")
+}
+
+enum SpNodeKind {
+  action
+  decision
+  gate
+  milestone
+  risk
+
+  @@map("sp_node_kind")
+}
+
+enum SpNodeSubject {
+  deliverable
+  submission
+  member
+  committee
+  ask
+  agency
+  outcome
+  optics
+
+  @@map("sp_node_subject")
+}
+
+enum SpNodeStatus {
+  draft
+  in_progress
+  internal_review
+  active
+  suggested
+
+  @@map("sp_node_status")
+}
+
+enum SpAuthorKind {
+  person
+  meri
+
+  @@map("sp_author_kind")
+}
+
+enum SpRefKind {
+  congress_milestone
+  ppbe_lane_bar
+  ppbe_current_phase
+
+  @@map("sp_ref_kind")
+}
+
+enum SpArtifactType {
+  workspace_draft
+  outreach_record
+
+  @@map("sp_artifact_type")
+}
+
+// ---- Models -------------------------------------------------------------------
+
+// A strategy. NO status field (handoff §1: removed intentionally — version
+// history is the audit trail). Firm-wide collaborative: any org member may
+// view/edit; per-strategy ACLs are out of scope.
+model SpStrategy {
+  id                 String         @id @default(uuid()) @db.Uuid
+  tenantId           String         @map("tenant_id") @db.Uuid
+  clientId           String         @map("client_id") @db.Uuid // apps/api clients.id — no FK
+  title              String
+  type               SpStrategyType
+  goal               String?        @db.Text
+  meriContext        String?        @map("meri_context") @db.Text
+  targetDate         DateTime?      @map("target_date") @db.Date
+  ownerUserId        String         @map("owner_user_id") // Clerk user id
+  createdByUserId    String         @map("created_by_user_id")
+  lastEditedByUserId String?        @map("last_edited_by_user_id")
+  lastEditedAt       DateTime?      @map("last_edited_at")
+  archivedAt         DateTime?      @map("archived_at")
+  createdAt          DateTime       @default(now()) @map("created_at")
+  updatedAt          DateTime       @updatedAt @map("updated_at")
+
+  nodes     SpNode[]
+  versions  SpVersion[]
+  artifacts SpNodeArtifact[]
+
+  @@index([tenantId, clientId])
+  @@index([tenantId, archivedAt])
+  @@map("sp_strategy")
+}
+
+// A plan step. True dates are stored; quarter-units are DERIVED render
+// coordinates computed from the live fiscal calendar (plan D2).
+model SpNode {
+  id              String        @id @default(uuid()) @db.Uuid
+  tenantId        String        @map("tenant_id") @db.Uuid
+  strategyId      String        @map("strategy_id") @db.Uuid
+  kind            SpNodeKind
+  subject         SpNodeSubject
+  title           String
+  note            String?       @db.Text
+  ownerUserId     String?       @map("owner_user_id")
+  status          SpNodeStatus  @default(draft)
+  startsOn        DateTime      @map("starts_on") @db.Date
+  endsOn          DateTime?     @map("ends_on") @db.Date // null = point event
+  openEnded       Boolean       @default(false) @map("open_ended") // ongoing risk ⇒ "Ongoing" label
+  meriAuthored    Boolean       @default(false) @map("meri_authored")
+  createdByUserId String        @map("created_by_user_id")
+  createdAt       DateTime      @default(now()) @map("created_at")
+  updatedAt       DateTime      @updatedAt @map("updated_at")
+
+  strategy  SpStrategy       @relation(fields: [strategyId], references: [id], onDelete: Cascade, onUpdate: Cascade)
+  artifacts SpNodeArtifact[]
+
+  @@index([tenantId, strategyId])
+  @@map("sp_node")
+}
+
+// Full-snapshot version history (WsDocVersion pattern). One version per
+// mutation batch; restore replaces current state and itself cuts a version.
+model SpVersion {
+  id                    String       @id @default(uuid()) @db.Uuid
+  tenantId              String       @map("tenant_id") @db.Uuid
+  strategyId            String       @map("strategy_id") @db.Uuid
+  snapshot              Json // full strategy meta + nodes[]
+  authorKind            SpAuthorKind @map("author_kind")
+  authorUserId          String?      @map("author_user_id")
+  note                  String
+  restoredFromVersionId String?      @map("restored_from_version_id") @db.Uuid
+  createdAt             DateTime     @default(now()) @map("created_at")
+
+  strategy SpStrategy @relation(fields: [strategyId], references: [id], onDelete: Cascade, onUpdate: Cascade)
+
+  @@index([tenantId, strategyId, createdAt(sort: Desc)])
+  @@map("sp_version")
+}
+
+// Tenant-wide, ordered firm phases (the config modal edits these). "Firm
+// configured" = existence of >=1 row for the tenant.
+model SpFirmPhase {
+  id              String   @id @default(uuid()) @db.Uuid
+  tenantId        String   @map("tenant_id") @db.Uuid
+  label           String
+  startFy         Int      @map("start_fy") // e.g. 2027
+  startQ          Int      @map("start_q") // 1-4 (federal FY quarters)
+  endFy           Int      @map("end_fy")
+  endQ            Int      @map("end_q") // exclusive end, matching the modal's to-select
+  position        Int
+  updatedByUserId String   @map("updated_by_user_id")
+  createdAt       DateTime @default(now()) @map("created_at")
+  updatedAt       DateTime @updatedAt @map("updated_at")
+
+  @@index([tenantId, position])
+  @@map("sp_firm_phase")
+}
+
+// GLOBAL Capiro-maintained reference baseline (no tenant_id — intentionally
+// tenant-scope-exempt). Legislative milestones + PPBE lanes + current phases.
+// Seeded at deploy (insert-if-empty) and replaced via the update-strategy-
+// reference ops verb.
+model SpReferenceEntry {
+  id        String    @id @default(uuid()) @db.Uuid
+  kind      SpRefKind
+  label     String
+  fy        Int? // ppbe rows
+  startsOn  DateTime? @map("starts_on") @db.Date // null for ppbe_current_phase
+  endsOn    DateTime? @map("ends_on") @db.Date
+  tone      String? // ink|info|accent|notable|critical|success
+  position  Int
+  active    Boolean   @default(true)
+  createdAt DateTime  @default(now()) @map("created_at")
+  updatedAt DateTime  @updatedAt @map("updated_at")
+
+  @@index([kind, active, position])
+  @@map("sp_reference_entry")
+}
+
+// Tenant fork of the reference baseline (fork-on-edit). Renderer prefers tenant
+// rows for a kind when >=1 exists, else the global baseline.
+model SpReferenceOverride {
+  id              String    @id @default(uuid()) @db.Uuid
+  tenantId        String    @map("tenant_id") @db.Uuid
+  kind            SpRefKind
+  label           String
+  fy              Int?
+  startsOn        DateTime? @map("starts_on") @db.Date
+  endsOn          DateTime? @map("ends_on") @db.Date
+  tone            String?
+  position        Int
+  active          Boolean   @default(true)
+  updatedByUserId String    @map("updated_by_user_id")
+  createdAt       DateTime  @default(now()) @map("created_at")
+  updatedAt       DateTime  @updatedAt @map("updated_at")
+
+  @@index([tenantId, kind, position])
+  @@map("sp_reference_override")
+}
+
+// Node <-> artifact back-links (Workspace draft / Outreach record).
+model SpNodeArtifact {
+  id              String         @id @default(uuid()) @db.Uuid
+  tenantId        String         @map("tenant_id") @db.Uuid
+  strategyId      String         @map("strategy_id") @db.Uuid
+  nodeId          String         @map("node_id") @db.Uuid
+  artifactType    SpArtifactType @map("artifact_type")
+  artifactRef     String         @map("artifact_ref") // ws_draft.id / outreach_records.id
+  createdByUserId String         @map("created_by_user_id")
+  createdAt       DateTime       @default(now()) @map("created_at")
+
+  node     SpNode     @relation(fields: [nodeId], references: [id], onDelete: Cascade, onUpdate: Cascade)
+  strategy SpStrategy @relation(fields: [strategyId], references: [id], onDelete: Cascade, onUpdate: Cascade)
+
+  @@unique([nodeId, artifactType, artifactRef])
+  @@index([tenantId, strategyId])
+  @@map("sp_node_artifact")
+}
+
+// Append-only activity log (audit_logs pattern; enforced by a BEFORE
+// UPDATE/DELETE trigger in the migration). actorUserId null => system/meri.
+model SpActivityLog {
+  id          String       @id @default(uuid()) @db.Uuid
+  tenantId    String       @map("tenant_id") @db.Uuid
+  actorUserId String?      @map("actor_user_id")
+  authorKind  SpAuthorKind @map("author_kind")
+  action      String // strategy.created, node.updated, firm_phases.updated, reference.forked, version.restored, ...
+  entityType  String       @map("entity_type")
+  entityId    String       @map("entity_id")
+  before      Json?
+  after       Json?
+  requestId   String?      @map("request_id")
+  occurredAt  DateTime     @default(now()) @map("occurred_at")
+
+  @@index([tenantId, entityType, entityId, occurredAt])
+  @@map("sp_activity_log")
+}

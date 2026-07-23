@@ -76,6 +76,10 @@ export class ComputeStack extends cdk.Stack {
   public readonly meriv2OrchestratorRepo: ecr.IRepository;
   public readonly meriv2OrchestratorService: ecs.FargateService;
   public readonly meriv2OrchestratorTargetGroup: elb.ApplicationTargetGroup;
+  public readonly apiStrategyRepo: ecr.IRepository;
+  public readonly apiStrategyService: ecs.FargateService;
+  public readonly apiStrategyMigrateTaskDefinition: ecs.FargateTaskDefinition;
+  public readonly apiStrategyTargetGroup: elb.ApplicationTargetGroup;
 
   constructor(scope: Construct, id: string, props: ComputeStackProps) {
     super(scope, id, props);
@@ -264,6 +268,11 @@ export class ComputeStack extends cdk.Stack {
       this,
       'MeriV2OrchestratorRepo',
       `capiro/${cfg.envName}/meriv2-orchestrator`,
+    );
+    this.apiStrategyRepo = ecr.Repository.fromRepositoryName(
+      this,
+      'ApiStrategyRepo',
+      `capiro/${cfg.envName}/api-strategy`,
     );
 
     // ------------------------------------------------------------------ ECS cluster
@@ -1019,6 +1028,169 @@ export class ComputeStack extends cdk.Stack {
       scaleOutCooldown: cdk.Duration.seconds(30),
     });
 
+    // ---------------------------------------------------------- Strategy Planner API
+    // Separate service (/strategy-api/*) that owns the sp_* tables in the SHARED
+    // Aurora cluster and reuses the SAME Clerk JWT secret. Ships DARK behind the
+    // per-tenant strategyPlanner.* flags (G1 = scaffold only; no feature routes
+    // yet). Modeled on the MeriV2 orchestrator block above (shared DB/Clerk
+    // secrets, no AI provider keys at Phase-1 scope — those arrive in G5).
+    const apiStrategyLogGroup = new logs.LogGroup(this, 'ApiStrategyLogs', {
+      logGroupName: `/capiro/${cfg.envName}/api-strategy`,
+      retention: cfg.logRetentionDays as unknown as logs.RetentionDays,
+      removalPolicy: cdk.RemovalPolicy.RETAIN,
+    });
+    const apiStrategyMigrateLogGroup = new logs.LogGroup(this, 'ApiStrategyMigrateLogs', {
+      logGroupName: `/capiro/${cfg.envName}/api-strategy-migrate`,
+      retention: logs.RetentionDays.ONE_YEAR,
+      removalPolicy: cfg.protectFromDestroy
+        ? cdk.RemovalPolicy.RETAIN
+        : cdk.RemovalPolicy.DESTROY,
+    });
+
+    const apiStrategyTaskRole = new iam.Role(this, 'ApiStrategyTaskRole', {
+      assumedBy: new iam.ServicePrincipal('ecs-tasks.amazonaws.com'),
+      description: 'Capiro Strategy API task role',
+    });
+    apiStrategyTaskRole.addToPolicy(
+      new iam.PolicyStatement({
+        actions: ['secretsmanager:GetSecretValue', 'secretsmanager:DescribeSecret'],
+        resources: [
+          dbSecretImported.secretArn,
+          appDbSecretImported.secretArn,
+          clerkSecretKeyImported.secretArn,
+        ],
+      }),
+    );
+    apiStrategyTaskRole.addToPolicy(
+      new iam.PolicyStatement({
+        actions: ['kms:Decrypt', 'kms:DescribeKey'],
+        resources: [dataKey.keyArn, secretsStack.secretsKey.keyArn],
+      }),
+    );
+
+    // Serve: app DB role (least-privilege) + host/port from the master secret.
+    const apiStrategyServeSecrets = {
+      CLERK_SECRET_KEY: ecs.Secret.fromSecretsManager(clerkSecretKeyImported),
+      DB_HOST: ecs.Secret.fromSecretsManager(dbSecretImported, 'host'),
+      DB_PORT: ecs.Secret.fromSecretsManager(dbSecretImported, 'port'),
+      DB_USER: ecs.Secret.fromSecretsManager(appDbSecretImported, 'username'),
+      DB_PASSWORD: ecs.Secret.fromSecretsManager(appDbSecretImported, 'password'),
+    };
+    // Migrate: master role for DDL + RLS grants.
+    const apiStrategyMigrateSecrets = {
+      DB_HOST: ecs.Secret.fromSecretsManager(dbSecretImported, 'host'),
+      DB_PORT: ecs.Secret.fromSecretsManager(dbSecretImported, 'port'),
+      DB_USER: ecs.Secret.fromSecretsManager(dbSecretImported, 'username'),
+      DB_PASSWORD: ecs.Secret.fromSecretsManager(dbSecretImported, 'password'),
+    };
+    const apiStrategySharedEnv: Record<string, string> = {
+      NODE_ENV: cfg.envName === 'dev' ? 'development' : 'production',
+      LOG_LEVEL: 'info',
+      STRATEGY_LOG_LEVEL: 'log',
+      STRATEGY_PORT: '4400',
+      DB_NAME: databaseName,
+      ...(cfg.clerkJwtIssuer ? { CLERK_JWT_ISSUER: cfg.clerkJwtIssuer } : {}),
+      WEB_ORIGIN: `https://${cfg.appHost}`,
+    };
+
+    const apiStrategyTaskDef = new ecs.FargateTaskDefinition(this, 'ApiStrategyTaskDef', {
+      family: `capiro-${cfg.envName}-api-strategy`,
+      cpu: cfg.apiStrategyCpu,
+      memoryLimitMiB: cfg.apiStrategyMemoryMib,
+      runtimePlatform: {
+        cpuArchitecture: ecs.CpuArchitecture.ARM64,
+        operatingSystemFamily: ecs.OperatingSystemFamily.LINUX,
+      },
+      taskRole: apiStrategyTaskRole,
+    });
+    grantSecretsAndKmsToExecutionRole(
+      apiStrategyTaskDef,
+      [
+        dbSecretImported.secretArn,
+        appDbSecretImported.secretArn,
+        clerkSecretKeyImported.secretArn,
+      ],
+      [dataKey.keyArn, secretsStack.secretsKey.keyArn],
+    );
+    apiStrategyTaskDef.addContainer('api-strategy', {
+      image: ecs.ContainerImage.fromEcrRepository(this.apiStrategyRepo, 'latest'),
+      essential: true,
+      logging: ecs.LogDrivers.awsLogs({
+        logGroup: apiStrategyLogGroup,
+        streamPrefix: 'api-strategy',
+      }),
+      environment: apiStrategySharedEnv,
+      secrets: apiStrategyServeSecrets,
+      readonlyRootFilesystem: false,
+      portMappings: [{ containerPort: 4400, protocol: ecs.Protocol.TCP }],
+      healthCheck: {
+        command: ['CMD-SHELL', 'wget -qO- http://127.0.0.1:4400/strategy-api/health || exit 1'],
+        interval: cdk.Duration.seconds(30),
+        timeout: cdk.Duration.seconds(5),
+        retries: 3,
+        startPeriod: cdk.Duration.seconds(30),
+      },
+    });
+
+    this.apiStrategyService = new ecs.FargateService(this, 'ApiStrategyService', {
+      cluster: this.cluster,
+      taskDefinition: apiStrategyTaskDef,
+      serviceName: `capiro-${cfg.envName}-api-strategy`,
+      desiredCount: cfg.apiStrategyDesiredCount,
+      vpcSubnets: { subnetType: ec2.SubnetType.PRIVATE_WITH_EGRESS },
+      securityGroups: [serviceSecurityGroup as ec2.SecurityGroup],
+      assignPublicIp: false,
+      enableExecuteCommand: cfg.envName !== 'prod',
+      cloudMapOptions: { name: 'api-strategy' },
+      circuitBreaker: { rollback: true },
+      minHealthyPercent: 100,
+      maxHealthyPercent: 200,
+    });
+    const apiStrategyScaling = this.apiStrategyService.autoScaleTaskCount({
+      minCapacity: cfg.apiStrategyDesiredCount,
+      maxCapacity: cfg.apiStrategyMaxCount,
+    });
+    apiStrategyScaling.scaleOnCpuUtilization('ApiStrategyCpuScaling', {
+      targetUtilizationPercent: 60,
+      scaleInCooldown: cdk.Duration.seconds(60),
+      scaleOutCooldown: cdk.Duration.seconds(30),
+    });
+
+    // Strategy API migrate task (run before rolling the service, like
+    // api-migrate/workspace-migrate). The `migrate` verb runs prisma migrate
+    // deploy against the sp_* migrations, then seeds the reference baseline.
+    this.apiStrategyMigrateTaskDefinition = new ecs.FargateTaskDefinition(
+      this,
+      'ApiStrategyMigrateTaskDef',
+      {
+        family: `capiro-${cfg.envName}-api-strategy-migrate`,
+        cpu: 512,
+        memoryLimitMiB: 1024,
+        runtimePlatform: {
+          cpuArchitecture: ecs.CpuArchitecture.ARM64,
+          operatingSystemFamily: ecs.OperatingSystemFamily.LINUX,
+        },
+        taskRole: apiStrategyTaskRole,
+      },
+    );
+    grantSecretsAndKmsToExecutionRole(
+      this.apiStrategyMigrateTaskDefinition,
+      [dbSecretImported.secretArn],
+      [dataKey.keyArn, secretsStack.secretsKey.keyArn],
+    );
+    this.apiStrategyMigrateTaskDefinition.addContainer('api-strategy-migrate', {
+      image: ecs.ContainerImage.fromEcrRepository(this.apiStrategyRepo, 'latest'),
+      essential: true,
+      logging: ecs.LogDrivers.awsLogs({
+        logGroup: apiStrategyMigrateLogGroup,
+        streamPrefix: 'api-strategy-migrate',
+      }),
+      command: ['migrate'],
+      environment: { ...apiStrategySharedEnv, MIGRATE_ONLY: '1' },
+      secrets: apiStrategyMigrateSecrets,
+      readonlyRootFilesystem: false,
+    });
+
     // Workspace migrate task (run before rolling the service, like api-migrate).
     this.workspaceMigrateTaskDefinition = new ecs.FargateTaskDefinition(
       this,
@@ -1464,6 +1636,32 @@ export class ComputeStack extends cdk.Stack {
       },
     );
 
+    this.apiStrategyTargetGroup = new elb.ApplicationTargetGroup(
+      this,
+      'ApiStrategyTargetGroup',
+      {
+        vpc,
+        port: 4400,
+        protocol: elb.ApplicationProtocol.HTTP,
+        targetType: elb.TargetType.IP,
+        targets: [
+          this.apiStrategyService.loadBalancerTarget({
+            containerName: 'api-strategy',
+            containerPort: 4400,
+          }),
+        ],
+        healthCheck: {
+          path: '/strategy-api/health',
+          healthyHttpCodes: '200',
+          interval: cdk.Duration.seconds(30),
+          timeout: cdk.Duration.seconds(5),
+          unhealthyThresholdCount: 3,
+          healthyThresholdCount: 2,
+        },
+        deregistrationDelay: cdk.Duration.seconds(15),
+      },
+    );
+
     // Listener rules, ORDER MATTERS, lower priority wins.
     //   3  /api/*, /webhooks/*, /health (any host) → api  [must beat marketing host rule]
     //   5  apex (capiro.ai) → marketing
@@ -1504,6 +1702,22 @@ export class ComputeStack extends cdk.Stack {
       priority: 15,
       conditions: [elb.ListenerCondition.pathPatterns(['/meri-api/*'])],
       action: elb.ListenerAction.forward([this.meriv2OrchestratorTargetGroup]),
+    });
+    // Strategy Planner API: /strategy-api/* → api-strategy service. Distinct
+    // from /api/* and /workspace-api/*. Priority 12 sits between WorkspaceApi
+    // (10) and MeriApi (15) on this CDK ALB.
+    // ⚠️ SAME PROD ROUTING DRIFT caveat as WorkspaceApi/MeriApi: this attaches to
+    // the CDK-managed `Alb`, which is NOT the live prod ALB. The EFFECTIVE prod
+    // rule must be added out-of-band to the MANUAL `capiro-prod-alb` HTTPS:443
+    // listener (`aws elbv2 create-rule --priority <N> --conditions
+    // path-pattern /strategy-api/* --actions forward capiro-prod-api-strategy-tg`).
+    // On the live ALB workspace≈12, meriv2-orch=13, /webhooks/*=15 are taken —
+    // pick a free priority < 20 (e.g. 14 or 16-19); the CDK number here is
+    // independent of the real-ALB number.
+    httpsListener.addAction('StrategyApi', {
+      priority: 12,
+      conditions: [elb.ListenerCondition.pathPatterns(['/strategy-api/*'])],
+      action: elb.ListenerAction.forward([this.apiStrategyTargetGroup]),
     });
     if (cfg.rootDomain !== cfg.appHost) {
       httpsListener.addAction('Marketing', {

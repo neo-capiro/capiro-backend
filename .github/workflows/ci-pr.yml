@@ -45,6 +45,7 @@ jobs:
           pnpm --filter @capiro/workspace exec prisma generate
           pnpm --filter @capiro/intel-api exec prisma generate
           pnpm --filter @capiro/onboard-api exec prisma generate
+          pnpm --filter @capiro/api-strategy exec prisma generate
 
       - name: Prettier (MeriV2 + shared core)
         # W5.7: packages/shared is now gated — it holds the deterministic engines
@@ -116,3 +117,12 @@ jobs:
       # An auth regression here would gate every orchestrator/workspace route.
       - name: Test auth package
         run: pnpm --filter @capiro/auth test
+
+      # @capiro/api-strategy — Strategy Planner engine (G1 scaffold). The
+      # DB-free specs run here: fiscal calendar, reference baseline builder +
+      # payload validator, and the tenant-scope leak guard (static: greps src
+      # for bare tenant-scoped Prisma access). The DB-backed
+      # tenant-isolation.int-spec self-skips without DATABASE_URL (it runs in
+      # the image/e2e path), so the full `test` is safe here.
+      - name: Test api-strategy
+        run: pnpm --filter @capiro/api-strategy test

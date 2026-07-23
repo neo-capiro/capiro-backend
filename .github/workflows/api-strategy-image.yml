@@ -1,0 +1,70 @@
+# Builds the Strategy API (api-strategy) container image and pushes it to ECR.
+# Deploys are NOT automated, `cdk deploy` / `ecs update-service` run
+# interactively. This workflow only produces a build artifact. Mirrors
+# api-image.yml.
+#
+# Prerequisites (out-of-band, one-time):
+#   - Create the ECR repo `capiro/<env>/api-strategy`.
+#   - Extend the `capiro-gha-*` OIDC role's ecr-push policy to cover it.
+
+name: api-strategy-image
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'apps/api-strategy/**'
+      - 'packages/auth/**'
+      - 'pnpm-lock.yaml'
+      - '.github/workflows/api-strategy-image.yml'
+  workflow_dispatch:
+    inputs:
+      env:
+        description: 'Target env (dev|staging|prod)'
+        required: true
+        default: 'dev'
+
+permissions:
+  id-token: write
+  contents: read
+
+env:
+  AWS_REGION: us-east-1
+  TARGET_ENV: ${{ github.event.inputs.env || 'dev' }}
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Configure AWS credentials (OIDC)
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ env.TARGET_ENV == 'prod' && vars.AWS_PROD_GHA_ROLE_ARN || vars.AWS_DEV_GHA_ROLE_ARN }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Login to Amazon ECR
+        id: ecr
+        uses: aws-actions/amazon-ecr-login@v2
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Build and push (linux/arm64)
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: apps/api-strategy/Dockerfile
+          platforms: linux/arm64
+          push: true
+          provenance: false
+          tags: |
+            ${{ steps.ecr.outputs.registry }}/capiro/${{ env.TARGET_ENV }}/api-strategy:${{ github.sha }}
+            ${{ steps.ecr.outputs.registry }}/capiro/${{ env.TARGET_ENV }}/api-strategy:latest
+          cache-from: type=gha,scope=api-strategy
+          cache-to: type=gha,mode=max,scope=api-strategy
+
+      - name: Output image digest
+        run: echo "Pushed capiro/${TARGET_ENV}/api-strategy:${GITHUB_SHA}"
