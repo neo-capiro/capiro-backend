@@ -150,6 +150,54 @@ describe('HearingWatchPage — New Hearing modal (P8)', () => {
     expect(screen.getByRole('link', { name: /C-SPAN/i })).toBeInTheDocument();
   }, 15000);
 
+  test('unresolvable outcome persists the reference URL as sourceUrl on Create', async () => {
+    apiPostMock.mockImplementation(async (url: string) => {
+      if (url === '/intel-api/hearings/resolve-stream') {
+        return {
+          data: {
+            status: 'unresolvable',
+            reference: 'https://www.c-span.org/search/?searchtype=Videos&query=armed+services',
+            note: 'No direct stream resolved — search C-SPAN or paste the stream URL',
+          },
+        };
+      }
+      if (url === '/intel-api/hearings') {
+        return { data: { id: 's1', title: 'Test hearing', status: 'created', sourceType: 'hearing' } };
+      }
+      return { data: {} };
+    });
+
+    renderPanel();
+    await openNewHearingModal();
+
+    const urlInput = screen.getByPlaceholderText(/Resolve/i);
+    fireEvent.change(urlInput, { target: { value: 'https://www.congress.gov/event/x' } });
+    fireEvent.click(screen.getByRole('button', { name: /Resolve stream/i }));
+    await waitFor(() => expect(screen.getByText(/No direct stream resolved/i)).toBeInTheDocument());
+
+    // The user gives up on finding a direct stream and clears the paste —
+    // exercising the case that actually needs the fallback: no media URL was
+    // ever resolved AND the visible field is empty at submit time (this is
+    // also what happens on the real "Watch" path, which auto-resolves a
+    // preset URL without ever writing a non-media URL into this field).
+    fireEvent.change(urlInput, { target: { value: '' } });
+
+    // Title is required and isn't preset on the manual "Add hearing" path.
+    const titleInput = screen.getByPlaceholderText(/Senate Energy Committee/i);
+    fireEvent.change(titleInput, { target: { value: 'Test hearing' } });
+
+    fireEvent.click(screen.getByRole('button', { name: /Create/i }));
+
+    await waitFor(() =>
+      expect(apiPostMock).toHaveBeenCalledWith(
+        '/intel-api/hearings',
+        expect.objectContaining({
+          sourceUrl: 'https://www.c-span.org/search/?searchtype=Videos&query=armed+services',
+        }),
+      ),
+    );
+  }, 15000);
+
   test('empty-candidates is treated as unresolvable and still gives feedback', async () => {
     apiPostMock.mockImplementation(async (url: string) => {
       if (url === '/intel-api/hearings/resolve-stream') {

@@ -36,8 +36,13 @@ export class CreateSessionDto {
   @IsEnum(RecordingPolicyDto)
   recordingPolicy?: RecordingPolicyDto;
 
-  /** Optional direct media URL (HLS .m3u8 / MP3 / AAC / MP4) to pre-fill + auto-start
-   *  ingestion in the room. Kept as a lenient string (stream URLs vary widely). */
+  /** Dual-purpose: either a direct media URL (HLS .m3u8 / MP3 / AAC / MP4), which
+   *  pre-fills + auto-starts ffmpeg ingestion in the room, OR — when no media URL
+   *  was resolvable (e.g. a House hearing with no first-party stream) — a
+   *  reference page URL (event page / C-SPAN search) the room instead renders as
+   *  an "open + capture this browser's audio" link. The frontend's isMediaUrl()
+   *  is what distinguishes the two cases; kept as a lenient string here since
+   *  both URL shapes vary widely. */
   @IsOptional() @IsString() @MaxLength(2000) sourceUrl?: string;
 
   /**

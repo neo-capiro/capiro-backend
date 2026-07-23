@@ -5,6 +5,7 @@ import { useNavigate } from 'react-router-dom';
 import { useIntelFeatureEnabled } from '../../lib/intel-feature-flags.js';
 import '../radar/legiwatch.css';
 import {
+  isMediaUrl,
   useBrowseHearings,
   useCreateHearing,
   useHearingSessions,
@@ -70,16 +71,6 @@ function prettyType(type: string): string {
   if (t.includes('hearing')) return 'Hearing';
   if (t.includes('meeting')) return 'Meeting';
   return type;
-}
-
-/** A directly-ingestible media URL (HLS/MP4/audio) vs an event page. Only a media
- *  URL is pre-filled into the room's Stream URL; an event page is offered as a
- *  click-through reference to go find the actual C-SPAN/committee stream. */
-function isMediaUrl(u?: string | null): boolean {
-  if (!u) return false;
-  return (
-    /\.(m3u8|mp4|m3u|aac|mp3|ts)(\?|#|$)/i.test(u) || /stream|manifest|playlist|\.m3u8/i.test(u)
-  );
 }
 
 /** C-SPAN video-search query for a hearing (committee + title), for the one-click finder. */
@@ -770,7 +761,11 @@ function NewHearingModal({
               sourceType: v.sourceType,
               audioSource: v.audioSource,
               recordingPolicy: v.recordingPolicy,
-              sourceUrl: v.sourceUrl?.trim() || undefined,
+              // No ingestible media URL? Persist whatever reference link we DO
+              // have (event page / C-SPAN search) so the Live Hearing Room can
+              // surface it as an "open + capture" link — otherwise that link
+              // only ever existed transiently in this modal.
+              sourceUrl: v.sourceUrl?.trim() || referenceUrl || cspanUrl || undefined,
               consentAttestation: PRIVATE_SOURCE_TYPES.has(v.sourceType)
                 ? v.consentAttestation?.trim() || undefined
                 : undefined,
@@ -913,7 +908,7 @@ function NewHearingModal({
             type="info"
             showIcon
             style={{ marginBottom: 12 }}
-            message="Find the live stream"
+            message="No direct stream found — two ways to watch it anyway"
             description={
               <span>
                 {resolved?.note ? (
@@ -922,13 +917,11 @@ function NewHearingModal({
                     {referenceUrl || cspanUrl ? <br /> : null}
                   </>
                 ) : (
-                  <>
-                    Congress.gov doesn&apos;t publish a media URL. Grab the direct{' '}
-                    <Text code>.m3u8</Text>/MP4 from{' '}
-                  </>
+                  <>Congress.gov doesn&apos;t publish a media URL for this one. </>
                 )}
                 {referenceUrl || cspanUrl ? (
                   <>
+                    Open{' '}
                     {referenceUrl ? (
                       <a href={referenceUrl} target="_blank" rel="noreferrer">
                         the source page ↗
@@ -940,7 +933,11 @@ function NewHearingModal({
                         C-SPAN ↗
                       </a>
                     ) : null}
-                    , then paste it below.
+                    {' — '}
+                    if you find a direct <Text code>.m3u8</Text>/MP4 link there, paste it below;
+                    otherwise just create the session as-is and use{' '}
+                    <Text strong>&quot;Capture this browser&apos;s audio&quot;</Text> once you&apos;re
+                    in the room — this link comes with you.
                   </>
                 ) : null}
               </span>

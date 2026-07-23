@@ -21,6 +21,22 @@ export interface LiveHearingSession {
   consentState?: string | null;
 }
 
+/** A directly-ingestible media URL (HLS/MP4/audio) vs. an event/committee page.
+ *  Only a media URL can be pre-filled into the room's ffmpeg Stream URL box; a
+ *  page URL is a click-through reference for a human to open and capture.
+ *
+ *  `stream`/`manifest`/`playlist` must appear as their own path segment (bounded
+ *  by `/`, `.`, `-`, `_`, or start/end) — a bare substring match would also hit
+ *  ordinary event-page URLs containing words like "livestream" or "streaming"
+ *  (common on committee sites), false-positiving them as ingestible media. */
+export function isMediaUrl(u?: string | null): boolean {
+  if (!u) return false;
+  return (
+    /\.(m3u8|mp4|m3u|aac|mp3|ts)(\?|#|$)/i.test(u) ||
+    /(?:^|[/._-])(?:stream|manifest|playlist)(?:[/._-]|$)/i.test(u)
+  );
+}
+
 export interface UpcomingHearing {
   id: string;
   title: string;

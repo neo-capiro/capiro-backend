@@ -24,6 +24,7 @@ import { useIntelFeatureEnabled } from '../../lib/intel-feature-flags.js';
 import '../radar/legiwatch.css';
 import {
   briefToMarkdown,
+  isMediaUrl,
   useConfirmConsent,
   useGenerateBrief,
   useHearingSession,
@@ -104,12 +105,22 @@ export function LiveHearingRoomPage() {
   }, [audioUrl]);
 
   // Pre-fill the ingestion URL from the session's stored stream URL (set at
-  // "New Hearing"), unless the user has already typed one.
+  // "New Hearing"), unless the user has already typed one. Only for an
+  // actually-ingestible media URL — a reference/event-page link (e.g. a House
+  // committee's YouTube page) would just fail ffmpeg ingestion; that case is
+  // instead surfaced as a click-through "open + capture" link below.
   useEffect(() => {
     const u = session.data?.sourceUrl;
-    if (u && !audioUrl) setAudioUrl(u);
+    if (u && isMediaUrl(u) && !audioUrl) setAudioUrl(u);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [session.data?.sourceUrl]);
+
+  // A non-media sourceUrl is a reference (event page / C-SPAN search) carried
+  // over from hearing creation — the source to open in a tab and capture.
+  const referenceUrl =
+    session.data?.sourceUrl && !isMediaUrl(session.data.sourceUrl)
+      ? session.data.sourceUrl
+      : undefined;
 
   const connect = useCallback(async () => {
     const token = await getToken({ template: 'capiro' });
@@ -403,6 +414,27 @@ export function LiveHearingRoomPage() {
         </Space>
       )}
 
+      {referenceUrl && (
+        <Alert
+          type="info"
+          showIcon
+          style={{ marginBottom: 12, maxWidth: 720 }}
+          message="No direct stream for this hearing — capture it from a tab instead"
+          description={
+            <Space direction="vertical" size={6}>
+              <Button type="primary" size="small" href={referenceUrl} target="_blank" rel="noreferrer">
+                1. Open hearing source ↗
+              </Button>
+              <span>
+                2. Come back here, connect (if you haven&apos;t already), then use{' '}
+                <Text strong>&quot;Capture this browser&apos;s audio&quot;</Text> below — pick that
+                tab and check &quot;Share tab audio&quot;.
+              </span>
+            </Space>
+          }
+        />
+      )}
+
       <Space.Compact style={{ display: 'flex', marginBottom: 12, maxWidth: 720 }}>
         <Input
           placeholder="Hearing audio/stream URL (HLS .m3u8, MP3/AAC, or any ffmpeg-openable URL)"
@@ -417,7 +449,11 @@ export function LiveHearingRoomPage() {
 
       <Space direction="vertical" size={2} style={{ marginBottom: 12 }}>
         <Space>
-          <Text type="secondary">or, if there's no direct stream URL (e.g. a House committee's YouTube):</Text>
+          {!referenceUrl && (
+            <Text type="secondary">
+              or, if there&apos;s no direct stream URL (e.g. a House committee&apos;s YouTube):
+            </Text>
+          )}
           {!capturing ? (
             <Button onClick={startBrowserCapture} disabled={!connected || ingestActive}>
               Capture this browser&apos;s audio
