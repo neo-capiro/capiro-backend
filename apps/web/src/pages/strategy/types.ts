@@ -72,6 +72,7 @@ export interface StrategyDetail {
   goal: string | null;
   meriContext: string | null;
   meriSummary: string | null;
+  draftedByMeri: boolean;
   targetDate: string | null;
   ownerUserId: string;
   createdByUserId: string;

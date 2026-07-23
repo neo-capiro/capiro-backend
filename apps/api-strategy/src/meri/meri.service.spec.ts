@@ -254,10 +254,12 @@ describe('MeriService.draft', () => {
     const detail = (await svc.draft(T, U, 'bearer', draftDto)) as unknown as {
       id: string;
       meriSummary: string;
+      draftedByMeri: boolean;
       nodes: Array<{ title: string; meriAuthored: boolean }>;
     };
 
     expect(detail.meriSummary).toBe('A tight FY27 push.');
+    expect(detail.draftedByMeri).toBe(true); // SHL-5 provenance flag
     expect(detail.nodes).toHaveLength(2);
     expect(detail.nodes.every((n) => n.meriAuthored)).toBe(true);
     expect(detail.nodes.map((n) => n.title)).toEqual(['HAC-D markup', 'Member ask']);
@@ -305,6 +307,27 @@ describe('MeriService.draft', () => {
     ]);
     // Reference dates are normalised to YYYY-MM-DD for the prompt.
     expect(body.reference.congress[0]!.startsOn).toBe('2027-05-01');
+  });
+
+  it('never creates a non-risk node as open-ended, even if Meri proposes it', async () => {
+    const store = makeStore();
+    const orchestrator = {
+      draft: jest.fn(async () => ({
+        summary: null,
+        nodes: [
+          { kind: 'milestone', subject: 'submission', title: 'Markup', startsOn: '2027-05-01', openEnded: true },
+          { kind: 'risk', subject: 'outcome', title: 'CR slip', startsOn: '2027-05-01', openEnded: true },
+        ],
+      })),
+    };
+    const { svc } = makeService(orchestrator, store);
+    const detail = (await svc.draft(T, U, 'bearer', draftDto)) as unknown as {
+      nodes: Array<{ kind: string; openEnded: boolean }>;
+    };
+    const milestone = detail.nodes.find((n) => n.kind === 'milestone')!;
+    const risk = detail.nodes.find((n) => n.kind === 'risk')!;
+    expect(milestone.openEnded).toBe(false); // risk-only concept — forced off
+    expect(risk.openEnded).toBe(true); // risk keeps it
   });
 
   it('rejects an unknown client before any write', async () => {

@@ -58,11 +58,16 @@ export class MeriService {
    * sp_* tables): the live 3-FY window, the firm phases, and the merged
    * reference calendars. Forwarded in the draft/assistant request body.
    */
-  private async grounding(tenantId: string) {
+  /** The live 3-FY window (no DB) — grounds date reasoning in every Meri call. */
+  private fiscalWindow() {
     const now = new Date();
     const curFy = fyOf(now);
     const fys = [curFy, curFy + 1, curFy + 2];
     const fyLabels = fys.map((y) => `FY${String(y).slice(2)}`);
+    return { today: isoDate(now), fys, fyLabels, focalFy: fyLabels[1] };
+  }
+
+  private async grounding(tenantId: string) {
     const [phases, ref] = await Promise.all([
       this.firmPhases.list(tenantId),
       this.reference.getCalendars(tenantId),
@@ -75,7 +80,7 @@ export class MeriService {
         endsOn: isoDate(r.endsOn),
       }));
     return {
-      fiscal: { today: isoDate(now), fys, fyLabels, focalFy: fyLabels[1] },
+      fiscal: this.fiscalWindow(),
       firmPhases: phases.map((p) => ({
         label: p.label,
         startFy: p.startFy,
@@ -132,6 +137,7 @@ export class MeriService {
           goal: dto.goal?.trim() || null,
           meriContext: dto.meriContext?.trim() || null,
           meriSummary: resp.summary?.trim() || null,
+          draftedByMeri: true,
           targetDate,
           ownerUserId: owner,
           createdByUserId: clerkUserId,
@@ -247,7 +253,9 @@ export class MeriService {
   ) {
     const aiProvider = await this.resolver.resolve(tenantId);
     return this.orchestrator.referenceAssist(
-      { kind, instruction: dto.instruction, rows: dto.rows },
+      // Fiscal window lets Meri map the working rows' quarter indices to real
+      // FY/quarters when reasoning about "shift a quarter later" etc.
+      { kind, instruction: dto.instruction, rows: dto.rows, fiscal: this.fiscalWindow() },
       bearer,
       aiProvider,
     );
@@ -278,7 +286,9 @@ export class MeriService {
       status,
       startsOn,
       endsOn,
-      openEnded: n.openEnded ?? false,
+      // 'Ongoing' is a risk-only concept (parity with NodeService.add): a
+      // non-risk node can never be created open-ended, even if Meri proposes it.
+      openEnded: kind === 'risk' ? (n.openEnded ?? false) : false,
       meriAuthored: true,
       createdByUserId: clerkUserId,
     };

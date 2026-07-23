@@ -78,7 +78,9 @@ export function AskMeri({
         value={text}
         onChange={(e) => setText(e.target.value)}
         onKeyDown={(e) => {
-          if (e.key === 'Enter' && !e.shiftKey) {
+          // Ignore Enter while an IME composition is in flight, else confirming
+          // a candidate submits (and clears) partial text.
+          if (e.key === 'Enter' && !e.shiftKey && !e.nativeEvent.isComposing) {
             e.preventDefault();
             submit();
           }

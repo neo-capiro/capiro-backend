@@ -21,14 +21,18 @@
         { "name": "STRATEGY_PORT", "value": "4400" },
         { "name": "DB_NAME", "value": "capiro" },
         { "name": "CLERK_JWT_ISSUER", "value": "https://clerk.app.capiro.ai" },
-        { "name": "WEB_ORIGIN", "value": "https://app.capiro.ai" }
+        { "name": "WEB_ORIGIN", "value": "https://app.capiro.ai" },
+        { "name": "STRATEGY_MERI_ENABLED", "value": "false" },
+        { "name": "MERIV2_ORCHESTRATOR_URL", "value": "https://app.capiro.ai" },
+        { "name": "API_INTERNAL_URL", "value": "https://app.capiro.ai" }
       ],
       "secrets": [
         { "name": "CLERK_SECRET_KEY", "valueFrom": "arn:aws:secretsmanager:us-east-1:967807252336:secret:/capiro/dev/clerk/secret-key-FT67tM" },
         { "name": "DB_HOST", "valueFrom": "arn:aws:secretsmanager:us-east-1:967807252336:secret:/capiro/dev/aurora/master-P4z1Vo:host::" },
         { "name": "DB_PORT", "valueFrom": "arn:aws:secretsmanager:us-east-1:967807252336:secret:/capiro/dev/aurora/master-P4z1Vo:port::" },
         { "name": "DB_USER", "valueFrom": "arn:aws:secretsmanager:us-east-1:967807252336:secret:/capiro/dev/aurora/app-zNPtsU:username::" },
-        { "name": "DB_PASSWORD", "valueFrom": "arn:aws:secretsmanager:us-east-1:967807252336:secret:/capiro/dev/aurora/app-zNPtsU:password::" }
+        { "name": "DB_PASSWORD", "valueFrom": "arn:aws:secretsmanager:us-east-1:967807252336:secret:/capiro/dev/aurora/app-zNPtsU:password::" },
+        { "name": "INTERNAL_SERVICE_SECRET", "valueFrom": "arn:aws:secretsmanager:us-east-1:967807252336:secret:capiro/dev/internal-service-secret-6cEZG4" }
       ],
       "healthCheck": {
         "command": ["CMD-SHELL", "wget -qO- http://127.0.0.1:4400/strategy-api/health || exit 1"],

@@ -113,6 +113,10 @@ model SpStrategy {
   // 1-2 sentence Meri plan summary (MRI-2) — set on draft, refreshed after Meri
   // edit-sets; surfaced in the strategy-level rail. Null for manual strategies.
   meriSummary        String?        @map("meri_summary") @db.Text
+  // Provenance (SHL-5): true ONLY for a plan Meri drafted from a goal. Distinct
+  // from meriSummary, which the assistant path also writes — so the "Meri
+  // drafted this" banner must key off this immutable flag, never the summary.
+  draftedByMeri      Boolean        @default(false) @map("drafted_by_meri")
   targetDate         DateTime?      @map("target_date") @db.Date
   ownerUserId        String         @map("owner_user_id") // Clerk user id
   createdByUserId    String         @map("created_by_user_id")

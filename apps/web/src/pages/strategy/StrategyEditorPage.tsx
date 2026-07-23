@@ -78,10 +78,11 @@ export function StrategyEditorPage() {
   const clientName = clients.data?.find((c) => c.id === s.clientId)?.name ?? 'Client';
   const selectedNode = s.nodes.find((n) => n.id === selectedId) ?? null;
 
-  // SHL-5: one-time banner after a Meri draft. meriSummary is set only by the
-  // draft path, so it is the "was this plan drafted by Meri" signal. Dismissal
-  // is per-strategy, per-browser (localStorage), and also held in state so the
-  // banner disappears immediately on click without a re-read.
+  // SHL-5: one-time banner after a Meri draft. Keyed off draftedByMeri (set only
+  // by the draft path) — NOT meriSummary, which a rail assist also writes and
+  // would falsely flag a manual plan. Dismissal is per-strategy, per-browser
+  // (localStorage), and also held in state so the banner disappears immediately
+  // on click without a re-read.
   const draftKey = `sp-draft-banner-${sid}`;
   const draftDismissedStored = (() => {
     try {
@@ -90,7 +91,7 @@ export function StrategyEditorPage() {
       return false;
     }
   })();
-  const showDraftBanner = Boolean(s.meriSummary) && !draftBannerClosed && !draftDismissedStored;
+  const showDraftBanner = s.draftedByMeri && !draftBannerClosed && !draftDismissedStored;
   const dismissDraftBanner = () => {
     try {
       localStorage.setItem(draftKey, '1');
