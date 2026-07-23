@@ -22,7 +22,7 @@
         { "name": "DB_NAME", "value": "capiro" },
         { "name": "CLERK_JWT_ISSUER", "value": "https://clerk.app.capiro.ai" },
         { "name": "WEB_ORIGIN", "value": "https://app.capiro.ai" },
-        { "name": "STRATEGY_MERI_ENABLED", "value": "false" },
+        { "name": "STRATEGY_MERI_ENABLED", "value": "true" },
         { "name": "MERIV2_ORCHESTRATOR_URL", "value": "https://app.capiro.ai" },
         { "name": "API_INTERNAL_URL", "value": "https://app.capiro.ai" }
       ],
