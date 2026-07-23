@@ -8,7 +8,14 @@
  */
 import { useEffect, useRef, useState } from 'react';
 import { Icon } from './strategy-ui.js';
-import { qOfDate, fyQuarterToQ, type FiscalCalendar } from './fiscal.js';
+import {
+  qOfDate,
+  fyQuarterToQ,
+  monthRangeLabel,
+  nodeRangeLabel,
+  parseDbDate,
+  type FiscalCalendar,
+} from './fiscal.js';
 import type { FirmPhase, ReferenceRow, StrategyNode, NodeKind } from './types.js';
 
 const COLW = 100;
@@ -108,10 +115,12 @@ export function StrategyTimeline({
   }, []);
 
   // ---- q helpers for real (date-backed) rows ----
-  const nodeQ = (n: StrategyNode) => qOfDate(new Date(n.startsOn), calendar);
+  // @db.Date values arrive as UTC-midnight ISO; parseDbDate preserves the
+  // calendar day (local getters would shift it west of UTC).
+  const nodeQ = (n: StrategyNode) => qOfDate(parseDbDate(n.startsOn), calendar);
   const nodeDur = (n: StrategyNode) =>
-    n.endsOn ? Math.max(0, qOfDate(new Date(n.endsOn), calendar) - nodeQ(n)) : 0;
-  const refQ = (iso: string | null) => (iso ? qOfDate(new Date(iso), calendar) : 0);
+    n.endsOn ? Math.max(0, qOfDate(parseDbDate(n.endsOn), calendar) - nodeQ(n)) : 0;
+  const refQ = (iso: string | null) => (iso ? qOfDate(parseDbDate(iso), calendar) : 0);
 
   // ---- shared grid overlays ----
   const quarterShade = calendar.quarters.map((q, qi) => {
@@ -330,6 +339,12 @@ export function StrategyTimeline({
             flexDirection: 'column',
           }}
         >
+          {/* Frozen reference header — the prototype WorkingTimeline wraps
+              every band above "This strategy" in a sticky box so they pin while
+              the node track scrolls. StrategyView passes expand (overflow
+              visible) with staticHeader undefined, so position resolves to
+              sticky and the header sticks to the outer [data-sp-scroll]. */}
+          <div style={{ position: 'sticky', top: 0, zIndex: 8 }}>
           {/* Legislative */}
           {layers.congress && (
             <div style={{ display: 'flex', borderBottom: '3px solid var(--bg-dark)' }}>
@@ -405,6 +420,19 @@ export function StrategyTimeline({
                         <span
                           style={{
                             display: 'block',
+                            fontSize: 'var(--text-2xs)',
+                            fontWeight: 700,
+                            letterSpacing: '0.04em',
+                            color: c.fg,
+                            opacity: 0.7,
+                            textTransform: 'uppercase',
+                          }}
+                        >
+                          {monthRangeLabel(b.s, b.e, calendar)}
+                        </span>
+                        <span
+                          style={{
+                            display: 'block',
                             fontSize: 'var(--text-base)',
                             fontWeight: 700,
                             color: c.fg,
@@ -462,6 +490,7 @@ export function StrategyTimeline({
                 {calendar.quarters.map((q, qi) => {
                   const s = qi * 3;
                   const cur = TODAY_M >= s && TODAY_M < s + 3;
+                  const pinned = !!pin && pin[0] === s && pin[1] === s + 3;
                   return (
                     <div
                       key={qi}
@@ -474,7 +503,11 @@ export function StrategyTimeline({
                         padding: '6px 12px',
                         borderRight: '1px solid var(--border-strong)',
                         cursor: 'pointer',
-                        background: cur ? 'rgba(42,87,206,0.06)' : 'transparent',
+                        background: pinned
+                          ? 'rgba(42,87,206,0.14)'
+                          : cur
+                            ? 'rgba(42,87,206,0.06)'
+                            : 'transparent',
                         display: 'flex',
                         alignItems: 'baseline',
                         justifyContent: 'center',
@@ -508,6 +541,7 @@ export function StrategyTimeline({
                             color: 'var(--critical)',
                             fontWeight: 700,
                             textTransform: 'uppercase',
+                            letterSpacing: '0.04em',
                           }}
                         >
                           Current
@@ -520,6 +554,7 @@ export function StrategyTimeline({
               <div style={{ display: 'flex' }}>
                 {months.map((mo, i) => {
                   const past = i < TODAY_MI;
+                  const pinned = !!pin && i >= pin[0] && i < pin[1];
                   return (
                     <div
                       key={i}
@@ -533,6 +568,7 @@ export function StrategyTimeline({
                         borderRight: '1px solid var(--border-1)',
                         borderLeft: mo.fyStart ? '1px solid var(--border-strong)' : 'none',
                         cursor: 'pointer',
+                        background: pinned ? 'rgba(42,87,206,0.10)' : 'transparent',
                         display: 'flex',
                         alignItems: 'baseline',
                         justifyContent: 'center',
@@ -564,7 +600,12 @@ export function StrategyTimeline({
 
           {/* PPBE */}
           {layers.ppbe && (
-            <div style={{ display: 'flex', borderBottom: '1px solid var(--border-2)' }}>
+            <div
+              style={{
+                display: 'flex',
+                borderBottom: ppbeExpanded ? '1px solid var(--border-1)' : '1px solid var(--border-2)',
+              }}
+            >
               {rail(
                 <>
                   <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
@@ -811,6 +852,8 @@ export function StrategyTimeline({
               )}
             </div>
           </div>
+          </div>
+          {/* end frozen reference header */}
 
           {/* This strategy (nodes) */}
           <div style={{ display: 'flex', flex: 1, background: 'var(--bg-surface)' }}>
@@ -820,7 +863,7 @@ export function StrategyTimeline({
                 position: 'relative',
                 width: W,
                 flex: 1,
-                minHeight: `max(${packedNodes.rows * NODE_H + 40}px, 60vh)`,
+                minHeight: `max(${packedNodes.rows * NODE_H + 40}px, 72vh)`,
               }}
             >
               {pastShade}
@@ -848,7 +891,11 @@ export function StrategyTimeline({
                   const dashed = n.meriAuthored && n.status === 'suggested';
                   const tS = Math.floor(qToMonth(nodeQ(n)));
                   const tE = Math.max(tS + 1, Math.ceil(qToMonth(nodeQ(n) + nodeDur(n))));
-                  const eyebrow = (n.meriAuthored ? 'MERI · ' : '') + k.label.toUpperCase();
+                  const eyebrow =
+                    (n.meriAuthored ? 'MERI · ' : '') +
+                    k.label.toUpperCase() +
+                    ' · ' +
+                    nodeRangeLabel(nodeQ(n), nodeQ(n) + nodeDur(n), calendar);
                   return (
                     <div
                       key={n.id}

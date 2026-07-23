@@ -151,3 +151,22 @@ export function nodeRangeLabel(startQ: number, endQ: number, cal: FiscalCalendar
   const b = monthLabel(endQ, cal);
   return a === b ? a : a + ' – ' + b;
 }
+
+/** Month-range eyebrow for a reference bar (prototype monthRangeLabel), from month indices. */
+export function monthRangeLabel(startMonth: number, endMonth: number, cal: FiscalCalendar): string {
+  const seq = cal.months;
+  const a = seq[Math.max(0, Math.min(seq.length - 1, Math.round(startMonth)))]!.m;
+  const b = seq[Math.max(0, Math.min(seq.length - 1, Math.round(endMonth) - 1))]!.m;
+  return a === b ? a : a + '–' + b;
+}
+
+/**
+ * Parse a @db.Date value (Prisma serializes as UTC-midnight ISO, e.g.
+ * 2027-02-06T00:00:00.000Z) as a LOCAL calendar date so the stored day is
+ * preserved regardless of viewer timezone. Using new Date(iso) + local getters
+ * would shift the day west of UTC (the codebase's known all-day-UTC pitfall).
+ */
+export function parseDbDate(iso: string): Date {
+  const [y, m, d] = iso.slice(0, 10).split('-').map(Number);
+  return new Date(y!, (m ?? 1) - 1, d ?? 1);
+}

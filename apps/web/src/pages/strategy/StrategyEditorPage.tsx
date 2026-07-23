@@ -11,7 +11,7 @@ import { useNavigate, useParams } from 'react-router-dom';
 import { Icon, btnGhost, iconBtn } from './strategy-ui.js';
 import { StrategyTimeline } from './StrategyTimeline.js';
 import { useStrategy, useReferenceCalendars, useFirmPhases } from './api.js';
-import { useClientsLite, clientColor } from './clients-lite.js';
+import { useClientsLite } from './clients-lite.js';
 import { STRATEGY_TYPE_LABEL } from './constants.js';
 import { buildCalendar } from './fiscal.js';
 
@@ -45,7 +45,6 @@ export function StrategyEditorPage() {
 
   const s = strategy.data;
   const clientName = clients.data?.find((c) => c.id === s.clientId)?.name ?? 'Client';
-  const cc = clientColor(s.clientId);
 
   const layerDefs: Array<[LayerKey, string, string]> = [
     ['ppbe', 'PPBE', 'var(--info)'],
@@ -64,7 +63,7 @@ export function StrategyEditorPage() {
     >
       <div
         style={{
-          padding: '14px 26px 20px',
+          padding: '14px 26px 24px',
           borderBottom: '1px solid var(--border-1)',
           background: 'var(--bg-surface)',
         }}
@@ -79,9 +78,6 @@ export function StrategyEditorPage() {
           <div style={{ flex: 1, minWidth: 0 }}>
             <div
               style={{
-                display: 'flex',
-                alignItems: 'center',
-                gap: 6,
                 fontSize: 'var(--text-xs)',
                 color: 'var(--ink-3)',
                 fontWeight: 700,
@@ -89,7 +85,6 @@ export function StrategyEditorPage() {
                 letterSpacing: '0.06em',
               }}
             >
-              <span style={{ width: 8, height: 8, borderRadius: 2, background: cc }} />
               {clientName} · {STRATEGY_TYPE_LABEL[s.type]}
             </div>
             <div

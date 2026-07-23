@@ -1,4 +1,4 @@
-import { IsIn, IsOptional, IsString, IsUUID, MaxLength } from 'class-validator';
+import { IsIn, IsOptional, IsString, IsUUID, Matches, MaxLength } from 'class-validator';
 
 /** The 6 objective types (plan §4 SpStrategyType / prototype OBJECTIVE_TYPES). */
 export const STRATEGY_TYPES = [
@@ -40,10 +40,12 @@ export class CreateStrategyDto {
   @MaxLength(120)
   ownerUserId?: string;
 
-  /** ISO date (YYYY-MM-DD). */
+  /** Calendar date (YYYY-MM-DD) for the @db.Date column; the web modal emits
+   *  exactly this via <input type="date">. Strict-matched so a malformed value
+   *  is rejected at validation rather than becoming an Invalid Date downstream. */
   @IsOptional()
   @IsString()
-  @MaxLength(40)
+  @Matches(/^\d{4}-\d{2}-\d{2}$/, { message: 'targetDate must be YYYY-MM-DD' })
   targetDate?: string;
 
   @IsOptional()

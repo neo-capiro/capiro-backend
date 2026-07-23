@@ -1,4 +1,4 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service.js';
 import type { CreateStrategyDto, StrategyTypeValue } from './dto/create-strategy.dto.js';
 
@@ -67,7 +67,7 @@ export class StrategyService {
   async create(tenantId: string, clerkUserId: string, dto: CreateStrategyDto) {
     const owner = dto.ownerUserId?.trim() || clerkUserId;
     const title = deriveTitle(dto);
-    const targetDate = dto.targetDate ? new Date(dto.targetDate) : null;
+    const targetDate = parseTargetDate(dto.targetDate);
 
     return this.prisma.withTenantUser(tenantId, clerkUserId, async (tx) => {
       const strategy = await tx.spStrategy.create({
@@ -100,6 +100,21 @@ export class StrategyService {
       return strategy;
     });
   }
+}
+
+/**
+ * Parse the optional YYYY-MM-DD deadline into a Date for the @db.Date column.
+ * The DTO regex guarantees the shape, but calendar-impossible values that still
+ * match the pattern (e.g. 2027-02-30) parse to an Invalid Date — reject those
+ * rather than letting a NaN Date reach Prisma.
+ */
+function parseTargetDate(value: string | undefined): Date | null {
+  if (!value) return null;
+  const d = new Date(value);
+  if (Number.isNaN(d.getTime())) {
+    throw new BadRequestException('targetDate is not a valid calendar date');
+  }
+  return d;
 }
 
 /** Manual create has no title field; derive one from the goal, else a default. */

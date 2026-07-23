@@ -146,7 +146,7 @@ export function StrategyLibraryPage() {
                   letterSpacing: '0.06em',
                 }}
               >
-                First-time setup
+                Firm phases
               </span>
               <div
                 style={{
@@ -156,7 +156,7 @@ export function StrategyLibraryPage() {
                   marginTop: 3,
                 }}
               >
-                Set your firm's phases before you build a strategy
+                Firm phases aren't set yet
               </div>
               <div
                 style={{
@@ -167,8 +167,9 @@ export function StrategyLibraryPage() {
                   maxWidth: 620,
                 }}
               >
-                Your firm's annual operating rhythm anchors every strategy timeline. Configure it
-                once from any timeline's Firm phase band — you can edit it anytime.
+                Your firm's annual operating rhythm anchors every strategy timeline. You can build
+                strategies now — phase setup arrives in a later release and will fill in the Firm
+                phase band on every timeline.
               </div>
             </div>
           </div>
