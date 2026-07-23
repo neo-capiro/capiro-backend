@@ -91,6 +91,8 @@ export interface FirmPhase {
   endFy: number;
   endQ: number;
   position: number;
+  updatedByUserId?: string | null;
+  updatedAt?: string | null;
 }
 
 export interface ReferenceRow {
@@ -160,6 +162,24 @@ export interface UpdateNodeInput {
   endsOn?: string | null;
   openEnded?: boolean;
   changeNote?: string;
+}
+
+/** PUT /firm-phases row (PHS-4). endFy/endQ are the EXCLUSIVE end boundary. */
+export interface FirmPhaseInput {
+  label: string;
+  startFy: number;
+  startQ: number;
+  endFy: number;
+  endQ: number;
+}
+
+/** PUT /reference-calendars/:kind row (REF-5). Congress = dates; PPBE = fy. */
+export interface ReferenceForkRow {
+  label: string;
+  startsOn?: string | null;
+  endsOn?: string | null;
+  fy?: number | null;
+  tone?: string | null;
 }
 
 export interface PatchStrategyInput {

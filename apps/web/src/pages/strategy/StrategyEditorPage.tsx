@@ -13,6 +13,8 @@ import { Icon, btnGhost, iconBtn } from './strategy-ui.js';
 import { StrategyTimeline } from './StrategyTimeline.js';
 import { EditorRail } from './NodeRail.js';
 import { HistoryModal } from './HistoryModal.js';
+import { FirmConfig } from './FirmConfig.js';
+import { RefCalendarConfig } from './RefCalendarConfig.js';
 import { useStrategy, useReferenceCalendars, useFirmPhases, useAddNode, useUpdateNode } from './api.js';
 import { useClientsLite } from './clients-lite.js';
 import { useTenantMembers } from './members.js';
@@ -39,6 +41,8 @@ export function StrategyEditorPage() {
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [railOpen, setRailOpen] = useState(false);
   const [historyOpen, setHistoryOpen] = useState(false);
+  const [firmOpen, setFirmOpen] = useState(false);
+  const [refEdit, setRefEdit] = useState<'congress' | 'ppbe' | null>(null);
   const [applied, setApplied] = useState<string | null>(null);
   const flashTimer = useRef<number>();
 
@@ -287,6 +291,9 @@ export function StrategyEditorPage() {
               selectedId={selectedId}
               onSelectNode={selectNode}
               onRetime={onRetime}
+              onEditCongress={() => setRefEdit('congress')}
+              onEditPpbe={() => setRefEdit('ppbe')}
+              onConfigureFirm={() => setFirmOpen(true)}
             />
           </div>
         </div>
@@ -316,6 +323,26 @@ export function StrategyEditorPage() {
           members={members.data ?? []}
           onClose={() => setHistoryOpen(false)}
           onRestored={(m) => flash(m)}
+        />
+      )}
+
+      {firmOpen && (
+        <FirmConfig
+          firstRun={firmPhases.isSuccess && (firmPhases.data?.length ?? 0) === 0}
+          phases={firmPhases.data ?? []}
+          calendar={calendar}
+          onClose={() => setFirmOpen(false)}
+          onSaved={(m) => flash(m)}
+        />
+      )}
+
+      {refEdit && reference.data && (
+        <RefCalendarConfig
+          kind={refEdit}
+          calendars={reference.data}
+          calendar={calendar}
+          onClose={() => setRefEdit(null)}
+          onSaved={(m) => flash(m)}
         />
       )}
     </div>

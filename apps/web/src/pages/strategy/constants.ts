@@ -83,6 +83,21 @@ export const NODE_SUBJECT_LABEL: Record<NodeSubject, string> = {
   optics: 'Optics',
 };
 
+/**
+ * First-run firm-phase template (PHS-1) — verbatim from the prototype
+ * FIRM_PHASES_DEFAULT. `from`/`to` are quarter indices (0 = first shown FY Q1);
+ * `to` is the EXCLUSIVE end index. Mapped onto the live FY window on open.
+ */
+export const FIRM_PHASES_DEFAULT: Array<{ label: string; from: number; to: number }> = [
+  { label: 'Strategy refresh', from: 0, to: 1 },
+  { label: 'Submit asks & white papers', from: 1, to: 2 },
+  { label: 'Refine post-budget', from: 2, to: 3 },
+  { label: 'Markup support', from: 3, to: 4 },
+  { label: 'Outcomes & roll forward', from: 4, to: 5 },
+  { label: 'Next-cycle strategy refresh', from: 5, to: 6 },
+  { label: 'Submit asks & white papers', from: 6, to: 8 },
+];
+
 /** Node status options with human labels (NOD-7 status select). */
 export const NODE_STATUS_OPTIONS: Array<{ id: NodeStatus; label: string }> = [
   { id: 'draft', label: 'Draft' },

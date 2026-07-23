@@ -74,6 +74,10 @@ export interface TimelineProps {
   onSelectNode: (id: string) => void;
   /** Persist a drag-retimed node (TLN-12). Omit for read-only surfaces. */
   onRetime?: (nodeId: string, startsOn: string, endsOn: string | null, title: string) => void;
+  /** Reference/firm editor entry points (G4). Omit to hide the edit links. */
+  onEditCongress?: () => void;
+  onEditPpbe?: () => void;
+  onConfigureFirm?: () => void;
 }
 
 export function StrategyTimeline({
@@ -87,6 +91,9 @@ export function StrategyTimeline({
   selectedId,
   onSelectNode,
   onRetime,
+  onEditCongress,
+  onEditPpbe,
+  onConfigureFirm,
 }: TimelineProps) {
   const months = calendar.months;
   const NM = months.length;
@@ -322,6 +329,22 @@ export function StrategyTimeline({
       {t}
     </span>
   );
+  // Inline "edit" affordance in a band rail (prototype railSub); only shown when
+  // an editor callback is wired (G4).
+  const railSub = (label: string, onClick?: () => void) =>
+    onClick ? (
+      <span
+        onClick={onClick}
+        style={{
+          fontSize: 'var(--text-2xs)',
+          color: 'var(--accent)',
+          fontWeight: 600,
+          cursor: 'pointer',
+        }}
+      >
+        {label}
+      </span>
+    ) : null;
 
   // ---- Legislative band ----
   const legItems = congress.map((c) => ({
@@ -408,6 +431,24 @@ export function StrategyTimeline({
                     />
                     Legislative calendar
                   </span>
+                  {onEditCongress && (
+                    <span
+                      onClick={onEditCongress}
+                      style={{
+                        display: 'inline-flex',
+                        alignItems: 'center',
+                        gap: 4,
+                        fontSize: 'var(--text-2xs)',
+                        color: 'rgba(245,242,235,0.72)',
+                        fontWeight: 600,
+                        cursor: 'pointer',
+                        marginTop: 9,
+                      }}
+                    >
+                      <Icon name="edit" size={11} color="rgba(245,242,235,0.72)" />
+                      Edit calendar
+                    </span>
+                  )}
                 </>,
                 { bg: 'var(--bg-dark)' },
               )}
@@ -663,17 +704,20 @@ export function StrategyTimeline({
                     </span>
                     {railTitle('PPBE')}
                   </div>
-                  <span
-                    onClick={() => setPpbeExpanded((v) => !v)}
-                    style={{
-                      fontSize: 'var(--text-2xs)',
-                      color: 'var(--accent)',
-                      fontWeight: 600,
-                      cursor: 'pointer',
-                    }}
-                  >
-                    {ppbeExpanded ? 'Collapse' : 'Expand cycles'}
-                  </span>
+                  <div style={{ display: 'flex', gap: 10 }}>
+                    <span
+                      onClick={() => setPpbeExpanded((v) => !v)}
+                      style={{
+                        fontSize: 'var(--text-2xs)',
+                        color: 'var(--accent)',
+                        fontWeight: 600,
+                        cursor: 'pointer',
+                      }}
+                    >
+                      {ppbeExpanded ? 'Collapse' : 'Expand cycles'}
+                    </span>
+                    {railSub('Edit', onEditPpbe)}
+                  </div>
                 </>,
                 { bg: PPBE_BG },
               )}
@@ -820,7 +864,13 @@ export function StrategyTimeline({
               borderBottom: '2px solid var(--border-strong)',
             }}
           >
-            {rail(<>{railTitle('Firm phase')}</>, { bg: 'var(--bg-surface)' })}
+            {rail(
+              <>
+                {railTitle('Firm phase')}
+                {railSub('Configure', onConfigureFirm)}
+              </>,
+              { bg: 'var(--bg-surface)' },
+            )}
             <div
               style={{
                 position: 'relative',

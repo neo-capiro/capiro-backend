@@ -12,8 +12,10 @@ import type {
   CreateNodeInput,
   CreateStrategyInput,
   FirmPhase,
+  FirmPhaseInput,
   PatchStrategyInput,
   ReferenceCalendars,
+  ReferenceForkRow,
   StrategyDetail,
   StrategyListItem,
   UpdateNodeInput,
@@ -157,6 +159,19 @@ export function useFirmPhases() {
   });
 }
 
+/** PUT /strategy-api/firm-phases — full replace (PHS-4). */
+export function usePutFirmPhases() {
+  const api = useApi();
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async (rows: FirmPhaseInput[]) =>
+      (await api.put<FirmPhase[]>(`${BASE}/firm-phases`, { rows })).data,
+    // The PUT returns the authoritative row set — write it straight into the
+    // GET cache; no invalidate (that would refetch identical data).
+    onSuccess: (data) => qc.setQueryData(['strategy', 'firm-phases'], data),
+  });
+}
+
 /** GET /strategy-api/reference-calendars — merged Legislative + PPBE reference. */
 export function useReferenceCalendars() {
   const api = useApi();
@@ -164,5 +179,17 @@ export function useReferenceCalendars() {
     queryKey: ['strategy', 'reference-calendars'],
     queryFn: async () => (await api.get<ReferenceCalendars>(`${BASE}/reference-calendars`)).data,
     staleTime: 60_000,
+  });
+}
+
+/** PUT /strategy-api/reference-calendars/:kind — fork-on-edit (REF-5). */
+export function usePutReference(kind: 'congress' | 'ppbe') {
+  const api = useApi();
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async (rows: ReferenceForkRow[]) =>
+      (await api.put<ReferenceCalendars>(`${BASE}/reference-calendars/${kind}`, { rows })).data,
+    // The PUT returns the merged calendars — write straight into the GET cache.
+    onSuccess: (data) => qc.setQueryData(['strategy', 'reference-calendars'], data),
   });
 }

@@ -1,3 +1,7 @@
+// class-transformer's @Type/@ValidateNested (used by nested-DTO validation)
+// read design metadata via reflect-metadata, which Nest loads at bootstrap but
+// jest does not — import it here so DTO specs mirror the runtime.
+import 'reflect-metadata';
 import { TransformStream } from 'node:stream/web';
 import { webcrypto } from 'node:crypto';
 

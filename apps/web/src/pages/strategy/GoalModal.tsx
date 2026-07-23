@@ -19,10 +19,14 @@ import type { StrategyType } from './types.js';
 
 export function GoalModal({
   clients,
+  firmConfigured = true,
+  onConfigureFirm,
   onClose,
   onCreated,
 }: {
   clients: ClientLite[];
+  firmConfigured?: boolean;
+  onConfigureFirm?: () => void;
   onClose: () => void;
   onCreated: (id: string) => void;
 }) {
@@ -236,6 +240,35 @@ export function GoalModal({
               soon.
             </span>
           </div>
+
+          {!firmConfigured && (
+            <div
+              style={{
+                marginTop: 12,
+                display: 'flex',
+                alignItems: 'center',
+                gap: 10,
+                background: 'var(--bg-surface-2)',
+                border: '1px dashed var(--border-strong)',
+                borderRadius: 9,
+                padding: '10px 13px',
+              }}
+            >
+              <Icon name="calendar" size={15} color="var(--ink-3)" />
+              <span style={{ flex: 1, fontSize: 'var(--text-sm)', color: 'var(--ink-2)' }}>
+                Your firm phases aren't set yet — the timeline will use the standard template until
+                you configure them.
+              </span>
+              {onConfigureFirm && (
+                <button
+                  onClick={onConfigureFirm}
+                  style={{ ...btnGhost, padding: '6px 12px', fontSize: 'var(--text-sm)' }}
+                >
+                  Set phases
+                </button>
+              )}
+            </div>
+          )}
         </div>
 
         <div

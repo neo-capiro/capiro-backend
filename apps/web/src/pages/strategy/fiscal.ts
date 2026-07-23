@@ -137,6 +137,25 @@ export function fyQuarterToQ(fy: number, quarter: number, cal: FiscalCalendar): 
   return (fy - cal.fys[0]) * 4 + (quarter - 1);
 }
 
+/**
+ * Quarter index (0 = first shown FY Q1) → { fy, q }. Handles indices past the
+ * window (e.g. 12 = the exclusive end after FY+2 Q4 = FY+3 Q1) by computing the
+ * FY arithmetically from the first shown FY rather than array-indexing.
+ */
+export function idxToFyQ(idx: number, cal: FiscalCalendar): { fy: number; q: number } {
+  return { fy: cal.fys[0] + Math.floor(idx / 4), q: (((idx % 4) + 4) % 4) + 1 };
+}
+
+/** ISO date (YYYY-MM-DD) at the START of a quarter index — for reference fork dates. */
+export function quarterStartDateIso(idx: number, cal: FiscalCalendar): string {
+  return formatDbDate(addMonths(cal.axisStart, idx * 3));
+}
+
+/** A stored reference date → its nearest quarter index (for loading the ref editor). */
+export function quarterIndexOfDate(iso: string, cal: FiscalCalendar): number {
+  return Math.round(qOfDate(parseDbDate(iso), cal));
+}
+
 /** month-index label 'Oct \'26' for a q-position (prototype monthLabel). */
 export function monthLabel(q: number, cal: FiscalCalendar): string {
   const seq = cal.months;

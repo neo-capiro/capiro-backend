@@ -6,12 +6,15 @@
  */
 import { useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Icon, Ava, Chip, btnPrimary } from './strategy-ui.js';
+import { App } from 'antd';
+import { Icon, Ava, Chip, btnPrimary, btnGhost } from './strategy-ui.js';
 import { useStrategies, useFirmPhases } from './api.js';
 import { useClientsLite, clientColor } from './clients-lite.js';
 import { useTenantMembers, memberName, initialsOf } from './members.js';
-import { STRATEGY_TYPE_LABEL, relativeTime } from './constants.js';
+import { STRATEGY_TYPE_LABEL, relativeTime, FIRM_PHASES_DEFAULT } from './constants.js';
+import { buildCalendar } from './fiscal.js';
 import { GoalModal } from './GoalModal.js';
+import { FirmConfig } from './FirmConfig.js';
 import type { StrategyListItem } from './types.js';
 
 const selS: React.CSSProperties = {
@@ -27,12 +30,15 @@ const selS: React.CSSProperties = {
 
 export function StrategyLibraryPage() {
   const navigate = useNavigate();
+  const { message } = App.useApp();
   const strategies = useStrategies();
   const firmPhases = useFirmPhases();
   const clients = useClientsLite();
   const members = useTenantMembers();
+  const calendar = useMemo(() => buildCalendar(new Date()), []);
 
   const [goalOpen, setGoalOpen] = useState(false);
+  const [firmOpen, setFirmOpen] = useState(false);
   const [fc, setFc] = useState('all'); // client filter
   const [fo, setFo] = useState('all'); // owner filter
 
@@ -56,6 +62,10 @@ export function StrategyLibraryPage() {
     [strategies.data],
   );
 
+  // Only trust the configured/first-run decision once the query resolves — a
+  // pending load must not read as "unconfigured" (which would seed the default
+  // template and risk overwriting real phases on save).
+  const firmLoaded = firmPhases.isSuccess;
   const firmConfigured = (firmPhases.data?.length ?? 0) > 0;
   const phaseCount = firmPhases.data?.length ?? 0;
 
@@ -92,7 +102,7 @@ export function StrategyLibraryPage() {
           </button>
         </div>
 
-        {!firmConfigured ? (
+        {!firmLoaded ? null : !firmConfigured ? (
           <div
             style={{
               marginTop: 18,
@@ -130,7 +140,7 @@ export function StrategyLibraryPage() {
                   letterSpacing: '0.06em',
                 }}
               >
-                Firm phases
+                First-time setup
               </span>
               <div
                 style={{
@@ -140,7 +150,7 @@ export function StrategyLibraryPage() {
                   marginTop: 3,
                 }}
               >
-                Firm phases aren't set yet
+                Set your firm's phases before you build a strategy
               </div>
               <div
                 style={{
@@ -148,14 +158,17 @@ export function StrategyLibraryPage() {
                   color: 'var(--ink-2)',
                   marginTop: 3,
                   lineHeight: 1.5,
-                  maxWidth: 620,
+                  maxWidth: 560,
                 }}
               >
-                Your firm's annual operating rhythm anchors every strategy timeline. You can build
-                strategies now — phase setup arrives in a later release and will fill in the Firm
-                phase band on every timeline.
+                Your firm's annual operating rhythm anchors every strategy timeline. Start from a
+                standard {FIRM_PHASES_DEFAULT.length}-phase template, then adjust — it applies
+                firm-wide and is editable anytime.
               </div>
             </div>
+            <button onClick={() => setFirmOpen(true)} style={{ ...btnPrimary, flexShrink: 0 }}>
+              <Icon name="calendar" size={14} color="#fff" /> Set firm phases
+            </button>
           </div>
         ) : (
           <div
@@ -181,6 +194,12 @@ export function StrategyLibraryPage() {
             >
               Firm phases are set ({phaseCount} phases). Every strategy aligns to them.
             </span>
+            <button
+              onClick={() => setFirmOpen(true)}
+              style={{ ...btnGhost, padding: '6px 12px', fontSize: 'var(--text-sm)' }}
+            >
+              <Icon name="edit" size={13} color="var(--ink-2)" /> Edit
+            </button>
           </div>
         )}
 
@@ -280,11 +299,26 @@ export function StrategyLibraryPage() {
       {goalOpen && (
         <GoalModal
           clients={clients.data ?? []}
+          firmConfigured={!firmLoaded || firmConfigured}
+          onConfigureFirm={() => {
+            setGoalOpen(false);
+            setFirmOpen(true);
+          }}
           onClose={() => setGoalOpen(false)}
           onCreated={(id) => {
             setGoalOpen(false);
             navigate(`/strategies/${id}`);
           }}
+        />
+      )}
+
+      {firmOpen && (
+        <FirmConfig
+          firstRun={firmLoaded && !firmConfigured}
+          phases={firmPhases.data ?? []}
+          calendar={calendar}
+          onClose={() => setFirmOpen(false)}
+          onSaved={(m) => message.success(m)}
         />
       )}
     </div>

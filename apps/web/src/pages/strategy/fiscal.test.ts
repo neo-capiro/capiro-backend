@@ -9,6 +9,9 @@ import {
   formatDbDate,
   parseDbDate,
   shiftNodeMonths,
+  idxToFyQ,
+  quarterStartDateIso,
+  quarterIndexOfDate,
 } from './fiscal.js';
 
 describe('strategy fiscal calendar', () => {
@@ -84,5 +87,26 @@ describe('strategy fiscal calendar', () => {
     expect(r.applied).toBe(-1);
     expect(r.startsOn).toBe('2027-01-06');
     expect(r.endsOn).toBeNull();
+  });
+
+  it('idxToFyQ maps quarter indices to FY+Q, incl. the exclusive end past the window', () => {
+    expect(idxToFyQ(0, cal)).toEqual({ fy: 2027, q: 1 });
+    expect(idxToFyQ(4, cal)).toEqual({ fy: 2028, q: 1 });
+    expect(idxToFyQ(11, cal)).toEqual({ fy: 2029, q: 4 });
+    expect(idxToFyQ(12, cal)).toEqual({ fy: 2030, q: 1 }); // exclusive end
+  });
+
+  it('idxToFyQ round-trips through fyQuarterToQ for the whole window', () => {
+    for (let i = 0; i <= 11; i++) {
+      const { fy, q } = idxToFyQ(i, cal);
+      expect(fyQuarterToQ(fy, q, cal)).toBe(i);
+    }
+  });
+
+  it('quarterStartDateIso ↔ quarterIndexOfDate round-trip', () => {
+    expect(quarterStartDateIso(0, cal)).toBe('2026-10-01'); // axis origin
+    expect(quarterStartDateIso(1, cal)).toBe('2027-01-01');
+    expect(quarterIndexOfDate('2027-01-01', cal)).toBe(1);
+    expect(quarterIndexOfDate(quarterStartDateIso(5, cal), cal)).toBe(5);
   });
 });

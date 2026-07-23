@@ -1,5 +1,7 @@
-import { Injectable } from '@nestjs/common';
+import { BadRequestException, Injectable } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service.js';
+import { parseDbDate } from '../strategy/dates.js';
+import type { ReferenceForkDto, ReferenceUiKind } from './dto/reference-fork.dto.js';
 
 export interface ReferenceRow {
   id: string;
@@ -73,6 +75,84 @@ export class ReferenceService {
       return result;
     });
   }
+
+  /**
+   * Fork-on-edit (REF-5): replace the tenant's override rows for one UI kind
+   * (congress → congress_milestone, ppbe → ppbe_current_phase) atomically. The
+   * renderer already prefers tenant rows for a kind when >=1 exists, so writing
+   * these materializes the fork; other kinds and other tenants are untouched.
+   */
+  async fork(tenantId: string, clerkUserId: string, uiKind: ReferenceUiKind, dto: ReferenceForkDto) {
+    const spKind = uiKind === 'congress' ? 'congress_milestone' : 'ppbe_current_phase';
+    const isCongress = spKind === 'congress_milestone';
+
+    // Per-kind validation + date parsing up front (fail before any write).
+    const parsed = dto.rows.map((r, i) => {
+      if (isCongress) {
+        if (!r.startsOn || !r.endsOn) {
+          throw new BadRequestException(`Milestone "${r.label}" needs a start and end quarter`);
+        }
+        const startsOn = parseDbDate(r.startsOn, 'startsOn');
+        const endsOn = parseDbDate(r.endsOn, 'endsOn');
+        if (endsOn <= startsOn) {
+          throw new BadRequestException(`Milestone "${r.label}" must end after it starts`);
+        }
+        return { label: r.label, fy: null, startsOn, endsOn, tone: r.tone ?? 'info', position: i };
+      }
+      if (r.fy == null) {
+        throw new BadRequestException(`PPBE row "${r.label}" needs a fiscal year`);
+      }
+      return { label: r.label, fy: r.fy, startsOn: null, endsOn: null, tone: r.tone ?? null, position: i };
+    });
+
+    await this.prisma.withTenantUser(tenantId, clerkUserId, async (tx) => {
+      const before = await tx.spReferenceOverride.findMany({
+        where: { kind: spKind },
+        orderBy: { position: 'asc' },
+        select: rowSelect,
+      });
+      await tx.spReferenceOverride.deleteMany({ where: { kind: spKind } });
+      if (parsed.length) {
+        await tx.spReferenceOverride.createMany({
+          data: parsed.map((p) => ({
+            tenantId,
+            kind: spKind,
+            label: p.label,
+            fy: p.fy,
+            startsOn: p.startsOn,
+            endsOn: p.endsOn,
+            tone: p.tone,
+            position: p.position,
+            active: true,
+            updatedByUserId: clerkUserId,
+          })),
+        });
+      }
+      await tx.spActivityLog.create({
+        data: {
+          tenantId,
+          actorUserId: clerkUserId,
+          authorKind: 'person',
+          // First materialization of this kind = fork; subsequent saves = update.
+          action: before.length === 0 ? 'reference.forked' : 'reference.updated',
+          entityType: 'reference',
+          entityId: spKind,
+          // Symmetric YYYY-MM-DD dates on both sides of the audit snapshot.
+          before: {
+            rows: before.map((b) => ({ ...b, startsOn: r2iso(b.startsOn), endsOn: r2iso(b.endsOn) })),
+          },
+          after: { rows: parsed.map((p) => ({ ...p, startsOn: r2iso(p.startsOn), endsOn: r2iso(p.endsOn) })) },
+        },
+      });
+    });
+    // Fresh read after commit reflects the fork through the merge logic.
+    return this.getCalendars(tenantId);
+  }
+}
+
+/** Serialize a @db.Date back to YYYY-MM-DD for the audit snapshot. */
+function r2iso(d: Date | null): string | null {
+  return d ? d.toISOString().slice(0, 10) : null;
 }
 
 const rowSelect = {
