@@ -3,13 +3,15 @@
  * RefCalendarConfig. Kind-aware: congress milestones (label + from/to quarter
  * selects, converted to real dates on save — REF-6/D2) or PPBE current-phase
  * rows (fiscal year + phase text). Save forks the tenant override (REF-5);
- * Cancel discards. The "Ask Meri" assist (REF-4) is deferred to G5.
+ * Cancel discards. When Meri is enabled, the "Ask Meri" assist (REF-4) edits
+ * the working rows in place — it never saves; the user still reviews and hits
+ * Save (which forks the override).
  */
 import { useState } from 'react';
 import { App } from 'antd';
 import { Overlay, Icon, btnPrimary, btnGhost, iconBtn } from './strategy-ui.js';
 import { quarterStartDateIso, qOfDate, parseDbDate, type FiscalCalendar } from './fiscal.js';
-import { usePutReference } from './api.js';
+import { usePutReference, useRefAssist } from './api.js';
 import type { ReferenceCalendars, ReferenceForkRow } from './types.js';
 
 interface EditorRow {
@@ -28,18 +30,21 @@ export function RefCalendarConfig({
   kind,
   calendars,
   calendar,
+  meriEnabled = false,
   onClose,
   onSaved,
 }: {
   kind: 'congress' | 'ppbe';
   calendars: ReferenceCalendars;
   calendar: FiscalCalendar;
+  meriEnabled?: boolean;
   onClose: () => void;
   onSaved: (msg: string) => void;
 }) {
   const { message } = App.useApp();
   const isCongress = kind === 'congress';
   const put = usePutReference(kind);
+  const assist = useRefAssist(kind);
   const todayIdx = Math.round(calendar.todayQ);
   const lastIdx = calendar.quarters.length; // exclusive-end ceiling
 
@@ -80,6 +85,61 @@ export function RefCalendarConfig({
         ? { key: newKey(), label: 'New milestone', from: todayIdx, to: todayIdx + 1, tone: 'info' }
         : { key: newKey(), label: 'New phase', fy: calendar.fys[0], tone: 'info' },
     ]);
+
+  // REF-4: Meri rewrites the working set. We hand it rows in the shape its tool
+  // expects (congress = {label, from, to} quarter indices; ppbe = {fy, phase}),
+  // then re-parse + clamp what it returns back into editor rows. It never saves.
+  const [meriText, setMeriText] = useState('');
+  const parseMeriRows = (raw: unknown): EditorRow[] => {
+    if (!Array.isArray(raw)) return [];
+    const out: EditorRow[] = [];
+    for (const item of raw) {
+      if (!item || typeof item !== 'object') continue;
+      const r = item as Record<string, unknown>;
+      const tone = typeof r.tone === 'string' ? r.tone : 'info';
+      if (isCongress) {
+        const label = typeof r.label === 'string' ? r.label : '';
+        let from = Number(r.from);
+        let to = Number(r.to);
+        if (!Number.isFinite(from)) from = todayIdx;
+        if (!Number.isFinite(to)) to = from + 1;
+        from = Math.max(0, Math.min(lastIdx - 1, Math.floor(from)));
+        to = Math.max(from + 1, Math.min(lastIdx, Math.ceil(to)));
+        out.push({ key: newKey(), label, from, to, tone });
+      } else {
+        const label =
+          typeof r.phase === 'string' ? r.phase : typeof r.label === 'string' ? r.label : '';
+        let fy = Number(r.fy);
+        if (!Number.isFinite(fy)) fy = calendar.fys[0]!;
+        out.push({ key: newKey(), label, fy: Math.round(fy), tone });
+      }
+    }
+    return out;
+  };
+  const runMeri = () => {
+    const instruction = meriText.trim();
+    if (!instruction || assist.isPending) return;
+    const payload = rows.map((r) =>
+      isCongress
+        ? { label: r.label, from: r.from, to: r.to, tone: r.tone }
+        : { fy: r.fy, phase: r.label, tone: r.tone },
+    );
+    assist.mutate(
+      { instruction, rows: payload },
+      {
+        onSuccess: (res) => {
+          const next = parseMeriRows(res.rows);
+          if (next.length) {
+            setRows(next);
+            setMeriText('');
+          } else {
+            message.info('Meri did not change any rows.');
+          }
+        },
+        onError: () => message.error('Meri could not adjust the calendar — please try again.'),
+      },
+    );
+  };
 
   const invalid =
     rows.length === 0 ||
@@ -164,6 +224,60 @@ export function RefCalendarConfig({
         </div>
 
         <div style={{ padding: '10px 24px 16px', overflow: 'auto' }}>
+          {meriEnabled && (
+            <div
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: 8,
+                background: 'var(--accent-soft)',
+                border: '1px solid #C6D4F4',
+                borderRadius: 9,
+                padding: '9px 11px',
+                marginBottom: 8,
+              }}
+            >
+              <Icon name="spark" size={15} color="var(--accent-ink)" />
+              <input
+                value={meriText}
+                onChange={(e) => setMeriText(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter') {
+                    e.preventDefault();
+                    runMeri();
+                  }
+                }}
+                disabled={assist.isPending}
+                placeholder={
+                  isCongress
+                    ? 'Ask Meri, e.g. “shift markups a month later this year”'
+                    : 'Ask Meri, e.g. “move everything to the FY27 execution phase”'
+                }
+                style={{
+                  flex: 1,
+                  border: '1px solid var(--border-2)',
+                  borderRadius: 7,
+                  padding: '7px 10px',
+                  fontSize: 'var(--text-sm)',
+                  fontFamily: 'var(--font-sans)',
+                  color: 'var(--ink-1)',
+                  background: 'var(--bg-surface)',
+                }}
+              />
+              <button
+                onClick={runMeri}
+                disabled={!meriText.trim() || assist.isPending}
+                style={{
+                  ...btnPrimary,
+                  padding: '7px 13px',
+                  opacity: !meriText.trim() || assist.isPending ? 0.45 : 1,
+                  cursor: !meriText.trim() || assist.isPending ? 'not-allowed' : 'pointer',
+                }}
+              >
+                {assist.isPending ? 'Working…' : 'Ask Meri'}
+              </button>
+            </div>
+          )}
           <div
             style={{
               display: 'flex',

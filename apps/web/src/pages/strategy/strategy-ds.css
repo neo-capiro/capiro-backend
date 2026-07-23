@@ -96,6 +96,16 @@
   }
 }
 
+/* Meri "thinking" spark (CRT-11 draft takeover, rail busy states). */
+.sp-root .sp-spark-pulse {
+  animation: sppulse 1.4s ease-in-out infinite;
+}
+@media (prefers-reduced-motion: reduce) {
+  .sp-root .sp-spark-pulse {
+    animation: none;
+  }
+}
+
 /* Editor rail slide-in (SHL-4: "344px slide, 0.28s"). */
 @keyframes sp-rail-in {
   from {

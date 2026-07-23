@@ -9,6 +9,7 @@ import { useNavigate } from 'react-router-dom';
 import { App } from 'antd';
 import { Icon, Ava, Chip, btnPrimary, btnGhost } from './strategy-ui.js';
 import { useStrategies, useFirmPhases } from './api.js';
+import { useMe } from '../../lib/me.js';
 import { useClientsLite, clientColor } from './clients-lite.js';
 import { useTenantMembers, memberName, initialsOf } from './members.js';
 import { STRATEGY_TYPE_LABEL, relativeTime, FIRM_PHASES_DEFAULT } from './constants.js';
@@ -35,6 +36,8 @@ export function StrategyLibraryPage() {
   const firmPhases = useFirmPhases();
   const clients = useClientsLite();
   const members = useTenantMembers();
+  const me = useMe();
+  const meriEnabled = Boolean(me.data?.features?.strategyPlannerMeri);
   const calendar = useMemo(() => buildCalendar(new Date()), []);
 
   const [goalOpen, setGoalOpen] = useState(false);
@@ -299,6 +302,7 @@ export function StrategyLibraryPage() {
       {goalOpen && (
         <GoalModal
           clients={clients.data ?? []}
+          meriEnabled={meriEnabled}
           firmConfigured={!firmLoaded || firmConfigured}
           onConfigureFirm={() => {
             setGoalOpen(false);

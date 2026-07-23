@@ -10,6 +10,8 @@ import { useEffect, useState } from 'react';
 import { App } from 'antd';
 import { Icon, Ava, iconBtn, fieldS, fieldLbl, chipBtn } from './strategy-ui.js';
 import { OwnerPicker } from './OwnerPicker.js';
+import { AskMeri } from './AskMeri.js';
+import { useAssistant } from './api.js';
 import {
   NODE_KIND_META,
   NODE_SUBJECTS,
@@ -28,6 +30,7 @@ export function EditorRail({
   calendar,
   members,
   meriEnabled,
+  meriSummary,
   currentUserId,
   applied,
   onFlash,
@@ -39,6 +42,7 @@ export function EditorRail({
   calendar: FiscalCalendar;
   members: TenantMember[];
   meriEnabled: boolean;
+  meriSummary?: string | null;
   currentUserId: string | undefined;
   applied: string | null;
   onFlash: (msg: string) => void;
@@ -48,6 +52,22 @@ export function EditorRail({
   const { message, modal } = App.useApp();
   const update = useUpdateNode(strategyId);
   const del = useDeleteNode(strategyId);
+  const assistant = useAssistant(strategyId);
+
+  const runAssistant = (
+    scope: 'node' | 'strategy',
+    nodeId: string | undefined,
+    instruction: string,
+    attachmentIds: string[],
+  ) => {
+    assistant.mutate(
+      { scope, ...(nodeId ? { nodeId } : {}), instruction, attachmentIds },
+      {
+        onSuccess: (resp) => onFlash(trimFlash(resp.reply) || 'Meri updated the plan.'),
+        onError: () => message.error('Meri could not apply that — please try again.'),
+      },
+    );
+  };
 
   return (
     <div
@@ -144,12 +164,40 @@ export function EditorRail({
         )}
 
         {node ? (
-          <NodeEditor
-            node={node}
-            calendar={calendar}
-            members={members}
-            currentUserId={currentUserId}
-            busy={update.isPending || del.isPending}
+          <>
+            {meriEnabled && (
+              <div
+                style={{
+                  background: 'var(--accent-soft)',
+                  border: '1px solid #C6D4F4',
+                  borderRadius: 10,
+                  padding: '12px 13px',
+                }}
+              >
+                <div
+                  style={{ display: 'flex', alignItems: 'center', gap: 7, marginBottom: 9 }}
+                >
+                  <Icon name="spark" size={14} color="var(--accent-ink)" />
+                  <span
+                    style={{ fontSize: 'var(--text-sm)', fontWeight: 700, color: 'var(--accent-ink)' }}
+                  >
+                    Ask Meri to change this step
+                  </span>
+                </div>
+                <AskMeri
+                  placeholder="e.g. push this a month and reassign to me…"
+                  busy={assistant.isPending}
+                  onSubmit={(t, ids) => runAssistant('node', node.id, t, ids)}
+                  tall
+                />
+              </div>
+            )}
+            <NodeEditor
+              node={node}
+              calendar={calendar}
+              members={members}
+              currentUserId={currentUserId}
+              busy={update.isPending || del.isPending || assistant.isPending}
             onCommit={(input, flash) => {
               update.mutate(
                 { nodeId: node.id, input: { ...input, changeNote: flash } },
@@ -181,6 +229,13 @@ export function EditorRail({
                   }),
               });
             }}
+            />
+          </>
+        ) : meriEnabled ? (
+          <StrategyMeriRail
+            summary={meriSummary}
+            busy={assistant.isPending}
+            onAsk={(t, ids) => runAssistant('strategy', undefined, t, ids)}
           />
         ) : (
           <div
@@ -506,6 +561,75 @@ function NodeEditor({
       >
         <Icon name="trash" size={13} color="var(--critical)" /> Delete step
       </button>
+    </>
+  );
+}
+
+function trimFlash(s: string | undefined): string {
+  const t = (s ?? '').trim();
+  return t.length > 120 ? `${t.slice(0, 117)}…` : t;
+}
+
+/** Preset strategy-level Meri prompts (MRI-4, static templates — plan D10). */
+const MERI_CHIPS = [
+  'Add a coalition sign-on letter',
+  'Flag a CR risk before final bills',
+  'Push the latest action a quarter',
+];
+
+/** Strategy-level Meri rail (MRI): plan summary + free-text assist + suggestion chips. */
+function StrategyMeriRail({
+  summary,
+  busy,
+  onAsk,
+}: {
+  summary?: string | null;
+  busy: boolean;
+  onAsk: (text: string, attachmentIds: string[]) => void;
+}) {
+  return (
+    <>
+      {summary && (
+        <div
+          style={{
+            background: 'var(--bg-surface-2)',
+            border: '1px solid var(--border-1)',
+            borderRadius: 9,
+            padding: '11px 13px',
+            fontSize: 'var(--text-sm)',
+            color: 'var(--ink-2)',
+            lineHeight: 1.5,
+          }}
+        >
+          <b style={{ color: 'var(--accent)' }}>Meri:</b> {summary}
+        </div>
+      )}
+      <div
+        style={{
+          background: 'var(--accent-soft)',
+          border: '1px solid #C6D4F4',
+          borderRadius: 10,
+          padding: '12px 13px',
+        }}
+      >
+        <div style={{ display: 'flex', alignItems: 'center', gap: 7, marginBottom: 9 }}>
+          <Icon name="spark" size={14} color="var(--accent-ink)" />
+          <span style={{ fontSize: 'var(--text-sm)', fontWeight: 700, color: 'var(--accent-ink)' }}>
+            Ask Meri to change anything
+          </span>
+        </div>
+        <AskMeri placeholder="Ask Meri to change anything…" busy={busy} onSubmit={onAsk} tall />
+      </div>
+      <div>
+        <div style={{ ...fieldLbl, marginBottom: 7 }}>Meri suggests</div>
+        <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
+          {MERI_CHIPS.map((c) => (
+            <button key={c} style={chipBtn} disabled={busy} onClick={() => onAsk(c, [])}>
+              {c}
+            </button>
+          ))}
+        </div>
+      </div>
     </>
   );
 }

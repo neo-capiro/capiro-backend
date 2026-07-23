@@ -44,6 +44,7 @@ export function StrategyEditorPage() {
   const [firmOpen, setFirmOpen] = useState(false);
   const [refEdit, setRefEdit] = useState<'congress' | 'ppbe' | null>(null);
   const [applied, setApplied] = useState<string | null>(null);
+  const [draftBannerClosed, setDraftBannerClosed] = useState(false);
   const flashTimer = useRef<number>();
 
   const addNode = useAddNode(id ?? '');
@@ -76,6 +77,28 @@ export function StrategyEditorPage() {
   const sid = s.id;
   const clientName = clients.data?.find((c) => c.id === s.clientId)?.name ?? 'Client';
   const selectedNode = s.nodes.find((n) => n.id === selectedId) ?? null;
+
+  // SHL-5: one-time banner after a Meri draft. meriSummary is set only by the
+  // draft path, so it is the "was this plan drafted by Meri" signal. Dismissal
+  // is per-strategy, per-browser (localStorage), and also held in state so the
+  // banner disappears immediately on click without a re-read.
+  const draftKey = `sp-draft-banner-${sid}`;
+  const draftDismissedStored = (() => {
+    try {
+      return localStorage.getItem(draftKey) === '1';
+    } catch {
+      return false;
+    }
+  })();
+  const showDraftBanner = Boolean(s.meriSummary) && !draftBannerClosed && !draftDismissedStored;
+  const dismissDraftBanner = () => {
+    try {
+      localStorage.setItem(draftKey, '1');
+    } catch {
+      /* localStorage unavailable — state still hides it this session */
+    }
+    setDraftBannerClosed(true);
+  };
 
   const layerDefs: Array<[LayerKey, string, string]> = [
     ['ppbe', 'PPBE', 'var(--info)'],
@@ -279,6 +302,36 @@ export function StrategyEditorPage() {
             background: 'var(--bg-canvas)',
           }}
         >
+          {showDraftBanner && (
+            <div
+              onClick={(e) => e.stopPropagation()}
+              style={{
+                display: 'flex',
+                alignItems: 'flex-start',
+                gap: 10,
+                background: 'var(--accent-soft)',
+                border: '1px solid #C6D4F4',
+                borderRadius: 10,
+                padding: '11px 14px',
+                marginBottom: 14,
+              }}
+            >
+              <div style={{ marginTop: 1 }}>
+                <Icon name="spark" size={15} color="var(--accent-ink)" />
+              </div>
+              <div style={{ flex: 1, fontSize: 'var(--text-sm)', color: 'var(--ink-2)', lineHeight: 1.5 }}>
+                <b style={{ color: 'var(--accent-ink)' }}>Meri drafted this plan from your goal.</b> Every step is
+                editable — drag to re-time, click to open, or ask Meri to change anything from the rail.
+              </div>
+              <button
+                onClick={dismissDraftBanner}
+                title="Dismiss"
+                style={{ background: 'none', border: 'none', cursor: 'pointer', padding: 2, display: 'grid' }}
+              >
+                <Icon name="x" size={13} color="var(--ink-4)" />
+              </button>
+            </div>
+          )}
           <div style={{ zoom: 0.82 as unknown as number }}>
             <StrategyTimeline
               calendar={calendar}
@@ -305,6 +358,7 @@ export function StrategyEditorPage() {
             calendar={calendar}
             members={members.data ?? []}
             meriEnabled={meriEnabled}
+            meriSummary={s.meriSummary}
             currentUserId={user?.id}
             applied={applied}
             onFlash={flash}
@@ -341,6 +395,7 @@ export function StrategyEditorPage() {
           kind={refEdit}
           calendars={reference.data}
           calendar={calendar}
+          meriEnabled={meriEnabled}
           onClose={() => setRefEdit(null)}
           onSaved={(m) => flash(m)}
         />

@@ -183,6 +183,31 @@ export interface ReferenceForkRow {
   tone?: string | null;
 }
 
+/** POST /strategies/draft — AI create from goal (+ optional docs). CRT-11/12. */
+export interface DraftStrategyInput {
+  clientId: string;
+  type: StrategyType;
+  goal?: string;
+  meriContext?: string;
+  ownerUserId?: string;
+  targetDate?: string;
+  attachmentIds?: string[];
+}
+
+/** POST /strategies/:id/assistant — rail edit engine (NOD-4 / MRI-3). */
+export interface AssistantInput {
+  scope: 'node' | 'strategy';
+  nodeId?: string;
+  instruction: string;
+  attachmentIds?: string[];
+}
+
+export interface AssistantResponse {
+  reply: string;
+  summary: string | null;
+  strategy: StrategyDetail;
+}
+
 export interface PatchStrategyInput {
   title?: string;
   type?: StrategyType;

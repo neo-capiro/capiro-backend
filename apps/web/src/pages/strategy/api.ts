@@ -9,8 +9,11 @@
 import { useInfiniteQuery, useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useApi } from '../../lib/use-api.js';
 import type {
+  AssistantInput,
+  AssistantResponse,
   CreateNodeInput,
   CreateStrategyInput,
+  DraftStrategyInput,
   FirmPhase,
   FirmPhaseInput,
   PatchStrategyInput,
@@ -21,6 +24,14 @@ import type {
   UpdateNodeInput,
   VersionsPage,
 } from './types.js';
+
+/** Upload one file for Meri grounding → attachment id (clio pipeline, CRT-5/NOD-4/MRI-7). */
+export interface AttachmentUpload {
+  id: string | null;
+  filename: string;
+  kind: 'pdf' | 'docx' | 'image' | 'text' | 'unsupported';
+  status: string;
+}
 
 const BASE = '/strategy-api';
 
@@ -131,6 +142,63 @@ export function useVersions(strategyId: string | null, enabled: boolean) {
     },
     getNextPageParam: (last) => last.nextCursor,
     select: (data) => data.pages,
+  });
+}
+
+/** POST /strategies/draft — Meri drafts a plan from the goal (CRT-11/12). */
+export function useDraftStrategy() {
+  const api = useApi();
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async (body: DraftStrategyInput) =>
+      (await api.post<StrategyDetail>(`${BASE}/strategies/draft`, body, { timeout: 90_000 })).data,
+    onSuccess: (detail) => {
+      qc.setQueryData(['strategy', 'strategy', detail.id], detail);
+      void qc.invalidateQueries({ queryKey: ['strategy', 'strategies'] });
+    },
+  });
+}
+
+/** POST /strategies/:id/assistant — Meri edits the plan (NOD-4 node / MRI-3 strategy). */
+export function useAssistant(strategyId: string) {
+  const api = useApi();
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async (input: AssistantInput) =>
+      (await api.post<AssistantResponse>(`${BASE}/strategies/${strategyId}/assistant`, input, { timeout: 90_000 }))
+        .data,
+    onSuccess: (resp) => {
+      qc.setQueryData(['strategy', 'strategy', strategyId], resp.strategy);
+      void qc.invalidateQueries({ queryKey: ['strategy', 'strategies'] });
+      void qc.invalidateQueries({ queryKey: ['strategy', 'versions', strategyId] });
+    },
+  });
+}
+
+/** POST /reference-calendars/:kind/assist — Meri edits the working rows (REF-4, not saved). */
+export function useRefAssist(kind: 'congress' | 'ppbe') {
+  const api = useApi();
+  return useMutation({
+    mutationFn: async (input: { instruction: string; rows: unknown[] }) =>
+      (
+        await api.post<{ reply?: string; rows: unknown[] }>(
+          `${BASE}/reference-calendars/${kind}/assist`,
+          input,
+          { timeout: 90_000 },
+        )
+      ).data,
+  });
+}
+
+/** POST /api/clio/attachments — upload a doc for Meri grounding; returns its id. */
+export function useUploadAttachment() {
+  const api = useApi();
+  return useMutation({
+    mutationFn: async (file: File) => {
+      const form = new FormData();
+      form.append('file', file);
+      return (await api.post<AttachmentUpload>('/api/clio/attachments', form, { timeout: 120_000 })).data;
+    },
   });
 }
 
