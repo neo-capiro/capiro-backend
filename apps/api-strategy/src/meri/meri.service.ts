@@ -11,6 +11,7 @@ import type { StrategyTypeValue } from '../strategy/dto/create-strategy.dto.js';
 import { FirmPhasesService } from '../firm-phases/firm-phases.service.js';
 import { ReferenceService, type ReferenceRow } from '../reference/reference.service.js';
 import { StrategyAiCredentialResolver } from './strategy-ai-credential.resolver.js';
+import { StrategyAttachmentResolver } from './strategy-attachment.resolver.js';
 import { StrategyOrchestratorClient } from './strategy-orchestrator.client.js';
 import type { DraftNode, PlanEdit } from './meri.types.js';
 import type { AssistantDto, DraftStrategyDto, ReferenceAssistDto } from './dto/meri.dto.js';
@@ -51,6 +52,7 @@ export class MeriService {
     private readonly orchestrator: StrategyOrchestratorClient,
     private readonly firmPhases: FirmPhasesService,
     private readonly reference: ReferenceService,
+    private readonly attachments: StrategyAttachmentResolver,
   ) {}
 
   /**
@@ -103,9 +105,10 @@ export class MeriService {
       throw new BadRequestException('Unknown client for this tenant');
     }
 
-    const [aiProvider, ground] = await Promise.all([
+    const [aiProvider, ground, docs] = await Promise.all([
       this.resolver.resolve(tenantId),
       this.grounding(tenantId),
+      this.attachments.resolve(bearer, dto.attachmentIds),
     ]);
     const resp = await this.orchestrator.draft(
       {
@@ -115,6 +118,7 @@ export class MeriService {
         meriContext: dto.meriContext ?? null,
         targetDate: dto.targetDate ?? null,
         attachmentIds: dto.attachmentIds ?? [],
+        attachments: docs,
         ...ground,
       },
       bearer,
@@ -155,7 +159,9 @@ export class MeriService {
         strategyId: strategy.id,
         authorKind: 'meri',
         authorUserId: clerkUserId,
-        note: `Drafted ${nodeData.length} step${nodeData.length === 1 ? '' : 's'} from goal`,
+        note: `Drafted ${nodeData.length} step${nodeData.length === 1 ? '' : 's'} from goal${
+          docs.length ? ` and ${docs.length} document${docs.length === 1 ? '' : 's'}` : ''
+        }`,
         coalesce: false,
       });
       await this.versioning.logActivity(tx, {
@@ -189,9 +195,10 @@ export class MeriService {
       throw new BadRequestException('nodeId is required for node-scope assist');
     }
 
-    const [aiProvider, ground] = await Promise.all([
+    const [aiProvider, ground, docs] = await Promise.all([
       this.resolver.resolve(tenantId),
       this.grounding(tenantId),
+      this.attachments.resolve(bearer, dto.attachmentIds),
     ]);
     const resp = await this.orchestrator.assistant(
       {
@@ -199,6 +206,7 @@ export class MeriService {
         nodeId: dto.nodeId ?? null,
         instruction: dto.instruction,
         attachmentIds: dto.attachmentIds ?? [],
+        attachments: docs,
         clientId: strategy.clientId,
         strategy: serializeStrategy(strategy),
         ...ground,
@@ -207,6 +215,16 @@ export class MeriService {
       aiProvider,
     );
     const edits = (resp.edits ?? []).slice(0, 60);
+
+    // A pure question / no-op (empty edit-set) is NOT a mutation batch: do not
+    // cut a version, bump lastEdited, or log a mutation (plan §4/§7 — one version
+    // per applied set). Return the reply against the current, unchanged state.
+    if (edits.length === 0) {
+      const current = await this.prisma.withTenant(tenantId, (tx) =>
+        loadStrategyDetail(tx, strategyId),
+      );
+      return { reply: resp.reply ?? '', summary: strategy.meriSummary ?? null, strategy: current };
+    }
 
     const detail = await this.prisma.withTenantUser(tenantId, clerkUserId, async (tx) => {
       for (const edit of edits) {
@@ -226,7 +244,7 @@ export class MeriService {
         strategyId,
         authorKind: 'meri',
         authorUserId: clerkUserId,
-        note: versionNote(resp.reply, resp.summary, dto.scope),
+        note: versionNote(resp.reply, resp.summary, dto.scope, docs.length),
         coalesce: false,
       });
       await this.versioning.logActivity(tx, {
@@ -356,10 +374,22 @@ function deriveTitle(goal: string | undefined, type: StrategyTypeValue): string 
   return `${TYPE_LABEL[type]} strategy`;
 }
 
-function versionNote(reply: string | undefined, summary: string | null | undefined, scope: string): string {
+function versionNote(
+  reply: string | undefined,
+  summary: string | null | undefined,
+  scope: string,
+  attachmentCount = 0,
+): string {
   const s = summary?.trim();
-  if (s) return `Meri: ${s.length > 160 ? s.slice(0, 157) + '…' : s}`;
-  return scope === 'node' ? 'Meri edited this step' : 'Meri updated the plan';
+  const base = s
+    ? `Meri: ${s.length > 160 ? s.slice(0, 157) + '…' : s}`
+    : scope === 'node'
+      ? 'Meri edited this step'
+      : 'Meri updated the plan';
+  // MRI-7: reference the grounding attachment(s) in the version note.
+  return attachmentCount
+    ? `${base} (from your ${attachmentCount === 1 ? 'attachment' : 'attachments'})`
+    : base;
 }
 
 /** The strategy snapshot handed to the orchestrator (dates → YYYY-MM-DD). */

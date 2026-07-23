@@ -5,6 +5,7 @@ import { VersioningService } from '../strategy/versioning.service.js';
 import { FirmPhasesModule } from '../firm-phases/firm-phases.module.js';
 import { ReferenceModule } from '../reference/reference.module.js';
 import { StrategyAiCredentialResolver } from './strategy-ai-credential.resolver.js';
+import { StrategyAttachmentResolver } from './strategy-attachment.resolver.js';
 import { StrategyOrchestratorClient } from './strategy-orchestrator.client.js';
 
 /**
@@ -19,6 +20,7 @@ import { StrategyOrchestratorClient } from './strategy-orchestrator.client.js';
     MeriService,
     VersioningService,
     StrategyAiCredentialResolver,
+    StrategyAttachmentResolver,
     StrategyOrchestratorClient,
   ],
 })

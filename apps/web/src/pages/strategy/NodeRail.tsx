@@ -32,8 +32,10 @@ export function EditorRail({
   meriEnabled,
   meriSummary,
   currentUserId,
+  existingNodeIds,
   applied,
   onFlash,
+  onSelectNode,
   onClose,
   onDeselect,
 }: {
@@ -44,8 +46,10 @@ export function EditorRail({
   meriEnabled: boolean;
   meriSummary?: string | null;
   currentUserId: string | undefined;
+  existingNodeIds: string[];
   applied: string | null;
   onFlash: (msg: string) => void;
+  onSelectNode: (id: string) => void;
   onClose: () => void;
   onDeselect: () => void;
 }) {
@@ -60,10 +64,18 @@ export function EditorRail({
     instruction: string,
     attachmentIds: string[],
   ) => {
+    const before = new Set(existingNodeIds);
     assistant.mutate(
       { scope, ...(nodeId ? { nodeId } : {}), instruction, attachmentIds },
       {
-        onSuccess: (resp) => onFlash(trimFlash(resp.reply) || 'Meri updated the plan.'),
+        onSuccess: (resp) => {
+          onFlash(trimFlash(resp.reply) || 'Meri updated the plan.');
+          // MRI-3 / MRI-4: for an add, open the newly-created node in the rail
+          // (same behaviour as the manual + Add step path).
+          const added = resp.strategy.nodes.filter((n) => !before.has(n.id));
+          const newest = added[added.length - 1];
+          if (newest) onSelectNode(newest.id);
+        },
         onError: () => message.error('Meri could not apply that — please try again.'),
       },
     );
@@ -629,6 +641,10 @@ function StrategyMeriRail({
             </button>
           ))}
         </div>
+      </div>
+      {/* MRI-6 footer (rail order: summary → chat → chips → footer, MRI-5). */}
+      <div style={{ fontSize: 'var(--text-2xs)', color: 'var(--ink-4)', lineHeight: 1.5, marginTop: 2 }}>
+        Meri applies changes instantly. Edits are logged.
       </div>
     </>
   );

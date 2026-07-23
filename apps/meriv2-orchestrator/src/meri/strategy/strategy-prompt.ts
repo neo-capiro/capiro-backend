@@ -49,6 +49,14 @@ export interface ReferenceGrounding {
   ppbeCurrentPhases?: ReferenceRowLite[];
 }
 
+/** Extracted text of a user-uploaded grounding document (CRT-5/MRI-7). Resolved
+ *  by api-strategy from ClioAttachment and forwarded here (never fetched in the
+ *  loop). */
+export interface StrategyAttachment {
+  filename: string;
+  text: string;
+}
+
 export interface StrategyDraftInput {
   clientId: string;
   type: string;
@@ -56,6 +64,7 @@ export interface StrategyDraftInput {
   meriContext?: string | null;
   targetDate?: string | null;
   attachmentIds?: string[];
+  attachments?: StrategyAttachment[];
   fiscal?: FiscalGrounding;
   firmPhases?: FirmPhaseRow[];
   reference?: ReferenceGrounding;
@@ -88,6 +97,7 @@ export interface StrategyAssistantInput {
   nodeId?: string | null;
   instruction: string;
   attachmentIds?: string[];
+  attachments?: StrategyAttachment[];
   clientId: string;
   strategy: StrategyState;
   fiscal?: FiscalGrounding;
@@ -250,6 +260,14 @@ function renderReference(ref?: ReferenceGrounding): string {
   return lines.length ? lines.join('\n') : '(no reference rows)';
 }
 
+function renderAttachments(rows?: StrategyAttachment[]): string {
+  if (!rows?.length) return '';
+  return rows
+    .slice(0, 10)
+    .map((d) => `### ${d.filename}\n${(d.text ?? '').slice(0, 12_000)}`)
+    .join('\n\n');
+}
+
 function renderPlan(s: StrategyState): string {
   if (!s.nodes.length) return '(the plan currently has no steps)';
   return s.nodes
@@ -275,7 +293,10 @@ export function buildDraftSystemPrompt(input: StrategyDraftInput, packText: stri
     `# Firm phases\n${renderFirmPhases(input.firmPhases)}`,
     `# Reference calendars\n${renderReference(input.reference)}`,
     `# Client context\n${packText}`,
-    '# How to answer\nCall propose_strategy_draft with a 1-2 sentence summary and the ordered nodes. Ground every node in the context above; do not invent client facts. Place dates where the work actually happens.',
+    input.attachments?.length
+      ? `# Attached documents (user-provided grounding)\n${renderAttachments(input.attachments)}`
+      : '',
+    '# How to answer\nCall propose_strategy_draft with a 1-2 sentence summary and the ordered nodes. Ground every node in the context above (including any attached documents); do not invent client facts. Place dates where the work actually happens.',
   ]
     .filter(Boolean)
     .join('\n\n');
@@ -295,8 +316,11 @@ export function buildAssistantSystemPrompt(input: StrategyAssistantInput, packTe
     `# Firm phases\n${renderFirmPhases(input.firmPhases)}`,
     `# Reference calendars\n${renderReference(input.reference)}`,
     `# Client context\n${packText}`,
+    input.attachments?.length
+      ? `# Attached documents (user-provided grounding)\n${renderAttachments(input.attachments)}`
+      : '',
     focus,
-    '# How to answer\nCall propose_plan_edits with a short reply and the edits (add/update/remove/retime). Use the exact node ids above for update/remove/retime. Ground changes in the context; do not invent client facts. Empty edits if no change is needed.',
+    '# How to answer\nCall propose_plan_edits with a short reply and the edits (add/update/remove/retime). Use the exact node ids above for update/remove/retime. Ground changes in the context (including any attached documents); do not invent client facts. Empty edits if no change is needed.',
   ]
     .filter(Boolean)
     .join('\n\n');

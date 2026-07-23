@@ -3,6 +3,7 @@ import { MeriService } from './meri.service.js';
 import type { PrismaService } from '../prisma/prisma.service.js';
 import type { VersioningService } from '../strategy/versioning.service.js';
 import type { StrategyAiCredentialResolver } from './strategy-ai-credential.resolver.js';
+import type { StrategyAttachmentResolver } from './strategy-attachment.resolver.js';
 import type { StrategyOrchestratorClient } from './strategy-orchestrator.client.js';
 import type { FirmPhasesService } from '../firm-phases/firm-phases.service.js';
 import type { ReferenceService } from '../reference/reference.service.js';
@@ -163,7 +164,11 @@ type OrchestratorStub = Record<string, unknown>;
 function makeService(
   orchestrator: OrchestratorStub,
   store: Store,
-  overrides: { firmPhases?: unknown[]; reference?: Record<string, unknown[]> } = {},
+  overrides: {
+    firmPhases?: unknown[];
+    reference?: Record<string, unknown[]>;
+    attachmentDocs?: Array<{ filename: string; text: string }>;
+  } = {},
 ) {
   const { prisma, withTenantUser, $queryRaw } = makePrisma(store);
   const versioning = {
@@ -179,6 +184,8 @@ function makeService(
       overrides.reference ?? { congress: [], ppbeLanes: [], ppbeCurrentPhases: [] },
     ),
   } as unknown as ReferenceService;
+  const attachmentsResolve = jest.fn(async () => overrides.attachmentDocs ?? []);
+  const attachments = { resolve: attachmentsResolve } as unknown as StrategyAttachmentResolver;
   const svc = new MeriService(
     prisma,
     versioning,
@@ -186,8 +193,9 @@ function makeService(
     orchestrator as unknown as StrategyOrchestratorClient,
     firmPhases,
     reference,
+    attachments,
   );
-  return { svc, versioning, withTenantUser, $queryRaw };
+  return { svc, versioning, withTenantUser, $queryRaw, attachmentsResolve };
 }
 
 function seedStrategy(store: Store): { sid: string; n1: string; n2: string; n3: string } {
@@ -330,6 +338,32 @@ describe('MeriService.draft', () => {
     expect(risk.openEnded).toBe(true); // risk keeps it
   });
 
+  it('resolves + forwards uploaded attachment text as grounding and references it in the note', async () => {
+    const store = makeStore();
+    const orchestrator = { draft: jest.fn(async () => ({ summary: 's', provenance: [], nodes: [] })) };
+    const { svc, versioning, attachmentsResolve } = makeService(orchestrator, store, {
+      attachmentDocs: [{ filename: 'memo.pdf', text: 'FY27 shipbuilding memo' }],
+    });
+
+    await svc.draft(T, U, 'bearer-token', {
+      clientId: 'C1',
+      type: 'appropriations',
+      goal: 'Win it',
+      attachmentIds: ['a1'],
+    } as DraftStrategyDto);
+
+    // Resolved under the caller bearer + requested ids...
+    expect(attachmentsResolve).toHaveBeenCalledWith('bearer-token', ['a1']);
+    // ...text forwarded to the orchestrator as grounding...
+    const body = (orchestrator.draft as jest.Mock).mock.calls[0]![0] as {
+      attachments: Array<{ filename: string; text: string }>;
+    };
+    expect(body.attachments).toEqual([{ filename: 'memo.pdf', text: 'FY27 shipbuilding memo' }]);
+    // ...and the version note references the document (MRI-7).
+    const cut = (versioning.cutVersion as jest.Mock).mock.calls[0]![1] as { note: string };
+    expect(cut.note).toMatch(/document/);
+  });
+
   it('rejects an unknown client before any write', async () => {
     const store = makeStore();
     const orchestrator = { draft: jest.fn() };
@@ -420,6 +454,37 @@ describe('MeriService.assistant', () => {
     expect(store.strategies.get('S1')!.meriSummary).toBeNull();
     // No version committed for a failed apply (cutVersion runs after the loop).
     expect(versioning.cutVersion).not.toHaveBeenCalled();
+  });
+
+  it('does not cut a version or bump lastEdited on a no-op (empty edit-set) question', async () => {
+    const store = makeStore();
+    seedStrategy(store);
+    const orchestrator = {
+      assistant: jest.fn(async () => ({
+        reply: 'The biggest risk is a CR slipping the markup.',
+        summary: 'should NOT be persisted on a pure question',
+        provenance: [],
+        edits: [],
+      })),
+    };
+    const { svc, versioning, withTenantUser } = makeService(orchestrator, store);
+
+    const out = (await svc.assistant(T, U, 'bearer', 'S1', dto)) as {
+      reply: string;
+      summary: string | null;
+      strategy: { nodes: unknown[] };
+    };
+
+    expect(out.reply).toContain('CR');
+    // A question is not a mutation batch: no version, no write tx, and the
+    // resp.summary is NOT persisted (existing meriSummary preserved).
+    expect(versioning.cutVersion).not.toHaveBeenCalled();
+    expect(withTenantUser).not.toHaveBeenCalled();
+    expect(store.strategies.get('S1')!.meriSummary).toBeNull();
+    expect(out.summary).toBeNull();
+    // Current, unchanged state is returned.
+    expect(out.strategy.nodes).toHaveLength(3);
+    expect(store.nodes.size).toBe(3);
   });
 
   it('rejects node-scope assist with no nodeId', async () => {

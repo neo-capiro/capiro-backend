@@ -170,6 +170,13 @@ class RecordClaimsDto {
   }>;
 }
 
+class ResolveAttachmentTextDto {
+  @IsArray()
+  @ArrayMaxSize(10)
+  @IsString({ each: true })
+  attachmentIds!: string[];
+}
+
 @Controller('clio')
 @UseGuards(RolesGuard)
 @Roles('standard_user')
@@ -475,6 +482,20 @@ export class MeriController {
   ) {
     if (!file) throw new BadRequestException('No file uploaded');
     return this.service.uploadAttachment(ctx, file);
+  }
+
+  /**
+   * Resolve the extracted text of previously-uploaded attachments by id
+   * (Strategy Planner Meri grounding, CRT-5/MRI-7). Tenant + user scoped; the
+   * caller (api-strategy) forwards the user's bearer, so RolesGuard authorises
+   * the same standard_user who uploaded them.
+   */
+  @Post('attachments/resolve-text')
+  async resolveAttachmentText(
+    @CurrentTenant() ctx: TenantContext,
+    @Body() body: ResolveAttachmentTextDto,
+  ) {
+    return this.service.resolveAttachmentText(ctx, body?.attachmentIds ?? []);
   }
 
   // ── MCP connectors (connector-library v1) ──

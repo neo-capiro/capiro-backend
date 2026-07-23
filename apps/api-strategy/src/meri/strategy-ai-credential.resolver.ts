@@ -3,6 +3,11 @@ import { ConfigService } from '@nestjs/config';
 import type { ResolvedAiProvider } from './meri.types.js';
 
 const CACHE_TTL_MS = 60_000;
+// Short bound so a slow/hung apps/api degrades to the global key well within the
+// draft/assistant SLO, instead of stalling on undici's ~300s default headers
+// timeout (a slow-but-connected upstream never throws, so without this the
+// fail-soft catch below would never run).
+const RESOLVE_TIMEOUT_MS = 5_000;
 
 /**
  * D19 creds hop — resolves a tenant's AI credential from apps/api (the
@@ -42,6 +47,8 @@ export class StrategyAiCredentialResolver {
     const cached = this.cache.get(tenantId);
     if (cached && cached.expiresAt > Date.now()) return cached.value;
 
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), RESOLVE_TIMEOUT_MS);
     try {
       const res = await fetch(`${this.apiBaseUrl}/api/internal/ai-credentials/resolve`, {
         method: 'POST',
@@ -50,6 +57,7 @@ export class StrategyAiCredentialResolver {
           'x-internal-service-secret': this.sharedSecret,
         },
         body: JSON.stringify({ tenantId, provider: 'anthropic' }),
+        signal: controller.signal,
       });
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
       const body = (await res.json()) as {
@@ -78,6 +86,8 @@ export class StrategyAiCredentialResolver {
         `AI credential resolve failed for tenant ${tenantId}; degrading to global key: ${(err as Error).message}`,
       );
       return undefined; // don't cache failures
+    } finally {
+      clearTimeout(timer);
     }
   }
 }

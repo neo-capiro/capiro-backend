@@ -361,8 +361,10 @@ export function StrategyEditorPage() {
             meriEnabled={meriEnabled}
             meriSummary={s.meriSummary}
             currentUserId={user?.id}
+            existingNodeIds={s.nodes.map((n) => n.id)}
             applied={applied}
             onFlash={flash}
+            onSelectNode={selectNode}
             onClose={() => {
               setRailOpen(false);
               setSelectedId(null);

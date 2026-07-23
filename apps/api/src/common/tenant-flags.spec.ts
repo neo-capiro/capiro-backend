@@ -17,6 +17,10 @@ import {
   MERI_ALERT_IMPORTANT_PRIORITIES,
   notetakerEnabled,
   notetakerEnvEnabled,
+  strategyPlannerEnabled,
+  strategyPlannerMeriEnabled,
+  strategyMeriEnvEnabled,
+  strategyMeriActive,
 } from './tenant-flags.js';
 
 describe('tenantFeatureEnabled', () => {
@@ -168,5 +172,69 @@ describe('meriAlertsImportantOnly (Meri alert inbox floor, per-tenant, default O
     // MeriInboxBanner.priorityClass maps high|critical|urgent -> the red band;
     // the API floor must use the exact same set so styling and filtering agree.
     expect([...MERI_ALERT_IMPORTANT_PRIORITIES].sort()).toEqual(['critical', 'high', 'urgent']);
+  });
+});
+
+describe('strategyPlannerEnabled (surface flag, no env kill-switch, default OFF)', () => {
+  test('per-tenant opt-in, default off, malformed settings fail closed', () => {
+    expect(strategyPlannerEnabled({ clioFeatureFlags: { 'strategyPlanner.enabled': true } })).toBe(
+      true,
+    );
+    expect(strategyPlannerEnabled({})).toBe(false);
+    expect(strategyPlannerEnabled(null)).toBe(false);
+    expect(strategyPlannerEnabled({ clioFeatureFlags: 'oops' })).toBe(false);
+  });
+});
+
+describe('strategyMeriEnvEnabled (G5 kill-switch, default OFF)', () => {
+  test('only the literal "true" enables — every other value fails closed', () => {
+    expect(strategyMeriEnvEnabled({ STRATEGY_MERI_ENABLED: 'true' } as NodeJS.ProcessEnv)).toBe(
+      true,
+    );
+    expect(strategyMeriEnvEnabled({ STRATEGY_MERI_ENABLED: 'false' } as NodeJS.ProcessEnv)).toBe(
+      false,
+    );
+    expect(strategyMeriEnvEnabled({ STRATEGY_MERI_ENABLED: '1' } as NodeJS.ProcessEnv)).toBe(
+      false,
+    );
+    expect(strategyMeriEnvEnabled({ STRATEGY_MERI_ENABLED: 'TRUE' } as NodeJS.ProcessEnv)).toBe(
+      false,
+    );
+    expect(strategyMeriEnvEnabled({} as NodeJS.ProcessEnv)).toBe(false);
+  });
+});
+
+describe('strategyPlannerMeriEnabled (per-tenant Meri opt-in alone, default OFF)', () => {
+  test('per-tenant opt-in, default off, malformed settings fail closed', () => {
+    expect(
+      strategyPlannerMeriEnabled({ clioFeatureFlags: { 'strategyPlannerMeri.enabled': true } }),
+    ).toBe(true);
+    expect(strategyPlannerMeriEnabled({})).toBe(false);
+    expect(strategyPlannerMeriEnabled(null)).toBe(false);
+    expect(strategyPlannerMeriEnabled({ clioFeatureFlags: 'oops' })).toBe(false);
+  });
+});
+
+describe('strategyMeriActive (G5: env kill-switch AND per-tenant flag, both default OFF)', () => {
+  const envOn = { STRATEGY_MERI_ENABLED: 'true' } as NodeJS.ProcessEnv;
+  const envOff = {} as NodeJS.ProcessEnv;
+  const tenantOn = { clioFeatureFlags: { 'strategyPlannerMeri.enabled': true } };
+  const tenantOff = { clioFeatureFlags: { 'strategyPlannerMeri.enabled': false } };
+
+  test('active only when the env switch is on AND the tenant flag is on', () => {
+    expect(strategyMeriActive(tenantOn, envOn)).toBe(true);
+  });
+
+  test('dormant when the env switch is off, even if the tenant flag is on (env-side rollback)', () => {
+    expect(strategyMeriActive(tenantOn, envOff)).toBe(false);
+  });
+
+  test('dormant when the tenant flag is off, even if the env switch is on (tenant-side rollback)', () => {
+    expect(strategyMeriActive(tenantOff, envOn)).toBe(false);
+  });
+
+  test('dormant by default — both conditions default OFF', () => {
+    expect(strategyMeriActive({}, envOff)).toBe(false);
+    expect(strategyMeriActive({}, envOn)).toBe(false); // tenant flag still absent/default-off
   });
 });

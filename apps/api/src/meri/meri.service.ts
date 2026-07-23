@@ -445,6 +445,33 @@ export class MeriService {
     return conversation;
   }
 
+  /**
+   * Resolve the extracted text of uploaded attachments by id (Strategy Planner
+   * Meri grounding, CRT-5/MRI-7). Tenant + user scoped (same ownership rule as
+   * the chat attachment path); returns only parsed document text — never image
+   * bytes — clamped for prompt inclusion.
+   */
+  async resolveAttachmentText(ctx: TenantContext, attachmentIds: string[]) {
+    const ids = [...new Set((attachmentIds ?? []).filter((s) => typeof s === 'string' && s))].slice(0, 10);
+    if (!ids.length) return { documents: [] as Array<{ id: string; filename: string; kind: string; text: string }> };
+    const rows = await this.prisma.withTenant(ctx.tenantId, (tx) =>
+      tx.clioAttachment.findMany({
+        where: { id: { in: ids }, tenantId: ctx.tenantId, userId: ctx.userId },
+        select: { id: true, filename: true, kind: true, status: true, textContent: true },
+      }),
+    );
+    const documents = rows
+      .filter((r) => typeof r.textContent === 'string' && r.textContent.trim())
+      .map((r) => ({
+        id: r.id,
+        filename: r.filename,
+        kind: r.kind,
+        // Clamp per-document so a large upload can't blow the prompt budget.
+        text: r.textContent!.trim().slice(0, 12_000),
+      }));
+    return { documents };
+  }
+
   private async ensureClientVisible(ctx: TenantContext, clientId: string) {
     const client = await this.prisma.withTenant(ctx.tenantId, (tx) =>
       tx.client.findFirst({
