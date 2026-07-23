@@ -42,7 +42,10 @@ function makeStore() {
         if (sa !== sb) return sa - sb;
         return (a.createdAt as Date).getTime() - (b.createdAt as Date).getTime();
       });
-  return { strategies, nodes, nextId, nodesFor };
+  // clientRows drives the tenant-scoped client-existence check (tx.$queryRaw
+  // inside withTenant); default = client exists. Tests set [] to simulate an
+  // unknown client.
+  return { strategies, nodes, nextId, nodesFor, clientRows: [{ ok: 1 }] as Array<{ ok: number }> };
 }
 type Store = ReturnType<typeof makeStore>;
 
@@ -123,7 +126,9 @@ function makeTx(store: Store) {
       return attach(rec, include);
     },
   };
-  return { spNode, spStrategy } as unknown as import('../../generated/prisma-client/index.js').Prisma.TransactionClient;
+  // Cross-schema client-existence check runs as tx.$queryRaw inside withTenant.
+  const $queryRaw = async () => store.clientRows;
+  return { spNode, spStrategy, $queryRaw } as unknown as import('../../generated/prisma-client/index.js').Prisma.TransactionClient;
 }
 
 function makePrisma(store: Store) {
@@ -366,9 +371,9 @@ describe('MeriService.draft', () => {
 
   it('rejects an unknown client before any write', async () => {
     const store = makeStore();
+    store.clientRows = []; // tenant-scoped client-existence check finds nothing
     const orchestrator = { draft: jest.fn() };
-    const { svc, withTenantUser, $queryRaw } = makeService(orchestrator, store);
-    $queryRaw.mockResolvedValueOnce([]);
+    const { svc, withTenantUser } = makeService(orchestrator, store);
 
     await expect(svc.draft(T, U, 'bearer', draftDto)).rejects.toThrow(/Unknown client/);
     expect(orchestrator.draft).not.toHaveBeenCalled();

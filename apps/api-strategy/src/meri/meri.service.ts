@@ -99,8 +99,13 @@ export class MeriService {
   }
 
   async draft(tenantId: string, clerkUserId: string, bearer: string | undefined, dto: DraftStrategyDto) {
-    const clientRows = await this.prisma.$queryRaw<Array<{ ok: number }>>`
-      SELECT 1 AS ok FROM clients WHERE id = ${dto.clientId}::uuid AND tenant_id = ${tenantId}::uuid LIMIT 1`;
+    // capiro_app is NOT RLS-bypass on `clients`; read inside withTenant (sets
+    // app.current_tenant) so the clients RLS exposes this tenant's rows — a bare
+    // raw read returns 0 and false-negatives every valid client.
+    const clientRows = await this.prisma.withTenant(tenantId, (tx) =>
+      tx.$queryRaw<Array<{ ok: number }>>`
+        SELECT 1 AS ok FROM clients WHERE id = ${dto.clientId}::uuid AND tenant_id = ${tenantId}::uuid LIMIT 1`,
+    );
     if (clientRows.length === 0) {
       throw new BadRequestException('Unknown client for this tenant');
     }

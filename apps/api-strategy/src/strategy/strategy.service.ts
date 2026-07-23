@@ -79,12 +79,15 @@ export class StrategyService {
     const targetDate = dto.targetDate ? parseDbDate(dto.targetDate, 'targetDate') : null;
 
     // clientId is a cross-schema reference (no FK); validate it belongs to the
-    // caller's tenant so a strategy can't be created against a foreign client
-    // id. Raw read against apps/api's clients table (capiro_app bypasses RLS,
-    // so the explicit tenant_id predicate is the guard) — mirrors the flags
-    // service's cross-schema tenants read.
-    const clientRows = await this.prisma.$queryRaw<Array<{ ok: number }>>`
-      SELECT 1 AS ok FROM clients WHERE id = ${dto.clientId}::uuid AND tenant_id = ${tenantId}::uuid LIMIT 1`;
+    // caller's tenant so a strategy can't be created against a foreign client id.
+    // capiro_app is NOT RLS-bypass on `clients`, so this must run inside
+    // withTenant (sets app.current_tenant) or the clients RLS filters every row
+    // and the check false-negatives ("Unknown client") for a valid client. The
+    // explicit tenant_id predicate is defense-in-depth alongside the RLS scope.
+    const clientRows = await this.prisma.withTenant(tenantId, (tx) =>
+      tx.$queryRaw<Array<{ ok: number }>>`
+        SELECT 1 AS ok FROM clients WHERE id = ${dto.clientId}::uuid AND tenant_id = ${tenantId}::uuid LIMIT 1`,
+    );
     if (clientRows.length === 0) {
       throw new BadRequestException('Unknown client for this tenant');
     }

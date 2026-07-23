@@ -14,7 +14,12 @@ function stubPrisma(rows: Array<{ settings_jsonb: unknown }> | Error) {
     if (rows instanceof Error) throw rows;
     return rows;
   });
-  return { prisma: { $queryRaw } as unknown as PrismaService, $queryRaw };
+  // The service reads inside withTenant (sets app.current_tenant so the tenants
+  // RLS exposes the row); model it as "run fn with a tx exposing $queryRaw".
+  const withTenant = jest.fn(async (_tenantId: string, fn: (tx: unknown) => Promise<unknown>) =>
+    fn({ $queryRaw }),
+  );
+  return { prisma: { withTenant, $queryRaw } as unknown as PrismaService, $queryRaw };
 }
 
 describe('StrategyFlagsService.isEnabled (strategyPlanner surface flag)', () => {
