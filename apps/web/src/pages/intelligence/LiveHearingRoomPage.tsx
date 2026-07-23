@@ -75,6 +75,12 @@ export function LiveHearingRoomPage() {
   const [recapOpen, setRecapOpen] = useState(false);
   const [connected, setConnected] = useState(false);
   const [audioUrl, setAudioUrl] = useState('');
+  const [capturing, setCapturing] = useState(false);
+  // Mutually exclusive with `capturing` — the WS's default connection is
+  // opus-encoded for browser capture, but `ingest` swaps Deepgram to
+  // linear16 for ffmpeg. Running both at once would feed opus bytes into a
+  // linear16 socket (or vice versa) and silently corrupt transcription.
+  const [ingestActive, setIngestActive] = useState(false);
   const [segments, setSegments] = useState<Segment[]>([]);
   const [interim, setInterim] = useState<string>('');
   const [cards, setCards] = useState<Card_[]>([]);
@@ -88,6 +94,8 @@ export function LiveHearingRoomPage() {
   const audioUrlRef = useRef('');
   const ingestSentRef = useRef(false);
   const transcriptEndRef = useRef<HTMLDivElement | null>(null);
+  const displayStreamRef = useRef<MediaStream | null>(null);
+  const mediaRecorderRef = useRef<MediaRecorder | null>(null);
 
   // Keep a ref of the current URL so the WS message handler (created once per
   // connect) always sends the latest value.
@@ -119,6 +127,18 @@ export function LiveHearingRoomPage() {
     ws.onclose = () => {
       setConnected(false);
       setStatusText(null);
+      setIngestActive(false);
+      // A drop for any reason (max-duration cutoff, network blip, auth expiry)
+      // must tear down browser capture too — otherwise a running MediaRecorder
+      // keeps sending chunks (silently dropped since wsRef is now closed) and
+      // the browser's "sharing this tab" indicator stays on. Without this, a
+      // stale recorder from a dead connection would also start bleeding into
+      // whatever WS a subsequent reconnect creates.
+      mediaRecorderRef.current?.stop();
+      mediaRecorderRef.current = null;
+      displayStreamRef.current?.getTracks().forEach((t) => t.stop());
+      displayStreamRef.current = null;
+      setCapturing(false);
     };
     ws.onerror = () => setError('WebSocket connection error');
 
@@ -132,6 +152,7 @@ export function LiveHearingRoomPage() {
         // server registers its message handler just after sending 'connected'.
         if (audioUrlRef.current.trim() && !ingestSentRef.current) {
           ingestSentRef.current = true;
+          setIngestActive(true);
           setStatusText('Starting ingestion…');
           setTimeout(() => {
             const w = wsRef.current;
@@ -176,6 +197,8 @@ export function LiveHearingRoomPage() {
   useEffect(() => {
     return () => {
       wsRef.current?.close();
+      mediaRecorderRef.current?.stop();
+      displayStreamRef.current?.getTracks().forEach((t) => t.stop());
     };
   }, []);
 
@@ -183,6 +206,10 @@ export function LiveHearingRoomPage() {
     const ws = wsRef.current;
     if (!ws || ws.readyState !== WebSocket.OPEN) {
       setError('Connect first, then start ingestion.');
+      return;
+    }
+    if (capturing) {
+      setError('Stop browser capture first, then start stream ingestion.');
       return;
     }
     if (!audioUrl.trim()) {
@@ -195,7 +222,90 @@ export function LiveHearingRoomPage() {
     setStatusText('Starting ingestion…');
     ws.send(JSON.stringify({ type: 'ingest', audioUrl: audioUrl.trim() }));
     ingestSentRef.current = true;
-  }, [audioUrl]);
+    setIngestActive(true);
+  }, [audioUrl, capturing]);
+
+  /** Stop an in-progress browser-audio capture (recorder + shared-tab tracks). */
+  const stopBrowserCapture = useCallback(() => {
+    mediaRecorderRef.current?.stop();
+    mediaRecorderRef.current = null;
+    displayStreamRef.current?.getTracks().forEach((t) => t.stop());
+    displayStreamRef.current = null;
+    setCapturing(false);
+  }, []);
+
+  /**
+   * Chamber-agnostic capture path for hearings with no ingestible stream URL
+   * (House committees stream via per-committee YouTube with no first-party
+   * feed; this also works for Senate/anything else). The analyst opens the
+   * hearing in another tab, picks that tab here with "Share tab audio"
+   * checked, and MediaRecorder streams opus chunks over the same WS the
+   * default (pre-`ingest`) Deepgram connection is already listening on — no
+   * server changes needed, it was built for exactly this, just never wired
+   * up client-side. This captures audio already being rendered on the
+   * analyst's own machine; it never touches the source platform's servers.
+   */
+  const startBrowserCapture = useCallback(async () => {
+    if (!wsRef.current || wsRef.current.readyState !== WebSocket.OPEN) {
+      setError('Connect first, then capture browser audio.');
+      return;
+    }
+    if (ingestSentRef.current) {
+      setError('Stop stream ingestion first, then capture browser audio.');
+      return;
+    }
+    if (!MediaRecorder.isTypeSupported('audio/webm;codecs=opus')) {
+      setError('This browser cannot record opus audio — try Chrome or Edge.');
+      return;
+    }
+    try {
+      // video:true is required by the browser to offer a "Tab" source with a
+      // "Share tab audio" checkbox; the video track is discarded immediately.
+      const display = await navigator.mediaDevices.getDisplayMedia({ video: true, audio: true });
+      // Re-check live state: the browser's picker can sit open for a while,
+      // and ingestion (or a disconnect) may have started/happened while we
+      // waited on the user. Checked via the ref, not the `ingestActive`
+      // state closed over at call time, since that snapshot can't observe
+      // changes that happened during the await.
+      if (
+        ingestSentRef.current ||
+        !wsRef.current ||
+        wsRef.current.readyState !== WebSocket.OPEN
+      ) {
+        display.getTracks().forEach((t) => t.stop());
+        setError('Connection state changed while waiting for the capture picker — try again.');
+        return;
+      }
+      const audioTracks = display.getAudioTracks();
+      if (audioTracks.length === 0) {
+        display.getTracks().forEach((t) => t.stop());
+        setError(
+          'No audio was shared — when picking the tab/window, check "Share tab audio" (or "Share system audio").',
+        );
+        return;
+      }
+      display.getVideoTracks().forEach((t) => t.stop());
+      displayStreamRef.current = display;
+      const recorder = new MediaRecorder(new MediaStream(audioTracks), {
+        mimeType: 'audio/webm;codecs=opus',
+      });
+      recorder.ondataavailable = (e) => {
+        if (e.data.size === 0) return;
+        void e.data.arrayBuffer().then((buf) => {
+          if (wsRef.current?.readyState === WebSocket.OPEN) wsRef.current.send(buf);
+        });
+      };
+      // The browser's own "Stop sharing" control ends the track directly.
+      audioTracks[0]?.addEventListener('ended', stopBrowserCapture);
+      recorder.start(250);
+      mediaRecorderRef.current = recorder;
+      setCapturing(true);
+      setError(null);
+      setStatusText("Capturing this browser's audio…");
+    } catch (err) {
+      setError(`Could not start browser capture: ${(err as Error).message}`);
+    }
+  }, [stopBrowserCapture]);
 
   useEffect(() => {
     transcriptEndRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -258,9 +368,11 @@ export function LiveHearingRoomPage() {
             danger
             onClick={() => {
               wsRef.current?.close();
+              stopBrowserCapture();
               setConnected(false);
               setStatusText(null);
               setStopped(true);
+              setIngestActive(false);
             }}
           >
             Stop
@@ -298,10 +410,29 @@ export function LiveHearingRoomPage() {
           onChange={(e) => setAudioUrl(e.target.value)}
           onPressEnter={startIngest}
         />
-        <Button type="primary" onClick={startIngest} disabled={!connected}>
+        <Button type="primary" onClick={startIngest} disabled={!connected || capturing}>
           Start ingestion
         </Button>
       </Space.Compact>
+
+      <Space direction="vertical" size={2} style={{ marginBottom: 12 }}>
+        <Space>
+          <Text type="secondary">or, if there's no direct stream URL (e.g. a House committee's YouTube):</Text>
+          {!capturing ? (
+            <Button onClick={startBrowserCapture} disabled={!connected || ingestActive}>
+              Capture this browser&apos;s audio
+            </Button>
+          ) : (
+            <Button danger onClick={stopBrowserCapture}>
+              Stop browser capture
+            </Button>
+          )}
+        </Space>
+        <Text type="secondary" style={{ fontSize: 12 }}>
+          Open the hearing in another tab first, then pick that tab here and check &quot;Share tab
+          audio&quot;. Chrome/Edge only.
+        </Text>
+      </Space>
 
       {statusText && !error && (
         <div style={{ marginBottom: 12 }}>

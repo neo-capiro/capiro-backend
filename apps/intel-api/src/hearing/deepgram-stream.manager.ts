@@ -48,9 +48,16 @@ export class DeepgramStreamManager {
     // is reconciled to nova-3 in infra.
     this.model = opts?.model ?? 'nova-3';
     this.endpointingMs = opts?.endpointingMs ?? Number.parseInt(process.env.DEEPGRAM_ENDPOINTING_MS ?? '300', 10);
-    // Browser mic frames are opus (MediaRecorder default). Server-side ffmpeg
-    // ingestion sends raw linear16 PCM at a known sample rate.
-    this.encoding = opts?.encoding ?? 'opus';
+    // Browser capture sends MediaRecorder's default output: opus audio
+    // wrapped in a WebM container, NOT raw/headerless opus frames. Deepgram's
+    // `encoding` param means "headerless, decode as this codec" — passing
+    // `encoding: 'opus'` for WebM-container bytes makes Deepgram try to parse
+    // Matroska framing as raw Opus and fail silently. Leaving `encoding`
+    // unset lets Deepgram auto-detect the container from its header, which is
+    // what containerized formats (WebM/WAV/Ogg) require. Server-side ffmpeg
+    // ingestion explicitly passes `encoding: 'linear16'` (headerless PCM,
+    // where sample_rate is required) — that path is unaffected.
+    this.encoding = opts?.encoding ?? '';
     this.sampleRate = opts?.sampleRate;
   }
 
@@ -94,7 +101,7 @@ export class DeepgramStreamManager {
       punctuate: true,
       smart_format: true,
       endpointing: this.endpointingMs,
-      encoding: this.encoding,
+      ...(this.encoding ? { encoding: this.encoding } : {}),
       ...(this.sampleRate ? { sample_rate: this.sampleRate } : {}),
     });
     this.connection = connection;
@@ -102,7 +109,7 @@ export class DeepgramStreamManager {
     connection.on(LiveTranscriptionEvents.Open, () => {
       this.reconnectAttempts = 0;
       this.logger.log(
-        `deepgram open model=${this.model} encoding=${this.encoding} sampleRate=${this.sampleRate ?? 'n/a'}`,
+        `deepgram open model=${this.model} encoding=${this.encoding || 'auto-detect'} sampleRate=${this.sampleRate ?? 'n/a'}`,
       );
       this.callbacks.onOpen();
     });
