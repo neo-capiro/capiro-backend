@@ -8461,7 +8461,8 @@ function defaultScopes(provider: EngagementProvider): string[] {
   if (provider === EngagementProvider.google_workspace) {
     return [
       'https://www.googleapis.com/auth/gmail.readonly',
-      'https://www.googleapis.com/auth/calendar.readonly',
+      'https://www.googleapis.com/auth/gmail.send',
+      'https://www.googleapis.com/auth/calendar.events.readonly',
     ];
   }
   if (provider === EngagementProvider.imap_caldav) return ['imap.read', 'caldav.read'];
