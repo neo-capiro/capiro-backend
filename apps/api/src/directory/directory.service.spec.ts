@@ -66,7 +66,7 @@ describe('DirectoryService.getContactTrips (WS-F)', () => {
   function makeService(trips: unknown[] = []) {
     const config = { get: jest.fn().mockReturnValue('us-east-1') } as any;
     const prisma = {
-      legistormTrip: { findMany: jest.fn().mockResolvedValue(trips) },
+      legistormTrip: { findMany: jest.fn<() => Promise<unknown[]>>().mockResolvedValue(trips) },
     } as any;
     const representation = {} as any;
     return { service: new DirectoryService(config, prisma, representation), prisma };

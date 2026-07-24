@@ -4102,33 +4102,29 @@ model CensusDistrict {
 // run — districts change only at redistricting, not incrementally).
 // ─────────────────────────────────────────────────────────────────────────
 model LegislativeDistrict {
-  /** `${legistormDistrictId}-${status}`, e.g. "603-F" — mirrors CensusDistrict's composed string PK. */
+  /// `${legistormDistrictId}-${status}`, e.g. "603-F" — mirrors CensusDistrict's composed string PK.
   id                     String   @id
   legistormDistrictId    Int      @map("legistorm_district_id")
-  /** 'house' | 'senate' — lowercase, matching congress_member.chamber's convention. */
+  /// 'house' | 'senate' — lowercase, matching congress_member.chamber's convention.
   chamber                String
   state                  String   @db.VarChar(2)
-  /** Bare number as a string (e.g. "1", "25"); null for a Senate seat. */
+  /// Bare number as a string (e.g. "1", "25"); null for a Senate seat.
   districtNo             String?  @map("district_no")
-  /** 1 | 2 | 3 — which Senate election cohort; null for a House seat. */
+  /// 1 | 2 | 3 — which Senate election cohort; null for a House seat.
   senateClass            Int?     @map("senate_class")
   name                   String
-  /** 'C' current | 'F' future (enacted, not yet effective). */
+  /// 'C' current | 'F' future (enacted, not yet effective).
   status                 String
   effectiveDate          DateTime? @map("effective_date") @db.Date
   enactedDate            DateTime? @map("enacted_date") @db.Date
-  /**
-   * bioguide_id(s) of the member(s) LegiStorm reports for this district row —
-   * for a 'F' row, this is the incumbent mapped onto the FUTURE boundary
-   * (forward-looking information not derivable from congress_member, which
-   * only carries today's district assignment). Empty array for a vacant seat.
-   */
+  /// bioguide_id(s) of the member(s) LegiStorm reports for this district row —
+  /// for a 'F' row, this is the incumbent mapped onto the FUTURE boundary
+  /// (forward-looking information not derivable from congress_member, which
+  /// only carries today's district assignment). Empty array for a vacant seat.
   currentMemberBioguides String[] @default([]) @map("current_member_bioguides")
-  /**
-   * Our OWN S3 object key for the re-hosted KML boundary — NEVER the raw
-   * LegiStorm URL (which embeds our API key in its path). Null until the
-   * boundary has been fetched.
-   */
+  /// Our OWN S3 object key for the re-hosted KML boundary — NEVER the raw
+  /// LegiStorm URL (which embeds our API key in its path). Null until the
+  /// boundary has been fetched.
   kmlS3Key               String?  @map("kml_s3_key")
   syncedAt               DateTime @default(now()) @map("synced_at") @db.Timestamptz(6)
 
@@ -4152,14 +4148,14 @@ model LegislativeDistrict {
 // every historical trip each run.
 // ─────────────────────────────────────────────────────────────────────────
 model LegistormTrip {
-  /** LegiStorm's own trip id. */
+  /// LegiStorm's own trip id.
   id                               Int       @id
-  /** LegiStorm member_id of the approving member (join key into the directory snapshot's numeric ids). */
+  /// LegiStorm member_id of the approving member (join key into the directory snapshot's numeric ids).
   approverMemberId                Int?      @map("approver_member_id")
   approverName                     String?   @map("approver_name")
-  /** Populated when the traveler was a MEMBER (mutually exclusive with travelerStaffId). */
+  /// Populated when the traveler was a MEMBER (mutually exclusive with travelerStaffId).
   travelerMemberId                 Int?      @map("traveler_member_id")
-  /** Populated when the traveler was a STAFFER (mutually exclusive with travelerMemberId). */
+  /// Populated when the traveler was a STAFFER (mutually exclusive with travelerMemberId).
   travelerStaffId                  Int?      @map("traveler_staff_id")
   travelerName                     String?   @map("traveler_name")
   companionName                    String?   @map("companion_name")
@@ -4177,13 +4173,13 @@ model LegistormTrip {
   companionTransportationExpenses  Float?    @map("companion_transportation_expenses")
   companionLodgingExpenses         Float?    @map("companion_lodging_expenses")
   companionOtherExpenses           Float?    @map("companion_other_expenses")
-  /** [{id, name, stateId}] — trip destinations; small, denormalized, matches stateLegislator.committees' own Json-array convention. */
+  /// [{id, name, stateId}] — trip destinations; small, denormalized, matches stateLegislator.committees' own Json-array convention.
   destinations                     Json      @default("[]")
-  /** [{id, name}] — the org(s) that paid for the trip. */
+  /// [{id, name}] — the org(s) that paid for the trip.
   sponsors                         Json      @default("[]")
   filedDate                        DateTime? @map("filed_date") @db.Date
   amendedDate                      DateTime? @map("amended_date") @db.Date
-  /** LegiStorm's own updated_at for this trip — distinct from syncedAt (when WE last wrote this row). */
+  /// LegiStorm's own updated_at for this trip — distinct from syncedAt (when WE last wrote this row).
   vendorUpdatedAt                  DateTime? @map("vendor_updated_at") @db.Timestamptz(6)
   syncedAt                         DateTime  @default(now()) @map("synced_at") @db.Timestamptz(6)
 
@@ -4211,7 +4207,7 @@ model CommitteeMembershipWatch {
   committeeId String    @map("committee_id")
   personId    String    @map("person_id")
   personName  String?   @map("person_name")
-  /** Position text as of the last run, e.g. "Chair", "Ranking Member"; null = plain member. */
+  /// Position text as of the last run, e.g. "Chair", "Ranking Member"; null = plain member.
   role        String?
   firstSeenAt DateTime  @default(now()) @map("first_seen_at") @db.Timestamptz(6)
   lastSeenAt  DateTime  @default(now()) @map("last_seen_at") @db.Timestamptz(6)

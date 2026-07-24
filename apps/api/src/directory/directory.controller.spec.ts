@@ -159,10 +159,12 @@ describe('DirectoryController — districts (WS-D)', () => {
 
   test('districtKml() sets the KML content-type + disposition and sends the buffer, nothing else', async () => {
     const service = {
-      getDistrictKml: jest.fn().mockResolvedValueOnce({
-        filename: '271-C.kml',
-        buffer: Buffer.from('<kml/>'),
-      }),
+      getDistrictKml: jest
+        .fn<() => Promise<{ filename: string; buffer: Buffer }>>()
+        .mockResolvedValueOnce({
+          filename: '271-C.kml',
+          buffer: Buffer.from('<kml/>'),
+        }),
     } as unknown as DirectoryService & { getDistrictKml: jest.Mock };
     const controller = new DirectoryController(service);
     const res = { setHeader: jest.fn(), send: jest.fn() } as unknown as import('express').Response;

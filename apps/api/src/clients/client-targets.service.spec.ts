@@ -30,18 +30,18 @@ describe('ClientTargetsService.listTargets — WS-E district-nexus enrichment', 
     facilitiesForMember?: jest.Mock;
   }) {
     const tx = {
-      client: { findFirst: jest.fn().mockResolvedValue({ id: clientId }) },
-      clientTarget: { findMany: jest.fn().mockResolvedValue(opts.rows) },
+      client: { findFirst: jest.fn<() => Promise<{ id: string }>>().mockResolvedValue({ id: clientId }) },
+      clientTarget: { findMany: jest.fn<() => Promise<any[]>>().mockResolvedValue(opts.rows) },
     };
     const prisma = {
       withTenant: jest.fn(async (_tenantId: string, fn: (tx: any) => Promise<any>) => fn(tx)),
-      stateLegislator: { findMany: jest.fn().mockResolvedValue(opts.stateLegislators ?? []) },
+      stateLegislator: { findMany: jest.fn<() => Promise<any[]>>().mockResolvedValue(opts.stateLegislators ?? []) },
     };
     const directory = {
-      getAllContacts: jest.fn().mockResolvedValue(opts.contacts ?? []),
+      getAllContacts: jest.fn<() => Promise<any[]>>().mockResolvedValue(opts.contacts ?? []),
     } as unknown as DirectoryService;
     const representation = {
-      facilitiesForMember: opts.facilitiesForMember ?? jest.fn().mockResolvedValue([]),
+      facilitiesForMember: opts.facilitiesForMember ?? jest.fn<() => Promise<any[]>>().mockResolvedValue([]),
     } as unknown as RepresentationResolverService;
     const service = new ClientTargetsService(prisma as any, directory, representation);
     return { service, prisma, directory, representation };
@@ -55,7 +55,7 @@ describe('ClientTargetsService.listTargets — WS-E district-nexus enrichment', 
       state: 'TX-99', // deliberately wrong/stale — must NOT be trusted
     };
     const contact = { id: 'member-101', chamber: 'House', state: 'TX', district: '12' };
-    const facilitiesForMember = jest.fn().mockResolvedValue([{ id: 'fac-1', name: 'Acme HQ' }]);
+    const facilitiesForMember = jest.fn<() => Promise<any[]>>().mockResolvedValue([{ id: 'fac-1', name: 'Acme HQ' }]);
     const { service } = makeService({ rows: [row], contacts: [contact], facilitiesForMember });
 
     const result = await service.listTargets(ctx, clientId);
@@ -66,13 +66,13 @@ describe('ClientTargetsService.listTargets — WS-E district-nexus enrichment', 
       state: 'TX',
       district: 12,
     });
-    expect(result[0].representedFacilities).toEqual([{ id: 'fac-1', name: 'Acme HQ' }]);
+    expect(result[0]!.representedFacilities).toEqual([{ id: 'fac-1', name: 'Acme HQ' }]);
   });
 
   test('a House member with district "0" (or non-numeric) is treated as at-large — district: null', async () => {
     const row = { id: 'target-1', memberId: 'member-1', sourceDirectory: 'congress', state: null };
     const contact = { id: 'member-1', chamber: 'House', state: 'WY', district: '0' };
-    const facilitiesForMember = jest.fn().mockResolvedValue([]);
+    const facilitiesForMember = jest.fn<() => Promise<any[]>>().mockResolvedValue([]);
     const { service } = makeService({ rows: [row], contacts: [contact], facilitiesForMember });
 
     await service.listTargets(ctx, clientId);
@@ -88,7 +88,7 @@ describe('ClientTargetsService.listTargets — WS-E district-nexus enrichment', 
   test('resolves state-legislator facilities from the CURRENT state_legislator row, including a named district', async () => {
     const row = { id: 'target-2', memberId: 'ocd-person/abc', sourceDirectory: 'state', state: null };
     const leg = { id: 'ocd-person/abc', state: 'MA', chamber: 'lower', district: '12th Suffolk' };
-    const facilitiesForMember = jest.fn().mockResolvedValue([{ id: 'fac-2', name: 'Boston Office' }]);
+    const facilitiesForMember = jest.fn<() => Promise<any[]>>().mockResolvedValue([{ id: 'fac-2', name: 'Boston Office' }]);
     const { service } = makeService({ rows: [row], stateLegislators: [leg], facilitiesForMember });
 
     const result = await service.listTargets(ctx, clientId);
@@ -99,7 +99,7 @@ describe('ClientTargetsService.listTargets — WS-E district-nexus enrichment', 
       state: 'MA',
       district: '12th Suffolk',
     });
-    expect(result[0].representedFacilities).toEqual([{ id: 'fac-2', name: 'Boston Office' }]);
+    expect(result[0]!.representedFacilities).toEqual([{ id: 'fac-2', name: 'Boston Office' }]);
   });
 
   test('staff targets are "not applicable" — null, never an empty array', async () => {
@@ -108,7 +108,7 @@ describe('ClientTargetsService.listTargets — WS-E district-nexus enrichment', 
 
     const result = await service.listTargets(ctx, clientId);
 
-    expect(result[0].representedFacilities).toBeNull();
+    expect(result[0]!.representedFacilities).toBeNull();
   });
 
   test('a congress target whose member is no longer in the current directory resolves to null, not []', async () => {
@@ -117,7 +117,7 @@ describe('ClientTargetsService.listTargets — WS-E district-nexus enrichment', 
 
     const result = await service.listTargets(ctx, clientId);
 
-    expect(result[0].representedFacilities).toBeNull();
+    expect(result[0]!.representedFacilities).toBeNull();
   });
 
   test('a Governor-chamber contact resolves to null — not a legislative district at all', async () => {
@@ -127,19 +127,19 @@ describe('ClientTargetsService.listTargets — WS-E district-nexus enrichment', 
 
     const result = await service.listTargets(ctx, clientId);
 
-    expect(result[0].representedFacilities).toBeNull();
+    expect(result[0]!.representedFacilities).toBeNull();
   });
 
   test('a state target with an unrecognized chamber value resolves to null rather than defaulting to "upper"', async () => {
     const row = { id: 'target-7', memberId: 'leg-x', sourceDirectory: 'state', state: null };
     const leg = { id: 'leg-x', state: 'CA', chamber: 'unknown-chamber', district: '5' };
-    const facilitiesForMember = jest.fn().mockResolvedValue([{ id: 'fac-x', name: 'Should not be reached' }]);
+    const facilitiesForMember = jest.fn<() => Promise<any[]>>().mockResolvedValue([{ id: 'fac-x', name: 'Should not be reached' }]);
     const { service } = makeService({ rows: [row], stateLegislators: [leg], facilitiesForMember });
 
     const result = await service.listTargets(ctx, clientId);
 
     expect(facilitiesForMember).not.toHaveBeenCalled();
-    expect(result[0].representedFacilities).toBeNull();
+    expect(result[0]!.representedFacilities).toBeNull();
   });
 
   test('batches: exactly ONE getAllContacts() call and ONE stateLegislator.findMany() call regardless of target count', async () => {
@@ -170,12 +170,12 @@ describe('ClientTargetsService.listTargets — WS-E district-nexus enrichment', 
   test('a per-target facilitiesForMember failure resolves to null for that target, never throws the whole list', async () => {
     const row = { id: 'target-6', memberId: 'member-1', sourceDirectory: 'congress', state: null };
     const contact = { id: 'member-1', chamber: 'House', state: 'TX', district: '1' };
-    const facilitiesForMember = jest.fn().mockRejectedValue(new Error('db down'));
+    const facilitiesForMember = jest.fn<() => Promise<any[]>>().mockRejectedValue(new Error('db down'));
     const { service } = makeService({ rows: [row], contacts: [contact], facilitiesForMember });
 
     const result = await service.listTargets(ctx, clientId);
 
-    expect(result[0].representedFacilities).toBeNull();
+    expect(result[0]!.representedFacilities).toBeNull();
   });
 
   test('getAllContacts() is never called when there are no congress targets', async () => {
