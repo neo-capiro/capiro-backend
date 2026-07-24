@@ -232,6 +232,24 @@ export const INGESTION_JOBS: ScheduledIngestionJob[] = [
     tier: 'daily',
     description: 'Award district enrichment (after awards)',
   },
+  // ── District Nexus assistance awards (ships DISABLED pending Phase 1 canary
+  // volume approval — see district-nexus-grants-mcp-plan.md §10 Phase 1) ─────
+  {
+    id: 'SyncFederalAssistanceAwards',
+    command: ['sync-federal-assistance-awards'],
+    cron: { minute: '10', hour: '8' },
+    tier: 'daily',
+    description: 'USAspending financial assistance awards, all agencies (daily, after contracts)',
+    enabled: false,
+  },
+  {
+    id: 'EnrichAssistanceAwards',
+    command: ['enrich-assistance-awards'],
+    cron: { minute: '20', hour: '8' },
+    tier: 'daily',
+    description: 'Assistance award detail enrichment (after assistance sync)',
+    enabled: false,
+  },
 
   // ── TIER 2 — WEEKLY ───────────────────────────────────────────────────────
   {
@@ -282,6 +300,24 @@ export const INGESTION_JOBS: ScheduledIngestionJob[] = [
     cron: { minute: '30', hour: '7', weekDay: 'MON' },
     tier: 'weekly',
     description: 'Federal grants (weekly Mon)',
+  },
+  // ── District Nexus Workstream C (ships DISABLED pending Phase 1 canary) ───
+  {
+    id: 'SyncGrantsReconcile',
+    command: ['sync-grants', '--all-statuses'],
+    cron: { minute: '45', hour: '7', weekDay: 'SUN' },
+    tier: 'weekly',
+    description:
+      'Grants.gov all-status reconcile — re-sees closed/archived opportunities the posted|forecasted pass cannot (weekly Sun)',
+    enabled: false,
+  },
+  {
+    id: 'EnrichGrantDetails',
+    command: ['enrich-grant-details'],
+    cron: { minute: '30', hour: '8' },
+    tier: 'daily',
+    description: 'Grants.gov fetchOpportunity detail enrichment (after the opportunity sync)',
+    enabled: false,
   },
   {
     id: 'SyncOpenstates',

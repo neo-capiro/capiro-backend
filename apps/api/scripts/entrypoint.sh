@@ -266,6 +266,16 @@ case "${1:-serve}" in
   # Step 28: USAspending federal awards (DoD), PE-tagged. Daily 7-day delta; pass
   # --backfill --since YYYY-MM-DD for the separate backfill.
   sync-federal-award)     shift; exec ./node_modules/.bin/tsx scripts/sync-federal-award.ts "$@" ;;
+  # District Nexus: USAspending financial assistance (award_type_codes 02-05:
+  # block/formula/project grants + cooperative agreements) — kept separate
+  # from federal_award/sync-federal-award (contracts, different data product).
+  # Daily 7-day delta; pass --backfill --since YYYY-MM-DD --min-amount N for
+  # a bounded backfill. Ships disabled in ingestion-schedule.ts pending canary.
+  sync-federal-assistance-awards) shift; exec ./node_modules/.bin/tsx scripts/sync-federal-assistance-awards.ts "$@" ;;
+  # District Nexus: thin per-award detail enrichment (fain/uri/subaward count/
+  # non-federal funding/funding-opportunity number) for federal_assistance_award
+  # rows sync-federal-assistance-awards couldn't fully populate from search alone.
+  enrich-assistance-awards) shift; exec ./node_modules/.bin/tsx scripts/enrich-assistance-award-details.ts "$@" ;;
   # Step 32: LLM NER over recent DoD press releases (IntelArticle source=dod).
   extract-press-personnel) shift; exec ./node_modules/.bin/tsx scripts/extract-personnel-from-press-releases.ts "$@" ;;
   # Step 33: SAM.gov DoD solicitation KO/CS personnel (email domain only).
@@ -401,7 +411,15 @@ case "${1:-serve}" in
   sync-bls)               exec ./node_modules/.bin/tsx scripts/sync-bls.ts ;;
   sync-bea)               exec ./node_modules/.bin/tsx scripts/sync-bea.ts ;;
   sync-census)            exec ./node_modules/.bin/tsx scripts/sync-census.ts ;;
-  sync-grants)            exec ./node_modules/.bin/tsx scripts/sync-grants.ts ;;
+  # Grants.gov opportunities (NOFOs). Bare = daily posted|forecasted; pass
+  # --all-statuses for the weekly reconcile that also sees closed/archived.
+  # Needs "$@" — the flag was unreachable while this verb swallowed its args.
+  sync-grants)            shift; exec ./node_modules/.bin/tsx scripts/sync-grants.ts "$@" ;;
+  # District Nexus: Grants.gov fetchOpportunity detail pass. Fills every
+  # federal_grant column search2 cannot return (award ceiling/floor, funding,
+  # eligibility, description, category) plus the Workstream C detail block.
+  # Ships disabled in ingestion-schedule.ts pending Phase 1 canary.
+  enrich-grant-details)   shift; exec ./node_modules/.bin/tsx scripts/enrich-grant-details.ts "$@" ;;
   sync-openlobby)         exec ./node_modules/.bin/tsx scripts/sync-openlobby.ts ;;
   sync-openspending)      exec ./node_modules/.bin/tsx scripts/sync-openspending.ts ;;
   sync-lobby-trending)    exec ./node_modules/.bin/tsx scripts/sync-lobby-trending.ts ;;
@@ -592,7 +610,7 @@ case "${1:-serve}" in
     exec node dist/main.js
     ;;
   *)
-    echo "Unknown command: $1 (expected: serve | migrate | seed-workflows | bootstrap-capiro-admin | bootstrap-tenant | bootstrap-roles | emit-changes | emit-bill-alerts | emit-clio-alerts | generate-meeting-briefings | backfill-sectors | generate-briefings | compute-health-scores | check-comment-periods | embed-backfill | embed-program-elements | sync-lda | sync-congress | sync-congress-members | sync-cbo | sync-committees | sync-house-votes | sync-senate-votes | derive-bill-status | sync-federal-register | sync-regulations | sync-hearings | sync-hearing-transcripts | sync-gao | sync-crs | sync-fec | sync-federal-award | enrich-award-districts | enrich-award-pe | seed-acq-program-map | report-award-pe-coverage | extract-press-personnel | sync-sam-personnel | sync-fec-pac | sync-fara | sync-fara-enrichment | sync-sec-edgar | sync-rss-intel | sync-openstates | backfill-legiscan-datasets | sync-legiscan-masterlist | sync-legiscan-bills | sync-legistorm-districts | sync-legistorm-trips | derive-state-bill-status | emit-state-changes | emit-committee-changes | crosswalk-state-people | geocode-facilities | load-state-calendars | normalize-state-committees | backtest-deadline-physics | sync-state-register | set-tenant-flag | sync-bls | sync-bea | sync-census | sync-grants | sync-openlobby | sync-openspending | sync-lobby-trending | refresh-lobby-intel-mv | refresh-kg-edge-cache | sync-comptroller-jbooks | sync-jbook-r2 | import-dow-directory | import-dow-directory-v6 | sync-dow-headshots | generate-pe-person-candidates | auto-confirm-pe-person-candidates | derive-office-program-links | sync-peo-rosters | sync-dod-orgcharts | sync-dod-press-personnel | sync-cpe-roster | recompute-conference-probability | extract-bill-pe-codes | extract-gao-interviewees | extract-hearing-witnesses | parse-hasc-report | parse-sasc-report | parse-hac-d-report | parse-sac-d-report | parse-ndaa-conference | parse-defense-approps-public-law | parse-pdoc | load-defense-budget-package | verify-defense-budget-packages | run-pe-derive-chain | watch-budget-docs | send-pe-alert-emails | match-pe-mentions | rebuild-pe-years | normalize-pe-units | diag-stale-directory | reconcile-personnel-supersede | reconcile-stale-pes | repair-person-pe-links | diag-client-resolution | diag-phantom-imports | diag-clio-memory | diag-memory-recall-parity | backfill-clio-memory-embeddings | run-clio-scheduled-tasks | run-intel-workflows | refresh-memory-graph | prepopulate-all | fill-govids-all)" >&2
+    echo "Unknown command: $1 (expected: serve | migrate | seed-workflows | bootstrap-capiro-admin | bootstrap-tenant | bootstrap-roles | emit-changes | emit-bill-alerts | emit-clio-alerts | generate-meeting-briefings | backfill-sectors | generate-briefings | compute-health-scores | check-comment-periods | embed-backfill | embed-program-elements | sync-lda | sync-congress | sync-congress-members | sync-cbo | sync-committees | sync-house-votes | sync-senate-votes | derive-bill-status | sync-federal-register | sync-regulations | sync-hearings | sync-hearing-transcripts | sync-gao | sync-crs | sync-fec | sync-federal-award | sync-federal-assistance-awards | enrich-assistance-awards | enrich-award-districts | enrich-award-pe | seed-acq-program-map | report-award-pe-coverage | extract-press-personnel | sync-sam-personnel | sync-fec-pac | sync-fara | sync-fara-enrichment | sync-sec-edgar | sync-rss-intel | sync-openstates | backfill-legiscan-datasets | sync-legiscan-masterlist | sync-legiscan-bills | sync-legistorm-districts | sync-legistorm-trips | derive-state-bill-status | emit-state-changes | emit-committee-changes | crosswalk-state-people | geocode-facilities | load-state-calendars | normalize-state-committees | backtest-deadline-physics | sync-state-register | set-tenant-flag | sync-bls | sync-bea | sync-census | sync-grants | enrich-grant-details | sync-openlobby | sync-openspending | sync-lobby-trending | refresh-lobby-intel-mv | refresh-kg-edge-cache | sync-comptroller-jbooks | sync-jbook-r2 | import-dow-directory | import-dow-directory-v6 | sync-dow-headshots | generate-pe-person-candidates | auto-confirm-pe-person-candidates | derive-office-program-links | sync-peo-rosters | sync-dod-orgcharts | sync-dod-press-personnel | sync-cpe-roster | recompute-conference-probability | extract-bill-pe-codes | extract-gao-interviewees | extract-hearing-witnesses | parse-hasc-report | parse-sasc-report | parse-hac-d-report | parse-sac-d-report | parse-ndaa-conference | parse-defense-approps-public-law | parse-pdoc | load-defense-budget-package | verify-defense-budget-packages | run-pe-derive-chain | watch-budget-docs | send-pe-alert-emails | match-pe-mentions | rebuild-pe-years | normalize-pe-units | diag-stale-directory | reconcile-personnel-supersede | reconcile-stale-pes | repair-person-pe-links | diag-client-resolution | diag-phantom-imports | diag-clio-memory | diag-memory-recall-parity | backfill-clio-memory-embeddings | run-clio-scheduled-tasks | run-intel-workflows | refresh-memory-graph | prepopulate-all | fill-govids-all)" >&2
     exit 1
     ;;
 esac
