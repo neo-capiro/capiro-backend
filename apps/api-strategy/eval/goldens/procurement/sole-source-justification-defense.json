@@ -1,0 +1,119 @@
+{
+  "goal": "Defend a sole-source justification for a specialized sensor package against a competing full-and-open push.",
+  "clientContextFixture": {
+    "clientName": "Sentry Optics Corporation",
+    "profileSummary": "Incumbent sole-source sensor supplier; a competitor is lobbying the program office to open the requirement to competition.",
+    "fiscal": {
+      "today": "2026-10-15",
+      "fys": [
+        2027,
+        2028,
+        2029
+      ],
+      "fyLabels": [
+        "FY27",
+        "FY28",
+        "FY29"
+      ],
+      "focalFy": "FY28"
+    },
+    "congress": [],
+    "ppbeCurrentPhases": []
+  },
+  "plan": {
+    "nodes": [
+      {
+        "id": "n1",
+        "kind": "risk",
+        "subject": "optics",
+        "title": "Competitor lobbying program office to open the requirement",
+        "startsOn": "2027-01-06",
+        "endsOn": null,
+        "dependsOnIds": []
+      },
+      {
+        "id": "n2",
+        "kind": "action",
+        "subject": "deliverable",
+        "title": "Compile technical case for sole-source justification",
+        "startsOn": "2027-01-07",
+        "endsOn": "2027-01-28",
+        "dependsOnIds": [
+          "n1"
+        ]
+      },
+      {
+        "id": "n3",
+        "kind": "action",
+        "subject": "agency",
+        "title": "Meet with the program office to reinforce the justification",
+        "startsOn": "2027-01-29",
+        "endsOn": "2027-02-12",
+        "dependsOnIds": [
+          "n2"
+        ]
+      },
+      {
+        "id": "n4",
+        "kind": "gate",
+        "subject": "ask",
+        "title": "Program office confirms it will maintain sole-source status",
+        "startsOn": "2027-02-13",
+        "endsOn": null,
+        "dependsOnIds": [
+          "n3"
+        ]
+      },
+      {
+        "id": "n5",
+        "kind": "action",
+        "subject": "committee",
+        "title": "Brief oversight committee staff as a contingency",
+        "startsOn": "2027-02-14",
+        "endsOn": "2027-03-07",
+        "dependsOnIds": [
+          "n4"
+        ]
+      },
+      {
+        "id": "n6",
+        "kind": "milestone",
+        "subject": "outcome",
+        "title": "Justification & Approval (J&A) signed",
+        "startsOn": "2027-04-01",
+        "endsOn": null,
+        "dependsOnIds": [
+          "n4"
+        ]
+      }
+    ]
+  },
+  "expectedPlanShape": {
+    "nodeCountRange": [
+      6,
+      6
+    ],
+    "requiredKinds": [
+      "action",
+      "gate",
+      "milestone",
+      "risk"
+    ],
+    "requiredSubjects": [
+      "optics",
+      "deliverable",
+      "agency",
+      "ask",
+      "committee",
+      "outcome"
+    ],
+    "orderingAssertions": [
+      {
+        "description": "the program office confirmation precedes the contingency Hill brief",
+        "beforeNodeId": "n4",
+        "afterNodeId": "n5"
+      }
+    ]
+  },
+  "notes": "Defensive procurement plan (protecting an existing position rather than pursuing a new one) — the risk node is a competitive threat, not a program deadline."
+}

@@ -1,0 +1,155 @@
+{
+  "goal": "Increase the FY28 Defense Health Program research line for a traumatic brain injury diagnostics program by $12M.",
+  "clientContextFixture": {
+    "clientName": "Cortex Diagnostics",
+    "profileSummary": "Small biotech with a DoD-relevant TBI diagnostic; no prior appropriations history; needs a champion identified before any ask.",
+    "fiscal": {
+      "today": "2026-10-15",
+      "fys": [
+        2027,
+        2028,
+        2029
+      ],
+      "fyLabels": [
+        "FY27",
+        "FY28",
+        "FY29"
+      ],
+      "focalFy": "FY28"
+    },
+    "congress": [
+      {
+        "label": "HAC-D Markup",
+        "fy": 2028,
+        "startsOn": "2028-02-20",
+        "endsOn": "2028-02-20"
+      }
+    ],
+    "ppbeCurrentPhases": []
+  },
+  "plan": {
+    "nodes": [
+      {
+        "id": "n1",
+        "kind": "risk",
+        "subject": "optics",
+        "title": "No incumbent champion on HAC-D for this program element",
+        "startsOn": "2027-09-07",
+        "endsOn": null,
+        "dependsOnIds": []
+      },
+      {
+        "id": "n2",
+        "kind": "action",
+        "subject": "member",
+        "title": "Identify and approach a potential HAC-D champion",
+        "startsOn": "2027-09-14",
+        "endsOn": "2027-10-12",
+        "dependsOnIds": [
+          "n1"
+        ]
+      },
+      {
+        "id": "n3",
+        "kind": "gate",
+        "subject": "ask",
+        "title": "Champion agrees to carry the request",
+        "startsOn": "2027-10-13",
+        "endsOn": null,
+        "dependsOnIds": [
+          "n2"
+        ]
+      },
+      {
+        "id": "n4",
+        "kind": "action",
+        "subject": "deliverable",
+        "title": "Prepare technical justification memo",
+        "startsOn": "2027-10-14",
+        "endsOn": "2027-10-28",
+        "dependsOnIds": [
+          "n3"
+        ]
+      },
+      {
+        "id": "n5",
+        "kind": "action",
+        "subject": "submission",
+        "title": "File the FY28 DHP research-line request",
+        "startsOn": "2027-11-08",
+        "endsOn": "2027-11-08",
+        "dependsOnIds": [
+          "n4"
+        ]
+      },
+      {
+        "id": "n6",
+        "kind": "action",
+        "subject": "agency",
+        "title": "Coordinate with DHP program office on technical review",
+        "startsOn": "2027-11-09",
+        "endsOn": "2027-12-18",
+        "dependsOnIds": [
+          "n5"
+        ]
+      },
+      {
+        "id": "n7",
+        "kind": "action",
+        "subject": "committee",
+        "title": "Pre-markup staff follow-up",
+        "startsOn": "2028-01-10",
+        "endsOn": "2028-02-18",
+        "dependsOnIds": [
+          "n6"
+        ]
+      },
+      {
+        "id": "n8",
+        "kind": "milestone",
+        "subject": "outcome",
+        "title": "HAC-D markup outcome recorded",
+        "startsOn": "2028-02-22",
+        "endsOn": null,
+        "dependsOnIds": [
+          "n7"
+        ]
+      }
+    ]
+  },
+  "expectedPlanShape": {
+    "nodeCountRange": [
+      8,
+      8
+    ],
+    "requiredKinds": [
+      "action",
+      "gate",
+      "milestone",
+      "risk"
+    ],
+    "requiredSubjects": [
+      "optics",
+      "member",
+      "ask",
+      "deliverable",
+      "submission",
+      "agency",
+      "committee",
+      "outcome"
+    ],
+    "orderingAssertions": [
+      {
+        "description": "a champion must be secured before the ask is drafted",
+        "beforeNodeId": "n3",
+        "afterNodeId": "n4"
+      },
+      {
+        "description": "the request is filed before agency coordination begins",
+        "beforeNodeId": "n5",
+        "afterNodeId": "n6"
+      }
+    ]
+  },
+  "notes": "No-champion-yet plan: exercises a risk node driving the first action, and a gate (n3, kind=gate treated like decision for ordering) blocking the justification memo. Only one markup row provided (submission-before-markup still exercised)."
+}

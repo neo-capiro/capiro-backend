@@ -1,0 +1,135 @@
+{
+  "goal": "Respond to an FAA NPRM on drone beyond-visual-line-of-sight operations to protect a commercial delivery use case.",
+  "clientContextFixture": {
+    "clientName": "Meridian Air Logistics",
+    "profileSummary": "Commercial drone delivery operator; the NPRM as drafted would impose a visual-observer requirement that breaks their business model.",
+    "fiscal": {
+      "today": "2026-10-15",
+      "fys": [
+        2027,
+        2028,
+        2029
+      ],
+      "fyLabels": [
+        "FY27",
+        "FY28",
+        "FY29"
+      ],
+      "focalFy": "FY28"
+    },
+    "congress": [],
+    "ppbeCurrentPhases": []
+  },
+  "plan": {
+    "nodes": [
+      {
+        "id": "n1",
+        "kind": "action",
+        "subject": "deliverable",
+        "title": "Analyze NPRM text for provisions affecting BVLOS operations",
+        "startsOn": "2027-01-08",
+        "endsOn": "2027-01-22",
+        "dependsOnIds": []
+      },
+      {
+        "id": "n2",
+        "kind": "decision",
+        "subject": "ask",
+        "title": "Decide on the specific regulatory text change to request",
+        "startsOn": "2027-01-23",
+        "endsOn": null,
+        "dependsOnIds": [
+          "n1"
+        ]
+      },
+      {
+        "id": "n3",
+        "kind": "action",
+        "subject": "agency",
+        "title": "Request a meeting with FAA UAS Integration Office",
+        "startsOn": "2027-01-26",
+        "endsOn": "2027-02-09",
+        "dependsOnIds": [
+          "n2"
+        ]
+      },
+      {
+        "id": "n4",
+        "kind": "action",
+        "subject": "deliverable",
+        "title": "Draft the formal comment letter",
+        "startsOn": "2027-02-10",
+        "endsOn": "2027-03-02",
+        "dependsOnIds": [
+          "n2"
+        ]
+      },
+      {
+        "id": "n5",
+        "kind": "action",
+        "subject": "agency",
+        "title": "File the formal comment before the docket closes",
+        "startsOn": "2027-03-15",
+        "endsOn": "2027-03-15",
+        "dependsOnIds": [
+          "n3",
+          "n4"
+        ]
+      },
+      {
+        "id": "n6",
+        "kind": "action",
+        "subject": "committee",
+        "title": "Brief House Aviation Subcommittee staff for oversight leverage",
+        "startsOn": "2027-03-16",
+        "endsOn": "2027-04-10",
+        "dependsOnIds": [
+          "n5"
+        ]
+      },
+      {
+        "id": "n7",
+        "kind": "milestone",
+        "subject": "outcome",
+        "title": "Final rule published",
+        "startsOn": "2027-09-01",
+        "endsOn": null,
+        "dependsOnIds": [
+          "n5",
+          "n6"
+        ]
+      }
+    ]
+  },
+  "expectedPlanShape": {
+    "nodeCountRange": [
+      7,
+      7
+    ],
+    "requiredKinds": [
+      "action",
+      "decision",
+      "milestone"
+    ],
+    "requiredSubjects": [
+      "deliverable",
+      "ask",
+      "agency",
+      "committee",
+      "outcome"
+    ],
+    "orderingAssertions": [
+      {
+        "description": "the ask is decided before drafting the comment letter",
+        "beforeNodeId": "n2",
+        "afterNodeId": "n4"
+      },
+      {
+        "description": "the comment is filed before the oversight brief",
+        "beforeNodeId": "n5",
+        "afterNodeId": "n6"
+      }
+    ]
+  },
+  "notes": "Standard rulemaking-comment plan: analyze -> decide the ask -> parallel agency engagement + comment drafting -> file -> Hill oversight leverage -> final rule."
+}

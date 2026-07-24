@@ -1,0 +1,117 @@
+{
+  "goal": "Position for a favorable RFP evaluation on an upcoming DoD logistics-software recompete.",
+  "clientContextFixture": {
+    "clientName": "Ferrous Logistics Software",
+    "profileSummary": "Software vendor bidding a recompete; needs to shape the draft RFP requirements before release and confirm evaluation criteria favor its differentiators.",
+    "fiscal": {
+      "today": "2026-10-15",
+      "fys": [
+        2027,
+        2028,
+        2029
+      ],
+      "fyLabels": [
+        "FY27",
+        "FY28",
+        "FY29"
+      ],
+      "focalFy": "FY28"
+    },
+    "congress": [],
+    "ppbeCurrentPhases": []
+  },
+  "plan": {
+    "nodes": [
+      {
+        "id": "n1",
+        "kind": "action",
+        "subject": "deliverable",
+        "title": "Analyze the draft RFP / sources-sought notice",
+        "startsOn": "2027-01-11",
+        "endsOn": "2027-01-25",
+        "dependsOnIds": []
+      },
+      {
+        "id": "n2",
+        "kind": "action",
+        "subject": "agency",
+        "title": "Submit sources-sought response with capability differentiators",
+        "startsOn": "2027-01-26",
+        "endsOn": "2027-02-09",
+        "dependsOnIds": [
+          "n1"
+        ]
+      },
+      {
+        "id": "n3",
+        "kind": "action",
+        "subject": "agency",
+        "title": "Request an industry day meeting with the contracting office",
+        "startsOn": "2027-01-26",
+        "endsOn": "2027-02-09",
+        "dependsOnIds": [
+          "n1"
+        ]
+      },
+      {
+        "id": "n4",
+        "kind": "decision",
+        "subject": "ask",
+        "title": "Decide which evaluation-criteria changes to advocate for",
+        "startsOn": "2027-02-10",
+        "endsOn": null,
+        "dependsOnIds": [
+          "n2",
+          "n3"
+        ]
+      },
+      {
+        "id": "n5",
+        "kind": "action",
+        "subject": "agency",
+        "title": "Submit formal comments on draft evaluation criteria",
+        "startsOn": "2027-02-11",
+        "endsOn": "2027-03-04",
+        "dependsOnIds": [
+          "n4"
+        ]
+      },
+      {
+        "id": "n6",
+        "kind": "milestone",
+        "subject": "outcome",
+        "title": "Final RFP released",
+        "startsOn": "2027-04-15",
+        "endsOn": null,
+        "dependsOnIds": [
+          "n5"
+        ]
+      }
+    ]
+  },
+  "expectedPlanShape": {
+    "nodeCountRange": [
+      6,
+      6
+    ],
+    "requiredKinds": [
+      "action",
+      "decision",
+      "milestone"
+    ],
+    "requiredSubjects": [
+      "deliverable",
+      "agency",
+      "ask",
+      "outcome"
+    ],
+    "orderingAssertions": [
+      {
+        "description": "both the sources-sought response and industry-day request precede the criteria decision",
+        "beforeNodeId": "n3",
+        "afterNodeId": "n4"
+      }
+    ]
+  },
+  "notes": "Pre-RFP shaping plan: two parallel agency-engagement tracks (n2/n3) converge on a criteria-advocacy decision (n4)."
+}

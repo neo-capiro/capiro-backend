@@ -1,0 +1,134 @@
+{
+  "goal": "Secure a Community Project Funding (CDS) earmark for a regional wastewater treatment upgrade.",
+  "clientContextFixture": {
+    "clientName": "City of Millbrook Public Works",
+    "profileSummary": "Mid-size municipality; first-time CPF/CDS applicant, needs a member sponsor and must clear eligibility requirements.",
+    "fiscal": {
+      "today": "2026-10-15",
+      "fys": [
+        2027,
+        2028,
+        2029
+      ],
+      "fyLabels": [
+        "FY27",
+        "FY28",
+        "FY29"
+      ],
+      "focalFy": "FY28"
+    },
+    "congress": [],
+    "ppbeCurrentPhases": []
+  },
+  "plan": {
+    "nodes": [
+      {
+        "id": "n1",
+        "kind": "action",
+        "subject": "deliverable",
+        "title": "Confirm project eligibility against CPF/CDS criteria",
+        "startsOn": "2027-01-08",
+        "endsOn": "2027-01-22",
+        "dependsOnIds": []
+      },
+      {
+        "id": "n2",
+        "kind": "action",
+        "subject": "member",
+        "title": "Identify and approach a member sponsor",
+        "startsOn": "2027-01-23",
+        "endsOn": "2027-02-19",
+        "dependsOnIds": [
+          "n1"
+        ]
+      },
+      {
+        "id": "n3",
+        "kind": "gate",
+        "subject": "ask",
+        "title": "Member agrees to sponsor the request",
+        "startsOn": "2027-02-20",
+        "endsOn": null,
+        "dependsOnIds": [
+          "n2"
+        ]
+      },
+      {
+        "id": "n4",
+        "kind": "action",
+        "subject": "deliverable",
+        "title": "Prepare the CDS application package",
+        "startsOn": "2027-02-21",
+        "endsOn": "2027-03-14",
+        "dependsOnIds": [
+          "n3"
+        ]
+      },
+      {
+        "id": "n5",
+        "kind": "action",
+        "subject": "submission",
+        "title": "Submit the CDS request through the member office",
+        "startsOn": "2027-03-15",
+        "endsOn": "2027-03-15",
+        "dependsOnIds": [
+          "n4"
+        ]
+      },
+      {
+        "id": "n6",
+        "kind": "action",
+        "subject": "committee",
+        "title": "Follow up with appropriations committee staff",
+        "startsOn": "2027-03-16",
+        "endsOn": "2027-05-01",
+        "dependsOnIds": [
+          "n5"
+        ]
+      },
+      {
+        "id": "n7",
+        "kind": "milestone",
+        "subject": "outcome",
+        "title": "Request included in committee-passed bill",
+        "startsOn": "2027-06-01",
+        "endsOn": null,
+        "dependsOnIds": [
+          "n6"
+        ]
+      }
+    ]
+  },
+  "expectedPlanShape": {
+    "nodeCountRange": [
+      7,
+      7
+    ],
+    "requiredKinds": [
+      "action",
+      "gate",
+      "milestone"
+    ],
+    "requiredSubjects": [
+      "deliverable",
+      "member",
+      "ask",
+      "submission",
+      "committee",
+      "outcome"
+    ],
+    "orderingAssertions": [
+      {
+        "description": "a sponsor must be secured before the application package is prepared",
+        "beforeNodeId": "n3",
+        "afterNodeId": "n4"
+      },
+      {
+        "description": "the application is submitted before committee follow-up",
+        "beforeNodeId": "n5",
+        "afterNodeId": "n6"
+      }
+    ]
+  },
+  "notes": "First-time-applicant earmark plan: eligibility check -> sponsor gate -> application -> submission -> committee follow-through."
+}

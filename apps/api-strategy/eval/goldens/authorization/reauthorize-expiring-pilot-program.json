@@ -1,0 +1,148 @@
+{
+  "goal": "Reauthorize a DOT pilot program expiring at the end of FY27 before it lapses.",
+  "clientContextFixture": {
+    "clientName": "Regional Transit Coalition of the Northeast",
+    "profileSummary": "Coalition of transit agencies relying on a pilot grant program set to sunset; needs reauthorization language attached to the next surface transportation vehicle.",
+    "fiscal": {
+      "today": "2026-10-15",
+      "fys": [
+        2027,
+        2028,
+        2029
+      ],
+      "fyLabels": [
+        "FY27",
+        "FY28",
+        "FY29"
+      ],
+      "focalFy": "FY28"
+    },
+    "congress": [],
+    "ppbeCurrentPhases": []
+  },
+  "plan": {
+    "nodes": [
+      {
+        "id": "n1",
+        "kind": "risk",
+        "subject": "optics",
+        "title": "Program sunsets FY27 with no reauthorization vehicle yet identified",
+        "startsOn": "2027-01-05",
+        "endsOn": null,
+        "dependsOnIds": []
+      },
+      {
+        "id": "n2",
+        "kind": "action",
+        "subject": "agency",
+        "title": "Confirm DOT program-office support for reauthorization",
+        "startsOn": "2027-01-12",
+        "endsOn": "2027-01-26",
+        "dependsOnIds": [
+          "n1"
+        ]
+      },
+      {
+        "id": "n3",
+        "kind": "action",
+        "subject": "deliverable",
+        "title": "Compile pilot-program outcome data for the reauthorization case",
+        "startsOn": "2027-01-27",
+        "endsOn": "2027-02-17",
+        "dependsOnIds": [
+          "n2"
+        ]
+      },
+      {
+        "id": "n4",
+        "kind": "gate",
+        "subject": "ask",
+        "title": "Identify the moving legislative vehicle for reauthorization",
+        "startsOn": "2027-02-18",
+        "endsOn": null,
+        "dependsOnIds": [
+          "n3"
+        ]
+      },
+      {
+        "id": "n5",
+        "kind": "action",
+        "subject": "committee",
+        "title": "Brief House T&I Committee staff on reauthorization language",
+        "startsOn": "2027-02-19",
+        "endsOn": "2027-03-12",
+        "dependsOnIds": [
+          "n4"
+        ]
+      },
+      {
+        "id": "n6",
+        "kind": "action",
+        "subject": "committee",
+        "title": "Brief Senate EPW/Commerce staff on reauthorization language",
+        "startsOn": "2027-02-19",
+        "endsOn": "2027-03-12",
+        "dependsOnIds": [
+          "n4"
+        ]
+      },
+      {
+        "id": "n7",
+        "kind": "action",
+        "subject": "submission",
+        "title": "Submit reauthorization language for inclusion",
+        "startsOn": "2027-03-19",
+        "endsOn": "2027-03-19",
+        "dependsOnIds": [
+          "n5",
+          "n6"
+        ]
+      },
+      {
+        "id": "n8",
+        "kind": "milestone",
+        "subject": "outcome",
+        "title": "Language included in committee-passed vehicle",
+        "startsOn": "2027-06-01",
+        "endsOn": null,
+        "dependsOnIds": [
+          "n7"
+        ]
+      }
+    ]
+  },
+  "expectedPlanShape": {
+    "nodeCountRange": [
+      8,
+      8
+    ],
+    "requiredKinds": [
+      "action",
+      "gate",
+      "milestone",
+      "risk"
+    ],
+    "requiredSubjects": [
+      "optics",
+      "agency",
+      "deliverable",
+      "ask",
+      "committee",
+      "submission",
+      "outcome"
+    ],
+    "orderingAssertions": [
+      {
+        "description": "the legislative vehicle is identified before briefings begin",
+        "beforeNodeId": "n4",
+        "afterNodeId": "n5"
+      },
+      {
+        "description": "both chambers are briefed before submission",
+        "beforeNodeId": "n6",
+        "afterNodeId": "n7"
+      }
+    ]
+  },
+  "notes": "Sunset-risk-driven plan (n1 is the inciting risk). Gate n4 (vehicle identification) blocks both chamber briefings."
+}

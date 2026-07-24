@@ -1,0 +1,136 @@
+{
+  "goal": "Assemble a multi-state coalition of ports to support a shared ask for inland waterway infrastructure funding.",
+  "clientContextFixture": {
+    "clientName": "Gulf Coast Ports Alliance",
+    "profileSummary": "Alliance of 4 regional ports seeking coordinated federal infrastructure funding; state-level buy-in required before a joint federal ask.",
+    "fiscal": {
+      "today": "2026-10-15",
+      "fys": [
+        2027,
+        2028,
+        2029
+      ],
+      "fyLabels": [
+        "FY27",
+        "FY28",
+        "FY29"
+      ],
+      "focalFy": "FY28"
+    },
+    "congress": [],
+    "ppbeCurrentPhases": []
+  },
+  "plan": {
+    "nodes": [
+      {
+        "id": "n1",
+        "kind": "action",
+        "subject": "deliverable",
+        "title": "Draft shared infrastructure needs assessment across ports",
+        "startsOn": "2027-01-15",
+        "endsOn": "2027-02-12",
+        "dependsOnIds": []
+      },
+      {
+        "id": "n2",
+        "kind": "action",
+        "subject": "member",
+        "title": "Secure state DOT sign-off from each participating state",
+        "startsOn": "2027-02-13",
+        "endsOn": "2027-03-13",
+        "dependsOnIds": [
+          "n1"
+        ]
+      },
+      {
+        "id": "n3",
+        "kind": "decision",
+        "subject": "ask",
+        "title": "Finalize the joint federal funding request",
+        "startsOn": "2027-03-14",
+        "endsOn": null,
+        "dependsOnIds": [
+          "n2"
+        ]
+      },
+      {
+        "id": "n4",
+        "kind": "action",
+        "subject": "committee",
+        "title": "Brief T&I and Commerce committee staff on the joint ask",
+        "startsOn": "2027-03-15",
+        "endsOn": "2027-04-12",
+        "dependsOnIds": [
+          "n3"
+        ]
+      },
+      {
+        "id": "n5",
+        "kind": "action",
+        "subject": "agency",
+        "title": "Coordinate with the Army Corps of Engineers on scope",
+        "startsOn": "2027-03-15",
+        "endsOn": "2027-04-12",
+        "dependsOnIds": [
+          "n3"
+        ]
+      },
+      {
+        "id": "n6",
+        "kind": "action",
+        "subject": "submission",
+        "title": "Submit the joint request through the applicable federal program",
+        "startsOn": "2027-04-19",
+        "endsOn": "2027-04-19",
+        "dependsOnIds": [
+          "n4",
+          "n5"
+        ]
+      },
+      {
+        "id": "n7",
+        "kind": "milestone",
+        "subject": "outcome",
+        "title": "Funding decision announced",
+        "startsOn": "2027-10-01",
+        "endsOn": null,
+        "dependsOnIds": [
+          "n6"
+        ]
+      }
+    ]
+  },
+  "expectedPlanShape": {
+    "nodeCountRange": [
+      7,
+      7
+    ],
+    "requiredKinds": [
+      "action",
+      "decision",
+      "milestone"
+    ],
+    "requiredSubjects": [
+      "deliverable",
+      "member",
+      "ask",
+      "committee",
+      "agency",
+      "submission",
+      "outcome"
+    ],
+    "orderingAssertions": [
+      {
+        "description": "state sign-off precedes finalizing the joint ask",
+        "beforeNodeId": "n2",
+        "afterNodeId": "n3"
+      },
+      {
+        "description": "the joint ask is finalized before Hill and agency engagement",
+        "beforeNodeId": "n3",
+        "afterNodeId": "n4"
+      }
+    ]
+  },
+  "notes": "Coalition plan requiring state-level buy-in as a precondition to a federal ask; n4/n5 fan out into parallel Hill + agency tracks that converge on n6."
+}

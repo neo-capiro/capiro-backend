@@ -1,0 +1,131 @@
+{
+  "goal": "Secure a directed-spending earmark to fund a university-affiliated advanced-materials research center.",
+  "clientContextFixture": {
+    "clientName": "Blackwood State University Research Foundation",
+    "profileSummary": "State research university; needs both a Hill sponsor and a supportive federal agency letter to strengthen the earmark case.",
+    "fiscal": {
+      "today": "2026-10-15",
+      "fys": [
+        2027,
+        2028,
+        2029
+      ],
+      "fyLabels": [
+        "FY27",
+        "FY28",
+        "FY29"
+      ],
+      "focalFy": "FY28"
+    },
+    "congress": [],
+    "ppbeCurrentPhases": []
+  },
+  "plan": {
+    "nodes": [
+      {
+        "id": "n1",
+        "kind": "action",
+        "subject": "deliverable",
+        "title": "Draft the research-center proposal and budget justification",
+        "startsOn": "2027-01-06",
+        "endsOn": "2027-02-03",
+        "dependsOnIds": []
+      },
+      {
+        "id": "n2",
+        "kind": "action",
+        "subject": "member",
+        "title": "Secure a member sponsor for the earmark request",
+        "startsOn": "2027-02-04",
+        "endsOn": "2027-03-04",
+        "dependsOnIds": [
+          "n1"
+        ]
+      },
+      {
+        "id": "n3",
+        "kind": "action",
+        "subject": "agency",
+        "title": "Request a letter of support from the relevant federal agency",
+        "startsOn": "2027-02-04",
+        "endsOn": "2027-03-04",
+        "dependsOnIds": [
+          "n1"
+        ]
+      },
+      {
+        "id": "n4",
+        "kind": "decision",
+        "subject": "ask",
+        "title": "Finalize the funding request amount and scope",
+        "startsOn": "2027-03-05",
+        "endsOn": null,
+        "dependsOnIds": [
+          "n2",
+          "n3"
+        ]
+      },
+      {
+        "id": "n5",
+        "kind": "action",
+        "subject": "submission",
+        "title": "Submit the earmark request through the sponsor office",
+        "startsOn": "2027-03-12",
+        "endsOn": "2027-03-12",
+        "dependsOnIds": [
+          "n4"
+        ]
+      },
+      {
+        "id": "n6",
+        "kind": "action",
+        "subject": "committee",
+        "title": "Track the request through committee consideration",
+        "startsOn": "2027-03-13",
+        "endsOn": "2027-05-15",
+        "dependsOnIds": [
+          "n5"
+        ]
+      },
+      {
+        "id": "n7",
+        "kind": "milestone",
+        "subject": "outcome",
+        "title": "Earmark included in final enacted bill",
+        "startsOn": "2027-09-30",
+        "endsOn": null,
+        "dependsOnIds": [
+          "n6"
+        ]
+      }
+    ]
+  },
+  "expectedPlanShape": {
+    "nodeCountRange": [
+      7,
+      7
+    ],
+    "requiredKinds": [
+      "action",
+      "decision",
+      "milestone"
+    ],
+    "requiredSubjects": [
+      "deliverable",
+      "member",
+      "agency",
+      "ask",
+      "submission",
+      "committee",
+      "outcome"
+    ],
+    "orderingAssertions": [
+      {
+        "description": "sponsor and agency-letter tracks both precede finalizing the ask",
+        "beforeNodeId": "n3",
+        "afterNodeId": "n4"
+      }
+    ]
+  },
+  "notes": "Parallel member-sponsor + agency-letter tracks (n2/n3) converging on the funding decision (n4) — same fan-out/fan-in shape as the coalition/procurement goldens but for a single-institution earmark."
+}

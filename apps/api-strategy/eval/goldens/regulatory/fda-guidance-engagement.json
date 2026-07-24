@@ -1,0 +1,132 @@
+{
+  "goal": "Engage FDA on draft guidance for software-as-a-medical-device cybersecurity requirements before it finalizes.",
+  "clientContextFixture": {
+    "clientName": "Vantage Health Devices",
+    "profileSummary": "Digital-health device maker; the draft guidance cybersecurity documentation burden is disproportionate for a Class II device.",
+    "fiscal": {
+      "today": "2026-10-15",
+      "fys": [
+        2027,
+        2028,
+        2029
+      ],
+      "fyLabels": [
+        "FY27",
+        "FY28",
+        "FY29"
+      ],
+      "focalFy": "FY28"
+    },
+    "congress": [],
+    "ppbeCurrentPhases": []
+  },
+  "plan": {
+    "nodes": [
+      {
+        "id": "n1",
+        "kind": "action",
+        "subject": "deliverable",
+        "title": "Assess draft guidance against current product documentation",
+        "startsOn": "2027-02-02",
+        "endsOn": "2027-02-16",
+        "dependsOnIds": []
+      },
+      {
+        "id": "n2",
+        "kind": "action",
+        "subject": "agency",
+        "title": "Request a pre-submission meeting with CDRH",
+        "startsOn": "2027-02-17",
+        "endsOn": "2027-03-03",
+        "dependsOnIds": [
+          "n1"
+        ]
+      },
+      {
+        "id": "n3",
+        "kind": "gate",
+        "subject": "ask",
+        "title": "CDRH agrees to a pre-submission meeting",
+        "startsOn": "2027-03-04",
+        "endsOn": null,
+        "dependsOnIds": [
+          "n2"
+        ]
+      },
+      {
+        "id": "n4",
+        "kind": "action",
+        "subject": "deliverable",
+        "title": "Prepare technical comments on the documentation burden",
+        "startsOn": "2027-03-05",
+        "endsOn": "2027-03-26",
+        "dependsOnIds": [
+          "n3"
+        ]
+      },
+      {
+        "id": "n5",
+        "kind": "action",
+        "subject": "agency",
+        "title": "Attend pre-submission meeting and present comments",
+        "startsOn": "2027-04-05",
+        "endsOn": "2027-04-05",
+        "dependsOnIds": [
+          "n4"
+        ]
+      },
+      {
+        "id": "n6",
+        "kind": "action",
+        "subject": "agency",
+        "title": "File written comments in the docket",
+        "startsOn": "2027-04-06",
+        "endsOn": "2027-04-20",
+        "dependsOnIds": [
+          "n5"
+        ]
+      },
+      {
+        "id": "n7",
+        "kind": "milestone",
+        "subject": "outcome",
+        "title": "Final guidance published",
+        "startsOn": "2027-08-01",
+        "endsOn": null,
+        "dependsOnIds": [
+          "n6"
+        ]
+      }
+    ]
+  },
+  "expectedPlanShape": {
+    "nodeCountRange": [
+      7,
+      7
+    ],
+    "requiredKinds": [
+      "action",
+      "gate",
+      "milestone"
+    ],
+    "requiredSubjects": [
+      "deliverable",
+      "agency",
+      "ask",
+      "outcome"
+    ],
+    "orderingAssertions": [
+      {
+        "description": "CDRH must agree to meet before comments are prepared",
+        "beforeNodeId": "n3",
+        "afterNodeId": "n4"
+      },
+      {
+        "description": "the meeting happens before written comments are filed",
+        "beforeNodeId": "n5",
+        "afterNodeId": "n6"
+      }
+    ]
+  },
+  "notes": "Agency-engagement-heavy plan with no Hill component (subject=agency repeated) — exercises requiredSubjects with a smaller distinct set than the appropriations goldens."
+}

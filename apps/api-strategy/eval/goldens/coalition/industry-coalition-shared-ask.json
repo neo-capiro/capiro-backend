@@ -1,0 +1,144 @@
+{
+  "goal": "Build a 6-company industry coalition behind a shared ask for hypersonics test-range funding.",
+  "clientContextFixture": {
+    "clientName": "Apex Hypersonics",
+    "profileSummary": "Mid-tier hypersonics test/eval contractor; a shared industry ask carries more weight than a single-company request for range infrastructure funding.",
+    "fiscal": {
+      "today": "2026-10-15",
+      "fys": [
+        2027,
+        2028,
+        2029
+      ],
+      "fyLabels": [
+        "FY27",
+        "FY28",
+        "FY29"
+      ],
+      "focalFy": "FY28"
+    },
+    "congress": [],
+    "ppbeCurrentPhases": []
+  },
+  "plan": {
+    "nodes": [
+      {
+        "id": "n1",
+        "kind": "action",
+        "subject": "deliverable",
+        "title": "Draft the shared coalition ask and one-pager",
+        "startsOn": "2027-01-08",
+        "endsOn": "2027-01-22",
+        "dependsOnIds": []
+      },
+      {
+        "id": "n2",
+        "kind": "action",
+        "subject": "member",
+        "title": "Recruit anchor coalition members (2-3 companies)",
+        "startsOn": "2027-01-23",
+        "endsOn": "2027-02-20",
+        "dependsOnIds": [
+          "n1"
+        ]
+      },
+      {
+        "id": "n3",
+        "kind": "gate",
+        "subject": "ask",
+        "title": "Anchor members confirm participation",
+        "startsOn": "2027-02-21",
+        "endsOn": null,
+        "dependsOnIds": [
+          "n2"
+        ]
+      },
+      {
+        "id": "n4",
+        "kind": "action",
+        "subject": "member",
+        "title": "Recruit remaining coalition members",
+        "startsOn": "2027-02-22",
+        "endsOn": "2027-03-15",
+        "dependsOnIds": [
+          "n3"
+        ]
+      },
+      {
+        "id": "n5",
+        "kind": "action",
+        "subject": "deliverable",
+        "title": "Finalize joint coalition letter with full member list",
+        "startsOn": "2027-03-16",
+        "endsOn": "2027-03-23",
+        "dependsOnIds": [
+          "n4"
+        ]
+      },
+      {
+        "id": "n6",
+        "kind": "action",
+        "subject": "committee",
+        "title": "Deliver the coalition letter to relevant subcommittees",
+        "startsOn": "2027-03-24",
+        "endsOn": "2027-04-07",
+        "dependsOnIds": [
+          "n5"
+        ]
+      },
+      {
+        "id": "n7",
+        "kind": "action",
+        "subject": "member",
+        "title": "Coordinate coalition-member Hill visits",
+        "startsOn": "2027-04-08",
+        "endsOn": "2027-05-01",
+        "dependsOnIds": [
+          "n6"
+        ]
+      },
+      {
+        "id": "n8",
+        "kind": "milestone",
+        "subject": "outcome",
+        "title": "Coalition ask reflected in committee report language",
+        "startsOn": "2027-06-15",
+        "endsOn": null,
+        "dependsOnIds": [
+          "n7"
+        ]
+      }
+    ]
+  },
+  "expectedPlanShape": {
+    "nodeCountRange": [
+      8,
+      8
+    ],
+    "requiredKinds": [
+      "action",
+      "gate",
+      "milestone"
+    ],
+    "requiredSubjects": [
+      "deliverable",
+      "member",
+      "ask",
+      "committee",
+      "outcome"
+    ],
+    "orderingAssertions": [
+      {
+        "description": "anchor members are confirmed before broader recruitment",
+        "beforeNodeId": "n3",
+        "afterNodeId": "n4"
+      },
+      {
+        "description": "the joint letter is delivered before coordinated Hill visits",
+        "beforeNodeId": "n6",
+        "afterNodeId": "n7"
+      }
+    ]
+  },
+  "notes": "Two-phase member recruitment (anchor gate then broader recruitment) is the defining structural feature — good exercise of gate-before-dependents on a non-decision-kind (kind=gate) node."
+}

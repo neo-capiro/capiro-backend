@@ -9,6 +9,8 @@
     "lint": "eslint src --ext .ts",
     "typecheck": "tsc --noEmit",
     "test": "jest --detectOpenHandles --forceExit",
+    "eval:l1": "jest --detectOpenHandles --forceExit eval/run-l1.spec.ts",
+    "eval:l2": "tsx eval/run-l2.ts",
     "prisma:generate": "prisma generate",
     "prisma:migrate:dev": "prisma migrate dev",
     "prisma:migrate:deploy": "prisma migrate deploy",

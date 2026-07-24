@@ -1,0 +1,163 @@
+{
+  "goal": "Secure NDAA authorization language for a new program start (autonomous mine-countermeasures system).",
+  "clientContextFixture": {
+    "clientName": "Helix Undersea Systems",
+    "profileSummary": "Prime contractor pitching a new program of record; needs HASC Seapower and SASC Seapower authorization language before any appropriations ask is credible.",
+    "fiscal": {
+      "today": "2026-10-15",
+      "fys": [
+        2027,
+        2028,
+        2029
+      ],
+      "fyLabels": [
+        "FY27",
+        "FY28",
+        "FY29"
+      ],
+      "focalFy": "FY28"
+    },
+    "congress": [],
+    "ppbeCurrentPhases": []
+  },
+  "plan": {
+    "nodes": [
+      {
+        "id": "n1",
+        "kind": "action",
+        "subject": "deliverable",
+        "title": "Draft technical white paper on program need",
+        "startsOn": "2027-01-10",
+        "endsOn": "2027-01-31",
+        "dependsOnIds": []
+      },
+      {
+        "id": "n2",
+        "kind": "action",
+        "subject": "agency",
+        "title": "Socialize the concept with the Navy program sponsor",
+        "startsOn": "2027-02-01",
+        "endsOn": "2027-02-14",
+        "dependsOnIds": [
+          "n1"
+        ]
+      },
+      {
+        "id": "n3",
+        "kind": "decision",
+        "subject": "ask",
+        "title": "Finalize proposed authorization language",
+        "startsOn": "2027-02-15",
+        "endsOn": null,
+        "dependsOnIds": [
+          "n2"
+        ]
+      },
+      {
+        "id": "n4",
+        "kind": "action",
+        "subject": "committee",
+        "title": "Brief HASC Seapower subcommittee staff",
+        "startsOn": "2027-02-20",
+        "endsOn": "2027-03-10",
+        "dependsOnIds": [
+          "n3"
+        ]
+      },
+      {
+        "id": "n5",
+        "kind": "action",
+        "subject": "committee",
+        "title": "Brief SASC Seapower subcommittee staff",
+        "startsOn": "2027-02-20",
+        "endsOn": "2027-03-10",
+        "dependsOnIds": [
+          "n3"
+        ]
+      },
+      {
+        "id": "n6",
+        "kind": "action",
+        "subject": "submission",
+        "title": "Submit authorization language for markup consideration",
+        "startsOn": "2027-03-15",
+        "endsOn": "2027-03-15",
+        "dependsOnIds": [
+          "n4",
+          "n5"
+        ]
+      },
+      {
+        "id": "n7",
+        "kind": "milestone",
+        "subject": "outcome",
+        "title": "HASC full committee markup outcome",
+        "startsOn": "2027-05-20",
+        "endsOn": null,
+        "dependsOnIds": [
+          "n6"
+        ]
+      },
+      {
+        "id": "n8",
+        "kind": "milestone",
+        "subject": "outcome",
+        "title": "SASC full committee markup outcome",
+        "startsOn": "2027-05-27",
+        "endsOn": null,
+        "dependsOnIds": [
+          "n6"
+        ]
+      },
+      {
+        "id": "n9",
+        "kind": "action",
+        "subject": "committee",
+        "title": "Support conference committee reconciliation",
+        "startsOn": "2027-09-01",
+        "endsOn": "2027-11-15",
+        "dependsOnIds": [
+          "n7",
+          "n8"
+        ]
+      }
+    ]
+  },
+  "expectedPlanShape": {
+    "nodeCountRange": [
+      9,
+      9
+    ],
+    "requiredKinds": [
+      "action",
+      "decision",
+      "milestone"
+    ],
+    "requiredSubjects": [
+      "deliverable",
+      "agency",
+      "ask",
+      "committee",
+      "submission",
+      "outcome"
+    ],
+    "orderingAssertions": [
+      {
+        "description": "language is finalized before either chamber is briefed",
+        "beforeNodeId": "n3",
+        "afterNodeId": "n4"
+      },
+      {
+        "description": "submission precedes both markups",
+        "beforeNodeId": "n6",
+        "afterNodeId": "n7"
+      },
+      {
+        "description": "both markups precede conference support",
+        "beforeNodeId": "n7",
+        "afterNodeId": "n9"
+      }
+    ]
+  },
+  "notes": "Bicameral authorization plan with a fan-out (n4/n5 parallel) then fan-in (n6) then a second fan-out/fan-in into conference (n9). No congress rows supplied — submission-before-markup and recess data-gap-skip."
+}

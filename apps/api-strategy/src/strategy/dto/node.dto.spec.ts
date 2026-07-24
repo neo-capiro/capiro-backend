@@ -39,6 +39,44 @@ describe('CreateNodeDto', () => {
     const { title: _omit, ...rest } = valid;
     expect(await errorsFor(CreateNodeDto, rest)).toContain('title');
   });
+
+  describe('dependsOnIds (A2)', () => {
+    const uuid = (n: number) => `00000000-0000-4000-8000-${String(n).padStart(12, '0')}`;
+
+    it('accepts a well-formed array of UUIDs', async () => {
+      expect(
+        await errorsFor(CreateNodeDto, { ...valid, dependsOnIds: [uuid(1), uuid(2)] }),
+      ).toEqual([]);
+    });
+
+    it('accepts an omitted dependsOnIds (optional)', async () => {
+      expect(await errorsFor(CreateNodeDto, valid)).toEqual([]);
+    });
+
+    it('accepts exactly 20 ids (the ArrayMaxSize boundary)', async () => {
+      const ids = Array.from({ length: 20 }, (_, i) => uuid(i));
+      expect(await errorsFor(CreateNodeDto, { ...valid, dependsOnIds: ids })).toEqual([]);
+    });
+
+    it('rejects 21 ids (one over the ArrayMaxSize boundary)', async () => {
+      const ids = Array.from({ length: 21 }, (_, i) => uuid(i));
+      expect(await errorsFor(CreateNodeDto, { ...valid, dependsOnIds: ids })).toContain(
+        'dependsOnIds',
+      );
+    });
+
+    it('rejects a non-UUID string in the array', async () => {
+      expect(
+        await errorsFor(CreateNodeDto, { ...valid, dependsOnIds: ['not-a-uuid'] }),
+      ).toContain('dependsOnIds');
+    });
+
+    it('rejects dependsOnIds sent as a non-array (e.g. a bare string)', async () => {
+      expect(
+        await errorsFor(CreateNodeDto, { ...valid, dependsOnIds: uuid(1) }),
+      ).toContain('dependsOnIds');
+    });
+  });
 });
 
 describe('UpdateNodeDto', () => {
@@ -56,5 +94,28 @@ describe('UpdateNodeDto', () => {
 
   it('rejects a malformed endsOn', async () => {
     expect(await errorsFor(UpdateNodeDto, { endsOn: '2027/02/06' })).toContain('endsOn');
+  });
+
+  describe('dependsOnIds (A2)', () => {
+    const uuid = (n: number) => `00000000-0000-4000-8000-${String(n).padStart(12, '0')}`;
+
+    it('accepts replacing the edge set with well-formed UUIDs', async () => {
+      expect(await errorsFor(UpdateNodeDto, { dependsOnIds: [uuid(1)] })).toEqual([]);
+    });
+
+    it('accepts an explicit empty array (clears all edges)', async () => {
+      expect(await errorsFor(UpdateNodeDto, { dependsOnIds: [] })).toEqual([]);
+    });
+
+    it('rejects 21 ids (one over the ArrayMaxSize boundary)', async () => {
+      const ids = Array.from({ length: 21 }, (_, i) => uuid(i));
+      expect(await errorsFor(UpdateNodeDto, { dependsOnIds: ids })).toContain('dependsOnIds');
+    });
+
+    it('rejects a non-UUID string in the array', async () => {
+      expect(await errorsFor(UpdateNodeDto, { dependsOnIds: ['not-a-uuid'] })).toContain(
+        'dependsOnIds',
+      );
+    });
   });
 });

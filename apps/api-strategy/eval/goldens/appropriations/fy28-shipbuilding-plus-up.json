@@ -1,0 +1,185 @@
+{
+  "goal": "Secure a $40M plus-up for the DDG-51 supplier base in the FY28 defense appropriations bill.",
+  "clientContextFixture": {
+    "clientName": "Atlantic Marine Systems",
+    "profileSummary": "Mid-tier shipbuilding supplier, HASC/HAC-D relationships in Virginia and Maine delegations, prior FY26 plus-up precedent on the same line.",
+    "fiscal": {
+      "today": "2026-10-15",
+      "fys": [
+        2027,
+        2028,
+        2029
+      ],
+      "fyLabels": [
+        "FY27",
+        "FY28",
+        "FY29"
+      ],
+      "focalFy": "FY28"
+    },
+    "congress": [
+      {
+        "label": "House Defense Appropriations Subcommittee Markup",
+        "fy": 2028,
+        "startsOn": "2028-02-04",
+        "endsOn": "2028-02-04"
+      },
+      {
+        "label": "Senate Defense Appropriations Subcommittee Markup",
+        "fy": 2028,
+        "startsOn": "2028-02-27",
+        "endsOn": "2028-02-27"
+      }
+    ],
+    "ppbeCurrentPhases": []
+  },
+  "plan": {
+    "nodes": [
+      {
+        "id": "n1",
+        "kind": "action",
+        "subject": "deliverable",
+        "title": "Draft one-pager quantifying supplier-base capacity gap",
+        "startsOn": "2027-09-07",
+        "endsOn": "2027-09-21",
+        "dependsOnIds": []
+      },
+      {
+        "id": "n2",
+        "kind": "decision",
+        "subject": "ask",
+        "title": "Finalize the plus-up dollar figure with the client",
+        "startsOn": "2027-09-22",
+        "endsOn": null,
+        "dependsOnIds": [
+          "n1"
+        ]
+      },
+      {
+        "id": "n3",
+        "kind": "action",
+        "subject": "member",
+        "title": "Brief Virginia delegation staff on the ask",
+        "startsOn": "2027-10-04",
+        "endsOn": "2027-10-18",
+        "dependsOnIds": [
+          "n2"
+        ]
+      },
+      {
+        "id": "n4",
+        "kind": "action",
+        "subject": "member",
+        "title": "Brief Maine delegation staff on the ask",
+        "startsOn": "2027-10-04",
+        "endsOn": "2027-10-18",
+        "dependsOnIds": [
+          "n2"
+        ]
+      },
+      {
+        "id": "n5",
+        "kind": "gate",
+        "subject": "submission",
+        "title": "Programmatic Requests portal opens",
+        "startsOn": "2027-10-20",
+        "endsOn": null,
+        "dependsOnIds": []
+      },
+      {
+        "id": "n6",
+        "kind": "action",
+        "subject": "submission",
+        "title": "File the FY28 appropriations request",
+        "startsOn": "2027-11-01",
+        "endsOn": "2027-11-01",
+        "dependsOnIds": [
+          "n3",
+          "n4",
+          "n5"
+        ]
+      },
+      {
+        "id": "n7",
+        "kind": "action",
+        "subject": "committee",
+        "title": "Follow up with HASC-D professional staff pre-markup",
+        "startsOn": "2028-01-05",
+        "endsOn": "2028-02-02",
+        "dependsOnIds": [
+          "n6"
+        ]
+      },
+      {
+        "id": "n8",
+        "kind": "milestone",
+        "subject": "outcome",
+        "title": "House markup outcome recorded",
+        "startsOn": "2028-02-05",
+        "endsOn": null,
+        "dependsOnIds": [
+          "n7"
+        ]
+      },
+      {
+        "id": "n9",
+        "kind": "action",
+        "subject": "committee",
+        "title": "Follow up with Senate Defense-A staff pre-markup",
+        "startsOn": "2028-02-06",
+        "endsOn": "2028-02-26",
+        "dependsOnIds": [
+          "n8"
+        ]
+      },
+      {
+        "id": "n10",
+        "kind": "milestone",
+        "subject": "outcome",
+        "title": "Senate markup outcome recorded",
+        "startsOn": "2028-02-28",
+        "endsOn": null,
+        "dependsOnIds": [
+          "n9"
+        ]
+      }
+    ]
+  },
+  "expectedPlanShape": {
+    "nodeCountRange": [
+      10,
+      10
+    ],
+    "requiredKinds": [
+      "action",
+      "decision",
+      "gate",
+      "milestone"
+    ],
+    "requiredSubjects": [
+      "deliverable",
+      "ask",
+      "submission",
+      "committee",
+      "outcome"
+    ],
+    "orderingAssertions": [
+      {
+        "description": "the ask is finalized before either delegation is briefed",
+        "beforeNodeId": "n2",
+        "afterNodeId": "n3"
+      },
+      {
+        "description": "the request is filed before the House markup follow-up",
+        "beforeNodeId": "n6",
+        "afterNodeId": "n7"
+      },
+      {
+        "description": "the submission precedes both markups",
+        "beforeNodeId": "n6",
+        "afterNodeId": "n8"
+      }
+    ]
+  },
+  "notes": "Canonical in-cycle appropriations plan: ask -> bipartisan delegation brief -> submission ahead of both chamber markups -> markup follow-through. Exercises submission-before-markup against two real congress rows and focal-fy-appropriations (n6 falls in FY28)."
+}
