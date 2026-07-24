@@ -19,9 +19,12 @@ module.exports = {
     // tsconfig is Node16 (ESM-style `.js` import specifiers); strip the suffix
     // so jest's resolver finds the emitted/source module.
     '^(\\.{1,2}/.*)\\.js$': '$1',
-    // Jest cannot resolve @clerk/backend's package-`imports` subpath (#crypto);
-    // map it to the node CJS runtime. Only exercised if a test boots the Clerk
-    // client (via @capiro/auth); harmless otherwise. Mirrors apps/workspace.
-    '^#crypto$': '@clerk/backend/dist/runtime/node/crypto.js',
+    // Jest cannot resolve @clerk/backend's package-`imports` subpath (#crypto)
+    // — jest-resolve enforces the package's public `exports` map even for
+    // moduleNameMapper substitution targets, and that deep path isn't exported
+    // (only reachable via Node's private-imports resolution). Point at a local
+    // one-line shim instead of the real file. Only exercised if a test boots
+    // the Clerk client (via @capiro/auth); harmless otherwise.
+    '^#crypto$': '<rootDir>/test/clerk-crypto-shim.cjs',
   },
 };
