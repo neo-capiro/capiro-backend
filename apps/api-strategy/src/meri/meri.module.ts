@@ -23,5 +23,7 @@ import { StrategyOrchestratorClient } from './strategy-orchestrator.client.js';
     StrategyAttachmentResolver,
     StrategyOrchestratorClient,
   ],
+  // Stage C: AgentsModule replays ChangeSet ops through MeriService.applyEditSet.
+  exports: [MeriService],
 })
 export class MeriModule {}

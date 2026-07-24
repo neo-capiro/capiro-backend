@@ -214,7 +214,12 @@ function makeTx(store: Store) {
       store.activity.push({ ...data, id: store.nextId('activity'), createdAt: now });
     },
   };
-  return { spNode, spVersion, spStrategy, spActivityLog } as unknown as Parameters<
+  // Stage C: logActivity unconditionally emits a transactional-outbox row in
+  // the same tx — the fake tx must accept it.
+  const spEventOutbox = {
+    create: async ({ data }: { data: Rec }) => ({ ...data, id: store.nextId('outbox') }),
+  };
+  return { spNode, spVersion, spStrategy, spActivityLog, spEventOutbox } as unknown as Parameters<
     Parameters<PrismaService['withTenantUser']>[2]
   >[0];
 }

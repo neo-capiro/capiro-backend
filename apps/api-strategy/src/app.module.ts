@@ -8,6 +8,7 @@ import { StrategyModule } from './strategy/strategy.module.js';
 import { FirmPhasesModule } from './firm-phases/firm-phases.module.js';
 import { ReferenceModule } from './reference/reference.module.js';
 import { MeriModule } from './meri/meri.module.js';
+import { AgentsModule } from './agents/agents.module.js';
 
 /**
  * Root module for the api-strategy service.
@@ -28,6 +29,7 @@ import { MeriModule } from './meri/meri.module.js';
     FirmPhasesModule,
     ReferenceModule,
     MeriModule,
+    AgentsModule,
   ],
 })
 export class AppModule {}

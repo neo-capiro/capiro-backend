@@ -2,6 +2,7 @@ import { Global, Module } from '@nestjs/common';
 import { StrategyFlagsService } from './strategy-flags.service.js';
 import { StrategyPlannerGuard } from './strategy-planner.guard.js';
 import { StrategyMeriGuard } from './strategy-meri.guard.js';
+import { AgenticGuard } from './agentic.guard.js';
 
 /**
  * Global so the flag service + guards are injectable on every feature
@@ -10,7 +11,7 @@ import { StrategyMeriGuard } from './strategy-meri.guard.js';
  */
 @Global()
 @Module({
-  providers: [StrategyFlagsService, StrategyPlannerGuard, StrategyMeriGuard],
-  exports: [StrategyFlagsService, StrategyPlannerGuard, StrategyMeriGuard],
+  providers: [StrategyFlagsService, StrategyPlannerGuard, StrategyMeriGuard, AgenticGuard],
+  exports: [StrategyFlagsService, StrategyPlannerGuard, StrategyMeriGuard, AgenticGuard],
 })
 export class FlagsModule {}

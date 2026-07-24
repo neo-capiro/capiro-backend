@@ -154,7 +154,10 @@ function makeTx(store: Store) {
     }
     return count;
   });
-  return { spNode, spStrategy, $executeRaw };
+  // Stage C: VersioningService.logActivity unconditionally emits a
+  // transactional-outbox row in the same tx — the fake tx must accept it.
+  const spEventOutbox = { create: jest.fn(async () => undefined) };
+  return { spNode, spStrategy, $executeRaw, spEventOutbox };
 }
 type Tx = ReturnType<typeof makeTx>;
 

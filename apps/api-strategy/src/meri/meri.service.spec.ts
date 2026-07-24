@@ -8,6 +8,7 @@ import type { StrategyOrchestratorClient } from './strategy-orchestrator.client.
 import type { FirmPhasesService } from '../firm-phases/firm-phases.service.js';
 import type { ReferenceService } from '../reference/reference.service.js';
 import type { DraftStrategyDto, AssistantDto } from './dto/meri.dto.js';
+import type { PlanEdit } from './meri.types.js';
 
 /*
  * MeriService apply-pipeline tests with a STUBBED orchestrator (no LLM, no
@@ -139,7 +140,10 @@ function makeTx(store: Store) {
   // A2/A6: the sibling dependency-edge strip on delete runs as tx.$executeRaw
   // (raw array_remove); the mock is a no-op returning 0 affected rows.
   const $executeRaw = async () => 0;
-  return { spNode, spStrategy, $queryRaw, $executeRaw } as unknown as import('../../generated/prisma-client/index.js').Prisma.TransactionClient;
+  // Stage C: VersioningService.logActivity unconditionally emits a
+  // transactional-outbox row in the same tx — the fake tx must accept it.
+  const spEventOutbox = { create: async () => undefined };
+  return { spNode, spStrategy, $queryRaw, $executeRaw, spEventOutbox } as unknown as import('../../generated/prisma-client/index.js').Prisma.TransactionClient;
 }
 
 function makePrisma(store: Store) {
@@ -656,5 +660,85 @@ describe('MeriService.assistant', () => {
       svc.assistant(T, U, 'bearer', 'S1', { scope: 'node', instruction: 'x' } as AssistantDto),
     ).rejects.toThrow(/nodeId is required/);
     expect(orchestrator.assistant).not.toHaveBeenCalled();
+  });
+
+  it('rejects an unknown edit op instead of treating it as an update', async () => {
+    const store = makeStore();
+    const { n1 } = seedStrategy(store);
+    const orchestrator = {
+      assistant: jest.fn(async () => ({
+        reply: 'applied',
+        summary: 'should not stick',
+        // An op kind this build does not understand (typo'd / future
+        // orchestrator vocabulary) carrying a valid nodeId + an updatable
+        // field: it must throw, NOT fall through to the update|retime branch.
+        edits: [{ op: 'duplicate', nodeId: n1, status: 'done' }],
+      })),
+    };
+    const { svc, versioning } = makeService(orchestrator, store);
+
+    await expect(svc.assistant(T, U, 'bearer', 'S1', dto)).rejects.toThrow(/invalid edit op/);
+    // The node was not silently mutated, nothing stuck, no version cut.
+    expect(store.nodes.get(n1)!.status).toBe('active');
+    expect(store.strategies.get('S1')!.meriSummary).toBeNull();
+    expect(versioning.cutVersion).not.toHaveBeenCalled();
+  });
+});
+
+describe('MeriService.applyEditSet (Stage C change-set replay)', () => {
+  it('rejects an unknown op arriving via a change-set before mutating the node', async () => {
+    const store = makeStore();
+    const { n1 } = seedStrategy(store);
+    const { svc } = makeService({}, store);
+    // Change-set ops are persisted as unvalidated JSON (CreateChangeSetDto
+    // defers to this pipeline) — the op discriminator itself must be checked.
+    const ops = [{ op: 'duplicate', nodeId: n1, status: 'done' }] as unknown as PlanEdit[];
+
+    await expect(svc.applyEditSet(makeTx(store), T, 'S1', U, ops)).rejects.toThrow(
+      /invalid edit op/,
+    );
+    expect(store.nodes.get(n1)!.status).toBe('active');
+  });
+});
+
+describe('MeriService.verifyAppliedPlan (Stage C change-set A6 parity)', () => {
+  it('422s on hard verifier errors when STRATEGY_VERIFY_BLOCK=true — unwinding the caller apply tx', async () => {
+    const store = makeStore();
+    const { n1, n3 } = seedStrategy(store);
+    // The persisted plan a change-set just applied: n1 (starts 2027-02-01) now
+    // depends on the LATER-starting n3 (2027-04-01) — the same hard dep-order
+    // error state the assistant-path A6 test rolls back on.
+    store.nodes.get(n1)!.dependsOnIds = [n3];
+    const { svc } = makeService({}, store);
+    const ground = await svc.grounding(T);
+
+    const prevFlag = process.env.STRATEGY_VERIFY_BLOCK;
+    process.env.STRATEGY_VERIFY_BLOCK = 'true';
+    try {
+      await expect(svc.verifyAppliedPlan(makeTx(store), T, U, 'S1', ground)).rejects.toThrow(
+        /would break the plan/,
+      );
+    } finally {
+      if (prevFlag === undefined) delete process.env.STRATEGY_VERIFY_BLOCK;
+      else process.env.STRATEGY_VERIFY_BLOCK = prevFlag;
+    }
+  });
+
+  it('annotates instead of blocking when the flag is dark, and ALWAYS logs plan.verified (agent-apply audit parity)', async () => {
+    const store = makeStore();
+    const { n1, n3 } = seedStrategy(store);
+    store.nodes.get(n1)!.dependsOnIds = [n3]; // same hard error — flag dark
+    const { svc, versioning } = makeService({}, store);
+    const ground = await svc.grounding(T);
+
+    const { detail, violations } = await svc.verifyAppliedPlan(makeTx(store), T, U, 'S1', ground);
+
+    expect(detail.id).toBe('S1'); // callers reuse the loaded post-apply detail
+    expect(violations.some((v) => v.severity === 'error')).toBe(true); // annotate-only
+    const logged = (versioning.logActivity as jest.Mock).mock.calls
+      .map((c) => c[1] as { action: string; entityId: string })
+      .find((a) => a.action === 'plan.verified');
+    expect(logged).toBeDefined();
+    expect(logged!.entityId).toBe('S1');
   });
 });

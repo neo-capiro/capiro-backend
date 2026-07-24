@@ -8,5 +8,7 @@ import { VersioningService } from './versioning.service.js';
 @Module({
   controllers: [StrategyController],
   providers: [StrategyService, NodeService, VersionService, VersioningService],
+  // Stage C: AgentsModule's ChangeSet undo restores the pinned pre-apply version.
+  exports: [VersionService],
 })
 export class StrategyModule {}

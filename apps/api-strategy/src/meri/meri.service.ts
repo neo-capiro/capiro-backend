@@ -32,7 +32,7 @@ interface RefRowLite {
   endsOn: string | null;
 }
 /** The grounding api-strategy forwards to the orchestrator AND feeds the verifier. */
-interface Grounding {
+export interface Grounding {
   fiscal: { today: string | null; fys: number[]; fyLabels: string[]; focalFy: string | undefined };
   firmPhases: Array<{ label: string; startFy: number; startQ: number; endFy: number; endQ: number }>;
   reference: { congress: RefRowLite[]; ppbeLanes: RefRowLite[]; ppbeCurrentPhases: RefRowLite[] };
@@ -49,6 +49,12 @@ type VerifierNodeSource = {
   // string[] (persisted rows) OR Prisma's scalar-list create form ({ set: [] }).
   dependsOnIds?: unknown;
 };
+
+/** Runtime mirror of PlanEditOp (meri.types.ts) — ops arrive untyped from the
+ *  orchestrator AND from Stage C change-set replay (CreateChangeSetDto defers
+ *  op validation to this pipeline), so the discriminator itself must be
+ *  validated here. */
+const PLAN_EDIT_OPS = ['add', 'update', 'remove', 'retime'] as const;
 
 const TYPE_LABEL: Record<StrategyTypeValue, string> = {
   appropriations: 'Appropriations',
@@ -101,7 +107,9 @@ export class MeriService {
     return { today: isoDate(now), fys, fyLabels, focalFy: fyLabels[1] };
   }
 
-  private async grounding(tenantId: string): Promise<Grounding> {
+  // Public: Stage C change-set apply pre-fetches this (OUTSIDE its tx) to feed
+  // verifyAppliedPlan — the reads below open their own withTenant txs.
+  async grounding(tenantId: string): Promise<Grounding> {
     const [phases, ref] = await Promise.all([
       this.firmPhases.list(tenantId),
       this.reference.getCalendars(tenantId),
@@ -367,6 +375,56 @@ export class MeriService {
     );
   }
 
+  /**
+   * Stage C: ChangeSet apply reuses the assistant apply pipeline VERBATIM —
+   * each op is re-validated + applied by the same private applyEdit the
+   * assistant uses, inside the CALLER's tx (the change-set service owns the
+   * lastEdited bump, the version cut and the audit rows). A malformed op throws
+   * → the caller's whole tx rolls back (no partial apply).
+   */
+  async applyEditSet(
+    tx: Tx,
+    tenantId: string,
+    strategyId: string,
+    actorUserId: string,
+    edits: PlanEdit[],
+  ): Promise<void> {
+    for (const edit of edits) {
+      await this.applyEdit(tx, tenantId, strategyId, actorUserId, edit);
+    }
+  }
+
+  /**
+   * Stage C: the SAME A6 plan-level verification the assistant runs after an
+   * edit-set (see assistant()) — load the persisted plan, verify it against the
+   * tenant's grounding, hard-block via STRATEGY_VERIFY_BLOCK (the 422 rolls the
+   * CALLER's whole tx back) and record plan.verified on the audit trail in the
+   * same tx. `ground` MUST be fetched via grounding() BEFORE the caller opens
+   * its tx — grounding reads run their own withTenant txs, and nesting them
+   * inside a held tx stacks pool connections. Returns the loaded detail (and
+   * violations) so the caller doesn't re-read post-apply state.
+   */
+  async verifyAppliedPlan(
+    tx: Tx,
+    tenantId: string,
+    actorUserId: string,
+    strategyId: string,
+    ground: Grounding,
+  ) {
+    const detail = await loadStrategyDetail(tx, strategyId);
+    const violations = this.verify(detail.type, detail.nodes, ground);
+    if (this.blockOnErrors() && violations.some((v) => v.severity === 'error')) {
+      throw new UnprocessableEntityException(
+        `This change would break the plan — ${violations
+          .filter((v) => v.severity === 'error')
+          .map((v) => v.message)
+          .join('; ')}`,
+      );
+    }
+    await this.logVerification(tx, tenantId, actorUserId, strategyId, violations);
+    return { detail, violations };
+  }
+
   // ---- apply helpers ----
 
   private draftNode(
@@ -417,6 +475,9 @@ export class MeriService {
     clerkUserId: string,
     edit: PlanEdit,
   ): Promise<void> {
+    // An unknown op (typo'd / future kind) must throw, never fall through to
+    // the update|retime branch below and silently mutate the node.
+    vEnum(edit.op, PLAN_EDIT_OPS, 'edit op');
     if (edit.op === 'add') {
       const id = randomUUID();
       const deps = await this.resolveEditDeps(tx, strategyId, id, edit.dependsOn);
