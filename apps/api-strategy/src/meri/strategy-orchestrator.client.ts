@@ -1,6 +1,7 @@
 import { Injectable, Logger, ServiceUnavailableException } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import type {
+  NodeDocumentDraftResponse,
   ResolvedAiProvider,
   StewardExtractResponse,
   StrategyAssistantResponse,
@@ -59,6 +60,22 @@ export class StrategyOrchestratorClient {
       bearerToken,
       aiProvider,
     );
+  }
+
+  /**
+   * Stage-G grounded content generation: draft the full body of one
+   * Execution Agent artifact (workspace document or outreach message) for a
+   * single plan node. Same forwarding contract as draft()/assistant() — the
+   * caller bearer is REQUIRED (enforced by post()); a bearerless caller must
+   * never reach this method (ExecutionService only calls it with the
+   * already-required interactive bearer).
+   */
+  nodeDocumentDraft(
+    body: unknown,
+    bearerToken: string | undefined,
+    aiProvider?: ResolvedAiProvider,
+  ): Promise<NodeDocumentDraftResponse> {
+    return this.post<NodeDocumentDraftResponse>('strategy-document-draft', body, bearerToken, aiProvider);
   }
 
   /** Stage E wire-contract (1): the Context Steward's fact-extraction surface. */

@@ -273,18 +273,27 @@ function makeTx(store: Store) {
     },
   };
   const spNodeArtifact = {
+    // Honors orderBy: { createdAt: 'asc' } the same way Postgres would — the
+    // service depends on this for determinism when a race (see the CAS-guard
+    // test below) ever leaves two real rows for one (nodeId, artifactType); a
+    // regression that drops the sort here would let Map insertion order (which
+    // does NOT track createdAt) silently pick a different 'winner' row.
     findFirst: async ({
       where,
     }: {
       where: { nodeId: string; artifactType: string };
       select?: unknown;
+      orderBy?: { createdAt: 'asc' | 'desc' };
     }) => {
-      const a = [...store.artifacts.values()].find(
-        (r) =>
-          r.nodeId === where.nodeId &&
-          r.artifactType === where.artifactType &&
-          !(store.hidePendingReservation && r.artifactRef === PENDING_ARTIFACT_REF),
-      );
+      const matches = [...store.artifacts.values()]
+        .filter(
+          (r) =>
+            r.nodeId === where.nodeId &&
+            r.artifactType === where.artifactType &&
+            !(store.hidePendingReservation && r.artifactRef === PENDING_ARTIFACT_REF),
+        )
+        .sort((a, b) => (a.createdAt as Date).getTime() - (b.createdAt as Date).getTime());
+      const a = matches[0];
       return a ? { ...a } : null;
     },
     // Plain create used by reserveArtifact as the CAS guard — throws P2002 on the
@@ -404,6 +413,11 @@ interface ServiceOpts {
   openMaterialConflicts?: Rec[];
   createWorkspaceDraftRef?: string;
   createOutreachRecordRef?: string;
+  /** Stage-G grounded generation: defaults to null (the deterministic-fallback
+   *  path, matching every pre-existing test's expectations unchanged). Pass a
+   *  value to test the grounded-content path explicitly. */
+  draftExecutionDocument?: unknown;
+  stewardFacts?: Rec[];
 }
 
 function makeService(store: Store, opts: ServiceOpts = {}) {
@@ -451,7 +465,13 @@ function makeService(store: Store, opts: ServiceOpts = {}) {
     reference: { congress: [], ppbeLanes: [], ppbeCurrentPhases: [] },
   };
   const grounding = jest.fn(async (_t: string) => groundingValue);
-  const meri = { grounding } as unknown as MeriService;
+  // Stage-G: defaults to null (deterministic fallback) — every pre-existing
+  // test exercises this path unchanged; opts.draftExecutionDocument overrides
+  // it for the grounded-content tests.
+  const draftExecutionDocument = jest.fn(async (_t: string, _b: string, _i: unknown) =>
+    opts.draftExecutionDocument ?? null,
+  );
+  const meri = { grounding, draftExecutionDocument } as unknown as MeriService;
 
   const healthValue = {
     status: 'ok' as const,
@@ -462,7 +482,10 @@ function makeService(store: Store, opts: ServiceOpts = {}) {
     missingRequired: [],
   };
   const health = jest.fn(async (_t: string, _c: string | null) => healthValue);
-  const steward = { health } as unknown as StewardService;
+  // Stage-G: read-only grounding facts for generation — defaults to [], mirroring
+  // MeriService.stewardContext's own fail-soft default.
+  const factsForOrchestrator = jest.fn(async (_t: string, _c: string | null) => opts.stewardFacts ?? []);
+  const steward = { health, factsForOrchestrator } as unknown as StewardService;
 
   const isAgenticFlagEnabled = jest.fn(async (_t: string, _flag: string) => opts.flagEnabled ?? true);
   const flags = { isAgenticFlagEnabled } as unknown as StrategyFlagsService;
@@ -476,7 +499,17 @@ function makeService(store: Store, opts: ServiceOpts = {}) {
   const artifacts = { createWorkspaceDraft, createOutreachRecord } as unknown as ExecutionArtifactClient;
 
   const svc = new ExecutionService(prisma, versioning, runs, meri, steward, flags, artifacts);
-  return { svc, runs, createWorkspaceDraft, createOutreachRecord, grounding, health, isAgenticFlagEnabled };
+  return {
+    svc,
+    runs,
+    createWorkspaceDraft,
+    createOutreachRecord,
+    grounding,
+    health,
+    isAgenticFlagEnabled,
+    draftExecutionDocument,
+    factsForOrchestrator,
+  };
 }
 
 const wsPlan = (over: Partial<ExecutionPlanDto> = {}): ExecutionPlanDto =>
@@ -645,6 +678,284 @@ describe('ExecutionService.execute — workspace staging', () => {
     expect(staged.actorUserId).toBe(U);
   });
 
+  it('stages a GROUNDED multi-section workspace draft when draftExecutionDocument succeeds', async () => {
+    const store = makeStore();
+    seedStrategy(store);
+    seedMission(store);
+    seedNode(store, { id: NID, status: 'suggested' });
+    const doc = {
+      title: 'FY28 Testimony',
+      summary: 'A grounded testimony draft.',
+      sections: [
+        { heading: 'Background', html: '<p>Context.</p>' },
+        { heading: 'The Ask', html: '<p>We ask for $12M.</p>', sources: [{ section: 'fiscal', ref: 'fact:f1' }] },
+      ],
+      model: 'claude-sonnet-5',
+    };
+    const { svc, createWorkspaceDraft, draftExecutionDocument } = makeService(store, {
+      draftExecutionDocument: doc,
+    });
+
+    const planned = await svc.plan(T, U, 'bearer-x', wsPlan());
+    const done = await svc.execute(T, U, 'bearer-x', planned.id);
+
+    expect(done.state).toBe('completed');
+    expect(draftExecutionDocument).toHaveBeenCalledTimes(1);
+    expect(createWorkspaceDraft).toHaveBeenCalledTimes(1);
+    const input = createWorkspaceDraft.mock.calls[0]![1] as {
+      docTitle: string;
+      sections: Record<string, string>;
+    };
+    // The refined title from the draft wins; every section maps onto config.sections.
+    expect(input.docTitle).toBe('FY28 Testimony');
+    expect(input.sections).toEqual({
+      Background: '<p>Context.</p>',
+      'The Ask': '<p>We ask for $12M.</p>',
+    });
+    // The staged result surfaces model + groundedFactCount (cited facts) for the UI chip.
+    const results = (done.findings as { results: Rec }).results;
+    const staged = results[`${NID}:workspace_draft`] as { model?: string; groundedFactCount?: number };
+    expect(staged.model).toBe('claude-sonnet-5');
+    expect(staged.groundedFactCount).toBe(1);
+  });
+
+  it('merges (never drops) sections that share a heading instead of last-write-wins', async () => {
+    const store = makeStore();
+    seedStrategy(store);
+    seedMission(store);
+    seedNode(store, { id: NID, status: 'suggested' });
+    const doc = {
+      title: 'FY28 Testimony',
+      summary: 'A grounded testimony draft.',
+      sections: [
+        { heading: 'Background', html: '<p>First background.</p>' },
+        { heading: 'The Ask', html: '<p>We ask for $12M.</p>' },
+        { heading: 'Background', html: '<p>Second background.</p>' },
+      ],
+      model: 'claude-sonnet-5',
+    };
+    const { svc, createWorkspaceDraft } = makeService(store, { draftExecutionDocument: doc });
+
+    const planned = await svc.plan(T, U, 'bearer-x', wsPlan());
+    const done = await svc.execute(T, U, 'bearer-x', planned.id);
+
+    expect(done.state).toBe('completed');
+    const input = createWorkspaceDraft.mock.calls[0]![1] as { sections: Record<string, string> };
+    // Both colliding sections survive — merged onto the shared 'Background' key
+    // — rather than the second silently overwriting the first.
+    expect(input.sections.Background).toContain('First background.');
+    expect(input.sections.Background).toContain('Second background.');
+    expect(input.sections['The Ask']).toBe('<p>We ask for $12M.</p>');
+    expect(Object.keys(input.sections)).toEqual(['Background', 'The Ask']);
+  });
+
+  it('a heading that trims to the literal string "__proto__" is not silently dropped', async () => {
+    const store = makeStore();
+    seedStrategy(store);
+    seedMission(store);
+    seedNode(store, { id: NID, status: 'suggested' });
+    const doc = {
+      title: 'FY28 Testimony',
+      summary: 'A grounded testimony draft.',
+      sections: [
+        { heading: '__proto__', html: '<p>Adversarial heading content.</p>' },
+        { heading: 'The Ask', html: '<p>We ask for $12M.</p>' },
+      ],
+      model: 'claude-sonnet-5',
+    };
+    const { svc, createWorkspaceDraft } = makeService(store, { draftExecutionDocument: doc });
+
+    const planned = await svc.plan(T, U, 'bearer-x', wsPlan());
+    const done = await svc.execute(T, U, 'bearer-x', planned.id);
+
+    expect(done.state).toBe('completed');
+    const input = createWorkspaceDraft.mock.calls[0]![1] as { sections: Record<string, string> };
+    // On a plain {} accumulator, out['__proto__'] = html hits Object.prototype's
+    // __proto__ accessor and silently no-ops instead of creating an own property
+    // — the section vanishes with no collision and no trace. It must survive as
+    // a real own key, exactly like any other heading.
+    expect(Object.prototype.hasOwnProperty.call(input.sections, '__proto__')).toBe(true);
+    expect(input.sections['__proto__']).toBe('<p>Adversarial heading content.</p>');
+    expect(input.sections['The Ask']).toBe('<p>We ask for $12M.</p>');
+    expect(Object.keys(input.sections)).toEqual(['__proto__', 'The Ask']);
+  });
+
+  it('falls back to the deterministic placeholder — unchanged from before this feature — when draftExecutionDocument fails soft (null)', async () => {
+    const store = makeStore();
+    seedStrategy(store);
+    seedMission(store);
+    seedNode(store, { id: NID, status: 'suggested' });
+    // ServiceOpts default is already null — asserted explicitly here as a named
+    // regression guard rather than relying on the implicit default.
+    const { svc, createWorkspaceDraft, draftExecutionDocument } = makeService(store, {
+      draftExecutionDocument: null,
+    });
+
+    const planned = await svc.plan(T, U, 'bearer-x', wsPlan());
+    const done = await svc.execute(T, U, 'bearer-x', planned.id);
+
+    expect(done.state).toBe('completed');
+    expect(draftExecutionDocument).toHaveBeenCalledTimes(1);
+    const input = createWorkspaceDraft.mock.calls[0]![1] as { sections: Record<string, string> };
+    expect(Object.keys(input.sections)).toEqual(['Background']);
+    expect(input.sections.Background).toContain('Draft staged by the Strategy Execution Agent');
+    const results = (done.findings as { results: Rec }).results;
+    const staged = results[`${NID}:workspace_draft`] as { model?: string };
+    expect(staged.model).toBeUndefined();
+  });
+
+  it('degenerate generation (title present, sections empty) falls back to node.title too — never pairs an AI title with the placeholder body', async () => {
+    const store = makeStore();
+    seedStrategy(store);
+    seedMission(store);
+    seedNode(store, { id: NID, status: 'suggested' });
+    // A real possibility: propose_document_draft has no minItems on sections, and
+    // sanitizeDocumentSections/sanitizeSectionHtml can strip every section to empty
+    // — draftExecutionDocument still returns a non-null doc with a refined title.
+    const doc = { title: 'FY28 Testimony', summary: 'A grounded testimony draft.', sections: [], model: 'm' };
+    const { svc, createWorkspaceDraft, draftExecutionDocument } = makeService(store, {
+      draftExecutionDocument: doc,
+    });
+
+    const planned = await svc.plan(T, U, 'bearer-x', wsPlan());
+    const done = await svc.execute(T, U, 'bearer-x', planned.id);
+
+    expect(done.state).toBe('completed');
+    expect(draftExecutionDocument).toHaveBeenCalledTimes(1);
+    const input = createWorkspaceDraft.mock.calls[0]![1] as {
+      docTitle: string;
+      sections: Record<string, string>;
+    };
+    // The deterministic placeholder body wins (sections.length === 0) — the title
+    // must fall back to node.title in lockstep, never staying 'FY28 Testimony'.
+    expect(input.docTitle).toBe('File the FY27 one-pager');
+    expect(Object.keys(input.sections)).toEqual(['Background']);
+    expect(input.sections.Background).toContain('Draft staged by the Strategy Execution Agent');
+  });
+
+  it('degenerate generation (non-null doc, zero usable sections) audits generated:false with no model leak — never claims AI provenance over the deterministic placeholder', async () => {
+    const store = makeStore();
+    seedStrategy(store);
+    seedMission(store);
+    seedNode(store, { id: NID, status: 'suggested' });
+    // Same degenerate shape as the title-pairing test above (non-null doc, empty
+    // sections, but a real model id) — this test asserts the audit-trail side:
+    // recordArtifact's provenance and the staged-result model/groundedFactCount
+    // must gate on usable content, not `doc` truthiness.
+    const doc = { title: 'FY28 Testimony', summary: null, sections: [], model: 'claude-sonnet-5' };
+    const { svc, draftExecutionDocument } = makeService(store, { draftExecutionDocument: doc });
+
+    const planned = await svc.plan(T, U, 'bearer-x', wsPlan());
+    const done = await svc.execute(T, U, 'bearer-x', planned.id);
+
+    expect(done.state).toBe('completed');
+    expect(draftExecutionDocument).toHaveBeenCalledTimes(1);
+
+    // The staged-result surface (what settlePhase/stampMetrics propagate into
+    // run.findings, and from there the UI's "Grounded in N facts · <model>" chip)
+    // must show no model / no grounded-fact count for a degenerate doc.
+    const results = (done.findings as { results: Rec }).results;
+    const staged = results[`${NID}:workspace_draft`] as { model?: string; groundedFactCount?: number };
+    expect(staged.model).toBeUndefined();
+    expect(staged.groundedFactCount).toBeUndefined();
+
+    // The audit-trail entry itself must record generated:false — a real model id
+    // must never accompany a persisted deterministic-fallback artifact.
+    const activity = store.activity.find((a) => a.action === 'execution.artifact_staged')!;
+    const after = activity.after as Rec;
+    expect(after.generated).toBe(false);
+    expect(after.model).toBeUndefined();
+    expect(after.groundedFactCount).toBeUndefined();
+  });
+
+  it('idempotent-no-double-generate: an already-staged draft never calls draftExecutionDocument again', async () => {
+    const store = makeStore();
+    seedStrategy(store);
+    seedMission(store);
+    seedNode(store, { id: NID, status: 'draft' });
+    const doc = { title: null, summary: null, sections: [{ heading: 'H', html: '<p>x</p>' }], model: 'm' };
+    const { svc, draftExecutionDocument } = makeService(store, { draftExecutionDocument: doc });
+
+    const planned = await svc.plan(T, U, 'bearer-x', wsPlan());
+    await svc.execute(T, U, 'bearer-x', planned.id);
+    expect(draftExecutionDocument).toHaveBeenCalledTimes(1);
+
+    // Simulate crash-recovery re-entry (same pattern as the sibling idempotency test).
+    store.runs.get(planned.id)!.state = 'executing';
+    await svc.execute(T, U, 'bearer-x', planned.id);
+
+    // The already_staged short-circuit fires BEFORE generation — never a second call.
+    expect(draftExecutionDocument).toHaveBeenCalledTimes(1);
+  });
+
+  it('malformed sections entries (non-string heading/html — a contract drift in the independently-deployed orchestrator) are dropped, not thrown on', async () => {
+    const store = makeStore();
+    seedStrategy(store);
+    seedMission(store);
+    seedNode(store, { id: NID, status: 'suggested' });
+    // draftExecutionDocument's shape is NOT re-validated beyond the `unknown` HTTP
+    // boundary before this fix — a future orchestrator contract drift (or a proxy/
+    // serialization issue) returning a non-string heading/html here must never
+    // throw a TypeError out of buildWorkspaceSections; the malformed entries must
+    // simply be dropped, same as any other unusable section.
+    const doc = {
+      title: 'FY28 Testimony',
+      summary: 'A grounded testimony draft.',
+      sections: [
+        { heading: 'Background', html: '<p>Context.</p>' },
+        { heading: 42, html: '<p>Malformed heading.</p>' },
+        { heading: 'The Ask', html: null },
+      ],
+      model: 'claude-sonnet-5',
+    };
+    const { svc, createWorkspaceDraft } = makeService(store, { draftExecutionDocument: doc });
+
+    const planned = await svc.plan(T, U, 'bearer-x', wsPlan());
+    // Must complete, not throw/park — the run-level invariant this fix protects
+    // (an uncaught throw here would leave the run stuck 'executing' with a
+    // committed write-ahead sentinel, per the write-ahead-reservation contract).
+    const done = await svc.execute(T, U, 'bearer-x', planned.id);
+
+    expect(done.state).toBe('completed');
+    const input = createWorkspaceDraft.mock.calls[0]![1] as { sections: Record<string, string> };
+    // Only the well-formed section survives; the two malformed entries are dropped.
+    expect(input.sections).toEqual({ Background: '<p>Context.</p>' });
+  });
+
+  it('falls back to the deterministic placeholder (title AND body) when EVERY sections entry is malformed', async () => {
+    const store = makeStore();
+    seedStrategy(store);
+    seedMission(store);
+    seedNode(store, { id: NID, status: 'suggested' });
+    const doc = {
+      title: 'FY28 Testimony',
+      summary: 'A grounded testimony draft.',
+      sections: [
+        { heading: 42, html: '<p>Malformed.</p>' },
+        { heading: 'Fine heading', html: 99 },
+        null,
+      ],
+      model: 'claude-sonnet-5',
+    };
+    const { svc, createWorkspaceDraft } = makeService(store, { draftExecutionDocument: doc });
+
+    const planned = await svc.plan(T, U, 'bearer-x', wsPlan());
+    const done = await svc.execute(T, U, 'bearer-x', planned.id);
+
+    expect(done.state).toBe('completed');
+    const input = createWorkspaceDraft.mock.calls[0]![1] as {
+      docTitle: string;
+      sections: Record<string, string>;
+    };
+    // No usable sections survive -> the deterministic placeholder, AND (mirroring
+    // the sibling degenerate-generation test above) the title falls back to
+    // node.title in lockstep — never pairs the AI-authored title with the
+    // placeholder body.
+    expect(input.docTitle).toBe('File the FY27 one-pager');
+    expect(Object.keys(input.sections)).toEqual(['Background']);
+    expect(input.sections.Background).toContain('Draft staged by the Strategy Execution Agent');
+  });
+
   it('is idempotent against the sp_node_artifact triple: a re-entered execute stages no duplicate', async () => {
     const store = makeStore();
     seedStrategy(store);
@@ -665,6 +976,51 @@ describe('ExecutionService.execute — workspace staging', () => {
     expect(createWorkspaceDraft).toHaveBeenCalledTimes(1);
     expect(store.artifacts.size).toBe(1);
     expect(again.state).toBe('completed');
+  });
+
+  it('findArtifact is deterministic (oldest wins) when a race ever leaves two real rows for one (node, type) — independent of Map/DB insertion order', async () => {
+    const store = makeStore();
+    seedStrategy(store);
+    seedMission(store);
+    seedNode(store, { id: NID, status: 'draft' });
+    const { svc } = makeService(store);
+
+    const planned = await svc.plan(T, U, 'bearer-x', wsPlan());
+
+    // Simulate the Finding-2 race's aftermath: two REAL (non-pending) rows for the
+    // SAME (nodeId, artifactType), inserted with the NEWER row first so a plain
+    // find() (no orderBy) would return the wrong one. createdAt is what must
+    // decide the winner, not insertion/iteration order.
+    store.artifacts.set('artifact-newer', {
+      id: 'artifact-newer',
+      tenantId: T,
+      strategyId: SID,
+      nodeId: NID,
+      artifactType: 'workspace_draft',
+      artifactRef: 'ws-newer',
+      createdByUserId: U,
+      createdAt: new Date('2026-01-02T00:00:00.000Z'),
+    });
+    store.artifacts.set('artifact-older', {
+      id: 'artifact-older',
+      tenantId: T,
+      strategyId: SID,
+      nodeId: NID,
+      artifactType: 'workspace_draft',
+      artifactRef: 'ws-older',
+      createdByUserId: U,
+      createdAt: new Date('2026-01-01T00:00:00.000Z'),
+    });
+
+    // Re-entry from 'executing' takes the already_staged short-circuit through
+    // findArtifact() — it must resolve to the OLDEST row's ref every time.
+    store.runs.get(planned.id)!.state = 'executing';
+    const again = await svc.execute(T, U, 'bearer-x', planned.id);
+
+    const results = (again.findings as { results: Rec }).results;
+    const staged = results[`${NID}:workspace_draft`] as { status: string; artifactRef: string };
+    expect(staged.status).toBe('already_staged');
+    expect(staged.artifactRef).toBe('ws-older');
   });
 
   it('write-ahead reservation makes a retry safe: a create that commits upstream but whose back-link write FAILS does NOT duplicate on retry — the run parks for reconciliation', async () => {
@@ -743,6 +1099,53 @@ describe('ExecutionService.execute — workspace staging', () => {
     expect(store.nodes.get(NID)!.status).toBe('suggested');
   });
 
+  it('CAS guard: reserveArtifact re-checks for an ALREADY-COMPLETED real ref (not just the PENDING triple) — a staggered concurrent caller cannot win a fresh reservation and rerun generate+create', async () => {
+    const store = makeStore();
+    seedStrategy(store);
+    seedMission(store);
+    seedNode(store, { id: NID, status: 'suggested' });
+    const { svc, createWorkspaceDraft, draftExecutionDocument } = makeService(store);
+
+    const planned = await svc.plan(T, U, 'bearer-x', wsPlan());
+
+    // Simulate a staggered (non-simultaneous) concurrent caller that has ALREADY
+    // fully finished — generated, created the external artifact, and committed
+    // the REAL ref (recordArtifact also retired its own sentinel, so nothing
+    // PENDING remains on the triple). Our own findArtifact() read is stubbed to
+    // null to reproduce the exact stale-read window from the finding: it ran
+    // BEFORE the concurrent caller's commit became visible to it.
+    store.artifacts.set('completed-by-concurrent-caller', {
+      id: 'completed-by-concurrent-caller',
+      tenantId: T,
+      strategyId: SID,
+      nodeId: NID,
+      artifactType: 'workspace_draft',
+      artifactRef: 'wsd-from-concurrent-caller',
+      createdByUserId: 'concurrent-user',
+      createdAt: new Date('2026-01-01T00:00:00.000Z'),
+    });
+    jest.spyOn(svc as unknown as { findArtifact: (...a: unknown[]) => Promise<string | null> }, 'findArtifact')
+      .mockResolvedValueOnce(null);
+
+    // Re-entry from 'executing' (the unguarded path).
+    store.runs.get(planned.id)!.state = 'executing';
+    const parked = await svc.execute(T, U, 'bearer-x', planned.id);
+
+    // Without the fix, reserveArtifact's plain CREATE on the PENDING triple would
+    // NOT collide with the concurrent caller's real-ref row, so this caller would
+    // win a fresh reservation and rerun the whole cycle: a second LLM generation
+    // AND a second external create. Both must be skipped entirely.
+    expect(draftExecutionDocument).not.toHaveBeenCalled();
+    expect(createWorkspaceDraft).not.toHaveBeenCalled();
+    expect(parked.state).toBe('waiting_for_input');
+    expect(parked.waitingReason).toMatch(/reconcile/i);
+    // No duplicate row — only the concurrent caller's real ref remains.
+    expect(store.artifacts.size).toBe(1);
+    expect([...store.artifacts.values()][0]!.artifactRef).toBe('wsd-from-concurrent-caller');
+    // The losing attempt never advanced the node.
+    expect(store.nodes.get(NID)!.status).toBe('suggested');
+  });
+
   it('bearerless execute PARKS in waiting_for_input and NEVER stages (no bearerless external hop)', async () => {
     const store = makeStore();
     seedStrategy(store);
@@ -812,6 +1215,168 @@ describe('ExecutionService.execute — outreach staging (send hard-disabled)', (
     expect(sa.sendEnabled).toBe(false);
     // NOT completed — a pending send never auto-completes.
     expect(parked.state).not.toBe('completed');
+  });
+
+  it('stages a GROUNDED outreach body and binds the send-approval token to it (never the static shell)', async () => {
+    const store = makeStore();
+    seedStrategy(store);
+    seedMission(store);
+    seedNode(store, { id: NID, subject: 'member', title: 'Meet with Rep. Doe' });
+    const doc = {
+      title: null,
+      summary: 's',
+      sections: [
+        { heading: 'Opening', html: '<p>Dear office,</p>' },
+        { heading: 'The Ask', html: '<p>Please co-sign our letter.</p>' },
+      ],
+      model: 'claude-sonnet-5',
+    };
+    const { svc, createOutreachRecord } = makeService(store, { draftExecutionDocument: doc });
+
+    const planned = await svc.plan(T, U, 'bearer-x', outreachPlan());
+    const parked = await svc.execute(T, U, 'bearer-x', planned.id);
+
+    expect(parked.state).toBe('waiting_for_input');
+    expect(parked.waitingReason).toBe('awaiting send approval');
+    const input = createOutreachRecord.mock.calls[0]![1] as { body?: string | null };
+    expect(input.body).toContain('Opening');
+    expect(input.body).toContain('Dear office,');
+    expect(input.body).toContain('Please co-sign our letter.');
+    // The token hashes the ACTUAL staged (grounded) message, not the old static shell.
+    const sa = (parked.findings as { sendApproval: Rec }).sendApproval;
+    const saInput = sa.input as { message: string };
+    expect(saInput.message).toBe(input.body);
+    expect(saInput.message).not.toContain('Outreach regarding:');
+    expect(sa.sendEnabled).toBe(false);
+  });
+
+  it('resume() of an already-parked send-approval run REUSES the prior grounded token — it must never overwrite it with the deterministic placeholder', async () => {
+    const store = makeStore();
+    seedStrategy(store);
+    seedMission(store);
+    seedNode(store, { id: NID, subject: 'member', title: 'Meet with Rep. Doe' });
+    const doc = {
+      title: null,
+      summary: 's',
+      sections: [{ heading: 'Opening', html: '<p>Dear office, please co-sign our letter.</p>' }],
+      model: 'claude-sonnet-5',
+    };
+    const { svc, createOutreachRecord } = makeService(store, { draftExecutionDocument: doc });
+
+    const planned = await svc.plan(T, U, 'bearer-x', outreachPlan());
+    const parked = await svc.execute(T, U, 'bearer-x', planned.id);
+    expect(parked.waitingReason).toBe('awaiting send approval');
+    expect(createOutreachRecord).toHaveBeenCalledTimes(1);
+    const firstSa = (parked.findings as { sendApproval: Rec }).sendApproval;
+    const firstInput = firstSa.input as { message: string };
+    expect(firstInput.message).toContain('Dear office, please co-sign our letter.');
+
+    // Resume the SAME parked run — this is exactly the path both the plain
+    // 'Resume' affordance AND (once SEND_APPROVAL_ENABLED flips) ExecutionReview's
+    // 'Approve this send' button take: they call resume() directly on a run
+    // parked 'awaiting send approval'. stageOutreach's already_staged replay
+    // finds the real artifactRef but carries NO body, so computeSendApproval must
+    // reuse the original token/message rather than recompute one over the
+    // deterministic placeholder — recomputing would silently invalidate the
+    // token a human may already be reviewing against the ACTUAL persisted
+    // OutreachRecord body.
+    const resumed = await svc.resume(T, U, 'bearer-x', planned.id);
+    expect(createOutreachRecord).toHaveBeenCalledTimes(1); // no duplicate/second staging
+    expect(resumed.waitingReason).toBe('awaiting send approval');
+    const secondSa = (resumed.findings as { sendApproval: Rec }).sendApproval;
+    expect(secondSa).toEqual(firstSa);
+    const secondInput = secondSa.input as { message: string };
+    expect(secondInput.message).toContain('Dear office, please co-sign our letter.');
+    expect(secondInput.message).not.toBe('Outreach regarding: Meet with Rep. Doe');
+    expect(secondSa.token).toBe(firstSa.token);
+  });
+
+  it('wires the refined doc.title into the staged OutreachRecord (propose_document_draft documents title as applying to "the deliverable", not workspace-only)', async () => {
+    const store = makeStore();
+    seedStrategy(store);
+    seedMission(store);
+    seedNode(store, { id: NID, subject: 'member', title: 'Meet with Rep. Doe' });
+    const doc = {
+      title: 'Urgent: co-sign the FY28 letter',
+      summary: 's',
+      sections: [{ heading: 'Opening', html: '<p>Dear office,</p>' }],
+      model: 'claude-sonnet-5',
+    };
+    const { svc, createOutreachRecord } = makeService(store, { draftExecutionDocument: doc });
+
+    const planned = await svc.plan(T, U, 'bearer-x', outreachPlan());
+    await svc.execute(T, U, 'bearer-x', planned.id);
+
+    const input = createOutreachRecord.mock.calls[0]![1] as { title: string };
+    // The refined title from the draft wins over the raw node.title.
+    expect(input.title).toBe('Urgent: co-sign the FY28 letter');
+  });
+
+  it('degenerate outreach generation (title present, sections empty) falls back to node.title too — never pairs an AI title with the placeholder body', async () => {
+    const store = makeStore();
+    seedStrategy(store);
+    seedMission(store);
+    seedNode(store, { id: NID, subject: 'member', title: 'Meet with Rep. Doe' });
+    // A real possibility: propose_document_draft has no minItems on sections, and
+    // sanitizeDocumentSections/sanitizeSectionHtml can strip every section to empty
+    // — draftExecutionDocument still returns a non-null doc with a refined title.
+    const doc = { title: 'Urgent: co-sign the FY28 letter', summary: 's', sections: [], model: 'm' };
+    const { svc, createOutreachRecord } = makeService(store, { draftExecutionDocument: doc });
+
+    const planned = await svc.plan(T, U, 'bearer-x', outreachPlan());
+    await svc.execute(T, U, 'bearer-x', planned.id);
+
+    const input = createOutreachRecord.mock.calls[0]![1] as { title: string; body?: string | null };
+    // The deterministic placeholder body wins (sections.length === 0) — the title
+    // must fall back to node.title in lockstep, never staying the AI-refined title.
+    expect(input.title).toBe('Meet with Rep. Doe');
+    expect(input.body).toBeNull();
+  });
+
+  it('flattened outreach body inserts a space where an inline tag (e.g. <a>) is stripped, instead of jamming adjacent words together', async () => {
+    const store = makeStore();
+    seedStrategy(store);
+    seedMission(store);
+    seedNode(store, { id: NID, subject: 'member', title: 'Meet with Rep. Doe' });
+    const doc = {
+      title: null,
+      summary: 's',
+      sections: [
+        {
+          heading: 'Opening',
+          html: '<p>Please see<a href="https://x.com">this report</a>for details.</p>',
+        },
+      ],
+      model: 'claude-sonnet-5',
+    };
+    const { svc, createOutreachRecord } = makeService(store, { draftExecutionDocument: doc });
+
+    const planned = await svc.plan(T, U, 'bearer-x', outreachPlan());
+    await svc.execute(T, U, 'bearer-x', planned.id);
+
+    const input = createOutreachRecord.mock.calls[0]![1] as { body?: string | null };
+    // Words that were only separated by the (now-stripped) <a> tag must stay
+    // space-separated — not jammed into "seethis" / "reportfor".
+    expect(input.body).toContain('Please see this report for details.');
+    expect(input.body).not.toContain('seethis');
+    expect(input.body).not.toContain('reportfor');
+  });
+
+  it('falls back to the deterministic shell when draftExecutionDocument fails soft — the send token still hashes what was ACTUALLY staged', async () => {
+    const store = makeStore();
+    seedStrategy(store);
+    seedMission(store);
+    seedNode(store, { id: NID, subject: 'member', title: 'Meet with Rep. Doe' });
+    const { svc, createOutreachRecord } = makeService(store, { draftExecutionDocument: null });
+
+    const planned = await svc.plan(T, U, 'bearer-x', outreachPlan());
+    const parked = await svc.execute(T, U, 'bearer-x', planned.id);
+
+    const input = createOutreachRecord.mock.calls[0]![1] as { body?: string | null };
+    expect(input.body).toBeNull();
+    const sa = (parked.findings as { sendApproval: Rec }).sendApproval;
+    const saInput = sa.input as { message: string };
+    expect(saInput.message).toBe('Outreach regarding: Meet with Rep. Doe');
   });
 
   it('BLOCKS the outreach on a client do-not-contact constraint (client_approved fact) — nothing staged', async () => {

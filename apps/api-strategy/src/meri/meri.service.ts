@@ -22,7 +22,13 @@ import { StewardService } from '../context/steward.service.js';
 import { StrategyAiCredentialResolver } from './strategy-ai-credential.resolver.js';
 import { StrategyAttachmentResolver } from './strategy-attachment.resolver.js';
 import { StrategyOrchestratorClient } from './strategy-orchestrator.client.js';
-import type { DraftNode, PlanEdit, StewardFactLine, StewardHealth } from './meri.types.js';
+import type {
+  DraftNode,
+  NodeDocumentDraftResponse,
+  PlanEdit,
+  StewardFactLine,
+  StewardHealth,
+} from './meri.types.js';
 import type { AssistantDto, DraftStrategyDto, ReferenceAssistDto } from './dto/meri.dto.js';
 
 type Tx = Prisma.TransactionClient;
@@ -630,6 +636,75 @@ export class MeriService {
         `steward context unavailable; drafting without it: ${(err as Error).message}`,
       );
       return MeriService.STEWARD_CONTEXT_FALLBACK;
+    }
+  }
+
+  /**
+   * Stage-G grounded content generation: draft the FULL body of one Execution
+   * Agent artifact (a Workspace document or an Outreach message) for a single
+   * plan node, via the orchestrator's strategy-document-draft endpoint. Reuses
+   * the exact grounding assembly (fiscal/firm-phases/reference + Steward
+   * facts/health) the draft()/assistant() paths already build — the caller
+   * (ExecutionService) passes it in pre-computed rather than this method
+   * re-fetching it, since the caller already fetched it for its own G0 gate.
+   *
+   * Fails SOFT (mirrors stewardContext/StrategyAttachmentResolver): ANY error —
+   * missing clientId, orchestrator unavailable, malformed response — returns
+   * `null` so the caller falls back to the deterministic placeholder. This is
+   * read-only prompt content for an artifact body, never part of a run's
+   * state/eligibility decision, so it must never fail the run.
+   *
+   * `tenantId` then `bearer` — BOTH are plain strings, so a swapped call site
+   * would NOT be caught by tsc; it would silently auth-fail against the
+   * orchestrator (wrong bearer) and permanently fall back to the placeholder.
+   * Keep this order at every call site.
+   */
+  async draftExecutionDocument(
+    tenantId: string,
+    bearer: string,
+    input: {
+      kind: 'workspace_draft' | 'outreach_record';
+      clientId: string | null;
+      strategyType: string;
+      goal: string | null;
+      node: {
+        id: string;
+        kind: string;
+        subject: string;
+        title: string;
+        note: string | null;
+        startsOn: string | null;
+        endsOn: string | null;
+      };
+      grounding: Grounding;
+      stewardFacts: StewardFactLine[];
+      stewardHealth: StewardHealth;
+    },
+  ): Promise<NodeDocumentDraftResponse | null> {
+    // The pack + prompt are client-anchored — a client-less node (workspace
+    // nodes, unlike outreach, don't require one) never reaches the orchestrator;
+    // skip straight to the caller's placeholder rather than forwarding an
+    // ungroundable request.
+    if (!input.clientId) return null;
+    try {
+      const aiProvider = await this.resolver.resolve(tenantId);
+      const body = {
+        clientId: input.clientId,
+        kind: input.kind,
+        type: input.strategyType,
+        goal: input.goal,
+        node: input.node,
+        ...input.grounding,
+        stewardFacts: input.stewardFacts,
+        stewardHealth: input.stewardHealth,
+        attachments: [],
+      };
+      return await this.orchestrator.nodeDocumentDraft(body, bearer, aiProvider);
+    } catch (err) {
+      this.logger.warn(
+        `execution document draft unavailable (${input.kind}); staging the deterministic placeholder: ${(err as Error).message}`,
+      );
+      return null;
     }
   }
 

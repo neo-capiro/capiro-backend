@@ -53,8 +53,12 @@ export interface CreateWorkspaceDraftInput {
   /** Workspace expects the client NAME string (G-core resolves it from clients). */
   clientName: string;
   product: string;
-  /** HTML seeded into the draft's first config section. */
-  sectionHtml: string;
+  /**
+   * Ordered heading -> sanitized HTML map seeded into the draft's config.
+   * Stage-G grounded generation: multiple sections (deterministic fallback:
+   * a single 'Background' entry — same shape either way).
+   */
+  sections: Record<string, string>;
 }
 
 export interface CreateOutreachRecordInput {
@@ -62,6 +66,9 @@ export interface CreateOutreachRecordInput {
   subject: string;
   /** Outreach expects the client ID (unlike workspace, which takes the name). */
   clientId: string;
+  /** Stage-G grounded generation: the full campaign message body (plain text,
+   *  already flattened + sanitized). Omitted/null on the deterministic path. */
+  body?: string | null;
   metadata?: Record<string, unknown>;
 }
 
@@ -86,11 +93,15 @@ export class ExecutionArtifactClient {
   }
 
   /**
-   * Stage a Workspace WsDraft — mirrors the web's two-call sequence EXACTLY:
+   * Stage a Workspace WsDraft — mirrors the web's two-call sequence:
    *  1) POST /workspace-api/drafts {docTitle, client: clientName, product}
-   *  2) PATCH /workspace-api/drafts/:id {config:{sectionContent:{[section]: html}}}
-   * where `section` is the created draft's first config section (fallback
-   * 'Background'). Returns the draft id as {ref}.
+   *  2) PATCH /workspace-api/drafts/:id {config:{sections: [...], sectionContent: {...}}}
+   * The PATCH now writes the FULL ordered heading list (`config.sections`) plus
+   * every heading's HTML (`config.sectionContent`) — a multi-section grounded
+   * draft needs every heading rendered, not just the created draft's first
+   * default section. The deterministic fallback still ships as a single
+   * `{'Background': html}` entry, so a caller passing one section behaves
+   * exactly as the prior single-section PATCH did. Returns the draft id as {ref}.
    */
   async createWorkspaceDraft(
     bearer: string | undefined,
@@ -117,25 +128,22 @@ export class ExecutionArtifactClient {
       },
       'workspace draft create',
     );
-    const created = await this.parseJson<{ id?: unknown; config?: { sections?: unknown } }>(
-      createRes,
-      'workspace draft create',
-    );
+    const created = await this.parseJson<{ id?: unknown }>(createRes, 'workspace draft create');
     const id = typeof created.id === 'string' && created.id ? created.id : '';
     if (!id) {
       throw new ExecutionArtifactError('malformed', 'workspace draft create returned no id');
     }
 
-    const sections = Array.isArray(created.config?.sections) ? created.config.sections : [];
-    const first = sections[0];
-    const section = typeof first === 'string' && first ? first : DEFAULT_WORKSPACE_SECTION;
+    const headingList = Object.keys(input.sections);
+    const sections = headingList.length ? headingList : [DEFAULT_WORKSPACE_SECTION];
+    const sectionContent = headingList.length ? input.sections : { [DEFAULT_WORKSPACE_SECTION]: '' };
 
     await this.doFetch(
       `${this.apiBaseUrl}/workspace-api/drafts/${encodeURIComponent(id)}`,
       {
         method: 'PATCH',
         headers,
-        body: JSON.stringify({ config: { sectionContent: { [section]: input.sectionHtml } } }),
+        body: JSON.stringify({ config: { sections, sectionContent } }),
       },
       'workspace draft section patch',
     );
@@ -171,6 +179,7 @@ export class ExecutionArtifactClient {
           title: input.title.slice(0, OUTREACH_TITLE_MAX),
           subject: input.subject,
           clientId: input.clientId,
+          ...(input.body ? { body: input.body } : {}),
           metadata: input.metadata ?? {},
         }),
       },

@@ -9,6 +9,7 @@ import { parseAiProviderHeader } from '../meri.controller.js';
 import { StrategyAssistantService } from './strategy-assistant.service.js';
 import type {
   StrategyAssistantInput,
+  StrategyDocumentDraftInput,
   StrategyDraftInput,
   StrategyReferenceAssistInput,
 } from './strategy-prompt.js';
@@ -47,6 +48,23 @@ export class StrategyController {
   ) {
     const ctx = await this.resolver.resolve(tc, dto.clientId);
     return this.scoped(req, () => this.assistant.assistant(ctx, dto));
+  }
+
+  /**
+   * Stage-G grounded content generation: draft the full body of one
+   * Execution Agent artifact (workspace document or outreach message) for a
+   * single plan node. Called server-to-server by api-strategy's
+   * ExecutionService — same TenantGuard + credential-forwarding shape as
+   * the other strategy routes.
+   */
+  @Post('strategy-document-draft')
+  async documentDraft(
+    @Body() dto: StrategyDocumentDraftInput,
+    @CurrentTenant() tc: OrchestratorTenantContext,
+    @Req() req: Request,
+  ) {
+    const ctx = await this.resolver.resolve(tc, dto.clientId);
+    return this.scoped(req, () => this.assistant.draftDocument(ctx, dto));
   }
 
   @Post('strategy-reference-assist')

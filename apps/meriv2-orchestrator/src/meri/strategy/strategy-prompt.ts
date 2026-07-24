@@ -140,6 +140,44 @@ export interface StrategyReferenceAssistInput {
   fiscal?: FiscalGrounding;
 }
 
+/** The plan node the Execution Agent is staging a deliverable/message for. */
+export interface DocumentDraftNode {
+  id: string;
+  kind: string;
+  subject: string;
+  title: string;
+  note?: string | null;
+  startsOn?: string | null;
+  endsOn?: string | null;
+}
+
+/**
+ * Stage-G grounded content generation: draft the FULL body of one Execution
+ * Agent artifact for a single plan node — a multi-section Workspace document
+ * ('workspace_draft') or a complete Outreach campaign message
+ * ('outreach_record') — grounded in the same fiscal/reference Grounding pack +
+ * client Context Pack + Steward facts the draft()/assistant() paths already
+ * assemble. `goal` is the strategy's own goal (the main steering signal,
+ * mirrored from StrategyDraftInput.goal — api-strategy MUST forward it).
+ */
+export interface StrategyDocumentDraftInput {
+  /** ALWAYS a real client id — api-strategy skips generation entirely (falls
+   *  back to the deterministic placeholder) for a client-less workspace node
+   *  rather than ever forwarding null/empty here (the pack + prompt are
+   *  client-anchored). */
+  clientId: string;
+  kind: 'workspace_draft' | 'outreach_record';
+  type: string;
+  goal?: string | null;
+  node: DocumentDraftNode;
+  fiscal?: FiscalGrounding;
+  firmPhases?: FirmPhaseRow[];
+  reference?: ReferenceGrounding;
+  stewardFacts?: StewardFactLite[];
+  stewardHealth?: StewardHealth;
+  attachments?: StrategyAttachment[];
+}
+
 // ---- terminal tools ----
 
 const NODE_PROPS = {
@@ -253,6 +291,51 @@ export const PROPOSE_REFERENCE_EDITS_TOOL = {
   },
 } as const;
 
+/**
+ * Stage-G document/message body draft. ONE shape covers both artifact kinds —
+ * the system prompt (buildDocumentDraftSystemPrompt) instructs the model to
+ * write a full multi-section DOCUMENT for 'workspace_draft' or a single
+ * cohesive MESSAGE (sections are its paragraphs/subheads) for
+ * 'outreach_record'; api-strategy maps `sections` onto
+ * config.sectionContent (workspace) or flattens them into OutreachRecord.body
+ * (outreach). `html` is a first-pass allowlist (h2/h3/p/ul/ol/li/strong/em/a);
+ * api-strategy re-sanitizes authoritatively before persisting (sanitizeSectionHtml).
+ */
+export const PROPOSE_DOCUMENT_DRAFT_TOOL = {
+  name: 'propose_document_draft',
+  description:
+    'Return the drafted deliverable: a 1-2 sentence internal summary and the ordered body sections. For a workspace_draft, write a complete multi-section document. For an outreach_record, write one cohesive campaign message — split it into sections (e.g. opening, key points, ask, close) rather than one giant block. Ground every section in the context provided; do not invent client facts. Cite what grounded each section in that section\'s sources.',
+  strict: true,
+  input_schema: {
+    type: 'object',
+    additionalProperties: false,
+    properties: {
+      summary: { type: 'string', description: 'A 1-2 sentence internal summary of the drafted deliverable.' },
+      title: { type: 'string', description: 'Optional refined title/subject for the deliverable.' },
+      sections: {
+        type: 'array',
+        description:
+          'Ordered body sections. For a workspace document each becomes a config.sectionContent entry; for an outreach message they are concatenated into the campaign body.',
+        items: {
+          type: 'object',
+          additionalProperties: false,
+          properties: {
+            heading: { type: 'string' },
+            html: {
+              type: 'string',
+              description:
+                'HTML fragment restricted to <h2>/<h3>/<p>/<ul>/<ol>/<li>/<strong>/<em>/<a>. No scripts, styles, or event handlers.',
+            },
+            sources: NODE_PROPS.sources,
+          },
+          required: ['heading', 'html'],
+        },
+      },
+    },
+    required: ['summary', 'sections'],
+  },
+} as const;
+
 // ---- sanitizers (first pass; api-strategy re-validates authoritatively) ----
 
 const str = (v: unknown): string | undefined => (typeof v === 'string' && v.trim() ? v.trim() : undefined);
@@ -347,6 +430,61 @@ export function sanitizePlanEdits(raw: unknown): Array<Record<string, unknown>> 
 export function sanitizeRefRows(raw: unknown): Array<Record<string, unknown>> {
   if (!Array.isArray(raw)) return [];
   return raw.filter((r): r is Record<string, unknown> => !!r && typeof r === 'object').slice(0, 60);
+}
+
+/** Stage-G doc-draft section shape (post-sanitize). */
+export interface DocumentDraftSection {
+  heading: string;
+  html: string;
+  sources?: Array<{ section: string; ref?: string }>;
+}
+
+const DOC_SECTION_MAX_COUNT = 12;
+const DOC_SECTION_HTML_MAX_CHARS = 8_000;
+/** First-pass best-effort allowlist — api-strategy's sanitizeSectionHtml is
+ *  authoritative; this only trims the obviously-disallowed before it ever
+ *  leaves the orchestrator. */
+const DOC_ALLOWED_TAG_RE = /<\/?(?!h2\b|h3\b|p\b|ul\b|ol\b|li\b|strong\b|em\b|a\b)[a-zA-Z][^>]*>/g;
+const DOC_SCRIPT_STYLE_RE = /<(script|style)[^>]*>[\s\S]*?<\/\1>/gi;
+const DOC_EVENT_ATTR_RE = /\son\w+\s*=\s*(?:"[^"]*"|'[^']*'|[^\s>]+)/gi;
+
+function firstPassAllowlist(html: string): string {
+  return html
+    .replace(DOC_SCRIPT_STYLE_RE, '')
+    .replace(DOC_ALLOWED_TAG_RE, '')
+    .replace(DOC_EVENT_ATTR_RE, '');
+}
+
+/**
+ * Stage-G first-pass sanitizer for propose_document_draft's `sections`: coerce
+ * to array, drop entries with no heading/html, cap section count and
+ * per-section HTML length (a truncated section is still usable — never an
+ * arbitrary tail-drop across sections since order is preserved), and
+ * best-effort strip disallowed tags/scripts/event handlers. api-strategy's
+ * sanitizeSectionHtml is the AUTHORITATIVE allowlist before persistence.
+ */
+interface DraftDocumentSectionCandidate {
+  heading?: string;
+  html?: string;
+  sources?: Array<{ section: string; ref?: string }>;
+}
+
+export function sanitizeDocumentSections(raw: unknown): DocumentDraftSection[] {
+  if (!Array.isArray(raw)) return [];
+  const candidates: DraftDocumentSectionCandidate[] = raw
+    .filter((s): s is Record<string, unknown> => !!s && typeof s === 'object')
+    .map((s) => ({
+      heading: str(s.heading),
+      html: typeof s.html === 'string' ? firstPassAllowlist(s.html).slice(0, DOC_SECTION_HTML_MAX_CHARS) : undefined,
+      sources: sanitizeSources(s.sources),
+    }));
+  const out: DocumentDraftSection[] = [];
+  for (const c of candidates) {
+    if (c.heading && c.html && c.html.trim().length > 0) {
+      out.push({ heading: c.heading, html: c.html, sources: c.sources });
+    }
+  }
+  return out.slice(0, DOC_SECTION_MAX_COUNT);
 }
 
 // ---- grounding + prompt builders ----
@@ -525,4 +663,51 @@ export function buildReferenceSystemPrompt(input: StrategyReferenceAssistInput):
     `# Current rows (JSON)\n${JSON.stringify(input.rows).slice(0, 8000)}`,
     '# How to answer\nCall propose_reference_edits with the FULL edited row set (preserve rows you are not changing) and a short reply.',
   ].join('\n\n');
+}
+
+function renderDocumentNode(n: DocumentDraftNode): string {
+  const dates = n.startsOn ? `${n.startsOn}${n.endsOn ? `–${n.endsOn}` : ''}` : '(no date set)';
+  return [
+    `- [${n.id}] ${n.kind}/${n.subject} · "${n.title}" · ${dates}`,
+    n.note ? `  Note: ${n.note}` : '',
+  ]
+    .filter(Boolean)
+    .join('\n');
+}
+
+/**
+ * Stage-G grounded generation for the Execution Agent (Task a1/a2). Branches
+ * on `input.kind`: a workspace_draft gets "write a document" framing, an
+ * outreach_record gets "write one cohesive campaign message" framing — the
+ * terminal tool shape (propose_document_draft) is identical either way.
+ */
+export function buildDocumentDraftSystemPrompt(
+  input: StrategyDocumentDraftInput,
+  packText: string,
+  healthNote?: string,
+): string {
+  const isWorkspace = input.kind === 'workspace_draft';
+  const deliverableNote = isWorkspace
+    ? 'You are drafting a full internal WORKSPACE DOCUMENT (a white paper / strategy memo) for this step. Write complete, substantive sections — this is a real first draft, not an outline.'
+    : 'You are drafting a full OUTREACH CAMPAIGN MESSAGE for this step — the message that will eventually go to the counterparty named by this step. Write it as a cohesive message (opening, key points, the ask, a close), split into sections. This message is STAGED ONLY — it will never be sent by you or as a result of this call.';
+  return [
+    PERSONA,
+    MERI_GROUNDING_INVARIANT,
+    `# Deliverable\n${deliverableNote}`,
+    `# Objective type\n${input.type}`,
+    input.goal ? `# Strategy goal\n${input.goal}` : '# Strategy goal\n(none stated)',
+    `# The step this deliverable is for\n${renderDocumentNode(input.node)}`,
+    `# Fiscal calendar\n${renderFiscal(input.fiscal)}`,
+    `# Firm phases\n${renderFirmPhases(input.firmPhases)}`,
+    `# Reference calendars\n${renderReference(input.reference)}`,
+    `# Client context\n${packText}`,
+    stewardFactsSection(input.stewardFacts),
+    healthNote ? `# Grounding health\n${healthNote}` : '',
+    input.attachments?.length
+      ? `# Attached documents (user-provided grounding)\n${renderAttachments(input.attachments)}`
+      : '',
+    '# How to answer\nCall propose_document_draft with a 1-2 sentence internal summary and the ordered body sections. Ground every section in the context above; do not invent client facts. Cite what grounded each section in that section\'s `sources`.',
+  ]
+    .filter(Boolean)
+    .join('\n\n');
 }

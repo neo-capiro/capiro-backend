@@ -88,7 +88,7 @@ describe('createWorkspaceDraft', () => {
       docTitle: 'Q3 posture memo',
       clientName: 'Acme Defense',
       product: 'Strategy memo',
-      sectionHtml: '<p>context</p>',
+      sections: { Analysis: '<p>context</p>', Background: '<p>more</p>' },
     });
 
     expect(result).toEqual({ ref: 'draft-1' });
@@ -106,17 +106,22 @@ describe('createWorkspaceDraft', () => {
     expect(nthCall(0).headers['x-internal-service-secret']).toBe(SECRET);
     expect(nthCall(0).headers['content-type']).toBe('application/json');
 
-    // (2) PATCH /workspace-api/drafts/:id { config: { sectionContent: { [firstSection]: html } } }
+    // (2) PATCH /workspace-api/drafts/:id { config: { sections: [...], sectionContent: {...} } }
+    // — the FULL ordered heading list + every heading's HTML (a multi-section
+    // grounded draft needs every heading rendered, not just one default section).
     expect(nthCall(1).method).toBe('PATCH');
     expect(nthCall(1).url).toBe(`${BASE}/workspace-api/drafts/draft-1`);
     expect(nthCall(1).body).toEqual({
-      config: { sectionContent: { Analysis: '<p>context</p>' } },
+      config: {
+        sections: ['Analysis', 'Background'],
+        sectionContent: { Analysis: '<p>context</p>', Background: '<p>more</p>' },
+      },
     });
     expect(nthCall(1).headers.authorization).toBe(`Bearer ${BEARER}`);
     expect(nthCall(1).headers['x-internal-service-secret']).toBe(SECRET);
   });
 
-  it("falls back to the 'Background' section when the draft has no sections", async () => {
+  it("falls back to a single 'Background' section when the caller passes an empty section map", async () => {
     fetchMock.mockImplementation((url: unknown, init: unknown) => {
       calls.push(recordCall(url, init));
       if (String(url).endsWith('/workspace-api/drafts')) {
@@ -130,11 +135,13 @@ describe('createWorkspaceDraft', () => {
       docTitle: 'T',
       clientName: 'C',
       product: 'White paper',
-      sectionHtml: '<p>x</p>',
+      sections: {},
     });
 
     expect(nthCall(1).url).toBe(`${BASE}/workspace-api/drafts/draft-2`);
-    expect(nthCall(1).body).toEqual({ config: { sectionContent: { Background: '<p>x</p>' } } });
+    expect(nthCall(1).body).toEqual({
+      config: { sections: ['Background'], sectionContent: { Background: '' } },
+    });
   });
 
   it('does not send x-internal-service-secret when it is not configured', async () => {
@@ -151,7 +158,7 @@ describe('createWorkspaceDraft', () => {
       docTitle: 'T',
       clientName: 'C',
       product: 'P',
-      sectionHtml: '<p/>',
+      sections: { Background: '<p/>' },
     });
     expect(nthCall(0).headers['x-internal-service-secret']).toBeUndefined();
     expect(nthCall(0).headers.authorization).toBe(`Bearer ${BEARER}`);
@@ -164,7 +171,7 @@ describe('createWorkspaceDraft', () => {
         docTitle: 'T',
         clientName: 'C',
         product: 'P',
-        sectionHtml: '<p/>',
+        sections: { Background: '<p/>' },
       }),
     ).rejects.toMatchObject({ name: 'ExecutionArtifactError', kind: 'missing_bearer' });
     expect(fetchMock).not.toHaveBeenCalled();
@@ -178,7 +185,7 @@ describe('createWorkspaceDraft', () => {
         docTitle: 'T',
         clientName: 'C',
         product: 'P',
-        sectionHtml: '<p/>',
+        sections: { Background: '<p/>' },
       }),
     ).rejects.toMatchObject({ name: 'ExecutionArtifactError', kind: 'malformed' });
     // No PATCH attempted after a malformed create.
@@ -189,7 +196,7 @@ describe('createWorkspaceDraft', () => {
     fetchMock.mockResolvedValue(jsonResponse({}, { status: 502 }) as never);
     const client = new ExecutionArtifactClient(makeConfig());
     const err = await client
-      .createWorkspaceDraft(BEARER, { docTitle: 'T', clientName: 'C', product: 'P', sectionHtml: '<p/>' })
+      .createWorkspaceDraft(BEARER, { docTitle: 'T', clientName: 'C', product: 'P', sections: { Background: '<p/>' } })
       .catch((e: unknown) => e);
     expect(err).toBeInstanceOf(ExecutionArtifactError);
     expect((err as ExecutionArtifactError).kind).toBe('upstream');
@@ -204,7 +211,7 @@ describe('createWorkspaceDraft', () => {
     });
     const client = new ExecutionArtifactClient(makeConfig());
     await expect(
-      client.createWorkspaceDraft(BEARER, { docTitle: 'T', clientName: 'C', product: 'P', sectionHtml: '<p/>' }),
+      client.createWorkspaceDraft(BEARER, { docTitle: 'T', clientName: 'C', product: 'P', sections: { Background: '<p/>' } }),
     ).rejects.toMatchObject({ name: 'ExecutionArtifactError', kind: 'timeout' });
   });
 });
@@ -267,7 +274,7 @@ describe('safety boundary — only creation endpoints are ever hit', () => {
     });
 
     const client = new ExecutionArtifactClient(makeConfig());
-    await client.createWorkspaceDraft(BEARER, { docTitle: 'T', clientName: 'C', product: 'P', sectionHtml: '<p/>' });
+    await client.createWorkspaceDraft(BEARER, { docTitle: 'T', clientName: 'C', product: 'P', sections: { Background: '<p/>' } });
     await client.createOutreachRecord(BEARER, { title: 'T', subject: 'S', clientId: 'c', metadata: {} });
 
     const allowedPaths = new Set([

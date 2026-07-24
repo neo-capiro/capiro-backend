@@ -670,6 +670,8 @@ function normalizeExecutionTask(
     artifactRef: str(result?.artifactRef) ?? str(v.artifactRef) ?? str(v.ref),
     blockedReason: str(result?.reason) ?? str(v.blockedReason),
     send,
+    model: str(result?.model) ?? null,
+    groundedFactCount: typeof result?.groundedFactCount === 'number' ? result.groundedFactCount : null,
   };
 }
 

@@ -629,6 +629,11 @@ export interface ExecutionTask {
   blockedReason: string | null;
   /** Present only for await_send_approval tasks. */
   send: SendApprovalPreview | null;
+  /** Stage-G grounded generation provenance — set only when the Execution
+   *  Agent actually generated content for this task (absent on the
+   *  deterministic-placeholder path, e.g. a Steward/orchestrator hiccup). */
+  model: string | null;
+  groundedFactCount: number | null;
 }
 
 /** sp_agent_run projected for the Execution surface (findings carry the tasks). */

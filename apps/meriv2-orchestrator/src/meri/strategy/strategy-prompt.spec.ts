@@ -1,12 +1,15 @@
 import {
   STEWARD_FACTS_SECTION,
   buildAssistantSystemPrompt,
+  buildDocumentDraftSystemPrompt,
   buildDraftSystemPrompt,
   renderStewardFacts,
+  sanitizeDocumentSections,
   sanitizeDraftNodes,
   sanitizePlanEdits,
   type StewardFactLite,
   type StrategyAssistantInput,
+  type StrategyDocumentDraftInput,
   type StrategyDraftInput,
 } from './strategy-prompt.js';
 
@@ -326,5 +329,113 @@ describe('strategy-prompt — Steward facts section (Stage E)', () => {
     const rendered = renderStewardFacts(many);
     // 200 facts × ~230 chars ≫ the cap; the render must be truncated well below the raw size.
     expect(rendered.length).toBeLessThanOrEqual(2000 * 4);
+  });
+});
+
+/*
+ * Stage-G grounded content generation: sanitizeDocumentSections is the
+ * orchestrator's FIRST-PASS sanitizer for propose_document_draft's `sections`
+ * (api-strategy's sanitizeSectionHtml is authoritative) — coerce to array,
+ * drop entries missing heading/html, cap section count + per-section length,
+ * and best-effort strip disallowed tags/scripts/event handlers.
+ */
+describe('sanitizeDocumentSections (Stage-G first-pass sanitizer)', () => {
+  it('keeps well-formed sections with heading, html, and sources', () => {
+    const raw = [
+      { heading: 'Background', html: '<p>Context here.</p>', sources: [{ section: 'fiscal' }] },
+      { heading: 'The Ask', html: '<p>We ask for X.</p>' },
+    ];
+    const out = sanitizeDocumentSections(raw);
+    expect(out).toEqual([
+      { heading: 'Background', html: '<p>Context here.</p>', sources: [{ section: 'fiscal' }] },
+      { heading: 'The Ask', html: '<p>We ask for X.</p>' },
+    ]);
+  });
+
+  it('drops entries with no heading, no html, or blank html', () => {
+    const raw = [
+      { heading: '', html: '<p>x</p>' },
+      { heading: 'No body', html: '' },
+      { heading: 'Whitespace only', html: '   ' },
+      { html: '<p>no heading key at all</p>' },
+      { heading: 'Keeper', html: '<p>survives</p>' },
+    ];
+    const out = sanitizeDocumentSections(raw);
+    expect(out).toEqual([{ heading: 'Keeper', html: '<p>survives</p>' }]);
+  });
+
+  it('caps section count at 12, preserving order', () => {
+    const raw = Array.from({ length: 20 }, (_, i) => ({ heading: `H${i}`, html: `<p>${i}</p>` }));
+    const out = sanitizeDocumentSections(raw);
+    expect(out).toHaveLength(12);
+    expect(out.map((s) => s.heading)).toEqual(Array.from({ length: 12 }, (_, i) => `H${i}`));
+  });
+
+  it('caps per-section HTML length', () => {
+    const raw = [{ heading: 'Huge', html: `<p>${'x'.repeat(20_000)}</p>` }];
+    const out = sanitizeDocumentSections(raw);
+    expect(out[0]!.html.length).toBeLessThanOrEqual(8_000);
+  });
+
+  it('strips script/style blocks and event-handler attributes (best-effort first pass)', () => {
+    const raw = [
+      {
+        heading: 'Malicious',
+        html: '<p onclick="steal()">safe text</p><script>alert(1)</script><style>body{}</style>',
+      },
+    ];
+    const out = sanitizeDocumentSections(raw);
+    expect(out[0]!.html).not.toContain('onclick');
+    expect(out[0]!.html).not.toContain('<script>');
+    expect(out[0]!.html).not.toContain('<style>');
+    expect(out[0]!.html).toContain('safe text');
+  });
+
+  it('strips disallowed tags but keeps their inner text', () => {
+    const raw = [{ heading: 'Div wrapper', html: '<div><p>kept</p></div>' }];
+    const out = sanitizeDocumentSections(raw);
+    expect(out[0]!.html).not.toContain('<div>');
+    expect(out[0]!.html).toContain('<p>kept</p>');
+  });
+
+  it('returns [] for a non-array input', () => {
+    expect(sanitizeDocumentSections(null)).toEqual([]);
+    expect(sanitizeDocumentSections('not an array')).toEqual([]);
+    expect(sanitizeDocumentSections(undefined)).toEqual([]);
+  });
+});
+
+describe('buildDocumentDraftSystemPrompt (Stage-G)', () => {
+  const baseInput = (over: Partial<StrategyDocumentDraftInput> = {}): StrategyDocumentDraftInput => ({
+    clientId: 'c1',
+    kind: 'workspace_draft',
+    type: 'appropriations',
+    goal: 'Win the plus-up',
+    node: { id: 'n1', kind: 'action', subject: 'deliverable', title: 'Draft testimony' },
+    ...over,
+  });
+
+  it('frames a workspace_draft as a full document to write', () => {
+    const sys = buildDocumentDraftSystemPrompt(baseInput(), '(pack)');
+    expect(sys).toContain('WORKSPACE DOCUMENT');
+    expect(sys).toContain('Draft testimony');
+    expect(sys).toContain('propose_document_draft');
+  });
+
+  it('frames an outreach_record as a staged-only campaign message, never sent', () => {
+    const sys = buildDocumentDraftSystemPrompt(baseInput({ kind: 'outreach_record' }), '(pack)');
+    expect(sys).toContain('OUTREACH CAMPAIGN MESSAGE');
+    expect(sys).toMatch(/never be sent/i);
+  });
+
+  it('includes the strategy goal as a steering signal', () => {
+    const sys = buildDocumentDraftSystemPrompt(baseInput({ goal: 'Secure the FY28 line increase' }), '(pack)');
+    expect(sys).toContain('Secure the FY28 line increase');
+  });
+
+  it('surfaces the grounding-health note when degraded', () => {
+    const sys = buildDocumentDraftSystemPrompt(baseInput(), '(pack)', 'Some context could not be loaded.');
+    expect(sys).toContain('# Grounding health');
+    expect(sys).toContain('Some context could not be loaded.');
   });
 });

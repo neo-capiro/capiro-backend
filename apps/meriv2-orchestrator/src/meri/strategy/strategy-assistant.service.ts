@@ -21,18 +21,22 @@ import {
   type Violation,
 } from '@capiro/strategy-verifier';
 import {
+  PROPOSE_DOCUMENT_DRAFT_TOOL,
   PROPOSE_PLAN_EDITS_TOOL,
   PROPOSE_REFERENCE_EDITS_TOOL,
   PROPOSE_STRATEGY_DRAFT_TOOL,
   buildAssistantSystemPrompt,
+  buildDocumentDraftSystemPrompt,
   buildDraftSystemPrompt,
   buildReferenceSystemPrompt,
+  sanitizeDocumentSections,
   sanitizeDraftNodes,
   sanitizePlanEdits,
   sanitizeRefRows,
   type ReferenceRowLite,
   type StewardHealth,
   type StrategyAssistantInput,
+  type StrategyDocumentDraftInput,
   type StrategyDraftInput,
   type StrategyReferenceAssistInput,
 } from './strategy-prompt.js';
@@ -56,6 +60,9 @@ interface ContentBlock {
 interface TerminalResult {
   input: Record<string, unknown> | null;
   text: string;
+  /** The model that actually produced `input`/`text` — undefined only when
+   *  every round (including the forced-finish attempt) failed outright. */
+  model?: string;
 }
 
 const str = (v: unknown): string | undefined =>
@@ -211,6 +218,47 @@ export class StrategyAssistantService {
     };
   }
 
+  /**
+   * Stage-G grounded content generation (Task a2): draft the FULL body of one
+   * Execution Agent artifact for a single plan node. Reuses the bounded loop
+   * verbatim (8-round cap, forced-finish, per-round metering) — no
+   * verifier/repair loop, since a document/message body has no calendar/order
+   * semantics to check. `slim: false` — a staged deliverable warrants the same
+   * full pack depth as an initial draft, not the lighter per-edit pack.
+   */
+  async draftDocument(ctx: MeriContext, input: StrategyDocumentDraftInput) {
+    const pack = await this.pack.compile({
+      ctx,
+      clientId: input.clientId,
+      query: `${input.node.title} ${input.goal ?? ''}`.trim(),
+      slim: false,
+    });
+    const system = buildDocumentDraftSystemPrompt(
+      input,
+      pack.text,
+      healthNoteFrom(pack.health, input.stewardHealth),
+    );
+    const userText =
+      input.kind === 'workspace_draft'
+        ? `Draft the full document for: ${input.node.title}`
+        : `Draft the full outreach message for: ${input.node.title}`;
+    const result = await this.runTerminal(
+      system,
+      userText,
+      PROPOSE_DOCUMENT_DRAFT_TOOL,
+      ctx,
+      'meriv2_strategy_document_draft',
+    );
+    return {
+      title: str(result.input?.title) ?? null,
+      summary: str(result.input?.summary) ?? null,
+      sections: sanitizeDocumentSections(result.input?.sections),
+      provenance: pack.provenance,
+      groundingHealth: mergeGroundingHealth(pack.health, input.stewardHealth),
+      model: result.model ?? null,
+    };
+  }
+
   async referenceAssist(ctx: MeriContext, input: StrategyReferenceAssistInput) {
     const system = buildReferenceSystemPrompt(input);
     const result = await this.runTerminal(system, input.instruction, PROPOSE_REFERENCE_EDITS_TOOL, ctx, 'meriv2_strategy_edit');
@@ -263,7 +311,7 @@ export class StrategyAssistantService {
           b.type === 'tool_use' && b.name === tool.name,
       );
       if (terminal) {
-        return { input: terminal.input ?? {}, text: lastText };
+        return { input: terminal.input ?? {}, text: lastText, model: resp.model };
       }
       // Prose-only round: nudge once to use the terminal tool, then keep going.
       messages.push({ role: 'assistant', content });
@@ -295,7 +343,7 @@ export class StrategyAssistantService {
         .map((b) => b.text as string)
         .join('\n')
         .trim();
-      if (terminal) return { input: terminal.input ?? {}, text: text || lastText };
+      if (terminal) return { input: terminal.input ?? {}, text: text || lastText, model: resp.model };
       if (text) lastText = text;
     } catch (e) {
       this.logger.warn(`strategy ${workflow} forced-finish failed: ${(e as Error).message}`);

@@ -163,3 +163,27 @@ export interface StrategyReferenceAssistResponse {
   reply?: string;
   rows: unknown[];
 }
+
+// ---------------------------------------------------------------------------
+// Stage-G grounded content: POST /meri-api/strategy-document-draft
+// ---------------------------------------------------------------------------
+
+/** One drafted body section — heading + sanitized HTML + optional provenance. */
+export interface DocumentDraftSection {
+  heading: string;
+  html: string;
+  sources?: Array<{ section: string; ref?: string }>;
+}
+
+/** The full node-scoped document/message draft the orchestrator returns. */
+export interface NodeDocumentDraftResponse {
+  title: string | null;
+  summary: string | null;
+  sections: DocumentDraftSection[];
+  provenance?: PackProvenance;
+  groundingHealth?: GroundingHealth;
+  /** The model that actually produced this draft (for provenance stamping —
+   *  NOT reliably available from the resolved AI provider on the global-key
+   *  path, so it MUST come back from the orchestrator response). */
+  model: string | null;
+}

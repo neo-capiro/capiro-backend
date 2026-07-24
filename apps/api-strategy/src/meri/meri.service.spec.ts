@@ -10,6 +10,7 @@ import type { ReferenceService } from '../reference/reference.service.js';
 import type { StewardService, StewardHealthReport } from '../context/steward.service.js';
 import type { DraftStrategyDto, AssistantDto } from './dto/meri.dto.js';
 import type { PlanEdit, StewardFactLine } from './meri.types.js';
+import type { Grounding } from './meri.service.js';
 
 /*
  * MeriService apply-pipeline tests with a STUBBED orchestrator (no LLM, no
@@ -967,5 +968,112 @@ describe('MeriService.verifyAppliedPlan (Stage C change-set A6 parity)', () => {
       .find((a) => a.action === 'plan.verified');
     expect(logged).toBeDefined();
     expect(logged!.entityId).toBe('S1');
+  });
+});
+
+/*
+ * Stage-G grounded content generation: MeriService.draftExecutionDocument is
+ * the Execution Agent's hop into the orchestrator's strategy-document-draft
+ * endpoint. It must (a) skip entirely for a client-less node (the pack is
+ * client-anchored) WITHOUT calling the orchestrator, (b) call the resolver +
+ * orchestrator with tenantId then bearer IN THAT ORDER (both are plain
+ * strings — a swap is invisible to tsc and silently auth-fails), and
+ * (c) fail SOFT to null on any error, mirroring stewardContext.
+ */
+describe('MeriService.draftExecutionDocument (Stage-G)', () => {
+  const groundingFixture: Grounding = {
+    fiscal: { today: '2027-11-01', fys: [2027, 2028, 2029], fyLabels: ['FY27', 'FY28', 'FY29'], focalFy: 'FY28' },
+    firmPhases: [],
+    reference: { congress: [], ppbeLanes: [], ppbeCurrentPhases: [] },
+  };
+  const baseInput = {
+    kind: 'workspace_draft' as const,
+    clientId: 'C1',
+    strategyType: 'appropriations',
+    goal: 'Win the plus-up',
+    node: {
+      id: 'n1',
+      kind: 'action',
+      subject: 'deliverable',
+      title: 'Draft testimony',
+      note: null,
+      startsOn: '2027-11-15',
+      endsOn: null,
+    },
+    grounding: groundingFixture,
+    stewardFacts: [] as StewardFactLine[],
+    stewardHealth: { status: 'ok' as const, missingRequired: [], openMaterialConflicts: [] },
+  };
+  const docResponse = {
+    title: 'FY28 Testimony',
+    summary: 'A grounded draft.',
+    sections: [{ heading: 'Background', html: '<p>x</p>' }],
+    model: 'claude-sonnet-5',
+  };
+
+  it('skips generation entirely (no orchestrator call) for a client-less node', async () => {
+    const store = makeStore();
+    const nodeDocumentDraft = jest.fn(async (_body: unknown, _bearer: string, _provider?: unknown) => docResponse);
+    const { svc } = makeService({ nodeDocumentDraft }, store);
+
+    const result = await svc.draftExecutionDocument(T, 'bearer-x', { ...baseInput, clientId: null });
+
+    expect(result).toBeNull();
+    expect(nodeDocumentDraft).not.toHaveBeenCalled();
+  });
+
+  it('calls the credential resolver with tenantId, and the orchestrator with (body, bearer, provider) — arg-order guard', async () => {
+    const store = makeStore();
+    const nodeDocumentDraft = jest.fn(async (_body: unknown, _bearer: string, _provider?: unknown) => docResponse);
+    const { svc } = makeService({ nodeDocumentDraft }, store);
+
+    // tenantId then bearer, exactly matching the method's own signature — a
+    // swapped call site would still typecheck (both are `string`) but this
+    // pins the CORRECT order so a regression fails a test, not just prod.
+    const result = await svc.draftExecutionDocument(T, 'bearer-x', baseInput);
+
+    expect(result).toEqual(docResponse);
+    expect(nodeDocumentDraft).toHaveBeenCalledTimes(1);
+    const [body, bearerArg] = nodeDocumentDraft.mock.calls[0]!;
+    expect(bearerArg).toBe('bearer-x');
+    expect((body as { clientId: string }).clientId).toBe('C1');
+  });
+
+  it('forwards goal, grounding, node, stewardFacts and stewardHealth in the request body', async () => {
+    const store = makeStore();
+    const nodeDocumentDraft = jest.fn(async (_body: unknown, _bearer: string, _provider?: unknown) => docResponse);
+    const { svc } = makeService({ nodeDocumentDraft }, store);
+    const stewardFacts: StewardFactLine[] = [
+      {
+        id: 'f1',
+        fact: 'The client cannot lobby DoD directly.',
+        sourceRef: 'heading:Constraints',
+        documentTitle: 'Client constraints',
+        templateKey: '02_client_constraints',
+        authority: 'client_approved',
+        asOf: '2026-07-01',
+      },
+    ];
+
+    await svc.draftExecutionDocument(T, 'bearer-x', { ...baseInput, stewardFacts });
+
+    const body = nodeDocumentDraft.mock.calls[0]![0] as Record<string, unknown>;
+    expect(body.goal).toBe('Win the plus-up');
+    expect(body.kind).toBe('workspace_draft');
+    expect(body.node).toEqual(baseInput.node);
+    expect(body.stewardFacts).toEqual(stewardFacts);
+    expect(body.fiscal).toEqual(groundingFixture.fiscal);
+  });
+
+  it('fails soft to null (never throws) when the orchestrator hop rejects', async () => {
+    const store = makeStore();
+    const nodeDocumentDraft = jest.fn(async () => {
+      throw new Error('orchestrator unavailable');
+    });
+    const { svc } = makeService({ nodeDocumentDraft }, store);
+
+    const result = await svc.draftExecutionDocument(T, 'bearer-x', baseInput);
+
+    expect(result).toBeNull();
   });
 });

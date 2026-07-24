@@ -589,7 +589,10 @@ function makeExecEnv(store: Store) {
     reference: { congress: [], ppbeLanes: [], ppbeCurrentPhases: [] },
   };
   const grounding = jest.fn(async (_t: string) => groundingValue);
-  const meri = { grounding } as unknown as MeriService;
+  // Stage-G: defaults to null (deterministic fallback) — matches this spec's
+  // fixed expectations on the placeholder path.
+  const draftExecutionDocument = jest.fn(async (_t: string, _b: string, _i: unknown) => null);
+  const meri = { grounding, draftExecutionDocument } as unknown as MeriService;
   const health = jest.fn(async (_t: string, _c: string | null) => ({
     status: 'ok' as const,
     factCounts: { active: 0, superseded: 0, stale: 0, rejected: 0 },
@@ -598,7 +601,8 @@ function makeExecEnv(store: Store) {
     staleDocs: [],
     missingRequired: [],
   }));
-  const steward = { health } as unknown as StewardServiceType;
+  const factsForOrchestrator = jest.fn(async (_t: string, _c: string | null) => []);
+  const steward = { health, factsForOrchestrator } as unknown as StewardServiceType;
   const isAgenticFlagEnabled = jest.fn(async (_t: string, _flag: string) => true);
   const flags = { isAgenticFlagEnabled } as unknown as FlagsType;
   const createWorkspaceDraft = jest.fn(async (_b: string | undefined, _i: unknown) => ({

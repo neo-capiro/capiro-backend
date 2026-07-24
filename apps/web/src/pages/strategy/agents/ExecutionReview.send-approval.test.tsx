@@ -66,6 +66,8 @@ const sendApprovalRun: ExecutionRun = {
       status: 'awaiting_approval',
       artifactRef: 'outreach-1',
       blockedReason: null,
+      model: null,
+      groundedFactCount: null,
       send: {
         subject: 'Please co-sign our FY27 appropriations letter',
         body: 'Dear office,\n\nWe would value your support…',
@@ -101,6 +103,8 @@ const readyRun: ExecutionRun = {
       status: 'planned',
       artifactRef: null,
       blockedReason: null,
+      model: null,
+      groundedFactCount: null,
       send: null,
     },
   ],

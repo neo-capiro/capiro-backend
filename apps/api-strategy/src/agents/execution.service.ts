@@ -12,6 +12,12 @@ import { PrismaService } from '../prisma/prisma.service.js';
 import { VersioningService } from '../strategy/versioning.service.js';
 import { isoDate } from '../strategy/versioning.js';
 import { MeriService, type Grounding } from '../meri/meri.service.js';
+import type {
+  DocumentDraftSection,
+  NodeDocumentDraftResponse,
+  StewardFactLine,
+  StewardHealth,
+} from '../meri/meri.types.js';
 import { StewardService } from '../context/steward.service.js';
 import { AGENTIC_FLAGS, StrategyFlagsService } from '../flags/strategy-flags.service.js';
 import { RunsService } from './runs.service.js';
@@ -61,12 +67,23 @@ const DO_NOT_CONTACT_RE = new RegExp(DO_NOT_CONTACT_PHRASES.join('|'), 'i');
 export const PENDING_ARTIFACT_REF = '__staging_pending__';
 
 /**
+ * Internal control-flow signal ONLY — thrown inside reserveArtifact's own
+ * transaction (never escapes the try/catch there) when a row for (nodeId,
+ * artifactType) already exists — real ref or sentinel — by the time that
+ * transaction runs, so the CREATE must not proceed. See reserveArtifact.
+ */
+const ARTIFACT_ALREADY_PRESENT = Symbol('artifact-already-present');
+
+/**
  * Reason a run parks when a retry finds a surviving write-ahead reservation: the
  * external artifact may already exist upstream but was never linked, so it needs a
  * human/Stage-H reconciliation before any further attempt (never a duplicate hop).
  */
 const STAGING_INCOMPLETE_REASON =
   'artifact staging incomplete — an external artifact may exist upstream but was not linked; reconcile before retrying';
+
+/** Stage-G grounded generation prompt/tool-spec version, for metrics/audit provenance. */
+const EXECUTION_DOC_PROMPT_SPEC = 'execution-document-draft@v1';
 
 /** The Execution-Agent's persisted intent, stored on run.findings.execution. */
 interface ExecutionMeta {
@@ -90,6 +107,7 @@ interface NodeRow {
   kind: string;
   subject: string;
   title: string;
+  note: string | null;
   ownerUserId: string | null;
   status: string;
   startsOn: Date | string | null;
@@ -278,10 +296,23 @@ export class ExecutionService {
     strategy: StrategyRow,
     targetNode: NodeRow,
     headVersionId: string | null,
-  ): Promise<{ g0: Record<string, unknown>; blockReason: string | null }> {
+  ): Promise<{
+    g0: Record<string, unknown>;
+    blockReason: string | null;
+    grounding: Grounding;
+    stewardHealth: StewardHealth;
+  }> {
     const ground = await this.meri.grounding(tenantId);
     const health = await this.steward.health(tenantId, strategy.clientId);
     const openMaterialConflicts = health.openMaterialConflicts.length;
+    // The wire-shape subset MeriService.stewardContext forwards to the
+    // orchestrator (Stage-G document-draft reuses the SAME shape) — narrowed
+    // from the richer StewardHealthReport (factCounts/staleDocs are internal).
+    const stewardHealth: StewardHealth = {
+      status: health.status,
+      missingRequired: health.missingRequired,
+      openMaterialConflicts: health.openMaterialConflicts,
+    };
 
     const versionDrift =
       meta.pinnedVersionId != null && headVersionId !== meta.pinnedVersionId;
@@ -329,7 +360,7 @@ export class ExecutionService {
             ? `node no longer eligible: ${eligibility.reasons.join('; ')}`
             : null;
 
-    return { g0, blockReason };
+    return { g0, blockReason, grounding: ground, stewardHealth };
   }
 
   /** The deterministic task list a human reviews before execute() stages anything. */
@@ -399,7 +430,15 @@ export class ExecutionService {
         to: 'executing',
       } as TransitionRunDto);
     }
-    return this.runExecuting(tenantId, userId, bearer, runId, meta, tasks);
+    return this.runExecuting(
+      tenantId,
+      userId,
+      bearer,
+      runId,
+      meta,
+      tasks,
+      this.readPriorSendApproval(run),
+    );
   }
 
   private async runExecuting(
@@ -409,6 +448,10 @@ export class ExecutionService {
     runId: string,
     meta: ExecutionMeta,
     tasks: ExecutionTask[],
+    /** The send-approval token this run was PARKED with before this call, if any
+     *  (read off run.findings by the caller before re-entering) — see
+     *  readPriorSendApproval / computeSendApproval. */
+    priorSendApproval: Record<string, unknown> | null,
   ) {
     const phaseStart = Date.now();
     this.logger.log(
@@ -429,7 +472,7 @@ export class ExecutionService {
     // preserved (transition shallow-merges findings), so a resume re-gates and
     // continues once the transient blocker clears. (The do-not-contact fact is
     // ALSO re-checked per-outreach below — this covers the general gate.)
-    const { g0, blockReason } = await this.evaluateG0(
+    const { g0, blockReason, grounding, stewardHealth } = await this.evaluateG0(
       tenantId,
       meta,
       strategy,
@@ -446,12 +489,18 @@ export class ExecutionService {
     }
 
     const clientName = await this.resolveClientName(tenantId, strategy.clientId);
+    // Read-only prompt grounding for the (optional) generation call below — NOT
+    // part of any gate; fails soft to [] (mirrors MeriService.stewardContext).
+    const stewardFacts = await this.fetchStewardFactsSafely(tenantId, strategy.clientId);
 
     const results: Record<string, unknown> = {};
     let sendApproval: Record<string, unknown> | null = null;
     let sendPending = false;
     let blocked = false;
     let stagingIncomplete = false;
+    // Stage-G grounded generation provenance for this phase's metrics stamp —
+    // set only when a generation call actually ran and returned a model.
+    let generationModel: string | undefined;
 
     for (const task of tasks) {
       const key = `${task.nodeId}:${task.type}`;
@@ -464,9 +513,13 @@ export class ExecutionService {
           targetNode,
           strategy,
           clientName,
+          grounding,
+          stewardFacts,
+          stewardHealth,
         );
         results[key] = staged;
         if (isStagingIncomplete(staged)) stagingIncomplete = true;
+        generationModel ??= readGeneratedModel(staged);
       } else if (task.type === 'outreach_record') {
         const constraint = await this.checkClientConstraints(
           tenantId,
@@ -485,8 +538,12 @@ export class ExecutionService {
           runId,
           targetNode,
           strategy,
+          grounding,
+          stewardFacts,
+          stewardHealth,
         );
         results[key] = staged;
+        generationModel ??= readGeneratedModel(staged);
         if (isStagingIncomplete(staged)) {
           stagingIncomplete = true;
           continue; // skip the dependent await_send_approval task
@@ -500,7 +557,13 @@ export class ExecutionService {
           };
           continue;
         }
-        sendApproval = this.computeSendApproval(runId, targetNode, strategy, results);
+        sendApproval = this.computeSendApproval(
+          runId,
+          targetNode,
+          strategy,
+          results,
+          priorSendApproval,
+        );
         results[key] = { status: 'awaiting_send_approval' };
         sendPending = true;
       }
@@ -509,13 +572,17 @@ export class ExecutionService {
     // A surviving write-ahead reservation (an external artifact may exist upstream
     // but was never linked) takes precedence — park for reconciliation rather than
     // completing or issuing a duplicate hop. NEVER re-create here.
+    const generation = generationModel
+      ? { model: generationModel, promptSpecVersion: EXECUTION_DOC_PROMPT_SPEC }
+      : undefined;
+
     if (stagingIncomplete) {
       await this.runs.transition(tenantId, userId, runId, {
         to: 'waiting_for_input',
         waitingReason: STAGING_INCOMPLETE_REASON,
         findings: { results, ...(sendApproval ? { sendApproval } : {}) },
       } as TransitionRunDto);
-      return this.settlePhase(tenantId, userId, runId, meta.missionId, 'execute', phaseStart);
+      return this.settlePhase(tenantId, userId, runId, meta.missionId, 'execute', phaseStart, generation);
     }
     if (blocked) {
       await this.runs.transition(tenantId, userId, runId, {
@@ -523,7 +590,7 @@ export class ExecutionService {
         waitingReason: 'outreach blocked by a client do-not-contact constraint',
         findings: { results, ...(sendApproval ? { sendApproval } : {}) },
       } as TransitionRunDto);
-      return this.settlePhase(tenantId, userId, runId, meta.missionId, 'execute', phaseStart);
+      return this.settlePhase(tenantId, userId, runId, meta.missionId, 'execute', phaseStart, generation);
     }
     if (sendPending) {
       // The run does NOT auto-complete while a send is pending — it parks for a
@@ -533,7 +600,7 @@ export class ExecutionService {
         waitingReason: 'awaiting send approval',
         findings: { results, sendApproval },
       } as TransitionRunDto);
-      return this.settlePhase(tenantId, userId, runId, meta.missionId, 'execute', phaseStart);
+      return this.settlePhase(tenantId, userId, runId, meta.missionId, 'execute', phaseStart, generation);
     }
 
     // All non-send tasks done, nothing pending => final validation + complete.
@@ -544,7 +611,7 @@ export class ExecutionService {
     await this.runs.transition(tenantId, userId, runId, {
       to: 'completed',
     } as TransitionRunDto);
-    return this.settlePhase(tenantId, userId, runId, meta.missionId, 'execute', phaseStart);
+    return this.settlePhase(tenantId, userId, runId, meta.missionId, 'execute', phaseStart, generation);
   }
 
   // ---- resume / cancel -----------------------------------------------------
@@ -573,7 +640,15 @@ export class ExecutionService {
       await this.runs.transition(tenantId, userId, runId, {
         to: 'executing',
       } as TransitionRunDto);
-      return this.runExecuting(tenantId, userId, bearer, runId, meta, tasks);
+      return this.runExecuting(
+        tenantId,
+        userId,
+        bearer,
+        runId,
+        meta,
+        tasks,
+        this.readPriorSendApproval(run),
+      );
     }
 
     // G0 park (no plan yet) -> re-run the pre-execution re-check.
@@ -612,25 +687,63 @@ export class ExecutionService {
     node: NodeRow,
     strategy: StrategyRow,
     clientName: string,
+    grounding: Grounding,
+    stewardFacts: StewardFactLine[],
+    stewardHealth: StewardHealth,
   ) {
     const existing = await this.findArtifact(tenantId, node.id, 'workspace_draft');
     if (existing === PENDING_ARTIFACT_REF) return this.stagingIncompleteResult();
     if (existing) return { status: 'already_staged', artifactRef: existing };
 
-    // Reserve the (node, type) slot BEFORE hopping. A false return = a concurrent
-    // executor won the reservation in the read-before-commit window (Window B), so
-    // park for reconciliation rather than issue a duplicate external create.
+    // Reserve the (node, type) slot BEFORE hopping (and before generating — only
+    // the reservation winner spends LLM budget; a P2002 loser parks without
+    // generating). A false return = a concurrent executor won the reservation in
+    // the read-before-commit window (Window B), so park for reconciliation
+    // rather than issue a duplicate external create.
     if (!(await this.reserveArtifact(tenantId, userId, strategy.id, node, 'workspace_draft'))) {
       return this.stagingIncompleteResult();
     }
+    // Grounded generation, OUTSIDE any tx. Fails soft to null inside MeriService
+    // — a Steward/orchestrator hiccup here must never fail the run. sanitizeDraftDoc
+    // re-validates the shape (heading/html must be strings) so a contract drift in
+    // the independently-deployed orchestrator can never throw mid-stage below.
+    const doc = sanitizeDraftDoc(
+      await this.meri.draftExecutionDocument(tenantId, bearer, {
+        kind: 'workspace_draft',
+        clientId: strategy.clientId,
+        strategyType: strategy.type,
+        goal: strategy.goal,
+        node: nodeForDraft(node),
+        grounding,
+        stewardFacts,
+        stewardHealth,
+      }),
+    );
+    const sections = this.buildWorkspaceSections(doc, node, strategy);
+    // Gate title selection on the same signal buildWorkspaceSections uses for the
+    // body (doc.sections.length) — a degenerate generation (title present, sections
+    // empty/sanitized-away) must fall back to node.title for BOTH, never pair an
+    // AI-generated title with the deterministic placeholder body.
+    const generated = !!doc?.sections?.length;
     const { ref } = await this.artifacts.createWorkspaceDraft(bearer, {
-      docTitle: node.title,
+      docTitle: generated ? doc!.title?.trim() || node.title : node.title,
       clientName,
       product: strategy.type,
-      sectionHtml: this.deterministicWorkspaceHtml(node, strategy),
+      sections,
     });
-    await this.recordArtifact(tenantId, userId, runId, strategy.id, node, 'workspace_draft', ref);
-    return { status: 'staged', artifactRef: ref };
+    await this.recordArtifact(tenantId, userId, runId, strategy.id, node, 'workspace_draft', ref, {
+      doc,
+      stewardFactCount: stewardFacts.length,
+    });
+    return {
+      status: 'staged',
+      artifactRef: ref,
+      // Gate on usable content (sections.length), not doc truthiness — same
+      // signal as recordArtifact's provenance, so a degenerate doc never
+      // surfaces a real model id for what is actually the deterministic body.
+      model: doc?.sections?.length ? (doc.model ?? undefined) : undefined,
+      groundedFactCount: doc?.sections?.length ? citedFactRefs(doc.sections).length : undefined,
+    };
   }
 
   private async stageOutreach(
@@ -640,9 +753,14 @@ export class ExecutionService {
     runId: string,
     node: NodeRow,
     strategy: StrategyRow,
+    grounding: Grounding,
+    stewardFacts: StewardFactLine[],
+    stewardHealth: StewardHealth,
   ) {
     const existing = await this.findArtifact(tenantId, node.id, 'outreach_record');
     if (existing === PENDING_ARTIFACT_REF) return this.stagingIncompleteResult();
+    // Idempotent replay: no body is regenerated/available here — computeSendApproval
+    // falls back to the deterministic message for this run (documented Stage-G limit).
     if (existing) return { status: 'already_staged', artifactRef: existing };
 
     if (!strategy.clientId) {
@@ -655,14 +773,51 @@ export class ExecutionService {
     if (!(await this.reserveArtifact(tenantId, userId, strategy.id, node, 'outreach_record'))) {
       return this.stagingIncompleteResult();
     }
+    // sanitizeDraftDoc re-validates the shape (heading/html must be strings) so a
+    // contract drift in the independently-deployed orchestrator can never throw
+    // mid-stage below (see stageWorkspace).
+    const doc = sanitizeDraftDoc(
+      await this.meri.draftExecutionDocument(tenantId, bearer, {
+        kind: 'outreach_record',
+        clientId: strategy.clientId,
+        strategyType: strategy.type,
+        goal: strategy.goal,
+        node: nodeForDraft(node),
+        grounding,
+        stewardFacts,
+        stewardHealth,
+      }),
+    );
+    // Gate title selection on the same signal the body uses (doc.sections.length)
+    // — mirrors stageWorkspace's docTitle gating: a degenerate generation (title
+    // present, sections empty/sanitized-away) must fall back to node.title for
+    // BOTH, never pair an AI-generated title with the deterministic placeholder
+    // body. Otherwise a refined title/subject from propose_document_draft
+    // (documented as applying generically to "the deliverable", not
+    // workspace-only) actually reaches the staged OutreachRecord.
+    const generated = !!doc?.sections?.length;
+    const body = generated ? this.flattenSectionsToText(doc!.sections) : null;
     const { ref } = await this.artifacts.createOutreachRecord(bearer, {
-      title: node.title,
+      title: generated ? doc!.title?.trim() || node.title : node.title,
       subject: node.subject,
       clientId: strategy.clientId,
+      body,
       metadata: { source: 'strategy-execution-agent', runId, nodeId: node.id },
     });
-    await this.recordArtifact(tenantId, userId, runId, strategy.id, node, 'outreach_record', ref);
-    return { status: 'staged', artifactRef: ref };
+    await this.recordArtifact(tenantId, userId, runId, strategy.id, node, 'outreach_record', ref, {
+      doc,
+      stewardFactCount: stewardFacts.length,
+    });
+    return {
+      status: 'staged',
+      artifactRef: ref,
+      body,
+      // Gate on usable content (sections.length), not doc truthiness — same
+      // signal as recordArtifact's provenance, so a degenerate doc never
+      // surfaces a real model id for what is actually the deterministic body.
+      model: doc?.sections?.length ? (doc.model ?? undefined) : undefined,
+      groundedFactCount: doc?.sections?.length ? citedFactRefs(doc.sections).length : undefined,
+    };
   }
 
   /** The staging result that tells runExecuting to park for reconciliation. */
@@ -686,6 +841,7 @@ export class ExecutionService {
       tx.spNodeArtifact.findFirst({
         where: { nodeId, artifactType },
         select: { artifactRef: true },
+        orderBy: { createdAt: 'asc' },
       }),
     );
     return row?.artifactRef ?? null;
@@ -706,6 +862,18 @@ export class ExecutionService {
    *    BOTH proceed and duplicate the external artifact.) A crash-orphaned sentinel
    *    is normally caught earlier by findArtifact(); this closes the narrow
    *    read-before-commit window findArtifact() cannot see.
+   * BUT the triple-scoped CREATE alone only collides with an existing PENDING
+   * row — a caller that fully finished (generated, created upstream, and
+   * committed the REAL ref via recordArtifact, which also retires its own
+   * sentinel) leaves no row on the PENDING triple, so a staggered (not
+   * simultaneous) concurrent caller's CREATE would succeed again and rerun the
+   * whole generate+create cycle. Close that by re-checking for ANY row on
+   * (nodeId, artifactType) — real ref or sentinel, not just this exact triple
+   * — INSIDE this same transaction, immediately before the CREATE: Postgres
+   * gives this findFirst a fresh read of what's committed as of this
+   * transaction's start, so a prior caller's fully-committed real ref is
+   * always visible here even though it wasn't visible to the caller's earlier
+   * (pre-transaction) findArtifact() read.
    * Its OWN tx (must commit before the hop). It does NOT advance the node or log
    * activity (those belong to the real stage event); recordArtifact retires this
    * sentinel when it commits the real ref.
@@ -718,9 +886,17 @@ export class ExecutionService {
     artifactType: 'workspace_draft' | 'outreach_record',
   ): Promise<boolean> {
     try {
-      await this.inTx(tenantId, userId, (tx) =>
+      await this.inTx(tenantId, userId, async (tx) => {
+        // Re-check inside the transaction — see doc comment above.
+        const existing = await tx.spNodeArtifact.findFirst({
+          where: { nodeId: node.id, artifactType },
+          select: { id: true },
+        });
+        if (existing) {
+          throw ARTIFACT_ALREADY_PRESENT;
+        }
         // Hook scopes reads but NOT create — set every scalar (prisma.service).
-        tx.spNodeArtifact.create({
+        await tx.spNodeArtifact.create({
           data: {
             tenantId,
             strategyId,
@@ -729,10 +905,13 @@ export class ExecutionService {
             artifactRef: PENDING_ARTIFACT_REF,
             createdByUserId: userId ?? 'system',
           },
-        }),
-      );
+        });
+      });
       return true;
     } catch (err) {
+      if (err === ARTIFACT_ALREADY_PRESENT) {
+        return false;
+      }
       if (err instanceof Prisma.PrismaClientKnownRequestError && err.code === 'P2002') {
         return false;
       }
@@ -759,8 +938,26 @@ export class ExecutionService {
     node: NodeRow,
     artifactType: 'workspace_draft' | 'outreach_record',
     artifactRef: string,
+    /** Stage-G grounded generation provenance (Task e2) — omitted on the
+     *  deterministic fallback path (doc: null). */
+    generation?: { doc: { model: string | null; sections: DocumentDraftSection[] } | null; stewardFactCount: number },
   ): Promise<void> {
     const advance = node.status === 'draft' || node.status === 'suggested';
+    const refs = citedFactRefs(generation?.doc?.sections ?? []);
+    // Gate on ACTUAL usable content, not doc truthiness — a degenerate/shape-
+    // mismatched orchestrator response (e.g. {} or sections: []) must audit
+    // identically to the null-doc fallback path, never claim generated:true
+    // with a real model id over a persisted deterministic placeholder.
+    const provenance = generation?.doc?.sections?.length
+      ? {
+          generated: true,
+          model: generation.doc.model,
+          promptSpecVersion: EXECUTION_DOC_PROMPT_SPEC,
+          stewardFactsSent: generation.stewardFactCount,
+          groundedFactCount: refs.length,
+          citedFactRefs: refs,
+        }
+      : { generated: false };
     await this.inTx(tenantId, userId, async (tx) => {
       // Retire the write-ahead reservation so exactly one row remains for
       // (node, type) — the real ref below (idempotent: no-op if already retired).
@@ -794,7 +991,7 @@ export class ExecutionService {
         entityType: 'node',
         entityId: node.id,
         strategyId,
-        after: { runId, artifactType, artifactRef, nodeStatusAdvanced: advance },
+        after: { runId, artifactType, artifactRef, nodeStatusAdvanced: advance, ...provenance },
       });
     });
   }
@@ -812,13 +1009,33 @@ export class ExecutionService {
     node: NodeRow,
     strategy: StrategyRow,
     results: Record<string, unknown>,
+    /** The token this SAME run last parked with (see readPriorSendApproval), if any. */
+    priorSendApproval: Record<string, unknown> | null,
   ): Record<string, unknown> {
-    const outreachRef =
-      (results[`${node.id}:outreach_record`] as { artifactRef?: string } | undefined)?.artifactRef ??
-      null;
-    // Deterministic shell — NO LLM prose (that is the deferred Meri seam).
+    const outreachResult = results[`${node.id}:outreach_record`] as
+      | { artifactRef?: string; body?: string | null }
+      | undefined;
+    const outreachRef = outreachResult?.artifactRef ?? null;
+    // Idempotent replay (stageOutreach's already_staged branch carries no body):
+    // reuse the PRIOR token for this run+artifact VERBATIM instead of recomputing
+    // one over the deterministic placeholder. Recomputing here would silently
+    // overwrite a previously-correct, grounded-body-bound token — the one shown
+    // in ExecutionReview's send-approval preview and wired to the approve action
+    // — with one that no longer matches what is actually persisted upstream.
+    if (
+      !outreachResult?.body &&
+      priorSendApproval &&
+      priorSendApproval.tokenRunId === runId &&
+      priorSendApproval.artifactRef === outreachRef
+    ) {
+      return priorSendApproval;
+    }
+    // The token hashes whatever is ACTUALLY staged: the grounded body when this
+    // invocation just generated + staged one, else the same deterministic shell
+    // as before this feature (a FIRST-time computation with no prior token to
+    // reuse and no body — documented Stage-G limit, never a send regardless).
     const input: SendTokenInput = {
-      message: `Outreach regarding: ${node.title}`,
+      message: outreachResult?.body?.trim() || `Outreach regarding: ${node.title}`,
       recipients: [node.subject],
       ask: strategy.goal?.trim() || node.title,
       windowStart: isoDate(node.startsOn),
@@ -981,7 +1198,9 @@ export class ExecutionService {
     }).violations;
   }
 
-  /** Deterministic HTML shell seeded into the staged draft (NO LLM prose). */
+  /** Deterministic HTML shell seeded into the staged draft when grounded
+   *  generation is unavailable/failed (NO LLM prose) — the original Stage-G
+   *  fallback, unchanged. */
   private deterministicWorkspaceHtml(node: NodeRow, strategy: StrategyRow): string {
     const title = escapeHtml(node.title);
     const goal = strategy.goal ? escapeHtml(strategy.goal) : '';
@@ -990,6 +1209,90 @@ export class ExecutionService {
       `(${escapeHtml(node.subject)}).</p>` +
       (goal ? `<p>Strategy goal: ${goal}</p>` : '')
     );
+  }
+
+  /**
+   * Workspace section map (Task c1/b4): a grounded multi-section draft maps
+   * each `{heading, html}` onto one config.sectionContent entry (HTML
+   * authoritatively sanitized here — sanitizeSectionHtml is the allowlist of
+   * record, the orchestrator's own sanitizer is first-pass only). No sections
+   * (generation failed/unavailable, or the model returned an empty array) ->
+   * the single-entry deterministic fallback, unchanged from before this feature.
+   */
+  private buildWorkspaceSections(
+    doc: { sections: DocumentDraftSection[] } | null,
+    node: NodeRow,
+    strategy: StrategyRow,
+  ): Record<string, string> {
+    if (doc?.sections?.length) {
+      // Object.create(null), NOT {} — a model-authored heading that trims to the
+      // literal string '__proto__' is a real (if adversarial) input, and on a
+      // normal object literal `out['__proto__'] = html` hits Object.prototype's
+      // __proto__ accessor: it silently no-ops for a non-object value instead of
+      // creating an own property, so the section would vanish with no collision
+      // and no trace. A null-prototype accumulator has no such accessor, so the
+      // assignment (and the `in` collision check below) behave like a plain map.
+      const out: Record<string, string> = Object.create(null);
+      for (const s of doc.sections) {
+        const heading = s.heading.trim() || 'Background';
+        const html = sanitizeSectionHtml(s.html);
+        // Two model-authored sections can share a heading (the tool schema puts
+        // no uniqueness constraint on it) — merge onto the same slot instead of
+        // last-write-wins, so a colliding section's HTML is appended rather than
+        // silently dropped from the persisted workspace draft.
+        out[heading] = heading in out ? `${out[heading]}\n${html}` : html;
+      }
+      return out;
+    }
+    return { Background: this.deterministicWorkspaceHtml(node, strategy) };
+  }
+
+  /**
+   * Flatten a grounded draft's sections into one plain-text Outreach campaign
+   * body (Task c2): heading + HTML-stripped-to-text per section, joined with
+   * blank lines. Sanitized first (sanitizeSectionHtml), then tags stripped —
+   * OutreachRecord.body is a plain-text column, not HTML.
+   */
+  private flattenSectionsToText(sections: DocumentDraftSection[]): string {
+    return sections
+      .map((s) => {
+        const text = sanitizeSectionHtml(s.html)
+          .replace(/<\/(p|li|h2|h3)>/gi, '\n')
+          // Remaining tags (opening block tags + ANY inline tag: <a>, </a>,
+          // <strong>, </strong>, <em>, </em>) are stripped to a SPACE, not
+          // empty string — otherwise text immediately adjacent to an inline
+          // tag with no surrounding whitespace in the source HTML (e.g.
+          // `see<a href="...">this report</a>for details`) gets jammed
+          // together with no separator once the tag itself disappears.
+          .replace(/<[^>]+>/g, ' ')
+          .replace(/[ \t]+/g, ' ')
+          .replace(/ *\n */g, '\n')
+          .replace(/\n{3,}/g, '\n\n')
+          .trim();
+        return s.heading.trim() ? `${s.heading.trim()}\n${text}` : text;
+      })
+      .filter(Boolean)
+      .join('\n\n')
+      .trim();
+  }
+
+  /**
+   * Read-only Steward facts for grounded generation — fails soft to [] on any
+   * error (mirrors MeriService.stewardContext; this is prompt content, never a
+   * gate). A SEPARATE fetch from evaluateG0's `this.steward.health()` call,
+   * which is NOT wrapped (a health-read failure legitimately should surface,
+   * since it feeds the G0 eligibility gate).
+   */
+  private async fetchStewardFactsSafely(
+    tenantId: string,
+    clientId: string | null,
+  ): Promise<StewardFactLine[]> {
+    try {
+      return await this.steward.factsForOrchestrator(tenantId, clientId);
+    } catch (err) {
+      this.logger.warn(`steward facts unavailable for generation: ${(err as Error).message}`);
+      return [];
+    }
   }
 
   /**
@@ -1036,6 +1339,17 @@ export class ExecutionService {
     return Array.isArray(tasks) && tasks.length > 0 ? (tasks as ExecutionTask[]) : null;
   }
 
+  /**
+   * The send-approval token this run last parked with, if any. Read BEFORE
+   * re-entering runExecuting so an already-staged outreach replay (stageOutreach's
+   * findArtifact() branch, which carries no body) can reuse the prior grounded
+   * token instead of computeSendApproval falling back to the deterministic
+   * placeholder and overwriting it — see computeSendApproval.
+   */
+  private readPriorSendApproval(run: { findings: unknown }): Record<string, unknown> | null {
+    return asObject(asObject(run.findings)?.sendApproval);
+  }
+
   private inTx<T>(tenantId: string, userId: string | null, fn: (tx: Tx) => Promise<T>): Promise<T> {
     return userId
       ? this.prisma.withTenantUser(tenantId, userId, fn)
@@ -1057,8 +1371,16 @@ export class ExecutionService {
     missionId: string,
     phase: 'plan' | 'execute',
     phaseStart: number,
+    generation?: { model?: string; promptSpecVersion?: string },
   ) {
-    await this.stampMetrics(tenantId, userId, runId, { phase, latencyMs: Date.now() - phaseStart });
+    await this.stampMetrics(tenantId, userId, runId, {
+      phase,
+      latencyMs: Date.now() - phaseStart,
+      ...(generation?.model !== undefined ? { model: generation.model } : {}),
+      ...(generation?.promptSpecVersion !== undefined
+        ? { promptSpecVersion: generation.promptSpecVersion }
+        : {}),
+    });
     const run = await this.runs.get(tenantId, runId);
     this.logger.log(
       `[run:${runId} mission:${missionId}] execution ${phase} settled -> ${run.state}`,
@@ -1113,4 +1435,102 @@ function escapeHtml(value: string): string {
     .replace(/</g, '&lt;')
     .replace(/>/g, '&gt;')
     .replace(/"/g, '&quot;');
+}
+
+/**
+ * Runtime shape guard on the orchestrator's response, applied ONCE immediately
+ * after draftExecutionDocument returns (both stageWorkspace and stageOutreach).
+ * Unlike MeriService's draftNode/applyEdit — which explicitly re-validate other
+ * semi-trusted LLM-sourced fields before use — nothing downstream of the fetch
+ * (buildWorkspaceSections, flattenSectionsToText, citedFactRefs, the `generated`
+ * gates, and the persisted provenance) re-checked that a `sections` entry's
+ * `heading`/`html` were actually strings before calling .trim()/handing them to
+ * sanitizeSectionHtml. draftExecutionDocument's try/catch only covers the HTTP
+ * hop, not the *shape* of a 200 response, and the orchestrator
+ * (apps/meriv2-orchestrator) is an independently-deployed service whose own
+ * sanitizeDocumentSections is first-pass only (see sanitizeSectionHtml below) —
+ * a contract drift there must not throw here. This must never throw mid-stage:
+ * reserveArtifact has already committed the write-ahead sentinel by the time
+ * doc is read, so an uncaught throw would park the run stuck rather than
+ * cleanly recording the deterministic fallback. Malformed entries are dropped,
+ * not thrown on — exactly the "no usable sections" path every downstream
+ * consumer already falls back on.
+ */
+function sanitizeDraftDoc(doc: NodeDocumentDraftResponse | null): NodeDocumentDraftResponse | null {
+  if (!doc) return doc;
+  const sections = Array.isArray(doc.sections) ? doc.sections.filter(isWellFormedSection) : [];
+  return sections.length === doc.sections?.length ? doc : { ...doc, sections };
+}
+
+function isWellFormedSection(s: unknown): s is DocumentDraftSection {
+  return (
+    !!s &&
+    typeof s === 'object' &&
+    typeof (s as DocumentDraftSection).heading === 'string' &&
+    typeof (s as DocumentDraftSection).html === 'string'
+  );
+}
+
+/** NodeRow -> the orchestrator's DocumentDraftNode wire shape (ISO dates). */
+function nodeForDraft(node: NodeRow): {
+  id: string;
+  kind: string;
+  subject: string;
+  title: string;
+  note: string | null;
+  startsOn: string | null;
+  endsOn: string | null;
+} {
+  return {
+    id: node.id,
+    kind: node.kind,
+    subject: node.subject,
+    title: node.title,
+    note: node.note,
+    startsOn: isoDate(node.startsOn),
+    endsOn: isoDate(node.endsOn),
+  };
+}
+
+/** A staged-task result's generation model, if grounded generation ran. */
+function readGeneratedModel(result: unknown): string | undefined {
+  const model = asObject(result)?.model;
+  return typeof model === 'string' && model ? model : undefined;
+}
+
+/** 'fact:<id>' provenance refs a grounded draft's sections actually cited. */
+function citedFactRefs(sections: DocumentDraftSection[]): string[] {
+  return sections
+    .flatMap((s) => s.sources ?? [])
+    .map((s) => s.ref)
+    .filter((ref): ref is string => typeof ref === 'string' && ref.startsWith('fact:'));
+}
+
+/**
+ * Authoritative HTML allowlist (Task c3) — the orchestrator's
+ * sanitizeDocumentSections is first-pass only; THIS is what actually reaches
+ * config.sectionContent / the outreach body. Strips every tag except
+ * h2/h3/p/ul/ol/li/strong/em/a, drops every attribute except a
+ * scheme-restricted href on <a>, and removes script/style blocks + any
+ * on*="" event-handler attribute outright.
+ */
+const ALLOWED_TAGS = new Set(['h2', 'h3', 'p', 'ul', 'ol', 'li', 'strong', 'em', 'a']);
+const HREF_SCHEME_RE = /^(https?:|mailto:)/i;
+
+function sanitizeSectionHtml(html: string): string {
+  return html
+    .replace(/<(script|style)[^>]*>[\s\S]*?<\/\1>/gi, '')
+    .replace(/<!--[\s\S]*?-->/g, '')
+    .replace(/<\/?([a-zA-Z][a-zA-Z0-9]*)\b([^>]*)>/g, (match, rawTag: string, attrs: string) => {
+      const tag = rawTag.toLowerCase();
+      const closing = match.startsWith('</');
+      if (!ALLOWED_TAGS.has(tag)) return '';
+      if (closing) return `</${tag}>`;
+      if (tag !== 'a') return `<${tag}>`;
+      const hrefMatch = /\shref\s*=\s*(?:"([^"]*)"|'([^']*)')/i.exec(attrs);
+      const href = hrefMatch?.[1] ?? hrefMatch?.[2] ?? '';
+      return href && HREF_SCHEME_RE.test(href.trim())
+        ? `<a href="${escapeHtml(href.trim())}">`
+        : '<a>';
+    });
 }

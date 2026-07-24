@@ -405,6 +405,11 @@ function TaskRow({ task }: { task: ExecutionTask }) {
           </span>
           <TaskStatusChip status={task.status} />
         </div>
+        {task.model && (
+          <div style={{ fontSize: 'var(--text-2xs)', color: 'var(--ink-4)', marginTop: 3 }}>
+            Grounded in {task.groundedFactCount ?? 0} fact{task.groundedFactCount === 1 ? '' : 's'} · {task.model}
+          </div>
+        )}
         {task.blockedReason && (
           <div style={{ fontSize: 'var(--text-2xs)', color: '#A14D12', marginTop: 3, lineHeight: 1.45 }}>
             {task.blockedReason}

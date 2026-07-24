@@ -739,13 +739,13 @@ const AGENT_ACTIONS: Array<{
   {
     id: 'workspace_draft',
     label: 'Prepare in Workspace (agent)',
-    desc: 'Have Meri draft the document for this step, staged for your review.',
+    desc: 'Have Meri write a full grounded document for this step — every section, cited to your context — staged for your review.',
     icon: 'spark',
   },
   {
     id: 'outreach_record',
     label: 'Stage outreach (agent)',
-    desc: 'Have Meri stage outreach for this step — reviewed and approved before any send.',
+    desc: 'Have Meri draft the full outreach message for this step, grounded in your context — staged and never sent until you approve.',
     icon: 'spark',
   },
 ];
