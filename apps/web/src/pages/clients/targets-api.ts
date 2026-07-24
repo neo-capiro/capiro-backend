@@ -39,6 +39,21 @@ export interface ClientTarget {
   source: TargetSource;
   addedByUserId: string | null;
   addedAt: string;
+  /**
+   * WS-E, LegiStorm gaps/enrichment plan — resolved FRESH server-side from
+   * the member's CURRENT district (never from this row's own denormalized
+   * `state` snapshot text, which goes stale after a redistricting or a seat
+   * change). `null` means "not applicable" (a staff target) or "member
+   * couldn't be resolved in current data" (e.g. they've left office) —
+   * distinct from an empty array, which means "resolved, represents none of
+   * this client's facilities".
+   */
+  representedFacilities: RepresentedFacility[] | null;
+}
+
+export interface RepresentedFacility {
+  id: string;
+  name: string;
 }
 
 /** A single Meri office recommendation. */
