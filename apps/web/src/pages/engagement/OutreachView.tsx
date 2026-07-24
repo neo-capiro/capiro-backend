@@ -441,6 +441,17 @@ export function OutreachView({
     return value ? decodeURIComponent(value) : null;
   }, [location.pathname]);
 
+  // Moved above the mode<->URL sync effects (was declared further down,
+  // alongside the effect that consumes draftRecord.data) so the mode->URL
+  // effect below can reference draftRecord.isError/isLoading without a
+  // temporal-dead-zone error — see that effect's guard comment.
+  const draftRecord = useQuery<OutreachRecord>({
+    queryKey: ['engagement-outreach-record', draftRecordIdFromPath],
+    queryFn: async () =>
+      (await api.get<OutreachRecord>(`/api/engagement/outreach/${draftRecordIdFromPath}`)).data,
+    enabled: Boolean(draftRecordIdFromPath),
+  });
+
   useEffect(() => {
     if (mode !== 'campaign') {
       setActiveDraft(null);
@@ -529,6 +540,25 @@ export function OutreachView({
       syncingFromUrlRef.current = false;
       return;
     }
+    // A direct/deep-link navigation to /draft/:id (bookmark, page reload, or
+    // navigate() from another page — e.g. Strategy Execution's "Open in
+    // Capiro") mounts this component with workflow.record still empty; the
+    // draftRecord fetch below is what will populate it. Without this guard,
+    // THIS effect would see mode='campaign' + workflow.record?.id=undefined
+    // on that very first pass (before the async fetch resolves) and rewrite
+    // the URL to /new/wizard, permanently discarding the deep link — even
+    // though the record load was already in flight. Only the in-app openDraft()
+    // path (click a row in the Outreach list) hydrates workflow.record
+    // synchronously and never hits this branch. Wait for the fetch to settle
+    // (success -> workflow.record picks up the id via the effect below;
+    // error -> fall through so a genuinely bad id still lands on a sane URL).
+    if (
+      draftRecordIdFromPath &&
+      workflow.record?.id !== draftRecordIdFromPath &&
+      !draftRecord.isError
+    ) {
+      return;
+    }
 
     let nextPath = '/engagement/outreach';
     if (mode === 'campaign') {
@@ -543,7 +573,14 @@ export function OutreachView({
       lastProcessedUrlRef.current = nextPath;
       navigate({ pathname: nextPath }, { replace: true });
     }
-  }, [location.pathname, mode, navigate, workflow.record?.id]);
+  }, [
+    location.pathname,
+    mode,
+    navigate,
+    workflow.record?.id,
+    draftRecordIdFromPath,
+    draftRecord.isError,
+  ]);
 
   useEffect(() => {
     const locked = mode !== 'landing';
@@ -580,13 +617,6 @@ export function OutreachView({
           },
         })
       ).data,
-  });
-
-  const draftRecord = useQuery<OutreachRecord>({
-    queryKey: ['engagement-outreach-record', draftRecordIdFromPath],
-    queryFn: async () =>
-      (await api.get<OutreachRecord>(`/api/engagement/outreach/${draftRecordIdFromPath}`)).data,
-    enabled: Boolean(draftRecordIdFromPath),
   });
 
   useEffect(() => {
