@@ -69,6 +69,14 @@ export interface CreateOutreachRecordInput {
   /** Stage-G grounded generation: the full campaign message body (plain text,
    *  already flattened + sanitized). Omitted/null on the deterministic path. */
   body?: string | null;
+  /** The resolved node target (see NodeTargetRef), OutreachRecipientDto-shaped.
+   *  Omitted when the node has no targetRef — the record then carries no
+   *  recipients, same as before this field existed. */
+  recipients?: Record<string, unknown>[];
+  /** Which wizard step a reopened draft should resume on (1-based; see
+   *  ExecutionService.buildOutreachResumeMetadata). Omitted preserves the
+   *  DTO's own default (clamps to 1 — the prior "always opens blank" behavior). */
+  lastStep?: number;
   metadata?: Record<string, unknown>;
 }
 
@@ -180,6 +188,8 @@ export class ExecutionArtifactClient {
           subject: input.subject,
           clientId: input.clientId,
           ...(input.body ? { body: input.body } : {}),
+          ...(input.recipients?.length ? { recipients: input.recipients } : {}),
+          ...(input.lastStep ? { lastStep: input.lastStep } : {}),
           metadata: input.metadata ?? {},
         }),
       },

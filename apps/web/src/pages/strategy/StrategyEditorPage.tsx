@@ -249,6 +249,24 @@ export function StrategyEditorPage() {
           });
           target = `/workspace/setup/${encodeURIComponent(ref)}`;
         } else {
+          // A node with a Target assigned (NOD-7 field editor) resolves to a real
+          // recipient; the wizard resume then lands on Recipients with them
+          // pre-picked instead of the blank Direction landing page every
+          // stub-created outreach opened to before this. No target -> unchanged.
+          const t = node.targetRef;
+          const recipient = t
+            ? {
+                id: t.memberId,
+                name: t.memberName?.trim() || t.memberId,
+                directoryContactId: t.memberId,
+                directoryContactName: t.memberName,
+                chamber: t.chamber,
+                state: t.state,
+                party: t.party,
+                committee: t.committee,
+                sourceLabel: 'Strategy target',
+              }
+            : null;
           const rec = (
             await api.post<{ id: string }>('/api/engagement/outreach', {
               type: 'campaign',
@@ -256,7 +274,18 @@ export function StrategyEditorPage() {
               title: node.title.slice(0, 240),
               subject: node.title,
               clientId: s.clientId,
-              metadata: { strategyNodeId: node.id, strategyId: sid, objective: s.goal ?? node.title },
+              ...(recipient ? { recipients: [recipient], lastStep: 3 } : {}),
+              metadata: {
+                strategyNodeId: node.id,
+                strategyId: sid,
+                objective: s.goal ?? node.title,
+                ...(recipient
+                  ? {
+                      lastStepId: 'recipients',
+                      targets: [{ key: 'node-target', type: 'individual', recipients: [recipient], cc: [], bcc: [] }],
+                    }
+                  : {}),
+              },
             })
           ).data;
           ref = rec.id;
@@ -697,6 +726,7 @@ export function StrategyEditorPage() {
         {railOpen && (
           <EditorRail
             strategyId={sid}
+            clientId={s.clientId}
             node={selectedNode}
             calendar={calendar}
             members={members.data ?? []}

@@ -11,6 +11,8 @@ import { useNavigate } from 'react-router-dom';
 import { App } from 'antd';
 import { Icon, Ava, iconBtn, fieldS, fieldLbl, chipBtn } from './strategy-ui.js';
 import { OwnerPicker } from './OwnerPicker.js';
+import { TargetPicker } from './TargetPicker.js';
+import { useClientTargetsLite, targetDisplayLabel } from './client-targets-lite.js';
 import { AskMeri } from './AskMeri.js';
 import { WatchRail } from './agents/WatchRail.js';
 import { useAssistant } from './api.js';
@@ -24,10 +26,17 @@ import { qOfDate, parseDbDate, nodeRangeLabel, monthLabel, shiftNodeMonths } fro
 import type { FiscalCalendar } from './fiscal.js';
 import { useUpdateNode, useDeleteNode } from './api.js';
 import { memberName, type TenantMember } from './members.js';
-import type { StrategyNode, StrategyNodeArtifact, UpdateNodeInput } from './types.js';
+import type { NodeSubject, StrategyNode, StrategyNodeArtifact, UpdateNodeInput } from './types.js';
+
+/** Subjects a real target (a specific person/office) makes sense for — mirrors
+ *  api-strategy's OUTREACH_SUBJECTS (execution-eligibility.ts); other subjects
+ *  (deliverable/submission/ask/outcome/optics) are about work product or
+ *  concepts, not a counterparty to target. */
+const TARGETABLE_SUBJECTS: NodeSubject[] = ['member', 'committee', 'agency'];
 
 export function EditorRail({
   strategyId,
+  clientId,
   node,
   calendar,
   members,
@@ -50,6 +59,7 @@ export function EditorRail({
   onDeselect,
 }: {
   strategyId: string;
+  clientId: string;
   node: StrategyNode | null;
   calendar: FiscalCalendar;
   members: TenantMember[];
@@ -241,6 +251,7 @@ export function EditorRail({
               calendar={calendar}
               members={members}
               currentUserId={currentUserId}
+              clientId={clientId}
               busy={update.isPending || del.isPending || assistant.isPending}
             onCommit={(input, flash) => {
               update.mutate(
@@ -323,6 +334,7 @@ function NodeEditor({
   calendar,
   members,
   currentUserId,
+  clientId,
   busy,
   onCommit,
   onDelete,
@@ -331,6 +343,7 @@ function NodeEditor({
   calendar: FiscalCalendar;
   members: TenantMember[];
   currentUserId: string | undefined;
+  clientId: string;
   busy: boolean;
   onCommit: (input: UpdateNodeInput, flash: string) => void;
   onDelete: () => void;
@@ -339,6 +352,7 @@ function NodeEditor({
   const [titleBuf, setTitleBuf] = useState(node.title);
   const [noteBuf, setNoteBuf] = useState(node.note ?? '');
   const [showFields, setShowFields] = useState(true);
+  const clientTargets = useClientTargetsLite(clientId);
 
   // Re-sync local text buffers whenever the committed node changes (after a
   // save, a restore, or selecting a different node).
@@ -517,6 +531,23 @@ function NodeEditor({
               }
             />
           </div>
+
+          {TARGETABLE_SUBJECTS.includes(node.subject) && (
+            <div>
+              <span style={fieldLbl}>Target</span>
+              <TargetPicker
+                targets={clientTargets.data ?? []}
+                loading={clientTargets.isLoading}
+                value={node.targetRef}
+                onChange={(target) =>
+                  onCommit(
+                    { targetRef: target },
+                    target ? `Target set to ${targetDisplayLabel(target)}.` : 'Target cleared.',
+                  )
+                }
+              />
+            </div>
+          )}
 
           <div style={{ display: 'flex', gap: 10 }}>
             <div style={{ flex: 1 }}>

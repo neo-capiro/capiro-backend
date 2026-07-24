@@ -75,6 +75,23 @@ export interface OpenMaterialConflict {
   factB: string;
 }
 
+/**
+ * Snapshot of an apps/api ClientTarget picked for a node — WHO a member/
+ * committee/agency-subject node's outreach/workspace action is for, distinct
+ * from `subject` (a category, not an identity). Denormalized at pick time (no
+ * cross-schema FK; api-strategy has no access to the ClientTarget table).
+ */
+export interface NodeTargetRef {
+  clientTargetId?: string;
+  memberId: string;
+  memberName?: string;
+  party?: string;
+  state?: string;
+  chamber?: string;
+  committee?: string;
+  sourceDirectory?: string;
+}
+
 export interface StrategyNode {
   id: string;
   strategyId: string;
@@ -89,6 +106,7 @@ export interface StrategyNode {
   openEnded: boolean;
   dependsOnIds: string[]; // A2/A3: sibling steps that must complete first
   provenance: NodeProvenance | null; // A9
+  targetRef: NodeTargetRef | null;
   meriAuthored: boolean;
   createdAt: string;
   updatedAt: string;
@@ -206,6 +224,8 @@ export interface UpdateNodeInput {
   startsOn?: string;
   endsOn?: string | null;
   openEnded?: boolean;
+  /** Present+null clears the target. */
+  targetRef?: NodeTargetRef | null;
   changeNote?: string;
 }
 

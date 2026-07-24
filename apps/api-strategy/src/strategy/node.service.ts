@@ -52,6 +52,7 @@ export class NodeService {
           // "Ongoing" is a risk-only concept — never set it for other kinds.
           openEnded: dto.kind === 'risk' ? (dto.openEnded ?? false) : false,
           dependsOnIds: dependsOnIds ?? [],
+          targetRef: dto.targetRef ? { ...dto.targetRef } : undefined,
           meriAuthored: false,
           createdByUserId: clerkUserId,
         },
@@ -117,6 +118,13 @@ export class NodeService {
       if (dto.endsOn !== undefined) set('endsOn', newEnds, node.endsOn);
       if (dto.openEnded !== undefined) set('openEnded', dto.openEnded, node.openEnded);
       if (dto.dependsOnIds !== undefined) set('dependsOnIds', dependsOnIds ?? [], node.dependsOnIds);
+      if (dto.targetRef !== undefined) {
+        set(
+          'targetRef',
+          dto.targetRef ? ({ ...dto.targetRef } as Prisma.InputJsonValue) : Prisma.DbNull,
+          node.targetRef,
+        );
+      }
 
       // "Ongoing" is risk-only: converting a node away from risk clears the flag
       // so it isn't stuck "Ongoing" with a permanently-disabled end date.
@@ -140,6 +148,13 @@ export class NodeService {
         note: dto.changeNote?.trim() || `Updated ${dto.title ?? node.title}`,
         coalesce: true,
       });
+      // Prisma.DbNull is only meaningful as the DIRECT value of a Json-typed
+      // Prisma field (the spNode.update call above) — nested inside the
+      // activity log's `after` snapshot (itself a Json blob) it would not
+      // serialize as a clean null. Swap it for a plain null in the audit copy
+      // (mirrors meri.service.ts's own provenance-clearing convention).
+      const auditAfter =
+        data.targetRef === Prisma.DbNull ? { ...data, targetRef: null } : data;
       await this.versioning.logActivity(tx, {
         tenantId,
         actorUserId: clerkUserId,
@@ -148,7 +163,7 @@ export class NodeService {
         entityType: 'node',
         entityId: nodeId,
         before,
-        after: data,
+        after: auditAfter,
       });
       return loadStrategyDetail(tx, strategyId);
     });

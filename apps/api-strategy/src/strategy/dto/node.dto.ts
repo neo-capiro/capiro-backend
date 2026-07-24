@@ -1,3 +1,4 @@
+import { Type } from 'class-transformer';
 import {
   ArrayMaxSize,
   IsArray,
@@ -8,6 +9,8 @@ import {
   IsUUID,
   Matches,
   MaxLength,
+  ValidateIf,
+  ValidateNested,
 } from 'class-validator';
 
 /** SpNodeKind / SpNodeSubject / SpNodeStatus enum value sets (schema-mirrored). */
@@ -35,6 +38,55 @@ export type NodeSubjectValue = (typeof NODE_SUBJECTS)[number];
 export type NodeStatusValue = (typeof NODE_STATUSES)[number];
 
 const DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
+
+/**
+ * Snapshot of an apps/api ClientTarget picked for this node (who a member/
+ * committee/agency-subject node's outreach/workspace action is actually for).
+ * Bare id-ref + denormalized display fields captured at pick time — no live
+ * cross-schema lookup (ClientTarget lives in apps/api's database), same
+ * snapshot-not-live-join idiom ClientTarget itself uses for its own memberName/
+ * party/state/chamber. `memberId` is the only field execution staging treats
+ * as load-bearing; the rest are display/grounding only.
+ */
+export class NodeTargetRefDto {
+  @IsOptional()
+  @IsString()
+  @MaxLength(120)
+  clientTargetId?: string;
+
+  @IsString()
+  @MaxLength(128)
+  memberId!: string;
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(160)
+  memberName?: string;
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(32)
+  party?: string;
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(64)
+  state?: string;
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(24)
+  chamber?: string;
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(200)
+  committee?: string;
+
+  @IsOptional()
+  @IsIn(['congress', 'state', 'staff'])
+  sourceDirectory?: string;
+}
 
 /**
  * Manual node create (SHL-7 Add step + future callers). meriAuthored is NOT
@@ -85,6 +137,12 @@ export class CreateNodeDto {
   @ArrayMaxSize(20)
   @IsUUID(undefined, { each: true })
   dependsOnIds?: string[];
+
+  /** Who this node's outreach/workspace action is for (member/committee/agency subjects). */
+  @IsOptional()
+  @ValidateNested()
+  @Type(() => NodeTargetRefDto)
+  targetRef?: NodeTargetRefDto;
 }
 
 /**
@@ -139,6 +197,13 @@ export class UpdateNodeDto {
   @ArrayMaxSize(20)
   @IsUUID(undefined, { each: true })
   dependsOnIds?: string[];
+
+  /** Who this node's outreach/workspace action is for. Present+null clears it. */
+  @IsOptional()
+  @ValidateIf((o) => o.targetRef !== null)
+  @ValidateNested()
+  @Type(() => NodeTargetRefDto)
+  targetRef?: NodeTargetRefDto | null;
 
   @IsOptional()
   @IsString()

@@ -1362,6 +1362,86 @@ describe('ExecutionService.execute — outreach staging (send hard-disabled)', (
     expect(input.body).not.toContain('reportfor');
   });
 
+  it('a node with a targetRef resolves a REAL recipient + wizard-resume metadata pointing at the generated draft (not the blank Direction landing page)', async () => {
+    const store = makeStore();
+    seedStrategy(store);
+    seedMission(store);
+    seedNode(store, {
+      id: NID,
+      subject: 'member',
+      title: 'Meet with Rep. Doe',
+      targetRef: {
+        clientTargetId: 'ct-1',
+        memberId: 'M000123',
+        memberName: 'Rep. Jane Doe',
+        party: 'D',
+        state: 'CA',
+        chamber: 'House',
+      },
+    });
+    const doc = {
+      title: 'Ask for a co-sign',
+      summary: 's',
+      sections: [{ heading: 'Opening', html: '<p>Dear Rep. Doe,</p>' }],
+      model: 'claude-sonnet-5',
+    };
+    const { svc, createOutreachRecord } = makeService(store, { draftExecutionDocument: doc });
+
+    const planned = await svc.plan(T, U, 'bearer-x', outreachPlan());
+    const parked = await svc.execute(T, U, 'bearer-x', planned.id);
+
+    const input = createOutreachRecord.mock.calls[0]![1] as {
+      recipients?: Array<Record<string, unknown>>;
+      lastStep?: number;
+      metadata?: Record<string, unknown>;
+    };
+    // A real, named recipient — not the bare subject category.
+    expect(input.recipients).toHaveLength(1);
+    expect(input.recipients![0]).toMatchObject({ id: 'M000123', name: 'Rep. Jane Doe', party: 'D', state: 'CA' });
+    // Lands the reopened wizard on Generate & Review (index 4, 1-based 5) with
+    // the grounded draft pre-seeded under the v2 genKey scheme, not step 1.
+    expect(input.lastStep).toBe(5);
+    expect(input.metadata!.lastStepId).toBe('generate');
+    const targets = input.metadata!.targets as Array<Rec>;
+    expect(targets).toHaveLength(1);
+    expect((targets[0]!.recipients as Rec[])[0]!.id).toBe('M000123');
+    const generatedByKey = input.metadata!.generatedByKey as Record<string, { subject: string; body: string; status: string }>;
+    expect(Object.keys(generatedByKey)).toEqual(['individual:M000123']);
+    expect(generatedByKey['individual:M000123']!.body).toContain('Dear Rep. Doe,');
+    expect(generatedByKey['individual:M000123']!.status).toBe('ready');
+    // The send-approval preview also shows the real name, not "member".
+    const sa = (parked.findings as { sendApproval: Rec }).sendApproval;
+    const saInput = sa.input as { recipients: string[] };
+    expect(saInput.recipients).toEqual(['Rep. Jane Doe (D, CA, House)']);
+  });
+
+  it('a node with NO targetRef still resolves (unchanged): no recipients wired, resume lands on Recipients rather than Generate', async () => {
+    const store = makeStore();
+    seedStrategy(store);
+    seedMission(store);
+    seedNode(store, { id: NID, subject: 'member', title: 'Meet with Rep. Doe' });
+    const doc = {
+      title: null,
+      summary: 's',
+      sections: [{ heading: 'Opening', html: '<p>Dear office,</p>' }],
+      model: 'claude-sonnet-5',
+    };
+    const { svc, createOutreachRecord } = makeService(store, { draftExecutionDocument: doc });
+
+    const planned = await svc.plan(T, U, 'bearer-x', outreachPlan());
+    await svc.execute(T, U, 'bearer-x', planned.id);
+
+    const input = createOutreachRecord.mock.calls[0]![1] as {
+      recipients?: unknown;
+      lastStep?: number;
+      metadata?: Record<string, unknown>;
+    };
+    expect(input.recipients).toBeUndefined();
+    expect(input.lastStep).toBe(3);
+    expect(input.metadata!.lastStepId).toBe('recipients');
+    expect(input.metadata!.generatedByKey).toBeUndefined();
+  });
+
   it('falls back to the deterministic shell when draftExecutionDocument fails soft — the send token still hashes what was ACTUALLY staged', async () => {
     const store = makeStore();
     seedStrategy(store);

@@ -33,6 +33,7 @@ export interface SnapshotNode {
   endsOn: string | null; // YYYY-MM-DD | null
   openEnded: boolean;
   dependsOnIds: string[]; // A2: node-id edges (preserved on restore — ids are stable)
+  targetRef?: unknown; // who this node's outreach/workspace action is for (opaque; no Prisma types in this pure file)
   meriAuthored: boolean;
   createdByUserId: string;
   createdAt: string; // ISO
@@ -81,6 +82,7 @@ export interface SnapshotNodeRow {
   endsOn: Date | string | null;
   openEnded: boolean;
   dependsOnIds: string[];
+  targetRef?: unknown;
   meriAuthored: boolean;
   createdByUserId: string;
   createdAt: Date | string;
@@ -117,6 +119,7 @@ export function buildSnapshot(
       endsOn: isoDate(n.endsOn),
       openEnded: n.openEnded,
       dependsOnIds: n.dependsOnIds ?? [],
+      targetRef: n.targetRef ?? null,
       meriAuthored: n.meriAuthored,
       createdByUserId: n.createdByUserId,
       createdAt: isoDateTime(n.createdAt),

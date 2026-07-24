@@ -96,6 +96,8 @@ export class VersionService {
           openEnded: n.openEnded,
           // `?? []` guards snapshots cut before A2 added the column.
           dependsOnIds: n.dependsOnIds ?? [],
+          // Guards snapshots cut before targetRef was added (undefined -> DbNull).
+          targetRef: (n.targetRef ?? null) == null ? Prisma.DbNull : (n.targetRef as Prisma.InputJsonValue),
           meriAuthored: n.meriAuthored,
           createdByUserId: n.createdByUserId ?? clerkUserId,
           createdAt: n.createdAt ? new Date(n.createdAt) : new Date(),

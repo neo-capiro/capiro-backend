@@ -77,6 +77,37 @@ describe('CreateNodeDto', () => {
       ).toContain('dependsOnIds');
     });
   });
+
+  describe('targetRef', () => {
+    it('accepts a well-formed target', async () => {
+      expect(
+        await errorsFor(CreateNodeDto, {
+          ...valid,
+          subject: 'member',
+          targetRef: { memberId: 'M000123', memberName: 'Rep. Jane Doe', party: 'D' },
+        }),
+      ).toEqual([]);
+    });
+
+    it('accepts an omitted targetRef (optional)', async () => {
+      expect(await errorsFor(CreateNodeDto, valid)).toEqual([]);
+    });
+
+    it('rejects a targetRef missing memberId', async () => {
+      expect(
+        await errorsFor(CreateNodeDto, { ...valid, targetRef: { memberName: 'Rep. Jane Doe' } }),
+      ).toContain('targetRef');
+    });
+
+    it('rejects an unknown sourceDirectory', async () => {
+      expect(
+        await errorsFor(CreateNodeDto, {
+          ...valid,
+          targetRef: { memberId: 'M000123', sourceDirectory: 'made-up' },
+        }),
+      ).toContain('targetRef');
+    });
+  });
 });
 
 describe('UpdateNodeDto', () => {
@@ -115,6 +146,24 @@ describe('UpdateNodeDto', () => {
     it('rejects a non-UUID string in the array', async () => {
       expect(await errorsFor(UpdateNodeDto, { dependsOnIds: ['not-a-uuid'] })).toContain(
         'dependsOnIds',
+      );
+    });
+  });
+
+  describe('targetRef', () => {
+    it('accepts setting a well-formed target', async () => {
+      expect(
+        await errorsFor(UpdateNodeDto, { targetRef: { memberId: 'M000123' } }),
+      ).toEqual([]);
+    });
+
+    it('accepts nulling targetRef (clears it)', async () => {
+      expect(await errorsFor(UpdateNodeDto, { targetRef: null })).toEqual([]);
+    });
+
+    it('rejects a targetRef missing memberId', async () => {
+      expect(await errorsFor(UpdateNodeDto, { targetRef: { memberName: 'Rep. Doe' } })).toContain(
+        'targetRef',
       );
     });
   });

@@ -101,6 +101,18 @@ interface ExecutionTask {
   detail: Record<string, unknown>;
 }
 
+/** Snapshot of an apps/api ClientTarget picked for a node (see node.dto.ts NodeTargetRefDto). */
+interface NodeTargetRef {
+  clientTargetId?: string;
+  memberId: string;
+  memberName?: string;
+  party?: string;
+  state?: string;
+  chamber?: string;
+  committee?: string;
+  sourceDirectory?: string;
+}
+
 /** The node fields plan/execute reason over (Prisma row subset). */
 interface NodeRow {
   id: string;
@@ -113,6 +125,7 @@ interface NodeRow {
   startsOn: Date | string | null;
   endsOn: Date | string | null;
   dependsOnIds: string[];
+  targetRef: NodeTargetRef | null;
 }
 interface StrategyRow {
   id: string;
@@ -797,12 +810,26 @@ export class ExecutionService {
     // workspace-only) actually reaches the staged OutreachRecord.
     const generated = !!doc?.sections?.length;
     const body = generated ? this.flattenSectionsToText(doc!.sections) : null;
+    const recipient = node.targetRef ? this.buildTargetRecipient(node.targetRef) : null;
+    const resume = this.buildOutreachResumeMetadata(
+      recipient,
+      generated,
+      doc,
+      generated ? this.flattenSectionsToHtml(doc!.sections) : null,
+    );
     const { ref } = await this.artifacts.createOutreachRecord(bearer, {
       title: generated ? doc!.title?.trim() || node.title : node.title,
-      subject: node.subject,
+      subject: generated ? doc!.title?.trim() || node.title : node.title,
       clientId: strategy.clientId,
       body,
-      metadata: { source: 'strategy-execution-agent', runId, nodeId: node.id },
+      recipients: recipient ? [recipient] : undefined,
+      lastStep: resume.lastStep,
+      metadata: {
+        source: 'strategy-execution-agent',
+        runId,
+        nodeId: node.id,
+        ...resume.metadata,
+      },
     });
     await this.recordArtifact(tenantId, userId, runId, strategy.id, node, 'outreach_record', ref, {
       doc,
@@ -1036,7 +1063,10 @@ export class ExecutionService {
     // reuse and no body — documented Stage-G limit, never a send regardless).
     const input: SendTokenInput = {
       message: outreachResult?.body?.trim() || `Outreach regarding: ${node.title}`,
-      recipients: [node.subject],
+      // A real target (see NOD targetRef picker) resolves to their name; an
+      // untargeted node falls back to the bare subject category, unchanged
+      // from before this feature.
+      recipients: [node.targetRef ? targetDisplayName(node.targetRef) : node.subject],
       ask: strategy.goal?.trim() || node.title,
       windowStart: isoDate(node.startsOn),
       windowEnd: isoDate(node.endsOn),
@@ -1277,6 +1307,89 @@ export class ExecutionService {
   }
 
   /**
+   * Flatten a grounded draft's sections into ONE html string for the outreach
+   * wizard's per-recipient draft (metadata.generatedByKey) — the wizard renders
+   * that field as HTML (sanitizeHtml(markdownishToHtml(...)) on ITS OWN
+   * generations), unlike OutreachRecord.body which is plain text. Headings are
+   * dropped (an email body isn't a multi-section document); each section's
+   * already-sanitized HTML is just joined in order.
+   */
+  private flattenSectionsToHtml(sections: DocumentDraftSection[]): string {
+    return sections
+      .map((s) => sanitizeSectionHtml(s.html))
+      .filter(Boolean)
+      .join('\n');
+  }
+
+  /**
+   * Build the OutreachRecipientDto-shaped object for a node's targetRef (see
+   * NodeTargetRef) — a real, named recipient instead of the bare subject
+   * category. `id`/`directoryContactId` = memberId so the web wizard's
+   * recipientKey() (id || directoryContactId || email || name) is stable and
+   * DETERMINISTIC across this recipient object and its generatedByKey genKey
+   * below (both must derive the identical key or the wizard treats the seeded
+   * draft as belonging to a different, empty slot and silently regenerates it).
+   */
+  private buildTargetRecipient(target: NodeTargetRef): Record<string, unknown> {
+    return {
+      id: target.memberId,
+      name: target.memberName?.trim() || target.memberId,
+      directoryContactId: target.memberId,
+      directoryContactName: target.memberName?.trim() || undefined,
+      chamber: target.chamber || undefined,
+      state: target.state || undefined,
+      party: target.party || undefined,
+      committee: target.committee || undefined,
+      sourceLabel: 'Strategy target',
+    };
+  }
+
+  /**
+   * Everything the outreach wizard needs to resume USEFULLY on a staged
+   * OutreachRecord, instead of the blank Direction-landing step every prior
+   * staged outreach opened to (NewOutreachWizard's resume hydration needs
+   * `record.recipients` non-empty AND a matching `individual:<key>`-prefixed
+   * metadata.generatedByKey entry — the wizard's OWN legacy per-recipient
+   * fallback seeds a BARE (unprefixed) key that never matches a v2 genKey, so
+   * we write the v2 shape directly rather than relying on that fallback).
+   * No recipient resolved -> land on 'recipients' (still strictly better than
+   * 'direction'); recipient resolved but generation fell back to the
+   * deterministic placeholder -> land on 'recipients' too (nothing worth
+   * reviewing on 'generate' yet); recipient + real grounded content -> land on
+   * 'generate' with the draft pre-seeded so Meri's grounded body is what the
+   * user sees, not the wizard's own (ungrounded) auto-generation.
+   */
+  private buildOutreachResumeMetadata(
+    recipient: Record<string, unknown> | null,
+    generated: boolean,
+    doc: NodeDocumentDraftResponse | null,
+    htmlBody: string | null,
+  ): { lastStep: number; metadata: Record<string, unknown> } {
+    if (!recipient) {
+      return { lastStep: 3, metadata: { lastStepId: 'recipients' } };
+    }
+    const target = { key: 'node-target', type: 'individual', recipients: [recipient], cc: [], bcc: [] };
+    if (!generated || !htmlBody) {
+      return { lastStep: 3, metadata: { lastStepId: 'recipients', targets: [target] } };
+    }
+    const genKey = `individual:${recipient.id as string}`;
+    return {
+      lastStep: 5,
+      metadata: {
+        lastStepId: 'generate',
+        targets: [target],
+        generatedByKey: {
+          [genKey]: {
+            subject: doc?.title?.trim() || '',
+            body: htmlBody,
+            status: 'ready',
+          },
+        },
+      },
+    };
+  }
+
+  /**
    * Read-only Steward facts for grounded generation — fails soft to [] on any
    * error (mirrors MeriService.stewardContext; this is prompt content, never a
    * gate). A SEPARATE fetch from evaluateG0's `this.steward.health()` call,
@@ -1471,7 +1584,26 @@ function isWellFormedSection(s: unknown): s is DocumentDraftSection {
   );
 }
 
-/** NodeRow -> the orchestrator's DocumentDraftNode wire shape (ISO dates). */
+/**
+ * Human-readable label for a node's target, e.g. "Rep. Jane Smith (D, CA,
+ * House)". Falls back to the bare member id when no display name was
+ * snapshotted (a picker edge case, not the normal path).
+ */
+function targetDisplayName(target: NodeTargetRef): string {
+  const name = target.memberName?.trim() || target.memberId;
+  const parts = [target.party, target.state, target.chamber].filter(
+    (p): p is string => Boolean(p?.trim()),
+  );
+  return parts.length ? `${name} (${parts.join(', ')})` : name;
+}
+
+/**
+ * NodeRow -> the orchestrator's DocumentDraftNode wire shape (ISO dates). The
+ * node's targetRef (WHO this is for, not just its subject category) is folded
+ * into `note` as a grounding line rather than widened as a new wire field —
+ * avoids a cross-service DTO change in the independently-deployed orchestrator
+ * for what is, from the prompt's perspective, just more node context.
+ */
 function nodeForDraft(node: NodeRow): {
   id: string;
   kind: string;
@@ -1481,12 +1613,15 @@ function nodeForDraft(node: NodeRow): {
   startsOn: string | null;
   endsOn: string | null;
 } {
+  const targetLine = node.targetRef
+    ? `Target: ${targetDisplayName(node.targetRef)}${node.targetRef.committee ? ` — ${node.targetRef.committee}` : ''}`
+    : null;
   return {
     id: node.id,
     kind: node.kind,
     subject: node.subject,
     title: node.title,
-    note: node.note,
+    note: targetLine ? [targetLine, node.note].filter(Boolean).join('\n') : node.note,
     startsOn: isoDate(node.startsOn),
     endsOn: isoDate(node.endsOn),
   };
