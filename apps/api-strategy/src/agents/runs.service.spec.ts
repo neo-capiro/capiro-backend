@@ -136,6 +136,31 @@ function makeTx(store: Store) {
       store.hooks.afterRunFindFirst?.();
       return out;
     },
+    // listFirmReview / listForMission reads. `'strategyId' in where` (not an
+    // undefined check) so the firm filter `strategyId: null` is honored.
+    findMany: async ({
+      where = {},
+      orderBy,
+      take,
+    }: {
+      where?: { missionId?: string; strategyId?: string | null; state?: string };
+      orderBy?: { createdAt?: 'asc' | 'desc' };
+      take?: number;
+    }) => {
+      let rows = [...store.runs.values()].filter(
+        (r) =>
+          (where.missionId === undefined || r.missionId === where.missionId) &&
+          (!('strategyId' in where) || r.strategyId === where.strategyId) &&
+          (where.state === undefined || r.state === where.state),
+      );
+      if (orderBy?.createdAt) {
+        const dir = orderBy.createdAt === 'desc' ? -1 : 1;
+        rows = [...rows].sort(
+          (a, b) => dir * ((a.createdAt as Date).getTime() - (b.createdAt as Date).getTime()),
+        );
+      }
+      return (take !== undefined ? rows.slice(0, take) : rows).map((r) => ({ ...r }));
+    },
     // CAS write the service uses for transitions: the where carries the
     // expected state; a mismatch is count 0, exactly like Postgres
     // re-evaluating the predicate against the committed row.
@@ -629,5 +654,89 @@ describe('RunsService.transition', () => {
       findings: { conflicts: ['c1'] },
     } as TransitionRunDto);
     expect(retried.findings).toEqual({ stale_nodes: ['n1'], conflicts: ['c1'] });
+  });
+});
+
+describe('RunsService.listFirmReview', () => {
+  // The F2 firm-calendar placeholder parks a critical finding on a
+  // ready_for_review run with NO change-set, so the change-set review queue
+  // never lists it — this endpoint IS its review surface. The regression this
+  // pins: firm runs used to be invisible dark data (no web surface lists runs).
+
+  const firmFindings = {
+    findings: [
+      {
+        code: 'firm-calendar-review',
+        severity: 'critical',
+        nodeIds: [],
+        message: 'Firm-level calendar review due',
+      },
+    ],
+    riskClassification: { risk: 'critical', autoApplyEligible: false, requiresImpactSummary: true },
+    calendarFingerprint: 'fp-1',
+  };
+
+  /** queued -> planning -> ready_for_review with the given findings JSON. */
+  async function mintReviewRun(
+    svc: RunsService,
+    missionId: string,
+    key: string,
+    findings: Record<string, unknown>,
+  ) {
+    const run = await svc.createRun(T, null, missionId, {
+      trigger: 'scheduled',
+      idempotencyKey: key,
+    } as CreateRunDto);
+    await svc.transition(T, null, run.id, { to: 'planning' } as TransitionRunDto);
+    await svc.transition(T, null, run.id, {
+      to: 'ready_for_review',
+      findings,
+    } as TransitionRunDto);
+    return run;
+  }
+
+  it('lists only finding-carrying FIRM runs in ready_for_review — strategy-scoped, zero-finding, and non-review-state runs are excluded', async () => {
+    const store = makeStore();
+    seedMission(store, 'MF', 'active');
+    store.missions.get('MF')!.strategyId = null; // firm-scoped calendar mission
+    seedMission(store, 'M1', 'active'); // strategy-scoped (S1)
+    const { svc, withTenant } = makeService(store);
+
+    // The one row a reviewer must see: firm run carrying the critical finding.
+    const reviewable = await mintReviewRun(svc, 'MF', 'sched:MF:2026-07-23', firmFindings);
+    // No-change ledger row (placeholder's unchanged path): findings [] — noise, excluded.
+    await mintReviewRun(svc, 'MF', 'sched:MF:2026-07-24', {
+      findings: [],
+      calendarFingerprint: 'fp-1',
+    });
+    // Strategy-scoped check run in ready_for_review — surfaces via change-sets/WatchRail, not here.
+    await mintReviewRun(svc, 'M1', 'sched:M1:2026-07-23', firmFindings);
+    // Firm run still queued (not yet reviewable).
+    await svc.createRun(T, null, 'MF', {
+      trigger: 'scheduled',
+      idempotencyKey: 'sched:MF:2026-07-25',
+    } as CreateRunDto);
+
+    const rows = await svc.listFirmReview(T);
+
+    expect(rows.map((r) => r.id)).toEqual([reviewable.id]);
+    expect(withTenant).toHaveBeenCalled(); // tenant-scoped read path
+  });
+
+  it('acknowledging a firm run (ready_for_review -> completed) drains it from the surface', async () => {
+    const store = makeStore();
+    seedMission(store, 'MF', 'active');
+    store.missions.get('MF')!.strategyId = null;
+    const { svc } = makeService(store);
+    const run = await mintReviewRun(svc, 'MF', 'sched:MF:2026-07-23', firmFindings);
+
+    expect((await svc.listFirmReview(T)).map((r) => r.id)).toEqual([run.id]);
+
+    // The reviewer acknowledges through the normal transition endpoint.
+    await svc.transition(T, U, run.id, { to: 'completed' } as TransitionRunDto);
+
+    expect(await svc.listFirmReview(T)).toEqual([]);
+    // The run itself is terminal + audited, not deleted.
+    expect(store.runs.get(run.id)!.state).toBe('completed');
   });
 });

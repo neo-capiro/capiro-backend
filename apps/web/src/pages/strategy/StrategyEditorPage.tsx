@@ -30,6 +30,7 @@ import { useApi } from '../../lib/use-api.js';
 import { useMe } from '../../lib/me.js';
 import { STRATEGY_TYPE_LABEL } from './constants.js';
 import { clip } from './context/context-utils.js';
+import { canShowWatchRail } from './agents/agent-utils.js';
 import { buildCalendar, formatDbDate, parseDbDate } from './fiscal.js';
 import type { StrategyNode, StrategyNodeArtifact } from './types.js';
 
@@ -88,6 +89,12 @@ export function StrategyEditorPage() {
   }, [loadedId, searchParams]);
 
   const meriEnabled = Boolean(me.data?.features?.strategyPlannerMeri);
+  // Stage F: the Watch-mode rail block requires BOTH /me bits — agenticMeri
+  // (class AgenticGuard) AND strategyWatcher (StrategyWatcherGuard on
+  // run-check + the scheduler's per-occurrence flag check). On agenticMeri
+  // alone the toggle would show "Watching" while no check ever runs. UI belt —
+  // the /strategy-api/agents routes are guarded server-side regardless.
+  const watcherEnabled = canShowWatchRail(me.data?.features);
 
   if (strategy.isLoading) {
     return <div style={{ padding: 40, color: 'var(--ink-3)' }}>Loading strategy…</div>;
@@ -603,6 +610,7 @@ export function StrategyEditorPage() {
             calendar={calendar}
             members={members.data ?? []}
             meriEnabled={meriEnabled}
+            watcherEnabled={watcherEnabled}
             meriSummary={s.meriSummary}
             currentUserId={user?.id}
             existingNodeIds={s.nodes.map((n) => n.id)}

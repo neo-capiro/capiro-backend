@@ -5,6 +5,7 @@ import { StrategyEditorPage } from './StrategyEditorPage.js';
 import { ContextLibrary } from './context/ContextLibrary.js';
 import { ContextDocumentView } from './context/ContextDocumentView.js';
 import { StewardReview } from './context/StewardReview.js';
+import { ReviewQueue } from './agents/ReviewQueue.js';
 import './strategy-ds.css';
 
 /**
@@ -48,6 +49,13 @@ export function StrategyRoutes() {
         <Route
           path="context/:id"
           element={agentic ? <ContextDocumentView /> : <Navigate to="/strategies" replace />}
+        />
+        {/* Stage F: agent ChangeSet review queue — static two-segment path,
+            registered before :id. The server additionally enforces the
+            Watcher flag; this is the agenticMeri UI belt. */}
+        <Route
+          path="agents/review"
+          element={agentic ? <ReviewQueue /> : <Navigate to="/strategies" replace />}
         />
         <Route path=":id" element={<StrategyEditorPage />} />
         <Route path="*" element={<Navigate to="/strategies" replace />} />

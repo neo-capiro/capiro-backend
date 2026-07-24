@@ -64,6 +64,15 @@ export interface MeResponse {
      * Optional so an older cached /me shape degrades (hidden, never a 403).
      */
     contextSteward?: boolean;
+    /**
+     * Stage F Strategy Watcher. The server's run-check route requires
+     * strategyWatcher.enabled ON TOP of agenticMeri (StrategyWatcherGuard),
+     * and the F2 scheduler skips missions quietly for tenants without it —
+     * so the Watch rail gates on BOTH bits (a toggle shown on agenticMeri
+     * alone would read "Watching" while no check ever runs). Optional so an
+     * older cached /me shape degrades (hidden, never a lying toggle).
+     */
+    strategyWatcher?: boolean;
   };
 }
 

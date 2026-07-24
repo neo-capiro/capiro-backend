@@ -189,6 +189,11 @@ export class NodeService {
         action: 'node.deleted',
         entityType: 'node',
         entityId: nodeId,
+        // The sp_node row was deleted above IN THIS TX, so the F2 outbox
+        // consumer's node -> strategy resolution finds nothing at drain time;
+        // carry the strategy explicitly so node.deleted actually wakes the
+        // strategy's watcher missions within one poll.
+        strategyId,
         before: { title: node.title, kind: node.kind },
       });
       return loadStrategyDetail(tx, strategyId);

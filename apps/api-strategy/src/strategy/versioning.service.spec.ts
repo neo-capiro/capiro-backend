@@ -76,6 +76,35 @@ describe('VersioningService.logActivity', () => {
     });
   });
 
+  it('carries an explicit strategyId on the OUTBOX payload (node.deleted: the node row is gone at drain time)', async () => {
+    const { tx, activity, outbox } = makeCaptureTx();
+
+    await new VersioningService().logActivity(tx, {
+      tenantId: T,
+      actorUserId: U,
+      authorKind: 'person',
+      action: 'node.deleted',
+      entityType: 'node',
+      entityId: 'N1',
+      strategyId: 'S1',
+      before: { title: 'gone', kind: 'milestone' },
+    });
+
+    expect(outbox).toHaveLength(1);
+    expect(outbox[0]!.type).toBe('node.deleted');
+    expect(outbox[0]!.payload).toEqual({
+      entityType: 'node',
+      entityId: 'N1',
+      strategyId: 'S1', // <- the F2 consumer resolves the bump from THIS
+      actorUserId: U,
+      authorKind: 'person',
+      requestId: null,
+    });
+    // The activity row schema is unchanged — strategyId is outbox-only.
+    expect(activity).toHaveLength(1);
+    expect(activity[0]!.strategyId).toBeUndefined();
+  });
+
   it('system-authored writes: null actor + meri authorKind propagate to both rows, requestId passes through', async () => {
     const { tx, activity, outbox } = makeCaptureTx();
 

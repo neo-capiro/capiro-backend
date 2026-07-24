@@ -4,6 +4,7 @@ import { StrategyPlannerGuard } from './strategy-planner.guard.js';
 import { StrategyMeriGuard } from './strategy-meri.guard.js';
 import { AgenticGuard } from './agentic.guard.js';
 import { ContextStewardGuard } from './context-steward.guard.js';
+import { StrategyWatcherGuard } from './strategy-watcher.guard.js';
 
 /**
  * Global so the flag service + guards are injectable on every feature
@@ -18,6 +19,7 @@ import { ContextStewardGuard } from './context-steward.guard.js';
     StrategyMeriGuard,
     AgenticGuard,
     ContextStewardGuard,
+    StrategyWatcherGuard,
   ],
   exports: [
     StrategyFlagsService,
@@ -25,6 +27,7 @@ import { ContextStewardGuard } from './context-steward.guard.js';
     StrategyMeriGuard,
     AgenticGuard,
     ContextStewardGuard,
+    StrategyWatcherGuard,
   ],
 })
 export class FlagsModule {}

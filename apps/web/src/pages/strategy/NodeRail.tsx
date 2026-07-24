@@ -12,6 +12,7 @@ import { App } from 'antd';
 import { Icon, Ava, iconBtn, fieldS, fieldLbl, chipBtn } from './strategy-ui.js';
 import { OwnerPicker } from './OwnerPicker.js';
 import { AskMeri } from './AskMeri.js';
+import { WatchRail } from './agents/WatchRail.js';
 import { useAssistant } from './api.js';
 import {
   NODE_KIND_META,
@@ -31,6 +32,7 @@ export function EditorRail({
   calendar,
   members,
   meriEnabled,
+  watcherEnabled,
   meriSummary,
   currentUserId,
   existingNodeIds,
@@ -49,6 +51,14 @@ export function EditorRail({
   calendar: FiscalCalendar;
   members: TenantMember[];
   meriEnabled: boolean;
+  /**
+   * Stage F: shows the Watch-mode block (UI belt). Requires BOTH /me bits —
+   * features.agenticMeri AND features.strategyWatcher (canShowWatchRail):
+   * the run-check route stacks StrategyWatcherGuard on top of AgenticGuard
+   * and the scheduler skips watcher-flag-off tenants quietly, so on
+   * agenticMeri alone the toggle would lie ("Watching" while nothing runs).
+   */
+  watcherEnabled?: boolean;
   meriSummary?: string | null;
   currentUserId: string | undefined;
   existingNodeIds: string[];
@@ -259,26 +269,33 @@ export function EditorRail({
             />
           </>
         ) : meriEnabled ? (
-          <StrategyMeriRail
-            summary={meriSummary}
-            busy={assistant.isPending}
-            onAsk={(t, ids) => runAssistant('strategy', undefined, t, ids)}
-          />
+          <>
+            <StrategyMeriRail
+              summary={meriSummary}
+              busy={assistant.isPending}
+              onAsk={(t, ids) => runAssistant('strategy', undefined, t, ids)}
+            />
+            {/* Stage F: Watch-mode affordance (agenticMeri+strategyWatcher UI belt). */}
+            {watcherEnabled && <WatchRail strategyId={strategyId} />}
+          </>
         ) : (
-          <div
-            style={{
-              background: 'var(--bg-surface-2)',
-              border: '1px solid var(--border-1)',
-              borderRadius: 9,
-              padding: '11px 13px',
-              fontSize: 'var(--text-sm)',
-              color: 'var(--ink-2)',
-              lineHeight: 1.5,
-            }}
-          >
-            Select a step on the timeline to edit its fields, re-time it, or delete it. Use{' '}
-            <b>+ Add step</b> in the header to create one.
-          </div>
+          <>
+            <div
+              style={{
+                background: 'var(--bg-surface-2)',
+                border: '1px solid var(--border-1)',
+                borderRadius: 9,
+                padding: '11px 13px',
+                fontSize: 'var(--text-sm)',
+                color: 'var(--ink-2)',
+                lineHeight: 1.5,
+              }}
+            >
+              Select a step on the timeline to edit its fields, re-time it, or delete it. Use{' '}
+              <b>+ Add step</b> in the header to create one.
+            </div>
+            {watcherEnabled && <WatchRail strategyId={strategyId} />}
+          </>
         )}
       </div>
     </div>

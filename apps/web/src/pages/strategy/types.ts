@@ -417,3 +417,145 @@ export interface ResolveConflictInput {
   controllingFactId: string;
   note: string;
 }
+
+/*
+ * ---- Stage F: the agent surface (/strategy-api/agents/*) ----
+ * Mirrors sp_change_set / sp_agent_mission / sp_agent_run. ChangeSet ops reuse
+ * the Meri assistant PlanEdit shape and are re-validated server-side on apply
+ * (the web renders them read-only as a diff). Rows arrive via the tolerant
+ * normalizers in agents/agent-utils.ts.
+ */
+
+export type ChangeSetRisk = 'low' | 'medium' | 'high' | 'critical';
+export type ChangeSetStatus =
+  | 'proposed'
+  | 'approved'
+  | 'applied'
+  | 'rejected'
+  | 'stale'
+  | 'undone';
+
+/** One proposed edit (the Meri assistant PlanEdit shape, rendered read-only). */
+export interface ChangeSetOp {
+  op: 'add' | 'update' | 'remove' | 'retime' | string;
+  nodeId?: string;
+  kind?: string;
+  subject?: string;
+  title?: string;
+  note?: string | null;
+  status?: string | null;
+  ownerUserId?: string | null;
+  startsOn?: string;
+  endsOn?: string | null;
+  openEnded?: boolean;
+  dependsOn?: string[];
+  sources?: Array<{ section: string; ref?: string }>;
+}
+
+/** sp_change_set — a Watcher (or person) proposed edit-set awaiting review. */
+export interface ChangeSet {
+  id: string;
+  strategyId: string;
+  runId: string | null;
+  summary: string;
+  ops: ChangeSetOp[];
+  /** Selective-approval subset (what apply replays); null = all ops. */
+  approvedOps: ChangeSetOp[] | null;
+  risk: ChangeSetRisk;
+  status: ChangeSetStatus;
+  strategyVersionId: string;
+  appliedVersionId: string | null;
+  approvedByUserId: string | null;
+  approvedAt: string | null;
+  rejectedByUserId: string | null;
+  rejectedAt: string | null;
+  appliedByUserId: string | null;
+  appliedAt: string | null;
+  undoneByUserId: string | null;
+  undoneAt: string | null;
+  /** null ⇒ Watcher/system proposal. */
+  createdByUserId: string | null;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export type MissionState = 'draft' | 'active' | 'paused' | 'completed' | 'failed' | 'canceled';
+export type RunState =
+  | 'queued'
+  | 'planning'
+  | 'waiting_for_input'
+  | 'executing'
+  | 'ready_for_review'
+  | 'completed'
+  | 'failed'
+  | 'canceled';
+
+/** sp_agent_mission — a standing mission ("Keep this strategy on track"). */
+export interface AgentMission {
+  id: string;
+  strategyId: string | null;
+  clientId: string | null;
+  name: string;
+  description: string | null;
+  state: MissionState;
+  cadence: 'daily' | 'weekly' | null;
+  nextRunAt: string | null;
+  createdByUserId: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+/** sp_agent_run — one execution of a mission. findings is raw JSON (see extractRunFindings). */
+export interface AgentRun {
+  id: string;
+  missionId: string;
+  strategyId: string | null;
+  state: RunState;
+  trigger: 'manual' | 'scheduled' | 'event' | string;
+  findings: Record<string, unknown> | null;
+  waitingReason: string | null;
+  error: string | null;
+  startedAt: string | null;
+  finishedAt: string | null;
+  createdAt: string;
+}
+
+/** One display-ready finding flattened out of a run's findings JSON. */
+export interface RunFinding {
+  code: string | null;
+  severity: 'error' | 'warning' | 'info';
+  message: string;
+  suggestion?: string;
+  nodeIds?: string[];
+}
+
+/** POST /agents/missions — create a standing mission (starts draft; PATCH to activate). */
+export interface CreateMissionInput {
+  strategyId?: string;
+  clientId?: string;
+  name: string;
+  description?: string;
+  cadence?: 'daily' | 'weekly';
+}
+
+/** PATCH /agents/missions/:id — state moves go through MISSION_TRANSITIONS server-side. */
+export interface UpdateMissionInput {
+  state?: MissionState;
+  name?: string;
+  description?: string | null;
+  cadence?: 'daily' | 'weekly' | null;
+  nextRunAt?: string | null;
+}
+
+/** POST /agents/change-sets/:id/approve — opIndexes selects a SUBSET of ops (omit = all). */
+export interface ApproveChangeSetInput {
+  opIndexes?: number[];
+}
+
+/** POST /agents/missions/:id/run-check — normalized result (tolerant of shape). */
+export interface RunCheckResult {
+  run: AgentRun | null;
+  findings: RunFinding[];
+  /** ChangeSets the check proposed (ids), when the API reports them. */
+  changeSetIds: string[];
+}

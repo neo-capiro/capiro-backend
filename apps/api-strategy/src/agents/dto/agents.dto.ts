@@ -94,6 +94,18 @@ export class CreateRunDto {
   strategyId?: string;
 }
 
+/**
+ * Stage F1: trigger a Watcher check run now. idempotencyKey is optional — the
+ * service defaults it to `watch:<missionId>:<today>` so a same-day re-trigger
+ * refreshes the existing run instead of minting a new one.
+ */
+export class RunCheckDto {
+  @IsOptional()
+  @IsString()
+  @MaxLength(200)
+  idempotencyKey?: string;
+}
+
 /** Move a run through the RUN_TRANSITIONS state machine. */
 export class TransitionRunDto {
   @IsIn(RUN_STATES)

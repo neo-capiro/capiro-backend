@@ -24,7 +24,9 @@ import {
 
 const EXPECTED_RUN: Record<RunStateValue, readonly RunStateValue[]> = {
   queued: ['planning', 'canceled'],
-  planning: ['executing', 'waiting_for_input', 'failed', 'canceled'],
+  // planning -> ready_for_review is the Stage F check-run shape: a suggest-only
+  // Watcher check has no executing phase (see run-state.ts).
+  planning: ['executing', 'ready_for_review', 'waiting_for_input', 'failed', 'canceled'],
   waiting_for_input: ['planning', 'executing', 'failed', 'canceled'],
   executing: ['ready_for_review', 'waiting_for_input', 'failed', 'canceled'],
   ready_for_review: ['completed', 'failed', 'canceled'],

@@ -28,10 +28,15 @@ export const MISSION_STATES = [
 ] as const;
 export type MissionStateValue = (typeof MISSION_STATES)[number];
 
-/** Legal run-state moves. completed/failed/canceled are terminal. */
+/**
+ * Legal run-state moves. completed/failed/canceled are terminal.
+ * planning -> ready_for_review is the Stage F CHECK-RUN shape: a Watcher check
+ * has no external execution phase (suggest-only — it only reads state and
+ * proposes change-sets), so it skips 'executing' and goes straight to review.
+ */
 export const RUN_TRANSITIONS: Record<RunStateValue, readonly RunStateValue[]> = {
   queued: ['planning', 'canceled'],
-  planning: ['executing', 'waiting_for_input', 'failed', 'canceled'],
+  planning: ['executing', 'ready_for_review', 'waiting_for_input', 'failed', 'canceled'],
   waiting_for_input: ['planning', 'executing', 'failed', 'canceled'],
   executing: ['ready_for_review', 'waiting_for_input', 'failed', 'canceled'],
   ready_for_review: ['completed', 'failed', 'canceled'],

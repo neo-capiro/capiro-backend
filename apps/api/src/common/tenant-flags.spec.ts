@@ -28,6 +28,9 @@ import {
   contextStewardEnabled,
   contextStewardActive,
   CONTEXT_STEWARD_FLAG,
+  strategyWatcherEnabled,
+  strategyWatcherActive,
+  STRATEGY_WATCHER_FLAG,
 } from './tenant-flags.js';
 
 describe('tenantFeatureEnabled', () => {
@@ -335,5 +338,49 @@ describe('contextStewardActive (Stage E: agentic env kill-switch AND per-tenant 
   test('dormant by default — both conditions default OFF', () => {
     expect(contextStewardActive({}, envOff)).toBe(false);
     expect(contextStewardActive({}, envOn)).toBe(false); // tenant flag still absent/default-off
+  });
+});
+
+describe('strategyWatcherEnabled (per-tenant Watcher opt-in alone, default OFF)', () => {
+  test('per-tenant opt-in, default off, malformed settings fail closed', () => {
+    expect(strategyWatcherEnabled({ clioFeatureFlags: { [STRATEGY_WATCHER_FLAG]: true } })).toBe(
+      true,
+    );
+    expect(strategyWatcherEnabled({})).toBe(false);
+    expect(strategyWatcherEnabled(null)).toBe(false);
+    expect(strategyWatcherEnabled({ clioFeatureFlags: 'oops' })).toBe(false);
+  });
+});
+
+describe('strategyWatcherActive (Stage F: agentic env kill-switch AND per-tenant flag, both default OFF)', () => {
+  const envOn = { STRATEGY_AGENTS_ENABLED: 'true' } as NodeJS.ProcessEnv;
+  const envOff = {} as NodeJS.ProcessEnv;
+  const tenantOn = { clioFeatureFlags: { [STRATEGY_WATCHER_FLAG]: true } };
+  const tenantOff = { clioFeatureFlags: { [STRATEGY_WATCHER_FLAG]: false } };
+
+  test('active only when the env switch is on AND the tenant flag is on', () => {
+    expect(strategyWatcherActive(tenantOn, envOn)).toBe(true);
+  });
+
+  test('dormant when the env switch is off, even if the tenant flag is on (env-side rollback)', () => {
+    expect(strategyWatcherActive(tenantOn, envOff)).toBe(false);
+  });
+
+  test('dormant when the tenant flag is off, even if the env switch is on (tenant-side rollback)', () => {
+    expect(strategyWatcherActive(tenantOff, envOn)).toBe(false);
+  });
+
+  test('independent of agenticMeri — the umbrella flag alone does NOT enable the Watcher', () => {
+    // The lying-Watch-toggle bug: agenticMeri on, strategyWatcher unset. GET
+    // /me must report strategyWatcher=false so the web hides the Watch rail
+    // (the scheduler skips quietly and run-check 403s for such tenants).
+    expect(
+      strategyWatcherActive({ clioFeatureFlags: { [AGENTIC_MERI_FLAG]: true } }, envOn),
+    ).toBe(false);
+  });
+
+  test('dormant by default — both conditions default OFF', () => {
+    expect(strategyWatcherActive({}, envOff)).toBe(false);
+    expect(strategyWatcherActive({}, envOn)).toBe(false); // tenant flag still absent/default-off
   });
 });

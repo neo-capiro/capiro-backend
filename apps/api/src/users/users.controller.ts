@@ -13,6 +13,7 @@ import {
   strategyMeriActive,
   agenticMeriActive,
   contextStewardActive,
+  strategyWatcherActive,
   entitlementsForTenant,
 } from '../common/tenant-flags.js';
 import type { AppConfig } from '../config/config.schema.js';
@@ -158,6 +159,11 @@ export class UsersController {
         // top of agenticMeri (api-strategy ContextStewardGuard) — surfaced so
         // the web can gate the "Extract facts" button instead of 403-ing.
         contextSteward: contextStewardActive(profile.tenant?.settings),
+        // Stage F: the Watcher needs strategyWatcher.enabled on top of
+        // agenticMeri (StrategyWatcherGuard on run-check + the scheduler's
+        // per-occurrence check) — surfaced so the web can gate the Watch rail
+        // instead of showing a toggle whose checks never run.
+        strategyWatcher: strategyWatcherActive(profile.tenant?.settings),
       },
     };
   }
@@ -240,6 +246,7 @@ export class UsersController {
         strategyPlannerMeri: strategyMeriActive(profile.tenant?.settings),
         agenticMeri: agenticMeriActive(profile.tenant?.settings),
         contextSteward: contextStewardActive(profile.tenant?.settings),
+        strategyWatcher: strategyWatcherActive(profile.tenant?.settings),
       },
     };
   }

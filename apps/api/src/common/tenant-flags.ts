@@ -225,6 +225,34 @@ export function contextStewardActive(settings: unknown, env: NodeJS.ProcessEnv =
 }
 
 /**
+ * Strategy Watcher (Stage F) — the Watch-mode surface is gated server-side by
+ * api-strategy on (STRATEGY_AGENTS_ENABLED env AND per-tenant
+ * strategyWatcher.enabled), ON TOP of the agenticMeri umbrella:
+ * StrategyWatcherGuard on the run-check route and a per-occurrence flag check
+ * in the F2 scheduler. This mirrors that pair so GET /me can surface a
+ * `strategyWatcher` feature bit the web uses to gate the Watch rail — without
+ * it, agenticMeri-only tenants get a Watch toggle whose scheduled checks skip
+ * quietly forever and a "Run check now" button that 403s on every click (the
+ * exact lying-UI pattern the Stage E contextSteward bit exists to prevent).
+ */
+export const STRATEGY_WATCHER_FLAG = 'strategyWatcher.enabled' as const;
+
+/** The per-tenant Strategy Watcher flag alone (no env AND) — default OFF. */
+export function strategyWatcherEnabled(settings: unknown): boolean {
+  return tenantFeatureEnabled(settings, STRATEGY_WATCHER_FLAG, false);
+}
+
+/**
+ * The Strategy Watcher is active for a tenant only when the agentic env
+ * kill-switch is on AND the per-tenant flag resolves true (both default OFF).
+ * Surfaced to the web (GET /me); api-strategy enforces the same pair
+ * server-side (StrategyWatcherGuard + the scheduler's per-occurrence check).
+ */
+export function strategyWatcherActive(settings: unknown, env: NodeJS.ProcessEnv = process.env): boolean {
+  return strategyAgentsEnvEnabled(env) && strategyWatcherEnabled(settings);
+}
+
+/**
  * Meri proactive-alert importance floor (2026-07-12). The Meri chat bell + the
  * "🔔 Scheduled briefings" banner are both fed by MeriService.listAlerts, which
  * historically returned EVERY pending clio_proactive_alert with no importance

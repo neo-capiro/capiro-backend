@@ -202,6 +202,20 @@ function makeTx(store: Store, heldLocks: Array<() => void> = []) {
       store.changeSets.set(where.id, merged);
       return merged;
     },
+    // refreshProposedOps' status CAS: a where.status mismatch is count 0,
+    // exactly like Postgres.
+    updateMany: async ({
+      where,
+      data,
+    }: {
+      where: { id: string; status?: string };
+      data: Rec;
+    }) => {
+      const rec = store.changeSets.get(where.id);
+      if (!rec || (where.status !== undefined && rec.status !== where.status)) return { count: 0 };
+      store.changeSets.set(where.id, { ...rec, ...data, updatedAt: now });
+      return { count: 1 };
+    },
   };
   // Tenant-scoped in prod (query hook injects tenantId); the fake store only
   // holds tenant-1 rows, so a miss models both "nonexistent" and "other tenant".
@@ -485,6 +499,74 @@ describe('ChangeSetsService.approve', () => {
     expect((err as Error).message).toMatch(/out-of-range index: 2/);
     expect(store.changeSets.get(cs.id)!.status).toBe('proposed');
     expect(store.changeSets.get(cs.id)!.approvedOps).toBeNull();
+  });
+});
+
+describe('ChangeSetsService.refreshProposedOps (F1 watcher date-staleness refresh)', () => {
+  it('rewrites a still-proposed row IN PLACE (ops + summary), audits changeset.refreshed and returns true', async () => {
+    const store = makeStore();
+    seedStrategy(store);
+    seedVersion(store, 'v1', new Date('2026-01-01T00:00:00.000Z'));
+    const { svc } = makeService(store);
+    const cs = (await svc.create(T, U, createDto([opA]))) as Rec;
+
+    const refreshed = await svc.refreshProposedOps(T, null, cs.id, {
+      summary: '[watch:overdue:N1] fresher message',
+      ops: [opB],
+    });
+
+    expect(refreshed).toBe(true);
+    const row = store.changeSets.get(cs.id)!;
+    expect(row.status).toBe('proposed'); // same row, same lifecycle position
+    expect(row.ops).toEqual([opB]);
+    expect(row.summary).toBe('[watch:overdue:N1] fresher message');
+    expect(row.strategyVersionId).toBe('v1'); // the pin is untouched
+    const audit = store.activity.find((a) => a.action === 'changeset.refreshed')!;
+    expect(audit.entityId).toBe(cs.id);
+    expect(audit.authorKind).toBe('meri'); // userId null = watcher/system caller
+    expect(store.outbox.some((o) => o.type === 'changeset.refreshed')).toBe(true);
+  });
+
+  it('NEVER rewrites an approved row (the human approved those exact ops) — returns false, no write, no audit', async () => {
+    const store = makeStore();
+    seedStrategy(store);
+    seedVersion(store, 'v1', new Date('2026-01-01T00:00:00.000Z'));
+    const { svc } = makeService(store);
+    const cs = (await svc.create(T, U, createDto([opA]))) as Rec;
+    await svc.approve(T, U, cs.id, {} as ApproveChangeSetDto);
+
+    const refreshed = await svc.refreshProposedOps(T, null, cs.id, {
+      summary: 'must not land',
+      ops: [opB],
+    });
+
+    expect(refreshed).toBe(false);
+    const row = store.changeSets.get(cs.id)!;
+    expect(row.status).toBe('approved');
+    expect(row.ops).toEqual([opA]);
+    expect(row.summary).toBe('Tighten the plan');
+    expect(store.activity.some((a) => a.action === 'changeset.refreshed')).toBe(false);
+  });
+
+  it('skips (false) when the pinned head is no longer the live head — that row belongs to apply\'s stale path, not a rewrite', async () => {
+    const store = makeStore();
+    seedStrategy(store);
+    seedVersion(store, 'v1', new Date('2026-01-01T00:00:00.000Z'));
+    const { svc } = makeService(store);
+    const cs = (await svc.create(T, U, createDto([opA]))) as Rec; // pins v1
+    // Someone edits the plan after the proposal: a newer version becomes head.
+    seedVersion(store, 'v2', new Date('2026-03-01T00:00:00.000Z'));
+
+    const refreshed = await svc.refreshProposedOps(T, null, cs.id, {
+      summary: 'must not land',
+      ops: [opB],
+    });
+
+    expect(refreshed).toBe(false);
+    const row = store.changeSets.get(cs.id)!;
+    expect(row.ops).toEqual([opA]);
+    expect(row.status).toBe('proposed'); // untouched — apply will 409-stale it
+    expect(store.activity.some((a) => a.action === 'changeset.refreshed')).toBe(false);
   });
 });
 

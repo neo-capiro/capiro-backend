@@ -112,6 +112,14 @@ export class VersioningService {
       action: string;
       entityType: string;
       entityId: string;
+      /**
+       * Optional explicit strategy for the OUTBOX payload only (not the
+       * activity row). Required for events whose entity can't be resolved to a
+       * strategy at drain time — e.g. node.deleted, where the sp_node row is
+       * deleted in this same tx, so the F2 consumer's node -> strategy lookup
+       * finds nothing.
+       */
+      strategyId?: string;
       before?: unknown;
       after?: unknown;
       requestId?: string | null;
@@ -138,6 +146,9 @@ export class VersioningService {
         payload: {
           entityType: opts.entityType,
           entityId: opts.entityId,
+          // Only present when the caller supplied it — keeps every other
+          // event's payload shape unchanged.
+          ...(opts.strategyId ? { strategyId: opts.strategyId } : {}),
           actorUserId: opts.actorUserId,
           authorKind: opts.authorKind,
           requestId: opts.requestId ?? null,

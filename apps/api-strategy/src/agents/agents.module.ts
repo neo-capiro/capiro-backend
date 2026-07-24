@@ -3,20 +3,45 @@ import { AgentsController } from './agents.controller.js';
 import { MissionsService } from './missions.service.js';
 import { RunsService } from './runs.service.js';
 import { ChangeSetsService } from './change-sets.service.js';
+import { WatcherService } from './watcher.service.js';
+import { WatcherSchedulerService } from './watcher-scheduler.service.js';
+import { OutboxConsumerService } from './outbox-consumer.service.js';
 import { VersioningService } from '../strategy/versioning.service.js';
 import { MeriModule } from '../meri/meri.module.js';
 import { StrategyModule } from '../strategy/strategy.module.js';
+import { ContextModule } from '../context/context.module.js';
+import { ReferenceModule } from '../reference/reference.module.js';
 
 /**
- * Stage C agent runtime (missions / runs / change-sets). MeriModule exports
- * MeriService (ChangeSet apply replays ops through the assistant pipeline);
- * StrategyModule exports VersionService (undo = restore the pinned pre-apply
- * version). VersioningService is stateless so provided locally (parity with
- * MeriModule). PrismaService + FlagsModule (guards) are @Global.
+ * Stage C agent runtime (missions / runs / change-sets) + Stage F Watcher
+ * loop. MeriModule exports MeriService (ChangeSet apply replays ops through
+ * the assistant pipeline); StrategyModule exports VersionService (undo =
+ * restore the pinned pre-apply version). VersioningService is stateless so
+ * provided locally (parity with MeriModule). PrismaService + FlagsModule
+ * (guards) are @Global.
+ *
+ * Stage F (F1+F2): WatcherService runs the deterministic checks (RiskRouter —
+ * src/agents/risk-router.js — is a PURE module, imported directly, not a
+ * provider); WatcherSchedulerService polls due sp_agent_mission rows and
+ * OutboxConsumerService drains sp_event_outbox — both are setInterval
+ * lifecycle hooks that stay DARK unless STRATEGY_AGENTS_ENABLED and
+ * STRATEGY_WATCHER_SCHEDULER are BOTH 'true'.
  */
 @Module({
-  imports: [MeriModule, StrategyModule],
+  // ContextModule exports StewardService — WatcherService's stale-context
+  // check reads the fact-level grounding health (MeriModule imports it too but
+  // does not re-export it). ReferenceModule exports ReferenceService — the
+  // scheduler's firm-calendar change detection fingerprints getCalendars.
+  imports: [MeriModule, StrategyModule, ContextModule, ReferenceModule],
   controllers: [AgentsController],
-  providers: [MissionsService, RunsService, ChangeSetsService, VersioningService],
+  providers: [
+    MissionsService,
+    RunsService,
+    ChangeSetsService,
+    VersioningService,
+    WatcherService,
+    WatcherSchedulerService,
+    OutboxConsumerService,
+  ],
 })
 export class AgentsModule {}

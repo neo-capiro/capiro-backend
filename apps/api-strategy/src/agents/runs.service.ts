@@ -187,6 +187,41 @@ export class RunsService {
     return run;
   }
 
+  /**
+   * Firm-level review surface (Stage F): ready_for_review runs with NO
+   * strategy (strategyId null) — the F2 scheduler's firm-calendar placeholder
+   * mints these with findings but no change-set, so the change-set review
+   * queue alone would never show them (and WatchRail is strategy-scoped).
+   * This feeds the review queue's firm-level section; a reviewer acknowledges
+   * a run through the normal transition endpoint (ready_for_review ->
+   * completed), which is what drains it from this list.
+   *
+   * ZERO-FINDING rows are excluded: the placeholder's no-change path parks
+   * `{ findings: [], calendarFingerprint }` runs in ready_for_review as ledger
+   * rows ("the run row is the record") — they carry no review obligation and
+   * surfacing them would bury the real critical rows in daily no-op noise.
+   * The filter is on the JSON payload, so it runs in TS over a bounded recent
+   * window rather than as an awkward Prisma JSON-path predicate.
+   */
+  async listFirmReview(tenantId: string, opts: { take?: number } = {}) {
+    const take = Math.min(Math.max(opts.take ?? 50, 1), 100);
+    const rows = await this.prisma.withTenant(tenantId, (tx) =>
+      tx.spAgentRun.findMany({
+        where: { strategyId: null, state: 'ready_for_review' },
+        orderBy: { createdAt: 'desc' },
+        take: 500,
+      }),
+    );
+    return rows
+      .filter((run) => {
+        const f = run.findings;
+        if (!f || typeof f !== 'object' || Array.isArray(f)) return false;
+        const list = (f as Record<string, unknown>).findings;
+        return Array.isArray(list) && list.length > 0;
+      })
+      .slice(0, take);
+  }
+
   async listForMission(tenantId: string, missionId: string, opts: { take?: number } = {}) {
     const take = Math.min(Math.max(opts.take ?? 50, 1), 100);
     return this.prisma.withTenant(tenantId, async (tx) => {

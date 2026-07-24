@@ -10,7 +10,11 @@ import { VersioningService } from '../strategy/versioning.service.js';
 import { VersionService } from '../strategy/version.service.js';
 import { MeriService } from '../meri/meri.service.js';
 import type { PlanEdit } from '../meri/meri.types.js';
-import type { ApproveChangeSetDto, CreateChangeSetDto } from './dto/agents.dto.js';
+import type {
+  ApproveChangeSetDto,
+  ChangeSetRiskValue,
+  CreateChangeSetDto,
+} from './dto/agents.dto.js';
 
 /**
  * ChangeSet lifecycle (Stage C): proposed -> approved -> applied -> undone,
@@ -39,11 +43,33 @@ export class ChangeSetsService {
     });
   }
 
-  async create(tenantId: string, userId: string | null, dto: CreateChangeSetDto) {
+  /**
+   * opts.risk (F2): a caller-classified risk that OVERRIDES dto.risk — the F1
+   * Watcher passes RiskRouter's output here so the persisted risk is the
+   * symbolic classification, never a self-assessed value smuggled through the
+   * DTO. The DTO path (person-authored proposals via the controller) is
+   * unchanged: dto.risk remains required and is used when opts.risk is absent.
+   *
+   * opts.tx (F1): an AMBIENT caller transaction to JOIN instead of opening our
+   * own — WatcherService.proposeChangeSets holds a per-strategy
+   * SELECT ... FOR UPDATE while it dedups against open proposals, and the
+   * create must land inside that same tx or the dedup is read-then-create and
+   * races a concurrent proposer. The caller owns scoping (it opened the tx
+   * under its own withTenant/withTenantUser) and commit/rollback.
+   */
+  async create(
+    tenantId: string,
+    userId: string | null,
+    dto: CreateChangeSetDto,
+    opts: { risk?: ChangeSetRiskValue; tx?: Prisma.TransactionClient } = {},
+  ) {
+    const risk = opts.risk ?? dto.risk;
     const run = (fn: (tx: Prisma.TransactionClient) => Promise<unknown>) =>
-      userId
-        ? this.prisma.withTenantUser(tenantId, userId, fn)
-        : this.prisma.withTenant(tenantId, fn);
+      opts.tx
+        ? fn(opts.tx)
+        : userId
+          ? this.prisma.withTenantUser(tenantId, userId, fn)
+          : this.prisma.withTenant(tenantId, fn);
     return run(async (tx) => {
       const strat = await tx.spStrategy.findFirst({
         where: { id: dto.strategyId },
@@ -89,7 +115,7 @@ export class ChangeSetsService {
           runId: dto.runId ?? null,
           summary: dto.summary,
           ops: dto.ops as Prisma.InputJsonValue,
-          risk: dto.risk,
+          risk,
           status: 'proposed',
           strategyVersionId: head.id,
           createdByUserId: userId,
@@ -105,13 +131,60 @@ export class ChangeSetsService {
         after: {
           strategyId: dto.strategyId,
           summary: dto.summary,
-          risk: dto.risk,
+          risk,
           opCount: dto.ops.length,
           // Audit the seal (the sp_version write above) in the same tx/row.
           pinnedHeadSealed: sealed.count > 0,
         },
       });
       return cs;
+    });
+  }
+
+  /**
+   * F1 Watcher refresh: rewrite a still-'proposed' change-set's ops/summary IN
+   * PLACE when a re-check recomputed them. checkOverdue anchors its retime to
+   * the RUN-day clock ("restart tomorrow"), so a proposal the marker dedup
+   * keeps open for days drifts date-stale — with the head unmoved the stale
+   * guard would let it apply an already-past window, which the next run
+   * re-flags overdue (an approve/apply/re-propose loop). Guards:
+   *  - only 'proposed' rows (approved ops are IMMUTABLE — the approval covered
+   *    those exact ops; the status CAS makes a concurrent approve win cleanly);
+   *  - only while the pinned head is still the live head (a moved head belongs
+   *    to apply's existing stale path — refreshed ops would 409 there anyway,
+   *    and re-pinning would need a fresh seal; skip instead).
+   * Returns true when the row was rewritten.
+   */
+  async refreshProposedOps(
+    tenantId: string,
+    userId: string | null,
+    id: string,
+    dto: { summary: string; ops: unknown[] },
+  ): Promise<boolean> {
+    const run = (fn: (tx: Prisma.TransactionClient) => Promise<boolean>) =>
+      userId
+        ? this.prisma.withTenantUser(tenantId, userId, fn)
+        : this.prisma.withTenant(tenantId, fn);
+    return run(async (tx) => {
+      const cs = await tx.spChangeSet.findFirst({ where: { id } });
+      if (!cs || cs.status !== 'proposed') return false;
+      const head = await this.headOf(tx, cs.strategyId);
+      if (!head || head.id !== cs.strategyVersionId) return false;
+      const res = await tx.spChangeSet.updateMany({
+        where: { id, status: 'proposed' },
+        data: { summary: dto.summary, ops: dto.ops as Prisma.InputJsonValue },
+      });
+      if (res.count === 0) return false;
+      await this.versioning.logActivity(tx, {
+        tenantId,
+        actorUserId: userId,
+        authorKind: userId ? 'person' : 'meri',
+        action: 'changeset.refreshed',
+        entityType: 'change_set',
+        entityId: id,
+        after: { summary: dto.summary, opCount: dto.ops.length },
+      });
+      return true;
     });
   }
 

@@ -9,8 +9,13 @@
 import { useInfiniteQuery, useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useApi } from '../../lib/use-api.js';
 import type {
+  AgentMission,
+  AgentRun,
+  ApproveChangeSetInput,
   AssistantInput,
   AssistantResponse,
+  ChangeSet,
+  ChangeSetStatus,
   ContextConflict,
   ContextDocumentDetail,
   ContextDocumentListItem,
@@ -18,6 +23,7 @@ import type {
   ContextHealth,
   ContextLocateResult,
   ContextSection,
+  CreateMissionInput,
   CreateNodeInput,
   CreateStrategyInput,
   DraftStrategyInput,
@@ -29,12 +35,22 @@ import type {
   ReferenceCalendars,
   ReferenceForkRow,
   ResolveConflictInput,
+  RunCheckResult,
   StrategyDetail,
   StrategyListItem,
+  UpdateMissionInput,
   UpdateNodeInput,
   UploadContextDocumentInput,
   VersionsPage,
 } from './types.js';
+import {
+  normalizeChangeSets,
+  normalizeMission,
+  normalizeMissions,
+  normalizeRun,
+  normalizeRunCheck,
+  normalizeRuns,
+} from './agents/agent-utils.js';
 import {
   normalizeConflicts,
   normalizeContextHealth,
@@ -507,5 +523,214 @@ export function useDismissContextConflict() {
     mutationFn: async (conflictId: string) =>
       (await api.post<unknown>(`${BASE}/context/conflicts/${conflictId}/dismiss`)).data,
     onSuccess: invalidate,
+  });
+}
+
+/*
+ * ---- Stage F: the agent surface (/strategy-api/agents/*) ----
+ * Same guard stack as Stages D/E (TenantGuard + StrategyPlannerGuard +
+ * AgenticGuard server-side; features.agenticMeri is the UI belt — the server
+ * additionally enforces the Watcher/auto-apply flags per route). Responses
+ * pass through the tolerant Stage F normalizers in agents/agent-utils.ts.
+ */
+
+/** Every ChangeSet list is stale after any change-set/mission write. */
+function useAgentsInvalidate() {
+  const qc = useQueryClient();
+  return () => {
+    void qc.invalidateQueries({ queryKey: ['strategy', 'change-sets'] });
+    void qc.invalidateQueries({ queryKey: ['strategy', 'missions'] });
+  };
+}
+
+/** GET /agents/change-sets?status=…&strategyId=… — the review-queue lists. */
+export function useChangeSets(
+  filter: { status?: ChangeSetStatus; strategyId?: string } = {},
+  enabled = true,
+) {
+  const api = useApi();
+  const qs = new URLSearchParams();
+  if (filter.status) qs.set('status', filter.status);
+  if (filter.strategyId) qs.set('strategyId', filter.strategyId);
+  const suffix = qs.toString() ? `?${qs.toString()}` : '';
+  return useQuery<ChangeSet[]>({
+    queryKey: ['strategy', 'change-sets', filter.status ?? 'all', filter.strategyId ?? 'all'],
+    enabled,
+    queryFn: async () =>
+      normalizeChangeSets((await api.get<unknown>(`${BASE}/agents/change-sets${suffix}`)).data),
+    staleTime: 15_000,
+  });
+}
+
+/** POST /agents/change-sets/:id/approve — opIndexes ⇒ selective approval subset. */
+export function useApproveChangeSet() {
+  const api = useApi();
+  const invalidate = useAgentsInvalidate();
+  return useMutation({
+    mutationFn: async (vars: { id: string; input?: ApproveChangeSetInput }) =>
+      (await api.post<unknown>(`${BASE}/agents/change-sets/${vars.id}/approve`, vars.input ?? {}))
+        .data,
+    onSuccess: invalidate,
+  });
+}
+
+/** POST /agents/change-sets/:id/reject — from proposed or approved. */
+export function useRejectChangeSet() {
+  const api = useApi();
+  const invalidate = useAgentsInvalidate();
+  return useMutation({
+    mutationFn: async (id: string) =>
+      (await api.post<unknown>(`${BASE}/agents/change-sets/${id}/reject`)).data,
+    onSuccess: invalidate,
+  });
+}
+
+/**
+ * POST /agents/change-sets/:id/apply — replays the approved ops through the
+ * Meri pipeline and returns the authoritative StrategyDetail. A 409 means the
+ * plan moved since the proposal was pinned: the server has ALREADY marked the
+ * row stale, so the lists are invalidated on error too (the caller surfaces
+ * the regenerate hint).
+ */
+export function useApplyChangeSet() {
+  const api = useApi();
+  const qc = useQueryClient();
+  const invalidate = useAgentsInvalidate();
+  return useMutation({
+    mutationFn: async (vars: { id: string; strategyId: string }) =>
+      (await api.post<StrategyDetail>(`${BASE}/agents/change-sets/${vars.id}/apply`)).data,
+    onSuccess: (detail, vars) => {
+      qc.setQueryData(['strategy', 'strategy', vars.strategyId], detail);
+      void qc.invalidateQueries({ queryKey: ['strategy', 'strategies'] });
+      void qc.invalidateQueries({ queryKey: ['strategy', 'versions', vars.strategyId] });
+      invalidate();
+    },
+    onError: invalidate,
+  });
+}
+
+/**
+ * POST /agents/change-sets/:id/undo — the first-class Undo surface: restores
+ * the pinned pre-apply version (a real version restore, cut + logged) and
+ * returns the authoritative StrategyDetail. 409 ⇒ the head moved since the
+ * apply — recover via version history instead.
+ */
+export function useUndoChangeSet() {
+  const api = useApi();
+  const qc = useQueryClient();
+  const invalidate = useAgentsInvalidate();
+  return useMutation({
+    mutationFn: async (vars: { id: string; strategyId: string }) =>
+      (await api.post<StrategyDetail>(`${BASE}/agents/change-sets/${vars.id}/undo`)).data,
+    onSuccess: (detail, vars) => {
+      qc.setQueryData(['strategy', 'strategy', vars.strategyId], detail);
+      void qc.invalidateQueries({ queryKey: ['strategy', 'strategies'] });
+      void qc.invalidateQueries({ queryKey: ['strategy', 'versions', vars.strategyId] });
+      invalidate();
+    },
+  });
+}
+
+/** GET /agents/missions?strategyId=… — the strategy's standing missions. */
+export function useMissions(strategyId?: string | null, enabled = true) {
+  const api = useApi();
+  const suffix = strategyId ? `?strategyId=${encodeURIComponent(strategyId)}` : '';
+  return useQuery<AgentMission[]>({
+    queryKey: ['strategy', 'missions', strategyId ?? 'all'],
+    enabled,
+    queryFn: async () =>
+      normalizeMissions((await api.get<unknown>(`${BASE}/agents/missions${suffix}`)).data),
+    staleTime: 15_000,
+  });
+}
+
+/** POST /agents/missions — create a standing mission (starts draft; PATCH to activate). */
+export function useCreateMission() {
+  const api = useApi();
+  const invalidate = useAgentsInvalidate();
+  return useMutation({
+    mutationFn: async (input: CreateMissionInput) =>
+      normalizeMission((await api.post<unknown>(`${BASE}/agents/missions`, input)).data),
+    onSuccess: invalidate,
+  });
+}
+
+/** PATCH /agents/missions/:id — state moves (draft→active, active⇄paused) etc. */
+export function useUpdateMission() {
+  const api = useApi();
+  const invalidate = useAgentsInvalidate();
+  return useMutation({
+    mutationFn: async (vars: { id: string; input: UpdateMissionInput }) =>
+      normalizeMission((await api.patch<unknown>(`${BASE}/agents/missions/${vars.id}`, vars.input)).data),
+    onSuccess: invalidate,
+  });
+}
+
+/**
+ * POST /agents/missions/:id/run-check — the Stage F on-demand Watcher check
+ * (deterministic deadline/verifier pass; generous timeout for any LLM
+ * interpretation). New proposals land as change-sets ⇒ invalidate the lists.
+ */
+export function useRunCheck() {
+  const api = useApi();
+  const invalidate = useAgentsInvalidate();
+  return useMutation({
+    mutationFn: async (missionId: string): Promise<RunCheckResult> =>
+      normalizeRunCheck(
+        (
+          await api.post<unknown>(`${BASE}/agents/missions/${missionId}/run-check`, undefined, {
+            timeout: 120_000,
+          })
+        ).data,
+      ),
+    onSuccess: invalidate,
+  });
+}
+
+/** GET /agents/runs/:id — one run (the queue reads findings off a change-set's runId). */
+export function useAgentRun(runId: string | null) {
+  const api = useApi();
+  return useQuery<AgentRun | null>({
+    queryKey: ['strategy', 'agent-run', runId],
+    enabled: !!runId,
+    queryFn: async () => normalizeRun((await api.get<unknown>(`${BASE}/agents/runs/${runId}`)).data),
+    staleTime: 30_000,
+  });
+}
+
+/**
+ * GET /agents/runs/firm-review — firm-level (no-strategy) Watcher runs in
+ * ready_for_review that carry findings. The F2 firm-calendar placeholder mints
+ * these WITHOUT a change-set, so the change-set lists never surface them — the
+ * review queue's firm-level section is their only viewer.
+ */
+export function useFirmReviewRuns() {
+  const api = useApi();
+  return useQuery<AgentRun[]>({
+    queryKey: ['strategy', 'firm-review-runs'],
+    queryFn: async () =>
+      normalizeRuns((await api.get<unknown>(`${BASE}/agents/runs/firm-review`)).data),
+    staleTime: 15_000,
+  });
+}
+
+/**
+ * POST /agents/runs/:id/transition — the review queue acknowledges a firm-level
+ * run (ready_for_review -> completed; the server enforces RUN_TRANSITIONS).
+ * Invalidates the firm-review list (the acknowledged run drains out) and the
+ * single-run reads.
+ */
+export function useTransitionRun() {
+  const api = useApi();
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async (vars: { id: string; to: 'completed' | 'canceled' }) =>
+      normalizeRun(
+        (await api.post<unknown>(`${BASE}/agents/runs/${vars.id}/transition`, { to: vars.to })).data,
+      ),
+    onSuccess: () => {
+      void qc.invalidateQueries({ queryKey: ['strategy', 'firm-review-runs'] });
+      void qc.invalidateQueries({ queryKey: ['strategy', 'agent-run'] });
+    },
   });
 }

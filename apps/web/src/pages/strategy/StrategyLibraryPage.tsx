@@ -8,7 +8,7 @@ import { useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { App } from 'antd';
 import { Icon, Ava, Chip, btnPrimary, btnGhost } from './strategy-ui.js';
-import { useStrategies, useFirmPhases } from './api.js';
+import { useStrategies, useFirmPhases, useChangeSets } from './api.js';
 import { useMe } from '../../lib/me.js';
 import { useClientsLite, clientColor } from './clients-lite.js';
 import { useTenantMembers, memberName, initialsOf } from './members.js';
@@ -41,6 +41,10 @@ export function StrategyLibraryPage() {
   // Stage D: the context-document library rides the agentic flag — the link is
   // hidden entirely (not disabled) when the tenant isn't canaried in.
   const agenticEnabled = Boolean(me.data?.features?.agenticMeri);
+  // Stage F: proposed-change-set count for the review-queue nav badge (the
+  // query only fires for agentic tenants — the server 403s everyone else).
+  const proposedCs = useChangeSets({ status: 'proposed' }, agenticEnabled);
+  const proposedCount = proposedCs.data?.length ?? 0;
   const calendar = useMemo(() => buildCalendar(new Date()), []);
 
   const [goalOpen, setGoalOpen] = useState(false);
@@ -104,6 +108,29 @@ export function StrategyLibraryPage() {
             </p>
           </div>
           <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+            {agenticEnabled && (
+              <button onClick={() => navigate('/strategies/agents/review')} style={btnGhost}>
+                <Icon name="radar" size={14} color="var(--ink-2)" /> Review
+                {proposedCount > 0 && (
+                  <span
+                    style={{
+                      minWidth: 18,
+                      height: 18,
+                      borderRadius: 9,
+                      background: 'var(--accent)',
+                      color: '#fff',
+                      display: 'grid',
+                      placeItems: 'center',
+                      fontSize: 'var(--text-2xs)',
+                      fontWeight: 700,
+                      padding: '0 5px',
+                    }}
+                  >
+                    {proposedCount}
+                  </span>
+                )}
+              </button>
+            )}
             {agenticEnabled && (
               <button onClick={() => navigate('/strategies/context')} style={btnGhost}>
                 <Icon name="book" size={14} color="var(--ink-2)" /> Context

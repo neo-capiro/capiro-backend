@@ -4,14 +4,17 @@ import { CurrentTenant } from '../auth/current-tenant.decorator.js';
 import type { AuthTenantContext } from '../auth/tenant-context.js';
 import { StrategyPlannerGuard } from '../flags/strategy-planner.guard.js';
 import { AgenticGuard } from '../flags/agentic.guard.js';
+import { StrategyWatcherGuard } from '../flags/strategy-watcher.guard.js';
 import { MissionsService } from './missions.service.js';
 import { RunsService } from './runs.service.js';
 import { ChangeSetsService } from './change-sets.service.js';
+import { WatcherService } from './watcher.service.js';
 import {
   ApproveChangeSetDto,
   CreateChangeSetDto,
   CreateMissionDto,
   CreateRunDto,
+  RunCheckDto,
   TransitionRunDto,
   UpdateMissionDto,
 } from './dto/agents.dto.js';
@@ -29,6 +32,7 @@ export class AgentsController {
     private readonly missions: MissionsService,
     private readonly runs: RunsService,
     private readonly changeSets: ChangeSetsService,
+    private readonly watcher: WatcherService,
   ) {}
 
   // ---- missions ----
@@ -56,6 +60,24 @@ export class AgentsController {
     return this.missions.update(tc.tenantId, tc.clerkUserId, id, dto);
   }
 
+  /**
+   * Stage F1: run a Watcher check NOW (manual, suggest-only). Method-level
+   * StrategyWatcherGuard on top of the class stack — the watcher surface needs
+   * the strategyWatcher.enabled flag in ADDITION to the umbrella agentic
+   * opt-in (mirrors the Steward's extract route gating).
+   */
+  @Post('missions/:id/run-check')
+  @UseGuards(StrategyWatcherGuard)
+  runCheck(
+    @CurrentTenant() tc: AuthTenantContext,
+    @Param('id') id: string,
+    @Body() dto: RunCheckDto,
+  ) {
+    return this.watcher.runCheckNow(tc.tenantId, tc.clerkUserId, id, {
+      idempotencyKey: dto.idempotencyKey,
+    });
+  }
+
   // ---- runs ----
   @Post('missions/:id/runs')
   createRun(
@@ -69,6 +91,17 @@ export class AgentsController {
   @Get('missions/:id/runs')
   listRuns(@CurrentTenant() tc: AuthTenantContext, @Param('id') id: string) {
     return this.runs.listForMission(tc.tenantId, id);
+  }
+
+  /**
+   * Firm-level review surface: ready_for_review runs with no strategy (the F2
+   * firm-calendar placeholder parks findings on the run WITHOUT a change-set,
+   * so the change-set queue alone never surfaces them). Declared BEFORE
+   * 'runs/:id' so the literal segment wins the route match.
+   */
+  @Get('runs/firm-review')
+  listFirmReviewRuns(@CurrentTenant() tc: AuthTenantContext) {
+    return this.runs.listFirmReview(tc.tenantId);
   }
 
   @Get('runs/:id')
