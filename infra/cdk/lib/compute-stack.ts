@@ -152,6 +152,17 @@ export class ComputeStack extends cdk.Stack {
       'ImportedLegistormApiKey',
       `capiro/${cfg.envName}/legistorm-api-key`,
     );
+    // Census ACS API key (District Nexus Phase 0). Already provisioned
+    // out-of-band as capiro/<env>/census_api_key (underscore, not hyphen —
+    // matches the real secret name); consumed ONLY by the scheduled
+    // sync-census task (apiSyncSecrets below), never by the serve or migrate
+    // task defs. Imported by name like the LegiStorm key above so
+    // ecs.Secret auto-grants the sync execution role at container-add time.
+    const censusApiKeyImported = secretsmanager.Secret.fromSecretNameV2(
+      this,
+      'ImportedCensusApiKey',
+      `capiro/${cfg.envName}/census_api_key`,
+    );
 
     // Microsoft 365 Graph OAuth + token-at-rest crypto. These secrets are
     // provisioned out-of-band and imported by complete ARN when available. ECS
@@ -433,12 +444,14 @@ export class ComputeStack extends cdk.Stack {
       // Step 33 SAM.gov personnel sync (sync-sam-personnel) also runs here.
       SAM_GOV_API_KEY: ecs.Secret.fromSecretsManager(samGovApiKeySecret),
     };
-    // Scheduled sync task secrets = migrate bundle + the LegiStorm key. Kept
-    // separate from apiServeSecrets so the long-lived API/web tasks never receive
-    // LEGISTORM_API_KEY (only the ephemeral sync task does).
+    // Scheduled sync task secrets = migrate bundle + the LegiStorm key + the
+    // Census key. Kept separate from apiServeSecrets so the long-lived
+    // API/web tasks never receive LEGISTORM_API_KEY/CENSUS_API_KEY (only the
+    // ephemeral sync task does).
     const apiSyncSecrets = {
       ...apiMigrateSecrets,
       LEGISTORM_API_KEY: ecs.Secret.fromSecretsManager(legistormApiKeyImported),
+      CENSUS_API_KEY: ecs.Secret.fromSecretsManager(censusApiKeyImported),
     };
 
     const apiSharedEnv: Record<string, string> = {

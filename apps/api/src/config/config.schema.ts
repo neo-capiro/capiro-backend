@@ -51,6 +51,12 @@ export const configSchema = z.object({
     .default('https://api.legistorm.com/v2.023.07/legislative_districts'),
   AWS_REGION_DEFAULT: z.string().default('us-east-1'),
 
+  // Census ACS 5-year demographics sync (District Nexus). Secret already
+  // provisioned out-of-band as capiro/<env>/census_api_key. Used only by the
+  // scheduled sync-census CLI; optional at API-server boot so the long-lived
+  // serve/migrate tasks don't require it (mirrors LEGISTORM_API_KEY above).
+  CENSUS_API_KEY: z.string().min(1).optional(),
+
   // PE Watch defense-budget ingestion (Step: LlamaParse + immutable S3 archive).
   // LLAMA_CLOUD_API_KEY is optional at API-server boot; only the ingestion CLI
   // (ingest-defense-budget-pdf) hard-requires it and fails closed when absent.
