@@ -7,7 +7,14 @@ import { buildAlert, type AlertBuildResult } from '@capiro/shared';
  * apps/intel-api/src/feed/feed.service.ts.
  */
 
-export type FeedSourceType = 'bill' | 'hearing' | 'combined' | 'state_bill' | 'regulation';
+export type FeedSourceType =
+  | 'bill'
+  | 'hearing'
+  | 'combined'
+  | 'state_bill'
+  | 'regulation'
+  // R4 §4.3: a Program Element funding movement on a client's watchlist.
+  | 'program_element';
 export type FeedSeverity = 'info' | 'notable' | 'critical';
 
 export interface FeedBillEvidence {
@@ -39,9 +46,31 @@ export interface FeedHearingEvidence {
   occurredAt: string | null;
   mentions: FeedHearingMention[];
 }
+/**
+ * Program Element funding-movement evidence (R4 §4.3). Every amount is in MILLIONS
+ * and carries its fiscal year + delta type; `href` is the deep link to the
+ * line-level Program Element 360 dossier, which stays the source of truth (§4.2).
+ */
+export interface FeedProgramElementEvidence {
+  peCode: string;
+  title: string | null;
+  fiscalYear: number;
+  deltaType: string;
+  deltaTypeLabel: string;
+  fromRef: string | null;
+  toRef: string | null;
+  amountFromMillions: number | null;
+  amountToMillions: number | null;
+  deltaMillions: number | null;
+  deltaPct: number | null;
+  materialityScore: number;
+  href: string;
+}
+
 export interface FeedEvidence {
   bill?: FeedBillEvidence;
   hearing?: FeedHearingEvidence;
+  programElement?: FeedProgramElementEvidence;
   link?: {
     via?: string;
     confidence?: number;
@@ -59,13 +88,15 @@ export type RecommendedActionKind =
   | 'add_to_report'
   | 'add_talking_point'
   | 'open_bill'
-  | 'open_hearing';
+  | 'open_hearing'
+  /** R4 §4.3: open the line-level Program Element 360 dossier. */
+  | 'open_program_element';
 
 export interface RecommendedAction {
   kind: RecommendedActionKind;
   label: string;
   primary?: boolean;
-  target?: { billId?: string; sessionId?: string };
+  target?: { billId?: string; sessionId?: string; peCode?: string };
 }
 
 /** Current action state on an alert (decorated by intel-api from intel_action_item). */
@@ -151,6 +182,7 @@ export const SOURCE_LABEL: Record<FeedSourceType, string> = {
   combined: 'Bill + Hearing',
   state_bill: 'State bill',
   regulation: 'Regulation',
+  program_element: 'Program element',
 };
 
 /**

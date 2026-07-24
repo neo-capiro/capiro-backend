@@ -1,0 +1,158 @@
+{
+  "_provenance": {
+    "note": "SYNTHETIC EXAMPLE — NOT REAL BUDGET DATA. Every figure below is an obviously-round placeholder invented to exercise the loader's validation, supersession, and scope-guardrail paths. It is referenced by load-defense-budget-package.spec.ts and as the field-shape reference for curating a real artifact. NEVER run this file with --commit against a real database.",
+    "fiscalYear": 2027,
+    "syntheticFigures": true
+  },
+  "domain": "defense",
+  "fiscalYear": 2027,
+  "name": "FY27 Defense Budget (EXAMPLE)",
+  "status": "open",
+  "vehicles": [
+    {
+      "key": "pb",
+      "track": "request",
+      "stage": "president",
+      "label": "EXAMPLE FY2027 President's Budget request",
+      "status": "reported",
+      "statusAt": "2026-06-01",
+      "sourceUrl": "https://example.invalid/fy2027-pb-summary",
+      "sourceKey": "example_pb_fy2027"
+    },
+    {
+      "key": "house-ndaa",
+      "track": "authorization",
+      "stage": "house",
+      "label": "EXAMPLE House NDAA",
+      "billId": "119-hr-9000",
+      "reportNumber": "H. Rept. 119-000",
+      "chamber": "house",
+      "status": "passed",
+      "statusAt": "2026-07-15",
+      "sourceUrl": "https://example.invalid/house-ndaa-report"
+    },
+    {
+      "key": "senate-ndaa",
+      "track": "authorization",
+      "stage": "senate",
+      "label": "EXAMPLE Senate NDAA",
+      "billId": "119-s-9000",
+      "chamber": "senate",
+      "status": "reported",
+      "statusAt": "2026-07-20",
+      "sourceUrl": "https://example.invalid/senate-ndaa-report"
+    },
+    {
+      "key": "house-approps",
+      "track": "appropriation",
+      "stage": "house",
+      "label": "EXAMPLE House defense appropriations",
+      "billId": "119-hr-9100",
+      "chamber": "house",
+      "status": "passed",
+      "sourceUrl": "https://example.invalid/hac-d-report"
+    },
+    {
+      "key": "cr1",
+      "track": "interim_funding",
+      "stage": "enacted",
+      "label": "EXAMPLE CR #1",
+      "billId": "119-hr-9200",
+      "publicLaw": "P.L. 119-000",
+      "status": "enacted",
+      "statusAt": "2026-09-30",
+      "sourceUrl": "https://example.invalid/cr1"
+    }
+  ],
+  "positions": [
+    {
+      "vehicleKey": "pb",
+      "fiscalYear": 2027,
+      "vehicleClass": "request",
+      "stage": "president",
+      "scope": "core_dod_discretionary",
+      "amountMillions": 900000,
+      "units": "millions",
+      "effectiveDate": "2026-06-01",
+      "sourceUrl": "https://example.invalid/fy2027-pb-summary",
+      "sourcePage": 1,
+      "note": "SYNTHETIC placeholder figure",
+      "verificationStatus": "reviewed"
+    },
+    {
+      "vehicleKey": "pb",
+      "fiscalYear": 2027,
+      "vehicleClass": "request",
+      "stage": "president",
+      "scope": "national_defense_total",
+      "amountMillions": 1000000,
+      "units": "millions",
+      "effectiveDate": "2026-06-01",
+      "sourceUrl": "https://example.invalid/fy2027-pb-summary",
+      "sourcePage": 1,
+      "note": "SYNTHETIC placeholder — a DIFFERENT scope from the row above; the two are never subtracted from one another",
+      "verificationStatus": "reviewed"
+    },
+    {
+      "vehicleKey": "house-ndaa",
+      "fiscalYear": 2027,
+      "vehicleClass": "authorization",
+      "stage": "house",
+      "scope": "core_dod_discretionary",
+      "amountMillions": 910000,
+      "units": "millions",
+      "sourceUrl": "https://example.invalid/house-ndaa-report",
+      "sourcePage": 12,
+      "note": "SYNTHETIC placeholder — authorization, kept SEPARATE from any appropriation figure",
+      "verificationStatus": "reviewed"
+    },
+    {
+      "vehicleKey": "senate-ndaa",
+      "fiscalYear": 2027,
+      "vehicleClass": "authorization",
+      "stage": "senate",
+      "scope": "core_dod_discretionary",
+      "amountMillions": 905000,
+      "units": "millions",
+      "sourceUrl": "https://example.invalid/senate-ndaa-report",
+      "sourcePage": 8,
+      "note": "SYNTHETIC placeholder",
+      "verificationStatus": "reviewed"
+    },
+    {
+      "vehicleKey": "house-approps",
+      "fiscalYear": 2027,
+      "vehicleClass": "appropriation",
+      "stage": "house",
+      "scope": "defense_appropriations_title",
+      "amountMillions": 850000,
+      "units": "millions",
+      "sourceUrl": "https://example.invalid/hac-d-report",
+      "sourcePage": 4,
+      "note": "SYNTHETIC placeholder — appropriations-title scope, never compared to the core-DoD rows above",
+      "verificationStatus": "reviewed"
+    }
+  ],
+  "interimFundingPeriods": [
+    {
+      "sequence": 1,
+      "vehicleLabel": "EXAMPLE CR #1",
+      "startDate": "2026-10-01",
+      "coverageThrough": "2026-12-19",
+      "billId": "119-hr-9200",
+      "publicLaw": "P.L. 119-000",
+      "shutdownDays": 0,
+      "notes": "SYNTHETIC placeholder CR window",
+      "sourceUrl": "https://example.invalid/cr1"
+    },
+    {
+      "sequence": 2,
+      "vehicleLabel": "EXAMPLE CR #2",
+      "startDate": "2026-12-20",
+      "coverageThrough": "2027-01-30",
+      "shutdownDays": 2,
+      "notes": "SYNTHETIC placeholder — a 2-day lapse preceded this window",
+      "sourceUrl": "https://example.invalid/cr2"
+    }
+  ]
+}

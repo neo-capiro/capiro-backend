@@ -1011,6 +1011,33 @@ export class ProgramElementReadService {
     });
     const linkByBill = new Map(links.map((l) => [l.billId, l]));
 
+    // R4 §4.2: the budget package each bill rides in, so the PE panel can label the
+    // legislative vehicle's cycle ("FY27 Defense Budget · authorization · house").
+    // ONE query for every bill; absent for a bill that is not a budget vehicle, which
+    // is the normal case and renders as no label rather than a guess.
+    const vehicles = await this.prisma.budgetPackageVehicle.findMany({
+      where: { billId: { in: bills.map((b) => b.id) } },
+      select: {
+        billId: true,
+        track: true,
+        stage: true,
+        package: { select: { name: true, fiscalYear: true } },
+      },
+    });
+    const packageByBill = new Map(
+      vehicles
+        .filter((v): v is typeof v & { billId: string } => Boolean(v.billId))
+        .map((v) => [
+          v.billId,
+          {
+            name: v.package.name,
+            fiscalYear: v.package.fiscalYear,
+            track: v.track,
+            stage: v.stage,
+          },
+        ]),
+    );
+
     const mapped = bills.map(({ committeeRefs, sponsorName, peCodes, ...bill }) => ({
       ...bill,
       sponsor: sponsorName,
@@ -1024,6 +1051,7 @@ export class ProgramElementReadService {
             status: linkByBill.get(bill.id)!.status,
           }
         : null,
+      budgetPackage: packageByBill.get(bill.id) ?? null,
     }));
     mapped.sort((a, b) => {
       // PE-specific bills (fewer PEs) ahead of blanket authorizers.

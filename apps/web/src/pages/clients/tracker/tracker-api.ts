@@ -29,6 +29,15 @@ export interface BoardBill {
   lastHearingSessionId?: string | null;
   /** State Legislation Platform (S7.2) — 2-letter state code; absent/'US' = federal. */
   jurisdiction?: string;
+  // Bill 360 (R2 §2.4): intel-api ALREADY returns these on every board card;
+  // adaptBoard used to drop them on the floor. Optional so the legacy board and
+  // any cached pre-R2 board response still render (§5 edge case 12).
+  /** Latest official action text (Congress.gov / LegiScan verbatim). */
+  latestActionText?: string | null;
+  /** Latest official action date, ISO `YYYY-MM-DD`. */
+  latestActionDate?: string | null;
+  /** The analyst note on the tracked row (legacy `note` column). */
+  note?: string | null;
 }
 export interface BoardColumn {
   id: BillStage;

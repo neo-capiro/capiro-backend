@@ -31,6 +31,10 @@ import {
   readDocumentToolVersion,
   type SourceDocumentClient,
 } from '../src/program-element/source-document/source-document-registry.js';
+import {
+  emitToplineCandidates,
+  type ArtifactTopline,
+} from '../src/budget-packages/topline-candidates.js';
 
 dotenvConfig();
 
@@ -39,6 +43,8 @@ interface Artifact {
   fy?: number;
   source?: string;
   rows?: ExtractedReportRow[];
+  /** R3 §3.3: package-level toplines seen on the report's summary page (optional). */
+  toplines?: ArtifactTopline[];
 }
 
 function arg(name: string): string | undefined {
@@ -105,11 +111,30 @@ async function main(): Promise<void> {
       data: { sourceDocumentId: reg.document.id },
     });
 
+    // R3 §3.3 — appropriations track. Same discipline as parse-hasc-sasc-reports:
+    // candidates land as 'extracted', ambiguity yields a warning and no row, and
+    // dollar writes require --commit.
+    const toplines = await emitToplineCandidates(
+      prisma as never,
+      artifact.toplines,
+      {
+        domain: 'defense',
+        fiscalYear: fy,
+        stage: chamber === 'HAC-D' ? 'house' : 'senate',
+        vehicleClass: 'appropriation',
+        sourceUrl: artifact.source ?? path.basename(artifactPath),
+        sourceKey: path.basename(artifactPath).replace(/\.json$/i, ''),
+        emittedBy: `parse-defense-approps-reports (${chamber})`,
+      },
+      { commit: process.argv.includes('--commit') },
+    );
+
     console.log(
       JSON.stringify(
         {
           artifact: artifactPath,
           ...result,
+          toplines,
           sourceDocument: {
             id: reg.document.id,
             action: reg.created ? 'inserted' : 'deduped',

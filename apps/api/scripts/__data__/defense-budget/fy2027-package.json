@@ -1,0 +1,22 @@
+{
+  "_provenance": {
+    "note": "FY2027 defense budget package (Release R3, plan §3.2). This artifact is DELIBERATELY EMPTY of asserted vehicles and dollar figures. Every topline in it becomes a number Capiro shows a customer as an official fact, so each one must be hand-transcribed from the official summary page of a real public document (President's Budget summary tables, committee-report summary, conference report, or public law) WITH a page citation, and reviewed by a human before `--commit`. Nothing here may be inferred, estimated, or carried over from a prior year.",
+    "howToCurate": [
+      "1. For each vehicle that exists in the FY2027 cycle, add a `vehicles[]` entry. `key` is any stable slug used to join positions to it; `track` and `stage` come from @capiro/shared BUDGET_VEHICLE_CLASSES / FUNDING_STAGES. A vehicle MUST carry at least one of billId / reportNumber / publicLaw / sourceUrl / sourceKey or the loader rejects it.",
+      "2. For each topline, add a `positions[]` entry. `scope` MUST be the exact FUNDING_SCOPES value the document measures (core DoD discretionary, Function 050, national-defense total, and the defense-appropriations title are DIFFERENT scopes and are never compared).",
+      "3. `units` MUST be the literal string \"millions\" and `amountMillions` must already be converted. The loader never guesses a scale — an omitted or different `units` is a hard rejection.",
+      "4. `sourceUrl` (or a registered `sourceKey`) and `sourcePage` are required for provenance; a missing page raises a warning.",
+      "5. Dry-run first: `pnpm --filter @capiro/api load:defense-budget-package -- --artifact scripts/__data__/defense-budget/fy2027-package.json`. Read every WARNING/CONFLICT line, then re-run with `--commit`.",
+      "6. `verificationStatus` may be \"extracted\" | \"reviewed\" | \"verified\" — default \"reviewed\". Only promote to \"verified\" once a second person has confirmed the figure against the document. \"superseded\" is set BY the loader, never declared here."
+    ],
+    "shapeReference": "scripts/__fixtures__/defense-budget-package.example.json — a synthetic, non-authoritative example showing every field. Never load it into a real database.",
+    "status": "AWAITING CURATION — no FY2027 figures have been transcribed yet."
+  },
+  "domain": "defense",
+  "fiscalYear": 2027,
+  "name": "FY27 Defense Budget",
+  "status": "open",
+  "vehicles": [],
+  "positions": [],
+  "interimFundingPeriods": []
+}

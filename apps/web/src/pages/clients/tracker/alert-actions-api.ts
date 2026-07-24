@@ -65,8 +65,14 @@ export function feedItemToMemoAlert(item: FeedItem): AlertMemoAlertInput {
     // (A state_bill DOES still get "Generate district brief" — that has its own
     // endpoint below and accepts state bills.) Map defensively to 'bill' rather
     // than send a value the server's @IsIn(['bill','hearing','combined']) rejects.
+    // R4 §4.3 adds 'program_element', which the memo generator also does not
+    // accept; recommendedActionsFor offers no "Draft memo" for a PE alert, so this
+    // path isn't reachable for one — map defensively like the others rather than
+    // send a value the server's @IsIn(['bill','hearing','combined']) rejects.
     sourceType:
-      item.sourceType === 'state_bill' || item.sourceType === 'regulation'
+      item.sourceType === 'state_bill' ||
+      item.sourceType === 'regulation' ||
+      item.sourceType === 'program_element'
         ? 'bill'
         : item.sourceType,
     title: item.title,

@@ -32,6 +32,10 @@ import {
   type SourceDocumentClient,
 } from '../src/program-element/source-document/source-document-registry.js';
 import { recordIngestRun, type IngestRunClient } from '../src/program-element/coverage/record-ingest-run.js';
+import {
+  emitToplineCandidates,
+  type ArtifactTopline,
+} from '../src/budget-packages/topline-candidates.js';
 
 dotenvConfig();
 
@@ -40,6 +44,8 @@ interface Artifact {
   fy?: number;
   source?: string;
   rows?: ExtractedReportRow[];
+  /** R3 §3.3: package-level toplines seen on the report's summary page (optional). */
+  toplines?: ArtifactTopline[];
 }
 
 function arg(name: string): string | undefined {
@@ -119,12 +125,32 @@ async function main(): Promise<void> {
       metadata: { chamber, sourceDocumentId: reg.document.id },
     });
 
+    // R3 §3.3: stage any package-level TOPLINE the artifact carries as an
+    // 'extracted' funding_position candidate. Never auto-promoted to verified;
+    // ambiguous scope or units produces a review warning and NO row. The PE
+    // extraction above is untouched. Dollar writes stay opt-in behind --commit.
+    const toplines = await emitToplineCandidates(
+      prisma as never,
+      artifact.toplines,
+      {
+        domain: 'defense',
+        fiscalYear: fy,
+        stage: chamber === 'HASC' ? 'house' : 'senate',
+        vehicleClass: 'authorization',
+        sourceUrl: artifact.source ?? path.basename(artifactPath),
+        sourceKey: path.basename(artifactPath).replace(/\.json$/i, ''),
+        emittedBy: `parse-hasc-sasc-reports (${chamber})`,
+      },
+      { commit: process.argv.includes('--commit') },
+    );
+
     console.log(
       JSON.stringify(
         {
           artifact: artifactPath,
           ...result,
           ingestRun,
+          toplines,
           sourceDocument: {
             id: reg.document.id,
             action: reg.created ? 'inserted' : 'deduped',

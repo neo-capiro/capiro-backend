@@ -1,10 +1,14 @@
+import { useEffect, useState } from 'react';
 import { Button, Drawer, Empty } from 'antd';
 import { Link } from 'react-router-dom';
 import { isStateBillKey } from '@capiro/shared';
 import { BillDetailBody, DrillSection, formatDate } from '../explorer/bill-detail.js';
 import { StateBillDetailBody } from '../explorer/state-bill-detail.js';
 import { useBillHearings, type BillHearing } from '../clients/tracker/bill-hearings-api.js';
+import { BILL_360_FEATURE, useIntelFeature } from '../../lib/intel-feature-flags.js';
+import { BillDossierBody } from '../bills/BillDossierBody.js';
 import { ChokepointSection } from './ChokepointSection.js';
+import '../bills/bill-360.css';
 
 /**
  * Radar bill side-drawer (P7, spec D9: opening a bill NEVER routes to Data
@@ -95,6 +99,94 @@ function HearingRow({ hearing }: { hearing: BillHearing }) {
   );
 }
 
+/** Narrow-viewport breakpoint: the drawer goes full-screen at/below this width. */
+const NARROW_PX = 720;
+/** Bill 360 desktop drawer width band (plan §2.3), clamped to the viewport. */
+const B360_MIN_W = 960;
+const B360_MAX_W = 1100;
+
+/** Live viewport width, SSR/jsdom-safe. */
+function useViewportWidth(): number {
+  const read = () => (typeof window === 'undefined' ? B360_MAX_W : window.innerWidth);
+  const [w, setW] = useState(read);
+  useEffect(() => {
+    if (typeof window === 'undefined') return undefined;
+    const onResize = () => setW(window.innerWidth);
+    window.addEventListener('resize', onResize);
+    return () => window.removeEventListener('resize', onResize);
+  }, []);
+  return w;
+}
+
+/**
+ * Bill 360 drawer width (plan §2.3): 960–1,100px on desktop, clamped to the
+ * viewport so it never overflows; full-screen at/below {@link NARROW_PX}.
+ */
+export function bill360DrawerWidth(viewportWidth: number): number | string {
+  if (viewportWidth <= NARROW_PX) return '100%';
+  return Math.max(Math.min(B360_MAX_W, viewportWidth - 48), Math.min(B360_MIN_W, viewportWidth));
+}
+
+/**
+ * Bill 360 drawer (plan §2.3). Renders the shared `BillDossierBody` — the SAME
+ * body the full page renders — with its own chrome, so the drawer, the full page,
+ * and a copied URL are one experience. It keeps the drawer's existing contract:
+ * opens in place (never navigates to Explorer), preserves Track/Untrack via the
+ * caller's mutation, and adds "Open full page". A related-vehicle click swaps the
+ * bill IN PLACE (prototype behavior) rather than leaving LegiWatch.
+ */
+function Bill360Drawer({
+  open,
+  billId,
+  clientId,
+  isTracked,
+  onTrack,
+  onClose,
+}: {
+  open: boolean;
+  billId: string | null;
+  clientId: string;
+  isTracked?: boolean;
+  onTrack?: (billId: string) => void;
+  onClose: () => void;
+}) {
+  const width = bill360DrawerWidth(useViewportWidth());
+  // In-place bill swap (related vehicles / like-for-like comparison). Resets to
+  // the caller's bill whenever the drawer is re-opened on a different bill.
+  const [shownBillId, setShownBillId] = useState<string | null>(billId);
+  useEffect(() => setShownBillId(billId), [billId]);
+
+  const current = shownBillId ?? billId;
+  return (
+    <Drawer
+      open={open}
+      onClose={onClose}
+      width={width}
+      destroyOnHidden
+      closable={false}
+      // The drawer renders in a portal (outside .lw-root), so opt its root into
+      // the `.redesign` token scope; bill360-drawer zeroes the antd body padding.
+      rootClassName="redesign"
+      className="bill360-drawer"
+      styles={{ header: { display: 'none' } }}
+    >
+      {current ? (
+        <BillDossierBody
+          billId={current}
+          clientId={clientId}
+          mode="drawer"
+          isTracked={current === billId ? isTracked : undefined}
+          onTrack={onTrack}
+          onClose={onClose}
+          onOpenBill={setShownBillId}
+        />
+      ) : (
+        <Empty description="No bill selected." />
+      )}
+    </Drawer>
+  );
+}
+
 export function BillDrawer({
   open,
   billId,
@@ -114,6 +206,23 @@ export function BillDrawer({
   onTrack?: (billId: string) => void;
   onClose: () => void;
 }) {
+  // Bill 360 (R2 §2.3): when the flag is ON this drawer becomes the dossier. It
+  // fails CLOSED — while the flag is unresolved, and whenever it is OFF, the
+  // legacy drawer below renders EXACTLY as before (no behavior change at all).
+  const { enabled: bill360, ready: flagReady } = useIntelFeature(BILL_360_FEATURE);
+  if (flagReady && bill360) {
+    return (
+      <Bill360Drawer
+        open={open}
+        billId={billId}
+        clientId={clientId}
+        isTracked={isTracked}
+        onTrack={onTrack}
+        onClose={onClose}
+      />
+    );
+  }
+
   // State Legislation Platform (S7.3) — jurisdiction switch: a state bill key
   // ("tx-2025-hb1234") renders the state-aware body; anything else keeps the
   // existing federal body untouched. Hearing links are federal-only (no state

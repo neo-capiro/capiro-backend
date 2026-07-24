@@ -1,0 +1,323 @@
+/*
+ * Dossier design-system CSS (Release R2). Faithful port of the Bill 360
+ * prototype, whose UI is 100% inline styles over the shared design tokens. Here
+ * those recipes become classes scoped under `.dossier`, reusing the app's
+ * redesign tokens (theme.css: --bg-*, --ink-*, --accent*, --r-*, --font-*-rd).
+ * Severity colors are literal (exact prototype hex) so the -soft badge fills
+ * match pixel-for-pixel regardless of which token variants exist.
+ *
+ * Reused by Bill 360 (drawer + full page) and, later, Policy Portfolio 360.
+ */
+
+.dossier {
+  background: var(--bg-canvas);
+  color: var(--ink-1);
+  font-family: var(--font-sans-rd);
+}
+
+/* ── Chrome bar (drawer/page top strip) ─────────────────────────────────── */
+.dsr-chrome {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 11px 20px;
+  border-bottom: 1px solid var(--border-1);
+  background: var(--bg-surface);
+  flex-shrink: 0;
+}
+.dsr-eyebrow {
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.07em;
+  color: var(--ink-3);
+}
+.dsr-chrome-spacer { flex: 1; }
+/* Export controls (R4 §4.5) — grouped so they read as one affordance in the bar. */
+.dsr-export { display: inline-flex; align-items: center; gap: 8px; }
+.dsr-export .dsr-btn:disabled { opacity: 0.6; cursor: default; }
+.dsr-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  border: 1px solid var(--border-2, #d8d2c4);
+  background: var(--bg-surface);
+  border-radius: var(--r-sm);
+  padding: 6px 11px;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--ink-2);
+  cursor: pointer;
+}
+.dsr-btn:hover { border-color: var(--border-strong, #c8c1b0); }
+.dsr-btn.track { color: var(--text-on-accent, #fff); background: var(--accent); border-color: var(--accent); }
+.dsr-btn.tracked { color: var(--ink-2); background: var(--bg-surface); }
+.dsr-close {
+  width: 30px; height: 30px;
+  border-radius: var(--r-sm);
+  border: 1px solid var(--border-2, #d8d2c4);
+  background: var(--bg-surface);
+  color: var(--ink-3);
+  cursor: pointer;
+  display: grid;
+  place-items: center;
+}
+
+/* ── Scroll + inner column ──────────────────────────────────────────────── */
+.dsr-scroll { overflow-y: auto; flex: 1; min-height: 0; }
+.dsr-inner { max-width: 980px; margin: 0 auto; padding: 24px 28px 64px; }
+
+/* ── Hero ───────────────────────────────────────────────────────────────── */
+.dsr-hero { margin-bottom: 18px; }
+.dsr-hero-meta { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; margin-bottom: 9px; }
+.dsr-num { font-family: var(--font-mono-rd); font-size: 13px; font-weight: 600; color: var(--ink-2); }
+.dsr-metachip { font-size: 12px; color: var(--ink-3); }
+.dsr-title {
+  margin: 0 0 13px;
+  font-family: var(--font-serif-rd);
+  font-size: 27px;
+  font-weight: 600;
+  letter-spacing: -0.01em;
+  line-height: 1.15;
+  color: var(--ink-1);
+}
+.dsr-hero-sub { display: flex; align-items: center; gap: 13px; flex-wrap: wrap; }
+.dsr-hero-sub-spacer { flex: 1; }
+.dsr-scopechip {
+  display: inline-flex; align-items: center; gap: 7px;
+  background: var(--bg-surface); border: 1px solid var(--border-1);
+  border-radius: var(--r-sm); padding: 5px 11px;
+}
+.dsr-scopechip-type { font-size: 10px; text-transform: uppercase; letter-spacing: 0.05em; color: var(--ink-3); }
+.dsr-scopechip-label { font-size: 12.5px; font-weight: 600; }
+.dsr-herofield { display: flex; align-items: center; gap: 6px; }
+.dsr-herofield-label { font-size: 11px; color: var(--ink-3); }
+.dsr-herofield-value { font-size: 12.5px; font-weight: 600; }
+.dsr-synced { display: inline-flex; align-items: center; gap: 6px; font-size: 11.5px; color: var(--ink-3); }
+
+/* ── KPI strip (6 cells, 3-up hairline grid) ────────────────────────────── */
+.dsr-kpi-strip {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 1px;
+  background: var(--border-1);
+  border: 1px solid var(--border-1);
+  border-radius: var(--r-lg);
+  overflow: hidden;
+  margin-bottom: 22px;
+}
+.dsr-kpi { background: var(--bg-surface); padding: 13px 15px; min-width: 0; }
+.dsr-kpi-label {
+  font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.05em;
+  color: var(--ink-3); margin-bottom: 7px;
+}
+/* Prototype `kv(color, mono)`: 19px/600/1.1, color set per cell, mono optional.
+   Deliberately NO ellipsis — the prototype lets a long status label wrap. */
+.dsr-kpi-value { font-size: 19px; font-weight: 600; line-height: 1.1; color: var(--ink-1); }
+.dsr-kpi-value.mono { font-family: var(--font-mono-rd); font-variant-numeric: tabular-nums; }
+.dsr-kpi-sub {
+  font-size: 11px; color: var(--ink-3); margin-top: 5px; line-height: 1.35;
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+
+/* ── Tab bar ────────────────────────────────────────────────────────────── */
+.dsr-tabs { display: flex; border-bottom: 1px solid var(--border-1); margin-bottom: 22px; overflow-x: auto; }
+.dsr-tab {
+  position: relative; border: none; background: none;
+  padding: 9px 3px; margin-right: 18px;
+  font-family: var(--font-sans-rd);
+  font-size: 13px; font-weight: 500; color: var(--ink-3);
+  cursor: pointer; border-bottom: 2px solid transparent; margin-bottom: -1px;
+  white-space: nowrap;
+}
+.dsr-tab.active { font-weight: 600; color: var(--ink-1); border-bottom-color: var(--accent); }
+
+/* ── Pills / badges (single primitive, 6 severities) ────────────────────── */
+.dsr-pill {
+  display: inline-flex; align-items: center; gap: 5px;
+  font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.06em;
+  padding: 3px 8px; border-radius: 3px; white-space: nowrap;
+}
+.dsr-pill.critical { color: #b5301b; background: #f6ddd6; }
+.dsr-pill.notable  { color: #a26913; background: #f4e5c3; }
+.dsr-pill.info     { color: #2c5bd4; background: #dce4f8; }
+.dsr-pill.success  { color: #2e6b43; background: #ddebde; }
+.dsr-pill.accent   { color: #1a3f9f; background: #dee6f8; }
+.dsr-pill.neutral  { color: #4f525a; background: #efece4; }
+
+/* ── Cards + section labels ─────────────────────────────────────────────── */
+.dsr-card {
+  background: var(--bg-surface); border: 1px solid var(--border-1);
+  border-radius: var(--r-lg); padding: 15px 16px;
+}
+.dsr-card.raised { box-shadow: 0 1px 2px rgba(16, 18, 24, 0.04), 0 1px 0 rgba(16, 18, 24, 0.03); }
+.dsr-section-label {
+  font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.06em;
+  color: var(--ink-3); margin-bottom: 11px;
+}
+.dsr-empty { text-align: center; padding: 40px 20px; color: var(--ink-3); font-size: 12.5px; }
+.dsr-empty-title { font-size: 13.5px; font-weight: 600; color: var(--ink-2); margin-bottom: 5px; }
+
+/* ── Overview ───────────────────────────────────────────────────────────── */
+.dsr-ov-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; margin-bottom: 16px; }
+.dsr-ov-head { display: flex; align-items: center; gap: 9px; margin-bottom: 9px; }
+.dsr-ov-title { font-size: 12px; font-weight: 600; color: var(--ink-2); flex: 1; }
+.dsr-ov-text { margin: 0 0 10px; font-size: 13px; color: var(--ink-1); line-height: 1.55; }
+.dsr-ov-meta { font-size: 11px; color: var(--ink-3); }
+.dsr-related { display: flex; flex-direction: column; gap: 8px; }
+.dsr-related-row {
+  display: flex; align-items: center; gap: 12px; text-align: left;
+  background: var(--bg-surface-2); border: 1px solid var(--border-1);
+  border-radius: var(--r-md); padding: 10px 12px; cursor: pointer;
+}
+.dsr-related-row:hover { border-color: var(--border-strong, #c8c1b0); }
+.dsr-related-num { font-family: var(--font-mono-rd); font-size: 12.5px; font-weight: 600; color: var(--accent-ink); flex-shrink: 0; }
+.dsr-related-title { flex: 1; min-width: 0; font-size: 12.5px; color: var(--ink-2); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.dsr-related-role { font-size: 11px; color: var(--ink-3); white-space: nowrap; }
+
+/* ── Path & votes: timeline ─────────────────────────────────────────────── */
+.dsr-path { display: flex; flex-direction: column; gap: 16px; }
+.dsr-timeline-row { display: flex; gap: 14px; }
+.dsr-rail { display: flex; flex-direction: column; align-items: center; width: 12px; }
+.dsr-dot { width: 12px; height: 12px; border-radius: 50%; flex-shrink: 0; border: 2px solid; }
+.dsr-line { flex: 1; width: 2px; margin: 3px 0; }
+.dsr-ms-body { padding-bottom: 17px; flex: 1; min-width: 0; }
+.dsr-ms-head { display: flex; align-items: center; gap: 9px; flex-wrap: wrap; }
+.dsr-ms-label { font-size: 13px; font-weight: 600; }
+.dsr-ms-date { margin-left: auto; font-family: var(--font-mono-rd); font-size: 11px; color: var(--ink-3); }
+.dsr-ms-detail { font-size: 12px; color: var(--ink-3); margin-top: 3px; }
+
+/* ── Path & votes: governing-rule callout ───────────────────────────────── */
+.dsr-rule-callout { background: #f6ddd6; border: 1px solid #b5301b; border-radius: var(--r-lg); padding: 16px 18px; }
+.dsr-rule-head { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; margin-bottom: 8px; }
+.dsr-rule-gavel { display: inline-flex; color: #b5301b; }
+.dsr-rule-label { font-family: var(--font-mono-rd); font-size: 13px; font-weight: 600; }
+.dsr-rule-tally { font-family: var(--font-mono-rd); font-size: 14px; font-weight: 600; }
+.dsr-controls-badge {
+  font-size: 9.5px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.05em;
+  color: #b5301b; background: #fff; padding: 3px 7px; border-radius: 3px;
+}
+.dsr-rule-desc { font-size: 12px; color: var(--ink-2); margin-bottom: 7px; }
+.dsr-rule-note { font-size: 12.5px; color: var(--ink-1); line-height: 1.55; }
+
+/* ── Path & votes: recorded votes + party bars ──────────────────────────── */
+.dsr-vote-card { border: 1px solid var(--border-1); border-radius: var(--r-md); padding: 14px 15px; margin-bottom: 10px; }
+.dsr-vote-head { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; margin-bottom: 10px; }
+.dsr-vote-target { font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.05em; color: var(--ink-3); }
+.dsr-vote-label { font-size: 13px; font-weight: 600; flex: 1; min-width: 120px; }
+.dsr-vote-tally { font-family: var(--font-mono-rd); font-size: 15px; font-weight: 600; }
+.dsr-party { display: flex; flex-direction: column; gap: 7px; margin: 11px 0; }
+.dsr-party-row { display: flex; align-items: center; gap: 10px; }
+.dsr-party-label { font-size: 11px; color: var(--ink-3); width: 92px; flex-shrink: 0; }
+.dsr-bar-track { flex: 1; display: flex; height: 8px; border-radius: 2px; overflow: hidden; background: var(--bg-sunken); }
+.dsr-bar-yea { background: #2e6b43; }
+.dsr-bar-nay { background: #b5301b; }
+.dsr-party-tally { font-family: var(--font-mono-rd); font-size: 11px; color: var(--ink-3); width: 64px; text-align: right; }
+.dsr-vote-note { font-size: 12px; color: var(--ink-2); line-height: 1.5; }
+.dsr-novote {
+  display: flex; gap: 11px; align-items: flex-start;
+  background: var(--bg-surface-2); border: 1px dashed var(--border-2, #d8d2c4);
+  border-radius: var(--r-md); padding: 13px 15px;
+}
+.dsr-novote-text { font-size: 12.5px; color: var(--ink-2); line-height: 1.55; }
+
+/* ── Funding ────────────────────────────────────────────────────────────── */
+.dsr-fund-card { background: var(--bg-surface); border: 1px solid var(--border-1); border-radius: var(--r-lg); padding: 17px 18px; margin-bottom: 14px; }
+.dsr-fund-row { display: flex; gap: 24px; flex-wrap: wrap; align-items: flex-end; }
+.dsr-fund-amount { font-family: var(--font-mono-rd); font-variant-numeric: tabular-nums; font-size: 32px; font-weight: 600; line-height: 1; }
+.dsr-fund-metacol { display: flex; flex-direction: column; gap: 6px; }
+.dsr-fund-line { font-size: 11.5px; color: var(--ink-3); }
+.dsr-fund-delta-col { margin-left: auto; text-align: right; }
+.dsr-fund-delta { font-family: var(--font-mono-rd); font-size: 21px; font-weight: 600; }
+.dsr-fund-source { font-size: 11px; color: var(--ink-3); margin-top: 13px; padding-top: 12px; border-top: 1px solid var(--border-1); }
+.dsr-likebar {
+  display: flex; align-items: center; gap: 12px;
+  background: var(--bg-surface); border: 1px solid var(--border-1);
+  border-radius: var(--r-md); padding: 12px 15px; margin-bottom: 14px;
+}
+.dsr-guardrail {
+  display: flex; gap: 11px; align-items: flex-start;
+  background: #f4e5c3; border: 1px solid #a26913;
+  border-radius: var(--r-md); padding: 12px 15px; margin-bottom: 14px;
+}
+.dsr-guardrail-eyebrow { font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.05em; color: #a26913; margin-bottom: 3px; }
+.dsr-guardrail-text { font-size: 12.5px; color: var(--ink-1); line-height: 1.55; }
+/* Parent Budget Package reference (R4 §4.1). The prototype's button treatment
+   minus the click affordance — the package workspace lands with Budget Cycle 360. */
+.dsr-parent-package {
+  display: inline-block;
+  border: 1px solid var(--border-2, #d8d2c4);
+  background: var(--bg-surface);
+  border-radius: var(--r-sm);
+  padding: 10px 14px;
+  font-size: 12.5px;
+  font-weight: 600;
+  color: var(--ink-2);
+}
+
+/* ── PE impacts table (shared by Funding + Impact) ──────────────────────── */
+.dsr-petable { background: var(--bg-surface); border: 1px solid var(--border-1); border-radius: var(--r-lg); overflow: hidden; margin-bottom: 14px; }
+.dsr-petable-title { padding: 12px 16px; border-bottom: 1px solid var(--border-1); font-size: 12px; font-weight: 600; display: flex; align-items: center; gap: 8px; }
+.dsr-petable-count { margin-left: auto; font-family: var(--font-mono-rd); font-size: 11px; color: var(--ink-3); }
+.dsr-petable-cols, .dsr-petable-row { display: grid; grid-template-columns: 2.4fr 1fr 1fr 1fr 1.1fr; }
+.dsr-petable-cols {
+  font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.04em;
+  color: var(--ink-3); padding: 9px 16px; background: var(--bg-surface-2); border-bottom: 1px solid var(--border-1);
+}
+.dsr-petable-row { align-items: center; padding: 11px 16px; border-bottom: 1px solid var(--border-1); font-size: 12.5px; }
+.dsr-petable-row:last-child { border-bottom: none; }
+.dsr-pe-cell { min-width: 0; }
+.dsr-pe-btn { border: none; background: none; padding: 0; text-align: left; cursor: pointer; display: block; }
+.dsr-pe-code { font-family: var(--font-mono-rd); font-size: 11px; color: var(--accent-ink); font-weight: 600; }
+.dsr-pe-name { display: block; font-size: 12px; color: var(--ink-1); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.dsr-num-cell { text-align: right; font-family: var(--font-mono-rd); }
+.dsr-num-cell.muted { color: var(--ink-3); }
+.dsr-num-cell.strong { font-weight: 600; }
+.dsr-basis {
+  display: inline-block; margin-top: 4px;
+  font-size: 9.5px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.05em;
+  padding: 2px 6px; border-radius: 3px;
+}
+.dsr-basis.explicit { color: #2e6b43; background: #ddebde; }
+.dsr-basis.inferred { color: #a26913; background: #f4e5c3; }
+.dsr-impact-note { font-size: 11.5px; color: var(--ink-3); margin-top: 11px; line-height: 1.55; }
+
+/* ── Provisions ─────────────────────────────────────────────────────────── */
+.dsr-prov-list { display: flex; flex-direction: column; gap: 10px; }
+.dsr-prov-card { background: var(--bg-surface); border: 1px solid var(--border-1); border-radius: var(--r-lg); padding: 14px 16px; }
+.dsr-prov-head { display: flex; align-items: center; gap: 10px; margin-bottom: 7px; flex-wrap: wrap; }
+.dsr-prov-sec { font-family: var(--font-mono-rd); font-size: 11.5px; font-weight: 600; color: var(--accent-ink); }
+.dsr-prov-title { font-size: 13px; font-weight: 600; flex: 1; }
+.dsr-prov-summary { margin: 0 0 7px; font-size: 12.5px; color: var(--ink-2); line-height: 1.55; }
+.dsr-prov-source { font-size: 11px; color: var(--ink-3); }
+
+/* ── Hearings ───────────────────────────────────────────────────────────── */
+.dsr-hearing-list { display: flex; flex-direction: column; gap: 12px; }
+.dsr-hearing-card { background: var(--bg-surface); border: 1px solid var(--border-1); border-radius: var(--r-lg); padding: 15px 16px; }
+.dsr-hearing-head { display: flex; align-items: center; gap: 10px; margin-bottom: 4px; }
+.dsr-hearing-title { font-size: 13.5px; font-weight: 600; flex: 1; }
+.dsr-hearing-date { font-family: var(--font-mono-rd); font-size: 11px; color: var(--ink-3); }
+.dsr-hearing-committee { font-size: 12px; color: var(--ink-3); margin-bottom: 12px; }
+.dsr-mention { border-left: 2.5px solid #2c5bd4; background: #dce4f8; border-radius: 0 var(--r-sm) var(--r-sm) 0; padding: 9px 13px; margin-bottom: 7px; }
+.dsr-mention-meta { display: flex; gap: 9px; font-size: 11px; color: var(--ink-3); margin-bottom: 4px; }
+.dsr-mention-ts { font-family: var(--font-mono-rd); }
+.dsr-mention-speaker { font-weight: 600; color: var(--ink-2); }
+.dsr-mention-quote { font-size: 12.5px; color: var(--ink-1); font-style: italic; line-height: 1.55; }
+
+/* ── Evidence ───────────────────────────────────────────────────────────── */
+.dsr-ev-head { display: flex; align-items: center; gap: 8px; margin-bottom: 6px; }
+.dsr-ev-synced { margin-left: auto; font-size: 11.5px; color: var(--ink-3); }
+.dsr-source-row { display: flex; align-items: center; gap: 12px; padding: 11px 0; border-top: 1px solid var(--border-1); }
+.dsr-source-label { flex: 1; font-size: 12.5px; color: var(--ink-1); min-width: 0; }
+.dsr-source-as { font-family: var(--font-mono-rd); font-size: 11px; color: var(--ink-3); white-space: nowrap; }
+.dsr-legend { display: flex; flex-direction: column; gap: 9px; }
+.dsr-legend-row { display: flex; align-items: center; gap: 11px; }
+.dsr-legend-desc { font-size: 12px; color: var(--ink-2); }
+
+/* ── Full-page mode wrapper ─────────────────────────────────────────────── */
+.bill360-page { position: relative; height: 100%; display: flex; flex-direction: column; background: var(--bg-canvas); }
+
+@media (max-width: 720px) {
+  .dsr-kpi-strip { grid-template-columns: 1fr; }
+  .dsr-ov-grid { grid-template-columns: 1fr; }
+}

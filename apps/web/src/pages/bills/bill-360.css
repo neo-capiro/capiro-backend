@@ -1,0 +1,44 @@
+/*
+ * Bill 360 full-page shell (Release R2, plan §2.2).
+ *
+ * The dossier body itself is styled by components/dossier/dossier.css — this file
+ * only owns the PAGE frame. The prototype renders full-page mode as a fixed panel
+ * inset past the app chrome (`left:236px;top:60px;right:0;bottom:0`); inside the
+ * real AppShell the router outlet already sits in that box, so the page fills its
+ * container instead of re-deriving the sidebar/topbar offsets. The visual result
+ * is identical and it survives a collapsed sidebar (which the prototype's fixed
+ * 236px could not).
+ */
+
+.bill360-route {
+  height: 100%;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  background: var(--bg-canvas);
+}
+
+/* The body is `display:flex;flex-direction:column;height:100%` — give it the
+   whole route box so only .dsr-scroll scrolls and the chrome bar stays pinned. */
+.bill360-route > .dossier {
+  flex: 1;
+  min-height: 0;
+}
+
+/* Drawer mode: the antd Drawer body has its own padding; the dossier supplies all
+   of its own spacing (chrome bar + .dsr-inner), so zero it out and let the body
+   own the full height, matching the prototype's edge-to-edge drawer panel. */
+.bill360-drawer .ant-drawer-body {
+  padding: 0;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+}
+
+/* Narrow viewports: the drawer goes full-screen (plan §2.3), so drop the left
+   border/shadow that only reads as a panel edge against the canvas. */
+@media (max-width: 720px) {
+  .bill360-drawer .ant-drawer-content {
+    border-left: none;
+  }
+}

@@ -155,6 +155,12 @@ export function adaptBoard(b: IntelBoard): BoardResponse {
       hearingCount: c.hearingCount ?? 0,
       lastHearingSessionId: c.lastHearingSessionId ?? null,
       jurisdiction: c.jurisdiction,
+      // Bill 360 (R2 §2.4): RETAIN what intel-api already sends instead of
+      // discarding it — the board card shows the latest-action date, and the
+      // dossier/hover affordances read the action text + note without a refetch.
+      latestActionText: c.latestActionText ?? null,
+      latestActionDate: c.latestActionDate ? String(c.latestActionDate).slice(0, 10) : null,
+      note: c.note ?? null,
     }));
     return { id: col.id, label: col.label, count: bills.length, bills };
   });

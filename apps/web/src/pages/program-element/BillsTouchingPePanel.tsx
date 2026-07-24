@@ -1,6 +1,7 @@
 import { ArrowRightOutlined, CheckOutlined } from '@ant-design/icons';
 import { Card, Empty, Skeleton, Tooltip, Typography } from 'antd';
 import { useNavigate } from 'react-router-dom';
+import { useBillTarget } from '../bills/bill-target.js';
 import type { ProgramElementBill, ProgramElementBillAction } from './types.js';
 
 const { Text } = Typography;
@@ -327,8 +328,45 @@ function clusterTooltip(cluster: EventCluster): string {
     .join('\n');
 }
 
+/** Explicit PE-code links are auto-accepted; anything fuzzier stays a candidate. */
+const EXPLICIT_LINK_TYPES = new Set(['explicit_pe_code', 'manual']);
+
+/**
+ * Match-basis / confidence / package chips for one bill lane (R4 §4.2).
+ *
+ * Renders nothing when the server sent no link row (a legacy `peCodes`-array link) —
+ * an absent basis is shown as absent, never as "explicit". The full evidence string
+ * is the hover title so the calm swimlane stays calm.
+ */
+function PeLinkBasis({ bill }: { bill: ProgramElementBill }) {
+  const link = bill.link ?? null;
+  const pkg = bill.budgetPackage ?? null;
+  if (!link && !pkg) return null;
+  const explicit = link ? EXPLICIT_LINK_TYPES.has(link.type) : false;
+  return (
+    <span className="pe-lane-basis" title={link?.evidence ?? undefined}>
+      {pkg ? (
+        <span className="pe-basis-chip pkg">
+          {pkg.name} · {pkg.track} · {pkg.stage}
+        </span>
+      ) : null}
+      {link ? (
+        <span className={`pe-basis-chip ${explicit ? 'explicit' : 'inferred'}`}>
+          {explicit ? 'Explicit PE match' : 'Inferred match'}
+          {link.status === 'candidate' ? ' · candidate' : ''}
+          {` · ${Math.round(link.confidence * 100)}%`}
+        </span>
+      ) : null}
+    </span>
+  );
+}
+
 export function BillsTouchingPePanel({ bills, loading = false }: BillsTouchingPePanelProps) {
   const navigate = useNavigate();
+  // R2 §2.5 routes a bill lane to Bill 360 — but ONLY for a tenant that has it.
+  // useBillTarget keeps the Explorer destination for tenants without the flag, so
+  // PE Watch never sends anyone to a "not enabled" page.
+  const billTarget = useBillTarget();
 
   if (loading) {
     return (
@@ -388,7 +426,7 @@ export function BillsTouchingPePanel({ bills, loading = false }: BillsTouchingPe
                       type="button"
                       className="pe-lane-bill"
                       onClick={() =>
-                        navigate(`/intelligence/bills/${encodeURIComponent(lane.bill.id)}`)
+                        navigate(billTarget(lane.bill.id))
                       }
                       title={lane.bill.title}
                     >
@@ -399,6 +437,11 @@ export function BillsTouchingPePanel({ bills, loading = false }: BillsTouchingPe
                           ? ` / ${lane.bill.peCodeCount.toLocaleString()} PEs`
                           : ''}
                       </span>
+                      {/* R4 §4.2: Program Element 360 stays the line-level source of
+                          truth, so each legislative vehicle carries its package label,
+                          its match basis, and its confidence — never a bare link. The
+                          package label keeps authorization and appropriation distinct. */}
+                      <PeLinkBasis bill={lane.bill} />
                     </button>
                     <div className="pe-lane-track">
                       <span className="pe-lane-line" />
@@ -465,7 +508,7 @@ export function BillsTouchingPePanel({ bills, loading = false }: BillsTouchingPe
                   type="button"
                   className="pe-undated-bill"
                   onClick={() =>
-                    navigate(`/intelligence/bills/${encodeURIComponent(lane.bill.id)}`)
+                    navigate(billTarget(lane.bill.id))
                   }
                   title={lane.bill.title}
                 >

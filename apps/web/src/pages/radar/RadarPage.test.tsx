@@ -4,6 +4,7 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { MemoryRouter, Route, Routes } from 'react-router-dom';
 import { App as AntApp } from 'antd';
 import { RadarPage } from './RadarPage.js';
+import { BillDrawer, bill360DrawerWidth } from './BillDrawer.js';
 
 const apiGetMock = vi.fn();
 
@@ -251,5 +252,247 @@ describe('RadarPage', () => {
 
     await waitFor(() => expect(screen.getByText('LegiWatch')).toBeInTheDocument());
     expect(screen.queryByText('What LegiWatch does')).not.toBeInTheDocument();
+  });
+});
+
+// ── Bill 360 drawer (R2 §2.3 / §2.6) ────────────────────────────────────────
+//
+// Every LegiWatch bill entry point (board card, feed action, recommendation) opens
+// BillDrawer, so the drawer is where the "board card → Bill 360 drawer" contract
+// and the responsive + flag rules are verified. Same harness as above: flags come
+// from the real hook over the mocked /intel-api/feature-flags.
+
+const B360_BILL = '119-hr-8800';
+const B360_CLIENT = '11111111-1111-1111-1111-111111111111';
+
+/** Minimal R1-shaped dossier: rule failed, no floor vote, funding unavailable. */
+function billDossierFixture() {
+  return {
+    bill: {
+      id: B360_BILL,
+      num: 'H.R. 8800',
+      title: 'Border Security and Enforcement Appropriations Act, 2026',
+      chamber: 'House',
+      type: 'hr',
+      congress: 119,
+      sponsor: null,
+      introduced: null,
+      statusLabel: 'Rule failed',
+      statusSev: 'critical',
+      statusAt: '2026-06-18T21:30:00.000Z',
+      stage: 'rule_failed',
+      jurisdiction: 'US',
+      isState: false,
+      url: null,
+    },
+    latest: { text: 'Rule reported.', date: '2026-06-17T00:00:00.000Z' },
+    context: null,
+    tracking: null,
+    kpis: [
+      { label: 'Current status', value: 'Rule failed', sub: null },
+      { label: 'Latest recorded vote', value: 'None recorded', sub: null },
+      { label: 'Funding position', value: '—', sub: null },
+      { label: 'Δ from request', value: '—', sub: null },
+      { label: 'Last official action', value: '2026-06-17', sub: null },
+      { label: 'Next milestone', value: '—', sub: null },
+    ],
+    overview: {
+      whatChanged: null,
+      whyItMatters: null,
+      officialNextStep: null,
+      analystOutlook: null,
+    },
+    milestones: [],
+    votes: [],
+    governingRules: [],
+    noVote: 'No roll call vote has been recorded on this bill.',
+    funding: {
+      available: false,
+      status: 'Funding intelligence is not yet enabled for this vehicle.',
+      positions: [],
+      reqCompare: null,
+      senateCompare: null,
+      comparisons: [],
+      guardrail: null,
+      programElementImpacts: [],
+      provisions: [],
+      parentPackageLabel: null,
+    },
+    relatedVehicles: [],
+    hearings: [],
+    alerts: [],
+    matchedTopics: [],
+    recommendedActions: [],
+    provenance: { lastSyncedAt: '2026-06-19T06:00:00.000Z', sources: [] },
+  };
+}
+
+function mockDrawerApi(flags: Record<string, boolean>) {
+  apiGetMock.mockImplementation(async (url: string) => {
+    if (url === '/intel-api/feature-flags') return { data: flags };
+    if (url.includes('/dossier')) return { data: billDossierFixture() };
+    if (url.includes('/hearings')) return { data: { count: 0, hearings: [] } };
+    return { data: [] };
+  });
+}
+
+function renderBillDrawer(props: Record<string, unknown> = {}) {
+  const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+  render(
+    <QueryClientProvider client={queryClient}>
+      <AntApp>
+        <MemoryRouter initialEntries={['/legiwatch']}>
+          <BillDrawer
+            open
+            billId={B360_BILL}
+            clientId={B360_CLIENT}
+            clientName="Acme Aerospace"
+            onClose={vi.fn()}
+            {...props}
+          />
+        </MemoryRouter>
+      </AntApp>
+    </QueryClientProvider>,
+  );
+}
+
+/** jsdom defaults to 1024px; set an explicit width per case. */
+function setViewport(px: number) {
+  Object.defineProperty(window, 'innerWidth', { value: px, writable: true, configurable: true });
+}
+
+describe('bill360DrawerWidth — §2.3 responsive contract', () => {
+  test('desktop clamps into the 960–1,100px band', () => {
+    expect(bill360DrawerWidth(1920)).toBe(1100);
+    expect(bill360DrawerWidth(1440)).toBe(1100);
+  });
+
+  test('a mid-size viewport keeps the panel inside the window (48px gutter)', () => {
+    expect(bill360DrawerWidth(1100)).toBe(1052);
+    expect(bill360DrawerWidth(1000)).toBe(960);
+  });
+
+  test('never exceeds the viewport between the floor and the gutter', () => {
+    for (const w of [760, 820, 900, 960, 1000, 1200, 1920]) {
+      const width = bill360DrawerWidth(w);
+      expect(typeof width === 'number' ? width : 0).toBeLessThanOrEqual(w);
+    }
+  });
+
+  test('narrow viewports go full-screen', () => {
+    expect(bill360DrawerWidth(720)).toBe('100%');
+    expect(bill360DrawerWidth(480)).toBe('100%');
+  });
+});
+
+describe('BillDrawer — Bill 360 flag ON', () => {
+  beforeEach(() => {
+    apiGetMock.mockReset();
+    setupBrowserMocks();
+    setViewport(1440);
+  });
+
+  test('renders the shared dossier body (Bill 360 chrome + Open full page)', async () => {
+    mockDrawerApi({ bill_360: true });
+    renderBillDrawer();
+
+    expect(await screen.findByText('H.R. 8800')).toBeInTheDocument();
+    expect(screen.getByText('Bill 360')).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /Open full page/i })).toBeInTheDocument();
+    // Drawer always has a client → the CLIENT-context dossier route is used.
+    await waitFor(() =>
+      expect(
+        apiGetMock.mock.calls.some(
+          (c) => String(c[0]) === `/intel-api/clients/${B360_CLIENT}/bills/${B360_BILL}/dossier`,
+        ),
+      ).toBe(true),
+    );
+  });
+
+  test('shows all seven dossier tabs', async () => {
+    mockDrawerApi({ bill_360: true });
+    renderBillDrawer();
+    await screen.findByText('H.R. 8800');
+    for (const label of [
+      'Overview',
+      'Path & votes',
+      'Funding',
+      'Provisions',
+      'Impact',
+      'Hearings',
+      'Evidence',
+    ]) {
+      expect(screen.getByRole('button', { name: label })).toBeInTheDocument();
+    }
+  });
+
+  test('preserves Track through the caller mutation', async () => {
+    const onTrack = vi.fn();
+    mockDrawerApi({ bill_360: true });
+    renderBillDrawer({ isTracked: false, onTrack });
+
+    fireEvent.click(await screen.findByRole('button', { name: /Track bill/i }));
+    expect(onTrack).toHaveBeenCalledWith(B360_BILL);
+  });
+
+  test('an already-tracked bill reads "Tracked"', async () => {
+    mockDrawerApi({ bill_360: true });
+    renderBillDrawer({ isTracked: true, onTrack: vi.fn() });
+    expect(await screen.findByRole('button', { name: /^Tracked$/ })).toBeInTheDocument();
+  });
+
+  test('narrow viewport renders the drawer full-screen', async () => {
+    setViewport(600);
+    mockDrawerApi({ bill_360: true });
+    renderBillDrawer();
+    await screen.findByText('H.R. 8800');
+
+    const panel = document.querySelector('.ant-drawer-content-wrapper');
+    expect(panel).toBeTruthy();
+    expect((panel as HTMLElement).style.width).toBe('100%');
+  });
+
+  test('desktop viewport renders the clamped Bill 360 width', async () => {
+    mockDrawerApi({ bill_360: true });
+    renderBillDrawer();
+    await screen.findByText('H.R. 8800');
+
+    const panel = document.querySelector('.ant-drawer-content-wrapper');
+    expect((panel as HTMLElement).style.width).toBe('1100px');
+  });
+});
+
+describe('BillDrawer — Bill 360 flag OFF fails closed', () => {
+  beforeEach(() => {
+    apiGetMock.mockReset();
+    setupBrowserMocks();
+    setViewport(1440);
+  });
+
+  test('keeps the legacy drawer when the flag is disabled', async () => {
+    mockDrawerApi({});
+    renderBillDrawer();
+
+    // Legacy chrome: the "Bill" eyebrow, no Bill 360 chrome, no dossier fetch.
+    await waitFor(() => expect(screen.getByText('Bill')).toBeInTheDocument());
+    expect(screen.queryByText('Bill 360')).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: /Open full page/i })).not.toBeInTheDocument();
+    expect(apiGetMock.mock.calls.every((c) => !String(c[0]).includes('/dossier'))).toBe(true);
+  });
+
+  test('legacy drawer keeps the "Track for <client>" affordance', async () => {
+    const onTrack = vi.fn();
+    mockDrawerApi({});
+    renderBillDrawer({ isTracked: false, onTrack });
+
+    fireEvent.click(await screen.findByRole('button', { name: /Track for Acme Aerospace/i }));
+    expect(onTrack).toHaveBeenCalledWith(B360_BILL);
+  });
+
+  test('a state bill key still uses the legacy state rail when the flag is off', async () => {
+    mockDrawerApi({});
+    renderBillDrawer({ billId: 'tx-2025-hb1234' });
+    await waitFor(() => expect(screen.getByText('State bill')).toBeInTheDocument());
+    expect(screen.queryByText('Bill 360')).not.toBeInTheDocument();
   });
 });

@@ -142,6 +142,169 @@ export interface ClientCapabilityRow {
   sector: string | null;
 }
 
+// ── Bill 360 dossier read shapes (Release R1, §1.1) ──────────────────────────
+export interface SourceBillIdentity {
+  id: string;
+  congress: number | null;
+  billType: string | null;
+  billNumber: string | null;
+  title: string | null;
+  originChamber: string | null;
+  sponsorName: string | null;
+  introducedDate: Date | null;
+  status: string | null;
+  statusAt: Date | null;
+  latestActionText: string | null;
+  latestActionDate: Date | null;
+  policyArea: string | null;
+  url: string | null;
+  lastSyncedAt: Date | null;
+  updateDate: Date | null;
+  updateDateIncludingText: Date | null;
+}
+
+export interface SourceBillVote {
+  id: string;
+  chamber: string | null;
+  billId: string | null;
+  question: string | null;
+  result: string | null;
+  voteType: string | null;
+  voteDate: Date | null;
+  yeas: number;
+  nays: number;
+  present: number;
+  notVoting: number;
+  sourceUrl: string | null;
+}
+
+export interface SourceMemberVoteTally {
+  voteId: string;
+  party: string | null;
+  voteCast: string;
+  count: number;
+}
+
+export interface SourceGoverningRule {
+  ruleBillId: string;
+  targetBillId: string;
+  voteId: string | null;
+  chamber: string | null;
+  rollNumber: number | null;
+  result: string | null;
+  yeas: number | null;
+  nays: number | null;
+  question: string | null;
+  sourceUrl: string | null;
+  voteDate: Date | null;
+}
+
+export interface SourceBillFreshness {
+  billId: string;
+  lastSyncedAt: Date | null;
+  updateDate: Date | null;
+  updateDateIncludingText: Date | null;
+  latestActionDate: Date | null;
+}
+
+export interface SourceBillProvision {
+  provisionId: string;
+  committee: string;
+  fy: number;
+  heading: string;
+  text: string;
+  pageStart: number | null;
+  pageEnd: number | null;
+  actionType: string | null;
+  peCode: string | null;
+  matchBasis: string | null;
+  confidence: number | null;
+  reviewStatus: string;
+}
+
+// ── Defense funding reads (Release R3, §3.5) — GLOBAL, read-only, bound params ──
+
+/** One live funding_position for a bill, with its package context. */
+export interface SourceFundingPosition {
+  id: string;
+  packageId: string;
+  packageName: string;
+  domain: string;
+  vehicleId: string | null;
+  vehicleLabel: string | null;
+  vehicleTrack: string | null;
+  fiscalYear: number;
+  vehicleClass: string;
+  stage: string;
+  scope: string;
+  amountMillions: string;
+  effectiveDate: Date | null;
+  sourceUrl: string | null;
+  sourcePage: number | null;
+  note: string | null;
+  verificationStatus: string;
+}
+
+/** A PE line a bill touches, with the PE ladder for the package fiscal year. */
+export interface SourceBillPeImpact {
+  peCode: string;
+  title: string | null;
+  fiscalYear: number | null;
+  requestMillions: string | null;
+  houseMillions: string | null;
+  senateMillions: string | null;
+  enactedMillions: string | null;
+  matchBasis: string;
+  reviewStatus: string;
+  confidence: number;
+}
+
+/** A sibling vehicle in the same budget package as the bill. */
+export interface SourceRelatedVehicle {
+  vehicleId: string;
+  billId: string | null;
+  label: string;
+  track: string;
+  stage: string;
+  reportNumber: string | null;
+  publicLaw: string | null;
+  status: string;
+}
+
+/** The budget package a bill rides in. */
+export interface SourceParentPackage {
+  packageId: string;
+  domain: string;
+  fiscalYear: number;
+  name: string;
+  status: string;
+}
+
+/**
+ * A recently-computed Program Element funding delta (R4 §4.3) — the atomic unit the
+ * PE alert emitter fans out to clients whose watchlist names the PE.
+ *
+ * Read from the apps/api-owned `program_element_delta`, which the existing
+ * compute-budget-deltas pipeline populates and supersedes. Only LIVE rows
+ * (superseded_at IS NULL) are returned: a recomputed delta must not re-alert.
+ */
+export interface SourcePeDelta {
+  deltaId: string;
+  peCode: string;
+  peTitle: string | null;
+  assertedFy: number;
+  deltaType: string;
+  fromRef: string | null;
+  toRef: string | null;
+  amountFrom: string | null;
+  amountTo: string | null;
+  deltaAbs: string | null;
+  deltaPct: number | null;
+  explanation: string | null;
+  materialityScore: number;
+  computedAt: Date;
+}
+
 @Injectable()
 export class SourceDataRepository {
   constructor(private readonly prisma: PrismaService) {}
@@ -168,9 +331,14 @@ export class SourceDataRepository {
     return rows[0] ?? null;
   }
 
-  /** All actions for a bill, newest-first (uses index [bill_id, date]). */
-  async getBillActions(billId: string): Promise<SourceBillAction[]> {
-    return this.prisma.$queryRawUnsafe<SourceBillAction[]>(
+  /**
+   * All actions for a bill, newest-first (uses index [bill_id, date]). Pass
+   * `limit` to cap the result (the Bill 360 dossier reads 50); omit for all rows
+   * so existing detector callers keep their unbounded behavior.
+   */
+  async getBillActions(billId: string, limit?: number): Promise<SourceBillAction[]> {
+    const cap = typeof limit === 'number' && limit > 0 ? Math.min(Math.floor(limit), 500) : null;
+    const sql =
       `SELECT id,
               bill_id AS "billId",
               date,
@@ -179,9 +347,10 @@ export class SourceDataRepository {
               chamber
          FROM congress_bill_action
         WHERE bill_id = $1
-        ORDER BY date DESC`,
-      billId,
-    );
+        ORDER BY date DESC` + (cap !== null ? ' LIMIT $2' : '');
+    return cap !== null
+      ? this.prisma.$queryRawUnsafe<SourceBillAction[]>(sql, billId, cap)
+      : this.prisma.$queryRawUnsafe<SourceBillAction[]>(sql, billId);
   }
 
   /** Subject tags for a bill. */
@@ -203,6 +372,385 @@ export class SourceDataRepository {
         WHERE bill_id = $1`,
       billId,
     );
+  }
+
+  // ── Bill 360 dossier reads (Release R1, §1.1) — GLOBAL, read-only, bound params ──
+
+  /** Full dossier header for one `congress_bill` (status/chamber/freshness), or null. */
+  async getBillDossierIdentity(billId: string): Promise<SourceBillIdentity | null> {
+    const rows = await this.prisma.$queryRawUnsafe<SourceBillIdentity[]>(
+      `SELECT id,
+              congress,
+              bill_type                  AS "billType",
+              bill_number                AS "billNumber",
+              title,
+              origin_chamber             AS "originChamber",
+              sponsor_name               AS "sponsorName",
+              introduced_date            AS "introducedDate",
+              status,
+              status_at                  AS "statusAt",
+              latest_action_text         AS "latestActionText",
+              latest_action_date         AS "latestActionDate",
+              policy_area                AS "policyArea",
+              url,
+              last_synced_at             AS "lastSyncedAt",
+              update_date                AS "updateDate",
+              update_date_including_text AS "updateDateIncludingText"
+         FROM congress_bill
+        WHERE id = $1
+        LIMIT 1`,
+      billId,
+    );
+    return rows[0] ?? null;
+  }
+
+  /** Chamber-level roll-call votes ON the bill itself, newest-first (index [bill_id]). */
+  async getBillVotes(billId: string, limit?: number): Promise<SourceBillVote[]> {
+    const cap = typeof limit === 'number' && limit > 0 ? Math.min(Math.floor(limit), 200) : null;
+    const sql =
+      `SELECT id,
+              chamber,
+              bill_id       AS "billId",
+              question,
+              result,
+              vote_type     AS "voteType",
+              vote_date     AS "voteDate",
+              yeas,
+              nays,
+              present,
+              not_voting    AS "notVoting",
+              source_url    AS "sourceUrl"
+         FROM roll_call_vote
+        WHERE bill_id = $1
+        ORDER BY vote_date DESC` + (cap !== null ? ' LIMIT $2' : '');
+    return cap !== null
+      ? this.prisma.$queryRawUnsafe<SourceBillVote[]>(sql, billId, cap)
+      : this.prisma.$queryRawUnsafe<SourceBillVote[]>(sql, billId);
+  }
+
+  /**
+   * Per-vote party tallies for a set of roll-call votes, aggregated in ONE query
+   * (no N+1). Returns one row per (vote, party, cast) so callers can build a
+   * Majority/Minority yea-nay breakdown without pulling every member row.
+   */
+  async getBillMemberVoteSummary(voteIds: string[]): Promise<SourceMemberVoteTally[]> {
+    if (!voteIds.length) return [];
+    return this.prisma.$queryRawUnsafe<SourceMemberVoteTally[]>(
+      `SELECT vote_id     AS "voteId",
+              party,
+              vote_cast   AS "voteCast",
+              count(*)::int AS count
+         FROM member_vote
+        WHERE vote_id = ANY($1::text[])
+        GROUP BY vote_id, party, vote_cast`,
+      voteIds,
+    );
+  }
+
+  /**
+   * The governing RULE(s) for a target bill + each rule's most recent roll-call
+   * vote (GLOBAL `bill_rule_link` LEFT JOIN `roll_call_vote`). A rule is an hres
+   * whose adoption/failure gates floor consideration of the target — its outcome
+   * controls the displayed status even when the target bill has no vote of its
+   * own. LEFT JOIN so a rule link with no recorded vote yet still returns.
+   */
+  async getGoverningRules(billId: string): Promise<SourceGoverningRule[]> {
+    return this.prisma.$queryRawUnsafe<SourceGoverningRule[]>(
+      `SELECT DISTINCT ON (l.rule_bill_id)
+              l.rule_bill_id   AS "ruleBillId",
+              l.target_bill_id AS "targetBillId",
+              v.id             AS "voteId",
+              v.chamber,
+              v.roll_number    AS "rollNumber",
+              v.result,
+              v.yeas,
+              v.nays,
+              v.question,
+              v.source_url     AS "sourceUrl",
+              v.vote_date      AS "voteDate"
+         FROM bill_rule_link l
+         LEFT JOIN roll_call_vote v ON v.bill_id = l.rule_bill_id
+        WHERE l.target_bill_id = $1
+        ORDER BY l.rule_bill_id, v.vote_date DESC NULLS LAST`,
+      billId,
+    );
+  }
+
+  /** CBO cost estimates (the federal "fiscal note") for a bill, newest-first. */
+  async getBillFiscalNotes(billId: string, limit?: number): Promise<SourceFiscalNote[]> {
+    const cap = typeof limit === 'number' && limit > 0 ? Math.min(Math.floor(limit), 100) : null;
+    const sql =
+      `SELECT id        AS "cboId",
+              bill_id    AS "billId",
+              title,
+              description,
+              cbo_url    AS "cboUrl",
+              pub_date   AS "pubDate"
+         FROM cbo_cost_estimate
+        WHERE bill_id = $1
+        ORDER BY pub_date DESC` + (cap !== null ? ' LIMIT $2' : '');
+    return cap !== null
+      ? this.prisma.$queryRawUnsafe<SourceFiscalNote[]>(sql, billId, cap)
+      : this.prisma.$queryRawUnsafe<SourceFiscalNote[]>(sql, billId);
+  }
+
+  /** Source-freshness signals for a bill (Congress.gov change stamps + our last sync). */
+  async getBillSourceFreshness(billId: string): Promise<SourceBillFreshness | null> {
+    const rows = await this.prisma.$queryRawUnsafe<SourceBillFreshness[]>(
+      `SELECT id                         AS "billId",
+              last_synced_at             AS "lastSyncedAt",
+              update_date                AS "updateDate",
+              update_date_including_text AS "updateDateIncludingText",
+              latest_action_date         AS "latestActionDate"
+         FROM congress_bill
+        WHERE id = $1
+        LIMIT 1`,
+      billId,
+    );
+    return rows[0] ?? null;
+  }
+
+  /**
+   * Committee-report provisions reachable from a bill through its PE links
+   * (`bill_budget_line_link` pe_code → `provision_pe_link` → `committee_report_provision`).
+   * Provisions are keyed by committee+FY (not a bill_id), so this is the only
+   * bill-scoped path to them. CONSUMED IN R3 (defense_funding_intel); the R1
+   * dossier keeps `funding.provisions` empty. Bounded, read-only.
+   */
+  async getBillReportsAndProvisions(billId: string, limit = 50): Promise<SourceBillProvision[]> {
+    const cap = Math.min(Math.max(Math.floor(limit), 1), 200);
+    return this.prisma.$queryRawUnsafe<SourceBillProvision[]>(
+      `SELECT DISTINCT
+              p.id::text     AS "provisionId",
+              p.committee,
+              p.fy,
+              p.heading,
+              p.text,
+              p.page_start   AS "pageStart",
+              p.page_end     AS "pageEnd",
+              p.action_type  AS "actionType",
+              ppl.pe_code    AS "peCode",
+              ppl.match_basis AS "matchBasis",
+              ppl.confidence,
+              ppl.review_status AS "reviewStatus"
+         FROM bill_budget_line_link bll
+         JOIN provision_pe_link ppl ON ppl.pe_code = bll.pe_code
+         JOIN committee_report_provision p ON p.id = ppl.provision_id
+        WHERE bll.bill_id = $1
+        ORDER BY p.fy DESC, p.committee
+        LIMIT $2`,
+      billId,
+      cap,
+    );
+  }
+
+  // ── Defense funding reads (Release R3, §3.5) ────────────────────────────────
+  //
+  // All five are GLOBAL, read-only, bound-parameter, and bounded. intel-api NEVER
+  // writes budget_package / funding_position — the curated loader and the parsers in
+  // apps/api own every write.
+
+  /**
+   * LIVE funding positions for a bill (superseded rows excluded — those are audit
+   * history, exposed by the apps/api package-history endpoint, not the dossier).
+   * Joined to the package so every row carries its fiscal year and domain, and to
+   * the vehicle so the UI can label which vehicle asserted the figure.
+   */
+  async getBillFundingPositions(billId: string, limit = 50): Promise<SourceFundingPosition[]> {
+    const cap = Math.min(Math.max(Math.floor(limit), 1), 200);
+    return this.prisma.$queryRawUnsafe<SourceFundingPosition[]>(
+      `SELECT fp.id,
+              fp.package_id          AS "packageId",
+              bp.name                AS "packageName",
+              bp.domain,
+              fp.vehicle_id          AS "vehicleId",
+              v.label                AS "vehicleLabel",
+              v.track                AS "vehicleTrack",
+              fp.fiscal_year         AS "fiscalYear",
+              fp.vehicle_class       AS "vehicleClass",
+              fp.stage,
+              fp.scope,
+              fp.amount_millions::text AS "amountMillions",
+              fp.effective_date      AS "effectiveDate",
+              fp.source_url          AS "sourceUrl",
+              fp.source_page         AS "sourcePage",
+              fp.note,
+              fp.verification_status AS "verificationStatus"
+         FROM funding_position fp
+         JOIN budget_package bp ON bp.id = fp.package_id
+         LEFT JOIN budget_package_vehicle v ON v.id = fp.vehicle_id
+        WHERE fp.bill_id = $1
+          AND fp.verification_status <> 'superseded'
+        ORDER BY fp.fiscal_year DESC, fp.scope, fp.stage
+        LIMIT $2`,
+      billId,
+      cap,
+    );
+  }
+
+  /**
+   * Program Element / procurement lines this bill touches, with the PE ladder for
+   * the fiscal year of the bill's own budget package.
+   *
+   * House/Senate read the APPROPRIATIONS marks (hac_d_mark / sac_d_mark). The
+   * authorization marks (hasc/sasc) are a different track and are deliberately NOT
+   * substituted — §5 edge case 14.
+   *
+   * Rejected links are excluded; candidate links are returned WITH their review
+   * status so the UI can label an inferred match rather than present it as fact.
+   */
+  async getBillProgramElementImpacts(billId: string, limit = 100): Promise<SourceBillPeImpact[]> {
+    const cap = Math.min(Math.max(Math.floor(limit), 1), 300);
+    return this.prisma.$queryRawUnsafe<SourceBillPeImpact[]>(
+      `WITH fy AS (
+              SELECT bp.fiscal_year
+                FROM budget_package_vehicle v
+                JOIN budget_package bp ON bp.id = v.package_id
+               WHERE v.bill_id = $1
+               ORDER BY bp.fiscal_year DESC
+               LIMIT 1
+            )
+       SELECT l.pe_code                 AS "peCode",
+              pe.title,
+              y.fy                      AS "fiscalYear",
+              y.request::text           AS "requestMillions",
+              y.hac_d_mark::text        AS "houseMillions",
+              y.sac_d_mark::text        AS "senateMillions",
+              y.enacted::text           AS "enactedMillions",
+              l.link_type               AS "matchBasis",
+              l.status                  AS "reviewStatus",
+              l.confidence
+         FROM bill_budget_line_link l
+         LEFT JOIN program_element pe ON pe.pe_code = l.pe_code
+         LEFT JOIN program_element_year y
+                ON y.pe_code = l.pe_code
+               AND y.fy = (SELECT fiscal_year FROM fy)
+        WHERE l.bill_id = $1
+          AND l.status <> 'rejected'
+        ORDER BY l.confidence DESC, l.pe_code
+        LIMIT $2`,
+      billId,
+      cap,
+    );
+  }
+
+  /**
+   * The OTHER vehicles in the same budget package — the authorization,
+   * appropriations, conference, CR, and enacted siblings a reader needs in order to
+   * see where this bill sits in the cycle. Excludes the bill's own vehicles.
+   */
+  async getRelatedBudgetVehicles(billId: string, limit = 25): Promise<SourceRelatedVehicle[]> {
+    const cap = Math.min(Math.max(Math.floor(limit), 1), 100);
+    return this.prisma.$queryRawUnsafe<SourceRelatedVehicle[]>(
+      `SELECT sib.id            AS "vehicleId",
+              sib.bill_id       AS "billId",
+              sib.label,
+              sib.track,
+              sib.stage,
+              sib.report_number AS "reportNumber",
+              sib.public_law    AS "publicLaw",
+              sib.status
+         FROM budget_package_vehicle self
+         JOIN budget_package_vehicle sib ON sib.package_id = self.package_id
+        WHERE self.bill_id = $1
+          AND (sib.bill_id IS DISTINCT FROM $1)
+        ORDER BY sib.track, sib.stage, sib.label
+        LIMIT $2`,
+      billId,
+      cap,
+    );
+  }
+
+  /**
+   * Committee-report provisions reachable from a bill that describe a FUNDING action
+   * (adds / cuts / transfers / restricts). A narrower view of
+   * {@link getBillReportsAndProvisions} for the dossier's Provisions tab, so
+   * briefing-direction language does not crowd out dollar movements.
+   */
+  async getBillFundingProvisions(billId: string, limit = 50): Promise<SourceBillProvision[]> {
+    const cap = Math.min(Math.max(Math.floor(limit), 1), 200);
+    return this.prisma.$queryRawUnsafe<SourceBillProvision[]>(
+      `SELECT DISTINCT
+              p.id::text        AS "provisionId",
+              p.committee,
+              p.fy,
+              p.heading,
+              p.text,
+              p.page_start      AS "pageStart",
+              p.page_end        AS "pageEnd",
+              p.action_type     AS "actionType",
+              ppl.pe_code       AS "peCode",
+              ppl.match_basis   AS "matchBasis",
+              ppl.confidence,
+              ppl.review_status AS "reviewStatus"
+         FROM bill_budget_line_link bll
+         JOIN provision_pe_link ppl ON ppl.pe_code = bll.pe_code
+         JOIN committee_report_provision p ON p.id = ppl.provision_id
+        WHERE bll.bill_id = $1
+          AND p.action_type IN ('adds', 'cuts', 'transfers', 'restricts')
+        ORDER BY p.fy DESC, p.committee
+        LIMIT $2`,
+      billId,
+      cap,
+    );
+  }
+
+  /**
+   * LIVE Program Element deltas computed within the window, most material first
+   * (R4 §4.3). Superseded rows are excluded so a recompute never re-alerts, and a
+   * materiality floor keeps rounding noise out of the client feed.
+   */
+  async getRecentPeDeltas(
+    windowHours: number,
+    materialityFloor = 0.3,
+    limit = 200,
+  ): Promise<SourcePeDelta[]> {
+    const cap = Math.min(Math.max(Math.floor(limit), 1), 1000);
+    const hours = Math.min(Math.max(Math.floor(windowHours), 1), 24 * 90);
+    return this.prisma.$queryRawUnsafe<SourcePeDelta[]>(
+      `SELECT d.id::text          AS "deltaId",
+              d.pe_code           AS "peCode",
+              pe.title            AS "peTitle",
+              d.asserted_fy       AS "assertedFy",
+              d.delta_type        AS "deltaType",
+              d.from_ref          AS "fromRef",
+              d.to_ref            AS "toRef",
+              d.amount_from::text AS "amountFrom",
+              d.amount_to::text   AS "amountTo",
+              d.delta_abs::text   AS "deltaAbs",
+              d.delta_pct         AS "deltaPct",
+              d.explanation,
+              d.materiality_score AS "materialityScore",
+              d.computed_at       AS "computedAt"
+         FROM program_element_delta d
+         LEFT JOIN program_element pe ON pe.pe_code = d.pe_code
+        WHERE d.superseded_at IS NULL
+          AND d.computed_at >= now() - ($1 || ' hours')::interval
+          AND d.materiality_score >= $2
+        ORDER BY d.materiality_score DESC, d.computed_at DESC
+        LIMIT $3`,
+      String(hours),
+      materialityFloor,
+      cap,
+    );
+  }
+
+  /** The budget package a bill rides in (newest fiscal year wins), or null. */
+  async getParentBudgetPackage(billId: string): Promise<SourceParentPackage | null> {
+    const rows = await this.prisma.$queryRawUnsafe<SourceParentPackage[]>(
+      `SELECT bp.id          AS "packageId",
+              bp.domain,
+              bp.fiscal_year AS "fiscalYear",
+              bp.name,
+              bp.status
+         FROM budget_package_vehicle v
+         JOIN budget_package bp ON bp.id = v.package_id
+        WHERE v.bill_id = $1
+        ORDER BY bp.fiscal_year DESC
+        LIMIT 1`,
+      billId,
+    );
+    return rows[0] ?? null;
   }
 
   /**

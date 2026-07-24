@@ -38,6 +38,13 @@ export interface FeedQuery {
   order?: 'date' | 'score';
   cursor?: string;
   limit?: number;
+  /**
+   * Bill 360 event history (Release R1, §1.4): restrict to alerts whose
+   * `source_ref` equals this bill id. Index-backed via
+   * @@index([tenantId, sourceType, sourceRef]) — an INDEXED predicate, never an
+   * in-memory filter. Pair with sourceTypes:['bill'] for a covering lookup.
+   */
+  sourceRef?: string;
 }
 
 interface DateCursor {
@@ -157,6 +164,9 @@ export class FeedService {
 
     const where: Record<string, unknown> = { ...baseWhere };
     if (q.sourceTypes?.length) where['sourceType'] = { in: q.sourceTypes };
+    // Bill 360 (§1.4): equality predicate on source_ref so a single-bill event
+    // history hits @@index([tenantId, sourceType, sourceRef]) — never a JS filter.
+    if (q.sourceRef) where['sourceRef'] = q.sourceRef;
 
     // Keyset predicate from the cursor (AND-ed with the filters above).
     const cur = q.cursor ? b64decode(q.cursor) : null;

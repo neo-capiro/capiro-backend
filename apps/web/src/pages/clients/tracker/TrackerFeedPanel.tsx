@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { useInfiniteQuery, useMutation } from '@tanstack/react-query';
 import { useNavigate } from 'react-router-dom';
+import { useBillTarget } from '../../bills/bill-target.js';
 import { App as AntApp, Input, Modal } from 'antd';
 import { useApi } from '../../../lib/use-api.js';
 import {
@@ -93,9 +94,16 @@ const ACTION_ICON: Record<string, string> = {
   add_to_report: 'check',
   open_bill: 'file',
   open_hearing: 'audio',
+  open_program_element: 'file',
   pull_quotes: 'quote',
   add_talking_point: 'plus',
 };
+
+/** $X.XB / $XM for a millions figure — matches the dossier + PE formatters. */
+function fmtMillionsShort(m: number): string {
+  if (Math.abs(m) >= 1000) return `$${(m / 1000).toFixed(1)}B`;
+  return `$${m % 1 ? m.toFixed(1) : m.toFixed(0)}M`;
+}
 
 /** Group a flat, already-ordered feed page by client, preserving first-seen order
  *  (LegiWatch v2 "Grouped by client" arrangement at the all-clients altitude). */
@@ -227,6 +235,39 @@ function FeedCard({
             </div>
           )}
 
+          {/* R4 §4.3: a Program Element funding movement. Shows the PE code, the
+              delta type, and the exact movement (both amounts in millions), and
+              opens Program Element 360 — the line-level source of truth (§4.2). */}
+          {ev.programElement && (
+            <div
+              className="acard-evi"
+              onClick={() =>
+                onAction(
+                  {
+                    kind: 'open_program_element',
+                    label: 'Open Program Element',
+                    target: { peCode: ev.programElement!.peCode },
+                  },
+                  item,
+                )
+              }
+            >
+              <span className="evnum">{ev.programElement.peCode}</span>
+              <span>
+                {ev.programElement.deltaTypeLabel}
+                {ev.programElement.title ? ` — ${ev.programElement.title}` : ''}{' '}
+                <span className="muted num">
+                  (FY{ev.programElement.fiscalYear}
+                  {ev.programElement.amountFromMillions != null &&
+                  ev.programElement.amountToMillions != null
+                    ? `, ${fmtMillionsShort(ev.programElement.amountFromMillions)} → ${fmtMillionsShort(ev.programElement.amountToMillions)}`
+                    : ''}
+                  )
+                </span>
+              </span>
+            </div>
+          )}
+
           {mentions.length > 0 && (
             <div>
               {(showAllQuotes ? mentions : mentions.slice(0, 1)).map((m, i) => (
@@ -308,6 +349,8 @@ export function TrackerFeedPanel({
 }) {
   const api = useApi();
   const navigate = useNavigate();
+  // Bill 360 when the tenant has it, Explorer otherwise — never a dark surface.
+  const billTarget = useBillTarget();
   const { message } = AntApp.useApp();
   const [source, setSource] = useState<FeedFilter>('all');
   // LegiWatch v2 leads with newest-first (the feed-lead copy says so); priority
@@ -422,13 +465,22 @@ export function TrackerFeedPanel({
         break;
       case 'open_bill':
         if (a.target?.billId) {
+          // Bill 360 (R2 §2.5): a feed action opens the dossier drawer in place when
+          // the host provides one, and otherwise the canonical /bills/:id page. The
+          // old fallback routed to the Explorer drill-in, which §2.5 removed as a
+          // bill entry point.
           if (onOpenBill) onOpenBill(a.target.billId, item.clientId);
-          else navigate(`/explorer?bill=${encodeURIComponent(a.target.billId)}`);
+          else navigate(billTarget(a.target.billId));
         }
         break;
       case 'open_hearing':
         if (a.target?.sessionId)
           navigate(`/intelligence/hearing-watch/${encodeURIComponent(a.target.sessionId)}`);
+        break;
+      case 'open_program_element':
+        // R4 §4.3: the PE alert deep-links to Program Element 360.
+        if (a.target?.peCode)
+          navigate(`/program-elements/${encodeURIComponent(a.target.peCode)}`);
         break;
       case 'pull_quotes': {
         const qs = (item.evidence?.hearing?.mentions ?? [])
@@ -473,6 +525,8 @@ export function TrackerFeedPanel({
     { v: 'hearing', label: 'Hearings', n: counts.hearing ?? 0 },
     { v: 'combined', label: 'Bill + Hearing', n: counts.combined ?? 0 },
     { v: 'regulation', label: 'Regulations', n: counts.regulation ?? 0 },
+    // R4 §4.3: PE funding movements share the client feed with bills and hearings.
+    { v: 'program_element', label: 'Program elements', n: counts.program_element ?? 0 },
   ];
 
   const body = (() => {

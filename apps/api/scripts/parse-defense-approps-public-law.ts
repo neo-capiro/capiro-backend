@@ -32,6 +32,10 @@ import {
   readDocumentToolVersion,
   type SourceDocumentClient,
 } from '../src/program-element/source-document/source-document-registry.js';
+import {
+  emitToplineCandidates,
+  type ArtifactTopline,
+} from '../src/budget-packages/topline-candidates.js';
 
 dotenvConfig();
 
@@ -39,6 +43,8 @@ interface Artifact {
   fy?: number;
   source?: string;
   rows?: ExtractedReportRow[];
+  /** R3 §3.3: package-level toplines from the public law's summary tables. */
+  toplines?: ArtifactTopline[];
 }
 
 function arg(name: string): string | undefined {
@@ -120,11 +126,29 @@ async function main(): Promise<void> {
       data: { sourceDocumentId: reg.document.id },
     });
 
+    // R3 §3.3 — ENACTED appropriations stage. Runs only past the --commit gate
+    // above, so a dry run never stages a topline either.
+    const toplines = await emitToplineCandidates(
+      prisma as never,
+      artifact.toplines,
+      {
+        domain: 'defense',
+        fiscalYear: fy,
+        stage: 'enacted',
+        vehicleClass: 'appropriation',
+        sourceUrl: artifact.source ?? path.basename(artifactPath),
+        sourceKey: path.basename(artifactPath).replace(/\.json$/i, ''),
+        emittedBy: 'parse-defense-approps-public-law',
+      },
+      { commit: true },
+    );
+
     console.log(
       JSON.stringify(
         {
           artifact: artifactPath,
           ...result,
+          toplines,
           sourceDocument: {
             id: reg.document.id,
             action: reg.created ? 'inserted' : 'deduped',

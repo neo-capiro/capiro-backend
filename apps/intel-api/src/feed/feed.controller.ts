@@ -86,4 +86,25 @@ export class FeedController {
     const query = this.buildQuery(sourceType, severity, status, since, until, order, cursor, limit);
     return this.svc.getFeed(ctx.tenantId, clientId, query);
   }
+
+  // Bill 360 event history (Release R1, §1.4): this client's alerts for ONE bill,
+  // via an INDEXED source_ref predicate (@@index([tenantId, sourceType, sourceRef]))
+  // — a thin wrapper over getFeed so pagination/decoration/tenant-scoping are
+  // reused. Path segment 'bills' is disjoint from 'feed'/'_all', so no collision.
+  @Get(':clientId/bills/:billId/events')
+  getBillEvents(
+    @CurrentTenant() ctx: WorkspaceTenantContext,
+    @Param('clientId') clientId: string,
+    @Param('billId') billId: string,
+    @Query('severity') severity?: string | string[],
+    @Query('status') status?: string | string[],
+    @Query('since') since?: string,
+    @Query('until') until?: string,
+    @Query('order') order?: string,
+    @Query('cursor') cursor?: string,
+    @Query('limit') limit?: string,
+  ) {
+    const query = this.buildQuery('bill', severity, status, since, until, order, cursor, limit);
+    return this.svc.getFeed(ctx.tenantId, clientId, { ...query, sourceRef: billId });
+  }
 }

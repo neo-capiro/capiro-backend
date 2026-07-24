@@ -4,6 +4,16 @@ import { MemoryRouter } from 'react-router-dom';
 import { BillsTouchingPePanel } from './BillsTouchingPePanel.js';
 import type { ProgramElementBill } from './types.js';
 
+// The panel routes through useBillTarget, which reads the tenant's `bill_360` flag.
+// Mocked so this spec doesn't need the app's API client / runtime config; `enabled`
+// is flipped per-test to prove BOTH destinations.
+let billFlag = { enabled: true, ready: true };
+vi.mock('../../lib/intel-feature-flags.js', () => ({
+  BILL_360_FEATURE: 'bill_360',
+  useIntelFeature: () => billFlag,
+  useIntelFeatureEnabled: () => billFlag.enabled,
+}));
+
 const navigateMock = vi.fn();
 
 vi.mock('react-router-dom', async () => {
@@ -16,6 +26,7 @@ vi.mock('react-router-dom', async () => {
 
 beforeEach(() => {
   navigateMock.mockReset();
+  billFlag = { enabled: true, ready: true };
   Object.defineProperty(window, 'matchMedia', {
     writable: true,
     value: vi.fn().mockImplementation((query: string) => ({
@@ -196,7 +207,10 @@ describe('BillsTouchingPePanel', () => {
     expect(screen.getByText(/No linked bills yet/i)).toBeInTheDocument();
   });
 
-  test('click navigates to bill detail route', () => {
+  // Bill 360 (R2 §2.5): the PE bill timeline is one of the entry points routed to
+  // the canonical dossier. It used to navigate to the legacy
+  // `/intelligence/bills/:bill` Explorer redirect.
+  test('click navigates to the Bill 360 page, not the legacy Explorer redirect', () => {
     render(
       <MemoryRouter>
         <BillsTouchingPePanel
@@ -212,7 +226,141 @@ describe('BillsTouchingPePanel', () => {
     );
 
     fireEvent.click(screen.getByRole('button', { name: /H\.R\. 123/i }));
-    expect(navigateMock).toHaveBeenCalledWith('/intelligence/bills/HR-123');
+    expect(navigateMock).toHaveBeenCalledWith('/bills/HR-123');
+    for (const call of navigateMock.mock.calls) {
+      expect(String(call[0])).not.toContain('/intelligence/bills/');
+      expect(String(call[0])).not.toContain('/explorer');
+    }
+  });
+
+  // R4 §4.2: Program Element 360 stays the line-level source of truth, so a bill
+  // lane must show WHY it is linked (match basis + confidence) and which budget
+  // package it rides in — never a bare link.
+  test('shows the package label plus an explicit match basis and confidence', () => {
+    render(
+      <MemoryRouter>
+        <BillsTouchingPePanel
+          bills={[
+            bill({
+              id: '119-hr-9100',
+              latestActionText: 'Reported by committee.',
+              latestActionDate: '2026-02-01',
+              link: {
+                type: 'explicit_pe_code',
+                confidence: 1,
+                evidence: 'Found in enrolled bill text: "…0603270A…"',
+                status: 'accepted',
+              },
+              budgetPackage: {
+                name: 'FY27 Defense Budget',
+                fiscalYear: 2027,
+                track: 'appropriation',
+                stage: 'house',
+              },
+            }),
+          ]}
+        />
+      </MemoryRouter>,
+    );
+
+    expect(screen.getByText(/FY27 Defense Budget · appropriation · house/)).toBeInTheDocument();
+    expect(screen.getByText(/Explicit PE match · 100%/)).toBeInTheDocument();
+    // The full evidence string is the hover title, keeping the swimlane calm.
+    expect(
+      document.querySelector('[title=\'Found in enrolled bill text: "…0603270A…"\']'),
+    ).toBeTruthy();
+  });
+
+  test('labels a fuzzy link as inferred and flags a candidate review status', () => {
+    render(
+      <MemoryRouter>
+        <BillsTouchingPePanel
+          bills={[
+            bill({
+              id: '119-s-9100',
+              latestActionText: 'Reported.',
+              latestActionDate: '2026-02-01',
+              link: {
+                type: 'title_match',
+                confidence: 0.55,
+                evidence: 'Matched on project title.',
+                status: 'candidate',
+              },
+            }),
+          ]}
+        />
+      </MemoryRouter>,
+    );
+
+    expect(screen.getByText(/Inferred match · candidate · 55%/)).toBeInTheDocument();
+    expect(screen.queryByText(/Explicit PE match/)).not.toBeInTheDocument();
+  });
+
+  test('shows NO basis chip when the server sent no link row (absent, not "explicit")', () => {
+    render(
+      <MemoryRouter>
+        <BillsTouchingPePanel
+          bills={[bill({ id: '119-hr-1', latestActionDate: '2026-02-01' })]}
+        />
+      </MemoryRouter>,
+    );
+
+    expect(screen.queryByText(/Explicit PE match/)).not.toBeInTheDocument();
+    expect(screen.queryByText(/Inferred match/)).not.toBeInTheDocument();
+  });
+
+  // A tenant WITHOUT bill_360 must keep the destination it has today. /bills/:id
+  // fails closed, so routing an un-enabled tenant there would replace a working
+  // Explorer view with a "Bill 360 is not enabled" page.
+  test('falls back to Explorer for a tenant without bill_360', () => {
+    billFlag = { enabled: false, ready: true };
+    render(
+      <MemoryRouter>
+        <BillsTouchingPePanel
+          bills={[bill({ id: 'HR-123', latestActionDate: '2026-02-01' })]}
+        />
+      </MemoryRouter>,
+    );
+
+    fireEvent.click(screen.getByRole('button', { name: /H\.R\. 123/i }));
+    expect(navigateMock).toHaveBeenCalledWith('/explorer?bill=HR-123');
+    expect(navigateMock).not.toHaveBeenCalledWith('/bills/HR-123');
+  });
+
+  test('falls back to Explorer while the flag is still resolving (no dark flash)', () => {
+    billFlag = { enabled: false, ready: false };
+    render(
+      <MemoryRouter>
+        <BillsTouchingPePanel
+          bills={[bill({ id: 'HR-123', latestActionDate: '2026-02-01' })]}
+        />
+      </MemoryRouter>,
+    );
+
+    fireEvent.click(screen.getByRole('button', { name: /H\.R\. 123/i }));
+    expect(navigateMock).toHaveBeenCalledWith('/explorer?bill=HR-123');
+  });
+
+  test('an undated linked bill also opens Bill 360', () => {
+    render(
+      <MemoryRouter>
+        <BillsTouchingPePanel
+          bills={[
+            bill({
+              id: '119-s-4200',
+              billType: 's',
+              billNumber: '4200',
+              title: 'A dateless measure',
+              latestActionText: null,
+              latestActionDate: null,
+            }),
+          ]}
+        />
+      </MemoryRouter>,
+    );
+
+    fireEvent.click(screen.getByRole('button', { name: /S\.? ?4200/i }));
+    expect(navigateMock).toHaveBeenCalledWith('/bills/119-s-4200');
   });
 
   test('linked bills without dated actions still render as rows', () => {

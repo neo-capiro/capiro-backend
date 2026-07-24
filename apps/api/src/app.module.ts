@@ -43,6 +43,8 @@ import { BillingModule } from './billing/billing.module.js';
 import { MemoryModule } from './memory/memory.module.js';
 import { ReviewsModule } from './reviews/reviews.module.js';
 import { InternalOnboardingModule } from './internal-onboarding/internal-onboarding.module.js';
+// Defense budget packages: global public-domain funding read APIs (R3 §3.4).
+import { BudgetPackagesModule } from './budget-packages/budget-packages.module.js';
 import { GovInfoModule } from './external/govinfo/govinfo.module.js';
 import { ApiLatencyMiddleware } from './observability/api-latency.middleware.js';
 
@@ -105,6 +107,7 @@ import { ApiLatencyMiddleware } from './observability/api-latency.middleware.js'
     MemoryModule,
     ReviewsModule,
     InternalOnboardingModule,
+    BudgetPackagesModule,
   ],
   controllers: [HealthController],
   providers: [{ provide: APP_GUARD, useClass: ThrottlerGuard }],

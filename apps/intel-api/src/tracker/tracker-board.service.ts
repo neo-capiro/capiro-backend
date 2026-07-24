@@ -50,6 +50,18 @@ export const LEGIWATCH_STATE_FIT_FLOOR = Number(process.env.LEGIWATCH_STATE_FIT_
 /** Change-chip lookback for the board (a tracked bill "changed recently"). */
 const RECENT_CHANGE_DAYS = 21;
 const DAY_MS = 86_400_000;
+
+/** Editable Bill 360 client-bill context fields (Release R1, §1.3). All optional. */
+export interface UpdateBillContextInput {
+  position?: string;
+  priority?: string;
+  analystNote?: string;
+  expectedMilestoneType?: string;
+  expectedWindowStart?: string;
+  expectedWindowEnd?: string;
+  expectedConfidence?: string;
+  expectedRationale?: string;
+}
 /** Feedback signals the API accepts (mirrors the `intel_feedback.signal` doc set). */
 const ALLOWED_FEEDBACK_SIGNALS = new Set([
   'useful',
@@ -794,6 +806,81 @@ export class TrackerBoardService {
       tx.trackedBill.deleteMany({ where: { tenantId, clientId, billId } }),
     );
     return { ok: true, removed: res.count };
+  }
+
+  /**
+   * Bill 360 editable client-bill context (Release R1, §1.3). Updates ONLY the
+   * new analyst context columns on the client's tracked row for this bill. It
+   * deliberately:
+   *  - NEVER touches `note` (legacy note is preserved) or the canonical bill
+   *    status (that lives on apps/api-owned congress_bill, never written here);
+   *  - builds the update `data` from ONLY the fields present in the body, so a
+   *    partial PUT can't null unspecified context (mirrors trackBill's guard);
+   *  - uses updateMany with the { tenantId, clientId, billId } predicate (NOT
+   *    update({ clientId_billId }), whose unique key omits tenantId) — intel-api
+   *    has no RLS, so app-code tenant scoping is mandatory. res.count === 0 means
+   *    the bill isn't tracked for that client (or wrong tenant) → 404.
+   *  - end-before-start expected windows are rejected 400 (§1.3).
+   */
+  async updateBillContext(
+    tenantId: string,
+    clientId: string,
+    userId: string,
+    billId: string,
+    input: UpdateBillContextInput,
+  ) {
+    if (input.expectedWindowStart && input.expectedWindowEnd) {
+      if (new Date(input.expectedWindowStart) > new Date(input.expectedWindowEnd)) {
+        throw new BadRequestException('EXPECTED_WINDOW_END_BEFORE_START');
+      }
+    }
+
+    const data: Record<string, unknown> = {};
+    if (input.position !== undefined) data['position'] = input.position;
+    if (input.priority !== undefined) data['priority'] = input.priority;
+    if (input.analystNote !== undefined) data['analystNote'] = input.analystNote;
+
+    let touchedExpected = false;
+    if (input.expectedMilestoneType !== undefined) {
+      data['expectedMilestoneType'] = input.expectedMilestoneType;
+      touchedExpected = true;
+    }
+    if (input.expectedWindowStart !== undefined) {
+      data['expectedWindowStart'] = input.expectedWindowStart
+        ? new Date(input.expectedWindowStart)
+        : null;
+      touchedExpected = true;
+    }
+    if (input.expectedWindowEnd !== undefined) {
+      data['expectedWindowEnd'] = input.expectedWindowEnd
+        ? new Date(input.expectedWindowEnd)
+        : null;
+      touchedExpected = true;
+    }
+    if (input.expectedConfidence !== undefined) {
+      data['expectedConfidence'] = input.expectedConfidence;
+      touchedExpected = true;
+    }
+    if (input.expectedRationale !== undefined) {
+      data['expectedRationale'] = input.expectedRationale;
+      touchedExpected = true;
+    }
+    if (touchedExpected) {
+      data['expectedUpdatedBy'] = userId;
+      data['expectedUpdatedAt'] = new Date();
+    }
+
+    const res = await this.prisma.withTenant(tenantId, (tx) =>
+      tx.trackedBill.updateMany({ where: { tenantId, clientId, billId }, data }),
+    );
+    if (!res.count) {
+      throw new NotFoundException('CLIENT_BILL_NOT_TRACKED');
+    }
+
+    const row = await this.prisma.withTenant(tenantId, (tx) =>
+      tx.trackedBill.findFirst({ where: { tenantId, clientId, billId } }),
+    );
+    return { ok: true, bill: row };
   }
 
   /**

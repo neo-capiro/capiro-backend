@@ -1,0 +1,22 @@
+{
+  "_provenance": {
+    "note": "FY2022 defense budget package — historical CR / lapse record (Release R4, plan §4.4). DELIBERATELY EMPTY of asserted dates, public-law numbers, and dollar figures. Each interim-funding period becomes a date and a P.L. number Capiro shows a customer as an official fact, so each one must be hand-transcribed from the enacted text or an official CRS/appropriations-status source WITH a URL, and reviewed, before --commit. Nothing here may be reconstructed from memory.",
+    "howToCurate": [
+      "1. For each continuing resolution in FY2022, add an interimFundingPeriods[] entry: sequence (1-based, contiguous, no gaps), vehicleLabel, startDate, coverageThrough (the date it funded operations THROUGH), billId, publicLaw, and sourceUrl.",
+      "2. shutdownDays = days of LAPSED appropriations that began at the END of that period. Use 0 when funding was continuous — omitting it is not the same as zero.",
+      "3. Add the full-year vehicle (omnibus / minibus / full-year CR / consolidated act) to vehicles[] with track=appropriation (or interim_funding for a full-year CR), stage=enacted, its publicLaw, and status=enacted.",
+      "4. Add the enacted defense topline to positions[] with the EXACT FUNDING_SCOPES basis the enacted text measures, units:\"millions\", a sourceUrl, and a sourcePage.",
+      "5. Validate offline first: pnpm --filter @capiro/api load:defense-budget-package -- --artifact scripts/__data__/defense-budget/fy2022-package.json --validate-only",
+      "6. Then dry-run against the database, read every WARNING/CONFLICT line, and only then re-run with --commit."
+    ],
+    "shapeReference": "scripts/__fixtures__/defense-budget-package.example.json",
+    "status": "AWAITING CURATION — no FY2022 dates, public laws, or figures have been transcribed yet."
+  },
+  "domain": "defense",
+  "fiscalYear": 2022,
+  "name": "FY22 Defense Budget",
+  "status": "closed",
+  "vehicles": [],
+  "positions": [],
+  "interimFundingPeriods": []
+}

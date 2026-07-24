@@ -41,6 +41,15 @@ import { IssueLeaderboardPage } from './pages/intelligence/IssueLeaderboardPage.
 import { DataExplorerPage } from './pages/explorer/DataExplorerPage.js';
 import { ActionBoardPage } from './pages/actions/ActionBoardPage.js';
 import { ReviewQueuePage } from './pages/reviews/ReviewQueuePage.js';
+// Flag-aware bill link target (Bill 360 when enabled, Explorer otherwise).
+import { useBillTarget } from './pages/bills/bill-target.js';
+
+// Bill 360 full page (R2 §2.2). Lazy: the dossier body + its 7 tabs are only
+// needed once a bill is actually opened full-page (the drawer path imports the
+// same body directly, so both share one chunk).
+const Bill360Page = lazy(async () =>
+  import('./pages/bills/Bill360Page.js').then((m) => ({ default: m.Bill360Page })),
+);
 
 const ProgramElementWatchPage = lazy(async () =>
   import('./pages/program-element/ProgramElementWatchPage.js').then((m) => ({
@@ -155,6 +164,11 @@ export function App() {
             query-preserving redirect for live alert-email deep-links. */}
         <Route path="/legiwatch" element={<RadarPage />} />
         <Route path="/radar" element={<LegacyRadarRedirect />} />
+        {/* Bill 360 (R2 §2.2) — the one deep-linkable bill dossier. `?client=<id>`
+            adds that client's context; a bare URL is the public dossier. Every
+            bill entry point (board card, feed, hearing, PE timeline, Explorer
+            redirect, copied link) resolves here or to the same body in a drawer. */}
+        <Route path="/bills/:billId" element={<Bill360Page />} />
         <Route path="/actions" element={<ActionBoardPage />} />
         <Route path="/reviews" element={<ReviewQueuePage />} />
         <Route
@@ -341,11 +355,18 @@ function BillingGate() {
   return <AppShell />;
 }
 
+/**
+ * Legacy `/intelligence/bills/:bill` deep-links (live alert emails still carry
+ * them) resolve to Bill 360 (R2 §2.5) for a tenant that HAS Bill 360, and keep
+ * resolving to the Explorer drill-in for a tenant that does not — `useBillTarget`
+ * owns that decision. Routing every tenant to `/bills/:id` would land the
+ * un-enabled ones on a "not enabled" page instead of the view their existing links
+ * open today. Without a bill id there is nothing to open — Explorer, as before.
+ */
 function BillDetailRedirectRoute() {
   const { bill } = useParams<{ bill: string }>();
-  const encodedBill = bill ? encodeURIComponent(bill) : '';
-  const target = encodedBill ? `/explorer?bill=${encodedBill}` : '/explorer';
-  return <Navigate to={target} replace />;
+  const billTarget = useBillTarget();
+  return <Navigate to={bill ? billTarget(bill) : '/explorer'} replace />;
 }
 
 // Radar was renamed to LegiWatch; /radar → /legiwatch, preserving the query

@@ -401,6 +401,19 @@ export interface ProgramElementBill {
   peCodeCount?: number;
   /** LEG-B: evidence-typed bill↔PE link (why this bill is linked to THIS pe).
    * Null for bills linked only via the legacy peCodes array. */
+  /**
+   * R4 §4.2: the budget package this bill rides in, when it is a budget vehicle.
+   * Null for an ordinary bill — the panel shows no package label rather than
+   * inventing one.
+   */
+  budgetPackage?: {
+    name: string;
+    fiscalYear: number;
+    /** BUDGET_VEHICLE_CLASSES — authorization and appropriation stay distinct. */
+    track: string;
+    /** FUNDING_STAGES. */
+    stage: string;
+  } | null;
   link?: {
     type: string; // explicit_pe_code | budget_table_row | committee_mark_row | report_language | title_match | manual
     confidence: number;

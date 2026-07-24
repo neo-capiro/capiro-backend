@@ -10,6 +10,7 @@ import { TrackerModule } from './tracker/tracker.module.js';
 import { IntelAlertModule } from './intel-alert/intel-alert.module.js';
 import { UpcomingHearingsModule } from './upcoming-hearings/upcoming-hearings.module.js';
 import { FeedModule } from './feed/feed.module.js';
+import { BillDossierModule } from './bill-dossier/bill-dossier.module.js';
 
 /**
  * Intel API root module.
@@ -32,6 +33,7 @@ import { FeedModule } from './feed/feed.module.js';
     IntelAlertModule,
     UpcomingHearingsModule,
     FeedModule,
+    BillDossierModule,
   ],
 })
 export class AppModule {}

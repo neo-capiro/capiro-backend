@@ -77,6 +77,8 @@
     "parse:pdoc": "tsx scripts/parse-pdoc-army.ts",
     "backfill:source-documents": "tsx scripts/backfill-source-documents.ts",
     "verify:budget-reconciliation": "tsx scripts/verify-budget-reconciliation.ts",
+    "load:defense-budget-package": "tsx scripts/load-defense-budget-package.ts",
+    "verify:defense-budget-packages": "tsx scripts/verify-defense-budget-packages.ts",
     "deltas:compute": "tsx scripts/compute-budget-deltas.ts",
     "measure:accuracy": "tsx scripts/measure-accuracy.ts",
     "backfill:program-offices": "tsx scripts/backfill-program-offices.ts",

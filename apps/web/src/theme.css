@@ -22349,6 +22349,25 @@ button.engagement-debrief-badge--action:hover {
   color: var(--ink-3);
   line-height: 1.25;
 }
+/* R4 §4.2: package label + match-basis/confidence chips on a bill lane. Small and
+   low-contrast so the swimlane stays readable; the full evidence is the hover title. */
+.pe-watch-page .pe-lane-basis {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 3px;
+  margin-top: 3px;
+}
+.pe-watch-page .pe-basis-chip {
+  font-size: 9px;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  padding: 1px 5px;
+  border-radius: 3px;
+  white-space: nowrap;
+}
+.pe-watch-page .pe-basis-chip.pkg { color: #1a3f9f; background: #dee6f8; }
+.pe-watch-page .pe-basis-chip.explicit { color: #2e6b43; background: #ddebde; }
+.pe-watch-page .pe-basis-chip.inferred { color: #a26913; background: #f4e5c3; }
 .pe-watch-page .pe-lane-track {
   position: relative;
   min-height: 58px;

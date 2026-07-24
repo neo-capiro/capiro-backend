@@ -1,10 +1,10 @@
-import { Body, Controller, Get, Param, Post, Query, UseGuards } from '@nestjs/common';
+import { Body, Controller, Get, Param, Post, Put, Query, UseGuards } from '@nestjs/common';
 import { TenantGuard } from '../auth/tenant.guard.js';
 import { CurrentTenant } from '../auth/current-tenant.decorator.js';
 import type { WorkspaceTenantContext } from '../auth/tenant-context.js';
 import { TrackerOwnerGuard } from './tracker-owner.guard.js';
 import { TrackerBoardService } from './tracker-board.service.js';
-import { BillSearchQueryDto } from './tracker.dto.js';
+import { BillSearchQueryDto, UpdateBillContextDto } from './tracker.dto.js';
 
 /**
  * Unified tracker recommendation feed + tracked-bill curation (Phase 3 §6.2).
@@ -83,6 +83,20 @@ export class TrackerBoardController {
     @Body() body: { billId: string },
   ) {
     return this.svc.untrackBill(ctx.tenantId, clientId, body.billId);
+  }
+
+  // Bill 360 editable client-bill context (Release R1, §1.3). Writes ONLY the new
+  // analyst context columns on the tracked row — never the legacy `note`, never
+  // the canonical bill status. No route collision: `:clientId/bills/*` is disjoint
+  // from `:clientId/tracker/*` and `:clientId/recommendations`.
+  @Put(':clientId/bills/:billId/context')
+  updateBillContext(
+    @CurrentTenant() ctx: WorkspaceTenantContext,
+    @Param('clientId') clientId: string,
+    @Param('billId') billId: string,
+    @Body() body: UpdateBillContextDto,
+  ) {
+    return this.svc.updateBillContext(ctx.tenantId, clientId, ctx.clerkUserId, billId, body);
   }
 
   @Post(':clientId/tracker/feedback')

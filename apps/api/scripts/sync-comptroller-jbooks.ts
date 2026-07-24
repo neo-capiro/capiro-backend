@@ -19,6 +19,10 @@ import {
   type SourceDocumentClient,
 } from '../src/program-element/source-document/source-document-registry.js';
 import { classifyArtifact } from '../src/program-element/source-document/source-document-classify.js';
+import {
+  emitToplineCandidates,
+  type ArtifactTopline,
+} from '../src/budget-packages/topline-candidates.js';
 
 /**
  * sync-comptroller-jbooks.ts
@@ -68,6 +72,12 @@ interface ExtractResult {
   unparsed_pages: number[];
   stats: { rows: number; pages_with_rows: number };
   error?: string;
+  /**
+   * R3 §3.3: package-level REQUEST toplines the extractor read off the R-1 /
+   * summary pages. Absent from the current committed artifact (it carries only the
+   * master list), so this is a no-op until the extractor is extended.
+   */
+  toplines?: ArtifactTopline[];
 }
 
 function readR1Url(yamlPath: string): string {
@@ -258,7 +268,25 @@ async function main() {
       }
     }
 
-    console.log(JSON.stringify(stats, null, 2));
+    // R3 §3.3 — the PRESIDENT/REQUEST stage topline. Candidates land as
+    // 'extracted' and never as verified; an ambiguous scope or unit yields a review
+    // warning and no row. Gated on the same --commit as every other dollar write here.
+    const toplines = await emitToplineCandidates(
+      prisma as never,
+      result.toplines,
+      {
+        domain: 'defense',
+        fiscalYear: 2027,
+        stage: 'president',
+        vehicleClass: 'request',
+        sourceUrl: url,
+        sourceKey: 'jbook_r1_fy2027',
+        emittedBy: 'sync-comptroller-jbooks (R-1)',
+      },
+      { commit },
+    );
+
+    console.log(JSON.stringify({ ...stats, toplines }, null, 2));
   } finally {
     await prisma.onModuleDestroy();
   }

@@ -681,7 +681,9 @@ export type SourceType =
   | 'contract_award'
   | 'bill_movement'
   | 'state_bill'
-  | 'regulation';
+  | 'regulation'
+  // R4 §4.3: a Program Element funding movement on a client's watchlist.
+  | 'program_element';
 
 export const SOURCE_TYPES: readonly SourceType[] = [
   'bill',
@@ -694,6 +696,7 @@ export const SOURCE_TYPES: readonly SourceType[] = [
   'bill_movement',
   'state_bill',
   'regulation',
+  'program_element',
 ] as const;
 
 export interface Alert {
@@ -3590,3 +3593,160 @@ export function deriveMeetingVirtuality(src: MeetingVirtualitySource): MeetingVi
 export function eligibleForMeri(m: { isVirtual: boolean; joinLink: string | null }): boolean {
   return m.isVirtual && Boolean(m.joinLink);
 }
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Bill 360 dossier + defense-funding controlled vocabularies (Release R1, §0.1)
+//
+// Cross-service contract vocab for the Bill 360 dossier read model
+// (apps/intel-api bill-dossier) and the defense budget-package / funding-position
+// substrate (apps/api). It lives in @capiro/shared — the lowest common dependency
+// of apps/web + both APIs — so evidence badges, funding-scope labels, budget
+// stages, and the analyst-outlook vocabulary never drift between the API that
+// produces them and the UI that renders them. Pure / DB-free, like every other
+// vocab in this file.
+//
+// Policy Portfolio + Monitoring Scope vocab is intentionally NOT added yet
+// (deferred to R5/R6), and PROFILE_TYPES is unchanged.
+// ─────────────────────────────────────────────────────────────────────────────
+
+/** Provenance class of any fact/analysis in a dossier (drives the evidence badge). */
+export const EVIDENCE_ORIGINS = ['official', 'derived', 'analyst'] as const;
+export type EvidenceOrigin = (typeof EVIDENCE_ORIGINS)[number];
+export const EVIDENCE_ORIGIN_LABELS: Record<EvidenceOrigin, string> = {
+  official: 'Official',
+  derived: 'Capiro analysis',
+  analyst: 'Analyst outlook',
+};
+
+/** Bill 360 tab/section ids, in display order (matches the dossier tab bar). */
+export const BILL_DOSSIER_SECTIONS = [
+  'overview',
+  'path',
+  'funding',
+  'provisions',
+  'impact',
+  'hearings',
+  'evidence',
+] as const;
+export type BillDossierSection = (typeof BILL_DOSSIER_SECTIONS)[number];
+export const BILL_DOSSIER_SECTION_LABELS: Record<BillDossierSection, string> = {
+  overview: 'Overview',
+  path: 'Path & votes',
+  funding: 'Funding',
+  provisions: 'Provisions',
+  impact: 'Impact',
+  hearings: 'Hearings',
+  evidence: 'Evidence',
+};
+
+/** Analyst-entered "expected next milestone" type on a tracked bill (origin: analyst). */
+export const EXPECTED_MILESTONE_TYPES = [
+  'committee_markup',
+  'committee_report',
+  'floor_vote',
+  'passage',
+  'conference',
+  'enactment',
+  'other',
+] as const;
+export type ExpectedMilestoneType = (typeof EXPECTED_MILESTONE_TYPES)[number];
+export const EXPECTED_MILESTONE_TYPE_LABELS: Record<ExpectedMilestoneType, string> = {
+  committee_markup: 'Committee markup',
+  committee_report: 'Committee report',
+  floor_vote: 'Floor vote',
+  passage: 'Passage',
+  conference: 'Conference',
+  enactment: 'Enactment',
+  other: 'Other',
+};
+
+/** Analyst confidence band for an expected-milestone forecast (origin: analyst). */
+export const EXPECTED_CONFIDENCE_LEVELS = ['low', 'medium', 'high'] as const;
+export type ExpectedConfidenceLevel = (typeof EXPECTED_CONFIDENCE_LEVELS)[number];
+export const EXPECTED_CONFIDENCE_LEVEL_LABELS: Record<ExpectedConfidenceLevel, string> = {
+  low: 'Low',
+  medium: 'Medium',
+  high: 'High',
+};
+
+/** Class of funding vehicle a budget position rides on (== BudgetPackageVehicle.track, §3.2). */
+export const BUDGET_VEHICLE_CLASSES = [
+  'request',
+  'authorization',
+  'appropriation',
+  'interim_funding',
+  'supplemental',
+  'reconciliation',
+] as const;
+export type BudgetVehicleClass = (typeof BUDGET_VEHICLE_CLASSES)[number];
+export const BUDGET_VEHICLE_CLASS_LABELS: Record<BudgetVehicleClass, string> = {
+  request: 'Request',
+  authorization: 'Authorization (NDAA)',
+  appropriation: 'Appropriation',
+  interim_funding: 'Interim funding (CR)',
+  supplemental: 'Supplemental',
+  reconciliation: 'Reconciliation',
+};
+
+/**
+ * Budget-package pipeline stage a funding position was recorded at (§3.2).
+ *
+ * NOTE: the derived union is exported as `BudgetFundingStage`, NOT `FundingStage`,
+ * because `FundingStage` is already taken above by the Program-Element funding-
+ * precedence vocabulary. The const keeps the plan's name (`FUNDING_STAGES`).
+ */
+export const FUNDING_STAGES = ['president', 'house', 'senate', 'conference', 'enacted'] as const;
+export type BudgetFundingStage = (typeof FUNDING_STAGES)[number];
+export const FUNDING_STAGE_LABELS: Record<BudgetFundingStage, string> = {
+  president: "President's request",
+  house: 'House',
+  senate: 'Senate',
+  conference: 'Conference',
+  enacted: 'Enacted',
+};
+
+/** Budget scope a funding amount is measured in. Deltas are SAME-SCOPE ONLY (§3.2 hard rule). */
+export const FUNDING_SCOPES = [
+  'core_dod_discretionary',
+  'function_050_discretionary',
+  'national_defense_total',
+  'defense_appropriations_title',
+  'mandatory_or_reconciliation',
+  'supplemental',
+  'other',
+] as const;
+export type FundingScope = (typeof FUNDING_SCOPES)[number];
+export const FUNDING_SCOPE_LABELS: Record<FundingScope, string> = {
+  core_dod_discretionary: 'Core DoD discretionary',
+  function_050_discretionary: 'Function 050 discretionary',
+  national_defense_total: 'National defense total',
+  defense_appropriations_title: 'Defense appropriations title',
+  mandatory_or_reconciliation: 'Mandatory / reconciliation',
+  supplemental: 'Supplemental',
+  other: 'Other',
+};
+/** Compact scope labels for chips/columns (matches the prototype's SCOPE_SHORT). */
+export const FUNDING_SCOPE_SHORT_LABELS: Record<FundingScope, string> = {
+  core_dod_discretionary: 'Core DoD',
+  function_050_discretionary: 'Function 050',
+  national_defense_total: 'Nat. defense total',
+  defense_appropriations_title: 'Defense-approps title',
+  mandatory_or_reconciliation: 'Mandatory',
+  supplemental: 'Supplemental',
+  other: 'Other',
+};
+
+/** Review/verification state of an extracted funding position (§3.2). */
+export const FUNDING_VERIFICATION_STATUSES = [
+  'extracted',
+  'reviewed',
+  'verified',
+  'superseded',
+] as const;
+export type FundingVerificationStatus = (typeof FUNDING_VERIFICATION_STATUSES)[number];
+export const FUNDING_VERIFICATION_STATUS_LABELS: Record<FundingVerificationStatus, string> = {
+  extracted: 'Extracted',
+  reviewed: 'Reviewed',
+  verified: 'Verified',
+  superseded: 'Superseded',
+};

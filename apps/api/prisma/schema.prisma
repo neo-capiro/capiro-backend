@@ -3385,6 +3385,10 @@ model SourceDocument {
   budgetPositions          ProgramElementBudgetPosition[]
   provisions               CommitteeReportProvision[]
   parseJobs                DocumentParseJob[]
+  // Defense budget packages (R3 §3.1) — the source doc a topline/vehicle came from.
+  budgetPackageVehicles    BudgetPackageVehicle[]
+  fundingPositions         FundingPosition[]
+  interimFundingPeriods    BudgetInterimFundingPeriod[]
 
   @@unique([sourceKey, sha256], map: "source_document_source_key_sha256_key")
   @@index([documentType, fiscalYear, budgetCycle, component], map: "source_document_type_fy_cycle_component_idx")
@@ -5786,4 +5790,179 @@ model BillBudgetLineLink {
   @@index([peCode], map: "bill_budget_line_link_pe_idx")
   @@index([billId], map: "bill_budget_line_link_bill_idx")
   @@map("bill_budget_line_link")
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Defense budget packages (Release R3, plan §3.1)
+//
+// GLOBAL public-domain data — no tenant_id, no RLS, exactly like source_document /
+// committee_report_provision / bill_budget_line_link. Legislative vehicles,
+// official funding positions, CR periods, and public laws are public facts: ONE
+// global record no matter how many tenants read it. capiro_app is auto-granted by
+// the ALTER DEFAULT PRIVILEGES installed in 20260502020000_capiro_app_role.
+//
+// EVERY amount is stored in MILLIONS of dollars, and is only meaningful alongside
+// its (fiscalYear, stage, vehicleClass, scope, source).
+// ─────────────────────────────────────────────────────────────────────────────
+
+/// One budget cycle for one domain, e.g. ('defense', 2027) = "FY27 Defense Budget".
+/// Parent of every vehicle and funding position in that cycle.
+model BudgetPackage {
+  id         String   @id @default(uuid()) @db.Uuid
+  /// Budget domain. 'defense' initially; the model is domain-generic on purpose.
+  domain     String   @db.VarChar(24)
+  fiscalYear Int      @map("fiscal_year")
+  /// Display name, e.g. 'FY27 Defense Budget'.
+  name       String
+  /// 'open' | 'enacted' | 'lapsed' | 'closed' — cycle rollup, not a vehicle status.
+  status     String   @default("open") @db.VarChar(24)
+  createdAt  DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt  DateTime @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  vehicles  BudgetPackageVehicle[]
+  positions FundingPosition[]
+
+  @@unique([domain, fiscalYear], map: "budget_package_domain_fy_key")
+  @@index([domain, fiscalYear], map: "budget_package_domain_fy_idx")
+  @@map("budget_package")
+}
+
+/// One legislative vehicle inside a package: the presidential request, a chamber
+/// NDAA, a defense-appropriations bill, a conference report, a CR, a supplemental,
+/// or the enacted public law.
+///
+/// A package MAY have MULTIPLE vehicles at the same (track, stage) — a chamber can
+/// move more than one bill, and omnibus/minibus/supplemental vehicles coexist.
+/// Nothing may assume one row per stage forever (§3.2, §5 edge cases 21-22).
+model BudgetPackageVehicle {
+  id               String    @id @default(uuid()) @db.Uuid
+  packageId        String    @map("package_id") @db.Uuid
+  /// @capiro/shared BUDGET_VEHICLE_CLASSES: request | authorization | appropriation
+  /// | interim_funding | supplemental | reconciliation.
+  track            String    @db.VarChar(24)
+  /// @capiro/shared FUNDING_STAGES: president | house | senate | conference | enacted.
+  stage            String    @db.VarChar(16)
+  /// Canonical congress_bill id when the vehicle IS a bill. No FK: congress_bill is
+  /// loaded by a separate pipeline and a vehicle can be announced before the row lands.
+  billId           String?   @map("bill_id")
+  /// Committee/conference report number, e.g. 'H. Rept. 119-512'.
+  reportNumber     String?   @map("report_number")
+  /// Public law number once enacted, e.g. 'P.L. 119-86'.
+  publicLaw        String?   @map("public_law")
+  chamber          String?   @db.VarChar(16)
+  /// Display label, e.g. 'House NDAA (H.R. 8070)'.
+  label            String
+  /// 'introduced' | 'reported' | 'passed' | 'enacted' | 'failed' | 'expired'.
+  status           String    @default("introduced") @db.VarChar(24)
+  statusAt         DateTime? @map("status_at") @db.Timestamptz(6)
+  sourceDocumentId String?   @map("source_document_id") @db.Uuid
+  sourceUrl        String?   @map("source_url")
+  createdAt        DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt        DateTime  @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  package        BudgetPackage   @relation(fields: [packageId], references: [id], onDelete: Cascade)
+  sourceDocument SourceDocument? @relation(fields: [sourceDocumentId], references: [id], onDelete: SetNull, onUpdate: Cascade)
+
+  positions FundingPosition[]
+
+  @@index([packageId, track, stage], map: "budget_package_vehicle_package_track_stage_idx")
+  @@index([billId], map: "budget_package_vehicle_bill_idx")
+  @@index([sourceDocumentId], map: "budget_package_vehicle_source_document_idx")
+  @@map("budget_package_vehicle")
+}
+
+/// One officially-sourced topline dollar figure, in MILLIONS, pinned to a fiscal
+/// year, a pipeline stage, a vehicle class, and an exact funding scope.
+///
+/// HARD RULE (§3.2): a delta may only be computed between two rows with the SAME
+/// fiscalYear AND the SAME scope. Core DoD discretionary, Function 050, total
+/// national defense, and the defense-appropriations title are DIFFERENT scopes and
+/// are never subtracted from one another.
+///
+/// Authorization and appropriation stay SEPARATE rows, never coalesced into one
+/// unlabelled "current" amount (§5 edge case 14).
+///
+/// verificationStatus is the review ladder: parsers write 'extracted' and NEVER
+/// 'verified' (§3.3); a human promotes to 'reviewed' then 'verified'; a figure
+/// replaced by a later official number becomes 'superseded' and is KEPT for audit.
+/// Live-row uniqueness is a PARTIAL unique index (excluding 'superseded') created in
+/// the migration, so history accumulates without breaking the natural key.
+model FundingPosition {
+  id                 String    @id @default(uuid()) @db.Uuid
+  packageId          String    @map("package_id") @db.Uuid
+  vehicleId          String?   @map("vehicle_id") @db.Uuid
+  /// Denormalized from the vehicle so Bill 360 resolves positions by bill id in ONE
+  /// index hit; kept in sync by the loader.
+  billId             String?   @map("bill_id")
+  fiscalYear         Int       @map("fiscal_year")
+  /// @capiro/shared BUDGET_VEHICLE_CLASSES.
+  vehicleClass       String    @map("vehicle_class") @db.VarChar(24)
+  /// @capiro/shared FUNDING_STAGES.
+  stage              String    @db.VarChar(16)
+  /// @capiro/shared FUNDING_SCOPES — the measurement basis. NEVER null.
+  scope              String    @db.VarChar(40)
+  /// Dollars in MILLIONS. Decimal (not float) so reported figures round-trip exactly.
+  amountMillions     Decimal   @map("amount_millions") @db.Decimal(14, 2)
+  /// When the figure took effect / was published.
+  effectiveDate      DateTime? @map("effective_date") @db.Timestamptz(6)
+  sourceDocumentId   String?   @map("source_document_id") @db.Uuid
+  sourceUrl          String?   @map("source_url")
+  sourcePage         Int?      @map("source_page")
+  note               String?   @db.Text
+  /// @capiro/shared FUNDING_VERIFICATION_STATUSES: extracted | reviewed | verified | superseded.
+  verificationStatus String    @default("extracted") @map("verification_status") @db.VarChar(16)
+  verifiedByUserId   String?   @map("verified_by_user_id") @db.Uuid
+  createdAt          DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt          DateTime  @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  package        BudgetPackage         @relation(fields: [packageId], references: [id], onDelete: Cascade)
+  vehicle        BudgetPackageVehicle? @relation(fields: [vehicleId], references: [id], onDelete: SetNull)
+  sourceDocument SourceDocument?       @relation(fields: [sourceDocumentId], references: [id], onDelete: SetNull, onUpdate: Cascade)
+
+  // NOTE: live-row uniqueness on
+  //   (package_id, COALESCE(vehicle_id), fiscal_year, vehicle_class, stage, scope)
+  //   WHERE verification_status <> 'superseded'
+  // is a partial functional unique index created in the migration raw SQL — Prisma 5
+  // cannot express partial/functional unique indexes. Kept queryable here.
+  @@index([packageId, vehicleId, fiscalYear, vehicleClass, stage, scope], map: "funding_position_natural_key_idx")
+  @@index([packageId, stage, scope], map: "funding_position_package_stage_scope_idx")
+  @@index([billId, fiscalYear], map: "funding_position_bill_fy_idx")
+  @@index([verificationStatus], map: "funding_position_verification_idx")
+  @@index([sourceDocumentId], map: "funding_position_source_document_idx")
+  @@map("funding_position")
+}
+
+/// One continuing-resolution / lapse window in a fiscal year's funding history:
+/// the CR sequence, the date it funded through, whether a lapse (shutdown)
+/// followed, and the vehicle/public law that carried it.
+///
+/// Powers the historical CR + shutdown timeline. R3 creates the table and the
+/// loader path; the FY2022-FY2026 backfill and its UI are R4/R7.
+model BudgetInterimFundingPeriod {
+  id               String    @id @default(uuid()) @db.Uuid
+  domain           String    @db.VarChar(24)
+  fiscalYear       Int       @map("fiscal_year")
+  /// 1-based order within the fiscal year. Gaps are a data error (§3.7).
+  sequence         Int
+  startDate        DateTime? @map("start_date") @db.Timestamptz(6)
+  /// The date this vehicle funded operations THROUGH. Must be >= startDate (§3.7).
+  coverageThrough  DateTime? @map("coverage_through") @db.Timestamptz(6)
+  /// e.g. 'CR #1 (H.R. 5371)' | 'Full-year CR' | 'Consolidated Approps. Act, 2026'.
+  vehicleLabel     String    @map("vehicle_label")
+  billId           String?   @map("bill_id")
+  publicLaw        String?   @map("public_law")
+  /// Days of lapsed appropriations that began at the end of this period. 0 = no lapse.
+  shutdownDays     Int?      @map("shutdown_days")
+  notes            String?   @db.Text
+  sourceDocumentId String?   @map("source_document_id") @db.Uuid
+  sourceUrl        String?   @map("source_url")
+  createdAt        DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt        DateTime  @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  sourceDocument SourceDocument? @relation(fields: [sourceDocumentId], references: [id], onDelete: SetNull, onUpdate: Cascade)
+
+  @@unique([domain, fiscalYear, sequence], map: "budget_interim_funding_period_natural_key")
+  @@index([domain, fiscalYear, sequence], map: "budget_interim_funding_period_domain_fy_seq_idx")
+  @@index([billId], map: "budget_interim_funding_period_bill_idx")
+  @@map("budget_interim_funding_period")
 }

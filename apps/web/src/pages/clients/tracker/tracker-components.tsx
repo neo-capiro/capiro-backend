@@ -113,8 +113,29 @@ export function BillCard({
           </span>
         ))}
         <HearingChip bill={bill} onOpen={onOpen} />
+        <LatestActionStamp bill={bill} />
       </div>
     </div>
+  );
+}
+
+/**
+ * Bill 360 (R2 §2.4): the latest official action date, right-aligned in the foot
+ * row — the prototype's board-card stamp (mono 10px, ink-4, `margin-left:auto`).
+ * The action TEXT is the hover title rather than a second line, so the calm card
+ * gains one date and no extra bulk. Renders nothing when the board response
+ * carries no date (legacy board, or a cached pre-R2 response).
+ */
+export function LatestActionStamp({ bill }: { bill: BoardBill }) {
+  if (!bill.latestActionDate) return null;
+  return (
+    <span
+      className="num"
+      title={bill.latestActionText ?? undefined}
+      style={{ marginLeft: 'auto', fontSize: 10, color: 'var(--ink-4)', whiteSpace: 'nowrap' }}
+    >
+      {bill.latestActionDate}
+    </span>
   );
 }
 

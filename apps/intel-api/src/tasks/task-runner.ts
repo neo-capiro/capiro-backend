@@ -24,6 +24,7 @@ import { ConfigService } from '@nestjs/config';
 import { WatchlistSyncService } from '../watchlist/watchlist-sync.service.js';
 import { BillChangeDetectorService } from '../tracker/bill-change-detector.service.js';
 import { RuleChangeDetectorService } from '../tracker/rule-change-detector.service.js';
+import { PeChangeDetectorService } from '../tracker/pe-change-detector.service.js';
 import { SourceRuleRepository } from '../sourcedata/rule-source-data.repository.js';
 import { NewMatchDetectorService } from '../tracker/new-match-detector.service.js';
 import { FeatureFlagService } from '../feature-flags/feature-flag.service.js';
@@ -63,12 +64,14 @@ export const EMBED_CANDIDATE_FLOOR = 0.3;
 
 export const KNOWN_VERBS = [
   'verify-sourcedata', //          Phase 1 gate
+  'verify-bill-dossier-sources', // Bill 360 R1 §0.5: dossier truth-layer source-availability gate
   'sync-watchlists-from-legacy', // Phase 2: legacy → unified watchlist (§5.4)
   'backfill-tracked-bills', //      Phase 2: tracked_bill → intel_tracked_bill
   'backfill-alert-prefs', //        Phase 2: alert_preference → intel_alert_preference
   'disable-feature', //             Phase 2: feature-flag OFF path (§5.0.1)
   'detect-bill-changes', //         Phase 3: shadow change detection → intel_alert (no delivery)
   'detect-rule-changes', //         Phase 1 M3.3: federal_register_document + state_rule × watchlist → regulation intel_alert
+  'detect-pe-changes', //           R4 §4.3: program_element_delta × watchlist PE terms → program_element alert
   'detect-new-matches', //          LegiWatch B1: candidate × watchlist → intel_bill_match + bill_new_match alert
   'backfill-default-triggers', //   LegiWatch B: turn fiscalNote/sponsorMomentum on for existing subscriber prefs
   'emit-bill-alerts', //            Phase 4: fan out NEW intel_alert (SHADOW: suppress+log, no send)
@@ -140,11 +143,99 @@ export async function verifySourcedata(billId: string, deps: VerbDeps): Promise<
   }
 }
 
+/** Default bounded fixture set for the dossier source-availability gate (§0.5). */
+export const DOSSIER_SOURCE_FIXTURES = ['119-hr-8800'];
+
+/** Narrow, injectable deps for the dossier source-availability verb (unit-testable). */
+export interface DossierSourceDeps {
+  repo: Pick<
+    SourceDataRepository,
+    | 'getBillDossierIdentity'
+    | 'getBillActions'
+    | 'getBillVotes'
+    | 'getGoverningRules'
+    | 'getBillSourceFreshness'
+  >;
+  log: (msg: string) => void;
+}
+
+/**
+ * `verify-bill-dossier-sources [billId...]` — Bill 360 truth-layer gate (§0.5).
+ *
+ * For a bounded fixture set, assert the invariants the dossier read model depends
+ * on: the bill row exists, a canonical status exists, actions exist, and source
+ * freshness is computable; votes and governing-rule links are reported (not
+ * required — a bill legitimately may have neither). Emits a grep-friendly
+ * `SOURCE_OK` marker per bill + a whole-line JSON metric marker, and THROWS (→
+ * process exit 1) if any required invariant fails, so it can gate a deploy.
+ */
+export async function verifyBillDossierSources(
+  billIds: string[],
+  deps: DossierSourceDeps,
+): Promise<void> {
+  if (!billIds.length) {
+    throw new Error('verify-bill-dossier-sources requires at least one <billId>');
+  }
+  let failures = 0;
+  for (const billId of billIds) {
+    const identity = await deps.repo.getBillDossierIdentity(billId);
+    if (!identity) {
+      deps.log(`SOURCE_MISSING billId=${billId} reason=bill_row_absent`);
+      failures += 1;
+      continue;
+    }
+    if (!identity.status) {
+      deps.log(`SOURCE_MISSING billId=${billId} reason=canonical_status_absent`);
+      failures += 1;
+    }
+    const actions = await deps.repo.getBillActions(billId, 5);
+    if (!actions.length) {
+      deps.log(`SOURCE_MISSING billId=${billId} reason=no_actions`);
+      failures += 1;
+    }
+    const votes = await deps.repo.getBillVotes(billId, 5);
+    const rules = await deps.repo.getGoverningRules(billId);
+    const freshness = await deps.repo.getBillSourceFreshness(billId);
+    const freshOk = Boolean(
+      freshness &&
+        (freshness.lastSyncedAt || freshness.updateDate || freshness.updateDateIncludingText),
+    );
+    if (!freshOk) {
+      deps.log(`SOURCE_MISSING billId=${billId} reason=freshness_uncomputable`);
+      failures += 1;
+    }
+    deps.log(
+      `SOURCE_OK billId=${billId} status=${identity.status ?? '-'} actions=${actions.length} ` +
+        `votes=${votes.length} rules=${rules.length} fresh=${freshOk}`,
+    );
+  }
+  // Whole-line JSON marker for a CloudWatch Logs metric filter on $.sourcesUnavailable.
+  deps.log(
+    JSON.stringify({
+      marker: 'dossier_sources_metric',
+      checked: billIds.length,
+      failures,
+      sourcesUnavailable: failures > 0 ? 1 : 0,
+    }),
+  );
+  if (failures > 0) {
+    throw new Error(`DOSSIER_SOURCES_FAILED failures=${failures}`);
+  }
+}
+
 /** Route a verb to its handler. Throws on an unknown verb (→ non-zero exit). */
 export async function runVerb(verb: string, args: string[], deps: VerbDeps): Promise<void> {
   switch (verb) {
     case 'verify-sourcedata':
       return verifySourcedata(args[0] ?? '', deps);
+    case 'verify-bill-dossier-sources': {
+      const repo = new SourceDataRepository(deps.prisma);
+      await verifyBillDossierSources(args.length ? args : DOSSIER_SOURCE_FIXTURES, {
+        repo,
+        log: deps.log,
+      });
+      return;
+    }
     case 'sync-watchlists-from-legacy': {
       const r = await new WatchlistSyncService(deps.prisma).syncWatchlists(args[0]);
       deps.log(
@@ -347,6 +438,20 @@ export async function runVerb(verb: string, args: string[], deps: VerbDeps): Pro
       const r = await svc.runDetectionCycle();
       deps.log(
         `DETECT_RULES_DONE scanned=${r.scanned} matched=${r.matched} ` +
+          `alerts=${r.alertsWritten} skippedDedup=${r.skippedDedup}`,
+      );
+      return;
+    }
+    case 'detect-pe-changes': {
+      // R4 §4.3: live program_element_delta rows → 'program_element' client alerts,
+      // matched on the client's own watchlist PE terms. Optional args:
+      //   detect-pe-changes [windowHours] [materialityFloor]
+      const svc = new PeChangeDetectorService(deps.prisma, new SourceDataRepository(deps.prisma));
+      const windowHours = args[0] ? Number(args[0]) : undefined;
+      const floor = args[1] ? Number(args[1]) : undefined;
+      const r = await svc.runDetectionCycle(windowHours, floor);
+      deps.log(
+        `DETECT_PE_DONE scanned=${r.scanned} matchedClients=${r.matchedClients} ` +
           `alerts=${r.alertsWritten} skippedDedup=${r.skippedDedup}`,
       );
       return;
