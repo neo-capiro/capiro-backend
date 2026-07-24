@@ -399,6 +399,22 @@ function NeedsAttention({
             : '/legiwatch?tab=bills',
           rank: hoursSince(c.detectedAt),
         });
+      } else if (c.source === 'redistricting') {
+        // WS-C, LegiStorm gaps/enrichment plan: emit-redistricting-alerts.ts
+        // writes these when an enacted-but-not-yet-effective congressional
+        // map (or a revision to one already alerted on) covers a district
+        // where a tracked client has a facility. No dedicated district page
+        // exists yet (that's WS-D) — deep-links to the general changes inbox
+        // like the program_element branch's own no-specific-page fallback.
+        out.push({
+          id: `rd-${c.id}`,
+          sev,
+          eyebrow: `Redistricting · ${relativeTime(c.detectedAt)}`,
+          title: c.title,
+          context: names[0] ?? (c.data as { name?: string } | undefined)?.name ?? 'Tracked district',
+          href: '/intelligence/changes',
+          rank: hoursSince(c.detectedAt),
+        });
       } else if (
         (c.source === 'federal_register_document' || c.source === 'fec_contribution') &&
         sev !== 'info'
