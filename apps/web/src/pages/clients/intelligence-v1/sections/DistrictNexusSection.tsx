@@ -166,6 +166,18 @@ export function DistrictNexusSection({ clientId }: DistrictNexusSectionProps) {
                       </>
                     ) : null}
                   </div>
+                  {/* Current rep(s) for THIS spend district — independent of the
+                      facility-based "Your representatives" block above; a client
+                      can have spend here with no facility in the district. */}
+                  <div
+                    className="iv1-dnx-row-sub"
+                    style={{ display: 'flex', flexWrap: 'wrap', gap: '2px 10px', marginTop: 2 }}
+                  >
+                    <FederalMemberLine label="House" member={d.representatives.house} />
+                    {d.representatives.senate.map((s) => (
+                      <FederalMemberLine key={s.bioguideId} label="Senate" member={s} />
+                    ))}
+                  </div>
                 </div>
               ))}
             </div>

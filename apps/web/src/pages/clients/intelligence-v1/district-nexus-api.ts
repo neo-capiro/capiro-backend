@@ -1,4 +1,5 @@
 import type { AxiosInstance } from 'axios';
+import type { FederalMemberSummary } from './representation-api.js';
 
 /**
  * Web API for a client's District Nexus — federal contract spend grouped by
@@ -25,6 +26,21 @@ export interface DistrictDemographics {
   dataYear: number;
 }
 
+/**
+ * Current federal representative(s) for this spend district. "Current" — the
+ * district may reflect the map in effect when the award was recorded
+ * (redistricting vintage skew), so this is NOT a claim the shown member held
+ * the seat at award time. `house` is null when the seat can't be determined
+ * (non-voting delegate / multiple-or-undefined district sentinel), never a
+ * guess. Independent of the facility-based "Your representatives" block
+ * above (representation-api.ts) — a client can have spend in a district with
+ * no facility there.
+ */
+export interface DistrictNexusRepresentatives {
+  house: FederalMemberSummary | null;
+  senate: FederalMemberSummary[];
+}
+
 export interface DistrictNexusRow {
   district: string; // e.g. "TX-23"
   state: string;
@@ -32,6 +48,7 @@ export interface DistrictNexusRow {
   awardCount: number;
   totalAmount: number;
   demographics: DistrictDemographics | null;
+  representatives: DistrictNexusRepresentatives;
 }
 
 export interface DistrictNexusUnlinked {
