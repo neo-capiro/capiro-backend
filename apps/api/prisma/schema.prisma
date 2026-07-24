@@ -256,6 +256,7 @@ model Tenant {
   memoryCandidates             MemoryCandidate[]
   memoryIngestRuns             MemoryIngestRun[]
   clientMemoryAccessGrants     ClientMemoryAccess[]
+  clientGrantNexuses           ClientGrantNexus[]
 
   @@map("tenants")
 }
@@ -456,6 +457,7 @@ model Client {
   clioProactiveAlerts     ClioProactiveAlert[]
   actionRecommendations   ActionRecommendation[]
   memoryAccessGrants      ClientMemoryAccess[]
+  grantNexuses            ClientGrantNexus[]
 
   @@index([tenantId], map: "clients_tenant_idx")
   @@index([tenantId, name], map: "clients_tenant_name_idx")
@@ -4143,6 +4145,18 @@ model LegislativeDistrict {
   kmlS3Key               String?  @map("kml_s3_key")
   syncedAt               DateTime @default(now()) @map("synced_at") @db.Timestamptz(6)
 
+  /// District Nexus browser-safe boundary artifact metadata (Phase 1). Built
+  /// once by build-district-boundary-artifacts from Census cartographic data
+  /// (status 'C') or this row's own re-hosted kmlS3Key (status 'F') — never
+  /// the raw vendor URL. Null until the artifact builder has processed this row.
+  geoJsonS3Key         String?   @map("geojson_s3_key")
+  boundaryBboxJson     Json?     @map("boundary_bbox_json")
+  boundaryCentroidJson Json?     @map("boundary_centroid_json")
+  /// 'census_cartographic_500k' | 'legistorm_kml'
+  boundarySource       String?   @map("boundary_source")
+  boundaryBuiltAt      DateTime? @map("boundary_built_at") @db.Timestamptz(6)
+  boundaryHash         String?   @map("boundary_hash")
+
   @@index([state, chamber, status])
   @@index([legistormDistrictId])
   @@map("legislative_district")
@@ -4284,9 +4298,33 @@ model FederalGrant {
   url               String?
   syncedAt          DateTime  @default(now()) @map("synced_at") @db.Timestamptz(6)
 
+  // ── District Nexus Workstream C: fields that only exist on the
+  // fetchOpportunity detail payload (search2 returns just 10 fields —
+  // id/number/title/agencyCode/agency/openDate/closeDate/oppStatus/docType/
+  // cfdaList — verified live 2026-07-24). Written exclusively by
+  // enrich-grant-details.ts; sync-grants.ts must never null these.
+  eligibilityText  String?   @map("eligibility_text") @db.Text
+  costSharing      Boolean?  @map("cost_sharing")
+  // 'synopsis' | 'forecast' — the two payload shapes are NOT interchangeable
+  // (a forecast has no responseDate/applicantEligibilityDesc; its description
+  // lives in forecastDesc and its due date in estApplicationResponseDate).
+  docType          String?   @map("doc_type")
+  revision         Int?
+  // Close-date semantics when the date alone is misleading ("continuous",
+  // "TBD", explicit ET cutoffs). Never parsed into closeDate.
+  responseDateDesc String?   @map("response_date_desc") @db.Text
+  amendmentCount   Int?      @map("amendment_count")
+  lastUpdatedAt    DateTime? @map("last_updated_at") @db.Timestamptz(6)
+  raw              Json?
+  detailSyncedAt   DateTime? @map("detail_synced_at") @db.Timestamptz(6)
+
   @@index([agency])
   @@index([closeDate])
   @@index([status])
+  @@index([docType])
+  // Drives enrich-grant-details.ts's candidate scan (detailSyncedAt IS NULL
+  // first, then stalest-first).
+  @@index([detailSyncedAt])
   @@map("federal_grant")
 }
 
@@ -4941,6 +4979,143 @@ model FederalAward {
   @@index([actionDate], map: "federal_award_action_date_idx")
   @@index([dodAcqProgramCode], map: "federal_award_dod_acq_program_idx")
   @@map("federal_award")
+}
+
+// ─────────────────────────────────────────────────────────────────────────
+// District Nexus + Grants (Phase 1). Deliberately kept out of FederalAward:
+// contracts and financial assistance are different data products (amounts,
+// identity keys, and geography semantics all differ) and must never be
+// merged in storage. GLOBAL table, no tenant_id, no RLS — mirrors FederalAward.
+// Source: USAspending spending_by_award, award_type_codes 02/03/04/05.
+// ─────────────────────────────────────────────────────────────────────────
+
+model FederalAssistanceAward {
+  id                    String   @id @default(uuid()) @db.Uuid
+  // USAspending generated_internal_id — stable idempotency key (same field
+  // sync-federal-award.ts keys contracts on; assistance and contract awards
+  // never collide because USAspending prefixes them ASST_* vs CONT_*).
+  awardUniqueId         String   @unique @map("award_unique_id")
+  // For assistance awards, USAspending's "Award ID" field IS the FAIN (or a
+  // block/formula grant's aggregate identifier) — never the contract PIID.
+  fain                  String?
+  uri                   String?
+  // Deterministic normalization of the "Award Type" label USAspending returns
+  // (e.g. "BLOCK GRANT (A)") back to its filed award_type_code (02/03/04/05),
+  // via the documented type enumeration — never inferred/guessed per-record.
+  awardTypeCode         String?  @map("award_type_code")
+  awardTypeLabel        String?  @map("award_type_label")
+
+  recipientName         String?  @map("recipient_name")
+  recipientUei          String?  @map("recipient_uei")
+  parentRecipientName   String?  @map("parent_recipient_name")
+  parentRecipientUei    String?  @map("parent_recipient_uei")
+
+  // Raw "Assistance Listings" array as returned: [{cfda_number, cfda_program_title}].
+  assistanceListings       Json?     @map("assistance_listings")
+  // Primary ALN denormalized from the top-level "CFDA Number" field, for filters.
+  assistanceListingNumber  String?   @map("assistance_listing_number")
+  assistanceListingTitle   String?   @map("assistance_listing_title")
+  fundingOpportunityNumber String?   @map("funding_opportunity_number")
+  saiNumber                String?   @map("sai_number")
+
+  awardingAgency        String?  @map("awarding_agency")
+  awardingSubTier        String? @map("awarding_sub_tier")
+  fundingAgency         String?  @map("funding_agency")
+  fundingSubTier        String?  @map("funding_sub_tier")
+
+  totalObligatedAmount     Decimal? @map("total_obligated_amount") @db.Decimal(18, 2)
+  totalOutlayedAmount      Decimal? @map("total_outlayed_amount") @db.Decimal(18, 2)
+  // Not yet available from any verified source field — column reserved for a
+  // future enrichment pass (matching contribution beyond the federal share).
+  nonFederalFundingAmount  Decimal? @map("non_federal_funding_amount") @db.Decimal(18, 2)
+
+  description           String?   @db.Text
+  startDate              DateTime? @map("start_date") @db.Date
+  endDate                DateTime? @map("end_date") @db.Date
+  lastModifiedDate       DateTime? @map("last_modified_date") @db.Timestamptz(6)
+
+  popState                     String? @map("pop_state")
+  // Raw code exactly as USAspending returns it (incl. sentinels "00"/"90"/"98"/"ZZ").
+  popCongressionalDistrictRaw  String? @map("pop_congressional_district_raw")
+  popCongressionalDistrict    String? @map("pop_congressional_district")
+  // 'original' (as-reported, what the search endpoint returns) | 'current'
+  // (only ever set if a future enrichment pass sources district_current).
+  popCdVintage                 String? @map("pop_cd_vintage")
+  popCity                      String? @map("pop_city")
+  popZip                       String? @map("pop_zip")
+  popCountry                   String? @map("pop_country")
+
+  recipientState                    String? @map("recipient_state")
+  recipientCongressionalDistrictRaw String? @map("recipient_congressional_district_raw")
+  recipientCongressionalDistrict    String? @map("recipient_congressional_district")
+  recipientCity                     String? @map("recipient_city")
+  recipientZip                      String? @map("recipient_zip")
+
+  // From the per-award detail enrichment pass (enrich-assistance-award-details).
+  subawardCount     Int?      @map("subaward_count")
+  detailEnrichedAt  DateTime? @map("detail_enriched_at") @db.Timestamptz(6)
+
+  // The VENDOR payload verbatim (fixes a known FederalAward defect, which
+  // stores its own mapped object instead of the source response).
+  raw            Json     @default("{}") @map("raw_jsonb")
+  lastSyncedAt   DateTime @default(now()) @map("last_synced_at") @db.Timestamptz(6)
+  createdAt      DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt      DateTime @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  @@index([recipientUei], map: "faa_recipient_uei_idx")
+  @@index([popState, popCongressionalDistrict], map: "faa_pop_district_idx")
+  @@index([recipientState, recipientCongressionalDistrict], map: "faa_recipient_district_idx")
+  @@index([assistanceListingNumber], map: "faa_aln_idx")
+  @@index([awardingAgency], map: "faa_awarding_agency_idx")
+  @@index([endDate], map: "faa_end_date_idx")
+  @@map("federal_assistance_award")
+}
+
+/// Verified client roles in federal assistance that public award data cannot
+/// safely infer on its own (subrecipient, project-site, partner, etc.).
+/// Tenant-scoped + RLS-isolated per the review_request template. Never a copy
+/// of public award/opportunity data — those stay in their global tables and
+/// are joined at read time by assistanceAwardId / grantOpportunityId.
+model ClientGrantNexus {
+  id       String @id @default(uuid()) @db.Uuid
+  tenantId String @map("tenant_id") @db.Uuid
+  clientId String @map("client_id") @db.Uuid
+
+  // FK-less pointer into the global federal_assistance_award table (upsert-only,
+  // no tenant scoping — a hard FK would force cascade semantics onto a table
+  // that's never deleted from). Joined at read time, not enforced by the DB.
+  assistanceAwardId String? @map("assistance_award_id") @db.Uuid
+  // FederalGrant.id (Grants.gov opportunity id) — same rationale, no FK.
+  grantOpportunityId String? @map("grant_opportunity_id")
+  facilityId         String? @map("facility_id") @db.Uuid
+
+  /// direct_recipient | subrecipient | project_site | research_partner |
+  /// coalition_partner | beneficiary | matching_contributor | opportunity_candidate
+  relationshipType        String    @map("relationship_type")
+  relationshipDescription String?   @map("relationship_description") @db.Text
+  attributableAmount      Decimal?  @map("attributable_amount") @db.Decimal(18, 2)
+  beneficiaryCount        Int?      @map("beneficiary_count")
+
+  evidenceSourceType  String   @map("evidence_source_type")
+  evidenceSourceRef   String?  @map("evidence_source_ref")
+  confidence          Float    @default(1)
+  verificationStatus  String   @default("unverified") @map("verification_status")
+  externalUseApproved Boolean  @default(false) @map("external_use_approved")
+  verifiedAt          DateTime? @map("verified_at") @db.Timestamptz(6)
+  verifiedByUserId    String?   @map("verified_by_user_id") @db.Uuid
+
+  effectiveStart DateTime? @map("effective_start") @db.Date
+  effectiveEnd   DateTime? @map("effective_end") @db.Date
+  createdAt      DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt      DateTime  @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  client Client @relation(fields: [clientId], references: [id], onDelete: Cascade)
+
+  @@index([tenantId, clientId], map: "client_grant_nexus_tenant_client_idx")
+  @@index([tenantId, assistanceAwardId], map: "client_grant_nexus_tenant_award_idx")
+  @@index([tenantId, grantOpportunityId], map: "client_grant_nexus_tenant_opp_idx")
+  @@map("client_grant_nexus")
 }
 
 /// Reviewed, EXPLICIT map from a DoD Major Defense Acquisition Program (MDAP)
