@@ -56,13 +56,20 @@ export class VersioningService {
         },
       });
       if (isCoalescible(latest, { authorUserId: opts.authorUserId, nowMs: now.getTime() })) {
-        await tx.spVersion.update({
-          where: { id: latest!.id },
-          // Fold the newest state + note into the existing row and slide its
-          // timestamp forward so the window tracks the latest keystroke burst.
+        // Fold the newest state + note into the existing row and slide its
+        // timestamp forward so the window tracks the latest keystroke burst.
+        // coalescible:true is re-checked AT WRITE TIME (not just in the read
+        // above): ChangeSetsService.create SEALS the pinned head by flipping
+        // coalescible off, and under READ COMMITTED this predicate is
+        // re-evaluated after any lock wait — so a fold racing the seal matches
+        // 0 rows and falls through to cut a fresh version (head id moves and
+        // apply's staleness check fires) instead of silently rewriting the
+        // pinned snapshot in place.
+        const folded = await tx.spVersion.updateMany({
+          where: { id: latest!.id, coalescible: true },
           data: { snapshot, note: opts.note, createdAt: now },
         });
-        return latest!.id;
+        if (folded.count === 1) return latest!.id;
       }
     }
 
@@ -86,7 +93,16 @@ export class VersioningService {
     return created.id;
   }
 
-  /** Append an audit row (sp_activity_log is INSERT-only via DB trigger). */
+  /**
+   * Append an audit row (sp_activity_log is INSERT-only via DB trigger).
+   *
+   * Stage C transactional-outbox choke point: every mutation path already
+   * flows through logActivity inside its own withTenant(User) tx, so emitting
+   * the sp_event_outbox row HERE means every bump site emits by construction —
+   * atomically with the mutation it describes. The write is unconditional (do
+   * not soften it with optional chaining); the F2 Watcher consumer filters by
+   * `type` and marks consumed_at.
+   */
   async logActivity(
     tx: Tx,
     opts: {
@@ -96,6 +112,14 @@ export class VersioningService {
       action: string;
       entityType: string;
       entityId: string;
+      /**
+       * Optional explicit strategy for the OUTBOX payload only (not the
+       * activity row). Required for events whose entity can't be resolved to a
+       * strategy at drain time — e.g. node.deleted, where the sp_node row is
+       * deleted in this same tx, so the F2 consumer's node -> strategy lookup
+       * finds nothing.
+       */
+      strategyId?: string;
       before?: unknown;
       after?: unknown;
       requestId?: string | null;
@@ -113,6 +137,22 @@ export class VersioningService {
           opts.before === undefined ? undefined : (opts.before as Prisma.InputJsonValue),
         after: opts.after === undefined ? undefined : (opts.after as Prisma.InputJsonValue),
         requestId: opts.requestId ?? null,
+      },
+    });
+    await tx.spEventOutbox.create({
+      data: {
+        tenantId: opts.tenantId,
+        type: opts.action,
+        payload: {
+          entityType: opts.entityType,
+          entityId: opts.entityId,
+          // Only present when the caller supplied it — keeps every other
+          // event's payload shape unchanged.
+          ...(opts.strategyId ? { strategyId: opts.strategyId } : {}),
+          actorUserId: opts.actorUserId,
+          authorKind: opts.authorKind,
+          requestId: opts.requestId ?? null,
+        } as Prisma.InputJsonValue,
       },
     });
   }

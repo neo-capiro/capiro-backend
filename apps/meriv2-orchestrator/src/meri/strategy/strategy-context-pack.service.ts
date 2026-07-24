@@ -7,14 +7,29 @@ export interface PackProvenance {
   omitted?: string[];
 }
 
-/** A8: context-health signal derived from what the pack could/couldn't load. */
+/**
+ * A8: context-health signal derived from what the pack could/couldn't load.
+ * Stage E widens it into the response's groundingHealth: 'conflicted' + the
+ * optional `openMaterialConflicts` list are NEVER produced by compile() itself — they are
+ * merged in from api-strategy's forwarded stewardHealth (wire contract 2) by
+ * StrategyAssistantService, and absent whenever no stewardHealth was sent
+ * (backward compat: the shape then matches the pre-Stage-E one exactly).
+ */
 export interface PackHealth {
-  status: 'ok' | 'degraded';
+  status: 'ok' | 'degraded' | 'conflicted';
   /** Required sections that could not be loaded (drives a degraded status). */
   missingRequired: string[];
   /** Optional sections omitted — includes wall-blocked KG/engagement, which is
    *  EXPECTED for a walled client and never marks the pack unhealthy. */
   omittedOptional: string[];
+  /** Stage E: open MATERIAL Steward fact conflicts (the web banner names them). */
+  openMaterialConflicts?: Array<{
+    id: string;
+    factAId: string;
+    factBId: string;
+    factA: string;
+    factB: string;
+  }>;
 }
 
 export interface CompiledPack {

@@ -51,6 +51,28 @@ export interface MeResponse {
     strategyPlanner?: boolean;
     /** Meri assistant inside the Strategy Planner (draft-from-goal + rail edits); default false. */
     strategyPlannerMeri?: boolean;
+    /**
+     * Phase-2 agentic Meri surface (context documents, missions, change-sets).
+     * env STRATEGY_AGENTS_ENABLED AND per-tenant agenticMeri.enabled — both
+     * default OFF. Optional so an older cached /me shape degrades (hidden).
+     */
+    agenticMeri?: boolean;
+    /**
+     * Stage E Context Steward extraction (LLM spend). The server's extract
+     * route requires contextSteward.enabled ON TOP of agenticMeri
+     * (ContextStewardGuard), so the "Extract facts" button gates on BOTH bits.
+     * Optional so an older cached /me shape degrades (hidden, never a 403).
+     */
+    contextSteward?: boolean;
+    /**
+     * Stage F Strategy Watcher. The server's run-check route requires
+     * strategyWatcher.enabled ON TOP of agenticMeri (StrategyWatcherGuard),
+     * and the F2 scheduler skips missions quietly for tenants without it —
+     * so the Watch rail gates on BOTH bits (a toggle shown on agenticMeri
+     * alone would read "Watching" while no check ever runs). Optional so an
+     * older cached /me shape degrades (hidden, never a lying toggle).
+     */
+    strategyWatcher?: boolean;
   };
 }
 

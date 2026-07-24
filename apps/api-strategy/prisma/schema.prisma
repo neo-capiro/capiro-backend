@@ -286,3 +286,293 @@ model SpActivityLog {
   @@index([tenantId, entityType, entityId, occurredAt])
   @@map("sp_activity_log")
 }
+
+// ---- Phase 2 agent runtime (Stage C) --------------------------------------------
+//
+// Context Steward / Strategy Watcher / Execution Agent substrate. All tables are
+// tenant-scoped (auto-covered by the DMMF tenant-scope hook + RLS in the
+// migration). LLM loops live in the orchestrator; these tables hold missions,
+// runs, proposals, and the context corpus. Stage C creates the schema + the
+// no-LLM run/ChangeSet lifecycle; Stages D-G populate the content.
+
+enum SpContextDocState {
+  draft
+  active
+  superseded
+  archived
+
+  @@map("sp_context_doc_state")
+}
+
+enum SpContextScope {
+  once
+  node
+  strategy
+  client
+  firm
+
+  @@map("sp_context_scope")
+}
+
+enum SpFactState {
+  active
+  superseded
+  stale
+  rejected
+
+  @@map("sp_fact_state")
+}
+
+enum SpConflictState {
+  open
+  resolved
+  dismissed
+
+  @@map("sp_conflict_state")
+}
+
+enum SpMissionState {
+  draft
+  active
+  paused
+  completed
+  failed
+  canceled
+
+  @@map("sp_mission_state")
+}
+
+enum SpRunState {
+  queued
+  planning
+  waiting_for_input
+  executing
+  ready_for_review
+  completed
+  failed
+  canceled
+
+  @@map("sp_run_state")
+}
+
+enum SpRunTrigger {
+  manual
+  scheduled
+  event
+
+  @@map("sp_run_trigger")
+}
+
+enum SpChangeSetStatus {
+  proposed
+  approved
+  rejected
+  applied
+  undone
+  stale
+
+  @@map("sp_change_set_status")
+}
+
+enum SpChangeSetRisk {
+  low
+  medium
+  high
+  critical
+
+  @@map("sp_change_set_risk")
+}
+
+// A context-pack markdown document (00-13 templates, Stage D contract).
+// clientId null => firm-scoped. scopeRef carries the node/strategy id when
+// scope is node/strategy. Supersession keeps history (state=superseded, new
+// row points back via supersedesId); checksum dedupes re-uploads.
+model SpContextDocument {
+  id              String            @id @default(uuid()) @db.Uuid
+  tenantId        String            @map("tenant_id") @db.Uuid
+  clientId        String?           @map("client_id") @db.Uuid // apps/api clients.id — no FK
+  scope           SpContextScope
+  scopeRef        String?           @map("scope_ref") @db.Uuid // node/strategy id when scoped
+  templateKey     String            @map("template_key") // e.g. "03_engagement_history" (Stage D contract)
+  title           String
+  state           SpContextDocState @default(draft)
+  content         String            @db.Text // raw markdown body
+  frontmatter     Json? // parsed + validated front-matter (Stage D validator)
+  checksum        String // sha256 of content — dedupe/change detection
+  supersedesId    String?           @map("supersedes_id") @db.Uuid
+  validUntil      DateTime?         @map("valid_until") @db.Date // staleness horizon
+  createdByUserId String            @map("created_by_user_id")
+  updatedByUserId String?           @map("updated_by_user_id")
+  createdAt       DateTime          @default(now()) @map("created_at")
+  updatedAt       DateTime          @updatedAt @map("updated_at")
+
+  facts SpContextFact[]
+
+  @@index([tenantId, clientId, state])
+  @@index([tenantId, templateKey, state])
+  @@map("sp_context_document")
+}
+
+// A structured fact the Steward (Stage E) extracts from a context document.
+// sourceRef anchors the exact heading/row; SpNode.provenance upgrades to
+// `fact:<id>` refs in Stage E. clientId denormalized for eligibility queries.
+model SpContextFact {
+  id         String        @id @default(uuid()) @db.Uuid
+  tenantId   String        @map("tenant_id") @db.Uuid
+  documentId String        @map("document_id") @db.Uuid
+  clientId   String?       @map("client_id") @db.Uuid
+  fact       String        @db.Text
+  sourceRef  String        @map("source_ref") // heading / table-row anchor within the document
+  authority  String? // who asserted it (e.g. "client CEO", "public filing")
+  asOf       DateTime?     @map("as_of") @db.Date
+  confidence Float? // 0-1 extraction confidence
+  state      SpFactState   @default(active)
+  citation   String? // verbatim source snippet
+  createdAt  DateTime      @default(now()) @map("created_at")
+  updatedAt  DateTime      @updatedAt @map("updated_at")
+
+  document SpContextDocument @relation(fields: [documentId], references: [id], onDelete: Cascade, onUpdate: Cascade)
+
+  @@index([tenantId, documentId])
+  @@index([tenantId, clientId, state])
+  @@map("sp_context_fact")
+}
+
+// Two facts in material disagreement (Stage E detection). Blocking semantics:
+// an OPEN material conflict blocks Execution-Agent eligibility (Stage G) and
+// annotates drafts (Stage A8 health) — it never blocks a human.
+model SpContextConflict {
+  id               String          @id @default(uuid()) @db.Uuid
+  tenantId         String          @map("tenant_id") @db.Uuid
+  factAId          String          @map("fact_a_id") @db.Uuid
+  factBId          String          @map("fact_b_id") @db.Uuid
+  material         Boolean         @default(false)
+  state            SpConflictState @default(open)
+  resolutionNote   String?         @map("resolution_note")
+  resolvedByUserId String?         @map("resolved_by_user_id")
+  resolvedAt       DateTime?       @map("resolved_at")
+  createdAt        DateTime        @default(now()) @map("created_at")
+  updatedAt        DateTime        @updatedAt @map("updated_at")
+
+  @@index([tenantId, state])
+  @@map("sp_context_conflict")
+}
+
+// A standing agent mission ("Keep this strategy on track"). strategyId null =>
+// firm-level mission (calendar watch). cadence is a coarse keyword ("daily",
+// "weekly") interpreted by the F2 scheduler; nextRunAt is its claim column
+// (FOR UPDATE SKIP LOCKED).
+model SpAgentMission {
+  id              String         @id @default(uuid()) @db.Uuid
+  tenantId        String         @map("tenant_id") @db.Uuid
+  strategyId      String?        @map("strategy_id") @db.Uuid
+  clientId        String?        @map("client_id") @db.Uuid
+  name            String
+  description     String?        @db.Text
+  state           SpMissionState @default(draft)
+  cadence         String? // "daily" | "weekly" | null (manual-only)
+  nextRunAt       DateTime?      @map("next_run_at")
+  createdByUserId String         @map("created_by_user_id")
+  updatedByUserId String?        @map("updated_by_user_id")
+  createdAt       DateTime       @default(now()) @map("created_at")
+  updatedAt       DateTime       @updatedAt @map("updated_at")
+
+  runs SpAgentRun[]
+
+  @@index([tenantId, strategyId])
+  @@index([state, nextRunAt])
+  @@map("sp_agent_mission")
+}
+
+// One execution of a mission. Lifecycle (enforced in code, run-state.ts):
+// queued -> planning -> waiting_for_input/executing -> ready_for_review ->
+// completed | failed | canceled. idempotencyKey dedupes re-triggers (unique per
+// tenant); createdByUserId null => system/scheduler-triggered.
+model SpAgentRun {
+  id              String       @id @default(uuid()) @db.Uuid
+  tenantId        String       @map("tenant_id") @db.Uuid
+  missionId       String       @map("mission_id") @db.Uuid
+  strategyId      String?      @map("strategy_id") @db.Uuid
+  state           SpRunState   @default(queued)
+  trigger         SpRunTrigger
+  idempotencyKey  String       @map("idempotency_key")
+  startedAt       DateTime?    @map("started_at")
+  finishedAt      DateTime?    @map("finished_at")
+  findings        Json? // deterministic-check + (later) LLM-interpretation findings
+  waitingReason   String?      @map("waiting_reason") // set when state=waiting_for_input
+  error           String?
+  createdByUserId String?      @map("created_by_user_id") // null => system
+  createdAt       DateTime     @default(now()) @map("created_at")
+  updatedAt       DateTime     @updatedAt @map("updated_at")
+
+  mission SpAgentMission @relation(fields: [missionId], references: [id], onDelete: Cascade, onUpdate: Cascade)
+
+  @@unique([tenantId, idempotencyKey])
+  @@index([tenantId, missionId, createdAt(sort: Desc)])
+  @@map("sp_agent_run")
+}
+
+// A proposed edit-set (Watcher output / person-authored proposal). ops reuse
+// the Meri assistant edit shape and are re-validated on apply through the SAME
+// pipeline (one meri version per applied ChangeSet). strategyVersionId pins the
+// head the proposal was computed against — apply on a moved head => stale.
+// Undo = restore that pinned version (the existing restore path).
+model SpChangeSet {
+  id                String            @id @default(uuid()) @db.Uuid
+  tenantId          String            @map("tenant_id") @db.Uuid
+  strategyId        String            @map("strategy_id") @db.Uuid
+  runId             String?           @map("run_id") @db.Uuid
+  summary           String
+  ops               Json // Meri edit-set shape: [{op, nodeId?, ...fields, dependsOn?}]
+  risk              SpChangeSetRisk
+  status            SpChangeSetStatus @default(proposed)
+  strategyVersionId String            @map("strategy_version_id") @db.Uuid // pinned head at compute time
+  appliedVersionId  String?           @map("applied_version_id") @db.Uuid // version the apply cut
+  approvedByUserId  String?           @map("approved_by_user_id")
+  approvedAt        DateTime?         @map("approved_at")
+  approvedOps       Json?             @map("approved_ops") // selective approval subset
+  rejectedByUserId  String?           @map("rejected_by_user_id")
+  rejectedAt        DateTime?         @map("rejected_at")
+  appliedByUserId   String?           @map("applied_by_user_id")
+  appliedAt         DateTime?         @map("applied_at")
+  undoneByUserId    String?           @map("undone_by_user_id")
+  undoneAt          DateTime?         @map("undone_at")
+  createdByUserId   String?           @map("created_by_user_id") // null => watcher/system
+  createdAt         DateTime          @default(now()) @map("created_at")
+  updatedAt         DateTime          @updatedAt @map("updated_at")
+
+  @@index([tenantId, strategyId, status])
+  @@map("sp_change_set")
+}
+
+// Per-tenant agent permission knobs (risk-ladder overrides, caps). Key-value
+// so Stage F/G policy grows without migrations.
+model SpAgentPermissionPolicy {
+  id              String   @id @default(uuid()) @db.Uuid
+  tenantId        String   @map("tenant_id") @db.Uuid
+  key             String // e.g. "autoApply.maxRisk", "runs.maxConcurrent"
+  value           Json
+  updatedByUserId String   @map("updated_by_user_id")
+  createdAt       DateTime @default(now()) @map("created_at")
+  updatedAt       DateTime @updatedAt @map("updated_at")
+
+  @@unique([tenantId, key])
+  @@map("sp_agent_permission_policy")
+}
+
+// Transactional outbox: emitted in the SAME tx as every strategy/node mutation
+// (via VersioningService.logActivity — the one choke point every bump site
+// already flows through). The F2 Watcher consumer polls unconsumed rows and
+// marks consumed_at idempotently.
+model SpEventOutbox {
+  id         String    @id @default(uuid()) @db.Uuid
+  tenantId   String    @map("tenant_id") @db.Uuid
+  type       String // the activity action, e.g. "node.updated", "version.restored"
+  payload    Json // { entityType, entityId, actorUserId, authorKind, ... }
+  createdAt  DateTime  @default(now()) @map("created_at")
+  consumedAt DateTime? @map("consumed_at")
+
+  @@index([consumedAt, createdAt])
+  @@index([tenantId, createdAt])
+  @@map("sp_event_outbox")
+}

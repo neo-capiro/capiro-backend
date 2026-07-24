@@ -31,6 +31,7 @@ import {
   sanitizePlanEdits,
   sanitizeRefRows,
   type ReferenceRowLite,
+  type StewardHealth,
   type StrategyAssistantInput,
   type StrategyDraftInput,
   type StrategyReferenceAssistInput,
@@ -93,7 +94,11 @@ export class StrategyAssistantService {
       query: input.goal ?? '',
       slim: false,
     });
-    const baseSystem = buildDraftSystemPrompt(input, pack.text, healthNoteFrom(pack.health));
+    const baseSystem = buildDraftSystemPrompt(
+      input,
+      pack.text,
+      healthNoteFrom(pack.health, input.stewardHealth),
+    );
     const userText = input.goal?.trim()
       ? `Draft the ${input.type} strategy for this goal: ${input.goal.trim()}`
       : `Draft a ${input.type} strategy for this client.`;
@@ -132,7 +137,13 @@ export class StrategyAssistantService {
       this.logger.debug(`draft repair ${attempt + 1}: ${check.errorCount} error(s)`);
       repairSuffix = `\n\n# FIX THESE PROBLEMS\nYour previous plan had impossible ordering/calendar issues. Re-draft correcting ALL of these:\n${errs.join('\n')}`;
     }
-    return { summary, nodes, provenance: pack.provenance, violations, groundingHealth: pack.health };
+    return {
+      summary,
+      nodes,
+      provenance: pack.provenance,
+      violations,
+      groundingHealth: mergeGroundingHealth(pack.health, input.stewardHealth),
+    };
   }
 
   /** Build a verifier input from proposed draft nodes: synthetic index-ids, and
@@ -185,14 +196,18 @@ export class StrategyAssistantService {
       query: input.instruction,
       slim: true,
     });
-    const system = buildAssistantSystemPrompt(input, pack.text, healthNoteFrom(pack.health));
+    const system = buildAssistantSystemPrompt(
+      input,
+      pack.text,
+      healthNoteFrom(pack.health, input.stewardHealth),
+    );
     const result = await this.runTerminal(system, input.instruction, PROPOSE_PLAN_EDITS_TOOL, ctx, 'meriv2_strategy_edit');
     return {
       reply: str(result.input?.reply) ?? result.text ?? 'Done.',
       summary: str(result.input?.summary) ?? null,
       edits: sanitizePlanEdits(result.input?.edits),
       provenance: pack.provenance,
-      groundingHealth: pack.health,
+      groundingHealth: mergeGroundingHealth(pack.health, input.stewardHealth),
     };
   }
 
@@ -298,12 +313,59 @@ export class StrategyAssistantService {
   }
 }
 
-/** A8: a degraded-grounding note for the system prompt (undefined when healthy). */
-function healthNoteFrom(health: PackHealth): string | undefined {
-  if (health.status !== 'degraded') return undefined;
-  return `Some required context could not be loaded: ${
-    health.missingRequired.join(', ') || 'unknown'
-  }. Do NOT invent facts to fill these gaps — scope the plan to what you actually know and flag the uncertainty.`;
+/**
+ * A8 + Stage E: the grounding-health note for the system prompt (undefined when
+ * fully healthy). Covers the pack's degraded state, the Steward's missing
+ * required documents, and — per wire contract (2) — a conflicted stewardHealth,
+ * where the note names factA vs factB VERBATIM so the model never silently
+ * picks a side.
+ */
+function healthNoteFrom(health: PackHealth, steward?: StewardHealth): string | undefined {
+  const notes: string[] = [];
+  if (health.status === 'degraded') {
+    notes.push(
+      `Some required context could not be loaded: ${
+        health.missingRequired.join(', ') || 'unknown'
+      }. Do NOT invent facts to fill these gaps — scope the plan to what you actually know and flag the uncertainty.`,
+    );
+  }
+  if (steward?.missingRequired.length) {
+    notes.push(
+      `Required Steward context documents are missing: ${steward.missingRequired.join(', ')}. Do NOT invent facts to fill these gaps.`,
+    );
+  }
+  if (steward?.status === 'conflicted' && steward.openMaterialConflicts.length) {
+    const pairs = steward.openMaterialConflicts.map((c) => `- "${c.factA}" vs "${c.factB}"`);
+    notes.push(
+      `The client context facts contain OPEN MATERIAL CONFLICTS — do not silently choose a side; surface the conflict and flag any step relying on either fact as uncertain:\n${pairs.join('\n')}`,
+    );
+  }
+  return notes.length ? notes.join('\n\n') : undefined;
+}
+
+/**
+ * Stage E wire contract (2): carry api-strategy's stewardHealth through into the
+ * response's groundingHealth (the web banner consumes it). When NO stewardHealth
+ * was forwarded, the pack health passes through UNCHANGED (same object — full
+ * backward compat). A conflicted steward wins the status; either side degraded
+ * (and no conflict) → degraded; missingRequired accumulates both sides.
+ */
+function mergeGroundingHealth(pack: PackHealth, steward?: StewardHealth): PackHealth {
+  if (!steward) return pack;
+  const status: PackHealth['status'] =
+    steward.status === 'conflicted'
+      ? 'conflicted'
+      : pack.status === 'degraded' || steward.status === 'degraded'
+        ? 'degraded'
+        : 'ok';
+  return {
+    status,
+    missingRequired: [...pack.missingRequired, ...steward.missingRequired],
+    omittedOptional: pack.omittedOptional,
+    ...(steward.openMaterialConflicts.length
+      ? { openMaterialConflicts: steward.openMaterialConflicts }
+      : {}),
+  };
 }
 
 /** Re-export for the controller's response typing. */

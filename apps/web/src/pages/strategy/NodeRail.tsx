@@ -7,10 +7,12 @@
  * gated off here and land in G5/G6. 344px slide-in panel, prototype-faithful.
  */
 import { useEffect, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { App } from 'antd';
 import { Icon, Ava, iconBtn, fieldS, fieldLbl, chipBtn } from './strategy-ui.js';
 import { OwnerPicker } from './OwnerPicker.js';
 import { AskMeri } from './AskMeri.js';
+import { WatchRail } from './agents/WatchRail.js';
 import { useAssistant } from './api.js';
 import {
   NODE_KIND_META,
@@ -30,15 +32,19 @@ export function EditorRail({
   calendar,
   members,
   meriEnabled,
+  watcherEnabled,
+  agenticEnabled,
   meriSummary,
   currentUserId,
   existingNodeIds,
   nodeArtifacts,
   routing,
+  staging,
   applied,
   onFlash,
   onSelectNode,
   onRoute,
+  onStageAgent,
   onOpenArtifact,
   onClose,
   onDeselect,
@@ -48,15 +54,33 @@ export function EditorRail({
   calendar: FiscalCalendar;
   members: TenantMember[];
   meriEnabled: boolean;
+  /**
+   * Stage F: shows the Watch-mode block (UI belt). Requires BOTH /me bits —
+   * features.agenticMeri AND features.strategyWatcher (canShowWatchRail):
+   * the run-check route stacks StrategyWatcherGuard on top of AgenticGuard
+   * and the scheduler skips watcher-flag-off tenants quietly, so on
+   * agenticMeri alone the toggle would lie ("Watching" while nothing runs).
+   */
+  watcherEnabled?: boolean;
+  /**
+   * Stage G: shows the node-level "prepare with the agent" affordances (UI
+   * belt = features.agenticMeri; the server enforces the per-intent
+   * executionAgent flags). Optional so an older cached /me shape degrades.
+   */
+  agenticEnabled?: boolean;
   meriSummary?: string | null;
   currentUserId: string | undefined;
   existingNodeIds: string[];
   nodeArtifacts: StrategyNodeArtifact[];
   routing: 'workspace' | 'outreach' | null;
+  /** Stage G: which agent-staging plan is in flight (null = none). */
+  staging?: 'workspace_draft' | 'outreach_record' | null;
   applied: string | null;
   onFlash: (msg: string) => void;
   onSelectNode: (id: string) => void;
   onRoute: (action: 'workspace' | 'outreach') => void;
+  /** Stage G: plan an agent-staged draft/outreach for this node, then review it. */
+  onStageAgent?: (intent: 'workspace_draft' | 'outreach_record') => void;
   onOpenArtifact: (a: StrategyNodeArtifact) => void;
   onClose: () => void;
   onDeselect: () => void;
@@ -253,31 +277,41 @@ export function EditorRail({
             <NodeActions
               artifacts={nodeArtifacts}
               routing={routing}
+              agenticEnabled={agenticEnabled}
+              staging={staging}
               onRoute={onRoute}
+              onStageAgent={onStageAgent}
               onOpenArtifact={onOpenArtifact}
             />
           </>
         ) : meriEnabled ? (
-          <StrategyMeriRail
-            summary={meriSummary}
-            busy={assistant.isPending}
-            onAsk={(t, ids) => runAssistant('strategy', undefined, t, ids)}
-          />
+          <>
+            <StrategyMeriRail
+              summary={meriSummary}
+              busy={assistant.isPending}
+              onAsk={(t, ids) => runAssistant('strategy', undefined, t, ids)}
+            />
+            {/* Stage F: Watch-mode affordance (agenticMeri+strategyWatcher UI belt). */}
+            {watcherEnabled && <WatchRail strategyId={strategyId} />}
+          </>
         ) : (
-          <div
-            style={{
-              background: 'var(--bg-surface-2)',
-              border: '1px solid var(--border-1)',
-              borderRadius: 9,
-              padding: '11px 13px',
-              fontSize: 'var(--text-sm)',
-              color: 'var(--ink-2)',
-              lineHeight: 1.5,
-            }}
-          >
-            Select a step on the timeline to edit its fields, re-time it, or delete it. Use{' '}
-            <b>+ Add step</b> in the header to create one.
-          </div>
+          <>
+            <div
+              style={{
+                background: 'var(--bg-surface-2)',
+                border: '1px solid var(--border-1)',
+                borderRadius: 9,
+                padding: '11px 13px',
+                fontSize: 'var(--text-sm)',
+                color: 'var(--ink-2)',
+                lineHeight: 1.5,
+              }}
+            >
+              Select a step on the timeline to edit its fields, re-time it, or delete it. Use{' '}
+              <b>+ Add step</b> in the header to create one.
+            </div>
+            {watcherEnabled && <WatchRail strategyId={strategyId} />}
+          </>
         )}
       </div>
     </div>
@@ -301,6 +335,7 @@ function NodeEditor({
   onCommit: (input: UpdateNodeInput, flash: string) => void;
   onDelete: () => void;
 }) {
+  const navigate = useNavigate();
   const [titleBuf, setTitleBuf] = useState(node.title);
   const [noteBuf, setNoteBuf] = useState(node.note ?? '');
   const [showFields, setShowFields] = useState(true);
@@ -581,23 +616,55 @@ function NodeEditor({
                 <div>
                   <span style={fieldLbl}>Grounded in</span>
                   <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, marginTop: 2 }}>
-                    {node.provenance.sources.map((src, i) => (
-                      <span
-                        key={i}
-                        style={{
-                          fontSize: 'var(--text-2xs)',
-                          fontWeight: 600,
-                          color: 'var(--ink-2)',
-                          background: 'var(--bg-surface-2)',
-                          border: '1px solid var(--border-1)',
-                          borderRadius: 6,
-                          padding: '2px 7px',
-                        }}
-                      >
-                        {src.section}
-                        {src.ref ? ` · ${src.ref}` : ''}
-                      </span>
-                    ))}
+                    {node.provenance.sources.map((src, i) => {
+                      // Stage E: a 'fact:<id>' ref anchors a Steward fact —
+                      // deep-link into the review surface, which highlights it.
+                      const factId = src.ref?.startsWith('fact:') ? src.ref.slice(5) : null;
+                      if (factId) {
+                        return (
+                          <button
+                            key={i}
+                            onClick={() =>
+                              navigate(
+                                `/strategies/context/steward?fact=${encodeURIComponent(factId)}`,
+                              )
+                            }
+                            title="Open this fact in the Steward review"
+                            style={{
+                              fontSize: 'var(--text-2xs)',
+                              fontWeight: 600,
+                              fontFamily: 'var(--font-sans)',
+                              color: 'var(--accent-ink)',
+                              background: 'var(--accent-soft)',
+                              border: '1px solid #C6D4F4',
+                              borderRadius: 6,
+                              padding: '2px 7px',
+                              cursor: 'pointer',
+                            }}
+                          >
+                            {src.section}
+                            {` · ${src.ref}`}
+                          </button>
+                        );
+                      }
+                      return (
+                        <span
+                          key={i}
+                          style={{
+                            fontSize: 'var(--text-2xs)',
+                            fontWeight: 600,
+                            color: 'var(--ink-2)',
+                            background: 'var(--bg-surface-2)',
+                            border: '1px solid var(--border-1)',
+                            borderRadius: 6,
+                            padding: '2px 7px',
+                          }}
+                        >
+                          {src.section}
+                          {src.ref ? ` · ${src.ref}` : ''}
+                        </span>
+                      );
+                    })}
                   </div>
                 </div>
               ) : null}
@@ -657,23 +724,58 @@ const NODE_ACTIONS: Array<{
 ];
 
 /**
+ * Stage G node-level agent affordances (behind the agenticMeri UI belt): have
+ * Meri's Execution Agent PREPARE a Workspace draft / STAGE outreach for this
+ * node and land in the Execution review. Distinct from the direct RTE route-outs
+ * below (NODE_ACTIONS) — those open an artifact immediately; these create an
+ * execution run for review and, per plan §G, never send anything.
+ */
+const AGENT_ACTIONS: Array<{
+  id: 'workspace_draft' | 'outreach_record';
+  label: string;
+  desc: string;
+  icon: string;
+}> = [
+  {
+    id: 'workspace_draft',
+    label: 'Prepare in Workspace (agent)',
+    desc: 'Have Meri draft the document for this step, staged for your review.',
+    icon: 'spark',
+  },
+  {
+    id: 'outreach_record',
+    label: 'Stage outreach (agent)',
+    desc: 'Have Meri stage outreach for this step — reviewed and approved before any send.',
+    icon: 'spark',
+  },
+];
+
+/**
  * NOD-6 "Available actions in Capiro" — route the selected node into Workspace
  * (Draft) or Outreach (Send), and list the artifact back-links (sp_node_artifact)
  * already created for it. Routing itself lives in StrategyEditorPage (needs the
- * shared api + navigate); this block only surfaces the buttons + chips.
+ * shared api + navigate); this block only surfaces the buttons + chips. Stage G
+ * adds the agent-staging affordances (agenticEnabled) above the direct actions.
  */
 function NodeActions({
   artifacts,
   routing,
+  agenticEnabled,
+  staging,
   onRoute,
+  onStageAgent,
   onOpenArtifact,
 }: {
   artifacts: StrategyNodeArtifact[];
   routing: 'workspace' | 'outreach' | null;
+  agenticEnabled?: boolean;
+  staging?: 'workspace_draft' | 'outreach_record' | null;
   onRoute: (action: 'workspace' | 'outreach') => void;
+  onStageAgent?: (intent: 'workspace_draft' | 'outreach_record') => void;
   onOpenArtifact: (a: StrategyNodeArtifact) => void;
 }) {
   const [open, setOpen] = useState(true);
+  const showAgent = Boolean(agenticEnabled && onStageAgent);
   return (
     <div style={{ borderTop: '1px solid var(--border-1)', paddingTop: 12 }}>
       <button
@@ -701,6 +803,67 @@ function NodeActions({
       </button>
       {open && (
         <div style={{ display: 'flex', flexDirection: 'column', gap: 8, marginTop: 12 }}>
+          {showAgent &&
+            AGENT_ACTIONS.map((a) => {
+              const busy = staging === a.id;
+              const anyStaging = Boolean(staging);
+              return (
+                <button
+                  key={a.id}
+                  onClick={() => onStageAgent?.(a.id)}
+                  disabled={anyStaging}
+                  style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: 11,
+                    textAlign: 'left',
+                    background: 'var(--accent-soft)',
+                    border: '1px solid #C6D4F4',
+                    borderRadius: 10,
+                    padding: '11px 13px',
+                    cursor: anyStaging ? 'default' : 'pointer',
+                    opacity: anyStaging && !busy ? 0.55 : 1,
+                  }}
+                >
+                  <span
+                    style={{
+                      width: 30,
+                      height: 30,
+                      borderRadius: 8,
+                      background: 'var(--bg-surface)',
+                      display: 'grid',
+                      placeItems: 'center',
+                      flexShrink: 0,
+                    }}
+                  >
+                    <Icon name={busy ? 'clock' : a.icon} size={15} color="var(--accent-ink)" />
+                  </span>
+                  <span style={{ flex: 1, minWidth: 0 }}>
+                    <span
+                      style={{
+                        display: 'block',
+                        fontSize: 'var(--text-sm)',
+                        fontWeight: 700,
+                        color: 'var(--accent-ink)',
+                      }}
+                    >
+                      {busy ? 'Preparing…' : a.label}
+                    </span>
+                    <span
+                      style={{
+                        display: 'block',
+                        fontSize: 'var(--text-2xs)',
+                        color: 'var(--ink-3)',
+                        lineHeight: 1.4,
+                      }}
+                    >
+                      {a.desc}
+                    </span>
+                  </span>
+                  <Icon name="arrow" size={15} color="var(--accent-ink)" />
+                </button>
+              );
+            })}
           {NODE_ACTIONS.map((a) => {
             const busy = routing === a.id;
             return (

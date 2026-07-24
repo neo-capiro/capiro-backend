@@ -2,6 +2,7 @@ import { Injectable, Logger, ServiceUnavailableException } from '@nestjs/common'
 import { ConfigService } from '@nestjs/config';
 import type {
   ResolvedAiProvider,
+  StewardExtractResponse,
   StrategyAssistantResponse,
   StrategyDraftResponse,
   StrategyReferenceAssistResponse,
@@ -58,6 +59,15 @@ export class StrategyOrchestratorClient {
       bearerToken,
       aiProvider,
     );
+  }
+
+  /** Stage E wire-contract (1): the Context Steward's fact-extraction surface. */
+  stewardExtract(
+    body: unknown,
+    bearerToken: string | undefined,
+    aiProvider?: ResolvedAiProvider,
+  ): Promise<StewardExtractResponse> {
+    return this.post<StewardExtractResponse>('steward-extract', body, bearerToken, aiProvider);
   }
 
   private async post<T>(

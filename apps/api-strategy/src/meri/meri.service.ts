@@ -17,10 +17,11 @@ import { NODE_KINDS, NODE_SUBJECTS, NODE_STATUSES } from '../strategy/dto/node.d
 import type { StrategyTypeValue } from '../strategy/dto/create-strategy.dto.js';
 import { FirmPhasesService } from '../firm-phases/firm-phases.service.js';
 import { ReferenceService, type ReferenceRow } from '../reference/reference.service.js';
+import { StewardService } from '../context/steward.service.js';
 import { StrategyAiCredentialResolver } from './strategy-ai-credential.resolver.js';
 import { StrategyAttachmentResolver } from './strategy-attachment.resolver.js';
 import { StrategyOrchestratorClient } from './strategy-orchestrator.client.js';
-import type { DraftNode, PlanEdit } from './meri.types.js';
+import type { DraftNode, PlanEdit, StewardFactLine, StewardHealth } from './meri.types.js';
 import type { AssistantDto, DraftStrategyDto, ReferenceAssistDto } from './dto/meri.dto.js';
 
 type Tx = Prisma.TransactionClient;
@@ -32,7 +33,7 @@ interface RefRowLite {
   endsOn: string | null;
 }
 /** The grounding api-strategy forwards to the orchestrator AND feeds the verifier. */
-interface Grounding {
+export interface Grounding {
   fiscal: { today: string | null; fys: number[]; fyLabels: string[]; focalFy: string | undefined };
   firmPhases: Array<{ label: string; startFy: number; startQ: number; endFy: number; endQ: number }>;
   reference: { congress: RefRowLite[]; ppbeLanes: RefRowLite[]; ppbeCurrentPhases: RefRowLite[] };
@@ -49,6 +50,18 @@ type VerifierNodeSource = {
   // string[] (persisted rows) OR Prisma's scalar-list create form ({ set: [] }).
   dependsOnIds?: unknown;
 };
+
+/** Runtime mirror of PlanEditOp (meri.types.ts) — ops arrive untyped from the
+ *  orchestrator AND from Stage C change-set replay (CreateChangeSetDto defers
+ *  op validation to this pipeline), so the discriminator itself must be
+ *  validated here. */
+const PLAN_EDIT_OPS = ['add', 'update', 'remove', 'retime'] as const;
+
+/** Stage E: node provenance refs of this shape cite a Steward fact. */
+const FACT_REF_RE = /^fact:(.+)$/;
+/** sp_context_fact.id is uuid-typed — a non-UUID citation is unknown by definition
+ *  (and would P2023 the `in` query if passed through). */
+const FACT_UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
 const TYPE_LABEL: Record<StrategyTypeValue, string> = {
   appropriations: 'Appropriations',
@@ -85,6 +98,7 @@ export class MeriService {
     private readonly firmPhases: FirmPhasesService,
     private readonly reference: ReferenceService,
     private readonly attachments: StrategyAttachmentResolver,
+    private readonly steward: StewardService,
   ) {}
 
   /**
@@ -101,7 +115,9 @@ export class MeriService {
     return { today: isoDate(now), fys, fyLabels, focalFy: fyLabels[1] };
   }
 
-  private async grounding(tenantId: string): Promise<Grounding> {
+  // Public: Stage C change-set apply pre-fetches this (OUTSIDE its tx) to feed
+  // verifyAppliedPlan — the reads below open their own withTenant txs.
+  async grounding(tenantId: string): Promise<Grounding> {
     const [phases, ref] = await Promise.all([
       this.firmPhases.list(tenantId),
       this.reference.getCalendars(tenantId),
@@ -142,10 +158,11 @@ export class MeriService {
       throw new BadRequestException('Unknown client for this tenant');
     }
 
-    const [aiProvider, ground, docs] = await Promise.all([
+    const [aiProvider, ground, docs, stewardCtx] = await Promise.all([
       this.resolver.resolve(tenantId),
       this.grounding(tenantId),
       this.attachments.resolve(bearer, dto.attachmentIds),
+      this.stewardContext(tenantId, dto.clientId),
     ]);
     const resp = await this.orchestrator.draft(
       {
@@ -157,6 +174,7 @@ export class MeriService {
         attachmentIds: dto.attachmentIds ?? [],
         attachments: docs,
         ...ground,
+        ...stewardCtx,
       },
       bearer,
       aiProvider,
@@ -237,8 +255,12 @@ export class MeriService {
         entityId: strategy.id,
         after: { title, nodeCount: nodeData.length, provenance: resp.provenance ?? null },
       });
-      await this.logVerification(tx, tenantId, clerkUserId, strategy.id, violations);
       const detail = await loadStrategyDetail(tx, strategy.id);
+      // Stage E provenance fact-check: 'fact:<id>' citations on the PERSISTED
+      // plan must reference real, active, same-client facts (warnings appended
+      // to the violations plan.verified logs below).
+      violations.push(...(await this.factCheckProvenance(tx, detail.nodes, dto.clientId)));
+      await this.logVerification(tx, tenantId, clerkUserId, strategy.id, violations);
       return { ...detail, violations, groundingHealth: resp.groundingHealth };
     });
   }
@@ -261,10 +283,11 @@ export class MeriService {
       throw new BadRequestException('nodeId is required for node-scope assist');
     }
 
-    const [aiProvider, ground, docs] = await Promise.all([
+    const [aiProvider, ground, docs, stewardCtx] = await Promise.all([
       this.resolver.resolve(tenantId),
       this.grounding(tenantId),
       this.attachments.resolve(bearer, dto.attachmentIds),
+      this.stewardContext(tenantId, strategy.clientId),
     ]);
     const resp = await this.orchestrator.assistant(
       {
@@ -276,6 +299,7 @@ export class MeriService {
         clientId: strategy.clientId,
         strategy: serializeStrategy(strategy),
         ...ground,
+        ...stewardCtx,
       },
       bearer,
       aiProvider,
@@ -330,6 +354,8 @@ export class MeriService {
       // A6: verify the resulting persisted plan; annotate + log (additive — the
       // edit-set already applied; hard-blocking is the flagged web phase).
       const v = this.verify(strategy.type, d.nodes, ground);
+      // Stage E provenance fact-check (WARNING-only — never trips the A6 gate).
+      v.push(...(await this.factCheckProvenance(tx, d.nodes, strategy.clientId)));
       if (this.blockOnErrors() && v.some((x) => x.severity === 'error')) {
         // Roll back the whole edit-set — the assistant may not leave the plan broken.
         throw new UnprocessableEntityException(
@@ -365,6 +391,56 @@ export class MeriService {
       bearer,
       aiProvider,
     );
+  }
+
+  /**
+   * Stage C: ChangeSet apply reuses the assistant apply pipeline VERBATIM —
+   * each op is re-validated + applied by the same private applyEdit the
+   * assistant uses, inside the CALLER's tx (the change-set service owns the
+   * lastEdited bump, the version cut and the audit rows). A malformed op throws
+   * → the caller's whole tx rolls back (no partial apply).
+   */
+  async applyEditSet(
+    tx: Tx,
+    tenantId: string,
+    strategyId: string,
+    actorUserId: string,
+    edits: PlanEdit[],
+  ): Promise<void> {
+    for (const edit of edits) {
+      await this.applyEdit(tx, tenantId, strategyId, actorUserId, edit);
+    }
+  }
+
+  /**
+   * Stage C: the SAME A6 plan-level verification the assistant runs after an
+   * edit-set (see assistant()) — load the persisted plan, verify it against the
+   * tenant's grounding, hard-block via STRATEGY_VERIFY_BLOCK (the 422 rolls the
+   * CALLER's whole tx back) and record plan.verified on the audit trail in the
+   * same tx. `ground` MUST be fetched via grounding() BEFORE the caller opens
+   * its tx — grounding reads run their own withTenant txs, and nesting them
+   * inside a held tx stacks pool connections. Returns the loaded detail (and
+   * violations) so the caller doesn't re-read post-apply state.
+   */
+  async verifyAppliedPlan(
+    tx: Tx,
+    tenantId: string,
+    actorUserId: string,
+    strategyId: string,
+    ground: Grounding,
+  ) {
+    const detail = await loadStrategyDetail(tx, strategyId);
+    const violations = this.verify(detail.type, detail.nodes, ground);
+    if (this.blockOnErrors() && violations.some((v) => v.severity === 'error')) {
+      throw new UnprocessableEntityException(
+        `This change would break the plan — ${violations
+          .filter((v) => v.severity === 'error')
+          .map((v) => v.message)
+          .join('; ')}`,
+      );
+    }
+    await this.logVerification(tx, tenantId, actorUserId, strategyId, violations);
+    return { detail, violations };
   }
 
   // ---- apply helpers ----
@@ -417,6 +493,9 @@ export class MeriService {
     clerkUserId: string,
     edit: PlanEdit,
   ): Promise<void> {
+    // An unknown op (typo'd / future kind) must throw, never fall through to
+    // the update|retime branch below and silently mutate the node.
+    vEnum(edit.op, PLAN_EDIT_OPS, 'edit op');
     if (edit.op === 'add') {
       const id = randomUUID();
       const deps = await this.resolveEditDeps(tx, strategyId, id, edit.dependsOn);
@@ -502,6 +581,86 @@ export class MeriService {
     });
     const found = new Set(rows.map((r) => r.id));
     return unique.filter((id) => found.has(id));
+  }
+
+  /**
+   * Stage E wire-contract (2): the Steward pack forwarded in every draft/
+   * assistant orchestrator body — `stewardFacts` (active facts for the client,
+   * 120 newest) + `stewardHealth` (fact-level health; the orchestrator renders
+   * the '# Client context facts (Steward)' section and, when 'conflicted',
+   * names factA vs factB verbatim in the health note).
+   */
+  private async stewardContext(
+    tenantId: string,
+    clientId: string | null,
+  ): Promise<{ stewardFacts: StewardFactLine[]; stewardHealth: StewardHealth }> {
+    const [stewardFacts, health] = await Promise.all([
+      this.steward.factsForOrchestrator(tenantId, clientId),
+      this.steward.health(tenantId, clientId),
+    ]);
+    return {
+      stewardFacts,
+      stewardHealth: {
+        status: health.status,
+        missingRequired: health.missingRequired,
+        openMaterialConflicts: health.openMaterialConflicts,
+      },
+    };
+  }
+
+  /**
+   * Stage E provenance fact-check (runs AFTER the realism verifier): collect
+   * every node provenance source ref of the form 'fact:<id>' from the persisted
+   * plan, resolve them in ONE tenant-scoped findMany, and append WARNING
+   * violations for citations that are unknown, not active, or belong to another
+   * client — each naming the fact id + node title. Warnings only: a bad
+   * citation annotates, it never blocks the write.
+   */
+  private async factCheckProvenance(
+    tx: Tx,
+    nodes: Array<{ id?: string | null; title: unknown; provenance?: unknown }>,
+    clientId: string | null,
+  ): Promise<Violation[]> {
+    const citations: Array<{ factId: string; nodeId: string | null; nodeTitle: string }> = [];
+    for (const node of nodes) {
+      const prov = node.provenance as { sources?: unknown } | null | undefined;
+      const sources = Array.isArray(prov?.sources)
+        ? (prov.sources as Array<{ ref?: unknown }>)
+        : [];
+      for (const s of sources) {
+        const m = typeof s?.ref === 'string' ? FACT_REF_RE.exec(s.ref) : null;
+        if (!m) continue;
+        citations.push({
+          factId: m[1]!,
+          nodeId: node.id ?? null,
+          nodeTitle: String(node.title ?? ''),
+        });
+      }
+    }
+    if (citations.length === 0) return [];
+
+    const queryIds = [
+      ...new Set(citations.map((c) => c.factId).filter((id) => FACT_UUID_RE.test(id))),
+    ];
+    const rows = queryIds.length
+      ? await tx.spContextFact.findMany({ where: { id: { in: queryIds } } })
+      : [];
+    const byId = new Map(rows.map((r) => [r.id, r] as const));
+
+    const violations: Violation[] = [];
+    const warn = (code: string, nodeId: string | null, message: string) =>
+      violations.push({ code, severity: 'warning', nodeIds: nodeId ? [nodeId] : [], message });
+    for (const { factId, nodeId, nodeTitle } of citations) {
+      const fact = byId.get(factId);
+      if (!fact) {
+        warn('fact-unknown', nodeId, `'${nodeTitle}' cites a fact that does not exist (fact:${factId})`);
+      } else if (fact.state !== 'active') {
+        warn('fact-not-active', nodeId, `'${nodeTitle}' cites a ${fact.state} fact (fact:${factId})`);
+      } else if (fact.clientId !== null && fact.clientId !== clientId) {
+        warn('fact-client-mismatch', nodeId, `'${nodeTitle}' cites another client's fact (fact:${factId})`);
+      }
+    }
+    return violations;
   }
 
   /** A6: run the shared realism verifier over a plan against this call's grounding. */

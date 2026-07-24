@@ -154,7 +154,10 @@ function makeTx(store: Store) {
     }
     return count;
   });
-  return { spNode, spStrategy, $executeRaw };
+  // Stage C: VersioningService.logActivity unconditionally emits a
+  // transactional-outbox row in the same tx — the fake tx must accept it.
+  const spEventOutbox = { create: jest.fn(async () => undefined) };
+  return { spNode, spStrategy, $executeRaw, spEventOutbox };
 }
 type Tx = ReturnType<typeof makeTx>;
 
@@ -323,6 +326,21 @@ describe('NodeService.remove', () => {
     expect(store.nodes.get('N2')!.dependsOnIds).toEqual([]);
     // Cross-strategy row is untouched even though it lists the same id string.
     expect(store.nodes.get('X1')!.dependsOnIds).toEqual(['N1']);
+  });
+
+  it("emits node.deleted with an explicit strategyId (row is gone in the same tx, so the outbox consumer can't resolve node -> strategy)", async () => {
+    const store = makeStore();
+    const sid = seedStrategy(store, [{ id: 'N1', title: 'Node one', startsOn: '2027-02-01' }]);
+    const { svc, versioning } = makeService(store);
+
+    await svc.remove(T, U, sid, 'N1');
+
+    expect(versioning.logActivity).toHaveBeenCalledTimes(1);
+    const call = (versioning.logActivity as jest.Mock).mock.calls[0]![1] as Record<string, unknown>;
+    expect(call.action).toBe('node.deleted');
+    expect(call.entityType).toBe('node');
+    expect(call.entityId).toBe('N1');
+    expect(call.strategyId).toBe(sid); // without this the event can never bump a mission
   });
 
   it("differentiates the version note: 'Deleted X' vs 'Deleted X (unlinked from N steps)'", async () => {

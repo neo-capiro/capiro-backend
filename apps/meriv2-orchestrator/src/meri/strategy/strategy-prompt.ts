@@ -1,4 +1,4 @@
-import { MERI_GROUNDING_INVARIANT } from '@capiro/meriv2-core';
+import { MERI_GROUNDING_INVARIANT, truncateToTokens } from '@capiro/meriv2-core';
 
 /*
  * Strategy Planner Meri — pure prompt/tool/sanitize logic (no network, no DI),
@@ -57,6 +57,30 @@ export interface StrategyAttachment {
   text: string;
 }
 
+/** Stage E wire contract (2): one Steward-curated fact api-strategy forwards. */
+export interface StewardFactLite {
+  id: string;
+  fact: string;
+  sourceRef: string;
+  documentTitle: string;
+  templateKey: string;
+  authority: string | null;
+  asOf: string | null;
+}
+
+/** Stage E wire contract (2): Steward context health api-strategy forwards. */
+export interface StewardHealth {
+  status: 'ok' | 'degraded' | 'conflicted';
+  missingRequired: string[];
+  openMaterialConflicts: Array<{
+    id: string;
+    factAId: string;
+    factBId: string;
+    factA: string;
+    factB: string;
+  }>;
+}
+
 export interface StrategyDraftInput {
   clientId: string;
   type: string;
@@ -68,6 +92,8 @@ export interface StrategyDraftInput {
   fiscal?: FiscalGrounding;
   firmPhases?: FirmPhaseRow[];
   reference?: ReferenceGrounding;
+  stewardFacts?: StewardFactLite[];
+  stewardHealth?: StewardHealth;
 }
 
 export interface StrategyStateNode {
@@ -104,6 +130,8 @@ export interface StrategyAssistantInput {
   fiscal?: FiscalGrounding;
   firmPhases?: FirmPhaseRow[];
   reference?: ReferenceGrounding;
+  stewardFacts?: StewardFactLite[];
+  stewardHealth?: StewardHealth;
 }
 export interface StrategyReferenceAssistInput {
   kind: 'congress' | 'ppbe';
@@ -374,6 +402,59 @@ function renderPlan(s: StrategyState): string {
     .join('\n');
 }
 
+// ---- Stage E: Steward facts section (wire contract 2) ----
+
+/** The section name node `sources` cite steward facts under (paired with ref 'fact:<id>'). */
+export const STEWARD_FACTS_SECTION = 'Client context facts (Steward)';
+
+/**
+ * The Steward's core-grounding templates: facts from these sort FIRST in the
+ * budgeted section (mirrors api-strategy's required-template set for
+ * stewardHealth.missingRequired — the goal/limits/asks a plan cannot safely
+ * omit).
+ */
+export const STEWARD_REQUIRED_TEMPLATE_KEYS = [
+  '01_strategy_brief',
+  '02_client_constraints',
+  '03_ask_and_options',
+] as const;
+
+/** Section token budget, mirroring the pack's per-section CAP idiom (CTX-3). */
+const STEWARD_FACTS_TOKEN_CAP = 2000;
+
+/**
+ * One line per fact: '- [fact:<id>] <fact> (<authority>, as of <asOf>)'.
+ * Sorted required-templates-first, then newest asOf (undated last), so the
+ * token-budget truncation drops the least-load-bearing tail — never a brief/
+ * constraint/ask fact ahead of a stale optional one.
+ */
+export function renderStewardFacts(facts: StewardFactLite[]): string {
+  const required = new Set<string>(STEWARD_REQUIRED_TEMPLATE_KEYS);
+  const lines = [...facts]
+    .sort((a, b) => {
+      const tierA = required.has(a.templateKey) ? 0 : 1;
+      const tierB = required.has(b.templateKey) ? 0 : 1;
+      if (tierA !== tierB) return tierA - tierB;
+      return String(b.asOf ?? '').localeCompare(String(a.asOf ?? ''));
+    })
+    .map(
+      (f) =>
+        `- [fact:${f.id}] ${f.fact} (${f.authority ?? 'unattributed'}, as of ${f.asOf ?? 'undated'})`,
+    );
+  return truncateToTokens(lines.join('\n'), STEWARD_FACTS_TOKEN_CAP);
+}
+
+/** The full prompt section (empty string when no facts were forwarded). */
+function stewardFactsSection(facts?: StewardFactLite[]): string {
+  if (!facts?.length) return '';
+  return [
+    `# ${STEWARD_FACTS_SECTION}`,
+    'Curated, source-anchored facts the Context Steward maintains for this client — the most reliable client grounding below.',
+    renderStewardFacts(facts),
+    `When one of these facts grounds a node, cite it in that node's \`sources\` as {section: "${STEWARD_FACTS_SECTION}", ref: "fact:<id>"} using the fact id shown above.`,
+  ].join('\n');
+}
+
 const PERSONA =
   'You are Meri, a government-affairs strategist. You turn a client goal into a concrete, date-placed plan of steps (actions, decisions, gates, milestones, risks) aligned to the federal budget (PPBE), the congressional calendar, and the firm’s own operating rhythm.';
 
@@ -393,6 +474,7 @@ export function buildDraftSystemPrompt(
     `# Firm phases\n${renderFirmPhases(input.firmPhases)}`,
     `# Reference calendars\n${renderReference(input.reference)}`,
     `# Client context\n${packText}`,
+    stewardFactsSection(input.stewardFacts),
     healthNote ? `# Grounding health\n${healthNote}` : '',
     input.attachments?.length
       ? `# Attached documents (user-provided grounding)\n${renderAttachments(input.attachments)}`
@@ -421,6 +503,7 @@ export function buildAssistantSystemPrompt(
     `# Firm phases\n${renderFirmPhases(input.firmPhases)}`,
     `# Reference calendars\n${renderReference(input.reference)}`,
     `# Client context\n${packText}`,
+    stewardFactsSection(input.stewardFacts),
     healthNote ? `# Grounding health\n${healthNote}` : '',
     input.attachments?.length
       ? `# Attached documents (user-provided grounding)\n${renderAttachments(input.attachments)}`

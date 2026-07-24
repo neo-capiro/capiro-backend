@@ -1,5 +1,5 @@
-import { describe, expect, it, jest, afterEach } from '@jest/globals';
-import { StrategyFlagsService } from './strategy-flags.service.js';
+import { describe, expect, it, jest, beforeEach, afterEach } from '@jest/globals';
+import { AGENTIC_FLAGS, StrategyFlagsService } from './strategy-flags.service.js';
 import type { PrismaService } from '../prisma/prisma.service.js';
 
 /*
@@ -138,5 +138,94 @@ describe('StrategyFlagsService.isMeriEnabled (G5 kill-switch: env AND tenant fla
     expect(await svc.isMeriEnabled('t1')).toBe(true);
     expect(await svc.isMeriEnabled('t1')).toBe(true);
     expect($queryRaw).toHaveBeenCalledTimes(1);
+  });
+});
+
+describe('StrategyFlagsService.isAgenticFlagEnabled (Phase-2 kill-switch: env AND tenant flag)', () => {
+  let originalEnv: string | undefined;
+  beforeEach(() => {
+    originalEnv = process.env.STRATEGY_AGENTS_ENABLED;
+  });
+  afterEach(() => {
+    if (originalEnv === undefined) delete process.env.STRATEGY_AGENTS_ENABLED;
+    else process.env.STRATEGY_AGENTS_ENABLED = originalEnv;
+  });
+
+  it('short-circuits to false WITHOUT a DB read when the env kill-switch is off', async () => {
+    delete process.env.STRATEGY_AGENTS_ENABLED;
+    const { prisma, $queryRaw } = stubPrisma([
+      { settings_jsonb: { clioFeatureFlags: { 'agenticMeri.enabled': true } } },
+    ]);
+    const svc = new StrategyFlagsService(prisma);
+    expect(await svc.isAgenticFlagEnabled('t1', AGENTIC_FLAGS.agenticMeri)).toBe(false);
+    expect($queryRaw).not.toHaveBeenCalled();
+  });
+
+  it('only the literal "true" counts as env-on — any other value stays dormant, no query', async () => {
+    process.env.STRATEGY_AGENTS_ENABLED = '1';
+    const { prisma, $queryRaw } = stubPrisma([
+      { settings_jsonb: { clioFeatureFlags: { 'agenticMeri.enabled': true } } },
+    ]);
+    const svc = new StrategyFlagsService(prisma);
+    expect(await svc.isAgenticFlagEnabled('t1', AGENTIC_FLAGS.agenticMeri)).toBe(false);
+    expect($queryRaw).not.toHaveBeenCalled();
+  });
+
+  it('true only when env is on AND the tenant flag resolves true', async () => {
+    process.env.STRATEGY_AGENTS_ENABLED = 'true';
+    const { prisma } = stubPrisma([
+      { settings_jsonb: { clioFeatureFlags: { 'strategyWatcher.enabled': true } } },
+    ]);
+    const svc = new StrategyFlagsService(prisma);
+    expect(await svc.isAgenticFlagEnabled('t1', AGENTIC_FLAGS.strategyWatcher)).toBe(true);
+  });
+
+  it('false when env is on but the tenant flag is absent (default OFF)', async () => {
+    process.env.STRATEGY_AGENTS_ENABLED = 'true';
+    const { prisma } = stubPrisma([{ settings_jsonb: {} }]);
+    const svc = new StrategyFlagsService(prisma);
+    expect(await svc.isAgenticFlagEnabled('t1', AGENTIC_FLAGS.contextSteward)).toBe(false);
+  });
+
+  it('fails closed (false, no throw) when the query rejects, even with env on', async () => {
+    process.env.STRATEGY_AGENTS_ENABLED = 'true';
+    const { prisma } = stubPrisma(new Error('connection reset'));
+    const svc = new StrategyFlagsService(prisma);
+    await expect(
+      svc.isAgenticFlagEnabled('t1', AGENTIC_FLAGS.executionAgentWorkspace),
+    ).resolves.toBe(false);
+  });
+
+  it('caches per (tenant, flag) — two flags for the same tenant resolve and cache independently', async () => {
+    process.env.STRATEGY_AGENTS_ENABLED = 'true';
+    const { prisma, $queryRaw } = stubPrisma([
+      {
+        settings_jsonb: {
+          clioFeatureFlags: {
+            'agenticMeri.enabled': true,
+            'agentAutoApplyLowRisk.enabled': false,
+          },
+        },
+      },
+    ]);
+    const svc = new StrategyFlagsService(prisma);
+    // First read of each flag hits the DB; each caches under its own key.
+    expect(await svc.isAgenticFlagEnabled('t1', AGENTIC_FLAGS.agenticMeri)).toBe(true);
+    expect(await svc.isAgenticFlagEnabled('t1', AGENTIC_FLAGS.agentAutoApplyLowRisk)).toBe(false);
+    expect($queryRaw).toHaveBeenCalledTimes(2);
+    // Repeat reads within the TTL hit the per-flag cache — no new queries, and
+    // neither flag's cached value bleeds into the other.
+    expect(await svc.isAgenticFlagEnabled('t1', AGENTIC_FLAGS.agenticMeri)).toBe(true);
+    expect(await svc.isAgenticFlagEnabled('t1', AGENTIC_FLAGS.agentAutoApplyLowRisk)).toBe(false);
+    expect($queryRaw).toHaveBeenCalledTimes(2);
+  });
+
+  it('isAgenticEnabled is the agenticMeri.enabled convenience gate', async () => {
+    process.env.STRATEGY_AGENTS_ENABLED = 'true';
+    const { prisma } = stubPrisma([
+      { settings_jsonb: { clioFeatureFlags: { 'agenticMeri.enabled': true } } },
+    ]);
+    const svc = new StrategyFlagsService(prisma);
+    expect(await svc.isAgenticEnabled('t1')).toBe(true);
   });
 });

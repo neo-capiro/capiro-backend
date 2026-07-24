@@ -21,6 +21,16 @@ import {
   strategyPlannerMeriEnabled,
   strategyMeriEnvEnabled,
   strategyMeriActive,
+  agenticMeriEnabled,
+  strategyAgentsEnvEnabled,
+  agenticMeriActive,
+  AGENTIC_MERI_FLAG,
+  contextStewardEnabled,
+  contextStewardActive,
+  CONTEXT_STEWARD_FLAG,
+  strategyWatcherEnabled,
+  strategyWatcherActive,
+  STRATEGY_WATCHER_FLAG,
 } from './tenant-flags.js';
 
 describe('tenantFeatureEnabled', () => {
@@ -236,5 +246,141 @@ describe('strategyMeriActive (G5: env kill-switch AND per-tenant flag, both defa
   test('dormant by default — both conditions default OFF', () => {
     expect(strategyMeriActive({}, envOff)).toBe(false);
     expect(strategyMeriActive({}, envOn)).toBe(false); // tenant flag still absent/default-off
+  });
+});
+
+describe('strategyAgentsEnvEnabled (Phase 2 agentic kill-switch, default OFF)', () => {
+  test('only the literal "true" enables — every other value fails closed', () => {
+    expect(strategyAgentsEnvEnabled({ STRATEGY_AGENTS_ENABLED: 'true' } as NodeJS.ProcessEnv)).toBe(
+      true,
+    );
+    expect(
+      strategyAgentsEnvEnabled({ STRATEGY_AGENTS_ENABLED: 'false' } as NodeJS.ProcessEnv),
+    ).toBe(false);
+    expect(strategyAgentsEnvEnabled({ STRATEGY_AGENTS_ENABLED: '1' } as NodeJS.ProcessEnv)).toBe(
+      false,
+    );
+    expect(strategyAgentsEnvEnabled({ STRATEGY_AGENTS_ENABLED: 'TRUE' } as NodeJS.ProcessEnv)).toBe(
+      false,
+    );
+    expect(strategyAgentsEnvEnabled({} as NodeJS.ProcessEnv)).toBe(false);
+  });
+});
+
+describe('agenticMeriEnabled (per-tenant agentic opt-in alone, default OFF)', () => {
+  test('per-tenant opt-in, default off, malformed settings fail closed', () => {
+    expect(agenticMeriEnabled({ clioFeatureFlags: { [AGENTIC_MERI_FLAG]: true } })).toBe(true);
+    expect(agenticMeriEnabled({})).toBe(false);
+    expect(agenticMeriEnabled(null)).toBe(false);
+    expect(agenticMeriEnabled({ clioFeatureFlags: 'oops' })).toBe(false);
+  });
+});
+
+describe('agenticMeriActive (Phase 2: env kill-switch AND per-tenant flag, both default OFF)', () => {
+  const envOn = { STRATEGY_AGENTS_ENABLED: 'true' } as NodeJS.ProcessEnv;
+  const envOff = {} as NodeJS.ProcessEnv;
+  const tenantOn = { clioFeatureFlags: { [AGENTIC_MERI_FLAG]: true } };
+  const tenantOff = { clioFeatureFlags: { [AGENTIC_MERI_FLAG]: false } };
+
+  test('active only when the env switch is on AND the tenant flag is on', () => {
+    expect(agenticMeriActive(tenantOn, envOn)).toBe(true);
+  });
+
+  test('dormant when the env switch is off, even if the tenant flag is on (env-side rollback)', () => {
+    expect(agenticMeriActive(tenantOn, envOff)).toBe(false);
+  });
+
+  test('dormant when the tenant flag is off, even if the env switch is on (tenant-side rollback)', () => {
+    expect(agenticMeriActive(tenantOff, envOn)).toBe(false);
+  });
+
+  test('dormant by default — both conditions default OFF', () => {
+    expect(agenticMeriActive({}, envOff)).toBe(false);
+    expect(agenticMeriActive({}, envOn)).toBe(false); // tenant flag still absent/default-off
+  });
+});
+
+describe('contextStewardEnabled (per-tenant Steward opt-in alone, default OFF)', () => {
+  test('per-tenant opt-in, default off, malformed settings fail closed', () => {
+    expect(contextStewardEnabled({ clioFeatureFlags: { [CONTEXT_STEWARD_FLAG]: true } })).toBe(true);
+    expect(contextStewardEnabled({})).toBe(false);
+    expect(contextStewardEnabled(null)).toBe(false);
+    expect(contextStewardEnabled({ clioFeatureFlags: 'oops' })).toBe(false);
+  });
+});
+
+describe('contextStewardActive (Stage E: agentic env kill-switch AND per-tenant flag, both default OFF)', () => {
+  const envOn = { STRATEGY_AGENTS_ENABLED: 'true' } as NodeJS.ProcessEnv;
+  const envOff = {} as NodeJS.ProcessEnv;
+  const tenantOn = { clioFeatureFlags: { [CONTEXT_STEWARD_FLAG]: true } };
+  const tenantOff = { clioFeatureFlags: { [CONTEXT_STEWARD_FLAG]: false } };
+
+  test('active only when the env switch is on AND the tenant flag is on', () => {
+    expect(contextStewardActive(tenantOn, envOn)).toBe(true);
+  });
+
+  test('dormant when the env switch is off, even if the tenant flag is on (env-side rollback)', () => {
+    expect(contextStewardActive(tenantOn, envOff)).toBe(false);
+  });
+
+  test('dormant when the tenant flag is off, even if the env switch is on (tenant-side rollback)', () => {
+    expect(contextStewardActive(tenantOff, envOn)).toBe(false);
+  });
+
+  test('independent of agenticMeri — the umbrella flag alone does NOT enable the Steward', () => {
+    // The always-403 bug: agenticMeri on, contextSteward unset. GET /me must
+    // report contextSteward=false so the web hides the Extract facts button.
+    expect(
+      contextStewardActive({ clioFeatureFlags: { [AGENTIC_MERI_FLAG]: true } }, envOn),
+    ).toBe(false);
+  });
+
+  test('dormant by default — both conditions default OFF', () => {
+    expect(contextStewardActive({}, envOff)).toBe(false);
+    expect(contextStewardActive({}, envOn)).toBe(false); // tenant flag still absent/default-off
+  });
+});
+
+describe('strategyWatcherEnabled (per-tenant Watcher opt-in alone, default OFF)', () => {
+  test('per-tenant opt-in, default off, malformed settings fail closed', () => {
+    expect(strategyWatcherEnabled({ clioFeatureFlags: { [STRATEGY_WATCHER_FLAG]: true } })).toBe(
+      true,
+    );
+    expect(strategyWatcherEnabled({})).toBe(false);
+    expect(strategyWatcherEnabled(null)).toBe(false);
+    expect(strategyWatcherEnabled({ clioFeatureFlags: 'oops' })).toBe(false);
+  });
+});
+
+describe('strategyWatcherActive (Stage F: agentic env kill-switch AND per-tenant flag, both default OFF)', () => {
+  const envOn = { STRATEGY_AGENTS_ENABLED: 'true' } as NodeJS.ProcessEnv;
+  const envOff = {} as NodeJS.ProcessEnv;
+  const tenantOn = { clioFeatureFlags: { [STRATEGY_WATCHER_FLAG]: true } };
+  const tenantOff = { clioFeatureFlags: { [STRATEGY_WATCHER_FLAG]: false } };
+
+  test('active only when the env switch is on AND the tenant flag is on', () => {
+    expect(strategyWatcherActive(tenantOn, envOn)).toBe(true);
+  });
+
+  test('dormant when the env switch is off, even if the tenant flag is on (env-side rollback)', () => {
+    expect(strategyWatcherActive(tenantOn, envOff)).toBe(false);
+  });
+
+  test('dormant when the tenant flag is off, even if the env switch is on (tenant-side rollback)', () => {
+    expect(strategyWatcherActive(tenantOff, envOn)).toBe(false);
+  });
+
+  test('independent of agenticMeri — the umbrella flag alone does NOT enable the Watcher', () => {
+    // The lying-Watch-toggle bug: agenticMeri on, strategyWatcher unset. GET
+    // /me must report strategyWatcher=false so the web hides the Watch rail
+    // (the scheduler skips quietly and run-check 403s for such tenants).
+    expect(
+      strategyWatcherActive({ clioFeatureFlags: { [AGENTIC_MERI_FLAG]: true } }, envOn),
+    ).toBe(false);
+  });
+
+  test('dormant by default — both conditions default OFF', () => {
+    expect(strategyWatcherActive({}, envOff)).toBe(false);
+    expect(strategyWatcherActive({}, envOn)).toBe(false); // tenant flag still absent/default-off
   });
 });
