@@ -559,3 +559,111 @@ export interface RunCheckResult {
   /** ChangeSets the check proposed (ids), when the API reports them. */
   changeSetIds: string[];
 }
+
+/*
+ * ---- Stage G: the Execution Agent (/strategy-api/agents/execution/*) ----
+ * The Execution Agent STAGES artifacts (Workspace drafts / Outreach records)
+ * and DRAFTS outreach sends against a plan node, then parks for human review.
+ * It is an sp_agent_run whose findings JSON carries the planned/staged TASKS
+ * (and, for a task awaiting send approval, the staged outreach preview). Rows
+ * arrive via the tolerant normalizers in agents/agent-utils.ts.
+ *
+ * SAFETY (plan §G, non-negotiable): the actual EXTERNAL SEND is HARD-DISABLED
+ * until Stage H security evals — the backend gates it behind an env that does
+ * not exist yet (STRATEGY_EXECUTION_SEND_ENABLED) and the web mirrors that: the
+ * send-approval control is fully wired but INERT. No autonomous external
+ * contact happens in Stage G.
+ */
+
+/** The three task kinds the Execution Agent plans/stages. */
+export type ExecutionTaskType = 'workspace_draft' | 'outreach_record' | 'await_send_approval';
+
+/**
+ * A task's lifecycle within a run. `planned` = in the reviewed plan, not yet
+ * acted on; `staged` = the artifact (WsDraft/OutreachRecord) was created;
+ * `awaiting_approval` = an await_send_approval task parked for the send gate;
+ * `blocked` = could not proceed (see blockedReason); `done`/`skipped` terminal.
+ */
+export type ExecutionTaskStatus =
+  | 'planned'
+  | 'staged'
+  | 'awaiting_approval'
+  | 'blocked'
+  | 'done'
+  | 'skipped';
+
+/**
+ * The staged outreach preview an await_send_approval task carries — echoed for
+ * review, NEVER sent in Stage G. The approval binds to `contentHash`; a later
+ * edit changes the hash so any prior approval (`approvedContentHash`) no longer
+ * matches and is invalidated. `approvalToken` is the (inert) resume token.
+ */
+export interface SendApprovalPreview {
+  subject: string | null;
+  /** The staged body the send would carry (rendered as text — never as HTML). */
+  body: string | null;
+  recipients: string[];
+  /** The ask being made of the recipients. */
+  ask: string | null;
+  /** The intended send window (e.g. a date range or "this week"). */
+  window: string | null;
+  /** Resume/approval token — wired for Stage H, inert in Stage G. */
+  approvalToken: string | null;
+  /** Hash the current staged content reduces to. */
+  contentHash: string | null;
+  /** Hash a prior approval was bound to; !== contentHash ⇒ that approval is stale. */
+  approvedContentHash: string | null;
+}
+
+/** One planned/staged task off a run's findings JSON. */
+export interface ExecutionTask {
+  /** Stable id within the run (server-assigned; falls back to the array index). */
+  id: string;
+  type: ExecutionTaskType;
+  nodeId: string | null;
+  title: string;
+  status: ExecutionTaskStatus;
+  /** Created artifact ref (WsDraft id / OutreachRecord id) once staged. */
+  artifactRef: string | null;
+  /** Precise, human-readable reason a task is blocked (never a generic error). */
+  blockedReason: string | null;
+  /** Present only for await_send_approval tasks. */
+  send: SendApprovalPreview | null;
+}
+
+/** sp_agent_run projected for the Execution surface (findings carry the tasks). */
+export interface ExecutionRun {
+  id: string;
+  missionId: string;
+  strategyId: string | null;
+  state: RunState;
+  trigger: string;
+  /** The waiting_for_input reason verbatim — the blocked-state copy. */
+  waitingReason: string | null;
+  error: string | null;
+  summary: string | null;
+  tasks: ExecutionTask[];
+  startedAt: string | null;
+  finishedAt: string | null;
+  createdAt: string;
+}
+
+/**
+ * POST /agents/execution/plan — stage a node's execution plan for review.
+ * Mirrors the server ExecutionPlanDto: a run belongs to an ACTIVE mission
+ * (missionId anchors it), strategyId is the optional override the editor always
+ * supplies, and kind selects the artifact (Workspace draft / staged — unsent —
+ * outreach). The UI-facing 'workspace_draft'|'outreach_record' intent is mapped
+ * to this 'workspace'|'outreach' kind at the call site.
+ */
+export interface PlanExecutionInput {
+  missionId: string;
+  strategyId?: string;
+  nodeId: string;
+  kind: 'workspace' | 'outreach';
+}
+
+/** POST /agents/execution/runs/:id/resume — carries the (inert) send-approval token. */
+export interface ResumeRunInput {
+  approvalToken?: string;
+}

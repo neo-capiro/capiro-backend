@@ -160,3 +160,34 @@ export class ApproveChangeSetDto {
   @IsInt({ each: true })
   opIndexes?: number[];
 }
+
+/** Execution-Agent artifact kind (Stage G). */
+export const EXECUTION_KINDS = ['workspace', 'outreach'] as const;
+export type ExecutionKindValue = (typeof EXECUTION_KINDS)[number];
+
+/**
+ * Stage G: plan an Execution-Agent run for one node. A run belongs to a mission
+ * (RunsService contract), so `missionId` anchors it and the strategy is derived
+ * from the mission; `strategyId` is an OPTIONAL override (a firm-level mission
+ * carries no strategy, so it must be supplied then) — mirroring CreateRunDto.
+ * `pinnedVersionId`, when present, is the strategy head an earlier approval was
+ * computed against; G0 parks the run on version drift if it moved.
+ */
+export class ExecutionPlanDto {
+  @IsUUID()
+  missionId!: string;
+
+  @IsOptional()
+  @IsUUID()
+  strategyId?: string;
+
+  @IsUUID()
+  nodeId!: string;
+
+  @IsIn(EXECUTION_KINDS)
+  kind!: ExecutionKindValue;
+
+  @IsOptional()
+  @IsUUID()
+  pinnedVersionId?: string;
+}

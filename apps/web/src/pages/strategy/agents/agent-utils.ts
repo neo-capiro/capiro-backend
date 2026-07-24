@@ -14,10 +14,15 @@ import type {
   ChangeSetOp,
   ChangeSetRisk,
   ChangeSetStatus,
+  ExecutionRun,
+  ExecutionTask,
+  ExecutionTaskStatus,
+  ExecutionTaskType,
   MissionState,
   RunCheckResult,
   RunFinding,
   RunState,
+  SendApprovalPreview,
   StrategyNode,
 } from '../types.js';
 
@@ -455,18 +460,376 @@ export function canShowWatchRail(
 /** The default per-strategy Watch mission name (create-if-absent contract). */
 export const WATCH_MISSION_NAME = 'Keep this strategy on track';
 
-/** The strategy's Watch mission: newest non-terminal mission pointing at it. */
+/**
+ * The default per-strategy Execution mission name (Stage G create-if-absent
+ * contract). An execution run belongs to a mission (RunsService), so the editor
+ * node-agent affordances provision this dedicated mandate on demand. It is
+ * DISTINCT from WATCH_MISSION_NAME so the two finders never cross-match — a
+ * strategy can carry both a Watch and an Execution mission at once.
+ */
+export const EXECUTION_MISSION_NAME = 'Execute this strategy';
+
+/** A mission still open (not in a terminal state). */
+function isLiveMission(m: AgentMission): boolean {
+  return m.state !== 'canceled' && m.state !== 'completed' && m.state !== 'failed';
+}
+
+/**
+ * The strategy's Watch mission: newest non-terminal mission pointing at it that
+ * carries the Watch name. NAME-SCOPED so a Stage G Execution mission on the same
+ * strategy is never mistaken for the Watch mission — without the name predicate
+ * the Watch rail could pause / run-check the execution mandate. Every Watch
+ * mission the rail mints uses WATCH_MISSION_NAME, so this is behaviour-preserving.
+ */
 export function findWatchMission(
   missions: readonly AgentMission[],
   strategyId: string,
 ): AgentMission | null {
   return (
     missions.find(
-      (m) =>
-        m.strategyId === strategyId &&
-        m.state !== 'canceled' &&
-        m.state !== 'completed' &&
-        m.state !== 'failed',
+      (m) => m.strategyId === strategyId && m.name === WATCH_MISSION_NAME && isLiveMission(m),
     ) ?? null
+  );
+}
+
+/**
+ * The strategy's Execution mission: newest non-terminal mission pointing at it
+ * that carries the Execution name (mirror of findWatchMission). The editor's
+ * node-agent affordance resolves this, creating + activating one when absent so
+ * the execution run has an active mission to anchor to.
+ */
+export function findExecutionMission(
+  missions: readonly AgentMission[],
+  strategyId: string,
+): AgentMission | null {
+  return (
+    missions.find(
+      (m) => m.strategyId === strategyId && m.name === EXECUTION_MISSION_NAME && isLiveMission(m),
+    ) ?? null
+  );
+}
+
+// ---- Stage G: execution runs ------------------------------------------------
+
+const EXECUTION_TASK_TYPES: readonly ExecutionTaskType[] = [
+  'workspace_draft',
+  'outreach_record',
+  'await_send_approval',
+];
+const EXECUTION_TASK_STATUSES: readonly ExecutionTaskStatus[] = [
+  'planned',
+  'staged',
+  'awaiting_approval',
+  'blocked',
+  'done',
+  'skipped',
+];
+
+/**
+ * The Execution service stages per-task OUTCOME under findings.results[`nodeId:type`]
+ * with its own status vocabulary (execution.service.ts runExecuting): a fresh
+ * or idempotent stage is 'staged'/'already_staged', a parked send is
+ * 'awaiting_send_approval', a do-not-contact block is 'blocked', and a
+ * send skipped behind a blocked outreach is 'skipped'. Map those onto the
+ * display statuses (both 'staged'/'already_staged' → the terminal 'staged').
+ */
+const RESULT_STATUS: Record<string, ExecutionTaskStatus> = {
+  staged: 'staged',
+  already_staged: 'staged',
+  awaiting_send_approval: 'awaiting_approval',
+  blocked: 'blocked',
+  skipped: 'skipped',
+  done: 'done',
+};
+
+/** A backend result-status OR an already-display status → display status | null. */
+function coerceTaskStatus(v: unknown): ExecutionTaskStatus | null {
+  if (typeof v !== 'string') return null;
+  return (
+    RESULT_STATUS[v] ??
+    (EXECUTION_TASK_STATUSES.includes(v as ExecutionTaskStatus)
+      ? (v as ExecutionTaskStatus)
+      : null)
+  );
+}
+
+/** Coerce a recipients value (string[] or {name|email}[] or a string) → string[]. */
+function normalizeRecipients(v: unknown): string[] {
+  const out: string[] = [];
+  if (typeof v === 'string' && v.trim() !== '') {
+    return v
+      .split(/[,;\n]/)
+      .map((s) => s.trim())
+      .filter(Boolean);
+  }
+  if (!Array.isArray(v)) return out;
+  for (const item of v) {
+    if (typeof item === 'string' && item.trim() !== '') out.push(item.trim());
+    else if (isRecord(item)) {
+      const label = str(item.name) ?? str(item.email) ?? str(item.label) ?? str(item.id);
+      if (label) out.push(label);
+    }
+  }
+  return out;
+}
+
+/** The staged send preview on an await_send_approval task (tolerant of shape). */
+function normalizeSendPreview(v: unknown): SendApprovalPreview | null {
+  if (!isRecord(v)) return null;
+  return {
+    subject: str(v.subject),
+    body: str(v.body) ?? str(v.content) ?? str(v.html),
+    recipients: normalizeRecipients(v.recipients),
+    ask: str(v.ask),
+    window: str(v.window) ?? str(v.sendWindow),
+    approvalToken: str(v.approvalToken) ?? str(v.token),
+    contentHash: str(v.contentHash),
+    approvedContentHash: str(v.approvedContentHash),
+  };
+}
+
+/**
+ * The staged send preview as the Execution service actually parks it on
+ * findings.sendApproval (execution.service.ts computeSendApproval): the
+ * SendTokenInput lives under `input` (message / recipients / ask / windowStart
+ * / windowEnd) alongside the run-bound `token` — NOT the flat subject/body/
+ * window shape normalizeSendPreview accepts. The Stage-G shell stages a single
+ * deterministic descriptor as `input.message` (real prose is the deferred Meri
+ * seam), which we surface as the staged body; the two window bounds join into
+ * one display range, and the sha256 `token` doubles as the content hash (no
+ * prior approval exists in Stage G, so there is nothing to compare it against).
+ */
+function sendPreviewFromApproval(sa: Record<string, unknown>): SendApprovalPreview {
+  const input = isRecord(sa.input) ? sa.input : {};
+  const token = str(sa.token) ?? str(sa.approvalToken);
+  const start = str(input.windowStart);
+  const end = str(input.windowEnd);
+  const window = start && end ? `${start} – ${end}` : (start ?? end);
+  return {
+    subject: str(input.subject),
+    body: str(input.message) ?? str(input.body),
+    recipients: normalizeRecipients(input.recipients),
+    ask: str(input.ask),
+    window,
+    approvalToken: token,
+    contentHash: str(sa.contentHash) ?? token,
+    approvedContentHash: str(sa.approvedContentHash),
+  };
+}
+
+/**
+ * One execution task off the findings JSON; null when it is not task-shaped.
+ * The reviewed plan item the backend parks is only `{ type, nodeId, detail }`
+ * (execution.service.ts buildTasks) — the per-task OUTCOME (status /
+ * artifactRef / blocked-reason) is staged separately under
+ * findings.results[`nodeId:type`], and a pending send's preview under
+ * findings.sendApproval. This reads those first, falling back to any INLINE
+ * fields (title/status/artifactRef/send) so the tolerant shape the specs also
+ * exercise keeps working.
+ */
+function normalizeExecutionTask(
+  v: unknown,
+  index: number,
+  results: Record<string, unknown>,
+  sendApproval: Record<string, unknown> | null,
+): ExecutionTask | null {
+  if (!isRecord(v)) return null;
+  const type = EXECUTION_TASK_TYPES.includes(v.type as ExecutionTaskType)
+    ? (v.type as ExecutionTaskType)
+    : null;
+  if (!type) return null;
+
+  const nodeId = str(v.nodeId);
+  const detail = isRecord(v.detail) ? v.detail : {};
+  const resultVal = nodeId ? results[`${nodeId}:${type}`] : undefined;
+  const result = isRecord(resultVal) ? resultVal : null;
+
+  // await_send_approval preview: prefer the run-level findings.sendApproval the
+  // backend actually stages; fall back to an inline send/outreach shape.
+  const send =
+    type === 'await_send_approval'
+      ? sendApproval
+        ? sendPreviewFromApproval(sendApproval)
+        : normalizeSendPreview(v.send ?? v.outreach)
+      : null;
+
+  return {
+    id: str(v.id) ?? `task-${index}`,
+    type,
+    nodeId,
+    title:
+      str(v.title) ??
+      str(detail.docTitle) ??
+      str(detail.title) ??
+      str(detail.subject) ??
+      str(send?.subject) ??
+      'Untitled task',
+    // Prefer the staged result status; unknown/absent degrades to 'planned'
+    // (never a friction-free 'done').
+    status: coerceTaskStatus(result?.status) ?? coerceTaskStatus(v.status) ?? 'planned',
+    artifactRef: str(result?.artifactRef) ?? str(v.artifactRef) ?? str(v.ref),
+    blockedReason: str(result?.reason) ?? str(v.blockedReason),
+    send,
+  };
+}
+
+/**
+ * Flattens a run's findings JSON into the execution TASK list. Accepts a bare
+ * `[…]` of tasks, or a `{ tasks: [...] }` / `{ items: [...] }` envelope (the
+ * shape the Execution service parks on sp_agent_run.findings). Non-task values
+ * are dropped — a Watcher run's finding rows never surface here.
+ */
+export function extractExecutionTasks(findings: unknown): ExecutionTask[] {
+  const raw = Array.isArray(findings)
+    ? findings
+    : isRecord(findings) && Array.isArray(findings.tasks)
+      ? findings.tasks
+      : isRecord(findings) && Array.isArray(findings.items)
+        ? findings.items
+        : [];
+  // The reviewed task list carries only { type, nodeId, detail }; the per-task
+  // outcome is staged under findings.results and a pending send's preview under
+  // findings.sendApproval — lift both so each task renders its REAL staged
+  // state instead of a placeholder 'planned'/'Untitled task'.
+  const results = isRecord(findings) && isRecord(findings.results) ? findings.results : {};
+  const sendApproval =
+    isRecord(findings) && isRecord(findings.sendApproval) ? findings.sendApproval : null;
+  const out: ExecutionTask[] = [];
+  raw.forEach((item, i) => {
+    const t = normalizeExecutionTask(item, i, results, sendApproval);
+    if (t) out.push(t);
+  });
+  return out;
+}
+
+/** The one-line execution summary the run parks alongside its tasks (if any). */
+function executionRunSummary(findings: Record<string, unknown> | null): string | null {
+  return str(findings?.summary) ?? str(findings?.plan);
+}
+
+/** One execution run: an AgentRun row projected with its tasks lifted out of findings. */
+export function normalizeExecutionRun(item: unknown): ExecutionRun | null {
+  const base = normalizeRun(item);
+  if (!base) return null;
+  return {
+    id: base.id,
+    missionId: base.missionId,
+    strategyId: base.strategyId,
+    state: base.state,
+    trigger: base.trigger,
+    waitingReason: base.waitingReason,
+    error: base.error,
+    summary: executionRunSummary(base.findings),
+    tasks: extractExecutionTasks(base.findings),
+    startedAt: base.startedAt,
+    finishedAt: base.finishedAt,
+    createdAt: base.createdAt,
+  };
+}
+
+/** Accepts `[…]` or `{ runs: […] }` / `{ items: […] }` (same idiom as normalizeRuns). */
+export function normalizeExecutionRuns(data: unknown): ExecutionRun[] {
+  const raw = Array.isArray(data)
+    ? data
+    : isRecord(data) && Array.isArray(data.runs)
+      ? data.runs
+      : isRecord(data) && Array.isArray(data.items)
+        ? data.items
+        : [];
+  const out: ExecutionRun[] = [];
+  for (const item of raw) {
+    const r = normalizeExecutionRun(item);
+    if (r) out.push(r);
+  }
+  return out;
+}
+
+/**
+ * A parked-run's waiting_for_input reason, classified for a CLEAR blocked state
+ * (never a generic error). `sendApproval` is the safety-gate park (the staged
+ * outreach awaits the — inert — send approval); the rest are eligibility
+ * blockers the plan enumerates: version drift, ineligible node, an open
+ * material Steward conflict, or a bearerless/system run that needs a human
+ * session. The raw `reason` is always carried through verbatim for display.
+ */
+export type ExecutionBlockKind =
+  | 'send_approval'
+  | 'version_drift'
+  | 'ineligible'
+  | 'material_conflict'
+  | 'interactive_session'
+  | 'other';
+
+export interface ExecutionBlock {
+  kind: ExecutionBlockKind;
+  /** Short label for the badge/heading. */
+  label: string;
+  /** The server's verbatim reason (falls back to a per-kind default). */
+  reason: string;
+}
+
+export function classifyWaitingReason(reason: string | null): ExecutionBlock {
+  const r = (reason ?? '').trim();
+  const lc = r.toLowerCase();
+  if (/awaiting send approval|send approval|await_send_approval/.test(lc)) {
+    return { kind: 'send_approval', label: 'Awaiting send approval', reason: r };
+  }
+  if (/interactive session|requires.*session|needs a human|no bearer|bearerless/.test(lc)) {
+    return {
+      kind: 'interactive_session',
+      label: 'Needs an interactive session',
+      reason: r || 'Execution requires an interactive session.',
+    };
+  }
+  if (/material conflict|steward conflict|open conflict|conflict/.test(lc)) {
+    return {
+      kind: 'material_conflict',
+      label: 'Blocked by a material conflict',
+      reason: r || 'An open material context conflict blocks execution.',
+    };
+  }
+  if (/version|drift|changed since|stale plan|plan changed/.test(lc)) {
+    return {
+      kind: 'version_drift',
+      label: 'Plan changed since planning',
+      reason: r || 'The plan changed since this was planned.',
+    };
+  }
+  if (/ineligible|not eligible|eligibility/.test(lc)) {
+    return {
+      kind: 'ineligible',
+      label: 'Node is not execution-eligible',
+      reason: r || 'This step is not eligible for execution.',
+    };
+  }
+  return { kind: 'other', label: 'Waiting for input', reason: r || 'Waiting for input.' };
+}
+
+/** True when a run parked specifically on the (inert) send-approval gate. */
+export function isAwaitingSendApproval(run: ExecutionRun): boolean {
+  return (
+    run.state === 'waiting_for_input' &&
+    classifyWaitingReason(run.waitingReason).kind === 'send_approval'
+  );
+}
+
+/** The await_send_approval task carrying the staged preview (first one wins). */
+export function sendApprovalTask(run: ExecutionRun): ExecutionTask | null {
+  return run.tasks.find((t) => t.type === 'await_send_approval' && t.send) ?? null;
+}
+
+/**
+ * Whether a prior approval on a staged send is now INVALID because the content
+ * changed since it was approved (the approval binds to a content hash). True
+ * only when a prior approval existed AND the current hash differs — the Stage-H
+ * re-approval trigger, surfaced today as a warning even though the control is
+ * inert.
+ */
+export function isPriorApprovalInvalidated(send: SendApprovalPreview | null): boolean {
+  return Boolean(
+    send &&
+      send.approvedContentHash &&
+      send.contentHash &&
+      send.approvedContentHash !== send.contentHash,
   );
 }

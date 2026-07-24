@@ -6,6 +6,7 @@ import { ContextLibrary } from './context/ContextLibrary.js';
 import { ContextDocumentView } from './context/ContextDocumentView.js';
 import { StewardReview } from './context/StewardReview.js';
 import { ReviewQueue } from './agents/ReviewQueue.js';
+import { ExecutionReview } from './agents/ExecutionReview.js';
 import './strategy-ds.css';
 
 /**
@@ -56,6 +57,13 @@ export function StrategyRoutes() {
         <Route
           path="agents/review"
           element={agentic ? <ReviewQueue /> : <Navigate to="/strategies" replace />}
+        />
+        {/* Stage G: Execution review — static two-segment path, before :id. The
+            server enforces the per-intent executionAgent flags; agenticMeri is
+            the UI belt (matching the other agent surfaces). */}
+        <Route
+          path="agents/execution"
+          element={agentic ? <ExecutionReview /> : <Navigate to="/strategies" replace />}
         />
         <Route path=":id" element={<StrategyEditorPage />} />
         <Route path="*" element={<Navigate to="/strategies" replace />} />

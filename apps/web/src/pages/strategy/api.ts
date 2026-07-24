@@ -27,14 +27,17 @@ import type {
   CreateNodeInput,
   CreateStrategyInput,
   DraftStrategyInput,
+  ExecutionRun,
   ExtractFactsResult,
   FirmPhase,
   FirmPhaseInput,
   PatchStrategyInput,
+  PlanExecutionInput,
   RecordArtifactInput,
   ReferenceCalendars,
   ReferenceForkRow,
   ResolveConflictInput,
+  ResumeRunInput,
   RunCheckResult,
   StrategyDetail,
   StrategyListItem,
@@ -45,6 +48,8 @@ import type {
 } from './types.js';
 import {
   normalizeChangeSets,
+  normalizeExecutionRun,
+  normalizeExecutionRuns,
   normalizeMission,
   normalizeMissions,
   normalizeRun,
@@ -732,5 +737,98 @@ export function useTransitionRun() {
       void qc.invalidateQueries({ queryKey: ['strategy', 'firm-review-runs'] });
       void qc.invalidateQueries({ queryKey: ['strategy', 'agent-run'] });
     },
+  });
+}
+
+/*
+ * ---- Stage G: the Execution Agent (/strategy-api/agents/execution/*) ----
+ * Same guard stack as Stages D–F (TenantGuard + StrategyPlannerGuard +
+ * AgenticGuard server-side; features.agenticMeri is the UI belt — the server
+ * additionally enforces the per-intent executionAgentWorkspace /
+ * executionAgentOutreach flags per route, so a tenant on agenticMeri without
+ * the execution flag simply sees the plan/execute call 403 with the server's
+ * reason). Rows pass through the tolerant normalizers in agents/agent-utils.ts.
+ *
+ * SAFETY (plan §G): none of these hooks performs an external send. Execute
+ * STAGES artifacts; Resume carries the (inert) send-approval token — the actual
+ * send stays hard-disabled behind STRATEGY_EXECUTION_SEND_ENABLED (never set)
+ * until Stage H.
+ */
+
+/** Every execution list is stale after any plan/execute/resume write. */
+function useExecutionInvalidate() {
+  const qc = useQueryClient();
+  return () => {
+    void qc.invalidateQueries({ queryKey: ['strategy', 'execution-runs'] });
+    void qc.invalidateQueries({ queryKey: ['strategy', 'agent-run'] });
+  };
+}
+
+/** GET /agents/execution/runs?strategyId=… — the Execution review list. */
+export function useExecutionRuns(strategyId?: string | null, enabled = true) {
+  const api = useApi();
+  const suffix = strategyId ? `?strategyId=${encodeURIComponent(strategyId)}` : '';
+  return useQuery<ExecutionRun[]>({
+    queryKey: ['strategy', 'execution-runs', strategyId ?? 'all'],
+    enabled,
+    queryFn: async () =>
+      normalizeExecutionRuns((await api.get<unknown>(`${BASE}/agents/execution/runs${suffix}`)).data),
+    staleTime: 15_000,
+  });
+}
+
+/**
+ * POST /agents/execution/plan — stage a node's execution plan for review
+ * (workspace_draft / outreach_record). Returns the created run; the caller
+ * links into the Execution review to act on it. The caller bearer is forwarded
+ * by the shared axios interceptor — a bearerless (scheduler/system) plan is a
+ * server concern that parks waiting_for_input, never a bearerless external hop.
+ */
+export function usePlanExecution() {
+  const api = useApi();
+  const invalidate = useExecutionInvalidate();
+  return useMutation({
+    mutationFn: async (input: PlanExecutionInput): Promise<ExecutionRun | null> =>
+      normalizeExecutionRun((await api.post<unknown>(`${BASE}/agents/execution/plan`, input)).data),
+    onSuccess: invalidate,
+  });
+}
+
+/**
+ * POST /agents/execution/runs/:id/execute — replay a reviewed plan: STAGE the
+ * artifacts (WsDraft / OutreachRecord). A run that cannot proceed comes back
+ * (or a 4xx) parked waiting_for_input with a precise reason (version drift /
+ * ineligible / material conflict / requires interactive session); a staged
+ * outreach parks awaiting the (inert) send approval. NEVER sends externally.
+ */
+export function useExecuteRun() {
+  const api = useApi();
+  const invalidate = useExecutionInvalidate();
+  return useMutation({
+    mutationFn: async (vars: { id: string }): Promise<ExecutionRun | null> =>
+      normalizeExecutionRun(
+        (await api.post<unknown>(`${BASE}/agents/execution/runs/${vars.id}/execute`)).data,
+      ),
+    onSuccess: invalidate,
+  });
+}
+
+/**
+ * POST /agents/execution/runs/:id/resume — resume a parked run once its blocker
+ * clears (e.g. re-planned against the current head, or picked up in an
+ * interactive session). Carries the send-approval token for the Stage-H send
+ * path; in Stage G the send remains hard-disabled server-side, so resuming a
+ * send-approval park cannot cause an external send.
+ */
+export function useResumeRun() {
+  const api = useApi();
+  const invalidate = useExecutionInvalidate();
+  return useMutation({
+    mutationFn: async (vars: { id: string; input?: ResumeRunInput }): Promise<ExecutionRun | null> =>
+      normalizeExecutionRun(
+        (await api.post<unknown>(`${BASE}/agents/execution/runs/${vars.id}/resume`, vars.input ?? {}))
+          .data,
+      ),
+    onSuccess: invalidate,
   });
 }

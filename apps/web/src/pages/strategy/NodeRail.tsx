@@ -33,15 +33,18 @@ export function EditorRail({
   members,
   meriEnabled,
   watcherEnabled,
+  agenticEnabled,
   meriSummary,
   currentUserId,
   existingNodeIds,
   nodeArtifacts,
   routing,
+  staging,
   applied,
   onFlash,
   onSelectNode,
   onRoute,
+  onStageAgent,
   onOpenArtifact,
   onClose,
   onDeselect,
@@ -59,15 +62,25 @@ export function EditorRail({
    * agenticMeri alone the toggle would lie ("Watching" while nothing runs).
    */
   watcherEnabled?: boolean;
+  /**
+   * Stage G: shows the node-level "prepare with the agent" affordances (UI
+   * belt = features.agenticMeri; the server enforces the per-intent
+   * executionAgent flags). Optional so an older cached /me shape degrades.
+   */
+  agenticEnabled?: boolean;
   meriSummary?: string | null;
   currentUserId: string | undefined;
   existingNodeIds: string[];
   nodeArtifacts: StrategyNodeArtifact[];
   routing: 'workspace' | 'outreach' | null;
+  /** Stage G: which agent-staging plan is in flight (null = none). */
+  staging?: 'workspace_draft' | 'outreach_record' | null;
   applied: string | null;
   onFlash: (msg: string) => void;
   onSelectNode: (id: string) => void;
   onRoute: (action: 'workspace' | 'outreach') => void;
+  /** Stage G: plan an agent-staged draft/outreach for this node, then review it. */
+  onStageAgent?: (intent: 'workspace_draft' | 'outreach_record') => void;
   onOpenArtifact: (a: StrategyNodeArtifact) => void;
   onClose: () => void;
   onDeselect: () => void;
@@ -264,7 +277,10 @@ export function EditorRail({
             <NodeActions
               artifacts={nodeArtifacts}
               routing={routing}
+              agenticEnabled={agenticEnabled}
+              staging={staging}
               onRoute={onRoute}
+              onStageAgent={onStageAgent}
               onOpenArtifact={onOpenArtifact}
             />
           </>
@@ -708,23 +724,58 @@ const NODE_ACTIONS: Array<{
 ];
 
 /**
+ * Stage G node-level agent affordances (behind the agenticMeri UI belt): have
+ * Meri's Execution Agent PREPARE a Workspace draft / STAGE outreach for this
+ * node and land in the Execution review. Distinct from the direct RTE route-outs
+ * below (NODE_ACTIONS) — those open an artifact immediately; these create an
+ * execution run for review and, per plan §G, never send anything.
+ */
+const AGENT_ACTIONS: Array<{
+  id: 'workspace_draft' | 'outreach_record';
+  label: string;
+  desc: string;
+  icon: string;
+}> = [
+  {
+    id: 'workspace_draft',
+    label: 'Prepare in Workspace (agent)',
+    desc: 'Have Meri draft the document for this step, staged for your review.',
+    icon: 'spark',
+  },
+  {
+    id: 'outreach_record',
+    label: 'Stage outreach (agent)',
+    desc: 'Have Meri stage outreach for this step — reviewed and approved before any send.',
+    icon: 'spark',
+  },
+];
+
+/**
  * NOD-6 "Available actions in Capiro" — route the selected node into Workspace
  * (Draft) or Outreach (Send), and list the artifact back-links (sp_node_artifact)
  * already created for it. Routing itself lives in StrategyEditorPage (needs the
- * shared api + navigate); this block only surfaces the buttons + chips.
+ * shared api + navigate); this block only surfaces the buttons + chips. Stage G
+ * adds the agent-staging affordances (agenticEnabled) above the direct actions.
  */
 function NodeActions({
   artifacts,
   routing,
+  agenticEnabled,
+  staging,
   onRoute,
+  onStageAgent,
   onOpenArtifact,
 }: {
   artifacts: StrategyNodeArtifact[];
   routing: 'workspace' | 'outreach' | null;
+  agenticEnabled?: boolean;
+  staging?: 'workspace_draft' | 'outreach_record' | null;
   onRoute: (action: 'workspace' | 'outreach') => void;
+  onStageAgent?: (intent: 'workspace_draft' | 'outreach_record') => void;
   onOpenArtifact: (a: StrategyNodeArtifact) => void;
 }) {
   const [open, setOpen] = useState(true);
+  const showAgent = Boolean(agenticEnabled && onStageAgent);
   return (
     <div style={{ borderTop: '1px solid var(--border-1)', paddingTop: 12 }}>
       <button
@@ -752,6 +803,67 @@ function NodeActions({
       </button>
       {open && (
         <div style={{ display: 'flex', flexDirection: 'column', gap: 8, marginTop: 12 }}>
+          {showAgent &&
+            AGENT_ACTIONS.map((a) => {
+              const busy = staging === a.id;
+              const anyStaging = Boolean(staging);
+              return (
+                <button
+                  key={a.id}
+                  onClick={() => onStageAgent?.(a.id)}
+                  disabled={anyStaging}
+                  style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: 11,
+                    textAlign: 'left',
+                    background: 'var(--accent-soft)',
+                    border: '1px solid #C6D4F4',
+                    borderRadius: 10,
+                    padding: '11px 13px',
+                    cursor: anyStaging ? 'default' : 'pointer',
+                    opacity: anyStaging && !busy ? 0.55 : 1,
+                  }}
+                >
+                  <span
+                    style={{
+                      width: 30,
+                      height: 30,
+                      borderRadius: 8,
+                      background: 'var(--bg-surface)',
+                      display: 'grid',
+                      placeItems: 'center',
+                      flexShrink: 0,
+                    }}
+                  >
+                    <Icon name={busy ? 'clock' : a.icon} size={15} color="var(--accent-ink)" />
+                  </span>
+                  <span style={{ flex: 1, minWidth: 0 }}>
+                    <span
+                      style={{
+                        display: 'block',
+                        fontSize: 'var(--text-sm)',
+                        fontWeight: 700,
+                        color: 'var(--accent-ink)',
+                      }}
+                    >
+                      {busy ? 'Preparing…' : a.label}
+                    </span>
+                    <span
+                      style={{
+                        display: 'block',
+                        fontSize: 'var(--text-2xs)',
+                        color: 'var(--ink-3)',
+                        lineHeight: 1.4,
+                      }}
+                    >
+                      {a.desc}
+                    </span>
+                  </span>
+                  <Icon name="arrow" size={15} color="var(--accent-ink)" />
+                </button>
+              );
+            })}
           {NODE_ACTIONS.map((a) => {
             const busy = routing === a.id;
             return (

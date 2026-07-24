@@ -33,13 +33,22 @@ export type MissionStateValue = (typeof MISSION_STATES)[number];
  * planning -> ready_for_review is the Stage F CHECK-RUN shape: a Watcher check
  * has no external execution phase (suggest-only — it only reads state and
  * proposes change-sets), so it skips 'executing' and goes straight to review.
+ *
+ * ready_for_review -> executing (Stage G): a Do-mode plan is REVIEWED in
+ * ready_for_review (nothing staged yet), and only when the human approves the
+ * plan does ExecutionService.execute drive it into 'executing' to stage the
+ * artifacts. ready_for_review -> waiting_for_input (Stage G): execute PARKS a
+ * reviewed run before staging when the mandatory interactive caller bearer is
+ * absent ('execution requires an interactive session') — a reviewed plan must
+ * never perform a bearerless external hop, so it waits for input instead of
+ * proceeding. Both are the reviewed-plan counterparts of the check-run edge.
  */
 export const RUN_TRANSITIONS: Record<RunStateValue, readonly RunStateValue[]> = {
   queued: ['planning', 'canceled'],
   planning: ['executing', 'ready_for_review', 'waiting_for_input', 'failed', 'canceled'],
   waiting_for_input: ['planning', 'executing', 'failed', 'canceled'],
   executing: ['ready_for_review', 'waiting_for_input', 'failed', 'canceled'],
-  ready_for_review: ['completed', 'failed', 'canceled'],
+  ready_for_review: ['executing', 'waiting_for_input', 'completed', 'failed', 'canceled'],
   completed: [],
   failed: [],
   canceled: [],

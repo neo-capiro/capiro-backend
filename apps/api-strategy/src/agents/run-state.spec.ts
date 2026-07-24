@@ -29,7 +29,11 @@ const EXPECTED_RUN: Record<RunStateValue, readonly RunStateValue[]> = {
   planning: ['executing', 'ready_for_review', 'waiting_for_input', 'failed', 'canceled'],
   waiting_for_input: ['planning', 'executing', 'failed', 'canceled'],
   executing: ['ready_for_review', 'waiting_for_input', 'failed', 'canceled'],
-  ready_for_review: ['completed', 'failed', 'canceled'],
+  // ready_for_review -> executing / waiting_for_input are the Stage G Do-mode
+  // edges: a REVIEWED execution plan proceeds to staging (executing) once
+  // approved, or parks (waiting_for_input) when the interactive bearer is
+  // absent — see run-state.ts.
+  ready_for_review: ['executing', 'waiting_for_input', 'completed', 'failed', 'canceled'],
   completed: [],
   failed: [],
   canceled: [],

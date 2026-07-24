@@ -6,18 +6,27 @@
 import { describe, expect, it } from 'vitest';
 import {
   canShowWatchRail,
+  classifyWaitingReason,
+  EXECUTION_MISSION_NAME,
+  extractExecutionTasks,
   extractRunFindings,
+  findExecutionMission,
   findWatchMission,
   httpStatus,
+  WATCH_MISSION_NAME,
+  isAwaitingSendApproval,
+  isPriorApprovalInvalidated,
   isStaleApplyConflict,
   normalizeChangeSets,
+  normalizeExecutionRuns,
   normalizeMissions,
   normalizeRunCheck,
   opDiff,
   requiresImpactSummary,
   riskColors,
+  sendApprovalTask,
 } from './agent-utils.js';
-import type { ChangeSetRisk, StrategyNode } from '../types.js';
+import type { ChangeSetRisk, ExecutionRun, StrategyNode } from '../types.js';
 
 const node = (over: Partial<StrategyNode>): StrategyNode => ({
   id: 'n1',
@@ -275,6 +284,33 @@ describe('missions', () => {
     expect(m!.state).toBe('draft');
     expect(m!.cadence).toBeNull();
   });
+
+  it('name-scopes the two finders so one strategy can carry BOTH a Watch and an Execution mission with no cross-match', () => {
+    const missions = normalizeMissions([
+      { id: 'w1', strategyId: 's1', name: WATCH_MISSION_NAME, state: 'active', cadence: 'daily' },
+      { id: 'e1', strategyId: 's1', name: EXECUTION_MISSION_NAME, state: 'active' },
+    ]);
+    // Each finder returns ONLY its own mandate. Without the name predicate the
+    // Watch rail would pause / run-check the Stage G execution mission (and the
+    // node-agent affordance would anchor its run on the Watch mission).
+    expect(findWatchMission(missions, 's1')?.id).toBe('w1');
+    expect(findExecutionMission(missions, 's1')?.id).toBe('e1');
+  });
+
+  it('findExecutionMission skips terminal missions, reuses a live one, and never crosses strategy or the Watch mandate', () => {
+    const missions = normalizeMissions([
+      { id: 'e0', strategyId: 's1', name: EXECUTION_MISSION_NAME, state: 'completed' },
+      { id: 'e1', strategyId: 's1', name: EXECUTION_MISSION_NAME, state: 'paused' },
+      { id: 'w2', strategyId: 's2', name: WATCH_MISSION_NAME, state: 'active' },
+    ]);
+    // Terminal 'completed' skipped; the live (paused) mandate is reusable — the
+    // editor activates it before planning.
+    expect(findExecutionMission(missions, 's1')?.id).toBe('e1');
+    // A different strategy's Watch mission is never returned as an execution one,
+    // and a strategy with no execution mandate resolves to null (create-on-demand).
+    expect(findExecutionMission(missions, 's2')).toBeNull();
+    expect(findExecutionMission(missions, 's3')).toBeNull();
+  });
 });
 
 describe('canShowWatchRail (Watch-rail visibility contract)', () => {
@@ -336,5 +372,228 @@ describe('isStaleApplyConflict (apply-409 disambiguation by response body)', () 
     ).toBe(false);
     expect(isStaleApplyConflict(new Error('plan changed'))).toBe(false);
     expect(isStaleApplyConflict(null)).toBe(false);
+  });
+});
+
+// ---- Stage G: execution helpers ---------------------------------------------
+
+describe('classifyWaitingReason (execution blocked-state, precise reason preserved)', () => {
+  it('routes each parked reason to its kind + label and carries the verbatim reason', () => {
+    expect(classifyWaitingReason('awaiting send approval').kind).toBe('send_approval');
+    expect(classifyWaitingReason('Execution requires an interactive session')).toMatchObject({
+      kind: 'interactive_session',
+      reason: 'Execution requires an interactive session',
+    });
+    expect(classifyWaitingReason('open material conflict blocks this').kind).toBe('material_conflict');
+    expect(classifyWaitingReason('plan changed since planning (version drift)').kind).toBe(
+      'version_drift',
+    );
+    expect(classifyWaitingReason('node is ineligible for execution').kind).toBe('ineligible');
+  });
+
+  it('degrades an unknown/empty reason to "other" with a sane default (never a blank blocked state)', () => {
+    const empty = classifyWaitingReason(null);
+    expect(empty.kind).toBe('other');
+    expect(empty.reason).toBe('Waiting for input.');
+    expect(classifyWaitingReason('something odd').kind).toBe('other');
+  });
+});
+
+describe('extractExecutionTasks', () => {
+  it('lifts tasks from a { tasks: [...] } envelope and drops non-task values', () => {
+    const out = extractExecutionTasks({
+      summary: 'x',
+      tasks: [
+        { type: 'workspace_draft', title: 'WP', status: 'staged', artifactRef: 'ws-1' },
+        { type: 'await_send_approval', send: { subject: 'Hi', recipients: ['a', 'b'] } },
+        { type: 'not-a-type' },
+        42,
+      ],
+    });
+    expect(out).toHaveLength(2);
+    expect(out[0]).toMatchObject({ type: 'workspace_draft', status: 'staged', artifactRef: 'ws-1' });
+    // await_send_approval carries a normalized send preview; title falls back to subject.
+    expect(out[1]!.type).toBe('await_send_approval');
+    expect(out[1]!.title).toBe('Hi');
+    expect(out[1]!.send?.recipients).toEqual(['a', 'b']);
+  });
+
+  it('accepts a bare array, assigns fallback ids, and defaults unknown status to planned', () => {
+    const out = extractExecutionTasks([{ type: 'outreach_record' }]);
+    expect(out[0]!.id).toBe('task-0');
+    expect(out[0]!.status).toBe('planned');
+    expect(extractExecutionTasks(null)).toEqual([]);
+  });
+
+  // The SHIPPED backend contract (execution.service.ts): reviewed tasks are only
+  // { type, nodeId, detail } — the outcome lands under findings.results[
+  // `nodeId:type`] and a pending send's preview under findings.sendApproval.
+  // Before the cross-reference fix every row read 'planned'/'Untitled task' with
+  // no artifact link, and the send preview was 'unavailable'.
+  it('reads status/artifactRef/title off findings.results, not inline on the task', () => {
+    const out = extractExecutionTasks({
+      tasks: [
+        { type: 'workspace_draft', nodeId: 'N1', detail: { docTitle: 'FY27 white paper', product: 'appropriations' } },
+        { type: 'outreach_record', nodeId: 'N2', detail: { title: 'Sign-on ask', subject: 'member' } },
+      ],
+      results: {
+        'N1:workspace_draft': { status: 'already_staged', artifactRef: 'ws-9' },
+        'N2:outreach_record': { status: 'staged', artifactRef: 'out-9' },
+      },
+    });
+    expect(out).toHaveLength(2);
+    // already_staged folds to the terminal 'staged'; title comes from detail.docTitle.
+    expect(out[0]).toMatchObject({
+      type: 'workspace_draft',
+      title: 'FY27 white paper',
+      status: 'staged',
+      artifactRef: 'ws-9',
+    });
+    expect(out[1]).toMatchObject({
+      type: 'outreach_record',
+      title: 'Sign-on ask',
+      status: 'staged',
+      artifactRef: 'out-9',
+    });
+  });
+
+  it('lifts the await_send_approval preview from findings.sendApproval (input.* + token)', () => {
+    const [send] = extractExecutionTasks({
+      tasks: [{ type: 'await_send_approval', nodeId: 'N2', detail: { subject: 'member' } }],
+      results: { 'N2:await_send_approval': { status: 'awaiting_send_approval' } },
+      sendApproval: {
+        token: 'sha-abc',
+        tokenRunId: 'run-1',
+        input: {
+          message: 'Outreach regarding: FY27 sign-on',
+          recipients: ['member', 'committee'],
+          ask: 'Co-sign the FY27 letter',
+          windowStart: '2026-08-01',
+          windowEnd: '2026-08-15',
+        },
+        artifactRef: 'out-9',
+        status: 'pending',
+        sendEnabled: false,
+      },
+    });
+    // awaiting_send_approval → the display 'awaiting_approval' status.
+    expect(send!.status).toBe('awaiting_approval');
+    // The preview is wired from input.* (message → body, joined window) + token.
+    expect(send!.send).toMatchObject({
+      body: 'Outreach regarding: FY27 sign-on',
+      recipients: ['member', 'committee'],
+      ask: 'Co-sign the FY27 letter',
+      window: '2026-08-01 – 2026-08-15',
+      approvalToken: 'sha-abc',
+      contentHash: 'sha-abc',
+      approvedContentHash: null,
+    });
+  });
+
+  it('surfaces a do-not-contact block: blocked outreach + skipped send with reasons', () => {
+    const out = extractExecutionTasks({
+      tasks: [
+        { type: 'outreach_record', nodeId: 'N3', detail: { title: 'Ask', subject: 'member' } },
+        { type: 'await_send_approval', nodeId: 'N3', detail: { subject: 'member' } },
+      ],
+      results: {
+        'N3:outreach_record': { status: 'blocked', reason: 'client constraint: "do not contact"' },
+        'N3:await_send_approval': { status: 'skipped', reason: 'outreach blocked' },
+      },
+    });
+    expect(out[0]).toMatchObject({ status: 'blocked', blockedReason: 'client constraint: "do not contact"' });
+    expect(out[1]).toMatchObject({ status: 'skipped', blockedReason: 'outreach blocked' });
+    // No sendApproval on the findings ⇒ the skipped send carries no preview.
+    expect(out[1]!.send).toBeNull();
+  });
+
+  it('a projected run parks a usable send-approval task (sendApprovalTask non-null)', () => {
+    const [run] = normalizeExecutionRuns([
+      {
+        id: 'exec-9',
+        missionId: 'm1',
+        strategyId: 's1',
+        state: 'waiting_for_input',
+        trigger: 'manual',
+        waitingReason: 'awaiting send approval',
+        findings: {
+          execution: { kind: 'outreach', nodeId: 'N2' },
+          tasks: [
+            { type: 'outreach_record', nodeId: 'N2', detail: { title: 'Sign-on ask', subject: 'member' } },
+            { type: 'await_send_approval', nodeId: 'N2', detail: { subject: 'member' } },
+          ],
+          results: {
+            'N2:outreach_record': { status: 'staged', artifactRef: 'out-9' },
+            'N2:await_send_approval': { status: 'awaiting_send_approval' },
+          },
+          sendApproval: {
+            token: 'sha-xyz',
+            input: { message: 'Outreach regarding: X', recipients: ['member'], ask: 'Co-sign', windowStart: '2026-08-01', windowEnd: null },
+          },
+        },
+        createdAt: '2026-07-24T00:00:00.000Z',
+      },
+    ]);
+    expect(isAwaitingSendApproval(run as ExecutionRun)).toBe(true);
+    const task = sendApprovalTask(run as ExecutionRun);
+    expect(task).not.toBeNull();
+    expect(task!.send?.body).toBe('Outreach regarding: X');
+    // A one-sided window degrades to the single bound (no dangling en-dash).
+    expect(task!.send?.window).toBe('2026-08-01');
+    // The staged outreach row links out (artifactRef lifted from results).
+    expect(run!.tasks[0]!.artifactRef).toBe('out-9');
+  });
+});
+
+describe('normalizeExecutionRuns + send-approval helpers', () => {
+  const runRow = {
+    id: 'exec-1',
+    missionId: 'm1',
+    strategyId: 's1',
+    state: 'waiting_for_input',
+    trigger: 'manual',
+    waitingReason: 'awaiting send approval',
+    findings: {
+      summary: 'Stage the ask',
+      tasks: [
+        {
+          type: 'await_send_approval',
+          title: 'Sign-on ask',
+          status: 'awaiting_approval',
+          send: {
+            subject: 'Co-sign',
+            recipients: [{ name: 'Office A' }, 'Office B'],
+            contentHash: 'h2',
+            approvedContentHash: 'h1',
+          },
+        },
+      ],
+    },
+    createdAt: '2026-07-24T00:00:00.000Z',
+  };
+
+  it('projects a run row with its tasks + summary lifted out of findings', () => {
+    const [run] = normalizeExecutionRuns({ runs: [runRow] });
+    expect(run!.summary).toBe('Stage the ask');
+    expect(run!.tasks).toHaveLength(1);
+    // Recipients coerce {name}|string → string[].
+    expect(run!.tasks[0]!.send?.recipients).toEqual(['Office A', 'Office B']);
+    expect(normalizeExecutionRuns(null)).toEqual([]);
+  });
+
+  it('isAwaitingSendApproval + sendApprovalTask key off the parked reason', () => {
+    const [run] = normalizeExecutionRuns([runRow]);
+    expect(isAwaitingSendApproval(run as ExecutionRun)).toBe(true);
+    expect(sendApprovalTask(run as ExecutionRun)?.type).toBe('await_send_approval');
+  });
+
+  it('isPriorApprovalInvalidated: true only when a prior approval hash differs from the current content', () => {
+    const [run] = normalizeExecutionRuns([runRow]);
+    // approvedContentHash 'h1' !== contentHash 'h2' ⇒ prior approval stale.
+    expect(isPriorApprovalInvalidated(sendApprovalTask(run as ExecutionRun)!.send)).toBe(true);
+    expect(isPriorApprovalInvalidated({ ...sendApprovalTask(run as ExecutionRun)!.send!, approvedContentHash: null })).toBe(
+      false,
+    );
+    expect(isPriorApprovalInvalidated(null)).toBe(false);
   });
 });

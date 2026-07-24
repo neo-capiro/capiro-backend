@@ -1,23 +1,35 @@
-import { Body, Controller, Get, Param, Patch, Post, Query, UseGuards } from '@nestjs/common';
+import { Body, Controller, Get, Param, Patch, Post, Query, Req, UseGuards } from '@nestjs/common';
+import type { Request } from 'express';
 import { TenantGuard } from '../auth/tenant.guard.js';
 import { CurrentTenant } from '../auth/current-tenant.decorator.js';
 import type { AuthTenantContext } from '../auth/tenant-context.js';
 import { StrategyPlannerGuard } from '../flags/strategy-planner.guard.js';
 import { AgenticGuard } from '../flags/agentic.guard.js';
 import { StrategyWatcherGuard } from '../flags/strategy-watcher.guard.js';
+import { ExecutionAgentGuard } from '../flags/execution-agent.guard.js';
 import { MissionsService } from './missions.service.js';
 import { RunsService } from './runs.service.js';
 import { ChangeSetsService } from './change-sets.service.js';
 import { WatcherService } from './watcher.service.js';
+import { ExecutionService } from './execution.service.js';
 import {
   ApproveChangeSetDto,
   CreateChangeSetDto,
   CreateMissionDto,
   CreateRunDto,
+  ExecutionPlanDto,
   RunCheckDto,
   TransitionRunDto,
   UpdateMissionDto,
 } from './dto/agents.dto.js';
+
+/** Bearer TenantGuard verified but did not stash — the Execution Agent forwards
+ *  it to the artifact-staging hop (parity with MeriController.bearerFrom). */
+function bearerFrom(req: Request): string | undefined {
+  const h = req.headers?.authorization;
+  const m = typeof h === 'string' ? /^Bearer\s+(.+)$/i.exec(h) : null;
+  return m?.[1];
+}
 
 /**
  * /strategy-api/agents — Stage C agent runtime (missions / runs / change-sets).
@@ -33,6 +45,7 @@ export class AgentsController {
     private readonly runs: RunsService,
     private readonly changeSets: ChangeSetsService,
     private readonly watcher: WatcherService,
+    private readonly execution: ExecutionService,
   ) {}
 
   // ---- missions ----
@@ -116,6 +129,44 @@ export class AgentsController {
     @Body() dto: TransitionRunDto,
   ) {
     return this.runs.transition(tc.tenantId, tc.clerkUserId, id, dto);
+  }
+
+  // ---- execution agent (Stage G) ----
+  //
+  // Method-level ExecutionAgentGuard on top of the class stack — the execution
+  // surface needs executionAgentWorkspace OR executionAgentOutreach in ADDITION
+  // to the umbrella agentic opt-in (mirrors the Watcher/Steward gating). The
+  // PRECISE per-kind gate lives in ExecutionService (fail-closed), which also
+  // covers the guard-less scheduler path. The caller bearer is forwarded so the
+  // artifact-staging hop rides the authorising identity; a bearerless execute
+  // parks the run (never a bearerless external hop).
+
+  @Get('execution/runs')
+  @UseGuards(ExecutionAgentGuard)
+  listExecutionRuns(@CurrentTenant() tc: AuthTenantContext, @Query('strategyId') strategyId?: string) {
+    return this.execution.listRuns(tc.tenantId, { strategyId });
+  }
+
+  @Post('execution/plan')
+  @UseGuards(ExecutionAgentGuard)
+  planExecution(
+    @CurrentTenant() tc: AuthTenantContext,
+    @Req() req: Request,
+    @Body() dto: ExecutionPlanDto,
+  ) {
+    return this.execution.plan(tc.tenantId, tc.clerkUserId, bearerFrom(req), dto);
+  }
+
+  @Post('execution/runs/:id/execute')
+  @UseGuards(ExecutionAgentGuard)
+  executeRun(@CurrentTenant() tc: AuthTenantContext, @Req() req: Request, @Param('id') id: string) {
+    return this.execution.execute(tc.tenantId, tc.clerkUserId, bearerFrom(req), id);
+  }
+
+  @Post('execution/runs/:id/resume')
+  @UseGuards(ExecutionAgentGuard)
+  resumeRun(@CurrentTenant() tc: AuthTenantContext, @Req() req: Request, @Param('id') id: string) {
+    return this.execution.resume(tc.tenantId, tc.clerkUserId, bearerFrom(req), id);
   }
 
   // ---- change-sets ----

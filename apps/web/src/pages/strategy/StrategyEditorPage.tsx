@@ -23,14 +23,19 @@ import {
   useAddNode,
   useUpdateNode,
   useRecordArtifact,
+  usePlanExecution,
+  useMissions,
+  useCreateMission,
+  useUpdateMission,
 } from './api.js';
 import { useClientsLite } from './clients-lite.js';
 import { useTenantMembers } from './members.js';
 import { useApi } from '../../lib/use-api.js';
 import { useMe } from '../../lib/me.js';
+import { errorMessage } from '../../lib/error-message.js';
 import { STRATEGY_TYPE_LABEL } from './constants.js';
 import { clip } from './context/context-utils.js';
-import { canShowWatchRail } from './agents/agent-utils.js';
+import { canShowWatchRail, findExecutionMission, EXECUTION_MISSION_NAME } from './agents/agent-utils.js';
 import { buildCalendar, formatDbDate, parseDbDate } from './fiscal.js';
 import type { StrategyNode, StrategyNodeArtifact } from './types.js';
 
@@ -57,6 +62,9 @@ export function StrategyEditorPage() {
   const [refEdit, setRefEdit] = useState<'congress' | 'ppbe' | null>(null);
   const [exportOpen, setExportOpen] = useState(false);
   const [routing, setRouting] = useState<'workspace' | 'outreach' | null>(null);
+  // Stage G: which agent-staging plan is in flight (distinct from `routing`,
+  // the direct RTE route-out).
+  const [staging, setStaging] = useState<'workspace_draft' | 'outreach_record' | null>(null);
   const [applied, setApplied] = useState<string | null>(null);
   const [draftBannerClosed, setDraftBannerClosed] = useState(false);
   const flashTimer = useRef<number>();
@@ -65,6 +73,14 @@ export function StrategyEditorPage() {
   const addNode = useAddNode(id ?? '');
   const updateNode = useUpdateNode(id ?? '');
   const recordArtifact = useRecordArtifact(id ?? '');
+  const planExecution = usePlanExecution();
+  // Stage G: the node-agent affordance anchors its execution run on the
+  // strategy's dedicated Execution mission (a run belongs to an ACTIVE mission,
+  // per the RunsService contract). Loaded — and, on demand, provisioned — only
+  // when the agentic UI belt is on.
+  const missions = useMissions(id, Boolean(id) && Boolean(me.data?.features?.agenticMeri));
+  const createMission = useCreateMission();
+  const updateMission = useUpdateMission();
   const api = useApi();
 
   const flash = (msg: string) => {
@@ -95,6 +111,10 @@ export function StrategyEditorPage() {
   // alone the toggle would show "Watching" while no check ever runs. UI belt —
   // the /strategy-api/agents routes are guarded server-side regardless.
   const watcherEnabled = canShowWatchRail(me.data?.features);
+  // Stage G: the node-level "prepare with the agent" affordances ride the
+  // agenticMeri UI belt (the server enforces the per-intent executionAgent
+  // flags). Optional so an older cached /me shape degrades to hidden.
+  const agenticEnabled = Boolean(me.data?.features?.agenticMeri);
 
   if (strategy.isLoading) {
     return <div style={{ padding: 40, color: 'var(--ink-3)' }}>Loading strategy…</div>;
@@ -266,6 +286,63 @@ export function StrategyEditorPage() {
         ? `/workspace/setup/${encodeURIComponent(a.artifactRef)}`
         : `/engagement/outreach/draft/${encodeURIComponent(a.artifactRef)}`;
     navigate(`${target}${suffix}`);
+  };
+
+  // Stage G: resolve (or create-and-activate) the strategy's dedicated Execution
+  // mission so the run has an ACTIVE mission to anchor to (RunsService requires
+  // one). Mirrors the Watch rail's create-then-activate, but the mission is
+  // manual-only (no cadence) so the F2 Watcher scheduler never claims it (its
+  // claim requires cadence IS NOT NULL). The list is refetched once when the
+  // cache has not loaded yet, so a stale-empty cache does not mint a duplicate.
+  const resolveExecutionMission = async (): Promise<string> => {
+    const list = missions.data ?? (await missions.refetch()).data ?? [];
+    const existing = findExecutionMission(list, sid);
+    const mission =
+      existing ??
+      (await createMission.mutateAsync({ strategyId: sid, name: EXECUTION_MISSION_NAME }));
+    if (!mission) throw new Error('Could not prepare an execution mission.');
+    if (mission.state !== 'active') {
+      await updateMission.mutateAsync({ id: mission.id, input: { state: 'active' } });
+    }
+    return mission.id;
+  };
+
+  // Stage G: have Meri's Execution Agent PLAN work against this node (stage a
+  // Workspace draft / stage — never send — outreach), then land in the
+  // Execution review for that strategy. Distinct from the direct RTE route-outs
+  // above: this creates an execution run for review, it does not open an
+  // artifact. An interactive bearer is always present here (Clerk), so the
+  // server never has to park this on "requires interactive session".
+  const onStageAgent = (intent: 'workspace_draft' | 'outreach_record') => {
+    const node = selectedNode;
+    if (!node || staging) return;
+    // The server DTO's kind is 'workspace'|'outreach'; the rail's intent is the
+    // artifact token. This is the sole boundary between the two vocabularies.
+    const kind = intent === 'workspace_draft' ? 'workspace' : 'outreach';
+    setStaging(intent);
+    void (async () => {
+      try {
+        const missionId = await resolveExecutionMission();
+        await planExecution.mutateAsync({ missionId, strategyId: sid, nodeId: node.id, kind });
+        flash(
+          intent === 'workspace_draft'
+            ? 'Meri is preparing a Workspace draft — review it under Execution.'
+            : 'Meri staged outreach for review — nothing is sent. Review it under Execution.',
+        );
+        navigate(`/strategies/agents/execution?strategyId=${encodeURIComponent(sid)}`);
+      } catch (err) {
+        message.error(
+          errorMessage(
+            err,
+            intent === 'workspace_draft'
+              ? 'Could not start the Workspace draft with the agent.'
+              : 'Could not stage the outreach with the agent.',
+          ),
+        );
+      } finally {
+        setStaging(null);
+      }
+    })();
   };
 
   return (
@@ -611,15 +688,18 @@ export function StrategyEditorPage() {
             members={members.data ?? []}
             meriEnabled={meriEnabled}
             watcherEnabled={watcherEnabled}
+            agenticEnabled={agenticEnabled}
             meriSummary={s.meriSummary}
             currentUserId={user?.id}
             existingNodeIds={s.nodes.map((n) => n.id)}
             nodeArtifacts={nodeArtifacts}
             routing={routing}
+            staging={staging}
             applied={applied}
             onFlash={flash}
             onSelectNode={selectNode}
             onRoute={onRoute}
+            onStageAgent={onStageAgent}
             onOpenArtifact={onOpenArtifact}
             onClose={() => {
               setRailOpen(false);

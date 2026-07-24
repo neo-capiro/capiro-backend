@@ -8,7 +8,7 @@ import { useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { App } from 'antd';
 import { Icon, Ava, Chip, btnPrimary, btnGhost } from './strategy-ui.js';
-import { useStrategies, useFirmPhases, useChangeSets } from './api.js';
+import { useStrategies, useFirmPhases, useChangeSets, useExecutionRuns } from './api.js';
 import { useMe } from '../../lib/me.js';
 import { useClientsLite, clientColor } from './clients-lite.js';
 import { useTenantMembers, memberName, initialsOf } from './members.js';
@@ -45,6 +45,13 @@ export function StrategyLibraryPage() {
   // query only fires for agentic tenants — the server 403s everyone else).
   const proposedCs = useChangeSets({ status: 'proposed' }, agenticEnabled);
   const proposedCount = proposedCs.data?.length ?? 0;
+  // Stage G: badge the Execution nav with runs that need a human (ready_for_review
+  // / waiting_for_input). Gated on agentic (the server 403s everyone else).
+  const executionRuns = useExecutionRuns(null, agenticEnabled);
+  const executionCount =
+    executionRuns.data?.filter(
+      (r) => r.state === 'ready_for_review' || r.state === 'waiting_for_input',
+    ).length ?? 0;
   const calendar = useMemo(() => buildCalendar(new Date()), []);
 
   const [goalOpen, setGoalOpen] = useState(false);
@@ -127,6 +134,29 @@ export function StrategyLibraryPage() {
                     }}
                   >
                     {proposedCount}
+                  </span>
+                )}
+              </button>
+            )}
+            {agenticEnabled && (
+              <button onClick={() => navigate('/strategies/agents/execution')} style={btnGhost}>
+                <Icon name="play" size={14} color="var(--ink-2)" /> Execution
+                {executionCount > 0 && (
+                  <span
+                    style={{
+                      minWidth: 18,
+                      height: 18,
+                      borderRadius: 9,
+                      background: 'var(--notable)',
+                      color: '#fff',
+                      display: 'grid',
+                      placeItems: 'center',
+                      fontSize: 'var(--text-2xs)',
+                      fontWeight: 700,
+                      padding: '0 5px',
+                    }}
+                  >
+                    {executionCount}
                   </span>
                 )}
               </button>
