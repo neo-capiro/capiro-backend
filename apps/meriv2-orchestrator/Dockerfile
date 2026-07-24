@@ -31,6 +31,7 @@ COPY apps/meriv2-orchestrator/package.json apps/meriv2-orchestrator/package.json
 COPY packages/auth/package.json packages/auth/package.json
 COPY packages/meriv2-core/package.json packages/meriv2-core/package.json
 COPY packages/shared/package.json packages/shared/package.json
+COPY packages/strategy-verifier/package.json packages/strategy-verifier/package.json
 # api manifest + prisma schema are needed only to generate the shared client.
 COPY apps/api/package.json apps/api/package.json
 RUN --mount=type=cache,id=pnpm,target=/pnpm/store \
@@ -38,7 +39,8 @@ RUN --mount=type=cache,id=pnpm,target=/pnpm/store \
       --filter=@capiro/meriv2-orchestrator... \
       --filter=@capiro/auth... \
       --filter=@capiro/meriv2-core... \
-      --filter=@capiro/shared...
+      --filter=@capiro/shared... \
+      --filter=@capiro/strategy-verifier...
 
 COPY packages/shared/src packages/shared/src
 COPY packages/shared/tsconfig.json packages/shared/tsconfig.json
@@ -46,6 +48,8 @@ COPY packages/auth/src packages/auth/src
 COPY packages/auth/tsconfig.json packages/auth/tsconfig.json
 COPY packages/meriv2-core/src packages/meriv2-core/src
 COPY packages/meriv2-core/tsconfig.json packages/meriv2-core/tsconfig.json
+COPY packages/strategy-verifier/src packages/strategy-verifier/src
+COPY packages/strategy-verifier/tsconfig.json packages/strategy-verifier/tsconfig.json
 # Copy the api Prisma schema INTO the orchestrator's own prisma dir so we can
 # generate @prisma/client via the orchestrator's own `prisma` devDep (the
 # inferred project root is then apps/meriv2-orchestrator, which HAS prisma — so
@@ -57,6 +61,7 @@ COPY apps/meriv2-orchestrator/tsconfig.json apps/meriv2-orchestrator/tsconfig.bu
 RUN pnpm --filter @capiro/shared build
 RUN pnpm --filter @capiro/auth build
 RUN pnpm --filter @capiro/meriv2-core build
+RUN pnpm --filter @capiro/strategy-verifier build
 # Generate the @prisma/client the orchestrator imports (mirrors apps/api's
 # `pnpm --filter @capiro/api exec prisma generate`; the --prod prune below keeps
 # the generated client in the .pnpm store).
@@ -68,7 +73,8 @@ RUN --mount=type=cache,id=pnpm,target=/pnpm/store \
       --filter=@capiro/meriv2-orchestrator... \
       --filter=@capiro/auth... \
       --filter=@capiro/meriv2-core... \
-      --filter=@capiro/shared...
+      --filter=@capiro/shared... \
+      --filter=@capiro/strategy-verifier...
 
 # -------- runtime -------------------------------------------------------------
 FROM node:${NODE_VERSION}-bookworm-slim AS runtime
@@ -102,6 +108,9 @@ COPY --chown=capiro:capiro --from=build /workspace/packages/meriv2-core/node_mod
 COPY --chown=capiro:capiro --from=build /workspace/packages/auth/dist /app/packages/auth/dist
 COPY --chown=capiro:capiro --from=build /workspace/packages/auth/package.json /app/packages/auth/package.json
 COPY --chown=capiro:capiro --from=build /workspace/packages/auth/node_modules /app/packages/auth/node_modules
+# @capiro/strategy-verifier (pure/zero-dep) — dist + manifest only, no node_modules needed.
+COPY --chown=capiro:capiro --from=build /workspace/packages/strategy-verifier/dist /app/packages/strategy-verifier/dist
+COPY --chown=capiro:capiro --from=build /workspace/packages/strategy-verifier/package.json /app/packages/strategy-verifier/package.json
 COPY --chown=capiro:capiro --from=build /workspace/apps/meriv2-orchestrator/dist /app/apps/meriv2-orchestrator/dist
 COPY --chown=capiro:capiro --from=build /workspace/apps/meriv2-orchestrator/node_modules /app/apps/meriv2-orchestrator/node_modules
 COPY --chown=capiro:capiro --from=build /workspace/apps/meriv2-orchestrator/package.json /app/apps/meriv2-orchestrator/package.json

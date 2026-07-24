@@ -15,6 +15,7 @@ on:
     paths:
       - 'apps/api-strategy/**'
       - 'packages/auth/**'
+      - 'packages/strategy-verifier/**'
       - 'pnpm-lock.yaml'
       - '.github/workflows/api-strategy-image.yml'
   workflow_dispatch:

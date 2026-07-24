@@ -18,6 +18,7 @@ on:
       - 'apps/meriv2-orchestrator/**'
       - 'packages/meriv2-core/**'
       - 'packages/shared/**'
+      - 'packages/strategy-verifier/**'
       - 'apps/api/prisma/schema.prisma'
       - 'pnpm-lock.yaml'
       - '.github/workflows/meriv2-orchestrator-image.yml'

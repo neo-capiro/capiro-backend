@@ -31,16 +31,20 @@ RUN apt-get update \
 COPY pnpm-workspace.yaml package.json pnpm-lock.yaml* tsconfig.base.json ./
 COPY apps/api-strategy/package.json apps/api-strategy/package.json
 COPY packages/auth/package.json packages/auth/package.json
+COPY packages/strategy-verifier/package.json packages/strategy-verifier/package.json
 RUN --mount=type=cache,id=pnpm,target=/pnpm/store \
-    pnpm install --frozen-lockfile --filter=@capiro/api-strategy... --filter=@capiro/auth...
+    pnpm install --frozen-lockfile --filter=@capiro/api-strategy... --filter=@capiro/auth... --filter=@capiro/strategy-verifier...
 
 COPY packages/auth/src packages/auth/src
 COPY packages/auth/tsconfig.json packages/auth/tsconfig.json
+COPY packages/strategy-verifier/src packages/strategy-verifier/src
+COPY packages/strategy-verifier/tsconfig.json packages/strategy-verifier/tsconfig.json
 COPY apps/api-strategy/src apps/api-strategy/src
 COPY apps/api-strategy/prisma apps/api-strategy/prisma
 COPY apps/api-strategy/tsconfig.json apps/api-strategy/tsconfig.build.json apps/api-strategy/nest-cli.json apps/api-strategy/
 
 RUN pnpm --filter @capiro/auth build
+RUN pnpm --filter @capiro/strategy-verifier build
 # Generate the Prisma client (outputs to apps/api-strategy/generated/prisma-client)
 # BEFORE the Nest build, since src imports the generated client.
 RUN cd apps/api-strategy && pnpm exec prisma generate
@@ -49,7 +53,7 @@ RUN pnpm --filter @capiro/api-strategy build
 # Prune dev dependencies in place (keeps the .pnpm store intact for the
 # generated Prisma client).
 RUN --mount=type=cache,id=pnpm,target=/pnpm/store \
-    pnpm install --frozen-lockfile --prod --filter=@capiro/api-strategy... --filter=@capiro/auth...
+    pnpm install --frozen-lockfile --prod --filter=@capiro/api-strategy... --filter=@capiro/auth... --filter=@capiro/strategy-verifier...
 
 # -------- runtime -------------------------------------------------------------
 FROM node:${NODE_VERSION}-bookworm-slim AS runtime
@@ -76,6 +80,9 @@ COPY --chown=capiro:capiro --from=build /workspace/node_modules /app/node_module
 COPY --chown=capiro:capiro --from=build /workspace/packages/auth/dist /app/packages/auth/dist
 COPY --chown=capiro:capiro --from=build /workspace/packages/auth/package.json /app/packages/auth/package.json
 COPY --chown=capiro:capiro --from=build /workspace/packages/auth/node_modules /app/packages/auth/node_modules
+# @capiro/strategy-verifier (pure/zero-dep) — dist + manifest only, no node_modules needed.
+COPY --chown=capiro:capiro --from=build /workspace/packages/strategy-verifier/dist /app/packages/strategy-verifier/dist
+COPY --chown=capiro:capiro --from=build /workspace/packages/strategy-verifier/package.json /app/packages/strategy-verifier/package.json
 COPY --chown=capiro:capiro --from=build /workspace/apps/api-strategy/dist /app/apps/api-strategy/dist
 COPY --chown=capiro:capiro --from=build /workspace/apps/api-strategy/node_modules /app/apps/api-strategy/node_modules
 COPY --chown=capiro:capiro --from=build /workspace/apps/api-strategy/package.json /app/apps/api-strategy/package.json
