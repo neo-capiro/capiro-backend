@@ -87,6 +87,7 @@ import { looksLikePdf } from './meri-scrape.helpers.js';
 import { buildKnowledgeGraph, walkFrom, type FkRelation } from '../memory/memory-graph.helpers.js';
 import { embedText, vectorLiteral, normalize } from '../embeddings/embedder.js';
 import { ymdInZone } from '../intelligence/time-bounds.js';
+import { resolveStateName } from '../common/us-states.js';
 
 const PRODUCT_NAME = 'Meri';
 
@@ -6736,80 +6737,6 @@ function objectInput(value: unknown): Record<string, unknown> {
   return {};
 }
 
-// CongressMember.state stores the FULL state name (e.g. "Virginia"), so a caller
-// who passes a 2-letter code must be translated before querying. Covers the 50
-// states, DC, and the five territories that seat a (non-voting) member.
-const US_STATE_BY_ABBR: Readonly<Record<string, string>> = {
-  AL: 'Alabama',
-  AK: 'Alaska',
-  AZ: 'Arizona',
-  AR: 'Arkansas',
-  CA: 'California',
-  CO: 'Colorado',
-  CT: 'Connecticut',
-  DE: 'Delaware',
-  FL: 'Florida',
-  GA: 'Georgia',
-  HI: 'Hawaii',
-  ID: 'Idaho',
-  IL: 'Illinois',
-  IN: 'Indiana',
-  IA: 'Iowa',
-  KS: 'Kansas',
-  KY: 'Kentucky',
-  LA: 'Louisiana',
-  ME: 'Maine',
-  MD: 'Maryland',
-  MA: 'Massachusetts',
-  MI: 'Michigan',
-  MN: 'Minnesota',
-  MS: 'Mississippi',
-  MO: 'Missouri',
-  MT: 'Montana',
-  NE: 'Nebraska',
-  NV: 'Nevada',
-  NH: 'New Hampshire',
-  NJ: 'New Jersey',
-  NM: 'New Mexico',
-  NY: 'New York',
-  NC: 'North Carolina',
-  ND: 'North Dakota',
-  OH: 'Ohio',
-  OK: 'Oklahoma',
-  OR: 'Oregon',
-  PA: 'Pennsylvania',
-  RI: 'Rhode Island',
-  SC: 'South Carolina',
-  SD: 'South Dakota',
-  TN: 'Tennessee',
-  TX: 'Texas',
-  UT: 'Utah',
-  VT: 'Vermont',
-  VA: 'Virginia',
-  WA: 'Washington',
-  WV: 'West Virginia',
-  WI: 'Wisconsin',
-  WY: 'Wyoming',
-  DC: 'District of Columbia',
-  PR: 'Puerto Rico',
-  GU: 'Guam',
-  VI: 'Virgin Islands',
-  AS: 'American Samoa',
-  MP: 'Northern Mariana Islands',
-};
-
-/**
- * Normalize a caller-supplied state (a 2-letter code OR a full name, any case)
- * to the canonical full-name casing stored on CongressMember.state. Returns
- * undefined for an unrecognized value so the tool can fail closed rather than
- * run an unfiltered roster query.
- */
-function resolveStateName(input: string): string | undefined {
-  const trimmed = input.trim();
-  if (trimmed.length === 2) return US_STATE_BY_ABBR[trimmed.toUpperCase()];
-  const lower = trimmed.toLowerCase();
-  return Object.values(US_STATE_BY_ABBR).find((name) => name.toLowerCase() === lower);
-}
 
 function requiredString(input: Record<string, unknown>, key: string, max: number): string {
   const value = optionalString(input, key, max);

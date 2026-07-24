@@ -37,6 +37,7 @@ import { commentDeadlineDedupeKey } from './comment-deadline.util.js';
 import { ClientPrepopulationService } from './client-prepopulation.service.js';
 import { OfficeRecommenderService } from './office-recommender.service.js';
 import type { OfficeRecommendation } from './office-recommender.service.js';
+import { resolveStateName, abbrForStateName } from '../common/us-states.js';
 // Pure, DI-free helper + type reused from the District Impact Engine (WS-A,
 // LegiStorm gaps/enrichment plan). Deliberately NOT injecting
 // RepresentationResolverService here: its resolveHouse/resolveSenate are
@@ -5562,9 +5563,19 @@ export class IntelligenceService {
           .map((r) => r.pop_state as string),
       ),
     );
-    const repMembers = spendStates.length
+    // CongressMember.state stores the FULL state name ("Connecticut"), but
+    // USAspending's pop_state is a 2-letter code — translate before querying
+    // or this silently matches zero rows for every state.
+    const spendStateNames = spendStates
+      .map((code) => resolveStateName(code))
+      .filter((name): name is string => name !== undefined);
+    const repMembers = spendStateNames.length
       ? await this.prisma.congressMember.findMany({
-          where: { isCurrent: true, chamber: { in: ['house', 'senate'] }, state: { in: spendStates } },
+          where: {
+            isCurrent: true,
+            chamber: { in: ['house', 'senate'] },
+            state: { in: spendStateNames },
+          },
           select: {
             bioguideId: true,
             fullName: true,
@@ -5575,16 +5586,19 @@ export class IntelligenceService {
           },
         })
       : [];
+    // Keyed by the SAME 2-letter code as `r.pop_state` below (not the DB's
+    // full-name state) so the per-row lookup needs no further translation.
     const membersByState = new Map<
       string,
       { house: FederalMemberSummary[]; senate: FederalMemberSummary[] }
     >();
     for (const m of repMembers) {
-      if (!m.state) continue;
-      const bucket = membersByState.get(m.state) ?? { house: [], senate: [] };
+      const abbr = m.state ? abbrForStateName(m.state) : undefined;
+      if (!abbr) continue;
+      const bucket = membersByState.get(abbr) ?? { house: [], senate: [] };
       if (m.chamber === 'house') bucket.house.push(m);
       else if (m.chamber === 'senate') bucket.senate.push(m);
-      membersByState.set(m.state, bucket);
+      membersByState.set(abbr, bucket);
     }
 
     let totalAwards = 0;

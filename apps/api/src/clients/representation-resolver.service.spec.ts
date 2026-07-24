@@ -79,6 +79,33 @@ describe('RepresentationResolverService.representativesForFacility', () => {
     expect(out).toEqual({ unresolved: true, reason: 'no_state' });
   });
 
+  // REGRESSION: CongressMember.state stores the FULL state name
+  // ("Florida"), but ClientFacility.state is a 2-letter code ("FL"). The
+  // resolver must translate before querying, or it silently matches zero
+  // rows for every facility in the country (the fixture mock above ignores
+  // `where.state` entirely, so only asserting on the captured call args
+  // actually catches a regression here).
+  it('queries congressMember with the translated FULL state name, not the facility 2-letter code', async () => {
+    const prisma = fakePrisma({ houseMembers: [HOUSE_MEMBER], senators: [SENATOR_1, SENATOR_2] });
+    const svc = new RepresentationResolverService(prisma);
+    await svc.representativesForFacility(MATCHED_FACILITY);
+    const calls = (prisma.congressMember.findMany as jest.Mock).mock.calls;
+    expect(calls).toHaveLength(2); // house + senate
+    for (const [args] of calls) {
+      expect(args.where.state).toBe('Florida');
+    }
+  });
+
+  it('an unresolvable state code fails closed (no house match, empty senate) instead of throwing', async () => {
+    const svc = new RepresentationResolverService(fakePrisma({}));
+    const out = await svc.representativesForFacility({ ...MATCHED_FACILITY, state: 'ZZ' });
+    expect(out.unresolved).toBe(false);
+    if (!out.unresolved) {
+      expect(out.federal.house).toBeNull();
+      expect(out.federal.senate).toEqual([]);
+    }
+  });
+
   it('unresolved (no_geocode) when the facility has no district at all', async () => {
     const svc = new RepresentationResolverService(fakePrisma({}));
     const out = await svc.representativesForFacility({

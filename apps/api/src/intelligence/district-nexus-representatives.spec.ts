@@ -22,6 +22,10 @@ import { IntelligenceService } from './intelligence.service.js';
  *  4. Senate resolves independently of whether House resolved.
  *  5. Exactly ONE congressMember.findMany call per request regardless of how
  *     many distinct states are on the spend rows (no N+1).
+ *  6. The query filter and the grouping-by-state both go through the
+ *     2-letter-code <-> full-name translation (CongressMember.state stores
+ *     "Texas", not "TX") — member fixtures below use full names to mirror
+ *     the real column, and the batching test pins the translated filter.
  */
 describe('IntelligenceService.getDistrictNexusSpend — representative overlay', () => {
   const tenantId = '00000000-0000-0000-0000-000000000001';
@@ -54,7 +58,7 @@ describe('IntelligenceService.getDistrictNexusSpend — representative overlay',
           bioguideId: 'W001H',
           fullName: 'Wyoming House Member',
           party: 'Republican',
-          state: 'WY',
+          state: 'Wyoming',
           district: null,
           chamber: 'house',
         },
@@ -62,7 +66,7 @@ describe('IntelligenceService.getDistrictNexusSpend — representative overlay',
           bioguideId: 'W002S',
           fullName: 'Wyoming Senator A',
           party: 'Republican',
-          state: 'WY',
+          state: 'Wyoming',
           district: null,
           chamber: 'senate',
         },
@@ -70,7 +74,7 @@ describe('IntelligenceService.getDistrictNexusSpend — representative overlay',
           bioguideId: 'W003S',
           fullName: 'Wyoming Senator B',
           party: 'Democrat',
-          state: 'WY',
+          state: 'Wyoming',
           district: null,
           chamber: 'senate',
         },
@@ -102,7 +106,7 @@ describe('IntelligenceService.getDistrictNexusSpend — representative overlay',
           bioguideId: 'DC001',
           fullName: 'DC Delegate',
           party: 'Democrat',
-          state: 'DC',
+          state: 'District of Columbia',
           district: null,
           chamber: 'house',
         },
@@ -126,7 +130,7 @@ describe('IntelligenceService.getDistrictNexusSpend — representative overlay',
           bioguideId: 'CAAL',
           fullName: 'Should Not Be Shown',
           party: 'Democrat',
-          state: 'CA',
+          state: 'California',
           district: null,
           chamber: 'house',
         },
@@ -149,7 +153,7 @@ describe('IntelligenceService.getDistrictNexusSpend — representative overlay',
           bioguideId: 'TX007',
           fullName: 'TX-7 Member',
           party: 'Democrat',
-          state: 'TX',
+          state: 'Texas',
           district: 7,
           chamber: 'house',
         },
@@ -157,7 +161,7 @@ describe('IntelligenceService.getDistrictNexusSpend — representative overlay',
           bioguideId: 'TX023',
           fullName: 'TX-23 Member',
           party: 'Republican',
-          state: 'TX',
+          state: 'Texas',
           district: 23,
           chamber: 'house',
         },
@@ -165,7 +169,7 @@ describe('IntelligenceService.getDistrictNexusSpend — representative overlay',
           bioguideId: 'TXSEN',
           fullName: 'TX Senator',
           party: 'Republican',
-          state: 'TX',
+          state: 'Texas',
           district: null,
           chamber: 'senate',
         },
@@ -194,7 +198,10 @@ describe('IntelligenceService.getDistrictNexusSpend — representative overlay',
 
     expect(prisma.congressMember.findMany).toHaveBeenCalledTimes(1);
     const call = prisma.congressMember.findMany.mock.calls[0][0];
-    expect(new Set(call.where.state.in)).toEqual(new Set(['TX', 'WY', 'CO']));
+    // Regression: CongressMember.state stores the FULL name, not the
+    // 2-letter USAspending code on the spend rows — the query filter must
+    // be translated, or it silently matches zero rows for every state.
+    expect(new Set(call.where.state.in)).toEqual(new Set(['Texas', 'Wyoming', 'Colorado']));
   });
 
   test('rows with no resolved district (unmapped) never trigger a representative lookup', async () => {

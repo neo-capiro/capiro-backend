@@ -12,6 +12,7 @@
 import { Injectable } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service.js';
 import { normalizeDistrictCode } from './district-code.util.js';
+import { resolveStateName } from '../common/us-states.js';
 
 export interface ResolvedRepresentation {
   unresolved: false;
@@ -248,8 +249,13 @@ export class RepresentationResolverService {
     congressionalDistrict: string | null,
   ): Promise<FederalMemberSummary | null> {
     if (!congressionalDistrict) return null;
+    // CongressMember.state stores the FULL state name ("Connecticut"), but
+    // `state` here is the facility's 2-letter code (ClientFacility.state) —
+    // translate first or this silently matches zero rows for every state.
+    const stateName = resolveStateName(state);
+    if (!stateName) return null;
     const members = await this.prisma.congressMember.findMany({
-      where: { chamber: 'house', state, isCurrent: true },
+      where: { chamber: 'house', state: stateName, isCurrent: true },
       select: {
         bioguideId: true,
         fullName: true,
@@ -264,8 +270,10 @@ export class RepresentationResolverService {
   }
 
   private async resolveSenate(state: string): Promise<FederalMemberSummary[]> {
+    const stateName = resolveStateName(state);
+    if (!stateName) return [];
     return this.prisma.congressMember.findMany({
-      where: { chamber: 'senate', state, isCurrent: true },
+      where: { chamber: 'senate', state: stateName, isCurrent: true },
       select: {
         bioguideId: true,
         fullName: true,
