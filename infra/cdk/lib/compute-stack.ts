@@ -481,6 +481,16 @@ export class ComputeStack extends cdk.Stack {
       // projection failures fail-open to clio) — non-degrading and resilient to an
       // OpenAI outage. Per-tenant opt-out: clioFeatureFlags.meriMemoryRecallSource.
       MEMORY_RECALL_SOURCE: 'union',
+      // Legislative Districts API base URL (WS-B, LegiStorm gaps/enrichment
+      // plan) — explicit here so the sync task's env is self-documenting;
+      // sync-legistorm-districts.ts ALSO hardcodes this exact value as its own
+      // fallback, so an incomplete deploy of this line never sends a districts
+      // request to the Congressional API's base URL instead. Same as the
+      // MEMORY_RECALL_SOURCE block above: the Compute stack is in
+      // UPDATE_ROLLBACK_FAILED and `cdk deploy` is frozen, so this line is
+      // defensive for the eventual maintenance window, not a live-effective
+      // change until then.
+      LEGISTORM_DISTRICTS_BASE_URL: 'https://api.legistorm.com/v2.023.07/legislative_districts',
     };
 
     // Identity-policy-only grant on the API task role for the assets bucket.

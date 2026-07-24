@@ -35,6 +35,20 @@ export const configSchema = z.object({
   LEGISTORM_REQUEST_TIMEOUT_MS: z.coerce.number().int().positive().default(30_000),
   LEGISTORM_MAX_RETRY_DELAY_MS: z.coerce.number().int().positive().default(30_000),
   LEGISTORM_OVERLAP_DAYS: z.coerce.number().int().nonnegative().default(2),
+  // Legislative Districts API (WS-B, LegiStorm gaps/enrichment plan) — a
+  // DIFFERENT base URL than LEGISTORM_BASE_URL above (that one is the
+  // Congressional API, v2.019.10/congress). Used only by the scheduled
+  // districts-refresh CLI (sync-legistorm-districts), which ALSO hardcodes
+  // this same value as its own fallback — so an incomplete env-wiring never
+  // silently sends a districts request to the congress endpoint.
+  LEGISTORM_DISTRICTS_BASE_URL: z
+    .string()
+    .url()
+    .refine(
+      (value) => new URL(value).protocol === 'https:',
+      'LEGISTORM_DISTRICTS_BASE_URL must use HTTPS',
+    )
+    .default('https://api.legistorm.com/v2.023.07/legislative_districts'),
   AWS_REGION_DEFAULT: z.string().default('us-east-1'),
 
   // PE Watch defense-budget ingestion (Step: LlamaParse + immutable S3 archive).

@@ -98,6 +98,7 @@
     "sync:rss": "tsx scripts/sync-rss-intel.ts",
     "sync:member-press": "tsx scripts/sync-member-press.ts",
     "sync:legistorm-directory": "tsx scripts/sync-legistorm-directory.ts",
+    "sync:legistorm-districts": "tsx scripts/sync-legistorm-districts.ts",
     "sync:hearings": "tsx scripts/sync-hearings.ts",
     "sync:dod-orgcharts": "tsx scripts/sync-dod-orgcharts.ts",
     "sync:dod-press-personnel": "tsx scripts/sync-dod-press-personnel.ts",

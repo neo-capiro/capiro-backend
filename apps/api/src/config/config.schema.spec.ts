@@ -65,3 +65,19 @@ describe('configSchema — LegiStorm directory refresh', () => {
     expect(() => configSchema.shape.LEGISTORM_OVERLAP_DAYS.parse('-1')).toThrow();
   });
 });
+
+describe('configSchema — LegiStorm Legislative Districts (WS-B)', () => {
+  test('defaults to the Districts API base URL, NOT the Congressional API one', () => {
+    const districts = configSchema.shape.LEGISTORM_DISTRICTS_BASE_URL.parse(undefined);
+    const congress = configSchema.shape.LEGISTORM_BASE_URL.parse(undefined);
+    expect(districts).toBe('https://api.legistorm.com/v2.023.07/legislative_districts');
+    expect(districts).not.toBe(congress);
+  });
+
+  test('rejects insecure URLs', () => {
+    expect(() => configSchema.shape.LEGISTORM_DISTRICTS_BASE_URL.parse('not-a-url')).toThrow();
+    expect(() =>
+      configSchema.shape.LEGISTORM_DISTRICTS_BASE_URL.parse('http://api.example.invalid'),
+    ).toThrow();
+  });
+});
