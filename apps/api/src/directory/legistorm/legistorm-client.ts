@@ -1,7 +1,9 @@
 import {
+  hasRequiredCongressDistrictIdentity,
   hasRequiredMemberIdentity,
   hasRequiredOfficeIdentity,
   hasRequiredStaffIdentity,
+  type LegiStormCongressDistrictRecord,
   type LegiStormMemberRecord,
   type LegiStormOfficeRecord,
   type LegiStormStaffRecord,
@@ -9,6 +11,11 @@ import {
 } from './legistorm-types.js';
 
 const DEFAULT_BASE_URL = 'https://api.legistorm.com/v2.019.10/congress';
+// A browser-shaped User-Agent. www.legistorm.com (the KML host — NOT
+// api.legistorm.com) sits behind an edge that 403s a bare/non-browser UA;
+// verified live 2026-07-24 (curl default UA -> 403 Forbidden; this UA -> 200).
+const KML_USER_AGENT =
+  'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36';
 // LegiStorm caps `limit` at 100 per request (over-100 → HTTP 422 VALIDATION_ERROR),
 // so the default AND any configured value are clamped to this ceiling.
 const LEGISTORM_MAX_PAGE_SIZE = 100;
@@ -39,6 +46,18 @@ export interface LegiStormPagedResult<T extends LegiStormVendorRecord> {
 
 export interface LegiStormRetiredIdsResult {
   ids: number[];
+  rawBody: unknown[];
+}
+
+/**
+ * Legislative Districts API result — a single, non-paged JSON array response
+ * (no updated_from/updated_to window, no page/limit; the whole list or a
+ * single ZIP match comes back in one call). Distinct from
+ * LegiStormPagedResult, which models the Congressional API's paged,
+ * date-windowed list endpoints.
+ */
+export interface LegiStormDistrictListResult {
+  records: LegiStormCongressDistrictRecord[];
   rawBody: unknown[];
 }
 
@@ -125,6 +144,84 @@ export class LegiStormClient {
 
   fetchRetiredStaffIds(): Promise<LegiStormRetiredIdsResult> {
     return this.fetchRetiredIds('/staff/retired-ids');
+  }
+
+  /**
+   * Legislative Districts API — all Congressional districts + Senate seats
+   * for a state. NOT routed through `fetchPaged`: this endpoint has no
+   * updated_from/updated_to window and returns the whole list in one call
+   * (districts change only at redistricting, not incrementally). Construct
+   * this LegiStormClient with `baseUrl` pointed at the Districts API
+   * (`.../v2.023.07/legislative_districts`) — the Congressional-API default
+   * base URL does not serve this path.
+   */
+  async fetchCongressDistrictList(
+    state: string,
+    status?: 'C' | 'F',
+  ): Promise<LegiStormDistrictListResult> {
+    const params: Record<string, string> = { state };
+    if (status) params.status = status;
+    const body = await this.requestJson('/congress/list', params);
+    return this.toDistrictListResult('/congress/list', body);
+  }
+
+  /**
+   * Legislative Districts API — ZIP-to-district matching. A ZIP can span
+   * multiple districts (boundaries aren't ZIP-aligned), so this can return
+   * more than one record; `zip4` narrows to a single match when known.
+   */
+  async fetchCongressDistrictsByZip(
+    zip: string,
+    zip4?: string,
+  ): Promise<LegiStormDistrictListResult> {
+    const params: Record<string, string> = { zip };
+    if (zip4) params.zip4 = zip4;
+    const body = await this.requestJson('/congress/zipcode', params);
+    return this.toDistrictListResult('/congress/zipcode', body);
+  }
+
+  /**
+   * Fetch a district boundary from a `kml` URL LegiStorm already returned on
+   * a district record (see LegiStormCongressDistrictRecord.kml) — this does
+   * NOT construct a URL itself. That URL embeds our API key in its PATH, not
+   * a header: auth here is the URL itself, so this method deliberately does
+   * NOT send `X-API-KEY`. www.legistorm.com (unlike api.legistorm.com) 403s a
+   * non-browser User-Agent, so this sends one. Caller is responsible for
+   * never logging/persisting the raw kmlUrl — re-host the returned content
+   * under our own S3 key instead.
+   */
+  async fetchDistrictKml(kmlUrl: string): Promise<string> {
+    const url = new URL(kmlUrl);
+    if (url.protocol !== 'https:') throw new Error('kmlUrl must use HTTPS');
+
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), this.requestTimeoutMs);
+    try {
+      const response = await this.fetchImpl(url, {
+        method: 'GET',
+        headers: {
+          'User-Agent': KML_USER_AGENT,
+          Accept: 'application/vnd.google-earth.kml+xml, text/xml, */*',
+        },
+        signal: controller.signal,
+        redirect: 'error',
+      });
+      if (!response.ok) {
+        throw new Error(`LegiStorm KML fetch failed with HTTP ${response.status}`);
+      }
+      return await response.text();
+    } finally {
+      clearTimeout(timer);
+    }
+  }
+
+  private toDistrictListResult(path: string, body: unknown): LegiStormDistrictListResult {
+    if (!Array.isArray(body)) throw new Error(`LegiStorm ${path} expected an array response`);
+    const records: LegiStormCongressDistrictRecord[] = [];
+    for (const value of body) {
+      if (hasRequiredCongressDistrictIdentity(value)) records.push(value);
+    }
+    return { records, rawBody: body };
   }
 
   private async fetchPaged<T extends LegiStormVendorRecord>(

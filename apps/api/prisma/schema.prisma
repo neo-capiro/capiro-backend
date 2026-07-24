@@ -4092,6 +4092,52 @@ model CensusDistrict {
 }
 
 // ─────────────────────────────────────────────────────────────────────────
+// LegiStorm Legislative Districts (WS-B, LegiStorm gaps/enrichment plan).
+// GLOBAL reference table, no tenant_id, no RLS — same trust tier as
+// CensusDistrict. One row per (legistorm district id, status): a district
+// can have BOTH a current ('C') and a future/enacted-not-yet-effective ('F')
+// row at once across a redistricting cycle — WS-C's redistricting-watch
+// alerting diffs the 'F' rows against the 'C' rows for the same state/chamber.
+// Populated by scripts/sync-legistorm-districts.ts (full reconciliation each
+// run — districts change only at redistricting, not incrementally).
+// ─────────────────────────────────────────────────────────────────────────
+model LegislativeDistrict {
+  /** `${legistormDistrictId}-${status}`, e.g. "603-F" — mirrors CensusDistrict's composed string PK. */
+  id                     String   @id
+  legistormDistrictId    Int      @map("legistorm_district_id")
+  /** 'house' | 'senate' — lowercase, matching congress_member.chamber's convention. */
+  chamber                String
+  state                  String   @db.VarChar(2)
+  /** Bare number as a string (e.g. "1", "25"); null for a Senate seat. */
+  districtNo             String?  @map("district_no")
+  /** 1 | 2 | 3 — which Senate election cohort; null for a House seat. */
+  senateClass            Int?     @map("senate_class")
+  name                   String
+  /** 'C' current | 'F' future (enacted, not yet effective). */
+  status                 String
+  effectiveDate          DateTime? @map("effective_date") @db.Date
+  enactedDate            DateTime? @map("enacted_date") @db.Date
+  /**
+   * bioguide_id(s) of the member(s) LegiStorm reports for this district row —
+   * for a 'F' row, this is the incumbent mapped onto the FUTURE boundary
+   * (forward-looking information not derivable from congress_member, which
+   * only carries today's district assignment). Empty array for a vacant seat.
+   */
+  currentMemberBioguides String[] @default([]) @map("current_member_bioguides")
+  /**
+   * Our OWN S3 object key for the re-hosted KML boundary — NEVER the raw
+   * LegiStorm URL (which embeds our API key in its path). Null until the
+   * boundary has been fetched.
+   */
+  kmlS3Key               String?  @map("kml_s3_key")
+  syncedAt               DateTime @default(now()) @map("synced_at") @db.Timestamptz(6)
+
+  @@index([state, chamber, status])
+  @@index([legistormDistrictId])
+  @@map("legislative_district")
+}
+
+// ─────────────────────────────────────────────────────────────────────────
 // BEA, Bureau of Economic Analysis GDP/industry data
 // GLOBAL table, no tenant_id, no RLS.
 // Source: apps.bea.gov/api/data/

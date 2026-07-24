@@ -93,6 +93,25 @@ export const INGESTION_JOBS: ScheduledIngestionJob[] = [
     description: 'LegiStorm directory full reconciliation (Sun 04:30 UTC)',
     enabled: false,
   },
+  // ── LegiStorm Legislative Districts (WS-B — ships DISABLED) ─────────────────
+  // Separate script, separate schedule, separate table — per the directory
+  // runbook's "each new dataset gets its own script + schedule + retention"
+  // rule. Full reconciliation every run (districts change only at
+  // redistricting, no incremental window), so there is only ONE job, unlike
+  // the directory's incremental/full pair. Created disabled for the SAME
+  // reason as the directory jobs above: blocked until the compromised
+  // LegiStorm key is rotated + the commit canary passes. Weekly is
+  // deliberately infrequent for the same reason. KML boundary fetch is a
+  // separate opt-in flag (--with-kml), NOT part of this default command, so
+  // enabling this job does not also start hitting www.legistorm.com.
+  {
+    id: 'SyncLegistormDistricts',
+    command: ['sync-legistorm-districts', '--commit'],
+    cron: { minute: '0', hour: '4', weekDay: 'SUN' },
+    tier: 'weekly',
+    description: 'LegiStorm legislative districts full reconciliation (Sun 04:00 UTC, before directory at 04:30)',
+    enabled: false,
+  },
   {
     id: 'SyncHouseVotes',
     command: ['sync-house-votes'],
