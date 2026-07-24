@@ -1,4 +1,5 @@
-import { Body, Controller, Delete, Get, Param, Post, Query, UseGuards } from '@nestjs/common';
+import { Body, Controller, Delete, Get, Param, Post, Query, Res, UseGuards } from '@nestjs/common';
+import type { Response } from 'express';
 import { IsOptional, IsString, Length, MaxLength } from 'class-validator';
 import type { TenantContext } from '@capiro/shared';
 import { Roles } from '../auth/roles.decorator.js';
@@ -98,6 +99,44 @@ export class DirectoryController {
     @Query('pageSize') pageSize?: string,
   ) {
     return this.service.getCommitteeStaff(committeeId, { q, page, pageSize });
+  }
+
+  // WS-D, LegiStorm gaps/enrichment plan — House-district detail, resolved
+  // from legislative_district (WS-B). :districtNo is the client_facilities-
+  // style code ('00' for at-large, zero-padded 2-digit otherwise) — the same
+  // convention /directory/districts/WY/00 uses for Wyoming's at-large seat.
+  // ?status=F asks for the enacted-but-not-yet-effective map instead of the
+  // current one; they are two distinct resources, never merged into one
+  // response. Global reference data (no @CurrentTenant) — auth-gated by the
+  // class-level guard like the rest of this controller.
+  @Get('districts/:state/:districtNo')
+  districtDetail(
+    @Param('state') state: string,
+    @Param('districtNo') districtNo: string,
+    @Query('status') status?: string,
+  ) {
+    return this.service.getDistrictDetail(state, districtNo, status === 'F' ? 'F' : 'C');
+  }
+
+  // Streams the district boundary from OUR OWN S3 (never a live LegiStorm
+  // proxy — see the comment on DirectoryService.getDistrictKml for why).
+  // 404s with a clear message when WS-B hasn't fetched a boundary yet
+  // (--with-kml is opt-in), rather than attempting a fallback live fetch.
+  @Get('districts/:state/:districtNo/kml')
+  async districtKml(
+    @Param('state') state: string,
+    @Param('districtNo') districtNo: string,
+    @Query('status') status: string | undefined,
+    @Res() res: Response,
+  ) {
+    const { filename, buffer } = await this.service.getDistrictKml(
+      state,
+      districtNo,
+      status === 'F' ? 'F' : 'C',
+    );
+    res.setHeader('Content-Type', 'application/vnd.google-earth.kml+xml');
+    res.setHeader('Content-Disposition', `inline; filename="${filename}"`);
+    res.send(buffer);
   }
 
   // ---- Additive detail + dictionary endpoints (Task 12); existing routes unchanged ----

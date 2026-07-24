@@ -302,3 +302,59 @@ export async function getStateLegislatorDetail(
   );
   return data;
 }
+
+/**
+ * WS-D, LegiStorm gaps/enrichment plan — House-district detail, backing a
+ * future /directory/districts/:state/:districtNo page. `districtNo` is the
+ * client_facilities-style code ('00' for at-large, zero-padded 2-digit
+ * otherwise), matching what /directory/districts/WY/00 means for Wyoming's
+ * at-large seat. 'C' and 'F' are two distinct resources — a redistricting
+ * cycle can have both simultaneously for the same districtNo.
+ */
+export interface DirectoryDistrictMemberSummary {
+  id: string;
+  bioguideId: string;
+  fullName: string;
+  partyName: string | null;
+  chamber: 'House' | 'Senate' | 'Governor';
+  photoUrl: string | null;
+  outgoingStatus: string | null;
+}
+
+export interface DirectoryDistrictDetail {
+  id: string;
+  legistormDistrictId: number;
+  chamber: 'house' | 'senate';
+  state: string;
+  districtNo: string;
+  name: string;
+  status: 'C' | 'F';
+  effectiveDate: string | null;
+  enactedDate: string | null;
+  currentMembers: DirectoryDistrictMemberSummary[];
+  hasBoundary: boolean;
+  syncedAt: string;
+}
+
+export async function getDistrict(
+  api: AxiosInstance,
+  state: string,
+  districtNo: string,
+  status: 'C' | 'F' = 'C',
+): Promise<DirectoryDistrictDetail> {
+  const { data } = await api.get<DirectoryDistrictDetail>(
+    `/api/directory/districts/${encodeURIComponent(state)}/${encodeURIComponent(districtNo)}`,
+    { params: { status } },
+  );
+  return data;
+}
+
+/**
+ * URL for the district boundary KML — always our own re-hosted S3 object
+ * (WS-B's --with-kml), never a live LegiStorm fetch; 404s with a clear
+ * message if that boundary hasn't been fetched yet. Suitable as a direct
+ * fetch target or a map-library source URL.
+ */
+export function districtKmlUrl(state: string, districtNo: string, status: 'C' | 'F' = 'C'): string {
+  return `/api/directory/districts/${encodeURIComponent(state)}/${encodeURIComponent(districtNo)}/kml?status=${status}`;
+}

@@ -113,3 +113,72 @@ describe('DirectoryController — committees', () => {
     });
   });
 });
+
+/**
+ * WS-D, LegiStorm gaps/enrichment plan — controller-level tests for the new
+ * district routes. The service methods themselves are DB+S3-bound (no unit
+ * test path here, matching the FEC-summary precedent above); these assert
+ * the route delegates correctly and — for the KML route — that the response
+ * headers/body are wired the same way artifact.controller.ts's exportDocx
+ * streams a buffer, and that nothing about the S3 key ever reaches the HTTP
+ * response.
+ */
+describe('DirectoryController — districts (WS-D)', () => {
+  function makeDetailService() {
+    return { getDistrictDetail: jest.fn() } as unknown as DirectoryService & {
+      getDistrictDetail: jest.Mock;
+    };
+  }
+
+  test('districtDetail() defaults status to "C" when the query param is absent', () => {
+    const service = makeDetailService();
+    const controller = new DirectoryController(service);
+
+    controller.districtDetail('WY', '00', undefined);
+
+    expect(service.getDistrictDetail).toHaveBeenCalledWith('WY', '00', 'C');
+  });
+
+  test('districtDetail() passes through status="F" explicitly, never silently defaulting it away', () => {
+    const service = makeDetailService();
+    const controller = new DirectoryController(service);
+
+    controller.districtDetail('TX', '25', 'F');
+
+    expect(service.getDistrictDetail).toHaveBeenCalledWith('TX', '25', 'F');
+  });
+
+  test('districtDetail() treats any value other than the literal "F" as "C" (never a silent pass-through of garbage)', () => {
+    const service = makeDetailService();
+    const controller = new DirectoryController(service);
+
+    controller.districtDetail('WY', '00', 'not-a-real-status');
+
+    expect(service.getDistrictDetail).toHaveBeenCalledWith('WY', '00', 'C');
+  });
+
+  test('districtKml() sets the KML content-type + disposition and sends the buffer, nothing else', async () => {
+    const service = {
+      getDistrictKml: jest.fn().mockResolvedValueOnce({
+        filename: '271-C.kml',
+        buffer: Buffer.from('<kml/>'),
+      }),
+    } as unknown as DirectoryService & { getDistrictKml: jest.Mock };
+    const controller = new DirectoryController(service);
+    const res = { setHeader: jest.fn(), send: jest.fn() } as unknown as import('express').Response;
+
+    await controller.districtKml('DC', '00', undefined, res);
+
+    expect(service.getDistrictKml).toHaveBeenCalledWith('DC', '00', 'C');
+    expect(res.setHeader).toHaveBeenCalledWith('Content-Type', 'application/vnd.google-earth.kml+xml');
+    expect(res.setHeader).toHaveBeenCalledWith('Content-Disposition', 'inline; filename="271-C.kml"');
+    expect(res.send).toHaveBeenCalledWith(Buffer.from('<kml/>'));
+    // The response must never carry anything resembling the vendor's
+    // key-bearing KML source URL — only the content-type/disposition headers
+    // and the raw boundary bytes ever reach res.
+    const allSetHeaderCalls = (res.setHeader as jest.Mock).mock.calls.flat();
+    for (const arg of allSetHeaderCalls) {
+      expect(String(arg)).not.toMatch(/legistorm\.com|getKMLByHash/);
+    }
+  });
+});
