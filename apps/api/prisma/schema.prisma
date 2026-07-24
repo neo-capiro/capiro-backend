@@ -4194,6 +4194,33 @@ model LegistormTrip {
 }
 
 // ─────────────────────────────────────────────────────────────────────────
+// Committee membership watch (WS-G, LegiStorm gaps/enrichment plan —
+// optional temporal enrichment). NOT a record of vendor data — it's our OWN
+// bookkeeping ledger of "who was on which committee as of the last
+// emit-committee-changes.ts run", analogous to a watermark. The ingestion
+// pipeline explicitly drops LegiStorm's own dated roster_snapshot history
+// (directory-indexes.ts: "drops the raw LegiStorm rows and keeps only
+// committee LEADERSHIP"), so there is no historical roster data to read
+// directly — this table is what makes a gained/lost/role-changed diff
+// possible at all. Rows are upserted for a gain/role-change and DELETED for
+// a loss (this table represents current state, unlike legistorm_trip /
+// legislative_district, which are historical/reference records that are
+// never deleted).
+// ─────────────────────────────────────────────────────────────────────────
+model CommitteeMembershipWatch {
+  committeeId String    @map("committee_id")
+  personId    String    @map("person_id")
+  personName  String?   @map("person_name")
+  /** Position text as of the last run, e.g. "Chair", "Ranking Member"; null = plain member. */
+  role        String?
+  firstSeenAt DateTime  @default(now()) @map("first_seen_at") @db.Timestamptz(6)
+  lastSeenAt  DateTime  @default(now()) @map("last_seen_at") @db.Timestamptz(6)
+
+  @@id([committeeId, personId])
+  @@map("committee_membership_watch")
+}
+
+// ─────────────────────────────────────────────────────────────────────────
 // BEA, Bureau of Economic Analysis GDP/industry data
 // GLOBAL table, no tenant_id, no RLS.
 // Source: apps.bea.gov/api/data/
