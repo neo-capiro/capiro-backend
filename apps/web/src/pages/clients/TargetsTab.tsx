@@ -292,6 +292,9 @@ export function TargetsTab({ clientId, canManage, onViewIntelligence }: Props) {
         source: v.source,
         addedByUserId: null,
         addedAt: new Date().toISOString(),
+        // Not yet known — the server resolves this fresh on the next list
+        // fetch; this optimistic row is replaced once the add settles.
+        representedFacilities: null,
       };
       qc.setQueryData<ClientTarget[]>(['client-targets', clientId], [...(prev ?? []), optimistic]);
       return { prev };
@@ -665,6 +668,19 @@ export function TargetsTab({ clientId, canManage, onViewIntelligence }: Props) {
                                 </span>
                                 {isMeri ? <span className="tgt-meri">⊙ Meri pick</span> : null}
                               </div>
+                              {/* WS-E, LegiStorm gaps/enrichment plan — resolved fresh
+                                  server-side from the member's CURRENT district, never
+                                  from this row's own (possibly stale) `state` text. */}
+                              {t.representedFacilities && t.representedFacilities.length > 0 ? (
+                                <div className="tgt-meta" style={{ marginTop: 2 }}>
+                                  <span style={{ fontSize: 11, color: '#059669' }}>
+                                    📍 Represents{' '}
+                                    {t.representedFacilities.length === 1
+                                      ? t.representedFacilities[0]!.name
+                                      : `${t.representedFacilities.length} client facilities`}
+                                  </span>
+                                </div>
+                              ) : null}
                             </div>
                             {canManage ? (
                               <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
