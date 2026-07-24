@@ -652,4 +652,21 @@ export const INGESTION_JOBS: ScheduledIngestionJob[] = [
     description:
       'P2-8: once-daily digest of newly-upcoming meetings (7d lookahead) into the in-app inbox (~8am ET, ahead of FlushTrackerDigestsDaily at 12:30)',
   },
+  // WS-G, LegiStorm gaps/enrichment plan (optional temporal enrichment) —
+  // ships DISABLED per R7: a brand-new automated write path into
+  // intelligence_change that has never run in prod. Unlike the other
+  // LegiStorm-adjacent jobs, this has NO LEGISTORM_API_KEY dependency at all
+  // (it reads the already-ingested directory snapshot + writes to our own
+  // committee_membership_watch ledger) — the blocker here is purely "prove
+  // it once before enabling," not the compromised-key gate. Runs after
+  // SyncCommittees (05:40) so same-day committee-roster changes are
+  // reflected before this compares against them.
+  {
+    id: 'EmitCommitteeChanges',
+    command: ['emit-committee-changes'],
+    cron: { minute: '0', hour: '6' },
+    tier: 'derived',
+    description: 'Committee membership gain/loss/role-change alerts for tracked members (daily 06:00 UTC)',
+    enabled: false,
+  },
 ];

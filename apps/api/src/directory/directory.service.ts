@@ -653,6 +653,31 @@ export class DirectoryService implements OnModuleInit {
     return base.contacts;
   }
 
+  /**
+   * WS-G, LegiStorm gaps/enrichment plan (optional temporal enrichment) —
+   * every CURRENT committee membership across the whole snapshot (members
+   * and staff, leadership and plain members alike). Read-only reuse of the
+   * already-built index — zero new S3/processing cost beyond what
+   * buildDirectoryIndexes already computes for the detail/dictionary
+   * endpoints. `membershipsByCommitteeId` includes FORMER memberships too
+   * (per its own doc comment on committeesByPersonId: "current or former"),
+   * so this filters to endedAt === null — the same unambiguous "still
+   * active" signal used throughout this codebase (e.g. member_offices'
+   * end_date === null), rather than trusting a status string whose exact
+   * values aren't guaranteed.
+   *
+   * Called from a plain script (emit-committee-changes.ts) via a NestJS
+   * application context (NestFactory.createApplicationContext + app.get(...,
+   * {strict:false}) — the same pattern sync-hearing-transcripts.ts already
+   * uses to reuse GovInfoService), never re-implemented standalone.
+   */
+  async getAllCommitteeMemberships(): Promise<DirectoryCommitteeMembership[]> {
+    const base = await this.getDirectoryData();
+    return Array.from(base.indexes.membershipsByCommitteeId.values())
+      .flat()
+      .filter((m) => m.endedAt === null);
+  }
+
   // Search across the flattened staffer index (built once at cache time).
   // In-memory filter over the cached dataset — fast even at ~20k staffers.
   async getStaffers(query: StaffersQuery = {}): Promise<DirectoryStaffersPayload> {
