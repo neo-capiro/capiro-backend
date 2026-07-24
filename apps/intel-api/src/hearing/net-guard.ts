@@ -2,36 +2,32 @@ import { lookup } from 'node:dns/promises';
 import { isIP } from 'node:net';
 
 /**
- * SSRF guard for the hearing stream resolver + ingestion path.
+ * SSRF guard for the hearing stream resolver.
  *
- * The ingestion path (StreamIngestionService → ffmpeg) and the resolver both take
- * an operator/analyst-supplied URL and open it SERVER-SIDE. Before P8 the only
- * check was `new URL()` + http(s) scheme — which lets a URL point ffmpeg (or the
- * resolver's own `fetch`) at `http://169.254.169.254/…` (cloud metadata),
- * `http://127.0.0.1:<port>/…` (loopback services), or an internal `10.0.0.0/8`
- * host. This module closes that hole with a host ALLOWLIST + a private/link-local
- * IP DENY (applied to BOTH the literal host and, when it's a name, its resolved
- * A/AAAA records to defeat DNS-rebinding) + caps on redirects/size/timeout.
+ * StreamResolverService takes an operator/analyst-supplied URL and probes/fetches
+ * it SERVER-SIDE to find a watchable media URL. Before P8 the only check was
+ * `new URL()` + http(s) scheme — which lets a URL point the resolver's own
+ * `fetch` at `http://169.254.169.254/…` (cloud metadata), `http://127.0.0.1:<port>/…`
+ * (loopback services), or an internal `10.0.0.0/8` host. This module closes that
+ * hole with a host ALLOWLIST + a private/link-local IP DENY (applied to BOTH the
+ * literal host and, when it's a name, its resolved A/AAAA records to defeat
+ * DNS-rebinding) + caps on redirects/size/timeout.
  *
  * Used by:
  *   - StreamResolverService — before every server-side page/probe fetch.
- *   - StreamIngestionService — before spawning ffmpeg on a media URL.
  *
  * The allowlist is HARDCODED (not env-driven): it is a security boundary, not a
  * feature toggle. Media/pages we resolve only ever come from these gov/broadcast
- * origins; anything else is refused (analysts fall back to assisted-paste, which
- * itself is validated through here before ingestion).
+ * origins; anything else is refused (analysts fall back to assisted-paste).
  *
  * ── RESIDUAL RISK (cannot be closed in-app) ──
  * This module hardens the NODE fetch path (resolver probes/page fetches follow
- * redirects manually, re-validating every hop's host + resolved IP) AND the
- * URL handed to ffmpeg (guardedProbe now returns the FINAL post-redirect URL, so
- * ffmpeg is pointed at a validated endpoint and started with `-follow_redirects 0`
- * + a protocol whitelist that excludes `file:`). What it CANNOT close: a
- * malicious HLS manifest hosted on an ALLOWLISTED host can list ABSOLUTE segment
- * URIs pointing at internal IPs (169.254.169.254 metadata, 10.x, etc.); ffmpeg
- * fetches those segment URIs itself, and the app never sees them to re-validate.
- * The only real mitigation is a network-layer egress policy.
+ * redirects manually, re-validating every hop's host + resolved IP). What it
+ * CANNOT close: a malicious HLS manifest hosted on an ALLOWLISTED host can list
+ * ABSOLUTE segment URIs pointing at internal IPs (169.254.169.254 metadata, 10.x,
+ * etc.) — a browser embedding that manifest would fetch those segment URIs
+ * itself, and the app never sees them to re-validate. The only real mitigation
+ * is a network-layer egress policy.
  *   TODO(infra): egress deny for link-local/RFC1918 on the intel-api task —
  *   block 169.254.0.0/16 + 10.0.0.0/8 + 172.16.0.0/12 + 192.168.0.0/16 (and the
  *   IPv6 equivalents) at the security-group / NACL / egress-proxy layer so a

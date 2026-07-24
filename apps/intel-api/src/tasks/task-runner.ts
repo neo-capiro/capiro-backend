@@ -36,17 +36,6 @@ import { ParityService } from '../tracker/parity.service.js';
 import { DataParityService } from '../tracker/data-parity.service.js';
 import { WatchlistMatchPromoterService } from '../linking/watchlist-match-promoter.service.js';
 import { BillHearingLinkerService } from '../linking/bill-hearing-linker.service.js';
-import { SenateScheduleService } from '../hearing/senate-schedule.service.js';
-import {
-  SenateCapturePollerService,
-  DEFAULT_PROBE_WINDOW,
-  DEFAULT_CONCURRENCY,
-  candidateProbeUrls,
-} from '../hearing/senate-capture-poller.js';
-import { HearingCaptureRunner } from '../hearing/hearing-capture-runner.service.js';
-import { EcsCaptureLauncher } from '../hearing/ecs-capture-launcher.service.js';
-import { StreamIngestionService } from '../hearing/stream-ingestion.service.js';
-import { guardedProbe } from '../hearing/net-guard.js';
 
 /** Parse `--key=value` flags out of a verb's arg list. */
 function parseFlags(args: string[]): Record<string, string> {
@@ -100,8 +89,6 @@ export const KNOWN_VERBS = [
   'diag-replay-bill', //            Diagnostic: rewind one tracked bill's watermark + run detection (e2e proof)
   'diag-upcoming-hearings', //      Diagnostic: read committee_hearing (upcoming feed) — count + samples
   'dedupe-state-alerts', //         2026-07-10 hot-fix (D-2): report/suppress pre-fix state double-emit dupes (dry-run default)
-  'poll-hearings', //               Senate auto-capture: discover senate.gov feed → claim rows → probe go-live (dry-run default)
-  'capture', //                     Senate auto-capture: headless capture of ONE live hearing → global transcript (long-running)
 ] as const;
 export type Verb = (typeof KNOWN_VERBS)[number];
 
@@ -571,109 +558,6 @@ export async function runVerb(verb: string, args: string[], deps: VerbDeps): Pro
         const r = await svc.linkAll(flags['since']);
         deps.log(`LINK_DONE sessions=${r.sessions} combined=${r.combined} skipped=${r.skipped}`);
       }
-      return;
-    }
-    case 'poll-hearings': {
-      const flags = parseFlags(args);
-      // SAFE DEFAULT: dry-run unless explicitly disabled. Dry-run discovers +
-      // probes + records claim rows (incl. status='live') but launches NO
-      // capture worker — the Increment-A dark verification path.
-      const dryRun = !/^(false|0|no|off)$/i.test(flags['dry-run'] ?? 'true');
-      const probe = !/^(false|0|no|off)$/i.test(flags['probe'] ?? 'true');
-      const config = new ConfigService();
-      const schedule = new SenateScheduleService(config);
-      const poller = new SenateCapturePollerService(
-        deps.prisma,
-        schedule,
-        new SourceDataRepository(deps.prisma),
-      );
-      // Concurrency ceiling — env-overridable; conservative default until the
-      // Deepgram plan's concurrent-connection limit is confirmed.
-      const maxConcurrent =
-        Number.parseInt(config.get<string>('MAX_CONCURRENT_CAPTURES') ?? '', 10) ||
-        DEFAULT_CONCURRENCY.maxConcurrent;
-      // Real launching requires ALL THREE safeties: not dry-run, the
-      // SENATE_AUTO_CAPTURE kill-switch on, AND the launcher configured with the
-      // capture task-def/networking. Any one missing → record 'live', never launch.
-      const launcher = new EcsCaptureLauncher(config);
-      const autoCaptureOn = /^(1|true|yes|on)$/i.test(
-        (config.get<string>('SENATE_AUTO_CAPTURE') ?? '').trim(),
-      );
-      const launchEnabled = !dryRun && autoCaptureOn && launcher.configured();
-      deps.log(
-        `POLL_CFG dryRun=${dryRun} autoCapture=${autoCaptureOn} ` +
-          `launcherConfigured=${launcher.configured()} launchEnabled=${launchEnabled} ` +
-          `maxConcurrent=${maxConcurrent}`,
-      );
-      const r = await poller.runOnce(
-        {
-          dryRun,
-          probe,
-          window: DEFAULT_PROBE_WINDOW,
-          concurrency: { maxConcurrent, staleHeartbeatMs: DEFAULT_CONCURRENCY.staleHeartbeatMs },
-        },
-        {
-          probe: async (url) => {
-            const p = await guardedProbe(url);
-            return { ok: p.ok, status: p.status, url: p.url };
-          },
-          now: () => new Date(),
-          launchCapture: launchEnabled ? (id) => launcher.launch(id) : undefined,
-        },
-      );
-      for (const line of r.log) deps.log(`  ${line}`);
-      deps.log(
-        `POLL_DONE dryRun=${dryRun} probe=${probe} discovered=${r.discovered} ` +
-          `upserted=${r.upserted} probed=${r.probed} live=${r.live} pending=${r.pending} ` +
-          `skipped=${r.skipped} reaped=${r.reaped} deferred=${r.deferred} launched=${r.launched}`,
-      );
-      return;
-    }
-    case 'capture': {
-      // Long-running: headless capture of ONE live Senate hearing until the
-      // stream ends. Launched one-per-hearing (run-task) by the poller in prod,
-      // or invoked manually by <captureId|hearingKey> to prove the capture path.
-      const idArg = args[0];
-      if (!idArg) throw new Error('capture requires a <captureId|hearingKey> argument');
-      const row = await deps.prisma.senateHearingCapture.findFirst({
-        where: { OR: [{ id: idArg }, { hearingKey: idArg }] },
-      });
-      if (!row) throw new Error(`CAPTURE_ROW_NOT_FOUND ${idArg}`);
-
-      // Re-resolve a FRESH validated live URL at capture start (the poller's
-      // mediaUrl can be minutes stale; re-validate through net-guard).
-      let mediaUrl: string | null = null;
-      for (const url of candidateProbeUrls(row.comm, row.filename)) {
-        try {
-          const p = await guardedProbe(url);
-          if (p.ok) {
-            mediaUrl = p.url;
-            break;
-          }
-        } catch {
-          /* try next candidate */
-        }
-      }
-      if (!mediaUrl) {
-        await deps.prisma.senateHearingCapture.update({
-          where: { id: row.id },
-          data: { status: 'pending', lastError: 'capture start: stream not live' },
-        });
-        deps.log(`CAPTURE_NOT_LIVE ${row.hearingKey} — stream not reachable at start`);
-        return;
-      }
-
-      const runner = new HearingCaptureRunner(
-        deps.prisma,
-        new StreamIngestionService(),
-        new ConfigService(),
-      );
-      deps.log(`CAPTURE_START ${row.hearingKey} ${row.committeeName ?? row.comm} -> ${mediaUrl}`);
-      const outcome = await runner.capture({ captureId: row.id, mediaUrl });
-      deps.log(
-        `CAPTURE_DONE ${row.hearingKey} status=${outcome.status} segments=${outcome.segments} ` +
-          `reason=${outcome.reason}`,
-      );
       return;
     }
     default:

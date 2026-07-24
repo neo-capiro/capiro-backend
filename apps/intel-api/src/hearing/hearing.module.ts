@@ -2,7 +2,6 @@ import { Module } from '@nestjs/common';
 import { HearingController } from './hearing.controller.js';
 import { HearingSessionService } from './hearing-session.service.js';
 import { SegmentCommitService } from './segment-commit.service.js';
-import { StreamIngestionService } from './stream-ingestion.service.js';
 import { HearingCryptoService } from './hearing-crypto.service.js';
 import { OrchestratorClient } from './orchestrator.client.js';
 import { HearingAiCredentialResolver } from './hearing-ai-credential-resolver.client.js';
@@ -10,8 +9,6 @@ import { PostHearingService } from './post-hearing.service.js';
 import { HearingBriefService } from './hearing-brief.service.js';
 import { HearingGateway } from './hearing.gateway.js';
 import { StreamResolverService } from './stream-resolver.service.js';
-import { SenateHearingController } from './senate-hearing.controller.js';
-import { SenateTranscriptReadService } from './senate-transcript-read.service.js';
 import { WatchlistModule } from '../watchlist/watchlist.module.js';
 import { LinkingModule } from '../linking/linking.module.js';
 import { SourceDataModule } from '../sourcedata/source-data.module.js';
@@ -24,17 +21,15 @@ import { SourceDataModule } from '../sourcedata/source-data.module.js';
  */
 @Module({
   imports: [WatchlistModule, LinkingModule, SourceDataModule],
-  controllers: [HearingController, SenateHearingController],
+  controllers: [HearingController],
   providers: [
     HearingSessionService,
-    SenateTranscriptReadService,
     SegmentCommitService,
     HearingCryptoService,
     OrchestratorClient,
     HearingAiCredentialResolver,
     PostHearingService,
     HearingBriefService,
-    StreamIngestionService,
     StreamResolverService,
     HearingGateway,
   ],

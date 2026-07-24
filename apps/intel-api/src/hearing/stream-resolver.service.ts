@@ -28,8 +28,11 @@ import {
 } from './stream-extractors.js';
 
 /**
- * Hearing stream RESOLVER — the one-click "turn a hearing/page into an
- * ingestible media URL" service behind POST /intel-api/hearings/resolve-stream.
+ * Hearing stream RESOLVER — the one-click "turn a hearing/page into a
+ * watchable media URL" service behind POST /intel-api/hearings/resolve-stream.
+ * The resolved URL is embedded (or linked) in the Live Hearing Room so the
+ * analyst can play it and share that tab's audio — there is no server-side
+ * stream ingestion; Deepgram only ever transcribes browser-captured audio.
  *
  * Provider adapters are tried in order (see the P8 live-verified spec):
  *   1. direct-media    — a URL that already IS media (validate via probe).

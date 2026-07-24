@@ -11,7 +11,6 @@ import {
   Card,
   Divider,
   Empty,
-  Input,
   Modal,
   Select,
   Space,
@@ -80,16 +79,16 @@ function extractYouTubeVideoId(url: string): string | null {
 
 /** Plays an HLS (.m3u8) stream in a plain <video> — native on Safari, hls.js
  *  everywhere else (same library-free-until-needed approach as the rest of
- *  this app; no player was previously wired up because the session was
- *  audio-only transcription with no visual component until now). Muted:
- *  this is a "watch along" convenience for a stream ffmpeg is ALREADY
- *  ingesting server-side for transcription — nothing here needs to be heard
- *  by the browser tab, and muting sidesteps autoplay-with-sound restrictions.
+ *  this app). Unmuted, no autoplay: this IS the audio source for
+ *  transcription now (there is no server-side ingestion), so the analyst
+ *  presses play, then shares THIS TAB's audio via "Start transcription"
+ *  below — autoplay-with-sound is browser-blocked without a user gesture
+ *  anyway, and the native play button doubles as that gesture.
  *
- *  ffmpeg pulling this same URL server-side is never CORS-gated, but a
- *  browser's own fetch of it is — government/committee CDNs commonly lack
- *  permissive CORS for playback even though a raw server pull works fine.
- *  Surface that as a clear message rather than a silently-black video box. */
+ *  A browser's own fetch of this URL is CORS-gated even though a raw server
+ *  pull isn't — government/committee CDNs commonly lack permissive CORS for
+ *  playback. Surface that as a clear message rather than a silently-black
+ *  video box. */
 function HlsVideoPlayer({ src }: { src: string }) {
   const videoRef = useRef<HTMLVideoElement | null>(null);
   const [unavailable, setUnavailable] = useState(false);
@@ -128,7 +127,7 @@ function HlsVideoPlayer({ src }: { src: string }) {
           fontSize: 12,
         }}
       >
-        Video preview unavailable for this stream — transcription is unaffected.
+        Video preview unavailable for this stream — open the source link below instead.
       </div>
     );
   }
@@ -137,8 +136,6 @@ function HlsVideoPlayer({ src }: { src: string }) {
     <video
       ref={videoRef}
       controls
-      muted
-      autoPlay
       playsInline
       onError={() => setUnavailable(true)}
       style={{ width: '100%', maxHeight: 320, background: '#000', borderRadius: 8, display: 'block' }}
@@ -173,56 +170,33 @@ export function LiveHearingRoomPage() {
   const [stopped, setStopped] = useState(false);
   const [recapOpen, setRecapOpen] = useState(false);
   const [connected, setConnected] = useState(false);
-  const [audioUrl, setAudioUrl] = useState('');
   const [capturing, setCapturing] = useState(false);
-  // Mutually exclusive with `capturing` — the WS's default connection is
-  // opus-encoded for browser capture, but `ingest` swaps Deepgram to
-  // linear16 for ffmpeg. Running both at once would feed opus bytes into a
-  // linear16 socket (or vice versa) and silently corrupt transcription.
-  const [ingestActive, setIngestActive] = useState(false);
   const [segments, setSegments] = useState<Segment[]>([]);
   const [interim, setInterim] = useState<string>('');
   const [cards, setCards] = useState<Card_[]>([]);
   const [error, setError] = useState<string | null>(null);
   // Human-readable progress from the server's `status` frames (connecting,
-  // ingesting, transcribing, reconnecting, ended). Without surfacing these the
-  // room looked identical whether ingestion was working, still starting, or had
-  // failed — the "nothing happens" report.
+  // transcribing, reconnecting, ended). Without surfacing these the room
+  // looked identical whether transcription was working, still starting, or
+  // had failed — the "nothing happens" report.
   const [statusText, setStatusText] = useState<string | null>(null);
   const wsRef = useRef<WebSocket | null>(null);
-  const audioUrlRef = useRef('');
-  const ingestSentRef = useRef(false);
   const transcriptEndRef = useRef<HTMLDivElement | null>(null);
   const displayStreamRef = useRef<MediaStream | null>(null);
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
 
-  // Keep a ref of the current URL so the WS message handler (created once per
-  // connect) always sends the latest value.
-  useEffect(() => {
-    audioUrlRef.current = audioUrl;
-  }, [audioUrl]);
-
-  // Pre-fill the ingestion URL from the session's stored stream URL (set at
-  // "New Hearing"), unless the user has already typed one. Only for an
-  // actually-ingestible media URL — a reference/event-page link (e.g. a House
-  // committee's YouTube page) would just fail ffmpeg ingestion; that case is
-  // instead surfaced as a click-through "open + capture" link below.
-  useEffect(() => {
-    const u = session.data?.sourceUrl;
-    if (u && isMediaUrl(u) && !audioUrl) setAudioUrl(u);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [session.data?.sourceUrl]);
-
-  // A non-media sourceUrl is a reference (event page / C-SPAN search) carried
-  // over from hearing creation — the source to open in a tab and capture.
+  // A non-media sourceUrl is a reference (event page / C-SPAN search / YouTube
+  // watch page) carried over from hearing creation — the source to embed or
+  // open in a tab so the analyst can share its audio.
   const referenceUrl =
     session.data?.sourceUrl && !isMediaUrl(session.data.sourceUrl)
       ? session.data.sourceUrl
       : undefined;
-  // A real media URL means ffmpeg is (or will be, on connect) ingesting this
-  // directly server-side — no browser capture needed, and there's something
-  // to actually watch alongside the transcript now that HlsVideoPlayer exists.
-  const mediaSourceUrl =
+  // A directly-embeddable media URL (HLS/MP4/audio) — played right here via
+  // HlsVideoPlayer instead of needing a separate tab. There is no server-side
+  // ingestion of this anymore: it's just the audio source for "Start
+  // transcription" below, same as the YouTube-embed and open-in-tab cases.
+  const embeddableUrl =
     session.data?.sourceUrl && isMediaUrl(session.data.sourceUrl)
       ? session.data.sourceUrl
       : undefined;
@@ -234,7 +208,6 @@ export function LiveHearingRoomPage() {
       setError('Not authenticated');
       return;
     }
-    ingestSentRef.current = false;
     const ws = new WebSocket(wsUrl(id, token));
     wsRef.current = ws;
     ws.onopen = () => {
@@ -244,7 +217,6 @@ export function LiveHearingRoomPage() {
     ws.onclose = () => {
       setConnected(false);
       setStatusText(null);
-      setIngestActive(false);
       // A drop for any reason (max-duration cutoff, network blip, auth expiry)
       // must tear down browser capture too — otherwise a running MediaRecorder
       // keeps sending chunks (silently dropped since wsRef is now closed) and
@@ -259,34 +231,14 @@ export function LiveHearingRoomPage() {
     };
     ws.onerror = () => setError('WebSocket connection error');
 
-    // Map the server's free-form `status` frames to a readable line. The
-    // 'connected' case also auto-starts ingestion when a URL is present.
+    // Map the server's free-form `status` frames to a readable line.
     const handleStatus = (s: string) => {
-      if (s === 'connected') {
-        setStatusText('Connected — starting transcription…');
-        // Auto-start ingestion when a stream URL is present (from the session or
-        // the field), so the user doesn't have to paste + click. Small delay: the
-        // server registers its message handler just after sending 'connected'.
-        if (audioUrlRef.current.trim() && !ingestSentRef.current) {
-          ingestSentRef.current = true;
-          setIngestActive(true);
-          setStatusText('Starting ingestion…');
-          setTimeout(() => {
-            const w = wsRef.current;
-            if (w && w.readyState === WebSocket.OPEN) {
-              w.send(JSON.stringify({ type: 'ingest', audioUrl: audioUrlRef.current.trim() }));
-            }
-          }, 1200);
-        }
-      } else if (s === 'ingesting') setStatusText('Ingesting the stream…');
+      if (s === 'connected') setStatusText('Connected — starting transcription…');
       else if (s === 'transcribing') setStatusText('Listening for audio…');
       else if (s.startsWith('reconnecting')) setStatusText('Reconnecting to transcription…');
       else if (s === 'max_duration_reached')
         setStatusText('Session reached the maximum duration and was stopped.');
-      else if (s.startsWith('ingestion_ended')) {
-        const reason = s.slice('ingestion_ended:'.length).trim();
-        setStatusText(reason ? `Stream ended: ${reason}` : 'Stream ended.');
-      } else if (s) setStatusText(s);
+      else if (s) setStatusText(s);
     };
 
     ws.onmessage = (ev) => {
@@ -319,29 +271,6 @@ export function LiveHearingRoomPage() {
     };
   }, []);
 
-  const startIngest = useCallback(() => {
-    const ws = wsRef.current;
-    if (!ws || ws.readyState !== WebSocket.OPEN) {
-      setError('Connect first, then start ingestion.');
-      return;
-    }
-    if (capturing) {
-      setError('Stop browser capture first, then start stream ingestion.');
-      return;
-    }
-    if (!audioUrl.trim()) {
-      setError('Enter a hearing audio/stream URL.');
-      return;
-    }
-    // Acknowledge the click immediately — the server's first status frame can be
-    // a second or two out, and previously nothing changed on screen until then.
-    setError(null);
-    setStatusText('Starting ingestion…');
-    ws.send(JSON.stringify({ type: 'ingest', audioUrl: audioUrl.trim() }));
-    ingestSentRef.current = true;
-    setIngestActive(true);
-  }, [audioUrl, capturing]);
-
   /** Stop an in-progress browser-audio capture (recorder + shared-tab tracks). */
   const stopBrowserCapture = useCallback(() => {
     mediaRecorderRef.current?.stop();
@@ -352,23 +281,17 @@ export function LiveHearingRoomPage() {
   }, []);
 
   /**
-   * Chamber-agnostic capture path for hearings with no ingestible stream URL
-   * (House committees stream via per-committee YouTube with no first-party
-   * feed; this also works for Senate/anything else). The analyst opens the
-   * hearing in another tab, picks that tab here with "Share tab audio"
-   * checked, and MediaRecorder streams opus chunks over the same WS the
-   * default (pre-`ingest`) Deepgram connection is already listening on — no
-   * server changes needed, it was built for exactly this, just never wired
-   * up client-side. This captures audio already being rendered on the
-   * analyst's own machine; it never touches the source platform's servers.
+   * Chamber-agnostic capture path: the analyst opens/plays the hearing (the
+   * embed above, or a separate tab for anything that can't be embedded),
+   * picks that tab here with "Share tab audio" checked, and MediaRecorder
+   * streams opus chunks over the WS's default Deepgram connection. This
+   * captures audio already being rendered on the analyst's own machine; it
+   * never touches the source platform's servers, and there is no server-side
+   * stream ingestion — this is the only transcription path now.
    */
   const startBrowserCapture = useCallback(async () => {
     if (!wsRef.current || wsRef.current.readyState !== WebSocket.OPEN) {
       setError('Connect first, then capture browser audio.');
-      return;
-    }
-    if (ingestSentRef.current) {
-      setError('Stop stream ingestion first, then capture browser audio.');
       return;
     }
     if (!MediaRecorder.isTypeSupported('audio/webm;codecs=opus')) {
@@ -380,15 +303,8 @@ export function LiveHearingRoomPage() {
       // "Share tab audio" checkbox; the video track is discarded immediately.
       const display = await navigator.mediaDevices.getDisplayMedia({ video: true, audio: true });
       // Re-check live state: the browser's picker can sit open for a while,
-      // and ingestion (or a disconnect) may have started/happened while we
-      // waited on the user. Checked via the ref, not the `ingestActive`
-      // state closed over at call time, since that snapshot can't observe
-      // changes that happened during the await.
-      if (
-        ingestSentRef.current ||
-        !wsRef.current ||
-        wsRef.current.readyState !== WebSocket.OPEN
-      ) {
+      // and a disconnect may have happened while we waited on the user.
+      if (!wsRef.current || wsRef.current.readyState !== WebSocket.OPEN) {
         display.getTracks().forEach((t) => t.stop());
         setError('Connection state changed while waiting for the capture picker — try again.');
         return;
@@ -489,7 +405,6 @@ export function LiveHearingRoomPage() {
               setConnected(false);
               setStatusText(null);
               setStopped(true);
-              setIngestActive(false);
             }}
           >
             Stop
@@ -520,15 +435,16 @@ export function LiveHearingRoomPage() {
         </Space>
       )}
 
-      {(mediaSourceUrl || referenceUrl) && (
+      {(embeddableUrl || referenceUrl) && (
         <Card size="small" title="Hearing video" style={{ marginBottom: 12, maxWidth: 720 }}>
-          {mediaSourceUrl ? (
+          {embeddableUrl ? (
             <>
-              <HlsVideoPlayer src={mediaSourceUrl} />
+              <HlsVideoPlayer src={embeddableUrl} />
               <Text type="secondary" style={{ fontSize: 12, display: 'block', marginTop: 8 }}>
-                Direct stream found — transcribing automatically once you connect. Muted here to
-                avoid duplicate audio; unmute with the player&apos;s own controls to watch along. No
-                manual capture needed for this one.
+                Press play above, connect (if you haven&apos;t already), then click{' '}
+                <Text strong>&quot;Start transcription&quot;</Text> below and choose{' '}
+                <Text strong>&quot;This tab&quot;</Text> when sharing — the video is right here, no
+                need to switch tabs.
               </Text>
             </>
           ) : youtubeVideoId ? (
@@ -551,85 +467,49 @@ export function LiveHearingRoomPage() {
                 />
               </div>
               <Text type="secondary" style={{ fontSize: 12, display: 'block', marginTop: 8 }}>
-                No direct stream for this hearing — press play above, connect (if you haven&apos;t
-                already), then use <Text strong>&quot;Capture this browser&apos;s audio&quot;</Text>{' '}
-                below and choose <Text strong>&quot;This tab&quot;</Text> when sharing — the video is
-                right here, no need to switch tabs.
+                Press play above, connect (if you haven&apos;t already), then click{' '}
+                <Text strong>&quot;Start transcription&quot;</Text> below and choose{' '}
+                <Text strong>&quot;This tab&quot;</Text> when sharing — the video is right here, no
+                need to switch tabs.
               </Text>
             </>
           ) : (
             <>
-              <Text type="secondary">
-                No direct stream, and this source can&apos;t be embedded here.
-              </Text>{' '}
+              <Text type="secondary">This source can&apos;t be embedded here.</Text>{' '}
               <Button type="link" href={referenceUrl} target="_blank" rel="noreferrer" style={{ padding: 0 }}>
                 Open hearing source in a new tab ↗
               </Button>
               <Text type="secondary" style={{ fontSize: 12, display: 'block', marginTop: 4 }}>
-                Then come back, connect (if you haven&apos;t already), and use{' '}
-                <Text strong>&quot;Capture this browser&apos;s audio&quot;</Text> below — pick that
-                tab and check &quot;Share tab audio&quot;.
+                Then come back, connect (if you haven&apos;t already), and click{' '}
+                <Text strong>&quot;Start transcription&quot;</Text> below — pick that tab and check
+                &quot;Share tab audio&quot;.
               </Text>
             </>
           )}
         </Card>
       )}
 
-      <Space.Compact style={{ display: 'flex', marginBottom: 12, maxWidth: 720 }}>
-        <Input
-          placeholder="Hearing audio/stream URL (HLS .m3u8, MP3/AAC, or any ffmpeg-openable URL)"
-          value={audioUrl}
-          onChange={(e) => setAudioUrl(e.target.value)}
-          onPressEnter={startIngest}
-        />
-        <Tooltip
-          title={
-            !connected
-              ? 'Connect first.'
-              : capturing
-                ? 'Stop browser capture first — only one capture mode can run at a time.'
-                : undefined
-          }
-        >
-          <span>
-            <Button type="primary" onClick={startIngest} disabled={!connected || capturing}>
-              Start ingestion
-            </Button>
-          </span>
-        </Tooltip>
-      </Space.Compact>
-
       <Space direction="vertical" size={2} style={{ marginBottom: 12 }}>
         <Space>
-          {!referenceUrl && !mediaSourceUrl && (
-            <Text type="secondary">
-              or, if there&apos;s no direct stream URL (e.g. a House committee&apos;s YouTube):
-            </Text>
+          {!referenceUrl && !embeddableUrl && (
+            <Text type="secondary">Play the hearing in another tab, then:</Text>
           )}
           {!capturing ? (
-            <Tooltip
-              title={
-                !connected
-                  ? 'Connect first.'
-                  : ingestActive
-                    ? 'A direct stream was found and is already transcribing automatically — no capture needed.'
-                    : undefined
-              }
-            >
+            <Tooltip title={!connected ? 'Connect first.' : undefined}>
               <span>
-                <Button onClick={startBrowserCapture} disabled={!connected || ingestActive}>
-                  Capture this browser&apos;s audio
+                <Button type="primary" onClick={startBrowserCapture} disabled={!connected}>
+                  Start transcription
                 </Button>
               </span>
             </Tooltip>
           ) : (
             <Button danger onClick={stopBrowserCapture}>
-              Stop browser capture
+              Stop transcription
             </Button>
           )}
         </Space>
         <Text type="secondary" style={{ fontSize: 12 }}>
-          Open the hearing in another tab first, then pick that tab here and check &quot;Share tab
+          Share the tab playing the hearing (this one, or another) and check &quot;Share tab
           audio&quot;. Chrome/Edge only.
         </Text>
       </Space>

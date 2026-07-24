@@ -21,14 +21,16 @@ export interface LiveHearingSession {
   consentState?: string | null;
 }
 
-/** A directly-ingestible media URL (HLS/MP4/audio) vs. an event/committee page.
- *  Only a media URL can be pre-filled into the room's ffmpeg Stream URL box; a
- *  page URL is a click-through reference for a human to open and capture.
+/** A directly-embeddable media URL (HLS/MP4/audio) vs. an event/committee page.
+ *  A media URL is played right in the Live Hearing Room via its own <video>
+ *  player; a page URL (or a YouTube watch link) is embedded via iframe or
+ *  opened in a new tab instead. Either way, transcription is always via
+ *  browser-tab audio capture — there is no server-side stream ingestion.
  *
  *  `stream`/`manifest`/`playlist` must appear as their own path segment (bounded
  *  by `/`, `.`, `-`, `_`, or start/end) — a bare substring match would also hit
  *  ordinary event-page URLs containing words like "livestream" or "streaming"
- *  (common on committee sites), false-positiving them as ingestible media. */
+ *  (common on committee sites), false-positiving them as embeddable media. */
 export function isMediaUrl(u?: string | null): boolean {
   if (!u) return false;
   return (
