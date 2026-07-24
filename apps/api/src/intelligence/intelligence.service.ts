@@ -2455,6 +2455,65 @@ export class IntelligenceService {
   }
 
   /**
+   * Free-text / by-UEI search over federal_assistance_award recipients for
+   * the District Nexus manual-attach panel (source 'assistance_recipient').
+   * federal_assistance_award is a flat award fact table, not a recipient
+   * dimension table like federal_contractor — so recipients are grouped
+   * on the fly (by UEI when present, else by name) rather than looked up in
+   * a pre-aggregated table. externalId pinned into the mapping is the UEI
+   * when available; callers must not silently substitute a parent UEI for a
+   * missing child/legal-entity UEI (§8.4 — never auto-confirm a weak match).
+   */
+  async searchAssistanceRecipients(query: string) {
+    const q = query.trim();
+    if (!q) return [];
+    const isUei = /^[A-Z0-9]{12}$/i.test(q);
+    const rows = await this.prisma.$queryRaw<
+      Array<{
+        uei: string | null;
+        name: string | null;
+        state: string | null;
+        award_count: number;
+        total_obligated: number;
+        similarity: number;
+      }>
+    >`
+      SELECT
+        MAX(recipient_uei) AS uei,
+        MAX(recipient_name) AS name,
+        MAX(recipient_state) AS state,
+        COUNT(*)::int AS award_count,
+        COALESCE(SUM(total_obligated_amount), 0)::float AS total_obligated,
+        MAX(sim) AS similarity
+      FROM (
+        SELECT recipient_uei, recipient_name, recipient_state, total_obligated_amount,
+               GREATEST(
+                 similarity(lower(recipient_name), lower(${q})),
+                 CASE WHEN ${isUei} AND upper(recipient_uei) = upper(${q}) THEN 1 ELSE 0 END
+               ) AS sim
+        FROM federal_assistance_award
+        WHERE recipient_name IS NOT NULL
+          AND (similarity(lower(recipient_name), lower(${q})) > 0.2 OR (${isUei} AND upper(recipient_uei) = upper(${q})))
+      ) matched
+      GROUP BY COALESCE(recipient_uei, recipient_name)
+      ORDER BY similarity DESC, total_obligated DESC
+      LIMIT 25
+    `;
+    return rows.map((r) => ({
+      // Stable pin identifier: UEI when the recipient has one on file, else
+      // the recipient name — mirrors the SQL's own COALESCE(uei, name) group
+      // key so a pin always lands back on the exact group it was picked from.
+      id: r.uei ?? r.name ?? '',
+      uei: r.uei,
+      name: r.name,
+      state: r.state,
+      awardCount: r.award_count,
+      totalObligated: r.total_obligated,
+      similarity: Number(r.similarity ?? 0),
+    }));
+  }
+
+  /**
    * Manually attach (and confirm) an external record to a client. For source
    * 'lda' this pins an exact lda_client.id — the reliable way to fold a
    * registrant variant the fuzzy matcher can't reach into a client's footprint.

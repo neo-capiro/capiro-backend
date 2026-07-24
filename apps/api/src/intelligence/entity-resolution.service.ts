@@ -92,7 +92,13 @@ export type CandidateDecision = 'skip' | 'review' | 'auto_confirm';
  * rank within its source. Only the single best candidate per source may
  * auto-confirm, and only when it clears the threshold AND is clearly ahead of
  * the runner-up. fec_committee never auto-confirms (PAC attribution is
- * compliance-sensitive — always human-reviewed).
+ * compliance-sensitive — always human-reviewed). assistance_recipient never
+ * auto-confirms EITHER, but for a different reason: matchAssistanceRecipient
+ * is fuzzy CLIENT-NAME-to-RECIPIENT-NAME matching only (District Nexus Rev 2
+ * §5.3's higher-precedence "exact client UEI" path is a direct fact-level
+ * join done at read time by DistrictNexusService, not a scored candidate —
+ * scoreCandidate's name-fingerprint heuristics are the wrong tool for judging
+ * a verified UEI match, so that tier deliberately never reaches this pipeline).
  */
 export function candidateDecision(params: {
   source: string;
@@ -101,13 +107,14 @@ export function candidateDecision(params: {
   runnerUpConfidence: number | null;
 }): CandidateDecision {
   const { source, confidence, isTopForSource, runnerUpConfidence } = params;
+  const NEVER_AUTO_CONFIRM = new Set(['fec_committee', 'assistance_recipient']);
   const clearWinner =
     runnerUpConfidence === null ||
     confidence - runnerUpConfidence >= AUTO_CONFIRM_AMBIGUITY_MARGIN;
   const autoConfirm =
     isTopForSource &&
     clearWinner &&
-    source !== 'fec_committee' &&
+    !NEVER_AUTO_CONFIRM.has(source) &&
     confidence >= AUTO_CONFIRM_THRESHOLD;
   if (confidence < MIN_WRITE_CONFIDENCE && !autoConfirm) return 'skip';
   return autoConfirm ? 'auto_confirm' : 'review';
@@ -409,6 +416,44 @@ export class EntityResolutionService {
     `;
   }
 
+  /**
+   * Fuzzy client-name-to-recipient-name candidates for District Nexus
+   * (source 'assistance_recipient'). federal_assistance_award is a flat
+   * award fact table, not a recipient dimension table, so recipients are
+   * grouped on the fly (by UEI when present, else by name) before scoring.
+   * externalId is the recipient UEI when available, else the recipient name
+   * — matching how a manual pin from the search endpoint would key it.
+   * Always routed to human review (see candidateDecision) — never auto-
+   * confirmed from name similarity alone.
+   */
+  private async matchAssistanceRecipient(clientName: string): Promise<MatchRow[]> {
+    return this.prisma.$queryRaw<MatchRow[]>`
+      SELECT COALESCE(MAX(recipient_uei), MAX(recipient_name)) AS external_id,
+             MAX(recipient_name) AS external_name,
+             MAX(sim) AS similarity,
+             MAX(recipient_state) AS state
+      FROM (
+        SELECT recipient_uei, recipient_name, recipient_state,
+               similarity(lower(recipient_name), lower(${clientName})) AS sim
+        FROM federal_assistance_award
+        WHERE recipient_name IS NOT NULL
+          -- The % operator is what actually reaches faa_recipient_name_trgm_idx
+          -- (gin on lower(recipient_name)); a bare similarity(...) > c is a
+          -- plain function call and would seq-scan the largest new table. The
+          -- expression must be spelled lower(recipient_name) to match the
+          -- functional index. % cuts at pg_trgm.similarity_threshold (0.3 by
+          -- default), so the explicit > 0.3 below is the same bar, kept as the
+          -- authoritative one in case the GUC is ever changed server-side.
+          -- (No backticks in here: this is a JS template literal.)
+          AND lower(recipient_name) % lower(${clientName})
+          AND similarity(lower(recipient_name), lower(${clientName})) > 0.3
+      ) matched
+      GROUP BY COALESCE(recipient_uei, recipient_name)
+      ORDER BY similarity DESC
+      LIMIT 50
+    `;
+  }
+
   // ── Public: resolve a single client ──────────────────────────────────────
 
   async resolveClient(
@@ -422,7 +467,7 @@ export class EntityResolutionService {
     // LDA uses the registrant-anchored pool when available (falls back to global);
     // the other sources stay on the global fuzzy pool.
     const lda = await this.ldaCandidates(clientName, clientFp, opts?.ldaRegistrantId);
-    const [contractorRows, secRows, fecRows, fecCommitteeRows, faraRows, lobbyRows] =
+    const [contractorRows, secRows, fecRows, fecCommitteeRows, faraRows, lobbyRows, assistanceRows] =
       await Promise.all([
         this.matchContractor(clientName),
         this.matchSec(clientName),
@@ -430,6 +475,7 @@ export class EntityResolutionService {
         this.matchFecCommittee(clientName),
         this.matchFara(clientName),
         this.matchLobbyIntel(clientName),
+        this.matchAssistanceRecipient(clientName),
       ]);
 
     const groups: Array<{ source: string; rows: MatchRow[]; anchored: boolean }> = [
@@ -440,6 +486,7 @@ export class EntityResolutionService {
       { source: 'fec_committee', rows: fecCommitteeRows, anchored: false },
       { source: 'fara', rows: faraRows, anchored: false },
       { source: 'lobby_intel', rows: lobbyRows, anchored: false },
+      { source: 'assistance_recipient', rows: assistanceRows, anchored: false },
     ];
 
     let created = 0;

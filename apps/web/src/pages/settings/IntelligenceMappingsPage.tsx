@@ -356,7 +356,18 @@ interface ContractorResult {
   similarity: number;
 }
 
-type MappingSource = 'lda' | 'fec_employer' | 'contracting';
+interface AssistanceRecipientResult {
+  id: string;
+  uei: string | null;
+  // Always present — the search query filters WHERE recipient_name IS NOT NULL.
+  name: string;
+  state: string | null;
+  awardCount: number;
+  totalObligated: number | null;
+  similarity: number;
+}
+
+type MappingSource = 'lda' | 'fec_employer' | 'contracting' | 'assistance_recipient';
 
 /**
  * Attach an external record to a client by its exact identifier. Fuzzy
@@ -416,12 +427,25 @@ function ManualMapModal({ open, onClose }: { open: boolean; onClose: () => void 
     enabled: open && source === 'contracting' && query.trim().length > 0,
   });
 
+  const assistanceRecipientSearch = useQuery<AssistanceRecipientResult[]>({
+    queryKey: ['assistance-recipient-search', query],
+    queryFn: async () =>
+      (
+        await api.get<AssistanceRecipientResult[]>(
+          `/api/intelligence/assistance-recipients/search?q=${encodeURIComponent(query)}`,
+        )
+      ).data,
+    enabled: open && source === 'assistance_recipient' && query.trim().length > 0,
+  });
+
   const isFetching =
     source === 'lda'
       ? ldaSearch.isFetching
       : source === 'fec_employer'
         ? fecSearch.isFetching
-        : contractorSearch.isFetching;
+        : source === 'contracting'
+          ? contractorSearch.isFetching
+          : assistanceRecipientSearch.isFetching;
 
   const attachMutation = useMutation({
     mutationFn: async (r: { id: string; name: string }) =>
@@ -432,13 +456,21 @@ function ManualMapModal({ open, onClose }: { open: boolean; onClose: () => void 
       }),
     onSuccess: (_d, r) => {
       const sourceLabel =
-        source === 'lda' ? 'LDA' : source === 'fec_employer' ? 'FEC employer' : 'federal contractor';
+        source === 'lda'
+          ? 'LDA'
+          : source === 'fec_employer'
+            ? 'FEC employer'
+            : source === 'contracting'
+              ? 'federal contractor'
+              : 'assistance recipient';
       const feeds =
         source === 'lda'
           ? 'issue-code matching'
           : source === 'fec_employer'
             ? 'contribution panel'
-            : 'contract/obligation footprint';
+            : source === 'contracting'
+              ? 'contract/obligation footprint'
+              : 'grant/assistance footprint';
       notification.success({
         message: 'Mapping attached',
         description: `"${r.name}" is now a confirmed ${sourceLabel} mapping. It feeds this client's ${feeds} immediately.`,
@@ -557,6 +589,25 @@ function ManualMapModal({ open, onClose }: { open: boolean; onClose: () => void 
     { title: '', key: 'attach', width: 90, render: (_v, record) => attachButton(record) },
   ];
 
+  const assistanceRecipientColumns: ColumnsType<AssistanceRecipientResult> = [
+    {
+      title: 'Recipient name',
+      dataIndex: 'name',
+      ellipsis: true,
+      render: (v: string) => <Text style={{ fontSize: 13 }}>{v}</Text>,
+    },
+    { title: 'UEI', dataIndex: 'uei', width: 110, render: (v: string | null) => v ?? '—' },
+    { title: 'State', dataIndex: 'state', width: 64, render: (v: string | null) => v ?? '—' },
+    { title: 'Awards', dataIndex: 'awardCount', width: 72 },
+    {
+      title: 'Total obligated',
+      dataIndex: 'totalObligated',
+      width: 130,
+      render: (v: number | null) => formatSpend(v),
+    },
+    { title: '', key: 'attach', width: 90, render: (_v, record) => attachButton(record) },
+  ];
+
   const resetSearch = () => {
     setSearchInput('');
     setQuery('');
@@ -594,6 +645,7 @@ function ManualMapModal({ open, onClose }: { open: boolean; onClose: () => void 
             { label: 'LDA registrant (issue codes)', value: 'lda' },
             { label: 'FEC employer (contributions)', value: 'fec_employer' },
             { label: 'Federal contractor (contracts)', value: 'contracting' },
+            { label: 'Assistance recipient (grants)', value: 'assistance_recipient' },
           ]}
         />
 
@@ -614,7 +666,9 @@ function ManualMapModal({ open, onClose }: { open: boolean; onClose: () => void 
               ? '2 · Search LDA registry by name or id (e.g. raytheon, or 4321)'
               : source === 'fec_employer'
                 ? '2 · Search FEC contributor-employers by name (e.g. raytheon)'
-                : '2 · Search federal contractors by name (e.g. raytheon)'
+                : source === 'contracting'
+                  ? '2 · Search federal contractors by name (e.g. raytheon)'
+                  : '2 · Search assistance recipients by name or UEI'
           }
           enterButton="Search"
           allowClear
@@ -661,7 +715,7 @@ function ManualMapModal({ open, onClose }: { open: boolean; onClose: () => void 
                 ),
               }}
             />
-          ) : (
+          ) : source === 'contracting' ? (
             <Table<ContractorResult>
               rowKey="id"
               size="small"
@@ -674,6 +728,24 @@ function ManualMapModal({ open, onClose }: { open: boolean; onClose: () => void 
                 emptyText: (
                   <Empty
                     description="No federal contractors matched. Try a shorter or alternate spelling, or paste the contractor UUID."
+                    image={Empty.PRESENTED_IMAGE_SIMPLE}
+                  />
+                ),
+              }}
+            />
+          ) : (
+            <Table<AssistanceRecipientResult>
+              rowKey="id"
+              size="small"
+              loading={assistanceRecipientSearch.isFetching}
+              dataSource={assistanceRecipientSearch.data ?? []}
+              columns={assistanceRecipientColumns}
+              pagination={false}
+              scroll={{ y: 320 }}
+              locale={{
+                emptyText: (
+                  <Empty
+                    description="No assistance recipients matched. Try a shorter name or the exact UEI."
                     image={Empty.PRESENTED_IMAGE_SIMPLE}
                   />
                 ),

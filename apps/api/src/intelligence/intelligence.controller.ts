@@ -75,7 +75,7 @@ class LdaSearchQueryDto {
 // stable id (for 'lda' the exact lda_client.id) — the reliable, name-independent
 // way to attach a registrant variant the fuzzy matcher can't reach.
 class ManualMappingDto {
-  @IsIn(['lda', 'contracting', 'sec', 'fec_employer', 'fec_committee', 'fara', 'lobby_intel'])
+  @IsIn(['lda', 'contracting', 'sec', 'fec_employer', 'fec_committee', 'fara', 'lobby_intel', 'assistance_recipient'])
   source!: string;
 
   @IsString()
@@ -346,6 +346,14 @@ export class IntelligenceController {
   @Get('contractors/search')
   searchContractors(@Query() q: LdaSearchQueryDto) {
     return this.service.searchContractors(q.q);
+  }
+
+  // Free-text / by-UEI search of federal_assistance_award recipients for the
+  // District Nexus manual-attach panel (source 'assistance_recipient'). The
+  // recipient UEI is the externalId pinned into the mapping when available.
+  @Get('assistance-recipients/search')
+  searchAssistanceRecipients(@Query() q: LdaSearchQueryDto) {
+    return this.service.searchAssistanceRecipients(q.q);
   }
 
   // Read-only "what's driving this client's matching" signal: the union'd issue
