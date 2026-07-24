@@ -7,16 +7,10 @@ import {
   hasText,
   renderOfficeAddress,
 } from './directory-profile-helpers.js';
+import { ContactTripsSection } from './ContactTripsSection.js';
 import type { MemberDetail } from './directory-api.js';
 
 const { Title, Text } = Typography;
-
-/** Kept for back-compat with views that still show an explicit placeholder. */
-export const NOT_PROVIDED = 'Not provided by source';
-
-export function orNotProvided(value: string | null | undefined): string {
-  return value && String(value).trim() ? String(value) : NOT_PROVIDED;
-}
 
 /**
  * Prop-driven member profile — deep-linkable. Renders every observed source field but
@@ -138,6 +132,8 @@ export function MemberProfileView({ member }: { member: MemberDetail }) {
           </div>
         )}
       />
+
+      <ContactTripsSection contactId={member.id} />
     </div>
   );
 }

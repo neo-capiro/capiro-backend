@@ -1,7 +1,7 @@
 import { Card, Descriptions, Empty, Space, Tag, Typography } from 'antd';
 import { stateBillStatusLabel } from '@capiro/shared';
 import { DirectoryProfilePhoto } from './DirectoryProfilePhoto.js';
-import { NOT_PROVIDED, orNotProvided } from './MemberProfileView.js';
+import { NOT_PROVIDED, orNotProvided } from './directory-profile-helpers.js';
 import type { StateLegislatorDetail } from './StateLegislatorDirectory.js';
 
 const { Title, Text, Link: TextLink } = Typography;

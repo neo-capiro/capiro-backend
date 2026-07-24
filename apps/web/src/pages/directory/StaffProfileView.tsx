@@ -7,6 +7,7 @@ import {
   hasText,
   renderOfficeAddress,
 } from './directory-profile-helpers.js';
+import { ContactTripsSection } from './ContactTripsSection.js';
 import type { StaffDetail } from './directory-api.js';
 
 const { Title, Text } = Typography;
@@ -182,6 +183,8 @@ export function StaffProfileView({ staff: rawStaff }: { staff: StaffDetail }) {
           </div>
         )}
       />
+
+      <ContactTripsSection contactId={staff.id} />
     </div>
   );
 }

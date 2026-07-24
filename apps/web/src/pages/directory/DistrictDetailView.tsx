@@ -4,7 +4,7 @@ import type { AxiosInstance } from 'axios';
 import type { DirectoryDistrictDetail } from './directory-api.js';
 import { DirectoryProfilePhoto } from './DirectoryProfilePhoto.js';
 import { DistrictBoundaryPreview } from './DistrictBoundaryPreview.js';
-import { orNotProvided } from './MemberProfileView.js';
+import { orNotProvided } from './directory-profile-helpers.js';
 
 const { Title, Text } = Typography;
 

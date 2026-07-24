@@ -9,6 +9,12 @@ export function hasText(v: string | null | undefined): v is string {
   return !!(v && String(v).trim());
 }
 
+export const NOT_PROVIDED = 'Not provided by source';
+
+export function orNotProvided(value: string | null | undefined): string {
+  return value && String(value).trim() ? String(value) : NOT_PROVIDED;
+}
+
 /** A label/value pair for a Descriptions grid; dropped entirely when the value is blank. */
 export type BioField = { label: string; value: string | null | undefined };
 

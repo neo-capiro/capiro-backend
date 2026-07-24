@@ -1,8 +1,16 @@
 import { render, screen } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { beforeAll, describe, expect, test, vi } from 'vitest';
 import { MemberProfileView } from './MemberProfileView.js';
 import type { MemberDetail } from './directory-api.js';
+
+// MemberProfileView renders ContactTripsSection, which fetches its own data via
+// useApi() — mock it so this stays a pure render test, matching the pattern
+// ClientIntelV1Page.test.tsx uses for its own data-fetching child sections.
+vi.mock('../../lib/use-api.js', () => ({
+  useApi: () => ({ get: vi.fn().mockResolvedValue({ data: { contactId: '', trips: [] } }) }),
+}));
 
 function setupAntdBrowserMocks() {
   Object.defineProperty(window, 'matchMedia', {
@@ -84,10 +92,13 @@ describe('MemberProfileView', () => {
   beforeAll(setupAntdBrowserMocks);
 
   test('renders present fields, committee link, leadership; hides empty fields', () => {
+    const qc = new QueryClient({ defaultOptions: { queries: { retry: false } } });
     render(
-      <MemoryRouter>
-        <MemberProfileView member={MEMBER} />
-      </MemoryRouter>,
+      <QueryClientProvider client={qc}>
+        <MemoryRouter>
+          <MemberProfileView member={MEMBER} />
+        </MemoryRouter>
+      </QueryClientProvider>,
     );
     expect(screen.getByText('Mike Rogers')).toBeInTheDocument();
     const committeeLink = screen.getByRole('link', { name: 'committee-100' });

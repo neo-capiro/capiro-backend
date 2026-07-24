@@ -1,8 +1,21 @@
 import { render, screen } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { beforeAll, describe, expect, test, vi } from 'vitest';
 import { StaffProfileView } from './StaffProfileView.js';
 import type { StaffDetail } from './directory-api.js';
+
+// StaffProfileView renders ContactTripsSection, which fetches its own data via
+// useApi() — mock it so this stays a pure render test, matching the pattern
+// ClientIntelV1Page.test.tsx uses for its own data-fetching child sections.
+vi.mock('../../lib/use-api.js', () => ({
+  useApi: () => ({ get: vi.fn().mockResolvedValue({ data: { contactId: '', trips: [] } }) }),
+}));
+
+function renderWithProviders(ui: JSX.Element) {
+  const qc = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+  return render(<QueryClientProvider client={qc}>{ui}</QueryClientProvider>);
+}
 
 function setupAntdBrowserMocks() {
   Object.defineProperty(window, 'matchMedia', {
@@ -93,7 +106,7 @@ describe('StaffProfileView', () => {
   beforeAll(setupAntdBrowserMocks);
 
   test('renders positions, member + committee association links, and availability', () => {
-    render(
+    renderWithProviders(
       <MemoryRouter>
         <StaffProfileView staff={STAFF} />
       </MemoryRouter>,
@@ -124,7 +137,7 @@ describe('StaffProfileView', () => {
   });
 
   test('hides the Issue areas section entirely when a staffer has no issues', () => {
-    render(
+    renderWithProviders(
       <MemoryRouter>
         <StaffProfileView staff={{ ...STAFF, issues: [] }} />
       </MemoryRouter>,
