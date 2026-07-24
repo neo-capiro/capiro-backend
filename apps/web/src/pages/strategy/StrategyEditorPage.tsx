@@ -35,7 +35,12 @@ import { useMe } from '../../lib/me.js';
 import { errorMessage } from '../../lib/error-message.js';
 import { STRATEGY_TYPE_LABEL } from './constants.js';
 import { clip } from './context/context-utils.js';
-import { canShowWatchRail, findExecutionMission, EXECUTION_MISSION_NAME } from './agents/agent-utils.js';
+import {
+  canShowWatchRail,
+  findExecutionMission,
+  EXECUTION_MISSION_NAME,
+  classifyWaitingReason,
+} from './agents/agent-utils.js';
 import { buildCalendar, formatDbDate, parseDbDate } from './fiscal.js';
 import type { StrategyNode, StrategyNodeArtifact } from './types.js';
 
@@ -323,12 +328,21 @@ export function StrategyEditorPage() {
     void (async () => {
       try {
         const missionId = await resolveExecutionMission();
-        await planExecution.mutateAsync({ missionId, strategyId: sid, nodeId: node.id, kind });
-        flash(
-          intent === 'workspace_draft'
-            ? 'Meri is preparing a Workspace draft — review it under Execution.'
-            : 'Meri staged outreach for review — nothing is sent. Review it under Execution.',
-        );
+        const run = await planExecution.mutateAsync({ missionId, strategyId: sid, nodeId: node.id, kind });
+        // A returned run can be a G0 park (waiting_for_input), not a plan ready
+        // to stage — the old unconditional "preparing/staged" flash claimed
+        // success even when nothing was generated (e.g. the node has no owner,
+        // or the wrong subject for outreach). Surface the real reason instead.
+        if (!run || run.state === 'waiting_for_input') {
+          const block = classifyWaitingReason(run?.waitingReason ?? null);
+          message.warning(`Meri couldn't start: ${block.reason}`, 6);
+        } else {
+          flash(
+            intent === 'workspace_draft'
+              ? 'Meri is preparing a Workspace draft — review it under Execution.'
+              : 'Meri staged outreach for review — nothing is sent. Review it under Execution.',
+          );
+        }
         navigate(`/strategies/agents/execution?strategyId=${encodeURIComponent(sid)}`);
       } catch (err) {
         message.error(
