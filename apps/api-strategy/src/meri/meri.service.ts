@@ -1,6 +1,7 @@
 import {
   BadRequestException,
   Injectable,
+  Logger,
   NotFoundException,
   UnprocessableEntityException,
 } from '@nestjs/common';
@@ -90,6 +91,8 @@ function vEnum<T extends readonly string[]>(val: unknown, allowed: T, field: str
  */
 @Injectable()
 export class MeriService {
+  private readonly logger = new Logger(MeriService.name);
+
   constructor(
     private readonly prisma: PrismaService,
     private readonly versioning: VersioningService,
@@ -583,29 +586,51 @@ export class MeriService {
     return unique.filter((id) => found.has(id));
   }
 
+  /** Degraded stewardContext fallback — status 'degraded' is honest (we don't
+   *  know the real fact/conflict state), never 'ok' (which would assert a
+   *  clean bill of health we haven't actually checked). */
+  private static readonly STEWARD_CONTEXT_FALLBACK: {
+    stewardFacts: StewardFactLine[];
+    stewardHealth: StewardHealth;
+  } = { stewardFacts: [], stewardHealth: { status: 'degraded', missingRequired: [], openMaterialConflicts: [] } };
+
   /**
    * Stage E wire-contract (2): the Steward pack forwarded in every draft/
    * assistant orchestrator body — `stewardFacts` (active facts for the client,
    * 120 newest) + `stewardHealth` (fact-level health; the orchestrator renders
    * the '# Client context facts (Steward)' section and, when 'conflicted',
    * names factA vs factB verbatim in the health note).
+   *
+   * Fails SOFT (mirrors StrategyAttachmentResolver.resolve): the base Stage A/B
+   * draft/assistant path must never go down because Stage E's context data is
+   * unavailable (a fact-store hiccup, a bad row, a lagging migration) — this is
+   * read-only grounding for a prompt, not part of the mutation's audit trail
+   * (unlike VersioningService.logActivity's outbox write, which is correctly
+   * unconditional).
    */
   private async stewardContext(
     tenantId: string,
     clientId: string | null,
   ): Promise<{ stewardFacts: StewardFactLine[]; stewardHealth: StewardHealth }> {
-    const [stewardFacts, health] = await Promise.all([
-      this.steward.factsForOrchestrator(tenantId, clientId),
-      this.steward.health(tenantId, clientId),
-    ]);
-    return {
-      stewardFacts,
-      stewardHealth: {
-        status: health.status,
-        missingRequired: health.missingRequired,
-        openMaterialConflicts: health.openMaterialConflicts,
-      },
-    };
+    try {
+      const [stewardFacts, health] = await Promise.all([
+        this.steward.factsForOrchestrator(tenantId, clientId),
+        this.steward.health(tenantId, clientId),
+      ]);
+      return {
+        stewardFacts,
+        stewardHealth: {
+          status: health.status,
+          missingRequired: health.missingRequired,
+          openMaterialConflicts: health.openMaterialConflicts,
+        },
+      };
+    } catch (err) {
+      this.logger.warn(
+        `steward context unavailable; drafting without it: ${(err as Error).message}`,
+      );
+      return MeriService.STEWARD_CONTEXT_FALLBACK;
+    }
   }
 
   /**

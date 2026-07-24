@@ -813,6 +813,30 @@ describe('MeriService — Stage E steward pack + provenance fact-check', () => {
     expect(body.stewardHealth.status).toBe('ok');
   });
 
+  it('degrades to an empty/degraded steward pack instead of failing the draft when the Steward is unavailable (fail-soft)', async () => {
+    const store = makeStore();
+    const orchestrator = oneNodeDraft();
+    const { svc, stewardHealthFn } = makeService(orchestrator, store, {});
+    stewardHealthFn.mockRejectedValueOnce(new Error('The table `public.sp_context_fact` does not exist'));
+
+    // Must NOT throw / roll back the draft — this is read-only grounding, not
+    // part of the mutation's audit trail (unlike the outbox write, which is
+    // deliberately unconditional).
+    const result = await svc.draft(T, U, 'bearer', draftDto);
+    expect(result.id).toBeDefined();
+
+    const body = (orchestrator.draft as jest.Mock).mock.calls[0]![0] as {
+      stewardFacts: unknown;
+      stewardHealth: unknown;
+    };
+    expect(body.stewardFacts).toEqual([]);
+    expect(body.stewardHealth).toEqual({
+      status: 'degraded',
+      missingRequired: [],
+      openMaterialConflicts: [],
+    });
+  });
+
   it('appends the three fact-check WARNING kinds (unknown / non-active / other-client) and logs them via plan.verified', async () => {
     const store = makeStore();
     const F_OK = 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa';
