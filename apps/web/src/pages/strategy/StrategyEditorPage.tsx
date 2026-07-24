@@ -22,7 +22,6 @@ import {
   useFirmPhases,
   useAddNode,
   useUpdateNode,
-  useRecordArtifact,
   usePlanExecution,
   useMissions,
   useCreateMission,
@@ -41,7 +40,7 @@ import {
   EXECUTION_MISSION_NAME,
   classifyWaitingReason,
 } from './agents/agent-utils.js';
-import { buildCalendar, formatDbDate, parseDbDate } from './fiscal.js';
+import { buildCalendar, formatDbDate } from './fiscal.js';
 import type { StrategyNode, StrategyNodeArtifact } from './types.js';
 
 type LayerKey = 'ppbe' | 'congress';
@@ -66,9 +65,7 @@ export function StrategyEditorPage() {
   const [firmOpen, setFirmOpen] = useState(false);
   const [refEdit, setRefEdit] = useState<'congress' | 'ppbe' | null>(null);
   const [exportOpen, setExportOpen] = useState(false);
-  const [routing, setRouting] = useState<'workspace' | 'outreach' | null>(null);
-  // Stage G: which agent-staging plan is in flight (distinct from `routing`,
-  // the direct RTE route-out).
+  // Stage G: which agent-staging plan is in flight (null = none).
   const [staging, setStaging] = useState<'workspace_draft' | 'outreach_record' | null>(null);
   const [applied, setApplied] = useState<string | null>(null);
   const [draftBannerClosed, setDraftBannerClosed] = useState(false);
@@ -77,7 +74,6 @@ export function StrategyEditorPage() {
 
   const addNode = useAddNode(id ?? '');
   const updateNode = useUpdateNode(id ?? '');
-  const recordArtifact = useRecordArtifact(id ?? '');
   const planExecution = usePlanExecution();
   // Stage G: the node-agent affordance anchors its execution run on the
   // strategy's dedicated Execution mission (a run belongs to an ACTIVE mission,
@@ -201,128 +197,11 @@ export function StrategyEditorPage() {
   // RTE-4 return affordance appended to every route-out (?from + ?node).
   const routeReturn = `?from=${encodeURIComponent(`/strategies/${sid}`)}&node=`;
 
-  // Node context block (title, dates, note, strategy goal) → HTML for the
-  // Workspace draft's first section (RTE-1). Escaped — values are user text.
-  const nodeContextHtml = (n: StrategyNode): string => {
-    const esc = (t: string) => t.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
-    const dates =
-      formatDbDate(parseDbDate(n.startsOn)) +
-      (n.endsOn ? ` – ${formatDbDate(parseDbDate(n.endsOn))}` : '');
-    return [
-      `<p><strong>${esc(n.title)}</strong></p>`,
-      `<p>${esc(dates)}</p>`,
-      n.note ? `<p>${esc(n.note)}</p>` : '',
-      s.goal ? `<p><em>Strategy goal:</em> ${esc(s.goal)}</p>` : '',
-    ]
-      .filter(Boolean)
-      .join('\n');
-  };
-
-  // RTE-1/RTE-2: create the real WsDraft / OutreachRecord prefilled from the
-  // node, record the node→artifact back-link (RTE-3, best-effort), then navigate
-  // into the target with the return affordance. No workspace/outreach changes.
-  const onRoute = (action: 'workspace' | 'outreach') => {
-    const node = selectedNode;
-    if (!node || routing) return;
-    if (!clients.data) {
-      message.error('Client is still loading — try again in a moment.');
-      return;
-    }
-    setRouting(action);
-    void (async () => {
-      try {
-        let ref: string;
-        let target: string;
-        if (action === 'workspace') {
-          const product = node.kind === 'decision' ? 'Strategy memo' : 'White paper';
-          const created = (
-            await api.post<{ id: string; config?: { sections?: string[] } }>('/workspace-api/drafts', {
-              docTitle: node.title,
-              client: clientName,
-              product,
-            })
-          ).data;
-          ref = created.id;
-          const section = created.config?.sections?.[0] ?? 'Background';
-          await api.patch(`/workspace-api/drafts/${encodeURIComponent(ref)}`, {
-            config: { sectionContent: { [section]: nodeContextHtml(node) } },
-          });
-          // Straight to the editor, not Setup: the create call above already set
-          // client/product (server seeds default sections from `product` at
-          // create time — confirmed live, no Setup visit required) and the
-          // PATCH just below seeds this step's context into the first section,
-          // so Setup would show nothing left to configure — only extra clicks
-          // before the user sees the content they just asked for.
-          target = `/workspace/draft/${encodeURIComponent(ref)}`;
-        } else {
-          // A node with a Target assigned (NOD-7 field editor) resolves to a real
-          // recipient; the wizard resume then lands on Recipients with them
-          // pre-picked instead of the blank Direction landing page every
-          // stub-created outreach opened to before this. No target -> unchanged.
-          const t = node.targetRef;
-          const recipient = t
-            ? {
-                id: t.memberId,
-                name: t.memberName?.trim() || t.memberId,
-                directoryContactId: t.memberId,
-                directoryContactName: t.memberName,
-                chamber: t.chamber,
-                state: t.state,
-                party: t.party,
-                committee: t.committee,
-                sourceLabel: 'Strategy target',
-              }
-            : null;
-          const rec = (
-            await api.post<{ id: string }>('/api/engagement/outreach', {
-              type: 'campaign',
-              // Outreach title is capped at 240 server-side; node titles allow 300.
-              title: node.title.slice(0, 240),
-              subject: node.title,
-              clientId: s.clientId,
-              ...(recipient ? { recipients: [recipient], lastStep: 3 } : {}),
-              metadata: {
-                strategyNodeId: node.id,
-                strategyId: sid,
-                objective: s.goal ?? node.title,
-                ...(recipient
-                  ? {
-                      lastStepId: 'recipients',
-                      targets: [{ key: 'node-target', type: 'individual', recipients: [recipient], cc: [], bcc: [] }],
-                    }
-                  : {}),
-              },
-            })
-          ).data;
-          ref = rec.id;
-          target = `/engagement/outreach/draft/${encodeURIComponent(ref)}`;
-        }
-        // Back-link is best-effort: a link failure must not strand the user away
-        // from the artifact we just created.
-        try {
-          await recordArtifact.mutateAsync({
-            nodeId: node.id,
-            input: { artifactType: action === 'workspace' ? 'workspace_draft' : 'outreach_record', artifactRef: ref },
-          });
-        } catch {
-          /* chip will be missing until re-linked; the artifact still exists */
-        }
-        navigate(`${target}${routeReturn}${node.id}`);
-      } catch {
-        message.error(
-          action === 'workspace'
-            ? 'Could not start the Workspace draft — please try again.'
-            : 'Could not start the outreach — please try again.',
-        );
-        setRouting(null);
-      }
-    })();
-  };
-
   const onOpenArtifact = (a: StrategyNodeArtifact) => {
     const suffix = selectedNode ? `${routeReturn}${selectedNode.id}` : '';
-    // Straight to the editor (not Setup) — see the onRoute workspace branch
-    // above for why Setup has nothing left to configure by this point.
+    // Straight to the editor (not Setup) — the staging call that created this
+    // artifact already set client/product/content, so Setup has nothing left
+    // to configure.
     const target =
       a.artifactType === 'workspace_draft'
         ? `/workspace/draft/${encodeURIComponent(a.artifactRef)}`
@@ -745,12 +624,10 @@ export function StrategyEditorPage() {
             currentUserId={user?.id}
             existingNodeIds={s.nodes.map((n) => n.id)}
             nodeArtifacts={nodeArtifacts}
-            routing={routing}
             staging={staging}
             applied={applied}
             onFlash={flash}
             onSelectNode={selectNode}
-            onRoute={onRoute}
             onStageAgent={onStageAgent}
             onOpenArtifact={onOpenArtifact}
             onClose={() => {

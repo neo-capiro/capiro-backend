@@ -47,12 +47,10 @@ export function EditorRail({
   currentUserId,
   existingNodeIds,
   nodeArtifacts,
-  routing,
   staging,
   applied,
   onFlash,
   onSelectNode,
-  onRoute,
   onStageAgent,
   onOpenArtifact,
   onClose,
@@ -82,13 +80,11 @@ export function EditorRail({
   currentUserId: string | undefined;
   existingNodeIds: string[];
   nodeArtifacts: StrategyNodeArtifact[];
-  routing: 'workspace' | 'outreach' | null;
   /** Stage G: which agent-staging plan is in flight (null = none). */
   staging?: 'workspace_draft' | 'outreach_record' | null;
   applied: string | null;
   onFlash: (msg: string) => void;
   onSelectNode: (id: string) => void;
-  onRoute: (action: 'workspace' | 'outreach') => void;
   /** Stage G: plan an agent-staged draft/outreach for this node, then review it. */
   onStageAgent?: (intent: 'workspace_draft' | 'outreach_record') => void;
   onOpenArtifact: (a: StrategyNodeArtifact) => void;
@@ -287,10 +283,8 @@ export function EditorRail({
             />
             <NodeActions
               artifacts={nodeArtifacts}
-              routing={routing}
               agenticEnabled={agenticEnabled}
               staging={staging}
-              onRoute={onRoute}
               onStageAgent={onStageAgent}
               onOpenArtifact={onOpenArtifact}
             />
@@ -733,33 +727,16 @@ function trimFlash(s: string | undefined): string {
   return t.length > 120 ? `${t.slice(0, 117)}…` : t;
 }
 
-/** NOD-6 actions (verbatim labels/desc from the prototype NODE_ACTIONS). */
-const NODE_ACTIONS: Array<{
-  id: 'workspace' | 'outreach';
-  label: string;
-  desc: string;
-  icon: string;
-}> = [
-  {
-    id: 'workspace',
-    label: 'Draft in Workspace',
-    desc: "Start a document with this step's context carried in.",
-    icon: 'folder',
-  },
-  {
-    id: 'outreach',
-    label: 'Send Outreach',
-    desc: 'Open the Create Outreach flow for this step.',
-    icon: 'users',
-  },
-];
-
 /**
  * Stage G node-level agent affordances (behind the agenticMeri UI belt): have
  * Meri's Execution Agent PREPARE a Workspace draft / STAGE outreach for this
- * node and land in the Execution review. Distinct from the direct RTE route-outs
- * below (NODE_ACTIONS) — those open an artifact immediately; these create an
- * execution run for review and, per plan §G, never send anything.
+ * node, landing in the Execution review — an execution run, per plan §G,
+ * that never sends anything. The deterministic direct-create
+ * affordances these replaced (NOD-6's original "Draft in Workspace"/"Send
+ * Outreach") were removed once the agent path proved reliable — it produces
+ * everything they did (falls back to the same deterministic content when
+ * generation isn't possible) plus a real recipient and grounded body when it
+ * is, so there was no case left where the deterministic path won.
  */
 const AGENT_ACTIONS: Array<{
   id: 'workspace_draft' | 'outreach_record';
@@ -782,26 +759,22 @@ const AGENT_ACTIONS: Array<{
 ];
 
 /**
- * NOD-6 "Available actions in Capiro" — route the selected node into Workspace
- * (Draft) or Outreach (Send), and list the artifact back-links (sp_node_artifact)
- * already created for it. Routing itself lives in StrategyEditorPage (needs the
- * shared api + navigate); this block only surfaces the buttons + chips. Stage G
- * adds the agent-staging affordances (agenticEnabled) above the direct actions.
+ * NOD-6 "Available actions in Capiro" — have Meri's Execution Agent stage a
+ * Workspace draft or outreach for the selected node (agenticEnabled), and
+ * list the artifact back-links (sp_node_artifact) already created for it.
+ * Staging itself lives in StrategyEditorPage's onStageAgent (needs the
+ * mission-resolution + navigate); this block only surfaces the buttons + chips.
  */
 function NodeActions({
   artifacts,
-  routing,
   agenticEnabled,
   staging,
-  onRoute,
   onStageAgent,
   onOpenArtifact,
 }: {
   artifacts: StrategyNodeArtifact[];
-  routing: 'workspace' | 'outreach' | null;
   agenticEnabled?: boolean;
   staging?: 'workspace_draft' | 'outreach_record' | null;
-  onRoute: (action: 'workspace' | 'outreach') => void;
   onStageAgent?: (intent: 'workspace_draft' | 'outreach_record') => void;
   onOpenArtifact: (a: StrategyNodeArtifact) => void;
 }) {
@@ -895,65 +868,6 @@ function NodeActions({
                 </button>
               );
             })}
-          {NODE_ACTIONS.map((a) => {
-            const busy = routing === a.id;
-            return (
-              <button
-                key={a.id}
-                onClick={() => onRoute(a.id)}
-                disabled={routing !== null}
-                style={{
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: 11,
-                  textAlign: 'left',
-                  background: 'var(--bg-surface)',
-                  border: '1px solid var(--border-2)',
-                  borderRadius: 10,
-                  padding: '11px 13px',
-                  cursor: routing !== null ? 'default' : 'pointer',
-                  opacity: routing !== null && !busy ? 0.55 : 1,
-                }}
-              >
-                <span
-                  style={{
-                    width: 30,
-                    height: 30,
-                    borderRadius: 8,
-                    background: 'var(--accent-soft)',
-                    display: 'grid',
-                    placeItems: 'center',
-                    flexShrink: 0,
-                  }}
-                >
-                  <Icon name={busy ? 'clock' : a.icon} size={15} color="var(--accent-ink)" />
-                </span>
-                <span style={{ flex: 1, minWidth: 0 }}>
-                  <span
-                    style={{
-                      display: 'block',
-                      fontSize: 'var(--text-sm)',
-                      fontWeight: 700,
-                      color: 'var(--ink-1)',
-                    }}
-                  >
-                    {busy ? 'Opening…' : a.label}
-                  </span>
-                  <span
-                    style={{
-                      display: 'block',
-                      fontSize: 'var(--text-2xs)',
-                      color: 'var(--ink-3)',
-                      lineHeight: 1.4,
-                    }}
-                  >
-                    {a.desc}
-                  </span>
-                </span>
-                <Icon name="arrow" size={15} color="var(--ink-4)" />
-              </button>
-            );
-          })}
           {artifacts.length > 0 && (
             <div style={{ display: 'flex', flexDirection: 'column', gap: 6, marginTop: 4 }}>
               <div style={fieldLbl}>Linked in Capiro</div>
