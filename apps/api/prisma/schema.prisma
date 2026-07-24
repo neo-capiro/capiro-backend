@@ -4092,6 +4092,62 @@ model CensusDistrict {
 }
 
 // ─────────────────────────────────────────────────────────────────────────
+// LegiStorm Privately Funded Travel (WS-F, LegiStorm gaps/enrichment plan).
+// GLOBAL reference table, no tenant_id, no RLS — public federal disclosure
+// data, same trust tier as CensusDistrict / congress_member. `id` is
+// LegiStorm's own trip id (natural PK — the row IS the vendor's record 1:1).
+// Populated by scripts/sync-legistorm-trips.ts via an INCREMENTAL
+// updated_from/updated_to window (unlike WS-B's districts, which fetch the
+// full list every run) — there is no /trips/retired-ids endpoint, so this
+// is upsert-by-id ONLY, with NO deletion/reconciliation step. Applying WS-B's
+// "delete anything not in this batch" pattern here would be a real bug: an
+// incremental fetch never re-sees a trip from outside its date window, so
+// reconciling deletions against an incremental batch would wrongly delete
+// every historical trip each run.
+// ─────────────────────────────────────────────────────────────────────────
+model LegistormTrip {
+  /** LegiStorm's own trip id. */
+  id                               Int       @id
+  /** LegiStorm member_id of the approving member (join key into the directory snapshot's numeric ids). */
+  approverMemberId                Int?      @map("approver_member_id")
+  approverName                     String?   @map("approver_name")
+  /** Populated when the traveler was a MEMBER (mutually exclusive with travelerStaffId). */
+  travelerMemberId                 Int?      @map("traveler_member_id")
+  /** Populated when the traveler was a STAFFER (mutually exclusive with travelerMemberId). */
+  travelerStaffId                  Int?      @map("traveler_staff_id")
+  travelerName                     String?   @map("traveler_name")
+  companionName                    String?   @map("companion_name")
+  companionStatus                  String?   @map("companion_status")
+  startDate                        DateTime? @map("start_date") @db.Date
+  endDate                          DateTime? @map("end_date") @db.Date
+  durationDays                     Int?      @map("duration_days")
+  purpose                          String?   @db.Text
+  comment                          String?   @db.Text
+  totalCost                        Float?    @map("total_cost")
+  transportationExpenses           Float?    @map("transportation_expenses")
+  lodgingExpenses                  Float?    @map("lodging_expenses")
+  mealExpenses                     Float?    @map("meal_expenses")
+  otherExpenses                    Float?    @map("other_expenses")
+  companionTransportationExpenses  Float?    @map("companion_transportation_expenses")
+  companionLodgingExpenses         Float?    @map("companion_lodging_expenses")
+  companionOtherExpenses           Float?    @map("companion_other_expenses")
+  /** [{id, name, stateId}] — trip destinations; small, denormalized, matches stateLegislator.committees' own Json-array convention. */
+  destinations                     Json      @default("[]")
+  /** [{id, name}] — the org(s) that paid for the trip. */
+  sponsors                         Json      @default("[]")
+  filedDate                        DateTime? @map("filed_date") @db.Date
+  amendedDate                      DateTime? @map("amended_date") @db.Date
+  /** LegiStorm's own updated_at for this trip — distinct from syncedAt (when WE last wrote this row). */
+  vendorUpdatedAt                  DateTime? @map("vendor_updated_at") @db.Timestamptz(6)
+  syncedAt                         DateTime  @default(now()) @map("synced_at") @db.Timestamptz(6)
+
+  @@index([approverMemberId])
+  @@index([travelerMemberId])
+  @@index([travelerStaffId])
+  @@map("legistorm_trip")
+}
+
+// ─────────────────────────────────────────────────────────────────────────
 // BEA, Bureau of Economic Analysis GDP/industry data
 // GLOBAL table, no tenant_id, no RLS.
 // Source: apps.bea.gov/api/data/

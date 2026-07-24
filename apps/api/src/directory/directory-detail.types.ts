@@ -239,3 +239,31 @@ export interface DirectoryPeoplePayload {
   page: number;
   pageSize: number;
 }
+
+/**
+ * WS-F, LegiStorm gaps/enrichment plan — one privately funded trip as seen
+ * from a specific contact's profile. `role` is relative to THAT contact:
+ * 'approver' when viewing the member who approved someone else's trip,
+ * 'traveler' when viewing whoever actually traveled (member or staffer).
+ * `otherPartyName` is always the OTHER party for that role, so either
+ * profile reads as a complete, standalone summary.
+ */
+export interface DirectoryContactTripSummary {
+  id: number;
+  role: 'approver' | 'traveler';
+  otherPartyName: string | null;
+  companionName: string | null;
+  startDate: string | null;
+  endDate: string | null;
+  durationDays: number | null;
+  purpose: string | null;
+  totalCost: number | null;
+  destinations: Array<{ id: number; name: string | null; stateId: string | null }>;
+  sponsors: Array<{ id: number; name: string | null }>;
+  filedDate: string | null;
+}
+
+export interface DirectoryContactTripsPayload {
+  contactId: string;
+  trips: DirectoryContactTripSummary[];
+}

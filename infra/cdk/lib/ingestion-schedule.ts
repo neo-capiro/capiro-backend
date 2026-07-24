@@ -93,6 +93,30 @@ export const INGESTION_JOBS: ScheduledIngestionJob[] = [
     description: 'LegiStorm directory full reconciliation (Sun 04:30 UTC)',
     enabled: false,
   },
+  // ── LegiStorm Privately Funded Travel (WS-F — ships DISABLED) ───────────────
+  // Same base URL / same blocker as the directory jobs above (compromised key
+  // pending rotation). Incremental like the directory job's staff/offices
+  // window — NOT a full-reconciliation job like WS-B's districts, since
+  // trips have no retired-ids endpoint and an incremental fetch must never
+  // attempt to reconcile deletions. Runs after the directory refresh
+  // (04:30) so a member added same-day is already resolvable for
+  // denormalization if ever needed.
+  {
+    id: 'SyncLegistormTrips',
+    command: ['sync-legistorm-trips', '--commit'],
+    cron: { minute: '0', hour: '5', weekDay: 'MON-SAT' },
+    tier: 'daily',
+    description: 'LegiStorm privately funded travel incremental refresh (Mon-Sat 05:00 UTC, 48h overlap)',
+    enabled: false,
+  },
+  {
+    id: 'ReconcileLegistormTripsFull',
+    command: ['sync-legistorm-trips', '--commit', '--full'],
+    cron: { minute: '0', hour: '5', weekDay: 'SUN' },
+    tier: 'weekly',
+    description: 'LegiStorm privately funded travel full reconciliation (Sun 05:00 UTC)',
+    enabled: false,
+  },
   {
     id: 'SyncHouseVotes',
     command: ['sync-house-votes'],

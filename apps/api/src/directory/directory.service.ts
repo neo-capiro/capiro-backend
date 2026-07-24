@@ -30,6 +30,8 @@ import {
 } from './directory-photo.js';
 import type {
   DirectoryCommitteeDetail,
+  DirectoryContactTripSummary,
+  DirectoryContactTripsPayload,
   DirectoryMemberDetail,
   DirectoryPeoplePayload,
   DirectoryPersonResult,
@@ -2179,6 +2181,65 @@ export class DirectoryService implements OnModuleInit {
       // an empty list (nothing ingested yet / the feed had no items).
       feedError: !rssFeedUrl && items.length === 0 ? 'no_feed' : null,
     };
+  }
+
+  /**
+   * Privately funded travel for a member OR staffer profile (WS-F, LegiStorm
+   * gaps/enrichment plan). Works for either — legistorm_trip denormalizes
+   * approver/traveler display names at ingest time, so this needs NO
+   * directory round-trip at all, unlike getMemberFecSummary/getMemberNews
+   * above. A member can appear as either role (they approved a staffer's
+   * trip, or traveled themselves); a staffer only ever appears as a
+   * traveler. Deliberately does NOT validate that contactId corresponds to
+   * a real, existing contact — every caller reaches this from an
+   * already-valid profile page, and legistorm_trip is a global (no-RLS)
+   * table, so the extra existence check would only add cost, not safety.
+   */
+  async getContactTrips(contactId: string): Promise<DirectoryContactTripsPayload> {
+    const normalizedContactId = normalizeContactId(contactId);
+    const isStaff = normalizedContactId.startsWith('staff-');
+    const numericId = Number(normalizedContactId.replace(/^(member|staff)-/, ''));
+    if (!Number.isFinite(numericId)) {
+      return { contactId: normalizedContactId, trips: [] };
+    }
+
+    const rows = await this.prisma.legistormTrip.findMany({
+      where: isStaff
+        ? { travelerStaffId: numericId }
+        : { OR: [{ approverMemberId: numericId }, { travelerMemberId: numericId }] },
+      orderBy: [{ startDate: 'desc' }, { filedDate: 'desc' }],
+      take: 50,
+    });
+
+    const trips: DirectoryContactTripSummary[] = rows.map((t) => {
+      // A member could theoretically be both approver and traveler on the
+      // same trip (self-approved travel) — prefer the more specific
+      // 'traveler' role in that case, never a false 'approver' label.
+      const role: 'approver' | 'traveler' =
+        !isStaff && t.approverMemberId === numericId && t.travelerMemberId !== numericId
+          ? 'approver'
+          : 'traveler';
+      return {
+        id: t.id,
+        role,
+        otherPartyName: role === 'approver' ? t.travelerName : t.approverName,
+        companionName: t.companionName,
+        startDate: t.startDate ? t.startDate.toISOString().slice(0, 10) : null,
+        endDate: t.endDate ? t.endDate.toISOString().slice(0, 10) : null,
+        durationDays: t.durationDays,
+        purpose: t.purpose,
+        totalCost: t.totalCost,
+        destinations: Array.isArray(t.destinations)
+          ? (t.destinations as Array<{ id: number; name: string | null; stateId: string | null }>)
+          : [],
+        sponsors: Array.isArray(t.sponsors)
+          ? (t.sponsors as Array<{ id: number; name: string | null }>)
+          : [],
+        filedDate: t.filedDate ? t.filedDate.toISOString().slice(0, 10) : null,
+      };
+    });
+
+    return { contactId: normalizedContactId, trips };
   }
 
   private toPagedPayload(
