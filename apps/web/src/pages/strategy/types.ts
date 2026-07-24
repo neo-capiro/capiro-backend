@@ -251,3 +251,71 @@ export interface PatchStrategyInput {
   ownerUserId?: string;
   changeNote?: string;
 }
+
+/*
+ * ---- Stage D: context documents (/strategy-api/context/*) ----
+ * Mirrors sp_context_document. Frontmatter is the parsed + validated YAML
+ * front-matter block (flat `key: value` scalars only — the Stage D grammar).
+ */
+
+export type ContextScope = 'once' | 'node' | 'strategy' | 'client' | 'firm';
+export type ContextDocState = 'draft' | 'active' | 'superseded' | 'archived';
+
+/** Flat scalar map — the Stage D front-matter grammar has no nesting. */
+export type ContextFrontmatter = Record<string, string | number | boolean | null>;
+
+export interface ContextDocumentListItem {
+  id: string;
+  clientId: string | null;
+  scope: ContextScope;
+  scopeRef: string | null;
+  /** Pack template id, e.g. "01_strategy_brief" (00–13 contract). */
+  templateKey: string;
+  title: string;
+  state: ContextDocState;
+  frontmatter: ContextFrontmatter | null;
+  checksum: string;
+  supersedesId: string | null;
+  validUntil: string | null; // ISO date — staleness horizon
+  createdByUserId: string;
+  updatedByUserId: string | null;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface ContextDocumentDetail extends ContextDocumentListItem {
+  /** Raw markdown body (front-matter lives in `frontmatter`). */
+  content: string;
+}
+
+/** POST /context/documents — raw markdown incl. its front-matter block. */
+export interface UploadContextDocumentInput {
+  content: string;
+  clientId?: string | null;
+}
+
+/** One field-level validation error from the upload 400 body. */
+export interface ContextFieldError {
+  field: string;
+  message: string;
+}
+
+/** GET /context/documents/:id/sections — one heading/row anchor. */
+export interface ContextSection {
+  /** Stable anchor to hand back to GET .../locate?ref=… */
+  ref: string;
+  heading: string;
+  level: number;
+  /** 1-based line of the heading inside `content` (when the API provides it). */
+  line: number | null;
+}
+
+/** GET /context/documents/:id/locate?ref=… — exact source lines (no LLM). */
+export interface ContextLocateResult {
+  ref: string;
+  /** 1-based inclusive line range inside `content`. */
+  startLine: number | null;
+  endLine: number | null;
+  /** The exact source lines, when the API echoes them. */
+  lines: string[] | null;
+}

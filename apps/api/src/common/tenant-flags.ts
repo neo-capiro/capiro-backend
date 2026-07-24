@@ -170,6 +170,36 @@ export function strategyMeriActive(settings: unknown, env: NodeJS.ProcessEnv = p
 }
 
 /**
+ * Gates agentic Meri inside the Strategy Planner (Phase 2 agentic phases).
+ * Mirrors the strategyPlannerMeri quartet: ANDed with a global env kill-switch
+ * STRATEGY_AGENTS_ENABLED so the agentic surface stays dormant until BOTH the
+ * env switch is on AND the per-tenant flag resolves true — the <5s rollback is
+ * flipping either back off. Per-tenant flag default OFF (pilot). The
+ * api-strategy service enforces the same pair server-side
+ * (StrategyFlagsService.isAgenticFlagEnabled / AgenticGuard).
+ */
+export const AGENTIC_MERI_FLAG = 'agenticMeri.enabled' as const;
+
+/** The per-tenant agentic-Meri flag alone (no env AND) — used where only the tenant opt-in matters. */
+export function agenticMeriEnabled(settings: unknown): boolean {
+  return tenantFeatureEnabled(settings, AGENTIC_MERI_FLAG, false);
+}
+
+/** Global env kill-switch for Strategy-Planner agentic Meri. Default OFF — only the literal 'true' enables. */
+export function strategyAgentsEnvEnabled(env: NodeJS.ProcessEnv = process.env): boolean {
+  return env.STRATEGY_AGENTS_ENABLED === 'true';
+}
+
+/**
+ * Agentic Meri is active for a tenant only when the env kill-switch is on AND
+ * the per-tenant flag resolves true (both default OFF). This is the value
+ * surfaced to the web (GET /me) and mirrored server-side by api-strategy.
+ */
+export function agenticMeriActive(settings: unknown, env: NodeJS.ProcessEnv = process.env): boolean {
+  return strategyAgentsEnvEnabled(env) && agenticMeriEnabled(settings);
+}
+
+/**
  * Meri proactive-alert importance floor (2026-07-12). The Meri chat bell + the
  * "🔔 Scheduled briefings" banner are both fed by MeriService.listAlerts, which
  * historically returned EVERY pending clio_proactive_alert with no importance

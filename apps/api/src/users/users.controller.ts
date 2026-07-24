@@ -11,6 +11,7 @@ import {
   meriDockUndockUiEnabled,
   strategyPlannerEnabled,
   strategyMeriActive,
+  agenticMeriActive,
   entitlementsForTenant,
 } from '../common/tenant-flags.js';
 import type { AppConfig } from '../config/config.schema.js';
@@ -151,6 +152,7 @@ export class UsersController {
         meriDockUndockUi: meriDockUndockUiEnabled(profile.tenant?.settings),
         strategyPlanner: strategyPlannerEnabled(profile.tenant?.settings),
         strategyPlannerMeri: strategyMeriActive(profile.tenant?.settings),
+        agenticMeri: agenticMeriActive(profile.tenant?.settings),
       },
     };
   }
@@ -231,6 +233,7 @@ export class UsersController {
         meriDockUndockUi: meriDockUndockUiEnabled(profile.tenant?.settings),
         strategyPlanner: strategyPlannerEnabled(profile.tenant?.settings),
         strategyPlannerMeri: strategyMeriActive(profile.tenant?.settings),
+        agenticMeri: agenticMeriActive(profile.tenant?.settings),
       },
     };
   }

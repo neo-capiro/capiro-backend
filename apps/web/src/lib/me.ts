@@ -51,6 +51,12 @@ export interface MeResponse {
     strategyPlanner?: boolean;
     /** Meri assistant inside the Strategy Planner (draft-from-goal + rail edits); default false. */
     strategyPlannerMeri?: boolean;
+    /**
+     * Phase-2 agentic Meri surface (context documents, missions, change-sets).
+     * env STRATEGY_AGENTS_ENABLED AND per-tenant agenticMeri.enabled — both
+     * default OFF. Optional so an older cached /me shape degrades (hidden).
+     */
+    agenticMeri?: boolean;
   };
 }
 

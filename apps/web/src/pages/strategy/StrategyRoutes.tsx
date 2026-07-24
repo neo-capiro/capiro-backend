@@ -2,6 +2,8 @@ import { Navigate, Route, Routes } from 'react-router-dom';
 import { useMe } from '../../lib/me.js';
 import { StrategyLibraryPage } from './StrategyLibraryPage.js';
 import { StrategyEditorPage } from './StrategyEditorPage.js';
+import { ContextLibrary } from './context/ContextLibrary.js';
+import { ContextDocumentView } from './context/ContextDocumentView.js';
 import './strategy-ds.css';
 
 /**
@@ -24,10 +26,23 @@ export function StrategyRoutes() {
     return <Navigate to="/" replace />;
   }
 
+  // Stage D agentic surface: the context-document browser only exists when the
+  // tenant's agenticMeri flag (env-ANDed server-side) is on — deep-links
+  // bounce back to the library, matching the api-strategy AgenticGuard 403.
+  const agentic = Boolean(me.data.features.agenticMeri);
+
   return (
     <div className="sp-root" style={{ height: '100%', overflow: 'hidden' }}>
       <Routes>
         <Route index element={<StrategyLibraryPage />} />
+        <Route
+          path="context"
+          element={agentic ? <ContextLibrary /> : <Navigate to="/strategies" replace />}
+        />
+        <Route
+          path="context/:id"
+          element={agentic ? <ContextDocumentView /> : <Navigate to="/strategies" replace />}
+        />
         <Route path=":id" element={<StrategyEditorPage />} />
         <Route path="*" element={<Navigate to="/strategies" replace />} />
       </Routes>

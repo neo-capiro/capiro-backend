@@ -11,6 +11,10 @@ import { useApi } from '../../lib/use-api.js';
 import type {
   AssistantInput,
   AssistantResponse,
+  ContextDocumentDetail,
+  ContextDocumentListItem,
+  ContextLocateResult,
+  ContextSection,
   CreateNodeInput,
   CreateStrategyInput,
   DraftStrategyInput,
@@ -23,8 +27,15 @@ import type {
   StrategyDetail,
   StrategyListItem,
   UpdateNodeInput,
+  UploadContextDocumentInput,
   VersionsPage,
 } from './types.js';
+import {
+  normalizeDocument,
+  normalizeDocumentList,
+  normalizeLocate,
+  normalizeSections,
+} from './context/context-utils.js';
 
 /** Upload one file for Meri grounding → attachment id (clio pipeline, CRT-5/NOD-4/MRI-7). */
 export interface AttachmentUpload {
@@ -276,5 +287,104 @@ export function usePutReference(kind: 'congress' | 'ppbe') {
       (await api.put<ReferenceCalendars>(`${BASE}/reference-calendars/${kind}`, { rows })).data,
     // The PUT returns the merged calendars — write straight into the GET cache.
     onSuccess: (data) => qc.setQueryData(['strategy', 'reference-calendars'], data),
+  });
+}
+
+/*
+ * ---- Stage D: context documents (/strategy-api/context/*) ----
+ * Agentic-surface routes (TenantGuard + StrategyPlannerGuard + AgenticGuard
+ * server-side; the /me features.agenticMeri flag is the UI belt). Responses
+ * pass through the tolerant normalizers in context/context-utils.ts.
+ */
+
+/**
+ * GET /strategy-api/context/documents — the whole tenant library (client
+ * filter is client-side). includeStale=true: the server default EXCLUDES
+ * stale rows (correct for downstream pack consumers), but the library is the
+ * management surface — stale docs must stay visible (amber Stale chip) and
+ * archivable, never silently vanish.
+ */
+export function useContextDocuments() {
+  const api = useApi();
+  return useQuery<ContextDocumentListItem[]>({
+    queryKey: ['strategy', 'context-documents'],
+    queryFn: async () =>
+      normalizeDocumentList((await api.get<unknown>(`${BASE}/context/documents?includeStale=true`)).data),
+    staleTime: 30_000,
+  });
+}
+
+/** GET /strategy-api/context/documents/:id — full document incl. markdown body. */
+export function useContextDocument(id: string | null) {
+  const api = useApi();
+  return useQuery<ContextDocumentDetail>({
+    queryKey: ['strategy', 'context-document', id],
+    enabled: !!id,
+    queryFn: async () =>
+      normalizeDocument((await api.get<unknown>(`${BASE}/context/documents/${id}`)).data),
+  });
+}
+
+/**
+ * POST /strategy-api/context/documents — upload raw markdown (front-matter
+ * included). A 400 carries field-level validation errors (the modal renders
+ * them via parseUploadError). The created doc's `supersedesId` is set when it
+ * replaced an active document of the same template/scope.
+ */
+export function useUploadContextDocument() {
+  const api = useApi();
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async (input: UploadContextDocumentInput) =>
+      normalizeDocument((await api.post<unknown>(`${BASE}/context/documents`, input)).data),
+    onSuccess: (doc) => {
+      qc.setQueryData(['strategy', 'context-document', doc.id], doc);
+      void qc.invalidateQueries({ queryKey: ['strategy', 'context-documents'] });
+    },
+  });
+}
+
+/** POST /strategy-api/context/documents/:id/archive — retire a document. */
+export function useArchiveContextDocument() {
+  const api = useApi();
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async (id: string) =>
+      normalizeDocument((await api.post<unknown>(`${BASE}/context/documents/${id}/archive`)).data),
+    onSuccess: (doc) => {
+      qc.setQueryData(['strategy', 'context-document', doc.id], doc);
+      void qc.invalidateQueries({ queryKey: ['strategy', 'context-documents'] });
+    },
+  });
+}
+
+/** GET /strategy-api/context/documents/:id/sections — heading/row anchors. */
+export function useContextSections(id: string | null) {
+  const api = useApi();
+  return useQuery<ContextSection[]>({
+    queryKey: ['strategy', 'context-sections', id],
+    enabled: !!id,
+    queryFn: async () =>
+      normalizeSections((await api.get<unknown>(`${BASE}/context/documents/${id}/sections`)).data),
+    staleTime: 30_000,
+  });
+}
+
+/** GET /strategy-api/context/documents/:id/locate?ref=… — exact source lines (provenance without an LLM). */
+export function useContextLocate(id: string | null, ref: string | null) {
+  const api = useApi();
+  return useQuery<ContextLocateResult>({
+    queryKey: ['strategy', 'context-locate', id, ref],
+    enabled: !!id && !!ref,
+    queryFn: async () =>
+      normalizeLocate(
+        (
+          await api.get<unknown>(
+            `${BASE}/context/documents/${id}/locate?ref=${encodeURIComponent(ref ?? '')}`,
+          )
+        ).data,
+        ref ?? '',
+      ),
+    staleTime: 30_000,
   });
 }

@@ -38,6 +38,9 @@ export function StrategyLibraryPage() {
   const members = useTenantMembers();
   const me = useMe();
   const meriEnabled = Boolean(me.data?.features?.strategyPlannerMeri);
+  // Stage D: the context-document library rides the agentic flag — the link is
+  // hidden entirely (not disabled) when the tenant isn't canaried in.
+  const agenticEnabled = Boolean(me.data?.features?.agenticMeri);
   const calendar = useMemo(() => buildCalendar(new Date()), []);
 
   const [goalOpen, setGoalOpen] = useState(false);
@@ -100,9 +103,16 @@ export function StrategyLibraryPage() {
               calendars. Create and edit strategies with Meri.
             </p>
           </div>
-          <button onClick={() => setGoalOpen(true)} style={btnPrimary}>
-            <Icon name="plus" size={15} color="#fff" /> New strategy
-          </button>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+            {agenticEnabled && (
+              <button onClick={() => navigate('/strategies/context')} style={btnGhost}>
+                <Icon name="book" size={14} color="var(--ink-2)" /> Context
+              </button>
+            )}
+            <button onClick={() => setGoalOpen(true)} style={btnPrimary}>
+              <Icon name="plus" size={15} color="#fff" /> New strategy
+            </button>
+          </div>
         </div>
 
         {!firmLoaded ? null : !firmConfigured ? (
