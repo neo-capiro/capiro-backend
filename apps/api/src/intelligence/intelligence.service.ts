@@ -37,6 +37,17 @@ import { commentDeadlineDedupeKey } from './comment-deadline.util.js';
 import { ClientPrepopulationService } from './client-prepopulation.service.js';
 import { OfficeRecommenderService } from './office-recommender.service.js';
 import type { OfficeRecommendation } from './office-recommender.service.js';
+// Pure, DI-free helper + type reused from the District Impact Engine (WS-A,
+// LegiStorm gaps/enrichment plan). Deliberately NOT injecting
+// RepresentationResolverService here: its resolveHouse/resolveSenate are
+// private (facility-shaped input only), and RepresentationModule isn't
+// imported by IntelligenceModule. districtMatchesHouse is a plain exported
+// function, so this import adds no constructor/module dependency and can't
+// break the many hand-built `new IntelligenceService(prisma)` unit tests.
+import {
+  districtMatchesHouse,
+  type FederalMemberSummary,
+} from '../clients/representation-resolver.service.js';
 
 /**
  * Normalized internal shape every "Top alerts" source emits. `_urgencyScore` and
@@ -5537,6 +5548,45 @@ export class IntelligenceService {
       : [];
     const censusMap = new Map(censusRows.map((c) => [`${c.state}-${c.district}`, c]));
 
+    // 4. Batch-resolve CURRENT federal representatives (House + both
+    //    Senators) for every state that has a resolved district — ONE query
+    //    regardless of row count, matched in-memory per row below (never a
+    //    per-row query). Deliberately INDEPENDENT of the facility-based
+    //    "Your representatives" block (RepresentationResolverService /
+    //    getClientRepresentation): a client can have spend in a district
+    //    with no facility there, which the facility-based resolver never sees.
+    const spendStates = Array.from(
+      new Set(
+        spendRows
+          .filter((r) => r.pop_state && r.pop_district)
+          .map((r) => r.pop_state as string),
+      ),
+    );
+    const repMembers = spendStates.length
+      ? await this.prisma.congressMember.findMany({
+          where: { isCurrent: true, chamber: { in: ['house', 'senate'] }, state: { in: spendStates } },
+          select: {
+            bioguideId: true,
+            fullName: true,
+            party: true,
+            state: true,
+            district: true,
+            chamber: true,
+          },
+        })
+      : [];
+    const membersByState = new Map<
+      string,
+      { house: FederalMemberSummary[]; senate: FederalMemberSummary[] }
+    >();
+    for (const m of repMembers) {
+      if (!m.state) continue;
+      const bucket = membersByState.get(m.state) ?? { house: [], senate: [] };
+      if (m.chamber === 'house') bucket.house.push(m);
+      else if (m.chamber === 'senate') bucket.senate.push(m);
+      membersByState.set(m.state, bucket);
+    }
+
     let totalAwards = 0;
     let totalAmount = 0;
     let unmappedAmount = 0;
@@ -5554,6 +5604,11 @@ export class IntelligenceService {
         const dnum = normalizeDistrict(r.pop_district);
         const key = `${r.pop_state}-${dnum}`;
         const c = censusMap.get(key);
+        const stateMembers = membersByState.get(r.pop_state);
+        const houseCode = districtCodeForHouseMatch(r.pop_district);
+        const house = houseCode
+          ? stateMembers?.house.find((m) => districtMatchesHouse(houseCode, m.district)) ?? null
+          : null;
         return {
           district: key,
           state: r.pop_state,
@@ -5570,6 +5625,14 @@ export class IntelligenceService {
                 dataYear: c.data_year,
               }
             : null,
+          // Current representative(s). "Current" — the district may reflect
+          // the map in effect when the award was recorded (redistricting
+          // vintage skew), so this is NOT a claim the shown member held the
+          // seat at award time. house is null when the seat can't be
+          // determined (non-voting delegate / multiple-or-undefined district
+          // sentinel), never a guess; senate resolves independently of the
+          // House seat since it only needs the state.
+          representatives: { house, senate: stateMembers?.senate ?? [] },
         };
       })
       .filter((d): d is NonNullable<typeof d> => d !== null)
@@ -6492,4 +6555,24 @@ function normalizeDistrict(code: string | null): string {
   }
   const n = parseInt(trimmed, 10);
   return Number.isFinite(n) ? String(n) : 'AL';
+}
+
+/**
+ * Bridge a RAW USAspending place-of-performance congressional_code to the
+ * "'00'-for-at-large" convention `districtMatchesHouse` expects — operating
+ * on the raw code, NOT `normalizeDistrict`'s output. `normalizeDistrict`
+ * collapses '00' (true at-large), '98' (non-voting delegate), and '90'/'ZZ'
+ * (multiple/undefined district) into one 'AL' bucket for the census join;
+ * once collapsed, those four cases are indistinguishable. Resolving '98' or
+ * '90'/'ZZ' to the at-large House member would misattribute a representative
+ * for a seat we don't actually know. Returns null when the House seat can't
+ * be determined — the caller still resolves Senate independently, since that
+ * only needs the state, not a district.
+ */
+function districtCodeForHouseMatch(rawPopDistrict: string | null): string | null {
+  if (!rawPopDistrict) return null;
+  const trimmed = rawPopDistrict.trim().toUpperCase();
+  if (trimmed === '98' || trimmed === '90' || trimmed === 'ZZ') return null;
+  if (trimmed === '00' || trimmed === 'AL') return '00';
+  return trimmed;
 }
