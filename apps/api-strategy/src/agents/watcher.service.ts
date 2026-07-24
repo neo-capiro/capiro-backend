@@ -4,6 +4,7 @@ import {
   ConflictException,
   ForbiddenException,
   Injectable,
+  Logger,
   NotFoundException,
 } from '@nestjs/common';
 import { verifyPlan, type VerifierNode, type Violation } from '@capiro/strategy-verifier';
@@ -17,6 +18,7 @@ import { AGENTIC_FLAGS, StrategyFlagsService } from '../flags/strategy-flags.ser
 import { RunsService } from './runs.service.js';
 import { ChangeSetsService } from './change-sets.service.js';
 import { classifyRisk } from './risk-router.js';
+import { stampRunMetrics, type RunMetricsInput } from './run-metrics.js';
 import {
   findingKey,
   runWatcherChecks,
@@ -50,6 +52,8 @@ import type {
  */
 @Injectable()
 export class WatcherService {
+  private readonly logger = new Logger(WatcherService.name);
+
   constructor(
     private readonly prisma: PrismaService,
     private readonly versioning: VersioningService,
@@ -133,6 +137,10 @@ export class WatcherService {
       await this.runs.transition(tenantId, userId, run.id, { to: 'planning' } as TransitionRunDto);
     }
 
+    const phaseStart = Date.now();
+    this.logger.log(
+      `[run:${run.id} mission:${missionId}] watcher check start (strategy:${strategyId})`,
+    );
     try {
       const { findings, changeSetsProposed } = await this.executeCheck(
         tenantId,
@@ -165,6 +173,14 @@ export class WatcherService {
           checkedOn: today,
         });
       }
+      await this.stampMetrics(tenantId, userId, run.id, {
+        phase: 'check',
+        latencyMs: Date.now() - phaseStart,
+      });
+      this.logger.log(
+        `[run:${run.id} mission:${missionId}] watcher check done` +
+          ` (${findings.length} finding(s), ${changeSetsProposed.length} proposed)`,
+      );
       return { runId: run.id, findings, changeSetsProposed };
     } catch (err) {
       // Best-effort: never leave a run we were driving stranded in planning.
@@ -532,6 +548,35 @@ export class WatcherService {
     return userId
       ? this.prisma.withTenantUser(tenantId, userId, fn)
       : this.prisma.withTenant(tenantId, fn);
+  }
+
+  /**
+   * Merge run metrics (phase / latency; model+prompt are seams for the
+   * deterministic check pass) onto run.findings ADDITIVELY — stampRunMetrics
+   * preserves checkedOn/findings/riskClassification. BEST-EFFORT: an
+   * observability write must never fail a check, so a throw is logged and
+   * swallowed, and it is NOT audited (a silent annotation, not a domain
+   * mutation). ai_usage agent_run_id linkage is a documented cross-app seam
+   * (see run-metrics.ts).
+   */
+  private async stampMetrics(
+    tenantId: string,
+    userId: string | null,
+    runId: string,
+    input: RunMetricsInput,
+  ): Promise<void> {
+    try {
+      await this.inTx(tenantId, userId, async (tx) => {
+        const run = await tx.spAgentRun.findFirst({ where: { id: runId } });
+        if (!run) return;
+        await tx.spAgentRun.updateMany({
+          where: { id: runId },
+          data: { findings: stampRunMetrics(run.findings, input) as Prisma.InputJsonValue },
+        });
+      });
+    } catch (err) {
+      this.logger.warn(`[run:${runId}] run-metrics stamp skipped: ${(err as Error).message}`);
+    }
   }
 }
 

@@ -3,6 +3,7 @@ import {
   ConflictException,
   Injectable,
   NotFoundException,
+  ServiceUnavailableException,
 } from '@nestjs/common';
 import { Prisma } from '../../generated/prisma-client/index.js';
 import { PrismaService } from '../prisma/prisma.service.js';
@@ -13,11 +14,49 @@ import type { CreateRunDto, TransitionRunDto } from './dto/agents.dto.js';
 type Tx = Prisma.TransactionClient;
 
 /**
+ * Run states that count as CONCURRENT LOAD for the per-tenant cap: a run that is
+ * actively occupying (or about to occupy) an agent worker. ready_for_review is
+ * deliberately EXCLUDED — a review-ready run is parked awaiting a HUMAN and
+ * burns no agent compute — as are the terminal states (completed/failed/
+ * canceled). This is a policy constant, distinct from run-state's lifecycle
+ * table on purpose.
+ */
+export const CONCURRENT_RUN_STATES = [
+  'queued',
+  'planning',
+  'waiting_for_input',
+  'executing',
+] as const;
+
+/** Default per-tenant concurrent-run cap when the env override is unset/invalid. */
+const DEFAULT_MAX_CONCURRENT_RUNS = 20;
+
+/**
+ * Resolve the per-tenant concurrent-run cap from
+ * STRATEGY_AGENTS_MAX_CONCURRENT_RUNS (default 20). Floored at 1 so the cap can
+ * never be misconfigured to zero and lock a tenant out entirely; a non-positive
+ * / non-numeric value falls back to the default.
+ */
+export function resolveConcurrentRunCap(): number {
+  const raw = Number(process.env.STRATEGY_AGENTS_MAX_CONCURRENT_RUNS);
+  return Math.max(
+    Number.isFinite(raw) && raw > 0 ? Math.floor(raw) : DEFAULT_MAX_CONCURRENT_RUNS,
+    1,
+  );
+}
+
+/**
  * Agent runs (Stage C — lifecycle only, no LLM). A run belongs to an ACTIVE
  * mission; (tenantId, idempotencyKey) dedupes re-triggers: a duplicate create
  * returns the EXISTING run unchanged (no second row, no second activity/outbox
  * event). userId is null for scheduler/system-triggered work (F2), in which
  * case writes run under withTenant and activity is attributed authorKind=meri.
+ *
+ * Stage H adds a per-tenant CONCURRENCY CAP
+ * (STRATEGY_AGENTS_MAX_CONCURRENT_RUNS, default 20) checked before minting a
+ * GENUINELY-NEW run: a tenant at its active-run budget gets a 503 'try again
+ * shortly'. An idempotent replay (same idempotencyKey) is a RETRY, not new load
+ * — it returns the existing run and never counts against or trips the cap.
  */
 @Injectable()
 export class RunsService {
@@ -54,6 +93,27 @@ export class RunsService {
         if (mission.state !== 'active') {
           throw new BadRequestException('mission is not active');
         }
+
+        // IDEMPOTENT-REPLAY short-circuit, taken BEFORE the concurrency cap
+        // (Stage H): a re-triggered create for a key we've already minted a run
+        // for is NOT new load — it must return the existing run and never be
+        // counted against (or rejected by) the cap. Placed AFTER the mission
+        // gate so a replay keeps the existing mission-active semantics; the
+        // INSERT + P2002 catch below still backstops the concurrent-create race
+        // where two callers pass this read together (neither sees the other's
+        // uncommitted row). Tenant-scoped via the query hook.
+        const replay = await tx.spAgentRun.findFirst({
+          where: { idempotencyKey: dto.idempotencyKey },
+        });
+        if (replay) {
+          if (replay.missionId !== missionId) {
+            throw new ConflictException(
+              'idempotencyKey already used by a run on a different mission',
+            );
+          }
+          return replay;
+        }
+
         // Tenant-scoped existence check (the query hook injects tenantId) — a
         // run may not point at another tenant's / a nonexistent strategy;
         // SpAgentRun.strategyId has no FK to catch it (mirrors
@@ -65,6 +125,26 @@ export class RunsService {
           });
           if (!strat) throw new BadRequestException('Unknown strategy for this tenant');
         }
+
+        // PER-TENANT CONCURRENCY CAP (Stage H load-shed valve). Count this
+        // tenant's actively-executing runs (queued/planning/waiting_for_input/
+        // executing — CONCURRENT_RUN_STATES; a parked ready_for_review or a
+        // terminal run does NOT count) and reject a genuinely-new run over the
+        // cap with a 503. SOFT cap: the count and the insert are not atomic
+        // across concurrent creators, so the ceiling may be exceeded by the
+        // number of simultaneous inserters — acceptable for a load-shed valve,
+        // not a hard invariant. The idempotent replay above already returned, so
+        // a retry never reaches (or trips) this gate.
+        const cap = resolveConcurrentRunCap();
+        const active = await tx.spAgentRun.count({
+          where: { state: { in: [...CONCURRENT_RUN_STATES] } },
+        });
+        if (active >= cap) {
+          throw new ServiceUnavailableException(
+            'too many active agent runs for this tenant — try again shortly',
+          );
+        }
+
         const run = await tx.spAgentRun.create({
           data: {
             tenantId,

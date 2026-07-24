@@ -158,6 +158,9 @@ export class WatcherSchedulerService implements OnModuleInit, OnModuleDestroy {
                   due.cadence AS "cadence", due.next_run_at AS "dueAt"`,
     );
 
+    if (claimed.length > 0) {
+      this.logger.log(`watcher scheduler tick claimed ${claimed.length} due mission(s)`);
+    }
     let succeeded = 0;
     let failed = 0;
     let skipped = 0;
@@ -187,6 +190,10 @@ export class WatcherSchedulerService implements OnModuleInit, OnModuleDestroy {
           skipped++;
           continue;
         }
+        this.logger.log(
+          `[mission:${mission.id} tenant:${mission.tenantId}] scheduled ` +
+            `${mission.strategyId === null ? 'firm-calendar' : 'strategy'} check (key ${idempotencyKey})`,
+        );
         if (mission.strategyId === null) {
           // FIRM-LEVEL SEAM: WatcherService.runCheckNow is strategy-scoped by
           // contract (it 400s on strategyId null) — firm calendar missions run
@@ -249,6 +256,7 @@ export class WatcherSchedulerService implements OnModuleInit, OnModuleDestroy {
       trigger: 'scheduled',
       idempotencyKey,
     } as CreateRunDto);
+    this.logger.log(`[run:${run.id} mission:${mission.id}] firm-calendar placeholder (${run.state})`);
     // Idempotent replay of the same occurrence: if the run already advanced
     // past planning, this occurrence was already handled — leave it alone.
     if (run.state !== 'queued' && run.state !== 'planning') return;

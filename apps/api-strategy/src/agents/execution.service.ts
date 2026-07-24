@@ -3,6 +3,7 @@ import {
   ConflictException,
   ForbiddenException,
   Injectable,
+  Logger,
   NotFoundException,
 } from '@nestjs/common';
 import { verifyPlan, type VerifierNode, type Violation } from '@capiro/strategy-verifier';
@@ -17,6 +18,7 @@ import { RunsService } from './runs.service.js';
 import { ExecutionArtifactClient } from './execution-artifact.client.js';
 import { computeSendToken, type SendTokenInput } from './send-approval.js';
 import { evaluateEligibility, type EligibilityResult } from './execution-eligibility.js';
+import { stampRunMetrics, type RunMetricsInput } from './run-metrics.js';
 import type {
   CreateRunDto,
   ExecutionKindValue,
@@ -123,6 +125,8 @@ interface StrategyRow {
  */
 @Injectable()
 export class ExecutionService {
+  private readonly logger = new Logger(ExecutionService.name);
+
   constructor(
     private readonly prisma: PrismaService,
     private readonly versioning: VersioningService,
@@ -222,6 +226,8 @@ export class ExecutionService {
     runId: string,
     meta: ExecutionMeta,
   ) {
+    const phaseStart = Date.now();
+    this.logger.log(`[run:${runId} mission:${meta.missionId}] execution plan start (${meta.kind})`);
     const { strategy, targetNode, headVersionId } = await this.loadPlanState(
       tenantId,
       meta.strategyId,
@@ -241,7 +247,7 @@ export class ExecutionService {
         waitingReason: blockReason,
         findings: { execution: meta, g0 },
       } as TransitionRunDto);
-      return this.runs.get(tenantId, runId);
+      return this.settlePhase(tenantId, userId, runId, meta.missionId, 'plan', phaseStart);
     }
 
     const tasks = this.buildTasks(meta.kind, targetNode, strategy);
@@ -249,7 +255,7 @@ export class ExecutionService {
       to: 'ready_for_review',
       findings: { execution: meta, g0, tasks },
     } as TransitionRunDto);
-    return this.runs.get(tenantId, runId);
+    return this.settlePhase(tenantId, userId, runId, meta.missionId, 'plan', phaseStart);
   }
 
   /**
@@ -404,6 +410,10 @@ export class ExecutionService {
     meta: ExecutionMeta,
     tasks: ExecutionTask[],
   ) {
+    const phaseStart = Date.now();
+    this.logger.log(
+      `[run:${runId} mission:${meta.missionId}] execution execute start (${meta.kind})`,
+    );
     const { strategy, targetNode, headVersionId } = await this.loadPlanState(
       tenantId,
       meta.strategyId,
@@ -432,7 +442,7 @@ export class ExecutionService {
         waitingReason: blockReason,
         findings: { execution: meta, g0 },
       } as TransitionRunDto);
-      return this.runs.get(tenantId, runId);
+      return this.settlePhase(tenantId, userId, runId, meta.missionId, 'execute', phaseStart);
     }
 
     const clientName = await this.resolveClientName(tenantId, strategy.clientId);
@@ -505,7 +515,7 @@ export class ExecutionService {
         waitingReason: STAGING_INCOMPLETE_REASON,
         findings: { results, ...(sendApproval ? { sendApproval } : {}) },
       } as TransitionRunDto);
-      return this.runs.get(tenantId, runId);
+      return this.settlePhase(tenantId, userId, runId, meta.missionId, 'execute', phaseStart);
     }
     if (blocked) {
       await this.runs.transition(tenantId, userId, runId, {
@@ -513,7 +523,7 @@ export class ExecutionService {
         waitingReason: 'outreach blocked by a client do-not-contact constraint',
         findings: { results, ...(sendApproval ? { sendApproval } : {}) },
       } as TransitionRunDto);
-      return this.runs.get(tenantId, runId);
+      return this.settlePhase(tenantId, userId, runId, meta.missionId, 'execute', phaseStart);
     }
     if (sendPending) {
       // The run does NOT auto-complete while a send is pending — it parks for a
@@ -523,7 +533,7 @@ export class ExecutionService {
         waitingReason: 'awaiting send approval',
         findings: { results, sendApproval },
       } as TransitionRunDto);
-      return this.runs.get(tenantId, runId);
+      return this.settlePhase(tenantId, userId, runId, meta.missionId, 'execute', phaseStart);
     }
 
     // All non-send tasks done, nothing pending => final validation + complete.
@@ -534,7 +544,7 @@ export class ExecutionService {
     await this.runs.transition(tenantId, userId, runId, {
       to: 'completed',
     } as TransitionRunDto);
-    return this.runs.get(tenantId, runId);
+    return this.settlePhase(tenantId, userId, runId, meta.missionId, 'execute', phaseStart);
   }
 
   // ---- resume / cancel -----------------------------------------------------
@@ -1030,6 +1040,61 @@ export class ExecutionService {
     return userId
       ? this.prisma.withTenantUser(tenantId, userId, fn)
       : this.prisma.withTenant(tenantId, fn);
+  }
+
+  // ---- metrics / structured logging (Stage H) ------------------------------
+
+  /**
+   * Phase-finish settle (Stage H): best-effort stamp the run's metrics, log the
+   * outcome with run/mission context, and return the (freshly-read) run. Called
+   * at every runPlanning / runExecuting exit — park OR complete — so run.findings
+   * always carries the last phase + its latency.
+   */
+  private async settlePhase(
+    tenantId: string,
+    userId: string | null,
+    runId: string,
+    missionId: string,
+    phase: 'plan' | 'execute',
+    phaseStart: number,
+  ) {
+    await this.stampMetrics(tenantId, userId, runId, { phase, latencyMs: Date.now() - phaseStart });
+    const run = await this.runs.get(tenantId, runId);
+    this.logger.log(
+      `[run:${runId} mission:${missionId}] execution ${phase} settled -> ${run.state}`,
+    );
+    return run;
+  }
+
+  /**
+   * Merge run metrics (model / prompt-spec / latency / last-phase) onto
+   * run.findings ADDITIVELY (stampRunMetrics preserves execution/tasks/g0/
+   * results). BEST-EFFORT: an observability write must never fail a run, so a
+   * throw is logged and swallowed. Deliberately NOT audited via
+   * VersioningService.logActivity — it is a silent annotation (like the
+   * write-ahead reservation), not a domain mutation. The read+merge+write share
+   * one tx so a concurrent findings write is not blindly clobbered (soft: the
+   * merge is onto the read-time snapshot). ai_usage agent_run_id linkage is a
+   * documented cross-app seam (see run-metrics.ts).
+   */
+  private async stampMetrics(
+    tenantId: string,
+    userId: string | null,
+    runId: string,
+    input: RunMetricsInput,
+  ): Promise<void> {
+    try {
+      await this.inTx(tenantId, userId, async (tx) => {
+        const run = await tx.spAgentRun.findFirst({ where: { id: runId } });
+        if (!run) return;
+        await tx.spAgentRun.updateMany({
+          where: { id: runId },
+          data: { findings: stampRunMetrics(run.findings, input) as Prisma.InputJsonValue },
+        });
+      });
+    } catch (err) {
+      this.logger.warn(`[run:${runId}] run-metrics stamp skipped: ${(err as Error).message}`);
+    }
   }
 }
 

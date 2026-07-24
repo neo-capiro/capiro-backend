@@ -247,6 +247,13 @@ function makeTx(store: Store) {
       store.runs.set(where.id, { ...rec, ...data, updatedAt: now });
       return { count: 1 };
     },
+    // RunsService.createRun's Stage-H concurrency-cap count.
+    count: async ({ where = {} }: { where?: { state?: { in?: string[] } } }) => {
+      const states = where.state?.in;
+      return [...store.runs.values()].filter(
+        (r) => states === undefined || states.includes(r.state as string),
+      ).length;
+    },
     findMany: async ({
       where,
       take,

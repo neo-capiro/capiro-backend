@@ -1,5 +1,9 @@
-import { describe, expect, it, jest } from '@jest/globals';
-import { BadRequestException, ConflictException } from '@nestjs/common';
+import { afterEach, beforeEach, describe, expect, it, jest } from '@jest/globals';
+import {
+  BadRequestException,
+  ConflictException,
+  ServiceUnavailableException,
+} from '@nestjs/common';
 import { Prisma } from '../../generated/prisma-client/index.js';
 import { RunsService } from './runs.service.js';
 import { VersioningService } from '../strategy/versioning.service.js';
@@ -177,6 +181,15 @@ function makeTx(store: Store) {
       }
       store.runs.set(where.id, { ...rec, ...data, updatedAt: now });
       return { count: 1 };
+    },
+    // The Stage-H concurrency-cap probe: count runs whose state is in the given
+    // set (tenant-scoped in prod via the query hook; the store holds only
+    // tenant-1 rows, so a plain state filter models it).
+    count: async ({ where = {} }: { where?: { state?: { in?: string[] } } }) => {
+      const states = where.state?.in;
+      return [...store.runs.values()].filter(
+        (r) => states === undefined || states.includes(r.state as string),
+      ).length;
     },
   };
   const spActivityLog = {
@@ -404,6 +417,112 @@ describe('RunsService.createRun', () => {
     const row = store.activity.find((a) => a.action === 'run.created')!;
     expect(row.actorUserId).toBeNull();
     expect(row.authorKind).toBe('meri');
+  });
+});
+
+describe('RunsService.createRun — per-tenant concurrent-run cap (Stage H)', () => {
+  const CAP_ENV = 'STRATEGY_AGENTS_MAX_CONCURRENT_RUNS';
+  let savedCap: string | undefined;
+  beforeEach(() => {
+    savedCap = process.env[CAP_ENV];
+  });
+  afterEach(() => {
+    if (savedCap === undefined) delete process.env[CAP_ENV];
+    else process.env[CAP_ENV] = savedCap;
+  });
+
+  it('trips at the cap: a genuinely-new run is rejected 503 when the tenant is at its active-run limit, persisting nothing', async () => {
+    process.env[CAP_ENV] = '2';
+    const store = makeStore();
+    seedMission(store, 'M1', 'active');
+    const { svc } = makeService(store);
+
+    // Two runs occupy the budget: one queued, one driven to executing — both
+    // CONCURRENT_RUN_STATES.
+    await svc.createRun(T, U, 'M1', { trigger: 'manual', idempotencyKey: 'cap-a' } as CreateRunDto);
+    const r2 = await svc.createRun(T, U, 'M1', {
+      trigger: 'manual',
+      idempotencyKey: 'cap-b',
+    } as CreateRunDto);
+    await svc.transition(T, U, r2.id, { to: 'planning' } as TransitionRunDto);
+    await svc.transition(T, U, r2.id, { to: 'executing' } as TransitionRunDto);
+
+    const err = await svc
+      .createRun(T, U, 'M1', { trigger: 'manual', idempotencyKey: 'cap-c' } as CreateRunDto)
+      .catch((e: unknown) => e);
+
+    expect(err).toBeInstanceOf(ServiceUnavailableException);
+    expect((err as Error).message).toMatch(/too many active agent runs/);
+    // The third run never landed — no row, no run.created audit/outbox.
+    expect(store.runs.size).toBe(2);
+    expect(store.activity.filter((a) => a.action === 'run.created')).toHaveLength(2);
+    expect(store.outbox.filter((o) => o.type === 'run.created')).toHaveLength(2);
+  });
+
+  it('idempotent replay bypasses the cap: replaying an existing key returns the run even AT the cap (a retry is not new load)', async () => {
+    process.env[CAP_ENV] = '1';
+    const store = makeStore();
+    seedMission(store, 'M1', 'active');
+    const { svc } = makeService(store);
+
+    const first = await svc.createRun(T, U, 'M1', {
+      trigger: 'manual',
+      idempotencyKey: 'retry-key',
+    } as CreateRunDto);
+    // The tenant is now AT the cap (one active run). A brand-new key is shed...
+    const shed = await svc
+      .createRun(T, U, 'M1', { trigger: 'manual', idempotencyKey: 'fresh-key' } as CreateRunDto)
+      .catch((e: unknown) => e);
+    expect(shed).toBeInstanceOf(ServiceUnavailableException);
+
+    // ...but replaying the SAME key returns the existing run, never a 503, and
+    // mints no second row/audit.
+    const replay = await svc.createRun(T, U, 'M1', {
+      trigger: 'manual',
+      idempotencyKey: 'retry-key',
+    } as CreateRunDto);
+    expect(replay.id).toBe(first.id);
+    expect(store.runs.size).toBe(1);
+    expect(store.activity.filter((a) => a.action === 'run.created')).toHaveLength(1);
+  });
+
+  it('terminal and review-ready runs do not count against the cap — only queued/planning/waiting/executing occupy the budget', async () => {
+    process.env[CAP_ENV] = '2';
+    const store = makeStore();
+    seedMission(store, 'M1', 'active');
+    const { svc } = makeService(store);
+
+    // Rows in states that must NOT count: the three terminal states plus a
+    // parked-for-review run (awaiting a human, no agent compute).
+    (['completed', 'failed', 'canceled', 'ready_for_review'] as const).forEach((state, i) => {
+      store.runs.set(`done-${i}`, {
+        id: `done-${i}`,
+        tenantId: T,
+        missionId: 'M1',
+        strategyId: 'S1',
+        idempotencyKey: `done-${i}`,
+        state,
+      });
+    });
+
+    // Budget is fully free (0 active), so two fresh runs still land...
+    const a = await svc.createRun(T, U, 'M1', {
+      trigger: 'manual',
+      idempotencyKey: 'live-a',
+    } as CreateRunDto);
+    const b = await svc.createRun(T, U, 'M1', {
+      trigger: 'manual',
+      idempotencyKey: 'live-b',
+    } as CreateRunDto);
+    expect(a.state).toBe('queued');
+    expect(b.state).toBe('queued');
+
+    // ...and only the third — crossing the cap of 2 ACTIVE runs — is shed, even
+    // though four non-counting rows also exist for the tenant.
+    const err = await svc
+      .createRun(T, U, 'M1', { trigger: 'manual', idempotencyKey: 'live-c' } as CreateRunDto)
+      .catch((e: unknown) => e);
+    expect(err).toBeInstanceOf(ServiceUnavailableException);
   });
 });
 
