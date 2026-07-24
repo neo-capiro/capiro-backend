@@ -74,7 +74,7 @@ describe('LegiStormClient — Legislative Districts API (WS-B)', () => {
     expect(result.records[0]).toMatchObject({ id: 603, state: 'TX', status: 'F' });
     expect(calls).toHaveLength(1);
     const url = new URL(calls[0]!.url);
-    expect(url.pathname).toBe('/congress/list');
+    expect(url.pathname).toBe('/v2.023.07/legislative_districts/congress/list');
     expect(url.searchParams.get('state')).toBe('TX');
     expect(url.searchParams.get('status')).toBe('F');
     expect(url.searchParams.get('updated_from')).toBeNull();
@@ -114,7 +114,7 @@ describe('LegiStormClient — Legislative Districts API (WS-B)', () => {
 
     expect(result.records).toHaveLength(2);
     const url = new URL(calls[0]!.url);
-    expect(url.pathname).toBe('/congress/zipcode');
+    expect(url.pathname).toBe('/v2.023.07/legislative_districts/congress/zipcode');
     expect(url.searchParams.get('zip')).toBe('75001');
     expect(url.searchParams.get('zip4')).toBe('1234');
   });

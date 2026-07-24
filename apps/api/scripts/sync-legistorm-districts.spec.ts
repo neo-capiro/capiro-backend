@@ -158,10 +158,12 @@ describe('applyDistrictRows', () => {
     return {
       reconciled,
       existingIdsForStates: jest.fn(async () => new Set(existingIds)),
-      applyReconciliation: jest.fn(async (rows, jurisdictions) => {
-        reconciled.push({ rows, jurisdictions });
-        return { removed: 2 };
-      }),
+      applyReconciliation: jest.fn(
+        async (rows: LegislativeDistrictRow[], jurisdictions: readonly string[]) => {
+          reconciled.push({ rows, jurisdictions });
+          return { removed: 2 };
+        },
+      ),
     };
   }
 
@@ -194,7 +196,7 @@ describe('fetchAndStoreKml', () => {
     const client = { fetchDistrictKml: jest.fn(async () => '<kml/>') };
     const stored: Array<{ id: string; text: string }> = [];
     const kmlStore: KmlStore = {
-      store: jest.fn(async (row, text) => {
+      store: jest.fn(async (row: LegislativeDistrictRow, text: string) => {
         stored.push({ id: row.id, text });
         return `s3://bucket/${row.id}.kml`;
       }),

@@ -223,8 +223,18 @@ class PrismaTripStore implements TripStore {
     const ops: Prisma.PrismaPromise<unknown>[] = rows.map((row) =>
       this.prisma.legistormTrip.upsert({
         where: { id: row.id },
-        create: { ...row, syncedAt: now },
-        update: { ...row, syncedAt: now },
+        create: {
+          ...row,
+          syncedAt: now,
+          destinations: row.destinations as unknown as Prisma.InputJsonValue,
+          sponsors: row.sponsors as unknown as Prisma.InputJsonValue,
+        },
+        update: {
+          ...row,
+          syncedAt: now,
+          destinations: row.destinations as unknown as Prisma.InputJsonValue,
+          sponsors: row.sponsors as unknown as Prisma.InputJsonValue,
+        },
       }),
     );
     await this.prisma.$transaction(ops);

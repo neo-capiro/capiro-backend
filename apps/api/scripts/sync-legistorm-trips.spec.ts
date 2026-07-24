@@ -192,8 +192,8 @@ describe('applyTripRows', () => {
     // like WS-B's LegislativeDistrictStore has, because an incremental fetch
     // must never attempt to reconcile deletions (see the file header).
     const store = fakeStore([]);
-    expect((store as Record<string, unknown>).reconcileState).toBeUndefined();
-    expect((store as Record<string, unknown>).applyReconciliation).toBeUndefined();
+    expect((store as unknown as Record<string, unknown>).reconcileState).toBeUndefined();
+    expect((store as unknown as Record<string, unknown>).applyReconciliation).toBeUndefined();
   });
 });
 

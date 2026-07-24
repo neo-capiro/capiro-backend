@@ -82,7 +82,7 @@ describe('LegiStormClient.fetchTrips (WS-F)', () => {
     expect(result.records[0]!.id).toBe(62958);
     expect(calls).toHaveLength(1);
     const url = new URL(calls[0]!.url);
-    expect(url.pathname).toBe('/trips/list');
+    expect(url.pathname).toBe('/v2.019.10/congress/trips/list');
     expect(url.searchParams.get('updated_from')).toBe('2026-07-01');
     expect(url.searchParams.get('updated_to')).toBe('2026-07-13');
     expect(url.searchParams.get('limit')).toBe('100');
