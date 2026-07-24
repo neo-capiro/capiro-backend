@@ -239,3 +239,47 @@ export interface DirectoryPeoplePayload {
   page: number;
   pageSize: number;
 }
+
+/**
+ * WS-D, LegiStorm gaps/enrichment plan — a current representative for a
+ * legislative_district row (WS-B), resolved against the SAME directory
+ * snapshot member data getMemberDetail reads. `id` is the directory's own
+ * profile id ("member-<numericId>", NOT the bioguideId) so the web client can
+ * link straight to GET /directory/members/:id.
+ */
+export interface DirectoryDistrictMemberSummary {
+  id: string;
+  bioguideId: string;
+  fullName: string;
+  partyName: string | null;
+  chamber: 'House' | 'Senate' | 'Governor';
+  photoUrl: string | null;
+  outgoingStatus: string | null;
+}
+
+/**
+ * WS-D — House-district detail, resolved from the legislative_district table
+ * (WS-B), not the LegiStorm directory snapshot. `districtNo` here is the
+ * client_facilities-style code ('00' for at-large, zero-padded 2-digit
+ * otherwise) — the SAME convention the URL path segment uses — NOT
+ * LegiStorm's own raw districtNo storage (which has no at-large sentinel;
+ * see matchFacilityDistrictCode in directory.service.ts). `status` 'C' and
+ * 'F' are two DISTINCT rows for the same district_no across a redistricting
+ * cycle — a 'C' request and an 'F' request for the same URL params return
+ * different detail objects, never merged.
+ */
+export interface DirectoryDistrictDetail {
+  id: string;
+  legistormDistrictId: number;
+  chamber: 'house' | 'senate';
+  state: string;
+  districtNo: string;
+  name: string;
+  status: 'C' | 'F';
+  effectiveDate: string | null;
+  enactedDate: string | null;
+  currentMembers: DirectoryDistrictMemberSummary[];
+  /** Whether a boundary has been fetched+re-hosted in our own S3 (WS-B's --with-kml). */
+  hasBoundary: boolean;
+  syncedAt: string;
+}

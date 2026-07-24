@@ -30,6 +30,8 @@ import {
 } from './directory-photo.js';
 import type {
   DirectoryCommitteeDetail,
+  DirectoryDistrictDetail,
+  DirectoryDistrictMemberSummary,
   DirectoryMemberDetail,
   DirectoryPeoplePayload,
   DirectoryPersonResult,
@@ -2064,6 +2066,112 @@ export class DirectoryService implements OnModuleInit {
     return { ok: true, directoryContactId: normalizedContactId, favorited: false };
   }
 
+  // ── WS-D, LegiStorm gaps/enrichment plan: House-district detail + boundary ──
+  // Reads legislative_district (WS-B's Postgres table, NOT an S3 overlay —
+  // the original plan draft assumed an overlay before WS-B's storage design
+  // was decided; this targets what WS-B actually built). currentMemberBioguides
+  // on that table already gives the district->member mapping directly from
+  // the vendor, so — unlike the plan draft's original assumption — NO reverse
+  // index needs to be built in directory-indexes.ts; resolving each bioguide
+  // against the existing snapshot's contacts is enough.
+
+  /** House-district detail for `state`/`districtNo` (client_facilities-style
+   * code: '00' for at-large, zero-padded 2-digit otherwise), 'C' (current) or
+   * 'F' (future/enacted-not-yet-effective) — two DISTINCT rows, never merged. */
+  async getDistrictDetail(
+    state: string,
+    facilityDistrictNo: string,
+    status: 'C' | 'F' = 'C',
+  ): Promise<DirectoryDistrictDetail> {
+    const row = await this.resolveLegislativeDistrict(
+      state.trim().toUpperCase(),
+      facilityDistrictNo,
+      status,
+    );
+    if (!row) throw new NotFoundException('District not found');
+
+    const base = await this.getDirectoryData();
+    const byBioguide = new Map(base.contacts.map((c) => [c.bioguideId, c] as const));
+    const currentMembers: DirectoryDistrictMemberSummary[] = row.currentMemberBioguides
+      .map((bioguideId) => byBioguide.get(bioguideId))
+      .filter((c): c is DirectoryContact => c !== undefined)
+      .map((c) => ({
+        id: c.id,
+        bioguideId: c.bioguideId,
+        fullName: c.fullName,
+        partyName: c.partyName ?? null,
+        chamber: c.chamber,
+        photoUrl: c.photoUrl || null,
+        outgoingStatus: c.outgoingStatus,
+      }));
+
+    return {
+      id: row.id,
+      legistormDistrictId: row.legistormDistrictId,
+      chamber: row.chamber as 'house' | 'senate',
+      state: row.state,
+      districtNo: facilityDistrictNo,
+      name: row.name,
+      // Not row.status: the query already filtered on this exact `status`
+      // parameter, so it's guaranteed to match by construction — using the
+      // input avoids trusting an unenforced assumption about row.status's
+      // literal type (a plain String column, not a Prisma enum).
+      status,
+      effectiveDate: row.effectiveDate ? row.effectiveDate.toISOString().slice(0, 10) : null,
+      enactedDate: row.enactedDate ? row.enactedDate.toISOString().slice(0, 10) : null,
+      currentMembers,
+      hasBoundary: row.kmlS3Key !== null,
+      syncedAt: row.syncedAt.toISOString(),
+    };
+  }
+
+  /**
+   * Stream the district boundary from OUR OWN S3 (WS-B's kmlS3Key) — this is
+   * NEVER a live proxy to LegiStorm. Two reasons: (1) WS-B already fetches
+   * and re-hosts the boundary under our own key when run with --with-kml,
+   * specifically so the raw vendor URL (which embeds our API key in its
+   * path) never needs to be handled again after that point; (2)
+   * LEGISTORM_API_KEY is deliberately withheld from the long-lived api/serve
+   * task def (compute-stack.ts's apiSyncSecrets comment: "the long-lived
+   * API/web tasks never receive LEGISTORM_API_KEY, only the ephemeral sync
+   * task does") — this controller runs in that long-lived task, so it must
+   * not need that secret at all.
+   */
+  async getDistrictKml(
+    state: string,
+    facilityDistrictNo: string,
+    status: 'C' | 'F' = 'C',
+  ): Promise<{ filename: string; buffer: Buffer }> {
+    const row = await this.resolveLegislativeDistrict(
+      state.trim().toUpperCase(),
+      facilityDistrictNo,
+      status,
+    );
+    if (!row) throw new NotFoundException('District not found');
+    if (!row.kmlS3Key) {
+      throw new NotFoundException('Boundary not yet available for this district');
+    }
+
+    const out = await this.s3.send(new GetObjectCommand({ Bucket: this.bucket, Key: row.kmlS3Key }));
+    if (!out.Body) throw new NotFoundException('Boundary object missing from storage');
+    const bytes = await out.Body.transformToByteArray();
+    return { filename: `${row.id}.kml`, buffer: Buffer.from(bytes) };
+  }
+
+  private async resolveLegislativeDistrict(
+    state: string,
+    facilityDistrictNo: string,
+    status: 'C' | 'F',
+  ) {
+    // Senate seats are statewide (no district_no concept at all — matches
+    // WS-C's own scoping); this endpoint's :districtNo path segment only
+    // makes sense for House seats.
+    const houseRows = await this.prisma.legislativeDistrict.findMany({
+      where: { state, status, chamber: 'house' },
+    });
+    return matchFacilityDistrictCode(houseRows, facilityDistrictNo);
+  }
+
   private async fetchGzipJson<T>(key: string): Promise<T> {
     const out = await this.s3.send(
       new GetObjectCommand({
@@ -3090,4 +3198,34 @@ function compareDistricts(left: string, right: string): number {
   const stateCompare = leftState.localeCompare(rightState);
   if (stateCompare !== 0) return stateCompare;
   return Number(leftDistrictRaw) - Number(rightDistrictRaw);
+}
+
+/**
+ * WS-D — bridge a client_facilities-style district code ('00' for at-large,
+ * zero-padded 2-digit otherwise — the URL path convention) back to
+ * LegiStorm's own raw districtNo storage, given the House rows already
+ * fetched for a state+status. Exported (unlike this file's other module-
+ * level helpers) so its at-large logic is unit-testable without a database.
+ *
+ * '00' matches ONLY when exactly one House row exists for this state+status
+ * — never a hardcoded list of "the 6 at-large states" (WY, VT, DE, ND, SD,
+ * AK today; apportionment can change after a future census), and never by
+ * trusting LegiStorm's own districtNo value, which reports "1" (not a "0"
+ * or null sentinel) even for a jurisdiction's sole House seat — verified
+ * live 2026-07-24 via DC's non-voting delegate.
+ */
+export function matchFacilityDistrictCode<T extends { districtNo: string | null }>(
+  houseRows: T[],
+  facilityDistrictNo: string,
+): T | null {
+  if (facilityDistrictNo === '00') {
+    // Defense in depth: don't rely solely on the caller's chamber='house'
+    // filter to keep a null-districtNo (Senate-shaped) row out of this
+    // array — require the sole row to actually carry a districtNo before
+    // calling it an at-large match.
+    const single = houseRows.length === 1 ? houseRows[0]! : null;
+    return single && single.districtNo !== null ? single : null;
+  }
+  const bare = facilityDistrictNo.replace(/^0+(?=\d)/, '');
+  return houseRows.find((r) => r.districtNo === bare) ?? null;
 }
