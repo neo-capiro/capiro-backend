@@ -17,7 +17,7 @@ import { Link } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import { useApi } from '../../../../lib/use-api.js';
 import { formatCompact } from '../mappers.js';
-import { getClientDistrictNexus, type DistrictNexus } from '../district-nexus-api.js';
+import { getClientDistrictNexus, type DistrictNexus, type DistrictNexusRow } from '../district-nexus-api.js';
 import {
   getClientRepresentation,
   type FacilityRepresentation,
@@ -34,6 +34,22 @@ const pct = (v: number | null): string =>
 const num = (v: number | null): string => (v == null ? '—' : v.toLocaleString('en-US'));
 const usd = (v: number | null): string =>
   v == null ? '—' : `$${Math.round(v).toLocaleString('en-US')}`;
+
+/**
+ * Path to the WS-B district detail page, or null when this row's House seat
+ * couldn't be resolved (non-voting delegate / multiple-or-undefined
+ * district sentinel — `representatives.house` is already null for exactly
+ * those cases, so it doubles as "does a real House-district page exist").
+ * `d.district` is `${state}-${rawCode}` where rawCode is a plain number
+ * ('2', '23') or 'AL' for at-large; the district-detail route uses the
+ * '00'-for-at-large, zero-padded-2-digit convention instead.
+ */
+function districtPagePath(d: DistrictNexusRow): string | null {
+  if (!d.representatives.house) return null;
+  const rawCode = d.district.slice(d.state.length + 1);
+  const districtNo = rawCode === 'AL' ? '00' : rawCode.padStart(2, '0');
+  return `/directory/districts/${encodeURIComponent(d.state)}/${encodeURIComponent(districtNo)}`;
+}
 
 export function DistrictNexusSection({ clientId }: DistrictNexusSectionProps) {
   const api = useApi();
@@ -177,6 +193,11 @@ export function DistrictNexusSection({ clientId }: DistrictNexusSectionProps) {
                     {d.representatives.senate.map((s) => (
                       <FederalMemberLine key={s.bioguideId} label="Senate" member={s} />
                     ))}
+                    {districtPagePath(d) ? (
+                      <Link className="iv1-link" to={districtPagePath(d)!}>
+                        View district →
+                      </Link>
+                    ) : null}
                   </div>
                 </div>
               ))}

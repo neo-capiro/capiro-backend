@@ -61,3 +61,91 @@ describe('DistrictNexusSection error states (W2.2)', () => {
     );
   });
 });
+
+describe('DistrictNexusSection WS-B "View district" link', () => {
+  beforeEach(() => {
+    getNexusMock.mockReset();
+    getRepMock.mockReset();
+    getRepMock.mockResolvedValue([]);
+  });
+
+  const baseRow = {
+    district: 'TX-23',
+    state: 'TX',
+    awardCount: 1,
+    totalAmount: 100,
+    demographics: null,
+  };
+
+  test('links to the district-detail page when the House seat resolved', async () => {
+    getNexusMock.mockResolvedValue({
+      linked: true,
+      contractorNames: ['Acme'],
+      totalAwards: 1,
+      totalAmount: 100,
+      districtCount: 1,
+      unmappedAmount: 0,
+      disclaimer: '',
+      districts: [
+        {
+          ...baseRow,
+          representatives: {
+            house: { bioguideId: 'H1', fullName: 'Jane Doe', party: 'R' },
+            senate: [],
+          },
+        },
+      ],
+    });
+    renderSection();
+    await waitFor(() => expect(screen.getByText('View district →')).toBeTruthy());
+    expect(screen.getByText('View district →').closest('a')).toHaveAttribute(
+      'href',
+      '/directory/districts/TX/23',
+    );
+  });
+
+  test('renders the at-large ("00") path for an at-large district', async () => {
+    getNexusMock.mockResolvedValue({
+      linked: true,
+      contractorNames: ['Acme'],
+      totalAwards: 1,
+      totalAmount: 100,
+      districtCount: 1,
+      unmappedAmount: 0,
+      disclaimer: '',
+      districts: [
+        {
+          ...baseRow,
+          district: 'WY-AL',
+          state: 'WY',
+          representatives: {
+            house: { bioguideId: 'H2', fullName: 'John Roe', party: 'R' },
+            senate: [],
+          },
+        },
+      ],
+    });
+    renderSection();
+    await waitFor(() => expect(screen.getByText('View district →')).toBeTruthy());
+    expect(screen.getByText('View district →').closest('a')).toHaveAttribute(
+      'href',
+      '/directory/districts/WY/00',
+    );
+  });
+
+  test('omits the link when the House seat could not be resolved (delegate/undefined sentinel)', async () => {
+    getNexusMock.mockResolvedValue({
+      linked: true,
+      contractorNames: ['Acme'],
+      totalAwards: 1,
+      totalAmount: 100,
+      districtCount: 1,
+      unmappedAmount: 0,
+      disclaimer: '',
+      districts: [{ ...baseRow, representatives: { house: null, senate: [] } }],
+    });
+    renderSection();
+    await waitFor(() => expect(screen.getByText('TX-23')).toBeTruthy());
+    expect(screen.queryByText('View district →')).toBeNull();
+  });
+});
