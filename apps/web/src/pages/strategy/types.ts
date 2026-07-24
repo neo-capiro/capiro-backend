@@ -52,11 +52,27 @@ export interface Violation {
   suggestion?: string;
 }
 
-/** A8: whether Meri's Client Context Pack was complete for the last draft/assist. */
+/**
+ * A8/E: whether Meri's Client Context Pack was complete for the last
+ * draft/assist. Stage E upgrades it from section-presence to fact-level
+ * health: an unresolved MATERIAL Steward conflict ⇒ status 'conflicted' and
+ * `openMaterialConflicts` names the two disagreeing facts verbatim (the
+ * editor banner renders factA vs factB). Annotate-only — never blocks.
+ */
 export interface GroundingHealth {
-  status: 'ok' | 'degraded';
+  status: 'ok' | 'degraded' | 'conflicted';
   missingRequired: string[];
   omittedOptional: string[];
+  openMaterialConflicts?: OpenMaterialConflict[];
+}
+
+/** One open material Steward conflict carried on stewardHealth/groundingHealth. */
+export interface OpenMaterialConflict {
+  id: string;
+  factAId: string;
+  factBId: string;
+  factA: string;
+  factB: string;
 }
 
 export interface StrategyNode {
@@ -318,4 +334,86 @@ export interface ContextLocateResult {
   endLine: number | null;
   /** The exact source lines, when the API echoes them. */
   lines: string[] | null;
+}
+
+/*
+ * ---- Stage E: the Context Steward (/strategy-api/context/{facts,conflicts,health}) ----
+ * Mirrors sp_context_fact / sp_context_conflict. The Steward NEVER mutates
+ * strategy nodes — these are review-surface reads plus fact-reject /
+ * conflict-resolve / conflict-dismiss writes on the sp_context_* tables only.
+ */
+
+export type ContextFactState = 'active' | 'superseded' | 'stale' | 'rejected';
+
+/** One structured fact the Steward extracted from a context document. */
+export interface ContextFact {
+  id: string;
+  documentId: string;
+  clientId: string | null;
+  fact: string;
+  /** Stage D closed-set anchor: 'heading:<text>' or 'row:<heading>:<n>'. */
+  sourceRef: string;
+  authority: string | null;
+  asOf: string | null; // ISO date
+  confidence: number | null; // 0–1 extraction confidence
+  state: ContextFactState;
+  /** Verbatim source snippet. */
+  citation: string | null;
+  /** Denormalized source-document display fields (when the API provides them). */
+  documentTitle: string | null;
+  templateKey: string | null;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export type ContextConflictState = 'open' | 'resolved' | 'dismissed';
+
+/** The embedded fact view a conflict row carries for side-by-side display. */
+export interface ContextConflictFact {
+  id: string;
+  fact: string;
+  documentTitle: string | null;
+  authority: string | null;
+  asOf: string | null;
+  clientId: string | null;
+}
+
+/** Two facts in material disagreement (sp_context_conflict). */
+export interface ContextConflict {
+  id: string;
+  factAId: string;
+  factBId: string;
+  /** Derived from the facts server-side (conflict rows carry no client column). */
+  clientId: string | null;
+  material: boolean;
+  state: ContextConflictState;
+  resolutionNote: string | null;
+  factA: ContextConflictFact | null;
+  factB: ContextConflictFact | null;
+  createdAt: string;
+}
+
+/** GET /context/health?clientId=… — per-client Steward context health. */
+export interface ContextHealth {
+  status: 'ok' | 'degraded' | 'conflicted';
+  /** Missing REQUIRED template keys/names for this client. */
+  missingRequired: string[];
+  /** Count of stale source documents still in rotation. */
+  staleDocuments: number;
+  openMaterialConflicts: OpenMaterialConflict[];
+}
+
+/** POST /context/documents/:id/extract — Steward extraction result. */
+export interface ExtractFactsResult {
+  inserted: number;
+  /** COUNT of model-cited refs that could not be located in the source (dropped, never persisted). */
+  droppedRefs: number;
+  conflicts: number;
+  summary: string | null;
+}
+
+/** POST /context/conflicts/:id/resolve — pick the controlling fact + why. */
+export interface ResolveConflictInput {
+  controllingFactId: string;
+  note: string;
 }

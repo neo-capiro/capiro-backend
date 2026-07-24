@@ -18,6 +18,8 @@ import { WorkspaceGenClient } from './workspace-gen/workspace-gen.client.js';
 import { StrategyController } from './strategy/strategy.controller.js';
 import { StrategyAssistantService } from './strategy/strategy-assistant.service.js';
 import { StrategyContextPackService } from './strategy/strategy-context-pack.service.js';
+import { StewardController } from './steward/steward.controller.js';
+import { StewardExtractService } from './steward/steward-extract.service.js';
 
 /**
  * Hosts the MeriV2 tool registry over HTTP at `/meri-api/tools/*` plus the
@@ -34,6 +36,7 @@ import { StrategyContextPackService } from './strategy/strategy-context-pack.ser
     ChatController,
     WorkspaceGenController,
     StrategyController,
+    StewardController,
   ],
   providers: [
     PrismaService,
@@ -50,6 +53,7 @@ import { StrategyContextPackService } from './strategy/strategy-context-pack.ser
     WorkspaceGenClient,
     StrategyAssistantService,
     StrategyContextPackService,
+    StewardExtractService,
   ],
 })
 export class MeriModule {}

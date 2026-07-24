@@ -200,6 +200,31 @@ export function agenticMeriActive(settings: unknown, env: NodeJS.ProcessEnv = pr
 }
 
 /**
+ * Context Steward fact extraction (Stage E) — the LLM-spend extract route is
+ * gated server-side by api-strategy's ContextStewardGuard on
+ * (STRATEGY_AGENTS_ENABLED env AND per-tenant contextSteward.enabled), ON TOP
+ * of the agenticMeri umbrella. This mirrors that pair so GET /me can surface a
+ * `contextSteward` feature bit the web uses to gate the "Extract facts" button
+ * (without it, agenticMeri-only tenants see a button that 403s on every click).
+ */
+export const CONTEXT_STEWARD_FLAG = 'contextSteward.enabled' as const;
+
+/** The per-tenant Context Steward flag alone (no env AND) — default OFF. */
+export function contextStewardEnabled(settings: unknown): boolean {
+  return tenantFeatureEnabled(settings, CONTEXT_STEWARD_FLAG, false);
+}
+
+/**
+ * The Context Steward is active for a tenant only when the agentic env
+ * kill-switch is on AND the per-tenant flag resolves true (both default OFF).
+ * Surfaced to the web (GET /me); api-strategy enforces the same pair
+ * server-side (ContextStewardGuard via isAgenticFlagEnabled).
+ */
+export function contextStewardActive(settings: unknown, env: NodeJS.ProcessEnv = process.env): boolean {
+  return strategyAgentsEnvEnabled(env) && contextStewardEnabled(settings);
+}
+
+/**
  * Meri proactive-alert importance floor (2026-07-12). The Meri chat bell + the
  * "🔔 Scheduled briefings" banner are both fed by MeriService.listAlerts, which
  * historically returned EVERY pending clio_proactive_alert with no importance

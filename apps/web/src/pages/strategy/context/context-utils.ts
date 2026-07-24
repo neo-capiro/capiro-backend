@@ -5,11 +5,19 @@
  * highlight-range resolver. All pure (vitest-covered, no React/network).
  */
 import type {
+  ContextConflict,
+  ContextConflictFact,
+  ContextConflictState,
   ContextDocumentDetail,
   ContextDocumentListItem,
+  ContextFact,
+  ContextFactState,
   ContextFieldError,
+  ContextHealth,
   ContextLocateResult,
   ContextSection,
+  ExtractFactsResult,
+  OpenMaterialConflict,
 } from '../types.js';
 
 // ---- response normalizers -------------------------------------------------
@@ -136,6 +144,23 @@ export function canArchiveContextDoc(state: ContextDocumentListItem['state']): b
   return state === 'draft' || state === 'active';
 }
 
+/**
+ * Stage E "Extract facts" button visibility contract. The extract route is
+ * gated server-side on BOTH agenticMeri (class AgenticGuard) AND the
+ * steward-specific contextSteward flag (method-level ContextStewardGuard), so
+ * showing the button on agenticMeri alone yields a guaranteed 403 for tenants
+ * without the steward opt-in. It also 409s unconditionally on non-active
+ * documents ("only an active document can be extracted", steward.service) —
+ * so the view must not render a button that can never succeed. Both feature
+ * bits are optional (older cached /me shape) and degrade to hidden.
+ */
+export function canExtractContextFacts(
+  features: { agenticMeri?: boolean; contextSteward?: boolean } | undefined,
+  state: ContextDocumentListItem['state'],
+): boolean {
+  return Boolean(features?.agenticMeri) && Boolean(features?.contextSteward) && state === 'active';
+}
+
 /** Front-matter scalar → display string (null/absent → null). */
 export function fmScalar(
   frontmatter: ContextDocumentListItem['frontmatter'],
@@ -220,6 +245,151 @@ function splitFieldMessage(
   const m = /^([A-Za-z0-9_.[\]-]+):\s+(.+)$/.exec(line.trim());
   if (m) onField(m[1]!, m[2]!);
   else onProse(line);
+}
+
+// ---- Stage E: Steward response normalizers ---------------------------------
+
+const str = (v: unknown): string | null => (typeof v === 'string' && v !== '' ? v : null);
+
+const FACT_STATES: readonly ContextFactState[] = ['active', 'superseded', 'stale', 'rejected'];
+const CONFLICT_STATES: readonly ContextConflictState[] = ['open', 'resolved', 'dismissed'];
+
+/** Accepts `[…]` or `{ facts: […] }` / `{ items: […] }`; tolerates a nested `document`. */
+export function normalizeFacts(data: unknown): ContextFact[] {
+  const raw = Array.isArray(data)
+    ? data
+    : isRecord(data) && Array.isArray(data.facts)
+      ? data.facts
+      : isRecord(data) && Array.isArray(data.items)
+        ? data.items
+        : [];
+  const out: ContextFact[] = [];
+  for (const item of raw) {
+    if (!isRecord(item) || typeof item.id !== 'string' || typeof item.fact !== 'string') continue;
+    const doc = isRecord(item.document) ? item.document : null;
+    out.push({
+      id: item.id,
+      documentId: str(item.documentId) ?? str(doc?.id) ?? '',
+      clientId: str(item.clientId) ?? str(doc?.clientId),
+      fact: item.fact,
+      sourceRef: str(item.sourceRef) ?? '',
+      authority: str(item.authority),
+      asOf: str(item.asOf),
+      confidence: typeof item.confidence === 'number' && Number.isFinite(item.confidence) ? item.confidence : null,
+      state: FACT_STATES.includes(item.state as ContextFactState) ? (item.state as ContextFactState) : 'active',
+      citation: str(item.citation),
+      documentTitle: str(item.documentTitle) ?? str(doc?.title),
+      templateKey: str(item.templateKey) ?? str(doc?.templateKey),
+      createdAt: str(item.createdAt) ?? '',
+      updatedAt: str(item.updatedAt) ?? str(item.createdAt) ?? '',
+    });
+  }
+  return out;
+}
+
+/** A conflict's embedded fact — an object `{ fact, … }`, a bare string, or a `…Text` echo. */
+function conflictFact(v: unknown, textFallback: string | null): ContextConflictFact | null {
+  if (isRecord(v) && typeof v.fact === 'string') {
+    const doc = isRecord(v.document) ? v.document : null;
+    return {
+      id: str(v.id) ?? '',
+      fact: v.fact,
+      documentTitle: str(v.documentTitle) ?? str(doc?.title),
+      authority: str(v.authority),
+      asOf: str(v.asOf),
+      clientId: str(v.clientId) ?? str(doc?.clientId),
+    };
+  }
+  const text = typeof v === 'string' && v !== '' ? v : textFallback;
+  if (text) return { id: '', fact: text, documentTitle: null, authority: null, asOf: null, clientId: null };
+  return null;
+}
+
+/** Accepts `[…]` or `{ conflicts: […] }` / `{ items: […] }`. */
+export function normalizeConflicts(data: unknown): ContextConflict[] {
+  const raw = Array.isArray(data)
+    ? data
+    : isRecord(data) && Array.isArray(data.conflicts)
+      ? data.conflicts
+      : isRecord(data) && Array.isArray(data.items)
+        ? data.items
+        : [];
+  const out: ContextConflict[] = [];
+  for (const item of raw) {
+    if (!isRecord(item) || typeof item.id !== 'string') continue;
+    const factA = conflictFact(item.factA, str(item.factAText));
+    const factB = conflictFact(item.factB, str(item.factBText));
+    out.push({
+      id: item.id,
+      factAId: str(item.factAId) ?? (factA?.id || ''),
+      factBId: str(item.factBId) ?? (factB?.id || ''),
+      clientId: str(item.clientId) ?? factA?.clientId ?? factB?.clientId ?? null,
+      material: item.material === true,
+      state: CONFLICT_STATES.includes(item.state as ContextConflictState)
+        ? (item.state as ContextConflictState)
+        : 'open',
+      resolutionNote: str(item.resolutionNote),
+      factA,
+      factB,
+      createdAt: str(item.createdAt) ?? '',
+    });
+  }
+  return out;
+}
+
+/** Tolerant open-material-conflict list (shared by health + groundingHealth). */
+export function normalizeOpenMaterialConflicts(v: unknown): OpenMaterialConflict[] {
+  if (!Array.isArray(v)) return [];
+  const out: OpenMaterialConflict[] = [];
+  for (const item of v) {
+    if (!isRecord(item)) continue;
+    const factA = str(item.factA) ?? (isRecord(item.factA) ? str(item.factA.fact) : null);
+    const factB = str(item.factB) ?? (isRecord(item.factB) ? str(item.factB.fact) : null);
+    if (!factA || !factB) continue;
+    out.push({
+      id: str(item.id) ?? '',
+      factAId: str(item.factAId) ?? '',
+      factBId: str(item.factBId) ?? '',
+      factA,
+      factB,
+    });
+  }
+  return out;
+}
+
+/** GET /context/health?clientId= → the health strip's view. Unknown status → 'ok'. */
+export function normalizeContextHealth(data: unknown): ContextHealth {
+  const d = isRecord(data) ? data : {};
+  const num = (v: unknown): number | null =>
+    typeof v === 'number' && Number.isFinite(v) ? v : null;
+  const staleRaw = d.staleDocuments ?? d.staleDocs ?? d.staleCount;
+  return {
+    status: d.status === 'degraded' || d.status === 'conflicted' ? d.status : 'ok',
+    missingRequired: Array.isArray(d.missingRequired)
+      ? d.missingRequired.filter((s): s is string => typeof s === 'string')
+      : [],
+    staleDocuments: num(staleRaw) ?? (Array.isArray(staleRaw) ? staleRaw.length : 0),
+    openMaterialConflicts: normalizeOpenMaterialConflicts(d.openMaterialConflicts),
+  };
+}
+
+/** POST /context/documents/:id/extract result — counts tolerate array echoes. */
+export function normalizeExtractResult(data: unknown): ExtractFactsResult {
+  const d = isRecord(data) ? data : {};
+  const count = (v: unknown): number =>
+    typeof v === 'number' && Number.isFinite(v) ? v : Array.isArray(v) ? v.length : 0;
+  return {
+    inserted: count(d.inserted ?? d.facts),
+    droppedRefs: count(d.droppedRefs),
+    conflicts: count(d.conflicts),
+    summary: str(d.summary),
+  };
+}
+
+/** Hard truncation for banner text (the editor names factA vs factB at ≤120). */
+export function clip(s: string, max = 120): string {
+  const t = s.trim();
+  return t.length > max ? `${t.slice(0, max - 1)}…` : t;
 }
 
 // ---- locate → highlight range ---------------------------------------------

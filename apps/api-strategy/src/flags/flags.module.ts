@@ -3,6 +3,7 @@ import { StrategyFlagsService } from './strategy-flags.service.js';
 import { StrategyPlannerGuard } from './strategy-planner.guard.js';
 import { StrategyMeriGuard } from './strategy-meri.guard.js';
 import { AgenticGuard } from './agentic.guard.js';
+import { ContextStewardGuard } from './context-steward.guard.js';
 
 /**
  * Global so the flag service + guards are injectable on every feature
@@ -11,7 +12,19 @@ import { AgenticGuard } from './agentic.guard.js';
  */
 @Global()
 @Module({
-  providers: [StrategyFlagsService, StrategyPlannerGuard, StrategyMeriGuard, AgenticGuard],
-  exports: [StrategyFlagsService, StrategyPlannerGuard, StrategyMeriGuard, AgenticGuard],
+  providers: [
+    StrategyFlagsService,
+    StrategyPlannerGuard,
+    StrategyMeriGuard,
+    AgenticGuard,
+    ContextStewardGuard,
+  ],
+  exports: [
+    StrategyFlagsService,
+    StrategyPlannerGuard,
+    StrategyMeriGuard,
+    AgenticGuard,
+    ContextStewardGuard,
+  ],
 })
 export class FlagsModule {}

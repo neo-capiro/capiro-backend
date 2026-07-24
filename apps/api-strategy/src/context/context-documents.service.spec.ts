@@ -33,11 +33,14 @@ const CLIENT_ID = '0a1b2c3d-4444-4555-8666-777788889999';
 
 function makeStore() {
   const docs = new Map<string, Rec>();
+  // Stage E: sp_context_fact rows — document supersession flips the OLD doc's
+  // active facts to `stale` in the same tx.
+  const facts = new Map<string, Rec>();
   const activity: Rec[] = [];
   const outbox: Rec[] = [];
   let seq = 0;
   const nextId = (p: string) => `${p}-${++seq}`;
-  return { docs, activity, outbox, nextId };
+  return { docs, facts, activity, outbox, nextId };
 }
 type Store = ReturnType<typeof makeStore>;
 
@@ -116,17 +119,35 @@ function makeTx(store: Store) {
       store.outbox.push({ ...data, id: store.nextId('outbox') });
     },
   };
-  return { spContextDocument, spActivityLog, spEventOutbox } as unknown as Prisma.TransactionClient;
+  const spContextFact = {
+    updateMany: async ({ where, data }: { where: Record<string, unknown>; data: Rec }) => {
+      let count = 0;
+      for (const [id, rec] of store.facts) {
+        if (!matches(rec, where)) continue;
+        store.facts.set(id, { ...rec, ...data, updatedAt: now() });
+        count++;
+      }
+      return { count };
+    },
+  };
+  return {
+    spContextDocument,
+    spActivityLog,
+    spEventOutbox,
+    spContextFact,
+  } as unknown as Prisma.TransactionClient;
 }
 
 function makeService(store: Store) {
   const snapshot = () => ({
     docs: new Map(store.docs),
+    facts: new Map(store.facts),
     activity: [...store.activity],
     outbox: [...store.outbox],
   });
   const restore = (snap: ReturnType<typeof snapshot>) => {
     store.docs = snap.docs;
+    store.facts = snap.facts;
     store.activity = snap.activity;
     store.outbox = snap.outbox;
   };
@@ -436,6 +457,32 @@ describe('ContextDocumentsService.upload — idempotency + supersession', () => 
       'context_doc.uploaded',
     ]);
     expect(store.outbox.map((o) => o.type)).toEqual(actions);
+  });
+
+  it("supersession marks the OLD document's ACTIVE facts stale (Stage E reprocess signal) — other facts untouched", async () => {
+    const store = makeStore();
+    const { svc } = makeService(store);
+
+    const v1 = (await svc.upload(T, ADMIN, {
+      content: makeContent({}, '# Strategy brief\n\nVersion one.'),
+      scopeRef: STRATEGY_ID,
+    })) as Rec;
+    // The Steward extracted facts from v1 (one active, one already rejected)
+    // and an unrelated doc's fact that must not be touched.
+    store.facts.set('fact-1', { id: 'fact-1', documentId: v1.id, state: 'active' });
+    store.facts.set('fact-2', { id: 'fact-2', documentId: v1.id, state: 'rejected' });
+    store.facts.set('fact-3', { id: 'fact-3', documentId: 'doc-other', state: 'active' });
+
+    await svc.upload(T, ADMIN, {
+      content: makeContent({ as_of: '"2026-07-20"' }, '# Strategy brief\n\nVersion two.'),
+      scopeRef: STRATEGY_ID,
+    });
+
+    // v1's ACTIVE fact goes stale in the SAME tx as the supersession; the
+    // reviewer verdict (rejected) and the unrelated doc's fact are preserved.
+    expect(store.facts.get('fact-1')!.state).toBe('stale');
+    expect(store.facts.get('fact-2')!.state).toBe('rejected');
+    expect(store.facts.get('fact-3')!.state).toBe('active');
   });
 
   it("frontmatter `state: draft` is HONORED: staged as draft, the active tuple-holder is NOT superseded", async () => {
@@ -1042,6 +1089,28 @@ describe('ContextDocumentsService.archive', () => {
 
     expect(((await svc.archive(T, MEMBER, strategyDoc.id)) as Rec).state).toBe('archived');
     expect(((await svc.archive(T, ADMIN, clientDoc.id)) as Rec).state).toBe('archived');
+  });
+
+  it("archival marks the document's ACTIVE facts stale in the same tx (symmetry with supersession) — other facts untouched", async () => {
+    const store = makeStore();
+    const { svc } = makeService(store);
+    const doc = (await svc.upload(T, ADMIN, {
+      content: makeContent(),
+      scopeRef: STRATEGY_ID,
+    })) as Rec;
+    // The Steward extracted facts from this doc (one active, one already
+    // rejected) plus an unrelated doc's fact that must not be touched.
+    store.facts.set('fact-1', { id: 'fact-1', documentId: doc.id, state: 'active' });
+    store.facts.set('fact-2', { id: 'fact-2', documentId: doc.id, state: 'rejected' });
+    store.facts.set('fact-3', { id: 'fact-3', documentId: 'doc-other', state: 'active' });
+
+    await svc.archive(T, ADMIN, doc.id);
+
+    // An archived doc cannot be re-extracted (extract 409s on non-active), so
+    // its facts MUST leave 'active' here or they ground drafts forever.
+    expect(store.facts.get('fact-1')!.state).toBe('stale');
+    expect(store.facts.get('fact-2')!.state).toBe('rejected');
+    expect(store.facts.get('fact-3')!.state).toBe('active');
   });
 
   it('a superseded doc is retained history — archive 409s and points at the active doc', async () => {

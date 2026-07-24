@@ -1,8 +1,11 @@
 import {
+  STEWARD_FACTS_SECTION,
   buildAssistantSystemPrompt,
   buildDraftSystemPrompt,
+  renderStewardFacts,
   sanitizeDraftNodes,
   sanitizePlanEdits,
+  type StewardFactLite,
   type StrategyAssistantInput,
   type StrategyDraftInput,
 } from './strategy-prompt.js';
@@ -236,5 +239,92 @@ describe('sanitizePlanEdits — sources provenance (A9)', () => {
     const out = sanitizePlanEdits(raw);
 
     expect(out[0]).not.toHaveProperty('sources');
+  });
+});
+
+/*
+ * Stage E wire contract (2): api-strategy forwards Steward-curated facts; both
+ * system prompts must render the '# Client context facts (Steward)' section
+ * with one '- [fact:<id>] ...' line per fact and instruct citing them via
+ * {section, ref:'fact:<id>'} — and omit the section entirely when no facts
+ * were forwarded (backward compat).
+ */
+describe('strategy-prompt — Steward facts section (Stage E)', () => {
+  const fact = (over: Partial<StewardFactLite>): StewardFactLite => ({
+    id: 'f1',
+    fact: 'No direct Hill outreach before October.',
+    sourceRef: 'heading:Hard limits',
+    documentTitle: 'Client constraints',
+    templateKey: '02_client_constraints',
+    authority: 'client_approved',
+    asOf: '2026-07-01',
+    ...over,
+  });
+
+  it('renders one [fact:<id>] line per fact with authority + asOf in the draft prompt', () => {
+    const input = {
+      clientId: 'c1',
+      type: 'appropriations',
+      goal: 'g',
+      stewardFacts: [fact({})],
+    } as StrategyDraftInput;
+    const sys = buildDraftSystemPrompt(input, '(pack)');
+    expect(sys).toContain(`# ${STEWARD_FACTS_SECTION}`);
+    expect(sys).toContain(
+      '- [fact:f1] No direct Hill outreach before October. (client_approved, as of 2026-07-01)',
+    );
+    // The citing instruction pairs the section name with the fact:<id> ref shape.
+    expect(sys).toContain(`{section: "${STEWARD_FACTS_SECTION}", ref: "fact:<id>"}`);
+  });
+
+  it('falls back to unattributed/undated for null authority/asOf', () => {
+    const input = {
+      clientId: 'c1',
+      type: 'appropriations',
+      stewardFacts: [fact({ id: 'f9', authority: null, asOf: null })],
+    } as StrategyDraftInput;
+    const sys = buildDraftSystemPrompt(input, '(pack)');
+    expect(sys).toContain('- [fact:f9] No direct Hill outreach before October. (unattributed, as of undated)');
+  });
+
+  it('omits the section entirely when stewardFacts is absent or empty', () => {
+    const bare = { clientId: 'c1', type: 'appropriations' } as StrategyDraftInput;
+    expect(buildDraftSystemPrompt(bare, '(pack)')).not.toContain(STEWARD_FACTS_SECTION);
+    const empty = { ...bare, stewardFacts: [] } as StrategyDraftInput;
+    expect(buildDraftSystemPrompt(empty, '(pack)')).not.toContain(STEWARD_FACTS_SECTION);
+  });
+
+  it('renders the section in the assistant prompt too', () => {
+    const input = {
+      scope: 'strategy',
+      instruction: 'push the memo step',
+      clientId: 'c1',
+      strategy: { id: 's1', title: 'Plan', type: 'appropriations', nodes: [] },
+      stewardFacts: [fact({})],
+    } as StrategyAssistantInput;
+    const sys = buildAssistantSystemPrompt(input, '(pack)');
+    expect(sys).toContain(`# ${STEWARD_FACTS_SECTION}`);
+    expect(sys).toContain('- [fact:f1]');
+  });
+
+  it('sorts required-template facts first, then newest asOf (undated last)', () => {
+    const rendered = renderStewardFacts([
+      fact({ id: 'undated-opt', templateKey: '08_evidence_register', asOf: null }),
+      fact({ id: 'old-opt', templateKey: '08_evidence_register', asOf: '2026-01-01' }),
+      fact({ id: 'new-opt', templateKey: '08_evidence_register', asOf: '2026-07-01' }),
+      fact({ id: 'old-req', templateKey: '01_strategy_brief', asOf: '2026-02-01' }),
+      fact({ id: 'new-req', templateKey: '03_ask_and_options', asOf: '2026-06-01' }),
+    ]);
+    const order = [...rendered.matchAll(/\[fact:([\w-]+)\]/g)].map((m) => m[1]);
+    expect(order).toEqual(['new-req', 'old-req', 'new-opt', 'old-opt', 'undated-opt']);
+  });
+
+  it('token-budgets the section (~2000 tokens) so a huge fact list cannot blow the prompt', () => {
+    const many = Array.from({ length: 200 }, (_, i) =>
+      fact({ id: `f${i}`, fact: 'x'.repeat(200), templateKey: '08_evidence_register' }),
+    );
+    const rendered = renderStewardFacts(many);
+    // 200 facts × ~230 chars ≫ the cap; the render must be truncated well below the raw size.
+    expect(rendered.length).toBeLessThanOrEqual(2000 * 4);
   });
 });

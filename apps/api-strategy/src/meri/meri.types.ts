@@ -69,11 +69,84 @@ export interface PlanEdit {
   sources?: Array<{ section: string; ref?: string }>;
 }
 
-/** A8: grounding-health signal the orchestrator returns (from the context pack). */
+/**
+ * Stage E: one open MATERIAL fact conflict, with both fact texts verbatim —
+ * the orchestrator's health note (and the web banner) name factA vs factB.
+ */
+export interface StewardHealthConflict {
+  id: string;
+  factAId: string;
+  factBId: string;
+  factA: string;
+  factB: string;
+}
+
+/**
+ * Stage E wire-contract (2): the fact-level health block api-strategy forwards
+ * in the draft/assistant orchestrator body as `stewardHealth`; the orchestrator
+ * carries it back through the response `groundingHealth`.
+ */
+export interface StewardHealth {
+  status: 'ok' | 'degraded' | 'conflicted';
+  missingRequired: string[];
+  openMaterialConflicts: StewardHealthConflict[];
+}
+
+/**
+ * Stage E wire-contract (2): one Steward fact line forwarded in the
+ * draft/assistant orchestrator body (`stewardFacts`). The orchestrator renders
+ * '- [fact:<id>] <fact> (<authority>, as of <asOf>)' and instructs Meri to cite
+ * with ref 'fact:<id>'.
+ */
+export interface StewardFactLine {
+  id: string;
+  fact: string;
+  sourceRef: string;
+  documentTitle: string;
+  templateKey: string;
+  authority: string | null;
+  asOf: string | null; // YYYY-MM-DD | null
+}
+
+/** A8: grounding-health signal the orchestrator returns (from the context pack).
+ *  Stage E upgrades it to carry the stewardHealth through ('conflicted' +
+ *  openMaterialConflicts) so the web banner can consume it. */
 export interface GroundingHealth {
-  status: 'ok' | 'degraded';
+  status: 'ok' | 'degraded' | 'conflicted';
   missingRequired: string[];
   omittedOptional: string[];
+  openMaterialConflicts?: StewardHealthConflict[];
+}
+
+// ---------------------------------------------------------------------------
+// Stage E wire-contract (1): POST /meri-api/steward-extract
+// ---------------------------------------------------------------------------
+
+/** One extracted fact the Steward orchestrator surface returns. */
+export interface StewardExtractedFact {
+  fact: string;
+  /** Stable markdown-locate ref ('heading:<text>' / 'row:<heading>:<n>') —
+   *  re-validated against the stored content before persisting. */
+  sourceRef: string;
+  authority: string | null;
+  asOf: string | null; // YYYY-MM-DD | null
+  confidence: number; // 0-1
+  citation: string; // verbatim source snippet
+}
+
+/** One conflict the orchestrator detected between a NEW fact and an existing one. */
+export interface StewardExtractedConflict {
+  /** Index into the returned `facts` array (remapped after ref-validation drops). */
+  newFactIndex: number;
+  existingFactId: string;
+  material: boolean;
+  rationale: string;
+}
+
+export interface StewardExtractResponse {
+  facts: StewardExtractedFact[];
+  conflicts: StewardExtractedConflict[];
+  summary: string;
 }
 
 export interface StrategyAssistantResponse {

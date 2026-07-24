@@ -11,19 +11,24 @@ import { useApi } from '../../lib/use-api.js';
 import type {
   AssistantInput,
   AssistantResponse,
+  ContextConflict,
   ContextDocumentDetail,
   ContextDocumentListItem,
+  ContextFact,
+  ContextHealth,
   ContextLocateResult,
   ContextSection,
   CreateNodeInput,
   CreateStrategyInput,
   DraftStrategyInput,
+  ExtractFactsResult,
   FirmPhase,
   FirmPhaseInput,
   PatchStrategyInput,
   RecordArtifactInput,
   ReferenceCalendars,
   ReferenceForkRow,
+  ResolveConflictInput,
   StrategyDetail,
   StrategyListItem,
   UpdateNodeInput,
@@ -31,8 +36,12 @@ import type {
   VersionsPage,
 } from './types.js';
 import {
+  normalizeConflicts,
+  normalizeContextHealth,
   normalizeDocument,
   normalizeDocumentList,
+  normalizeExtractResult,
+  normalizeFacts,
   normalizeLocate,
   normalizeSections,
 } from './context/context-utils.js';
@@ -386,5 +395,117 @@ export function useContextLocate(id: string | null, ref: string | null) {
         ref ?? '',
       ),
     staleTime: 30_000,
+  });
+}
+
+/*
+ * ---- Stage E: the Context Steward (/strategy-api/context/{facts,conflicts,health}) ----
+ * Same guard stack + agenticMeri UI belt as the Stage D document routes. The
+ * Steward never mutates strategy nodes — reject/resolve/dismiss/extract touch
+ * only the sp_context_* tables. Responses pass through the tolerant Stage E
+ * normalizers in context/context-utils.ts.
+ */
+
+/** Invalidate every Steward read after a steward write (facts/conflicts/health move together). */
+function useStewardInvalidate() {
+  const qc = useQueryClient();
+  return () => {
+    void qc.invalidateQueries({ queryKey: ['strategy', 'context-facts'] });
+    void qc.invalidateQueries({ queryKey: ['strategy', 'context-conflicts'] });
+    void qc.invalidateQueries({ queryKey: ['strategy', 'context-health'] });
+  };
+}
+
+/** GET /strategy-api/context/facts — the whole tenant fact ledger (filters are client-side). */
+export function useContextFacts() {
+  const api = useApi();
+  return useQuery<ContextFact[]>({
+    queryKey: ['strategy', 'context-facts'],
+    queryFn: async () => normalizeFacts((await api.get<unknown>(`${BASE}/context/facts`)).data),
+    staleTime: 30_000,
+  });
+}
+
+/** GET /strategy-api/context/conflicts — fact disagreements (open + history). */
+export function useContextConflicts() {
+  const api = useApi();
+  return useQuery<ContextConflict[]>({
+    queryKey: ['strategy', 'context-conflicts'],
+    queryFn: async () =>
+      normalizeConflicts((await api.get<unknown>(`${BASE}/context/conflicts`)).data),
+    staleTime: 30_000,
+  });
+}
+
+/** GET /strategy-api/context/health?clientId=… — per-client Steward context health. */
+export function useContextHealth(clientId: string | null) {
+  const api = useApi();
+  return useQuery<ContextHealth>({
+    queryKey: ['strategy', 'context-health', clientId],
+    enabled: !!clientId,
+    queryFn: async () =>
+      normalizeContextHealth(
+        (
+          await api.get<unknown>(
+            `${BASE}/context/health?clientId=${encodeURIComponent(clientId ?? '')}`,
+          )
+        ).data,
+      ),
+    staleTime: 30_000,
+  });
+}
+
+/**
+ * POST /strategy-api/context/documents/:id/extract — run the Steward's
+ * structured extraction over one document (LLM call — generous timeout). A 403
+ * carries the steward-flag reason in the body (surfaced via errorMessage).
+ */
+export function useExtractContextFacts() {
+  const api = useApi();
+  const invalidate = useStewardInvalidate();
+  return useMutation({
+    mutationFn: async (documentId: string): Promise<ExtractFactsResult> =>
+      normalizeExtractResult(
+        (
+          await api.post<unknown>(`${BASE}/context/documents/${documentId}/extract`, undefined, {
+            timeout: 120_000,
+          })
+        ).data,
+      ),
+    onSuccess: invalidate,
+  });
+}
+
+/** POST /strategy-api/context/facts/:id/reject — reject without editing the source doc. */
+export function useRejectContextFact() {
+  const api = useApi();
+  const invalidate = useStewardInvalidate();
+  return useMutation({
+    mutationFn: async (factId: string) =>
+      (await api.post<unknown>(`${BASE}/context/facts/${factId}/reject`)).data,
+    onSuccess: invalidate,
+  });
+}
+
+/** POST /strategy-api/context/conflicts/:id/resolve — pick the controlling fact + required note. */
+export function useResolveContextConflict() {
+  const api = useApi();
+  const invalidate = useStewardInvalidate();
+  return useMutation({
+    mutationFn: async (vars: { conflictId: string; input: ResolveConflictInput }) =>
+      (await api.post<unknown>(`${BASE}/context/conflicts/${vars.conflictId}/resolve`, vars.input))
+        .data,
+    onSuccess: invalidate,
+  });
+}
+
+/** POST /strategy-api/context/conflicts/:id/dismiss — close a non-issue conflict. */
+export function useDismissContextConflict() {
+  const api = useApi();
+  const invalidate = useStewardInvalidate();
+  return useMutation({
+    mutationFn: async (conflictId: string) =>
+      (await api.post<unknown>(`${BASE}/context/conflicts/${conflictId}/dismiss`)).data,
+    onSuccess: invalidate,
   });
 }

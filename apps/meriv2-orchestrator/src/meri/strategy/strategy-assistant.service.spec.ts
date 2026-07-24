@@ -4,7 +4,12 @@ import type { MeriRegistryService } from '../meri-registry.service.js';
 import type { ConfigService } from '@nestjs/config';
 import type { PrismaService } from '../../prisma/prisma.service.js';
 import type { StrategyContextPackService } from './strategy-context-pack.service.js';
-import { sanitizePlanEdits, type StrategyAssistantInput, type StrategyDraftInput } from './strategy-prompt.js';
+import {
+  sanitizePlanEdits,
+  type StewardHealth,
+  type StrategyAssistantInput,
+  type StrategyDraftInput,
+} from './strategy-prompt.js';
 import type { ToolLoopResponse, AnthropicContentBlock } from '../request-scoped-llm.client.js';
 
 /*
@@ -372,5 +377,124 @@ describe('StrategyAssistantService — runTerminal bounded loop (A7.4)', () => {
     // Degrades to the last prose text seen rather than a hard failure.
     expect(result.reply).toBe('round 8 musing');
     expect(result.edits).toEqual([]);
+  });
+});
+
+/*
+ * Stage E wire contract (2): api-strategy forwards stewardFacts + stewardHealth;
+ * the system prompt renders the facts section and (when conflicted) a health
+ * note naming factA vs factB VERBATIM, and the response's groundingHealth
+ * carries the steward signal through for the web banner — while an absent
+ * stewardHealth leaves the pre-Stage-E behavior byte-identical.
+ */
+describe('StrategyAssistantService — Steward passthrough (Stage E)', () => {
+  const CONFLICTED: StewardHealth = {
+    status: 'conflicted',
+    missingRequired: [],
+    openMaterialConflicts: [
+      {
+        id: 'conf-1',
+        factAId: 'fact-a',
+        factBId: 'fact-b',
+        factA: 'The ask is $12M in FY28 RDT&E.',
+        factB: 'The ask is $8M in FY28 procurement.',
+      },
+    ],
+  };
+
+  it('renders the Steward facts section + [fact:id] lines into the assistant system prompt', async () => {
+    const { svc, completeWithTools } = build();
+    completeWithTools.mockResolvedValueOnce(toolResp('propose_plan_edits', { reply: 'ok', edits: [] }));
+
+    await svc.assistant(CTX, {
+      ...ASSISTANT_INPUT,
+      stewardFacts: [
+        {
+          id: 'f1',
+          fact: 'No direct Hill outreach before October.',
+          sourceRef: 'heading:Hard limits',
+          documentTitle: 'Client constraints',
+          templateKey: '02_client_constraints',
+          authority: 'client_approved',
+          asOf: '2026-07-01',
+        },
+      ],
+    });
+
+    const params = completeWithTools.mock.calls[0]![0] as { system: string };
+    expect(params.system).toContain('# Client context facts (Steward)');
+    expect(params.system).toContain(
+      '- [fact:f1] No direct Hill outreach before October. (client_approved, as of 2026-07-01)',
+    );
+  });
+
+  it('conflicted stewardHealth: the health note names factA vs factB verbatim and groundingHealth carries the conflicts', async () => {
+    const { svc, completeWithTools } = build();
+    completeWithTools.mockResolvedValueOnce(toolResp('propose_plan_edits', { reply: 'ok', edits: [] }));
+
+    const result = await svc.assistant(CTX, { ...ASSISTANT_INPUT, stewardHealth: CONFLICTED });
+
+    const params = completeWithTools.mock.calls[0]![0] as { system: string };
+    expect(params.system).toContain('# Grounding health');
+    expect(params.system).toContain('OPEN MATERIAL CONFLICTS');
+    // Verbatim factA vs factB, so the model can name the exact contradiction.
+    expect(params.system).toContain(
+      '- "The ask is $12M in FY28 RDT&E." vs "The ask is $8M in FY28 procurement."',
+    );
+    expect(result.groundingHealth).toEqual({
+      status: 'conflicted',
+      missingRequired: [],
+      omittedOptional: [],
+      openMaterialConflicts: CONFLICTED.openMaterialConflicts,
+    });
+  });
+
+  it('draft(): stewardHealth threads into groundingHealth the same way (conflicted + conflicts)', async () => {
+    const { svc, completeWithTools } = build();
+    completeWithTools.mockResolvedValueOnce(
+      toolResp('propose_strategy_draft', {
+        summary: 'Plan.',
+        nodes: [
+          { kind: 'action', subject: 'deliverable', title: 'Draft the ask memo', startsOn: '2027-01-15' },
+        ],
+      }),
+    );
+
+    const result = await svc.draft(CTX, { ...BASE_DRAFT_INPUT, stewardHealth: CONFLICTED });
+
+    expect(result.groundingHealth.status).toBe('conflicted');
+    expect(result.groundingHealth.openMaterialConflicts).toEqual(CONFLICTED.openMaterialConflicts);
+  });
+
+  it('a degraded stewardHealth merges missingRequired and degrades the status (no conflicts key)', async () => {
+    const { svc, completeWithTools } = build();
+    completeWithTools.mockResolvedValueOnce(toolResp('propose_plan_edits', { reply: 'ok', edits: [] }));
+
+    const result = await svc.assistant(CTX, {
+      ...ASSISTANT_INPUT,
+      stewardHealth: { status: 'degraded', missingRequired: ['02_client_constraints'], openMaterialConflicts: [] },
+    });
+
+    expect(result.groundingHealth).toEqual({
+      status: 'degraded',
+      missingRequired: ['02_client_constraints'],
+      omittedOptional: [],
+    });
+    expect(result.groundingHealth).not.toHaveProperty('openMaterialConflicts');
+    // The health note also flags the missing Steward documents.
+    const params = completeWithTools.mock.calls[0]![0] as { system: string };
+    expect(params.system).toContain('Required Steward context documents are missing: 02_client_constraints');
+  });
+
+  it('absent stewardHealth: groundingHealth passes the pack health through UNCHANGED (same object)', async () => {
+    const { svc, completeWithTools } = build();
+    completeWithTools.mockResolvedValueOnce(toolResp('propose_plan_edits', { reply: 'ok', edits: [] }));
+
+    const result = await svc.assistant(CTX, ASSISTANT_INPUT);
+
+    expect(result.groundingHealth).toBe(PACK.health);
+    const params = completeWithTools.mock.calls[0]![0] as { system: string };
+    expect(params.system).not.toContain('# Client context facts (Steward)');
+    expect(params.system).not.toContain('OPEN MATERIAL CONFLICTS');
   });
 });

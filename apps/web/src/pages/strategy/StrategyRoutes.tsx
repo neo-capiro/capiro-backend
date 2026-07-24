@@ -4,6 +4,7 @@ import { StrategyLibraryPage } from './StrategyLibraryPage.js';
 import { StrategyEditorPage } from './StrategyEditorPage.js';
 import { ContextLibrary } from './context/ContextLibrary.js';
 import { ContextDocumentView } from './context/ContextDocumentView.js';
+import { StewardReview } from './context/StewardReview.js';
 import './strategy-ds.css';
 
 /**
@@ -38,6 +39,11 @@ export function StrategyRoutes() {
         <Route
           path="context"
           element={agentic ? <ContextLibrary /> : <Navigate to="/strategies" replace />}
+        />
+        {/* Stage E: Steward review — static segment, registered before context/:id. */}
+        <Route
+          path="context/steward"
+          element={agentic ? <StewardReview /> : <Navigate to="/strategies" replace />}
         />
         <Route
           path="context/:id"

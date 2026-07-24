@@ -12,6 +12,7 @@ import {
   strategyPlannerEnabled,
   strategyMeriActive,
   agenticMeriActive,
+  contextStewardActive,
   entitlementsForTenant,
 } from '../common/tenant-flags.js';
 import type { AppConfig } from '../config/config.schema.js';
@@ -153,6 +154,10 @@ export class UsersController {
         strategyPlanner: strategyPlannerEnabled(profile.tenant?.settings),
         strategyPlannerMeri: strategyMeriActive(profile.tenant?.settings),
         agenticMeri: agenticMeriActive(profile.tenant?.settings),
+        // Stage E: the Steward's extract route needs contextSteward.enabled on
+        // top of agenticMeri (api-strategy ContextStewardGuard) — surfaced so
+        // the web can gate the "Extract facts" button instead of 403-ing.
+        contextSteward: contextStewardActive(profile.tenant?.settings),
       },
     };
   }
@@ -234,6 +239,7 @@ export class UsersController {
         strategyPlanner: strategyPlannerEnabled(profile.tenant?.settings),
         strategyPlannerMeri: strategyMeriActive(profile.tenant?.settings),
         agenticMeri: agenticMeriActive(profile.tenant?.settings),
+        contextSteward: contextStewardActive(profile.tenant?.settings),
       },
     };
   }

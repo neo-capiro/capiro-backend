@@ -25,6 +25,9 @@ import {
   strategyAgentsEnvEnabled,
   agenticMeriActive,
   AGENTIC_MERI_FLAG,
+  contextStewardEnabled,
+  contextStewardActive,
+  CONTEXT_STEWARD_FLAG,
 } from './tenant-flags.js';
 
 describe('tenantFeatureEnabled', () => {
@@ -291,5 +294,46 @@ describe('agenticMeriActive (Phase 2: env kill-switch AND per-tenant flag, both 
   test('dormant by default — both conditions default OFF', () => {
     expect(agenticMeriActive({}, envOff)).toBe(false);
     expect(agenticMeriActive({}, envOn)).toBe(false); // tenant flag still absent/default-off
+  });
+});
+
+describe('contextStewardEnabled (per-tenant Steward opt-in alone, default OFF)', () => {
+  test('per-tenant opt-in, default off, malformed settings fail closed', () => {
+    expect(contextStewardEnabled({ clioFeatureFlags: { [CONTEXT_STEWARD_FLAG]: true } })).toBe(true);
+    expect(contextStewardEnabled({})).toBe(false);
+    expect(contextStewardEnabled(null)).toBe(false);
+    expect(contextStewardEnabled({ clioFeatureFlags: 'oops' })).toBe(false);
+  });
+});
+
+describe('contextStewardActive (Stage E: agentic env kill-switch AND per-tenant flag, both default OFF)', () => {
+  const envOn = { STRATEGY_AGENTS_ENABLED: 'true' } as NodeJS.ProcessEnv;
+  const envOff = {} as NodeJS.ProcessEnv;
+  const tenantOn = { clioFeatureFlags: { [CONTEXT_STEWARD_FLAG]: true } };
+  const tenantOff = { clioFeatureFlags: { [CONTEXT_STEWARD_FLAG]: false } };
+
+  test('active only when the env switch is on AND the tenant flag is on', () => {
+    expect(contextStewardActive(tenantOn, envOn)).toBe(true);
+  });
+
+  test('dormant when the env switch is off, even if the tenant flag is on (env-side rollback)', () => {
+    expect(contextStewardActive(tenantOn, envOff)).toBe(false);
+  });
+
+  test('dormant when the tenant flag is off, even if the env switch is on (tenant-side rollback)', () => {
+    expect(contextStewardActive(tenantOff, envOn)).toBe(false);
+  });
+
+  test('independent of agenticMeri — the umbrella flag alone does NOT enable the Steward', () => {
+    // The always-403 bug: agenticMeri on, contextSteward unset. GET /me must
+    // report contextSteward=false so the web hides the Extract facts button.
+    expect(
+      contextStewardActive({ clioFeatureFlags: { [AGENTIC_MERI_FLAG]: true } }, envOn),
+    ).toBe(false);
+  });
+
+  test('dormant by default — both conditions default OFF', () => {
+    expect(contextStewardActive({}, envOff)).toBe(false);
+    expect(contextStewardActive({}, envOn)).toBe(false); // tenant flag still absent/default-off
   });
 });

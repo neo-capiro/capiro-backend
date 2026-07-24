@@ -57,6 +57,13 @@ export interface MeResponse {
      * default OFF. Optional so an older cached /me shape degrades (hidden).
      */
     agenticMeri?: boolean;
+    /**
+     * Stage E Context Steward extraction (LLM spend). The server's extract
+     * route requires contextSteward.enabled ON TOP of agenticMeri
+     * (ContextStewardGuard), so the "Extract facts" button gates on BOTH bits.
+     * Optional so an older cached /me shape degrades (hidden, never a 403).
+     */
+    contextSteward?: boolean;
   };
 }
 

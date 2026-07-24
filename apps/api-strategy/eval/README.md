@@ -55,6 +55,32 @@ has reviewed and accepted a threshold for. Any future in-production
 until judge–expert agreement on the Neo sample is actually measured. Deterministic
 verifier violations remain the only thing that gates a write.
 
+## Steward fixtures (Stage E)
+
+`eval/steward/` holds seven markdown context documents covering the plan's five
+Phase-3 Steward scenarios: a **conflicting-asks pair** (two docs for the same
+client/strategy whose asks contradict on amount and timing), a **stale-dates**
+doc (valid frontmatter, `valid_until` already in the past), an
+**uncertain-positions** doc (hedged stakeholder rows — Unknown stance, Low
+confidence), a **hard-vs-soft-deadlines** doc (Hard and Soft calendar rows as
+separately citable anchors), and an **authority-levels pair**
+(`client_approved` vs `working_draft` asserting different figures for the same
+limit).
+
+`eval/steward/steward-fixtures.spec.ts` is the deterministic self-test (no LLM,
+no network/DB — runs in CI via the normal jest `testMatch` like L1): every
+fixture passes the REAL Stage D `parseFrontmatter` + `validateFrontmatter` with
+zero errors (real calendar dates, no template placeholders), `locateAll`
+surfaces the expected sections/rows, and each scenario's load-bearing rows
+(the contradiction, the hedge, the Hard/Soft split, the disagreeing figures)
+resolve via their closed-set `row:<heading>:<n>` refs — the exact anchors a
+live Steward extraction cites into `sp_context_fact.sourceRef`.
+
+Scoring an actual LIVE extraction over these fixtures (did the Steward produce
+the right facts, flag the conflict, mark the stale doc?) folds into the L2
+harness — manual, live-infra, opt-in, same as the draft-quality judge. Stage H
+wires the cadence.
+
 ## Golden provenance
 
 The current 12 goldens under `eval/goldens/` are synthetic (structurally valid,

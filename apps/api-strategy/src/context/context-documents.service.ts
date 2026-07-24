@@ -200,6 +200,14 @@ export class ContextDocumentsService {
           where: { id: active.id },
           data: { state: 'superseded', updatedByUserId: user.clerkUserId },
         });
+        // Stage E: the superseded document's ACTIVE facts flip to `stale` in
+        // the SAME tx — the deterministic reprocess signal. The review UI
+        // surfaces stale facts; re-extracting the NEW document refreshes the
+        // corpus (the Steward supersedes/re-inserts). Never deleted.
+        await tx.spContextFact.updateMany({
+          where: { documentId: active.id, state: 'active' },
+          data: { state: 'stale' },
+        });
         await this.versioning.logActivity(tx, {
           tenantId,
           actorUserId: user.clerkUserId,
@@ -300,6 +308,15 @@ export class ContextDocumentsService {
       const updated = await tx.spContextDocument.update({
         where: { id },
         data: { state: 'archived', updatedByUserId: user.clerkUserId },
+      });
+      // Stage E symmetry with supersession: a retired document's ACTIVE facts
+      // flip to `stale` in the SAME tx — otherwise they would keep grounding
+      // every draft/assistant call and serving as conflict-pairing targets
+      // forever (extract() 409s on non-active docs, so there is no re-extract
+      // path to supersede them). Reviewer verdicts (rejected) are preserved.
+      await tx.spContextFact.updateMany({
+        where: { documentId: id, state: 'active' },
+        data: { state: 'stale' },
       });
       await this.versioning.logActivity(tx, {
         tenantId,

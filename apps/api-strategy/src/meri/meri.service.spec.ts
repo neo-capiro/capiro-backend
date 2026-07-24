@@ -7,8 +7,9 @@ import type { StrategyAttachmentResolver } from './strategy-attachment.resolver.
 import type { StrategyOrchestratorClient } from './strategy-orchestrator.client.js';
 import type { FirmPhasesService } from '../firm-phases/firm-phases.service.js';
 import type { ReferenceService } from '../reference/reference.service.js';
+import type { StewardService, StewardHealthReport } from '../context/steward.service.js';
 import type { DraftStrategyDto, AssistantDto } from './dto/meri.dto.js';
-import type { PlanEdit } from './meri.types.js';
+import type { PlanEdit, StewardFactLine } from './meri.types.js';
 
 /*
  * MeriService apply-pipeline tests with a STUBBED orchestrator (no LLM, no
@@ -32,6 +33,8 @@ const provider = { source: 'byok', model: 'claude-sonnet-4-6' } as unknown as Aw
 function makeStore() {
   const strategies = new Map<string, Rec>();
   const nodes = new Map<string, Rec>();
+  // Stage E: sp_context_fact rows the provenance fact-check resolves against.
+  const contextFacts = new Map<string, Rec>();
   let seq = 0;
   const nextId = (p: string) => `${p}-${++seq}`;
   const nodesFor = (sid: string) =>
@@ -46,7 +49,14 @@ function makeStore() {
   // clientRows drives the tenant-scoped client-existence check (tx.$queryRaw
   // inside withTenant); default = client exists. Tests set [] to simulate an
   // unknown client.
-  return { strategies, nodes, nextId, nodesFor, clientRows: [{ ok: 1 }] as Array<{ ok: number }> };
+  return {
+    strategies,
+    nodes,
+    contextFacts,
+    nextId,
+    nodesFor,
+    clientRows: [{ ok: 1 }] as Array<{ ok: number }>,
+  };
 }
 type Store = ReturnType<typeof makeStore>;
 
@@ -143,7 +153,12 @@ function makeTx(store: Store) {
   // Stage C: VersioningService.logActivity unconditionally emits a
   // transactional-outbox row in the same tx — the fake tx must accept it.
   const spEventOutbox = { create: async () => undefined };
-  return { spNode, spStrategy, $queryRaw, $executeRaw, spEventOutbox } as unknown as import('../../generated/prisma-client/index.js').Prisma.TransactionClient;
+  // Stage E: the provenance fact-check's single id-set lookup.
+  const spContextFact = {
+    findMany: async ({ where }: { where: { id?: { in: string[] } } }) =>
+      [...store.contextFacts.values()].filter((f) => where.id?.in.includes(f.id as string) ?? true),
+  };
+  return { spNode, spStrategy, $queryRaw, $executeRaw, spEventOutbox, spContextFact } as unknown as import('../../generated/prisma-client/index.js').Prisma.TransactionClient;
 }
 
 function makePrisma(store: Store) {
@@ -188,6 +203,8 @@ function makeService(
     firmPhases?: unknown[];
     reference?: Record<string, unknown[]>;
     attachmentDocs?: Array<{ filename: string; text: string }>;
+    stewardFacts?: StewardFactLine[];
+    stewardHealth?: StewardHealthReport;
   } = {},
 ) {
   const { prisma, withTenantUser, $queryRaw } = makePrisma(store);
@@ -206,6 +223,23 @@ function makeService(
   } as unknown as ReferenceService;
   const attachmentsResolve = jest.fn(async () => overrides.attachmentDocs ?? []);
   const attachments = { resolve: attachmentsResolve } as unknown as StrategyAttachmentResolver;
+  // Stage E steward pack stub (wire-contract 2 inputs).
+  const stewardFactsFn = jest.fn(async () => overrides.stewardFacts ?? []);
+  const stewardHealthFn = jest.fn(
+    async () =>
+      overrides.stewardHealth ?? {
+        status: 'ok' as const,
+        factCounts: { active: 0, superseded: 0, stale: 0, rejected: 0 },
+        openConflicts: 0,
+        openMaterialConflicts: [],
+        staleDocs: [],
+        missingRequired: [],
+      },
+  );
+  const steward = {
+    factsForOrchestrator: stewardFactsFn,
+    health: stewardHealthFn,
+  } as unknown as StewardService;
   const svc = new MeriService(
     prisma,
     versioning,
@@ -214,8 +248,17 @@ function makeService(
     firmPhases,
     reference,
     attachments,
+    steward,
   );
-  return { svc, versioning, withTenantUser, $queryRaw, attachmentsResolve };
+  return {
+    svc,
+    versioning,
+    withTenantUser,
+    $queryRaw,
+    attachmentsResolve,
+    stewardFactsFn,
+    stewardHealthFn,
+  };
 }
 
 function seedStrategy(store: Store): { sid: string; n1: string; n2: string; n3: string } {
@@ -682,6 +725,166 @@ describe('MeriService.assistant', () => {
     expect(store.nodes.get(n1)!.status).toBe('active');
     expect(store.strategies.get('S1')!.meriSummary).toBeNull();
     expect(versioning.cutVersion).not.toHaveBeenCalled();
+  });
+});
+
+describe('MeriService — Stage E steward pack + provenance fact-check', () => {
+  const draftDto = { clientId: 'C1', type: 'appropriations', goal: 'Win the plus-up' } as DraftStrategyDto;
+  const oneNodeDraft = () => ({
+    draft: jest.fn(async () => ({
+      summary: null,
+      nodes: [{ kind: 'action', subject: 'deliverable', title: 'Step', startsOn: '2027-05-01' }],
+    })),
+  });
+  const packFact: StewardFactLine = {
+    id: 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa',
+    fact: 'The client cannot lobby DoD directly.',
+    sourceRef: 'heading:Constraints',
+    documentTitle: 'Client constraints',
+    templateKey: '02_client_constraints',
+    authority: 'client_approved',
+    asOf: '2026-07-01',
+  };
+  const conflictedHealth: StewardHealthReport = {
+    status: 'conflicted',
+    factCounts: { active: 2, superseded: 0, stale: 0, rejected: 0 },
+    openConflicts: 1,
+    openMaterialConflicts: [
+      {
+        id: 'cf-1',
+        factAId: 'fa-1',
+        factBId: 'fb-1',
+        factA: 'The ask is $12M.',
+        factB: 'The ask is $8M.',
+      },
+    ],
+    staleDocs: [],
+    missingRequired: ['client_constraints'],
+  };
+
+  it('draft body carries stewardFacts + the SHAPED-DOWN stewardHealth (wire-contract 2)', async () => {
+    const store = makeStore();
+    const orchestrator = oneNodeDraft();
+    const { svc, stewardFactsFn, stewardHealthFn } = makeService(orchestrator, store, {
+      stewardFacts: [packFact],
+      stewardHealth: conflictedHealth,
+    });
+
+    await svc.draft(T, U, 'bearer', draftDto);
+
+    // Scoped to the DRAFT's client.
+    expect(stewardFactsFn).toHaveBeenCalledWith(T, 'C1');
+    expect(stewardHealthFn).toHaveBeenCalledWith(T, 'C1');
+    const body = (orchestrator.draft as jest.Mock).mock.calls[0]![0] as {
+      stewardFacts: unknown;
+      stewardHealth: unknown;
+    };
+    expect(body.stewardFacts).toEqual([packFact]);
+    // The health BLOCK is the wire shape exactly — internal report fields
+    // (factCounts / openConflicts / staleDocs) must NOT leak into the body.
+    expect(body.stewardHealth).toEqual({
+      status: 'conflicted',
+      missingRequired: ['client_constraints'],
+      openMaterialConflicts: conflictedHealth.openMaterialConflicts,
+    });
+  });
+
+  it('assistant body carries stewardFacts + stewardHealth scoped to the STRATEGY client', async () => {
+    const store = makeStore();
+    seedStrategy(store); // clientId C1
+    const orchestrator = {
+      assistant: jest.fn(async () => ({ reply: 'ok', summary: null, edits: [] })),
+    };
+    const { svc, stewardFactsFn } = makeService(orchestrator, store, {
+      stewardFacts: [packFact],
+    });
+
+    await svc.assistant(T, U, 'bearer', 'S1', {
+      scope: 'strategy',
+      instruction: 'x',
+    } as AssistantDto);
+
+    expect(stewardFactsFn).toHaveBeenCalledWith(T, 'C1');
+    const body = (orchestrator.assistant as jest.Mock).mock.calls[0]![0] as {
+      stewardFacts: unknown;
+      stewardHealth: { status: string };
+    };
+    expect(body.stewardFacts).toEqual([packFact]);
+    expect(body.stewardHealth.status).toBe('ok');
+  });
+
+  it('appends the three fact-check WARNING kinds (unknown / non-active / other-client) and logs them via plan.verified', async () => {
+    const store = makeStore();
+    const F_OK = 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa';
+    const F_STALE = 'bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb';
+    const F_OTHER = 'cccccccc-cccc-4ccc-8ccc-cccccccccccc';
+    const F_UNKNOWN = 'dddddddd-dddd-4ddd-8ddd-dddddddddddd';
+    store.contextFacts.set(F_OK, { id: F_OK, tenantId: T, clientId: 'C1', state: 'active', fact: 'ok' });
+    store.contextFacts.set(F_STALE, { id: F_STALE, tenantId: T, clientId: 'C1', state: 'stale', fact: 'old' });
+    store.contextFacts.set(F_OTHER, { id: F_OTHER, tenantId: T, clientId: 'C2', state: 'active', fact: 'foreign' });
+    const orchestrator = {
+      draft: jest.fn(async () => ({
+        summary: null,
+        nodes: [
+          {
+            kind: 'action', subject: 'deliverable', title: 'Grounded step', startsOn: '2027-05-01',
+            // A healthy citation + a fabricated one on the SAME node.
+            sources: [
+              { section: 'Steward facts', ref: `fact:${F_OK}` },
+              { section: 'Steward facts', ref: `fact:${F_UNKNOWN}` },
+            ],
+          },
+          {
+            kind: 'action', subject: 'deliverable', title: 'Stale step', startsOn: '2027-05-02',
+            sources: [{ section: 'Steward facts', ref: `fact:${F_STALE}` }],
+          },
+          {
+            kind: 'action', subject: 'deliverable', title: 'Cross-client step', startsOn: '2027-05-03',
+            // The non-fact pack ref must be ignored by the fact-check.
+            sources: [
+              { section: 'Steward facts', ref: `fact:${F_OTHER}` },
+              { section: 'Goal', ref: 'heading:Goal' },
+            ],
+          },
+        ],
+      })),
+    };
+    const { svc, versioning } = makeService(orchestrator, store);
+
+    const detail = (await svc.draft(T, U, 'bearer', draftDto)) as unknown as {
+      violations: Array<{ code: string; severity: string; message: string }>;
+    };
+
+    const factWarnings = detail.violations.filter((v) => v.code.startsWith('fact-'));
+    expect(factWarnings).toHaveLength(3);
+    expect(factWarnings.every((v) => v.severity === 'warning')).toBe(true);
+    expect(factWarnings.map((v) => v.message).sort()).toEqual(
+      [
+        `'Grounded step' cites a fact that does not exist (fact:${F_UNKNOWN})`,
+        `'Stale step' cites a stale fact (fact:${F_STALE})`,
+        `'Cross-client step' cites another client's fact (fact:${F_OTHER})`,
+      ].sort(),
+    );
+    // The healthy citation produced NO warning.
+    expect(detail.violations.some((v) => v.message.includes(F_OK))).toBe(false);
+    // The appended warnings ride the SAME plan.verified audit row.
+    const logged = (versioning.logActivity as jest.Mock).mock.calls
+      .map((c) => c[1] as { action: string; after?: { violations?: Array<{ code: string }> } })
+      .find((a) => a.action === 'plan.verified');
+    expect(logged).toBeDefined();
+    expect(logged!.after!.violations!.some((v) => v.code === 'fact-unknown')).toBe(true);
+  });
+
+  it('a plan with NO fact citations appends nothing and never queries sp_context_fact', async () => {
+    const store = makeStore();
+    const orchestrator = oneNodeDraft();
+    const { svc } = makeService(orchestrator, store);
+
+    const detail = (await svc.draft(T, U, 'bearer', draftDto)) as unknown as {
+      violations: Array<{ code: string }>;
+    };
+
+    expect(detail.violations.filter((v) => v.code.startsWith('fact-'))).toHaveLength(0);
   });
 });
 

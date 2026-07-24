@@ -7,6 +7,7 @@
 import { describe, expect, it } from 'vitest';
 import {
   canArchiveContextDoc,
+  canExtractContextFacts,
   isContextDocStale,
   normalizeDocumentList,
   normalizeLocate,
@@ -206,5 +207,32 @@ describe('canArchiveContextDoc (Archive button visibility contract)', () => {
 
   it('archived is NOT re-archivable', () => {
     expect(canArchiveContextDoc('archived')).toBe(false);
+  });
+});
+
+describe('canExtractContextFacts (Extract-facts button visibility contract)', () => {
+  const both = { agenticMeri: true, contextSteward: true };
+
+  it('shown only when agenticMeri AND contextSteward are on AND the doc is active', () => {
+    expect(canExtractContextFacts(both, 'active')).toBe(true);
+  });
+
+  it('hidden when contextSteward is off/unset even with agenticMeri on — the route stacks ContextStewardGuard and would 403 on every click', () => {
+    expect(canExtractContextFacts({ agenticMeri: true }, 'active')).toBe(false);
+    expect(canExtractContextFacts({ agenticMeri: true, contextSteward: false }, 'active')).toBe(false);
+  });
+
+  it('hidden when agenticMeri is off even with contextSteward on (class-level AgenticGuard)', () => {
+    expect(canExtractContextFacts({ contextSteward: true }, 'active')).toBe(false);
+  });
+
+  it('hidden for non-active docs — the server 409s unconditionally on them', () => {
+    expect(canExtractContextFacts(both, 'draft')).toBe(false);
+    expect(canExtractContextFacts(both, 'superseded')).toBe(false);
+    expect(canExtractContextFacts(both, 'archived')).toBe(false);
+  });
+
+  it('hidden when features are absent (older cached /me shape degrades, never a 403)', () => {
+    expect(canExtractContextFacts(undefined, 'active')).toBe(false);
   });
 });

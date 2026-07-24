@@ -7,6 +7,7 @@
  * gated off here and land in G5/G6. 344px slide-in panel, prototype-faithful.
  */
 import { useEffect, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { App } from 'antd';
 import { Icon, Ava, iconBtn, fieldS, fieldLbl, chipBtn } from './strategy-ui.js';
 import { OwnerPicker } from './OwnerPicker.js';
@@ -301,6 +302,7 @@ function NodeEditor({
   onCommit: (input: UpdateNodeInput, flash: string) => void;
   onDelete: () => void;
 }) {
+  const navigate = useNavigate();
   const [titleBuf, setTitleBuf] = useState(node.title);
   const [noteBuf, setNoteBuf] = useState(node.note ?? '');
   const [showFields, setShowFields] = useState(true);
@@ -581,23 +583,55 @@ function NodeEditor({
                 <div>
                   <span style={fieldLbl}>Grounded in</span>
                   <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, marginTop: 2 }}>
-                    {node.provenance.sources.map((src, i) => (
-                      <span
-                        key={i}
-                        style={{
-                          fontSize: 'var(--text-2xs)',
-                          fontWeight: 600,
-                          color: 'var(--ink-2)',
-                          background: 'var(--bg-surface-2)',
-                          border: '1px solid var(--border-1)',
-                          borderRadius: 6,
-                          padding: '2px 7px',
-                        }}
-                      >
-                        {src.section}
-                        {src.ref ? ` · ${src.ref}` : ''}
-                      </span>
-                    ))}
+                    {node.provenance.sources.map((src, i) => {
+                      // Stage E: a 'fact:<id>' ref anchors a Steward fact —
+                      // deep-link into the review surface, which highlights it.
+                      const factId = src.ref?.startsWith('fact:') ? src.ref.slice(5) : null;
+                      if (factId) {
+                        return (
+                          <button
+                            key={i}
+                            onClick={() =>
+                              navigate(
+                                `/strategies/context/steward?fact=${encodeURIComponent(factId)}`,
+                              )
+                            }
+                            title="Open this fact in the Steward review"
+                            style={{
+                              fontSize: 'var(--text-2xs)',
+                              fontWeight: 600,
+                              fontFamily: 'var(--font-sans)',
+                              color: 'var(--accent-ink)',
+                              background: 'var(--accent-soft)',
+                              border: '1px solid #C6D4F4',
+                              borderRadius: 6,
+                              padding: '2px 7px',
+                              cursor: 'pointer',
+                            }}
+                          >
+                            {src.section}
+                            {` · ${src.ref}`}
+                          </button>
+                        );
+                      }
+                      return (
+                        <span
+                          key={i}
+                          style={{
+                            fontSize: 'var(--text-2xs)',
+                            fontWeight: 600,
+                            color: 'var(--ink-2)',
+                            background: 'var(--bg-surface-2)',
+                            border: '1px solid var(--border-1)',
+                            borderRadius: 6,
+                            padding: '2px 7px',
+                          }}
+                        >
+                          {src.section}
+                          {src.ref ? ` · ${src.ref}` : ''}
+                        </span>
+                      );
+                    })}
                   </div>
                 </div>
               ) : null}

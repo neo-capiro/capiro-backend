@@ -29,6 +29,7 @@ import { useTenantMembers } from './members.js';
 import { useApi } from '../../lib/use-api.js';
 import { useMe } from '../../lib/me.js';
 import { STRATEGY_TYPE_LABEL } from './constants.js';
+import { clip } from './context/context-utils.js';
 import { buildCalendar, formatDbDate, parseDbDate } from './fiscal.js';
 import type { StrategyNode, StrategyNodeArtifact } from './types.js';
 
@@ -480,6 +481,63 @@ export function StrategyEditorPage() {
               </div>
             </div>
           )}
+          {/* E: Meri drafted against UNRESOLVED MATERIAL Steward conflicts —
+              amber-red, names the two disagreeing sources verbatim (≤120 chars
+              each), links to the review surface. Annotate-only, never blocks. */}
+          {s.groundingHealth?.status === 'conflicted' &&
+            (() => {
+              const first = s.groundingHealth?.openMaterialConflicts?.[0] ?? null;
+              return (
+                <div
+                  onClick={(e) => e.stopPropagation()}
+                  style={{
+                    display: 'flex',
+                    alignItems: 'flex-start',
+                    gap: 10,
+                    background: '#FCEDE6',
+                    border: '1px solid #D97742',
+                    borderRadius: 10,
+                    padding: '11px 14px',
+                    marginBottom: 14,
+                    fontSize: 'var(--text-sm)',
+                    color: 'var(--ink-2)',
+                    lineHeight: 1.5,
+                  }}
+                >
+                  <div style={{ marginTop: 1 }}>
+                    <Icon name="alert" size={15} color="#A14D12" />
+                  </div>
+                  <div style={{ flex: 1 }}>
+                    <b style={{ color: '#A14D12' }}>Drafted with unresolved context conflicts.</b>{' '}
+                    {first ? (
+                      <>
+                        “{clip(first.factA)}” vs “{clip(first.factB)}” disagree in this client's
+                        context.{' '}
+                      </>
+                    ) : (
+                      <>The client context contains facts that materially disagree. </>
+                    )}
+                    Resolve which fact controls, then re-run Meri.{' '}
+                    <button
+                      onClick={() => navigate('/strategies/context/steward')}
+                      style={{
+                        background: 'transparent',
+                        border: 'none',
+                        padding: 0,
+                        cursor: 'pointer',
+                        color: '#A14D12',
+                        fontSize: 'var(--text-sm)',
+                        fontWeight: 700,
+                        textDecoration: 'underline',
+                        fontFamily: 'var(--font-sans)',
+                      }}
+                    >
+                      Review in the Steward
+                    </button>
+                  </div>
+                </div>
+              );
+            })()}
           {/* A6: realism-verifier findings from the last Meri draft/assist. */}
           {s.violations && s.violations.length > 0 && (
             <div

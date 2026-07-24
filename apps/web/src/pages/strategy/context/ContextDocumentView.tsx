@@ -15,12 +15,15 @@ import {
   useContextDocument,
   useContextLocate,
   useContextSections,
+  useExtractContextFacts,
 } from '../api.js';
 import { useClientsLite } from '../clients-lite.js';
+import { useMe } from '../../../lib/me.js';
 import { DocStateChips } from './ContextLibrary.js';
 import { errorMessage } from '../../../lib/error-message.js';
 import {
   canArchiveContextDoc,
+  canExtractContextFacts,
   fmScalar,
   isContextDocStale,
   resolveHighlight,
@@ -35,6 +38,8 @@ export function ContextDocumentView() {
   const sections = useContextSections(id);
   const clients = useClientsLite();
   const archive = useArchiveContextDocument();
+  const extract = useExtractContextFacts();
+  const me = useMe();
 
   const [activeRef, setActiveRef] = useState<string | null>(null);
   const locate = useContextLocate(id, activeRef);
@@ -73,6 +78,29 @@ export function ContextDocumentView() {
   const authority = fmScalar(d.frontmatter, 'authority');
   const asOf = fmScalar(d.frontmatter, 'as_of');
   const validUntil = d.validUntil ?? fmScalar(d.frontmatter, 'valid_until');
+
+  // Stage E: run the Steward's structured extraction over this document. UI
+  // belt = agenticMeri AND contextSteward (the route stacks ContextStewardGuard
+  // on top of AgenticGuard, so either bit missing is a guaranteed 403) AND an
+  // active document (the server 409s on draft/superseded/archived). The route
+  // stays gated server-side; a race there still surfaces via errorMessage.
+  const showExtract = canExtractContextFacts(me.data?.features, d.state);
+  const onExtract = () => {
+    if (extract.isPending) return;
+    extract.mutate(d.id, {
+      onSuccess: (r) => {
+        const parts = [`Steward extracted ${r.inserted} fact${r.inserted === 1 ? '' : 's'}`];
+        if (r.droppedRefs > 0) {
+          parts.push(`dropped ${r.droppedRefs} unlocatable ref${r.droppedRefs === 1 ? '' : 's'}`);
+        }
+        if (r.conflicts > 0) {
+          parts.push(`flagged ${r.conflicts} conflict${r.conflicts === 1 ? '' : 's'}`);
+        }
+        message.success(`${parts.join(', ')}.`);
+      },
+      onError: (err) => message.error(errorMessage(err, 'The Steward could not extract facts from this document.')),
+    });
+  };
 
   const onArchive = () => {
     modal.confirm({
@@ -137,6 +165,12 @@ export function ContextDocumentView() {
               {d.title}
             </div>
           </div>
+          {showExtract && (
+            <button onClick={onExtract} disabled={extract.isPending} style={btnGhost}>
+              <Icon name="spark" size={14} color="var(--ink-2)" />
+              {extract.isPending ? 'Extracting…' : 'Extract facts'}
+            </button>
+          )}
           {canArchiveContextDoc(d.state) && (
             <button onClick={onArchive} disabled={archive.isPending} style={btnGhost}>
               <Icon name="folder" size={14} color="var(--ink-2)" />

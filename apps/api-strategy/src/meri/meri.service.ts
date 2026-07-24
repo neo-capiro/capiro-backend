@@ -17,10 +17,11 @@ import { NODE_KINDS, NODE_SUBJECTS, NODE_STATUSES } from '../strategy/dto/node.d
 import type { StrategyTypeValue } from '../strategy/dto/create-strategy.dto.js';
 import { FirmPhasesService } from '../firm-phases/firm-phases.service.js';
 import { ReferenceService, type ReferenceRow } from '../reference/reference.service.js';
+import { StewardService } from '../context/steward.service.js';
 import { StrategyAiCredentialResolver } from './strategy-ai-credential.resolver.js';
 import { StrategyAttachmentResolver } from './strategy-attachment.resolver.js';
 import { StrategyOrchestratorClient } from './strategy-orchestrator.client.js';
-import type { DraftNode, PlanEdit } from './meri.types.js';
+import type { DraftNode, PlanEdit, StewardFactLine, StewardHealth } from './meri.types.js';
 import type { AssistantDto, DraftStrategyDto, ReferenceAssistDto } from './dto/meri.dto.js';
 
 type Tx = Prisma.TransactionClient;
@@ -55,6 +56,12 @@ type VerifierNodeSource = {
  *  op validation to this pipeline), so the discriminator itself must be
  *  validated here. */
 const PLAN_EDIT_OPS = ['add', 'update', 'remove', 'retime'] as const;
+
+/** Stage E: node provenance refs of this shape cite a Steward fact. */
+const FACT_REF_RE = /^fact:(.+)$/;
+/** sp_context_fact.id is uuid-typed — a non-UUID citation is unknown by definition
+ *  (and would P2023 the `in` query if passed through). */
+const FACT_UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
 const TYPE_LABEL: Record<StrategyTypeValue, string> = {
   appropriations: 'Appropriations',
@@ -91,6 +98,7 @@ export class MeriService {
     private readonly firmPhases: FirmPhasesService,
     private readonly reference: ReferenceService,
     private readonly attachments: StrategyAttachmentResolver,
+    private readonly steward: StewardService,
   ) {}
 
   /**
@@ -150,10 +158,11 @@ export class MeriService {
       throw new BadRequestException('Unknown client for this tenant');
     }
 
-    const [aiProvider, ground, docs] = await Promise.all([
+    const [aiProvider, ground, docs, stewardCtx] = await Promise.all([
       this.resolver.resolve(tenantId),
       this.grounding(tenantId),
       this.attachments.resolve(bearer, dto.attachmentIds),
+      this.stewardContext(tenantId, dto.clientId),
     ]);
     const resp = await this.orchestrator.draft(
       {
@@ -165,6 +174,7 @@ export class MeriService {
         attachmentIds: dto.attachmentIds ?? [],
         attachments: docs,
         ...ground,
+        ...stewardCtx,
       },
       bearer,
       aiProvider,
@@ -245,8 +255,12 @@ export class MeriService {
         entityId: strategy.id,
         after: { title, nodeCount: nodeData.length, provenance: resp.provenance ?? null },
       });
-      await this.logVerification(tx, tenantId, clerkUserId, strategy.id, violations);
       const detail = await loadStrategyDetail(tx, strategy.id);
+      // Stage E provenance fact-check: 'fact:<id>' citations on the PERSISTED
+      // plan must reference real, active, same-client facts (warnings appended
+      // to the violations plan.verified logs below).
+      violations.push(...(await this.factCheckProvenance(tx, detail.nodes, dto.clientId)));
+      await this.logVerification(tx, tenantId, clerkUserId, strategy.id, violations);
       return { ...detail, violations, groundingHealth: resp.groundingHealth };
     });
   }
@@ -269,10 +283,11 @@ export class MeriService {
       throw new BadRequestException('nodeId is required for node-scope assist');
     }
 
-    const [aiProvider, ground, docs] = await Promise.all([
+    const [aiProvider, ground, docs, stewardCtx] = await Promise.all([
       this.resolver.resolve(tenantId),
       this.grounding(tenantId),
       this.attachments.resolve(bearer, dto.attachmentIds),
+      this.stewardContext(tenantId, strategy.clientId),
     ]);
     const resp = await this.orchestrator.assistant(
       {
@@ -284,6 +299,7 @@ export class MeriService {
         clientId: strategy.clientId,
         strategy: serializeStrategy(strategy),
         ...ground,
+        ...stewardCtx,
       },
       bearer,
       aiProvider,
@@ -338,6 +354,8 @@ export class MeriService {
       // A6: verify the resulting persisted plan; annotate + log (additive — the
       // edit-set already applied; hard-blocking is the flagged web phase).
       const v = this.verify(strategy.type, d.nodes, ground);
+      // Stage E provenance fact-check (WARNING-only — never trips the A6 gate).
+      v.push(...(await this.factCheckProvenance(tx, d.nodes, strategy.clientId)));
       if (this.blockOnErrors() && v.some((x) => x.severity === 'error')) {
         // Roll back the whole edit-set — the assistant may not leave the plan broken.
         throw new UnprocessableEntityException(
@@ -563,6 +581,86 @@ export class MeriService {
     });
     const found = new Set(rows.map((r) => r.id));
     return unique.filter((id) => found.has(id));
+  }
+
+  /**
+   * Stage E wire-contract (2): the Steward pack forwarded in every draft/
+   * assistant orchestrator body — `stewardFacts` (active facts for the client,
+   * 120 newest) + `stewardHealth` (fact-level health; the orchestrator renders
+   * the '# Client context facts (Steward)' section and, when 'conflicted',
+   * names factA vs factB verbatim in the health note).
+   */
+  private async stewardContext(
+    tenantId: string,
+    clientId: string | null,
+  ): Promise<{ stewardFacts: StewardFactLine[]; stewardHealth: StewardHealth }> {
+    const [stewardFacts, health] = await Promise.all([
+      this.steward.factsForOrchestrator(tenantId, clientId),
+      this.steward.health(tenantId, clientId),
+    ]);
+    return {
+      stewardFacts,
+      stewardHealth: {
+        status: health.status,
+        missingRequired: health.missingRequired,
+        openMaterialConflicts: health.openMaterialConflicts,
+      },
+    };
+  }
+
+  /**
+   * Stage E provenance fact-check (runs AFTER the realism verifier): collect
+   * every node provenance source ref of the form 'fact:<id>' from the persisted
+   * plan, resolve them in ONE tenant-scoped findMany, and append WARNING
+   * violations for citations that are unknown, not active, or belong to another
+   * client — each naming the fact id + node title. Warnings only: a bad
+   * citation annotates, it never blocks the write.
+   */
+  private async factCheckProvenance(
+    tx: Tx,
+    nodes: Array<{ id?: string | null; title: unknown; provenance?: unknown }>,
+    clientId: string | null,
+  ): Promise<Violation[]> {
+    const citations: Array<{ factId: string; nodeId: string | null; nodeTitle: string }> = [];
+    for (const node of nodes) {
+      const prov = node.provenance as { sources?: unknown } | null | undefined;
+      const sources = Array.isArray(prov?.sources)
+        ? (prov.sources as Array<{ ref?: unknown }>)
+        : [];
+      for (const s of sources) {
+        const m = typeof s?.ref === 'string' ? FACT_REF_RE.exec(s.ref) : null;
+        if (!m) continue;
+        citations.push({
+          factId: m[1]!,
+          nodeId: node.id ?? null,
+          nodeTitle: String(node.title ?? ''),
+        });
+      }
+    }
+    if (citations.length === 0) return [];
+
+    const queryIds = [
+      ...new Set(citations.map((c) => c.factId).filter((id) => FACT_UUID_RE.test(id))),
+    ];
+    const rows = queryIds.length
+      ? await tx.spContextFact.findMany({ where: { id: { in: queryIds } } })
+      : [];
+    const byId = new Map(rows.map((r) => [r.id, r] as const));
+
+    const violations: Violation[] = [];
+    const warn = (code: string, nodeId: string | null, message: string) =>
+      violations.push({ code, severity: 'warning', nodeIds: nodeId ? [nodeId] : [], message });
+    for (const { factId, nodeId, nodeTitle } of citations) {
+      const fact = byId.get(factId);
+      if (!fact) {
+        warn('fact-unknown', nodeId, `'${nodeTitle}' cites a fact that does not exist (fact:${factId})`);
+      } else if (fact.state !== 'active') {
+        warn('fact-not-active', nodeId, `'${nodeTitle}' cites a ${fact.state} fact (fact:${factId})`);
+      } else if (fact.clientId !== null && fact.clientId !== clientId) {
+        warn('fact-client-mismatch', nodeId, `'${nodeTitle}' cites another client's fact (fact:${factId})`);
+      }
+    }
+    return violations;
   }
 
   /** A6: run the shared realism verifier over a plan against this call's grounding. */
