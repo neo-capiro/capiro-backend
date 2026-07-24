@@ -247,7 +247,13 @@ export function StrategyEditorPage() {
           await api.patch(`/workspace-api/drafts/${encodeURIComponent(ref)}`, {
             config: { sectionContent: { [section]: nodeContextHtml(node) } },
           });
-          target = `/workspace/setup/${encodeURIComponent(ref)}`;
+          // Straight to the editor, not Setup: the create call above already set
+          // client/product (server seeds default sections from `product` at
+          // create time — confirmed live, no Setup visit required) and the
+          // PATCH just below seeds this step's context into the first section,
+          // so Setup would show nothing left to configure — only extra clicks
+          // before the user sees the content they just asked for.
+          target = `/workspace/draft/${encodeURIComponent(ref)}`;
         } else {
           // A node with a Target assigned (NOD-7 field editor) resolves to a real
           // recipient; the wizard resume then lands on Recipients with them
@@ -315,9 +321,11 @@ export function StrategyEditorPage() {
 
   const onOpenArtifact = (a: StrategyNodeArtifact) => {
     const suffix = selectedNode ? `${routeReturn}${selectedNode.id}` : '';
+    // Straight to the editor (not Setup) — see the onRoute workspace branch
+    // above for why Setup has nothing left to configure by this point.
     const target =
       a.artifactType === 'workspace_draft'
-        ? `/workspace/setup/${encodeURIComponent(a.artifactRef)}`
+        ? `/workspace/draft/${encodeURIComponent(a.artifactRef)}`
         : `/engagement/outreach/draft/${encodeURIComponent(a.artifactRef)}`;
     navigate(`${target}${suffix}`);
   };

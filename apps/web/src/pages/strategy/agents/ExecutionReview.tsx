@@ -355,10 +355,14 @@ function TaskRow({ task }: { task: ExecutionTask }) {
 
   const openArtifact = () => {
     if (!task.artifactRef) return;
+    // workspace_draft -> straight to the editor, not Setup: the staging call
+    // (stageWorkspace/onRoute) already set client/product and seeded
+    // config.sectionContent, so Setup has nothing left to configure — it was
+    // just an extra click between the user and the content they staged.
     const target =
       task.type === 'outreach_record'
         ? `/engagement/outreach/draft/${encodeURIComponent(task.artifactRef)}`
-        : `/workspace/setup/${encodeURIComponent(task.artifactRef)}`;
+        : `/workspace/draft/${encodeURIComponent(task.artifactRef)}`;
     navigate(target);
   };
 
