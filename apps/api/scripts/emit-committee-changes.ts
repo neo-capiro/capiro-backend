@@ -182,12 +182,32 @@ export function buildTitleAndDescription(change: DetectedChange): {
 }
 
 /**
+ * The raw-SQL surface {@link readCrossTenant} needs from a Prisma transaction
+ * client. Declared explicitly rather than typing `tx` as `any`: an `any` receiver
+ * makes `tx.$queryRawUnsafe<Row>(...)` an UNTYPED call, and TypeScript rejects type
+ * arguments on those (TS2347). `PrismaService` itself is not statically importable
+ * here — this script loads Nest lazily via `loadNest()` to keep its startup cost off
+ * the module graph — so a structural type is the right shape to depend on.
+ */
+interface CrossTenantTx {
+  $executeRawUnsafe(sql: string, ...values: unknown[]): Promise<number>;
+  $queryRawUnsafe<T>(sql: string, ...values: unknown[]): Promise<T>;
+}
+
+interface CrossTenantCapable {
+  $transaction<T>(fn: (tx: CrossTenantTx) => Promise<T>): Promise<T>;
+}
+
+/**
  * apps/api-side cross-tenant read for a tenant-scoped table (client_targets),
  * mirroring emit-redistricting-alerts.ts's / emit-state-changes.ts's
  * set_config('app.bypass_rls', ...) transaction precedent verbatim.
  */
-async function readCrossTenant<T>(prisma: any, fn: (tx: any) => Promise<T>): Promise<T> {
-  return prisma.$transaction(async (tx: any) => {
+async function readCrossTenant<T>(
+  prisma: CrossTenantCapable,
+  fn: (tx: CrossTenantTx) => Promise<T>,
+): Promise<T> {
+  return prisma.$transaction(async (tx) => {
     await tx.$executeRawUnsafe("SELECT set_config('app.bypass_rls', 'on', true)");
     return fn(tx);
   });
