@@ -358,3 +358,40 @@ export async function getDistrict(
 export function districtKmlUrl(state: string, districtNo: string, status: 'C' | 'F' = 'C'): string {
   return `/api/directory/districts/${encodeURIComponent(state)}/${encodeURIComponent(districtNo)}/kml?status=${status}`;
 }
+
+/**
+ * WS-F, LegiStorm gaps/enrichment plan — privately funded travel for a
+ * member OR staffer profile. `role` is relative to the requested contactId:
+ * 'approver' when this contact approved someone else's trip, 'traveler'
+ * when this contact actually traveled. `otherPartyName` is always the OTHER
+ * party, so either profile reads as a complete summary on its own.
+ */
+export interface DirectoryContactTripSummary {
+  id: number;
+  role: 'approver' | 'traveler';
+  otherPartyName: string | null;
+  companionName: string | null;
+  startDate: string | null;
+  endDate: string | null;
+  durationDays: number | null;
+  purpose: string | null;
+  totalCost: number | null;
+  destinations: Array<{ id: number; name: string | null; stateId: string | null }>;
+  sponsors: Array<{ id: number; name: string | null }>;
+  filedDate: string | null;
+}
+
+export interface DirectoryContactTripsPayload {
+  contactId: string;
+  trips: DirectoryContactTripSummary[];
+}
+
+export async function getContactTrips(
+  api: AxiosInstance,
+  contactId: string,
+): Promise<DirectoryContactTripsPayload> {
+  const { data } = await api.get<DirectoryContactTripsPayload>(
+    `/api/directory/contacts/${encodeURIComponent(contactId)}/trips`,
+  );
+  return data;
+}

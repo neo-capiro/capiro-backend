@@ -3,10 +3,12 @@ import {
   hasRequiredMemberIdentity,
   hasRequiredOfficeIdentity,
   hasRequiredStaffIdentity,
+  hasRequiredTripIdentity,
   type LegiStormCongressDistrictRecord,
   type LegiStormMemberRecord,
   type LegiStormOfficeRecord,
   type LegiStormStaffRecord,
+  type LegiStormTripRecord,
   type LegiStormVendorRecord,
 } from './legistorm-types.js';
 
@@ -136,6 +138,17 @@ export class LegiStormClient {
 
   fetchStaff(range: LegiStormDateRange): Promise<LegiStormPagedResult<LegiStormStaffRecord>> {
     return this.fetchPaged('/staff/list', range, hasRequiredStaffIdentity);
+  }
+
+  /**
+   * Privately Funded Travel (WS-F). Unlike districts, this DOES have an
+   * updated_from/updated_to window (verified against the spec), so it routes
+   * through the same fetchPaged path as member/office/staff. There is no
+   * /trips/retired-ids endpoint — no extra method for it, unlike
+   * fetchRetiredOfficeIds/fetchRetiredStaffIds.
+   */
+  fetchTrips(range: LegiStormDateRange): Promise<LegiStormPagedResult<LegiStormTripRecord>> {
+    return this.fetchPaged('/trips/list', range, hasRequiredTripIdentity);
   }
 
   fetchRetiredOfficeIds(): Promise<LegiStormRetiredIdsResult> {

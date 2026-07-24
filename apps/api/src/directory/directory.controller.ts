@@ -217,6 +217,14 @@ export class DirectoryController {
     return this.service.getMemberNews(contactId);
   }
 
+  // Privately funded travel (WS-F, LegiStorm gaps/enrichment plan). Works
+  // for a member OR staffer contactId. Global directory data — auth-gated
+  // by the class guard.
+  @Get('contacts/:contactId/trips')
+  contactTrips(@Param('contactId') contactId: string) {
+    return this.service.getContactTrips(contactId);
+  }
+
   @Post('contacts/:contactId/notes')
   createContactNote(
     @CurrentTenant() ctx: TenantContext,
