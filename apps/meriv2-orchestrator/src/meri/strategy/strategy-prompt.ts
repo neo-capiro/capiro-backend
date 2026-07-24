@@ -81,6 +81,7 @@ export interface StrategyStateNode {
   startsOn?: string | null;
   endsOn?: string | null;
   openEnded?: boolean;
+  dependsOnIds?: string[];
   meriAuthored?: boolean;
 }
 export interface StrategyState {
@@ -121,20 +122,51 @@ const NODE_PROPS = {
   status: { type: 'string', enum: [...STATUSES] },
   startsOn: { type: 'string', description: 'YYYY-MM-DD, within the shown FY window' },
   endsOn: { type: 'string', description: 'YYYY-MM-DD, optional (omit for a point event)' },
+  sources: {
+    type: 'array',
+    items: {
+      type: 'object',
+      additionalProperties: false,
+      properties: {
+        section: { type: 'string', description: 'A Client context section heading this node is grounded in.' },
+        ref: { type: 'string', description: 'Optional finer reference (row/heading).' },
+      },
+      required: ['section'],
+    },
+    description: 'The context section(s) that ground this node (A9). Cite what you used; do not invent client facts.',
+  },
 } as const;
 
 export const PROPOSE_STRATEGY_DRAFT_TOOL = {
   name: 'propose_strategy_draft',
   description:
-    'Return the drafted strategy: a 1-2 sentence plan summary and the ordered plan nodes. Call this when ready. Every node needs kind, subject, title, and a real startsOn date (YYYY-MM-DD) placed where the work actually happens across the PPBE / congressional / firm cycles.',
+    'Return the drafted strategy: a 1-2 sentence plan summary and the ordered plan nodes. Call this when ready. Every node needs kind, subject, title, and a real startsOn date (YYYY-MM-DD) placed where the work actually happens across the PPBE / congressional / firm cycles. A step that cannot begin until an earlier step finishes should list that step in dependsOn.',
+  // A7: constrained decoding on models that support it (stripped otherwise by
+  // request-scoped-llm.client's modelSupportsStrict gate) — cuts malformed/
+  // truncated tool_use JSON at the source, ahead of sanitizeDraftNodes.
+  strict: true,
   input_schema: {
     type: 'object',
+    additionalProperties: false,
     properties: {
       summary: { type: 'string', description: 'A 1-2 sentence summary of the plan.' },
       nodes: {
         type: 'array',
         description: 'The ordered plan nodes.',
-        items: { type: 'object', properties: NODE_PROPS, required: ['kind', 'subject', 'title', 'startsOn'] },
+        items: {
+          type: 'object',
+          additionalProperties: false,
+          properties: {
+            ...NODE_PROPS,
+            dependsOn: {
+              type: 'array',
+              items: { type: 'integer' },
+              description:
+                '0-based indexes of OTHER nodes in this list that must complete before this step (blockers). A gate/decision a step waits on belongs here. Omit or [] if none.',
+            },
+          },
+          required: ['kind', 'subject', 'title', 'startsOn'],
+        },
       },
     },
     required: ['summary', 'nodes'],
@@ -144,9 +176,12 @@ export const PROPOSE_STRATEGY_DRAFT_TOOL = {
 export const PROPOSE_PLAN_EDITS_TOOL = {
   name: 'propose_plan_edits',
   description:
-    'Return your reply and any edits to the existing plan. op is add|update|remove|retime. add needs kind/subject/title/startsOn; update/remove/retime need the target nodeId. For a question needing no change, pass an empty edits array.',
+    'Return your reply and any edits to the existing plan. op is add|update|remove|retime. add needs kind/subject/title/startsOn; update/remove/retime need the target nodeId. dependsOn lists the node ids this step is blocked by (existing nodes only). For a question needing no change, pass an empty edits array.',
+  // A7: constrained decoding on models that support it (see PROPOSE_STRATEGY_DRAFT_TOOL).
+  strict: true,
   input_schema: {
     type: 'object',
+    additionalProperties: false,
     properties: {
       reply: { type: 'string', description: 'Your conversational reply to the user.' },
       summary: { type: 'string', description: 'Updated 1-2 sentence plan summary (optional).' },
@@ -154,10 +189,17 @@ export const PROPOSE_PLAN_EDITS_TOOL = {
         type: 'array',
         items: {
           type: 'object',
+          additionalProperties: false,
           properties: {
             op: { type: 'string', enum: ['add', 'update', 'remove', 'retime'] },
             nodeId: { type: 'string', description: 'Target node id for update/remove/retime.' },
             ...NODE_PROPS,
+            dependsOn: {
+              type: 'array',
+              items: { type: 'string' },
+              description:
+                'Node ids this step depends on (must be EXISTING nodes). Replaces the step\'s current edges.',
+            },
           },
           required: ['op'],
         },
@@ -171,6 +213,8 @@ export const PROPOSE_REFERENCE_EDITS_TOOL = {
   name: 'propose_reference_edits',
   description:
     'Return the edited reference rows as the FULL working set (preserve rows you are not changing). For the legislative (congress) calendar each row is {label, from, to} where from/to are quarter INDICES (0 = first shown FY Q1). For the PPBE reference each row is {fy, phase}. Include a short reply.',
+  // A7: constrained decoding on models that support it (see PROPOSE_STRATEGY_DRAFT_TOOL).
+  strict: true,
   input_schema: {
     type: 'object',
     properties: {
@@ -185,11 +229,27 @@ export const PROPOSE_REFERENCE_EDITS_TOOL = {
 
 const str = (v: unknown): string | undefined => (typeof v === 'string' && v.trim() ? v.trim() : undefined);
 
+/** A9: normalize per-node provenance to [{section, ref?}] (drops blanks). */
+function sanitizeSources(raw: unknown): Array<{ section: string; ref?: string }> | undefined {
+  if (!Array.isArray(raw)) return undefined;
+  const out = raw
+    .filter((s): s is Record<string, unknown> => !!s && typeof s === 'object')
+    .map((s) => ({ section: str(s.section), ref: str(s.ref) }))
+    .filter((s) => !!s.section)
+    .map((s) => (s.ref ? { section: s.section as string, ref: s.ref } : { section: s.section as string }));
+  return out.length ? out : undefined;
+}
+
 export function sanitizeDraftNodes(raw: unknown): Array<Record<string, unknown>> {
   if (!Array.isArray(raw)) return [];
-  return raw
-    .filter((n): n is Record<string, unknown> => !!n && typeof n === 'object')
-    .map((n) => ({
+  // A3: dependsOn values coming off the wire are 0-based indexes into `raw` AS THE
+  // MODEL RETURNED IT. The filter/sort/slice below all change array positions, so we
+  // carry each node's originalIndex through the pipeline and remap dependsOn against
+  // the FINAL array once it settles (below), instead of passing the raw indexes through.
+  const withOriginalIndex = raw
+    .map((n, originalIndex) => ({ n, originalIndex }))
+    .filter((e): e is { n: Record<string, unknown>; originalIndex: number } => !!e.n && typeof e.n === 'object')
+    .map(({ n, originalIndex }) => ({
       kind: str(n.kind),
       subject: str(n.subject),
       title: str(n.title),
@@ -197,9 +257,31 @@ export function sanitizeDraftNodes(raw: unknown): Array<Record<string, unknown>>
       status: str(n.status),
       startsOn: str(n.startsOn),
       endsOn: str(n.endsOn),
+      dependsOn: Array.isArray(n.dependsOn)
+        ? n.dependsOn.filter((x): x is number => Number.isInteger(x))
+        : undefined,
+      sources: sanitizeSources(n.sources), // A9
+      originalIndex,
     }))
     .filter((n) => n.kind && n.subject && n.title && n.startsOn)
+    // A9: coherent truncation — keep the EARLIEST 60 (sorted by start date),
+    // never an arbitrary tail-drop mid-sequence.
+    .sort((a, b) => String(a.startsOn).localeCompare(String(b.startsOn)))
     .slice(0, 60);
+
+  // originalIndex -> final position in the array returned below.
+  const finalIndexByOriginal = new Map<number, number>();
+  withOriginalIndex.forEach(({ originalIndex }, finalIndex) => finalIndexByOriginal.set(originalIndex, finalIndex));
+
+  return withOriginalIndex.map(({ originalIndex, dependsOn, ...node }, finalIndex) => ({
+    ...node,
+    // Remap original-index -> final-index; drop edges to nodes that didn't survive
+    // filtering/truncation and any self-reference (dangling/incorrect edges must not
+    // silently point at the wrong node).
+    dependsOn: dependsOn
+      ?.map((idx) => finalIndexByOriginal.get(idx))
+      .filter((idx): idx is number => idx !== undefined && idx !== finalIndex),
+  }));
 }
 
 export function sanitizePlanEdits(raw: unknown): Array<Record<string, unknown>> {
@@ -216,9 +298,21 @@ export function sanitizePlanEdits(raw: unknown): Array<Record<string, unknown>> 
       }
       if (typeof e.note === 'string') out.note = e.note;
       if (typeof e.openEnded === 'boolean') out.openEnded = e.openEnded;
+      // A3: node-id edges (existing nodes only; api-strategy validates existence).
+      if (Array.isArray(e.dependsOn)) {
+        out.dependsOn = e.dependsOn.filter((x): x is string => typeof x === 'string');
+      }
+      // A9: preserve an explicit empty array (clears provenance) same as dependsOn above;
+      // only omit the key when the model didn't send a sources array at all.
+      if (Array.isArray(e.sources)) out.sources = sanitizeSources(e.sources) ?? [];
       return out;
     })
     .filter((e) => typeof e.op === 'string' && ops.has(e.op as string))
+    // A9: coherent truncation, mirroring sanitizeDraftNodes — never an arbitrary
+    // tail-drop. Edits without a startsOn (e.g. `remove`, dateless `update`) sort
+    // first (so a stale-node removal isn't silently dropped), then dated ops
+    // (add/retime/update) sort ascending so the most imminent survive the cut.
+    .sort((a, b) => String(a.startsOn ?? '').localeCompare(String(b.startsOn ?? '')))
     .slice(0, 60);
 }
 
@@ -273,7 +367,9 @@ function renderPlan(s: StrategyState): string {
   return s.nodes
     .map(
       (n) =>
-        `- [${n.id}] ${n.kind}/${n.subject} · "${n.title}"${n.startsOn ? ` · ${n.startsOn}${n.endsOn ? `→${n.endsOn}` : ''}` : ''} · ${n.status}`,
+        `- [${n.id}] ${n.kind}/${n.subject} · "${n.title}"${n.startsOn ? ` · ${n.startsOn}${n.endsOn ? `→${n.endsOn}` : ''}` : ''} · ${n.status}${
+          n.dependsOnIds?.length ? ` · depends on ${n.dependsOnIds.map((d) => `[${d}]`).join(', ')}` : ''
+        }`,
     )
     .join('\n');
 }
@@ -281,7 +377,11 @@ function renderPlan(s: StrategyState): string {
 const PERSONA =
   'You are Meri, a government-affairs strategist. You turn a client goal into a concrete, date-placed plan of steps (actions, decisions, gates, milestones, risks) aligned to the federal budget (PPBE), the congressional calendar, and the firm’s own operating rhythm.';
 
-export function buildDraftSystemPrompt(input: StrategyDraftInput, packText: string): string {
+export function buildDraftSystemPrompt(
+  input: StrategyDraftInput,
+  packText: string,
+  healthNote?: string,
+): string {
   return [
     PERSONA,
     MERI_GROUNDING_INVARIANT,
@@ -293,16 +393,21 @@ export function buildDraftSystemPrompt(input: StrategyDraftInput, packText: stri
     `# Firm phases\n${renderFirmPhases(input.firmPhases)}`,
     `# Reference calendars\n${renderReference(input.reference)}`,
     `# Client context\n${packText}`,
+    healthNote ? `# Grounding health\n${healthNote}` : '',
     input.attachments?.length
       ? `# Attached documents (user-provided grounding)\n${renderAttachments(input.attachments)}`
       : '',
-    '# How to answer\nCall propose_strategy_draft with a 1-2 sentence summary and the ordered nodes. Ground every node in the context above (including any attached documents); do not invent client facts. Place dates where the work actually happens.',
+    '# How to answer\nCall propose_strategy_draft with a 1-2 sentence summary and the ordered nodes. Ground every node in the context above (including any attached documents); do not invent client facts. Place dates where the work actually happens. For each node, cite the grounding section(s) in `sources`.',
   ]
     .filter(Boolean)
     .join('\n\n');
 }
 
-export function buildAssistantSystemPrompt(input: StrategyAssistantInput, packText: string): string {
+export function buildAssistantSystemPrompt(
+  input: StrategyAssistantInput,
+  packText: string,
+  healthNote?: string,
+): string {
   const focus =
     input.scope === 'node' && input.nodeId
       ? `# Focus\nThe user is editing node [${input.nodeId}]. Prefer edits to that node unless they clearly ask for more.`
@@ -316,6 +421,7 @@ export function buildAssistantSystemPrompt(input: StrategyAssistantInput, packTe
     `# Firm phases\n${renderFirmPhases(input.firmPhases)}`,
     `# Reference calendars\n${renderReference(input.reference)}`,
     `# Client context\n${packText}`,
+    healthNote ? `# Grounding health\n${healthNote}` : '',
     input.attachments?.length
       ? `# Attached documents (user-provided grounding)\n${renderAttachments(input.attachments)}`
       : '',

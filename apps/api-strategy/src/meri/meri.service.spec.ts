@@ -54,13 +54,16 @@ function makeTx(store: Store) {
   const spNode = {
     createMany: async ({ data }: { data: Rec[] }) => {
       for (const d of data) {
-        const id = store.nextId('node');
+        // A3: production pre-generates a real uuid per node (`draftNode`'s
+        // explicit `id`) so dependsOn indexes resolve to it — a real createMany
+        // persists that id verbatim, so the mock must not stomp it.
+        const id = (d.id as string | undefined) ?? store.nextId('node');
         store.nodes.set(id, { ...d, id, createdAt: now });
       }
       return { count: data.length };
     },
     create: async ({ data }: { data: Rec }) => {
-      const id = store.nextId('node');
+      const id = (data.id as string | undefined) ?? store.nextId('node');
       const rec = { ...data, id, createdAt: now };
       store.nodes.set(id, rec);
       return rec;
@@ -71,6 +74,11 @@ function makeTx(store: Store) {
       if (where.strategyId && rec.strategyId !== where.strategyId) return null;
       return rec;
     },
+    // resolveEditDeps' DB-existence check for edit-op dependsOn.
+    findMany: async ({ where }: { where: { strategyId: string; id: { in: string[] } } }) =>
+      [...store.nodes.values()].filter(
+        (n) => n.strategyId === where.strategyId && where.id.in.includes(n.id as string),
+      ),
     delete: async ({ where }: { where: { id: string } }) => {
       const rec = store.nodes.get(where.id);
       store.nodes.delete(where.id);
@@ -128,7 +136,10 @@ function makeTx(store: Store) {
   };
   // Cross-schema client-existence check runs as tx.$queryRaw inside withTenant.
   const $queryRaw = async () => store.clientRows;
-  return { spNode, spStrategy, $queryRaw } as unknown as import('../../generated/prisma-client/index.js').Prisma.TransactionClient;
+  // A2/A6: the sibling dependency-edge strip on delete runs as tx.$executeRaw
+  // (raw array_remove); the mock is a no-op returning 0 affected rows.
+  const $executeRaw = async () => 0;
+  return { spNode, spStrategy, $queryRaw, $executeRaw } as unknown as import('../../generated/prisma-client/index.js').Prisma.TransactionClient;
 }
 
 function makePrisma(store: Store) {
@@ -285,7 +296,12 @@ describe('MeriService.draft', () => {
 
   it('forwards a 3-FY window, firm phases and merged reference as grounding', async () => {
     const store = makeStore();
-    const orchestrator = { draft: jest.fn(async () => ({ summary: null, nodes: [] })) };
+    const orchestrator = {
+      draft: jest.fn(async () => ({
+        summary: null,
+        nodes: [{ kind: 'action', subject: 'deliverable', title: 'Step', startsOn: '2027-05-01' }],
+      })),
+    };
     const { svc } = makeService(orchestrator, store, {
       firmPhases: [{ label: 'Build', startFy: 2027, startQ: 1, endFy: 2027, endQ: 3, position: 0, id: 'p1' }],
       reference: {
@@ -345,7 +361,13 @@ describe('MeriService.draft', () => {
 
   it('resolves + forwards uploaded attachment text as grounding and references it in the note', async () => {
     const store = makeStore();
-    const orchestrator = { draft: jest.fn(async () => ({ summary: 's', provenance: [], nodes: [] })) };
+    const orchestrator = {
+      draft: jest.fn(async () => ({
+        summary: 's',
+        provenance: [],
+        nodes: [{ kind: 'action', subject: 'deliverable', title: 'Step', startsOn: '2027-05-01' }],
+      })),
+    };
     const { svc, versioning, attachmentsResolve } = makeService(orchestrator, store, {
       attachmentDocs: [{ filename: 'memo.pdf', text: 'FY27 shipbuilding memo' }],
     });
@@ -392,6 +414,61 @@ describe('MeriService.draft', () => {
 
     await expect(svc.draft(T, U, 'bearer', draftDto)).rejects.toThrow(/invalid node kind/);
     // Validation happens up front — the tx never opened.
+    expect(withTenantUser).not.toHaveBeenCalled();
+    expect(store.strategies.size).toBe(0);
+    expect(store.nodes.size).toBe(0);
+  });
+
+  it('remaps a dependsOn array INDEX to the real persisted uuid of its sibling (A3)', async () => {
+    const store = makeStore();
+    const orchestrator = {
+      draft: jest.fn(async () => ({
+        summary: null,
+        nodes: [
+          // Orchestrator only knows siblings by 0-based array index: node 0
+          // depends on node 1 ("B"), which hasn't been persisted yet.
+          { kind: 'action', subject: 'deliverable', title: 'Depends on B', startsOn: '2027-06-01', dependsOn: [1] },
+          { kind: 'action', subject: 'deliverable', title: 'B', startsOn: '2027-05-01' },
+        ],
+      })),
+    };
+    const { svc } = makeService(orchestrator, store);
+
+    const detail = (await svc.draft(T, U, 'bearer', draftDto)) as unknown as {
+      nodes: Array<{ id: string; title: string; dependsOnIds: string[] }>;
+    };
+
+    const a = detail.nodes.find((n) => n.title === 'Depends on B')!;
+    const b = detail.nodes.find((n) => n.title === 'B')!;
+    expect(a.dependsOnIds).toEqual([b.id]);
+    expect(a.dependsOnIds[0]).not.toBe('1'); // never the raw index
+    expect(a.dependsOnIds[0]).not.toBe(a.id); // never self
+  });
+
+  it('rejects a plan with hard verifier errors when STRATEGY_VERIFY_BLOCK=true (A6)', async () => {
+    const store = makeStore();
+    const orchestrator = {
+      draft: jest.fn(async () => ({
+        summary: null,
+        nodes: [
+          // "A" depends on "B" (index 1) but is scheduled to start BEFORE B
+          // starts — a hard dep-order verifier error.
+          { kind: 'action', subject: 'deliverable', title: 'A', startsOn: '2027-05-01', dependsOn: [1] },
+          { kind: 'action', subject: 'deliverable', title: 'B', startsOn: '2027-06-01' },
+        ],
+      })),
+    };
+    const { svc, withTenantUser } = makeService(orchestrator, store);
+
+    const prevFlag = process.env.STRATEGY_VERIFY_BLOCK;
+    process.env.STRATEGY_VERIFY_BLOCK = 'true';
+    try {
+      await expect(svc.draft(T, U, 'bearer', draftDto)).rejects.toThrow(/can't be saved yet/);
+    } finally {
+      if (prevFlag === undefined) delete process.env.STRATEGY_VERIFY_BLOCK;
+      else process.env.STRATEGY_VERIFY_BLOCK = prevFlag;
+    }
+    // The gate runs before the tx opens — nothing persisted.
     expect(withTenantUser).not.toHaveBeenCalled();
     expect(store.strategies.size).toBe(0);
     expect(store.nodes.size).toBe(0);
@@ -490,6 +567,84 @@ describe('MeriService.assistant', () => {
     // Current, unchanged state is returned.
     expect(out.strategy.nodes).toHaveLength(3);
     expect(store.nodes.size).toBe(3);
+  });
+
+  it('surfaces a degraded groundingHealth on a no-op (empty edit-set) question', async () => {
+    const store = makeStore();
+    seedStrategy(store);
+    const orchestrator = {
+      assistant: jest.fn(async () => ({
+        reply: 'I could not confirm the client profile, so treat this with caution.',
+        summary: null,
+        provenance: [],
+        edits: [],
+        groundingHealth: { status: 'degraded', missingRequired: ['Client profile'] },
+      })),
+    };
+    const { svc } = makeService(orchestrator, store);
+
+    const out = (await svc.assistant(T, U, 'bearer', 'S1', dto)) as {
+      strategy: { groundingHealth?: { status: string; missingRequired: string[] } };
+    };
+
+    // A pure question must not silently drop a degraded grounding signal — the
+    // web banner relies on strategy.groundingHealth to warn on partial info.
+    expect(out.strategy.groundingHealth).toEqual({
+      status: 'degraded',
+      missingRequired: ['Client profile'],
+    });
+  });
+
+  it('resolves an edit-op dependsOn: dedupes, drops self-refs and unknown ids (resolveEditDeps)', async () => {
+    const store = makeStore();
+    const { n1, n3 } = seedStrategy(store);
+    const orchestrator = {
+      assistant: jest.fn(async () => ({
+        reply: 'Linked the steps',
+        summary: null,
+        edits: [
+          // n1 -> [n1 (self, duplicated), n3 (a real sibling), an id that
+          // doesn't exist in this strategy at all.
+          { op: 'update', nodeId: n1, dependsOn: [n1, n1, n3, 'does-not-exist'] },
+        ],
+      })),
+    };
+    const { svc } = makeService(orchestrator, store);
+
+    await svc.assistant(T, U, 'bearer', 'S1', dto);
+
+    // Self-reference + duplicate collapse, and the DB-existence check drops the
+    // unknown id — only the real sibling n3 survives.
+    expect(store.nodes.get(n1)!.dependsOnIds).toEqual([n3]);
+  });
+
+  it('rolls back an edit-set that leaves hard verifier errors when STRATEGY_VERIFY_BLOCK=true (A6)', async () => {
+    const store = makeStore();
+    const { n1, n3 } = seedStrategy(store); // n1 starts 2027-02-01, n3 starts 2027-04-01
+    const orchestrator = {
+      assistant: jest.fn(async () => ({
+        reply: 'Linked the steps',
+        summary: 'should not stick',
+        edits: [
+          // n1 keeps its (earlier) start date but is now made to depend on the
+          // later-starting n3 — a hard dep-order verifier error post-apply.
+          { op: 'update', nodeId: n1, dependsOn: [n3] },
+        ],
+      })),
+    };
+    const { svc, versioning } = makeService(orchestrator, store);
+
+    const prevFlag = process.env.STRATEGY_VERIFY_BLOCK;
+    process.env.STRATEGY_VERIFY_BLOCK = 'true';
+    try {
+      await expect(svc.assistant(T, U, 'bearer', 'S1', dto)).rejects.toThrow(/would break the plan/);
+    } finally {
+      if (prevFlag === undefined) delete process.env.STRATEGY_VERIFY_BLOCK;
+      else process.env.STRATEGY_VERIFY_BLOCK = prevFlag;
+    }
+    // Full rollback: the dependsOn edit never stuck and the summary wasn't persisted.
+    expect(store.nodes.get(n1)!.dependsOnIds).toBeUndefined();
+    expect(store.strategies.get('S1')!.meriSummary).toBeNull();
   });
 
   it('rejects node-scope assist with no nodeId', async () => {

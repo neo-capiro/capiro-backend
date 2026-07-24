@@ -452,6 +452,73 @@ export function StrategyEditorPage() {
               </button>
             </div>
           )}
+          {/* A8: Meri drafted on incomplete context. */}
+          {s.groundingHealth?.status === 'degraded' && (
+            <div
+              onClick={(e) => e.stopPropagation()}
+              style={{
+                display: 'flex',
+                alignItems: 'flex-start',
+                gap: 10,
+                background: '#FFF6E5',
+                border: '1px solid #E0A94A',
+                borderRadius: 10,
+                padding: '11px 14px',
+                marginBottom: 14,
+                fontSize: 'var(--text-sm)',
+                color: 'var(--ink-2)',
+                lineHeight: 1.5,
+              }}
+            >
+              <div style={{ marginTop: 1 }}>
+                <Icon name="spark" size={15} color="#9A6A12" />
+              </div>
+              <div style={{ flex: 1 }}>
+                <b style={{ color: '#9A6A12' }}>Drafted on partial information.</b> Meri couldn't load:{' '}
+                {s.groundingHealth.missingRequired.join(', ') || 'some client context'}. Review the plan's
+                client-specific details before relying on it.
+              </div>
+            </div>
+          )}
+          {/* A6: realism-verifier findings from the last Meri draft/assist. */}
+          {s.violations && s.violations.length > 0 && (
+            <div
+              onClick={(e) => e.stopPropagation()}
+              style={{
+                background: s.violations.some((v) => v.severity === 'error') ? '#FDECEC' : '#FFF6E5',
+                border: `1px solid ${s.violations.some((v) => v.severity === 'error') ? 'var(--critical)' : '#E0A94A'}`,
+                borderRadius: 10,
+                padding: '11px 14px',
+                marginBottom: 14,
+                fontSize: 'var(--text-sm)',
+                color: 'var(--ink-2)',
+                lineHeight: 1.5,
+              }}
+            >
+              <b
+                style={{
+                  color: s.violations.some((v) => v.severity === 'error') ? 'var(--critical)' : '#9A6A12',
+                }}
+              >
+                Meri's realism check flagged {s.violations.length} item
+                {s.violations.length === 1 ? '' : 's'}
+              </b>
+              <ul style={{ margin: '6px 0 0', paddingLeft: 18 }}>
+                {[...s.violations]
+                  .sort((a, b) => (a.severity === b.severity ? 0 : a.severity === 'error' ? -1 : 1))
+                  .slice(0, 6)
+                  .map((v, i) => (
+                    <li
+                      key={i}
+                      style={{ color: v.severity === 'error' ? 'var(--critical)' : 'var(--ink-2)' }}
+                    >
+                      {v.message}
+                      {v.suggestion ? ` — ${v.suggestion}` : ''}
+                    </li>
+                  ))}
+              </ul>
+            </div>
+          )}
           <div style={{ zoom: 0.82 as unknown as number }}>
             <StrategyTimeline
               calendar={calendar}

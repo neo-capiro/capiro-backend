@@ -1,0 +1,17 @@
+{
+  "extends": "../../tsconfig.base.json",
+  "compilerOptions": {
+    "module": "commonjs",
+    "moduleResolution": "node",
+    "outDir": "dist",
+    "rootDir": "src",
+    "composite": true,
+    "esModuleInterop": true,
+    "skipLibCheck": true,
+    // Pure data/logic — no DOM or Node globals needed (builds in isolation in CI
+    // with only `typescript` in devDeps, exactly like @capiro/shared).
+    "lib": ["ES2022"]
+  },
+  "include": ["src/**/*"],
+  "exclude": ["**/*.spec.ts"]
+}

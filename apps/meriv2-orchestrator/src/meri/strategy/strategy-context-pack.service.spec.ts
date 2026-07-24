@@ -140,3 +140,43 @@ describe('StrategyContextPackService — slim (rail assistant)', () => {
     expect(fetched.has('search_memory')).toBe(false);
   });
 });
+
+describe('StrategyContextPackService — A8 pack health', () => {
+  it('is "ok" when every section resolves — only the documented Targets gap is optional-omitted', async () => {
+    const { svc } = build(RICH);
+    const pack = await svc.compile({ ctx: CTX, clientId: 'client-1', query: 'goal', slim: false });
+
+    expect(pack.health.status).toBe('ok');
+    expect(pack.health.missingRequired).toEqual([]);
+    expect(pack.health.omittedOptional).toEqual(['Targets (no read tool)']);
+  });
+
+  it('stays "ok" for a walled client — KG/prior-engagement land in omittedOptional, never missingRequired', async () => {
+    const walled = {
+      ...RICH,
+      query_knowledge_graph: { summary: '', nodes: [] },
+      search_memory: { results: [] },
+    };
+    const { svc } = build(walled);
+    const pack = await svc.compile({ ctx: CTX, clientId: 'client-1', query: 'goal', slim: false });
+
+    expect(pack.health.status).toBe('ok');
+    expect(pack.health.missingRequired).toEqual([]);
+    expect(pack.health.omittedOptional).toEqual(
+      expect.arrayContaining(['Knowledge graph', 'Prior engagement', 'Targets (no read tool)']),
+    );
+    expect(pack.health.omittedOptional).not.toContain('Client profile');
+  });
+
+  it('degrades to "degraded" with "Client profile" in missingRequired (never omittedOptional) when the profile fetch fails', async () => {
+    // Drop the get_client_context stub so the mock executor throws, exercising
+    // the run() catch path — the only way `omitted` can contain 'Client profile'.
+    const { get_client_context: _unused, ...noProfile } = RICH;
+    const { svc } = build(noProfile);
+    const pack = await svc.compile({ ctx: CTX, clientId: 'client-1', query: 'goal', slim: false });
+
+    expect(pack.health.status).toBe('degraded');
+    expect(pack.health.missingRequired).toEqual(['Client profile']);
+    expect(pack.health.omittedOptional).not.toContain('Client profile');
+  });
+});

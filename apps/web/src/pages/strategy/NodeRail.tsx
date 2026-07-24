@@ -564,6 +564,45 @@ function NodeEditor({
               style={{ ...fieldS, resize: 'none', lineHeight: 1.45 }}
             />
           </div>
+
+          {/* A3 dependency edges + A9 grounding provenance (read-only). */}
+          {(node.dependsOnIds.length > 0 || node.provenance?.sources?.length) && (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+              {node.dependsOnIds.length > 0 && (
+                <div>
+                  <span style={fieldLbl}>Depends on</span>
+                  <div style={{ fontSize: 'var(--text-xs)', color: 'var(--ink-2)' }}>
+                    {node.dependsOnIds.length} earlier step{node.dependsOnIds.length === 1 ? '' : 's'} must
+                    finish first
+                  </div>
+                </div>
+              )}
+              {node.provenance?.sources?.length ? (
+                <div>
+                  <span style={fieldLbl}>Grounded in</span>
+                  <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, marginTop: 2 }}>
+                    {node.provenance.sources.map((src, i) => (
+                      <span
+                        key={i}
+                        style={{
+                          fontSize: 'var(--text-2xs)',
+                          fontWeight: 600,
+                          color: 'var(--ink-2)',
+                          background: 'var(--bg-surface-2)',
+                          border: '1px solid var(--border-1)',
+                          borderRadius: 6,
+                          padding: '2px 7px',
+                        }}
+                      >
+                        {src.section}
+                        {src.ref ? ` · ${src.ref}` : ''}
+                      </span>
+                    ))}
+                  </div>
+                </div>
+              ) : null}
+            </div>
+          )}
         </div>
         )}
       </div>

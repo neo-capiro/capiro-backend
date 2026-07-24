@@ -1,8 +1,11 @@
 import {
+  ArrayMaxSize,
+  IsArray,
   IsBoolean,
   IsIn,
   IsOptional,
   IsString,
+  IsUUID,
   Matches,
   MaxLength,
 } from 'class-validator';
@@ -74,6 +77,14 @@ export class CreateNodeDto {
   @IsOptional()
   @IsBoolean()
   openEnded?: boolean;
+
+  /** Phase 2 (A2): sibling node ids that must complete before this step.
+   *  Intra-strategy references; existence + self-reference are enforced server-side. */
+  @IsOptional()
+  @IsArray()
+  @ArrayMaxSize(20)
+  @IsUUID(undefined, { each: true })
+  dependsOnIds?: string[];
 }
 
 /**
@@ -121,6 +132,13 @@ export class UpdateNodeDto {
   @IsOptional()
   @IsBoolean()
   openEnded?: boolean;
+
+  /** Phase 2 (A2): replace this step's dependency edges (full set, not a delta). */
+  @IsOptional()
+  @IsArray()
+  @ArrayMaxSize(20)
+  @IsUUID(undefined, { each: true })
+  dependsOnIds?: string[];
 
   @IsOptional()
   @IsString()

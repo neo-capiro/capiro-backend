@@ -35,6 +35,8 @@ export class NodeService {
       });
       if (!strat) throw new NotFoundException('Strategy not found');
 
+      const dependsOnIds = await this.resolveDependsOn(tx, strategyId, null, dto.dependsOnIds);
+
       const node = await tx.spNode.create({
         data: {
           tenantId,
@@ -49,6 +51,7 @@ export class NodeService {
           endsOn,
           // "Ongoing" is a risk-only concept — never set it for other kinds.
           openEnded: dto.kind === 'risk' ? (dto.openEnded ?? false) : false,
+          dependsOnIds: dependsOnIds ?? [],
           meriAuthored: false,
           createdByUserId: clerkUserId,
         },
@@ -96,6 +99,8 @@ export class NodeService {
         throw new BadRequestException('endsOn must be on or after startsOn');
       }
 
+      const dependsOnIds = await this.resolveDependsOn(tx, strategyId, nodeId, dto.dependsOnIds);
+
       const data: Record<string, unknown> = {};
       const before: Record<string, unknown> = {};
       const set = <T>(key: keyof UpdateNodeDto, value: T, prev: T) => {
@@ -111,6 +116,7 @@ export class NodeService {
       if (dto.startsOn !== undefined) set('startsOn', newStarts, node.startsOn);
       if (dto.endsOn !== undefined) set('endsOn', newEnds, node.endsOn);
       if (dto.openEnded !== undefined) set('openEnded', dto.openEnded, node.openEnded);
+      if (dto.dependsOnIds !== undefined) set('dependsOnIds', dependsOnIds ?? [], node.dependsOnIds);
 
       // "Ongoing" is risk-only: converting a node away from risk clears the flag
       // so it isn't stuck "Ongoing" with a permanently-disabled end date.
@@ -154,13 +160,26 @@ export class NodeService {
       if (!node) throw new NotFoundException('Node not found');
 
       await tx.spNode.delete({ where: { id: nodeId } });
+      // A2: strip the deleted id from every sibling's dependency edges, in the
+      // same tx and BEFORE the snapshot. Raw UPDATE (Prisma has no atomic
+      // scalar-list remove); capiro_app bypasses RLS, so the tenant filter is
+      // explicit and load-bearing.
+      const unlinked = await tx.$executeRaw`
+        UPDATE sp_node
+           SET depends_on_ids = array_remove(depends_on_ids, ${nodeId}::uuid)
+         WHERE strategy_id = ${strategyId}::uuid
+           AND tenant_id = ${tenantId}::uuid
+           AND ${nodeId}::uuid = ANY (depends_on_ids)`;
       await this.bump(tx, strategyId, clerkUserId);
       await this.versioning.cutVersion(tx, {
         tenantId,
         strategyId,
         authorKind: 'person',
         authorUserId: clerkUserId,
-        note: `Deleted ${node.title}`,
+        note:
+          unlinked > 0
+            ? `Deleted ${node.title} (unlinked from ${unlinked} step${unlinked === 1 ? '' : 's'})`
+            : `Deleted ${node.title}`,
         coalesce: false,
       });
       await this.versioning.logActivity(tx, {
@@ -229,6 +248,38 @@ export class NodeService {
       });
       return loadStrategyDetail(tx, strategyId);
     });
+  }
+
+  /**
+   * A2: validate + normalize an incoming dependency-edge set. Dedupes, rejects a
+   * self-reference, and rejects any id that isn't a node in THIS strategy
+   * (referential integrity — a dangling edge is invalid data). Cycles are NOT
+   * blocked here: manual edits are advisory-only, so a cycle surfaces as a
+   * verifier warning (A6), never a hard block. Returns undefined when the field
+   * was absent (leave the column untouched).
+   */
+  private async resolveDependsOn(
+    tx: Prisma.TransactionClient,
+    strategyId: string,
+    selfId: string | null,
+    dependsOnIds: string[] | undefined,
+  ): Promise<string[] | undefined> {
+    if (dependsOnIds === undefined) return undefined;
+    const unique = [...new Set(dependsOnIds)];
+    if (selfId && unique.includes(selfId)) {
+      throw new BadRequestException('A step cannot depend on itself');
+    }
+    if (unique.length === 0) return [];
+    const rows = await tx.spNode.findMany({
+      where: { strategyId, id: { in: unique } },
+      select: { id: true },
+    });
+    const found = new Set(rows.map((r) => r.id));
+    const missing = unique.filter((id) => !found.has(id));
+    if (missing.length) {
+      throw new BadRequestException(`Unknown dependency step(s): ${missing.join(', ')}`);
+    }
+    return unique;
   }
 
   private async bump(

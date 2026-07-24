@@ -17,6 +17,7 @@
   },
   "dependencies": {
     "@capiro/auth": "workspace:*",
+    "@capiro/strategy-verifier": "workspace:*",
     "@clerk/backend": "^1.13.5",
     "@nestjs/common": "^10.4.4",
     "@nestjs/config": "^3.2.3",

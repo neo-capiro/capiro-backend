@@ -38,6 +38,27 @@ export interface StrategyListItem {
   nodeCount: number;
 }
 
+/** A9: per-node grounding — the pack section(s) a Meri-authored node cites. */
+export interface NodeProvenance {
+  sources?: Array<{ section: string; ref?: string }>;
+}
+
+/** A4/A6: a realism finding from the shared strategy verifier. */
+export interface Violation {
+  code: string;
+  severity: 'error' | 'warning';
+  nodeIds: string[];
+  message: string;
+  suggestion?: string;
+}
+
+/** A8: whether Meri's Client Context Pack was complete for the last draft/assist. */
+export interface GroundingHealth {
+  status: 'ok' | 'degraded';
+  missingRequired: string[];
+  omittedOptional: string[];
+}
+
 export interface StrategyNode {
   id: string;
   strategyId: string;
@@ -50,6 +71,8 @@ export interface StrategyNode {
   startsOn: string; // ISO date
   endsOn: string | null;
   openEnded: boolean;
+  dependsOnIds: string[]; // A2/A3: sibling steps that must complete first
+  provenance: NodeProvenance | null; // A9
   meriAuthored: boolean;
   createdAt: string;
   updatedAt: string;
@@ -83,6 +106,10 @@ export interface StrategyDetail {
   updatedAt: string;
   nodes: StrategyNode[];
   artifacts: StrategyNodeArtifact[];
+  /** A6: verifier findings from the last draft/assist (transient — recomputed per Meri call). */
+  violations?: Violation[];
+  /** A8: grounding health from the last Meri draft/assist. */
+  groundingHealth?: GroundingHealth | null;
 }
 
 export interface FirmPhase {

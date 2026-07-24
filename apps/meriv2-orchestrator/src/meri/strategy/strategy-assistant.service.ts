@@ -9,7 +9,17 @@ import {
   type ToolLoopResponse,
 } from '../request-scoped-llm.client.js';
 import { PrismaService } from '../../prisma/prisma.service.js';
-import { StrategyContextPackService, type PackProvenance } from './strategy-context-pack.service.js';
+import {
+  StrategyContextPackService,
+  type PackHealth,
+  type PackProvenance,
+} from './strategy-context-pack.service.js';
+import {
+  verifyPlan,
+  type VerifierNode,
+  type VerifyPlanInput,
+  type Violation,
+} from '@capiro/strategy-verifier';
 import {
   PROPOSE_PLAN_EDITS_TOOL,
   PROPOSE_REFERENCE_EDITS_TOOL,
@@ -20,13 +30,19 @@ import {
   sanitizeDraftNodes,
   sanitizePlanEdits,
   sanitizeRefRows,
+  type ReferenceRowLite,
   type StrategyAssistantInput,
   type StrategyDraftInput,
   type StrategyReferenceAssistInput,
 } from './strategy-prompt.js';
 
 const MAX_ROUNDS = 8;
-const MAX_TOKENS = 8192;
+// A7.4b: 12288 (was 8192) — Sonnet 5's heavier tokenizer + dependsOn/sources on a
+// 60-node plan can exceed 8192 output tokens (silent truncation). Stays < the ~16K
+// non-streaming safety line.
+const MAX_TOKENS = 12288;
+// A5: how many times to re-prompt the model to fix hard verifier violations.
+const MAX_REPAIRS = 2;
 
 interface ContentBlock {
   type: string;
@@ -77,14 +93,89 @@ export class StrategyAssistantService {
       query: input.goal ?? '',
       slim: false,
     });
-    const system = buildDraftSystemPrompt(input, pack.text);
+    const baseSystem = buildDraftSystemPrompt(input, pack.text, healthNoteFrom(pack.health));
     const userText = input.goal?.trim()
       ? `Draft the ${input.type} strategy for this goal: ${input.goal.trim()}`
       : `Draft a ${input.type} strategy for this client.`;
-    const result = await this.runTerminal(system, userText, PROPOSE_STRATEGY_DRAFT_TOOL, ctx, 'meriv2_strategy_draft');
-    const summary = str(result.input?.summary) ?? result.text ?? 'Drafted a plan from your goal.';
-    const nodes = sanitizeDraftNodes(result.input?.nodes);
-    return { summary, nodes, provenance: pack.provenance };
+
+    // A5: LLM proposes → verifier disposes. Draft, verify against the grounding,
+    // and if the plan has hard ordering/calendar errors, back-prompt with the
+    // exact problems and re-draft (≤2 repairs). api-strategy re-verifies the
+    // persisted plan authoritatively (A6) — this just cuts errors at the source.
+    let summary = 'Drafted a plan from your goal.';
+    let nodes: Array<Record<string, unknown>> = [];
+    let violations: Violation[] = [];
+    let repairSuffix = '';
+    for (let attempt = 0; attempt <= MAX_REPAIRS; attempt += 1) {
+      const result = await this.runTerminal(
+        baseSystem + repairSuffix,
+        userText,
+        PROPOSE_STRATEGY_DRAFT_TOOL,
+        ctx,
+        'meriv2_strategy_draft',
+      );
+      summary = str(result.input?.summary) ?? result.text ?? summary;
+      const rawNodes = result.input?.nodes;
+      const rawNodeCount = Array.isArray(rawNodes) ? rawNodes.length : 0;
+      nodes = sanitizeDraftNodes(rawNodes);
+      const check = verifyPlan(this.draftVerifierInput(input, nodes));
+      violations = check.violations;
+      // A deliberate empty plan (model explicitly proposed zero nodes) is a clean
+      // success. But sanitizeDraftNodes can strip a non-empty/malformed response
+      // (missing kind/subject/title/startsOn) down to zero nodes, and a forced-finish
+      // failure returns input:null (rawNodeCount 0) too — neither is a real "nothing
+      // to draft" signal, so only nodes.length === 0 short-circuits when the model
+      // actually proposed zero nodes; otherwise keep repairing.
+      const deliberatelyEmpty = result.input !== null && rawNodeCount === 0;
+      if (deliberatelyEmpty || (nodes.length > 0 && check.errorCount === 0)) break;
+      const errs = check.violations.filter((v) => v.severity === 'error').map((v) => `- ${v.message}`);
+      this.logger.debug(`draft repair ${attempt + 1}: ${check.errorCount} error(s)`);
+      repairSuffix = `\n\n# FIX THESE PROBLEMS\nYour previous plan had impossible ordering/calendar issues. Re-draft correcting ALL of these:\n${errs.join('\n')}`;
+    }
+    return { summary, nodes, provenance: pack.provenance, violations, groundingHealth: pack.health };
+  }
+
+  /** Build a verifier input from proposed draft nodes: synthetic index-ids, and
+   *  dependsOn indexes → those ids (out-of-range / self indexes dropped). */
+  private draftVerifierInput(
+    input: StrategyDraftInput,
+    nodes: Array<Record<string, unknown>>,
+  ): VerifyPlanInput {
+    const vnodes: VerifierNode[] = nodes.map((n, idx) => ({
+      id: String(idx),
+      kind: String(n.kind ?? ''),
+      subject: String(n.subject ?? ''),
+      title: String(n.title ?? ''),
+      startsOn: String(n.startsOn ?? ''),
+      endsOn: n.endsOn ? String(n.endsOn) : null,
+      dependsOnIds: Array.isArray(n.dependsOn)
+        ? (n.dependsOn as unknown[])
+            .filter(
+              (d): d is number =>
+                Number.isInteger(d) && (d as number) >= 0 && (d as number) < nodes.length && d !== idx,
+            )
+            .map((d) => String(d))
+        : [],
+    }));
+    const ref = (rows: ReferenceRowLite[] | undefined) =>
+      (rows ?? []).map((r) => ({
+        label: r.label,
+        fy: r.fy ?? null,
+        startsOn: r.startsOn ?? null,
+        endsOn: r.endsOn ?? null,
+      }));
+    return {
+      strategyType: input.type,
+      nodes: vnodes,
+      fiscal: {
+        today: input.fiscal?.today ?? null,
+        fys: input.fiscal?.fys ?? [],
+        fyLabels: input.fiscal?.fyLabels ?? [],
+        focalFy: input.fiscal?.focalFy ?? '',
+      },
+      congress: ref(input.reference?.congress),
+      ppbeCurrentPhases: ref(input.reference?.ppbeCurrentPhases),
+    };
   }
 
   async assistant(ctx: MeriContext, input: StrategyAssistantInput) {
@@ -94,13 +185,14 @@ export class StrategyAssistantService {
       query: input.instruction,
       slim: true,
     });
-    const system = buildAssistantSystemPrompt(input, pack.text);
+    const system = buildAssistantSystemPrompt(input, pack.text, healthNoteFrom(pack.health));
     const result = await this.runTerminal(system, input.instruction, PROPOSE_PLAN_EDITS_TOOL, ctx, 'meriv2_strategy_edit');
     return {
       reply: str(result.input?.reply) ?? result.text ?? 'Done.',
       summary: str(result.input?.summary) ?? null,
       edits: sanitizePlanEdits(result.input?.edits),
       provenance: pack.provenance,
+      groundingHealth: pack.health,
     };
   }
 
@@ -166,25 +258,32 @@ export class StrategyAssistantService {
       });
     }
 
-    // Budget spent without a tool call — force a tool-free synthesis for a reply.
+    // A7.4: budget spent without a tool call — FORCE the terminal tool so even the
+    // degraded path returns a schema-valid plan/edits, never prose-only.
     try {
       const resp = await this.llm.completeWithTools({
-        system: `${system}\n\n# FINISH NOW\nYou have used your budget. Do NOT call any tool. Reply in prose with your recommendation.`,
+        system: `${system}\n\n# FINISH NOW\nYou have used your budget. Call the ${tool.name} tool now with your best answer given the work so far.`,
         messages,
         tools: [tool as AnthropicToolSchema],
-        toolChoice: 'none',
+        toolChoice: { type: 'tool', name: tool.name },
         maxTokens: MAX_TOKENS,
         timeoutMs: this.callTimeoutMs,
       });
       void this.meterRound(ctx, resp, workflow);
-      const text = (resp.content as ContentBlock[])
+      const content = resp.content as ContentBlock[];
+      const terminal = content.find(
+        (b): b is ContentBlock & { name: string; input?: Record<string, unknown> } =>
+          b.type === 'tool_use' && b.name === tool.name,
+      );
+      const text = content
         .filter((b) => b.type === 'text' && typeof b.text === 'string')
         .map((b) => b.text as string)
         .join('\n')
         .trim();
+      if (terminal) return { input: terminal.input ?? {}, text: text || lastText };
       if (text) lastText = text;
     } catch (e) {
-      this.logger.warn(`strategy ${workflow} synthesis failed: ${(e as Error).message}`);
+      this.logger.warn(`strategy ${workflow} forced-finish failed: ${(e as Error).message}`);
     }
     return { input: null, text: lastText || 'I could not complete that — please try again.' };
   }
@@ -199,5 +298,13 @@ export class StrategyAssistantService {
   }
 }
 
+/** A8: a degraded-grounding note for the system prompt (undefined when healthy). */
+function healthNoteFrom(health: PackHealth): string | undefined {
+  if (health.status !== 'degraded') return undefined;
+  return `Some required context could not be loaded: ${
+    health.missingRequired.join(', ') || 'unknown'
+  }. Do NOT invent facts to fill these gaps — scope the plan to what you actually know and flag the uncertainty.`;
+}
+
 /** Re-export for the controller's response typing. */
-export type { PackProvenance };
+export type { PackHealth, PackProvenance };

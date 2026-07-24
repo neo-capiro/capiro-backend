@@ -151,6 +151,8 @@ model SpNode {
   endsOn          DateTime?     @map("ends_on") @db.Date // null = point event
   openEnded       Boolean       @default(false) @map("open_ended") // ongoing risk ⇒ "Ongoing" label
   meriAuthored    Boolean       @default(false) @map("meri_authored")
+  dependsOnIds    String[]      @map("depends_on_ids") @db.Uuid @default([]) // intra-strategy blocker node ids (Phase 2 A1)
+  provenance      Json?         @map("provenance") // A9: per-node grounding (cited pack sections/facts)
   createdByUserId String        @map("created_by_user_id")
   createdAt       DateTime      @default(now()) @map("created_at")
   updatedAt       DateTime      @updatedAt @map("updated_at")

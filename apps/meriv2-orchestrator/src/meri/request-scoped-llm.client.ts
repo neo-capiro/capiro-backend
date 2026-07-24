@@ -30,6 +30,9 @@ export interface AnthropicToolSchema {
   name: string;
   description: string;
   input_schema: Record<string, unknown>;
+  /** A7: constrained decoding (structured outputs). Sent only to models that
+   *  support it — stripped otherwise (see modelSupportsStrict). */
+  strict?: boolean;
 }
 
 export interface ToolLoopResponse {
@@ -47,6 +50,14 @@ export interface ToolLoopResponse {
 
 const ANTHROPIC_URL = 'https://api.anthropic.com/v1/messages';
 
+/** A7: models with GA structured-outputs / strict tool use. Strict is stripped
+ *  for anything else (e.g. the current Sonnet 4.6 default) so a tenant's model
+ *  choice never 400s — server-side re-validation remains the invariant. */
+const STRICT_TOOL_MODELS = /claude-(sonnet-5|opus-4-8|opus-4-7|haiku-4-5|fable-5|mythos-5)/i;
+export function modelSupportsStrict(model: string): boolean {
+  return STRICT_TOOL_MODELS.test(model);
+}
+
 /** Shared params for one tool-use round (completeWithTools + its per-attempt helper). */
 export interface CompleteWithToolsParams {
   system: string;
@@ -54,7 +65,8 @@ export interface CompleteWithToolsParams {
   tools: AnthropicToolSchema[];
   maxTokens: number;
   timeoutMs?: number;
-  toolChoice?: 'auto' | 'none';
+  /** 'auto' (default) · 'none' (text-only) · {type:'tool',name} forces that tool (A7). */
+  toolChoice?: 'auto' | 'none' | { type: 'tool'; name: string };
   signal?: AbortSignal;
   onTextDelta?: (delta: string) => void;
 }
@@ -394,10 +406,21 @@ export class RequestScopedLlmClient implements LlmClient {
           model,
           max_tokens: params.maxTokens,
           system: params.system,
-          tools: params.tools,
-          // Default (undefined) = Anthropic `auto`. `'none'` forces a text-only
-          // synthesis turn (the loop's forced-completion mechanism).
-          ...(params.toolChoice === 'none' ? { tool_choice: { type: 'none' } } : {}),
+          // A7: keep `strict` only for models that support structured outputs;
+          // strip it otherwise so a non-supporting model never 400s on it.
+          tools: modelSupportsStrict(model)
+            ? params.tools
+            : params.tools.map((t) => ({
+                name: t.name,
+                description: t.description,
+                input_schema: t.input_schema,
+              })),
+          // undefined/'auto' → Anthropic default; 'none' → no tool; {type:'tool',name} → force it (A7).
+          ...(params.toolChoice === 'none'
+            ? { tool_choice: { type: 'none' } }
+            : params.toolChoice && typeof params.toolChoice === 'object'
+              ? { tool_choice: params.toolChoice }
+              : {}),
           ...(params.onTextDelta ? { stream: true } : {}),
           messages: params.messages,
         }),

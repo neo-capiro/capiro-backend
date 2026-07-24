@@ -32,6 +32,7 @@ export interface SnapshotNode {
   startsOn: string; // YYYY-MM-DD
   endsOn: string | null; // YYYY-MM-DD | null
   openEnded: boolean;
+  dependsOnIds: string[]; // A2: node-id edges (preserved on restore — ids are stable)
   meriAuthored: boolean;
   createdByUserId: string;
   createdAt: string; // ISO
@@ -79,6 +80,7 @@ export interface SnapshotNodeRow {
   startsOn: Date | string;
   endsOn: Date | string | null;
   openEnded: boolean;
+  dependsOnIds: string[];
   meriAuthored: boolean;
   createdByUserId: string;
   createdAt: Date | string;
@@ -114,6 +116,7 @@ export function buildSnapshot(
       startsOn: isoDate(n.startsOn)!,
       endsOn: isoDate(n.endsOn),
       openEnded: n.openEnded,
+      dependsOnIds: n.dependsOnIds ?? [],
       meriAuthored: n.meriAuthored,
       createdByUserId: n.createdByUserId,
       createdAt: isoDateTime(n.createdAt),

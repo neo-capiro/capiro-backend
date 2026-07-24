@@ -32,6 +32,7 @@ const node: SnapshotNodeRow = {
   startsOn: new Date('2027-02-06T00:00:00.000Z'),
   endsOn: null,
   openEnded: false,
+  dependsOnIds: ['n0'],
   meriAuthored: false,
   createdByUserId: 'user_a',
   createdAt: new Date('2026-07-01T12:30:00.000Z'),
@@ -46,6 +47,8 @@ describe('buildSnapshot', () => {
     expect(snap.nodes[0]!.startsOn).toBe('2027-02-06');
     expect(snap.nodes[0]!.endsOn).toBeNull();
     expect(snap.nodes[0]!.title).toBe('Submit request');
+    // A2: dependency edges are captured in the snapshot (survive restore).
+    expect(snap.nodes[0]!.dependsOnIds).toEqual(['n0']);
   });
 
   it('null targetDate stays null; empty node list allowed', () => {

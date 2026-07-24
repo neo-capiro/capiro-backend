@@ -3,6 +3,7 @@ import {
   RequestScopedLlmClient,
   parseAnthropicToolStream,
   classifyLlmError,
+  modelSupportsStrict,
 } from './request-scoped-llm.client';
 import { parseAiProviderHeader } from './meri.controller';
 import {
@@ -676,5 +677,200 @@ describe('parseAnthropicToolStream (2.4 token streaming)', () => {
     expect(res.content).toEqual([{ type: 'text', text: 'Done.' }]);
     expect(res.stopReason).toBe('end_turn');
     expect(res.usage.outputTokens).toBe(3);
+  });
+});
+
+describe('modelSupportsStrict (A7 structured-outputs eligibility)', () => {
+  it.each([
+    'claude-sonnet-5',
+    'claude-opus-4-8',
+    'claude-opus-4-7',
+    'claude-haiku-4-5',
+    'claude-fable-5',
+  ])('returns true for %s', (model) => {
+    expect(modelSupportsStrict(model)).toBe(true);
+  });
+
+  it("returns false for the current Sonnet 4.6 default (today's orchestrator default)", () => {
+    expect(modelSupportsStrict('claude-sonnet-4-6')).toBe(false);
+  });
+
+  it('returns false for an unrelated model string', () => {
+    expect(modelSupportsStrict('gpt-4o')).toBe(false);
+  });
+});
+
+describe('RequestScopedLlmClient.completeWithTools (A7 strict tool-schema wire handling)', () => {
+  const toolUseResponse = {
+    ok: true,
+    status: 200,
+    json: async () => ({
+      content: [
+        { type: 'tool_use', id: 'tu_1', name: 'search_congress_bills', input: { q: 'ndaa' } },
+      ],
+      stop_reason: 'tool_use',
+    }),
+  };
+  function mockToolFetch() {
+    const calls: Array<{ headers: Record<string, string>; body: Record<string, unknown> }> = [];
+    (global as unknown as { fetch: unknown }).fetch = jest.fn(
+      async (_url: string, init: { headers: Record<string, string>; body: string }) => {
+        calls.push({ headers: init.headers, body: JSON.parse(init.body) });
+        return toolUseResponse;
+      },
+    );
+    return calls;
+  }
+
+  const strictTool = [
+    {
+      name: 'search_congress_bills',
+      description: 'x',
+      input_schema: { type: 'object', properties: { q: { type: 'string' } } },
+      strict: true,
+    },
+  ];
+
+  it('sends a strict:true tool schema AS-IS when the resolved model supports strict', async () => {
+    const calls = mockToolFetch();
+    // No tenant credential on the request → the constructor default model resolves.
+    const client = new RequestScopedLlmClient('sk-global', 'claude-sonnet-5');
+    await client.completeWithTools({ system: 's', messages: [], tools: strictTool, maxTokens: 10 });
+    expect(calls[0]?.body.model).toBe('claude-sonnet-5');
+    expect(calls[0]?.body.tools).toEqual(strictTool);
+    expect((calls[0]?.body.tools as Array<Record<string, unknown>>)[0]?.strict).toBe(true);
+  });
+
+  it('strips the strict field (and any field beyond name/description/input_schema) when the resolved model does NOT support strict', async () => {
+    const calls = mockToolFetch();
+    const client = new RequestScopedLlmClient('sk-global', 'claude-sonnet-4-6');
+    await client.completeWithTools({ system: 's', messages: [], tools: strictTool, maxTokens: 10 });
+    expect(calls[0]?.body.model).toBe('claude-sonnet-4-6');
+    expect(calls[0]?.body.tools).toEqual([
+      {
+        name: 'search_congress_bills',
+        description: 'x',
+        input_schema: { type: 'object', properties: { q: { type: 'string' } } },
+      },
+    ]);
+  });
+});
+
+describe('RequestScopedLlmClient.completeWithTools (toolChoice wire forwarding)', () => {
+  const toolUseResponse = {
+    ok: true,
+    status: 200,
+    json: async () => ({
+      content: [{ type: 'text', text: 'ok' }],
+      stop_reason: 'end_turn',
+    }),
+  };
+  function mockToolFetch() {
+    const calls: Array<{ headers: Record<string, string>; body: Record<string, unknown> }> = [];
+    (global as unknown as { fetch: unknown }).fetch = jest.fn(
+      async (_url: string, init: { headers: Record<string, string>; body: string }) => {
+        calls.push({ headers: init.headers, body: JSON.parse(init.body) });
+        return toolUseResponse;
+      },
+    );
+    return calls;
+  }
+
+  const tools = [
+    { name: 'search_congress_bills', description: 'x', input_schema: { type: 'object' } },
+  ];
+
+  it('forwards an object-form toolChoice ({type:"tool",name}) as tool_choice on the wire, unmodified', async () => {
+    const calls = mockToolFetch();
+    const client = new RequestScopedLlmClient('sk-global', 'claude-default');
+    await client.completeWithTools({
+      system: 's',
+      messages: [],
+      tools,
+      maxTokens: 10,
+      toolChoice: { type: 'tool', name: 'some_tool' },
+    });
+    expect(calls[0]?.body.tool_choice).toEqual({ type: 'tool', name: 'some_tool' });
+  });
+
+  it('sends tool_choice: {type:"none"} for toolChoice: \'none\'', async () => {
+    const calls = mockToolFetch();
+    const client = new RequestScopedLlmClient('sk-global', 'claude-default');
+    await client.completeWithTools({
+      system: 's',
+      messages: [],
+      tools,
+      maxTokens: 10,
+      toolChoice: 'none',
+    });
+    expect(calls[0]?.body.tool_choice).toEqual({ type: 'none' });
+  });
+
+  it('omits the tool_choice key entirely when toolChoice is not passed (undefined default)', async () => {
+    const calls = mockToolFetch();
+    const client = new RequestScopedLlmClient('sk-global', 'claude-default');
+    await client.completeWithTools({ system: 's', messages: [], tools, maxTokens: 10 });
+    expect(calls[0]?.body).not.toHaveProperty('tool_choice');
+  });
+
+  it("omits the tool_choice key when toolChoice: 'auto' is passed explicitly (Anthropic default)", async () => {
+    const calls = mockToolFetch();
+    const client = new RequestScopedLlmClient('sk-global', 'claude-default');
+    await client.completeWithTools({
+      system: 's',
+      messages: [],
+      tools,
+      maxTokens: 10,
+      toolChoice: 'auto',
+    });
+    expect(calls[0]?.body).not.toHaveProperty('tool_choice');
+  });
+
+  // A7 forced-tool choice must also reach an OpenAI-resolved credential (BYOK) —
+  // not just the Anthropic wire branch — as tool_choice:{type:'function',function:{name}}.
+  it('forwards an object-form toolChoice to an OpenAI-resolved credential as a forced function call', async () => {
+    const calls: Array<{ body: Record<string, unknown> }> = [];
+    (global as unknown as { fetch: unknown }).fetch = jest.fn(
+      async (_url: string, init: { body: string }) => {
+        calls.push({ body: JSON.parse(init.body) });
+        return {
+          ok: true,
+          status: 200,
+          json: async () => ({
+            choices: [
+              {
+                message: {
+                  content: null,
+                  tool_calls: [
+                    {
+                      id: 'call_1',
+                      type: 'function',
+                      function: { name: 'some_tool', arguments: '{}' },
+                    },
+                  ],
+                },
+                finish_reason: 'tool_calls',
+              },
+            ],
+          }),
+        };
+      },
+    );
+    const client = new RequestScopedLlmClient('sk-global', 'claude-default');
+    await RequestCredentialsStore.run(
+      { bearerToken: 't', aiProvider: { ...tenantCred, provider: 'openai' as const } },
+      () =>
+        client.completeWithTools({
+          system: 's',
+          messages: [],
+          tools,
+          maxTokens: 10,
+          toolChoice: { type: 'tool', name: 'some_tool' },
+        }),
+    );
+    expect(calls[0]?.body.tool_choice).toEqual({
+      type: 'function',
+      function: { name: 'some_tool' },
+    });
   });
 });

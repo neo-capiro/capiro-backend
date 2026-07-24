@@ -94,6 +94,8 @@ export class VersionService {
           startsOn: parseDbDate(n.startsOn),
           endsOn: n.endsOn ? parseDbDate(n.endsOn) : null,
           openEnded: n.openEnded,
+          // `?? []` guards snapshots cut before A2 added the column.
+          dependsOnIds: n.dependsOnIds ?? [],
           meriAuthored: n.meriAuthored,
           createdByUserId: n.createdByUserId ?? clerkUserId,
           createdAt: n.createdAt ? new Date(n.createdAt) : new Date(),

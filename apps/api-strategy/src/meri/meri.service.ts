@@ -1,4 +1,11 @@
-import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
+import {
+  BadRequestException,
+  Injectable,
+  NotFoundException,
+  UnprocessableEntityException,
+} from '@nestjs/common';
+import { randomUUID } from 'node:crypto';
+import { verifyPlan, type VerifierNode, type Violation } from '@capiro/strategy-verifier';
 import { Prisma, SpNodeKind, SpNodeStatus, SpNodeSubject } from '../../generated/prisma-client/index.js';
 import { PrismaService } from '../prisma/prisma.service.js';
 import { VersioningService } from '../strategy/versioning.service.js';
@@ -17,6 +24,31 @@ import type { DraftNode, PlanEdit } from './meri.types.js';
 import type { AssistantDto, DraftStrategyDto, ReferenceAssistDto } from './dto/meri.dto.js';
 
 type Tx = Prisma.TransactionClient;
+
+interface RefRowLite {
+  label: string;
+  fy: number | null;
+  startsOn: string | null;
+  endsOn: string | null;
+}
+/** The grounding api-strategy forwards to the orchestrator AND feeds the verifier. */
+interface Grounding {
+  fiscal: { today: string | null; fys: number[]; fyLabels: string[]; focalFy: string | undefined };
+  firmPhases: Array<{ label: string; startFy: number; startQ: number; endFy: number; endQ: number }>;
+  reference: { congress: RefRowLite[]; ppbeLanes: RefRowLite[]; ppbeCurrentPhases: RefRowLite[] };
+}
+/** Loose node shape the verifier mapper accepts (both pre-persist create-inputs
+ *  and persisted rows). */
+type VerifierNodeSource = {
+  id?: string | null;
+  kind: unknown;
+  subject: unknown;
+  title: unknown;
+  startsOn: Date | string;
+  endsOn?: Date | string | null;
+  // string[] (persisted rows) OR Prisma's scalar-list create form ({ set: [] }).
+  dependsOnIds?: unknown;
+};
 
 const TYPE_LABEL: Record<StrategyTypeValue, string> = {
   appropriations: 'Appropriations',
@@ -69,7 +101,7 @@ export class MeriService {
     return { today: isoDate(now), fys, fyLabels, focalFy: fyLabels[1] };
   }
 
-  private async grounding(tenantId: string) {
+  private async grounding(tenantId: string): Promise<Grounding> {
     const [phases, ref] = await Promise.all([
       this.firmPhases.list(tenantId),
       this.reference.getCalendars(tenantId),
@@ -130,11 +162,40 @@ export class MeriService {
       aiProvider,
     );
 
-    // Validate the proposed nodes up front (throws before any write).
-    const nodeData = (resp.nodes ?? []).slice(0, 60).map((n) => this.draftNode(n, tenantId, clerkUserId));
+    // A7.5: never silently persist an empty draft — 422 so the goal can be rephrased.
+    const rawNodes = (resp.nodes ?? []).slice(0, 60);
+    if (rawNodes.length === 0) {
+      throw new UnprocessableEntityException(
+        "Meri couldn't produce a plan from that — try rephrasing the goal or attaching a document.",
+      );
+    }
+    // A3: pre-generate ids so dependsOn INDEXES map to real uuids; createMany with
+    // explicit ids keeps the edges valid. draftNode validates each (throws pre-write).
+    const ids = rawNodes.map(() => randomUUID());
+    const nodeData = rawNodes.map((n, idx) => {
+      const deps = Array.isArray(n.dependsOn)
+        ? [...new Set(n.dependsOn)]
+            .filter((d) => Number.isInteger(d) && d >= 0 && d < rawNodes.length && d !== idx)
+            .map((d) => ids[d]!)
+        : [];
+      return this.draftNode(n, tenantId, clerkUserId, ids[idx]!, deps);
+    });
     const title = deriveTitle(dto.goal, dto.type);
     const targetDate = dto.targetDate ? parseDbDate(dto.targetDate, 'targetDate') : null;
     const owner = dto.ownerUserId?.trim() || clerkUserId;
+
+    // A6: verify the plan we're about to persist (authoritative — real uuids + grounding).
+    const violations = this.verify(dto.type, nodeData, ground);
+    // A6 fail branch (dark by default — flip STRATEGY_VERIFY_BLOCK at activation
+    // once the web renders the override flow): an impossible plan is not persisted.
+    if (this.blockOnErrors()) {
+      const errs = violations.filter((v) => v.severity === 'error');
+      if (errs.length) {
+        throw new UnprocessableEntityException(
+          `This plan can't be saved yet — ${errs.map((e) => e.message).join('; ')}`,
+        );
+      }
+    }
 
     return this.prisma.withTenantUser(tenantId, clerkUserId, async (tx) => {
       const strategy = await tx.spStrategy.create({
@@ -154,11 +215,9 @@ export class MeriService {
           lastEditedAt: new Date(),
         },
       });
-      if (nodeData.length) {
-        await tx.spNode.createMany({
-          data: nodeData.map((n) => ({ ...n, strategyId: strategy.id })),
-        });
-      }
+      await tx.spNode.createMany({
+        data: nodeData.map((n) => ({ ...n, strategyId: strategy.id })),
+      });
       await this.versioning.cutVersion(tx, {
         tenantId,
         strategyId: strategy.id,
@@ -178,7 +237,9 @@ export class MeriService {
         entityId: strategy.id,
         after: { title, nodeCount: nodeData.length, provenance: resp.provenance ?? null },
       });
-      return loadStrategyDetail(tx, strategy.id);
+      await this.logVerification(tx, tenantId, clerkUserId, strategy.id, violations);
+      const detail = await loadStrategyDetail(tx, strategy.id);
+      return { ...detail, violations, groundingHealth: resp.groundingHealth };
     });
   }
 
@@ -228,10 +289,14 @@ export class MeriService {
       const current = await this.prisma.withTenant(tenantId, (tx) =>
         loadStrategyDetail(tx, strategyId),
       );
-      return { reply: resp.reply ?? '', summary: strategy.meriSummary ?? null, strategy: current };
+      return {
+        reply: resp.reply ?? '',
+        summary: strategy.meriSummary ?? null,
+        strategy: { ...current, groundingHealth: resp.groundingHealth },
+      };
     }
 
-    const detail = await this.prisma.withTenantUser(tenantId, clerkUserId, async (tx) => {
+    const { detail, violations } = await this.prisma.withTenantUser(tenantId, clerkUserId, async (tx) => {
       for (const edit of edits) {
         await this.applyEdit(tx, tenantId, strategyId, clerkUserId, edit);
       }
@@ -261,10 +326,28 @@ export class MeriService {
         entityId: strategyId,
         after: { scope: dto.scope, editCount: edits.length, provenance: resp.provenance ?? null },
       });
-      return loadStrategyDetail(tx, strategyId);
+      const d = await loadStrategyDetail(tx, strategyId);
+      // A6: verify the resulting persisted plan; annotate + log (additive — the
+      // edit-set already applied; hard-blocking is the flagged web phase).
+      const v = this.verify(strategy.type, d.nodes, ground);
+      if (this.blockOnErrors() && v.some((x) => x.severity === 'error')) {
+        // Roll back the whole edit-set — the assistant may not leave the plan broken.
+        throw new UnprocessableEntityException(
+          `This change would break the plan — ${v
+            .filter((x) => x.severity === 'error')
+            .map((x) => x.message)
+            .join('; ')}`,
+        );
+      }
+      await this.logVerification(tx, tenantId, clerkUserId, strategyId, v);
+      return { detail: d, violations: v };
     });
 
-    return { reply: resp.reply ?? '', summary: resp.summary ?? null, strategy: detail };
+    return {
+      reply: resp.reply ?? '',
+      summary: resp.summary ?? null,
+      strategy: { ...detail, violations, groundingHealth: resp.groundingHealth },
+    };
   }
 
   /** REF-4: Meri edits the reference editor's working rows — returned, NOT persisted. */
@@ -286,7 +369,13 @@ export class MeriService {
 
   // ---- apply helpers ----
 
-  private draftNode(n: DraftNode, tenantId: string, clerkUserId: string): Prisma.SpNodeCreateManyInput {
+  private draftNode(
+    n: DraftNode,
+    tenantId: string,
+    clerkUserId: string,
+    id: string,
+    dependsOnIds: string[],
+  ): Prisma.SpNodeCreateManyInput {
     const kind = vEnum(n.kind, NODE_KINDS, 'node kind') as SpNodeKind;
     const subject = vEnum(n.subject, NODE_SUBJECTS, 'node subject') as SpNodeSubject;
     if (typeof n.title !== 'string' || !n.title.trim()) {
@@ -299,6 +388,7 @@ export class MeriService {
       throw new BadRequestException('Meri returned a node whose end precedes its start');
     }
     return {
+      id, // explicit so dependsOn cross-references resolve (A3)
       tenantId,
       strategyId: '', // filled in by the caller after strategy create
       kind,
@@ -312,6 +402,9 @@ export class MeriService {
       // 'Ongoing' is a risk-only concept (parity with NodeService.add): a
       // non-risk node can never be created open-ended, even if Meri proposes it.
       openEnded: kind === 'risk' ? (n.openEnded ?? false) : false,
+      dependsOnIds,
+      provenance:
+        n.sources && n.sources.length ? ({ sources: n.sources } as Prisma.InputJsonValue) : undefined,
       meriAuthored: true,
       createdByUserId: clerkUserId,
     };
@@ -325,7 +418,9 @@ export class MeriService {
     edit: PlanEdit,
   ): Promise<void> {
     if (edit.op === 'add') {
-      const data = this.draftNode(edit as DraftNode, tenantId, clerkUserId);
+      const id = randomUUID();
+      const deps = await this.resolveEditDeps(tx, strategyId, id, edit.dependsOn);
+      const data = this.draftNode(edit as unknown as DraftNode, tenantId, clerkUserId, id, deps);
       await tx.spNode.create({ data: { ...data, strategyId } });
       return;
     }
@@ -338,6 +433,13 @@ export class MeriService {
     }
     if (edit.op === 'remove') {
       await tx.spNode.delete({ where: { id: edit.nodeId } });
+      // Strip the removed id from sibling edges (parity with NodeService.remove).
+      await tx.$executeRaw`
+        UPDATE sp_node
+           SET depends_on_ids = array_remove(depends_on_ids, ${edit.nodeId}::uuid)
+         WHERE strategy_id = ${strategyId}::uuid
+           AND tenant_id = ${tenantId}::uuid
+           AND ${edit.nodeId}::uuid = ANY (depends_on_ids)`;
       return;
     }
     // update | retime
@@ -354,6 +456,14 @@ export class MeriService {
     if (edit.ownerUserId !== undefined) data.ownerUserId = edit.ownerUserId;
     if (edit.status !== undefined) data.status = vEnum(edit.status, NODE_STATUSES, 'node status');
     if (edit.openEnded !== undefined) data.openEnded = edit.openEnded;
+    if (edit.dependsOn !== undefined) {
+      data.dependsOnIds = await this.resolveEditDeps(tx, strategyId, edit.nodeId, edit.dependsOn);
+    }
+    if (edit.sources !== undefined) {
+      data.provenance = edit.sources.length
+        ? ({ sources: edit.sources } as Prisma.InputJsonValue)
+        : Prisma.DbNull;
+    }
 
     const newStarts = edit.startsOn !== undefined ? parseDbDate(edit.startsOn, 'startsOn') : node.startsOn;
     let newEnds: Date | null = node.endsOn;
@@ -370,6 +480,80 @@ export class MeriService {
     }
     if (Object.keys(data).length === 0) return;
     await tx.spNode.update({ where: { id: edit.nodeId }, data: data as Prisma.SpNodeUpdateInput });
+  }
+
+  /**
+   * Validate Meri's edit-op dependency ids against the strategy. Best-effort:
+   * drops self + unknown ids so a bad Meri reference can't roll back the whole
+   * edit-set (deps are advisory; the verifier surfaces real problems).
+   */
+  private async resolveEditDeps(
+    tx: Tx,
+    strategyId: string,
+    selfId: string | null,
+    dependsOn: string[] | undefined,
+  ): Promise<string[]> {
+    if (!Array.isArray(dependsOn) || dependsOn.length === 0) return [];
+    const unique = [...new Set(dependsOn)].filter((d) => typeof d === 'string' && d !== selfId);
+    if (unique.length === 0) return [];
+    const rows = await tx.spNode.findMany({
+      where: { strategyId, id: { in: unique } },
+      select: { id: true },
+    });
+    const found = new Set(rows.map((r) => r.id));
+    return unique.filter((id) => found.has(id));
+  }
+
+  /** A6: run the shared realism verifier over a plan against this call's grounding. */
+  private verify(strategyType: string, nodes: VerifierNodeSource[], ground: Grounding): Violation[] {
+    const vnodes: VerifierNode[] = nodes.map((n) => ({
+      id: String(n.id ?? ''),
+      kind: String(n.kind ?? ''),
+      subject: String(n.subject ?? ''),
+      title: String(n.title ?? ''),
+      startsOn: isoDate(n.startsOn) ?? '',
+      endsOn: isoDate(n.endsOn ?? null),
+      dependsOnIds: Array.isArray(n.dependsOnIds) ? (n.dependsOnIds as string[]) : [],
+    }));
+    return verifyPlan({
+      strategyType,
+      nodes: vnodes,
+      fiscal: {
+        today: ground.fiscal.today ?? null,
+        fys: ground.fiscal.fys ?? [],
+        fyLabels: ground.fiscal.fyLabels ?? [],
+        focalFy: ground.fiscal.focalFy ?? '',
+      },
+      congress: ground.reference.congress,
+      ppbeCurrentPhases: ground.reference.ppbeCurrentPhases,
+    }).violations;
+  }
+
+  /** A6 gate — hard verifier errors block a draft/assistant write when enabled.
+   *  Dark by default (annotate-only); flipped via STRATEGY_VERIFY_BLOCK at
+   *  activation once the web renders the override flow. */
+  private blockOnErrors(): boolean {
+    return process.env.STRATEGY_VERIFY_BLOCK === 'true';
+  }
+
+  /** A6: record the verification outcome on the audit trail (plan.verified). */
+  private async logVerification(
+    tx: Tx,
+    tenantId: string,
+    actorUserId: string,
+    strategyId: string,
+    violations: Violation[],
+  ): Promise<void> {
+    const errorCount = violations.filter((v) => v.severity === 'error').length;
+    await this.versioning.logActivity(tx, {
+      tenantId,
+      actorUserId,
+      authorKind: 'meri',
+      action: 'plan.verified',
+      entityType: 'strategy',
+      entityId: strategyId,
+      after: { errorCount, warningCount: violations.length - errorCount, violations },
+    });
   }
 }
 
@@ -416,6 +600,7 @@ function serializeStrategy(strategy: {
     startsOn: Date;
     endsOn: Date | null;
     openEnded: boolean;
+    dependsOnIds: string[];
     meriAuthored: boolean;
   }>;
 }) {
@@ -437,6 +622,7 @@ function serializeStrategy(strategy: {
       startsOn: isoDate(n.startsOn),
       endsOn: isoDate(n.endsOn),
       openEnded: n.openEnded,
+      dependsOnIds: n.dependsOnIds,
       meriAuthored: n.meriAuthored,
     })),
   };

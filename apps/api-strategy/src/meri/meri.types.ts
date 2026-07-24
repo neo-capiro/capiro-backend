@@ -4,6 +4,8 @@
  * return these; api-strategy validates + applies them. Dates are YYYY-MM-DD.
  */
 
+import type { Violation } from '@capiro/strategy-verifier';
+
 /** The resolved tenant AI credential forwarded to the orchestrator (BYOK, D19). */
 export interface ResolvedAiProvider {
   provider: 'anthropic' | 'openai';
@@ -24,6 +26,10 @@ export interface DraftNode {
   startsOn: string;
   endsOn?: string | null;
   openEnded?: boolean;
+  /** A3: 0-based indexes into the draft node list (mapped to uuids on persist). */
+  dependsOn?: number[];
+  /** A9: pack section(s) that ground this node. */
+  sources?: Array<{ section: string; ref?: string }>;
 }
 
 /** Which pack sections were included (CTX-6 provenance — names + counts, not content). */
@@ -36,6 +42,10 @@ export interface StrategyDraftResponse {
   summary: string;
   nodes: DraftNode[];
   provenance?: PackProvenance;
+  /** A5: verifier findings from the orchestrator's draft repair loop (advisory). */
+  violations?: Violation[];
+  /** A8: whether the client context pack was complete. */
+  groundingHealth?: GroundingHealth;
 }
 
 export type PlanEditOp = 'add' | 'update' | 'remove' | 'retime';
@@ -53,6 +63,17 @@ export interface PlanEdit {
   startsOn?: string;
   endsOn?: string | null;
   openEnded?: boolean;
+  /** A3: node ids this step depends on (existing nodes; add/update ops). */
+  dependsOn?: string[];
+  /** A9: pack section(s) that ground this node. */
+  sources?: Array<{ section: string; ref?: string }>;
+}
+
+/** A8: grounding-health signal the orchestrator returns (from the context pack). */
+export interface GroundingHealth {
+  status: 'ok' | 'degraded';
+  missingRequired: string[];
+  omittedOptional: string[];
 }
 
 export interface StrategyAssistantResponse {
@@ -60,6 +81,8 @@ export interface StrategyAssistantResponse {
   summary?: string | null;
   edits: PlanEdit[];
   provenance?: PackProvenance;
+  /** A8: whether the client context pack was complete. */
+  groundingHealth?: GroundingHealth;
 }
 
 /** REF-4 reference-editor assist: the orchestrator returns edited working rows. */

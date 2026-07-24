@@ -7,9 +7,20 @@ export interface PackProvenance {
   omitted?: string[];
 }
 
+/** A8: context-health signal derived from what the pack could/couldn't load. */
+export interface PackHealth {
+  status: 'ok' | 'degraded';
+  /** Required sections that could not be loaded (drives a degraded status). */
+  missingRequired: string[];
+  /** Optional sections omitted — includes wall-blocked KG/engagement, which is
+   *  EXPECTED for a walled client and never marks the pack unhealthy. */
+  omittedOptional: string[];
+}
+
 export interface CompiledPack {
   text: string;
   provenance: PackProvenance;
+  health: PackHealth;
 }
 
 /** One resolved section: a rendered block (present) or bare name (omitted). */
@@ -216,10 +227,22 @@ export class StrategyContextPackService {
     omitted.push('Targets (no read tool)');
 
     const text = blocks.length ? blocks.join('\n\n') : '(no client context available)';
+    // A8: the client profile is the one REQUIRED section; its absence degrades the
+    // pack. Everything else is optional — and a wall-blocked client's empty
+    // KG/engagement sections land in omittedOptional, never missingRequired, so a
+    // walled client is never flagged unhealthy.
+    const REQUIRED = ['Client profile'];
+    const missingRequired = REQUIRED.filter((r) => omitted.includes(r));
+    const omittedOptional = omitted.filter((o) => !REQUIRED.includes(o));
+    const health: PackHealth = {
+      status: missingRequired.length ? 'degraded' : 'ok',
+      missingRequired,
+      omittedOptional,
+    };
     this.logger.log(
-      `pack compiled (${slim ? 'slim' : 'full'}): ${sections.length} sections, ~${estimateTokens(text)} tokens`,
+      `pack compiled (${slim ? 'slim' : 'full'}): ${sections.length} sections, ~${estimateTokens(text)} tokens, health=${health.status}`,
     );
-    return { text, provenance: { sections, omitted } };
+    return { text, provenance: { sections, omitted }, health };
   }
 }
 

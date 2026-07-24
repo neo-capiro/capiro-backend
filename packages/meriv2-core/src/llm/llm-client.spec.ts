@@ -78,6 +78,18 @@ describe('tool-loop translation (4.5.1 — Anthropic wire ⇄ Chat Completions)'
     });
   });
 
+  it('toolChoice {type:"tool",name} forces that function via tool_choice:{type:"function",function:{name}}', () => {
+    const body = toOpenAiToolLoopBody({
+      model: 'gpt-test',
+      system: 's',
+      maxTokens: 10,
+      tools,
+      toolChoice: { type: 'tool', name: 'search_bills' },
+      messages: [{ role: 'user', content: 'go' }],
+    });
+    expect(body.tool_choice).toEqual({ type: 'function', function: { name: 'search_bills' } });
+  });
+
   it('translates the response back: tool_calls → tool_use blocks, finish_reason mapped', () => {
     const r = fromOpenAiToolLoopResponse({
       choices: [

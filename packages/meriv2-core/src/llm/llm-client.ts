@@ -284,7 +284,7 @@ export class OpenAiLlmClient implements LlmClient {
     tools: Array<{ name: string; description: string; input_schema: Record<string, unknown> }>;
     maxTokens: number;
     timeoutMs?: number;
-    toolChoice?: 'auto' | 'none';
+    toolChoice?: 'auto' | 'none' | { type: 'tool'; name: string };
     signal?: AbortSignal;
   }): Promise<{
     content: Array<Record<string, unknown>>;
@@ -347,7 +347,7 @@ export function toOpenAiToolLoopBody(params: {
   messages: Array<{ role: 'user' | 'assistant'; content: unknown }>;
   tools: Array<{ name: string; description: string; input_schema: Record<string, unknown> }>;
   maxTokens: number;
-  toolChoice?: 'auto' | 'none';
+  toolChoice?: 'auto' | 'none' | { type: 'tool'; name: string };
 }): Record<string, unknown> {
   const out: Array<Record<string, unknown>> = [{ role: 'system', content: params.system }];
   for (const m of params.messages) {
@@ -412,7 +412,11 @@ export function toOpenAiToolLoopBody(params: {
         }
       : {}),
     // Omitted = OpenAI 'auto' (mirrors the Anthropic round's default).
-    ...(params.toolChoice === 'none' ? { tool_choice: 'none' } : {}),
+    ...(params.toolChoice === 'none'
+      ? { tool_choice: 'none' }
+      : params.toolChoice && typeof params.toolChoice === 'object'
+        ? { tool_choice: { type: 'function', function: { name: params.toolChoice.name } } }
+        : {}),
   };
 }
 
