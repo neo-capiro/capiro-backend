@@ -75,6 +75,7 @@ const EXPECTED_TOOLS = [
   'get_pe_report_language',
   'search_acquisition_personnel',
   'get_acquisition_person',
+  'find_contacts',
   // Document generation
   'create_word',
   'create_excel',

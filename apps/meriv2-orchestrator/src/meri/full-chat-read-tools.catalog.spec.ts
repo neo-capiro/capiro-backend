@@ -43,9 +43,10 @@ describe('FULL_CHAT_READ_TOOLS catalog', () => {
       'query_outreach',
       'get_pe_report_language',
       'list_members',
+      'find_contacts',
     ].sort();
     expect(FULL_CHAT_READ_TOOLS.map((t) => t.name).sort()).toEqual(expected);
-    expect(FULL_CHAT_READ_TOOLS).toHaveLength(28);
+    expect(FULL_CHAT_READ_TOOLS).toHaveLength(29);
     expect(FULL_CHAT_READ_TOOLS.every((t) => t.readOnly === true)).toBe(true);
   });
 
@@ -65,7 +66,7 @@ describe('Combined delegated-tool coverage (in-editor + write + full-chat-read)'
     ].sort();
     expect(combined).toEqual(ALL_APPS_API_TOOLS);
     expect(new Set(combined).size).toBe(combined.length); // no tool double-registered
-    expect(combined).toHaveLength(72); // +lookup_client_registry/create_client (LDA-first client creation)
+    expect(combined).toHaveLength(73); // +find_contacts (mail/calendar-derived correspondents)
   });
 
   it('W4.6 / D-13: the three catalogs match the canonical MERI_TOOL_MANIFEST VERBATIM (name AND description) — catches description drift the name-only check missed', () => {

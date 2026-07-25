@@ -191,4 +191,10 @@ export const FULL_CHAT_READ_TOOLS: readonly DelegatedToolSpec[] = [
       "Get the VERBATIM congressional committee report language linked to a budget line (by code): the committee, fiscal year, heading, provision text, action type, and source URL. This is the ONLY source that explains WHY a mark was added/cut. If it returns no provisions, the justification is NOT in Capiro's data — say so; do NOT infer or invent a reason for a mark change from the PE's title or the dollar delta alone.",
     readOnly: true,
   },
+  {
+    name: 'find_contacts',
+    description:
+      "Find REAL people the firm actually corresponds with, harvested from the connected Outlook/Gmail mailboxes and calendars — name, email address, organization, when they were last in contact, and how many messages. Use this INSTEAD of reading names out of list_emails / search_emails previews when you need contacts for a client profile: those previews give you display names with no addresses and no history, which is guesswork. Filter by `clientId` (returns everyone whose email domain matches that client's website, plus anyone already linked to them), by `domain`, or by `query` (name/email substring). `onProfile` tells you who is ALREADY on the client's People tab, so you only propose the ones who are missing. Read-only.",
+    readOnly: true,
+  },
 ] as const;

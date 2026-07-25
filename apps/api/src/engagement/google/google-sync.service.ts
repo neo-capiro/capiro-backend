@@ -29,6 +29,7 @@ import {
 } from '@prisma/client';
 import { deriveMeetingVirtuality, type TenantContext } from '@capiro/shared';
 import { PrismaService } from '../../prisma/prisma.service.js';
+import { harvestMailContacts } from '../contact-harvest.js';
 import { ClientAssociationService } from '../client-association.service.js';
 import { GoogleTokenService } from './google-token.service.js';
 
@@ -226,11 +227,7 @@ export class GoogleSyncService {
   ): Promise<SyncResult> {
     try {
       const { connection, token } = await this.googleToken.loadConnection(tenantId, connectionId);
-      const accessToken = await this.googleToken.getValidAccessToken(
-        tenantId,
-        connectionId,
-        token,
-      );
+      const accessToken = await this.googleToken.getValidAccessToken(tenantId, connectionId, token);
       const state = readSyncState(connection.syncState);
       const result: SyncResult = { connectionId };
 
@@ -837,6 +834,18 @@ export class GoogleSyncService {
               labelIds: message.labelIds ?? [],
             } as Prisma.InputJsonValue,
           },
+        });
+
+        // Everyone on this message becomes a known correspondent. Calendar
+        // attendees were already harvested; mail never was, so the contact
+        // table knew whoever had been on an invite and nobody the firm had
+        // merely emailed. Same data, already stored — no new OAuth scope.
+        // ONE insert-only statement: this transaction holds the per-tenant sync
+        // advisory lock, and a per-participant read/write loop here is the exact
+        // shape that starved the pool on 2026-07-21.
+        await harvestMailContacts(tx, tenantId, participantJson, {
+          source: 'google',
+          clientId,
         });
         return 'matched';
       },

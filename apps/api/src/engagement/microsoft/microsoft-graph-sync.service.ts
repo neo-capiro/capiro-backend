@@ -26,6 +26,7 @@ import type { TenantContext } from '@capiro/shared';
 import { deriveMeetingVirtuality } from '@capiro/shared';
 import type { AppConfig } from '../../config/config.schema.js';
 import { PrismaService } from '../../prisma/prisma.service.js';
+import { harvestMailContacts } from '../contact-harvest.js';
 import { ClientAssociationService } from '../client-association.service.js';
 import { MICROSOFT_SCOPES, normalizePem } from './microsoft-oauth.service.js';
 import {
@@ -1221,6 +1222,18 @@ export class MicrosoftGraphSyncService {
               isRead: message.isRead ?? null,
             } as Prisma.InputJsonValue,
           },
+        });
+
+        // Everyone on this message becomes a known correspondent. Calendar
+        // attendees were already harvested; mail never was, so the contact
+        // table knew whoever had been on an invite and nobody the firm had
+        // merely emailed. Same data, already stored — no new Graph scope.
+        // ONE insert-only statement: this transaction holds the per-tenant sync
+        // advisory lock, and a per-participant read/write loop here is the exact
+        // shape that starved the pool on 2026-07-21.
+        await harvestMailContacts(tx, tenantId, participantJson, {
+          source: 'microsoft_graph',
+          clientId,
         });
         return 'matched';
       },

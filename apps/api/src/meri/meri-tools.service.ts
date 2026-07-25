@@ -359,6 +359,11 @@ export const TOOL_DEFINITIONS = [
       "Get a single DoD acquisition person's full detail by id: name, service, organization, title, role, program of record, linked Program Elements, public profile, and the source citations behind each fact.",
   },
   {
+    name: 'find_contacts',
+    description:
+      "Find REAL people the firm actually corresponds with, harvested from the connected Outlook/Gmail mailboxes and calendars — name, email address, organization, when they were last in contact, and how many messages. Use this INSTEAD of reading names out of list_emails / search_emails previews when you need contacts for a client profile: those previews give you display names with no addresses and no history, which is guesswork. Filter by `clientId` (returns everyone whose email domain matches that client's website, plus anyone already linked to them), by `domain`, or by `query` (name/email substring). `onProfile` tells you who is ALREADY on the client's People tab, so you only propose the ones who are missing. Read-only.",
+  },
+  {
     name: 'create_word',
     description:
       'Generate a downloadable Microsoft Word (.docx) document from a structured spec (title, optional subtitle, and sections with paragraphs, bullets, and tables). Use when the user asks for a Word doc, memo, report, or briefing as a file.',
@@ -954,6 +959,12 @@ export class MeriToolsService {
         page: int('Page number'),
       }),
       get_acquisition_person: obj({ id: str('Acquisition personnel UUID') }, ['id']),
+      find_contacts: obj({
+        clientId: str('Client UUID (or exact client name) to find correspondents for'),
+        domain: str('Email domain filter, e.g. brycetech.com'),
+        query: str('Name or email substring'),
+        limit: int('Max results (1-100, default 25)'),
+      }),
       create_word: obj(
         {
           title: str('Document title'),
@@ -1614,6 +1625,8 @@ export class MeriToolsService {
         return this.searchAcquisitionPersonnel(ctx, input);
       case 'get_acquisition_person':
         return this.getAcquisitionPerson(ctx, input);
+      case 'find_contacts':
+        return this.findContacts(ctx, input);
       case 'create_word':
         return this.createDocument(ctx, input, 'docx');
       case 'create_excel':
@@ -6601,6 +6614,152 @@ export class MeriToolsService {
     };
   }
 
+  /**
+   * find_contacts — real correspondents from the connected mailboxes/calendars.
+   *
+   * Meri had NO access to engagement_contacts, so when asked to put people on a
+   * client profile it read display names out of list_emails previews. That is
+   * how a profile ended up with four contacts called "Derek", "Tristin",
+   * "Karlin" and "Steve" — no surnames, no addresses, no contact history,
+   * nothing anyone could actually email.
+   *
+   * Client association is mostly domain-derived on purpose: engagement_contacts
+   * only carries an explicit clientId when a sync happened to attach one, which
+   * for most rows it never did. Matching the client's website domain is the
+   * signal that actually finds "the people at BryceTech".
+   */
+  private async findContacts(ctx: TenantContext, input: Record<string, unknown>) {
+    const clientRef = optionalString(input, 'clientId', 200);
+    const domainFilter = optionalString(input, 'domain', 200)?.trim().toLowerCase() ?? null;
+    const query = optionalString(input, 'query', 200)?.trim() ?? null;
+    const limit = clampInt(input.limit, 1, 100, 25);
+
+    let clientId: string | null = null;
+    let clientName: string | null = null;
+    let clientDomain: string | null = null;
+    let existingEmails = new Set<string>();
+    let existingNames = new Set<string>();
+    if (clientRef) {
+      clientId = await this.ensureClientVisible(ctx, clientRef);
+      const client = await this.prisma.withTenant(ctx.tenantId, (tx) =>
+        tx.client.findFirst({
+          where: { id: clientId!, tenantId: ctx.tenantId },
+          select: { name: true, website: true, people: { select: { email: true, name: true } } },
+        }),
+      );
+      clientName = client?.name ?? null;
+      clientDomain = websiteDomain(client?.website ?? null);
+      existingEmails = new Set(
+        (client?.people ?? [])
+          .map((p) => p.email?.trim().toLowerCase())
+          .filter((e): e is string => Boolean(e)),
+      );
+      existingNames = new Set(
+        (client?.people ?? []).map((p) => p.name.trim().toLowerCase()).filter(Boolean),
+      );
+    }
+
+    const domain = domainFilter ?? clientDomain;
+    const or: Prisma.EngagementContactWhereInput[] = [];
+    if (clientId) or.push({ clientId });
+    if (domain) or.push({ email: { endsWith: `@${domain}` } });
+    if (query) {
+      or.push({ fullName: { contains: query, mode: 'insensitive' } });
+      or.push({ email: { contains: query, mode: 'insensitive' } });
+    }
+    if (or.length === 0) {
+      return {
+        tool: 'find_contacts',
+        generatedAt: new Date().toISOString(),
+        contacts: [],
+        note: 'Pass a clientId, a domain, or a query — find_contacts will not dump the whole contact table.',
+      };
+    }
+
+    const rows = await this.prisma.withTenant(ctx.tenantId, (tx) =>
+      tx.engagementContact.findMany({
+        where: { tenantId: ctx.tenantId, OR: or },
+        select: {
+          id: true,
+          fullName: true,
+          email: true,
+          phone: true,
+          title: true,
+          organization: true,
+          clientId: true,
+          source: true,
+        },
+        take: limit,
+        orderBy: { updatedAt: 'desc' },
+      }),
+    );
+
+    // Contact history per address, from data already synced. Both lookups hit a
+    // (tenant, email) index and the result set is capped at `limit`, so this
+    // stays bounded — it is NOT a scan of the mail store.
+    const contacts = await Promise.all(
+      rows.map(async (r) => {
+        const email = r.email?.trim().toLowerCase() ?? null;
+        let lastContact: Date | null = null;
+        let messageCount = 0;
+        if (email) {
+          const [lastFrom, count, lastMeeting] = await this.prisma.withTenant(
+            ctx.tenantId,
+            async (tx) =>
+              Promise.all([
+                tx.mailMessage.findFirst({
+                  where: { tenantId: ctx.tenantId, fromEmail: email },
+                  orderBy: { receivedAt: 'desc' },
+                  select: { receivedAt: true },
+                }),
+                tx.mailMessage.count({ where: { tenantId: ctx.tenantId, fromEmail: email } }),
+                tx.meetingAttendee.findFirst({
+                  where: { tenantId: ctx.tenantId, email },
+                  orderBy: { createdAt: 'desc' },
+                  select: { meeting: { select: { startsAt: true } } },
+                }),
+              ]),
+          );
+          messageCount = count;
+          const meetingAt = lastMeeting?.meeting?.startsAt ?? null;
+          const mailAt = lastFrom?.receivedAt ?? null;
+          lastContact =
+            mailAt && meetingAt ? (mailAt > meetingAt ? mailAt : meetingAt) : (mailAt ?? meetingAt);
+        }
+        const nameKey = r.fullName?.trim().toLowerCase() ?? '';
+        return {
+          name: r.fullName,
+          email: r.email,
+          phone: r.phone,
+          title: r.title,
+          organization: r.organization ?? (email ? (email.split('@')[1] ?? null) : null),
+          lastContact: lastContact ? lastContact.toISOString() : null,
+          messageCount,
+          source: r.source,
+          // Lets the model propose ONLY the people who are missing instead of
+          // re-sending the whole roster (which the merge would no-op anyway).
+          onProfile: Boolean(
+            (email && existingEmails.has(email)) || (nameKey && existingNames.has(nameKey)),
+          ),
+        };
+      }),
+    );
+
+    contacts.sort((a, b) => (b.lastContact ?? '').localeCompare(a.lastContact ?? ''));
+    const missing = contacts.filter((c) => !c.onProfile);
+    return {
+      tool: 'find_contacts',
+      generatedAt: new Date().toISOString(),
+      clientId,
+      clientName,
+      matchedOn: { domain: domain ?? null, query: query ?? null, linkedClient: Boolean(clientId) },
+      contacts,
+      note: clientId
+        ? `${contacts.length} correspondent(s) found; ${missing.length} not yet on the People tab. These come from synced mail and calendar — cite them as such. Propose only the missing ones via update_client_profile people[].`
+        : `${contacts.length} correspondent(s) found from synced mail and calendar.`,
+    };
+  }
+
   /** Resolve analysis-chart artifact ids to embedded PNG payloads (F4). */
   private async resolveChartImages(
     ctx: TenantContext,
@@ -6883,6 +7042,47 @@ function optionalStringArray(
     if (out.length >= maxItems) break;
   }
   return out;
+}
+
+/**
+ * Registrable domain of a client's website, for matching correspondent
+ * addresses against the client they belong to.
+ *
+ * Strips scheme, path, port and a leading `www.`. Deliberately naive about
+ * multi-part public suffixes (`.co.uk`): it compares the whole host, so
+ * `foo.co.uk` matches `@foo.co.uk` correctly and never over-broadens to `.co.uk`.
+ * Returns null for the free-mail hosts, where a shared domain says nothing about
+ * who someone works for — matching those would file every Gmail correspondent
+ * in the tenant under whichever client happened to list gmail.com.
+ */
+const GENERIC_MAIL_DOMAINS = new Set([
+  'gmail.com',
+  'googlemail.com',
+  'yahoo.com',
+  'hotmail.com',
+  'outlook.com',
+  'live.com',
+  'msn.com',
+  'aol.com',
+  'icloud.com',
+  'me.com',
+  'proton.me',
+  'protonmail.com',
+]);
+
+export function websiteDomain(website: string | null | undefined): string | null {
+  if (!website) return null;
+  let host = website.trim().toLowerCase();
+  if (!host) return null;
+  host = host.replace(/^[a-z][a-z0-9+.-]*:\/\//, '');
+  host = host.split('/')[0] ?? '';
+  host = host.split('?')[0] ?? '';
+  host = host.split('@').pop() ?? '';
+  host = host.split(':')[0] ?? '';
+  if (host.startsWith('www.')) host = host.slice(4);
+  if (!host || !host.includes('.') || host.endsWith('.')) return null;
+  if (GENERIC_MAIL_DOMAINS.has(host)) return null;
+  return host;
 }
 
 function clampInt(value: unknown, min: number, max: number, fallback: number): number {
