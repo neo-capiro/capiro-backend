@@ -68,4 +68,8 @@ export interface AlertMemoResult {
    * off, so the default flow is unaffected. (Phase 2.5-1.)
    */
   held: boolean;
+  /** The pending review_request created when held, so the composer can link to it. Null unless held. */
+  reviewRequestId: string | null;
+  /** Human-readable auditor findings that caused the hold. Empty string unless held. */
+  heldReason: string;
 }
