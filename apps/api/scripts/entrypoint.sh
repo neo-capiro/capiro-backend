@@ -1,4 +1,4 @@
-﻿#!/bin/sh
+#!/bin/sh
 # Capiro API container entrypoint.
 #
 # Modes, selected by argv:
