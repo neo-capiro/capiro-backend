@@ -25,6 +25,7 @@ import type {
   DataQualityWarning,
   DistrictKey,
   DistrictNexusDistrictDetail,
+  FacilityRepresentation,
   OpportunityFunding,
   SourceFreshness,
   UnmappedFunding,
@@ -80,6 +81,8 @@ export interface ClientNexusInputs {
   facilities: FacilityRow[];
   freshness: SourceFreshness[];
   generatedAt: string;
+  /** Already-resolved representation, batched by the caller. Defaults to []. */
+  representativesByFacility?: FacilityRepresentation[];
 }
 
 /**
@@ -115,6 +118,11 @@ export interface DistrictAccumulator {
   opportunityAwardCeiling: number | null;
   facilityCount: number;
   employeeCount: number | null;
+  /**
+   * Facilities here that reported no headcount. Keeps "420 employees across the
+   * two sites that told us" distinguishable from "420 employees, complete".
+   */
+  facilitiesMissingEmployeeCount: number;
   /** Weakest basis seen for money in this district — drives the score discount. */
   assistanceBasis: 'place_of_performance' | 'recipient_location' | null;
   warnings: DataQualityWarning[];
@@ -135,6 +143,7 @@ function emptyAccumulator(key: DistrictKey): DistrictAccumulator {
     opportunityAwardCeiling: null,
     facilityCount: 0,
     employeeCount: null,
+    facilitiesMissingEmployeeCount: 0,
     assistanceBasis: null,
     warnings: [],
   };
@@ -220,6 +229,7 @@ export function foldDistricts(inputs: ClientNexusInputs): {
     const acc = upsert(key);
     acc.facilityCount += 1;
     acc.employeeCount = addMoney(acc.employeeCount, row.employeeCount);
+    if (row.employeeCount == null) acc.facilitiesMissingEmployeeCount += 1;
   }
 
   if (sawStatewideContract || sawStatewideGrant) {
@@ -396,6 +406,9 @@ export function buildClientNexusResponse(
       opportunities: opportunitiesOf(acc),
       clientCount: 1,
       score: scored.score,
+      coveragePercent: scored.coveragePercent,
+      employeeCount: acc.employeeCount,
+      employeesUnreported: acc.facilitiesMissingEmployeeCount > 0,
       warnings: [...acc.warnings, ...scored.warnings],
       evidence: [],
       breakdown: scored.breakdown,
@@ -419,6 +432,7 @@ export function buildClientNexusResponse(
   return {
     clientId: inputs.clientId,
     districts,
+    representativesByFacility: inputs.representativesByFacility ?? [],
     awarded: {
       contractObligations: sumMoney(districts.map((d) => d.awarded.contractObligations)),
       grantObligations: sumMoney(districts.map((d) => d.awarded.grantObligations)),

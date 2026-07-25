@@ -20,6 +20,11 @@
  * so in the label.
  */
 
+import type {
+  FederalMemberSummary,
+  RepresentationResult,
+} from '../clients/representation-resolver.service.js';
+
 /** ISO-8601 timestamp. */
 export type IsoTimestamp = string;
 
@@ -170,6 +175,26 @@ export interface DistrictNexusDistrictSummary {
   clientCount: number;
   /** 0-100, rounded. Null when there is too little evidence to score honestly. */
   score: number | null;
+  /**
+   * Share of total scoring weight backed by determinate evidence, 0-100.
+   *
+   * Required, not optional: the map offers "coverage" as a choropleth metric and
+   * the drawer renders a coverage pill, so a summary without it makes two of the
+   * six colour-by options unbuildable. It is also the only way to read a null
+   * `score` correctly — null at 12% coverage means "we don't know yet", which is
+   * a different fact from a genuinely weak nexus.
+   */
+  coveragePercent: number;
+  /**
+   * Employees across this client's facilities in the district.
+   *
+   * Null means "no figure", which is NOT zero — a facility with an unreported
+   * headcount must never render as 0 employees. `employeesUnreported` says
+   * whether any contributing facility withheld a count, so the UI can show
+   * "420+" rather than implying the number is complete.
+   */
+  employeeCount: number | null;
+  employeesUnreported: boolean;
   warnings: DataQualityWarning[];
 }
 
@@ -189,10 +214,106 @@ export interface DistrictNexusDistrictDetail extends DistrictNexusDistrictSummar
   freshness: SourceFreshness[];
 }
 
+/**
+ * One facility and who represents it.
+ *
+ * Embedded in the client payload so the widget makes ONE request instead of
+ * two (WS-E3 / WS-H1). `RepresentationResult` is a discriminated union — an
+ * unresolved facility carries a reason rather than an empty member list, so
+ * "we could not place this site" never renders as "nobody represents it".
+ */
+export interface FacilityRepresentation {
+  facility: { id: string; name: string; city: string | null; state: string | null };
+  representation: RepresentationResult;
+}
+
+/**
+ * ACS demographics for a district (WS-E2).
+ *
+ * `dataYear` is carried, never assumed: the live census_district rows are the
+ * 2022 ACS 5-year while the prototype mocks 2024, so the UI must render the
+ * vintage it actually received rather than a hardcoded label.
+ */
+export interface DistrictDemographics {
+  congress: number;
+  dataYear: number;
+  totalPopulation: number | null;
+  medianHouseholdIncome: number | null;
+  medianAge: number | null;
+  percentBachelorPlus: number | null;
+  percentPoverty: number | null;
+  percentVeteran: number | null;
+  percentUninsured: number | null;
+  laborForceSize: number | null;
+  unemploymentRate: number | null;
+}
+
+/** One client's presence in a single district. */
+export interface DistrictClientSummary {
+  clientId: string;
+  clientName: string;
+  awarded: AwardedFunding;
+  facilityCount: number;
+  employeeCount: number | null;
+}
+
+export interface DistrictFacilitySummary {
+  id: string;
+  name: string;
+  city: string | null;
+  clientId: string;
+  clientName: string;
+  employeeCount: number | null;
+}
+
+/**
+ * One award row for the drawer's "top awards" list.
+ *
+ * `amount` is a single instrument's figure — a contract obligation OR a grant
+ * obligation, never a blend. The list it belongs to says which.
+ */
+export interface TopAward {
+  id: string;
+  label: string;
+  counterparty: string | null;
+  amount: Money;
+  awardedAt: IsoTimestamp | null;
+  /** USAspending profile. Existing award rails link out rather than drill in. */
+  externalUrl: string | null;
+}
+
+/** WS-E Step E2 — everything behind one district, for the drawer. */
+export interface DistrictNexusDistrictDetailResponse extends DistrictNexusDistrictDetail {
+  /**
+   * Null when the district code cannot resolve a House seat at all (a sentinel
+   * like '90'/'98'), as distinct from a resolvable district whose member simply
+   * is not in the roster — that case is `{ house: null, senate: [...] }`.
+   */
+  representatives: {
+    house: FederalMemberSummary | null;
+    senate: FederalMemberSummary[];
+  } | null;
+  clients: DistrictClientSummary[];
+  facilities: DistrictFacilitySummary[];
+  topContractAwards: TopAward[];
+  topGrantAwards: TopAward[];
+  demographics: DistrictDemographics | null;
+  /** Whether a published boundary artifact covers this district. */
+  boundaryAvailable: boolean;
+  generatedAt: IsoTimestamp;
+}
+
 /** The per-client view powering the profile widget (WS-H). */
 export interface ClientDistrictNexusResponse {
   clientId: string;
   districts: DistrictNexusDistrictDetail[];
+  /**
+   * Server-side embed of RepresentationResolverService, so the widget can drop
+   * its separate representation query. Resolved through the BATCHED resolver —
+   * the per-facility path is four queries each, which is the fan-out this
+   * service's docblock exists to prevent.
+   */
+  representativesByFacility: FacilityRepresentation[];
   awarded: AwardedFunding;
   opportunities: OpportunityFunding;
   unmapped: UnmappedFunding;
