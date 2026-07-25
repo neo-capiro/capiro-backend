@@ -1,6 +1,7 @@
 import { describe, expect, jest, test } from '@jest/globals';
 import {
   awardTypeCodeFromLabel,
+  fetchPage,
   syncAssistanceAwardsWindow,
   toAwardData,
   type AssistanceAwardRaw,
@@ -81,6 +82,86 @@ function makePrismaMock(existingIds: Set<string> = new Set()) {
     },
   };
 }
+
+/**
+ * These assert on the REQUEST BODY, which no response-mapping test can see.
+ *
+ * Two properties of this sync are invisible to every other test in this file
+ * and would regress silently:
+ *   - all-agency scope: omitting `agency` must send NO agencies filter. A
+ *     stray default would quietly shrink the corpus to one agency while every
+ *     mapping test still passed.
+ *   - keyset pagination: past ~50,000 rows USAspending rejects page*limit
+ *     depth, so subsequent pages must send last_record_* and must NOT send
+ *     `page`. Sending both is the failure mode that silently caps ingestion.
+ */
+describe('fetchPage request body', () => {
+  function captureBody(): { first: () => Record<string, unknown> } {
+    const calls: Array<Record<string, unknown>> = [];
+    global.fetch = jest.fn(async (_url: unknown, init: unknown) => {
+      calls.push(JSON.parse((init as { body: string }).body) as Record<string, unknown>);
+      return {
+        ok: true,
+        json: async () => ({ results: [], page_metadata: { hasNext: false } }),
+      } as never;
+    }) as never;
+    return {
+      first: () => {
+        const body = calls[0];
+        if (!body) throw new Error('fetchPage never issued a request');
+        return body;
+      },
+    };
+  }
+
+  const BASE: FetchPageArgs = { startDate: '2026-01-01', endDate: '2026-03-31' };
+
+  test('omitting agency sends no agencies filter at all — the scope is all agencies', async () => {
+    const { first } = captureBody();
+    await fetchPage(BASE);
+    const filters = first().filters as Record<string, unknown>;
+    expect(filters).not.toHaveProperty('agencies');
+    // The scope-defining filters must still be present.
+    expect(filters).toHaveProperty('time_period');
+    expect(filters).toHaveProperty('award_type_codes');
+  });
+
+  test('an explicit agency narrows to a toptier awarding filter', async () => {
+    const { first } = captureBody();
+    await fetchPage({ ...BASE, agency: 'Department of Health and Human Services' });
+    expect((first().filters as Record<string, unknown>).agencies).toEqual([
+      { type: 'awarding', tier: 'toptier', name: 'Department of Health and Human Services' },
+    ]);
+  });
+
+  test('the first page uses page:1 and sends no keyset cursor', async () => {
+    const { first } = captureBody();
+    await fetchPage(BASE);
+    expect(first().page).toBe(1);
+    expect(first()).not.toHaveProperty('last_record_unique_id');
+    expect(first()).not.toHaveProperty('last_record_sort_value');
+  });
+
+  test('a cursor switches to keyset and drops page entirely', async () => {
+    const { first } = captureBody();
+    await fetchPage({
+      ...BASE,
+      cursor: { lastRecordUniqueId: 352819133, lastRecordSortValue: '1000000.00' },
+    });
+    expect(first().last_record_unique_id).toBe(352819133);
+    expect(first().last_record_sort_value).toBe('1000000.00');
+    // Sending `page` alongside the keyset is the depth-cap regression.
+    expect(first()).not.toHaveProperty('page');
+  });
+
+  test('sort and order stay pinned to the field the cursor sorts on', async () => {
+    const { first } = captureBody();
+    await fetchPage(BASE);
+    // last_record_sort_value is only meaningful against this exact sort.
+    expect(first().sort).toBe('Award Amount');
+    expect(first().order).toBe('desc');
+  });
+});
 
 describe('awardTypeCodeFromLabel', () => {
   test.each([
