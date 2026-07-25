@@ -6,9 +6,9 @@ import { TrackerOwnerGuard } from './tracker-owner.guard.js';
 import {
   TrackerWatchlistService,
   type PutWatchlistInput,
-  type PutAlertPrefsInput,
 } from './tracker-watchlist.service.js';
 import { TrackerSeedService } from './tracker-seed.service.js';
+import { PutAlertPrefsDto } from './tracker.dto.js';
 
 /**
  * Unified tracker watchlist CRUD (Phase 2, plan §5.2).
@@ -59,7 +59,7 @@ export class TrackerWatchlistController {
   putAlertPrefs(
     @CurrentTenant() ctx: WorkspaceTenantContext,
     @Param('clientId') clientId: string,
-    @Body() body: PutAlertPrefsInput,
+    @Body() body: PutAlertPrefsDto,
   ) {
     return this.svc.putAlertPrefs(ctx.tenantId, clientId, ctx.clerkUserId, body);
   }

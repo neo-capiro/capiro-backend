@@ -75,7 +75,10 @@ describe('G3 full sweep: per-tenant intel_* calls are scoped via withTenant', ()
 
   it('TrackerBoardService.untrackBill scopes to the caller tenantId', async () => {
     const { prisma, withTenant } = makeFakePrisma();
-    const svc = new TrackerBoardService(prisma, {} as never, {} as never, {} as never);
+    // P1-03/P1-04: untrackBill now asserts client ownership before its delete —
+    // stub it resolved so this test can keep proving the withTenant scoping.
+    const watchlists = { assertClientInTenant: jest.fn().mockResolvedValue(undefined) } as never;
+    const svc = new TrackerBoardService(prisma, {} as never, watchlists, {} as never);
     await svc.untrackBill('tenant-1', 'c1', '119-hr-1');
     expect(withTenant).toHaveBeenCalledWith('tenant-1', expect.any(Function));
   });
