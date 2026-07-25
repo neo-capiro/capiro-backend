@@ -78,6 +78,9 @@ export function createMeriVisualController({
     researchAwaitingAnswers: false,
     researchQuestions: [],
     researchReports: {},
+    // ChatDrawer indexes this by message id; omitting it made the fixture throw
+    // "Cannot read properties of undefined (reading 'u1')". Pre-existing gap.
+    researchOffers: {},
     lastUserMessageId: empty ? null : 'u1',
     editingMessageId: null,
     setEditingMessageId: noop,
@@ -103,6 +106,7 @@ export function createMeriVisualController({
     forgetMemory: noop,
     undoForgetMemory: noop,
     handleApprovePending: asyncNoop,
+    handleApproveAll: asyncNoop,
     handleDismissPending: noop,
     handleClearAllAlerts: asyncNoop,
     handleDismissAlert: asyncNoop,

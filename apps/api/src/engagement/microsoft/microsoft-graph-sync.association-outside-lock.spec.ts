@@ -42,6 +42,11 @@ function setup() {
     },
     engagementContact: {
       upsert: jest.fn().mockResolvedValue({ id: 'contact-1' }),
+      // Mail-participant harvest (insert-only, one statement). Deliberately a
+      // createMany and not a read/write loop: this runs inside the locked
+      // transaction, and per-row work under that lock is what starved the pool
+      // on 2026-07-21.
+      createMany: jest.fn().mockResolvedValue({ count: 1 }),
     },
     clientAssociationOverride: {
       findFirst: jest.fn().mockResolvedValue(null),
@@ -129,12 +134,7 @@ describe('MicrosoftGraphSyncService — association runs outside the advisory lo
 
     const outcome = await (
       service as unknown as {
-        persistGraphMessage: (
-          t: string,
-          c: string,
-          folder: string,
-          m: unknown,
-        ) => Promise<string>;
+        persistGraphMessage: (t: string, c: string, folder: string, m: unknown) => Promise<string>;
       }
     ).persistGraphMessage('tenant-1', 'conn-1', 'inbox', message);
 
