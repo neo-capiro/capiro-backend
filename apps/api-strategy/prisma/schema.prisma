@@ -154,6 +154,17 @@ model SpNode {
   dependsOnIds    String[]      @map("depends_on_ids") @db.Uuid @default([]) // intra-strategy blocker node ids (Phase 2 A1)
   provenance      Json?         @map("provenance") // A9: per-node grounding (cited pack sections/facts)
   targetRef       Json?         @map("target_ref") // ClientTarget snapshot: who this node's outreach/workspace action is for
+  // P0-1 SOFT DELETE. A version restore no longer DELETES the nodes the
+  // restored snapshot omits (that cascaded sp_node_artifact away and left runs
+  // pointing at dead ids) — it ARCHIVES them, so execution runs, approvals,
+  // provenance and artifact back-links referencing the node all survive and
+  // stay readable. Every LIVE read MUST filter archivedAt: null — the single
+  // source of that predicate is LIVE_NODE_WHERE (strategy/live-node.ts).
+  // Restoring a NEWER version whose snapshot contains the node revives it
+  // (archivedAt back to null) because snapshot node ids are stable.
+  archivedAt       DateTime?    @map("archived_at")
+  archivedByUserId String?      @map("archived_by_user_id")
+  archivedReason   String?      @map("archived_reason")
   createdByUserId String        @map("created_by_user_id")
   createdAt       DateTime      @default(now()) @map("created_at")
   updatedAt       DateTime      @updatedAt @map("updated_at")
@@ -161,6 +172,11 @@ model SpNode {
   strategy  SpStrategy       @relation(fields: [strategyId], references: [id], onDelete: Cascade, onUpdate: Cascade)
   artifacts SpNodeArtifact[]
 
+  // NO separate (tenantId, strategyId, archivedAt) index on purpose: this index
+  // already narrows to one strategy's nodes (tens of rows), so the added
+  // `archived_at IS NULL` filter is free, and the archived-only read (the
+  // detached surface) is the same prefix. Avoids a redundant index on a live
+  // prod table.
   @@index([tenantId, strategyId])
   @@map("sp_node")
 }
@@ -258,6 +274,14 @@ model SpNodeArtifact {
   nodeId          String         @map("node_id") @db.Uuid
   artifactType    SpArtifactType @map("artifact_type")
   artifactRef     String         @map("artifact_ref") // ws_draft.id / outreach_records.id
+  // P0-1: stamped when the owning node was ARCHIVED by a version restore. The
+  // row — and the upstream Workspace draft / Outreach record it points at — is
+  // NEVER deleted; the relationship simply becomes HISTORICAL/detached and
+  // stays discoverable through the detached surface
+  // (GET /strategies/:id/detached). Cleared when a later restore revives the
+  // node, which re-attaches the artifact to the live plan.
+  detachedAt      DateTime?      @map("detached_at")
+  detachedReason  String?        @map("detached_reason")
   createdByUserId String         @map("created_by_user_id")
   createdAt       DateTime       @default(now()) @map("created_at")
 
@@ -343,15 +367,28 @@ enum SpMissionState {
   @@map("sp_mission_state")
 }
 
+// P0-2: the audit's full run vocabulary. `approved` (P0-3 writes it) and `staged`
+// make "authorised" and "artifact exists" distinct facts; the failure split gives
+// the reconciler a recoverable landing zone; `superseded` records that an attempt
+// was abandoned for a retry. `failed` is LEGACY — pre-P0-2 rows carry it and it
+// reads as terminal, but nothing transitions into it any more. `canceled` keeps
+// its existing spelling on purpose (renaming a live enum value used by production
+// rows for the audit's `cancelled` prose buys nothing). run-state.ts is
+// authoritative for which moves between these are legal.
 enum SpRunState {
   queued
   planning
   waiting_for_input
-  executing
   ready_for_review
+  approved
+  executing
+  staged
   completed
   failed
+  failed_recoverable
+  failed_terminal
   canceled
+  superseded
 
   @@map("sp_run_state")
 }
@@ -502,6 +539,24 @@ model SpAgentRun {
   findings        Json? // deterministic-check + (later) LLM-interpretation findings
   waitingReason   String?      @map("waiting_reason") // set when state=waiting_for_input
   error           String?
+  // ---- P0-2 stranded-run recovery -------------------------------------------
+  // Stamped on every state change and at the end of every execution phase. This
+  // is the clock the reconciler measures a state's timeout against (see
+  // run-state.ts RUN_STATE_POLICY) — updatedAt is unusable for that because any
+  // unrelated column write bumps it.
+  heartbeatAt       DateTime? @map("heartbeat_at")
+  // When reconciliation last inspected this run, and how many times. The count is
+  // the loop-breaker: a run that reconciliation cannot fix stops being retried
+  // automatically and is escalated to a human instead of being swept forever.
+  reconciledAt      DateTime? @map("reconciled_at")
+  reconcileAttempts Int       @default(0) @map("reconcile_attempts")
+  // Retry lineage (audit P0-2 `superseded` + P1-16 "retry relationship" /
+  // "compare attempts"). A retry mints a NEW run — which is what unblocks the
+  // "retries blocked by deduplication" defect, since the new run carries a fresh
+  // idempotencyKey (`exec:<nodeId>:<kind>#<attempt>`) — and links back here.
+  attempt           Int       @default(1)
+  retryOfRunId      String?   @map("retry_of_run_id") @db.Uuid
+  supersededByRunId String?   @map("superseded_by_run_id") @db.Uuid
   createdByUserId String?      @map("created_by_user_id") // null => system
   createdAt       DateTime     @default(now()) @map("created_at")
   updatedAt       DateTime     @updatedAt @map("updated_at")
@@ -510,6 +565,9 @@ model SpAgentRun {
 
   @@unique([tenantId, idempotencyKey])
   @@index([tenantId, missionId, createdAt(sort: Desc)])
+  // P0-2: the reconciler's sweep predicate — non-terminal runs ordered by how
+  // long they have been quiet. Cross-tenant (the sweep runs under withSystem).
+  @@index([state, heartbeatAt])
   @@map("sp_agent_run")
 }
 

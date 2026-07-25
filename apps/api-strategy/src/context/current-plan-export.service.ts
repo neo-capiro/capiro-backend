@@ -1,5 +1,6 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service.js';
+import { ATTACHED_ARTIFACT_WHERE, LIVE_NODE_WHERE } from '../strategy/live-node.js';
 
 /**
  * Stage D: the Capiro-generated 07_current_plan.md projection. READ-ONLY and
@@ -17,9 +18,12 @@ export class CurrentPlanExportService {
       tx.spStrategy.findFirst({
         where: { id: strategyId },
         include: {
+          // P0-1: the exported plan is the LIVE plan — nodes archived by a
+          // restore (and artifact links detached with them) are excluded.
           nodes: {
+            where: { ...LIVE_NODE_WHERE },
             orderBy: [{ startsOn: 'asc' }, { createdAt: 'asc' }],
-            include: { artifacts: true },
+            include: { artifacts: { where: { ...ATTACHED_ARTIFACT_WHERE } } },
           },
         },
       }),

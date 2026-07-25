@@ -890,7 +890,7 @@ describe('WatcherService.runCheckNow — deterministic check run', () => {
     expect(withTenantUser).not.toHaveBeenCalled();
   });
 
-  it('a mid-check failure transitions the run to failed (never stranded in planning) and rethrows', async () => {
+  it('a mid-check failure transitions the run to failed_terminal (never stranded in planning) and rethrows', async () => {
     const store = makeStore();
     seedStrategy(store);
     seedMission(store);
@@ -902,7 +902,9 @@ describe('WatcherService.runCheckNow — deterministic check run', () => {
 
     expect((err as Error).message).toBe('steward exploded');
     const run = [...store.runs.values()][0]!;
-    expect(run.state).toBe('failed');
+    // P0-2: the legacy undifferentiated `failed` is gone; a dead check run is
+    // terminal (its mission mints a fresh run next tick).
+    expect(run.state).toBe('failed_terminal');
     expect(String(run.error)).toContain('steward exploded');
     expect(run.finishedAt).not.toBeNull();
     expect(store.changeSets.size).toBe(0);

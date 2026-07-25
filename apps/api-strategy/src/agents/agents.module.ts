@@ -8,6 +8,7 @@ import { WatcherSchedulerService } from './watcher-scheduler.service.js';
 import { OutboxConsumerService } from './outbox-consumer.service.js';
 import { ExecutionArtifactClient } from './execution-artifact.client.js';
 import { ExecutionService } from './execution.service.js';
+import { RunReconcilerService } from './run-reconciler.service.js';
 import { VersioningService } from '../strategy/versioning.service.js';
 import { MeriModule } from '../meri/meri.module.js';
 import { StrategyModule } from '../strategy/strategy.module.js';
@@ -51,6 +52,10 @@ import { ReferenceModule } from '../reference/reference.module.js';
     OutboxConsumerService,
     ExecutionArtifactClient,
     ExecutionService,
+    // P0-2 stranded-run recovery. On-demand reconcile is always available; the
+    // cross-tenant SWEEP is another setInterval lifecycle hook that stays DARK
+    // unless STRATEGY_AGENTS_ENABLED and STRATEGY_RUN_RECONCILER are BOTH 'true'.
+    RunReconcilerService,
   ],
 })
 export class AgentsModule {}

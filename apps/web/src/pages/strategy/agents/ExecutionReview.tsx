@@ -26,11 +26,22 @@
  * AgenticGuard + the per-intent executionAgent flags are authoritative — a
  * tenant without them sees the list/actions error out with the server's reason.
  */
-import { useMemo } from 'react';
+import { useMemo, useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { App } from 'antd';
 import { Chip, Icon, btnGhost, btnPrimary, chipBtn } from '../strategy-ui.js';
-import { useExecutionRuns, useExecuteRun, useResumeRun, useStrategies } from '../api.js';
+import {
+  useCancelRun,
+  useExecutionRuns,
+  useExecuteRun,
+  useMarkRunFailed,
+  useReconcileRun,
+  useResolveReservation,
+  useResumeRun,
+  useRetryRun,
+  useRunPolicy,
+  useStrategies,
+} from '../api.js';
 import { useClientsLite } from '../clients-lite.js';
 import { errorMessage } from '../../../lib/error-message.js';
 import { relativeTime } from '../constants.js';
@@ -44,6 +55,8 @@ import type {
   ExecutionRun,
   ExecutionTask,
   ExecutionTaskType,
+  ReconcileResult,
+  RunAction,
   RunState,
   SendApprovalPreview,
 } from '../types.js';
@@ -90,6 +103,11 @@ const warnBox: React.CSSProperties = {
   lineHeight: 1.5,
 };
 
+/*
+ * P0-2 run vocabulary. `Staged` is deliberately worded as "staged, not sent" and
+ * `Recoverable` as a repairable failure — the audit's P1-13 point that success,
+ * generated, staged and completed must not read as the same thing.
+ */
 const RUN_STATE_META: Record<
   RunState,
   { label: string; tone: 'accent' | 'notable' | 'info' | 'success' | 'critical' | 'ink' }
@@ -97,11 +115,16 @@ const RUN_STATE_META: Record<
   queued: { label: 'Queued', tone: 'ink' },
   planning: { label: 'Planning', tone: 'info' },
   waiting_for_input: { label: 'Waiting', tone: 'notable' },
-  executing: { label: 'Executing', tone: 'info' },
   ready_for_review: { label: 'Ready for review', tone: 'accent' },
+  approved: { label: 'Approved', tone: 'accent' },
+  executing: { label: 'Executing', tone: 'info' },
+  staged: { label: 'Staged — not sent', tone: 'success' },
   completed: { label: 'Completed', tone: 'success' },
   failed: { label: 'Failed', tone: 'critical' },
+  failed_recoverable: { label: 'Failed — recoverable', tone: 'critical' },
+  failed_terminal: { label: 'Failed', tone: 'critical' },
   canceled: { label: 'Canceled', tone: 'ink' },
+  superseded: { label: 'Superseded', tone: 'ink' },
 };
 
 const TASK_META: Record<ExecutionTaskType, { label: string; icon: string }> = {
@@ -128,7 +151,14 @@ export function ExecutionReview() {
   // Newest first, and float the runs that need a human (ready_for_review /
   // waiting_for_input) to the top so review obligations lead.
   const rows = useMemo(() => {
-    const NEEDS_ATTENTION: ReadonlySet<RunState> = new Set(['ready_for_review', 'waiting_for_input']);
+    // P0-2: a recoverable failure is a review obligation too — it is exactly the
+    // stranded run a human needs to see, so it floats with the parked ones.
+    const NEEDS_ATTENTION: ReadonlySet<RunState> = new Set([
+      'ready_for_review',
+      'waiting_for_input',
+      'failed_recoverable',
+      'staged',
+    ]);
     return [...(runs.data ?? [])].sort((a, b) => {
       const aa = NEEDS_ATTENTION.has(a.state) ? 0 : 1;
       const bb = NEEDS_ATTENTION.has(b.state) ? 0 : 1;
@@ -317,12 +347,16 @@ function ExecutionRunCard({
         </div>
       )}
 
-      {run.state === 'failed' && run.error && (
-        <div style={{ ...warnBox, marginTop: 10, background: 'var(--critical-soft)', border: '1px solid var(--critical)', color: 'var(--critical)' }}>
-          <Icon name="alert" size={14} color="var(--critical)" />
-          <span style={{ flex: 1 }}>{run.error}</span>
-        </div>
-      )}
+      {/* P0-2: all three failure states surface the reason, not just legacy `failed`. */}
+      {(run.state === 'failed' ||
+        run.state === 'failed_recoverable' ||
+        run.state === 'failed_terminal') &&
+        run.error && (
+          <div style={{ ...warnBox, marginTop: 10, background: 'var(--critical-soft)', border: '1px solid var(--critical)', color: 'var(--critical)' }}>
+            <Icon name="alert" size={14} color="var(--critical)" />
+            <span style={{ flex: 1 }}>{run.error}</span>
+          </div>
+        )}
 
       {/* tasks (read-only) */}
       {run.tasks.length > 0 && (
@@ -343,6 +377,263 @@ function ExecutionRunCard({
           onResume={onResume}
           resuming={resume.isPending}
         />
+      )}
+
+      {/* P0-2 recovery controls — rendered from the SERVER's allowed-action list */}
+      <RecoveryControls run={run} onOpenStrategy={onOpenStrategy} />
+    </div>
+  );
+}
+
+/**
+ * P0-2: the audit's missing run controls — Retry, Cancel run, Reconcile, Mark
+ * failed, Copy diagnostic ID, Return to strategy — plus the operator resolution
+ * for the one recovery case reconciliation refuses to guess at.
+ *
+ * Which buttons appear is decided by the SERVER (GET .../policy returns the
+ * state's allowed-action list), not by a table in this file. That is deliberate: a
+ * client-side copy of the state machine is exactly how a UI ends up offering a
+ * button the API rejects — the "misleading state" class of defect this audit is
+ * about.
+ */
+function RecoveryControls({
+  run,
+  onOpenStrategy,
+}: {
+  run: ExecutionRun;
+  onOpenStrategy: () => void;
+}) {
+  const { message } = App.useApp();
+  const policy = useRunPolicy(run.id);
+  const cancel = useCancelRun();
+  const retry = useRetryRun();
+  const markFailed = useMarkRunFailed();
+  const reconcile = useReconcileRun();
+  const resolveReservation = useResolveReservation();
+  const [outcome, setOutcome] = useState<ReconcileResult | null>(null);
+  const [adoptRef, setAdoptRef] = useState('');
+
+  const allowed = (a: RunAction): boolean => !!policy.data?.actions.includes(a);
+  const reservationFinding = outcome?.findings.find(
+    (f) => f.code === 'RESERVATION_WITHOUT_ARTIFACT',
+  );
+
+  const onReconcile = () =>
+    reconcile.mutate(
+      { id: run.id },
+      {
+        onSuccess: (res) => {
+          setOutcome(res);
+          if (res.applied) {
+            message.success(`Reconciled — the run is now ${res.applied.to.replace(/_/g, ' ')}.`);
+          } else if (res.needsHuman) {
+            message.warning('Reconciliation needs your decision — see the detail below.');
+          } else {
+            message.info('Nothing to repair: this run is consistent.');
+          }
+        },
+        onError: (err) => message.error(errorMessage(err, 'Could not reconcile the run.')),
+      },
+    );
+
+  return (
+    <div style={{ marginTop: 10, borderTop: '1px solid var(--border-1)', paddingTop: 10 }}>
+      {/* The plain-words meaning of the state — the audit's user-readable reason. */}
+      {policy.data?.reason && (
+        <div style={{ fontSize: 'var(--text-xs)', color: 'var(--ink-2)', lineHeight: 1.5 }}>
+          {policy.data.reason}
+        </div>
+      )}
+
+      {(policy.data?.attempt ?? 1) > 1 && (
+        <div style={{ fontSize: 'var(--text-2xs)', color: 'var(--ink-4)', marginTop: 3 }}>
+          Attempt {policy.data!.attempt}
+          {run.supersededByRunId ? ' · superseded by a later attempt' : ''}
+        </div>
+      )}
+
+      <div style={{ display: 'flex', flexWrap: 'wrap', gap: 7, marginTop: 9 }}>
+        {allowed('reconcile') && (
+          <button
+            onClick={onReconcile}
+            disabled={reconcile.isPending}
+            style={{ ...chipBtn }}
+            title="Work out what actually happened to this run, and repair it"
+          >
+            <Icon name="refresh" size={12} color="var(--ink-2)" />{' '}
+            {reconcile.isPending ? 'Reconciling…' : 'Reconcile'}
+          </button>
+        )}
+        {allowed('retry') && (
+          <button
+            onClick={() =>
+              retry.mutate(
+                { id: run.id },
+                {
+                  onSuccess: () =>
+                    message.success('New attempt created — review its plan before executing.'),
+                  onError: (err) => message.error(errorMessage(err, 'Could not retry the run.')),
+                },
+              )
+            }
+            disabled={retry.isPending}
+            style={{ ...chipBtn }}
+            title="Start a fresh attempt. Nothing is inherited — it re-plans from scratch."
+          >
+            <Icon name="play" size={12} color="var(--ink-2)" /> Retry
+          </button>
+        )}
+        {allowed('cancel') && (
+          <button
+            onClick={() =>
+              cancel.mutate(
+                { id: run.id },
+                {
+                  onSuccess: () => message.success('Run canceled.'),
+                  onError: (err) => message.error(errorMessage(err, 'Could not cancel the run.')),
+                },
+              )
+            }
+            disabled={cancel.isPending}
+            style={{ ...chipBtn }}
+          >
+            <Icon name="x" size={12} color="var(--ink-2)" /> Cancel run
+          </button>
+        )}
+        {allowed('mark_failed') && (
+          <button
+            onClick={() =>
+              markFailed.mutate(
+                { id: run.id },
+                {
+                  onSuccess: () => message.success('Marked failed.'),
+                  onError: (err) => message.error(errorMessage(err, 'Could not mark it failed.')),
+                },
+              )
+            }
+            disabled={markFailed.isPending}
+            style={{ ...chipBtn }}
+            title="Give up on this run — it will no longer be reconciled"
+          >
+            <Icon name="alert" size={12} color="var(--ink-2)" /> Mark failed
+          </button>
+        )}
+        {allowed('return_to_node') && (
+          <button onClick={onOpenStrategy} disabled={!run.strategyId} style={{ ...chipBtn }}>
+            <Icon name="chevleft" size={12} color="var(--ink-2)" /> Return to strategy
+          </button>
+        )}
+        {/* Always available: a correlation id the user can paste into a report. */}
+        <button
+          onClick={() => {
+            void navigator.clipboard
+              ?.writeText(run.id)
+              .then(() => message.success('Diagnostic ID copied.'))
+              .catch(() => message.error('Could not copy the diagnostic ID.'));
+          }}
+          style={{ ...chipBtn }}
+          title="Copy this run's id for support"
+        >
+          <Icon name="link" size={12} color="var(--ink-2)" /> Copy diagnostic ID
+        </button>
+      </div>
+
+      {/* What reconciliation found, in words. */}
+      {outcome && outcome.findings.length > 0 && (
+        <div style={{ ...warnBox, marginTop: 9 }}>
+          <Icon name="info" size={14} color="#A14D12" />
+          <div style={{ flex: 1 }}>
+            {outcome.findings.map((f) => (
+              <div key={f.code} style={{ marginBottom: 3 }}>
+                {f.detail}
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/*
+       * The one case reconciliation refuses to guess at: a staging reservation with
+       * no recorded artifact. The artifact client is create-only, so the server
+       * cannot ask Workspace/Outreach whether the document exists — the operator
+       * checks and tells us. Both branches are unrecoverable if wrong, hence an
+       * explicit two-button choice rather than an automatic repair.
+       */}
+      {reservationFinding && (
+        <div
+          style={{
+            marginTop: 9,
+            border: '1px solid var(--border-2)',
+            borderRadius: 8,
+            padding: '9px 11px',
+            background: 'var(--bg-surface-2)',
+          }}
+        >
+          <div style={{ fontSize: 'var(--text-xs)', fontWeight: 700, color: 'var(--ink-1)' }}>
+            Check Workspace and Outreach for a document from this run
+          </div>
+          <div style={{ fontSize: 'var(--text-2xs)', color: 'var(--ink-3)', marginTop: 3 }}>
+            If one exists, paste its id to link it. If nothing was created, release the slot so a
+            retry can stage cleanly.
+          </div>
+          <div style={{ display: 'flex', gap: 7, marginTop: 8, alignItems: 'center' }}>
+            <input
+              value={adoptRef}
+              onChange={(e) => setAdoptRef(e.target.value)}
+              placeholder="Created document id"
+              aria-label="Created document id"
+              style={{
+                flex: 1,
+                minWidth: 0,
+                fontSize: 'var(--text-xs)',
+                fontFamily: 'var(--font-mono)',
+                padding: '6px 9px',
+                borderRadius: 7,
+                border: '1px solid var(--border-2)',
+                background: 'var(--bg-surface)',
+                color: 'var(--ink-1)',
+              }}
+            />
+            <button
+              onClick={() =>
+                resolveReservation.mutate(
+                  { id: run.id, action: 'adopt', artifactRef: adoptRef.trim() },
+                  {
+                    onSuccess: () => {
+                      setOutcome(null);
+                      setAdoptRef('');
+                      message.success('Linked. Reconcile again to advance the run.');
+                    },
+                    onError: (err) => message.error(errorMessage(err, 'Could not link that id.')),
+                  },
+                )
+              }
+              disabled={!adoptRef.trim() || resolveReservation.isPending}
+              style={{ ...chipBtn }}
+            >
+              Link it
+            </button>
+            <button
+              onClick={() =>
+                resolveReservation.mutate(
+                  { id: run.id, action: 'release' },
+                  {
+                    onSuccess: () => {
+                      setOutcome(null);
+                      message.success('Reservation released — you can retry now.');
+                    },
+                    onError: (err) =>
+                      message.error(errorMessage(err, 'Could not release the reservation.')),
+                  },
+                )
+              }
+              disabled={resolveReservation.isPending}
+              style={{ ...chipBtn }}
+            >
+              Nothing was created
+            </button>
+          </div>
+        </div>
       )}
     </div>
   );

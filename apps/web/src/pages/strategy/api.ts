@@ -26,6 +26,7 @@ import type {
   CreateMissionInput,
   CreateNodeInput,
   CreateStrategyInput,
+  DetachedSurface,
   DraftStrategyInput,
   ExecutionRun,
   ExtractFactsResult,
@@ -36,9 +37,12 @@ import type {
   RecordArtifactInput,
   ReferenceCalendars,
   ReferenceForkRow,
+  ReconcileResult,
   ResolveConflictInput,
+  RestoreImpact,
   ResumeRunInput,
   RunCheckResult,
+  RunPolicy,
   StrategyDetail,
   StrategyListItem,
   UpdateMissionInput,
@@ -260,9 +264,56 @@ export function useUploadAttachment() {
   });
 }
 
-/** POST /strategies/:id/versions/:versionId/restore — restore (HIS-2). */
+/**
+ * GET /strategies/:id/versions/:versionId/restore-impact — P0-1 impact preview.
+ * Read-only; fetched when the restore modal opens for a specific version so the
+ * user sees what would be archived/revived/changed BEFORE committing.
+ */
+export function useRestoreImpact(strategyId: string, versionId: string | null) {
+  const api = useApi();
+  return useQuery<RestoreImpact>({
+    queryKey: ['strategy', 'restore-impact', strategyId, versionId],
+    enabled: !!versionId,
+    // Always refetch on open: the impact depends on live plan state, which any
+    // teammate's edit can move between opening history and confirming a restore.
+    staleTime: 0,
+    gcTime: 0,
+    queryFn: async () =>
+      (
+        await api.get<RestoreImpact>(
+          `${BASE}/strategies/${strategyId}/versions/${versionId}/restore-impact`,
+        )
+      ).data,
+  });
+}
+
+/**
+ * GET /strategies/:id/detached — P0-1: steps a restore archived plus their now
+ * historical Workspace/Outreach links, so a staged artifact whose step left the
+ * live plan stays discoverable instead of silently disappearing.
+ */
+export function useDetachedSurface(strategyId: string | null, enabled: boolean) {
+  const api = useApi();
+  return useQuery<DetachedSurface>({
+    queryKey: ['strategy', 'detached', strategyId],
+    enabled: !!strategyId && enabled,
+    queryFn: async () =>
+      (await api.get<DetachedSurface>(`${BASE}/strategies/${strategyId}/detached`)).data,
+  });
+}
+
+/**
+ * POST /strategies/:id/versions/:versionId/restore — "Restore as new version"
+ * (HIS-2, P0-1). Non-destructive on the server: steps the snapshot omits are
+ * archived (never deleted), their artifact links go historical, and the restore is
+ * recorded as an applied change-set so it has a one-click Undo.
+ *
+ * Invalidates the detached surface and the change-set lists too — a restore adds
+ * rows to both.
+ */
 export function useRestoreVersion(strategyId: string) {
   const api = useApi();
+  const qc = useQueryClient();
   const onOk = useDetailWriteHandlers(strategyId);
   return useMutation({
     mutationFn: async (versionId: string) =>
@@ -271,7 +322,12 @@ export function useRestoreVersion(strategyId: string) {
           `${BASE}/strategies/${strategyId}/versions/${versionId}/restore`,
         )
       ).data,
-    onSuccess: onOk,
+    onSuccess: (detail) => {
+      onOk(detail);
+      void qc.invalidateQueries({ queryKey: ['strategy', 'detached', strategyId] });
+      void qc.invalidateQueries({ queryKey: ['strategy', 'change-sets'] });
+      void qc.invalidateQueries({ queryKey: ['strategy', 'restore-impact', strategyId] });
+    },
   });
 }
 
@@ -829,6 +885,134 @@ export function useResumeRun() {
         (await api.post<unknown>(`${BASE}/agents/execution/runs/${vars.id}/resume`, vars.input ?? {}))
           .data,
       ),
+    onSuccess: invalidate,
+  });
+}
+
+/*
+ * ---- P0-2 run recovery -------------------------------------------------------
+ *
+ * The audit's missing controls for a stranded run. None of these create or send
+ * anything: cancel/mark-failed only move run state, retry mints a fresh attempt
+ * that must be re-planned and re-approved, and reconcile only reads what already
+ * happened and records it.
+ */
+
+/**
+ * GET /agents/execution/runs/:id/policy — the allowed-next-actions list + the
+ * plain-words state reason, straight from the server's state machine. The recovery
+ * controls render from this so an on-screen button can never offer something the
+ * server would reject.
+ */
+export function useRunPolicy(runId: string | null, enabled = true) {
+  const api = useApi();
+  return useQuery<RunPolicy>({
+    queryKey: ['strategy', 'run-policy', runId],
+    enabled: !!runId && enabled,
+    queryFn: async () =>
+      (await api.get<RunPolicy>(`${BASE}/agents/execution/runs/${runId}/policy`)).data,
+  });
+}
+
+/** GET /agents/execution/runs/:id/attempts — every attempt in this run's family. */
+export function useRunAttempts(runId: string | null, enabled = true) {
+  const api = useApi();
+  return useQuery<ExecutionRun[]>({
+    queryKey: ['strategy', 'run-attempts', runId],
+    enabled: !!runId && enabled,
+    queryFn: async () =>
+      normalizeExecutionRuns(
+        (await api.get<unknown>(`${BASE}/agents/execution/runs/${runId}/attempts`)).data,
+      ),
+  });
+}
+
+/** POST /agents/execution/runs/:id/cancel — stop a run that is not yet terminal. */
+export function useCancelRun() {
+  const api = useApi();
+  const invalidate = useExecutionInvalidate();
+  return useMutation({
+    mutationFn: async (vars: { id: string }): Promise<ExecutionRun | null> =>
+      normalizeExecutionRun(
+        (await api.post<unknown>(`${BASE}/agents/execution/runs/${vars.id}/cancel`)).data,
+      ),
+    onSuccess: invalidate,
+  });
+}
+
+/**
+ * POST /agents/execution/runs/:id/retry — mints a NEW attempt and supersedes the
+ * prior one when it was still open. This is what makes retry possible at all: the
+ * (tenant, idempotencyKey) unique constraint meant re-triggering the same key
+ * returned the same stuck run forever. The new run inherits the execution INTENT
+ * only — never a prior approval or staged result.
+ */
+export function useRetryRun() {
+  const api = useApi();
+  const invalidate = useExecutionInvalidate();
+  return useMutation({
+    mutationFn: async (vars: { id: string }): Promise<ExecutionRun | null> =>
+      normalizeExecutionRun(
+        (await api.post<unknown>(`${BASE}/agents/execution/runs/${vars.id}/retry`)).data,
+      ),
+    onSuccess: invalidate,
+  });
+}
+
+/** POST /agents/execution/runs/:id/mark-failed — declare a stuck run dead. */
+export function useMarkRunFailed() {
+  const api = useApi();
+  const invalidate = useExecutionInvalidate();
+  return useMutation({
+    mutationFn: async (vars: { id: string; reason?: string }): Promise<ExecutionRun | null> =>
+      normalizeExecutionRun(
+        (
+          await api.post<unknown>(`${BASE}/agents/execution/runs/${vars.id}/mark-failed`, {
+            ...(vars.reason ? { reason: vars.reason } : {}),
+          })
+        ).data,
+      ),
+    onSuccess: invalidate,
+  });
+}
+
+/**
+ * POST /agents/execution/runs/:id/reconcile — work out what actually happened to a
+ * stranded run and apply at most one repair. Returns the findings so the UI can
+ * explain the outcome instead of just refreshing.
+ */
+export function useReconcileRun() {
+  const api = useApi();
+  const invalidate = useExecutionInvalidate();
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async (vars: { id: string }): Promise<ReconcileResult> =>
+      (await api.post<ReconcileResult>(`${BASE}/agents/execution/runs/${vars.id}/reconcile`)).data,
+    onSuccess: (_res, vars) => {
+      invalidate();
+      void qc.invalidateQueries({ queryKey: ['strategy', 'run-policy', vars.id] });
+    },
+  });
+}
+
+/**
+ * POST /agents/execution/runs/:id/resolve-reservation — the operator's answer to
+ * the ONE case reconciliation cannot decide: a staging reservation with no recorded
+ * artifact. 'adopt' links a document the operator found; 'release' frees the slot
+ * after confirming nothing was created. Both are unrecoverable if wrong, which is
+ * why the server requires an explicit human choice rather than guessing.
+ */
+export function useResolveReservation() {
+  const api = useApi();
+  const invalidate = useExecutionInvalidate();
+  return useMutation({
+    mutationFn: async (vars: { id: string; action: 'adopt' | 'release'; artifactRef?: string }) =>
+      (
+        await api.post<unknown>(
+          `${BASE}/agents/execution/runs/${vars.id}/resolve-reservation`,
+          { action: vars.action, ...(vars.artifactRef ? { artifactRef: vars.artifactRef } : {}) },
+        )
+      ).data,
     onSuccess: invalidate,
   });
 }

@@ -200,6 +200,84 @@ export interface VersionsPage {
   nextCursor: string | null;
 }
 
+/*
+ * P0-1 — restore impact preview.
+ *
+ * Restore is non-destructive: it ARCHIVES the steps the chosen snapshot omits
+ * (never deletes them), marks their Workspace/Outreach links historical, and
+ * revives snapshot steps that were previously archived. This is the shape of
+ * GET /strategies/:id/versions/:versionId/restore-impact, which the restore modal
+ * shows BEFORE the user commits.
+ */
+export interface RestoreImpactNodeRef {
+  id: string;
+  title: string;
+  kind: NodeKind;
+  subject: NodeSubject;
+}
+
+export interface RestoreImpactChangedNode extends RestoreImpactNodeRef {
+  changedFields: string[];
+}
+
+export interface RestoreImpactArtifactRef {
+  nodeId: string;
+  artifactType: ArtifactType;
+  artifactRef: string;
+}
+
+export interface RestoreImpact {
+  versionId: string;
+  versionNote: string;
+  versionCreatedAt: string;
+  versionAuthorKind: 'person' | 'meri';
+  versionAuthorUserId: string | null;
+  /** True when restoring this version would change nothing at all. */
+  noOp: boolean;
+  nodes: {
+    /** In the snapshot with no row today (previously hard-deleted) — re-created. */
+    added: RestoreImpactNodeRef[];
+    /** In the snapshot but currently archived — un-archived, artifacts re-attach. */
+    revived: RestoreImpactNodeRef[];
+    changed: RestoreImpactChangedNode[];
+    /** Live today, absent from the snapshot — ARCHIVED, never deleted. */
+    removed: RestoreImpactNodeRef[];
+    unchangedCount: number;
+  };
+  artifacts: {
+    workspaceDraftsAffected: number;
+    outreachRecordsAffected: number;
+    detaching: RestoreImpactArtifactRef[];
+    reattaching: RestoreImpactArtifactRef[];
+    /** Always 0 — a restore deletes no artifact. Rendered as the guarantee. */
+    deleted: number;
+  };
+  runs: {
+    active: Array<{ id: string; state: string; nodeId: string | null }>;
+    activeCount: number;
+    historicalCount: number;
+  };
+  provenance: {
+    nodesArchivedWithProvenance: number;
+    snapshotCarriesProvenance: boolean;
+    nodesReCreatedWithoutProvenance: number;
+  };
+}
+
+/** P0-1 — GET /strategies/:id/detached: steps a restore archived + their historical links. */
+export interface DetachedSurface {
+  nodes: Array<
+    StrategyNode & {
+      archivedAt: string | null;
+      archivedByUserId: string | null;
+      archivedReason: string | null;
+    }
+  >;
+  artifacts: Array<
+    StrategyNodeArtifact & { detachedAt: string | null; detachedReason: string | null }
+  >;
+}
+
 /** Manual node create (SHL-7). meriAuthored is server-set (never client). */
 export interface CreateNodeInput {
   kind: NodeKind;
@@ -500,15 +578,77 @@ export interface ChangeSet {
 }
 
 export type MissionState = 'draft' | 'active' | 'paused' | 'completed' | 'failed' | 'canceled';
+/*
+ * P0-2: the server's full run vocabulary (sp_run_state / run-state.ts).
+ * `approved` and `staged` separate "the exact payload is authorised" and "the
+ * artifact exists" from "the run finished"; the failure split tells a user whether
+ * anything can still be recovered; `superseded` marks an attempt replaced by a
+ * retry. `failed` is LEGACY — pre-P0-2 rows only.
+ */
 export type RunState =
   | 'queued'
   | 'planning'
   | 'waiting_for_input'
-  | 'executing'
   | 'ready_for_review'
+  | 'approved'
+  | 'executing'
+  | 'staged'
   | 'completed'
   | 'failed'
-  | 'canceled';
+  | 'failed_recoverable'
+  | 'failed_terminal'
+  | 'canceled'
+  | 'superseded';
+
+/** P0-2: the actions the server will accept from a run's current state. */
+export type RunAction =
+  | 'execute'
+  | 'approve'
+  | 'resume'
+  | 'resolve_input'
+  | 'retry'
+  | 'cancel'
+  | 'reconcile'
+  | 'mark_failed'
+  | 'open_artifact'
+  | 'return_to_node'
+  | 'compare';
+
+/**
+ * GET /agents/execution/runs/:id/policy — P0-2. The recovery controls render from
+ * THIS, not from a client-side state table, so the buttons on screen cannot drift
+ * from what the server will actually accept.
+ */
+export interface RunPolicy {
+  runId: string;
+  state: RunState;
+  /** Plain-words meaning of the state (never a bare enum value). */
+  reason: string;
+  actions: RunAction[];
+  terminal: boolean;
+  timeoutMinutes: number | null;
+  heartbeatAt: string | null;
+  attempt: number;
+  retryOfRunId: string | null;
+  supersededByRunId: string | null;
+}
+
+/** One reconciliation finding (P0-2 run-recovery.ts). */
+export interface RecoveryFinding {
+  code: string;
+  severity: 'auto' | 'human';
+  detail: string;
+  transition: { to: RunState; reason: string } | null;
+  resolutions?: string[];
+}
+
+/** POST /agents/execution/runs/:id/reconcile — what reconciliation found and did. */
+export interface ReconcileResult {
+  runId: string;
+  findings: RecoveryFinding[];
+  applied: { to: RunState; reason: string } | null;
+  needsHuman: boolean;
+}
 
 /** sp_agent_mission — a standing mission ("Keep this strategy on track"). */
 export interface AgentMission {
@@ -671,6 +811,13 @@ export interface ExecutionRun {
   startedAt: string | null;
   finishedAt: string | null;
   createdAt: string;
+  /** P0-2 recovery bookkeeping (absent on responses from a pre-P0-2 server). */
+  heartbeatAt?: string | null;
+  reconciledAt?: string | null;
+  reconcileAttempts?: number;
+  attempt?: number;
+  retryOfRunId?: string | null;
+  supersededByRunId?: string | null;
 }
 
 /**

@@ -34,6 +34,14 @@ export interface SnapshotNode {
   openEnded: boolean;
   dependsOnIds: string[]; // A2: node-id edges (preserved on restore — ids are stable)
   targetRef?: unknown; // who this node's outreach/workspace action is for (opaque; no Prisma types in this pure file)
+  /**
+   * P0-1: A9 per-node grounding (cited pack sections/facts). Recorded on the
+   * snapshot so a restore can put provenance back instead of erasing it. On a
+   * snapshot cut BEFORE P0-1 this key is ABSENT (not null), which restore treats
+   * as "this snapshot has no opinion — leave the live value alone"; an explicit
+   * null means the node genuinely had none.
+   */
+  provenance?: unknown;
   meriAuthored: boolean;
   createdByUserId: string;
   createdAt: string; // ISO
@@ -83,6 +91,7 @@ export interface SnapshotNodeRow {
   openEnded: boolean;
   dependsOnIds: string[];
   targetRef?: unknown;
+  provenance?: unknown;
   meriAuthored: boolean;
   createdByUserId: string;
   createdAt: Date | string;
@@ -120,6 +129,9 @@ export function buildSnapshot(
       openEnded: n.openEnded,
       dependsOnIds: n.dependsOnIds ?? [],
       targetRef: n.targetRef ?? null,
+      // P0-1: always WRITE the key (null when there is none) so restore can tell
+      // "no provenance" apart from "this snapshot predates provenance capture".
+      provenance: n.provenance ?? null,
       meriAuthored: n.meriAuthored,
       createdByUserId: n.createdByUserId,
       createdAt: isoDateTime(n.createdAt),

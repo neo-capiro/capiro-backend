@@ -8,7 +8,15 @@ import {
 import { Prisma } from '../../generated/prisma-client/index.js';
 import { PrismaService } from '../prisma/prisma.service.js';
 import { VersioningService } from '../strategy/versioning.service.js';
-import { RUN_TERMINAL_STATES, assertTransition } from './run-state.js';
+import {
+  RUN_FAILURE_STATES,
+  RUN_STATE_POLICY,
+  RUN_SUPERSEDABLE_STATES,
+  RUN_TERMINAL_STATES,
+  assertTransition,
+  isActionAllowed,
+  reasonForState,
+} from './run-state.js';
 import type { CreateRunDto, TransitionRunDto } from './dto/agents.dto.js';
 
 type Tx = Prisma.TransactionClient;
@@ -207,6 +215,10 @@ export class RunsService {
       const data: Record<string, unknown> = { state: dto.to };
       if (dto.to === 'planning' && !run.startedAt) data.startedAt = now;
       if (RUN_TERMINAL_STATES.has(dto.to)) data.finishedAt = now;
+      // P0-2 HEARTBEAT. Every state change stamps it, so the reconciler can tell
+      // "actively progressing" from "died mid-phase". Deliberately NOT updatedAt:
+      // any unrelated column write bumps that, so it cannot prove liveness.
+      data.heartbeatAt = now;
       if (dto.to === 'waiting_for_input') {
         data.waitingReason = dto.waitingReason ?? null;
       } else if (run.state === 'waiting_for_input') {
@@ -214,7 +226,8 @@ export class RunsService {
         // (or finished) run no longer reads as waiting on input.
         data.waitingReason = null;
       }
-      if (dto.to === 'failed') data.error = dto.error ?? null;
+      // P0-2: all three failure states carry the reason (was: only legacy 'failed').
+      if (RUN_FAILURE_STATES.has(dto.to)) data.error = dto.error ?? null;
       if (dto.findings !== undefined) {
         if (typeof dto.findings !== 'object' || dto.findings === null || Array.isArray(dto.findings)) {
           throw new BadRequestException('findings must be a JSON object');
@@ -267,6 +280,186 @@ export class RunsService {
     return run;
   }
 
+  // ---- P0-2 recovery operations ---------------------------------------------
+
+  /**
+   * Refresh the liveness clock WITHOUT changing state. Called at the end of every
+   * execution phase (see ExecutionService.settlePhase) so a long but healthy phase
+   * is never mistaken for a stranded run by the reconciler.
+   *
+   * Fire-and-forget by design: a failed heartbeat must never fail the phase that
+   * was otherwise successful, so this swallows its own errors and only logs.
+   */
+  async heartbeat(tenantId: string, runId: string): Promise<void> {
+    try {
+      await this.prisma.withTenant(tenantId, (tx) =>
+        tx.spAgentRun.updateMany({ where: { id: runId }, data: { heartbeatAt: new Date() } }),
+      );
+    } catch {
+      // Intentionally silent: liveness bookkeeping is not worth failing work for.
+    }
+  }
+
+  /**
+   * The audit's "Mark failed" control: a human declaring a stuck run dead.
+   * Only from a state whose policy permits it (failed_recoverable), so this can
+   * never be used to bypass a live run.
+   */
+  async markFailed(tenantId: string, userId: string, runId: string, reason?: string) {
+    const run = await this.get(tenantId, runId);
+    if (!isActionAllowed(run.state, 'mark_failed')) {
+      throw new ConflictException(
+        `run is ${run.state} — it cannot be marked failed (${reasonForState(run.state)})`,
+      );
+    }
+    return this.transition(tenantId, userId, runId, {
+      to: 'failed_terminal',
+      error: reason?.trim() || 'marked failed by a reviewer',
+    } as TransitionRunDto);
+  }
+
+  /**
+   * The audit's "Retry" control — and the fix for "retries blocked by
+   * deduplication".
+   *
+   * A retry does NOT reuse the run row. (tenantId, idempotencyKey) is UNIQUE and
+   * the execution key is derived from (node, kind), so re-triggering the same key
+   * returns the SAME stuck run forever — that is precisely the defect. Instead we
+   * mint a NEW run with the next attempt's key (`<baseKey>#<attempt>`), record the
+   * lineage both ways, and mark the prior attempt `superseded` when it was still
+   * open. A genuinely terminal prior attempt (completed/failed_terminal/canceled)
+   * is left untouched — you do not rewrite history to retry.
+   *
+   * The new run starts in `queued`, exactly like a fresh one, so the normal
+   * plan/execute path drives it with no special-casing.
+   */
+  async retry(tenantId: string, userId: string, runId: string) {
+    const prior = await this.get(tenantId, runId);
+    if (!isActionAllowed(prior.state, 'retry')) {
+      throw new ConflictException(
+        `run is ${prior.state} — it cannot be retried (${reasonForState(prior.state)})`,
+      );
+    }
+    const attempt = prior.attempt + 1;
+    // Base key = the key with any prior `#n` suffix stripped, so attempt 4 keys
+    // off the original node+kind rather than compounding suffixes.
+    const baseKey = prior.idempotencyKey.replace(/#\d+$/, '');
+    const idempotencyKey = `${baseKey}#${attempt}`;
+
+    return this.prisma.withTenantUser(tenantId, userId, async (tx) => {
+      // Re-read the prior run under the tx and CAS its state below, so two
+      // concurrent retries cannot both supersede it and mint two attempts.
+      const locked = await tx.$queryRaw<Array<{ id: string; state: string }>>`
+        SELECT id, state FROM sp_agent_run
+        WHERE id = ${runId}::uuid AND tenant_id = ${tenantId}::uuid
+        FOR UPDATE`;
+      const lockedState = locked[0]?.state;
+      if (!lockedState) throw new NotFoundException('Run not found');
+      if (!isActionAllowed(lockedState, 'retry')) {
+        throw new ConflictException(
+          `run is ${lockedState} — it cannot be retried (${reasonForState(lockedState)})`,
+        );
+      }
+
+      const existing = await tx.spAgentRun.findFirst({ where: { idempotencyKey } });
+      if (existing) {
+        // This attempt was already minted (double-click / replay) — return it
+        // rather than erroring or creating a third row.
+        return existing;
+      }
+
+      const next = await tx.spAgentRun.create({
+        data: {
+          tenantId,
+          missionId: prior.missionId,
+          strategyId: prior.strategyId,
+          trigger: 'manual',
+          idempotencyKey,
+          createdByUserId: userId,
+          attempt,
+          retryOfRunId: prior.id,
+          heartbeatAt: new Date(),
+          // Carry the execution INTENT forward (kind/nodeId/strategyId/missionId +
+          // pinnedVersionId) so plan() can drive the new run without the caller
+          // re-supplying it. Results/tasks/approvals are deliberately NOT copied:
+          // a retry must re-plan and re-approve from scratch.
+          ...(carryExecutionIntent(prior.findings)
+            ? { findings: carryExecutionIntent(prior.findings) as Prisma.InputJsonValue }
+            : {}),
+        },
+      });
+
+      // Mark the prior attempt superseded ONLY when it was still open. CAS on the
+      // state we validated so a concurrent transition wins cleanly.
+      if (RUN_SUPERSEDABLE_STATES.has(lockedState)) {
+        await tx.spAgentRun.updateMany({
+          where: { id: prior.id, state: lockedState as never },
+          data: {
+            state: 'superseded',
+            supersededByRunId: next.id,
+            finishedAt: new Date(),
+            heartbeatAt: new Date(),
+          },
+        });
+      } else {
+        // Terminal prior attempt: record the forward pointer only.
+        await tx.spAgentRun.updateMany({
+          where: { id: prior.id },
+          data: { supersededByRunId: next.id },
+        });
+      }
+
+      await this.versioning.logActivity(tx, {
+        tenantId,
+        actorUserId: userId,
+        authorKind: 'person',
+        action: 'run.retried',
+        entityType: 'run',
+        entityId: next.id,
+        before: { priorRunId: prior.id, priorState: lockedState },
+        after: { attempt, idempotencyKey, supersededPrior: RUN_SUPERSEDABLE_STATES.has(lockedState) },
+      });
+      return next;
+    });
+  }
+
+  /**
+   * Every attempt for one logical execution (the `exec:<nodeId>:<kind>` family),
+   * oldest first — the audit's consolidated run history / "compare attempts".
+   */
+  async listAttempts(tenantId: string, runId: string) {
+    const run = await this.get(tenantId, runId);
+    const baseKey = run.idempotencyKey.replace(/#\d+$/, '');
+    return this.prisma.withTenant(tenantId, (tx) =>
+      tx.spAgentRun.findMany({
+        // baseKey and every `baseKey#n`. `startsWith` alone would also match a
+        // DIFFERENT kind whose key is a prefix extension, so the family is
+        // narrowed to exactly the base key or the base key + '#'.
+        where: { OR: [{ idempotencyKey: baseKey }, { idempotencyKey: { startsWith: `${baseKey}#` } }] },
+        orderBy: [{ attempt: 'asc' }, { createdAt: 'asc' }],
+        take: 50,
+      }),
+    );
+  }
+
+  /** The allowed-next-actions list + plain-words reason for a run's state. */
+  async policyFor(tenantId: string, runId: string) {
+    const run = await this.get(tenantId, runId);
+    const policy = RUN_STATE_POLICY[run.state];
+    return {
+      runId,
+      state: run.state,
+      reason: reasonForState(run.state),
+      actions: policy?.actions ?? [],
+      terminal: policy?.terminal ?? true,
+      timeoutMinutes: policy?.timeoutMinutes ?? null,
+      heartbeatAt: run.heartbeatAt,
+      attempt: run.attempt,
+      retryOfRunId: run.retryOfRunId,
+      supersededByRunId: run.supersededByRunId,
+    };
+  }
+
   /**
    * Firm-level review surface (Stage F): ready_for_review runs with NO
    * strategy (strategyId null) — the F2 scheduler's firm-calendar placeholder
@@ -317,4 +510,35 @@ export class RunsService {
       });
     });
   }
+}
+
+/**
+ * P0-2: the findings a RETRY inherits — the execution INTENT only
+ * ({kind, nodeId, strategyId, missionId, pinnedVersionId}).
+ *
+ * Results, reviewed tasks, prior reconciliation notes and (critically) any
+ * sendApproval are deliberately DROPPED: a retry must re-plan and, under P0-3, be
+ * re-approved from scratch. Inheriting findings.sendApproval would let an approval
+ * granted against the previous attempt's payload authorise a brand-new one, which
+ * is exactly the class of defect P0-3 exists to close.
+ *
+ * pinnedVersionId is intentionally NOT carried: it pinned the plan head the OLD
+ * attempt was reviewed against, and plan() re-pins to the live head. Carrying it
+ * would make the new attempt instantly version-drifted.
+ */
+function carryExecutionIntent(findings: unknown): { execution: Record<string, unknown> } | null {
+  if (!findings || typeof findings !== 'object' || Array.isArray(findings)) return null;
+  const exec = (findings as Record<string, unknown>).execution;
+  if (!exec || typeof exec !== 'object' || Array.isArray(exec)) return null;
+  const e = exec as Record<string, unknown>;
+  if (typeof e.kind !== 'string' || typeof e.nodeId !== 'string') return null;
+  return {
+    execution: {
+      kind: e.kind,
+      nodeId: e.nodeId,
+      ...(typeof e.strategyId === 'string' ? { strategyId: e.strategyId } : {}),
+      ...(typeof e.missionId === 'string' ? { missionId: e.missionId } : {}),
+      pinnedVersionId: null,
+    },
+  };
 }

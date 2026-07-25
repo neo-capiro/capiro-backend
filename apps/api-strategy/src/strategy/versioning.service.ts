@@ -1,6 +1,7 @@
 import { Injectable } from '@nestjs/common';
 import { Prisma } from '../../generated/prisma-client/index.js';
 import { buildSnapshot, isCoalescible, type StrategySnapshot } from './versioning.js';
+import { LIVE_NODE_WHERE } from './live-node.js';
 
 type Tx = Prisma.TransactionClient;
 type AuthorKind = 'person' | 'meri';
@@ -13,11 +14,22 @@ type AuthorKind = 'person' | 'meri';
  */
 @Injectable()
 export class VersioningService {
-  /** Read the current strategy+nodes and build the snapshot JSON. */
+  /**
+   * Read the current strategy+nodes and build the snapshot JSON.
+   *
+   * P0-1: LIVE nodes only. A node archived by a non-destructive restore must never
+   * re-enter a version snapshot — if it did, the next restore of that version would
+   * resurrect it into the live plan, and the archive would silently undo itself.
+   */
   async snapshot(tx: Tx, strategyId: string): Promise<StrategySnapshot> {
     const s = await tx.spStrategy.findFirstOrThrow({
       where: { id: strategyId },
-      include: { nodes: { orderBy: [{ startsOn: 'asc' }, { createdAt: 'asc' }] } },
+      include: {
+        nodes: {
+          where: { ...LIVE_NODE_WHERE },
+          orderBy: [{ startsOn: 'asc' }, { createdAt: 'asc' }],
+        },
+      },
     });
     return buildSnapshot(s, s.nodes);
   }

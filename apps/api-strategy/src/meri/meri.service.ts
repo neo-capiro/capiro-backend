@@ -13,6 +13,7 @@ import { VersioningService } from '../strategy/versioning.service.js';
 import { parseDbDate } from '../strategy/dates.js';
 import { loadStrategyDetail } from '../strategy/detail.js';
 import { isoDate } from '../strategy/versioning.js';
+import { LIVE_NODE_WHERE } from '../strategy/live-node.js';
 import { fyOf } from '../fiscal/fiscal.js';
 import { NODE_KINDS, NODE_SUBJECTS, NODE_STATUSES } from '../strategy/dto/node.dto.js';
 import type { StrategyTypeValue } from '../strategy/dto/create-strategy.dto.js';
@@ -284,7 +285,11 @@ export class MeriService {
     const strategy = await this.prisma.withTenant(tenantId, (tx) =>
       tx.spStrategy.findFirst({
         where: { id: strategyId },
-        include: { nodes: { orderBy: [{ startsOn: 'asc' }, { createdAt: 'asc' }] } },
+        // P0-1: LIVE plan only — the assistant must not see (or edit) nodes a
+        // restore archived.
+        include: {
+          nodes: { where: { ...LIVE_NODE_WHERE }, orderBy: [{ startsOn: 'asc' }, { createdAt: 'asc' }] },
+        },
       }),
     );
     if (!strategy) throw new NotFoundException('Strategy not found');
@@ -515,7 +520,11 @@ export class MeriService {
     if (!edit.nodeId) {
       throw new BadRequestException(`Meri ${edit.op} edit is missing nodeId`);
     }
-    const node = await tx.spNode.findFirst({ where: { id: edit.nodeId, strategyId } });
+    // P0-1: an archived node is not addressable by an edit op — it reads as
+    // unknown, so a change-set replay can never resurrect or mutate history.
+    const node = await tx.spNode.findFirst({
+      where: { id: edit.nodeId, strategyId, ...LIVE_NODE_WHERE },
+    });
     if (!node) {
       throw new BadRequestException(`Meri referenced an unknown node ${edit.nodeId}`);
     }
@@ -584,8 +593,10 @@ export class MeriService {
     if (!Array.isArray(dependsOn) || dependsOn.length === 0) return [];
     const unique = [...new Set(dependsOn)].filter((d) => typeof d === 'string' && d !== selfId);
     if (unique.length === 0) return [];
+    // P0-1: archived nodes are not valid dependency targets (parity with
+    // NodeService.resolveDependsOn).
     const rows = await tx.spNode.findMany({
-      where: { strategyId, id: { in: unique } },
+      where: { strategyId, id: { in: unique }, ...LIVE_NODE_WHERE },
       select: { id: true },
     });
     const found = new Set(rows.map((r) => r.id));

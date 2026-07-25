@@ -4,6 +4,7 @@ import { PrismaService } from '../prisma/prisma.service.js';
 import { VersioningService } from './versioning.service.js';
 import { parseDbDate } from './dates.js';
 import { loadStrategyDetail } from './detail.js';
+import { ATTACHED_ARTIFACT_WHERE, LIVE_NODE_WHERE } from './live-node.js';
 import type { CreateStrategyDto, StrategyTypeValue } from './dto/create-strategy.dto.js';
 import type { PatchStrategyDto } from './dto/patch-strategy.dto.js';
 
@@ -37,7 +38,9 @@ export class StrategyService {
           lastEditedAt: true,
           createdAt: true,
           updatedAt: true,
-          _count: { select: { nodes: true } },
+          // P0-1: count the LIVE plan only — a node archived by a non-destructive
+          // restore must not inflate the library's step count.
+          _count: { select: { nodes: { where: { ...LIVE_NODE_WHERE } } } },
         },
       }),
     );
@@ -61,8 +64,9 @@ export class StrategyService {
       tx.spStrategy.findFirst({
         where: { id },
         include: {
-          nodes: { orderBy: { startsOn: 'asc' } },
-          artifacts: true,
+          // P0-1: live plan only (archived nodes live on the detached surface).
+          nodes: { where: { ...LIVE_NODE_WHERE }, orderBy: { startsOn: 'asc' } },
+          artifacts: { where: { ...ATTACHED_ARTIFACT_WHERE } },
         },
       }),
     );

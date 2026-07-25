@@ -12,6 +12,7 @@ import { Prisma } from '../../generated/prisma-client/index.js';
 import { PrismaService } from '../prisma/prisma.service.js';
 import { VersioningService } from '../strategy/versioning.service.js';
 import { isoDate } from '../strategy/versioning.js';
+import { LIVE_NODE_WHERE } from '../strategy/live-node.js';
 import { MeriService, type Grounding } from '../meri/meri.service.js';
 import { StewardService } from '../context/steward.service.js';
 import { AGENTIC_FLAGS, StrategyFlagsService } from '../flags/strategy-flags.service.js';
@@ -206,7 +207,9 @@ export class WatcherService {
       tx.spStrategy.findFirst({
         where: { id: strategyId },
         include: {
-          nodes: { orderBy: [{ startsOn: 'asc' }, { createdAt: 'asc' }] },
+          // P0-1: LIVE plan only — a node archived by a restore must never
+          // produce watcher findings or verifier violations.
+          nodes: { where: { ...LIVE_NODE_WHERE }, orderBy: [{ startsOn: 'asc' }, { createdAt: 'asc' }] },
           artifacts: true,
         },
       }),
@@ -523,7 +526,15 @@ export class WatcherService {
     );
   }
 
-  /** Best-effort: fail the run we were driving; the original error still throws. */
+  /**
+   * Best-effort: fail the run we were driving; the original error still throws.
+   *
+   * P0-2: `failed_terminal`, not the legacy `failed`. A watcher check is
+   * suggest-only and its mission mints a brand-NEW run on the next cadence tick,
+   * so this attempt is genuinely over — there is nothing for the run reconciler to
+   * recover here, and marking it `failed_recoverable` would park a dead check run
+   * in the recovery sweep forever.
+   */
   private async failRun(
     tenantId: string,
     userId: string | null,
@@ -532,7 +543,7 @@ export class WatcherService {
   ): Promise<void> {
     try {
       await this.runs.transition(tenantId, userId, runId, {
-        to: 'failed',
+        to: 'failed_terminal',
         error: String((err as Error)?.message ?? err).slice(0, 4000),
       } as TransitionRunDto);
     } catch {

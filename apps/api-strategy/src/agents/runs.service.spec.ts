@@ -642,7 +642,11 @@ describe('RunsService.transition', () => {
     expect(resumed.findings).toEqual({ stale_nodes: ['n1'], conflicts: ['c1', 'c2'] });
   });
 
-  it('failed stores the error and stamps finishedAt', async () => {
+  // P0-2 replaced the single `failed` state with failed_recoverable /
+  // failed_terminal. Both must carry the error reason; only the terminal one
+  // stamps finishedAt, because a recoverable failure is not finished — the
+  // reconciler can still drive it to staged/completed.
+  it('failed_terminal stores the error and stamps finishedAt', async () => {
     const store = makeStore();
     seedMission(store, 'M1', 'active');
     const { svc } = makeService(store);
@@ -653,13 +657,68 @@ describe('RunsService.transition', () => {
     await svc.transition(T, U, run.id, { to: 'planning' } as TransitionRunDto);
 
     const failed = await svc.transition(T, U, run.id, {
-      to: 'failed',
+      to: 'failed_terminal',
       error: 'orchestrator exploded',
     } as TransitionRunDto);
 
-    expect(failed.state).toBe('failed');
+    expect(failed.state).toBe('failed_terminal');
     expect(failed.error).toBe('orchestrator exploded');
     expect(failed.finishedAt).toBeInstanceOf(Date);
+  });
+
+  it('failed_recoverable stores the error but does NOT stamp finishedAt (it is not finished)', async () => {
+    const store = makeStore();
+    seedMission(store, 'M1', 'active');
+    const { svc } = makeService(store);
+    const run = await svc.createRun(T, U, 'M1', {
+      trigger: 'manual',
+      idempotencyKey: 'fail-2',
+    } as CreateRunDto);
+    await svc.transition(T, U, run.id, { to: 'planning' } as TransitionRunDto);
+
+    const failed = await svc.transition(T, U, run.id, {
+      to: 'failed_recoverable',
+      error: 'artifact hop timed out',
+    } as TransitionRunDto);
+
+    expect(failed.state).toBe('failed_recoverable');
+    expect(failed.error).toBe('artifact hop timed out');
+    expect(failed.finishedAt).toBeNull();
+  });
+
+  it('the legacy `failed` state is no longer reachable via a transition', async () => {
+    const store = makeStore();
+    seedMission(store, 'M1', 'active');
+    const { svc } = makeService(store);
+    const run = await svc.createRun(T, U, 'M1', {
+      trigger: 'manual',
+      idempotencyKey: 'fail-3',
+    } as CreateRunDto);
+    await svc.transition(T, U, run.id, { to: 'planning' } as TransitionRunDto);
+
+    await expect(
+      svc.transition(T, U, run.id, { to: 'failed' } as TransitionRunDto),
+    ).rejects.toBeInstanceOf(BadRequestException);
+    expect(store.runs.get(run.id)!.state).toBe('planning');
+  });
+
+  it('every state change stamps the P0-2 heartbeat (the reconciler liveness clock)', async () => {
+    const store = makeStore();
+    seedMission(store, 'M1', 'active');
+    const { svc } = makeService(store);
+    const run = await svc.createRun(T, U, 'M1', {
+      trigger: 'manual',
+      idempotencyKey: 'hb-1',
+    } as CreateRunDto);
+
+    const planning = await svc.transition(T, U, run.id, { to: 'planning' } as TransitionRunDto);
+    expect(planning.heartbeatAt).toBeInstanceOf(Date);
+    const first = (planning.heartbeatAt as Date).getTime();
+
+    const reviewed = await svc.transition(T, U, run.id, {
+      to: 'ready_for_review',
+    } as TransitionRunDto);
+    expect((reviewed.heartbeatAt as Date).getTime()).toBeGreaterThanOrEqual(first);
   });
 
   it('rejects the illegal jump queued->executing with a BadRequest naming both states and mutates nothing', async () => {

@@ -37,6 +37,15 @@ vi.mock('../api.js', () => ({
   useExecuteRun: () => ({ mutate: executeMutate, isPending: false }),
   useResumeRun: () => ({ mutate: resumeMutate, isPending: false }),
   useStrategies: () => ({ ...idle, data: [] }),
+  // P0-2 recovery controls. This suite is about the send-approval gate, so the
+  // policy resolves to nothing — the recovery block renders no action buttons and
+  // cannot interfere with the assertions below.
+  useRunPolicy: () => ({ ...idle, data: undefined }),
+  useCancelRun: () => ({ mutate: vi.fn(), isPending: false }),
+  useRetryRun: () => ({ mutate: vi.fn(), isPending: false }),
+  useMarkRunFailed: () => ({ mutate: vi.fn(), isPending: false }),
+  useReconcileRun: () => ({ mutate: vi.fn(), isPending: false }),
+  useResolveReservation: () => ({ mutate: vi.fn(), isPending: false }),
 }));
 
 vi.mock('../clients-lite.js', () => ({

@@ -11,6 +11,7 @@ import { Prisma } from '../../generated/prisma-client/index.js';
 import { PrismaService } from '../prisma/prisma.service.js';
 import { VersioningService } from '../strategy/versioning.service.js';
 import { isoDate } from '../strategy/versioning.js';
+import { LIVE_NODE_WHERE } from '../strategy/live-node.js';
 import { MeriService, type Grounding } from '../meri/meri.service.js';
 import type {
   DocumentDraftSection,
@@ -25,6 +26,8 @@ import { ExecutionArtifactClient } from './execution-artifact.client.js';
 import { computeSendToken, type SendTokenInput } from './send-approval.js';
 import { evaluateEligibility, type EligibilityResult } from './execution-eligibility.js';
 import { stampRunMetrics, type RunMetricsInput } from './run-metrics.js';
+import { PENDING_ARTIFACT_REF } from './artifact-ref.js';
+import { isActionAllowed, reasonForState } from './run-state.js';
 import type {
   CreateRunDto,
   ExecutionKindValue,
@@ -54,17 +57,12 @@ const DO_NOT_CONTACT_PHRASES = ['do not contact', 'no outreach'] as const;
 const DO_NOT_CONTACT_RE = new RegExp(DO_NOT_CONTACT_PHRASES.join('|'), 'i');
 
 /**
- * Write-ahead intent sentinel for sp_node_artifact.artifactRef. A staging attempt
- * commits a row carrying THIS ref BEFORE the external create hop (reserveArtifact);
- * recordArtifact then retires it and commits the REAL ref atomically with the
- * node-status advance. Staging's external create and its local back-link cannot be
- * one transaction, so this sentinel is what makes a retry safe: if a prior attempt
- * created the upstream artifact but its back-link write failed, the sentinel
- * survives, so the retry FINDS it and parks for reconciliation instead of issuing a
- * second external create (a duplicate staged artifact). Real WsDraft/OutreachRecord
- * ids are uuids and never collide with it.
+ * The write-ahead staging sentinel now lives in the pure artifact-ref.ts module so
+ * the P0-2 recovery rules can reason about reservations without importing this
+ * Nest service. Re-exported here because existing importers (the safety and
+ * execution specs) take it from this module.
  */
-export const PENDING_ARTIFACT_REF = '__staging_pending__';
+export { PENDING_ARTIFACT_REF };
 
 /**
  * Internal control-flow signal ONLY — thrown inside reserveArtifact's own
@@ -422,9 +420,16 @@ export class ExecutionService {
     if (!tasks) {
       throw new BadRequestException('run has no reviewed plan to execute');
     }
-    if (run.state !== 'ready_for_review' && run.state !== 'executing') {
+    // P0-2/P0-3: `approved` is the approval-bound entry into staging. `executing`
+    // stays accepted so a re-entered (crash-resumed) run can continue, which is
+    // what the write-ahead reservation exists to make safe.
+    if (
+      run.state !== 'ready_for_review' &&
+      run.state !== 'approved' &&
+      run.state !== 'executing'
+    ) {
       throw new ConflictException(
-        `run is ${run.state} — only a ready_for_review run can be executed`,
+        `run is ${run.state} — only a reviewed or approved run can be executed`,
       );
     }
 
@@ -438,7 +443,7 @@ export class ExecutionService {
       return this.runs.get(tenantId, runId);
     }
 
-    if (run.state === 'ready_for_review') {
+    if (run.state === 'ready_for_review' || run.state === 'approved') {
       await this.runs.transition(tenantId, userId, runId, {
         to: 'executing',
       } as TransitionRunDto);
@@ -616,9 +621,17 @@ export class ExecutionService {
       return this.settlePhase(tenantId, userId, runId, meta.missionId, 'execute', phaseStart, generation);
     }
 
-    // All non-send tasks done, nothing pending => final validation + complete.
+    // All non-send tasks done, nothing pending => STAGED, then complete.
+    //
+    // P0-2 vocabulary (audit P1-13): `staged` is the state that says "the
+    // Workspace draft / Outreach record EXISTS and is linked to the step" —
+    // distinct from `completed`, which says the run's workflow is finished. The
+    // pre-P0-2 path went executing -> ready_for_review -> completed, which
+    // overloaded ready_for_review to mean two different things (a plan awaiting
+    // approval, and a staged artifact awaiting acknowledgement) and gave the
+    // reconciler nothing to distinguish "artifact created" from "nothing created".
     await this.runs.transition(tenantId, userId, runId, {
-      to: 'ready_for_review',
+      to: 'staged',
       findings: { results },
     } as TransitionRunDto);
     await this.runs.transition(tenantId, userId, runId, {
@@ -669,8 +682,21 @@ export class ExecutionService {
     return this.runPlanning(tenantId, userId, runId, meta);
   }
 
-  /** Cancel a run per the lifecycle (canceled is reachable from every non-terminal state). */
+  /**
+   * Cancel a run (the audit's "Cancel run" control). canceled is reachable from
+   * every non-terminal state; the policy check first turns "already finished" into
+   * a precise 409 with the plain-words state reason instead of a raw transition
+   * error. Wired to POST /agents/execution/runs/:id/cancel — before P0-2 this
+   * method existed but had NO route and NO caller, so there was no cancel path at
+   * all from the UI.
+   */
   async cancel(tenantId: string, userId: string | null, runId: string) {
+    const run = await this.runs.get(tenantId, runId);
+    if (!isActionAllowed(run.state, 'cancel')) {
+      throw new ConflictException(
+        `run is ${run.state} — it cannot be canceled (${reasonForState(run.state)})`,
+      );
+    }
     return this.runs.transition(tenantId, userId, runId, { to: 'canceled' } as TransitionRunDto);
   }
 
@@ -1146,8 +1172,10 @@ export class ExecutionService {
           'mission has no strategy — pass strategyId for a firm-level mission',
         );
       }
+      // P0-1: an archived node is not executable — it reads as not part of the
+      // strategy, so no run can be planned against plan history.
       const node = await tx.spNode.findFirst({
-        where: { id: dto.nodeId, strategyId },
+        where: { id: dto.nodeId, strategyId, ...LIVE_NODE_WHERE },
         select: { id: true },
       });
       if (!node) throw new BadRequestException('node is not part of the target strategy');
@@ -1163,7 +1191,12 @@ export class ExecutionService {
     return this.prisma.withTenant(tenantId, async (tx) => {
       const strategy = await tx.spStrategy.findFirst({
         where: { id: strategyId },
-        include: { nodes: { orderBy: [{ startsOn: 'asc' }, { createdAt: 'asc' }] } },
+        // P0-1: LIVE plan only. Both the G0 re-check and the target-node lookup
+        // read from this, so a node archived AFTER the plan was reviewed makes
+        // execute() fail closed instead of staging against plan history.
+        include: {
+          nodes: { where: { ...LIVE_NODE_WHERE }, orderBy: [{ startsOn: 'asc' }, { createdAt: 'asc' }] },
+        },
       });
       if (!strategy) throw new NotFoundException('Strategy not found');
       const s = strategy as unknown as StrategyRow;
@@ -1494,6 +1527,10 @@ export class ExecutionService {
         ? { promptSpecVersion: generation.promptSpecVersion }
         : {}),
     });
+    // P0-2 HEARTBEAT: refresh the liveness clock at every phase exit so a long
+    // but healthy phase (grounded generation + two upstream hops) is never read as
+    // a stranded run by the reconciler. Best-effort inside — never fails a phase.
+    await this.runs.heartbeat(tenantId, runId);
     const run = await this.runs.get(tenantId, runId);
     this.logger.log(
       `[run:${runId} mission:${missionId}] execution ${phase} settled -> ${run.state}`,

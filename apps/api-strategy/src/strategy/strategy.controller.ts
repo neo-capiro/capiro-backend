@@ -113,6 +113,38 @@ export class StrategyController {
     });
   }
 
+  /**
+   * P0-1 impact preview: what restoring this version WOULD do — nodes
+   * added/revived/changed/removed, the Workspace drafts and Outreach records that
+   * would go historical (never deleted), the active/historical runs that reference
+   * an affected node, and the provenance at stake. Read-only; declared BEFORE the
+   * restore POST purely for readability (different methods, no route conflict).
+   */
+  @Get(':id/versions/:versionId/restore-impact')
+  restoreImpact(
+    @CurrentTenant() ctx: AuthTenantContext,
+    @Param('id') id: string,
+    @Param('versionId') versionId: string,
+  ) {
+    return this.versions.restoreImpact(ctx.tenantId, id, versionId);
+  }
+
+  /**
+   * P0-1: the detached surface — nodes a restore archived plus their now-historical
+   * artifact links, so a Workspace draft / Outreach record whose step left the live
+   * plan stays discoverable instead of silently disappearing.
+   */
+  @Get(':id/detached')
+  listDetached(@CurrentTenant() ctx: AuthTenantContext, @Param('id') id: string) {
+    return this.versions.listDetached(ctx.tenantId, id);
+  }
+
+  /**
+   * P0-1 "Restore as new version": non-destructive. Archives (never deletes) the
+   * nodes the snapshot omits, marks their artifact links detached, revives snapshot
+   * nodes that were previously archived, cuts a fresh version and records the
+   * restore as an applied change-set (which is what gives it a one-click Undo).
+   */
   @Post(':id/versions/:versionId/restore')
   restoreVersion(
     @CurrentTenant() ctx: AuthTenantContext,

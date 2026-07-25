@@ -12,12 +12,15 @@ import { RunsService } from './runs.service.js';
 import { ChangeSetsService } from './change-sets.service.js';
 import { WatcherService } from './watcher.service.js';
 import { ExecutionService } from './execution.service.js';
+import { RunReconcilerService } from './run-reconciler.service.js';
 import {
   ApproveChangeSetDto,
   CreateChangeSetDto,
   CreateMissionDto,
   CreateRunDto,
   ExecutionPlanDto,
+  MarkRunFailedDto,
+  ResolveReservationDto,
   RunCheckDto,
   TransitionRunDto,
   UpdateMissionDto,
@@ -46,6 +49,7 @@ export class AgentsController {
     private readonly changeSets: ChangeSetsService,
     private readonly watcher: WatcherService,
     private readonly execution: ExecutionService,
+    private readonly reconciler: RunReconcilerService,
   ) {}
 
   // ---- missions ----
@@ -167,6 +171,100 @@ export class AgentsController {
   @UseGuards(ExecutionAgentGuard)
   resumeRun(@CurrentTenant() tc: AuthTenantContext, @Req() req: Request, @Param('id') id: string) {
     return this.execution.resume(tc.tenantId, tc.clerkUserId, bearerFrom(req), id);
+  }
+
+  // ---- P0-2 run recovery ----
+  //
+  // The audit's missing controls. Before P0-2 there was NO cancel route (
+  // ExecutionService.cancel existed but was dead code with no caller), no retry
+  // (the idempotency key made a second attempt impossible), and no repair path —
+  // a run that died between the artifact hop and its back-link write stayed stuck
+  // forever. None of these routes create or send anything.
+
+  /** Cancel a run. */
+  @Post('execution/runs/:id/cancel')
+  @UseGuards(ExecutionAgentGuard)
+  cancelRun(@CurrentTenant() tc: AuthTenantContext, @Param('id') id: string) {
+    return this.execution.cancel(tc.tenantId, tc.clerkUserId, id);
+  }
+
+  /**
+   * Retry: mints a NEW attempt (`<baseKey>#<n>`) and supersedes the prior one when
+   * it was still open. Returns the new run, which then follows the normal
+   * plan/execute path — no approval or staged result is inherited.
+   */
+  @Post('execution/runs/:id/retry')
+  @UseGuards(ExecutionAgentGuard)
+  retryRun(@CurrentTenant() tc: AuthTenantContext, @Param('id') id: string) {
+    return this.runs.retry(tc.tenantId, tc.clerkUserId, id);
+  }
+
+  /** Mark a recoverable-failed run as terminally failed. */
+  @Post('execution/runs/:id/mark-failed')
+  @UseGuards(ExecutionAgentGuard)
+  markRunFailed(
+    @CurrentTenant() tc: AuthTenantContext,
+    @Param('id') id: string,
+    @Body() dto: MarkRunFailedDto,
+  ) {
+    return this.runs.markFailed(tc.tenantId, tc.clerkUserId, id, dto.reason);
+  }
+
+  /**
+   * Reconcile ONE run: detect what actually happened and apply at most one repair.
+   * Always available (unlike the dark-by-default sweep) — this is the "Reconcile"
+   * control in the review UI.
+   */
+  @Post('execution/runs/:id/reconcile')
+  @UseGuards(ExecutionAgentGuard)
+  reconcileRun(@CurrentTenant() tc: AuthTenantContext, @Param('id') id: string) {
+    return this.reconciler.reconcileRun(tc.tenantId, tc.clerkUserId, id);
+  }
+
+  /**
+   * The state's allowed-next-actions + plain-words reason + retry lineage. The UI
+   * renders its recovery controls from this, so on-screen buttons cannot drift
+   * from what the server will actually accept.
+   */
+  @Get('execution/runs/:id/policy')
+  @UseGuards(ExecutionAgentGuard)
+  runPolicy(@CurrentTenant() tc: AuthTenantContext, @Param('id') id: string) {
+    return this.runs.policyFor(tc.tenantId, id);
+  }
+
+  /** Every attempt in this run's family, oldest first (compare attempts). */
+  @Get('execution/runs/:id/attempts')
+  @UseGuards(ExecutionAgentGuard)
+  runAttempts(@CurrentTenant() tc: AuthTenantContext, @Param('id') id: string) {
+    return this.runs.listAttempts(tc.tenantId, id);
+  }
+
+  /**
+   * Resolve a surviving staging reservation. HUMAN-authorised on purpose: the
+   * create-only artifact client cannot ask upstream whether the artifact exists,
+   * and both branches are unrecoverable if wrong.
+   */
+  @Post('execution/runs/:id/resolve-reservation')
+  @UseGuards(ExecutionAgentGuard)
+  resolveReservation(
+    @CurrentTenant() tc: AuthTenantContext,
+    @Param('id') id: string,
+    @Body() dto: ResolveReservationDto,
+  ) {
+    return this.reconciler.resolveReservation(tc.tenantId, tc.clerkUserId, id, {
+      action: dto.action,
+      artifactRef: dto.artifactRef,
+    });
+  }
+
+  /** Report-only: one upstream artifact linked from more than one node. */
+  @Get('execution/duplicate-artifacts')
+  @UseGuards(ExecutionAgentGuard)
+  duplicateArtifacts(
+    @CurrentTenant() tc: AuthTenantContext,
+    @Query('strategyId') strategyId?: string,
+  ) {
+    return this.reconciler.listDuplicateArtifactRefs(tc.tenantId, strategyId || undefined);
   }
 
   // ---- change-sets ----

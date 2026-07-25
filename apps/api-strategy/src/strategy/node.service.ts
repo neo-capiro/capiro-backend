@@ -4,6 +4,7 @@ import { PrismaService } from '../prisma/prisma.service.js';
 import { VersioningService } from './versioning.service.js';
 import { parseDbDate } from './dates.js';
 import { loadStrategyDetail } from './detail.js';
+import { LIVE_NODE_WHERE } from './live-node.js';
 import type { CreateNodeDto, UpdateNodeDto } from './dto/node.dto.js';
 import type { CreateArtifactDto } from './dto/artifact.dto.js';
 
@@ -87,7 +88,11 @@ export class NodeService {
     dto: UpdateNodeDto,
   ) {
     return this.prisma.withTenantUser(tenantId, clerkUserId, async (tx) => {
-      const node = await tx.spNode.findFirst({ where: { id: nodeId, strategyId } });
+      // P0-1: LIVE_NODE_WHERE — a node archived by a restore is history, not an
+      // editable step; it 404s here rather than being silently resurrected.
+      const node = await tx.spNode.findFirst({
+        where: { id: nodeId, strategyId, ...LIVE_NODE_WHERE },
+      });
       if (!node) throw new NotFoundException('Node not found');
 
       // Cross-validate the (possibly partial) date change against current state.
@@ -171,7 +176,10 @@ export class NodeService {
 
   async remove(tenantId: string, clerkUserId: string, strategyId: string, nodeId: string) {
     return this.prisma.withTenantUser(tenantId, clerkUserId, async (tx) => {
-      const node = await tx.spNode.findFirst({ where: { id: nodeId, strategyId } });
+      // P0-1: an already-archived node cannot be deleted again (404) — see update().
+      const node = await tx.spNode.findFirst({
+        where: { id: nodeId, strategyId, ...LIVE_NODE_WHERE },
+      });
       if (!node) throw new NotFoundException('Node not found');
 
       await tx.spNode.delete({ where: { id: nodeId } });
@@ -231,8 +239,9 @@ export class NodeService {
     dto: CreateArtifactDto,
   ) {
     return this.prisma.withTenantUser(tenantId, clerkUserId, async (tx) => {
+      // P0-1: never attach a NEW artifact to an archived node.
       const node = await tx.spNode.findFirst({
-        where: { id: nodeId, strategyId },
+        where: { id: nodeId, strategyId, ...LIVE_NODE_WHERE },
         select: { id: true },
       });
       if (!node) throw new NotFoundException('Node not found');
@@ -290,8 +299,10 @@ export class NodeService {
       throw new BadRequestException('A step cannot depend on itself');
     }
     if (unique.length === 0) return [];
+    // P0-1: an archived node is not a valid dependency target — treating it as
+    // unknown is what keeps a restored plan from growing edges into history.
     const rows = await tx.spNode.findMany({
-      where: { strategyId, id: { in: unique } },
+      where: { strategyId, id: { in: unique }, ...LIVE_NODE_WHERE },
       select: { id: true },
     });
     const found = new Set(rows.map((r) => r.id));

@@ -191,3 +191,39 @@ export class ExecutionPlanDto {
   @IsUUID()
   pinnedVersionId?: string;
 }
+
+/** P0-2: a reviewer declaring a stuck run dead ("Mark failed"). */
+export class MarkRunFailedDto {
+  @IsOptional()
+  @IsString()
+  @MaxLength(2000)
+  reason?: string;
+}
+
+/**
+ * P0-2: operator resolution for a surviving staging reservation — the ONE
+ * recovery case reconciliation cannot decide for itself, because
+ * ExecutionArtifactClient is create-only and cannot ask upstream whether the
+ * artifact exists.
+ *
+ *  - 'adopt'   requires artifactRef: the operator FOUND the created document and
+ *              is linking it, so the run can advance without a duplicate.
+ *  - 'release' drops the reservation: the operator confirmed nothing was created,
+ *              so a retry may stage cleanly.
+ *
+ * Both branches are unrecoverable if wrong, which is exactly why they are an
+ * explicit human decision rather than a guess.
+ */
+export const RESERVATION_ACTIONS = ['adopt', 'release'] as const;
+export type ReservationActionValue = (typeof RESERVATION_ACTIONS)[number];
+
+export class ResolveReservationDto {
+  @IsIn(RESERVATION_ACTIONS)
+  action!: ReservationActionValue;
+
+  /** Required for 'adopt' (re-checked in the service, which also rejects the sentinel). */
+  @IsOptional()
+  @IsString()
+  @MaxLength(200)
+  artifactRef?: string;
+}
