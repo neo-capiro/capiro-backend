@@ -38,6 +38,10 @@ import { ClientPrepopulationService } from './client-prepopulation.service.js';
 import { OfficeRecommenderService } from './office-recommender.service.js';
 import type { OfficeRecommendation } from './office-recommender.service.js';
 import { resolveStateName, abbrForStateName } from '../common/us-states.js';
+import {
+  districtCodeForHouseMatch,
+  normalizeDistrictForCensus,
+} from '../common/district-code.util.js';
 // Pure, DI-free helper + type reused from the District Impact Engine (WS-A,
 // LegiStorm gaps/enrichment plan). Deliberately NOT injecting
 // RepresentationResolverService here: its resolveHouse/resolveSenate are
@@ -6609,43 +6613,10 @@ function startOfQuarter(now: Date): Date {
 }
 
 /**
- * Normalize a USAspending congressional_code to match CensusDistrict.district.
- * USAspending returns zero-padded ('02', '11') or '90'/'98'/'00' for non-district
- * / at-large; CensusDistrict stores plain numbers ('2', '11') or 'AL' for at-large.
- * Returns 'AL' for at-large/unknown sentinels, else the leading-zero-stripped number.
+ * Both district-code normalizers moved to `common/district-code.util.ts`
+ * (§7-A1). `normalizeDistrict` keeps its local name here — the census-join
+ * meaning — while the shared module spells it `normalizeDistrictForCensus` to
+ * distinguish it from the unrelated people-matching normalizer that also used
+ * to be called `normalizeDistrict`.
  */
-function normalizeDistrict(code: string | null): string {
-  if (!code) return 'AL';
-  const trimmed = code.trim().toUpperCase();
-  if (
-    trimmed === 'AL' ||
-    trimmed === '00' ||
-    trimmed === '98' ||
-    trimmed === '90' ||
-    trimmed === 'ZZ'
-  ) {
-    return 'AL';
-  }
-  const n = parseInt(trimmed, 10);
-  return Number.isFinite(n) ? String(n) : 'AL';
-}
-
-/**
- * Bridge a RAW USAspending place-of-performance congressional_code to the
- * "'00'-for-at-large" convention `districtMatchesHouse` expects — operating
- * on the raw code, NOT `normalizeDistrict`'s output. `normalizeDistrict`
- * collapses '00' (true at-large), '98' (non-voting delegate), and '90'/'ZZ'
- * (multiple/undefined district) into one 'AL' bucket for the census join;
- * once collapsed, those four cases are indistinguishable. Resolving '98' or
- * '90'/'ZZ' to the at-large House member would misattribute a representative
- * for a seat we don't actually know. Returns null when the House seat can't
- * be determined — the caller still resolves Senate independently, since that
- * only needs the state, not a district.
- */
-function districtCodeForHouseMatch(rawPopDistrict: string | null): string | null {
-  if (!rawPopDistrict) return null;
-  const trimmed = rawPopDistrict.trim().toUpperCase();
-  if (trimmed === '98' || trimmed === '90' || trimmed === 'ZZ') return null;
-  if (trimmed === '00' || trimmed === 'AL') return '00';
-  return trimmed;
-}
+const normalizeDistrict = normalizeDistrictForCensus;

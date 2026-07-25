@@ -12,6 +12,7 @@
 import { Injectable } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service.js';
 import { normalizeDistrictCode } from './district-code.util.js';
+import { districtMatchesHouse } from '../common/district-code.util.js';
 import { resolveStateName } from '../common/us-states.js';
 
 export interface ResolvedRepresentation {
@@ -315,14 +316,9 @@ export class RepresentationResolverService {
  * (`sync-congress-members.ts:188`). A naive `Number('00') === district`
  * join silently returns no representative for the 6 at-large states (WY, VT,
  * DE, ND, SD, AK) — this is the exact bug PD1.3/M1.3 calls out.
+ *
+ * Implementation moved to `common/district-code.util.ts` (§7-A1); re-exported
+ * here because this module is the documented source of truth for the facility
+ * rail and several callers import it from this path.
  */
-export function districtMatchesHouse(
-  facilityCd: string | null,
-  memberDistrict: number | null,
-): boolean {
-  if (facilityCd == null) return false;
-  const isAtLarge = facilityCd === '00';
-  if (isAtLarge) return memberDistrict == null || memberDistrict === 0;
-  const n = Number(facilityCd);
-  return Number.isFinite(n) && memberDistrict === n;
-}
+export { districtMatchesHouse };

@@ -12,6 +12,7 @@ import { GetObjectCommand, S3Client } from '@aws-sdk/client-s3';
 import type { TenantContext } from '@capiro/shared';
 import type { AppConfig } from '../config/config.schema.js';
 import { PrismaService } from '../prisma/prisma.service.js';
+import { matchFacilityDistrictCode } from '../common/district-code.util.js';
 import { FEC_DISCLAIMER } from '../intelligence/fec-disclaimer.js';
 import { RepresentationResolverService } from '../clients/representation-resolver.service.js';
 import {
@@ -3290,28 +3291,10 @@ function compareDistricts(left: string, right: string): number {
  * WS-D — bridge a client_facilities-style district code ('00' for at-large,
  * zero-padded 2-digit otherwise — the URL path convention) back to
  * LegiStorm's own raw districtNo storage, given the House rows already
- * fetched for a state+status. Exported (unlike this file's other module-
- * level helpers) so its at-large logic is unit-testable without a database.
+ * fetched for a state+status.
  *
- * '00' matches ONLY when exactly one House row exists for this state+status
- * — never a hardcoded list of "the 6 at-large states" (WY, VT, DE, ND, SD,
- * AK today; apportionment can change after a future census), and never by
- * trusting LegiStorm's own districtNo value, which reports "1" (not a "0"
- * or null sentinel) even for a jurisdiction's sole House seat — verified
- * live 2026-07-24 via DC's non-voting delegate.
+ * Implementation moved to `common/district-code.util.ts` (§7-A1) alongside the
+ * other five district-code helpers; re-exported here to keep this path working
+ * for existing importers and specs.
  */
-export function matchFacilityDistrictCode<T extends { districtNo: string | null }>(
-  houseRows: T[],
-  facilityDistrictNo: string,
-): T | null {
-  if (facilityDistrictNo === '00') {
-    // Defense in depth: don't rely solely on the caller's chamber='house'
-    // filter to keep a null-districtNo (Senate-shaped) row out of this
-    // array — require the sole row to actually carry a districtNo before
-    // calling it an at-large match.
-    const single = houseRows.length === 1 ? houseRows[0]! : null;
-    return single && single.districtNo !== null ? single : null;
-  }
-  const bare = facilityDistrictNo.replace(/^0+(?=\d)/, '');
-  return houseRows.find((r) => r.districtNo === bare) ?? null;
-}
+export { matchFacilityDistrictCode };

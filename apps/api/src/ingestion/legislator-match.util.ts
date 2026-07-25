@@ -15,6 +15,8 @@
  * wrong person, which is far worse.
  */
 
+import { normalizeDistrictForPeopleMatch } from '../common/district-code.util.js';
+
 /** A LegiScan person to resolve (fields optional so both getSessionPeople and dataset shapes fit). */
 export interface MatchPerson {
   name: string;
@@ -72,22 +74,13 @@ function normalizeToken(raw: string | null | undefined): string {
 }
 
 /**
- * Normalize a district to a comparable string. LegiScan and OpenStates disagree
- * on formatting ("HD-034" vs "34" vs "034"), so extract the first digit run and
- * strip leading zeros; a purely non-numeric district (rare named districts)
- * falls back to its alphanumeric-only form. Null/empty → null. Note the digit
- * run alone is chamber-agnostic ("HD-34" and "SD-34" both → "34"), which is why
- * callers pair a district match with a chamber (or name) constraint.
+ * Normalize a district for LegiScan<->OpenStates people matching. Implementation
+ * moved to `common/district-code.util.ts` (§7-A1); aliased under the local name
+ * because `normalizeDistrict` is ALSO the name of the unrelated census-join
+ * normalizer, and the shared module spells the two apart. An alias binding
+ * rather than `export ... from` because this module calls it internally too.
  */
-export function normalizeDistrict(raw: string | null | undefined): string | null {
-  if (raw == null) return null;
-  const s = String(raw).trim().toLowerCase();
-  if (!s) return null;
-  const digits = s.match(/\d+/);
-  if (digits) return String(Number(digits[0]));
-  const alnum = s.replace(/[^a-z0-9]+/g, '');
-  return alnum || null;
-}
+export const normalizeDistrict = normalizeDistrictForPeopleMatch;
 
 /** Canonical single-char party token (D/R/I/L/G…). First letter is enough to disambiguate. */
 export function normalizeParty(raw: string | null | undefined): string | null {

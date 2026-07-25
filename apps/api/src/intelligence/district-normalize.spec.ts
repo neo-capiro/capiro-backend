@@ -1,21 +1,18 @@
 import { describe, expect, test } from '@jest/globals';
+import { normalizeDistrictForCensus as normalizeDistrict } from '../common/district-code.util.js';
 
 /**
  * Unit test for the district-code normalizer used by getDistrictNexusSpend to join
  * USAspending place-of-performance congressional_code -> CensusDistrict.district.
- * Mirrors normalizeDistrict in intelligence.service.ts. Pinned because a mismatch
- * here silently drops the census demographics join (district spend shows, demographics
- * go null) — the kind of bug that's invisible until someone checks the data.
+ * Pinned because a mismatch here silently drops the census demographics join
+ * (district spend shows, demographics go null) — the kind of bug that's invisible
+ * until someone checks the data.
+ *
+ * This used to re-declare a COPY of the implementation, which meant the spec
+ * could pass while the real normalizer drifted away from it. It now imports the
+ * shared implementation (§7-A1), so these assertions actually constrain
+ * production behaviour.
  */
-function normalizeDistrict(code: string | null): string {
-  if (!code) return 'AL';
-  const trimmed = code.trim().toUpperCase();
-  if (trimmed === 'AL' || trimmed === '00' || trimmed === '98' || trimmed === '90' || trimmed === 'ZZ') {
-    return 'AL';
-  }
-  const n = parseInt(trimmed, 10);
-  return Number.isFinite(n) ? String(n) : 'AL';
-}
 
 describe('normalizeDistrict (USAspending -> CensusDistrict)', () => {
   test('strips leading zeros to match census plain numbers', () => {
