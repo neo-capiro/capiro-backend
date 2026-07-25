@@ -2493,11 +2493,35 @@ export class IntelligenceService {
         SELECT recipient_uei, recipient_name, recipient_state, total_obligated_amount,
                GREATEST(
                  similarity(lower(recipient_name), lower(${q})),
-                 CASE WHEN ${isUei} AND upper(recipient_uei) = upper(${q}) THEN 1 ELSE 0 END
+                 word_similarity(lower(${q}), lower(recipient_name)),
+                 CASE WHEN ${isUei} AND recipient_uei = upper(${q}) THEN 1 ELSE 0 END
                ) AS sim
         FROM federal_assistance_award
         WHERE recipient_name IS NOT NULL
-          AND (similarity(lower(recipient_name), lower(${q})) > 0.2 OR (${isUei} AND upper(recipient_uei) = upper(${q})))
+          -- Both predicates below are index-driven; the previous form was not.
+          -- % reaches faa_recipient_name_trgm_idx (gin on lower(recipient_name));
+          -- a bare similarity(...) > c is a plain function call and seq-scans
+          -- the largest new table. The expression must be spelled
+          -- lower(recipient_name) to match the functional index.
+          --
+          -- % alone would raise the floor from the old 0.2 to pg_trgm's default
+          -- similarity_threshold of 0.3, which silently drops short-query
+          -- recall ("MIT" against "MASSACHUSETTS INSTITUTE OF TECHNOLOGY").
+          -- %> is the commutator of <% (word_similarity): it asks whether the
+          -- query matches a continuous extent of the name rather than the whole
+          -- string, which is what restores those short queries. It is also
+          -- gin_trgm_ops-supported, so recall comes back without the seq-scan.
+          --
+          -- recipient_uei is compared bare, not upper(recipient_uei): the column
+          -- has a plain btree (faa_recipient_uei_idx) and wrapping it in upper()
+          -- makes that index unusable. UEIs are uppercase alphanumeric by SAM
+          -- definition and the writer shape-checks 12 alphanumeric on ingest, so
+          -- normalising only the parameter side is sufficient.
+          AND (
+            lower(recipient_name) % lower(${q})
+            OR lower(recipient_name) %> lower(${q})
+            OR (${isUei} AND recipient_uei = upper(${q}))
+          )
       ) matched
       GROUP BY COALESCE(recipient_uei, recipient_name)
       ORDER BY similarity DESC, total_obligated DESC
