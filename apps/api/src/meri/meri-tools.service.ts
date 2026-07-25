@@ -43,10 +43,7 @@ import { MemoryCandidateService } from '../memory/memory-candidate.service.js';
 import { MemoryStoreService } from '../memory/memory-store.service.js';
 import { fetchDeniedClientIds, wallExclusionSql } from '../memory/memory-wall.helpers.js';
 import { enrichFromKgCache } from '../memory/kg-cache-enrich.helpers.js';
-import {
-  pickKgTraversalSource,
-  type KgTraversalSource,
-} from './memory-recall-source.helpers.js';
+import { pickKgTraversalSource, type KgTraversalSource } from './memory-recall-source.helpers.js';
 import {
   ClientFacilitiesService,
   type CreateFacilityInput,
@@ -1479,6 +1476,31 @@ export class MeriToolsService {
     return this.execute(ctx, normalizeToolName(rawName), objectInput(rawInput));
   }
 
+  /**
+   * Propose-time check for a client-scoped write: can this clientId actually be
+   * resolved and written to?
+   *
+   * The compliance gate WARNs BEFORE the tool ever runs, so an unresolvable
+   * client used to render as a perfectly clean "pending approval" card and only
+   * blew up after the user clicked — which is how a profile fill was proposed
+   * for three clients whose create_client had never been approved, and the user
+   * was told all three were in progress. The orchestrator calls this while
+   * building the card so the reason can say up front that it cannot run.
+   *
+   * Read-only and best-effort; it never writes and never throws to the caller.
+   */
+  async checkClientRef(
+    ctx: TenantContext,
+    ref: string,
+  ): Promise<{ ok: true; clientId: string } | { ok: false; reason: string }> {
+    try {
+      const clientId = await this.ensureClientVisible(ctx, ref);
+      return { ok: true, clientId };
+    } catch (e) {
+      return { ok: false, reason: (e as Error).message };
+    }
+  }
+
   async execute(ctx: TenantContext, name: MeriToolName, input: Record<string, unknown>) {
     switch (name) {
       case 'get_client_context':
@@ -1758,8 +1780,8 @@ export class MeriToolsService {
   }
 
   private async getClientContext(ctx: TenantContext, input: Record<string, unknown>) {
-    const clientId = requiredString(input, 'clientId', 80);
-    await this.ensureClientVisible(ctx, clientId);
+    let clientId = requiredString(input, 'clientId', 80);
+    clientId = await this.ensureClientVisible(ctx, clientId);
     // Profile depth (capabilities/people/facilities/submission history) is
     // additive and best-effort — a failure there never blocks the engagement
     // context that existing consumers (briefs, memos, research) depend on.
@@ -1855,101 +1877,101 @@ export class MeriToolsService {
       ctx.tenantId,
       ctx.userId,
       async (tx) => {
-      // Ethical wall: memory items + graph edges of walled clients this user is
-      // not granted are excluded (fail-closed; empty denied set adds no SQL).
-      const denied = await fetchDeniedClientIds(tx, ctx.tenantId, ctx.userId);
-      const deniedSet = new Set(denied);
-      // item nodes the caller may see (RLS: tenant + own-private), plus their wikilink edges
-      const items = await tx.$queryRaw<
-        Array<{ id: string; type: string; slug: string; title: string; sections: unknown }>
-      >`
+        // Ethical wall: memory items + graph edges of walled clients this user is
+        // not granted are excluded (fail-closed; empty denied set adds no SQL).
+        const denied = await fetchDeniedClientIds(tx, ctx.tenantId, ctx.userId);
+        const deniedSet = new Set(denied);
+        // item nodes the caller may see (RLS: tenant + own-private), plus their wikilink edges
+        const items = await tx.$queryRaw<
+          Array<{ id: string; type: string; slug: string; title: string; sections: unknown }>
+        >`
         SELECT id, type, slug, title, sections_jsonb AS sections
         FROM memory_items
         WHERE (owner_user_id IS NULL OR owner_user_id = ${ctx.userId}::uuid)
           ${Prisma.raw(wallExclusionSql(denied, 'client_id'))}
       `;
-      const itemNodeById = new Map(
-        items.map((i) => [i.id, { type: i.type, slug: i.slug, label: i.title }]),
-      );
-      const wikiEdges = await tx.$queryRaw<
-        Array<{ src_item_id: string; relation: string; dst_type: string; dst_slug: string }>
-      >`
+        const itemNodeById = new Map(
+          items.map((i) => [i.id, { type: i.type, slug: i.slug, label: i.title }]),
+        );
+        const wikiEdges = await tx.$queryRaw<
+          Array<{ src_item_id: string; relation: string; dst_type: string; dst_slug: string }>
+        >`
         SELECT e.src_item_id, e.relation, e.dst_type, e.dst_slug
         FROM memory_edges e
         JOIN memory_items i ON i.id = e.src_item_id
         WHERE (i.owner_user_id IS NULL OR i.owner_user_id = ${ctx.userId}::uuid)
           ${Prisma.raw(wallExclusionSql(denied, 'i.client_id'))}
       `;
-      // FK relations (structural backbone): client->bill/issue/person, meeting->client
-      const fk: FkRelation[] = [];
-      const bills = await tx.$queryRaw<
-        Array<{ client_id: string; client_name: string; bill_id: string }>
-      >`
+        // FK relations (structural backbone): client->bill/issue/person, meeting->client
+        const fk: FkRelation[] = [];
+        const bills = await tx.$queryRaw<
+          Array<{ client_id: string; client_name: string; bill_id: string }>
+        >`
         SELECT tb.client_id, c.name AS client_name, tb.bill_id FROM tracked_bill tb JOIN clients c ON c.id = tb.client_id WHERE tb.tenant_id = ${ctx.tenantId}::uuid`;
-      for (const b of bills)
-        fk.push({
-          srcType: 'client',
-          srcSlug: b.client_id,
-          srcLabel: b.client_name,
-          dstType: 'bill',
-          dstSlug: b.bill_id,
-          dstLabel: b.bill_id,
-          relation: 'tracks',
-        });
-      const people = await tx.$queryRaw<
-        Array<{ client_id: string; client_name: string; person_id: string; person_name: string }>
-      >`
+        for (const b of bills)
+          fk.push({
+            srcType: 'client',
+            srcSlug: b.client_id,
+            srcLabel: b.client_name,
+            dstType: 'bill',
+            dstSlug: b.bill_id,
+            dstLabel: b.bill_id,
+            relation: 'tracks',
+          });
+        const people = await tx.$queryRaw<
+          Array<{ client_id: string; client_name: string; person_id: string; person_name: string }>
+        >`
         SELECT cp.client_id, c.name AS client_name, cp.id AS person_id, cp.name AS person_name FROM client_people cp JOIN clients c ON c.id = cp.client_id WHERE cp.tenant_id = ${ctx.tenantId}::uuid`;
-      for (const p of people)
-        fk.push({
-          srcType: 'client',
-          srcSlug: p.client_id,
-          srcLabel: p.client_name,
-          dstType: 'person',
-          dstSlug: p.person_id,
-          dstLabel: p.person_name,
-          relation: 'contact',
-        });
-      const wiki = wikiEdges.map((e) => ({
-        tenantId: ctx.tenantId,
-        srcItemId: e.src_item_id,
-        relation: e.relation,
-        dstType: e.dst_type,
-        dstSlug: e.dst_slug,
-      }));
-      // Ethical wall: drop FK relations rooted at denied clients so a walled
-      // client's bills/people/meetings never appear in this user's graph.
-      const fkVisible = deniedSet.size
-        ? fk.filter((r) => !(r.srcType === 'client' && deniedSet.has(r.srcSlug)))
-        : fk;
+        for (const p of people)
+          fk.push({
+            srcType: 'client',
+            srcSlug: p.client_id,
+            srcLabel: p.client_name,
+            dstType: 'person',
+            dstSlug: p.person_id,
+            dstLabel: p.person_name,
+            relation: 'contact',
+          });
+        const wiki = wikiEdges.map((e) => ({
+          tenantId: ctx.tenantId,
+          srcItemId: e.src_item_id,
+          relation: e.relation,
+          dstType: e.dst_type,
+          dstSlug: e.dst_slug,
+        }));
+        // Ethical wall: drop FK relations rooted at denied clients so a walled
+        // client's bills/people/meetings never appear in this user's graph.
+        const fkVisible = deniedSet.size
+          ? fk.filter((r) => !(r.srcType === 'client' && deniedSet.has(r.srcSlug)))
+          : fk;
 
-      // Track B enrichment: when this tenant is on the cache traversal source,
-      // layer the world-class canonical relationships (aggregated FEC money
-      // flow, LDA lobbying, intel mappings) around the visible clients via
-      // seed-based bounded walks. Fail-safe: enrichment errors degrade to the
-      // plain System-A graph — the tools never lose their baseline.
-      let fkAll = fkVisible;
-      if (kgSource === 'cache') {
-        try {
-          // Bound the enrichment phase server-side — kg_walk_bounded's fn-scoped
-          // statement_timeout is inert, so SET LOCAL is the real RC3 guard.
-          await tx.$executeRawUnsafe(`SET LOCAL statement_timeout = '8s'`);
-          const clients = await tx.$queryRaw<Array<{ id: string; name: string }>>`
+        // Track B enrichment: when this tenant is on the cache traversal source,
+        // layer the world-class canonical relationships (aggregated FEC money
+        // flow, LDA lobbying, intel mappings) around the visible clients via
+        // seed-based bounded walks. Fail-safe: enrichment errors degrade to the
+        // plain System-A graph — the tools never lose their baseline.
+        let fkAll = fkVisible;
+        if (kgSource === 'cache') {
+          try {
+            // Bound the enrichment phase server-side — kg_walk_bounded's fn-scoped
+            // statement_timeout is inert, so SET LOCAL is the real RC3 guard.
+            await tx.$executeRawUnsafe(`SET LOCAL statement_timeout = '8s'`);
+            const clients = await tx.$queryRaw<Array<{ id: string; name: string }>>`
             SELECT id, name FROM clients
             WHERE tenant_id = ${ctx.tenantId}::uuid AND status <> 'archived'
             ORDER BY updated_at DESC
           `;
-          const enriched = await enrichFromKgCache(tx, {
-            tenantId: ctx.tenantId,
-            deniedClientIds: denied,
-            clients: clients.filter((c) => !deniedSet.has(c.id)),
-          });
-          fkAll = [...fkVisible, ...enriched.relations];
-        } catch {
-          // graph tools keep their System-A baseline on any enrichment failure
+            const enriched = await enrichFromKgCache(tx, {
+              tenantId: ctx.tenantId,
+              deniedClientIds: denied,
+              clients: clients.filter((c) => !deniedSet.has(c.id)),
+            });
+            fkAll = [...fkVisible, ...enriched.relations];
+          } catch {
+            // graph tools keep their System-A baseline on any enrichment failure
+          }
         }
-      }
-      return buildKnowledgeGraph(fkAll, wiki, itemNodeById);
+        return buildKnowledgeGraph(fkAll, wiki, itemNodeById);
       },
       // The cache branch runs bounded walks sequentially; match the intel graph
       // path's 30s ceiling instead of the 5s interactive-tx default.
@@ -4725,9 +4747,9 @@ export class MeriToolsService {
 
   private async searchResearchSources(ctx: TenantContext, input: Record<string, unknown>) {
     const query = requiredString(input, 'query', 240);
-    const clientId = optionalString(input, 'clientId', 80);
+    let clientId = optionalString(input, 'clientId', 80);
     const limit = clampInt(input.limit, 1, 25, 8);
-    if (clientId) await this.ensureClientVisible(ctx, clientId);
+    if (clientId) clientId = await this.ensureClientVisible(ctx, clientId);
 
     const results = await this.prisma.withTenant(ctx.tenantId, async (tx) => {
       const [clients, meetings, threads, messages, meriNotes, directoryNotes] = await Promise.all([
@@ -4962,12 +4984,12 @@ export class MeriToolsService {
   }
 
   private async draftPolicyMemo(ctx: TenantContext, input: Record<string, unknown>) {
-    const clientId = requiredString(input, 'clientId', 80);
+    let clientId = requiredString(input, 'clientId', 80);
     const conversationId = optionalString(input, 'conversationId', 80);
     const title = optionalString(input, 'title', 160) || 'Policy memo draft';
     const objective = optionalString(input, 'objective', 500) || 'Prepare a policy memo.';
     const providedBody = optionalString(input, 'body', 40_000);
-    await this.ensureClientVisible(ctx, clientId);
+    clientId = await this.ensureClientVisible(ctx, clientId);
     const clientContext = await this.engagement.clientContext(ctx, clientId);
     const research =
       objective.length > 3
@@ -5028,7 +5050,7 @@ export class MeriToolsService {
         accessLevel: optionalString(input, 'accessLevel', 80) ?? 'tenant_admins_and_author',
       });
     } else if (clientId) {
-      await this.ensureClientVisible(ctx, clientId);
+      clientId = await this.ensureClientVisible(ctx, clientId);
     }
 
     if (conversationId) await this.ensureConversationForTool(ctx, conversationId, clientId);
@@ -5563,9 +5585,9 @@ export class MeriToolsService {
     input: Record<string, unknown>,
     format: DocFormat,
   ) {
-    const clientId = optionalString(input, 'clientId', 80) ?? null;
+    let clientId = optionalString(input, 'clientId', 80) ?? null;
     const conversationId = optionalString(input, 'conversationId', 80);
-    if (clientId) await this.ensureClientVisible(ctx, clientId);
+    if (clientId) clientId = await this.ensureClientVisible(ctx, clientId);
 
     let title: string;
     let normalized: unknown;
@@ -5795,11 +5817,11 @@ export class MeriToolsService {
   // ── Firm operational data (tasks / actions) ──
 
   private async queryTasks(ctx: TenantContext, input: Record<string, unknown>) {
-    const clientId = optionalString(input, 'clientId', 80);
+    let clientId = optionalString(input, 'clientId', 80);
     const statusRaw = optionalString(input, 'status', 30)?.toLowerCase() ?? null;
     const dueBeforeRaw = optionalString(input, 'dueBefore', 40);
     const limit = clampInt(input.limit, 1, 50, 25);
-    if (clientId) await this.ensureClientVisible(ctx, clientId);
+    if (clientId) clientId = await this.ensureClientVisible(ctx, clientId);
 
     const taskStatuses = Object.values(EngagementTaskStatus) as string[];
     let status: EngagementTaskStatus | undefined;
@@ -5860,11 +5882,11 @@ export class MeriToolsService {
   }
 
   private async queryActionItems(ctx: TenantContext, input: Record<string, unknown>) {
-    const clientId = optionalString(input, 'clientId', 80);
+    let clientId = optionalString(input, 'clientId', 80);
     const status = optionalString(input, 'status', 40);
     const sort = optionalString(input, 'sort', 20);
     const limit = clampInt(input.limit, 1, 50, 20);
-    if (clientId) await this.ensureClientVisible(ctx, clientId);
+    if (clientId) clientId = await this.ensureClientVisible(ctx, clientId);
 
     const result = await this.actionRecommendations.list(ctx, {
       clientId: clientId ?? undefined,
@@ -5882,8 +5904,8 @@ export class MeriToolsService {
   }
 
   private async searchTrackedBills(ctx: TenantContext, input: Record<string, unknown>) {
-    const clientId = requiredString(input, 'clientId', 80);
-    await this.ensureClientVisible(ctx, clientId);
+    let clientId = requiredString(input, 'clientId', 80);
+    clientId = await this.ensureClientVisible(ctx, clientId);
     const bills = await this.intelligence.listTrackedBills(clientId, ctx.tenantId);
     return {
       tool: 'search_tracked_bills',
@@ -5951,8 +5973,8 @@ export class MeriToolsService {
   }
 
   private async queryDebriefs(ctx: TenantContext, input: Record<string, unknown>) {
-    const clientId = requiredString(input, 'clientId', 80);
-    await this.ensureClientVisible(ctx, clientId);
+    let clientId = requiredString(input, 'clientId', 80);
+    clientId = await this.ensureClientVisible(ctx, clientId);
     const debriefs = await this.engagement.listClientDebriefs(ctx, { clientId });
     return {
       tool: 'query_debriefs',
@@ -5978,8 +6000,8 @@ export class MeriToolsService {
    * tenant-scoped engagement attachment service (RLS-safe).
    */
   private async readClientDocuments(ctx: TenantContext, input: Record<string, unknown>) {
-    const clientId = requiredString(input, 'clientId', 80);
-    await this.ensureClientVisible(ctx, clientId);
+    let clientId = requiredString(input, 'clientId', 80);
+    clientId = await this.ensureClientVisible(ctx, clientId);
     const documentId = optionalString(input, 'documentId', 80);
 
     if (documentId) {
@@ -6038,10 +6060,10 @@ export class MeriToolsService {
       };
     }
 
-    const clientId = optionalString(input, 'clientId', 80);
+    let clientId = optionalString(input, 'clientId', 80);
     const status = optionalString(input, 'status', 40);
     const limit = clampInt(input.limit, 1, 50, 20);
-    if (clientId) await this.ensureClientVisible(ctx, clientId);
+    if (clientId) clientId = await this.ensureClientVisible(ctx, clientId);
 
     const campaigns = await this.engagement.listCampaigns(ctx, {
       clientId: clientId ?? undefined,
@@ -6072,10 +6094,10 @@ export class MeriToolsService {
 
   private async createEngagementTask(ctx: TenantContext, input: Record<string, unknown>) {
     const title = requiredString(input, 'title', 240);
-    const clientId = optionalString(input, 'clientId', 80);
+    let clientId = optionalString(input, 'clientId', 80);
     const dueDate = optionalString(input, 'dueDate', 40);
     const description = optionalString(input, 'description', 2000);
-    if (clientId) await this.ensureClientVisible(ctx, clientId);
+    if (clientId) clientId = await this.ensureClientVisible(ctx, clientId);
 
     const task = await this.engagement.createTask(ctx, {
       title,
@@ -6392,7 +6414,7 @@ export class MeriToolsService {
    * SIDE_EFFECTING_TOOLS); this method does the persistence only.
    */
   private async updateClientProfile(ctx: TenantContext, input: Record<string, unknown>) {
-    const clientId = requiredString(input, 'clientId', 80);
+    let clientId = requiredString(input, 'clientId', 80);
     // Keep THROWING on a missing/invalid clientId — this runs on the
     // approve-replay path where only executed/executionError surface, so a
     // structured return would render as a false "Approved and completed"
@@ -6400,7 +6422,7 @@ export class MeriToolsService {
     // with recovery guidance appended: the banner is what the user sees, and
     // the regenerate that follows is what puts the model back in the loop.
     try {
-      await this.ensureClientVisible(ctx, clientId);
+      clientId = await this.ensureClientVisible(ctx, clientId);
     } catch (e) {
       if (e instanceof NotFoundException) {
         throw new NotFoundException(
@@ -6622,27 +6644,67 @@ export class MeriToolsService {
     return meeting;
   }
 
-  private async ensureClientVisible(ctx: TenantContext, clientId: string) {
-    // Guard the UUID cast BEFORE it reaches Postgres. A model-supplied clientId
-    // that isn't a real UUID — commonly a display name like "RADD" when no
-    // client is scoped to the conversation — otherwise makes Prisma throw a raw
-    // "Error creating UUID" (P2023) that surfaces to the user as "Action
-    // approved but failed to run". Fail with a clear, actionable message instead.
-    // When the Meri conversation is scoped to a client, its UUID is threaded
-    // automatically; otherwise the caller must pass the exact client id.
+  /**
+   * Resolve a model-supplied client reference to a real, visible client id.
+   *
+   * Two failure modes converge here:
+   *
+   * 1. A non-UUID reaches Postgres and Prisma throws a raw "Error creating UUID"
+   *    (P2023), which the user sees as "Action approved but failed to run".
+   *    Guarded before the cast since 2026-07-16.
+   * 2. The model sends an exact display NAME ("Ballard Partners") because that
+   *    is what it has in hand — most often in an UNFOCUSED conversation, where
+   *    there is no conversation client to fall back to. That used to be a dead
+   *    end. It is now resolved by exact, case-insensitive name match, which is
+   *    the follow-up 1be58d95 explicitly deferred.
+   *
+   * Only an EXACT name match counts. Fuzzy-matching a client name would let a
+   * near-miss write one client's data onto another, and these are approved
+   * writes — the user has already said yes by the time this runs.
+   *
+   * Returns the resolved UUID; callers must use the RETURN VALUE, not their
+   * original input.
+   */
+  private async ensureClientVisible(ctx: TenantContext, clientId: string): Promise<string> {
     const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
-    if (!UUID_RE.test(clientId)) {
+    const raw = typeof clientId === 'string' ? clientId.trim() : '';
+    if (!raw) {
       throw new NotFoundException(
         'No client is scoped to this conversation. Select the client in Meri (or pass its exact id) and try again.',
       );
     }
-    const client = await this.prisma.withTenant(ctx.tenantId, (tx) =>
-      tx.client.findFirst({
-        where: { id: clientId, tenantId: ctx.tenantId, status: { not: 'archived' } },
-        select: { id: true },
+
+    if (UUID_RE.test(raw)) {
+      const client = await this.prisma.withTenant(ctx.tenantId, (tx) =>
+        tx.client.findFirst({
+          where: { id: raw, tenantId: ctx.tenantId, status: { not: 'archived' } },
+          select: { id: true },
+        }),
+      );
+      if (!client) throw new NotFoundException('Client not found');
+      return client.id;
+    }
+
+    const matches = await this.prisma.withTenant(ctx.tenantId, (tx) =>
+      tx.client.findMany({
+        where: {
+          tenantId: ctx.tenantId,
+          status: { not: 'archived' },
+          name: { equals: raw, mode: 'insensitive' },
+        },
+        select: { id: true, name: true },
+        take: 5,
       }),
     );
-    if (!client) throw new NotFoundException('Client not found');
+    if (matches.length === 1) return matches[0]!.id;
+    if (matches.length > 1) {
+      throw new NotFoundException(
+        `"${raw}" matches ${matches.length} clients in the book of business — pass the exact client id instead.`,
+      );
+    }
+    throw new NotFoundException(
+      `No client named "${raw}" is in the book of business. Pass the exact client id, or select the client in Meri. If the client does not exist yet, use lookup_client_registry + create_client first.`,
+    );
   }
 
   private async ensureConversationForTool(
@@ -6736,7 +6798,6 @@ function objectInput(value: unknown): Record<string, unknown> {
     return value as Record<string, unknown>;
   return {};
 }
-
 
 function requiredString(input: Record<string, unknown>, key: string, max: number): string {
   const value = optionalString(input, key, max);

@@ -46,6 +46,17 @@ export interface ChatRunOptions {
   signal?: AbortSignal;
 }
 
+const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
+/**
+ * Is this value a real client id rather than a display name the model guessed?
+ * The distinction is what lets a multi-client turn address several clients
+ * while still repairing the "sent 'RADD' where a UUID goes" mistake.
+ */
+export function isUuid(value: unknown): value is string {
+  return typeof value === 'string' && UUID_RE.test(value);
+}
+
 // A complex analyst question ("why was this PE cut, is there report language,
 // who do I call, will it survive conference?") legitimately fans out to a dozen+
 // tool calls. 8 rounds capped that mid-research; the loop then returned a canned
@@ -514,13 +525,23 @@ export class ChatAssistantService {
    * { persisted: false }, the generated Office document is dropped, and no
    * download URL comes back.
    *
-   * clientId is AUTHORITATIVE from the conversation focus: it OVERRIDES any
-   * model-supplied value. The system prompt tells the model the focused client's
-   * UUID, but it frequently sends a display name instead (e.g. "RADD"), which
-   * reaches apps/api as an invalid clientId (a raw "Error creating UUID" that the
-   * user sees as "Action approved but failed to run"). When the conversation is
-   * focused on a client, that id always wins; an UNfocused conversation leaves
-   * the model's value in place (apps/api validates it and fails cleanly).
+   * clientId: the conversation focus is a FALLBACK, not an override.
+   *
+   * History: it used to override unconditionally (2026-07-16), because the model
+   * kept sending a display name like "RADD" where a UUID belonged and the raw
+   * P2023 surfaced as "Action approved but failed to run". Overriding fixed that
+   * for single-client conversations and silently broke every multi-client one:
+   * "update all my client profiles" proposes N writes against N different ids in
+   * one focused conversation, and all N were rewritten to the focused client —
+   * so N-1 clients got someone else's data and the user was told all N succeeded.
+   *
+   * The real defect was never "the model chose a client", it was "the model sent
+   * a name where an id goes". So: a VALID UUID from the model is respected (it
+   * names a real client the user asked for), and the conversation focus only
+   * fills in when the model supplied nothing or supplied a non-UUID. apps/api
+   * re-validates and 404s cleanly on an id outside the tenant, so respecting the
+   * model's UUID cannot cross a tenant boundary.
+   *
    * conversationId is only filled when unset. apps/api re-validates and ignores
    * fields a tool does not use.
    */
@@ -529,7 +550,7 @@ export class ChatAssistantService {
     input: Record<string, unknown>,
   ): Record<string, unknown> {
     const out = { ...input };
-    if (dto.clientId) out.clientId = dto.clientId;
+    if (dto.clientId && !isUuid(out.clientId)) out.clientId = dto.clientId;
     if (dto.conversationId && out.conversationId === undefined) {
       out.conversationId = dto.conversationId;
     }
@@ -584,11 +605,18 @@ export class ChatAssistantService {
       const err = e as Error;
       if (err.name === 'ApprovalPendingError') {
         const fingerprint = computeActionFingerprint(name, input, ctx);
+        // Propose-time client check. The gate WARNs BEFORE the tool runs, so a
+        // write naming a client that cannot be resolved used to render as a
+        // perfectly clean approve card and only fail after the click. Three
+        // profile fills were once proposed for clients whose create_client had
+        // never been approved; every card looked fine. Say so on the card.
+        const blocker = await this.describeClientBlocker(input);
+        const reason = blocker ? `${err.message} — ${blocker}` : err.message;
         steps.push({ tool: name, label, status: 'pending_approval' });
-        pendingApprovals.push({ tool: name, fingerprint, reason: err.message });
+        pendingApprovals.push({ tool: name, fingerprint, reason });
         emit({ type: 'tool_done', tool: name, label, status: 'pending_approval' });
-        emit({ type: 'pending_approval', tool: name, label, fingerprint, reason: err.message });
-        this.audit.record({ trigger: name, decision: 'WARN', reason: err.message });
+        emit({ type: 'pending_approval', tool: name, label, fingerprint, reason });
+        this.audit.record({ trigger: name, decision: 'WARN', reason });
         // B4.1: cache the EXACT input behind this fingerprint so approving it
         // replays THIS action directly — never re-asks the model, which would
         // re-research/reword and hash to a fingerprint that was never approved
@@ -596,6 +624,16 @@ export class ChatAssistantService {
         // update_client_profile was approved 8 times over a week and executed
         // zero times).
         this.pendingActions.record({ fingerprint, tool: name, input });
+        if (blocker) {
+          // Also hand it to the model as tool output, so its prose matches the
+          // card instead of promising a fill that provably cannot happen.
+          return {
+            pendingApproval: true,
+            fingerprint,
+            willFail: true,
+            message: `This action needs the user's approval, and as proposed it will FAIL: ${blocker}. Tell the user plainly and fix the reference (or create the client first) rather than repeating the same proposal.`,
+          };
+        }
         return {
           pendingApproval: true,
           fingerprint,
@@ -613,6 +651,40 @@ export class ChatAssistantService {
       steps.push({ tool: name, label, status: 'error', detail });
       emit({ type: 'tool_done', tool: name, label, status: 'error', detail });
       return { error: err.message };
+    }
+  }
+
+  /**
+   * If a held write names a client, can that client actually be written to?
+   *
+   * Returns a human-readable blocker, or null when the reference resolves (or
+   * when we simply could not check). FAIL-OPEN by design: this is advisory
+   * copy on an approve card, so a slow or unreachable apps/api must never
+   * degrade the turn or, worse, mark a perfectly good action as doomed.
+   */
+  private async describeClientBlocker(input: Record<string, unknown>): Promise<string | null> {
+    const ref = input.clientId;
+    if (typeof ref !== 'string' || !ref.trim()) return null;
+    const bearer = RequestCredentialsStore.get()?.bearerToken;
+    if (!bearer) return null;
+    const impersonateTenantId = RequestCredentialsStore.get()?.impersonateTenantId;
+    try {
+      const res = await fetch(`${this.apiBaseUrl}/api/clio/clients/check-ref`, {
+        method: 'POST',
+        headers: {
+          authorization: `Bearer ${bearer}`,
+          'content-type': 'application/json',
+          accept: 'application/json',
+          ...(impersonateTenantId ? { 'x-capiro-impersonate-tenant': impersonateTenantId } : {}),
+        },
+        body: JSON.stringify({ ref }),
+      });
+      if (!res.ok) return null;
+      const body = (await res.json()) as { ok?: boolean; reason?: string };
+      if (body.ok === false && typeof body.reason === 'string') return body.reason;
+      return null;
+    } catch {
+      return null;
     }
   }
 

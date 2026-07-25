@@ -340,6 +340,14 @@ export class MeriController {
   // meri_pending_action RLS policies. `check` is called by the orchestrator
   // (forwarding the caller bearer); `pending-actions`/`approve`/`list` are the
   // human/surface actions.
+  // Propose-time client check (read-only). The gate WARNs before a write runs,
+  // so without this a doomed update_client_profile still renders as a clean
+  // "pending approval" card and only fails after the user clicks it.
+  @Post('clients/check-ref')
+  checkClientRef(@CurrentTenant() ctx: TenantContext, @Body() body: { ref?: string }) {
+    return this.tools.checkClientRef(ctx, typeof body?.ref === 'string' ? body.ref : '');
+  }
+
   @Post('approvals/check')
   checkApproval(@CurrentTenant() ctx: TenantContext, @Body() body: { fingerprint: string }) {
     return this.approvals.check(ctx, body?.fingerprint);

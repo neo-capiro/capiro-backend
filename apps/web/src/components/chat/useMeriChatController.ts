@@ -13,6 +13,7 @@ import { config } from '../../env.js';
 import { detectApprovalIntent } from './meri-approval-intent.js';
 import {
   applyApprovalOutcome,
+  describeApprovalResult,
   mergePendingApproval,
   outstandingApprovals,
 } from './meri-pending-approvals.js';
@@ -1240,7 +1241,7 @@ export function useMeriChatController({ selectedClientName }: ChatDrawerProps) {
   // regenerate entirely and just tell the user what ran.
   const approvedThisRoundRef = useRef(false);
   const needsRegenerateThisRoundRef = useRef(false);
-  const executedThisRoundRef = useRef<Array<{ tool: string; label?: string }>>([]);
+  const executedThisRoundRef = useRef<Array<{ tool: string; label?: string; detail?: string }>>([]);
 
   const finishApprovalRound = useCallback(() => {
     const needsRegenerate = needsRegenerateThisRoundRef.current;
@@ -1253,7 +1254,13 @@ export function useMeriChatController({ selectedClientName }: ChatDrawerProps) {
       return;
     }
     if (executed.length > 0) {
-      const names = executed.map((e) => e.label ?? e.tool).join(', ');
+      // Include each action's own result detail. For create_client that is the
+      // freshly-minted "Name (id …)", which the model needs in history to
+      // propose the matching update_client_profile — otherwise it invents a
+      // clientId from the display name and the follow-up write 404s.
+      const names = executed
+        .map((e) => `${e.label ?? e.tool}${e.detail ? ` — ${e.detail}` : ''}`)
+        .join('; ');
       appendChatMessage({
         id: generateId(),
         role: 'assistant',
@@ -1293,6 +1300,7 @@ export function useMeriChatController({ selectedClientName }: ChatDrawerProps) {
         const body = (await res.json().catch(() => ({}))) as {
           executed?: boolean;
           executionError?: string;
+          result?: unknown;
         };
         approvedThisRoundRef.current = true;
         const card = pendingApprovalsRef.current.find((p) => p.fingerprint === fingerprint);
@@ -1303,10 +1311,11 @@ export function useMeriChatController({ selectedClientName }: ChatDrawerProps) {
           setApprovalStatus(fingerprint, 'failed', body.executionError);
           needsRegenerateThisRoundRef.current = true;
         } else if (body.executed) {
-          setApprovalStatus(fingerprint, 'ran');
+          const detail = describeApprovalResult(body.result);
+          setApprovalStatus(fingerprint, 'ran', detail ?? undefined);
           executedThisRoundRef.current = [
             ...executedThisRoundRef.current,
-            { tool, label: card?.label },
+            { tool, label: card?.label, ...(detail ? { detail } : {}) },
           ];
         } else {
           // No cached input for this fingerprint (predates B4.1) — fall back to

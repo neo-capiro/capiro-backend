@@ -53,6 +53,46 @@ export function mergePendingApproval(
   );
 }
 
+/**
+ * Human-readable detail for an executed action, pulled from the tool's own
+ * return value.
+ *
+ * This exists for the create→enrich chain. `create_client` mints a UUID that
+ * only the server knows; the model then needs it to propose the matching
+ * `update_client_profile`, because an unfocused conversation has no client to
+ * fall back on. Putting "Name (id …)" into the completion message keeps the id
+ * in conversation history where the model will actually read it, instead of
+ * making it re-derive one — which is how "BryceTech" ended up proposed as a
+ * clientId in the first place.
+ */
+export function describeApprovalResult(result: unknown): string | null {
+  if (!result || typeof result !== 'object') return null;
+  const r = result as Record<string, unknown>;
+  const client = r.client;
+  if (client && typeof client === 'object') {
+    const c = client as Record<string, unknown>;
+    const name = typeof c.name === 'string' ? c.name : null;
+    const id = typeof c.id === 'string' ? c.id : null;
+    if (name && id) return `${name} (id ${id})`;
+    if (name) return name;
+  }
+  // update_client_profile reports what it actually wrote — worth echoing so
+  // "approved" is never mistaken for "and it did what I described".
+  const written = Array.isArray(r.fieldsWritten) ? r.fieldsWritten.length : 0;
+  const people = Array.isArray(r.peopleCreated) ? r.peopleCreated.length : 0;
+  const caps = Array.isArray(r.capabilitiesCreated) ? r.capabilitiesCreated.length : 0;
+  const facilities = Array.isArray(r.facilitiesCreated) ? r.facilitiesCreated.length : 0;
+  const parts: string[] = [];
+  if (typeof r.clientName === 'string' && r.clientName) parts.push(r.clientName);
+  const counts: string[] = [];
+  if (written) counts.push(`${written} field${written === 1 ? '' : 's'}`);
+  if (people) counts.push(`${people} ${people === 1 ? 'person' : 'people'}`);
+  if (caps) counts.push(`${caps} capabilit${caps === 1 ? 'y' : 'ies'}`);
+  if (facilities) counts.push(`${facilities} facilit${facilities === 1 ? 'y' : 'ies'}`);
+  if (counts.length) parts.push(counts.join(', '));
+  return parts.length ? parts.join(' — ') : null;
+}
+
 /** Record the outcome of an approval attempt against one card. */
 export function applyApprovalOutcome(
   prev: PendingApproval[],

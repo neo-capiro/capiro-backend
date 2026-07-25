@@ -273,12 +273,12 @@ describe('ChatAssistantService.run', () => {
     expect(out.pendingApprovals).toBeUndefined();
   });
 
-  it('overrides a model-supplied clientId with the conversation focus (never a model-invented id)', async () => {
+  it('replaces a model-supplied NON-UUID clientId with the conversation focus', async () => {
     // Regression: augmentToolInput used to only backfill clientId when the model
     // left it unset. But required-clientId tools (e.g. update_client_profile)
     // ALWAYS send one — frequently a display name, not the UUID — which reached
     // apps/api as an invalid clientId ("Error creating UUID" → the user-visible
-    // "Action approved but failed to run"). The conversation focus must WIN.
+    // "Action approved but failed to run"). A name must lose to the focus.
     const executeSpy = jest.fn(
       async (_ctx: MeriContext, _name: string, _input: Record<string, unknown>) => ({
         tool: 'create_word',
@@ -328,6 +328,63 @@ describe('ChatAssistantService.run', () => {
     const passedInput = executeSpy.mock.calls[0]?.[2] as { clientId?: string };
     // The conversation's client id wins over the model's "RADD".
     expect(passedInput.clientId).toBe('client-9');
+  });
+
+  it('respects a model-supplied UUID so one turn can write to several clients', async () => {
+    // The 2026-07-16 override was unconditional, which fixed the display-name
+    // case and silently broke every multi-client turn: "update all my client
+    // profiles" proposes N writes against N ids in ONE focused conversation and
+    // all N were rewritten to the focused client — so N-1 clients received
+    // another client's data while the user was told all N succeeded.
+    const other = 'b7c9e1a2-0000-4000-8000-00000000abcd';
+    const executeSpy = jest.fn(
+      async (_ctx: MeriContext, _name: string, _input: Record<string, unknown>) => ({
+        tool: 'create_word',
+        format: 'docx',
+        title: 'Doc',
+        filename: 'doc.docx',
+        mimeType: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+        artifact: { id: 'art-y', title: 'Doc', kind: 'word_document' },
+        downloadUrl: '/api/clio/artifacts/art-y/download',
+      }),
+    );
+    const executor = { execute: executeSpy } as unknown as ApiToolExecutorRepo;
+
+    let call = 0;
+    (global as unknown as { fetch: unknown }).fetch = jest.fn(async (url: string) => {
+      if (url.includes('/api/clio/tool-schemas')) return schemasResponse(['create_word']);
+      call += 1;
+      if (call === 1)
+        return anthropic(
+          [
+            {
+              type: 'tool_use',
+              id: 't1',
+              name: 'create_word',
+              input: { title: 'Doc', sections: [], clientId: other },
+            },
+          ],
+          'tool_use',
+        );
+      return anthropic([{ type: 'text', text: 'done' }], 'end_turn');
+    });
+
+    await RequestCredentialsStore.run({ bearerToken: 'jwt' }, () =>
+      makeService(executor).run(
+        ctx,
+        {
+          messages: [{ role: 'user', text: 'update every client profile' }],
+          clientId: 'client-9',
+          conversationId: 'conv-9',
+        },
+        { onEvent: () => {} },
+      ),
+    );
+
+    const passedInput = executeSpy.mock.calls[0]?.[2] as { clientId?: string };
+    // A real id names a real client the user asked for; apps/api still 404s on
+    // anything outside the tenant, so honouring it cannot cross a boundary.
+    expect(passedInput.clientId).toBe(other);
   });
 
   it('threads conversationId + clientId into a document tool and surfaces the download artifact', async () => {

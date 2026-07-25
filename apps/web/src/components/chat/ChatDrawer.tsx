@@ -361,7 +361,9 @@ export function MeriLegacyDrawer({
                         approved at once this is the only place the user can see
                         WHICH one failed and why. */}
                     {p.status === 'ran' && (
-                      <span className="chat-pending-approval-outcome">✓ Ran</span>
+                      <span className="chat-pending-approval-outcome">
+                        ✓ Ran{p.detail ? ` — ${p.detail}` : ''}
+                      </span>
                     )}
                     {p.status === 'failed' && (
                       <span className="chat-pending-approval-outcome chat-pending-approval-outcome--failed">

@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import {
   applyApprovalOutcome,
+  describeApprovalResult,
   mergePendingApproval,
   outstandingApprovals,
 } from './meri-pending-approvals.js';
@@ -84,5 +85,36 @@ describe('applyApprovalOutcome', () => {
     const failed = applyApprovalOutcome(ran, 'b', 'failed', 'Error creating UUID');
     expect(failed[1]).toMatchObject({ status: 'failed', detail: 'Error creating UUID' });
     expect(failed[0]).toMatchObject({ status: 'ran' });
+  });
+});
+
+describe('describeApprovalResult', () => {
+  it('surfaces the new client id so the follow-up profile fill can address it', () => {
+    // create_client mints a UUID only the server knows. Without this the model
+    // re-derives one from the display name — which is how "BryceTech" was
+    // proposed as a clientId and the follow-up update was dead on arrival.
+    const detail = describeApprovalResult({
+      created: true,
+      client: { id: 'a3f1c2d4-0000-4000-8000-000000000001', name: 'BryceTech' },
+    });
+    expect(detail).toBe('BryceTech (id a3f1c2d4-0000-4000-8000-000000000001)');
+  });
+
+  it('reports what a profile update actually wrote, not just that it ran', () => {
+    const detail = describeApprovalResult({
+      updated: true,
+      clientName: 'Ballard Partners',
+      fieldsWritten: ['website', 'description'],
+      peopleCreated: ['Jason Hay'],
+      capabilitiesCreated: [],
+      facilitiesCreated: [],
+    });
+    expect(detail).toBe('Ballard Partners — 2 fields, 1 person');
+  });
+
+  it('returns null when there is nothing worth saying', () => {
+    expect(describeApprovalResult(null)).toBeNull();
+    expect(describeApprovalResult('sent')).toBeNull();
+    expect(describeApprovalResult({ ok: true })).toBeNull();
   });
 });
