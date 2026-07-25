@@ -600,6 +600,81 @@ export type RunState =
   | 'canceled'
   | 'superseded';
 
+/*
+ * P0-3 — approval binds to the EXACT payload.
+ *
+ * GET /agents/execution/runs/:id/approval. Every disclosure the approval screen
+ * must show is a SERVER-computed fact here (fallback content, grounding status,
+ * unresolved conflicts, version drift, changed-since-review, and whether
+ * approving stages internally or sends externally) — the UI renders them, it does
+ * not infer them.
+ */
+export interface ApprovalRecipient {
+  id: string | null;
+  name: string;
+  address: string | null;
+}
+
+export interface ApprovalBinding {
+  strategyId: string;
+  strategyVersionId: string | null;
+  nodeId: string;
+  runId: string;
+  action: 'stage' | 'send';
+  channel: string;
+  subject: string;
+  body: string;
+  recipients: ApprovalRecipient[];
+  attachments: string[];
+  templateVersion: string | null;
+  contextPackFingerprint: string | null;
+  groundingStatus: string | null;
+  /** FALSE means deterministic fallback content, not grounded prose. */
+  grounded: boolean;
+  model: string | null;
+  provider: string | null;
+  sendEnabled: boolean;
+}
+
+export interface ApprovalRecord {
+  contentHash: string;
+  /** The full approved payload, verbatim — reproduces exactly what was authorised. */
+  binding: ApprovalBinding;
+  approvedByUserId: string;
+  approvedAt: string;
+  status: 'approved' | 'invalidated';
+  invalidatedAt?: string | null;
+  invalidatedReason?: string | null;
+  changedFields?: string[] | null;
+}
+
+export interface RunApprovalStatus {
+  runId: string;
+  state: RunState;
+  action: 'stage' | 'send';
+  /** Plain words: "stages internally" | "sends externally". */
+  effect: string;
+  /** Always false while the external send is hard-disabled. */
+  sendEnabled: boolean;
+  /** Hash of the payload as it stands NOW — what an approval must be granted against. */
+  contentHash: string;
+  binding: ApprovalBinding;
+  approval: ApprovalRecord | null;
+  approvalValid: boolean;
+  approvalInvalidReason: string | null;
+  changedFields: string[];
+  warnings: {
+    fallbackContent: boolean;
+    groundingStatus: string | null;
+    openMaterialConflicts: OpenMaterialConflict[];
+    missingRequiredContext: string[];
+    versionDrift: boolean;
+    pinnedVersionId: string | null;
+    headVersionId: string | null;
+    changedSinceReview: boolean;
+  };
+}
+
 /** P0-2: the actions the server will accept from a run's current state. */
 export type RunAction =
   | 'execute'

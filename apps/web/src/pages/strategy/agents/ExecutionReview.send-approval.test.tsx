@@ -46,6 +46,13 @@ vi.mock('../api.js', () => ({
   useMarkRunFailed: () => ({ mutate: vi.fn(), isPending: false }),
   useReconcileRun: () => ({ mutate: vi.fn(), isPending: false }),
   useResolveReservation: () => ({ mutate: vi.fn(), isPending: false }),
+  // P0-3 approval panel: resolved to nothing here so this suite stays focused on
+  // the SEND-approval hard-disable it exists to pin. The approval panel's own
+  // disclosures — and its own DISABLED send-grant control — are covered by
+  // ExecutionReview.approval.test.tsx.
+  useApprovalStatus: () => ({ ...idle, data: undefined }),
+  useApproveExactDraft: () => ({ mutate: vi.fn(), isPending: false }),
+  useRejectApproval: () => ({ mutate: vi.fn(), isPending: false }),
 }));
 
 vi.mock('../clients-lite.js', () => ({

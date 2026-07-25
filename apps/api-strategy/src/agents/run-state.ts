@@ -257,7 +257,19 @@ export const RUN_STATE_POLICY: Record<RunStateValue, RunStatePolicy> = {
   waiting_for_input: {
     terminal: false,
     timeoutMinutes: null,
-    actions: ['resume', 'resolve_input', 'retry', 'reconcile', 'cancel', 'return_to_node'],
+    // `approve` belongs here (P0-3): when an approval is INVALIDATED the run parks
+    // in this state, and re-approving the CURRENT payload is the whole remediation.
+    // Omitting it made invalidation a dead end — the user could see why their
+    // approval died but had no way to grant a new one.
+    actions: [
+      'resume',
+      'resolve_input',
+      'approve',
+      'retry',
+      'reconcile',
+      'cancel',
+      'return_to_node',
+    ],
     reason: 'Blocked — it needs something from you before it can continue.',
   },
   ready_for_review: {

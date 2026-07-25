@@ -39,6 +39,7 @@ import type {
   ReferenceForkRow,
   ReconcileResult,
   ResolveConflictInput,
+  RunApprovalStatus,
   RestoreImpact,
   ResumeRunInput,
   RunCheckResult,
@@ -924,6 +925,72 @@ export function useRunAttempts(runId: string | null, enabled = true) {
       normalizeExecutionRuns(
         (await api.get<unknown>(`${BASE}/agents/execution/runs/${runId}/attempts`)).data,
       ),
+  });
+}
+
+/*
+ * ---- P0-3 approval binding ---------------------------------------------------
+ * An approval binds to the exact payload and is invalidated by any material
+ * change. None of these hooks send anything.
+ */
+
+/** GET /agents/execution/runs/:id/approval — the approval screen's data. */
+export function useApprovalStatus(runId: string | null, enabled = true) {
+  const api = useApi();
+  return useQuery<RunApprovalStatus>({
+    queryKey: ['strategy', 'run-approval', runId],
+    enabled: !!runId && enabled,
+    // The payload can move under the reviewer, and approving a stale hash 409s —
+    // so never serve this from cache.
+    staleTime: 0,
+    gcTime: 0,
+    queryFn: async () =>
+      (await api.get<RunApprovalStatus>(`${BASE}/agents/execution/runs/${runId}/approval`)).data,
+  });
+}
+
+/**
+ * POST /agents/execution/runs/:id/approve — approve the EXACT draft.
+ *
+ * contentHash is the hash the reviewer was actually looking at. The server 409s
+ * if the live payload no longer matches, so an approval can never land on content
+ * nobody reviewed.
+ */
+export function useApproveExactDraft() {
+  const api = useApi();
+  const invalidate = useExecutionInvalidate();
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async (vars: { id: string; contentHash: string }): Promise<RunApprovalStatus> =>
+      (
+        await api.post<RunApprovalStatus>(`${BASE}/agents/execution/runs/${vars.id}/approve`, {
+          contentHash: vars.contentHash,
+        })
+      ).data,
+    onSuccess: (_res, vars) => {
+      invalidate();
+      void qc.invalidateQueries({ queryKey: ['strategy', 'run-approval', vars.id] });
+      void qc.invalidateQueries({ queryKey: ['strategy', 'run-policy', vars.id] });
+    },
+  });
+}
+
+/** POST /agents/execution/runs/:id/reject-approval — refuse or withdraw approval. */
+export function useRejectApproval() {
+  const api = useApi();
+  const invalidate = useExecutionInvalidate();
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async (vars: { id: string; reason?: string }) =>
+      (
+        await api.post<unknown>(`${BASE}/agents/execution/runs/${vars.id}/reject-approval`, {
+          ...(vars.reason ? { reason: vars.reason } : {}),
+        })
+      ).data,
+    onSuccess: (_res, vars) => {
+      invalidate();
+      void qc.invalidateQueries({ queryKey: ['strategy', 'run-approval', vars.id] });
+    },
   });
 }
 

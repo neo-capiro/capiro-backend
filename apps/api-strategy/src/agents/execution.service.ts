@@ -23,7 +23,19 @@ import { StewardService } from '../context/steward.service.js';
 import { AGENTIC_FLAGS, StrategyFlagsService } from '../flags/strategy-flags.service.js';
 import { RunsService } from './runs.service.js';
 import { ExecutionArtifactClient } from './execution-artifact.client.js';
-import { computeSendToken, type SendTokenInput } from './send-approval.js';
+import { computeSendToken, sendEnabled, type SendTokenInput } from './send-approval.js';
+import {
+  computeApprovalHash,
+  contextPackFingerprint,
+  invalidateApproval,
+  recordApproval,
+  verifyApproval,
+  type ApprovalAction,
+  type ApprovalBinding,
+  type ApprovalRecipient,
+  type ApprovalRecord,
+  type ApprovalVerification,
+} from './approval-binding.js';
 import { evaluateEligibility, type EligibilityResult } from './execution-eligibility.js';
 import { stampRunMetrics, type RunMetricsInput } from './run-metrics.js';
 import { PENDING_ARTIFACT_REF } from './artifact-ref.js';
@@ -506,6 +518,32 @@ export class ExecutionService {
       return this.settlePhase(tenantId, userId, runId, meta.missionId, 'execute', phaseStart);
     }
 
+    // P0-3 ENFORCEMENT: a run carrying a recorded approval must have that
+    // approval re-verified against the CURRENT payload before we act on it. A
+    // drifted approval is persisted as invalidated and the run PARKS — the audit's
+    // "confirm execution is blocked until reapproval".
+    const runRow = await this.runs.get(tenantId, runId);
+    const approvalBlock = await this.verifyRunApproval(
+      tenantId,
+      userId,
+      runId,
+      runRow,
+      this.buildBinding(runId, targetNode, strategy, this.readResults(runRow), {
+        action: isSendPark(runRow) ? 'send' : 'stage',
+        kind: meta.kind,
+        headVersionId,
+        stewardHealth,
+      }),
+    );
+    if (approvalBlock) {
+      await this.runs.transition(tenantId, userId, runId, {
+        to: 'waiting_for_input',
+        waitingReason: `approval no longer valid: ${approvalBlock}`,
+        findings: { execution: meta, g0 },
+      } as TransitionRunDto);
+      return this.settlePhase(tenantId, userId, runId, meta.missionId, 'execute', phaseStart);
+    }
+
     const clientName = await this.resolveClientName(tenantId, strategy.clientId);
     // Read-only prompt grounding for the (optional) generation call below — NOT
     // part of any gate; fails soft to [] (mirrors MeriService.stewardContext).
@@ -581,6 +619,7 @@ export class ExecutionService {
           strategy,
           results,
           priorSendApproval,
+          { headVersionId, stewardHealth },
         );
         results[key] = { status: 'awaiting_send_approval' };
         sendPending = true;
@@ -1064,6 +1103,11 @@ export class ExecutionService {
     results: Record<string, unknown>,
     /** The token this SAME run last parked with (see readPriorSendApproval), if any. */
     priorSendApproval: Record<string, unknown> | null,
+    /** P0-3: the live plan head + steward health the FULL binding hash covers.
+     *  Passed in (not re-read) so the preview hash and the approve-time hash are
+     *  computed from IDENTICAL inputs — otherwise "approve exact draft" could
+     *  never match and every approval would 409. */
+    bindingCtx: { headVersionId: string | null; stewardHealth: StewardHealth | null },
   ): Record<string, unknown> {
     const outreachResult = results[`${node.id}:outreach_record`] as
       | { artifactRef?: string; body?: string | null }
@@ -1105,7 +1149,374 @@ export class ExecutionService {
       status: 'pending',
       // Explicit: the send stays disabled in Stage G regardless of the token.
       sendEnabled: false,
+      // P0-3: the hash of the FULL binding for the payload as staged right now.
+      // The web preview compares this against approvedContentHash to render the
+      // changed-since-review badge; the server re-derives and re-verifies the
+      // same binding at every gate (see verifyRunApproval).
+      contentHash: computeApprovalHash(
+        this.buildBinding(runId, node, strategy, results, {
+          action: 'send',
+          kind: 'outreach',
+          headVersionId: bindingCtx.headVersionId,
+          stewardHealth: bindingCtx.stewardHealth,
+        }),
+      ),
+      ...(priorSendApproval?.approvedContentHash
+        ? { approvedContentHash: priorSendApproval.approvedContentHash }
+        : {}),
     };
+  }
+
+  // ---- P0-3 approval binding (records; authorises NO send) -------------------
+
+  /**
+   * The FULL approval binding for a run's current payload — the audit's required
+   * field list, assembled from live state rather than from whatever the reviewer
+   * happened to be looking at.
+   *
+   * `action` distinguishes approving the STAGING of an artifact from approving an
+   * external SEND, and is itself bound, so a stage approval can never satisfy a
+   * send (approval-binding.spec covers that explicitly).
+   */
+  private buildBinding(
+    runId: string,
+    node: NodeRow,
+    strategy: StrategyRow,
+    results: Record<string, unknown>,
+    opts: {
+      action: ApprovalAction;
+      kind: ExecutionKindValue;
+      headVersionId: string | null;
+      stewardHealth?: StewardHealth | null;
+    },
+  ): ApprovalBinding {
+    const artifactType = ARTIFACT_TYPE_BY_KIND[opts.kind];
+    // A 'stage' approval is granted BEFORE anything is generated, so it binds the
+    // PLAN (strategy+version, step, target, subject, template, grounding health)
+    // and deliberately NOT the generated content — which does not exist yet.
+    // Binding a body here would make every stage approval self-invalidate the
+    // moment staging produced one, parking every resumed run. Content binding is
+    // the 'send' approval's job, which is what P0-3 is actually about.
+    const result = opts.action === 'send' ? asObject(results[`${node.id}:${artifactType}`]) : null;
+    const body = typeof result?.body === 'string' ? result.body : '';
+    const model = typeof result?.model === 'string' ? result.model : null;
+    // `grounded` is the SAME signal recordArtifact audits: usable generated
+    // sections, not mere doc truthiness. A deterministic fallback must never
+    // present as grounded prose.
+    const grounded = !!model;
+    const citedFactRefs =
+      typeof result?.groundedFactCount === 'number' && result.groundedFactCount > 0
+        ? [`count:${result.groundedFactCount}`]
+        : [];
+
+    const recipients: ApprovalRecipient[] = node.targetRef
+      ? [
+          {
+            id: node.targetRef.clientTargetId ?? node.targetRef.memberId ?? null,
+            name: targetDisplayName(node.targetRef),
+            address: null,
+          },
+        ]
+      : [];
+
+    return {
+      strategyId: strategy.id,
+      strategyVersionId: opts.headVersionId,
+      nodeId: node.id,
+      runId,
+      action: opts.action,
+      channel: artifactType,
+      subject: node.title,
+      body,
+      recipients,
+      // No attachment path exists on the execution payload yet; bound as an
+      // empty set so adding one later is automatically invalidating.
+      attachments: [],
+      templateVersion: EXECUTION_DOC_PROMPT_SPEC,
+      contextPackFingerprint: contextPackFingerprint({
+        groundingStatus: opts.stewardHealth?.status ?? null,
+        missingRequired: opts.stewardHealth?.missingRequired ?? [],
+        openMaterialConflictIds: (opts.stewardHealth?.openMaterialConflicts ?? []).map((c) => c.id),
+        citedFactRefs,
+      }),
+      groundingStatus: opts.stewardHealth?.status ?? null,
+      grounded,
+      model,
+      provider: model ? 'anthropic' : null,
+      // Bound so flipping the Stage-H switch cannot silently promote a historic
+      // approval into a send authorisation.
+      sendEnabled: sendEnabled(process.env),
+    };
+  }
+
+  /**
+   * The approval picture for a run: what is staged NOW, its content hash, any
+   * recorded approval, and whether that approval still holds. This is what the
+   * approval screen renders — so every disclosure the audit requires (exact
+   * recipient, exact subject, full body, grounding warnings, fallback warning,
+   * version drift, changed-since-review, stages-vs-sends) is a server-derived
+   * fact rather than something the UI infers.
+   */
+  async approvalStatus(tenantId: string, runId: string) {
+    const run = await this.runs.get(tenantId, runId);
+    const meta = this.readExecutionMeta(run);
+    const { strategy, targetNode, headVersionId } = await this.loadPlanState(
+      tenantId,
+      meta.strategyId,
+      meta.nodeId,
+    );
+    const health = await this.steward.health(tenantId, strategy.clientId);
+    const stewardHealth: StewardHealth = {
+      status: health.status,
+      missingRequired: health.missingRequired,
+      openMaterialConflicts: health.openMaterialConflicts,
+    };
+    const results = this.readResults(run);
+    // A run parked on the send gate is approving a SEND; anything earlier is
+    // approving the STAGING of the artifact.
+    const action: ApprovalAction = isSendPark(run) ? 'send' : 'stage';
+    const binding = this.buildBinding(runId, targetNode, strategy, results, {
+      action,
+      kind: meta.kind,
+      headVersionId,
+      stewardHealth,
+    });
+    const approval = this.readApproval(run);
+    const verification = approval ? verifyApproval(binding, approval) : null;
+
+    return {
+      runId,
+      state: run.state as string,
+      action,
+      /** Does approving here stage an artifact, or transmit externally? */
+      effect: action === 'send' ? 'sends externally' : 'stages internally',
+      /** Always false in Stage G — the send path is hard-disabled. */
+      sendEnabled: sendEnabled(process.env),
+      contentHash: computeApprovalHash(binding),
+      binding,
+      approval,
+      approvalValid: verification ? verification.valid : false,
+      approvalInvalidReason: verification && !verification.valid ? verification.reason : null,
+      changedFields: verification?.changedFields ?? [],
+      // The audit's required disclosures, as explicit server-computed flags.
+      warnings: {
+        // Only meaningful for a send approval — a stage approval precedes
+        // generation, so "not grounded" there is expected, not a warning.
+        fallbackContent: action === 'send' && !binding.grounded,
+        groundingStatus: stewardHealth.status,
+        openMaterialConflicts: stewardHealth.openMaterialConflicts,
+        missingRequiredContext: stewardHealth.missingRequired,
+        versionDrift: meta.pinnedVersionId != null && meta.pinnedVersionId !== headVersionId,
+        pinnedVersionId: meta.pinnedVersionId,
+        headVersionId,
+        changedSinceReview: !!approval && !!verification && !verification.valid,
+      },
+    };
+  }
+
+  /**
+   * Approve the EXACT payload the reviewer is looking at.
+   *
+   * `contentHash` is mandatory and is the reviewer's assertion of WHAT they saw.
+   * If the live payload no longer hashes to it, the draft moved between render
+   * and click, so we 409 rather than approve something unseen. That check is the
+   * whole point of P0-3 and is deliberately not softenable.
+   *
+   * Approving a plan (action 'stage') drives ready_for_review -> approved, the
+   * state P0-2 made legal. Approving a send RECORDS the authorisation and leaves
+   * the run parked: the external send stays hard-disabled and this method has no
+   * send path of any kind.
+   */
+  async approve(tenantId: string, userId: string, runId: string, input: { contentHash: string }) {
+    if (!input.contentHash) {
+      throw new BadRequestException(
+        'contentHash is required — approve the exact draft you reviewed',
+      );
+    }
+    const status = await this.approvalStatus(tenantId, runId);
+    if (input.contentHash !== status.contentHash) {
+      throw new ConflictException(
+        'this draft changed since you reviewed it — reload and approve the current content',
+      );
+    }
+    if (status.action === 'stage' && !isActionAllowed(status.state, 'approve')) {
+      throw new ConflictException(
+        `run is ${status.state} — it cannot be approved (${reasonForState(status.state)})`,
+      );
+    }
+
+    const now = new Date();
+    const record = recordApproval(status.binding, userId, now);
+
+    await this.inTx(tenantId, userId, async (tx) => {
+      const run = await tx.spAgentRun.findFirst({ where: { id: runId } });
+      if (!run) throw new NotFoundException('Run not found');
+      const prevFindings = asObject(run.findings) ?? {};
+      const prevSend = asObject(prevFindings.sendApproval);
+      await tx.spAgentRun.updateMany({
+        where: { id: runId },
+        data: {
+          findings: {
+            ...prevFindings,
+            approval: record as unknown as Prisma.JsonObject,
+            // Mirror the approved hash onto the send preview so the web's
+            // changed-since-review comparison (approvedContentHash vs
+            // contentHash) works without a second fetch.
+            ...(prevSend
+              ? {
+                  sendApproval: {
+                    ...prevSend,
+                    approvedContentHash: record.contentHash,
+                    status: 'approved',
+                  },
+                }
+              : {}),
+          } as Prisma.InputJsonValue,
+          heartbeatAt: now,
+        },
+      });
+      await this.versioning.logActivity(tx, {
+        tenantId,
+        actorUserId: userId,
+        authorKind: 'person',
+        action: 'execution.approval_granted',
+        entityType: 'run',
+        entityId: runId,
+        strategyId: status.binding.strategyId,
+        // The FULL approved payload goes in the audit row, so the record can
+        // reproduce exactly what was authorised — not merely that something was.
+        after: {
+          contentHash: record.contentHash,
+          approvedAt: record.approvedAt,
+          action: record.binding.action,
+          sendEnabled: record.binding.sendEnabled,
+          binding: record.binding as unknown as Prisma.JsonObject,
+        },
+      });
+    });
+
+    // A stage approval advances the lifecycle; a send approval leaves the run
+    // parked (nothing may be transmitted in Stage G).
+    if (status.action === 'stage' && status.state === 'ready_for_review') {
+      await this.runs.transition(tenantId, userId, runId, { to: 'approved' } as TransitionRunDto);
+    }
+    return this.approvalStatus(tenantId, runId);
+  }
+
+  /** Withdraw/refuse an approval. Records who and why; never sends. */
+  async rejectApproval(tenantId: string, userId: string, runId: string, reason?: string) {
+    const run = await this.runs.get(tenantId, runId);
+    const existing = this.readApproval(run);
+    const now = new Date();
+    const stated = reason?.trim() || 'rejected by a reviewer';
+
+    await this.inTx(tenantId, userId, async (tx) => {
+      const fresh = await tx.spAgentRun.findFirst({ where: { id: runId } });
+      if (!fresh) throw new NotFoundException('Run not found');
+      const prevFindings = asObject(fresh.findings) ?? {};
+      const prevSend = asObject(prevFindings.sendApproval);
+      const dead = existing
+        ? invalidateApproval(existing, { valid: false, reason: stated, changedFields: [] }, now)
+        : null;
+      await tx.spAgentRun.updateMany({
+        where: { id: runId },
+        data: {
+          findings: {
+            ...prevFindings,
+            ...(dead ? { approval: dead as unknown as Prisma.JsonObject } : {}),
+            ...(prevSend
+              ? { sendApproval: { ...prevSend, approvedContentHash: null, status: 'rejected' } }
+              : {}),
+            approvalRejection: { reason: stated, byUserId: userId, at: now.toISOString() },
+          } as Prisma.InputJsonValue,
+          heartbeatAt: now,
+        },
+      });
+      await this.versioning.logActivity(tx, {
+        tenantId,
+        actorUserId: userId,
+        authorKind: 'person',
+        action: 'execution.approval_rejected',
+        entityType: 'run',
+        entityId: runId,
+        after: { reason: stated, hadApproval: !!existing },
+      });
+    });
+    return this.runs.get(tenantId, runId);
+  }
+
+  /**
+   * P0-3 ENFORCEMENT. Re-derive the binding and re-verify a recorded approval
+   * immediately before acting on it. A drifted approval is PERSISTED as
+   * invalidated (with the fields that moved) and the run parks — never silently
+   * ignored, and never silently honoured.
+   *
+   * Returns the invalidation reason when the approval no longer holds, else null.
+   */
+  private async verifyRunApproval(
+    tenantId: string,
+    userId: string | null,
+    runId: string,
+    run: { findings: unknown },
+    binding: ApprovalBinding,
+  ): Promise<string | null> {
+    const approval = this.readApproval(run);
+    if (!approval) return null; // nothing approved => nothing to invalidate
+    const verification: ApprovalVerification = verifyApproval(binding, approval);
+    if (verification.valid) return null;
+    if (approval.status !== 'invalidated') {
+      await this.persistInvalidation(tenantId, userId, runId, approval, verification);
+    }
+    return verification.reason ?? 'the approved payload changed';
+  }
+
+  private async persistInvalidation(
+    tenantId: string,
+    userId: string | null,
+    runId: string,
+    approval: ApprovalRecord,
+    verification: ApprovalVerification,
+  ): Promise<void> {
+    const now = new Date();
+    const dead = invalidateApproval(approval, verification, now);
+    await this.inTx(tenantId, userId, async (tx) => {
+      const fresh = await tx.spAgentRun.findFirst({ where: { id: runId } });
+      if (!fresh) return;
+      const prevFindings = asObject(fresh.findings) ?? {};
+      const prevSend = asObject(prevFindings.sendApproval);
+      await tx.spAgentRun.updateMany({
+        where: { id: runId },
+        data: {
+          findings: {
+            ...prevFindings,
+            approval: dead as unknown as Prisma.JsonObject,
+            ...(prevSend ? { sendApproval: { ...prevSend, status: 'invalidated' } } : {}),
+          } as Prisma.InputJsonValue,
+        },
+      });
+      await this.versioning.logActivity(tx, {
+        tenantId,
+        actorUserId: userId,
+        authorKind: userId ? 'person' : 'meri',
+        action: 'execution.approval_invalidated',
+        entityType: 'run',
+        entityId: runId,
+        before: { contentHash: approval.contentHash, approvedAt: approval.approvedAt },
+        after: { reason: dead.invalidatedReason, changedFields: dead.changedFields },
+      });
+    });
+  }
+
+  /** The recorded approval on a run, or null. */
+  private readApproval(run: { findings: unknown }): ApprovalRecord | null {
+    const raw = asObject(asObject(run.findings)?.approval);
+    if (!raw || !asObject(raw.binding) || typeof raw.contentHash !== 'string') return null;
+    return raw as unknown as ApprovalRecord;
+  }
+
+  /** The per-task staged results blob (findings.results), or {}. */
+  private readResults(run: { findings: unknown }): Record<string, unknown> {
+    return asObject(asObject(run.findings)?.results) ?? {};
   }
 
   // ---- client constraint (do-not-contact) ----------------------------------
@@ -1572,6 +1983,19 @@ export class ExecutionService {
 
 function asObject(v: unknown): Record<string, unknown> | null {
   return v && typeof v === 'object' && !Array.isArray(v) ? (v as Record<string, unknown>) : null;
+}
+
+/**
+ * P0-3: is this run parked on the SEND gate? That is the point at which the
+ * thing being approved is an external transmission rather than internal staging.
+ * Keyed off the same waitingReason the send park writes.
+ */
+function isSendPark(run: { state?: unknown; waitingReason?: unknown; findings?: unknown }): boolean {
+  if (run.state !== 'waiting_for_input') return false;
+  if (typeof run.waitingReason === 'string' && /awaiting send approval/i.test(run.waitingReason)) {
+    return true;
+  }
+  return false;
 }
 
 /** A stage result that signals a surviving write-ahead reservation (parks the run). */

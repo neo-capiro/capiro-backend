@@ -227,3 +227,26 @@ export class ResolveReservationDto {
   @MaxLength(200)
   artifactRef?: string;
 }
+
+/**
+ * P0-3: approve the EXACT payload the reviewer saw.
+ *
+ * contentHash is REQUIRED — it is the reviewer's assertion of what they were
+ * looking at. The service 409s when the live payload no longer hashes to it, so
+ * an approval can never land on content nobody reviewed. Deliberately not
+ * optional: an approve call without a hash is exactly the "approved metadata,
+ * not the payload" defect P0-3 exists to close.
+ */
+export class ApproveExactDraftDto {
+  @IsString()
+  @MaxLength(128)
+  contentHash!: string;
+}
+
+/** P0-3: refuse or withdraw an approval. */
+export class RejectApprovalDto {
+  @IsOptional()
+  @IsString()
+  @MaxLength(2000)
+  reason?: string;
+}

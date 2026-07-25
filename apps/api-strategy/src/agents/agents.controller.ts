@@ -18,8 +18,10 @@ import {
   CreateChangeSetDto,
   CreateMissionDto,
   CreateRunDto,
+  ApproveExactDraftDto,
   ExecutionPlanDto,
   MarkRunFailedDto,
+  RejectApprovalDto,
   ResolveReservationDto,
   RunCheckDto,
   TransitionRunDto,
@@ -255,6 +257,51 @@ export class AgentsController {
       action: dto.action,
       artifactRef: dto.artifactRef,
     });
+  }
+
+  // ---- P0-3 approval binding ----
+  //
+  // An approval binds to the EXACT payload (strategy+version, step, run,
+  // recipients, channel, subject, full body, attachments, template version,
+  // context-pack fingerprint, grounding status, model and the send-enabled policy
+  // in force) and is invalidated by any material change. None of these routes
+  // send anything: the external send stays hard-disabled behind
+  // STRATEGY_EXECUTION_SEND_ENABLED.
+
+  /**
+   * The approval screen's data: what is staged now, its content hash, any
+   * recorded approval, whether it still holds, and the required disclosures
+   * (fallback content, grounding, conflicts, version drift, changed-since-review,
+   * and whether approving stages or sends).
+   */
+  @Get('execution/runs/:id/approval')
+  @UseGuards(ExecutionAgentGuard)
+  approvalStatus(@CurrentTenant() tc: AuthTenantContext, @Param('id') id: string) {
+    return this.execution.approvalStatus(tc.tenantId, id);
+  }
+
+  /** Approve the exact draft. 409s if the payload moved since it was rendered. */
+  @Post('execution/runs/:id/approve')
+  @UseGuards(ExecutionAgentGuard)
+  approveRun(
+    @CurrentTenant() tc: AuthTenantContext,
+    @Param('id') id: string,
+    @Body() dto: ApproveExactDraftDto,
+  ) {
+    return this.execution.approve(tc.tenantId, tc.clerkUserId, id, {
+      contentHash: dto.contentHash,
+    });
+  }
+
+  /** Reject / withdraw an approval, recording who and why. */
+  @Post('execution/runs/:id/reject-approval')
+  @UseGuards(ExecutionAgentGuard)
+  rejectRunApproval(
+    @CurrentTenant() tc: AuthTenantContext,
+    @Param('id') id: string,
+    @Body() dto: RejectApprovalDto,
+  ) {
+    return this.execution.rejectApproval(tc.tenantId, tc.clerkUserId, id, dto.reason);
   }
 
   /** Report-only: one upstream artifact linked from more than one node. */
