@@ -16,6 +16,7 @@ import { ClientsModule } from './clients/clients.module.js';
 import { BrandingModule } from './branding/branding.module.js';
 import { HelpModule } from './help/help.module.js';
 import { DirectoryModule } from './directory/directory.module.js';
+import { DistrictNexusModule } from './district-nexus/district-nexus.module.js';
 import { EngagementModule } from './engagement/engagement.module.js';
 import { DemoRequestsModule } from './demo-requests/demo-requests.module.js';
 import { MeriModule } from './meri/meri.module.js';
@@ -81,6 +82,8 @@ import { ApiLatencyMiddleware } from './observability/api-latency.middleware.js'
     ClientsModule,
     BrandingModule,
     DirectoryModule,
+    // Ships dark — every route 404s until the tenant has district_nexus_v2.
+    DistrictNexusModule,
     EngagementModule,
     DemoRequestsModule,
     MeriModule,
