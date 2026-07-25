@@ -755,6 +755,9 @@ export class TrackerBoardService {
     billId: string,
     opts?: { note?: string | null; source?: string; isManual?: boolean },
   ) {
+    // Cross-tenant guard (P1-03/P1-04): intel-api has no RLS and clientId is
+    // globally unique, so this must run before any read or write below.
+    await this.watchlists.assertClientInTenant(tenantId, clientId);
     // State Legislation Platform (S4.5): a DD1-shaped id ("tx-2025-hb1234")
     // routes to the state-bill lookup + status-rank stage bucketing instead
     // of the congress path. `opts?.source` is honored when given, but the id
@@ -802,6 +805,8 @@ export class TrackerBoardService {
 
   /** Untrack a bill (pure removal — does NOT suppress future recommendations). */
   async untrackBill(tenantId: string, clientId: string, billId: string) {
+    // Cross-tenant guard (P1-03/P1-04) — must run before the delete below.
+    await this.watchlists.assertClientInTenant(tenantId, clientId);
     const res = await this.prisma.withTenant(tenantId, (tx) =>
       tx.trackedBill.deleteMany({ where: { tenantId, clientId, billId } }),
     );
@@ -895,6 +900,8 @@ export class TrackerBoardService {
     userId: string,
     input: { targetType?: string; targetRef: string; signal: string; alertId?: string | null },
   ) {
+    // Cross-tenant guard (P1-03/P1-04) — must run before the write below.
+    await this.watchlists.assertClientInTenant(tenantId, clientId);
     if (!ALLOWED_FEEDBACK_SIGNALS.has(input.signal)) {
       throw new BadRequestException(`Unknown feedback signal "${input.signal}"`);
     }

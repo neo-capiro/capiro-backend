@@ -4,7 +4,13 @@ import { CurrentTenant } from '../auth/current-tenant.decorator.js';
 import type { WorkspaceTenantContext } from '../auth/tenant-context.js';
 import { TrackerOwnerGuard } from './tracker-owner.guard.js';
 import { TrackerBoardService } from './tracker-board.service.js';
-import { BillSearchQueryDto, UpdateBillContextDto } from './tracker.dto.js';
+import {
+  BillSearchQueryDto,
+  UpdateBillContextDto,
+  TrackBillDto,
+  UntrackBillDto,
+  RecordFeedbackDto,
+} from './tracker.dto.js';
 
 /**
  * Unified tracker recommendation feed + tracked-bill curation (Phase 3 §6.2).
@@ -67,7 +73,7 @@ export class TrackerBoardController {
   trackBill(
     @CurrentTenant() ctx: WorkspaceTenantContext,
     @Param('clientId') clientId: string,
-    @Body() body: { billId: string; note?: string | null; source?: string; isManual?: boolean },
+    @Body() body: TrackBillDto,
   ) {
     return this.svc.trackBill(ctx.tenantId, clientId, ctx.clerkUserId, body.billId, {
       note: body.note ?? null,
@@ -80,7 +86,7 @@ export class TrackerBoardController {
   untrackBill(
     @CurrentTenant() ctx: WorkspaceTenantContext,
     @Param('clientId') clientId: string,
-    @Body() body: { billId: string },
+    @Body() body: UntrackBillDto,
   ) {
     return this.svc.untrackBill(ctx.tenantId, clientId, body.billId);
   }
@@ -103,7 +109,7 @@ export class TrackerBoardController {
   recordFeedback(
     @CurrentTenant() ctx: WorkspaceTenantContext,
     @Param('clientId') clientId: string,
-    @Body() body: { targetRef: string; signal: string; targetType?: string; alertId?: string | null },
+    @Body() body: RecordFeedbackDto,
   ) {
     return this.svc.recordFeedback(ctx.tenantId, clientId, ctx.clerkUserId, body);
   }

@@ -302,7 +302,7 @@ export class TrackerWatchlistService {
    * unique key — carries no tenant, so every pref WRITE must first prove the
    * client belongs to the caller (cross-tenant review finding, PR-1).
    */
-  private async assertClientInTenant(tenantId: string, clientId: string): Promise<void> {
+  async assertClientInTenant(tenantId: string, clientId: string): Promise<void> {
     if (!UUID_RE.test(clientId)) throw new NotFoundException('Client not found');
     const rows = await this.prisma.withSystem((tx) =>
       tx.$queryRawUnsafe<Array<{ id: string }>>(

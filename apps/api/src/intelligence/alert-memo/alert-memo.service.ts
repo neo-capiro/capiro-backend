@@ -70,6 +70,17 @@ interface GenSection {
   paragraphs: Array<{ text: string; claimIds: string[] }>;
 }
 
+/** Stable marker inside the enforce/annotate grounding banner (see the prefix built at generation). */
+export const HELD_BANNER_MARKER = 'grounding finding(s) held for review';
+
+/**
+ * P0-01: shown to a standard_user whose save was blocked by the held-memo
+ * guard. Identical wording to the pre-fix single-lock message so no consumer's
+ * error-string match breaks.
+ */
+export const HELD_MEMO_MESSAGE =
+  'This memo is held for review. An admin or the assigned reviewer must approve it (Reviews queue) before it can be filed.';
+
 @Injectable()
 export class AlertMemoService {
   private readonly logger = new Logger(AlertMemoService.name);
@@ -164,6 +175,7 @@ export class AlertMemoService {
     // (Phase 2.5-1, "hold as draft, block send/file").
     let held = false;
     let heldReason = '';
+    let reviewRequestId: string | null = null;
     const auditorMode = await resolveTenantAuditorMode(this.prisma, ctx.tenantId);
     if (auditorMode !== 'off' && markdown.trim().length > 0) {
       try {
@@ -230,7 +242,7 @@ export class AlertMemoService {
           if (auditorMode === 'annotate' || auditorMode === 'enforce') {
             const checks = [...new Set(verdict.findings.map((f) => f.check))].join(', ');
             markdown =
-              `> ⚠️ **Unverified — ${verdict.findings.length} grounding finding(s) held for review ` +
+              `> ⚠️ **Unverified — ${verdict.findings.length} ${HELD_BANNER_MARKER} ` +
               `(${checks}).** Treat flagged claims as unconfirmed until a reviewer clears them.\n\n` +
               markdown;
           }
@@ -265,7 +277,7 @@ export class AlertMemoService {
       // review_request carrying everything approve needs to file the memo
       // (markdown + title + client). Fail-open: emitting the review can never
       // break memo generation.
-      await this.reviews.createSystem(ctx.tenantId, {
+      reviewRequestId = await this.reviews.createSystem(ctx.tenantId, {
         riskTier: DELIVERABLE_RISK_TIERS.alert_memo ?? 'high',
         surface: 'alert-memo',
         subjectType: 'alert',
@@ -276,6 +288,16 @@ export class AlertMemoService {
         payload: { markdown, title, clientName, clientId, alertId: alert.alertId },
         requestedBy: ctx.userId,
       });
+      if (reviewRequestId === null) {
+        // createSystem is fail-open (never throws), so a hold can land with NO
+        // pending review_request row for a reviewer to see or for saveEdited's
+        // L1/L2/L3 locks to catch — saveEdited's L0 lock is the backstop for
+        // exactly this case (banner + a recent meri_audit_ledger hold row).
+        this.logger.error(
+          `[meri-auditor:enforce] alert memo HELD but review_request creation FAILED — ` +
+            `no reviewer will see this hold (tenant=${ctx.tenantId}, client=${clientId}, alert=${alert.alertId})`,
+        );
+      }
     } else {
       try {
         const buffer = await renderMemoDocx(toMemoDocInput(clientName, alert, sections, sources));
@@ -313,6 +335,8 @@ export class AlertMemoService {
       lowConfidence,
       memoryFilesUsed,
       held,
+      reviewRequestId,
+      heldReason,
     };
   }
 
@@ -324,22 +348,62 @@ export class AlertMemoService {
       title: string;
       markdown: string;
       clientName: string;
+      /** REQUIRED (P0-01): keys the review-hold guard. */
+      alertId: string;
       actionDate?: string;
       replaceAttachmentId?: string;
-      /** The alert this memo came from — required for the G4 held-review guard. */
-      alertId?: string;
     },
   ): Promise<{ document: { attachmentId: string; fileName: string } | null; title: string }> {
-    // G4: a memo with an OPEN review may not be filed around the review by its
-    // requester — only through /reviews approve (or by an admin editing, which
-    // the reviews service also authorizes). Without this check, the edit-then-
-    // save path silently re-filed held memos (audit finding, 2026-07-12).
-    if (input.alertId) {
-      const open = await this.reviews.hasOpenForSubject(ctx.tenantId, 'alert', input.alertId);
-      if (open && !isTenantAdmin(ctx.role)) {
-        throw new ForbiddenException(
-          'This memo is held for review. An admin or the assigned reviewer must approve it (Reviews queue) before it can be filed.',
+    // P0-01: a memo the grounding auditor HELD may not be filed around the review
+    // gate. Four independent locks, any of which blocks; an admin (who can also
+    // decide the review) bypasses, matching reviews.assertMayDecide.
+    if (!isTenantAdmin(ctx.role)) {
+      // L1 — the existing subject guard, now ALWAYS reachable (alertId is required).
+      if (await this.reviews.hasOpenForSubject(ctx.tenantId, 'alert', input.alertId)) {
+        throw new ForbiddenException(HELD_MEMO_MESSAGE);
+      }
+      // L2/L3 — anti-spoof: a caller could hand-craft a bogus alertId to dodge L1,
+      // so ALSO check this client's pending alert-memo reviews by server-owned data.
+      const pending = await this.prisma.withTenant(ctx.tenantId, (tx) =>
+        tx.reviewRequest.findMany({
+          where: { tenantId: ctx.tenantId, clientId, surface: 'alert-memo', status: 'pending' },
+          select: { title: true, subjectId: true },
+        }),
+      );
+      if (pending.length > 0) {
+        // L2 — the title is generated server-side and round-tripped verbatim by the
+        // composer (no title input exists in the UI), so a match means this IS a held memo.
+        if (pending.some((r) => r.title === input.title)) throw new ForbiddenException(HELD_MEMO_MESSAGE);
+        // L3 — the held banner survived the edit AND this client has a pending hold.
+        // Banner-only is NOT sufficient: annotate mode adds the same banner and files legitimately.
+        if (input.markdown.includes(HELD_BANNER_MARKER)) throw new ForbiddenException(HELD_MEMO_MESSAGE);
+        // L1 restated against the client-scoped rows, in case subjectType ever drifts.
+        if (pending.some((r) => r.subjectId && r.subjectId === input.alertId)) {
+          throw new ForbiddenException(HELD_MEMO_MESSAGE);
+        }
+      }
+      // L0 (plan §4.2/§6.5 — required, not optional): closes the hole where
+      // reviews.createSystem() failed and returned null, so NO review_request
+      // row exists for L1/L2/L3 to find. The meri_audit_ledger write is NOT
+      // fail-open-to-null (it happens before the hold branch, unconditionally
+      // when the auditor produces findings), so a recent 'hold' decision row is
+      // durable evidence a hold happened even when the review row didn't land.
+      // Filtering on decision:'hold' specifically (not just row-exists) means
+      // this can never fire for an annotate-mode save, whose ledger rows carry
+      // decision:'deliver_with_flags' — annotate keeps filing normally.
+      if (input.markdown.includes(HELD_BANNER_MARKER)) {
+        const recentHold = await this.prisma.withTenant(ctx.tenantId, (tx) =>
+          tx.meriAuditLedger.findFirst({
+            where: {
+              tenantId: ctx.tenantId,
+              surface: 'alert',
+              decision: 'hold',
+              createdAt: { gte: new Date(Date.now() - 24 * 60 * 60 * 1000) },
+            },
+            select: { id: true },
+          }),
         );
+        if (recentHold) throw new ForbiddenException(HELD_MEMO_MESSAGE);
       }
     }
     const buffer = await renderMemoDocx(

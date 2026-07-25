@@ -53,10 +53,12 @@ class GenerateAlertMemoDto {
   @IsOptional() @IsString() replaceAttachmentId?: string;
 }
 
-class SaveAlertMemoDto {
+export class SaveAlertMemoDto {
   @IsString() @MaxLength(300) title!: string;
   @IsString() @MinLength(1) markdown!: string;
   @IsString() @MaxLength(300) clientName!: string;
+  /** REQUIRED (P0-01): the alert this memo came from — the review-hold guard keys on it. */
+  @IsString() @MaxLength(128) alertId!: string;
   @IsOptional() @IsString() actionDate?: string;
   @IsOptional() @IsString() replaceAttachmentId?: string;
 }
