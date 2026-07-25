@@ -38,6 +38,10 @@ import { ClientPrepopulationService } from './client-prepopulation.service.js';
 import { OfficeRecommenderService } from './office-recommender.service.js';
 import type { OfficeRecommendation } from './office-recommender.service.js';
 import { resolveStateName, abbrForStateName } from '../common/us-states.js';
+import {
+  districtCodeForHouseMatch,
+  normalizeDistrictForCensus,
+} from '../common/district-code.util.js';
 // Pure, DI-free helper + type reused from the District Impact Engine (WS-A,
 // LegiStorm gaps/enrichment plan). Deliberately NOT injecting
 // RepresentationResolverService here: its resolveHouse/resolveSenate are
@@ -2450,6 +2454,89 @@ export class IntelligenceService {
       category: r.category,
       totalContracts: r.total_contracts,
       rankByContracts: r.rank_by_contracts,
+      similarity: Number(r.similarity ?? 0),
+    }));
+  }
+
+  /**
+   * Free-text / by-UEI search over federal_assistance_award recipients for
+   * the District Nexus manual-attach panel (source 'assistance_recipient').
+   * federal_assistance_award is a flat award fact table, not a recipient
+   * dimension table like federal_contractor — so recipients are grouped
+   * on the fly (by UEI when present, else by name) rather than looked up in
+   * a pre-aggregated table. externalId pinned into the mapping is the UEI
+   * when available; callers must not silently substitute a parent UEI for a
+   * missing child/legal-entity UEI (§8.4 — never auto-confirm a weak match).
+   */
+  async searchAssistanceRecipients(query: string) {
+    const q = query.trim();
+    if (!q) return [];
+    const isUei = /^[A-Z0-9]{12}$/i.test(q);
+    const rows = await this.prisma.$queryRaw<
+      Array<{
+        uei: string | null;
+        name: string | null;
+        state: string | null;
+        award_count: number;
+        total_obligated: number;
+        similarity: number;
+      }>
+    >`
+      SELECT
+        MAX(recipient_uei) AS uei,
+        MAX(recipient_name) AS name,
+        MAX(recipient_state) AS state,
+        COUNT(*)::int AS award_count,
+        COALESCE(SUM(total_obligated_amount), 0)::float AS total_obligated,
+        MAX(sim) AS similarity
+      FROM (
+        SELECT recipient_uei, recipient_name, recipient_state, total_obligated_amount,
+               GREATEST(
+                 similarity(lower(recipient_name), lower(${q})),
+                 word_similarity(lower(${q}), lower(recipient_name)),
+                 CASE WHEN ${isUei} AND recipient_uei = upper(${q}) THEN 1 ELSE 0 END
+               ) AS sim
+        FROM federal_assistance_award
+        WHERE recipient_name IS NOT NULL
+          -- Both predicates below are index-driven; the previous form was not.
+          -- % reaches faa_recipient_name_trgm_idx (gin on lower(recipient_name));
+          -- a bare similarity(...) > c is a plain function call and seq-scans
+          -- the largest new table. The expression must be spelled
+          -- lower(recipient_name) to match the functional index.
+          --
+          -- % alone would raise the floor from the old 0.2 to pg_trgm's default
+          -- similarity_threshold of 0.3, which silently drops short-query
+          -- recall ("MIT" against "MASSACHUSETTS INSTITUTE OF TECHNOLOGY").
+          -- %> is the commutator of <% (word_similarity): it asks whether the
+          -- query matches a continuous extent of the name rather than the whole
+          -- string, which is what restores those short queries. It is also
+          -- gin_trgm_ops-supported, so recall comes back without the seq-scan.
+          --
+          -- recipient_uei is compared bare, not upper(recipient_uei): the column
+          -- has a plain btree (faa_recipient_uei_idx) and wrapping it in upper()
+          -- makes that index unusable. UEIs are uppercase alphanumeric by SAM
+          -- definition and the writer shape-checks 12 alphanumeric on ingest, so
+          -- normalising only the parameter side is sufficient.
+          AND (
+            lower(recipient_name) % lower(${q})
+            OR lower(recipient_name) %> lower(${q})
+            OR (${isUei} AND recipient_uei = upper(${q}))
+          )
+      ) matched
+      GROUP BY COALESCE(recipient_uei, recipient_name)
+      ORDER BY similarity DESC, total_obligated DESC
+      LIMIT 25
+    `;
+    return rows.map((r) => ({
+      // Stable pin identifier: UEI when the recipient has one on file, else
+      // the recipient name — mirrors the SQL's own COALESCE(uei, name) group
+      // key so a pin always lands back on the exact group it was picked from.
+      id: r.uei ?? r.name ?? '',
+      uei: r.uei,
+      name: r.name,
+      state: r.state,
+      awardCount: r.award_count,
+      totalObligated: r.total_obligated,
       similarity: Number(r.similarity ?? 0),
     }));
   }
@@ -6550,43 +6637,10 @@ function startOfQuarter(now: Date): Date {
 }
 
 /**
- * Normalize a USAspending congressional_code to match CensusDistrict.district.
- * USAspending returns zero-padded ('02', '11') or '90'/'98'/'00' for non-district
- * / at-large; CensusDistrict stores plain numbers ('2', '11') or 'AL' for at-large.
- * Returns 'AL' for at-large/unknown sentinels, else the leading-zero-stripped number.
+ * Both district-code normalizers moved to `common/district-code.util.ts`
+ * (§7-A1). `normalizeDistrict` keeps its local name here — the census-join
+ * meaning — while the shared module spells it `normalizeDistrictForCensus` to
+ * distinguish it from the unrelated people-matching normalizer that also used
+ * to be called `normalizeDistrict`.
  */
-function normalizeDistrict(code: string | null): string {
-  if (!code) return 'AL';
-  const trimmed = code.trim().toUpperCase();
-  if (
-    trimmed === 'AL' ||
-    trimmed === '00' ||
-    trimmed === '98' ||
-    trimmed === '90' ||
-    trimmed === 'ZZ'
-  ) {
-    return 'AL';
-  }
-  const n = parseInt(trimmed, 10);
-  return Number.isFinite(n) ? String(n) : 'AL';
-}
-
-/**
- * Bridge a RAW USAspending place-of-performance congressional_code to the
- * "'00'-for-at-large" convention `districtMatchesHouse` expects — operating
- * on the raw code, NOT `normalizeDistrict`'s output. `normalizeDistrict`
- * collapses '00' (true at-large), '98' (non-voting delegate), and '90'/'ZZ'
- * (multiple/undefined district) into one 'AL' bucket for the census join;
- * once collapsed, those four cases are indistinguishable. Resolving '98' or
- * '90'/'ZZ' to the at-large House member would misattribute a representative
- * for a seat we don't actually know. Returns null when the House seat can't
- * be determined — the caller still resolves Senate independently, since that
- * only needs the state, not a district.
- */
-function districtCodeForHouseMatch(rawPopDistrict: string | null): string | null {
-  if (!rawPopDistrict) return null;
-  const trimmed = rawPopDistrict.trim().toUpperCase();
-  if (trimmed === '98' || trimmed === '90' || trimmed === 'ZZ') return null;
-  if (trimmed === '00' || trimmed === 'AL') return '00';
-  return trimmed;
-}
+const normalizeDistrict = normalizeDistrictForCensus;

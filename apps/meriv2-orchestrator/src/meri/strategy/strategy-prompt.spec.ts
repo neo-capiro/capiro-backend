@@ -64,8 +64,20 @@ describe('sanitizeDraftNodes — dependsOn index remap (A3)', () => {
     // Model returns nodes out of date order. B (original index 0) depends on A
     // (original index 2). C (original index 1) depends on B (original index 0).
     const raw = [
-      { kind: 'action', subject: 'deliverable', title: 'B', startsOn: '2027-03-01', dependsOn: [2] },
-      { kind: 'action', subject: 'deliverable', title: 'C', startsOn: '2027-06-01', dependsOn: [0] },
+      {
+        kind: 'action',
+        subject: 'deliverable',
+        title: 'B',
+        startsOn: '2027-03-01',
+        dependsOn: [2],
+      },
+      {
+        kind: 'action',
+        subject: 'deliverable',
+        title: 'C',
+        startsOn: '2027-06-01',
+        dependsOn: [0],
+      },
       { kind: 'action', subject: 'deliverable', title: 'A', startsOn: '2027-01-01' },
     ];
 
@@ -85,7 +97,13 @@ describe('sanitizeDraftNodes — dependsOn index remap (A3)', () => {
     const raw = [
       // Invalid: no kind/subject/startsOn — dropped by the required-field filter.
       { title: 'incomplete' },
-      { kind: 'action', subject: 'deliverable', title: 'Valid', startsOn: '2027-01-01', dependsOn: [0] },
+      {
+        kind: 'action',
+        subject: 'deliverable',
+        title: 'Valid',
+        startsOn: '2027-01-01',
+        dependsOn: [0],
+      },
     ];
 
     const out = sanitizeDraftNodes(raw);
@@ -100,7 +118,13 @@ describe('sanitizeDraftNodes — dependsOn index remap (A3)', () => {
   it('drops a self-reference after remap, even when sorting moves the node', () => {
     const raw = [
       // Later-dated node references its OWN original index (0).
-      { kind: 'action', subject: 'deliverable', title: 'X', startsOn: '2027-05-01', dependsOn: [0] },
+      {
+        kind: 'action',
+        subject: 'deliverable',
+        title: 'X',
+        startsOn: '2027-05-01',
+        dependsOn: [0],
+      },
       { kind: 'action', subject: 'deliverable', title: 'Y', startsOn: '2027-01-01' },
     ];
 
@@ -143,7 +167,9 @@ describe('sanitizeDraftNodes — sources provenance (A9)', () => {
 
     // Sort-by-startsOn reorders the array; sources must follow their own node, not the slot.
     expect(out.map((n) => n.title)).toEqual(['Early', 'Late']);
-    expect(out.find((n) => n.title === 'Early')?.sources).toEqual([{ section: 'reference', ref: 'r1' }]);
+    expect(out.find((n) => n.title === 'Early')?.sources).toEqual([
+      { section: 'reference', ref: 'r1' },
+    ]);
     expect(out.find((n) => n.title === 'Late')?.sources).toEqual([{ section: 'fiscal' }]);
   });
 
@@ -154,7 +180,11 @@ describe('sanitizeDraftNodes — sources provenance (A9)', () => {
         subject: 'deliverable',
         title: 'Node',
         startsOn: '2027-01-01',
-        sources: [{ section: '' }, { ref: 'orphan-ref-no-section' }, { section: 'fiscal', ref: 'f1' }],
+        sources: [
+          { section: '' },
+          { ref: 'orphan-ref-no-section' },
+          { section: 'fiscal', ref: 'f1' },
+        ],
       },
     ];
 
@@ -287,7 +317,9 @@ describe('strategy-prompt — Steward facts section (Stage E)', () => {
       stewardFacts: [fact({ id: 'f9', authority: null, asOf: null })],
     } as StrategyDraftInput;
     const sys = buildDraftSystemPrompt(input, '(pack)');
-    expect(sys).toContain('- [fact:f9] No direct Hill outreach before October. (unattributed, as of undated)');
+    expect(sys).toContain(
+      '- [fact:f9] No direct Hill outreach before October. (unattributed, as of undated)',
+    );
   });
 
   it('omits the section entirely when stewardFacts is absent or empty', () => {
@@ -406,7 +438,9 @@ describe('sanitizeDocumentSections (Stage-G first-pass sanitizer)', () => {
 });
 
 describe('buildDocumentDraftSystemPrompt (Stage-G)', () => {
-  const baseInput = (over: Partial<StrategyDocumentDraftInput> = {}): StrategyDocumentDraftInput => ({
+  const baseInput = (
+    over: Partial<StrategyDocumentDraftInput> = {},
+  ): StrategyDocumentDraftInput => ({
     clientId: 'c1',
     kind: 'workspace_draft',
     type: 'appropriations',
@@ -429,12 +463,19 @@ describe('buildDocumentDraftSystemPrompt (Stage-G)', () => {
   });
 
   it('includes the strategy goal as a steering signal', () => {
-    const sys = buildDocumentDraftSystemPrompt(baseInput({ goal: 'Secure the FY28 line increase' }), '(pack)');
+    const sys = buildDocumentDraftSystemPrompt(
+      baseInput({ goal: 'Secure the FY28 line increase' }),
+      '(pack)',
+    );
     expect(sys).toContain('Secure the FY28 line increase');
   });
 
   it('surfaces the grounding-health note when degraded', () => {
-    const sys = buildDocumentDraftSystemPrompt(baseInput(), '(pack)', 'Some context could not be loaded.');
+    const sys = buildDocumentDraftSystemPrompt(
+      baseInput(),
+      '(pack)',
+      'Some context could not be loaded.',
+    );
     expect(sys).toContain('# Grounding health');
     expect(sys).toContain('Some context could not be loaded.');
   });

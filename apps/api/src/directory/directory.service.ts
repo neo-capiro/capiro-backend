@@ -12,6 +12,8 @@ import { GetObjectCommand, S3Client } from '@aws-sdk/client-s3';
 import type { TenantContext } from '@capiro/shared';
 import type { AppConfig } from '../config/config.schema.js';
 import { PrismaService } from '../prisma/prisma.service.js';
+import { matchFacilityDistrictCode } from '../common/district-code.util.js';
+import { manifestKey, artifactKey, type BoundaryManifest } from './boundary-artifact.util.js';
 import { FEC_DISCLAIMER } from '../intelligence/fec-disclaimer.js';
 import { RepresentationResolverService } from '../clients/representation-resolver.service.js';
 import {
@@ -2185,6 +2187,66 @@ export class DirectoryService implements OnModuleInit {
     return { filename: `${row.id}.kml`, buffer: Buffer.from(bytes) };
   }
 
+  /**
+   * WS-D — the boundary artifact manifest: how a client discovers which
+   * content-hashed GeoJSON artifact is current. Read straight from S3 rather
+   * than the database because the manifest is the artifact set's own source of
+   * truth (the builder writes both together, and the per-district columns on
+   * legislative_district are a denormalized convenience, not the index).
+   */
+  async getBoundaryManifest(status: 'C' | 'F'): Promise<BoundaryManifest> {
+    const key = manifestKey(status);
+    let raw: string;
+    try {
+      const out = await this.s3.send(new GetObjectCommand({ Bucket: this.bucket, Key: key }));
+      if (!out.Body) throw new NotFoundException('Boundary manifest missing from storage');
+      raw = await out.Body.transformToString();
+    } catch (error) {
+      // A missing manifest is the normal pre-build state, not a server fault —
+      // and for status 'F' it stays missing until the --with-kml backfill runs.
+      if (error instanceof NotFoundException) throw error;
+      throw new NotFoundException(
+        `No boundary artifact has been published for status ${status} yet`,
+      );
+    }
+    try {
+      return JSON.parse(raw) as BoundaryManifest;
+    } catch {
+      throw new ServiceUnavailableException('Boundary manifest is corrupt');
+    }
+  }
+
+  /**
+   * WS-D — stream the artifact the manifest points at, same-origin, so the
+   * bucket stays private (signed URLs are the fallback, not the default).
+   *
+   * The body is stored gzipped, and is returned still gzipped with its hash:
+   * the caller sets `Content-Encoding: gzip` and an `ETag`, so the ~5 MB
+   * national artifact is never decompressed in this process just to be
+   * recompressed on the wire.
+   */
+  async getBoundaryArtifact(
+    status: 'C' | 'F',
+  ): Promise<{ gzipped: Buffer; hash: string; districtCount: number }> {
+    const manifest = await this.getBoundaryManifest(status);
+    // Recomputed rather than read off the manifest: the key is content-addressed
+    // from exactly these three values, so deriving it here keeps the bucket
+    // layout out of a browser-facing document without adding a lookup.
+    const key = artifactKey(status, manifest.vintage, manifest.hash);
+    const out = await this.s3.send(new GetObjectCommand({ Bucket: this.bucket, Key: key }));
+    if (!out.Body) {
+      // Manifest present but artifact gone: the pointer is dangling, which is a
+      // storage inconsistency rather than a "not built yet".
+      throw new ServiceUnavailableException('Boundary artifact missing for the published manifest');
+    }
+    const bytes = await out.Body.transformToByteArray();
+    return {
+      gzipped: Buffer.from(bytes),
+      hash: manifest.hash,
+      districtCount: manifest.districtCount,
+    };
+  }
+
   private async resolveLegislativeDistrict(
     state: string,
     facilityDistrictNo: string,
@@ -3290,28 +3352,10 @@ function compareDistricts(left: string, right: string): number {
  * WS-D — bridge a client_facilities-style district code ('00' for at-large,
  * zero-padded 2-digit otherwise — the URL path convention) back to
  * LegiStorm's own raw districtNo storage, given the House rows already
- * fetched for a state+status. Exported (unlike this file's other module-
- * level helpers) so its at-large logic is unit-testable without a database.
+ * fetched for a state+status.
  *
- * '00' matches ONLY when exactly one House row exists for this state+status
- * — never a hardcoded list of "the 6 at-large states" (WY, VT, DE, ND, SD,
- * AK today; apportionment can change after a future census), and never by
- * trusting LegiStorm's own districtNo value, which reports "1" (not a "0"
- * or null sentinel) even for a jurisdiction's sole House seat — verified
- * live 2026-07-24 via DC's non-voting delegate.
+ * Implementation moved to `common/district-code.util.ts` (§7-A1) alongside the
+ * other five district-code helpers; re-exported here to keep this path working
+ * for existing importers and specs.
  */
-export function matchFacilityDistrictCode<T extends { districtNo: string | null }>(
-  houseRows: T[],
-  facilityDistrictNo: string,
-): T | null {
-  if (facilityDistrictNo === '00') {
-    // Defense in depth: don't rely solely on the caller's chamber='house'
-    // filter to keep a null-districtNo (Senate-shaped) row out of this
-    // array — require the sole row to actually carry a districtNo before
-    // calling it an at-large match.
-    const single = houseRows.length === 1 ? houseRows[0]! : null;
-    return single && single.districtNo !== null ? single : null;
-  }
-  const bare = facilityDistrictNo.replace(/^0+(?=\d)/, '');
-  return houseRows.find((r) => r.districtNo === bare) ?? null;
-}
+export { matchFacilityDistrictCode };

@@ -13,10 +13,21 @@
  * runtime config keeps the build artifact env-agnostic.
  */
 
+/**
+ * Basemap defaults (plan §4.4). OpenFreeMap Positron is key-free, has no
+ * request limits and permits commercial use, so the map works out of the box:
+ * a missing env var degrades to a working default rather than a blank canvas.
+ */
+export const DEFAULT_MAP_STYLE_URL = 'https://tiles.openfreemap.org/styles/positron';
+export const DEFAULT_MAP_STYLE_ATTRIBUTION = '© OpenStreetMap contributors';
+
 interface RuntimeConfig {
   clerkPublishableKey: string;
   apiBaseUrl: string;
   appEnv?: string;
+  /** Optional. Absent OR empty string falls back to the default above. */
+  mapStyleUrl?: string;
+  mapStyleAttribution?: string;
 }
 
 declare global {
@@ -48,7 +59,21 @@ function loadConfig(): RuntimeConfig {
     apiBaseUrl:
       (env.VITE_API_BASE_URL as string | undefined) ?? window.location.origin,
     appEnv: 'local',
+    mapStyleUrl: env.VITE_MAP_STYLE_URL as string | undefined,
+    mapStyleAttribution: env.VITE_MAP_STYLE_ATTRIBUTION as string | undefined,
   };
 }
 
 export const config: RuntimeConfig = loadConfig();
+
+/**
+ * The basemap style to render, with the default applied.
+ *
+ * Treats an EMPTY STRING as absent, which matters: entrypoint.sh always emits
+ * the key, so an unset container var arrives as '' rather than undefined. A
+ * plain `??` would hand MapLibre an empty style URL and blank the map.
+ */
+export const mapStyleUrl: string = config.mapStyleUrl?.trim() || DEFAULT_MAP_STYLE_URL;
+
+export const mapStyleAttribution: string =
+  config.mapStyleAttribution?.trim() || DEFAULT_MAP_STYLE_ATTRIBUTION;

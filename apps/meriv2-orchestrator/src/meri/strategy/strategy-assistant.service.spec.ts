@@ -22,7 +22,12 @@ import type { ToolLoopResponse, AnthropicContentBlock } from '../request-scoped-
  * integration against the actual verifier rules, not a stubbed shortcut.
  */
 
-const CTX = { tenantId: 't1', userId: 'u1', clerkUserId: 'c1', role: 'standard_user' } as MeriContext;
+const CTX = {
+  tenantId: 't1',
+  userId: 'u1',
+  clerkUserId: 'c1',
+  role: 'standard_user',
+} as MeriContext;
 
 const PACK = {
   text: 'CLIENT CONTEXT TEXT',
@@ -93,7 +98,12 @@ describe('StrategyAssistantService.draft — A5 repair loop', () => {
       toolResp('propose_strategy_draft', {
         summary: 'A clean single-step plan.',
         nodes: [
-          { kind: 'action', subject: 'deliverable', title: 'Draft the ask memo', startsOn: '2027-01-15' },
+          {
+            kind: 'action',
+            subject: 'deliverable',
+            title: 'Draft the ask memo',
+            startsOn: '2027-01-15',
+          },
         ],
       }),
     );
@@ -133,7 +143,12 @@ describe('StrategyAssistantService.draft — A5 repair loop', () => {
         toolResp('propose_strategy_draft', {
           summary: 'Fixed pass.',
           nodes: [
-            { kind: 'action', subject: 'milestone', title: 'Host the strategy kickoff', startsOn: '2027-04-01' },
+            {
+              kind: 'action',
+              subject: 'milestone',
+              title: 'Host the strategy kickoff',
+              startsOn: '2027-04-01',
+            },
             {
               kind: 'action',
               subject: 'deliverable',
@@ -308,9 +323,7 @@ describe('StrategyAssistantService — runTerminal bounded loop (A7.4)', () => {
     const { svc, completeWithTools } = build();
     completeWithTools
       .mockResolvedValueOnce(textResp('Let me think about this...'))
-      .mockResolvedValueOnce(
-        toolResp('propose_plan_edits', { reply: 'Added it.', edits: [] }),
-      );
+      .mockResolvedValueOnce(toolResp('propose_plan_edits', { reply: 'Added it.', edits: [] }));
 
     const result = await svc.assistant(CTX, ASSISTANT_INPUT);
 
@@ -405,7 +418,9 @@ describe('StrategyAssistantService — Steward passthrough (Stage E)', () => {
 
   it('renders the Steward facts section + [fact:id] lines into the assistant system prompt', async () => {
     const { svc, completeWithTools } = build();
-    completeWithTools.mockResolvedValueOnce(toolResp('propose_plan_edits', { reply: 'ok', edits: [] }));
+    completeWithTools.mockResolvedValueOnce(
+      toolResp('propose_plan_edits', { reply: 'ok', edits: [] }),
+    );
 
     await svc.assistant(CTX, {
       ...ASSISTANT_INPUT,
@@ -431,7 +446,9 @@ describe('StrategyAssistantService — Steward passthrough (Stage E)', () => {
 
   it('conflicted stewardHealth: the health note names factA vs factB verbatim and groundingHealth carries the conflicts', async () => {
     const { svc, completeWithTools } = build();
-    completeWithTools.mockResolvedValueOnce(toolResp('propose_plan_edits', { reply: 'ok', edits: [] }));
+    completeWithTools.mockResolvedValueOnce(
+      toolResp('propose_plan_edits', { reply: 'ok', edits: [] }),
+    );
 
     const result = await svc.assistant(CTX, { ...ASSISTANT_INPUT, stewardHealth: CONFLICTED });
 
@@ -456,7 +473,12 @@ describe('StrategyAssistantService — Steward passthrough (Stage E)', () => {
       toolResp('propose_strategy_draft', {
         summary: 'Plan.',
         nodes: [
-          { kind: 'action', subject: 'deliverable', title: 'Draft the ask memo', startsOn: '2027-01-15' },
+          {
+            kind: 'action',
+            subject: 'deliverable',
+            title: 'Draft the ask memo',
+            startsOn: '2027-01-15',
+          },
         ],
       }),
     );
@@ -469,11 +491,17 @@ describe('StrategyAssistantService — Steward passthrough (Stage E)', () => {
 
   it('a degraded stewardHealth merges missingRequired and degrades the status (no conflicts key)', async () => {
     const { svc, completeWithTools } = build();
-    completeWithTools.mockResolvedValueOnce(toolResp('propose_plan_edits', { reply: 'ok', edits: [] }));
+    completeWithTools.mockResolvedValueOnce(
+      toolResp('propose_plan_edits', { reply: 'ok', edits: [] }),
+    );
 
     const result = await svc.assistant(CTX, {
       ...ASSISTANT_INPUT,
-      stewardHealth: { status: 'degraded', missingRequired: ['02_client_constraints'], openMaterialConflicts: [] },
+      stewardHealth: {
+        status: 'degraded',
+        missingRequired: ['02_client_constraints'],
+        openMaterialConflicts: [],
+      },
     });
 
     expect(result.groundingHealth).toEqual({
@@ -484,12 +512,16 @@ describe('StrategyAssistantService — Steward passthrough (Stage E)', () => {
     expect(result.groundingHealth).not.toHaveProperty('openMaterialConflicts');
     // The health note also flags the missing Steward documents.
     const params = completeWithTools.mock.calls[0]![0] as { system: string };
-    expect(params.system).toContain('Required Steward context documents are missing: 02_client_constraints');
+    expect(params.system).toContain(
+      'Required Steward context documents are missing: 02_client_constraints',
+    );
   });
 
   it('absent stewardHealth: groundingHealth passes the pack health through UNCHANGED (same object)', async () => {
     const { svc, completeWithTools } = build();
-    completeWithTools.mockResolvedValueOnce(toolResp('propose_plan_edits', { reply: 'ok', edits: [] }));
+    completeWithTools.mockResolvedValueOnce(
+      toolResp('propose_plan_edits', { reply: 'ok', edits: [] }),
+    );
 
     const result = await svc.assistant(CTX, ASSISTANT_INPUT);
 
@@ -546,7 +578,10 @@ describe('StrategyAssistantService.draftDocument (Stage-G)', () => {
   it('frames the prompt per kind — workspace_draft vs outreach_record', async () => {
     const { svc, completeWithTools } = build();
     completeWithTools.mockResolvedValueOnce(
-      toolResp('propose_document_draft', { summary: 's', sections: [{ heading: 'H', html: '<p>x</p>' }] }),
+      toolResp('propose_document_draft', {
+        summary: 's',
+        sections: [{ heading: 'H', html: '<p>x</p>' }],
+      }),
     );
     await svc.draftDocument(CTX, { ...DOC_DRAFT_INPUT, kind: 'outreach_record' });
     const params = completeWithTools.mock.calls[0]![0] as { system: string };
@@ -567,7 +602,10 @@ describe('StrategyAssistantService.draftDocument (Stage-G)', () => {
   it('meters every round under the meriv2_strategy_document_draft workflow label', async () => {
     const { svc, completeWithTools } = build();
     completeWithTools.mockResolvedValueOnce(
-      toolResp('propose_document_draft', { summary: 's', sections: [{ heading: 'H', html: '<p>x</p>' }] }),
+      toolResp('propose_document_draft', {
+        summary: 's',
+        sections: [{ heading: 'H', html: '<p>x</p>' }],
+      }),
     );
     // recordAiUsageEvent is fire-and-forget (void this.meterRound(...)) — assert
     // indirectly via the withTenant call it makes under the hood having fired at
@@ -580,13 +618,22 @@ describe('StrategyAssistantService.draftDocument (Stage-G)', () => {
   it('carries the grounding health note (degraded Steward facts) into the prompt', async () => {
     const { svc, completeWithTools } = build();
     completeWithTools.mockResolvedValueOnce(
-      toolResp('propose_document_draft', { summary: 's', sections: [{ heading: 'H', html: '<p>x</p>' }] }),
+      toolResp('propose_document_draft', {
+        summary: 's',
+        sections: [{ heading: 'H', html: '<p>x</p>' }],
+      }),
     );
     await svc.draftDocument(CTX, {
       ...DOC_DRAFT_INPUT,
-      stewardHealth: { status: 'degraded', missingRequired: ['02_client_constraints'], openMaterialConflicts: [] },
+      stewardHealth: {
+        status: 'degraded',
+        missingRequired: ['02_client_constraints'],
+        openMaterialConflicts: [],
+      },
     });
     const params = completeWithTools.mock.calls[0]![0] as { system: string };
-    expect(params.system).toContain('Required Steward context documents are missing: 02_client_constraints');
+    expect(params.system).toContain(
+      'Required Steward context documents are missing: 02_client_constraints',
+    );
   });
 });

@@ -194,12 +194,16 @@ const NODE_PROPS = {
       type: 'object',
       additionalProperties: false,
       properties: {
-        section: { type: 'string', description: 'A Client context section heading this node is grounded in.' },
+        section: {
+          type: 'string',
+          description: 'A Client context section heading this node is grounded in.',
+        },
         ref: { type: 'string', description: 'Optional finer reference (row/heading).' },
       },
       required: ['section'],
     },
-    description: 'The context section(s) that ground this node (A9). Cite what you used; do not invent client facts.',
+    description:
+      'The context section(s) that ground this node (A9). Cite what you used; do not invent client facts.',
   },
 } as const;
 
@@ -264,7 +268,7 @@ export const PROPOSE_PLAN_EDITS_TOOL = {
               type: 'array',
               items: { type: 'string' },
               description:
-                'Node ids this step depends on (must be EXISTING nodes). Replaces the step\'s current edges.',
+                "Node ids this step depends on (must be EXISTING nodes). Replaces the step's current edges.",
             },
           },
           required: ['op'],
@@ -304,13 +308,16 @@ export const PROPOSE_REFERENCE_EDITS_TOOL = {
 export const PROPOSE_DOCUMENT_DRAFT_TOOL = {
   name: 'propose_document_draft',
   description:
-    'Return the drafted deliverable: a 1-2 sentence internal summary and the ordered body sections. For a workspace_draft, write a complete multi-section document. For an outreach_record, write one cohesive campaign message — split it into sections (e.g. opening, key points, ask, close) rather than one giant block. Ground every section in the context provided; do not invent client facts. Cite what grounded each section in that section\'s sources.',
+    "Return the drafted deliverable: a 1-2 sentence internal summary and the ordered body sections. For a workspace_draft, write a complete multi-section document. For an outreach_record, write one cohesive campaign message — split it into sections (e.g. opening, key points, ask, close) rather than one giant block. Ground every section in the context provided; do not invent client facts. Cite what grounded each section in that section's sources.",
   strict: true,
   input_schema: {
     type: 'object',
     additionalProperties: false,
     properties: {
-      summary: { type: 'string', description: 'A 1-2 sentence internal summary of the drafted deliverable.' },
+      summary: {
+        type: 'string',
+        description: 'A 1-2 sentence internal summary of the drafted deliverable.',
+      },
       title: { type: 'string', description: 'Optional refined title/subject for the deliverable.' },
       sections: {
         type: 'array',
@@ -338,7 +345,8 @@ export const PROPOSE_DOCUMENT_DRAFT_TOOL = {
 
 // ---- sanitizers (first pass; api-strategy re-validates authoritatively) ----
 
-const str = (v: unknown): string | undefined => (typeof v === 'string' && v.trim() ? v.trim() : undefined);
+const str = (v: unknown): string | undefined =>
+  typeof v === 'string' && v.trim() ? v.trim() : undefined;
 
 /** A9: normalize per-node provenance to [{section, ref?}] (drops blanks). */
 function sanitizeSources(raw: unknown): Array<{ section: string; ref?: string }> | undefined {
@@ -347,7 +355,9 @@ function sanitizeSources(raw: unknown): Array<{ section: string; ref?: string }>
     .filter((s): s is Record<string, unknown> => !!s && typeof s === 'object')
     .map((s) => ({ section: str(s.section), ref: str(s.ref) }))
     .filter((s) => !!s.section)
-    .map((s) => (s.ref ? { section: s.section as string, ref: s.ref } : { section: s.section as string }));
+    .map((s) =>
+      s.ref ? { section: s.section as string, ref: s.ref } : { section: s.section as string },
+    );
   return out.length ? out : undefined;
 }
 
@@ -359,7 +369,10 @@ export function sanitizeDraftNodes(raw: unknown): Array<Record<string, unknown>>
   // the FINAL array once it settles (below), instead of passing the raw indexes through.
   const withOriginalIndex = raw
     .map((n, originalIndex) => ({ n, originalIndex }))
-    .filter((e): e is { n: Record<string, unknown>; originalIndex: number } => !!e.n && typeof e.n === 'object')
+    .filter(
+      (e): e is { n: Record<string, unknown>; originalIndex: number } =>
+        !!e.n && typeof e.n === 'object',
+    )
     .map(({ n, originalIndex }) => ({
       kind: str(n.kind),
       subject: str(n.subject),
@@ -382,7 +395,9 @@ export function sanitizeDraftNodes(raw: unknown): Array<Record<string, unknown>>
 
   // originalIndex -> final position in the array returned below.
   const finalIndexByOriginal = new Map<number, number>();
-  withOriginalIndex.forEach(({ originalIndex }, finalIndex) => finalIndexByOriginal.set(originalIndex, finalIndex));
+  withOriginalIndex.forEach(({ originalIndex }, finalIndex) =>
+    finalIndexByOriginal.set(originalIndex, finalIndex),
+  );
 
   return withOriginalIndex.map(({ originalIndex, dependsOn, ...node }, finalIndex) => ({
     ...node,
@@ -398,33 +413,43 @@ export function sanitizeDraftNodes(raw: unknown): Array<Record<string, unknown>>
 export function sanitizePlanEdits(raw: unknown): Array<Record<string, unknown>> {
   if (!Array.isArray(raw)) return [];
   const ops = new Set(['add', 'update', 'remove', 'retime']);
-  return raw
-    .filter((e): e is Record<string, unknown> => !!e && typeof e === 'object')
-    .map((e) => {
-      const op = str(e.op);
-      const out: Record<string, unknown> = { op };
-      for (const k of ['nodeId', 'kind', 'subject', 'title', 'status', 'startsOn', 'endsOn'] as const) {
-        const v = str(e[k]);
-        if (v !== undefined) out[k] = v;
-      }
-      if (typeof e.note === 'string') out.note = e.note;
-      if (typeof e.openEnded === 'boolean') out.openEnded = e.openEnded;
-      // A3: node-id edges (existing nodes only; api-strategy validates existence).
-      if (Array.isArray(e.dependsOn)) {
-        out.dependsOn = e.dependsOn.filter((x): x is string => typeof x === 'string');
-      }
-      // A9: preserve an explicit empty array (clears provenance) same as dependsOn above;
-      // only omit the key when the model didn't send a sources array at all.
-      if (Array.isArray(e.sources)) out.sources = sanitizeSources(e.sources) ?? [];
-      return out;
-    })
-    .filter((e) => typeof e.op === 'string' && ops.has(e.op as string))
-    // A9: coherent truncation, mirroring sanitizeDraftNodes — never an arbitrary
-    // tail-drop. Edits without a startsOn (e.g. `remove`, dateless `update`) sort
-    // first (so a stale-node removal isn't silently dropped), then dated ops
-    // (add/retime/update) sort ascending so the most imminent survive the cut.
-    .sort((a, b) => String(a.startsOn ?? '').localeCompare(String(b.startsOn ?? '')))
-    .slice(0, 60);
+  return (
+    raw
+      .filter((e): e is Record<string, unknown> => !!e && typeof e === 'object')
+      .map((e) => {
+        const op = str(e.op);
+        const out: Record<string, unknown> = { op };
+        for (const k of [
+          'nodeId',
+          'kind',
+          'subject',
+          'title',
+          'status',
+          'startsOn',
+          'endsOn',
+        ] as const) {
+          const v = str(e[k]);
+          if (v !== undefined) out[k] = v;
+        }
+        if (typeof e.note === 'string') out.note = e.note;
+        if (typeof e.openEnded === 'boolean') out.openEnded = e.openEnded;
+        // A3: node-id edges (existing nodes only; api-strategy validates existence).
+        if (Array.isArray(e.dependsOn)) {
+          out.dependsOn = e.dependsOn.filter((x): x is string => typeof x === 'string');
+        }
+        // A9: preserve an explicit empty array (clears provenance) same as dependsOn above;
+        // only omit the key when the model didn't send a sources array at all.
+        if (Array.isArray(e.sources)) out.sources = sanitizeSources(e.sources) ?? [];
+        return out;
+      })
+      .filter((e) => typeof e.op === 'string' && ops.has(e.op as string))
+      // A9: coherent truncation, mirroring sanitizeDraftNodes — never an arbitrary
+      // tail-drop. Edits without a startsOn (e.g. `remove`, dateless `update`) sort
+      // first (so a stale-node removal isn't silently dropped), then dated ops
+      // (add/retime/update) sort ascending so the most imminent survive the cut.
+      .sort((a, b) => String(a.startsOn ?? '').localeCompare(String(b.startsOn ?? '')))
+      .slice(0, 60)
+  );
 }
 
 export function sanitizeRefRows(raw: unknown): Array<Record<string, unknown>> {
@@ -475,7 +500,10 @@ export function sanitizeDocumentSections(raw: unknown): DocumentDraftSection[] {
     .filter((s): s is Record<string, unknown> => !!s && typeof s === 'object')
     .map((s) => ({
       heading: str(s.heading),
-      html: typeof s.html === 'string' ? firstPassAllowlist(s.html).slice(0, DOC_SECTION_HTML_MAX_CHARS) : undefined,
+      html:
+        typeof s.html === 'string'
+          ? firstPassAllowlist(s.html).slice(0, DOC_SECTION_HTML_MAX_CHARS)
+          : undefined,
       sources: sanitizeSources(s.sources),
     }));
   const out: DocumentDraftSection[] = [];
@@ -498,7 +526,10 @@ function renderFiscal(f?: FiscalGrounding): string {
 function renderFirmPhases(rows?: FirmPhaseRow[]): string {
   if (!rows?.length) return 'Firm phases are not configured — assume a standard annual rhythm.';
   return rows
-    .map((p) => `- ${p.label}: FY${String(p.startFy).slice(2)} Q${p.startQ} → FY${String(p.endFy).slice(2)} Q${p.endQ}`)
+    .map(
+      (p) =>
+        `- ${p.label}: FY${String(p.startFy).slice(2)} Q${p.startQ} → FY${String(p.endFy).slice(2)} Q${p.endQ}`,
+    )
     .join('\n');
 }
 
@@ -508,7 +539,9 @@ function renderReference(ref?: ReferenceGrounding): string {
   if (ref.congress?.length) {
     lines.push('Legislative milestones:');
     for (const r of ref.congress.slice(0, 24)) {
-      lines.push(`- ${r.label}${r.startsOn ? ` (${r.startsOn}${r.endsOn ? `–${r.endsOn}` : ''})` : ''}`);
+      lines.push(
+        `- ${r.label}${r.startsOn ? ` (${r.startsOn}${r.endsOn ? `–${r.endsOn}` : ''})` : ''}`,
+      );
     }
   }
   if (ref.ppbeCurrentPhases?.length) {
@@ -534,7 +567,9 @@ function renderPlan(s: StrategyState): string {
     .map(
       (n) =>
         `- [${n.id}] ${n.kind}/${n.subject} · "${n.title}"${n.startsOn ? ` · ${n.startsOn}${n.endsOn ? `→${n.endsOn}` : ''}` : ''} · ${n.status}${
-          n.dependsOnIds?.length ? ` · depends on ${n.dependsOnIds.map((d) => `[${d}]`).join(', ')}` : ''
+          n.dependsOnIds?.length
+            ? ` · depends on ${n.dependsOnIds.map((d) => `[${d}]`).join(', ')}`
+            : ''
         }`,
     )
     .join('\n');
@@ -605,7 +640,9 @@ export function buildDraftSystemPrompt(
     PERSONA,
     MERI_GROUNDING_INVARIANT,
     `# Objective type\n${input.type}`,
-    input.goal ? `# Goal\n${input.goal}` : '# Goal\n(none stated — infer a reasonable objective from the client context)',
+    input.goal
+      ? `# Goal\n${input.goal}`
+      : '# Goal\n(none stated — infer a reasonable objective from the client context)',
     input.meriContext ? `# Extra context from the user\n${input.meriContext}` : '',
     input.targetDate ? `# Target outcome date\n${input.targetDate}` : '',
     `# Fiscal calendar\n${renderFiscal(input.fiscal)}`,
@@ -654,7 +691,8 @@ export function buildAssistantSystemPrompt(
 }
 
 export function buildReferenceSystemPrompt(input: StrategyReferenceAssistInput): string {
-  const which = input.kind === 'congress' ? 'legislative (congressional) calendar' : 'PPBE reference';
+  const which =
+    input.kind === 'congress' ? 'legislative (congressional) calendar' : 'PPBE reference';
   return [
     PERSONA,
     MERI_GROUNDING_INVARIANT,
@@ -706,7 +744,7 @@ export function buildDocumentDraftSystemPrompt(
     input.attachments?.length
       ? `# Attached documents (user-provided grounding)\n${renderAttachments(input.attachments)}`
       : '',
-    '# How to answer\nCall propose_document_draft with a 1-2 sentence internal summary and the ordered body sections. Ground every section in the context above; do not invent client facts. Cite what grounded each section in that section\'s `sources`.',
+    "# How to answer\nCall propose_document_draft with a 1-2 sentence internal summary and the ordered body sections. Ground every section in the context above; do not invent client facts. Cite what grounded each section in that section's `sources`.",
   ]
     .filter(Boolean)
     .join('\n\n');

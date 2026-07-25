@@ -93,23 +93,71 @@ export const INGESTION_JOBS: ScheduledIngestionJob[] = [
     description: 'LegiStorm directory full reconciliation (Sun 04:30 UTC)',
     enabled: false,
   },
-  // ── LegiStorm Legislative Districts (WS-B — ships DISABLED) ─────────────────
+  // ── LegiStorm Legislative Districts (WS-B) ──────────────────────────────────
   // Separate script, separate schedule, separate table — per the directory
   // runbook's "each new dataset gets its own script + schedule + retention"
   // rule. Full reconciliation every run (districts change only at
   // redistricting, no incremental window), so there is only ONE job, unlike
-  // the directory's incremental/full pair. Created disabled for the SAME
-  // reason as the directory jobs above: blocked until the compromised
-  // LegiStorm key is rotated + the commit canary passes. Weekly is
-  // deliberately infrequent for the same reason. KML boundary fetch is a
-  // separate opt-in flag (--with-kml), NOT part of this default command, so
-  // enabling this job does not also start hitting www.legistorm.com.
+  // the directory's incremental/full pair. KML boundary fetch is a separate
+  // opt-in flag (--with-kml), NOT part of this default command, so this job
+  // does not hit www.legistorm.com.
+  //
+  // ⚠️ CDK↔LIVE DRIFT — READ BEFORE "FIXING" THIS.
+  // `enabled: false` below does NOT describe reality. The live EventBridge
+  // rule for this job is ENABLED and has been firing weekly (Sun 04:00 UTC);
+  // 440 census_district rows carry synced_at 2026-07-01 from it. The rule was
+  // turned on out-of-band and CDK was never updated to match, so this
+  // declaration is stale, not authoritative.
+  //
+  // Do NOT "reconcile" that by deploying this stack. The drift is recorded
+  // deliberately so nobody re-disables a live, working cron mid-project. The
+  // same out-of-band pattern applies to ~10 ingestion secrets that exist on
+  // the live task definition and not in CDK.
+  //
+  // The original gate on this job — rotation of the compromised LegiStorm key
+  // — was cleared 2026-07-25. The key has been rotated, which also invalidated
+  // any leaked vendor KML URLs (they embed the key).
   {
     id: 'SyncLegistormDistricts',
     command: ['sync-legistorm-districts', '--commit'],
     cron: { minute: '0', hour: '4', weekDay: 'SUN' },
     tier: 'weekly',
     description: 'LegiStorm legislative districts full reconciliation (Sun 04:00 UTC, before directory at 04:30)',
+    enabled: false,
+  },
+  // ── District Nexus boundary artifacts (WS-D — ships DISABLED) ───────────────
+  // Builds the browser-safe GeoJSON the map reads. Runs Sun 05:00 UTC, after
+  // both the districts sync (04:00) and the directory refresh (04:30), because
+  // the CURRENT rail stamps boundary metadata onto legislative_district rows
+  // and should see a settled table.
+  //
+  // Ships DISABLED for two independent reasons. As of 2026-07-25 reason 1 is
+  // CLEARED and only reason 2 still stands:
+  //  1. [CLEARED 2026-07-25] The FUTURE ('F') rail reads each district's
+  //     re-hosted kmlS3Key, which only `sync-legistorm-districts --commit
+  //     --with-kml` populates. That backfill was gated on the LegiStorm key
+  //     rotation; both the rotation and the backfill have now run, so the
+  //     future rail has real input rather than legitimately producing zero
+  //     features.
+  //  2. [STILL OPEN] The first run should be a deliberate, reviewed `--commit`
+  //     with its warnings read, not a cron tick. The CURRENT rail is verified:
+  //     the live Census file yields 441/441 features with zero warnings at
+  //     4.90 MB gzipped (measured 2026-07-24), inside the ~6 MB budget.
+  //
+  // Note the current rail now also refuses to publish below 400 districts /
+  // 50 states, so a truncated Census download fails loudly instead of quietly
+  // blanking the map.
+  //
+  // The current rail depends only on the keyless Census cartographic file, so
+  // it is NOT blocked by the LegiStorm key rotation — `--status=C` can be run
+  // on its own the moment someone wants the current map published.
+  {
+    id: 'BuildDistrictBoundaryArtifacts',
+    command: ['build-district-boundary-artifacts', '--commit'],
+    cron: { minute: '0', hour: '5', weekDay: 'SUN' },
+    tier: 'weekly',
+    description:
+      'District Nexus boundary artifacts, current + future rails (Sun 05:00 UTC, after districts sync)',
     enabled: false,
   },
   // ── LegiStorm Privately Funded Travel (WS-F — ships DISABLED) ───────────────
@@ -232,6 +280,24 @@ export const INGESTION_JOBS: ScheduledIngestionJob[] = [
     tier: 'daily',
     description: 'Award district enrichment (after awards)',
   },
+  // ── District Nexus assistance awards (ships DISABLED pending Phase 1 canary
+  // volume approval — see district-nexus-grants-mcp-plan.md §10 Phase 1) ─────
+  {
+    id: 'SyncFederalAssistanceAwards',
+    command: ['sync-federal-assistance-awards'],
+    cron: { minute: '10', hour: '8' },
+    tier: 'daily',
+    description: 'USAspending financial assistance awards, all agencies (daily, after contracts)',
+    enabled: false,
+  },
+  {
+    id: 'EnrichAssistanceAwards',
+    command: ['enrich-assistance-awards'],
+    cron: { minute: '20', hour: '8' },
+    tier: 'daily',
+    description: 'Assistance award detail enrichment (after assistance sync)',
+    enabled: false,
+  },
 
   // ── TIER 2 — WEEKLY ───────────────────────────────────────────────────────
   {
@@ -282,6 +348,24 @@ export const INGESTION_JOBS: ScheduledIngestionJob[] = [
     cron: { minute: '30', hour: '7', weekDay: 'MON' },
     tier: 'weekly',
     description: 'Federal grants (weekly Mon)',
+  },
+  // ── District Nexus Workstream C (ships DISABLED pending Phase 1 canary) ───
+  {
+    id: 'SyncGrantsReconcile',
+    command: ['sync-grants', '--all-statuses'],
+    cron: { minute: '45', hour: '7', weekDay: 'SUN' },
+    tier: 'weekly',
+    description:
+      'Grants.gov all-status reconcile — re-sees closed/archived opportunities the posted|forecasted pass cannot (weekly Sun)',
+    enabled: false,
+  },
+  {
+    id: 'EnrichGrantDetails',
+    command: ['enrich-grant-details'],
+    cron: { minute: '30', hour: '8' },
+    tier: 'daily',
+    description: 'Grants.gov fetchOpportunity detail enrichment (after the opportunity sync)',
+    enabled: false,
   },
   {
     id: 'SyncOpenstates',

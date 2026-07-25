@@ -1,15 +1,19 @@
 import {
   Controller,
   Get,
+  Headers,
   Param,
   Patch,
   Post,
   Delete,
   Query,
+  Res,
   Body,
   UseGuards,
 } from '@nestjs/common';
+import type { Response } from 'express';
 import { ConfigService } from '@nestjs/config';
+import { DirectoryService } from '../directory/directory.service.js';
 import type { AppConfig } from '../config/config.schema.js';
 import { IsArray, IsBoolean, IsIn, IsInt, IsOptional, IsString, Max, Min } from 'class-validator';
 import { Type, Transform } from 'class-transformer';
@@ -75,7 +79,7 @@ class LdaSearchQueryDto {
 // stable id (for 'lda' the exact lda_client.id) — the reliable, name-independent
 // way to attach a registrant variant the fuzzy matcher can't reach.
 class ManualMappingDto {
-  @IsIn(['lda', 'contracting', 'sec', 'fec_employer', 'fec_committee', 'fara', 'lobby_intel'])
+  @IsIn(['lda', 'contracting', 'sec', 'fec_employer', 'fec_committee', 'fara', 'lobby_intel', 'assistance_recipient'])
   source!: string;
 
   @IsString()
@@ -172,6 +176,10 @@ export class IntelligenceController {
     private readonly insights: InsightGeneratorService,
     private readonly entityResolution: EntityResolutionService,
     private readonly reportCard: ReportCardService,
+    // WS-D boundary artifacts live in S3 alongside the district KML, so the
+    // reads are delegated to DirectoryService rather than duplicating the S3
+    // client and bucket config here. DirectoryModule is already imported.
+    private readonly directory: DirectoryService,
     private readonly config: ConfigService<AppConfig, true>,
   ) {}
 
@@ -348,6 +356,14 @@ export class IntelligenceController {
     return this.service.searchContractors(q.q);
   }
 
+  // Free-text / by-UEI search of federal_assistance_award recipients for the
+  // District Nexus manual-attach panel (source 'assistance_recipient'). The
+  // recipient UEI is the externalId pinned into the mapping when available.
+  @Get('assistance-recipients/search')
+  searchAssistanceRecipients(@Query() q: LdaSearchQueryDto) {
+    return this.service.searchAssistanceRecipients(q.q);
+  }
+
   // Read-only "what's driving this client's matching" signal: the union'd issue
   // codes (+ names), how many LDA registrants back them, and capability richness.
   @Get('clients/:clientId/issue-code-signal')
@@ -459,6 +475,51 @@ export class IntelligenceController {
   @Get('clients/:clientId/district-nexus-spend')
   getDistrictNexusSpend(@CurrentTenant() ctx: TenantContext, @Param('clientId') clientId: string) {
     return this.service.getDistrictNexusSpend(clientId, ctx.tenantId);
+  }
+
+  // ─── WS-D district boundary artifacts ─────────────────────────────────
+  //
+  // Boundary geometry is PUBLIC reference data (Census cartographic districts
+  // and enacted state maps) with no tenant-scoped content, so these two carry
+  // no client id and no tenant filtering — unlike every route above. What they
+  // must not do is expose the bucket or the vendor URL, hence the same-origin
+  // proxy rather than a redirect to S3.
+
+  /** Which artifact is current: hash, district count, vintage, warnings. */
+  @Get('district-nexus/boundaries')
+  getBoundaryManifest(@Query('status') status?: string) {
+    return this.directory.getBoundaryManifest(status === 'F' ? 'F' : 'C');
+  }
+
+  /**
+   * The artifact itself. Served still-gzipped with the content hash as a strong
+   * ETag; a matching If-None-Match gets a 304, so a client that already holds
+   * the ~5 MB national collection re-validates for free. Safe as a strong ETag
+   * because artifact keys are content-addressed — the same hash is always the
+   * same bytes.
+   */
+  @Get('district-nexus/boundaries/:status/geojson')
+  async getBoundaryGeoJson(
+    @Param('status') status: string,
+    @Headers('if-none-match') ifNoneMatch: string | undefined,
+    @Res() res: Response,
+  ) {
+    const { gzipped, hash, districtCount } = await this.directory.getBoundaryArtifact(
+      status === 'F' ? 'F' : 'C',
+    );
+    const etag = `"${hash}"`;
+    if (ifNoneMatch === etag) {
+      res.status(304).end();
+      return;
+    }
+    res.setHeader('Content-Type', 'application/geo+json');
+    res.setHeader('Content-Encoding', 'gzip');
+    res.setHeader('ETag', etag);
+    // The artifact is immutable for a given hash, but this URL is NOT (it
+    // follows the manifest), so it must revalidate rather than cache hard.
+    res.setHeader('Cache-Control', 'public, max-age=0, must-revalidate');
+    res.setHeader('X-District-Count', String(districtCount));
+    res.send(gzipped);
   }
 
   @Get('clients/:clientId/bill-regulation-links')

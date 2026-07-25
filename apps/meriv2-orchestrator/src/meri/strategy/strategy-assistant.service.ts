@@ -140,7 +140,9 @@ export class StrategyAssistantService {
       // actually proposed zero nodes; otherwise keep repairing.
       const deliberatelyEmpty = result.input !== null && rawNodeCount === 0;
       if (deliberatelyEmpty || (nodes.length > 0 && check.errorCount === 0)) break;
-      const errs = check.violations.filter((v) => v.severity === 'error').map((v) => `- ${v.message}`);
+      const errs = check.violations
+        .filter((v) => v.severity === 'error')
+        .map((v) => `- ${v.message}`);
       this.logger.debug(`draft repair ${attempt + 1}: ${check.errorCount} error(s)`);
       repairSuffix = `\n\n# FIX THESE PROBLEMS\nYour previous plan had impossible ordering/calendar issues. Re-draft correcting ALL of these:\n${errs.join('\n')}`;
     }
@@ -170,7 +172,10 @@ export class StrategyAssistantService {
         ? (n.dependsOn as unknown[])
             .filter(
               (d): d is number =>
-                Number.isInteger(d) && (d as number) >= 0 && (d as number) < nodes.length && d !== idx,
+                Number.isInteger(d) &&
+                (d as number) >= 0 &&
+                (d as number) < nodes.length &&
+                d !== idx,
             )
             .map((d) => String(d))
         : [],
@@ -208,7 +213,13 @@ export class StrategyAssistantService {
       pack.text,
       healthNoteFrom(pack.health, input.stewardHealth),
     );
-    const result = await this.runTerminal(system, input.instruction, PROPOSE_PLAN_EDITS_TOOL, ctx, 'meriv2_strategy_edit');
+    const result = await this.runTerminal(
+      system,
+      input.instruction,
+      PROPOSE_PLAN_EDITS_TOOL,
+      ctx,
+      'meriv2_strategy_edit',
+    );
     return {
       reply: str(result.input?.reply) ?? result.text ?? 'Done.',
       summary: str(result.input?.summary) ?? null,
@@ -261,9 +272,17 @@ export class StrategyAssistantService {
 
   async referenceAssist(ctx: MeriContext, input: StrategyReferenceAssistInput) {
     const system = buildReferenceSystemPrompt(input);
-    const result = await this.runTerminal(system, input.instruction, PROPOSE_REFERENCE_EDITS_TOOL, ctx, 'meriv2_strategy_edit');
+    const result = await this.runTerminal(
+      system,
+      input.instruction,
+      PROPOSE_REFERENCE_EDITS_TOOL,
+      ctx,
+      'meriv2_strategy_edit',
+    );
     // No structured rows from the model → return the working set unchanged.
-    const rows = result.input ? sanitizeRefRows(result.input.rows) : (input.rows as Array<Record<string, unknown>>);
+    const rows = result.input
+      ? sanitizeRefRows(result.input.rows)
+      : (input.rows as Array<Record<string, unknown>>);
     return { reply: str(result.input?.reply) ?? result.text ?? '', rows };
   }
 
@@ -296,7 +315,10 @@ export class StrategyAssistantService {
         });
       } catch (e) {
         this.logger.warn(`strategy ${workflow} model call failed: ${(e as Error).message}`);
-        return { input: null, text: 'Sorry — I hit an error reaching the model. Please try again.' };
+        return {
+          input: null,
+          text: 'Sorry — I hit an error reaching the model. Please try again.',
+        };
       }
       void this.meterRound(ctx, resp, workflow);
 
@@ -343,7 +365,8 @@ export class StrategyAssistantService {
         .map((b) => b.text as string)
         .join('\n')
         .trim();
-      if (terminal) return { input: terminal.input ?? {}, text: text || lastText, model: resp.model };
+      if (terminal)
+        return { input: terminal.input ?? {}, text: text || lastText, model: resp.model };
       if (text) lastText = text;
     } catch (e) {
       this.logger.warn(`strategy ${workflow} forced-finish failed: ${(e as Error).message}`);
@@ -351,12 +374,21 @@ export class StrategyAssistantService {
     return { input: null, text: lastText || 'I could not complete that — please try again.' };
   }
 
-  private async meterRound(ctx: MeriContext, resp: ToolLoopResponse, workflow: string): Promise<void> {
+  private async meterRound(
+    ctx: MeriContext,
+    resp: ToolLoopResponse,
+    workflow: string,
+  ): Promise<void> {
     await recordAiUsageEvent(
       { prisma: this.prisma, logger: this.logger },
       { tenantId: ctx.tenantId, userId: ctx.userId },
       workflow,
-      { provider: 'anthropic', model: resp.model, usage: resp.usage, usedTenantKey: resp.usedTenantKey },
+      {
+        provider: 'anthropic',
+        model: resp.model,
+        usage: resp.usage,
+        usedTenantKey: resp.usedTenantKey,
+      },
     );
   }
 }

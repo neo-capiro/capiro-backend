@@ -210,7 +210,7 @@ case "${1:-serve}" in
     ;;
   emit-clio-alerts)
     # Scheduled replacement for the old in-chat generateProactiveAlerts() call
-    # (removed — see meri.service.ts:3369). Scans every active tenant for
+    # (removed â€” see meri.service.ts:3369). Scans every active tenant for
     # upcoming meetings with no prep notes (48h) and clients quiet 30+ days;
     # writes clio_proactive_alert rows (dashboard inbox). Idempotent (dedupes
     # per tenant/sourceType/sourceId/pending). Intended cadence: every 30-60 min.
@@ -241,7 +241,7 @@ case "${1:-serve}" in
     echo "Running embed-program-elements $*"
     exec ./node_modules/.bin/tsx scripts/embed-program-elements.ts "$@"
     ;;
-  # ── Federal data sync jobs ─────────────────────────────────────────────
+  # â”€â”€ Federal data sync jobs â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
   # These populate the Intelligence Center source tables (LDA, Congress, FedReg,
   # Hearings, GAO, CRS, FEC, FARA, SEC, RSS intel, state bills, economic
   # indicators, grants). Wired so EventBridge can dispatch each as a
@@ -266,6 +266,16 @@ case "${1:-serve}" in
   # Step 28: USAspending federal awards (DoD), PE-tagged. Daily 7-day delta; pass
   # --backfill --since YYYY-MM-DD for the separate backfill.
   sync-federal-award)     shift; exec ./node_modules/.bin/tsx scripts/sync-federal-award.ts "$@" ;;
+  # District Nexus: USAspending financial assistance (award_type_codes 02-05:
+  # block/formula/project grants + cooperative agreements) â€” kept separate
+  # from federal_award/sync-federal-award (contracts, different data product).
+  # Daily 7-day delta; pass --backfill --since YYYY-MM-DD --min-amount N for
+  # a bounded backfill. Ships disabled in ingestion-schedule.ts pending canary.
+  sync-federal-assistance-awards) shift; exec ./node_modules/.bin/tsx scripts/sync-federal-assistance-awards.ts "$@" ;;
+  # District Nexus: thin per-award detail enrichment (fain/uri/subaward count/
+  # non-federal funding/funding-opportunity number) for federal_assistance_award
+  # rows sync-federal-assistance-awards couldn't fully populate from search alone.
+  enrich-assistance-awards) shift; exec ./node_modules/.bin/tsx scripts/enrich-assistance-award-details.ts "$@" ;;
   # Step 32: LLM NER over recent DoD press releases (IntelArticle source=dod).
   extract-press-personnel) shift; exec ./node_modules/.bin/tsx scripts/extract-personnel-from-press-releases.ts "$@" ;;
   # Step 33: SAM.gov DoD solicitation KO/CS personnel (email domain only).
@@ -274,7 +284,7 @@ case "${1:-serve}" in
   # commits when run as a scheduled task (dry-run is for local dev only).
   sync-sam-opportunities) shift; exec ./node_modules/.bin/tsx scripts/sync-sam-opportunities.ts --commit "$@" ;;
   # Re-run the opportunity->PE/program matcher over ALL existing sam_opportunity rows
-  # WITHOUT re-fetching from SAM.gov — realizes a matcher change (e.g. procurement-BLIN
+  # WITHOUT re-fetching from SAM.gov â€” realizes a matcher change (e.g. procurement-BLIN
   # recognition) across the already-ingested backlog the daily sync would never re-match.
   # Idempotent. Add --commit to persist (dry-run reports the would-be counts).
   rematch-sam-opportunities) shift; exec ./node_modules/.bin/tsx scripts/sync-sam-opportunities.ts --match-only "$@" ;;
@@ -304,7 +314,7 @@ case "${1:-serve}" in
   # award detail, persist it, and resolve a PE via the curated acq-program map.
   enrich-award-pe) shift; exec ./node_modules/.bin/tsx scripts/enrich-award-pe.ts "$@" ;;
   # Pure re-resolution: re-map EVERY award that already has a stored dodAcqProgramCode
-  # to a PE via the CURRENT curated acq-program map — NO USAspending API call. Realizes
+  # to a PE via the CURRENT curated acq-program map â€” NO USAspending API call. Realizes
   # the full existing-map coverage across the backlog instantly, and re-applies a grown
   # map. Dry-run by default; add --commit to persist. Idempotent.
   resolve-awards-from-acq-map) shift; exec ./node_modules/.bin/tsx scripts/enrich-award-pe.ts --resolve-only "$@" ;;
@@ -324,13 +334,13 @@ case "${1:-serve}" in
   # in-request, unclassified RDT&E, in-jurisdiction PE that LACKS the mark (a real
   # extraction gap worth chasing). No writes.
   report-pe-coverage) shift; exec ./node_modules/.bin/tsx scripts/report-pe-coverage.ts "$@" ;;
-  # ── Stale old-DoW-directory cleanup (PEs + personnel) ──────────────────────
+  # â”€â”€ Stale old-DoW-directory cleanup (PEs + personnel) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
   # Read-only: counts old-directory data still live (would-supersede / would-retire /
   # links-to-repair) using the SAME predicates as the reconcile jobs. No writes.
   diag-stale-directory) shift; exec ./node_modules/.bin/tsx scripts/diag-stale-directory.ts "$@" ;;
   # Read-only: per-tenant Meri memory health (totals, firm vs private, % embedded).
   diag-clio-memory) shift; exec ./node_modules/.bin/tsx scripts/diag-clio-memory.ts "$@" ;;
-  # Read-only: Phase 1 SSOT-consolidation GATE — per-tenant clio_memory↔memory_items
+  # Read-only: Phase 1 SSOT-consolidation GATE â€” per-tenant clio_memoryâ†”memory_items
   # recall parity (wouldDropOnCollapse must be 0 before recall is re-pointed).
   diag-memory-recall-parity) shift; exec ./node_modules/.bin/tsx scripts/diag-memory-recall-parity.ts "$@" ;;
   # Backfill embeddings for clio_memory rows missing one. DRY RUN unless --commit.
@@ -369,11 +379,16 @@ case "${1:-serve}" in
   # bare invocation is a dry run that writes nothing (--commit to write,
   # --with-kml to also fetch+store boundaries, --states=XX,YY to scope a run).
   sync-legistorm-districts) shift; exec ./node_modules/.bin/tsx scripts/sync-legistorm-districts.ts "$@" ;;
+  # District Nexus boundary artifacts (WS-D). Builds browser-safe GeoJSON from
+  # the Census cartographic national file ('C') and our re-hosted LegiStorm KML
+  # ('F'); a bare invocation is a dry run that writes nothing (--commit to
+  # publish, --status=C|F to pick a rail, --states=XX,YY to scope a run).
+  build-district-boundary-artifacts) shift; exec ./node_modules/.bin/tsx scripts/build-district-boundary-artifacts.ts "$@" ;;
   # LegiStorm Privately Funded Travel (WS-F). Incremental like the directory
   # job; a bare invocation is a dry run that writes nothing.
   sync-legistorm-trips) shift; exec ./node_modules/.bin/tsx scripts/sync-legistorm-trips.ts "$@" ;;
   sync-openstates)        exec ./node_modules/.bin/tsx scripts/sync-openstates.ts ;;
-  # State Legislation Platform (Phase 0 S1) — LegiScan is the bill spine.
+  # State Legislation Platform (Phase 0 S1) â€” LegiScan is the bill spine.
   # backfill = one-time dataset seed + quota-exhaustion fallback (accepts
   # LEGISCAN_STATES/LEGISCAN_SESSIONS via env, no CLI flags); masterlist =
   # cheap change_hash diff -> drain queue; bills = the getBill drain.
@@ -382,18 +397,18 @@ case "${1:-serve}" in
   sync-legiscan-bills)        exec ./node_modules/.bin/tsx scripts/sync-legiscan-bills.ts ;;
   derive-state-bill-status)   exec ./node_modules/.bin/tsx scripts/derive-state-bill-status.ts ;;
   emit-state-changes)         exec ./node_modules/.bin/tsx scripts/emit-state-changes.ts ;;
-  # WS-G, LegiStorm gaps/enrichment plan (optional temporal enrichment) —
+  # WS-G, LegiStorm gaps/enrichment plan (optional temporal enrichment) â€”
   # committee membership gain/loss/role-change alerts. No CLI flags (matches
-  # every other emit-* script's convention — only the sync-* vendor-fetch
+  # every other emit-* script's convention â€” only the sync-* vendor-fetch
   # scripts have a dry-run/--commit split).
   emit-committee-changes)     exec ./node_modules/.bin/tsx scripts/emit-committee-changes.ts ;;
   # Ongoing OpenStates<->LegiScan people crosswalk (S2): stamps
   # state_legislator.legiscan_people_id via getSessionPeople so legislators link
   # to their sponsored bills. Reads LEGISCAN_STATES from env (no CLI flags).
   crosswalk-state-people)     exec ./node_modules/.bin/tsx scripts/crosswalk-state-people.ts ;;
-  # District Impact Engine (Phase 1 M1.2) — keyless Census Geocoder backfill.
+  # District Impact Engine (Phase 1 M1.2) â€” keyless Census Geocoder backfill.
   geocode-facilities)         exec ./node_modules/.bin/tsx scripts/geocode-facilities.ts ;;
-  # Deadline Physics + Chokepoint (Phase 1 M2.1/M2.2) — committed calendar seed load + roster normalization.
+  # Deadline Physics + Chokepoint (Phase 1 M2.1/M2.2) â€” committed calendar seed load + roster normalization.
   load-state-calendars)       exec ./node_modules/.bin/tsx scripts/load-state-calendars.ts ;;
   normalize-state-committees) exec ./node_modules/.bin/tsx scripts/normalize-state-committees.ts ;;
   backtest-deadline-physics)  exec ./node_modules/.bin/tsx scripts/backtest-deadline-physics.ts ;;
@@ -401,7 +416,15 @@ case "${1:-serve}" in
   sync-bls)               exec ./node_modules/.bin/tsx scripts/sync-bls.ts ;;
   sync-bea)               exec ./node_modules/.bin/tsx scripts/sync-bea.ts ;;
   sync-census)            exec ./node_modules/.bin/tsx scripts/sync-census.ts ;;
-  sync-grants)            exec ./node_modules/.bin/tsx scripts/sync-grants.ts ;;
+  # Grants.gov opportunities (NOFOs). Bare = daily posted|forecasted; pass
+  # --all-statuses for the weekly reconcile that also sees closed/archived.
+  # Needs "$@" â€” the flag was unreachable while this verb swallowed its args.
+  sync-grants)            shift; exec ./node_modules/.bin/tsx scripts/sync-grants.ts "$@" ;;
+  # District Nexus: Grants.gov fetchOpportunity detail pass. Fills every
+  # federal_grant column search2 cannot return (award ceiling/floor, funding,
+  # eligibility, description, category) plus the Workstream C detail block.
+  # Ships disabled in ingestion-schedule.ts pending Phase 1 canary.
+  enrich-grant-details)   shift; exec ./node_modules/.bin/tsx scripts/enrich-grant-details.ts "$@" ;;
   sync-openlobby)         exec ./node_modules/.bin/tsx scripts/sync-openlobby.ts ;;
   sync-openspending)      exec ./node_modules/.bin/tsx scripts/sync-openspending.ts ;;
   sync-lobby-trending)    exec ./node_modules/.bin/tsx scripts/sync-lobby-trending.ts ;;
@@ -482,12 +505,12 @@ case "${1:-serve}" in
   # Step 27: load P-Doc (Procurement) parent PEs + child line items from a committed
   # rows artifact (offline pdfplumber extraction). Pass --service + --artifact.
   parse-pdoc) shift; exec ./node_modules/.bin/tsx scripts/parse-pdoc-army.ts "$@" ;;
-  # R3 §3.2: load a CURATED, human-reviewed defense budget-package artifact
+  # R3 Â§3.2: load a CURATED, human-reviewed defense budget-package artifact
   # (package + vehicles + toplines + CR windows). DRY RUN unless --commit; rejects
   # any topline missing a stage, vehicle, scope, source, or explicit unit.
   #   load-defense-budget-package --artifact scripts/__data__/defense-budget/fy2027-package.json [--commit] [--supersede-verified]
   load-defense-budget-package) shift; exec ./node_modules/.bin/tsx scripts/load-defense-budget-package.ts "$@" ;;
-  # R3 §3.7: READ-ONLY invariant report over the loaded package data. Non-zero exit
+  # R3 Â§3.7: READ-ONLY invariant report over the loaded package data. Non-zero exit
   # on a hard failure, so it can gate a deploy.
   verify-defense-budget-packages) shift; exec ./node_modules/.bin/tsx scripts/verify-defense-budget-packages.ts "$@" ;;
   # Deep P-40 enrichment: attach description / acatLevel / programOfRecord / status +
@@ -497,7 +520,7 @@ case "${1:-serve}" in
   # OP-5 O&M narrative loader (batch-10): SAG-code-joined descriptions -> EXISTING
   # O&M program elements only. Enrich-only, presence-based raw.op5Detail merge.
   load-om-op5) shift; exec ./node_modules/.bin/tsx scripts/load-om-op5.ts "$@" ;;
-  # ── Budget Lines money-graph derivations (BL-0). DAG order: actions ->
+  # â”€â”€ Budget Lines money-graph derivations (BL-0). DAG order: actions ->
   # relationships -> capabilities -> intelligence cache. All dry-run by default;
   # pass --commit. Each deletes + rewrites only its own derived_by cohort.
   derive-budget-actions) shift; exec ./node_modules/.bin/tsx scripts/derive-budget-actions.ts "$@" ;;
@@ -515,7 +538,7 @@ case "${1:-serve}" in
   # Canary-gated by PE_ALERT_EMAIL_TENANTS (unset = dark). Runs as the final
   # step of run-pe-derive-chain; also dispatchable standalone. Dry-run default.
   send-pe-alert-emails) shift; exec ./node_modules/.bin/tsx scripts/send-pe-alert-emails.ts "$@" ;;
-  # Phase 3 — hearing-transcript PE mentions + bill-title candidate links
+  # Phase 3 â€” hearing-transcript PE mentions + bill-title candidate links
   # (dry-run default; --commit, --limit N, --since YYYY-MM-DD). Candidates only;
   # nothing fuzzy auto-accepts.
   match-pe-mentions) shift; exec ./node_modules/.bin/tsx scripts/match-pe-mentions.ts "$@" ;;
@@ -545,7 +568,7 @@ case "${1:-serve}" in
   diag-graph-coverage) shift; exec ./node_modules/.bin/tsx scripts/diag-graph-coverage.ts "$@" ;;
   # Read-only per-PE data-presence report ("why is PE X thin?"). --pe=CODE.
   diag-pe) shift; exec ./node_modules/.bin/tsx scripts/diag-pe.ts "$@" ;;
-  # Read-only network-link coverage matrix by appropriation type (RDT&E/PROC/OM) —
+  # Read-only network-link coverage matrix by appropriation type (RDT&E/PROC/OM) â€”
   # the before/after yield measurement for the procurement-BLIN matching remediation.
   diag-blin-coverage) shift; exec ./node_modules/.bin/tsx scripts/diag-blin-coverage.ts "$@" ;;
   backfill-appropriation-type) shift; exec ./node_modules/.bin/tsx scripts/backfill-appropriation-type.ts "$@" ;;
@@ -555,16 +578,16 @@ case "${1:-serve}" in
   sync-dod-press-personnel) shift; exec ./node_modules/.bin/tsx scripts/sync-dod-press-personnel.ts "$@" ;;
   sync-cpe-roster) shift; exec ./node_modules/.bin/tsx scripts/sync-cpe-roster.ts "$@" ;;
   recompute-conference-probability) shift; exec ./node_modules/.bin/tsx scripts/recompute-conference-probability.ts "$@" ;;
-  # Step 1.4 — recompute typed budget deltas (incl. procurement quantity/unit-cost
+  # Step 1.4 â€” recompute typed budget deltas (incl. procurement quantity/unit-cost
   # from multi-FY procurement lines). --commit to persist; --fy to scope.
   compute-budget-deltas) shift; exec ./node_modules/.bin/tsx scripts/compute-budget-deltas.ts "$@" ;;
   # One-time canonical PE-year repair: reassemble each program_element_year row from
   # the per-field source-value log (un-clobber multi-source rows + normalize stored
-  # thousands → millions). DRY RUN by default; pass --commit to write. Run once,
+  # thousands â†’ millions). DRY RUN by default; pass --commit to write. Run once,
   # right after deploying the writer fix and before any post-fix re-ingestion.
   rebuild-pe-years) shift; exec ./node_modules/.bin/tsx scripts/rebuild-program-element-years.ts "$@" ;;
   # Value-based companion to rebuild-pe-years: scales any dollar-magnitude PE-year
-  # mark down to millions (÷1e6). Catches historical enacted/conference rows that
+  # mark down to millions (Ã·1e6). Catches historical enacted/conference rows that
   # had no per-field source-value log for rebuild-pe-years to use. DRY RUN by
   # default; pass --commit. Idempotent.
   normalize-pe-units) shift; exec ./node_modules/.bin/tsx scripts/normalize-pe-units.ts "$@" ;;
@@ -592,7 +615,7 @@ case "${1:-serve}" in
     exec node dist/main.js
     ;;
   *)
-    echo "Unknown command: $1 (expected: serve | migrate | seed-workflows | bootstrap-capiro-admin | bootstrap-tenant | bootstrap-roles | emit-changes | emit-bill-alerts | emit-clio-alerts | generate-meeting-briefings | backfill-sectors | generate-briefings | compute-health-scores | check-comment-periods | embed-backfill | embed-program-elements | sync-lda | sync-congress | sync-congress-members | sync-cbo | sync-committees | sync-house-votes | sync-senate-votes | derive-bill-status | sync-federal-register | sync-regulations | sync-hearings | sync-hearing-transcripts | sync-gao | sync-crs | sync-fec | sync-federal-award | enrich-award-districts | enrich-award-pe | seed-acq-program-map | report-award-pe-coverage | extract-press-personnel | sync-sam-personnel | sync-fec-pac | sync-fara | sync-fara-enrichment | sync-sec-edgar | sync-rss-intel | sync-openstates | backfill-legiscan-datasets | sync-legiscan-masterlist | sync-legiscan-bills | sync-legistorm-districts | sync-legistorm-trips | derive-state-bill-status | emit-state-changes | emit-committee-changes | crosswalk-state-people | geocode-facilities | load-state-calendars | normalize-state-committees | backtest-deadline-physics | sync-state-register | set-tenant-flag | sync-bls | sync-bea | sync-census | sync-grants | sync-openlobby | sync-openspending | sync-lobby-trending | refresh-lobby-intel-mv | refresh-kg-edge-cache | sync-comptroller-jbooks | sync-jbook-r2 | import-dow-directory | import-dow-directory-v6 | sync-dow-headshots | generate-pe-person-candidates | auto-confirm-pe-person-candidates | derive-office-program-links | sync-peo-rosters | sync-dod-orgcharts | sync-dod-press-personnel | sync-cpe-roster | recompute-conference-probability | extract-bill-pe-codes | extract-gao-interviewees | extract-hearing-witnesses | parse-hasc-report | parse-sasc-report | parse-hac-d-report | parse-sac-d-report | parse-ndaa-conference | parse-defense-approps-public-law | parse-pdoc | load-defense-budget-package | verify-defense-budget-packages | run-pe-derive-chain | watch-budget-docs | send-pe-alert-emails | match-pe-mentions | rebuild-pe-years | normalize-pe-units | diag-stale-directory | reconcile-personnel-supersede | reconcile-stale-pes | repair-person-pe-links | diag-client-resolution | diag-phantom-imports | diag-clio-memory | diag-memory-recall-parity | backfill-clio-memory-embeddings | run-clio-scheduled-tasks | run-intel-workflows | refresh-memory-graph | prepopulate-all | fill-govids-all)" >&2
+    echo "Unknown command: $1 (expected: serve | migrate | seed-workflows | bootstrap-capiro-admin | bootstrap-tenant | bootstrap-roles | emit-changes | emit-bill-alerts | emit-clio-alerts | generate-meeting-briefings | backfill-sectors | generate-briefings | compute-health-scores | check-comment-periods | embed-backfill | embed-program-elements | sync-lda | sync-congress | sync-congress-members | sync-cbo | sync-committees | sync-house-votes | sync-senate-votes | derive-bill-status | sync-federal-register | sync-regulations | sync-hearings | sync-hearing-transcripts | sync-gao | sync-crs | sync-fec | sync-federal-award | sync-federal-assistance-awards | enrich-assistance-awards | enrich-award-districts | enrich-award-pe | seed-acq-program-map | report-award-pe-coverage | extract-press-personnel | sync-sam-personnel | sync-fec-pac | sync-fara | sync-fara-enrichment | sync-sec-edgar | sync-rss-intel | sync-openstates | backfill-legiscan-datasets | sync-legiscan-masterlist | sync-legiscan-bills | sync-legistorm-districts | build-district-boundary-artifacts | sync-legistorm-trips | derive-state-bill-status | emit-state-changes | emit-committee-changes | crosswalk-state-people | geocode-facilities | load-state-calendars | normalize-state-committees | backtest-deadline-physics | sync-state-register | set-tenant-flag | sync-bls | sync-bea | sync-census | sync-grants | enrich-grant-details | sync-openlobby | sync-openspending | sync-lobby-trending | refresh-lobby-intel-mv | refresh-kg-edge-cache | sync-comptroller-jbooks | sync-jbook-r2 | import-dow-directory | import-dow-directory-v6 | sync-dow-headshots | generate-pe-person-candidates | auto-confirm-pe-person-candidates | derive-office-program-links | sync-peo-rosters | sync-dod-orgcharts | sync-dod-press-personnel | sync-cpe-roster | recompute-conference-probability | extract-bill-pe-codes | extract-gao-interviewees | extract-hearing-witnesses | parse-hasc-report | parse-sasc-report | parse-hac-d-report | parse-sac-d-report | parse-ndaa-conference | parse-defense-approps-public-law | parse-pdoc | load-defense-budget-package | verify-defense-budget-packages | run-pe-derive-chain | watch-budget-docs | send-pe-alert-emails | match-pe-mentions | rebuild-pe-years | normalize-pe-units | diag-stale-directory | reconcile-personnel-supersede | reconcile-stale-pes | repair-person-pe-links | diag-client-resolution | diag-phantom-imports | diag-clio-memory | diag-memory-recall-parity | backfill-clio-memory-embeddings | run-clio-scheduled-tasks | run-intel-workflows | refresh-memory-graph | prepopulate-all | fill-govids-all)" >&2
     exit 1
     ;;
 esac

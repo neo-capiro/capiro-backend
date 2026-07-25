@@ -21,7 +21,12 @@ jest.mock('@capiro/shared', () => ({
   recordAiUsageEvent: jest.fn().mockResolvedValue(undefined),
 }));
 
-const CTX = { tenantId: 't1', userId: 'u1', clerkUserId: 'c1', role: 'standard_user' } as MeriContext;
+const CTX = {
+  tenantId: 't1',
+  userId: 'u1',
+  clerkUserId: 'c1',
+  role: 'standard_user',
+} as MeriContext;
 
 const INPUT: StewardExtractInput = {
   clientId: 'client-1',
@@ -30,7 +35,13 @@ const INPUT: StewardExtractInput = {
   authority: 'client_approved',
   asOf: '2026-07-01',
   content: '## Hard limits\nNo direct Hill outreach before October.',
-  refs: [{ ref: 'heading:Hard limits', kind: 'heading', preview: 'No direct Hill outreach before October.' }],
+  refs: [
+    {
+      ref: 'heading:Hard limits',
+      kind: 'heading',
+      preview: 'No direct Hill outreach before October.',
+    },
+  ],
   existingFacts: [
     {
       id: 'fact-aaa',
@@ -86,8 +97,18 @@ describe('StewardExtractService.extract — happy path', () => {
           { fact: 'malformed — no sourceRef', confidence: 0.5, citation: 'x' },
         ],
         conflicts: [
-          { newFactIndex: 0, existingFactId: 'fact-aaa', material: true, rationale: 'windows contradict' },
-          { newFactIndex: 5, existingFactId: 'fact-aaa', material: true, rationale: 'out of range → dropped' },
+          {
+            newFactIndex: 0,
+            existingFactId: 'fact-aaa',
+            material: true,
+            rationale: 'windows contradict',
+          },
+          {
+            newFactIndex: 5,
+            existingFactId: 'fact-aaa',
+            material: true,
+            rationale: 'out of range → dropped',
+          },
         ],
       }),
     );
@@ -122,7 +143,12 @@ describe('StewardExtractService.extract — happy path', () => {
       },
     ]);
     expect(result.conflicts).toEqual([
-      { newFactIndex: 0, existingFactId: 'fact-aaa', material: true, rationale: 'windows contradict' },
+      {
+        newFactIndex: 0,
+        existingFactId: 'fact-aaa',
+        material: true,
+        rationale: 'windows contradict',
+      },
     ]);
   });
 

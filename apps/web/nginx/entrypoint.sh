@@ -27,6 +27,11 @@ escape() {
 CLERK_KEY=$(escape "$CLERK_PUBLISHABLE_KEY")
 API_URL=$(escape "$API_BASE_URL")
 ENV_NAME=$(escape "${APP_ENV:-unknown}")
+# OPTIONAL — deliberately NOT added to the required-var hard-fail above. A task
+# definition predating these vars must still boot; the web app falls back to its
+# built-in OpenFreeMap Positron default when they arrive empty.
+MAP_STYLE=$(escape "${MAP_STYLE_URL:-}")
+MAP_ATTRIBUTION=$(escape "${MAP_STYLE_ATTRIBUTION:-}")
 
 cat > "$OUT" <<EOF
 // Generated at container start by apps/web/nginx/entrypoint.sh.
@@ -35,6 +40,8 @@ window.__CAPIRO_CONFIG__ = Object.freeze({
   clerkPublishableKey: '${CLERK_KEY}',
   apiBaseUrl: '${API_URL}',
   appEnv: '${ENV_NAME}',
+  mapStyleUrl: '${MAP_STYLE}',
+  mapStyleAttribution: '${MAP_ATTRIBUTION}',
 });
 EOF
 

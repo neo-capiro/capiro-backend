@@ -108,8 +108,11 @@ const SOURCES: SourceMeta[] = [
   { key: 'fara', label: 'FARA Filings', description: 'Foreign agent registrations by country/principal.', icon: <GlobalOutlined /> },
   { key: 'sec', label: 'SEC Filings', description: '8-K, 10-Q, S-1 from SEC EDGAR.', icon: <AuditOutlined /> },
   { key: 'sam-opps', label: 'SAM.gov Opportunities', description: 'DoD contract opportunities & solicitations from SAM.gov.', icon: <SolutionOutlined /> },
-  { key: 'federal-awards', label: 'Federal Awards', description: 'USAspending contract award line items — agency, contractor, amount.', icon: <DollarOutlined /> },
-  { key: 'federal-grants', label: 'Federal Grants', description: 'Grants.gov funding opportunities by agency, deadline, ceiling.', icon: <BankOutlined /> },
+  // Source keys are deep-linked — only the labels change here. "Federal Grants"
+  // read as awarded money; this source is Grants.gov OPPORTUNITIES (NOFOs).
+  // Awarded federal assistance is a separate source (Workstream I).
+  { key: 'federal-awards', label: 'Federal Contract Awards (DoD)', description: 'USAspending contract award line items — agency, contractor, amount. DoD scope.', icon: <DollarOutlined /> },
+  { key: 'federal-grants', label: 'Grant Opportunities', description: 'Grants.gov funding opportunities (NOFOs) by agency, deadline, ceiling — not awarded money.', icon: <BankOutlined /> },
   { key: 'state-bills', label: 'State Bills', description: 'State legislation via LegiScan.', icon: <SolutionOutlined /> },
   { key: 'state-legislators', label: 'State Legislators', description: 'State house & senate members by state, chamber, party.', icon: <TeamOutlined /> },
   { key: 'comment-deadlines', label: 'Comment Deadlines', description: 'Open comment periods on federal rules, closing soonest.', icon: <ClockCircleOutlined /> },

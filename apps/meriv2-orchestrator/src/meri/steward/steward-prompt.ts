@@ -88,7 +88,8 @@ export const EMIT_EXTRACTED_FACTS_TOOL = {
     properties: {
       summary: {
         type: 'string',
-        description: 'A 1-2 sentence summary of what was extracted (counts, notable gaps/conflicts).',
+        description:
+          'A 1-2 sentence summary of what was extracted (counts, notable gaps/conflicts).',
       },
       facts: {
         type: 'array',
@@ -240,8 +241,7 @@ export function sanitizeConflicts(
       rationale: typeof c.rationale === 'string' ? c.rationale.slice(0, MAX_CITATION_CHARS) : '',
     }))
     .filter(
-      (c): c is ExtractedConflict =>
-        c.newFactIndex !== undefined && c.existingFactId !== undefined,
+      (c): c is ExtractedConflict => c.newFactIndex !== undefined && c.existingFactId !== undefined,
     )
     .slice(0, MAX_CONFLICTS);
 }
