@@ -123,6 +123,137 @@ export class RepresentationResolverService {
   }
 
   /**
+   * Resolve representation for MANY facilities in a fixed four queries.
+   *
+   * `representativesForFacility` issues four `findMany` calls per facility
+   * inside a `Promise.all`. That is fine for one client's handful of sites and
+   * actively dangerous anywhere else: embedding it in the District Nexus client
+   * payload makes it 4 x N_facilities, and the firm-wide map aggregate would
+   * multiply that again by client count. Holding dozens of pooled connections
+   * open on concurrent short queries is precisely the shape that starved the
+   * Prisma pool during the graph-sync incident, and the reason the District
+   * Nexus service resolves identifiers first and aggregates second.
+   *
+   * So: gather the distinct states once, issue ONE query per rail across all of
+   * them, and do the district matching in memory. Four queries regardless of
+   * whether there is one facility or four hundred.
+   */
+  async representationForFacilities(
+    facilities: FacilityDistrictInput[],
+  ): Promise<RepresentationResult[]> {
+    // Facility state codes are 2-letter; CongressMember.state holds the FULL
+    // name. Translate once and keep both directions.
+    const stateCodes = Array.from(
+      new Set(facilities.map((f) => f.state).filter((s): s is string => !!s)),
+    );
+    const stateNameByCode = new Map<string, string>();
+    for (const code of stateCodes) {
+      const name = resolveStateName(code);
+      if (name) stateNameByCode.set(code, name);
+    }
+    const stateNames = Array.from(new Set(stateNameByCode.values()));
+
+    const memberSelect = {
+      bioguideId: true,
+      fullName: true,
+      party: true,
+      state: true,
+      district: true,
+      chamber: true,
+    } as const;
+    const legislatorSelect = {
+      id: true,
+      name: true,
+      state: true,
+      chamber: true,
+      district: true,
+      party: true,
+      url: true,
+    } as const;
+
+    const [houseRows, senateRows, lowerRows, upperRows] = await Promise.all([
+      stateNames.length
+        ? this.prisma.congressMember.findMany({
+            where: { chamber: 'house', state: { in: stateNames }, isCurrent: true },
+            select: memberSelect,
+          })
+        : Promise.resolve([]),
+      stateNames.length
+        ? this.prisma.congressMember.findMany({
+            where: { chamber: 'senate', state: { in: stateNames }, isCurrent: true },
+            select: memberSelect,
+          })
+        : Promise.resolve([]),
+      stateCodes.length
+        ? this.prisma.stateLegislator.findMany({
+            where: { state: { in: stateCodes }, chamber: 'lower', active: true },
+            select: legislatorSelect,
+          })
+        : Promise.resolve([]),
+      stateCodes.length
+        ? this.prisma.stateLegislator.findMany({
+            where: { state: { in: stateCodes }, chamber: 'upper', active: true },
+            select: legislatorSelect,
+          })
+        : Promise.resolve([]),
+    ]);
+
+    const groupBy = <T>(rows: T[], key: (row: T) => string | null): Map<string, T[]> => {
+      const map = new Map<string, T[]>();
+      for (const row of rows) {
+        const k = key(row);
+        if (!k) continue;
+        const bucket = map.get(k);
+        if (bucket) bucket.push(row);
+        else map.set(k, [row]);
+      }
+      return map;
+    };
+
+    const houseByStateName = groupBy(houseRows, (m) => m.state);
+    const senateByStateName = groupBy(senateRows, (m) => m.state);
+    const lowerByState = groupBy(lowerRows, (l) => l.state);
+    const upperByState = groupBy(upperRows, (l) => l.state);
+
+    return facilities.map((facility) => {
+      if (!facility.state) return { unresolved: true, reason: 'no_state' };
+      if (!isResolvableFacility(facility)) return { unresolved: true, reason: 'no_geocode' };
+
+      const stateName = stateNameByCode.get(facility.state) ?? null;
+
+      // Same at-large semantics as resolveHouse: districtMatchesHouse encodes
+      // the '00' <-> NULL convention, so this is not a plain equality join.
+      const house =
+        facility.congressionalDistrict && stateName
+          ? ((houseByStateName.get(stateName) ?? []).find((m) =>
+              districtMatchesHouse(facility.congressionalDistrict, m.district),
+            ) ?? null)
+          : null;
+
+      const senate = stateName ? (senateByStateName.get(stateName) ?? []) : [];
+
+      const pickChamber = (
+        rows: StateLegislatorSummary[],
+        district: string | null,
+      ): StateLegislatorSummary | null => {
+        if (!district) return null;
+        const target = normalizeDistrictCode(district);
+        if (!target) return null;
+        return rows.find((l) => normalizeDistrictCode(l.district) === target) ?? null;
+      };
+
+      return {
+        unresolved: false,
+        federal: { house, senate },
+        state: {
+          lower: pickChamber(lowerByState.get(facility.state) ?? [], facility.stateHouseDistrict),
+          upper: pickChamber(upperByState.get(facility.state) ?? [], facility.stateSenateDistrict),
+        },
+      };
+    });
+  }
+
+  /**
    * "Who represents your footprint" — every facility for a client, each with
    * its resolved representation. Host for the M1.4 Client Intelligence "Your
    * representatives" block + `GET /api/clients/:clientId/representation`.
@@ -142,12 +273,12 @@ export class RepresentationResolverService {
         orderBy: { createdAt: 'asc' },
       }),
     );
-    return Promise.all(
-      facilities.map(async (f) => ({
-        facility: { id: f.id, name: f.name, city: f.city, state: f.state },
-        representation: await this.representativesForFacility(f),
-      })),
-    );
+    // Batched: four queries for the whole client, not four per facility.
+    const representations = await this.representationForFacilities(facilities);
+    return facilities.map((f, i) => ({
+      facility: { id: f.id, name: f.name, city: f.city, state: f.state },
+      representation: representations[i]!,
+    }));
   }
 
   /**

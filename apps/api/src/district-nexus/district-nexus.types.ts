@@ -170,6 +170,26 @@ export interface DistrictNexusDistrictSummary {
   clientCount: number;
   /** 0-100, rounded. Null when there is too little evidence to score honestly. */
   score: number | null;
+  /**
+   * Share of total scoring weight backed by determinate evidence, 0-100.
+   *
+   * Required, not optional: the map offers "coverage" as a choropleth metric and
+   * the drawer renders a coverage pill, so a summary without it makes two of the
+   * six colour-by options unbuildable. It is also the only way to read a null
+   * `score` correctly — null at 12% coverage means "we don't know yet", which is
+   * a different fact from a genuinely weak nexus.
+   */
+  coveragePercent: number;
+  /**
+   * Employees across this client's facilities in the district.
+   *
+   * Null means "no figure", which is NOT zero — a facility with an unreported
+   * headcount must never render as 0 employees. `employeesUnreported` says
+   * whether any contributing facility withheld a count, so the UI can show
+   * "420+" rather than implying the number is complete.
+   */
+  employeeCount: number | null;
+  employeesUnreported: boolean;
   warnings: DataQualityWarning[];
 }
 

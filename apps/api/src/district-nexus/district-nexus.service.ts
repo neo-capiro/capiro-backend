@@ -213,14 +213,25 @@ export class DistrictNexusService {
    * silently blending them — the aggregation layer downgrades a district's
    * evidence strength when any of its money came from recipient location.
    *
-   * UEI is matched bare (not upper(...)) so the btree index applies; the same
-   * reasoning as searchAssistanceRecipients.
+   * Both predicates are index-driven, which took a migration to make true.
+   * UEI is matched bare (not upper(...)) so `faa_recipient_uei_idx` applies.
+   * Names are matched on lower(...) against `faa_recipient_name_lower_idx`
+   * (20260801010000): the pre-existing index on that column is a GIN trigram
+   * built for similarity search, which an equality predicate cannot use, so a
+   * bare `recipient_name = ANY(...)` seq-scanned the largest new table. The
+   * lower() form also fixes a silent recall bug — USAspending returns recipient
+   * names uppercase while ClientIntelMapping.externalName is operator-entered,
+   * so a case-sensitive join dropped real awards and read as "no assistance
+   * awards for this client".
    */
   private async aggregateAssistance(
     recipientUeis: string[],
     recipientNames: string[],
   ): Promise<AssistanceDistrictRow[]> {
     if (!recipientUeis.length && !recipientNames.length) return [];
+    // Lowercased here so the predicate matches the expression the index is
+    // built on; an unlowered value would silently fall back to a scan.
+    const lowerNames = recipientNames.map((n) => n.toLowerCase());
     const rows = await this.prisma.$queryRaw<
       Array<{
         state: string | null;
@@ -243,7 +254,7 @@ export class DistrictNexusService {
              COALESCE(SUM(total_outlayed_amount), 0)::float8 AS total_outlayed
       FROM federal_assistance_award
       WHERE recipient_uei = ANY(${recipientUeis}::text[])
-         OR recipient_name = ANY(${recipientNames}::text[])
+         OR lower(recipient_name) = ANY(${lowerNames}::text[])
       GROUP BY 1, 2, 3
     `;
     return rows.map((r) => ({
