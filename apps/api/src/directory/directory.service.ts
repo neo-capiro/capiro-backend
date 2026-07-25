@@ -13,7 +13,7 @@ import type { TenantContext } from '@capiro/shared';
 import type { AppConfig } from '../config/config.schema.js';
 import { PrismaService } from '../prisma/prisma.service.js';
 import { matchFacilityDistrictCode } from '../common/district-code.util.js';
-import { manifestKey, type BoundaryManifest } from './boundary-artifact.util.js';
+import { manifestKey, artifactKey, type BoundaryManifest } from './boundary-artifact.util.js';
 import { FEC_DISCLAIMER } from '../intelligence/fec-disclaimer.js';
 import { RepresentationResolverService } from '../clients/representation-resolver.service.js';
 import {
@@ -2229,9 +2229,11 @@ export class DirectoryService implements OnModuleInit {
     status: 'C' | 'F',
   ): Promise<{ gzipped: Buffer; hash: string; districtCount: number }> {
     const manifest = await this.getBoundaryManifest(status);
-    const out = await this.s3.send(
-      new GetObjectCommand({ Bucket: this.bucket, Key: manifest.artifactKey }),
-    );
+    // Recomputed rather than read off the manifest: the key is content-addressed
+    // from exactly these three values, so deriving it here keeps the bucket
+    // layout out of a browser-facing document without adding a lookup.
+    const key = artifactKey(status, manifest.vintage, manifest.hash);
+    const out = await this.s3.send(new GetObjectCommand({ Bucket: this.bucket, Key: key }));
     if (!out.Body) {
       // Manifest present but artifact gone: the pointer is dangling, which is a
       // storage inconsistency rather than a "not built yet".

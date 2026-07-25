@@ -190,7 +190,13 @@ async function buildFutureRail(
       }
       kmlText = await out.Body.transformToString();
     } catch (error) {
-      warnings.push(`${row.id}: could not read boundary from storage (${String(error)})`);
+      // Only the error's name is surfaced. Warnings ride along in the manifest,
+      // which is served to the browser, and a raw AWS SDK error stringifies to
+      // include bucket, key, region and request ids.  The full error still goes
+      // to the task log, where it is safe and actually useful.
+      const kind = error instanceof Error ? error.name : 'UnknownError';
+      warnings.push(`${row.id}: could not read boundary from storage (${kind})`);
+      console.error(`[${SYNC_SOURCE}] read failed for ${row.id}`, error);
       continue;
     }
 
@@ -261,7 +267,6 @@ function prepareArtifact(rail: RailResult): {
       districtCount: rail.features.length,
       source: rail.source,
       hash,
-      artifactKey: key,
       gzipBytes: body.byteLength,
       warnings: rail.warnings,
     },
@@ -297,6 +302,39 @@ async function publishArtifact(
       ContentType: 'application/json',
       CacheControl: 'no-cache',
     }),
+  );
+}
+
+/**
+ * Floors for a *national current* rail. The House has had 435 seats since 1913
+ * and every state returns at least one member, so a national current build that
+ * comes back materially short is a truncated Census download, not a redrawn
+ * map. Publishing it would blank real districts in the UI while looking like a
+ * successful run — the artifact is content-addressed, so a short build cleanly
+ * overwrites the pointer and the failure is invisible until someone notices
+ * missing districts.
+ */
+const MIN_NATIONAL_DISTRICTS = 400;
+const MIN_NATIONAL_STATES = 50;
+
+/**
+ * Returns a refusal reason, or null if the rail is publishable.
+ *
+ * Exempt by design:
+ *   - `--states=` runs, which are deliberately partial;
+ *   - the future rail, which only covers districts LegiStorm has an enacted
+ *     map for and is legitimately a handful of rows most of the year.
+ */
+function railRefusal(rail: RailResult, scopedToStates: boolean): string | null {
+  if (rail.status !== 'C' || scopedToStates) return null;
+  const states = new Set(rail.features.map((f) => f.properties.state));
+  if (rail.features.length >= MIN_NATIONAL_DISTRICTS && states.size >= MIN_NATIONAL_STATES) {
+    return null;
+  }
+  return (
+    `national current rail has ${rail.features.length} districts across ${states.size} states, ` +
+    `below the ${MIN_NATIONAL_DISTRICTS}-district / ${MIN_NATIONAL_STATES}-state floor — ` +
+    `refusing to publish a partial national map`
   );
 }
 
@@ -373,6 +411,17 @@ async function main(): Promise<void> {
       for (const w of rail.warnings) console.warn(`[${SYNC_SOURCE}] WARN ${rail.status}: ${w}`);
     }
 
+    // Computed before the dry-run branch on purpose: the dry run is exactly
+    // where you want to discover that the national rail came back short.
+    const refusals = new Map<RailResult, string>();
+    for (const { rail } of prepared) {
+      const refusal = railRefusal(rail, Boolean(options.states));
+      if (refusal) refusals.set(rail, refusal);
+    }
+    for (const [rail, refusal] of refusals) {
+      console.error(`[${SYNC_SOURCE}] REFUSED ${rail.status}: ${refusal}`);
+    }
+
     if (!options.commit) {
       console.log(
         `[${SYNC_SOURCE}] DRY RUN — nothing written to S3 or the database. Pass --commit to publish.`,
@@ -387,11 +436,21 @@ async function main(): Promise<void> {
       SYNC_SOURCE,
       async () => {
         let updated = 0;
+        // Refusals and empty rails are errors, not skips. `skipped` reads as
+        // "nothing to do here" in the sync-run ledger and would let a refused
+        // national build show up as a green run.
+        let errors = 0;
         for (const { rail, artifact } of prepared) {
+          const refusal = refusals.get(rail);
+          if (refusal) {
+            errors += 1;
+            continue;
+          }
           if (rail.features.length === 0) {
-            console.warn(
+            console.error(
               `[${SYNC_SOURCE}] status ${rail.status} produced zero features — not publishing an empty artifact.`,
             );
+            errors += 1;
             continue;
           }
           await publishArtifact(s3, bucket, artifact, rail.status);
@@ -414,7 +473,7 @@ async function main(): Promise<void> {
             updated += 1;
           }
         }
-        return { inserted: 0, updated, skipped: 0, errors: 0 };
+        return { inserted: 0, updated, skipped: 0, errors };
       },
     );
   } finally {

@@ -77,8 +77,15 @@ export interface BoundaryManifest {
   districtCount: number;
   source: BoundarySource;
   hash: string;
-  /** S3 key of the artifact this manifest points at. */
-  artifactKey: string;
+  /**
+   * Deliberately absent: the artifact's S3 key.
+   *
+   * The manifest is served to the browser, and the key exposes our bucket
+   * layout for no caller benefit. It is fully derivable server-side from the
+   * three fields above via `artifactKey(status, vintage, hash)` — see
+   * DirectoryService.getBoundaryArtifact — so publishing it bought nothing
+   * and leaked structure.
+   */
   /** Byte length of the gzipped artifact, so the API can set Content-Length. */
   gzipBytes: number;
   warnings: string[];
