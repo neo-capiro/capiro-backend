@@ -1,0 +1,23 @@
+-- Import-path identity lookup for client_people.
+--
+-- Meri's update_client_profile (and the contact import that follows it) used to
+-- APPEND every person in people[] unconditionally — the tool contract said so
+-- explicitly. Enrichment is re-run constantly (research a client again, re-sync
+-- mail), so each re-run duplicated every contact: enrich a client twice and the
+-- same person appears twice on the People tab.
+--
+-- The fix is a merge on (tenant, client, email) in
+-- ClientPeopleService.upsertPersonForImport. This index is what makes that
+-- lookup cheap.
+--
+-- NOT a unique index, on purpose: tenants that already ran the append-only
+-- import hold duplicate rows today, and a UNIQUE build would simply fail on a
+-- live database. Deduplicating would mean DELETEing rows a user can see, which
+-- is not something a schema migration should do unasked. The application-level
+-- merge plus the atomic consumedAt claim in MeriApprovalService (one approval
+-- can only execute once) are the guards. Promote to UNIQUE in a later
+-- migration once existing duplicates have been reconciled deliberately.
+--
+-- Safe on a live database: adds one index, rewrites no rows, drops nothing.
+CREATE INDEX IF NOT EXISTS "client_people_tenant_client_email_idx"
+  ON "client_people" ("tenant_id", "client_id", "email");

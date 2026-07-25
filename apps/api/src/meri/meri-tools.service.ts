@@ -458,8 +458,13 @@ export const TOOL_DEFINITIONS = [
       'organization offers: name, type, description, sector), and people (key contacts / ' +
       'personnel: name, title, email, phone, role, lastContact, notes) discovered on the ' +
       "client's website or in filings -- pass them as the facilities[], capabilities[], and " +
-      'people[] arrays. Each facility/capability/person in those arrays is APPENDED (new rows), ' +
-      'never used to delete existing ones. Only call this AFTER you have shown the user the ' +
+      'people[] arrays. These arrays are MERGED, never used to delete existing rows: a person ' +
+      'already on the profile (matched on email, else exact name) is updated in place — blank ' +
+      'fields are filled and lastContact advances, but values already there are left alone — ' +
+      'and a facility/capability whose name is already present is skipped. Re-running enrichment ' +
+      'is therefore safe and will NOT duplicate rows; the result reports peopleCreated, ' +
+      'peopleUpdated, and skipped separately, so report what actually changed rather than ' +
+      'assuming every row you sent was new. Only call this AFTER you have shown the user the ' +
       'proposed values (ideally ' +
       'with a source for each, e.g. from search_public_web / scrape_web_page / LDA filings) and ' +
       'they have approved them. Pass only the fields/rows you are changing. Requires user approval.',
@@ -6509,26 +6514,63 @@ export class MeriToolsService {
       clientName = updated.name;
     }
 
-    // Append facilities, then capabilities, then people. Each create is
+    // Merge facilities, then capabilities, then people. Each write is
     // tenant-scoped and 404s outside the tenant, so a bad clientId can't cross
-    // tenants. We collect per-row outcomes so a single bad row (e.g. invalid
-    // district) doesn't abort the whole import; the model can relay failures
-    // back to the user.
+    // tenants. We collect per-row outcomes so a single bad row (e.g. an invalid
+    // district) doesn't abort the whole import; the model relays failures back.
+    //
+    // IDEMPOTENT by design. This used to create unconditionally, and enrichment
+    // is re-run constantly (research the client again, re-sync mail), so every
+    // re-run duplicated every row — enrich a client twice and Jason Hay appears
+    // twice, "Space Analytics" appears twice. Existing rows are matched and
+    // either merged (people) or skipped (capabilities/facilities, whose shape is
+    // curated by hand and should not be silently rewritten by a scrape).
     const facilitiesCreated: string[] = [];
     const capabilitiesCreated: string[] = [];
     const peopleCreated: string[] = [];
+    const peopleUpdated: string[] = [];
+    const skipped: string[] = [];
     const rowErrors: string[] = [];
+
+    const norm = (s: string) => s.trim().toLowerCase();
+    const [existingFacilities, existingCapabilities] = await this.prisma.withTenant(
+      ctx.tenantId,
+      async (tx) =>
+        Promise.all([
+          tx.clientFacility.findMany({
+            where: { tenantId: ctx.tenantId, clientId },
+            select: { name: true },
+          }),
+          tx.clientCapability.findMany({
+            where: { tenantId: ctx.tenantId, clientId },
+            select: { name: true },
+          }),
+        ]),
+    );
+    const facilityNames = new Set(existingFacilities.map((r) => norm(r.name)));
+    const capabilityNames = new Set(existingCapabilities.map((r) => norm(r.name)));
+
     for (const f of facilityInputs) {
+      if (facilityNames.has(norm(f.name))) {
+        skipped.push(`facility "${f.name}" (already on the profile)`);
+        continue;
+      }
       try {
         const created = await this.clientFacilities.createFacility(ctx, clientId, f);
+        facilityNames.add(norm(created.name));
         facilitiesCreated.push(created.name);
       } catch (err) {
         rowErrors.push(`facility "${f.name}": ${(err as Error).message}`);
       }
     }
     for (const c of capabilityInputs) {
+      if (capabilityNames.has(norm(c.name))) {
+        skipped.push(`capability "${c.name}" (already on the profile)`);
+        continue;
+      }
       try {
         const created = await this.clientCapabilities.createCapability(ctx, clientId, c);
+        capabilityNames.add(norm(created.name));
         capabilitiesCreated.push(created.name);
       } catch (err) {
         rowErrors.push(`capability "${c.name}": ${(err as Error).message}`);
@@ -6536,8 +6578,8 @@ export class MeriToolsService {
     }
     for (const p of peopleInputs) {
       try {
-        const created = await this.clientPeople.createPerson(ctx, clientId, p);
-        peopleCreated.push(created.name);
+        const { person, created } = await this.clientPeople.upsertPersonForImport(ctx, clientId, p);
+        (created ? peopleCreated : peopleUpdated).push(person.name);
       } catch (err) {
         rowErrors.push(`person "${p.name}": ${(err as Error).message}`);
       }
@@ -6553,6 +6595,8 @@ export class MeriToolsService {
       facilitiesCreated,
       capabilitiesCreated,
       peopleCreated,
+      peopleUpdated,
+      skipped,
       rowErrors,
     };
   }

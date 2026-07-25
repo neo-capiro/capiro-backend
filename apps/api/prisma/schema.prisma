@@ -2108,6 +2108,17 @@ model ClientPerson {
   client Client @relation(fields: [clientId], references: [id], onDelete: Cascade)
 
   @@index([tenantId, clientId], map: "client_people_tenant_client_idx")
+  // Import-path identity lookup: Meri's update_client_profile and the contact
+  // import merge on (tenant, client, email) rather than appending blindly, so
+  // re-running enrichment stops duplicating every contact.
+  //
+  // Deliberately NOT @@unique. Tenants that ran the old append-only import
+  // already hold duplicate rows, and a unique index would fail to build on a
+  // live database — the merge in ClientPeopleService.upsertPersonForImport is
+  // the guard, backed by the atomic consumedAt claim in MeriApprovalService
+  // that stops one approval executing twice. Promote to unique once existing
+  // duplicates have been reconciled.
+  @@index([tenantId, clientId, email], map: "client_people_tenant_client_email_idx")
   @@map("client_people")
 }
 
