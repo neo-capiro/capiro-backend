@@ -232,3 +232,119 @@ describe('buildClientNexusResponse', () => {
     expect(buildClientNexusResponse(rich).generatedAt).toBe(GENERATED_AT);
   });
 });
+
+/**
+ * The client roll-up pools evidence across districts and scores it once.
+ *
+ * These are the only automated protection this behaviour has — CI runs no
+ * apps/api jest at all (ci-pr.yml is typecheck plus four unrelated package
+ * suites), so a regression here reaches capiro-dev unchallenged.
+ */
+describe('client roll-up pools evidence rather than averaging district scores', () => {
+  /** One well-evidenced district plus several thin contract-only ones. */
+  const lopsided = inputs({
+    contracts: [
+      { state: 'TX', district: '23', awardCount: 2, totalAmount: 30_000_000 },
+      { state: 'VA', district: '11', awardCount: 1, totalAmount: 400_000 },
+      { state: 'CA', district: '12', awardCount: 1, totalAmount: 300_000 },
+      { state: 'NY', district: '10', awardCount: 1, totalAmount: 200_000 },
+      { state: 'OH', district: '03', awardCount: 1, totalAmount: 100_000 },
+    ],
+    facilities: [{ state: 'TX', districtCode: '23', employeeCount: 420 }],
+  });
+
+  test('a strong district is not diluted by six incidental ones', () => {
+    const response = buildClientNexusResponse(lopsided);
+    // Facility 25 + employees 20 + contract 10 = 55, all pooled at full strength.
+    expect(response.score).toBe(55);
+    // The mean of the per-district scores would be far lower, and most of those
+    // districts do not even have a score to average.
+    const scored = response.districts.filter((d) => d.score != null);
+    expect(scored.length).toBeLessThan(response.districts.length);
+  });
+
+  test('award-only districts still pool to null, never to zero', () => {
+    const awardOnly = inputs({
+      contracts: [
+        { state: 'TX', district: '23', awardCount: 1, totalAmount: 5_000_000 },
+        { state: 'VA', district: '11', awardCount: 1, totalAmount: 4_000_000 },
+        { state: 'CA', district: '12', awardCount: 1, totalAmount: 3_000_000 },
+      ],
+    });
+    const response = buildClientNexusResponse(awardOnly);
+    // Contract place-of-performance alone is 10 of 100 weight — below the 15%
+    // coverage floor, so the honest answer is "unknown", not a low number.
+    expect(response.coveragePercent).toBe(10);
+    expect(response.score).toBeNull();
+    expect(response.score).not.toBe(0);
+  });
+
+  test('adding evidence never lowers the client score (monotonicity)', () => {
+    const before = buildClientNexusResponse(lopsided).score;
+    const after = buildClientNexusResponse(
+      inputs({
+        ...lopsided,
+        // A second facility in a previously contract-only district: strictly more
+        // verified evidence than `lopsided` had.
+        facilities: [
+          { state: 'TX', districtCode: '23', employeeCount: 420 },
+          { state: 'VA', districtCode: '11', employeeCount: 12 },
+        ],
+      }),
+    ).score;
+    expect(before).not.toBeNull();
+    expect(after).not.toBeNull();
+    expect(after as number).toBeGreaterThanOrEqual(before as number);
+  });
+
+  test('a degraded basis in one district is not laundered by a stronger one', () => {
+    const mixed = inputs({
+      assistance: [
+        {
+          state: 'TX',
+          district: '23',
+          basis: 'place_of_performance',
+          awardCount: 1,
+          totalObligated: 5_000_000,
+          totalOutlayed: 1_000_000,
+        },
+        {
+          state: 'VA',
+          district: '11',
+          basis: 'recipient_location',
+          awardCount: 1,
+          totalObligated: 2_000_000,
+          totalOutlayed: 500_000,
+        },
+      ],
+      facilities: [{ state: 'TX', districtCode: '23', employeeCount: 100 }],
+    });
+    const response = buildClientNexusResponse(mixed);
+    const grant = response.breakdown.find((b) => b.component === 'grantPlaceOfPerformance');
+    // Weakest-basis-wins: half of the 10-point weight, not the full 10 the
+    // place-of-performance district alone would have earned.
+    expect(grant?.credit).toBe(5);
+    expect(response.warnings.some((w) => w.code === 'recipient_location_fallback')).toBe(true);
+  });
+
+  test('the client breakdown explains the client score, not one district', () => {
+    const response = buildClientNexusResponse(lopsided);
+    const credited = response.breakdown.reduce((s, b) => s + b.credit, 0);
+    expect(Math.round(credited)).toBe(response.score);
+    expect(response.breakdown.reduce((s, b) => s + b.weight, 0)).toBe(100);
+  });
+
+  test('bestDistrictKey keeps the strongest-district signal as a fact', () => {
+    expect(buildClientNexusResponse(lopsided).bestDistrictKey).toBe('TX-23');
+    // Null when nothing cleared the coverage floor — not an arbitrary district.
+    expect(buildClientNexusResponse(inputs()).bestDistrictKey).toBeNull();
+  });
+
+  test('strongestDrivers is surfaced instead of being computed and discarded', () => {
+    const response = buildClientNexusResponse(lopsided);
+    expect(response.strongestDrivers.length).toBeGreaterThan(0);
+    expect(response.strongestDrivers.every((d) => d.credit > 0)).toBe(true);
+    const credits = response.strongestDrivers.map((d) => d.credit);
+    expect([...credits].sort((a, b) => b - a)).toEqual(credits);
+  });
+});

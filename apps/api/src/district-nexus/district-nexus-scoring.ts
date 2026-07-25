@@ -155,8 +155,44 @@ export interface NexusScoreResult {
   warnings: DataQualityWarning[];
 }
 
-const DEFAULT_MIN_COVERAGE_PERCENT = 15;
+/**
+ * Exported so the API and its web mirror can *display* the floor they are held
+ * to rather than hardcoding a second copy of 15 that drifts.
+ */
+export const DEFAULT_MIN_COVERAGE_PERCENT = 15;
 const MAX_STRONGEST_DRIVERS = 3;
+
+/**
+ * Strengths ordered weakest-first by credit multiplier.
+ *
+ * `recipientLocation` and `inferred` share a multiplier (0.5), so their relative
+ * order cannot change any score — it is fixed here only so that combining them
+ * is deterministic, and `recipientLocation` is listed first because a geographic
+ * fallback is the more specific claim to warn about.
+ */
+const STRENGTH_ORDER: readonly EvidenceStrength[] = [
+  'absent',
+  'statewide',
+  'recipientLocation',
+  'inferred',
+  'sourceAuthoritative',
+  'verified',
+];
+
+/**
+ * The weaker of two strengths.
+ *
+ * Used when the same component is evidenced at different qualities across
+ * several districts and has to be collapsed into one client-level claim. It
+ * takes the weaker deliberately: if one district's grant geography came from
+ * recipient location, the client-level grant claim is no longer purely
+ * place-of-performance evidence, and reporting the stronger of the two would
+ * launder a degraded basis into a full-weight one. This is the same rule
+ * `foldDistricts` already applies to `assistanceBasis` within a single district.
+ */
+export function weakerStrength(a: EvidenceStrength, b: EvidenceStrength): EvidenceStrength {
+  return STRENGTH_ORDER.indexOf(a) <= STRENGTH_ORDER.indexOf(b) ? a : b;
+}
 
 const TOTAL_WEIGHT = Object.values(NEXUS_COMPONENT_WEIGHTS).reduce((sum, w) => sum + w, 0);
 

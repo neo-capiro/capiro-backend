@@ -12,13 +12,70 @@ import type { ClientDistrictNexusResponse, SourceFreshness } from './district-ne
 /**
  * The source rails whose watermarks are surfaced to the UI, so it can say
  * "contracts current to 3 Jul" rather than implying everything is live.
+ *
+ * `id` is the ingestion verb (stable, what the UI keys on). `syncSource` is the
+ * value that job actually writes to `sync_run.source` — these differ more often
+ * than you would expect, and every one below was read off the job rather than
+ * assumed:
+ *
+ *   sync-federal-award              -> 'usaspending_federal_award'   (:110)
+ *   sync-federal-assistance-awards  -> 'sync-federal-assistance-awards'
+ *   sync-grants                     -> 'sync-grants'
+ *   sync-legistorm-districts        -> SYNC_SOURCE 'sync-legistorm-districts'
+ *   geocode-facilities              -> 'geocode-facilities'
+ *   build-district-boundary-artifacts -> SYNC_SOURCE (same string)
+ *   sync-congress-members           -> 'sync-congress-members'
+ *   sync-census                     -> NONE; the job records no SyncRun at all
+ *
+ * The eight rails and their labels are fixed by the UI prototype, which is the
+ * binding spec for this strip (docs/district-nexus/prototype/sample-data.js).
  */
-const FRESHNESS_SOURCES = [
-  'federal_award',
-  'federal_assistance_award',
-  'grants_gov',
-  'legistorm_districts',
-] as const;
+interface FreshnessRail {
+  id: string;
+  /** null when the job writes no SyncRun, so freshness is unknowable here. */
+  syncSource: string | null;
+  label: string;
+}
+
+const FRESHNESS_RAILS: readonly FreshnessRail[] = [
+  {
+    id: 'geocode-facilities',
+    syncSource: 'geocode-facilities',
+    label: 'Client facilities and geocoding',
+  },
+  {
+    id: 'sync-federal-award',
+    syncSource: 'usaspending_federal_award',
+    label: 'Federal contract awards (DoD prime only)',
+  },
+  {
+    id: 'sync-federal-assistance-awards',
+    syncSource: 'sync-federal-assistance-awards',
+    label: 'Federal assistance awards',
+  },
+  { id: 'sync-grants', syncSource: 'sync-grants', label: 'Grant opportunities' },
+  {
+    id: 'sync-legistorm-districts',
+    syncSource: 'sync-legistorm-districts',
+    label: 'District metadata (LegiStorm)',
+  },
+  { id: 'sync-census', syncSource: null, label: 'District demographics (ACS 5-year)' },
+  {
+    id: 'build-district-boundary-artifacts',
+    syncSource: 'build-district-boundary-artifacts',
+    label: 'Boundary artifact (Census cartographic, 119th)',
+  },
+  { id: 'sync-congress-members', syncSource: 'sync-congress-members', label: 'Members of Congress' },
+];
+
+/**
+ * Both statuses that mean "the run completed and its watermark is real".
+ * `runWithSyncRun` downgrades to success_with_errors on any per-row error
+ * (statusFromCounts, ingestion/embed-watermark.ts:40), so filtering to 'success'
+ * alone reports a rail that synced 40,000 rows and hit one bad record as though
+ * it had never run.
+ */
+const FRESH_STATUSES = ['success', 'success_with_errors'] as const;
 
 /**
  * District Nexus v2 aggregation (Rev 2 plan, Workstream E).
@@ -241,32 +298,45 @@ export class DistrictNexusService {
    * "fresh".
    */
   private async readFreshness(): Promise<SourceFreshness[]> {
+    const uninstrumented = (rail: FreshnessRail): SourceFreshness => ({
+      source: rail.id,
+      label: rail.label,
+      lastSyncedAt: null,
+      neverSynced: false,
+      freshnessUnavailable: true,
+    });
+
+    const queryable = FRESHNESS_RAILS.filter((r) => r.syncSource !== null);
+
     try {
       const rows = await this.prisma.$queryRaw<Array<{ source: string; finished_at: Date | null }>>`
         SELECT DISTINCT ON (source) source, finished_at
         FROM sync_run
-        WHERE source = ANY(${[...FRESHNESS_SOURCES]}::text[])
-          AND status = 'success'
+        WHERE source = ANY(${queryable.map((r) => r.syncSource as string)}::text[])
+          AND status = ANY(${[...FRESH_STATUSES]}::text[])
         ORDER BY source, started_at DESC
       `;
       const bySource = new Map(rows.map((r) => [r.source, r.finished_at]));
-      return FRESHNESS_SOURCES.map((source) => {
-        const finishedAt = bySource.get(source) ?? null;
+      return FRESHNESS_RAILS.map((rail) => {
+        if (rail.syncSource === null) return uninstrumented(rail);
+        const finishedAt = bySource.get(rail.syncSource) ?? null;
         return {
-          source,
+          source: rail.id,
+          label: rail.label,
           lastSyncedAt: finishedAt ? finishedAt.toISOString() : null,
           neverSynced: !finishedAt,
         };
       });
     } catch (error) {
       // Freshness is decoration, not correctness. Losing it must not fail the
-      // whole response — but it is reported as unknown, never as current.
+      // whole response — but it is reported as UNKNOWN, never as current, and
+      // never as never-synced (which would be a claim we cannot support).
       this.logger.warn(
-        `freshness read failed; reporting all sources as unknown: ${
+        `freshness read failed; reporting all rails as unknown: ${
           error instanceof Error ? error.message : String(error)
         }`,
       );
-      return FRESHNESS_SOURCES.map((source) => ({ source, lastSyncedAt: null, neverSynced: true }));
+      return FRESHNESS_RAILS.map(uninstrumented);
     }
   }
 }

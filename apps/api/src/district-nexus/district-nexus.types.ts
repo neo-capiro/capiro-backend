@@ -41,10 +41,28 @@ export type DistrictKey = string;
  * than implying everything is live.
  */
 export interface SourceFreshness {
+  /**
+   * Stable rail identifier — the ingestion verb name, which is what the UI keys
+   * and deep-links on. NOT necessarily the `sync_run.source` value: several jobs
+   * record a different source string than their verb (e.g. the contract rail's
+   * verb is `sync-federal-award` but it writes `usaspending_federal_award`).
+   */
   source: string;
+  /** Operator-readable rail name for the freshness strip. */
+  label: string;
   lastSyncedAt: IsoTimestamp | null;
   /** True when the source has never completed a successful run. */
   neverSynced: boolean;
+  /**
+   * True when this rail's job records no SyncRun at all, so its freshness is
+   * genuinely UNKNOWN rather than absent.
+   *
+   * This is not pedantry: `sync-census` populates census_district but writes no
+   * SyncRun row, so reporting it as `neverSynced` would state "this never ran"
+   * about a rail that demonstrably has. Unknown and never-run are different
+   * facts and the UI must not render them the same way.
+   */
+  freshnessUnavailable?: boolean;
 }
 
 export type DataQualityWarningCode =
@@ -178,10 +196,26 @@ export interface ClientDistrictNexusResponse {
   awarded: AwardedFunding;
   opportunities: OpportunityFunding;
   unmapped: UnmappedFunding;
-  /** Overall client score, or null when coverage is too thin to claim one. */
+  /**
+   * Overall client score, or null when coverage is too thin to claim one.
+   *
+   * This is a FOOTPRINT score: it pools evidence across every district the
+   * client touches, so it answers "how well-evidenced is this client's district
+   * footprint" and is NOT a claim about any single district. Per-district truth
+   * is in `districts[]`. See `poolEvidence` in district-nexus.aggregate.ts.
+   */
   score: number | null;
+  /**
+   * The client's strongest single district, or null when none scored above the
+   * coverage floor. Kept as a fact because it is the useful headline for a firm
+   * with one deep district and several incidental ones — but deliberately not
+   * used AS the client score.
+   */
+  bestDistrictKey: DistrictKey | null;
   coveragePercent: number;
   breakdown: NexusScoreBreakdown[];
+  /** Highest-credit components first, zero-credit excluded. Powers "why this score". */
+  strongestDrivers: NexusScoreBreakdown[];
   freshness: SourceFreshness[];
   warnings: DataQualityWarning[];
   generatedAt: IsoTimestamp;
