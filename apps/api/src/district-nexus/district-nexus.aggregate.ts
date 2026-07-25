@@ -14,6 +14,7 @@
 import { districtCodeForHouseMatch, normalizeDistrictCode } from '../common/district-code.util.js';
 import {
   scoreNexus,
+  weakerStrength,
   type NexusComponentEvidence,
   type NexusComponentKey,
   type EvidenceStrength,
@@ -103,7 +104,7 @@ export function isStatewide(state: string | null, district: string | null): bool
   return districtCodeForHouseMatch(district) === null && normalizeDistrictCode(district) !== null;
 }
 
-interface DistrictAccumulator {
+export interface DistrictAccumulator {
   districtKey: DistrictKey;
   state: string;
   districtCode: string;
@@ -276,6 +277,81 @@ export function evidenceForDistrict(
   return components;
 }
 
+/**
+ * Union one client's per-district evidence into a single client-level view.
+ *
+ * ── Why pooling, and not an average of the per-district scores ───────────────
+ *
+ * The 0-100 scale is "credited share of a fixed 100 evidence-weight points",
+ * and the ONLY thing implementing "missing data is never a verified zero" is the
+ * coverage floor inside `scoreNexus` — below it the score is null. An award-only
+ * district covers 10% and therefore scores null, and that is the common district
+ * shape, not an edge case. So any average has to take a position on nulls, and
+ * every available position is wrong:
+ *
+ *   - null treated as 0 converts "we refused to score this honestly" into a
+ *     verified zero, and does so more confidently the thinner the evidence gets.
+ *   - Skipping nulls breaks monotonicity: adding a facility to a thin district
+ *     flips it from null to a low number and DROPS the client average, so more
+ *     verified evidence produces a worse score.
+ *   - An average over no scored districts is NaN or 0, and 0 is a verified zero.
+ *
+ * Independently fatal: `coveragePercent` cannot be averaged meaningfully, so an
+ * averaged score has no coverage figure, so the floor cannot be applied at all —
+ * rule 1 would have to be reimplemented outside the module that owns it. And a
+ * mean-of-shares is not on the module's scale, so the score bands would be
+ * applied to a quantity they were never calibrated against.
+ *
+ * Pooling calls `scoreNexus` exactly once on evidence unioned across districts.
+ * Rule 1 is then enforced by the existing, tested mechanism unmodified, the
+ * score is monotone non-decreasing in evidence, and `coveragePercent`,
+ * `breakdown` and `strongestDrivers` become genuinely client-level — previously
+ * they were computed from a single district's evidence while being labelled
+ * client-level, which was a live honesty bug.
+ *
+ * ── The two hazards pooling introduces, and how they are handled ────────────
+ *
+ * 1. Strength laundering. Presence pools optimistically (a component is present
+ *    if ANY district has it — a true statement about the client), but strength
+ *    pools PESSIMISTICALLY: the weakest strength among the districts that
+ *    actually have that component. Taking the strongest would turn a
+ *    recipient-location-only grant into full-weight place-of-performance
+ *    evidence. This mirrors the weakest-basis rule `foldDistricts` already
+ *    applies within a single district.
+ *
+ * 2. Non-co-location. A facility in TX-23 plus a grant in CA-27 pool to credit
+ *    that exists in no single district. The pooled number is therefore a
+ *    FOOTPRINT score — "how well-evidenced is this client's district footprint"
+ *    — and not a claim about any one district. Per-district truth stays in
+ *    `districts[]`, and `bestDistrictKey` names the strongest single district.
+ */
+export function poolEvidence(
+  accumulators: DistrictAccumulator[],
+): Partial<Record<NexusComponentKey, NexusComponentEvidence>> {
+  const pooled: Partial<Record<NexusComponentKey, NexusComponentEvidence>> = {};
+
+  for (const acc of accumulators) {
+    for (const [key, evidence] of Object.entries(evidenceForDistrict(acc)) as Array<
+      [NexusComponentKey, NexusComponentEvidence]
+    >) {
+      const existing = pooled[key];
+      if (!existing) {
+        pooled[key] = { ...evidence };
+        continue;
+      }
+      existing.strength = weakerStrength(existing.strength, evidence.strength);
+      const count = (existing.evidenceCount ?? 0) + (evidence.evidenceCount ?? 0);
+      if (count > 0) existing.evidenceCount = count;
+      // Opportunity-only survives only while EVERY contributing district is
+      // opportunity-only. One district with awarded money makes the client-level
+      // claim awarded-backed.
+      existing.opportunityOnly = existing.opportunityOnly === true && evidence.opportunityOnly === true;
+    }
+  }
+
+  return pooled;
+}
+
 function awardedOf(acc: DistrictAccumulator): AwardedFunding {
   return {
     contractObligations: acc.contractObligations,
@@ -333,16 +409,12 @@ export function buildClientNexusResponse(
     return (b.awarded.contractObligations ?? 0) - (a.awarded.contractObligations ?? 0);
   });
 
-  // The client-level roll-up scores the client's BEST district rather than an
-  // average: a firm with one deeply-rooted district and six incidental ones has
-  // a strong nexus somewhere, and averaging would hide it.
-  const best = districts.find((d) => d.score != null);
-  const clientEvidence = accumulators.length
-    ? evidenceForDistrict(
-        accumulators.find((a) => a.districtKey === best?.districtKey) ?? accumulators[0]!,
-      )
-    : {};
-  const clientScore = scoreNexus({ components: clientEvidence });
+  // The client-level roll-up POOLS evidence across every district and scores it
+  // once — see `poolEvidence` for why neither the best district nor an average
+  // of per-district scores is a defensible client number. `bestDistrictKey`
+  // keeps the strongest-single-district signal available as a fact.
+  const clientScore = scoreNexus({ components: poolEvidence(accumulators) });
+  const bestDistrictKey = districts.find((d) => d.score != null)?.districtKey ?? null;
 
   return {
     clientId: inputs.clientId,
@@ -360,8 +432,10 @@ export function buildClientNexusResponse(
     },
     unmapped,
     score: clientScore.score,
+    bestDistrictKey,
     coveragePercent: clientScore.coveragePercent,
     breakdown: clientScore.breakdown,
+    strongestDrivers: clientScore.strongestDrivers,
     freshness: inputs.freshness,
     warnings: [...warnings, ...clientScore.warnings],
     generatedAt: inputs.generatedAt,
