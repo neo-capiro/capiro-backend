@@ -18,6 +18,7 @@ import { MeriMemoryPanel } from './MeriMemoryPanel.js';
 import { MeriInboxBanner } from './MeriInboxBanner.js';
 import { MeriEmptyState } from './MeriEmptyState.js';
 import { config } from '../../env.js';
+import { outstandingApprovals } from './meri-pending-approvals.js';
 import {
   useMeriChatController,
   type ChatDrawerProps,
@@ -114,6 +115,7 @@ export function MeriLegacyDrawer({
     forgetMemory,
     undoForgetMemory,
     handleApprovePending,
+    handleApproveAll,
     handleDismissPending,
     handleClearAllAlerts,
     handleDismissAlert,
@@ -132,6 +134,10 @@ export function MeriLegacyDrawer({
     setResearchQuestions,
     researchSessionRef,
   } = controller;
+
+  // Resolved cards stay on screen carrying their outcome, so "how many still
+  // need you" is the pending count — not the length of the list.
+  const outstanding = outstandingApprovals(pendingApprovals);
 
   return (
     <>
@@ -324,31 +330,63 @@ export function MeriLegacyDrawer({
           {pendingApprovals.length > 0 && !isStreaming && (
             <div className="chat-pending-approvals" role="status">
               <div className="chat-pending-approvals-title">
-                Meri proposed {pendingApprovals.length === 1 ? 'an action' : 'actions'} that need
-                your approval
+                {outstanding.length > 0 ? (
+                  <>
+                    Meri proposed {outstanding.length === 1 ? 'an action' : 'actions'} that need
+                    your approval — nothing runs until you approve it here
+                  </>
+                ) : (
+                  <>Proposed actions</>
+                )}
+                {outstanding.length > 1 && (
+                  <button
+                    type="button"
+                    className="chat-pending-approval-approve-all"
+                    disabled={Boolean(approvingFingerprint)}
+                    onClick={() => void handleApproveAll()}
+                  >
+                    {approvingFingerprint ? 'Approving…' : `Approve all (${outstanding.length})`}
+                  </button>
+                )}
               </div>
               {pendingApprovals.map((p) => (
-                <div key={p.fingerprint} className="chat-pending-approval-row">
+                <div
+                  key={p.fingerprint}
+                  className={`chat-pending-approval-row chat-pending-approval-row--${p.status}`}
+                >
                   <span className="chat-pending-approval-label">
                     <strong>{p.label || p.tool}</strong>
-                    {p.reason ? ` — ${p.reason}` : ''}
+                    {p.status === 'pending' && p.reason ? ` — ${p.reason}` : ''}
+                    {/* A resolved row reports its own outcome. When several were
+                        approved at once this is the only place the user can see
+                        WHICH one failed and why. */}
+                    {p.status === 'ran' && (
+                      <span className="chat-pending-approval-outcome">✓ Ran</span>
+                    )}
+                    {p.status === 'failed' && (
+                      <span className="chat-pending-approval-outcome chat-pending-approval-outcome--failed">
+                        ✗ Failed{p.detail ? ` — ${p.detail}` : ''}
+                      </span>
+                    )}
                   </span>
                   <span className="chat-pending-approval-actions">
-                    <button
-                      type="button"
-                      className="chat-pending-approval-approve"
-                      disabled={Boolean(approvingFingerprint)}
-                      onClick={() => void handleApprovePending(p.fingerprint, p.tool)}
-                    >
-                      {approvingFingerprint === p.fingerprint ? 'Approving…' : 'Approve & run'}
-                    </button>
+                    {(p.status === 'pending' || p.status === 'running') && (
+                      <button
+                        type="button"
+                        className="chat-pending-approval-approve"
+                        disabled={Boolean(approvingFingerprint)}
+                        onClick={() => void handleApprovePending(p.fingerprint, p.tool)}
+                      >
+                        {p.status === 'running' ? 'Approving…' : 'Approve & run'}
+                      </button>
+                    )}
                     <button
                       type="button"
                       className="chat-pending-approval-dismiss"
                       disabled={Boolean(approvingFingerprint)}
                       onClick={() => handleDismissPending(p.fingerprint)}
                     >
-                      Dismiss
+                      {p.status === 'pending' || p.status === 'running' ? 'Dismiss' : 'Clear'}
                     </button>
                   </span>
                 </div>

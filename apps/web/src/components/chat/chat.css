@@ -431,6 +431,44 @@
   font-size: 11px;
   font-weight: 700;
   color: var(--ink-2);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.chat-pending-approval-approve-all {
+  border-radius: var(--r-md);
+  padding: 3px 10px;
+  font-size: 11px;
+  font-weight: 700;
+  cursor: pointer;
+  flex-shrink: 0;
+  border: 1px solid var(--accent, var(--ink-1));
+  background: var(--accent, var(--ink-1));
+  color: var(--bg-surface);
+}
+
+.chat-pending-approval-approve-all:disabled {
+  opacity: 0.6;
+  cursor: default;
+}
+
+/* A resolved card stays on screen carrying its own outcome — when several were
+   approved at once this is the only place the user can see which one failed. */
+.chat-pending-approval-row--ran,
+.chat-pending-approval-row--failed {
+  opacity: 0.85;
+}
+
+.chat-pending-approval-outcome {
+  margin-left: 6px;
+  font-weight: 700;
+  color: var(--success, var(--ink-2));
+}
+
+.chat-pending-approval-outcome--failed {
+  color: var(--danger, #b3261e);
 }
 
 .chat-pending-approval-row {

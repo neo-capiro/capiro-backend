@@ -183,3 +183,36 @@ describe('injection + judgment discipline (reasoning-quality hardening)', () => 
     expect(prompt).toContain('does every PE, bill, vote, dollar figure, or name');
   });
 });
+
+describe('held-write honesty (the "submitted for processing" fabrication)', () => {
+  // A gate-held write sits inert until the user approves that exact proposal.
+  // Meri used to narrate the hold as a queue — "submitted for processing",
+  // "awaiting final system approval" — so a user approved three client
+  // creations and five profile updates across one sitting, was told each time
+  // that work was in flight, and not a single row was ever written.
+  it('forbids queue language and names the phrasings that caused it', () => {
+    const prompt = buildChatSystemPrompt({}, ctx);
+    expect(prompt).toContain('is NOT queued, submitted, filed, or "being processed"');
+    expect(prompt).toContain('no background job that will finish it later');
+    for (const banned of [
+      'submitted for processing',
+      'queued',
+      'pending system approval',
+      'awaiting final approval',
+    ]) {
+      expect(prompt).toContain(banned);
+    }
+  });
+
+  it('points the user at the approve card rather than leaving approval implicit', () => {
+    const prompt = buildChatSystemPrompt({}, ctx);
+    expect(prompt).toContain('its own approve card');
+    expect(prompt).toContain('Approve all');
+  });
+
+  it('tells the model to flag, not silently retry, when approvals did not land', () => {
+    const prompt = buildChatSystemPrompt({}, ctx);
+    expect(prompt).toContain('do not silently re-propose');
+    expect(prompt).toContain('were never approved');
+  });
+});
