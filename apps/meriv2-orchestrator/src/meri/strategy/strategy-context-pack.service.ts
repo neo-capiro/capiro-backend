@@ -159,11 +159,11 @@ export class StrategyContextPackService {
     if (!slim) {
       tasks.push(
         run('Tracked bills', CAP.tracker, async () => {
-          const res = (await this.toolExecutor.execute(ctx, 'search_tracked_bills', { clientId })) as
-            | { bills?: unknown[]; results?: unknown[]; data?: unknown[] }
-            | undefined;
+          const res = (await this.toolExecutor.execute(ctx, 'search_tracked_bills', {
+            clientId,
+          })) as { bills?: unknown[]; results?: unknown[]; data?: unknown[] } | undefined;
           // search_tracked_bills returns rows under `bills` (not results/data).
-          const rows = (res?.bills ?? res?.results ?? res?.data) ?? [];
+          const rows = res?.bills ?? res?.results ?? res?.data ?? [];
           if (!Array.isArray(rows) || !rows.length) return null;
           return { text: compact(res), count: rows.length };
         }),

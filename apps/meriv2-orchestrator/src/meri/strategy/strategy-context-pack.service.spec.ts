@@ -7,11 +7,13 @@ const CTX = { tenantId: 't', userId: 'u', clerkUserId: 'c', role: 'standard_user
 /** Build a pack service over a stubbed executor whose per-tool result is canned. */
 function build(results: Record<string, unknown>) {
   const calls: Array<{ name: string; input: Record<string, unknown> }> = [];
-  const execute = jest.fn(async (_ctx: MeriContext, name: string, input: Record<string, unknown>) => {
-    calls.push({ name, input });
-    if (!(name in results)) throw new Error(`unexpected tool ${name}`);
-    return results[name];
-  });
+  const execute = jest.fn(
+    async (_ctx: MeriContext, name: string, input: Record<string, unknown>) => {
+      calls.push({ name, input });
+      if (!(name in results)) throw new Error(`unexpected tool ${name}`);
+      return results[name];
+    },
+  );
   const svc = new StrategyContextPackService({ execute } as unknown as ApiToolExecutorRepo);
   return { svc, calls };
 }
@@ -23,12 +25,30 @@ const RICH = {
   get_client_context: {
     tool: 'get_client_context',
     context: { client: { name: 'Aerovance' }, description: 'defense sensors' },
-    profile: { capabilities: [{ x: 1 }], people: [{ x: 1 }, { x: 2 }], facilities: [], submissionHistory: [] },
+    profile: {
+      capabilities: [{ x: 1 }],
+      people: [{ x: 1 }, { x: 2 }],
+      facilities: [],
+      submissionHistory: [],
+    },
   },
-  search_client_knowledge: { results: [{ id: 'd1', title: 'FY27 ask', snippet: '...', score: 0.7 }] },
-  search_tracked_bills: { tool: 'search_tracked_bills', clientId: 'client-1', total: 1, bills: [{ id: 'hr1' }] },
-  query_intelligence: { tool: 'query_intelligence', data: 'Surging LDA issues: shipbuilding, munitions' },
-  query_knowledge_graph: { summary: 'client ↔ HAC-D', nodes: [{ id: 'n1', type: 'client', label: 'Aerovance' }] },
+  search_client_knowledge: {
+    results: [{ id: 'd1', title: 'FY27 ask', snippet: '...', score: 0.7 }],
+  },
+  search_tracked_bills: {
+    tool: 'search_tracked_bills',
+    clientId: 'client-1',
+    total: 1,
+    bills: [{ id: 'hr1' }],
+  },
+  query_intelligence: {
+    tool: 'query_intelligence',
+    data: 'Surging LDA issues: shipbuilding, munitions',
+  },
+  query_knowledge_graph: {
+    summary: 'client ↔ HAC-D',
+    nodes: [{ id: 'n1', type: 'client', label: 'Aerovance' }],
+  },
   search_memory: {
     summary: '1 memory item',
     results: [{ memoryItemId: 'm1', clientId: 'client-1', title: 'debrief', relevance: 0.6 }],
@@ -38,7 +58,12 @@ const RICH = {
 describe('StrategyContextPackService — full pack', () => {
   it('assembles the 8-tab + KG + prior-engagement sections and never calls query_debriefs', async () => {
     const { svc, calls } = build(RICH);
-    const pack = await svc.compile({ ctx: CTX, clientId: 'client-1', query: 'win the plus-up', slim: false });
+    const pack = await svc.compile({
+      ctx: CTX,
+      clientId: 'client-1',
+      query: 'win the plus-up',
+      slim: false,
+    });
 
     const names = pack.provenance.sections.map((s) => s.name);
     expect(names).toEqual(
@@ -55,7 +80,11 @@ describe('StrategyContextPackService — full pack', () => {
     expect(calls.some((c) => c.name === 'query_debriefs')).toBe(false);
     // Documents are relevance-retrieved top-K over client_doc_chunk with the goal.
     const kb = calls.find((c) => c.name === 'search_client_knowledge')!;
-    expect(kb.input).toMatchObject({ clientId: 'client-1', kind: 'client_doc_chunk', query: 'win the plus-up' });
+    expect(kb.input).toMatchObject({
+      clientId: 'client-1',
+      kind: 'client_doc_chunk',
+      query: 'win the plus-up',
+    });
     // CTX-2: the knowledge graph is client-anchored (seeded on the client node),
     // never a firm-wide (seedless) walk.
     const kg = calls.find((c) => c.name === 'query_knowledge_graph')!;
@@ -77,7 +106,12 @@ describe('StrategyContextPackService — cross-client scoping (CTX-4)', () => {
       search_memory: {
         summary: '2 items',
         results: [
-          { memoryItemId: 'm-other', clientId: 'client-2', title: 'other client debrief', relevance: 0.9 },
+          {
+            memoryItemId: 'm-other',
+            clientId: 'client-2',
+            title: 'other client debrief',
+            relevance: 0.9,
+          },
           { memoryItemId: 'm-gen', clientId: null, title: 'tenant-general note', relevance: 0.5 },
         ],
       },
@@ -122,7 +156,9 @@ describe('StrategyContextPackService — walled client', () => {
     expect(names).toContain('Client profile'); // client-own, tenant-scoped
     expect(names).not.toContain('Knowledge graph'); // walled → empty → omitted
     expect(names).not.toContain('Prior engagement'); // walled → empty → omitted
-    expect(pack.provenance.omitted).toEqual(expect.arrayContaining(['Knowledge graph', 'Prior engagement']));
+    expect(pack.provenance.omitted).toEqual(
+      expect.arrayContaining(['Knowledge graph', 'Prior engagement']),
+    );
     expect(pack.text).not.toContain('## Prior engagement');
   });
 });

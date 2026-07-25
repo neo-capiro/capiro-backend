@@ -22,7 +22,11 @@ const BASE_INPUT: StewardExtractInput = {
   asOf: '2026-07-01',
   content: '## Hard limits\nNo direct Hill outreach before October.',
   refs: [
-    { ref: 'heading:Hard limits', kind: 'heading', preview: 'No direct Hill outreach before October.' },
+    {
+      ref: 'heading:Hard limits',
+      kind: 'heading',
+      preview: 'No direct Hill outreach before October.',
+    },
     { ref: 'row:Approval matrix:2', kind: 'row', preview: 'External statements | CEO sign-off' },
   ],
   existingFacts: [
@@ -86,8 +90,18 @@ describe('sanitizeExtractedFacts', () => {
       'not-an-object',
       { sourceRef: 'heading:Hard limits', confidence: 0.5, citation: 'x' }, // no fact
       { fact: 'orphan fact', confidence: 0.5, citation: 'x' }, // no sourceRef
-      { fact: 'stringy confidence', sourceRef: 'heading:Hard limits', confidence: 'high', citation: 'x' },
-      { fact: 'NaN confidence', sourceRef: 'heading:Hard limits', confidence: Number.NaN, citation: 'x' },
+      {
+        fact: 'stringy confidence',
+        sourceRef: 'heading:Hard limits',
+        confidence: 'high',
+        citation: 'x',
+      },
+      {
+        fact: 'NaN confidence',
+        sourceRef: 'heading:Hard limits',
+        confidence: Number.NaN,
+        citation: 'x',
+      },
       { fact: 'survivor', sourceRef: 'heading:Hard limits', confidence: 1, citation: 'x' },
     ]);
     expect(out).toHaveLength(1);
@@ -123,7 +137,12 @@ describe('sanitizeExtractedFacts', () => {
 });
 
 describe('sanitizeConflicts', () => {
-  const good = { newFactIndex: 0, existingFactId: 'fact-aaa', material: true, rationale: 'contradicts window' };
+  const good = {
+    newFactIndex: 0,
+    existingFactId: 'fact-aaa',
+    material: true,
+    rationale: 'contradicts window',
+  };
   // Identity map for two surviving facts (no drops).
   const identity2: ReadonlyMap<number, number> = new Map([
     [0, 0],
@@ -200,15 +219,19 @@ describe('buildStewardSystemPrompt', () => {
     expect(sys).toContain('2026-07-01');
     expect(sys).toContain('Separate facts from assumptions');
     expect(sys).toContain('keep the authority from the frontmatter');
-    expect(sys).toContain("unless a row carries its own date");
-    expect(sys).toContain('NEVER extract credentials, passwords, access tokens, or personal data beyond names and roles');
+    expect(sys).toContain('unless a row carries its own date');
+    expect(sys).toContain(
+      'NEVER extract credentials, passwords, access tokens, or personal data beyond names and roles',
+    );
   });
 
   it('digests existing facts WITH their ids and states the conflict/materiality rule', () => {
     const sys = buildStewardSystemPrompt(BASE_INPUT);
     expect(sys).toContain('[fact-aaa] Direct Hill outreach is allowed from September.');
     expect(sys).toContain('Flag a conflict ONLY when two facts cannot both be true');
-    expect(sys).toContain('material=true when acting on the wrong one would change strategy or embarrass the client');
+    expect(sys).toContain(
+      'material=true when acting on the wrong one would change strategy or embarrass the client',
+    );
   });
 
   it('renders explicit empty-state markers for no refs / no existing facts', () => {

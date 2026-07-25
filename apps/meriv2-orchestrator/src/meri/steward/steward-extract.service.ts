@@ -3,7 +3,11 @@ import { ConfigService } from '@nestjs/config';
 import type { MeriContext } from '@capiro/meriv2-core';
 import { recordAiUsageEvent } from '@capiro/shared';
 import { MeriRegistryService } from '../meri-registry.service.js';
-import type { AnthropicToolSchema, RequestScopedLlmClient, ToolLoopResponse } from '../request-scoped-llm.client.js';
+import type {
+  AnthropicToolSchema,
+  RequestScopedLlmClient,
+  ToolLoopResponse,
+} from '../request-scoped-llm.client.js';
 import { PrismaService } from '../../prisma/prisma.service.js';
 import {
   EMIT_EXTRACTED_FACTS_TOOL,
@@ -73,8 +77,7 @@ export class StewardExtractService {
 
     const terminal = resp.content.find(
       (b): b is { type: 'tool_use'; id: string; name: string; input: Record<string, unknown> } =>
-        b.type === 'tool_use' &&
-        (b as { name?: unknown }).name === EMIT_EXTRACTED_FACTS_TOOL.name,
+        b.type === 'tool_use' && (b as { name?: unknown }).name === EMIT_EXTRACTED_FACTS_TOOL.name,
     );
     const raw = terminal?.input ?? {};
     // Conflicts are remapped from the model's raw fact positions to the
@@ -89,12 +92,21 @@ export class StewardExtractService {
   }
 
   /** Clone of strategy-assistant.service.ts's meterRound (Phase 1 M5.0 H-1). */
-  private async meterRound(ctx: MeriContext, resp: ToolLoopResponse, workflow: string): Promise<void> {
+  private async meterRound(
+    ctx: MeriContext,
+    resp: ToolLoopResponse,
+    workflow: string,
+  ): Promise<void> {
     await recordAiUsageEvent(
       { prisma: this.prisma, logger: this.logger },
       { tenantId: ctx.tenantId, userId: ctx.userId },
       workflow,
-      { provider: 'anthropic', model: resp.model, usage: resp.usage, usedTenantKey: resp.usedTenantKey },
+      {
+        provider: 'anthropic',
+        model: resp.model,
+        usage: resp.usage,
+        usedTenantKey: resp.usedTenantKey,
+      },
     );
   }
 }
