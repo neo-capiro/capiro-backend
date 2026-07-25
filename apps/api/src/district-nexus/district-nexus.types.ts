@@ -20,7 +20,10 @@
  * so in the label.
  */
 
-import type { RepresentationResult } from '../clients/representation-resolver.service.js';
+import type {
+  FederalMemberSummary,
+  RepresentationResult,
+} from '../clients/representation-resolver.service.js';
 
 /** ISO-8601 timestamp. */
 export type IsoTimestamp = string;
@@ -222,6 +225,82 @@ export interface DistrictNexusDistrictDetail extends DistrictNexusDistrictSummar
 export interface FacilityRepresentation {
   facility: { id: string; name: string; city: string | null; state: string | null };
   representation: RepresentationResult;
+}
+
+/**
+ * ACS demographics for a district (WS-E2).
+ *
+ * `dataYear` is carried, never assumed: the live census_district rows are the
+ * 2022 ACS 5-year while the prototype mocks 2024, so the UI must render the
+ * vintage it actually received rather than a hardcoded label.
+ */
+export interface DistrictDemographics {
+  congress: number;
+  dataYear: number;
+  totalPopulation: number | null;
+  medianHouseholdIncome: number | null;
+  medianAge: number | null;
+  percentBachelorPlus: number | null;
+  percentPoverty: number | null;
+  percentVeteran: number | null;
+  percentUninsured: number | null;
+  laborForceSize: number | null;
+  unemploymentRate: number | null;
+}
+
+/** One client's presence in a single district. */
+export interface DistrictClientSummary {
+  clientId: string;
+  clientName: string;
+  awarded: AwardedFunding;
+  facilityCount: number;
+  employeeCount: number | null;
+}
+
+export interface DistrictFacilitySummary {
+  id: string;
+  name: string;
+  city: string | null;
+  clientId: string;
+  clientName: string;
+  employeeCount: number | null;
+}
+
+/**
+ * One award row for the drawer's "top awards" list.
+ *
+ * `amount` is a single instrument's figure — a contract obligation OR a grant
+ * obligation, never a blend. The list it belongs to says which.
+ */
+export interface TopAward {
+  id: string;
+  label: string;
+  counterparty: string | null;
+  amount: Money;
+  awardedAt: IsoTimestamp | null;
+  /** USAspending profile. Existing award rails link out rather than drill in. */
+  externalUrl: string | null;
+}
+
+/** WS-E Step E2 — everything behind one district, for the drawer. */
+export interface DistrictNexusDistrictDetailResponse extends DistrictNexusDistrictDetail {
+  /**
+   * Null when the district code cannot resolve a House seat at all (a sentinel
+   * like '90'/'98'), as distinct from a resolvable district whose member simply
+   * is not in the roster — that case is `{ house: null, senate: [...] }`.
+   */
+  representatives: {
+    house: FederalMemberSummary | null;
+    senate: FederalMemberSummary[];
+  } | null;
+  clients: DistrictClientSummary[];
+  facilities: DistrictFacilitySummary[];
+  topContractAwards: TopAward[];
+  topGrantAwards: TopAward[];
+  demographics: DistrictDemographics | null;
+  /** Whether a published boundary artifact covers this district. */
+  boundaryAvailable: boolean;
+  generatedAt: IsoTimestamp;
 }
 
 /** The per-client view powering the profile widget (WS-H). */

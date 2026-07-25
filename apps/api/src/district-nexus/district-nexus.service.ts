@@ -12,10 +12,20 @@ import {
 import { buildFirmNexusResponse } from './district-nexus.firm-aggregate.js';
 import { resolveDistrictNames, statesForKeys } from './district-nexus.district-names.js';
 import { parseView } from './district-nexus.view.js';
+import {
+  districtCodeForHouseMatch,
+  normalizeDistrictForCensus,
+} from '../common/district-code.util.js';
+import type { FederalMemberSummary } from '../clients/representation-resolver.service.js';
 import type {
   ClientDistrictNexusResponse,
+  DistrictClientSummary,
+  DistrictDemographics,
+  DistrictNexusDistrictDetailResponse,
+  DistrictNexusDistrictSummary,
   DistrictNexusMapResponse,
   SourceFreshness,
+  TopAward,
 } from './district-nexus.types.js';
 
 /**
@@ -485,6 +495,248 @@ export class DistrictNexusService {
         awardCeiling: g.awardCeiling,
       }),
     );
+  }
+
+  /**
+   * WS-E Step E2 — everything behind one district, for the drawer.
+   *
+   * Built on the same firm-wide gather as E1 (so the drawer and the map can
+   * never disagree about a district's totals), then enriched with the things
+   * only a single district can afford: representatives, per-client breakdown,
+   * facilities, top awards and demographics.
+   */
+  async getDistrictDetail(
+    tenantId: string,
+    state: string,
+    district: string,
+    options: { view?: string | null; clientId?: string | null } = {},
+  ): Promise<DistrictNexusDistrictDetailResponse | null> {
+    parseView(options.view);
+
+    const stateCode = state.trim().toUpperCase();
+    const districtCode = districtCodeForHouseMatch(district);
+    // A sentinel ('90' multi-district, '98' delegate, 'ZZ') is not a district.
+    // Returning an empty detail would imply it is one with no activity.
+    if (!districtCode) return null;
+    const districtKey = `${stateCode}-${districtCode}`;
+
+    const map = await this.getFirmDistrictNexusMap(tenantId, {
+      view: options.view,
+      clientId: options.clientId,
+      state: stateCode,
+    });
+    const summary = map.districts.find((d) => d.districtKey === districtKey);
+
+    const generatedAt = new Date().toISOString();
+
+    // Tenant-scoped: which clients and facilities actually sit here.
+    const facilityRows = await this.prisma.withTenant(tenantId, (tx) =>
+      tx.clientFacility.findMany({
+        where: {
+          state: stateCode,
+          ...(options.clientId ? { clientId: options.clientId } : {}),
+        },
+        select: {
+          id: true,
+          name: true,
+          city: true,
+          state: true,
+          congressionalDistrict: true,
+          employeeCount: true,
+          clientId: true,
+          client: { select: { id: true, name: true } },
+        },
+      }),
+    );
+    const inDistrict = facilityRows.filter(
+      (f) => districtCodeForHouseMatch(f.congressionalDistrict) === districtCode,
+    );
+
+    const [representatives, demographics, topContractAwards, topGrantAwards, boundaryRow] =
+      await Promise.all([
+        this.resolveDistrictRepresentatives(stateCode, districtCode),
+        this.readDemographics(stateCode, districtCode),
+        this.topContractAwards(stateCode, districtCode),
+        this.topGrantAwards(stateCode, districtCode),
+        this.prisma.legislativeDistrict.findFirst({
+          where: { state: stateCode, chamber: 'house' },
+          select: { geoJsonS3Key: true },
+        }),
+      ]);
+
+    const clients = new Map<string, DistrictClientSummary>();
+    for (const f of inDistrict) {
+      const existing = clients.get(f.clientId) ?? {
+        clientId: f.clientId,
+        clientName: f.client.name,
+        awarded: { contractObligations: null, grantObligations: null, grantOutlays: null },
+        facilityCount: 0,
+        employeeCount: null,
+      };
+      existing.facilityCount += 1;
+      if (f.employeeCount != null) {
+        existing.employeeCount = (existing.employeeCount ?? 0) + f.employeeCount;
+      }
+      clients.set(f.clientId, existing);
+    }
+
+    const base: DistrictNexusDistrictSummary = summary ?? {
+      districtKey,
+      state: stateCode,
+      districtCode,
+      status: 'C',
+      name: null,
+      awarded: { contractObligations: null, grantObligations: null, grantOutlays: null },
+      opportunities: { opportunityEstimatedFunding: null, opportunityAwardCeiling: null },
+      clientCount: clients.size,
+      // A district with no nexus is a real answer, not a 404. Coverage 0 with a
+      // null score says "nothing here", which is different from "unknown".
+      score: null,
+      coveragePercent: 0,
+      employeeCount: null,
+      employeesUnreported: false,
+      warnings: [],
+    };
+
+    return {
+      ...base,
+      evidence: [],
+      breakdown: [],
+      freshness: map.freshness,
+      representatives,
+      clients: [...clients.values()],
+      facilities: inDistrict.map((f) => ({
+        id: f.id,
+        name: f.name,
+        city: f.city,
+        clientId: f.clientId,
+        clientName: f.client.name,
+        employeeCount: f.employeeCount,
+      })),
+      topContractAwards,
+      topGrantAwards,
+      demographics,
+      boundaryAvailable: !!boundaryRow?.geoJsonS3Key,
+      generatedAt,
+    };
+  }
+
+  /**
+   * House member + both senators for a district.
+   *
+   * Reuses the batched resolver by handing it a single synthetic facility. The
+   * state-legislative chambers come back null, which is correct: a congressional
+   * district does not determine state house/senate districts, and inventing one
+   * would be a wrong answer rather than a missing one.
+   */
+  private async resolveDistrictRepresentatives(
+    stateCode: string,
+    districtCode: string,
+  ): Promise<{ house: FederalMemberSummary | null; senate: FederalMemberSummary[] } | null> {
+    const [result] = await this.representation.representationForFacilities([
+      {
+        state: stateCode,
+        congressionalDistrict: districtCode,
+        stateHouseDistrict: null,
+        stateSenateDistrict: null,
+        geocodeStatus: 'matched',
+      },
+    ]);
+    if (!result || result.unresolved) return null;
+    return { house: result.federal.house, senate: result.federal.senate };
+  }
+
+  /**
+   * Latest-congress-wins ACS demographics.
+   *
+   * census_district keys districts in CENSUS style ('2', '11', 'AL') while every
+   * other rail here uses FACILITY style ('02', '11', '00'), so the join needs a
+   * second key built with normalizeDistrictForCensus. Using the districtKey code
+   * directly silently matches nothing for single-digit districts.
+   */
+  private async readDemographics(
+    stateCode: string,
+    districtCode: string,
+  ): Promise<DistrictDemographics | null> {
+    const censusDistrict = normalizeDistrictForCensus(districtCode);
+    const row = await this.prisma.censusDistrict.findFirst({
+      where: { state: stateCode, district: censusDistrict },
+      orderBy: { congress: 'desc' },
+    });
+    if (!row) return null;
+    return {
+      congress: row.congress,
+      dataYear: row.dataYear,
+      totalPopulation: row.totalPopulation,
+      medianHouseholdIncome: row.medianHouseholdIncome,
+      medianAge: row.medianAge,
+      percentBachelorPlus: row.percentBachelorPlus,
+      percentPoverty: row.percentPoverty,
+      percentVeteran: row.percentVeteran,
+      percentUninsured: row.percentUninsured,
+      laborForceSize: row.laborForceSize,
+      unemploymentRate: row.unemploymentRate,
+    };
+  }
+
+  private async topContractAwards(stateCode: string, districtCode: string): Promise<TopAward[]> {
+    const rows = await this.prisma.$queryRaw<
+      Array<{
+        id: string;
+        contractor_name: string | null;
+        description: string | null;
+        amount: number | null;
+        action_date: Date | null;
+        award_id: string | null;
+      }>
+    >`
+      SELECT id::text AS id, contractor_name, description,
+             amount::float8 AS amount, action_date, award_id
+      FROM federal_award
+      WHERE pop_state = ${stateCode} AND pop_congressional_district = ${districtCode}
+      ORDER BY amount DESC NULLS LAST
+      LIMIT 10
+    `;
+    return rows.map((r) => ({
+      id: r.id,
+      label: r.description ?? r.award_id ?? 'Federal contract award',
+      counterparty: r.contractor_name,
+      amount: r.amount,
+      awardedAt: r.action_date ? r.action_date.toISOString() : null,
+      externalUrl: r.award_id ? `https://www.usaspending.gov/award/${r.award_id}` : null,
+    }));
+  }
+
+  private async topGrantAwards(stateCode: string, districtCode: string): Promise<TopAward[]> {
+    const rows = await this.prisma.$queryRaw<
+      Array<{
+        id: string;
+        recipient_name: string | null;
+        description: string | null;
+        total_obligated_amount: number | null;
+        start_date: Date | null;
+        award_unique_id: string | null;
+      }>
+    >`
+      SELECT id::text AS id, recipient_name, description,
+             total_obligated_amount::float8 AS total_obligated_amount,
+             start_date, award_unique_id
+      FROM federal_assistance_award
+      WHERE COALESCE(pop_state, recipient_state) = ${stateCode}
+        AND COALESCE(pop_congressional_district, recipient_congressional_district) = ${districtCode}
+      ORDER BY total_obligated_amount DESC NULLS LAST
+      LIMIT 10
+    `;
+    return rows.map((r) => ({
+      id: r.id,
+      label: r.description ?? r.award_unique_id ?? 'Federal assistance award',
+      counterparty: r.recipient_name,
+      amount: r.total_obligated_amount,
+      awardedAt: r.start_date ? r.start_date.toISOString() : null,
+      externalUrl: r.award_unique_id
+        ? `https://www.usaspending.gov/award/${r.award_unique_id}`
+        : null,
+    }));
   }
 
   /**

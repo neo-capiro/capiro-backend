@@ -1,4 +1,12 @@
-import { BadRequestException, Controller, Get, Param, Query, UseGuards } from '@nestjs/common';
+import {
+  BadRequestException,
+  Controller,
+  Get,
+  NotFoundException,
+  Param,
+  Query,
+  UseGuards,
+} from '@nestjs/common';
 import type { TenantContext } from '@capiro/shared';
 import { RolesGuard } from '../auth/roles.guard.js';
 import { Roles } from '../auth/roles.decorator.js';
@@ -8,6 +16,7 @@ import { DistrictNexusService } from './district-nexus.service.js';
 import { UnsupportedViewError } from './district-nexus.view.js';
 import type {
   ClientDistrictNexusResponse,
+  DistrictNexusDistrictDetailResponse,
   DistrictNexusMapResponse,
 } from './district-nexus.types.js';
 
@@ -57,6 +66,41 @@ export class DistrictNexusController {
   ): Promise<DistrictNexusMapResponse> {
     try {
       return await this.service.getFirmDistrictNexusMap(ctx.tenantId, { view, clientId, state });
+    } catch (error) {
+      if (error instanceof UnsupportedViewError) {
+        throw new BadRequestException(error.message);
+      }
+      throw error;
+    }
+  }
+
+  /**
+   * WS-E Step E2 — one district's detail, for the drawer.
+   *
+   * 404s for a district code that is not a district (the '90'/'98'/'ZZ'
+   * sentinels). A real district with no client activity is a 200 with an empty
+   * shape, because "nothing here" is a legitimate answer and "this district does
+   * not exist" is not.
+   */
+  @Get('district-nexus/districts/:state/:district')
+  async getDistrictDetail(
+    @CurrentTenant() ctx: TenantContext,
+    @Param('state') state: string,
+    @Param('district') district: string,
+    @Query('view') view?: string,
+    @Query('clientId') clientId?: string,
+  ): Promise<DistrictNexusDistrictDetailResponse> {
+    try {
+      const detail = await this.service.getDistrictDetail(ctx.tenantId, state, district, {
+        view,
+        clientId,
+      });
+      if (!detail) {
+        throw new NotFoundException(
+          `"${district}" is not a congressional district code. Statewide ("90"), delegate ("98") and undefined ("ZZ") award geographies cannot be resolved to a single district.`,
+        );
+      }
+      return detail;
     } catch (error) {
       if (error instanceof UnsupportedViewError) {
         throw new BadRequestException(error.message);
