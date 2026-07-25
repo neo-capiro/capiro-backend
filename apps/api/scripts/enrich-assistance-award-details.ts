@@ -17,6 +17,12 @@
  *   - fundingOpportunityNumber (detail's `funding_opportunity.number` —
  *                            frequently the literal sentinel "NOT APPLICABLE",
  *                            stored verbatim, never filtered/guessed)
+ *   - parentRecipientName / parentRecipientUei (detail's `recipient.
+ *                            parent_recipient_name` / `parent_recipient_uei`,
+ *                            field names verified live 2026-07-24). The UEI is
+ *                            shape-gated through `asUei` — see the note on
+ *                            `parent_recipient_unique_id`, which is the retired
+ *                            DUNS and must never land in a UEI column.)
  *
  * Processes the highest-value, not-yet-enriched awards first
  * (detailEnrichedAt IS NULL, ORDER BY totalObligatedAmount DESC). Rate-
@@ -49,6 +55,37 @@ export interface AwardDetailRaw {
   subaward_count?: number | null;
   non_federal_funding?: number | null;
   funding_opportunity?: { number?: string | null } | null;
+  recipient?: {
+    parent_recipient_name?: string | null;
+    /** The live, correct parent identifier. Verified against the API 2026-07-24. */
+    parent_recipient_uei?: string | null;
+    /**
+     * DELIBERATELY TYPED, DELIBERATELY NEVER READ.
+     *
+     * This is the retired DUNS number, which USAspending still returns on many
+     * award detail records. It is NOT a UEI and must never reach a UEI column:
+     * DUNS is 9 digits, UEI is 12 alphanumerics, and anything downstream that
+     * joins on UEI would silently match nothing (or, worse, match the wrong
+     * entity). It is declared here so the shape is documented and so a future
+     * reader does not "helpfully" fall back to it when parent_recipient_uei is
+     * null. `asUei` below is the only path into the column, and it rejects this.
+     */
+    parent_recipient_unique_id?: string | null;
+  } | null;
+}
+
+/** A UEI is exactly 12 alphanumerics. */
+const UEI_SHAPE = /^[A-Z0-9]{12}$/;
+
+/**
+ * Gate for anything headed to a UEI column. Returns the normalized UEI, or null
+ * if the value is not UEI-shaped — which is what keeps a 9-digit DUNS
+ * (`parent_recipient_unique_id`) out of `parentRecipientUei`.
+ */
+export function asUei(value: string | null | undefined): string | null {
+  if (typeof value !== 'string') return null;
+  const normalized = value.trim().toUpperCase();
+  return UEI_SHAPE.test(normalized) ? normalized : null;
 }
 
 /** Fetch one award's detail record. Not rate-limited itself — caller sleeps between calls. */
@@ -67,6 +104,8 @@ export interface ExistingAssistanceAwardRow {
   subawardCount: number | null;
   nonFederalFundingAmount: unknown | null;
   fundingOpportunityNumber: string | null;
+  parentRecipientName: string | null;
+  parentRecipientUei: string | null;
 }
 
 /**
@@ -89,6 +128,17 @@ export function buildEnrichmentUpdate(
   }
   if (existing.fundingOpportunityNumber == null && detail.funding_opportunity?.number != null) {
     update.fundingOpportunityNumber = detail.funding_opportunity.number;
+  }
+  if (existing.parentRecipientName == null && detail.recipient?.parent_recipient_name != null) {
+    update.parentRecipientName = detail.recipient.parent_recipient_name;
+  }
+  // Shape-gated: a non-UEI value (notably the retired DUNS in
+  // parent_recipient_unique_id) yields null and simply isn't written, leaving
+  // the column honestly empty rather than populated with an identifier that
+  // looks joinable and isn't.
+  const parentUei = asUei(detail.recipient?.parent_recipient_uei);
+  if (existing.parentRecipientUei == null && parentUei != null) {
+    update.parentRecipientUei = parentUei;
   }
   return update;
 }
@@ -123,6 +173,8 @@ export async function enrichCandidates(
       subawardCount: true,
       nonFederalFundingAmount: true,
       fundingOpportunityNumber: true,
+      parentRecipientName: true,
+      parentRecipientUei: true,
     },
   });
 

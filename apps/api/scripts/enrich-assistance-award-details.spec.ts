@@ -29,9 +29,66 @@ function row(overrides: Partial<ExistingAssistanceAwardRow> = {}): ExistingAssis
     subawardCount: null,
     nonFederalFundingAmount: null,
     fundingOpportunityNumber: null,
+    parentRecipientName: null,
+    parentRecipientUei: null,
     ...overrides,
   };
 }
+
+describe('parent recipient', () => {
+  // A real UEI is 12 alphanumerics. A DUNS is 9 digits. USAspending still
+  // returns the retired DUNS as `parent_recipient_unique_id` on many records,
+  // and the two are easy to conflate because both look like "an id on the
+  // recipient object".
+  const VALID_UEI = 'ZQGGHJH74DW7';
+  const RETIRED_DUNS = '192598338';
+
+  test('fills name and UEI from the verified field names', () => {
+    const update = buildEnrichmentUpdate(row(), {
+      recipient: { parent_recipient_name: 'LELAND STANFORD JUNIOR UNIVERSITY', parent_recipient_uei: VALID_UEI },
+    });
+    expect(update.parentRecipientName).toBe('LELAND STANFORD JUNIOR UNIVERSITY');
+    expect(update.parentRecipientUei).toBe(VALID_UEI);
+  });
+
+  test('never lets the retired DUNS reach the UEI column', () => {
+    const update = buildEnrichmentUpdate(row(), {
+      recipient: { parent_recipient_name: 'SOME PARENT', parent_recipient_unique_id: RETIRED_DUNS },
+    });
+    // The name still fills; the UEI column stays honestly empty rather than
+    // being populated with an identifier nothing can join on.
+    expect(update.parentRecipientName).toBe('SOME PARENT');
+    expect(update).not.toHaveProperty('parentRecipientUei');
+    expect(Object.values(update)).not.toContain(RETIRED_DUNS);
+  });
+
+  test('rejects a DUNS that arrives in the UEI field itself', () => {
+    const update = buildEnrichmentUpdate(row(), {
+      recipient: { parent_recipient_uei: RETIRED_DUNS },
+    });
+    expect(update).not.toHaveProperty('parentRecipientUei');
+  });
+
+  test('normalizes a lowercase UEI rather than discarding it', () => {
+    const update = buildEnrichmentUpdate(row(), {
+      recipient: { parent_recipient_uei: VALID_UEI.toLowerCase() },
+    });
+    expect(update.parentRecipientUei).toBe(VALID_UEI);
+  });
+
+  test('is fill-only — an existing parent UEI is never overwritten', () => {
+    const update = buildEnrichmentUpdate(row({ parentRecipientUei: 'ALREADYSET1X' }), {
+      recipient: { parent_recipient_uei: VALID_UEI },
+    });
+    expect(update).not.toHaveProperty('parentRecipientUei');
+  });
+
+  test('a detail response with no recipient block writes neither field', () => {
+    const update = buildEnrichmentUpdate(row(), MEDICAID_DETAIL);
+    expect(update).not.toHaveProperty('parentRecipientName');
+    expect(update).not.toHaveProperty('parentRecipientUei');
+  });
+});
 
 describe('buildEnrichmentUpdate', () => {
   test('fills every currently-null field from a verified detail response', () => {
