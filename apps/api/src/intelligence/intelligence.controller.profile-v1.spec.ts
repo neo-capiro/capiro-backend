@@ -18,7 +18,15 @@ describe('IntelligenceController profile-v1 integration', () => {
     } as any;
 
     const config = { get: () => 'off' } as any; // KG_INTEL_GRAPH etc; unused by profile-v1
-    const controller = new IntelligenceController(service, {} as any, {} as any, {} as any, config);
+    // 5th positional is DirectoryService (WS-D boundary artifacts); unused here.
+    const controller = new IntelligenceController(
+      service,
+      {} as any,
+      {} as any,
+      {} as any,
+      {} as any,
+      config,
+    );
     return { controller, service };
   };
 

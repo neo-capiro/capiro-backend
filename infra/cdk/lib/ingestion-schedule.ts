@@ -112,6 +112,36 @@ export const INGESTION_JOBS: ScheduledIngestionJob[] = [
     description: 'LegiStorm legislative districts full reconciliation (Sun 04:00 UTC, before directory at 04:30)',
     enabled: false,
   },
+  // ── District Nexus boundary artifacts (WS-D — ships DISABLED) ───────────────
+  // Builds the browser-safe GeoJSON the map reads. Runs Sun 05:00 UTC, after
+  // both the districts sync (04:00) and the directory refresh (04:30), because
+  // the CURRENT rail stamps boundary metadata onto legislative_district rows
+  // and should see a settled table.
+  //
+  // Ships DISABLED for two independent reasons, and needs BOTH cleared before
+  // it is flipped on:
+  //  1. The FUTURE ('F') rail reads each district's re-hosted kmlS3Key, which
+  //     only `sync-legistorm-districts --commit --with-kml` populates — and
+  //     that backfill is itself gated on the outstanding LegiStorm key
+  //     rotation. Until then the future rail legitimately produces zero
+  //     features (the script declines to publish an empty artifact).
+  //  2. The first run should be a deliberate, reviewed `--commit` with its
+  //     warnings read, not a cron tick. The CURRENT rail is verified: the live
+  //     Census file yields 441/441 features with zero warnings at 4.90 MB
+  //     gzipped (measured 2026-07-24), comfortably inside the ~6 MB budget.
+  //
+  // The current rail depends only on the keyless Census cartographic file, so
+  // it is NOT blocked by the LegiStorm key rotation — `--status=C` can be run
+  // on its own the moment someone wants the current map published.
+  {
+    id: 'BuildDistrictBoundaryArtifacts',
+    command: ['build-district-boundary-artifacts', '--commit'],
+    cron: { minute: '0', hour: '5', weekDay: 'SUN' },
+    tier: 'weekly',
+    description:
+      'District Nexus boundary artifacts, current + future rails (Sun 05:00 UTC, after districts sync)',
+    enabled: false,
+  },
   // ── LegiStorm Privately Funded Travel (WS-F — ships DISABLED) ───────────────
   // Same base URL / same blocker as the directory jobs above (compromised key
   // pending rotation). Incremental like the directory job's staff/offices
