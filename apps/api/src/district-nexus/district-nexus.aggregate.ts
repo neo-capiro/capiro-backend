@@ -25,6 +25,7 @@ import type {
   DataQualityWarning,
   DistrictKey,
   DistrictNexusDistrictDetail,
+  FacilityRepresentation,
   OpportunityFunding,
   SourceFreshness,
   UnmappedFunding,
@@ -80,6 +81,8 @@ export interface ClientNexusInputs {
   facilities: FacilityRow[];
   freshness: SourceFreshness[];
   generatedAt: string;
+  /** Already-resolved representation, batched by the caller. Defaults to []. */
+  representativesByFacility?: FacilityRepresentation[];
 }
 
 /**
@@ -429,6 +432,7 @@ export function buildClientNexusResponse(
   return {
     clientId: inputs.clientId,
     districts,
+    representativesByFacility: inputs.representativesByFacility ?? [],
     awarded: {
       contractObligations: sumMoney(districts.map((d) => d.awarded.contractObligations)),
       grantObligations: sumMoney(districts.map((d) => d.awarded.grantObligations)),

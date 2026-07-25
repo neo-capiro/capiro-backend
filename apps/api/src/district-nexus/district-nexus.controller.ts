@@ -1,11 +1,15 @@
-import { Controller, Get, Param, UseGuards } from '@nestjs/common';
+import { BadRequestException, Controller, Get, Param, Query, UseGuards } from '@nestjs/common';
 import type { TenantContext } from '@capiro/shared';
 import { RolesGuard } from '../auth/roles.guard.js';
 import { Roles } from '../auth/roles.decorator.js';
 import { CurrentTenant } from '../tenant/current-tenant.decorator.js';
 import { DistrictNexusFlagGuard } from './district-nexus-flag.guard.js';
 import { DistrictNexusService } from './district-nexus.service.js';
-import type { ClientDistrictNexusResponse } from './district-nexus.types.js';
+import { UnsupportedViewError } from './district-nexus.view.js';
+import type {
+  ClientDistrictNexusResponse,
+  DistrictNexusMapResponse,
+} from './district-nexus.types.js';
 
 /**
  * District Nexus v2 (Rev 2 plan, Workstream E).
@@ -34,5 +38,30 @@ export class DistrictNexusController {
     @Param('clientId') clientId: string,
   ): Promise<ClientDistrictNexusResponse> {
     return this.service.getClientDistrictNexus(clientId, ctx.tenantId);
+  }
+
+  /**
+   * WS-E Step E1 — firm-wide map aggregate.
+   *
+   * `view` accepts only `current`. A `future` request is a 400, not a silently
+   * substituted current map: the future boundary rail does not exist and award
+   * geography is reported against current districts, so any "future" answer
+   * would be invention that looks entirely plausible.
+   */
+  @Get('district-nexus/map')
+  async getDistrictNexusMap(
+    @CurrentTenant() ctx: TenantContext,
+    @Query('view') view?: string,
+    @Query('clientId') clientId?: string,
+    @Query('state') state?: string,
+  ): Promise<DistrictNexusMapResponse> {
+    try {
+      return await this.service.getFirmDistrictNexusMap(ctx.tenantId, { view, clientId, state });
+    } catch (error) {
+      if (error instanceof UnsupportedViewError) {
+        throw new BadRequestException(error.message);
+      }
+      throw error;
+    }
   }
 }

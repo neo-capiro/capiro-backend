@@ -20,6 +20,8 @@
  * so in the label.
  */
 
+import type { RepresentationResult } from '../clients/representation-resolver.service.js';
+
 /** ISO-8601 timestamp. */
 export type IsoTimestamp = string;
 
@@ -209,10 +211,30 @@ export interface DistrictNexusDistrictDetail extends DistrictNexusDistrictSummar
   freshness: SourceFreshness[];
 }
 
+/**
+ * One facility and who represents it.
+ *
+ * Embedded in the client payload so the widget makes ONE request instead of
+ * two (WS-E3 / WS-H1). `RepresentationResult` is a discriminated union — an
+ * unresolved facility carries a reason rather than an empty member list, so
+ * "we could not place this site" never renders as "nobody represents it".
+ */
+export interface FacilityRepresentation {
+  facility: { id: string; name: string; city: string | null; state: string | null };
+  representation: RepresentationResult;
+}
+
 /** The per-client view powering the profile widget (WS-H). */
 export interface ClientDistrictNexusResponse {
   clientId: string;
   districts: DistrictNexusDistrictDetail[];
+  /**
+   * Server-side embed of RepresentationResolverService, so the widget can drop
+   * its separate representation query. Resolved through the BATCHED resolver —
+   * the per-facility path is four queries each, which is the fan-out this
+   * service's docblock exists to prevent.
+   */
+  representativesByFacility: FacilityRepresentation[];
   awarded: AwardedFunding;
   opportunities: OpportunityFunding;
   unmapped: UnmappedFunding;

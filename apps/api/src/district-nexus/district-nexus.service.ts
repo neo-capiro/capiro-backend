@@ -1,13 +1,22 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service.js';
+import { RepresentationResolverService } from '../clients/representation-resolver.service.js';
 import {
   buildClientNexusResponse,
   type AssistanceDistrictRow,
+  type ClientNexusInputs,
   type ContractDistrictRow,
   type FacilityRow,
   type OpportunityRow,
 } from './district-nexus.aggregate.js';
-import type { ClientDistrictNexusResponse, SourceFreshness } from './district-nexus.types.js';
+import { buildFirmNexusResponse } from './district-nexus.firm-aggregate.js';
+import { resolveDistrictNames, statesForKeys } from './district-nexus.district-names.js';
+import { parseView } from './district-nexus.view.js';
+import type {
+  ClientDistrictNexusResponse,
+  DistrictNexusMapResponse,
+  SourceFreshness,
+} from './district-nexus.types.js';
 
 /**
  * The source rails whose watermarks are surfaced to the UI, so it can say
@@ -103,7 +112,10 @@ const FRESH_STATUSES = ['success', 'success_with_errors'] as const;
 export class DistrictNexusService {
   private readonly logger = new Logger(DistrictNexusService.name);
 
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly representation: RepresentationResolverService,
+  ) {}
 
   /**
    * WS-E Step E3 — the unified client endpoint's payload.
@@ -117,9 +129,9 @@ export class DistrictNexusService {
     tenantId: string,
   ): Promise<ClientDistrictNexusResponse> {
     // ── Phase 1: tenant-scoped identity resolution, short transaction ───────
-    const { contractorNames, recipientUeis, recipientNames, facilities } =
+    const { contractorNames, recipientUeis, recipientNames, facilities, facilityRows } =
       await this.prisma.withTenant(tenantId, async (tx) => {
-        const [mappings, facilityRows] = await Promise.all([
+        const [mappings, rows] = await Promise.all([
           tx.clientIntelMapping.findMany({
             where: {
               clientId,
@@ -130,7 +142,21 @@ export class DistrictNexusService {
           }),
           tx.clientFacility.findMany({
             where: { clientId },
-            select: { state: true, congressionalDistrict: true, employeeCount: true },
+            // Wider than the aggregation rail needs: the extra district columns
+            // and geocodeStatus are what the representation resolver reads, and
+            // fetching them here keeps representation out of its own query.
+            select: {
+              id: true,
+              name: true,
+              city: true,
+              state: true,
+              congressionalDistrict: true,
+              stateHouseDistrict: true,
+              stateSenateDistrict: true,
+              geocodeStatus: true,
+              employeeCount: true,
+            },
+            orderBy: { createdAt: 'asc' },
           }),
         ]);
 
@@ -143,22 +169,28 @@ export class DistrictNexusService {
           // searchAssistanceRecipients, which pins UEI-else-name as the id.
           recipientUeis: dedupe(assistance.map((m) => m.externalId)).filter(isUeiShaped),
           recipientNames: dedupe(assistance.map((m) => m.externalName)),
-          facilities: facilityRows.map(
+          facilities: rows.map(
             (f): FacilityRow => ({
               state: f.state,
               districtCode: f.congressionalDistrict,
               employeeCount: f.employeeCount,
             }),
           ),
+          facilityRows: rows,
         };
       });
 
     // ── Phase 2: global aggregates, outside the tenant transaction ──────────
-    const [contracts, assistance, opportunities, freshness] = await Promise.all([
+    //
+    // Representation joins here too. It reads congress_member and
+    // state_legislator, both global reference tables, and the BATCHED resolver
+    // costs four queries for the whole client rather than four per facility.
+    const [contracts, assistance, opportunities, freshness, representations] = await Promise.all([
       this.aggregateContracts(contractorNames),
       this.aggregateAssistance(recipientUeis, recipientNames),
       this.aggregateOpportunities(clientId, tenantId),
       this.readFreshness(),
+      this.representation.representationForFacilities(facilityRows),
     ]);
 
     return buildClientNexusResponse({
@@ -168,8 +200,160 @@ export class DistrictNexusService {
       opportunities,
       facilities,
       freshness,
+      representativesByFacility: facilityRows.map((f, i) => ({
+        facility: { id: f.id, name: f.name, city: f.city, state: f.state },
+        representation: representations[i]!,
+      })),
       generatedAt: new Date().toISOString(),
     });
+  }
+
+  /**
+   * WS-E Step E1 — the firm-wide map aggregate.
+   *
+   * Same two-phase discipline as the client rail: tenant-scoped identity
+   * resolution inside ONE short `withTenant`, global award aggregation outside
+   * it. The difference is that identity is resolved for every visible client at
+   * once, so the whole map costs a fixed number of queries regardless of how
+   * many clients the tenant has.
+   *
+   * `view` is validated by `parseView`, which rejects `future` rather than
+   * quietly returning the current map under a future label.
+   */
+  async getFirmDistrictNexusMap(
+    tenantId: string,
+    options: { view?: string | null; clientId?: string | null; state?: string | null } = {},
+  ): Promise<DistrictNexusMapResponse> {
+    parseView(options.view);
+
+    const generatedAt = new Date().toISOString();
+
+    // ── Phase 1: tenant-scoped, one short transaction for ALL clients ───────
+    const { byClient } = await this.prisma.withTenant(tenantId, async (tx) => {
+      const clientWhere = options.clientId ? { clientId: options.clientId } : {};
+      const [mappings, facilityRows] = await Promise.all([
+        tx.clientIntelMapping.findMany({
+          where: {
+            ...clientWhere,
+            confirmed: true,
+            source: { in: ['contracting', 'assistance_recipient'] },
+          },
+          select: { clientId: true, source: true, externalId: true, externalName: true },
+        }),
+        tx.clientFacility.findMany({
+          where: { ...clientWhere, ...(options.state ? { state: options.state } : {}) },
+          select: {
+            clientId: true,
+            state: true,
+            congressionalDistrict: true,
+            employeeCount: true,
+          },
+        }),
+      ]);
+
+      const clients = new Map<
+        string,
+        { contractorNames: string[]; recipientUeis: string[]; recipientNames: string[]; facilities: FacilityRow[] }
+      >();
+      const ensure = (id: string) => {
+        const existing = clients.get(id);
+        if (existing) return existing;
+        const fresh = {
+          contractorNames: [] as string[],
+          recipientUeis: [] as string[],
+          recipientNames: [] as string[],
+          facilities: [] as FacilityRow[],
+        };
+        clients.set(id, fresh);
+        return fresh;
+      };
+
+      for (const m of mappings) {
+        const entry = ensure(m.clientId);
+        if (m.source === 'contracting') {
+          if (m.externalName) entry.contractorNames.push(m.externalName);
+        } else {
+          if (m.externalId && isUeiShaped(m.externalId)) entry.recipientUeis.push(m.externalId);
+          if (m.externalName) entry.recipientNames.push(m.externalName);
+        }
+      }
+      for (const f of facilityRows) {
+        ensure(f.clientId).facilities.push({
+          state: f.state,
+          districtCode: f.congressionalDistrict,
+          employeeCount: f.employeeCount,
+        });
+      }
+
+      return { byClient: clients };
+    });
+
+    // ── Phase 2: global aggregates, outside the tenant transaction ──────────
+    //
+    // ONE query per rail across the union of every client's identifiers, then
+    // the rows are attributed back to clients in memory. A per-client query
+    // would be the N+1 this whole design exists to avoid.
+    const allContractorNames = dedupe([...byClient.values()].flatMap((c) => c.contractorNames));
+    const allRecipientUeis = dedupe([...byClient.values()].flatMap((c) => c.recipientUeis));
+    const allRecipientNames = dedupe([...byClient.values()].flatMap((c) => c.recipientNames));
+
+    const [contractRows, assistanceRows, freshness] = await Promise.all([
+      this.aggregateContractsByIdentifier(allContractorNames),
+      this.aggregateAssistanceByIdentifier(allRecipientUeis, allRecipientNames),
+      this.readFreshness(),
+    ]);
+
+    // Attribute each aggregated row back to the clients that claim its
+    // identifier. A name or UEI can legitimately belong to more than one client
+    // (shared parent, joint venture), so this is a fan-out, not a lookup.
+    const perClient: ClientNexusInputs[] = [...byClient.entries()].map(([clientId, ids]) => {
+      const names = new Set(ids.contractorNames);
+      const ueis = new Set(ids.recipientUeis);
+      const lowerNames = new Set(ids.recipientNames.map((n) => n.toLowerCase()));
+      return {
+        clientId,
+        contracts: contractRows
+          .filter((r) => r.identifier != null && names.has(r.identifier))
+          .map(({ identifier: _identifier, ...row }) => row),
+        assistance: assistanceRows
+          .filter(
+            (r) =>
+              (r.uei != null && ueis.has(r.uei)) ||
+              (r.nameLower != null && lowerNames.has(r.nameLower)),
+          )
+          .map(({ uei: _uei, nameLower: _nameLower, ...row }) => row),
+        // Opportunities are per-client and forecast-only; they contribute no
+        // awarded credit, so the map omits them rather than issuing one query
+        // per client to fetch numbers it would not colour by.
+        opportunities: [],
+        facilities: ids.facilities,
+        freshness,
+        generatedAt,
+      };
+    });
+
+    const response = buildFirmNexusResponse({ perClient, freshness, generatedAt });
+
+    // District names/status: ONE query for every state on the map, matched in
+    // memory. `districtNo` is a bare number string and a sole House seat is
+    // reported as "1", so this must not be a string-equality join — see
+    // district-nexus.district-names.ts.
+    const keys = response.districts.map((d) => d.districtKey);
+    if (keys.length) {
+      const rows = await this.prisma.legislativeDistrict.findMany({
+        where: { state: { in: statesForKeys(keys) }, chamber: 'house' },
+        select: { state: true, districtNo: true, name: true, status: true },
+      });
+      const names = resolveDistrictNames(keys, rows);
+      for (const district of response.districts) {
+        const named = names.get(district.districtKey);
+        if (!named) continue;
+        district.name = named.name;
+        district.status = named.status;
+      }
+    }
+
+    return response;
   }
 
   /**
@@ -301,6 +485,95 @@ export class DistrictNexusService {
         awardCeiling: g.awardCeiling,
       }),
     );
+  }
+
+  /**
+   * Contracts by district, CARRYING the identifier each group matched on.
+   *
+   * The per-client rail can group by district alone because every row already
+   * belongs to the one client it queried for. The firm-wide rail cannot: it
+   * queries the union of every client's identifiers in one pass, so it has to
+   * know which identifier produced each group in order to attribute the money
+   * back and count distinct clients per district. Same single query, one extra
+   * grouping column.
+   */
+  private async aggregateContractsByIdentifier(
+    contractorNames: string[],
+  ): Promise<Array<ContractDistrictRow & { identifier: string | null }>> {
+    if (!contractorNames.length) return [];
+    const rows = await this.prisma.$queryRaw<
+      Array<{
+        identifier: string | null;
+        state: string | null;
+        district: string | null;
+        award_count: bigint;
+        total_amount: number | null;
+      }>
+    >`
+      SELECT contractor_name AS identifier,
+             pop_state AS state,
+             pop_congressional_district AS district,
+             COUNT(*)::bigint AS award_count,
+             COALESCE(SUM(amount), 0)::float8 AS total_amount
+      FROM federal_award
+      WHERE contractor_name = ANY(${contractorNames}::text[])
+      GROUP BY contractor_name, pop_state, pop_congressional_district
+    `;
+    return rows.map((r) => ({
+      identifier: r.identifier,
+      state: r.state,
+      district: r.district,
+      awardCount: Number(r.award_count),
+      totalAmount: r.total_amount ?? 0,
+    }));
+  }
+
+  /** Assistance by district, carrying both identifiers a row could have matched. */
+  private async aggregateAssistanceByIdentifier(
+    recipientUeis: string[],
+    recipientNames: string[],
+  ): Promise<Array<AssistanceDistrictRow & { uei: string | null; nameLower: string | null }>> {
+    if (!recipientUeis.length && !recipientNames.length) return [];
+    const lowerNames = recipientNames.map((n) => n.toLowerCase());
+    const rows = await this.prisma.$queryRaw<
+      Array<{
+        uei: string | null;
+        name_lower: string | null;
+        state: string | null;
+        district: string | null;
+        basis: string;
+        award_count: bigint;
+        total_obligated: number | null;
+        total_outlayed: number | null;
+      }>
+    >`
+      SELECT recipient_uei AS uei,
+             lower(recipient_name) AS name_lower,
+             COALESCE(pop_state, recipient_state) AS state,
+             COALESCE(pop_congressional_district, recipient_congressional_district) AS district,
+             CASE
+               WHEN pop_state IS NOT NULL AND pop_congressional_district IS NOT NULL
+               THEN 'place_of_performance'
+               ELSE 'recipient_location'
+             END AS basis,
+             COUNT(*)::bigint AS award_count,
+             COALESCE(SUM(total_obligated_amount), 0)::float8 AS total_obligated,
+             COALESCE(SUM(total_outlayed_amount), 0)::float8 AS total_outlayed
+      FROM federal_assistance_award
+      WHERE recipient_uei = ANY(${recipientUeis}::text[])
+         OR lower(recipient_name) = ANY(${lowerNames}::text[])
+      GROUP BY 1, 2, 3, 4, 5
+    `;
+    return rows.map((r) => ({
+      uei: r.uei,
+      nameLower: r.name_lower,
+      state: r.state,
+      district: r.district,
+      basis: r.basis === 'place_of_performance' ? 'place_of_performance' : 'recipient_location',
+      awardCount: Number(r.award_count),
+      totalObligated: r.total_obligated ?? 0,
+      totalOutlayed: r.total_outlayed ?? 0,
+    }));
   }
 
   /**
