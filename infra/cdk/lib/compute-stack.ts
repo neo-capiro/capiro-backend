@@ -676,6 +676,13 @@ export class ComputeStack extends cdk.Stack {
         // at boot. Same image promotes through environments.
         APP_ENV: cfg.envName,
         API_BASE_URL: `https://${cfg.appHost}`,
+        // District Nexus basemap (plan §4.4). OpenFreeMap Positron is key-free,
+        // has no request limits and permits commercial use, so it is safe as a
+        // shipped default. Declared here so the style can be repointed without
+        // rebuilding the image. The web app falls back to this same URL when
+        // the var is absent and never crashes the route on a style failure.
+        MAP_STYLE_URL: 'https://tiles.openfreemap.org/styles/positron',
+        MAP_STYLE_ATTRIBUTION: '© OpenStreetMap contributors',
       },
       secrets: {
         CLERK_PUBLISHABLE_KEY: ecs.Secret.fromSecretsManager(clerkPubKeyImported),
