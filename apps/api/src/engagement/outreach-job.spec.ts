@@ -5,8 +5,11 @@
 
 import { describe, expect, test } from '@jest/globals';
 import type { TenantContext } from '@capiro/shared';
+import { BadRequestException } from '@nestjs/common';
 import {
   OutreachJobService,
+  buildItemResult,
+  classifyGenerationItem,
   computeJobRollup,
   outreachRecipientKey,
 } from './outreach-job.service.js';
@@ -15,7 +18,7 @@ describe('computeJobRollup (W4.2)', () => {
   test('all pending → queued', () => {
     const r = computeJobRollup([{ status: 'pending' }, { status: 'pending' }]);
     expect(r.status).toBe('queued');
-    expect(r.totals).toEqual({ queued: 2, succeeded: 0, failed: 0, skipped: 0, total: 2 });
+    expect(r.totals).toEqual({ queued: 2, succeeded: 0, failed: 0, skipped: 0, held: 0, total: 2 });
   });
 
   test('some done, some pending → running', () => {
@@ -38,7 +41,7 @@ describe('computeJobRollup (W4.2)', () => {
   test('mix of done + failed → partial', () => {
     const r = computeJobRollup([{ status: 'done' }, { status: 'failed' }, { status: 'done' }]);
     expect(r.status).toBe('partial');
-    expect(r.totals).toEqual({ queued: 0, succeeded: 2, failed: 1, skipped: 0, total: 3 });
+    expect(r.totals).toEqual({ queued: 0, succeeded: 2, failed: 1, skipped: 0, held: 0, total: 3 });
   });
 
   test('done + skipped (no failures) → complete', () => {
@@ -74,13 +77,18 @@ const ctx: TenantContext = {
 /** Stub the withTenant tx surface submit() touches. */
 function makeService(existingJobId: string | null) {
   const created: { job?: Record<string, unknown>; items?: unknown[] } = {};
+  const lookups: Array<Record<string, unknown>> = [];
   const service = Object.create(OutreachJobService.prototype) as OutreachJobService;
   const patch = service as unknown as Record<string, unknown>;
+  patch.versionedOutreach = false;
   patch.prisma = {
     withTenant: (_t: string, fn: (tx: unknown) => unknown) =>
       fn({
         outreachJob: {
-          findFirst: async () => (existingJobId ? { id: existingJobId } : null),
+          findFirst: async ({ where }: { where: Record<string, unknown> }) => {
+            lookups.push(where);
+            return existingJobId ? { id: existingJobId } : null;
+          },
           create: async ({ data }: { data: Record<string, unknown> }) => {
             created.job = data;
             return { id: 'new-job' };
@@ -94,7 +102,7 @@ function makeService(existingJobId: string | null) {
         },
       }),
   };
-  return { service, created };
+  return { service, created, lookups };
 }
 
 describe('OutreachJobService.submit idempotency (W4.2)', () => {
@@ -276,5 +284,264 @@ describe('OutreachJobService retryItem (W4.4)', () => {
     const res = await h.run();
     expect(res.retried).toBe(false);
     expect(h.itemUpdates).toHaveLength(0);
+  });
+});
+
+// ── Phase 0 (plan §3.c3) ─────────────────────────────────────────────────────
+
+describe('computeJobRollup — held is terminal and never "complete"', () => {
+  test('all held → partial (nothing failed, but nothing is sendable either)', () => {
+    const r = computeJobRollup([{ status: 'held' }, { status: 'held' }]);
+    expect(r.status).toBe('partial');
+    expect(r.totals.held).toBe(2);
+    expect(r.totals.succeeded).toBe(0);
+    expect(r.totals.failed).toBe(0);
+  });
+
+  test('done + held → partial, never complete', () => {
+    expect(computeJobRollup([{ status: 'done' }, { status: 'held' }]).status).toBe('partial');
+  });
+
+  test('held counts as TERMINAL, so a job with only held items finalizes', () => {
+    // If held were non-terminal the job would sit in 'running' forever.
+    const r = computeJobRollup([{ status: 'held' }]);
+    expect(['partial', 'complete', 'failed']).toContain(r.status);
+  });
+
+  test('held + failed (no successes) is partial — some drafts do exist', () => {
+    expect(computeJobRollup([{ status: 'held' }, { status: 'failed' }]).status).toBe('partial');
+  });
+});
+
+describe('classifyGenerationItem — fails closed', () => {
+  test('the versioned lifecycle is authoritative', () => {
+    expect(classifyGenerationItem({ versionId: 'v1', auditStatus: 'passed' })).toBe('done');
+    expect(classifyGenerationItem({ versionId: 'v1', auditStatus: 'not_required' })).toBe('done');
+    expect(classifyGenerationItem({ versionId: 'v1', auditStatus: 'warning' })).toBe('done');
+    expect(classifyGenerationItem({ versionId: 'v1', auditStatus: 'held' })).toBe('held');
+    expect(classifyGenerationItem({ versionId: 'v1', auditStatus: 'pending' })).toBe('held');
+    expect(classifyGenerationItem({ versionId: 'v1', auditStatus: 'unavailable' })).toBe('held');
+  });
+
+  test('an outstanding or refused review is held, whatever the audit says', () => {
+    expect(
+      classifyGenerationItem({ versionId: 'v1', auditStatus: 'passed', approvalStatus: 'pending' }),
+    ).toBe('held');
+    expect(
+      classifyGenerationItem({ versionId: 'v1', auditStatus: 'passed', approvalStatus: 'rejected' }),
+    ).toBe('held');
+  });
+
+  test('a generation failure is failed even when version fields are present', () => {
+    expect(
+      classifyGenerationItem({ versionId: 'v1', generationStatus: 'generation_failed' }),
+    ).toBe('failed');
+  });
+
+  test('the pre-Phase-0 shape still works', () => {
+    expect(classifyGenerationItem({ status: 'ready' })).toBe('done');
+    expect(classifyGenerationItem({ status: 'held' })).toBe('held');
+    expect(classifyGenerationItem({ status: 'error' })).toBe('failed');
+  });
+
+  test('missing/garbage results are failed, never done', () => {
+    expect(classifyGenerationItem(undefined)).toBe('failed');
+    expect(classifyGenerationItem(null)).toBe('failed');
+    expect(classifyGenerationItem('nope')).toBe('failed');
+    expect(classifyGenerationItem({})).toBe('failed');
+    expect(classifyGenerationItem({ versionId: 'v1', auditStatus: 'brand_new' })).toBe('failed');
+  });
+});
+
+describe('buildItemResult — held content is preserved, internals are not', () => {
+  test('keeps the real subject/body plus version metadata', () => {
+    const out = buildItemResult({
+      subject: 'Funding update',
+      body: 'Real held content',
+      versionId: 'v-1',
+      artifactId: 'art-1',
+      version: 2,
+      auditStatus: 'held',
+      approvalStatus: 'pending',
+      reviewRequestId: 'rr-1',
+      contextNote: 'Unverified — 1 finding',
+    });
+    expect(out).toMatchObject({
+      subject: 'Funding update',
+      body: 'Real held content',
+      versionId: 'v-1',
+      auditStatus: 'held',
+      reviewRequestId: 'rr-1',
+    });
+  });
+
+  test('drops anything not on the allowlist (no auditor internals reach the client)', () => {
+    const out = buildItemResult({
+      subject: 'S',
+      body: 'B',
+      error: 'Error: at Object.<anonymous> (/app/dist/auditor.js:1:1)',
+      rawVerdict: { findings: [{ span: 'secret sentence' }] },
+    })!;
+    expect(out).not.toHaveProperty('error');
+    expect(out).not.toHaveProperty('rawVerdict');
+    expect(JSON.stringify(out)).not.toContain('secret sentence');
+  });
+
+  test('a non-object result yields null', () => {
+    expect(buildItemResult(undefined)).toBeNull();
+    expect(buildItemResult('x')).toBeNull();
+  });
+});
+
+describe('per-USER job idempotency (§3.c3)', () => {
+  test('the requestKey lookup is scoped by userId, not just tenantId', async () => {
+    const { service, lookups } = makeService(null);
+    await service.submit(ctx, {
+      requestKey: 'rk-shared',
+      kind: 'generate',
+      params: {},
+      recipients: [{ email: 'a@x' }],
+    });
+    expect(lookups[0]).toMatchObject({ tenantId: 't1', userId: 'u1', requestKey: 'rk-shared' });
+  });
+
+  test("two users' identical request keys do not collide", async () => {
+    const a = makeService(null);
+    await a.service.submit(ctx, {
+      requestKey: 'rk-same',
+      kind: 'generate',
+      params: {},
+      recipients: [{ email: 'a@x' }],
+    });
+    const b = makeService(null);
+    const other = { ...ctx, userId: 'u2' } as TenantContext;
+    await b.service.submit(other, {
+      requestKey: 'rk-same',
+      kind: 'generate',
+      params: {},
+      recipients: [{ email: 'b@x' }],
+    });
+    expect(a.lookups[0]!.userId).toBe('u1');
+    expect(b.lookups[0]!.userId).toBe('u2');
+    // Both created their OWN job; neither deduped onto the other's.
+    expect(a.created.job).toBeDefined();
+    expect(b.created.job).toBeDefined();
+  });
+});
+
+describe('legacy async SEND is refused under versioned outreach (§3.c3)', () => {
+  test('kind=send is rejected when ENGAGEMENT_VERSIONED_OUTREACH is on', async () => {
+    const { service } = makeService(null);
+    (service as unknown as Record<string, unknown>).versionedOutreach = true;
+    await expect(
+      service.submit(ctx, {
+        requestKey: 'rk-send',
+        kind: 'send',
+        params: {},
+        recipients: [{ email: 'a@x' }],
+      }),
+    ).rejects.toBeInstanceOf(BadRequestException);
+  });
+
+  test('kind=generate is unaffected by that flag', async () => {
+    const { service } = makeService(null);
+    (service as unknown as Record<string, unknown>).versionedOutreach = true;
+    await expect(
+      service.submit(ctx, {
+        requestKey: 'rk-gen',
+        kind: 'generate',
+        params: {},
+        recipients: [{ email: 'a@x' }],
+      }),
+    ).resolves.toMatchObject({ deduped: false });
+  });
+});
+
+/** getJob / retryItem / cancelJob must all be owner-scoped, not tenant-scoped. */
+function makeOwnershipService(opts: { jobUserId: string; itemStatus?: string }) {
+  const wheres: Array<Record<string, unknown>> = [];
+  const service = Object.create(OutreachJobService.prototype) as OutreachJobService;
+  const patch = service as unknown as Record<string, unknown>;
+  patch.versionedOutreach = false;
+  patch.prisma = {
+    withTenant: (_t: string, fn: (tx: unknown) => unknown) =>
+      fn({
+        outreachJob: {
+          findFirst: async ({ where }: { where: Record<string, unknown> }) => {
+            wheres.push(where);
+            // Faithful to Prisma: a userId predicate that does not match → null.
+            if ('userId' in where && where.userId !== opts.jobUserId) return null;
+            return { id: 'job-1', kind: 'generate', status: 'partial', userId: opts.jobUserId };
+          },
+          update: async () => ({}),
+          updateMany: async () => ({ count: 1 }),
+        },
+        outreachJobItem: {
+          findFirst: async () => ({ id: 'item-1', status: opts.itemStatus ?? 'failed' }),
+          findMany: async () => [],
+          update: async () => ({}),
+          updateMany: async () => ({ count: 0 }),
+        },
+      }),
+  };
+  return { service, wheres };
+}
+
+describe('job ownership (§3.c3): user A cannot touch user B\'s job', () => {
+  const userB = { ...ctx, userId: 'u2' } as TenantContext;
+
+  test('getJob returns null for a foreign job (no existence leak)', async () => {
+    const { service, wheres } = makeOwnershipService({ jobUserId: 'u1' });
+    expect(await service.getJob(userB, 'job-1')).toBeNull();
+    expect(wheres[0]).toMatchObject({ userId: 'u2' });
+    // The owner still sees it.
+    const own = makeOwnershipService({ jobUserId: 'u1' });
+    expect(await own.service.getJob(ctx, 'job-1')).not.toBeNull();
+  });
+
+  test('retryItem refuses a foreign job', async () => {
+    const { service } = makeOwnershipService({ jobUserId: 'u1' });
+    const res = await service.retryItem(userB, 'job-1', 'item-1');
+    expect(res.retried).toBe(false);
+    expect(res.reason).toMatch(/not found/i);
+  });
+
+  test('cancelJob refuses a foreign job', async () => {
+    const { service } = makeOwnershipService({ jobUserId: 'u1' });
+    expect(await service.cancelJob(userB, 'job-1')).toEqual({ canceled: false });
+  });
+
+  test('a HELD item is not retryable — it needs review or a new version', async () => {
+    const { service } = makeOwnershipService({ jobUserId: 'u1', itemStatus: 'held' });
+    const res = await service.retryItem(ctx, 'job-1', 'item-1');
+    expect(res.retried).toBe(false);
+    expect(res.reason).toMatch(/held for review/i);
+  });
+});
+
+describe('cancel is terminal (§3.c3)', () => {
+  test('finalizeJob cannot overwrite a canceled job', async () => {
+    const calls: Array<{ where: Record<string, unknown>; data: Record<string, unknown> }> = [];
+    const service = Object.create(OutreachJobService.prototype) as OutreachJobService;
+    const patch = service as unknown as Record<string, unknown>;
+    patch.prisma = {
+      withSystem: (fn: (tx: unknown) => unknown) =>
+        fn({
+          outreachJobItem: { findMany: async () => [{ status: 'done' }] },
+          outreachJob: {
+            updateMany: async (a: {
+              where: Record<string, unknown>;
+              data: Record<string, unknown>;
+            }) => {
+              calls.push(a);
+              return { count: 0 }; // the guard matched nothing: job IS canceled
+            },
+          },
+        }),
+    };
+    await (service as unknown as { finalizeJob(id: string): Promise<void> }).finalizeJob('job-1');
+    expect(calls).toHaveLength(1);
+    // The write is guarded so a canceled job is never rolled forward.
+    expect(calls[0]!.where).toMatchObject({ status: { not: 'canceled' } });
   });
 });
