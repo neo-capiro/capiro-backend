@@ -71,26 +71,48 @@ case "${1:-serve}" in
     # `tenants` table (intel-api shares the api's Aurora DB). Admin one-off.
     FEATURE="${2:?feature required}"
     TENANT="${3:?tenant slug or id required}"
+    # Runs as an ADMIN caller (fixed 2026-07-26). Both `tenants` and
+    # `intel_feature_flag` are FORCE ROW LEVEL SECURITY with policy
+    # `rls_bypass() OR <tenant match>`. This CLI set neither app.bypass_rls nor
+    # app.current_tenant, so it could see ZERO tenants — surfacing as
+    # `NO_TENANT_FOR_SLUG <slug> | available: ` with an EMPTY list, which reads
+    # like a typo'd slug rather than an RLS wall — and passing the UUID directly
+    # to skip the lookup then failed the insert with `42501: new row violates
+    # row-level security policy`. Net effect: NO intel feature flag could be
+    # enabled for ANY tenant by ANY means.
+    #
+    # Acting across tenants is this command's entire purpose (resolve any
+    # tenant, write that tenant's row), so this is the intended use of the
+    # existing capability, not a widening of it — the capiro_app role already
+    # passes rls_bypass(); it simply has to ask.
+    #
+    # set_config's 3rd arg `true` scopes the setting to the TRANSACTION, so the
+    # lookup and the insert must share one \$transaction: Prisma pools
+    # connections, and separate raw calls can otherwise land on different ones,
+    # leaving the setting behind. Mirrors readCrossTenant() in
+    # apps/api/scripts/emit-redistricting-alerts.ts and sync-congress.ts.
     node -e "
       const { PrismaClient } = require('./generated/prisma-client');
       const p = new PrismaClient();
       (async () => {
-        let tid = '${TENANT}';
-        // If not a UUID, resolve via tenants.slug
-        if (!/^[0-9a-f-]{36}\$/i.test(tid)) {
-          const rows = await p.\$queryRawUnsafe('select id from tenants where slug = \$1', tid);
-          if (!rows || !rows[0]) {
-            const all = await p.\$queryRawUnsafe('select slug from tenants order by slug');
-            console.error('NO_TENANT_FOR_SLUG ' + tid + ' | available: ' + all.map(r => r.slug).join(', '));
-            process.exit(1);
+        await p.\$transaction(async (tx) => {
+          await tx.\$executeRawUnsafe(\"SELECT set_config('app.bypass_rls', 'on', true)\");
+          let tid = '${TENANT}';
+          // If not a UUID, resolve via tenants.slug
+          if (!/^[0-9a-f-]{36}\$/i.test(tid)) {
+            const rows = await tx.\$queryRawUnsafe('select id from tenants where slug = \$1', tid);
+            if (!rows || !rows[0]) {
+              const all = await tx.\$queryRawUnsafe('select slug from tenants order by slug');
+              throw new Error('NO_TENANT_FOR_SLUG ' + tid + ' | available: ' + all.map(r => r.slug).join(', '));
+            }
+            tid = rows[0].id;
           }
-          tid = rows[0].id;
-        }
-        await p.\$executeRawUnsafe(
-          'insert into intel_feature_flag (id, feature, tenant_id, enabled, created_at) values (\$1,\$2,\$3,true,now()) on conflict (feature, tenant_id) do update set enabled = true',
-          'ff_' + Math.random().toString(36).slice(2), '${FEATURE}', tid
-        );
-        console.log('FEATURE_ENABLED feature=${FEATURE} tenant=' + tid);
+          await tx.\$executeRawUnsafe(
+            'insert into intel_feature_flag (id, feature, tenant_id, enabled, created_at) values (\$1,\$2,\$3,true,now()) on conflict (feature, tenant_id) do update set enabled = true',
+            'ff_' + Math.random().toString(36).slice(2), '${FEATURE}', tid
+          );
+          console.log('FEATURE_ENABLED feature=${FEATURE} tenant=' + tid);
+        });
         await p.\$disconnect();
       })().catch((e) => { console.error('SEED_ERR', e.message); process.exit(1); });
     "
