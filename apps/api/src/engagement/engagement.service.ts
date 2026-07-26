@@ -49,6 +49,12 @@ import {
   OUTREACH_HOLD_BLOCKING_STATUSES,
   OUTREACH_HOLD_SUBJECT_TYPE,
 } from './outreach-hold.js';
+import { OutreachDraftService } from './outreach-draft.service.js';
+import type {
+  DraftApprovalStatus,
+  DraftAuditStatus,
+  DraftGenerationStatus,
+} from './outreach-draft.types.js';
 import type { AppConfig } from '../config/config.schema.js';
 import { PrismaService } from '../prisma/prisma.service.js';
 import { DirectoryService, type DirectoryEmailMatch } from '../directory/directory.service.js';
@@ -252,6 +258,15 @@ export interface OutreachRecipientInput {
    * (not one email each).
    */
   groupMembers?: Array<{ email: string; name?: string }>;
+  /**
+   * Phase 0 — the wizard's GenerationTargetKey(s) this recipient's draft belongs
+   * to (`individual:<rk>` | `list:<aid>:<rk>` | `group:<aid>`). Required when
+   * ENGAGEMENT_VERSIONED_OUTREACH=true: the key IS the identity of the immutable
+   * draft slot. A list is `generationKeys` because one generated draft can back
+   * several slots (same person in two lists → generated once, versioned twice).
+   */
+  generationKey?: string;
+  generationKeys?: string[];
   meetingId?: string;
   meetingSubject?: string;
   meetingDateTime?: string;
@@ -320,6 +335,13 @@ export interface GenerateBatchEmailInput {
   campaignId?: string;
   clientId?: string;
   templateId: string;
+  /**
+   * Phase 0 — the OutreachRecord every generated version is filed under.
+   * REQUIRED when ENGAGEMENT_VERSIONED_OUTREACH=true: without a durable parent
+   * record there is nowhere to persist an immutable version, so generation would
+   * fall back to returning transient text. Must be a draft owned by the caller.
+   */
+  outreachRecordId?: string;
   recipients: OutreachRecipientInput[];
   insights?: string[];
   additionalContext?: string;
@@ -354,6 +376,26 @@ export interface GenerateBatchEmailInput {
  * It is a distinct concept from OutreachRecord.status (campaign-record lifecycle)
  * and EngagementCampaignRecipient.status (legacy) — do not conflate.
  */
+/**
+ * Phase 0 — the persisted immutable version behind one generation slot. Present
+ * only when ENGAGEMENT_VERSIONED_OUTREACH=true. `versions` carries one entry per
+ * generationKey because ONE generated draft can back several slots (the same
+ * person in two lists is generated once, by design, but each slot needs its own
+ * immutable version so each can be edited and audited independently).
+ */
+export interface OutreachBatchDraftVersionRef {
+  generationKey: string;
+  artifactId: string;
+  versionId: string;
+  version: number;
+  generationStatus: DraftGenerationStatus;
+  auditStatus: DraftAuditStatus;
+  approvalStatus: DraftApprovalStatus;
+  reviewRequestId?: string;
+  /** Server-computed. The wizard must NEVER derive sendability itself. */
+  sendable: boolean;
+}
+
 export interface OutreachBatchDraftResult {
   recipientId: string;
   subject: string;
@@ -364,6 +406,10 @@ export interface OutreachBatchDraftResult {
    * is shown for review with `contextNote` but the wizard must treat it as
    * NON-sendable, same as 'error', until a reviewer clears it. 'held' only ever
    * occurs under MERI_AUDITOR_MODE=enforce; shadow/annotate never produce it.
+   *
+   * Phase 0: still emitted for compatibility with the pre-versioning wizard and
+   * the async job worker, but when the versioned fields below are present THEY
+   * are authoritative — this string is derived from them.
    */
   status: 'ready' | 'error' | 'held';
   /** Failure detail for telemetry/logs ONLY — never surface raw to end users. */
@@ -376,6 +422,24 @@ export interface OutreachBatchDraftResult {
    * in generateBatchEmails.
    */
   contextNote?: string;
+
+  // ---- Phase 0 versioned fields (ENGAGEMENT_VERSIONED_OUTREACH=true only) ----
+  /** The generation slot this result was requested for. */
+  generationKey?: string;
+  artifactId?: string;
+  versionId?: string;
+  version?: number;
+  generationStatus?: DraftGenerationStatus;
+  auditStatus?: DraftAuditStatus;
+  approvalStatus?: DraftApprovalStatus;
+  reviewRequestId?: string;
+  /** Server-computed sendability of `versionId`. */
+  sendable?: boolean;
+  /**
+   * Every version this generated text was persisted as — one per generationKey.
+   * The flat fields above mirror `versions[0]`.
+   */
+  versions?: OutreachBatchDraftVersionRef[];
 }
 
 export interface GenerateTalkingPointsInput {
@@ -767,6 +831,10 @@ export class EngagementService {
   private readonly bucket?: string;
   private readonly openAiApiKey?: string;
   private readonly outreachDailyTokenBudget: number;
+  /** Phase 0: immutable versioned drafts + durable send intents (default off). */
+  private readonly versionedOutreach: boolean;
+  /** Phase 0: refuse a REAL send of a pre-v2-prompt draft (default off). */
+  private readonly externalSendV2Required: boolean;
 
   constructor(
     private readonly prisma: PrismaService,
@@ -779,12 +847,100 @@ export class EngagementService {
     private readonly mailSender: EngagementMailSender,
     private readonly clientKb: ClientKbService,
     private readonly contextCompiler: ContextCompilerService,
+    private readonly draft: OutreachDraftService,
     config: ConfigService<AppConfig, true>,
   ) {
     this.bucket = config.get('ASSETS_BUCKET', { infer: true });
     this.openAiApiKey = config.get('OPENAI_API_KEY', { infer: true });
     this.outreachDailyTokenBudget = config.get('OUTREACH_DAILY_TOKEN_BUDGET', { infer: true });
+    this.versionedOutreach = config.get('ENGAGEMENT_VERSIONED_OUTREACH', { infer: true });
+    this.externalSendV2Required = config.get('ENGAGEMENT_EXTERNAL_SEND_V2_REQUIRED', {
+      infer: true,
+    });
     this.s3 = new S3Client({ region: config.get('AWS_REGION_DEFAULT', { infer: true }) });
+  }
+
+  /**
+   * The sender's already-sanitized email signature for this send, or ''.
+   *
+   * Re-sanitized on read (idempotent) exactly like the legacy send path, so a
+   * future writer that bypasses PUT /me/email-signature can never turn this
+   * verbatim append into a stored-XSS sink into outbound email. PUBLIC for the
+   * send-intent service, which captures the rendered body ONCE at intent
+   * creation so a later signature edit cannot mutate an in-flight send.
+   */
+  async resolveSenderSignatureHtml(
+    ctx: TenantContext,
+    appendSignature?: boolean,
+  ): Promise<{
+    appendSignature: boolean;
+    signatureHtml: string;
+    senderEmail: string | null;
+    senderFirstName: string | null;
+  }> {
+    const sender = await this.prisma.withTenant(ctx.tenantId, (tx) =>
+      tx.user.findUnique({
+        where: { id: ctx.userId },
+        select: {
+          email: true,
+          firstName: true,
+          emailSignatureHtml: true,
+          emailSignatureEnabled: true,
+        },
+      }),
+    );
+    const append = appendSignature ?? sender?.emailSignatureEnabled ?? false;
+    return {
+      appendSignature: append,
+      signatureHtml:
+        append && sender?.emailSignatureHtml ? sanitizeSignatureHtml(sender.emailSignatureHtml) : '',
+      senderEmail: sender?.email ?? null,
+      senderFirstName: sender?.firstName ?? null,
+    };
+  }
+
+  /** Phase 0 capability flags, exposed to the first-party web app (§3.i1). */
+  engagementTrustBoundaryCapabilities(): {
+    versionedOutreachEnabled: boolean;
+    externalSendV2Required: boolean;
+  } {
+    return {
+      versionedOutreachEnabled: this.versionedOutreach,
+      externalSendV2Required: this.externalSendV2Required,
+    };
+  }
+
+  /**
+   * Phase 0 §3.c2/§3.h2 — the OutreachRecord a versioned generation files into
+   * must exist, belong to this tenant AND this user, and still be a draft.
+   * Validated ONCE per batch (not per recipient) so an ownership problem is one
+   * clean 404 instead of N per-recipient errors.
+   */
+  private async assertOwnedDraftRecord(
+    ctx: TenantContext,
+    outreachRecordId: string | undefined,
+  ): Promise<string> {
+    if (!outreachRecordId?.trim()) {
+      throw new BadRequestException(
+        'outreachRecordId is required: a draft must be saved before it can be generated.',
+      );
+    }
+    const record = await this.prisma.withTenant(ctx.tenantId, (tx) =>
+      tx.outreachRecord.findFirst({
+        where: { id: outreachRecordId, tenantId: ctx.tenantId, deletedAt: null },
+        select: { id: true, createdByUserId: true, status: true },
+      }),
+    );
+    // Identical 404 for missing and foreign — never leak another user's record.
+    if (!record || record.createdByUserId !== ctx.userId) {
+      throw new NotFoundException('Outreach draft record not found');
+    }
+    if (record.status !== 'draft') {
+      throw new BadRequestException(
+        'This outreach record has already been sent; start a new draft to generate again.',
+      );
+    }
+    return record.id;
   }
 
   /**
@@ -2241,8 +2397,15 @@ export class EngagementService {
       templatePrompt = systemTemplate.prompt;
       templateName = systemTemplate.name;
     } else {
+      // Phase 0 §3.h1: custom templates are OWNER-private, exactly like the
+      // list/update/delete paths already are. Without `userId` this read was
+      // tenant-wide, so any colleague's private prompt could be previewed by id.
+      // A foreign id returns the SAME not-found as a nonexistent one — ownership
+      // is never disclosed.
       const dbTemplate = await this.prisma.withTenant(ctx.tenantId, (tx) =>
-        tx.outreachAiTemplate.findFirst({ where: { id, tenantId: ctx.tenantId } }),
+        tx.outreachAiTemplate.findFirst({
+          where: { id, tenantId: ctx.tenantId, userId: ctx.userId },
+        }),
       );
       if (!dbTemplate) throw new NotFoundException('AI template not found');
       templatePrompt = dbTemplate.prompt;
@@ -2457,6 +2620,15 @@ export class EngagementService {
       reviseInstruction,
     } = input;
 
+    // Phase 0: with versioning on, every generated draft becomes an immutable
+    // audited row under a durable OutreachRecord. Validate that parent ONCE,
+    // before spending a single AI call — if the record is missing/foreign/sent
+    // there is nowhere safe to persist the result.
+    const versioned = this.versionedOutreach;
+    const versionedRecordId = versioned
+      ? await this.assertOwnedDraftRecord(ctx, input.outreachRecordId)
+      : null;
+
     // Daily token budget gate (W3.4): hard-stop before spending anything when the
     // tenant has hit its ceiling for the day; a typed 429 the wizard renders with
     // the admin contact. (Soft-warn at 80% rides back on the response below.)
@@ -2497,8 +2669,13 @@ export class EngagementService {
     if (systemTemplate) {
       templatePrompt = systemTemplate.prompt;
     } else {
+      // Phase 0 §3.h1: owner-scoped, same as previewAiTemplate — a campaign can
+      // only be drafted with the caller's OWN custom prompt (system templates
+      // stay globally available through SYSTEM_AI_TEMPLATES above).
       const dbTemplate = await this.prisma.withTenant(ctx.tenantId, (tx) =>
-        tx.outreachAiTemplate.findFirst({ where: { id: templateId, tenantId: ctx.tenantId } }),
+        tx.outreachAiTemplate.findFirst({
+          where: { id: templateId, tenantId: ctx.tenantId, userId: ctx.userId },
+        }),
       );
       if (!dbTemplate) throw new NotFoundException('Template not found');
       templatePrompt = dbTemplate.prompt;
@@ -2731,6 +2908,9 @@ export class EngagementService {
       // `id` but no directoryContactId) got keyed by email and the wizard
       // showed "no draft". The final fallback is the recipient's original
       // index (was `results.length` in the old sequential loop — identical
+      // PHASE-0-NOTE: contextNoteFromVersion is set by the versioned branch from
+      // the persisted audit outcome, so the internal note the lobbyist sees comes
+      // from the SAME verdict that decided sendability.
       // value, but stable now that generation runs concurrently).
       const recipientId =
         (recipient as Record<string, unknown>).id?.toString() ||
@@ -2758,6 +2938,9 @@ export class EngagementService {
       const combinedContextNotes = [sharedContextText, personalContextText]
         .filter((s): s is string => Boolean(s))
         .join('\n\n');
+
+      /** Internal note carried back from the persisted audit verdict (versioned path). */
+      let contextNoteFromVersion: string | undefined;
 
       try {
         // Per-recipient enrichment: directory profile + "why this office fits"
@@ -2865,6 +3048,101 @@ export class EngagementService {
         // One usage event per recipient draft; rides inside the concurrent
         // worker so metering overlaps generation instead of serializing it.
         await this.recordAiUsage(ctx, 'outreach_campaign', generated);
+
+        // ── Phase 0 versioned path ────────────────────────────────────────────
+        // Persist the draft as an IMMUTABLE version and let OutreachDraftService
+        // audit that exact row. The inline auditor below is NOT run in this mode:
+        // it audited transient text and failed OPEN, which is precisely the hole
+        // Phase 0 closes. (The legacy branch keeps it verbatim so turning the
+        // flag off never leaves generation unaudited.)
+        if (versioned) {
+          const ledgerEntries = buildOutreachLedgerEntries(
+            [...sharedItems, ...personalItems],
+            outreachTruthByItemId,
+          );
+          const generationKeys = resolveGenerationKeys(recipient, recipientId);
+          try {
+            const refs: OutreachBatchDraftVersionRef[] = [];
+            for (const generationKey of generationKeys) {
+              const version = await this.draft.upsertGeneratedVersion(ctx, {
+                outreachRecordId: versionedRecordId!,
+                generationKey,
+                recipientKey: recipientId,
+                audienceKind: audienceKind === 'group' ? 'group' : 'individual',
+                recipientSnapshot: pruneForAi(
+                  recipient as unknown as Record<string, unknown>,
+                ) as Record<string, unknown>,
+                subject: generated.subject,
+                body: generated.body,
+                provider: generated.provider ?? null,
+                model: generated.model ?? null,
+                // The spec version the AI layer ACTUALLY used for this draft (it
+                // reports 'v2.1' under the v2 flag, 'v1' otherwise) — read from
+                // the result rather than re-derived, so the send-time v2 gate
+                // judges what was really used.
+                promptSpecVersion: generated.promptSpecVersion ?? null,
+                auditLedger: ledgerEntries,
+              });
+              refs.push({
+                generationKey,
+                artifactId: version.artifactId,
+                versionId: version.id,
+                version: version.version,
+                generationStatus: version.generationStatus,
+                auditStatus: version.auditStatus,
+                approvalStatus: version.approvalStatus,
+                ...(version.reviewRequestId ? { reviewRequestId: version.reviewRequestId } : {}),
+                sendable: version.sendable,
+              });
+              if (version.contextNote) contextNoteFromVersion = version.contextNote;
+            }
+            const primary = refs[0]!;
+            return {
+              result: {
+                recipientId,
+                // The HELD text is preserved verbatim — a held draft is real
+                // content awaiting review, never a failure placeholder.
+                subject: generated.subject,
+                body: generated.body,
+                status: primary.sendable ? 'ready' : 'held',
+                generationKey: primary.generationKey,
+                artifactId: primary.artifactId,
+                versionId: primary.versionId,
+                version: primary.version,
+                generationStatus: primary.generationStatus,
+                auditStatus: primary.auditStatus,
+                approvalStatus: primary.approvalStatus,
+                ...(primary.reviewRequestId ? { reviewRequestId: primary.reviewRequestId } : {}),
+                sendable: primary.sendable,
+                versions: refs,
+                ...(contextNoteFromVersion ? { contextNote: contextNoteFromVersion } : {}),
+              },
+              provider: generated.provider,
+            };
+          } catch (persistErr) {
+            // Generation SUCCEEDED but the version could not be persisted. The
+            // transient text is deliberately dropped: returning it as ready
+            // would hand the wizard sendable content the server has no immutable,
+            // audited record of (plan edge case 2).
+            this.logger.error(
+              `outreach draft version persistence FAILED for recipient ${recipientId} — ` +
+                `the generated draft is discarded rather than returned unsendable-but-visible: ` +
+                `${(persistErr as Error).message}`,
+            );
+            return {
+              result: {
+                recipientId,
+                subject: '',
+                body: '',
+                status: 'error' as const,
+                generationStatus: 'generation_failed' as const,
+                error: 'DRAFT_PERSIST_FAILED',
+                ...(generationKeys[0] ? { generationKey: generationKeys[0] } : {}),
+              },
+              provider: generated.provider,
+            };
+          }
+        }
 
         // Wave-2 post-hoc grounding auditor on the OUTREACH surface — SHADOW by
         // default (MERI_AUDITOR_MODE off = no-op). Re-derives ground truth from
@@ -2994,13 +3272,45 @@ export class EngagementService {
         // Tag the failure explicitly so the wizard classifies it as 'error'
         // from the moment it responds — never a blank draft masquerading as
         // 'ready'. Sendability gates on this status, not on empty content.
+        //
+        // Phase 0: an ordinary generation failure creates NO version (there is no
+        // text to audit), but it DOES create the empty artifact row so the slot
+        // has a stable id the user can author a manual version against. The
+        // error message is replaced by a sanitized code — a raw provider string
+        // is telemetry, not something to hand a browser.
+        let generationKey: string | undefined;
+        if (versioned && versionedRecordId) {
+          const keys = resolveGenerationKeys(recipient, recipientId);
+          generationKey = keys[0];
+          for (const key of keys) {
+            await this.draft
+              .ensureArtifact(ctx, {
+                outreachRecordId: versionedRecordId,
+                generationKey: key,
+                recipientKey: recipientId,
+                audienceKind: audienceKind === 'group' ? 'group' : 'individual',
+                recipientSnapshot: pruneForAi(
+                  recipient as unknown as Record<string, unknown>,
+                ) as Record<string, unknown>,
+                subject: '',
+                body: '',
+              })
+              .catch((e) =>
+                this.logger.warn(
+                  `could not create empty draft artifact for ${key}: ${(e as Error).message}`,
+                ),
+              );
+          }
+        }
         return {
           result: {
             recipientId,
             subject: '',
             body: '',
             status: 'error' as const,
-            error: (err as Error).message,
+            error: versioned ? 'GENERATION_FAILED' : (err as Error).message,
+            ...(versioned ? { generationStatus: 'generation_failed' as const } : {}),
+            ...(generationKey ? { generationKey } : {}),
           },
           provider: null,
         };
@@ -3066,6 +3376,15 @@ export class EngagementService {
    * errors (loud log): generation must never lose a draft because the hold row
    * failed — the client-side gate still applies to that draft.
    */
+  /**
+   * @deprecated Phase 0 §3.b3 — CONTENT-KEYED holds are superseded by immutable
+   * draft versions (`subjectType='outreach-draft-version'`). This method is
+   * reached ONLY on the pre-Phase-0 path (ENGAGEMENT_VERSIONED_OUTREACH=false),
+   * where removing it would leave generation with no server-side hold gate at
+   * all. It is retained for that compatibility window and for reading historical
+   * rows; do NOT add new callers, and do NOT create new review rows with
+   * subjectType='outreach-draft'.
+   */
   private async persistOutreachHold(
     ctx: TenantContext,
     held: {
@@ -3127,8 +3446,30 @@ export class EngagementService {
     }
   }
 
+  /**
+   * COMPATIBILITY ROUTE (Phase 0 §3.d2).
+   *
+   * This is the raw-body send path: it accepts caller-supplied subject/body and
+   * hands them straight to a provider. That is precisely the bypass Phase 0
+   * closes, so once ENGAGEMENT_VERSIONED_OUTREACH is on a REAL send here is
+   * REFUSED.
+   *
+   * The refusal deliberately does NOT translate the request into a send intent
+   * server-side: translating raw text would preserve the bypass under a new name,
+   * because there would still be no immutable audited version behind the message.
+   *
+   * Test sends stay allowed while the flag is on — they go only to the
+   * authenticated user, touch no real recipient, and remain useful for formatting
+   * checks during the cutover.
+   */
   async sendBatchEmails(ctx: TenantContext, input: SendBatchEmailInput) {
     const { recipients, drafts, testMode } = input;
+    if (this.versionedOutreach && !testMode) {
+      throw new BadRequestException(
+        'This send path is disabled. Real sending now requires an audited draft version — ' +
+          'use POST /api/engagement/outreach/send-intents.',
+      );
+    }
     if (!drafts.length) {
       throw new BadRequestException('No drafts to send. Generate emails first.');
     }
@@ -5552,7 +5893,8 @@ export class EngagementService {
     return graphAttachments.length ? graphAttachments : undefined;
   }
 
-  private async readAttachmentBytes(s3Key: string): Promise<Buffer> {
+  /** PUBLIC so the send-intent service can size-check attachments pre-flight. */
+  async readAttachmentBytes(s3Key: string): Promise<Buffer> {
     if (!this.bucket) throw new ServiceUnavailableException('ASSETS_BUCKET is not configured');
     const object = await this.s3.send(new GetObjectCommand({ Bucket: this.bucket, Key: s3Key }));
     const body = object.Body as { transformToByteArray?: () => Promise<Uint8Array> } | undefined;
@@ -5859,7 +6201,12 @@ export class EngagementService {
     return count > 0;
   }
 
-  private async findCampaignSendConnection(
+  /**
+   * Resolve the inbox a send goes out from. PUBLIC so OutreachSendIntentService
+   * reuses this exact resolution (including its `createdByUserId: ctx.userId`
+   * ownership check) rather than re-implementing provider-ownership rules.
+   */
+  async findCampaignSendConnection(
     ctx: TenantContext,
     preferredConnectionId?: string | null,
   ) {
@@ -8561,6 +8908,75 @@ function pruneForAi(value: unknown): Record<string, unknown> {
       return entry;
     }),
   ) as Record<string, unknown>;
+}
+
+/**
+ * Phase 0 — build the structured auditor ledger for ONE recipient's draft from
+ * the authoritative bill/PE truth already resolved for their in-scope context
+ * items. Extracted from the inline auditor block so the versioned path stores
+ * the EXACT entries the auditor will judge the text against, rather than a
+ * re-derived copy (plan §3.c2). Exported for unit tests.
+ */
+export function buildOutreachLedgerEntries(
+  usedItems: OutreachSelectedContextItemInput[],
+  truthByItemId: Map<string, OutreachContextTruth>,
+): LedgerEntry[] {
+  const entries: LedgerEntry[] = [];
+  for (const item of usedItems) {
+    const truth = truthByItemId.get(item.id);
+    if (!truth) continue;
+    if (truth.kind === 'bill') {
+      const b = truth.raw;
+      entries.push({
+        tool: 'get_bill_status',
+        serialized: item.body ?? '',
+        result: {
+          billId: b.id,
+          status: b.status,
+          statusAt: b.statusAt ? new Date(b.statusAt).toISOString() : null,
+          ...(b.sponsorName ? { sponsor: { name: b.sponsorName } } : {}),
+        },
+      });
+    } else {
+      const pe = truth.raw;
+      entries.push({
+        tool: 'get_pe_budget_timeline',
+        serialized: item.body ?? '',
+        result: {
+          peCode: pe.peCode,
+          years: pe.years,
+          currentCycleFy: pe.currentCycleFy ?? null,
+          identifierKind:
+            pe.budgetExhibitType && /procurement line item/i.test(pe.budgetExhibitType)
+              ? 'procurement_line_item'
+              : 'pe',
+          generatedAt: new Date().toISOString(),
+        },
+      });
+    }
+  }
+  return entries;
+}
+
+/**
+ * Phase 0 — the generation slot key(s) this recipient's draft must be versioned
+ * under. The wizard sends them explicitly; the fallback keeps a non-wizard caller
+ * working by deriving a stable individual key from the recipient id. Deduped and
+ * length-clamped to the column width. Exported for unit tests.
+ */
+export function resolveGenerationKeys(
+  recipient: OutreachRecipientInput,
+  recipientId: string,
+): string[] {
+  const raw = [
+    ...(recipient.generationKeys ?? []),
+    ...(recipient.generationKey ? [recipient.generationKey] : []),
+  ]
+    .map((k) => (typeof k === 'string' ? k.trim() : ''))
+    .filter(Boolean)
+    .map((k) => k.slice(0, 512));
+  const unique = [...new Set(raw)];
+  return unique.length ? unique : [`individual:${recipientId}`.slice(0, 512)];
 }
 
 function prepareThreadForAi(value: unknown): Record<string, unknown> {

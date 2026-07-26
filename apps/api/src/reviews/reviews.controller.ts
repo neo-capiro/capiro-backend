@@ -28,6 +28,19 @@ export class ReviewsController {
     return this.reviews.list(ctx, status);
   }
 
+  /**
+   * Phase 0 §3.f2 — the protected detail view, including the held outreach
+   * draft's actual subject/body.
+   *
+   * Access is checked in the service (tenant admin, assigned reviewer, or the
+   * requester as view-only). Declared AFTER the static routes above so it cannot
+   * shadow them.
+   */
+  @Get(':id')
+  detail(@CurrentTenant() ctx: TenantContext, @Param('id', ParseUUIDPipe) id: string) {
+    return this.reviews.detail(ctx, id);
+  }
+
   @Post(':id/assign')
   @Roles('user_admin')
   assign(

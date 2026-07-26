@@ -257,6 +257,10 @@ model Tenant {
   memoryIngestRuns             MemoryIngestRun[]
   clientMemoryAccessGrants     ClientMemoryAccess[]
   clientGrantNexuses           ClientGrantNexus[]
+  outreachDraftArtifacts       OutreachDraftArtifact[]
+  outreachDraftVersions        OutreachDraftVersion[]
+  outreachSendIntents          OutreachSendIntent[]
+  outreachDeliveries           OutreachDelivery[]
 
   @@map("tenants")
 }
@@ -306,6 +310,9 @@ model User {
   programElementWatches     ProgramElementWatch[]
   peAlertEmailPrefs         PeAlertEmailPref[]
   clientMemoryAccessGrants  ClientMemoryAccess[]           @relation("ClientMemoryAccessUser")
+  outreachDraftArtifacts    OutreachDraftArtifact[]        @relation("OutreachDraftArtifactAuthor")
+  outreachDraftVersions     OutreachDraftVersion[]         @relation("OutreachDraftVersionAuthor")
+  outreachSendIntents       OutreachSendIntent[]           @relation("OutreachSendIntentOwner")
 
   @@map("users")
 }
@@ -622,6 +629,7 @@ model IntegrationConnection {
   meetings     Meeting[]
   mailThreads  MailThread[]
   mailMessages MailMessage[]
+  sendIntents  OutreachSendIntent[]
 
   @@unique([tenantId, provider, accountEmail], map: "engagement_connections_tenant_provider_account_key")
   @@index([tenantId, status], map: "engagement_connections_tenant_status_idx")
@@ -1069,10 +1077,12 @@ model OutreachRecord {
   createdAt       DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
   updatedAt       DateTime  @updatedAt @map("updated_at") @db.Timestamptz(6)
 
-  tenant    Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
-  client    Client?  @relation(fields: [clientId], references: [id], onDelete: SetNull)
-  meeting   Meeting? @relation(fields: [meetingId], references: [id], onDelete: SetNull)
-  createdBy User?    @relation("OutreachRecordAuthor", fields: [createdByUserId], references: [id], onDelete: SetNull)
+  tenant         Tenant                  @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  client         Client?                 @relation(fields: [clientId], references: [id], onDelete: SetNull)
+  meeting        Meeting?                @relation(fields: [meetingId], references: [id], onDelete: SetNull)
+  createdBy      User?                   @relation("OutreachRecordAuthor", fields: [createdByUserId], references: [id], onDelete: SetNull)
+  draftArtifacts OutreachDraftArtifact[]
+  sendIntents    OutreachSendIntent[]
 
   @@index([tenantId, type, status, createdAt], map: "outreach_records_tenant_type_status_created_idx")
   @@index([tenantId, clientId, createdAt], map: "outreach_records_tenant_client_created_idx")
@@ -1890,7 +1900,8 @@ model ReviewRequest {
   decidedAt   DateTime? @map("decided_at") @db.Timestamptz(6)
   createdAt   DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
 
-  tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  tenant                Tenant                 @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  outreachDraftVersions OutreachDraftVersion[]
 
   @@index([tenantId, status, createdAt(sort: Desc)], map: "review_request_tenant_status_idx")
   @@index([tenantId, assignedTo, status], map: "review_request_assigned_idx")
@@ -1959,7 +1970,8 @@ model ContextPacket {
   blockChars     Int      @default(0) @map("block_chars")
   createdAt      DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
 
-  tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  tenant                Tenant                 @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  outreachDraftVersions OutreachDraftVersion[]
 
   @@index([tenantId, createdAt(sort: Desc)], map: "context_packet_tenant_created_idx")
   @@index([tenantId, surface, createdAt(sort: Desc)], map: "context_packet_tenant_surface_idx")
@@ -1993,8 +2005,16 @@ model OutreachJob {
   tenant Tenant            @relation(fields: [tenantId], references: [id], onDelete: Cascade)
   items  OutreachJobItem[]
 
-  @@unique([tenantId, requestKey], map: "outreach_jobs_tenant_request_key")
+  // Per-USER idempotency (Phase 0 task c3): two users may legitimately mint the
+  // same client-side requestKey and one must never resolve to the other's job.
+  // The 20260727010000 migration creates this index in BOTH of its data-shape
+  // branches — as a PARTIAL unique (WHERE user_id IS NOT NULL) when legacy
+  // ownerless rows exist, which Prisma cannot express. In that branch the old
+  // tenant-wide outreach_jobs_tenant_request_key ALSO survives in the database
+  // as those rows' guard; it is intentionally not declared here.
+  @@unique([tenantId, userId, requestKey], map: "outreach_jobs_tenant_user_request_key")
   @@index([status, createdAt], map: "outreach_jobs_status_created_idx")
+  @@index([tenantId, userId, status], map: "outreach_jobs_tenant_user_status_idx")
   @@map("outreach_jobs")
 }
 
@@ -2024,6 +2044,178 @@ model OutreachJobItem {
   @@unique([jobId, recipientKey], map: "outreach_job_items_job_recipient")
   @@index([jobId, status], map: "outreach_job_items_job_status_idx")
   @@map("outreach_job_items")
+}
+
+/// Engagement Phase 0 — one logical draft "slot" for an outreach record: an
+/// individual recipient, one member of a list, or a whole group that shares one
+/// email. Identified by the wizard's GenerationTargetKey so a regenerate of the
+/// same slot adds a VERSION instead of a second artifact. The row is also the
+/// FOR UPDATE lock target that serializes concurrent version creation.
+/// Owner-private: reads are scoped by tenant RLS *and* the owning user.
+model OutreachDraftArtifact {
+  id                String   @id @default(uuid()) @db.Uuid
+  tenantId          String   @map("tenant_id") @db.Uuid
+  outreachRecordId  String   @map("outreach_record_id") @db.Uuid
+  /// individual:<recipientKey> | list:<audienceId>:<recipientKey> | group:<audienceId>
+  generationKey     String   @map("generation_key") @db.VarChar(512)
+  recipientKey      String   @map("recipient_key") @db.VarChar(256)
+  /// 'individual' | 'group'
+  audienceKind      String   @map("audience_kind") @db.VarChar(16)
+  recipientSnapshot Json     @default("{}") @map("recipient_snapshot_jsonb")
+  createdByUserId   String   @map("created_by_user_id") @db.Uuid
+  currentVersion    Int      @default(0) @map("current_version")
+  createdAt         DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt         DateTime @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  tenant         Tenant                 @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  outreachRecord OutreachRecord         @relation(fields: [outreachRecordId], references: [id], onDelete: Cascade)
+  createdBy      User                   @relation("OutreachDraftArtifactAuthor", fields: [createdByUserId], references: [id], onDelete: Restrict)
+  versions       OutreachDraftVersion[]
+
+  @@unique([tenantId, outreachRecordId, generationKey], map: "outreach_draft_artifacts_tenant_record_genkey")
+  @@index([tenantId, outreachRecordId], map: "outreach_draft_artifacts_tenant_record_idx")
+  @@map("outreach_draft_artifacts")
+}
+
+/// Engagement Phase 0 — the IMMUTABLE audited artifact. subject/body/contentHash
+/// are written once and never updated: an edit, AI improvement, regenerate or
+/// revert creates a NEW version pointing back via sourceVersionId. Only the
+/// audit/approval lifecycle columns are mutable, and an approval may never
+/// change content. Every real external delivery references one of these rows.
+/// Statuses are Strings (not Prisma enums) on purpose so a future status can
+/// ship without a PostgreSQL enum migration — see outreach-draft.types.ts for
+/// the authoritative literal unions and the sendability policy.
+model OutreachDraftVersion {
+  id                String   @id @default(uuid()) @db.Uuid
+  tenantId          String   @map("tenant_id") @db.Uuid
+  artifactId        String   @map("artifact_id") @db.Uuid
+  version           Int
+  /// The version this one was edited/improved/reverted FROM; null for a fresh generation.
+  sourceVersionId   String?  @map("source_version_id") @db.Uuid
+  subject           String   @db.Text
+  body              String   @db.Text
+  /// sha256 of subject+body — what the audit verdict and any approval attach to.
+  contentHash       String   @map("content_hash") @db.VarChar(80)
+  /// 'generated' | 'manually_authored' | 'generation_failed'
+  generationStatus  String   @map("generation_status") @db.VarChar(32)
+  /// 'not_required' | 'pending' | 'passed' | 'warning' | 'held' | 'unavailable'
+  auditStatus       String   @map("audit_status") @db.VarChar(32)
+  /// 'not_required' | 'pending' | 'approved' | 'rejected'
+  approvalStatus    String   @map("approval_status") @db.VarChar(32)
+  /// The AuditorMode this verdict ran under ('shadow' | 'annotate' | 'enforce').
+  auditMode         String?  @map("audit_mode") @db.VarChar(16)
+  /// runAuditor decision, or 'audit_unavailable' when a control itself failed.
+  auditDecision     String?  @map("audit_decision") @db.VarChar(32)
+  auditFindings     Json?    @map("audit_findings_jsonb")
+  /// The structured auditor ledger entries this exact text was judged against.
+  auditLedger       Json     @default("[]") @map("audit_ledger_jsonb")
+  reviewRequestId   String?  @map("review_request_id") @db.Uuid
+  contextPacketId   String?  @map("context_packet_id") @db.Uuid
+  provider          String?  @db.VarChar(32)
+  model             String?  @db.VarChar(160)
+  promptSpecVersion String?  @map("prompt_spec_version") @db.VarChar(32)
+  createdByUserId   String   @map("created_by_user_id") @db.Uuid
+  createdAt         DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  tenant          Tenant                 @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  artifact        OutreachDraftArtifact  @relation(fields: [artifactId], references: [id], onDelete: Cascade)
+  sourceVersion   OutreachDraftVersion?  @relation("OutreachDraftVersionLineage", fields: [sourceVersionId], references: [id], onDelete: SetNull)
+  derivedVersions OutreachDraftVersion[] @relation("OutreachDraftVersionLineage")
+  reviewRequest   ReviewRequest?         @relation(fields: [reviewRequestId], references: [id], onDelete: SetNull)
+  contextPacket   ContextPacket?         @relation(fields: [contextPacketId], references: [id], onDelete: SetNull)
+  createdBy       User                   @relation("OutreachDraftVersionAuthor", fields: [createdByUserId], references: [id], onDelete: Restrict)
+  deliveries      OutreachDelivery[]
+
+  @@unique([artifactId, version], map: "outreach_draft_versions_artifact_version")
+  @@index([tenantId, auditStatus, approvalStatus], map: "outreach_draft_versions_tenant_audit_approval_idx")
+  @@map("outreach_draft_versions")
+}
+
+/// Engagement Phase 0 — the DURABLE send intent. Committed, with all of its
+/// delivery rows, BEFORE any provider request is made, so an unrecorded external
+/// send is structurally impossible. Accepts draft VERSION ids only, never raw
+/// caller subject/body. Idempotent per (tenant, user, requestKey): a retried
+/// POST returns the existing intent and sends nothing again.
+model OutreachSendIntent {
+  id                 String    @id @default(uuid()) @db.Uuid
+  tenantId           String    @map("tenant_id") @db.Uuid
+  userId             String    @map("user_id") @db.Uuid
+  outreachRecordId   String    @map("outreach_record_id") @db.Uuid
+  senderConnectionId String    @map("sender_connection_id") @db.Uuid
+  /// Client idempotency token, minted once per Send click.
+  requestKey         String    @map("request_key") @db.VarChar(128)
+  appendSignature    Boolean   @default(true) @map("append_signature")
+  attachmentIds      Json      @default("[]") @map("attachment_ids_jsonb")
+  testMode           Boolean   @default(false) @map("test_mode")
+  /// queued | running | partial | complete | failed | canceled
+  status             String    @default("queued") @db.VarChar(24)
+  /// { total, pending, sending, sent, failed, unknown, skipped, held }
+  totals             Json      @default("{}") @map("totals_jsonb")
+  error              String?
+  startedAt          DateTime? @map("started_at") @db.Timestamptz(6)
+  finishedAt         DateTime? @map("finished_at") @db.Timestamptz(6)
+  createdAt          DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt          DateTime  @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  tenant           Tenant                @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  user             User                  @relation("OutreachSendIntentOwner", fields: [userId], references: [id], onDelete: Restrict)
+  outreachRecord   OutreachRecord        @relation(fields: [outreachRecordId], references: [id], onDelete: Cascade)
+  senderConnection IntegrationConnection @relation(fields: [senderConnectionId], references: [id], onDelete: Restrict)
+  deliveries       OutreachDelivery[]
+
+  @@unique([tenantId, userId, requestKey], map: "outreach_send_intents_tenant_user_request_key")
+  @@index([status, createdAt], map: "outreach_send_intents_status_created_idx")
+  @@index([tenantId, outreachRecordId], map: "outreach_send_intents_tenant_record_idx")
+  @@map("outreach_send_intents")
+}
+
+/// Engagement Phase 0 — one logical send unit (one recipient, or one whole group
+/// sharing a single email). AT-MOST-ONCE: the row is claimed pending → sending
+/// in an atomic conditional UPDATE before the provider call, and an ambiguous
+/// outcome becomes 'unknown', which is NEVER automatically returned to pending
+/// or retried. renderedSubject/renderedBody are the exact text handed to the
+/// provider, captured at intent creation so a later signature or body edit
+/// cannot mutate an in-flight send.
+model OutreachDelivery {
+  id                        String    @id @default(uuid()) @db.Uuid
+  tenantId                  String    @map("tenant_id") @db.Uuid
+  sendIntentId              String    @map("send_intent_id") @db.Uuid
+  draftVersionId            String    @map("draft_version_id") @db.Uuid
+  generationKey             String    @map("generation_key") @db.VarChar(512)
+  recipientKey              String    @map("recipient_key") @db.VarChar(256)
+  /// { to: [{email,name}], cc: [...], bcc: [...] } — exactly as submitted.
+  recipientEnvelope         Json      @map("recipient_envelope_jsonb")
+  /// sha256(tenant + connection + version + envelope + attachment manifest):
+  /// the same exact delivery can never be created twice, under ANY request key.
+  idempotencyKey            String    @map("idempotency_key") @db.VarChar(160)
+  correlationId             String    @default(uuid()) @map("correlation_id") @db.Uuid
+  renderedSubject           String    @map("rendered_subject") @db.Text
+  renderedBody              String    @map("rendered_body") @db.Text
+  attachmentManifest        Json      @default("[]") @map("attachment_manifest_jsonb")
+  /// 'microsoft_graph' | 'gmail'
+  provider                  String    @db.VarChar(32)
+  /// pending | sending | sent | failed | unknown | skipped | held
+  status                    String    @default("pending") @db.VarChar(24)
+  attempt                   Int       @default(0)
+  providerMessageId         String?   @map("provider_message_id")
+  providerThreadId          String?   @map("provider_thread_id")
+  providerDraftId           String?   @map("provider_draft_id")
+  providerInternetMessageId String?   @map("provider_internet_message_id")
+  errorCode                 String?   @map("error_code") @db.VarChar(120)
+  errorMessage              String?   @map("error_message")
+  claimedAt                 DateTime? @map("claimed_at") @db.Timestamptz(6)
+  acceptedAt                DateTime? @map("accepted_at") @db.Timestamptz(6)
+  createdAt                 DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt                 DateTime  @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  tenant       Tenant               @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  sendIntent   OutreachSendIntent   @relation(fields: [sendIntentId], references: [id], onDelete: Cascade)
+  draftVersion OutreachDraftVersion @relation(fields: [draftVersionId], references: [id], onDelete: Restrict)
+
+  @@unique([tenantId, idempotencyKey], map: "outreach_deliveries_tenant_idempotency_key")
+  @@index([sendIntentId, status], map: "outreach_deliveries_intent_status_idx")
+  @@index([tenantId, correlationId], map: "outreach_deliveries_tenant_correlation_idx")
+  @@map("outreach_deliveries")
 }
 
 /// Per-tenant AI provider key, AES-256-GCM encrypted at rest with
@@ -2249,28 +2441,28 @@ model ClientFacility {
 /// without a directory round-trip and survive directory refreshes. source marks
 /// whether the user added it manually or from a Meri recommendation.
 model ClientTarget {
-  id            String   @id @default(uuid()) @db.Uuid
-  tenantId      String   @map("tenant_id") @db.Uuid
-  clientId      String   @map("client_id") @db.Uuid
-  memberId      String   @map("member_id")
-  memberName    String?  @map("member_name")
+  id              String   @id @default(uuid()) @db.Uuid
+  tenantId        String   @map("tenant_id") @db.Uuid
+  clientId        String   @map("client_id") @db.Uuid
+  memberId        String   @map("member_id")
+  memberName      String?  @map("member_name")
   // Which directory this target came from: 'congress' (LegiStorm snapshot) or
   // 'state' (OpenStates state_legislator table). Drives snapshot resolution on
   // add and profile click-through on the client. Widened party/state/chamber
   // below because state values are full words ("Democrat", "upper").
-  sourceDirectory String @default("congress") @map("source_directory") @db.VarChar(16)
-  party         String?  @db.VarChar(32)
+  sourceDirectory String   @default("congress") @map("source_directory") @db.VarChar(16)
+  party           String?  @db.VarChar(32)
   // TEXT (not VarChar): some state legislators have NAMED districts (e.g. MA
   // "Norfolk, Bristol and Plymouth"), so the district-qualified value is unbounded.
-  state         String?
-  chamber       String?  @db.VarChar(24)
-  committee     String?
+  state           String?
+  chamber         String?  @db.VarChar(24)
+  committee       String?
   // Engagement priority tier (1 = highest .. 3), null = untiered. Drives the
   // tiered visual grouping in the Targets tab.
-  tier          Int?     @db.SmallInt
-  source        String   @default("manual") @db.VarChar(8)
-  addedByUserId String?  @map("added_by_user_id") @db.Uuid
-  addedAt       DateTime @default(now()) @map("added_at") @db.Timestamptz(6)
+  tier            Int?     @db.SmallInt
+  source          String   @default("manual") @db.VarChar(8)
+  addedByUserId   String?  @map("added_by_user_id") @db.Uuid
+  addedAt         DateTime @default(now()) @map("added_at") @db.Timestamptz(6)
 
   tenant  Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
   client  Client @relation(fields: [clientId], references: [id], onDelete: Cascade)
@@ -3494,7 +3686,7 @@ model SourceDocument {
 model DocumentParseJob {
   id                  String    @id @default(uuid()) @db.Uuid
   sourceDocumentId    String    @map("source_document_id") @db.Uuid
-  provider            String    // 'llamaparse' | 'deterministic_pdfplumber'
+  provider            String // 'llamaparse' | 'deterministic_pdfplumber'
   providerJobId       String?   @map("provider_job_id") // LlamaParse job id
   // 'pdf_fast' | 'pdf_premium' | 'pdf_ocr' — always a PDF input for budget books.
   mode                String
@@ -4196,15 +4388,15 @@ model CensusDistrict {
 // ─────────────────────────────────────────────────────────────────────────
 model LegislativeDistrict {
   /// `${legistormDistrictId}-${status}`, e.g. "603-F" — mirrors CensusDistrict's composed string PK.
-  id                     String   @id
-  legistormDistrictId    Int      @map("legistorm_district_id")
+  id                     String    @id
+  legistormDistrictId    Int       @map("legistorm_district_id")
   /// 'house' | 'senate' — lowercase, matching congress_member.chamber's convention.
   chamber                String
-  state                  String   @db.VarChar(2)
+  state                  String    @db.VarChar(2)
   /// Bare number as a string (e.g. "1", "25"); null for a Senate seat.
-  districtNo             String?  @map("district_no")
+  districtNo             String?   @map("district_no")
   /// 1 | 2 | 3 — which Senate election cohort; null for a House seat.
-  senateClass            Int?     @map("senate_class")
+  senateClass            Int?      @map("senate_class")
   name                   String
   /// 'C' current | 'F' future (enacted, not yet effective).
   status                 String
@@ -4214,12 +4406,12 @@ model LegislativeDistrict {
   /// for a 'F' row, this is the incumbent mapped onto the FUTURE boundary
   /// (forward-looking information not derivable from congress_member, which
   /// only carries today's district assignment). Empty array for a vacant seat.
-  currentMemberBioguides String[] @default([]) @map("current_member_bioguides")
+  currentMemberBioguides String[]  @default([]) @map("current_member_bioguides")
   /// Our OWN S3 object key for the re-hosted KML boundary — NEVER the raw
   /// LegiStorm URL (which embeds our API key in its path). Null until the
   /// boundary has been fetched.
-  kmlS3Key               String?  @map("kml_s3_key")
-  syncedAt               DateTime @default(now()) @map("synced_at") @db.Timestamptz(6)
+  kmlS3Key               String?   @map("kml_s3_key")
+  syncedAt               DateTime  @default(now()) @map("synced_at") @db.Timestamptz(6)
 
   /// District Nexus browser-safe boundary artifact metadata (Phase 1). Built
   /// once by build-district-boundary-artifacts from Census cartographic data
@@ -4254,39 +4446,39 @@ model LegislativeDistrict {
 // ─────────────────────────────────────────────────────────────────────────
 model LegistormTrip {
   /// LegiStorm's own trip id.
-  id                               Int       @id
+  id                              Int       @id
   /// LegiStorm member_id of the approving member (join key into the directory snapshot's numeric ids).
   approverMemberId                Int?      @map("approver_member_id")
-  approverName                     String?   @map("approver_name")
+  approverName                    String?   @map("approver_name")
   /// Populated when the traveler was a MEMBER (mutually exclusive with travelerStaffId).
-  travelerMemberId                 Int?      @map("traveler_member_id")
+  travelerMemberId                Int?      @map("traveler_member_id")
   /// Populated when the traveler was a STAFFER (mutually exclusive with travelerMemberId).
-  travelerStaffId                  Int?      @map("traveler_staff_id")
-  travelerName                     String?   @map("traveler_name")
-  companionName                    String?   @map("companion_name")
-  companionStatus                  String?   @map("companion_status")
-  startDate                        DateTime? @map("start_date") @db.Date
-  endDate                          DateTime? @map("end_date") @db.Date
-  durationDays                     Int?      @map("duration_days")
-  purpose                          String?   @db.Text
-  comment                          String?   @db.Text
-  totalCost                        Float?    @map("total_cost")
-  transportationExpenses           Float?    @map("transportation_expenses")
-  lodgingExpenses                  Float?    @map("lodging_expenses")
-  mealExpenses                     Float?    @map("meal_expenses")
-  otherExpenses                    Float?    @map("other_expenses")
-  companionTransportationExpenses  Float?    @map("companion_transportation_expenses")
-  companionLodgingExpenses         Float?    @map("companion_lodging_expenses")
-  companionOtherExpenses           Float?    @map("companion_other_expenses")
+  travelerStaffId                 Int?      @map("traveler_staff_id")
+  travelerName                    String?   @map("traveler_name")
+  companionName                   String?   @map("companion_name")
+  companionStatus                 String?   @map("companion_status")
+  startDate                       DateTime? @map("start_date") @db.Date
+  endDate                         DateTime? @map("end_date") @db.Date
+  durationDays                    Int?      @map("duration_days")
+  purpose                         String?   @db.Text
+  comment                         String?   @db.Text
+  totalCost                       Float?    @map("total_cost")
+  transportationExpenses          Float?    @map("transportation_expenses")
+  lodgingExpenses                 Float?    @map("lodging_expenses")
+  mealExpenses                    Float?    @map("meal_expenses")
+  otherExpenses                   Float?    @map("other_expenses")
+  companionTransportationExpenses Float?    @map("companion_transportation_expenses")
+  companionLodgingExpenses        Float?    @map("companion_lodging_expenses")
+  companionOtherExpenses          Float?    @map("companion_other_expenses")
   /// [{id, name, stateId}] — trip destinations; small, denormalized, matches stateLegislator.committees' own Json-array convention.
-  destinations                     Json      @default("[]")
+  destinations                    Json      @default("[]")
   /// [{id, name}] — the org(s) that paid for the trip.
-  sponsors                         Json      @default("[]")
-  filedDate                        DateTime? @map("filed_date") @db.Date
-  amendedDate                      DateTime? @map("amended_date") @db.Date
+  sponsors                        Json      @default("[]")
+  filedDate                       DateTime? @map("filed_date") @db.Date
+  amendedDate                     DateTime? @map("amended_date") @db.Date
   /// LegiStorm's own updated_at for this trip — distinct from syncedAt (when WE last wrote this row).
-  vendorUpdatedAt                  DateTime? @map("vendor_updated_at") @db.Timestamptz(6)
-  syncedAt                         DateTime  @default(now()) @map("synced_at") @db.Timestamptz(6)
+  vendorUpdatedAt                 DateTime? @map("vendor_updated_at") @db.Timestamptz(6)
+  syncedAt                        DateTime  @default(now()) @map("synced_at") @db.Timestamptz(6)
 
   @@index([approverMemberId])
   @@index([travelerMemberId])
@@ -4309,13 +4501,13 @@ model LegistormTrip {
 // never deleted).
 // ─────────────────────────────────────────────────────────────────────────
 model CommitteeMembershipWatch {
-  committeeId String    @map("committee_id")
-  personId    String    @map("person_id")
-  personName  String?   @map("person_name")
+  committeeId String   @map("committee_id")
+  personId    String   @map("person_id")
+  personName  String?  @map("person_name")
   /// Position text as of the last run, e.g. "Chair", "Ranking Member"; null = plain member.
   role        String?
-  firstSeenAt DateTime  @default(now()) @map("first_seen_at") @db.Timestamptz(6)
-  lastSeenAt  DateTime  @default(now()) @map("last_seen_at") @db.Timestamptz(6)
+  firstSeenAt DateTime @default(now()) @map("first_seen_at") @db.Timestamptz(6)
+  lastSeenAt  DateTime @default(now()) @map("last_seen_at") @db.Timestamptz(6)
 
   @@id([committeeId, personId])
   @@map("committee_membership_watch")
@@ -5066,60 +5258,60 @@ model FederalAward {
 // ─────────────────────────────────────────────────────────────────────────
 
 model FederalAssistanceAward {
-  id                    String   @id @default(uuid()) @db.Uuid
+  id             String  @id @default(uuid()) @db.Uuid
   // USAspending generated_internal_id — stable idempotency key (same field
   // sync-federal-award.ts keys contracts on; assistance and contract awards
   // never collide because USAspending prefixes them ASST_* vs CONT_*).
-  awardUniqueId         String   @unique @map("award_unique_id")
+  awardUniqueId  String  @unique @map("award_unique_id")
   // For assistance awards, USAspending's "Award ID" field IS the FAIN (or a
   // block/formula grant's aggregate identifier) — never the contract PIID.
-  fain                  String?
-  uri                   String?
+  fain           String?
+  uri            String?
   // Deterministic normalization of the "Award Type" label USAspending returns
   // (e.g. "BLOCK GRANT (A)") back to its filed award_type_code (02/03/04/05),
   // via the documented type enumeration — never inferred/guessed per-record.
-  awardTypeCode         String?  @map("award_type_code")
-  awardTypeLabel        String?  @map("award_type_label")
+  awardTypeCode  String? @map("award_type_code")
+  awardTypeLabel String? @map("award_type_label")
 
-  recipientName         String?  @map("recipient_name")
-  recipientUei          String?  @map("recipient_uei")
-  parentRecipientName   String?  @map("parent_recipient_name")
-  parentRecipientUei    String?  @map("parent_recipient_uei")
+  recipientName       String? @map("recipient_name")
+  recipientUei        String? @map("recipient_uei")
+  parentRecipientName String? @map("parent_recipient_name")
+  parentRecipientUei  String? @map("parent_recipient_uei")
 
   // Raw "Assistance Listings" array as returned: [{cfda_number, cfda_program_title}].
-  assistanceListings       Json?     @map("assistance_listings")
+  assistanceListings       Json?   @map("assistance_listings")
   // Primary ALN denormalized from the top-level "CFDA Number" field, for filters.
-  assistanceListingNumber  String?   @map("assistance_listing_number")
-  assistanceListingTitle   String?   @map("assistance_listing_title")
-  fundingOpportunityNumber String?   @map("funding_opportunity_number")
-  saiNumber                String?   @map("sai_number")
+  assistanceListingNumber  String? @map("assistance_listing_number")
+  assistanceListingTitle   String? @map("assistance_listing_title")
+  fundingOpportunityNumber String? @map("funding_opportunity_number")
+  saiNumber                String? @map("sai_number")
 
-  awardingAgency        String?  @map("awarding_agency")
-  awardingSubTier        String? @map("awarding_sub_tier")
-  fundingAgency         String?  @map("funding_agency")
-  fundingSubTier        String?  @map("funding_sub_tier")
+  awardingAgency  String? @map("awarding_agency")
+  awardingSubTier String? @map("awarding_sub_tier")
+  fundingAgency   String? @map("funding_agency")
+  fundingSubTier  String? @map("funding_sub_tier")
 
-  totalObligatedAmount     Decimal? @map("total_obligated_amount") @db.Decimal(18, 2)
-  totalOutlayedAmount      Decimal? @map("total_outlayed_amount") @db.Decimal(18, 2)
+  totalObligatedAmount    Decimal? @map("total_obligated_amount") @db.Decimal(18, 2)
+  totalOutlayedAmount     Decimal? @map("total_outlayed_amount") @db.Decimal(18, 2)
   // Not yet available from any verified source field — column reserved for a
   // future enrichment pass (matching contribution beyond the federal share).
-  nonFederalFundingAmount  Decimal? @map("non_federal_funding_amount") @db.Decimal(18, 2)
+  nonFederalFundingAmount Decimal? @map("non_federal_funding_amount") @db.Decimal(18, 2)
 
-  description           String?   @db.Text
-  startDate              DateTime? @map("start_date") @db.Date
-  endDate                DateTime? @map("end_date") @db.Date
-  lastModifiedDate       DateTime? @map("last_modified_date") @db.Timestamptz(6)
+  description      String?   @db.Text
+  startDate        DateTime? @map("start_date") @db.Date
+  endDate          DateTime? @map("end_date") @db.Date
+  lastModifiedDate DateTime? @map("last_modified_date") @db.Timestamptz(6)
 
-  popState                     String? @map("pop_state")
+  popState                    String? @map("pop_state")
   // Raw code exactly as USAspending returns it (incl. sentinels "00"/"90"/"98"/"ZZ").
-  popCongressionalDistrictRaw  String? @map("pop_congressional_district_raw")
+  popCongressionalDistrictRaw String? @map("pop_congressional_district_raw")
   popCongressionalDistrict    String? @map("pop_congressional_district")
   // 'original' (as-reported, what the search endpoint returns) | 'current'
   // (only ever set if a future enrichment pass sources district_current).
-  popCdVintage                 String? @map("pop_cd_vintage")
-  popCity                      String? @map("pop_city")
-  popZip                       String? @map("pop_zip")
-  popCountry                   String? @map("pop_country")
+  popCdVintage                String? @map("pop_cd_vintage")
+  popCity                     String? @map("pop_city")
+  popZip                      String? @map("pop_zip")
+  popCountry                  String? @map("pop_country")
 
   recipientState                    String? @map("recipient_state")
   recipientCongressionalDistrictRaw String? @map("recipient_congressional_district_raw")
@@ -5128,15 +5320,15 @@ model FederalAssistanceAward {
   recipientZip                      String? @map("recipient_zip")
 
   // From the per-award detail enrichment pass (enrich-assistance-award-details).
-  subawardCount     Int?      @map("subaward_count")
-  detailEnrichedAt  DateTime? @map("detail_enriched_at") @db.Timestamptz(6)
+  subawardCount    Int?      @map("subaward_count")
+  detailEnrichedAt DateTime? @map("detail_enriched_at") @db.Timestamptz(6)
 
   // The VENDOR payload verbatim (fixes a known FederalAward defect, which
   // stores its own mapped object instead of the source response).
-  raw            Json     @default("{}") @map("raw_jsonb")
-  lastSyncedAt   DateTime @default(now()) @map("last_synced_at") @db.Timestamptz(6)
-  createdAt      DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
-  updatedAt      DateTime @updatedAt @map("updated_at") @db.Timestamptz(6)
+  raw          Json     @default("{}") @map("raw_jsonb")
+  lastSyncedAt DateTime @default(now()) @map("last_synced_at") @db.Timestamptz(6)
+  createdAt    DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt    DateTime @updatedAt @map("updated_at") @db.Timestamptz(6)
 
   @@index([recipientUei], map: "faa_recipient_uei_idx")
   @@index([popState, popCongressionalDistrict], map: "faa_pop_district_idx")
@@ -5160,23 +5352,23 @@ model ClientGrantNexus {
   // FK-less pointer into the global federal_assistance_award table (upsert-only,
   // no tenant scoping — a hard FK would force cascade semantics onto a table
   // that's never deleted from). Joined at read time, not enforced by the DB.
-  assistanceAwardId String? @map("assistance_award_id") @db.Uuid
+  assistanceAwardId  String? @map("assistance_award_id") @db.Uuid
   // FederalGrant.id (Grants.gov opportunity id) — same rationale, no FK.
   grantOpportunityId String? @map("grant_opportunity_id")
   facilityId         String? @map("facility_id") @db.Uuid
 
   /// direct_recipient | subrecipient | project_site | research_partner |
   /// coalition_partner | beneficiary | matching_contributor | opportunity_candidate
-  relationshipType        String    @map("relationship_type")
-  relationshipDescription String?   @map("relationship_description") @db.Text
-  attributableAmount      Decimal?  @map("attributable_amount") @db.Decimal(18, 2)
-  beneficiaryCount        Int?      @map("beneficiary_count")
+  relationshipType        String   @map("relationship_type")
+  relationshipDescription String?  @map("relationship_description") @db.Text
+  attributableAmount      Decimal? @map("attributable_amount") @db.Decimal(18, 2)
+  beneficiaryCount        Int?     @map("beneficiary_count")
 
-  evidenceSourceType  String   @map("evidence_source_type")
-  evidenceSourceRef   String?  @map("evidence_source_ref")
-  confidence          Float    @default(1)
-  verificationStatus  String   @default("unverified") @map("verification_status")
-  externalUseApproved Boolean  @default(false) @map("external_use_approved")
+  evidenceSourceType  String    @map("evidence_source_type")
+  evidenceSourceRef   String?   @map("evidence_source_ref")
+  confidence          Float     @default(1)
+  verificationStatus  String    @default("unverified") @map("verification_status")
+  externalUseApproved Boolean   @default(false) @map("external_use_approved")
   verifiedAt          DateTime? @map("verified_at") @db.Timestamptz(6)
   verifiedByUserId    String?   @map("verified_by_user_id") @db.Uuid
 
@@ -5784,16 +5976,16 @@ model MemoryCandidate {
 /// trigger + counts, so every projected memory_items row can be traced to an
 /// auditable pass (memory_items.ingest_run_id). RLS-FORCED on tenant_id.
 model MemoryIngestRun {
-  id           String    @id @default(uuid()) @db.Uuid
-  tenantId     String    @map("tenant_id") @db.Uuid
+  id          String    @id @default(uuid()) @db.Uuid
+  tenantId    String    @map("tenant_id") @db.Uuid
   /// cron | manual_backfill | write_through | correction (CHECK-enforced).
-  trigger      String    @db.VarChar(24)
-  actorUserId  String?   @map("actor_user_id") @db.Uuid
-  startedAt    DateTime  @default(now()) @map("started_at") @db.Timestamptz(6)
-  finishedAt   DateTime? @map("finished_at") @db.Timestamptz(6)
+  trigger     String    @db.VarChar(24)
+  actorUserId String?   @map("actor_user_id") @db.Uuid
+  startedAt   DateTime  @default(now()) @map("started_at") @db.Timestamptz(6)
+  finishedAt  DateTime? @map("finished_at") @db.Timestamptz(6)
   /// running | completed | failed (CHECK-enforced).
-  status       String    @default("running") @db.VarChar(16)
-  counts       Json      @default("{}") @map("counts_jsonb")
+  status      String    @default("running") @db.VarChar(16)
+  counts      Json      @default("{}") @map("counts_jsonb")
 
   tenant Tenant       @relation(fields: [tenantId], references: [id], onDelete: Cascade)
   items  MemoryItem[]

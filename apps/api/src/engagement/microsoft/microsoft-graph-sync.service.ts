@@ -1,6 +1,7 @@
 import {
   BadRequestException,
   ForbiddenException,
+  HttpException,
   Injectable,
   Logger,
   NotFoundException,
@@ -36,6 +37,10 @@ import {
   type SyncableMailFolder,
 } from './microsoft-mail-folders.util.js';
 import { TokenCryptoService } from './token-crypto.service.js';
+import {
+  AmbiguousMailSendError,
+  type EngagementMailSendResult,
+} from '../mail-send-result.js';
 
 const GRAPH_BASE_URL = 'https://graph.microsoft.com/v1.0';
 const TOKEN_REFRESH_SKEW_MS = 5 * 60 * 1000;
@@ -207,6 +212,12 @@ export interface MicrosoftGraphSendMailInput {
   bccRecipients?: Array<{ email: string; name?: string | null }>;
   /** Inline file attachments (base64 contentBytes), sent as Graph fileAttachments. */
   attachments?: Array<{ name: string; contentType: string; contentBytes: string }>;
+  /**
+   * Phase 0 — our delivery id, written as an `X-Capiro-Delivery-Id`
+   * internetMessageHeader on the draft so the sent message is traceable back to
+   * its outreach_deliveries row. Outbound correlation only; no tracking.
+   */
+  correlationId?: string;
 }
 
 @Injectable()
@@ -383,10 +394,32 @@ export class MicrosoftGraphSyncService {
     return { configured: true, subscriptions };
   }
 
-  async sendMail(ctx: TenantContext, connectionId: string, input: MicrosoftGraphSendMailInput) {
+  /**
+   * Send through the caller's own Outlook mailbox.
+   *
+   * Phase 0 (§3.e3, change-control approved): the single fire-and-forget
+   * `POST /me/sendMail` is replaced by CREATE-DRAFT then SEND-DRAFT.
+   *
+   * Why: `/me/sendMail` returns 202 with no body, so there was NO durable
+   * identifier for a message we had just sent. If the connection died mid-call we
+   * could not tell "delivered" from "never left", and the only safe behaviours
+   * were both bad — resend (possible duplicate) or give up (possible silent
+   * loss). Creating the draft first mints a Graph message id BEFORE anything is
+   * delivered, so an ambiguous send is reconcilable by id instead of by guesswork.
+   *
+   * Token resolution, `assertConnectionAccess`, scopes, and every sync method are
+   * untouched. `saveToSentItems` semantics are preserved: the draft-send operation
+   * files the message in Sent Items by definition.
+   */
+  async sendMail(
+    ctx: TenantContext,
+    connectionId: string,
+    input: MicrosoftGraphSendMailInput,
+  ): Promise<EngagementMailSendResult> {
     await this.assertConnectionAccess(ctx, connectionId);
     const { token } = await this.loadConnection(ctx.tenantId, connectionId);
     const accessToken = await this.getValidAccessToken(ctx.tenantId, connectionId, token);
+    const correlationId = input.correlationId ?? '';
     const toGraphRecipients = (list: Array<{ email: string; name?: string | null }> | undefined) =>
       (list ?? []).map((recipient) => ({
         emailAddress: {
@@ -395,8 +428,14 @@ export class MicrosoftGraphSyncService {
         },
       }));
 
-    await this.graphPostNoContent('/me/sendMail', accessToken, {
-      message: {
+    const correlationHeader = sanitizeGraphHeaderValue(input.correlationId);
+
+    // 1. Create the draft. A clear failure here is an ORDINARY provider failure:
+    //    nothing has been delivered, so the caller may fix and retry.
+    const draft = await this.graphPost<{ id?: unknown; internetMessageId?: unknown }>(
+      '/me/messages',
+      accessToken,
+      {
         subject: input.subject,
         body: {
           contentType: input.bodyContentType ?? 'Text',
@@ -419,10 +458,48 @@ export class MicrosoftGraphSyncService {
               })),
             }
           : {}),
+        ...(correlationHeader
+          ? {
+              internetMessageHeaders: [
+                { name: 'X-Capiro-Delivery-Id', value: correlationHeader },
+              ],
+            }
+          : {}),
       },
-      saveToSentItems: true,
-    });
-    return { ok: true };
+    );
+
+    const draftId = typeof draft?.id === 'string' ? draft.id.trim() : '';
+    if (!draftId) {
+      // Draft creation "succeeded" without an id — we have no handle on anything,
+      // but nothing was sent either, so this is a plain failure, not ambiguity.
+      throw new ServiceUnavailableException(
+        'Outlook did not return a draft id; the message was not sent.',
+      );
+    }
+    const internetMessageId =
+      typeof draft?.internetMessageId === 'string' ? draft.internetMessageId.trim() : '';
+
+    // 2. Send the draft. From here the outcome may be genuinely undetermined.
+    try {
+      await this.graphPostNoContent(`/me/messages/${encodeURIComponent(draftId)}/send`, accessToken, undefined);
+    } catch (err) {
+      if (isAmbiguousGraphSendFailure(err)) {
+        throw new AmbiguousMailSendError(
+          'Outlook did not confirm whether this message was sent; verify Sent Items before resending.',
+          correlationId,
+          draftId,
+        );
+      }
+      throw err;
+    }
+
+    return {
+      ok: true,
+      provider: 'microsoft_graph',
+      providerDraftId: draftId,
+      ...(internetMessageId ? { providerInternetMessageId: internetMessageId } : {}),
+      correlationId,
+    };
   }
 
   async handleNotifications(payload: GraphNotificationPayload) {
@@ -1895,4 +1972,33 @@ function requiresInteractiveMicrosoftConsent(error: unknown): boolean {
 
 function sleep(ms: number): Promise<void> {
   return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+/**
+ * Phase 0 (§3.e3) — is a FAILED draft-send genuinely undetermined?
+ *
+ * An HttpException means Graph ANSWERED with a status code, so the outcome is
+ * known and the delivery is a plain failure. A transport-level error (socket
+ * reset, timeout, aborted request, DNS/TLS failure) means the request may have
+ * been fully transmitted and acted on — that is the ambiguous case, and the only
+ * safe handling is 'unknown' with no retry.
+ */
+export function isAmbiguousGraphSendFailure(err: unknown): boolean {
+  if (err instanceof HttpException) return false;
+  const text = err instanceof Error ? `${err.name}: ${err.message}` : String(err);
+  return /fetch failed|ECONNRESET|ETIMEDOUT|ECONNABORTED|EPIPE|socket hang up|aborted|AbortError|timeout|network/i.test(
+    text,
+  );
+}
+
+/**
+ * Allow only id-safe characters in the X-Capiro-Delivery-Id header value. A UUID
+ * passes through untouched; anything containing CR/LF or header punctuation is
+ * dropped rather than escaped — no legitimate delivery id needs them.
+ */
+export function sanitizeGraphHeaderValue(value: string | undefined): string | null {
+  if (!value) return null;
+  const clean = value.trim();
+  if (!clean || clean.length > 80) return null;
+  return /^[A-Za-z0-9._:-]+$/.test(clean) ? clean : null;
 }

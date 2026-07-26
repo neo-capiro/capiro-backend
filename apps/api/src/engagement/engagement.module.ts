@@ -28,6 +28,9 @@ import { GmailSendService } from './google/gmail-send.service.js';
 import { EngagementMailSender } from './mail-sender.service.js';
 import { OutcomeService } from './outcome/outcome.service.js';
 import { OutcomeController } from './outcome/outcome.controller.js';
+import { OutreachDraftService } from './outreach-draft.service.js';
+import { OutreachDraftAuditService } from './outreach-draft-audit.service.js';
+import { OutreachSendIntentService } from './outreach-send-intent.service.js';
 
 @Module({
   imports: [
@@ -64,6 +67,12 @@ import { OutcomeController } from './outcome/outcome.controller.js';
     GmailSendService,
     EngagementMailSender,
     TokenCryptoService,
+    // Phase 0 — trust boundary. NOTE: ReviewsModule already imports
+    // EngagementModule, so EngagementModule must NEVER import ReviewsModule;
+    // OutreachDraftService is EXPORTED instead and ReviewsService injects it.
+    OutreachDraftService,
+    OutreachDraftAuditService,
+    OutreachSendIntentService,
   ],
   exports: [
     OutcomeService,
@@ -72,6 +81,9 @@ import { OutcomeController } from './outcome/outcome.controller.js';
     MicrosoftGraphSyncService,
     EngagementMailSender,
     AiCredentialResolverService,
+    // Exported so ReviewsService can approve/reject an EXACT draft version
+    // inside its own transaction (plan §3.f1) without a module cycle.
+    OutreachDraftService,
   ],
 })
 export class EngagementModule {}

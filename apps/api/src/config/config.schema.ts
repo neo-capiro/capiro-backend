@@ -257,6 +257,31 @@ export const configSchema = z.object({
   OUTREACH_JOB_SWEEP_MS: z.coerce.number().int().positive().default(5_000),
   OUTREACH_JOB_STALE_MS: z.coerce.number().int().positive().default(120_000),
 
+  // Engagement Phase 0 — trust boundary + external-send integrity.
+  //
+  // ENGAGEMENT_VERSIONED_OUTREACH: when ON, every externally sendable draft is
+  // an immutable, audited outreach_draft_versions row, real sending goes through
+  // durable send intents (version ids only), and the legacy raw-body
+  // POST /outreach/send-batch route is refused for real sends. OFF keeps the
+  // pre-Phase-0 synchronous path byte-for-byte, so the migration + new API can
+  // deploy inert and be enabled per environment afterwards.
+  //
+  // ENGAGEMENT_EXTERNAL_SEND_V2_REQUIRED: when ON, a REAL (non-test) send is
+  // refused unless the draft version was produced under PromptSpec v2 or later.
+  // Independent of the flag above so a canary can turn versioning on first and
+  // gate prompt quality separately.
+  //
+  // Both default OFF in repository code: enabling either is an explicit
+  // out-of-band environment change, never a consequence of a code deploy.
+  ENGAGEMENT_VERSIONED_OUTREACH: z
+    .string()
+    .default('false')
+    .transform((v) => ['true', '1', 'yes', 'on'].includes(v.trim().toLowerCase())),
+  ENGAGEMENT_EXTERNAL_SEND_V2_REQUIRED: z
+    .string()
+    .default('false')
+    .transform((v) => ['true', '1', 'yes', 'on'].includes(v.trim().toLowerCase())),
+
   // Engagement auto-sync scheduler: periodic reconciliation syncs for connected
   // M365/Google mailboxes. Webhooks are a latency optimization, NOT a
   // reliability mechanism — Graph subscriptions expire after 6 days and were
