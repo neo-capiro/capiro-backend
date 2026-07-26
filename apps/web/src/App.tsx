@@ -105,6 +105,17 @@ const StrategyRoutes = lazy(async () =>
   })),
 );
 
+// District Nexus (WS-G) — MapLibre is a real GPU-rendering dependency that
+// must never reach the initial or client-profile bundles; lazy is the only
+// chunk-splitting mechanism this repo has (same pattern as the other
+// heavy-dependency routes above). Gated in-page by district_nexus_v2
+// (HearingWatchPage precedent) — the route itself registers unconditionally.
+const DistrictNexusPage = lazy(async () =>
+  import('./pages/intelligence/district-nexus/DistrictNexusPage.js').then((m) => ({
+    default: m.DistrictNexusPage,
+  })),
+);
+
 export function App() {
   const { isLoaded, isSignedIn } = useAuth();
 
@@ -266,6 +277,20 @@ export function App() {
         <Route path="/intelligence" element={<Navigate to="/explorer" replace />} />
         <Route path="/intelligence/changes" element={<ChangesInboxPage />} />
         <Route path="/intelligence/graph" element={<KnowledgeGraphPage />} />
+        {/* District Nexus (WS-G) — feature-flagged (district_nexus_v2), gated
+            in-page; the route itself is registered unconditionally (house
+            pattern) so a direct deep-link always resolves to the flag-off
+            guide rather than a 404. */}
+        <Route
+          path="/intelligence/district-nexus"
+          element={
+            <Suspense
+              fallback={<PlaceholderPage title="Loading District Nexus" description="Loading map and district data..." />}
+            >
+              <DistrictNexusPage />
+            </Suspense>
+          }
+        />
         {/* Hearing Watch's list surface moved into LegiWatch's Hearings tab; the
             live hearing room keeps its deep-linkable route. */}
         <Route
