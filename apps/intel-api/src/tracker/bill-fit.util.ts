@@ -8,6 +8,7 @@
  *                + 0.10·subjectMatch + 0.05·priorityBoost )
  */
 import { billHaystack, billHaystackOriginal, wholeWordHit, MIN_TERM_LEN, type RelevanceBill } from './relevance.util.js';
+import { matchTerms, routeFor, type RoutableTerm } from '../watchlist/term-routing.js';
 
 export const RECOMMENDATION_FLOOR = 0.45;
 
@@ -18,6 +19,7 @@ export interface MatchReason {
 }
 /** One compiled watchlist topic (subset of WatchlistCompiler's CompiledBillTopic). */
 export interface CompiledTopicForFit {
+  id?: string | null;
   label: string;
   issueArea: string | null;
   priority: string;
@@ -25,6 +27,8 @@ export interface CompiledTopicForFit {
   synonyms: string[];
   entities: string[];
   riskPhrases: string[];
+  /** P0-04: every typed term on this topic, routed and weighted. */
+  routableTerms?: RoutableTerm[];
 }
 export interface BillFit {
   fit: number;
@@ -36,6 +40,23 @@ export interface BillFit {
 }
 
 const clamp01 = (n: number): number => Math.max(0, Math.min(1, n));
+
+/**
+ * P0-04: which reason `kind` a matched term type maps to. Kept identical to
+ * the pre-routing set ("label or entity term hit" → `entity`, everything
+ * else → `keyword`) so MatchReasonKind and the web's whyKind/RecCard
+ * rendering are unaffected by widening what can match (b-8).
+ */
+const ENTITY_KIND_TYPES = new Set([
+  'bill',
+  'company',
+  'competitor',
+  'program_element',
+  'entity',
+  'agency',
+  'committee',
+  'legislator',
+]);
 
 export function scoreBillFit(
   bill: RelevanceBill,
@@ -55,17 +76,24 @@ export function scoreBillFit(
   let topTagLabel: string | null = null;
 
   for (const tp of topics) {
-    const entityTerms = [...tp.keywords, ...tp.entities]; // label lives in keywords
-    const allTerms = [...tp.keywords, ...tp.synonyms, ...tp.entities, ...tp.riskPhrases];
-    const hit = allTerms.find((t) => wholeWordHit(hay, t, hayOrig));
-    if (hit) {
+    // P0-04: every typed term now reaches the fit function, routed + weighted
+    // by term-routing.ts's matchTerms — not just the four legacy buckets.
+    const matches = matchTerms(bill, tp.routableTerms ?? []);
+    if (matches.length) {
       matchedTags.push(tp.label);
       textMatch = true;
-      const isEntity = entityTerms.some((t) => wholeWordHit(hay, t, hayOrig));
+      // Faithful generalization of the old "label or entity term hit" check:
+      // a high-confidence (exact_id) match, or a match whose type is
+      // inherently entity-like, counts as an exact entity hit.
+      const isEntity = matches.some((m) => m.confidence >= 0.9 || ENTITY_KIND_TYPES.has(m.termType));
       if (isEntity) exactEntity = true;
       if (tp.priority === 'high') priorityBoost = 1;
       if (!topTagLabel) topTagLabel = tp.label;
-      reasons.push({ kind: isEntity ? 'entity' : 'keyword', detail: `Matches your watchlist term "${hit}".` });
+      const primary = matches[0]!; // matchTerms sorts by weight desc — highest-weight match explains the topic
+      reasons.push({
+        kind: ENTITY_KIND_TYPES.has(primary.termType) ? 'entity' : 'keyword',
+        detail: primary.explanation,
+      });
     }
   }
   for (const area of issueAreas) {

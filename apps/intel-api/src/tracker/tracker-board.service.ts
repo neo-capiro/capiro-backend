@@ -19,7 +19,7 @@ import {
   passageProbability,
   type BillStage,
 } from './bill-stage.util.js';
-import { humanizeBillId } from './relevance.util.js';
+import { humanizeBillId, type RelevanceBill } from './relevance.util.js';
 
 /**
  * Recommendation feed + tracked-bill curation for the UNIFIED tracker (Phase 3
@@ -174,16 +174,28 @@ export interface BoardColumn {
 
 const stageLabelOf = (s: BillStage): string => BILL_STAGES.find((x) => x.id === s)?.label ?? s;
 
+/**
+ * P0-04: `id` and `sponsorName` are optional because `fetchMergedBills`'s
+ * minimal common shape (board/getTenantBoard matchedTags) carries neither —
+ * legislator routing is consequently inert on that rail. Callers that DO have
+ * the underlying congress_bill/state bill row (recommendations) pass both.
+ */
 const toRelevanceBill = (b: {
   title: string | null;
   policyArea: string | null;
   subjects: string[] | null;
   latestActionText: string | null;
-}) => ({
+  id?: string;
+  sponsorName?: string | null;
+}): RelevanceBill => ({
   title: b.title ?? '',
   policyArea: b.policyArea,
   subjects: b.subjects,
   latestActionText: b.latestActionText,
+  ...(b.id
+    ? { billId: b.id, displayNum: isStateBillKey(b.id) ? humanizeStateBillKey(b.id) : humanizeBillId(b.id) }
+    : {}),
+  ...(b.sponsorName !== undefined ? { sponsorName: b.sponsorName } : {}),
 });
 
 @Injectable()
@@ -280,6 +292,7 @@ export class TrackerBoardService {
       synonyms: t.synonyms,
       entities: t.entities,
       riskPhrases: t.riskPhrases,
+      routableTerms: t.routableTerms,
     }));
     const termSet = new Set<string>();
     for (const t of topics) {
@@ -409,12 +422,14 @@ export class TrackerBoardService {
         const stateBills = await this.stateRepo.getStateBillsByIds(stateCandidateIds);
         for (const b of stateBills) {
           const fit = scoreBillFit(
-            {
-              title: b.title ?? '',
+            toRelevanceBill({
+              title: b.title,
               policyArea: null,
               subjects: b.subjects,
               latestActionText: b.latestActionText,
-            },
+              id: b.id,
+              sponsorName: b.sponsorName,
+            }),
             topics,
             issueAreas,
             0,
@@ -520,7 +535,7 @@ export class TrackerBoardService {
       const latestActionDate = bill?.latestActionDate ?? t.lastSeenActionDate ?? null;
       const stage = (t.stage as BillStage | null) ?? billStage(latestActionText);
       const matchedTags = bill
-        ? scoreBillFit(toRelevanceBill(bill), topics, issueAreas, 0, false).matchedTags
+        ? scoreBillFit(toRelevanceBill({ ...bill, id: t.billId }), topics, issueAreas, 0, false).matchedTags
         : [];
       const card: BoardCard = {
         billId: t.billId,
@@ -649,7 +664,7 @@ export class TrackerBoardService {
       const ct = topicsByClient.get(t.clientId);
       const matchedTags =
         bill && ct
-          ? scoreBillFit(toRelevanceBill(bill), ct.topics, ct.issueAreas, 0, false).matchedTags
+          ? scoreBillFit(toRelevanceBill({ ...bill, id: t.billId }), ct.topics, ct.issueAreas, 0, false).matchedTags
           : [];
       const card: Card = {
         billId: t.billId,

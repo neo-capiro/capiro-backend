@@ -3,6 +3,7 @@ import { issueAreaForSector } from '@capiro/shared';
 import { PrismaService } from '../prisma/prisma.service.js';
 import { isAcceptableTerm, termRejectionReason } from '../watchlist/term-validation.js';
 import { compileWatchlist, type CompiledWatchlist } from '../watchlist/watchlist-compiler.js';
+import { termSurfaceMap, type TermRoute } from '../watchlist/term-routing.js';
 import { normalizeE164 } from './sms/sms.service.js';
 
 /**
@@ -52,7 +53,7 @@ export interface WatchlistView {
     issueArea: string | null;
     position: string;
     priority: string;
-    terms: Array<{ termType: string; value: string }>;
+    terms: Array<{ termType: string; value: string; id?: string }>;
   }>;
   /**
    * P6 sector-default: the sector-derived issue area for a NEVER-configured client
@@ -155,7 +156,7 @@ export class TrackerWatchlistService {
           tenantId,
           OR: [...(topicIds.length ? [{ topicId: { in: topicIds } }] : []), { topicId: null }],
         },
-        select: { topicId: true, termType: true, value: true },
+        select: { id: true, topicId: true, termType: true, value: true },
       }),
     );
     const outTopics = topics.map((t) => ({
@@ -165,7 +166,7 @@ export class TrackerWatchlistService {
       priority: t.priority,
       terms: terms
         .filter((x) => x.topicId === t.id)
-        .map((x) => ({ termType: x.termType, value: x.value })),
+        .map((x) => ({ termType: x.termType, value: x.value, id: x.id })),
     }));
     const flatTerms = terms.filter((x) => x.topicId === null);
     if (flatTerms.length) {
@@ -174,7 +175,7 @@ export class TrackerWatchlistService {
         issueArea: null,
         position: 'monitor',
         priority: 'med',
-        terms: flatTerms.map((x) => ({ termType: x.termType, value: x.value })),
+        terms: flatTerms.map((x) => ({ termType: x.termType, value: x.value, id: x.id })),
       });
     }
     const suggestedJ = wl.jurisdictions.length
@@ -429,7 +430,7 @@ export class TrackerWatchlistService {
   async getCompiled(
     tenantId: string,
     clientId: string,
-  ): Promise<CompiledWatchlist & { jurisdictions: string[] }> {
+  ): Promise<CompiledWatchlist & { jurisdictions: string[]; termSurfaces: Record<string, TermRoute['surfaces']> }> {
     const wl = await this.getWatchlist(tenantId, clientId);
     const compiled = compileWatchlist({
       issueAreas: wl.issueAreas,
@@ -445,13 +446,17 @@ export class TrackerWatchlistService {
           value: x.value,
           weight: 1,
           topicLabel: t.label,
+          topicPriority: t.priority,
+          termId: x.id ?? null,
         })),
       ),
     });
     // State Legislation Platform (DD5) — jurisdictions ride alongside the pure
     // compiler output rather than threading through compileWatchlist itself
     // (which stays a pure function of issueAreas/topics/terms only).
-    return { ...compiled, jurisdictions: wl.jurisdictions };
+    // P0-04: termSurfaces lets the Configure UI preview which surfaces each
+    // term type affects (b-7) — static, not derived from this client's data.
+    return { ...compiled, jurisdictions: wl.jurisdictions, termSurfaces: termSurfaceMap() };
   }
 
   /**

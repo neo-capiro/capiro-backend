@@ -10,6 +10,7 @@
  *                     lower-cased, capped, byte-stable across runs.
  */
 import { isAcceptableTerm } from './term-validation.js';
+import { routeFor, weightFor, type RoutableTerm } from './term-routing.js';
 export { MIN_TERM_LEN } from './term-validation.js';
 export const DEEPGRAM_KEYTERM_CAP = 100;
 
@@ -25,6 +26,10 @@ export interface CompilerTerm {
   weight: number;
   /** null = watchlist-global (hearing-style flat term); else the owning topic label. */
   topicLabel: string | null;
+  /** P0-04 (Gate B phase b): the owning topic's priority, for routableTerms weighting. */
+  topicPriority?: string;
+  /** P0-04: the persisted term's own id, for per-match attribution (TermMatch.termId). */
+  termId?: string | null;
 }
 export interface CompiledBillTopic {
   label: string;
@@ -35,6 +40,8 @@ export interface CompiledBillTopic {
   synonyms: string[];
   entities: string[];
   riskPhrases: string[];
+  /** P0-04: every typed term on this topic, routed and weighted. */
+  routableTerms: RoutableTerm[];
 }
 export interface CompiledWatchlist {
   issueAreas: string[];
@@ -78,6 +85,42 @@ export function compileWatchlist(input: {
     .sort((a, b) => a.label.localeCompare(b.label))
     .map((tp) => {
       const terms = byTopic.get(tp.label) ?? [];
+      // P0-04: every typed term on this topic, routed + weighted. Includes the
+      // legacy synonym/entity/risk types too — TERM_ROUTES has entries for
+      // them so the table stays total. Also carries a SYNTHETIC keyword-typed
+      // entry for the topic's own label — the `keywords` bucket below has
+      // always treated the label as an implicit search term, and scoreBillFit
+      // now reads routableTerms exclusively, so without this a label-only
+      // topic (no terms configured yet) would silently stop matching anything.
+      // Sorted for the compiler's byte-stability requirement (SC-4).
+      const labelTerm: RoutableTerm = {
+        id: null,
+        topicId: null,
+        topicLabel: tp.label,
+        termType: 'keyword',
+        value: tp.label,
+        topicPriority: tp.priority,
+      };
+      const routableTerms: RoutableTerm[] = [
+        labelTerm,
+        ...terms
+          .filter((t) => isAcceptableTerm(t.value) && routeFor(t.termType))
+          .map((t) => ({
+            id: t.termId ?? null,
+            topicId: null,
+            topicLabel: tp.label,
+            termType: t.termType,
+            value: t.value.trim(),
+            topicPriority: t.topicPriority ?? tp.priority,
+          })),
+      ]
+        .filter((t) => isAcceptableTerm(t.value))
+        .sort(
+          (a, b) =>
+            weightFor(routeFor(b.termType)!, b.topicPriority) - weightFor(routeFor(a.termType)!, a.topicPriority) ||
+            a.termType.localeCompare(b.termType) ||
+            a.value.localeCompare(b.value),
+        );
       return {
         label: tp.label,
         issueArea: tp.issueArea,
@@ -89,6 +132,7 @@ export function compileWatchlist(input: {
         synonyms: bucket(terms, 'synonym'),
         entities: bucket(terms, 'entity'),
         riskPhrases: bucket(terms, 'risk'),
+        routableTerms,
       };
     });
 

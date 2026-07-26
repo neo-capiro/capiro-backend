@@ -1,4 +1,19 @@
 import { scoreBillFit, RECOMMENDATION_FLOOR, type CompiledTopicForFit } from '../src/tracker/bill-fit.util.js';
+import type { RoutableTerm } from '../src/watchlist/term-routing.js';
+
+// P0-04 (Gate B phase b): scoreBillFit now matches exclusively via
+// routableTerms, which the real WatchlistCompiler populates from every
+// persisted term PLUS a synthetic keyword-typed entry for the topic's own
+// label (watchlist-compiler.ts). These fixtures hand-build what the compiler
+// would produce so the unit tests exercise the real post-migration contract.
+const labelTerm = (label: string, priority: string): RoutableTerm => ({
+  id: null,
+  topicId: null,
+  topicLabel: label,
+  termType: 'keyword',
+  value: label,
+  topicPriority: priority,
+});
 
 const topics: CompiledTopicForFit[] = [
   {
@@ -9,8 +24,23 @@ const topics: CompiledTopicForFit[] = [
     synonyms: ['hyperscale demand'],
     entities: ['PJM'],
     riskPhrases: ['grid strain'],
+    routableTerms: [
+      labelTerm('data center load', 'high'),
+      { id: null, topicId: null, topicLabel: 'data center load', termType: 'synonym', value: 'hyperscale demand', topicPriority: 'high' },
+      { id: null, topicId: null, topicLabel: 'data center load', termType: 'entity', value: 'PJM', topicPriority: 'high' },
+      { id: null, topicId: null, topicLabel: 'data center load', termType: 'risk', value: 'grid strain', topicPriority: 'high' },
+    ],
   },
-  { label: 'permitting', issueArea: null, priority: 'med', keywords: ['permitting'], synonyms: [], entities: [], riskPhrases: [] },
+  {
+    label: 'permitting',
+    issueArea: null,
+    priority: 'med',
+    keywords: ['permitting'],
+    synonyms: [],
+    entities: [],
+    riskPhrases: [],
+    routableTerms: [labelTerm('permitting', 'med')],
+  },
 ];
 const issueAreas = ['Energy', 'Environment'];
 
@@ -38,11 +68,13 @@ describe('scoreBillFit', () => {
   });
 
   it('applies the composite weights exactly', () => {
-    // 'permitting' keyword hit (textMatch + exactEntity), 'Energy' issue-area hit (subjectMatch),
-    // med priority (no boost), semantic 0.5.
+    // 'permitting' label/keyword hit (textMatch only — P0-04 no longer grants
+    // exactEntity for a plain keyword-kind match; only genuinely entity-like
+    // routes do, per term-routing.ts ENTITY_KIND_TYPES), 'Energy' issue-area
+    // hit (subjectMatch), med priority (no boost), semantic 0.5.
     const r = scoreBillFit(bill('A permitting reform Energy bill'), topics, issueAreas, 0.5, false);
-    // 0.4*0.5 + 0.3 + 0.15 + 0.1 = 0.75
-    expect(r.fit).toBeCloseTo(0.75, 9);
+    // 0.4*0.5 + 0.3 + 0 + 0.1 = 0.6
+    expect(r.fit).toBeCloseTo(0.6, 9);
   });
 
   it('treats an issue-area-only match as issue_code, below floor but > 0', () => {
@@ -67,6 +99,10 @@ describe('scoreBillFit', () => {
       synonyms: [],
       entities: [],
       riskPhrases: [],
+      routableTerms: [
+        labelTerm(`t${i}`, 'low'),
+        { id: null, topicId: null, topicLabel: `t${i}`, termType: 'keyword', value: `term${i}`, topicPriority: 'low' },
+      ],
     }));
     const title = many.map((_, i) => `term${i}`).join(' ');
     const r = scoreBillFit(bill(title), many, [], 0, false);

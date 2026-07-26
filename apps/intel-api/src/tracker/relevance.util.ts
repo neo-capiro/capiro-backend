@@ -6,6 +6,24 @@
  */
 import { isAcceptableTerm, isShortExactTerm, MIN_TERM_LEN } from '../watchlist/term-validation.js';
 export { MIN_TERM_LEN } from '../watchlist/term-validation.js';
+import { matchTerms, type RoutableTerm } from '../watchlist/term-routing.js';
+
+/**
+ * P0-04: which reason `kind` a matched term type maps to for the alert
+ * explainer — identical set to bill-fit.util.ts's ENTITY_KIND_TYPES, kept as
+ * a separate literal here (not imported) to avoid a bill-fit.util.ts <->
+ * relevance.util.ts import cycle on top of the existing term-routing.ts one.
+ */
+const ENTITY_KIND_TYPES = new Set([
+  'bill',
+  'company',
+  'competitor',
+  'program_element',
+  'entity',
+  'agency',
+  'committee',
+  'legislator',
+]);
 
 /**
  * Whole-word match. Terms at/above MIN_TERM_LEN match case-INSENSITIVELY against the
@@ -31,6 +49,15 @@ export interface RelevanceBill {
   policyArea?: string | null;
   subjects?: string[] | null;
   latestActionText?: string | null;
+  // P0-04 routing targets (Gate B phase b). Optional: a caller that cannot
+  // supply one simply yields no match for the routes that need it, rather
+  // than a wrong match — see term-routing.ts matchTerms.
+  displayNum?: string | null;
+  billId?: string | null;
+  sponsorName?: string | null;
+  cosponsorNames?: string[] | null;
+  committees?: string[] | null;
+  programElements?: string[] | null;
 }
 
 export function billHaystack(bill: RelevanceBill): string {
@@ -52,6 +79,10 @@ export interface WatchlistLike {
     synonyms?: string[];
     relatedEntities?: string[];
     riskTerms?: string[];
+    /** P0-04 (Gate B phase b): every OTHER typed term on this topic. */
+    typedTerms?: Array<{ termType: string; value: string; id?: string | null }>;
+    topicId?: string | null;
+    priority?: string;
   }[];
 }
 
@@ -76,10 +107,36 @@ export function explainMatch(bill: RelevanceBill, watchlist: WatchlistLike): Mat
     const otherTerms = [...(tag.synonyms ?? []), ...(tag.riskTerms ?? [])];
     const eHit = entityTerms.find((t) => wholeWordHit(hay, t, hayOrig));
     const kHit = eHit ?? otherTerms.find((t) => wholeWordHit(hay, t, hayOrig));
+    let tagMatched = false;
     if (kHit) {
-      matchedTags.push(tag.tag);
+      tagMatched = true;
       if (eHit) entityHit = entityHit ?? eHit;
       else keywordHit = keywordHit ?? kHit;
+    }
+
+    // P0-04: fold in the 11 canonical typed-term routes on top of the legacy
+    // synonym/relatedEntity/riskTerm matching above — additive, so a topic
+    // with only those three legacy shapes produces byte-identical output.
+    if (tag.typedTerms?.length) {
+      const routable: RoutableTerm[] = tag.typedTerms.map((t) => ({
+        id: t.id ?? null,
+        topicId: tag.topicId ?? null,
+        topicLabel: tag.tag,
+        termType: t.termType,
+        value: t.value,
+        topicPriority: tag.priority ?? 'med',
+      }));
+      const typedMatches = matchTerms(bill, routable);
+      if (typedMatches.length) {
+        tagMatched = true;
+        const primary = typedMatches[0]!;
+        if (ENTITY_KIND_TYPES.has(primary.termType)) entityHit = entityHit ?? primary.matchedText;
+        else keywordHit = keywordHit ?? primary.matchedText;
+      }
+    }
+
+    if (tagMatched) {
+      matchedTags.push(tag.tag);
     }
   }
 

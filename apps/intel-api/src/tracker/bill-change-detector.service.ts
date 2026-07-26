@@ -337,6 +337,11 @@ export class BillChangeDetectorService {
               policyArea: bill.policyArea,
               subjects: bill.subjects,
               latestActionText: bill.latestActionText,
+              // P0-04: SourceBill has no sponsorName/committees — legislator
+              // and committee routing are consequently inert on this rail.
+              displayNum,
+              billId: row.billId,
+              programElements: bill.peCodes,
             },
             wl,
           );
@@ -582,6 +587,11 @@ export class BillChangeDetectorService {
               policyArea: null,
               subjects: bill.subjects,
               latestActionText: bill.latestActionText,
+              // P0-04: SourceStateBill has no committees/PE codes — committee
+              // and program_element routing are consequently inert on this rail.
+              displayNum,
+              billId: row.billId,
+              sponsorName: bill.sponsorName,
             },
             wl,
           );
@@ -1081,12 +1091,12 @@ export class BillChangeDetectorService {
         if (!head) return null;
         const topics = await tx.watchlistTopic.findMany({
           where: { watchlistId: wlId },
-          select: { id: true, label: true },
+          select: { id: true, label: true, priority: true },
         });
         const terms = topics.length
           ? await tx.watchlistTerm.findMany({
               where: { topicId: { in: topics.map((t) => t.id) } },
-              select: { topicId: true, termType: true, value: true },
+              select: { id: true, topicId: true, termType: true, value: true },
             })
           : [];
         return { head, topics, terms };
@@ -1106,6 +1116,14 @@ export class BillChangeDetectorService {
             riskTerms: terms
               .filter((x) => x.topicId === t.id && x.termType === 'risk')
               .map((x) => x.value),
+            // P0-04: every OTHER typed term — the legacy three above already
+            // have their own dedicated fields, so exclude them here to avoid
+            // double-counting the same term through two match paths.
+            topicId: t.id,
+            priority: t.priority,
+            typedTerms: terms
+              .filter((x) => x.topicId === t.id && !['synonym', 'entity', 'risk'].includes(x.termType))
+              .map((x) => ({ termType: x.termType, value: x.value, id: x.id })),
           })),
         };
       }
