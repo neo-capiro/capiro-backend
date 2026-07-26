@@ -639,7 +639,9 @@ function RadarGlobalBillsTab({ onScopeClient }: { onScopeClient: (clientId: stri
           options={[
             { value: 'all', label: 'All tracked bills' },
             { value: 'hifit', label: 'Priority-tag bills' },
-            { value: 'hiprob', label: 'High probability (≥70%)' },
+            // §4.8 (Gate D c-8): the estimate is stage-based, not a calibrated
+            // forecast — the label says so now. Computation unchanged.
+            { value: 'hiprob', label: 'High passage likelihood (≥70%)' },
           ]}
         />
       </div>

@@ -1,11 +1,11 @@
 import { useState } from 'react';
-import { useInfiniteQuery, useMutation } from '@tanstack/react-query';
+import { useInfiniteQuery, useMutation, useQuery } from '@tanstack/react-query';
 import { useNavigate } from 'react-router-dom';
 import { useBillTarget } from '../../bills/bill-target.js';
 import { App as AntApp, Input, Modal } from 'antd';
 import { useApi } from '../../../lib/use-api.js';
 import {
-  toCanonicalAlert,
+  alertBand,
   feedQueryString,
   intelFeedKeys,
   intelFeedPaths,
@@ -136,6 +136,40 @@ function actionLabel(a: RecommendedAction, item: FeedItem): string {
   return a.label;
 }
 
+/**
+ * P1-11: the old chip fired on EVERY alert, because `toCanonicalAlert` hard-codes
+ * `whoActs: ''` (it had no feed source) and canonical completeness flagged it —
+ * and the tooltip listed raw field names. Canonical completeness stays in
+ * observability; the USER-facing warning fires only when a MATERIAL piece of
+ * evidence is absent, described in words an analyst can act on.
+ *
+ * `whoActs` is deliberately NOT here: an unassigned alert is an assignment gap,
+ * not an evidence gap, and phase e gives it a real "Assign owner" affordance.
+ */
+export function materialGaps(item: FeedItem): string[] {
+  const gaps: string[] = [];
+  if (!item.whyItMatters) gaps.push('client relevance');
+  if (!item.evidence?.provenance?.sourceUrl && !item.evidence?.bill?.url) gaps.push('a source link');
+  if (
+    item.sourceType === 'bill' ||
+    item.sourceType === 'state_bill' ||
+    item.sourceType === 'combined'
+  ) {
+    if (!item.evidence?.bill?.actionText) gaps.push('the official action text');
+  }
+  return gaps;
+}
+
+/** P1-10: the deadline/urgency cue for a collapsed card. */
+function urgencyText(item: FeedItem): string | null {
+  if (item.urgency) return item.urgency;
+  const d = item.evidence?.bill?.actionDate;
+  return d ? `Action ${d}` : null;
+}
+
+const BAND_TOOLTIP =
+  'Ranked from client relevance, materiality, urgency, and client priority.';
+
 function FeedCard({
   item,
   onAction,
@@ -152,12 +186,39 @@ function FeedCard({
   // LegiWatch v2 (L1): calm card — collapsed by default, expands on demand.
   const [open, setOpen] = useState(false);
   const [showAllQuotes, setShowAllQuotes] = useState(false);
+  const api = useApi();
   const ev = item.evidence ?? {};
   const mentions = ev.hearing?.mentions ?? [];
   const actions = item.recommendedActions ?? [];
   const primary = actions.find((a) => a.primary) ?? actions[0];
   const drafted = !!item.actions?.memo;
   const inReport = !!item.actions?.inReport;
+  // P1-11 (c-4/c-7): computed ONCE per render. The old code called
+  // toCanonicalAlert(item) twice in the same JSX block.
+  const gaps = materialGaps(item);
+  const band = alertBand(item);
+  const urgency = urgencyText(item);
+  const sourceUrl = ev.provenance?.sourceUrl ?? ev.bill?.url ?? null;
+
+  /**
+   * P1-10 (c-3): the §4.1 packet supplies procedural meaning and the
+   * confidence/unknowns block. Fetched LAZILY — `enabled: open` means an
+   * unexpanded card costs nothing — and cached per alert id by TanStack, so
+   * collapsing and re-expanding does not refetch.
+   */
+  const packetQ = useQuery({
+    queryKey: ['intel-alert-packet', item.clientId, item.id],
+    queryFn: async () =>
+      (
+        await api.get<GovernmentAffairsAlertPacket>(
+          `/intel-api/clients/${encodeURIComponent(item.clientId)}/alerts/${encodeURIComponent(item.id)}/packet`,
+        )
+      ).data,
+    enabled: open,
+    staleTime: 5 * 60 * 1000,
+    retry: false,
+  });
+  const packet = packetQ.data ?? null;
 
   return (
     <div className={'acard' + (open ? ' open' : '')} data-sev={item.severity}>
@@ -184,13 +245,30 @@ function FeedCard({
                 #{item.tag}
               </span>
             )}
-            {!toCanonicalAlert(item).complete && (
+            {/* P1-10 (c-2): severity, in the same critical|notable|info vocabulary
+                the alert emails use, so the two surfaces never disagree. */}
+            <span className={`chip sev-${item.severity}`} title={`Severity: ${item.severity}`}>
+              {item.severity}
+            </span>
+            {/* P1-10 (c-6): the score is shown as an explainable BAND, never as a
+                raw 0.72. Phase d replaces this tooltip with the factor breakdown. */}
+            <span className="chip band" title={BAND_TOOLTIP}>
+              {band} priority
+            </span>
+            {urgency && (
+              <span className="chip" style={{ fontSize: 10.5 }} title="Deadline / urgency">
+                {urgency}
+              </span>
+            )}
+            {/* P1-11 (c-4): replaces the `incomplete` chip, which fired on EVERY
+                alert. This one only fires on evidence an analyst can act on. */}
+            {gaps.length > 0 && (
               <span
-                className="chip"
-                style={{ fontSize: 10.5, opacity: 0.65 }}
-                title={`Incomplete alert — missing: ${toCanonicalAlert(item).missingFields.join(', ')}`}
+                className="chip warn"
+                style={{ fontSize: 10.5 }}
+                title={`This alert is missing: ${gaps.join(', ')}`}
               >
-                incomplete
+                limited evidence
               </span>
             )}
             {drafted && (
@@ -220,6 +298,39 @@ function FeedCard({
 
       {open && (
         <div className="acard-body">
+          {/* P1-10 (c-3.1): "why this matters to THIS client". The API has always
+              returned it (feed.service selects whyItMatters); the calm card just
+              never rendered it. Highest-value restoration in this phase. */}
+          {item.whyItMatters && (
+            <div className="acard-why">
+              <span className="acard-sect">Why this matters</span>
+              {item.whyItMatters}
+            </div>
+          )}
+
+          {/* c-3.2: procedural meaning — the deterministic §4.3 outlook off the
+              packet, falling back to the stage the evidence already carries. */}
+          {(packet?.proceduralMeaning || ev.bill?.stage) && (
+            <div className="acard-why">
+              <span className="acard-sect">Procedural meaning</span>
+              {packet?.proceduralMeaning ? (
+                <>
+                  {packet.proceduralMeaning.currentStage}
+                  {packet.proceduralMeaning.nextPossibleSteps?.length
+                    ? ` — next: ${packet.proceduralMeaning.nextPossibleSteps.join(', ')}`
+                    : ''}
+                  {packet.proceduralMeaning.blockedBy?.length ? (
+                    <div className="muted mini">
+                      Blocked by: {packet.proceduralMeaning.blockedBy.join('; ')}
+                    </div>
+                  ) : null}
+                </>
+              ) : (
+                ev.bill?.stage
+              )}
+            </div>
+          )}
+
           {ev.bill && (
             <div
               className="acard-evi"
@@ -297,6 +408,49 @@ function FeedCard({
             </div>
           )}
 
+          {/* c-3.3: the official source, as an explicit link. Gate C made
+              provenance.sourceUrl reliable, so this stops being a guess. */}
+          {sourceUrl && (
+            <div className="acard-why">
+              <span className="acard-sect">Source</span>
+              <a href={sourceUrl} target="_blank" rel="noreferrer noopener">
+                View official source
+              </a>
+            </div>
+          )}
+
+          {/* c-3.4: who should act. An unassigned alert gets a real affordance
+              rather than the empty string that used to flag every card. */}
+          <div className="acard-why">
+            <span className="acard-sect">Who should act</span>
+            {item.workState?.assignedTo ? (
+              <span>{item.workState.assignedToName ?? item.workState.assignedTo}</span>
+            ) : (
+              <span className="muted">Unassigned</span>
+            )}
+          </div>
+
+          {/* c-3.5: confidence and unknowns — the packet's own coverage numbers,
+              never a number without an explanation. */}
+          {packet?.confidence && (
+            <div className="acard-why">
+              <span className="acard-sect">Confidence and unknowns</span>
+              <span>
+                Evidence coverage {Math.round((packet.confidence.evidenceCoverage ?? 0) * 100)}%
+              </span>
+              {packet.confidence.missingFields?.length ? (
+                <div className="muted mini">
+                  Not established: {packet.confidence.missingFields.join(', ')}
+                </div>
+              ) : null}
+              {packet.proceduralMeaning?.uncertainty?.length ? (
+                <div className="muted mini">
+                  {packet.proceduralMeaning.uncertainty.join('; ')}
+                </div>
+              ) : null}
+            </div>
+          )}
+
           {actions.length > 0 && (
             <div className="acard-actions">
               {actions.map((a, i) => (
@@ -359,9 +513,11 @@ export function TrackerFeedPanel({
   const billTarget = useBillTarget();
   const { message } = AntApp.useApp();
   const [source, setSource] = useState<FeedFilter>('all');
-  // LegiWatch v2 leads with newest-first (the feed-lead copy says so); priority
-  // ordering isn't surfaced as a control in the calm design.
-  const order: FeedOrder = 'date';
+  // P1-10: the API has supported order=score since Phase 6 (feed.service.ts:146,
+  // 187-190) with a covering index, and the web hard-coded 'date'. It is now a
+  // control. Newest stays the DEFAULT — the calm design leads with recency, and
+  // the feed-lead copy says so.
+  const [order, setOrder] = useState<FeedOrder>('date');
   // LegiWatch v2 (L1): global feed arrangement — single stream (default) or grouped
   // by client. Never the default; only offered at the all-clients altitude.
   const [group, setGroup] = useState(false);
@@ -656,6 +812,32 @@ export function TrackerFeedPanel({
       </div>
 
       <aside className="feed-rail">
+        {/* P1-10: Newest / Priority. `order` is already part of the query key
+            AND the query string, so switching refetches under a distinct cache
+            entry with no other change. */}
+        <div className="rail-card">
+          <div className="rc-t">Order</div>
+          <div className="seg-toggle" role="group" aria-label="Feed ordering">
+            <button
+              type="button"
+              aria-pressed={order === 'date'}
+              className={order === 'date' ? 'on' : ''}
+              onClick={() => setOrder('date')}
+            >
+              Newest
+            </button>
+            <button
+              type="button"
+              aria-pressed={order === 'score'}
+              className={order === 'score' ? 'on' : ''}
+              onClick={() => setOrder('score')}
+              title={BAND_TOOLTIP}
+            >
+              Priority
+            </button>
+          </div>
+        </div>
+
         <div className="rail-card">
           <div className="rc-t">Show</div>
           {srcOpts.map((o) => (

@@ -12,10 +12,25 @@ import {
 } from './tracker-api.js';
 import { intelTrackerPaths } from './intel-tracker-api.js';
 
+/**
+ * §4.8 (Gate D c-8): the meter used to be labelled "Passage probability", which
+ * claims a calibrated forecast. It is not one — `passageProbability` is derived
+ * from the bill's current stage and the age of its latest action, and has never
+ * been checked against historical outcomes. The number is unchanged; only the
+ * claim it makes is. Do NOT re-derive the computation here.
+ */
+export const PASSAGE_LIKELIHOOD_LABEL = 'Estimated passage likelihood';
+export const PASSAGE_LIKELIHOOD_TOOLTIP =
+  'Stage-based estimate — derived from the bill’s current stage and latest action date. Not calibrated against historical outcomes.';
+
 export function PassageBar({ prob }: { prob: number }) {
   const percent = Math.round(prob > 1 ? prob : prob * 100);
   return (
-    <div className={`passage ${probClass(prob)}`} title={`Passage probability ${percent}%`}>
+    <div
+      className={`passage ${probClass(prob)}`}
+      title={`${PASSAGE_LIKELIHOOD_LABEL} ${percent}% — ${PASSAGE_LIKELIHOOD_TOOLTIP}`}
+      aria-label={`${PASSAGE_LIKELIHOOD_LABEL} ${percent} percent`}
+    >
       <div className="bar">
         <span style={{ width: `${percent}%` }} />
       </div>

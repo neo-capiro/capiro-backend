@@ -691,7 +691,7 @@ export function TrackerSurface({
         options={[
           { v: 'all', l: 'All bills' },
           { v: 'highfit', l: 'High-fit (priority tag)' },
-          { v: 'highprob', l: 'High-probability (≥70%)' },
+          { v: 'highprob', l: 'High passage likelihood (≥70%)' },
         ]}
       />
       <TrkDropdown
@@ -704,7 +704,9 @@ export function TrackerSurface({
           setMenu(null);
         }}
         options={[
-          { v: 'prob', l: 'Probability' },
+          // §4.8 (c-8): the number is unchanged; the label no longer claims a
+          // calibrated forecast. See PASSAGE_LIKELIHOOD_LABEL.
+          { v: 'prob', l: 'Passage likelihood' },
           { v: 'num', l: 'Bill number' },
           { v: 'changed', l: 'Recently changed' },
         ]}
@@ -739,7 +741,7 @@ export function TrackerSurface({
         }}
         options={[
           { v: 'relevance', l: 'Relevance' },
-          { v: 'probability', l: 'Probability' },
+          { v: 'probability', l: 'Passage likelihood' },
           { v: 'newest', l: 'Newest action' },
         ]}
       />
@@ -930,7 +932,7 @@ export function TrackerSurface({
             {filter !== 'all' && boardCount > 0 && boardColumns.every((c) => c.bills.length === 0) ? (
               <div className="trk-col-empty" style={{ gridColumn: '1 / -1' }}>
                 No tracked bills match the “
-                {filter === 'highfit' ? 'High-fit (priority tag)' : 'High-probability (≥70%)'}”
+                {filter === 'highfit' ? 'High-fit (priority tag)' : 'High passage likelihood (≥70%)'}”
                 filter.{' '}
                 <button className="btn-link" onClick={() => setFilter('all')}>
                   Show all {boardCount}

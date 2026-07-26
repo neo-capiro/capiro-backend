@@ -144,6 +144,18 @@ export interface FeedItemActions {
   talkingPoints: number;
 }
 
+/** P2-04: the CURRENT USER's triage state for this alert. The intelligence event
+ *  itself is global (`intel_alert.status` is shared by the whole firm); this is
+ *  per-user, so one analyst's dismiss never hides the alert from another.
+ *  Decorated by intel-api in Gate D phase e — optional until then. */
+export interface FeedItemWorkState {
+  state: 'new' | 'in_review' | 'assigned' | 'actioned' | 'snoozed' | 'dismissed';
+  assignedTo: string | null;
+  assignedToName?: string | null;
+  snoozedUntil: string | null;
+  note: string | null;
+}
+
 export interface FeedItem {
   id: string;
   /** Owning client (always present). Drives the client label on the global feed. */
@@ -171,6 +183,8 @@ export interface FeedItem {
   recommendedActions?: RecommendedAction[];
   /** Whether a memo is already drafted, in the weekly report, etc. */
   actions?: FeedItemActions;
+  /** P2-04: this user's own triage state. Absent = never triaged (treat as 'new'). */
+  workState?: FeedItemWorkState;
 }
 
 export interface FeedResponse {
@@ -224,11 +238,33 @@ export const SOURCE_LABEL: Record<FeedSourceType, string> = {
 };
 
 /**
+ * P1-10/§4.8: the display band for an alert's score. Mirrors intel-api's
+ * `bandOf` thresholds (alert-scorer.ts) exactly — do not drift them, or a
+ * card's band stops matching the one stored on the alert and emailed.
+ *
+ * Prefers the band the WRITER stored in evidence (`provenance.band`) and only
+ * derives from `score` when a pre-Gate-C row carries none.
+ */
+export function alertBand(item: FeedItem): 'High' | 'Med' | 'Low' {
+  const stored = item.evidence?.provenance?.band;
+  if (stored === 'High' || stored === 'Med' || stored === 'Low') return stored;
+  const s = typeof item.score === 'number' ? item.score : 0;
+  return s >= 0.66 ? 'High' : s >= 0.45 ? 'Med' : 'Low';
+}
+
+/**
  * Feed → canonical Alert adapter (MeriV2 Phase-1, SC1.1/SC1.2): maps a
- * FeedItem onto the ONE seven-field Alert. Used ONLY to render an
- * "incomplete" flag on feed cards — items are never hidden or filtered on
- * incompleteness (drop-nothing). whoActs has no feed source today → always
- * flagged; issueId ← the matched watchlist tag when present.
+ * FeedItem onto the ONE seven-field Alert.
+ *
+ * P1-11: this is INTERNAL COMPLETENESS INSTRUMENTATION and is no longer
+ * rendered to analysts. It used to drive an "incomplete" chip on the feed card,
+ * which fired on EVERY alert because `whoActs` had no source and was hard-coded
+ * to ''. The user-facing warning is now `materialGaps` in TrackerFeedPanel,
+ * which only fires on evidence an analyst can act on. Items are still never
+ * hidden or filtered on incompleteness (drop-nothing).
+ *
+ * `whoActs` now reads the per-user work state's assignee, so an unassigned
+ * alert is legitimately incomplete on that field rather than artificially so.
  */
 export function toCanonicalAlert(item: FeedItem): AlertBuildResult {
   return buildAlert({
@@ -238,7 +274,7 @@ export function toCanonicalAlert(item: FeedItem): AlertBuildResult {
     // P1-09: fall back to the normalized match block, so a bill-change alert (which
     // never carries a termId) yields a non-empty issueId instead of reading incomplete.
     issueId: item.tag ?? item.evidence.match?.matchedTags?.[0] ?? '',
-    whoActs: '',
+    whoActs: item.workState?.assignedTo ?? '',
     deadline: item.evidence.bill?.actionDate ?? item.evidence.hearing?.occurredAt ?? null,
     sourceType: item.sourceType,
   });

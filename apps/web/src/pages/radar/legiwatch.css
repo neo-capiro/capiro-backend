@@ -192,6 +192,32 @@
 
 .lw-root .chip.success { background: var(--success-soft); border-color: transparent; color: var(--success); }
 
+/* P1-10 (Gate D c-2): the severity cue as a CHIP, in the same
+   critical|notable|info vocabulary the alert email templates use, so the two
+   surfaces never disagree. Hexes come from this file's own palette vars rather
+   than the email's literals — the vocabulary is what must match, and the calm
+   re-skin owns its own colour values. */
+.lw-root .chip.sev-critical { background: var(--critical-soft); border-color: transparent; color: var(--critical); font-weight: 600; text-transform: capitalize; }
+
+.lw-root .chip.sev-notable { background: var(--notable-soft); border-color: transparent; color: var(--notable); font-weight: 600; text-transform: capitalize; }
+
+.lw-root .chip.sev-info { background: var(--info-soft); border-color: transparent; color: var(--info); font-weight: 600; text-transform: capitalize; }
+
+/* c-6: the score's display BAND. Never a raw 0.72 — always a band plus a
+   tooltip that says what produced it. */
+.lw-root .chip.band { background: var(--bg-sunken); border-color: transparent; color: var(--ink-2); font-weight: 600; }
+
+/* c-4: the material-evidence warning that replaced the `incomplete` chip. */
+.lw-root .chip.warn { background: var(--notable-soft); border-color: transparent; color: var(--notable); }
+
+/* c-3: labelled sections in the expanded card body (why it matters, procedural
+   meaning, source, who should act, confidence). */
+.lw-root .acard-why { font-size: 12.5px; line-height: 1.55; color: var(--ink-2); padding: 10px 0 2px; }
+
+.lw-root .acard-sect { display: block; font-size: 10.5px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.06em; color: var(--ink-3); margin-bottom: 3px; }
+
+.lw-root .acard-why .mini { font-size: 11.5px; margin-top: 3px; }
+
 .lw-root .src-label { font-size: 10.5px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.06em; color: var(--ink-3); }
 
 .lw-root .pdot.high { background: var(--critical); }
