@@ -36,8 +36,8 @@ import {
 } from '../district-nexus-api.js';
 import {
   bandOf,
+  directoryDistrictPath,
   formatMoney,
-  splitDistrictKey,
 } from '../../../intelligence/district-nexus/district-nexus-format.js';
 import {
   getClientRepresentation,
@@ -105,16 +105,6 @@ function employeeLabel(f: ClientFacilityFootprint): string {
   if (f.employeeCount == null) return '—';
   const n = f.employeeCount.toLocaleString('en-US');
   return f.facilitiesMissingEmployeeCount > 0 ? `${n}+` : n;
-}
-
-/** Path to the WS-B district page. Every v2 district has a resolvable code by
- *  construction (districtKeyFor drops the 90/98/ZZ sentinels), so unlike the
- *  legacy row there is no seat-resolution gate. padStart is defensive: the
- *  contract rail stores the vendor's code verbatim and a 1-char '4' would
- *  otherwise produce /districts/TX/4 for a page that expects '04'. */
-function v2DistrictPagePath(d: DistrictNexusDistrictDetail): string {
-  const { state, districtNo } = splitDistrictKey(d.districtKey);
-  return `/directory/districts/${encodeURIComponent(state)}/${encodeURIComponent(districtNo.padStart(2, '0'))}`;
 }
 
 /** Distinct scoring components that actually earned credit, as short badges. */
@@ -395,7 +385,10 @@ function DistrictNexusSectionV2({ clientId, onUnavailable }: DistrictNexusSectio
                             {d.employeesUnreported ? '+' : ''} employees
                           </span>
                         ) : null}
-                        <Link className="iv1-link" to={v2DistrictPagePath(d)}>
+                        {/* Every v2 district has a resolvable code by construction
+                            (districtKeyFor drops the 90/98/ZZ sentinels), so unlike
+                            the legacy row there is no seat-resolution gate. */}
+                        <Link className="iv1-link" to={directoryDistrictPath(d.districtKey)}>
                           View district →
                         </Link>
                       </div>

@@ -12,7 +12,13 @@ import {
   type NexusScoreBreakdown,
   type TopAward,
 } from './district-nexus-api.js';
-import { bandOf, formatMoney, formatNumber, splitDistrictKey } from './district-nexus-format.js';
+import {
+  bandOf,
+  directoryDistrictPath,
+  formatMoney,
+  formatNumber,
+  splitDistrictKey,
+} from './district-nexus-format.js';
 
 const COMPONENT_COLORS: Record<string, string> = {
   facility: '#1a3f9f',
@@ -103,7 +109,7 @@ export function DistrictNexusDrawer({ districtKey, clientId, boundaryVintage, on
             <Tag>Boundary: {d.status === 'F' ? 'future' : 'current'}{boundaryVintage ? `, ${boundaryVintage}th` : ''}</Tag>
           </div>
           <div className="dn-dr-l3">
-            <Link to={`/directory/districts/${state}/${districtNo}`}>
+            <Link to={directoryDistrictPath(districtKey ?? '')}>
               <Button size="small">Open district page →</Button>
             </Link>
           </div>

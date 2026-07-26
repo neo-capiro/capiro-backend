@@ -908,12 +908,18 @@ export class ExplorerService {
       if (opts.maxAmount != null) where.amount.lte = opts.maxAmount;
     }
 
+    // `amount` (Decimal?) and `actionDate` (DateTime?) are both nullable, and
+    // Postgres defaults DESC to NULLS FIRST. So "Largest first" led with rows
+    // that report NO amount, and "Most recent" led with rows that have no date
+    // — in both cases the least informative rows sat at the top of page 1.
+    // ASC already defaults to NULLS LAST; stated explicitly so all three read
+    // the same way and the next sort added here copies the right pattern.
     const orderBy: Prisma.FederalAwardOrderByWithRelationInput =
       opts.sort === 'recent'
-        ? { actionDate: 'desc' }
+        ? { actionDate: { sort: 'desc', nulls: 'last' } }
         : opts.sort === 'oldest'
-          ? { actionDate: 'asc' }
-          : { amount: 'desc' };
+          ? { actionDate: { sort: 'asc', nulls: 'last' } }
+          : { amount: { sort: 'desc', nulls: 'last' } };
 
     const [rows, total] = await Promise.all([
       this.prisma.federalAward.findMany({ where, orderBy, take: limit, skip: offset }),
