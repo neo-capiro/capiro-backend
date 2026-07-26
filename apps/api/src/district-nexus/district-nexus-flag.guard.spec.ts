@@ -15,11 +15,22 @@ function ctxFor(tenantId?: string): ExecutionContext {
   } as unknown as ExecutionContext;
 }
 
-/** Records which prisma scope was used — the RLS discipline is the point. */
+/**
+ * Records which prisma scope was used — the RLS discipline is the point — and
+ * CAPTURES the SQL. Capturing matters: this mock previously discarded the
+ * query entirely (`$queryRaw: async () => rows`), so it happily passed while
+ * the real statement carried a `::uuid` cast against a TEXT column and threw
+ * 42883 on every live call. A mock that ignores its input cannot catch a
+ * defect in that input.
+ */
 function prismaMock(outcome: { rows?: unknown[]; throws?: Error }) {
+  const captured: { sql: string | null; values: unknown[] } = { sql: null, values: [] };
   const withSystem = jest.fn(async (fn: (tx: unknown) => unknown) =>
     fn({
-      $queryRaw: async () => {
+      $queryRaw: async (strings: TemplateStringsArray, ...values: unknown[]) => {
+        // Reassemble the literal SQL with `?` where a parameter was bound.
+        captured.sql = Array.isArray(strings) ? strings.join('?') : String(strings);
+        captured.values = values;
         if (outcome.throws) throw outcome.throws;
         return outcome.rows ?? [];
       },
@@ -30,6 +41,7 @@ function prismaMock(outcome: { rows?: unknown[]; throws?: Error }) {
     service: { withSystem, withTenant } as unknown as PrismaService,
     withSystem,
     withTenant,
+    captured,
   };
 }
 
@@ -88,5 +100,42 @@ describe('DistrictNexusFlagGuard', () => {
     // An erroring flag read must not open the feature.
     const { guard } = makeGuard({ throws: new Error('connection reset') });
     await expect(guard.canActivate(ctxFor(TENANT))).rejects.toBeInstanceOf(NotFoundException);
+  });
+
+  /**
+   * REGRESSION (2026-07-26). The query shipped with `tenant_id = ${id}::uuid`,
+   * but intel_feature_flag.tenant_id is TEXT (intel-api declares it
+   * `tenantId String`, no @db.Uuid; its RLS policy casts the other way:
+   * `tenant_id = (current_tenant_id())::text`).
+   *
+   * Every live read therefore threw `42883 operator does not exist: text =
+   * uuid`, hit the fail-closed catch, and 404'd the whole feature for a tenant
+   * whose flag was genuinely ON. It stayed invisible for weeks because with no
+   * flag rows anywhere the guard's answer was "denied" either way — it only
+   * surfaced the hour the first row was written.
+   */
+  describe('the flag query matches the real column types', () => {
+    test('does not cast tenant_id to uuid — the column is TEXT', async () => {
+      const { guard, captured } = makeGuard({ rows: [{ ok: 1 }] });
+      await guard.canActivate(ctxFor(TENANT));
+      expect(captured.sql).not.toMatch(/::\s*uuid/i);
+    });
+
+    test('binds the tenant id as a parameter rather than interpolating it', async () => {
+      const { guard, captured } = makeGuard({ rows: [{ ok: 1 }] });
+      await guard.canActivate(ctxFor(TENANT));
+      expect(captured.values).toContain(TENANT);
+      expect(captured.sql).not.toContain(TENANT);
+    });
+
+    test('still filters on feature, tenant and enabled', async () => {
+      const { guard, captured } = makeGuard({ rows: [{ ok: 1 }] });
+      await guard.canActivate(ctxFor(TENANT));
+      const sql = (captured.sql ?? '').toLowerCase();
+      expect(sql).toContain('intel_feature_flag');
+      expect(sql).toContain('feature =');
+      expect(sql).toContain('tenant_id =');
+      expect(sql).toContain('enabled = true');
+    });
   });
 });
