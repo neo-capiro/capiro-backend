@@ -2,6 +2,8 @@ import { describe, expect, jest, test } from '@jest/globals';
 import {
   awardTypeCodeFromLabel,
   fetchPage,
+  fetchPageWithRetry,
+  isTransientFetchError,
   syncAssistanceAwardsWindow,
   toAwardData,
   type AssistanceAwardRaw,
@@ -341,5 +343,137 @@ describe('syncAssistanceAwardsWindow', () => {
     expect(fetchPage).toHaveBeenCalledWith(
       expect.objectContaining({ agency: 'Department of the Interior', minAmount: 100000 }),
     );
+  });
+});
+
+/**
+ * Regression cover for the first live canary (2026-07-26): a bounded backfill
+ * wrote 51,000 real rows, then USAspending hung up mid-stream
+ * (`SocketError: other side closed`) at page ~510. With no retry the whole
+ * walk died, and because the counts were only returned on success the
+ * ingestion ledger recorded `rows_inserted: 0` — flatly contradicting the
+ * 51,000 rows sitting in the table.
+ */
+describe('transient-failure handling', () => {
+  const socketError = () => new Error('fetch failed'); // undici: no .status
+
+  function httpError(status: number): Error & { status: number } {
+    const e = new Error(`USAspending ${status}`) as Error & { status: number };
+    e.status = status;
+    return e;
+  }
+
+  describe('isTransientFetchError', () => {
+    test('a socket/network failure carries no status and IS retried', () => {
+      expect(isTransientFetchError(socketError())).toBe(true);
+    });
+
+    test('429 and 5xx are the server asking us to come back later', () => {
+      expect(isTransientFetchError(httpError(429))).toBe(true);
+      expect(isTransientFetchError(httpError(500))).toBe(true);
+      expect(isTransientFetchError(httpError(503))).toBe(true);
+    });
+
+    test('a non-429 4xx is a request defect and must NOT be retried', () => {
+      // Retrying a malformed filter just burns the backoff before failing
+      // identically. 422 is what USAspending returns for a bad filter body.
+      expect(isTransientFetchError(httpError(400))).toBe(false);
+      expect(isTransientFetchError(httpError(422))).toBe(false);
+    });
+  });
+
+  describe('fetchPageWithRetry', () => {
+    const ARGS: FetchPageArgs = { startDate: '2025-10-01', endDate: '2026-07-24' };
+
+    test('retries a socket drop and succeeds on a later attempt', async () => {
+      const fetchPage = jest
+        .fn<typeof import('./sync-federal-assistance-awards.js').fetchPage>()
+        .mockRejectedValueOnce(socketError())
+        .mockRejectedValueOnce(socketError())
+        .mockResolvedValueOnce({ results: [MEDICAID_BLOCK_GRANT], pageMetadata: { hasNext: false } });
+
+      const out = await fetchPageWithRetry(ARGS, { fetchPage, sleep: noSleep });
+
+      expect(out.results).toHaveLength(1);
+      expect(fetchPage).toHaveBeenCalledTimes(3);
+    });
+
+    test('gives up after the attempt budget and rethrows the last error', async () => {
+      const fetchPage = jest
+        .fn<typeof import('./sync-federal-assistance-awards.js').fetchPage>()
+        .mockRejectedValue(socketError());
+
+      await expect(fetchPageWithRetry(ARGS, { fetchPage, sleep: noSleep })).rejects.toThrow('fetch failed');
+      expect(fetchPage).toHaveBeenCalledTimes(4); // FETCH_MAX_ATTEMPTS
+    });
+
+    test('a permanent 4xx fails immediately without burning retries', async () => {
+      const fetchPage = jest
+        .fn<typeof import('./sync-federal-assistance-awards.js').fetchPage>()
+        .mockRejectedValue(httpError(422));
+
+      await expect(fetchPageWithRetry(ARGS, { fetchPage, sleep: noSleep })).rejects.toThrow('422');
+      expect(fetchPage).toHaveBeenCalledTimes(1);
+    });
+
+    test('backs off between attempts rather than hammering', async () => {
+      const waits: number[] = [];
+      const fetchPage = jest
+        .fn<typeof import('./sync-federal-assistance-awards.js').fetchPage>()
+        .mockRejectedValueOnce(socketError())
+        .mockResolvedValueOnce({ results: [], pageMetadata: { hasNext: false } });
+
+      await fetchPageWithRetry(ARGS, {
+        fetchPage,
+        sleep: async (ms: number) => {
+          waits.push(ms);
+        },
+      });
+
+      expect(waits).toEqual([1000]);
+    });
+  });
+
+  describe('syncAssistanceAwardsWindow partial-failure accounting', () => {
+    test('reports rows already committed when retries are exhausted, instead of discarding them', async () => {
+      const prisma = makePrismaMock();
+      const fetchPage = jest
+        .fn<typeof import('./sync-federal-assistance-awards.js').fetchPage>()
+        // Page 1 lands two rows...
+        .mockResolvedValueOnce({
+          results: [MEDICAID_BLOCK_GRANT, NAWCA_COOPERATIVE_AGREEMENT],
+          pageMetadata: { hasNext: true, last_record_unique_id: 352819133, last_record_sort_value: 'x' },
+        })
+        // ...then the far end hangs up, permanently.
+        .mockRejectedValue(socketError());
+
+      const counts = await syncAssistanceAwardsWindow(
+        prisma,
+        { startDate: '2025-10-01', endDate: '2026-07-24', maxPages: 50 },
+        { fetchPage, sleep: noSleep },
+      );
+
+      // The two rows are REAL and already committed — the ledger must say so.
+      expect(counts.inserted).toBe(2);
+      expect(prisma.upsertCalls).toHaveLength(2);
+      // errors > 0 is what makes runWithSyncRun record `success_with_errors`
+      // rather than a clean `success` for an incomplete window.
+      expect(counts.errors).toBeGreaterThan(0);
+    });
+
+    test('does not throw on exhausted retries — a partial window is reported, not lost', async () => {
+      const prisma = makePrismaMock();
+      const fetchPage = jest
+        .fn<typeof import('./sync-federal-assistance-awards.js').fetchPage>()
+        .mockRejectedValue(socketError());
+
+      await expect(
+        syncAssistanceAwardsWindow(
+          prisma,
+          { startDate: '2025-10-01', endDate: '2026-07-24', maxPages: 50 },
+          { fetchPage, sleep: noSleep },
+        ),
+      ).resolves.toEqual({ inserted: 0, updated: 0, skipped: 0, errors: 1 });
+    });
   });
 });
