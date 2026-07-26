@@ -18,9 +18,32 @@
  * Exit code is 0 when every due job succeeded, 1 when any remain failed — so a
  * scheduled invocation surfaces as a task failure.
  */
+import { Module } from '@nestjs/common';
+import { ConfigModule } from '@nestjs/config';
 import { NestFactory } from '@nestjs/core';
-import { AppModule } from '../src/app.module.js';
+import { AuthModule } from '../src/auth/auth.module.js';
 import { IdentityOutboxService } from '../src/auth/identity-outbox.service.js';
+import { PrismaModule } from '../src/prisma/prisma.module.js';
+
+/**
+ * Minimal context: ONLY what the drain needs (PrismaService + ClerkService +
+ * IdentityOutboxService).
+ *
+ * Deliberately NOT AppModule. Booting the full application graph in a one-off
+ * task instantiates every provider in the service, and those providers assume
+ * the SERVE task's environment. Doing so here crashed on
+ * InsightGeneratorService — "Cannot read properties of undefined (reading
+ * 'get')" — because the sync/one-off task definitions carry a narrower env than
+ * the serve task. The drain does not need any of that.
+ *
+ * ConfigModule is registered without the AppModule `validate` hook for the same
+ * reason: this task legitimately runs without the full serve-time config, and
+ * ClerkService only reads CLERK_SECRET_KEY, which every api-* task def has.
+ */
+@Module({
+  imports: [ConfigModule.forRoot({ isGlobal: true, cache: true }), PrismaModule, AuthModule],
+})
+class DrainContextModule {}
 
 async function main(): Promise<void> {
   const limitArg = process.argv[2];
@@ -29,7 +52,7 @@ async function main(): Promise<void> {
     throw new Error(`Invalid limit: ${String(limitArg)}`);
   }
 
-  const app = await NestFactory.createApplicationContext(AppModule, {
+  const app = await NestFactory.createApplicationContext(DrainContextModule, {
     logger: ['error', 'warn', 'log'],
   });
   try {
