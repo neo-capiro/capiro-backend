@@ -118,20 +118,57 @@ export class StrategyAssistantService {
     let nodes: Array<Record<string, unknown>> = [];
     let violations: Violation[] = [];
     let repairSuffix = '';
+    /*
+     * BEST-SO-FAR (bugfix). Each attempt used to overwrite `nodes` and `summary`
+     * UNCONDITIONALLY. So a first attempt that produced a usable plan with one
+     * ordering violation, followed by a repair whose model call failed or was
+     * sanitized to nothing (result.input === null => nodes []), returned ZERO
+     * nodes — and api-strategy's A7.5 guard then 422s
+     * ("Meri couldn't produce a plan from that"), throwing away a plan the model
+     * had already written. A later attempt may only REPLACE the best result when
+     * it is actually better (fewer hard errors); otherwise the best is kept.
+     */
+    let best: {
+      summary: string;
+      nodes: Array<Record<string, unknown>>;
+      violations: Violation[];
+      errorCount: number;
+    } | null = null;
     for (let attempt = 0; attempt <= MAX_REPAIRS; attempt += 1) {
+      const roundStart = Date.now();
       const result = await this.runTerminal(
         baseSystem + repairSuffix,
         userText,
         PROPOSE_STRATEGY_DRAFT_TOOL,
         ctx,
         'meriv2_strategy_draft',
+        // Force the terminal tool from the FIRST round on the draft path only.
+        // Live evidence (ai_usage_events, 2026-07-25): round 1 returned 464 output
+        // tokens of PROSE, the loop nudged, and round 2 then spent ~41s producing
+        // the real plan — total ~70s against api-strategy's 60s budget, so the
+        // finished plan was discarded. Forcing the tool collapses that wasted round.
+        // Scoped to draft: the assistant/reference/document paths keep their
+        // prose-then-nudge behaviour (and their tests).
+        true,
       );
-      summary = str(result.input?.summary) ?? result.text ?? summary;
+      const attemptSummary = str(result.input?.summary) ?? result.text ?? summary;
       const rawNodes = result.input?.nodes;
       const rawNodeCount = Array.isArray(rawNodes) ? rawNodes.length : 0;
-      nodes = sanitizeDraftNodes(rawNodes);
-      const check = verifyPlan(this.draftVerifierInput(input, nodes));
-      violations = check.violations;
+      const attemptNodes = sanitizeDraftNodes(rawNodes);
+      const check = verifyPlan(this.draftVerifierInput(input, attemptNodes));
+      this.logger.log(
+        `strategy draft attempt ${attempt + 1}/${MAX_REPAIRS + 1}: ${attemptNodes.length} node(s), ` +
+          `${check.errorCount} error(s), ${Date.now() - roundStart}ms`,
+      );
+      // Keep this attempt only if it beats what we already have.
+      if (attemptNodes.length > 0 && (best === null || check.errorCount < best.errorCount)) {
+        best = {
+          summary: attemptSummary,
+          nodes: attemptNodes,
+          violations: check.violations,
+          errorCount: check.errorCount,
+        };
+      }
       // A deliberate empty plan (model explicitly proposed zero nodes) is a clean
       // success. But sanitizeDraftNodes can strip a non-empty/malformed response
       // (missing kind/subject/title/startsOn) down to zero nodes, and a forced-finish
@@ -139,12 +176,30 @@ export class StrategyAssistantService {
       // to draft" signal, so only nodes.length === 0 short-circuits when the model
       // actually proposed zero nodes; otherwise keep repairing.
       const deliberatelyEmpty = result.input !== null && rawNodeCount === 0;
-      if (deliberatelyEmpty || (nodes.length > 0 && check.errorCount === 0)) break;
+      if (deliberatelyEmpty) {
+        // An explicit zero-node proposal is authoritative — surface it as-is.
+        summary = attemptSummary;
+        nodes = attemptNodes;
+        violations = check.violations;
+        return {
+          summary,
+          nodes,
+          provenance: pack.provenance,
+          violations,
+          groundingHealth: mergeGroundingHealth(pack.health, input.stewardHealth),
+        };
+      }
+      if (attemptNodes.length > 0 && check.errorCount === 0) break;
       const errs = check.violations
         .filter((v) => v.severity === 'error')
         .map((v) => `- ${v.message}`);
       this.logger.debug(`draft repair ${attempt + 1}: ${check.errorCount} error(s)`);
       repairSuffix = `\n\n# FIX THESE PROBLEMS\nYour previous plan had impossible ordering/calendar issues. Re-draft correcting ALL of these:\n${errs.join('\n')}`;
+    }
+    if (best) {
+      summary = best.summary;
+      nodes = best.nodes;
+      violations = best.violations;
     }
     return {
       summary,
@@ -297,6 +352,14 @@ export class StrategyAssistantService {
     tool: { name: string },
     ctx: MeriContext,
     workflow: string,
+    /**
+     * When true, the terminal tool is FORCED from the very first round instead of
+     * letting the model reply in prose and getting nudged. Opt-in per caller: the
+     * draft path passes true (a wasted prose round there costs ~20s of a 60s
+     * end-to-end budget), while the assistant/reference/document paths keep the
+     * prose-then-nudge behaviour their tests pin.
+     */
+    forceToolFromFirstRound = false,
   ): Promise<TerminalResult> {
     const messages: Array<{ role: 'user' | 'assistant'; content: unknown }> = [
       { role: 'user', content: userText },
@@ -305,21 +368,34 @@ export class StrategyAssistantService {
 
     for (let round = 0; round < MAX_ROUNDS; round += 1) {
       let resp: ToolLoopResponse;
+      const callStart = Date.now();
       try {
         resp = await this.llm.completeWithTools({
           system,
           messages,
           tools: [tool as AnthropicToolSchema],
+          ...(forceToolFromFirstRound
+            ? { toolChoice: { type: 'tool' as const, name: tool.name } }
+            : {}),
           maxTokens: MAX_TOKENS,
           timeoutMs: this.callTimeoutMs,
         });
       } catch (e) {
-        this.logger.warn(`strategy ${workflow} model call failed: ${(e as Error).message}`);
+        this.logger.warn(
+          `strategy ${workflow} model call failed after ${Date.now() - callStart}ms: ${(e as Error).message}`,
+        );
         return {
           input: null,
           text: 'Sorry — I hit an error reaching the model. Please try again.',
         };
       }
+      // At LOG level (production) so a slow round is diagnosable without flipping
+      // MERIV2_LOG_LEVEL to debug — the gap that made this class of timeout
+      // invisible in the 2026-07-25 strategy-draft incident.
+      this.logger.log(
+        `strategy ${workflow} round ${round + 1}/${MAX_ROUNDS}: ${Date.now() - callStart}ms` +
+          `${resp.model ? ` model=${resp.model}` : ''}`,
+      );
       void this.meterRound(ctx, resp, workflow);
 
       const content = resp.content as ContentBlock[];

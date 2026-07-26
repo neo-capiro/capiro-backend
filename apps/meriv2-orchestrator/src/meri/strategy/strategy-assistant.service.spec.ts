@@ -91,6 +91,141 @@ const BASE_DRAFT_INPUT: StrategyDraftInput = {
   goal: 'Win the FY28 plus-up',
 };
 
+describe('StrategyAssistantService.draft — best-so-far + forced terminal tool', () => {
+  /*
+   * Regression tests for the 2026-07-25 strategy-draft incident.
+   *
+   * BUG 1 (wrong answer): every repair attempt overwrote `nodes` unconditionally,
+   * so a first attempt that produced a usable plan with one violation followed by
+   * a repair that FAILED (model error -> input:null) returned ZERO nodes. Downstream,
+   * api-strategy's A7.5 guard turns zero nodes into a 422
+   * ("Meri couldn't produce a plan from that"), so a plan the model had already
+   * written was thrown away and the user was told nothing could be drafted.
+   *
+   * BUG 2 (latency): the draft loop let the model reply in PROSE on round 1 and then
+   * nudged it, costing a whole extra LLM round (~20s live) inside a 60s end-to-end
+   * budget. The draft path now forces the terminal tool from the first round.
+   */
+
+  /** Node 0 depends on node 1 which starts LATER — a real verifier dep-order error. */
+  const violatingNodes = [
+    {
+      kind: 'action',
+      subject: 'deliverable',
+      title: 'File the funding request memo',
+      startsOn: '2027-01-05',
+      dependsOn: [1],
+    },
+    {
+      kind: 'action',
+      subject: 'milestone',
+      title: 'Host the strategy kickoff',
+      startsOn: '2027-04-01',
+    },
+  ];
+
+  it('KEEPS a usable first-attempt plan when every later repair returns no tool call', async () => {
+    const { svc, completeWithTools } = build();
+    // Attempt 1: a real plan, but with one hard verifier error -> triggers repair.
+    completeWithTools.mockResolvedValueOnce(
+      toolResp('propose_strategy_draft', { summary: 'First pass.', nodes: violatingNodes }),
+    );
+    // Every subsequent call is prose-only, so each repair attempt exhausts its
+    // rounds and force-finishes with input:null (the failure shape that used to
+    // wipe `nodes` to []).
+    completeWithTools.mockImplementation(async () => textResp('I am not going to call the tool.'));
+
+    const result = await svc.draft(CTX, BASE_DRAFT_INPUT);
+
+    // The pre-fix behaviour was nodes.length === 0 -> a 422 for the user.
+    expect(result.nodes).toHaveLength(2);
+    expect(result.summary).toBe('First pass.');
+    // The surviving plan still reports its violations honestly — api-strategy
+    // re-verifies authoritatively (A6); this is a degraded plan, not a clean one.
+    expect(result.violations.some((v) => v.severity === 'error')).toBe(true);
+  });
+
+  it('PREFERS a later attempt only when it has strictly fewer hard errors', async () => {
+    const { svc, completeWithTools } = build();
+    completeWithTools
+      .mockResolvedValueOnce(
+        toolResp('propose_strategy_draft', { summary: 'Worse pass.', nodes: violatingNodes }),
+      )
+      .mockResolvedValueOnce(
+        toolResp('propose_strategy_draft', {
+          summary: 'Better pass.',
+          nodes: [
+            {
+              kind: 'action',
+              subject: 'milestone',
+              title: 'Host the strategy kickoff',
+              startsOn: '2027-04-01',
+            },
+            {
+              kind: 'action',
+              subject: 'deliverable',
+              title: 'File the funding request memo',
+              startsOn: '2027-05-01',
+              dependsOn: [0],
+            },
+          ],
+        }),
+      );
+
+    const result = await svc.draft(CTX, BASE_DRAFT_INPUT);
+
+    expect(result.summary).toBe('Better pass.');
+    expect(result.violations).toEqual([]);
+  });
+
+  it('FORCES the terminal tool from the first round on the draft path (no wasted prose round)', async () => {
+    const { svc, completeWithTools } = build();
+    completeWithTools.mockResolvedValueOnce(
+      toolResp('propose_strategy_draft', {
+        summary: 'Clean plan.',
+        nodes: [
+          {
+            kind: 'action',
+            subject: 'deliverable',
+            title: 'Draft the ask memo',
+            startsOn: '2027-01-15',
+          },
+        ],
+      }),
+    );
+
+    await svc.draft(CTX, BASE_DRAFT_INPUT);
+
+    const firstCall = completeWithTools.mock.calls[0]![0] as { toolChoice?: unknown };
+    expect(firstCall.toolChoice).toEqual({ type: 'tool', name: 'propose_strategy_draft' });
+  });
+
+  it('does NOT force the tool on the assistant path — its prose-then-nudge behaviour is unchanged', async () => {
+    const { svc, completeWithTools } = build();
+    completeWithTools.mockResolvedValueOnce(
+      toolResp('propose_plan_edits', { reply: 'Added.', edits: [] }),
+    );
+
+    await svc.assistant(CTX, ASSISTANT_INPUT);
+
+    const firstCall = completeWithTools.mock.calls[0]![0] as { toolChoice?: unknown };
+    expect(firstCall.toolChoice).toBeUndefined();
+  });
+
+  it('still returns a DELIBERATE zero-node plan as-is (not treated as a failure to preserve)', async () => {
+    const { svc, completeWithTools } = build();
+    completeWithTools.mockResolvedValueOnce(
+      toolResp('propose_strategy_draft', { summary: 'Nothing to plan here.', nodes: [] }),
+    );
+
+    const result = await svc.draft(CTX, BASE_DRAFT_INPUT);
+
+    expect(completeWithTools).toHaveBeenCalledTimes(1);
+    expect(result.nodes).toEqual([]);
+    expect(result.summary).toBe('Nothing to plan here.');
+  });
+});
+
 describe('StrategyAssistantService.draft — A5 repair loop', () => {
   it('returns after ONE completeWithTools call when the first plan has zero verifier errors', async () => {
     const { svc, completeWithTools } = build();
